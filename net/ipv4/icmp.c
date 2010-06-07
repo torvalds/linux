@@ -925,6 +925,7 @@ static void icmp_address(struct sk_buff *skb)
 /*
  * RFC1812 (4.3.3.9).	A router SHOULD listen all replies, and complain
  *			loudly if an inconsistency is found.
+ * called with rcu_read_lock()
  */
 
 static void icmp_address_reply(struct sk_buff *skb)
@@ -935,12 +936,12 @@ static void icmp_address_reply(struct sk_buff *skb)
 	struct in_ifaddr *ifa;
 
 	if (skb->len < 4 || !(rt->rt_flags&RTCF_DIRECTSRC))
-		goto out;
+		return;
 
-	in_dev = in_dev_get(dev);
+	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
-		goto out;
-	rcu_read_lock();
+		return;
+
 	if (in_dev->ifa_list &&
 	    IN_DEV_LOG_MARTIANS(in_dev) &&
 	    IN_DEV_FORWARD(in_dev)) {
@@ -958,9 +959,6 @@ static void icmp_address_reply(struct sk_buff *skb)
 			       mp, dev->name, &rt->rt_src);
 		}
 	}
-	rcu_read_unlock();
-	in_dev_put(in_dev);
-out:;
 }
 
 static void icmp_discard(struct sk_buff *skb)
