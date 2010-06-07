@@ -74,6 +74,7 @@ extern void *open_dir(char *path, int *err_out);
 extern char *read_dir(void *stream, unsigned long long *pos,
 		      unsigned long long *ino_out, int *len_out);
 extern void close_file(void *stream);
+extern int replace_file(int oldfd, int fd);
 extern void close_dir(void *stream);
 extern int read_file(int fd, unsigned long long *offset, char *buf, int len);
 extern int write_file(int fd, unsigned long long *offset, const char *buf,

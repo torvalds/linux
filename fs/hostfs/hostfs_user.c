@@ -160,6 +160,11 @@ int fsync_file(int fd, int datasync)
 	return 0;
 }
 
+int replace_file(int oldfd, int fd)
+{
+	return dup2(oldfd, fd);
+}
+
 void close_file(void *stream)
 {
 	close(*((int *) stream));

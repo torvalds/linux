@@ -302,27 +302,22 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 
 int hostfs_file_open(struct inode *ino, struct file *file)
 {
+	static DEFINE_MUTEX(open_mutex);
 	char *name;
 	fmode_t mode = 0;
+	int err;
 	int r = 0, w = 0, fd;
 
 	mode = file->f_mode & (FMODE_READ | FMODE_WRITE);
 	if ((mode & HOSTFS_I(ino)->mode) == mode)
 		return 0;
 
-	/*
-	 * The file may already have been opened, but with the wrong access,
-	 * so this resets things and reopens the file with the new access.
-	 */
-	if (HOSTFS_I(ino)->fd != -1) {
-		close_file(&HOSTFS_I(ino)->fd);
-		HOSTFS_I(ino)->fd = -1;
-	}
+	mode |= HOSTFS_I(ino)->mode;
 
-	HOSTFS_I(ino)->mode |= mode;
-	if (HOSTFS_I(ino)->mode & FMODE_READ)
+retry:
+	if (mode & FMODE_READ)
 		r = 1;
-	if (HOSTFS_I(ino)->mode & FMODE_WRITE)
+	if (mode & FMODE_WRITE)
 		w = 1;
 	if (w)
 		r = 1;
@@ -335,7 +330,31 @@ int hostfs_file_open(struct inode *ino, struct file *file)
 	__putname(name);
 	if (fd < 0)
 		return fd;
-	FILE_HOSTFS_I(file)->fd = fd;
+
+	mutex_lock(&open_mutex);
+	/* somebody else had handled it first? */
+	if ((mode & HOSTFS_I(ino)->mode) == mode) {
+		mutex_unlock(&open_mutex);
+		return 0;
+	}
+	if ((mode | HOSTFS_I(ino)->mode) != mode) {
+		mode |= HOSTFS_I(ino)->mode;
+		mutex_unlock(&open_mutex);
+		close_file(&fd);
+		goto retry;
+	}
+	if (HOSTFS_I(ino)->fd == -1) {
+		HOSTFS_I(ino)->fd = fd;
+	} else {
+		err = replace_file(fd, HOSTFS_I(ino)->fd);
+		close_file(&fd);
+		if (err < 0) {
+			mutex_unlock(&open_mutex);
+			return err;
+		}
+	}
+	HOSTFS_I(ino)->mode = mode;
+	mutex_unlock(&open_mutex);
 
 	return 0;
 }
