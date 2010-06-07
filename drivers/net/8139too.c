@@ -860,6 +860,7 @@ retry:
 		}
 
 	/* if unknown chip, assume array element #0, original RTL-8139 in this case */
+	i = 0;
 	dev_dbg(&pdev->dev, "unknown chip version, assuming RTL-8139\n");
 	dev_dbg(&pdev->dev, "TxConfig = 0x%lx\n", RTL_R32 (TxConfig));
 	tp->chipset = 0;
