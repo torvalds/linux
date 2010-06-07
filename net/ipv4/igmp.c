@@ -916,18 +916,19 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	read_unlock(&in_dev->mc_list_lock);
 }
 
+/* called in rcu_read_lock() section */
 int igmp_rcv(struct sk_buff *skb)
 {
 	/* This basically follows the spec line by line -- see RFC1112 */
 	struct igmphdr *ih;
-	struct in_device *in_dev = in_dev_get(skb->dev);
+	struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
 	int len = skb->len;
 
 	if (in_dev == NULL)
 		goto drop;
 
 	if (!pskb_may_pull(skb, sizeof(struct igmphdr)))
-		goto drop_ref;
+		goto drop;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -937,7 +938,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_NONE:
 		skb->csum = 0;
 		if (__skb_checksum_complete(skb))
-			goto drop_ref;
+			goto drop;
 	}
 
 	ih = igmp_hdr(skb);
@@ -957,7 +958,6 @@ int igmp_rcv(struct sk_buff *skb)
 		break;
 	case IGMP_PIM:
 #ifdef CONFIG_IP_PIMSM_V1
-		in_dev_put(in_dev);
 		return pim_rcv_v1(skb);
 #endif
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
@@ -971,8 +971,6 @@ int igmp_rcv(struct sk_buff *skb)
 		break;
 	}
 
-drop_ref:
-	in_dev_put(in_dev);
 drop:
 	kfree_skb(skb);
 	return 0;
