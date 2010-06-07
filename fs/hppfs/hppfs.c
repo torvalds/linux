@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/types.h>
+#include <linux/pid_namespace.h>
 #include <asm/uaccess.h>
 #include "os.h"
 
