@@ -5563,9 +5563,12 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	/* Reset the DFT_HBA_Q_DEPTH to the max xri  */
-	if (phba->cfg_hba_queue_depth > (phba->sli4_hba.max_cfg_param.max_xri))
+	if (phba->cfg_hba_queue_depth >
+		(phba->sli4_hba.max_cfg_param.max_xri -
+			lpfc_sli4_get_els_iocb_cnt(phba)))
 		phba->cfg_hba_queue_depth =
-				phba->sli4_hba.max_cfg_param.max_xri;
+			phba->sli4_hba.max_cfg_param.max_xri -
+				lpfc_sli4_get_els_iocb_cnt(phba);
 	return rc;
 }
 
