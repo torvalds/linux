@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
+#include <linux/namei.h>
 #include "hostfs.h"
 #include "init.h"
 #include "kern.h"
@@ -48,7 +49,7 @@ static int append = 0;
 
 static const struct inode_operations hostfs_iops;
 static const struct inode_operations hostfs_dir_iops;
-static const struct address_space_operations hostfs_link_aops;
+static const struct inode_operations hostfs_link_iops;
 
 #ifndef MODULE
 static int __init hostfs_args(char *options, int *add)
@@ -471,8 +472,7 @@ static int read_name(struct inode *ino, char *name)
 
 	switch (st.mode & S_IFMT) {
 	case S_IFLNK:
-		ino->i_op = &page_symlink_inode_operations;
-		ino->i_mapping->a_ops = &hostfs_link_aops;
+		ino->i_op = &hostfs_link_iops;
 		break;
 	case S_IFDIR:
 		ino->i_op = &hostfs_dir_iops;
@@ -835,32 +835,41 @@ static const struct inode_operations hostfs_dir_iops = {
 	.setattr	= hostfs_setattr,
 };
 
-int hostfs_link_readpage(struct file *file, struct page *page)
+static void *hostfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	char *buffer, *name;
-	int err;
-
-	buffer = kmap(page);
-	name = inode_name(page->mapping->host);
-	if (name == NULL)
-		return -ENOMEM;
-	err = hostfs_do_readlink(name, buffer, PAGE_CACHE_SIZE);
-	kfree(name);
-	if (err == PAGE_CACHE_SIZE)
-		err = -E2BIG;
-	else if (err > 0) {
-		flush_dcache_page(page);
-		SetPageUptodate(page);
-		if (PageError(page)) ClearPageError(page);
-		err = 0;
+	char *link = __getname();
+	if (link) {
+		char *path = dentry_name(dentry);
+		int err = -ENOMEM;
+		if (path) {
+			int err = hostfs_do_readlink(path, link, PATH_MAX);
+			if (err == PATH_MAX)
+				err = -E2BIG;
+			kfree(path);
+		}
+		if (err < 0) {
+			__putname(link);
+			link = ERR_PTR(err);
+		}
+	} else {
+		link = ERR_PTR(-ENOMEM);
 	}
-	kunmap(page);
-	unlock_page(page);
-	return err;
+
+	nd_set_link(nd, link);
+	return NULL;
 }
 
-static const struct address_space_operations hostfs_link_aops = {
-	.readpage	= hostfs_link_readpage,
+static void hostfs_put_link(struct dentry *dentry, struct nameidata *nd, void *cookie)
+{
+	char *s = nd_get_link(nd);
+	if (!IS_ERR(s))
+		__putname(s);
+}
+
+static const struct inode_operations hostfs_link_iops = {
+	.readlink	= generic_readlink,
+	.follow_link	= hostfs_follow_link,
+	.put_link	= hostfs_put_link,
 };
 
 static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
