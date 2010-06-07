@@ -365,6 +365,11 @@ static inline bool cpu_has_vmx_invvpid_single(void)
 	return vmx_capability.vpid & VMX_VPID_EXTENT_SINGLE_CONTEXT_BIT;
 }
 
+static inline bool cpu_has_vmx_invvpid_global(void)
+{
+	return vmx_capability.vpid & VMX_VPID_EXTENT_GLOBAL_CONTEXT_BIT;
+}
+
 static inline bool cpu_has_vmx_ept(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
@@ -511,6 +516,20 @@ static inline void vpid_sync_vcpu_all(struct vcpu_vmx *vmx)
 
 	if (cpu_has_vmx_invvpid_single())
 		__invvpid(VMX_VPID_EXTENT_SINGLE_CONTEXT, vmx->vpid, 0);
+}
+
+static inline void vpid_sync_vcpu_global(void)
+{
+	if (cpu_has_vmx_invvpid_global())
+		__invvpid(VMX_VPID_EXTENT_ALL_CONTEXT, 0, 0);
+}
+
+static inline void vpid_sync_context(struct vcpu_vmx *vmx)
+{
+	if (cpu_has_vmx_invvpid_single())
+		vpid_sync_vcpu_all(vmx);
+	else
+		vpid_sync_vcpu_global();
 }
 
 static inline void ept_sync_global(void)
@@ -1800,7 +1819,7 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 static void vmx_flush_tlb(struct kvm_vcpu *vcpu)
 {
-	vpid_sync_vcpu_all(to_vmx(vcpu));
+	vpid_sync_context(to_vmx(vcpu));
 	if (enable_ept)
 		ept_sync_context(construct_eptp(vcpu->arch.mmu.root_hpa));
 }
@@ -2756,7 +2775,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx_fpu_activate(&vmx->vcpu);
 	update_exception_bitmap(&vmx->vcpu);
 
-	vpid_sync_vcpu_all(vmx);
+	vpid_sync_context(vmx);
 
 	ret = 0;
 
