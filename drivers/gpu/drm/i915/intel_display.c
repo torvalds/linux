@@ -4897,19 +4897,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
-	if (ret != 0) {
-		mutex_unlock(&dev->struct_mutex);
-
-		spin_lock_irqsave(&dev->event_lock, flags);
-		intel_crtc->unpin_work = NULL;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-
-		kfree(work);
-
-		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
-				 to_intel_bo(obj));
-		return ret;
-	}
+	if (ret)
+		goto cleanup_work;
 
 	/* Reference the objects for the scheduled work. */
 	drm_gem_object_reference(work->old_fb_obj);
@@ -4917,7 +4906,11 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	crtc->fb = fb;
 	i915_gem_object_flush_write_domain(obj);
-	drm_vblank_get(dev, intel_crtc->pipe);
+
+	ret = drm_vblank_get(dev, intel_crtc->pipe);
+	if (ret)
+		goto cleanup_objs;
+
 	obj_priv = to_intel_bo(obj);
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
@@ -4954,6 +4947,20 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	trace_i915_flip_request(intel_crtc->plane, obj);
 
 	return 0;
+
+cleanup_objs:
+	drm_gem_object_unreference(work->old_fb_obj);
+	drm_gem_object_unreference(obj);
+cleanup_work:
+	mutex_unlock(&dev->struct_mutex);
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	intel_crtc->unpin_work = NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	kfree(work);
+
+	return ret;
 }
 
 static const struct drm_crtc_helper_funcs intel_helper_funcs = {
