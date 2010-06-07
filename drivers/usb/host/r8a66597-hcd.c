@@ -1065,7 +1065,7 @@ static void r8a66597_usb_connect(struct r8a66597 *r8a66597, int port)
 	else if (speed == LSMODE)
 		rh->port |= USB_PORT_STAT_LOW_SPEED;
 
-	rh->port &= USB_PORT_STAT_RESET;
+	rh->port &= ~USB_PORT_STAT_RESET;
 	rh->port |= USB_PORT_STAT_ENABLE;
 }
 
