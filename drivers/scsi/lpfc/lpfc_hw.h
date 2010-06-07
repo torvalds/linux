@@ -3014,18 +3014,10 @@ struct sli3_pgp {
 	uint32_t hbq_get[16];
 };
 
-struct sli3_inb_pgp {
-	uint32_t ha_copy;
-	uint32_t counter;
-	struct lpfc_pgp port[MAX_RINGS];
-	uint32_t hbq_get[16];
-};
-
 union sli_var {
 	struct sli2_desc	s2;
 	struct sli3_desc	s3;
 	struct sli3_pgp		s3_pgp;
-	struct sli3_inb_pgp	s3_inb_pgp;
 };
 
 typedef struct {

@@ -621,6 +621,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 /**
  * lpfc_hba_init_link - Initialize the FC link
  * @phba: pointer to lpfc hba data structure.
+ * @flag: mailbox command issue mode - either MBX_POLL or MBX_NOWAIT
  *
  * This routine will issue the INIT_LINK mailbox command call.
  * It is available to other drivers through the lpfc_hba data
@@ -632,7 +633,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
  *		Any other value - error
  **/
 int
-lpfc_hba_init_link(struct lpfc_hba *phba)
+lpfc_hba_init_link(struct lpfc_hba *phba, uint32_t flag)
 {
 	struct lpfc_vport *vport = phba->pport;
 	LPFC_MBOXQ_t *pmb;
@@ -651,7 +652,7 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
 		phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	lpfc_set_loopback_flag(phba);
-	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	rc = lpfc_sli_issue_mbox(phba, pmb, flag);
 	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"0498 Adapter failed to init, mbxCmd x%x "
@@ -664,17 +665,21 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
 		writel(0xffffffff, phba->HAregaddr);
 		readl(phba->HAregaddr); /* flush */
 		phba->link_state = LPFC_HBA_ERROR;
-		if (rc != MBX_BUSY)
+		if (rc != MBX_BUSY || flag == MBX_POLL)
 			mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
 	}
 	phba->cfg_suppress_link_up = LPFC_INITIALIZE_LINK;
+	if (flag == MBX_POLL)
+		mempool_free(pmb, phba->mbox_mem_pool);
 
 	return 0;
 }
 
 /**
  * lpfc_hba_down_link - this routine downs the FC link
+ * @phba: pointer to lpfc hba data structure.
+ * @flag: mailbox command issue mode - either MBX_POLL or MBX_NOWAIT
  *
  * This routine will issue the DOWN_LINK mailbox command call.
  * It is available to other drivers through the lpfc_hba data
@@ -685,7 +690,7 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
  *		Any other value - error
  **/
 int
-lpfc_hba_down_link(struct lpfc_hba *phba)
+lpfc_hba_down_link(struct lpfc_hba *phba, uint32_t flag)
 {
 	LPFC_MBOXQ_t *pmb;
 	int rc;
@@ -701,7 +706,7 @@ lpfc_hba_down_link(struct lpfc_hba *phba)
 		"0491 Adapter Link is disabled.\n");
 	lpfc_down_link(phba, pmb);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+	rc = lpfc_sli_issue_mbox(phba, pmb, flag);
 	if ((rc != MBX_SUCCESS) && (rc != MBX_BUSY)) {
 		lpfc_printf_log(phba,
 		KERN_ERR, LOG_INIT,
@@ -711,6 +716,9 @@ lpfc_hba_down_link(struct lpfc_hba *phba)
 		mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
 	}
+	if (flag == MBX_POLL)
+		mempool_free(pmb, phba->mbox_mem_pool);
+
 	return 0;
 }
 
@@ -2279,10 +2287,32 @@ static void
 lpfc_block_mgmt_io(struct lpfc_hba * phba)
 {
 	unsigned long iflag;
+	uint8_t actcmd = MBX_HEARTBEAT;
+	unsigned long timeout;
+
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	phba->sli.sli_flag |= LPFC_BLOCK_MGMT_IO;
+	if (phba->sli.mbox_active)
+		actcmd = phba->sli.mbox_active->u.mb.mbxCommand;
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	/* Determine how long we might wait for the active mailbox
+	 * command to be gracefully completed by firmware.
+	 */
+	timeout = msecs_to_jiffies(lpfc_mbox_tmo_val(phba, actcmd) * 1000) +
+			jiffies;
+	/* Wait for the outstnading mailbox command to complete */
+	while (phba->sli.mbox_active) {
+		/* Check active mailbox complete status every 2ms */
+		msleep(2);
+		if (time_after(jiffies, timeout)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2813 Mgmt IO is Blocked %x "
+				"- mbox cmd %x still active\n",
+				phba->sli.sli_flag, actcmd);
+			break;
+		}
+	}
 }
 
 /**
