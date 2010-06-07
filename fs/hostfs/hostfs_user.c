@@ -53,36 +53,6 @@ int stat_file(const char *path, struct hostfs_stat *p, int fd)
 	return 0;
 }
 
-int file_type(const char *path, int *maj, int *min)
-{
- 	struct stat64 buf;
-
-	if (lstat64(path, &buf) < 0)
-		return -errno;
-	/*
-	 * We cannot pass rdev as is because glibc and the kernel disagree
-	 * about its definition.
-	 */
-	if (maj != NULL)
-		*maj = os_major(buf.st_rdev);
-	if (min != NULL)
-		*min = os_minor(buf.st_rdev);
-
-	if (S_ISDIR(buf.st_mode))
-		return OS_TYPE_DIR;
-	else if (S_ISLNK(buf.st_mode))
-		return OS_TYPE_SYMLINK;
-	else if (S_ISCHR(buf.st_mode))
-		return OS_TYPE_CHARDEV;
-	else if (S_ISBLK(buf.st_mode))
-		return OS_TYPE_BLOCKDEV;
-	else if (S_ISFIFO(buf.st_mode))
-		return OS_TYPE_FIFO;
-	else if (S_ISSOCK(buf.st_mode))
-		return OS_TYPE_SOCK;
-	else return OS_TYPE_FILE;
-}
-
 int access_file(char *path, int r, int w, int x)
 {
 	int mode = 0;

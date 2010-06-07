@@ -129,26 +129,6 @@ static char *inode_name(struct inode *ino, int extra)
 	return dentry_name(dentry, extra);
 }
 
-static int read_name(struct inode *ino, char *name)
-{
-	struct hostfs_stat st;
-	int err = stat_file(name, &st, -1);
-	if (err)
-		return err;
-
-	ino->i_ino = st.ino;
-	ino->i_mode = st.mode;
-	ino->i_nlink = st.nlink;
-	ino->i_uid = st.uid;
-	ino->i_gid = st.gid;
-	ino->i_atime = st.atime;
-	ino->i_mtime = st.mtime;
-	ino->i_ctime = st.ctime;
-	ino->i_size = st.size;
-	ino->i_blocks = st.blocks;
-	return 0;
-}
-
 static char *follow_link(char *link)
 {
 	int len, n;
@@ -478,43 +458,51 @@ static const struct address_space_operations hostfs_aops = {
 	.write_end	= hostfs_write_end,
 };
 
-static void init_inode(struct inode *inode, char *path)
+static int read_name(struct inode *ino, char *name)
 {
-	int type;
-	int maj, min;
-	dev_t rdev = 0;
+	dev_t rdev;
+	struct hostfs_stat st;
+	int err = stat_file(name, &st, -1);
+	if (err)
+		return err;
 
-	type = file_type(path, &maj, &min);
 	/* Reencode maj and min with the kernel encoding.*/
-	rdev = MKDEV(maj, min);
+	rdev = MKDEV(st.maj, st.min);
 
-	if (type == OS_TYPE_SYMLINK)
-		inode->i_op = &page_symlink_inode_operations;
-	else if (type == OS_TYPE_DIR)
-		inode->i_op = &hostfs_dir_iops;
-	else inode->i_op = &hostfs_iops;
+	switch (st.mode & S_IFMT) {
+	case S_IFLNK:
+		ino->i_op = &page_symlink_inode_operations;
+		ino->i_mapping->a_ops = &hostfs_link_aops;
+		break;
+	case S_IFDIR:
+		ino->i_op = &hostfs_dir_iops;
+		ino->i_fop = &hostfs_dir_fops;
+		break;
+	case S_IFCHR:
+	case S_IFBLK:
+	case S_IFIFO:
+	case S_IFSOCK:
+		init_special_inode(ino, st.mode & S_IFMT, rdev);
+		ino->i_op = &hostfs_iops;
+		break;
 
-	if (type == OS_TYPE_DIR) inode->i_fop = &hostfs_dir_fops;
-	else inode->i_fop = &hostfs_file_fops;
-
-	if (type == OS_TYPE_SYMLINK)
-		inode->i_mapping->a_ops = &hostfs_link_aops;
-	else inode->i_mapping->a_ops = &hostfs_aops;
-
-	switch (type) {
-	case OS_TYPE_CHARDEV:
-		init_special_inode(inode, S_IFCHR, rdev);
-		break;
-	case OS_TYPE_BLOCKDEV:
-		init_special_inode(inode, S_IFBLK, rdev);
-		break;
-	case OS_TYPE_FIFO:
-		init_special_inode(inode, S_IFIFO, 0);
-		break;
-	case OS_TYPE_SOCK:
-		init_special_inode(inode, S_IFSOCK, 0);
-		break;
+	default:
+		ino->i_op = &hostfs_iops;
+		ino->i_fop = &hostfs_file_fops;
+		ino->i_mapping->a_ops = &hostfs_aops;
 	}
+
+	ino->i_ino = st.ino;
+	ino->i_mode = st.mode;
+	ino->i_nlink = st.nlink;
+	ino->i_uid = st.uid;
+	ino->i_gid = st.gid;
+	ino->i_atime = st.atime;
+	ino->i_mtime = st.mtime;
+	ino->i_ctime = st.ctime;
+	ino->i_size = st.size;
+	ino->i_blocks = st.blocks;
+	return 0;
 }
 
 int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
@@ -539,12 +527,10 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
 			 mode & S_IRUSR, mode & S_IWUSR, mode & S_IXUSR,
 			 mode & S_IRGRP, mode & S_IWGRP, mode & S_IXGRP,
 			 mode & S_IROTH, mode & S_IWOTH, mode & S_IXOTH);
-	if (fd < 0) {
+	if (fd < 0)
 		error = fd;
-	} else {
+	else
 		error = read_name(inode, name);
-		init_inode(inode, name);
-	}
 
 	kfree(name);
 	if (error)
@@ -580,7 +566,6 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 		goto out_put;
 
 	err = read_name(inode, name);
-	init_inode(inode, name);
 
 	kfree(name);
 	if (err == -ENOENT) {
@@ -707,7 +692,6 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		goto out_free;
 
 	err = read_name(inode, name);
-	init_inode(inode, name);
 	if (err)
 		goto out_put;
 	kfree(name);
@@ -922,21 +906,20 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	if (!root_inode)
 		goto out;
 
-	root_inode->i_op = &hostfs_dir_iops;
-	root_inode->i_fop = &hostfs_dir_fops;
+	err = read_name(root_inode, host_root_path);
+	if (err)
+		goto out_put;
 
-	if (file_type(host_root_path, NULL, NULL) == OS_TYPE_SYMLINK) {
+	if (S_ISLNK(root_inode->i_mode)) {
 		char *name = follow_link(host_root_path);
 		if (IS_ERR(name))
 			err = PTR_ERR(name);
 		else
 			err = read_name(root_inode, name);
 		kfree(name);
-	} else {
-		err = read_name(root_inode, host_root_path);
+		if (err)
+			goto out_put;
 	}
-	if (err)
-		goto out_put;
 
 	err = -ENOMEM;
 	sb->s_root = d_alloc_root(root_inode);
