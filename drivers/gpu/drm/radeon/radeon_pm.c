@@ -368,15 +368,18 @@ void radeon_pm_suspend(struct radeon_device *rdev)
 {
 	mutex_lock(&rdev->pm.mutex);
 	cancel_delayed_work(&rdev->pm.dynpm_idle_work);
-	rdev->pm.current_power_state_index = -1;
-	rdev->pm.current_clock_mode_index = -1;
-	rdev->pm.current_sclk = 0;
-	rdev->pm.current_mclk = 0;
 	mutex_unlock(&rdev->pm.mutex);
 }
 
 void radeon_pm_resume(struct radeon_device *rdev)
 {
+	/* asic init will reset the default power state */
+	mutex_lock(&rdev->pm.mutex);
+	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
+	rdev->pm.current_clock_mode_index = 0;
+	rdev->pm.current_sclk = rdev->clock.default_sclk;
+	rdev->pm.current_mclk = rdev->clock.default_mclk;
+	mutex_unlock(&rdev->pm.mutex);
 	radeon_pm_compute_clocks(rdev);
 }
 
@@ -385,12 +388,13 @@ int radeon_pm_init(struct radeon_device *rdev)
 	int ret;
 	/* default to profile method */
 	rdev->pm.pm_method = PM_METHOD_PROFILE;
+	rdev->pm.profile = PM_PROFILE_DEFAULT;
 	rdev->pm.dynpm_state = DYNPM_STATE_DISABLED;
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
 	rdev->pm.dynpm_can_upclock = true;
 	rdev->pm.dynpm_can_downclock = true;
-	rdev->pm.current_sclk = 0;
-	rdev->pm.current_mclk = 0;
+	rdev->pm.current_sclk = rdev->clock.default_sclk;
+	rdev->pm.current_mclk = rdev->clock.default_mclk;
 
 	if (rdev->bios) {
 		if (rdev->is_atom_bios)
@@ -398,19 +402,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 		else
 			radeon_combios_get_power_modes(rdev);
 		radeon_pm_init_profile(rdev);
-		rdev->pm.current_power_state_index = -1;
-		rdev->pm.current_clock_mode_index = -1;
 	}
 
 	if (rdev->pm.num_power_states > 1) {
-		if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
-			mutex_lock(&rdev->pm.mutex);
-			rdev->pm.profile = PM_PROFILE_DEFAULT;
-			radeon_pm_update_profile(rdev);
-			radeon_pm_set_clocks(rdev);
-			mutex_unlock(&rdev->pm.mutex);
-		}
-
 		/* where's the best place to put these? */
 		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
 		if (ret)
