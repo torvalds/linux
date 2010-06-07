@@ -1781,6 +1781,37 @@ ath5k_hw_set_fast_div(struct ath5k_hw *ah, u8 ee_mode, bool enable)
 	}
 }
 
+void
+ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode)
+{
+	u8 ant0, ant1;
+
+	/*
+	 * In case a fixed antenna was set as default
+	 * use the same switch table twice.
+	 */
+	if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_A)
+		ant0 = ant1 = AR5K_ANT_SWTABLE_A;
+	else if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_B)
+		ant0 = ant1 = AR5K_ANT_SWTABLE_B;
+	else {
+		ant0 = AR5K_ANT_SWTABLE_A;
+		ant1 = AR5K_ANT_SWTABLE_B;
+	}
+
+	/* Set antenna idle switch table */
+	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_ANT_CTL,
+			AR5K_PHY_ANT_CTL_SWTABLE_IDLE,
+			(ah->ah_ant_ctl[ee_mode][AR5K_ANT_CTL] |
+			AR5K_PHY_ANT_CTL_TXRX_EN));
+
+	/* Set antenna switch tables */
+	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant0],
+		AR5K_PHY_ANT_SWITCH_TABLE_0);
+	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant1],
+		AR5K_PHY_ANT_SWITCH_TABLE_1);
+}
+
 /*
  * Set antenna operating mode
  */
@@ -1900,6 +1931,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 	if (sta_id1)
 		AR5K_REG_ENABLE_BITS(ah, AR5K_STA_ID1, sta_id1);
 
+	ath5k_hw_set_antenna_switch(ah, ee_mode);
 	/* Note: set diversity before default antenna
 	 * because it won't work correctly */
 	ath5k_hw_set_fast_div(ah, ee_mode, fast_div);

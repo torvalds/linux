@@ -1286,6 +1286,7 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Antenna control */
 void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
+void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 /* TX power setup */
 int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		     u8 ee_mode, u8 txpower);

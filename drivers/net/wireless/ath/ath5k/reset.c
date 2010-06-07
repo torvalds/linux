@@ -729,7 +729,7 @@ static void ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 }
 
 static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel, u8 *ant, u8 ee_mode)
+		struct ieee80211_channel *channel, u8 ee_mode)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	s16 cck_ofdm_pwr_delta;
@@ -763,17 +763,9 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 						ee->ee_cck_ofdm_gain_delta;
 	}
 
-	/* Set antenna idle switch table */
-	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_ANT_CTL,
-			AR5K_PHY_ANT_CTL_SWTABLE_IDLE,
-			(ah->ah_ant_ctl[ee_mode][0] |
-			AR5K_PHY_ANT_CTL_TXRX_EN));
-
-	/* Set antenna switch tables */
-	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[0]],
-		AR5K_PHY_ANT_SWITCH_TABLE_0);
-	ath5k_hw_reg_write(ah, ah->ah_ant_ctl[ee_mode][ant[1]],
-		AR5K_PHY_ANT_SWITCH_TABLE_1);
+	/* XXX: necessary here? is called from ath5k_hw_set_antenna_mode()
+	 * too */
+	ath5k_hw_set_antenna_switch(ah, ee_mode);
 
 	/* Noise floor threshold */
 	ath5k_hw_reg_write(ah,
@@ -887,7 +879,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	struct ath_common *common = ath5k_hw_common(ah);
 	u32 s_seq[10], s_ant, s_led[3], staid1_flags, tsf_up, tsf_lo;
 	u32 phy_tst1;
-	u8 mode, freq, ee_mode, ant[2];
+	u8 mode, freq, ee_mode;
 	int i, ret;
 
 	s_ant = 0;
@@ -1110,21 +1102,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 				    AR5K_TXCFG_B_MODE);
 		}
 
-		/*
-		 * In case a fixed antenna was set as default
-		 * use the same switch table twice.
-		 */
-		if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_A)
-				ant[0] = ant[1] = AR5K_ANT_SWTABLE_A;
-		else if (ah->ah_ant_mode == AR5K_ANTMODE_FIXED_B)
-				ant[0] = ant[1] = AR5K_ANT_SWTABLE_B;
-		else {
-			ant[0] = AR5K_ANT_SWTABLE_A;
-			ant[1] = AR5K_ANT_SWTABLE_B;
-		}
-
 		/* Commit values from EEPROM */
-		ath5k_hw_commit_eeprom_settings(ah, channel, ant, ee_mode);
+		ath5k_hw_commit_eeprom_settings(ah, channel, ee_mode);
 
 	} else {
 		/*

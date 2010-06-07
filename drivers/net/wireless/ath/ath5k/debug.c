@@ -425,6 +425,13 @@ static ssize_t read_file_antenna(struct file *file, char __user *user_buf,
 		"AR5K_PHY_FAST_ANT_DIV_EN\t%d\n",
 		(v & AR5K_PHY_FAST_ANT_DIV_EN) != 0);
 
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_ANT_SWITCH_TABLE_0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nAR5K_PHY_ANT_SWITCH_TABLE_0\t0x%08x\n", v);
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_ANT_SWITCH_TABLE_1);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"AR5K_PHY_ANT_SWITCH_TABLE_1\t0x%08x\n", v);
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
