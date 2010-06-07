@@ -3668,7 +3668,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 	return err;
 }
 
-void btrfs_delete_inode(struct inode *inode)
+void btrfs_evict_inode(struct inode *inode)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -3676,10 +3676,14 @@ void btrfs_delete_inode(struct inode *inode)
 	int ret;
 
 	truncate_inode_pages(&inode->i_data, 0);
+	if (inode->i_nlink && btrfs_root_refs(&root->root_item) != 0)
+		goto no_delete;
+
 	if (is_bad_inode(inode)) {
 		btrfs_orphan_del(NULL, inode);
 		goto no_delete;
 	}
+	/* do we really want it for ->i_nlink > 0 and zero btrfs_root_refs? */
 	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
 	if (root->fs_info->log_root_recovering) {
@@ -3729,7 +3733,7 @@ void btrfs_delete_inode(struct inode *inode)
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root, nr);
 no_delete:
-	clear_inode(inode);
+	end_writeback(inode);
 	return;
 }
 
