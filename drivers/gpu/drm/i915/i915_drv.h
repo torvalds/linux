@@ -982,7 +982,7 @@ void i915_gem_free_all_phys_object(struct drm_device *dev);
 int i915_gem_object_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
-void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
+int i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
 
 void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);

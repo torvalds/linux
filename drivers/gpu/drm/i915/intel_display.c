@@ -4905,7 +4905,9 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	drm_gem_object_reference(obj);
 
 	crtc->fb = fb;
-	i915_gem_object_flush_write_domain(obj);
+	ret = i915_gem_object_flush_write_domain(obj);
+	if (ret)
+		goto cleanup_objs;
 
 	ret = drm_vblank_get(dev, intel_crtc->pipe);
 	if (ret)
