@@ -748,6 +748,7 @@ struct radeon_pm {
 	int                     default_power_state_index;
 	u32                     current_sclk;
 	u32                     current_mclk;
+	u32                     current_vddc;
 	struct radeon_i2c_chan *i2c_bus;
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;

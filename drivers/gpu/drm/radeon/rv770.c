@@ -48,8 +48,13 @@ void rv770_pm_misc(struct radeon_device *rdev)
 	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
 	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
 
-	if ((voltage->type == VOLTAGE_SW) && voltage->voltage)
-		radeon_atom_set_voltage(rdev, voltage->voltage);
+
+	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		if (voltage->voltage != rdev->pm.current_vddc) {
+			radeon_atom_set_voltage(rdev, voltage->voltage);
+			rdev->pm.current_vddc = voltage->voltage;
+		}
+	}
 }
 
 /*
