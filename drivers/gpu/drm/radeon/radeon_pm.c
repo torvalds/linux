@@ -33,6 +33,14 @@
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
 #define RADEON_WAIT_IDLE_TIMEOUT 200
 
+static const char *radeon_pm_state_type_name[5] = {
+	"Default",
+	"Powersave",
+	"Battery",
+	"Balanced",
+	"Performance",
+};
+
 static void radeon_dynpm_idle_work_handler(struct work_struct *work);
 static int radeon_debugfs_pm_init(struct radeon_device *rdev);
 static bool radeon_pm_in_vbl(struct radeon_device *rdev);
@@ -278,6 +286,42 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 
+static void radeon_pm_print_states(struct radeon_device *rdev)
+{
+	int i, j;
+	struct radeon_power_state *power_state;
+	struct radeon_pm_clock_info *clock_info;
+
+	DRM_DEBUG("%d Power State(s)\n", rdev->pm.num_power_states);
+	for (i = 0; i < rdev->pm.num_power_states; i++) {
+		power_state = &rdev->pm.power_state[i];
+		DRM_DEBUG("State %d: %s\n", i,
+			radeon_pm_state_type_name[power_state->type]);
+		if (i == rdev->pm.default_power_state_index)
+			DRM_DEBUG("\tDefault");
+		if ((rdev->flags & RADEON_IS_PCIE) && !(rdev->flags & RADEON_IS_IGP))
+			DRM_DEBUG("\t%d PCIE Lanes\n", power_state->pcie_lanes);
+		if (power_state->flags & RADEON_PM_STATE_SINGLE_DISPLAY_ONLY)
+			DRM_DEBUG("\tSingle display only\n");
+		DRM_DEBUG("\t%d Clock Mode(s)\n", power_state->num_clock_modes);
+		for (j = 0; j < power_state->num_clock_modes; j++) {
+			clock_info = &(power_state->clock_info[j]);
+			if (rdev->flags & RADEON_IS_IGP)
+				DRM_DEBUG("\t\t%d e: %d%s\n",
+					j,
+					clock_info->sclk * 10,
+					clock_info->flags & RADEON_PM_MODE_NO_DISPLAY ? "\tNo display only" : "");
+			else
+				DRM_DEBUG("\t\t%d e: %d\tm: %d\tv: %d%s\n",
+					j,
+					clock_info->sclk * 10,
+					clock_info->mclk * 10,
+					clock_info->voltage.voltage,
+					clock_info->flags & RADEON_PM_MODE_NO_DISPLAY ? "\tNo display only" : "");
+		}
+	}
+}
+
 static ssize_t radeon_get_pm_profile(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
@@ -410,6 +454,7 @@ int radeon_pm_init(struct radeon_device *rdev)
 			radeon_atombios_get_power_modes(rdev);
 		else
 			radeon_combios_get_power_modes(rdev);
+		radeon_pm_print_states(rdev);
 		radeon_pm_init_profile(rdev);
 	}
 
