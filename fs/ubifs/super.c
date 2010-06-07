@@ -327,7 +327,7 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
-static void ubifs_delete_inode(struct inode *inode)
+static void ubifs_evict_inode(struct inode *inode)
 {
 	int err;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -343,9 +343,12 @@ static void ubifs_delete_inode(struct inode *inode)
 
 	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
-	ubifs_assert(inode->i_nlink == 0);
 
 	truncate_inode_pages(&inode->i_data, 0);
+
+	if (inode->i_nlink)
+		goto done;
+
 	if (is_bad_inode(inode))
 		goto out;
 
@@ -367,7 +370,8 @@ out:
 		c->nospace = c->nospace_rp = 0;
 		smp_wmb();
 	}
-	clear_inode(inode);
+done:
+	end_writeback(inode);
 }
 
 static void ubifs_dirty_inode(struct inode *inode)
@@ -1824,7 +1828,7 @@ const struct super_operations ubifs_super_operations = {
 	.destroy_inode = ubifs_destroy_inode,
 	.put_super     = ubifs_put_super,
 	.write_inode   = ubifs_write_inode,
-	.delete_inode  = ubifs_delete_inode,
+	.evict_inode   = ubifs_evict_inode,
 	.statfs        = ubifs_statfs,
 	.dirty_inode   = ubifs_dirty_inode,
 	.remount_fs    = ubifs_remount_fs,
