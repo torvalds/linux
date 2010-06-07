@@ -159,23 +159,6 @@ void nilfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(nilfs_inode_cachep, NILFS_I(inode));
 }
 
-static void nilfs_clear_inode(struct inode *inode)
-{
-	struct nilfs_inode_info *ii = NILFS_I(inode);
-
-	/*
-	 * Free resources allocated in nilfs_read_inode(), here.
-	 */
-	BUG_ON(!list_empty(&ii->i_dirty));
-	brelse(ii->i_bh);
-	ii->i_bh = NULL;
-
-	if (test_bit(NILFS_I_BMAP, &ii->i_state))
-		nilfs_bmap_clear(ii->i_bmap);
-
-	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
-}
-
 static int nilfs_sync_super(struct nilfs_sb_info *sbi, int dupsb)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
@@ -467,7 +450,7 @@ static const struct super_operations nilfs_sops = {
 	/* .write_inode    = nilfs_write_inode, */
 	/* .put_inode      = nilfs_put_inode, */
 	/* .drop_inode	  = nilfs_drop_inode, */
-	.delete_inode   = nilfs_delete_inode,
+	.evict_inode    = nilfs_evict_inode,
 	.put_super      = nilfs_put_super,
 	/* .write_super    = nilfs_write_super, */
 	.sync_fs        = nilfs_sync_fs,
@@ -475,7 +458,6 @@ static const struct super_operations nilfs_sops = {
 	/* .unlockfs */
 	.statfs         = nilfs_statfs,
 	.remount_fs     = nilfs_remount,
-	.clear_inode    = nilfs_clear_inode,
 	/* .umount_begin */
 	.show_options = nilfs_show_options
 };
