@@ -904,7 +904,7 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
-	struct iwl4965_rx_mpdu_res_start *amsdu;
+	struct iwl_rx_mpdu_res_start *amsdu;
 	u32 len;
 	u32 ampdu_status;
 	u32 rate_n_flags;
@@ -933,7 +933,7 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			return;
 		}
 		phy_res = &priv->_agn.last_phy_res;
-		amsdu = (struct iwl4965_rx_mpdu_res_start *)pkt->u.raw;
+		amsdu = (struct iwl_rx_mpdu_res_start *)pkt->u.raw;
 		header = (struct ieee80211_hdr *)(pkt->u.raw + sizeof(*amsdu));
 		len = le16_to_cpu(amsdu->byte_count);
 		rx_pkt_status = *(__le32 *)(pkt->u.raw + sizeof(*amsdu) + len);
