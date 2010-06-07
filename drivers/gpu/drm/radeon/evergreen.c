@@ -50,6 +50,7 @@ void evergreen_pm_misc(struct radeon_device *rdev)
 		if (voltage->voltage != rdev->pm.current_vddc) {
 			radeon_atom_set_voltage(rdev, voltage->voltage);
 			rdev->pm.current_vddc = voltage->voltage;
+			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
 		}
 	}
 }
