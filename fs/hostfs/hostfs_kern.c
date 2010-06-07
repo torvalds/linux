@@ -90,44 +90,58 @@ __uml_setup("hostfs=", hostfs_args,
 );
 #endif
 
+static char *__dentry_name(struct dentry *dentry, char *name)
+{
+	char *p = __dentry_path(dentry, name, PATH_MAX);
+	char *root;
+	size_t len;
+
+	spin_unlock(&dcache_lock);
+
+	root = dentry->d_sb->s_fs_info;
+	len = strlen(root);
+	if (IS_ERR(p)) {
+		__putname(name);
+		return NULL;
+	}
+	strncpy(name, root, PATH_MAX);
+	if (len > p - name) {
+		__putname(name);
+		return NULL;
+	}
+	if (p > name + len) {
+		char *s = name + len;
+		while ((*s++ = *p++) != '\0')
+			;
+	}
+	return name;
+}
+
 static char *dentry_name(struct dentry *dentry)
 {
-	struct dentry *parent;
-	char *root, *name;
-	int len;
-
-	len = 0;
-	parent = dentry;
-	while (parent->d_parent != parent) {
-		len += parent->d_name.len + 1;
-		parent = parent->d_parent;
-	}
-
-	root = parent->d_sb->s_fs_info;
-	len += strlen(root);
-	name = kmalloc(len + 1, GFP_KERNEL);
-	if (name == NULL)
+	char *name = __getname();
+	if (!name)
 		return NULL;
 
-	name[len] = '\0';
-	parent = dentry;
-	while (parent->d_parent != parent) {
-		len -= parent->d_name.len + 1;
-		name[len] = '/';
-		strncpy(&name[len + 1], parent->d_name.name,
-			parent->d_name.len);
-		parent = parent->d_parent;
-	}
-	strncpy(name, root, strlen(root));
-	return name;
+	spin_lock(&dcache_lock);
+	return __dentry_name(dentry, name); /* will unlock */
 }
 
 static char *inode_name(struct inode *ino)
 {
 	struct dentry *dentry;
+	char *name = __getname();
+	if (!name)
+		return NULL;
 
-	dentry = list_entry(ino->i_dentry.next, struct dentry, d_alias);
-	return dentry_name(dentry);
+	spin_lock(&dcache_lock);
+	if (list_empty(&ino->i_dentry)) {
+		spin_unlock(&dcache_lock);
+		__putname(name);
+		return NULL;
+	}
+	dentry = list_first_entry(&ino->i_dentry, struct dentry, d_alias);
+	return __dentry_name(dentry, name); /* will unlock */
 }
 
 static char *follow_link(char *link)
@@ -272,7 +286,7 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	if (name == NULL)
 		return -ENOMEM;
 	dir = open_dir(name, &error);
-	kfree(name);
+	__putname(name);
 	if (dir == NULL)
 		return -error;
 	next = file->f_pos;
@@ -318,7 +332,7 @@ int hostfs_file_open(struct inode *ino, struct file *file)
 		return -ENOMEM;
 
 	fd = open_file(name, r, w, append);
-	kfree(name);
+	__putname(name);
 	if (fd < 0)
 		return fd;
 	FILE_HOSTFS_I(file)->fd = fd;
@@ -532,7 +546,7 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	else
 		error = read_name(inode, name);
 
-	kfree(name);
+	__putname(name);
 	if (error)
 		goto out_put;
 
@@ -567,7 +581,7 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 
 	err = read_name(inode, name);
 
-	kfree(name);
+	__putname(name);
 	if (err == -ENOENT) {
 		iput(inode);
 		inode = NULL;
@@ -594,12 +608,12 @@ int hostfs_link(struct dentry *to, struct inode *ino, struct dentry *from)
 		return -ENOMEM;
 	to_name = dentry_name(to);
 	if (to_name == NULL) {
-		kfree(from_name);
+		__putname(from_name);
 		return -ENOMEM;
 	}
 	err = link_file(to_name, from_name);
-	kfree(from_name);
-	kfree(to_name);
+	__putname(from_name);
+	__putname(to_name);
 	return err;
 }
 
@@ -614,7 +628,7 @@ int hostfs_unlink(struct inode *ino, struct dentry *dentry)
 		return -EPERM;
 
 	err = unlink_file(file);
-	kfree(file);
+	__putname(file);
 	return err;
 }
 
@@ -626,7 +640,7 @@ int hostfs_symlink(struct inode *ino, struct dentry *dentry, const char *to)
 	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = make_symlink(file, to);
-	kfree(file);
+	__putname(file);
 	return err;
 }
 
@@ -638,7 +652,7 @@ int hostfs_mkdir(struct inode *ino, struct dentry *dentry, int mode)
 	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = do_mkdir(file, mode);
-	kfree(file);
+	__putname(file);
 	return err;
 }
 
@@ -650,7 +664,7 @@ int hostfs_rmdir(struct inode *ino, struct dentry *dentry)
 	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = do_rmdir(file);
-	kfree(file);
+	__putname(file);
 	return err;
 }
 
@@ -673,13 +687,13 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 
 	init_special_inode(inode, mode, dev);
 	err = do_mknod(name, mode, MAJOR(dev), MINOR(dev));
-	if (err)
+	if (!err)
 		goto out_free;
 
 	err = read_name(inode, name);
+	__putname(name);
 	if (err)
 		goto out_put;
-	kfree(name);
 	if (err)
 		goto out_put;
 
@@ -687,7 +701,7 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	return 0;
 
  out_free:
-	kfree(name);
+	__putname(name);
  out_put:
 	iput(inode);
  out:
@@ -703,12 +717,12 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	if ((from_name = dentry_name(from)) == NULL)
 		return -ENOMEM;
 	if ((to_name = dentry_name(to)) == NULL) {
-		kfree(from_name);
+		__putname(from_name);
 		return -ENOMEM;
 	}
 	err = rename_file(from_name, to_name);
-	kfree(from_name);
-	kfree(to_name);
+	__putname(from_name);
+	__putname(to_name);
 	return err;
 }
 
@@ -729,7 +743,7 @@ int hostfs_permission(struct inode *ino, int desired)
 		err = 0;
 	else
 		err = access_file(name, r, w, x);
-	kfree(name);
+	__putname(name);
 	if (!err)
 		err = generic_permission(ino, desired, NULL);
 	return err;
@@ -790,7 +804,7 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (name == NULL)
 		return -ENOMEM;
 	err = set_attr(name, &attrs, fd);
-	kfree(name);
+	__putname(name);
 	if (err)
 		return err;
 
@@ -845,7 +859,7 @@ static void *hostfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 			int err = hostfs_do_readlink(path, link, PATH_MAX);
 			if (err == PATH_MAX)
 				err = -E2BIG;
-			kfree(path);
+			__putname(path);
 		}
 		if (err < 0) {
 			__putname(link);
