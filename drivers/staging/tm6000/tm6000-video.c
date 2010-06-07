@@ -150,8 +150,6 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 
 	/* Cleans up buffer - Usefull for testing for frame/URB loss */
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
-//	if (outp)
-//		memset(outp, 0, (*buf)->vb.size);
 
 	return;
 }
@@ -272,6 +270,7 @@ static int copy_streams(u8 *data, unsigned long len,
 					voutp = videobuf_to_vmalloc (&vbuf->vb);
 					if (!voutp)
 						return rc;
+					memset(voutp, 0, vbuf->vb.size);
 				}
 				linewidth = vbuf->vb.width << 1;
 				pos = ((line << 1) - field - 1) * linewidth +
