@@ -34,6 +34,7 @@ struct phonet_device {
 	struct list_head list;
 	struct net_device *netdev;
 	DECLARE_BITMAP(addrs, 64);
+	struct rcu_head	rcu;
 };
 
 int phonet_device_init(void);

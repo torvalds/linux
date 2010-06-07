@@ -162,6 +162,14 @@ int phonet_address_add(struct net_device *dev, u8 addr)
 	return err;
 }
 
+static void phonet_device_rcu_free(struct rcu_head *head)
+{
+	struct phonet_device *pnd;
+
+	pnd = container_of(head, struct phonet_device, rcu);
+	kfree(pnd);
+}
+
 int phonet_address_del(struct net_device *dev, u8 addr)
 {
 	struct phonet_device_list *pndevs = phonet_device_list(dev_net(dev));
@@ -179,10 +187,9 @@ int phonet_address_del(struct net_device *dev, u8 addr)
 		pnd = NULL;
 	mutex_unlock(&pndevs->lock);
 
-	if (pnd) {
-		synchronize_rcu();
-		kfree(pnd);
-	}
+	if (pnd)
+		call_rcu(&pnd->rcu, phonet_device_rcu_free);
+
 	return err;
 }
 
