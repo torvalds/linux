@@ -329,7 +329,7 @@ void clear_inode(struct inode *inode)
 }
 EXPORT_SYMBOL(clear_inode);
 
-static void evict(struct inode *inode, int delete)
+static void evict(struct inode *inode)
 {
 	const struct super_operations *op = inode->i_sb->s_op;
 
@@ -363,7 +363,7 @@ static void dispose_list(struct list_head *head)
 		inode = list_first_entry(head, struct inode, i_list);
 		list_del(&inode->i_list);
 
-		evict(inode, 0);
+		evict(inode);
 
 		spin_lock(&inode_lock);
 		hlist_del_init(&inode->i_hash);
@@ -1224,7 +1224,7 @@ void generic_delete_inode(struct inode *inode)
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
-	evict(inode, 1);
+	evict(inode);
 
 	spin_lock(&inode_lock);
 	hlist_del_init(&inode->i_hash);
@@ -1279,7 +1279,7 @@ static void generic_forget_inode(struct inode *inode)
 {
 	if (!generic_detach_inode(inode))
 		return;
-	evict(inode, 0);
+	evict(inode);
 	wake_up_inode(inode);
 	destroy_inode(inode);
 }
