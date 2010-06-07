@@ -495,7 +495,6 @@ int xhci_run(struct usb_hcd *hcd)
 		return -ENODEV;
 	}
 
-	xhci_dbg(xhci, "// @%p = 0x%x\n", &xhci->op_regs->command, temp);
 	if (doorbell)
 		(*doorbell)(xhci);
 	if (xhci->quirks & XHCI_NEC_HOST)
