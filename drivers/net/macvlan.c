@@ -37,6 +37,7 @@ struct macvlan_port {
 	struct net_device	*dev;
 	struct hlist_head	vlan_hash[MACVLAN_HASH_SIZE];
 	struct list_head	vlans;
+	struct rcu_head		rcu;
 };
 
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
@@ -540,14 +541,21 @@ static int macvlan_port_create(struct net_device *dev)
 	return err;
 }
 
+static void macvlan_port_rcu_free(struct rcu_head *head)
+{
+	struct macvlan_port *port;
+
+	port = container_of(head, struct macvlan_port, rcu);
+	kfree(port);
+}
+
 static void macvlan_port_destroy(struct net_device *dev)
 {
 	struct macvlan_port *port = dev->macvlan_port;
 
 	netdev_rx_handler_unregister(dev);
 	rcu_assign_pointer(dev->macvlan_port, NULL);
-	synchronize_rcu();
-	kfree(port);
+	call_rcu(&port->rcu, macvlan_port_rcu_free);
 }
 
 static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[])
