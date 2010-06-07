@@ -507,7 +507,7 @@ int usbdrvwext_giwname(struct net_device *dev,
 {
 	/* struct usbdrv_private *macp = dev->ml_priv; */
 
-	strcpy(wrq->name, "IEEE 802.11-MIMO");
+	strcpy(wrq->name, "IEEE 802.11abgn");
 
 	return 0;
 }
