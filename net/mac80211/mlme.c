@@ -1760,9 +1760,45 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&ifmgd->mtx);
 
 	if (skb->len >= 24 + 2 /* mgmt + deauth reason */ &&
-	    (fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_DEAUTH)
-		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
+	    (fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_DEAUTH) {
+		struct ieee80211_local *local = sdata->local;
+		struct ieee80211_work *wk;
 
+		mutex_lock(&local->work_mtx);
+		list_for_each_entry(wk, &local->work_list, list) {
+			if (wk->sdata != sdata)
+				continue;
+
+			if (wk->type != IEEE80211_WORK_ASSOC)
+				continue;
+
+			if (memcmp(mgmt->bssid, wk->filter_ta, ETH_ALEN))
+				continue;
+			if (memcmp(mgmt->sa, wk->filter_ta, ETH_ALEN))
+				continue;
+
+			/*
+			 * Printing the message only here means we can't
+			 * spuriously print it, but it also means that it
+			 * won't be printed when the frame comes in before
+			 * we even tried to associate or in similar cases.
+			 *
+			 * Ultimately, I suspect cfg80211 should print the
+			 * messages instead.
+			 */
+			printk(KERN_DEBUG
+			       "%s: deauthenticated from %pM (Reason: %u)\n",
+			       sdata->name, mgmt->bssid,
+			       le16_to_cpu(mgmt->u.deauth.reason_code));
+
+			list_del_rcu(&wk->list);
+			free_work(wk);
+			break;
+		}
+		mutex_unlock(&local->work_mtx);
+
+		cfg80211_send_deauth(sdata->dev, (u8 *)mgmt, skb->len);
+	}
  out:
 	kfree_skb(skb);
 }
