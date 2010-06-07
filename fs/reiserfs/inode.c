@@ -25,7 +25,7 @@ int reiserfs_commit_write(struct file *f, struct page *page,
 int reiserfs_prepare_write(struct file *f, struct page *page,
 			   unsigned from, unsigned to);
 
-void reiserfs_delete_inode(struct inode *inode)
+void reiserfs_evict_inode(struct inode *inode)
 {
 	/* We need blocks for transaction + (user+group) quota update (possibly delete) */
 	int jbegin_count =
@@ -35,10 +35,12 @@ void reiserfs_delete_inode(struct inode *inode)
 	int depth;
 	int err;
 
-	if (!is_bad_inode(inode))
+	if (!inode->i_nlink && !is_bad_inode(inode))
 		dquot_initialize(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
+	if (inode->i_nlink)
+		goto no_delete;
 
 	depth = reiserfs_write_lock_once(inode->i_sb);
 
@@ -77,9 +79,14 @@ void reiserfs_delete_inode(struct inode *inode)
 		;
 	}
       out:
-	clear_inode(inode);	/* note this must go after the journal_end to prevent deadlock */
+	end_writeback(inode);	/* note this must go after the journal_end to prevent deadlock */
+	dquot_drop(inode);
 	inode->i_blocks = 0;
 	reiserfs_write_unlock_once(inode->i_sb, depth);
+
+no_delete:
+	end_writeback(inode);
+	dquot_drop(inode);
 }
 
 static void _make_cpu_key(struct cpu_key *key, int version, __u32 dirid,
