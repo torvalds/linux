@@ -480,14 +480,13 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-void cifs_drop_inode(struct inode *inode)
+static int cifs_drop_inode(struct inode *inode)
 {
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 
-	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
-		return generic_drop_inode(inode);
-
-	return generic_delete_inode(inode);
+	/* no serverino => unconditional eviction */
+	return !(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) ||
+		generic_drop_inode(inode);
 }
 
 static const struct super_operations cifs_super_ops = {

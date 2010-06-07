@@ -1223,7 +1223,7 @@ void pohmelfs_fill_inode(struct inode *inode, struct netfs_inode_info *info)
 	}
 }
 
-static void pohmelfs_drop_inode(struct inode *inode)
+static int pohmelfs_drop_inode(struct inode *inode)
 {
 	struct pohmelfs_sb *psb = POHMELFS_SB(inode->i_sb);
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
@@ -1232,7 +1232,7 @@ static void pohmelfs_drop_inode(struct inode *inode)
 	list_del_init(&pi->inode_entry);
 	spin_unlock(&psb->ino_lock);
 
-	generic_drop_inode(inode);
+	return generic_drop_inode(inode);
 }
 
 static struct pohmelfs_inode *pohmelfs_get_inode_from_list(struct pohmelfs_sb *psb,

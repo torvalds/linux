@@ -3943,7 +3943,7 @@ again:
 			if (atomic_read(&inode->i_count) > 1)
 				d_prune_aliases(inode);
 			/*
-			 * btrfs_drop_inode will remove it from
+			 * btrfs_drop_inode will have it removed from
 			 * the inode cache when its usage count
 			 * hits zero.
 			 */
@@ -6337,13 +6337,14 @@ free:
 	kmem_cache_free(btrfs_inode_cachep, BTRFS_I(inode));
 }
 
-void btrfs_drop_inode(struct inode *inode)
+int btrfs_drop_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	if (inode->i_nlink > 0 && btrfs_root_refs(&root->root_item) == 0)
-		generic_delete_inode(inode);
+
+	if (btrfs_root_refs(&root->root_item) == 0)
+		return 1;
 	else
-		generic_drop_inode(inode);
+		return generic_drop_inode(inode);
 }
 
 static void init_once(void *foo)

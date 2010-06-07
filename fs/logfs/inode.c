@@ -287,7 +287,7 @@ static int logfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 /* called with inode_lock held */
-static void logfs_drop_inode(struct inode *inode)
+static int logfs_drop_inode(struct inode *inode)
 {
 	struct logfs_super *super = logfs_super(inode->i_sb);
 	struct logfs_inode *li = logfs_inode(inode);
@@ -295,7 +295,7 @@ static void logfs_drop_inode(struct inode *inode)
 	spin_lock(&logfs_inode_lock);
 	list_move(&li->li_freeing_list, &super->s_freeing_list);
 	spin_unlock(&logfs_inode_lock);
-	generic_drop_inode(inode);
+	return generic_drop_inode(inode);
 }
 
 static void logfs_set_ino_generation(struct super_block *sb,

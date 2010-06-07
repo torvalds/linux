@@ -1194,9 +1194,10 @@ void ocfs2_evict_inode(struct inode *inode)
 /* Called under inode_lock, with no more references on the
  * struct inode, so it's safe here to check the flags field
  * and to manipulate i_nlink without any other locks. */
-void ocfs2_drop_inode(struct inode *inode)
+int ocfs2_drop_inode(struct inode *inode)
 {
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	int res;
 
 	mlog_entry_void();
 
@@ -1204,11 +1205,12 @@ void ocfs2_drop_inode(struct inode *inode)
 	     (unsigned long long)oi->ip_blkno, inode->i_nlink, oi->ip_flags);
 
 	if (oi->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)
-		generic_delete_inode(inode);
+		res = 1;
 	else
-		generic_drop_inode(inode);
+		res = generic_drop_inode(inode);
 
 	mlog_exit_void();
+	return res;
 }
 
 /*

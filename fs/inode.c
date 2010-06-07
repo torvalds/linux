@@ -1183,58 +1183,51 @@ void remove_inode_hash(struct inode *inode)
 }
 EXPORT_SYMBOL(remove_inode_hash);
 
-/*
- * Tell the filesystem that this inode is no longer of any interest and should
- * be completely destroyed.
- *
- * We leave the inode in the inode hash table until *after* the filesystem's
- * ->delete_inode completes.  This ensures that an iget (such as nfsd might
- * instigate) will always find up-to-date information either in the hash or on
- * disk.
- *
- * I_FREEING is set so that no-one will take a new reference to the inode while
- * it is being deleted.
- */
-void generic_delete_inode(struct inode *inode)
+int generic_delete_inode(struct inode *inode)
 {
-	list_del_init(&inode->i_list);
-	list_del_init(&inode->i_sb_list);
-	WARN_ON(inode->i_state & I_NEW);
-	inode->i_state |= I_FREEING;
-	inodes_stat.nr_inodes--;
-	spin_unlock(&inode_lock);
-
-	evict(inode);
-
-	spin_lock(&inode_lock);
-	hlist_del_init(&inode->i_hash);
-	spin_unlock(&inode_lock);
-	wake_up_inode(inode);
-	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
-	destroy_inode(inode);
+	return 1;
 }
 EXPORT_SYMBOL(generic_delete_inode);
 
-/**
- *	generic_detach_inode - remove inode from inode lists
- *	@inode: inode to remove
- *
- *	Remove inode from inode lists, write it if it's dirty. This is just an
- *	internal VFS helper exported for hugetlbfs. Do not use!
- *
- *	Returns 1 if inode should be completely destroyed.
+/*
+ * Normal UNIX filesystem behaviour: delete the
+ * inode when the usage count drops to zero, and
+ * i_nlink is zero.
  */
-static int generic_detach_inode(struct inode *inode)
+int generic_drop_inode(struct inode *inode)
+{
+	return !inode->i_nlink || hlist_unhashed(&inode->i_hash);
+}
+EXPORT_SYMBOL_GPL(generic_drop_inode);
+
+/*
+ * Called when we're dropping the last reference
+ * to an inode.
+ *
+ * Call the FS "drop_inode()" function, defaulting to
+ * the legacy UNIX filesystem behaviour.  If it tells
+ * us to evict inode, do so.  Otherwise, retain inode
+ * in cache if fs is alive, sync and evict if fs is
+ * shutting down.
+ */
+static void iput_final(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
+	const struct super_operations *op = inode->i_sb->s_op;
+	int drop;
 
-	if (!hlist_unhashed(&inode->i_hash)) {
+	if (op && op->drop_inode)
+		drop = op->drop_inode(inode);
+	else
+		drop = generic_drop_inode(inode);
+
+	if (!drop) {
 		if (!(inode->i_state & (I_DIRTY|I_SYNC)))
 			list_move(&inode->i_list, &inode_unused);
 		inodes_stat.nr_unused++;
 		if (sb->s_flags & MS_ACTIVE) {
 			spin_unlock(&inode_lock);
-			return 0;
+			return;
 		}
 		WARN_ON(inode->i_state & I_NEW);
 		inode->i_state |= I_WILL_FREE;
@@ -1252,51 +1245,13 @@ static int generic_detach_inode(struct inode *inode)
 	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
-	return 1;
-}
-
-static void generic_forget_inode(struct inode *inode)
-{
-	if (!generic_detach_inode(inode))
-		return;
 	evict(inode);
+	spin_lock(&inode_lock);
+	hlist_del_init(&inode->i_hash);
+	spin_unlock(&inode_lock);
 	wake_up_inode(inode);
+	BUG_ON(inode->i_state != (I_FREEING | I_CLEAR));
 	destroy_inode(inode);
-}
-
-/*
- * Normal UNIX filesystem behaviour: delete the
- * inode when the usage count drops to zero, and
- * i_nlink is zero.
- */
-void generic_drop_inode(struct inode *inode)
-{
-	if (!inode->i_nlink)
-		generic_delete_inode(inode);
-	else
-		generic_forget_inode(inode);
-}
-EXPORT_SYMBOL_GPL(generic_drop_inode);
-
-/*
- * Called when we're dropping the last reference
- * to an inode.
- *
- * Call the FS "drop()" function, defaulting to
- * the legacy UNIX filesystem behaviour..
- *
- * NOTE! NOTE! NOTE! We're called with the inode lock
- * held, and the drop function is supposed to release
- * the lock!
- */
-static inline void iput_final(struct inode *inode)
-{
-	const struct super_operations *op = inode->i_sb->s_op;
-	void (*drop)(struct inode *) = generic_drop_inode;
-
-	if (op && op->drop_inode)
-		drop = op->drop_inode;
-	drop(inode);
 }
 
 /**

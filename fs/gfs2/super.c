@@ -1191,7 +1191,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * node for later deallocation.
  */
 
-static void gfs2_drop_inode(struct inode *inode)
+static int gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
@@ -1200,7 +1200,7 @@ static void gfs2_drop_inode(struct inode *inode)
 		if (gl && test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
 	}
-	generic_drop_inode(inode);
+	return generic_drop_inode(inode);
 }
 
 static int is_ancestor(const struct dentry *d1, const struct dentry *d2)
