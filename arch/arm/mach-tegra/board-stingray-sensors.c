@@ -25,6 +25,7 @@
 #include <linux/kxtf9.h>
 #include <linux/l3g4200d.h>
 #include <linux/max9635.h>
+#include <linux/akm8975.h>
 #include <linux/platform_device.h>
 
 #include <linux/regulator/consumer.h>
@@ -37,6 +38,7 @@
 #define MAX9635_IRQ_GPIO	TEGRA_GPIO_PV1
 #define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
 #define L3G4200D_IRQ_GPIO	TEGRA_GPIO_PH2
+#define AKM8975_IRQ_GPIO	TEGRA_GPIO_PQ2
 
 static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
@@ -152,6 +154,7 @@ struct kxtf9_platform_data stingray_kxtf9_pdata = {
 	.negate_x	= 0,
 	.negate_y	= 0,
 	.negate_z	= 1,
+
 
 	.data_odr_init		= ODR12_5,
 	.ctrl_reg1_init		= RES_12BIT | KXTF9_G_2G | TPE | WUFE | TDTE,
@@ -308,7 +311,62 @@ struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.power_off = stingray_l3g4200d_power_off,
 
 };
+
+static struct regulator *stingray_akm8975_regulator;
+
+static int stingray_akm8975_init(void)
+{
+	/*struct regulator *reg;*/
+
+	tegra_gpio_enable(AKM8975_IRQ_GPIO);
+	gpio_request(AKM8975_IRQ_GPIO, "akm8975");
+	gpio_direction_input(AKM8975_IRQ_GPIO);
+
+/*TO DO: add regulator calls later
+	reg = regulator_get(NULL, "vhvio");
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+	stingray_akm8975_regulator = reg;*/
+	stingray_akm8975_regulator = NULL;
+
+	return 0;
+}
+
+static void stingray_akm8975_exit(void)
+{
+	if (stingray_akm8975_regulator)
+		regulator_put(stingray_akm8975_regulator);
+	gpio_free(AKM8975_IRQ_GPIO);
+	return;
+}
+
+static int stingray_akm8975_power_on(void)
+{
+	if (stingray_akm8975_regulator)
+		regulator_put(stingray_akm8975_regulator);
+	return 0;
+}
+
+static int stingray_akm8975_power_off(void)
+{
+	if (stingray_akm8975_regulator)
+		regulator_put(stingray_akm8975_regulator);
+	return 0;
+}
+
+struct akm8975_platform_data stingray_akm8975_pdata = {
+	.init = stingray_akm8975_init,
+	.exit = stingray_akm8975_exit,
+	.power_on = stingray_akm8975_power_on,
+	.power_off = stingray_akm8975_power_off,
+};
+
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
+	{
+		I2C_BOARD_INFO("akm8975", 0x0C),
+		.platform_data = &stingray_akm8975_pdata,
+		.irq = TEGRA_GPIO_TO_IRQ(AKM8975_IRQ_GPIO),
+	},
 	{
 		I2C_BOARD_INFO("kxtf9", 0x0F),
 		.platform_data = &stingray_kxtf9_pdata,
@@ -342,6 +400,7 @@ int __init stingray_sensors_init(void)
 	stingray_kxtf9_init();
 	stingray_max9635_init();
 	stingray_l3g4200d_init();
+	stingray_akm8975_init();
 
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
