@@ -4687,9 +4687,19 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	BUG_ON(HAS_BSD(dev) && !list_empty(&dev_priv->bsd_ring.request_list));
 	mutex_unlock(&dev->struct_mutex);
 
-	drm_irq_install(dev);
+	ret = drm_irq_install(dev);
+	if (ret)
+		goto cleanup_ringbuffer;
 
 	return 0;
+
+cleanup_ringbuffer:
+	mutex_lock(&dev->struct_mutex);
+	i915_gem_cleanup_ringbuffer(dev);
+	dev_priv->mm.suspended = 1;
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
 }
 
 int
