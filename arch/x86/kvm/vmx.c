@@ -509,7 +509,7 @@ static void vcpu_clear(struct vcpu_vmx *vmx)
 	smp_call_function_single(vmx->vcpu.cpu, __vcpu_clear, vmx, 1);
 }
 
-static inline void vpid_sync_vcpu_all(struct vcpu_vmx *vmx)
+static inline void vpid_sync_vcpu_single(struct vcpu_vmx *vmx)
 {
 	if (vmx->vpid == 0)
 		return;
@@ -527,7 +527,7 @@ static inline void vpid_sync_vcpu_global(void)
 static inline void vpid_sync_context(struct vcpu_vmx *vmx)
 {
 	if (cpu_has_vmx_invvpid_single())
-		vpid_sync_vcpu_all(vmx);
+		vpid_sync_vcpu_single(vmx);
 	else
 		vpid_sync_vcpu_global();
 }
