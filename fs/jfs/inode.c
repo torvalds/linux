@@ -145,31 +145,32 @@ int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 		return 0;
 }
 
-void jfs_delete_inode(struct inode *inode)
+void jfs_evict_inode(struct inode *inode)
 {
-	jfs_info("In jfs_delete_inode, inode = 0x%p", inode);
+	jfs_info("In jfs_evict_inode, inode = 0x%p", inode);
 
-	if (!is_bad_inode(inode))
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
 		dquot_initialize(inode);
 
-	if (!is_bad_inode(inode) &&
-	    (JFS_IP(inode)->fileset == FILESYSTEM_I)) {
+		if (JFS_IP(inode)->fileset == FILESYSTEM_I) {
+			truncate_inode_pages(&inode->i_data, 0);
+
+			if (test_cflag(COMMIT_Freewmap, inode))
+				jfs_free_zero_link(inode);
+
+			diFree(inode);
+
+			/*
+			 * Free the inode from the quota allocation.
+			 */
+			dquot_initialize(inode);
+			dquot_free_inode(inode);
+		}
+	} else {
 		truncate_inode_pages(&inode->i_data, 0);
-
-		if (test_cflag(COMMIT_Freewmap, inode))
-			jfs_free_zero_link(inode);
-
-		diFree(inode);
-
-		/*
-		 * Free the inode from the quota allocation.
-		 */
-		dquot_initialize(inode);
-		dquot_free_inode(inode);
-		dquot_drop(inode);
 	}
-
-	clear_inode(inode);
+	end_writeback(inode);
+	dquot_drop(inode);
 }
 
 void jfs_dirty_inode(struct inode *inode)
