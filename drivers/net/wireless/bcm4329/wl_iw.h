@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.h,v 1.5.34.1.6.16 2010/04/19 21:32:10 Exp $
+ * $Id: wl_iw.h,v 1.5.34.1.6.18 2010/06/03 02:27:14 Exp $
  */
 
 
@@ -34,6 +34,13 @@
 #include <proto/ethernet.h>
 #include <wlioctl.h>
 
+#define WL_SCAN_PARAMS_SSID_MAX 	10
+#define GET_SSID			"SSID="
+#define GET_CHANNEL			"CH="
+#define GET_NPROBE 			"NPROBE="
+#define GET_ACTIVE_ASSOC_DWELL  	"ACTIVE="
+#define GET_PASSIVE_ASSOC_DWELL  	"PASSIVE="
+#define GET_HOME_DWELL  		"HOME="
 
 #define	WL_IW_RSSI_MINVAL	-200
 #define	WL_IW_RSSI_NO_SIGNAL	-91
@@ -61,7 +68,7 @@
 #define AP_LPB_CMD              (SIOCIWFIRSTPRIV+23)
 #define WL_AP_STOP              (SIOCIWFIRSTPRIV+25)
 #define WL_FW_RELOAD            (SIOCIWFIRSTPRIV+27)
-#define WL_AP_SPARE2            (SIOCIWFIRSTPRIV+29)
+#define WL_COMBO_SCAN           (SIOCIWFIRSTPRIV+29)
 #define WL_AP_SPARE3            (SIOCIWFIRSTPRIV+31)
 #define G_SCAN_RESULTS		(8*1024)
 #define WE_ADD_EVENT_FIX	0x80

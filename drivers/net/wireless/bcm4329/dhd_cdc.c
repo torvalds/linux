@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c,v 1.22.4.2.4.7.2.36 2010/04/14 12:09:11 Exp $
+ * $Id: dhd_cdc.c,v 1.22.4.2.4.7.2.39 2010/06/04 19:08:09 Exp $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -529,6 +529,8 @@ dhd_prot_init(dhd_pub_t *dhd)
 	}
 	memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
 
+	dhd_os_proto_unblock(dhd);
+
 #ifdef EMBEDDED_PLATFORM
 	ret = dhd_preinit_ioctls(dhd);
 #endif /* EMBEDDED_PLATFORM */
@@ -537,7 +539,6 @@ dhd_prot_init(dhd_pub_t *dhd)
 	dhd->iswl = TRUE;
 
 fail:
-	dhd_os_proto_unblock(dhd);
 
 	return ret;
 }

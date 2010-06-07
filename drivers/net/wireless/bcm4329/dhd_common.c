@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.60 2010/05/26 03:36:55 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.62 2010/06/04 19:08:13 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1244,6 +1244,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
+	dhd_os_proto_block(dhd);
+
 #ifdef GET_CUSTOM_MAC_ENABLE
 	/*
 	** Read MAC address from external customer place
@@ -1251,7 +1253,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	** to bring up firmware but unique per board mac address maybe provided
 	** by customer code
 	*/
-	ret = wifi_get_mac_addr(ea_addr.octet);
+	ret = dhd_custom_get_mac_address(ea_addr.octet);
 	if (!ret) {
 		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
 		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
@@ -1332,6 +1334,8 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		}
 	}
 #endif /* PKT_FILTER_SUPPORT */
+
+	dhd_os_proto_unblock(dhd);
 
 	return 0;
 }

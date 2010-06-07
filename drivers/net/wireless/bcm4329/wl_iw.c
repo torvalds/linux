@@ -4779,6 +4779,239 @@ int get_user_params(char *user_params, struct iw_point *dwrq)
 }
 
 
+#define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
+
+static int
+wl_iw_parse_channel_list(char** list_str, uint16* channel_list, int channel_num)
+{
+	int num;
+	int val;
+	char* str;
+	char* endptr = NULL;
+
+	if ((list_str == NULL)||(*list_str == NULL))
+		return -1;
+
+	str = *list_str;
+	num = 0;
+	while (strncmp(str, GET_NPROBE, strlen(GET_NPROBE))) {
+		val = (int)strtoul(str, &endptr, 0);
+		if (endptr == str) {
+			printf("could not parse channel number starting at"
+				" substring \"%s\" in list:\n%s\n",
+				str, *list_str);
+			return -1;
+		}
+		str = endptr + strspn(endptr, " ,");
+
+		if (num == channel_num) {
+			printf("too many channels (more than %d) in channel list:\n%s\n",
+				channel_num, *list_str);
+			return -1;
+		}
+
+		channel_list[num++] = (uint16)val;
+	}
+	*list_str = str;
+	return num;
+}
+
+
+
+static int
+wl_iw_parse_ssid_list(char** list_str, wlc_ssid_t* ssid, int idx, int max)
+{
+	char* str, *ptr;
+
+	if ((list_str == NULL) || (*list_str == NULL))
+		return -1;
+
+	for (str = *list_str; str != NULL; str = ptr) {
+
+		if (!strncmp(str, GET_CHANNEL, strlen(GET_CHANNEL))) {
+			*list_str	 = str + strlen(GET_CHANNEL);
+			return idx;
+		}
+
+		if ((ptr = strchr(str, ',')) != NULL) {
+			*ptr++ = '\0';
+		}
+
+		if (strlen(str) > DOT11_MAX_SSID_LEN) {
+			printf("ssid <%s> exceeds %d\n", str, DOT11_MAX_SSID_LEN);
+			return -1;
+		}
+
+		if (strlen(str) == 0)
+			ssid[idx].SSID_len = 0;
+
+		if (idx < max) {
+			strcpy((char*)ssid[idx].SSID, str);
+			ssid[idx].SSID_len = strlen(str);
+		}
+		idx++;
+	}
+	return idx;
+}
+
+
+static int
+wl_iw_combined_scan_set(struct net_device *dev, wl_scan_params_t *params, \
+wlc_ssid_t* ssids_local, int nssid, int nchan)
+{
+	int params_size = WL_SCAN_PARAMS_FIXED_SIZE + WL_NUMCHANNELS * sizeof(uint16);
+	int err = 0;
+	char *p;
+	int i;
+
+	WL_TRACE(("%s nssid=%d nchan=%d\n", __FUNCTION__, nssid, nchan));
+
+	params_size += WL_SCAN_PARAMS_SSID_MAX * sizeof(wlc_ssid_t);
+
+	if (nssid > 0) {
+		i = OFFSETOF(wl_scan_params_t, channel_list) + nchan * sizeof(uint16);
+		i = ROUNDUP(i, sizeof(uint32));
+		if (i + nssid * sizeof(wlc_ssid_t) > params_size) {
+			printf("additional ssids exceed params_size\n");
+			err = -1;
+			goto exit;
+		}
+
+		p = (char*)params + i;
+		memcpy(p, ssids_local, nssid * sizeof(wlc_ssid_t));
+		p += nssid * sizeof(wlc_ssid_t);
+	} else {
+		p = (char*)params->channel_list + nchan * sizeof(uint16);
+	}
+
+	params->channel_num = htod32((nssid << WL_SCAN_PARAMS_NSSID_SHIFT) | \
+					(nchan & WL_SCAN_PARAMS_COUNT_MASK));
+
+	params_size = (int) (p - (char*)params + nssid * sizeof(wlc_ssid_t));
+
+#define SCAN_DUMP 1
+#ifdef SCAN_DUMP
+	printf("\n### List of SSIDs to scan ###\n");
+	for (i = 0; i < nssid; i++) {
+		if (!ssids_local[i].SSID_len)
+			printf("%d: Broadcast scan\n", i);
+		else
+		printf("%d: scan  for  %s size =%d\n", i, \
+			ssids_local[i].SSID, ssids_local[i].SSID_len);
+	}
+	printf("### List of channels to scan ###\n");
+	for (i = 0; i < nchan; i++)
+	{
+		printf("%d ", params->channel_list[i]);
+	}
+	printf("\nnprobes=%d\n", params->nprobes);
+	printf("active_time=%d\n", params->active_time);
+	printf("passive_time=%d\n", params->passive_time);
+	printf("home_time=%d\n", params->home_time);
+	printf("\n###################\n");
+#endif
+
+	if ((err  = dev_wlc_ioctl(dev, WLC_SCAN, params, params_size))) {
+		WL_TRACE(("Set SCAN for %s failed with %d\n", __FUNCTION__, error));
+		err = -1;
+	}
+
+exit:
+
+	return err;
+}
+
+
+static int iwpriv_set_scan(struct net_device *dev, struct iw_request_info *info, \
+				union iwreq_data *wrqu, char *ext)
+{
+	int res = 0;
+	char  *extra = NULL;
+	wl_scan_params_t *params;
+	int params_size = WL_SCAN_PARAMS_FIXED_SIZE + WL_NUMCHANNELS * sizeof(uint16);
+	wlc_ssid_t ssids_local[WL_SCAN_PARAMS_SSID_MAX];
+	int nssid = 0;
+	int nchan = 0;
+
+	WL_TRACE(("\%s: info->cmd:%x, info->flags:%x, u.data=0x%p, u.len=%d\n",
+		__FUNCTION__, info->cmd, info->flags,
+		wrqu->data.pointer, wrqu->data.length));
+
+
+	if (wrqu->data.length != 0) {
+
+		char *str_ptr;
+
+		if (!(extra = kmalloc(wrqu->data.length+1, GFP_KERNEL)))
+			return -ENOMEM;
+
+		if (copy_from_user(extra, wrqu->data.pointer, wrqu->data.length)) {
+			kfree(extra);
+			return -EFAULT;
+		}
+
+		extra[wrqu->data.length] = 0;
+		WL_ERROR(("Got str param in iw_point:\n %s\n", extra));
+
+		str_ptr = extra;
+
+		if (strncmp(str_ptr, GET_SSID, strlen(GET_SSID))) {
+			WL_ERROR(("%s Error: extracting SSID='' string\n", __FUNCTION__));
+			goto exit_proc;
+		}
+		str_ptr += strlen(GET_SSID);
+		nssid = wl_iw_parse_ssid_list(&str_ptr, ssids_local, nssid, \
+						WL_SCAN_PARAMS_SSID_MAX);
+		if (nssid == -1) {
+			WL_ERROR(("%s wrong ssid list", __FUNCTION__));
+			return -1;
+		}
+
+		params_size += WL_SCAN_PARAMS_SSID_MAX * sizeof(wlc_ssid_t);
+
+		params = (wl_scan_params_t*)kmalloc(params_size, GFP_KERNEL);
+		if (params == NULL) {
+			WL_ERROR(("%s Failed allocate %d bytes \n", __FUNCTION__, params_size));
+			return -ENOMEM;
+		}
+		memset(params, 0, params_size);
+		ASSERT(params_size < WLC_IOCTL_MAXLEN);
+
+		wl_iw_iscan_prep(params, NULL);
+
+		if ((nchan = wl_iw_parse_channel_list(&str_ptr, params->channel_list, \
+							WL_NUMCHANNELS)) == -1) {
+			WL_ERROR(("%s missing channel list\n", __FUNCTION__));
+			return -1;
+		}
+
+		get_parmeter_from_string(&str_ptr, \
+				GET_NPROBE, PTYPE_INTDEC, &params->nprobes, 2);
+
+		get_parmeter_from_string(&str_ptr, GET_ACTIVE_ASSOC_DWELL, \
+							PTYPE_INTDEC, &params->active_time, 3);
+
+		get_parmeter_from_string(&str_ptr, GET_PASSIVE_ASSOC_DWELL, \
+							PTYPE_INTDEC, &params->passive_time, 3);
+
+		get_parmeter_from_string(&str_ptr, \
+				GET_HOME_DWELL, PTYPE_INTDEC, &params->home_time, 3);
+
+		res = wl_iw_combined_scan_set(dev, params, \
+						ssids_local, nssid, nchan);
+	} else {
+		  WL_ERROR(("IWPRIV argument len = 0 \n"));
+		  return -1;
+	}
+
+exit_proc:
+
+	kfree(extra);
+
+	return res;
+}
+
+
 #ifdef SOFTAP
 
 static int thr_wait_for_2nd_eth_dev(void *data)
@@ -5824,8 +6057,11 @@ static const iw_handler wl_iw_priv_handler[] = {
 	(iw_handler)iwpriv_softap_stop,
 
 	NULL,
-	(iw_handler)iwpriv_fw_reload
+	(iw_handler)iwpriv_fw_reload,
 #endif
+
+	NULL,
+	(iw_handler)iwpriv_set_scan
 };
 
 static const struct iw_priv_args wl_iw_priv_args[] = {
@@ -5922,6 +6158,12 @@ static const struct iw_priv_args wl_iw_priv_args[] = {
 		"WL_FW_RELOAD"
 	},
 #endif
+	{
+		WL_COMBO_SCAN,
+		IW_PRIV_TYPE_CHAR | 1024,
+		0,
+		"CSCAN"
+	},
 };
 
 const struct iw_handler_def wl_iw_handler_def =

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.123 2010/05/18 05:48:53 Exp $
+ * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.125 2010/06/04 02:52:15 Exp $
  */
 
 #include <typedefs.h>
@@ -1072,7 +1072,7 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 	/* Check for existing queue, current flow-control, pending event, or pending clock */
 	if (dhd_deferred_tx || bus->fcstate || pktq_len(&bus->txq) || bus->dpc_sched ||
 	    (!DATAOK(bus)) || (bus->flowcontrol & NBITVAL(prec)) ||
-	    (bus->clkstate == CLK_PENDING)) {
+	    (bus->clkstate != CLK_AVAIL)) {
 		DHD_TRACE(("%s: deferring pktq len %d\n", __FUNCTION__,
 			pktq_len(&bus->txq)));
 		bus->fcqueued++;
@@ -1109,7 +1109,7 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 		/* Otherwise, send it now */
 		BUS_WAKE(bus);
 		/* Make sure back plane ht clk is on, no pending allowed */
-		dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+		dhdsdio_clkctl(bus, CLK_AVAIL, TRUE);
 
 #ifndef SDTEST
 		DHD_TRACE(("%s: calling txpkt\n", __FUNCTION__));
@@ -4137,10 +4137,8 @@ dhdsdio_dpc(dhd_bus_t *bus)
 
 	BUS_WAKE(bus);
 
-	/* Make sure backplane clock is on, no pending, 
-	* waste of cycle to wait for the next schedule to send
-	*/
-	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+	/* Make sure backplane clock is on */
+	dhdsdio_clkctl(bus, CLK_AVAIL, TRUE);
 	if (bus->clkstate == CLK_PENDING)
 		goto clkwait;
 
@@ -4289,6 +4287,7 @@ clkwait:
 	} else if (bus->clkstate == CLK_PENDING) {
 		DHD_INFO(("%s: rescheduled due to CLK_PENDING awaiting \
 			I_CHIPACTIVE interrupt", __FUNCTION__));
+			resched = TRUE;
 	} else if (bus->intstatus || bus->ipend ||
 	           (!bus->fcstate && pktq_mlen(&bus->txq, ~bus->flowcontrol) && DATAOK(bus)) ||
 			PKT_AVAILABLE()) {  /* Read multiple frames */
