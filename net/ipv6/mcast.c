@@ -1356,7 +1356,10 @@ static struct sk_buff *mld_newpack(struct net_device *dev, int size)
 		     IPV6_TLV_PADN, 0 };
 
 	/* we assume size > sizeof(ra) here */
-	skb = sock_alloc_send_skb(sk, size + LL_ALLOCATED_SPACE(dev), 1, &err);
+	size += LL_ALLOCATED_SPACE(dev);
+	/* limit our allocations to order-0 page */
+	size = min_t(int, size, SKB_MAX_ORDER(0, 0));
+	skb = sock_alloc_send_skb(sk, size, 1, &err);
 
 	if (!skb)
 		return NULL;

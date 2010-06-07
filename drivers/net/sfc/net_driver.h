@@ -836,7 +836,7 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
 
 static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
-	return efx->port_num;
+	return efx->net_dev->dev_id;
 }
 
 /**
