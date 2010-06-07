@@ -239,6 +239,7 @@ static int copy_streams(u8 *data, unsigned long len,
 				header = *(unsigned long *)ptr;
 				ptr += 4;
 			}
+
 			/* split the header fields */
 			c = (header >> 24) & 0xff;
 			size = ((header & 0x7e) << 1);
@@ -280,9 +281,11 @@ static int copy_streams(u8 *data, unsigned long len,
 					cmd = TM6000_URB_MSG_ERR;
 				dev->isoc_ctl.vfield = field;
 				break;
-			case TM6000_URB_MSG_AUDIO:
 			case TM6000_URB_MSG_VBI:
+				break;
+			case TM6000_URB_MSG_AUDIO:
 			case TM6000_URB_MSG_PTS:
+				cpysize = pktsize;	/* Size is always 180 bytes */
 				break;
 			}
 		} else {
