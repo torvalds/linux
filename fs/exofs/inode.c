@@ -1307,7 +1307,7 @@ static void delete_done(struct exofs_io_state *ios, void *p)
  * from the OSD here.  We make sure the object was created before we try and
  * delete it.
  */
-void exofs_delete_inode(struct inode *inode)
+void exofs_evict_inode(struct inode *inode)
 {
 	struct exofs_i_info *oi = exofs_i(inode);
 	struct super_block *sb = inode->i_sb;
@@ -1318,11 +1318,11 @@ void exofs_delete_inode(struct inode *inode)
 	truncate_inode_pages(&inode->i_data, 0);
 
 	/* TODO: should do better here */
-	if (is_bad_inode(inode))
+	if (inode->i_nlink || is_bad_inode(inode))
 		goto no_delete;
 
 	inode->i_size = 0;
-	clear_inode(inode);
+	end_writeback(inode);
 
 	/* if we are deleting an obj that hasn't been created yet, wait */
 	if (!obj_created(oi)) {
@@ -1353,5 +1353,5 @@ void exofs_delete_inode(struct inode *inode)
 	return;
 
 no_delete:
-	clear_inode(inode);
+	end_writeback(inode);
 }
