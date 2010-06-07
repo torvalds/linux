@@ -283,6 +283,29 @@ static void __init stingray_power_off_init(void)
 	}
 }
 
+static int stingray_board_revision = STINGRAY_REVISION_UNKNOWN;
+
+int stingray_revision(void)
+{
+	return stingray_board_revision;
+}
+
+static int __init stingray_revision_parse(char *options)
+{
+	if (!strcmp(options, "m1"))
+		stingray_board_revision = STINGRAY_REVISION_M1;
+	else if (!strcmp(options, "p0"))
+		stingray_board_revision = STINGRAY_REVISION_P0;
+	else if (!strcmp(options, "p1"))
+		stingray_board_revision = STINGRAY_REVISION_P1;
+	else if (!strcmp(options, "p2"))
+		stingray_board_revision = STINGRAY_REVISION_P2;
+
+	return 1;
+}
+
+__setup("hw_rev=", stingray_revision_parse);
+
 static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;

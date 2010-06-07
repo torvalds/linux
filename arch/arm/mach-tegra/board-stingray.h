@@ -25,5 +25,14 @@ int stingray_wlan_init(void);
 int stingray_sensors_init(void);
 int stingray_touch_init(void);
 int stingray_spi_init(void);
+int stingray_revision(void);
+
+enum {
+	STINGRAY_REVISION_UNKNOWN,
+	STINGRAY_REVISION_M1,
+	STINGRAY_REVISION_P0,
+	STINGRAY_REVISION_P1,
+	STINGRAY_REVISION_P2,
+};
 
 #endif
