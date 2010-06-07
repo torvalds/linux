@@ -95,7 +95,7 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
  */
 SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,
-		unsigned long, fd, unsigned long, offset)
+		unsigned long, fd, off_t, offset)
 {
 	if (offset & ((1 << PAGE_SHIFT) - 1))
 		return -EINVAL;

@@ -43,8 +43,8 @@
 /* Caller before callee in this file; other callee is in assembler */
 void do_signal(struct pt_regs *regs);
 
-int _sys_sigaltstack(const stack_t __user *uss,
-		     stack_t __user *uoss, struct pt_regs *regs)
+long _sys_sigaltstack(const stack_t __user *uss,
+                      stack_t __user *uoss, struct pt_regs *regs)
 {
 	return do_sigaltstack(uss, uoss, regs->sp);
 }

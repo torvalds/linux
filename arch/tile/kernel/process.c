@@ -502,7 +502,7 @@ int _sys_fork(struct pt_regs *regs)
 }
 
 int _sys_clone(unsigned long clone_flags, unsigned long newsp,
-	       int __user *parent_tidptr, int __user *child_tidptr,
+	       void __user *parent_tidptr, void __user *child_tidptr,
 	       struct pt_regs *regs)
 {
 	if (!newsp)
