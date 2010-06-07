@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/mutex.h>
 #include <media/ir-kbd-i2c.h>
+#include <media/ir-core.h>
 #if defined(CONFIG_VIDEO_EM28XX_DVB) || defined(CONFIG_VIDEO_EM28XX_DVB_MODULE)
 #include <media/videobuf-dvb.h>
 #endif
