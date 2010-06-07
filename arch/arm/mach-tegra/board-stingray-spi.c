@@ -33,6 +33,7 @@
 
 #include <mach/irqs.h>
 
+#include "board-stingray.h"
 #include "gpio-names.h"
 
 static struct cpcap_device *cpcap_di;
@@ -215,7 +216,6 @@ static struct cpcap_led stingray_display_led = {
 	.cpcap_duty_cycle = 0x2A0,
 	.cpcap_current = 0x0,
 	.class_name = LD_DISP_BUTTON_DEV,
-	.led_regulator = "sw5",
 };
 
 static struct platform_device cpcap_disp_button_led = {
@@ -233,7 +233,6 @@ static struct cpcap_led stingray_privacy_led ={
 	.cpcap_duty_cycle = 0x41,
 	.cpcap_current = 0x0,
 	.class_name = LD_PRIVACY_LED_DEV,
-	.led_regulator = "sw5",
 };
 
 static struct platform_device cpcap_privacy_led = {
@@ -386,7 +385,6 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 5050000,
 			.max_uV			= 5050000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
-			.boot_on		= 1, /* Temporary for M1 */
 			.apply_uV		= 1,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw5_consumers),
@@ -592,6 +590,13 @@ static struct spi_board_info stingray_spi_board_info[] __initdata = {
 int __init stingray_spi_init(void)
 {
 	int i;
+
+	if (stingray_revision() <= STINGRAY_REVISION_M1) {
+		cpcap_regulator[CPCAP_SW5].constraints.boot_on = 1;
+
+		stingray_display_led.led_regulator = "sw5";
+		stingray_privacy_led.led_regulator = "sw5";
+	}
 
 	tegra_gpio_enable(TEGRA_GPIO_PT2);
 	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");

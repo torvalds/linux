@@ -195,6 +195,27 @@ static struct resource bq24617_resources[] = {
 	[1] = {
 		.name  = "stat2",
 		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PD1),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PD1),
+	},
+	[2] = {
+		.name  = "detect",
+		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
+	},
+};
+
+static struct resource bq24617_resources_m1_p0[] = {
+	[0] = {
+		.name  = "stat1",
+		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV5),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV5),
+	},
+	[1] = {
+		.name  = "stat2",
+		.flags = IORESOURCE_IRQ,
 		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
 		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
 	},
@@ -323,9 +344,14 @@ static void __init tegra_stingray_init(void)
 	/* Enable charging */
 	tegra_gpio_enable(TEGRA_GPIO_PV5);
 	tegra_gpio_enable(TEGRA_GPIO_PV6);
-	tegra_gpio_enable(TEGRA_GPIO_PJ0);
-	gpio_request(TEGRA_GPIO_PJ0, "chg_disable");
-	gpio_direction_output(TEGRA_GPIO_PJ0, 0);
+	if (stingray_revision() <= STINGRAY_REVISION_P0) {
+		bq24617_device.resource = bq24617_resources_m1_p0;
+
+		tegra_gpio_enable(TEGRA_GPIO_PJ0);
+		gpio_request(TEGRA_GPIO_PJ0, "chg_disable");
+		gpio_direction_output(TEGRA_GPIO_PJ0, 0);
+	} else
+		tegra_gpio_enable(TEGRA_GPIO_PD1);
 
 	stingray_pinmux_init();
 
