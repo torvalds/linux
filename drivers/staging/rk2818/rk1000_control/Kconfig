@@ -1,0 +1,7 @@
+menu "RK1000 control"
+config RK1000_CONTROL
+	tristate "ROCKCHIP RK1000 CONTROL"
+	default n
+	help
+          rk1000 control module.
+endmenu

@@ -29,7 +29,7 @@ config SND_ROCKCHIP_SOC_WM8994
 	  
 config SND_ROCKCHIP_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
-	depends on SND_ROCKCHIP_SOC 
+	depends on SND_ROCKCHIP_SOC && RK1000_CONTROL
 	select SND_ROCKCHIP_SOC_I2S
 	select SND_SOC_RK1000
 	help

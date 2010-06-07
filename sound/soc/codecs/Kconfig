@@ -216,7 +216,9 @@ config SND_SOC_WM9712
 
 config SND_SOC_WM9713
 	tristate
-
+config SND_SOC_RK1000
+	tristate
+	depends on RK1000_CONTROL
 # Amp
 config SND_SOC_MAX9877
 	tristate
