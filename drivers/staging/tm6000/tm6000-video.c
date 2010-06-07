@@ -285,7 +285,7 @@ static int copy_streams(u8 *data, unsigned long len,
 				break;
 			case TM6000_URB_MSG_AUDIO:
 			case TM6000_URB_MSG_PTS:
-				cpysize = pktsize;	/* Size is always 180 bytes */
+				size = pktsize;		/* Size is always 180 bytes */
 				break;
 			}
 		} else {
@@ -315,7 +315,7 @@ static int copy_streams(u8 *data, unsigned long len,
 				break;
 			}
 		}
-		if (ptr + pktsize > endp) {
+		if (cpysize < size) {
 			/* End of URB packet, but cmd processing is not
 			 * complete. Preserve the state for a next packet
 			 */
@@ -323,7 +323,7 @@ static int copy_streams(u8 *data, unsigned long len,
 			dev->isoc_ctl.size = size - cpysize;
 			dev->isoc_ctl.cmd = cmd;
 			dev->isoc_ctl.pktsize = pktsize - (endp - ptr);
-			ptr += endp - ptr;
+			ptr += cpysize;
 		} else {
 			dev->isoc_ctl.cmd = 0;
 			ptr += pktsize;
