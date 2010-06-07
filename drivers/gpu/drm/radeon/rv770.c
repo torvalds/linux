@@ -44,10 +44,10 @@ void rv770_fini(struct radeon_device *rdev);
 
 void rv770_pm_misc(struct radeon_device *rdev)
 {
-	int requested_index = rdev->pm.requested_power_state_index;
-	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
-	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
-
+	int req_ps_idx = rdev->pm.requested_power_state_index;
+	int req_cm_idx = rdev->pm.requested_clock_mode_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
+	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
 	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
 		if (voltage->voltage != rdev->pm.current_vddc) {
