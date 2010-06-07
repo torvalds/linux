@@ -803,35 +803,31 @@ struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
 /**
- *	dev_get_by_flags - find any device with given flags
+ *	dev_get_by_flags_rcu - find any device with given flags
  *	@net: the applicable net namespace
  *	@if_flags: IFF_* values
  *	@mask: bitmask of bits in if_flags to check
  *
  *	Search for any interface with the given flags. Returns NULL if a device
- *	is not found or a pointer to the device. The device returned has
- *	had a reference added and the pointer is safe until the user calls
- *	dev_put to indicate they have finished with it.
+ *	is not found or a pointer to the device. Must be called inside
+ *	rcu_read_lock(), and result refcount is unchanged.
  */
 
-struct net_device *dev_get_by_flags(struct net *net, unsigned short if_flags,
+struct net_device *dev_get_by_flags_rcu(struct net *net, unsigned short if_flags,
 				    unsigned short mask)
 {
 	struct net_device *dev, *ret;
 
 	ret = NULL;
-	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
 		if (((dev->flags ^ if_flags) & mask) == 0) {
-			dev_hold(dev);
 			ret = dev;
 			break;
 		}
 	}
-	rcu_read_unlock();
 	return ret;
 }
-EXPORT_SYMBOL(dev_get_by_flags);
+EXPORT_SYMBOL(dev_get_by_flags_rcu);
 
 /**
  *	dev_valid_name - check if name is okay for network device
