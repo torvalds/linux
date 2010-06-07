@@ -407,11 +407,6 @@ nouveau_card_init(struct drm_device *dev)
 	struct nouveau_engine *engine;
 	int ret;
 
-	NV_DEBUG(dev, "prev state = %d\n", dev_priv->init_state);
-
-	if (dev_priv->init_state == NOUVEAU_CARD_INIT_DONE)
-		return 0;
-
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
 	vga_switcheroo_register_client(dev->pdev, nouveau_switcheroo_set_state,
 				       nouveau_switcheroo_can_switch);
@@ -421,7 +416,6 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out;
 	engine = &dev_priv->engine;
-	dev_priv->init_state = NOUVEAU_CARD_INIT_FAILED;
 	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Parse BIOS tables / Run init tables if card not POSTed */
@@ -513,8 +507,6 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		NV_ERROR(dev, "Error %d registering backlight\n", ret);
 
-	dev_priv->init_state = NOUVEAU_CARD_INIT_DONE;
-
 	nouveau_fbcon_init(dev);
 	drm_kms_helper_poll_init(dev);
 	return 0;
@@ -559,44 +551,37 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
 
-	NV_DEBUG(dev, "prev state = %d\n", dev_priv->init_state);
+	nouveau_backlight_exit(dev);
 
-	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DOWN) {
-
-		nouveau_backlight_exit(dev);
-
-		if (dev_priv->channel) {
-			nouveau_channel_free(dev_priv->channel);
-			dev_priv->channel = NULL;
-		}
-
-		if (!nouveau_noaccel) {
-			engine->fifo.takedown(dev);
-			engine->graph.takedown(dev);
-		}
-		engine->fb.takedown(dev);
-		engine->timer.takedown(dev);
-		engine->mc.takedown(dev);
-
-		mutex_lock(&dev->struct_mutex);
-		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
-		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_TT);
-		mutex_unlock(&dev->struct_mutex);
-		nouveau_sgdma_takedown(dev);
-
-		nouveau_gpuobj_takedown(dev);
-		nouveau_mem_close(dev);
-		engine->instmem.takedown(dev);
-
-		drm_irq_uninstall(dev);
-
-		nouveau_gpuobj_late_takedown(dev);
-		nouveau_bios_takedown(dev);
-
-		vga_client_register(dev->pdev, NULL, NULL, NULL);
-
-		dev_priv->init_state = NOUVEAU_CARD_INIT_DOWN;
+	if (dev_priv->channel) {
+		nouveau_channel_free(dev_priv->channel);
+		dev_priv->channel = NULL;
 	}
+
+	if (!nouveau_noaccel) {
+		engine->fifo.takedown(dev);
+		engine->graph.takedown(dev);
+	}
+	engine->fb.takedown(dev);
+	engine->timer.takedown(dev);
+	engine->mc.takedown(dev);
+
+	mutex_lock(&dev->struct_mutex);
+	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
+	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_TT);
+	mutex_unlock(&dev->struct_mutex);
+	nouveau_sgdma_takedown(dev);
+
+	nouveau_gpuobj_takedown(dev);
+	nouveau_mem_close(dev);
+	engine->instmem.takedown(dev);
+
+	drm_irq_uninstall(dev);
+
+	nouveau_gpuobj_late_takedown(dev);
+	nouveau_bios_takedown(dev);
+
+	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
 
 /* here a client dies, release the stuff that was allocated for its
@@ -692,7 +677,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev_priv->dev = dev;
 
 	dev_priv->flags = flags & NOUVEAU_FLAGS;
-	dev_priv->init_state = NOUVEAU_CARD_INIT_DOWN;
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
@@ -840,8 +824,6 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_nouveau_getparam *getparam = data;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
-
 	switch (getparam->param) {
 	case NOUVEAU_GETPARAM_CHIPSET_ID:
 		getparam->value = dev_priv->chipset;
@@ -909,8 +891,6 @@ nouveau_ioctl_setparam(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	struct drm_nouveau_setparam *setparam = data;
-
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
 
 	switch (setparam->param) {
 	default:

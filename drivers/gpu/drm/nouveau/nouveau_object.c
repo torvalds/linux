@@ -1232,7 +1232,6 @@ int nouveau_ioctl_grobj_alloc(struct drm_device *dev, void *data,
 	struct nouveau_channel *chan;
 	int ret;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
 	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(init->channel, file_priv, chan);
 
 	if (init->handle == ~0)
@@ -1283,7 +1282,6 @@ int nouveau_ioctl_gpuobj_free(struct drm_device *dev, void *data,
 	struct nouveau_channel *chan;
 	int ret;
 
-	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;
 	NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(objfree->channel, file_priv, chan);
 
 	ret = nouveau_gpuobj_ref_find(chan, objfree->handle, &ref);

@@ -492,11 +492,6 @@ enum nouveau_card_type {
 
 struct drm_nouveau_private {
 	struct drm_device *dev;
-	enum {
-		NOUVEAU_CARD_INIT_DOWN,
-		NOUVEAU_CARD_INIT_DONE,
-		NOUVEAU_CARD_INIT_FAILED
-	} init_state;
 
 	/* the card type, takes NV_* as values */
 	enum nouveau_card_type card_type;
@@ -648,14 +643,6 @@ nouveau_bo_ref(struct nouveau_bo *ref, struct nouveau_bo **pnvbo)
 
 	return 0;
 }
-
-#define NOUVEAU_CHECK_INITIALISED_WITH_RETURN do {            \
-	struct drm_nouveau_private *nv = dev->dev_private;    \
-	if (nv->init_state != NOUVEAU_CARD_INIT_DONE) {       \
-		NV_ERROR(dev, "called without init\n");       \
-		return -EINVAL;                               \
-	}                                                     \
-} while (0)
 
 #define NOUVEAU_GET_USER_CHANNEL_WITH_RETURN(id, cl, ch) do {    \
 	struct drm_nouveau_private *nv = dev->dev_private;       \
