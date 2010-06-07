@@ -89,7 +89,7 @@ __uml_setup("hostfs=", hostfs_args,
 );
 #endif
 
-static char *dentry_name(struct dentry *dentry, int extra)
+static char *dentry_name(struct dentry *dentry)
 {
 	struct dentry *parent;
 	char *root, *name;
@@ -104,7 +104,7 @@ static char *dentry_name(struct dentry *dentry, int extra)
 
 	root = parent->d_sb->s_fs_info;
 	len += strlen(root);
-	name = kmalloc(len + extra + 1, GFP_KERNEL);
+	name = kmalloc(len + 1, GFP_KERNEL);
 	if (name == NULL)
 		return NULL;
 
@@ -121,12 +121,12 @@ static char *dentry_name(struct dentry *dentry, int extra)
 	return name;
 }
 
-static char *inode_name(struct inode *ino, int extra)
+static char *inode_name(struct inode *ino)
 {
 	struct dentry *dentry;
 
 	dentry = list_entry(ino->i_dentry.next, struct dentry, d_alias);
-	return dentry_name(dentry, extra);
+	return dentry_name(dentry);
 }
 
 static char *follow_link(char *link)
@@ -267,7 +267,7 @@ int hostfs_readdir(struct file *file, void *ent, filldir_t filldir)
 	unsigned long long next, ino;
 	int error, len;
 
-	name = dentry_name(file->f_path.dentry, 0);
+	name = dentry_name(file->f_path.dentry);
 	if (name == NULL)
 		return -ENOMEM;
 	dir = open_dir(name, &error);
@@ -312,7 +312,7 @@ int hostfs_file_open(struct inode *ino, struct file *file)
 	if (w)
 		r = 1;
 
-	name = dentry_name(file->f_path.dentry, 0);
+	name = dentry_name(file->f_path.dentry);
 	if (name == NULL)
 		return -ENOMEM;
 
@@ -519,7 +519,7 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	}
 
 	error = -ENOMEM;
-	name = dentry_name(dentry, 0);
+	name = dentry_name(dentry);
 	if (name == NULL)
 		goto out_put;
 
@@ -561,7 +561,7 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 	}
 
 	err = -ENOMEM;
-	name = dentry_name(dentry, 0);
+	name = dentry_name(dentry);
 	if (name == NULL)
 		goto out_put;
 
@@ -585,29 +585,14 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 	return ERR_PTR(err);
 }
 
-static char *inode_dentry_name(struct inode *ino, struct dentry *dentry)
-{
-	char *file;
-	int len;
-
-	file = inode_name(ino, dentry->d_name.len + 1);
-	if (file == NULL)
-		return NULL;
-	strcat(file, "/");
-	len = strlen(file);
-	strncat(file, dentry->d_name.name, dentry->d_name.len);
-	file[len + dentry->d_name.len] = '\0';
-	return file;
-}
-
 int hostfs_link(struct dentry *to, struct inode *ino, struct dentry *from)
 {
 	char *from_name, *to_name;
 	int err;
 
-	if ((from_name = inode_dentry_name(ino, from)) == NULL)
+	if ((from_name = dentry_name(from)) == NULL)
 		return -ENOMEM;
-	to_name = dentry_name(to, 0);
+	to_name = dentry_name(to);
 	if (to_name == NULL) {
 		kfree(from_name);
 		return -ENOMEM;
@@ -623,7 +608,7 @@ int hostfs_unlink(struct inode *ino, struct dentry *dentry)
 	char *file;
 	int err;
 
-	if ((file = inode_dentry_name(ino, dentry)) == NULL)
+	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	if (append)
 		return -EPERM;
@@ -638,7 +623,7 @@ int hostfs_symlink(struct inode *ino, struct dentry *dentry, const char *to)
 	char *file;
 	int err;
 
-	if ((file = inode_dentry_name(ino, dentry)) == NULL)
+	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = make_symlink(file, to);
 	kfree(file);
@@ -650,7 +635,7 @@ int hostfs_mkdir(struct inode *ino, struct dentry *dentry, int mode)
 	char *file;
 	int err;
 
-	if ((file = inode_dentry_name(ino, dentry)) == NULL)
+	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = do_mkdir(file, mode);
 	kfree(file);
@@ -662,7 +647,7 @@ int hostfs_rmdir(struct inode *ino, struct dentry *dentry)
 	char *file;
 	int err;
 
-	if ((file = inode_dentry_name(ino, dentry)) == NULL)
+	if ((file = dentry_name(dentry)) == NULL)
 		return -ENOMEM;
 	err = do_rmdir(file);
 	kfree(file);
@@ -682,7 +667,7 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	}
 
 	err = -ENOMEM;
-	name = dentry_name(dentry, 0);
+	name = dentry_name(dentry);
 	if (name == NULL)
 		goto out_put;
 
@@ -715,9 +700,9 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	char *from_name, *to_name;
 	int err;
 
-	if ((from_name = inode_dentry_name(from_ino, from)) == NULL)
+	if ((from_name = dentry_name(from)) == NULL)
 		return -ENOMEM;
-	if ((to_name = inode_dentry_name(to_ino, to)) == NULL) {
+	if ((to_name = dentry_name(to)) == NULL) {
 		kfree(from_name);
 		return -ENOMEM;
 	}
@@ -735,7 +720,7 @@ int hostfs_permission(struct inode *ino, int desired)
 	if (desired & MAY_READ) r = 1;
 	if (desired & MAY_WRITE) w = 1;
 	if (desired & MAY_EXEC) x = 1;
-	name = inode_name(ino, 0);
+	name = inode_name(ino);
 	if (name == NULL)
 		return -ENOMEM;
 
@@ -801,7 +786,7 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (attr->ia_valid & ATTR_MTIME_SET) {
 		attrs.ia_valid |= HOSTFS_ATTR_MTIME_SET;
 	}
-	name = dentry_name(dentry, 0);
+	name = dentry_name(dentry);
 	if (name == NULL)
 		return -ENOMEM;
 	err = set_attr(name, &attrs, fd);
@@ -856,7 +841,7 @@ int hostfs_link_readpage(struct file *file, struct page *page)
 	int err;
 
 	buffer = kmap(page);
-	name = inode_name(page->mapping->host, 0);
+	name = inode_name(page->mapping->host);
 	if (name == NULL)
 		return -ENOMEM;
 	err = hostfs_do_readlink(name, buffer, PAGE_CACHE_SIZE);
