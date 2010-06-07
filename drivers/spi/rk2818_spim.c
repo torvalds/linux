@@ -958,7 +958,8 @@ exit:
 
 static void __exit rk2818_spim_remove(struct platform_device *pdev)
 {
-	struct rk2818_spi *dws = platform_get_drvdata(pdev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct rk2818_spi *dws = spi_master_get_devdata(master);
 	int status = 0;
 
 	if (!dws)
@@ -995,7 +996,8 @@ static int rk2818_spim_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 static int rk2818_spim_resume(struct platform_device *pdev)
 {
-	struct rk2818_spi *dws = platform_get_drvdata(pdev);
+	struct spi_master *master = platform_get_drvdata(pdev);
+	struct rk2818_spi *dws = spi_master_get_devdata(master);
 	int ret;
 	
 	clk_enable(dws->clock_spim);	
