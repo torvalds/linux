@@ -275,7 +275,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	if (!(vport->load_flag & FC_UNLOADING) &&
 	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
-	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE))
+	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
+	    (ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
 	lpfc_unregister_unused_fcf(phba);
@@ -2715,11 +2716,35 @@ lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
 	pmb->context1 = NULL;
 
-	/* Good status, call state machine */
-	lpfc_disc_state_machine(vport, ndlp, pmb, NLP_EVT_CMPL_REG_LOGIN);
+	if (ndlp->nlp_flag & NLP_REG_LOGIN_SEND)
+		ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
+
+	if (ndlp->nlp_flag &  NLP_IGNR_REG_CMPL ||
+		ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) {
+		/* We rcvd a rscn after issuing this
+		 * mbox reg login, we may have cycled
+		 * back through the state and be
+		 * back at reg login state so this
+		 * mbox needs to be ignored becase
+		 * there is another reg login in
+		 * proccess.
+		 */
+		spin_lock_irq(shost->host_lock);
+		ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
+		spin_unlock_irq(shost->host_lock);
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			lpfc_sli4_free_rpi(phba,
+				pmb->u.mb.un.varRegLogin.rpi);
+
+	} else
+		/* Good status, call state machine */
+		lpfc_disc_state_machine(vport, ndlp, pmb,
+				NLP_EVT_CMPL_REG_LOGIN);
+
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	mempool_free(pmb, phba->mbox_mem_pool);
@@ -3842,6 +3867,9 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				kfree(mp);
 			}
 			list_del(&mb->list);
+			if (phba->sli_rev == LPFC_SLI_REV4)
+				lpfc_sli4_free_rpi(phba,
+					 mb->u.mb.un.varRegLogin.rpi);
 			mempool_free(mb, phba->mbox_mem_pool);
 			/* We shall not invoke the lpfc_nlp_put to decrement
 			 * the ndlp reference count as we are in the process
@@ -3883,6 +3911,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 
 	lpfc_cancel_retry_delay_tmo(vport, ndlp);
 	if ((ndlp->nlp_flag & NLP_DEFER_RM) &&
+		!(ndlp->nlp_flag & NLP_REG_LOGIN_SEND) &&
 	    !(ndlp->nlp_flag & NLP_RPI_VALID)) {
 		/* For this case we need to cleanup the default rpi
 		 * allocated by the firmware.

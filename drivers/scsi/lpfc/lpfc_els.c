@@ -2740,6 +2740,15 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				retry = 1;
 				break;
 			}
+			if (stat.un.b.lsRjtRsnCodeExp ==
+			    LSEXP_CANT_GIVE_DATA) {
+				if (cmd == ELS_CMD_PLOGI) {
+					delay = 1000;
+					maxretry = 48;
+				}
+				retry = 1;
+				break;
+			}
 			if (cmd == ELS_CMD_PLOGI) {
 				delay = 1000;
 				maxretry = lpfc_max_els_tries + 1;
