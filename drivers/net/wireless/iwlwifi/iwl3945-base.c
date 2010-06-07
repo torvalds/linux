@@ -1171,7 +1171,7 @@ static void iwl3945_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rx
 	}
 
 	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->dma_addr);
+			  rxq->bd_dma);
 	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
 			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;

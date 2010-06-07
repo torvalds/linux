@@ -486,7 +486,7 @@ int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 
 	/* Tell device where to find RBD circular buffer in DRAM */
 	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-			   (u32)(rxq->dma_addr >> 8));
+			   (u32)(rxq->bd_dma >> 8));
 
 	/* Tell device where in DRAM to update its Rx status */
 	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
@@ -751,7 +751,7 @@ void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	}
 
 	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->dma_addr);
+			  rxq->bd_dma);
 	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
 			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;

@@ -348,7 +348,7 @@ struct iwl_host_cmd {
 /**
  * struct iwl_rx_queue - Rx queue
  * @bd: driver's pointer to buffer of receive buffer descriptors (rbd)
- * @dma_addr: bus address of buffer of receive buffer descriptors (rbd)
+ * @bd_dma: bus address of buffer of receive buffer descriptors (rbd)
  * @read: Shared index to newest available Rx buffer
  * @write: Shared index to oldest written Rx packet
  * @free_count: Number of pre-allocated buffers in rx_free
@@ -362,7 +362,7 @@ struct iwl_host_cmd {
  */
 struct iwl_rx_queue {
 	__le32 *bd;
-	dma_addr_t dma_addr;
+	dma_addr_t bd_dma;
 	struct iwl_rx_mem_buffer pool[RX_QUEUE_SIZE + RX_FREE_BUFFERS];
 	struct iwl_rx_mem_buffer *queue[RX_QUEUE_SIZE];
 	u32 read;

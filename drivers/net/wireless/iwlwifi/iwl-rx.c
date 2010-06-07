@@ -175,7 +175,7 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 	INIT_LIST_HEAD(&rxq->rx_used);
 
 	/* Alloc the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->dma_addr,
+	rxq->bd = dma_alloc_coherent(dev, 4 * RX_QUEUE_SIZE, &rxq->bd_dma,
 				     GFP_KERNEL);
 	if (!rxq->bd)
 		goto err_bd;
@@ -199,7 +199,7 @@ int iwl_rx_queue_alloc(struct iwl_priv *priv)
 
 err_rb:
 	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->dma_addr);
+			  rxq->bd_dma);
 err_bd:
 	return -ENOMEM;
 }

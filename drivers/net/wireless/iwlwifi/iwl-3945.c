@@ -844,7 +844,7 @@ static int iwl3945_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 
 static int iwl3945_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 {
-	iwl_write_direct32(priv, FH39_RCSR_RBD_BASE(0), rxq->dma_addr);
+	iwl_write_direct32(priv, FH39_RCSR_RBD_BASE(0), rxq->bd_dma);
 	iwl_write_direct32(priv, FH39_RCSR_RPTR_ADDR(0), rxq->rb_stts_dma);
 	iwl_write_direct32(priv, FH39_RCSR_WPTR(0), 0);
 	iwl_write_direct32(priv, FH39_RCSR_CONFIG(0),
