@@ -43,7 +43,7 @@
 #define NCP_DEFAULT_TIME_OUT 10
 #define NCP_DEFAULT_RETRY_COUNT 20
 
-static void ncp_delete_inode(struct inode *);
+static void ncp_evict_inode(struct inode *);
 static void ncp_put_super(struct super_block *);
 static int  ncp_statfs(struct dentry *, struct kstatfs *);
 static int  ncp_show_options(struct seq_file *, struct vfsmount *);
@@ -100,7 +100,7 @@ static const struct super_operations ncp_sops =
 	.alloc_inode	= ncp_alloc_inode,
 	.destroy_inode	= ncp_destroy_inode,
 	.drop_inode	= generic_delete_inode,
-	.delete_inode	= ncp_delete_inode,
+	.evict_inode	= ncp_evict_inode,
 	.put_super	= ncp_put_super,
 	.statfs		= ncp_statfs,
 	.remount_fs	= ncp_remount,
@@ -282,19 +282,19 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 }
 
 static void
-ncp_delete_inode(struct inode *inode)
+ncp_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 
 	if (S_ISDIR(inode->i_mode)) {
-		DDPRINTK("ncp_delete_inode: put directory %ld\n", inode->i_ino);
+		DDPRINTK("ncp_evict_inode: put directory %ld\n", inode->i_ino);
 	}
 
 	if (ncp_make_closed(inode) != 0) {
 		/* We can't do anything but complain. */
-		printk(KERN_ERR "ncp_delete_inode: could not close\n");
+		printk(KERN_ERR "ncp_evict_inode: could not close\n");
 	}
-	clear_inode(inode);
 }
 
 static void ncp_stop_tasks(struct ncp_server *server) {
