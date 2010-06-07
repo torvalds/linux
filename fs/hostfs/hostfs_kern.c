@@ -622,10 +622,11 @@ int hostfs_unlink(struct inode *ino, struct dentry *dentry)
 	char *file;
 	int err;
 
-	if ((file = dentry_name(dentry)) == NULL)
-		return -ENOMEM;
 	if (append)
 		return -EPERM;
+
+	if ((file = dentry_name(dentry)) == NULL)
+		return -ENOMEM;
 
 	err = unlink_file(file);
 	__putname(file);
