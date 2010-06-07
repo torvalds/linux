@@ -877,12 +877,11 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	struct ieee80211_channel *channel, bool change_channel)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
-	u32 s_seq[10], s_ant, s_led[3], staid1_flags, tsf_up, tsf_lo;
+	u32 s_seq[10], s_led[3], staid1_flags, tsf_up, tsf_lo;
 	u32 phy_tst1;
 	u8 mode, freq, ee_mode;
 	int i, ret;
 
-	s_ant = 0;
 	ee_mode = 0;
 	staid1_flags = 0;
 	tsf_up = 0;
@@ -978,9 +977,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 				tsf_lo = ath5k_hw_reg_read(ah, AR5K_TSF_L32);
 			}
 		}
-
-		/* Save default antenna */
-		s_ant = ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA);
 
 		if (ah->ah_version == AR5K_AR5212) {
 			/* Restore normal 32/40MHz clock operation
@@ -1141,8 +1137,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 				ath5k_hw_reg_write(ah, tsf_lo, AR5K_TSF_L32);
 			}
 		}
-
-		ath5k_hw_reg_write(ah, s_ant, AR5K_DEFAULT_ANTENNA);
 	}
 
 	/* Ledstate */
