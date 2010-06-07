@@ -359,6 +359,9 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_if_managed *ifmgd;
 
+	if (!netif_running(ndev))
+		return NOTIFY_DONE;
+
 	/* Make sure it's our interface that got changed */
 	if (!wdev)
 		return NOTIFY_DONE;
