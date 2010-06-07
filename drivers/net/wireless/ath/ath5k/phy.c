@@ -1793,6 +1793,13 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 	u8 def_ant, tx_ant, ee_mode;
 	u32 sta_id1 = 0;
 
+	/* if channel is not initialized yet we can't set the antennas
+	 * so just store the mode. it will be set on the next reset */
+	if (channel == NULL) {
+		ah->ah_ant_mode = ant_mode;
+		return;
+	}
+
 	def_ant = ah->ah_def_ant;
 
 	switch (channel->hw_value & CHANNEL_MODES) {
