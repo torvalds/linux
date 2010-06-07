@@ -424,6 +424,17 @@ struct qtouch_key_array {
 	int				num_keys;
 };
 
+struct touch_fw_entry {
+	uint8_t		*image;
+	uint32_t	size;
+	uint8_t		family_id;
+	uint8_t		variant_id;
+	uint8_t		fw_version;
+	uint8_t		fw_build;
+	uint8_t		boot_version;
+	uint8_t		base_fw_version;
+};
+
 #define QTOUCH_FLIP_X		(1 << 0)
 #define QTOUCH_FLIP_Y		(1 << 1)
 #define QTOUCH_SWAP_XY		(1 << 2)
@@ -462,6 +473,8 @@ struct qtouch_ts_platform_data {
 	/* TODO: allow multiple key arrays */
 	struct qtouch_key_array			key_array;
 
+	struct touch_fw_entry				touch_fw_cfg;
+
 	/* object configuration information from board */
 	struct qtm_gen_power_cfg			power_cfg;
 	struct qtm_gen_acquire_cfg			acquire_cfg;
@@ -480,17 +493,6 @@ struct qtouch_ts_platform_data {
 	struct qtm_proci_noise1_suppression_cfg		noise1_suppression_cfg;
 
 	struct virt_keys	vkeys;
-};
-
-struct touch_fw_entry {
-	uint8_t		*image;
-	uint32_t	size;
-	uint8_t		family_id;
-	uint8_t		variant_id;
-	uint8_t		fw_version;
-	uint8_t		fw_build;
-	uint8_t		boot_version;
-	uint8_t		base_fw_version;
 };
 
 #endif /* _LINUX_QTOUCH_OBP_TS_H */

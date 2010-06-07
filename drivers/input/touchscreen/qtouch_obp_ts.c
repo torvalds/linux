@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/qtouch_obp_ts.h>
-#include <linux/qtouch_obp_ts_firmware.h>
 #include <linux/slab.h>
 
 #define IGNORE_CHECKSUM_MISMATCH
@@ -80,6 +79,11 @@ struct qtouch_ts_data {
 	uint32_t			touch_fw_size;
 	uint8_t				*touch_fw_image;
 	uint8_t				base_fw_version;
+
+	uint8_t				xpos_rshift_lsb;
+	uint8_t				ypos_rshift_lsb;
+	uint8_t				xpos_lshift_msb;
+	uint8_t				ypos_lshift_msb;
 
 	atomic_t			irq_enabled;
 	int				status;
@@ -205,7 +209,8 @@ static int qtouch_write_addr(struct qtouch_ts_data *ts, uint16_t addr,
 
 	write_buf = kzalloc((buf_sz + sizeof(uint16_t)), GFP_KERNEL);
 	if (write_buf == NULL) {
-		pr_err("%s: Can't allocate write buffer (%d)\n", __func__, buf_sz);
+		pr_err("%s: Can't allocate write buffer (%d)\n",
+			 __func__, buf_sz);
 		return -ENOMEM;
 	}
 
@@ -214,7 +219,7 @@ static int qtouch_write_addr(struct qtouch_ts_data *ts, uint16_t addr,
 
 	ret = qtouch_write(ts, write_buf, buf_sz + sizeof(addr));
 
-	kfree (write_buf);
+	kfree(write_buf);
 
 	if (ret < 0) {
 		pr_err("%s: Could not write %d bytes.\n", __func__, buf_sz);
@@ -652,11 +657,11 @@ static int qtouch_hw_init(struct qtouch_ts_data *ts)
 						        __func__, object);
 					}
 
-					kfree (data_buff);
+					kfree(data_buff);
 				}
 			}
 
-			kfree (msg);
+			kfree(msg);
 		}
 
 		qtouch_set_addr(ts, ts->obj_tbl[QTM_OBJ_GEN_MSG_PROC].entry.addr);
@@ -769,9 +774,17 @@ static int do_touch_multi_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	if (finger >= ts->pdata->multi_touch_cfg.num_touch)
 		return 0;
 
-	/* x/y are 10bit values, with bottom 2 bits inside the xypos_lsb */
-	x = (msg->xpos_msb << 2) | ((msg->xypos_lsb >> 6) & 0xf);
-	y = (msg->ypos_msb << 2) | ((msg->xypos_lsb >> 2) & 0xf);
+	if (qtouch_tsdebug & 0x10)
+		pr_info("%s: msgxpos_msb 0x%X msgypos_msb 0x%X msgxypos 0x%X \n",
+			 __func__,msg->xpos_msb, msg->ypos_msb, msg->xypos_lsb);
+
+	/* x/y are 10bit values(<1024), with bottom 2 bits inside the xypos_lsb */
+	/* x/y are 12bit values(>1023), with bottom 4 bits inside the xypos_lsb */
+	x = (msg->xpos_msb << ts->xpos_lshift_msb) |
+		((msg->xypos_lsb >> ts->xpos_rshift_lsb) & 0xf);
+	y = (msg->ypos_msb << ts->ypos_lshift_msb) |
+		((msg->xypos_lsb >> ts->ypos_rshift_lsb) & 0xf);
+
 	width = msg->touch_area;
 	pressure = msg->touch_amp;
 
@@ -1289,9 +1302,9 @@ touch_to_normal_mode:
 	/* Wait for the IC to recover */
 	msleep(QTM_OBP_SLEEP_WAIT_FOR_RESET);
 	err = qtouch_process_info_block(ts);
-	if (err != 0) {
+	if (err != 0)
 		pr_err("%s:Cannot read info block %i\n", __func__, err);
-	}
+
 	err = qtouch_ts_register_input(ts);
 	if (err != 0) {
 		pr_err("%s: Registering input failed %i\n", __func__, err);
@@ -1332,11 +1345,10 @@ static void qtouch_ts_work_func(struct work_struct *work)
 	}
 
 done:
-	if (qtouch_disable_touch) {
+	if (qtouch_disable_touch)
 		pr_err("%s: Not enabling touch\n", __func__);
-	} else {
+	else
 		enable_irq(ts->client->irq);
-	}
 }
 
 static int qtouch_set_boot_mode(struct qtouch_ts_data *ts)
@@ -1463,7 +1475,6 @@ static int qtouch_ts_probe(struct i2c_client *client,
 	struct qtouch_ts_platform_data *pdata = client->dev.platform_data;
 	struct qtouch_ts_data *ts;
 	int err;
-	struct touch_fw_entry *touch_fw_table_ptr;
 	unsigned char boot_info;
 	int loop_count;
 
@@ -1503,32 +1514,45 @@ static int qtouch_ts_probe(struct i2c_client *client,
 	ts->touch_fw_size = 0;
 	ts->touch_fw_image = NULL;
 	ts->base_fw_version = 0;
-	touch_fw_table_ptr = touch_fw_table;
+
+	ts->xpos_rshift_lsb = 6;
+	ts->xpos_lshift_msb = 2;
+	ts->ypos_rshift_lsb = 2;
+	ts->ypos_lshift_msb = 2;
+
+	if (ts->pdata->multi_touch_cfg.x_res > 1023) {
+		ts->xpos_rshift_lsb = 4;
+		ts->xpos_lshift_msb = 4;
+	}
+	if (ts->pdata->multi_touch_cfg.y_res > 1023) {
+		ts->ypos_rshift_lsb = 0;
+		ts->ypos_lshift_msb = 4;
+	}
+
+	pr_info("%s: xpos_msb %d xpos_lsb %d ypos_msb %d ypos_lsb %d\n", __func__,
+			ts->xpos_lshift_msb, ts->xpos_rshift_lsb,
+			ts->ypos_lshift_msb, ts->ypos_rshift_lsb);
 
 	qtouch_force_reset(ts, 0);
 	err = qtouch_process_info_block(ts);
+
 	if (err == 0) {
 		pr_info("%s: FW version is 0x%X Build 0x%X\n", __func__,
-					   ts->fw_version, ts->build_version);
+			   ts->fw_version, ts->build_version);
 
-		while (touch_fw_table_ptr->family_id != 0x00) {
-			if ((ts->family_id == touch_fw_table_ptr->family_id)
-			    && (ts->variant_id == touch_fw_table_ptr->variant_id)) {
-				pr_info("%s: Chip type matched\n", __func__);
+		if ((ts->family_id == ts->pdata->touch_fw_cfg.family_id)
+		    && (ts->variant_id == ts->pdata->touch_fw_cfg.variant_id)) {
+			pr_info("%s: Chip type matched\n", __func__);
 
-				if ((ts->fw_version != touch_fw_table_ptr->fw_version)
-				    || (ts->build_version != touch_fw_table_ptr->fw_build)) {
-					pr_info("%s: Reflash needed\n", __func__);
-					ts->touch_fw_size = touch_fw_table_ptr->size;
-					ts->touch_fw_image = touch_fw_table_ptr->image;
-					ts->base_fw_version = touch_fw_table_ptr->base_fw_version;
-				} else {
-					pr_info("%s: Reflash not needed\n", __func__);
-				}
-
-				break;
+			if ((ts->fw_version != ts->pdata->touch_fw_cfg.fw_version)
+			    || (ts->build_version != ts->pdata->touch_fw_cfg.fw_build)) {
+				pr_info("%s: Reflash needed\n", __func__);
+				ts->touch_fw_size = ts->pdata->touch_fw_cfg.size;
+				ts->touch_fw_image = ts->pdata->touch_fw_cfg.image;
+				ts->base_fw_version = ts->pdata->touch_fw_cfg.base_fw_version;
+			} else {
+				pr_info("%s: Reflash not needed\n", __func__);
 			}
-			touch_fw_table_ptr++;
 		}
 
 		if ((ts->touch_fw_size != 0) && (ts->touch_fw_image != NULL)) {
@@ -1579,15 +1603,11 @@ static int qtouch_ts_probe(struct i2c_client *client,
 			boot_info &= QTM_OBP_BOOT_VERSION_MASK;
 			pr_info("%s:Bootloader version %d\n", __func__, boot_info);
 
-			while (touch_fw_table_ptr->family_id != 0x00) {
-				if (boot_info == touch_fw_table_ptr->boot_version) {
-					pr_info("%s: Chip type matched\n", __func__);
-					ts->touch_fw_size = touch_fw_table_ptr->size;
-					ts->touch_fw_image = touch_fw_table_ptr->image;
-					ts->base_fw_version = touch_fw_table_ptr->base_fw_version;
-					break;
-				}
-				touch_fw_table_ptr++;
+			if (boot_info == ts->pdata->touch_fw_cfg.boot_version) {
+				pr_info("%s: Chip type matched\n", __func__);
+				ts->touch_fw_size = ts->pdata->touch_fw_cfg.size;
+				ts->touch_fw_image = ts->pdata->touch_fw_cfg.image;
+				ts->base_fw_version = ts->pdata->touch_fw_cfg.base_fw_version;
 			}
 		}
 	}
