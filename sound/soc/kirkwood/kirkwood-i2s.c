@@ -296,7 +296,6 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 
 	default:
 		return -EINVAL;
-		break;
 	}
 
 	return 0;

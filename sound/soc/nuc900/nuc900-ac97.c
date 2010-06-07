@@ -25,7 +25,7 @@
 
 #include <mach/mfp.h>
 
-#include "nuc900-auido.h"
+#include "nuc900-audio.h"
 
 static DEFINE_MUTEX(ac97_mutex);
 struct nuc900_audio *nuc900_ac97_data;
@@ -66,9 +66,8 @@ static unsigned short nuc900_ac97_read(struct snd_ac97 *ac97,
 	udelay(100);
 
 	/* polling the AC_R_FINISH */
-	val = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
-	val &= AC_R_FINISH;
-	while (!val && timeout--)
+	while (!(AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON) & AC_R_FINISH)
+								&& timeout--)
 		mdelay(1);
 
 	if (!timeout) {
@@ -121,9 +120,8 @@ static void nuc900_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	udelay(100);
 
 	/* polling the AC_W_FINISH */
-	tmp = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
-	tmp &= AC_W_FINISH;
-	while (tmp && timeout--)
+	while ((AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON) & AC_W_FINISH)
+								&& timeout--)
 		mdelay(1);
 
 	if (!timeout)
@@ -149,7 +147,7 @@ static void nuc900_ac97_warm_reset(struct snd_ac97 *ac97)
 	val |= AC_W_RES;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACCON, val);
 
-	udelay(1000);
+	udelay(100);
 
 	val = nuc900_checkready();
 	if (!!val)
@@ -170,13 +168,9 @@ static void nuc900_ac97_cold_reset(struct snd_ac97 *ac97)
 	val |= ACTL_RESET_BIT;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 
-	udelay(1000);
-
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 	val &= (~ACTL_RESET_BIT);
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
-
-	udelay(1000);
 
 	/* reset AC-link interface */
 
@@ -184,26 +178,20 @@ static void nuc900_ac97_cold_reset(struct snd_ac97 *ac97)
 	val |= AC_RESET;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 
-	udelay(1000);
-
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 	val &= ~AC_RESET;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
-
-	udelay(1000);
 
 	/* cold reset AC 97 */
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
 	val |= AC_C_RES;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACCON, val);
 
-	udelay(1000);
-
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
 	val &= (~AC_C_RES);
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACCON, val);
 
-	udelay(1000);
+	udelay(100);
 
 	mutex_unlock(&ac97_mutex);
 
@@ -222,7 +210,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
 	struct nuc900_audio *nuc900_audio = nuc900_ac97_data;
-	int ret, stype = SUBSTREAM_TYPE(substream);
+	int ret;
 	unsigned long val, tmp;
 
 	ret = 0;
@@ -231,7 +219,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
-		if (PCM_TX == stype) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			tmp = AUDIO_READ(nuc900_audio->mmio + ACTL_ACOS0);
 			tmp |= (SLOT3_VALID | SLOT4_VALID | VALID_FRAME);
 			AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACOS0, tmp);
@@ -254,7 +242,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
-		if (PCM_TX == stype) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			tmp = AUDIO_READ(nuc900_audio->mmio + ACTL_ACOS0);
 			tmp &= ~(SLOT3_VALID | SLOT4_VALID);
 			AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACOS0, tmp);

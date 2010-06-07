@@ -10,6 +10,9 @@ struct imx_ssi_platform_data {
 	unsigned int flags;
 #define IMX_SSI_DMA            (1 << 0)
 #define IMX_SSI_USE_AC97       (1 << 1)
+#define IMX_SSI_NET            (1 << 2)
+#define IMX_SSI_SYN            (1 << 3)
+#define IMX_SSI_USE_I2S_SLAVE  (1 << 4)
 	void (*ac97_reset) (struct snd_ac97 *ac97);
 	void (*ac97_warm_reset)(struct snd_ac97 *ac97);
 };
