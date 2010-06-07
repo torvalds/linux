@@ -167,10 +167,15 @@ int ext4_truncate_restart_trans(handle_t *handle, struct inode *inode,
 /*
  * Called at the last iput() if i_nlink is zero.
  */
-void ext4_delete_inode(struct inode *inode)
+void ext4_evict_inode(struct inode *inode)
 {
 	handle_t *handle;
 	int err;
+
+	if (inode->i_nlink) {
+		truncate_inode_pages(&inode->i_data, 0);
+		goto no_delete;
+	}
 
 	if (!is_bad_inode(inode))
 		dquot_initialize(inode);
@@ -245,13 +250,13 @@ void ext4_delete_inode(struct inode *inode)
 	 */
 	if (ext4_mark_inode_dirty(handle, inode))
 		/* If that failed, just do the required in-core inode clear. */
-		clear_inode(inode);
+		ext4_clear_inode(inode);
 	else
 		ext4_free_inode(handle, inode);
 	ext4_journal_stop(handle);
 	return;
 no_delete:
-	clear_inode(inode);	/* We must guarantee clearing of inode... */
+	ext4_clear_inode(inode);	/* We must guarantee clearing of inode... */
 }
 
 typedef struct {
