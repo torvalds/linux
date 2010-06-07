@@ -77,6 +77,7 @@ struct ath5k_dbg_info {
 	struct dentry		*debugfs_antenna;
 	struct dentry		*debugfs_frameerrors;
 	struct dentry		*debugfs_ani;
+	struct dentry		*debugfs_queue;
 };
 
 /**
