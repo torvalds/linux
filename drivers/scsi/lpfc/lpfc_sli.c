@@ -9194,6 +9194,7 @@ lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 {
 	struct lpfc_wcqe_release wcqe;
 	bool workposted = false;
+	unsigned long iflag;
 
 	/* Copy the work queue CQE and convert endian order if needed */
 	lpfc_sli_pcimem_bcopy(cqe, &wcqe, sizeof(struct lpfc_cqe));
@@ -9202,6 +9203,9 @@ lpfc_sli4_fp_handle_wcqe(struct lpfc_hba *phba, struct lpfc_queue *cq,
 	switch (bf_get(lpfc_wcqe_c_code, &wcqe)) {
 	case CQE_CODE_COMPL_WQE:
 		/* Process the WQ complete event */
+		spin_lock_irqsave(&phba->hbalock, iflag);
+		phba->last_completion_time = jiffies;
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
 		lpfc_sli4_fp_handle_fcp_wcqe(phba,
 				(struct lpfc_wcqe_complete *)&wcqe);
 		break;
