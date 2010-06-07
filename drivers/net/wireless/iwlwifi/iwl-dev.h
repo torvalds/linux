@@ -1225,7 +1225,7 @@ struct iwl_priv {
 	struct iwl_tt_mgmt thermal_throttle;
 
 	struct iwl_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct iwl_notif_statistics accum_statistics;
 	struct iwl_notif_statistics delta_statistics;
 	struct iwl_notif_statistics max_delta;
