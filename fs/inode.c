@@ -317,8 +317,6 @@ static void evict(struct inode *inode)
 			truncate_inode_pages(&inode->i_data, 0);
 		invalidate_inode_buffers(inode);
 		end_writeback(inode);
-		if (op->clear_inode)
-			op->clear_inode(inode);
 	}
 	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
 		bd_forget(inode);

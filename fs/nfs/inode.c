@@ -98,7 +98,7 @@ u64 nfs_compat_user_ino64(u64 fileid)
 	return ino;
 }
 
-void nfs_clear_inode(struct inode *inode)
+static void nfs_clear_inode(struct inode *inode)
 {
 	/*
 	 * The following should never happen...
@@ -108,6 +108,13 @@ void nfs_clear_inode(struct inode *inode)
 	nfs_zap_acl_cache(inode);
 	nfs_access_zap_cache(inode);
 	nfs_fscache_release_inode_cookie(inode);
+}
+
+void nfs_evict_inode(struct inode *inode)
+{
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
+	nfs_clear_inode(inode);
 }
 
 /**
@@ -1338,8 +1345,10 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
  * to open() calls that passed nfs_atomic_lookup, but failed to call
  * nfs_open().
  */
-void nfs4_clear_inode(struct inode *inode)
+void nfs4_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	/* If we are holding a delegation, return it! */
 	nfs_inode_return_delegation_noreclaim(inode);
 	/* First call standard NFS clear_inode() code */

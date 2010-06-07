@@ -357,13 +357,12 @@ static void dlmfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(dlmfs_inode_cache, DLMFS_I(inode));
 }
 
-static void dlmfs_clear_inode(struct inode *inode)
+static void dlmfs_evict_inode(struct inode *inode)
 {
 	int status;
 	struct dlmfs_inode_private *ip;
 
-	if (!inode)
-		return;
+	end_writeback(inode);
 
 	mlog(0, "inode %lu\n", inode->i_ino);
 
@@ -633,7 +632,7 @@ static const struct super_operations dlmfs_ops = {
 	.statfs		= simple_statfs,
 	.alloc_inode	= dlmfs_alloc_inode,
 	.destroy_inode	= dlmfs_destroy_inode,
-	.clear_inode	= dlmfs_clear_inode,
+	.evict_inode	= dlmfs_evict_inode,
 	.drop_inode	= generic_delete_inode,
 };
 

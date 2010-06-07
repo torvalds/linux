@@ -387,8 +387,10 @@ error:
  * @inode: inode to release
  *
  */
-void v9fs_clear_inode(struct inode *inode)
+void v9fs_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(inode->i_mapping, 0);
+	end_writeback(inode);
 	filemap_fdatawrite(inode->i_mapping);
 
 #ifdef CONFIG_9P_FSCACHE

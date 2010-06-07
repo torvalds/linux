@@ -565,7 +565,7 @@ extern void afs_zap_data(struct afs_vnode *);
 extern int afs_validate(struct afs_vnode *, struct key *);
 extern int afs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int afs_setattr(struct dentry *, struct iattr *);
-extern void afs_clear_inode(struct inode *);
+extern void afs_evict_inode(struct inode *);
 
 /*
  * main.c

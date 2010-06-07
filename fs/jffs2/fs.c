@@ -225,7 +225,7 @@ int jffs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 
-void jffs2_clear_inode (struct inode *inode)
+void jffs2_evict_inode (struct inode *inode)
 {
 	/* We can forget about this inode for now - drop all
 	 *  the nodelists associated with it, etc.
@@ -233,7 +233,9 @@ void jffs2_clear_inode (struct inode *inode)
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(inode->i_sb);
 	struct jffs2_inode_info *f = JFFS2_INODE_INFO(inode);
 
-	D1(printk(KERN_DEBUG "jffs2_clear_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
+	D1(printk(KERN_DEBUG "jffs2_evict_inode(): ino #%lu mode %o\n", inode->i_ino, inode->i_mode));
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	jffs2_do_clear_inode(c, f);
 }
 

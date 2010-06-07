@@ -257,7 +257,7 @@ static const struct super_operations v9fs_super_ops = {
 	.destroy_inode = v9fs_destroy_inode,
 #endif
 	.statfs = simple_statfs,
-	.clear_inode = v9fs_clear_inode,
+	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
 };
@@ -268,7 +268,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.destroy_inode = v9fs_destroy_inode,
 #endif
 	.statfs = v9fs_statfs,
-	.clear_inode = v9fs_clear_inode,
+	.evict_inode = v9fs_evict_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
 };

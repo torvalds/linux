@@ -122,7 +122,7 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 }
 
 /**
- * ecryptfs_clear_inode
+ * ecryptfs_evict_inode
  * @inode - The ecryptfs inode
  *
  * Called by iput() when the inode reference count reached zero
@@ -131,8 +131,10 @@ static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
  * on the inode free list. We use this to drop out reference to the
  * lower inode.
  */
-static void ecryptfs_clear_inode(struct inode *inode)
+static void ecryptfs_evict_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	iput(ecryptfs_inode_to_lower(inode));
 }
 
@@ -184,6 +186,6 @@ const struct super_operations ecryptfs_sops = {
 	.drop_inode = generic_delete_inode,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
-	.clear_inode = ecryptfs_clear_inode,
+	.evict_inode = ecryptfs_evict_inode,
 	.show_options = ecryptfs_show_options
 };

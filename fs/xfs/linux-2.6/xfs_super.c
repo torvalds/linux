@@ -1100,13 +1100,15 @@ xfs_fs_write_inode(
 }
 
 STATIC void
-xfs_fs_clear_inode(
+xfs_fs_evict_inode(
 	struct inode		*inode)
 {
 	xfs_inode_t		*ip = XFS_I(inode);
 
-	trace_xfs_clear_inode(ip);
+	trace_xfs_evict_inode(ip);
 
+	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	XFS_STATS_INC(vn_rele);
 	XFS_STATS_INC(vn_remove);
 	XFS_STATS_DEC(vn_active);
@@ -1622,7 +1624,7 @@ static const struct super_operations xfs_super_operations = {
 	.destroy_inode		= xfs_fs_destroy_inode,
 	.dirty_inode		= xfs_fs_dirty_inode,
 	.write_inode		= xfs_fs_write_inode,
-	.clear_inode		= xfs_fs_clear_inode,
+	.evict_inode		= xfs_fs_evict_inode,
 	.put_super		= xfs_fs_put_super,
 	.sync_fs		= xfs_fs_sync_fs,
 	.freeze_fs		= xfs_fs_freeze,

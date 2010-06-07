@@ -426,10 +426,13 @@ static inline void __bd_forget(struct inode *inode)
 	inode->i_mapping = &inode->i_data;
 }
 
-static void bdev_clear_inode(struct inode *inode)
+static void bdev_evict_inode(struct inode *inode)
 {
 	struct block_device *bdev = &BDEV_I(inode)->bdev;
 	struct list_head *p;
+	truncate_inode_pages(&inode->i_data, 0);
+	invalidate_inode_buffers(inode); /* is it needed here? */
+	end_writeback(inode);
 	spin_lock(&bdev_lock);
 	while ( (p = bdev->bd_inodes.next) != &bdev->bd_inodes ) {
 		__bd_forget(list_entry(p, struct inode, i_devices));
@@ -443,7 +446,7 @@ static const struct super_operations bdev_sops = {
 	.alloc_inode = bdev_alloc_inode,
 	.destroy_inode = bdev_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.clear_inode = bdev_clear_inode,
+	.evict_inode = bdev_evict_inode,
 };
 
 static int bd_get_sb(struct file_system_type *fs_type,
