@@ -521,6 +521,7 @@ static int dt3155_ioctl(struct inode *inode,
 			unsigned long arg)
 {
   int minor = MINOR(inode->i_rdev); /* What device are we ioctl()'ing? */
+  void __user *up = (void __user *)arg;
 
   if (minor >= MAXBOARDS || minor < 0)
     return -ENODEV;
@@ -547,7 +548,7 @@ static int dt3155_ioctl(struct inode *inode,
 
 	{
 	  struct dt3155_config tmp;
-	  if (copy_from_user((void *)&tmp, (void *) arg, sizeof(tmp)))
+	  if (copy_from_user(&tmp, up, sizeof(tmp)))
 	      return -EFAULT;
 	  /* check for valid settings */
 	  if (tmp.rows > DT3155_MAX_ROWS ||
@@ -565,7 +566,7 @@ static int dt3155_ioctl(struct inode *inode,
       }
     case DT3155_GET_CONFIG:
       {
-	if (copy_to_user((void *) arg, (void *) &dt3155_status[minor],
+	if (copy_to_user(up, &dt3155_status[minor],
 		     sizeof(struct dt3155_status)))
 	    return -EFAULT;
 	return 0;
@@ -586,7 +587,7 @@ static int dt3155_ioctl(struct inode *inode,
 	  return 0;
 
 	quick_stop(minor);
-	if (copy_to_user((void *) arg, (void *) &dt3155_status[minor],
+	if (copy_to_user(up, &dt3155_status[minor],
 		     sizeof(struct dt3155_status)))
 	    return -EFAULT;
 	return 0;
@@ -610,7 +611,7 @@ static int dt3155_ioctl(struct inode *inode,
 	  }
 
 	dt3155_init_isr(minor);
-	if (copy_to_user((void *) arg, (void *) &dt3155_status[minor],
+	if (copy_to_user(up, &dt3155_status[minor],
 		      sizeof(struct dt3155_status)))
 	    return -EFAULT;
 	return 0;
@@ -812,11 +813,11 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
   /* make this an offset */
   offset = frame_info->addr - dt3155_status[minor].mem_addr;
 
-  put_user(offset, (unsigned int *) buf);
+  put_user(offset, (unsigned int __user *)buf);
   buf += sizeof(u32);
-  put_user(dt3155_status[minor].fbuffer.frame_count, (unsigned int *) buf);
+  put_user(dt3155_status[minor].fbuffer.frame_count, (unsigned int __user *)buf);
   buf += sizeof(u32);
-  put_user(dt3155_status[minor].state, (unsigned int *) buf);
+  put_user(dt3155_status[minor].state, (unsigned int __user *)buf);
   buf += sizeof(u32);
   if (copy_to_user(buf, frame_info, sizeof(*frame_info)))
       return -EFAULT;
