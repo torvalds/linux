@@ -2078,10 +2078,9 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 			cfg80211_send_assoc_timeout(wk->sdata->dev,
 						    wk->filter_ta);
 			return WORK_DONE_DESTROY;
-#ifdef CONFIG_INET
 		} else {
 			mutex_unlock(&wk->sdata->u.mgd.mtx);
-
+#ifdef CONFIG_INET
 			/*
 			 * configure ARP filter IP addresses to the driver,
 			 * intentionally outside the mgd mutex.
