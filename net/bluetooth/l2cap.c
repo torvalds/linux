@@ -1912,6 +1912,11 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 			break;
 		}
 
+		if (opts.txwin_size > L2CAP_DEFAULT_TX_WINDOW) {
+			err = -EINVAL;
+			break;
+		}
+
 		l2cap_pi(sk)->mode = opts.mode;
 		switch (l2cap_pi(sk)->mode) {
 		case L2CAP_MODE_BASIC:
