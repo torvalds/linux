@@ -335,8 +335,6 @@ static void evict(struct inode *inode, int delete)
 
 	if (op->evict_inode) {
 		op->evict_inode(inode);
-	} else if (delete && op->delete_inode) {
-		op->delete_inode(inode);
 	} else {
 		if (inode->i_data.nrpages)
 			truncate_inode_pages(&inode->i_data, 0);
