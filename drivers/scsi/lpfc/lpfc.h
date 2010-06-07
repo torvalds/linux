@@ -20,7 +20,6 @@
  *******************************************************************/
 
 #include <scsi/scsi_host.h>
-
 struct lpfc_sli2_slim;
 
 #define LPFC_PCI_DEV_LP		0x1
@@ -376,6 +375,7 @@ struct lpfc_vport {
 #define WORKER_FABRIC_BLOCK_TMO        0x400	/* hba: fabric block timeout */
 #define WORKER_RAMP_DOWN_QUEUE         0x800	/* hba: Decrease Q depth */
 #define WORKER_RAMP_UP_QUEUE           0x1000	/* hba: Increase Q depth */
+#define WORKER_SERVICE_TXQ             0x2000	/* hba: IOCBs on the txq */
 
 	struct timer_list fc_fdmitmo;
 	struct timer_list els_tmofunc;
@@ -624,6 +624,7 @@ struct lpfc_hba {
 	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
+	uint32_t cfg_iocb_cnt;
 	uint32_t cfg_suppress_link_up;
 #define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
 #define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
@@ -812,6 +813,8 @@ struct lpfc_hba {
 
 	uint8_t menlo_flag;	/* menlo generic flags */
 #define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
+	uint32_t iocb_cnt;
+	uint32_t iocb_max;
 };
 
 static inline struct Scsi_Host *

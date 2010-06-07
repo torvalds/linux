@@ -403,3 +403,12 @@ int lpfc_bsg_request(struct fc_bsg_job *);
 int lpfc_bsg_timeout(struct fc_bsg_job *);
 int lpfc_bsg_ct_unsol_event(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_iocbq *);
+void __lpfc_sli_ringtx_put(struct lpfc_hba *, struct lpfc_sli_ring *,
+	struct lpfc_iocbq *);
+struct lpfc_iocbq *lpfc_sli_ringtx_get(struct lpfc_hba *,
+	struct lpfc_sli_ring *);
+int __lpfc_sli_issue_iocb(struct lpfc_hba *, uint32_t,
+	struct lpfc_iocbq *, uint32_t);
+uint32_t lpfc_drain_txq(struct lpfc_hba *);
+
+

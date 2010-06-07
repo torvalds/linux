@@ -8147,8 +8147,12 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 
 	/* Initialize and populate the iocb list per host */
-	error = lpfc_init_iocb_list(phba,
-			phba->sli4_hba.max_cfg_param.max_xri);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"2821 initialize iocb list %d.\n",
+			phba->cfg_iocb_cnt*1024);
+	error = lpfc_init_iocb_list(phba, phba->cfg_iocb_cnt*1024);
+
 	if (error) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"1413 Failed to initialize iocb list.\n");

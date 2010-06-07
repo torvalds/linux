@@ -377,6 +377,11 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 
 	if (rc == IOCB_SUCCESS)
 		return 0; /* done for now */
+	else if (rc == IOCB_BUSY)
+		rc = EAGAIN;
+	else
+		rc = EIO;
+
 
 	/* iocb failed so cleanup */
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
@@ -625,6 +630,10 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 	lpfc_nlp_put(ndlp);
 	if (rc == IOCB_SUCCESS)
 		return 0; /* done for now */
+	else if (rc == IOCB_BUSY)
+		rc = EAGAIN;
+	else
+		rc = EIO;
 
 	pci_unmap_sg(phba->pcidev, job->request_payload.sg_list,
 		     job->request_payload.sg_cnt, DMA_TO_DEVICE);
