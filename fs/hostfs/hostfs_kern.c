@@ -131,28 +131,21 @@ static char *inode_name(struct inode *ino, int extra)
 
 static int read_name(struct inode *ino, char *name)
 {
-	/*
-	 * The non-int inode fields are copied into ints by stat_file and
-	 * then copied into the inode because passing the actual pointers
-	 * in and having them treated as int * breaks on big-endian machines
-	 */
-	int err;
-	int i_mode, i_nlink, i_blksize;
-	unsigned long long i_size;
-	unsigned long long i_ino;
-	unsigned long long i_blocks;
-
-	err = stat_file(name, &i_ino, &i_mode, &i_nlink, &ino->i_uid,
-			&ino->i_gid, &i_size, &ino->i_atime, &ino->i_mtime,
-			&ino->i_ctime, &i_blksize, &i_blocks, -1);
+	struct hostfs_stat st;
+	int err = stat_file(name, &st, -1);
 	if (err)
 		return err;
 
-	ino->i_ino = i_ino;
-	ino->i_mode = i_mode;
-	ino->i_nlink = i_nlink;
-	ino->i_size = i_size;
-	ino->i_blocks = i_blocks;
+	ino->i_ino = st.ino;
+	ino->i_mode = st.mode;
+	ino->i_nlink = st.nlink;
+	ino->i_uid = st.uid;
+	ino->i_gid = st.gid;
+	ino->i_atime = st.atime;
+	ino->i_mtime = st.mtime;
+	ino->i_ctime = st.ctime;
+	ino->i_size = st.size;
+	ino->i_blocks = st.blocks;
 	return 0;
 }
 
