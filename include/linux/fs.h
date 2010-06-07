@@ -2182,7 +2182,6 @@ extern void unlock_new_inode(struct inode *);
 
 extern void __iget(struct inode * inode);
 extern void iget_failed(struct inode *);
-extern void clear_inode(struct inode *);
 extern void end_writeback(struct inode *);
 extern void destroy_inode(struct inode *);
 extern void __destroy_inode(struct inode *);

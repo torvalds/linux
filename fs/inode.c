@@ -306,29 +306,6 @@ void end_writeback(struct inode *inode)
 }
 EXPORT_SYMBOL(end_writeback);
 
-/**
- * clear_inode - clear an inode
- * @inode: inode to clear
- *
- * This is called by the filesystem to tell us
- * that the inode is no longer useful. We just
- * terminate it with extreme prejudice.
- */
-void clear_inode(struct inode *inode)
-{
-	might_sleep();
-	invalidate_inode_buffers(inode);
-
-	BUG_ON(inode->i_data.nrpages);
-	BUG_ON(!(inode->i_state & I_FREEING));
-	BUG_ON(inode->i_state & I_CLEAR);
-	inode_sync_wait(inode);
-	if (inode->i_sb->s_op->clear_inode)
-		inode->i_sb->s_op->clear_inode(inode);
-	inode->i_state = I_FREEING | I_CLEAR;
-}
-EXPORT_SYMBOL(clear_inode);
-
 static void evict(struct inode *inode)
 {
 	const struct super_operations *op = inode->i_sb->s_op;
@@ -338,7 +315,10 @@ static void evict(struct inode *inode)
 	} else {
 		if (inode->i_data.nrpages)
 			truncate_inode_pages(&inode->i_data, 0);
-		clear_inode(inode);
+		invalidate_inode_buffers(inode);
+		end_writeback(inode);
+		if (op->clear_inode)
+			op->clear_inode(inode);
 	}
 	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
 		bd_forget(inode);
