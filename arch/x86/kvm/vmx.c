@@ -2659,21 +2659,27 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 static int init_rmode(struct kvm *kvm)
 {
+	int idx, ret = 0;
+
+	idx = srcu_read_lock(&kvm->srcu);
 	if (!init_rmode_tss(kvm))
-		return 0;
+		goto exit;
 	if (!init_rmode_identity_map(kvm))
-		return 0;
-	return 1;
+		goto exit;
+
+	ret = 1;
+exit:
+	srcu_read_unlock(&kvm->srcu, idx);
+	return ret;
 }
 
 static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 msr;
-	int ret, idx;
+	int ret;
 
 	vcpu->arch.regs_avail = ~((1 << VCPU_REGS_RIP) | (1 << VCPU_REGS_RSP));
-	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	if (!init_rmode(vmx->vcpu.kvm)) {
 		ret = -ENOMEM;
 		goto out;
@@ -2783,7 +2789,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx->emulation_required = 0;
 
 out:
-	srcu_read_unlock(&vcpu->kvm->srcu, idx);
 	return ret;
 }
 
