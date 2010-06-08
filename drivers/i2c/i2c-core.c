@@ -30,6 +30,8 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/of_i2c.h>
+#include <linux/of_device.h>
 #include <linux/completion.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
@@ -69,6 +71,10 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 
 	if (!client)
 		return 0;
+
+	/* Attempt an OF style match */
+	if (of_driver_match_device(dev, drv))
+		return 1;
 
 	driver = to_i2c_driver(drv);
 	/* match on an id table if there is one */
@@ -789,6 +795,9 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	/* create pre-declared device nodes */
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
+
+	/* Register devices from the device tree */
+	of_i2c_register_devices(adap);
 
 	/* Notify drivers */
 	mutex_lock(&core_lock);
