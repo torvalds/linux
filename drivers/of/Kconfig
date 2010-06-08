@@ -26,7 +26,7 @@ config OF_GPIO
 
 config OF_I2C
 	def_tristate I2C
-	depends on (PPC_OF || MICROBLAZE) && I2C
+	depends on OF && !SPARC && I2C
 	help
 	  OpenFirmware I2C accessors
 
