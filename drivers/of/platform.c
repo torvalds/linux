@@ -475,10 +475,35 @@ struct of_device *of_device_alloc(struct device_node *np,
 				  struct device *parent)
 {
 	struct of_device *dev;
+	int rc, i, num_reg = 0, num_irq = 0;
+	struct resource *res, temp_res;
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	/* First count how many resources are needed */
+	while (of_address_to_resource(np, num_reg, &temp_res) == 0)
+		num_reg++;
+	while (of_irq_to_resource(np, num_irq, &temp_res) != NO_IRQ)
+		num_irq++;
+
+	/* Allocate memory for both the struct device and the resource table */
+	dev = kzalloc(sizeof(*dev) + (sizeof(*res) * (num_reg + num_irq)),
+		      GFP_KERNEL);
 	if (!dev)
 		return NULL;
+	res = (struct resource *) &dev[1];
+
+	/* Populate the resource table */
+	if (num_irq || num_reg) {
+		dev->num_resources = num_reg + num_irq;
+		dev->resource = res;
+		for (i = 0; i < num_reg; i++, res++) {
+			rc = of_address_to_resource(np, i, res);
+			WARN_ON(rc);
+		}
+		for (i = 0; i < num_irq; i++, res++) {
+			rc = of_irq_to_resource(np, i, res);
+			WARN_ON(rc == NO_IRQ);
+		}
+	}
 
 	dev->dev.of_node = of_node_get(np);
 	dev->dev.dma_mask = &dev->archdata.dma_mask;
