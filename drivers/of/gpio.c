@@ -46,7 +46,7 @@ int of_get_gpio_flags(struct device_node *np, int index,
 		goto err0;
 	}
 
-	gc = gpio_np->data;
+	gc = of_node_to_gpiochip(gpio_np);
 	if (!gc) {
 		pr_debug("%s: gpio controller %s isn't registered\n",
 			 np->full_name, gpio_np->full_name);
@@ -193,7 +193,6 @@ int of_mm_gpiochip_add(struct device_node *np,
 	if (mm_gc->save_regs)
 		mm_gc->save_regs(mm_gc);
 
-	np->data = &mm_gc->gc;
 	mm_gc->gc.of_node = np;
 
 	ret = gpiochip_add(gc);
@@ -207,7 +206,6 @@ int of_mm_gpiochip_add(struct device_node *np,
 		 np->full_name, gc->base);
 	return 0;
 err2:
-	np->data = NULL;
 	iounmap(mm_gc->regs);
 err1:
 	kfree(gc->label);
@@ -217,3 +215,14 @@ err0:
 	return ret;
 }
 EXPORT_SYMBOL(of_mm_gpiochip_add);
+
+/* Private function for resolving node pointer to gpio_chip */
+static int of_gpiochip_is_match(struct gpio_chip *chip, void *data)
+{
+	return chip->of_node == data;
+}
+
+struct gpio_chip *of_node_to_gpiochip(struct device_node *np)
+{
+	return gpiochip_find(np, of_gpiochip_is_match);
+}

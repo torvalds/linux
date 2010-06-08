@@ -350,6 +350,7 @@ mpc52xx_gpt_gpio_setup(struct mpc52xx_gpt_priv *gpt, struct device_node *node)
 	gpt->gc.base = -1;
 	gpt->gc.of_gpio_n_cells = 2;
 	gpt->gc.of_xlate = of_gpio_simple_xlate;
+	gpt->gc.of_node = node;
 	of_node_get(node);
 
 	/* Setup external pin in GPIO mode */

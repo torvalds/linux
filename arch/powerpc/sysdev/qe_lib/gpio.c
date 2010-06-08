@@ -167,7 +167,7 @@ struct qe_pin *qe_pin_request(struct device_node *np, int index)
 		goto err1;
 	}
 
-	gc = gpio_np->data;
+	gc = of_node_to_gpiochip(gpio_np);
 	if (!gc) {
 		pr_debug("%s: gpio controller %s isn't registered\n",
 			 np->full_name, gpio_np->full_name);

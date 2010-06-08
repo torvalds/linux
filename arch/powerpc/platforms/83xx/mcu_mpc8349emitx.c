@@ -35,7 +35,6 @@
 
 struct mcu {
 	struct mutex lock;
-	struct device_node *np;
 	struct i2c_client *client;
 	struct gpio_chip gc;
 	u8 reg_ctrl;
@@ -79,7 +78,6 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 {
 	struct device_node *np;
 	struct gpio_chip *gc = &mcu->gc;
-	int ret;
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,mcu-mpc8349emitx");
 	if (!np)
@@ -94,29 +92,14 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 	gc->direction_output = mcu_gpio_dir_out;
 	gc->of_gpio_n_cells = 2;
 	gc->of_xlate = of_gpio_simple_xlate;
+	gc->of_node = np;
 
-	mcu->np = np;
-
-	/*
-	 * We don't want to lose the node, its ->data and ->full_name...
-	 * So, if succeeded, we don't put the node here.
-	 */
-	ret = gpiochip_add(gc);
-	if (ret)
-		of_node_put(np);
-	return ret;
+	return gpiochip_add(gc);
 }
 
 static int mcu_gpiochip_remove(struct mcu *mcu)
 {
-	int ret;
-
-	ret = gpiochip_remove(&mcu->gc);
-	if (ret)
-		return ret;
-	of_node_put(mcu->np);
-
-	return 0;
+	return gpiochip_remove(&mcu->gc);
 }
 
 static int __devinit mcu_probe(struct i2c_client *client,

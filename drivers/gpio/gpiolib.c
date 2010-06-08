@@ -1153,6 +1153,38 @@ int gpiochip_remove(struct gpio_chip *chip)
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
+/**
+ * gpiochip_find() - iterator for locating a specific gpio_chip
+ * @data: data to pass to match function
+ * @callback: Callback function to check gpio_chip
+ *
+ * Similar to bus_find_device.  It returns a reference to a gpio_chip as
+ * determined by a user supplied @match callback.  The callback should return
+ * 0 if the device doesn't match and non-zero if it does.  If the callback is
+ * non-zero, this function will return to the caller and not iterate over any
+ * more gpio_chips.
+ */
+struct gpio_chip *gpiochip_find(void *data,
+				int (*match)(struct gpio_chip *chip, void *data))
+{
+	struct gpio_chip *chip = NULL;
+	unsigned long flags;
+	int i;
+
+	spin_lock_irqsave(&gpio_lock, flags);
+	for (i = 0; i < ARCH_NR_GPIOS; i++) {
+		if (!gpio_desc[i].chip)
+			continue;
+
+		if (match(gpio_desc[i].chip, data)) {
+			chip = gpio_desc[i].chip;
+			break;
+		}
+	}
+	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	return chip;
+}
 
 /* These "optional" allocation calls help prevent drivers from stomping
  * on each other, and help provide better diagnostics in debugfs.

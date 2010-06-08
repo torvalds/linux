@@ -54,6 +54,9 @@ extern int of_mm_gpiochip_add(struct device_node *np,
 			      struct of_mm_gpio_chip *mm_gc);
 extern int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
 				const void *gpio_spec, u32 *flags);
+
+extern struct gpio_chip *of_node_to_gpiochip(struct device_node *np);
+
 #else /* CONFIG_OF_GPIO */
 
 /* Drivers may not strictly depend on the GPIO support, so let them link. */

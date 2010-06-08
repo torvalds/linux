@@ -39,7 +39,7 @@ static int of_reset_gpio_handle(void)
 		goto err0;
 	}
 
-	gc = gpio->data;
+	gc = of_node_to_gpiochip(gpio);
 	if (!gc) {
 		pr_debug("%s: gpio controller %s isn't registered\n",
 			 root->full_name, gpio->full_name);
