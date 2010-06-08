@@ -488,6 +488,4 @@ config BLK_DEV_HD
 
 	  If unsure, say N.
 
-source "drivers/block/spectra/Kconfig"
-
 endif # BLK_DEV

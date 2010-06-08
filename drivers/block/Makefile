@@ -38,6 +38,4 @@ obj-$(CONFIG_BLK_DEV_HD)	+= hd.o
 obj-$(CONFIG_XEN_BLKDEV_FRONTEND)	+= xen-blkfront.o
 obj-$(CONFIG_BLK_DEV_DRBD)     += drbd/
 
-obj-$(CONFIG_MRST_NAND)	+= spectra/
-
 swim_mod-objs	:= swim.o swim_asm.o
