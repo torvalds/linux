@@ -1343,11 +1343,12 @@ static void rt_del(unsigned hash, struct rtable *rt)
 	spin_unlock_bh(rt_hash_lock_addr(hash));
 }
 
+/* called in rcu_read_lock() section */
 void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 		    __be32 saddr, struct net_device *dev)
 {
 	int i, k;
-	struct in_device *in_dev = in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
 	struct rtable *rth, **rthp;
 	__be32  skeys[2] = { saddr, 0 };
 	int  ikeys[2] = { dev->ifindex, 0 };
@@ -1383,7 +1384,6 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 
 			rthp=&rt_hash_table[hash].chain;
 
-			rcu_read_lock();
 			while ((rth = rcu_dereference(*rthp)) != NULL) {
 				struct rtable *rt;
 
@@ -1405,12 +1405,10 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 					break;
 
 				dst_hold(&rth->u.dst);
-				rcu_read_unlock();
 
 				rt = dst_alloc(&ipv4_dst_ops);
 				if (rt == NULL) {
 					ip_rt_put(rth);
-					in_dev_put(in_dev);
 					return;
 				}
 
@@ -1463,12 +1461,10 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 					ip_rt_put(rt);
 				goto do_next;
 			}
-			rcu_read_unlock();
 		do_next:
 			;
 		}
 	}
-	in_dev_put(in_dev);
 	return;
 
 reject_redirect:
@@ -1479,7 +1475,7 @@ reject_redirect:
 		       &old_gw, dev->name, &new_gw,
 		       &saddr, &daddr);
 #endif
-	in_dev_put(in_dev);
+	;
 }
 
 static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst)
