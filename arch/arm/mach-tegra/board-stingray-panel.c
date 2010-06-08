@@ -15,14 +15,17 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/leds-auo-panel-backlight.h>
 #include <linux/resource.h>
+#include <linux/leds-lp8550.h>
 #include <linux/platform_device.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/tegra_fb.h>
 
+#include "board-stingray.h"
 #include "gpio-names.h"
 
 #define STINGRAY_AUO_DISP_BL	TEGRA_GPIO_PD0
@@ -88,15 +91,56 @@ static struct platform_device stingray_panel_bl_driver = {
 		.platform_data = &stingray_auo_backlight_data,
 		},
 };
+struct lp8550_eeprom_data stingray_lp8550_eeprom_data[] = {
+	/* Set the backlight current to 15mA each step is .12mA */
+	{0x7f},
+	/* Boost freq 625khz, PWM controled w/constant current,
+	thermal deration disabled, no brightness slope */
+	{0xa0},
+	/* Adaptive mode for light loads, No advanced slope, 50% mode selected,
+	Adaptive mode enabled, Boost is enabled, Boost Imax is 2.5A */
+	{0x9f},
+	/* UVLO is disabled, phase shift PWM enabled, PWM Freq 19232 */
+	{0x3f},
+	/* LED current resistor disabled, LED Fault = 3.3V */
+	{0x08},
+	/* Vsync is enabled, Dither disabled, Boost voltage 20V */
+	{0x8a},
+	/* PLL 13-bit counter */
+	{0x64},
+	/* 1-bit hysteresis w/11 bit resolution, PWM output freq is set with
+	PWM_FREQ EEPROM bits */
+	{0x29},
+};
+
+struct lp8550_platform_data stingray_lp8550_backlight_data = {
+	.power_up_brightness = 0x80,
+	.dev_ctrl_config = 0x00,
+	.brightness_control = 0x80,
+	.dev_id = 0xfc,
+	.direct_ctrl = 0x01,
+	.eeprom_table = stingray_lp8550_eeprom_data,
+	.eeprom_tbl_sz = ARRAY_SIZE(stingray_lp8550_eeprom_data),
+};
+
+static struct i2c_board_info __initdata stingray_i2c_bus1_led_info[] = {
+	 {
+		I2C_BOARD_INFO(LD_LP8550_NAME, 0x2c),
+		.platform_data = &stingray_lp8550_backlight_data,
+	 },
+};
 
 int __init stingray_panel_init(void)
 {
-	/* Display backlight control */
-	tegra_gpio_enable(STINGRAY_AUO_DISP_BL);
-	gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
-	gpio_direction_output(STINGRAY_AUO_DISP_BL, 1);
-
-	platform_device_register(&stingray_panel_bl_driver);
+	if (stingray_revision() <= STINGRAY_REVISION_P1) {
+		tegra_gpio_enable(STINGRAY_AUO_DISP_BL);
+		gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
+		gpio_direction_output(STINGRAY_AUO_DISP_BL, 1);
+		platform_device_register(&stingray_panel_bl_driver);
+	} else {
+		i2c_register_board_info(0, stingray_i2c_bus1_led_info,
+			ARRAY_SIZE(stingray_i2c_bus1_led_info));
+	}
 
 	return platform_device_register(&tegra_fb_device);
 }
