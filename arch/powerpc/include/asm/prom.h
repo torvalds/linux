@@ -105,50 +105,6 @@ struct device_node *of_find_next_cache_node(struct device_node *np);
 /* Get the MAC address */
 extern const void *of_get_mac_address(struct device_node *np);
 
-/*
- * OF interrupt mapping
- */
-
-#define OF_IMAP_OLDWORLD_MAC	0x00000001
-#define OF_IMAP_NO_PHANDLE	0x00000002
-
-#if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
-/* Workarounds only needed for 32bit powermac machines */
-extern unsigned int of_irq_workarounds;
-extern struct device_node *of_irq_dflt_pic;
-extern int of_irq_map_oldworld(struct device_node *device, int index,
-			       struct of_irq *out_irq);
-#else
-#define of_irq_workarounds (0)
-#define of_irq_dflt_pic (NULL)
-static inline int of_irq_map_oldworld(struct device_node *device, int index,
-				      struct of_irq *out_irq)
-{
-	return -EINVAL;
-}
-#endif
-
-/**
- * of_irq_map_raw - Low level interrupt tree parsing
- * @parent:	the device interrupt parent
- * @intspec:	interrupt specifier ("interrupts" property of the device)
- * @ointsize:   size of the passed in interrupt specifier
- * @addr:	address specifier (start of "reg" property of the device)
- * @out_irq:	structure of_irq filled by this function
- *
- * Returns 0 on success and a negative number on error
- *
- * This function is a low-level interrupt tree walking function. It
- * can be used to do a partial walk with synthetized reg and interrupts
- * properties, for example when resolving PCI interrupts when no device
- * node exist for the parent.
- *
- */
-
-extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
-			  u32 ointsize, const u32 *addr,
-			  struct of_irq *out_irq);
-
 /**
  * of_irq_map_pci - Resolve the interrupt for a PCI device
  * @pdev:	the device whose interrupt is to be resolved
@@ -162,9 +118,6 @@ extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
  */
 struct pci_dev;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
-
-extern int of_irq_to_resource(struct device_node *dev, int index,
-			struct resource *r);
 
 /**
  * of_iomap - Maps the memory mapped IO for a given device_node
