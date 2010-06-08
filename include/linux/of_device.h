@@ -65,6 +65,12 @@ static inline int of_driver_match_device(struct device *dev,
 	return 0;
 }
 
+static inline int of_device_uevent(struct device *dev,
+				   struct kobj_uevent_env *env)
+{
+	return -ENODEV;
+}
+
 #endif /* CONFIG_OF_DEVICE */
 
 #endif /* _LINUX_OF_DEVICE_H */

@@ -64,9 +64,6 @@ void of_propagate_archdata(struct of_device *bus)
 	}
 }
 
-struct bus_type of_platform_bus_type;
-EXPORT_SYMBOL(of_platform_bus_type);
-
 static void get_cells(struct device_node *dp, int *addrc, int *sizec)
 {
 	if (addrc)

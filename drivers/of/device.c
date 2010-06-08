@@ -104,6 +104,11 @@ int of_device_register(struct of_device *ofdev)
 
 	device_initialize(&ofdev->dev);
 
+	/* name and id have to be set so that the platform bus doesn't get
+	 * confused on matching */
+	ofdev->name = dev_name(&ofdev->dev);
+	ofdev->id = -1;
+
 	/* device_add will assume that this device is on the same node as
 	 * the parent. If there is no parent defined, set the node
 	 * explicitly */

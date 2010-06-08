@@ -52,18 +52,6 @@ const struct of_device_id of_default_bus_ids[] = {
 	{},
 };
 
-struct bus_type of_platform_bus_type = {
-       .uevent	= of_device_uevent,
-};
-EXPORT_SYMBOL(of_platform_bus_type);
-
-static int __init of_bus_driver_init(void)
-{
-	return of_bus_type_init(&of_platform_bus_type, "of_platform");
-}
-
-postcore_initcall(of_bus_driver_init);
-
 static int of_dev_node_match(struct device *dev, void *data)
 {
 	return to_of_device(dev)->dev.of_node == data;

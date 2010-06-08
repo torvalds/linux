@@ -26,17 +26,6 @@
 #include <linux/topology.h>
 #include <asm/atomic.h>
 
-struct bus_type of_platform_bus_type = {
-       .uevent	= of_device_uevent,
-};
-EXPORT_SYMBOL(of_platform_bus_type);
-
-static int __init of_bus_driver_init(void)
-{
-	return of_bus_type_init(&of_platform_bus_type, "of_platform");
-}
-postcore_initcall(of_bus_driver_init);
-
 /*
  * The list of OF IDs below is used for matching bus types in the
  * system whose devices are to be exposed as of_platform_devices.

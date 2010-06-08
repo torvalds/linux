@@ -17,19 +17,19 @@
 #include <linux/mod_devicetable.h>
 #include <linux/pm.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 /*
- * The of_platform_bus_type is a bus type used by drivers that do not
- * attach to a macio or similar bus but still use OF probing
- * mechanism
+ * of_platform_bus_type isn't it's own bus anymore.  It's now just an alias
+ * for the platform bus.
  */
-extern struct bus_type of_platform_bus_type;
+#define of_platform_bus_type platform_bus_type
 
 extern const struct of_device_id of_default_bus_ids[];
 
 /*
  * An of_platform_driver driver is attached to a basic of_device on
- * the "platform bus" (of_platform_bus_type).
+ * the "platform bus" (platform_bus_type).
  */
 struct of_platform_driver
 {
@@ -42,6 +42,7 @@ struct of_platform_driver
 	int	(*shutdown)(struct of_device* dev);
 
 	struct device_driver	driver;
+	struct platform_driver	platform_driver;
 };
 #define	to_of_platform_driver(drv) \
 	container_of(drv,struct of_platform_driver, driver)
@@ -51,14 +52,8 @@ extern int of_register_driver(struct of_platform_driver *drv,
 extern void of_unregister_driver(struct of_platform_driver *drv);
 
 /* Platform drivers register/unregister */
-static inline int of_register_platform_driver(struct of_platform_driver *drv)
-{
-	return of_register_driver(drv, &of_platform_bus_type);
-}
-static inline void of_unregister_platform_driver(struct of_platform_driver *drv)
-{
-	of_unregister_driver(drv);
-}
+extern int of_register_platform_driver(struct of_platform_driver *drv);
+extern void of_unregister_platform_driver(struct of_platform_driver *drv);
 
 extern struct of_device *of_device_alloc(struct device_node *np,
 					 const char *bus_id,

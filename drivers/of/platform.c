@@ -20,6 +20,54 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+
+static int platform_driver_probe_shim(struct platform_device *pdev)
+{
+	struct platform_driver *pdrv;
+	struct of_platform_driver *ofpdrv;
+	const struct of_device_id *match;
+
+	pdrv = container_of(pdev->dev.driver, struct platform_driver, driver);
+	ofpdrv = container_of(pdrv, struct of_platform_driver, platform_driver);
+	match = of_match_device(pdev->dev.driver->of_match_table, &pdev->dev);
+	return ofpdrv->probe(pdev, match);
+}
+
+static void platform_driver_shutdown_shim(struct platform_device *pdev)
+{
+	struct platform_driver *pdrv;
+	struct of_platform_driver *ofpdrv;
+
+	pdrv = container_of(pdev->dev.driver, struct platform_driver, driver);
+	ofpdrv = container_of(pdrv, struct of_platform_driver, platform_driver);
+	ofpdrv->shutdown(pdev);
+}
+
+/**
+ * of_register_platform_driver
+ */
+int of_register_platform_driver(struct of_platform_driver *drv)
+{
+	/* setup of_platform_driver to platform_driver adaptors */
+	drv->platform_driver.driver = drv->driver;
+	if (drv->probe)
+		drv->platform_driver.probe = platform_driver_probe_shim;
+	drv->platform_driver.remove = drv->remove;
+	if (drv->shutdown)
+		drv->platform_driver.shutdown = platform_driver_shutdown_shim;
+	drv->platform_driver.suspend = drv->suspend;
+	drv->platform_driver.resume = drv->resume;
+
+	return platform_driver_register(&drv->platform_driver);
+}
+EXPORT_SYMBOL(of_register_platform_driver);
+
+void of_unregister_platform_driver(struct of_platform_driver *drv)
+{
+	platform_driver_unregister(&drv->platform_driver);
+}
+EXPORT_SYMBOL(of_unregister_platform_driver);
 
 #if defined(CONFIG_PPC_DCR)
 #include <asm/dcr.h>
@@ -392,16 +440,29 @@ int of_bus_type_init(struct bus_type *bus, const char *name)
 
 int of_register_driver(struct of_platform_driver *drv, struct bus_type *bus)
 {
-	drv->driver.bus = bus;
+	/*
+	 * Temporary: of_platform_bus used to be distinct from the platform
+	 * bus.  It isn't anymore, and so drivers on the platform bus need
+	 * to be registered in a special way.
+	 *
+	 * After all of_platform_bus_type drivers are converted to
+	 * platform_drivers, this exception can be removed.
+	 */
+	if (bus == &platform_bus_type)
+		return of_register_platform_driver(drv);
 
 	/* register with core */
+	drv->driver.bus = bus;
 	return driver_register(&drv->driver);
 }
 EXPORT_SYMBOL(of_register_driver);
 
 void of_unregister_driver(struct of_platform_driver *drv)
 {
-	driver_unregister(&drv->driver);
+	if (drv->driver.bus == &platform_bus_type)
+		of_unregister_platform_driver(drv);
+	else
+		driver_unregister(&drv->driver);
 }
 EXPORT_SYMBOL(of_unregister_driver);
 
@@ -548,7 +609,7 @@ struct of_device *of_platform_device_create(struct device_node *np,
 	dev->archdata.dma_mask = 0xffffffffUL;
 #endif
 	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-	dev->dev.bus = &of_platform_bus_type;
+	dev->dev.bus = &platform_bus_type;
 
 	/* We do not fill the DMA ops for platform devices by default.
 	 * This is currently the responsibility of the platform code

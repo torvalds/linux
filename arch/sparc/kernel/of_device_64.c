@@ -667,7 +667,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 		op->archdata.irqs[i] = build_one_device_irq(op, parent, op->archdata.irqs[i]);
 
 	op->dev.parent = parent;
-	op->dev.bus = &of_platform_bus_type;
+	op->dev.bus = &platform_bus_type;
 	if (!parent)
 		dev_set_name(&op->dev, "root");
 	else
@@ -695,30 +695,19 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 	}
 }
 
-static void __init scan_of_devices(void)
+static int __init scan_of_devices(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
 	struct of_device *parent;
 
 	parent = scan_one_device(root, NULL);
 	if (!parent)
-		return;
+		return 0;
 
 	scan_tree(root->child, &parent->dev);
+	return 0;
 }
-
-static int __init of_bus_driver_init(void)
-{
-	int err;
-
-	err = of_bus_type_init(&of_platform_bus_type, "of");
-	if (!err)
-		scan_of_devices();
-
-	return err;
-}
-
-postcore_initcall(of_bus_driver_init);
+postcore_initcall(scan_of_devices);
 
 static int __init of_debug(char *str)
 {
