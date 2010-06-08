@@ -48,6 +48,15 @@ extern ssize_t arch_cpu_release(const char *, size_t);
 #endif
 struct notifier_block;
 
+/*
+ * CPU notifier priorities.
+ */
+enum {
+	/* migration should happen before other stuff but after perf */
+	CPU_PRI_PERF		= 20,
+	CPU_PRI_MIGRATION	= 10,
+};
+
 #ifdef CONFIG_SMP
 /* Need to know about CPUs going up/down? */
 #if defined(CONFIG_HOTPLUG_CPU) || !defined(MODULE)

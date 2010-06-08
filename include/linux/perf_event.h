@@ -1068,7 +1068,7 @@ static inline void perf_event_disable(struct perf_event *event)		{ }
 #define perf_cpu_notifier(fn)					\
 do {								\
 	static struct notifier_block fn##_nb __cpuinitdata =	\
-		{ .notifier_call = fn, .priority = 20 };	\
+		{ .notifier_call = fn, .priority = CPU_PRI_PERF }; \
 	fn(&fn##_nb, (unsigned long)CPU_UP_PREPARE,		\
 		(void *)(unsigned long)smp_processor_id());	\
 	fn(&fn##_nb, (unsigned long)CPU_STARTING,		\
