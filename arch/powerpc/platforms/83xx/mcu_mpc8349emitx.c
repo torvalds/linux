@@ -160,10 +160,16 @@ static const struct i2c_device_id mcu_ids[] = {
 };
 MODULE_DEVICE_TABLE(i2c, mcu_ids);
 
+static struct of_device_id mcu_of_match_table[] __devinitdata = {
+	{ .compatible = "fsl,mcu-mpc8349emitx", },
+	{ },
+};
+
 static struct i2c_driver mcu_driver = {
 	.driver = {
 		.name = "mcu-mpc8349emitx",
 		.owner = THIS_MODULE,
+		.of_match_table = mcu_of_match_table,
 	},
 	.probe = mcu_probe,
 	.remove	= __devexit_p(mcu_remove),
