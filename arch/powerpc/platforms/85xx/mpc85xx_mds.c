@@ -158,6 +158,29 @@ static int mpc8568_mds_phy_fixups(struct phy_device *phydev)
 extern void __init mpc85xx_smp_init(void);
 #endif
 
+#ifdef CONFIG_QUICC_ENGINE
+static struct of_device_id mpc85xx_qe_ids[] __initdata = {
+	{ .type = "qe", },
+	{ .compatible = "fsl,qe", },
+	{ },
+};
+
+static void __init mpc85xx_publish_qe_devices(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!of_device_is_available(np)) {
+		of_node_put(np);
+		return;
+	}
+
+	of_platform_bus_probe(NULL, mpc85xx_qe_ids, NULL);
+}
+#else
+static void __init mpc85xx_publish_qe_devices(void) { }
+#endif /* CONFIG_QUICC_ENGINE */
+
 static void __init mpc85xx_mds_setup_arch(void)
 {
 	struct device_node *np;
@@ -216,6 +239,11 @@ static void __init mpc85xx_mds_setup_arch(void)
 		np = of_find_node_by_name(NULL, "qe");
 		if (!np)
 			return;
+	}
+
+	if (!of_device_is_available(np)) {
+		of_node_put(np);
+		return;
 	}
 
 	qe_reset();
@@ -369,8 +397,6 @@ static struct of_device_id mpc85xx_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .compatible = "simple-bus", },
-	{ .type = "qe", },
-	{ .compatible = "fsl,qe", },
 	{ .compatible = "gianfar", },
 	{ .compatible = "fsl,rapidio-delta", },
 	{ .compatible = "fsl,mpc8548-guts", },
@@ -382,8 +408,6 @@ static struct of_device_id p1021_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
 	{ .compatible = "simple-bus", },
-	{ .type = "qe", },
-	{ .compatible = "fsl,qe", },
 	{ .compatible = "gianfar", },
 	{},
 };
@@ -395,16 +419,16 @@ static int __init mpc85xx_publish_devices(void)
 	if (machine_is(mpc8569_mds))
 		simple_gpiochip_init("fsl,mpc8569mds-bcsr-gpio");
 
-	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, mpc85xx_ids, NULL);
+	mpc85xx_publish_qe_devices();
 
 	return 0;
 }
 
 static int __init p1021_publish_devices(void)
 {
-	/* Publish the QE devices */
 	of_platform_bus_probe(NULL, p1021_ids, NULL);
+	mpc85xx_publish_qe_devices();
 
 	return 0;
 }
@@ -443,12 +467,19 @@ static void __init mpc85xx_mds_pic_init(void)
 	mpic_init(mpic);
 
 #ifdef CONFIG_QUICC_ENGINE
+	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
+	if (!of_device_is_available(np)) {
+		of_node_put(np);
+		return;
+	}
+
 	np = of_find_compatible_node(NULL, NULL, "fsl,qe-ic");
 	if (!np) {
 		np = of_find_node_by_type(NULL, "qeic");
 		if (!np)
 			return;
 	}
+
 	if (machine_is(p1021_mds))
 		qe_ic_init(np, 0, qe_ic_cascade_low_mpic,
 				qe_ic_cascade_high_mpic);
