@@ -117,8 +117,6 @@ struct platform_device mxc_uart_device4 = {
 	.num_resources = ARRAY_SIZE(uart4),
 };
 
-#define MX25_OTG_BASE_ADDR 0x53FF4000
-
 static u64 otg_dmamask = DMA_BIT_MASK(32);
 
 static struct resource mxc_otg_resources[] = {
