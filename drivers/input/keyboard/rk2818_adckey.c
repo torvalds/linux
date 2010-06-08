@@ -26,7 +26,7 @@
 #include <mach/gpio.h>
 #include <mach/adc.h>
 
-#if 0
+#if 1
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -188,26 +188,34 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	{
 		if((++gPlayCount > 2) && (gFlagShortPlay == 0))
 		{
-			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,1);
-			input_sync(pRk28AdcKey->input_dev);
-			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,0);
-			input_sync(pRk28AdcKey->input_dev);
 			gFlagShortPlay = 1;	
-			DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
+			
 		}
 		else if((++gPlayCount > 100) && (gFlagLongPlay == 0))
+		{
+			gFlagLongPlay = 1;
+			
+		}
+	}
+	else
+	{
+		if(gPlayCount > 100)
 		{
 			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_LONG_PRESS,1);
 			input_sync(pRk28AdcKey->input_dev);
 			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_LONG_PRESS,0);
 			input_sync(pRk28AdcKey->input_dev);
-			gFlagLongPlay = 1;
-			gPlayCount = 0;
+			DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
+		}	
+		else if (gPlayCount > 2)
+		{
+			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,1);
+			input_sync(pRk28AdcKey->input_dev);
+			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,0);
+			input_sync(pRk28AdcKey->input_dev);
 			DBG("Enter::%s,LINE=%d,KEY_PLAY_LONG_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_LONG_PRESS);
-		}
-	}
-	else
-	{
+		}	
+		
 		gFlagShortPlay = 0;	
 		gFlagLongPlay = 0;
 		gPlayCount = 0;
