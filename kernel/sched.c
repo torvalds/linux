@@ -5804,16 +5804,45 @@ static struct notifier_block __cpuinitdata migration_notifier = {
 	.priority = CPU_PRI_MIGRATION,
 };
 
+static int __cpuinit sched_cpu_active(struct notifier_block *nfb,
+				      unsigned long action, void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_ONLINE:
+	case CPU_DOWN_FAILED:
+		set_cpu_active((long)hcpu, true);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
+static int __cpuinit sched_cpu_inactive(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		set_cpu_active((long)hcpu, false);
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
+
 static int __init migration_init(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
 	int err;
 
-	/* Start one for the boot CPU: */
+	/* Initialize migration for the boot CPU */
 	err = migration_call(&migration_notifier, CPU_UP_PREPARE, cpu);
 	BUG_ON(err == NOTIFY_BAD);
 	migration_call(&migration_notifier, CPU_ONLINE, cpu);
 	register_cpu_notifier(&migration_notifier);
+
+	/* Register cpu active notifiers */
+	cpu_notifier(sched_cpu_active, CPU_PRI_SCHED_ACTIVE);
+	cpu_notifier(sched_cpu_inactive, CPU_PRI_SCHED_INACTIVE);
 
 	return 0;
 }
@@ -7273,29 +7302,35 @@ int __init sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
 }
 #endif /* CONFIG_SCHED_MC || CONFIG_SCHED_SMT */
 
-#ifndef CONFIG_CPUSETS
 /*
- * Add online and remove offline CPUs from the scheduler domains.
- * When cpusets are enabled they take over this function.
+ * Update cpusets according to cpu_active mask.  If cpusets are
+ * disabled, cpuset_update_active_cpus() becomes a simple wrapper
+ * around partition_sched_domains().
  */
-static int update_sched_domains(struct notifier_block *nfb,
-				unsigned long action, void *hcpu)
+static int __cpuexit cpuset_cpu_active(struct notifier_block *nfb,
+				       unsigned long action, void *hcpu)
 {
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-	case CPU_DOWN_PREPARE:
-	case CPU_DOWN_PREPARE_FROZEN:
 	case CPU_DOWN_FAILED:
-	case CPU_DOWN_FAILED_FROZEN:
-		partition_sched_domains(1, NULL, NULL);
+		cpuset_update_active_cpus();
 		return NOTIFY_OK;
-
 	default:
 		return NOTIFY_DONE;
 	}
 }
-#endif
+
+static int __cpuexit cpuset_cpu_inactive(struct notifier_block *nfb,
+					 unsigned long action, void *hcpu)
+{
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_DOWN_PREPARE:
+		cpuset_update_active_cpus();
+		return NOTIFY_OK;
+	default:
+		return NOTIFY_DONE;
+	}
+}
 
 static int update_runtime(struct notifier_block *nfb,
 				unsigned long action, void *hcpu)
@@ -7341,10 +7376,8 @@ void __init sched_init_smp(void)
 	mutex_unlock(&sched_domains_mutex);
 	put_online_cpus();
 
-#ifndef CONFIG_CPUSETS
-	/* XXX: Theoretical race here - CPU may be hotplugged now */
-	hotcpu_notifier(update_sched_domains, 0);
-#endif
+	hotcpu_notifier(cpuset_cpu_active, CPU_PRI_CPUSET_ACTIVE);
+	hotcpu_notifier(cpuset_cpu_inactive, CPU_PRI_CPUSET_INACTIVE);
 
 	/* RT runtime code needs to handle some hotplug events */
 	hotcpu_notifier(update_runtime, 0);
