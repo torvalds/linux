@@ -150,6 +150,8 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 retry:
 	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
 	if (err) {
+		const char errstr = (err == -EBADMSG) ? "ECC error" : "";
+
 		if (err == -EUCLEAN) {
 			/*
 			 * -EUCLEAN is reported if there was a bit-flip which
@@ -165,15 +167,15 @@ retry:
 		}
 
 		if (read != len && retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d while reading %d bytes from PEB %d:%d,"
+			dbg_io("error %d%s while reading %d bytes from PEB %d:%d,"
 			       " read only %zd bytes, retry",
-			       err, len, pnum, offset, read);
+			       err, errstr, len, pnum, offset, read);
 			yield();
 			goto retry;
 		}
 
 		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
-			"read %zd bytes", err, len, pnum, offset, read);
+			"read %zd bytes", err, errstr, len, pnum, offset, read);
 		ubi_dbg_dump_stack();
 
 		/*
