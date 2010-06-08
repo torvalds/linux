@@ -63,24 +63,16 @@ struct bdi_work {
 };
 
 enum {
-	WS_USED_B = 0,
-	WS_ONSTACK_B,
+	WS_INPROGRESS = 0,
+	WS_ONSTACK,
 };
-
-#define WS_USED (1 << WS_USED_B)
-#define WS_ONSTACK (1 << WS_ONSTACK_B)
-
-static inline bool bdi_work_on_stack(struct bdi_work *work)
-{
-	return test_bit(WS_ONSTACK_B, &work->state);
-}
 
 static inline void bdi_work_init(struct bdi_work *work,
 				 struct wb_writeback_args *args)
 {
 	INIT_RCU_HEAD(&work->rcu_head);
 	work->args = *args;
-	work->state = WS_USED;
+	__set_bit(WS_INPROGRESS, &work->state);
 }
 
 /**
@@ -95,43 +87,16 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 	return !list_empty(&bdi->work_list);
 }
 
-static void bdi_work_clear(struct bdi_work *work)
-{
-	clear_bit(WS_USED_B, &work->state);
-	smp_mb__after_clear_bit();
-	/*
-	 * work can have disappeared at this point. bit waitq functions
-	 * should be able to tolerate this, provided bdi_sched_wait does
-	 * not dereference it's pointer argument.
-	*/
-	wake_up_bit(&work->state, WS_USED_B);
-}
-
 static void bdi_work_free(struct rcu_head *head)
 {
 	struct bdi_work *work = container_of(head, struct bdi_work, rcu_head);
 
-	if (!bdi_work_on_stack(work))
+	clear_bit(WS_INPROGRESS, &work->state);
+	smp_mb__after_clear_bit();
+	wake_up_bit(&work->state, WS_INPROGRESS);
+
+	if (!test_bit(WS_ONSTACK, &work->state))
 		kfree(work);
-	else
-		bdi_work_clear(work);
-}
-
-static void wb_work_complete(struct bdi_work *work)
-{
-	const enum writeback_sync_modes sync_mode = work->args.sync_mode;
-	int onstack = bdi_work_on_stack(work);
-
-	/*
-	 * For allocated work, we can clear the done/seen bit right here.
-	 * For on-stack work, we need to postpone both the clear and free
-	 * to after the RCU grace period, since the stack could be invalidated
-	 * as soon as bdi_work_clear() has done the wakeup.
-	 */
-	if (!onstack)
-		bdi_work_clear(work);
-	if (sync_mode == WB_SYNC_NONE || onstack)
-		call_rcu(&work->rcu_head, bdi_work_free);
 }
 
 static void wb_clear_pending(struct bdi_writeback *wb, struct bdi_work *work)
@@ -147,7 +112,7 @@ static void wb_clear_pending(struct bdi_writeback *wb, struct bdi_work *work)
 		list_del_rcu(&work->list);
 		spin_unlock(&bdi->wb_lock);
 
-		wb_work_complete(work);
+		call_rcu(&work->rcu_head, bdi_work_free);
 	}
 }
 
@@ -185,9 +150,9 @@ static void bdi_queue_work(struct backing_dev_info *bdi, struct bdi_work *work)
  * Used for on-stack allocated work items. The caller needs to wait until
  * the wb threads have acked the work before it's safe to continue.
  */
-static void bdi_wait_on_work_clear(struct bdi_work *work)
+static void bdi_wait_on_work_done(struct bdi_work *work)
 {
-	wait_on_bit(&work->state, WS_USED_B, bdi_sched_wait,
+	wait_on_bit(&work->state, WS_INPROGRESS, bdi_sched_wait,
 		    TASK_UNINTERRUPTIBLE);
 }
 
@@ -234,10 +199,10 @@ static void bdi_sync_writeback(struct backing_dev_info *bdi,
 	struct bdi_work work;
 
 	bdi_work_init(&work, &args);
-	work.state |= WS_ONSTACK;
+	__set_bit(WS_ONSTACK, &work.state);
 
 	bdi_queue_work(bdi, &work);
-	bdi_wait_on_work_clear(&work);
+	bdi_wait_on_work_done(&work);
 }
 
 /**
@@ -911,7 +876,7 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		 * If this isn't a data integrity operation, just notify
 		 * that we have seen this work and we are now starting it.
 		 */
-		if (args.sync_mode == WB_SYNC_NONE)
+		if (!test_bit(WS_ONSTACK, &work->state))
 			wb_clear_pending(wb, work);
 
 		wrote += wb_writeback(wb, &args);
@@ -920,7 +885,7 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		 * This is a data integrity writeback, so only do the
 		 * notification when we have completed the work.
 		 */
-		if (args.sync_mode == WB_SYNC_ALL)
+		if (test_bit(WS_ONSTACK, &work->state))
 			wb_clear_pending(wb, work);
 	}
 
