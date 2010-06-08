@@ -394,7 +394,7 @@ struct platform_device rk2818_device_dsp = {
 static struct android_pmem_platform_data pmem_pdata = {
 	.name = "pmem",
 	.no_allocator = 1,
-	.cached = 1,
+	.cached = 0,
 	.start = 0x6f000000,
 	.size =  0x1000000,
 };
