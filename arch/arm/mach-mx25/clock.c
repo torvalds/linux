@@ -131,7 +131,10 @@ static unsigned long get_rate_lcdc(struct clk *clk)
 
 static unsigned long get_rate_otg(struct clk *clk)
 {
-	return 48000000; /* FIXME */
+	unsigned long cctl = readl(CRM_BASE + CCM_CCTL);
+	unsigned long rate = get_rate_upll();
+
+	return (cctl & (1 << 23)) ? 0 : rate / ((0x3F & (cctl >> 16)) + 1);
 }
 
 static int clk_cgcr_enable(struct clk *clk)
