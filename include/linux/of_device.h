@@ -42,7 +42,7 @@ static inline void of_device_free(struct of_device *dev)
 	of_release_dev(&dev->dev);
 }
 
-extern ssize_t of_device_get_modalias(struct of_device *ofdev,
+extern ssize_t of_device_get_modalias(struct device *dev,
 					char *str, ssize_t len);
 
 extern int of_device_uevent(struct device *dev, struct kobj_uevent_env *env);

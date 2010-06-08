@@ -68,10 +68,7 @@ static ssize_t name_show(struct device *dev,
 static ssize_t modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct of_device *ofdev = to_of_device(dev);
-	ssize_t len = 0;
-
-	len = of_device_get_modalias(ofdev, buf, PAGE_SIZE - 2);
+	ssize_t len = of_device_get_modalias(dev, buf, PAGE_SIZE - 2);
 	buf[len] = '\n';
 	buf[len+1] = 0;
 	return len+1;
@@ -123,19 +120,18 @@ void of_device_unregister(struct of_device *ofdev)
 }
 EXPORT_SYMBOL(of_device_unregister);
 
-ssize_t of_device_get_modalias(struct of_device *ofdev,
-				char *str, ssize_t len)
+ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 {
 	const char *compat;
 	int cplen, i;
 	ssize_t tsize, csize, repend;
 
 	/* Name & Type */
-	csize = snprintf(str, len, "of:N%sT%s", ofdev->dev.of_node->name,
-			 ofdev->dev.of_node->type);
+	csize = snprintf(str, len, "of:N%sT%s", dev->of_node->name,
+			 dev->of_node->type);
 
 	/* Get compatible property if any */
-	compat = of_get_property(ofdev->dev.of_node, "compatible", &cplen);
+	compat = of_get_property(dev->of_node, "compatible", &cplen);
 	if (!compat)
 		return csize;
 
@@ -210,7 +206,7 @@ int of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	if (add_uevent_var(env, "MODALIAS="))
 		return -ENOMEM;
 
-	sl = of_device_get_modalias(to_of_device(dev), &env->buf[env->buflen-1],
+	sl = of_device_get_modalias(dev, &env->buf[env->buflen-1],
 				    sizeof(env->buf) - env->buflen);
 	if (sl >= (sizeof(env->buf) - env->buflen))
 		return -ENOMEM;
