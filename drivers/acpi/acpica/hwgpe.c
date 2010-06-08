@@ -118,6 +118,10 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 action)
 	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
 						gpe_register_info);
 	switch (action) {
+	case ACPI_GPE_COND_ENABLE:
+		if (!(register_bit & gpe_register_info->enable_for_run))
+			return (AE_BAD_PARAMETER);
+
 	case ACPI_GPE_ENABLE:
 		ACPI_SET_BIT(enable_mask, register_bit);
 		break;
@@ -154,23 +158,11 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 action)
 acpi_status
 acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info * gpe_event_info)
 {
-	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_status status;
 
 	ACPI_FUNCTION_ENTRY();
 
-	/* Get the info block for the entire GPE register */
-
-	gpe_register_info = gpe_event_info->register_info;
-	if (!gpe_register_info) {
-		return (AE_NOT_EXIST);
-	}
-
-	/* Write the entire GPE (runtime) enable register */
-
-	status = acpi_hw_write(gpe_register_info->enable_for_run,
-			       &gpe_register_info->enable_address);
-
+	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_COND_ENABLE);
 	return (status);
 }
 

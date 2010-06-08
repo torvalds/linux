@@ -667,6 +667,7 @@ typedef u32 acpi_event_status;
 
 #define ACPI_GPE_ENABLE                 0
 #define ACPI_GPE_DISABLE                1
+#define ACPI_GPE_COND_ENABLE            2
 
 /* gpe_types for acpi_enable_gpe and acpi_disable_gpe */
 
