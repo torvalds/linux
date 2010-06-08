@@ -628,54 +628,6 @@ enum trace_iterator_flags {
 
 extern struct tracer nop_trace;
 
-/**
- * ftrace_preempt_disable - disable preemption scheduler safe
- *
- * When tracing can happen inside the scheduler, there exists
- * cases that the tracing might happen before the need_resched
- * flag is checked. If this happens and the tracer calls
- * preempt_enable (after a disable), a schedule might take place
- * causing an infinite recursion.
- *
- * To prevent this, we read the need_resched flag before
- * disabling preemption. When we want to enable preemption we
- * check the flag, if it is set, then we call preempt_enable_no_resched.
- * Otherwise, we call preempt_enable.
- *
- * The rational for doing the above is that if need_resched is set
- * and we have yet to reschedule, we are either in an atomic location
- * (where we do not need to check for scheduling) or we are inside
- * the scheduler and do not want to resched.
- */
-static inline int ftrace_preempt_disable(void)
-{
-	int resched;
-
-	resched = need_resched();
-	preempt_disable_notrace();
-
-	return resched;
-}
-
-/**
- * ftrace_preempt_enable - enable preemption scheduler safe
- * @resched: the return value from ftrace_preempt_disable
- *
- * This is a scheduler safe way to enable preemption and not miss
- * any preemption checks. The disabled saved the state of preemption.
- * If resched is set, then we are either inside an atomic or
- * are inside the scheduler (we would have already scheduled
- * otherwise). In this case, we do not want to call normal
- * preempt_enable, but preempt_enable_no_resched instead.
- */
-static inline void ftrace_preempt_enable(int resched)
-{
-	if (resched)
-		preempt_enable_no_resched_notrace();
-	else
-		preempt_enable_notrace();
-}
-
 #ifdef CONFIG_BRANCH_TRACER
 extern int enable_branch_tracing(struct trace_array *tr);
 extern void disable_branch_tracing(void);

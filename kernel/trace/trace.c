@@ -1404,7 +1404,6 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	struct bprint_entry *entry;
 	unsigned long flags;
 	int disable;
-	int resched;
 	int cpu, len = 0, size, pc;
 
 	if (unlikely(tracing_selftest_running || tracing_disabled))
@@ -1414,7 +1413,7 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	pause_graph_tracing();
 
 	pc = preempt_count();
-	resched = ftrace_preempt_disable();
+	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	data = tr->data[cpu];
 
@@ -1452,7 +1451,7 @@ out_unlock:
 
 out:
 	atomic_dec_return(&data->disabled);
-	ftrace_preempt_enable(resched);
+	preempt_enable_notrace();
 	unpause_graph_tracing();
 
 	return len;
