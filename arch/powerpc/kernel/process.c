@@ -1268,3 +1268,12 @@ unsigned long randomize_et_dyn(unsigned long base)
 
 	return ret;
 }
+
+int arch_sd_sibiling_asym_packing(void)
+{
+	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
+		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");
+		return SD_ASYM_PACKING;
+	}
+	return 0;
+}
