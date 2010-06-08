@@ -1,40 +1,40 @@
 
-menuconfig MRST_NAND
-	tristate "Moorestown NAND Flash controller"
+menuconfig SPECTRA
+	tristate "Denali Spectra Flash Translation Layer"
 	depends on BLOCK
 	default n
 	---help---
-	  Enable the driver for the NAND Flash controller in Intel Moorestown
-	  Platform
+	  Enable the FTL pseudo-filesystem used with the NAND Flash
+	  controller on Intel Moorestown Platform to pretend to be a disk
 
 choice
 	prompt "Compile for"
-	depends on MRST_NAND
-	default MRST_NAND_HW
+	depends on SPECTRA
+	default SPECTRA_MRST_HW
 
-config MRST_NAND_HW
-	bool "Actual hardware mode"
+config SPECTRA_MRST_HW
+	bool "Moorestown hardware mode"
 	help
-	  Driver communicates with the actual hardware's register interface.
+	  Driver communicates with the Moorestown hardware's register interface.
 	  in DMA mode.
 
-config MRST_NAND_MTD
+config SPECTRA_MTD
 	bool "Linux MTD mode"
 	depends on MTD
 	help
 	  Driver communicates with the kernel MTD subsystem instead of its own
 	  built-in hardware driver.
 
-config MRST_NAND_EMU
+config SPECTRA_EMU
 	bool "RAM emulator testing"
 	help
 	  Driver emulates Flash on a RAM buffer and / or disk file.  Useful to test the behavior of FTL layer.
 
 endchoice
 
-config MRST_NAND_HW_DMA
+config SPECTRA_MRST_HW_DMA
        bool
        default n
-       depends on MRST_NAND_HW
+       depends on SPECTRA_MRST_HW
        help
          Use DMA for native hardware interface.
