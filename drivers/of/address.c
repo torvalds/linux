@@ -346,12 +346,21 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
 	 * a 1:1 translation at that level. It's up to the caller not to try
 	 * to translate addresses that aren't supposed to be translated in
 	 * the first place. --BenH.
+	 *
+	 * As far as we know, this damage only exists on Apple machines, so
+	 * This code is only enabled on powerpc. --gcl
 	 */
 	ranges = of_get_property(parent, rprop, &rlen);
+#if !defined(CONFIG_PPC)
+	if (ranges == NULL) {
+		pr_err("OF: no ranges; cannot translate\n");
+		return 1;
+	}
+#endif /* !defined(CONFIG_PPC) */
 	if (ranges == NULL || rlen == 0) {
 		offset = of_read_number(addr, na);
 		memset(addr, 0, pna * 4);
-		pr_debug("OF: no ranges, 1:1 translation\n");
+		pr_debug("OF: empty ranges; 1:1 translation\n");
 		goto finish;
 	}
 
