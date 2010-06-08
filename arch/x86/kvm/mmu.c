@@ -2364,7 +2364,7 @@ static int nonpaging_init_context(struct kvm_vcpu *vcpu)
 void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu)
 {
 	++vcpu->stat.tlb_flush;
-	kvm_x86_ops->tlb_flush(vcpu);
+	set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
 }
 
 static void paging_new_cr3(struct kvm_vcpu *vcpu)
