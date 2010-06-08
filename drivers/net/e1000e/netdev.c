@@ -5721,11 +5721,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 
 	e1000_print_device_info(adapter);
 
-	if (pci_dev_run_wake(pdev)) {
-		pm_runtime_set_active(&pdev->dev);
-		pm_runtime_enable(&pdev->dev);
-	}
-	pm_schedule_suspend(&pdev->dev, MSEC_PER_SEC);
+	if (pci_dev_run_wake(pdev))
+		pm_runtime_put_noidle(&pdev->dev);
 
 	return 0;
 
@@ -5771,8 +5768,6 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	bool down = test_bit(__E1000_DOWN, &adapter->state);
 
-	pm_runtime_get_sync(&pdev->dev);
-
 	/*
 	 * flush_scheduled work may reschedule our watchdog task, so
 	 * explicitly disable watchdog tasks from being rescheduled
@@ -5797,11 +5792,8 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 		clear_bit(__E1000_DOWN, &adapter->state);
 	unregister_netdev(netdev);
 
-	if (pci_dev_run_wake(pdev)) {
-		pm_runtime_disable(&pdev->dev);
-		pm_runtime_set_suspended(&pdev->dev);
-	}
-	pm_runtime_put_noidle(&pdev->dev);
+	if (pci_dev_run_wake(pdev))
+		pm_runtime_get_noresume(&pdev->dev);
 
 	/*
 	 * Release control of h/w to f/w.  If f/w is AMT enabled, this
