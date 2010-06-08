@@ -528,6 +528,7 @@ int lpfc_sli4_post_all_rpi_hdrs(struct lpfc_hba *);
 struct lpfc_rpi_hdr *lpfc_sli4_create_rpi_hdr(struct lpfc_hba *);
 void lpfc_sli4_remove_rpi_hdrs(struct lpfc_hba *);
 int lpfc_sli4_alloc_rpi(struct lpfc_hba *);
+void __lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_remove_rpis(struct lpfc_hba *);
 void lpfc_sli4_async_event_proc(struct lpfc_hba *);

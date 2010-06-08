@@ -4919,6 +4919,7 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	phba->fc_altov = FF_DEF_ALTOV;
 	phba->fc_arbtov = FF_DEF_ARBTOV;
 
+	atomic_set(&phba->sdev_cnt, 0);
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;

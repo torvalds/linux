@@ -3845,6 +3845,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				mempool_free(mbox, phba->mbox_mem_pool);
 		}
 		lpfc_no_rpi(phba, ndlp);
+
 		ndlp->nlp_rpi = 0;
 		ndlp->nlp_flag &= ~NLP_RPI_VALID;
 		ndlp->nlp_flag &= ~NLP_NPR_ADISC;

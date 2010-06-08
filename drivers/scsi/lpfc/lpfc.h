@@ -815,6 +815,7 @@ struct lpfc_hba {
 #define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 	uint32_t iocb_cnt;
 	uint32_t iocb_max;
+	atomic_t sdev_cnt;
 };
 
 static inline struct Scsi_Host *
