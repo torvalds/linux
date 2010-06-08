@@ -79,6 +79,10 @@ static int stingray_bmp085_power_off(void)
 struct bmp085_platform_data stingray_barom_pdata = {
 	.poll_interval = 200,
 	.min_interval = 20,
+	.min_p = 95000,
+	.max_p = 125000,
+	.fuzz = 5,
+	.flat = 5,
 
 	.init = stingray_bmp085_init,
 	.exit = stingray_bmp085_exit,
