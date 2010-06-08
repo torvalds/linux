@@ -209,7 +209,7 @@ static struct platform_device cpcap_whisper_device = {
 };
 
 static struct cpcap_led stingray_display_led = {
-	.cpcap_register = CPCAP_REG_KLC,
+	.cpcap_register = CPCAP_REG_MDLC,
 	.cpcap_mask = 0x03FF,
 	.on_val = 0x00F5,
 	.off_val = 0x00F4,
@@ -595,6 +595,7 @@ int __init stingray_spi_init(void)
 		cpcap_regulator[CPCAP_SW5].constraints.boot_on = 1;
 
 		stingray_display_led.led_regulator = "sw5";
+		stingray_display_led.cpcap_register = CPCAP_REG_KLC,
 		stingray_privacy_led.led_regulator = "sw5";
 	}
 
