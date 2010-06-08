@@ -655,11 +655,36 @@ static void dso__calc_col_width(struct dso *self)
 }
 
 int event__preprocess_sample(const event_t *self, struct perf_session *session,
-			     struct addr_location *al, symbol_filter_t filter)
+			     struct addr_location *al, struct sample_data *data,
+			     symbol_filter_t filter)
 {
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	struct thread *thread = perf_session__findnew(session, self->ip.pid);
+	struct thread *thread;
 
+	event__parse_sample(self, session->sample_type, data);
+
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld cpu:%d\n",
+		    self->header.misc, data->pid, data->tid, data->ip,
+		    data->period, data->cpu);
+
+	if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
+		unsigned int i;
+
+		dump_printf("... chain: nr:%Lu\n", data->callchain->nr);
+
+		if (!ip_callchain__valid(data->callchain, self)) {
+			pr_debug("call-chain problem with event, "
+				 "skipping it.\n");
+			goto out_filtered;
+		}
+
+		if (dump_trace) {
+			for (i = 0; i < data->callchain->nr; i++)
+				dump_printf("..... %2d: %016Lx\n",
+					    i, data->callchain->ips[i]);
+		}
+	}
+	thread = perf_session__findnew(session, self->ip.pid);
 	if (thread == NULL)
 		return -1;
 
@@ -685,6 +710,7 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
 	al->sym = NULL;
+	al->cpu = data->cpu;
 
 	if (al->map) {
 		if (symbol_conf.dso_list &&
@@ -724,9 +750,9 @@ out_filtered:
 	return 0;
 }
 
-int event__parse_sample(event_t *event, u64 type, struct sample_data *data)
+int event__parse_sample(const event_t *event, u64 type, struct sample_data *data)
 {
-	u64 *array = event->sample.array;
+	const u64 *array = event->sample.array;
 
 	if (type & PERF_SAMPLE_IP) {
 		data->ip = event->ip.ip;
@@ -765,7 +791,8 @@ int event__parse_sample(event_t *event, u64 type, struct sample_data *data)
 		u32 *p = (u32 *)array;
 		data->cpu = *p;
 		array++;
-	}
+	} else
+		data->cpu = -1;
 
 	if (type & PERF_SAMPLE_PERIOD) {
 		data->period = *array;

@@ -35,10 +35,7 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 	struct addr_location al;
 	struct sample_data data = { .period = 1, };
 
-	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
-		    event->ip.pid, event->ip.ip);
-
-	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, &data, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -46,8 +43,6 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 
 	if (al.filtered || al.sym == NULL)
 		return 0;
-
-	event__parse_sample(event, session->sample_type, &data);
 
 	if (hists__add_entry(&session->hists, &al, data.period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");

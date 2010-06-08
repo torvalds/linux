@@ -13,6 +13,7 @@ enum sort_type	sort__first_dimension;
 unsigned int dsos__col_width;
 unsigned int comms__col_width;
 unsigned int threads__col_width;
+unsigned int cpus__col_width;
 static unsigned int parent_symbol__col_width;
 char * field_sep;
 
@@ -28,6 +29,8 @@ static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
 				    size_t size, unsigned int width);
 static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width);
+static int hist_entry__cpu_snprintf(struct hist_entry *self, char *bf,
+				    size_t size, unsigned int width);
 
 struct sort_entry sort_thread = {
 	.se_header	= "Command:  Pid",
@@ -63,6 +66,13 @@ struct sort_entry sort_parent = {
 	.se_snprintf	= hist_entry__parent_snprintf,
 	.se_width	= &parent_symbol__col_width,
 };
+ 
+struct sort_entry sort_cpu = {
+	.se_header      = "CPU",
+	.se_cmp	        = sort__cpu_cmp,
+	.se_snprintf    = hist_entry__cpu_snprintf,
+	.se_width	= &cpus__col_width,
+};
 
 struct sort_dimension {
 	const char		*name;
@@ -76,6 +86,7 @@ static struct sort_dimension sort_dimensions[] = {
 	{ .name = "dso",	.entry = &sort_dso,	},
 	{ .name = "symbol",	.entry = &sort_sym,	},
 	{ .name = "parent",	.entry = &sort_parent,	},
+	{ .name = "cpu",	.entry = &sort_cpu,	},
 };
 
 int64_t cmp_null(void *l, void *r)
@@ -242,6 +253,20 @@ static int hist_entry__parent_snprintf(struct hist_entry *self, char *bf,
 			      self->parent ? self->parent->name : "[other]");
 }
 
+/* --sort cpu */
+
+int64_t
+sort__cpu_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	return right->cpu - left->cpu;
+}
+
+static int hist_entry__cpu_snprintf(struct hist_entry *self, char *bf,
+				       size_t size, unsigned int width)
+{
+	return repsep_snprintf(bf, size, "%-*d", width, self->cpu);
+}
+
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
@@ -281,6 +306,8 @@ int sort_dimension__add(const char *tok)
 				sort__first_dimension = SORT_SYM;
 			else if (!strcmp(sd->name, "parent"))
 				sort__first_dimension = SORT_PARENT;
+			else if (!strcmp(sd->name, "cpu"))
+				sort__first_dimension = SORT_CPU;
 		}
 
 		list_add_tail(&sd->entry->list, &hist_entry__sort_list);

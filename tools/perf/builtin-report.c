@@ -155,30 +155,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	struct addr_location al;
 	struct perf_event_attr *attr;
 
-	event__parse_sample(event, session->sample_type, &data);
-
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-		    data.pid, data.tid, data.ip, data.period);
-
-	if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
-		unsigned int i;
-
-		dump_printf("... chain: nr:%Lu\n", data.callchain->nr);
-
-		if (!ip_callchain__valid(data.callchain, event)) {
-			pr_debug("call-chain problem with event, "
-				 "skipping it.\n");
-			return 0;
-		}
-
-		if (dump_trace) {
-			for (i = 0; i < data.callchain->nr; i++)
-				dump_printf("..... %2d: %016Lx\n",
-					    i, data.callchain->ips[i]);
-		}
-	}
-
-	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
+	if (event__preprocess_sample(event, session, &al, &data, NULL) < 0) {
 		fprintf(stderr, "problem processing %d event, skipping it.\n",
 			event->header.type);
 		return -1;

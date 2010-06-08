@@ -49,7 +49,6 @@ static int			group				=      0;
 static int			realtime_prio			=      0;
 static bool			raw_samples			=  false;
 static bool			system_wide			=  false;
-static int			profile_cpu			=     -1;
 static pid_t			target_pid			=     -1;
 static pid_t			target_tid			=     -1;
 static pid_t			*all_tids			=      NULL;
@@ -74,6 +73,7 @@ static int			file_new			=      1;
 static off_t			post_processing_offset;
 
 static struct perf_session	*session;
+static const char		*cpu_list;
 
 struct mmap_data {
 	int			counter;
@@ -274,6 +274,9 @@ static void create_counter(int counter, int cpu)
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
+	if (system_wide)
+		attr->sample_type	|= PERF_SAMPLE_CPU;
+
 	if (raw_samples) {
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;
@@ -300,7 +303,7 @@ try_again:
 				die("Permission error - are you root?\n"
 					"\t Consider tweaking"
 					" /proc/sys/kernel/perf_event_paranoid.\n");
-			else if (err ==  ENODEV && profile_cpu != -1) {
+			else if (err ==  ENODEV && cpu_list) {
 				die("No such device - did you specify"
 					" an out-of-range profile CPU?\n");
 			}
@@ -622,10 +625,15 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	if ((!system_wide && no_inherit) || profile_cpu != -1) {
-		open_counters(profile_cpu);
+	nr_cpus = read_cpu_map(cpu_list);
+	if (nr_cpus < 1) {
+		perror("failed to collect number of CPUs\n");
+		return -1;
+	}
+
+	if (!system_wide && no_inherit && !cpu_list) {
+		open_counters(-1);
 	} else {
-		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
 			open_counters(cpumap[i]);
 	}
@@ -704,7 +712,7 @@ static int __cmd_record(int argc, const char **argv)
 	if (perf_guest)
 		perf_session__process_machines(session, event__synthesize_guest_os);
 
-	if (!system_wide && profile_cpu == -1)
+	if (!system_wide && cpu_list)
 		event__synthesize_thread(target_tid, process_synthesized_event,
 					 session);
 	else
@@ -794,8 +802,8 @@ static const struct option options[] = {
 			    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('A', "append", &append_file,
 			    "append to the output file to do incremental profiling"),
-	OPT_INTEGER('C', "profile_cpu", &profile_cpu,
-			    "CPU to profile on"),
+	OPT_STRING('C', "cpu", &cpu_list, "cpu",
+		    "list of cpus to monitor"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file (deprecated)"),
 	OPT_U64('c', "count", &user_interval, "event period to sample"),
@@ -825,7 +833,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	argc = parse_options(argc, argv, options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
 	if (!argc && target_pid == -1 && target_tid == -1 &&
-		!system_wide && profile_cpu == -1)
+		!system_wide && !cpu_list)
 		usage_with_options(record_usage, options);
 
 	if (force && append_file) {

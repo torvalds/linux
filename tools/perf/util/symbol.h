@@ -9,8 +9,6 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 
-#define DEBUG_CACHE_DIR ".debug"
-
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
 
@@ -112,7 +110,8 @@ struct addr_location {
 	u64	      addr;
 	char	      level;
 	bool	      filtered;
-	unsigned int  cpumode;
+	u8	      cpumode;
+	s32	      cpu;
 };
 
 enum dso_kernel_type {
