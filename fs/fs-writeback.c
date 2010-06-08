@@ -518,39 +518,19 @@ select_queue:
 	return ret;
 }
 
-static void unpin_sb_for_writeback(struct super_block *sb)
-{
-	up_read(&sb->s_umount);
-	put_super(sb);
-}
-
-enum sb_pin_state {
-	SB_PINNED,
-	SB_NOT_PINNED,
-	SB_PIN_FAILED
-};
-
 /*
- * For WB_SYNC_NONE writeback, the caller does not have the sb pinned
+ * For background writeback the caller does not have the sb pinned
  * before calling writeback. So make sure that we do pin it, so it doesn't
  * go away while we are writing inodes from it.
  */
-static enum sb_pin_state pin_sb_for_writeback(struct writeback_control *wbc,
-					      struct super_block *sb)
+static bool pin_sb_for_writeback(struct super_block *sb)
 {
-	/*
-	 * Caller must already hold the ref for this
-	 */
-	if (wbc->sync_mode == WB_SYNC_ALL) {
-		WARN_ON(!rwsem_is_locked(&sb->s_umount));
-		return SB_NOT_PINNED;
-	}
 	spin_lock(&sb_lock);
 	sb->s_count++;
 	if (down_read_trylock(&sb->s_umount)) {
 		if (sb->s_root) {
 			spin_unlock(&sb_lock);
-			return SB_PINNED;
+			return true;
 		}
 		/*
 		 * umounted, drop rwsem again and fall through to failure
@@ -559,7 +539,7 @@ static enum sb_pin_state pin_sb_for_writeback(struct writeback_control *wbc,
 	}
 	sb->s_count--;
 	spin_unlock(&sb_lock);
-	return SB_PIN_FAILED;
+	return false;
 }
 
 /*
@@ -638,24 +618,29 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 		struct inode *inode = list_entry(wb->b_io.prev,
 						 struct inode, i_list);
 		struct super_block *sb = inode->i_sb;
-		enum sb_pin_state state;
 
-		if (wbc->sb && sb != wbc->sb) {
-			/* super block given and doesn't
-			   match, skip this inode */
-			redirty_tail(inode);
-			continue;
+		if (wbc->sb) {
+			/*
+			 * We are requested to write out inodes for a specific
+			 * superblock.  This means we already have s_umount
+			 * taken by the caller which also waits for us to
+			 * complete the writeout.
+			 */
+			if (sb != wbc->sb) {
+				redirty_tail(inode);
+				continue;
+			}
+
+			WARN_ON(!rwsem_is_locked(&sb->s_umount));
+
+			ret = writeback_sb_inodes(sb, wb, wbc);
+		} else {
+			if (!pin_sb_for_writeback(sb))
+				continue;
+			ret = writeback_sb_inodes(sb, wb, wbc);
+			drop_super(sb);
 		}
-		state = pin_sb_for_writeback(wbc, sb);
 
-		if (state == SB_PIN_FAILED) {
-			requeue_io(inode);
-			continue;
-		}
-		ret = writeback_sb_inodes(sb, wb, wbc);
-
-		if (state == SB_PINNED)
-			unpin_sb_for_writeback(sb);
 		if (ret)
 			break;
 	}
