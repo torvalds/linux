@@ -191,6 +191,12 @@ exc_##n##_bad_stack:							    \
 	sth	r1,PACA_TRAP_SAVE(r13);	/* store trap */		    \
 	b	bad_stack_book3e;	/* bad stack error */
 
+/* WARNING: If you change the layout of this stub, make sure you chcek
+	*   the debug exception handler which handles single stepping
+	*   into exceptions from userspace, and the MM code in
+	*   arch/powerpc/mm/tlb_nohash.c which patches the branch here
+	*   and would need to be updated if that branch is moved
+	*/
 #define	EXCEPTION_STUB(loc, label)					\
 	. = interrupt_base_book3e + loc;				\
 	nop;	/* To make debug interrupts happy */			\

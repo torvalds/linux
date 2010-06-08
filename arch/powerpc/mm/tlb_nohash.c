@@ -391,10 +391,15 @@ static void __early_init_mmu(int boot_cpu)
 		/* Check if HW loader is supported */
 		if ((tlb0cfg & TLBnCFG_IND) &&
 		    (tlb0cfg & TLBnCFG_PT)) {
-			patch_branch(ibase + (0x1c0 / 4),
-			     (unsigned long)&exc_data_tlb_miss_htw_book3e, 0);
-			patch_branch(ibase + (0x1e0 / 4),
-			     (unsigned long)&exc_instruction_tlb_miss_htw_book3e, 0);
+			/* Our exceptions vectors start with a NOP and -then- a branch
+			 * to deal with single stepping from userspace which stops on
+			 * the second instruction. Thus we need to patch the second
+			 * instruction of the exception, not the first one
+			 */
+			patch_branch(ibase + (0x1c0 / 4) + 1,
+				(unsigned long)&exc_data_tlb_miss_htw_book3e, 0);
+			patch_branch(ibase + (0x1e0 / 4) + 1,
+				(unsigned long)&exc_instruction_tlb_miss_htw_book3e, 0);
 			book3e_htw_enabled = 1;
 		}
 		pr_info("MMU: Book3E Page Tables %s\n",
