@@ -16,7 +16,9 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #if defined(CONFIG_PPC_DCR)
@@ -511,7 +513,9 @@ struct of_device *of_device_alloc(struct device_node *np,
 	}
 
 	dev->dev.of_node = of_node_get(np);
+#if defined(CONFIG_PPC) || defined(CONFIG_MICROBLAZE)
 	dev->dev.dma_mask = &dev->archdata.dma_mask;
+#endif
 	dev->dev.parent = parent;
 	dev->dev.release = of_release_dev;
 
@@ -540,7 +544,9 @@ struct of_device *of_platform_device_create(struct device_node *np,
 	if (!dev)
 		return NULL;
 
+#if defined(CONFIG_PPC) || defined(CONFIG_MICROBLAZE)
 	dev->archdata.dma_mask = 0xffffffffUL;
+#endif
 	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	dev->dev.bus = &of_platform_bus_type;
 
