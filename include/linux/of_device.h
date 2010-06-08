@@ -44,6 +44,10 @@ static inline void of_device_free(struct of_device *dev)
 
 extern ssize_t of_device_get_modalias(struct of_device *ofdev,
 					char *str, ssize_t len);
+
+extern int of_device_uevent(struct device *dev, struct kobj_uevent_env *env);
+
+
 #endif /* CONFIG_OF_DEVICE */
 
 #endif /* _LINUX_OF_DEVICE_H */
