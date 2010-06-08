@@ -5,4 +5,22 @@ comment "MX25 platforms:"
 config MACH_MX25_3DS
 	bool "Support MX25PDK (3DS) Platform"
 
+config MACH_EUKREA_CPUIMX25
+	bool "Support Eukrea CPUIMX25 Platform"
+	select MXC_ULPI if USB_ULPI
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX25
+	default MACH_EUKREA_MBIMXSD_BASEBOARD
+
+config MACH_EUKREA_MBIMXSD_BASEBOARD
+	prompt "Eukrea MBIMXSD development board"
+	bool
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMXSD evaluation board.
+
+endchoice
+
 endif
