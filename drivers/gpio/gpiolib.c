@@ -1101,14 +1101,20 @@ int gpiochip_add(struct gpio_chip *chip)
 
 unlock:
 	spin_unlock_irqrestore(&gpio_lock, flags);
-	if (status == 0)
-		status = gpiochip_export(chip);
+
+	if (status)
+		goto fail;
+
+	status = gpiochip_export(chip);
+	if (status)
+		goto fail;
+
+	return 0;
 fail:
 	/* failures here can mean systems won't boot... */
-	if (status)
-		pr_err("gpiochip_add: gpios %d..%d (%s) failed to register\n",
-			chip->base, chip->base + chip->ngpio - 1,
-			chip->label ? : "generic");
+	pr_err("gpiochip_add: gpios %d..%d (%s) failed to register\n",
+		chip->base, chip->base + chip->ngpio - 1,
+		chip->label ? : "generic");
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpiochip_add);
