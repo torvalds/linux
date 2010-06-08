@@ -109,6 +109,7 @@
 
 struct tegra_fb_info {
 	struct clk *clk;
+	struct clk *host1x_clk;
 	struct resource *reg_mem;
 	struct resource *fb_mem;
 	void __iomem *reg_base;
@@ -403,6 +404,7 @@ static int tegra_plat_probe(struct platform_device *pdev)
 	struct fb_info *info;
 	struct tegra_fb_info *tegra_fb;
 	struct clk *clk;
+	struct clk *host1x_clk;
 	struct resource	*res;
 	struct resource *reg_mem;
 	struct resource *fb_mem;
@@ -422,42 +424,42 @@ static int tegra_plat_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0) {
-		dev_err(&pdev->dev, "%s: no irq\n", pdev->name);
+		dev_err(&pdev->dev, "no irq\n");
 		ret = -ENOENT;
 		goto err_free;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		dev_err(&pdev->dev, "%s: no mem resource\n", pdev->name);
+		dev_err(&pdev->dev, "no mem resource\n");
 		ret = -ENOENT;
 		goto err_free;
 	}
 
 	reg_mem = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!reg_mem) {
-		dev_err(&pdev->dev, "%s: request_mem_region failed\n", pdev->name);
+		dev_err(&pdev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto err_free;
 	}
 
 	reg_base = ioremap(res->start, resource_size(res));
 	if (!reg_base) {
-		dev_err(&pdev->dev, "%s: registers can't be mapped\n", pdev->name);
+		dev_err(&pdev->dev, "registers can't be mapped\n");
 		ret = -EBUSY;
 		goto err_release_resource_reg;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
-		dev_err(&pdev->dev, "%s: no mem resource\n", pdev->name);
+		dev_err(&pdev->dev, "no mem resource\n");
 		ret = -ENOENT;
 		goto err_iounmap_reg;
 	}
 
 	fb_mem = request_mem_region(res->start, resource_size(res), pdev->name);
 	if (!fb_mem) {
-		dev_err(&pdev->dev, "%s: request_mem_region failed\n", pdev->name);
+		dev_err(&pdev->dev, "request_mem_region failed\n");
 		ret = -EBUSY;
 		goto err_iounmap_reg;
 	}
@@ -466,21 +468,30 @@ static int tegra_plat_probe(struct platform_device *pdev)
 	fb_phys = res->start;
 	fb_base = ioremap_nocache(fb_phys, fb_size);
 	if (!fb_base) {
-		dev_err(&pdev->dev, "%s: fb can't be mapped\n", pdev->name);
+		dev_err(&pdev->dev, "fb can't be mapped\n");
 		ret = -EBUSY;
 		goto err_release_resource_fb;
 	}
 
-	clk = clk_get(&pdev->dev, NULL);
-	if (!clk) {
-		dev_err(&pdev->dev, "%s: can't get clock\n", pdev->name);
+	host1x_clk = clk_get(&pdev->dev, "host1x");
+	if (!host1x_clk) {
+		dev_err(&pdev->dev, "can't get host1x clock\n");
 		ret = -ENOENT;
 		goto err_iounmap_fb;
+	}
+	clk_enable(host1x_clk);
+
+	clk = clk_get(&pdev->dev, NULL);
+	if (!clk) {
+		dev_err(&pdev->dev, "can't get clock\n");
+		ret = -ENOENT;
+		goto err_put_host1x_clk;
 	}
 	clk_enable(clk);
 
 	tegra_fb = info->par;
 	tegra_fb->clk = clk;
+	tegra_fb->host1x_clk = host1x_clk;
 	tegra_fb->fb_mem = fb_mem;
 	tegra_fb->reg_mem = reg_mem;
 	tegra_fb->reg_base = reg_base;
@@ -524,7 +535,7 @@ static int tegra_plat_probe(struct platform_device *pdev)
 		pr_debug("%s: request_irq %d failed\n",
 			pdev->name, irq);
 		ret = -EBUSY;
-		goto err_clk_disable;
+		goto err_put_clk;
 	}
 
 	init_waitqueue_head(&tegra_fb->event_wq);
@@ -559,8 +570,12 @@ static int tegra_plat_probe(struct platform_device *pdev)
 
 err_free_irq:
 	free_irq(irq, info);
-err_clk_disable:
+err_put_clk:
 	clk_disable(clk);
+	clk_put(clk);
+err_put_host1x_clk:
+	clk_disable(host1x_clk);
+	clk_put(host1x_clk);
 err_iounmap_fb:
 	iounmap(fb_base);
 err_release_resource_fb:
@@ -582,6 +597,9 @@ static int tegra_plat_remove(struct platform_device *pdev)
 	unregister_framebuffer(info);
 	free_irq(tegra_fb->irq, info);
 	clk_disable(tegra_fb->clk);
+	clk_put(tegra_fb->clk);
+	clk_disable(tegra_fb->host1x_clk);
+	clk_put(tegra_fb->host1x_clk);
 	iounmap(info->screen_base);
 	release_resource(tegra_fb->fb_mem);
 	iounmap(tegra_fb->reg_base);
