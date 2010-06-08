@@ -45,10 +45,6 @@ extern void pci_create_OF_bus_map(void);
  * OF address retreival & translation
  */
 
-/* Translate an OF address block into a CPU physical address
- */
-extern u64 of_translate_address(struct device_node *np, const u32 *addr);
-
 /* Translate a DMA address from device space to CPU space */
 extern u64 of_translate_dma_address(struct device_node *dev,
 				    const u32 *in_addr);

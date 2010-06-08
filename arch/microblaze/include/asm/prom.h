@@ -52,10 +52,6 @@ extern void pci_create_OF_bus_map(void);
  * OF address retreival & translation
  */
 
-/* Translate an OF address block into a CPU physical address
- */
-extern u64 of_translate_address(struct device_node *np, const u32 *addr);
-
 /* Extract an address from a device, returns the region size and
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index
