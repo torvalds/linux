@@ -73,7 +73,51 @@
 int mxc_initialize_usb_hw(int port, unsigned int flags)
 {
 	unsigned int v;
-#ifdef CONFIG_ARCH_MX3
+#if defined(CONFIG_ARCH_MX25)
+	if (cpu_is_mx25()) {
+		v = readl(MX25_IO_ADDRESS(MX25_OTG_BASE_ADDR +
+				     USBCTRL_OTGBASE_OFFSET));
+
+		switch (port) {
+		case 0:	/* OTG port */
+			v &= ~(MX35_OTG_SIC_MASK | MX35_OTG_PM_BIT);
+			v |= (flags & MXC_EHCI_INTERFACE_MASK)
+					<< MX35_OTG_SIC_SHIFT;
+			if (!(flags & MXC_EHCI_POWER_PINS_ENABLED))
+				v |= MX35_OTG_PM_BIT;
+
+			break;
+		case 1: /* H1 port */
+			v &= ~(MX35_H1_SIC_MASK | MX35_H1_PM_BIT | MX35_H1_TLL_BIT |
+				MX35_H1_USBTE_BIT | MX35_H1_IPPUE_DOWN_BIT | MX35_H1_IPPUE_UP_BIT);
+			v |= (flags & MXC_EHCI_INTERFACE_MASK)
+						<< MX35_H1_SIC_SHIFT;
+			if (!(flags & MXC_EHCI_POWER_PINS_ENABLED))
+				v |= MX35_H1_PM_BIT;
+
+			if (!(flags & MXC_EHCI_TTL_ENABLED))
+				v |= MX35_H1_TLL_BIT;
+
+			if (flags & MXC_EHCI_INTERNAL_PHY)
+				v |= MX35_H1_USBTE_BIT;
+
+			if (flags & MXC_EHCI_IPPUE_DOWN)
+				v |= MX35_H1_IPPUE_DOWN_BIT;
+
+			if (flags & MXC_EHCI_IPPUE_UP)
+				v |= MX35_H1_IPPUE_UP_BIT;
+
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		writel(v, MX25_IO_ADDRESS(MX25_OTG_BASE_ADDR +
+				     USBCTRL_OTGBASE_OFFSET));
+		return 0;
+	}
+#endif /* CONFIG_ARCH_MX25 */
+#if defined(CONFIG_ARCH_MX3)
 	if (cpu_is_mx31()) {
 		v = readl(MX31_IO_ADDRESS(MX31_OTG_BASE_ADDR +
 				     USBCTRL_OTGBASE_OFFSET));
