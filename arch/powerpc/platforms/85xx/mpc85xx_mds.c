@@ -202,6 +202,14 @@ static void __init mpc85xx_mds_setup_arch(void)
 	mpc85xx_smp_init();
 #endif
 
+#ifdef CONFIG_SWIOTLB
+	if (lmb_end_of_DRAM() > max) {
+		ppc_swiotlb_enable = 1;
+		set_pci_dma_ops(&swiotlb_dma_ops);
+		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
+	}
+#endif
+
 #ifdef CONFIG_QUICC_ENGINE
 	np = of_find_compatible_node(NULL, NULL, "fsl,qe");
 	if (!np) {
@@ -323,14 +331,6 @@ static void __init mpc85xx_mds_setup_arch(void)
 
 	}
 #endif	/* CONFIG_QUICC_ENGINE */
-
-#ifdef CONFIG_SWIOTLB
-	if (lmb_end_of_DRAM() > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	}
-#endif
 }
 
 
