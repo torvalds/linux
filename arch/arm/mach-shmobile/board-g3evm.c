@@ -232,6 +232,7 @@ static struct resource irda_resources[] = {
 
 static struct platform_device irda_device = {
 	.name		= "sh_irda",
+	.id		= -1,
 	.resource	= irda_resources,
 	.num_resources	= ARRAY_SIZE(irda_resources),
 };
