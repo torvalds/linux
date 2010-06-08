@@ -920,40 +920,30 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 }
 
 /*
- * Schedule writeback for all backing devices. This does WB_SYNC_NONE
- * writeback, for integrity writeback see bdi_queue_work_onstack().
- */
-static void bdi_writeback_all(struct super_block *sb, long nr_pages)
-{
-	struct wb_writeback_args args = {
-		.sb		= sb,
-		.nr_pages	= nr_pages,
-		.sync_mode	= WB_SYNC_NONE,
-	};
-	struct backing_dev_info *bdi;
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
-		if (!bdi_has_dirty_io(bdi))
-			continue;
-
-		bdi_alloc_queue_work(bdi, &args);
-	}
-
-	rcu_read_unlock();
-}
-
-/*
  * Start writeback of `nr_pages' pages.  If `nr_pages' is zero, write back
  * the whole world.
  */
 void wakeup_flusher_threads(long nr_pages)
 {
-	if (nr_pages == 0)
-		nr_pages = global_page_state(NR_FILE_DIRTY) +
+	struct backing_dev_info *bdi;
+	struct wb_writeback_args args = {
+		.sync_mode	= WB_SYNC_NONE,
+	};
+
+	if (nr_pages) {
+		args.nr_pages = nr_pages;
+	} else {
+		args.nr_pages = global_page_state(NR_FILE_DIRTY) +
 				global_page_state(NR_UNSTABLE_NFS);
-	bdi_writeback_all(NULL, nr_pages);
+	}
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(bdi, &bdi_list, bdi_list) {
+		if (!bdi_has_dirty_io(bdi))
+			continue;
+		bdi_alloc_queue_work(bdi, &args);
+	}
+	rcu_read_unlock();
 }
 
 static noinline void block_dump___mark_inode_dirty(struct inode *inode)
