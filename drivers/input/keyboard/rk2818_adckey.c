@@ -26,7 +26,7 @@
 #include <mach/gpio.h>
 #include <mach/adc.h>
 
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -186,35 +186,37 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	/*handle long press of play key*/
 	if(gpio_get_value(KEY_PLAYON_PIN) == 0) 
 	{
-		if((++gPlayCount > 2) && (gFlagShortPlay == 0))
+		++gPlayCount;
+		if((2 == gPlayCount) && (0 == gFlagShortPlay))
 		{
-			gFlagShortPlay = 1;	
-			
+			gFlagShortPlay = 1;			
 		}
-		else if((++gPlayCount > 100) && (gFlagLongPlay == 0))
+		else if((100 == gPlayCount) && (0 == gFlagLongPlay))
 		{
 			gFlagLongPlay = 1;
-			
+			gFlagShortPlay = 0;	
+			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_LONG_PRESS,1);
+			input_sync(pRk28AdcKey->input_dev);
+			DBG("Enter::%s,LINE=%d,KEY_PLAY_LONG_PRESS=%d,1\n",__FUNCTION__,__LINE__,KEY_PLAY_LONG_PRESS);
 		}
 	}
 	else
 	{
-		if(gPlayCount > 100)
-		{
-			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_LONG_PRESS,1);
-			input_sync(pRk28AdcKey->input_dev);
-			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_LONG_PRESS,0);
-			input_sync(pRk28AdcKey->input_dev);
-			DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
-		}	
-		else if (gPlayCount > 2)
+		if (1 == gFlagShortPlay) 
 		{
 			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,1);
 			input_sync(pRk28AdcKey->input_dev);
+			DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d,1\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
 			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,0);
 			input_sync(pRk28AdcKey->input_dev);
-			DBG("Enter::%s,LINE=%d,KEY_PLAY_LONG_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_LONG_PRESS);
+			DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d,0\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
 		}	
+		else if(1 == gFlagLongPlay)
+		{
+			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_LONG_PRESS,0);
+			input_sync(pRk28AdcKey->input_dev);
+			DBG("Enter::%s,LINE=%d,KEY_PLAY_LONG_PRESS=%d,0\n",__FUNCTION__,__LINE__,KEY_PLAY_LONG_PRESS);
+		}
 		
 		gFlagShortPlay = 0;	
 		gFlagLongPlay = 0;
