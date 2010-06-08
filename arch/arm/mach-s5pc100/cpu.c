@@ -38,6 +38,7 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
+#include <plat/ata-core.h>
 #include <plat/iic-core.h>
 #include <plat/sdhci.h>
 #include <plat/onenand-core.h>
@@ -92,6 +93,7 @@ void __init s5pc100_map_io(void)
 	s3c_i2c1_setname("s3c2440-i2c");
 
 	s3c_onenand_setname("s5pc100-onenand");
+	s3c_cfcon_setname("s5pc100-pata");
 }
 
 void __init s5pc100_init_clocks(int xtal)

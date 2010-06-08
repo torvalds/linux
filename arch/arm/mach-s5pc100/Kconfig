@@ -25,6 +25,11 @@ config S5PC100_SETUP_I2C1
 	help
 	  Common setup code for i2c bus 1.
 
+config S5PC100_SETUP_IDE
+	bool
+	help
+	  Common setup code for S5PC100 IDE GPIO configurations
+
 config S5PC100_SETUP_SDHCI
 	bool
 	select S5PC100_SETUP_SDHCI_GPIO
@@ -41,11 +46,13 @@ config MACH_SMDKC100
 	select CPU_S5PC100
 	select S3C_DEV_FB
 	select S3C_DEV_I2C1
+	select SAMSUNG_DEV_IDE
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select S5PC100_SETUP_FB_24BPP
 	select S5PC100_SETUP_I2C1
+	select S5PC100_SETUP_IDE
 	select S5PC100_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDKC100
