@@ -146,6 +146,9 @@ struct ftrace_event_class {
 	int			(*raw_init)(struct ftrace_event_call *);
 };
 
+extern int ftrace_event_reg(struct ftrace_event_call *event,
+			    enum trace_reg type);
+
 enum {
 	TRACE_EVENT_FL_ENABLED_BIT,
 	TRACE_EVENT_FL_FILTERED_BIT,

@@ -439,6 +439,7 @@ static inline notrace int ftrace_get_offsets_##call(			\
  *	.fields			= LIST_HEAD_INIT(event_class_##call.fields),
  *	.raw_init		= trace_event_raw_init,
  *	.probe			= ftrace_raw_event_##call,
+ *	.reg			= ftrace_event_reg,
  * };
  *
  * static struct ftrace_event_call __used
@@ -567,6 +568,7 @@ static struct ftrace_event_class __used event_class_##call = {		\
 	.fields			= LIST_HEAD_INIT(event_class_##call.fields),\
 	.raw_init		= trace_event_raw_init,			\
 	.probe			= ftrace_raw_event_##call,		\
+	.reg			= ftrace_event_reg,			\
 	_TRACE_PERF_INIT(call)						\
 };
 

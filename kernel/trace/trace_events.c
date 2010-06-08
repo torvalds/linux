@@ -141,6 +141,35 @@ int trace_event_raw_init(struct ftrace_event_call *call)
 }
 EXPORT_SYMBOL_GPL(trace_event_raw_init);
 
+int ftrace_event_reg(struct ftrace_event_call *call, enum trace_reg type)
+{
+	switch (type) {
+	case TRACE_REG_REGISTER:
+		return tracepoint_probe_register(call->name,
+						 call->class->probe,
+						 call);
+	case TRACE_REG_UNREGISTER:
+		tracepoint_probe_unregister(call->name,
+					    call->class->probe,
+					    call);
+		return 0;
+
+#ifdef CONFIG_PERF_EVENTS
+	case TRACE_REG_PERF_REGISTER:
+		return tracepoint_probe_register(call->name,
+						 call->class->perf_probe,
+						 call);
+	case TRACE_REG_PERF_UNREGISTER:
+		tracepoint_probe_unregister(call->name,
+					    call->class->perf_probe,
+					    call);
+		return 0;
+#endif
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ftrace_event_reg);
+
 static int ftrace_event_enable_disable(struct ftrace_event_call *call,
 					int enable)
 {
@@ -151,23 +180,13 @@ static int ftrace_event_enable_disable(struct ftrace_event_call *call,
 		if (call->flags & TRACE_EVENT_FL_ENABLED) {
 			call->flags &= ~TRACE_EVENT_FL_ENABLED;
 			tracing_stop_cmdline_record();
-			if (call->class->reg)
-				call->class->reg(call, TRACE_REG_UNREGISTER);
-			else
-				tracepoint_probe_unregister(call->name,
-							    call->class->probe,
-							    call);
+			call->class->reg(call, TRACE_REG_UNREGISTER);
 		}
 		break;
 	case 1:
 		if (!(call->flags & TRACE_EVENT_FL_ENABLED)) {
 			tracing_start_cmdline_record();
-			if (call->class->reg)
-				ret = call->class->reg(call, TRACE_REG_REGISTER);
-			else
-				ret = tracepoint_probe_register(call->name,
-								call->class->probe,
-								call);
+			ret = call->class->reg(call, TRACE_REG_REGISTER);
 			if (ret) {
 				tracing_stop_cmdline_record();
 				pr_info("event trace: Could not enable event "
@@ -205,8 +224,7 @@ static int __ftrace_set_clr_event(const char *match, const char *sub,
 	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
 
-		if (!call->name || !call->class ||
-		    (!call->class->probe && !call->class->reg))
+		if (!call->name || !call->class || !call->class->reg)
 			continue;
 
 		if (match &&
@@ -332,7 +350,7 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		 * The ftrace subsystem is for showing formats only.
 		 * They can not be enabled or disabled via the event files.
 		 */
-		if (call->class && (call->class->probe || call->class->reg))
+		if (call->class && call->class->reg)
 			return call;
 	}
 
@@ -485,8 +503,7 @@ system_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	mutex_lock(&event_mutex);
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->name || !call->class ||
-		    (!call->class->probe && !call->class->reg))
+		if (!call->name || !call->class || !call->class->reg)
 			continue;
 
 		if (system && strcmp(call->class->system, system) != 0)
@@ -977,12 +994,12 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		return -1;
 	}
 
-	if (call->class->probe || call->class->reg)
+	if (call->class->reg)
 		trace_create_file("enable", 0644, call->dir, call,
 				  enable);
 
 #ifdef CONFIG_PERF_EVENTS
-	if (call->event.type && (call->class->perf_probe || call->class->reg))
+	if (call->event.type && call->class->reg)
 		trace_create_file("id", 0444, call->dir, call,
 		 		  id);
 #endif
