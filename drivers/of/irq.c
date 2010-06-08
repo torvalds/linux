@@ -95,7 +95,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 		const u32 *addr, struct of_irq *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
-	const u32 *tmp, *imap, *imask;
+	const __be32 *tmp, *imap, *imask;
 	u32 intsize = 1, addrsize, newintsize = 0, newaddrsize = 0;
 	int imaplen, match, i;
 
@@ -111,7 +111,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 	do {
 		tmp = of_get_property(ipar, "#interrupt-cells", NULL);
 		if (tmp != NULL) {
-			intsize = *tmp;
+			intsize = be32_to_cpu(*tmp);
 			break;
 		}
 		tnode = ipar;
@@ -140,7 +140,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 	} while (old && tmp == NULL);
 	of_node_put(old);
 	old = NULL;
-	addrsize = (tmp == NULL) ? 2 : *tmp;
+	addrsize = (tmp == NULL) ? 2 : be32_to_cpu(*tmp);
 
 	pr_debug(" -> addrsize=%d\n", addrsize);
 
@@ -152,8 +152,9 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 		if (of_get_property(ipar, "interrupt-controller", NULL) !=
 				NULL) {
 			pr_debug(" -> got it !\n");
-			memcpy(out_irq->specifier, intspec,
-			       intsize * sizeof(u32));
+			for (i = 0; i < intsize; i++)
+				out_irq->specifier[i] =
+						of_read_number(intspec +i, 1);
 			out_irq->size = intsize;
 			out_irq->controller = ipar;
 			of_node_put(old);
@@ -223,9 +224,9 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 				pr_debug(" -> parent lacks #interrupt-cells!\n");
 				goto fail;
 			}
-			newintsize = *tmp;
+			newintsize = be32_to_cpu(*tmp);
 			tmp = of_get_property(newpar, "#address-cells", NULL);
-			newaddrsize = (tmp == NULL) ? 0 : *tmp;
+			newaddrsize = (tmp == NULL) ? 0 : be32_to_cpu(*tmp);
 
 			pr_debug(" -> newintsize=%d, newaddrsize=%d\n",
 			    newintsize, newaddrsize);
@@ -307,7 +308,7 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	tmp = of_get_property(p, "#interrupt-cells", NULL);
 	if (tmp == NULL)
 		goto out;
-	intsize = *tmp;
+	intsize = be32_to_cpu(*tmp);
 
 	pr_debug(" intsize=%d intlen=%d\n", intsize, intlen);
 
