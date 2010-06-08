@@ -56,6 +56,7 @@
 #include <mach/regs-gpio.h>
 #include <mach/regs-sys.h>
 #include <mach/regs-srom.h>
+#include <plat/ata.h>
 #include <plat/iic.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
@@ -242,6 +243,10 @@ static struct platform_device smdk6410_b_pwr_5v = {
 };
 #endif
 
+static struct s3c_ide_platdata smdk6410_ide_pdata __initdata = {
+	.setup_gpio	= s3c64xx_ide_setup_gpio,
+};
+
 static struct map_desc smdk6410_iodesc[] = {};
 
 static struct platform_device *smdk6410_devices[] __initdata = {
@@ -265,6 +270,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 
 	&smdk6410_smsc911x,
 	&s3c_device_adc,
+	&s3c_device_cfcon,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 };
@@ -664,6 +670,8 @@ static void __init smdk6410_machine_init(void)
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
+
+	s3c_ide_set_platdata(&smdk6410_ide_pdata);
 
 	platform_add_devices(smdk6410_devices, ARRAY_SIZE(smdk6410_devices));
 }
