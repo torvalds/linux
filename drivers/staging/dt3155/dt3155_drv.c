@@ -97,9 +97,6 @@ int dt3155_errno = 0;
 /* wait queue for interrupts */
 wait_queue_head_t dt3155_read_wait_queue[MAXBOARDS];
 
-#define DT_3155_SUCCESS 0
-#define DT_3155_FAILURE -EIO
-
 /* set to dynamicaly allocate, but it is tunable: */
 /* insmod DT_3155 dt3155 dt3155_major=XX */
 int dt3155_major = 0;
@@ -942,11 +939,11 @@ static int find_PCI (void)
     }
   ndevices = pci_index;
 
-  return DT_3155_SUCCESS;
+  return 0;
 
 err:
   pci_dev_put(pci_dev);
-  return DT_3155_FAILURE;
+  return -EIO;
 }
 
 u32 allocatorAddr = 0;
@@ -1000,7 +997,7 @@ int init_module(void)
   /* Now let's find the hardware.  find_PCI() will set ndevices to the
    * number of cards found in this machine. */
     {
-      if ((rcode = find_PCI()) !=  DT_3155_SUCCESS)
+      if ((rcode = find_PCI()) != 0)
 	{
 	  printk("DT3155 error: find_PCI() failed to find dt3155 board(s)\n");
 	  unregister_chrdev(dt3155_major, "dt3155");
