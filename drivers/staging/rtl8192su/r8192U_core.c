@@ -112,14 +112,30 @@ u32 rt_global_debug_component = \
 #define CAM_CONTENT_COUNT 8
 
 static struct usb_device_id rtl8192_usb_id_tbl[] = {
-	/* Realtek */
-	{USB_DEVICE(0x0bda, 0x8171)},
-	{USB_DEVICE(0x050d, 0x815F)}, /* Belkin F5D8053 v6 */
-	{USB_DEVICE(0x0df6, 0x004b)},	/* WL-349 */
-	/* Guillemot */
-	{USB_DEVICE(0x06f8, 0xe031)},
-	//92SU
+	{USB_DEVICE(0x0bda, 0x8171)}, /* Realtek */
 	{USB_DEVICE(0x0bda, 0x8172)},
+	{USB_DEVICE(0x0bda, 0x8173)},
+	{USB_DEVICE(0x0bda, 0x8174)},
+	{USB_DEVICE(0x0bda, 0x8712)},
+	{USB_DEVICE(0x0bda, 0x8713)},
+	{USB_DEVICE(0x07aa, 0x0047)},
+	{USB_DEVICE(0x07d1, 0x3303)},
+	{USB_DEVICE(0x07d1, 0x3302)},
+	{USB_DEVICE(0x07d1, 0x3300)},
+	{USB_DEVICE(0x1740, 0x9603)},
+	{USB_DEVICE(0x1740, 0x9605)},
+	{USB_DEVICE(0x050d, 0x815F)},
+	{USB_DEVICE(0x06f8, 0xe031)},
+	{USB_DEVICE(0x7392, 0x7611)},
+	{USB_DEVICE(0x7392, 0x7612)},
+	{USB_DEVICE(0x7392, 0x7622)},
+	{USB_DEVICE(0x0DF6, 0x0045)},
+	{USB_DEVICE(0x0E66, 0x0015)},
+	{USB_DEVICE(0x0E66, 0x0016)},
+	{USB_DEVICE(0x0b05, 0x1786)},
+	/* these are not in the official list */
+	{USB_DEVICE(0x050d, 0x815F)}, /* Belkin F5D8053 v6 */
+	{USB_DEVICE(0x0df6, 0x004b)}, /* WL-349 */
 	{}
 };
 
