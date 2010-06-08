@@ -348,6 +348,9 @@ static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartb",	"clk_m",	26000000,	true},
+	{ "emc",	"pll_p",	0,		true},
+	{ "pll_m",	NULL,		600000000,	true},
+	{ "emc",	"pll_m",	600000000,	false},
 	{ "host1x",	"pll_m",	100000000,	true},
 	{ "2d",		"pll_m",	100000000,	true},
 	{ "epp",	"pll_m",	100000000,	true},
