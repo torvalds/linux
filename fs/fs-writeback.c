@@ -1180,6 +1180,8 @@ void writeback_inodes_sb(struct super_block *sb)
 		.sync_mode	= WB_SYNC_NONE,
 	};
 
+	WARN_ON(!rwsem_is_locked(&sb->s_umount));
+
 	args.nr_pages = nr_dirty + nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 
@@ -1197,7 +1199,9 @@ EXPORT_SYMBOL(writeback_inodes_sb);
 int writeback_inodes_sb_if_idle(struct super_block *sb)
 {
 	if (!writeback_in_progress(sb->s_bdi)) {
+		down_read(&sb->s_umount);
 		writeback_inodes_sb(sb);
+		up_read(&sb->s_umount);
 		return 1;
 	} else
 		return 0;
@@ -1219,6 +1223,8 @@ void sync_inodes_sb(struct super_block *sb)
 		.nr_pages	= LONG_MAX,
 		.range_cyclic	= 0,
 	};
+
+	WARN_ON(!rwsem_is_locked(&sb->s_umount));
 
 	bdi_queue_work_onstack(&args);
 	wait_sb_inodes(sb);
