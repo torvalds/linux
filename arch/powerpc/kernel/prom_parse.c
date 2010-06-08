@@ -6,6 +6,7 @@
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/etherdevice.h>
+#include <linux/of_address.h>
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
@@ -27,10 +28,6 @@
 			(ns) > 0)
 
 static struct of_bus *of_match_bus(struct device_node *np);
-static int __of_address_to_resource(struct device_node *dev,
-		const u32 *addrp, u64 size, unsigned int flags,
-		struct resource *r);
-
 
 /* Debug utility */
 #ifdef DEBUG
@@ -609,48 +606,6 @@ const u32 *of_get_address(struct device_node *dev, int index, u64 *size,
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_address);
-
-static int __of_address_to_resource(struct device_node *dev, const u32 *addrp,
-				    u64 size, unsigned int flags,
-				    struct resource *r)
-{
-	u64 taddr;
-
-	if ((flags & (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
-		return -EINVAL;
-	taddr = of_translate_address(dev, addrp);
-	if (taddr == OF_BAD_ADDR)
-		return -EINVAL;
-	memset(r, 0, sizeof(struct resource));
-	if (flags & IORESOURCE_IO) {
-		unsigned long port;
-		port = pci_address_to_pio(taddr);
-		if (port == (unsigned long)-1)
-			return -EINVAL;
-		r->start = port;
-		r->end = port + size - 1;
-	} else {
-		r->start = taddr;
-		r->end = taddr + size - 1;
-	}
-	r->flags = flags;
-	r->name = dev->name;
-	return 0;
-}
-
-int of_address_to_resource(struct device_node *dev, int index,
-			   struct resource *r)
-{
-	const u32	*addrp;
-	u64		size;
-	unsigned int	flags;
-
-	addrp = of_get_address(dev, index, &size, &flags);
-	if (addrp == NULL)
-		return -EINVAL;
-	return __of_address_to_resource(dev, addrp, size, flags, r);
-}
-EXPORT_SYMBOL_GPL(of_address_to_resource);
 
 void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
 		unsigned long *busno, unsigned long *phys, unsigned long *size)

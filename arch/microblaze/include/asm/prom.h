@@ -65,16 +65,17 @@ extern const u32 *of_get_address(struct device_node *dev, int index,
 extern const u32 *of_get_pci_address(struct device_node *dev, int bar_no,
 			u64 *size, unsigned int *flags);
 
-/* Get an address as a resource. Note that if your address is
- * a PIO address, the conversion will fail if the physical address
- * can't be internally converted to an IO token with
- * pci_address_to_pio(), that is because it's either called to early
- * or it can't be matched to any host bridge IO space
- */
-extern int of_address_to_resource(struct device_node *dev, int index,
-				struct resource *r);
 extern int of_pci_address_to_resource(struct device_node *dev, int bar,
 				struct resource *r);
+
+#ifdef CONFIG_PCI
+extern unsigned long pci_address_to_pio(phys_addr_t address);
+#else
+static inline unsigned long pci_address_to_pio(phys_addr_t address)
+{
+	return (unsigned long)-1;
+}
+#endif	/* CONFIG_PCI */
 
 /* Parse the ibm,dma-window property of an OF node into the busno, phys and
  * size parameters.
