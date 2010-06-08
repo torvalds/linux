@@ -102,6 +102,7 @@ static void cmci_discover(int banks, int boot)
 			continue;
 		}
 
+		val &= ~MCI_CTL2_CMCI_THRESHOLD_MASK;
 		val |= MCI_CTL2_CMCI_EN | CMCI_THRESHOLD;
 		wrmsrl(MSR_IA32_MCx_CTL2(i), val);
 		rdmsrl(MSR_IA32_MCx_CTL2(i), val);
