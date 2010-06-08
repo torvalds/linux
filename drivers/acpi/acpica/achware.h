@@ -90,6 +90,9 @@ acpi_status acpi_hw_write_port(acpi_io_address address, u32 value, u32 width);
 /*
  * hwgpe - GPE support
  */
+u32 acpi_hw_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info,
+			     struct acpi_gpe_register_info *gpe_register_info);
+
 acpi_status acpi_hw_low_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status

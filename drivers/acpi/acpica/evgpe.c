@@ -69,7 +69,7 @@ acpi_status
 acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info)
 {
 	struct acpi_gpe_register_info *gpe_register_info;
-	u8 register_bit;
+	u32 register_bit;
 
 	ACPI_FUNCTION_TRACE(ev_update_gpe_enable_masks);
 
@@ -78,9 +78,8 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info)
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	register_bit = (u8)
-	    (1 <<
-	     (gpe_event_info->gpe_number - gpe_register_info->base_gpe_number));
+	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
+						gpe_register_info);
 
 	/* Clear the wake/run bits up front */
 

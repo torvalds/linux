@@ -57,6 +57,27 @@ acpi_hw_enable_wakeup_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 /******************************************************************************
  *
+ * FUNCTION:	acpi_hw_gpe_register_bit
+ *
+ * PARAMETERS:	gpe_event_info	    - Info block for the GPE
+ *		gpe_register_info   - Info block for the GPE register
+ *
+ * RETURN:	Status
+ *
+ * DESCRIPTION:	Compute GPE enable mask with one bit corresponding to the given
+ *		GPE set.
+ *
+ ******************************************************************************/
+
+u32 acpi_hw_gpe_register_bit(struct acpi_gpe_event_info *gpe_event_info,
+			     struct acpi_gpe_register_info *gpe_register_info)
+{
+	return (u32)1 << (gpe_event_info->gpe_number -
+				gpe_register_info->base_gpe_number);
+}
+
+/******************************************************************************
+ *
  * FUNCTION:	acpi_hw_low_disable_gpe
  *
  * PARAMETERS:	gpe_event_info	    - Info block for the GPE to be disabled
@@ -72,6 +93,7 @@ acpi_status acpi_hw_low_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_status status;
 	u32 enable_mask;
+	u32 register_bit;
 
 	/* Get the info block for the entire GPE register */
 
@@ -89,9 +111,9 @@ acpi_status acpi_hw_low_disable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 
 	/* Clear just the bit that corresponds to this GPE */
 
-	ACPI_CLEAR_BIT(enable_mask, ((u32)1 <<
-				     (gpe_event_info->gpe_number -
-				      gpe_register_info->base_gpe_number)));
+	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
+						gpe_register_info);
+	ACPI_CLEAR_BIT(enable_mask, register_bit);
 
 	/* Write the updated enable mask */
 
@@ -150,21 +172,28 @@ acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info * gpe_event_info)
 
 acpi_status acpi_hw_clear_gpe(struct acpi_gpe_event_info * gpe_event_info)
 {
+	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_status status;
-	u8 register_bit;
+	u32 register_bit;
 
 	ACPI_FUNCTION_ENTRY();
 
-	register_bit = (u8)(1 <<
-			    (gpe_event_info->gpe_number -
-			     gpe_event_info->register_info->base_gpe_number));
+	/* Get the info block for the entire GPE register */
+
+	gpe_register_info = gpe_event_info->register_info;
+	if (!gpe_register_info) {
+		return (AE_NOT_EXIST);
+	}
+
+	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
+						gpe_register_info);
 
 	/*
 	 * Write a one to the appropriate bit in the status register to
 	 * clear this GPE.
 	 */
 	status = acpi_hw_write(register_bit,
-			       &gpe_event_info->register_info->status_address);
+			       &gpe_register_info->status_address);
 
 	return (status);
 }
@@ -187,7 +216,7 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 		       acpi_event_status * event_status)
 {
 	u32 in_byte;
-	u8 register_bit;
+	u32 register_bit;
 	struct acpi_gpe_register_info *gpe_register_info;
 	acpi_status status;
 	acpi_event_status local_event_status = 0;
@@ -204,9 +233,8 @@ acpi_hw_get_gpe_status(struct acpi_gpe_event_info * gpe_event_info,
 
 	/* Get the register bitmask for this GPE */
 
-	register_bit = (u8)(1 <<
-			    (gpe_event_info->gpe_number -
-			     gpe_event_info->register_info->base_gpe_number));
+	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
+						gpe_register_info);
 
 	/* GPE currently enabled? (enabled for runtime?) */
 
