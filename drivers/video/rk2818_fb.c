@@ -203,11 +203,9 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
     int ret =0;
 	struct rk2818_fb_mach_info *mach_info = pdev->dev.platform_data;
 
-	unsigned lcd_cs = mach_info->gpio->lcd_cs&0xffff;
 	unsigned display_on = mach_info->gpio->display_on&0xffff;
 	unsigned lcd_standby = mach_info->gpio->lcd_standby&0xffff;
-
-	int lcd_cs_pol = (mach_info->gpio->lcd_cs>>16)&0xffff;
+    
 	int display_on_pol = (mach_info->gpio->display_on>>16)&0xffff;
 	int lcd_standby_pol = (mach_info->gpio->lcd_standby>>16)&0xffff;
 
