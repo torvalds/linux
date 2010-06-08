@@ -617,6 +617,8 @@ int of_platform_bus_probe(struct device_node *root,
 		root = of_find_node_by_path("/");
 	else
 		of_node_get(root);
+	if (root == NULL)
+		return -EINVAL;
 
 	pr_debug("of_platform_bus_probe()\n");
 	pr_debug(" starting at: %s\n", root->full_name);
