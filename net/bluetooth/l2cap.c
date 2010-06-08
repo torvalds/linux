@@ -2621,9 +2621,6 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 			return -ECONNREFUSED;
 
 		break;
-	default:
-		pi->mode = l2cap_select_mode(rfc.mode, pi->conn->feat_mask);
-		break;
 	}
 
 done:
