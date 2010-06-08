@@ -370,7 +370,6 @@ static struct spi_board_info board_spi_devices[] = {
 
 /*rk2818_fb gpio information*/
 static struct rk2818_fb_gpio rk2818_fb_gpio_info = {
-    .lcd_cs     = 0,
     .display_on = (GPIO_LOW<<16)|RK2818_PIN_PA2,
     .lcd_standby = 0,
     .mcu_fmk_pin = 0,

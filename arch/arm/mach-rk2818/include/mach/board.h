@@ -42,7 +42,6 @@ struct rk2818_i2c_platform_data {
 
 struct rk2818_fb_gpio{
     u32 display_on;
-    u32 lcd_cs;
     u32 lcd_standby;
     u32 mcu_fmk_pin;
 };

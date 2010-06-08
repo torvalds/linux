@@ -31,6 +31,7 @@
 #include <linux/timer.h>
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/earlysuspend.h>
 
 
 #include <asm/io.h>
@@ -49,18 +50,11 @@
 #include <mach/rk2818_iomap.h>
 //#include <asm/uaccess.h>
 
-#ifdef CONFIG_ANDROID_POWER
-#include <linux/android_power.h>
-#endif
-
 #include "./display/screen/screen.h"
 
 
-#define FMK_USE_HARDTIMER       1       //frame mark use hard timer replace high timer
 #define WIN1_USE_DOUBLE_BUF     1       //win1 use double buf to accelerate display
-#define LANDSCAPE_USE_ROTATE    1       //rotate win1 in landscape with mcu panel
-
-#define CURSOR_BUF_SIZE         256      //RK2818 cursor need 256B buf
+#define CURSOR_BUF_SIZE         256     //RK2818 cursor need 256B buf
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
@@ -83,8 +77,8 @@
 #define LcdMskReg(inf, addr, msk, val)  (inf->regbak.addr)&=~(msk);   inf->preg->addr=(inf->regbak.addr|=(val))
 
 
-#define IsMcuLandscape()                ((SCREEN_MCU==inf->cur_screen->type) && ((90==inf->mcu_scandir)||(270==inf->mcu_scandir)))
-#define IsMcuUseFmk()                   ( (2==inf->cur_screen->mcu_usefmk) || ((1==inf->cur_screen->mcu_usefmk)&&IsMcuLandscape()) )
+#define IsMcuLandscape()                ((SCREEN_MCU==inf->cur_screen->type) && (0==inf->mcu_scandir))
+#define IsMcuUseFmk()                   ( (2==inf->cur_screen->mcu_usefmk) || (1==inf->cur_screen->mcu_usefmk)) 
 
 #define CalScaleW1(x, y)	            (u32)( ((u32)x*0x1000)/y)
 #define CalScaleDownW0(x, y)	            (u32)( (x>=y) ? ( ((u32)x*0x1000)/y) : (0x1000) )
@@ -104,19 +98,6 @@ static struct rk28fb_rgb def_rgb_16 = {
      transp: { offset: 0,  length: 0, },
 };
 
-struct win0_fmk {
-    u8 completed;
-    u8 enable;
-	u8 format;
-	u32 addr_y[2];
-	u32 addr_uv[2];
-	u16 act_w[2];
-	u16 win_w[2];
-	u16 win_stx[2];
-	u32 addr_y2offset;
-	u32 addr_uv2offset;
-};
-
 struct win0_par {
 	u32 refcount;
 	u32	pseudo_pal[16];
@@ -131,30 +112,15 @@ struct win0_par {
 	u32 even_uv_offset;
     u32 even_nxt_y_offset;
     u32 even_nxt_uv_offset;
-
-	struct win0_fmk fmktmp;
-	struct win0_fmk fmk;
-    
+   
     u8 par_seted;
     u8 addr_seted;
-};
-
-
-struct win1_fmk {
-    u8 completed;
-    u8 enable;
-	u32 addr[2];
-	u16 win_stx[2];
-	u16 act_w[2];
-	u32 addr2_offset;
 };
 
 struct win1_par {
 	u32 refcount;
 	u32	pseudo_pal[16];
 	int lstblank;
-   	struct win1_fmk fmktmp;
-	struct win1_fmk fmk;
 };
 
 struct rk2818fb_inf {
@@ -184,12 +150,10 @@ struct rk2818fb_inf {
 	u16 mcu_scandir;
 	struct timer_list mcutimer;
 	int mcu_status;
-	int mcu_ebooknew;
+	u8 mcu_fmksync;
 	int mcu_usetimer;
 	int mcu_stopflush;
-	struct hrtimer htimer;
-	int mcu_fmkstate;
-
+	
     /* external memery */
 	char __iomem *screen_base2;
     __u32 smem_len2;
@@ -204,9 +168,6 @@ struct rk2818fb_inf {
     struct rk28fb_screen hdmi_info[2];
     struct rk28fb_screen *cur_screen;
 
-#ifdef CONFIG_ANDROID_POWER
-    android_early_suspend_t early_suspend;
-#endif
 };
 
 typedef enum _TRSP_MODE
@@ -220,32 +181,9 @@ typedef enum _TRSP_MODE
     TRSP_INVAL
 } TRSP_MODE;
 
-typedef enum _FMK_STATE
-{
-    FMK_IDLE = 0,
-    FMK_INT,
-    FMK_PRELEFT,
-    FMK_PREUP,
-    FMK_LEFT,
-    FMK_UP,
-    FMK_ENDING
-
-} FMK_STATE;
-
 
 struct platform_device *g_pdev = NULL;
-static int rk2818fb_suspend(struct platform_device *pdev, pm_message_t msg);
 static int win1fb_set_par(struct fb_info *info);
-
-#if FMK_USE_HARDTIMER
-int rk2818fb_dohardtimer(void);
-#endif
-
-#ifdef CONFIG_ANDROID_POWER
-static void rk2818fb_early_suspend(android_early_suspend_t *h);
-static void rk2818fb_early_resume(android_early_suspend_t *h);
-#endif
-
 
 #if 0
 #define CHK_SUSPEND(inf)	\
@@ -278,19 +216,7 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
 	fbprintk(">>>>>> display_on(%d) = %d \n", display_on, enable ? display_on_pol : !display_on_pol);
 	fbprintk(">>>>>> lcd_standby(%d) = %d \n", lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
 
-    // set cs and display_on
-    if(mach_info->gpio->lcd_cs)
-    {
-        ret = gpio_request(lcd_cs, NULL); 
-        if(ret != 0)
-        {
-            gpio_free(lcd_cs);
-            printk(KERN_ERR ">>>>>> lcd_cs gpio_request err \n ");
-            goto pin_err;
-        }
-        gpio_direction_output(lcd_cs, 0);
-		gpio_set_value(lcd_cs, enable ? lcd_cs_pol : !lcd_cs_pol);
-	}
+    // set display_on   
     if(mach_info->gpio->display_on) 
     {
         ret = gpio_request(display_on, NULL); 
@@ -302,6 +228,7 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
         }
         gpio_direction_output(display_on, 0);
 		gpio_set_value(display_on, enable ? display_on_pol : !display_on_pol);
+        gpio_free(display_on);
     }
     if(mach_info->gpio->lcd_standby) 
     {
@@ -314,6 +241,7 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
         }
         gpio_direction_output(lcd_standby, 0);
 		gpio_set_value(lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
+        gpio_free(lcd_standby);
     }	
     
     return;
@@ -328,21 +256,21 @@ int mcu_do_refresh(struct rk2818fb_inf *inf)
     if(SCREEN_MCU!=inf->cur_screen->type)   return 0;
 
     // use frame mark
-    if(IsMcuUseFmk()) {
-        if(FMK_IDLE==inf->mcu_fmkstate) {
-            inf->mcu_fmkstate = FMK_INT;
-        } else {
-            inf->mcu_needflush = 1;
-            return (1);
-        }
+    if(IsMcuUseFmk()) 
+    {      
+        inf->mcu_needflush = 1;
         return 0;
     }
 
     // not use frame mark
-    if(LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
-        if(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
+    if(LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_SELECT)) 
+    {
+        if(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) 
+        {
             inf->mcu_needflush = 1;
-        } else {
+        } 
+        else 
+        {
             if(inf->cur_screen->refresh)    inf->cur_screen->refresh(REFRESH_PRE);
             inf->mcu_needflush = 0;
             inf->mcu_isrcnt = 0;
@@ -357,7 +285,6 @@ void mcutimer_callback(unsigned long arg)
 {
     struct rk2818fb_inf *inf = platform_get_drvdata(g_pdev);
     static int waitcnt = 0;
-    static int newcnt = 0;
 
     mod_timer(&inf->mcutimer, jiffies + HZ/10);
 
@@ -368,25 +295,10 @@ void mcutimer_callback(unsigned long arg)
         break;
     case MS_MCU:
         if(inf->mcu_usetimer)   mcu_do_refresh(inf);
-        break;
-    case MS_EBOOK:
-        if(inf->mcu_ebooknew) {
-            inf->mcu_ebooknew = 0;
-            inf->mcu_status = MS_EWAITSTART;
-            newcnt = 0;
-        }
-        break;
+        break; 
     case MS_EWAITSTART:
-        if(inf->mcu_ebooknew) {
-            inf->mcu_ebooknew = 0;
-            if(newcnt++>10) {
-                inf->mcu_status = MS_EWAITEND;
-                waitcnt = 0;
-            }
-        } else {
-            inf->mcu_status = MS_EWAITEND;
-            waitcnt = 0;
-        }
+        inf->mcu_status = MS_EWAITEND;
+        waitcnt = 0;        
         break;
     case MS_EWAITEND:
         if(0==waitcnt) {
@@ -456,6 +368,37 @@ int mcu_ioctl(unsigned int cmd, unsigned long arg)
     }
 
     return 0;
+}
+
+static irqreturn_t mcu_irqfmk(int irq, void *dev_id)
+{
+	struct platform_device *pdev = (struct platform_device*)dev_id;
+    struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
+    struct rk28fb_screen *screen;
+
+    if(!inf)    return IRQ_HANDLED;
+    
+    screen = inf->cur_screen;
+
+    if(0==screen->mcu_usefmk) {       
+        return IRQ_HANDLED;
+    }
+    
+    if(inf->mcu_fmksync == 1)
+        return IRQ_HANDLED;
+    
+    inf->mcu_fmksync = 1;
+    if(inf->mcu_needflush)
+    {  
+        inf->mcu_needflush = 0;        
+        inf->mcu_isrcnt = 0;
+        if(inf->cur_screen->refresh)
+           inf->cur_screen->refresh(REFRESH_PRE);         
+        LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);        
+    }
+    inf->mcu_fmksync = 0;
+
+	return IRQ_HANDLED;
 }
 
 int init_lcdc(struct fb_info *info)
@@ -540,8 +483,6 @@ void load_screen(struct fb_info *info, bool initscreen)
     u32 dclk_rate = 0;
         
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-
-//	if(OUT_P16BPP4==face)   face = OUT_P565;
 
     // set the rgb or mcu
     LcdMskReg(inf, MCU_TIMING_CTRL, m_MCU_OUTPUT_SELECT, v_MCU_OUTPUT_SELECT((SCREEN_MCU==screen->type)?(1):(0)));
@@ -634,7 +575,9 @@ void load_screen(struct fb_info *info, bool initscreen)
 
     // init screen panel
     if(screen->init && initscreen)
+    {
     	screen->init();
+    }
 }
 
 static inline unsigned int chan_to_field(unsigned int chan,
@@ -784,7 +727,6 @@ int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
 static int win0fb_blank(int blank_mode, struct fb_info *info)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
-    struct win0_par *par = info->par;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -794,13 +736,9 @@ static int win0fb_blank(int blank_mode, struct fb_info *info)
     {
     case FB_BLANK_UNBLANK:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
-        par->fmktmp.enable = 1;
-        par->fmktmp.completed = 1;
         break;
     default:
         LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
-        par->fmktmp.enable = 0;
-        par->fmktmp.completed = 1;
         break;
     }
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -1129,7 +1067,7 @@ static int win0fb_set_par(struct fb_info *info)
         fix->mmio_start = uv_addr;
 
         par->addr_seted = ((-1==(int)y_addr)&&(-1==(int)uv_addr)) ? 0 : 1;
-        fbprintk("buffer alloced by user fix->smem_start = %8x, fix->smem_len = %8x, fix->mmio_start = %8x \n", fix->smem_start, fix->smem_len, fix->mmio_start);
+        fbprintk("buffer alloced by user fix->smem_start = %8x, fix->smem_len = %8x, fix->mmio_start = %8x \n", (u32)fix->smem_start, (u32)fix->smem_len, (u32)fix->mmio_start);
     }
     else    // driver alloce buffer
     {
@@ -1207,7 +1145,7 @@ static int win0fb_set_par(struct fb_info *info)
         fbprintk("nxt_y_addr 0x%08x = 0x%08x + %d\n", nxt_y_addr, (u32)fix->reserved[1], par->even_nxt_y_offset);
         fbprintk("nxt_uv_addr 0x%08x = 0x%08x + %d\n", nxt_uv_addr, (u32)fix->reserved[2] , par->even_nxt_uv_offset);
     }
-
+  
     if(var->rotate == 270)
     {      
         actWidth = yact;
@@ -1406,8 +1344,8 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
 
-    // enable win0 after the win0 addr is seted
-	par->par_seted = 1;
+     // enable win0 after the win0 addr is seted
+    par->par_seted = 1;
 	LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE((1==par->addr_seted)?(1):(0)));
 	mcu_refresh(inf);
 
@@ -1502,7 +1440,7 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
     void __user *argp = (void __user *)arg;
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-    fbprintk("win0fb_ioctl cmd = %8x, arg = %8x \n", cmd, arg);
+    fbprintk("win0fb_ioctl cmd = %8x, arg = %8x \n", (u32)cmd, (u32)arg);
     
 	CHK_SUSPEND(inf);
 
@@ -1535,7 +1473,6 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             LcdWrReg(inf, WIN0_YRGB_MST, yuv_phy[0]);
             LcdWrReg(inf, WIN0_CBR_MST, yuv_phy[1]);
             LcdWrReg(inf, REG_CFG_DONE, 0x01);
-
             // enable win0 after the win0 par is seted
             par->addr_seted = 1;
             if(par->par_seted) { 
@@ -1561,7 +1498,7 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
                     if(inf->cur_screen->scandir) {
                         inf->mcu_stopflush = 1;
                         inf->mcu_needflush = 0;
-                        inf->mcu_status = FMK_IDLE;
+                        inf->mcu_status = MS_IDLE;
                         while(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
                             msleep(10);
                         }
@@ -1657,7 +1594,7 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             LcdWrReg(inf, I2P_REF1_MST_CBR, nxt_uv_addr);
             LcdMskReg(inf, DSP_CTRL0, m_I2P_CUR_POLARITY, v_I2P_CUR_POLARITY(1));
             LcdWrReg(inf, REG_CFG_DONE, 0x01);
-
+          
             // enable win0 after the win0 par is seted
             par->addr_seted = 1;
             if(par->par_seted) { 
@@ -1690,7 +1627,6 @@ static struct fb_ops win0fb_ops = {
 static int win1fb_blank(int blank_mode, struct fb_info *info)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
-    struct win1_par *par = info->par;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -1700,13 +1636,9 @@ static int win1fb_blank(int blank_mode, struct fb_info *info)
     {
     case FB_BLANK_UNBLANK:
         LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(1));
-        par->fmktmp.enable = 1;
-        par->fmktmp.completed = 1;
         break;
     default:
         LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(0));
-        par->fmktmp.enable = 0;
-        par->fmktmp.completed = 1;
         break;
     }
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -1790,6 +1722,7 @@ static int win1fb_set_par(struct fb_info *info)
     struct fb_var_screeninfo *var = &info->var;
     struct fb_fix_screeninfo *fix = &info->fix;
     struct rk28fb_screen *screen = inf->cur_screen;
+    
 
     u8 format = 0;
     dma_addr_t map_dma;
@@ -1798,22 +1731,18 @@ static int win1fb_set_par(struct fb_info *info)
     u32 ScaleY = 0x1000;
 
     u16 xres_virtual = var->xres_virtual;      //virtual screen size
-   // u16 yres_virtual = var->yres_virtual;
+    //u16 yres_virtual = var->yres_virtual;
     u16 xsize_virtual = var->xres;             //visiable size in virtual screen
     u16 ysize_virtual = var->yres;
-   // u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
-   // u16 ypos_virtual = var->yoffset;
+    u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
+    u16 ypos_virtual = var->yoffset;
     
-    u16 xpos = 0;        //visiable offset in panel
+    u16 xpos = 0;                 //visiable offset in panel
     u16 ypos = 0;
     u16 xsize = screen->x_res;    //visiable size in panel
     u16 ysize = screen->y_res;   
     u8 trspmode = TRSP_CLOSE;
     u8 trspval = 0;
-
-    //the below code is not correct, make we can't see alpha picture.
-    //u8 trspmode = (var->grayscale>>8) & 0xff;
-    //u8 trspval = (var->grayscale) & 0xff;
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1823,14 +1752,14 @@ static int win1fb_set_par(struct fb_info *info)
     {
     case 16:    // rgb565
         format = 1;
-        fix->line_length = 2 * var->xres_virtual;
-        offset = (var->yoffset*var->xres_virtual + var->xoffset)*2;
+        fix->line_length = 2 * xres_virtual;
+        offset = (ypos_virtual*xres_virtual + xpos_virtual)*2;
         break;
     case 32:    // rgb888
     default:
         format = 0;
-        fix->line_length = 4 * var->xres_virtual;
-        offset = (var->yoffset*var->xres_virtual + var->xoffset)*4;
+        fix->line_length = 4 * xres_virtual;
+        offset = (ypos_virtual*xres_virtual + xpos_virtual)*4;
         break;
     }
 
@@ -1928,6 +1857,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
     struct fb_var_screeninfo *var1 = &info->var;
     struct fb_fix_screeninfo *fix1 = &info->fix;
+
     u32 offset = 0, addr = 0;
     
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
@@ -1953,7 +1883,7 @@ static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 
     LcdWrReg(inf, WIN1_YRGB_MST, addr);
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
-
+  
 	mcu_refresh(inf);
 
     // flush end when wq_condition=1 in mcu panel, but not in rgb panel
@@ -2070,23 +2000,17 @@ static irqreturn_t rk2818fb_irq(int irq, void *dev_id)
             return IRQ_HANDLED;
 
         if(IsMcuUseFmk())
-        {
-            if(inf->mcu_needflush) {
-                if(FMK_IDLE==inf->mcu_fmkstate || FMK_ENDING==inf->mcu_fmkstate) {
-                    inf->mcu_fmkstate = FMK_INT;
-                    inf->mcu_needflush = 0;
-                    fbprintk2("A ");
-                } else {
-                    return IRQ_HANDLED;
-                }
-            } else {
-                if(FMK_ENDING==inf->mcu_fmkstate) {
-                    if(inf->cur_screen->refresh)
-                        inf->cur_screen->refresh(REFRESH_END);
-                    inf->mcu_fmkstate = FMK_IDLE;
-                } else {
-                    return IRQ_HANDLED;
-                }
+        {            
+            if(LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS) && (inf->mcu_fmksync == 0))
+            {      
+                inf->mcu_fmksync = 1;
+                 if(inf->cur_screen->refresh)
+                   inf->cur_screen->refresh(REFRESH_END);  
+                inf->mcu_fmksync = 0;
+            }
+            else
+            {         
+                return IRQ_HANDLED;                
             }
         }
         else
@@ -2094,7 +2018,8 @@ static irqreturn_t rk2818fb_irq(int irq, void *dev_id)
             if(inf->mcu_needflush) {
                 if(inf->cur_screen->refresh)
                     inf->cur_screen->refresh(REFRESH_PRE);
-                inf->mcu_needflush = 0;
+                inf->mcu_needflush = 0;                
+                inf->mcu_isrcnt = 0;
                 LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);               
             } else {
                 if(inf->cur_screen->refresh)
@@ -2109,166 +2034,101 @@ static irqreturn_t rk2818fb_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 
-static irqreturn_t rk2818fb_irqfmk(int irq, void *dev_id)
+struct suspend_info {
+	struct early_suspend early_suspend;
+	struct rk2818fb_inf *inf;
+};
+
+void suspend(struct early_suspend *h)
 {
-	struct platform_device *pdev = (struct platform_device*)dev_id;
-    struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
-    struct rk28fb_screen *screen;
-    struct win0_par *w0par;
-    struct win1_par *w1par;
-    u16 hact_st = 0;
-    static u8 leap_cnt = 0;
-    u16 tmp = 1;
+	struct suspend_info *info = container_of(h, struct suspend_info,
+						early_suspend);
 
-    if(!inf)    return IRQ_HANDLED;
+    struct rk2818fb_inf *inf = info->inf;
+        
+    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
-    screen = inf->cur_screen;
-    w0par = inf->win0fb->par;
-    w1par = inf->win1fb->par;
-
-    if(0==screen->mcu_usefmk) {
-        inf->mcu_fmkstate = FMK_IDLE;
-        return IRQ_HANDLED;
+    if(!inf) {
+        printk("inf==0, rk2818fb_suspend fail! \n");
+        return;
     }
+    
+    set_lcd_pin(g_pdev, 0);
 
-    hact_st = LcdReadBit(inf, DSP_HACT_ST_END, m_BIT11HI);
+	if(inf->cur_screen->standby)
+	{
+		fbprintk(">>>>>> power down the screen! \n");
+		inf->cur_screen->standby(1);
+	}
 
-    switch(inf->mcu_fmkstate)
-    {
-    case FMK_INT: // 开定时器(FMK到)
-        if(0==irq)    return IRQ_HANDLED;
-        if(screen->mcu_usefmk && IsMcuLandscape())
-        {
-            if(leap_cnt)   { leap_cnt--; return IRQ_HANDLED; }    //竖屏转横屏丢掉2个中断以同步
-            if(w0par->fmktmp.completed)   { w0par->fmk = w0par->fmktmp;  w0par->fmktmp.completed = 0; }
-            if(w1par->fmktmp.completed)   { w1par->fmk = w1par->fmktmp;  w1par->fmktmp.completed = 0; }
-            inf->mcu_fmkstate = FMK_PRELEFT;
-        } else if ( (2==screen->mcu_usefmk) && (!IsMcuLandscape()) ) {
-            leap_cnt = 2;
-            inf->mcu_fmkstate = FMK_PREUP;
-        } else {
-            leap_cnt = 0;
-            inf->mcu_fmkstate = FMK_IDLE;
-            break;
+    LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(1));    
+    LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(1));
+   	LcdWrReg(inf, REG_CFG_DONE, 0x01);
+
+	if(!inf->in_suspend)
+	{
+		fbprintk(">>>>>> diable the lcdc clk! \n");
+		msleep(100);
+    	if (inf->dclk){
+            clk_disable(inf->dclk);
         }
-#if FMK_USE_HARDTIMER
-      //  rockchip_usertimer_start(500000/screen->mcu_frmrate, rk28fb_dohardtimer);
-#else
-    //    hrtimer_start(&inf->htimer,ktime_set(0,(450000000/screen->mcu_frmrate)),HRTIMER_MODE_REL);
-#endif
-        break;
-
-    case FMK_PRELEFT: // 送左半屏(定时器到)
-        if(0!=irq)      return IRQ_HANDLED;
-        if(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
-            inf->mcu_fmkstate = FMK_IDLE;
-            printk("L failed! \n");
-            return IRQ_HANDLED;
+        if(inf->clk){
+            clk_disable(inf->clk);
         }
-        if (screen->disparea)    screen->disparea(0);
+            
+		inf->in_suspend = 1;
+	}
 
-        if (w0par->fmk.enable && w0par->fmk.addr_y[0]) 
-        {
-                    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE|m_W0_FORMAT,  v_W0_ENABLE(1)|v_W0_FORMAT(w0par->fmk.format));
-                    LcdWrReg(inf, WIN0_YRGB_MST, w0par->fmk.addr_y[0]);
-                    LcdWrReg(inf, WIN0_CBR_MST, w0par->fmk.addr_uv[0]);
-                    LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO, v_WORDLO(w0par->fmk.act_w[0]));
-                    LcdMskReg(inf, WIN0_DSP_ST, m_BIT11LO, v_BIT11LO(w0par->fmk.win_stx[0]+hact_st));
-                    LcdMskReg(inf, WIN0_DSP_INFO, m_BIT11LO,  v_BIT11LO(w0par->fmk.win_w[0]));
-                    w0par->fmk.addr_y[1] = w0par->fmk.addr_y[0] + w0par->fmk.addr_y2offset;
-                     w0par->fmk.addr_uv[1] = w0par->fmk.addr_uv[0] + w0par->fmk.addr_uv2offset;
-        }
-        else
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE,  v_W0_ENABLE(0));
-        }
-
-        if (w1par->fmk.enable && w1par->fmk.addr[0])   // Win1
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(1));
-            LcdWrReg(inf, WIN1_YRGB_MST, w1par->fmk.addr[0]);
-            LcdMskReg(inf, WIN1_DSP_ST, m_BIT11LO, v_BIT11LO(w1par->fmk.win_stx[0]+hact_st));
-            LcdMskReg(inf, WIN1_ACT_INFO, m_BIT11LO, v_BIT11LO(w1par->fmk.act_w[0]));
-            w1par->fmk.addr[1] = w1par->fmk.addr[0] + w1par->fmk.addr2_offset;
-        }
-        else           
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(0));
-        }
-
-        LcdSetBit(inf,MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
-        LcdWrReg(inf, REG_CFG_DONE, 0x01);
-        inf->mcu_fmkstate = FMK_LEFT;
-        fbprintk2("L ");
-        break;
-
-    case FMK_LEFT: // 送右半屏(FMK到)
-        if(0==irq)    return IRQ_HANDLED;
-        while(!LcdReadBit(inf, MCU_TIMING_CTRL, m_MCU_HOLD_STATUS)) {
-            udelay(25);
-            if(tmp)  printk("X ");
-            tmp = 0;
-        }
-        if(screen->disparea)    screen->disparea(1);
-
-        if (w0par->fmk.enable && w0par->fmk.addr_y[1]) // win0
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE|m_W0_FORMAT,  v_W0_ENABLE(1)|v_W0_FORMAT(w0par->fmk.format));
-            LcdWrReg(inf, WIN0_YRGB_MST, w0par->fmk.addr_y[1]);
-            LcdWrReg(inf, WIN0_CBR_MST, w0par->fmk.addr_uv[1]);
-            LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO, v_WORDLO(w0par->fmk.act_w[1]));
-            LcdMskReg(inf, WIN0_DSP_ST, m_BIT11LO, v_BIT11LO(w0par->fmk.win_stx[1]+hact_st));
-            LcdMskReg(inf, WIN0_DSP_INFO, m_BIT11LO,  v_BIT11LO(w0par->fmk.win_w[1]));
-        }
-        else 
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
-        }
-
-        if (w1par->fmk.enable && w1par->fmk.addr[1])   // win1
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(1));
-            LcdWrReg(inf, WIN1_YRGB_MST, w1par->fmk.addr[1]);
-            LcdMskReg(inf, WIN1_DSP_ST, m_BIT11LO, v_BIT11LO(w1par->fmk.win_stx[1]+hact_st));
-            LcdMskReg(inf, WIN1_ACT_INFO, m_BIT11LO, v_BIT11LO(w1par->fmk.act_w[1]));
-        }
-        else 
-        {
-            LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE, v_W1_ENABLE(0));
-        }
-
-        inf->mcu_isrcnt = 0;
-        inf->mcu_fmkstate = FMK_ENDING;
-        LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);       
-        LcdWrReg(inf, REG_CFG_DONE, 0x01);
-        fbprintk2("R ");
-        break;
-
-    case FMK_PREUP:     // 送上半屏(定时器到)
-        if(0!=irq)      return IRQ_HANDLED;
-        if(screen->disparea)    screen->disparea(2);
-        inf->mcu_isrcnt = 0;
-        inf->mcu_fmkstate = FMK_UP;
-        LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
-        LcdWrReg(inf, REG_CFG_DONE, 0x01);
-        fbprintk2("U ");
-        break;
-
-    case FMK_UP:        // 送下半屏(FMK到)
-        if(0==irq)    return IRQ_HANDLED;
-        fbprintk2("D ");
-        inf->mcu_fmkstate = FMK_ENDING;
-        break;
-
-    case FMK_ENDING:
-    default:
-        inf->mcu_fmkstate = FMK_IDLE;
-        break;
-    }
-
-	return IRQ_HANDLED;
 }
+
+void resume(struct early_suspend *h)
+{
+	struct suspend_info *info = container_of(h, struct suspend_info,
+					early_suspend);
+
+    struct rk2818fb_inf *inf = info->inf;
+
+    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+
+    if(!inf) {
+        printk("inf==0, rk2818fb_resume fail! \n");
+        return ;
+    }
+
+	if(inf->in_suspend)
+	{
+	    inf->in_suspend = 0;
+    	fbprintk(">>>>>> enable the lcdc clk! \n");
+        if (inf->dclk){
+            clk_enable(inf->dclk);           
+        }  
+        if(inf->clk){
+            clk_enable(inf->clk);
+        }        
+        msleep(100);
+	}
+
+    LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));    
+    LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
+    LcdWrReg(inf, REG_CFG_DONE, 0x01);
+
+	if(inf->cur_screen->standby)
+	{
+		fbprintk(">>>>>> power on the screen! \n");
+		inf->cur_screen->standby(0);
+	}
+    msleep(100);
+    set_lcd_pin(g_pdev, 1);
+}
+
+struct suspend_info suspend_info = {
+	.early_suspend.suspend = suspend,
+	.early_suspend.resume = resume,
+	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
+};
+#endif
 
 static int __init rk2818fb_probe (struct platform_device *pdev)
 {
@@ -2515,6 +2375,7 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 	mdelay(10);
 	g_pdev = pdev;
 	inf->mcu_usetimer = 1;
+    inf->mcu_fmksync = 0;
 	load_screen(inf->win1fb, 1);
 
     /* Register framebuffer(win1fb & win0fb) */
@@ -2537,11 +2398,9 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 		goto unregister_win1fb;
     }
 
-#ifdef CONFIG_ANDROID_POWER
-    inf->early_suspend.suspend = rk2818fb_early_suspend;
-    inf->early_suspend.resume = rk2818fb_early_resume;
-    inf->early_suspend.level= 0x0;
-    android_register_early_suspend(&inf->early_suspend);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	suspend_info.inf = inf;
+	register_early_suspend(&suspend_info.early_suspend);
 #endif
 
     /* get and request irq */
@@ -2562,17 +2421,16 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     if((mach_info->iomux->mcu_fmk) && (mach_info->gpio->mcu_fmk_pin))
     {
         rk2818_mux_api_set(mach_info->iomux->mcu_fmk, mach_info->gpio->mcu_fmk_pin);
-        ret = request_irq(gpio_to_irq(mach_info->gpio->mcu_fmk_pin), rk2818fb_irqfmk, GPIOEdgelFalling, pdev->name, pdev);
+        ret = request_irq(gpio_to_irq(mach_info->gpio->mcu_fmk_pin), mcu_irqfmk, GPIOEdgelFalling, pdev->name, pdev);
         if (ret) 
         {
             dev_err(&pdev->dev, "cannot get fmk irq %d - err %d\n", irq, ret);
             ret = -EBUSY;
             goto release_irq;
         }
-    }
+    }  
 
     printk(" %s ok\n", __FUNCTION__);
-    
     return ret;
 
 release_irq:
@@ -2606,7 +2464,7 @@ static int rk2818fb_remove(struct platform_device *pdev)
 {
     struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
     struct fb_info *info = NULL;
-	pm_message_t msg;
+	//pm_message_t msg;
     struct rk2818_fb_mach_info *mach_info = NULL;
     int irq = 0;
     
@@ -2629,10 +2487,6 @@ static int rk2818fb_remove(struct platform_device *pdev)
         free_irq(gpio_to_irq(mach_info->gpio->mcu_fmk_pin), pdev);
     }
 
-#ifdef CONFIG_ANDROID_POWER
-    android_unregister_early_suspend(&inf->early_suspend);
-#endif
-
 	set_lcd_pin(pdev, 0);
 
     // blank the lcdc
@@ -2642,7 +2496,7 @@ static int rk2818fb_remove(struct platform_device *pdev)
         win1fb_blank(FB_BLANK_POWERDOWN, inf->win1fb);
     
 	// suspend the lcdc
-	rk2818fb_suspend(pdev, msg);
+	//rk2818fb_suspend(pdev, msg);
 
     // unmap memory and release framebuffer
     if(inf->win0fb) {
@@ -2689,121 +2543,6 @@ static int rk2818fb_remove(struct platform_device *pdev)
     return 0;
 }
 
-static int rk2818fb_suspend(struct platform_device *pdev, pm_message_t msg)
-{
-    struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
-	
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-    if(!inf) {
-        printk("inf==0, rk2818fb_suspend fail! \n");
-        return -EINVAL;
-    }
-
-	if(inf->cur_screen->standby)
-	{
-		fbprintk(">>>>>> power down the screen! \n");
-		inf->cur_screen->standby(1);
-	}
-
-    LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(1));    
-    LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(1));
-   	LcdWrReg(inf, REG_CFG_DONE, 0x01);
-
-	if(!inf->in_suspend)
-	{
-		fbprintk(">>>>>> diable the lcdc clk! \n");
-		msleep(100);
-    	if (inf->dclk){
-            clk_disable(inf->dclk);
-        }
-        if(inf->clk){
-            clk_disable(inf->clk);
-        }
-            
-		inf->in_suspend = 1;
-	}
-
-	set_lcd_pin(pdev, 0);
-
-	return 0;
-}
-
-
-int rk2818fb_resume(struct platform_device *pdev)
-{
-    struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
-    struct rk28fb_screen *screen = inf->cur_screen;
-
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-    if(!inf) {
-        printk("inf==0, rk2818fb_resume fail! \n");
-        return -EINVAL;
-    }
-
-	set_lcd_pin(pdev, 1);
-
-	if(inf->in_suspend)
-	{
-	    inf->in_suspend = 0;
-    	fbprintk(">>>>>> enable the lcdc clk! \n");
-        if (inf->dclk){
-            clk_enable(inf->dclk);           
-        }  
-        if(inf->clk){
-            clk_enable(inf->clk);
-        }        
-        msleep(100);
-	}
-
-    LcdMskReg(inf, DSP_CTRL1, m_BLANK_MODE , v_BLANK_MODE(0));    
-    LcdMskReg(inf, SYS_CONFIG, m_STANDBY, v_STANDBY(0));
-    LcdWrReg(inf, REG_CFG_DONE, 0x01);
-
-	if(inf->cur_screen->standby)
-	{
-		fbprintk(">>>>>> power on the screen! \n");
-		inf->cur_screen->standby(0);
-	}
-    msleep(100);
-
-	return 0;
-}
-
-
-#ifdef CONFIG_ANDROID_POWER
-static void rk2818fb_early_suspend(android_early_suspend_t *h)
-{ 
-	pm_message_t msg;
-
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-    if(g_pdev) 
-    {
-		rk2818fb_suspend(g_pdev, msg);
-    }
-    else 
-    {
-        printk("g_pdev==0, rk2818fb_early_suspend fail! \n");
-        return;
-	}
-}
-static void rk2818fb_early_resume(android_early_suspend_t *h)
-{
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
-
-    if(g_pdev)
-    { 
-		rk2818fb_resume(g_pdev);
-	} 
-    else 
-    {
-        printk("g_pdev==0, rk2818fb_early_resume fail! \n");
-        return;
-    }
-}
-#endif
 static void rk2818fb_shutdown(struct platform_device *pdev)
 {
     struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
