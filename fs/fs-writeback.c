@@ -178,30 +178,22 @@ static void bdi_alloc_queue_work(struct backing_dev_info *bdi,
 }
 
 /**
- * bdi_sync_writeback - start and wait for writeback
- * @bdi: the backing device to write from
+ * bdi_queue_work_onstack - start and wait for writeback
  * @sb: write inodes from this super_block
  *
  * Description:
- *   This does WB_SYNC_ALL data integrity writeback and waits for the
- *   IO to complete. Callers must hold the sb s_umount semaphore for
+ *   This function initiates writeback and waits for the operation to
+ *   complete. Callers must hold the sb s_umount semaphore for
  *   reading, to avoid having the super disappear before we are done.
  */
-static void bdi_sync_writeback(struct backing_dev_info *bdi,
-			       struct super_block *sb)
+static void bdi_queue_work_onstack(struct wb_writeback_args *args)
 {
-	struct wb_writeback_args args = {
-		.sb		= sb,
-		.sync_mode	= WB_SYNC_ALL,
-		.nr_pages	= LONG_MAX,
-		.range_cyclic	= 0,
-	};
 	struct bdi_work work;
 
-	bdi_work_init(&work, &args);
+	bdi_work_init(&work, args);
 	__set_bit(WS_ONSTACK, &work.state);
 
-	bdi_queue_work(bdi, &work);
+	bdi_queue_work(args->sb->s_bdi, &work);
 	bdi_wait_on_work_done(&work);
 }
 
@@ -944,7 +936,7 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 
 /*
  * Schedule writeback for all backing devices. This does WB_SYNC_NONE
- * writeback, for integrity writeback see bdi_sync_writeback().
+ * writeback, for integrity writeback see bdi_queue_work_onstack().
  */
 static void bdi_writeback_all(struct super_block *sb, long nr_pages)
 {
@@ -1183,12 +1175,15 @@ void writeback_inodes_sb(struct super_block *sb)
 {
 	unsigned long nr_dirty = global_page_state(NR_FILE_DIRTY);
 	unsigned long nr_unstable = global_page_state(NR_UNSTABLE_NFS);
-	long nr_to_write;
+	struct wb_writeback_args args = {
+		.sb		= sb,
+		.sync_mode	= WB_SYNC_NONE,
+	};
 
-	nr_to_write = nr_dirty + nr_unstable +
+	args.nr_pages = nr_dirty + nr_unstable +
 			(inodes_stat.nr_inodes - inodes_stat.nr_unused);
 
-	bdi_start_writeback(sb->s_bdi, sb, nr_to_write);
+	bdi_queue_work_onstack(&args);
 }
 EXPORT_SYMBOL(writeback_inodes_sb);
 
@@ -1218,7 +1213,14 @@ EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
  */
 void sync_inodes_sb(struct super_block *sb)
 {
-	bdi_sync_writeback(sb->s_bdi, sb);
+	struct wb_writeback_args args = {
+		.sb		= sb,
+		.sync_mode	= WB_SYNC_ALL,
+		.nr_pages	= LONG_MAX,
+		.range_cyclic	= 0,
+	};
+
+	bdi_queue_work_onstack(&args);
 	wait_sb_inodes(sb);
 }
 EXPORT_SYMBOL(sync_inodes_sb);
