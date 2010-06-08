@@ -549,7 +549,7 @@ static int __of_address_to_resource(struct device_node *dev, const u32 *addrp,
 		r->end = taddr + size - 1;
 	}
 	r->flags = flags;
-	r->name = dev->name;
+	r->name = dev->full_name;
 	return 0;
 }
 

@@ -340,6 +340,7 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 	if (r && irq != NO_IRQ) {
 		r->start = r->end = irq;
 		r->flags = IORESOURCE_IRQ;
+		r->name = dev->full_name;
 	}
 
 	return irq;
