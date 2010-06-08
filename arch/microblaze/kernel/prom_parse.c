@@ -681,14 +681,3 @@ const void *of_get_mac_address(struct device_node *np)
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_mac_address);
-
-void __iomem *of_iomap(struct device_node *np, int index)
-{
-	struct resource res;
-
-	if (of_address_to_resource(np, index, &res))
-		return NULL;
-
-	return ioremap(res.start, 1 + res.end - res.start);
-}
-EXPORT_SYMBOL(of_iomap);

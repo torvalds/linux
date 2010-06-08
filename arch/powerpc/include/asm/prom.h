@@ -18,6 +18,7 @@
  */
 #include <linux/types.h>
 #include <linux/of_fdt.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
@@ -118,15 +119,6 @@ extern const void *of_get_mac_address(struct device_node *np);
  */
 struct pci_dev;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
-
-/**
- * of_iomap - Maps the memory mapped IO for a given device_node
- * @device:	the device whose io range will be mapped
- * @index:	index of the io range
- *
- * Returns a pointer to the mapped memory
- */
-extern void __iomem *of_iomap(struct device_node *device, int index);
 
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */
