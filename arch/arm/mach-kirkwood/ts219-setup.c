@@ -74,8 +74,8 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP3_SPI_MISO,
 	MPP4_SATA1_ACTn,
 	MPP5_SATA0_ACTn,
-	MPP8_TW_SDA,
-	MPP9_TW_SCK,
+	MPP8_TW0_SDA,
+	MPP9_TW0_SCK,
 	MPP10_UART0_TXD,
 	MPP11_UART0_RXD,
 	MPP13_UART1_TXD,	/* PIC controller */

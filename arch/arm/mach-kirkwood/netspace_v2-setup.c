@@ -249,8 +249,8 @@ static unsigned int netspace_v2_mpp_config[] __initdata = {
 	MPP4_NF_IO6,
 	MPP5_NF_IO7,
 	MPP6_SYSRST_OUTn,
-	MPP8_TW_SDA,
-	MPP9_TW_SCK,
+	MPP8_TW0_SDA,
+	MPP9_TW0_SCK,
 	MPP10_UART0_TXD,
 	MPP11_UART0_RXD,
 	MPP12_GPO,		/* Red led */
