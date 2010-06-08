@@ -65,8 +65,10 @@ static int parse_probe_event(const char *str)
 	int ret;
 
 	pr_debug("probe-definition(%d): %s\n", params.nevents, str);
-	if (++params.nevents == MAX_PROBES)
-		die("Too many probes (> %d) are specified.", MAX_PROBES);
+	if (++params.nevents == MAX_PROBES) {
+		pr_err("Too many probes (> %d) were specified.", MAX_PROBES);
+		return -1;
+	}
 
 	/* Parse a perf-probe command into event */
 	ret = parse_perf_probe_command(str, pev);
@@ -84,7 +86,9 @@ static int parse_probe_event_argv(int argc, const char **argv)
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += strlen(argv[i]) + 1;
-	buf = xzalloc(len + 1);
+	buf = zalloc(len + 1);
+	if (buf == NULL)
+		return -ENOMEM;
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += sprintf(&buf[len], "%s ", argv[i]);

@@ -179,7 +179,7 @@ static int __devinit sch_init_one(struct pci_dev *pdev,
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_sff_init_one(pdev, ppi, &sch_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &sch_sht, NULL, 0);
 }
 
 static int __init sch_init(void)

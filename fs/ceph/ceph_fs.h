@@ -265,16 +265,17 @@ extern const char *ceph_mds_state_name(int s);
  *  - they also define the lock ordering by the MDS
  *  - a few of these are internal to the mds
  */
-#define CEPH_LOCK_DN          1
-#define CEPH_LOCK_ISNAP       2
-#define CEPH_LOCK_IVERSION    4     /* mds internal */
-#define CEPH_LOCK_IFILE       8     /* mds internal */
-#define CEPH_LOCK_IAUTH       32
-#define CEPH_LOCK_ILINK       64
-#define CEPH_LOCK_IDFT        128   /* dir frag tree */
-#define CEPH_LOCK_INEST       256   /* mds internal */
-#define CEPH_LOCK_IXATTR      512
-#define CEPH_LOCK_INO         2048  /* immutable inode bits; not a lock */
+#define CEPH_LOCK_DVERSION    1
+#define CEPH_LOCK_DN          2
+#define CEPH_LOCK_ISNAP       16
+#define CEPH_LOCK_IVERSION    32    /* mds internal */
+#define CEPH_LOCK_IFILE       64
+#define CEPH_LOCK_IAUTH       128
+#define CEPH_LOCK_ILINK       256
+#define CEPH_LOCK_IDFT        512   /* dir frag tree */
+#define CEPH_LOCK_INEST       1024  /* mds internal */
+#define CEPH_LOCK_IXATTR      2048
+#define CEPH_LOCK_INO         8192  /* immutable inode bits; not a lock */
 
 /* client_session ops */
 enum {

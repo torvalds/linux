@@ -43,6 +43,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	 * then attach current time stamp.
 	 * But if the filesystem was marked clean, keep it clean.
 	 */
+	sb->s_dirt = 0;
 	old_time = fs32_to_cpu(sbi, *sbi->s_sb_time);
 	if (sbi->s_type == FSTYPE_SYSV4) {
 		if (*sbi->s_sb_state == cpu_to_fs32(sbi, 0x7c269d38 - old_time))

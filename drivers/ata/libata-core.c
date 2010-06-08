@@ -160,6 +160,10 @@ int libata_allow_tpm = 0;
 module_param_named(allow_tpm, libata_allow_tpm, int, 0444);
 MODULE_PARM_DESC(allow_tpm, "Permit the use of TPM commands (0=off [default], 1=on)");
 
+static int atapi_an;
+module_param(atapi_an, int, 0444);
+MODULE_PARM_DESC(atapi_an, "Enable ATAPI AN media presence notification (0=0ff [default], 1=on)");
+
 MODULE_AUTHOR("Jeff Garzik");
 MODULE_DESCRIPTION("Library module for ATA devices");
 MODULE_LICENSE("GPL");
@@ -2122,6 +2126,14 @@ retry:
 		goto err_out;
 	}
 
+	if (dev->horkage & ATA_HORKAGE_DUMP_ID) {
+		ata_dev_printk(dev, KERN_DEBUG, "dumping IDENTIFY data, "
+			       "class=%d may_fallback=%d tried_spinup=%d\n",
+			       class, may_fallback, tried_spinup);
+		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,
+			       16, 2, id, ATA_ID_WORDS * sizeof(*id), true);
+	}
+
 	/* Falling back doesn't make sense if ID data was read
 	 * successfully at least once.
 	 */
@@ -2510,7 +2522,8 @@ int ata_dev_configure(struct ata_device *dev)
 		 * to enable ATAPI AN to discern between PHY status
 		 * changed notifications and ATAPI ANs.
 		 */
-		if ((ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id) &&
+		if (atapi_an &&
+		    (ap->flags & ATA_FLAG_AN) && ata_id_has_atapi_AN(id) &&
 		    (!sata_pmp_attached(ap) ||
 		     sata_scr_read(&ap->link, SCR_NOTIFICATION, &sntf) == 0)) {
 			unsigned int err_mask;
@@ -6372,6 +6385,7 @@ static int __init ata_parse_force_one(char **cur,
 		{ "3.0Gbps",	.spd_limit	= 2 },
 		{ "noncq",	.horkage_on	= ATA_HORKAGE_NONCQ },
 		{ "ncq",	.horkage_off	= ATA_HORKAGE_NONCQ },
+		{ "dump_id",	.horkage_on	= ATA_HORKAGE_DUMP_ID },
 		{ "pio0",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 0) },
 		{ "pio1",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 1) },
 		{ "pio2",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 2) },

@@ -264,7 +264,7 @@ static void wait_for_panic(void)
 
 static void mce_panic(char *msg, struct mce *final, char *exp)
 {
-	int i;
+	int i, apei_err = 0;
 
 	if (!fake_panic) {
 		/*
@@ -287,8 +287,11 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 		struct mce *m = &mcelog.entry[i];
 		if (!(m->status & MCI_STATUS_VAL))
 			continue;
-		if (!(m->status & MCI_STATUS_UC))
+		if (!(m->status & MCI_STATUS_UC)) {
 			print_mce(m);
+			if (!apei_err)
+				apei_err = apei_write_mce(m);
+		}
 	}
 	/* Now print uncorrected but with the final one last */
 	for (i = 0; i < MCE_LOG_LEN; i++) {
@@ -297,11 +300,17 @@ static void mce_panic(char *msg, struct mce *final, char *exp)
 			continue;
 		if (!(m->status & MCI_STATUS_UC))
 			continue;
-		if (!final || memcmp(m, final, sizeof(struct mce)))
+		if (!final || memcmp(m, final, sizeof(struct mce))) {
 			print_mce(m);
+			if (!apei_err)
+				apei_err = apei_write_mce(m);
+		}
 	}
-	if (final)
+	if (final) {
 		print_mce(final);
+		if (!apei_err)
+			apei_err = apei_write_mce(final);
+	}
 	if (cpu_missing)
 		printk(KERN_EMERG "Some CPUs didn't answer in synchronization\n");
 	print_mce_tail();
@@ -1493,6 +1502,43 @@ static void collect_tscs(void *data)
 	rdtscll(cpu_tsc[smp_processor_id()]);
 }
 
+static int mce_apei_read_done;
+
+/* Collect MCE record of previous boot in persistent storage via APEI ERST. */
+static int __mce_read_apei(char __user **ubuf, size_t usize)
+{
+	int rc;
+	u64 record_id;
+	struct mce m;
+
+	if (usize < sizeof(struct mce))
+		return -EINVAL;
+
+	rc = apei_read_mce(&m, &record_id);
+	/* Error or no more MCE record */
+	if (rc <= 0) {
+		mce_apei_read_done = 1;
+		return rc;
+	}
+	rc = -EFAULT;
+	if (copy_to_user(*ubuf, &m, sizeof(struct mce)))
+		return rc;
+	/*
+	 * In fact, we should have cleared the record after that has
+	 * been flushed to the disk or sent to network in
+	 * /sbin/mcelog, but we have no interface to support that now,
+	 * so just clear it to avoid duplication.
+	 */
+	rc = apei_clear_mce(record_id);
+	if (rc) {
+		mce_apei_read_done = 1;
+		return rc;
+	}
+	*ubuf += sizeof(struct mce);
+
+	return 0;
+}
+
 static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			loff_t *off)
 {
@@ -1506,15 +1552,19 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 		return -ENOMEM;
 
 	mutex_lock(&mce_read_mutex);
+
+	if (!mce_apei_read_done) {
+		err = __mce_read_apei(&buf, usize);
+		if (err || buf != ubuf)
+			goto out;
+	}
+
 	next = rcu_dereference_check_mce(mcelog.next);
 
 	/* Only supports full reads right now */
-	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce)) {
-		mutex_unlock(&mce_read_mutex);
-		kfree(cpu_tsc);
-
-		return -EINVAL;
-	}
+	err = -EINVAL;
+	if (*off != 0 || usize < MCE_LOG_LEN*sizeof(struct mce))
+		goto out;
 
 	err = 0;
 	prev = 0;
@@ -1562,16 +1612,23 @@ timeout:
 			memset(&mcelog.entry[i], 0, sizeof(struct mce));
 		}
 	}
+
+	if (err)
+		err = -EFAULT;
+
+out:
 	mutex_unlock(&mce_read_mutex);
 	kfree(cpu_tsc);
 
-	return err ? -EFAULT : buf - ubuf;
+	return err ? err : buf - ubuf;
 }
 
 static unsigned int mce_poll(struct file *file, poll_table *wait)
 {
 	poll_wait(file, &mce_wait, wait);
 	if (rcu_dereference_check_mce(mcelog.next))
+		return POLLIN | POLLRDNORM;
+	if (!mce_apei_read_done && apei_check_mce())
 		return POLLIN | POLLRDNORM;
 	return 0;
 }

@@ -727,19 +727,9 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 			break;
 		}
 
-		if (pr->power.states[i].promotion.state)
-			seq_printf(seq, "promotion[C%zd] ",
-				   (pr->power.states[i].promotion.state -
-				    pr->power.states));
-		else
-			seq_puts(seq, "promotion[--] ");
+		seq_puts(seq, "promotion[--] ");
 
-		if (pr->power.states[i].demotion.state)
-			seq_printf(seq, "demotion[C%zd] ",
-				   (pr->power.states[i].demotion.state -
-				    pr->power.states));
-		else
-			seq_puts(seq, "demotion[--] ");
+		seq_puts(seq, "demotion[--] ");
 
 		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020llu]\n",
 			   pr->power.states[i].latency,
@@ -869,6 +859,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
 	ktime_t  kt1, kt2;
+	s64 idle_time_ns;
 	s64 idle_time;
 	s64 sleep_ticks = 0;
 
@@ -881,6 +872,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		return(acpi_idle_enter_c1(dev, state));
 
 	local_irq_disable();
+
 	if (cx->entry_method != ACPI_CSTATE_FFH) {
 		current_thread_info()->status &= ~TS_POLLING;
 		/*
@@ -888,12 +880,12 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		 * NEED_RESCHED:
 		 */
 		smp_mb();
-	}
 
-	if (unlikely(need_resched())) {
-		current_thread_info()->status |= TS_POLLING;
-		local_irq_enable();
-		return 0;
+		if (unlikely(need_resched())) {
+			current_thread_info()->status |= TS_POLLING;
+			local_irq_enable();
+			return 0;
+		}
 	}
 
 	/*
@@ -910,15 +902,18 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	sched_clock_idle_sleep_event();
 	acpi_idle_do_entry(cx);
 	kt2 = ktime_get_real();
-	idle_time =  ktime_to_us(ktime_sub(kt2, kt1));
+	idle_time_ns = ktime_to_ns(ktime_sub(kt2, kt1));
+	idle_time = idle_time_ns;
+	do_div(idle_time, NSEC_PER_USEC);
 
 	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 
 	/* Tell the scheduler how much we idled: */
-	sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
+	sched_clock_idle_wakeup_event(idle_time_ns);
 
 	local_irq_enable();
-	current_thread_info()->status |= TS_POLLING;
+	if (cx->entry_method != ACPI_CSTATE_FFH)
+		current_thread_info()->status |= TS_POLLING;
 
 	cx->usage++;
 
@@ -943,6 +938,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	struct acpi_processor *pr;
 	struct acpi_processor_cx *cx = cpuidle_get_statedata(state);
 	ktime_t  kt1, kt2;
+	s64 idle_time_ns;
 	s64 idle_time;
 	s64 sleep_ticks = 0;
 
@@ -968,6 +964,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	}
 
 	local_irq_disable();
+
 	if (cx->entry_method != ACPI_CSTATE_FFH) {
 		current_thread_info()->status &= ~TS_POLLING;
 		/*
@@ -975,12 +972,12 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		 * NEED_RESCHED:
 		 */
 		smp_mb();
-	}
 
-	if (unlikely(need_resched())) {
-		current_thread_info()->status |= TS_POLLING;
-		local_irq_enable();
-		return 0;
+		if (unlikely(need_resched())) {
+			current_thread_info()->status |= TS_POLLING;
+			local_irq_enable();
+			return 0;
+		}
 	}
 
 	acpi_unlazy_tlb(smp_processor_id());
@@ -1025,14 +1022,17 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		spin_unlock(&c3_lock);
 	}
 	kt2 = ktime_get_real();
-	idle_time =  ktime_to_us(ktime_sub(kt2, kt1));
+	idle_time_ns = ktime_to_us(ktime_sub(kt2, kt1));
+	idle_time = idle_time_ns;
+	do_div(idle_time, NSEC_PER_USEC);
 
 	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 	/* Tell the scheduler how much we idled: */
-	sched_clock_idle_wakeup_event(sleep_ticks*PM_TIMER_TICK_NS);
+	sched_clock_idle_wakeup_event(idle_time_ns);
 
 	local_irq_enable();
-	current_thread_info()->status |= TS_POLLING;
+	if (cx->entry_method != ACPI_CSTATE_FFH)
+		current_thread_info()->status |= TS_POLLING;
 
 	cx->usage++;
 

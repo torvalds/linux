@@ -410,6 +410,8 @@ static void ext3_put_super (struct super_block * sb)
 	struct ext3_super_block *es = sbi->s_es;
 	int i, err;
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	lock_kernel();
 
 	ext3_xattr_put_super(sb);
@@ -748,7 +750,7 @@ static int ext3_release_dquot(struct dquot *dquot);
 static int ext3_mark_dquot_dirty(struct dquot *dquot);
 static int ext3_write_info(struct super_block *sb, int type);
 static int ext3_quota_on(struct super_block *sb, int type, int format_id,
-				char *path, int remount);
+				char *path);
 static int ext3_quota_on_mount(struct super_block *sb, int type);
 static ssize_t ext3_quota_read(struct super_block *sb, int type, char *data,
 			       size_t len, loff_t off);
@@ -767,12 +769,12 @@ static const struct dquot_operations ext3_quota_operations = {
 
 static const struct quotactl_ops ext3_qctl_operations = {
 	.quota_on	= ext3_quota_on,
-	.quota_off	= vfs_quota_off,
-	.quota_sync	= vfs_quota_sync,
-	.get_info	= vfs_get_dqinfo,
-	.set_info	= vfs_set_dqinfo,
-	.get_dqblk	= vfs_get_dqblk,
-	.set_dqblk	= vfs_set_dqblk
+	.quota_off	= dquot_quota_off,
+	.quota_sync	= dquot_quota_sync,
+	.get_info	= dquot_get_dqinfo,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk
 };
 #endif
 
@@ -1527,7 +1529,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 	/* Turn quotas off */
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (sb_dqopt(sb)->files[i])
-			vfs_quota_off(sb, i, 0);
+			dquot_quota_off(sb, i);
 	}
 #endif
 	sb->s_flags = s_flags; /* Restore MS_RDONLY status */
@@ -2551,6 +2553,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 	ext3_fsblk_t n_blocks_count = 0;
 	unsigned long old_sb_flags;
 	struct ext3_mount_options old_opts;
+	int enable_quota = 0;
 	int err;
 #ifdef CONFIG_QUOTA
 	int i;
@@ -2597,6 +2600,10 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 		}
 
 		if (*flags & MS_RDONLY) {
+			err = dquot_suspend(sb, -1);
+			if (err < 0)
+				goto restore_opts;
+
 			/*
 			 * First of all, the unconditional stuff we have to do
 			 * to disable replay of the journal when we next remount
@@ -2651,6 +2658,7 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 				goto restore_opts;
 			if (!ext3_setup_super (sb, es, 0))
 				sb->s_flags &= ~MS_RDONLY;
+			enable_quota = 1;
 		}
 	}
 #ifdef CONFIG_QUOTA
@@ -2662,6 +2670,9 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 #endif
 	unlock_super(sb);
 	unlock_kernel();
+
+	if (enable_quota)
+		dquot_resume(sb, -1);
 	return 0;
 restore_opts:
 	sb->s_flags = old_sb_flags;
@@ -2851,24 +2862,21 @@ static int ext3_write_info(struct super_block *sb, int type)
  */
 static int ext3_quota_on_mount(struct super_block *sb, int type)
 {
-	return vfs_quota_on_mount(sb, EXT3_SB(sb)->s_qf_names[type],
-			EXT3_SB(sb)->s_jquota_fmt, type);
+	return dquot_quota_on_mount(sb, EXT3_SB(sb)->s_qf_names[type],
+					EXT3_SB(sb)->s_jquota_fmt, type);
 }
 
 /*
  * Standard function to be called on quota_on
  */
 static int ext3_quota_on(struct super_block *sb, int type, int format_id,
-			 char *name, int remount)
+			 char *name)
 {
 	int err;
 	struct path path;
 
 	if (!test_opt(sb, QUOTA))
 		return -EINVAL;
-	/* When remounting, no checks are needed and in fact, name is NULL */
-	if (remount)
-		return vfs_quota_on(sb, type, format_id, name, remount);
 
 	err = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (err)
@@ -2906,7 +2914,7 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 		}
 	}
 
-	err = vfs_quota_on_path(sb, type, format_id, &path);
+	err = dquot_quota_on_path(sb, type, format_id, &path);
 	path_put(&path);
 	return err;
 }

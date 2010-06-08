@@ -5,6 +5,7 @@
 #include <byteswap.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 
 #include "session.h"
 #include "sort.h"
@@ -893,4 +894,11 @@ size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp)
 	return __dsos__fprintf(&self->host_machine.kernel_dsos, fp) +
 	       __dsos__fprintf(&self->host_machine.user_dsos, fp) +
 	       machines__fprintf_dsos(&self->machines, fp);
+}
+
+size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
+					  bool with_hits)
+{
+	size_t ret = machine__fprintf_dsos_buildid(&self->host_machine, fp, with_hits);
+	return ret + machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
 }

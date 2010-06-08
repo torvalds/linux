@@ -172,8 +172,9 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
-	return blockdev_direct_IO_no_locking(rw, iocb, inode, I_BDEV(inode),
-				iov, offset, nr_segs, blkdev_get_blocks, NULL);
+	return blockdev_direct_IO_no_locking_newtrunc(rw, iocb, inode,
+				I_BDEV(inode), iov, offset, nr_segs,
+				blkdev_get_blocks, NULL);
 }
 
 int __sync_blockdev(struct block_device *bdev, int wait)
@@ -309,8 +310,8 @@ static int blkdev_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata)
 {
 	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				blkdev_get_block);
+	return block_write_begin_newtrunc(file, mapping, pos, len, flags,
+				pagep, fsdata, blkdev_get_block);
 }
 
 static int blkdev_write_end(struct file *file, struct address_space *mapping,
@@ -358,12 +359,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 	return retval;
 }
 	
-/*
- *	Filp is never NULL; the only case when ->fsync() is called with
- *	NULL first argument is nfsd_sync_dir() and that's not a directory.
- */
- 
-int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int blkdev_fsync(struct file *filp, int datasync)
 {
 	struct inode *bd_inode = filp->f_mapping->host;
 	struct block_device *bdev = I_BDEV(bd_inode);

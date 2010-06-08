@@ -502,7 +502,7 @@ static struct clk_lookup u8500_common_clks[] = {
 	CLK(apetraceclk,	"apetrace",	NULL),
 	CLK(mcdeclk,	"mcde",		NULL),
 	CLK(ipi2clk,	"ipi2",		NULL),
-	CLK(dmaclk,	"dma40",	NULL),
+	CLK(dmaclk,	"dma40.0",	NULL),
 	CLK(b2r2clk,	"b2r2",		NULL),
 	CLK(tvclk,	"tv",		NULL),
 };

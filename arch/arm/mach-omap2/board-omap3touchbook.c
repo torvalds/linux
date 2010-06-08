@@ -328,8 +328,7 @@ static void __init omap3_ads7846_init(void)
 	}
 
 	gpio_direction_input(OMAP3_TS_GPIO);
-	omap_set_gpio_debounce(OMAP3_TS_GPIO, 1);
-	omap_set_gpio_debounce_time(OMAP3_TS_GPIO, 0xa);
+	gpio_set_debounce(OMAP3_TS_GPIO, 310);
 }
 
 static struct ads7846_platform_data ads7846_config = {

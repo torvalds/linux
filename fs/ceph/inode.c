@@ -69,7 +69,7 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 
 	BUG_ON(!S_ISDIR(parent->i_mode));
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return inode;
 	inode->i_mode = parent->i_mode;
 	inode->i_uid = parent->i_uid;
 	inode->i_gid = parent->i_gid;

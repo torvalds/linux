@@ -73,7 +73,7 @@ static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
 	if (IS_ERR(pathname))
 		return PTR_ERR(pathname);
 	if (sb->s_qcop->quota_on)
-		ret = sb->s_qcop->quota_on(sb, type, id, pathname, 0);
+		ret = sb->s_qcop->quota_on(sb, type, id, pathname);
 	putname(pathname);
 	return ret;
 }
@@ -260,7 +260,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_QUOTAOFF:
 		if (!sb->s_qcop->quota_off)
 			return -ENOSYS;
-		return sb->s_qcop->quota_off(sb, type, 0);
+		return sb->s_qcop->quota_off(sb, type);
 	case Q_GETFMT:
 		return quota_getfmt(sb, type, addr);
 	case Q_GETINFO:
