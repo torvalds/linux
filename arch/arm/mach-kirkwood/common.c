@@ -44,6 +44,11 @@ static struct map_desc kirkwood_io_desc[] __initdata = {
 		.length		= KIRKWOOD_PCIE_IO_SIZE,
 		.type		= MT_DEVICE,
 	}, {
+		.virtual	= KIRKWOOD_PCIE1_IO_VIRT_BASE,
+		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE1_IO_PHYS_BASE),
+		.length		= KIRKWOOD_PCIE1_IO_SIZE,
+		.type		= MT_DEVICE,
+	}, {
 		.virtual	= KIRKWOOD_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
 		.length		= KIRKWOOD_REGS_SIZE,
@@ -960,12 +965,14 @@ void __init kirkwood_init(void)
 static int __init kirkwood_clock_gate(void)
 {
 	unsigned int curr = readl(CLOCK_GATING_CTRL);
+	u32 dev, rev;
 
+	kirkwood_pcie_id(&dev, &rev);
 	printk(KERN_DEBUG "Gating clock of unused units\n");
 	printk(KERN_DEBUG "before: 0x%08x\n", curr);
 
 	/* Make sure those units are accessible */
-	writel(curr | CGC_SATA0 | CGC_SATA1 | CGC_PEX0, CLOCK_GATING_CTRL);
+	writel(curr | CGC_SATA0 | CGC_SATA1 | CGC_PEX0 | CGC_PEX1, CLOCK_GATING_CTRL);
 
 	/* For SATA: first shutdown the phy */
 	if (!(kirkwood_clk_ctrl & CGC_SATA0)) {
@@ -989,6 +996,18 @@ static int __init kirkwood_clock_gate(void)
 				break;
 		writel(readl(PCIE_LINK_CTRL) & ~0x10, PCIE_LINK_CTRL);
 	}
+
+	/* For PCIe 1: first shutdown the phy */
+	if (dev == MV88F6282_DEV_ID) {
+		if (!(kirkwood_clk_ctrl & CGC_PEX1)) {
+			writel(readl(PCIE1_LINK_CTRL) | 0x10, PCIE1_LINK_CTRL);
+			while (1)
+				if (readl(PCIE1_STATUS) & 0x1)
+					break;
+			writel(readl(PCIE1_LINK_CTRL) & ~0x10, PCIE1_LINK_CTRL);
+		}
+	} else  /* keep this bit set for devices that don't have PCIe1 */
+		kirkwood_clk_ctrl |= CGC_PEX1;
 
 	/* Now gate clock the required units */
 	writel(kirkwood_clk_ctrl, CLOCK_GATING_CTRL);

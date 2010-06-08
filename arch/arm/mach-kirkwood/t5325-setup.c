@@ -176,7 +176,7 @@ static void __init hp_t5325_init(void)
 static int __init hp_t5325_pci_init(void)
 {
 	if (machine_is_t5325())
-		kirkwood_pcie_init();
+		kirkwood_pcie_init(KW_PCIE0);
 
 	return 0;
 }

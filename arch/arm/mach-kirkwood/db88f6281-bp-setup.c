@@ -82,9 +82,15 @@ static void __init db88f6281_init(void)
 
 static int __init db88f6281_pci_init(void)
 {
-	if (machine_is_db88f6281_bp())
-		kirkwood_pcie_init();
+	if (machine_is_db88f6281_bp()) {
+		u32 dev, rev;
 
+		kirkwood_pcie_id(&dev, &rev);
+		if (dev == MV88F6282_DEV_ID)
+			kirkwood_pcie_init(KW_PCIE1 | KW_PCIE0);
+		else
+			kirkwood_pcie_init(KW_PCIE0);
+	}
 	return 0;
 }
 subsys_initcall(db88f6281_pci_init);
