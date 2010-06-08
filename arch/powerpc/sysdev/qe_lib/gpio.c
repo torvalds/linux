@@ -321,7 +321,6 @@ static int __init qe_add_gpiochips(void)
 		gc = &mm_gc->gc;
 
 		mm_gc->save_regs = qe_gpio_save_regs;
-		gc->of_gpio_n_cells = 2;
 		gc->ngpio = QE_PIO_PINS;
 		gc->direction_input = qe_gpio_dir_in;
 		gc->direction_output = qe_gpio_dir_out;

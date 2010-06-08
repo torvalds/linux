@@ -190,7 +190,6 @@ static int __devinit xgpio_of_probe(struct device_node *np)
 
 	spin_lock_init(&chip->gpio_lock);
 
-	chip->mmchip.gc.of_gpio_n_cells = 2;
 	chip->mmchip.gc.direction_input = xgpio_dir_in;
 	chip->mmchip.gc.direction_output = xgpio_dir_out;
 	chip->mmchip.gc.get = xgpio_get;

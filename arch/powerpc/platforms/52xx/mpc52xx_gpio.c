@@ -161,7 +161,6 @@ static int __devinit mpc52xx_wkup_gpiochip_probe(struct of_device *ofdev,
 
 	gc = &chip->mmchip.gc;
 
-	gc->of_gpio_n_cells  = 2;
 	gc->ngpio            = 8;
 	gc->direction_input  = mpc52xx_wkup_gpio_dir_in;
 	gc->direction_output = mpc52xx_wkup_gpio_dir_out;
@@ -325,7 +324,6 @@ static int __devinit mpc52xx_simple_gpiochip_probe(struct of_device *ofdev,
 
 	gc = &chip->mmchip.gc;
 
-	gc->of_gpio_n_cells  = 2;
 	gc->ngpio            = 32;
 	gc->direction_input  = mpc52xx_simple_gpio_dir_in;
 	gc->direction_output = mpc52xx_simple_gpio_dir_out;

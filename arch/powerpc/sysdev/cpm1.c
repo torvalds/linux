@@ -633,7 +633,6 @@ int cpm1_gpiochip_add16(struct device_node *np)
 	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = cpm1_gpio16_save_regs;
-	gc->of_gpio_n_cells = 2;
 	gc->ngpio = 16;
 	gc->direction_input = cpm1_gpio16_dir_in;
 	gc->direction_output = cpm1_gpio16_dir_out;
@@ -755,7 +754,6 @@ int cpm1_gpiochip_add32(struct device_node *np)
 	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = cpm1_gpio32_save_regs;
-	gc->of_gpio_n_cells = 2;
 	gc->ngpio = 32;
 	gc->direction_input = cpm1_gpio32_dir_in;
 	gc->direction_output = cpm1_gpio32_dir_out;

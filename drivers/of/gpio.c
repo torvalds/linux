@@ -125,8 +125,8 @@ EXPORT_SYMBOL(of_gpio_count);
  * gpio chips. This function performs only one sanity check: whether gpio
  * is less than ngpios (that is specified in the gpio_chip).
  */
-int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
-			 const void *gpio_spec, u32 *flags)
+static int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
+				const void *gpio_spec, u32 *flags)
 {
 	const __be32 *gpio = gpio_spec;
 	const u32 n = be32_to_cpup(gpio);
@@ -150,7 +150,6 @@ int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
 
 	return n;
 }
-EXPORT_SYMBOL(of_gpio_simple_xlate);
 
 /**
  * of_mm_gpiochip_add - Add memory mapped GPIO chip (bank)
@@ -187,9 +186,6 @@ int of_mm_gpiochip_add(struct device_node *np,
 
 	gc->base = -1;
 
-	if (!gc->of_xlate)
-		gc->of_xlate = of_gpio_simple_xlate;
-
 	if (mm_gc->save_regs)
 		mm_gc->save_regs(mm_gc);
 
@@ -198,9 +194,6 @@ int of_mm_gpiochip_add(struct device_node *np,
 	ret = gpiochip_add(gc);
 	if (ret)
 		goto err2;
-
-	/* We don't want to lose the node and its ->data */
-	of_node_get(np);
 
 	pr_debug("%s: registered as generic GPIO chip, base is %d\n",
 		 np->full_name, gc->base);
@@ -215,6 +208,28 @@ err0:
 	return ret;
 }
 EXPORT_SYMBOL(of_mm_gpiochip_add);
+
+void of_gpiochip_add(struct gpio_chip *chip)
+{
+	if ((!chip->of_node) && (chip->dev))
+		chip->of_node = chip->dev->of_node;
+
+	if (!chip->of_node)
+		return;
+
+	if (!chip->of_xlate) {
+		chip->of_gpio_n_cells = 2;
+		chip->of_xlate = of_gpio_simple_xlate;
+	}
+
+	of_node_get(chip->of_node);
+}
+
+void of_gpiochip_remove(struct gpio_chip *chip)
+{
+	if (chip->of_node)
+		of_node_put(chip->of_node);
+}
 
 /* Private function for resolving node pointer to gpio_chip */
 static int of_gpiochip_is_match(struct gpio_chip *chip, void *data)

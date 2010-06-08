@@ -194,7 +194,6 @@ static int __init ppc4xx_add_gpiochips(void)
 		mm_gc = &ppc4xx_gc->mm_gc;
 		gc = &mm_gc->gc;
 
-		gc->of_gpio_n_cells = 2;
 		gc->ngpio = 32;
 		gc->direction_input = ppc4xx_gpio_dir_in;
 		gc->direction_output = ppc4xx_gpio_dir_out;

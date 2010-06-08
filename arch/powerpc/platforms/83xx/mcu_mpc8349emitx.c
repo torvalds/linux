@@ -90,8 +90,6 @@ static int mcu_gpiochip_add(struct mcu *mcu)
 	gc->base = -1;
 	gc->set = mcu_gpio_set;
 	gc->direction_output = mcu_gpio_dir_out;
-	gc->of_gpio_n_cells = 2;
-	gc->of_xlate = of_gpio_simple_xlate;
 	gc->of_node = np;
 
 	return gpiochip_add(gc);

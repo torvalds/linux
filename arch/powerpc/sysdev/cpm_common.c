@@ -337,7 +337,6 @@ int cpm2_gpiochip_add32(struct device_node *np)
 	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = cpm2_gpio32_save_regs;
-	gc->of_gpio_n_cells = 2;
 	gc->ngpio = 32;
 	gc->direction_input = cpm2_gpio32_dir_in;
 	gc->direction_output = cpm2_gpio32_dir_out;

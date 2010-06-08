@@ -52,9 +52,9 @@ extern unsigned int of_gpio_count(struct device_node *np);
 
 extern int of_mm_gpiochip_add(struct device_node *np,
 			      struct of_mm_gpio_chip *mm_gc);
-extern int of_gpio_simple_xlate(struct gpio_chip *gc, struct device_node *np,
-				const void *gpio_spec, u32 *flags);
 
+extern void of_gpiochip_add(struct gpio_chip *gc);
+extern void of_gpiochip_remove(struct gpio_chip *gc);
 extern struct gpio_chip *of_node_to_gpiochip(struct device_node *np);
 
 #else /* CONFIG_OF_GPIO */
@@ -70,6 +70,9 @@ static inline unsigned int of_gpio_count(struct device_node *np)
 {
 	return 0;
 }
+
+static inline void of_gpiochip_add(struct gpio_chip *gc) { }
+static inline void of_gpiochip_remove(struct gpio_chip *gc) { }
 
 #endif /* CONFIG_OF_GPIO */
 

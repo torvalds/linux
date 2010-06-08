@@ -103,7 +103,6 @@ static int __init u8_simple_gpiochip_add(struct device_node *np)
 	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = u8_gpio_save_regs;
-	gc->of_gpio_n_cells = 2;
 	gc->ngpio = 8;
 	gc->direction_input = u8_gpio_dir_in;
 	gc->direction_output = u8_gpio_dir_out;

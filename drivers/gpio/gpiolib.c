@@ -8,6 +8,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
 
@@ -1099,6 +1100,8 @@ int gpiochip_add(struct gpio_chip *chip)
 		}
 	}
 
+	of_gpiochip_add(chip);
+
 unlock:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
@@ -1132,6 +1135,8 @@ int gpiochip_remove(struct gpio_chip *chip)
 	unsigned	id;
 
 	spin_lock_irqsave(&gpio_lock, flags);
+
+	of_gpiochip_remove(chip);
 
 	for (id = chip->base; id < chip->base + chip->ngpio; id++) {
 		if (test_bit(FLAG_REQUESTED, &gpio_desc[id].flags)) {

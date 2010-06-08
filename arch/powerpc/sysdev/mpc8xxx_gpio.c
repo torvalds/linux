@@ -273,7 +273,6 @@ static void __init mpc8xxx_add_controller(struct device_node *np)
 	gc = &mm_gc->gc;
 
 	mm_gc->save_regs = mpc8xxx_gpio_save_regs;
-	gc->of_gpio_n_cells = 2;
 	gc->ngpio = MPC8XXX_GPIO_PINS;
 	gc->direction_input = mpc8xxx_gpio_dir_in;
 	gc->direction_output = mpc8xxx_gpio_dir_out;
