@@ -1,0 +1,222 @@
+#include <linux/module.h>
+#include <linux/kernel.h>
+#include <linux/init.h>
+#include <linux/pm.h>
+#include <linux/suspend.h>
+#include <linux/delay.h>
+#include <linux/clk.h>
+#include <asm/io.h>
+#include <asm/tcm.h>
+#include <mach/rk2818_iomap.h>
+#include <mach/scu.h>
+#include <mach/iomux.h>
+#include <mach/gpio.h>
+
+#define regfile_readl(offset)	readl(RK2818_REGFILE_BASE + offset)
+
+#define scu_readl(offset)	readl(RK2818_SCU_BASE + offset)
+#define scu_writel(v, offset)	writel(v, RK2818_SCU_BASE + offset)
+
+#define msdr_readl(offset)	readl(RK2818_SDRAMC_BASE + offset)
+#define msdr_writel(v, offset)	writel(v, RK2818_SDRAMC_BASE + offset)
+
+#define ddr_readl(offset)	readl(RK2818_SDRAMC_BASE + offset)
+#define ddr_writel(v, offset)	writel(v, RK2818_SDRAMC_BASE + offset)
+
+#define PLL_PD		(0x01u<<22)
+
+/* CPU_APB_REG0 */
+#define MEMTYPESHIFT	11
+#define MEMTYPEMASK	(0x3 << MEMTYPESHIFT)
+
+#define SDRAM		0
+#define MOBILE_SDRAM	1
+#define DDRII		2
+#define MOBILE_DDR	3
+
+static inline u32 sdram_get_mem_type(void)
+{
+	return (regfile_readl(CPU_APB_REG0) & MEMTYPEMASK) >> MEMTYPESHIFT;
+}
+
+#define ASM_LOOP_INSTRUCTION_NUM     4
+
+static noinline void __tcmlocalfunc tcm_udelay(unsigned long usecs, u32 arm_freq_mhz)
+{
+	volatile unsigned int cycle;
+
+	cycle = usecs * arm_freq_mhz / ASM_LOOP_INSTRUCTION_NUM;
+
+	while (cycle--) {}
+}
+
+#define CLK_GATE_SDRAM_MASK		((1 << (CLK_GATE_SDRAM_COMMON & 31)) | (1 << (CLK_GATE_SDRAM_CONTROLLER & 31)))
+#define CLK_GATE_MOBILESDRAM_MASK	((1 << (CLK_GATE_SDRAM_COMMON & 31)) | (1 << (CLK_GATE_MOBILE_SDRAM_CONTROLLER & 31)))
+
+/* SDRAM Control Regitster */
+#define SR_MODE            (1 << 11)
+#define ENTER_SELF_REFRESH (1 << 1)
+#define MSDR_SCTLR         0x0C // SDRAM control register
+
+/* CTR_REG_62 */
+#define MODE5_MASK         (0xFFFF << 16)
+#define MODE5_CNT(n)       (((n) & 0xFFFF) << 16)
+#define CTRL_REG_62        0xf8  // LOWPOWER_INTERNAL_CNT/LOWPOWER_EXTERNAL_CNT.
+
+/****************************************************************/
+//函数名: sdram_enter_self_refresh
+//描述: SDRAM进入自刷新模式
+//参数说明:
+//返回值: 对于DDR就是CTRL_REG_62的值，供sdram_exit_self_refresh使用
+//相关全局变量:
+//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
+//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
+/****************************************************************/
+u32 __tcmfunc sdram_enter_self_refresh(void)
+{
+	u32 r;
+	u32 mem_type = sdram_get_mem_type();
+
+	switch (mem_type) {
+	case SDRAM:
+	case MOBILE_SDRAM:
+		msdr_writel(msdr_readl(MSDR_SCTLR) | ENTER_SELF_REFRESH, MSDR_SCTLR);
+
+		while (!(msdr_readl(MSDR_SCTLR) & SR_MODE));  //确定已经进入self-refresh
+
+		/* Disable Mobile SDRAM/SDRAM Common/Controller hclk clock */
+		r = scu_readl(SCU_CLKGATE1_CON);
+		if (SDRAM == mem_type) {
+			r |= CLK_GATE_SDRAM_MASK;
+		} else {
+			r |= CLK_GATE_MOBILESDRAM_MASK;
+		}
+		scu_writel(r, SCU_CLKGATE1_CON);
+		break;
+
+	case DDRII:
+	case MOBILE_DDR:
+		r = ddr_readl(CTRL_REG_62);
+		ddr_writel((r & ~MODE5_MASK) | MODE5_CNT(1), CTRL_REG_62);
+		//FIXME: 等待进入self-refresh
+		break;
+	}
+
+	return r;
+}
+
+/****************************************************************/
+//函数名: sdram_exit_self_refresh
+//描述: SDRAM退出自刷新模式
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
+//     (2)必须保证运行时这个函数的代码不在SDRAM上
+/****************************************************************/
+void __tcmfunc sdram_exit_self_refresh(u32 ctrl_reg_62)
+{
+	u32 r;
+	u32 mem_type = sdram_get_mem_type();
+
+	switch (mem_type) {
+	case SDRAM:
+	case MOBILE_SDRAM:
+		/* Enable Mobile SDRAM/SDRAM Common/Controller hclk clock */
+		r = scu_readl(SCU_CLKGATE1_CON);
+		if (SDRAM == mem_type) {
+			r &= ~CLK_GATE_SDRAM_MASK;
+		} else {
+			r &= ~CLK_GATE_MOBILESDRAM_MASK;
+		}
+		scu_writel(r, SCU_CLKGATE1_CON);
+		tcm_udelay(1, 24); // DRVDelayUs(1);
+
+		msdr_writel(msdr_readl(MSDR_SCTLR) & ~ENTER_SELF_REFRESH, MSDR_SCTLR);
+
+		while (msdr_readl(MSDR_SCTLR) & SR_MODE);  //确定退出进入self-refresh
+		break;
+
+	case DDRII:
+	case MOBILE_DDR:
+		ddr_writel(ctrl_reg_62, CTRL_REG_62);
+		break;
+	}
+
+	tcm_udelay(100, 24); //DRVDelayUs(100); 延时一下比较安全，保证退出后稳定
+}
+
+static int __tcmfunc rk2818_tcm_idle(void)
+{
+	volatile u32 unit;
+	u32 ctrl_reg_62;
+
+	u32 scu_mode = scu_readl(SCU_MODE_CON);
+	u32 scu_apll = scu_readl(SCU_APLL_CON);
+	u32 scu_clksel0 = scu_readl(SCU_CLKSEL0_CON);
+
+	asm("b 1f; .align 5; 1:");
+	asm("mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
+
+	scu_writel(scu_mode & ~(3 << 2), SCU_MODE_CON); // slow
+	scu_writel(scu_apll | PLL_PD, SCU_APLL_CON); // powerdown
+
+	ctrl_reg_62 = sdram_enter_self_refresh();
+	asm("mcr p15, 0, r0, c7, c0, 4");	/* wait for interrupt */
+	sdram_exit_self_refresh(ctrl_reg_62);
+
+	scu_writel(scu_apll, SCU_APLL_CON); // powerup
+
+	scu_writel(scu_clksel0 & (~3), SCU_CLKSEL0_CON);
+
+	unit = 7200;  /* 24m,0.3ms , 24*300*/
+	while (unit-- > 0) {
+		if (regfile_readl(CPU_APB_REG0) & 0x80)
+			break;
+	}
+
+	__udelay(5 << 8);
+	scu_writel(scu_clksel0, SCU_CLKSEL0_CON);
+	__udelay(5);
+
+	scu_writel(scu_mode, SCU_MODE_CON); // normal
+
+	return unit;
+}
+
+static void rk2818_idle(void)
+{
+	unsigned long old_sp;
+	unsigned long tcm_sp = ITCM_END + 1;
+
+	asm volatile ("mov %0, sp" : "=r" (old_sp));
+	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
+	rk2818_tcm_idle();
+	asm volatile ("mov sp, %0" :: "r" (old_sp));
+}
+
+static int rk2818_pm_enter(suspend_state_t state)
+{
+	rk2818_gpio_suspend();
+
+	rk2818_idle();
+	__udelay(40);
+
+	rk2818_gpio_resume();
+
+	return 0;
+}
+
+static struct platform_suspend_ops rk2818_pm_ops = {
+	.enter		= rk2818_pm_enter,
+	.valid		= suspend_valid_only_mem,
+};
+
+static int __init rk2818_pm_init(void)
+{
+	suspend_set_ops(&rk2818_pm_ops);
+	return 0;
+}
+
+__initcall(rk2818_pm_init);
+
