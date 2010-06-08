@@ -25,6 +25,8 @@
  */
 extern struct bus_type of_platform_bus_type;
 
+extern const struct of_device_id of_default_bus_ids[];
+
 /*
  * An of_platform_driver driver is attached to a basic of_device on
  * the "platform bus" (of_platform_bus_type).
@@ -63,6 +65,21 @@ static inline void of_unregister_platform_driver(struct of_platform_driver *drv)
 extern struct of_device *of_find_device_by_node(struct device_node *np);
 
 extern int of_bus_type_init(struct bus_type *bus, const char *name);
+
+#if !defined(CONFIG_SPARC) /* SPARC has its own device registration method */
+/* Platform devices and busses creation */
+extern struct of_device *of_platform_device_create(struct device_node *np,
+						   const char *bus_id,
+						   struct device *parent);
+
+/* pseudo "matches" value to not do deep probe */
+#define OF_NO_DEEP_PROBE ((struct of_device_id *)-1)
+
+extern int of_platform_bus_probe(struct device_node *root,
+				 const struct of_device_id *matches,
+				 struct device *parent);
+#endif /* !CONFIG_SPARC */
+
 #endif /* CONFIG_OF_DEVICE */
 
 #endif	/* _LINUX_OF_PLATFORM_H */
