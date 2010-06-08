@@ -216,6 +216,11 @@ config SAMSUNG_DEV_ADC
 	help
 	  Compile in platform device definition for ADC controller
 
+config SAMSUNG_DEV_IDE
+	bool
+	help
+	  Compile in platform device definitions for IDE
+
 config S3C64XX_DEV_SPI
 	bool
 	help
