@@ -1492,11 +1492,11 @@ static int efx_net_stop(struct net_device *net_dev)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
+static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	struct net_device_stats *stats = &net_dev->stats;
+	struct rtnl_link_stats64 *stats = &net_dev->stats64;
 
 	spin_lock_bh(&efx->stats_lock);
 	efx->type->update_stats(efx);
@@ -1630,7 +1630,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 static const struct net_device_ops efx_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
-	.ndo_get_stats		= efx_net_stats,
+	.ndo_get_stats64	= efx_net_stats,
 	.ndo_tx_timeout		= efx_watchdog,
 	.ndo_start_xmit		= efx_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
