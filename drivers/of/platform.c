@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
