@@ -3040,8 +3040,6 @@ restart:
 
 	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 	spin_unlock(&kvm->mmu_lock);
-
-	kvm_flush_remote_tlbs(kvm);
 }
 
 static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm,
