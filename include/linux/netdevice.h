@@ -159,44 +159,48 @@ static inline bool dev_xmit_complete(int rc)
 #define MAX_HEADER (LL_MAX_HEADER + 48)
 #endif
 
-#endif  /*  __KERNEL__  */
-
 /*
- *	Network device statistics. Akin to the 2.0 ether stats but
- *	with byte counters.
+ *	Old network device statistics. Fields are native words
+ *	(unsigned long) so they can be read and written atomically.
+ *	Each field is padded to 64 bits for compatibility with
+ *	rtnl_link_stats64.
  */
 
+#if BITS_PER_LONG == 64
+#define NET_DEVICE_STATS_DEFINE(name)	unsigned long name
+#elif defined(__LITTLE_ENDIAN)
+#define NET_DEVICE_STATS_DEFINE(name)	unsigned long name, pad_ ## name
+#else
+#define NET_DEVICE_STATS_DEFINE(name)	unsigned long pad_ ## name, name
+#endif
+
 struct net_device_stats {
-	unsigned long	rx_packets;		/* total packets received	*/
-	unsigned long	tx_packets;		/* total packets transmitted	*/
-	unsigned long	rx_bytes;		/* total bytes received 	*/
-	unsigned long	tx_bytes;		/* total bytes transmitted	*/
-	unsigned long	rx_errors;		/* bad packets received		*/
-	unsigned long	tx_errors;		/* packet transmit problems	*/
-	unsigned long	rx_dropped;		/* no space in linux buffers	*/
-	unsigned long	tx_dropped;		/* no space available in linux	*/
-	unsigned long	multicast;		/* multicast packets received	*/
-	unsigned long	collisions;
-
-	/* detailed rx_errors: */
-	unsigned long	rx_length_errors;
-	unsigned long	rx_over_errors;		/* receiver ring buff overflow	*/
-	unsigned long	rx_crc_errors;		/* recved pkt with crc error	*/
-	unsigned long	rx_frame_errors;	/* recv'd frame alignment error */
-	unsigned long	rx_fifo_errors;		/* recv'r fifo overrun		*/
-	unsigned long	rx_missed_errors;	/* receiver missed packet	*/
-
-	/* detailed tx_errors */
-	unsigned long	tx_aborted_errors;
-	unsigned long	tx_carrier_errors;
-	unsigned long	tx_fifo_errors;
-	unsigned long	tx_heartbeat_errors;
-	unsigned long	tx_window_errors;
-	
-	/* for cslip etc */
-	unsigned long	rx_compressed;
-	unsigned long	tx_compressed;
+	NET_DEVICE_STATS_DEFINE(rx_packets);
+	NET_DEVICE_STATS_DEFINE(tx_packets);
+	NET_DEVICE_STATS_DEFINE(rx_bytes);
+	NET_DEVICE_STATS_DEFINE(tx_bytes);
+	NET_DEVICE_STATS_DEFINE(rx_errors);
+	NET_DEVICE_STATS_DEFINE(tx_errors);
+	NET_DEVICE_STATS_DEFINE(rx_dropped);
+	NET_DEVICE_STATS_DEFINE(tx_dropped);
+	NET_DEVICE_STATS_DEFINE(multicast);
+	NET_DEVICE_STATS_DEFINE(collisions);
+	NET_DEVICE_STATS_DEFINE(rx_length_errors);
+	NET_DEVICE_STATS_DEFINE(rx_over_errors);
+	NET_DEVICE_STATS_DEFINE(rx_crc_errors);
+	NET_DEVICE_STATS_DEFINE(rx_frame_errors);
+	NET_DEVICE_STATS_DEFINE(rx_fifo_errors);
+	NET_DEVICE_STATS_DEFINE(rx_missed_errors);
+	NET_DEVICE_STATS_DEFINE(tx_aborted_errors);
+	NET_DEVICE_STATS_DEFINE(tx_carrier_errors);
+	NET_DEVICE_STATS_DEFINE(tx_fifo_errors);
+	NET_DEVICE_STATS_DEFINE(tx_heartbeat_errors);
+	NET_DEVICE_STATS_DEFINE(tx_window_errors);
+	NET_DEVICE_STATS_DEFINE(rx_compressed);
+	NET_DEVICE_STATS_DEFINE(tx_compressed);
 };
+
+#endif  /*  __KERNEL__  */
 
 
 /* Media selection options. */
@@ -662,10 +666,19 @@ struct netdev_rx_queue {
  *	Callback uses when the transmitter has not made any progress
  *	for dev->watchdog ticks.
  *
+ * struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev);
  * struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
  *	Called when a user wants to get the network device usage
- *	statistics. If not defined, the counters in dev->stats will
- *	be used.
+ *	statistics. Drivers must do one of the following:
+ *	1. Define @ndo_get_stats64 to update a rtnl_link_stats64 structure
+ *	   (which should normally be dev->stats64) and return a ponter to
+ *	   it. The structure must not be changed asynchronously.
+ *	2. Define @ndo_get_stats to update a net_device_stats64 structure
+ *	   (which should normally be dev->stats) and return a pointer to
+ *	   it. The structure may be changed asynchronously only if each
+ *	   field is written atomically.
+ *	3. Update dev->stats asynchronously and atomically, and define
+ *	   neither operation.
  *
  * void (*ndo_vlan_rx_register)(struct net_device *dev, struct vlan_group *grp);
  *	If device support VLAN receive accleration
@@ -720,6 +733,7 @@ struct net_device_ops {
 						   struct neigh_parms *);
 	void			(*ndo_tx_timeout) (struct net_device *dev);
 
+	struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev);
 	struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
 
 	void			(*ndo_vlan_rx_register)(struct net_device *dev,
@@ -869,7 +883,10 @@ struct net_device {
 	int			ifindex;
 	int			iflink;
 
-	struct net_device_stats	stats;
+	union {
+		struct rtnl_link_stats64 stats64;
+		struct net_device_stats stats;
+	};
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
@@ -2121,7 +2138,7 @@ extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);
 extern void		dev_mcast_init(void);
-extern const struct net_device_stats *dev_get_stats(struct net_device *dev);
+extern const struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev);
 extern void		dev_txq_stats_fold(const struct net_device *dev, struct net_device_stats *stats);
 
 extern int		netdev_max_backlog;

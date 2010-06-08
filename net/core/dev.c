@@ -3701,10 +3701,10 @@ void dev_seq_stop(struct seq_file *seq, void *v)
 
 static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 {
-	const struct net_device_stats *stats = dev_get_stats(dev);
+	const struct rtnl_link_stats64 *stats = dev_get_stats(dev);
 
-	seq_printf(seq, "%6s: %7lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
-		   "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
+	seq_printf(seq, "%6s: %7llu %7llu %4llu %4llu %4llu %5llu %10llu %9llu "
+		   "%8llu %7llu %4llu %4llu %4llu %5llu %7llu %10llu\n",
 		   dev->name, stats->rx_bytes, stats->rx_packets,
 		   stats->rx_errors,
 		   stats->rx_dropped + stats->rx_missed_errors,
@@ -5281,18 +5281,21 @@ EXPORT_SYMBOL(dev_txq_stats_fold);
  *	@dev: device to get statistics from
  *
  *	Get network statistics from device. The device driver may provide
- *	its own method by setting dev->netdev_ops->get_stats; otherwise
- *	the internal statistics structure is used.
+ *	its own method by setting dev->netdev_ops->get_stats64 or
+ *	dev->netdev_ops->get_stats; otherwise the internal statistics
+ *	structure is used.
  */
-const struct net_device_stats *dev_get_stats(struct net_device *dev)
+const struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 
+	if (ops->ndo_get_stats64)
+		return ops->ndo_get_stats64(dev);
 	if (ops->ndo_get_stats)
-		return ops->ndo_get_stats(dev);
+		return (struct rtnl_link_stats64 *)ops->ndo_get_stats(dev);
 
 	dev_txq_stats_fold(dev, &dev->stats);
-	return &dev->stats;
+	return &dev->stats64;
 }
 EXPORT_SYMBOL(dev_get_stats);
 

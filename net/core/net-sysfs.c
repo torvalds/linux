@@ -29,6 +29,7 @@ static const char fmt_hex[] = "%#x\n";
 static const char fmt_long_hex[] = "%#lx\n";
 static const char fmt_dec[] = "%d\n";
 static const char fmt_ulong[] = "%lu\n";
+static const char fmt_u64[] = "%llu\n";
 
 static inline int dev_isalive(const struct net_device *dev)
 {
@@ -324,14 +325,13 @@ static ssize_t netstat_show(const struct device *d,
 	struct net_device *dev = to_net_dev(d);
 	ssize_t ret = -EINVAL;
 
-	WARN_ON(offset > sizeof(struct net_device_stats) ||
-			offset % sizeof(unsigned long) != 0);
+	WARN_ON(offset > sizeof(struct rtnl_link_stats64) ||
+			offset % sizeof(u64) != 0);
 
 	read_lock(&dev_base_lock);
 	if (dev_isalive(dev)) {
-		const struct net_device_stats *stats = dev_get_stats(dev);
-		ret = sprintf(buf, fmt_ulong,
-			      *(unsigned long *)(((u8 *) stats) + offset));
+		const struct rtnl_link_stats64 *stats = dev_get_stats(dev);
+		ret = sprintf(buf, fmt_u64, *(u64 *)(((u8 *) stats) + offset));
 	}
 	read_unlock(&dev_base_lock);
 	return ret;
@@ -343,7 +343,7 @@ static ssize_t show_##name(struct device *d,				\
 			   struct device_attribute *attr, char *buf) 	\
 {									\
 	return netstat_show(d, attr, buf,				\
-			    offsetof(struct net_device_stats, name));	\
+			    offsetof(struct rtnl_link_stats64, name));	\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, show_##name, NULL)
 

@@ -3804,20 +3804,21 @@ static int bond_close(struct net_device *bond_dev)
 	return 0;
 }
 
-static struct net_device_stats *bond_get_stats(struct net_device *bond_dev)
+static struct rtnl_link_stats64 *bond_get_stats(struct net_device *bond_dev)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
-	struct net_device_stats *stats = &bond_dev->stats;
-	struct net_device_stats local_stats;
+	struct rtnl_link_stats64 *stats = &bond_dev->stats64;
+	struct rtnl_link_stats64 local_stats;
 	struct slave *slave;
 	int i;
 
-	memset(&local_stats, 0, sizeof(struct net_device_stats));
+	memset(&local_stats, 0, sizeof(local_stats));
 
 	read_lock_bh(&bond->lock);
 
 	bond_for_each_slave(bond, slave, i) {
-		const struct net_device_stats *sstats = dev_get_stats(slave->dev);
+		const struct rtnl_link_stats64 *sstats =
+			dev_get_stats(slave->dev);
 
 		local_stats.rx_packets += sstats->rx_packets;
 		local_stats.rx_bytes += sstats->rx_bytes;
@@ -4569,7 +4570,7 @@ static const struct net_device_ops bond_netdev_ops = {
 	.ndo_stop		= bond_close,
 	.ndo_start_xmit		= bond_start_xmit,
 	.ndo_select_queue	= bond_select_queue,
-	.ndo_get_stats		= bond_get_stats,
+	.ndo_get_stats64	= bond_get_stats,
 	.ndo_do_ioctl		= bond_do_ioctl,
 	.ndo_set_multicast_list	= bond_set_multicast_list,
 	.ndo_change_mtu		= bond_change_mtu,
