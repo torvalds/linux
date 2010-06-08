@@ -2295,14 +2295,20 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct lpfc_vport      *vport = pIocbIn->vport;
 	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
 	struct lpfc_nodelist *pnode = rdata->pnode;
-	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
+	struct scsi_cmnd *cmd;
 	int result;
 	struct scsi_device *tmp_sdev;
 	int depth;
 	unsigned long flags;
 	struct lpfc_fast_path_event *fast_path_evt;
-	struct Scsi_Host *shost = cmd->device->host;
+	struct Scsi_Host *shost;
 	uint32_t queue_depth, scsi_id;
+
+	/* Sanity check on return of outstanding command */
+	if (!(lpfc_cmd->pCmd))
+		return;
+	cmd = lpfc_cmd->pCmd;
+	shost = cmd->device->host;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;

@@ -3593,12 +3593,15 @@ static int
 lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
-
+	uint32_t hba_aer_enabled;
 
 	/* Restart HBA */
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"0296 Restart HBA Data: x%x x%x\n",
 			phba->pport->port_state, psli->sli_flag);
+
+	/* Take PCIe device Advanced Error Reporting (AER) state */
+	hba_aer_enabled = phba->hba_flag & HBA_AER_ENABLED;
 
 	lpfc_sli4_brdreset(phba);
 
@@ -3610,6 +3613,10 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 
 	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
 	psli->stats_start = get_seconds();
+
+	/* Reset HBA AER if it was enabled, note hba_flag was reset above */
+	if (hba_aer_enabled)
+		pci_disable_pcie_error_reporting(phba->pcidev);
 
 	lpfc_hba_down_post(phba);
 
@@ -4553,6 +4560,24 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 
 	/* Start error attention (ERATT) polling timer */
 	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
+
+	/* Enable PCIe device Advanced Error Reporting (AER) if configured */
+	if (phba->cfg_aer_support == 1 && !(phba->hba_flag & HBA_AER_ENABLED)) {
+		rc = pci_enable_pcie_error_reporting(phba->pcidev);
+		if (!rc) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2829 This device supports "
+					"Advanced Error Reporting (AER)\n");
+			spin_lock_irq(&phba->hbalock);
+			phba->hba_flag |= HBA_AER_ENABLED;
+			spin_unlock_irq(&phba->hbalock);
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2830 This device does not support "
+					"Advanced Error Reporting (AER)\n");
+			phba->cfg_aer_support = 0;
+		}
+	}
 
 	/*
 	 * The port is ready, set the host's link state to LINK_DOWN
@@ -9089,9 +9114,10 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 		}
 	}
 	if (unlikely(!cq)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0365 Slow-path CQ identifier (%d) does "
-				"not exist\n", cqid);
+		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"0365 Slow-path CQ identifier "
+					"(%d) does not exist\n", cqid);
 		return;
 	}
 
@@ -9321,9 +9347,10 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 
 	cq = phba->sli4_hba.fcp_cq[fcp_cqidx];
 	if (unlikely(!cq)) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"0367 Fast-path completion queue does not "
-				"exist\n");
+		if (phba->sli.sli_flag & LPFC_SLI_ACTIVE)
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"0367 Fast-path completion queue "
+					"does not exist\n");
 		return;
 	}
 

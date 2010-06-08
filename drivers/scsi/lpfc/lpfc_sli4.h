@@ -382,6 +382,7 @@ struct lpfc_sli4_hba {
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
 	uint32_t cfg_eqn;
+	uint32_t msix_vec_nr;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
 	/* Pointers to the constructed SLI4 queues */
 	struct lpfc_queue **fp_eq; /* Fast-path event queue */

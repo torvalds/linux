@@ -864,7 +864,6 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 		  uint32_t *mrpi, uint32_t *arpi,
 		  uint32_t *mvpi, uint32_t *avpi)
 {
-	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_mbx_read_config *rd_config;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
@@ -893,8 +892,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
 
-	if ((phba->pport->fc_flag & FC_OFFLINE_MODE) ||
-		(!(psli->sli_flag & LPFC_SLI_ACTIVE)))
+	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
 		rc = MBX_NOT_FINISHED;
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -2943,9 +2941,6 @@ lpfc_aer_support_store(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba *phba = vport->phba;
 	int val = 0, rc = -EINVAL;
 
-	/* AER not supported on OC devices yet */
-	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
-		return -EPERM;
 	if (!isdigit(buf[0]))
 		return -EINVAL;
 	if (sscanf(buf, "%i", &val) != 1)
@@ -3018,12 +3013,6 @@ lpfc_param_show(aer_support)
 static int
 lpfc_aer_support_init(struct lpfc_hba *phba, int val)
 {
-	/* AER not supported on OC devices yet */
-	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC) {
-		phba->cfg_aer_support = 0;
-		return -EPERM;
-	}
-
 	if (val == 0 || val == 1) {
 		phba->cfg_aer_support = val;
 		return 0;
@@ -3068,9 +3057,6 @@ lpfc_aer_cleanup_state(struct device *dev, struct device_attribute *attr,
 	struct lpfc_hba   *phba = vport->phba;
 	int val, rc = -1;
 
-	/* AER not supported on OC devices yet */
-	if (phba->pci_dev_grp == LPFC_PCI_DEV_OC)
-		return -EPERM;
 	if (!isdigit(buf[0]))
 		return -EINVAL;
 	if (sscanf(buf, "%i", &val) != 1)
@@ -4099,8 +4085,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->context1 = NULL;
 	pmboxq->vport = vport;
 
-	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-		(!(psli->sli_flag & LPFC_SLI_ACTIVE)))
+	if (vport->fc_flag & FC_OFFLINE_MODE)
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -4124,8 +4109,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->context1 = NULL;
 	pmboxq->vport = vport;
 
-	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI_ACTIVE)))
+	if (vport->fc_flag & FC_OFFLINE_MODE)
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
