@@ -51,6 +51,9 @@
 #define LPFC_FCOE_FCF_GET_FIRST	0xFFFF
 #define LPFC_FCOE_FCF_NEXT_NONE	0xFFFF
 
+#define LPFC_FCOE_NULL_VID	0xFFF
+#define LPFC_FCOE_IGNORE_VID	0xFFFF
+
 /* First 3 bytes of default FCF MAC is specified by FC_MAP */
 #define LPFC_FCOE_FCF_MAC3	0xFF
 #define LPFC_FCOE_FCF_MAC4	0xFF

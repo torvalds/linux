@@ -796,7 +796,9 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * due to new FCF discovery
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
-		    (phba->fcf.fcf_flag & FCF_DISCOVERY)) {
+		    (phba->fcf.fcf_flag & FCF_DISCOVERY) &&
+		    (irsp->ulpStatus != IOSTAT_LOCAL_REJECT) &&
+		    (irsp->un.ulpWord[4] != IOERR_SLI_ABORTED)) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on registered "
 					"FCF record fcf_index:%d, trying "
@@ -890,9 +892,39 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 */
 		if (sp->cmn.fPort)
 			rc = lpfc_cmpl_els_flogi_fabric(vport, ndlp, sp, irsp);
-		else
+		else if (!(phba->hba_flag & HBA_FCOE_SUPPORT))
 			rc = lpfc_cmpl_els_flogi_nport(vport, ndlp, sp);
-
+		else {
+			lpfc_printf_vlog(vport, KERN_ERR,
+				LOG_FIP | LOG_ELS,
+				"2831 FLOGI response with cleared Fabric "
+				"bit fcf_index 0x%x "
+				"Switch Name %02x%02x%02x%02x%02x%02x%02x%02x "
+				"Fabric Name "
+				"%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				phba->fcf.current_rec.fcf_indx,
+				phba->fcf.current_rec.switch_name[0],
+				phba->fcf.current_rec.switch_name[1],
+				phba->fcf.current_rec.switch_name[2],
+				phba->fcf.current_rec.switch_name[3],
+				phba->fcf.current_rec.switch_name[4],
+				phba->fcf.current_rec.switch_name[5],
+				phba->fcf.current_rec.switch_name[6],
+				phba->fcf.current_rec.switch_name[7],
+				phba->fcf.current_rec.fabric_name[0],
+				phba->fcf.current_rec.fabric_name[1],
+				phba->fcf.current_rec.fabric_name[2],
+				phba->fcf.current_rec.fabric_name[3],
+				phba->fcf.current_rec.fabric_name[4],
+				phba->fcf.current_rec.fabric_name[5],
+				phba->fcf.current_rec.fabric_name[6],
+				phba->fcf.current_rec.fabric_name[7]);
+			lpfc_nlp_put(ndlp);
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+			spin_unlock_irq(&phba->hbalock);
+			goto out;
+		}
 		if (!rc) {
 			/* Mark the FCF discovery process done */
 			if (phba->hba_flag & HBA_FIP_SUPPORT)

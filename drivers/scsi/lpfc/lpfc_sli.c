@@ -12404,7 +12404,8 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 		next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
 					       LPFC_SLI4_FCF_TBL_INDX_MAX, 0);
 	/* Round robin failover stop condition */
-	if (next_fcf_index == phba->fcf.fcf_rr_init_indx)
+	if ((next_fcf_index == phba->fcf.fcf_rr_init_indx) ||
+		(next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX))
 		return LPFC_FCOE_FCF_NEXT_NONE;
 
 	return next_fcf_index;
