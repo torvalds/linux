@@ -2026,6 +2026,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					combios_setup_i2c_bus(rdev, RADEON_GPIO_CRT2_DDC);
 				break;
 			default:
+				ddc_i2c.valid = false;
 				break;
 			}
 
@@ -2339,6 +2340,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 			if (RBIOS8(tv_info + 6) == 'T') {
 				if (radeon_apply_legacy_tv_quirks(dev)) {
 					hpd.hpd = RADEON_HPD_NONE;
+					ddc_i2c.valid = false;
 					radeon_add_legacy_encoder(dev,
 								  radeon_get_encoder_id
 								  (dev,
