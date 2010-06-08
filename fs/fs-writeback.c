@@ -200,7 +200,6 @@ static void bdi_queue_work_onstack(struct wb_writeback_args *args)
 /**
  * bdi_start_writeback - start writeback
  * @bdi: the backing device to write from
- * @sb: write inodes from this super_block
  * @nr_pages: the number of pages to write
  *
  * Description:
@@ -209,25 +208,34 @@ static void bdi_queue_work_onstack(struct wb_writeback_args *args)
  *   completion. Caller need not hold sb s_umount semaphore.
  *
  */
-void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
-			 long nr_pages)
+void bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages)
 {
 	struct wb_writeback_args args = {
-		.sb		= sb,
 		.sync_mode	= WB_SYNC_NONE,
 		.nr_pages	= nr_pages,
 		.range_cyclic	= 1,
 	};
 
-	/*
-	 * We treat @nr_pages=0 as the special case to do background writeback,
-	 * ie. to sync pages until the background dirty threshold is reached.
-	 */
-	if (!nr_pages) {
-		args.nr_pages = LONG_MAX;
-		args.for_background = 1;
-	}
+	bdi_alloc_queue_work(bdi, &args);
+}
 
+/**
+ * bdi_start_background_writeback - start background writeback
+ * @bdi: the backing device to write from
+ *
+ * Description:
+ *   This does WB_SYNC_NONE background writeback. The IO is only
+ *   started when this function returns, we make no guarentees on
+ *   completion. Caller need not hold sb s_umount semaphore.
+ */
+void bdi_start_background_writeback(struct backing_dev_info *bdi)
+{
+	struct wb_writeback_args args = {
+		.sync_mode	= WB_SYNC_NONE,
+		.nr_pages	= LONG_MAX,
+		.for_background = 1,
+		.range_cyclic	= 1,
+	};
 	bdi_alloc_queue_work(bdi, &args);
 }
 
