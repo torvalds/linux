@@ -1984,7 +1984,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		      reset_host_protection)) {
 		if (write_fault)
 			*ptwrite = 1;
-		kvm_x86_ops->tlb_flush(vcpu);
+		kvm_mmu_flush_tlb(vcpu);
 	}
 
 	pgprintk("%s: setting spte %llx\n", __func__, *sptep);
