@@ -22,7 +22,7 @@ static void of_dump_addr(const char *s, const u32 *addr, int na)
 {
 	printk(KERN_DEBUG "%s", s);
 	while (na--)
-		printk(" %08x", *(addr++));
+		printk(" %08x", be32_to_cpu(*(addr++)));
 	printk("\n");
 }
 #else
@@ -79,8 +79,8 @@ static int of_bus_default_translate(u32 *addr, u64 offset, int na)
 	memset(addr, 0, na * 4);
 	a += offset;
 	if (na > 1)
-		addr[na - 2] = a >> 32;
-	addr[na - 1] = a & 0xffffffffu;
+		addr[na - 2] = cpu_to_be32(a >> 32);
+	addr[na - 1] = cpu_to_be32(a & 0xffffffffu);
 
 	return 0;
 }
@@ -190,14 +190,16 @@ const u32 *of_get_pci_address(struct device_node *dev, int bar_no, u64 *size,
 	psize /= 4;
 
 	onesize = na + ns;
-	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++)
-		if ((prop[0] & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
+	for (i = 0; psize >= onesize; psize -= onesize, prop += onesize, i++) {
+		u32 val = be32_to_cpu(prop[0]);
+		if ((val & 0xff) == ((bar_no * 4) + PCI_BASE_ADDRESS_0)) {
 			if (size)
 				*size = of_read_number(prop + na, ns);
 			if (flags)
 				*flags = bus->get_flags(prop);
 			return prop;
 		}
+	}
 	return NULL;
 }
 EXPORT_SYMBOL(of_get_pci_address);
