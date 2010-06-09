@@ -2473,15 +2473,10 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 	switch (pi->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
-		if (!(pi->conf_state & L2CAP_CONF_STATE2_DEVICE)) {
-			pi->mode = l2cap_select_mode(rfc.mode,
-					pi->conn->feat_mask);
+		if (pi->conf_state & L2CAP_CONF_STATE2_DEVICE)
 			break;
-		}
 
-		if (!l2cap_mode_supported(pi->mode, pi->conn->feat_mask))
-			l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
-		break;
+		/* fall through */
 	default:
 		pi->mode = l2cap_select_mode(rfc.mode, pi->conn->feat_mask);
 		break;
