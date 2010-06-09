@@ -2946,11 +2946,6 @@ __weak struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	return NULL;
 }
 
-__weak
-void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip)
-{
-}
-
 
 /*
  * We assume there is only KVM supporting the callbacks.

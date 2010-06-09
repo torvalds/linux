@@ -47,9 +47,9 @@ stack_trace_flush:
 	.size		stack_trace_flush,.-stack_trace_flush
 
 #ifdef CONFIG_PERF_EVENTS
-	.globl		perf_arch_fetch_caller_regs
-	.type		perf_arch_fetch_caller_regs,#function
-perf_arch_fetch_caller_regs:
+	.globl		__perf_arch_fetch_caller_regs
+	.type		__perf_arch_fetch_caller_regs,#function
+__perf_arch_fetch_caller_regs:
 	/* We always read the %pstate into %o5 since we will use
 	 * that to construct a fake %tstate to store into the regs.
 	 */

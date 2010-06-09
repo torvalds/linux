@@ -9,10 +9,7 @@
 #include <linux/mmiotrace.h>
 #include <linux/tracepoint.h>
 #include <linux/ftrace.h>
-#include <trace/boot.h>
-#include <linux/kmemtrace.h>
 #include <linux/hw_breakpoint.h>
-
 #include <linux/trace_seq.h>
 #include <linux/ftrace_event.h>
 
@@ -29,26 +26,15 @@ enum trace_type {
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
 	TRACE_BRANCH,
-	TRACE_BOOT_CALL,
-	TRACE_BOOT_RET,
 	TRACE_GRAPH_RET,
 	TRACE_GRAPH_ENT,
 	TRACE_USER_STACK,
-	TRACE_KMEM_ALLOC,
-	TRACE_KMEM_FREE,
 	TRACE_BLK,
 	TRACE_KSYM,
 
 	__TRACE_LAST_TYPE,
 };
 
-enum kmemtrace_type_id {
-	KMEMTRACE_TYPE_KMALLOC = 0,	/* kmalloc() or kfree(). */
-	KMEMTRACE_TYPE_CACHE,		/* kmem_cache_*(). */
-	KMEMTRACE_TYPE_PAGES,		/* __get_free_pages() and friends. */
-};
-
-extern struct tracer boot_tracer;
 
 #undef __field
 #define __field(type, item)		type	item;
@@ -209,17 +195,11 @@ extern void __ftrace_bad_type(void);
 			  TRACE_MMIO_RW);				\
 		IF_ASSIGN(var, ent, struct trace_mmiotrace_map,		\
 			  TRACE_MMIO_MAP);				\
-		IF_ASSIGN(var, ent, struct trace_boot_call, TRACE_BOOT_CALL);\
-		IF_ASSIGN(var, ent, struct trace_boot_ret, TRACE_BOOT_RET);\
 		IF_ASSIGN(var, ent, struct trace_branch, TRACE_BRANCH); \
 		IF_ASSIGN(var, ent, struct ftrace_graph_ent_entry,	\
 			  TRACE_GRAPH_ENT);		\
 		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
 			  TRACE_GRAPH_RET);		\
-		IF_ASSIGN(var, ent, struct kmemtrace_alloc_entry,	\
-			  TRACE_KMEM_ALLOC);	\
-		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
-			  TRACE_KMEM_FREE);	\
 		IF_ASSIGN(var, ent, struct ksym_trace_entry, TRACE_KSYM);\
 		__ftrace_bad_type();					\
 	} while (0)

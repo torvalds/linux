@@ -33,12 +33,13 @@ static DEFINE_MUTEX(sample_timer_lock);
  */
 static DEFINE_PER_CPU(struct hrtimer, stack_trace_hrtimer);
 
-struct stack_frame {
+struct stack_frame_user {
 	const void __user	*next_fp;
 	unsigned long		return_address;
 };
 
-static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
+static int
+copy_stack_frame(const void __user *fp, struct stack_frame_user *frame)
 {
 	int ret;
 
@@ -125,7 +126,7 @@ trace_kernel(struct pt_regs *regs, struct trace_array *tr,
 static void timer_notify(struct pt_regs *regs, int cpu)
 {
 	struct trace_array_cpu *data;
-	struct stack_frame frame;
+	struct stack_frame_user frame;
 	struct trace_array *tr;
 	const void __user *fp;
 	int is_user;

@@ -932,8 +932,10 @@ extern atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
 extern void __perf_sw_event(u32, u64, int, struct pt_regs *, u64);
 
-extern void
-perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip);
+#ifndef perf_arch_fetch_caller_regs
+static inline void
+perf_arch_fetch_caller_regs(struct regs *regs, unsigned long ip) { }
+#endif
 
 /*
  * Take a snapshot of the regs. Skip ip and frame pointer to
@@ -943,31 +945,11 @@ perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip);
  * - bp for callchains
  * - eflags, for future purposes, just in case
  */
-static inline void perf_fetch_caller_regs(struct pt_regs *regs, int skip)
+static inline void perf_fetch_caller_regs(struct pt_regs *regs)
 {
-	unsigned long ip;
-
 	memset(regs, 0, sizeof(*regs));
 
-	switch (skip) {
-	case 1 :
-		ip = CALLER_ADDR0;
-		break;
-	case 2 :
-		ip = CALLER_ADDR1;
-		break;
-	case 3 :
-		ip = CALLER_ADDR2;
-		break;
-	case 4:
-		ip = CALLER_ADDR3;
-		break;
-	/* No need to support further for now */
-	default:
-		ip = 0;
-	}
-
-	return perf_arch_fetch_caller_regs(regs, ip, skip);
+	perf_arch_fetch_caller_regs(regs, CALLER_ADDR0);
 }
 
 static inline void
@@ -977,7 +959,7 @@ perf_sw_event(u32 event_id, u64 nr, int nmi, struct pt_regs *regs, u64 addr)
 		struct pt_regs hot_regs;
 
 		if (!regs) {
-			perf_fetch_caller_regs(&hot_regs, 1);
+			perf_fetch_caller_regs(&hot_regs);
 			regs = &hot_regs;
 		}
 		__perf_sw_event(event_id, nr, nmi, regs, addr);

@@ -9,8 +9,6 @@
 #include <linux/kprobes.h>
 #include "trace.h"
 
-EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);
-
 static char *perf_trace_buf[4];
 
 /*

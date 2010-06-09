@@ -141,6 +141,19 @@ extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 #define perf_misc_flags(regs)	perf_misc_flags(regs)
 
+#include <asm/stacktrace.h>
+
+/*
+ * We abuse bit 3 from flags to pass exact information, see perf_misc_flags
+ * and the comment with PERF_EFLAGS_EXACT.
+ */
+#define perf_arch_fetch_caller_regs(regs, __ip)		{	\
+	(regs)->ip = (__ip);					\
+	(regs)->bp = caller_frame_pointer();			\
+	(regs)->cs = __KERNEL_CS;				\
+	regs->flags = 0;					\
+}
+
 #else
 static inline void init_hw_perf_events(void)		{ }
 static inline void perf_events_lapic_init(void)	{ }

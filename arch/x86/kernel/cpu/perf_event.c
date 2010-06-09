@@ -1613,8 +1613,6 @@ static const struct stacktrace_ops backtrace_ops = {
 	.walk_stack		= print_context_stack_bp,
 };
 
-#include "../dumpstack.h"
-
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
@@ -1734,22 +1732,6 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	perf_do_callchain(regs, entry);
 
 	return entry;
-}
-
-void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip)
-{
-	regs->ip = ip;
-	/*
-	 * perf_arch_fetch_caller_regs adds another call, we need to increment
-	 * the skip level
-	 */
-	regs->bp = rewind_frame_pointer(skip + 1);
-	regs->cs = __KERNEL_CS;
-	/*
-	 * We abuse bit 3 to pass exact information, see perf_misc_flags
-	 * and the comment with PERF_EFLAGS_EXACT.
-	 */
-	regs->flags = 0;
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)

@@ -66,8 +66,10 @@
 #include <linux/module.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
-#include <linux/kmemtrace.h>
 #include <linux/kmemleak.h>
+
+#include <trace/events/kmem.h>
+
 #include <asm/atomic.h>
 
 /*
