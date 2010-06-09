@@ -561,23 +561,19 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 		beaconint_us = ieee80211_tu_to_usec(
 					found->vif.bss_conf.beacon_int);
 
-		timeout = local->hw.conf.dynamic_ps_forced_timeout;
+		timeout = local->dynamic_ps_forced_timeout;
 		if (timeout < 0) {
 			/*
+			 * Go to full PSM if the user configures a very low
+			 * latency requirement.
 			 * The 2 second value is there for compatibility until
 			 * the PM_QOS_NETWORK_LATENCY is configured with real
 			 * values.
 			 */
-			if (latency == 2000000000)
-				timeout = 100;
-			else if (latency <= 50000)
-				timeout = 300;
-			else if (latency <= 100000)
-				timeout = 100;
-			else if (latency <= 500000)
-				timeout = 50;
-			else
+			if (latency > 1900000000 && latency != 2000000000)
 				timeout = 0;
+			else
+				timeout = 100;
 		}
 		local->hw.conf.dynamic_ps_timeout = timeout;
 

@@ -850,6 +850,12 @@ struct ieee80211_local {
 	struct notifier_block network_latency_notifier;
 	struct notifier_block ifa_notifier;
 
+	/*
+	 * The dynamic ps timeout configured from user space via WEXT -
+	 * this will override whatever chosen by mac80211 internally.
+	 */
+	int dynamic_ps_forced_timeout;
+
 	int user_power_level; /* in dBm */
 	int power_constr_level; /* in dBm */
 
