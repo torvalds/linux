@@ -1215,11 +1215,12 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		size = round_pipe_size(arg);
 		nr_pages = size >> PAGE_SHIFT;
 
+		ret = -EINVAL;
+		if (!nr_pages)
+			goto out;
+
 		if (!capable(CAP_SYS_RESOURCE) && size > pipe_max_size) {
 			ret = -EPERM;
-			goto out;
-		} else if (nr_pages < PAGE_SIZE) {
-			ret = -EINVAL;
 			goto out;
 		}
 		ret = pipe_set_size(pipe, nr_pages);
