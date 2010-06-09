@@ -297,36 +297,43 @@ struct bio_and_error {
 
 extern void _req_may_be_done(struct drbd_request *req,
 		struct bio_and_error *m);
-extern void __req_mod(struct drbd_request *req, enum drbd_req_event what,
+extern int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m);
 extern void complete_master_bio(struct drbd_conf *mdev,
 		struct bio_and_error *m);
 
 /* use this if you don't want to deal with calling complete_master_bio()
  * outside the spinlock, e.g. when walking some list on cleanup. */
-static inline void _req_mod(struct drbd_request *req, enum drbd_req_event what)
+static inline int _req_mod(struct drbd_request *req, enum drbd_req_event what)
 {
 	struct drbd_conf *mdev = req->mdev;
 	struct bio_and_error m;
+	int rv;
 
 	/* __req_mod possibly frees req, do not touch req after that! */
-	__req_mod(req, what, &m);
+	rv = __req_mod(req, what, &m);
 	if (m.bio)
 		complete_master_bio(mdev, &m);
+
+	return rv;
 }
 
 /* completion of master bio is outside of spinlock.
  * If you need it irqsave, do it your self! */
-static inline void req_mod(struct drbd_request *req,
+static inline int req_mod(struct drbd_request *req,
 		enum drbd_req_event what)
 {
 	struct drbd_conf *mdev = req->mdev;
 	struct bio_and_error m;
+	int rv;
+
 	spin_lock_irq(&mdev->req_lock);
-	__req_mod(req, what, &m);
+	rv = __req_mod(req, what, &m);
 	spin_unlock_irq(&mdev->req_lock);
 
 	if (m.bio)
 		complete_master_bio(mdev, &m);
+
+	return rv;
 }
 #endif

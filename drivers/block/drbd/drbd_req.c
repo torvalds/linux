@@ -382,10 +382,11 @@ out_conflict:
  *  and it enforces that we have to think in a very structured manner
  *  about the "events" that may happen to a request during its life time ...
  */
-void __req_mod(struct drbd_request *req, enum drbd_req_event what,
+int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		struct bio_and_error *m)
 {
 	struct drbd_conf *mdev = req->mdev;
+	int rv = 0;
 	m->bio = NULL;
 
 	switch (what) {
@@ -657,6 +658,8 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done(req, m);
 		break;
 	};
+
+	return rv;
 }
 
 /* we may do a local read if:
