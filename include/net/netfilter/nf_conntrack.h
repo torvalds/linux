@@ -261,11 +261,10 @@ extern s16 (*nf_ct_nat_offset)(const struct nf_conn *ct,
 			       u32 seq);
 
 /* Fake conntrack entry for untracked connections */
+DECLARE_PER_CPU(struct nf_conn, nf_conntrack_untracked);
 static inline struct nf_conn *nf_ct_untracked_get(void)
 {
-	extern struct nf_conn nf_conntrack_untracked;
-
-	return &nf_conntrack_untracked;
+	return &__raw_get_cpu_var(nf_conntrack_untracked);
 }
 extern void nf_ct_untracked_status_or(unsigned long bits);
 
