@@ -322,6 +322,9 @@ static inline void ceph_mdsc_put_request(struct ceph_mds_request *req)
 	kref_put(&req->r_kref, ceph_mdsc_release_request);
 }
 
+extern int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
+				 struct ceph_mds_session *session,
+				 int extra);
 extern void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
 				   struct ceph_mds_session *session);
 

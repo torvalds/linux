@@ -1066,9 +1066,9 @@ static int trim_caps(struct ceph_mds_client *mdsc,
  *
  * Called under s_mutex.
  */
-static int add_cap_releases(struct ceph_mds_client *mdsc,
-			    struct ceph_mds_session *session,
-			    int extra)
+int ceph_add_cap_releases(struct ceph_mds_client *mdsc,
+			  struct ceph_mds_session *session,
+			  int extra)
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_cap_release *head;
@@ -1980,7 +1980,7 @@ out_err:
 	}
 	mutex_unlock(&mdsc->mutex);
 
-	add_cap_releases(mdsc, req->r_session, -1);
+	ceph_add_cap_releases(mdsc, req->r_session, -1);
 	mutex_unlock(&session->s_mutex);
 
 	/* kick calling process */
@@ -2690,7 +2690,7 @@ static void delayed_work(struct work_struct *work)
 			send_renew_caps(mdsc, s);
 		else
 			ceph_con_keepalive(&s->s_con);
-		add_cap_releases(mdsc, s, -1);
+		ceph_add_cap_releases(mdsc, s, -1);
 		if (s->s_state == CEPH_MDS_SESSION_OPEN ||
 		    s->s_state == CEPH_MDS_SESSION_HUNG)
 			ceph_send_cap_releases(mdsc, s);

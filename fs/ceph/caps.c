@@ -2708,6 +2708,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 		 * along for the mds (who clearly thinks we still have this
 		 * cap).
 		 */
+		ceph_add_cap_releases(mdsc, session, -1);
 		ceph_send_cap_releases(mdsc, session);
 		goto done;
 	}
