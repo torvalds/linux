@@ -534,19 +534,21 @@ select_queue:
 static bool pin_sb_for_writeback(struct super_block *sb)
 {
 	spin_lock(&sb_lock);
+	if (list_empty(&sb->s_instances)) {
+		spin_unlock(&sb_lock);
+		return false;
+	}
+
 	sb->s_count++;
+	spin_unlock(&sb_lock);
+
 	if (down_read_trylock(&sb->s_umount)) {
-		if (sb->s_root) {
-			spin_unlock(&sb_lock);
+		if (sb->s_root)
 			return true;
-		}
-		/*
-		 * umounted, drop rwsem again and fall through to failure
-		 */
 		up_read(&sb->s_umount);
 	}
-	sb->s_count--;
-	spin_unlock(&sb_lock);
+
+	put_super(sb);
 	return false;
 }
 
