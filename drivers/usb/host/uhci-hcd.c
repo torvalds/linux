@@ -691,7 +691,9 @@ static int uhci_start(struct usb_hcd *hcd)
 
 	configure_hc(uhci);
 	uhci->is_initialized = 1;
+	spin_lock_irq(&uhci->lock);
 	start_rh(uhci);
+	spin_unlock_irq(&uhci->lock);
 	return 0;
 
 /*
