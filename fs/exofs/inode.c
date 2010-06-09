@@ -697,6 +697,13 @@ static int exofs_writepage(struct page *page, struct writeback_control *wbc)
 	return write_exec(&pcol);
 }
 
+/* i_mutex held using inode->i_size directly */
+static void _write_failed(struct inode *inode, loff_t to)
+{
+	if (to > inode->i_size)
+		truncate_pagecache(inode, to, inode->i_size);
+}
+
 int exofs_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
 		struct page **pagep, void **fsdata)
@@ -710,7 +717,7 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 					 fsdata);
 		if (ret) {
 			EXOFS_DBGMSG("simple_write_begin faild\n");
-			return ret;
+			goto out;
 		}
 
 		page = *pagep;
@@ -725,6 +732,9 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 			EXOFS_DBGMSG("__readpage_filler faild\n");
 		}
 	}
+out:
+	if (unlikely(ret))
+		_write_failed(mapping->host, pos + len);
 
 	return ret;
 }
@@ -750,6 +760,10 @@ static int exofs_write_end(struct file *file, struct address_space *mapping,
 	int ret;
 
 	ret = simple_write_end(file, mapping,pos, len, copied, page, fsdata);
+	if (unlikely(ret))
+		_write_failed(inode, pos + len);
+
+	/* TODO: once simple_write_end marks inode dirty remove */
 	if (i_size != inode->i_size)
 		mark_inode_dirty(inode);
 	return ret;
@@ -808,91 +822,49 @@ static inline int exofs_inode_is_fast_symlink(struct inode *inode)
 	return S_ISLNK(inode->i_mode) && (oi->i_data[0] != 0);
 }
 
-/*
- * get_block_t - Fill in a buffer_head
- * An OSD takes care of block allocation so we just fake an allocation by
- * putting in the inode's sector_t in the buffer_head.
- * TODO: What about the case of create==0 and @iblock does not exist in the
- * object?
- */
-static int exofs_get_block(struct inode *inode, sector_t iblock,
-		    struct buffer_head *bh_result, int create)
-{
-	map_bh(bh_result, inode->i_sb, iblock);
-	return 0;
-}
-
 const struct osd_attr g_attr_logical_length = ATTR_DEF(
 	OSD_APAGE_OBJECT_INFORMATION, OSD_ATTR_OI_LOGICAL_LENGTH, 8);
 
-static int _do_truncate(struct inode *inode)
+static int _do_truncate(struct inode *inode, loff_t newsize)
 {
 	struct exofs_i_info *oi = exofs_i(inode);
-	loff_t isize = i_size_read(inode);
 	int ret;
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
-	nobh_truncate_page(inode->i_mapping, isize, exofs_get_block);
+	ret = exofs_oi_truncate(oi, (u64)newsize);
+	if (likely(!ret))
+		truncate_setsize(inode, newsize);
 
-	ret = exofs_oi_truncate(oi, (u64)isize);
-	EXOFS_DBGMSG("(0x%lx) size=0x%llx\n", inode->i_ino, isize);
+	EXOFS_DBGMSG("(0x%lx) size=0x%llx ret=>%d\n",
+		     inode->i_ino, newsize, ret);
 	return ret;
 }
 
 /*
- * Truncate a file to the specified size - all we have to do is set the size
- * attribute.  We make sure the object exists first.
- */
-void exofs_truncate(struct inode *inode)
-{
-	struct exofs_i_info *oi = exofs_i(inode);
-	int ret;
-
-	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
-	     || S_ISLNK(inode->i_mode)))
-		return;
-	if (exofs_inode_is_fast_symlink(inode))
-		return;
-	if (IS_APPEND(inode) || IS_IMMUTABLE(inode))
-		return;
-
-	/* if we are about to truncate an object, and it hasn't been
-	 * created yet, wait
-	 */
-	if (unlikely(wait_obj_created(oi)))
-		goto fail;
-
-	ret = _do_truncate(inode);
-	if (ret)
-		goto fail;
-
-out:
-	mark_inode_dirty(inode);
-	return;
-fail:
-	make_bad_inode(inode);
-	goto out;
-}
-
-/*
- * Set inode attributes - just call generic functions.
+ * Set inode attributes - update size attribute on OSD if needed,
+ *                        otherwise just call generic functions.
  */
 int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
 
+	/* if we are about to modify an object, and it hasn't been
+	 * created yet, wait
+	 */
+	error = wait_obj_created(exofs_i(inode));
+	if (unlikely(error))
+		return error;
+
 	error = inode_change_ok(inode, iattr);
-	if (error)
+	if (unlikely(error))
 		return error;
 
 	if ((iattr->ia_valid & ATTR_SIZE) &&
 	    iattr->ia_size != i_size_read(inode)) {
-		int error;
-
-		error = vmtruncate(inode, iattr->ia_size);
-		if (error)
+		error = _do_truncate(inode, iattr->ia_size);
+		if (unlikely(error))
 			return error;
 	}
 
@@ -1345,28 +1317,25 @@ void exofs_delete_inode(struct inode *inode)
 
 	truncate_inode_pages(&inode->i_data, 0);
 
+	/* TODO: should do better here */
 	if (is_bad_inode(inode))
 		goto no_delete;
 
-	mark_inode_dirty(inode);
-	exofs_update_inode(inode, inode_needs_sync(inode));
-
 	inode->i_size = 0;
-	if (inode->i_blocks)
-		exofs_truncate(inode);
-
 	clear_inode(inode);
-
-	ret = exofs_get_io_state(&sbi->layout, &ios);
-	if (unlikely(ret)) {
-		EXOFS_ERR("%s: exofs_get_io_state failed\n", __func__);
-		return;
-	}
 
 	/* if we are deleting an obj that hasn't been created yet, wait */
 	if (!obj_created(oi)) {
 		BUG_ON(!obj_2bcreated(oi));
 		wait_event(oi->i_wq, obj_created(oi));
+		/* ignore the error attempt a remove anyway */
+	}
+
+	/* Now Remove the OSD objects */
+	ret = exofs_get_io_state(&sbi->layout, &ios);
+	if (unlikely(ret)) {
+		EXOFS_ERR("%s: exofs_get_io_state failed\n", __func__);
+		return;
 	}
 
 	ios->obj.id = exofs_oi_objno(oi);
