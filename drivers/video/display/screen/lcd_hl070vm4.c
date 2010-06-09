@@ -28,10 +28,10 @@
 #define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
 #define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
 #define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C0_SCL
+#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C1_SCL
 #define CLK_SET()       gpio_set_value(RK2818_PIN_PE7, GPIO_HIGH)
 #define CLK_CLR()       gpio_set_value(RK2818_PIN_PE7, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C0_SDA
+#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C1_SDA
 #define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
 #define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
 
@@ -75,7 +75,7 @@ void screen_set_iomux(u8 enable)
     else
     {
          gpio_free(RK2818_PIN_PA4); 
-         rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
+         //rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
 
          gpio_free(RK2818_PIN_PE7);   
          gpio_free(RK2818_PIN_PE6); 
