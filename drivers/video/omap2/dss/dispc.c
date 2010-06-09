@@ -31,6 +31,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/hardirq.h>
 
 #include <plat/sram.h>
 #include <plat/clock.h>
@@ -3028,7 +3029,7 @@ void dispc_fake_vsync_irq(void)
 	u32 irqstatus = DISPC_IRQ_VSYNC;
 	int i;
 
-	local_irq_disable();
+	WARN_ON(!in_interrupt());
 
 	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
 		struct omap_dispc_isr_data *isr_data;
@@ -3040,8 +3041,6 @@ void dispc_fake_vsync_irq(void)
 		if (isr_data->mask & irqstatus)
 			isr_data->isr(isr_data->arg, irqstatus);
 	}
-
-	local_irq_enable();
 }
 #endif
 

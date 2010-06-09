@@ -232,6 +232,7 @@ static struct
 	unsigned pll_locked;
 
 	struct completion bta_completion;
+	void (*bta_callback)(void);
 
 	int update_channel;
 	struct dsi_update_region update_region;
@@ -240,7 +241,6 @@ static struct
 
 	struct workqueue_struct *workqueue;
 
-	struct work_struct framedone_work;
 	void (*framedone_callback)(int, void *);
 	void *framedone_data;
 
@@ -511,8 +511,12 @@ void dsi_irq_handler(void)
 		dss_collect_irq_stats(vcstatus, dsi.irq_stats.vc_irqs[i]);
 #endif
 
-		if (vcstatus & DSI_VC_IRQ_BTA)
+		if (vcstatus & DSI_VC_IRQ_BTA) {
 			complete(&dsi.bta_completion);
+
+			if (dsi.bta_callback)
+				dsi.bta_callback();
+		}
 
 		if (vcstatus & DSI_VC_IRQ_ERROR_MASK) {
 			DSSERR("DSI VC(%d) error, vc irqstatus %x\n",
@@ -2756,110 +2760,103 @@ static void dsi_te_timeout(unsigned long arg)
 }
 #endif
 
-static void dsi_framedone_timeout_work_callback(struct work_struct *work)
+static void dsi_handle_framedone(int error)
 {
-	int r;
 	const int channel = dsi.update_channel;
 
-	DSSERR("Framedone not received for 250ms!\n");
+	cancel_delayed_work(&dsi.framedone_timeout_work);
 
+	dsi_vc_disable_bta_irq(channel);
+
+	/* SIDLEMODE back to smart-idle */
+	dispc_enable_sidle();
+
+	dsi.bta_callback = NULL;
+
+	if (dsi.te_enabled) {
+		/* enable LP_RX_TO again after the TE */
+		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	}
+
+	/* RX_FIFO_NOT_EMPTY */
+	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
+		DSSERR("Received error during frame transfer:\n");
+		dsi_vc_flush_receive_data(channel);
+		if (!error)
+			error = -EIO;
+	}
+
+	dsi.framedone_callback(error, dsi.framedone_data);
+
+	if (!error)
+		dsi_perf_show("DISPC");
+}
+
+static void dsi_framedone_timeout_work_callback(struct work_struct *work)
+{
 	/* XXX While extremely unlikely, we could get FRAMEDONE interrupt after
 	 * 250ms which would conflict with this timeout work. What should be
 	 * done is first cancel the transfer on the HW, and then cancel the
-	 * possibly scheduled framedone work */
+	 * possibly scheduled framedone work. However, cancelling the transfer
+	 * on the HW is buggy, and would probably require resetting the whole
+	 * DSI */
 
-	/* SIDLEMODE back to smart-idle */
-	dispc_enable_sidle();
+	DSSERR("Framedone not received for 250ms!\n");
 
-	if (dsi.te_enabled) {
-		/* enable LP_RX_TO again after the TE */
-		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
-	}
-
-	/* Send BTA after the frame. We need this for the TE to work, as TE
-	 * trigger is only sent for BTAs without preceding packet. Thus we need
-	 * to BTA after the pixel packets so that next BTA will cause TE
-	 * trigger.
-	 *
-	 * This is not needed when TE is not in use, but we do it anyway to
-	 * make sure that the transfer has been completed. It would be more
-	 * optimal, but more complex, to wait only just before starting next
-	 * transfer. */
-	r = dsi_vc_send_bta_sync(channel);
-	if (r)
-		DSSERR("BTA after framedone failed\n");
-
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("Received error during frame transfer:\n");
-		dsi_vc_flush_receive_data(channel);
-	}
-
-	dsi.framedone_callback(-ETIMEDOUT, dsi.framedone_data);
+	dsi_handle_framedone(-ETIMEDOUT);
 }
 
-static void dsi_framedone_irq_callback(void *data, u32 mask)
+static void dsi_framedone_bta_callback(void)
 {
-	int r;
-	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
-	 * turns itself off. However, DSI still has the pixels in its buffers,
-	 * and is sending the data.
-	 */
-
-	/* SIDLEMODE back to smart-idle */
-	dispc_enable_sidle();
-
-	r = queue_work(dsi.workqueue, &dsi.framedone_work);
-	BUG_ON(r == 0);
-}
-
-static void dsi_handle_framedone(void)
-{
-	int r;
-	const int channel = dsi.update_channel;
-
-	DSSDBG("FRAMEDONE\n");
-
-	if (dsi.te_enabled) {
-		/* enable LP_RX_TO again after the TE */
-		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
-	}
-
-	/* Send BTA after the frame. We need this for the TE to work, as TE
-	 * trigger is only sent for BTAs without preceding packet. Thus we need
-	 * to BTA after the pixel packets so that next BTA will cause TE
-	 * trigger.
-	 *
-	 * This is not needed when TE is not in use, but we do it anyway to
-	 * make sure that the transfer has been completed. It would be more
-	 * optimal, but more complex, to wait only just before starting next
-	 * transfer. */
-	r = dsi_vc_send_bta_sync(channel);
-	if (r)
-		DSSERR("BTA after framedone failed\n");
-
-	/* RX_FIFO_NOT_EMPTY */
-	if (REG_GET(DSI_VC_CTRL(channel), 20, 20)) {
-		DSSERR("Received error during frame transfer:\n");
-		dsi_vc_flush_receive_data(channel);
-	}
+	dsi_handle_framedone(0);
 
 #ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
 	dispc_fake_vsync_irq();
 #endif
 }
 
-static void dsi_framedone_work_callback(struct work_struct *work)
+static void dsi_framedone_irq_callback(void *data, u32 mask)
 {
-	DSSDBGF();
+	const int channel = dsi.update_channel;
+	int r;
 
-	cancel_delayed_work_sync(&dsi.framedone_timeout_work);
+	/* Note: We get FRAMEDONE when DISPC has finished sending pixels and
+	 * turns itself off. However, DSI still has the pixels in its buffers,
+	 * and is sending the data.
+	 */
 
-	dsi_handle_framedone();
+	if (dsi.te_enabled) {
+		/* enable LP_RX_TO again after the TE */
+		REG_FLD_MOD(DSI_TIMING2, 1, 15, 15); /* LP_RX_TO */
+	}
 
-	dsi_perf_show("DISPC");
+	/* Send BTA after the frame. We need this for the TE to work, as TE
+	 * trigger is only sent for BTAs without preceding packet. Thus we need
+	 * to BTA after the pixel packets so that next BTA will cause TE
+	 * trigger.
+	 *
+	 * This is not needed when TE is not in use, but we do it anyway to
+	 * make sure that the transfer has been completed. It would be more
+	 * optimal, but more complex, to wait only just before starting next
+	 * transfer.
+	 *
+	 * Also, as there's no interrupt telling when the transfer has been
+	 * done and the channel could be reconfigured, the only way is to
+	 * busyloop until TE_SIZE is zero. With BTA we can do this
+	 * asynchronously.
+	 * */
 
-	dsi.framedone_callback(0, dsi.framedone_data);
+	dsi.bta_callback = dsi_framedone_bta_callback;
+
+	barrier();
+
+	dsi_vc_enable_bta_irq(channel);
+
+	r = dsi_vc_send_bta(channel);
+	if (r) {
+		DSSERR("BTA after framedone failed\n");
+		dsi_handle_framedone(-EIO);
+	}
 }
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
@@ -3246,7 +3243,6 @@ int dsi_init(struct platform_device *pdev)
 	if (dsi.workqueue == NULL)
 		return -ENOMEM;
 
-	INIT_WORK(&dsi.framedone_work, dsi_framedone_work_callback);
 	INIT_DELAYED_WORK_DEFERRABLE(&dsi.framedone_timeout_work,
 			dsi_framedone_timeout_work_callback);
 
