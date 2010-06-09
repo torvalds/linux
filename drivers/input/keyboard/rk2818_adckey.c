@@ -55,7 +55,7 @@
 #define ADKEYNUM		10
 
 #define ADKEYCH			1	//AD通道
-
+#define KEYPLAY_ON		0	//按键接通时的电平值
 #define KEY_PHYS_NAME	"rk2818_adckey/input0"
 
 volatile int gADSampleTimes = 0;
@@ -118,15 +118,12 @@ unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 	return 0;
 }
 
-#if 0
+#if 1
 static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 { 
-	input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,1);
-	input_sync(pRk28AdcKey->input_dev);
-	input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,0);
-	input_sync(pRk28AdcKey->input_dev);
-	gFlagPlay = 1;	
-	DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
+	
+	//gFlagPlay = 1;	
+	//DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
 	
 	return IRQ_HANDLED;
 }
@@ -134,10 +131,11 @@ static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 #endif
 void rk28_send_wakeup_key( void ) 
 {
-        input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,1);
-        input_sync(pRk28AdcKey->input_dev);
-        input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,0);
-        input_sync(pRk28AdcKey->input_dev);
+    input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,1);
+    input_sync(pRk28AdcKey->input_dev);
+    input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,0);
+    input_sync(pRk28AdcKey->input_dev);
+	DBG("Wake up system\n");
 }
 
 static int rk28_adckey_open(struct input_dev *dev)
@@ -184,9 +182,10 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	add_timer(&pRk28AdcKey->timer);
 
 	/*handle long press of play key*/
-	if(gpio_get_value(KEY_PLAYON_PIN) == 0) 
+	if(gpio_get_value(KEY_PLAYON_PIN) == KEYPLAY_ON) 
 	{
-		++gPlayCount;
+		if(++gPlayCount > 20000)
+			gPlayCount = 101;
 		if((2 == gPlayCount) && (0 == gFlagShortPlay))
 		{
 			gFlagShortPlay = 1;			
@@ -204,6 +203,12 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	{
 		if (1 == gFlagShortPlay) 
 		{
+			input_report_key(pRk28AdcKey->input_dev,ENDCALL,1);
+		    input_sync(pRk28AdcKey->input_dev);
+		    input_report_key(pRk28AdcKey->input_dev,ENDCALL,0);
+		    input_sync(pRk28AdcKey->input_dev);
+			DBG("Wake up system,ENDCALL=%d\n",ENDCALL);
+			
 			input_report_key(pRk28AdcKey->input_dev,KEY_PLAY_SHORT_PRESS,1);
 			input_sync(pRk28AdcKey->input_dev);
 			DBG("Enter::%s,LINE=%d,KEY_PLAY_SHORT_PRESS=%d,1\n",__FUNCTION__,__LINE__,KEY_PLAY_SHORT_PRESS);
@@ -355,16 +360,25 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to request play key gpio\n");
 		goto free_gpio;
 	}
-	
-	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullUp);
-#if 0
-	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+#if KEYPLAY_ON	
+	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullDown);
+	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk28_playkey_irq,IRQF_TRIGGER_RISING,NULL,NULL);
 	if(error)
 	{
 		printk("unable to request play key irq\n");
 		goto free_gpio_irq;
 	}	
 #else
+	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullUp);
+	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+	if(error)
+	{
+		printk("unable to request play key irq\n");
+		goto free_gpio_irq;
+	}
+#endif
+
+#if 0
 	error = gpio_direction_input(KEY_PLAYON_PIN);
 	if (error) 
 	{
