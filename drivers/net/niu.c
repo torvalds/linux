@@ -28,10 +28,7 @@
 #include <linux/slab.h>
 
 #include <linux/io.h>
-
-#ifdef CONFIG_SPARC64
 #include <linux/of_device.h>
-#endif
 
 #include "niu.h"
 
