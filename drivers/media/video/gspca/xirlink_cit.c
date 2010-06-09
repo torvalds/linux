@@ -57,11 +57,14 @@ struct sd {
 #define CIT_MODEL4 3
 #define CIT_IBM_NETCAM_PRO 4
 	u8 input_index;
+	u8 stop_on_control_change;
 	u8 sof_read;
+	u8 sof_len;
 	u8 contrast;
 	u8 brightness;
 	u8 hue;
 	u8 sharpness;
+	u8 lighting;
 };
 
 /* V4L2 controls supported by the driver */
@@ -73,6 +76,8 @@ static int sd_sethue(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_gethue(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setlighting(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getlighting(struct gspca_dev *gspca_dev, __s32 *val);
 static void sd_stop0(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[] = {
@@ -82,10 +87,10 @@ static const struct ctrl sd_ctrls[] = {
 		.id      = V4L2_CID_BRIGHTNESS,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Brightness",
-		.minimum = 0x0c,
-		.maximum = 0x3f,
+		.minimum = 0,
+		.maximum = 63,
 		.step = 1,
-#define BRIGHTNESS_DEFAULT 0x20
+#define BRIGHTNESS_DEFAULT 32
 		.default_value = BRIGHTNESS_DEFAULT,
 		.flags = 0,
 	    },
@@ -114,10 +119,10 @@ static const struct ctrl sd_ctrls[] = {
 		.id	= V4L2_CID_HUE,
 		.type	= V4L2_CTRL_TYPE_INTEGER,
 		.name	= "Hue",
-		.minimum = 0x05,
-		.maximum = 0x37,
+		.minimum = 0,
+		.maximum = 127,
 		.step	= 1,
-#define HUE_DEFAULT 0x20
+#define HUE_DEFAULT 63
 		.default_value = HUE_DEFAULT,
 		.flags = 0,
 	    },
@@ -140,6 +145,33 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setsharpness,
 	    .get = sd_getsharpness,
 	},
+#define SD_LIGHTING 4
+	{
+	    {
+		.id = V4L2_CID_BACKLIGHT_COMPENSATION,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "Lighting",
+		.minimum = 0,
+		.maximum = 2,
+		.step = 1,
+#define LIGHTING_DEFAULT 1
+		.default_value = LIGHTING_DEFAULT,
+		.flags = 0,
+	    },
+	    .set = sd_setlighting,
+	    .get = sd_getlighting,
+	},
+};
+
+static const struct v4l2_pix_format cif_yuv_mode[] = {
+	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 160 * 144 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{352, 288, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
 static const struct v4l2_pix_format vga_yuv_mode[] = {
@@ -154,6 +186,25 @@ static const struct v4l2_pix_format vga_yuv_mode[] = {
 	{640, 480, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
 		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+};
+
+static const struct v4l2_pix_format model2_mode[] = {
+	{160, 120, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{176, 144, V4L2_PIX_FMT_CIT_YYVYUY, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144 * 3 / 2,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{320, 240, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB},
+	{352, 288, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288,
 		.colorspace = V4L2_COLORSPACE_SRGB},
 };
 
@@ -699,6 +750,11 @@ static const u16 rca_initdata[][3] = {
 	{0, 0x0003, 0x0111},
 };
 
+/* TESTME the old ibmcam driver repeats certain commands to Model1 cameras, we
+   do the same for now (testing needed to see if this is really necessary) */
+static const int cit_model1_ntries = 5;
+static const int cit_model1_ntries2 = 2;
+
 static int cit_write_reg(struct gspca_dev *gspca_dev, u16 value, u16 index)
 {
 	struct usb_device *udev = gspca_dev->dev;
@@ -739,7 +795,116 @@ static int cit_read_reg(struct gspca_dev *gspca_dev, u16 index)
 }
 
 /*
- * ibmcam_model3_Packet1()
+ * cit_send_FF_04_02()
+ *
+ * This procedure sends magic 3-command prefix to the camera.
+ * The purpose of this prefix is not known.
+ *
+ * History:
+ * 1/2/00   Created.
+ */
+static void cit_send_FF_04_02(struct gspca_dev *gspca_dev)
+{
+	cit_write_reg(gspca_dev, 0x00FF, 0x0127);
+	cit_write_reg(gspca_dev, 0x0004, 0x0124);
+	cit_write_reg(gspca_dev, 0x0002, 0x0124);
+}
+
+static void cit_send_00_04_06(struct gspca_dev *gspca_dev)
+{
+	cit_write_reg(gspca_dev, 0x0000, 0x0127);
+	cit_write_reg(gspca_dev, 0x0004, 0x0124);
+	cit_write_reg(gspca_dev, 0x0006, 0x0124);
+}
+
+static void cit_send_x_00(struct gspca_dev *gspca_dev, unsigned short x)
+{
+	cit_write_reg(gspca_dev, x,      0x0127);
+	cit_write_reg(gspca_dev, 0x0000, 0x0124);
+}
+
+static void cit_send_x_00_05(struct gspca_dev *gspca_dev, unsigned short x)
+{
+	cit_send_x_00(gspca_dev, x);
+	cit_write_reg(gspca_dev, 0x0005, 0x0124);
+}
+
+static void cit_send_x_00_05_02(struct gspca_dev *gspca_dev, unsigned short x)
+{
+	cit_write_reg(gspca_dev, x,      0x0127);
+	cit_write_reg(gspca_dev, 0x0000, 0x0124);
+	cit_write_reg(gspca_dev, 0x0005, 0x0124);
+	cit_write_reg(gspca_dev, 0x0002, 0x0124);
+}
+
+static void cit_send_x_01_00_05(struct gspca_dev *gspca_dev, u16 x)
+{
+	cit_write_reg(gspca_dev, x,      0x0127);
+	cit_write_reg(gspca_dev, 0x0001, 0x0124);
+	cit_write_reg(gspca_dev, 0x0000, 0x0124);
+	cit_write_reg(gspca_dev, 0x0005, 0x0124);
+}
+
+static void cit_send_x_00_05_02_01(struct gspca_dev *gspca_dev, u16 x)
+{
+	cit_write_reg(gspca_dev, x,      0x0127);
+	cit_write_reg(gspca_dev, 0x0000, 0x0124);
+	cit_write_reg(gspca_dev, 0x0005, 0x0124);
+	cit_write_reg(gspca_dev, 0x0002, 0x0124);
+	cit_write_reg(gspca_dev, 0x0001, 0x0124);
+}
+
+static void cit_send_x_00_05_02_08_01(struct gspca_dev *gspca_dev, u16 x)
+{
+	cit_write_reg(gspca_dev, x,      0x0127);
+	cit_write_reg(gspca_dev, 0x0000, 0x0124);
+	cit_write_reg(gspca_dev, 0x0005, 0x0124);
+	cit_write_reg(gspca_dev, 0x0002, 0x0124);
+	cit_write_reg(gspca_dev, 0x0008, 0x0124);
+	cit_write_reg(gspca_dev, 0x0001, 0x0124);
+}
+
+static void cit_Packet_Format1(struct gspca_dev *gspca_dev, u16 fkey, u16 val)
+{
+	cit_send_x_01_00_05(gspca_dev, 0x0088);
+	cit_send_x_00_05(gspca_dev, fkey);
+	cit_send_x_00_05_02_08_01(gspca_dev, val);
+	cit_send_x_00_05(gspca_dev, 0x0088);
+	cit_send_x_00_05_02_01(gspca_dev, fkey);
+	cit_send_x_00_05(gspca_dev, 0x0089);
+	cit_send_x_00(gspca_dev, fkey);
+	cit_send_00_04_06(gspca_dev);
+	cit_read_reg(gspca_dev, 0x0126);
+	cit_send_FF_04_02(gspca_dev);
+}
+
+static void cit_PacketFormat2(struct gspca_dev *gspca_dev, u16 fkey, u16 val)
+{
+	cit_send_x_01_00_05(gspca_dev, 0x0088);
+	cit_send_x_00_05(gspca_dev, fkey);
+	cit_send_x_00_05_02(gspca_dev, val);
+}
+
+static void cit_model2_Packet2(struct gspca_dev *gspca_dev)
+{
+	cit_write_reg(gspca_dev, 0x00ff, 0x012d);
+	cit_write_reg(gspca_dev, 0xfea3, 0x0124);
+}
+
+static void cit_model2_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
+{
+	cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+	cit_write_reg(gspca_dev, 0x00ff, 0x012e);
+	cit_write_reg(gspca_dev, v1,     0x012f);
+	cit_write_reg(gspca_dev, 0x00ff, 0x0130);
+	cit_write_reg(gspca_dev, 0xc719, 0x0124);
+	cit_write_reg(gspca_dev, v2,     0x0127);
+
+	cit_model2_Packet2(gspca_dev);
+}
+
+/*
+ * cit_model3_Packet1()
  *
  * 00_0078_012d
  * 00_0097_012f
@@ -756,6 +921,29 @@ static void cit_model3_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
 	cit_write_reg(gspca_dev, 0xfea8, 0x0124);
 }
 
+static void cit_model4_Packet1(struct gspca_dev *gspca_dev, u16 v1, u16 v2)
+{
+	cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+	cit_write_reg(gspca_dev, v1,     0x012f);
+	cit_write_reg(gspca_dev, 0xd141, 0x0124);
+	cit_write_reg(gspca_dev, v2,     0x0127);
+	cit_write_reg(gspca_dev, 0xfea8, 0x0124);
+}
+
+static void cit_model4_BrightnessPacket(struct gspca_dev *gspca_dev, u16 val)
+{
+	cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+	cit_write_reg(gspca_dev, 0x0026, 0x012f);
+	cit_write_reg(gspca_dev, 0xd141, 0x0124);
+	cit_write_reg(gspca_dev, val,    0x0127);
+	cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+	cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+	cit_write_reg(gspca_dev, 0x0038, 0x012d);
+	cit_write_reg(gspca_dev, 0x0004, 0x012f);
+	cit_write_reg(gspca_dev, 0xd145, 0x0124);
+	cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+}
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 		     const struct usb_device_id *id)
@@ -769,16 +957,36 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 	switch (sd->model) {
+	case CIT_MODEL1:
+		cam->cam_mode = cif_yuv_mode;
+		cam->nmodes = ARRAY_SIZE(cif_yuv_mode);
+		gspca_dev->ctrl_dis = (1 << SD_HUE);
+		break;
+	case CIT_MODEL2:
+		cam->cam_mode = model2_mode + 1; /* no 160x120 */
+		cam->nmodes = 3;
+		gspca_dev->ctrl_dis = (1 << SD_CONTRAST) |
+				      (1 << SD_SHARPNESS);
+		break;
 	case CIT_MODEL3:
 		cam->cam_mode = vga_yuv_mode;
 		cam->nmodes = ARRAY_SIZE(vga_yuv_mode);
-		gspca_dev->ctrl_dis = (1 << SD_HUE);
+		gspca_dev->ctrl_dis = (1 << SD_HUE) | (1 << SD_LIGHTING);
+		sd->stop_on_control_change = 1;
+		break;
+	case CIT_MODEL4:
+		cam->cam_mode = model2_mode;
+		cam->nmodes = ARRAY_SIZE(model2_mode);
+		gspca_dev->ctrl_dis = (1 << SD_CONTRAST) |
+				      (1 << SD_SHARPNESS) |
+				      (1 << SD_LIGHTING);
 		break;
 	case CIT_IBM_NETCAM_PRO:
 		cam->cam_mode = vga_yuv_mode;
 		cam->nmodes = 2; /* no 640 x 480 */
 		cam->input_flags = V4L2_IN_ST_VFLIP;
 		gspca_dev->ctrl_dis = ~(1 << SD_CONTRAST);
+		sd->stop_on_control_change = 1;
 		break;
 	}
 
@@ -786,6 +994,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = CONTRAST_DEFAULT;
 	sd->hue = HUE_DEFAULT;
 	sd->sharpness = SHARPNESS_DEFAULT;
+	sd->lighting = LIGHTING_DEFAULT;
 
 	return 0;
 }
@@ -988,7 +1197,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
+	case CIT_MODEL2:
 	case CIT_MODEL3:
+	case CIT_MODEL4:
 		break; /* All is done in sd_start */
 	case CIT_IBM_NETCAM_PRO:
 		cit_init_ibm_netcam_pro(gspca_dev);
@@ -1001,11 +1213,33 @@ static int sd_init(struct gspca_dev *gspca_dev)
 static int cit_set_brightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
+		/* Model 1: Brightness range 0 - 63 */
+		cit_Packet_Format1(gspca_dev, 0x0031, sd->brightness);
+		cit_Packet_Format1(gspca_dev, 0x0032, sd->brightness);
+		cit_Packet_Format1(gspca_dev, 0x0033, sd->brightness);
+		break;
+	case CIT_MODEL2:
+		/* Model 2: Brightness range 0x60 - 0xee */
+		/* Scale 0 - 63 to 0x60 - 0xee */
+		i = 0x60 + sd->brightness * 2254 / 1000;
+		cit_model2_Packet1(gspca_dev, 0x001a, i);
+		break;
 	case CIT_MODEL3:
 		/* Model 3: Brightness range 'i' in [0x0C..0x3F] */
-		cit_model3_Packet1(gspca_dev, 0x0036, sd->brightness);
+		i = sd->brightness;
+		if (i < 0x0c)
+			i = 0x0c;
+		cit_model3_Packet1(gspca_dev, 0x0036, i);
+		break;
+	case CIT_MODEL4:
+		/* Model 4: Brightness range 'i' in [0x04..0xb4] */
+		/* Scale 0 - 63 to 0x04 - 0xb4 */
+		i = 0x04 + sd->brightness * 2794 / 1000;
+		cit_model4_BrightnessPacket(gspca_dev, i);
 		break;
 	case CIT_IBM_NETCAM_PRO:
 		/* No (known) brightness control for ibm netcam pro */
@@ -1020,6 +1254,20 @@ static int cit_set_contrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
+	{
+		/* Scale 0 - 20 to 15 - 0 */
+		int i, new_contrast = (20 - sd->contrast) * 1000 / 1333;
+		for (i = 0; i < cit_model1_ntries; i++) {
+			cit_Packet_Format1(gspca_dev, 0x0014, new_contrast);
+			cit_send_FF_04_02(gspca_dev);
+		}
+		break;
+	}
+	case CIT_MODEL2:
+	case CIT_MODEL4:
+		/* Models 2, 4 do not have this control. */
+		break;
 	case CIT_MODEL3:
 	{	/* Preset hardware values */
 		static const struct {
@@ -1053,9 +1301,46 @@ static int cit_set_hue(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
-	case CIT_MODEL3:
-		/* according to the ibmcam driver this does not work 8/
-		/* cit_model3_Packet1(gspca_dev, 0x007e, sd->hue); */
+	case CIT_MODEL1:
+		/* No hue control for model1 */
+		break;
+	case CIT_MODEL2:
+		cit_model2_Packet1(gspca_dev, 0x0024, sd->hue);
+		/* cit_model2_Packet1(gspca_dev, 0x0020, sat); */
+		break;
+	case CIT_MODEL3: {
+		/* Model 3: Brightness range 'i' in [0x05..0x37] */
+		/* TESTME according to the ibmcam driver this does not work */
+		if (0) {
+			/* Scale 0 - 127 to 0x05 - 0x37 */
+			int i = 0x05 + sd->hue * 1000 / 2540;
+			cit_model3_Packet1(gspca_dev, 0x007e, i);
+		}
+		break;
+	}
+	case CIT_MODEL4:
+		/* HDG: taken from ibmcam, setting the color gains does not
+		 * really belong here.
+		 *
+		 * I am not sure r/g/b_gain variables exactly control gain
+		 * of those channels. Most likely they subtly change some
+		 * very internal image processing settings in the camera.
+		 * In any case, here is what they do, and feel free to tweak:
+		 *
+		 * r_gain: seriously affects red gain
+		 * g_gain: seriously affects green gain
+		 * b_gain: seriously affects blue gain
+		 * hue: changes average color from violet (0) to red (0xFF)
+		 */
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x001e, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev,    160, 0x0127);  /* Green gain */
+		cit_write_reg(gspca_dev,    160, 0x012e);  /* Red gain */
+		cit_write_reg(gspca_dev,    160, 0x0130);  /* Blue gain */
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, sd->hue, 0x012d); /* Hue */
+		cit_write_reg(gspca_dev, 0xf545, 0x0124);
 		break;
 	case CIT_IBM_NETCAM_PRO:
 		/* No hue control for ibm netcam pro */
@@ -1069,6 +1354,19 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL1: {
+		int i;
+		const unsigned short sa[] = {
+			0x11, 0x13, 0x16, 0x18, 0x1a, 0x8, 0x0a };
+
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_PacketFormat2(gspca_dev, 0x0013, sa[sd->sharpness]);
+		break;
+	}
+	case CIT_MODEL2:
+	case CIT_MODEL4:
+		/* Models 2, 4 do not have this control */
+		break;
 	case CIT_MODEL3:
 	{	/*
 		 * "Use a table of magic numbers.
@@ -1102,17 +1400,62 @@ static int cit_set_sharpness(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+/*
+ * cit_set_lighting()
+ *
+ * Camera model 1:
+ * We have 3 levels of lighting conditions: 0=Bright, 1=Medium, 2=Low.
+ *
+ * Camera model 2:
+ * We have 16 levels of lighting, 0 for bright light and up to 15 for
+ * low light. But values above 5 or so are useless because camera is
+ * not really capable to produce anything worth viewing at such light.
+ * This setting may be altered only in certain camera state.
+ *
+ * Low lighting forces slower FPS.
+ *
+ * History:
+ * 1/5/00   Created.
+ * 2/20/00  Added support for Model 2 cameras.
+ */
+static void cit_set_lighting(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->model) {
+	case CIT_MODEL1: {
+		int i;
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x0027, sd->lighting);
+		break;
+	}
+	case CIT_MODEL2:
+	case CIT_MODEL3:
+	case CIT_MODEL4:
+	case CIT_IBM_NETCAM_PRO:
+		break;
+	}
+}
+
 static int cit_restart_stream(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
 	case CIT_MODEL3:
 	case CIT_IBM_NETCAM_PRO:
 		cit_write_reg(gspca_dev, 0x0001, 0x0114);
+		/* Fall through */
+	case CIT_MODEL2:
+	case CIT_MODEL4:
 		cit_write_reg(gspca_dev, 0x00c0, 0x010c); /* Go! */
 		usb_clear_halt(gspca_dev->dev, gspca_dev->urb[0]->pipe);
-		cit_write_reg(gspca_dev, 0x0001, 0x0113);
+		/* This happens repeatedly while streaming with the ibm netcam
+		   pro and the ibmcam driver did it for model3 after changing
+		   settings, but it does not seem to have any effect. */
+		/* cit_write_reg(gspca_dev, 0x0001, 0x0113); */
+		break;
 	}
 
 	sd->sof_read = 0;
@@ -1120,8 +1463,402 @@ static int cit_restart_stream(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
+static int cit_start_model1(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i, clock_div = 0;
+
+	cit_read_reg(gspca_dev, 0x0128);
+	cit_read_reg(gspca_dev, 0x0100);
+	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
+	cit_read_reg(gspca_dev, 0x0100);
+	cit_write_reg(gspca_dev, 0x81, 0x0100);	/* LED Off */
+	cit_read_reg(gspca_dev, 0x0100);
+	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
+	cit_write_reg(gspca_dev, 0x01, 0x0108);
+
+	cit_write_reg(gspca_dev, 0x03, 0x0112);
+	cit_read_reg(gspca_dev, 0x0115);
+	cit_write_reg(gspca_dev, 0x06, 0x0115);
+	cit_read_reg(gspca_dev, 0x0116);
+	cit_write_reg(gspca_dev, 0x44, 0x0116);
+	cit_read_reg(gspca_dev, 0x0116);
+	cit_write_reg(gspca_dev, 0x40, 0x0116);
+	cit_read_reg(gspca_dev, 0x0115);
+	cit_write_reg(gspca_dev, 0x0e, 0x0115);
+	cit_write_reg(gspca_dev, 0x19, 0x012c);
+
+	cit_Packet_Format1(gspca_dev, 0x00, 0x1e);
+	cit_Packet_Format1(gspca_dev, 0x39, 0x0d);
+	cit_Packet_Format1(gspca_dev, 0x39, 0x09);
+	cit_Packet_Format1(gspca_dev, 0x3b, 0x00);
+	cit_Packet_Format1(gspca_dev, 0x28, 0x22);
+	cit_Packet_Format1(gspca_dev, 0x27, 0x00);
+	cit_Packet_Format1(gspca_dev, 0x2b, 0x1f);
+	cit_Packet_Format1(gspca_dev, 0x39, 0x08);
+
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x2c, 0x00);
+
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x30, 0x14);
+
+	cit_PacketFormat2(gspca_dev, 0x39, 0x02);
+	cit_PacketFormat2(gspca_dev, 0x01, 0xe1);
+	cit_PacketFormat2(gspca_dev, 0x02, 0xcd);
+	cit_PacketFormat2(gspca_dev, 0x03, 0xcd);
+	cit_PacketFormat2(gspca_dev, 0x04, 0xfa);
+	cit_PacketFormat2(gspca_dev, 0x3f, 0xff);
+	cit_PacketFormat2(gspca_dev, 0x39, 0x00);
+
+	cit_PacketFormat2(gspca_dev, 0x39, 0x02);
+	cit_PacketFormat2(gspca_dev, 0x0a, 0x37);
+	cit_PacketFormat2(gspca_dev, 0x0b, 0xb8);
+	cit_PacketFormat2(gspca_dev, 0x0c, 0xf3);
+	cit_PacketFormat2(gspca_dev, 0x0d, 0xe3);
+	cit_PacketFormat2(gspca_dev, 0x0e, 0x0d);
+	cit_PacketFormat2(gspca_dev, 0x0f, 0xf2);
+	cit_PacketFormat2(gspca_dev, 0x10, 0xd5);
+	cit_PacketFormat2(gspca_dev, 0x11, 0xba);
+	cit_PacketFormat2(gspca_dev, 0x12, 0x53);
+	cit_PacketFormat2(gspca_dev, 0x3f, 0xff);
+	cit_PacketFormat2(gspca_dev, 0x39, 0x00);
+
+	cit_PacketFormat2(gspca_dev, 0x39, 0x02);
+	cit_PacketFormat2(gspca_dev, 0x16, 0x00);
+	cit_PacketFormat2(gspca_dev, 0x17, 0x28);
+	cit_PacketFormat2(gspca_dev, 0x18, 0x7d);
+	cit_PacketFormat2(gspca_dev, 0x19, 0xbe);
+	cit_PacketFormat2(gspca_dev, 0x3f, 0xff);
+	cit_PacketFormat2(gspca_dev, 0x39, 0x00);
+
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x00, 0x18);
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x13, 0x18);
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x14, 0x06);
+
+	/* TESTME These are handled through controls
+	   KEEP until someone can test leaving this out is ok */
+	if (0) {
+		/* This is default brightness */
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x31, 0x37);
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x32, 0x46);
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x33, 0x55);
+	}
+
+	cit_Packet_Format1(gspca_dev, 0x2e, 0x04);
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x2d, 0x04);
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x29, 0x80);
+	cit_Packet_Format1(gspca_dev, 0x2c, 0x01);
+	cit_Packet_Format1(gspca_dev, 0x30, 0x17);
+	cit_Packet_Format1(gspca_dev, 0x39, 0x08);
+	for (i = 0; i < cit_model1_ntries; i++)
+		cit_Packet_Format1(gspca_dev, 0x34, 0x00);
+
+	cit_write_reg(gspca_dev, 0x00, 0x0101);
+	cit_write_reg(gspca_dev, 0x00, 0x010a);
+
+	switch (gspca_dev->width) {
+	case 128: /* 128x96 */
+		cit_write_reg(gspca_dev, 0x80, 0x0103);
+		cit_write_reg(gspca_dev, 0x60, 0x0105);
+		cit_write_reg(gspca_dev, 0x0c, 0x010b);
+		cit_write_reg(gspca_dev, 0x04, 0x011b);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x0b, 0x011d);
+		cit_write_reg(gspca_dev, 0x00, 0x011e);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x00, 0x0129);
+		clock_div = 3;
+		break;
+	case 176: /* 176x144 */
+		cit_write_reg(gspca_dev, 0xb0, 0x0103);
+		cit_write_reg(gspca_dev, 0x8f, 0x0105);
+		cit_write_reg(gspca_dev, 0x06, 0x010b);
+		cit_write_reg(gspca_dev, 0x04, 0x011b);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x0d, 0x011d);
+		cit_write_reg(gspca_dev, 0x00, 0x011e);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x03, 0x0129);
+		clock_div = 3;
+		break;
+	case 352: /* 352x288 */
+		cit_write_reg(gspca_dev, 0xb0, 0x0103);
+		cit_write_reg(gspca_dev, 0x90, 0x0105);
+		cit_write_reg(gspca_dev, 0x02, 0x010b);
+		cit_write_reg(gspca_dev, 0x04, 0x011b);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x05, 0x011d);
+		cit_write_reg(gspca_dev, 0x00, 0x011e);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x00, 0x0129);
+		clock_div = 5;
+		break;
+	}
+
+	cit_write_reg(gspca_dev, 0xff, 0x012b);
+
+	/* TESTME These are handled through controls
+	   KEEP until someone can test leaving this out is ok */
+	if (0) {
+		/* This is another brightness - don't know why */
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x31, 0xc3);
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x32, 0xd2);
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x33, 0xe1);
+
+		/* Default contrast */
+		for (i = 0; i < cit_model1_ntries; i++)
+			cit_Packet_Format1(gspca_dev, 0x14, 0x0a);
+
+		/* Default sharpness */
+		for (i = 0; i < cit_model1_ntries2; i++)
+			cit_PacketFormat2(gspca_dev, 0x13, 0x1a);
+
+		/* Default lighting conditions */
+		cit_Packet_Format1(gspca_dev, 0x0027, sd->lighting);
+	}
+
+	/* Assorted init */
+	switch (gspca_dev->width) {
+	case 128: /* 128x96 */
+		cit_Packet_Format1(gspca_dev, 0x2b, 0x1e);
+		cit_write_reg(gspca_dev, 0xc9, 0x0119);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x80, 0x0109);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x36, 0x0102);
+		cit_write_reg(gspca_dev, 0x1a, 0x0104);
+		cit_write_reg(gspca_dev, 0x04, 0x011a);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x2b, 0x011c);
+		cit_write_reg(gspca_dev, 0x23, 0x012a);	/* Same everywhere */
+		break;
+	case 176: /* 176x144 */
+		cit_Packet_Format1(gspca_dev, 0x2b, 0x1e);
+		cit_write_reg(gspca_dev, 0xc9, 0x0119);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x80, 0x0109);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x04, 0x0102);
+		cit_write_reg(gspca_dev, 0x02, 0x0104);
+		cit_write_reg(gspca_dev, 0x04, 0x011a);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x2b, 0x011c);
+		cit_write_reg(gspca_dev, 0x23, 0x012a);	/* Same everywhere */
+		break;
+	case 352: /* 352x288 */
+		cit_Packet_Format1(gspca_dev, 0x2b, 0x1f);
+		cit_write_reg(gspca_dev, 0xc9, 0x0119);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x80, 0x0109);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x08, 0x0102);
+		cit_write_reg(gspca_dev, 0x01, 0x0104);
+		cit_write_reg(gspca_dev, 0x04, 0x011a);	/* Same everywhere */
+		cit_write_reg(gspca_dev, 0x2f, 0x011c);
+		cit_write_reg(gspca_dev, 0x23, 0x012a);	/* Same everywhere */
+		break;
+	}
+
+	cit_write_reg(gspca_dev, 0x01, 0x0100);	/* LED On  */
+	cit_write_reg(gspca_dev, clock_div, 0x0111);
+
+	sd->sof_len = 4;
+
+	return 0;
+}
+
+static int cit_start_model2(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int clock_div = 0;
+
+	cit_write_reg(gspca_dev, 0x0000, 0x0100);	/* LED on */
+	cit_read_reg(gspca_dev, 0x0116);
+	cit_write_reg(gspca_dev, 0x0060, 0x0116);
+	cit_write_reg(gspca_dev, 0x0002, 0x0112);
+	cit_write_reg(gspca_dev, 0x00bc, 0x012c);
+	cit_write_reg(gspca_dev, 0x0008, 0x012b);
+	cit_write_reg(gspca_dev, 0x0000, 0x0108);
+	cit_write_reg(gspca_dev, 0x0001, 0x0133);
+	cit_write_reg(gspca_dev, 0x0001, 0x0102);
+	switch (gspca_dev->width) {
+	case 176: /* 176x144 */
+		cit_write_reg(gspca_dev, 0x002c, 0x0103);	/* All except 320x240 */
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);	/* Same */
+		cit_write_reg(gspca_dev, 0x0024, 0x0105);	/* 176x144, 352x288 */
+		cit_write_reg(gspca_dev, 0x00b9, 0x010a);	/* Unique to this mode */
+		cit_write_reg(gspca_dev, 0x0038, 0x0119);	/* Unique to this mode */
+		/* TESTME HDG: this does not seem right
+		   (it is 2 for all other resolutions) */
+		sd->sof_len = 10;
+		break;
+	case 320: /* 320x240 */
+		cit_write_reg(gspca_dev, 0x0028, 0x0103);	/* Unique to this mode */
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);	/* Same */
+		cit_write_reg(gspca_dev, 0x001e, 0x0105);	/* 320x240, 352x240 */
+		cit_write_reg(gspca_dev, 0x0039, 0x010a);	/* All except 176x144 */
+		cit_write_reg(gspca_dev, 0x0070, 0x0119);	/* All except 176x144 */
+		sd->sof_len = 2;
+		break;
+	/* case VIDEOSIZE_352x240: */
+		cit_write_reg(gspca_dev, 0x002c, 0x0103);	/* All except 320x240 */
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);	/* Same */
+		cit_write_reg(gspca_dev, 0x001e, 0x0105);	/* 320x240, 352x240 */
+		cit_write_reg(gspca_dev, 0x0039, 0x010a);	/* All except 176x144 */
+		cit_write_reg(gspca_dev, 0x0070, 0x0119);	/* All except 176x144 */
+		sd->sof_len = 2;
+		break;
+	case 352: /* 352x288 */
+		cit_write_reg(gspca_dev, 0x002c, 0x0103);	/* All except 320x240 */
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);	/* Same */
+		cit_write_reg(gspca_dev, 0x0024, 0x0105);	/* 176x144, 352x288 */
+		cit_write_reg(gspca_dev, 0x0039, 0x010a);	/* All except 176x144 */
+		cit_write_reg(gspca_dev, 0x0070, 0x0119);	/* All except 176x144 */
+		sd->sof_len = 2;
+		break;
+	}
+
+	cit_write_reg(gspca_dev, 0x0000, 0x0100);	/* LED on */
+
+	switch (gspca_dev->width) {
+	case 176: /* 176x144 */
+		cit_write_reg(gspca_dev, 0x0050, 0x0111);
+		cit_write_reg(gspca_dev, 0x00d0, 0x0111);
+		break;
+	case 320: /* 320x240 */
+	case 352: /* 352x288 */
+		cit_write_reg(gspca_dev, 0x0040, 0x0111);
+		cit_write_reg(gspca_dev, 0x00c0, 0x0111);
+		break;
+	}
+	cit_write_reg(gspca_dev, 0x009b, 0x010f);
+	cit_write_reg(gspca_dev, 0x00bb, 0x010f);
+
+	/*
+	 * Hardware settings, may affect CMOS sensor; not user controls!
+	 * -------------------------------------------------------------
+	 * 0x0004: no effect
+	 * 0x0006: hardware effect
+	 * 0x0008: no effect
+	 * 0x000a: stops video stream, probably important h/w setting
+	 * 0x000c: changes color in hardware manner (not user setting)
+	 * 0x0012: changes number of colors (does not affect speed)
+	 * 0x002a: no effect
+	 * 0x002c: hardware setting (related to scan lines)
+	 * 0x002e: stops video stream, probably important h/w setting
+	 */
+	cit_model2_Packet1(gspca_dev, 0x000a, 0x005c);
+	cit_model2_Packet1(gspca_dev, 0x0004, 0x0000);
+	cit_model2_Packet1(gspca_dev, 0x0006, 0x00fb);
+	cit_model2_Packet1(gspca_dev, 0x0008, 0x0000);
+	cit_model2_Packet1(gspca_dev, 0x000c, 0x0009);
+	cit_model2_Packet1(gspca_dev, 0x0012, 0x000a);
+	cit_model2_Packet1(gspca_dev, 0x002a, 0x0000);
+	cit_model2_Packet1(gspca_dev, 0x002c, 0x0000);
+	cit_model2_Packet1(gspca_dev, 0x002e, 0x0008);
+
+	/*
+	 * Function 0x0030 pops up all over the place. Apparently
+	 * it is a hardware control register, with every bit assigned to
+	 * do something.
+	 */
+	cit_model2_Packet1(gspca_dev, 0x0030, 0x0000);
+
+	/*
+	 * Magic control of CMOS sensor. Only lower values like
+	 * 0-3 work, and picture shifts left or right. Don't change.
+	 */
+	switch (gspca_dev->width) {
+	case 176: /* 176x144 */
+		cit_model2_Packet1(gspca_dev, 0x0014, 0x0002);
+		cit_model2_Packet1(gspca_dev, 0x0016, 0x0002); /* Horizontal shift */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x004a); /* Another hardware setting */
+		clock_div = 6;
+		break;
+	case 320: /* 320x240 */
+		cit_model2_Packet1(gspca_dev, 0x0014, 0x0009);
+		cit_model2_Packet1(gspca_dev, 0x0016, 0x0005); /* Horizontal shift */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x0044); /* Another hardware setting */
+		clock_div = 8;
+		break;
+	/* case VIDEOSIZE_352x240: */
+		/* This mode doesn't work as Windows programs it; changed to work */
+		cit_model2_Packet1(gspca_dev, 0x0014, 0x0009); /* Windows sets this to 8 */
+		cit_model2_Packet1(gspca_dev, 0x0016, 0x0003); /* Horizontal shift */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x0044); /* Windows sets this to 0x0045 */
+		clock_div = 10;
+		break;
+	case 352: /* 352x288 */
+		cit_model2_Packet1(gspca_dev, 0x0014, 0x0003);
+		cit_model2_Packet1(gspca_dev, 0x0016, 0x0002); /* Horizontal shift */
+		cit_model2_Packet1(gspca_dev, 0x0018, 0x004a); /* Another hardware setting */
+		clock_div = 16;
+		break;
+	}
+
+	/* TESTME These are handled through controls
+	   KEEP until someone can test leaving this out is ok */
+	if (0)
+		cit_model2_Packet1(gspca_dev, 0x001a, 0x005a);
+
+	/*
+	 * We have our own frame rate setting varying from 0 (slowest) to 6
+	 * (fastest). The camera model 2 allows frame rate in range [0..0x1F]
+	 # where 0 is also the slowest setting. However for all practical
+	 # reasons high settings make no sense because USB is not fast enough
+	 # to support high FPS. Be aware that the picture datastream will be
+	 # severely disrupted if you ask for frame rate faster than allowed
+	 # for the video size - see below:
+	 *
+	 * Allowable ranges (obtained experimentally on OHCI, K6-3, 450 MHz):
+	 * -----------------------------------------------------------------
+	 * 176x144: [6..31]
+	 * 320x240: [8..31]
+	 * 352x240: [10..31]
+	 * 352x288: [16..31] I have to raise lower threshold for stability...
+	 *
+	 * As usual, slower FPS provides better sensitivity.
+	 */
+	cit_model2_Packet1(gspca_dev, 0x001c, clock_div);
+
+	/*
+	 * This setting does not visibly affect pictures; left it here
+	 * because it was present in Windows USB data stream. This function
+	 * does not allow arbitrary values and apparently is a bit mask, to
+	 * be activated only at appropriate time. Don't change it randomly!
+	 */
+	switch (gspca_dev->width) {
+	case 176: /* 176x144 */
+		cit_model2_Packet1(gspca_dev, 0x0026, 0x00c2);
+		break;
+	case 320: /* 320x240 */
+		cit_model2_Packet1(gspca_dev, 0x0026, 0x0044);
+		break;
+	/* case VIDEOSIZE_352x240: */
+		cit_model2_Packet1(gspca_dev, 0x0026, 0x0046);
+		break;
+	case 352: /* 352x288 */
+		cit_model2_Packet1(gspca_dev, 0x0026, 0x0048);
+		break;
+	}
+
+	/* FIXME this cannot be changed while streaming, so we
+	   should report a grabbed flag for this control. */
+	cit_model2_Packet1(gspca_dev, 0x0028, sd->lighting);
+	/* color balance rg2 */
+	cit_model2_Packet1(gspca_dev, 0x001e, 0x002f);
+	/* saturation */
+	cit_model2_Packet1(gspca_dev, 0x0020, 0x0034);
+	/* color balance yb */
+	cit_model2_Packet1(gspca_dev, 0x0022, 0x00a0);
+
+	/* Hardware control command */
+	cit_model2_Packet1(gspca_dev, 0x0030, 0x0004);
+
+	return 0;
+}
+
 static int cit_start_model3(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
 	int i, clock_div = 0;
 
@@ -1143,7 +1880,7 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 	cit_read_reg(gspca_dev, 0x0115);
 	cit_write_reg(gspca_dev, 0x000b, 0x0115);
 
-	/* HDG not in ibmcam driver, added to see if it helps with
+	/* TESTME HDG not in ibmcam driver, added to see if it helps with
 	   auto-detecting between model3 and ibm netcamera pro */
 	if (0) {
 		cit_write_reg(gspca_dev, 0x0078, 0x012d);
@@ -1354,11 +2091,339 @@ static int cit_start_model3(struct gspca_dev *gspca_dev)
 		}
 	}
 
+	sd->sof_len = 4;
+
+	return 0;
+}
+
+static int cit_start_model4(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	cit_write_reg(gspca_dev, 0x0000, 0x0100);
+	cit_write_reg(gspca_dev, 0x00c0, 0x0111);
+	cit_write_reg(gspca_dev, 0x00bc, 0x012c);
+	cit_write_reg(gspca_dev, 0x0080, 0x012b);
+	cit_write_reg(gspca_dev, 0x0000, 0x0108);
+	cit_write_reg(gspca_dev, 0x0001, 0x0133);
+	cit_write_reg(gspca_dev, 0x009b, 0x010f);
+	cit_write_reg(gspca_dev, 0x00bb, 0x010f);
+	cit_model4_Packet1(gspca_dev, 0x0038, 0x0000);
+	cit_model4_Packet1(gspca_dev, 0x000a, 0x005c);
+
+	cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+	cit_write_reg(gspca_dev, 0x0004, 0x012f);
+	cit_write_reg(gspca_dev, 0xd141, 0x0124);
+	cit_write_reg(gspca_dev, 0x0000, 0x0127);
+	cit_write_reg(gspca_dev, 0x00fb, 0x012e);
+	cit_write_reg(gspca_dev, 0x0000, 0x0130);
+	cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+	cit_write_reg(gspca_dev, 0x00aa, 0x012f);
+	cit_write_reg(gspca_dev, 0xd055, 0x0124);
+	cit_write_reg(gspca_dev, 0x000c, 0x0127);
+	cit_write_reg(gspca_dev, 0x0009, 0x012e);
+	cit_write_reg(gspca_dev, 0xaa28, 0x0124);
+
+	cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+	cit_write_reg(gspca_dev, 0x0012, 0x012f);
+	cit_write_reg(gspca_dev, 0xd141, 0x0124);
+	cit_write_reg(gspca_dev, 0x0008, 0x0127);
+	cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+	cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+	cit_write_reg(gspca_dev, 0x002a, 0x012d);
+	cit_write_reg(gspca_dev, 0x0000, 0x012f);
+	cit_write_reg(gspca_dev, 0xd145, 0x0124);
+	cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+	cit_model4_Packet1(gspca_dev, 0x0034, 0x0000);
+
+	switch (gspca_dev->width) {
+	case 128: /* 128x96 */
+		cit_write_reg(gspca_dev, 0x0070, 0x0119);
+		cit_write_reg(gspca_dev, 0x00d0, 0x0111);
+		cit_write_reg(gspca_dev, 0x0039, 0x010a);
+		cit_write_reg(gspca_dev, 0x0001, 0x0102);
+		cit_write_reg(gspca_dev, 0x0028, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x001e, 0x0105);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0016, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x000a, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0014, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012e);
+		cit_write_reg(gspca_dev, 0x001a, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a0a, 0x0124);
+		cit_write_reg(gspca_dev, 0x005a, 0x012d);
+		cit_write_reg(gspca_dev, 0x9545, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0127);
+		cit_write_reg(gspca_dev, 0x0018, 0x012e);
+		cit_write_reg(gspca_dev, 0x0043, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012f);
+		cit_write_reg(gspca_dev, 0xd055, 0x0124);
+		cit_write_reg(gspca_dev, 0x001c, 0x0127);
+		cit_write_reg(gspca_dev, 0x00eb, 0x012e);
+		cit_write_reg(gspca_dev, 0xaa28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0032, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0000, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0036, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x001e, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0017, 0x0127);
+		cit_write_reg(gspca_dev, 0x0013, 0x012e);
+		cit_write_reg(gspca_dev, 0x0031, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x0017, 0x012d);
+		cit_write_reg(gspca_dev, 0x0078, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x0000, 0x0127);
+		cit_write_reg(gspca_dev, 0xfea8, 0x0124);
+		sd->sof_len = 2;
+		break;
+	case 160: /* 160x120 */
+		cit_write_reg(gspca_dev, 0x0038, 0x0119);
+		cit_write_reg(gspca_dev, 0x00d0, 0x0111);
+		cit_write_reg(gspca_dev, 0x00b9, 0x010a);
+		cit_write_reg(gspca_dev, 0x0001, 0x0102);
+		cit_write_reg(gspca_dev, 0x0028, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x001e, 0x0105);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0016, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x000b, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0014, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012e);
+		cit_write_reg(gspca_dev, 0x001a, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a0a, 0x0124);
+		cit_write_reg(gspca_dev, 0x005a, 0x012d);
+		cit_write_reg(gspca_dev, 0x9545, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0127);
+		cit_write_reg(gspca_dev, 0x0018, 0x012e);
+		cit_write_reg(gspca_dev, 0x0043, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012f);
+		cit_write_reg(gspca_dev, 0xd055, 0x0124);
+		cit_write_reg(gspca_dev, 0x001c, 0x0127);
+		cit_write_reg(gspca_dev, 0x00c7, 0x012e);
+		cit_write_reg(gspca_dev, 0xaa28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0032, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0025, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0036, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x001e, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0048, 0x0127);
+		cit_write_reg(gspca_dev, 0x0035, 0x012e);
+		cit_write_reg(gspca_dev, 0x00d0, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x0048, 0x012d);
+		cit_write_reg(gspca_dev, 0x0090, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x0001, 0x0127);
+		cit_write_reg(gspca_dev, 0xfea8, 0x0124);
+		sd->sof_len = 2;
+		break;
+	case 176: /* 176x144 */
+		cit_write_reg(gspca_dev, 0x0038, 0x0119);
+		cit_write_reg(gspca_dev, 0x00d0, 0x0111);
+		cit_write_reg(gspca_dev, 0x00b9, 0x010a);
+		cit_write_reg(gspca_dev, 0x0001, 0x0102);
+		cit_write_reg(gspca_dev, 0x002c, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x0024, 0x0105);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0016, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0007, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0014, 0x012d);
+		cit_write_reg(gspca_dev, 0x0001, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012e);
+		cit_write_reg(gspca_dev, 0x001a, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a0a, 0x0124);
+		cit_write_reg(gspca_dev, 0x005e, 0x012d);
+		cit_write_reg(gspca_dev, 0x9545, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0127);
+		cit_write_reg(gspca_dev, 0x0018, 0x012e);
+		cit_write_reg(gspca_dev, 0x0049, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012f);
+		cit_write_reg(gspca_dev, 0xd055, 0x0124);
+		cit_write_reg(gspca_dev, 0x001c, 0x0127);
+		cit_write_reg(gspca_dev, 0x00c7, 0x012e);
+		cit_write_reg(gspca_dev, 0xaa28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0032, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0028, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0036, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x001e, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0010, 0x0127);
+		cit_write_reg(gspca_dev, 0x0013, 0x012e);
+		cit_write_reg(gspca_dev, 0x002a, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x0010, 0x012d);
+		cit_write_reg(gspca_dev, 0x006d, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x0001, 0x0127);
+		cit_write_reg(gspca_dev, 0xfea8, 0x0124);
+		/* TESTME HDG: this does not seem right
+		   (it is 2 for all other resolutions) */
+		sd->sof_len = 10;
+		break;
+	case 320: /* 320x240 */
+		cit_write_reg(gspca_dev, 0x0070, 0x0119);
+		cit_write_reg(gspca_dev, 0x00d0, 0x0111);
+		cit_write_reg(gspca_dev, 0x0039, 0x010a);
+		cit_write_reg(gspca_dev, 0x0001, 0x0102);
+		cit_write_reg(gspca_dev, 0x0028, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x001e, 0x0105);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0016, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x000a, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0014, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012e);
+		cit_write_reg(gspca_dev, 0x001a, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a0a, 0x0124);
+		cit_write_reg(gspca_dev, 0x005a, 0x012d);
+		cit_write_reg(gspca_dev, 0x9545, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0127);
+		cit_write_reg(gspca_dev, 0x0018, 0x012e);
+		cit_write_reg(gspca_dev, 0x0043, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012f);
+		cit_write_reg(gspca_dev, 0xd055, 0x0124);
+		cit_write_reg(gspca_dev, 0x001c, 0x0127);
+		cit_write_reg(gspca_dev, 0x00eb, 0x012e);
+		cit_write_reg(gspca_dev, 0xaa28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0032, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0000, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0036, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x001e, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0017, 0x0127);
+		cit_write_reg(gspca_dev, 0x0013, 0x012e);
+		cit_write_reg(gspca_dev, 0x0031, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x0017, 0x012d);
+		cit_write_reg(gspca_dev, 0x0078, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x0000, 0x0127);
+		cit_write_reg(gspca_dev, 0xfea8, 0x0124);
+		sd->sof_len = 2;
+		break;
+	case 352: /* 352x288 */
+		cit_write_reg(gspca_dev, 0x0070, 0x0119);
+		cit_write_reg(gspca_dev, 0x00c0, 0x0111);
+		cit_write_reg(gspca_dev, 0x0039, 0x010a);
+		cit_write_reg(gspca_dev, 0x0001, 0x0102);
+		cit_write_reg(gspca_dev, 0x002c, 0x0103);
+		cit_write_reg(gspca_dev, 0x0000, 0x0104);
+		cit_write_reg(gspca_dev, 0x0024, 0x0105);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0016, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0006, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0014, 0x012d);
+		cit_write_reg(gspca_dev, 0x0002, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012e);
+		cit_write_reg(gspca_dev, 0x001a, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a0a, 0x0124);
+		cit_write_reg(gspca_dev, 0x005e, 0x012d);
+		cit_write_reg(gspca_dev, 0x9545, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0127);
+		cit_write_reg(gspca_dev, 0x0018, 0x012e);
+		cit_write_reg(gspca_dev, 0x0049, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012f);
+		cit_write_reg(gspca_dev, 0xd055, 0x0124);
+		cit_write_reg(gspca_dev, 0x001c, 0x0127);
+		cit_write_reg(gspca_dev, 0x00cf, 0x012e);
+		cit_write_reg(gspca_dev, 0xaa28, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x0032, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0000, 0x0127);
+		cit_write_reg(gspca_dev, 0x00aa, 0x0130);
+		cit_write_reg(gspca_dev, 0x82a8, 0x0124);
+		cit_write_reg(gspca_dev, 0x0036, 0x012d);
+		cit_write_reg(gspca_dev, 0x0008, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0xfffa, 0x0124);
+		cit_write_reg(gspca_dev, 0x00aa, 0x012d);
+		cit_write_reg(gspca_dev, 0x001e, 0x012f);
+		cit_write_reg(gspca_dev, 0xd141, 0x0124);
+		cit_write_reg(gspca_dev, 0x0010, 0x0127);
+		cit_write_reg(gspca_dev, 0x0013, 0x012e);
+		cit_write_reg(gspca_dev, 0x0025, 0x0130);
+		cit_write_reg(gspca_dev, 0x8a28, 0x0124);
+		cit_write_reg(gspca_dev, 0x0010, 0x012d);
+		cit_write_reg(gspca_dev, 0x0048, 0x012f);
+		cit_write_reg(gspca_dev, 0xd145, 0x0124);
+		cit_write_reg(gspca_dev, 0x0000, 0x0127);
+		cit_write_reg(gspca_dev, 0xfea8, 0x0124);
+		sd->sof_len = 2;
+		break;
+	}
+
+	cit_model4_Packet1(gspca_dev, 0x0038, 0x0004);
+
 	return 0;
 }
 
 static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	const unsigned short compression = 0; /* 0=none, 7=best frame rate */
 	int i, clock_div = 0;
 
@@ -1446,6 +2511,8 @@ static int cit_start_ibm_netcam_pro(struct gspca_dev *gspca_dev)
 		}
 	}
 
+	sd->sof_len = 4;
+
 	return 0;
 }
 
@@ -1458,8 +2525,17 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int packet_size;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
+		cit_start_model1(gspca_dev);
+		break;
+	case CIT_MODEL2:
+		cit_start_model2(gspca_dev);
+		break;
 	case CIT_MODEL3:
 		cit_start_model3(gspca_dev);
+		break;
+	case CIT_MODEL4:
+		cit_start_model4(gspca_dev);
 		break;
 	case CIT_IBM_NETCAM_PRO:
 		cit_start_ibm_netcam_pro(gspca_dev);
@@ -1470,6 +2546,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	cit_set_contrast(gspca_dev);
 	cit_set_hue(gspca_dev);
 	cit_set_sharpness(gspca_dev);
+	cit_set_lighting(gspca_dev);
 
 	/* Program max isoc packet size, one day we should use this to
 	   allow us to work together with other isoc devices on the same
@@ -1492,14 +2569,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	switch (sd->model) {
-	case CIT_MODEL3:
-	case CIT_IBM_NETCAM_PRO:
-		cit_write_reg(gspca_dev, 0x0000, 0x010c);
-		break;
-	}
+	cit_write_reg(gspca_dev, 0x0000, 0x010c);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -1512,6 +2582,24 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		return;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
+		cit_send_FF_04_02(gspca_dev);
+		cit_read_reg(gspca_dev, 0x0100);
+		cit_write_reg(gspca_dev, 0x81, 0x0100);	/* LED Off */
+		break;
+	case CIT_MODEL2:
+	case CIT_MODEL4:
+		cit_model2_Packet1(gspca_dev, 0x0030, 0x0004);
+
+		cit_write_reg(gspca_dev, 0x0080, 0x0100);	/* LED Off */
+		cit_write_reg(gspca_dev, 0x0020, 0x0111);
+		cit_write_reg(gspca_dev, 0x00a0, 0x0111);
+
+		cit_model2_Packet1(gspca_dev, 0x0030, 0x0002);
+
+		cit_write_reg(gspca_dev, 0x0020, 0x0111);
+		cit_write_reg(gspca_dev, 0x0000, 0x0112);
+		break;
 	case CIT_MODEL3:
 		cit_write_reg(gspca_dev, 0x0006, 0x012c);
 		cit_model3_Packet1(gspca_dev, 0x0046, 0x0000);
@@ -1547,11 +2635,20 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 byte3;
 	int i;
 
 	switch (sd->model) {
+	case CIT_MODEL1:
 	case CIT_MODEL3:
 	case CIT_IBM_NETCAM_PRO:
+		if (sd->model == CIT_MODEL1)
+			byte3 = 0x00;
+		else if (gspca_dev->width == 640)
+			byte3 = 0x03;
+		else
+			byte3 = 0x02;
+
 		for (i = 0; i < len; i++) {
 			switch (sd->sof_read) {
 			case 0:
@@ -1566,7 +2663,7 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 				break;
 			case 2:
 				sd->sof_read = 0;
-				if (data[i] != 0xff) {
+				if (data[i] == byte3) {
 					if (i >= 4)
 						PDEBUG(D_FRAM,
 						       "header found at offset: %d: %02x %02x 00 ff %02x %02x\n",
@@ -1575,7 +2672,34 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 						       data[i - 3],
 						       data[i],
 						       data[i + 1]);
-					return data + i + 2;
+					return data + i + (sd->sof_len - 2);
+				}
+				break;
+			}
+		}
+		break;
+	case CIT_MODEL2:
+	case CIT_MODEL4:
+		/* TESTME we need to find a longer sof signature to avoid
+		   false positives */
+		for (i = 0; i < len; i++) {
+			switch (sd->sof_read) {
+			case 0:
+				if (data[i] == 0x00)
+					sd->sof_read++;
+				break;
+			case 1:
+				sd->sof_read = 0;
+				if (data[i] == 0xff) {
+					if (i >= 4)
+						PDEBUG(D_FRAM,
+						       "header found at offset: %d: %02x %02x 00 ff %02x %02x\n",
+						       i - 2,
+						       data[i - 4],
+						       data[i - 3],
+						       data[i],
+						       data[i + 1]);
+					return data + i + (sd->sof_len - 2);
 				}
 				break;
 			}
@@ -1588,6 +2712,7 @@ static u8 *cit_find_sof(struct gspca_dev *gspca_dev, u8 *data, int len)
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data, int len)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
 	sof = cit_find_sof(gspca_dev, data, len);
@@ -1596,8 +2721,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* finish decoding current frame */
 		n = sof - data;
-		if (n > 4)
-			n -= 4;
+		if (n > sd->sof_len)
+			n -= sd->sof_len;
 		else
 			n = 0;
 		gspca_frame_add(gspca_dev, LAST_PACKET,
@@ -1616,9 +2741,11 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->brightness = val;
 	if (gspca_dev->streaming) {
-		sd_stopN(gspca_dev);
+		if (sd->stop_on_control_change)
+			sd_stopN(gspca_dev);
 		cit_set_brightness(gspca_dev);
-		cit_restart_stream(gspca_dev);
+		if (sd->stop_on_control_change)
+			cit_restart_stream(gspca_dev);
 	}
 
 	return 0;
@@ -1639,9 +2766,11 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->contrast = val;
 	if (gspca_dev->streaming) {
-		sd_stopN(gspca_dev);
+		if (sd->stop_on_control_change)
+			sd_stopN(gspca_dev);
 		cit_set_contrast(gspca_dev);
-		cit_restart_stream(gspca_dev);
+		if (sd->stop_on_control_change)
+			cit_restart_stream(gspca_dev);
 	}
 
 	return 0;
@@ -1662,9 +2791,11 @@ static int sd_sethue(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->hue = val;
 	if (gspca_dev->streaming) {
-		sd_stopN(gspca_dev);
+		if (sd->stop_on_control_change)
+			sd_stopN(gspca_dev);
 		cit_set_hue(gspca_dev);
-		cit_restart_stream(gspca_dev);
+		if (sd->stop_on_control_change)
+			cit_restart_stream(gspca_dev);
 	}
 	return 0;
 }
@@ -1684,9 +2815,11 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->sharpness = val;
 	if (gspca_dev->streaming) {
-		sd_stopN(gspca_dev);
+		if (sd->stop_on_control_change)
+			sd_stopN(gspca_dev);
 		cit_set_sharpness(gspca_dev);
-		cit_restart_stream(gspca_dev);
+		if (sd->stop_on_control_change)
+			cit_restart_stream(gspca_dev);
 	}
 	return 0;
 }
@@ -1696,6 +2829,30 @@ static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->sharpness;
+
+	return 0;
+}
+
+static int sd_setlighting(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->lighting = val;
+	if (gspca_dev->streaming) {
+		if (sd->stop_on_control_change)
+			sd_stopN(gspca_dev);
+		cit_set_lighting(gspca_dev);
+		if (sd->stop_on_control_change)
+			cit_restart_stream(gspca_dev);
+	}
+	return 0;
+}
+
+static int sd_getlighting(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->lighting;
 
 	return 0;
 }
