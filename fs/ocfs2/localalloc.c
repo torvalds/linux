@@ -118,6 +118,7 @@ unsigned int ocfs2_la_default_mb(struct ocfs2_super *osb)
 {
 	unsigned int la_mb;
 	unsigned int gd_mb;
+	unsigned int la_max_mb;
 	unsigned int megs_per_slot;
 	struct super_block *sb = osb->sb;
 
@@ -181,6 +182,12 @@ unsigned int ocfs2_la_default_mb(struct ocfs2_super *osb)
 	/* Too many nodes, too few disk clusters. */
 	if (megs_per_slot < la_mb)
 		la_mb = megs_per_slot;
+
+	/* We can't store more bits than we can in a block. */
+	la_max_mb = ocfs2_clusters_to_megabytes(osb->sb,
+						ocfs2_local_alloc_size(sb) * 8);
+	if (la_mb > la_max_mb)
+		la_mb = la_max_mb;
 
 	return la_mb;
 }
