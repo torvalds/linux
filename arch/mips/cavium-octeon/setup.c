@@ -578,9 +578,6 @@ void __init prom_init(void)
 	}
 
 	if (strstr(arcs_cmdline, "console=") == NULL) {
-#ifdef CONFIG_GDB_CONSOLE
-		strcat(arcs_cmdline, " console=gdb");
-#else
 #ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
 		strcat(arcs_cmdline, " console=ttyS0,115200");
 #else
@@ -588,7 +585,6 @@ void __init prom_init(void)
 			strcat(arcs_cmdline, " console=ttyS1,115200");
 		else
 			strcat(arcs_cmdline, " console=ttyS0,115200");
-#endif
 #endif
 	}
 
