@@ -806,11 +806,12 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_bss *bss = (void *)cbss->priv;
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 
 	bss_info_changed |= BSS_CHANGED_ASSOC;
 	/* set timing information */
-	sdata->vif.bss_conf.beacon_int = cbss->beacon_interval;
-	sdata->vif.bss_conf.timestamp = cbss->tsf;
+	bss_conf->beacon_int = cbss->beacon_interval;
+	bss_conf->timestamp = cbss->tsf;
 
 	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
@@ -835,7 +836,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_led_assoc(local, 1);
 
-	sdata->vif.bss_conf.assoc = 1;
+	bss_conf->assoc = 1;
 	/*
 	 * For now just always ask the driver to update the basic rateset
 	 * when we have associated, we aren't checking whether it actually
@@ -848,8 +849,14 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	/* Tell the driver to monitor connection quality (if supported) */
 	if ((local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI) &&
-	    sdata->vif.bss_conf.cqm_rssi_thold)
+	    bss_conf->cqm_rssi_thold)
 		bss_info_changed |= BSS_CHANGED_CQM;
+
+	/* Enable ARP filtering */
+	if (bss_conf->arp_filter_enabled != sdata->arp_filter_state) {
+		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+		bss_info_changed |= BSS_CHANGED_ARP_FILTER;
+	}
 
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
@@ -931,6 +938,12 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	ieee80211_hw_config(local, config_changed);
+
+	/* Disable ARP filtering */
+	if (sdata->vif.bss_conf.arp_filter_enabled) {
+		sdata->vif.bss_conf.arp_filter_enabled = false;
+		changed |= BSS_CHANGED_ARP_FILTER;
+	}
 
 	/* The BSSID (not really interesting) and HT changed */
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
@@ -2018,18 +2031,9 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 			cfg80211_send_assoc_timeout(wk->sdata->dev,
 						    wk->filter_ta);
 			return WORK_DONE_DESTROY;
-		} else {
-			mutex_unlock(&wk->sdata->u.mgd.mtx);
-#ifdef CONFIG_INET
-			/*
-			 * configure ARP filter IP addresses to the driver,
-			 * intentionally outside the mgd mutex.
-			 */
-			rtnl_lock();
-			ieee80211_set_arp_filter(wk->sdata);
-			rtnl_unlock();
-#endif
 		}
+
+		mutex_unlock(&wk->sdata->u.mgd.mtx);
 	}
 
 	cfg80211_send_rx_assoc(wk->sdata->dev, skb->data, skb->len);

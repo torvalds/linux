@@ -514,6 +514,8 @@ struct ieee80211_sub_if_data {
 	struct work_struct work;
 	struct sk_buff_head skb_queue;
 
+	bool arp_filter_state;
+
 	/*
 	 * AP this belongs to: self in AP mode and
 	 * corresponding AP in VLAN mode, NULL for

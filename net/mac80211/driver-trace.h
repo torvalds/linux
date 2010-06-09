@@ -251,28 +251,6 @@ TRACE_EVENT(drv_bss_info_changed,
 	)
 );
 
-TRACE_EVENT(drv_configure_arp_filter,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata),
-
-	TP_ARGS(local, sdata),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-	),
-
-	TP_printk(
-		VIF_PR_FMT LOCAL_PR_FMT,
-		VIF_PR_ARG, LOCAL_PR_ARG
-	)
-);
-
 TRACE_EVENT(drv_prepare_multicast,
 	TP_PROTO(struct ieee80211_local *local, int mc_count),
 

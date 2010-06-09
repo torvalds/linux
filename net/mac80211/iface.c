@@ -1076,6 +1076,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	sdata->wdev.wiphy = local->hw.wiphy;
 	sdata->local = local;
 	sdata->dev = ndev;
+#ifdef CONFIG_INET
+	sdata->arp_filter_state = true;
+#endif
 
 	for (i = 0; i < IEEE80211_FRAGMENT_MAX; i++)
 		skb_queue_head_init(&sdata->fragments[i].skb_list);
