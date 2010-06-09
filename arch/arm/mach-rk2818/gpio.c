@@ -659,6 +659,8 @@ void rk2818_gpio_suspend(void)
 			wakeupsDepth[i] = 1;
 			clk_disable(rk2818gpio_chip[i].bank->clock);
 		}
+		else if(wakeups[i])
+			rk2818_gpio_write(rk2818gpio_chip[i].regbase,GPIO_INTEN,wakeups[i]);
 	}
 	return;
 }
@@ -923,15 +925,15 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 
 	while (isr) {
 		if (isr & 1) {
-			if (unlikely(gpio->depth)) {
+			//if (unlikely(gpio->depth)) {
 				/*
 				 * The core ARM interrupt handler lazily disables IRQs so
 				 * another IRQ must be generated before it actually gets
 				 * here to be disabled on the GPIO controller.
 				 */
-				gpio_irq_mask(gpioToirq);
-			}
-			else
+			//	gpio_irq_mask(gpioToirq);
+			//}
+			//else
 			{
 				unsigned int gpio_Int_Level = 0;
 				unsigned int mask = pin_to_mask(pin);
