@@ -440,6 +440,10 @@ struct manager_cache_data {
 
 	/* manual update region */
 	u16 x, y, w, h;
+
+	/* enlarge the update area if the update area contains scaled
+	 * overlays */
+	bool enlarge_update_area;
 };
 
 static struct {
@@ -721,6 +725,7 @@ static int configure_overlay(enum omap_plane plane)
 	u16 x, y, w, h;
 	u32 paddr;
 	int r;
+	u16 orig_w, orig_h, orig_outw, orig_outh;
 
 	DSSDBGF("%d", plane);
 
@@ -741,8 +746,16 @@ static int configure_overlay(enum omap_plane plane)
 	outh = c->out_height == 0 ? c->height : c->out_height;
 	paddr = c->paddr;
 
+	orig_w = w;
+	orig_h = h;
+	orig_outw = outw;
+	orig_outh = outh;
+
 	if (c->manual_update && mc->do_manual_update) {
 		unsigned bpp;
+		unsigned scale_x_m = w, scale_x_d = outw;
+		unsigned scale_y_m = h, scale_y_d = outh;
+
 		/* If the overlay is outside the update region, disable it */
 		if (!rectangle_intersects(mc->x, mc->y, mc->w, mc->h,
 					x, y, outw, outh)) {
@@ -773,39 +786,33 @@ static int configure_overlay(enum omap_plane plane)
 			BUG();
 		}
 
-		if (dispc_is_overlay_scaled(c)) {
-			/* If the overlay is scaled, the update area has
-			 * already been enlarged to cover the whole overlay. We
-			 * only need to adjust x/y here */
-			x = c->pos_x - mc->x;
-			y = c->pos_y - mc->y;
+		if (mc->x > c->pos_x) {
+			x = 0;
+			outw -= (mc->x - c->pos_x);
+			paddr += (mc->x - c->pos_x) *
+				scale_x_m / scale_x_d * bpp / 8;
 		} else {
-			if (mc->x > c->pos_x) {
-				x = 0;
-				w -= (mc->x - c->pos_x);
-				paddr += (mc->x - c->pos_x) * bpp / 8;
-			} else {
-				x = c->pos_x - mc->x;
-			}
-
-			if (mc->y > c->pos_y) {
-				y = 0;
-				h -= (mc->y - c->pos_y);
-				paddr += (mc->y - c->pos_y) * c->screen_width *
-					bpp / 8;
-			} else {
-				y = c->pos_y - mc->y;
-			}
-
-			if (mc->w < (x+w))
-				w -= (x+w) - (mc->w);
-
-			if (mc->h < (y+h))
-				h -= (y+h) - (mc->h);
-
-			outw = w;
-			outh = h;
+			x = c->pos_x - mc->x;
 		}
+
+		if (mc->y > c->pos_y) {
+			y = 0;
+			outh -= (mc->y - c->pos_y);
+			paddr += (mc->y - c->pos_y) *
+				scale_y_m / scale_y_d *
+				c->screen_width * bpp / 8;
+		} else {
+			y = c->pos_y - mc->y;
+		}
+
+		if (mc->w < (x + outw))
+			outw -= (x + outw) - (mc->w);
+
+		if (mc->h < (y + outh))
+			outh -= (y + outh) - (mc->h);
+
+		w = w * outw / orig_outw;
+		h = h * outh / orig_outh;
 	}
 
 	r = dispc_setup_plane(plane,
@@ -963,7 +970,7 @@ static void make_even(u16 *x, u16 *w)
 /* Configure dispc for partial update. Return possibly modified update
  * area */
 void dss_setup_partial_planes(struct omap_dss_device *dssdev,
-		u16 *xi, u16 *yi, u16 *wi, u16 *hi)
+		u16 *xi, u16 *yi, u16 *wi, u16 *hi, bool enlarge_update_area)
 {
 	struct overlay_cache_data *oc;
 	struct manager_cache_data *mc;
@@ -1014,6 +1021,9 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 				continue;
 
 			oc->dirty = true;
+
+			if (!enlarge_update_area)
+				continue;
 
 			if (!oc->enabled)
 				continue;
@@ -1074,6 +1084,7 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 
 	mc = &dss_cache.manager_cache[mgr->id];
 	mc->do_manual_update = true;
+	mc->enlarge_update_area = enlarge_update_area;
 	mc->x = x;
 	mc->y = y;
 	mc->w = w;

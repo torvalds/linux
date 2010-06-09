@@ -2860,7 +2860,8 @@ static void dsi_framedone_irq_callback(void *data, u32 mask)
 }
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h)
+				    u16 *x, u16 *y, u16 *w, u16 *h,
+				    bool enlarge_update_area)
 {
 	u16 dw, dh;
 
@@ -2884,7 +2885,8 @@ int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
 	dsi_perf_mark_setup();
 
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
-		dss_setup_partial_planes(dssdev, x, y, w, h);
+		dss_setup_partial_planes(dssdev, x, y, w, h,
+				enlarge_update_area);
 		dispc_set_lcd_size(*w, *h);
 	}
 

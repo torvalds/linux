@@ -1135,7 +1135,7 @@ static int taal_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h);
+	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h, true);
 	if (r)
 		goto err;
 

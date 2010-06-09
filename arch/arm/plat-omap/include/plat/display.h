@@ -560,7 +560,8 @@ void omapdss_dsi_vc_enable_hs(int channel, bool enable);
 int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
 
 int omap_dsi_prepare_update(struct omap_dss_device *dssdev,
-				    u16 *x, u16 *y, u16 *w, u16 *h);
+				    u16 *x, u16 *y, u16 *w, u16 *h,
+				    bool enlarge_update_area);
 int omap_dsi_update(struct omap_dss_device *dssdev,
 		int channel,
 		u16 x, u16 y, u16 w, u16 h,
