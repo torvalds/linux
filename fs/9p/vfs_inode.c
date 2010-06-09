@@ -1245,7 +1245,7 @@ static int v9fs_readlink(struct dentry *dentry, char *buffer, int buflen)
 	if (IS_ERR(fid))
 		return PTR_ERR(fid);
 
-	if (!v9fs_proto_dotu(v9ses))
+	if (!v9fs_proto_dotu(v9ses) && !v9fs_proto_dotl(v9ses))
 		return -EBADF;
 
 	st = p9_client_stat(fid);
@@ -1348,6 +1348,99 @@ static int v9fs_vfs_mkspecial(struct inode *dir, struct dentry *dentry,
 
 	p9_client_clunk(fid);
 	return 0;
+}
+
+/**
+ * v9fs_vfs_symlink_dotl - helper function to create symlinks
+ * @dir: directory inode containing symlink
+ * @dentry: dentry for symlink
+ * @symname: symlink data
+ *
+ * See Also: 9P2000.L RFC for more information
+ *
+ */
+
+static int
+v9fs_vfs_symlink_dotl(struct inode *dir, struct dentry *dentry,
+		const char *symname)
+{
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *dfid;
+	struct p9_fid *fid = NULL;
+	struct inode *inode;
+	struct p9_qid qid;
+	char *name;
+	int err;
+	gid_t gid;
+
+	name = (char *) dentry->d_name.name;
+	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_vfs_symlink_dotl : %lu,%s,%s\n",
+			dir->i_ino, name, symname);
+	v9ses = v9fs_inode2v9ses(dir);
+
+	dfid = v9fs_fid_lookup(dentry->d_parent);
+	if (IS_ERR(dfid)) {
+		err = PTR_ERR(dfid);
+		P9_DPRINTK(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		return err;
+	}
+
+	gid = v9fs_get_fsgid_for_create(dir);
+
+	if (gid < 0) {
+		P9_DPRINTK(P9_DEBUG_VFS, "v9fs_get_egid failed %d\n", gid);
+		goto error;
+	}
+
+	/* Server doesn't alter fid on TSYMLINK. Hence no need to clone it. */
+	err = p9_client_symlink(dfid, name, (char *)symname, gid, &qid);
+
+	if (err < 0) {
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_symlink failed %d\n", err);
+		goto error;
+	}
+
+	if (v9ses->cache) {
+		/* Now walk from the parent so we can get an unopened fid. */
+		fid = p9_client_walk(dfid, 1, &name, 1);
+		if (IS_ERR(fid)) {
+			err = PTR_ERR(fid);
+			P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n",
+					err);
+			fid = NULL;
+			goto error;
+		}
+
+		/* instantiate inode and assign the unopened fid to dentry */
+		inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+		if (IS_ERR(inode)) {
+			err = PTR_ERR(inode);
+			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
+					err);
+			goto error;
+		}
+		dentry->d_op = &v9fs_cached_dentry_operations;
+		d_instantiate(dentry, inode);
+		err = v9fs_fid_add(dentry, fid);
+		if (err < 0)
+			goto error;
+		fid = NULL;
+	} else {
+		/* Not in cached mode. No need to populate inode with stat */
+		inode = v9fs_get_inode(dir->i_sb, S_IFLNK);
+		if (IS_ERR(inode)) {
+			err = PTR_ERR(inode);
+			goto error;
+		}
+		dentry->d_op = &v9fs_dentry_operations;
+		d_instantiate(dentry, inode);
+	}
+
+error:
+	if (fid)
+		p9_client_clunk(fid);
+
+	return err;
 }
 
 /**
@@ -1527,7 +1620,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotu = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
 	.symlink = v9fs_vfs_symlink,
-	.link = v9fs_vfs_link_dotl,
+	.link = v9fs_vfs_link,
 	.unlink = v9fs_vfs_unlink,
 	.mkdir = v9fs_vfs_mkdir,
 	.rmdir = v9fs_vfs_rmdir,
@@ -1540,8 +1633,8 @@ static const struct inode_operations v9fs_dir_inode_operations_dotu = {
 static const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.create = v9fs_vfs_create,
 	.lookup = v9fs_vfs_lookup,
-	.symlink = v9fs_vfs_symlink,
-	.link = v9fs_vfs_link,
+	.link = v9fs_vfs_link_dotl,
+	.symlink = v9fs_vfs_symlink_dotl,
 	.unlink = v9fs_vfs_unlink,
 	.mkdir = v9fs_vfs_mkdir,
 	.rmdir = v9fs_vfs_rmdir,

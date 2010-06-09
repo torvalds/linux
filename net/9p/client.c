@@ -1095,6 +1095,40 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fcreate);
 
+int p9_client_symlink(struct p9_fid *dfid, char *name, char *symtgt, gid_t gid,
+		struct p9_qid *qid)
+{
+	int err = 0;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TSYMLINK dfid %d name %s  symtgt %s\n",
+			dfid->fid, name, symtgt);
+	clnt = dfid->clnt;
+
+	req = p9_client_rpc(clnt, P9_TSYMLINK, "dssd", dfid->fid, name, symtgt,
+			gid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto free_and_error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RSYMLINK qid %x.%llx.%x\n",
+			qid->type, (unsigned long long)qid->path, qid->version);
+
+free_and_error:
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_symlink);
+
 int p9_client_link(struct p9_fid *dfid, struct p9_fid *oldfid, char *newname)
 {
 	struct p9_client *clnt;

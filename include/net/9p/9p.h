@@ -88,6 +88,8 @@ do { \
  * enum p9_msg_t - 9P message types
  * @P9_TSTATFS: file system status request
  * @P9_RSTATFS: file system status response
+ * @P9_TSYMLINK: make symlink request
+ * @P9_RSYMLINK: make symlink response
  * @P9_TRENAME: rename request
  * @P9_RRENAME: rename response
  * @P9_TVERSION: version handshake request
@@ -131,6 +133,8 @@ do { \
 enum p9_msg_t {
 	P9_TSTATFS = 8,
 	P9_RSTATFS,
+	P9_TSYMLINK = 16,
+	P9_RSYMLINK,
 	P9_TRENAME = 20,
 	P9_RRENAME,
 	P9_TGETATTR = 24,
