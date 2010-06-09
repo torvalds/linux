@@ -48,6 +48,16 @@
  * devices are created for the 3 gpios
  * that ST has requested
  */
+
+/* chip version storage
+ */
+struct chip_version {
+	unsigned short full;
+	unsigned short chip;
+	unsigned short min_ver;
+	unsigned short maj_ver;
+};
+
 /*
  * header file for ST provided by KIM
  */
@@ -66,6 +76,7 @@ struct kim_data_s {
 	struct rfkill *rfkill[ST_MAX];
 	enum proto_type rf_protos[ST_MAX];
 	struct st_data_s *core_data;
+	struct chip_version version;
 };
 
 long st_kim_start(void);
