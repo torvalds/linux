@@ -1176,8 +1176,8 @@ static int check_cap_flush(struct ceph_mds_client *mdsc, u64 want_flush_seq)
 /*
  * called under s_mutex
  */
-static void send_cap_releases(struct ceph_mds_client *mdsc,
-		       struct ceph_mds_session *session)
+void ceph_send_cap_releases(struct ceph_mds_client *mdsc,
+			    struct ceph_mds_session *session)
 {
 	struct ceph_msg *msg;
 
@@ -2693,7 +2693,7 @@ static void delayed_work(struct work_struct *work)
 		add_cap_releases(mdsc, s, -1);
 		if (s->s_state == CEPH_MDS_SESSION_OPEN ||
 		    s->s_state == CEPH_MDS_SESSION_HUNG)
-			send_cap_releases(mdsc, s);
+			ceph_send_cap_releases(mdsc, s);
 		mutex_unlock(&s->s_mutex);
 		ceph_put_mds_session(s);
 
