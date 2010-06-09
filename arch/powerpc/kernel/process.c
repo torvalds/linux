@@ -1269,6 +1269,7 @@ unsigned long randomize_et_dyn(unsigned long base)
 	return ret;
 }
 
+#ifdef CONFIG_SMP
 int arch_sd_sibiling_asym_packing(void)
 {
 	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
@@ -1277,3 +1278,4 @@ int arch_sd_sibiling_asym_packing(void)
 	}
 	return 0;
 }
+#endif
