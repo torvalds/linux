@@ -48,7 +48,6 @@
  * devices are created for the 3 gpios
  * that ST has requested
  */
-#define LEGACY_RFKILL_SUPPORT
 /*
  * header file for ST provided by KIM
  */
@@ -60,15 +59,12 @@ struct kim_data_s {
 	char resp_buffer[30];
 	const struct firmware *fw_entry;
 	long gpios[ST_MAX];
-	struct kobject *kim_kobj;
 /* used by kim_int_recv to validate fw response */
 	unsigned long rx_state;
 	unsigned long rx_count;
 	struct sk_buff *rx_skb;
-#ifdef LEGACY_RFKILL_SUPPORT
 	struct rfkill *rfkill[ST_MAX];
 	enum proto_type rf_protos[ST_MAX];
-#endif
 	struct st_data_s *core_data;
 };
 
