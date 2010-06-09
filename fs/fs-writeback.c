@@ -643,8 +643,10 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 
 			ret = writeback_sb_inodes(sb, wb, wbc);
 		} else {
-			if (!pin_sb_for_writeback(sb))
+			if (!pin_sb_for_writeback(sb)) {
+				requeue_io(inode);
 				continue;
+			}
 			ret = writeback_sb_inodes(sb, wb, wbc);
 			drop_super(sb);
 		}
