@@ -715,7 +715,6 @@ static struct clk NAME##_clk = { \
 }
 
 GATE_CLK(arm_core, arm_clk, ARM);
-GATE_CLK(dsp, dsp_pll_clk, DSP);
 GATE_CLK(dma, arm_hclk, DMA);
 GATE_CLK(sramarm, arm_hclk, SRAMARM);
 GATE_CLK(sramdsp, arm_hclk, SRAMDSP);
@@ -899,7 +898,6 @@ static struct clk_lookup clks[] = {
 	CLK1(lcdc_divider),
 
 	CLK1(arm_core),
-	CLK1(dsp),
 	CLK1(dma),
 	CLK1(sramarm),
 	CLK1(sramdsp),
