@@ -251,6 +251,12 @@ static struct platform_device *cpcap_devices[] = {
 };
 
 struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
+	{CPCAP_REG_S1C1,      0x0000},
+	{CPCAP_REG_S1C2,      0x0000},
+	{CPCAP_REG_S6C,       0x0000},
+	{CPCAP_REG_VRF1C,     0x0000},
+	{CPCAP_REG_VRF2C,     0x0000},
+	{CPCAP_REG_VRFREFC,   0x0000},
 	{CPCAP_REG_ADCC1,     0x9000},
 	{CPCAP_REG_ADCC2,     0x4136},
 	{CPCAP_REG_USBC1,     0x1201},
