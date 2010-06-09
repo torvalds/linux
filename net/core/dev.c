@@ -2253,11 +2253,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
 		if (unlikely(index >= dev->num_rx_queues)) {
-			if (net_ratelimit()) {
-				pr_warning("%s received packet on queue "
-					"%u, but number of RX queues is %u\n",
-					dev->name, index, dev->num_rx_queues);
-			}
+			WARN_ONCE(dev->num_rx_queues > 1, "%s received packet "
+				"on queue %u, but number of RX queues is %u\n",
+				dev->name, index, dev->num_rx_queues);
 			goto done;
 		}
 		rxqueue = dev->_rx + index;
