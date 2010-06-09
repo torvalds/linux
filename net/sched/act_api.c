@@ -26,6 +26,11 @@
 #include <net/act_api.h>
 #include <net/netlink.h>
 
+static void tcf_common_free_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct tcf_common, tcfc_rcu));
+}
+
 void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 {
 	unsigned int h = tcf_hash(p->tcfc_index, hinfo->hmask);
@@ -38,7 +43,11 @@ void tcf_hash_destroy(struct tcf_common *p, struct tcf_hashinfo *hinfo)
 			write_unlock_bh(hinfo->lock);
 			gen_kill_estimator(&p->tcfc_bstats,
 					   &p->tcfc_rate_est);
-			kfree(p);
+			/*
+			 * gen_estimator est_timer() might access p->tcfc_lock
+			 * or bstats, wait a RCU grace period before freeing p
+			 */
+			call_rcu(&p->tcfc_rcu, tcf_common_free_rcu);
 			return;
 		}
 	}

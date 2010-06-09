@@ -9,6 +9,7 @@ struct xt_rateest {
 	struct gnet_estimator		params;
 	struct gnet_stats_rate_est	rstats;
 	struct gnet_stats_basic_packed	bstats;
+	struct rcu_head			rcu;
 };
 
 extern struct xt_rateest *xt_rateest_lookup(const char *name);
