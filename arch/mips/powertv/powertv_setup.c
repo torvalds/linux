@@ -199,14 +199,8 @@ static int panic_handler(struct notifier_block *notifier_block,
 		my_regs.cp0_status = read_c0_status();
 	}
 
-#ifdef CONFIG_DIAGNOSTICS
-	failure_report((char *) cause_string,
-		have_die_regs ? &die_regs : &my_regs);
-	have_die_regs = false;
-#else
 	pr_crit("I'm feeling a bit sleepy. hmmmmm... perhaps a nap would... "
 		"zzzz... \n");
-#endif
 
 	return NOTIFY_DONE;
 }
