@@ -986,11 +986,6 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_disassoc_request *req,
 			   void *cookie);
-int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
-			 struct ieee80211_channel *chan,
-			 enum nl80211_channel_type channel_type,
-			 bool channel_type_valid,
-			 const u8 *buf, size_t len, u64 *cookie);
 ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 					  struct sk_buff *skb);
 void ieee80211_send_pspoll(struct ieee80211_local *local,

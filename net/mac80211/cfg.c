@@ -1555,9 +1555,55 @@ static int ieee80211_action(struct wiphy *wiphy, struct net_device *dev,
 			    bool channel_type_valid,
 			    const u8 *buf, size_t len, u64 *cookie)
 {
-	return ieee80211_mgd_action(IEEE80211_DEV_TO_SUB_IF(dev), chan,
-				    channel_type, channel_type_valid,
-				    buf, len, cookie);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct sta_info *sta;
+	const struct ieee80211_mgmt *mgmt = (void *)buf;
+	u32 flags = IEEE80211_TX_INTFL_NL80211_FRAME_TX |
+		    IEEE80211_TX_CTL_REQ_TX_STATUS;
+
+	/* Check that we are on the requested channel for transmission */
+	if (chan != local->tmp_channel &&
+	    chan != local->oper_channel)
+		return -EBUSY;
+	if (channel_type_valid &&
+	    (channel_type != local->tmp_channel_type &&
+	     channel_type != local->_oper_channel_type))
+		return -EBUSY;
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_ADHOC:
+		if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC)
+			break;
+		rcu_read_lock();
+		sta = sta_info_get(sdata, mgmt->da);
+		rcu_read_unlock();
+		if (!sta)
+			return -ENOLINK;
+		break;
+	case NL80211_IFTYPE_STATION:
+		if (!(sdata->u.mgd.flags & IEEE80211_STA_MFP_ENABLED))
+			flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len);
+	if (!skb)
+		return -ENOMEM;
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+
+	memcpy(skb_put(skb, len), buf, len);
+
+	IEEE80211_SKB_CB(skb)->flags = flags;
+
+	skb->dev = sdata->dev;
+	ieee80211_tx_skb(sdata, skb);
+
+	*cookie = (unsigned long) skb;
+	return 0;
 }
 
 struct cfg80211_ops mac80211_config_ops = {

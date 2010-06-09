@@ -2045,8 +2045,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	 */
 	status = IEEE80211_SKB_RXCB(rx->skb);
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    cfg80211_rx_action(rx->sdata->dev, status->freq,
+	if (cfg80211_rx_action(rx->sdata->dev, status->freq,
 			       rx->skb->data, rx->skb->len,
 			       GFP_ATOMIC))
 		goto handled;

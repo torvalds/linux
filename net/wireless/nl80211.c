@@ -4653,7 +4653,8 @@ static int nl80211_register_action(struct sk_buff *skb, struct genl_info *info)
 	if (err)
 		goto unlock_rtnl;
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4703,7 +4704,8 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 		goto out;
 	}
 
-	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION) {
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_ADHOC) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}

@@ -846,8 +846,9 @@ int cfg80211_mlme_action(struct cfg80211_registered_device *rdev,
 		if (!wdev->current_bss ||
 		    memcmp(wdev->current_bss->pub.bssid, mgmt->bssid,
 			   ETH_ALEN) != 0 ||
-		    memcmp(wdev->current_bss->pub.bssid, mgmt->da,
-			   ETH_ALEN) != 0)
+		    (wdev->iftype == NL80211_IFTYPE_STATION &&
+		     memcmp(wdev->current_bss->pub.bssid, mgmt->da,
+			    ETH_ALEN) != 0))
 			return -ENOTCONN;
 	}
 
