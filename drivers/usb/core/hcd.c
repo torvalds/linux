@@ -2229,7 +2229,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		rhdev->speed = USB_SPEED_SUPER;
 		break;
 	default:
-		goto err_allocate_root_hub;
+		goto err_set_rh_speed;
 	}
 	hcd->self.root_hub = rhdev;
 
@@ -2305,16 +2305,29 @@ int usb_add_hcd(struct usb_hcd *hcd,
 	return retval;
 
 error_create_attr_group:
+	if (HC_IS_RUNNING(hcd->state))
+		hcd->state = HC_STATE_QUIESCING;
+	spin_lock_irq(&hcd_root_hub_lock);
+	hcd->rh_registered = 0;
+	spin_unlock_irq(&hcd_root_hub_lock);
+
+#ifdef CONFIG_USB_SUSPEND
+	cancel_work_sync(&hcd->wakeup_work);
+#endif
 	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&hcd->self.root_hub);
 	mutex_unlock(&usb_bus_list_lock);
 err_register_root_hub:
 	hcd->driver->stop(hcd);
+	hcd->state = HC_STATE_HALT;
+	hcd->poll_rh = 0;
+	del_timer_sync(&hcd->rh_timer);
 err_hcd_driver_start:
 	if (hcd->irq >= 0)
 		free_irq(irqnum, hcd);
 err_request_irq:
 err_hcd_driver_setup:
+err_set_rh_speed:
 	hcd->self.root_hub = NULL;
 	usb_put_dev(rhdev);
 err_allocate_root_hub:
@@ -2337,6 +2350,8 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 {
 	dev_info(hcd->self.controller, "remove, state %x\n", hcd->state);
 
+	sysfs_remove_group(&hcd->self.root_hub->dev.kobj, &usb_bus_attr_group);
+
 	if (HC_IS_RUNNING (hcd->state))
 		hcd->state = HC_STATE_QUIESCING;
 
@@ -2349,7 +2364,6 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 
-	sysfs_remove_group(&hcd->self.root_hub->dev.kobj, &usb_bus_attr_group);
 	mutex_lock(&usb_bus_list_lock);
 	usb_disconnect(&hcd->self.root_hub);
 	mutex_unlock(&usb_bus_list_lock);
