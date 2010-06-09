@@ -170,7 +170,7 @@ void dsp_set_clk(int clkrate)
     if(clkrate > 24 && clkrate < 600) {
 		if(inf->clk)	clk_set_rate(inf->clk, clkrate*1000000);
     } else {
-        if(inf->clk)	clk_set_rate(inf->clk, 300*1000000);
+        if(inf->clk)	clk_set_rate(inf->clk, 500*1000000);
     }
 #else
 	unsigned int freqreg = 0;
@@ -854,6 +854,9 @@ static int __init dsp_drv_probe(struct platform_device *pdev)
 
 	g_inf = inf;
 
+	dsp_powerctl(DPC_SLEEP, 0);
+    inf->dsp_status = DS_SLEEP;
+
     return 0;
 
 reg_fail:
@@ -913,9 +916,11 @@ static int dsp_drv_suspend(struct platform_device *pdev, pm_message_t state)
 
     if(DS_NORMAL==inf->dsp_status)  return -EPERM;
 
-    dsp_powerctl(DPC_SLEEP, 0);
-    inf->dsp_status = DS_SLEEP;
-    //printk("dsp work mode : sleep mode \n");
+	if(DS_SLEEP != inf->dsp_status ) {
+        dsp_powerctl(DPC_SLEEP, 0);
+        inf->dsp_status = DS_SLEEP;
+        //printk("dsp work mode : sleep mode \n");
+	}
     return 0;
 }
 
