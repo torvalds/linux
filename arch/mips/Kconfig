@@ -13,6 +13,7 @@ config MIPS
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
 	select RTC_LIB if !MACH_LOONGSON
+	select GENERIC_ATOMIC64 if !64BIT
 
 mainmenu "Linux/MIPS Kernel Configuration"
 
