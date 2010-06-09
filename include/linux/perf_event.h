@@ -462,6 +462,7 @@ enum perf_callchain_context {
 
 #ifdef CONFIG_PERF_EVENTS
 # include <asm/perf_event.h>
+# include <asm/local64.h>
 #endif
 
 struct perf_guest_info_callbacks {
@@ -487,7 +488,6 @@ struct perf_guest_info_callbacks {
 #include <linux/cpu.h>
 #include <asm/atomic.h>
 #include <asm/local.h>
-#include <asm/local64.h>
 
 #define PERF_MAX_STACK_DEPTH		255
 
