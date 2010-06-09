@@ -95,6 +95,7 @@ struct usb_hcd {
 #define HCD_FLAG_SAW_IRQ	0x00000002
 
 	unsigned		rh_registered:1;/* is root hub registered? */
+	unsigned		rh_pollable:1;	/* may we poll the root hub? */
 
 	/* The next flag is a stopgap, to be removed when all the HCDs
 	 * support the new root-hub polling mechanism. */
