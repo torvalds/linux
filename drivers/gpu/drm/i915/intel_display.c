@@ -5470,7 +5470,6 @@ static void intel_init_display(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int num_pipe;
 	int i;
 
 	drm_mode_config_init(dev);
@@ -5500,13 +5499,13 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
 
 	if (IS_MOBILE(dev) || IS_I9XX(dev))
-		num_pipe = 2;
+		dev_priv->num_pipe = 2;
 	else
-		num_pipe = 1;
+		dev_priv->num_pipe = 1;
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		  num_pipe, num_pipe > 1 ? "s" : "");
+		      dev_priv->num_pipe, dev_priv->num_pipe > 1 ? "s" : "");
 
-	for (i = 0; i < num_pipe; i++) {
+	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
 	}
 

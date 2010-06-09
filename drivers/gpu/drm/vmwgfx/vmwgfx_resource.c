@@ -597,8 +597,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	ret = copy_from_user(srf->sizes, user_sizes,
 			     srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		ret = -EFAULT;
 		goto out_err1;
+	}
 
 	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
@@ -697,9 +699,11 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	if (user_sizes)
 		ret = copy_to_user(user_sizes, srf->sizes,
 				   srf->num_sizes * sizeof(*srf->sizes));
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
 		DRM_ERROR("copy_to_user failed %p %u\n",
 			  user_sizes, srf->num_sizes);
+		ret = -EFAULT;
+	}
 out_bad_resource:
 out_no_reference:
 	ttm_base_object_unref(&base);
