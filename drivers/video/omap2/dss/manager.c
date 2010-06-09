@@ -972,6 +972,7 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 	int i;
 	u16 x, y, w, h;
 	unsigned long flags;
+	bool area_changed;
 
 	x = *xi;
 	y = *yi;
@@ -992,70 +993,84 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 
 	spin_lock_irqsave(&dss_cache.lock, flags);
 
-	/* We need to show the whole overlay if it is scaled. So look for
-	 * those, and make the update area larger if found.
-	 * Also mark the overlay cache dirty */
-	for (i = 0; i < num_ovls; ++i) {
-		unsigned x1, y1, x2, y2;
-		unsigned outw, outh;
+	/*
+	 * Execute the outer loop until the inner loop has completed
+	 * once without increasing the update area. This will ensure that
+	 * all scaled overlays end up completely within the update area.
+	 */
+	do {
+		area_changed = false;
 
-		oc = &dss_cache.overlay_cache[i];
+		/* We need to show the whole overlay if it is scaled. So look
+		 * for those, and make the update area larger if found.
+		 * Also mark the overlay cache dirty */
+		for (i = 0; i < num_ovls; ++i) {
+			unsigned x1, y1, x2, y2;
+			unsigned outw, outh;
 
-		if (oc->channel != mgr->id)
-			continue;
+			oc = &dss_cache.overlay_cache[i];
 
-		oc->dirty = true;
+			if (oc->channel != mgr->id)
+				continue;
 
-		if (!oc->enabled)
-			continue;
+			oc->dirty = true;
 
-		if (!dispc_is_overlay_scaled(oc))
-			continue;
+			if (!oc->enabled)
+				continue;
 
-		outw = oc->out_width == 0 ? oc->width : oc->out_width;
-		outh = oc->out_height == 0 ? oc->height : oc->out_height;
+			if (!dispc_is_overlay_scaled(oc))
+				continue;
 
-		/* is the overlay outside the update region? */
-		if (!rectangle_intersects(x, y, w, h,
-					oc->pos_x, oc->pos_y,
-					outw, outh))
-			continue;
+			outw = oc->out_width == 0 ?
+				oc->width : oc->out_width;
+			outh = oc->out_height == 0 ?
+				oc->height : oc->out_height;
 
-		/* if the overlay totally inside the update region? */
-		if (rectangle_subset(oc->pos_x, oc->pos_y, outw, outh,
-					x, y, w, h))
-			continue;
+			/* is the overlay outside the update region? */
+			if (!rectangle_intersects(x, y, w, h,
+						oc->pos_x, oc->pos_y,
+						outw, outh))
+				continue;
 
-		if (x > oc->pos_x)
-			x1 = oc->pos_x;
-		else
-			x1 = x;
+			/* if the overlay totally inside the update region? */
+			if (rectangle_subset(oc->pos_x, oc->pos_y, outw, outh,
+						x, y, w, h))
+				continue;
 
-		if (y > oc->pos_y)
-			y1 = oc->pos_y;
-		else
-			y1 = y;
+			if (x > oc->pos_x)
+				x1 = oc->pos_x;
+			else
+				x1 = x;
 
-		if ((x + w) < (oc->pos_x + outw))
-			x2 = oc->pos_x + outw;
-		else
-			x2 = x + w;
+			if (y > oc->pos_y)
+				y1 = oc->pos_y;
+			else
+				y1 = y;
 
-		if ((y + h) < (oc->pos_y + outh))
-			y2 = oc->pos_y + outh;
-		else
-			y2 = y + h;
+			if ((x + w) < (oc->pos_x + outw))
+				x2 = oc->pos_x + outw;
+			else
+				x2 = x + w;
 
-		x = x1;
-		y = y1;
-		w = x2 - x1;
-		h = y2 - y1;
+			if ((y + h) < (oc->pos_y + outh))
+				y2 = oc->pos_y + outh;
+			else
+				y2 = y + h;
 
-		make_even(&x, &w);
+			x = x1;
+			y = y1;
+			w = x2 - x1;
+			h = y2 - y1;
 
-		DSSDBG("changing upd area due to ovl(%d) scaling %d,%d %dx%d\n",
+			make_even(&x, &w);
+
+			DSSDBG("changing upd area due to ovl(%d) "
+			       "scaling %d,%d %dx%d\n",
 				i, x, y, w, h);
-	}
+
+			area_changed = true;
+		}
+	} while (area_changed);
 
 	mc = &dss_cache.manager_cache[mgr->id];
 	mc->do_manual_update = true;
