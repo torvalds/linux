@@ -2354,7 +2354,7 @@ fix_small_capacity(struct sched_domain *sd, struct sched_group *group)
 	/*
 	 * If ~90% of the cpu_power is still there, we're good.
 	 */
-	if (group->cpu_power * 32 < group->cpu_power_orig * 29)
+	if (group->cpu_power * 32 > group->cpu_power_orig * 29)
 		return 1;
 
 	return 0;
