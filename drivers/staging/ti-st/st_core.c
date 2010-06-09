@@ -584,10 +584,11 @@ void kim_st_list_protocols(struct st_data_s *st_gdata, char *buf)
 	}
 	sprintf(buf, "%s\n", buf);
 #else /* limited info */
-	sprintf(buf, "BT=%c\nFM=%c\nGPS=%c\n",
-		st_gdata->list[ST_BT] != NULL ? 'R' : 'U',
-		st_gdata->list[ST_FM] != NULL ? 'R' : 'U',
-		st_gdata->list[ST_GPS] != NULL ? 'R' : 'U');
+	sprintf(buf, "[%d]\nBT=%c\nFM=%c\nGPS=%c\n",
+			st_gdata->protos_registered,
+			st_gdata->list[ST_BT] != NULL ? 'R' : 'U',
+			st_gdata->list[ST_FM] != NULL ? 'R' : 'U',
+			st_gdata->list[ST_GPS] != NULL ? 'R' : 'U');
 #endif
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 }
@@ -630,6 +631,7 @@ long st_register(struct st_proto_s *new_proto)
 		st_kim_chip_toggle(new_proto->type, KIM_GPIO_ACTIVE);
 
 		st_gdata->list[new_proto->type] = new_proto;
+		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 
 		set_bit(ST_REG_PENDING, &st_gdata->st_state);
@@ -673,7 +675,6 @@ long st_register(struct st_proto_s *new_proto)
 		if ((st_gdata->protos_registered != ST_EMPTY) &&
 		    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 			pr_info(" call reg complete callback ");
-			st_gdata->protos_registered++;
 			st_reg_complete(st_gdata, ST_SUCCESS);
 		}
 		clear_bit(ST_REG_PENDING, &st_gdata->st_state);
@@ -689,6 +690,7 @@ long st_register(struct st_proto_s *new_proto)
 
 		spin_lock_irqsave(&st_gdata->lock, flags);
 		st_gdata->list[new_proto->type] = new_proto;
+		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return err;
@@ -712,6 +714,7 @@ long st_register(struct st_proto_s *new_proto)
 			break;
 		}
 		st_gdata->list[new_proto->type] = new_proto;
+		st_gdata->protos_registered++;
 		new_proto->write = st_write;
 
 		/* lock already held before entering else */
