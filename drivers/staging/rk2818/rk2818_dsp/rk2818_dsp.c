@@ -805,7 +805,7 @@ static int __init dsp_drv_probe(struct platform_device *pdev)
 	if(NULL==inf) { ret = -ENOMEM;  goto alloc_fail; }
 	memset(inf, 0, sizeof(struct rk28dsp_inf));
 
-	inf->clk = clk_get(NULL, "dsp");
+	inf->clk = clk_get(NULL, "dsp_pll");
 	if(inf->clk)	clk_enable(inf->clk);
 
 	inf->pmu_base = (void*)ioremap(PMU_BASE_ADDR, 0x3000);
