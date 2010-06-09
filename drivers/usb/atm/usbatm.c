@@ -273,8 +273,7 @@ static void usbatm_complete(struct urb *urb)
 
 	if (unlikely(status) &&
 			(!(channel->usbatm->flags & UDSL_IGNORE_EILSEQ) ||
-			 status != -EILSEQ ))
-	{
+			 status != -EILSEQ )) {
 		if (status == -ESHUTDOWN)
 			return;
 
@@ -516,8 +515,7 @@ static unsigned int usbatm_write_cells(struct usbatm_data *instance,
 			target[3] |= 0x2;	/* adjust PTI */
 
 			ctrl->len = 0;		/* tag this skb finished */
-		}
-		else
+		} else
 			ctrl->crc = crc32_be(ctrl->crc, ptr, left);
 	}
 
@@ -1390,9 +1388,8 @@ static int usbatm_print_packet(const unsigned char *data, int len)
 	for (i = 0; i < len;) {
 		buffer[0] = '\0';
 		sprintf(buffer, "%.3d :", i);
-		for (j = 0; (j < 16) && (i < len); j++, i++) {
+		for (j = 0; (j < 16) && (i < len); j++, i++)
 			sprintf(buffer, "%s %2.2x", buffer, data[i]);
-		}
 		dbg("%s", buffer);
 	}
 	return i;

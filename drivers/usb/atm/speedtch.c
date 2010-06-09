@@ -753,7 +753,9 @@ static struct usb_driver speedtch_usb_driver = {
 	.id_table	= speedtch_usb_ids
 };
 
-static void speedtch_release_interfaces(struct usb_device *usb_dev, int num_interfaces) {
+static void speedtch_release_interfaces(struct usb_device *usb_dev,
+					int num_interfaces)
+{
 	struct usb_interface *cur_intf;
 	int i;
 
