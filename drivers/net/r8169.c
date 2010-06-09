@@ -559,6 +559,11 @@ static void mdio_write(void __iomem *ioaddr, int reg_addr, int value)
 			break;
 		udelay(25);
 	}
+	/*
+	 * Some configurations require a small delay even after the write
+	 * completed indication or the next write might fail.
+	 */
+	udelay(25);
 }
 
 static int mdio_read(void __iomem *ioaddr, int reg_addr)
