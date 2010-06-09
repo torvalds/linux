@@ -759,7 +759,7 @@ static void speedtch_release_interfaces(struct usb_device *usb_dev,
 	struct usb_interface *cur_intf;
 	int i;
 
-	for(i = 0; i < num_interfaces; i++)
+	for (i = 0; i < num_interfaces; i++)
 		if ((cur_intf = usb_ifnum_to_if(usb_dev, i))) {
 			usb_set_intfdata(cur_intf, NULL);
 			usb_driver_release_interface(&speedtch_usb_driver, cur_intf);
@@ -794,7 +794,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 	/* claim all interfaces */
 
-	for (i=0; i < num_interfaces; i++) {
+	for (i = 0; i < num_interfaces; i++) {
 		cur_intf = usb_ifnum_to_if(usb_dev, i);
 
 		if ((i != ifnum) && cur_intf) {
@@ -844,7 +844,7 @@ static int speedtch_bind(struct usbatm_data *usbatm,
 
 		use_isoc = 0; /* fall back to bulk if endpoint not found */
 
-		for (i=0; i<desc->desc.bNumEndpoints; i++) {
+		for (i = 0; i < desc->desc.bNumEndpoints; i++) {
 			const struct usb_endpoint_descriptor *endpoint_desc = &desc->endpoint[i].desc;
 
 			if ((endpoint_desc->bEndpointAddress == target_address)) {
