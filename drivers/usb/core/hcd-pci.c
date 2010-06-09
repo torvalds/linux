@@ -292,6 +292,14 @@ void usb_hcd_pci_remove(struct pci_dev *dev)
 	if (!hcd)
 		return;
 
+	/* Fake an interrupt request in order to give the driver a chance
+	 * to test whether the controller hardware has been removed (e.g.,
+	 * cardbus physical eject).
+	 */
+	local_irq_disable();
+	usb_hcd_irq(0, hcd);
+	local_irq_enable();
+
 	usb_remove_hcd(hcd);
 	if (hcd->driver->flags & HCD_MEMORY) {
 		iounmap(hcd->regs);
