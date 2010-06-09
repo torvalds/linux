@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/sysdev.h>
 
 #include <mach/hardware.h>
 #include <mach/gpio.h>
@@ -631,7 +632,8 @@ static int gpio_irq_set_wake(unsigned irq, unsigned state)
 	return 0;
 
 }
-void rk2818_gpio_resume(void)
+
+static int rk2818_gpio_resume(struct sys_device *dev)
 {
 	int i;
 	
@@ -644,10 +646,11 @@ void rk2818_gpio_resume(void)
 			clk_enable(rk2818gpio_chip[i].bank->clock);
 		}
 	}
-	return;
+
+	return 0;
 }
 
-void rk2818_gpio_suspend(void)
+static int rk2818_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 {
 	int i;
 
@@ -662,7 +665,8 @@ void rk2818_gpio_suspend(void)
 		else if(wakeups[i])
 			rk2818_gpio_write(rk2818gpio_chip[i].regbase,GPIO_INTEN,wakeups[i]);
 	}
-	return;
+
+	return 0;
 }
 
  #if 0
@@ -1200,6 +1204,26 @@ static void rk2818_gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	return;
 }
+
+static struct sysdev_class rk2818_gpio_sysclass = {
+	.name		= "gpio",
+	.suspend	= rk2818_gpio_suspend,
+	.resume		= rk2818_gpio_resume,
+};
+
+static struct sys_device rk2818_gpio_device = {
+	.cls		= &rk2818_gpio_sysclass,
+};
+
+static int __init rk2818_gpio_sysinit(void)
+{
+	int ret = sysdev_class_register(&rk2818_gpio_sysclass);
+	if (ret == 0)
+		ret = sysdev_register(&rk2818_gpio_device);
+	return ret;
+}
+
+arch_initcall(rk2818_gpio_sysinit);
 
  /*----------------------------------------------------------------------
 Name	: rk2818_gpio_init

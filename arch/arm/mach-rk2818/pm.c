@@ -175,9 +175,9 @@ static int __tcmfunc rk2818_tcm_idle(void)
 			break;
 	}
 
-	__udelay(5 << 8);
+	tcm_udelay(5 << 8, 24);
 	scu_writel(scu_clksel0, SCU_CLKSEL0_CON);
-	__udelay(5);
+	tcm_udelay(5, 24);
 
 	scu_writel(scu_mode, SCU_MODE_CON); // normal
 
@@ -187,7 +187,7 @@ static int __tcmfunc rk2818_tcm_idle(void)
 static void rk2818_idle(void)
 {
 	unsigned long old_sp;
-	unsigned long tcm_sp = ITCM_END + 1;
+	unsigned long tcm_sp = ITCM_END & ~7;
 
 	asm volatile ("mov %0, sp" : "=r" (old_sp));
 	asm volatile ("mov sp, %0" :: "r" (tcm_sp));
@@ -197,12 +197,8 @@ static void rk2818_idle(void)
 
 static int rk2818_pm_enter(suspend_state_t state)
 {
-	rk2818_gpio_suspend();
-
 	rk2818_idle();
 	__udelay(40);
-
-	rk2818_gpio_resume();
 
 	return 0;
 }

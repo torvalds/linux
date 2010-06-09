@@ -179,8 +179,6 @@ struct rk2818_gpio_bank {
 #ifndef __ASSEMBLY__
 extern void __init rk2818_gpio_init(struct rk2818_gpio_bank *data, int nr_banks);
 extern void __init rk2818_gpio_irq_setup(void);
-extern void rk2818_gpio_suspend(void);
-extern void rk2818_gpio_resume(void);
 /*-------------------------------------------------------------------------*/
 
 /* wrappers for "new style" GPIO calls. the old RK2818-specfic ones should
