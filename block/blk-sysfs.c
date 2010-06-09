@@ -250,6 +250,27 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 	return ret;
 }
 
+static ssize_t queue_random_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(blk_queue_add_random(q), page);
+}
+
+static ssize_t queue_random_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	unsigned long val;
+	ssize_t ret = queue_var_store(&val, page, count);
+
+	spin_lock_irq(q->queue_lock);
+	if (val)
+		queue_flag_set(QUEUE_FLAG_ADD_RANDOM, q);
+	else
+		queue_flag_clear(QUEUE_FLAG_ADD_RANDOM, q);
+	spin_unlock_irq(q->queue_lock);
+
+	return ret;
+}
+
 static ssize_t queue_iostats_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(blk_queue_io_stat(q), page);
@@ -374,6 +395,12 @@ static struct queue_sysfs_entry queue_iostats_entry = {
 	.store = queue_iostats_store,
 };
 
+static struct queue_sysfs_entry queue_random_entry = {
+	.attr = {.name = "add_random", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_random_show,
+	.store = queue_random_store,
+};
+
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
@@ -394,6 +421,7 @@ static struct attribute *default_attrs[] = {
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	&queue_iostats_entry.attr,
+	&queue_random_entry.attr,
 	NULL,
 };
 
