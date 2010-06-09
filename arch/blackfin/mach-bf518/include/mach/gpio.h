@@ -7,7 +7,7 @@
 #ifndef _MACH_GPIO_H_
 #define _MACH_GPIO_H_
 
-#define MAX_BLACKFIN_GPIOS 40
+#define MAX_BLACKFIN_GPIOS 41
 
 #define	GPIO_PF0	0
 #define	GPIO_PF1	1
@@ -49,6 +49,7 @@
 #define	GPIO_PH5	37
 #define	GPIO_PH6	38
 #define	GPIO_PH7	39
+#define	GPIO_PH8	40
 
 #define PORT_F GPIO_PF0
 #define PORT_G GPIO_PG0
