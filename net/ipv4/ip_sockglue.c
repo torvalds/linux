@@ -241,9 +241,13 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
 struct ip_ra_chain *ip_ra_chain;
 static DEFINE_SPINLOCK(ip_ra_lock);
 
-static void ip_ra_free_rcu(struct rcu_head *head)
+
+static void ip_ra_destroy_rcu(struct rcu_head *head)
 {
-	kfree(container_of(head, struct ip_ra_chain, rcu));
+	struct ip_ra_chain *ra = container_of(head, struct ip_ra_chain, rcu);
+
+	sock_put(ra->saved_sk);
+	kfree(ra);
 }
 
 int ip_ra_control(struct sock *sk, unsigned char on,
@@ -264,13 +268,20 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 				kfree(new_ra);
 				return -EADDRINUSE;
 			}
+			/* dont let ip_call_ra_chain() use sk again */
+			ra->sk = NULL;
 			rcu_assign_pointer(*rap, ra->next);
 			spin_unlock_bh(&ip_ra_lock);
 
 			if (ra->destructor)
 				ra->destructor(sk);
-			sock_put(sk);
-			call_rcu(&ra->rcu, ip_ra_free_rcu);
+			/*
+			 * Delay sock_put(sk) and kfree(ra) after one rcu grace
+			 * period. This guarantee ip_call_ra_chain() dont need
+			 * to mess with socket refcounts.
+			 */
+			ra->saved_sk = sk;
+			call_rcu(&ra->rcu, ip_ra_destroy_rcu);
 			return 0;
 		}
 	}

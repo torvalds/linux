@@ -61,7 +61,10 @@ struct ipcm_cookie {
 struct ip_ra_chain {
 	struct ip_ra_chain	*next;
 	struct sock		*sk;
-	void			(*destructor)(struct sock *);
+	union {
+		void			(*destructor)(struct sock *);
+		struct sock		*saved_sk;
+	};
 	struct rcu_head		rcu;
 };
 
