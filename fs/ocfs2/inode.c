@@ -969,7 +969,7 @@ static void ocfs2_cleanup_delete_inode(struct inode *inode,
 	truncate_inode_pages(&inode->i_data, 0);
 }
 
-void ocfs2_delete_inode(struct inode *inode)
+static void ocfs2_delete_inode(struct inode *inode)
 {
 	int wipe, status;
 	sigset_t oldset;
@@ -1075,20 +1075,17 @@ bail_unlock_nfs_sync:
 bail_unblock:
 	ocfs2_unblock_signals(&oldset);
 bail:
-	clear_inode(inode);
 	mlog_exit_void();
 }
 
-void ocfs2_clear_inode(struct inode *inode)
+static void ocfs2_clear_inode(struct inode *inode)
 {
 	int status;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 
 	mlog_entry_void();
 
-	if (!inode)
-		goto bail;
-
+	end_writeback(inode);
 	mlog(0, "Clearing inode: %llu, nlink = %u\n",
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, inode->i_nlink);
 
@@ -1180,8 +1177,18 @@ void ocfs2_clear_inode(struct inode *inode)
 	jbd2_journal_release_jbd_inode(OCFS2_SB(inode->i_sb)->journal->j_journal,
 				       &oi->ip_jinode);
 
-bail:
 	mlog_exit_void();
+}
+
+void ocfs2_evict_inode(struct inode *inode)
+{
+	if (!inode->i_nlink ||
+	    (OCFS2_I(inode)->ip_flags & OCFS2_INODE_MAYBE_ORPHANED)) {
+		ocfs2_delete_inode(inode);
+	} else {
+		truncate_inode_pages(&inode->i_data, 0);
+	}
+	ocfs2_clear_inode(inode);
 }
 
 /* Called under inode_lock, with no more references on the
