@@ -3195,6 +3195,18 @@ int dsi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
+void dsi_wait_dsi1_pll_active(void)
+{
+	if (wait_for_bit_change(DSI_PLL_STATUS, 7, 1) != 1)
+		DSSERR("DSI1 PLL clock not active\n");
+}
+
+void dsi_wait_dsi2_pll_active(void)
+{
+	if (wait_for_bit_change(DSI_PLL_STATUS, 8, 1) != 1)
+		DSSERR("DSI2 PLL clock not active\n");
+}
+
 int dsi_init(struct platform_device *pdev)
 {
 	u32 rev;
