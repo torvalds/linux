@@ -68,7 +68,7 @@ proc_bus_zorro_read(struct file *file, char __user *buf, size_t nbytes, loff_t *
 	cd.cd_BoardAddr = (void *)zorro_resource_start(z);
 	cd.cd_BoardSize = zorro_resource_len(z);
 
-	if (copy_to_user(buf, &cd, nbytes))
+	if (copy_to_user(buf, (void *)&cd + pos, nbytes))
 		return -EFAULT;
 	*ppos += nbytes;
 
