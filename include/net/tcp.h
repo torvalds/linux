@@ -1197,29 +1197,14 @@ extern int			tcp_v4_md5_do_del(struct sock *sk,
 extern struct tcp_md5sig_pool * __percpu *tcp_alloc_md5sig_pool(struct sock *);
 extern void			tcp_free_md5sig_pool(void);
 
-extern struct tcp_md5sig_pool	*__tcp_get_md5sig_pool(int cpu);
-extern void			__tcp_put_md5sig_pool(void);
+extern struct tcp_md5sig_pool	*tcp_get_md5sig_pool(void);
+extern void			tcp_put_md5sig_pool(void);
+
 extern int tcp_md5_hash_header(struct tcp_md5sig_pool *, struct tcphdr *);
 extern int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *, struct sk_buff *,
 				 unsigned header_len);
 extern int tcp_md5_hash_key(struct tcp_md5sig_pool *hp,
 			    struct tcp_md5sig_key *key);
-
-static inline
-struct tcp_md5sig_pool		*tcp_get_md5sig_pool(void)
-{
-	int cpu = get_cpu();
-	struct tcp_md5sig_pool *ret = __tcp_get_md5sig_pool(cpu);
-	if (!ret)
-		put_cpu();
-	return ret;
-}
-
-static inline void		tcp_put_md5sig_pool(void)
-{
-	__tcp_put_md5sig_pool();
-	put_cpu();
-}
 
 /* write queue abstraction */
 static inline void tcp_write_queue_purge(struct sock *sk)

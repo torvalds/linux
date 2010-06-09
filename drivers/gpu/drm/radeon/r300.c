@@ -1044,7 +1044,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4d1c:
 		/* ZB_BW_CNTL */
-		track->fastfill = !!(idx_value & (1 << 2));
+		track->zb_cb_clear = !!(idx_value & (1 << 5));
 		break;
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */

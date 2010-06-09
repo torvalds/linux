@@ -880,7 +880,16 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 		 * do_request, above).  If there is no trace, we need
 		 * to do it here.
 		 */
+
+		/* d_move screws up d_subdirs order */
+		ceph_i_clear(new_dir, CEPH_I_COMPLETE);
+
 		d_move(old_dentry, new_dentry);
+
+		/* ensure target dentry is invalidated, despite
+		   rehashing bug in vfs_rename_dir */
+		new_dentry->d_time = jiffies;
+		ceph_dentry(new_dentry)->lease_shared_gen = 0;
 	}
 	ceph_mdsc_put_request(req);
 	return err;

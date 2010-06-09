@@ -158,7 +158,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 		 	    u->mq_bytes + mq_bytes >
 			    task_rlimit(p, RLIMIT_MSGQUEUE)) {
 				spin_unlock(&mq_lock);
-				kfree(info->messages);
+				/* mqueue_delete_inode() releases info->messages */
 				goto out_inode;
 			}
 			u->mq_bytes += mq_bytes;

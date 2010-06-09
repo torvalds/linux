@@ -1053,6 +1053,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x401a), .driver_info = Rev072A},
 	{USB_DEVICE(0x041e, 0x403b), .driver_info = Rev012A},
 	{USB_DEVICE(0x0458, 0x7004), .driver_info = Rev072A},
+	{USB_DEVICE(0x0461, 0x0815), .driver_info = Rev072A},
 	{USB_DEVICE(0x046d, 0x0928), .driver_info = Rev012A},
 	{USB_DEVICE(0x046d, 0x0929), .driver_info = Rev012A},
 	{USB_DEVICE(0x046d, 0x092a), .driver_info = Rev012A},

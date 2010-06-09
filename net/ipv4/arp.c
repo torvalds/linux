@@ -661,13 +661,13 @@ struct sk_buff *arp_create(int type, int ptype, __be32 dest_ip,
 #endif
 #endif
 
-#ifdef CONFIG_FDDI
+#if defined(CONFIG_FDDI) || defined(CONFIG_FDDI_MODULE)
 	case ARPHRD_FDDI:
 		arp->ar_hrd = htons(ARPHRD_ETHER);
 		arp->ar_pro = htons(ETH_P_IP);
 		break;
 #endif
-#ifdef CONFIG_TR
+#if defined(CONFIG_TR) || defined(CONFIG_TR_MODULE)
 	case ARPHRD_IEEE802_TR:
 		arp->ar_hrd = htons(ARPHRD_IEEE802);
 		arp->ar_pro = htons(ETH_P_IP);
@@ -1051,7 +1051,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 			return -EINVAL;
 	}
 	switch (dev->type) {
-#ifdef CONFIG_FDDI
+#if defined(CONFIG_FDDI) || defined(CONFIG_FDDI_MODULE)
 	case ARPHRD_FDDI:
 		/*
 		 * According to RFC 1390, FDDI devices should accept ARP

@@ -42,7 +42,7 @@ config USB_MUSB_SOC
 	default y if (BF52x && !BF522 && !BF523)
 
 comment "DaVinci 35x and 644x USB support"
-	depends on USB_MUSB_HDRC && ARCH_DAVINCI
+	depends on USB_MUSB_HDRC && ARCH_DAVINCI_DMx
 
 comment "OMAP 243x high speed USB support"
 	depends on USB_MUSB_HDRC && ARCH_OMAP2430

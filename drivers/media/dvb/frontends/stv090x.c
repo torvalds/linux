@@ -4470,6 +4470,10 @@ static int stv090x_setup(struct dvb_frontend *fe)
 	if (stv090x_write_reg(state, STV090x_TSTRES0, 0x00) < 0)
 		goto err;
 
+	/* workaround for stuck DiSEqC output */
+	if (config->diseqc_envelope_mode)
+		stv090x_send_diseqc_burst(fe, SEC_MINI_A);
+
 	return 0;
 err:
 	dprintk(FE_ERROR, 1, "I/O error");

@@ -363,7 +363,7 @@ static struct gpio_keys_button spitz_gpio_keys[] = {
 		.type	= EV_PWR,
 		.code	= KEY_SUSPEND,
 		.gpio	= SPITZ_GPIO_ON_KEY,
-		.desc	= "On/Off",
+		.desc	= "On Off",
 		.wakeup	= 1,
 	},
 	/* Two buttons detecting the lid state */

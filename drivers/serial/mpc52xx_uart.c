@@ -29,39 +29,6 @@
  * kind, whether express or implied.
  */
 
-/* Platform device Usage :
- *
- * Since PSCs can have multiple function, the correct driver for each one
- * is selected by calling mpc52xx_match_psc_function(...). The function
- * handled by this driver is "uart".
- *
- * The driver init all necessary registers to place the PSC in uart mode without
- * DCD. However, the pin multiplexing aren't changed and should be set either
- * by the bootloader or in the platform init code.
- *
- * The idx field must be equal to the PSC index (e.g. 0 for PSC1, 1 for PSC2,
- * and so on). So the PSC1 is mapped to /dev/ttyPSC0, PSC2 to /dev/ttyPSC1 and
- * so on. But be warned, it's an ABSOLUTE REQUIREMENT ! This is needed mainly
- * fpr the console code : without this 1:1 mapping, at early boot time, when we
- * are parsing the kernel args console=ttyPSC?, we wouldn't know which PSC it
- * will be mapped to.
- */
-
-/* OF Platform device Usage :
- *
- * This driver is only used for PSCs configured in uart mode.  The device
- * tree will have a node for each PSC with "mpc52xx-psc-uart" in the compatible
- * list.
- *
- * By default, PSC devices are enumerated in the order they are found.  However
- * a particular PSC number can be forces by adding 'device_no = <port#>'
- * to the device node.
- *
- * The driver init all necessary registers to place the PSC in uart mode without
- * DCD. However, the pin multiplexing aren't changed and should be set either
- * by the bootloader or in the platform init code.
- */
-
 #undef DEBUG
 
 #include <linux/device.h>
@@ -1500,7 +1467,7 @@ mpc52xx_uart_init(void)
 	/*
 	 * Map the PSC FIFO Controller and init if on MPC512x.
 	 */
-	if (psc_ops->fifoc_init) {
+	if (psc_ops && psc_ops->fifoc_init) {
 		ret = psc_ops->fifoc_init();
 		if (ret)
 			return ret;

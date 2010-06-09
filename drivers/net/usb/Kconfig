@@ -400,7 +400,6 @@ config USB_IPHETH
 config USB_SIERRA_NET
 	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
 	depends on USB_USBNET
-	default y
 	help
 	  Choose this option if you have a Sierra Wireless USB-to-WWAN device.
 

@@ -110,6 +110,7 @@ static struct workqueue_struct *kpsmoused_wq;
 struct psmouse_protocol {
 	enum psmouse_type type;
 	bool maxproto;
+	bool ignore_parity; /* Protocol should ignore parity errors from KBC */
 	const char *name;
 	const char *alias;
 	int (*detect)(struct psmouse *, bool);
@@ -288,7 +289,9 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 	if (psmouse->state == PSMOUSE_IGNORE)
 		goto out;
 
-	if (flags & (SERIO_PARITY|SERIO_TIMEOUT)) {
+	if (unlikely((flags & SERIO_TIMEOUT) ||
+		     ((flags & SERIO_PARITY) && !psmouse->ignore_parity))) {
+
 		if (psmouse->state == PSMOUSE_ACTIVATED)
 			printk(KERN_WARNING "psmouse.c: bad data from KBC -%s%s\n",
 				flags & SERIO_TIMEOUT ? " timeout" : "",
@@ -759,6 +762,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "PS/2",
 		.alias		= "bare",
 		.maxproto	= true,
+		.ignore_parity	= true,
 		.detect		= ps2bare_detect,
 	},
 #ifdef CONFIG_MOUSE_PS2_LOGIPS2PP
@@ -786,6 +790,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "ImPS/2",
 		.alias		= "imps",
 		.maxproto	= true,
+		.ignore_parity	= true,
 		.detect		= intellimouse_detect,
 	},
 	{
@@ -793,6 +798,7 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "ImExPS/2",
 		.alias		= "exps",
 		.maxproto	= true,
+		.ignore_parity	= true,
 		.detect		= im_explorer_detect,
 	},
 #ifdef CONFIG_MOUSE_PS2_SYNAPTICS
@@ -1222,6 +1228,7 @@ static void psmouse_disconnect(struct serio *serio)
 static int psmouse_switch_protocol(struct psmouse *psmouse,
 				   const struct psmouse_protocol *proto)
 {
+	const struct psmouse_protocol *selected_proto;
 	struct input_dev *input_dev = psmouse->dev;
 
 	input_dev->dev.parent = &psmouse->ps2dev.serio->dev;
@@ -1245,9 +1252,14 @@ static int psmouse_switch_protocol(struct psmouse *psmouse,
 			return -1;
 
 		psmouse->type = proto->type;
-	} else
+		selected_proto = proto;
+	} else {
 		psmouse->type = psmouse_extensions(psmouse,
 						   psmouse_max_proto, true);
+		selected_proto = psmouse_protocol_by_type(psmouse->type);
+	}
+
+	psmouse->ignore_parity = selected_proto->ignore_parity;
 
 	/*
 	 * If mouse's packet size is 3 there is no point in polling the
@@ -1267,7 +1279,7 @@ static int psmouse_switch_protocol(struct psmouse *psmouse,
 		psmouse->resync_time = 0;
 
 	snprintf(psmouse->devname, sizeof(psmouse->devname), "%s %s %s",
-		 psmouse_protocol_by_type(psmouse->type)->name, psmouse->vendor, psmouse->name);
+		 selected_proto->name, psmouse->vendor, psmouse->name);
 
 	input_dev->name = psmouse->devname;
 	input_dev->phys = psmouse->phys;
@@ -1382,6 +1394,7 @@ static int psmouse_reconnect(struct serio *serio)
 	struct psmouse *psmouse = serio_get_drvdata(serio);
 	struct psmouse *parent = NULL;
 	struct serio_driver *drv = serio->drv;
+	unsigned char type;
 	int rc = -1;
 
 	if (!drv || !psmouse) {
@@ -1401,10 +1414,15 @@ static int psmouse_reconnect(struct serio *serio)
 	if (psmouse->reconnect) {
 		if (psmouse->reconnect(psmouse))
 			goto out;
-	} else if (psmouse_probe(psmouse) < 0 ||
-		   psmouse->type != psmouse_extensions(psmouse,
-						psmouse_max_proto, false)) {
-		goto out;
+	} else {
+		psmouse_reset(psmouse);
+
+		if (psmouse_probe(psmouse) < 0)
+			goto out;
+
+		type = psmouse_extensions(psmouse, psmouse_max_proto, false);
+		if (psmouse->type != type)
+			goto out;
 	}
 
 	/* ok, the device type (and capabilities) match the old one,

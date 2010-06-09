@@ -216,6 +216,7 @@ static struct drm_driver driver_old = {
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .read = drm_read,
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = radeon_compat_ioctl,
 #endif
@@ -304,6 +305,7 @@ static struct drm_driver kms_driver = {
 		 .mmap = radeon_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .read = drm_read,
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = radeon_kms_compat_ioctl,
 #endif

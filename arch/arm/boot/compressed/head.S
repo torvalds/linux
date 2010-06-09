@@ -685,8 +685,8 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv4_mmu_cache_flush
 
-		.word	0x56056930
-		.word	0xff0ffff0		@ PXA935
+		.word	0x56056900
+		.word	0xffffff00		@ PXA9xx
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv4_mmu_cache_flush
@@ -696,12 +696,6 @@ proc_types:
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv5tej_mmu_cache_flush
-
-		.word	0x56056930
-		.word	0xff0ffff0		@ PXA935
-		W(b)	__armv4_mmu_cache_on
-		W(b)	__armv4_mmu_cache_off
-		W(b)	__armv4_mmu_cache_flush
 
 		.word	0x56050000		@ Feroceon
 		.word	0xff0f0000

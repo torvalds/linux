@@ -879,8 +879,8 @@ static int isicom_open(struct tty_struct *tty, struct file *filp)
 	if (tport == NULL)
 		return -ENODEV;
 	port = container_of(tport, struct isi_port, port);
-	card = &isi_card[BOARD(tty->index)];
 
+	tty->driver_data = port;
 	return tty_port_open(tport, tty, filp);
 }
 
@@ -936,7 +936,12 @@ static void isicom_shutdown(struct tty_port *port)
 static void isicom_close(struct tty_struct *tty, struct file *filp)
 {
 	struct isi_port *ip = tty->driver_data;
-	struct tty_port *port = &ip->port;
+	struct tty_port *port;
+
+	if (ip == NULL)
+		return;
+
+	port = &ip->port;
 	if (isicom_paranoia_check(ip, tty->name, "isicom_close"))
 		return;
 	tty_port_close(port, tty, filp);

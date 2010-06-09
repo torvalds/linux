@@ -354,7 +354,10 @@ static struct bin_attribute edid_attr = {
 int drm_sysfs_connector_add(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
-	int ret = 0, i, j;
+	int attr_cnt = 0;
+	int opt_cnt = 0;
+	int i;
+	int ret = 0;
 
 	/* We shouldn't get called more than once for the same connector */
 	BUG_ON(device_is_registered(&connector->kdev));
@@ -377,8 +380,8 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 
 	/* Standard attributes */
 
-	for (i = 0; i < ARRAY_SIZE(connector_attrs); i++) {
-		ret = device_create_file(&connector->kdev, &connector_attrs[i]);
+	for (attr_cnt = 0; attr_cnt < ARRAY_SIZE(connector_attrs); attr_cnt++) {
+		ret = device_create_file(&connector->kdev, &connector_attrs[attr_cnt]);
 		if (ret)
 			goto err_out_files;
 	}
@@ -394,8 +397,8 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 		case DRM_MODE_CONNECTOR_SVIDEO:
 		case DRM_MODE_CONNECTOR_Component:
 		case DRM_MODE_CONNECTOR_TV:
-			for (i = 0; i < ARRAY_SIZE(connector_attrs_opt1); i++) {
-				ret = device_create_file(&connector->kdev, &connector_attrs_opt1[i]);
+			for (opt_cnt = 0; opt_cnt < ARRAY_SIZE(connector_attrs_opt1); opt_cnt++) {
+				ret = device_create_file(&connector->kdev, &connector_attrs_opt1[opt_cnt]);
 				if (ret)
 					goto err_out_files;
 			}
@@ -414,10 +417,10 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	return 0;
 
 err_out_files:
-	if (i > 0)
-		for (j = 0; j < i; j++)
-			device_remove_file(&connector->kdev,
-					   &connector_attrs[i]);
+	for (i = 0; i < opt_cnt; i++)
+		device_remove_file(&connector->kdev, &connector_attrs_opt1[i]);
+	for (i = 0; i < attr_cnt; i++)
+		device_remove_file(&connector->kdev, &connector_attrs[i]);
 	device_unregister(&connector->kdev);
 
 out:

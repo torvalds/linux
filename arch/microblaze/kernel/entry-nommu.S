@@ -476,6 +476,8 @@ ENTRY(ret_from_fork)
 	nop
 
 work_pending:
+	enable_irq
+
 	andi	r11, r19, _TIF_NEED_RESCHED
 	beqi	r11, 1f
 	bralid	r15, schedule

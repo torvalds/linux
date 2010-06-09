@@ -1716,40 +1716,12 @@ int ttm_bo_wait(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_wait);
 
-void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo)
-{
-	atomic_set(&bo->reserved, 0);
-	wake_up_all(&bo->event_queue);
-}
-
-int ttm_bo_block_reservation(struct ttm_buffer_object *bo, bool interruptible,
-			     bool no_wait)
-{
-	int ret;
-
-	while (unlikely(atomic_cmpxchg(&bo->reserved, 0, 1) != 0)) {
-		if (no_wait)
-			return -EBUSY;
-		else if (interruptible) {
-			ret = wait_event_interruptible
-			    (bo->event_queue, atomic_read(&bo->reserved) == 0);
-			if (unlikely(ret != 0))
-				return ret;
-		} else {
-			wait_event(bo->event_queue,
-				   atomic_read(&bo->reserved) == 0);
-		}
-	}
-	return 0;
-}
-
 int ttm_bo_synccpu_write_grab(struct ttm_buffer_object *bo, bool no_wait)
 {
 	int ret = 0;
 
 	/*
-	 * Using ttm_bo_reserve instead of ttm_bo_block_reservation
-	 * makes sure the lru lists are updated.
+	 * Using ttm_bo_reserve makes sure the lru lists are updated.
 	 */
 
 	ret = ttm_bo_reserve(bo, true, no_wait, false, 0);

@@ -1735,7 +1735,7 @@ static int ti_download_firmware(struct ti_device *tdev)
 		return -ENOENT;
 	}
 	if (fw_p->size > TI_FIRMWARE_BUF_SIZE) {
-		dev_err(&dev->dev, "%s - firmware too large %d \n", __func__, fw_p->size);
+		dev_err(&dev->dev, "%s - firmware too large %zu\n", __func__, fw_p->size);
 		return -ENOENT;
 	}
 

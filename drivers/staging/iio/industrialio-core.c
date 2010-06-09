@@ -537,6 +537,7 @@ static void iio_device_unregister_sysfs(struct iio_dev *dev_info)
 	sysfs_remove_group(&dev_info->dev.kobj, dev_info->attrs);
 }
 
+/* Return a negative errno on failure */
 int iio_get_new_idr_val(struct idr *this_idr)
 {
 	int ret;
@@ -660,7 +661,7 @@ static int iio_device_register_eventset(struct iio_dev *dev_info)
 	for (i = 0; i < dev_info->num_interrupt_lines; i++) {
 		dev_info->event_interfaces[i].owner = dev_info->driver_module;
 		ret = iio_get_new_idr_val(&iio_event_idr);
-		if (ret)
+		if (ret < 0)
 			goto error_free_setup_ev_ints;
 		else
 			dev_info->event_interfaces[i].id = ret;

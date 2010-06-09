@@ -558,6 +558,8 @@ extern int radeon_static_clocks_init(struct drm_device *dev);
 bool radeon_crtc_scaling_mode_fixup(struct drm_crtc *crtc,
 					struct drm_display_mode *mode,
 					struct drm_display_mode *adjusted_mode);
+void radeon_panel_mode_fixup(struct drm_encoder *encoder,
+			     struct drm_display_mode *adjusted_mode);
 void atom_rv515_force_tv_scaler(struct radeon_device *rdev, struct radeon_crtc *radeon_crtc);
 
 /* legacy tv */

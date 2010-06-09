@@ -177,8 +177,7 @@ static int try_to_fill_dentry(struct dentry *dentry, int flags)
 		}
 	/* Trigger mount for path component or follow link */
 	} else if (ino->flags & AUTOFS_INF_PENDING ||
-			autofs4_need_mount(flags) ||
-			current->link_count) {
+			autofs4_need_mount(flags)) {
 		DPRINTK("waiting for mount name=%.*s",
 			dentry->d_name.len, dentry->d_name.name);
 
@@ -262,7 +261,7 @@ static void *autofs4_follow_link(struct dentry *dentry, struct nameidata *nd)
 		spin_unlock(&dcache_lock);
 		spin_unlock(&sbi->fs_lock);
 
-		status = try_to_fill_dentry(dentry, 0);
+		status = try_to_fill_dentry(dentry, nd->flags);
 		if (status)
 			goto out_error;
 

@@ -464,9 +464,9 @@ static void dt3155_init_isr(int minor)
   /* 50/60 Hz should be set before this point but let's make sure it is */
   /* right anyway */
 
-  ReadI2C(dt3155_lbase[ minor ], CONFIG, &i2c_csr2.reg);
+  ReadI2C(dt3155_lbase[ minor ], CSR2, &i2c_csr2.reg);
   i2c_csr2.fld.HZ50 = FORMAT50HZ;
-  WriteI2C(dt3155_lbase[ minor ], CONFIG, i2c_config.reg);
+  WriteI2C(dt3155_lbase[ minor ], CSR2, i2c_csr2.reg);
 
   /* enable busmaster chip, clear flags */
 

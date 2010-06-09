@@ -98,15 +98,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 
 	if (cpuinfo.use_icache)
 		count += seq_printf(m,
-				"Icache:\t\t%ukB\n",
-				cpuinfo.icache_size >> 10);
+				"Icache:\t\t%ukB\tline length:\t%dB\n",
+				cpuinfo.icache_size >> 10,
+				cpuinfo.icache_line_length);
 	else
 		count += seq_printf(m, "Icache:\t\tno\n");
 
 	if (cpuinfo.use_dcache) {
 		count += seq_printf(m,
-				"Dcache:\t\t%ukB\n",
-				cpuinfo.dcache_size >> 10);
+				"Dcache:\t\t%ukB\tline length:\t%dB\n",
+				cpuinfo.dcache_size >> 10,
+				cpuinfo.dcache_line_length);
 		if (cpuinfo.dcache_wb)
 			count += seq_printf(m, "\t\twrite-back\n");
 		else

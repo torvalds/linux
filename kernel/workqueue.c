@@ -774,7 +774,7 @@ void flush_delayed_work(struct delayed_work *dwork)
 {
 	if (del_timer_sync(&dwork->timer)) {
 		struct cpu_workqueue_struct *cwq;
-		cwq = wq_per_cpu(keventd_wq, get_cpu());
+		cwq = wq_per_cpu(get_wq_data(&dwork->work)->wq, get_cpu());
 		__queue_work(cwq, &dwork->work);
 		put_cpu();
 	}

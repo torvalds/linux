@@ -493,6 +493,9 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	struct lis3l02dq_state *state = indio_dev->dev_data;
 
 	state->trig = iio_allocate_trigger();
+	if (!state->trig)
+		return -ENOMEM;
+
 	state->trig->name = kmalloc(IIO_TRIGGER_NAME_LENGTH, GFP_KERNEL);
 	if (!state->trig->name) {
 		ret = -ENOMEM;

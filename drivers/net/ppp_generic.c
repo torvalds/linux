@@ -405,6 +405,7 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	DECLARE_WAITQUEUE(wait, current);
 	ssize_t ret;
 	struct sk_buff *skb = NULL;
+	struct iovec iov;
 
 	ret = count;
 
@@ -448,7 +449,9 @@ static ssize_t ppp_read(struct file *file, char __user *buf,
 	if (skb->len > count)
 		goto outf;
 	ret = -EFAULT;
-	if (copy_to_user(buf, skb->data, skb->len))
+	iov.iov_base = buf;
+	iov.iov_len = count;
+	if (skb_copy_datagram_iovec(skb, 0, &iov, skb->len))
 		goto outf;
 	ret = skb->len;
 
@@ -1567,13 +1570,22 @@ ppp_input(struct ppp_channel *chan, struct sk_buff *skb)
 	struct channel *pch = chan->ppp;
 	int proto;
 
-	if (!pch || skb->len == 0) {
+	if (!pch) {
 		kfree_skb(skb);
 		return;
 	}
 
-	proto = PPP_PROTO(skb);
 	read_lock_bh(&pch->upl);
+	if (!pskb_may_pull(skb, 2)) {
+		kfree_skb(skb);
+		if (pch->ppp) {
+			++pch->ppp->dev->stats.rx_length_errors;
+			ppp_receive_error(pch->ppp);
+		}
+		goto done;
+	}
+
+	proto = PPP_PROTO(skb);
 	if (!pch->ppp || proto >= 0xc000 || proto == PPP_CCPFRAG) {
 		/* put it on the channel queue */
 		skb_queue_tail(&pch->file.rq, skb);
@@ -1585,6 +1597,8 @@ ppp_input(struct ppp_channel *chan, struct sk_buff *skb)
 	} else {
 		ppp_do_recv(pch->ppp, skb, pch);
 	}
+
+done:
 	read_unlock_bh(&pch->upl);
 }
 
@@ -1617,7 +1631,8 @@ ppp_input_error(struct ppp_channel *chan, int code)
 static void
 ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 {
-	if (pskb_may_pull(skb, 2)) {
+	/* note: a 0-length skb is used as an error indication */
+	if (skb->len > 0) {
 #ifdef CONFIG_PPP_MULTILINK
 		/* XXX do channel-level decompression here */
 		if (PPP_PROTO(skb) == PPP_MP)
@@ -1625,15 +1640,10 @@ ppp_receive_frame(struct ppp *ppp, struct sk_buff *skb, struct channel *pch)
 		else
 #endif /* CONFIG_PPP_MULTILINK */
 			ppp_receive_nonmp_frame(ppp, skb);
-		return;
+	} else {
+		kfree_skb(skb);
+		ppp_receive_error(ppp);
 	}
-
-	if (skb->len > 0)
-		/* note: a 0-length skb is used as an error indication */
-		++ppp->dev->stats.rx_length_errors;
-
-	kfree_skb(skb);
-	ppp_receive_error(ppp);
 }
 
 static void

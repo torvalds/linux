@@ -684,6 +684,7 @@ restarted_transaction:
 		if (why == RESTART_META) {
 			mlog(0, "restarting function.\n");
 			restart_func = 1;
+			status = 0;
 		} else {
 			BUG_ON(why != RESTART_TRANS);
 
@@ -1981,18 +1982,18 @@ relock:
 	/* communicate with ocfs2_dio_end_io */
 	ocfs2_iocb_set_rw_locked(iocb, rw_level);
 
+	ret = generic_segment_checks(iov, &nr_segs, &ocount,
+				     VERIFY_READ);
+	if (ret)
+		goto out_dio;
+
+	count = ocount;
+	ret = generic_write_checks(file, ppos, &count,
+				   S_ISBLK(inode->i_mode));
+	if (ret)
+		goto out_dio;
+
 	if (direct_io) {
-		ret = generic_segment_checks(iov, &nr_segs, &ocount,
-					     VERIFY_READ);
-		if (ret)
-			goto out_dio;
-
-		count = ocount;
-		ret = generic_write_checks(file, ppos, &count,
-					   S_ISBLK(inode->i_mode));
-		if (ret)
-			goto out_dio;
-
 		written = generic_file_direct_write(iocb, iov, &nr_segs, *ppos,
 						    ppos, count, ocount);
 		if (written < 0) {
@@ -2007,7 +2008,10 @@ relock:
 			goto out_dio;
 		}
 	} else {
-		written = __generic_file_aio_write(iocb, iov, nr_segs, ppos);
+		current->backing_dev_info = file->f_mapping->backing_dev_info;
+		written = generic_file_buffered_write(iocb, iov, nr_segs, *ppos,
+						      ppos, count, 0);
+		current->backing_dev_info = NULL;
 	}
 
 out_dio:
@@ -2021,9 +2025,9 @@ out_dio:
 		if (ret < 0)
 			written = ret;
 
-		if (!ret && (old_size != i_size_read(inode) ||
-		    old_clusters != OCFS2_I(inode)->ip_clusters ||
-		    has_refcount)) {
+		if (!ret && ((old_size != i_size_read(inode)) ||
+			     (old_clusters != OCFS2_I(inode)->ip_clusters) ||
+			     has_refcount)) {
 			ret = jbd2_journal_force_commit(osb->journal->j_journal);
 			if (ret < 0)
 				written = ret;

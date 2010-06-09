@@ -286,16 +286,16 @@ done:
 static struct cgroup_subsys_state *
 blkiocg_create(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 {
-	struct blkio_cgroup *blkcg, *parent_blkcg;
+	struct blkio_cgroup *blkcg;
+	struct cgroup *parent = cgroup->parent;
 
-	if (!cgroup->parent) {
+	if (!parent) {
 		blkcg = &blkio_root_cgroup;
 		goto done;
 	}
 
 	/* Currently we do not support hierarchy deeper than two level (0,1) */
-	parent_blkcg = cgroup_to_blkio_cgroup(cgroup->parent);
-	if (css_depth(&parent_blkcg->css) > 0)
+	if (parent != cgroup->top_cgroup)
 		return ERR_PTR(-EINVAL);
 
 	blkcg = kzalloc(sizeof(*blkcg), GFP_KERNEL);

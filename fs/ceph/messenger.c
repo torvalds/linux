@@ -492,7 +492,14 @@ static void prepare_write_message(struct ceph_connection *con)
 		list_move_tail(&m->list_head, &con->out_sent);
 	}
 
-	m->hdr.seq = cpu_to_le64(++con->out_seq);
+	/*
+	 * only assign outgoing seq # if we haven't sent this message
+	 * yet.  if it is requeued, resend with it's original seq.
+	 */
+	if (m->needs_out_seq) {
+		m->hdr.seq = cpu_to_le64(++con->out_seq);
+		m->needs_out_seq = false;
+	}
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d %d pgs\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
@@ -1334,6 +1341,7 @@ static int read_partial_message(struct ceph_connection *con)
 	unsigned front_len, middle_len, data_len, data_off;
 	int datacrc = con->msgr->nocrc;
 	int skip;
+	u64 seq;
 
 	dout("read_partial_message con %p msg %p\n", con, m);
 
@@ -1368,6 +1376,25 @@ static int read_partial_message(struct ceph_connection *con)
 		return -EIO;
 	data_off = le16_to_cpu(con->in_hdr.data_off);
 
+	/* verify seq# */
+	seq = le64_to_cpu(con->in_hdr.seq);
+	if ((s64)seq - (s64)con->in_seq < 1) {
+		pr_info("skipping %s%lld %s seq %lld, expected %lld\n",
+			ENTITY_NAME(con->peer_name),
+			pr_addr(&con->peer_addr.in_addr),
+			seq, con->in_seq + 1);
+		con->in_base_pos = -front_len - middle_len - data_len -
+			sizeof(m->footer);
+		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
+		return 0;
+	} else if ((s64)seq - (s64)con->in_seq > 1) {
+		pr_err("read_partial_message bad seq %lld expected %lld\n",
+		       seq, con->in_seq + 1);
+		con->error_msg = "bad message sequence # for incoming message";
+		return -EBADMSG;
+	}
+
 	/* allocate message? */
 	if (!con->in_msg) {
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
@@ -1379,6 +1406,7 @@ static int read_partial_message(struct ceph_connection *con)
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
+			con->in_seq++;
 			return 0;
 		}
 		if (IS_ERR(con->in_msg)) {
@@ -1965,6 +1993,8 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 
 	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
 
+	msg->needs_out_seq = true;
+
 	/* queue */
 	mutex_lock(&con->mutex);
 	BUG_ON(!list_empty(&msg->list_head));
@@ -2030,6 +2060,7 @@ void ceph_con_revoke_message(struct ceph_connection *con, struct ceph_msg *msg)
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
 		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
 	} else {
 		dout("con_revoke_pages %p msg %p pages %p no-op\n",
 		     con, con->in_msg, msg);
@@ -2063,15 +2094,19 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	kref_init(&m->kref);
 	INIT_LIST_HEAD(&m->list_head);
 
+	m->hdr.tid = 0;
 	m->hdr.type = cpu_to_le16(type);
+	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
+	m->hdr.version = 0;
 	m->hdr.front_len = cpu_to_le32(front_len);
 	m->hdr.middle_len = 0;
 	m->hdr.data_len = cpu_to_le32(page_len);
 	m->hdr.data_off = cpu_to_le16(page_off);
-	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
+	m->hdr.reserved = 0;
 	m->footer.front_crc = 0;
 	m->footer.middle_crc = 0;
 	m->footer.data_crc = 0;
+	m->footer.flags = 0;
 	m->front_max = front_len;
 	m->front_is_vmalloc = false;
 	m->more_to_follow = false;

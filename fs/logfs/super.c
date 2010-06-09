@@ -333,27 +333,27 @@ static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 		goto fail;
 
 	sb->s_root = d_alloc_root(rootdir);
-	if (!sb->s_root)
-		goto fail2;
+	if (!sb->s_root) {
+		iput(rootdir);
+		goto fail;
+	}
 
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
 	if (!super->s_erase_page)
-		goto fail2;
+		goto fail;
 	memset(page_address(super->s_erase_page), 0xFF, PAGE_SIZE);
 
 	/* FIXME: check for read-only mounts */
 	err = logfs_make_writeable(sb);
 	if (err)
-		goto fail3;
+		goto fail1;
 
 	log_super("LogFS: Finished mounting\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
 
-fail3:
+fail1:
 	__free_page(super->s_erase_page);
-fail2:
-	iput(rootdir);
 fail:
 	iput(logfs_super(sb)->s_master_inode);
 	return -EIO;

@@ -965,10 +965,8 @@ static void musb_shutdown(struct platform_device *pdev)
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
-	if (musb->clock) {
+	if (musb->clock)
 		clk_put(musb->clock);
-		musb->clock = NULL;
-	}
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	/* FIXME power down */
@@ -1853,15 +1851,6 @@ static void musb_free(struct musb *musb)
 	put_device(musb->xceiv->dev);
 #endif
 
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
-	musb_platform_exit(musb);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
-
-	if (musb->clock) {
-		clk_disable(musb->clock);
-		clk_put(musb->clock);
-	}
-
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	usb_put_hcd(musb_to_hcd(musb));
 #else
@@ -1889,8 +1878,10 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 */
 	if (!plat) {
 		dev_dbg(dev, "no platform_data?\n");
-		return -ENODEV;
+		status = -ENODEV;
+		goto fail0;
 	}
+
 	switch (plat->mode) {
 	case MUSB_HOST:
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
@@ -1912,13 +1903,16 @@ bad_config:
 #endif
 	default:
 		dev_err(dev, "incompatible Kconfig role setting\n");
-		return -EINVAL;
+		status = -EINVAL;
+		goto fail0;
 	}
 
 	/* allocate */
 	musb = allocate_instance(dev, plat->config, ctrl);
-	if (!musb)
-		return -ENOMEM;
+	if (!musb) {
+		status = -ENOMEM;
+		goto fail0;
+	}
 
 	spin_lock_init(&musb->lock);
 	musb->board_mode = plat->mode;
@@ -1936,7 +1930,7 @@ bad_config:
 		if (IS_ERR(musb->clock)) {
 			status = PTR_ERR(musb->clock);
 			musb->clock = NULL;
-			goto fail;
+			goto fail1;
 		}
 	}
 
@@ -1955,12 +1949,12 @@ bad_config:
 	 */
 	musb->isr = generic_interrupt;
 	status = musb_platform_init(musb);
-
 	if (status < 0)
-		goto fail;
+		goto fail2;
+
 	if (!musb->isr) {
 		status = -ENODEV;
-		goto fail2;
+		goto fail3;
 	}
 
 #ifndef CONFIG_MUSB_PIO_ONLY
@@ -1986,7 +1980,7 @@ bad_config:
 			? MUSB_CONTROLLER_MHDRC
 			: MUSB_CONTROLLER_HDRC, musb);
 	if (status < 0)
-		goto fail2;
+		goto fail3;
 
 #ifdef CONFIG_USB_MUSB_OTG
 	setup_timer(&musb->otg_timer, musb_otg_timer_func, (unsigned long) musb);
@@ -1999,7 +1993,7 @@ bad_config:
 	if (request_irq(nIrq, musb->isr, 0, dev_name(dev), musb)) {
 		dev_err(dev, "request_irq %d failed!\n", nIrq);
 		status = -ENODEV;
-		goto fail2;
+		goto fail3;
 	}
 	musb->nIrq = nIrq;
 /* FIXME this handles wakeup irqs wrong */
@@ -2039,8 +2033,6 @@ bad_config:
 		musb->xceiv->state = OTG_STATE_A_IDLE;
 
 		status = usb_add_hcd(musb_to_hcd(musb), -1, 0);
-		if (status)
-			goto fail;
 
 		DBG(1, "%s mode, status %d, devctl %02x %c\n",
 			"HOST", status,
@@ -2055,8 +2047,6 @@ bad_config:
 		musb->xceiv->state = OTG_STATE_B_IDLE;
 
 		status = musb_gadget_setup(musb);
-		if (status)
-			goto fail;
 
 		DBG(1, "%s mode, status %d, dev%02x\n",
 			is_otg_enabled(musb) ? "OTG" : "PERIPHERAL",
@@ -2064,12 +2054,14 @@ bad_config:
 			musb_readb(musb->mregs, MUSB_DEVCTL));
 
 	}
+	if (status < 0)
+		goto fail3;
 
 #ifdef CONFIG_SYSFS
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
-#endif
 	if (status)
-		goto fail2;
+		goto fail4;
+#endif
 
 	dev_info(dev, "USB %s mode controller at %p using %s, IRQ %d\n",
 			({char *s;
@@ -2085,16 +2077,28 @@ bad_config:
 
 	return 0;
 
-fail2:
+fail4:
+	if (!is_otg_enabled(musb) && is_host_enabled(musb))
+		usb_remove_hcd(musb_to_hcd(musb));
+	else
+		musb_gadget_cleanup(musb);
+
+fail3:
+	if (musb->irq_wake)
+		device_init_wakeup(dev, 0);
 	musb_platform_exit(musb);
-fail:
+
+fail2:
+	if (musb->clock)
+		clk_put(musb->clock);
+
+fail1:
 	dev_err(musb->controller,
 		"musb_init_controller failed with status %d\n", status);
 
-	if (musb->clock)
-		clk_put(musb->clock);
-	device_init_wakeup(dev, 0);
 	musb_free(musb);
+
+fail0:
 
 	return status;
 
@@ -2132,7 +2136,6 @@ static int __init musb_probe(struct platform_device *pdev)
 	/* clobbered by use_dma=n */
 	orig_dma_mask = dev->dma_mask;
 #endif
-
 	status = musb_init_controller(dev, irq, base);
 	if (status < 0)
 		iounmap(base);
@@ -2155,6 +2158,10 @@ static int __exit musb_remove(struct platform_device *pdev)
 	if (musb->board_mode == MUSB_HOST)
 		usb_remove_hcd(musb_to_hcd(musb));
 #endif
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+	musb_platform_exit(musb);
+	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
+
 	musb_free(musb);
 	iounmap(ctrl_base);
 	device_init_wakeup(&pdev->dev, 0);
@@ -2176,6 +2183,7 @@ void musb_save_context(struct musb *musb)
 	if (is_host_enabled(musb)) {
 		musb_context.frame = musb_readw(musb_base, MUSB_FRAME);
 		musb_context.testmode = musb_readb(musb_base, MUSB_TESTMODE);
+		musb_context.busctl = musb_read_ulpi_buscontrol(musb->mregs);
 	}
 	musb_context.power = musb_readb(musb_base, MUSB_POWER);
 	musb_context.intrtxe = musb_readw(musb_base, MUSB_INTRTXE);
@@ -2247,6 +2255,7 @@ void musb_restore_context(struct musb *musb)
 	if (is_host_enabled(musb)) {
 		musb_writew(musb_base, MUSB_FRAME, musb_context.frame);
 		musb_writeb(musb_base, MUSB_TESTMODE, musb_context.testmode);
+		musb_write_ulpi_buscontrol(musb->mregs, musb_context.busctl);
 	}
 	musb_writeb(musb_base, MUSB_POWER, musb_context.power);
 	musb_writew(musb_base, MUSB_INTRTXE, musb_context.intrtxe);
