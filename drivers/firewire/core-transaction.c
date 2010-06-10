@@ -1034,6 +1034,11 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 			rcode = RCODE_TYPE_ERROR;
 		break;
 
+	case CSR_RESET_START:
+		if (tcode != TCODE_WRITE_QUADLET_REQUEST)
+			rcode = RCODE_TYPE_ERROR;
+		break;
+
 	case CSR_CYCLE_TIME:
 		if (TCODE_IS_READ_REQUEST(tcode) && length == 4)
 			*data = cpu_to_be32(card->driver->
