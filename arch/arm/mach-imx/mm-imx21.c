@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-mx2/mm-imx27.c
+ * arch/arm/mach-imx/mm-imx21.c
  *
  * Copyright (C) 2008 Juergen Beisert (kernel@pengutronix.de)
  *
@@ -25,8 +25,8 @@
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
-/* MX27 memory map definition */
-static struct map_desc imx27_io_desc[] __initdata = {
+/* MX21 memory map definition */
+static struct map_desc imx21_io_desc[] __initdata = {
 	/*
 	 * this fixed mapping covers:
 	 * - AIPI1
@@ -36,9 +36,9 @@ static struct map_desc imx27_io_desc[] __initdata = {
 	 * - and some reserved space
 	 */
 	{
-		.virtual = MX27_AIPI_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX27_AIPI_BASE_ADDR),
-		.length = MX27_AIPI_SIZE,
+		.virtual = MX21_AIPI_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX21_AIPI_BASE_ADDR),
+		.length = MX21_AIPI_SIZE,
 		.type = MT_DEVICE
 	},
 	/*
@@ -47,9 +47,9 @@ static struct map_desc imx27_io_desc[] __initdata = {
 	 * - ATA
 	 */
 	{
-		.virtual = MX27_SAHB1_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX27_SAHB1_BASE_ADDR),
-		.length = MX27_SAHB1_SIZE,
+		.virtual = MX21_SAHB1_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX21_SAHB1_BASE_ADDR),
+		.length = MX21_SAHB1_SIZE,
 		.type = MT_DEVICE
 	},
 	/*
@@ -57,9 +57,9 @@ static struct map_desc imx27_io_desc[] __initdata = {
 	 * - EMI
 	 */
 	{
-		.virtual = MX27_X_MEMC_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX27_X_MEMC_BASE_ADDR),
-		.length = MX27_X_MEMC_SIZE,
+		.virtual = MX21_X_MEMC_BASE_ADDR_VIRT,
+		.pfn = __phys_to_pfn(MX21_X_MEMC_BASE_ADDR),
+		.length = MX21_X_MEMC_SIZE,
 		.type = MT_DEVICE
 	},
 };
@@ -69,15 +69,15 @@ static struct map_desc imx27_io_desc[] __initdata = {
  * system startup to create static physical to virtual
  * memory map for the IO modules.
  */
-void __init mx27_map_io(void)
+void __init mx21_map_io(void)
 {
-	mxc_set_cpu_type(MXC_CPU_MX27);
-	mxc_arch_reset_init(MX27_IO_ADDRESS(MX27_WDOG_BASE_ADDR));
+	mxc_set_cpu_type(MXC_CPU_MX21);
+	mxc_arch_reset_init(MX21_IO_ADDRESS(MX21_WDOG_BASE_ADDR));
 
-	iotable_init(imx27_io_desc, ARRAY_SIZE(imx27_io_desc));
+	iotable_init(imx21_io_desc, ARRAY_SIZE(imx21_io_desc));
 }
 
-void __init mx27_init_irq(void)
+void __init mx21_init_irq(void)
 {
-	mxc_init_irq(MX27_IO_ADDRESS(MX27_AVIC_BASE_ADDR));
+	mxc_init_irq(MX21_IO_ADDRESS(MX21_AVIC_BASE_ADDR));
 }

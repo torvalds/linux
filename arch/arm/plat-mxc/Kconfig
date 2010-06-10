@@ -49,7 +49,7 @@ config ARCH_MX5
 endchoice
 
 source "arch/arm/mach-mx1/Kconfig"
-source "arch/arm/mach-mx2/Kconfig"
+source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
 source "arch/arm/mach-mx25/Kconfig"
 source "arch/arm/mach-mxc91231/Kconfig"
