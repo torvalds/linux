@@ -27,8 +27,6 @@ enum writeback_sync_modes {
  * in a manner such that unspecified fields are set to zero.
  */
 struct writeback_control {
-	struct super_block *sb;		/* if !NULL, only write inodes from
-					   this super_block */
 	enum writeback_sync_modes sync_mode;
 	unsigned long *older_than_this;	/* If !NULL, only write back inodes
 					   older than this */
