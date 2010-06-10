@@ -232,31 +232,24 @@ static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 {
-	struct sighand_struct *sighand;
-	struct signal_struct *sig;
+	struct signal_struct *sig = tsk->signal;
 	struct task_struct *t;
 
-	*times = INIT_CPUTIME;
+	times->utime = sig->utime;
+	times->stime = sig->stime;
+	times->sum_exec_runtime = sig->sum_sched_runtime;
 
 	rcu_read_lock();
-	sighand = rcu_dereference(tsk->sighand);
-	if (!sighand)
+	/* make sure we can trust tsk->thread_group list */
+	if (!likely(pid_alive(tsk)))
 		goto out;
-
-	sig = tsk->signal;
 
 	t = tsk;
 	do {
 		times->utime = cputime_add(times->utime, t->utime);
 		times->stime = cputime_add(times->stime, t->stime);
 		times->sum_exec_runtime += t->se.sum_exec_runtime;
-
-		t = next_thread(t);
-	} while (t != tsk);
-
-	times->utime = cputime_add(times->utime, sig->utime);
-	times->stime = cputime_add(times->stime, sig->stime);
-	times->sum_exec_runtime += sig->sum_sched_runtime;
+	} while_each_thread(tsk, t);
 out:
 	rcu_read_unlock();
 }
