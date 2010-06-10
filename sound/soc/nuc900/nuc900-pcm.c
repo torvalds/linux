@@ -23,7 +23,7 @@
 
 #include <mach/hardware.h>
 
-#include "nuc900-auido.h"
+#include "nuc900-audio.h"
 
 static const struct snd_pcm_hardware nuc900_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_INTERLEAVED |

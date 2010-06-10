@@ -21,7 +21,7 @@
 #include <sound/soc-dapm.h>
 
 #include "../codecs/ac97.h"
-#include "nuc900-auido.h"
+#include "nuc900-audio.h"
 
 static struct snd_soc_dai_link nuc900evb_ac97_dai = {
 	.name		= "AC97",
