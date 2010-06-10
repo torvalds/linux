@@ -261,6 +261,7 @@ void netpoll_send_skb(struct netpoll *np, struct sk_buff *skb)
 	unsigned long tries;
 	struct net_device *dev = np->dev;
 	const struct net_device_ops *ops = dev->netdev_ops;
+	/* It is up to the caller to keep npinfo alive. */
 	struct netpoll_info *npinfo = np->dev->npinfo;
 
 	if (!npinfo || !netif_running(dev) || !netif_device_present(dev)) {
@@ -810,10 +811,7 @@ int netpoll_setup(struct netpoll *np)
 	refill_skbs();
 
 	/* last thing to do is link it to the net device structure */
-	ndev->npinfo = npinfo;
-
-	/* avoid racing with NAPI reading npinfo */
-	synchronize_rcu();
+	rcu_assign_pointer(ndev->npinfo, npinfo);
 
 	return 0;
 
@@ -857,6 +855,16 @@ void netpoll_cleanup(struct netpoll *np)
 
 			if (atomic_dec_and_test(&npinfo->refcnt)) {
 				const struct net_device_ops *ops;
+
+				ops = np->dev->netdev_ops;
+				if (ops->ndo_netpoll_cleanup)
+					ops->ndo_netpoll_cleanup(np->dev);
+
+				rcu_assign_pointer(np->dev->npinfo, NULL);
+
+				/* avoid racing with NAPI reading npinfo */
+				synchronize_rcu_bh();
+
 				skb_queue_purge(&npinfo->arp_tx);
 				skb_queue_purge(&npinfo->txq);
 				cancel_rearming_delayed_work(&npinfo->tx_work);
@@ -864,10 +872,6 @@ void netpoll_cleanup(struct netpoll *np)
 				/* clean after last, unfinished work */
 				__skb_queue_purge(&npinfo->txq);
 				kfree(npinfo);
-				ops = np->dev->netdev_ops;
-				if (ops->ndo_netpoll_cleanup)
-					ops->ndo_netpoll_cleanup(np->dev);
-				np->dev->npinfo = NULL;
 			}
 		}
 
