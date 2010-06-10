@@ -2278,8 +2278,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	 * try to invalidate (once).  (If there are dirty buffers, we
 	 * will invalidate _after_ writeback.)
 	 */
-	if (((cap->issued & ~newcaps) & (CEPH_CAP_FILE_CACHE|
-					 CEPH_CAP_FILE_LAZYIO)) &&
+	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
+	    (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
 	    !ci->i_wrbuffer_ref) {
 		if (try_nonblocking_invalidate(inode) == 0) {
 			revoked_rdcache = 1;
@@ -2371,16 +2371,22 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 
 	/* revocation, grant, or no-op? */
 	if (cap->issued & ~newcaps) {
-		dout("revocation: %s -> %s\n", ceph_cap_string(cap->issued),
-		     ceph_cap_string(newcaps));
-		if ((used & ~newcaps) & CEPH_CAP_FILE_BUFFER)
-			writeback = 1; /* will delay ack */
-		else if (dirty & ~newcaps)
-			check_caps = 1;  /* initiate writeback in check_caps */
-		else if (((used & ~newcaps) & (CEPH_CAP_FILE_CACHE|
-					       CEPH_CAP_FILE_LAZYIO)) == 0 ||
-			   revoked_rdcache)
-			check_caps = 2;     /* send revoke ack in check_caps */
+		int revoking = cap->issued & ~newcaps;
+
+		dout("revocation: %s -> %s (revoking %s)\n",
+		     ceph_cap_string(cap->issued),
+		     ceph_cap_string(newcaps),
+		     ceph_cap_string(revoking));
+		if (revoking & CEPH_CAP_FILE_BUFFER)
+			writeback = 1;  /* initiate writeback; will delay ack */
+		else if (revoking == CEPH_CAP_FILE_CACHE &&
+			 (newcaps & CEPH_CAP_FILE_LAZYIO) == 0 &&
+			 queue_invalidate)
+			; /* do nothing yet, invalidation will be queued */
+		else if (cap == ci->i_auth_cap)
+			check_caps = 1; /* check auth cap only */
+		else
+			check_caps = 2; /* check all caps */
 		cap->issued = newcaps;
 		cap->implemented |= newcaps;
 	} else if (cap->issued == newcaps) {
