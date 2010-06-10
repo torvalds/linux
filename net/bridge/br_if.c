@@ -155,7 +155,8 @@ static void del_nbp(struct net_bridge_port *p)
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
-	br_netpoll_disable(br, dev);
+	br_netpoll_disable(p);
+
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
@@ -167,8 +168,6 @@ static void del_br(struct net_bridge *br, struct list_head *head)
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
 		del_nbp(p);
 	}
-
-	br_netpoll_cleanup(br->dev);
 
 	del_timer_sync(&br->gc_timer);
 
@@ -429,11 +428,14 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (err)
 		goto err2;
 
+	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p))))
+		goto err3;
+
 	rcu_assign_pointer(dev->br_port, p);
 
 	err = netdev_rx_handler_register(dev, br_handle_frame);
 	if (err)
-		goto err3;
+		goto err4;
 
 	dev_disable_lro(dev);
 
@@ -454,11 +456,11 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
-	br_netpoll_enable(br, dev);
-
 	return 0;
-err3:
+err4:
 	rcu_assign_pointer(dev->br_port, NULL);
+err3:
+	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:

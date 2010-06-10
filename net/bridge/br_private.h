@@ -15,6 +15,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/netpoll.h>
 #include <net/route.h>
 
 #define BR_HASH_BITS 8
@@ -142,6 +143,10 @@ struct net_bridge_port
 
 #ifdef CONFIG_SYSFS
 	char				sysfs_name[IFNAMSIZ];
+#endif
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	struct netpoll			*np;
 #endif
 };
 
@@ -273,16 +278,41 @@ extern void br_dev_setup(struct net_device *dev);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER
-extern void br_netpoll_cleanup(struct net_device *dev);
-extern void br_netpoll_enable(struct net_bridge *br,
-			      struct net_device *dev);
-extern void br_netpoll_disable(struct net_bridge *br,
-			       struct net_device *dev);
-#else
-#define br_netpoll_cleanup(br)
-#define br_netpoll_enable(br, dev)
-#define br_netpoll_disable(br, dev)
+static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
+{
+	return br->dev->npinfo;
+}
 
+static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
+				       struct sk_buff *skb)
+{
+	struct netpoll *np = p->np;
+
+	if (np)
+		netpoll_send_skb(np, skb);
+}
+
+extern int br_netpoll_enable(struct net_bridge_port *p);
+extern void br_netpoll_disable(struct net_bridge_port *p);
+#else
+static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
+{
+	return NULL;
+}
+
+static inline void br_netpoll_send_skb(struct net_bridge_port *p,
+				       struct sk_buff *skb)
+{
+}
+
+static inline int br_netpoll_enable(struct net_bridge_port *p)
+{
+	return 0;
+}
+
+static inline void br_netpoll_disable(struct net_bridge_port *p)
+{
+}
 #endif
 
 /* br_fdb.c */
