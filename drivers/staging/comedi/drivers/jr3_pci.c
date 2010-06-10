@@ -123,12 +123,9 @@ struct jr3_pci_subdev_private {
 };
 
 /* Hotplug firmware loading stuff */
-
-typedef int comedi_firmware_callback(struct comedi_device *dev,
-				     const u8 * data, size_t size);
-
 static int comedi_load_firmware(struct comedi_device *dev, char *name,
-				comedi_firmware_callback cb)
+				int (*cb)(struct comedi_device *dev,
+					const u8 *data, size_t size))
 {
 	int result = 0;
 	const struct firmware *fw;

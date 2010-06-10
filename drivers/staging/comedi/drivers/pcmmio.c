@@ -145,10 +145,6 @@ Configuration Options:
 #define PAGE_ENAB 2
 #define PAGE_INT_ID 3
 
-typedef int (*comedi_insn_fn_t) (struct comedi_device *,
-				 struct comedi_subdevice *,
-				 struct comedi_insn *, unsigned int *);
-
 static int ai_rinsn(struct comedi_device *, struct comedi_subdevice *,
 		    struct comedi_insn *, unsigned int *);
 static int ao_rinsn(struct comedi_device *, struct comedi_subdevice *,
@@ -171,7 +167,18 @@ struct pcmmio_board {
 	const int n_ai_chans;
 	const int n_ao_chans;
 	const struct comedi_lrange *ai_range_table, *ao_range_table;
-	comedi_insn_fn_t ai_rinsn, ao_rinsn, ao_winsn;
+	int (*ai_rinsn) (struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned int *data);
+	int (*ao_rinsn) (struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned int *data);
+	int (*ao_winsn) (struct comedi_device *dev,
+			struct comedi_subdevice *s,
+			struct comedi_insn *insn,
+			unsigned int *data);
 };
 
 static const struct comedi_lrange ranges_ai = {
