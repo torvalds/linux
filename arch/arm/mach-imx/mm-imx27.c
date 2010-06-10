@@ -77,7 +77,10 @@ void __init mx27_map_io(void)
 	iotable_init(imx27_io_desc, ARRAY_SIZE(imx27_io_desc));
 }
 
+int imx27_register_gpios(void);
+
 void __init mx27_init_irq(void)
 {
+	imx27_register_gpios();
 	mxc_init_irq(MX27_IO_ADDRESS(MX27_AVIC_BASE_ADDR));
 }

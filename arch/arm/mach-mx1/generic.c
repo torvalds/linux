@@ -46,7 +46,10 @@ void __init mx1_map_io(void)
 	iotable_init(imx_io_desc, ARRAY_SIZE(imx_io_desc));
 }
 
+int imx1_register_gpios(void);
+
 void __init mx1_init_irq(void)
 {
+	imx1_register_gpios();
 	mxc_init_irq(MX1_IO_ADDRESS(MX1_AVIC_BASE_ADDR));
 }

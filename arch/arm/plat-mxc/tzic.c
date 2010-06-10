@@ -145,8 +145,6 @@ void __init tzic_init_irq(void __iomem *irqbase)
 		set_irq_handler(i, handle_level_irq);
 		set_irq_flags(i, IRQF_VALID);
 	}
-	mxc_register_gpios();
-
 	pr_info("TrustZone Interrupt Controller (TZIC) initialized\n");
 }
 

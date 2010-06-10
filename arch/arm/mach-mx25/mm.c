@@ -69,8 +69,11 @@ void __init mx25_map_io(void)
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
 
+int imx25_register_gpios(void);
+
 void __init mx25_init_irq(void)
 {
+	imx25_register_gpios();
 	mxc_init_irq((void __iomem *)MX25_AVIC_BASE_ADDR_VIRT);
 }
 

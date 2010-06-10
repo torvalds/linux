@@ -88,7 +88,10 @@ void __init mxc91231_map_io(void)
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
 
+int mxc91231_register_gpios(void);
+
 void __init mxc91231_init_irq(void)
 {
+	mxc91231_register_gpios();
 	mxc_init_irq(MXC91231_IO_ADDRESS(MXC91231_AVIC_BASE_ADDR));
 }

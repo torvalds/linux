@@ -97,8 +97,11 @@ void __init mx35_map_io(void)
 }
 #endif
 
+int imx3x_register_gpios(void);
+
 void __init mx31_init_irq(void)
 {
+	imx3x_register_gpios();
 	mxc_init_irq(IO_ADDRESS(AVIC_BASE_ADDR));
 }
 

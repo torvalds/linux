@@ -195,7 +195,7 @@ static struct mxc_gpio_port mxc_gpio_ports[] = {
 	},
 };
 
-int __init mxc_register_gpios(void)
+int __init imx51_register_gpios(void)
 {
 	return mxc_gpio_init(mxc_gpio_ports, ARRAY_SIZE(mxc_gpio_ports));
 }

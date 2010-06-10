@@ -454,26 +454,21 @@ DEFINE_IMX_SSI_DEVICE(1, 2, MX2x_SSI1_BASE_ADDR, MX2x_INT_SSI1);
 
 #ifdef CONFIG_MACH_MX21
 DEFINE_MXC_GPIO_PORTS(MX21, imx21);
+
+int __init imx21_register_gpios(void)
+{
+	return mxc_gpio_init(imx21_gpio_ports, ARRAY_SIZE(imx21_gpio_ports));
+}
 #endif
 
 #ifdef CONFIG_MACH_MX27
 DEFINE_MXC_GPIO_PORTS(MX27, imx27);
-#endif
 
-int __init mxc_register_gpios(void)
+int __init imx27_register_gpios(void)
 {
-#ifdef CONFIG_MACH_MX21
-	if (cpu_is_mx21())
-		return mxc_gpio_init(imx21_gpio_ports, ARRAY_SIZE(imx21_gpio_ports));
-	else
-#endif
-#ifdef CONFIG_MACH_MX27
-	if (cpu_is_mx27())
-		return mxc_gpio_init(imx27_gpio_ports, ARRAY_SIZE(imx27_gpio_ports));
-	else
-#endif
-		return 0;
+	return mxc_gpio_init(imx27_gpio_ports, ARRAY_SIZE(imx27_gpio_ports));
 }
+#endif
 
 #ifdef CONFIG_MACH_MX21
 static struct resource mx21_usbhc_resources[] = {
@@ -500,4 +495,3 @@ struct platform_device mx21_usbhc_device = {
 	.resource	= mx21_usbhc_resources,
 };
 #endif
-
