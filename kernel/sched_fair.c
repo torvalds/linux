@@ -2462,7 +2462,8 @@ static inline void update_sg_lb_stats(struct sched_domain *sd,
  * @sd: sched_domain whose statistics are to be checked
  * @sds: sched_domain statistics
  * @sg: sched_group candidate to be checked for being the busiest
- * @sds: sched_group statistics
+ * @sgs: sched_group statistics
+ * @this_cpu: the current cpu
  *
  * Determine if @sg is a busier group than the previously selected
  * busiest group.
@@ -2588,13 +2589,13 @@ int __weak arch_sd_sibiling_asym_packing(void)
  * assuming lower CPU number will be equivalent to lower a SMT thread
  * number.
  *
+ * Returns 1 when packing is required and a task should be moved to
+ * this CPU.  The amount of the imbalance is returned in *imbalance.
+ *
  * @sd: The sched_domain whose packing is to be checked.
  * @sds: Statistics of the sched_domain which is to be packed
  * @this_cpu: The cpu at whose sched_domain we're performing load-balance.
  * @imbalance: returns amount of imbalanced due to packing.
- *
- * Returns 1 when packing is required and a task should be moved to
- * this CPU.  The amount of the imbalance is returned in *imbalance.
  */
 static int check_asym_packing(struct sched_domain *sd,
 			      struct sd_lb_stats *sds,
