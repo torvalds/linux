@@ -2,18 +2,17 @@
  *  Copyright (C) 2008 Sascha Hauer <s.hauer@pengutronix.de>, Pengutronix
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
 #include <linux/kernel.h>
@@ -29,7 +28,41 @@
 #include <mach/clock.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include "crm_regs.h"
+
+#define IO_ADDR_CCM(off)	(MX1_IO_ADDRESS(MX1_CCM_BASE_ADDR + (off)))
+
+/* CCM register addresses */
+#define CCM_CSCR	IO_ADDR_CCM(0x0)
+#define CCM_MPCTL0	IO_ADDR_CCM(0x4)
+#define CCM_SPCTL0	IO_ADDR_CCM(0xc)
+#define CCM_PCDR	IO_ADDR_CCM(0x20)
+
+#define CCM_CSCR_CLKO_OFFSET	29
+#define CCM_CSCR_CLKO_MASK	(0x7 << 29)
+#define CCM_CSCR_USB_OFFSET	26
+#define CCM_CSCR_USB_MASK	(0x7 << 26)
+#define CCM_CSCR_OSC_EN_SHIFT	17
+#define CCM_CSCR_SYSTEM_SEL	(1 << 16)
+#define CCM_CSCR_BCLK_OFFSET	10
+#define CCM_CSCR_BCLK_MASK	(0xf << 10)
+#define CCM_CSCR_PRESC		(1 << 15)
+
+#define CCM_PCDR_PCLK3_OFFSET	16
+#define CCM_PCDR_PCLK3_MASK	(0x7f << 16)
+#define CCM_PCDR_PCLK2_OFFSET	4
+#define CCM_PCDR_PCLK2_MASK	(0xf << 4)
+#define CCM_PCDR_PCLK1_OFFSET	0
+#define CCM_PCDR_PCLK1_MASK	0xf
+
+#define IO_ADDR_SCM(off)	(MX1_IO_ADDRESS(MX1_SCM_BASE_ADDR + (off)))
+
+/* SCM register addresses */
+#define SCM_GCCR	IO_ADDR_SCM(0xc)
+
+#define SCM_GCCR_DMA_CLK_EN_OFFSET	3
+#define SCM_GCCR_CSI_CLK_EN_OFFSET	2
+#define SCM_GCCR_MMA_CLK_EN_OFFSET	1
+#define SCM_GCCR_USBD_CLK_EN_OFFSET	0
 
 static int _clk_enable(struct clk *clk)
 {
