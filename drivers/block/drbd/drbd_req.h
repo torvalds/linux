@@ -257,30 +257,36 @@ static inline struct drbd_request *_ar_id_to_req(struct drbd_conf *mdev,
 	return NULL;
 }
 
+static inline void drbd_req_make_private_bio(struct drbd_request *req, struct bio *bio_src)
+{
+	struct bio *bio;
+	bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+
+	req->private_bio = bio;
+
+	bio->bi_private  = req;
+	bio->bi_end_io   = drbd_endio_pri;
+	bio->bi_next     = NULL;
+}
+
 static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	struct bio *bio_src)
 {
-	struct bio *bio;
 	struct drbd_request *req =
 		mempool_alloc(drbd_request_mempool, GFP_NOIO);
 	if (likely(req)) {
-		bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
+		drbd_req_make_private_bio(req, bio_src);
 
 		req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
 		req->mdev        = mdev;
 		req->master_bio  = bio_src;
-		req->private_bio = bio;
 		req->epoch       = 0;
-		req->sector      = bio->bi_sector;
-		req->size        = bio->bi_size;
+		req->sector      = bio_src->bi_sector;
+		req->size        = bio_src->bi_size;
 		req->start_time  = jiffies;
 		INIT_HLIST_NODE(&req->colision);
 		INIT_LIST_HEAD(&req->tl_requests);
 		INIT_LIST_HEAD(&req->w.list);
-
-		bio->bi_private  = req;
-		bio->bi_end_io   = drbd_endio_pri;
-		bio->bi_next     = NULL;
 	}
 	return req;
 }
