@@ -741,6 +741,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	if (sc & IEEE80211_SCTL_FRAG) {
 		spin_unlock(&sta->lock);
+		skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
 		skb_queue_tail(&rx->sdata->skb_queue, skb);
 		ieee80211_queue_work(&local->hw, &rx->sdata->work);
 		return;
@@ -1969,6 +1970,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			goto invalid;
 		}
 
+		rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
 		skb_queue_tail(&sdata->skb_queue, rx->skb);
 		ieee80211_queue_work(&local->hw, &sdata->work);
 		return RX_QUEUED;
@@ -2001,6 +2003,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
 				break;
 
+			rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
 			skb_queue_tail(&sdata->skb_queue, rx->skb);
 			ieee80211_queue_work(&local->hw, &sdata->work);
 			return RX_QUEUED;
@@ -2023,6 +2026,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	case WLAN_CATEGORY_MESH_PATH_SEL:
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
 			break;
+		rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
 		skb_queue_tail(&sdata->skb_queue, rx->skb);
 		ieee80211_queue_work(&local->hw, &sdata->work);
 		return RX_QUEUED;
@@ -2128,6 +2132,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	}
 
 	/* queue up frame and kick off work to process it */
+	rx->skb->pkt_type = IEEE80211_SDATA_QUEUE_TYPE_FRAME;
 	skb_queue_tail(&sdata->skb_queue, rx->skb);
 	ieee80211_queue_work(&rx->local->hw, &sdata->work);
 

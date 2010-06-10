@@ -564,11 +564,15 @@ ieee80211_sdata_set_mesh_id(struct ieee80211_sub_if_data *sdata,
 #endif
 }
 
+enum sdata_queue_type {
+	IEEE80211_SDATA_QUEUE_TYPE_FRAME	= 0,
+	IEEE80211_SDATA_QUEUE_AGG_START		= 1,
+	IEEE80211_SDATA_QUEUE_AGG_STOP		= 2,
+};
+
 enum {
 	IEEE80211_RX_MSG	= 1,
 	IEEE80211_TX_STATUS_MSG	= 2,
-	IEEE80211_DELBA_MSG	= 3,
-	IEEE80211_ADDBA_MSG	= 4,
 };
 
 enum queue_stop_reason {
@@ -870,9 +874,8 @@ IEEE80211_DEV_TO_SUB_IF(struct net_device *dev)
 	return netdev_priv(dev);
 }
 
-/* this struct represents 802.11n's RA/TID combination along with our vif */
+/* this struct represents 802.11n's RA/TID combination */
 struct ieee80211_ra_tid {
-	struct ieee80211_vif *vif;
 	u8 ra[ETH_ALEN];
 	u16 tid;
 };
