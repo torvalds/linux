@@ -369,10 +369,8 @@ static void fw_card_bm_work(struct work_struct *work)
 		goto out;
 	} else if (root_device_is_cmc) {
 		/*
-		 * FIXME: I suppose we should set the cmstr bit in the
-		 * STATE_CLEAR register of this node, as described in
-		 * 1394-1995, 8.4.2.6.  Also, send out a force root
-		 * packet for this node.
+		 * We will send out a force root packet for this
+		 * node as part of the gap count optimization.
 		 */
 		new_root_id = root_id;
 	} else {
@@ -413,10 +411,24 @@ static void fw_card_bm_work(struct work_struct *work)
 		fw_send_phy_config(card, new_root_id, generation, gap_count);
 		fw_core_initiate_bus_reset(card, 1);
 		/* Will allocate broadcast channel after the reset. */
-	} else {
-		if (local_id == irm_id)
-			allocate_broadcast_channel(card, generation);
+		goto out;
 	}
+
+	if (root_device_is_cmc) {
+		/*
+		 * Make sure that the cycle master sends cycle start packets.
+		 */
+		card->bm_transaction_data[0] = cpu_to_be32(CSR_STATE_BIT_CMSTR);
+		rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
+				root_id, generation, SCODE_100,
+				CSR_REGISTER_BASE + CSR_STATE_SET,
+				card->bm_transaction_data, sizeof(u32));
+		if (rcode == RCODE_GENERATION)
+			goto out;
+	}
+
+	if (local_id == irm_id)
+		allocate_broadcast_channel(card, generation);
 
  out:
 	fw_node_put(root_node);
