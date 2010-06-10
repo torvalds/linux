@@ -274,6 +274,10 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	/* activate it for RX */
 	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
+
+	if (timeout)
+		mod_timer(&tid_agg_rx->session_timer, TU_TO_EXP_TIME(timeout));
+
 end:
 	spin_unlock_bh(&sta->lock);
 
