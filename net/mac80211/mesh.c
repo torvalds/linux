@@ -537,15 +537,6 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	 * it no longer is.
 	 */
 	cancel_work_sync(&sdata->u.mesh.work);
-
-	/*
-	 * When we get here, the interface is marked down.
-	 * Call synchronize_rcu() to wait for the RX path
-	 * should it be using the interface and enqueuing
-	 * frames at this very time on another CPU.
-	 */
-	rcu_barrier(); /* Wait for RX path and call_rcu()'s */
-	skb_queue_purge(&sdata->u.mesh.skb_queue);
 }
 
 static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
@@ -650,7 +641,7 @@ static void ieee80211_mesh_work(struct work_struct *work)
 	if (local->scanning)
 		return;
 
-	while ((skb = skb_dequeue(&ifmsh->skb_queue)))
+	while ((skb = skb_dequeue(&sdata->skb_queue)))
 		ieee80211_mesh_rx_queued_mgmt(sdata, skb);
 
 	if (ifmsh->preq_queue_len &&
@@ -690,7 +681,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	setup_timer(&ifmsh->housekeeping_timer,
 		    ieee80211_mesh_housekeeping_timer,
 		    (unsigned long) sdata);
-	skb_queue_head_init(&sdata->u.mesh.skb_queue);
 
 	ifmsh->mshcfg.dot11MeshRetryTimeout = MESH_RET_T;
 	ifmsh->mshcfg.dot11MeshConfirmTimeout = MESH_CONF_T;
@@ -750,7 +740,7 @@ ieee80211_mesh_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	case IEEE80211_STYPE_ACTION:
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
-		skb_queue_tail(&ifmsh->skb_queue, skb);
+		skb_queue_tail(&sdata->skb_queue, skb);
 		ieee80211_queue_work(&local->hw, &ifmsh->work);
 		return RX_QUEUED;
 	}

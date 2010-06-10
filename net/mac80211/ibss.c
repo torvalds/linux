@@ -779,7 +779,7 @@ static void ieee80211_ibss_work(struct work_struct *work)
 		return;
 	ifibss = &sdata->u.ibss;
 
-	while ((skb = skb_dequeue(&ifibss->skb_queue)))
+	while ((skb = skb_dequeue(&sdata->skb_queue)))
 		ieee80211_ibss_rx_queued_mgmt(sdata, skb);
 
 	if (!test_and_clear_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request))
@@ -850,7 +850,6 @@ void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	INIT_WORK(&ifibss->work, ieee80211_ibss_work);
 	setup_timer(&ifibss->timer, ieee80211_ibss_timer,
 		    (unsigned long) sdata);
-	skb_queue_head_init(&ifibss->skb_queue);
 }
 
 /* scan finished notification */
@@ -890,7 +889,7 @@ ieee80211_ibss_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 	case IEEE80211_STYPE_BEACON:
 	case IEEE80211_STYPE_PROBE_REQ:
 	case IEEE80211_STYPE_AUTH:
-		skb_queue_tail(&sdata->u.ibss.skb_queue, skb);
+		skb_queue_tail(&sdata->skb_queue, skb);
 		ieee80211_queue_work(&local->hw, &sdata->u.ibss.work);
 		return RX_QUEUED;
 	}
@@ -983,7 +982,7 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	synchronize_rcu();
 	kfree_skb(skb);
 
-	skb_queue_purge(&sdata->u.ibss.skb_queue);
+	skb_queue_purge(&sdata->skb_queue);
 	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
 	sdata->u.ibss.ssid_len = 0;
 

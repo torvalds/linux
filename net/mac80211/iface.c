@@ -465,21 +465,11 @@ static int ieee80211_stop(struct net_device *dev)
 		cancel_work_sync(&sdata->u.mgd.monitor_work);
 		cancel_work_sync(&sdata->u.mgd.beacon_connection_loss_work);
 
-		/*
-		 * When we get here, the interface is marked down.
-		 * Call synchronize_rcu() to wait for the RX path
-		 * should it be using the interface and enqueuing
-		 * frames at this very time on another CPU.
-		 */
-		synchronize_rcu();
-		skb_queue_purge(&sdata->u.mgd.skb_queue);
 		/* fall through */
 	case NL80211_IFTYPE_ADHOC:
 		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 			del_timer_sync(&sdata->u.ibss.timer);
 			cancel_work_sync(&sdata->u.ibss.work);
-			synchronize_rcu();
-			skb_queue_purge(&sdata->u.ibss.skb_queue);
 		}
 		/* fall through */
 	case NL80211_IFTYPE_MESH_POINT:
@@ -495,6 +485,15 @@ static int ieee80211_stop(struct net_device *dev)
 		}
 		/* fall through */
 	default:
+		/*
+		 * When we get here, the interface is marked down.
+		 * Call synchronize_rcu() to wait for the RX path
+		 * should it be using the interface and enqueuing
+		 * frames at this very time on another CPU.
+		 */
+		synchronize_rcu();
+		skb_queue_purge(&sdata->skb_queue);
+
 		if (local->scan_sdata == sdata)
 			ieee80211_scan_cancel(local);
 
@@ -720,6 +719,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	/* only monitor differs */
 	sdata->dev->type = ARPHRD_ETHER;
+
+	skb_queue_head_init(&sdata->skb_queue);
 
 	switch (type) {
 	case NL80211_IFTYPE_AP:

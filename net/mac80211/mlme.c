@@ -1652,7 +1652,7 @@ ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_STYPE_DEAUTH:
 	case IEEE80211_STYPE_DISASSOC:
 	case IEEE80211_STYPE_ACTION:
-		skb_queue_tail(&sdata->u.mgd.skb_queue, skb);
+		skb_queue_tail(&sdata->skb_queue, skb);
 		ieee80211_queue_work(&local->hw, &sdata->u.mgd.work);
 		return RX_QUEUED;
 	}
@@ -1810,7 +1810,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 	ifmgd = &sdata->u.mgd;
 
 	/* first process frames to avoid timing out while a frame is pending */
-	while ((skb = skb_dequeue(&ifmgd->skb_queue)))
+	while ((skb = skb_dequeue(&sdata->skb_queue)))
 		ieee80211_sta_rx_queued_mgmt(sdata, skb);
 
 	/* then process the rest of the work */
@@ -1967,7 +1967,6 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 	setup_timer(&ifmgd->chswitch_timer, ieee80211_chswitch_timer,
 		    (unsigned long) sdata);
-	skb_queue_head_init(&ifmgd->skb_queue);
 
 	ifmgd->flags = 0;
 

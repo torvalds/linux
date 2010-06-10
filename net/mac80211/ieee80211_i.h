@@ -340,8 +340,6 @@ struct ieee80211_if_managed {
 
 	u16 aid;
 
-	struct sk_buff_head skb_queue;
-
 	unsigned long timers_running; /* used for quiesce/restart */
 	bool powersave; /* powersave requested for this iface */
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
@@ -388,8 +386,6 @@ struct ieee80211_if_ibss {
 	struct timer_list timer;
 	struct work_struct work;
 
-	struct sk_buff_head skb_queue;
-
 	unsigned long request;
 	unsigned long last_scan_completed;
 
@@ -420,7 +416,6 @@ struct ieee80211_if_mesh {
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
 	struct timer_list mesh_path_root_timer;
-	struct sk_buff_head skb_queue;
 
 	unsigned long timers_running;
 
@@ -516,6 +511,8 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key *default_mgmt_key;
 
 	u16 sequence_number;
+
+	struct sk_buff_head skb_queue;
 
 	/*
 	 * AP this belongs to: self in AP mode and
