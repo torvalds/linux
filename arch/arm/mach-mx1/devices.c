@@ -29,7 +29,7 @@
 
 #include "devices.h"
 
-static struct resource imx_csi_resources[] = {
+static struct resource imx1_camera_resources[] = {
 	{
 		.start  = 0x00224000,
 		.end    = 0x00224010,
@@ -41,17 +41,17 @@ static struct resource imx_csi_resources[] = {
 	},
 };
 
-static u64 imx_csi_dmamask = DMA_BIT_MASK(32);
+static u64 imx1_camera_dmamask = DMA_BIT_MASK(32);
 
-struct platform_device imx_csi_device = {
+struct platform_device imx1_camera_device = {
 	.name           = "mx1-camera",
 	.id             = 0, /* This is used to put cameras on this interface */
 	.dev		= {
-		.dma_mask = &imx_csi_dmamask,
+		.dma_mask = &imx1_camera_dmamask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
-	.resource       = imx_csi_resources,
-	.num_resources  = ARRAY_SIZE(imx_csi_resources),
+	.resource       = imx1_camera_resources,
+	.num_resources  = ARRAY_SIZE(imx1_camera_resources),
 };
 
 static struct resource imx_i2c_resources[] = {
