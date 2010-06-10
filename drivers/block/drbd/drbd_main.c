@@ -997,14 +997,8 @@ int __drbd_set_state(struct drbd_conf *mdev,
 			/* If the old state was illegal as well, then let
 			   this happen...*/
 
-			if (is_valid_state(mdev, os) == rv) {
-				dev_err(DEV, "Considering state change from bad state. "
-				    "Error would be: '%s'\n",
-				    drbd_set_st_err_str(rv));
-				print_st(mdev, "old", os);
-				print_st(mdev, "new", ns);
+			if (is_valid_state(mdev, os) == rv)
 				rv = is_valid_state_transition(mdev, ns, os);
-			}
 		} else
 			rv = is_valid_state_transition(mdev, ns, os);
 	}
