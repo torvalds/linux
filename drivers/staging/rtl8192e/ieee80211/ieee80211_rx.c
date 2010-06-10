@@ -2793,8 +2793,6 @@ static inline void ieee80211_process_probe_response(
 #endif
 		memcpy(target, &network, sizeof(*target));
 		list_add_tail(&target->list, &ieee->network_list);
-		if(ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
-			ieee80211_softmac_new_net(ieee,&network);
 	} else {
 		IEEE80211_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
 				     escape_essid(target->ssid,
@@ -2821,8 +2819,6 @@ static inline void ieee80211_process_probe_response(
 		//YJ,add,080819,for hidden ap,end
 
 		update_network(target, &network);
-		if(renew && (ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE))
-			ieee80211_softmac_new_net(ieee,&network);
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
