@@ -306,6 +306,16 @@ static void fw_card_bm_work(struct work_struct *work)
 			goto out;
 		}
 
+		if (rcode == RCODE_SEND_ERROR) {
+			/*
+			 * We have been unable to send the lock request due to
+			 * some local problem.  Let's try again later and hope
+			 * that the problem has gone away by then.
+			 */
+			fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
+			goto out;
+		}
+
 		spin_lock_irqsave(&card->lock, flags);
 
 		if (rcode != RCODE_COMPLETE) {
