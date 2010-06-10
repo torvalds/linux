@@ -52,7 +52,7 @@ ENDPROC(clear_page)
 	.align 8
 	.quad clear_page
 	.quad 1b
-	.byte X86_FEATURE_REP_GOOD
+	.word X86_FEATURE_REP_GOOD
 	.byte .Lclear_page_end - clear_page
 	.byte 2b - 1b
 	.previous

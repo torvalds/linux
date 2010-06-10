@@ -113,7 +113,7 @@ ENDPROC(copy_page)
 	.align 8
 	.quad copy_page
 	.quad 1b
-	.byte X86_FEATURE_REP_GOOD
+	.word X86_FEATURE_REP_GOOD
 	.byte .Lcopy_page_end - copy_page
 	.byte 2b - 1b
 	.previous
