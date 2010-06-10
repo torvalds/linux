@@ -128,5 +128,7 @@ source "drivers/staging/iio/Kconfig"
 source "drivers/staging/rk2818/rk2818_dsp/Kconfig"
 
 source "drivers/staging/rk2818/rk1000_control/Kconfig"
+
+source "drivers/staging/rk2818/rk1000_tv/Kconfig"
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

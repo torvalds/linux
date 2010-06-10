@@ -46,3 +46,4 @@ obj-$(CONFIG_DX_SEP)		+= sep/
 obj-$(CONFIG_IIO)		+= iio/
 obj-$(CONFIG_RK2818_DSP)        += rk2818/rk2818_dsp/
 obj-$(CONFIG_RK1000_CONTROL)    += rk2818/rk1000_control/
+obj-$(CONFIG_RK1000_TVOUT)    += rk2818/rk1000_tv/

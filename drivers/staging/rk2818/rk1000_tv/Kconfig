@@ -1,0 +1,6 @@
+menu "RK1000 TV CONTROL"
+config RK1000_TVOUT
+    tristate "ROCKCHIP RK1000 TV CONTROL"
+    depends on RK1000_CONTROL
+	default n
+endmenu
