@@ -1974,12 +1974,31 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 	struct fw_ohci *ohci = fw_ohci(card);
 
 	switch (csr_offset) {
+	case CSR_NODE_IDS:
+		return reg_read(ohci, OHCI1394_NodeID) << 16;
+
 	case CSR_CYCLE_TIME:
 		return get_cycle_time(ohci);
 
 	default:
 		WARN_ON(1);
 		return 0;
+	}
+}
+
+static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+
+	switch (csr_offset) {
+	case CSR_NODE_IDS:
+		reg_write(ohci, OHCI1394_NodeID, value >> 16);
+		flush_writes(ohci);
+		break;
+
+	default:
+		WARN_ON(1);
+		break;
 	}
 }
 
@@ -2421,6 +2440,7 @@ static const struct fw_card_driver ohci_driver = {
 	.cancel_packet		= ohci_cancel_packet,
 	.enable_phys_dma	= ohci_enable_phys_dma,
 	.read_csr_reg		= ohci_read_csr_reg,
+	.write_csr_reg		= ohci_write_csr_reg,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,

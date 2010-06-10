@@ -76,6 +76,7 @@ struct fw_card_driver {
 			       int node_id, int generation);
 
 	u32 (*read_csr_reg)(struct fw_card *card, int csr_offset);
+	void (*write_csr_reg)(struct fw_card *card, int csr_offset, u32 value);
 
 	struct fw_iso_context *
 	(*allocate_iso_context)(struct fw_card *card,

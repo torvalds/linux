@@ -1023,6 +1023,17 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		}
 		break;
 
+	case CSR_NODE_IDS:
+		if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = cpu_to_be32(card->driver->
+					read_csr_reg(card, CSR_NODE_IDS));
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
+			card->driver->write_csr_reg(card, CSR_NODE_IDS,
+						    be32_to_cpu(*data));
+		else
+			rcode = RCODE_TYPE_ERROR;
+		break;
+
 	case CSR_CYCLE_TIME:
 		if (TCODE_IS_READ_REQUEST(tcode) && length == 4)
 			*data = cpu_to_be32(card->driver->
