@@ -32,21 +32,18 @@ static void ieee80211_free_tid_rx(struct rcu_head *h)
 	kfree(tid_rx);
 }
 
-static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-					    u16 initiator, u16 reason,
-					    bool from_timer)
+void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+				     u16 initiator, u16 reason)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
 
-	spin_lock_bh(&sta->lock);
+	lockdep_assert_held(&sta->lock);
 
 	tid_rx = sta->ampdu_mlme.tid_rx[tid];
 
-	if (!tid_rx) {
-		spin_unlock_bh(&sta->lock);
+	if (!tid_rx)
 		return;
-	}
 
 	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], NULL);
 
@@ -65,10 +62,7 @@ static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 		ieee80211_send_delba(sta->sdata, sta->sta.addr,
 				     tid, 0, reason);
 
-	spin_unlock_bh(&sta->lock);
-
-	if (!from_timer)
-		del_timer_sync(&tid_rx->session_timer);
+	del_timer_sync(&tid_rx->session_timer);
 
 	call_rcu(&tid_rx->rcu_head, ieee80211_free_tid_rx);
 }
@@ -76,7 +70,9 @@ static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason)
 {
-	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason, false);
+	spin_lock_bh(&sta->lock);
+	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
+	spin_unlock_bh(&sta->lock);
 }
 
 /*
@@ -97,8 +93,8 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
 #endif
-	___ieee80211_stop_rx_ba_session(sta, *ptid, WLAN_BACK_RECIPIENT,
-					WLAN_REASON_QSTA_TIMEOUT, true);
+	set_bit(*ptid, sta->ampdu_mlme.tid_rx_timer_expired);
+	ieee80211_queue_work(&sta->local->hw, &sta->ampdu_mlme.work);
 }
 
 static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *da, u16 tid,

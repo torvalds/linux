@@ -140,10 +140,13 @@ struct tid_ampdu_rx {
  * @addba_req_num: number of times addBA request has been sent.
  * @dialog_token_allocator: dialog token enumerator for each new session;
  * @work: work struct for starting/stopping aggregation
+ * @tid_rx_timer_expired: bitmap indicating on which TIDs the
+ *	RX timer expired until the work for it runs
  */
 struct sta_ampdu_mlme {
 	/* rx */
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
+	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(STA_TID_NUM)];
 	/* tx */
 	struct work_struct work;
 	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];

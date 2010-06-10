@@ -1096,6 +1096,8 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid);
 
+void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+				     u16 initiator, u16 reason);
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason);
 void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta);
