@@ -4318,7 +4318,6 @@ RESET_START:
 			del_timer_sync(&ieee->associate_timer);
                         cancel_delayed_work(&ieee->associate_retry_wq);
 			ieee80211_stop_scan(ieee);
-			netif_carrier_off(dev);
 			up(&ieee->wx_sem);
 		}
 		else{

@@ -337,8 +337,6 @@ void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
 	ieee80211_sta_ps_send_null_frame(ieee, 1);
 #endif
 
-	netif_carrier_off(ieee->dev);
-
 	if (ieee->data_hard_stop)
 		ieee->data_hard_stop(ieee->dev);
 
@@ -389,7 +387,6 @@ void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
 	if(ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 		ieee80211_start_send_beacons(ieee);
 
-	netif_carrier_on(ieee->dev);
 	count = 0;
 	up(&ieee->wx_sem);
 
