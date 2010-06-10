@@ -274,7 +274,7 @@ static int __init ad5398_init(void)
 {
 	return i2c_add_driver(&ad5398_driver);
 }
-module_init(ad5398_init);
+subsys_initcall(ad5398_init);
 
 static void __exit ad5398_exit(void)
 {
