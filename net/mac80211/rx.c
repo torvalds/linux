@@ -741,9 +741,8 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx,
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	if (sc & IEEE80211_SCTL_FRAG) {
 		spin_unlock(&sta->lock);
-		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_RECIPIENT,
-					       WLAN_REASON_QSTA_REQUIRE_SETUP);
-		dev_kfree_skb(skb);
+		skb_queue_tail(&rx->sdata->skb_queue, skb);
+		ieee80211_queue_work(&local->hw, &rx->sdata->work);
 		return;
 	}
 

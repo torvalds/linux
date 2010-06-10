@@ -707,6 +707,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 		container_of(work, struct ieee80211_sub_if_data, work);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
+	struct sta_info *sta;
 
 	if (!ieee80211_sdata_running(sdata))
 		return;
@@ -729,7 +730,6 @@ static void ieee80211_iface_work(struct work_struct *work)
 		if (ieee80211_is_action(mgmt->frame_control) &&
 		    mgmt->u.action.category == WLAN_CATEGORY_BACK) {
 			int len = skb->len;
-			struct sta_info *sta;
 
 			rcu_read_lock();
 			sta = sta_info_get(sdata, mgmt->sa);
@@ -751,6 +751,36 @@ static void ieee80211_iface_work(struct work_struct *work)
 					WARN_ON(1);
 					break;
 				}
+			}
+			rcu_read_unlock();
+		} else if (ieee80211_is_data_qos(mgmt->frame_control)) {
+			struct ieee80211_hdr *hdr = (void *)mgmt;
+			/*
+			 * So the frame isn't mgmt, but frame_control
+			 * is at the right place anyway, of course, so
+			 * the if statement is correct.
+			 *
+			 * Warn if we have other data frame types here,
+			 * they must not get here.
+			 */
+			WARN_ON(hdr->frame_control &
+					cpu_to_le16(IEEE80211_STYPE_NULLFUNC));
+			WARN_ON(!(hdr->seq_ctrl &
+					cpu_to_le16(IEEE80211_SCTL_FRAG)));
+			/*
+			 * This was a fragment of a frame, received while
+			 * a block-ack session was active. That cannot be
+			 * right, so terminate the session.
+			 */
+			rcu_read_lock();
+			sta = sta_info_get(sdata, mgmt->sa);
+			if (sta) {
+				u16 tid = *ieee80211_get_qos_ctl(hdr) &
+						IEEE80211_QOS_CTL_TID_MASK;
+
+				__ieee80211_stop_rx_ba_session(
+					sta, tid, WLAN_BACK_RECIPIENT,
+					WLAN_REASON_QSTA_REQUIRE_SETUP);
 			}
 			rcu_read_unlock();
 		} else switch (sdata->vif.type) {
