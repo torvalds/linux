@@ -614,8 +614,8 @@ static int writeback_sb_inodes(struct super_block *sb,
 	return 1;
 }
 
-static void writeback_inodes_wb(struct bdi_writeback *wb,
-				struct writeback_control *wbc)
+void writeback_inodes_wb(struct bdi_writeback *wb,
+		struct writeback_control *wbc)
 {
 	int ret = 0;
 
@@ -660,13 +660,6 @@ static void writeback_inodes_wb(struct bdi_writeback *wb,
 	/* Leave any unwritten inodes on b_io */
 }
 
-void writeback_inodes_wbc(struct writeback_control *wbc)
-{
-	struct backing_dev_info *bdi = wbc->bdi;
-
-	writeback_inodes_wb(&bdi->wb, wbc);
-}
-
 /*
  * The maximum number of pages to writeout in a single bdi flush/kupdate
  * operation.  We do this so we don't hold I_SYNC against an inode for
@@ -705,7 +698,6 @@ static long wb_writeback(struct bdi_writeback *wb,
 			 struct wb_writeback_args *args)
 {
 	struct writeback_control wbc = {
-		.bdi			= wb->bdi,
 		.sb			= args->sb,
 		.sync_mode		= args->sync_mode,
 		.older_than_this	= NULL,
