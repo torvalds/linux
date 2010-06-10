@@ -2750,6 +2750,7 @@ beiscsi_create_wrb_rings(struct beiscsi_hba *phba,
 		if (status != 0) {
 			shost_printk(KERN_ERR, phba->shost,
 				     "wrbq create failed.");
+			kfree(pwrb_arr);
 			return status;
 		}
 		phwi_ctrlr->wrb_context[i * 2].cid = phwi_context->be_wrbq[i].
