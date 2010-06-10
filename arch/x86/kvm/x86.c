@@ -531,7 +531,7 @@ static void update_cpuid(struct kvm_vcpu *vcpu)
 	}
 }
 
-int __kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	unsigned long old_cr4 = kvm_read_cr4(vcpu);
 	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE;
@@ -562,12 +562,6 @@ int __kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		update_cpuid(vcpu);
 
 	return 0;
-}
-
-void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
-{
-	if (__kvm_set_cr4(vcpu, cr4))
-		kvm_inject_gp(vcpu, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr4);
 
@@ -3735,7 +3729,7 @@ static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 		res = __kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
-		res = __kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
+		res = kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
 		break;
 	case 8:
 		res = __kvm_set_cr8(vcpu, val & 0xfUL);

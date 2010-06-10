@@ -3189,8 +3189,8 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			skip_emulated_instruction(vcpu);
 			return 1;
 		case 4:
-			kvm_set_cr4(vcpu, val);
-			skip_emulated_instruction(vcpu);
+			err = kvm_set_cr4(vcpu, val);
+			complete_insn_gp(vcpu, err);
 			return 1;
 		case 8: {
 				u8 cr8_prev = kvm_get_cr8(vcpu);
