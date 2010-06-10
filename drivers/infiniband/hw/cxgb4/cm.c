@@ -969,7 +969,8 @@ static void process_mpa_reply(struct c4iw_ep *ep, struct sk_buff *skb)
 		goto err;
 	goto out;
 err:
-	abort_connection(ep, skb, GFP_KERNEL);
+	state_set(&ep->com, ABORTING);
+	send_abort(ep, skb, GFP_KERNEL);
 out:
 	connect_reply_upcall(ep, err);
 	return;
