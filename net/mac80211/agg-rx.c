@@ -19,25 +19,36 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
+static void ieee80211_free_tid_rx(struct rcu_head *h)
+{
+	struct tid_ampdu_rx *tid_rx =
+		container_of(h, struct tid_ampdu_rx, rcu_head);
+	int i;
+
+	for (i = 0; i < tid_rx->buf_size; i++)
+		dev_kfree_skb(tid_rx->reorder_buf[i]);
+	kfree(tid_rx->reorder_buf);
+	kfree(tid_rx->reorder_time);
+	kfree(tid_rx);
+}
+
 static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 					    u16 initiator, u16 reason,
 					    bool from_timer)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
-	int i;
 
 	spin_lock_bh(&sta->lock);
 
-	/* check if TID is in operational state */
-	if (!sta->ampdu_mlme.tid_active_rx[tid]) {
+	tid_rx = sta->ampdu_mlme.tid_rx[tid];
+
+	if (!tid_rx) {
 		spin_unlock_bh(&sta->lock);
 		return;
 	}
 
-	sta->ampdu_mlme.tid_active_rx[tid] = false;
-
-	tid_rx = sta->ampdu_mlme.tid_rx[tid];
+	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], NULL);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Rx BA session stop requested for %pM tid %u\n",
@@ -54,26 +65,12 @@ static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 		ieee80211_send_delba(sta->sdata, sta->sta.addr,
 				     tid, 0, reason);
 
-	/* free the reordering buffer */
-	for (i = 0; i < tid_rx->buf_size; i++) {
-		if (tid_rx->reorder_buf[i]) {
-			/* release the reordered frames */
-			dev_kfree_skb(tid_rx->reorder_buf[i]);
-			tid_rx->stored_mpdu_num--;
-			tid_rx->reorder_buf[i] = NULL;
-		}
-	}
-
-	/* free resources */
-	kfree(tid_rx->reorder_buf);
-	kfree(tid_rx->reorder_time);
-	sta->ampdu_mlme.tid_rx[tid] = NULL;
-
 	spin_unlock_bh(&sta->lock);
 
 	if (!from_timer)
 		del_timer_sync(&tid_rx->session_timer);
-	kfree(tid_rx);
+
+	call_rcu(&tid_rx->rcu_head, ieee80211_free_tid_rx);
 }
 
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
@@ -214,7 +211,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	/* examine state machine */
 	spin_lock_bh(&sta->lock);
 
-	if (sta->ampdu_mlme.tid_active_rx[tid]) {
+	if (sta->ampdu_mlme.tid_rx[tid]) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "unexpected AddBA Req from "
@@ -225,9 +222,8 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	}
 
 	/* prepare A-MPDU MLME for Rx aggregation */
-	sta->ampdu_mlme.tid_rx[tid] =
-			kmalloc(sizeof(struct tid_ampdu_rx), GFP_ATOMIC);
-	if (!sta->ampdu_mlme.tid_rx[tid]) {
+	tid_agg_rx = kmalloc(sizeof(struct tid_ampdu_rx), GFP_ATOMIC);
+	if (!tid_agg_rx) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_ERR "allocate rx mlme to tid %d failed\n",
@@ -235,14 +231,11 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 #endif
 		goto end;
 	}
-	/* rx timer */
-	sta->ampdu_mlme.tid_rx[tid]->session_timer.function =
-				sta_rx_agg_session_timer_expired;
-	sta->ampdu_mlme.tid_rx[tid]->session_timer.data =
-				(unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&sta->ampdu_mlme.tid_rx[tid]->session_timer);
 
-	tid_agg_rx = sta->ampdu_mlme.tid_rx[tid];
+	/* rx timer */
+	tid_agg_rx->session_timer.function = sta_rx_agg_session_timer_expired;
+	tid_agg_rx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
+	init_timer(&tid_agg_rx->session_timer);
 
 	/* prepare reordering buffer */
 	tid_agg_rx->reorder_buf =
@@ -257,8 +250,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 #endif
 		kfree(tid_agg_rx->reorder_buf);
 		kfree(tid_agg_rx->reorder_time);
-		kfree(sta->ampdu_mlme.tid_rx[tid]);
-		sta->ampdu_mlme.tid_rx[tid] = NULL;
+		kfree(tid_agg_rx);
 		goto end;
 	}
 
@@ -270,13 +262,12 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	if (ret) {
 		kfree(tid_agg_rx->reorder_buf);
+		kfree(tid_agg_rx->reorder_time);
 		kfree(tid_agg_rx);
-		sta->ampdu_mlme.tid_rx[tid] = NULL;
 		goto end;
 	}
 
-	/* change state and send addba resp */
-	sta->ampdu_mlme.tid_active_rx[tid] = true;
+	/* update data */
 	tid_agg_rx->dialog_token = dialog_token;
 	tid_agg_rx->ssn = start_seq_num;
 	tid_agg_rx->head_seq_num = start_seq_num;
@@ -284,6 +275,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	tid_agg_rx->timeout = timeout;
 	tid_agg_rx->stored_mpdu_num = 0;
 	status = WLAN_STATUS_SUCCESS;
+
+	/* activate it for RX */
+	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
 end:
 	spin_unlock_bh(&sta->lock);
 

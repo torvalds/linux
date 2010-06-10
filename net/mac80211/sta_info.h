@@ -102,8 +102,18 @@ struct tid_ampdu_tx {
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
+ * @rcu_head: RCU head used for freeing this struct
+ *
+ * This structure is protected by RCU and the per-station
+ * spinlock. Assignments to the array holding it must hold
+ * the spinlock, only the RX path can access it under RCU
+ * lock-free. The RX path, since it is single-threaded,
+ * can even modify the structure without locking since the
+ * only other modifications to it are done when the struct
+ * can not yet or no longer be found by the RX path.
  */
 struct tid_ampdu_rx {
+	struct rcu_head rcu_head;
 	struct sk_buff **reorder_buf;
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
@@ -118,8 +128,7 @@ struct tid_ampdu_rx {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
- * @tid_active_rx: TID's state in Rx session state machine.
- * @tid_rx: aggregation info for Rx per TID
+ * @tid_rx: aggregation info for Rx per TID -- RCU protected
  * @tid_state_tx: TID's state in Tx session state machine.
  * @tid_tx: aggregation info for Tx per TID
  * @addba_req_num: number of times addBA request has been sent.
@@ -127,7 +136,6 @@ struct tid_ampdu_rx {
  */
 struct sta_ampdu_mlme {
 	/* rx */
-	bool tid_active_rx[STA_TID_NUM];
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	/* tx */
 	u8 tid_state_tx[STA_TID_NUM];
