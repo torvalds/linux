@@ -969,6 +969,30 @@ static const struct fw_address_region registers_region =
 	{ .start = CSR_REGISTER_BASE,
 	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM, };
 
+static u32 read_state_register(struct fw_card *card)
+{
+	/*
+	 * Fixed bits (IEEE 1394-2008 8.3.2.2.1):
+	 * Bits 0-1 (state) always read 00=running.
+	 * Bits 2,3 (off, atn) are not implemented as per the spec.
+	 * Bit 4 (elog) is not implemented because there is no error log.
+	 * Bit 6 (dreq) cannot be set.  It is intended to "disable requests
+	 *      from unreliable nodes"; however, IEEE 1212 states that devices
+	 *      may "clear their own dreq bit when it has been improperly set".
+	 *      Our implementation might be seen as an improperly extensive
+	 *      interpretation of "improperly", but the 1212-2001 revision
+	 *      dropped this bit altogether, so we're in the clear.  :o)
+	 * Bit 7 (lost) always reads 0 because a power reset has never occurred
+	 *      during normal operation.
+	 * Bit 9 (linkoff) is not implemented because the PC is not powered
+	 *      from the FireWire cable.
+	 * Bit 15 (gone) always reads 0.  It must be set at a power/command/bus
+	 *      reset, but then cleared when the units are ready again, which
+	 *      happens immediately for us.
+	 */
+	return 0;
+}
+
 static void handle_registers(struct fw_card *card, struct fw_request *request,
 		int tcode, int destination, int source, int generation,
 		int speed, unsigned long long offset,
@@ -979,6 +1003,26 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 	int rcode = RCODE_COMPLETE;
 
 	switch (reg) {
+	case CSR_STATE_CLEAR:
+		if (tcode == TCODE_READ_QUADLET_REQUEST) {
+			*data = cpu_to_be32(read_state_register(card));
+		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+		} else {
+			rcode = RCODE_TYPE_ERROR;
+		}
+		break;
+
+	case CSR_STATE_SET:
+		if (tcode == TCODE_READ_QUADLET_REQUEST) {
+			*data = cpu_to_be32(read_state_register(card));
+		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+			/* FIXME: implement cmstr */
+			/* FIXME: implement abdicate */
+		} else {
+			rcode = RCODE_TYPE_ERROR;
+		}
+		break;
+
 	case CSR_CYCLE_TIME:
 		if (TCODE_IS_READ_REQUEST(tcode) && length == 4)
 			*data = cpu_to_be32(card->driver->get_cycle_time(card));
