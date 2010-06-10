@@ -1276,8 +1276,6 @@ int ceph_osdc_readpages(struct ceph_osd_client *osdc,
 
 	/* it may be a short read due to an object boundary */
 	req->r_pages = pages;
-	num_pages = calc_pages_for(off, *plen);
-	req->r_num_pages = num_pages;
 
 	dout("readpages  final extent is %llu~%llu (%d pages)\n",
 	     off, *plen, req->r_num_pages);
@@ -1319,7 +1317,6 @@ int ceph_osdc_writepages(struct ceph_osd_client *osdc, struct ceph_vino vino,
 
 	/* it may be a short write due to an object boundary */
 	req->r_pages = pages;
-	req->r_num_pages = calc_pages_for(off, len);
 	dout("writepages %llu~%llu (%d pages)\n", off, len,
 	     req->r_num_pages);
 
