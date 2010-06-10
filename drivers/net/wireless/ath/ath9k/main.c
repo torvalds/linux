@@ -1769,6 +1769,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	struct ath_softc *sc = aphy->sc;
 	int ret = 0;
 
+	local_bh_disable();
+
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		if (!(sc->sc_flags & SC_OP_RXAGGR))
@@ -1797,6 +1799,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
 			  "Unknown AMPDU action\n");
 	}
+
+	local_bh_enable();
 
 	return ret;
 }

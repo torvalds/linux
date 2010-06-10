@@ -352,11 +352,10 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 
 	might_sleep();
 
-	local_bh_disable();
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(&local->hw, &sdata->vif, action,
 					       sta, tid, ssn);
-	local_bh_enable();
+
 	trace_drv_ampdu_action(local, sdata, action, sta, tid, ssn, ret);
 	return ret;
 }
