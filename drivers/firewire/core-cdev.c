@@ -1044,7 +1044,7 @@ static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
 
 	local_irq_disable();
 
-	cycle_time = card->driver->get_cycle_time(card);
+	cycle_time = card->driver->read_csr_reg(card, CSR_CYCLE_TIME);
 
 	switch (a->clk_id) {
 	case CLOCK_REALTIME:      getnstimeofday(&ts);                   break;

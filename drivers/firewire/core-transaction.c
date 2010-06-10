@@ -1025,7 +1025,8 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 
 	case CSR_CYCLE_TIME:
 		if (TCODE_IS_READ_REQUEST(tcode) && length == 4)
-			*data = cpu_to_be32(card->driver->get_cycle_time(card));
+			*data = cpu_to_be32(card->driver->
+					read_csr_reg(card, CSR_CYCLE_TIME));
 		else
 			rcode = RCODE_TYPE_ERROR;
 		break;

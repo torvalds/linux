@@ -1939,9 +1939,8 @@ static u32 cycle_timer_ticks(u32 cycle_timer)
  * error.  (A PCI read should take at least 20 ticks of the 24.576 MHz timer to
  * execute, so we have enough precision to compute the ratio of the differences.)
  */
-static u32 ohci_get_cycle_time(struct fw_card *card)
+static u32 get_cycle_time(struct fw_ohci *ohci)
 {
-	struct fw_ohci *ohci = fw_ohci(card);
 	u32 c0, c1, c2;
 	u32 t0, t1, t2;
 	s32 diff01, diff12;
@@ -1968,6 +1967,20 @@ static u32 ohci_get_cycle_time(struct fw_card *card)
 	}
 
 	return c2;
+}
+
+static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+
+	switch (csr_offset) {
+	case CSR_CYCLE_TIME:
+		return get_cycle_time(ohci);
+
+	default:
+		WARN_ON(1);
+		return 0;
+	}
 }
 
 static void copy_iso_headers(struct iso_context *ctx, void *p)
@@ -2407,7 +2420,7 @@ static const struct fw_card_driver ohci_driver = {
 	.send_response		= ohci_send_response,
 	.cancel_packet		= ohci_cancel_packet,
 	.enable_phys_dma	= ohci_enable_phys_dma,
-	.get_cycle_time		= ohci_get_cycle_time,
+	.read_csr_reg		= ohci_read_csr_reg,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
