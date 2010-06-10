@@ -1633,33 +1633,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
 
-ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
-					  struct sk_buff *skb)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_mgmt *mgmt;
-	u16 fc;
-
-	if (skb->len < 24)
-		return RX_DROP_MONITOR;
-
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	fc = le16_to_cpu(mgmt->frame_control);
-
-	switch (fc & IEEE80211_FCTL_STYPE) {
-	case IEEE80211_STYPE_PROBE_RESP:
-	case IEEE80211_STYPE_BEACON:
-	case IEEE80211_STYPE_DEAUTH:
-	case IEEE80211_STYPE_DISASSOC:
-	case IEEE80211_STYPE_ACTION:
-		skb_queue_tail(&sdata->skb_queue, skb);
-		ieee80211_queue_work(&local->hw, &sdata->work);
-		return RX_QUEUED;
-	}
-
-	return RX_DROP_MONITOR;
-}
-
 void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb)
 {

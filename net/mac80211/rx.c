@@ -1950,8 +1950,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			break;
 
-		if (sdata->vif.type == NL80211_IFTYPE_STATION)
-			return ieee80211_sta_rx_mgmt(sdata, rx->skb);
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
+			skb_queue_tail(&sdata->skb_queue, rx->skb);
+			ieee80211_queue_work(&local->hw, &sdata->work);
+			return RX_QUEUED;
+		}
 
 		switch (mgmt->u.action.u.addba_req.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
@@ -2003,7 +2006,9 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
 				break;
 
-			return ieee80211_sta_rx_mgmt(sdata, rx->skb);
+			skb_queue_tail(&sdata->skb_queue, rx->skb);
+			ieee80211_queue_work(&local->hw, &sdata->work);
+			return RX_QUEUED;
 		}
 		break;
 	case WLAN_CATEGORY_SA_QUERY:
@@ -2021,9 +2026,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		break;
 	case WLAN_CATEGORY_MESH_PLINK:
 	case WLAN_CATEGORY_MESH_PATH_SEL:
-		if (ieee80211_vif_is_mesh(&sdata->vif))
-			return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
-		break;
+		if (!ieee80211_vif_is_mesh(&sdata->vif))
+			break;
+		skb_queue_tail(&sdata->skb_queue, rx->skb);
+		ieee80211_queue_work(&local->hw, &sdata->work);
+		return RX_QUEUED;
 	}
 
 	/*
@@ -2080,8 +2087,13 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
 	ieee80211_rx_result rxs;
+	struct ieee80211_mgmt *mgmt = (void *)rx->skb->data;
+	__le16 stype;
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
+		return RX_DROP_MONITOR;
+
+	if (rx->skb->len < 24)
 		return RX_DROP_MONITOR;
 
 	if (ieee80211_drop_unencrypted_mgmt(rx))
@@ -2091,16 +2103,39 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	if (rxs != RX_CONTINUE)
 		return rxs;
 
-	if (ieee80211_vif_is_mesh(&sdata->vif))
-		return ieee80211_mesh_rx_mgmt(sdata, rx->skb);
+	stype = mgmt->frame_control & cpu_to_le16(IEEE80211_FCTL_STYPE);
 
-	if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
-		return ieee80211_ibss_rx_mgmt(sdata, rx->skb);
+	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
+	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
+	    sdata->vif.type != NL80211_IFTYPE_STATION)
+		return RX_DROP_MONITOR;
 
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		return ieee80211_sta_rx_mgmt(sdata, rx->skb);
+	switch (stype) {
+	case cpu_to_le16(IEEE80211_STYPE_BEACON):
+	case cpu_to_le16(IEEE80211_STYPE_PROBE_RESP):
+		/* process for all: mesh, mlme, ibss */
+		break;
+	case cpu_to_le16(IEEE80211_STYPE_DEAUTH):
+	case cpu_to_le16(IEEE80211_STYPE_DISASSOC):
+		/* process only for station */
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			return RX_DROP_MONITOR;
+		break;
+	case cpu_to_le16(IEEE80211_STYPE_PROBE_REQ):
+	case cpu_to_le16(IEEE80211_STYPE_AUTH):
+		/* process only for ibss */
+		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
+			return RX_DROP_MONITOR;
+		break;
+	default:
+		return RX_DROP_MONITOR;
+	}
 
-	return RX_DROP_MONITOR;
+	/* queue up frame and kick off work to process it */
+	skb_queue_tail(&sdata->skb_queue, rx->skb);
+	ieee80211_queue_work(&rx->local->hw, &sdata->work);
+
+	return RX_QUEUED;
 }
 
 static void ieee80211_rx_michael_mic_report(struct ieee80211_hdr *hdr,
