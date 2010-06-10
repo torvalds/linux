@@ -715,23 +715,42 @@ static int __init hp_wmi_init(void)
 	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
 		err = wmi_install_notify_handler(HPWMI_EVENT_GUID,
 						 hp_wmi_notify, NULL);
-		if (ACPI_SUCCESS(err))
-			hp_wmi_input_setup();
+		if (ACPI_FAILURE(err))
+			return -EINVAL;
+		err = hp_wmi_input_setup();
+		if (err) {
+			wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+			return err;
+		}
 	}
 
 	if (wmi_has_guid(HPWMI_BIOS_GUID)) {
 		err = platform_driver_register(&hp_wmi_driver);
 		if (err)
-			return 0;
+			goto err_driver_reg;
 		hp_wmi_platform_dev = platform_device_alloc("hp-wmi", -1);
 		if (!hp_wmi_platform_dev) {
-			platform_driver_unregister(&hp_wmi_driver);
-			return 0;
+			err = -ENOMEM;
+			goto err_device_alloc;
 		}
-		platform_device_add(hp_wmi_platform_dev);
+		err = platform_device_add(hp_wmi_platform_dev);
+		if (err)
+			goto err_device_add;
 	}
 
 	return 0;
+
+err_device_add:
+	platform_device_put(hp_wmi_platform_dev);
+err_device_alloc:
+	platform_driver_unregister(&hp_wmi_driver);
+err_driver_reg:
+	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
+		input_unregister_device(hp_wmi_input_dev);
+		wmi_remove_notify_handler(HPWMI_EVENT_GUID);
+	}
+
+	return err;
 }
 
 static void __exit hp_wmi_exit(void)
