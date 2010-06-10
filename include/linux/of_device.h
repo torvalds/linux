@@ -1,13 +1,6 @@
 #ifndef _LINUX_OF_DEVICE_H
 #define _LINUX_OF_DEVICE_H
 
-#ifdef CONFIG_OF_DEVICE
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/of.h>
-#include <linux/mod_devicetable.h>
-
-
 /*
  * The of_device *was* a kind of "base class" that was a superset of
  * struct device for use by devices attached to an OF node and probed
@@ -22,7 +15,12 @@
  * from the kernel.
  */
 #define of_device platform_device
+#include <linux/platform_device.h>
 
+#ifdef CONFIG_OF_DEVICE
+#include <linux/device.h>
+#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <asm/of_device.h>
 
 #define	to_of_device(d) container_of(d, struct of_device, dev)
