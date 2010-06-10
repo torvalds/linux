@@ -170,6 +170,7 @@ struct fw_ohci {
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
 	unsigned quirks;
+	u32 bus_time;
 
 	/*
 	 * Spinlock for accessing fw_ohci data.  Never call out of
@@ -292,7 +293,7 @@ static void log_irqs(u32 evt)
 	    !(evt & OHCI1394_busReset))
 		return;
 
-	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
+	fw_notify("IRQ %08x%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n", evt,
 	    evt & OHCI1394_selfIDComplete	? " selfID"		: "",
 	    evt & OHCI1394_RQPkt		? " AR_req"		: "",
 	    evt & OHCI1394_RSPkt		? " AR_resp"		: "",
@@ -302,6 +303,7 @@ static void log_irqs(u32 evt)
 	    evt & OHCI1394_isochTx		? " IT"			: "",
 	    evt & OHCI1394_postedWriteErr	? " postedWriteErr"	: "",
 	    evt & OHCI1394_cycleTooLong		? " cycleTooLong"	: "",
+	    evt & OHCI1394_cycle64Seconds	? " cycle64Seconds"	: "",
 	    evt & OHCI1394_cycleInconsistent	? " cycleInconsistent"	: "",
 	    evt & OHCI1394_regAccessFail	? " regAccessFail"	: "",
 	    evt & OHCI1394_busReset		? " busReset"		: "",
@@ -309,7 +311,8 @@ static void log_irqs(u32 evt)
 		    OHCI1394_RSPkt | OHCI1394_reqTxComplete |
 		    OHCI1394_respTxComplete | OHCI1394_isochRx |
 		    OHCI1394_isochTx | OHCI1394_postedWriteErr |
-		    OHCI1394_cycleTooLong | OHCI1394_cycleInconsistent |
+		    OHCI1394_cycleTooLong | OHCI1394_cycle64Seconds |
+		    OHCI1394_cycleInconsistent |
 		    OHCI1394_regAccessFail | OHCI1394_busReset)
 						? " ?"			: "");
 }
@@ -1316,6 +1319,78 @@ static void at_context_transmit(struct context *ctx, struct fw_packet *packet)
 
 }
 
+static u32 cycle_timer_ticks(u32 cycle_timer)
+{
+	u32 ticks;
+
+	ticks = cycle_timer & 0xfff;
+	ticks += 3072 * ((cycle_timer >> 12) & 0x1fff);
+	ticks += (3072 * 8000) * (cycle_timer >> 25);
+
+	return ticks;
+}
+
+/*
+ * Some controllers exhibit one or more of the following bugs when updating the
+ * iso cycle timer register:
+ *  - When the lowest six bits are wrapping around to zero, a read that happens
+ *    at the same time will return garbage in the lowest ten bits.
+ *  - When the cycleOffset field wraps around to zero, the cycleCount field is
+ *    not incremented for about 60 ns.
+ *  - Occasionally, the entire register reads zero.
+ *
+ * To catch these, we read the register three times and ensure that the
+ * difference between each two consecutive reads is approximately the same, i.e.
+ * less than twice the other.  Furthermore, any negative difference indicates an
+ * error.  (A PCI read should take at least 20 ticks of the 24.576 MHz timer to
+ * execute, so we have enough precision to compute the ratio of the differences.)
+ */
+static u32 get_cycle_time(struct fw_ohci *ohci)
+{
+	u32 c0, c1, c2;
+	u32 t0, t1, t2;
+	s32 diff01, diff12;
+	int i;
+
+	c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+
+	if (ohci->quirks & QUIRK_CYCLE_TIMER) {
+		i = 0;
+		c1 = c2;
+		c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+		do {
+			c0 = c1;
+			c1 = c2;
+			c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+			t0 = cycle_timer_ticks(c0);
+			t1 = cycle_timer_ticks(c1);
+			t2 = cycle_timer_ticks(c2);
+			diff01 = t1 - t0;
+			diff12 = t2 - t1;
+		} while ((diff01 <= 0 || diff12 <= 0 ||
+			  diff01 / diff12 >= 2 || diff12 / diff01 >= 2)
+			 && i++ < 20);
+	}
+
+	return c2;
+}
+
+/*
+ * This function has to be called at least every 64 seconds.  The bus_time
+ * field stores not only the upper 25 bits of the BUS_TIME register but also
+ * the most significant bit of the cycle timer in bit 6 so that we can detect
+ * changes in this bit.
+ */
+static u32 update_bus_time(struct fw_ohci *ohci)
+{
+	u32 cycle_time_seconds = get_cycle_time(ohci) >> 25;
+
+	if ((ohci->bus_time & 0x40) != (cycle_time_seconds & 0x40))
+		ohci->bus_time += 0x40;
+
+	return ohci->bus_time | cycle_time_seconds;
+}
+
 static void bus_reset_tasklet(unsigned long data)
 {
 	struct fw_ohci *ohci = (struct fw_ohci *)data;
@@ -1520,6 +1595,12 @@ static irqreturn_t irq_handler(int irq, void *data)
 			fw_notify("isochronous cycle inconsistent\n");
 	}
 
+	if (event & OHCI1394_cycle64Seconds) {
+		spin_lock(&ohci->lock);
+		update_bus_time(ohci);
+		spin_unlock(&ohci->lock);
+	}
+
 	return IRQ_HANDLED;
 }
 
@@ -1604,7 +1685,7 @@ static int ohci_enable(struct fw_card *card,
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
-	u32 lps, irqs;
+	u32 lps, seconds, irqs;
 	int i, ret;
 
 	if (software_reset(ohci)) {
@@ -1651,6 +1732,10 @@ static int ohci_enable(struct fw_card *card,
 		  OHCI1394_MAX_AT_REQ_RETRIES |
 		  (OHCI1394_MAX_AT_RESP_RETRIES << 4) |
 		  (OHCI1394_MAX_PHYS_RESP_RETRIES << 8));
+
+	seconds = lower_32_bits(get_seconds());
+	reg_write(ohci, OHCI1394_IsochronousCycleTimer, seconds << 25);
+	ohci->bus_time = seconds & ~0x3f;
 
 	ar_context_run(&ohci->ar_request_ctx);
 	ar_context_run(&ohci->ar_response_ctx);
@@ -1732,6 +1817,7 @@ static int ohci_enable(struct fw_card *card,
 		OHCI1394_postedWriteErr |
 		OHCI1394_selfIDComplete |
 		OHCI1394_regAccessFail |
+		OHCI1394_cycle64Seconds |
 		OHCI1394_cycleInconsistent | OHCI1394_cycleTooLong |
 		OHCI1394_masterIntEnable;
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
@@ -1913,65 +1999,11 @@ static int ohci_enable_phys_dma(struct fw_card *card,
 #endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
-static u32 cycle_timer_ticks(u32 cycle_timer)
-{
-	u32 ticks;
-
-	ticks = cycle_timer & 0xfff;
-	ticks += 3072 * ((cycle_timer >> 12) & 0x1fff);
-	ticks += (3072 * 8000) * (cycle_timer >> 25);
-
-	return ticks;
-}
-
-/*
- * Some controllers exhibit one or more of the following bugs when updating the
- * iso cycle timer register:
- *  - When the lowest six bits are wrapping around to zero, a read that happens
- *    at the same time will return garbage in the lowest ten bits.
- *  - When the cycleOffset field wraps around to zero, the cycleCount field is
- *    not incremented for about 60 ns.
- *  - Occasionally, the entire register reads zero.
- *
- * To catch these, we read the register three times and ensure that the
- * difference between each two consecutive reads is approximately the same, i.e.
- * less than twice the other.  Furthermore, any negative difference indicates an
- * error.  (A PCI read should take at least 20 ticks of the 24.576 MHz timer to
- * execute, so we have enough precision to compute the ratio of the differences.)
- */
-static u32 get_cycle_time(struct fw_ohci *ohci)
-{
-	u32 c0, c1, c2;
-	u32 t0, t1, t2;
-	s32 diff01, diff12;
-	int i;
-
-	c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-
-	if (ohci->quirks & QUIRK_CYCLE_TIMER) {
-		i = 0;
-		c1 = c2;
-		c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-		do {
-			c0 = c1;
-			c1 = c2;
-			c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-			t0 = cycle_timer_ticks(c0);
-			t1 = cycle_timer_ticks(c1);
-			t2 = cycle_timer_ticks(c2);
-			diff01 = t1 - t0;
-			diff12 = t2 - t1;
-		} while ((diff01 <= 0 || diff12 <= 0 ||
-			  diff01 / diff12 >= 2 || diff12 / diff01 >= 2)
-			 && i++ < 20);
-	}
-
-	return c2;
-}
-
 static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
+	unsigned long flags;
+	u32 value;
 
 	switch (csr_offset) {
 	case CSR_NODE_IDS:
@@ -1979,6 +2011,17 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 
 	case CSR_CYCLE_TIME:
 		return get_cycle_time(ohci);
+
+	case CSR_BUS_TIME:
+		/*
+		 * We might be called just after the cycle timer has wrapped
+		 * around but just before the cycle64Seconds handler, so we
+		 * better check here, too, if the bus time needs to be updated.
+		 */
+		spin_lock_irqsave(&ohci->lock, flags);
+		value = update_bus_time(ohci);
+		spin_unlock_irqrestore(&ohci->lock, flags);
+		return value;
 
 	default:
 		WARN_ON(1);
@@ -1989,6 +2032,7 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
+	unsigned long flags;
 
 	switch (csr_offset) {
 	case CSR_NODE_IDS:
@@ -2001,6 +2045,12 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 		reg_write(ohci, OHCI1394_IntEventSet,
 			  OHCI1394_cycleInconsistent);
 		flush_writes(ohci);
+		break;
+
+	case CSR_BUS_TIME:
+		spin_lock_irqsave(&ohci->lock, flags);
+		ohci->bus_time = (ohci->bus_time & 0x7f) | (value & ~0x7f);
+		spin_unlock_irqrestore(&ohci->lock, flags);
 		break;
 
 	default:
