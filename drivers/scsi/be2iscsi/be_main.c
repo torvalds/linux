@@ -3774,8 +3774,8 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 
 	ret = beiscsi_enable_pci(pcidev);
 	if (ret < 0) {
-		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe-"
-			     "Failed to enable pci device \n");
+		dev_err(&pcidev->dev, "beiscsi_dev_probe-"
+			" Failed to enable pci device\n");
 		return ret;
 	}
 
