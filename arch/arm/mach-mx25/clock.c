@@ -179,6 +179,28 @@ static void clk_cgcr_disable(struct clk *clk)
 		.secondary	= s,			\
 	}
 
+/*
+ * Note: the following IPG clock gating bits are wrongly marked "Reserved" in
+ * the i.MX25 Reference Manual Rev 1, table 15-13. The information below is
+ * taken from the Freescale released BSP.
+ *
+ * bit	reg	offset	clock
+ *
+ * 0	CGCR1	0	AUDMUX
+ * 12	CGCR1	12	ESAI
+ * 16	CGCR1	16	GPIO1
+ * 17	CGCR1	17	GPIO2
+ * 18	CGCR1	18	GPIO3
+ * 23	CGCR1	23	I2C1
+ * 24	CGCR1	24	I2C2
+ * 25	CGCR1	25	I2C3
+ * 27	CGCR1	27	IOMUXC
+ * 28	CGCR1	28	KPP
+ * 30	CGCR1	30	OWIRE
+ * 36	CGCR2	4	RTIC
+ * 51	CGCR2	19	WDOG
+ */
+
 DEFINE_CLOCK(gpt_clk,    0, CCM_CGCR0,  5, get_rate_gpt, NULL, NULL);
 DEFINE_CLOCK(uart_per_clk, 0, CCM_CGCR0, 15, get_rate_uart, NULL, NULL);
 DEFINE_CLOCK(ssi1_per_clk, 0, CCM_CGCR0, 13, get_rate_ipg, NULL, NULL);
