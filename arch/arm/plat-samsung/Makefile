@@ -30,6 +30,8 @@ obj-$(CONFIG_S3C_ADC)	+= adc.o
 
 # devices
 
+obj-y				+= platformdata.o
+
 obj-$(CONFIG_S3C_DEV_HSMMC)	+= dev-hsmmc.o
 obj-$(CONFIG_S3C_DEV_HSMMC1)	+= dev-hsmmc1.o
 obj-$(CONFIG_S3C_DEV_HSMMC2)	+= dev-hsmmc2.o
