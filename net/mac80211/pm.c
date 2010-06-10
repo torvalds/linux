@@ -64,6 +64,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		cancel_work_sync(&sdata->work);
+
 		switch(sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			ieee80211_sta_quiesce(sdata);

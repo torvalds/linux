@@ -460,17 +460,14 @@ static int ieee80211_stop(struct net_device *dev)
 		 * whether the interface is running, which, at this point,
 		 * it no longer is.
 		 */
-		cancel_work_sync(&sdata->u.mgd.work);
 		cancel_work_sync(&sdata->u.mgd.chswitch_work);
 		cancel_work_sync(&sdata->u.mgd.monitor_work);
 		cancel_work_sync(&sdata->u.mgd.beacon_connection_loss_work);
 
 		/* fall through */
 	case NL80211_IFTYPE_ADHOC:
-		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 			del_timer_sync(&sdata->u.ibss.timer);
-			cancel_work_sync(&sdata->u.ibss.work);
-		}
 		/* fall through */
 	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -485,6 +482,7 @@ static int ieee80211_stop(struct net_device *dev)
 		}
 		/* fall through */
 	default:
+		cancel_work_sync(&sdata->work);
 		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path

@@ -325,7 +325,6 @@ struct ieee80211_if_managed {
 	struct timer_list conn_mon_timer;
 	struct timer_list bcn_mon_timer;
 	struct timer_list chswitch_timer;
-	struct work_struct work;
 	struct work_struct monitor_work;
 	struct work_struct chswitch_work;
 	struct work_struct beacon_connection_loss_work;
@@ -384,7 +383,6 @@ enum ieee80211_ibss_request {
 
 struct ieee80211_if_ibss {
 	struct timer_list timer;
-	struct work_struct work;
 
 	unsigned long request;
 	unsigned long last_scan_completed;
@@ -412,7 +410,6 @@ struct ieee80211_if_ibss {
 };
 
 struct ieee80211_if_mesh {
-	struct work_struct work;
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
 	struct timer_list mesh_path_root_timer;
@@ -512,6 +509,7 @@ struct ieee80211_sub_if_data {
 
 	u16 sequence_number;
 
+	struct work_struct work;
 	struct sk_buff_head skb_queue;
 
 	/*
