@@ -463,8 +463,10 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	sta_info_init(local);
 
-	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
 		skb_queue_head_init(&local->pending[i]);
+		atomic_set(&local->agg_queue_stop[i], 0);
+	}
 	tasklet_init(&local->tx_pending_tasklet, ieee80211_tx_pending,
 		     (unsigned long)local);
 
@@ -474,8 +476,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
-
-	spin_lock_init(&local->ampdu_lock);
 
 	return local_to_hw(local);
 }

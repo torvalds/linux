@@ -220,6 +220,41 @@ static inline int ieee80211_ac_from_tid(int tid)
 	return ieee802_1d_to_ac[tid & 7];
 }
 
+/*
+ * When multiple aggregation sessions on multiple stations
+ * are being created/destroyed simultaneously, we need to
+ * refcount the global queue stop caused by that in order
+ * to not get into a situation where one of the aggregation
+ * setup or teardown re-enables queues before the other is
+ * ready to handle that.
+ *
+ * These two functions take care of this issue by keeping
+ * a global "agg_queue_stop" refcount.
+ */
+static void __acquires(agg_queue)
+ieee80211_stop_queue_agg(struct ieee80211_local *local, int tid)
+{
+	int queue = ieee80211_ac_from_tid(tid);
+
+	if (atomic_inc_return(&local->agg_queue_stop[queue]) == 1)
+		ieee80211_stop_queue_by_reason(
+			&local->hw, queue,
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	__acquire(agg_queue);
+}
+
+static void __releases(agg_queue)
+ieee80211_wake_queue_agg(struct ieee80211_local *local, int tid)
+{
+	int queue = ieee80211_ac_from_tid(tid);
+
+	if (atomic_dec_return(&local->agg_queue_stop[queue]) == 0)
+		ieee80211_wake_queue_by_reason(
+			&local->hw, queue,
+			IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	__release(agg_queue);
+}
+
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
@@ -263,7 +298,6 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	}
 
 	spin_lock_bh(&sta->lock);
-	spin_lock(&local->ampdu_lock);
 
 	/* we have tried too many times, receiver does not want A-MPDU */
 	if (sta->ampdu_mlme.addba_req_num[tid] > HT_AGG_MAX_RETRIES) {
@@ -289,9 +323,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	 * which would require us to put them to the AC pending
 	 * afterwards which just makes the code more complex.
 	 */
-	ieee80211_stop_queue_by_reason(
-		&local->hw, ieee80211_ac_from_tid(tid),
-		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	ieee80211_stop_queue_agg(local, tid);
 
 	/* prepare A-MPDU MLME for Tx aggregation */
 	tid_tx = kzalloc(sizeof(struct tid_ampdu_tx), GFP_ATOMIC);
@@ -327,11 +359,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	rcu_assign_pointer(sta->ampdu_mlme.tid_tx[tid], tid_tx);
 
 	/* Driver vetoed or OKed, but we can take packets again now */
-	ieee80211_wake_queue_by_reason(
-		&local->hw, ieee80211_ac_from_tid(tid),
-		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
-
-	spin_unlock(&local->ampdu_lock);
+	ieee80211_wake_queue_agg(local, tid);
 
 	/* activate the timer for the recipient's addBA response */
 	tid_tx->addba_resp_timer.expires = jiffies + ADDBA_RESP_INTERVAL;
@@ -358,11 +386,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
  err_free:
 	kfree(tid_tx);
  err_wake_queue:
-	ieee80211_wake_queue_by_reason(
-		&local->hw, ieee80211_ac_from_tid(tid),
-		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	ieee80211_wake_queue_agg(local, tid);
  err_unlock_sta:
-	spin_unlock(&local->ampdu_lock);
 	spin_unlock_bh(&sta->lock);
 	return ret;
 }
@@ -370,19 +395,16 @@ EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
 
 /*
  * splice packets from the STA's pending to the local pending,
- * requires a call to ieee80211_agg_splice_finish and holding
- * local->ampdu_lock across both calls.
+ * requires a call to ieee80211_agg_splice_finish later
  */
-static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
-					 struct tid_ampdu_tx *tid_tx,
-					 u16 tid)
+static void __acquires(agg_queue)
+ieee80211_agg_splice_packets(struct ieee80211_local *local,
+			     struct tid_ampdu_tx *tid_tx, u16 tid)
 {
+	int queue = ieee80211_ac_from_tid(tid);
 	unsigned long flags;
-	u16 queue = ieee80211_ac_from_tid(tid);
 
-	ieee80211_stop_queue_by_reason(
-		&local->hw, queue,
-		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	ieee80211_stop_queue_agg(local, tid);
 
 	if (WARN(!tid_tx, "TID %d gone but expected when splicing aggregates"
 			  " from the pending queue\n", tid))
@@ -397,11 +419,10 @@ static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
 	}
 }
 
-static void ieee80211_agg_splice_finish(struct ieee80211_local *local, u16 tid)
+static void __releases(agg_queue)
+ieee80211_agg_splice_finish(struct ieee80211_local *local, u16 tid)
 {
-	ieee80211_wake_queue_by_reason(
-		&local->hw, ieee80211_ac_from_tid(tid),
-		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
+	ieee80211_wake_queue_agg(local, tid);
 }
 
 /* caller must hold sta->lock */
@@ -414,7 +435,6 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	printk(KERN_DEBUG "Aggregation is on for tid %d\n", tid);
 #endif
 
-	spin_lock(&local->ampdu_lock);
 	ieee80211_agg_splice_packets(local, sta->ampdu_mlme.tid_tx[tid], tid);
 	/*
 	 * Now mark as operational. This will be visible
@@ -423,7 +443,6 @@ static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 	 */
 	set_bit(HT_AGG_STATE_OPERATIONAL, &sta->ampdu_mlme.tid_tx[tid]->state);
 	ieee80211_agg_splice_finish(local, tid);
-	spin_unlock(&local->ampdu_lock);
 
 	drv_ampdu_action(local, sta->sdata,
 			 IEEE80211_AMPDU_TX_OPERATIONAL,
@@ -604,7 +623,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	 * more.
 	 */
 
-	spin_lock(&local->ampdu_lock);
 	ieee80211_agg_splice_packets(local, tid_tx, tid);
 
 	/* future packets must not find the tid_tx struct any more */
@@ -613,7 +631,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	ieee80211_agg_splice_finish(local, tid);
 
 	call_rcu(&tid_tx->rcu_head, kfree_tid_tx);
-	spin_unlock(&local->ampdu_lock);
 
 	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
