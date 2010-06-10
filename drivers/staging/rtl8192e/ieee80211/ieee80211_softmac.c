@@ -2873,11 +2873,16 @@ void ieee80211_disassociate(struct ieee80211_device *ieee)
 	if(IS_DOT11D_ENABLE(ieee))
 		Dot11d_Reset(ieee);
 #endif
-	ieee->state = IEEE80211_NOLINK;
 	ieee->is_set_key = false;
 	ieee->link_change(ieee->dev);
 	//HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
-	notify_wx_assoc_event(ieee);
+	if (ieee->state == IEEE80211_LINKED ||
+	    ieee->state == IEEE80211_ASSOCIATING) {
+		ieee->state = IEEE80211_NOLINK;
+		notify_wx_assoc_event(ieee);
+	}
+
+	ieee->state = IEEE80211_NOLINK;
 
 }
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20))
