@@ -58,6 +58,7 @@ struct s3c_sdhci_platdata {
 extern void s3c_sdhci0_set_platdata(struct s3c_sdhci_platdata *pd);
 extern void s3c_sdhci1_set_platdata(struct s3c_sdhci_platdata *pd);
 extern void s3c_sdhci2_set_platdata(struct s3c_sdhci_platdata *pd);
+extern void s3c_sdhci3_set_platdata(struct s3c_sdhci_platdata *pd);
 
 /* Default platform data, exported so that per-cpu initialisation can
  * set the correct one when there are more than one cpu type selected.
@@ -66,6 +67,7 @@ extern void s3c_sdhci2_set_platdata(struct s3c_sdhci_platdata *pd);
 extern struct s3c_sdhci_platdata s3c_hsmmc0_def_platdata;
 extern struct s3c_sdhci_platdata s3c_hsmmc1_def_platdata;
 extern struct s3c_sdhci_platdata s3c_hsmmc2_def_platdata;
+extern struct s3c_sdhci_platdata s3c_hsmmc3_def_platdata;
 
 /* Helper function availablity */
 
