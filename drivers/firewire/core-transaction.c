@@ -1115,6 +1115,17 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 			rcode = RCODE_TYPE_ERROR;
 		break;
 
+	case CSR_BUSY_TIMEOUT:
+		if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = cpu_to_be32(card->driver->
+					read_csr_reg(card, CSR_BUSY_TIMEOUT));
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
+			card->driver->write_csr_reg(card, CSR_BUSY_TIMEOUT,
+						    be32_to_cpu(*data));
+		else
+			rcode = RCODE_TYPE_ERROR;
+		break;
+
 	case CSR_BROADCAST_CHANNEL:
 		if (tcode == TCODE_READ_QUADLET_REQUEST)
 			*data = cpu_to_be32(card->broadcast_channel);
@@ -1139,9 +1150,6 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		 */
 		BUG();
 		break;
-
-	case CSR_BUSY_TIMEOUT:
-		/* FIXME: Implement this. */
 
 	default:
 		rcode = RCODE_ADDRESS_ERROR;
