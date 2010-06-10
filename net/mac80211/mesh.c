@@ -596,8 +596,8 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-static void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
-					  struct sk_buff *skb)
+void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_if_mesh *ifmsh;
@@ -624,22 +624,9 @@ static void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	kfree_skb(skb);
 }
 
-static void ieee80211_mesh_work(struct work_struct *work)
+void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data, work);
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
-	struct sk_buff *skb;
-
-	if (!ieee80211_sdata_running(sdata))
-		return;
-
-	if (local->scanning)
-		return;
-
-	while ((skb = skb_dequeue(&sdata->skb_queue)))
-		ieee80211_mesh_rx_queued_mgmt(sdata, skb);
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -674,7 +661,6 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	INIT_WORK(&sdata->work, ieee80211_mesh_work);
 	setup_timer(&ifmsh->housekeeping_timer,
 		    ieee80211_mesh_housekeeping_timer,
 		    (unsigned long) sdata);

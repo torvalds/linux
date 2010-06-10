@@ -701,6 +701,67 @@ static void ieee80211_if_setup(struct net_device *dev)
 	dev->destructor = free_netdev;
 }
 
+static void ieee80211_iface_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data, work);
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+
+	if (!ieee80211_sdata_running(sdata))
+		return;
+
+	if (local->scanning)
+		return;
+
+	/*
+	 * ieee80211_queue_work() should have picked up most cases,
+	 * here we'll pick the rest.
+	 */
+	if (WARN(local->suspended,
+		 "interface work scheduled while going to suspend\n"))
+		return;
+
+	/* first process frames */
+	while ((skb = skb_dequeue(&sdata->skb_queue))) {
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_STATION:
+			ieee80211_sta_rx_queued_mgmt(sdata, skb);
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			ieee80211_ibss_rx_queued_mgmt(sdata, skb);
+			break;
+		case NL80211_IFTYPE_MESH_POINT:
+			if (!ieee80211_vif_is_mesh(&sdata->vif))
+				break;
+			ieee80211_mesh_rx_queued_mgmt(sdata, skb);
+			break;
+		default:
+			WARN(1, "frame for unexpected interface type");
+			kfree_skb(skb);
+			break;
+		}
+	}
+
+	/* then other type-dependent work */
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_STATION:
+		ieee80211_sta_work(sdata);
+		break;
+	case NL80211_IFTYPE_ADHOC:
+		ieee80211_ibss_work(sdata);
+		break;
+	case NL80211_IFTYPE_MESH_POINT:
+		if (!ieee80211_vif_is_mesh(&sdata->vif))
+			break;
+		ieee80211_mesh_work(sdata);
+		break;
+	default:
+		break;
+	}
+}
+
+
 /*
  * Helper function to initialise an interface to a specific type.
  */
@@ -719,6 +780,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->dev->type = ARPHRD_ETHER;
 
 	skb_queue_head_init(&sdata->skb_queue);
+	INIT_WORK(&sdata->work, ieee80211_iface_work);
 
 	switch (type) {
 	case NL80211_IFTYPE_AP:

@@ -727,8 +727,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, true);
 }
 
-static void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
-					  struct sk_buff *skb)
+void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
@@ -758,29 +758,9 @@ static void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	kfree_skb(skb);
 }
 
-static void ieee80211_ibss_work(struct work_struct *work)
+void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data, work);
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_ibss *ifibss;
-	struct sk_buff *skb;
-
-	if (WARN_ON(local->suspended))
-		return;
-
-	if (!ieee80211_sdata_running(sdata))
-		return;
-
-	if (local->scanning)
-		return;
-
-	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_ADHOC))
-		return;
-	ifibss = &sdata->u.ibss;
-
-	while ((skb = skb_dequeue(&sdata->skb_queue)))
-		ieee80211_ibss_rx_queued_mgmt(sdata, skb);
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
 	if (!test_and_clear_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request))
 		return;
@@ -846,7 +826,6 @@ void ieee80211_ibss_setup_sdata(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 
-	INIT_WORK(&sdata->work, ieee80211_ibss_work);
 	setup_timer(&ifibss->timer, ieee80211_ibss_timer,
 		    (unsigned long) sdata);
 }

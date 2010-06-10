@@ -1660,8 +1660,8 @@ ieee80211_rx_result ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata,
 	return RX_DROP_MONITOR;
 }
 
-static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
-					 struct sk_buff *skb)
+void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				  struct sk_buff *skb)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_rx_status *rx_status;
@@ -1782,36 +1782,10 @@ static void ieee80211_sta_timer(unsigned long data)
 	ieee80211_queue_work(&local->hw, &sdata->work);
 }
 
-static void ieee80211_sta_work(struct work_struct *work)
+void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data, work);
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_managed *ifmgd;
-	struct sk_buff *skb;
-
-	if (!ieee80211_sdata_running(sdata))
-		return;
-
-	if (local->scanning)
-		return;
-
-	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
-		return;
-
-	/*
-	 * ieee80211_queue_work() should have picked up most cases,
-	 * here we'll pick the rest.
-	 */
-	if (WARN(local->suspended, "STA MLME work scheduled while "
-		 "going to suspend\n"))
-		return;
-
-	ifmgd = &sdata->u.mgd;
-
-	/* first process frames to avoid timing out while a frame is pending */
-	while ((skb = skb_dequeue(&sdata->skb_queue)))
-		ieee80211_sta_rx_queued_mgmt(sdata, skb);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	/* then process the rest of the work */
 	mutex_lock(&ifmgd->mtx);
@@ -1952,7 +1926,6 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd;
 
 	ifmgd = &sdata->u.mgd;
-	INIT_WORK(&sdata->work, ieee80211_sta_work);
 	INIT_WORK(&ifmgd->monitor_work, ieee80211_sta_monitor_work);
 	INIT_WORK(&ifmgd->chswitch_work, ieee80211_chswitch_work);
 	INIT_WORK(&ifmgd->beacon_connection_loss_work,

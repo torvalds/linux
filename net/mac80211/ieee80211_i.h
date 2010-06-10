@@ -995,6 +995,9 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				      u64 timestamp);
 void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				  struct sk_buff *skb);
 
 /* IBSS code */
 void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local);
@@ -1009,6 +1012,14 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata);
+void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata);
+void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb);
+
+/* mesh code */
+void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata);
+void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb);
 
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);
