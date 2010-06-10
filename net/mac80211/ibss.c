@@ -754,8 +754,6 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_mgmt_auth_ibss(sdata, mgmt, skb->len);
 		break;
 	}
-
-	kfree_skb(skb);
 }
 
 void ieee80211_ibss_work(struct ieee80211_sub_if_data *sdata)

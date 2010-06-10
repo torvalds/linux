@@ -738,9 +738,10 @@ static void ieee80211_iface_work(struct work_struct *work)
 			break;
 		default:
 			WARN(1, "frame for unexpected interface type");
-			kfree_skb(skb);
 			break;
 		}
+
+		kfree_skb(skb);
 	}
 
 	/* then other type-dependent work */

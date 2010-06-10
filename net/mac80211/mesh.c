@@ -620,8 +620,6 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
-
-	kfree_skb(skb);
 }
 
 void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
