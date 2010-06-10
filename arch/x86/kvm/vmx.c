@@ -3157,11 +3157,20 @@ vmx_patch_hypercall(struct kvm_vcpu *vcpu, unsigned char *hypercall)
 	hypercall[2] = 0xc1;
 }
 
+static void complete_insn_gp(struct kvm_vcpu *vcpu, int err)
+{
+	if (err)
+		kvm_inject_gp(vcpu, 0);
+	else
+		skip_emulated_instruction(vcpu);
+}
+
 static int handle_cr(struct kvm_vcpu *vcpu)
 {
 	unsigned long exit_qualification, val;
 	int cr;
 	int reg;
+	int err;
 
 	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 	cr = exit_qualification & 15;
@@ -3172,8 +3181,8 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 		trace_kvm_cr_write(cr, val);
 		switch (cr) {
 		case 0:
-			kvm_set_cr0(vcpu, val);
-			skip_emulated_instruction(vcpu);
+			err = kvm_set_cr0(vcpu, val);
+			complete_insn_gp(vcpu, err);
 			return 1;
 		case 3:
 			kvm_set_cr3(vcpu, val);

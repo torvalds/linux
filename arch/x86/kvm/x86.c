@@ -425,7 +425,7 @@ out:
 	return changed;
 }
 
-static int __kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	unsigned long old_cr0 = kvm_read_cr0(vcpu);
 	unsigned long update_bits = X86_CR0_PG | X86_CR0_WP |
@@ -468,17 +468,11 @@ static int __kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		kvm_mmu_reset_context(vcpu);
 	return 0;
 }
-
-void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
-{
-	if (__kvm_set_cr0(vcpu, cr0))
-		kvm_inject_gp(vcpu, 0);
-}
 EXPORT_SYMBOL_GPL(kvm_set_cr0);
 
 void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 {
-	kvm_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~0x0eul) | (msw & 0x0f));
+	(void)kvm_set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~0x0eul) | (msw & 0x0f));
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
@@ -3732,7 +3726,7 @@ static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 
 	switch (cr) {
 	case 0:
-		res = __kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
+		res = kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
 		break;
 	case 2:
 		vcpu->arch.cr2 = val;

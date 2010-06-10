@@ -807,7 +807,7 @@ static void init_vmcb(struct vcpu_svm *svm)
 	 * svm_set_cr0() sets PG and WP and clears NW and CD on save->cr0.
 	 */
 	svm->vcpu.arch.cr0 = X86_CR0_NW | X86_CR0_CD | X86_CR0_ET;
-	kvm_set_cr0(&svm->vcpu, svm->vcpu.arch.cr0);
+	(void)kvm_set_cr0(&svm->vcpu, svm->vcpu.arch.cr0);
 
 	save->cr4 = X86_CR4_PAE;
 	/* rdx = ?? */
