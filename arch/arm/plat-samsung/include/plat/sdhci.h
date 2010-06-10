@@ -241,7 +241,7 @@ static inline void s5pv210_default_sdhci0(void)
 	s3c_hsmmc0_def_platdata.cfg_card = s5pv210_setup_sdhci_cfg_card;
 }
 #else
-static inline void s5pc100_default_sdhci0(void) { }
+static inline void s5pv210_default_sdhci0(void) { }
 #endif /* CONFIG_S3C_DEV_HSMMC */
 
 #ifdef CONFIG_S3C_DEV_HSMMC1
