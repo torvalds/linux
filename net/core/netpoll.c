@@ -867,8 +867,7 @@ void netpoll_cleanup(struct netpoll *np)
 				ops = np->dev->netdev_ops;
 				if (ops->ndo_netpoll_cleanup)
 					ops->ndo_netpoll_cleanup(np->dev);
-				else
-					np->dev->npinfo = NULL;
+				np->dev->npinfo = NULL;
 			}
 		}
 
