@@ -474,12 +474,17 @@ static int read_phy_reg(struct fw_ohci *ohci, int addr)
 	int i;
 
 	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 3 + 100; i++) {
 		val = reg_read(ohci, OHCI1394_PhyControl);
 		if (val & OHCI1394_PhyControl_ReadDone)
 			return OHCI1394_PhyControl_ReadData(val);
 
-		msleep(1);
+		/*
+		 * Try a few times without waiting.  Sleeping is necessary
+		 * only when the link/PHY interface is busy.
+		 */
+		if (i >= 3)
+			msleep(1);
 	}
 	fw_error("failed to read phy reg\n");
 
@@ -492,12 +497,13 @@ static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
 
 	reg_write(ohci, OHCI1394_PhyControl,
 		  OHCI1394_PhyControl_Write(addr, val));
-	for (i = 0; i < 100; i++) {
+	for (i = 0; i < 3 + 100; i++) {
 		val = reg_read(ohci, OHCI1394_PhyControl);
 		if (!(val & OHCI1394_PhyControl_WritePending))
 			return 0;
 
-		msleep(1);
+		if (i >= 3)
+			msleep(1);
 	}
 	fw_error("failed to write phy reg\n");
 
