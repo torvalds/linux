@@ -847,9 +847,6 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	if (ns.conn == C_STANDALONE && ns.disk == D_DISKLESS && ns.role == R_SECONDARY)
 		ns.aftr_isp = 0;
 
-	if (ns.conn <= C_DISCONNECTING && ns.disk == D_DISKLESS)
-		ns.pdsk = D_UNKNOWN;
-
 	/* Abort resync if a disk fails/detaches */
 	if (os.conn > C_CONNECTED && ns.conn > C_CONNECTED &&
 	    (ns.disk <= D_FAILED || ns.pdsk <= D_FAILED)) {
