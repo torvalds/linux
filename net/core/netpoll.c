@@ -698,6 +698,7 @@ int netpoll_setup(struct netpoll *np)
 	struct net_device *ndev = NULL;
 	struct in_device *in_dev;
 	struct netpoll_info *npinfo;
+	const struct net_device_ops *ops;
 	unsigned long flags;
 	int err;
 
@@ -797,6 +798,13 @@ int netpoll_setup(struct netpoll *np)
 		INIT_DELAYED_WORK(&npinfo->tx_work, queue_process);
 
 		atomic_set(&npinfo->refcnt, 1);
+
+		ops = np->dev->netdev_ops;
+		if (ops->ndo_netpoll_setup) {
+			err = ops->ndo_netpoll_setup(ndev, npinfo);
+			if (err)
+				goto free_npinfo;
+		}
 	} else {
 		npinfo = ndev->npinfo;
 		atomic_inc(&npinfo->refcnt);
@@ -817,6 +825,8 @@ int netpoll_setup(struct netpoll *np)
 
 	return 0;
 
+free_npinfo:
+	kfree(npinfo);
 unlock:
 	rtnl_unlock();
 put:
