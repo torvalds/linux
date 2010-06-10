@@ -1126,6 +1126,20 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 			rcode = RCODE_TYPE_ERROR;
 		break;
 
+	case CSR_PRIORITY_BUDGET:
+		if (!(card->driver->get_features(card) &
+						FEATURE_PRIORITY_BUDGET))
+			rcode = RCODE_ADDRESS_ERROR;
+		else if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = cpu_to_be32(card->driver->
+				read_csr_reg(card, CSR_PRIORITY_BUDGET));
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
+			card->driver->write_csr_reg(card, CSR_PRIORITY_BUDGET,
+						    be32_to_cpu(*data));
+		else
+			rcode = RCODE_TYPE_ERROR;
+		break;
+
 	case CSR_BROADCAST_CHANNEL:
 		if (tcode == TCODE_READ_QUADLET_REQUEST)
 			*data = cpu_to_be32(card->broadcast_channel);

@@ -170,6 +170,7 @@ struct fw_ohci {
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
 	unsigned quirks;
+	unsigned int pri_req_max;
 	u32 bus_time;
 
 	/*
@@ -1738,6 +1739,11 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_IsochronousCycleTimer, seconds << 25);
 	ohci->bus_time = seconds & ~0x3f;
 
+	/* Get implemented bits of the priority arbitration request counter. */
+	reg_write(ohci, OHCI1394_FairnessControl, 0x3f);
+	ohci->pri_req_max = reg_read(ohci, OHCI1394_FairnessControl) & 0x3f;
+	reg_write(ohci, OHCI1394_FairnessControl, 0);
+
 	ar_context_run(&ohci->ar_request_ctx);
 	ar_context_run(&ohci->ar_response_ctx);
 
@@ -2028,6 +2034,10 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 		value = reg_read(ohci, OHCI1394_ATRetries);
 		return (value >> 4) & 0x0ffff00f;
 
+	case CSR_PRIORITY_BUDGET:
+		return (reg_read(ohci, OHCI1394_FairnessControl) & 0x3f) |
+			(ohci->pri_req_max << 8);
+
 	default:
 		WARN_ON(1);
 		return 0;
@@ -2065,10 +2075,26 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 		flush_writes(ohci);
 		break;
 
+	case CSR_PRIORITY_BUDGET:
+		reg_write(ohci, OHCI1394_FairnessControl, value & 0x3f);
+		flush_writes(ohci);
+		break;
+
 	default:
 		WARN_ON(1);
 		break;
 	}
+}
+
+static unsigned int ohci_get_features(struct fw_card *card)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	unsigned int features = 0;
+
+	if (ohci->pri_req_max != 0)
+		features |= FEATURE_PRIORITY_BUDGET;
+
+	return features;
 }
 
 static void copy_iso_headers(struct iso_context *ctx, void *p)
@@ -2510,6 +2536,7 @@ static const struct fw_card_driver ohci_driver = {
 	.enable_phys_dma	= ohci_enable_phys_dma,
 	.read_csr_reg		= ohci_read_csr_reg,
 	.write_csr_reg		= ohci_write_csr_reg,
+	.get_features		= ohci_get_features,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,
