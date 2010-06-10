@@ -121,8 +121,8 @@ static void __init mx1ads_init(void)
 		ARRAY_SIZE(mx1ads_pins), "mx1ads");
 
 	/* UART */
-	mxc_register_device(&imx_uart1_device, &uart_pdata[0]);
-	mxc_register_device(&imx_uart2_device, &uart_pdata[1]);
+	mxc_register_device(&imx1_uart_device0, &uart_pdata[0]);
+	mxc_register_device(&imx1_uart_device1, &uart_pdata[1]);
 
 	/* Physmap flash */
 	mxc_register_device(&flash_device, &mx1ads_flash_data);

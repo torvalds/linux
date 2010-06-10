@@ -73,59 +73,36 @@ struct platform_device imx_i2c_device0 = {
 	.num_resources  = ARRAY_SIZE(imx_i2c_resources),
 };
 
-static struct resource imx_uart1_resources[] = {
-	{
-		.start = MX1_UART1_BASE_ADDR,
-		.end = MX1_UART1_BASE_ADDR + 0xD0,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX1_UART1_MINT_RX,
-		.end = MX1_UART1_MINT_RX,
-		.flags = IORESOURCE_IRQ,
-	}, {
-		.start = MX1_UART1_MINT_TX,
-		.end = MX1_UART1_MINT_TX,
-		.flags = IORESOURCE_IRQ,
-	}, {
-		.start = MX1_UART1_MINT_RTS,
-		.end = MX1_UART1_MINT_RTS,
-		.flags = IORESOURCE_IRQ,
-	},
-};
+#define DEFINE_IMX1_UART_DEVICE(n, baseaddr, irqrx, irqtx, irqrts)	\
+	static struct resource imx1_uart_resources ## n[] = {		\
+		{							\
+			.start = baseaddr,				\
+			.end = baseaddr + 0xd0,				\
+			.flags = IORESOURCE_MEM,			\
+		}, {							\
+			.start = irqrx,					\
+			.end = irqrx,					\
+			.flags = IORESOURCE_IRQ,			\
+		}, {							\
+			.start = irqtx,					\
+			.end = irqtx,					\
+			.flags = IORESOURCE_IRQ,			\
+		}, {							\
+			.start = irqrts,				\
+			.end = irqrts,					\
+			.flags = IORESOURCE_IRQ,			\
+		},							\
+	};								\
+									\
+	struct platform_device imx1_uart_device ## n = {		\
+		.name = "imx-uart",					\
+		.id = n,						\
+		.num_resources = ARRAY_SIZE(imx1_uart_resources ## n),	\
+		.resource = imx1_uart_resources ## n,			\
+	}
 
-struct platform_device imx_uart1_device = {
-	.name		= "imx-uart",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(imx_uart1_resources),
-	.resource	= imx_uart1_resources,
-};
-
-static struct resource imx_uart2_resources[] = {
-	{
-		.start = MX1_UART2_BASE_ADDR,
-		.end = MX1_UART2_BASE_ADDR + 0xD0,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MX1_UART2_MINT_RX,
-		.end = MX1_UART2_MINT_RX,
-		.flags = IORESOURCE_IRQ,
-	}, {
-		.start = MX1_UART2_MINT_TX,
-		.end = MX1_UART2_MINT_TX,
-		.flags = IORESOURCE_IRQ,
-	}, {
-		.start = MX1_UART2_MINT_RTS,
-		.end = MX1_UART2_MINT_RTS,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device imx_uart2_device = {
-	.name		= "imx-uart",
-	.id		= 1,
-	.num_resources	= ARRAY_SIZE(imx_uart2_resources),
-	.resource	= imx_uart2_resources,
-};
+DEFINE_IMX1_UART_DEVICE(0, MX1_UART1_BASE_ADDR, MX1_UART1_MINT_RX, MX1_UART1_MINT_TX, MX1_UART1_MINT_RTS);
+DEFINE_IMX1_UART_DEVICE(1, MX1_UART2_BASE_ADDR, MX1_UART2_MINT_RX, MX1_UART2_MINT_TX, MX1_UART2_MINT_RTS);
 
 static struct resource imx_rtc_resources[] = {
 	{

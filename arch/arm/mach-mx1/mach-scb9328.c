@@ -130,7 +130,7 @@ static struct platform_device *devices[] __initdata = {
  */
 static void __init scb9328_init(void)
 {
-	mxc_register_device(&imx_uart1_device, &uart_pdata);
+	mxc_register_device(&imx1_uart_device0, &uart_pdata);
 
 	printk(KERN_INFO"Scb9328: Adding devices\n");
 	platform_add_devices(devices, ARRAY_SIZE(devices));
