@@ -4353,8 +4353,6 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 					     IPR_VSET_RW_TIMEOUT);
 			blk_queue_max_hw_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
 		}
-		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
-			sdev->allow_restart = 1;
 		if (ipr_is_gata(res) && res->sata_port)
 			ap = res->sata_port->ap;
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
@@ -6771,7 +6769,8 @@ static int ipr_init_res_table(struct ipr_cmnd *ipr_cmd)
 			list_move_tail(&res->queue, &ioa_cfg->used_res_q);
 			ipr_init_res_entry(res, &cfgtew);
 			res->add_to_ml = 1;
-		}
+		} else if (res->sdev && (ipr_is_vset_device(res) || ipr_is_scsi_disk(res)))
+			res->sdev->allow_restart = 1;
 
 		if (found)
 			ipr_update_res_entry(res, &cfgtew);
