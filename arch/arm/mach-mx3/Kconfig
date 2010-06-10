@@ -125,4 +125,26 @@ config MACH_KZM_ARM11_01
 	  Include support for KZM-ARM11-01. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_EUKREA_CPUIMX35
+	bool "Support Eukrea CPUIMX35 Platform"
+	select ARCH_MX35
+	select MXC_ULPI if USB_ULPI
+	help
+	  Include support for Eukrea CPUIMX35 platform. This includes
+	  specific configurations for the board and its peripherals.
+
+choice
+	prompt "Baseboard"
+	depends on MACH_EUKREA_CPUIMX35
+	default MACH_EUKREA_MBIMXSD_BASEBOARD
+
+config MACH_EUKREA_MBIMXSD_BASEBOARD
+	prompt "Eukrea MBIMXSD development board"
+	bool
+	help
+	  This adds board specific devices that can be found on Eukrea's
+	  MBIMXSD evaluation board.
+
+endchoice
+
 endif
