@@ -1547,7 +1547,7 @@ out_free2:
 				goto out;
 			p = &sigset;
 		}
-		r = kvm_vcpu_ioctl_set_sigmask(vcpu, &sigset);
+		r = kvm_vcpu_ioctl_set_sigmask(vcpu, p);
 		break;
 	}
 	case KVM_GET_FPU: {
