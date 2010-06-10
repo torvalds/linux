@@ -898,13 +898,13 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	netif_tx_stop_all_queues(sdata->dev);
 	netif_carrier_off(sdata->dev);
 
-	rcu_read_lock();
+	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, bssid);
 	if (sta) {
-		set_sta_flags(sta, WLAN_STA_DISASSOC);
+		set_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		ieee80211_sta_tear_down_BA_sessions(sta);
 	}
-	rcu_read_unlock();
+	mutex_unlock(&local->sta_mtx);
 
 	changed |= ieee80211_reset_erp_info(sdata);
 

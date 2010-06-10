@@ -339,7 +339,6 @@ static int ieee80211_stop(struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
 	unsigned long flags;
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
@@ -354,18 +353,6 @@ static int ieee80211_stop(struct net_device *dev)
 	 * Purge work for this interface.
 	 */
 	ieee80211_work_purge(sdata);
-
-	/*
-	 * Now delete all active aggregation sessions.
-	 */
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		if (sta->sdata == sdata)
-			ieee80211_sta_tear_down_BA_sessions(sta);
-	}
-
-	rcu_read_unlock();
 
 	/*
 	 * Remove all stations associated with this interface.

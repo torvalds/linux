@@ -1138,18 +1138,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->sta_mtx);
 
-	/* Clear Suspend state so that ADDBA requests can be processed */
-
-	rcu_read_lock();
-
-	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
-		}
-	}
-
-	rcu_read_unlock();
-
 	/* setup RTS threshold */
 	drv_set_rts_threshold(local, hw->wiphy->rts_threshold);
 
@@ -1202,13 +1190,26 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		}
 	}
 
-	rcu_read_lock();
+	/*
+	 * Clear the WLAN_STA_BLOCK_BA flag so new aggregation
+	 * sessions can be established after a resume.
+	 *
+	 * Also tear down aggregation sessions since reconfiguring
+	 * them in a hardware restart scenario is not easily done
+	 * right now, and the hardware will have lost information
+	 * about the sessions, but we and the AP still think they
+	 * are active. This is really a workaround though.
+	 */
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
-		list_for_each_entry_rcu(sta, &local->sta_list, list) {
+		mutex_lock(&local->sta_mtx);
+
+		list_for_each_entry(sta, &local->sta_list, list) {
 			ieee80211_sta_tear_down_BA_sessions(sta);
+			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		}
+
+		mutex_unlock(&local->sta_mtx);
 	}
-	rcu_read_unlock();
 
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)

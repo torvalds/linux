@@ -239,17 +239,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	    sdata->vif.type != NL80211_IFTYPE_AP)
 		return -EINVAL;
 
-	if (test_sta_flags(sta, WLAN_STA_DISASSOC)) {
-#ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Disassociation is in progress. "
-		       "Denying BA session request\n");
-#endif
-		return -EINVAL;
-	}
-
 	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "Suspend in progress. "
+		printk(KERN_DEBUG "BA sessions blocked. "
 		       "Denying BA session request\n");
 #endif
 		return -EINVAL;
