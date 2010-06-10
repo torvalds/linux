@@ -21,14 +21,14 @@ struct ocfs2_refcount_tree {
 	struct rb_node rf_node;
 	u64 rf_blkno;
 	u32 rf_generation;
+	struct kref rf_getcnt;
 	struct rw_semaphore rf_sem;
 	struct ocfs2_lock_res rf_lockres;
-	struct kref rf_getcnt;
 	int rf_removed;
 
 	/* the following 4 fields are used by caching_info. */
-	struct ocfs2_caching_info rf_ci;
 	spinlock_t rf_lock;
+	struct ocfs2_caching_info rf_ci;
 	struct mutex rf_io_mutex;
 	struct super_block *rf_sb;
 };

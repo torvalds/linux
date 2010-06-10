@@ -150,25 +150,32 @@ typedef void (*ocfs2_lock_callback)(int status, unsigned long data);
 struct ocfs2_lock_res {
 	void                    *l_priv;
 	struct ocfs2_lock_res_ops *l_ops;
-	spinlock_t               l_lock;
+
 
 	struct list_head         l_blocked_list;
 	struct list_head         l_mask_waiters;
 
-	enum ocfs2_lock_type     l_type;
 	unsigned long		 l_flags;
 	char                     l_name[OCFS2_LOCK_ID_MAX_LEN];
-	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	struct ocfs2_dlm_lksb    l_lksb;
+	unsigned char            l_level;
+
+	/* Data packed - type enum ocfs2_lock_type */
+	unsigned char            l_type;
 
 	/* used from AST/BAST funcs. */
-	enum ocfs2_ast_action    l_action;
-	enum ocfs2_unlock_action l_unlock_action;
-	int                      l_requested;
-	int                      l_blocking;
+	/* Data packed - enum type ocfs2_ast_action */
+	unsigned char            l_action;
+	/* Data packed - enum type ocfs2_unlock_action */
+	unsigned char            l_unlock_action;
+	unsigned char            l_requested;
+	unsigned char            l_blocking;
 	unsigned int             l_pending_gen;
+
+	spinlock_t               l_lock;
+
+	struct ocfs2_dlm_lksb    l_lksb;
 
 	wait_queue_head_t        l_event;
 
