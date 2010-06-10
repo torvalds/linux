@@ -510,13 +510,13 @@ void ath9k_htc_aggr_work(struct work_struct *work)
 		ret = ath9k_htc_aggr_oper(priv, wk->vif, wk->sta_addr,
 					  wk->tid, true);
 		if (!ret)
-			ieee80211_start_tx_ba_cb(wk->vif, wk->sta_addr,
-						 wk->tid);
+			ieee80211_start_tx_ba_cb_irqsafe(wk->vif, wk->sta_addr,
+							 wk->tid);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		ath9k_htc_aggr_oper(priv, wk->vif, wk->sta_addr,
 				    wk->tid, false);
-		ieee80211_stop_tx_ba_cb(wk->vif, wk->sta_addr, wk->tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(wk->vif, wk->sta_addr, wk->tid);
 		break;
 	default:
 		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_FATAL,

@@ -479,7 +479,6 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee80211_start_tx_ba_cb);
 
 void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
 				      const u8 *ra, u16 tid)
@@ -619,7 +618,6 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
 }
-EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb);
 
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif,
 				     const u8 *ra, u16 tid)

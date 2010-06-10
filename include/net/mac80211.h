@@ -1445,7 +1445,7 @@ enum ieee80211_filter_flags {
  *
  * Note that drivers MUST be able to deal with a TX aggregation
  * session being stopped even before they OK'ed starting it by
- * calling ieee80211_start_tx_ba_cb(_irqsafe), because the peer
+ * calling ieee80211_start_tx_ba_cb_irqsafe, because the peer
  * might receive the addBA frame and send a delBA right away!
  *
  * @IEEE80211_AMPDU_RX_START: start Rx aggregation
@@ -2314,25 +2314,14 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
- * ieee80211_start_tx_ba_cb - low level driver ready to aggregate.
- * @vif: &struct ieee80211_vif pointer from the add_interface callback
- * @ra: receiver address of the BA session recipient.
- * @tid: the TID to BA on.
- *
- * This function must be called by low level driver once it has
- * finished with preparations for the BA session.
- */
-void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
-
-/**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.
  * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
  * This function must be called by low level driver once it has
- * finished with preparations for the BA session.
- * This version of the function is IRQ-safe.
+ * finished with preparations for the BA session. It can be called
+ * from any context.
  */
 void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				      u16 tid);
@@ -2351,25 +2340,14 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
- * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
- * @vif: &struct ieee80211_vif pointer from the add_interface callback
- * @ra: receiver address of the BA session recipient.
- * @tid: the desired TID to BA on.
- *
- * This function must be called by low level driver once it has
- * finished with preparations for the BA session tear down.
- */
-void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
-
-/**
  * ieee80211_stop_tx_ba_cb_irqsafe - low level driver ready to stop aggregate.
  * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
  * This function must be called by low level driver once it has
- * finished with preparations for the BA session tear down.
- * This version of the function is IRQ-safe.
+ * finished with preparations for the BA session tear down. It
+ * can be called from any context.
  */
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				     u16 tid);
