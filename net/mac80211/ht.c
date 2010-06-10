@@ -105,6 +105,8 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta)
 {
 	int i;
 
+	cancel_work_sync(&sta->ampdu_mlme.work);
+
 	for (i = 0; i <  STA_TID_NUM; i++) {
 		__ieee80211_stop_tx_ba_session(sta, i, WLAN_BACK_INITIATOR);
 		__ieee80211_stop_rx_ba_session(sta, i, WLAN_BACK_RECIPIENT,

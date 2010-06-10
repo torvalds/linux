@@ -1102,6 +1102,11 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 
 	if (test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
 		info->flags |= IEEE80211_TX_CTL_AMPDU;
+	} else if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state)) {
+		/*
+		 * nothing -- this aggregation session is being started
+		 * but that might still fail with the driver
+		 */
 	} else {
 		spin_lock(&tx->sta->lock);
 		/*

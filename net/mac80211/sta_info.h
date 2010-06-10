@@ -67,6 +67,8 @@ enum ieee80211_sta_info_flags {
 #define HT_AGG_STATE_RESPONSE_RECEIVED	1
 #define HT_AGG_STATE_OPERATIONAL	2
 #define HT_AGG_STATE_STOPPING		3
+#define HT_AGG_STATE_WANT_START		4
+#define HT_AGG_STATE_WANT_STOP		5
 
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
@@ -74,7 +76,6 @@ enum ieee80211_sta_info_flags {
  * @rcu_head: rcu head for freeing structure
  * @addba_resp_timer: timer for peer's response to addba request
  * @pending: pending frames queue -- use sta's spinlock to protect
- * @ssn: Starting Sequence Number expected to be aggregated.
  * @dialog_token: dialog token for aggregation session
  * @state: session state (see above)
  * @stop_initiator: initiator of a session stop
@@ -92,7 +93,6 @@ struct tid_ampdu_tx {
 	struct timer_list addba_resp_timer;
 	struct sk_buff_head pending;
 	unsigned long state;
-	u16 ssn;
 	u8 dialog_token;
 	u8 stop_initiator;
 };
@@ -139,11 +139,13 @@ struct tid_ampdu_rx {
  * @tid_tx: aggregation info for Tx per TID
  * @addba_req_num: number of times addBA request has been sent.
  * @dialog_token_allocator: dialog token enumerator for each new session;
+ * @work: work struct for starting/stopping aggregation
  */
 struct sta_ampdu_mlme {
 	/* rx */
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	/* tx */
+	struct work_struct work;
 	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
 	u8 addba_req_num[STA_TID_NUM];
 	u8 dialog_token_allocator;
