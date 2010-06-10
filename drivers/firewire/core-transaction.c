@@ -1003,7 +1003,12 @@ static u32 read_state_register(struct fw_card *card)
 	 *      reset, but then cleared when the units are ready again, which
 	 *      happens immediately for us.
 	 */
-	return 0;
+	u32 value = 0x0000;
+
+	/* Bit 8 (cmstr): */
+	value |= card->driver->read_csr_reg(card, CSR_STATE_CLEAR);
+
+	return value;
 }
 
 static void update_split_timeout(struct fw_card *card)
@@ -1034,6 +1039,8 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		if (tcode == TCODE_READ_QUADLET_REQUEST) {
 			*data = cpu_to_be32(read_state_register(card));
 		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+			card->driver->write_csr_reg(card, CSR_STATE_CLEAR,
+						    be32_to_cpu(*data));
 		} else {
 			rcode = RCODE_TYPE_ERROR;
 		}
@@ -1043,7 +1050,8 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		if (tcode == TCODE_READ_QUADLET_REQUEST) {
 			*data = cpu_to_be32(read_state_register(card));
 		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
-			/* FIXME: implement cmstr */
+			card->driver->write_csr_reg(card, CSR_STATE_SET,
+						    be32_to_cpu(*data));
 			/* FIXME: implement abdicate */
 		} else {
 			rcode = RCODE_TYPE_ERROR;

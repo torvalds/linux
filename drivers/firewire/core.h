@@ -40,6 +40,8 @@ struct fw_packet;
 
 #define FEATURE_PRIORITY_BUDGET		0x01
 
+#define CSR_STATE_BIT_CMSTR	(1 << 8)
+
 struct fw_card_driver {
 	/*
 	 * Enable the given card with the given initial config rom.

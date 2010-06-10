@@ -172,6 +172,7 @@ struct fw_ohci {
 	unsigned quirks;
 	unsigned int pri_req_max;
 	u32 bus_time;
+	bool is_root;
 
 	/*
 	 * Spinlock for accessing fw_ohci data.  Never call out of
@@ -1400,6 +1401,7 @@ static void bus_reset_tasklet(unsigned long data)
 	unsigned long flags;
 	void *free_rom = NULL;
 	dma_addr_t free_rom_bus = 0;
+	bool is_new_root;
 
 	reg = reg_read(ohci, OHCI1394_NodeID);
 	if (!(reg & OHCI1394_NodeID_idValid)) {
@@ -1412,6 +1414,12 @@ static void bus_reset_tasklet(unsigned long data)
 	}
 	ohci->node_id = reg & (OHCI1394_NodeID_busNumber |
 			       OHCI1394_NodeID_nodeNumber);
+
+	is_new_root = (reg & OHCI1394_NodeID_root) != 0;
+	if (!(ohci->is_root && is_new_root))
+		reg_write(ohci, OHCI1394_LinkControlSet,
+			  OHCI1394_LinkControl_cycleMaster);
+	ohci->is_root = is_new_root;
 
 	reg = reg_read(ohci, OHCI1394_SelfIDCount);
 	if (reg & OHCI1394_SelfIDCount_selfIDError) {
@@ -2013,6 +2021,16 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 	u32 value;
 
 	switch (csr_offset) {
+	case CSR_STATE_CLEAR:
+	case CSR_STATE_SET:
+		/* the controller driver handles only the cmstr bit */
+		if (ohci->is_root &&
+		    (reg_read(ohci, OHCI1394_LinkControlSet) &
+		     OHCI1394_LinkControl_cycleMaster))
+			return CSR_STATE_BIT_CMSTR;
+		else
+			return 0;
+
 	case CSR_NODE_IDS:
 		return reg_read(ohci, OHCI1394_NodeID) << 16;
 
@@ -2050,6 +2068,23 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 	unsigned long flags;
 
 	switch (csr_offset) {
+	case CSR_STATE_CLEAR:
+		/* the controller driver handles only the cmstr bit */
+		if ((value & CSR_STATE_BIT_CMSTR) && ohci->is_root) {
+			reg_write(ohci, OHCI1394_LinkControlClear,
+				  OHCI1394_LinkControl_cycleMaster);
+			flush_writes(ohci);
+		}
+		break;
+
+	case CSR_STATE_SET:
+		if ((value & CSR_STATE_BIT_CMSTR) && ohci->is_root) {
+			reg_write(ohci, OHCI1394_LinkControlSet,
+				  OHCI1394_LinkControl_cycleMaster);
+			flush_writes(ohci);
+		}
+		break;
+
 	case CSR_NODE_IDS:
 		reg_write(ohci, OHCI1394_NodeID, value >> 16);
 		flush_writes(ohci);
