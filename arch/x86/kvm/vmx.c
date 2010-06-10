@@ -3185,8 +3185,8 @@ static int handle_cr(struct kvm_vcpu *vcpu)
 			complete_insn_gp(vcpu, err);
 			return 1;
 		case 3:
-			kvm_set_cr3(vcpu, val);
-			skip_emulated_instruction(vcpu);
+			err = kvm_set_cr3(vcpu, val);
+			complete_insn_gp(vcpu, err);
 			return 1;
 		case 4:
 			err = kvm_set_cr4(vcpu, val);

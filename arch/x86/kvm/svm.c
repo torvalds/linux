@@ -1963,7 +1963,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 		svm->vmcb->save.cr3 = hsave->save.cr3;
 		svm->vcpu.arch.cr3 = hsave->save.cr3;
 	} else {
-		kvm_set_cr3(&svm->vcpu, hsave->save.cr3);
+		(void)kvm_set_cr3(&svm->vcpu, hsave->save.cr3);
 	}
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RAX, hsave->save.rax);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RSP, hsave->save.rsp);
@@ -2086,7 +2086,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 		svm->vmcb->save.cr3 = nested_vmcb->save.cr3;
 		svm->vcpu.arch.cr3 = nested_vmcb->save.cr3;
 	} else
-		kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
+		(void)kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
 
 	/* Guest paging mode is active - reset mmu */
 	kvm_mmu_reset_context(&svm->vcpu);

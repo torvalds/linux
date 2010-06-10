@@ -565,7 +565,7 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr4);
 
-static int __kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	if (cr3 == vcpu->arch.cr3 && !pdptrs_changed(vcpu)) {
 		kvm_mmu_sync_roots(vcpu);
@@ -603,12 +603,6 @@ static int __kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	vcpu->arch.cr3 = cr3;
 	vcpu->arch.mmu.new_cr3(vcpu);
 	return 0;
-}
-
-void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
-{
-	if (__kvm_set_cr3(vcpu, cr3))
-		kvm_inject_gp(vcpu, 0);
 }
 EXPORT_SYMBOL_GPL(kvm_set_cr3);
 
@@ -3726,7 +3720,7 @@ static int emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 		vcpu->arch.cr2 = val;
 		break;
 	case 3:
-		res = __kvm_set_cr3(vcpu, val);
+		res = kvm_set_cr3(vcpu, val);
 		break;
 	case 4:
 		res = kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
