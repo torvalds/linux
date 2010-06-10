@@ -142,8 +142,11 @@ struct tid_ampdu_rx {
  * @work: work struct for starting/stopping aggregation
  * @tid_rx_timer_expired: bitmap indicating on which TIDs the
  *	RX timer expired until the work for it runs
+ * @mtx: mutex to protect all TX data (except non-NULL assignments
+ *	to tid_tx[idx], which are protected by the sta spinlock)
  */
 struct sta_ampdu_mlme {
+	struct mutex mtx;
 	/* rx */
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(STA_TID_NUM)];

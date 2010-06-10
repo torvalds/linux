@@ -740,7 +740,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 			   mgmt->u.action.category == WLAN_CATEGORY_BACK) {
 			int len = skb->len;
 
-			rcu_read_lock();
+			mutex_lock(&local->sta_mtx);
 			sta = sta_info_get(sdata, mgmt->sa);
 			if (sta) {
 				switch (mgmt->u.action.u.addba_req.action_code) {
@@ -761,7 +761,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 					break;
 				}
 			}
-			rcu_read_unlock();
+			mutex_unlock(&local->sta_mtx);
 		} else if (ieee80211_is_data_qos(mgmt->frame_control)) {
 			struct ieee80211_hdr *hdr = (void *)mgmt;
 			/*
@@ -781,7 +781,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 			 * a block-ack session was active. That cannot be
 			 * right, so terminate the session.
 			 */
-			rcu_read_lock();
+			mutex_lock(&local->sta_mtx);
 			sta = sta_info_get(sdata, mgmt->sa);
 			if (sta) {
 				u16 tid = *ieee80211_get_qos_ctl(hdr) &
@@ -791,7 +791,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 					sta, tid, WLAN_BACK_RECIPIENT,
 					WLAN_REASON_QSTA_REQUIRE_SETUP);
 			}
-			rcu_read_unlock();
+			mutex_unlock(&local->sta_mtx);
 		} else switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			ieee80211_sta_rx_queued_mgmt(sdata, skb);

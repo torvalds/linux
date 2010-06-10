@@ -130,13 +130,17 @@ void ieee80211_ba_session_work(struct work_struct *work)
 	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA))
 		return;
 
-	spin_lock_bh(&sta->lock);
+	mutex_lock(&sta->ampdu_mlme.mtx);
 	for (tid = 0; tid < STA_TID_NUM; tid++) {
 		if (test_and_clear_bit(tid, sta->ampdu_mlme.tid_rx_timer_expired))
 			___ieee80211_stop_rx_ba_session(
 				sta, tid, WLAN_BACK_RECIPIENT,
 				WLAN_REASON_QSTA_TIMEOUT);
+	}
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 
+	spin_lock_bh(&sta->lock);
+	for (tid = 0; tid < STA_TID_NUM; tid++) {
 		tid_tx = sta->ampdu_mlme.tid_tx[tid];
 		if (!tid_tx)
 			continue;

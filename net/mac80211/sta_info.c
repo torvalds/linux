@@ -236,6 +236,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	spin_lock_init(&sta->flaglock);
 	INIT_WORK(&sta->drv_unblock_wk, sta_unblock);
 	INIT_WORK(&sta->ampdu_mlme.work, ieee80211_ba_session_work);
+	mutex_init(&sta->ampdu_mlme.mtx);
 
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;

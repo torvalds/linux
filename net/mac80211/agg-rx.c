@@ -6,7 +6,7 @@
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
- * Copyright 2007-2008, Intel Corporation
+ * Copyright 2007-2010, Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -38,7 +38,7 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_rx *tid_rx;
 
-	lockdep_assert_held(&sta->lock);
+	lockdep_assert_held(&sta->ampdu_mlme.mtx);
 
 	tid_rx = sta->ampdu_mlme.tid_rx[tid];
 
@@ -70,9 +70,9 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason)
 {
-	spin_lock_bh(&sta->lock);
+	mutex_lock(&sta->ampdu_mlme.mtx);
 	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
-	spin_unlock_bh(&sta->lock);
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
 /*
@@ -205,7 +205,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 
 	/* examine state machine */
-	spin_lock_bh(&sta->lock);
+	mutex_lock(&sta->ampdu_mlme.mtx);
 
 	if (sta->ampdu_mlme.tid_rx[tid]) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
@@ -279,7 +279,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 		mod_timer(&tid_agg_rx->session_timer, TU_TO_EXP_TIME(timeout));
 
 end:
-	spin_unlock_bh(&sta->lock);
+	mutex_unlock(&sta->ampdu_mlme.mtx);
 
 end_no_lock:
 	ieee80211_send_addba_resp(sta->sdata, sta->sta.addr, tid,
