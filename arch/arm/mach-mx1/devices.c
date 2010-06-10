@@ -66,7 +66,7 @@ static struct resource imx_i2c_resources[] = {
 	},
 };
 
-struct platform_device imx_i2c_device = {
+struct platform_device imx_i2c_device0 = {
 	.name           = "imx-i2c",
 	.id             = 0,
 	.resource       = imx_i2c_resources,
