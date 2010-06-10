@@ -2703,6 +2703,7 @@ void netif_nit_deliver(struct sk_buff *skb)
  *	netdev_rx_handler_register - register receive handler
  *	@dev: device to register a handler for
  *	@rx_handler: receive handler to register
+ *	@rx_handler_data: data pointer that is used by rx handler
  *
  *	Register a receive hander for a device. This handler will then be
  *	called from __netif_receive_skb. A negative errno code is returned
@@ -2711,13 +2712,15 @@ void netif_nit_deliver(struct sk_buff *skb)
  *	The caller must hold the rtnl_mutex.
  */
 int netdev_rx_handler_register(struct net_device *dev,
-			       rx_handler_func_t *rx_handler)
+			       rx_handler_func_t *rx_handler,
+			       void *rx_handler_data)
 {
 	ASSERT_RTNL();
 
 	if (dev->rx_handler)
 		return -EBUSY;
 
+	rcu_assign_pointer(dev->rx_handler_data, rx_handler_data);
 	rcu_assign_pointer(dev->rx_handler, rx_handler);
 
 	return 0;
@@ -2737,6 +2740,7 @@ void netdev_rx_handler_unregister(struct net_device *dev)
 
 	ASSERT_RTNL();
 	rcu_assign_pointer(dev->rx_handler, NULL);
+	rcu_assign_pointer(dev->rx_handler_data, NULL);
 }
 EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
 

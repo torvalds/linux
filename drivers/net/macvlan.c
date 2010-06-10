@@ -532,7 +532,7 @@ static int macvlan_port_create(struct net_device *dev)
 		INIT_HLIST_HEAD(&port->vlan_hash[i]);
 	rcu_assign_pointer(dev->macvlan_port, port);
 
-	err = netdev_rx_handler_register(dev, macvlan_handle_frame);
+	err = netdev_rx_handler_register(dev, macvlan_handle_frame, NULL);
 	if (err) {
 		rcu_assign_pointer(dev->macvlan_port, NULL);
 		kfree(port);
