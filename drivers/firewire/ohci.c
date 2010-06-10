@@ -171,6 +171,7 @@ struct fw_ohci {
 	int request_generation;	/* for timestamping incoming requests */
 	unsigned quirks;
 	unsigned int pri_req_max;
+	unsigned int features;
 	u32 bus_time;
 	bool is_root;
 
@@ -1694,7 +1695,7 @@ static int ohci_enable(struct fw_card *card,
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
-	u32 lps, seconds, irqs;
+	u32 lps, seconds, version, irqs;
 	int i, ret;
 
 	if (software_reset(ohci)) {
@@ -1747,10 +1748,19 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_IsochronousCycleTimer, seconds << 25);
 	ohci->bus_time = seconds & ~0x3f;
 
+	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
+	if (version >= OHCI_VERSION_1_1) {
+		reg_write(ohci, OHCI1394_InitialChannelsAvailableHi,
+			  0xfffffffe);
+		ohci->features |= FEATURE_CHANNEL_31_ALLOCATED;
+	}
+
 	/* Get implemented bits of the priority arbitration request counter. */
 	reg_write(ohci, OHCI1394_FairnessControl, 0x3f);
 	ohci->pri_req_max = reg_read(ohci, OHCI1394_FairnessControl) & 0x3f;
 	reg_write(ohci, OHCI1394_FairnessControl, 0);
+	if (ohci->pri_req_max != 0)
+		ohci->features |= FEATURE_PRIORITY_BUDGET;
 
 	ar_context_run(&ohci->ar_request_ctx);
 	ar_context_run(&ohci->ar_response_ctx);
@@ -2124,12 +2134,8 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 static unsigned int ohci_get_features(struct fw_card *card)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	unsigned int features = 0;
 
-	if (ohci->pri_req_max != 0)
-		features |= FEATURE_PRIORITY_BUDGET;
-
-	return features;
+	return ohci->features;
 }
 
 static void copy_iso_headers(struct iso_context *ctx, void *p)
