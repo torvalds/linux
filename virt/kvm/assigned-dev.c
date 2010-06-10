@@ -58,12 +58,10 @@ static int find_index_from_host_irq(struct kvm_assigned_dev_kernel
 static void kvm_assigned_dev_interrupt_work_handler(struct work_struct *work)
 {
 	struct kvm_assigned_dev_kernel *assigned_dev;
-	struct kvm *kvm;
 	int i;
 
 	assigned_dev = container_of(work, struct kvm_assigned_dev_kernel,
 				    interrupt_work);
-	kvm = assigned_dev->kvm;
 
 	spin_lock_irq(&assigned_dev->assigned_dev_lock);
 	if (assigned_dev->irq_requested_type & KVM_DEV_IRQ_HOST_MSIX) {
