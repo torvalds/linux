@@ -2714,7 +2714,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	spin_lock(&inode->i_lock);
 	cap = __get_cap_for_mds(ceph_inode(inode), mds);
 	if (!cap) {
-		dout("no cap on %p ino %llx.%llx from mds%d, releasing\n",
+		dout(" no cap on %p ino %llx.%llx from mds%d\n",
 		     inode, ceph_ino(inode), ceph_snap(inode), mds);
 		spin_unlock(&inode->i_lock);
 		goto done;
