@@ -38,6 +38,7 @@
 #define CSR_CHANNELS_AVAILABLE		0x224
 #define CSR_CHANNELS_AVAILABLE_HI	0x224
 #define CSR_CHANNELS_AVAILABLE_LO	0x228
+#define CSR_MAINT_UTILITY		0x230
 #define CSR_BROADCAST_CHANNEL		0x234
 #define CSR_CONFIG_ROM			0x400
 #define CSR_CONFIG_ROM_END		0x800
@@ -122,6 +123,8 @@ struct fw_card {
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
 	__be32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
+
+	__be32 maint_utility_register;
 };
 
 struct fw_attribute_group {

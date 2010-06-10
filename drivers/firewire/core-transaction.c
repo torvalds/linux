@@ -1140,6 +1140,15 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 			rcode = RCODE_TYPE_ERROR;
 		break;
 
+	case CSR_MAINT_UTILITY:
+		if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = card->maint_utility_register;
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
+			card->maint_utility_register = *data;
+		else
+			rcode = RCODE_TYPE_ERROR;
+		break;
+
 	case CSR_BROADCAST_CHANNEL:
 		if (tcode == TCODE_READ_QUADLET_REQUEST)
 			*data = cpu_to_be32(card->broadcast_channel);
