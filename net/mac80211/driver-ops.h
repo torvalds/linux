@@ -349,6 +349,9 @@ static inline int drv_ampdu_action(struct ieee80211_local *local,
 				   u16 *ssn)
 {
 	int ret = -EOPNOTSUPP;
+
+	might_sleep();
+
 	local_bh_disable();
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(&local->hw, &sdata->vif, action,
