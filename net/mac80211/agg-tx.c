@@ -200,11 +200,11 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	struct tid_ampdu_tx *tid_tx;
 
 	/* check if the TID waits for addBA response */
-	spin_lock_bh(&sta->lock);
-	tid_tx = sta->ampdu_mlme.tid_tx[tid];
+	rcu_read_lock();
+	tid_tx = rcu_dereference(sta->ampdu_mlme.tid_tx[tid]);
 	if (!tid_tx ||
 	    test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
-		spin_unlock_bh(&sta->lock);
+		rcu_read_unlock();
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "timer expired on tid %d but we are not "
 				"(or no longer) expecting addBA response there\n",
@@ -217,8 +217,8 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	printk(KERN_DEBUG "addBA response timer expired on tid %d\n", tid);
 #endif
 
-	___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR);
-	spin_unlock_bh(&sta->lock);
+	ieee80211_stop_tx_ba_session(&sta->sta, tid);
+	rcu_read_unlock();
 }
 
 static inline int ieee80211_ac_from_tid(int tid)
