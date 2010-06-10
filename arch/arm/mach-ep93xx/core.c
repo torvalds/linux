@@ -29,6 +29,7 @@
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
@@ -345,6 +346,43 @@ static struct platform_device ep93xx_ohci_device = {
 	.num_resources	= ARRAY_SIZE(ep93xx_ohci_resources),
 	.resource	= ep93xx_ohci_resources,
 };
+
+
+/*************************************************************************
+ * EP93xx physmap'ed flash
+ *************************************************************************/
+static struct physmap_flash_data ep93xx_flash_data;
+
+static struct resource ep93xx_flash_resource = {
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device ep93xx_flash = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &ep93xx_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &ep93xx_flash_resource,
+};
+
+/**
+ * ep93xx_register_flash() - Register the external flash device.
+ * @width:	bank width in octets
+ * @start:	resource start address
+ * @size:	resource size
+ */
+void __init ep93xx_register_flash(unsigned int width,
+				  resource_size_t start, resource_size_t size)
+{
+	ep93xx_flash_data.width		= width;
+
+	ep93xx_flash_resource.start	= start;
+	ep93xx_flash_resource.end	= start + size - 1;
+
+	platform_device_register(&ep93xx_flash);
+}
 
 
 /*************************************************************************
