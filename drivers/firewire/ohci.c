@@ -1996,6 +1996,13 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 		flush_writes(ohci);
 		break;
 
+	case CSR_CYCLE_TIME:
+		reg_write(ohci, OHCI1394_IsochronousCycleTimer, value);
+		reg_write(ohci, OHCI1394_IntEventSet,
+			  OHCI1394_cycleInconsistent);
+		flush_writes(ohci);
+		break;
+
 	default:
 		WARN_ON(1);
 		break;
