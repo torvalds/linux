@@ -428,6 +428,10 @@ void fw_card_initialize(struct fw_card *card,
 	card->device = device;
 	card->current_tlabel = 0;
 	card->tlabel_mask = 0;
+	card->split_timeout_hi = 0;
+	card->split_timeout_lo = 800 << 19;
+	card->split_timeout_cycles = 800;
+	card->split_timeout_jiffies = DIV_ROUND_UP(HZ, 10);
 	card->color = 0;
 	card->broadcast_channel = BROADCAST_CHANNEL_INITIAL;
 

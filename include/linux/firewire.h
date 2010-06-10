@@ -89,6 +89,11 @@ struct fw_card {
 	struct list_head transaction_list;
 	unsigned long reset_jiffies;
 
+	u32 split_timeout_hi;
+	u32 split_timeout_lo;
+	unsigned int split_timeout_cycles;
+	unsigned int split_timeout_jiffies;
+
 	unsigned long long guid;
 	unsigned max_receive;
 	int link_speed;

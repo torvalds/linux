@@ -339,7 +339,8 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	setup_timer(&t->split_timeout_timer,
 		    split_transaction_timeout_callback, (unsigned long)t);
 	/* FIXME: start this timer later, relative to t->timestamp */
-	mod_timer(&t->split_timeout_timer, jiffies + DIV_ROUND_UP(HZ, 10));
+	mod_timer(&t->split_timeout_timer,
+		  jiffies + card->split_timeout_jiffies);
 	t->callback = callback;
 	t->callback_data = callback_data;
 
@@ -673,11 +674,28 @@ void fw_fill_response(struct fw_packet *response, u32 *request_header,
 }
 EXPORT_SYMBOL(fw_fill_response);
 
-static struct fw_request *allocate_request(struct fw_packet *p)
+static u32 compute_split_timeout_timestamp(struct fw_card *card,
+					   u32 request_timestamp)
+{
+	unsigned int cycles;
+	u32 timestamp;
+
+	cycles = card->split_timeout_cycles;
+	cycles += request_timestamp & 0x1fff;
+
+	timestamp = request_timestamp & ~0x1fff;
+	timestamp += (cycles / 8000) << 13;
+	timestamp |= cycles % 8000;
+
+	return timestamp;
+}
+
+static struct fw_request *allocate_request(struct fw_card *card,
+					   struct fw_packet *p)
 {
 	struct fw_request *request;
 	u32 *data, length;
-	int request_tcode, t;
+	int request_tcode;
 
 	request_tcode = HEADER_GET_TCODE(p->header[0]);
 	switch (request_tcode) {
@@ -712,14 +730,9 @@ static struct fw_request *allocate_request(struct fw_packet *p)
 	if (request == NULL)
 		return NULL;
 
-	t = (p->timestamp & 0x1fff) + 4000;
-	if (t >= 8000)
-		t = (p->timestamp & ~0x1fff) + 0x2000 + t - 8000;
-	else
-		t = (p->timestamp & ~0x1fff) + t;
-
 	request->response.speed = p->speed;
-	request->response.timestamp = t;
+	request->response.timestamp =
+			compute_split_timeout_timestamp(card, p->timestamp);
 	request->response.generation = p->generation;
 	request->response.ack = 0;
 	request->response.callback = free_response_callback;
@@ -845,7 +858,7 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
 
-	request = allocate_request(p);
+	request = allocate_request(card, p);
 	if (request == NULL) {
 		/* FIXME: send statically allocated busy packet. */
 		return;
@@ -993,6 +1006,19 @@ static u32 read_state_register(struct fw_card *card)
 	return 0;
 }
 
+static void update_split_timeout(struct fw_card *card)
+{
+	unsigned int cycles;
+
+	cycles = card->split_timeout_hi * 8000 + (card->split_timeout_lo >> 19);
+
+	cycles = max(cycles, 800u); /* minimum as per the spec */
+	cycles = min(cycles, 3u * 8000u); /* maximum OHCI timeout */
+
+	card->split_timeout_cycles = cycles;
+	card->split_timeout_jiffies = DIV_ROUND_UP(cycles * HZ, 8000);
+}
+
 static void handle_registers(struct fw_card *card, struct fw_request *request,
 		int tcode, int destination, int source, int generation,
 		int speed, unsigned long long offset,
@@ -1001,6 +1027,7 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 	int reg = offset & ~CSR_REGISTER_BASE;
 	__be32 *data = payload;
 	int rcode = RCODE_COMPLETE;
+	unsigned long flags;
 
 	switch (reg) {
 	case CSR_STATE_CLEAR:
@@ -1037,6 +1064,33 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 	case CSR_RESET_START:
 		if (tcode != TCODE_WRITE_QUADLET_REQUEST)
 			rcode = RCODE_TYPE_ERROR;
+		break;
+
+	case CSR_SPLIT_TIMEOUT_HI:
+		if (tcode == TCODE_READ_QUADLET_REQUEST) {
+			*data = cpu_to_be32(card->split_timeout_hi);
+		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+			spin_lock_irqsave(&card->lock, flags);
+			card->split_timeout_hi = be32_to_cpu(*data) & 7;
+			update_split_timeout(card);
+			spin_unlock_irqrestore(&card->lock, flags);
+		} else {
+			rcode = RCODE_TYPE_ERROR;
+		}
+		break;
+
+	case CSR_SPLIT_TIMEOUT_LO:
+		if (tcode == TCODE_READ_QUADLET_REQUEST) {
+			*data = cpu_to_be32(card->split_timeout_lo);
+		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+			spin_lock_irqsave(&card->lock, flags);
+			card->split_timeout_lo =
+					be32_to_cpu(*data) & 0xfff80000;
+			update_split_timeout(card);
+			spin_unlock_irqrestore(&card->lock, flags);
+		} else {
+			rcode = RCODE_TYPE_ERROR;
+		}
 		break;
 
 	case CSR_CYCLE_TIME:
