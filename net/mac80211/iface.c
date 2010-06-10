@@ -724,7 +724,36 @@ static void ieee80211_iface_work(struct work_struct *work)
 
 	/* first process frames */
 	while ((skb = skb_dequeue(&sdata->skb_queue))) {
-		switch (sdata->vif.type) {
+		struct ieee80211_mgmt *mgmt = (void *)skb->data;
+
+		if (ieee80211_is_action(mgmt->frame_control) &&
+		    mgmt->u.action.category == WLAN_CATEGORY_BACK) {
+			int len = skb->len;
+			struct sta_info *sta;
+
+			rcu_read_lock();
+			sta = sta_info_get(sdata, mgmt->sa);
+			if (sta) {
+				switch (mgmt->u.action.u.addba_req.action_code) {
+				case WLAN_ACTION_ADDBA_REQ:
+					ieee80211_process_addba_request(
+							local, sta, mgmt, len);
+					break;
+				case WLAN_ACTION_ADDBA_RESP:
+					ieee80211_process_addba_resp(local, sta,
+								     mgmt, len);
+					break;
+				case WLAN_ACTION_DELBA:
+					ieee80211_process_delba(sdata, sta,
+								mgmt, len);
+					break;
+				default:
+					WARN_ON(1);
+					break;
+				}
+			}
+			rcu_read_unlock();
+		} else switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
 			ieee80211_sta_rx_queued_mgmt(sdata, skb);
 			break;

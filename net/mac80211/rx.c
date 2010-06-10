@@ -1950,33 +1950,29 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 			break;
 
-		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
-			skb_queue_tail(&sdata->skb_queue, rx->skb);
-			ieee80211_queue_work(&local->hw, &sdata->work);
-			return RX_QUEUED;
-		}
-
 		switch (mgmt->u.action.u.addba_req.action_code) {
 		case WLAN_ACTION_ADDBA_REQ:
 			if (len < (IEEE80211_MIN_ACTION_SIZE +
 				   sizeof(mgmt->u.action.u.addba_req)))
-				return RX_DROP_MONITOR;
-			ieee80211_process_addba_request(local, rx->sta, mgmt, len);
-			goto handled;
+				goto invalid;
+			break;
 		case WLAN_ACTION_ADDBA_RESP:
 			if (len < (IEEE80211_MIN_ACTION_SIZE +
 				   sizeof(mgmt->u.action.u.addba_resp)))
-				break;
-			ieee80211_process_addba_resp(local, rx->sta, mgmt, len);
-			goto handled;
+				goto invalid;
+			break;
 		case WLAN_ACTION_DELBA:
 			if (len < (IEEE80211_MIN_ACTION_SIZE +
 				   sizeof(mgmt->u.action.u.delba)))
-				break;
-			ieee80211_process_delba(sdata, rx->sta, mgmt, len);
-			goto handled;
+				goto invalid;
+			break;
+		default:
+			goto invalid;
 		}
-		break;
+
+		skb_queue_tail(&sdata->skb_queue, rx->skb);
+		ieee80211_queue_work(&local->hw, &sdata->work);
+		return RX_QUEUED;
 	case WLAN_CATEGORY_SPECTRUM_MGMT:
 		if (local->hw.conf.channel->band != IEEE80211_BAND_5GHZ)
 			break;
@@ -2033,6 +2029,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		return RX_QUEUED;
 	}
 
+ invalid:
 	/*
 	 * For AP mode, hostapd is responsible for handling any action
 	 * frames that we didn't handle, including returning unknown
