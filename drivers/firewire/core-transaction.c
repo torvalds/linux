@@ -1008,6 +1008,10 @@ static u32 read_state_register(struct fw_card *card)
 	/* Bit 8 (cmstr): */
 	value |= card->driver->read_csr_reg(card, CSR_STATE_CLEAR);
 
+	/* Bit 10 (abdicate): */
+	if (card->csr_abdicate)
+		value |= CSR_STATE_BIT_ABDICATE;
+
 	return value;
 }
 
@@ -1041,6 +1045,8 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
 			card->driver->write_csr_reg(card, CSR_STATE_CLEAR,
 						    be32_to_cpu(*data));
+			if (*data & cpu_to_be32(CSR_STATE_BIT_ABDICATE))
+				card->csr_abdicate = false;
 		} else {
 			rcode = RCODE_TYPE_ERROR;
 		}
@@ -1052,7 +1058,8 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
 			card->driver->write_csr_reg(card, CSR_STATE_SET,
 						    be32_to_cpu(*data));
-			/* FIXME: implement abdicate */
+			if (*data & cpu_to_be32(CSR_STATE_BIT_ABDICATE))
+				card->csr_abdicate = true;
 		} else {
 			rcode = RCODE_TYPE_ERROR;
 		}
@@ -1070,7 +1077,9 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		break;
 
 	case CSR_RESET_START:
-		if (tcode != TCODE_WRITE_QUADLET_REQUEST)
+		if (tcode == TCODE_WRITE_QUADLET_REQUEST)
+			card->csr_abdicate = false;
+		else
 			rcode = RCODE_TYPE_ERROR;
 		break;
 

@@ -41,6 +41,7 @@ struct fw_packet;
 #define FEATURE_PRIORITY_BUDGET		0x01
 
 #define CSR_STATE_BIT_CMSTR	(1 << 8)
+#define CSR_STATE_BIT_ABDICATE	(1 << 10)
 
 struct fw_card_driver {
 	/*

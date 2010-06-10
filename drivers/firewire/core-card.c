@@ -260,7 +260,8 @@ static void fw_card_bm_work(struct work_struct *work)
 
 	grace = time_after(jiffies, card->reset_jiffies + DIV_ROUND_UP(HZ, 8));
 
-	if (is_next_generation(generation, card->bm_generation) ||
+	if ((is_next_generation(generation, card->bm_generation) &&
+	     !card->bm_abdicate) ||
 	    (card->bm_generation != generation && grace)) {
 		/*
 		 * This first step is to figure out who is IRM and

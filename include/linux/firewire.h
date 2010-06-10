@@ -119,6 +119,8 @@ struct fw_card {
 	int bm_retries;
 	int bm_generation;
 	__be32 bm_transaction_data[2];
+	bool bm_abdicate; /* value of csr_abdicate before last bus reset */
+	bool csr_abdicate; /* visible in CSR STATE_CLEAR/SET registers */
 
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
