@@ -176,13 +176,8 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 
 	if (initiator == WLAN_BACK_INITIATOR)
 		__ieee80211_stop_rx_ba_session(sta, tid, WLAN_BACK_INITIATOR, 0);
-	else { /* WLAN_BACK_RECIPIENT */
-		spin_lock_bh(&sta->lock);
-		if (sta->ampdu_mlme.tid_state_tx[tid] & HT_ADDBA_REQUESTED_MSK)
-			___ieee80211_stop_tx_ba_session(sta, tid,
-							WLAN_BACK_RECIPIENT);
-		spin_unlock_bh(&sta->lock);
-	}
+	else
+		__ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_RECIPIENT);
 }
 
 int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,

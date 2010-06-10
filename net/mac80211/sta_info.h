@@ -61,33 +61,40 @@ enum ieee80211_sta_info_flags {
 
 #define STA_TID_NUM 16
 #define ADDBA_RESP_INTERVAL HZ
-#define HT_AGG_MAX_RETRIES		(0x3)
+#define HT_AGG_MAX_RETRIES		0x3
 
-#define HT_AGG_STATE_INITIATOR_SHIFT	(4)
-
-#define HT_ADDBA_REQUESTED_MSK		BIT(0)
-#define HT_ADDBA_DRV_READY_MSK		BIT(1)
-#define HT_ADDBA_RECEIVED_MSK		BIT(2)
-#define HT_AGG_STATE_REQ_STOP_BA_MSK	BIT(3)
-#define HT_AGG_STATE_INITIATOR_MSK      BIT(HT_AGG_STATE_INITIATOR_SHIFT)
-#define HT_AGG_STATE_IDLE		(0x0)
-#define HT_AGG_STATE_OPERATIONAL	(HT_ADDBA_REQUESTED_MSK |	\
-					 HT_ADDBA_DRV_READY_MSK |	\
-					 HT_ADDBA_RECEIVED_MSK)
+#define HT_AGG_STATE_DRV_READY		0
+#define HT_AGG_STATE_RESPONSE_RECEIVED	1
+#define HT_AGG_STATE_OPERATIONAL	2
+#define HT_AGG_STATE_STOPPING		3
 
 /**
  * struct tid_ampdu_tx - TID aggregation information (Tx).
  *
+ * @rcu_head: rcu head for freeing structure
  * @addba_resp_timer: timer for peer's response to addba request
  * @pending: pending frames queue -- use sta's spinlock to protect
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @dialog_token: dialog token for aggregation session
+ * @state: session state (see above)
+ * @stop_initiator: initiator of a session stop
+ *
+ * This structure is protected by RCU and the per-station
+ * spinlock. Assignments to the array holding it must hold
+ * the spinlock, only the TX path can access it under RCU
+ * lock-free if, and only if, the state has  the flag
+ * %HT_AGG_STATE_OPERATIONAL set. Otherwise, the TX path
+ * must also acquire the spinlock and re-check the state,
+ * see comments in the tx code touching it.
  */
 struct tid_ampdu_tx {
+	struct rcu_head rcu_head;
 	struct timer_list addba_resp_timer;
 	struct sk_buff_head pending;
+	unsigned long state;
 	u16 ssn;
 	u8 dialog_token;
+	u8 stop_initiator;
 };
 
 /**
@@ -129,7 +136,6 @@ struct tid_ampdu_rx {
  * struct sta_ampdu_mlme - STA aggregation information.
  *
  * @tid_rx: aggregation info for Rx per TID -- RCU protected
- * @tid_state_tx: TID's state in Tx session state machine.
  * @tid_tx: aggregation info for Tx per TID
  * @addba_req_num: number of times addBA request has been sent.
  * @dialog_token_allocator: dialog token enumerator for each new session;
@@ -138,7 +144,6 @@ struct sta_ampdu_mlme {
 	/* rx */
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	/* tx */
-	u8 tid_state_tx[STA_TID_NUM];
 	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
 	u8 addba_req_num[STA_TID_NUM];
 	u8 dialog_token_allocator;

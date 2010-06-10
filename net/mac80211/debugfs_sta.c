@@ -134,15 +134,15 @@ static ssize_t sta_agg_status_read(struct file *file, char __user *userbuf,
 				sta->ampdu_mlme.tid_rx[i]->ssn : 0);
 
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t\t%x",
-				sta->ampdu_mlme.tid_state_tx[i]);
+				!!sta->ampdu_mlme.tid_tx[i]);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.2x",
-				sta->ampdu_mlme.tid_state_tx[i] ?
+				sta->ampdu_mlme.tid_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->dialog_token : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%#.3x",
-				sta->ampdu_mlme.tid_state_tx[i] ?
+				sta->ampdu_mlme.tid_tx[i] ?
 				sta->ampdu_mlme.tid_tx[i]->ssn : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\t%03d",
-				sta->ampdu_mlme.tid_state_tx[i] ?
+				sta->ampdu_mlme.tid_tx[i] ?
 				skb_queue_len(&sta->ampdu_mlme.tid_tx[i]->pending) : 0);
 		p += scnprintf(p, sizeof(buf) + buf - p, "\n");
 	}

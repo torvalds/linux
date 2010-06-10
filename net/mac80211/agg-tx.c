@@ -125,25 +125,42 @@ void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u1
 	ieee80211_tx_skb(sdata, skb);
 }
 
-int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
-				    enum ieee80211_back_parties initiator)
+static void kfree_tid_tx(struct rcu_head *rcu_head)
+{
+	struct tid_ampdu_tx *tid_tx =
+	    container_of(rcu_head, struct tid_ampdu_tx, rcu_head);
+
+	kfree(tid_tx);
+}
+
+static int ___ieee80211_stop_tx_ba_session(
+		struct sta_info *sta, u16 tid,
+		enum ieee80211_back_parties initiator)
 {
 	struct ieee80211_local *local = sta->local;
+	struct tid_ampdu_tx *tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	int ret;
-	u8 *state;
+
+	lockdep_assert_held(&sta->lock);
+
+	if (WARN_ON(!tid_tx))
+		return -ENOENT;
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Tx BA session stop requested for %pM tid %u\n",
 	       sta->sta.addr, tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
+	set_bit(HT_AGG_STATE_STOPPING, &tid_tx->state);
 
-	if (*state == HT_AGG_STATE_OPERATIONAL)
-		sta->ampdu_mlme.addba_req_num[tid] = 0;
+	/*
+	 * After this packets are no longer handed right through
+	 * to the driver but are put onto tid_tx->pending instead,
+	 * with locking to ensure proper access.
+	 */
+	clear_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state);
 
-	*state = HT_AGG_STATE_REQ_STOP_BA_MSK |
-		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
+	tid_tx->stop_initiator = initiator;
 
 	ret = drv_ampdu_action(local, sta->sdata,
 			       IEEE80211_AMPDU_TX_STOP,
@@ -174,15 +191,13 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	u16 tid = *(u8 *)data;
 	struct sta_info *sta = container_of((void *)data,
 		struct sta_info, timer_to_tid[tid]);
-	u8 *state;
-
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
+	struct tid_ampdu_tx *tid_tx;
 
 	/* check if the TID waits for addBA response */
 	spin_lock_bh(&sta->lock);
-	if ((*state & (HT_ADDBA_REQUESTED_MSK | HT_ADDBA_RECEIVED_MSK |
-		       HT_AGG_STATE_REQ_STOP_BA_MSK)) !=
-						HT_ADDBA_REQUESTED_MSK) {
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
+	if (!tid_tx ||
+	    test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
 		spin_unlock_bh(&sta->lock);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "timer expired on tid %d but we are not "
@@ -210,7 +225,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
-	u8 *state;
+	struct tid_ampdu_tx *tid_tx;
 	int ret = 0;
 	u16 start_seq_num;
 
@@ -256,9 +271,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		goto err_unlock_sta;
 	}
 
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	/* check if the TID is not in aggregation flow already */
-	if (*state != HT_AGG_STATE_IDLE) {
+	if (tid_tx) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "BA request denied - session is not "
 				 "idle on tid %u\n", tid);
@@ -279,9 +294,8 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 
 	/* prepare A-MPDU MLME for Tx aggregation */
-	sta->ampdu_mlme.tid_tx[tid] =
-			kmalloc(sizeof(struct tid_ampdu_tx), GFP_ATOMIC);
-	if (!sta->ampdu_mlme.tid_tx[tid]) {
+	tid_tx = kzalloc(sizeof(struct tid_ampdu_tx), GFP_ATOMIC);
+	if (!tid_tx) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_ERR "allocate tx mlme to tid %d failed\n",
@@ -291,32 +305,26 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		goto err_wake_queue;
 	}
 
-	skb_queue_head_init(&sta->ampdu_mlme.tid_tx[tid]->pending);
+	skb_queue_head_init(&tid_tx->pending);
 
 	/* Tx timer */
-	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.function =
-			sta_addba_resp_timer_expired;
-	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.data =
-			(unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
-
-	/* Ok, the Addba frame hasn't been sent yet, but if the driver calls the
-	 * call back right away, it must see that the flow has begun */
-	*state |= HT_ADDBA_REQUESTED_MSK;
+	tid_tx->addba_resp_timer.function = sta_addba_resp_timer_expired;
+	tid_tx->addba_resp_timer.data = (unsigned long)&sta->timer_to_tid[tid];
+	init_timer(&tid_tx->addba_resp_timer);
 
 	start_seq_num = sta->tid_seq[tid] >> 4;
 
 	ret = drv_ampdu_action(local, sdata, IEEE80211_AMPDU_TX_START,
 			       pubsta, tid, &start_seq_num);
-
 	if (ret) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "BA request denied - HW unavailable for"
 					" tid %d\n", tid);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
-		*state = HT_AGG_STATE_IDLE;
 		goto err_free;
 	}
+
+	rcu_assign_pointer(sta->ampdu_mlme.tid_tx[tid], tid_tx);
 
 	/* Driver vetoed or OKed, but we can take packets again now */
 	ieee80211_wake_queue_by_reason(
@@ -325,32 +333,30 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 
 	spin_unlock(&local->ampdu_lock);
 
+	/* activate the timer for the recipient's addBA response */
+	tid_tx->addba_resp_timer.expires = jiffies + ADDBA_RESP_INTERVAL;
+	add_timer(&tid_tx->addba_resp_timer);
+#ifdef CONFIG_MAC80211_HT_DEBUG
+	printk(KERN_DEBUG "activated addBA response timer on tid %d\n", tid);
+#endif
+
 	/* prepare tid data */
 	sta->ampdu_mlme.dialog_token_allocator++;
-	sta->ampdu_mlme.tid_tx[tid]->dialog_token =
-			sta->ampdu_mlme.dialog_token_allocator;
-	sta->ampdu_mlme.tid_tx[tid]->ssn = start_seq_num;
+	tid_tx->dialog_token = sta->ampdu_mlme.dialog_token_allocator;
+	tid_tx->ssn = start_seq_num;
+
+	sta->ampdu_mlme.addba_req_num[tid]++;
 
 	spin_unlock_bh(&sta->lock);
 
 	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, pubsta->addr, tid,
-			 sta->ampdu_mlme.tid_tx[tid]->dialog_token,
-			 sta->ampdu_mlme.tid_tx[tid]->ssn,
+			 tid_tx->dialog_token, tid_tx->ssn,
 			 0x40, 5000);
-	sta->ampdu_mlme.addba_req_num[tid]++;
-	/* activate the timer for the recipient's addBA response */
-	sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer.expires =
-				jiffies + ADDBA_RESP_INTERVAL;
-	add_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
-#ifdef CONFIG_MAC80211_HT_DEBUG
-	printk(KERN_DEBUG "activated addBA response timer on tid %d\n", tid);
-#endif
 	return 0;
 
  err_free:
-	kfree(sta->ampdu_mlme.tid_tx[tid]);
-	sta->ampdu_mlme.tid_tx[tid] = NULL;
+	kfree(tid_tx);
  err_wake_queue:
 	ieee80211_wake_queue_by_reason(
 		&local->hw, ieee80211_ac_from_tid(tid),
@@ -368,7 +374,8 @@ EXPORT_SYMBOL(ieee80211_start_tx_ba_session);
  * local->ampdu_lock across both calls.
  */
 static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
-					 struct sta_info *sta, u16 tid)
+					 struct tid_ampdu_tx *tid_tx,
+					 u16 tid)
 {
 	unsigned long flags;
 	u16 queue = ieee80211_ac_from_tid(tid);
@@ -377,31 +384,23 @@ static void ieee80211_agg_splice_packets(struct ieee80211_local *local,
 		&local->hw, queue,
 		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 
-	if (!(sta->ampdu_mlme.tid_state_tx[tid] & HT_ADDBA_REQUESTED_MSK))
+	if (WARN(!tid_tx, "TID %d gone but expected when splicing aggregates"
+			  " from the pending queue\n", tid))
 		return;
 
-	if (WARN(!sta->ampdu_mlme.tid_tx[tid],
-		 "TID %d gone but expected when splicing aggregates from"
-		 "the pending queue\n", tid))
-		return;
-
-	if (!skb_queue_empty(&sta->ampdu_mlme.tid_tx[tid]->pending)) {
+	if (!skb_queue_empty(&tid_tx->pending)) {
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		/* copy over remaining packets */
-		skb_queue_splice_tail_init(
-			&sta->ampdu_mlme.tid_tx[tid]->pending,
-			&local->pending[queue]);
+		skb_queue_splice_tail_init(&tid_tx->pending,
+					   &local->pending[queue]);
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 	}
 }
 
-static void ieee80211_agg_splice_finish(struct ieee80211_local *local,
-					struct sta_info *sta, u16 tid)
+static void ieee80211_agg_splice_finish(struct ieee80211_local *local, u16 tid)
 {
-	u16 queue = ieee80211_ac_from_tid(tid);
-
 	ieee80211_wake_queue_by_reason(
-		&local->hw, queue,
+		&local->hw, ieee80211_ac_from_tid(tid),
 		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 }
 
@@ -409,19 +408,21 @@ static void ieee80211_agg_splice_finish(struct ieee80211_local *local,
 static void ieee80211_agg_tx_operational(struct ieee80211_local *local,
 					 struct sta_info *sta, u16 tid)
 {
+	lockdep_assert_held(&sta->lock);
+
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Aggregation is on for tid %d\n", tid);
 #endif
 
 	spin_lock(&local->ampdu_lock);
-	ieee80211_agg_splice_packets(local, sta, tid);
+	ieee80211_agg_splice_packets(local, sta->ampdu_mlme.tid_tx[tid], tid);
 	/*
-	 * NB: we rely on sta->lock being taken in the TX
-	 * processing here when adding to the pending queue,
-	 * otherwise we could only change the state of the
-	 * session to OPERATIONAL _here_.
+	 * Now mark as operational. This will be visible
+	 * in the TX path, and lets it go lock-free in
+	 * the common case.
 	 */
-	ieee80211_agg_splice_finish(local, sta, tid);
+	set_bit(HT_AGG_STATE_OPERATIONAL, &sta->ampdu_mlme.tid_tx[tid]->state);
+	ieee80211_agg_splice_finish(local, tid);
 	spin_unlock(&local->ampdu_lock);
 
 	drv_ampdu_action(local, sta->sdata,
@@ -434,7 +435,7 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u8 *state;
+	struct tid_ampdu_tx *tid_tx;
 
 	trace_api_start_tx_ba_cb(sdata, ra, tid);
 
@@ -456,25 +457,22 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 		return;
 	}
 
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
 	spin_lock_bh(&sta->lock);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 
-	if (WARN_ON(!(*state & HT_ADDBA_REQUESTED_MSK))) {
+	if (WARN_ON(!tid_tx)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
-		printk(KERN_DEBUG "addBA was not requested yet, state is %d\n",
-				*state);
+		printk(KERN_DEBUG "addBA was not requested!\n");
 #endif
 		spin_unlock_bh(&sta->lock);
 		rcu_read_unlock();
 		return;
 	}
 
-	if (WARN_ON(*state & HT_ADDBA_DRV_READY_MSK))
+	if (WARN_ON(test_and_set_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state)))
 		goto out;
 
-	*state |= HT_ADDBA_DRV_READY_MSK;
-
-	if (*state == HT_AGG_STATE_OPERATIONAL)
+	if (test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state))
 		ieee80211_agg_tx_operational(local, sta, tid);
 
  out:
@@ -512,14 +510,14 @@ EXPORT_SYMBOL(ieee80211_start_tx_ba_cb_irqsafe);
 int __ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
 				   enum ieee80211_back_parties initiator)
 {
-	u8 *state;
+	struct tid_ampdu_tx *tid_tx;
 	int ret;
 
-	/* check if the TID is in aggregation */
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
 	spin_lock_bh(&sta->lock);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
 
-	if (*state != HT_AGG_STATE_OPERATIONAL) {
+	/* check if the TID is in aggregation */
+	if (!tid_tx || !test_bit(HT_AGG_STATE_OPERATIONAL, &tid_tx->state)) {
 		ret = -ENOENT;
 		goto unlock;
 	}
@@ -554,7 +552,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u8 *state;
+	struct tid_ampdu_tx *tid_tx;
 
 	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
@@ -580,39 +578,45 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 		rcu_read_unlock();
 		return;
 	}
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
 
-	/* NOTE: no need to use sta->lock in this state check, as
-	 * ieee80211_stop_tx_ba_session will let only one stop call to
-	 * pass through per sta/tid
-	 */
-	if ((*state & HT_AGG_STATE_REQ_STOP_BA_MSK) == 0) {
+	spin_lock_bh(&sta->lock);
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
+
+	if (!tid_tx || !test_bit(HT_AGG_STATE_STOPPING, &tid_tx->state)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "unexpected callback to A-MPDU stop\n");
 #endif
+		spin_unlock_bh(&sta->lock);
 		rcu_read_unlock();
 		return;
 	}
 
-	if (*state & HT_AGG_STATE_INITIATOR_MSK)
+	if (tid_tx->stop_initiator == WLAN_BACK_INITIATOR)
 		ieee80211_send_delba(sta->sdata, ra, tid,
 			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
 
-	spin_lock_bh(&sta->lock);
+	/*
+	 * When we get here, the TX path will not be lockless any more wrt.
+	 * aggregation, since the OPERATIONAL bit has long been cleared.
+	 * Thus it will block on getting the lock, if it occurs. So if we
+	 * stop the queue now, we will not get any more packets, and any
+	 * that might be being processed will wait for us here, thereby
+	 * guaranteeing that no packets go to the tid_tx pending queue any
+	 * more.
+	 */
+
 	spin_lock(&local->ampdu_lock);
+	ieee80211_agg_splice_packets(local, tid_tx, tid);
 
-	ieee80211_agg_splice_packets(local, sta, tid);
+	/* future packets must not find the tid_tx struct any more */
+	rcu_assign_pointer(sta->ampdu_mlme.tid_tx[tid], NULL);
 
-	*state = HT_AGG_STATE_IDLE;
-	/* from now on packets are no longer put onto sta->pending */
-	kfree(sta->ampdu_mlme.tid_tx[tid]);
-	sta->ampdu_mlme.tid_tx[tid] = NULL;
+	ieee80211_agg_splice_finish(local, tid);
 
-	ieee80211_agg_splice_finish(local, sta, tid);
-
+	call_rcu(&tid_tx->rcu_head, kfree_tid_tx);
 	spin_unlock(&local->ampdu_lock);
-	spin_unlock_bh(&sta->lock);
 
+	spin_unlock_bh(&sta->lock);
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL(ieee80211_stop_tx_ba_cb);
@@ -649,40 +653,41 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 				  struct ieee80211_mgmt *mgmt,
 				  size_t len)
 {
+	struct tid_ampdu_tx *tid_tx;
 	u16 capab, tid;
-	u8 *state;
 
 	capab = le16_to_cpu(mgmt->u.action.u.addba_resp.capab);
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 
-	state = &sta->ampdu_mlme.tid_state_tx[tid];
-
 	spin_lock_bh(&sta->lock);
 
-	if (!(*state & HT_ADDBA_REQUESTED_MSK))
+	tid_tx = sta->ampdu_mlme.tid_tx[tid];
+
+	if (!tid_tx)
 		goto out;
 
-	if (mgmt->u.action.u.addba_resp.dialog_token !=
-		sta->ampdu_mlme.tid_tx[tid]->dialog_token) {
+	if (mgmt->u.action.u.addba_resp.dialog_token != tid_tx->dialog_token) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "wrong addBA response token, tid %d\n", tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
+#endif
 		goto out;
 	}
 
-	del_timer(&sta->ampdu_mlme.tid_tx[tid]->addba_resp_timer);
+	del_timer(&tid_tx->addba_resp_timer);
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "switched off addBA timer for tid %d\n", tid);
-#endif /* CONFIG_MAC80211_HT_DEBUG */
+#endif
 
 	if (le16_to_cpu(mgmt->u.action.u.addba_resp.status)
 			== WLAN_STATUS_SUCCESS) {
-		u8 curstate = *state;
+		if (test_and_set_bit(HT_AGG_STATE_RESPONSE_RECEIVED,
+				     &tid_tx->state)) {
+			/* ignore duplicate response */
+			goto out;
+		}
 
-		*state |= HT_ADDBA_RECEIVED_MSK;
-
-		if (*state != curstate && *state == HT_AGG_STATE_OPERATIONAL)
+		if (test_bit(HT_AGG_STATE_DRV_READY, &tid_tx->state))
 			ieee80211_agg_tx_operational(local, sta, tid);
 
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
