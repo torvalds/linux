@@ -133,9 +133,8 @@ static void kfree_tid_tx(struct rcu_head *rcu_head)
 	kfree(tid_tx);
 }
 
-static int ___ieee80211_stop_tx_ba_session(
-		struct sta_info *sta, u16 tid,
-		enum ieee80211_back_parties initiator)
+int ___ieee80211_stop_tx_ba_session(struct sta_info *sta, u16 tid,
+				    enum ieee80211_back_parties initiator)
 {
 	struct ieee80211_local *local = sta->local;
 	struct tid_ampdu_tx *tid_tx = sta->ampdu_mlme.tid_tx[tid];
@@ -262,7 +261,7 @@ ieee80211_wake_queue_agg(struct ieee80211_local *local, int tid)
 	__release(agg_queue);
 }
 
-static void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
+void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 {
 	struct tid_ampdu_tx *tid_tx = sta->ampdu_mlme.tid_tx[tid];
 	struct ieee80211_local *local = sta->local;
@@ -316,38 +315,6 @@ static void ieee80211_tx_ba_session_handle_start(struct sta_info *sta, int tid)
 	ieee80211_send_addba_request(sdata, sta->sta.addr, tid,
 				     tid_tx->dialog_token, start_seq_num,
 				     0x40, 5000);
-}
-
-void ieee80211_tx_ba_session_work(struct work_struct *work)
-{
-	struct sta_info *sta =
-		container_of(work, struct sta_info, ampdu_mlme.work);
-	struct tid_ampdu_tx *tid_tx;
-	int tid;
-
-	/*
-	 * When this flag is set, new sessions should be
-	 * blocked, and existing sessions will be torn
-	 * down by the code that set the flag, so this
-	 * need not run.
-	 */
-	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA))
-		return;
-
-	spin_lock_bh(&sta->lock);
-	for (tid = 0; tid < STA_TID_NUM; tid++) {
-		tid_tx = sta->ampdu_mlme.tid_tx[tid];
-		if (!tid_tx)
-			continue;
-
-		if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state))
-			ieee80211_tx_ba_session_handle_start(sta, tid);
-		else if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
-					    &tid_tx->state))
-			___ieee80211_stop_tx_ba_session(sta, tid,
-							WLAN_BACK_INITIATOR);
-	}
-	spin_unlock_bh(&sta->lock);
 }
 
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)

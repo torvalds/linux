@@ -114,6 +114,38 @@ void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta)
 	}
 }
 
+void ieee80211_ba_session_work(struct work_struct *work)
+{
+	struct sta_info *sta =
+		container_of(work, struct sta_info, ampdu_mlme.work);
+	struct tid_ampdu_tx *tid_tx;
+	int tid;
+
+	/*
+	 * When this flag is set, new sessions should be
+	 * blocked, and existing sessions will be torn
+	 * down by the code that set the flag, so this
+	 * need not run.
+	 */
+	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA))
+		return;
+
+	spin_lock_bh(&sta->lock);
+	for (tid = 0; tid < STA_TID_NUM; tid++) {
+		tid_tx = sta->ampdu_mlme.tid_tx[tid];
+		if (!tid_tx)
+			continue;
+
+		if (test_bit(HT_AGG_STATE_WANT_START, &tid_tx->state))
+			ieee80211_tx_ba_session_handle_start(sta, tid);
+		else if (test_and_clear_bit(HT_AGG_STATE_WANT_STOP,
+					    &tid_tx->state))
+			___ieee80211_stop_tx_ba_session(sta, tid,
+							WLAN_BACK_INITIATOR);
+	}
+	spin_unlock_bh(&sta->lock);
+}
+
 void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 			  const u8 *da, u16 tid,
 			  u16 initiator, u16 reason_code)
