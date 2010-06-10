@@ -231,7 +231,6 @@ void br_netpoll_cleanup(struct net_device *dev)
 	struct net_bridge_port *p, *n;
 	const struct net_device_ops *ops;
 
-	br->dev->npinfo = NULL;
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
 		if (p->dev) {
 			ops = p->dev->netdev_ops;
