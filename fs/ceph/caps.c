@@ -339,7 +339,7 @@ static struct ceph_cap *__get_cap_for_mds(struct ceph_inode_info *ci, int mds)
 /*
  * Return id of any MDS with a cap, preferably FILE_WR|BUFFER|EXCL, else -1.
  */
-static int __ceph_get_cap_mds(struct ceph_inode_info *ci, u32 *mseq)
+static int __ceph_get_cap_mds(struct ceph_inode_info *ci)
 {
 	struct ceph_cap *cap;
 	int mds = -1;
@@ -349,8 +349,6 @@ static int __ceph_get_cap_mds(struct ceph_inode_info *ci, u32 *mseq)
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
 		mds = cap->mds;
-		if (mseq)
-			*mseq = cap->mseq;
 		if (cap->issued & (CEPH_CAP_FILE_WR |
 				   CEPH_CAP_FILE_BUFFER |
 				   CEPH_CAP_FILE_EXCL))
@@ -363,7 +361,7 @@ int ceph_get_cap_mds(struct inode *inode)
 {
 	int mds;
 	spin_lock(&inode->i_lock);
-	mds = __ceph_get_cap_mds(ceph_inode(inode), NULL);
+	mds = __ceph_get_cap_mds(ceph_inode(inode));
 	spin_unlock(&inode->i_lock);
 	return mds;
 }
@@ -1231,7 +1229,13 @@ retry:
 		BUG_ON(capsnap->dirty == 0);
 
 		/* pick mds, take s_mutex */
-		mds = __ceph_get_cap_mds(ci, &mseq);
+		if (ci->i_auth_cap == NULL) {
+			dout("no auth cap (migrating?), doing nothing\n");
+			goto out;
+		}
+		mds = ci->i_auth_cap->session->s_mds;
+		mseq = ci->i_auth_cap->mseq;
+
 		if (session && session->s_mds != mds) {
 			dout("oops, wrong session %p mutex\n", session);
 			mutex_unlock(&session->s_mutex);
@@ -1250,8 +1254,8 @@ retry:
 			}
 			/*
 			 * if session == NULL, we raced against a cap
-			 * deletion.  retry, and we'll get a better
-			 * @mds value next time.
+			 * deletion or migration.  retry, and we'll
+			 * get a better @mds value next time.
 			 */
 			spin_lock(&inode->i_lock);
 			goto retry;
@@ -1289,6 +1293,7 @@ retry:
 	list_del_init(&ci->i_snap_flush_item);
 	spin_unlock(&mdsc->snap_flush_lock);
 
+out:
 	if (psession)
 		*psession = session;
 	else if (session) {
