@@ -530,7 +530,7 @@ static int x86_pmu_hw_config(struct perf_event *event)
 /*
  * Setup the hardware configuration for a given attr_type
  */
-static int __hw_perf_event_init(struct perf_event *event)
+static int __x86_pmu_event_init(struct perf_event *event)
 {
 	int err;
 
@@ -1414,6 +1414,7 @@ void __init init_hw_perf_events(void)
 	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_counters_fixed);
 	pr_info("... event mask:             %016Lx\n", x86_pmu.intel_ctrl);
 
+	perf_pmu_register(&pmu);
 	perf_cpu_notifier(x86_pmu_notifier);
 }
 
@@ -1482,18 +1483,6 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 
 	return 0;
 }
-
-static struct pmu pmu = {
-	.enable		= x86_pmu_enable,
-	.disable	= x86_pmu_disable,
-	.start		= x86_pmu_start,
-	.stop		= x86_pmu_stop,
-	.read		= x86_pmu_read,
-	.unthrottle	= x86_pmu_unthrottle,
-	.start_txn	= x86_pmu_start_txn,
-	.cancel_txn	= x86_pmu_cancel_txn,
-	.commit_txn	= x86_pmu_commit_txn,
-};
 
 /*
  * validate that we can schedule this event
@@ -1569,12 +1558,22 @@ out:
 	return ret;
 }
 
-struct pmu *hw_perf_event_init(struct perf_event *event)
+int x86_pmu_event_init(struct perf_event *event)
 {
 	struct pmu *tmp;
 	int err;
 
-	err = __hw_perf_event_init(event);
+	switch (event->attr.type) {
+	case PERF_TYPE_RAW:
+	case PERF_TYPE_HARDWARE:
+	case PERF_TYPE_HW_CACHE:
+		break;
+
+	default:
+		return -ENOENT;
+	}
+
+	err = __x86_pmu_event_init(event);
 	if (!err) {
 		/*
 		 * we temporarily connect event to its pmu
@@ -1594,11 +1593,23 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 	if (err) {
 		if (event->destroy)
 			event->destroy(event);
-		return ERR_PTR(err);
 	}
 
-	return &pmu;
+	return err;
 }
+
+static struct pmu pmu = {
+	.event_init	= x86_pmu_event_init,
+	.enable		= x86_pmu_enable,
+	.disable	= x86_pmu_disable,
+	.start		= x86_pmu_start,
+	.stop		= x86_pmu_stop,
+	.read		= x86_pmu_read,
+	.unthrottle	= x86_pmu_unthrottle,
+	.start_txn	= x86_pmu_start_txn,
+	.cancel_txn	= x86_pmu_cancel_txn,
+	.commit_txn	= x86_pmu_commit_txn,
+};
 
 /*
  * callchain support

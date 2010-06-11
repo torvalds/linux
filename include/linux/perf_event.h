@@ -561,6 +561,13 @@ struct perf_event;
  * struct pmu - generic performance monitoring unit
  */
 struct pmu {
+	struct list_head		entry;
+
+	/*
+	 * Should return -ENOENT when the @event doesn't match this pmu
+	 */
+	int (*event_init)		(struct perf_event *event);
+
 	int (*enable)			(struct perf_event *event);
 	void (*disable)			(struct perf_event *event);
 	int (*start)			(struct perf_event *event);
@@ -849,7 +856,8 @@ struct perf_output_handle {
  */
 extern int perf_max_events;
 
-extern struct pmu *hw_perf_event_init(struct perf_event *event);
+extern int perf_pmu_register(struct pmu *pmu);
+extern void perf_pmu_unregister(struct pmu *pmu);
 
 extern void perf_event_task_sched_in(struct task_struct *task);
 extern void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next);

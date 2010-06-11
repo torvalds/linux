@@ -306,12 +306,7 @@ out:
 	return err;
 }
 
-static struct pmu pmu = {
-	.enable	    = armpmu_enable,
-	.disable    = armpmu_disable,
-	.unthrottle = armpmu_unthrottle,
-	.read	    = armpmu_read,
-};
+static struct pmu pmu;
 
 static int
 validate_event(struct cpu_hw_events *cpuc,
@@ -491,20 +486,29 @@ __hw_perf_event_init(struct perf_event *event)
 	return err;
 }
 
-struct pmu *
-hw_perf_event_init(struct perf_event *event)
+static int armpmu_event_init(struct perf_event *event)
 {
 	int err = 0;
 
+	switch (event->attr.type) {
+	case PERF_TYPE_RAW:
+	case PERF_TYPE_HARDWARE:
+	case PERF_TYPE_HW_CACHE:
+		break;
+
+	default:
+		return -ENOENT;
+	}
+
 	if (!armpmu)
-		return ERR_PTR(-ENODEV);
+		return -ENODEV;
 
 	event->destroy = hw_perf_event_destroy;
 
 	if (!atomic_inc_not_zero(&active_events)) {
 		if (atomic_read(&active_events) > perf_max_events) {
 			atomic_dec(&active_events);
-			return ERR_PTR(-ENOSPC);
+			return -ENOSPC;
 		}
 
 		mutex_lock(&pmu_reserve_mutex);
@@ -518,14 +522,22 @@ hw_perf_event_init(struct perf_event *event)
 	}
 
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	err = __hw_perf_event_init(event);
 	if (err)
 		hw_perf_event_destroy(event);
 
-	return err ? ERR_PTR(err) : &pmu;
+	return err;
 }
+
+static struct pmu pmu = {
+	.event_init = armpmu_event_init,
+	.enable	    = armpmu_enable,
+	.disable    = armpmu_disable,
+	.unthrottle = armpmu_unthrottle,
+	.read	    = armpmu_read,
+};
 
 void
 hw_perf_enable(void)
@@ -2993,6 +3005,8 @@ init_hw_perf_events(void)
 		pr_info("no hardware support available\n");
 		perf_max_events = -1;
 	}
+
+	perf_pmu_register(&pmu);
 
 	return 0;
 }

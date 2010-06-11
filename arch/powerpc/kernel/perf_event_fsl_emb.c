@@ -378,13 +378,6 @@ static void fsl_emb_pmu_unthrottle(struct perf_event *event)
 	local_irq_restore(flags);
 }
 
-static struct pmu fsl_emb_pmu = {
-	.enable		= fsl_emb_pmu_enable,
-	.disable	= fsl_emb_pmu_disable,
-	.read		= fsl_emb_pmu_read,
-	.unthrottle	= fsl_emb_pmu_unthrottle,
-};
-
 /*
  * Release the PMU if this is the last perf_event.
  */
@@ -428,7 +421,7 @@ static int hw_perf_cache_event(u64 config, u64 *eventp)
 	return 0;
 }
 
-struct pmu *hw_perf_event_init(struct perf_event *event)
+static int fsl_emb_pmu_event_init(struct perf_event *event)
 {
 	u64 ev;
 	struct perf_event *events[MAX_HWEVENTS];
@@ -441,14 +434,14 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 	case PERF_TYPE_HARDWARE:
 		ev = event->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
-			return ERR_PTR(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 		ev = ppmu->generic_events[ev];
 		break;
 
 	case PERF_TYPE_HW_CACHE:
 		err = hw_perf_cache_event(event->attr.config, &ev);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 		break;
 
 	case PERF_TYPE_RAW:
@@ -456,12 +449,12 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 		break;
 
 	default:
-		return ERR_PTR(-EINVAL);
+		return -ENOENT;
 	}
 
 	event->hw.config = ppmu->xlate_event(ev);
 	if (!(event->hw.config & FSL_EMB_EVENT_VALID))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	/*
 	 * If this is in a group, check if it can go on with all the
@@ -473,7 +466,7 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 		n = collect_events(event->group_leader,
 		                   ppmu->n_counter - 1, events);
 		if (n < 0)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 	}
 
 	if (event->hw.config & FSL_EMB_EVENT_RESTRICTED) {
@@ -484,7 +477,7 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 		}
 
 		if (num_restricted >= ppmu->n_restricted)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 	}
 
 	event->hw.idx = -1;
@@ -497,7 +490,7 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 	if (event->attr.exclude_kernel)
 		event->hw.config_base |= PMLCA_FCS;
 	if (event->attr.exclude_idle)
-		return ERR_PTR(-ENOTSUPP);
+		return -ENOTSUPP;
 
 	event->hw.last_period = event->hw.sample_period;
 	local64_set(&event->hw.period_left, event->hw.last_period);
@@ -523,10 +516,16 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 	}
 	event->destroy = hw_perf_event_destroy;
 
-	if (err)
-		return ERR_PTR(err);
-	return &fsl_emb_pmu;
+	return err;
 }
+
+static struct pmu fsl_emb_pmu = {
+	.event_init	= fsl_emb_pmu_event_init,
+	.enable		= fsl_emb_pmu_enable,
+	.disable	= fsl_emb_pmu_disable,
+	.read		= fsl_emb_pmu_read,
+	.unthrottle	= fsl_emb_pmu_unthrottle,
+};
 
 /*
  * A counter has overflowed; update its count and record
@@ -650,6 +649,8 @@ int register_fsl_emb_pmu(struct fsl_emb_pmu *pmu)
 	ppmu = pmu;
 	pr_info("%s performance monitor hardware support registered\n",
 		pmu->name);
+
+	perf_pmu_register(&fsl_emb_pmu);
 
 	return 0;
 }

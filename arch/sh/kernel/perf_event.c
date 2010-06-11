@@ -257,26 +257,38 @@ static void sh_pmu_read(struct perf_event *event)
 	sh_perf_event_update(event, &event->hw, event->hw.idx);
 }
 
+static int sh_pmu_event_init(struct perf_event *event)
+{
+	int err;
+
+	switch (event->attr.type) {
+	case PERF_TYPE_RAW:
+	case PERF_TYPE_HW_CACHE:
+	case PERF_TYPE_HARDWARE:
+		err = __hw_perf_event_init(event);
+		break;
+
+	default:
+		return -ENOENT;
+	}
+
+	if (unlikely(err)) {
+		if (event->destroy)
+			event->destroy(event);
+	}
+
+	return err;
+}
+
 static struct pmu pmu = {
+	.event_init	= sh_pmu_event_init,
 	.enable		= sh_pmu_enable,
 	.disable	= sh_pmu_disable,
 	.read		= sh_pmu_read,
 };
 
-struct pmu *hw_perf_event_init(struct perf_event *event)
-{
-	int err = __hw_perf_event_init(event);
-	if (unlikely(err)) {
-		if (event->destroy)
-			event->destroy(event);
-		return ERR_PTR(err);
-	}
-
-	return &pmu;
-}
-
 static void sh_pmu_setup(int cpu)
-{
+
 	struct cpu_hw_events *cpuhw = &per_cpu(cpu_hw_events, cpu);
 
 	memset(cpuhw, 0, sizeof(struct cpu_hw_events));
@@ -325,6 +337,7 @@ int __cpuinit register_sh_pmu(struct sh_pmu *pmu)
 
 	WARN_ON(pmu->num_events > MAX_HWEVENTS);
 
+	perf_pmu_register(&pmu);
 	perf_cpu_notifier(sh_pmu_notifier);
 	return 0;
 }

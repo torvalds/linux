@@ -31,7 +31,6 @@
 #include <linux/kernel_stat.h>
 #include <linux/perf_event.h>
 #include <linux/ftrace_event.h>
-#include <linux/hw_breakpoint.h>
 
 #include <asm/irq_regs.h>
 
@@ -71,14 +70,6 @@ static atomic64_t perf_event_id;
  * Lock for (sysadmin-configurable) event reservations:
  */
 static DEFINE_SPINLOCK(perf_resource_lock);
-
-/*
- * Architecture provided APIs - weak aliases:
- */
-extern __weak struct pmu *hw_perf_event_init(struct perf_event *event)
-{
-	return NULL;
-}
 
 void __weak hw_perf_disable(void)		{ barrier(); }
 void __weak hw_perf_enable(void)		{ barrier(); }
@@ -4501,182 +4492,6 @@ static int perf_swevent_int(struct perf_event *event)
 	return 0;
 }
 
-static struct pmu perf_ops_generic = {
-	.enable		= perf_swevent_enable,
-	.disable	= perf_swevent_disable,
-	.start		= perf_swevent_int,
-	.stop		= perf_swevent_void,
-	.read		= perf_swevent_read,
-	.unthrottle	= perf_swevent_void, /* hwc->interrupts already reset */
-};
-
-/*
- * hrtimer based swevent callback
- */
-
-static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
-{
-	enum hrtimer_restart ret = HRTIMER_RESTART;
-	struct perf_sample_data data;
-	struct pt_regs *regs;
-	struct perf_event *event;
-	u64 period;
-
-	event = container_of(hrtimer, struct perf_event, hw.hrtimer);
-	event->pmu->read(event);
-
-	perf_sample_data_init(&data, 0);
-	data.period = event->hw.last_period;
-	regs = get_irq_regs();
-
-	if (regs && !perf_exclude_event(event, regs)) {
-		if (!(event->attr.exclude_idle && current->pid == 0))
-			if (perf_event_overflow(event, 0, &data, regs))
-				ret = HRTIMER_NORESTART;
-	}
-
-	period = max_t(u64, 10000, event->hw.sample_period);
-	hrtimer_forward_now(hrtimer, ns_to_ktime(period));
-
-	return ret;
-}
-
-static void perf_swevent_start_hrtimer(struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	hwc->hrtimer.function = perf_swevent_hrtimer;
-	if (hwc->sample_period) {
-		u64 period;
-
-		if (hwc->remaining) {
-			if (hwc->remaining < 0)
-				period = 10000;
-			else
-				period = hwc->remaining;
-			hwc->remaining = 0;
-		} else {
-			period = max_t(u64, 10000, hwc->sample_period);
-		}
-		__hrtimer_start_range_ns(&hwc->hrtimer,
-				ns_to_ktime(period), 0,
-				HRTIMER_MODE_REL, 0);
-	}
-}
-
-static void perf_swevent_cancel_hrtimer(struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (hwc->sample_period) {
-		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
-		hwc->remaining = ktime_to_ns(remaining);
-
-		hrtimer_cancel(&hwc->hrtimer);
-	}
-}
-
-/*
- * Software event: cpu wall time clock
- */
-
-static void cpu_clock_perf_event_update(struct perf_event *event)
-{
-	int cpu = raw_smp_processor_id();
-	s64 prev;
-	u64 now;
-
-	now = cpu_clock(cpu);
-	prev = local64_xchg(&event->hw.prev_count, now);
-	local64_add(now - prev, &event->count);
-}
-
-static int cpu_clock_perf_event_enable(struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-	int cpu = raw_smp_processor_id();
-
-	local64_set(&hwc->prev_count, cpu_clock(cpu));
-	perf_swevent_start_hrtimer(event);
-
-	return 0;
-}
-
-static void cpu_clock_perf_event_disable(struct perf_event *event)
-{
-	perf_swevent_cancel_hrtimer(event);
-	cpu_clock_perf_event_update(event);
-}
-
-static void cpu_clock_perf_event_read(struct perf_event *event)
-{
-	cpu_clock_perf_event_update(event);
-}
-
-static struct pmu perf_ops_cpu_clock = {
-	.enable		= cpu_clock_perf_event_enable,
-	.disable	= cpu_clock_perf_event_disable,
-	.read		= cpu_clock_perf_event_read,
-};
-
-/*
- * Software event: task time clock
- */
-
-static void task_clock_perf_event_update(struct perf_event *event, u64 now)
-{
-	u64 prev;
-	s64 delta;
-
-	prev = local64_xchg(&event->hw.prev_count, now);
-	delta = now - prev;
-	local64_add(delta, &event->count);
-}
-
-static int task_clock_perf_event_enable(struct perf_event *event)
-{
-	struct hw_perf_event *hwc = &event->hw;
-	u64 now;
-
-	now = event->ctx->time;
-
-	local64_set(&hwc->prev_count, now);
-
-	perf_swevent_start_hrtimer(event);
-
-	return 0;
-}
-
-static void task_clock_perf_event_disable(struct perf_event *event)
-{
-	perf_swevent_cancel_hrtimer(event);
-	task_clock_perf_event_update(event, event->ctx->time);
-
-}
-
-static void task_clock_perf_event_read(struct perf_event *event)
-{
-	u64 time;
-
-	if (!in_nmi()) {
-		update_context_time(event->ctx);
-		time = event->ctx->time;
-	} else {
-		u64 now = perf_clock();
-		u64 delta = now - event->ctx->timestamp;
-		time = event->ctx->time + delta;
-	}
-
-	task_clock_perf_event_update(event, time);
-}
-
-static struct pmu perf_ops_task_clock = {
-	.enable		= task_clock_perf_event_enable,
-	.disable	= task_clock_perf_event_disable,
-	.read		= task_clock_perf_event_read,
-};
-
 /* Deref the hlist from the update side */
 static inline struct swevent_hlist *
 swevent_hlist_deref(struct perf_cpu_context *cpuctx)
@@ -4783,16 +4598,62 @@ static int swevent_hlist_get(struct perf_event *event)
 	return err;
 }
 
-#ifdef CONFIG_EVENT_TRACING
+atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
 
-static struct pmu perf_ops_tracepoint = {
-	.enable		= perf_trace_enable,
-	.disable	= perf_trace_disable,
+static void sw_perf_event_destroy(struct perf_event *event)
+{
+	u64 event_id = event->attr.config;
+
+	WARN_ON(event->parent);
+
+	atomic_dec(&perf_swevent_enabled[event_id]);
+	swevent_hlist_put(event);
+}
+
+static int perf_swevent_init(struct perf_event *event)
+{
+	int event_id = event->attr.config;
+
+	if (event->attr.type != PERF_TYPE_SOFTWARE)
+		return -ENOENT;
+
+	switch (event_id) {
+	case PERF_COUNT_SW_CPU_CLOCK:
+	case PERF_COUNT_SW_TASK_CLOCK:
+		return -ENOENT;
+
+	default:
+		break;
+	}
+
+	if (event_id > PERF_COUNT_SW_MAX)
+		return -ENOENT;
+
+	if (!event->parent) {
+		int err;
+
+		err = swevent_hlist_get(event);
+		if (err)
+			return err;
+
+		atomic_inc(&perf_swevent_enabled[event_id]);
+		event->destroy = sw_perf_event_destroy;
+	}
+
+	return 0;
+}
+
+static struct pmu perf_swevent = {
+	.event_init	= perf_swevent_init,
+	.enable		= perf_swevent_enable,
+	.disable	= perf_swevent_disable,
 	.start		= perf_swevent_int,
 	.stop		= perf_swevent_void,
 	.read		= perf_swevent_read,
-	.unthrottle	= perf_swevent_void,
+	.unthrottle	= perf_swevent_void, /* hwc->interrupts already reset */
 };
+
+#ifdef CONFIG_EVENT_TRACING
 
 static int perf_tp_filter_match(struct perf_event *event,
 				struct perf_sample_data *data)
@@ -4849,9 +4710,12 @@ static void tp_perf_event_destroy(struct perf_event *event)
 	perf_trace_destroy(event);
 }
 
-static struct pmu *tp_perf_event_init(struct perf_event *event)
+static int perf_tp_event_init(struct perf_event *event)
 {
 	int err;
+
+	if (event->attr.type != PERF_TYPE_TRACEPOINT)
+		return -ENOENT;
 
 	/*
 	 * Raw tracepoint data is a severe data leak, only allow root to
@@ -4860,15 +4724,30 @@ static struct pmu *tp_perf_event_init(struct perf_event *event)
 	if ((event->attr.sample_type & PERF_SAMPLE_RAW) &&
 			perf_paranoid_tracepoint_raw() &&
 			!capable(CAP_SYS_ADMIN))
-		return ERR_PTR(-EPERM);
+		return -EPERM;
 
 	err = perf_trace_init(event);
 	if (err)
-		return NULL;
+		return err;
 
 	event->destroy = tp_perf_event_destroy;
 
-	return &perf_ops_tracepoint;
+	return 0;
+}
+
+static struct pmu perf_tracepoint = {
+	.event_init	= perf_tp_event_init,
+	.enable		= perf_trace_enable,
+	.disable	= perf_trace_disable,
+	.start		= perf_swevent_int,
+	.stop		= perf_swevent_void,
+	.read		= perf_swevent_read,
+	.unthrottle	= perf_swevent_void,
+};
+
+static inline void perf_tp_register(void)
+{
+	perf_pmu_register(&perf_tracepoint);
 }
 
 static int perf_event_set_filter(struct perf_event *event, void __user *arg)
@@ -4896,9 +4775,8 @@ static void perf_event_free_filter(struct perf_event *event)
 
 #else
 
-static struct pmu *tp_perf_event_init(struct perf_event *event)
+static inline void perf_tp_register(void)
 {
-	return NULL;
 }
 
 static int perf_event_set_filter(struct perf_event *event, void __user *arg)
@@ -4913,24 +4791,6 @@ static void perf_event_free_filter(struct perf_event *event)
 #endif /* CONFIG_EVENT_TRACING */
 
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-static void bp_perf_event_destroy(struct perf_event *event)
-{
-	release_bp_slot(event);
-}
-
-static struct pmu *bp_perf_event_init(struct perf_event *bp)
-{
-	int err;
-
-	err = register_perf_hw_breakpoint(bp);
-	if (err)
-		return ERR_PTR(err);
-
-	bp->destroy = bp_perf_event_destroy;
-
-	return &perf_ops_bp;
-}
-
 void perf_bp_event(struct perf_event *bp, void *data)
 {
 	struct perf_sample_data sample;
@@ -4941,77 +4801,237 @@ void perf_bp_event(struct perf_event *bp, void *data)
 	if (!perf_exclude_event(bp, regs))
 		perf_swevent_add(bp, 1, 1, &sample, regs);
 }
-#else
-static struct pmu *bp_perf_event_init(struct perf_event *bp)
-{
-	return NULL;
-}
-
-void perf_bp_event(struct perf_event *bp, void *regs)
-{
-}
 #endif
 
-atomic_t perf_swevent_enabled[PERF_COUNT_SW_MAX];
+/*
+ * hrtimer based swevent callback
+ */
 
-static void sw_perf_event_destroy(struct perf_event *event)
+static enum hrtimer_restart perf_swevent_hrtimer(struct hrtimer *hrtimer)
 {
-	u64 event_id = event->attr.config;
+	enum hrtimer_restart ret = HRTIMER_RESTART;
+	struct perf_sample_data data;
+	struct pt_regs *regs;
+	struct perf_event *event;
+	u64 period;
 
-	WARN_ON(event->parent);
+	event = container_of(hrtimer, struct perf_event, hw.hrtimer);
+	event->pmu->read(event);
 
-	atomic_dec(&perf_swevent_enabled[event_id]);
-	swevent_hlist_put(event);
+	perf_sample_data_init(&data, 0);
+	data.period = event->hw.last_period;
+	regs = get_irq_regs();
+
+	if (regs && !perf_exclude_event(event, regs)) {
+		if (!(event->attr.exclude_idle && current->pid == 0))
+			if (perf_event_overflow(event, 0, &data, regs))
+				ret = HRTIMER_NORESTART;
+	}
+
+	period = max_t(u64, 10000, event->hw.sample_period);
+	hrtimer_forward_now(hrtimer, ns_to_ktime(period));
+
+	return ret;
 }
 
-static struct pmu *sw_perf_event_init(struct perf_event *event)
+static void perf_swevent_start_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	hwc->hrtimer.function = perf_swevent_hrtimer;
+	if (hwc->sample_period) {
+		u64 period;
+
+		if (hwc->remaining) {
+			if (hwc->remaining < 0)
+				period = 10000;
+			else
+				period = hwc->remaining;
+			hwc->remaining = 0;
+		} else {
+			period = max_t(u64, 10000, hwc->sample_period);
+		}
+		__hrtimer_start_range_ns(&hwc->hrtimer,
+				ns_to_ktime(period), 0,
+				HRTIMER_MODE_REL, 0);
+	}
+}
+
+static void perf_swevent_cancel_hrtimer(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (hwc->sample_period) {
+		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
+		hwc->remaining = ktime_to_ns(remaining);
+
+		hrtimer_cancel(&hwc->hrtimer);
+	}
+}
+
+/*
+ * Software event: cpu wall time clock
+ */
+
+static void cpu_clock_event_update(struct perf_event *event)
+{
+	int cpu = raw_smp_processor_id();
+	s64 prev;
+	u64 now;
+
+	now = cpu_clock(cpu);
+	prev = local64_xchg(&event->hw.prev_count, now);
+	local64_add(now - prev, &event->count);
+}
+
+static int cpu_clock_event_enable(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	int cpu = raw_smp_processor_id();
+
+	local64_set(&hwc->prev_count, cpu_clock(cpu));
+	perf_swevent_start_hrtimer(event);
+
+	return 0;
+}
+
+static void cpu_clock_event_disable(struct perf_event *event)
+{
+	perf_swevent_cancel_hrtimer(event);
+	cpu_clock_event_update(event);
+}
+
+static void cpu_clock_event_read(struct perf_event *event)
+{
+	cpu_clock_event_update(event);
+}
+
+static int cpu_clock_event_init(struct perf_event *event)
+{
+	if (event->attr.type != PERF_TYPE_SOFTWARE)
+		return -ENOENT;
+
+	if (event->attr.config != PERF_COUNT_SW_CPU_CLOCK)
+		return -ENOENT;
+
+	return 0;
+}
+
+static struct pmu perf_cpu_clock = {
+	.event_init	= cpu_clock_event_init,
+	.enable		= cpu_clock_event_enable,
+	.disable	= cpu_clock_event_disable,
+	.read		= cpu_clock_event_read,
+};
+
+/*
+ * Software event: task time clock
+ */
+
+static void task_clock_event_update(struct perf_event *event, u64 now)
+{
+	u64 prev;
+	s64 delta;
+
+	prev = local64_xchg(&event->hw.prev_count, now);
+	delta = now - prev;
+	local64_add(delta, &event->count);
+}
+
+static int task_clock_event_enable(struct perf_event *event)
+{
+	struct hw_perf_event *hwc = &event->hw;
+	u64 now;
+
+	now = event->ctx->time;
+
+	local64_set(&hwc->prev_count, now);
+
+	perf_swevent_start_hrtimer(event);
+
+	return 0;
+}
+
+static void task_clock_event_disable(struct perf_event *event)
+{
+	perf_swevent_cancel_hrtimer(event);
+	task_clock_event_update(event, event->ctx->time);
+
+}
+
+static void task_clock_event_read(struct perf_event *event)
+{
+	u64 time;
+
+	if (!in_nmi()) {
+		update_context_time(event->ctx);
+		time = event->ctx->time;
+	} else {
+		u64 now = perf_clock();
+		u64 delta = now - event->ctx->timestamp;
+		time = event->ctx->time + delta;
+	}
+
+	task_clock_event_update(event, time);
+}
+
+static int task_clock_event_init(struct perf_event *event)
+{
+	if (event->attr.type != PERF_TYPE_SOFTWARE)
+		return -ENOENT;
+
+	if (event->attr.config != PERF_COUNT_SW_TASK_CLOCK)
+		return -ENOENT;
+
+	return 0;
+}
+
+static struct pmu perf_task_clock = {
+	.event_init	= task_clock_event_init,
+	.enable		= task_clock_event_enable,
+	.disable	= task_clock_event_disable,
+	.read		= task_clock_event_read,
+};
+
+static LIST_HEAD(pmus);
+static DEFINE_MUTEX(pmus_lock);
+static struct srcu_struct pmus_srcu;
+
+int perf_pmu_register(struct pmu *pmu)
+{
+	mutex_lock(&pmus_lock);
+	list_add_rcu(&pmu->entry, &pmus);
+	mutex_unlock(&pmus_lock);
+
+	return 0;
+}
+
+void perf_pmu_unregister(struct pmu *pmu)
+{
+	mutex_lock(&pmus_lock);
+	list_del_rcu(&pmu->entry);
+	mutex_unlock(&pmus_lock);
+
+	synchronize_srcu(&pmus_srcu);
+}
+
+struct pmu *perf_init_event(struct perf_event *event)
 {
 	struct pmu *pmu = NULL;
-	u64 event_id = event->attr.config;
+	int idx;
 
-	/*
-	 * Software events (currently) can't in general distinguish
-	 * between user, kernel and hypervisor events.
-	 * However, context switches and cpu migrations are considered
-	 * to be kernel events, and page faults are never hypervisor
-	 * events.
-	 */
-	switch (event_id) {
-	case PERF_COUNT_SW_CPU_CLOCK:
-		pmu = &perf_ops_cpu_clock;
-
-		break;
-	case PERF_COUNT_SW_TASK_CLOCK:
-		/*
-		 * If the user instantiates this as a per-cpu event,
-		 * use the cpu_clock event instead.
-		 */
-		if (event->ctx->task)
-			pmu = &perf_ops_task_clock;
-		else
-			pmu = &perf_ops_cpu_clock;
-
-		break;
-	case PERF_COUNT_SW_PAGE_FAULTS:
-	case PERF_COUNT_SW_PAGE_FAULTS_MIN:
-	case PERF_COUNT_SW_PAGE_FAULTS_MAJ:
-	case PERF_COUNT_SW_CONTEXT_SWITCHES:
-	case PERF_COUNT_SW_CPU_MIGRATIONS:
-	case PERF_COUNT_SW_ALIGNMENT_FAULTS:
-	case PERF_COUNT_SW_EMULATION_FAULTS:
-		if (!event->parent) {
-			int err;
-
-			err = swevent_hlist_get(event);
-			if (err)
-				return ERR_PTR(err);
-
-			atomic_inc(&perf_swevent_enabled[event_id]);
-			event->destroy = sw_perf_event_destroy;
+	idx = srcu_read_lock(&pmus_srcu);
+	list_for_each_entry_rcu(pmu, &pmus, entry) {
+		int ret = pmu->event_init(event);
+		if (!ret)
+			break;
+		if (ret != -ENOENT) {
+			pmu = ERR_PTR(ret);
+			break;
 		}
-		pmu = &perf_ops_generic;
-		break;
 	}
+	srcu_read_unlock(&pmus_srcu, idx);
 
 	return pmu;
 }
@@ -5092,29 +5112,8 @@ perf_event_alloc(struct perf_event_attr *attr,
 	if (attr->inherit && (attr->read_format & PERF_FORMAT_GROUP))
 		goto done;
 
-	switch (attr->type) {
-	case PERF_TYPE_RAW:
-	case PERF_TYPE_HARDWARE:
-	case PERF_TYPE_HW_CACHE:
-		pmu = hw_perf_event_init(event);
-		break;
+	pmu = perf_init_event(event);
 
-	case PERF_TYPE_SOFTWARE:
-		pmu = sw_perf_event_init(event);
-		break;
-
-	case PERF_TYPE_TRACEPOINT:
-		pmu = tp_perf_event_init(event);
-		break;
-
-	case PERF_TYPE_BREAKPOINT:
-		pmu = bp_perf_event_init(event);
-		break;
-
-
-	default:
-		break;
-	}
 done:
 	err = 0;
 	if (!pmu)
@@ -5979,22 +5978,15 @@ perf_cpu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
 	return NOTIFY_OK;
 }
 
-/*
- * This has to have a higher priority than migration_notifier in sched.c.
- */
-static struct notifier_block __cpuinitdata perf_cpu_nb = {
-	.notifier_call		= perf_cpu_notify,
-	.priority		= 20,
-};
-
 void __init perf_event_init(void)
 {
 	perf_event_init_all_cpus();
-	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_UP_PREPARE,
-			(void *)(long)smp_processor_id());
-	perf_cpu_notify(&perf_cpu_nb, (unsigned long)CPU_ONLINE,
-			(void *)(long)smp_processor_id());
-	register_cpu_notifier(&perf_cpu_nb);
+	init_srcu_struct(&pmus_srcu);
+	perf_pmu_register(&perf_swevent);
+	perf_pmu_register(&perf_cpu_clock);
+	perf_pmu_register(&perf_task_clock);
+	perf_tp_register();
+	perf_cpu_notifier(perf_cpu_notify);
 }
 
 static ssize_t perf_show_reserve_percpu(struct sysdev_class *class,

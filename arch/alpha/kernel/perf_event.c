@@ -642,34 +642,39 @@ static int __hw_perf_event_init(struct perf_event *event)
 	return 0;
 }
 
+/*
+ * Main entry point to initialise a HW performance event.
+ */
+static int alpha_pmu_event_init(struct perf_event *event)
+{
+	int err;
+
+	switch (event->attr.type) {
+	case PERF_TYPE_RAW:
+	case PERF_TYPE_HARDWARE:
+	case PERF_TYPE_HW_CACHE:
+		break;
+
+	default:
+		return -ENOENT;
+	}
+
+	if (!alpha_pmu)
+		return -ENODEV;
+
+	/* Do the real initialisation work. */
+	err = __hw_perf_event_init(event);
+
+	return err;
+}
+
 static struct pmu pmu = {
+	.event_init	= alpha_pmu_event_init,
 	.enable		= alpha_pmu_enable,
 	.disable	= alpha_pmu_disable,
 	.read		= alpha_pmu_read,
 	.unthrottle	= alpha_pmu_unthrottle,
 };
-
-
-/*
- * Main entry point to initialise a HW performance event.
- */
-struct pmu *hw_perf_event_init(struct perf_event *event)
-{
-	int err;
-
-	if (!alpha_pmu)
-		return ERR_PTR(-ENODEV);
-
-	/* Do the real initialisation work. */
-	err = __hw_perf_event_init(event);
-
-	if (err)
-		return ERR_PTR(err);
-
-	return &pmu;
-}
-
-
 
 /*
  * Main entry point - enable HW performance counters.
@@ -838,5 +843,7 @@ void __init init_hw_perf_events(void)
 	/* And set up PMU specification */
 	alpha_pmu = &ev67_pmu;
 	perf_max_events = alpha_pmu->num_pmcs;
+
+	perf_pmu_register(&pmu);
 }
 

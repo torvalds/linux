@@ -565,6 +565,34 @@ static struct notifier_block hw_breakpoint_exceptions_nb = {
 	.priority = 0x7fffffff
 };
 
+static void bp_perf_event_destroy(struct perf_event *event)
+{
+	release_bp_slot(event);
+}
+
+static int hw_breakpoint_event_init(struct perf_event *bp)
+{
+	int err;
+
+	if (bp->attr.type != PERF_TYPE_BREAKPOINT)
+		return -ENOENT;
+
+	err = register_perf_hw_breakpoint(bp);
+	if (err)
+		return err;
+
+	bp->destroy = bp_perf_event_destroy;
+
+	return 0;
+}
+
+static struct pmu perf_breakpoint = {
+	.event_init	= hw_breakpoint_event_init,
+	.enable		= arch_install_hw_breakpoint,
+	.disable	= arch_uninstall_hw_breakpoint,
+	.read		= hw_breakpoint_pmu_read,
+};
+
 static int __init init_hw_breakpoint(void)
 {
 	unsigned int **task_bp_pinned;
@@ -586,6 +614,8 @@ static int __init init_hw_breakpoint(void)
 
 	constraints_initialized = 1;
 
+	perf_pmu_register(&perf_breakpoint);
+
 	return register_die_notifier(&hw_breakpoint_exceptions_nb);
 
  err_alloc:
@@ -601,8 +631,3 @@ static int __init init_hw_breakpoint(void)
 core_initcall(init_hw_breakpoint);
 
 
-struct pmu perf_ops_bp = {
-	.enable		= arch_install_hw_breakpoint,
-	.disable	= arch_uninstall_hw_breakpoint,
-	.read		= hw_breakpoint_pmu_read,
-};

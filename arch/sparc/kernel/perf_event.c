@@ -1025,7 +1025,7 @@ out:
 	return ret;
 }
 
-static int __hw_perf_event_init(struct perf_event *event)
+static int sparc_pmu_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
 	struct perf_event *evts[MAX_HWEVENTS];
@@ -1038,16 +1038,26 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (atomic_read(&nmi_active) < 0)
 		return -ENODEV;
 
-	if (attr->type == PERF_TYPE_HARDWARE) {
+	switch (attr->type) {
+	case PERF_TYPE_HARDWARE:
 		if (attr->config >= sparc_pmu->max_events)
 			return -EINVAL;
 		pmap = sparc_pmu->event_map(attr->config);
-	} else if (attr->type == PERF_TYPE_HW_CACHE) {
+		break;
+
+	case PERF_TYPE_HW_CACHE:
 		pmap = sparc_map_cache_event(attr->config);
 		if (IS_ERR(pmap))
 			return PTR_ERR(pmap);
-	} else
+		break;
+
+	case PERF_TYPE_RAW:
 		return -EOPNOTSUPP;
+
+	default:
+		return -ENOENT;
+
+	}
 
 	/* We save the enable bits in the config_base.  */
 	hwc->config_base = sparc_pmu->irq_bit;
@@ -1143,6 +1153,7 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 }
 
 static struct pmu pmu = {
+	.event_init	= sparc_pmu_event_init,
 	.enable		= sparc_pmu_enable,
 	.disable	= sparc_pmu_disable,
 	.read		= sparc_pmu_read,
@@ -1151,15 +1162,6 @@ static struct pmu pmu = {
 	.cancel_txn	= sparc_pmu_cancel_txn,
 	.commit_txn	= sparc_pmu_commit_txn,
 };
-
-struct pmu *hw_perf_event_init(struct perf_event *event)
-{
-	int err = __hw_perf_event_init(event);
-
-	if (err)
-		return ERR_PTR(err);
-	return &pmu;
-}
 
 void perf_event_print_debug(void)
 {
@@ -1280,6 +1282,7 @@ void __init init_hw_perf_events(void)
 	/* All sparc64 PMUs currently have 2 events.  */
 	perf_max_events = 2;
 
+	perf_pmu_register(&pmu);
 	register_die_notifier(&perf_event_nmi_notifier);
 }
 

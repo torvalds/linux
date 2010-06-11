@@ -904,16 +904,6 @@ int power_pmu_commit_txn(struct pmu *pmu)
 	return 0;
 }
 
-struct pmu power_pmu = {
-	.enable		= power_pmu_enable,
-	.disable	= power_pmu_disable,
-	.read		= power_pmu_read,
-	.unthrottle	= power_pmu_unthrottle,
-	.start_txn	= power_pmu_start_txn,
-	.cancel_txn	= power_pmu_cancel_txn,
-	.commit_txn	= power_pmu_commit_txn,
-};
-
 /*
  * Return 1 if we might be able to put event on a limited PMC,
  * or 0 if not.
@@ -1014,7 +1004,7 @@ static int hw_perf_cache_event(u64 config, u64 *eventp)
 	return 0;
 }
 
-struct pmu *hw_perf_event_init(struct perf_event *event)
+static int power_pmu_event_init(struct perf_event *event)
 {
 	u64 ev;
 	unsigned long flags;
@@ -1026,25 +1016,27 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 	struct cpu_hw_events *cpuhw;
 
 	if (!ppmu)
-		return ERR_PTR(-ENXIO);
+		return -ENOENT;
+
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
 		ev = event->attr.config;
 		if (ev >= ppmu->n_generic || ppmu->generic_events[ev] == 0)
-			return ERR_PTR(-EOPNOTSUPP);
+			return -EOPNOTSUPP;
 		ev = ppmu->generic_events[ev];
 		break;
 	case PERF_TYPE_HW_CACHE:
 		err = hw_perf_cache_event(event->attr.config, &ev);
 		if (err)
-			return ERR_PTR(err);
+			return err;
 		break;
 	case PERF_TYPE_RAW:
 		ev = event->attr.config;
 		break;
 	default:
-		return ERR_PTR(-EINVAL);
+		return -ENOENT;
 	}
+
 	event->hw.config_base = ev;
 	event->hw.idx = 0;
 
@@ -1081,7 +1073,7 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 			 */
 			ev = normal_pmc_alternative(ev, flags);
 			if (!ev)
-				return ERR_PTR(-EINVAL);
+				return -EINVAL;
 		}
 	}
 
@@ -1095,19 +1087,19 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 		n = collect_events(event->group_leader, ppmu->n_counter - 1,
 				   ctrs, events, cflags);
 		if (n < 0)
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 	}
 	events[n] = ev;
 	ctrs[n] = event;
 	cflags[n] = flags;
 	if (check_excludes(ctrs, cflags, n, 1))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	cpuhw = &get_cpu_var(cpu_hw_events);
 	err = power_check_constraints(cpuhw, events, cflags, n + 1);
 	put_cpu_var(cpu_hw_events);
 	if (err)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	event->hw.config = events[n];
 	event->hw.event_base = cflags[n];
@@ -1132,10 +1124,19 @@ struct pmu *hw_perf_event_init(struct perf_event *event)
 	}
 	event->destroy = hw_perf_event_destroy;
 
-	if (err)
-		return ERR_PTR(err);
-	return &power_pmu;
+	return err;
 }
+
+struct pmu power_pmu = {
+	.event_init	= power_pmu_event_init,
+	.enable		= power_pmu_enable,
+	.disable	= power_pmu_disable,
+	.read		= power_pmu_read,
+	.unthrottle	= power_pmu_unthrottle,
+	.start_txn	= power_pmu_start_txn,
+	.cancel_txn	= power_pmu_cancel_txn,
+	.commit_txn	= power_pmu_commit_txn,
+};
 
 /*
  * A counter has overflowed; update its count and record
@@ -1342,6 +1343,7 @@ int register_power_pmu(struct power_pmu *pmu)
 		freeze_events_kernel = MMCR0_FCHV;
 #endif /* CONFIG_PPC64 */
 
+	perf_pmu_register(&power_pmu);
 	perf_cpu_notifier(power_pmu_notifier);
 
 	return 0;
