@@ -739,7 +739,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 	} else {
 		FC_RPORT_DBG(rdata, "Bad ELS response for PRLI command\n");
-		fc_rport_enter_delete(rdata, RPORT_EV_FAILED);
+		fc_rport_error_retry(rdata, fp);
 	}
 
 out:
