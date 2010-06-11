@@ -66,7 +66,7 @@ struct rds_ib_mr {
  */
 struct rds_ib_mr_pool {
 	struct mutex		flush_lock;		/* serialize fmr invalidate */
-	struct work_struct	flush_worker;		/* flush worker */
+	struct delayed_work	flush_worker;		/* flush worker */
 
 	atomic_t		item_count;		/* total # of MRs */
 	atomic_t		dirty_count;		/* # dirty of MRs */
@@ -226,7 +226,7 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_ibdev)
 	INIT_XLIST_HEAD(&pool->clean_list);
 	mutex_init(&pool->flush_lock);
 	init_waitqueue_head(&pool->flush_wait);
-	INIT_WORK(&pool->flush_worker, rds_ib_mr_pool_flush_worker);
+	INIT_DELAYED_WORK(&pool->flush_worker, rds_ib_mr_pool_flush_worker);
 
 	pool->fmr_attr.max_pages = fmr_message_size;
 	pool->fmr_attr.max_maps = rds_ibdev->fmr_max_remaps;
@@ -254,7 +254,7 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *pool)
 {
-	cancel_work_sync(&pool->flush_worker);
+	cancel_delayed_work_sync(&pool->flush_worker);
 	rds_ib_flush_mr_pool(pool, 1, NULL);
 	WARN_ON(atomic_read(&pool->item_count));
 	WARN_ON(atomic_read(&pool->free_pinned));
@@ -695,7 +695,7 @@ out_nolock:
 
 static void rds_ib_mr_pool_flush_worker(struct work_struct *work)
 {
-	struct rds_ib_mr_pool *pool = container_of(work, struct rds_ib_mr_pool, flush_worker);
+	struct rds_ib_mr_pool *pool = container_of(work, struct rds_ib_mr_pool, flush_worker.work);
 
 	rds_ib_flush_mr_pool(pool, 0, NULL);
 }
@@ -720,7 +720,7 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 	/* If we've pinned too many pages, request a flush */
 	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned ||
 	    atomic_read(&pool->dirty_count) >= pool->max_items / 10)
-		queue_work(rds_wq, &pool->flush_worker);
+		queue_delayed_work(rds_wq, &pool->flush_worker, 10);
 
 	if (invalidate) {
 		if (likely(!in_interrupt())) {
@@ -728,7 +728,7 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 		} else {
 			/* We get here if the user created a MR marked
 			 * as use_once and invalidate at the same time. */
-			queue_work(rds_wq, &pool->flush_worker);
+			queue_delayed_work(rds_wq, &pool->flush_worker, 10);
 		}
 	}
 
