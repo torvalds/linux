@@ -298,6 +298,8 @@ static int ethoc_init_ring(struct ethoc *dev, void* mem_start)
 	dev->dty_tx = 0;
 	dev->cur_rx = 0;
 
+	ethoc_write(dev, TX_BD_NUM, dev->num_tx);
+
 	/* setup transmission buffers */
 	bd.addr = mem_start;
 	bd.stat = TX_BD_IRQ | TX_BD_CRC;
@@ -675,8 +677,6 @@ static int ethoc_open(struct net_device *dev)
 			dev->name, dev);
 	if (ret)
 		return ret;
-
-	ethoc_write(priv, TX_BD_NUM, priv->num_tx);
 
 	ethoc_init_ring(priv, (void*)dev->mem_start);
 	ethoc_reset(priv);
