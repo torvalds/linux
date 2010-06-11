@@ -169,11 +169,8 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
-					    USB_VENDOR_REQUEST_OUT,
-					    FIRMWARE_IMAGE_BASE,
-					    data + offset, length,
-					    REGISTER_TIMEOUT32(length));
+	rt2800_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
+				   data + offset, length);
 
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_STATUS, ~0);
@@ -196,7 +193,7 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Send signal to firmware during boot time.
 	 */
-	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0xff, 0, 0);
+	rt2800_mcu_request(rt2x00dev, MCU_BOOT_SIGNAL, 0, 0, 0);
 
 	if (rt2x00_rt(rt2x00dev, RT3070) ||
 	    rt2x00_rt(rt2x00dev, RT3071) ||
@@ -244,6 +241,44 @@ static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 			   (state == STATE_RADIO_RX_ON) ||
 			   (state == STATE_RADIO_RX_ON_LINK));
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+}
+
+static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+	int i;
+
+	/*
+	 * Wait until BBP and RF are ready.
+	 */
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
+		if (reg && reg != ~0)
+			break;
+		msleep(1);
+	}
+
+	if (i == REGISTER_BUSY_COUNT) {
+		ERROR(rt2x00dev, "Unstable hardware.\n");
+		return -EBUSY;
+	}
+
+	rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
+
+	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+
+	rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
+
+	rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+				    USB_MODE_RESET, REGISTER_TIMEOUT);
+
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
+
+	return 0;
 }
 
 static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
@@ -400,20 +435,21 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txi = (__le32 *)(skb->data - TXWI_DESC_SIZE - TXINFO_DESC_SIZE);
+	__le32 *txi = (__le32 *) skb->data;
+	__le32 *txwi = (__le32 *) (skb->data + TXINFO_DESC_SIZE);
 	u32 word;
 
 	/*
 	 * Initialize TXWI descriptor
 	 */
-	rt2800_write_txwi(skb, txdesc);
+	rt2800_write_txwi(txwi, txdesc);
 
 	/*
 	 * Initialize TXINFO descriptor
 	 */
 	rt2x00_desc_read(txi, 0, &word);
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_PKT_LEN,
-			   skb->len + TXWI_DESC_SIZE);
+			   skb->len - TXINFO_DESC_SIZE);
 	rt2x00_set_field32(&word, TXINFO_W0_WIV,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXINFO_W0_QSEL, 2);
@@ -426,6 +462,7 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Register descriptor details in skb frame descriptor.
 	 */
+	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
 	skbdesc->desc = txi;
 	skbdesc->desc_len = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
 }
@@ -433,51 +470,6 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 /*
  * TX data initialization
  */
-static void rt2800usb_write_beacon(struct queue_entry *entry,
-				   struct txentry_desc *txdesc)
-{
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	unsigned int beacon_base;
-	u32 reg;
-
-	/*
-	 * Disable beaconing while we are reloading the beacon data,
-	 * otherwise we might be sending out invalid data.
-	 */
-	rt2800_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 0);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-
-	/*
-	 * Add the TXWI for the beacon to the skb.
-	 */
-	rt2800_write_txwi(entry->skb, txdesc);
-	skb_push(entry->skb, TXWI_DESC_SIZE);
-
-	/*
-	 * Write entire beacon with descriptor to register.
-	 */
-	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
-	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
-					    USB_VENDOR_REQUEST_OUT, beacon_base,
-					    entry->skb->data, entry->skb->len,
-					    REGISTER_TIMEOUT32(entry->skb->len));
-
-	/*
-	 * Enable beaconing again.
-	 */
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TSF_TICKING, 1);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE, 1);
-	rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_GEN, 1);
-	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
-
-	/*
-	 * Clean up the beacon skb.
-	 */
-	dev_kfree_skb(entry->skb);
-	entry->skb = NULL;
-}
-
 static int rt2800usb_get_tx_data_len(struct queue_entry *entry)
 {
 	int length;
@@ -595,6 +587,8 @@ static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.register_multiwrite	= rt2x00usb_register_multiwrite,
 
 	.regbusy_read		= rt2x00usb_regbusy_read,
+
+	.drv_init_registers	= rt2800usb_init_registers,
 };
 
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
@@ -659,7 +653,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_tuner		= rt2800_link_tuner,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2x00usb_write_tx_data,
-	.write_beacon		= rt2800usb_write_beacon,
+	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.kick_tx_queue		= rt2x00usb_kick_tx_queue,
 	.kill_tx_queue		= rt2x00usb_kill_tx_queue,

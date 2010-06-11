@@ -176,7 +176,6 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	unsigned int frame_len;
 
-	ATH5K_TRACE(ah->ah_sc);
 	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 
 	/*
@@ -342,8 +341,6 @@ static int ath5k_hw_proc_2word_tx_status(struct ath5k_hw *ah,
 	struct ath5k_hw_2w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
 
-	ATH5K_TRACE(ah->ah_sc);
-
 	tx_ctl = &desc->ud.ds_tx5210.tx_ctl;
 	tx_status = &desc->ud.ds_tx5210.tx_stat;
 
@@ -395,8 +392,6 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
 	struct ath5k_hw_tx_status *tx_status;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	tx_ctl = &desc->ud.ds_tx5212.tx_ctl;
 	tx_status = &desc->ud.ds_tx5212.tx_stat;
@@ -490,7 +485,6 @@ static int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 {
 	struct ath5k_hw_rx_ctl *rx_ctl;
 
-	ATH5K_TRACE(ah->ah_sc);
 	rx_ctl = &desc->ud.ds_rx.rx_ctl;
 
 	/*
@@ -593,7 +587,6 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	struct ath5k_hw_rx_status *rx_status;
 	struct ath5k_hw_rx_error *rx_err;
 
-	ATH5K_TRACE(ah->ah_sc);
 	rx_status = &desc->ud.ds_rx.u.rx_stat;
 
 	/* Overlay on error */

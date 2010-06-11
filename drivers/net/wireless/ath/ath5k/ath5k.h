@@ -204,6 +204,7 @@
 #define AR5K_TUNE_TPC_TXPOWER			false
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -1118,6 +1119,7 @@ struct ath5k_hw {
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
 	unsigned long		ah_cal_next_ani;
+	unsigned long		ah_cal_next_nf;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;
@@ -1147,6 +1149,9 @@ struct ath5k_hw {
 /* Attach/Detach Functions */
 int ath5k_hw_attach(struct ath5k_softc *sc);
 void ath5k_hw_detach(struct ath5k_hw *ah);
+
+int ath5k_sysfs_register(struct ath5k_softc *sc);
+void ath5k_sysfs_unregister(struct ath5k_softc *sc);
 
 /* LED functions */
 int ath5k_init_leds(struct ath5k_softc *sc);
@@ -1270,6 +1275,7 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
 int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 			   struct ieee80211_channel *channel);
+void ath5k_hw_update_noise_floor(struct ath5k_hw *ah);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
 				  struct ieee80211_channel *channel);
@@ -1280,6 +1286,7 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
 int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Antenna control */
 void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
+void ath5k_hw_set_antenna_switch(struct ath5k_hw *ah, u8 ee_mode);
 /* TX power setup */
 int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 		     u8 ee_mode, u8 txpower);

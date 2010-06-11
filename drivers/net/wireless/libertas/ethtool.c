@@ -69,13 +69,10 @@ static void lbs_ethtool_get_wol(struct net_device *dev,
 {
 	struct lbs_private *priv = dev->ml_priv;
 
-	if (priv->wol_criteria == 0xffffffff) {
-		/* Interface driver didn't configure wake */
-		wol->supported = wol->wolopts = 0;
-		return;
-	}
-
 	wol->supported = WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY;
+
+	if (priv->wol_criteria == EHS_REMOVE_WAKEUP)
+		return;
 
 	if (priv->wol_criteria & EHS_WAKE_ON_UNICAST_DATA)
 		wol->wolopts |= WAKE_UCAST;
@@ -91,23 +88,22 @@ static int lbs_ethtool_set_wol(struct net_device *dev,
 			       struct ethtool_wolinfo *wol)
 {
 	struct lbs_private *priv = dev->ml_priv;
-	uint32_t criteria = 0;
 
 	if (wol->wolopts & ~(WAKE_UCAST|WAKE_MCAST|WAKE_BCAST|WAKE_PHY))
 		return -EOPNOTSUPP;
 
+	priv->wol_criteria = 0;
 	if (wol->wolopts & WAKE_UCAST)
-		criteria |= EHS_WAKE_ON_UNICAST_DATA;
+		priv->wol_criteria |= EHS_WAKE_ON_UNICAST_DATA;
 	if (wol->wolopts & WAKE_MCAST)
-		criteria |= EHS_WAKE_ON_MULTICAST_DATA;
+		priv->wol_criteria |= EHS_WAKE_ON_MULTICAST_DATA;
 	if (wol->wolopts & WAKE_BCAST)
-		criteria |= EHS_WAKE_ON_BROADCAST_DATA;
+		priv->wol_criteria |= EHS_WAKE_ON_BROADCAST_DATA;
 	if (wol->wolopts & WAKE_PHY)
-		criteria |= EHS_WAKE_ON_MAC_EVENT;
+		priv->wol_criteria |= EHS_WAKE_ON_MAC_EVENT;
 	if (wol->wolopts == 0)
-		criteria |= EHS_REMOVE_WAKEUP;
-
-	return lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
+		priv->wol_criteria |= EHS_REMOVE_WAKEUP;
+	return 0;
 }
 
 const struct ethtool_ops lbs_ethtool_ops = {

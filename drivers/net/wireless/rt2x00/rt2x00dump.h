@@ -20,7 +20,12 @@
 
 /*
 	Module: rt2x00dump
-	Abstract: Data structures for the rt2x00debug & userspace.
+	Abstract:
+		Data structures for the rt2x00debug & userspace.
+
+		The declarations in this file can be used by both rt2x00
+		and userspace and therefore should be kept together in
+		this file.
  */
 
 #ifndef RT2X00DUMP_H

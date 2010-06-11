@@ -222,6 +222,7 @@
 
 #define AR_ISR_S2              0x008c
 #define AR_ISR_S2_QCU_TXURN    0x000003FF
+#define AR_ISR_S2_BB_WATCHDOG  0x00010000
 #define AR_ISR_S2_CST          0x00400000
 #define AR_ISR_S2_GTT          0x00800000
 #define AR_ISR_S2_TIM          0x01000000
@@ -699,6 +700,9 @@
 #define AR_RC_HOSTIF         0x00000100
 
 #define AR_WA                		0x4004
+#define AR_WA_BIT6			(1 << 6)
+#define AR_WA_BIT7			(1 << 7)
+#define AR_WA_BIT23			(1 << 23)
 #define AR_WA_D3_L1_DISABLE		(1 << 14)
 #define AR9285_WA_DEFAULT		0x004a050b
 #define AR9280_WA_DEFAULT           	0x0040073b
@@ -756,32 +760,33 @@
 #define AR_SREV_REVISION2        	      0x00000F00
 #define AR_SREV_REVISION2_S     	      8
 
-#define AR_SREV_VERSION_5416_PCI               0xD
-#define AR_SREV_VERSION_5416_PCIE              0xC
-#define AR_SREV_REVISION_5416_10               0
-#define AR_SREV_REVISION_5416_20               1
-#define AR_SREV_REVISION_5416_22               2
-#define AR_SREV_VERSION_9100                  0x14
-#define AR_SREV_VERSION_9160        	      0x40
-#define AR_SREV_REVISION_9160_10    	      0
-#define AR_SREV_REVISION_9160_11    	      1
-#define AR_SREV_VERSION_9280                0x80
-#define AR_SREV_REVISION_9280_10            0
-#define AR_SREV_REVISION_9280_20            1
-#define AR_SREV_REVISION_9280_21            2
-#define AR_SREV_VERSION_9285                  0xC0
-#define AR_SREV_REVISION_9285_10              0
-#define AR_SREV_REVISION_9285_11              1
-#define AR_SREV_REVISION_9285_12              2
-#define AR_SREV_VERSION_9287                  0x180
-#define AR_SREV_REVISION_9287_10              0
-#define AR_SREV_REVISION_9287_11              1
-#define AR_SREV_REVISION_9287_12              2
-#define AR_SREV_VERSION_9271			0x140
-#define AR_SREV_REVISION_9271_10		0
-#define AR_SREV_REVISION_9271_11		1
-#define AR_SREV_VERSION_9300                  0x1c0
-#define AR_SREV_REVISION_9300_20              2 /* 2.0 and 2.1 */
+#define AR_SREV_VERSION_5416_PCI	0xD
+#define AR_SREV_VERSION_5416_PCIE	0xC
+#define AR_SREV_REVISION_5416_10	0
+#define AR_SREV_REVISION_5416_20	1
+#define AR_SREV_REVISION_5416_22	2
+#define AR_SREV_VERSION_9100		0x14
+#define AR_SREV_VERSION_9160		0x40
+#define AR_SREV_REVISION_9160_10	0
+#define AR_SREV_REVISION_9160_11	1
+#define AR_SREV_VERSION_9280		0x80
+#define AR_SREV_REVISION_9280_10	0
+#define AR_SREV_REVISION_9280_20	1
+#define AR_SREV_REVISION_9280_21	2
+#define AR_SREV_VERSION_9285		0xC0
+#define AR_SREV_REVISION_9285_10	0
+#define AR_SREV_REVISION_9285_11	1
+#define AR_SREV_REVISION_9285_12	2
+#define AR_SREV_VERSION_9287		0x180
+#define AR_SREV_REVISION_9287_10	0
+#define AR_SREV_REVISION_9287_11	1
+#define AR_SREV_REVISION_9287_12	2
+#define AR_SREV_REVISION_9287_13	3
+#define AR_SREV_VERSION_9271		0x140
+#define AR_SREV_REVISION_9271_10	0
+#define AR_SREV_REVISION_9271_11	1
+#define AR_SREV_VERSION_9300		0x1c0
+#define AR_SREV_REVISION_9300_20	2 /* 2.0 and 2.1 */
 
 #define AR_SREV_5416(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_5416_PCI) || \
@@ -859,6 +864,11 @@
 	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
 	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
 	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_12)))
+#define AR_SREV_9287_13_OR_LATER(_ah) \
+	(((_ah)->hw_version.macVersion > AR_SREV_VERSION_9287) || \
+	 (((_ah)->hw_version.macVersion == AR_SREV_VERSION_9287) && \
+	  ((_ah)->hw_version.macRev >= AR_SREV_REVISION_9287_13)))
+
 #define AR_SREV_9271(_ah) \
     (((_ah))->hw_version.macVersion == AR_SREV_VERSION_9271)
 #define AR_SREV_9271_10(_ah) \

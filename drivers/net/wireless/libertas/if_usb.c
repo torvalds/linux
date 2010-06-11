@@ -613,15 +613,13 @@ static void if_usb_receive_fwload(struct urb *urb)
 		return;
 	}
 
-	syncfwheader = kmalloc(sizeof(struct fwsyncheader), GFP_ATOMIC);
+	syncfwheader = kmemdup(skb->data + IPFIELD_ALIGN_OFFSET,
+			       sizeof(struct fwsyncheader), GFP_ATOMIC);
 	if (!syncfwheader) {
 		lbs_deb_usbd(&cardp->udev->dev, "Failure to allocate syncfwheader\n");
 		kfree_skb(skb);
 		return;
 	}
-
-	memcpy(syncfwheader, skb->data + IPFIELD_ALIGN_OFFSET,
-	       sizeof(struct fwsyncheader));
 
 	if (!syncfwheader->cmd) {
 		lbs_deb_usb2(&cardp->udev->dev, "FW received Blk with correct CRC\n");
@@ -1042,6 +1040,12 @@ static int if_usb_suspend(struct usb_interface *intf, pm_message_t message)
 
 	if (priv->psstate != PS_STATE_FULL_POWER)
 		return -1;
+
+	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
+		lbs_pr_info("Suspend attempt without "
+						"configuring wake params!\n");
+		return -ENOSYS;
+	}
 
 	ret = lbs_suspend(priv);
 	if (ret)

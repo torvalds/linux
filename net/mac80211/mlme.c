@@ -1692,14 +1692,52 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			rma = ieee80211_rx_mgmt_disassoc(sdata, mgmt, skb->len);
 			break;
 		case IEEE80211_STYPE_ACTION:
-			if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
-				break;
+			switch (mgmt->u.action.category) {
+			case WLAN_CATEGORY_BACK: {
+				struct ieee80211_local *local = sdata->local;
+				int len = skb->len;
+				struct sta_info *sta;
 
-			ieee80211_sta_process_chanswitch(sdata,
-					&mgmt->u.action.u.chan_switch.sw_elem,
-					(void *)ifmgd->associated->priv,
-					rx_status->mactime);
-			break;
+				rcu_read_lock();
+				sta = sta_info_get(sdata, mgmt->sa);
+				if (!sta) {
+					rcu_read_unlock();
+					break;
+				}
+
+				local_bh_disable();
+
+				switch (mgmt->u.action.u.addba_req.action_code) {
+				case WLAN_ACTION_ADDBA_REQ:
+					if (len < (IEEE80211_MIN_ACTION_SIZE +
+						   sizeof(mgmt->u.action.u.addba_req)))
+						break;
+					ieee80211_process_addba_request(local, sta, mgmt, len);
+					break;
+				case WLAN_ACTION_ADDBA_RESP:
+					if (len < (IEEE80211_MIN_ACTION_SIZE +
+						   sizeof(mgmt->u.action.u.addba_resp)))
+						break;
+					ieee80211_process_addba_resp(local, sta, mgmt, len);
+					break;
+				case WLAN_ACTION_DELBA:
+					if (len < (IEEE80211_MIN_ACTION_SIZE +
+						   sizeof(mgmt->u.action.u.delba)))
+						break;
+					ieee80211_process_delba(sdata, sta, mgmt, len);
+					break;
+				}
+				local_bh_enable();
+				rcu_read_unlock();
+				break;
+				}
+			case WLAN_CATEGORY_SPECTRUM_MGMT:
+				ieee80211_sta_process_chanswitch(sdata,
+						&mgmt->u.action.u.chan_switch.sw_elem,
+						(void *)ifmgd->associated->priv,
+						rx_status->mactime);
+				break;
+			}
 		}
 		mutex_unlock(&ifmgd->mtx);
 
@@ -1763,7 +1801,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 
 	/*
 	 * ieee80211_queue_work() should have picked up most cases,
-	 * here we'll pick the the rest.
+	 * here we'll pick the rest.
 	 */
 	if (WARN(local->suspended, "STA MLME work scheduled while "
 		 "going to suspend\n"))
@@ -2078,8 +2116,18 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 			cfg80211_send_assoc_timeout(wk->sdata->dev,
 						    wk->filter_ta);
 			return WORK_DONE_DESTROY;
+		} else {
+			mutex_unlock(&wk->sdata->u.mgd.mtx);
+#ifdef CONFIG_INET
+			/*
+			 * configure ARP filter IP addresses to the driver,
+			 * intentionally outside the mgd mutex.
+			 */
+			rtnl_lock();
+			ieee80211_set_arp_filter(wk->sdata);
+			rtnl_unlock();
+#endif
 		}
-		mutex_unlock(&wk->sdata->u.mgd.mtx);
 	}
 
 	cfg80211_send_rx_assoc(wk->sdata->dev, skb->data, skb->len);
@@ -2308,6 +2356,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
 			 struct ieee80211_channel *chan,
 			 enum nl80211_channel_type channel_type,
+			 bool channel_type_valid,
 			 const u8 *buf, size_t len, u64 *cookie)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -2315,9 +2364,11 @@ int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 
 	/* Check that we are on the requested channel for transmission */
-	if ((chan != local->tmp_channel ||
-	     channel_type != local->tmp_channel_type) &&
-	    (chan != local->oper_channel ||
+	if (chan != local->tmp_channel &&
+	    chan != local->oper_channel)
+		return -EBUSY;
+	if (channel_type_valid &&
+	    (channel_type != local->tmp_channel_type &&
 	     channel_type != local->_oper_channel_type))
 		return -EBUSY;
 

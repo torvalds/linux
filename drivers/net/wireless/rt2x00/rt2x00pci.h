@@ -109,6 +109,14 @@ struct queue_entry_priv_pci {
 };
 
 /**
+ * rt2x00pci_txdone - Handle TX done events.
+ * @entry: The queue entry for which a TX done event was received.
+ * @txdesc: The TX done descriptor for the entry.
+ */
+void rt2x00pci_txdone(struct queue_entry *entry,
+		      struct txdone_entry_desc *txdesc);
+
+/**
  * rt2x00pci_rxdone - Handle RX done events
  * @rt2x00dev: Device pointer, see &struct rt2x00_dev.
  */

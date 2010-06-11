@@ -40,6 +40,8 @@ struct rt2800_ops {
 	int (*regbusy_read)(struct rt2x00_dev *rt2x00dev,
 			    const unsigned int offset,
 			    const struct rt2x00_field32 field, u32 *reg);
+
+	int (*drv_init_registers)(struct rt2x00_dev *rt2x00dev);
 };
 
 static inline void rt2800_register_read(struct rt2x00_dev *rt2x00dev,
@@ -107,12 +109,21 @@ static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
 	return rt2800ops->regbusy_read(rt2x00dev, offset, field, reg);
 }
 
+static inline int rt2800_drv_init_registers(struct rt2x00_dev *rt2x00dev)
+{
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	return rt2800ops->drv_init_registers(rt2x00dev);
+}
+
 void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 			const u8 command, const u8 token,
 			const u8 arg0, const u8 arg1);
 
-void rt2800_write_txwi(struct sk_buff *skb, struct txentry_desc *txdesc);
+void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc);
 void rt2800_process_rxwi(struct sk_buff *skb, struct rxdone_entry_desc *txdesc);
+
+void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc);
 
 extern const struct rt2x00debug rt2800_rt2x00debug;
 

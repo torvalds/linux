@@ -41,7 +41,7 @@ config WL1251_SDIO
 
 config WL1271
 	tristate "TI wl1271 support"
-	depends on WL12XX && SPI_MASTER && GENERIC_HARDIRQS
+	depends on WL12XX && GENERIC_HARDIRQS
 	depends on INET
 	select FW_LOADER
 	select CRC7
@@ -65,7 +65,7 @@ config WL1271_SPI
 
 config WL1271_SDIO
 	tristate "TI wl1271 SDIO support"
-	depends on WL1271 && MMC && ARM
+	depends on WL1271 && MMC
 	---help---
 	  This module adds support for the SDIO interface of adapters using
 	  TI wl1271 chipset.  Select this if your platform is using

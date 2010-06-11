@@ -38,7 +38,7 @@ int lbs_set_mac_address(struct net_device *dev, void *addr);
 void lbs_set_multicast_list(struct net_device *dev);
 
 int lbs_suspend(struct lbs_private *priv);
-void lbs_resume(struct lbs_private *priv);
+int lbs_resume(struct lbs_private *priv);
 
 void lbs_queue_event(struct lbs_private *priv, u32 event);
 void lbs_notify_command_response(struct lbs_private *priv, u8 resp_idx);

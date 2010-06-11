@@ -120,6 +120,9 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	struct ieee80211_key *key;
 	int err;
 
+	if (!netif_running(dev))
+		return -ENETDOWN;
+
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	switch (params->cipher) {
@@ -145,7 +148,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 	if (!key)
 		return -ENOMEM;
 
-	rcu_read_lock();
+	mutex_lock(&sdata->local->sta_mtx);
 
 	if (mac_addr) {
 		sta = sta_info_get_bss(sdata, mac_addr);
@@ -160,7 +163,7 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 
 	err = 0;
  out_unlock:
-	rcu_read_unlock();
+	mutex_unlock(&sdata->local->sta_mtx);
 
 	return err;
 }
@@ -174,7 +177,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	rcu_read_lock();
+	mutex_lock(&sdata->local->sta_mtx);
 
 	if (mac_addr) {
 		ret = -ENOENT;
@@ -202,7 +205,7 @@ static int ieee80211_del_key(struct wiphy *wiphy, struct net_device *dev,
 
 	ret = 0;
  out_unlock:
-	rcu_read_unlock();
+	mutex_unlock(&sdata->local->sta_mtx);
 
 	return ret;
 }
@@ -305,14 +308,9 @@ static int ieee80211_config_default_key(struct wiphy *wiphy,
 					struct net_device *dev,
 					u8 key_idx)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	rcu_read_lock();
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	ieee80211_set_default_key(sdata, key_idx);
-
-	rcu_read_unlock();
 
 	return 0;
 }
@@ -1554,10 +1552,12 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 static int ieee80211_action(struct wiphy *wiphy, struct net_device *dev,
 			    struct ieee80211_channel *chan,
 			    enum nl80211_channel_type channel_type,
+			    bool channel_type_valid,
 			    const u8 *buf, size_t len, u64 *cookie)
 {
 	return ieee80211_mgd_action(IEEE80211_DEV_TO_SUB_IF(dev), chan,
-				    channel_type, buf, len, cookie);
+				    channel_type, channel_type_valid,
+				    buf, len, cookie);
 }
 
 struct cfg80211_ops mac80211_config_ops = {

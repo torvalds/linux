@@ -1132,3 +1132,122 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->do_getnf = ar9003_hw_do_getnf;
 	priv_ops->loadnf = ar9003_hw_loadnf;
 }
+
+void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 idle_tmo_ms = ah->bb_watchdog_timeout_ms;
+	u32 val, idle_count;
+
+	if (!idle_tmo_ms) {
+		/* disable IRQ, disable chip-reset for BB panic */
+		REG_WRITE(ah, AR_PHY_WATCHDOG_CTL_2,
+			  REG_READ(ah, AR_PHY_WATCHDOG_CTL_2) &
+			  ~(AR_PHY_WATCHDOG_RST_ENABLE |
+			    AR_PHY_WATCHDOG_IRQ_ENABLE));
+
+		/* disable watchdog in non-IDLE mode, disable in IDLE mode */
+		REG_WRITE(ah, AR_PHY_WATCHDOG_CTL_1,
+			  REG_READ(ah, AR_PHY_WATCHDOG_CTL_1) &
+			  ~(AR_PHY_WATCHDOG_NON_IDLE_ENABLE |
+			    AR_PHY_WATCHDOG_IDLE_ENABLE));
+
+		ath_print(common, ATH_DBG_RESET, "Disabled BB Watchdog\n");
+		return;
+	}
+
+	/* enable IRQ, disable chip-reset for BB watchdog */
+	val = REG_READ(ah, AR_PHY_WATCHDOG_CTL_2) & AR_PHY_WATCHDOG_CNTL2_MASK;
+	REG_WRITE(ah, AR_PHY_WATCHDOG_CTL_2,
+		  (val | AR_PHY_WATCHDOG_IRQ_ENABLE) &
+		  ~AR_PHY_WATCHDOG_RST_ENABLE);
+
+	/* bound limit to 10 secs */
+	if (idle_tmo_ms > 10000)
+		idle_tmo_ms = 10000;
+
+	/*
+	 * The time unit for watchdog event is 2^15 44/88MHz cycles.
+	 *
+	 * For HT20 we have a time unit of 2^15/44 MHz = .74 ms per tick
+	 * For HT40 we have a time unit of 2^15/88 MHz = .37 ms per tick
+	 *
+	 * Given we use fast clock now in 5 GHz, these time units should
+	 * be common for both 2 GHz and 5 GHz.
+	 */
+	idle_count = (100 * idle_tmo_ms) / 74;
+	if (ah->curchan && IS_CHAN_HT40(ah->curchan))
+		idle_count = (100 * idle_tmo_ms) / 37;
+
+	/*
+	 * enable watchdog in non-IDLE mode, disable in IDLE mode,
+	 * set idle time-out.
+	 */
+	REG_WRITE(ah, AR_PHY_WATCHDOG_CTL_1,
+		  AR_PHY_WATCHDOG_NON_IDLE_ENABLE |
+		  AR_PHY_WATCHDOG_IDLE_MASK |
+		  (AR_PHY_WATCHDOG_NON_IDLE_MASK & (idle_count << 2)));
+
+	ath_print(common, ATH_DBG_RESET,
+		  "Enabled BB Watchdog timeout (%u ms)\n",
+		  idle_tmo_ms);
+}
+
+void ar9003_hw_bb_watchdog_read(struct ath_hw *ah)
+{
+	/*
+	 * we want to avoid printing in ISR context so we save the
+	 * watchdog status to be printed later in bottom half context.
+	 */
+	ah->bb_watchdog_last_status = REG_READ(ah, AR_PHY_WATCHDOG_STATUS);
+
+	/*
+	 * the watchdog timer should reset on status read but to be sure
+	 * sure we write 0 to the watchdog status bit.
+	 */
+	REG_WRITE(ah, AR_PHY_WATCHDOG_STATUS,
+		  ah->bb_watchdog_last_status & ~AR_PHY_WATCHDOG_STATUS_CLR);
+}
+
+void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	u32 rxc_pcnt = 0, rxf_pcnt = 0, txf_pcnt = 0, status;
+
+	if (likely(!(common->debug_mask & ATH_DBG_RESET)))
+		return;
+
+	status = ah->bb_watchdog_last_status;
+	ath_print(common, ATH_DBG_RESET,
+		  "\n==== BB update: BB status=0x%08x ====\n", status);
+	ath_print(common, ATH_DBG_RESET,
+		  "** BB state: wd=%u det=%u rdar=%u rOFDM=%d "
+		  "rCCK=%u tOFDM=%u tCCK=%u agc=%u src=%u **\n",
+		  MS(status, AR_PHY_WATCHDOG_INFO),
+		  MS(status, AR_PHY_WATCHDOG_DET_HANG),
+		  MS(status, AR_PHY_WATCHDOG_RADAR_SM),
+		  MS(status, AR_PHY_WATCHDOG_RX_OFDM_SM),
+		  MS(status, AR_PHY_WATCHDOG_RX_CCK_SM),
+		  MS(status, AR_PHY_WATCHDOG_TX_OFDM_SM),
+		  MS(status, AR_PHY_WATCHDOG_TX_CCK_SM),
+		  MS(status, AR_PHY_WATCHDOG_AGC_SM),
+		  MS(status,AR_PHY_WATCHDOG_SRCH_SM));
+
+	ath_print(common, ATH_DBG_RESET,
+		  "** BB WD cntl: cntl1=0x%08x cntl2=0x%08x **\n",
+		  REG_READ(ah, AR_PHY_WATCHDOG_CTL_1),
+		  REG_READ(ah, AR_PHY_WATCHDOG_CTL_2));
+	ath_print(common, ATH_DBG_RESET,
+		  "** BB mode: BB_gen_controls=0x%08x **\n",
+		  REG_READ(ah, AR_PHY_GEN_CTRL));
+
+	if (ath9k_hw_GetMibCycleCountsPct(ah, &rxc_pcnt, &rxf_pcnt, &txf_pcnt))
+		ath_print(common, ATH_DBG_RESET,
+			  "** BB busy times: rx_clear=%d%%, "
+			  "rx_frame=%d%%, tx_frame=%d%% **\n",
+			  rxc_pcnt, rxf_pcnt, txf_pcnt);
+
+	ath_print(common, ATH_DBG_RESET,
+		  "==== BB update: done ====\n\n");
+}
+EXPORT_SYMBOL(ar9003_hw_bb_watchdog_dbg_info);

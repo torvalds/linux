@@ -356,11 +356,9 @@ static struct request_context *ezusb_alloc_ctx(struct ezusb_priv *upriv,
 {
 	struct request_context *ctx;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
 		return NULL;
-
-	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->buf = kmalloc(BULK_BUF_SIZE, GFP_ATOMIC);
 	if (!ctx->buf) {

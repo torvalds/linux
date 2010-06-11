@@ -42,7 +42,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
 int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
-		    const u8 *ie, size_t ie_len, u8 active_scan,
+		    struct cfg80211_scan_request *req, u8 active_scan,
 		    u8 high_prio, u8 band, u8 probe_requests);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 			    void *buf, size_t buf_len, int index, u32 rates);
@@ -439,24 +439,30 @@ struct wl1271_general_parms_cmd {
 
 	struct wl1271_cmd_test_header test;
 
-	u8 params[WL1271_NVS_GENERAL_PARAMS_SIZE];
-	s8 reserved[23];
-} __packed;
+	struct wl1271_ini_general_params general_params;
 
-#define WL1271_STAT_RADIO_PARAMS_5_SIZE    29
-#define WL1271_DYN_RADIO_PARAMS_5_SIZE    104
+	u8 sr_debug_table[WL1271_INI_MAX_SMART_REFLEX_PARAM];
+	u8 sr_sen_n_p;
+	u8 sr_sen_n_p_gain;
+	u8 sr_sen_nrn;
+	u8 sr_sen_prn;
+	u8 padding[3];
+} __packed;
 
 struct wl1271_radio_parms_cmd {
 	struct wl1271_cmd_header header;
 
 	struct wl1271_cmd_test_header test;
 
-	u8 stat_radio_params[WL1271_NVS_STAT_RADIO_PARAMS_SIZE];
-	u8 stat_radio_params_5[WL1271_STAT_RADIO_PARAMS_5_SIZE];
+	/* Static radio parameters */
+	struct wl1271_ini_band_params_2 static_params_2;
+	struct wl1271_ini_band_params_5 static_params_5;
 
-	u8 dyn_radio_params[WL1271_NVS_DYN_RADIO_PARAMS_SIZE];
-	u8 reserved;
-	u8 dyn_radio_params_5[WL1271_DYN_RADIO_PARAMS_5_SIZE];
+	/* Dynamic radio parameters */
+	struct wl1271_ini_fem_params_2 dyn_params_2;
+	u8 padding2;
+	struct wl1271_ini_fem_params_5 dyn_params_5;
+	u8 padding3[2];
 } __packed;
 
 struct wl1271_cmd_cal_channel_tune {

@@ -257,12 +257,15 @@ struct ath9k_htc_tx_ctl {
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
 
+#define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
+
 struct ath_tx_stats {
 	u32 buf_queued;
 	u32 buf_completed;
 	u32 skb_queued;
 	u32 skb_completed;
 	u32 skb_dropped;
+	u32 queue_stats[WME_NUM_AC];
 };
 
 struct ath_rx_stats {
@@ -285,6 +288,8 @@ struct ath9k_debug {
 
 #define TX_STAT_INC(c) do { } while (0)
 #define RX_STAT_INC(c) do { } while (0)
+
+#define TX_QSTAT_INC(c) do { } while (0)
 
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
@@ -390,13 +395,14 @@ struct ath9k_htc_priv {
 	int led_off_duration;
 	int led_on_cnt;
 	int led_off_cnt;
+
+	int beaconq;
+	int cabq;
 	int hwq_map[ATH9K_WME_AC_VO+1];
 
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 	struct ath9k_debug debug;
 #endif
-	struct ath9k_htc_target_rate tgt_rate;
-
 	struct mutex mutex;
 };
 
@@ -405,6 +411,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 	common->bus_ops->read_cachesize(common, csz);
 }
 
+void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv);
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif);
 void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending);
@@ -426,6 +433,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
 bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 			 enum ath9k_tx_queue_subtype qtype);
+int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);
 int get_hw_qnum(u16 queue, int *hwq_map);
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo);

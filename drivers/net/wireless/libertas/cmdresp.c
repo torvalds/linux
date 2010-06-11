@@ -17,6 +17,7 @@
 #include "dev.h"
 #include "assoc.h"
 #include "wext.h"
+#include "cmd.h"
 
 /**
  *  @brief This function handles disconnect event. it
@@ -341,32 +342,10 @@ done:
 	return ret;
 }
 
-static int lbs_send_confirmwake(struct lbs_private *priv)
-{
-	struct cmd_header cmd;
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	cmd.command = cpu_to_le16(CMD_802_11_WAKEUP_CONFIRM);
-	cmd.size = cpu_to_le16(sizeof(cmd));
-	cmd.seqnum = cpu_to_le16(++priv->seqnum);
-	cmd.result = 0;
-
-	lbs_deb_hex(LBS_DEB_HOST, "wake confirm", (u8 *) &cmd,
-		sizeof(cmd));
-
-	ret = priv->hw_host_to_card(priv, MVMS_CMD, (u8 *) &cmd, sizeof(cmd));
-	if (ret)
-		lbs_pr_alert("SEND_WAKEC_CMD: Host to Card failed for Confirm Wake\n");
-
-	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
-	return ret;
-}
-
 int lbs_process_event(struct lbs_private *priv, u32 event)
 {
 	int ret = 0;
+	struct cmd_header cmd;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
@@ -410,7 +389,10 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		if (priv->reset_deep_sleep_wakeup)
 			priv->reset_deep_sleep_wakeup(priv);
 		priv->is_deep_sleep = 0;
-		lbs_send_confirmwake(priv);
+		lbs_cmd_async(priv, CMD_802_11_WAKEUP_CONFIRM, &cmd,
+				sizeof(cmd));
+		priv->is_host_sleep_activated = 0;
+		wake_up_interruptible(&priv->host_sleep_q);
 		break;
 
 	case MACREG_INT_CODE_DEEP_SLEEP_AWAKE:

@@ -47,7 +47,7 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	/*
 	 * This skb 'survived' a round-trip through the driver, and
 	 * hopefully the driver didn't mangle it too badly. However,
-	 * we can definitely not rely on the the control information
+	 * we can definitely not rely on the control information
 	 * being correct. Clear it so we don't get junk there, and
 	 * indicate that it needs new processing, but must not be
 	 * modified/encrypted again.

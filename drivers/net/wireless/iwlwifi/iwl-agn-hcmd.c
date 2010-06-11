@@ -37,7 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-agn.h"
 
-static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl5000_rxon_assoc_cmd rxon_assoc;
@@ -84,7 +84,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
 	  .valid = cpu_to_le32(valid_tx_ant),
@@ -176,14 +176,6 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 		data->radio_write = 1;
 		data->state = IWL_CHAIN_NOISE_CALIBRATED;
 	}
-
-	data->chain_noise_a = 0;
-	data->chain_noise_b = 0;
-	data->chain_noise_c = 0;
-	data->chain_signal_a = 0;
-	data->chain_signal_b = 0;
-	data->chain_signal_c = 0;
-	data->beacon_count = 0;
 }
 
 static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
@@ -191,10 +183,20 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
-	if ((data->state == IWL_CHAIN_NOISE_ALIVE) && iwl_is_associated(priv)) {
+	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
+	     iwl_is_associated(priv)) {
 		struct iwl_calib_chain_noise_reset_cmd cmd;
-		memset(&cmd, 0, sizeof(cmd));
 
+		/* clear data for chain noise calibration algorithm */
+		data->chain_noise_a = 0;
+		data->chain_noise_b = 0;
+		data->chain_noise_c = 0;
+		data->chain_signal_a = 0;
+		data->chain_signal_b = 0;
+		data->chain_signal_c = 0;
+		data->beacon_count = 0;
+
+		memset(&cmd, 0, sizeof(cmd));
 		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;

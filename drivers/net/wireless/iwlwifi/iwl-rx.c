@@ -286,7 +286,7 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 			last_rx_noise);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 /*
  *  based on the assumption of all statistics counter are in DWORD
  *  FIXME: This function is for debugging, do not deal with
@@ -448,7 +448,7 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
 		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
 
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
 #endif
 	iwl_recover_from_statistics(priv, pkt);
@@ -480,7 +480,7 @@ void iwl_reply_statistics(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 		memset(&priv->accum_statistics, 0,
 			sizeof(struct iwl_notif_statistics));
 		memset(&priv->delta_statistics, 0,

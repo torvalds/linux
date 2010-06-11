@@ -43,11 +43,11 @@ static int wl1271_event_scan_complete(struct wl1271 *wl,
 			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
 			/* FIXME: ie missing! */
 			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
-						NULL, 0,
-						wl->scan.active,
-						wl->scan.high_prio,
-						WL1271_SCAN_BAND_5_GHZ,
-						wl->scan.probe_requests);
+					wl->scan.req,
+					wl->scan.active,
+					wl->scan.high_prio,
+					WL1271_SCAN_BAND_5_GHZ,
+					wl->scan.probe_requests);
 		} else {
 			mutex_unlock(&wl->mutex);
 			ieee80211_scan_completed(wl->hw, false);

@@ -136,6 +136,8 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_MAX_ANTENNA         3
 #define ATH_RXBUF               512
 #define ATH_TXBUF               512
+#define ATH_TXBUF_RESERVE       5
+#define ATH_MAX_QDEPTH          (ATH_TXBUF / 4 - ATH_TXBUF_RESERVE)
 #define ATH_TXMAXTRY            13
 #define ATH_MGT_TXMAXTRY        4
 
@@ -204,6 +206,71 @@ struct ath_txq {
 	struct list_head txq_fifo_pending;
 	u8 txq_headidx;
 	u8 txq_tailidx;
+	int pending_frames;
+};
+
+struct ath_atx_ac {
+	int sched;
+	int qnum;
+	struct list_head list;
+	struct list_head tid_q;
+};
+
+struct ath_buf_state {
+	int bfs_nframes;
+	u16 bfs_al;
+	u16 bfs_frmlen;
+	int bfs_seqno;
+	int bfs_tidno;
+	int bfs_retries;
+	u8 bf_type;
+	u32 bfs_keyix;
+	enum ath9k_key_type bfs_keytype;
+};
+
+struct ath_buf {
+	struct list_head list;
+	struct ath_buf *bf_lastbf;	/* last buf of this unit (a frame or
+					   an aggregate) */
+	struct ath_buf *bf_next;	/* next subframe in the aggregate */
+	struct sk_buff *bf_mpdu;	/* enclosing frame structure */
+	void *bf_desc;			/* virtual addr of desc */
+	dma_addr_t bf_daddr;		/* physical addr of desc */
+	dma_addr_t bf_buf_addr;		/* physical addr of data buffer */
+	bool bf_stale;
+	bool bf_isnullfunc;
+	bool bf_tx_aborted;
+	u16 bf_flags;
+	struct ath_buf_state bf_state;
+	dma_addr_t bf_dmacontext;
+	struct ath_wiphy *aphy;
+	struct ath_txq *txq;
+};
+
+struct ath_atx_tid {
+	struct list_head list;
+	struct list_head buf_q;
+	struct ath_node *an;
+	struct ath_atx_ac *ac;
+	struct ath_buf *tx_buf[ATH_TID_MAX_BUFS];
+	u16 seq_start;
+	u16 seq_next;
+	u16 baw_size;
+	int tidno;
+	int baw_head;   /* first un-acked tx buffer */
+	int baw_tail;   /* next unused tx buffer slot */
+	int sched;
+	int paused;
+	u8 state;
+};
+
+struct ath_node {
+	struct ath_common *common;
+	struct ath_atx_tid tid[WME_NUM_TID];
+	struct ath_atx_ac ac[WME_NUM_AC];
+	u16 maxampdu;
+	u8 mpdudensity;
+	int last_rssi;
 };
 
 #define AGGR_CLEANUP         BIT(1)
@@ -267,7 +334,6 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an);
 void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_init(struct ath_softc *sc, int nbufs);
 void ath_tx_cleanup(struct ath_softc *sc);
-struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb);
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *q);
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,

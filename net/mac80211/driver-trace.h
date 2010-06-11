@@ -219,6 +219,31 @@ TRACE_EVENT(drv_bss_info_changed,
 	)
 );
 
+TRACE_EVENT(drv_configure_arp_filter,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct in_ifaddr *ifa_list, int ret),
+
+	TP_ARGS(local, sdata, ifa_list, ret),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(int, ret)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->ret = ret;
+	),
+
+	TP_printk(
+		VIF_PR_FMT LOCAL_PR_FMT " ret:%d",
+		VIF_PR_ARG, LOCAL_PR_ARG, __entry->ret
+	)
+);
+
 TRACE_EVENT(drv_prepare_multicast,
 	TP_PROTO(struct ieee80211_local *local, int mc_count, u64 ret),
 
@@ -851,25 +876,23 @@ TRACE_EVENT(api_start_tx_ba_cb,
 );
 
 TRACE_EVENT(api_stop_tx_ba_session,
-	TP_PROTO(struct ieee80211_sta *sta, u16 tid, u16 initiator),
+	TP_PROTO(struct ieee80211_sta *sta, u16 tid),
 
-	TP_ARGS(sta, tid, initiator),
+	TP_ARGS(sta, tid),
 
 	TP_STRUCT__entry(
 		STA_ENTRY
 		__field(u16, tid)
-		__field(u16, initiator)
 	),
 
 	TP_fast_assign(
 		STA_ASSIGN;
 		__entry->tid = tid;
-		__entry->initiator = initiator;
 	),
 
 	TP_printk(
-		STA_PR_FMT " tid:%d initiator:%d",
-		STA_PR_ARG, __entry->tid, __entry->initiator
+		STA_PR_FMT " tid:%d",
+		STA_PR_ARG, __entry->tid
 	)
 );
 

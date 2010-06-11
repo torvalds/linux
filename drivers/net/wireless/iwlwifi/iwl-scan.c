@@ -333,7 +333,8 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		goto out_unlock;
 	}
 
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
+	if (test_bit(STATUS_SCANNING, &priv->status) &&
+	    !priv->is_internal_short_scan) {
 		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
 		ret = -EAGAIN;
 		goto out_unlock;
@@ -348,8 +349,16 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	/* mac80211 will only ask for one band at a time */
 	priv->scan_band = req->channels[0]->band;
 	priv->scan_request = req;
+	priv->scan_vif = vif;
 
-	ret = iwl_scan_initiate(priv, vif);
+	/*
+	 * If an internal scan is in progress, just set
+	 * up the scan_request as per above.
+	 */
+	if (priv->is_internal_short_scan)
+		ret = 0;
+	else
+		ret = iwl_scan_initiate(priv, vif);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
@@ -438,7 +447,7 @@ EXPORT_SYMBOL(iwl_bg_scan_check);
  */
 
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
-		       const u8 *ies, int ie_len, int left)
+		       const u8 *ta, const u8 *ies, int ie_len, int left)
 {
 	int len = 0;
 	u8 *pos = NULL;
@@ -451,7 +460,7 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
 	memcpy(frame->da, iwl_bcast_addr, ETH_ALEN);
-	memcpy(frame->sa, priv->mac_addr, ETH_ALEN);
+	memcpy(frame->sa, ta, ETH_ALEN);
 	memcpy(frame->bssid, iwl_bcast_addr, ETH_ALEN);
 	frame->seq_ctrl = 0;
 
@@ -513,7 +522,21 @@ void iwl_bg_scan_completed(struct work_struct *work)
 		priv->is_internal_short_scan = false;
 		IWL_DEBUG_SCAN(priv, "internal short scan completed\n");
 		internal = true;
+	} else {
+		priv->scan_request = NULL;
+		priv->scan_vif = NULL;
 	}
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		goto out;
+
+	if (internal && priv->scan_request)
+		iwl_scan_initiate(priv, priv->scan_vif);
+
+	/* Since setting the TXPOWER may have been deferred while
+	 * performing the scan, fire one off */
+	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+ out:
 	mutex_unlock(&priv->mutex);
 
 	/*
@@ -523,15 +546,6 @@ void iwl_bg_scan_completed(struct work_struct *work)
 	 */
 	if (!internal)
 		ieee80211_scan_completed(priv->hw, false);
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
-
-	/* Since setting the TXPOWER may have been deferred while
-	 * performing the scan, fire one off */
-	mutex_lock(&priv->mutex);
-	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
-	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL(iwl_bg_scan_completed);
 

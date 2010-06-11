@@ -68,7 +68,7 @@ struct dblock {
 } __packed;
 
 /*
- * Plug Data References are located in in the image after the last data
+ * Plug Data References are located in the image after the last data
  * block.  They refer to areas in the adapter memory where the plug data
  * items with matching ID should be written.
  */

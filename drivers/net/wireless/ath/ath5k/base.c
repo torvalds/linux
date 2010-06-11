@@ -195,7 +195,7 @@ static const struct ieee80211_rate ath5k_rates[] = {
 static int __devinit	ath5k_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
 static void __devexit	ath5k_pci_remove(struct pci_dev *pdev);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int		ath5k_pci_suspend(struct device *dev);
 static int		ath5k_pci_resume(struct device *dev);
 
@@ -203,7 +203,7 @@ static SIMPLE_DEV_PM_OPS(ath5k_pm_ops, ath5k_pci_suspend, ath5k_pci_resume);
 #define ATH5K_PM_OPS	(&ath5k_pm_ops)
 #else
 #define ATH5K_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver ath5k_pci_driver = {
 	.name		= KBUILD_MODNAME,
@@ -578,7 +578,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	spin_lock_init(&sc->block);
 
 	/* Set private data */
-	pci_set_drvdata(pdev, hw);
+	pci_set_drvdata(pdev, sc);
 
 	/* Setup interrupt handler */
 	ret = request_irq(pdev->irq, ath5k_intr, IRQF_SHARED, "ath", sc);
@@ -694,25 +694,23 @@ err:
 static void __devexit
 ath5k_pci_remove(struct pci_dev *pdev)
 {
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_softc *sc = pci_get_drvdata(pdev);
 
 	ath5k_debug_finish_device(sc);
-	ath5k_detach(pdev, hw);
+	ath5k_detach(pdev, sc->hw);
 	ath5k_hw_detach(sc->ah);
 	kfree(sc->ah);
 	free_irq(pdev->irq, sc);
 	pci_iounmap(pdev, sc->iobase);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
-	ieee80211_free_hw(hw);
+	ieee80211_free_hw(sc->hw);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ath5k_pci_suspend(struct device *dev)
 {
-	struct ieee80211_hw *hw = pci_get_drvdata(to_pci_dev(dev));
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_softc *sc = pci_get_drvdata(to_pci_dev(dev));
 
 	ath5k_led_off(sc);
 	return 0;
@@ -721,8 +719,7 @@ static int ath5k_pci_suspend(struct device *dev)
 static int ath5k_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_softc *sc = pci_get_drvdata(pdev);
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
@@ -734,7 +731,7 @@ static int ath5k_pci_resume(struct device *dev)
 	ath5k_led_enable(sc);
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 
 /***********************\
@@ -864,6 +861,8 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 
 	ath5k_init_leds(sc);
 
+	ath5k_sysfs_register(sc);
+
 	return 0;
 err_queues:
 	ath5k_txq_release(sc);
@@ -899,6 +898,7 @@ ath5k_detach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	ath5k_hw_release_tx_queue(sc->ah, sc->bhalq);
 	ath5k_unregister_leds(sc);
 
+	ath5k_sysfs_unregister(sc);
 	/*
 	 * NB: can't reclaim these until after ieee80211_ifdetach
 	 * returns because we'll get called back to reclaim node
@@ -2785,10 +2785,6 @@ ath5k_tasklet_calibrate(unsigned long data)
 	/* Only full calibration for now */
 	ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
 
-	/* Stop queues so that calibration
-	 * doesn't interfere with tx */
-	ieee80211_stop_queues(sc->hw);
-
 	ATH5K_DBG(sc, ATH5K_DEBUG_CALIBRATE, "channel %u/%x\n",
 		ieee80211_frequency_to_channel(sc->curchan->center_freq),
 		sc->curchan->hw_value);
@@ -2806,8 +2802,16 @@ ath5k_tasklet_calibrate(unsigned long data)
 			ieee80211_frequency_to_channel(
 				sc->curchan->center_freq));
 
-	/* Wake queues */
-	ieee80211_wake_queues(sc->hw);
+	/* Noise floor calibration interrupts rx/tx path while I/Q calibration
+	 * doesn't. We stop the queues so that calibration doesn't interfere
+	 * with TX and don't run it as often */
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_nf)) {
+		ah->ah_cal_next_nf = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_NF);
+		ieee80211_stop_queues(sc->hw);
+		ath5k_hw_update_noise_floor(ah);
+		ieee80211_wake_queues(sc->hw);
+	}
 
 	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
 }
@@ -2925,6 +2929,10 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	}
 
 	ath5k_ani_init(ah, ah->ah_sc->ani_state.ani_mode);
+
+	ah->ah_cal_next_full = jiffies;
+	ah->ah_cal_next_ani = jiffies;
+	ah->ah_cal_next_nf = jiffies;
 
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
@@ -3140,12 +3148,14 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS)) {
 		if (*new_flags & FIF_PROMISC_IN_BSS) {
-			rfilt |= AR5K_RX_FILTER_PROM;
 			__set_bit(ATH_STAT_PROMISC, sc->status);
 		} else {
 			__clear_bit(ATH_STAT_PROMISC, sc->status);
 		}
 	}
+
+	if (test_bit(ATH_STAT_PROMISC, sc->status))
+		rfilt |= AR5K_RX_FILTER_PROM;
 
 	/* Note, AR5K_RX_FILTER_MCAST is already enabled */
 	if (*new_flags & FIF_ALLMULTI) {

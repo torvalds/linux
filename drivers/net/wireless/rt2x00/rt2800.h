@@ -63,7 +63,6 @@
  */
 #define REV_RT2860C			0x0100
 #define REV_RT2860D			0x0101
-#define REV_RT2870D			0x0101
 #define REV_RT2872E			0x0200
 #define REV_RT3070E			0x0200
 #define REV_RT3070F			0x0201
@@ -97,6 +96,21 @@
 /*
  * Registers.
  */
+
+/*
+ * E2PROM_CSR: PCI EEPROM control register.
+ * RELOAD: Write 1 to reload eeprom content.
+ * TYPE: 0: 93c46, 1:93c66.
+ * LOAD_STATUS: 1:loading, 0:done.
+ */
+#define E2PROM_CSR			0x0004
+#define E2PROM_CSR_DATA_CLOCK		FIELD32(0x00000001)
+#define E2PROM_CSR_CHIP_SELECT		FIELD32(0x00000002)
+#define E2PROM_CSR_DATA_IN		FIELD32(0x00000004)
+#define E2PROM_CSR_DATA_OUT		FIELD32(0x00000008)
+#define E2PROM_CSR_TYPE			FIELD32(0x00000030)
+#define E2PROM_CSR_LOAD_STATUS		FIELD32(0x00000040)
+#define E2PROM_CSR_RELOAD		FIELD32(0x00000080)
 
 /*
  * OPT_14: Unknown register used by rt3xxx devices.
@@ -320,6 +334,39 @@
 #define RX_MAX_CNT			0x0294
 #define RX_CRX_IDX			0x0298
 #define RX_DRX_IDX			0x029c
+
+/*
+ * USB_DMA_CFG
+ * RX_BULK_AGG_TIMEOUT: Rx Bulk Aggregation TimeOut in unit of 33ns.
+ * RX_BULK_AGG_LIMIT: Rx Bulk Aggregation Limit in unit of 256 bytes.
+ * PHY_CLEAR: phy watch dog enable.
+ * TX_CLEAR: Clear USB DMA TX path.
+ * TXOP_HALT: Halt TXOP count down when TX buffer is full.
+ * RX_BULK_AGG_EN: Enable Rx Bulk Aggregation.
+ * RX_BULK_EN: Enable USB DMA Rx.
+ * TX_BULK_EN: Enable USB DMA Tx.
+ * EP_OUT_VALID: OUT endpoint data valid.
+ * RX_BUSY: USB DMA RX FSM busy.
+ * TX_BUSY: USB DMA TX FSM busy.
+ */
+#define USB_DMA_CFG			0x02a0
+#define USB_DMA_CFG_RX_BULK_AGG_TIMEOUT	FIELD32(0x000000ff)
+#define USB_DMA_CFG_RX_BULK_AGG_LIMIT	FIELD32(0x0000ff00)
+#define USB_DMA_CFG_PHY_CLEAR		FIELD32(0x00010000)
+#define USB_DMA_CFG_TX_CLEAR		FIELD32(0x00080000)
+#define USB_DMA_CFG_TXOP_HALT		FIELD32(0x00100000)
+#define USB_DMA_CFG_RX_BULK_AGG_EN	FIELD32(0x00200000)
+#define USB_DMA_CFG_RX_BULK_EN		FIELD32(0x00400000)
+#define USB_DMA_CFG_TX_BULK_EN		FIELD32(0x00800000)
+#define USB_DMA_CFG_EP_OUT_VALID	FIELD32(0x3f000000)
+#define USB_DMA_CFG_RX_BUSY		FIELD32(0x40000000)
+#define USB_DMA_CFG_TX_BUSY		FIELD32(0x80000000)
+
+/*
+ * US_CYC_CNT
+ */
+#define US_CYC_CNT			0x02a4
+#define US_CYC_CNT_CLOCK_CYCLE		FIELD32(0x000000ff)
 
 /*
  * PBF_SYS_CTRL

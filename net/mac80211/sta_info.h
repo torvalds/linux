@@ -120,6 +120,28 @@ struct tid_ampdu_rx {
 };
 
 /**
+ * struct sta_ampdu_mlme - STA aggregation information.
+ *
+ * @tid_active_rx: TID's state in Rx session state machine.
+ * @tid_rx: aggregation info for Rx per TID
+ * @tid_state_tx: TID's state in Tx session state machine.
+ * @tid_tx: aggregation info for Tx per TID
+ * @addba_req_num: number of times addBA request has been sent.
+ * @dialog_token_allocator: dialog token enumerator for each new session;
+ */
+struct sta_ampdu_mlme {
+	/* rx */
+	bool tid_active_rx[STA_TID_NUM];
+	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
+	/* tx */
+	u8 tid_state_tx[STA_TID_NUM];
+	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
+	u8 addba_req_num[STA_TID_NUM];
+	u8 dialog_token_allocator;
+};
+
+
+/**
  * enum plink_state - state of a mesh peer link finite state machine
  *
  * @PLINK_LISTEN: initial state, considered the implicit state of non existant
@@ -141,28 +163,6 @@ enum plink_state {
 	PLINK_HOLDING,
 	PLINK_BLOCKED
 };
-
-/**
- * struct sta_ampdu_mlme - STA aggregation information.
- *
- * @tid_active_rx: TID's state in Rx session state machine.
- * @tid_rx: aggregation info for Rx per TID
- * @tid_state_tx: TID's state in Tx session state machine.
- * @tid_tx: aggregation info for Tx per TID
- * @addba_req_num: number of times addBA request has been sent.
- * @dialog_token_allocator: dialog token enumerator for each new session;
- */
-struct sta_ampdu_mlme {
-	/* rx */
-	bool tid_active_rx[STA_TID_NUM];
-	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
-	/* tx */
-	u8 tid_state_tx[STA_TID_NUM];
-	struct tid_ampdu_tx *tid_tx[STA_TID_NUM];
-	u8 addba_req_num[STA_TID_NUM];
-	u8 dialog_token_allocator;
-};
-
 
 /**
  * struct sta_info - STA information

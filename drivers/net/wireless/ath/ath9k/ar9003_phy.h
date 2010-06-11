@@ -483,10 +483,10 @@
 #define AR_PHY_TX_IQCAL_STATUS_B0   (AR_SM_BASE + 0x48c)
 #define AR_PHY_TX_IQCAL_CORR_COEFF_01_B0    (AR_SM_BASE + 0x450)
 
-#define AR_PHY_PANIC_WD_STATUS      (AR_SM_BASE + 0x5c0)
-#define AR_PHY_PANIC_WD_CTL_1       (AR_SM_BASE + 0x5c4)
-#define AR_PHY_PANIC_WD_CTL_2       (AR_SM_BASE + 0x5c8)
-#define AR_PHY_BT_CTL               (AR_SM_BASE + 0x5cc)
+#define AR_PHY_WATCHDOG_STATUS      (AR_SM_BASE + 0x5c0)
+#define AR_PHY_WATCHDOG_CTL_1       (AR_SM_BASE + 0x5c4)
+#define AR_PHY_WATCHDOG_CTL_2       (AR_SM_BASE + 0x5c8)
+#define AR_PHY_WATCHDOG_CTL         (AR_SM_BASE + 0x5cc)
 #define AR_PHY_ONLY_WARMRESET       (AR_SM_BASE + 0x5d0)
 #define AR_PHY_ONLY_CTL             (AR_SM_BASE + 0x5d4)
 #define AR_PHY_ECO_CTRL             (AR_SM_BASE + 0x5dc)
@@ -812,35 +812,35 @@
 #define AR_PHY_CAL_MEAS_2_9300_10(_i) (AR_PHY_IQ_ADC_MEAS_2_B0_9300_10 + (AR_PHY_CHAIN_OFFSET * (_i)))
 #define AR_PHY_CAL_MEAS_3_9300_10(_i) (AR_PHY_IQ_ADC_MEAS_3_B0_9300_10 + (AR_PHY_CHAIN_OFFSET * (_i)))
 
-#define AR_PHY_BB_PANIC_NON_IDLE_ENABLE 0x00000001
-#define AR_PHY_BB_PANIC_IDLE_ENABLE     0x00000002
-#define AR_PHY_BB_PANIC_IDLE_MASK       0xFFFF0000
-#define AR_PHY_BB_PANIC_NON_IDLE_MASK   0x0000FFFC
+#define AR_PHY_WATCHDOG_NON_IDLE_ENABLE    0x00000001
+#define AR_PHY_WATCHDOG_IDLE_ENABLE        0x00000002
+#define AR_PHY_WATCHDOG_IDLE_MASK          0xFFFF0000
+#define AR_PHY_WATCHDOG_NON_IDLE_MASK      0x0000FFFC
 
-#define AR_PHY_BB_PANIC_RST_ENABLE      0x00000002
-#define AR_PHY_BB_PANIC_IRQ_ENABLE      0x00000004
-#define AR_PHY_BB_PANIC_CNTL2_MASK      0xFFFFFFF9
+#define AR_PHY_WATCHDOG_RST_ENABLE         0x00000002
+#define AR_PHY_WATCHDOG_IRQ_ENABLE         0x00000004
+#define AR_PHY_WATCHDOG_CNTL2_MASK         0xFFFFFFF9
 
-#define AR_PHY_BB_WD_STATUS             0x00000007
-#define AR_PHY_BB_WD_STATUS_S           0
-#define AR_PHY_BB_WD_DET_HANG           0x00000008
-#define AR_PHY_BB_WD_DET_HANG_S         3
-#define AR_PHY_BB_WD_RADAR_SM           0x000000F0
-#define AR_PHY_BB_WD_RADAR_SM_S         4
-#define AR_PHY_BB_WD_RX_OFDM_SM         0x00000F00
-#define AR_PHY_BB_WD_RX_OFDM_SM_S       8
-#define AR_PHY_BB_WD_RX_CCK_SM          0x0000F000
-#define AR_PHY_BB_WD_RX_CCK_SM_S        12
-#define AR_PHY_BB_WD_TX_OFDM_SM         0x000F0000
-#define AR_PHY_BB_WD_TX_OFDM_SM_S       16
-#define AR_PHY_BB_WD_TX_CCK_SM          0x00F00000
-#define AR_PHY_BB_WD_TX_CCK_SM_S        20
-#define AR_PHY_BB_WD_AGC_SM             0x0F000000
-#define AR_PHY_BB_WD_AGC_SM_S           24
-#define AR_PHY_BB_WD_SRCH_SM            0xF0000000
-#define AR_PHY_BB_WD_SRCH_SM_S          28
+#define AR_PHY_WATCHDOG_INFO               0x00000007
+#define AR_PHY_WATCHDOG_INFO_S             0
+#define AR_PHY_WATCHDOG_DET_HANG           0x00000008
+#define AR_PHY_WATCHDOG_DET_HANG_S         3
+#define AR_PHY_WATCHDOG_RADAR_SM           0x000000F0
+#define AR_PHY_WATCHDOG_RADAR_SM_S         4
+#define AR_PHY_WATCHDOG_RX_OFDM_SM         0x00000F00
+#define AR_PHY_WATCHDOG_RX_OFDM_SM_S       8
+#define AR_PHY_WATCHDOG_RX_CCK_SM          0x0000F000
+#define AR_PHY_WATCHDOG_RX_CCK_SM_S        12
+#define AR_PHY_WATCHDOG_TX_OFDM_SM         0x000F0000
+#define AR_PHY_WATCHDOG_TX_OFDM_SM_S       16
+#define AR_PHY_WATCHDOG_TX_CCK_SM          0x00F00000
+#define AR_PHY_WATCHDOG_TX_CCK_SM_S        20
+#define AR_PHY_WATCHDOG_AGC_SM             0x0F000000
+#define AR_PHY_WATCHDOG_AGC_SM_S           24
+#define AR_PHY_WATCHDOG_SRCH_SM            0xF0000000
+#define AR_PHY_WATCHDOG_SRCH_SM_S          28
 
-#define AR_PHY_BB_WD_STATUS_CLR         0x00000008
+#define AR_PHY_WATCHDOG_STATUS_CLR         0x00000008
 
 void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 

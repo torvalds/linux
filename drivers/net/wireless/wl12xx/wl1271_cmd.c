@@ -212,8 +212,8 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
-	memcpy(gen_parms->params, wl->nvs->general_params,
-	       WL1271_NVS_GENERAL_PARAMS_SIZE);
+	memcpy(&gen_parms->general_params, &wl->nvs->general_params,
+	       sizeof(struct wl1271_ini_general_params));
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
 	if (ret < 0)
@@ -238,13 +238,20 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
-	memcpy(radio_parms->stat_radio_params, wl->nvs->stat_radio_params,
-	       WL1271_NVS_STAT_RADIO_PARAMS_SIZE);
-	memcpy(radio_parms->dyn_radio_params,
-	       wl->nvs->dyn_radio_params[rparam->fem],
-	       WL1271_NVS_DYN_RADIO_PARAMS_SIZE);
+	/* 2.4GHz parameters */
+	memcpy(&radio_parms->static_params_2, &wl->nvs->stat_radio_params_2,
+	       sizeof(struct wl1271_ini_band_params_2));
+	memcpy(&radio_parms->dyn_params_2,
+	       &wl->nvs->dyn_radio_params_2[rparam->fem].params,
+	       sizeof(struct wl1271_ini_fem_params_2));
 
-	/* FIXME: current NVS is missing 5GHz parameters */
+	/* 5GHz parameters */
+	memcpy(&radio_parms->static_params_5,
+	       &wl->nvs->stat_radio_params_5,
+	       sizeof(struct wl1271_ini_band_params_5));
+	memcpy(&radio_parms->dyn_params_5,
+	       &wl->nvs->dyn_radio_params_5[rparam->fem].params,
+	       sizeof(struct wl1271_ini_fem_params_5));
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));
@@ -329,12 +336,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->channel = wl->channel;
 	join->ssid_len = wl->ssid_len;
 	memcpy(join->ssid, wl->ssid, wl->ssid_len);
-	join->ctrl = WL1271_JOIN_CMD_CTRL_TX_FLUSH;
-
-	/* increment the session counter */
-	wl->session_counter++;
-	if (wl->session_counter >= SESSION_COUNTER_MAX)
-		wl->session_counter = 0;
 
 	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
 
@@ -517,7 +518,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 	ps_params->send_null_data = send;
 	ps_params->retries = 5;
 	ps_params->hang_over_period = 1;
-	ps_params->null_data_rate = cpu_to_le32(1); /* 1 Mbps */
+	ps_params->null_data_rate = cpu_to_le32(wl->basic_rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
 			      sizeof(*ps_params), 0);
@@ -567,7 +568,7 @@ out:
 }
 
 int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
-		    const u8 *ie, size_t ie_len, u8 active_scan,
+		    struct cfg80211_scan_request *req, u8 active_scan,
 		    u8 high_prio, u8 band, u8 probe_requests)
 {
 
@@ -648,7 +649,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	}
 
 	ret = wl1271_cmd_build_probe_req(wl, ssid, ssid_len,
-					 ie, ie_len, ieee_band);
+					 req->ie, req->ie_len, ieee_band);
 	if (ret < 0) {
 		wl1271_error("PROBE request template failed");
 		goto out;
@@ -684,7 +685,9 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 				memcpy(wl->scan.ssid, ssid, ssid_len);
 			} else
 				wl->scan.ssid_len = 0;
-		}
+			wl->scan.req = req;
+		} else
+			wl->scan.req = NULL;
 	}
 
 	ret = wl1271_cmd_send(wl, CMD_SCAN, params, sizeof(*params), 0);

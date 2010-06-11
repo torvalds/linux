@@ -648,14 +648,6 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	if (sta->key) {
 		ieee80211_key_free(sta->key);
-		/*
-		 * We have only unlinked the key, and actually destroying it
-		 * may mean it is removed from hardware which requires that
-		 * the key->sta pointer is still valid, so flush the key todo
-		 * list here.
-		 */
-		ieee80211_key_todo();
-
 		WARN_ON(sta->key);
 	}
 

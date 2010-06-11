@@ -19,6 +19,7 @@
 #include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
+#include <linux/inetdevice.h>
 #include <net/cfg80211.h>
 
 /**
@@ -312,8 +313,9 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
-#define IEEE80211_TX_CTL_STBC_SHIFT		23
 };
+
+#define IEEE80211_TX_CTL_STBC_SHIFT		23
 
 /**
  * enum mac80211_rate_control_flags - per-rate flags set by the
@@ -412,8 +414,6 @@ struct ieee80211_tx_rate {
  * @driver_data: array of driver_data pointers
  * @ampdu_ack_len: number of acked aggregated frames.
  * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
- * @ampdu_ack_map: block ack bit map for the aggregation.
- * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ampdu_len: number of aggregated frames.
  * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ack_signal: signal strength of the ACK frame
@@ -448,10 +448,9 @@ struct ieee80211_tx_info {
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
 			u8 ampdu_ack_len;
-			u64 ampdu_ack_map;
 			int ack_signal;
 			u8 ampdu_len;
-			/* 7 bytes free */
+			/* 15 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
@@ -815,7 +814,6 @@ enum ieee80211_key_flags {
  *	encrypted in hardware.
  * @alg: The key algorithm.
  * @flags: key flags, see &enum ieee80211_key_flags.
- * @ap_addr: AP's MAC address
  * @keyidx: the key index (0-3)
  * @keylen: key material length
  * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
@@ -881,16 +879,12 @@ struct ieee80211_sta {
  * enum sta_notify_cmd - sta notify command
  *
  * Used with the sta_notify() callback in &struct ieee80211_ops, this
- * indicates addition and removal of a station to station table,
- * or if a associated station made a power state transition.
+ * indicates if an associated station made a power state transition.
  *
- * @STA_NOTIFY_ADD: (DEPRECATED) a station was added to the station table
- * @STA_NOTIFY_REMOVE: (DEPRECATED) a station being removed from the station table
  * @STA_NOTIFY_SLEEP: a station is now sleeping
  * @STA_NOTIFY_AWAKE: a sleeping station woke up
  */
 enum sta_notify_cmd {
-	STA_NOTIFY_ADD, STA_NOTIFY_REMOVE,
 	STA_NOTIFY_SLEEP, STA_NOTIFY_AWAKE,
 };
 
@@ -1535,6 +1529,16 @@ enum ieee80211_ampdu_mlme_action {
  *	of the bss parameters has changed when a call is made. The callback
  *	can sleep.
  *
+ * @configure_arp_filter: Configuration function for hardware ARP query filter.
+ *	This function is called with all the IP addresses configured to the
+ *	interface as argument - all ARP queries targeted to any of these
+ *	addresses must pass through. If the hardware filter does not support
+ *	enought addresses, hardware filtering must be disabled. The ifa_list
+ *	argument may be NULL, indicating that filtering must be disabled.
+ *	This function is called upon association complete with current
+ *	address(es), and while associated whenever the IP address(es) change.
+ *	The callback can sleep.
+ *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
  *	to configure_filter(). This callback must be atomic.
@@ -1674,6 +1678,9 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+	int (*configure_arp_filter)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct in_ifaddr *ifa_list);
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
@@ -2334,16 +2341,14 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
  * ieee80211_stop_tx_ba_session - Stop a Block Ack session.
  * @sta: the station whose BA session to stop
  * @tid: the TID to stop BA.
- * @initiator: if indicates initiator DELBA frame will be sent.
  *
- * Return: error if no sta with matching da found, success otherwise
+ * Return: negative error if the TID is invalid, or no aggregation active
  *
  * Although mac80211/low level driver/user space application can estimate
  * the need to stop aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
-				 enum ieee80211_back_parties initiator);
+int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
  * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
