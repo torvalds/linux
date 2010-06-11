@@ -120,7 +120,6 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	unsigned long flags;
 	int ret;
 
-
 	rcu_read_lock();
 	conn = rds_conn_lookup(head, laddr, faddr, trans);
 	if (conn && conn->c_loopback && conn->c_trans != &rds_loop_transport &&

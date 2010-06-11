@@ -349,7 +349,6 @@ static struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev)
 			 IB_ACCESS_REMOTE_READ |
 			 IB_ACCESS_REMOTE_WRITE|
 			 IB_ACCESS_REMOTE_ATOMIC),
-
 			&pool->fmr_attr);
 	if (IS_ERR(ibmr->fmr)) {
 		err = PTR_ERR(ibmr->fmr);
