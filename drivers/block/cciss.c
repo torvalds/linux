@@ -213,6 +213,7 @@ static void cciss_hba_release(struct device *dev);
 static void cciss_device_release(struct device *dev);
 static void cciss_free_gendisk(ctlr_info_t *h, int drv_index);
 static void cciss_free_drive_info(ctlr_info_t *h, int drv_index);
+static inline u32 next_command(ctlr_info_t *h);
 
 /* performant mode helper functions */
 static void  calc_bucket_map(int *bucket, int num_buckets, int nsgs,
@@ -373,28 +374,6 @@ static const char *raid_label[] = { "0", "4", "1(1+0)", "5", "5+1", "ADG",
 #define RAID_UNKNOWN (sizeof(raid_label) / sizeof(raid_label[0])-1)
 
 #ifdef CONFIG_PROC_FS
-
-static inline u32 next_command(ctlr_info_t *h)
-{
-	u32 a;
-
-	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
-		return h->access.command_completed(h);
-
-	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
-		a = *(h->reply_pool_head); /* Next cmd in ring buffer */
-		(h->reply_pool_head)++;
-		h->commands_outstanding--;
-	} else {
-		a = FIFO_EMPTY;
-	}
-	/* Check for wraparound */
-	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
-		h->reply_pool_head = h->reply_pool;
-		h->reply_pool_wraparound ^= 1;
-	}
-	return a;
-}
 
 /*
  * Report information about this controller.
@@ -3409,6 +3388,28 @@ static inline void finish_cmd(ctlr_info_t *h, CommandList_struct *c,
 	else if (c->cmd_type == CMD_SCSI)
 		complete_scsi_command(c, 0, raw_tag);
 #endif
+}
+
+static inline u32 next_command(ctlr_info_t *h)
+{
+	u32 a;
+
+	if (unlikely(h->transMethod != CFGTBL_Trans_Performant))
+		return h->access.command_completed(h);
+
+	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
+		a = *(h->reply_pool_head); /* Next cmd in ring buffer */
+		(h->reply_pool_head)++;
+		h->commands_outstanding--;
+	} else {
+		a = FIFO_EMPTY;
+	}
+	/* Check for wraparound */
+	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
+		h->reply_pool_head = h->reply_pool;
+		h->reply_pool_wraparound ^= 1;
+	}
+	return a;
 }
 
 /* process completion of an indexed ("direct lookup") command */
