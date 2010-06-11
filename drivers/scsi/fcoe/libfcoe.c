@@ -871,7 +871,8 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	size_t els_len = 0;
 	size_t rlen;
 	size_t dlen;
-	u32 dupl_desc = 0;
+	u32 desc_mask = 0;
+	u32 desc_cnt = 0;
 
 	fiph = (struct fip_header *)skb->data;
 	sub = fiph->fip_subcode;
@@ -884,20 +885,27 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 
 	desc = (struct fip_desc *)(fiph + 1);
 	while (rlen > 0) {
+		desc_cnt++;
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen < sizeof(*desc) || dlen > rlen)
 			goto drop;
 		/* Drop ELS if there are duplicate critical descriptors */
 		if (desc->fip_dtype < 32) {
-			if (dupl_desc & 1U << desc->fip_dtype) {
+			if (desc_mask & 1U << desc->fip_dtype) {
 				LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
 						"Descriptors in FIP ELS\n");
 				goto drop;
 			}
-			dupl_desc |= (1 << desc->fip_dtype);
+			desc_mask |= (1 << desc->fip_dtype);
 		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_MAC:
+			if (desc_cnt == 1) {
+				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
+						"received out of order\n");
+				goto drop;
+			}
+
 			if (dlen != sizeof(struct fip_mac_desc))
 				goto len_err;
 			memcpy(granted_mac,
@@ -914,6 +922,11 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		case FIP_DT_FDISC:
 		case FIP_DT_LOGO:
 		case FIP_DT_ELP:
+			if (desc_cnt != 1) {
+				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
+						"received out of order\n");
+				goto drop;
+			}
 			if (fh)
 				goto drop;
 			if (dlen < sizeof(*els) + sizeof(*fh) + 1)
@@ -929,6 +942,11 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				goto drop;
+			if (desc_cnt <= 2) {
+				LIBFCOE_FIP_DBG(fip, "FIP descriptors "
+						"received out of order\n");
+				goto drop;
+			}
 			break;
 		}
 		desc = (struct fip_desc *)((char *)desc + dlen);
@@ -943,6 +961,13 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	    fip->flogi_oxid == ntohs(fh->fh_ox_id) &&
 	    els_op == ELS_LS_ACC && is_valid_ether_addr(granted_mac))
 		fip->flogi_oxid = FC_XID_UNKNOWN;
+
+	if ((desc_cnt == 0) || ((els_op != ELS_LS_RJT) &&
+	    (!(1U << FIP_DT_MAC & desc_mask)))) {
+		LIBFCOE_FIP_DBG(fip, "Missing critical descriptors "
+				"in FIP ELS\n");
+		goto drop;
+	}
 
 	/*
 	 * Convert skb into an fc_frame containing only the ELS.
