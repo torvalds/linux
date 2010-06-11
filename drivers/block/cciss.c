@@ -4483,18 +4483,18 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	/* make sure the board interrupts are off */
 	hba[i]->access.set_intr_mask(hba[i], CCISS_INTR_OFF);
 	if (hba[i]->msi_vector || hba[i]->msix_vector) {
-		if (request_irq(hba[i]->intr[SIMPLE_MODE_INT],
+		if (request_irq(hba[i]->intr[PERF_MODE_INT],
 				do_cciss_msix_intr,
 				IRQF_DISABLED, hba[i]->devname, hba[i])) {
 			printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
-			       hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
+			       hba[i]->intr[PERF_MODE_INT], hba[i]->devname);
 			goto clean2;
 		}
 	} else {
-		if (request_irq(hba[i]->intr[SIMPLE_MODE_INT], do_cciss_intx,
+		if (request_irq(hba[i]->intr[PERF_MODE_INT], do_cciss_intx,
 				IRQF_DISABLED, hba[i]->devname, hba[i])) {
 			printk(KERN_ERR "cciss: Unable to get irq %d for %s\n",
-			       hba[i]->intr[SIMPLE_MODE_INT], hba[i]->devname);
+			       hba[i]->intr[PERF_MODE_INT], hba[i]->devname);
 			goto clean2;
 		}
 	}
