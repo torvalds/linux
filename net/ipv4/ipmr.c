@@ -267,8 +267,10 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 {
 	struct mr_table *mrt, *next;
 
-	list_for_each_entry_safe(mrt, next, &net->ipv4.mr_tables, list)
+	list_for_each_entry_safe(mrt, next, &net->ipv4.mr_tables, list) {
+		list_del(&mrt->list);
 		kfree(mrt);
+	}
 	fib_rules_unregister(net->ipv4.mr_rules_ops);
 }
 #else
