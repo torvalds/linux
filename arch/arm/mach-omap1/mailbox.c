@@ -83,7 +83,7 @@ static int omap1_mbox_fifo_full(struct omap_mbox *mbox)
 	struct omap_mbox1_fifo *fifo =
 		&((struct omap_mbox1_priv *)mbox->priv)->rx_fifo;
 
-	return (mbox_read_reg(fifo->flag));
+	return mbox_read_reg(fifo->flag);
 }
 
 /* irq */

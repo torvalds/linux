@@ -131,7 +131,7 @@ static int omap2_mbox_startup(struct omap_mbox *mbox)
 	}
 
 	l = mbox_read_reg(MAILBOX_REVISION);
-	pr_info("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
+	pr_debug("omap mailbox rev %d.%d\n", (l & 0xf0) >> 4, (l & 0x0f));
 
 	if (cpu_is_omap44xx())
 		l = OMAP4_SMARTIDLE;
@@ -300,8 +300,6 @@ static struct omap_mbox2_priv omap2_mbox_dsp_priv = {
 	.irqdisable	= MAILBOX_IRQENABLE(0),
 };
 
-
-
 /* OMAP4 specific data structure. Use the cpu_is_omap4xxx()
 to use this*/
 static struct omap_mbox2_priv omap2_mbox_1_priv = {
@@ -356,7 +354,6 @@ struct omap_mbox mbox_2_info = {
 	.priv	= &omap2_mbox_2_priv,
 };
 EXPORT_SYMBOL(mbox_2_info);
-
 
 #if defined(CONFIG_ARCH_OMAP2420) /* IVA */
 static struct omap_mbox2_priv omap2_mbox_iva_priv = {
@@ -442,6 +439,11 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 	}
 #endif
 	return 0;
+
+#if defined(CONFIG_ARCH_OMAP2420) /* IVA */
+err_iva1:
+	omap_mbox_unregister(&mbox_dsp_info);
+#endif
 
 err_dsp:
 	iounmap(mbox_base);

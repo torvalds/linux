@@ -73,12 +73,10 @@ static inline void omap_init_rtc(void) {}
 #  define INT_DSP_MAILBOX1	INT_1610_DSP_MAILBOX1
 #endif
 
-#define OMAP1_MBOX_BASE		OMAP16XX_MAILBOX_BASE
-
 static struct resource mbox_resources[] = {
 	{
-		.start		= OMAP1_MBOX_BASE,
-		.end		= OMAP1_MBOX_BASE + OMAP1_MBOX_SIZE,
+		.start		= OMAP16XX_MAILBOX_BASE,
+		.end		= OMAP16XX_MAILBOX_BASE + OMAP1_MBOX_SIZE,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
