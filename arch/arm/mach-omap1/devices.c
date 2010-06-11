@@ -82,6 +82,7 @@ static struct resource mbox_resources[] = {
 	{
 		.start		= INT_DSP_MAILBOX1,
 		.flags		= IORESOURCE_IRQ,
+		.name		= "dsp",
 	},
 };
 
