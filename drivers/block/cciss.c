@@ -4150,6 +4150,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c, struct pci_dev *pdev)
 #ifdef CCISS_DEBUG
 	printk(KERN_WARNING "Trying to put board into Performant mode\n");
 #endif				/* CCISS_DEBUG */
+	cciss_put_controller_into_performant_mode(c);
 	return 0;
 
 err_out_free_res:
@@ -4158,7 +4159,6 @@ err_out_free_res:
 	 * Smart Array controllers that pci_enable_device does not undo
 	 */
 	pci_release_regions(pdev);
-	cciss_put_controller_into_performant_mode(c);
 	return err;
 }
 
