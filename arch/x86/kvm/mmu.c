@@ -1216,6 +1216,7 @@ static void kvm_mmu_commit_zap_page(struct kvm *kvm,
 		if ((sp)->gfn != (gfn) || (sp)->role.direct ||		\
 			(sp)->role.invalid) {} else
 
+/* @sp->gfn should be write-protected at the call site */
 static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			   struct list_head *invalid_list, bool clear_unsync)
 {
@@ -1224,11 +1225,8 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		return 1;
 	}
 
-	if (clear_unsync) {
-		if (rmap_write_protect(vcpu->kvm, sp->gfn))
-			kvm_flush_remote_tlbs(vcpu->kvm);
+	if (clear_unsync)
 		kvm_unlink_unsync_page(vcpu->kvm, sp);
-	}
 
 	if (vcpu->arch.mmu.sync_page(vcpu, sp)) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
