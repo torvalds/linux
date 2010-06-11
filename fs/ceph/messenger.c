@@ -657,7 +657,7 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
 
-	con->out_connect.features = CEPH_FEATURE_SUPPORTED_CLIENT;
+	con->out_connect.features = cpu_to_le64(CEPH_FEATURE_SUPPORTED_CLIENT);
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
