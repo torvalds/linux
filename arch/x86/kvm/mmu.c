@@ -1160,9 +1160,11 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 					return -ENOSPC;
 
 				ret = __mmu_unsync_walk(child, pvec);
-				if (!ret)
+				if (!ret) {
 					__clear_bit(i, sp->unsync_child_bitmap);
-				else if (ret > 0)
+					sp->unsync_children--;
+					WARN_ON((int)sp->unsync_children < 0);
+				} else if (ret > 0)
 					nr_unsync_leaf += ret;
 				else
 					return ret;
@@ -1176,8 +1178,6 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 		}
 	}
 
-	if (find_first_bit(sp->unsync_child_bitmap, 512) == 512)
-		sp->unsync_children = 0;
 
 	return nr_unsync_leaf;
 }
