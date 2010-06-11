@@ -703,7 +703,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				return -EINVAL;
-			continue;
+			break;
 		}
 		desc = (struct fip_desc *)((char *)desc + dlen);
 		rlen -= dlen;
@@ -885,7 +885,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 			/* standard says ignore unknown descriptors >= 128 */
 			if (desc->fip_dtype < FIP_DT_VENDOR_BASE)
 				goto drop;
-			continue;
+			break;
 		}
 		desc = (struct fip_desc *)((char *)desc + dlen);
 		rlen -= dlen;
