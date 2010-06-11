@@ -527,6 +527,7 @@ struct rds_connection *rds_conn_create(__be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp);
 struct rds_connection *rds_conn_create_outgoing(__be32 laddr, __be32 faddr,
 			       struct rds_transport *trans, gfp_t gfp);
+void rds_conn_shutdown(struct rds_connection *conn);
 void rds_conn_destroy(struct rds_connection *conn);
 void rds_conn_reset(struct rds_connection *conn);
 void rds_conn_drop(struct rds_connection *conn);
@@ -681,6 +682,7 @@ extern unsigned int  rds_sysctl_trace_level;
 int __init rds_threads_init(void);
 void rds_threads_exit(void);
 extern struct workqueue_struct *rds_wq;
+void rds_queue_reconnect(struct rds_connection *conn);
 void rds_connect_worker(struct work_struct *);
 void rds_shutdown_worker(struct work_struct *);
 void rds_send_worker(struct work_struct *);
