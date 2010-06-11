@@ -3,9 +3,10 @@
 #ifndef MAILBOX_H
 #define MAILBOX_H
 
-#include <linux/wait.h>
+#include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/device.h>
 #include <linux/kfifo.h>
 
 typedef u32 mbox_msg_t;
