@@ -257,13 +257,13 @@ static void sh_pmu_read(struct perf_event *event)
 	sh_perf_event_update(event, &event->hw, event->hw.idx);
 }
 
-static const struct pmu pmu = {
+static struct pmu pmu = {
 	.enable		= sh_pmu_enable,
 	.disable	= sh_pmu_disable,
 	.read		= sh_pmu_read,
 };
 
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+struct pmu *hw_perf_event_init(struct perf_event *event)
 {
 	int err = __hw_perf_event_init(event);
 	if (unlikely(err)) {

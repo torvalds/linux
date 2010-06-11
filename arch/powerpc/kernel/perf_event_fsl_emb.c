@@ -428,7 +428,7 @@ static int hw_perf_cache_event(u64 config, u64 *eventp)
 	return 0;
 }
 
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+struct pmu *hw_perf_event_init(struct perf_event *event)
 {
 	u64 ev;
 	struct perf_event *events[MAX_HWEVENTS];

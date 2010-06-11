@@ -578,19 +578,19 @@ struct pmu {
 	 * Start the transaction, after this ->enable() doesn't need
 	 * to do schedulability tests.
 	 */
-	void (*start_txn)	(const struct pmu *pmu);
+	void (*start_txn)	(struct pmu *pmu);
 	/*
 	 * If ->start_txn() disabled the ->enable() schedulability test
 	 * then ->commit_txn() is required to perform one. On success
 	 * the transaction is closed. On error the transaction is kept
 	 * open until ->cancel_txn() is called.
 	 */
-	int  (*commit_txn)	(const struct pmu *pmu);
+	int  (*commit_txn)	(struct pmu *pmu);
 	/*
 	 * Will cancel the transaction, assumes ->disable() is called for
 	 * each successfull ->enable() during the transaction.
 	 */
-	void (*cancel_txn)	(const struct pmu *pmu);
+	void (*cancel_txn)	(struct pmu *pmu);
 };
 
 /**
@@ -669,7 +669,7 @@ struct perf_event {
 	int				nr_siblings;
 	int				group_flags;
 	struct perf_event		*group_leader;
-	const struct pmu		*pmu;
+	struct pmu		*pmu;
 
 	enum perf_event_active_state	state;
 	unsigned int			attach_state;
@@ -849,7 +849,7 @@ struct perf_output_handle {
  */
 extern int perf_max_events;
 
-extern const struct pmu *hw_perf_event_init(struct perf_event *event);
+extern struct pmu *hw_perf_event_init(struct perf_event *event);
 
 extern void perf_event_task_sched_in(struct task_struct *task);
 extern void perf_event_task_sched_out(struct task_struct *task, struct task_struct *next);

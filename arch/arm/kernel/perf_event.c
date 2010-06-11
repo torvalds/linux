@@ -491,7 +491,7 @@ __hw_perf_event_init(struct perf_event *event)
 	return err;
 }
 
-const struct pmu *
+struct pmu *
 hw_perf_event_init(struct perf_event *event)
 {
 	int err = 0;

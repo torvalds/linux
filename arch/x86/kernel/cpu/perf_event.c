@@ -618,7 +618,7 @@ static void x86_pmu_enable_all(int added)
 	}
 }
 
-static const struct pmu pmu;
+static struct pmu pmu;
 
 static inline int is_x86_event(struct perf_event *event)
 {
@@ -1427,7 +1427,7 @@ static inline void x86_pmu_read(struct perf_event *event)
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
  */
-static void x86_pmu_start_txn(const struct pmu *pmu)
+static void x86_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1440,7 +1440,7 @@ static void x86_pmu_start_txn(const struct pmu *pmu)
  * Clear the flag and pmu::enable() will perform the
  * schedulability test.
  */
-static void x86_pmu_cancel_txn(const struct pmu *pmu)
+static void x86_pmu_cancel_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1457,7 +1457,7 @@ static void x86_pmu_cancel_txn(const struct pmu *pmu)
  * Perform the group schedulability test as a whole
  * Return 0 if success
  */
-static int x86_pmu_commit_txn(const struct pmu *pmu)
+static int x86_pmu_commit_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int assign[X86_PMC_IDX_MAX];
@@ -1483,7 +1483,7 @@ static int x86_pmu_commit_txn(const struct pmu *pmu)
 	return 0;
 }
 
-static const struct pmu pmu = {
+static struct pmu pmu = {
 	.enable		= x86_pmu_enable,
 	.disable	= x86_pmu_disable,
 	.start		= x86_pmu_start,
@@ -1569,9 +1569,9 @@ out:
 	return ret;
 }
 
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+struct pmu *hw_perf_event_init(struct perf_event *event)
 {
-	const struct pmu *tmp;
+	struct pmu *tmp;
 	int err;
 
 	err = __hw_perf_event_init(event);

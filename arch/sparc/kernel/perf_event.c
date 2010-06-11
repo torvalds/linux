@@ -1099,7 +1099,7 @@ static int __hw_perf_event_init(struct perf_event *event)
  * Set the flag to make pmu::enable() not perform the
  * schedulability test, it will be performed at commit time
  */
-static void sparc_pmu_start_txn(const struct pmu *pmu)
+static void sparc_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
@@ -1111,7 +1111,7 @@ static void sparc_pmu_start_txn(const struct pmu *pmu)
  * Clear the flag and pmu::enable() will perform the
  * schedulability test.
  */
-static void sparc_pmu_cancel_txn(const struct pmu *pmu)
+static void sparc_pmu_cancel_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
@@ -1123,7 +1123,7 @@ static void sparc_pmu_cancel_txn(const struct pmu *pmu)
  * Perform the group schedulability test as a whole
  * Return 0 if success
  */
-static int sparc_pmu_commit_txn(const struct pmu *pmu)
+static int sparc_pmu_commit_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int n;
@@ -1142,7 +1142,7 @@ static int sparc_pmu_commit_txn(const struct pmu *pmu)
 	return 0;
 }
 
-static const struct pmu pmu = {
+static struct pmu pmu = {
 	.enable		= sparc_pmu_enable,
 	.disable	= sparc_pmu_disable,
 	.read		= sparc_pmu_read,
@@ -1152,7 +1152,7 @@ static const struct pmu pmu = {
 	.commit_txn	= sparc_pmu_commit_txn,
 };
 
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+struct pmu *hw_perf_event_init(struct perf_event *event)
 {
 	int err = __hw_perf_event_init(event);
 

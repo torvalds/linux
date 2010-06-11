@@ -642,7 +642,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	return 0;
 }
 
-static const struct pmu pmu = {
+static struct pmu pmu = {
 	.enable		= alpha_pmu_enable,
 	.disable	= alpha_pmu_disable,
 	.read		= alpha_pmu_read,
@@ -653,7 +653,7 @@ static const struct pmu pmu = {
 /*
  * Main entry point to initialise a HW performance event.
  */
-const struct pmu *hw_perf_event_init(struct perf_event *event)
+struct pmu *hw_perf_event_init(struct perf_event *event)
 {
 	int err;
 
