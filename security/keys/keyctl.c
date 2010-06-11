@@ -33,7 +33,7 @@ static int key_get_type_from_user(char *type,
 	ret = strncpy_from_user(type, _type, len);
 
 	if (ret < 0)
-		return -EFAULT;
+		return ret;
 
 	if (ret == 0 || ret >= len)
 		return -EINVAL;
@@ -1080,7 +1080,7 @@ set:
 	return old_setting;
 error:
 	abort_creds(new);
-	return -EINVAL;
+	return ret;
 
 } /* end keyctl_set_reqkey_keyring() */
 
