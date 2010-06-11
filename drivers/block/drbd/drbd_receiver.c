@@ -3747,12 +3747,8 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 		put_ldev(mdev);
 	}
 
-	if (mdev->state.role == R_PRIMARY) {
-		if (fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN) {
-			enum drbd_disk_state nps = drbd_try_outdate_peer(mdev);
-			drbd_request_state(mdev, NS(pdsk, nps));
-		}
-	}
+	if (mdev->state.role == R_PRIMARY && fp >= FP_RESOURCE && mdev->state.pdsk >= D_UNKNOWN)
+		drbd_try_outdate_peer_async(mdev);
 
 	spin_lock_irq(&mdev->req_lock);
 	os = mdev->state;

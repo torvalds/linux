@@ -38,6 +38,8 @@
 #include <asm/unaligned.h>
 #include <linux/drbd_tag_magic.h>
 #include <linux/drbd_limits.h>
+#include <linux/compiler.h>
+#include <linux/kthread.h>
 
 static unsigned short *tl_add_blob(unsigned short *, enum drbd_tags, const void *, int);
 static unsigned short *tl_add_str(unsigned short *, enum drbd_tags, const char *);
@@ -256,6 +258,25 @@ enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
 	return nps;
 }
 
+static int _try_outdate_peer_async(void *data)
+{
+	struct drbd_conf *mdev = (struct drbd_conf *)data;
+	enum drbd_disk_state nps;
+
+	nps = drbd_try_outdate_peer(mdev);
+	drbd_request_state(mdev, NS(pdsk, nps));
+
+	return 0;
+}
+
+void drbd_try_outdate_peer_async(struct drbd_conf *mdev)
+{
+	struct task_struct *opa;
+
+	opa = kthread_run(_try_outdate_peer_async, mdev, "drbd%d_a_helper", mdev_to_minor(mdev));
+	if (IS_ERR(opa))
+		dev_err(DEV, "out of mem, failed to invoke fence-peer helper\n");
+}
 
 int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 {

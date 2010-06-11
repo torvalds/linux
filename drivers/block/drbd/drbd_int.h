@@ -1423,7 +1423,8 @@ extern void resync_after_online_grow(struct drbd_conf *);
 extern void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int) __must_hold(local);
 extern int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role,
 		int force);
-enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev);
+extern enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev);
+extern void drbd_try_outdate_peer_async(struct drbd_conf *mdev);
 extern int drbd_khelper(struct drbd_conf *mdev, char *cmd);
 
 /* drbd_worker.c */
