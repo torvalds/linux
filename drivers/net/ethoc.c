@@ -613,8 +613,11 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 
 	while (time_before(jiffies, timeout)) {
 		u32 stat = ethoc_read(priv, MIISTATUS);
-		if (!(stat & MIISTATUS_BUSY))
+		if (!(stat & MIISTATUS_BUSY)) {
+			/* reset MII command register */
+			ethoc_write(priv, MIICOMMAND, 0);
 			return 0;
+		}
 
 		schedule();
 	}
