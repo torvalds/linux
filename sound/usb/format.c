@@ -218,6 +218,12 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 	int i, nr_rates, data_size, ret = 0;
 	int clock = snd_usb_clock_find_source(chip, chip->ctrl_intf, fp->clock);
 
+	if (clock < 0) {
+		snd_printk(KERN_ERR "%s(): unable to find clock source (clock %d)\n",
+				__func__, clock);
+		goto err;
+	}
+
 	/* get the number of sample rates first by only fetching 2 bytes */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
