@@ -698,6 +698,7 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 	u32 fcp_parm = 0;
 	u8 op;
+	u8 resp_code = 0;
 
 	mutex_lock(&rdata->rp_mutex);
 
@@ -722,11 +723,25 @@ static void fc_rport_prli_resp(struct fc_seq *sp, struct fc_frame *fp,
 	op = fc_frame_payload_op(fp);
 	if (op == ELS_LS_ACC) {
 		pp = fc_frame_payload_get(fp, sizeof(*pp));
-		if (pp && pp->prli.prli_spp_len >= sizeof(pp->spp)) {
-			fcp_parm = ntohl(pp->spp.spp_params);
-			if (fcp_parm & FCP_SPPF_RETRY)
-				rdata->flags |= FC_RP_FLAGS_RETRY;
+		if (!pp)
+			goto out;
+
+		resp_code = (pp->spp.spp_flags & FC_SPP_RESP_MASK);
+		FC_RPORT_DBG(rdata, "PRLI spp_flags = 0x%x\n",
+			     pp->spp.spp_flags);
+		if (resp_code != FC_SPP_RESP_ACK) {
+			if (resp_code == FC_SPP_RESP_CONF)
+				fc_rport_error(rdata, fp);
+			else
+				fc_rport_error_retry(rdata, fp);
+			goto out;
 		}
+		if (pp->prli.prli_spp_len < sizeof(pp->spp))
+			goto out;
+
+		fcp_parm = ntohl(pp->spp.spp_params);
+		if (fcp_parm & FCP_SPPF_RETRY)
+			rdata->flags |= FC_RP_FLAGS_RETRY;
 
 		rdata->supported_classes = FC_COS_CLASS3;
 		if (fcp_parm & FCP_SPPF_INIT_FCN)
