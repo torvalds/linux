@@ -241,7 +241,10 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 		struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		if (!crtc->enabled) {
-			crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+			if (crtc_funcs->disable)
+				(*crtc_funcs->disable)(crtc);
+			else
+				(*crtc_funcs->dpms)(crtc, DRM_MODE_DPMS_OFF);
 			crtc->fb = NULL;
 		}
 	}
