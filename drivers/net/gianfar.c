@@ -2655,6 +2655,10 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 		dma_unmap_single(&priv->ofdev->dev, bdp->bufPtr,
 				priv->rx_buffer_size, DMA_FROM_DEVICE);
 
+		if (unlikely(!(bdp->status & RXBD_ERR) &&
+				bdp->length > priv->rx_buffer_size))
+			bdp->status = RXBD_LARGE;
+
 		/* We drop the frame if we failed to allocate a new buffer */
 		if (unlikely(!newskb || !(bdp->status & RXBD_LAST) ||
 				 bdp->status & RXBD_ERR)) {
