@@ -1232,8 +1232,11 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 	fip->reset_req = 0;
 	spin_unlock_bh(&fip->lock);
 
-	if (reset)
+	if (reset) {
 		fc_lport_reset(fip->lp);
+		/* restart things with a solicitation */
+		fcoe_ctlr_solicit(fip, NULL);
+	}
 
 	if (fip->send_ctlr_ka) {
 		fip->send_ctlr_ka = 0;
