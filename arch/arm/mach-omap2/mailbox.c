@@ -56,6 +56,8 @@
 
 static void __iomem *mbox_base;
 
+static struct omap_mbox **list;
+
 struct omap_mbox2_fifo {
 	unsigned long msg;
 	unsigned long fifo_stat;
@@ -307,6 +309,8 @@ struct omap_mbox mbox_dsp_info = {
 	.priv	= &omap2_mbox_dsp_priv,
 };
 
+struct omap_mbox *omap3_mboxes[] = { &mbox_dsp_info, NULL };
+
 #if defined(CONFIG_ARCH_OMAP2420)
 
 /* IVA */
@@ -331,6 +335,8 @@ static struct omap_mbox mbox_iva_info = {
 	.ops	= &omap2_mbox_ops,
 	.priv	= &omap2_mbox_iva_priv,
 };
+
+struct omap_mbox *omap2_mboxes[] = { &mbox_iva_info, &mbox_dsp_info, NULL };
 #endif
 
 /* OMAP4 */
@@ -378,89 +384,64 @@ struct omap_mbox mbox_2_info = {
 	.priv	= &omap2_mbox_2_priv,
 };
 
+struct omap_mbox *omap4_mboxes[] = { &mbox_1_info, &mbox_2_info, NULL };
+
 static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct resource *mem;
 	int ret;
+	int i;
 
-	/* MBOX base */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (unlikely(!res)) {
-		dev_err(&pdev->dev, "invalid mem resource\n");
+	if (cpu_is_omap3430()) {
+		list = omap3_mboxes;
+
+		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
+	}
+#if defined(CONFIG_ARCH_OMAP2420)
+	else if (cpu_is_omap2420()) {
+		list = omap2_mboxes;
+
+		list[0]->irq = platform_get_irq_byname(pdev, "dsp");
+		list[1]->irq = platform_get_irq_byname(pdev, "iva");
+	}
+#endif
+	else if (cpu_is_omap44xx()) {
+		list = omap4_mboxes;
+
+		list[0]->irq = list[1]->irq =
+			platform_get_irq_byname(pdev, "mbox");
+	}
+	else {
+		pr_err("%s: platform not supported\n", __func__);
 		return -ENODEV;
 	}
-	mbox_base = ioremap(res->start, resource_size(res));
+
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	mbox_base = ioremap(mem->start, resource_size(mem));
 	if (!mbox_base)
 		return -ENOMEM;
 
-	/* DSP or IVA2 IRQ */
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-
-	if (unlikely(!res)) {
-		dev_err(&pdev->dev, "invalid irq resource\n");
-		ret = -ENODEV;
-		goto err_dsp;
+	for (i = 0; list[i]; i++) {
+		ret = omap_mbox_register(&pdev->dev, list[i]);
+		if (ret)
+			goto err_out;
 	}
-	if (cpu_is_omap44xx()) {
-		mbox_1_info.irq = res->start;
-		ret = omap_mbox_register(&pdev->dev, &mbox_1_info);
-	} else {
-		mbox_dsp_info.irq = res->start;
-		ret = omap_mbox_register(&pdev->dev, &mbox_dsp_info);
-	}
-	if (ret)
-		goto err_dsp;
-
-	if (cpu_is_omap44xx()) {
-		mbox_2_info.irq = res->start;
-		ret = omap_mbox_register(&pdev->dev, &mbox_2_info);
-		if (ret) {
-			omap_mbox_unregister(&mbox_1_info);
-			goto err_dsp;
-		}
-	}
-#if defined(CONFIG_ARCH_OMAP2420) /* IVA */
-	if (cpu_is_omap2420()) {
-		/* IVA IRQ */
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-		if (unlikely(!res)) {
-			dev_err(&pdev->dev, "invalid irq resource\n");
-			ret = -ENODEV;
-			omap_mbox_unregister(&mbox_dsp_info);
-			goto err_dsp;
-		}
-		mbox_iva_info.irq = res->start;
-		ret = omap_mbox_register(&pdev->dev, &mbox_iva_info);
-		if (ret) {
-			omap_mbox_unregister(&mbox_dsp_info);
-			goto err_dsp;
-		}
-	}
-#endif
 	return 0;
 
-#if defined(CONFIG_ARCH_OMAP2420) /* IVA */
-err_iva1:
-	omap_mbox_unregister(&mbox_dsp_info);
-#endif
-
-err_dsp:
+err_out:
+	while (i--)
+		omap_mbox_unregister(list[i]);
 	iounmap(mbox_base);
 	return ret;
 }
 
 static int __devexit omap2_mbox_remove(struct platform_device *pdev)
 {
-#if defined(CONFIG_ARCH_OMAP2420)
-	if (cpu_is_omap2420())
-		omap_mbox_unregister(&mbox_iva_info);
-#endif
+	int i;
 
-	if (cpu_is_omap44xx()) {
-		omap_mbox_unregister(&mbox_2_info);
-		omap_mbox_unregister(&mbox_1_info);
-	} else
-		omap_mbox_unregister(&mbox_dsp_info);
+	for (i = 0; list[i]; i++)
+		omap_mbox_unregister(list[i]);
+
 	iounmap(mbox_base);
 	return 0;
 }
