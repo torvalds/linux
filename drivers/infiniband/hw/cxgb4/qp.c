@@ -899,7 +899,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	atomic_inc(&qhp->refcnt);
 	spin_unlock_irqrestore(&qhp->lock, *flag);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&rchp->lock, *flag);
 	spin_lock(&qhp->lock);
 	c4iw_flush_hw_cq(&rchp->cq);
@@ -910,7 +910,7 @@ static void __flush_qp(struct c4iw_qp *qhp, struct c4iw_cq *rchp,
 	if (flushed)
 		(*rchp->ibcq.comp_handler)(&rchp->ibcq, rchp->ibcq.cq_context);
 
-	/* locking heirarchy: cq lock first, then qp lock. */
+	/* locking hierarchy: cq lock first, then qp lock. */
 	spin_lock_irqsave(&schp->lock, *flag);
 	spin_lock(&qhp->lock);
 	c4iw_flush_hw_cq(&schp->cq);

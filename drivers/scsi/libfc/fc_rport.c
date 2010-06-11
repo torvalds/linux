@@ -34,7 +34,7 @@
  * The rport should never hold the rport mutex and then attempt to acquire
  * either the lport or disc mutexes. The rport's mutex is considered lesser
  * than both the lport's mutex and the disc mutex. Refer to fc_lport.c for
- * more comments on the heirarchy.
+ * more comments on the hierarchy.
  *
  * The locking strategy is similar to the lport's strategy. The lock protects
  * the rport's states and is held and released by the entry points to the rport

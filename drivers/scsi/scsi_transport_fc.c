@@ -965,7 +965,7 @@ static FC_DEVICE_ATTR(rport, fast_io_fail_tmo, S_IRUGO | S_IWUSR,
 
 /*
  * Note: in the target show function we recognize when the remote
- *  port is in the heirarchy and do not allow the driver to get
+ *  port is in the hierarchy and do not allow the driver to get
  *  involved in sysfs functions. The driver only gets involved if
  *  it's the "old" style that doesn't use rports.
  */
