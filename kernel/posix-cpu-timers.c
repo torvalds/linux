@@ -1287,7 +1287,10 @@ static inline int fastpath_timer_check(struct task_struct *tsk)
 	if (sig->cputimer.running) {
 		struct task_cputime group_sample;
 
-		thread_group_cputimer(tsk, &group_sample);
+		spin_lock(&sig->cputimer.lock);
+		group_sample = sig->cputimer.cputime;
+		spin_unlock(&sig->cputimer.lock);
+
 		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
 			return 1;
 	}
