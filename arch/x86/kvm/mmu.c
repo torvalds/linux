@@ -175,7 +175,7 @@ struct kvm_shadow_walk_iterator {
 	     shadow_walk_okay(&(_walker));			\
 	     shadow_walk_next(&(_walker)))
 
-typedef int (*mmu_parent_walk_fn) (struct kvm_mmu_page *sp);
+typedef void (*mmu_parent_walk_fn) (struct kvm_mmu_page *sp, u64 *spte);
 
 static struct kmem_cache *pte_chain_cache;
 static struct kmem_cache *rmap_desc_cache;
@@ -1024,7 +1024,6 @@ static void mmu_page_remove_parent_pte(struct kvm_mmu_page *sp,
 	BUG();
 }
 
-
 static void mmu_parent_walk(struct kvm_mmu_page *sp, mmu_parent_walk_fn fn)
 {
 	struct kvm_pte_chain *pte_chain;
@@ -1034,63 +1033,37 @@ static void mmu_parent_walk(struct kvm_mmu_page *sp, mmu_parent_walk_fn fn)
 
 	if (!sp->multimapped && sp->parent_pte) {
 		parent_sp = page_header(__pa(sp->parent_pte));
-		fn(parent_sp);
-		mmu_parent_walk(parent_sp, fn);
-		return;
-	}
-	hlist_for_each_entry(pte_chain, node, &sp->parent_ptes, link)
-		for (i = 0; i < NR_PTE_CHAIN_ENTRIES; ++i) {
-			if (!pte_chain->parent_ptes[i])
-				break;
-			parent_sp = page_header(__pa(pte_chain->parent_ptes[i]));
-			fn(parent_sp);
-			mmu_parent_walk(parent_sp, fn);
-		}
-}
-
-static void kvm_mmu_update_unsync_bitmap(u64 *spte)
-{
-	unsigned int index;
-	struct kvm_mmu_page *sp = page_header(__pa(spte));
-
-	index = spte - sp->spt;
-	if (!__test_and_set_bit(index, sp->unsync_child_bitmap))
-		sp->unsync_children++;
-	WARN_ON(!sp->unsync_children);
-}
-
-static void kvm_mmu_update_parents_unsync(struct kvm_mmu_page *sp)
-{
-	struct kvm_pte_chain *pte_chain;
-	struct hlist_node *node;
-	int i;
-
-	if (!sp->parent_pte)
-		return;
-
-	if (!sp->multimapped) {
-		kvm_mmu_update_unsync_bitmap(sp->parent_pte);
+		fn(parent_sp, sp->parent_pte);
 		return;
 	}
 
 	hlist_for_each_entry(pte_chain, node, &sp->parent_ptes, link)
 		for (i = 0; i < NR_PTE_CHAIN_ENTRIES; ++i) {
-			if (!pte_chain->parent_ptes[i])
+			u64 *spte = pte_chain->parent_ptes[i];
+
+			if (!spte)
 				break;
-			kvm_mmu_update_unsync_bitmap(pte_chain->parent_ptes[i]);
+			parent_sp = page_header(__pa(spte));
+			fn(parent_sp, spte);
 		}
 }
 
-static int unsync_walk_fn(struct kvm_mmu_page *sp)
-{
-	kvm_mmu_update_parents_unsync(sp);
-	return 1;
-}
-
+static void mark_unsync(struct kvm_mmu_page *sp, u64 *spte);
 static void kvm_mmu_mark_parents_unsync(struct kvm_mmu_page *sp)
 {
-	mmu_parent_walk(sp, unsync_walk_fn);
-	kvm_mmu_update_parents_unsync(sp);
+	mmu_parent_walk(sp, mark_unsync);
+}
+
+static void mark_unsync(struct kvm_mmu_page *sp, u64 *spte)
+{
+	unsigned int index;
+
+	index = spte - sp->spt;
+	if (__test_and_set_bit(index, sp->unsync_child_bitmap))
+		return;
+	if (sp->unsync_children++)
+		return;
+	kvm_mmu_mark_parents_unsync(sp);
 }
 
 static void nonpaging_prefetch_page(struct kvm_vcpu *vcpu,
