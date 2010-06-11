@@ -56,7 +56,7 @@
 #define BATT_PRESENT_TRUE	 1
 #define BATT_PRESENT_FALSE  0
 #define BAT_1V2_VALUE	1330
-#define CHARGEOK_PIN	RK2818_PIN_PH6
+#define CHARGEOK_PIN	RK2818_PIN_PB1
 
 #define BAT_LOADER_STATUS		0	//ÓÃµç×´Ì¬
 #define BAT_CHANGE_STATUS		1	//²¨¶¯×´Ì¬
