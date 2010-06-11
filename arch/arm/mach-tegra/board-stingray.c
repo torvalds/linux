@@ -179,14 +179,14 @@ static u64 tegra_otg_dmamask = DMA_BIT_MASK(32);
 
 static struct resource tegra_otg_resources[] = {
 	[0] = {
-		.start  = TEGRA_USB_BASE,
-		.end    = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
-		.flags  = IORESOURCE_MEM,
+		.start	= TEGRA_USB_BASE,
+		.end	= TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = INT_USB,
-		.end    = INT_USB,
-		.flags  = IORESOURCE_IRQ,
+		.start	= INT_USB,
+		.end	= INT_USB,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -212,24 +212,24 @@ static char *usb_functions_adb[] = { "mtp", "adb" };
 
 static struct android_usb_product usb_products[] = {
 	{
-		.product_id     = 0xDEAD,
-		.num_functions  = ARRAY_SIZE(usb_functions),
-		.functions      = usb_functions,
+		.product_id	= 0xDEAD,
+		.num_functions	= ARRAY_SIZE(usb_functions),
+		.functions	= usb_functions,
 	},
 	{
-		.product_id     = 0xBEEF,
-		.num_functions  = ARRAY_SIZE(usb_functions_adb),
-		.functions      = usb_functions_adb,
+		.product_id	= 0xBEEF,
+		.num_functions	= ARRAY_SIZE(usb_functions_adb),
+		.functions	= usb_functions_adb,
 	},
 };
 
 /* standard android USB platform data */
 static struct android_usb_platform_data andusb_plat = {
-	.vendor_id                      = 0x18d1,
-	.product_id                     = 0xDEAD,
-	.manufacturer_name      = "Google",
-	.product_name           = "Stingray!",
-	.serial_number          = "0000",
+	.vendor_id		= 0x18d1,
+	.product_id		= 0xDEAD,
+	.manufacturer_name	= "Google",
+	.product_name		= "Stingray!",
+	.serial_number		= "0000",
 	.num_products = ARRAY_SIZE(usb_products),
 	.products = usb_products,
 	.num_functions = ARRAY_SIZE(usb_functions_adb),
@@ -238,10 +238,10 @@ static struct android_usb_platform_data andusb_plat = {
 
 
 static struct platform_device androidusb_device = {
-	.name   = "android_usb",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &andusb_plat,
+	.name	= "android_usb",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &andusb_plat,
 	},
 };
 
@@ -283,22 +283,22 @@ static struct resource bq24617_resources_m1_p0[] = {
 };
 
 static struct platform_device bq24617_device = {
-	.name   = "bq24617",
-	.id     = -1,
-	.resource      = bq24617_resources,
-	.num_resources = ARRAY_SIZE(bq24617_resources),
+	.name		= "bq24617",
+	.id		= -1,
+	.resource       = bq24617_resources,
+	.num_resources  = ARRAY_SIZE(bq24617_resources),
 };
 
 static struct resource tegra_gart_resources[] = {
     {
-        .name = "mc",
-        .flags = IORESOURCE_MEM,
+	.name = "mc",
+	.flags = IORESOURCE_MEM,
 	.start = TEGRA_MC_BASE,
 	.end = TEGRA_MC_BASE + TEGRA_MC_SIZE - 1,
     },
     {
-        .name = "gart",
-        .flags = IORESOURCE_MEM,
+	.name = "gart",
+	.flags = IORESOURCE_MEM,
 	.start = 0x58000000,
 	.end = 0x58000000 - 1 + 32 * 1024 * 1024,
     }
@@ -312,11 +312,17 @@ static struct platform_device tegra_gart_dev = {
     .resource = tegra_gart_resources
 };
 
+static struct platform_device bcm4329_rfkill = {
+	.name = "bcm4329_rfkill",
+	.id = -1,
+};
+
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&tegra_otg,
 	&androidusb_device,
 	&bq24617_device,
+	&bcm4329_rfkill,
 	&hs_uarta,
 	&hs_uartc,
 	&hs_uartd,
@@ -381,6 +387,30 @@ static void stingray_sdhci_init(void)
 	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device4);
 }
+
+#define ATAG_BDADDR 0x43294329	/* stingray bluetooth address tag */
+#define ATAG_BDADDR_SIZE 4
+#define BDADDR_STR_SIZE 18
+
+static char bdaddr[BDADDR_STR_SIZE];
+
+module_param_string(bdaddr, bdaddr, sizeof(bdaddr), 0400);
+MODULE_PARM_DESC(bdaddr, "bluetooth address");
+
+static int __init parse_tag_bdaddr(const struct tag *tag)
+{
+	unsigned char *b = (unsigned char *)&tag->u;
+
+	if (tag->hdr.size != ATAG_BDADDR_SIZE)
+		return -EINVAL;
+
+	snprintf(bdaddr, BDADDR_STR_SIZE, "%02X:%02X:%02X:%02X:%02X:%02X",
+			b[0], b[1], b[2], b[3], b[4], b[5]);
+
+	return 0;
+}
+
+__tagtable(ATAG_BDADDR, parse_tag_bdaddr);
 
 
 static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *tags,
@@ -496,12 +526,12 @@ static void __init tegra_stingray_init(void)
 }
 
 MACHINE_START(STINGRAY, "stingray")
-	.boot_params  = 0x00000100,
-	.phys_io        = IO_APB_PHYS,
-	.io_pg_offst    = ((IO_APB_VIRT) >> 18) & 0xfffc,
+	.boot_params	= 0x00000100,
+	.phys_io	= IO_APB_PHYS,
+	.io_pg_offst	= ((IO_APB_VIRT) >> 18) & 0xfffc,
 	.fixup		= tegra_stingray_fixup,
-	.init_irq       = tegra_init_irq,
-	.init_machine   = tegra_stingray_init,
-	.map_io         = tegra_map_common_io,
-	.timer          = &tegra_timer,
+	.init_irq	= tegra_init_irq,
+	.init_machine	= tegra_stingray_init,
+	.map_io		= tegra_map_common_io,
+	.timer		= &tegra_timer,
 MACHINE_END
