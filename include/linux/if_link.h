@@ -233,7 +233,7 @@ enum macvlan_mode {
 	MACVLAN_MODE_BRIDGE  = 4, /* talk to bridge ports directly */
 };
 
-/* SR-IOV virtual function managment section */
+/* SR-IOV virtual function management section */
 
 enum {
 	IFLA_VF_INFO_UNSPEC,

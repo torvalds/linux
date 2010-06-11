@@ -1013,7 +1013,7 @@ int vmw_gmr_id_alloc(struct vmw_private *dev_priv, uint32_t *p_id)
 }
 
 /*
- * Stream managment
+ * Stream management
  */
 
 static void vmw_stream_destroy(struct vmw_resource *res)

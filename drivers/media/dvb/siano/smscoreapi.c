@@ -1297,7 +1297,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 EXPORT_SYMBOL_GPL(smsclient_sendrequest);
 
 
-/* old GPIO managments implementation */
+/* old GPIO managements implementation */
 int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 			   struct smscore_config_gpio *pinconfig)
 {

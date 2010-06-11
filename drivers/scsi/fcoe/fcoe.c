@@ -2452,7 +2452,7 @@ module_exit(fcoe_exit);
  * @fp: response frame, or error encoded in a pointer (timeout)
  * @arg: pointer the the fcoe_ctlr structure
  *
- * This handles MAC address managment for FCoE, then passes control on to
+ * This handles MAC address management for FCoE, then passes control on to
  * the libfc FLOGI response handler.
  */
 static void fcoe_flogi_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)
@@ -2484,7 +2484,7 @@ done:
  * @fp: response frame, or error encoded in a pointer (timeout)
  * @arg: pointer the the fcoe_ctlr structure
  *
- * This handles MAC address managment for FCoE, then passes control on to
+ * This handles MAC address management for FCoE, then passes control on to
  * the libfc LOGO response handler.
  */
 static void fcoe_logo_resp(struct fc_seq *seq, struct fc_frame *fp, void *arg)

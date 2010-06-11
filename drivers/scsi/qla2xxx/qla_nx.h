@@ -832,7 +832,7 @@ struct fcp_cmnd {
 	struct scsi_lun lun;
 	uint8_t crn;
 	uint8_t task_attribute;
-	uint8_t task_managment;
+	uint8_t task_management;
 	uint8_t additional_cdb_len;
 	uint8_t cdb[260]; /* 256 for CDB len and 4 for FCP_DL */
 };
