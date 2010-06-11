@@ -189,6 +189,7 @@ struct fc_rport_libfc_priv {
  * @disc_id:        The discovery identifier
  * @maxframe_size:  The maximum frame size
  * @retries:        The retry count for the current state
+ * @major_retries:  The retry count for the entire PLOGI/PRLI state machine
  * @e_d_tov:        Error detect timeout value (in msec)
  * @r_a_tov:        Resource allocation timeout value (in msec)
  * @rp_mutex:       The mutex that protects the remote port
@@ -206,6 +207,7 @@ struct fc_rport_priv {
 	u16			    disc_id;
 	u16			    maxframe_size;
 	unsigned int	            retries;
+	unsigned int	            major_retries;
 	unsigned int	            e_d_tov;
 	unsigned int	            r_a_tov;
 	struct mutex                rp_mutex;

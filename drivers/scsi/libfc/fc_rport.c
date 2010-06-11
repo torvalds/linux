@@ -257,6 +257,7 @@ static void fc_rport_work(struct work_struct *work)
 	case RPORT_EV_READY:
 		ids = rdata->ids;
 		rdata->event = RPORT_EV_NONE;
+		rdata->major_retries = 0;
 		kref_get(&rdata->kref);
 		mutex_unlock(&rdata->rp_mutex);
 
@@ -323,7 +324,10 @@ static void fc_rport_work(struct work_struct *work)
 			if (port_id == FC_FID_DIR_SERV) {
 				rdata->event = RPORT_EV_NONE;
 				mutex_unlock(&rdata->rp_mutex);
-			} else if (rdata->flags & FC_RP_STARTED) {
+			} else if ((rdata->flags & FC_RP_STARTED) &&
+				   rdata->major_retries <
+				   lport->max_rport_retry_count) {
+				rdata->major_retries++;
 				rdata->event = RPORT_EV_NONE;
 				FC_RPORT_DBG(rdata, "work restart\n");
 				fc_rport_enter_plogi(rdata);
