@@ -227,7 +227,8 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 	/* get the number of sample rates first by only fetching 2 bytes */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			      UAC2_CS_CONTROL_SAM_FREQ << 8, clock << 8,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
 			      tmp, sizeof(tmp), 1000);
 
 	if (ret < 0) {
@@ -247,7 +248,8 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 	/* now get the full information */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			      UAC2_CS_CONTROL_SAM_FREQ << 8, clock << 8,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
 			      data, data_size, 1000);
 
 	if (ret < 0) {
