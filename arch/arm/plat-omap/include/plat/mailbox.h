@@ -55,7 +55,6 @@ struct omap_mbox {
 	struct omap_mbox_queue	*txq, *rxq;
 	struct omap_mbox_ops	*ops;
 	struct device		*dev;
-	struct omap_mbox	*next;
 	void			*priv;
 };
 
@@ -65,8 +64,8 @@ void omap_mbox_init_seq(struct omap_mbox *);
 struct omap_mbox *omap_mbox_get(const char *);
 void omap_mbox_put(struct omap_mbox *);
 
-int omap_mbox_register(struct device *parent, struct omap_mbox *);
-int omap_mbox_unregister(struct omap_mbox *);
+int omap_mbox_register(struct device *parent, struct omap_mbox **);
+int omap_mbox_unregister(void);
 
 static inline void omap_mbox_save_ctx(struct omap_mbox *mbox)
 {

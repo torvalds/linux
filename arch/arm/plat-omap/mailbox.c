@@ -33,8 +33,7 @@
 #include <plat/mailbox.h>
 
 static struct workqueue_struct *mboxd;
-static struct omap_mbox *mboxes;
-static DEFINE_SPINLOCK(mboxes_lock);
+static struct omap_mbox **mboxes;
 static bool rq_full;
 
 static int mbox_configured;
@@ -307,31 +306,20 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 	}
 }
 
-static struct omap_mbox **find_mboxes(const char *name)
-{
-	struct omap_mbox **p;
-
-	for (p = &mboxes; *p; p = &(*p)->next) {
-		if (strcmp((*p)->name, name) == 0)
-			break;
-	}
-
-	return p;
-}
-
 struct omap_mbox *omap_mbox_get(const char *name)
 {
 	struct omap_mbox *mbox;
 	int ret;
 
-	spin_lock(&mboxes_lock);
-	mbox = *(find_mboxes(name));
-	if (mbox == NULL) {
-		spin_unlock(&mboxes_lock);
-		return ERR_PTR(-ENOENT);
-	}
+	if (!mboxes)
+		return ERR_PTR(-EINVAL);
 
-	spin_unlock(&mboxes_lock);
+	for (mbox = *mboxes; mbox; mbox++)
+		if (!strcmp(mbox->name, name))
+			break;
+
+	if (!mbox)
+		return ERR_PTR(-ENOENT);
 
 	ret = omap_mbox_startup(mbox);
 	if (ret)
@@ -349,57 +337,44 @@ EXPORT_SYMBOL(omap_mbox_put);
 
 static struct class omap_mbox_class = { .name = "mbox", };
 
-int omap_mbox_register(struct device *parent, struct omap_mbox *mbox)
+int omap_mbox_register(struct device *parent, struct omap_mbox **list)
 {
-	int ret = 0;
-	struct omap_mbox **tmp;
+	int ret;
+	int i;
 
-	if (!mbox)
+	mboxes = list;
+	if (!mboxes)
 		return -EINVAL;
-	if (mbox->next)
-		return -EBUSY;
 
-	mbox->dev = device_create(&omap_mbox_class,
-				  parent, 0, mbox, "%s", mbox->name);
-	if (IS_ERR(mbox->dev))
-		return PTR_ERR(mbox->dev);
-
-	spin_lock(&mboxes_lock);
-	tmp = find_mboxes(mbox->name);
-	if (*tmp) {
-		ret = -EBUSY;
-		spin_unlock(&mboxes_lock);
-		goto err_find;
+	for (i = 0; mboxes[i]; i++) {
+		struct omap_mbox *mbox = mboxes[i];
+		mbox->dev = device_create(&omap_mbox_class,
+				parent, 0, mbox, "%s", mbox->name);
+		if (IS_ERR(mbox->dev)) {
+			ret = PTR_ERR(mbox->dev);
+			goto err_out;
+		}
 	}
-	*tmp = mbox;
-	spin_unlock(&mboxes_lock);
-
 	return 0;
 
-err_find:
+err_out:
+	while (i--)
+		device_unregister(mboxes[i]->dev);
 	return ret;
 }
 EXPORT_SYMBOL(omap_mbox_register);
 
-int omap_mbox_unregister(struct omap_mbox *mbox)
+int omap_mbox_unregister(void)
 {
-	struct omap_mbox **tmp;
+	int i;
 
-	spin_lock(&mboxes_lock);
-	tmp = &mboxes;
-	while (*tmp) {
-		if (mbox == *tmp) {
-			*tmp = mbox->next;
-			mbox->next = NULL;
-			spin_unlock(&mboxes_lock);
-			device_unregister(mbox->dev);
-			return 0;
-		}
-		tmp = &(*tmp)->next;
-	}
-	spin_unlock(&mboxes_lock);
+	if (!mboxes)
+		return -EINVAL;
 
-	return -EINVAL;
+	for (i = 0; mboxes[i]; i++)
+		device_unregister(mboxes[i]->dev);
+	mboxes = NULL;
+	return 0;
 }
 EXPORT_SYMBOL(omap_mbox_unregister);
 

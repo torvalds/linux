@@ -29,8 +29,6 @@
 
 static void __iomem *mbox_base;
 
-static struct omap_mbox **list;
-
 struct omap_mbox1_fifo {
 	unsigned long cmd;
 	unsigned long data;
@@ -151,9 +149,9 @@ static int __devinit omap1_mbox_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int ret;
 	int i;
+	struct omap_mbox **list;
 
 	list = omap1_mboxes;
-
 	list[0]->irq = platform_get_irq_byname(pdev, "dsp");
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -161,27 +159,18 @@ static int __devinit omap1_mbox_probe(struct platform_device *pdev)
 	if (!mbox_base)
 		return -ENOMEM;
 
-	for (i = 0; list[i]; i++) {
-		ret = omap_mbox_register(&pdev->dev, list[i]);
-		if (ret)
-			goto err_out;
+	ret = omap_mbox_register(&pdev->dev, list);
+	if (ret) {
+		iounmap(mbox_base);
+		return ret;
 	}
-	return 0;
 
-err_out:
-	while (i--)
-		omap_mbox_unregister(list[i]);
-	iounmap(mbox_base);
-	return ret;
+	return 0;
 }
 
 static int __devexit omap1_mbox_remove(struct platform_device *pdev)
 {
-	int i;
-
-	for (i = 0; list[i]; i++)
-		omap_mbox_unregister(list[i]);
-
+	omap_mbox_unregister();
 	iounmap(mbox_base);
 	return 0;
 }

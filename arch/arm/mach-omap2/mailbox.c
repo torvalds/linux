@@ -56,8 +56,6 @@
 
 static void __iomem *mbox_base;
 
-static struct omap_mbox **list;
-
 struct omap_mbox2_fifo {
 	unsigned long msg;
 	unsigned long fifo_stat;
@@ -390,7 +388,7 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 {
 	struct resource *mem;
 	int ret;
-	int i;
+	struct omap_mbox **list;
 
 	if (cpu_is_omap3430()) {
 		list = omap3_mboxes;
@@ -421,27 +419,19 @@ static int __devinit omap2_mbox_probe(struct platform_device *pdev)
 	if (!mbox_base)
 		return -ENOMEM;
 
-	for (i = 0; list[i]; i++) {
-		ret = omap_mbox_register(&pdev->dev, list[i]);
-		if (ret)
-			goto err_out;
+	ret = omap_mbox_register(&pdev->dev, list);
+	if (ret) {
+		iounmap(mbox_base);
+		return ret;
 	}
 	return 0;
 
-err_out:
-	while (i--)
-		omap_mbox_unregister(list[i]);
-	iounmap(mbox_base);
 	return ret;
 }
 
 static int __devexit omap2_mbox_remove(struct platform_device *pdev)
 {
-	int i;
-
-	for (i = 0; list[i]; i++)
-		omap_mbox_unregister(list[i]);
-
+	omap_mbox_unregister();
 	iounmap(mbox_base);
 	return 0;
 }
