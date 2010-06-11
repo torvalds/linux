@@ -1810,6 +1810,11 @@ static int drbd_nl_suspend_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			     struct drbd_nl_cfg_reply *reply)
 {
+	if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
+		drbd_uuid_new_current(mdev);
+		clear_bit(NEW_CUR_UUID, &mdev->flags);
+		drbd_md_sync(mdev);
+	}
 	drbd_suspend_io(mdev);
 	reply->ret_code = drbd_request_state(mdev, NS(susp, 0));
 	if (reply->ret_code == SS_SUCCESS) {

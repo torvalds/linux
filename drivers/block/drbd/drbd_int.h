@@ -829,6 +829,7 @@ enum {
 				 * the peer, if it changed there as well. */
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
+	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */

@@ -1252,12 +1252,23 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	}
 
 	if (fp == FP_STONITH && ns.susp) {
-		/* case1: The outdate peer handler is successful:
-		 * case2: The connection was established again: */
-		if ((os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) ||
-		    (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)) {
+		/* case1: The outdate peer handler is successful: */
+		if (os.pdsk > D_OUTDATED  && ns.pdsk <= D_OUTDATED) {
 			tl_clear(mdev);
+			if (test_bit(NEW_CUR_UUID, &mdev->flags)) {
+				drbd_uuid_new_current(mdev);
+				clear_bit(NEW_CUR_UUID, &mdev->flags);
+				drbd_md_sync(mdev);
+			}
 			spin_lock_irq(&mdev->req_lock);
+			_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
+			spin_unlock_irq(&mdev->req_lock);
+		}
+		/* case2: The connection was established again: */
+		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
+			clear_bit(NEW_CUR_UUID, &mdev->flags);
+			spin_lock_irq(&mdev->req_lock);
+			_tl_restart(mdev, resend);
 			_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
 			spin_unlock_irq(&mdev->req_lock);
 		}
@@ -1280,8 +1291,12 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
-				drbd_uuid_new_current(mdev);
-				drbd_send_uuids(mdev);
+				if (mdev->state.susp) {
+					set_bit(NEW_CUR_UUID, &mdev->flags);
+				} else {
+					drbd_uuid_new_current(mdev);
+					drbd_send_uuids(mdev);
+				}
 			}
 			put_ldev(mdev);
 		}
