@@ -405,6 +405,15 @@ struct fc_els_prli {
 };
 
 /*
+ * ELS_PRLO - Process logout request and response.
+ */
+struct fc_els_prlo {
+	__u8            prlo_cmd;       /* command */
+	__u8            prlo_obs;       /* obsolete, but shall be set to 10h */
+	__be16          prlo_len;       /* payload length */
+};
+
+/*
  * ELS_ADISC payload
  */
 struct fc_els_adisc {

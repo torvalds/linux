@@ -1573,30 +1573,85 @@ drop:
  * fc_rport_recv_prlo_req() - Handler for process logout (PRLO) requests
  * @rdata: The remote port that sent the PRLO request
  * @sp:	   The sequence that the PRLO was on
- * @fp:	   The PRLO request frame
+ * @rx_fp: The PRLO request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
  */
 static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 				   struct fc_seq *sp,
-				   struct fc_frame *fp)
+				   struct fc_frame *rx_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
-
 	struct fc_frame_header *fh;
+	struct fc_exch *ep;
+	struct fc_frame *fp;
+	struct {
+		struct fc_els_prlo prlo;
+		struct fc_els_spp spp;
+	} *pp;
+	struct fc_els_spp *rspp;	/* request service param page */
+	struct fc_els_spp *spp;		/* response spp */
+	unsigned int len;
+	unsigned int plen;
+	u32 f_ctl;
 	struct fc_seq_els_data rjt_data;
 
-	fh = fc_frame_header_get(fp);
+	rjt_data.fp = NULL;
+	fh = fc_frame_header_get(rx_fp);
 
 	FC_RPORT_DBG(rdata, "Received PRLO request while in state %s\n",
 		     fc_rport_state(rdata));
 
-	rjt_data.fp = NULL;
-	rjt_data.reason = ELS_RJT_UNAB;
-	rjt_data.explan = ELS_EXPL_NONE;
+	len = fr_len(rx_fp) - sizeof(*fh);
+	pp = fc_frame_payload_get(rx_fp, sizeof(*pp));
+	if (!pp)
+		goto reject_len;
+	plen = ntohs(pp->prlo.prlo_len);
+	if (plen != 20)
+		goto reject_len;
+	if (plen < len)
+		len = plen;
+
+	rspp = &pp->spp;
+
+	fp = fc_frame_alloc(lport, len);
+	if (!fp) {
+		rjt_data.reason = ELS_RJT_UNAB;
+		rjt_data.explan = ELS_EXPL_INSUF_RES;
+		goto reject;
+	}
+
+	sp = lport->tt.seq_start_next(sp);
+	WARN_ON(!sp);
+	pp = fc_frame_payload_get(fp, len);
+	WARN_ON(!pp);
+	memset(pp, 0, len);
+	pp->prlo.prlo_cmd = ELS_LS_ACC;
+	pp->prlo.prlo_obs = 0x10;
+	pp->prlo.prlo_len = htons(len);
+	spp = &pp->spp;
+	spp->spp_type = rspp->spp_type;
+	spp->spp_type_ext = rspp->spp_type_ext;
+	spp->spp_flags = FC_SPP_RESP_ACK;
+
+	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
+
+	f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ;
+	f_ctl |= FC_FC_END_SEQ | FC_FC_SEQ_INIT;
+	ep = fc_seq_exch(sp);
+	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
+		       FC_TYPE_ELS, f_ctl, 0);
+	lport->tt.seq_send(lport, sp, fp);
+	goto drop;
+
+reject_len:
+	rjt_data.reason = ELS_RJT_PROT;
+	rjt_data.explan = ELS_EXPL_INV_LEN;
+reject:
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
-	fc_frame_free(fp);
+drop:
+	fc_frame_free(rx_fp);
 }
 
 /**
