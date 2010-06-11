@@ -436,6 +436,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	u8 pn[CCMP_PN_LEN];
 	int data_len;
+	int queue;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 
@@ -453,7 +454,10 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 	ccmp_hdr2pn(pn, skb->data + hdrlen);
 
-	if (memcmp(pn, key->u.ccmp.rx_pn[rx->queue], CCMP_PN_LEN) <= 0) {
+	queue = ieee80211_is_mgmt(hdr->frame_control) ?
+		NUM_RX_DATA_QUEUES : rx->queue;
+
+	if (memcmp(pn, key->u.ccmp.rx_pn[queue], CCMP_PN_LEN) <= 0) {
 		key->u.ccmp.replays++;
 		return RX_DROP_UNUSABLE;
 	}
@@ -470,7 +474,7 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 			return RX_DROP_UNUSABLE;
 	}
 
-	memcpy(key->u.ccmp.rx_pn[rx->queue], pn, CCMP_PN_LEN);
+	memcpy(key->u.ccmp.rx_pn[queue], pn, CCMP_PN_LEN);
 
 	/* Remove CCMP header and MIC */
 	skb_trim(skb, skb->len - CCMP_MIC_LEN);

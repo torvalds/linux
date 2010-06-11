@@ -1267,11 +1267,13 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 						 rx->queue, &(rx->skb));
 		if (rx->key && rx->key->conf.alg == ALG_CCMP &&
 		    ieee80211_has_protected(fc)) {
+			int queue = ieee80211_is_mgmt(fc) ?
+				NUM_RX_DATA_QUEUES : rx->queue;
 			/* Store CCMP PN so that we can verify that the next
 			 * fragment has a sequential PN value. */
 			entry->ccmp = 1;
 			memcpy(entry->last_pn,
-			       rx->key->u.ccmp.rx_pn[rx->queue],
+			       rx->key->u.ccmp.rx_pn[queue],
 			       CCMP_PN_LEN);
 		}
 		return RX_QUEUED;
@@ -1291,6 +1293,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	if (entry->ccmp) {
 		int i;
 		u8 pn[CCMP_PN_LEN], *rpn;
+		int queue;
 		if (!rx->key || rx->key->conf.alg != ALG_CCMP)
 			return RX_DROP_UNUSABLE;
 		memcpy(pn, entry->last_pn, CCMP_PN_LEN);
@@ -1299,7 +1302,9 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 			if (pn[i])
 				break;
 		}
-		rpn = rx->key->u.ccmp.rx_pn[rx->queue];
+		queue = ieee80211_is_mgmt(fc) ?
+			NUM_RX_DATA_QUEUES : rx->queue;
+		rpn = rx->key->u.ccmp.rx_pn[queue];
 		if (memcmp(pn, rpn, CCMP_PN_LEN))
 			return RX_DROP_UNUSABLE;
 		memcpy(entry->last_pn, pn, CCMP_PN_LEN);
