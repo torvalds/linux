@@ -635,21 +635,13 @@ static int ethoc_mdio_probe(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	struct phy_device *phy;
+	int err;
 	int i;
 
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		phy = priv->mdio->phy_map[i];
-		if (phy) {
-			if (priv->phy_id != -1) {
-				/* attach to specified PHY */
-				if (priv->phy_id == phy->addr)
-					break;
-			} else {
-				/* autoselect PHY if none was specified */
-				if (phy->addr != 0)
-					break;
-			}
-		}
+	if (priv->phy_id != -1) {
+		phy = priv->mdio->phy_map[priv->phy_id];
+	} else {
+		phy = phy_find_first(priv->mdio);
 	}
 
 	if (!phy) {
@@ -657,11 +649,11 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		return -ENXIO;
 	}
 
-	phy = phy_connect(dev, dev_name(&phy->dev), ethoc_mdio_poll, 0,
+	err = phy_connect_direct(dev, phy, ethoc_mdio_poll, 0,
 			PHY_INTERFACE_MODE_GMII);
-	if (IS_ERR(phy)) {
+	if (err) {
 		dev_err(&dev->dev, "could not attach to PHY\n");
-		return PTR_ERR(phy);
+		return err;
 	}
 
 	priv->phy = phy;
