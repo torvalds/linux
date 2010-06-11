@@ -1,5 +1,5 @@
 /*
- * Mailbox reservation modules for DSP
+ * Mailbox reservation modules for OMAP1
  *
  * Copyright (C) 2006-2009 Nokia Corporation
  * Written by: Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
@@ -179,7 +179,7 @@ static struct platform_driver omap1_mbox_driver = {
 	.probe	= omap1_mbox_probe,
 	.remove	= __devexit_p(omap1_mbox_remove),
 	.driver	= {
-		.name	= "omap1-mailbox",
+		.name	= "omap-mailbox",
 	},
 };
 
