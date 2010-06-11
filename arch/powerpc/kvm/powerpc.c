@@ -287,7 +287,7 @@ static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	u64 gpr;
+	u64 uninitialized_var(gpr);
 
 	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
