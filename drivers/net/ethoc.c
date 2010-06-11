@@ -964,7 +964,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		}
 	} else {
 		/* Allocate buffer memory */
-		priv->membase = dma_alloc_coherent(NULL,
+		priv->membase = dmam_alloc_coherent(&pdev->dev,
 			buffer_size, (void *)&netdev->mem_start,
 			GFP_KERNEL);
 		if (!priv->membase) {
@@ -1074,21 +1074,6 @@ free_mdio:
 	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
-	if (priv) {
-		if (priv->dma_alloc)
-			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
-					  netdev->mem_start);
-		else if (priv->membase)
-			devm_iounmap(&pdev->dev, priv->membase);
-		if (priv->iobase)
-			devm_iounmap(&pdev->dev, priv->iobase);
-	}
-	if (mem)
-		devm_release_mem_region(&pdev->dev, mem->start,
-					mem->end - mem->start + 1);
-	if (mmio)
-		devm_release_mem_region(&pdev->dev, mmio->start,
-					mmio->end - mmio->start + 1);
 	free_netdev(netdev);
 out:
 	return ret;
@@ -1115,17 +1100,6 @@ static int ethoc_remove(struct platform_device *pdev)
 			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
-		if (priv->dma_alloc)
-			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
-				netdev->mem_start);
-		else {
-			devm_iounmap(&pdev->dev, priv->membase);
-			devm_release_mem_region(&pdev->dev, netdev->mem_start,
-				netdev->mem_end - netdev->mem_start + 1);
-		}
-		devm_iounmap(&pdev->dev, priv->iobase);
-		devm_release_mem_region(&pdev->dev, netdev->base_addr,
-			priv->io_region_size);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}
