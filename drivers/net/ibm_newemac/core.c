@@ -1044,7 +1044,7 @@ static int emac_change_mtu(struct net_device *ndev, int new_mtu)
 	DBG(dev, "change_mtu(%d)" NL, new_mtu);
 
 	if (netif_running(ndev)) {
-		/* Check if we really need to reinitalize RX ring */
+		/* Check if we really need to reinitialize RX ring */
 		if (emac_rx_skb_size(ndev->mtu) != emac_rx_skb_size(new_mtu))
 			ret = emac_resize_rx_ring(dev, new_mtu);
 	}

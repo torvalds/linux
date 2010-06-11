@@ -1234,7 +1234,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	p_ctx->cr[2] = (unsigned long)kvm_vmm_info->vmm_ivt;
 	p_ctx->cr[8] = 0x3c;
 
-	/*Initilize region register*/
+	/*Initialize region register*/
 	p_ctx->rr[0] = 0x30;
 	p_ctx->rr[1] = 0x30;
 	p_ctx->rr[2] = 0x30;
@@ -1243,7 +1243,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	p_ctx->rr[5] = 0x30;
 	p_ctx->rr[7] = 0x30;
 
-	/*Initilize branch register 0*/
+	/*Initialize branch register 0*/
 	p_ctx->br[0] = *(unsigned long *)kvm_vmm_info->vmm_entry;
 
 	vcpu->arch.vmm_rr = kvm->arch.vmm_init_rr;
@@ -1702,7 +1702,7 @@ static int kvm_relocate_vmm(struct kvm_vmm_info *vmm_info,
 	BUG_ON(!module);
 
 	if (!kvm_vmm_base) {
-		printk("kvm: kvm area hasn't been initilized yet!!\n");
+		printk("kvm: kvm area hasn't been initialized yet!!\n");
 		return -EFAULT;
 	}
 

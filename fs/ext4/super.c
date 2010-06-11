@@ -3008,7 +3008,7 @@ no_journal:
 	ext4_ext_init(sb);
 	err = ext4_mb_init(sb, needs_recovery);
 	if (err) {
-		ext4_msg(sb, KERN_ERR, "failed to initalize mballoc (%d)",
+		ext4_msg(sb, KERN_ERR, "failed to initialize mballoc (%d)",
 			 err);
 		goto failed_mount4;
 	}

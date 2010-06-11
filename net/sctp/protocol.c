@@ -1162,7 +1162,7 @@ SCTP_STATIC __init int sctp_init(void)
 	/* Set the pressure threshold to be a fraction of global memory that
 	 * is up to 1/2 at 256 MB, decreasing toward zero with the amount of
 	 * memory, with a floor of 128 pages.
-	 * Note this initalizes the data in sctpv6_prot too
+	 * Note this initializes the data in sctpv6_prot too
 	 * Unabashedly stolen from tcp_init
 	 */
 	nr_pages = totalram_pages - totalhigh_pages;

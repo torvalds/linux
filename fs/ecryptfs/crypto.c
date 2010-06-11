@@ -762,7 +762,7 @@ ecryptfs_decrypt_page_offset(struct ecryptfs_crypt_stat *crypt_stat,
 
 /**
  * ecryptfs_init_crypt_ctx
- * @crypt_stat: Uninitilized crypt stats structure
+ * @crypt_stat: Uninitialized crypt stats structure
  *
  * Initialize the crypto context.
  *

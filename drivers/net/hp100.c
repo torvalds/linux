@@ -1071,7 +1071,7 @@ static void hp100_mmuinit(struct net_device *dev)
 	if (lp->mode == 1)
 		hp100_init_pdls(dev);
 
-	/* Go to performance page and initalize isr and imr registers */
+	/* Go to performance page and initialize isr and imr registers */
 	hp100_page(PERFORMANCE);
 	hp100_outw(0xfefe, IRQ_MASK);	/* mask off all ints */
 	hp100_outw(0xffff, IRQ_STATUS);	/* ack IRQ */

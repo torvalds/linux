@@ -436,7 +436,7 @@ befs_init_inodecache(void)
 					      init_once);
 	if (befs_inode_cachep == NULL) {
 		printk(KERN_ERR "befs_init_inodecache: "
-		       "Couldn't initalize inode slabcache\n");
+		       "Couldn't initialize inode slabcache\n");
 		return -ENOMEM;
 	}
 

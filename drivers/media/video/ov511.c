@@ -4808,7 +4808,7 @@ ov7xx0_configure(struct usb_ov511 *ov)
 		return -1;
 
 	if (init_ov_sensor(ov) >= 0) {
-		PDEBUG(1, "OV7xx0 sensor initalized (method 1)");
+		PDEBUG(1, "OV7xx0 sensor initialized (method 1)");
 	} else {
 		/* Reset the 76xx */
 		if (i2c_w(ov, 0x12, 0x80) < 0)

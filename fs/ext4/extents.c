@@ -2918,7 +2918,7 @@ fix_extent_len:
  * One of more index blocks maybe needed if the extent tree grow after
  * the unintialized extent split. To prevent ENOSPC occur at the IO
  * complete, we need to split the uninitialized extent before DIO submit
- * the IO. The uninitilized extent called at this time will be split
+ * the IO. The uninitialized extent called at this time will be split
  * into three uninitialized extent(at most). After IO complete, the part
  * being filled will be convert to initialized by the end_io callback function
  * via ext4_convert_unwritten_extents().

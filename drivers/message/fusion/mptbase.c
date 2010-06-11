@@ -1794,7 +1794,7 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->sh = NULL;
 	ioc->cached_fw = NULL;
 
-	/* Initilize SCSI Config Data structure
+	/* Initialize SCSI Config Data structure
 	 */
 	memset(&ioc->spi_data, 0, sizeof(SpiCfgData));
 
@@ -2471,7 +2471,7 @@ mpt_do_ioc_recovery(MPT_ADAPTER *ioc, u32 reason, int sleepFlag)
 	if ((ret == 0) && (reason == MPT_HOSTEVENT_IOC_BRINGUP)) {
 
 		/*
-		 * Initalize link list for inactive raid volumes.
+		 * Initialize link list for inactive raid volumes.
 		 */
 		mutex_init(&ioc->raid_data.inactive_list_mutex);
 		INIT_LIST_HEAD(&ioc->raid_data.inactive_list);

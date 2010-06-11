@@ -6812,7 +6812,7 @@ static int stp;
 static int fast_aging;
 
 /**
- * netdev_init - initalize network device.
+ * netdev_init - initialize network device.
  * @dev:	Network device.
  *
  * This function initializes the network device.

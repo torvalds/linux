@@ -449,7 +449,7 @@ static u32 temac_setoptions(struct net_device *ndev, u32 options)
 	return (0);
 }
 
-/* Initilize temac */
+/* Initialize temac */
 static void temac_device_reset(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);

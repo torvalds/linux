@@ -80,7 +80,7 @@ static struct net_device * __init ipddp_init(void)
 	if (version_printed++ == 0)
                 printk(version);
 
-	/* Initalize the device structure. */
+	/* Initialize the device structure. */
 	dev->netdev_ops = &ipddp_netdev_ops;
 
         dev->type = ARPHRD_IPDDP;       	/* IP over DDP tunnel */

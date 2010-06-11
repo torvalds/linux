@@ -227,7 +227,7 @@ zr36060_pushit (struct zr36060 *ptr,
 
    Could be variable, but until it's not needed it they are just fixed to save
    memory. Otherwise expand zr36060 structure with arrays, push the values to
-   it and initalize from there, as e.g. the linux zr36057/60 driver does it.
+   it and initialize from there, as e.g. the linux zr36057/60 driver does it.
    ========================================================================= */
 
 static const char zr36060_dqt[0x86] = {

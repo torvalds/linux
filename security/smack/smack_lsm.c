@@ -3227,7 +3227,7 @@ static __init int smack_init(void)
 	cred = (struct cred *) current->cred;
 	cred->security = &smack_known_floor.smk_known;
 
-	/* initilize the smack_know_list */
+	/* initialize the smack_know_list */
 	init_smack_know_list();
 	/*
 	 * Initialize locks

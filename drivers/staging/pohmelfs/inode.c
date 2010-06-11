@@ -848,7 +848,7 @@ static void pohmelfs_destroy_inode(struct inode *inode)
 }
 
 /*
- * ->alloc_inode() callback. Allocates inode and initilizes private data.
+ * ->alloc_inode() callback. Allocates inode and initializes private data.
  */
 static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 {
