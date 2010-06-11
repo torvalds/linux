@@ -9,7 +9,7 @@
 #include "rdma_transport.h"
 
 #define RDS_FMR_SIZE			256
-#define RDS_FMR_POOL_SIZE		4096
+#define RDS_FMR_POOL_SIZE		8192
 
 #define RDS_IB_MAX_SGE			8
 #define RDS_IB_RECV_SGE 		2
