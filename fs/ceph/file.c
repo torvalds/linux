@@ -317,7 +317,7 @@ void ceph_release_page_vector(struct page **pages, int num_pages)
 /*
  * allocate a vector new pages
  */
-struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
+static struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
 {
 	struct page **pages;
 	int i;
@@ -745,7 +745,7 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	size_t len = iov->iov_len;
 	struct inode *inode = filp->f_dentry->d_inode;
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	void *base = iov->iov_base;
+	void __user *base = iov->iov_base;
 	ssize_t ret;
 	int want, got = 0;
 	int checkeof = 0, read = 0;

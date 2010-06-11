@@ -424,7 +424,7 @@ static void __remove_pg_pool(struct rb_root *root, struct ceph_pg_pool_info *pi)
 	kfree(pi);
 }
 
-void __decode_pool(void **p, struct ceph_pg_pool_info *pi)
+static void __decode_pool(void **p, struct ceph_pg_pool_info *pi)
 {
 	ceph_decode_copy(p, &pi->v, sizeof(pi->v));
 	calc_pg_masks(pi);

@@ -47,22 +47,6 @@ void ceph_buffer_release(struct kref *kref)
 	kfree(b);
 }
 
-int ceph_buffer_alloc(struct ceph_buffer *b, int len, gfp_t gfp)
-{
-	b->vec.iov_base = kmalloc(len, gfp | __GFP_NOWARN);
-	if (b->vec.iov_base) {
-		b->is_vmalloc = false;
-	} else {
-		b->vec.iov_base = __vmalloc(len, gfp, PAGE_KERNEL);
-		b->is_vmalloc = true;
-	}
-	if (!b->vec.iov_base)
-		return -ENOMEM;
-	b->alloc_len = len;
-	b->vec.iov_len = len;
-	return 0;
-}
-
 int ceph_decode_buffer(struct ceph_buffer **b, void **p, void *end)
 {
 	size_t len;
