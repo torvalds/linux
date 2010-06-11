@@ -177,7 +177,7 @@ typedef struct _SGDescriptor_struct {
 #define COMMANDLIST_ALIGNMENT (32)
 #define IS_64_BIT ((sizeof(long) - 4)/4)
 #define IS_32_BIT (!IS_64_BIT)
-#define PAD_32 (32)
+#define PAD_32 (0)
 #define PAD_64 (4)
 #define PADSIZE (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
 #define DIRECT_LOOKUP_BIT 0x10
