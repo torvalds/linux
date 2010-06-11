@@ -36,7 +36,7 @@
 #define DSP_IOCTL_RECV_MSG              (0x00800003)
 #define DSP_IOCTL_SET_FREQ              (0x00800004)
 #define DSP_IOCTL_GET_TABLE_PHY         (0x00800005)
-
+#define DSP_IOCTL_SET_CODEC				(0x00800006)
 
 struct rk28dsp_req {
 	int reqno;

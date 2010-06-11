@@ -96,6 +96,9 @@ struct rk28dsp_inf {
 /* CEVA memory map base address for ARM */
 #define DSP_L2_IMEM_BASE   (RK2818_DSP_PHYS + 0x200000)
 #define DSP_L2_DMEM_BASE   (RK2818_DSP_PHYS + 0x400000)
+#define APB_SCU_BASE				0x18018000
+#define APB_REG_FILE_BASE   0x18019000
+
 #define PIU_BASE_ADDR      (RK2818_DSP_PHYS + 0x132000)
 #define PMU_BASE_ADDR      (RK2818_DSP_PHYS + 0x130000)
 
@@ -142,6 +145,38 @@ static int wq2_condition = 0;
 static DECLARE_MUTEX(sem);
 
 static int rcv_quit = 0;
+
+
+//add by Charles Chen for test 281x play RMVB
+static void setRegValueForVideo(unsigned long type)
+{
+	/*
+		0x18018020 或上 0x08000000
+		0x18018028  先或上 0x00000110
+		等待一些时间再与上     ～0x00000110
+		0x18019018 或上 0x00200000
+	*/
+
+	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x20) | (0x08000000)) , RK2818_SCU_BASE+0x20);	
+	printk("------->0x18018020 value 0x%08x\n",__raw_readl(RK2818_SCU_BASE+0x20));
+		if(!type)
+		{
+    	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | (0x00000100)) , RK2818_SCU_BASE+0x28);
+    
+	    mdelay(5);
+    
+   	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x00000100)) , RK2818_SCU_BASE+0x28);
+    	__raw_writel((__raw_readl(RK2818_REGFILE_BASE+0x14) | (0x20002000)) , RK2818_REGFILE_BASE+0x14);
+    
+    	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x400)) , RK2818_SCU_BASE+0x1c);
+      printk("this is rm 9 video\n");
+		}
+		else
+		{
+			printk("this is h264 video\n");
+		}
+    return;
+}
 
 static int CheckDSPLIBHead(char *buff)
 {
@@ -507,7 +542,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if(!g_inf)   return -EAGAIN;
     inf = g_inf;
 
-	if(DSP_IOCTL_RES_REQUEST!=cmd && DSP_IOCTL_GET_TABLE_PHY!=cmd) {
+	if(DSP_IOCTL_RES_REQUEST!=cmd && DSP_IOCTL_GET_TABLE_PHY!=cmd&&cmd !=DSP_IOCTL_SET_CODEC) {
 		if(inf->cur_pid!=current->tgid) {
 		    dspprintk("res is obtain by pid %d, refuse this req(pid=%d cmd=0x%08x) \n",
 		        inf->cur_pid, current->tgid, cmd);
@@ -655,7 +690,12 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             if(copy_to_user((void __user *)arg, (void*)&table_phy, 4))  ret = -EFAULT;
         }
         break;
-
+   case DSP_IOCTL_SET_CODEC:
+	{
+		dspprintk("------>firmware name ------------------------>");
+				setRegValueForVideo(arg);
+	}
+	break;
 	default:
 		break;
 	}
