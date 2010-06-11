@@ -287,7 +287,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	 * vcpu->arch.update_pte.pfn was fetched from get_user_pages(write = 1).
 	 */
 	mmu_set_spte(vcpu, spte, sp->role.access, pte_access, 0, 0,
-		     gpte & PT_DIRTY_MASK, NULL, PT_PAGE_TABLE_LEVEL,
+		     is_dirty_gpte(gpte), NULL, PT_PAGE_TABLE_LEVEL,
 		     gpte_to_gfn(gpte), pfn, true, true);
 }
 
@@ -319,7 +319,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			mmu_set_spte(vcpu, sptep, access,
 				     gw->pte_access & access,
 				     user_fault, write_fault,
-				     gw->ptes[gw->level-1] & PT_DIRTY_MASK,
+				     is_dirty_gpte(gw->ptes[gw->level-1]),
 				     ptwrite, level,
 				     gw->gfn, pfn, false, true);
 			break;
