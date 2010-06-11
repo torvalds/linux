@@ -18,7 +18,7 @@
  *
  * File: 80211mgr.c
  *
- * Purpose: Handles the 802.11 managment support functions
+ * Purpose: Handles the 802.11 management support functions
  *
  * Author: Lyndon Chen
  *

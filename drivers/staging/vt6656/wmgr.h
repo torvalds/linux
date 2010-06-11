@@ -343,11 +343,11 @@ typedef struct tagSMgmtObject
     BOOL                    bRxBeaconInTBTTWake;
     BYTE                    abyPSTxMap[MAX_NODE_NUM + 1];
 
-    // managment command related
+    // management command related
     unsigned int                    uCmdBusy;
     unsigned int                    uCmdHostAPBusy;
 
-    // managment packet pool
+    // management packet pool
     PBYTE                   pbyMgmtPacketPool;
     BYTE                    byMgmtPacketPool[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
 

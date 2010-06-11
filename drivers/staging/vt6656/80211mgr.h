@@ -19,7 +19,7 @@
  *
  * File: 80211mgr.h
  *
- * Purpose: 802.11 managment frames pre-defines.
+ * Purpose: 802.11 management frames pre-defines.
  *
  *
  * Author: Lyndon Chen
