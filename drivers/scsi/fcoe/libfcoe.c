@@ -343,7 +343,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 
 	fcf = fip->sel_fcf;
 	lp = fip->lp;
-	if (!fcf || !lp->port_id)
+	if (!fcf || (ports && !lp->port_id))
 		return;
 
 	len = sizeof(*kal) + ports * sizeof(*vn);
