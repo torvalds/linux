@@ -103,5 +103,5 @@ static int __init rk2818_cpufreq_register(void)
 	return cpufreq_register_driver(&rk2818_cpufreq_driver);
 }
 
-core_initcall_sync(rk2818_cpufreq_register);
+device_initcall(rk2818_cpufreq_register);
 
