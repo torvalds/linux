@@ -1103,7 +1103,7 @@ static void nonpaging_prefetch_page(struct kvm_vcpu *vcpu,
 }
 
 static int nonpaging_sync_page(struct kvm_vcpu *vcpu,
-			       struct kvm_mmu_page *sp)
+			       struct kvm_mmu_page *sp, bool clear_unsync)
 {
 	return 1;
 }
@@ -1228,7 +1228,7 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	if (clear_unsync)
 		kvm_unlink_unsync_page(vcpu->kvm, sp);
 
-	if (vcpu->arch.mmu.sync_page(vcpu, sp)) {
+	if (vcpu->arch.mmu.sync_page(vcpu, sp, clear_unsync)) {
 		kvm_mmu_prepare_zap_page(vcpu->kvm, sp, invalid_list);
 		return 1;
 	}
@@ -1237,7 +1237,6 @@ static int __kvm_sync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 	return 0;
 }
 
-static void mmu_convert_notrap(struct kvm_mmu_page *sp);
 static int kvm_sync_page_transient(struct kvm_vcpu *vcpu,
 				   struct kvm_mmu_page *sp)
 {
@@ -1245,9 +1244,7 @@ static int kvm_sync_page_transient(struct kvm_vcpu *vcpu,
 	int ret;
 
 	ret = __kvm_sync_page(vcpu, sp, &invalid_list, false);
-	if (!ret)
-		mmu_convert_notrap(sp);
-	else
+	if (ret)
 		kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 
 	return ret;
@@ -1273,7 +1270,7 @@ static void kvm_sync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
 
 		WARN_ON(s->role.level != PT_PAGE_TABLE_LEVEL);
 		if ((s->role.cr4_pae != !!is_pae(vcpu)) ||
-			(vcpu->arch.mmu.sync_page(vcpu, s))) {
+			(vcpu->arch.mmu.sync_page(vcpu, s, true))) {
 			kvm_mmu_prepare_zap_page(vcpu->kvm, s, &invalid_list);
 			continue;
 		}

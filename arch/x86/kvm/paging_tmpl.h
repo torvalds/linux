@@ -578,7 +578,8 @@ static void FNAME(prefetch_page)(struct kvm_vcpu *vcpu,
  *   can't change unless all sptes pointing to it are nuked first.
  * - Alias changes zap the entire shadow cache.
  */
-static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
+static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
+			    bool clear_unsync)
 {
 	int i, offset, nr_present;
 	bool reset_host_protection;
@@ -615,7 +616,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 			u64 nonpresent;
 
 			rmap_remove(vcpu->kvm, &sp->spt[i]);
-			if (is_present_gpte(gpte))
+			if (is_present_gpte(gpte) || !clear_unsync)
 				nonpresent = shadow_trap_nonpresent_pte;
 			else
 				nonpresent = shadow_notrap_nonpresent_pte;
