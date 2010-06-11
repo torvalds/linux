@@ -427,7 +427,7 @@ void RTMPToWirelessSta(struct rt_rtmp_adapter *pAd,
 /*
     ==========================================================================
     Description:
-        This is a function to initilize 4-way handshake
+        This is a function to initialize 4-way handshake
 
     Return:
 
@@ -867,7 +867,7 @@ void PeerPairMsg3Action(struct rt_rtmp_adapter *pAd,
     ==========================================================================
     Description:
         When receiving the last packet of 4-way pairwisekey handshake.
-        Initilize 2-way groupkey handshake following.
+        Initialize 2-way groupkey handshake following.
     Return:
     ==========================================================================
 */
