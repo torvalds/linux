@@ -2604,12 +2604,6 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 	int surf_index = reg * 16;
 	int flags = 0;
 
-	/* r100/r200 divide by 16 */
-	if (rdev->family < CHIP_R300)
-		flags = pitch / 16;
-	else
-		flags = pitch / 8;
-
 	if (rdev->family <= CHIP_RS200) {
 		if ((tiling_flags & (RADEON_TILING_MACRO|RADEON_TILING_MICRO))
 				 == (RADEON_TILING_MACRO|RADEON_TILING_MICRO))
@@ -2632,6 +2626,20 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 		flags |= RADEON_SURF_AP0_SWP_16BPP | RADEON_SURF_AP1_SWP_16BPP;
 	if (tiling_flags & RADEON_TILING_SWAP_32BIT)
 		flags |= RADEON_SURF_AP0_SWP_32BPP | RADEON_SURF_AP1_SWP_32BPP;
+
+	/* when we aren't tiling the pitch seems to needs to be furtherdivided down. - tested on power5 + rn50 server */
+	if (tiling_flags & (RADEON_TILING_SWAP_16BIT | RADEON_TILING_SWAP_32BIT)) {
+		if (!(tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO)))
+			if (ASIC_IS_RN50(rdev))
+				pitch /= 16;
+	}
+
+	/* r100/r200 divide by 16 */
+	if (rdev->family < CHIP_R300)
+		flags |= pitch / 16;
+	else
+		flags |= pitch / 8;
+
 
 	DRM_DEBUG("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
 	WREG32(RADEON_SURFACE0_INFO + surf_index, flags);
