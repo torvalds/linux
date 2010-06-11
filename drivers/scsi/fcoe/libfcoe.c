@@ -640,12 +640,19 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 	unsigned long t;
 	size_t rlen;
 	size_t dlen;
+	u32 desc_mask;
 
 	memset(fcf, 0, sizeof(*fcf));
 	fcf->fka_period = msecs_to_jiffies(FCOE_CTLR_DEF_FKA);
 
 	fiph = (struct fip_header *)skb->data;
 	fcf->flags = ntohs(fiph->fip_flags);
+
+	/*
+	 * mask of required descriptors. validating each one clears its bit.
+	 */
+	desc_mask = BIT(FIP_DT_PRI) | BIT(FIP_DT_MAC) | BIT(FIP_DT_NAME) |
+			BIT(FIP_DT_FAB) | BIT(FIP_DT_FKA);
 
 	rlen = ntohs(fiph->fip_dl_len) * 4;
 	if (rlen + sizeof(*fiph) > skb->len)
@@ -656,11 +663,19 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen < sizeof(*desc) || dlen > rlen)
 			return -EINVAL;
+		/* Drop Adv if there are duplicate critical descriptors */
+		if ((desc->fip_dtype < 32) &&
+		    !(desc_mask & 1U << desc->fip_dtype)) {
+			LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
+					"Descriptors in FIP adv\n");
+			return -EINVAL;
+		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_PRI:
 			if (dlen != sizeof(struct fip_pri_desc))
 				goto len_err;
 			fcf->pri = ((struct fip_pri_desc *)desc)->fd_pri;
+			desc_mask &= ~BIT(FIP_DT_PRI);
 			break;
 		case FIP_DT_MAC:
 			if (dlen != sizeof(struct fip_mac_desc))
@@ -673,12 +688,14 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 						"in FIP adv\n");
 				return -EINVAL;
 			}
+			desc_mask &= ~BIT(FIP_DT_MAC);
 			break;
 		case FIP_DT_NAME:
 			if (dlen != sizeof(struct fip_wwn_desc))
 				goto len_err;
 			wwn = (struct fip_wwn_desc *)desc;
 			fcf->switch_name = get_unaligned_be64(&wwn->fd_wwn);
+			desc_mask &= ~BIT(FIP_DT_NAME);
 			break;
 		case FIP_DT_FAB:
 			if (dlen != sizeof(struct fip_fab_desc))
@@ -687,6 +704,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			fcf->fabric_name = get_unaligned_be64(&fab->fd_wwn);
 			fcf->vfid = ntohs(fab->fd_vfid);
 			fcf->fc_map = ntoh24(fab->fd_map);
+			desc_mask &= ~BIT(FIP_DT_FAB);
 			break;
 		case FIP_DT_FKA:
 			if (dlen != sizeof(struct fip_fka_desc))
@@ -697,6 +715,7 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 			t = ntohl(fka->fd_fka_period);
 			if (t >= FCOE_CTLR_MIN_FKA)
 				fcf->fka_period = msecs_to_jiffies(t);
+			desc_mask &= ~BIT(FIP_DT_FKA);
 			break;
 		case FIP_DT_MAP_OUI:
 		case FIP_DT_FCOE_SIZE:
@@ -719,6 +738,11 @@ static int fcoe_ctlr_parse_adv(struct fcoe_ctlr *fip,
 		return -EINVAL;
 	if (!fcf->switch_name || !fcf->fabric_name)
 		return -EINVAL;
+	if (desc_mask) {
+		LIBFCOE_FIP_DBG(fip, "adv missing descriptors mask %x\n",
+				desc_mask);
+		return -EINVAL;
+	}
 	return 0;
 
 len_err:
@@ -847,6 +871,7 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	size_t els_len = 0;
 	size_t rlen;
 	size_t dlen;
+	u32 dupl_desc = 0;
 
 	fiph = (struct fip_header *)skb->data;
 	sub = fiph->fip_subcode;
@@ -862,6 +887,15 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen < sizeof(*desc) || dlen > rlen)
 			goto drop;
+		/* Drop ELS if there are duplicate critical descriptors */
+		if (desc->fip_dtype < 32) {
+			if (dupl_desc & 1U << desc->fip_dtype) {
+				LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
+						"Descriptors in FIP ELS\n");
+				goto drop;
+			}
+			dupl_desc |= (1 << desc->fip_dtype);
+		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_MAC:
 			if (dlen != sizeof(struct fip_mac_desc))
@@ -973,6 +1007,13 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		dlen = desc->fip_dlen * FIP_BPW;
 		if (dlen > rlen)
 			return;
+		/* Drop CVL if there are duplicate critical descriptors */
+		if ((desc->fip_dtype < 32) &&
+		    !(desc_mask & 1U << desc->fip_dtype)) {
+			LIBFCOE_FIP_DBG(fip, "Duplicate Critical "
+					"Descriptors in FIP CVL\n");
+			return;
+		}
 		switch (desc->fip_dtype) {
 		case FIP_DT_MAC:
 			mp = (struct fip_mac_desc *)desc;
