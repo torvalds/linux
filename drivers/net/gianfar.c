@@ -381,9 +381,13 @@ static void gfar_init_mac(struct net_device *ndev)
 	/* Insert receive time stamps into padding alignment bytes */
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER) {
 		rctrl &= ~RCTRL_PAL_MASK;
-		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE | RCTRL_PADDING(8);
+		rctrl |= RCTRL_PADDING(8);
 		priv->padding = 8;
 	}
+
+	/* Enable HW time stamping if requested from user space */
+	if (priv->hwts_rx_en)
+		rctrl |= RCTRL_PRSDEP_INIT | RCTRL_TS_ENABLE;
 
 	/* keep vlan related bits if it's enabled */
 	if (priv->vlgrp) {
@@ -747,7 +751,8 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 			FSL_GIANFAR_DEV_HAS_CSUM |
 			FSL_GIANFAR_DEV_HAS_VLAN |
 			FSL_GIANFAR_DEV_HAS_MAGIC_PACKET |
-			FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
+			FSL_GIANFAR_DEV_HAS_EXTENDED_HASH |
+			FSL_GIANFAR_DEV_HAS_TIMER;
 
 	ctype = of_get_property(np, "phy-connection-type", NULL);
 
@@ -805,12 +810,20 @@ static int gfar_hwtstamp_ioctl(struct net_device *netdev,
 
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
-		priv->hwts_rx_en = 0;
+		if (priv->hwts_rx_en) {
+			stop_gfar(netdev);
+			priv->hwts_rx_en = 0;
+			startup_gfar(netdev);
+		}
 		break;
 	default:
 		if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER))
 			return -ERANGE;
-		priv->hwts_rx_en = 1;
+		if (!priv->hwts_rx_en) {
+			stop_gfar(netdev);
+			priv->hwts_rx_en = 1;
+			startup_gfar(netdev);
+		}
 		config.rx_filter = HWTSTAMP_FILTER_ALL;
 		break;
 	}
