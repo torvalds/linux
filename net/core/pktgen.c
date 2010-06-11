@@ -2170,7 +2170,7 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	end_time = ktime_now();
 
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(end_time, start_time));
-	pkt_dev->next_tx = ktime_add_ns(end_time, pkt_dev->delay);
+	pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
 }
 
 static inline void set_pkt_overhead(struct pktgen_dev *pkt_dev)
