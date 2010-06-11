@@ -262,7 +262,7 @@ static int collect_events(struct perf_event *group, int max_count,
 	return n;
 }
 
-/* perf must be disabled, context locked on entry */
+/* context locked on entry */
 static int fsl_emb_pmu_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuhw;
@@ -271,6 +271,7 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 	u64 val;
 	int i;
 
+	perf_disable();
 	cpuhw = &get_cpu_var(cpu_hw_events);
 
 	if (event->hw.config & FSL_EMB_EVENT_RESTRICTED)
@@ -310,15 +311,17 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 	ret = 0;
  out:
 	put_cpu_var(cpu_hw_events);
+	perf_enable();
 	return ret;
 }
 
-/* perf must be disabled, context locked on entry */
+/* context locked on entry */
 static void fsl_emb_pmu_disable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuhw;
 	int i = event->hw.idx;
 
+	perf_disable();
 	if (i < 0)
 		goto out;
 
@@ -346,6 +349,7 @@ static void fsl_emb_pmu_disable(struct perf_event *event)
 	cpuhw->n_events--;
 
  out:
+	perf_enable();
 	put_cpu_var(cpu_hw_events);
 }
 

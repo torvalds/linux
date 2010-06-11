@@ -564,26 +564,26 @@ struct pmu {
 	struct list_head		entry;
 
 	/*
-	 * Should return -ENOENT when the @event doesn't match this pmu
+	 * Should return -ENOENT when the @event doesn't match this PMU.
 	 */
 	int (*event_init)		(struct perf_event *event);
 
-	int (*enable)			(struct perf_event *event);
+	int  (*enable)			(struct perf_event *event);
 	void (*disable)			(struct perf_event *event);
-	int (*start)			(struct perf_event *event);
+	int  (*start)			(struct perf_event *event);
 	void (*stop)			(struct perf_event *event);
 	void (*read)			(struct perf_event *event);
 	void (*unthrottle)		(struct perf_event *event);
 
 	/*
-	 * Group events scheduling is treated as a transaction, add group
-	 * events as a whole and perform one schedulability test. If the test
-	 * fails, roll back the whole group
+	 * Group events scheduling is treated as a transaction, add
+	 * group events as a whole and perform one schedulability test.
+	 * If the test fails, roll back the whole group
 	 */
 
 	/*
-	 * Start the transaction, after this ->enable() doesn't need
-	 * to do schedulability tests.
+	 * Start the transaction, after this ->enable() doesn't need to
+	 * do schedulability tests.
 	 */
 	void (*start_txn)	(struct pmu *pmu);
 	/*
@@ -594,8 +594,8 @@ struct pmu {
 	 */
 	int  (*commit_txn)	(struct pmu *pmu);
 	/*
-	 * Will cancel the transaction, assumes ->disable() is called for
-	 * each successfull ->enable() during the transaction.
+	 * Will cancel the transaction, assumes ->disable() is called
+	 * for each successfull ->enable() during the transaction.
 	 */
 	void (*cancel_txn)	(struct pmu *pmu);
 };

@@ -277,6 +277,8 @@ armpmu_enable(struct perf_event *event)
 	int idx;
 	int err = 0;
 
+	perf_disable();
+
 	/* If we don't have a space for the counter then finish early. */
 	idx = armpmu->get_event_idx(cpuc, hwc);
 	if (idx < 0) {
@@ -303,6 +305,7 @@ armpmu_enable(struct perf_event *event)
 	perf_event_update_userpage(event);
 
 out:
+	perf_enable();
 	return err;
 }
 

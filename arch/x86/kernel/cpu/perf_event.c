@@ -969,10 +969,11 @@ static int x86_pmu_enable(struct perf_event *event)
 
 	hwc = &event->hw;
 
+	perf_disable();
 	n0 = cpuc->n_events;
-	n = collect_events(cpuc, event, false);
-	if (n < 0)
-		return n;
+	ret = n = collect_events(cpuc, event, false);
+	if (ret < 0)
+		goto out;
 
 	/*
 	 * If group events scheduling transaction was started,
@@ -980,23 +981,26 @@ static int x86_pmu_enable(struct perf_event *event)
 	 * at commit time(->commit_txn) as a whole
 	 */
 	if (cpuc->group_flag & PERF_EVENT_TXN)
-		goto out;
+		goto done_collect;
 
 	ret = x86_pmu.schedule_events(cpuc, n, assign);
 	if (ret)
-		return ret;
+		goto out;
 	/*
 	 * copy new assignment, now we know it is possible
 	 * will be used by hw_perf_enable()
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
-out:
+done_collect:
 	cpuc->n_events = n;
 	cpuc->n_added += n - n0;
 	cpuc->n_txn += n - n0;
 
-	return 0;
+	ret = 0;
+out:
+	perf_enable();
+	return ret;
 }
 
 static int x86_pmu_start(struct perf_event *event)
@@ -1432,6 +1436,7 @@ static void x86_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
+	perf_disable();
 	cpuc->group_flag |= PERF_EVENT_TXN;
 	cpuc->n_txn = 0;
 }
@@ -1451,6 +1456,7 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 	 */
 	cpuc->n_added -= cpuc->n_txn;
 	cpuc->n_events -= cpuc->n_txn;
+	perf_enable();
 }
 
 /*
@@ -1480,7 +1486,7 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN;
-
+	perf_enable();
 	return 0;
 }
 

@@ -1113,6 +1113,7 @@ static void sparc_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
+	perf_disable();
 	cpuhw->group_flag |= PERF_EVENT_TXN;
 }
 
@@ -1126,6 +1127,7 @@ static void sparc_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
+	perf_enable();
 }
 
 /*
@@ -1149,6 +1151,7 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 		return -EAGAIN;
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN;
+	perf_enable();
 	return 0;
 }
 

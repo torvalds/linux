@@ -861,6 +861,7 @@ void power_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
+	perf_disable();
 	cpuhw->group_flag |= PERF_EVENT_TXN;
 	cpuhw->n_txn_start = cpuhw->n_events;
 }
@@ -875,6 +876,7 @@ void power_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
+	perf_enable();
 }
 
 /*
@@ -901,6 +903,7 @@ int power_pmu_commit_txn(struct pmu *pmu)
 		cpuhw->event[i]->hw.config = cpuhw->events[i];
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
+	perf_enable();
 	return 0;
 }
 

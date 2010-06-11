@@ -230,11 +230,14 @@ static int sh_pmu_enable(struct perf_event *event)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
+	int ret = -EAGAIN;
+
+	perf_disable();
 
 	if (test_and_set_bit(idx, cpuc->used_mask)) {
 		idx = find_first_zero_bit(cpuc->used_mask, sh_pmu->num_events);
 		if (idx == sh_pmu->num_events)
-			return -EAGAIN;
+			goto out;
 
 		set_bit(idx, cpuc->used_mask);
 		hwc->idx = idx;
@@ -248,8 +251,10 @@ static int sh_pmu_enable(struct perf_event *event)
 	sh_pmu->enable(hwc, idx);
 
 	perf_event_update_userpage(event);
-
-	return 0;
+	ret = 0;
+out:
+	perf_enable();
+	return ret;
 }
 
 static void sh_pmu_read(struct perf_event *event)
