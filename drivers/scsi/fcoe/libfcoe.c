@@ -989,7 +989,9 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	size_t dlen;
 	struct fcoe_fcf *fcf = fip->sel_fcf;
 	struct fc_lport *lport = fip->lp;
-	u32	desc_mask;
+	struct fc_lport *vn_port = NULL;
+	u32 desc_mask;
+	int is_vn_port = 0;
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
 
@@ -1038,8 +1040,26 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			if (compare_ether_addr(vp->fd_mac,
 					       fip->get_src_addr(lport)) == 0 &&
 			    get_unaligned_be64(&vp->fd_wwpn) == lport->wwpn &&
-			    ntoh24(vp->fd_fc_id) == lport->port_id)
+			    ntoh24(vp->fd_fc_id) == lport->port_id) {
 				desc_mask &= ~BIT(FIP_DT_VN_ID);
+				break;
+			}
+			/* check if clr_vlink is for NPIV port */
+			mutex_lock(&lport->lp_mutex);
+			list_for_each_entry(vn_port, &lport->vports, list) {
+				if (compare_ether_addr(vp->fd_mac,
+				    fip->get_src_addr(vn_port)) == 0 &&
+				    (get_unaligned_be64(&vp->fd_wwpn)
+							== vn_port->wwpn) &&
+				    (ntoh24(vp->fd_fc_id) ==
+					    fc_host_port_id(vn_port->host))) {
+					desc_mask &= ~BIT(FIP_DT_VN_ID);
+					is_vn_port = 1;
+					break;
+				}
+			}
+			mutex_unlock(&lport->lp_mutex);
+
 			break;
 		default:
 			/* standard says ignore unknown descriptors >= 128 */
@@ -1060,14 +1080,18 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	} else {
 		LIBFCOE_FIP_DBG(fip, "performing Clear Virtual Link\n");
 
-		spin_lock_bh(&fip->lock);
-		per_cpu_ptr(lport->dev_stats,
-			    smp_processor_id())->VLinkFailureCount++;
-		fcoe_ctlr_reset(fip);
-		spin_unlock_bh(&fip->lock);
+		if (is_vn_port)
+			fc_lport_reset(vn_port);
+		else {
+			spin_lock_bh(&fip->lock);
+			per_cpu_ptr(lport->dev_stats,
+				    smp_processor_id())->VLinkFailureCount++;
+			fcoe_ctlr_reset(fip);
+			spin_unlock_bh(&fip->lock);
 
-		fc_lport_reset(fip->lp);
-		fcoe_ctlr_solicit(fip, NULL);
+			fc_lport_reset(fip->lp);
+			fcoe_ctlr_solicit(fip, NULL);
+		}
 	}
 }
 
