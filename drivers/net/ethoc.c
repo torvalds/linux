@@ -658,8 +658,6 @@ static int ethoc_mdio_probe(struct net_device *dev)
 static int ethoc_open(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
-	unsigned int min_tx = 2;
-	unsigned int num_bd;
 	int ret;
 
 	ret = request_irq(dev->irq, ethoc_interrupt, IRQF_SHARED,
@@ -667,11 +665,6 @@ static int ethoc_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	/* calculate the number of TX/RX buffers, maximum 128 supported */
-	num_bd = min_t(unsigned int,
-		128, (dev->mem_end - dev->mem_start + 1) / ETHOC_BUFSIZ);
-	priv->num_tx = max(min_tx, num_bd / 4);
-	priv->num_rx = num_bd - priv->num_tx;
 	ethoc_write(priv, TX_BD_NUM, priv->num_tx);
 
 	ethoc_init_ring(priv);
@@ -884,6 +877,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	struct resource *mem = NULL;
 	struct ethoc *priv = NULL;
 	unsigned int phy;
+	int num_bd;
 	int ret = 0;
 
 	/* allocate networking device */
@@ -977,6 +971,12 @@ static int ethoc_probe(struct platform_device *pdev)
 		netdev->mem_end = netdev->mem_start + buffer_size;
 		priv->dma_alloc = buffer_size;
 	}
+
+	/* calculate the number of TX/RX buffers, maximum 128 supported */
+	num_bd = min_t(unsigned int,
+		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
+	priv->num_tx = max(2, num_bd / 4);
+	priv->num_rx = num_bd - priv->num_tx;
 
 	/* Allow the platform setup code to pass in a MAC address. */
 	if (pdev->dev.platform_data) {
