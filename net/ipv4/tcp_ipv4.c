@@ -237,7 +237,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	/* OK, now commit destination to socket.  */
 	sk->sk_gso_type = SKB_GSO_TCPV4;
-	sk_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->dst);
 
 	if (!tp->write_seq)
 		tp->write_seq = secure_tcp_sequence_number(inet->inet_saddr,

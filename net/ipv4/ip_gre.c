@@ -745,7 +745,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			goto tx_error;
 		}
 	}
-	tdev = rt->u.dst.dev;
+	tdev = rt->dst.dev;
 
 	if (tdev == dev) {
 		ip_rt_put(rt);
@@ -755,7 +755,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 
 	df = tiph->frag_off;
 	if (df)
-		mtu = dst_mtu(&rt->u.dst) - dev->hard_header_len - tunnel->hlen;
+		mtu = dst_mtu(&rt->dst) - dev->hard_header_len - tunnel->hlen;
 	else
 		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
@@ -803,7 +803,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			tunnel->err_count = 0;
 	}
 
-	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen + rt->u.dst.header_len;
+	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen + rt->dst.header_len;
 
 	if (skb_headroom(skb) < max_headroom || skb_shared(skb)||
 	    (skb_cloned(skb) && !skb_clone_writable(skb, 0))) {
@@ -830,7 +830,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 	IPCB(skb)->flags &= ~(IPSKB_XFRM_TUNNEL_SIZE | IPSKB_XFRM_TRANSFORMED |
 			      IPSKB_REROUTED);
 	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	/*
 	 *	Push down and install the IPIP header.
@@ -853,7 +853,7 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			iph->ttl = ((struct ipv6hdr *)old_iph)->hop_limit;
 #endif
 		else
-			iph->ttl = dst_metric(&rt->u.dst, RTAX_HOPLIMIT);
+			iph->ttl = dst_metric(&rt->dst, RTAX_HOPLIMIT);
 	}
 
 	((__be16 *)(iph + 1))[0] = tunnel->parms.o_flags;
@@ -915,7 +915,7 @@ static int ipgre_tunnel_bind_dev(struct net_device *dev)
 				    .proto = IPPROTO_GRE };
 		struct rtable *rt;
 		if (!ip_route_output_key(dev_net(dev), &rt, &fl)) {
-			tdev = rt->u.dst.dev;
+			tdev = rt->dst.dev;
 			ip_rt_put(rt);
 		}
 
@@ -1174,7 +1174,7 @@ static int ipgre_open(struct net_device *dev)
 		struct rtable *rt;
 		if (ip_route_output_key(dev_net(dev), &rt, &fl))
 			return -EADDRNOTAVAIL;
-		dev = rt->u.dst.dev;
+		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (__in_dev_get_rtnl(dev) == NULL)
 			return -EADDRNOTAVAIL;

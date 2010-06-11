@@ -312,7 +312,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 		return NULL;
 	}
 
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 	skb->dev = dev;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
@@ -330,7 +330,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	pip->saddr    = rt->rt_src;
 	pip->protocol = IPPROTO_IGMP;
 	pip->tot_len  = 0;	/* filled in later */
-	ip_select_ident(pip, &rt->u.dst, NULL);
+	ip_select_ident(pip, &rt->dst, NULL);
 	((u8*)&pip[1])[0] = IPOPT_RA;
 	((u8*)&pip[1])[1] = 4;
 	((u8*)&pip[1])[2] = 0;
@@ -660,7 +660,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 		return -1;
 	}
 
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
@@ -676,7 +676,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	iph->daddr    = dst;
 	iph->saddr    = rt->rt_src;
 	iph->protocol = IPPROTO_IGMP;
-	ip_select_ident(iph, &rt->u.dst, NULL);
+	ip_select_ident(iph, &rt->dst, NULL);
 	((u8*)&iph[1])[0] = IPOPT_RA;
 	((u8*)&iph[1])[1] = 4;
 	((u8*)&iph[1])[2] = 0;
@@ -1425,7 +1425,7 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 	}
 
 	if (!dev && !ip_route_output_key(net, &rt, &fl)) {
-		dev = rt->u.dst.dev;
+		dev = rt->dst.dev;
 		ip_rt_put(rt);
 	}
 	if (dev) {

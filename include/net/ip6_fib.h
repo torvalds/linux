@@ -84,13 +84,11 @@ struct rt6key {
 struct fib6_table;
 
 struct rt6_info {
-	union {
-		struct dst_entry	dst;
-	} u;
+	struct dst_entry		dst;
 
-#define rt6i_dev			u.dst.dev
-#define rt6i_nexthop			u.dst.neighbour
-#define rt6i_expires			u.dst.expires
+#define rt6i_dev			dst.dev
+#define rt6i_nexthop			dst.neighbour
+#define rt6i_expires			dst.expires
 
 	/*
 	 * Tail elements of dst_entry (__refcnt etc.)

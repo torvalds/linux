@@ -1587,7 +1587,7 @@ cxgb3i_find_dev(struct net_device *dev, __be32 ipaddr)
 
 	err = ip_route_output_key(dev ? dev_net(dev) : &init_net, &rt, &fl);
 	if (!err)
-		return (&rt->u.dst)->dev;
+		return (&rt->dst)->dev;
 
 	return NULL;
 }
@@ -1649,7 +1649,7 @@ int cxgb3i_c3cn_connect(struct net_device *dev, struct s3_conn *c3cn,
 		c3cn->saddr.sin_addr.s_addr = rt->rt_src;
 
 	/* now commit destination to connection */
-	c3cn->dst_cache = &rt->u.dst;
+	c3cn->dst_cache = &rt->dst;
 
 	/* try to establish an offloaded connection */
 	dev = cxgb3_egress_dev(c3cn->dst_cache->dev, c3cn, 0);

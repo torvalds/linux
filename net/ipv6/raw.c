@@ -611,23 +611,23 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 	int err;
 	struct rt6_info *rt = (struct rt6_info *)*dstp;
 
-	if (length > rt->u.dst.dev->mtu) {
-		ipv6_local_error(sk, EMSGSIZE, fl, rt->u.dst.dev->mtu);
+	if (length > rt->dst.dev->mtu) {
+		ipv6_local_error(sk, EMSGSIZE, fl, rt->dst.dev->mtu);
 		return -EMSGSIZE;
 	}
 	if (flags&MSG_PROBE)
 		goto out;
 
 	skb = sock_alloc_send_skb(sk,
-				  length + LL_ALLOCATED_SPACE(rt->u.dst.dev) + 15,
+				  length + LL_ALLOCATED_SPACE(rt->dst.dev) + 15,
 				  flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto error;
-	skb_reserve(skb, LL_RESERVED_SPACE(rt->u.dst.dev));
+	skb_reserve(skb, LL_RESERVED_SPACE(rt->dst.dev));
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 	*dstp = NULL;
 
 	skb_put(skb, length);
@@ -643,7 +643,7 @@ static int rawv6_send_hdrinc(struct sock *sk, void *from, int length,
 
 	IP6_UPD_PO_STATS(sock_net(sk), rt->rt6i_idev, IPSTATS_MIB_OUT, skb->len);
 	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
-		      rt->u.dst.dev, dst_output);
+		      rt->dst.dev, dst_output);
 	if (err > 0)
 		err = net_xmit_errno(err);
 	if (err)

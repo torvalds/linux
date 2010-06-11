@@ -2584,7 +2584,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		/*
 		 * This target is not on a VLAN
 		 */
-		if (rt->u.dst.dev == bond->dev) {
+		if (rt->dst.dev == bond->dev) {
 			ip_rt_put(rt);
 			pr_debug("basa: rtdev == bond->dev: arp_send\n");
 			bond_arp_send(slave->dev, ARPOP_REQUEST, targets[i],
@@ -2595,7 +2595,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		vlan_id = 0;
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 			vlan_dev = vlan_group_get_device(bond->vlgrp, vlan->vlan_id);
-			if (vlan_dev == rt->u.dst.dev) {
+			if (vlan_dev == rt->dst.dev) {
 				vlan_id = vlan->vlan_id;
 				pr_debug("basa: vlan match on %s %d\n",
 				       vlan_dev->name, vlan_id);
@@ -2613,7 +2613,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		if (net_ratelimit()) {
 			pr_warning("%s: no path to arp_ip_target %pI4 via rt.dev %s\n",
 				   bond->dev->name, &fl.fl4_dst,
-				   rt->u.dst.dev ? rt->u.dst.dev->name : "NULL");
+				   rt->dst.dev ? rt->dst.dev->name : "NULL");
 		}
 		ip_rt_put(rt);
 	}

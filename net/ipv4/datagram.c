@@ -69,7 +69,7 @@ int ip4_datagram_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk->sk_state = TCP_ESTABLISHED;
 	inet->inet_id = jiffies;
 
-	sk_dst_set(sk, &rt->u.dst);
+	sk_dst_set(sk, &rt->dst);
 	return(0);
 }
 

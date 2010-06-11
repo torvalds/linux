@@ -490,7 +490,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			  __func__, &fl.fl4_dst, &fl.fl4_src);
 
 	if (!ip_route_output_key(&init_net, &rt, &fl)) {
-		dst = &rt->u.dst;
+		dst = &rt->dst;
 	}
 
 	/* If there is no association or if a source address is passed, no
@@ -534,7 +534,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
 			fl.fl_ip_sport = laddr->a.v4.sin_port;
 			if (!ip_route_output_key(&init_net, &rt, &fl)) {
-				dst = &rt->u.dst;
+				dst = &rt->dst;
 				goto out_unlock;
 			}
 		}

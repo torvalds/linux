@@ -117,12 +117,12 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 {
 	struct rtable *rt = &br->fake_rtable;
 
-	atomic_set(&rt->u.dst.__refcnt, 1);
-	rt->u.dst.dev = br->dev;
-	rt->u.dst.path = &rt->u.dst;
-	rt->u.dst.metrics[RTAX_MTU - 1] = 1500;
-	rt->u.dst.flags	= DST_NOXFRM;
-	rt->u.dst.ops = &fake_dst_ops;
+	atomic_set(&rt->dst.__refcnt, 1);
+	rt->dst.dev = br->dev;
+	rt->dst.path = &rt->dst;
+	rt->dst.metrics[RTAX_MTU - 1] = 1500;
+	rt->dst.flags	= DST_NOXFRM;
+	rt->dst.ops = &fake_dst_ops;
 }
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
@@ -244,8 +244,8 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 		kfree_skb(skb);
 		return 0;
 	}
-	dst_hold(&rt->u.dst);
-	skb_dst_set(skb, &rt->u.dst);
+	dst_hold(&rt->dst);
+	skb_dst_set(skb, &rt->dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
@@ -396,8 +396,8 @@ bridged_dnat:
 			kfree_skb(skb);
 			return 0;
 		}
-		dst_hold(&rt->u.dst);
-		skb_dst_set(skb, &rt->u.dst);
+		dst_hold(&rt->dst);
+		skb_dst_set(skb, &rt->dst);
 	}
 
 	skb->dev = nf_bridge->physindev;

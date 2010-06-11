@@ -84,7 +84,7 @@ int ipv6_sock_ac_join(struct sock *sk, int ifindex, struct in6_addr *addr)
 		rt = rt6_lookup(net, addr, NULL, 0, 0);
 		if (rt) {
 			dev = rt->rt6i_dev;
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 		} else if (ishost) {
 			err = -EADDRNOTAVAIL;
 			goto error;
@@ -244,7 +244,7 @@ static void aca_put(struct ifacaddr6 *ac)
 {
 	if (atomic_dec_and_test(&ac->aca_refcnt)) {
 		in6_dev_put(ac->aca_idev);
-		dst_release(&ac->aca_rt->u.dst);
+		dst_release(&ac->aca_rt->dst);
 		kfree(ac);
 	}
 }
@@ -350,7 +350,7 @@ int __ipv6_dev_ac_dec(struct inet6_dev *idev, struct in6_addr *addr)
 	write_unlock_bh(&idev->lock);
 	addrconf_leave_solict(idev, &aca->aca_addr);
 
-	dst_hold(&aca->aca_rt->u.dst);
+	dst_hold(&aca->aca_rt->dst);
 	ip6_del_rt(aca->aca_rt);
 
 	aca_put(aca);
