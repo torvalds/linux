@@ -636,7 +636,6 @@ static int ethoc_mdio_probe(struct net_device *dev)
 	struct ethoc *priv = netdev_priv(dev);
 	struct phy_device *phy;
 	int err;
-	int i;
 
 	if (priv->phy_id != -1) {
 		phy = priv->mdio->phy_map[priv->phy_id];
