@@ -745,7 +745,7 @@ static void fc_fcp_recv(struct fc_seq *seq, struct fc_frame *fp, void *arg)
 	fh = fc_frame_header_get(fp);
 	r_ctl = fh->fh_r_ctl;
 
-	if (!(lport->state & LPORT_ST_READY))
+	if (lport->state != LPORT_ST_READY)
 		goto out;
 	if (fc_fcp_lock_pkt(fsp))
 		goto out;
