@@ -52,19 +52,11 @@ struct omap_mbox_queue {
 struct omap_mbox {
 	char			*name;
 	unsigned int		irq;
-
 	struct omap_mbox_queue	*txq, *rxq;
-
 	struct omap_mbox_ops	*ops;
-
-	mbox_msg_t		seq_snd, seq_rcv;
-
 	struct device		*dev;
-
 	struct omap_mbox	*next;
 	void			*priv;
-
-	void			(*err_notify)(void);
 };
 
 int omap_mbox_msg_send(struct omap_mbox *, mbox_msg_t msg);
