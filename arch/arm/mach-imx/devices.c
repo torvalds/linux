@@ -38,7 +38,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/mmc.h>
-#include <mach/imx-uart.h>
 
 #include "devices.h"
 
@@ -426,7 +425,7 @@ struct platform_device mxc_usbh2 = {
 DEFINE_IMX_SSI_DEVICE(0, 1, MX2x_SSI1_BASE_ADDR, MX2x_INT_SSI1);
 DEFINE_IMX_SSI_DEVICE(1, 2, MX2x_SSI1_BASE_ADDR, MX2x_INT_SSI1);
 
-#define DEFINE_IMX_UART_DEVICE(n, baseaddr, irq)			\
+#define DEFINE_IMX2x_UART_DEVICE(n, baseaddr, irq)			\
 	static struct resource imx2x_uart_resources ## n[] = {		\
 		{							\
 			.start = baseaddr,				\
@@ -439,21 +438,21 @@ DEFINE_IMX_SSI_DEVICE(1, 2, MX2x_SSI1_BASE_ADDR, MX2x_INT_SSI1);
 		},							\
 	};								\
 									\
-	struct platform_device mxc_uart_device ## n = {			\
+	struct platform_device imx2x_uart_device ## n = {		\
 		.name = "imx-uart",					\
 		.id = n,						\
 		.num_resources = ARRAY_SIZE(imx2x_uart_resources ## n),	\
 		.resource = imx2x_uart_resources ## n,			\
 	}
 
-DEFINE_IMX_UART_DEVICE(0, MX2x_UART1_BASE_ADDR, MX2x_INT_UART1);
-DEFINE_IMX_UART_DEVICE(1, MX2x_UART2_BASE_ADDR, MX2x_INT_UART2);
-DEFINE_IMX_UART_DEVICE(2, MX2x_UART3_BASE_ADDR, MX2x_INT_UART3);
-DEFINE_IMX_UART_DEVICE(3, MX2x_UART4_BASE_ADDR, MX2x_INT_UART4);
+DEFINE_IMX2x_UART_DEVICE(0, MX2x_UART1_BASE_ADDR, MX2x_INT_UART1);
+DEFINE_IMX2x_UART_DEVICE(1, MX2x_UART2_BASE_ADDR, MX2x_INT_UART2);
+DEFINE_IMX2x_UART_DEVICE(2, MX2x_UART3_BASE_ADDR, MX2x_INT_UART3);
+DEFINE_IMX2x_UART_DEVICE(3, MX2x_UART4_BASE_ADDR, MX2x_INT_UART4);
 
 #ifdef CONFIG_MACH_MX27
-DEFINE_IMX_UART_DEVICE(4, MX27_UART5_BASE_ADDR, MX27_INT_UART5);
-DEFINE_IMX_UART_DEVICE(5, MX27_UART6_BASE_ADDR, MX27_INT_UART6);
+DEFINE_IMX2x_UART_DEVICE(4, MX27_UART5_BASE_ADDR, MX27_INT_UART5);
+DEFINE_IMX2x_UART_DEVICE(5, MX27_UART6_BASE_ADDR, MX27_INT_UART6);
 #endif
 
 /* GPIO port description */

@@ -70,7 +70,7 @@ static void __init mx27lite_init(void)
 {
 	mxc_gpio_setup_multiple_pins(mx27lite_pins, ARRAY_SIZE(mx27lite_pins),
 		"imx27lite");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 

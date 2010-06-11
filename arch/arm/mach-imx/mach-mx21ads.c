@@ -297,9 +297,9 @@ static void __init mx21ads_board_init(void)
 	mxc_gpio_setup_multiple_pins(mx21ads_pins, ARRAY_SIZE(mx21ads_pins),
 			"mx21ads");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device2, &uart_norts_pdata);
-	mxc_register_device(&mxc_uart_device3, &uart_pdata);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
+	mxc_register_device(&imx2x_uart_device2, &uart_norts_pdata);
+	mxc_register_device(&imx2x_uart_device3, &uart_pdata);
 	mxc_register_device(&mxc_fb_device, &mx21ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &mx21ads_sdhc_pdata);
 	mxc_register_device(&imx21_nand_device, &mx21ads_nand_board_info);

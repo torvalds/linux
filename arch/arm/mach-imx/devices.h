@@ -6,12 +6,14 @@ extern struct platform_device mxc_gpt4;
 extern struct platform_device mxc_gpt5;
 #endif
 extern struct platform_device mxc_wdt;
-extern struct platform_device mxc_uart_device0;
-extern struct platform_device mxc_uart_device1;
-extern struct platform_device mxc_uart_device2;
-extern struct platform_device mxc_uart_device3;
-extern struct platform_device mxc_uart_device4;
-extern struct platform_device mxc_uart_device5;
+extern struct platform_device imx2x_uart_device0;
+extern struct platform_device imx2x_uart_device1;
+extern struct platform_device imx2x_uart_device2;
+extern struct platform_device imx2x_uart_device3;
+#ifdef CONFIG_MACH_MX27
+extern struct platform_device imx2x_uart_device4;
+extern struct platform_device imx2x_uart_device5;
+#endif
 extern struct platform_device mxc_w1_master_device;
 #ifdef CONFIG_MACH_MX21
 extern struct platform_device imx21_nand_device;

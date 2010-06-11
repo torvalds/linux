@@ -313,12 +313,12 @@ static void __init mx27ads_board_init(void)
 	mxc_gpio_setup_multiple_pins(mx27ads_pins, ARRAY_SIZE(mx27ads_pins),
 			"mx27ads");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
-	mxc_register_device(&mxc_uart_device3, &uart_pdata[3]);
-	mxc_register_device(&mxc_uart_device4, &uart_pdata[4]);
-	mxc_register_device(&mxc_uart_device5, &uart_pdata[5]);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
+	mxc_register_device(&imx2x_uart_device1, &uart_pdata[1]);
+	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
+	mxc_register_device(&imx2x_uart_device3, &uart_pdata[3]);
+	mxc_register_device(&imx2x_uart_device4, &uart_pdata[4]);
+	mxc_register_device(&imx2x_uart_device5, &uart_pdata[5]);
 	mxc_register_device(&imx27_nand_device, &mx27ads_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */

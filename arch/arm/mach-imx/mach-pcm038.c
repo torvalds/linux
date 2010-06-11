@@ -305,9 +305,9 @@ static void __init pcm038_init(void)
 
 	pcm038_init_sram();
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
+	mxc_register_device(&imx2x_uart_device1, &uart_pdata[1]);
+	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
 
 	mxc_gpio_mode(PE16_AF_OWIRE);
 	mxc_register_device(&imx27_nand_device, &pcm038_nand_board_info);

@@ -222,8 +222,8 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	mxc_gpio_setup_multiple_pins(eukrea_mbimx27_pins,
 		ARRAY_SIZE(eukrea_mbimx27_pins), "MBIMX27");
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata[0]);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata[1]);
+	mxc_register_device(&imx2x_uart_device1, &uart_pdata[0]);
+	mxc_register_device(&imx2x_uart_device2, &uart_pdata[1]);
 
 	mxc_register_device(&mxc_fb_device, &eukrea_mbimx27_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, NULL);

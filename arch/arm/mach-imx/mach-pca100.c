@@ -320,7 +320,7 @@ static void __init pca100_init(void)
 
 	mxc_register_device(&imx_ssi_device0, &pca100_ssi_pdata);
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
 
 	mxc_gpio_mode(GPIO_PORTC | 29 | GPIO_GPIO | GPIO_IN);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);

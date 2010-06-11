@@ -75,7 +75,7 @@ static void __init mx27pdk_init(void)
 {
 	mxc_gpio_setup_multiple_pins(mx27pdk_pins, ARRAY_SIZE(mx27pdk_pins),
 		"mx27pdk");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 

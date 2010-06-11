@@ -187,7 +187,7 @@ static void __init eukrea_cpuimx27_init(void)
 	mxc_gpio_setup_multiple_pins(eukrea_cpuimx27_pins,
 		ARRAY_SIZE(eukrea_cpuimx27_pins), "CPUIMX27");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
+	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
 
 	mxc_register_device(&imx27_nand_device,
 			&eukrea_cpuimx27_nand_board_info);
@@ -203,7 +203,7 @@ static void __init eukrea_cpuimx27_init(void)
 	/* SDHC2 can be used for Wifi */
 	mxc_register_device(&mxc_sdhc_device1, NULL);
 	/* in which case UART4 is also used for Bluetooth */
-	mxc_register_device(&mxc_uart_device3, &uart_pdata[1]);
+	mxc_register_device(&imx2x_uart_device3, &uart_pdata[1]);
 #endif
 
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
