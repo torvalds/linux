@@ -42,7 +42,7 @@ static int rk2818_cpufreq_target(struct cpufreq_policy *policy, unsigned int tar
 		return 0;
 
 #ifdef CONFIG_CPU_FREQ_DEBUG
-	printk("%s %d r %d (%d-%d) selected %d\n", __func__, target_freq, relation, policy->min, policy->max, freq_table[index].frequency);
+	printk(KERN_DEBUG "%s %d r %d (%d-%d) selected %d\n", __func__, target_freq, relation, policy->min, policy->max, freq_table[index].frequency);
 #endif
 	freqs.old = policy->cur;
 	freqs.new = freq_table[index].frequency;
