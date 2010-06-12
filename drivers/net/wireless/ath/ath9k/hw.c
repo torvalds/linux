@@ -2259,15 +2259,6 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result)
 {
 	switch (type) {
-	case ATH9K_CAP_TKIP_MIC:
-		switch (capability) {
-		case 0:
-			return true;
-		case 1:
-			return (ah->sta_id1_defaults &
-				AR_STA_ID1_CRPT_MIC_ENABLE) ? true :
-			false;
-		}
 	case ATH9K_CAP_TKIP_SPLIT:
 		return (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) ?
 			false : true;
@@ -2299,14 +2290,6 @@ bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 setting, int *status)
 {
 	switch (type) {
-	case ATH9K_CAP_TKIP_MIC:
-		if (setting)
-			ah->sta_id1_defaults |=
-				AR_STA_ID1_CRPT_MIC_ENABLE;
-		else
-			ah->sta_id1_defaults &=
-				~AR_STA_ID1_CRPT_MIC_ENABLE;
-		return true;
 	case ATH9K_CAP_MCAST_KEYSRCH:
 		if (setting)
 			ah->sta_id1_defaults |= AR_STA_ID1_MCAST_KSRCH;

@@ -380,14 +380,6 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 		ath9k_hw_keyreset(sc->sc_ah, (u16) i);
 
 	/*
-	 * Whether we should enable h/w TKIP MIC.
-	 * XXX: if we don't support WME TKIP MIC, then we wouldn't
-	 * report WMM capable, so it's always safe to turn on
-	 * TKIP MIC in this case.
-	 */
-	ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
-
-	/*
 	 * Check whether the separate key cache entries
 	 * are required to handle both tx+rx MIC keys.
 	 * With split mic keys the number of stations is limited
