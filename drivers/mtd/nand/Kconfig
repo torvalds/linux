@@ -60,6 +60,7 @@ config MTD_NAND_DENALI
 config MTD_NAND_DENALI_SCRATCH_REG_ADDR
         hex "Denali NAND size scratch register address"
         default "0xFF108018"
+        depends on MTD_NAND_DENALI
         help
           Some platforms place the NAND chip size in a scratch register
           because (some versions of) the driver aren't able to automatically
