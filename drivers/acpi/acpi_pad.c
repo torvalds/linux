@@ -46,6 +46,8 @@ static unsigned long power_saving_mwait_eax;
 
 static unsigned char tsc_detected_unstable;
 static unsigned char tsc_marked_unstable;
+static unsigned char lapic_detected_unstable;
+static unsigned char lapic_marked_unstable;
 
 static void power_saving_mwait_init(void)
 {
@@ -75,9 +77,6 @@ static void power_saving_mwait_init(void)
 	power_saving_mwait_eax = (highest_cstate << MWAIT_SUBSTATE_SIZE) |
 		(highest_subcstate - 1);
 
-	for_each_online_cpu(i)
-		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ON, &i);
-
 #if defined(CONFIG_GENERIC_TIME) && defined(CONFIG_X86)
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
@@ -86,13 +85,15 @@ static void power_saving_mwait_init(void)
 		 * AMD Fam10h TSC will tick in all
 		 * C/P/S0/S1 states when this bit is set.
 		 */
-		if (boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
-			return;
-
-		/*FALL THROUGH*/
+		if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
+			tsc_detected_unstable = 1;
+		if (!boot_cpu_has(X86_FEATURE_ARAT))
+			lapic_detected_unstable = 1;
+		break;
 	default:
-		/* TSC could halt in idle */
+		/* TSC & LAPIC could halt in idle */
 		tsc_detected_unstable = 1;
+		lapic_detected_unstable = 1;
 	}
 #endif
 }
@@ -180,10 +181,20 @@ static int power_saving_thread(void *data)
 				mark_tsc_unstable("TSC halts in idle");
 				tsc_marked_unstable = 1;
 			}
+			if (lapic_detected_unstable && !lapic_marked_unstable) {
+				int i;
+				/* LAPIC could halt in idle, so notify users */
+				for_each_online_cpu(i)
+					clockevents_notify(
+						CLOCK_EVT_NOTIFY_BROADCAST_ON,
+						&i);
+				lapic_marked_unstable = 1;
+			}
 			local_irq_disable();
 			cpu = smp_processor_id();
-			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
-				&cpu);
+			if (lapic_marked_unstable)
+				clockevents_notify(
+					CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu);
 			stop_critical_timings();
 
 			__monitor((void *)&current_thread_info()->flags, 0, 0);
@@ -192,8 +203,9 @@ static int power_saving_thread(void *data)
 				__mwait(power_saving_mwait_eax, 1);
 
 			start_critical_timings();
-			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
-				&cpu);
+			if (lapic_marked_unstable)
+				clockevents_notify(
+					CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu);
 			local_irq_enable();
 
 			if (jiffies > expire_time) {
