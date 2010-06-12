@@ -27,8 +27,10 @@ static int perf_session__open(struct perf_session *self, bool force)
 
 	self->fd = open(self->filename, O_RDONLY);
 	if (self->fd < 0) {
-		pr_err("failed to open file: %s", self->filename);
-		if (!strcmp(self->filename, "perf.data"))
+		int err = errno;
+
+		pr_err("failed to open %s: %s", self->filename, strerror(err));
+		if (err == ENOENT && !strcmp(self->filename, "perf.data"))
 			pr_err("  (try 'perf record' first)");
 		pr_err("\n");
 		return -errno;
