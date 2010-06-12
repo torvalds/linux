@@ -112,6 +112,8 @@ enum tomoyo_path_acl_index {
 	TOMOYO_MAX_PATH_OPERATION
 };
 
+#define TOMOYO_RW_MASK ((1 << TOMOYO_TYPE_READ) | (1 << TOMOYO_TYPE_WRITE))
+
 enum tomoyo_path_number3_acl_index {
 	TOMOYO_TYPE_MKBLOCK,
 	TOMOYO_TYPE_MKCHAR,
@@ -289,17 +291,19 @@ struct tomoyo_number_group_member {
  *
  *  (1) "list" which is linked to the ->acl_info_list of
  *      "struct tomoyo_domain_info"
- *  (2) "type" which tells type of the entry (either
- *      "struct tomoyo_path_acl" or "struct tomoyo_path2_acl").
+ *  (2) "is_deleted" is a bool which is true if this domain is marked as
+ *      "deleted", false otherwise.
+ *  (3) "type" which tells type of the entry.
  *
  * Packing "struct tomoyo_acl_info" allows
- * "struct tomoyo_path_acl" to embed "u8" + "u16" and
- * "struct tomoyo_path2_acl" to embed "u8"
- * without enlarging their structure size.
+ * "struct tomoyo_path_acl" to embed "u16" and "struct tomoyo_path2_acl"
+ * "struct tomoyo_path_number_acl" "struct tomoyo_path_number3_acl" to embed
+ * "u8" without enlarging their structure size.
  */
 struct tomoyo_acl_info {
 	struct list_head list;
-	u8 type;
+	bool is_deleted;
+	u8 type; /* = one of values in "enum tomoyo_acl_entry_type_index". */
 } __packed;
 
 /*
@@ -438,17 +442,15 @@ struct tomoyo_path2_acl {
  * It has following fields.
  *
  *  (1) "head" which is a "struct tomoyo_acl_info".
- *  (2) "is_deleted" is boolean.
- *  (3) "dev_name" is the device name.
- *  (4) "dir_name" is the mount point.
+ *  (2) "dev_name" is the device name.
+ *  (3) "dir_name" is the mount point.
+ *  (4) "fs_type" is the filesystem type.
  *  (5) "flags" is the mount flags.
  *
- * Directives held by this structure are "allow_rename", "allow_link" and
- * "allow_pivot_root".
+ * Directive held by this structure is "allow_mount".
  */
 struct tomoyo_mount_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MOUNT_ACL */
-	bool is_deleted;
 	struct tomoyo_name_union dev_name;
 	struct tomoyo_name_union dir_name;
 	struct tomoyo_name_union fs_type;
@@ -914,6 +916,16 @@ void tomoyo_run_gc(void);
 
 void tomoyo_memory_free(void *ptr);
 
+int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
+			 bool is_delete, struct tomoyo_domain_info *domain,
+			 bool (*check_duplicate) (const struct tomoyo_acl_info
+						  *,
+						  const struct tomoyo_acl_info
+						  *),
+			 bool (*merge_duplicate) (struct tomoyo_acl_info *,
+						  struct tomoyo_acl_info *,
+						  const bool));
+
 /********** External variable definitions. **********/
 
 /* Lock for GC. */
@@ -1040,52 +1052,6 @@ static inline bool tomoyo_is_same_number_union
 	return p1->values[0] == p2->values[0] && p1->values[1] == p2->values[1]
 		&& p1->group == p2->group && p1->min_type == p2->min_type &&
 		p1->max_type == p2->max_type && p1->is_group == p2->is_group;
-}
-
-static inline bool tomoyo_is_same_path_acl(const struct tomoyo_path_acl *p1,
-					   const struct tomoyo_path_acl *p2)
-{
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
-		tomoyo_is_same_name_union(&p1->name, &p2->name);
-}
-
-static inline bool tomoyo_is_same_path_number3_acl
-(const struct tomoyo_path_number3_acl *p1,
- const struct tomoyo_path_number3_acl *p2)
-{
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
-		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
-		&& tomoyo_is_same_number_union(&p1->mode, &p2->mode)
-		&& tomoyo_is_same_number_union(&p1->major, &p2->major)
-		&& tomoyo_is_same_number_union(&p1->minor, &p2->minor);
-}
-
-
-static inline bool tomoyo_is_same_path2_acl(const struct tomoyo_path2_acl *p1,
-					    const struct tomoyo_path2_acl *p2)
-{
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
-		tomoyo_is_same_name_union(&p1->name1, &p2->name1) &&
-		tomoyo_is_same_name_union(&p1->name2, &p2->name2);
-}
-
-static inline bool tomoyo_is_same_path_number_acl
-(const struct tomoyo_path_number_acl *p1,
- const struct tomoyo_path_number_acl *p2)
-{
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
-		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
-		&& tomoyo_is_same_number_union(&p1->number, &p2->number);
-}
-
-static inline bool tomoyo_is_same_mount_acl(const struct tomoyo_mount_acl *p1,
-					    const struct tomoyo_mount_acl *p2)
-{
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
-		tomoyo_is_same_name_union(&p1->dev_name, &p2->dev_name) &&
-		tomoyo_is_same_name_union(&p1->dir_name, &p2->dir_name) &&
-		tomoyo_is_same_name_union(&p1->fs_type, &p2->fs_type) &&
-		tomoyo_is_same_number_union(&p1->flags, &p2->flags);
 }
 
 static inline bool tomoyo_is_same_domain_initializer_entry

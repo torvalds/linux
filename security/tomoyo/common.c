@@ -950,8 +950,6 @@ static bool tomoyo_print_mount_acl(struct tomoyo_io_buffer *head,
 				   struct tomoyo_mount_acl *ptr)
 {
 	const int pos = head->read_avail;
-	if (ptr->is_deleted)
-		return true;
 	if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_MOUNT) ||
 	    !tomoyo_print_name_union(head, &ptr->dev_name) ||
 	    !tomoyo_print_name_union(head, &ptr->dir_name) ||
@@ -977,6 +975,8 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 {
 	const u8 acl_type = ptr->type;
 
+	if (ptr->is_deleted)
+		return true;
 	if (acl_type == TOMOYO_TYPE_PATH_ACL) {
 		struct tomoyo_path_acl *acl
 			= container_of(ptr, struct tomoyo_path_acl, head);

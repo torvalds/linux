@@ -665,50 +665,6 @@ bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_update_file_acl - Update file's read/write/execute ACL.
- *
- * @perm:      Permission (between 1 to 7).
- * @filename:  Filename.
- * @domain:    Pointer to "struct tomoyo_domain_info".
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * This is legacy support interface for older policy syntax.
- * Current policy syntax uses "allow_read/write" instead of "6",
- * "allow_read" instead of "4", "allow_write" instead of "2",
- * "allow_execute" instead of "1".
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_update_file_acl(u8 perm, const char *filename,
-				  struct tomoyo_domain_info * const domain,
-				  const bool is_delete)
-{
-	if (perm > 7 || !perm) {
-		printk(KERN_DEBUG "%s: Invalid permission '%d %s'\n",
-		       __func__, perm, filename);
-		return -EINVAL;
-	}
-	if (filename[0] != '@' && tomoyo_strendswith(filename, "/"))
-		/*
-		 * Only 'allow_mkdir' and 'allow_rmdir' are valid for
-		 * directory permissions.
-		 */
-		return 0;
-	if (perm & 4)
-		tomoyo_update_path_acl(TOMOYO_TYPE_READ, filename, domain,
-				       is_delete);
-	if (perm & 2)
-		tomoyo_update_path_acl(TOMOYO_TYPE_WRITE, filename, domain,
-				       is_delete);
-	if (perm & 1)
-		tomoyo_update_path_acl(TOMOYO_TYPE_EXECUTE, filename, domain,
-				       is_delete);
-	return 0;
-}
-
-/**
  * tomoyo_path_acl - Check permission for single path operation.
  *
  * @r:               Pointer to "struct tomoyo_request_info".
@@ -797,6 +753,40 @@ static int tomoyo_file_perm(struct tomoyo_request_info *r,
 	return error;
 }
 
+static bool tomoyo_same_path_acl(const struct tomoyo_acl_info *a,
+				 const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_path_acl *p1 = container_of(a, typeof(*p1), head);
+	const struct tomoyo_path_acl *p2 = container_of(b, typeof(*p2), head);
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
+		tomoyo_is_same_name_union(&p1->name, &p2->name);
+}
+
+static bool tomoyo_merge_path_acl(struct tomoyo_acl_info *a,
+				  struct tomoyo_acl_info *b,
+				  const bool is_delete)
+{
+	u16 * const a_perm = &container_of(a, struct tomoyo_path_acl, head)
+		->perm;
+	u16 perm = *a_perm;
+	const u16 b_perm = container_of(b, struct tomoyo_path_acl, head)->perm;
+	if (is_delete) {
+		perm &= ~b_perm;
+		if ((perm & TOMOYO_RW_MASK) != TOMOYO_RW_MASK)
+			perm &= ~(1 << TOMOYO_TYPE_READ_WRITE);
+		else if (!(perm & (1 << TOMOYO_TYPE_READ_WRITE)))
+			perm &= ~TOMOYO_RW_MASK;
+	} else {
+		perm |= b_perm;
+		if ((perm & TOMOYO_RW_MASK) == TOMOYO_RW_MASK)
+			perm |= (1 << TOMOYO_TYPE_READ_WRITE);
+		else if (perm & (1 << TOMOYO_TYPE_READ_WRITE))
+			perm |= TOMOYO_RW_MASK;
+	}
+	*a_perm = perm;
+	return !perm;
+}
+
 /**
  * tomoyo_update_path_acl - Update "struct tomoyo_path_acl" list.
  *
@@ -810,61 +800,54 @@ static int tomoyo_file_perm(struct tomoyo_request_info *r,
  * Caller holds tomoyo_read_lock().
  */
 static int tomoyo_update_path_acl(const u8 type, const char *filename,
-				  struct tomoyo_domain_info *const domain,
+				  struct tomoyo_domain_info * const domain,
 				  const bool is_delete)
 {
-	static const u16 tomoyo_rw_mask =
-		(1 << TOMOYO_TYPE_READ) | (1 << TOMOYO_TYPE_WRITE);
-	const u16 perm = 1 << type;
-	struct tomoyo_acl_info *ptr;
 	struct tomoyo_path_acl e = {
 		.head.type = TOMOYO_TYPE_PATH_ACL,
-		.perm = perm
+		.perm = 1 << type
 	};
-	int error = is_delete ? -ENOENT : -ENOMEM;
-
-	if (type == TOMOYO_TYPE_READ_WRITE)
-		e.perm |= tomoyo_rw_mask;
-	if (!domain)
-		return -EINVAL;
+	int error;
+	if (e.perm == (1 << TOMOYO_TYPE_READ_WRITE))
+		e.perm |= TOMOYO_RW_MASK;
 	if (!tomoyo_parse_name_union(filename, &e.name))
 		return -EINVAL;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path_acl *acl =
-			container_of(ptr, struct tomoyo_path_acl, head);
-		if (!tomoyo_is_same_path_acl(acl, &e))
-			continue;
-		if (is_delete) {
-			acl->perm &= ~perm;
-			if ((acl->perm & tomoyo_rw_mask) != tomoyo_rw_mask)
-				acl->perm &= ~(1 << TOMOYO_TYPE_READ_WRITE);
-			else if (!(acl->perm & (1 << TOMOYO_TYPE_READ_WRITE)))
-				acl->perm &= ~tomoyo_rw_mask;
-		} else {
-			acl->perm |= perm;
-			if ((acl->perm & tomoyo_rw_mask) == tomoyo_rw_mask)
-				acl->perm |= 1 << TOMOYO_TYPE_READ_WRITE;
-			else if (acl->perm & (1 << TOMOYO_TYPE_READ_WRITE))
-				acl->perm |= tomoyo_rw_mask;
-		}
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_path_acl *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &domain->acl_info_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
- out:
+	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
+				     tomoyo_same_path_acl,
+				     tomoyo_merge_path_acl);
 	tomoyo_put_name_union(&e.name);
 	return error;
+}
+
+static bool tomoyo_same_path_number3_acl(const struct tomoyo_acl_info *a,
+					 const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_path_number3_acl *p1 = container_of(a, typeof(*p1),
+								head);
+	const struct tomoyo_path_number3_acl *p2 = container_of(b, typeof(*p2),
+								head);
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
+		&& tomoyo_is_same_number_union(&p1->mode, &p2->mode)
+		&& tomoyo_is_same_number_union(&p1->major, &p2->major)
+		&& tomoyo_is_same_number_union(&p1->minor, &p2->minor);
+}
+
+static bool tomoyo_merge_path_number3_acl(struct tomoyo_acl_info *a,
+					  struct tomoyo_acl_info *b,
+					  const bool is_delete)
+{
+	u8 *const a_perm = &container_of(a, struct tomoyo_path_number3_acl,
+					 head)->perm;
+	u8 perm = *a_perm;
+	const u8 b_perm = container_of(b, struct tomoyo_path_number3_acl, head)
+		->perm;
+	if (is_delete)
+		perm &= ~b_perm;
+	else
+		perm |= b_perm;
+	*a_perm = perm;
+	return !perm;
 }
 
 /**
@@ -879,20 +862,17 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
  * @is_delete: True if it is a delete request.
  *
  * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
  */
-static inline int tomoyo_update_path_number3_acl(const u8 type,
-						 const char *filename,
-						 char *mode,
-						 char *major, char *minor,
-						 struct tomoyo_domain_info *
-						 const domain,
-						 const bool is_delete)
+static int tomoyo_update_path_number3_acl(const u8 type, const char *filename,
+					  char *mode, char *major, char *minor,
+					  struct tomoyo_domain_info * const
+					  domain, const bool is_delete)
 {
-	const u8 perm = 1 << type;
-	struct tomoyo_acl_info *ptr;
 	struct tomoyo_path_number3_acl e = {
 		.head.type = TOMOYO_TYPE_PATH_NUMBER3_ACL,
-		.perm = perm
+		.perm = 1 << type
 	};
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	if (!tomoyo_parse_name_union(filename, &e.name) ||
@@ -900,36 +880,41 @@ static inline int tomoyo_update_path_number3_acl(const u8 type,
 	    !tomoyo_parse_number_union(major, &e.major) ||
 	    !tomoyo_parse_number_union(minor, &e.minor))
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path_number3_acl *acl =
-			container_of(ptr, struct tomoyo_path_number3_acl, head);
-		if (!tomoyo_is_same_path_number3_acl(acl, &e))
-			continue;
-		if (is_delete)
-			acl->perm &= ~perm;
-		else
-			acl->perm |= perm;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_path_number3_acl *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &domain->acl_info_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
+				     tomoyo_same_path_number3_acl,
+				     tomoyo_merge_path_number3_acl);
  out:
 	tomoyo_put_name_union(&e.name);
 	tomoyo_put_number_union(&e.mode);
 	tomoyo_put_number_union(&e.major);
 	tomoyo_put_number_union(&e.minor);
 	return error;
+}
+
+static bool tomoyo_same_path2_acl(const struct tomoyo_acl_info *a,
+				  const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_path2_acl *p1 = container_of(a, typeof(*p1), head);
+	const struct tomoyo_path2_acl *p2 = container_of(b, typeof(*p2), head);
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_is_same_name_union(&p1->name1, &p2->name1)
+		&& tomoyo_is_same_name_union(&p1->name2, &p2->name2);
+}
+
+static bool tomoyo_merge_path2_acl(struct tomoyo_acl_info *a,
+				   struct tomoyo_acl_info *b,
+				   const bool is_delete)
+{
+	u8 * const a_perm = &container_of(a, struct tomoyo_path2_acl, head)
+		->perm;
+	u8 perm = *a_perm;
+	const u8 b_perm = container_of(b, struct tomoyo_path2_acl, head)->perm;
+	if (is_delete)
+		perm &= ~b_perm;
+	else
+		perm |= b_perm;
+	*a_perm = perm;
+	return !perm;
 }
 
 /**
@@ -947,46 +932,20 @@ static inline int tomoyo_update_path_number3_acl(const u8 type,
  */
 static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 				   const char *filename2,
-				   struct tomoyo_domain_info *const domain,
+				   struct tomoyo_domain_info * const domain,
 				   const bool is_delete)
 {
-	const u8 perm = 1 << type;
 	struct tomoyo_path2_acl e = {
 		.head.type = TOMOYO_TYPE_PATH2_ACL,
-		.perm = perm
+		.perm = 1 << type
 	};
-	struct tomoyo_acl_info *ptr;
 	int error = is_delete ? -ENOENT : -ENOMEM;
-
-	if (!domain)
-		return -EINVAL;
 	if (!tomoyo_parse_name_union(filename1, &e.name1) ||
 	    !tomoyo_parse_name_union(filename2, &e.name2))
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path2_acl *acl =
-			container_of(ptr, struct tomoyo_path2_acl, head);
-		if (!tomoyo_is_same_path2_acl(acl, &e))
-			continue;
-		if (is_delete)
-			acl->perm &= ~perm;
-		else
-			acl->perm |= perm;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_path2_acl *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &domain->acl_info_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
+				     tomoyo_same_path2_acl,
+				     tomoyo_merge_path2_acl);
  out:
 	tomoyo_put_name_union(&e.name1);
 	tomoyo_put_name_union(&e.name2);
@@ -1157,6 +1116,35 @@ static int tomoyo_path_number_acl(struct tomoyo_request_info *r, const u8 type,
 	return error;
 }
 
+static bool tomoyo_same_path_number_acl(const struct tomoyo_acl_info *a,
+					const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_path_number_acl *p1 = container_of(a, typeof(*p1),
+							       head);
+	const struct tomoyo_path_number_acl *p2 = container_of(b, typeof(*p2),
+							       head);
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
+		&& tomoyo_is_same_number_union(&p1->number, &p2->number);
+}
+
+static bool tomoyo_merge_path_number_acl(struct tomoyo_acl_info *a,
+					 struct tomoyo_acl_info *b,
+					 const bool is_delete)
+{
+	u8 * const a_perm = &container_of(a, struct tomoyo_path_number_acl,
+					  head)->perm;
+	u8 perm = *a_perm;
+	const u8 b_perm = container_of(b, struct tomoyo_path_number_acl, head)
+		->perm;
+	if (is_delete)
+		perm &= ~b_perm;
+	else
+		perm |= b_perm;
+	*a_perm = perm;
+	return !perm;
+}
+
 /**
  * tomoyo_update_path_number_acl - Update ioctl/chmod/chown/chgrp ACL.
  *
@@ -1168,50 +1156,24 @@ static int tomoyo_path_number_acl(struct tomoyo_request_info *r, const u8 type,
  *
  * Returns 0 on success, negative value otherwise.
  */
-static inline int tomoyo_update_path_number_acl(const u8 type,
-						const char *filename,
-						char *number,
-						struct tomoyo_domain_info *
-						const domain,
-						const bool is_delete)
+static int tomoyo_update_path_number_acl(const u8 type, const char *filename,
+					 char *number,
+					 struct tomoyo_domain_info * const
+					 domain,
+					 const bool is_delete)
 {
-	const u8 perm = 1 << type;
-	struct tomoyo_acl_info *ptr;
 	struct tomoyo_path_number_acl e = {
 		.head.type = TOMOYO_TYPE_PATH_NUMBER_ACL,
-		.perm = perm
+		.perm = 1 << type
 	};
 	int error = is_delete ? -ENOENT : -ENOMEM;
-	if (!domain)
-		return -EINVAL;
 	if (!tomoyo_parse_name_union(filename, &e.name))
 		return -EINVAL;
 	if (!tomoyo_parse_number_union(number, &e.number))
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path_number_acl *acl =
-			container_of(ptr, struct tomoyo_path_number_acl, head);
-		if (!tomoyo_is_same_path_number_acl(acl, &e))
-			continue;
-		if (is_delete)
-			acl->perm &= ~perm;
-		else
-			acl->perm |= perm;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_path_number_acl *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &domain->acl_info_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
+				     tomoyo_same_path_number_acl,
+				     tomoyo_merge_path_number_acl);
  out:
 	tomoyo_put_name_union(&e.name);
 	tomoyo_put_number_union(&e.number);
@@ -1585,13 +1547,8 @@ int tomoyo_write_file_policy(char *data, struct tomoyo_domain_info *domain,
 	u8 type;
 	if (!tomoyo_tokenize(data, w, sizeof(w)) || !w[1][0])
 		return -EINVAL;
-	if (strncmp(w[0], "allow_", 6)) {
-		unsigned int perm;
-		if (sscanf(w[0], "%u", &perm) == 1)
-			return tomoyo_update_file_acl((u8) perm, w[1], domain,
-						      is_delete);
+	if (strncmp(w[0], "allow_", 6))
 		goto out;
-	}
 	w[0] += 6;
 	for (type = 0; type < TOMOYO_MAX_PATH_OPERATION; type++) {
 		if (strcmp(w[0], tomoyo_path_keyword[type]))

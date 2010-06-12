@@ -114,11 +114,10 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 	tomoyo_fill_path_info(&rdev);
 	list_for_each_entry_rcu(ptr, &r->domain->acl_info_list, list) {
 		struct tomoyo_mount_acl *acl;
-		if (ptr->type != TOMOYO_TYPE_MOUNT_ACL)
+		if (ptr->is_deleted || ptr->type != TOMOYO_TYPE_MOUNT_ACL)
 			continue;
 		acl = container_of(ptr, struct tomoyo_mount_acl, head);
-		if (acl->is_deleted ||
-		    !tomoyo_compare_number_union(flags, &acl->flags) ||
+		if (!tomoyo_compare_number_union(flags, &acl->flags) ||
 		    !tomoyo_compare_name_union(&rtype, &acl->fs_type) ||
 		    !tomoyo_compare_name_union(&rdir, &acl->dir_name) ||
 		    (need_dev &&
@@ -259,6 +258,18 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 	return error;
 }
 
+static bool tomoyo_same_mount_acl(const struct tomoyo_acl_info *a,
+				  const struct tomoyo_acl_info *b)
+{
+	const struct tomoyo_mount_acl *p1 = container_of(a, typeof(*p1), head);
+	const struct tomoyo_mount_acl *p2 = container_of(b, typeof(*p2), head);
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
+		tomoyo_is_same_name_union(&p1->dev_name, &p2->dev_name) &&
+		tomoyo_is_same_name_union(&p1->dir_name, &p2->dir_name) &&
+		tomoyo_is_same_name_union(&p1->fs_type, &p2->fs_type) &&
+		tomoyo_is_same_number_union(&p1->flags, &p2->flags);
+}
+
 /**
  * tomoyo_write_mount_policy - Write "struct tomoyo_mount_acl" list.
  *
@@ -267,11 +278,12 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
  * @is_delete: True if it is a delete request.
  *
  * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
  */
 int tomoyo_write_mount_policy(char *data, struct tomoyo_domain_info *domain,
 			      const bool is_delete)
 {
-	struct tomoyo_acl_info *ptr;
 	struct tomoyo_mount_acl e = { .head.type = TOMOYO_TYPE_MOUNT_ACL };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	char *w[4];
@@ -282,27 +294,8 @@ int tomoyo_write_mount_policy(char *data, struct tomoyo_domain_info *domain,
 	    !tomoyo_parse_name_union(w[2], &e.fs_type) ||
 	    !tomoyo_parse_number_union(w[3], &e.flags))
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_mount_acl *acl =
-			container_of(ptr, struct tomoyo_mount_acl, head);
-		if (!tomoyo_is_same_mount_acl(acl, &e))
-			continue;
-		acl->is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_mount_acl *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &domain->acl_info_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
+				     tomoyo_same_mount_acl, NULL);
  out:
 	tomoyo_put_name_union(&e.dev_name);
 	tomoyo_put_name_union(&e.dir_name);

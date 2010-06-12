@@ -15,6 +15,57 @@
 /* The initial domain. */
 struct tomoyo_domain_info tomoyo_kernel_domain;
 
+/**
+ * tomoyo_update_domain - Update an entry for domain policy.
+ *
+ * @new_entry:       Pointer to "struct tomoyo_acl_info".
+ * @size:            Size of @new_entry in bytes.
+ * @is_delete:       True if it is a delete request.
+ * @domain:          Pointer to "struct tomoyo_domain_info".
+ * @check_duplicate: Callback function to find duplicated entry.
+ * @merge_duplicate: Callback function to merge duplicated entry.
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
+			 bool is_delete, struct tomoyo_domain_info *domain,
+			 bool (*check_duplicate) (const struct tomoyo_acl_info
+						  *,
+						  const struct tomoyo_acl_info
+						  *),
+			 bool (*merge_duplicate) (struct tomoyo_acl_info *,
+						  struct tomoyo_acl_info *,
+						  const bool))
+{
+	int error = is_delete ? -ENOENT : -ENOMEM;
+	struct tomoyo_acl_info *entry;
+
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return error;
+	list_for_each_entry_rcu(entry, &domain->acl_info_list, list) {
+		if (!check_duplicate(entry, new_entry))
+			continue;
+		if (merge_duplicate)
+			entry->is_deleted = merge_duplicate(entry, new_entry,
+							    is_delete);
+		else
+			entry->is_deleted = is_delete;
+		error = 0;
+		break;
+	}
+	if (error && !is_delete) {
+		entry = tomoyo_commit_ok(new_entry, size);
+		if (entry) {
+			list_add_tail_rcu(&entry->list, &domain->acl_info_list);
+			error = 0;
+		}
+	}
+	mutex_unlock(&tomoyo_policy_lock);
+	return error;
+}
+
 /*
  * tomoyo_domain_list is used for holding list of domains.
  * The ->acl_info_list of "struct tomoyo_domain_info" is used for holding

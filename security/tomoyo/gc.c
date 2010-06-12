@@ -310,34 +310,8 @@ static void tomoyo_collect_entry(void)
 			struct tomoyo_acl_info *acl;
 			list_for_each_entry_rcu(acl, &domain->acl_info_list,
 						list) {
-				switch (acl->type) {
-				case TOMOYO_TYPE_PATH_ACL:
-					if (container_of(acl,
-					 struct tomoyo_path_acl,
-							 head)->perm)
-						continue;
-					break;
-				case TOMOYO_TYPE_PATH2_ACL:
-					if (container_of(acl,
-					 struct tomoyo_path2_acl,
-							 head)->perm)
-						continue;
-					break;
-				case TOMOYO_TYPE_PATH_NUMBER_ACL:
-					if (container_of(acl,
-					 struct tomoyo_path_number_acl,
-							 head)->perm)
-						continue;
-					break;
-				case TOMOYO_TYPE_PATH_NUMBER3_ACL:
-					if (container_of(acl,
-					 struct tomoyo_path_number3_acl,
-							 head)->perm)
-						continue;
-					break;
-				default:
+				if (!acl->is_deleted)
 					continue;
-				}
 				if (tomoyo_add_to_gc(TOMOYO_ID_ACL, acl))
 					list_del_rcu(&acl->list);
 				else
