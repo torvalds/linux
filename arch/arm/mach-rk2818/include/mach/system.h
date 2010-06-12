@@ -12,15 +12,46 @@
  * GNU General Public License for more details.
  *
  */
+ 
+ /***************
+*	 DEBUG
+****************/
+#define RESTART_DEBUG
+#ifdef RESTART_DEBUG
+#define restart_dbg(format, arg...) \
+	printk("RESTART_DEBUG : " format "\n" , ## arg)
+#else
+#define restart_dbg(format, arg...) do {} while (0)
+#endif
 
-#include <mach/hardware.h>
+#ifdef CONFIG_RK2818_POWER
+extern  int rk2818_restart( int	mode, const char *cmd) ;
+
+static inline void arch_reset(int  mode, const char *cmd)
+{
+	
+	/*
+	*  debug trace
+	*/
+	restart_dbg("%s->%s->%d->mode=%d cmd=%s",__FILE__,__FUNCTION__,__LINE__,mode,cmd);
+	rk2818_restart( mode, cmd) ;
+}
+
+#else
+ 
+static inline void arch_reset(int  mode, const char *cmd)
+{
+	
+	/*
+	*  debug trace
+	*/
+	restart_dbg("%s->%s->%d->mode=%c cmd=%s",__FILE__,__FUNCTION__,__LINE__,mode,cmd);
+	printk("Can't reboot. Please open rk2818 power manage!!\n");
+	for(;;);
+}
+#endif
 
 static inline void arch_idle(void)
 {
 	cpu_do_idle();
-}
-
-static inline void arch_reset(char mode, const char *cmd)
-{
-	for (;;) ;  /* depends on IPC w/ other core */
 }
