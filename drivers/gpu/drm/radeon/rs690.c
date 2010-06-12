@@ -228,10 +228,6 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	fixed20_12 a, b, c;
 	fixed20_12 pclk, request_fifo_depth, tolerable_latency, estimated_width;
 	fixed20_12 consumption_time, line_time, chunk_time, read_delay_latency;
-	/* FIXME: detect IGP with sideport memory, i don't think there is any
-	 * such product available
-	 */
-	bool sideport = false;
 
 	if (!crtc->base.enabled) {
 		/* FIXME: wouldn't it better to set priority mark to maximum */
@@ -300,7 +296,7 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 
 	/* Maximun bandwidth is the minimun bandwidth of all component */
 	rdev->pm.max_bandwidth = rdev->pm.core_bandwidth;
-	if (sideport) {
+	if (rdev->mc.igp_sideport_enabled) {
 		if (rdev->pm.max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
 			rdev->pm.sideport_bandwidth.full)
 			rdev->pm.max_bandwidth = rdev->pm.sideport_bandwidth;
