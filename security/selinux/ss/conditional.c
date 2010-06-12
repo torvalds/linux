@@ -223,34 +223,37 @@ int cond_read_bool(struct policydb *p, struct hashtab *h, void *fp)
 
 	booldatum = kzalloc(sizeof(struct cond_bool_datum), GFP_KERNEL);
 	if (!booldatum)
-		return -1;
+		return -ENOMEM;
 
 	rc = next_entry(buf, fp, sizeof buf);
-	if (rc < 0)
+	if (rc)
 		goto err;
 
 	booldatum->value = le32_to_cpu(buf[0]);
 	booldatum->state = le32_to_cpu(buf[1]);
 
+	rc = -EINVAL;
 	if (!bool_isvalid(booldatum))
 		goto err;
 
 	len = le32_to_cpu(buf[2]);
 
+	rc = -ENOMEM;
 	key = kmalloc(len + 1, GFP_KERNEL);
 	if (!key)
 		goto err;
 	rc = next_entry(key, fp, len);
-	if (rc < 0)
+	if (rc)
 		goto err;
 	key[len] = '\0';
-	if (hashtab_insert(h, key, booldatum))
+	rc = hashtab_insert(h, key, booldatum);
+	if (rc)
 		goto err;
 
 	return 0;
 err:
 	cond_destroy_bool(key, booldatum, NULL);
-	return -1;
+	return rc;
 }
 
 struct cond_insertf_data {
