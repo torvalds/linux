@@ -134,7 +134,7 @@ static const struct intel_device_info intel_ironlake_d_info = {
 
 static const struct intel_device_info intel_ironlake_m_info = {
 	.is_ironlake = 1, .is_mobile = 1, .is_i965g = 1, .is_i9xx = 1,
-	.need_gfx_hws = 1, .has_rc6 = 1,
+	.need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1,
 	.has_hotplug = 1,
 };
 

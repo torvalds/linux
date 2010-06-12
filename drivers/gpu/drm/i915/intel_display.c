@@ -1123,6 +1123,67 @@ static bool g4x_fbc_enabled(struct drm_device *dev)
 	return I915_READ(DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(intel_fb->obj);
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int plane = (intel_crtc->plane == 0) ? DPFC_CTL_PLANEA :
+					       DPFC_CTL_PLANEB;
+	unsigned long stall_watermark = 200;
+	u32 dpfc_ctl;
+
+	dev_priv->cfb_pitch = (dev_priv->cfb_pitch / 64) - 1;
+	dev_priv->cfb_fence = obj_priv->fence_reg;
+	dev_priv->cfb_plane = intel_crtc->plane;
+
+	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
+	dpfc_ctl &= DPFC_RESERVED;
+	dpfc_ctl |= (plane | DPFC_CTL_LIMIT_1X);
+	if (obj_priv->tiling_mode != I915_TILING_NONE) {
+		dpfc_ctl |= (DPFC_CTL_FENCE_EN | dev_priv->cfb_fence);
+		I915_WRITE(ILK_DPFC_CHICKEN, DPFC_HT_MODIFY);
+	} else {
+		I915_WRITE(ILK_DPFC_CHICKEN, ~DPFC_HT_MODIFY);
+	}
+
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
+	I915_WRITE(ILK_DPFC_RECOMP_CTL, DPFC_RECOMP_STALL_EN |
+		   (stall_watermark << DPFC_RECOMP_STALL_WM_SHIFT) |
+		   (interval << DPFC_RECOMP_TIMER_COUNT_SHIFT));
+	I915_WRITE(ILK_DPFC_FENCE_YOFF, crtc->y);
+	I915_WRITE(ILK_FBC_RT_BASE, obj_priv->gtt_offset | ILK_FBC_RT_VALID);
+	/* enable it... */
+	I915_WRITE(ILK_DPFC_CONTROL, I915_READ(ILK_DPFC_CONTROL) |
+		   DPFC_CTL_EN);
+
+	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+}
+
+void ironlake_disable_fbc(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 dpfc_ctl;
+
+	/* Disable compression */
+	dpfc_ctl = I915_READ(ILK_DPFC_CONTROL);
+	dpfc_ctl &= ~DPFC_CTL_EN;
+	I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
+	intel_wait_for_vblank(dev);
+
+	DRM_DEBUG_KMS("disabled FBC\n");
+}
+
+static bool ironlake_fbc_enabled(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	return I915_READ(ILK_DPFC_CONTROL) & DPFC_CTL_EN;
+}
+
 bool intel_fbc_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1966,6 +2027,8 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 		intel_crtc_load_lut(crtc);
 
+		intel_update_fbc(crtc, &crtc->mode);
+
 	break;
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
@@ -1979,6 +2042,10 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(dspbase_reg, I915_READ(dspbase_reg));
 			I915_READ(dspbase_reg);
 		}
+
+		if (dev_priv->cfb_plane == plane &&
+		    dev_priv->display.disable_fbc)
+			dev_priv->display.disable_fbc(dev);
 
 		i915_disable_vga(dev);
 
@@ -5452,6 +5519,26 @@ void intel_init_clock_gating(struct drm_device *dev)
 					(I915_READ(DISP_ARB_CTL) |
 						DISP_FBC_WM_DIS));
 		}
+		/*
+		 * Based on the document from hardware guys the following bits
+		 * should be set unconditionally in order to enable FBC.
+		 * The bit 22 of 0x42000
+		 * The bit 22 of 0x42004
+		 * The bit 7,8,9 of 0x42020.
+		 */
+		if (IS_IRONLAKE_M(dev)) {
+			I915_WRITE(ILK_DISPLAY_CHICKEN1,
+				   I915_READ(ILK_DISPLAY_CHICKEN1) |
+				   ILK_FBCQ_DIS);
+			I915_WRITE(ILK_DISPLAY_CHICKEN2,
+				   I915_READ(ILK_DISPLAY_CHICKEN2) |
+				   ILK_DPARB_GATE);
+			I915_WRITE(ILK_DSPCLK_GATE,
+				   I915_READ(ILK_DSPCLK_GATE) |
+				   ILK_DPFC_DIS1 |
+				   ILK_DPFC_DIS2 |
+				   ILK_CLK_FBC);
+		}
 		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
@@ -5530,7 +5617,11 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.dpms = i9xx_crtc_dpms;
 
 	if (I915_HAS_FBC(dev)) {
-		if (IS_GM45(dev)) {
+		if (IS_IRONLAKE_M(dev)) {
+			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
+			dev_priv->display.enable_fbc = ironlake_enable_fbc;
+			dev_priv->display.disable_fbc = ironlake_disable_fbc;
+		} else if (IS_GM45(dev)) {
 			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
 			dev_priv->display.enable_fbc = g4x_enable_fbc;
 			dev_priv->display.disable_fbc = g4x_disable_fbc;

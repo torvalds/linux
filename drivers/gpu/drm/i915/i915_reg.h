@@ -530,6 +530,21 @@
 #define DPFC_CHICKEN		0x3224
 #define   DPFC_HT_MODIFY	(1<<31)
 
+/* Framebuffer compression for Ironlake */
+#define ILK_DPFC_CB_BASE	0x43200
+#define ILK_DPFC_CONTROL	0x43208
+/* The bit 28-8 is reserved */
+#define   DPFC_RESERVED		(0x1FFFFF00)
+#define ILK_DPFC_RECOMP_CTL	0x4320c
+#define ILK_DPFC_STATUS		0x43210
+#define ILK_DPFC_FENCE_YOFF	0x43218
+#define ILK_DPFC_CHICKEN	0x43224
+#define ILK_FBC_RT_BASE		0x2128
+#define   ILK_FBC_RT_VALID	(1<<0)
+
+#define ILK_DISPLAY_CHICKEN1	0x42000
+#define   ILK_FBCQ_DIS		(1<<22)
+
 /*
  * GPIO regs
  */
@@ -2491,6 +2506,10 @@
 #define  ILK_VSDPFD_FULL	(1<<21)
 #define ILK_DSPCLK_GATE		0x42020
 #define  ILK_DPARB_CLK_GATE	(1<<5)
+/* According to spec this bit 7/8/9 of 0x42020 should be set to enable FBC */
+#define   ILK_CLK_FBC		(1<<7)
+#define   ILK_DPFC_DIS1		(1<<8)
+#define   ILK_DPFC_DIS2		(1<<9)
 
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)

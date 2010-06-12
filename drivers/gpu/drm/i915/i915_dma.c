@@ -1257,7 +1257,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		drm_mm_put_block(compressed_fb);
 	}
 
-	if (!IS_GM45(dev)) {
+	if (!(IS_GM45(dev) || IS_IRONLAKE_M(dev))) {
 		compressed_llb = drm_mm_search_free(&dev_priv->vram, 4096,
 						    4096, 0);
 		if (!compressed_llb) {
@@ -1283,8 +1283,9 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	intel_disable_fbc(dev);
 	dev_priv->compressed_fb = compressed_fb;
-
-	if (IS_GM45(dev)) {
+	if (IS_IRONLAKE_M(dev))
+		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
+	else if (IS_GM45(dev)) {
 		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
 	} else {
 		I915_WRITE(FBC_CFB_BASE, cfb_base);
@@ -1292,7 +1293,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 		dev_priv->compressed_llb = compressed_llb;
 	}
 
-	DRM_DEBUG("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
+	DRM_DEBUG_KMS("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
 		  ll_base, size >> 20);
 }
 
