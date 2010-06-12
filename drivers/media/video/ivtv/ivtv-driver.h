@@ -737,6 +737,7 @@ struct ivtv {
 	struct v4l2_rect osd_rect;      /* current OSD position and size */
 	struct v4l2_rect main_rect;     /* current Main window position and size */
 	struct osd_info *osd_info;      /* ivtvfb private OSD info */
+	void (*ivtvfb_restore)(struct ivtv *itv); /* Used for a warm start */
 };
 
 static inline struct ivtv *to_ivtv(struct v4l2_device *v4l2_dev)

@@ -536,8 +536,12 @@ int ivtv_start_decoding(struct ivtv_open_id *id, int speed)
 			return -EBUSY;
 		}
 		rc = ivtv_start_v4l2_decode_stream(s, 0);
-		if (rc < 0)
-			return rc;
+		if (rc < 0) {
+			if (rc == -EAGAIN)
+				rc = ivtv_start_v4l2_decode_stream(s, 0);
+			if (rc < 0)
+				return rc;
+		}
 	}
 	if (s->type == IVTV_DEC_STREAM_TYPE_MPG)
 		return ivtv_set_speed(itv, speed);
@@ -926,19 +930,21 @@ static int ivtv_serialized_open(struct ivtv_stream *s, struct file *filp)
 	IVTV_DEBUG_FILE("open %s\n", s->name);
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
 	if (ivtv_fw_debug) {
 		IVTV_WARN("Opening %s with dead firmware lockout disabled\n",
 			  video_device_node_name(vdev));
 		IVTV_WARN("Selected firmware errors will be ignored\n");
-	}
-
-	/* Unless ivtv_fw_debug is set, error out if firmware dead. */
-	if (ivtv_firmware_check(itv, "ivtv_serialized_open") && !ivtv_fw_debug)
-		return -EIO;
+	} else {
 #else
-	if (ivtv_firmware_check(itv, "ivtv_serialized_open"))
-		return -EIO;
+	if (1) {
 #endif
+		res = ivtv_firmware_check(itv, "ivtv_serialized_open");
+		if (res == -EAGAIN)
+			res = ivtv_firmware_check(itv, "ivtv_serialized_open");
+		if (res < 0)
+			return -EIO;
+	}
 
 	if (s->type == IVTV_DEC_STREAM_TYPE_MPG &&
 		test_bit(IVTV_F_S_CLAIMED, &itv->streams[IVTV_DEC_STREAM_TYPE_YUV].s_flags))

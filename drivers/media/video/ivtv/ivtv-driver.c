@@ -1444,6 +1444,7 @@ EXPORT_SYMBOL(ivtv_udma_unmap);
 EXPORT_SYMBOL(ivtv_udma_alloc);
 EXPORT_SYMBOL(ivtv_udma_prepare);
 EXPORT_SYMBOL(ivtv_init_on_first_open);
+EXPORT_SYMBOL(ivtv_firmware_check);
 
 module_init(module_start);
 module_exit(module_cleanup);

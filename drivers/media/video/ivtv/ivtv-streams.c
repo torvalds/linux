@@ -676,10 +676,7 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	ivtv_msleep_timeout(10, 0);
 
 	/* Known failure point for firmware, so check */
-	if (ivtv_firmware_check(itv, "ivtv_setup_v4l2_decode_stream") < 0)
-		return -EIO;
-
-	return 0;
+	return ivtv_firmware_check(itv, "ivtv_setup_v4l2_decode_stream");
 }
 
 int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
