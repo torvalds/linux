@@ -20,6 +20,7 @@
 #include <linux/etherdevice.h>
 #include <linux/device.h>
 #include <linux/leds.h>
+#include <linux/completion.h>
 
 #include "debug.h"
 #include "common.h"
@@ -224,6 +225,7 @@ struct ath_buf_state {
 	int bfs_tidno;
 	int bfs_retries;
 	u8 bf_type;
+	u8 bfs_paprd;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
@@ -280,6 +282,7 @@ struct ath_tx_control {
 	struct ath_txq *txq;
 	int if_id;
 	enum ath9k_internal_frame_type frame_type;
+	u8 paprd;
 };
 
 #define ATH_TX_ERROR        0x01
@@ -422,6 +425,7 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
+void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 
 /**********/
@@ -553,6 +557,9 @@ struct ath_softc {
 	spinlock_t sc_serial_rw;
 	spinlock_t sc_pm_lock;
 	struct mutex mutex;
+	struct work_struct paprd_work;
+	struct completion paprd_complete;
+	int paprd_txok;
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */

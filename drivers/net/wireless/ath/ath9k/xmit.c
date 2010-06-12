@@ -1637,12 +1637,13 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 		bf->bf_frmlen -= padsize;
 	}
 
-	if (conf_is_ht(&hw->conf)) {
+	if (!txctl->paprd && conf_is_ht(&hw->conf)) {
 		bf->bf_state.bf_type |= BUF_HT;
 		if (tx_info->flags & IEEE80211_TX_CTL_LDPC)
 			use_ldpc = true;
 	}
 
+	bf->bf_state.bfs_paprd = txctl->paprd;
 	bf->bf_flags = setup_tx_flags(skb, use_ldpc);
 
 	bf->bf_keytype = get_hw_crypto_keytype(skb);
@@ -1716,6 +1717,9 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct ath_buf *bf,
 			    ds,		/* first descriptor */
 			    bf->bf_buf_addr,
 			    txctl->txq->axq_qnum);
+
+	if (bf->bf_state.bfs_paprd)
+		ar9003_hw_set_paprd_txdesc(ah, ds, bf->bf_state.bfs_paprd);
 
 	spin_lock_bh(&txctl->txq->axq_lock);
 
@@ -1938,8 +1942,14 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	}
 
 	dma_unmap_single(sc->dev, bf->bf_dmacontext, skb->len, DMA_TO_DEVICE);
-	ath_tx_complete(sc, skb, bf->aphy, tx_flags);
-	ath_debug_stat_tx(sc, txq, bf, ts);
+
+	if (bf->bf_state.bfs_paprd) {
+		sc->paprd_txok = txok;
+		complete(&sc->paprd_complete);
+	} else {
+		ath_tx_complete(sc, skb, bf->aphy, tx_flags);
+		ath_debug_stat_tx(sc, txq, bf, ts);
+	}
 
 	/*
 	 * Return the list of ath_buf of this mpdu to free queue

@@ -232,6 +232,113 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	return r;
 }
 
+static void ath_paprd_activate(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	int chain;
+
+	if (!ah->curchan->paprd_done)
+		return;
+
+	ath9k_ps_wakeup(sc);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->caps.tx_chainmask & BIT(chain)))
+			continue;
+
+		ar9003_paprd_populate_single_table(ah, ah->curchan, chain);
+	}
+
+	ar9003_paprd_enable(ah, true);
+	ath9k_ps_restore(sc);
+}
+
+void ath_paprd_calibrate(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, paprd_work);
+	struct ieee80211_hw *hw = sc->hw;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb = NULL;
+	struct ieee80211_tx_info *tx_info;
+	int band = hw->conf.channel->band;
+	struct ieee80211_supported_band *sband = &sc->sbands[band];
+	struct ath_tx_control txctl;
+	int qnum, ftype;
+	int chain_ok = 0;
+	int chain;
+	int len = 1800;
+	int time_left;
+	int i;
+
+	ath9k_ps_wakeup(sc);
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return;
+
+	tx_info = IEEE80211_SKB_CB(skb);
+
+	skb_put(skb, len);
+	memset(skb->data, 0, len);
+	hdr = (struct ieee80211_hdr *)skb->data;
+	ftype = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC;
+	hdr->frame_control = cpu_to_le16(ftype);
+	hdr->duration_id = 10;
+	memcpy(hdr->addr1, hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr2, hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
+
+	memset(&txctl, 0, sizeof(txctl));
+	qnum = sc->tx.hwq_map[WME_AC_BE];
+	txctl.txq = &sc->tx.txq[qnum];
+
+	ar9003_paprd_init_table(ah);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->caps.tx_chainmask & BIT(chain)))
+			continue;
+
+		chain_ok = 0;
+		memset(tx_info, 0, sizeof(*tx_info));
+		tx_info->band = band;
+
+		for (i = 0; i < 4; i++) {
+			tx_info->control.rates[i].idx = sband->n_bitrates - 1;
+			tx_info->control.rates[i].count = 6;
+		}
+
+		init_completion(&sc->paprd_complete);
+		ar9003_paprd_setup_gain_table(ah, chain);
+		txctl.paprd = BIT(chain);
+		if (ath_tx_start(hw, skb, &txctl) != 0)
+			break;
+
+		time_left = wait_for_completion_timeout(&sc->paprd_complete,
+							100);
+		if (!time_left) {
+			ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+				  "Timeout waiting for paprd training on "
+				  "TX chain %d\n",
+				  chain);
+			break;
+		}
+
+		if (!ar9003_paprd_is_done(ah))
+			break;
+
+		if (ar9003_paprd_create_curve(ah, ah->curchan, chain) != 0)
+			break;
+
+		chain_ok = 1;
+	}
+	kfree_skb(skb);
+
+	if (chain_ok) {
+		ah->curchan->paprd_done = true;
+		ath_paprd_activate(sc);
+	}
+
+	ath9k_ps_restore(sc);
+}
+
 /*
  *  This routine performs the periodic noise floor calibration function
  *  that is used to adjust and optimize the chip performance.  This
@@ -333,6 +440,13 @@ set_timer:
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) &&
+	    !(sc->sc_flags & SC_OP_SCANNING)) {
+		if (!sc->sc_ah->curchan->paprd_done)
+			ieee80211_queue_work(sc->hw, &sc->paprd_work);
+		else
+			ath_paprd_activate(sc);
+	}
 }
 
 static void ath_start_ani(struct ath_common *common)
@@ -1131,6 +1245,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_work_sync(&sc->paprd_work);
 
 	if (!sc->num_sec_wiphy) {
 		cancel_delayed_work_sync(&sc->wiphy_work);
@@ -1850,6 +1965,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	ath9k_wiphy_pause_all_forced(sc, aphy);
 	sc->sc_flags |= SC_OP_SCANNING;
 	del_timer_sync(&common->ani.timer);
+	cancel_work_sync(&sc->paprd_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	mutex_unlock(&sc->mutex);
 }
