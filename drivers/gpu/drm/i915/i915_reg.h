@@ -2140,7 +2140,8 @@
 #define I830_FIFO_LINE_SIZE	32
 
 #define G4X_FIFO_SIZE		127
-#define I945_FIFO_SIZE		127 /* 945 & 965 */
+#define I965_FIFO_SIZE		512
+#define I945_FIFO_SIZE		127
 #define I915_FIFO_SIZE		95
 #define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95

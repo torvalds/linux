@@ -2970,10 +2970,10 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 			      pixel_size * sr_hdisplay;
 		sr_entries = roundup(sr_entries / I915_FIFO_LINE_SIZE, 1);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
-		srwm = I945_FIFO_SIZE - sr_entries;
+		srwm = I965_FIFO_SIZE - sr_entries;
 		if (srwm < 0)
 			srwm = 1;
-		srwm &= 0x3f;
+		srwm &= 0x1ff;
 		if (IS_I965GM(dev))
 			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
