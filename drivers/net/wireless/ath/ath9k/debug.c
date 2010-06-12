@@ -956,6 +956,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 			sc->debug.debugfs_phy, sc, &fops_regval))
 		goto err;
 
+	if (!debugfs_create_bool("ignore_extcca", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, &ah->config.cwm_ignore_extcca))
+		goto err;
+
 	sc->debug.regidx = 0;
 	return 0;
 err:

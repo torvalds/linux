@@ -238,7 +238,7 @@ struct ath9k_ops_config {
 	int sw_beacon_response_time;
 	int additional_swba_backoff;
 	int ack_6mb;
-	int cwm_ignore_extcca;
+	u32 cwm_ignore_extcca;
 	u8 pcie_powersave_enable;
 	u8 pcie_clock_req;
 	u32 pcie_waen;
