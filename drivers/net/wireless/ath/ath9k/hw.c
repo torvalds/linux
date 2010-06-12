@@ -375,13 +375,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.ofdm_trig_high = 500;
 	ah->config.cck_trig_high = 200;
 	ah->config.cck_trig_low = 100;
-
-	/*
-	 * For now ANI is disabled for AR9003, it is still
-	 * being tested.
-	 */
-	if (!AR_SREV_9300_20_OR_LATER(ah))
-		ah->config.enable_ani = 1;
+	ah->config.enable_ani = true;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		ah->config.spurchans[i][0] = AR_NO_SPUR;
