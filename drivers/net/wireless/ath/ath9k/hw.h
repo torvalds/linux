@@ -158,6 +158,9 @@
 #define ATH9K_HW_RX_HP_QDEPTH	16
 #define ATH9K_HW_RX_LP_QDEPTH	128
 
+#define PAPRD_GAIN_TABLE_ENTRIES    32
+#define PAPRD_TABLE_SZ              24
+
 enum ath_ini_subsys {
 	ATH_INI_PRE = 0,
 	ATH_INI_CORE,
@@ -361,6 +364,9 @@ struct ath9k_channel {
 	int8_t iCoff;
 	int8_t qCoff;
 	int16_t rawNoiseFloor;
+	bool paprd_done;
+	u16 small_signal_gain[AR9300_MAX_CHAINS];
+	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 };
 
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
@@ -819,6 +825,9 @@ struct ath_hw {
 
 	u32 bb_watchdog_last_status;
 	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */
+
+	u32 paprd_gain_table_entries[PAPRD_GAIN_TABLE_ENTRIES];
+	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -946,6 +955,15 @@ void ar9003_hw_set_nf_limits(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
+void ar9003_paprd_enable(struct ath_hw *ah, bool val);
+void ar9003_paprd_populate_single_table(struct ath_hw *ah,
+					struct ath9k_channel *chan, int chain);
+int ar9003_paprd_create_curve(struct ath_hw *ah, struct ath9k_channel *chan,
+			      int chain);
+int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
+int ar9003_paprd_init_table(struct ath_hw *ah);
+bool ar9003_paprd_is_done(struct ath_hw *ah);
+void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
