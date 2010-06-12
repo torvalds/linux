@@ -149,6 +149,8 @@
 #define AR_PHY_EXT_CCA_THRESH62_S       16
 #define AR_PHY_EXT_MINCCA_PWR   0x01FF0000
 #define AR_PHY_EXT_MINCCA_PWR_S 16
+#define AR_PHY_EXT_CYCPWR_THR1 0x0000FE00L
+#define AR_PHY_EXT_CYCPWR_THR1_S 9
 #define AR_PHY_TIMING5_CYCPWR_THR1  0x000000FE
 #define AR_PHY_TIMING5_CYCPWR_THR1_S    1
 #define AR_PHY_TIMING5_CYCPWR_THR1_ENABLE  0x00000001
@@ -282,6 +284,12 @@
 #define AR_PHY_CCK_SPUR_MIT_USE_CCK_SPUR_MIT_S                               0
 #define AR_PHY_CCK_SPUR_MIT_CCK_SPUR_FREQ                           0x1ffffe00
 #define AR_PHY_CCK_SPUR_MIT_CCK_SPUR_FREQ_S                                  9
+
+#define AR_PHY_MRC_CCK_CTRL         (AR_AGC_BASE + 0x1d0)
+#define AR_PHY_MRC_CCK_ENABLE       0x00000001
+#define AR_PHY_MRC_CCK_ENABLE_S              0
+#define AR_PHY_MRC_CCK_MUX_REG      0x00000002
+#define AR_PHY_MRC_CCK_MUX_REG_S             1
 
 #define AR_PHY_RX_OCGAIN        (AR_AGC_BASE + 0x200)
 
