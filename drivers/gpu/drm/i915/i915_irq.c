@@ -1434,8 +1434,18 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
 			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS)
+		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 			hotplug_en |= CRT_HOTPLUG_INT_EN;
+
+			/* Programming the CRT detection parameters tends
+			   to generate a spurious hotplug event about three
+			   seconds later.  So just do it once.
+			*/
+			if (IS_G4X(dev))
+				hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
+			hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
+		}
+
 		/* Ignore TV since it's buggy */
 
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
