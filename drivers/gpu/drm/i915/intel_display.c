@@ -2809,7 +2809,8 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 }
 
 static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int pixel_size)
+			  int planeb_clock, int sr_hdisplay, int unused,
+			  int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg;
@@ -2874,7 +2875,8 @@ static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
 }
 
 static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int pixel_size)
+			  int planeb_clock, int sr_hdisplay, int sr_htotal,
+			  int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int total_size, cacheline_size;
@@ -2917,11 +2919,11 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
-			      pixel_size * sr_hdisplay) / 1000;
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			      pixel_size * sr_hdisplay;
 		sr_entries = roundup(sr_entries / cacheline_size, 1);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
@@ -2948,7 +2950,8 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 }
 
 static void i965_update_wm(struct drm_device *dev, int planea_clock,
-			   int planeb_clock, int sr_hdisplay, int pixel_size)
+			   int planeb_clock, int sr_hdisplay, int sr_htotal,
+			   int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long line_time_us;
@@ -2960,11 +2963,11 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
-			      pixel_size * sr_hdisplay) / 1000;
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			      pixel_size * sr_hdisplay;
 		sr_entries = roundup(sr_entries / I915_FIFO_LINE_SIZE, 1);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
 		srwm = I945_FIFO_SIZE - sr_entries;
@@ -2990,7 +2993,8 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 }
 
 static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
-			   int planeb_clock, int sr_hdisplay, int pixel_size)
+			   int planeb_clock, int sr_hdisplay, int sr_htotal,
+			   int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t fwater_lo;
@@ -3035,11 +3039,11 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		static const int sr_latency_ns = 6000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
-		sr_entries = (((sr_latency_ns / line_time_us) + 1) *
-			      pixel_size * sr_hdisplay) / 1000;
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			      pixel_size * sr_hdisplay;
 		sr_entries = roundup(sr_entries / cacheline_size, 1);
 		DRM_DEBUG_KMS("self-refresh entries: %d\n", sr_entries);
 		srwm = total_size - sr_entries;
@@ -3078,7 +3082,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 }
 
 static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
-			   int unused2, int pixel_size)
+			   int unused2, int unused3, int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t fwater_lo = I915_READ(FW_BLC) & ~0xfff;
@@ -3098,7 +3102,8 @@ static void i830_update_wm(struct drm_device *dev, int planea_clock, int unused,
 #define ILK_LP0_PLANE_LATENCY		700
 
 static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
-		       int planeb_clock, int sr_hdisplay, int pixel_size)
+		       int planeb_clock, int sr_hdisplay, int sr_htotal,
+		       int pixel_size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
@@ -3160,7 +3165,7 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		int ilk_sr_latency = I915_READ(MLTR_ILK) & ILK_SRLT_MASK;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
-		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
+		line_time_us = ((sr_htotal * 1000) / sr_clock);
 
 		/* Use ns/us then divide to preserve precision */
 		line_count = ((ilk_sr_latency * 500) / line_time_us + 1000)
@@ -3220,6 +3225,7 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
  *       bytes per pixel
  *   where
  *     line time = htotal / dotclock
+ *     surface width = hdisplay for normal plane and 64 for cursor
  *   and latency is assumed to be high, as above.
  *
  * The final value programmed to the register should always be rounded up,
@@ -3236,6 +3242,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 	int sr_hdisplay = 0;
 	unsigned long planea_clock = 0, planeb_clock = 0, sr_clock = 0;
 	int enabled = 0, pixel_size = 0;
+	int sr_htotal = 0;
 
 	if (!dev_priv->display.update_wm)
 		return;
@@ -3256,6 +3263,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 			}
 			sr_hdisplay = crtc->mode.hdisplay;
 			sr_clock = crtc->mode.clock;
+			sr_htotal = crtc->mode.htotal;
 			if (crtc->fb)
 				pixel_size = crtc->fb->bits_per_pixel / 8;
 			else
@@ -3267,7 +3275,7 @@ static void intel_update_watermarks(struct drm_device *dev)
 		return;
 
 	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
-				    sr_hdisplay, pixel_size);
+				    sr_hdisplay, sr_htotal, pixel_size);
 }
 
 static int intel_crtc_mode_set(struct drm_crtc *crtc,

@@ -176,7 +176,8 @@ struct drm_i915_display_funcs {
 	int (*get_display_clock_speed)(struct drm_device *dev);
 	int (*get_fifo_size)(struct drm_device *dev, int plane);
 	void (*update_wm)(struct drm_device *dev, int planea_clock,
-			  int planeb_clock, int sr_hdisplay, int pixel_size);
+			  int planeb_clock, int sr_hdisplay, int sr_htotal,
+			  int pixel_size);
 	/* clock updates for mode set */
 	/* cursor updates */
 	/* render clock increase/decrease */
