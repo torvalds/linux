@@ -425,7 +425,9 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 		ah->ah_flags = AH_USE_EEPROM;
 
 	ah->atim_window = 0;
-	ah->sta_id1_defaults = AR_STA_ID1_CRPT_MIC_ENABLE;
+	ah->sta_id1_defaults =
+		AR_STA_ID1_CRPT_MIC_ENABLE |
+		AR_STA_ID1_MCAST_KSRCH;
 	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
 	ah->slottime = (u32) -1;
@@ -2259,20 +2261,6 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 			    u32 capability, u32 *result)
 {
 	switch (type) {
-	case ATH9K_CAP_MCAST_KEYSRCH:
-		switch (capability) {
-		case 0:
-			return true;
-		case 1:
-			if (REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_ADHOC) {
-				return false;
-			} else {
-				return (ah->sta_id1_defaults &
-					AR_STA_ID1_MCAST_KSRCH) ? true :
-					false;
-			}
-		}
-		return false;
 	case ATH9K_CAP_DS:
 		return (AR_SREV_9280_20_OR_LATER(ah) &&
 			(ah->eep_ops->get_eeprom(ah, EEP_RC_CHAIN_MASK) == 1))
@@ -2283,21 +2271,6 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 }
 EXPORT_SYMBOL(ath9k_hw_getcapability);
 
-bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 setting, int *status)
-{
-	switch (type) {
-	case ATH9K_CAP_MCAST_KEYSRCH:
-		if (setting)
-			ah->sta_id1_defaults |= AR_STA_ID1_MCAST_KSRCH;
-		else
-			ah->sta_id1_defaults &= ~AR_STA_ID1_MCAST_KSRCH;
-		return true;
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_setcapability);
 
 /****************************/
 /* GPIO / RFKILL / Antennae */

@@ -569,11 +569,6 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	 */
 	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(priv->ah, (u16) i);
-
-	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(priv->ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(priv->ah, ATH9K_CAP_MCAST_KEYSRCH,
-					     1, 1, NULL);
 }
 
 static void ath9k_init_channels_rates(struct ath9k_htc_priv *priv)

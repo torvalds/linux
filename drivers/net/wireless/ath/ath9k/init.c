@@ -387,12 +387,6 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	 */
 	if (!(sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA))
 		common->splitmic = 1;
-
-	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH,
-					     1, 1, NULL);
-
 }
 
 static int ath9k_init_btcoex(struct ath_softc *sc)
