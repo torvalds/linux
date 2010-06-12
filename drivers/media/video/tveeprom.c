@@ -267,6 +267,21 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,                 "Xceive XC4000"},
 	{ TUNER_ABSENT,                 "Dibcom 7070"},
 	{ TUNER_PHILIPS_TDA8290,        "NXP 18271C2"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	/* 160-169 */
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_ABSENT,			"unknown"},
+	{ TUNER_PHILIPS_FQ1236_MK5,	"TCL M30WTP-4N-E"},
+	{ TUNER_ABSENT,			"unknown"},
 };
 
 /* Use V4L2_IDENT_AMBIGUOUS for those audio 'chips' that are
