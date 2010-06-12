@@ -569,7 +569,7 @@ static int __guestcopy(struct kvm_vcpu *vcpu, u64 guestdest, const void *from,
  * KVM_S390_STORE_STATUS_NOADDR: -> 0x1200 on 64 bit
  * KVM_S390_STORE_STATUS_PREFIXED: -> prefix
  */
-static int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
+int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 {
 	const unsigned char archmode = 1;
 	int prefix;
