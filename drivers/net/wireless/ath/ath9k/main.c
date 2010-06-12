@@ -808,7 +808,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	return r;
 }
 
-int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
+static int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
 {
 	int qnum;
 
