@@ -2260,18 +2260,6 @@ bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
 {
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 	switch (type) {
-	case ATH9K_CAP_CIPHER:
-		switch (capability) {
-		case ATH9K_CIPHER_AES_CCM:
-		case ATH9K_CIPHER_AES_OCB:
-		case ATH9K_CIPHER_TKIP:
-		case ATH9K_CIPHER_WEP:
-		case ATH9K_CIPHER_MIC:
-		case ATH9K_CIPHER_CLR:
-			return true;
-		default:
-			return false;
-		}
 	case ATH9K_CAP_TKIP_MIC:
 		switch (capability) {
 		case 0:

@@ -207,7 +207,6 @@ enum ath9k_hw_caps {
 };
 
 enum ath9k_capability_type {
-	ATH9K_CAP_CIPHER = 0,
 	ATH9K_CAP_TKIP_MIC,
 	ATH9K_CAP_TKIP_SPLIT,
 	ATH9K_CAP_TXPOW,

@@ -379,16 +379,13 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(sc->sc_ah, (u16) i);
 
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)) {
-		/*
-		 * Whether we should enable h/w TKIP MIC.
-		 * XXX: if we don't support WME TKIP MIC, then we wouldn't
-		 * report WMM capable, so it's always safe to turn on
-		 * TKIP MIC in this case.
-		 */
-		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
-	}
+	/*
+	 * Whether we should enable h/w TKIP MIC.
+	 * XXX: if we don't support WME TKIP MIC, then we wouldn't
+	 * report WMM capable, so it's always safe to turn on
+	 * TKIP MIC in this case.
+	 */
+	ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
 
 	/*
 	 * Check whether the separate key cache entries
@@ -396,12 +393,7 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT,
-				      0, NULL))
+	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT, 0, NULL))
 		common->splitmic = 1;
 
 	/* turn on mcast key search if possible */
