@@ -1578,6 +1578,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			u64 disko = 0, diskl = 0;
 			u64 datao = 0, datal = 0;
 			u8 comp;
+			u64 endoff;
 
 			size = btrfs_item_size_nr(leaf, slot);
 			read_extent_buffer(leaf, buf,
@@ -1712,9 +1713,18 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			btrfs_release_path(root, path);
 
 			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-			if (new_key.offset + datal > inode->i_size)
-				btrfs_i_size_write(inode,
-						   new_key.offset + datal);
+
+			/*
+			 * we round up to the block size at eof when
+			 * determining which extents to clone above,
+			 * but shouldn't round up the file size
+			 */
+			endoff = new_key.offset + datal;
+			if (endoff > off+olen)
+				endoff = off+olen;
+			if (endoff > inode->i_size)
+				btrfs_i_size_write(inode, endoff);
+
 			BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
 			ret = btrfs_update_inode(trans, root, inode);
 			BUG_ON(ret);
