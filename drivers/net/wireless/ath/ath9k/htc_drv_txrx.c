@@ -403,9 +403,6 @@ static void ath9k_htc_opmode_init(struct ath9k_htc_priv *priv)
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
-	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, common->macaddr);
-
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
 	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);

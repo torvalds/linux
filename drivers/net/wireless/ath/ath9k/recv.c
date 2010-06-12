@@ -116,9 +116,6 @@ static void ath_opmode_init(struct ath_softc *sc)
 	/* configure operational mode */
 	ath9k_hw_setopmode(ah);
 
-	/* Handle any link-level address change. */
-	ath9k_hw_setmac(ah, common->macaddr);
-
 	/* calculate and install multicast filter */
 	mfilt[0] = mfilt[1] = ~0;
 	ath9k_hw_setmcastfilter(ah, mfilt[0], mfilt[1]);

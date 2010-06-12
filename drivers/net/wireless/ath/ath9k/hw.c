@@ -2538,12 +2538,6 @@ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
 }
 EXPORT_SYMBOL(ath9k_hw_set_txpowerlimit);
 
-void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac)
-{
-	memcpy(ath9k_hw_common(ah)->macaddr, mac, ETH_ALEN);
-}
-EXPORT_SYMBOL(ath9k_hw_setmac);
-
 void ath9k_hw_setopmode(struct ath_hw *ah)
 {
 	ath9k_hw_set_operating_mode(ah, ah->opmode);
