@@ -445,8 +445,8 @@ int cond_read_list(struct policydb *p, void *fp)
 	int rc;
 
 	rc = next_entry(buf, fp, sizeof buf);
-	if (rc < 0)
-		return -1;
+	if (rc)
+		return rc;
 
 	len = le32_to_cpu(buf[0]);
 
@@ -455,11 +455,13 @@ int cond_read_list(struct policydb *p, void *fp)
 		goto err;
 
 	for (i = 0; i < len; i++) {
+		rc = -ENOMEM;
 		node = kzalloc(sizeof(struct cond_node), GFP_KERNEL);
 		if (!node)
 			goto err;
 
-		if (cond_read_node(p, node, fp) != 0)
+		rc = cond_read_node(p, node, fp);
+		if (rc)
 			goto err;
 
 		if (i == 0)
@@ -472,7 +474,7 @@ int cond_read_list(struct policydb *p, void *fp)
 err:
 	cond_list_destroy(p->cond_list);
 	p->cond_list = NULL;
-	return -1;
+	return rc;
 }
 
 /* Determine whether additional permissions are granted by the conditional
