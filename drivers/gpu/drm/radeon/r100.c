@@ -3158,33 +3158,6 @@ static inline void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
 	DRM_ERROR("compress format            %d\n", t->compress_format);
 }
 
-static int r100_cs_track_cube(struct radeon_device *rdev,
-			      struct r100_cs_track *track, unsigned idx)
-{
-	unsigned face, w, h;
-	struct radeon_bo *cube_robj;
-	unsigned long size;
-
-	for (face = 0; face < 5; face++) {
-		cube_robj = track->textures[idx].cube_info[face].robj;
-		w = track->textures[idx].cube_info[face].width;
-		h = track->textures[idx].cube_info[face].height;
-
-		size = w * h;
-		size *= track->textures[idx].cpp;
-
-		size += track->textures[idx].cube_info[face].offset;
-
-		if (size > radeon_bo_size(cube_robj)) {
-			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
-				  size, radeon_bo_size(cube_robj));
-			r100_cs_track_texture_print(&track->textures[idx]);
-			return -1;
-		}
-	}
-	return 0;
-}
-
 static int r100_track_compress_size(int compress_format, int w, int h)
 {
 	int block_width, block_height, block_bytes;
@@ -3213,6 +3186,37 @@ static int r100_track_compress_size(int compress_format, int w, int h)
 		wblocks = min_wblocks;
 	sz = wblocks * hblocks * block_bytes;
 	return sz;
+}
+
+static int r100_cs_track_cube(struct radeon_device *rdev,
+			      struct r100_cs_track *track, unsigned idx)
+{
+	unsigned face, w, h;
+	struct radeon_bo *cube_robj;
+	unsigned long size;
+	unsigned compress_format = track->textures[idx].compress_format;
+
+	for (face = 0; face < 5; face++) {
+		cube_robj = track->textures[idx].cube_info[face].robj;
+		w = track->textures[idx].cube_info[face].width;
+		h = track->textures[idx].cube_info[face].height;
+
+		if (compress_format) {
+			size = r100_track_compress_size(compress_format, w, h);
+		} else
+			size = w * h;
+		size *= track->textures[idx].cpp;
+
+		size += track->textures[idx].cube_info[face].offset;
+
+		if (size > radeon_bo_size(cube_robj)) {
+			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
+				  size, radeon_bo_size(cube_robj));
+			r100_cs_track_texture_print(&track->textures[idx]);
+			return -1;
+		}
+	}
+	return 0;
 }
 
 static int r100_cs_track_texture_check(struct radeon_device *rdev,
