@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "hw-ops.h"
 
 static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 					struct ath9k_tx_queue_info *qi)

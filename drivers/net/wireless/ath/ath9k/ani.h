@@ -108,14 +108,10 @@ struct ar5416Stats {
 };
 #define ah_mibStats stats.ast_mibstats
 
-void ath9k_ani_reset(struct ath_hw *ah);
-void ath9k_hw_ani_monitor(struct ath_hw *ah,
-			  struct ath9k_channel *chan);
 void ath9k_enable_mib_counters(struct ath_hw *ah);
 void ath9k_hw_disable_mib_counters(struct ath_hw *ah);
 u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah, u32 *rxc_pcnt,
 				  u32 *rxf_pcnt, u32 *txf_pcnt);
-void ath9k_hw_procmibevent(struct ath_hw *ah);
 void ath9k_hw_ani_setup(struct ath_hw *ah);
 void ath9k_hw_ani_init(struct ath_hw *ah);
 

@@ -128,6 +128,17 @@ static inline void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
 	ath9k_hw_ops(ah)->set11n_virtualmorefrag(ah, ds, vmf);
 }
 
+static inline void ath9k_hw_procmibevent(struct ath_hw *ah)
+{
+	ath9k_hw_ops(ah)->ani_proc_mib_event(ah);
+}
+
+static inline void ath9k_hw_ani_monitor(struct ath_hw *ah,
+					struct ath9k_channel *chan)
+{
+	ath9k_hw_ops(ah)->ani_monitor(ah, chan);
+}
+
 /* Private hardware call ops */
 
 /* PHY ops */
@@ -275,6 +286,11 @@ static inline bool ath9k_hw_iscal_supported(struct ath_hw *ah,
 					    enum ath9k_cal_types calType)
 {
 	return ath9k_hw_private_ops(ah)->iscal_supported(ah, calType);
+}
+
+static inline void ath9k_ani_reset(struct ath_hw *ah)
+{
+	ath9k_hw_private_ops(ah)->ani_reset(ah);
 }
 
 #endif /* ATH9K_HW_OPS_H */

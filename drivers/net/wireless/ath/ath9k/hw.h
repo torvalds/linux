@@ -511,6 +511,15 @@ struct ath_gen_timer_table {
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
  * @loadnf: load noise floor read from each chain on the CCA registers
+ *
+ * @ani_reset: reset ANI parameters to default values
+ * @ani_lower_immunity: lower the noise immunity level. The level controls
+ *	the power-based packet detection on hardware. If a power jump is
+ *	detected the adapter takes it as an indication that a packet has
+ *	arrived. The level ranges from 0-5. Each level corresponds to a
+ *	few dB more of noise immunity. If you have a strong time-varying
+ *	interference that is causing false detections (OFDM timing errors or
+ *	CCK timing errors) the level can be increased.
  */
 struct ath_hw_private_ops {
 	/* Calibration ops */
@@ -554,6 +563,10 @@ struct ath_hw_private_ops {
 			    int param);
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 	void (*loadnf)(struct ath_hw *ah, struct ath9k_channel *chan);
+
+	/* ANI */
+	void (*ani_reset)(struct ath_hw *ah);
+	void (*ani_lower_immunity)(struct ath_hw *ah);
 };
 
 /**
@@ -564,6 +577,11 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
+ *
+ * @ani_proc_mib_event: process MIB events, this would happen upon specific ANI
+ *	thresholds being reached or having overflowed.
+ * @ani_monitor: called periodically by the core driver to collect
+ *	MIB stats and adjust ANI if specific thresholds have been reached.
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -604,6 +622,9 @@ struct ath_hw_ops {
 				     u32 burstDuration);
 	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
 				       u32 vmf);
+
+	void (*ani_proc_mib_event)(struct ath_hw *ah);
+	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
 struct ath_hw {
@@ -933,6 +954,14 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 
 void ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
+
+/*
+ * ANI work can be shared between all families but a next
+ * generation implementation of ANI will be used only for AR9003 only
+ * for now as the other families still need to be tested with the same
+ * next generation ANI.
+ */
+void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

@@ -17,6 +17,12 @@
 #include "hw.h"
 #include "hw-ops.h"
 
+/* Private to ani.c */
+static inline void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
+{
+	ath9k_hw_private_ops(ah)->ani_lower_immunity(ah);
+}
+
 static int ath9k_hw_get_ani_channel_idx(struct ath_hw *ah,
 					struct ath9k_channel *chan)
 {
@@ -206,7 +212,7 @@ static void ath9k_hw_ani_cck_err_trigger(struct ath_hw *ah)
 	}
 }
 
-static void ath9k_hw_ani_lower_immunity(struct ath_hw *ah)
+static void ath9k_hw_ani_lower_immunity_old(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 	int32_t rssi;
@@ -316,7 +322,7 @@ static int32_t ath9k_hw_ani_get_listen_time(struct ath_hw *ah)
 	return listenTime;
 }
 
-void ath9k_ani_reset(struct ath_hw *ah)
+static void ath9k_ani_reset_old(struct ath_hw *ah)
 {
 	struct ar5416AniState *aniState;
 	struct ath9k_channel *chan = ah->curchan;
@@ -402,8 +408,8 @@ void ath9k_ani_reset(struct ath_hw *ah)
 	DISABLE_REGWRITE_BUFFER(ah);
 }
 
-void ath9k_hw_ani_monitor(struct ath_hw *ah,
-			  struct ath9k_channel *chan)
+static void ath9k_hw_ani_monitor_old(struct ath_hw *ah,
+				     struct ath9k_channel *chan)
 {
 	struct ar5416AniState *aniState;
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -487,7 +493,6 @@ void ath9k_hw_ani_monitor(struct ath_hw *ah,
 		}
 	}
 }
-EXPORT_SYMBOL(ath9k_hw_ani_monitor);
 
 void ath9k_enable_mib_counters(struct ath_hw *ah)
 {
@@ -572,7 +577,7 @@ u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah,
  * any of the MIB counters overflow/trigger so don't assume we're
  * here because a PHY error counter triggered.
  */
-void ath9k_hw_procmibevent(struct ath_hw *ah)
+static void ath9k_hw_proc_mib_event_old(struct ath_hw *ah)
 {
 	u32 phyCnt1, phyCnt2;
 
@@ -628,7 +633,6 @@ void ath9k_hw_procmibevent(struct ath_hw *ah)
 		ath9k_ani_restart(ah);
 	}
 }
-EXPORT_SYMBOL(ath9k_hw_procmibevent);
 
 void ath9k_hw_ani_setup(struct ath_hw *ah)
 {
@@ -693,4 +697,16 @@ void ath9k_hw_ani_init(struct ath_hw *ah)
 	ah->aniperiod = ATH9K_ANI_PERIOD;
 	if (ah->config.enable_ani)
 		ah->proc_phyerr |= HAL_PROCESS_ANI;
+}
+
+void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah)
+{
+	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	struct ath_hw_ops *ops = ath9k_hw_ops(ah);
+
+	priv_ops->ani_reset = ath9k_ani_reset_old;
+	priv_ops->ani_lower_immunity = ath9k_hw_ani_lower_immunity_old;
+
+	ops->ani_proc_mib_event = ath9k_hw_proc_mib_event_old;
+	ops->ani_monitor = ath9k_hw_ani_monitor_old;
 }
