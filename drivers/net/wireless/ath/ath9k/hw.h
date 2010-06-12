@@ -938,4 +938,9 @@ void ar9003_hw_attach_ops(struct ath_hw *ah);
 #define ATH_PCIE_CAP_LINK_L0S	1
 #define ATH_PCIE_CAP_LINK_L1	2
 
+#define ATH9K_CLOCK_RATE_CCK		22
+#define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
+#define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
+#define ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM 44
+
 #endif

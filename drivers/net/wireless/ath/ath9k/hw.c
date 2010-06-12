@@ -23,11 +23,6 @@
 #include "rc.h"
 #include "ar9003_mac.h"
 
-#define ATH9K_CLOCK_RATE_CCK		22
-#define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
-#define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
-#define ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM 44
-
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 
 MODULE_AUTHOR("Atheros Communications");
