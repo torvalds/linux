@@ -543,15 +543,6 @@ static void ar9003_hw_prog_ini(struct ath_hw *ah,
 		u32 val = INI_RA(iniArr, i, column);
 
 		REG_WRITE(ah, reg, val);
-
-		/*
-		 * Determine if this is a shift register value, and insert the
-		 * configured delay if so.
-		 */
-		if (reg >= 0x16000 && reg < 0x17000
-		    && ah->config.analog_shiftreg)
-			udelay(100);
-
 		DO_DELAY(regWrites);
 	}
 }
