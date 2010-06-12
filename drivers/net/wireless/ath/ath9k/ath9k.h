@@ -194,6 +194,7 @@ enum ATH_AGGR_STATUS {
 
 #define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
+	int axq_class;
 	u32 axq_qnum;
 	u32 *axq_link;
 	struct list_head axq_q;

@@ -941,6 +941,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	if (!ATH_TXQ_SETUP(sc, qnum)) {
 		struct ath_txq *txq = &sc->tx.txq[qnum];
 
+		txq->axq_class = subtype;
 		txq->axq_qnum = qnum;
 		txq->axq_link = NULL;
 		INIT_LIST_HEAD(&txq->axq_q);
@@ -2047,7 +2048,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 
 	spin_lock_bh(&txq->axq_lock);
 	if (txq->stopped && txq->pending_frames < ATH_MAX_QDEPTH) {
-		qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
+		qnum = ath_get_mac80211_qnum(txq->axq_class, sc);
 		if (qnum != -1) {
 			ath_mac80211_start_queue(sc, qnum);
 			txq->stopped = 0;
