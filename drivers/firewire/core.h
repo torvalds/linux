@@ -196,7 +196,7 @@ static inline void fw_node_put(struct fw_node *node)
 }
 
 void fw_core_handle_bus_reset(struct fw_card *card, int node_id,
-			      int generation, int self_id_count, u32 *self_ids);
+	int generation, int self_id_count, u32 *self_ids, bool bm_abdicate);
 void fw_destroy_nodes(struct fw_card *card);
 
 /*

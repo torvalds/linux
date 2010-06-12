@@ -174,6 +174,7 @@ struct fw_ohci {
 	unsigned int pri_req_max;
 	u32 bus_time;
 	bool is_root;
+	bool csr_state_setclear_abdicate;
 
 	/*
 	 * Spinlock for accessing fw_ohci data.  Never call out of
@@ -1529,7 +1530,9 @@ static void bus_reset_tasklet(unsigned long data)
 		    self_id_count, ohci->self_id_buffer);
 
 	fw_core_handle_bus_reset(&ohci->card, ohci->node_id, generation,
-				 self_id_count, ohci->self_id_buffer);
+				 self_id_count, ohci->self_id_buffer,
+				 ohci->csr_state_setclear_abdicate);
+	ohci->csr_state_setclear_abdicate = false;
 }
 
 static irqreturn_t irq_handler(int irq, void *data)
@@ -2032,13 +2035,16 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 	switch (csr_offset) {
 	case CSR_STATE_CLEAR:
 	case CSR_STATE_SET:
-		/* the controller driver handles only the cmstr bit */
 		if (ohci->is_root &&
 		    (reg_read(ohci, OHCI1394_LinkControlSet) &
 		     OHCI1394_LinkControl_cycleMaster))
-			return CSR_STATE_BIT_CMSTR;
+			value = CSR_STATE_BIT_CMSTR;
 		else
-			return 0;
+			value = 0;
+		if (ohci->csr_state_setclear_abdicate)
+			value |= CSR_STATE_BIT_ABDICATE;
+
+		return value;
 
 	case CSR_NODE_IDS:
 		return reg_read(ohci, OHCI1394_NodeID) << 16;
@@ -2078,12 +2084,13 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 
 	switch (csr_offset) {
 	case CSR_STATE_CLEAR:
-		/* the controller driver handles only the cmstr bit */
 		if ((value & CSR_STATE_BIT_CMSTR) && ohci->is_root) {
 			reg_write(ohci, OHCI1394_LinkControlClear,
 				  OHCI1394_LinkControl_cycleMaster);
 			flush_writes(ohci);
 		}
+		if (value & CSR_STATE_BIT_ABDICATE)
+			ohci->csr_state_setclear_abdicate = false;
 		break;
 
 	case CSR_STATE_SET:
@@ -2092,6 +2099,8 @@ static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
 				  OHCI1394_LinkControl_cycleMaster);
 			flush_writes(ohci);
 		}
+		if (value & CSR_STATE_BIT_ABDICATE)
+			ohci->csr_state_setclear_abdicate = true;
 		break;
 
 	case CSR_NODE_IDS:

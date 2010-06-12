@@ -982,20 +982,6 @@ static const struct fw_address_region registers_region =
 	{ .start = CSR_REGISTER_BASE,
 	  .end   = CSR_REGISTER_BASE | CSR_CONFIG_ROM, };
 
-static u32 read_state_register(struct fw_card *card)
-{
-	u32 value;
-
-	/* Bit 8 (cmstr): */
-	value = card->driver->read_csr_reg(card, CSR_STATE_CLEAR);
-
-	/* Bit 10 (abdicate): */
-	if (card->csr_abdicate)
-		value |= CSR_STATE_BIT_ABDICATE;
-
-	return value;
-}
-
 static void update_split_timeout(struct fw_card *card)
 {
 	unsigned int cycles;
@@ -1021,29 +1007,25 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 
 	switch (reg) {
 	case CSR_STATE_CLEAR:
-		if (tcode == TCODE_READ_QUADLET_REQUEST) {
-			*data = cpu_to_be32(read_state_register(card));
-		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+		if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = cpu_to_be32(card->driver->
+					read_csr_reg(card, CSR_STATE_CLEAR));
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
 			card->driver->write_csr_reg(card, CSR_STATE_CLEAR,
 						    be32_to_cpu(*data));
-			if (*data & cpu_to_be32(CSR_STATE_BIT_ABDICATE))
-				card->csr_abdicate = false;
-		} else {
+		else
 			rcode = RCODE_TYPE_ERROR;
-		}
 		break;
 
 	case CSR_STATE_SET:
-		if (tcode == TCODE_READ_QUADLET_REQUEST) {
-			*data = cpu_to_be32(read_state_register(card));
-		} else if (tcode == TCODE_WRITE_QUADLET_REQUEST) {
+		if (tcode == TCODE_READ_QUADLET_REQUEST)
+			*data = cpu_to_be32(card->driver->
+					read_csr_reg(card, CSR_STATE_SET));
+		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
 			card->driver->write_csr_reg(card, CSR_STATE_SET,
 						    be32_to_cpu(*data));
-			if (*data & cpu_to_be32(CSR_STATE_BIT_ABDICATE))
-				card->csr_abdicate = true;
-		} else {
+		else
 			rcode = RCODE_TYPE_ERROR;
-		}
 		break;
 
 	case CSR_NODE_IDS:
@@ -1063,7 +1045,8 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 
 	case CSR_RESET_START:
 		if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->csr_abdicate = false;
+			card->driver->write_csr_reg(card, CSR_STATE_CLEAR,
+						    CSR_STATE_BIT_ABDICATE);
 		else
 			rcode = RCODE_TYPE_ERROR;
 		break;

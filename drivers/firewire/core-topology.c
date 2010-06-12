@@ -524,7 +524,7 @@ static void update_topology_map(struct fw_card *card,
 }
 
 void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
-			      int self_id_count, u32 *self_ids)
+			      int self_id_count, u32 *self_ids, bool bm_abdicate)
 {
 	struct fw_node *local_node;
 	unsigned long flags;
@@ -552,8 +552,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	smp_wmb();
 	card->generation = generation;
 	card->reset_jiffies = jiffies;
-	card->bm_abdicate = card->csr_abdicate;
-	card->csr_abdicate = false;
+	card->bm_abdicate = bm_abdicate;
 	fw_schedule_bm_work(card, 0);
 
 	local_node = build_tree(card, self_ids, self_id_count);
