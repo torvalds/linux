@@ -585,8 +585,15 @@ void ath9k_hw_procmibevent(struct ath_hw *ah)
 	/* Clear the mib counters and save them in the stats */
 	ath9k_hw_update_mibstats(ah, &ah->ah_mibStats);
 
-	if (!DO_ANI(ah))
+	if (!DO_ANI(ah)) {
+		/*
+		 * We must always clear the interrupt cause by
+		 * resetting the phy error regs.
+		 */
+		REG_WRITE(ah, AR_PHY_ERR_1, 0);
+		REG_WRITE(ah, AR_PHY_ERR_2, 0);
 		return;
+	}
 
 	/* NB: these are not reset-on-read */
 	phyCnt1 = REG_READ(ah, AR_PHY_ERR_1);
