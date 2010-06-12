@@ -1129,8 +1129,7 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		break;
 
 	case CSR_PRIORITY_BUDGET:
-		if (!(card->driver->get_features(card) &
-						FEATURE_PRIORITY_BUDGET))
+		if (!card->priority_budget_implemented)
 			rcode = RCODE_ADDRESS_ERROR;
 		else if (tcode == TCODE_READ_QUADLET_REQUEST)
 			*data = cpu_to_be32(card->driver->

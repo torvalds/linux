@@ -543,8 +543,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	card->broadcast_channel_allocated = (card->driver->get_features(card) &
-					     FEATURE_CHANNEL_31_ALLOCATED) != 0;
+	card->broadcast_channel_allocated = card->broadcast_channel_auto_allocated;
 	card->node_id = node_id;
 	/*
 	 * Update node_id before generation to prevent anybody from using

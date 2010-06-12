@@ -122,6 +122,9 @@ struct fw_card {
 	bool bm_abdicate; /* value of csr_abdicate before last bus reset */
 	bool csr_abdicate; /* visible in CSR STATE_CLEAR/SET registers */
 
+	bool priority_budget_implemented;	/* controller feature */
+	bool broadcast_channel_auto_allocated;	/* controller feature */
+
 	bool broadcast_channel_allocated;
 	u32 broadcast_channel;
 	__be32 topology_map[(CSR_TOPOLOGY_MAP_END - CSR_TOPOLOGY_MAP) / 4];
