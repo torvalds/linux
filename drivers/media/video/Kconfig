@@ -571,66 +571,7 @@ config VIDEO_VIVI
 	  Say Y here if you want to test video apps or debug V4L devices.
 	  In doubt, say N.
 
-config VIDEO_VPSS_SYSTEM
-	tristate "VPSS System module driver"
-	depends on ARCH_DAVINCI
-	help
-	  Support for vpss system module for video driver
-
-config VIDEO_VPFE_CAPTURE
-	tristate "VPFE Video Capture Driver"
-	depends on VIDEO_V4L2 && ARCH_DAVINCI
-	select VIDEOBUF_DMA_CONTIG
-	help
-	  Support for DMXXXX VPFE based frame grabber. This is the
-	  common V4L2 module for following DMXXX SoCs from Texas
-	  Instruments:- DM6446 & DM355.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpfe-capture.
-
-config VIDEO_DM6446_CCDC
-	tristate "DM6446 CCDC HW module"
-	depends on ARCH_DAVINCI_DM644x && VIDEO_VPFE_CAPTURE
-	select VIDEO_VPSS_SYSTEM
-	default y
-	help
-	   Enables DaVinci CCD hw module. DaVinci CCDC hw interfaces
-	   with decoder modules such as TVP5146 over BT656 or
-	   sensor module such as MT9T001 over a raw interface. This
-	   module configures the interface and CCDC/ISIF to do
-	   video frame capture from slave decoders.
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called vpfe.
-
-config VIDEO_DM355_CCDC
-	tristate "DM355 CCDC HW module"
-	depends on ARCH_DAVINCI_DM355 && VIDEO_VPFE_CAPTURE
-	select VIDEO_VPSS_SYSTEM
-	default y
-	help
-	   Enables DM355 CCD hw module. DM355 CCDC hw interfaces
-	   with decoder modules such as TVP5146 over BT656 or
-	   sensor module such as MT9T001 over a raw interface. This
-	   module configures the interface and CCDC/ISIF to do
-	   video frame capture from a slave decoders
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called vpfe.
-
-config VIDEO_ISIF
-	tristate "ISIF HW module"
-	depends on ARCH_DAVINCI_DM365 && VIDEO_VPFE_CAPTURE
-	select VIDEO_VPSS_SYSTEM
-	default y
-	help
-	   Enables ISIF hw module. This is the hardware module for
-	   configuring ISIF in VPFE to capture Raw Bayer RGB data  from
-	   a image sensor or YUV data from a YUV source.
-
-	   To compile this driver as a module, choose M here: the
-	   module will be called vpfe.
+source "drivers/media/video/davinci/Kconfig"
 
 source "drivers/media/video/omap/Kconfig"
 
