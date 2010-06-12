@@ -385,7 +385,7 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT, 0, NULL))
+	if (!(sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA))
 		common->splitmic = 1;
 
 	/* turn on mcast key search if possible */

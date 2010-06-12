@@ -570,15 +570,6 @@ static void ath9k_init_crypto(struct ath9k_htc_priv *priv)
 	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(priv->ah, (u16) i);
 
-	/*
-	 * Check whether the separate key cache entries
-	 * are required to handle both tx+rx MIC keys.
-	 * With split mic keys the number of stations is limited
-	 * to 27 otherwise 59.
-	 */
-	if (ath9k_hw_getcapability(priv->ah, ATH9K_CAP_TKIP_SPLIT, 0, NULL))
-		common->splitmic = 1;
-
 	/* turn on mcast key search if possible */
 	if (!ath9k_hw_getcapability(priv->ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
 		(void)ath9k_hw_setcapability(priv->ah, ATH9K_CAP_MCAST_KEYSRCH,
