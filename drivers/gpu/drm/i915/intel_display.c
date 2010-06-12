@@ -3452,7 +3452,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
-		} else if (is_edp) {
+		} else if (is_edp || (is_dp && intel_pch_has_edp(crtc))) {
 			switch (dev_priv->edp_bpp/3) {
 			case 8:
 				temp |= PIPE_8BPC;
