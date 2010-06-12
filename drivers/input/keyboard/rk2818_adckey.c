@@ -378,6 +378,8 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	}
 #endif
 
+	enable_irq_wake(gpio_to_irq(KEY_PLAYON_PIN)); // so play/wakeup key can wake up system
+
 #if 0
 	error = gpio_direction_input(KEY_PLAYON_PIN);
 	if (error) 
