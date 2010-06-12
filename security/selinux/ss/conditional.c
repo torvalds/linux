@@ -263,7 +263,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 	struct cond_av_list *other = data->other, *list, *cur;
 	struct avtab_node *node_ptr;
 	u8 found;
-
+	int rc = -EINVAL;
 
 	/*
 	 * For type rules we have to make certain there aren't any
@@ -313,12 +313,15 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 	node_ptr = avtab_insert_nonunique(&p->te_cond_avtab, k, d);
 	if (!node_ptr) {
 		printk(KERN_ERR "SELinux: could not insert rule.\n");
+		rc = -ENOMEM;
 		goto err;
 	}
 
 	list = kzalloc(sizeof(struct cond_av_list), GFP_KERNEL);
-	if (!list)
+	if (!list) {
+		rc = -ENOMEM;
 		goto err;
+	}
 
 	list->node = node_ptr;
 	if (!data->head)
@@ -331,7 +334,7 @@ static int cond_insertf(struct avtab *a, struct avtab_key *k, struct avtab_datum
 err:
 	cond_av_list_destroy(data->head);
 	data->head = NULL;
-	return -1;
+	return rc;
 }
 
 static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list **ret_list, struct cond_av_list *other)
@@ -345,8 +348,8 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 
 	len = 0;
 	rc = next_entry(buf, fp, sizeof(u32));
-	if (rc < 0)
-		return -1;
+	if (rc)
+		return rc;
 
 	len = le32_to_cpu(buf[0]);
 	if (len == 0)
@@ -361,7 +364,6 @@ static int cond_read_av_list(struct policydb *p, void *fp, struct cond_av_list *
 				     &data);
 		if (rc)
 			return rc;
-
 	}
 
 	*ret_list = data.head;
