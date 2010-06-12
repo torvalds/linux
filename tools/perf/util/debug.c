@@ -86,12 +86,10 @@ void trace_event(event_t *event)
 			dump_printf_color("  ", color);
 			for (j = 0; j < 15-(i & 15); j++)
 				dump_printf_color("   ", color);
-			for (j = 0; j < (i & 15); j++) {
-				if (isprint(raw_event[i-15+j]))
-					dump_printf_color("%c", color,
-							  raw_event[i-15+j]);
-				else
-					dump_printf_color(".", color);
+			for (j = i & ~15; j <= i; j++) {
+				dump_printf_color("%c", color,
+						isprint(raw_event[j]) ?
+						raw_event[j] : '.');
 			}
 			dump_printf_color("\n", color);
 		}
