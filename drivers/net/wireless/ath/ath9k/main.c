@@ -51,13 +51,11 @@ static void ath_cache_conf_rate(struct ath_softc *sc,
 static void ath_update_txpow(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	u32 txpow;
 
 	if (sc->curtxpow != sc->config.txpowlimit) {
 		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit);
 		/* read back in case value is clamped */
-		ath9k_hw_getcapability(ah, ATH9K_CAP_TXPOW, 1, &txpow);
-		sc->curtxpow = txpow;
+		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 	}
 }
 

@@ -27,13 +27,11 @@ static struct dentry *ath9k_debugfs_root;
 static void ath_update_txpow(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
-	u32 txpow;
 
 	if (priv->curtxpow != priv->txpowlimit) {
 		ath9k_hw_set_txpowerlimit(ah, priv->txpowlimit);
 		/* read back in case value is clamped */
-		ath9k_hw_getcapability(ah, ATH9K_CAP_TXPOW, 1, &txpow);
-		priv->curtxpow = txpow;
+		priv->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 	}
 }
 
