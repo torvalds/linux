@@ -143,3 +143,19 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 	}
 	return err;
 }
+
+int __ext4_handle_dirty_super(const char *where, handle_t *handle,
+			      struct super_block *sb)
+{
+	struct buffer_head *bh = EXT4_SB(sb)->s_sbh;
+	int err = 0;
+
+	if (ext4_handle_valid(handle)) {
+		err = jbd2_journal_dirty_metadata(handle, bh);
+		if (err)
+			ext4_journal_abort_handle(where, __func__, bh,
+						  handle, err);
+	} else
+		sb->s_dirt = 1;
+	return err;
+}

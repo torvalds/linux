@@ -141,6 +141,9 @@ int __ext4_journal_get_create_access(const char *where,
 int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 				 struct inode *inode, struct buffer_head *bh);
 
+int __ext4_handle_dirty_super(const char *where, handle_t *handle,
+			      struct super_block *sb);
+
 #define ext4_journal_get_undo_access(handle, bh) \
 	__ext4_journal_get_undo_access(__func__, (handle), (bh))
 #define ext4_journal_get_write_access(handle, bh) \
@@ -152,6 +155,8 @@ int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
 	__ext4_journal_get_create_access(__func__, (handle), (bh))
 #define ext4_handle_dirty_metadata(handle, inode, bh) \
 	__ext4_handle_dirty_metadata(__func__, (handle), (inode), (bh))
+#define ext4_handle_dirty_super(handle, sb) \
+	__ext4_handle_dirty_super(__func__, (handle), (sb))
 
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
 int __ext4_journal_stop(const char *where, handle_t *handle);

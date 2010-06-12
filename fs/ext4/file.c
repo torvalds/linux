@@ -123,7 +123,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 		if (!IS_ERR(cp)) {
 			memcpy(sbi->s_es->s_last_mounted, cp,
 			       sizeof(sbi->s_es->s_last_mounted));
-			sb->s_dirt = 1;
+			ext4_mark_super_dirty(sb);
 		}
 	}
 	return dquot_file_open(inode, filp);

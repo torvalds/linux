@@ -377,14 +377,11 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	ext4_grpblk_t bit;
 	unsigned int i;
 	struct ext4_group_desc *desc;
-	struct ext4_super_block *es;
-	struct ext4_sb_info *sbi;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int err = 0, ret, blk_free_count;
 	ext4_grpblk_t blocks_freed;
 	struct ext4_group_info *grp;
 
-	sbi = EXT4_SB(sb);
-	es = sbi->s_es;
 	ext4_debug("Adding block(s) %llu-%llu\n", block, block + count - 1);
 
 	ext4_get_group_no_and_offset(sb, block, &block_group, &bit);
@@ -477,7 +474,6 @@ void ext4_add_groupblocks(handle_t *handle, struct super_block *sb,
 	ret = ext4_handle_dirty_metadata(handle, NULL, gd_bh);
 	if (!err)
 		err = ret;
-	sb->s_dirt = 1;
 
 error_return:
 	brelse(bitmap_bh);

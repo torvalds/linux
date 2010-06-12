@@ -458,8 +458,7 @@ static void ext4_xattr_update_super_block(handle_t *handle,
 
 	if (ext4_journal_get_write_access(handle, EXT4_SB(sb)->s_sbh) == 0) {
 		EXT4_SET_COMPAT_FEATURE(sb, EXT4_FEATURE_COMPAT_EXT_ATTR);
-		sb->s_dirt = 1;
-		ext4_handle_dirty_metadata(handle, NULL, EXT4_SB(sb)->s_sbh);
+		ext4_handle_dirty_super(handle, sb);
 	}
 }
 
