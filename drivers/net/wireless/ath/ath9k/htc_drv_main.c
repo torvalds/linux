@@ -1590,7 +1590,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	}
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
-	    (qnum == priv->hwq_map[ATH9K_WME_AC_BE]))
+	    (qnum == priv->hwq_map[WME_AC_BE]))
 		    ath9k_htc_beaconq_config(priv);
 out:
 	ath9k_htc_ps_restore(priv);

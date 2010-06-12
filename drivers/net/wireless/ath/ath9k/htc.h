@@ -398,7 +398,7 @@ struct ath9k_htc_priv {
 
 	int beaconq;
 	int cabq;
-	int hwq_map[ATH9K_WME_AC_VO+1];
+	int hwq_map[WME_NUM_AC];
 
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 	struct ath9k_debug debug;
@@ -431,8 +431,7 @@ int ath9k_tx_init(struct ath9k_htc_priv *priv);
 void ath9k_tx_tasklet(unsigned long data);
 int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
-bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
-			 enum ath9k_tx_queue_subtype qtype);
+bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype);
 int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);
 int get_hw_qnum(u16 queue, int *hwq_map);
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,

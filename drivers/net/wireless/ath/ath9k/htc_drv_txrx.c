@@ -34,15 +34,15 @@ int get_hw_qnum(u16 queue, int *hwq_map)
 {
 	switch (queue) {
 	case 0:
-		return hwq_map[ATH9K_WME_AC_VO];
+		return hwq_map[WME_AC_VO];
 	case 1:
-		return hwq_map[ATH9K_WME_AC_VI];
+		return hwq_map[WME_AC_VI];
 	case 2:
-		return hwq_map[ATH9K_WME_AC_BE];
+		return hwq_map[WME_AC_BE];
 	case 3:
-		return hwq_map[ATH9K_WME_AC_BK];
+		return hwq_map[WME_AC_BK];
 	default:
-		return hwq_map[ATH9K_WME_AC_BE];
+		return hwq_map[WME_AC_BE];
 	}
 }
 
@@ -297,8 +297,7 @@ void ath9k_tx_cleanup(struct ath9k_htc_priv *priv)
 
 }
 
-bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
-			 enum ath9k_tx_queue_subtype subtype)
+bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv, int subtype)
 {
 	struct ath_hw *ah = priv->ah;
 	struct ath_common *common = ath9k_hw_common(ah);

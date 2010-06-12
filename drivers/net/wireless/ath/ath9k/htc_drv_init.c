@@ -521,23 +521,23 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 		goto err;
 	}
 
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_BE)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
 
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_BK)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_BK)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_VI)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_VI)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_VO)) {
+	if (!ath9k_htc_txq_setup(priv, WME_AC_VO)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VO traffic\n");
 		goto err;
