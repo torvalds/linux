@@ -37,6 +37,18 @@
 #include <asm/stacktrace.h>
 #include <asm/mach/time.h>
 
+/***************
+*    DEBUG
+****************/
+#define RESTART_DEBUG
+#ifdef RESTART_DEBUG
+#define restart_dbg(format, arg...) \
+	printk("RESTART_DEBUG : " format "\n" , ## arg)
+#else
+#define restart_dbg(format, arg...) do {} while (0)
+#endif
+
+
 static const char *processor_modes[] = {
   "USER_26", "FIQ_26" , "IRQ_26" , "SVC_26" , "UK4_26" , "UK5_26" , "UK6_26" , "UK7_26" ,
   "UK8_26" , "UK9_26" , "UK10_26", "UK11_26", "UK12_26", "UK13_26", "UK14_26", "UK15_26",
@@ -85,6 +97,10 @@ __setup("hlt", hlt_setup);
 
 void arm_machine_restart(char mode, const char *cmd)
 {
+	/*
+	*  debug trace
+	*/
+	restart_dbg("%s->%s->%d->mode=%d cmd=%s",__FILE__,__FUNCTION__,__LINE__,mode,cmd);
 	/*
 	 * Clean and disable cache, and turn off interrupts
 	 */
@@ -197,12 +213,23 @@ void machine_halt(void)
 
 void machine_power_off(void)
 {
+	restart_dbg("%s->%s->%d",__FILE__,__FUNCTION__,__LINE__);
 	if (pm_power_off)
 		pm_power_off();
 }
 
 void machine_restart(char *cmd)
 {
+	restart_dbg("%s->%s->%d->cmd=%s reboot_mode=%c",__FILE__,__FUNCTION__,__LINE__,cmd,reboot_mode);
+	if(reboot_mode == 'h')			/*no boot parameter*/
+		reboot_mode = 0;
+	if(cmd) {
+		reboot_mode = 0;
+             	if( !strcmp( cmd , "recovery" ) )
+                 	reboot_mode = 3;
+            	else if( !strcmp( cmd , "loader" ) )
+                	reboot_mode = 1;
+    	 }
 	arm_pm_restart(reboot_mode, cmd);
 }
 

@@ -47,8 +47,10 @@ Revision 1.2  2009/03/07 07:30:18  yk
 #include <linux/irqflags.h>
 #include <linux/string.h>
 #include <linux/version.h>
-
+#include <asm/uaccess.h>
 #include <asm/tcm.h>
+#include <asm/io.h>
+
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
 #include <mach/rk2818_iomap.h>
 #include <mach/memory.h>
@@ -664,8 +666,8 @@ typedef volatile struct tagUART_STRUCT
  uint32 __tcmdata DDRnewKHz = 400000 ; //266000;
  uint32 __tcmdata SDRAMoldKHz = 66000;
  uint32 __tcmdata DDRoldKHz = 200000;
- unsigned int __tcmdata ddr_reg[8] ;
- volatile int __tcmdata rk28_debugs = 0;
+
+ volatile int __tcmdata rk28_debugs = 1;
  uint32 __tcmdata save_sp;
  
 __tcmdata uint32 bFreqRaise;
@@ -1107,14 +1109,8 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
     uint32 memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
     uint32 tmp;
 	volatile uint32 *p_ddr = (volatile uint32 *)0xc0080000;
-	//uint32 *ddr_reg = 0xff401c00;
-	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
-	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
-	
-	
-	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
-	
-	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
+
+
     switch(memType)
     {
         case Mobile_SDRAM:
@@ -1155,7 +1151,7 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
             }
             DDRPreUpdateRef(DDRnewKHz);
             DDRPreUpdateTiming(DDRnewKHz);
-			printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
+	     printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
 			//WAIT_ME();
             while(pGRF_Reg->CPU_APB_REG1 & 0x100);
 			tmp = *p_ddr;  //read to wakeup
@@ -1204,7 +1200,6 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
     uint32 ddrKHz;
     //uint32 ahbKHz;
     uint32 memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
-	DDR_debug_string("21\n");
     switch(memType)
     {
         case Mobile_SDRAM:
@@ -1251,10 +1246,10 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
             }
             pDDR_Reg->CTRL_REG_09 &= ~(0x1 << 24);
             while(pDDR_Reg->CTRL_REG_03 & 0x100); // exit 
-			printk("exit ddr refresh,");
+			//printk("exit ddr refresh,");
             //退出自刷新后，再算element的值
             ddrKHz = PLLGetDDRFreq();
-			printk("new ddr kHz=%ld\n" , ddrKHz);
+			//printk("new ddr kHz=%ld\n" , ddrKHz);
             if(110000 < ddrKHz)
             {
                 value = pDDR_Reg->CTRL_REG_78;
@@ -1269,22 +1264,6 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
     }
 }
 
-static void __tcmfunc rk281x_restart( void )
-{
-        void (*boot)(void) = (void (*)(void))0;
-        #define pSCU_Reg       ((pSCU_REG)SCU_BASE_ADDR_VA)
-        #define pGRF_Reg       ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
-
-        asm( "MRC p15,0,r0,c1,c0,0\n"
-                "BIC r0,r0,#(1<<0)     @disable mmu\n"
-                "BIC r0,r0,#(1<<13)    @set vector to 0x00000000\n"
-                "MCR p15,0,r0,c1,c0,0\n"
-                "mov r1,r1\n"
-                "mov r1,r1\n" );
-        pSCU_Reg->SCU_MODE_CON |= (3<<2); // arm slow mod
-        pGRF_Reg->CPU_APB_REG5 &= ~(1<<0); // no remap.
-        boot();
-}
 
 
 /*SCU PLL CON , 20100518,copy from rk28_scu_hw.c
@@ -1387,8 +1366,9 @@ static void  SDRAM_DDR_Init(void)
             pDDR_Reg->CTRL_REG_36 = 0x1F1F;
 			
 	printk("..%s -->capability ==%ld telement==%ld -->%d\n",__FUNCTION__,capability,telement,__LINE__);
-	ddr_change_freq( 351 );
+	ddr_change_freq( 266 );
 }
+
 
 unsigned long ddr_save_sp( unsigned long new_sp );
 asm(	
@@ -1403,7 +1383,7 @@ asm(
 "	.previous"
 );
 
-void(*rk28_restart_mmu)(void )= (void(*)(void ))rk281x_restart;
+
 
 extern void clk_recalculate_root_clocks(void);
 
@@ -1412,18 +1392,7 @@ static int __init update_frq(void)
 	unsigned long ps_sram = (DTCM_END&(~7));
 	//printk(">>>>>%s-->%d\n",__FUNCTION__,__LINE__);
 	int *reg = (int *)(SCU_BASE_ADDR_VA);
-	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
-	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
-	ddr_reg[2] = pDDR_Reg->CTRL_REG_03;
-	ddr_reg[3] = pDDR_Reg->CTRL_REG_09;
-	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
-	ddr_reg[5] = pDDR_Reg->CTRL_REG_36;
-	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
-	printk(" before 0x%08x 0x%08x 0x%08x 0x%08x\n"
-                            "0x%08x 0x%08x 0x%08x \n"
-                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
-                            ,ddr_reg[0],ddr_reg[1],ddr_reg[2],ddr_reg[3],
-                            ddr_reg[4],ddr_reg[5],ddr_reg[6]);
+
 	strcpy( (char*)(ps_sram-0x40) , "rk281x_ddr_sram-wqq\n" );
 //	printk( "sram data:%s\n" , (char*)(ps_sram-0x40) );
 	local_irq_disable();
@@ -1433,19 +1402,7 @@ static int __init update_frq(void)
 	SDRAM_DDR_Init();
 	ddr_save_sp(save_sp);
 	printk("after SDRAM_DDR_Init\n");
-	local_irq_enable();		
-	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
-	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
-	ddr_reg[2] = pDDR_Reg->CTRL_REG_03;
-	ddr_reg[3] = pDDR_Reg->CTRL_REG_09;
-	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
-	ddr_reg[5] = pDDR_Reg->CTRL_REG_36;
-	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
-	printk("after 0x%08x 0x%08x 0x%08x 0x%08x\n"
-                            "0x%08x 0x%08x 0x%08x \n"
-                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
-                            ,ddr_reg[0],ddr_reg[1],ddr_reg[2],ddr_reg[3],
-                            ddr_reg[4],ddr_reg[5],ddr_reg[6]);
+	local_irq_enable();	
 
 	printk("scu after frq%s::\n0x%08x 0x%08x 0x%08x 0x%08x\n"
                             "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n"
@@ -1459,6 +1416,86 @@ static int __init update_frq(void)
 	return 0;	
 }
 core_initcall_sync(update_frq);
+
+/****************************************************************/
+//函数名:SDRAM_DDR_Disable_Sleep
+//描述:禁止自动sleep模式
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:
+/****************************************************************/
+static void  SDRAM_DDR_Disable_Sleep(void)
+{
+	volatile uint32 *p_ddr = (volatile uint32 *)0xc0080000;
+	unsigned int tmp;
+	while(pGRF_Reg->CPU_APB_REG1 & 0x100);
+		tmp = *p_ddr;  //read to wakeup
+		pDDR_Reg->CTRL_REG_36 &= ~(0x1F << 8);
+        while(pDDR_Reg->CTRL_REG_03 & 0x100)
+        {         	
+            tmp = *p_ddr;  //read to wakeup
+        }					
+        while(pGRF_Reg->CPU_APB_REG1 & 0x100);
+}
+
+static void rk2818_reduce_ddrfrq(void)
+{
+	unsigned long ps_sram = (DTCM_END&(~7));
+	save_sp = ddr_save_sp(ps_sram);
+	ddr_change_freq( 133);
+	ddr_save_sp(save_sp);
+}
+static void __tcmfunc rk2818_reduce_corevoltage(int mmu)
+{
+#define 	read_XDATA32(address)			   (*((unsigned int volatile*)(address)))
+#define 	write_XDATA32(address, value)	   (*((unsigned int volatile*)(address)) = value)
+
+ 	if(mmu)
+ 	{
+
+		write_XDATA32((RK2818_GPIO1_BASE+0x24), (read_XDATA32(RK2818_GPIO1_BASE+0x24)&(~(1ul<<6)))); //GPIOPortH_Pin6
+		write_XDATA32((RK2818_GPIO1_BASE+0x28), (read_XDATA32(RK2818_GPIO1_BASE+0x28)&(~(1ul<<6))));
+	}	
+	else
+	{
+		write_XDATA32((RK2818_GPIO1_PHYS+0x24), 0);//GPIOPortH_Pin6
+		write_XDATA32((RK2818_GPIO1_PHYS+0x28), 0);
+	}
+}
+ void __tcmfunc rk281x_restart( void )
+{
+		int i;
+		void (*boot)(void) = (void (*)(void))0;
+		#define pSCU_Reg	   ((pSCU_REG)SCU_BASE_ADDR_VA)
+		#define pGRF_Reg	   ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
+		SDRAM_DDR_Disable_Sleep();
+		pSCU_Reg->SCU_CLKSEL0_CON &= (~(3<<2));
+		pSCU_Reg->SCU_MODE_CON |= (3<<2); // arm slow mod
+		for(i=0;i<10000;i++);
+		pGRF_Reg->CPU_APB_REG5 &= ~(1<<0); // no remap.
+		
+		rk2818_reduce_corevoltage(1);
+		asm( "MRC p15,0,r0,c1,c0,0\n"
+				"BIC r0,r0,#(1<<0)	   @disable mmu\n"
+				"BIC r0,r0,#(1<<13)    @set vector to 0x00000000\n"
+				"MCR p15,0,r0,c1,c0,0\n"
+				"mov r1,r1\n"
+				"mov r1,r1\n" 
+				 "ldr r2,=0x10040804        @usb soft disconnect.\n"
+                 		" mov r3,#2\n"
+               		 "str r3,[r2,#0]\n"
+
+               		 "ldr r2,=0x100AE00C       @ BCH reset.\n"
+                		" mov r3,#1\n"
+                		"str r3,[r2,#0]\n"
+				);
+		//while(rk28_debugs);
+		boot();
+}
+
+
+void(*rk2818_reboot)(void )= (void(*)(void ))rk281x_restart;
 
 #if 0
 /****************************************************************/

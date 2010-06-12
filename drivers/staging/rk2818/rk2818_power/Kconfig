@@ -1,0 +1,7 @@
+menu "rk2818 POWER CONTROL"
+config RK2818_POWER
+	tristate "ROCKCHIP RK2818 POWER CONTROL"
+	default y
+	help
+          rk2818 power operation. Here control chip power reset or power off.
+endmenu
