@@ -2026,7 +2026,7 @@ static int ohci_enable_phys_dma(struct fw_card *card,
 #endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
-static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
+static u32 ohci_read_csr(struct fw_card *card, int csr_offset)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
@@ -2077,7 +2077,7 @@ static u32 ohci_read_csr_reg(struct fw_card *card, int csr_offset)
 	}
 }
 
-static void ohci_write_csr_reg(struct fw_card *card, int csr_offset, u32 value)
+static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	unsigned long flags;
@@ -2576,8 +2576,8 @@ static const struct fw_card_driver ohci_driver = {
 	.send_response		= ohci_send_response,
 	.cancel_packet		= ohci_cancel_packet,
 	.enable_phys_dma	= ohci_enable_phys_dma,
-	.read_csr_reg		= ohci_read_csr_reg,
-	.write_csr_reg		= ohci_write_csr_reg,
+	.read_csr		= ohci_read_csr,
+	.write_csr		= ohci_write_csr,
 
 	.allocate_iso_context	= ohci_allocate_iso_context,
 	.free_iso_context	= ohci_free_iso_context,

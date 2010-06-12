@@ -1026,19 +1026,17 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 	case CSR_BUS_TIME:
 	case CSR_BUSY_TIMEOUT:
 		if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->
-					    read_csr_reg(card, reg));
+			*data = cpu_to_be32(card->driver->read_csr(card, reg));
 		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, reg,
-						    be32_to_cpu(*data));
+			card->driver->write_csr(card, reg, be32_to_cpu(*data));
 		else
 			rcode = RCODE_TYPE_ERROR;
 		break;
 
 	case CSR_RESET_START:
 		if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_STATE_CLEAR,
-						    CSR_STATE_BIT_ABDICATE);
+			card->driver->write_csr(card, CSR_STATE_CLEAR,
+						CSR_STATE_BIT_ABDICATE);
 		else
 			rcode = RCODE_TYPE_ERROR;
 		break;

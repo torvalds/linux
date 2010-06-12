@@ -78,8 +78,8 @@ struct fw_card_driver {
 	int (*enable_phys_dma)(struct fw_card *card,
 			       int node_id, int generation);
 
-	u32 (*read_csr_reg)(struct fw_card *card, int csr_offset);
-	void (*write_csr_reg)(struct fw_card *card, int csr_offset, u32 value);
+	u32 (*read_csr)(struct fw_card *card, int csr_offset);
+	void (*write_csr)(struct fw_card *card, int csr_offset, u32 value);
 
 	struct fw_iso_context *
 	(*allocate_iso_context)(struct fw_card *card,
