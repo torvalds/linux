@@ -2616,21 +2616,6 @@ void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting)
 }
 EXPORT_SYMBOL(ath9k_hw_set_tsfadjust);
 
-/*
- *  Extend 15-bit time stamp from rx descriptor to
- *  a full 64-bit TSF using the current h/w TSF.
-*/
-u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp)
-{
-	u64 tsf;
-
-	tsf = ath9k_hw_gettsf64(ah);
-	if ((tsf & 0x7fff) < rstamp)
-		tsf -= 0x8000;
-	return (tsf & ~0x7fff) | rstamp;
-}
-EXPORT_SYMBOL(ath9k_hw_extend_tsf);
-
 void ath9k_hw_set11nmac2040(struct ath_hw *ah)
 {
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;

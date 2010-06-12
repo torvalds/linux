@@ -1002,8 +1002,6 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 				   struct ieee80211_rx_status *rx_status,
 				   bool *decrypt_error)
 {
-	struct ath_hw *ah = common->ah;
-
 	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
 
 	/*
@@ -1018,7 +1016,6 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 	if (ath9k_process_rate(common, hw, rx_stats, rx_status))
 		return -EINVAL;
 
-	rx_status->mactime = ath9k_hw_extend_tsf(ah, rx_stats->rs_tstamp);
 	rx_status->band = hw->conf.channel->band;
 	rx_status->freq = hw->conf.channel->center_freq;
 	rx_status->signal = ATH_DEFAULT_NOISE_FLOOR + rx_stats->rs_rssi;
@@ -1100,6 +1097,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int dma_type;
 	u8 rx_status_len = ah->caps.rx_status_len;
+	u64 tsf = 0;
+	u32 tsf_lower = 0;
 
 	if (edma)
 		dma_type = DMA_BIDIRECTIONAL;
@@ -1108,6 +1107,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 
 	qtype = hp ? ATH9K_RX_QUEUE_HP : ATH9K_RX_QUEUE_LP;
 	spin_lock_bh(&sc->rx.rxbuflock);
+
+	tsf = ath9k_hw_gettsf64(ah);
+	tsf_lower = tsf & 0xffffffff;
 
 	do {
 		/* If handling rx interrupt and flush is in progress => exit */
@@ -1140,6 +1142,15 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 */
 		if (flush)
 			goto requeue;
+
+		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
+		if (rs.rs_tstamp > tsf_lower &&
+		    unlikely(rs.rs_tstamp - tsf_lower > 0x10000000))
+			rxs->mactime -= 0x100000000ULL;
+
+		if (rs.rs_tstamp < tsf_lower &&
+		    unlikely(tsf_lower - rs.rs_tstamp > 0x10000000))
+			rxs->mactime += 0x100000000ULL;
 
 		retval = ath9k_rx_skb_preprocess(common, hw, hdr, &rs,
 						 rxs, &decrypt_error);
