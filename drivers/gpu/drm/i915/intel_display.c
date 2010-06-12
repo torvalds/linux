@@ -2539,6 +2539,20 @@ static struct intel_watermark_params g4x_wm_info = {
 	2,
 	G4X_FIFO_LINE_SIZE,
 };
+static struct intel_watermark_params g4x_cursor_wm_info = {
+	I965_CURSOR_FIFO,
+	I965_CURSOR_MAX_WM,
+	I965_CURSOR_DFT_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
+};
+static struct intel_watermark_params i965_cursor_wm_info = {
+	I965_CURSOR_FIFO,
+	I965_CURSOR_MAX_WM,
+	I965_CURSOR_DFT_WM,
+	2,
+	I915_FIFO_LINE_SIZE,
+};
 static struct intel_watermark_params i945_wm_info = {
 	I945_FIFO_SIZE,
 	I915_MAX_WM,
@@ -2925,7 +2939,18 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			      pixel_size * sr_hdisplay;
 		sr_entries = roundup(sr_entries / cacheline_size, 1);
-		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
+
+		entries_required = (((sr_latency_ns / line_time_us) +
+				     1000) / 1000) * pixel_size * 64;
+		entries_required = roundup(entries_required /
+					   g4x_cursor_wm_info.cacheline_size, 1);
+		cursor_sr = entries_required + g4x_cursor_wm_info.guard_size;
+
+		if (cursor_sr > g4x_cursor_wm_info.max_wm)
+			cursor_sr = g4x_cursor_wm_info.max_wm;
+		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
+			      "cursor %d\n", sr_entries, cursor_sr);
+
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
 		/* Turn off self refresh if both pipes are enabled */
@@ -2956,6 +2981,7 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned long line_time_us;
 	int sr_clock, sr_entries, srwm = 1;
+	int cursor_sr = 16;
 
 	/* Calc sr entries for one plane configs */
 	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
@@ -2974,6 +3000,20 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		if (srwm < 0)
 			srwm = 1;
 		srwm &= 0x1ff;
+
+		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
+			     pixel_size * 64;
+		sr_entries = roundup(sr_entries /
+				     i965_cursor_wm_info.cacheline_size, 1);
+		cursor_sr = i965_cursor_wm_info.fifo_size -
+			    (sr_entries + i965_cursor_wm_info.guard_size);
+
+		if (cursor_sr > i965_cursor_wm_info.max_wm)
+			cursor_sr = i965_cursor_wm_info.max_wm;
+
+		DRM_DEBUG_KMS("self-refresh watermark: display plane %d "
+			      "cursor %d\n", srwm, cursor_sr);
+
 		if (IS_I965GM(dev))
 			I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
 	} else {
@@ -2990,6 +3030,8 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 	I915_WRITE(DSPFW1, (srwm << DSPFW_SR_SHIFT) | (8 << 16) | (8 << 8) |
 		   (8 << 0));
 	I915_WRITE(DSPFW2, (8 << 8) | (8 << 0));
+	/* update cursor SR watermark */
+	I915_WRITE(DSPFW3, (cursor_sr << DSPFW_CURSOR_SR_SHIFT));
 }
 
 static void i9xx_update_wm(struct drm_device *dev, int planea_clock,

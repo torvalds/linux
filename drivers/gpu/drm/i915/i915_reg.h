@@ -2160,6 +2160,9 @@
 #define PINEVIEW_CURSOR_DFT_WM	0
 #define PINEVIEW_CURSOR_GUARD_WM	5
 
+#define I965_CURSOR_FIFO	64
+#define I965_CURSOR_MAX_WM	32
+#define I965_CURSOR_DFT_WM	8
 
 /* define the Watermark register on Ironlake */
 #define WM0_PIPEA_ILK		0x45100
