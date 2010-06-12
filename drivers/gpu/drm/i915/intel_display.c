@@ -4483,6 +4483,7 @@ static void intel_idle_update(struct work_struct *work)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc;
 	struct intel_crtc *intel_crtc;
+	int enabled = 0;
 
 	if (!i915_powersave)
 		return;
@@ -4491,19 +4492,20 @@ static void intel_idle_update(struct work_struct *work)
 
 	i915_update_gfx_val(dev_priv);
 
-	if (IS_I945G(dev) || IS_I945GM(dev)) {
-		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
-		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
-	}
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
 		if (!crtc->fb)
 			continue;
 
+		enabled++;
 		intel_crtc = to_intel_crtc(crtc);
 		if (!intel_crtc->busy)
 			intel_decrease_pllclock(crtc);
+	}
+
+	if ((enabled == 1) && (IS_I945G(dev) || IS_I945GM(dev))) {
+		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
+		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
 	}
 
 	mutex_unlock(&dev->struct_mutex);
