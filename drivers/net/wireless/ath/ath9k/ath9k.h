@@ -207,7 +207,6 @@ struct ath_txq {
 	struct list_head txq_fifo_pending;
 	u8 txq_headidx;
 	u8 txq_tailidx;
-	int pending_frames;
 };
 
 struct ath_atx_ac {
@@ -245,7 +244,6 @@ struct ath_buf {
 	struct ath_buf_state bf_state;
 	dma_addr_t bf_dmacontext;
 	struct ath_wiphy *aphy;
-	struct ath_txq *txq;
 };
 
 struct ath_atx_tid {
@@ -296,6 +294,7 @@ struct ath_tx {
 	struct list_head txbuf;
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
+	int pending_frames[WME_NUM_AC];
 };
 
 struct ath_rx_edma {
