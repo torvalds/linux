@@ -602,6 +602,17 @@ extern u32	__tcp_select_window(struct sock *sk);
  */
 #define tcp_time_stamp		((__u32)(jiffies))
 
+#define tcp_flag_byte(th) (((u_int8_t *)th)[13])
+
+#define TCPHDR_FIN 0x01
+#define TCPHDR_SYN 0x02
+#define TCPHDR_RST 0x04
+#define TCPHDR_PSH 0x08
+#define TCPHDR_ACK 0x10
+#define TCPHDR_URG 0x20
+#define TCPHDR_ECE 0x40
+#define TCPHDR_CWR 0x80
+
 /* This is what the send packet queuing engine uses to pass
  * TCP per-packet control information to the transmission
  * code.  We also store the host-order sequence numbers in
@@ -620,19 +631,6 @@ struct tcp_skb_cb {
 	__u32		end_seq;	/* SEQ + FIN + SYN + datalen	*/
 	__u32		when;		/* used to compute rtt's	*/
 	__u8		flags;		/* TCP header flags.		*/
-
-	/* NOTE: These must match up to the flags byte in a
-	 *       real TCP header.
-	 */
-#define TCPCB_FLAG_FIN		0x01
-#define TCPCB_FLAG_SYN		0x02
-#define TCPCB_FLAG_RST		0x04
-#define TCPCB_FLAG_PSH		0x08
-#define TCPCB_FLAG_ACK		0x10
-#define TCPCB_FLAG_URG		0x20
-#define TCPCB_FLAG_ECE		0x40
-#define TCPCB_FLAG_CWR		0x80
-
 	__u8		sacked;		/* State flags for SACK/FACK.	*/
 #define TCPCB_SACKED_ACKED	0x01	/* SKB ACK'd by a SACK block	*/
 #define TCPCB_SACKED_RETRANS	0x02	/* SKB retransmitted		*/
