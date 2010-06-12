@@ -517,45 +517,12 @@ config VIDEO_UPD64083
 
 endmenu # encoder / decoder chips
 
-config DISPLAY_DAVINCI_DM646X_EVM
-	tristate "DM646x EVM Video Display"
-	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
-	select VIDEOBUF_DMA_CONTIG
-	select VIDEO_DAVINCI_VPIF
-	select VIDEO_ADV7343
-	select VIDEO_THS7303
-	help
-	  Support for DM6467 based display device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpif_display.
-
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
 	depends on VIDEO_DEV && ARCH_SHMOBILE
 	select VIDEOBUF_DMA_CONTIG
 	help
 	  Support for the Video Output Unit (VOU) on SuperH SoCs.
-
-config CAPTURE_DAVINCI_DM646X_EVM
-	tristate "DM646x EVM Video Capture"
-	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
-	select VIDEOBUF_DMA_CONTIG
-	select VIDEO_DAVINCI_VPIF
-	help
-	  Support for DM6467 based capture device.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpif_capture.
-
-config VIDEO_DAVINCI_VPIF
-	tristate "DaVinci VPIF Driver"
-	depends on DISPLAY_DAVINCI_DM646X_EVM
-	help
-	  Support for DaVinci VPIF Driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called vpif.
 
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
