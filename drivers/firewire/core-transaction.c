@@ -1006,38 +1006,30 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 	unsigned long flags;
 
 	switch (reg) {
-	case CSR_STATE_CLEAR:
-		if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->
-					read_csr_reg(card, CSR_STATE_CLEAR));
-		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_STATE_CLEAR,
-						    be32_to_cpu(*data));
-		else
-			rcode = RCODE_TYPE_ERROR;
-		break;
-
-	case CSR_STATE_SET:
-		if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->
-					read_csr_reg(card, CSR_STATE_SET));
-		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_STATE_SET,
-						    be32_to_cpu(*data));
-		else
-			rcode = RCODE_TYPE_ERROR;
-		break;
+	case CSR_PRIORITY_BUDGET:
+		if (!card->priority_budget_implemented) {
+			rcode = RCODE_ADDRESS_ERROR;
+			break;
+		}
+		/* else fall through */
 
 	case CSR_NODE_IDS:
 		/*
 		 * per IEEE 1394-2008 8.3.22.3, not IEEE 1394.1-2004 3.2.8
 		 * and 9.6, but interoperable with IEEE 1394.1-2004 bridges
 		 */
+		/* fall through */
+
+	case CSR_STATE_CLEAR:
+	case CSR_STATE_SET:
+	case CSR_CYCLE_TIME:
+	case CSR_BUS_TIME:
+	case CSR_BUSY_TIMEOUT:
 		if (tcode == TCODE_READ_QUADLET_REQUEST)
 			*data = cpu_to_be32(card->driver->
-					read_csr_reg(card, CSR_NODE_IDS));
+					    read_csr_reg(card, reg));
 		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_NODE_IDS,
+			card->driver->write_csr_reg(card, reg,
 						    be32_to_cpu(*data));
 		else
 			rcode = RCODE_TYPE_ERROR;
@@ -1076,52 +1068,6 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		} else {
 			rcode = RCODE_TYPE_ERROR;
 		}
-		break;
-
-	case CSR_CYCLE_TIME:
-		if (TCODE_IS_READ_REQUEST(tcode) && length == 4)
-			*data = cpu_to_be32(card->driver->
-					read_csr_reg(card, CSR_CYCLE_TIME));
-		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_CYCLE_TIME,
-						    be32_to_cpu(*data));
-		else
-			rcode = RCODE_TYPE_ERROR;
-		break;
-
-	case CSR_BUS_TIME:
-		if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->
-					read_csr_reg(card, CSR_BUS_TIME));
-		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_BUS_TIME,
-						    be32_to_cpu(*data));
-		else
-			rcode = RCODE_TYPE_ERROR;
-		break;
-
-	case CSR_BUSY_TIMEOUT:
-		if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->
-					read_csr_reg(card, CSR_BUSY_TIMEOUT));
-		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_BUSY_TIMEOUT,
-						    be32_to_cpu(*data));
-		else
-			rcode = RCODE_TYPE_ERROR;
-		break;
-
-	case CSR_PRIORITY_BUDGET:
-		if (!card->priority_budget_implemented)
-			rcode = RCODE_ADDRESS_ERROR;
-		else if (tcode == TCODE_READ_QUADLET_REQUEST)
-			*data = cpu_to_be32(card->driver->
-				read_csr_reg(card, CSR_PRIORITY_BUDGET));
-		else if (tcode == TCODE_WRITE_QUADLET_REQUEST)
-			card->driver->write_csr_reg(card, CSR_PRIORITY_BUDGET,
-						    be32_to_cpu(*data));
-		else
-			rcode = RCODE_TYPE_ERROR;
 		break;
 
 	case CSR_MAINT_UTILITY:
