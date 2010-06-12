@@ -814,19 +814,19 @@ int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
 
 	switch (queue) {
 	case 0:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_VO];
+		qnum = sc->tx.hwq_map[WME_AC_VO];
 		break;
 	case 1:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_VI];
+		qnum = sc->tx.hwq_map[WME_AC_VI];
 		break;
 	case 2:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_BE];
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		break;
 	case 3:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_BK];
+		qnum = sc->tx.hwq_map[WME_AC_BK];
 		break;
 	default:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_BE];
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		break;
 	}
 
@@ -838,16 +838,16 @@ int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc)
 	int qnum;
 
 	switch (queue) {
-	case ATH9K_WME_AC_VO:
+	case WME_AC_VO:
 		qnum = 0;
 		break;
-	case ATH9K_WME_AC_VI:
+	case WME_AC_VI:
 		qnum = 1;
 		break;
-	case ATH9K_WME_AC_BE:
+	case WME_AC_BE:
 		qnum = 2;
 		break;
-	case ATH9K_WME_AC_BK:
+	case WME_AC_BK:
 		qnum = 3;
 		break;
 	default:
@@ -1559,7 +1559,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
-		if ((qnum == sc->tx.hwq_map[ATH9K_WME_AC_BE]) && !ret)
+		if ((qnum == sc->tx.hwq_map[WME_AC_BE]) && !ret)
 			ath_beaconq_config(sc);
 
 	mutex_unlock(&sc->mutex);

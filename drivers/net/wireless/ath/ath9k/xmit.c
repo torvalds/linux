@@ -959,32 +959,6 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	return &sc->tx.txq[qnum];
 }
 
-int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype)
-{
-	int qnum;
-
-	switch (qtype) {
-	case ATH9K_TX_QUEUE_DATA:
-		if (haltype >= ARRAY_SIZE(sc->tx.hwq_map)) {
-			ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
-				  "HAL AC %u out of range, max %zu!\n",
-				  haltype, ARRAY_SIZE(sc->tx.hwq_map));
-			return -1;
-		}
-		qnum = sc->tx.hwq_map[haltype];
-		break;
-	case ATH9K_TX_QUEUE_BEACON:
-		qnum = sc->beacon.beaconq;
-		break;
-	case ATH9K_TX_QUEUE_CAB:
-		qnum = sc->beacon.cabq->axq_qnum;
-		break;
-	default:
-		qnum = -1;
-	}
-	return qnum;
-}
-
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *qinfo)
 {
@@ -2423,26 +2397,8 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	for (acno = 0, ac = &an->ac[acno];
 	     acno < WME_NUM_AC; acno++, ac++) {
 		ac->sched    = false;
+		ac->qnum = sc->tx.hwq_map[acno];
 		INIT_LIST_HEAD(&ac->tid_q);
-
-		switch (acno) {
-		case WME_AC_BE:
-			ac->qnum = ath_tx_get_qnum(sc,
-				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
-			break;
-		case WME_AC_BK:
-			ac->qnum = ath_tx_get_qnum(sc,
-				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BK);
-			break;
-		case WME_AC_VI:
-			ac->qnum = ath_tx_get_qnum(sc,
-				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_VI);
-			break;
-		case WME_AC_VO:
-			ac->qnum = ath_tx_get_qnum(sc,
-				   ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_VO);
-			break;
-		}
 	}
 }
 

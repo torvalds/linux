@@ -630,10 +630,10 @@ static const struct file_operations fops_wiphy = {
 	do {								\
 		len += snprintf(buf + len, size - len,			\
 				"%s%13u%11u%10u%10u\n", str,		\
-		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_BE]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_BK]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_VI]].elem, \
-		sc->debug.stats.txstats[sc->tx.hwq_map[ATH9K_WME_AC_VO]].elem); \
+		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_BE]].elem, \
+		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_BK]].elem, \
+		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_VI]].elem, \
+		sc->debug.stats.txstats[sc->tx.hwq_map[WME_AC_VO]].elem); \
 } while(0)
 
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,

@@ -577,13 +577,8 @@ enum ath9k_tx_queue {
 
 #define	ATH9K_NUM_TX_QUEUES 10
 
-enum ath9k_tx_queue_subtype {
-	ATH9K_WME_AC_BK = 0,
-	ATH9K_WME_AC_BE,
-	ATH9K_WME_AC_VI,
-	ATH9K_WME_AC_VO,
-	ATH9K_WME_UPSD
-};
+/* Used as a queue subtype instead of a WMM AC */
+#define ATH9K_WME_UPSD	4
 
 enum ath9k_tx_queue_flags {
 	TXQ_FLAG_TXOKINT_ENABLE = 0x0001,
@@ -617,7 +612,7 @@ enum ath9k_pkt_type {
 struct ath9k_tx_queue_info {
 	u32 tqi_ver;
 	enum ath9k_tx_queue tqi_type;
-	enum ath9k_tx_queue_subtype tqi_subtype;
+	int tqi_subtype;
 	enum ath9k_tx_queue_flags tqi_qflags;
 	u32 tqi_priority;
 	u32 tqi_aifs;

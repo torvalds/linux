@@ -426,7 +426,7 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		r = ath_init_btcoex_timer(sc);
 		if (r)
 			return -1;
-		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		break;
@@ -463,23 +463,23 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
+	if (!ath_tx_setup(sc, WME_AC_BK)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
+	if (!ath_tx_setup(sc, WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
+	if (!ath_tx_setup(sc, WME_AC_VI)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
+	if (!ath_tx_setup(sc, WME_AC_VO)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VO traffic\n");
 		goto err;

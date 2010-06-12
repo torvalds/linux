@@ -291,7 +291,7 @@ struct ath_tx_control {
 struct ath_tx {
 	u16 seq_no;
 	u32 txqsetup;
-	int hwq_map[ATH9K_WME_AC_VO+1];
+	int hwq_map[WME_NUM_AC];
 	spinlock_t txbuflock;
 	struct list_head txbuf;
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
@@ -679,8 +679,6 @@ void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle);
 
 void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
 void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
-
-int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 
 void ath_start_rfkill_poll(struct ath_softc *sc);
 extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);
