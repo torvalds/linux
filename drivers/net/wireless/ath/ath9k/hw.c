@@ -2257,21 +2257,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	return 0;
 }
 
-bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 *result)
-{
-	switch (type) {
-	case ATH9K_CAP_DS:
-		return (AR_SREV_9280_20_OR_LATER(ah) &&
-			(ah->eep_ops->get_eeprom(ah, EEP_RC_CHAIN_MASK) == 1))
-			? false : true;
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_getcapability);
-
-
 /****************************/
 /* GPIO / RFKILL / Antennae */
 /****************************/

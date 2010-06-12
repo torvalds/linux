@@ -206,10 +206,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_PAPRD			= BIT(22),
 };
 
-enum ath9k_capability_type {
-	ATH9K_CAP_DS
-};
-
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
 	DECLARE_BITMAP(wireless_modes, ATH9K_MODE_MAX); /* ATH9K_MODE_* */
@@ -852,8 +848,6 @@ int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
-bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 *result);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
 /* Key Cache Management */
