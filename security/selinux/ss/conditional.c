@@ -392,24 +392,25 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 	struct cond_expr *expr = NULL, *last = NULL;
 
 	rc = next_entry(buf, fp, sizeof(u32));
-	if (rc < 0)
-		return -1;
+	if (rc)
+		return rc;
 
 	node->cur_state = le32_to_cpu(buf[0]);
 
 	len = 0;
 	rc = next_entry(buf, fp, sizeof(u32));
-	if (rc < 0)
-		return -1;
+	if (rc)
+		return rc;
 
 	/* expr */
 	len = le32_to_cpu(buf[0]);
 
 	for (i = 0; i < len; i++) {
 		rc = next_entry(buf, fp, sizeof(u32) * 2);
-		if (rc < 0)
+		if (rc)
 			goto err;
 
+		rc = -ENOMEM;
 		expr = kzalloc(sizeof(struct cond_expr), GFP_KERNEL);
 		if (!expr)
 			goto err;
@@ -418,6 +419,7 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 		expr->bool = le32_to_cpu(buf[1]);
 
 		if (!expr_isvalid(p, expr)) {
+			rc = -EINVAL;
 			kfree(expr);
 			goto err;
 		}
@@ -429,14 +431,16 @@ static int cond_read_node(struct policydb *p, struct cond_node *node, void *fp)
 		last = expr;
 	}
 
-	if (cond_read_av_list(p, fp, &node->true_list, NULL) != 0)
+	rc = cond_read_av_list(p, fp, &node->true_list, NULL);
+	if (rc)
 		goto err;
-	if (cond_read_av_list(p, fp, &node->false_list, node->true_list) != 0)
+	rc = cond_read_av_list(p, fp, &node->false_list, node->true_list);
+	if (rc)
 		goto err;
 	return 0;
 err:
 	cond_node_destroy(node);
-	return -1;
+	return rc;
 }
 
 int cond_read_list(struct policydb *p, void *fp)
