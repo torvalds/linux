@@ -296,8 +296,7 @@ static void fw_card_bm_work(struct work_struct *work)
 		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_BUS_MANAGER_ID,
-				card->bm_transaction_data,
-				sizeof(card->bm_transaction_data));
+				card->bm_transaction_data, 8);
 
 		if (rcode == RCODE_GENERATION)
 			/* Another bus reset, BM work has been rescheduled. */
@@ -422,7 +421,7 @@ static void fw_card_bm_work(struct work_struct *work)
 		rcode = fw_run_transaction(card, TCODE_WRITE_QUADLET_REQUEST,
 				root_id, generation, SCODE_100,
 				CSR_REGISTER_BASE + CSR_STATE_SET,
-				card->bm_transaction_data, sizeof(u32));
+				card->bm_transaction_data, 4);
 		if (rcode == RCODE_GENERATION)
 			goto out;
 	}

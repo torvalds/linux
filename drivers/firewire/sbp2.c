@@ -508,8 +508,7 @@ static void sbp2_send_orb(struct sbp2_orb *orb, struct sbp2_logical_unit *lu,
 
 	fw_send_request(device->card, &orb->t, TCODE_WRITE_BLOCK_REQUEST,
 			node_id, generation, device->max_speed, offset,
-			&orb->pointer, sizeof(orb->pointer),
-			complete_transaction, orb);
+			&orb->pointer, 8, complete_transaction, orb);
 }
 
 static int sbp2_cancel_orbs(struct sbp2_logical_unit *lu)
@@ -654,7 +653,7 @@ static void sbp2_agent_reset(struct sbp2_logical_unit *lu)
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
 			   lu->tgt->node_id, lu->generation, device->max_speed,
 			   lu->command_block_agent_address + SBP2_AGENT_RESET,
-			   &d, sizeof(d));
+			   &d, 4);
 }
 
 static void complete_agent_reset_write_no_wait(struct fw_card *card,
@@ -676,7 +675,7 @@ static void sbp2_agent_reset_no_wait(struct sbp2_logical_unit *lu)
 	fw_send_request(device->card, t, TCODE_WRITE_QUADLET_REQUEST,
 			lu->tgt->node_id, lu->generation, device->max_speed,
 			lu->command_block_agent_address + SBP2_AGENT_RESET,
-			&d, sizeof(d), complete_agent_reset_write_no_wait, t);
+			&d, 4, complete_agent_reset_write_no_wait, t);
 }
 
 static inline void sbp2_allow_block(struct sbp2_logical_unit *lu)
@@ -866,8 +865,7 @@ static void sbp2_set_busy_timeout(struct sbp2_logical_unit *lu)
 
 	fw_run_transaction(device->card, TCODE_WRITE_QUADLET_REQUEST,
 			   lu->tgt->node_id, lu->generation, device->max_speed,
-			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT,
-			   &d, sizeof(d));
+			   CSR_REGISTER_BASE + CSR_BUSY_TIMEOUT, &d, 4);
 }
 
 static void sbp2_reconnect(struct work_struct *work);
