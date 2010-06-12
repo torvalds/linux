@@ -3603,7 +3603,8 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		pte = dmar_domain->pgd;
 		if (dma_pte_present(pte)) {
 			free_pgtable_page(dmar_domain->pgd);
-			dmar_domain->pgd = (struct dma_pte *)dma_pte_addr(pte);
+			dmar_domain->pgd = (struct dma_pte *)
+				phys_to_virt(dma_pte_addr(pte));
 		}
 		dmar_domain->agaw--;
 	}
