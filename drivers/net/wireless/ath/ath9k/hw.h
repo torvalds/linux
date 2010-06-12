@@ -565,7 +565,7 @@ struct ath_hw_private_ops {
 	void (*loadnf)(struct ath_hw *ah, struct ath9k_channel *chan);
 
 	/* ANI */
-	void (*ani_reset)(struct ath_hw *ah);
+	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
 	void (*ani_lower_immunity)(struct ath_hw *ah);
 };
 

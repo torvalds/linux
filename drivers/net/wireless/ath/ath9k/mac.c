@@ -757,11 +757,11 @@ void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp)
 }
 EXPORT_SYMBOL(ath9k_hw_putrxbuf);
 
-void ath9k_hw_startpcureceive(struct ath_hw *ah)
+void ath9k_hw_startpcureceive(struct ath_hw *ah, bool is_scanning)
 {
 	ath9k_enable_mib_counters(ah);
 
-	ath9k_ani_reset(ah);
+	ath9k_ani_reset(ah, is_scanning);
 
 	REG_CLR_BIT(ah, AR_DIAG_SW, (AR_DIAG_RX_DIS | AR_DIAG_RX_ABORT));
 }

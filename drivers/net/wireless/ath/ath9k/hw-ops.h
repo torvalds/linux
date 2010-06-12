@@ -288,9 +288,9 @@ static inline bool ath9k_hw_iscal_supported(struct ath_hw *ah,
 	return ath9k_hw_private_ops(ah)->iscal_supported(ah, calType);
 }
 
-static inline void ath9k_ani_reset(struct ath_hw *ah)
+static inline void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning)
 {
-	ath9k_hw_private_ops(ah)->ani_reset(ah);
+	ath9k_hw_private_ops(ah)->ani_reset(ah, is_scanning);
 }
 
 #endif /* ATH9K_HW_OPS_H */

@@ -295,7 +295,7 @@ static void ath_edma_start_recv(struct ath_softc *sc)
 
 	ath_opmode_init(sc);
 
-	ath9k_hw_startpcureceive(sc->sc_ah);
+	ath9k_hw_startpcureceive(sc->sc_ah, (sc->sc_flags & SC_OP_SCANNING));
 }
 
 static void ath_edma_stop_recv(struct ath_softc *sc)
@@ -501,7 +501,7 @@ int ath_startrecv(struct ath_softc *sc)
 start_recv:
 	spin_unlock_bh(&sc->rx.rxbuflock);
 	ath_opmode_init(sc);
-	ath9k_hw_startpcureceive(ah);
+	ath9k_hw_startpcureceive(ah, (sc->sc_flags & SC_OP_SCANNING));
 
 	return 0;
 }

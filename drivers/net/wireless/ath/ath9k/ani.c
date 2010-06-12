@@ -322,7 +322,7 @@ static int32_t ath9k_hw_ani_get_listen_time(struct ath_hw *ah)
 	return listenTime;
 }
 
-static void ath9k_ani_reset_old(struct ath_hw *ah)
+static void ath9k_ani_reset_old(struct ath_hw *ah, bool is_scanning)
 {
 	struct ar5416AniState *aniState;
 	struct ath9k_channel *chan = ah->curchan;
