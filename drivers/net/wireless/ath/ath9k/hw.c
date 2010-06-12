@@ -75,6 +75,15 @@ static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
 	ath9k_hw_private_ops(ah)->init_mode_gain_regs(ah);
 }
 
+static void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
+{
+	/* You will not have this callback if using the old ANI */
+	if (!ath9k_hw_private_ops(ah)->ani_cache_ini_regs)
+		return;
+
+	ath9k_hw_private_ops(ah)->ani_cache_ini_regs(ah);
+}
+
 /********************/
 /* Helper Functions */
 /********************/
@@ -560,6 +569,8 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ah->ani_function = ATH9K_ANI_ALL;
 	if (AR_SREV_9280_10_OR_LATER(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
 
 	ath9k_hw_init_mode_regs(ah);
 
@@ -1360,6 +1371,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		ath9k_hw_resettxqueue(ah, i);
 
 	ath9k_hw_init_interrupt_masks(ah, ah->opmode);
+	ath9k_hw_ani_cache_ini_regs(ah);
 	ath9k_hw_init_qos(ah);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)

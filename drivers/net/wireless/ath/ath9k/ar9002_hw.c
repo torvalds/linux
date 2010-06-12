@@ -20,6 +20,10 @@
 #include "ar9002_initvals.h"
 #include "ar9002_phy.h"
 
+int modparam_force_new_ani;
+module_param_named(force_new_ani, modparam_force_new_ani, int, 0444);
+MODULE_PARM_DESC(nohwcrypt, "Force new ANI for AR5008, AR9001, AR9002");
+
 /* General hardware code for the A5008/AR9001/AR9002 hadware families */
 
 static bool ar9002_hw_macversion_supported(u32 macversion)
@@ -637,5 +641,8 @@ void ar9002_hw_attach_ops(struct ath_hw *ah)
 	ar9002_hw_attach_calib_ops(ah);
 	ar9002_hw_attach_mac_ops(ah);
 
-	ath9k_hw_attach_ani_ops_old(ah);
+	if (modparam_force_new_ani)
+		ath9k_hw_attach_ani_ops_new(ah);
+	else
+		ath9k_hw_attach_ani_ops_old(ah);
 }

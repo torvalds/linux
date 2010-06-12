@@ -266,6 +266,7 @@ struct ath9k_ops_config {
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
+	u16 ani_poll_interval; /* ANI poll interval in ms */
 };
 
 enum ath9k_int {
@@ -520,6 +521,8 @@ struct ath_gen_timer_table {
  *	few dB more of noise immunity. If you have a strong time-varying
  *	interference that is causing false detections (OFDM timing errors or
  *	CCK timing errors) the level can be increased.
+ * @ani_cache_ini_regs: cache the values for ANI from the initial
+ *	register settings through the register initialization.
  */
 struct ath_hw_private_ops {
 	/* Calibration ops */
@@ -567,6 +570,7 @@ struct ath_hw_private_ops {
 	/* ANI */
 	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
 	void (*ani_lower_immunity)(struct ath_hw *ah);
+	void (*ani_cache_ini_regs)(struct ath_hw *ah);
 };
 
 /**
@@ -959,9 +963,12 @@ void ar9003_hw_attach_ops(struct ath_hw *ah);
  * ANI work can be shared between all families but a next
  * generation implementation of ANI will be used only for AR9003 only
  * for now as the other families still need to be tested with the same
- * next generation ANI.
+ * next generation ANI. Feel free to start testing it though for the
+ * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
  */
+extern int modparam_force_new_ani;
 void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
+void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
 
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1

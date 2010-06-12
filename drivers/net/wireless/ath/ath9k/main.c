@@ -285,7 +285,8 @@ void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - common->ani.checkani_timer) >=
+	     ah->config.ani_poll_interval) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -326,7 +327,8 @@ set_timer:
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
 	if (sc->sc_ah->config.enable_ani)
-		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
+		cal_interval = min(cal_interval,
+				   (u32)ah->config.ani_poll_interval);
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
@@ -335,6 +337,7 @@ set_timer:
 
 static void ath_start_ani(struct ath_common *common)
 {
+	struct ath_hw *ah = common->ah;
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
 	common->ani.longcal_timer = timestamp;
@@ -342,7 +345,8 @@ static void ath_start_ani(struct ath_common *common)
 	common->ani.checkani_timer = timestamp;
 
 	mod_timer(&common->ani.timer,
-		  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
+		  jiffies +
+			msecs_to_jiffies((u32)ah->config.ani_poll_interval));
 }
 
 /*

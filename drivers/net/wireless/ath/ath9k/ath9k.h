@@ -417,7 +417,8 @@ int ath_beaconq_config(struct ath_softc *sc);
 
 #define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
 #define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
-#define ATH_ANI_POLLINTERVAL      100     /* 100 ms */
+#define ATH_ANI_POLLINTERVAL_OLD  100     /* 100 ms */
+#define ATH_ANI_POLLINTERVAL_NEW  1000    /* 1000 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
