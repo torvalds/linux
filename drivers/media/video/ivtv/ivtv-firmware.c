@@ -271,3 +271,49 @@ void ivtv_init_mpeg_decoder(struct ivtv *itv)
 	}
 	ivtv_vapi(itv, CX2341X_DEC_STOP_PLAYBACK, 4, 0, 0, 0, 1);
 }
+
+/* Check firmware running state. The checks fall through
+   allowing multiple failures to be logged. */
+int ivtv_firmware_check(struct ivtv *itv, char *where)
+{
+	int res = 0;
+
+	/* Check encoder is still running */
+	if (ivtv_vapi(itv, CX2341X_ENC_PING_FW, 0) < 0) {
+		IVTV_WARN("Encoder has died : %s\n", where);
+		res = -1;
+	}
+
+	/* Also check audio. Only check if not in use & encoder is okay */
+	if (!res && !atomic_read(&itv->capturing) &&
+	    (!atomic_read(&itv->decoding) ||
+	     (atomic_read(&itv->decoding) < 2 && test_bit(IVTV_F_I_DEC_YUV,
+							     &itv->i_flags)))) {
+
+		if (ivtv_vapi(itv, CX2341X_ENC_MISC, 1, 12) < 0) {
+			IVTV_WARN("Audio has died (Encoder OK) : %s\n", where);
+			res = -2;
+		}
+	}
+
+	if (itv->v4l2_cap & V4L2_CAP_VIDEO_OUTPUT) {
+		/* Second audio check. Skip if audio already failed */
+		if (res != -2 && read_dec(0x100) != read_dec(0x104)) {
+			/* Wait & try again to be certain. */
+			ivtv_msleep_timeout(14, 0);
+			if (read_dec(0x100) != read_dec(0x104)) {
+				IVTV_WARN("Audio has died (Decoder) : %s\n",
+					  where);
+				res = -1;
+			}
+		}
+
+		/* Check decoder is still running */
+		if (ivtv_vapi(itv, CX2341X_DEC_PING_FW, 0) < 0) {
+			IVTV_WARN("Decoder has died : %s\n", where);
+			res = -1;
+		}
+	}
+
+	return res;
+}

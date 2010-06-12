@@ -122,6 +122,9 @@
 
 /* debugging */
 extern int ivtv_debug;
+#ifdef CONFIG_VIDEO_ADV_DEBUG
+extern int ivtv_fw_debug;
+#endif
 
 #define IVTV_DBGFLG_WARN    (1 << 0)
 #define IVTV_DBGFLG_INFO    (1 << 1)
