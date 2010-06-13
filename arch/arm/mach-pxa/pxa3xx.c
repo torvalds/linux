@@ -552,11 +552,23 @@ static void pxa_unmask_ext_wakeup(unsigned int irq)
 	PECR |= PECR_IE(irq - IRQ_WAKEUP0);
 }
 
+static int pxa_set_ext_wakeup_type(unsigned int irq, unsigned int flow_type)
+{
+	if (flow_type & IRQ_TYPE_EDGE_RISING)
+		PWER |= 1 << (irq - IRQ_WAKEUP0);
+
+	if (flow_type & IRQ_TYPE_EDGE_FALLING)
+		PWER |= 1 << (irq - IRQ_WAKEUP0 + 2);
+
+	return 0;
+}
+
 static struct irq_chip pxa_ext_wakeup_chip = {
 	.name		= "WAKEUP",
 	.ack		= pxa_ack_ext_wakeup,
 	.mask		= pxa_mask_ext_wakeup,
 	.unmask		= pxa_unmask_ext_wakeup,
+	.set_type	= pxa_set_ext_wakeup_type,
 };
 
 static void __init pxa_init_ext_wakeup_irq(set_wake_t fn)
