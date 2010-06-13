@@ -83,6 +83,7 @@ static unsigned int qnap_ts219_mpp_config[] __initdata = {
 	MPP15_GPIO,		/* USB Copy button */
 	MPP16_GPIO,		/* Reset button */
 	MPP36_GPIO,		/* RAM: 0: 256 MB, 1: 512 MB */
+	MPP44_GPIO,		/* Board ID: 0: TS-11x, 1: TS-21x */
 	0
 };
 
