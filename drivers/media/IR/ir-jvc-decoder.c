@@ -41,7 +41,6 @@ enum jvc_state {
 struct decoder_data {
 	struct list_head	list;
 	struct ir_input_dev	*ir_dev;
-	int			enabled:1;
 
 	/* State machine control */
 	enum jvc_state		state;
@@ -72,53 +71,6 @@ static struct decoder_data *get_decoder_data(struct  ir_input_dev *ir_dev)
 	return data;
 }
 
-static ssize_t store_enabled(struct device *d,
-			     struct device_attribute *mattr,
-			     const char *buf,
-			     size_t len)
-{
-	unsigned long value;
-	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	struct decoder_data *data = get_decoder_data(ir_dev);
-
-	if (!data)
-		return -EINVAL;
-
-	if (strict_strtoul(buf, 10, &value) || value > 1)
-		return -EINVAL;
-
-	data->enabled = value;
-
-	return len;
-}
-
-static ssize_t show_enabled(struct device *d,
-			     struct device_attribute *mattr, char *buf)
-{
-	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	struct decoder_data *data = get_decoder_data(ir_dev);
-
-	if (!data)
-		return -EINVAL;
-
-	if (data->enabled)
-		return sprintf(buf, "1\n");
-	else
-	return sprintf(buf, "0\n");
-}
-
-static DEVICE_ATTR(enabled, S_IRUGO | S_IWUSR, show_enabled, store_enabled);
-
-static struct attribute *decoder_attributes[] = {
-	&dev_attr_enabled.attr,
-	NULL
-};
-
-static struct attribute_group decoder_attribute_group = {
-	.name	= "jvc_decoder",
-	.attrs	= decoder_attributes,
-};
-
 /**
  * ir_jvc_decode() - Decode one JVC pulse or space
  * @input_dev:	the struct input_dev descriptor of the device
@@ -135,7 +87,7 @@ static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 	if (!data)
 		return -EINVAL;
 
-	if (!data->enabled)
+	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_JVC))
 		return 0;
 
 	if (IS_RESET(ev)) {
@@ -253,22 +205,12 @@ static int ir_jvc_register(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	struct decoder_data *data;
-	u64 ir_type = ir_dev->rc_tab.ir_type;
-	int rc;
-
-	rc = sysfs_create_group(&ir_dev->dev.kobj, &decoder_attribute_group);
-	if (rc < 0)
-		return rc;
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data) {
-		sysfs_remove_group(&ir_dev->dev.kobj, &decoder_attribute_group);
+	if (!data)
 		return -ENOMEM;
-	}
 
 	data->ir_dev = ir_dev;
-	if (ir_type == IR_TYPE_JVC || ir_type == IR_TYPE_UNKNOWN)
-		data->enabled = 1;
 
 	spin_lock(&decoder_lock);
 	list_add_tail(&data->list, &decoder_list);
@@ -286,8 +228,6 @@ static int ir_jvc_unregister(struct input_dev *input_dev)
 	if (!data)
 		return 0;
 
-	sysfs_remove_group(&ir_dev->dev.kobj, &decoder_attribute_group);
-
 	spin_lock(&decoder_lock);
 	list_del(&data->list);
 	spin_unlock(&decoder_lock);
@@ -296,6 +236,7 @@ static int ir_jvc_unregister(struct input_dev *input_dev)
 }
 
 static struct ir_raw_handler jvc_handler = {
+	.protocols	= IR_TYPE_JVC,
 	.decode		= ir_jvc_decode,
 	.raw_register	= ir_jvc_register,
 	.raw_unregister	= ir_jvc_unregister,

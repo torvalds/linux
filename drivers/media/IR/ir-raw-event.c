@@ -21,8 +21,9 @@
 #define MAX_IR_EVENT_SIZE      512
 
 /* Used to handle IR raw handler extensions */
-static LIST_HEAD(ir_raw_handler_list);
 static DEFINE_SPINLOCK(ir_raw_handler_lock);
+static LIST_HEAD(ir_raw_handler_list);
+static u64 available_protocols;
 
 /**
  * RUN_DECODER()	- runs an operation on all IR decoders
@@ -62,52 +63,6 @@ static void ir_raw_event_work(struct work_struct *work)
 
 	while (kfifo_out(&raw->kfifo, &ev, sizeof(ev)) == sizeof(ev))
 		RUN_DECODER(decode, raw->input_dev, ev);
-}
-
-int ir_raw_event_register(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir = input_get_drvdata(input_dev);
-	int rc;
-
-	ir->raw = kzalloc(sizeof(*ir->raw), GFP_KERNEL);
-	if (!ir->raw)
-		return -ENOMEM;
-
-	ir->raw->input_dev = input_dev;
-	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
-
-	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
-			 GFP_KERNEL);
-	if (rc < 0) {
-		kfree(ir->raw);
-		ir->raw = NULL;
-		return rc;
-	}
-
-	rc = RUN_DECODER(raw_register, input_dev);
-	if (rc < 0) {
-		kfifo_free(&ir->raw->kfifo);
-		kfree(ir->raw);
-		ir->raw = NULL;
-		return rc;
-	}
-
-	return rc;
-}
-
-void ir_raw_event_unregister(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir = input_get_drvdata(input_dev);
-
-	if (!ir->raw)
-		return;
-
-	cancel_work_sync(&ir->raw->rx_work);
-	RUN_DECODER(raw_unregister, input_dev);
-
-	kfifo_free(&ir->raw->kfifo);
-	kfree(ir->raw);
-	ir->raw = NULL;
 }
 
 /**
@@ -203,6 +158,66 @@ void ir_raw_event_handle(struct input_dev *input_dev)
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
 
+/* used internally by the sysfs interface */
+u64
+ir_raw_get_allowed_protocols()
+{
+	u64 protocols;
+	spin_lock(&ir_raw_handler_lock);
+	protocols = available_protocols;
+	spin_unlock(&ir_raw_handler_lock);
+	return protocols;
+}
+
+/*
+ * Used to (un)register raw event clients
+ */
+int ir_raw_event_register(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+	int rc;
+
+	ir->raw = kzalloc(sizeof(*ir->raw), GFP_KERNEL);
+	if (!ir->raw)
+		return -ENOMEM;
+
+	ir->raw->input_dev = input_dev;
+	INIT_WORK(&ir->raw->rx_work, ir_raw_event_work);
+	ir->raw->enabled_protocols = ~0;
+	rc = kfifo_alloc(&ir->raw->kfifo, sizeof(s64) * MAX_IR_EVENT_SIZE,
+			 GFP_KERNEL);
+	if (rc < 0) {
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return rc;
+	}
+
+	rc = RUN_DECODER(raw_register, input_dev);
+	if (rc < 0) {
+		kfifo_free(&ir->raw->kfifo);
+		kfree(ir->raw);
+		ir->raw = NULL;
+		return rc;
+	}
+
+	return rc;
+}
+
+void ir_raw_event_unregister(struct input_dev *input_dev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(input_dev);
+
+	if (!ir->raw)
+		return;
+
+	cancel_work_sync(&ir->raw->rx_work);
+	RUN_DECODER(raw_unregister, input_dev);
+
+	kfifo_free(&ir->raw->kfifo);
+	kfree(ir->raw);
+	ir->raw = NULL;
+}
+
 /*
  * Extension interface - used to register the IR decoders
  */
@@ -211,7 +226,9 @@ int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
 {
 	spin_lock(&ir_raw_handler_lock);
 	list_add_tail(&ir_raw_handler->list, &ir_raw_handler_list);
+	available_protocols |= ir_raw_handler->protocols;
 	spin_unlock(&ir_raw_handler_lock);
+
 	return 0;
 }
 EXPORT_SYMBOL(ir_raw_handler_register);
@@ -220,6 +237,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 {
 	spin_lock(&ir_raw_handler_lock);
 	list_del(&ir_raw_handler->list);
+	available_protocols &= ~ir_raw_handler->protocols;
 	spin_unlock(&ir_raw_handler_lock);
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);

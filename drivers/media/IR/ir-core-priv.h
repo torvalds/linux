@@ -22,6 +22,7 @@
 struct ir_raw_handler {
 	struct list_head list;
 
+	u64 protocols; /* which are handled by this handler */
 	int (*decode)(struct input_dev *input_dev, struct ir_raw_event event);
 	int (*raw_register)(struct input_dev *input_dev);
 	int (*raw_unregister)(struct input_dev *input_dev);
@@ -33,6 +34,7 @@ struct ir_raw_event_ctrl {
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
 	struct input_dev		*input_dev;	/* pointer to the parent input_dev */
+	u64				enabled_protocols; /* enabled raw protocol decoders */
 };
 
 /* macros for IR decoders */
@@ -74,6 +76,7 @@ void ir_unregister_class(struct input_dev *input_dev);
 /*
  * Routines from ir-raw-event.c to be used internally and by decoders
  */
+u64 ir_raw_get_allowed_protocols(void);
 int ir_raw_event_register(struct input_dev *input_dev);
 void ir_raw_event_unregister(struct input_dev *input_dev);
 int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
