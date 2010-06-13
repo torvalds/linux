@@ -282,7 +282,7 @@ static inline struct sock *unix_find_socket_byname(struct net *net,
 	return s;
 }
 
-static struct sock *unix_find_socket_byinode(struct net *net, struct inode *i)
+static struct sock *unix_find_socket_byinode(struct inode *i)
 {
 	struct sock *s;
 	struct hlist_node *node;
@@ -291,9 +291,6 @@ static struct sock *unix_find_socket_byinode(struct net *net, struct inode *i)
 	sk_for_each(s, node,
 		    &unix_socket_table[i->i_ino & (UNIX_HASH_SIZE - 1)]) {
 		struct dentry *dentry = unix_sk(s)->dentry;
-
-		if (!net_eq(sock_net(s), net))
-			continue;
 
 		if (dentry && dentry->d_inode == i) {
 			sock_hold(s);
@@ -758,7 +755,7 @@ static struct sock *unix_find_other(struct net *net,
 		err = -ECONNREFUSED;
 		if (!S_ISSOCK(inode->i_mode))
 			goto put_fail;
-		u = unix_find_socket_byinode(net, inode);
+		u = unix_find_socket_byinode(inode);
 		if (!u)
 			goto put_fail;
 
