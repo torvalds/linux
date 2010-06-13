@@ -922,6 +922,80 @@ Define which vcpu is the Bootstrap Processor (BSP).  Values are the same
 as the vcpu id in KVM_CREATE_VCPU.  If this ioctl is not called, the default
 is vcpu 0.
 
+4.41 KVM_GET_XSAVE
+
+Capability: KVM_CAP_XSAVE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xsave (out)
+Returns: 0 on success, -1 on error
+
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+This ioctl would copy current vcpu's xsave struct to the userspace.
+
+4.42 KVM_SET_XSAVE
+
+Capability: KVM_CAP_XSAVE
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xsave (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_xsave {
+	__u32 region[1024];
+};
+
+This ioctl would copy userspace's xsave struct to the kernel.
+
+4.43 KVM_GET_XCRS
+
+Capability: KVM_CAP_XCRS
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xcrs (out)
+Returns: 0 on success, -1 on error
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
+};
+
+This ioctl would copy current vcpu's xcrs to the userspace.
+
+4.44 KVM_SET_XCRS
+
+Capability: KVM_CAP_XCRS
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_xcrs (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_xcr {
+	__u32 xcr;
+	__u32 reserved;
+	__u64 value;
+};
+
+struct kvm_xcrs {
+	__u32 nr_xcrs;
+	__u32 flags;
+	struct kvm_xcr xcrs[KVM_MAX_XCRS];
+	__u64 padding[16];
+};
+
+This ioctl would set vcpu's xcr to the value userspace specified.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

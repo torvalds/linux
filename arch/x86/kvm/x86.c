@@ -1680,6 +1680,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PCI_SEGMENT:
 	case KVM_CAP_DEBUGREGS:
 	case KVM_CAP_X86_ROBUST_SINGLESTEP:
+	case KVM_CAP_XSAVE:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -1702,6 +1703,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_MCE:
 		r = KVM_MAX_MCE_BANKS;
+		break;
+	case KVM_CAP_XCRS:
+		r = cpu_has_xsave;
 		break;
 	default:
 		r = 0;
@@ -2355,6 +2359,77 @@ static int kvm_vcpu_ioctl_x86_set_debugregs(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
+static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
+					 struct kvm_xsave *guest_xsave)
+{
+	if (cpu_has_xsave)
+		memcpy(guest_xsave->region,
+			&vcpu->arch.guest_fpu.state->xsave,
+			sizeof(struct xsave_struct));
+	else {
+		memcpy(guest_xsave->region,
+			&vcpu->arch.guest_fpu.state->fxsave,
+			sizeof(struct i387_fxsave_struct));
+		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)] =
+			XSTATE_FPSSE;
+	}
+}
+
+static int kvm_vcpu_ioctl_x86_set_xsave(struct kvm_vcpu *vcpu,
+					struct kvm_xsave *guest_xsave)
+{
+	u64 xstate_bv =
+		*(u64 *)&guest_xsave->region[XSAVE_HDR_OFFSET / sizeof(u32)];
+
+	if (cpu_has_xsave)
+		memcpy(&vcpu->arch.guest_fpu.state->xsave,
+			guest_xsave->region, sizeof(struct xsave_struct));
+	else {
+		if (xstate_bv & ~XSTATE_FPSSE)
+			return -EINVAL;
+		memcpy(&vcpu->arch.guest_fpu.state->fxsave,
+			guest_xsave->region, sizeof(struct i387_fxsave_struct));
+	}
+	return 0;
+}
+
+static void kvm_vcpu_ioctl_x86_get_xcrs(struct kvm_vcpu *vcpu,
+					struct kvm_xcrs *guest_xcrs)
+{
+	if (!cpu_has_xsave) {
+		guest_xcrs->nr_xcrs = 0;
+		return;
+	}
+
+	guest_xcrs->nr_xcrs = 1;
+	guest_xcrs->flags = 0;
+	guest_xcrs->xcrs[0].xcr = XCR_XFEATURE_ENABLED_MASK;
+	guest_xcrs->xcrs[0].value = vcpu->arch.xcr0;
+}
+
+static int kvm_vcpu_ioctl_x86_set_xcrs(struct kvm_vcpu *vcpu,
+				       struct kvm_xcrs *guest_xcrs)
+{
+	int i, r = 0;
+
+	if (!cpu_has_xsave)
+		return -EINVAL;
+
+	if (guest_xcrs->nr_xcrs > KVM_MAX_XCRS || guest_xcrs->flags)
+		return -EINVAL;
+
+	for (i = 0; i < guest_xcrs->nr_xcrs; i++)
+		/* Only support XCR0 currently */
+		if (guest_xcrs->xcrs[0].xcr == XCR_XFEATURE_ENABLED_MASK) {
+			r = __kvm_set_xcr(vcpu, XCR_XFEATURE_ENABLED_MASK,
+				guest_xcrs->xcrs[0].value);
+			break;
+		}
+	if (r)
+		r = -EINVAL;
+	return r;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
@@ -2554,6 +2629,70 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			break;
 
 		r = kvm_vcpu_ioctl_x86_set_debugregs(vcpu, &dbgregs);
+		break;
+	}
+	case KVM_GET_XSAVE: {
+		struct kvm_xsave *xsave;
+
+		xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!xsave)
+			break;
+
+		kvm_vcpu_ioctl_x86_get_xsave(vcpu, xsave);
+
+		r = -EFAULT;
+		if (copy_to_user(argp, xsave, sizeof(struct kvm_xsave)))
+			break;
+		r = 0;
+		break;
+	}
+	case KVM_SET_XSAVE: {
+		struct kvm_xsave *xsave;
+
+		xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!xsave)
+			break;
+
+		r = -EFAULT;
+		if (copy_from_user(xsave, argp, sizeof(struct kvm_xsave)))
+			break;
+
+		r = kvm_vcpu_ioctl_x86_set_xsave(vcpu, xsave);
+		break;
+	}
+	case KVM_GET_XCRS: {
+		struct kvm_xcrs *xcrs;
+
+		xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!xcrs)
+			break;
+
+		kvm_vcpu_ioctl_x86_get_xcrs(vcpu, xcrs);
+
+		r = -EFAULT;
+		if (copy_to_user(argp, xcrs,
+				 sizeof(struct kvm_xcrs)))
+			break;
+		r = 0;
+		break;
+	}
+	case KVM_SET_XCRS: {
+		struct kvm_xcrs *xcrs;
+
+		xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!xcrs)
+			break;
+
+		r = -EFAULT;
+		if (copy_from_user(xcrs, argp,
+				   sizeof(struct kvm_xcrs)))
+			break;
+
+		r = kvm_vcpu_ioctl_x86_set_xcrs(vcpu, xcrs);
 		break;
 	}
 	default:

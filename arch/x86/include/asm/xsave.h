@@ -13,8 +13,11 @@
 
 #define FXSAVE_SIZE	512
 
-#define XSTATE_YMM_SIZE 256
-#define XSTATE_YMM_OFFSET (512 + 64)
+#define XSAVE_HDR_SIZE	    64
+#define XSAVE_HDR_OFFSET    FXSAVE_SIZE
+
+#define XSAVE_YMM_SIZE	    256
+#define XSAVE_YMM_OFFSET    (XSAVE_HDR_SIZE + XSAVE_HDR_OFFSET)
 
 /*
  * These are the features that the OS can handle currently.
