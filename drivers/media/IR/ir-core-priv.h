@@ -24,17 +24,55 @@ struct ir_raw_handler {
 
 	u64 protocols; /* which are handled by this handler */
 	int (*decode)(struct input_dev *input_dev, struct ir_raw_event event);
+
+	/* These two should only be used by the lirc decoder */
 	int (*raw_register)(struct input_dev *input_dev);
 	int (*raw_unregister)(struct input_dev *input_dev);
 };
 
 struct ir_raw_event_ctrl {
+	struct list_head		list;		/* to keep track of raw clients */
 	struct work_struct		rx_work;	/* for the rx decoding workqueue */
 	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
 	struct input_dev		*input_dev;	/* pointer to the parent input_dev */
 	u64				enabled_protocols; /* enabled raw protocol decoders */
+
+	/* raw decoder state follows */
+	struct ir_raw_event prev_ev;
+	struct nec_dec {
+		int state;
+		unsigned count;
+		u32 bits;
+	} nec;
+	struct rc5_dec {
+		int state;
+		u32 bits;
+		unsigned count;
+		unsigned wanted_bits;
+	} rc5;
+	struct rc6_dec {
+		int state;
+		u8 header;
+		u32 body;
+		bool toggle;
+		unsigned count;
+		unsigned wanted_bits;
+	} rc6;
+	struct sony_dec {
+		int state;
+		u32 bits;
+		unsigned count;
+	} sony;
+	struct jvc_dec {
+		int state;
+		u16 bits;
+		u16 old_bits;
+		unsigned count;
+		bool first;
+		bool toggle;
+	} jvc;
 };
 
 /* macros for IR decoders */

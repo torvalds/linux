@@ -25,10 +25,6 @@
 #define JVC_TRAILER_PULSE	(1  * JVC_UNIT)
 #define	JVC_TRAILER_SPACE	(35 * JVC_UNIT)
 
-/* Used to register jvc_decoder clients */
-static LIST_HEAD(decoder_list);
-DEFINE_SPINLOCK(decoder_lock);
-
 enum jvc_state {
 	STATE_INACTIVE,
 	STATE_HEADER_SPACE,
@@ -37,39 +33,6 @@ enum jvc_state {
 	STATE_TRAILER_PULSE,
 	STATE_TRAILER_SPACE,
 };
-
-struct decoder_data {
-	struct list_head	list;
-	struct ir_input_dev	*ir_dev;
-
-	/* State machine control */
-	enum jvc_state		state;
-	u16			jvc_bits;
-	u16			jvc_old_bits;
-	unsigned		count;
-	bool			first;
-	bool			toggle;
-};
-
-
-/**
- * get_decoder_data()	- gets decoder data
- * @input_dev:	input device
- *
- * Returns the struct decoder_data that corresponds to a device
- */
-static struct decoder_data *get_decoder_data(struct  ir_input_dev *ir_dev)
-{
-	struct decoder_data *data = NULL;
-
-	spin_lock(&decoder_lock);
-	list_for_each_entry(data, &decoder_list, list) {
-		if (data->ir_dev == ir_dev)
-			break;
-	}
-	spin_unlock(&decoder_lock);
-	return data;
-}
 
 /**
  * ir_jvc_decode() - Decode one JVC pulse or space
@@ -80,12 +43,8 @@ static struct decoder_data *get_decoder_data(struct  ir_input_dev *ir_dev)
  */
 static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 {
-	struct decoder_data *data;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-
-	data = get_decoder_data(ir_dev);
-	if (!data)
-		return -EINVAL;
+	struct jvc_dec *data = &ir_dev->raw->jvc;
 
 	if (!(ir_dev->raw->enabled_protocols & IR_TYPE_JVC))
 		return 0;
@@ -140,9 +99,9 @@ static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 		if (ev.pulse)
 			break;
 
-		data->jvc_bits <<= 1;
+		data->bits <<= 1;
 		if (eq_margin(ev.duration, JVC_BIT_1_SPACE, JVC_UNIT / 2)) {
-			data->jvc_bits |= 1;
+			data->bits |= 1;
 			decrease_duration(&ev, JVC_BIT_1_SPACE);
 		} else if (eq_margin(ev.duration, JVC_BIT_0_SPACE, JVC_UNIT / 2))
 			decrease_duration(&ev, JVC_BIT_0_SPACE);
@@ -175,13 +134,13 @@ static int ir_jvc_decode(struct input_dev *input_dev, struct ir_raw_event ev)
 
 		if (data->first) {
 			u32 scancode;
-			scancode = (bitrev8((data->jvc_bits >> 8) & 0xff) << 8) |
-				   (bitrev8((data->jvc_bits >> 0) & 0xff) << 0);
+			scancode = (bitrev8((data->bits >> 8) & 0xff) << 8) |
+				   (bitrev8((data->bits >> 0) & 0xff) << 0);
 			IR_dprintk(1, "JVC scancode 0x%04x\n", scancode);
 			ir_keydown(input_dev, scancode, data->toggle);
 			data->first = false;
-			data->jvc_old_bits = data->jvc_bits;
-		} else if (data->jvc_bits == data->jvc_old_bits) {
+			data->old_bits = data->bits;
+		} else if (data->bits == data->old_bits) {
 			IR_dprintk(1, "JVC repeat\n");
 			ir_repeat(input_dev);
 		} else {
@@ -201,45 +160,9 @@ out:
 	return -EINVAL;
 }
 
-static int ir_jvc_register(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct decoder_data *data;
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	data->ir_dev = ir_dev;
-
-	spin_lock(&decoder_lock);
-	list_add_tail(&data->list, &decoder_list);
-	spin_unlock(&decoder_lock);
-
-	return 0;
-}
-
-static int ir_jvc_unregister(struct input_dev *input_dev)
-{
-	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	static struct decoder_data *data;
-
-	data = get_decoder_data(ir_dev);
-	if (!data)
-		return 0;
-
-	spin_lock(&decoder_lock);
-	list_del(&data->list);
-	spin_unlock(&decoder_lock);
-
-	return 0;
-}
-
 static struct ir_raw_handler jvc_handler = {
 	.protocols	= IR_TYPE_JVC,
 	.decode		= ir_jvc_decode,
-	.raw_register	= ir_jvc_register,
-	.raw_unregister	= ir_jvc_unregister,
 };
 
 static int __init ir_jvc_decode_init(void)
