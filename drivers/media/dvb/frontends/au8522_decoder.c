@@ -622,7 +622,7 @@ static int au8522_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 		return v4l2_ctrl_query_fill(qc, 0, 255, 1,
 					    AU8522_TVDEC_CONTRAST_REG00BH_CVBS);
 	case V4L2_CID_BRIGHTNESS:
-		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 109);
 	case V4L2_CID_SATURATION:
 		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_HUE:
