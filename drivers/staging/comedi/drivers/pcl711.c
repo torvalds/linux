@@ -281,7 +281,7 @@ static int pcl711_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 				goto ok;
 			udelay(1);
 		}
-		printk("comedi%d: pcl711: A/D timeout\n", dev->minor);
+		printk(KERN_ERR "comedi%d: pcl711: A/D timeout\n", dev->minor);
 		return -ETIME;
 
 ok:
@@ -516,7 +516,7 @@ static int pcl711_do_insn_bits(struct comedi_device *dev,
 /*  Free any resources that we have claimed  */
 static int pcl711_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: pcl711: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: pcl711: remove\n", dev->minor);
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
@@ -538,7 +538,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* claim our I/O space */
 
 	iobase = it->options[0];
-	printk("comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: pcl711: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PCL711_SIZE, "pcl711")) {
 		printk("I/O port conflict\n");
 		return -EIO;
@@ -553,15 +553,15 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* grab our IRQ */
 	irq = it->options[1];
 	if (irq > this_board->maxirq) {
-		printk("irq out of range\n");
+		printk(KERN_ERR "irq out of range\n");
 		return -EINVAL;
 	}
 	if (irq) {
 		if (request_irq(irq, pcl711_interrupt, 0, "pcl711", dev)) {
-			printk("unable to allocate irq %u\n", irq);
+			printk(KERN_ERR "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		} else {
-			printk("( irq = %u )\n", irq);
+			printk(KERN_INFO "( irq = %u )\n", irq);
 		}
 	}
 	dev->irq = irq;
@@ -635,7 +635,7 @@ static int pcl711_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	outb(0, dev->iobase + PCL711_DA1_LO);
 	outb(0, dev->iobase + PCL711_DA1_HI);
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 
 	return 0;
 }
