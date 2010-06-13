@@ -150,11 +150,8 @@ int ip6_frag_match(struct inet_frag_queue *q, void *a)
 EXPORT_SYMBOL(ip6_frag_match);
 
 /* Memory Tracking Functions. */
-static inline void frag_kfree_skb(struct netns_frags *nf,
-		struct sk_buff *skb, int *work)
+static void frag_kfree_skb(struct netns_frags *nf, struct sk_buff *skb)
 {
-	if (work)
-		*work -= skb->truesize;
 	atomic_sub(skb->truesize, &nf->mem);
 	kfree_skb(skb);
 }
@@ -392,7 +389,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 				fq->q.fragments = next;
 
 			fq->q.meat -= free_it->len;
-			frag_kfree_skb(fq->q.net, free_it, NULL);
+			frag_kfree_skb(fq->q.net, free_it);
 		}
 	}
 

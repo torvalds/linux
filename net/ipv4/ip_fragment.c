@@ -124,11 +124,8 @@ static int ip4_frag_match(struct inet_frag_queue *q, void *a)
 }
 
 /* Memory Tracking Functions. */
-static __inline__ void frag_kfree_skb(struct netns_frags *nf,
-		struct sk_buff *skb, int *work)
+static void frag_kfree_skb(struct netns_frags *nf, struct sk_buff *skb)
 {
-	if (work)
-		*work -= skb->truesize;
 	atomic_sub(skb->truesize, &nf->mem);
 	kfree_skb(skb);
 }
@@ -309,7 +306,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	fp = qp->q.fragments;
 	do {
 		struct sk_buff *xp = fp->next;
-		frag_kfree_skb(qp->q.net, fp, NULL);
+		frag_kfree_skb(qp->q.net, fp);
 		fp = xp;
 	} while (fp);
 
@@ -446,7 +443,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 				qp->q.fragments = next;
 
 			qp->q.meat -= free_it->len;
-			frag_kfree_skb(qp->q.net, free_it, NULL);
+			frag_kfree_skb(qp->q.net, free_it);
 		}
 	}
 
