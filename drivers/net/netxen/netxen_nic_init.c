@@ -218,7 +218,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	if (cmd_buf_arr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate cmd buffer ring\n",
 		       netdev->name);
-		return -ENOMEM;
+		goto err_out;
 	}
 	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
@@ -230,7 +230,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	if (rds_ring == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate rds ring struct\n",
 		       netdev->name);
-		return -ENOMEM;
+		goto err_out;
 	}
 	recv_ctx->rds_rings = rds_ring;
 
