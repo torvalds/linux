@@ -240,12 +240,22 @@ void dsp_powerctl(int ctl, int arg)
         {
 #if USE_CLOCK_FUN
 			clk_enable(inf->clk);
+
+            /* dsp subsys power on 0x21*/
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
+            mdelay(15);
+
 #else
             /* dsp clock enable 0x12*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x02)) , RK2818_SCU_BASE+0x1c);
+
+            /* dsp subsys power on 0x21*/
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
+            mdelay(15);
+
 			/* dsp pll enable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) & (~(0x01u<<22))) , RK2818_SCU_BASE+0x04);
-			udelay(10);
+			udelay(300);		//0.3ms
 #endif
 			/* dsp set clk */
 			dsp_set_clk(arg);
@@ -260,15 +270,11 @@ void dsp_powerctl(int ctl, int arg)
             /* dsp core peripheral rest then not rest */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x02000020)) , RK2818_SCU_BASE+0x28);
-            mdelay(15);
+            //mdelay(15);
 
             /* dsp work mode :slow mode*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
-            mdelay(15);
-
-            /* dsp subsys power on 0x21*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
-            mdelay(15);
+            //mdelay(15);
 
             /* change dsp & arm to normal mode */
             __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
@@ -290,10 +296,13 @@ void dsp_powerctl(int ctl, int arg)
             udelay(10);
 
 #if USE_CLOCK_FUN
+			dsp_set_clk(300);
 			clk_disable(inf->clk);
 #else
             /* dsp clock disable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x02)) , RK2818_SCU_BASE+0x1c);
+
+			dsp_set_clk(300);
             /* dsp pll disable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) | (0x01u<<22)) , RK2818_SCU_BASE+0x04);
             udelay(10);
