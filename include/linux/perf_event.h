@@ -563,6 +563,11 @@ struct perf_event;
 struct pmu {
 	struct list_head		entry;
 
+	int				*pmu_disable_count;
+
+	void (*pmu_enable)		(struct pmu *pmu);
+	void (*pmu_disable)		(struct pmu *pmu);
+
 	/*
 	 * Should return -ENOENT when the @event doesn't match this PMU.
 	 */
@@ -868,10 +873,8 @@ extern void perf_event_free_task(struct task_struct *task);
 extern void set_perf_event_pending(void);
 extern void perf_event_do_pending(void);
 extern void perf_event_print_debug(void);
-extern void __perf_disable(void);
-extern bool __perf_enable(void);
-extern void perf_disable(void);
-extern void perf_enable(void);
+extern void perf_pmu_disable(struct pmu *pmu);
+extern void perf_pmu_enable(struct pmu *pmu);
 extern int perf_event_task_disable(void);
 extern int perf_event_task_enable(void);
 extern void perf_event_update_userpage(struct perf_event *event);
@@ -1056,8 +1059,6 @@ static inline void perf_event_exit_task(struct task_struct *child)	{ }
 static inline void perf_event_free_task(struct task_struct *task)	{ }
 static inline void perf_event_do_pending(void)				{ }
 static inline void perf_event_print_debug(void)				{ }
-static inline void perf_disable(void)					{ }
-static inline void perf_enable(void)					{ }
 static inline int perf_event_task_disable(void)				{ return -EINVAL; }
 static inline int perf_event_task_enable(void)				{ return -EINVAL; }
 

@@ -517,7 +517,7 @@ static void write_mmcr0(struct cpu_hw_events *cpuhw, unsigned long mmcr0)
  * Disable all events to prevent PMU interrupts and to allow
  * events to be added or removed.
  */
-void hw_perf_disable(void)
+static void power_pmu_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
 	unsigned long flags;
@@ -565,7 +565,7 @@ void hw_perf_disable(void)
  * If we were previously disabled and events were added, then
  * put the new config on the PMU.
  */
-void hw_perf_enable(void)
+static void power_pmu_pmu_enable(struct pmu *pmu)
 {
 	struct perf_event *event;
 	struct cpu_hw_events *cpuhw;
@@ -735,7 +735,7 @@ static int power_pmu_enable(struct perf_event *event)
 	int ret = -EAGAIN;
 
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	/*
 	 * Add the event to the list (if there is room)
@@ -769,7 +769,7 @@ nocheck:
 
 	ret = 0;
  out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 	return ret;
 }
@@ -784,7 +784,7 @@ static void power_pmu_disable(struct perf_event *event)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	power_pmu_read(event);
 
@@ -821,7 +821,7 @@ static void power_pmu_disable(struct perf_event *event)
 		cpuhw->mmcr[0] &= ~(MMCR0_PMXE | MMCR0_FCECE);
 	}
 
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 }
 
@@ -837,7 +837,7 @@ static void power_pmu_unthrottle(struct perf_event *event)
 	if (!event->hw.idx || !event->hw.sample_period)
 		return;
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	power_pmu_read(event);
 	left = event->hw.sample_period;
 	event->hw.last_period = left;
@@ -848,7 +848,7 @@ static void power_pmu_unthrottle(struct perf_event *event)
 	local64_set(&event->hw.prev_count, val);
 	local64_set(&event->hw.period_left, left);
 	perf_event_update_userpage(event);
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 }
 
@@ -861,7 +861,7 @@ void power_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	perf_disable();
+	perf_pmu_disable(pmu);
 	cpuhw->group_flag |= PERF_EVENT_TXN;
 	cpuhw->n_txn_start = cpuhw->n_events;
 }
@@ -876,7 +876,7 @@ void power_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
-	perf_enable();
+	perf_pmu_enable(pmu);
 }
 
 /*
@@ -903,7 +903,7 @@ int power_pmu_commit_txn(struct pmu *pmu)
 		cpuhw->event[i]->hw.config = cpuhw->events[i];
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
-	perf_enable();
+	perf_pmu_enable(pmu);
 	return 0;
 }
 
@@ -1131,6 +1131,8 @@ static int power_pmu_event_init(struct perf_event *event)
 }
 
 struct pmu power_pmu = {
+	.pmu_enable	= power_pmu_pmu_enable,
+	.pmu_disable	= power_pmu_pmu_disable,
 	.event_init	= power_pmu_event_init,
 	.enable		= power_pmu_enable,
 	.disable	= power_pmu_disable,

@@ -232,7 +232,7 @@ static int sh_pmu_enable(struct perf_event *event)
 	int idx = hwc->idx;
 	int ret = -EAGAIN;
 
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	if (test_and_set_bit(idx, cpuc->used_mask)) {
 		idx = find_first_zero_bit(cpuc->used_mask, sh_pmu->num_events);
@@ -253,7 +253,7 @@ static int sh_pmu_enable(struct perf_event *event)
 	perf_event_update_userpage(event);
 	ret = 0;
 out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	return ret;
 }
 
@@ -285,7 +285,25 @@ static int sh_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
+static void sh_pmu_pmu_enable(struct pmu *pmu)
+{
+	if (!sh_pmu_initialized())
+		return;
+
+	sh_pmu->enable_all();
+}
+
+static void sh_pmu_pmu_disable(struct pmu *pmu)
+{
+	if (!sh_pmu_initialized())
+		return;
+
+	sh_pmu->disable_all();
+}
+
 static struct pmu pmu = {
+	.pmu_enable	= sh_pmu_pmu_enable,
+	.pmu_disable	= sh_pmu_pmu_disable,
 	.event_init	= sh_pmu_event_init,
 	.enable		= sh_pmu_enable,
 	.disable	= sh_pmu_disable,
@@ -314,22 +332,6 @@ sh_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 	}
 
 	return NOTIFY_OK;
-}
-
-void hw_perf_enable(void)
-{
-	if (!sh_pmu_initialized())
-		return;
-
-	sh_pmu->enable_all();
-}
-
-void hw_perf_disable(void)
-{
-	if (!sh_pmu_initialized())
-		return;
-
-	sh_pmu->disable_all();
 }
 
 int __cpuinit register_sh_pmu(struct sh_pmu *pmu)

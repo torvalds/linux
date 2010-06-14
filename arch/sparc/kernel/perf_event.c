@@ -664,7 +664,7 @@ out:
 	return pcr;
 }
 
-void hw_perf_enable(void)
+static void sparc_pmu_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 pcr;
@@ -691,7 +691,7 @@ void hw_perf_enable(void)
 	pcr_ops->write(cpuc->pcr);
 }
 
-void hw_perf_disable(void)
+static void sparc_pmu_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
@@ -718,7 +718,7 @@ static void sparc_pmu_disable(struct perf_event *event)
 	int i;
 
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	for (i = 0; i < cpuc->n_events; i++) {
 		if (event == cpuc->event[i]) {
@@ -748,7 +748,7 @@ static void sparc_pmu_disable(struct perf_event *event)
 		}
 	}
 
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 }
 
@@ -991,7 +991,7 @@ static int sparc_pmu_enable(struct perf_event *event)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	n0 = cpuc->n_events;
 	if (n0 >= perf_max_events)
@@ -1020,7 +1020,7 @@ nocheck:
 
 	ret = 0;
 out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 	return ret;
 }
@@ -1113,7 +1113,7 @@ static void sparc_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	perf_disable();
+	perf_pmu_disable(pmu);
 	cpuhw->group_flag |= PERF_EVENT_TXN;
 }
 
@@ -1127,7 +1127,7 @@ static void sparc_pmu_cancel_txn(struct pmu *pmu)
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
 	cpuhw->group_flag &= ~PERF_EVENT_TXN;
-	perf_enable();
+	perf_pmu_enable(pmu);
 }
 
 /*
@@ -1151,11 +1151,13 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 		return -EAGAIN;
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN;
-	perf_enable();
+	perf_pmu_enable(pmu);
 	return 0;
 }
 
 static struct pmu pmu = {
+	.pmu_enable	= sparc_pmu_pmu_enable,
+	.pmu_disable	= sparc_pmu_pmu_disable,
 	.event_init	= sparc_pmu_event_init,
 	.enable		= sparc_pmu_enable,
 	.disable	= sparc_pmu_disable,

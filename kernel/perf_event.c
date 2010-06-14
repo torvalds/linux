@@ -71,23 +71,20 @@ static atomic64_t perf_event_id;
  */
 static DEFINE_SPINLOCK(perf_resource_lock);
 
-void __weak hw_perf_disable(void)		{ barrier(); }
-void __weak hw_perf_enable(void)		{ barrier(); }
-
 void __weak perf_event_print_debug(void)	{ }
 
-static DEFINE_PER_CPU(int, perf_disable_count);
-
-void perf_disable(void)
+void perf_pmu_disable(struct pmu *pmu)
 {
-	if (!__get_cpu_var(perf_disable_count)++)
-		hw_perf_disable();
+	int *count = this_cpu_ptr(pmu->pmu_disable_count);
+	if (!(*count)++)
+		pmu->pmu_disable(pmu);
 }
 
-void perf_enable(void)
+void perf_pmu_enable(struct pmu *pmu)
 {
-	if (!--__get_cpu_var(perf_disable_count))
-		hw_perf_enable();
+	int *count = this_cpu_ptr(pmu->pmu_disable_count);
+	if (!--(*count))
+		pmu->pmu_enable(pmu);
 }
 
 static void get_ctx(struct perf_event_context *ctx)
@@ -4970,11 +4967,19 @@ static struct srcu_struct pmus_srcu;
 
 int perf_pmu_register(struct pmu *pmu)
 {
+	int ret;
+
 	mutex_lock(&pmus_lock);
+	ret = -ENOMEM;
+	pmu->pmu_disable_count = alloc_percpu(int);
+	if (!pmu->pmu_disable_count)
+		goto unlock;
 	list_add_rcu(&pmu->entry, &pmus);
+	ret = 0;
+unlock:
 	mutex_unlock(&pmus_lock);
 
-	return 0;
+	return ret;
 }
 
 void perf_pmu_unregister(struct pmu *pmu)
@@ -4984,6 +4989,8 @@ void perf_pmu_unregister(struct pmu *pmu)
 	mutex_unlock(&pmus_lock);
 
 	synchronize_srcu(&pmus_srcu);
+
+	free_percpu(pmu->pmu_disable_count);
 }
 
 struct pmu *perf_init_event(struct perf_event *event)

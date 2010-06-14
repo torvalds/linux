@@ -435,7 +435,7 @@ static int alpha_pmu_enable(struct perf_event *event)
 	 * nevertheless we disable the PMCs first to enable a potential
 	 * final PMI to occur before we disable interrupts.
 	 */
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	local_irq_save(flags);
 
 	/* Default to error to be returned */
@@ -456,7 +456,7 @@ static int alpha_pmu_enable(struct perf_event *event)
 	}
 
 	local_irq_restore(flags);
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 
 	return ret;
 }
@@ -474,7 +474,7 @@ static void alpha_pmu_disable(struct perf_event *event)
 	unsigned long flags;
 	int j;
 
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	local_irq_save(flags);
 
 	for (j = 0; j < cpuc->n_events; j++) {
@@ -502,7 +502,7 @@ static void alpha_pmu_disable(struct perf_event *event)
 	}
 
 	local_irq_restore(flags);
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 }
 
 
@@ -668,18 +668,10 @@ static int alpha_pmu_event_init(struct perf_event *event)
 	return err;
 }
 
-static struct pmu pmu = {
-	.event_init	= alpha_pmu_event_init,
-	.enable		= alpha_pmu_enable,
-	.disable	= alpha_pmu_disable,
-	.read		= alpha_pmu_read,
-	.unthrottle	= alpha_pmu_unthrottle,
-};
-
 /*
  * Main entry point - enable HW performance counters.
  */
-void hw_perf_enable(void)
+static void alpha_pmu_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -705,7 +697,7 @@ void hw_perf_enable(void)
  * Main entry point - disable HW performance counters.
  */
 
-void hw_perf_disable(void)
+static void alpha_pmu_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -717,6 +709,16 @@ void hw_perf_disable(void)
 
 	wrperfmon(PERFMON_CMD_DISABLE, cpuc->idx_mask);
 }
+
+static struct pmu pmu = {
+	.pmu_enable	= alpha_pmu_pmu_enable,
+	.pmu_disable	= alpha_pmu_pmu_disable,
+	.event_init	= alpha_pmu_event_init,
+	.enable		= alpha_pmu_enable,
+	.disable	= alpha_pmu_disable,
+	.read		= alpha_pmu_read,
+	.unthrottle	= alpha_pmu_unthrottle,
+};
 
 
 /*

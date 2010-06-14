@@ -583,7 +583,7 @@ static void x86_pmu_disable_all(void)
 	}
 }
 
-void hw_perf_disable(void)
+static void x86_pmu_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -803,7 +803,7 @@ static inline int match_prev_assignment(struct hw_perf_event *hwc,
 static int x86_pmu_start(struct perf_event *event);
 static void x86_pmu_stop(struct perf_event *event);
 
-void hw_perf_enable(void)
+static void x86_pmu_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct perf_event *event;
@@ -969,7 +969,7 @@ static int x86_pmu_enable(struct perf_event *event)
 
 	hwc = &event->hw;
 
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	n0 = cpuc->n_events;
 	ret = n = collect_events(cpuc, event, false);
 	if (ret < 0)
@@ -999,7 +999,7 @@ done_collect:
 
 	ret = 0;
 out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	return ret;
 }
 
@@ -1436,7 +1436,7 @@ static void x86_pmu_start_txn(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	perf_disable();
+	perf_pmu_disable(pmu);
 	cpuc->group_flag |= PERF_EVENT_TXN;
 	cpuc->n_txn = 0;
 }
@@ -1456,7 +1456,7 @@ static void x86_pmu_cancel_txn(struct pmu *pmu)
 	 */
 	cpuc->n_added -= cpuc->n_txn;
 	cpuc->n_events -= cpuc->n_txn;
-	perf_enable();
+	perf_pmu_enable(pmu);
 }
 
 /*
@@ -1486,7 +1486,7 @@ static int x86_pmu_commit_txn(struct pmu *pmu)
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN;
-	perf_enable();
+	perf_pmu_enable(pmu);
 	return 0;
 }
 
@@ -1605,6 +1605,8 @@ int x86_pmu_event_init(struct perf_event *event)
 }
 
 static struct pmu pmu = {
+	.pmu_enable	= x86_pmu_pmu_enable,
+	.pmu_disable	= x86_pmu_pmu_disable,
 	.event_init	= x86_pmu_event_init,
 	.enable		= x86_pmu_enable,
 	.disable	= x86_pmu_disable,

@@ -177,7 +177,7 @@ static void fsl_emb_pmu_read(struct perf_event *event)
  * Disable all events to prevent PMU interrupts and to allow
  * events to be added or removed.
  */
-void hw_perf_disable(void)
+static void fsl_emb_pmu_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
 	unsigned long flags;
@@ -216,7 +216,7 @@ void hw_perf_disable(void)
  * If we were previously disabled and events were added, then
  * put the new config on the PMU.
  */
-void hw_perf_enable(void)
+static void fsl_emb_pmu_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw;
 	unsigned long flags;
@@ -271,7 +271,7 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 	u64 val;
 	int i;
 
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	cpuhw = &get_cpu_var(cpu_hw_events);
 
 	if (event->hw.config & FSL_EMB_EVENT_RESTRICTED)
@@ -311,7 +311,7 @@ static int fsl_emb_pmu_enable(struct perf_event *event)
 	ret = 0;
  out:
 	put_cpu_var(cpu_hw_events);
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	return ret;
 }
 
@@ -321,7 +321,7 @@ static void fsl_emb_pmu_disable(struct perf_event *event)
 	struct cpu_hw_events *cpuhw;
 	int i = event->hw.idx;
 
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	if (i < 0)
 		goto out;
 
@@ -349,7 +349,7 @@ static void fsl_emb_pmu_disable(struct perf_event *event)
 	cpuhw->n_events--;
 
  out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	put_cpu_var(cpu_hw_events);
 }
 
@@ -367,7 +367,7 @@ static void fsl_emb_pmu_unthrottle(struct perf_event *event)
 	if (event->hw.idx < 0 || !event->hw.sample_period)
 		return;
 	local_irq_save(flags);
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 	fsl_emb_pmu_read(event);
 	left = event->hw.sample_period;
 	event->hw.last_period = left;
@@ -378,7 +378,7 @@ static void fsl_emb_pmu_unthrottle(struct perf_event *event)
 	local64_set(&event->hw.prev_count, val);
 	local64_set(&event->hw.period_left, left);
 	perf_event_update_userpage(event);
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 }
 
@@ -524,6 +524,8 @@ static int fsl_emb_pmu_event_init(struct perf_event *event)
 }
 
 static struct pmu fsl_emb_pmu = {
+	.pmu_enable	= fsl_emb_pmu_pmu_enable,
+	.pmu_disable	= fsl_emb_pmu_pmu_disable,
 	.event_init	= fsl_emb_pmu_event_init,
 	.enable		= fsl_emb_pmu_enable,
 	.disable	= fsl_emb_pmu_disable,

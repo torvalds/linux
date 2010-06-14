@@ -277,7 +277,7 @@ armpmu_enable(struct perf_event *event)
 	int idx;
 	int err = 0;
 
-	perf_disable();
+	perf_pmu_disable(event->pmu);
 
 	/* If we don't have a space for the counter then finish early. */
 	idx = armpmu->get_event_idx(cpuc, hwc);
@@ -305,7 +305,7 @@ armpmu_enable(struct perf_event *event)
 	perf_event_update_userpage(event);
 
 out:
-	perf_enable();
+	perf_pmu_enable(event->pmu);
 	return err;
 }
 
@@ -534,16 +534,7 @@ static int armpmu_event_init(struct perf_event *event)
 	return err;
 }
 
-static struct pmu pmu = {
-	.event_init = armpmu_event_init,
-	.enable	    = armpmu_enable,
-	.disable    = armpmu_disable,
-	.unthrottle = armpmu_unthrottle,
-	.read	    = armpmu_read,
-};
-
-void
-hw_perf_enable(void)
+static void armpmu_pmu_enable(struct pmu *pmu)
 {
 	/* Enable all of the perf events on hardware. */
 	int idx;
@@ -564,12 +555,21 @@ hw_perf_enable(void)
 	armpmu->start();
 }
 
-void
-hw_perf_disable(void)
+static void armpmu_pmu_disable(struct pmu *pmu)
 {
 	if (armpmu)
 		armpmu->stop();
 }
+
+static struct pmu pmu = {
+	.pmu_enable = armpmu_pmu_enable,
+	.pmu_disable= armpmu_pmu_disable,
+	.event_init = armpmu_event_init,
+	.enable	    = armpmu_enable,
+	.disable    = armpmu_disable,
+	.unthrottle = armpmu_unthrottle,
+	.read	    = armpmu_read,
+};
 
 /*
  * ARMv6 Performance counter handling code.
