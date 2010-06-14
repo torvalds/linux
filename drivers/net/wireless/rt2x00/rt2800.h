@@ -1557,7 +1557,9 @@ struct mac_iveiv_entry {
  */
 
 /*
- * BBP 1: TX Antenna
+ * BBP 1: TX Antenna & Power
+ * POWER: 0 - normal, 1 - drop tx power by 6dBm, 2 - drop tx power by 12dBm,
+ *	3 - increase tx power by 6dBm
  */
 #define BBP1_TX_POWER			FIELD8(0x07)
 #define BBP1_TX_ANTENNA			FIELD8(0x18)
