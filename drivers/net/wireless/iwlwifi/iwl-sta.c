@@ -55,18 +55,19 @@ static void iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 	}
 }
 
-static void iwl_process_add_sta_resp(struct iwl_priv *priv,
-				     struct iwl_addsta_cmd *addsta,
-				     struct iwl_rx_packet *pkt,
-				     bool sync)
+static int iwl_process_add_sta_resp(struct iwl_priv *priv,
+				    struct iwl_addsta_cmd *addsta,
+				    struct iwl_rx_packet *pkt,
+				    bool sync)
 {
 	u8 sta_id = addsta->sta.sta_id;
 	unsigned long flags;
+	int ret = -EIO;
 
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_ADD_STA (0x%08X)\n",
 			pkt->hdr.flags);
-		return;
+		return ret;
 	}
 
 	IWL_DEBUG_INFO(priv, "Processing response for adding station %u\n",
@@ -78,6 +79,7 @@ static void iwl_process_add_sta_resp(struct iwl_priv *priv,
 	case ADD_STA_SUCCESS_MSK:
 		IWL_DEBUG_INFO(priv, "REPLY_ADD_STA PASSED\n");
 		iwl_sta_ucode_activate(priv, sta_id);
+		ret = 0;
 		break;
 	case ADD_STA_NO_ROOM_IN_TABLE:
 		IWL_ERR(priv, "Adding station %d failed, no room in table.\n",
@@ -115,6 +117,8 @@ static void iwl_process_add_sta_resp(struct iwl_priv *priv,
 		       STA_CONTROL_MODIFY_MSK ? "Modified" : "Added",
 		       addsta->sta.addr);
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return ret;
 }
 
 static void iwl_add_sta_callback(struct iwl_priv *priv,
@@ -159,7 +163,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 
 	if (ret == 0) {
 		pkt = (struct iwl_rx_packet *)cmd.reply_page;
-		iwl_process_add_sta_resp(priv, sta, pkt, true);
+		ret = iwl_process_add_sta_resp(priv, sta, pkt, true);
 	}
 	iwl_free_pages(priv, cmd.reply_page);
 
