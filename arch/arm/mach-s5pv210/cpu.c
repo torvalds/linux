@@ -87,6 +87,7 @@ void __init s5pv210_map_io(void)
 	s5pv210_default_sdhci0();
 	s5pv210_default_sdhci1();
 	s5pv210_default_sdhci2();
+	s5pv210_default_sdhci3();
 
 	s3c_cfcon_setname("s5pv210-pata");
 
