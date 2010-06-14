@@ -274,6 +274,33 @@ static int dspregs_active(struct task_struct *target,
 }
 #endif
 
+const struct pt_regs_offset regoffset_table[] = {
+	REGS_OFFSET_NAME(0),
+	REGS_OFFSET_NAME(1),
+	REGS_OFFSET_NAME(2),
+	REGS_OFFSET_NAME(3),
+	REGS_OFFSET_NAME(4),
+	REGS_OFFSET_NAME(5),
+	REGS_OFFSET_NAME(6),
+	REGS_OFFSET_NAME(7),
+	REGS_OFFSET_NAME(8),
+	REGS_OFFSET_NAME(9),
+	REGS_OFFSET_NAME(10),
+	REGS_OFFSET_NAME(11),
+	REGS_OFFSET_NAME(12),
+	REGS_OFFSET_NAME(13),
+	REGS_OFFSET_NAME(14),
+	REGS_OFFSET_NAME(15),
+	REG_OFFSET_NAME(pc),
+	REG_OFFSET_NAME(pr),
+	REG_OFFSET_NAME(sr),
+	REG_OFFSET_NAME(gbr),
+	REG_OFFSET_NAME(mach),
+	REG_OFFSET_NAME(macl),
+	REG_OFFSET_NAME(tra),
+	REG_OFFSET_END,
+};
+
 /*
  * These are our native regset flavours.
  */
