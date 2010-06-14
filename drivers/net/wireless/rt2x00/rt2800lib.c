@@ -1079,7 +1079,7 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	u8 r1;
 
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
-	rt2x00_set_field8(&reg, BBP1_TX_POWER, 0);
+	rt2x00_set_field8(&r1, BBP1_TX_POWER, 0);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
 
 	rt2800_register_read(rt2x00dev, TX_PWR_CFG_0, &reg);
