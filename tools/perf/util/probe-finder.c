@@ -37,6 +37,7 @@
 #include "event.h"
 #include "debug.h"
 #include "util.h"
+#include "symbol.h"
 #include "probe-finder.h"
 
 /* Kprobe tracer basic type is up to u64 */
@@ -55,6 +56,55 @@ static int strtailcmp(const char *s1, const char *s2)
 			return s1[i1] - s2[i2];
 	}
 	return 0;
+}
+
+/*
+ * Find a src file from a DWARF tag path. Prepend optional source path prefix
+ * and chop off leading directories that do not exist. Result is passed back as
+ * a newly allocated path on success.
+ * Return 0 if file was found and readable, -errno otherwise.
+ */
+static int get_real_path(const char *raw_path, char **new_path)
+{
+	if (!symbol_conf.source_prefix) {
+		if (access(raw_path, R_OK) == 0) {
+			*new_path = strdup(raw_path);
+			return 0;
+		} else
+			return -errno;
+	}
+
+	*new_path = malloc((strlen(symbol_conf.source_prefix) +
+			    strlen(raw_path) + 2));
+	if (!*new_path)
+		return -ENOMEM;
+
+	for (;;) {
+		sprintf(*new_path, "%s/%s", symbol_conf.source_prefix,
+			raw_path);
+
+		if (access(*new_path, R_OK) == 0)
+			return 0;
+
+		switch (errno) {
+		case ENAMETOOLONG:
+		case ENOENT:
+		case EROFS:
+		case EFAULT:
+			raw_path = strchr(++raw_path, '/');
+			if (!raw_path) {
+				free(*new_path);
+				*new_path = NULL;
+				return -ENOENT;
+			}
+			continue;
+
+		default:
+			free(*new_path);
+			*new_path = NULL;
+			return -errno;
+		}
+	}
 }
 
 /* Line number list operations */
@@ -1096,11 +1146,13 @@ end:
 static int line_range_add_line(const char *src, unsigned int lineno,
 			       struct line_range *lr)
 {
+	int ret;
+
 	/* Copy real path */
 	if (!lr->path) {
-		lr->path = strdup(src);
-		if (lr->path == NULL)
-			return -ENOMEM;
+		ret = get_real_path(src, &lr->path);
+		if (ret != 0)
+			return ret;
 	}
 	return line_list__add_line(&lr->line_list, lineno);
 }

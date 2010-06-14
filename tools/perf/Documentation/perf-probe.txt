@@ -31,6 +31,10 @@ OPTIONS
 --vmlinux=PATH::
 	Specify vmlinux path which has debuginfo (Dwarf binary).
 
+-s::
+--source=PATH::
+	Specify path to kernel source.
+
 -v::
 --verbose::
         Be more verbose (show parsed arguments, etc).
