@@ -864,10 +864,6 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	struct fw_cdev_create_iso_context *a = &arg->create_iso_context;
 	struct fw_iso_context *context;
 
-	/* We only support one context at this time. */
-	if (client->iso_context != NULL)
-		return -EBUSY;
-
 	if (a->channel > 63)
 		return -EINVAL;
 
@@ -892,10 +888,17 @@ static int ioctl_create_iso_context(struct client *client, union ioctl_arg *arg)
 	if (IS_ERR(context))
 		return PTR_ERR(context);
 
+	/* We only support one context at this time. */
+	spin_lock_irq(&client->lock);
+	if (client->iso_context != NULL) {
+		spin_unlock_irq(&client->lock);
+		fw_iso_context_destroy(context);
+		return -EBUSY;
+	}
 	client->iso_closure = a->closure;
 	client->iso_context = context;
+	spin_unlock_irq(&client->lock);
 
-	/* We only support one context at this time. */
 	a->handle = 0;
 
 	return 0;
