@@ -156,6 +156,12 @@ config LEDS_LP8550
 	help
 	  This option enables support for the LP8550 LED driver
 
+config LEDS_LM3559
+	tristate "LED support for the LM3559"
+	depends on LEDS_CLASS && I2C
+	help
+	  This option enables support for the LM3559 LED driver
+
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on GENERIC_GPIO
