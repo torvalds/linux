@@ -1,9 +1,9 @@
 /*
+	Copyright (C) 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
 	Copyright (C) 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 
 	Based on the original rt2800pci.c and rt2800usb.c.
-	  Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	  Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
 	  Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	  Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
@@ -40,10 +40,6 @@
 #include "rt2x00.h"
 #include "rt2800lib.h"
 #include "rt2800.h"
-
-MODULE_AUTHOR("Bartlomiej Zolnierkiewicz");
-MODULE_DESCRIPTION("rt2800 library");
-MODULE_LICENSE("GPL");
 
 /*
  * Register access.
@@ -2761,3 +2757,8 @@ const struct ieee80211_ops rt2800_mac80211_ops = {
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 };
 EXPORT_SYMBOL_GPL(rt2800_mac80211_ops);
+
+MODULE_AUTHOR(DRV_PROJECT ", Bartlomiej Zolnierkiewicz");
+MODULE_VERSION(DRV_VERSION);
+MODULE_DESCRIPTION("Ralink RT2800 library");
+MODULE_LICENSE("GPL");
