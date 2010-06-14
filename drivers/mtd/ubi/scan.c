@@ -901,8 +901,7 @@ adjust_mean_ec:
  * MTD device. Returns zero if we should proceed with attaching the MTD device,
  * and %-EINVAL if we should not.
  */
-static int check_what_we_have(const struct ubi_device *ubi,
-			      struct ubi_scan_info *si)
+static int check_what_we_have(struct ubi_device *ubi, struct ubi_scan_info *si)
 {
 	struct ubi_scan_leb *seb;
 	int max_corr;

@@ -150,7 +150,7 @@ int ubi_io_read(const struct ubi_device *ubi, void *buf, int pnum, int offset,
 retry:
 	err = ubi->mtd->read(ubi->mtd, addr, len, &read, buf);
 	if (err) {
-		const char errstr = (err == -EBADMSG) ? "ECC error" : "";
+		const char *errstr = (err == -EBADMSG) ? " (ECC error)" : "";
 
 		if (err == -EUCLEAN) {
 			/*
@@ -174,7 +174,7 @@ retry:
 			goto retry;
 		}
 
-		ubi_err("error %d while reading %d bytes from PEB %d:%d, "
+		ubi_err("error %d%s while reading %d bytes from PEB %d:%d, "
 			"read %zd bytes", err, errstr, len, pnum, offset, read);
 		ubi_dbg_dump_stack();
 
