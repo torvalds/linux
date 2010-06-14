@@ -39,28 +39,28 @@ Configuration Options:
  * The previous block comment is used to automatically generate
  * documentation in Comedi and Comedilib.  The fields:
  *
- * Driver: the name of the driver
- * Description: a short phrase describing the driver.  Don't list boards.
- * Devices: a full list of the boards that attempt to be supported by
- *   the driver.  Format is "(manufacturer) board name [comedi name]",
- *   where comedi_name is the name that is used to configure the board.
- *   See the comment near board_name: in the struct comedi_driver structure
- *   below.  If (manufacturer) or [comedi name] is missing, the previous
- *   value is used.
- * Author: you
- * Updated: date when the _documentation_ was last updated.  Use 'date -R'
- *   to get a value for this.
- * Status: a one-word description of the status.  Valid values are:
- *   works - driver works correctly on most boards supported, and
- *     passes comedi_test.
- *   unknown - unknown.  Usually put there by ds.
- *   experimental - may not work in any particular release.  Author
- *     probably wants assistance testing it.
- *   bitrotten - driver has not been update in a long time, probably
- *     doesn't work, and probably is missing support for significant
- *     Comedi interface features.
- *   untested - author probably wrote it "blind", and is believed to
- *     work, but no confirmation.
+ *  Driver: the name of the driver
+ *  Description: a short phrase describing the driver.  Don't list boards.
+ *  Devices: a full list of the boards that attempt to be supported by
+ *    the driver.  Format is "(manufacturer) board name [comedi name]",
+ *    where comedi_name is the name that is used to configure the board.
+ *    See the comment near board_name: in the struct comedi_driver structure
+ *    below.  If (manufacturer) or [comedi name] is missing, the previous
+ *    value is used.
+ *  Author: you
+ *  Updated: date when the _documentation_ was last updated.  Use 'date -R'
+ *    to get a value for this.
+ *  Status: a one-word description of the status.  Valid values are:
+ *    works - driver works correctly on most boards supported, and
+ *      passes comedi_test.
+ *    unknown - unknown.  Usually put there by ds.
+ *    experimental - may not work in any particular release.  Author
+ *      probably wants assistance testing it.
+ *    bitrotten - driver has not been update in a long time, probably
+ *      doesn't work, and probably is missing support for significant
+ *      Comedi interface features.
+ *    untested - author probably wrote it "blind", and is believed to
+ *      work, but no confirmation.
  *
  * These headers should be followed by a blank line, and any comments
  * you wish to say about the driver.  The comment area is the place
