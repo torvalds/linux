@@ -946,8 +946,6 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_puts(seq, ",journal_async_commit");
 	else if (test_opt(sb, JOURNAL_CHECKSUM))
 		seq_puts(seq, ",journal_checksum");
-	if (test_opt(sb, NOBH))
-		seq_puts(seq, ",nobh");
 	if (test_opt(sb, I_VERSION))
 		seq_puts(seq, ",i_version");
 	if (!test_opt(sb, DELALLOC))
@@ -1624,10 +1622,12 @@ set_qf_format:
 			*n_blocks_count = option;
 			break;
 		case Opt_nobh:
-			set_opt(sbi->s_mount_opt, NOBH);
+			ext4_msg(sb, KERN_WARNING,
+				 "Ignoring deprecated nobh option");
 			break;
 		case Opt_bh:
-			clear_opt(sbi->s_mount_opt, NOBH);
+			ext4_msg(sb, KERN_WARNING,
+				 "Ignoring deprecated bh option");
 			break;
 		case Opt_i_version:
 			set_opt(sbi->s_mount_opt, I_VERSION);
@@ -2912,18 +2912,7 @@ no_journal:
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
 		goto failed_mount_wq;
 	}
-	if (test_opt(sb, NOBH)) {
-		if (!(test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)) {
-			ext4_msg(sb, KERN_WARNING, "Ignoring nobh option - "
-				"its supported only with writeback mode");
-			clear_opt(sbi->s_mount_opt, NOBH);
-		}
-		if (test_opt(sb, DIOREAD_NOLOCK)) {
-			ext4_msg(sb, KERN_WARNING, "dioread_nolock option is "
-				"not supported with nobh mode");
-			goto failed_mount_wq;
-		}
-	}
+
 	EXT4_SB(sb)->dio_unwritten_wq = create_workqueue("ext4-dio-unwritten");
 	if (!EXT4_SB(sb)->dio_unwritten_wq) {
 		printk(KERN_ERR "EXT4-fs: failed to create DIO workqueue\n");

@@ -2553,18 +2553,16 @@ static int ext4_da_get_block_prep(struct inode *inode, sector_t iblock,
 /*
  * This function is used as a standard get_block_t calback function
  * when there is no desire to allocate any blocks.  It is used as a
- * callback function for block_prepare_write(), nobh_writepage(), and
- * block_write_full_page().  These functions should only try to map a
- * single block at a time.
+ * callback function for block_prepare_write() and block_write_full_page().
+ * These functions should only try to map a single block at a time.
  *
  * Since this function doesn't do block allocations even if the caller
  * requests it by passing in create=1, it is critically important that
  * any caller checks to make sure that any buffer heads are returned
  * by this function are either all already mapped or marked for
- * delayed allocation before calling nobh_writepage() or
- * block_write_full_page().  Otherwise, b_blocknr could be left
- * unitialized, and the page write functions will be taken by
- * surprise.
+ * delayed allocation before calling  block_write_full_page().  Otherwise,
+ * b_blocknr could be left unitialized, and the page write functions will
+ * be taken by surprise.
  */
 static int noalloc_get_block_write(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
@@ -2749,9 +2747,7 @@ static int ext4_writepage(struct page *page,
 		return __ext4_journalled_writepage(page, len);
 	}
 
-	if (test_opt(inode->i_sb, NOBH) && ext4_should_writeback_data(inode))
-		ret = nobh_writepage(page, noalloc_get_block_write, wbc);
-	else if (page_bufs && buffer_uninit(page_bufs)) {
+	if (page_bufs && buffer_uninit(page_bufs)) {
 		ext4_set_bh_endio(page_bufs, inode);
 		ret = block_write_full_page_endio(page, noalloc_get_block_write,
 					    wbc, ext4_end_io_buffer_write);
@@ -4124,17 +4120,6 @@ int ext4_block_truncate_page(handle_t *handle,
 	blocksize = inode->i_sb->s_blocksize;
 	length = blocksize - (offset & (blocksize - 1));
 	iblock = index << (PAGE_CACHE_SHIFT - inode->i_sb->s_blocksize_bits);
-
-	/*
-	 * For "nobh" option,  we can only work if we don't need to
-	 * read-in the page - otherwise we create buffers to do the IO.
-	 */
-	if (!page_has_buffers(page) && test_opt(inode->i_sb, NOBH) &&
-	     ext4_should_writeback_data(inode) && PageUptodate(page)) {
-		zero_user(page, offset, length);
-		set_page_dirty(page);
-		goto unlock;
-	}
 
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, blocksize, 0);
