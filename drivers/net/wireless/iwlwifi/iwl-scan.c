@@ -799,6 +799,7 @@ void iwl_bg_abort_scan(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
+	cancel_delayed_work_sync(&priv->scan_check);
 	set_bit(STATUS_SCAN_ABORTING, &priv->status);
 	iwl_send_scan_abort(priv);
 
