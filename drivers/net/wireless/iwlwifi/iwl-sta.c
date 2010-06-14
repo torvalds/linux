@@ -834,7 +834,9 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 {
 	unsigned long flags;
 	__le16 key_flags = 0;
-	int ret;
+	struct iwl_addsta_cmd sta_cmd;
+
+	lockdep_assert_held(&priv->mutex);
 
 	keyconf->flags &= ~IEEE80211_KEY_FLAG_GENERATE_IV;
 
@@ -874,11 +876,10 @@ static int iwl_set_wep_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	ret = iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return ret;
+	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
 static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
@@ -887,7 +888,9 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 {
 	unsigned long flags;
 	__le16 key_flags = 0;
-	int ret;
+	struct iwl_addsta_cmd sta_cmd;
+
+	lockdep_assert_held(&priv->mutex);
 
 	key_flags |= (STA_KEY_FLG_CCMP | STA_KEY_FLG_MAP_KEY_MSK);
 	key_flags |= cpu_to_le16(keyconf->keyidx << STA_KEY_FLG_KEYID_POS);
@@ -922,11 +925,10 @@ static int iwl_set_ccmp_dynamic_key_info(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.sta.modify_mask = STA_MODIFY_KEY_MASK;
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
-	ret = iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
-
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
-	return ret;
+	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 
 static int iwl_set_tkip_dynamic_key_info(struct iwl_priv *priv,
@@ -1016,9 +1018,11 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 				u8 sta_id)
 {
 	unsigned long flags;
-	int ret = 0;
 	u16 key_flags;
 	u8 keyidx;
+	struct iwl_addsta_cmd sta_cmd;
+
+	lockdep_assert_held(&priv->mutex);
 
 	priv->key_mapping_key--;
 
@@ -1065,9 +1069,10 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
 	}
-	ret =  iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
+	memcpy(&sta_cmd, &priv->stations[sta_id].sta, sizeof(struct iwl_addsta_cmd));
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
-	return ret;
+
+	return iwl_send_add_sta(priv, &sta_cmd, CMD_SYNC);
 }
 EXPORT_SYMBOL(iwl_remove_dynamic_key);
 
@@ -1075,6 +1080,8 @@ int iwl_set_dynamic_key(struct iwl_priv *priv,
 				struct ieee80211_key_conf *keyconf, u8 sta_id)
 {
 	int ret;
+
+	lockdep_assert_held(&priv->mutex);
 
 	priv->key_mapping_key++;
 	keyconf->hw_key_idx = HW_KEY_DYNAMIC;
