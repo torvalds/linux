@@ -387,6 +387,8 @@ struct ieee80211_if_ibss {
 	unsigned long request;
 	unsigned long last_scan_completed;
 
+	u32 basic_rates;
+
 	bool timer_running;
 
 	bool fixed_bssid;
