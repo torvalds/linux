@@ -1259,6 +1259,36 @@ int iwl_alloc_bcast_station(struct iwl_priv *priv, bool init_lq)
 }
 EXPORT_SYMBOL_GPL(iwl_alloc_bcast_station);
 
+/**
+ * iwl_update_bcast_station - update broadcast station's LQ command
+ *
+ * Only used by iwlagn. Placed here to have all bcast station management
+ * code together.
+ */
+int iwl_update_bcast_station(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	struct iwl_link_quality_cmd *link_cmd;
+	u8 sta_id = priv->hw_params.bcast_sta_id;
+
+	link_cmd = iwl_sta_alloc_lq(priv, sta_id);
+	if (!link_cmd) {
+		IWL_ERR(priv, "Unable to initialize rate scaling for bcast station.\n");
+		return -ENOMEM;
+	}
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	if (priv->stations[sta_id].lq)
+		kfree(priv->stations[sta_id].lq);
+	else
+		IWL_DEBUG_INFO(priv, "Bcast station rate scaling has not been initialized yet.\n");
+	priv->stations[sta_id].lq = link_cmd;
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iwl_update_bcast_station);
+
 void iwl_dealloc_bcast_station(struct iwl_priv *priv)
 {
 	unsigned long flags;
