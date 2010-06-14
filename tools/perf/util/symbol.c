@@ -933,6 +933,25 @@ static bool elf_sec__is_a(GElf_Shdr *self, Elf_Data *secstrs, enum map_type type
 	}
 }
 
+static size_t elf_addr_to_index(Elf *elf, GElf_Addr addr)
+{
+	Elf_Scn *sec = NULL;
+	GElf_Shdr shdr;
+	size_t cnt = 1;
+
+	while ((sec = elf_nextscn(elf, sec)) != NULL) {
+		gelf_getshdr(sec, &shdr);
+
+		if ((addr >= shdr.sh_addr) &&
+		    (addr < (shdr.sh_addr + shdr.sh_size)))
+			return cnt;
+
+		++cnt;
+	}
+
+	return -1;
+}
+
 static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 			 int fd, symbol_filter_t filter, int kmodule)
 {
@@ -944,12 +963,13 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 	int err = -1;
 	uint32_t idx;
 	GElf_Ehdr ehdr;
-	GElf_Shdr shdr;
-	Elf_Data *syms;
+	GElf_Shdr shdr, opdshdr;
+	Elf_Data *syms, *opddata = NULL;
 	GElf_Sym sym;
-	Elf_Scn *sec, *sec_strndx;
+	Elf_Scn *sec, *sec_strndx, *opdsec;
 	Elf *elf;
 	int nr = 0;
+	size_t opdidx = 0;
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL) {
@@ -968,6 +988,10 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 		if (sec == NULL)
 			goto out_elf_end;
 	}
+
+	opdsec = elf_section_by_name(elf, &ehdr, &opdshdr, ".opd", &opdidx);
+	if (opdsec)
+		opddata = elf_rawdata(opdsec, NULL);
 
 	syms = elf_getdata(sec, NULL);
 	if (syms == NULL)
@@ -1012,6 +1036,13 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 
 		if (!is_label && !elf_sym__is_a(&sym, map->type))
 			continue;
+
+		if (opdsec && sym.st_shndx == opdidx) {
+			u32 offset = sym.st_value - opdshdr.sh_addr;
+			u64 *opd = opddata->d_buf + offset;
+			sym.st_value = *opd;
+			sym.st_shndx = elf_addr_to_index(elf, sym.st_value);
+		}
 
 		sec = elf_getscn(elf, sym.st_shndx);
 		if (!sec)
