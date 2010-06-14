@@ -1,7 +1,11 @@
+config IMX_HAVE_DMA_V1
+	bool
+
 if ARCH_MX1
 
 config SOC_IMX1
 	select CPU_ARM920T
+	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
 	bool
 
@@ -27,12 +31,14 @@ if ARCH_MX2
 config SOC_IMX21
 	select CPU_ARM926T
 	select ARCH_MXC_AUDMUX_V1
+	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
 	bool
 
 config SOC_IMX27
 	select CPU_ARM926T
 	select ARCH_MXC_AUDMUX_V1
+	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
 	bool
 

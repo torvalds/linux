@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/plat-mxc/dma-mx1-mx2.c
+ *  linux/arch/arm/plat-mxc/dma-v1.c
  *
  *  i.MX DMA registration and IRQ dispatching
  *
@@ -34,7 +34,7 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <mach/dma-mx1-mx2.h>
+#include <mach/dma-v1.h>
 
 #define DMA_DCR     0x00		/* Control Register */
 #define DMA_DISR    0x04		/* Interrupt status Register */

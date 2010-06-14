@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/plat-mxc/include/mach/dma-mx1-mx2.h
+ *  linux/arch/arm/mach-imx/include/mach/dma-v1.h
  *
  *  i.MX DMA registration and IRQ dispatching
  *
@@ -22,8 +22,10 @@
  * MA 02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_DMA_H
-#define __ASM_ARCH_MXC_DMA_H
+#ifndef __MACH_DMA_V1_H__
+#define __MACH_DMA_V1_H__
+
+#define imx_has_dma_v1()	(cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
 
 #define IMX_DMA_CHANNELS  16
 
@@ -102,4 +104,4 @@ enum imx_dma_prio {
 
 int imx_dma_request_by_prio(const char *name, enum imx_dma_prio prio);
 
-#endif	/* _ASM_ARCH_MXC_DMA_H */
+#endif	/* __MACH_DMA_V1_H__ */
