@@ -881,13 +881,12 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	unsigned long flags;
 	u32 *data;
 	size_t data_length;
-	int tcode, tlabel, destination, source, rcode;
+	int tcode, tlabel, source, rcode;
 
-	tcode       = HEADER_GET_TCODE(p->header[0]);
-	tlabel      = HEADER_GET_TLABEL(p->header[0]);
-	destination = HEADER_GET_DESTINATION(p->header[0]);
-	source      = HEADER_GET_SOURCE(p->header[1]);
-	rcode       = HEADER_GET_RCODE(p->header[1]);
+	tcode	= HEADER_GET_TCODE(p->header[0]);
+	tlabel	= HEADER_GET_TLABEL(p->header[0]);
+	source	= HEADER_GET_SOURCE(p->header[1]);
+	rcode	= HEADER_GET_RCODE(p->header[1]);
 
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
