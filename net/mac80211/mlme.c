@@ -2158,14 +2158,16 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_work *wk;
-	const u8 *bssid = req->bss->bssid;
+	u8 bssid[ETH_ALEN];
+	bool assoc_bss = false;
 
 	mutex_lock(&ifmgd->mtx);
 
+	memcpy(bssid, req->bss->bssid, ETH_ALEN);
 	if (ifmgd->associated == req->bss) {
-		bssid = req->bss->bssid;
-		ieee80211_set_disassoc(sdata, true);
+		ieee80211_set_disassoc(sdata, false);
 		mutex_unlock(&ifmgd->mtx);
+		assoc_bss = true;
 	} else {
 		bool not_auth_yet = false;
 
@@ -2211,6 +2213,8 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_deauth_disassoc(sdata, bssid, IEEE80211_STYPE_DEAUTH,
 				       req->reason_code, cookie,
 				       !req->local_state_change);
+	if (assoc_bss)
+		sta_info_destroy_addr(sdata, bssid);
 
 	ieee80211_recalc_idle(sdata->local);
 
