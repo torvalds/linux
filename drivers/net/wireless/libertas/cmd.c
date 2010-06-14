@@ -7,13 +7,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include "host.h"
 #include "decl.h"
-#include "defs.h"
-#include "dev.h"
-#include "assoc.h"
-#include "wext.h"
-#include "scan.h"
+#include "cfg.h"
 #include "cmd.h"
 
 
@@ -176,11 +171,6 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
 		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
-
-	if (lbs_set_regiontable(priv, priv->regioncode, 0)) {
-		ret = -1;
-		goto out;
-	}
 
 out:
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -1325,6 +1315,15 @@ int lbs_execute_next_command(struct lbs_private *priv)
 		 * check if in power save mode, if yes, put the device back
 		 * to PS mode
 		 */
+#ifdef TODO
+		/*
+		 * This was the old code for libertas+wext. Someone that
+		 * understands this beast should re-code it in a sane way.
+		 *
+		 * I actually don't understand why this is related to WPA
+		 * and to connection status, shouldn't powering should be
+		 * independ of such things?
+		 */
 		if ((priv->psmode != LBS802_11POWERMODECAM) &&
 		    (priv->psstate == PS_STATE_FULL_POWER) &&
 		    ((priv->connect_status == LBS_CONNECTED) ||
@@ -1346,6 +1345,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				lbs_ps_sleep(priv, 0);
 			}
 		}
+#endif
 	}
 
 	ret = 0;

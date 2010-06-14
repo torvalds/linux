@@ -4,12 +4,13 @@
 #include <linux/etherdevice.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <net/cfg80211.h>
 
+#include "defs.h"
 #include "host.h"
 #include "radiotap.h"
 #include "decl.h"
 #include "dev.h"
-#include "wext.h"
 
 struct eth803hdr {
 	u8 dest_addr[6];
@@ -39,98 +40,6 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb);
 
 /**
- *  @brief	This function computes the avgSNR .
- *
- *  @param	priv	A pointer to struct lbs_private structure
- *  @return	avgSNR
- */
-static u8 lbs_getavgsnr(struct lbs_private *priv)
-{
-	u8 i;
-	u16 temp = 0;
-	if (priv->numSNRNF == 0)
-		return 0;
-	for (i = 0; i < priv->numSNRNF; i++)
-		temp += priv->rawSNR[i];
-	return (u8) (temp / priv->numSNRNF);
-
-}
-
-/**
- *  @brief	This function computes the AvgNF
- *
- *  @param	priv	A pointer to struct lbs_private structure
- *  @return	AvgNF
- */
-static u8 lbs_getavgnf(struct lbs_private *priv)
-{
-	u8 i;
-	u16 temp = 0;
-	if (priv->numSNRNF == 0)
-		return 0;
-	for (i = 0; i < priv->numSNRNF; i++)
-		temp += priv->rawNF[i];
-	return (u8) (temp / priv->numSNRNF);
-
-}
-
-/**
- *  @brief	This function save the raw SNR/NF to our internel buffer
- *
- *  @param	priv	A pointer to struct lbs_private structure
- *  @param	prxpd	A pointer to rxpd structure of received packet
- *  @return	n/a
- */
-static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
-{
-	if (priv->numSNRNF < DEFAULT_DATA_AVG_FACTOR)
-		priv->numSNRNF++;
-	priv->rawSNR[priv->nextSNRNF] = p_rx_pd->snr;
-	priv->rawNF[priv->nextSNRNF] = p_rx_pd->nf;
-	priv->nextSNRNF++;
-	if (priv->nextSNRNF >= DEFAULT_DATA_AVG_FACTOR)
-		priv->nextSNRNF = 0;
-}
-
-/**
- *  @brief	This function computes the RSSI in received packet.
- *
- *  @param	priv	A pointer to struct lbs_private structure
- *  @param	prxpd	A pointer to rxpd structure of received packet
- *  @return	n/a
- */
-static void lbs_compute_rssi(struct lbs_private *priv, struct rxpd *p_rx_pd)
-{
-
-	lbs_deb_enter(LBS_DEB_RX);
-
-	lbs_deb_rx("rxpd: SNR %d, NF %d\n", p_rx_pd->snr, p_rx_pd->nf);
-	lbs_deb_rx("before computing SNR: SNR-avg = %d, NF-avg = %d\n",
-	       priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
-	       priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
-
-	priv->SNR[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->snr;
-	priv->NF[TYPE_RXPD][TYPE_NOAVG] = p_rx_pd->nf;
-	lbs_save_rawSNRNF(priv, p_rx_pd);
-
-	priv->SNR[TYPE_RXPD][TYPE_AVG] = lbs_getavgsnr(priv) * AVG_SCALE;
-	priv->NF[TYPE_RXPD][TYPE_AVG] = lbs_getavgnf(priv) * AVG_SCALE;
-	lbs_deb_rx("after computing SNR: SNR-avg = %d, NF-avg = %d\n",
-	       priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
-	       priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
-
-	priv->RSSI[TYPE_RXPD][TYPE_NOAVG] =
-	    CAL_RSSI(priv->SNR[TYPE_RXPD][TYPE_NOAVG],
-		     priv->NF[TYPE_RXPD][TYPE_NOAVG]);
-
-	priv->RSSI[TYPE_RXPD][TYPE_AVG] =
-	    CAL_RSSI(priv->SNR[TYPE_RXPD][TYPE_AVG] / AVG_SCALE,
-		     priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE);
-
-	lbs_deb_leave(LBS_DEB_RX);
-}
-
-/**
  *  @brief This function processes received packet and forwards it
  *  to kernel/upper layer
  *
@@ -154,7 +63,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 
 	skb->ip_summed = CHECKSUM_NONE;
 
-	if (priv->monitormode)
+	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
 		return process_rxed_802_11_packet(priv, skb);
 
 	p_rx_pd = (struct rxpd *) skb->data;
@@ -225,13 +134,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 	 */
 	skb_pull(skb, hdrchop);
 
-	/* Take the data rate from the rxpd structure
-	 * only if the rate is auto
-	 */
-	if (priv->enablehwauto)
-		priv->cur_rate = lbs_fw_index_to_data_rate(p_rx_pd->rx_rate);
-
-	lbs_compute_rssi(priv, p_rx_pd);
+	priv->cur_rate = lbs_fw_index_to_data_rate(p_rx_pd->rx_rate);
 
 	lbs_deb_rx("rx data: size of actual packet %d\n", skb->len);
 	dev->stats.rx_bytes += skb->len;
@@ -352,20 +255,18 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	pradiotap_hdr = (void *)skb_push(skb, sizeof(struct rx_radiotap_hdr));
 	memcpy(pradiotap_hdr, &radiotap_hdr, sizeof(struct rx_radiotap_hdr));
 
-	/* Take the data rate from the rxpd structure
-	 * only if the rate is auto
-	 */
-	if (priv->enablehwauto)
-		priv->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);
-
-	lbs_compute_rssi(priv, prxpd);
+	priv->cur_rate = lbs_fw_index_to_data_rate(prxpd->rx_rate);
 
 	lbs_deb_rx("rx data: size of actual packet %d\n", skb->len);
 	dev->stats.rx_bytes += skb->len;
 	dev->stats.rx_packets++;
 
-	skb->protocol = eth_type_trans(skb, priv->rtap_net_dev);
-	netif_rx(skb);
+	skb->protocol = eth_type_trans(skb, priv->dev);
+
+	if (in_interrupt())
+		netif_rx(skb);
+	else
+		netif_rx_ni(skb);
 
 	ret = 0;
 

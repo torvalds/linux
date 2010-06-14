@@ -70,11 +70,6 @@ void lbs_persist_config_init(struct net_device *net);
 void lbs_persist_config_remove(struct net_device *net);
 
 
-/* WEXT handler */
-
-extern struct iw_handler_def mesh_handler_def;
-
-
 /* Ethtool statistics */
 
 struct ethtool_stats;

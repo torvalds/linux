@@ -5,18 +5,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/if_arp.h>
-#include <linux/netdevice.h>
 #include <asm/unaligned.h>
-#include <net/iw_handler.h>
+#include <net/cfg80211.h>
 
-#include "host.h"
-#include "decl.h"
-#include "cmd.h"
-#include "defs.h"
-#include "dev.h"
-#include "assoc.h"
-#include "wext.h"
+#include "cfg.h"
 #include "cmd.h"
 
 /**
@@ -50,22 +42,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	priv->currenttxskb = NULL;
 	priv->tx_pending_len = 0;
 
-	/* reset SNR/NF/RSSI values */
-	memset(priv->SNR, 0x00, sizeof(priv->SNR));
-	memset(priv->NF, 0x00, sizeof(priv->NF));
-	memset(priv->RSSI, 0x00, sizeof(priv->RSSI));
-	memset(priv->rawSNR, 0x00, sizeof(priv->rawSNR));
-	memset(priv->rawNF, 0x00, sizeof(priv->rawNF));
-	priv->nextSNRNF = 0;
-	priv->numSNRNF = 0;
 	priv->connect_status = LBS_DISCONNECTED;
-
-	/* Clear out associated SSID and BSSID since connection is
-	 * no longer valid.
-	 */
-	memset(&priv->curbssparams.bssid, 0, ETH_ALEN);
-	memset(&priv->curbssparams.ssid, 0, IEEE80211_MAX_SSID_LEN);
-	priv->curbssparams.ssid_len = 0;
 
 	if (priv->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */
@@ -262,7 +239,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 			 * ad-hoc mode. It takes place in
 			 * lbs_execute_next_command().
 			 */
-			if (priv->mode == IW_MODE_ADHOC &&
+			if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR &&
 			    action == CMD_SUBCMD_ENTER_PS)
 				priv->psmode = LBS802_11POWERMODECAM;
 		} else if (action == CMD_SUBCMD_ENTER_PS) {

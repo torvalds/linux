@@ -5,6 +5,7 @@
 #include <linux/if_arp.h>
 #include <linux/kthread.h>
 #include <linux/kfifo.h>
+#include <net/cfg80211.h>
 
 #include "mesh.h"
 #include "decl.h"
@@ -314,7 +315,7 @@ static int lbs_mesh_dev_open(struct net_device *dev)
 
 	spin_lock_irq(&priv->driver_lock);
 
-	if (priv->monitormode) {
+	if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -369,9 +370,6 @@ int lbs_add_mesh(struct lbs_private *priv)
 
 	SET_NETDEV_DEV(priv->mesh_dev, priv->dev->dev.parent);
 
-#ifdef	WIRELESS_EXT
-	mesh_dev->wireless_handlers = &mesh_handler_def;
-#endif
 	mesh_dev->flags |= IFF_BROADCAST | IFF_MULTICAST;
 	/* Register virtual mesh interface */
 	ret = register_netdev(mesh_dev);
