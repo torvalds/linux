@@ -1184,6 +1184,7 @@ void gserial_cleanup(void)
 	n_ports = 0;
 
 	tty_unregister_driver(gs_tty_driver);
+	put_tty_driver(gs_tty_driver);
 	gs_tty_driver = NULL;
 
 	pr_debug("%s: cleaned up ttyGS* support\n", __func__);
