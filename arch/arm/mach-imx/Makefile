@@ -6,12 +6,20 @@
 
 obj-y	:=  devices.o
 
+obj-$(CONFIG_ARCH_MX1) += clock-imx1.o mm-imx1.o
 obj-$(CONFIG_MACH_MX21) += clock-imx21.o mm-imx21.o
 
 obj-$(CONFIG_MACH_MX27) += cpu-imx27.o
 obj-$(CONFIG_MACH_MX27) += clock-imx27.o mm-imx27.o
 
+# Support for CMOS sensor interface
+obj-$(CONFIG_MX1_VIDEO)	+= mx1-camera-fiq.o mx1-camera-fiq-ksym.o
+
+obj-$(CONFIG_ARCH_MX1ADS) += mach-mx1ads.o
+obj-$(CONFIG_MACH_SCB9328) += mach-scb9328.o
+
 obj-$(CONFIG_MACH_MX21ADS) += mach-mx21ads.o
+
 obj-$(CONFIG_MACH_MX27ADS) += mach-mx27ads.o
 obj-$(CONFIG_MACH_PCM038) += mach-pcm038.o
 obj-$(CONFIG_MACH_PCM970_BASEBOARD) += pcm970-baseboard.o

@@ -3,7 +3,7 @@
  *  Created: april 20th, 2004
  *  Copyright: Synertronixx GmbH
  *
- *  Common code for i.MX machines
+ *  Common code for i.MX1 machines
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
