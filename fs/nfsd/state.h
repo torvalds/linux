@@ -243,7 +243,6 @@ struct nfs4_client {
 	struct list_head	cl_sessions;
 	struct nfsd4_clid_slot	cl_cs_slot;	/* create_session slot */
 	u32			cl_exchange_flags;
-	struct nfs4_sessionid	cl_sessionid;
 	/* number of rpc's in progress over an associated session: */
 	atomic_t		cl_refcount;
 

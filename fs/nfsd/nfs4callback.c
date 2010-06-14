@@ -251,6 +251,7 @@ encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_callback *cb,
 		   struct nfs4_cb_compound_hdr *hdr)
 {
 	__be32 *p;
+	struct nfsd4_session *ses = cb->cb_clp->cl_cb_session;
 
 	if (hdr->minorversion == 0)
 		return;
@@ -258,7 +259,7 @@ encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_callback *cb,
 	RESERVE_SPACE(1 + NFS4_MAX_SESSIONID_LEN + 20);
 
 	WRITE32(OP_CB_SEQUENCE);
-	WRITEMEM(cb->cb_clp->cl_sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	WRITEMEM(ses->se_sessionid.data, NFS4_MAX_SESSIONID_LEN);
 	WRITE32(cb->cb_clp->cl_cb_seq_nr);
 	WRITE32(0);		/* slotid, always 0 */
 	WRITE32(0);		/* highest slotid always 0 */
@@ -341,6 +342,7 @@ static int
 decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_callback *cb,
 		   struct rpc_rqst *rqstp)
 {
+	struct nfsd4_session *ses = cb->cb_clp->cl_cb_session;
 	struct nfs4_sessionid id;
 	int status;
 	u32 dummy;
@@ -362,8 +364,7 @@ decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_callback *cb,
 	READ_BUF(NFS4_MAX_SESSIONID_LEN + 16);
 	memcpy(id.data, p, NFS4_MAX_SESSIONID_LEN);
 	p += XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN);
-	if (memcmp(id.data, cb->cb_clp->cl_sessionid.data,
-		   NFS4_MAX_SESSIONID_LEN)) {
+	if (memcmp(id.data, ses->se_sessionid.data, NFS4_MAX_SESSIONID_LEN)) {
 		dprintk("%s Invalid session id\n", __func__);
 		goto out;
 	}
@@ -587,7 +588,7 @@ void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 static int nfsd41_cb_setup_sequence(struct nfs4_client *clp,
 		struct rpc_task *task)
 {
-	u32 *ptr = (u32 *)clp->cl_sessionid.data;
+	u32 *ptr = (u32 *)clp->cl_cb_session->se_sessionid.data;
 	int status = 0;
 
 	dprintk("%s: %u:%u:%u:%u\n", __func__,

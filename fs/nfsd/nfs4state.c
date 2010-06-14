@@ -753,8 +753,6 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 
 	new->se_client = clp;
 	gen_sessionid(new);
-	memcpy(clp->cl_sessionid.data, new->se_sessionid.data,
-	       NFS4_MAX_SESSIONID_LEN);
 
 	INIT_LIST_HEAD(&new->se_conns);
 
@@ -1544,7 +1542,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	if (status)
 		goto out;
 
-	memcpy(cr_ses->sessionid.data, conf->cl_sessionid.data,
+	memcpy(cr_ses->sessionid.data, conf->cl_cb_session->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
 	cr_ses->seqid = cs_slot->sl_seqid;
 
