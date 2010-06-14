@@ -236,8 +236,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 */
 	success =
 	    test_bit(TXDONE_SUCCESS, &txdesc->flags) ||
-	    test_bit(TXDONE_UNKNOWN, &txdesc->flags) ||
-	    test_bit(TXDONE_FALLBACK, &txdesc->flags);
+	    test_bit(TXDONE_UNKNOWN, &txdesc->flags);
 
 	/*
 	 * Update TX statistics.
