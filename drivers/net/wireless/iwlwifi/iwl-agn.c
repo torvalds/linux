@@ -2310,9 +2310,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
 				      blink1, blink2, ilink1, ilink2);
 
-	IWL_ERR(priv, "Desc                               Time       "
+	IWL_ERR(priv, "Desc                                  Time       "
 		"data1      data2      line\n");
-	IWL_ERR(priv, "%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
+	IWL_ERR(priv, "%-28s (0x%04X) %010u 0x%08X 0x%08X %u\n",
 		desc_lookup(desc), desc, time, data1, data2, line);
 	IWL_ERR(priv, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
 	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",

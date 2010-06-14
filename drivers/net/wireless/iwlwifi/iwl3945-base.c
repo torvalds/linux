@@ -1424,7 +1424,7 @@ void iwl3945_dump_nic_error_log(struct iwl_priv *priv)
 		    iwl_read_targ_mem(priv, base + i + 6 * sizeof(u32));
 
 		IWL_ERR(priv,
-			"%-13s (#%d) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
+			"%-13s (0x%X) %010u 0x%05X 0x%05X 0x%05X 0x%05X %u\n\n",
 			desc_lookup(desc), desc, time, blink1, blink2,
 			ilink1, ilink2, data1);
 		trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, 0,
