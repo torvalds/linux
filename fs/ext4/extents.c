@@ -1083,7 +1083,6 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 {
 	struct ext4_ext_path *curp = path;
 	struct ext4_extent_header *neh;
-	struct ext4_extent_idx *fidx;
 	struct buffer_head *bh;
 	ext4_fsblk_t newblock;
 	int err = 0;
@@ -1144,10 +1143,10 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 	ext4_idx_store_pblock(curp->p_idx, newblock);
 
 	neh = ext_inode_hdr(inode);
-	fidx = EXT_FIRST_INDEX(neh);
 	ext_debug("new root: num %d(%d), lblock %d, ptr %llu\n",
 		  le16_to_cpu(neh->eh_entries), le16_to_cpu(neh->eh_max),
-		  le32_to_cpu(fidx->ei_block), idx_pblock(fidx));
+		  le32_to_cpu(EXT_FIRST_INDEX(neh)->ei_block),
+		  idx_pblock(EXT_FIRST_INDEX(neh)));
 
 	neh->eh_depth = cpu_to_le16(path->p_depth + 1);
 	err = ext4_ext_dirty(handle, inode, curp);
@@ -2954,7 +2953,6 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 	struct ext4_extent *ex1 = NULL;
 	struct ext4_extent *ex2 = NULL;
 	struct ext4_extent *ex3 = NULL;
-	struct ext4_extent_header *eh;
 	ext4_lblk_t ee_block, eof_block;
 	unsigned int allocated, ee_len, depth;
 	ext4_fsblk_t newblock;
@@ -2971,7 +2969,6 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 		eof_block = map->m_lblk + map->m_len;
 
 	depth = ext_depth(inode);
-	eh = path[depth].p_hdr;
 	ex = path[depth].p_ext;
 	ee_block = le32_to_cpu(ex->ee_block);
 	ee_len = ext4_ext_get_actual_len(ex);
@@ -3058,7 +3055,6 @@ static int ext4_split_unwritten_extents(handle_t *handle,
 			err = PTR_ERR(path);
 			goto out;
 		}
-		eh = path[depth].p_hdr;
 		ex = path[depth].p_ext;
 		if (ex2 != &newex)
 			ex2 = ex;

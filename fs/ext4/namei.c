@@ -1088,7 +1088,6 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 struct dentry *ext4_get_parent(struct dentry *child)
 {
 	__u32 ino;
-	struct inode *inode;
 	static const struct qstr dotdot = {
 		.name = "..",
 		.len = 2,
@@ -1097,7 +1096,6 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	struct buffer_head *bh;
 
 	bh = ext4_find_entry(child->d_inode, &dotdot, &de);
-	inode = NULL;
 	if (!bh)
 		return ERR_PTR(-ENOENT);
 	ino = le32_to_cpu(de->inode);

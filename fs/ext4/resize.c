@@ -952,7 +952,6 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 		      ext4_fsblk_t n_blocks_count)
 {
 	ext4_fsblk_t o_blocks_count;
-	ext4_group_t o_groups_count;
 	ext4_grpblk_t last;
 	ext4_grpblk_t add;
 	struct buffer_head *bh;
@@ -964,7 +963,6 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	 * yet: we're going to revalidate es->s_blocks_count after
 	 * taking the s_resize_lock below. */
 	o_blocks_count = ext4_blocks_count(es);
-	o_groups_count = EXT4_SB(sb)->s_groups_count;
 
 	if (test_opt(sb, DEBUG))
 		printk(KERN_DEBUG "EXT4-fs: extending last group from %llu uto %llu blocks\n",

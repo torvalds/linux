@@ -3146,13 +3146,10 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 	int ret, retries = 0;
 	struct page *page;
 	pgoff_t index;
-	unsigned from, to;
 	struct inode *inode = mapping->host;
 	handle_t *handle;
 
 	index = pos >> PAGE_CACHE_SHIFT;
-	from = pos & (PAGE_CACHE_SIZE - 1);
-	to = from + len;
 
 	if (ext4_nonda_switch(inode->i_sb)) {
 		*fsdata = (void *)FALL_BACK_TO_NONDELALLOC;
@@ -5754,7 +5751,6 @@ static int ext4_expand_extra_isize(struct inode *inode,
 {
 	struct ext4_inode *raw_inode;
 	struct ext4_xattr_ibody_header *header;
-	struct ext4_xattr_entry *entry;
 
 	if (EXT4_I(inode)->i_extra_isize >= new_extra_isize)
 		return 0;
@@ -5762,7 +5758,6 @@ static int ext4_expand_extra_isize(struct inode *inode,
 	raw_inode = ext4_raw_inode(&iloc);
 
 	header = IHDR(inode, raw_inode);
-	entry = IFIRST(header);
 
 	/* No extended attributes present */
 	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR) ||
