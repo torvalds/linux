@@ -917,6 +917,31 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 {
 	struct sk_buff *skb;
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+	struct ieee80211_local *local = sdata->local;
+	struct cfg80211_bss *cbss;
+	u16 capability;
+	int active_ibss = 0;
+
+	active_ibss = ieee80211_sta_active_ibss(sdata);
+
+	if (!active_ibss && !is_zero_ether_addr(ifibss->bssid)) {
+		capability = WLAN_CAPABILITY_IBSS;
+
+		if (ifibss->privacy)
+			capability |= WLAN_CAPABILITY_PRIVACY;
+
+		cbss = cfg80211_get_bss(local->hw.wiphy, ifibss->channel,
+					ifibss->bssid, ifibss->ssid,
+					ifibss->ssid_len, WLAN_CAPABILITY_IBSS |
+					WLAN_CAPABILITY_PRIVACY,
+					capability);
+
+		if (cbss) {
+			cfg80211_unlink_bss(local->hw.wiphy, cbss);
+			cfg80211_put_bss(cbss);
+		}
+	}
 
 	del_timer_sync(&sdata->u.ibss.timer);
 	clear_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
