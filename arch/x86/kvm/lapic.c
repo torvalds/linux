@@ -329,7 +329,7 @@ int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		   "dest_mode 0x%x, short_hand 0x%x\n",
 		   target, source, dest, dest_mode, short_hand);
 
-	ASSERT(!target);
+	ASSERT(target);
 	switch (short_hand) {
 	case APIC_DEST_NOSHORT:
 		if (dest_mode == 0)
