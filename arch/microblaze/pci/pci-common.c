@@ -1277,6 +1277,7 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 		printk(KERN_WARNING "PCI: Cannot allocate resource region "
 		       "%d of PCI bridge %d, will remap\n", i, bus->number);
 clear_resource:
+		res->start = res->end = 0;
 		res->flags = 0;
 	}
 

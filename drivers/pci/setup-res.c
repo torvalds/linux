@@ -97,16 +97,16 @@ int pci_claim_resource(struct pci_dev *dev, int resource)
 
 	root = pci_find_parent_resource(dev, res);
 	if (!root) {
-		dev_err(&dev->dev, "no compatible bridge window for %pR\n",
-			res);
+		dev_info(&dev->dev, "no compatible bridge window for %pR\n",
+			 res);
 		return -EINVAL;
 	}
 
 	conflict = request_resource_conflict(root, res);
 	if (conflict) {
-		dev_err(&dev->dev,
-			"address space collision: %pR conflicts with %s %pR\n",
-			res, conflict->name, conflict);
+		dev_info(&dev->dev,
+			 "address space collision: %pR conflicts with %s %pR\n",
+			 res, conflict->name, conflict);
 		return -EBUSY;
 	}
 

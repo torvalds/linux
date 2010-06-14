@@ -2089,8 +2089,8 @@ static int rtl8139_poll(struct napi_struct *napi, int budget)
 		 * again when we think we are done.
 		 */
 		spin_lock_irqsave(&tp->lock, flags);
-		RTL_W16_F(IntrMask, rtl8139_intr_mask);
 		__napi_complete(napi);
+		RTL_W16_F(IntrMask, rtl8139_intr_mask);
 		spin_unlock_irqrestore(&tp->lock, flags);
 	}
 	spin_unlock(&tp->rx_lock);

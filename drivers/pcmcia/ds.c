@@ -671,6 +671,7 @@ static void pcmcia_requery(struct pcmcia_socket *s)
 		if (old_funcs != new_funcs) {
 			/* we need to re-start */
 			pcmcia_card_remove(s, NULL);
+			s->functions = 0;
 			pcmcia_card_add(s);
 		}
 	}
