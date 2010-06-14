@@ -1874,14 +1874,15 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 			}
 		}
 		if (found) {
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 			free_devinfo_mem(info);
 			domain_exit(domain);
 			domain = found;
 		} else {
 			list_add(&info->link, &domain->devices);
 			list_add(&info->global, &device_domain_list);
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 		}
-		spin_unlock_irqrestore(&device_domain_lock, flags);
 	}
 
 found_domain:
