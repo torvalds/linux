@@ -903,8 +903,12 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			txdesc.retry = 7;
 		}
 
-		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
-
+		/*
+		 * the frame was retried at least once
+		 * -> hw used fallback rates
+		 */
+		if (txdesc.retry)
+			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
 		rt2x00pci_txdone(entry, &txdesc);
 	}
