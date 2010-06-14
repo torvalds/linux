@@ -27,7 +27,7 @@
 
 #define DEBUG
 
-#define LD_LP8550_LAST_BRIGHTNESS_MASK 0xFE
+#define LD_LP8550_ON_OFF_MASK 0xFE
 
 #define LD_LP8550_ALLOWED_R_BYTES 1
 #define LD_LP8550_ALLOWED_W_BYTES 2
@@ -179,14 +179,14 @@ static int ld_lp8550_init_registers(struct lp8550_data *led_data)
 				pr_err("%s:Register initialization failed\n",
 					__func__);
 			if (lp8550_write_reg(led_data, LP8550_EEPROM_CTRL,
-					0x40))
+					0x04))
 				pr_err("%s:Register initialization failed\n",
 					__func__);
 			if (lp8550_write_reg(led_data, LP8550_EEPROM_CTRL,
-					0x20))
+					0x02))
 				pr_err("%s:Register initialization failed\n",
 					__func__);
-			msleep(100);
+			msleep(200);
 			if (lp8550_write_reg(led_data, LP8550_EEPROM_CTRL,
 					0x00))
 				pr_err("%s:Register initialization failed\n",
@@ -227,16 +227,15 @@ static void lp8550_brightness_work(struct work_struct *work)
 
 	brightness = led_data->brightness;
 	if (brightness == LED_OFF) {
-		brightness &= LD_LP8550_LAST_BRIGHTNESS_MASK;
 		if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-				brightness)) {
+				(led_data->led_pdata->dev_ctrl_config &
+				LD_LP8550_ON_OFF_MASK))) {
 			pr_err("%s:writing failed while setting brightness:%d\n",
 				__func__, error);
 		}
 	} else {
-		brightness |= 0x01;
 		if (lp8550_write_reg(led_data, LP8550_DEVICE_CTRL,
-				brightness)) {
+				led_data->led_pdata->dev_ctrl_config | 0x01)) {
 			pr_err("%s:writing failed while setting brightness:%d\n",
 				__func__, error);
 		}
@@ -413,7 +412,7 @@ static int lp8550_suspend(struct i2c_client *client, pm_message_t mesg)
 		pr_info("%s: Suspending\n", __func__);
 
 	brightness = (led_data->last_requested_brightness &
-			LD_LP8550_LAST_BRIGHTNESS_MASK);
+			LD_LP8550_ON_OFF_MASK);
 	lp8550_write_reg(led_data, LP8550_DEVICE_CTRL, brightness);
 
 	return 0;
