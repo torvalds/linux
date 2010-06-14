@@ -725,8 +725,7 @@ void free_session(struct kref *kref)
 	kfree(ses);
 }
 
-
-static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp, struct nfsd4_create_session *cses)
+static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp, struct nfsd4_create_session *cses)
 {
 	struct nfsd4_session *new;
 	struct nfsd4_channel_attrs *fchan = &cses->fore_channel;
@@ -747,7 +746,7 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 	new = alloc_session(slotsize, numslots);
 	if (!new) {
 		nfsd4_put_drc_mem(slotsize, fchan->maxreqs);
-		return nfserr_jukebox;
+		return NULL;
 	}
 	init_forechannel_attrs(&new->se_fchannel, fchan, numslots, slotsize);
 
@@ -756,6 +755,7 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 
 	INIT_LIST_HEAD(&new->se_conns);
 
+	new->se_cb_seq_nr = 1;
 	new->se_flags = cses->flags;
 	kref_init(&new->se_ref);
 	idx = hash_sessionid(&new->se_sessionid);
@@ -765,9 +765,10 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 	spin_unlock(&client_lock);
 
 	status = nfsd4_new_conn(rqstp, new);
+	/* whoops: benny points out, status is ignored! (err, or bogus) */
 	if (status) {
 		free_session(&new->se_ref);
-		return nfserr_jukebox;
+		return NULL;
 	}
 	if (!clp->cl_cb_session && (cses->flags & SESSION4_BACK_CHAN)) {
 		struct sockaddr *sa = svc_addr(rqstp);
@@ -779,10 +780,9 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
 		clp->cl_cb_conn.cb_minorversion = 1;
 		clp->cl_cb_conn.cb_prog = cses->callback_prog;
-		clp->cl_cb_seq_nr = 1;
 		nfsd4_probe_callback(clp, &clp->cl_cb_conn);
 	}
-	return nfs_ok;
+	return new;
 }
 
 /* caller must hold client_lock */
@@ -1485,6 +1485,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 {
 	struct sockaddr *sa = svc_addr(rqstp);
 	struct nfs4_client *conf, *unconf;
+	struct nfsd4_session *new;
 	struct nfsd4_clid_slot *cs_slot = NULL;
 	int status = 0;
 
@@ -1538,11 +1539,12 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	cr_ses->flags &= ~SESSION4_PERSIST;
 	cr_ses->flags &= ~SESSION4_RDMA;
 
-	status = alloc_init_session(rqstp, conf, cr_ses);
-	if (status)
+	status = nfserr_jukebox;
+	new = alloc_init_session(rqstp, conf, cr_ses);
+	if (!new)
 		goto out;
-
-	memcpy(cr_ses->sessionid.data, conf->cl_cb_session->se_sessionid.data,
+	status = nfs_ok;
+	memcpy(cr_ses->sessionid.data, new->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
 	cr_ses->seqid = cs_slot->sl_seqid;
 

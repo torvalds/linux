@@ -172,6 +172,7 @@ struct nfsd4_session {
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_channel_attrs se_bchannel;
 	struct list_head	se_conns;
+	u32			se_cb_seq_nr;
 	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };
 
@@ -249,7 +250,6 @@ struct nfs4_client {
 	/* for nfs41 callbacks */
 	/* We currently support a single back channel with a single slot */
 	unsigned long		cl_cb_slot_busy;
-	u32			cl_cb_seq_nr;
 	struct rpc_wait_queue	cl_cb_waitq;	/* backchannel callers may */
 						/* wait here for slots */
 };

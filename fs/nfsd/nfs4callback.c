@@ -260,7 +260,7 @@ encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_callback *cb,
 
 	WRITE32(OP_CB_SEQUENCE);
 	WRITEMEM(ses->se_sessionid.data, NFS4_MAX_SESSIONID_LEN);
-	WRITE32(cb->cb_clp->cl_cb_seq_nr);
+	WRITE32(ses->se_cb_seq_nr);
 	WRITE32(0);		/* slotid, always 0 */
 	WRITE32(0);		/* highest slotid always 0 */
 	WRITE32(0);		/* cachethis always 0 */
@@ -369,7 +369,7 @@ decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_callback *cb,
 		goto out;
 	}
 	READ32(dummy);
-	if (dummy != cb->cb_clp->cl_cb_seq_nr) {
+	if (dummy != ses->se_cb_seq_nr) {
 		dprintk("%s Invalid sequence number\n", __func__);
 		goto out;
 	}
@@ -643,11 +643,11 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 
 	if (clp->cl_cb_conn.cb_minorversion) {
 		/* No need for lock, access serialized in nfsd4_cb_prepare */
-		++clp->cl_cb_seq_nr;
+		++clp->cl_cb_session->se_cb_seq_nr;
 		clear_bit(0, &clp->cl_cb_slot_busy);
 		rpc_wake_up_next(&clp->cl_cb_waitq);
 		dprintk("%s: freed slot, new seqid=%d\n", __func__,
-			clp->cl_cb_seq_nr);
+			clp->cl_cb_session->se_cb_seq_nr);
 
 		/* We're done looking into the sequence information */
 		task->tk_msg.rpc_resp = NULL;
