@@ -216,8 +216,8 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 	spin_lock_irqsave(&syscon_swlock, flags);
 
 	val = __raw_readl(EP93XX_SYSCON_DEVCFG);
-	val |= set_bits;
 	val &= ~clear_bits;
+	val |= set_bits;
 	__raw_writel(0xaa, EP93XX_SYSCON_SWLOCK);
 	__raw_writel(val, EP93XX_SYSCON_DEVCFG);
 
