@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/i2c-tegra.h>
 
 #include <asm/unaligned.h>
 
@@ -107,6 +108,7 @@ struct tegra_i2c_dev {
 	size_t msg_buf_remaining;
 	int msg_read;
 	int msg_transfer_complete;
+	unsigned long bus_clk_rate;
 };
 
 static void dvc_writel(struct tegra_i2c_dev *i2c_dev, u32 val, unsigned long reg)
@@ -302,7 +304,7 @@ static int tegra_i2c_init(struct tegra_i2c_dev *i2c_dev)
 	val = I2C_CNFG_NEW_MASTER_FSM | I2C_CNFG_PACKET_MODE_EN;
 	i2c_writel(i2c_dev, val, I2C_CNFG);
 	i2c_writel(i2c_dev, 0, I2C_INT_MASK);
-	tegra_i2c_set_clk(i2c_dev, 100000);
+	tegra_i2c_set_clk(i2c_dev, i2c_dev->bus_clk_rate);
 
 	val = 7 << I2C_FIFO_CONTROL_TX_TRIG_SHIFT |
 		0 << I2C_FIFO_CONTROL_RX_TRIG_SHIFT;
@@ -490,7 +492,7 @@ static const struct i2c_algorithm tegra_i2c_algo = {
 static int tegra_i2c_probe(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev;
-	/*struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;*/
+	struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	struct resource *iomem;
 	struct clk *clk;
@@ -550,6 +552,8 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->irq = irq;
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
+	i2c_dev->bus_clk_rate = pdata ? pdata->bus_clk_rate : 100000;
+
 	if (pdev->id == 3)
 		i2c_dev->is_dvc = 1;
 	init_completion(&i2c_dev->msg_complete);
