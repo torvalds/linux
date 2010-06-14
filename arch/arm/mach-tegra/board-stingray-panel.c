@@ -115,7 +115,7 @@ struct lp8550_eeprom_data stingray_lp8550_eeprom_data[] = {
 
 struct lp8550_platform_data stingray_lp8550_backlight_data = {
 	.power_up_brightness = 0x80,
-	.dev_ctrl_config = 0x00,
+	.dev_ctrl_config = 0x05,
 	.brightness_control = 0x80,
 	.dev_id = 0xfc,
 	.direct_ctrl = 0x01,
