@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/kxtf9.h>
 #include <linux/l3g4200d.h>
+#include <linux/led-lm3559.h>
 #include <linux/max9635.h>
 #include <linux/akm8975.h>
 #include <linux/platform_device.h>
@@ -39,6 +40,7 @@
 #define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
 #define L3G4200D_IRQ_GPIO	TEGRA_GPIO_PH2
 #define AKM8975_IRQ_GPIO	TEGRA_GPIO_PQ2
+#define LM3559_GPIO		TEGRA_GPIO_PT4
 
 static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
@@ -361,6 +363,39 @@ struct akm8975_platform_data stingray_akm8975_pdata = {
 	.power_off = stingray_akm8975_power_off,
 };
 
+struct lm3559_platform_data stingray_lm3559_data = {
+	.flags = (LM3559_TORCH | LM3559_FLASH | LM3559_FLASH_LIGHT),
+	.enable_reg_def = 0x18,
+	.gpio_reg_def = 0x00,
+	.adc_delay_reg_def = 0xc0,
+	.vin_monitor_def = 0xc0,
+	.torch_brightness_def = 0xd2,
+	.flash_brightness_def = 0xdd,
+	.flash_duration_def = 0xef,
+	.flag_reg_def = 0x00,
+	.config_reg_1_def = 0x6a,
+	.config_reg_2_def = 0x00,
+	.privacy_reg_def = 0x10,
+	.msg_ind_reg_def = 0x00,
+	.msg_ind_blink_reg_def = 0x00,
+	.pwm_reg_def = 0x00,
+	.torch_enable_val = 0x1a,
+	.flash_enable_val = 0x1b,
+	.privacy_enable_val = 0x09,
+	.pwm_val = 0x00,
+	.msg_ind_val = 0x80,
+	.msg_ind_blink_val = 0xff,
+};
+
+
+static void stingray_lm3559_init(void)
+{
+	tegra_gpio_enable(LM3559_GPIO);
+	gpio_request(LM3559_GPIO, "lm3559_hwenable");
+	gpio_direction_output(LM3559_GPIO, 1);
+
+}
+
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("akm8975", 0x0C),
@@ -392,6 +427,11 @@ static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
 		.platform_data = &stingray_gyro_pdata,
 		.irq = TEGRA_GPIO_TO_IRQ(L3G4200D_IRQ_GPIO),
 	 },
+
+	 {
+		I2C_BOARD_INFO(LM3559_NAME, 0x53),
+		.platform_data = &stingray_lm3559_data,
+	 },
 };
 
 int __init stingray_sensors_init(void)
@@ -401,6 +441,7 @@ int __init stingray_sensors_init(void)
 	stingray_max9635_init();
 	stingray_l3g4200d_init();
 	stingray_akm8975_init();
+	stingray_lm3559_init();
 
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
