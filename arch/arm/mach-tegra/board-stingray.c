@@ -26,6 +26,7 @@
 #include <linux/pda_power.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/i2c-tegra.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -319,10 +320,6 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&hs_uartc,
 	&hs_uartd,
 	&hs_uarte,
-	&tegra_i2c_device1,
-	&tegra_i2c_device2,
-	&tegra_i2c_device3,
-	&tegra_i2c_device4,
 	&tegra_spi_device1,
 	&tegra_spi_device2,
 	&tegra_spi_device3,
@@ -345,6 +342,10 @@ static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 	.power_gpio = TEGRA_GPIO_PI6,
 };
 
+static struct tegra_i2c_platform_data stingray_i2c1_platform_data = {
+	.bus_clk_rate = 400000,
+};
+
 static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartb",	"clk_m",	26000000,	true},
@@ -358,6 +359,15 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ NULL,		NULL,		0,		0},
 };
 
+static void stingray_i2c_init(void)
+{
+	tegra_i2c_device1.dev.platform_data = &stingray_i2c1_platform_data;
+
+	platform_device_register(&tegra_i2c_device1);
+	platform_device_register(&tegra_i2c_device2);
+	platform_device_register(&tegra_i2c_device3);
+	platform_device_register(&tegra_i2c_device4);
+}
 
 static void stingray_sdhci_init(void)
 {
@@ -464,6 +474,7 @@ static void __init tegra_stingray_init(void)
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
+	stingray_i2c_init();
 	stingray_power_off_init();
 	stingray_keypad_init();
 	stingray_touch_init();
