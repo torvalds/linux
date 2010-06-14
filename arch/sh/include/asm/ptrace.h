@@ -1,104 +1,9 @@
 #ifndef __ASM_SH_PTRACE_H
 #define __ASM_SH_PTRACE_H
 
-#include <linux/stringify.h>
-
 /*
  * Copyright (C) 1999, 2000  Niibe Yutaka
- *
  */
-#if defined(__SH5__)
-struct pt_regs {
-	unsigned long long pc;
-	unsigned long long sr;
-	long long syscall_nr;
-	unsigned long long regs[63];
-	unsigned long long tregs[8];
-	unsigned long long pad[2];
-};
-
-#define MAX_REG_OFFSET		offsetof(struct pt_regs, tregs[7])
-#define regs_return_value(regs)	((regs)->regs[3])
-
-#define TREGS_OFFSET_NAME(num)	\
-	{.name = __stringify(tr##num), .offset = offsetof(struct pt_regs, tregs[num])}
-
-#else
-/*
- * GCC defines register number like this:
- * -----------------------------
- *	 0 - 15 are integer registers
- *	17 - 22 are control/special registers
- *	24 - 39 fp registers
- *	40 - 47 xd registers
- *	48 -    fpscr register
- * -----------------------------
- *
- * We follows above, except:
- *	16 --- program counter (PC)
- *	22 --- syscall #
- *	23 --- floating point communication register
- */
-#define REG_REG0	 0
-#define REG_REG15	15
-
-#define REG_PC		16
-
-#define REG_PR		17
-#define REG_SR		18
-#define REG_GBR		19
-#define REG_MACH	20
-#define REG_MACL	21
-
-#define REG_SYSCALL	22
-
-#define REG_FPREG0	23
-#define REG_FPREG15	38
-#define REG_XFREG0	39
-#define REG_XFREG15	54
-
-#define REG_FPSCR	55
-#define REG_FPUL	56
-
-/*
- * This struct defines the way the registers are stored on the
- * kernel stack during a system call or other kernel entry.
- */
-struct pt_regs {
-	unsigned long regs[16];
-	unsigned long pc;
-	unsigned long pr;
-	unsigned long sr;
-	unsigned long gbr;
-	unsigned long mach;
-	unsigned long macl;
-	long tra;
-};
-
-#define MAX_REG_OFFSET		offsetof(struct pt_regs, tra)
-#define regs_return_value(regs)	((regs)->regs[0])
-
-/*
- * This struct defines the way the DSP registers are stored on the
- * kernel stack during a system call or other kernel entry.
- */
-struct pt_dspregs {
-	unsigned long	a1;
-	unsigned long	a0g;
-	unsigned long	a1g;
-	unsigned long	m0;
-	unsigned long	m1;
-	unsigned long	a0;
-	unsigned long	x0;
-	unsigned long	x1;
-	unsigned long	y0;
-	unsigned long	y1;
-	unsigned long	dsr;
-	unsigned long	rs;
-	unsigned long	re;
-	unsigned long	mod;
-};
-#endif
 
 #define PTRACE_GETREGS		12	/* General registers */
 #define PTRACE_SETREGS		13
@@ -119,7 +24,17 @@ struct pt_dspregs {
 #define PT_DATA_ADDR		248	/* &(struct user)->start_data */
 #define PT_TEXT_LEN		252
 
+#if defined(__SH5__) || defined(CONFIG_CPU_SH5)
+#include "ptrace_64.h"
+#else
+#include "ptrace_32.h"
+#endif
+
 #ifdef __KERNEL__
+
+#include <linux/stringify.h>
+#include <linux/stddef.h>
+#include <linux/thread_info.h>
 #include <asm/addrspace.h>
 #include <asm/page.h>
 #include <asm/system.h>
@@ -136,9 +51,6 @@ extern void show_regs(struct pt_regs *);
 /*
  * kprobe-based event tracer support
  */
-#include <linux/stddef.h>
-#include <linux/thread_info.h>
-
 struct pt_regs_offset {
 	const char *name;
 	int offset;
@@ -147,6 +59,8 @@ struct pt_regs_offset {
 #define REG_OFFSET_NAME(r) {.name = #r, .offset = offsetof(struct pt_regs, r)}
 #define REGS_OFFSET_NAME(num)	\
 	{.name = __stringify(r##num), .offset = offsetof(struct pt_regs, regs[num])}
+#define TREGS_OFFSET_NAME(num)	\
+	{.name = __stringify(tr##num), .offset = offsetof(struct pt_regs, tregs[num])}
 #define REG_OFFSET_END {.name = NULL, .offset = 0}
 
 /* Query offset/name of register from its name/offset */
