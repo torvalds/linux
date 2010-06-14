@@ -136,10 +136,7 @@ static int gfs2_writeback_writepage(struct page *page,
 	if (ret <= 0)
 		return ret;
 
-	ret = mpage_writepage(page, gfs2_get_block_noalloc, wbc);
-	if (ret == -EAGAIN)
-		ret = block_write_full_page(page, gfs2_get_block_noalloc, wbc);
-	return ret;
+	return nobh_writepage(page, gfs2_get_block_noalloc, wbc);
 }
 
 /**
