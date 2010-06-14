@@ -1084,11 +1084,11 @@ static int ipv6_get_mtu(struct net_device *dev)
 	int mtu = IPV6_MIN_MTU;
 	struct inet6_dev *idev;
 
-	idev = in6_dev_get(dev);
-	if (idev) {
+	rcu_read_lock();
+	idev = __in6_dev_get(dev);
+	if (idev)
 		mtu = idev->cnf.mtu6;
-		in6_dev_put(idev);
-	}
+	rcu_read_unlock();
 	return mtu;
 }
 
@@ -1097,12 +1097,15 @@ int ip6_dst_hoplimit(struct dst_entry *dst)
 	int hoplimit = dst_metric(dst, RTAX_HOPLIMIT);
 	if (hoplimit < 0) {
 		struct net_device *dev = dst->dev;
-		struct inet6_dev *idev = in6_dev_get(dev);
-		if (idev) {
+		struct inet6_dev *idev;
+
+		rcu_read_lock();
+		idev = __in6_dev_get(dev);
+		if (idev)
 			hoplimit = idev->cnf.hop_limit;
-			in6_dev_put(idev);
-		} else
+		else
 			hoplimit = dev_net(dev)->ipv6.devconf_all->hop_limit;
+		rcu_read_unlock();
 	}
 	return hoplimit;
 }
