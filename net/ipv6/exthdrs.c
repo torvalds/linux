@@ -312,6 +312,7 @@ static int ipv6_destopt_rcv(struct sk_buff *skb)
   Routing header.
  ********************************/
 
+/* called with rcu_read_lock() */
 static int ipv6_rthdr_rcv(struct sk_buff *skb)
 {
 	struct inet6_skb_parm *opt = IP6CB(skb);
@@ -324,12 +325,9 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int accept_source_route = net->ipv6.devconf_all->accept_source_route;
 
-	idev = in6_dev_get(skb->dev);
-	if (idev) {
-		if (accept_source_route > idev->cnf.accept_source_route)
-			accept_source_route = idev->cnf.accept_source_route;
-		in6_dev_put(idev);
-	}
+	idev = __in6_dev_get(skb->dev);
+	if (idev && accept_source_route > idev->cnf.accept_source_route)
+		accept_source_route = idev->cnf.accept_source_route;
 
 	if (!pskb_may_pull(skb, skb_transport_offset(skb) + 8) ||
 	    !pskb_may_pull(skb, (skb_transport_offset(skb) +
