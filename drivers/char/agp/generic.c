@@ -97,20 +97,18 @@ EXPORT_SYMBOL(agp_flush_chipset);
 void agp_alloc_page_array(size_t size, struct agp_memory *mem)
 {
 	mem->pages = NULL;
-	mem->vmalloc_flag = false;
 
 	if (size <= 2*PAGE_SIZE)
 		mem->pages = kmalloc(size, GFP_KERNEL | __GFP_NORETRY);
 	if (mem->pages == NULL) {
 		mem->pages = vmalloc(size);
-		mem->vmalloc_flag = true;
 	}
 }
 EXPORT_SYMBOL(agp_alloc_page_array);
 
 void agp_free_page_array(struct agp_memory *mem)
 {
-	if (mem->vmalloc_flag) {
+	if (is_vmalloc_addr(mem->pages)) {
 		vfree(mem->pages);
 	} else {
 		kfree(mem->pages);
