@@ -152,13 +152,9 @@ static void tegra_i2c_unmask_irq(struct tegra_i2c_dev *i2c_dev, u32 mask)
 
 static void tegra_i2c_set_clk(struct tegra_i2c_dev *i2c_dev, unsigned int freq)
 {
-	u32 val;
-	unsigned long input_freq = clk_get_rate(i2c_dev->i2c_clk);
-	val = input_freq / 12 / freq - 1;
-	dev_dbg(i2c_dev->dev, "clock %lu to %u: %x\n", input_freq, freq, val);
-	dev_dbg(i2c_dev->dev, "clock was %x\n", i2c_readl(i2c_dev, I2C_CLK_DIVISOR));
-	i2c_writel(i2c_dev, val, I2C_CLK_DIVISOR);
-	dev_dbg(i2c_dev->dev, "clock is %x\n", i2c_readl(i2c_dev, I2C_CLK_DIVISOR));
+	clk_set_rate(i2c_dev->clk, freq * 8);
+	dev_dbg(i2c_dev->dev, "%s: requested %u got %lu\n", __func__,
+		freq, clk_get_rate(i2c_dev->clk)/8);
 }
 
 static int tegra_i2c_flush_fifos(struct tegra_i2c_dev *i2c_dev)
