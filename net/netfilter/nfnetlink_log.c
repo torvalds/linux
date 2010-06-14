@@ -109,8 +109,8 @@ instance_lookup_get(u_int16_t group_num)
 
 	rcu_read_lock_bh();
 	inst = __instance_lookup(group_num);
-	if (inst)
-		instance_get(inst);
+	if (inst && !atomic_inc_not_zero(&inst->use))
+		inst = NULL;
 	rcu_read_unlock_bh();
 
 	return inst;
@@ -171,7 +171,7 @@ instance_create(u_int16_t group_num, int pid)
 	inst->copy_mode 	= NFULNL_COPY_PACKET;
 	inst->copy_range 	= NFULNL_COPY_RANGE_MAX;
 
-	hlist_add_head(&inst->hlist,
+	hlist_add_head_rcu(&inst->hlist,
 		       &instance_table[instance_hashfn(group_num)]);
 
 	spin_unlock_bh(&instances_lock);
@@ -185,18 +185,23 @@ out_unlock:
 
 static void __nfulnl_flush(struct nfulnl_instance *inst);
 
+/* called with BH disabled */
 static void
 __instance_destroy(struct nfulnl_instance *inst)
 {
 	/* first pull it out of the global list */
-	hlist_del(&inst->hlist);
+	hlist_del_rcu(&inst->hlist);
 
 	/* then flush all pending packets from skb */
 
-	spin_lock_bh(&inst->lock);
+	spin_lock(&inst->lock);
+
+	/* lockless readers wont be able to use us */
+	inst->copy_mode = NFULNL_COPY_DISABLED;
+
 	if (inst->skb)
 		__nfulnl_flush(inst);
-	spin_unlock_bh(&inst->lock);
+	spin_unlock(&inst->lock);
 
 	/* and finally put the refcount */
 	instance_put(inst);
@@ -624,6 +629,7 @@ nfulnl_log_packet(u_int8_t pf,
 		size += nla_total_size(data_len);
 		break;
 
+	case NFULNL_COPY_DISABLED:
 	default:
 		goto unlock_and_release;
 	}
