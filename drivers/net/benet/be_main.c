@@ -373,10 +373,12 @@ static void wrb_fill_hdr(struct be_eth_hdr_wrb *hdr, struct sk_buff *skb,
 
 	AMAP_SET_BITS(struct amap_eth_hdr_wrb, crc, hdr, 1);
 
-	if (skb_shinfo(skb)->gso_segs > 1 && skb_shinfo(skb)->gso_size) {
+	if (skb_is_gso(skb)) {
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso, hdr, 1);
 		AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso_mss,
 			hdr, skb_shinfo(skb)->gso_size);
+		if (skb_is_gso_v6(skb))
+			AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso6, hdr, 1);
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (is_tcp_pkt(skb))
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, tcpcs, hdr, 1);
@@ -2186,7 +2188,7 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->features |= NETIF_F_SG | NETIF_F_HW_VLAN_RX | NETIF_F_TSO |
 		NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER | NETIF_F_HW_CSUM |
-		NETIF_F_GRO;
+		NETIF_F_GRO | NETIF_F_TSO6;
 
 	netdev->vlan_features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_HW_CSUM;
 

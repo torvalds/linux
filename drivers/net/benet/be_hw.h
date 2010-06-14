@@ -192,7 +192,7 @@ struct amap_eth_hdr_wrb {
 	u8 event;
 	u8 crc;
 	u8 forward;
-	u8 ipsec;
+	u8 lso6;
 	u8 mgmt;
 	u8 ipcs;
 	u8 udpcs;
