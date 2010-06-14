@@ -4976,7 +4976,7 @@ static blkcnt_t ext4_inode_blocks(struct ext4_inode *raw_inode,
 		/* we are using combined 48 bit field */
 		i_blocks = ((u64)le16_to_cpu(raw_inode->i_blocks_high)) << 32 |
 					le32_to_cpu(raw_inode->i_blocks_lo);
-		if (ei->i_flags & EXT4_HUGE_FILE_FL) {
+		if (ext4_test_inode_flag(inode, EXT4_INODE_HUGE_FILE)) {
 			/* i_blocks represent file system block size */
 			return i_blocks  << (inode->i_blkbits - 9);
 		} else {
@@ -5126,7 +5126,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 				 ei->i_file_acl);
 		ret = -EIO;
 		goto bad_inode;
-	} else if (ei->i_flags & EXT4_EXTENTS_FL) {
+	} else if (ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		    (S_ISLNK(inode->i_mode) &&
 		     !ext4_inode_is_fast_symlink(inode)))

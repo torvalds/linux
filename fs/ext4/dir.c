@@ -121,7 +121,8 @@ static int ext4_readdir(struct file *filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		ext4_clear_inode_flag(filp->f_path.dentry->d_inode, EXT4_INODE_INDEX);
+		ext4_clear_inode_flag(filp->f_path.dentry->d_inode,
+				      EXT4_INODE_INDEX);
 	}
 	stored = 0;
 	offset = filp->f_pos & (sb->s_blocksize - 1);
