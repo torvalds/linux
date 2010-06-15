@@ -249,10 +249,11 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial calibration set */
 	priv->hw_params.sens = &iwl5150_sensitivity;
 	priv->hw_params.calib_init_cfg =
-		BIT(IWL_CALIB_DC)		|
 		BIT(IWL_CALIB_LO)		|
 		BIT(IWL_CALIB_TX_IQ)		|
 		BIT(IWL_CALIB_BASE_BAND);
+	if (priv->cfg->need_dc_calib)
+		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
@@ -660,6 +661,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.need_dc_calib = true,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -689,6 +691,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.need_dc_calib = true,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
