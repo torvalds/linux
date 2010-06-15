@@ -16,6 +16,49 @@
 struct tomoyo_domain_info tomoyo_kernel_domain;
 
 /**
+ * tomoyo_update_policy - Update an entry for exception policy.
+ *
+ * @new_entry:       Pointer to "struct tomoyo_acl_info".
+ * @size:            Size of @new_entry in bytes.
+ * @is_delete:       True if it is a delete request.
+ * @list:            Pointer to "struct list_head".
+ * @check_duplicate: Callback function to find duplicated entry.
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
+			 bool is_delete, struct list_head *list,
+			 bool (*check_duplicate) (const struct tomoyo_acl_head
+						  *,
+						  const struct tomoyo_acl_head
+						  *))
+{
+	int error = is_delete ? -ENOENT : -ENOMEM;
+	struct tomoyo_acl_head *entry;
+
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return -ENOMEM;
+	list_for_each_entry_rcu(entry, list, list) {
+		if (!check_duplicate(entry, new_entry))
+			continue;
+		entry->is_deleted = is_delete;
+		error = 0;
+		break;
+	}
+	if (error && !is_delete) {
+		entry = tomoyo_commit_ok(new_entry, size);
+		if (entry) {
+			list_add_tail_rcu(&entry->list, list);
+			error = 0;
+		}
+	}
+	mutex_unlock(&tomoyo_policy_lock);
+	return error;
+}
+
+/**
  * tomoyo_update_domain - Update an entry for domain policy.
  *
  * @new_entry:       Pointer to "struct tomoyo_acl_info".
@@ -161,6 +204,20 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
  */
 LIST_HEAD(tomoyo_domain_initializer_list);
 
+static bool tomoyo_same_domain_initializer_entry(const struct tomoyo_acl_head *
+						 a,
+						 const struct tomoyo_acl_head *
+						 b)
+{
+	const struct tomoyo_domain_initializer_entry *p1 =
+		container_of(a, typeof(*p1), head);
+	const struct tomoyo_domain_initializer_entry *p2 =
+		container_of(b, typeof(*p2), head);
+	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+		&& p1->domainname == p2->domainname
+		&& p1->program == p2->program;
+}
+
 /**
  * tomoyo_update_domain_initializer_entry - Update "struct tomoyo_domain_initializer_entry" list.
  *
@@ -178,7 +235,6 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 						  const bool is_not,
 						  const bool is_delete)
 {
-	struct tomoyo_domain_initializer_entry *ptr;
 	struct tomoyo_domain_initializer_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
@@ -197,26 +253,9 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	e.program = tomoyo_get_name(program);
 	if (!e.program)
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list,
-				head.list) {
-		if (!tomoyo_is_same_domain_initializer_entry(ptr, &e))
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_domain_initializer_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_domain_initializer_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_domain_initializer_list,
+				     tomoyo_same_domain_initializer_entry);
  out:
 	tomoyo_put_name(e.domainname);
 	tomoyo_put_name(e.program);
@@ -373,6 +412,18 @@ static bool tomoyo_is_domain_initializer(const struct tomoyo_path_info *
  */
 LIST_HEAD(tomoyo_domain_keeper_list);
 
+static bool tomoyo_same_domain_keeper_entry(const struct tomoyo_acl_head *a,
+					    const struct tomoyo_acl_head *b)
+{
+	const struct tomoyo_domain_keeper_entry *p1 =
+		container_of(a, typeof(*p1), head);
+	const struct tomoyo_domain_keeper_entry *p2 =
+		container_of(b, typeof(*p2), head);
+	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+		&& p1->domainname == p2->domainname
+		&& p1->program == p2->program;
+}
+
 /**
  * tomoyo_update_domain_keeper_entry - Update "struct tomoyo_domain_keeper_entry" list.
  *
@@ -390,7 +441,6 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 					     const bool is_not,
 					     const bool is_delete)
 {
-	struct tomoyo_domain_keeper_entry *ptr;
 	struct tomoyo_domain_keeper_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
@@ -409,25 +459,9 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	e.domainname = tomoyo_get_name(domainname);
 	if (!e.domainname)
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, head.list) {
-		if (!tomoyo_is_same_domain_keeper_entry(ptr, &e))
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_domain_keeper_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_domain_keeper_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_domain_keeper_list,
+				     tomoyo_same_domain_keeper_entry);
  out:
 	tomoyo_put_name(e.domainname);
 	tomoyo_put_name(e.program);
@@ -565,6 +599,17 @@ static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
  */
 LIST_HEAD(tomoyo_aggregator_list);
 
+static bool tomoyo_same_aggregator_entry(const struct tomoyo_acl_head *a,
+					 const struct tomoyo_acl_head *b)
+{
+	const struct tomoyo_aggregator_entry *p1 = container_of(a, typeof(*p1),
+								head);
+	const struct tomoyo_aggregator_entry *p2 = container_of(b, typeof(*p2),
+								head);
+	return p1->original_name == p2->original_name &&
+		p1->aggregated_name == p2->aggregated_name;
+}
+
 /**
  * tomoyo_update_aggregator_entry - Update "struct tomoyo_aggregator_entry" list.
  *
@@ -580,7 +625,6 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 					  const char *aggregated_name,
 					  const bool is_delete)
 {
-	struct tomoyo_aggregator_entry *ptr;
 	struct tomoyo_aggregator_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
@@ -592,25 +636,9 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 	if (!e.original_name || !e.aggregated_name ||
 	    e.aggregated_name->is_patterned) /* No patterns allowed. */
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, head.list) {
-		if (!tomoyo_is_same_aggregator_entry(ptr, &e))
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_aggregator_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_aggregator_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_aggregator_list,
+				     tomoyo_same_aggregator_entry);
  out:
 	tomoyo_put_name(e.original_name);
 	tomoyo_put_name(e.aggregated_name);
@@ -699,6 +727,17 @@ int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
  */
 LIST_HEAD(tomoyo_alias_list);
 
+static bool tomoyo_same_alias_entry(const struct tomoyo_acl_head *a,
+				    const struct tomoyo_acl_head *b)
+{
+	const struct tomoyo_alias_entry *p1 = container_of(a, typeof(*p1),
+							   head);
+	const struct tomoyo_alias_entry *p2 = container_of(b, typeof(*p2),
+							   head);
+	return p1->original_name == p2->original_name &&
+		p1->aliased_name == p2->aliased_name;
+}
+
 /**
  * tomoyo_update_alias_entry - Update "struct tomoyo_alias_entry" list.
  *
@@ -714,7 +753,6 @@ static int tomoyo_update_alias_entry(const char *original_name,
 				     const char *aliased_name,
 				     const bool is_delete)
 {
-	struct tomoyo_alias_entry *ptr;
 	struct tomoyo_alias_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
@@ -726,25 +764,9 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	if (!e.original_name || !e.aliased_name ||
 	    e.original_name->is_patterned || e.aliased_name->is_patterned)
 		goto out; /* No patterns allowed. */
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, head.list) {
-		if (!tomoyo_is_same_alias_entry(ptr, &e))
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_alias_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_alias_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_alias_list,
+				     tomoyo_same_alias_entry);
  out:
 	tomoyo_put_name(e.original_name);
 	tomoyo_put_name(e.aliased_name);

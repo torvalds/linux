@@ -469,6 +469,15 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
  */
 LIST_HEAD(tomoyo_policy_manager_list);
 
+static bool tomoyo_same_manager_entry(const struct tomoyo_acl_head *a,
+				      const struct tomoyo_acl_head *b)
+{
+	return container_of(a, struct tomoyo_policy_manager_entry, head)
+		->manager ==
+		container_of(b, struct tomoyo_policy_manager_entry, head)
+		->manager;
+}
+
 /**
  * tomoyo_update_manager_entry - Add a manager entry.
  *
@@ -482,9 +491,8 @@ LIST_HEAD(tomoyo_policy_manager_list);
 static int tomoyo_update_manager_entry(const char *manager,
 				       const bool is_delete)
 {
-	struct tomoyo_policy_manager_entry *ptr;
 	struct tomoyo_policy_manager_entry e = { };
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error;
 
 	if (tomoyo_is_domain_def(manager)) {
 		if (!tomoyo_is_correct_domain(manager))
@@ -497,26 +505,9 @@ static int tomoyo_update_manager_entry(const char *manager,
 	e.manager = tomoyo_get_name(manager);
 	if (!e.manager)
 		return -ENOMEM;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, head.list) {
-		if (ptr->manager != e.manager)
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_policy_manager_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_policy_manager_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
- out:
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_policy_manager_list,
+				     tomoyo_same_manager_entry);
 	tomoyo_put_name(e.manager);
 	return error;
 }

@@ -54,6 +54,15 @@ struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name)
 	return !error ? group : NULL;
 }
 
+static bool tomoyo_same_path_group(const struct tomoyo_acl_head *a,
+				   const struct tomoyo_acl_head *b)
+{
+	return container_of(a, struct tomoyo_path_group_member, head)
+		->member_name ==
+		container_of(b, struct tomoyo_path_group_member, head)
+		->member_name;
+}
+
 /**
  * tomoyo_write_path_group_policy - Write "struct tomoyo_path_group" list.
  *
@@ -65,7 +74,6 @@ struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name)
 int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 {
 	struct tomoyo_path_group *group;
-	struct tomoyo_path_group_member *member;
 	struct tomoyo_path_group_member e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	char *w[2];
@@ -77,25 +85,9 @@ int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 	e.member_name = tomoyo_get_name(w[1]);
 	if (!e.member_name)
 		goto out;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(member, &group->member_list, head.list) {
-		if (member->member_name != e.member_name)
-			continue;
-		member->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_path_group_member *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &group->member_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &group->member_list,
+				     tomoyo_same_path_group);
  out:
 	tomoyo_put_name(e.member_name);
 	tomoyo_put_path_group(group);

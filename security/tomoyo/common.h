@@ -913,6 +913,12 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 			 bool (*merge_duplicate) (struct tomoyo_acl_info *,
 						  struct tomoyo_acl_info *,
 						  const bool));
+int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
+			 bool is_delete, struct list_head *list,
+			 bool (*check_duplicate) (const struct tomoyo_acl_head
+						  *,
+						  const struct tomoyo_acl_head
+						  *));
 
 /********** External variable definitions. **********/
 
@@ -1040,39 +1046,6 @@ static inline bool tomoyo_is_same_number_union
 	return p1->values[0] == p2->values[0] && p1->values[1] == p2->values[1]
 		&& p1->group == p2->group && p1->min_type == p2->min_type &&
 		p1->max_type == p2->max_type && p1->is_group == p2->is_group;
-}
-
-static inline bool tomoyo_is_same_domain_initializer_entry
-(const struct tomoyo_domain_initializer_entry *p1,
- const struct tomoyo_domain_initializer_entry *p2)
-{
-	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
-		&& p1->domainname == p2->domainname
-		&& p1->program == p2->program;
-}
-
-static inline bool tomoyo_is_same_domain_keeper_entry
-(const struct tomoyo_domain_keeper_entry *p1,
- const struct tomoyo_domain_keeper_entry *p2)
-{
-	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
-		&& p1->domainname == p2->domainname
-		&& p1->program == p2->program;
-}
-
-static inline bool tomoyo_is_same_aggregator_entry
-(const struct tomoyo_aggregator_entry *p1,
- const struct tomoyo_aggregator_entry *p2)
-{
-	return p1->original_name == p2->original_name &&
-		p1->aggregated_name == p2->aggregated_name;
-}
-
-static inline bool tomoyo_is_same_alias_entry
-(const struct tomoyo_alias_entry *p1, const struct tomoyo_alias_entry *p2)
-{
-	return p1->original_name == p2->original_name &&
-		p1->aliased_name == p2->aliased_name;
 }
 
 /**

@@ -253,6 +253,15 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
  */
 LIST_HEAD(tomoyo_globally_readable_list);
 
+static bool tomoyo_same_globally_readable(const struct tomoyo_acl_head *a,
+					  const struct tomoyo_acl_head *b)
+{
+	return container_of(a, struct tomoyo_globally_readable_file_entry,
+			    head)->filename ==
+		container_of(b, struct tomoyo_globally_readable_file_entry,
+			     head)->filename;
+}
+
 /**
  * tomoyo_update_globally_readable_entry - Update "struct tomoyo_globally_readable_file_entry" list.
  *
@@ -266,36 +275,17 @@ LIST_HEAD(tomoyo_globally_readable_list);
 static int tomoyo_update_globally_readable_entry(const char *filename,
 						 const bool is_delete)
 {
-	struct tomoyo_globally_readable_file_entry *ptr;
 	struct tomoyo_globally_readable_file_entry e = { };
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error;
 
 	if (!tomoyo_is_correct_word(filename))
 		return -EINVAL;
 	e.filename = tomoyo_get_name(filename);
 	if (!e.filename)
 		return -ENOMEM;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list,
-				head.list) {
-		if (ptr->filename != e.filename)
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_globally_readable_file_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_globally_readable_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
- out:
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_globally_readable_list,
+				     tomoyo_same_globally_readable);
 	tomoyo_put_name(e.filename);
 	return error;
 }
@@ -402,6 +392,13 @@ bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
  */
 LIST_HEAD(tomoyo_pattern_list);
 
+static bool tomoyo_same_pattern(const struct tomoyo_acl_head *a,
+				const struct tomoyo_acl_head *b)
+{
+	return container_of(a, struct tomoyo_pattern_entry, head)->pattern ==
+		container_of(b, struct tomoyo_pattern_entry, head)->pattern;
+}
+
 /**
  * tomoyo_update_file_pattern_entry - Update "struct tomoyo_pattern_entry" list.
  *
@@ -415,35 +412,17 @@ LIST_HEAD(tomoyo_pattern_list);
 static int tomoyo_update_file_pattern_entry(const char *pattern,
 					    const bool is_delete)
 {
-	struct tomoyo_pattern_entry *ptr;
 	struct tomoyo_pattern_entry e = { };
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error;
 
 	if (!tomoyo_is_correct_word(pattern))
 		return -EINVAL;
 	e.pattern = tomoyo_get_name(pattern);
 	if (!e.pattern)
-		return error;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, head.list) {
-		if (e.pattern != ptr->pattern)
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_pattern_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_pattern_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
- out:
+		return -ENOMEM;
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_pattern_list,
+				     tomoyo_same_pattern);
 	tomoyo_put_name(e.pattern);
 	return error;
 }
@@ -553,6 +532,14 @@ bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
  */
 LIST_HEAD(tomoyo_no_rewrite_list);
 
+static bool tomoyo_same_no_rewrite(const struct tomoyo_acl_head *a,
+				   const struct tomoyo_acl_head *b)
+{
+	return container_of(a, struct tomoyo_no_rewrite_entry, head)->pattern
+		== container_of(b, struct tomoyo_no_rewrite_entry, head)
+		->pattern;
+}
+
 /**
  * tomoyo_update_no_rewrite_entry - Update "struct tomoyo_no_rewrite_entry" list.
  *
@@ -566,35 +553,17 @@ LIST_HEAD(tomoyo_no_rewrite_list);
 static int tomoyo_update_no_rewrite_entry(const char *pattern,
 					  const bool is_delete)
 {
-	struct tomoyo_no_rewrite_entry *ptr;
 	struct tomoyo_no_rewrite_entry e = { };
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error;
 
 	if (!tomoyo_is_correct_word(pattern))
 		return -EINVAL;
 	e.pattern = tomoyo_get_name(pattern);
 	if (!e.pattern)
-		return error;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, head.list) {
-		if (ptr->pattern != e.pattern)
-			continue;
-		ptr->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_no_rewrite_entry *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &tomoyo_no_rewrite_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
- out:
+		return -ENOMEM;
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &tomoyo_no_rewrite_list,
+				     tomoyo_same_no_rewrite);
 	tomoyo_put_name(e.pattern);
 	return error;
 }

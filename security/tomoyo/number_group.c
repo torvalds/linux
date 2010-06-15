@@ -56,6 +56,18 @@ struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name)
 	return !error ? group : NULL;
 }
 
+static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
+				     const struct tomoyo_acl_head *b)
+{
+	return !memcmp(&container_of(a, struct tomoyo_number_group_member,
+				     head)->number,
+		       &container_of(b, struct tomoyo_number_group_member,
+				     head)->number,
+		       sizeof(container_of(a,
+					   struct tomoyo_number_group_member,
+					   head)->number));
+}
+
 /**
  * tomoyo_write_number_group_policy - Write "struct tomoyo_number_group" list.
  *
@@ -68,40 +80,19 @@ int tomoyo_write_number_group_policy(char *data, const bool is_delete)
 {
 	struct tomoyo_number_group *group;
 	struct tomoyo_number_group_member e = { };
-	struct tomoyo_number_group_member *member;
-	int error = is_delete ? -ENOENT : -ENOMEM;
+	int error;
 	char *w[2];
 	if (!tomoyo_tokenize(data, w, sizeof(w)))
 		return -EINVAL;
-	if (!tomoyo_parse_number_union(w[1], &e.number))
+	if (w[1][0] == '@' || !tomoyo_parse_number_union(w[1], &e.number) ||
+	    e.number.values[0] > e.number.values[1])
 		return -EINVAL;
-	if (e.number.is_group || e.number.values[0] > e.number.values[1]) {
-		tomoyo_put_number_union(&e.number);
-		return -EINVAL;
-	}
 	group = tomoyo_get_number_group(w[0]);
 	if (!group)
 		return -ENOMEM;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		goto out;
-	list_for_each_entry_rcu(member, &group->member_list, head.list) {
-		if (memcmp(&member->number, &e.number, sizeof(e.number)))
-			continue;
-		member->head.is_deleted = is_delete;
-		error = 0;
-		break;
-	}
-	if (!is_delete && error) {
-		struct tomoyo_number_group_member *entry =
-			tomoyo_commit_ok(&e, sizeof(e));
-		if (entry) {
-			list_add_tail_rcu(&entry->head.list,
-					  &group->member_list);
-			error = 0;
-		}
-	}
-	mutex_unlock(&tomoyo_policy_lock);
- out:
+	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
+				     &group->member_list,
+				     tomoyo_same_number_group);
 	tomoyo_put_number_group(group);
 	return error;
 }
