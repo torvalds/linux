@@ -51,8 +51,8 @@
  *  lookups performed with disabled BHs.
  *
  *  Serialisation issues.
- *  1.  Nodes may appear in the tree only with the pool write lock held.
- *  2.  Nodes may disappear from the tree only with the pool write lock held
+ *  1.  Nodes may appear in the tree only with the pool lock held.
+ *  2.  Nodes may disappear from the tree only with the pool lock held
  *      AND reference count being 0.
  *  3.  Nodes appears and disappears from unused node list only under
  *      "inet_peer_unused_lock".
@@ -80,11 +80,11 @@ static const struct inet_peer peer_fake_node = {
 
 static struct {
 	struct inet_peer *root;
-	rwlock_t	lock;
+	spinlock_t	lock;
 	int		total;
 } peers = {
 	.root		= peer_avl_empty,
-	.lock		= __RW_LOCK_UNLOCKED(peers.lock),
+	.lock		= __SPIN_LOCK_UNLOCKED(peers.lock),
 	.total		= 0,
 };
 #define PEER_MAXDEPTH 40 /* sufficient for about 2^27 nodes */
@@ -129,7 +129,7 @@ void __init inet_initpeers(void)
 
 	peer_cachep = kmem_cache_create("inet_peer_cache",
 			sizeof(struct inet_peer),
-			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
+			0, SLAB_PANIC,
 			NULL);
 
 	/* All the timers, started at system startup tend
@@ -153,16 +153,13 @@ static void unlink_from_unused(struct inet_peer *p)
 
 /*
  * Called with local BH disabled and the pool lock held.
- * _stack is known to be NULL or not at compile time,
- * so compiler will optimize the if (_stack) tests.
  */
 #define lookup(_daddr, _stack) 					\
 ({								\
 	struct inet_peer *u, **v;				\
-	if (_stack != NULL) {					\
-		stackptr = _stack;				\
-		*stackptr++ = &peers.root;			\
-	}							\
+								\
+	stackptr = _stack;					\
+	*stackptr++ = &peers.root;				\
 	for (u = peers.root; u != peer_avl_empty; ) {		\
 		if (_daddr == u->v4daddr)			\
 			break;					\
@@ -170,14 +167,41 @@ static void unlink_from_unused(struct inet_peer *p)
 			v = &u->avl_left;			\
 		else						\
 			v = &u->avl_right;			\
-		if (_stack != NULL)				\
-			*stackptr++ = v;			\
+		*stackptr++ = v;				\
 		u = *v;						\
 	}							\
 	u;							\
 })
 
-/* Called with local BH disabled and the pool write lock held. */
+/*
+ * Called with rcu_read_lock_bh()
+ * Because we hold no lock against a writer, its quite possible we fall
+ * in an endless loop.
+ * But every pointer we follow is guaranteed to be valid thanks to RCU.
+ * We exit from this function if number of links exceeds PEER_MAXDEPTH
+ */
+static struct inet_peer *lookup_rcu_bh(__be32 daddr)
+{
+	struct inet_peer *u = rcu_dereference_bh(peers.root);
+	int count = 0;
+
+	while (u != peer_avl_empty) {
+		if (daddr == u->v4daddr) {
+			if (unlikely(!atomic_inc_not_zero(&u->refcnt)))
+				u = NULL;
+			return u;
+		}
+		if ((__force __u32)daddr < (__force __u32)u->v4daddr)
+			u = rcu_dereference_bh(u->avl_left);
+		else
+			u = rcu_dereference_bh(u->avl_right);
+		if (unlikely(++count == PEER_MAXDEPTH))
+			break;
+	}
+	return NULL;
+}
+
+/* Called with local BH disabled and the pool lock held. */
 #define lookup_rightempty(start)				\
 ({								\
 	struct inet_peer *u, **v;				\
@@ -191,9 +215,10 @@ static void unlink_from_unused(struct inet_peer *p)
 	u;							\
 })
 
-/* Called with local BH disabled and the pool write lock held.
+/* Called with local BH disabled and the pool lock held.
  * Variable names are the proof of operation correctness.
- * Look into mm/map_avl.c for more detail description of the ideas.  */
+ * Look into mm/map_avl.c for more detail description of the ideas.
+ */
 static void peer_avl_rebalance(struct inet_peer **stack[],
 		struct inet_peer ***stackend)
 {
@@ -269,15 +294,21 @@ static void peer_avl_rebalance(struct inet_peer **stack[],
 	}
 }
 
-/* Called with local BH disabled and the pool write lock held. */
+/* Called with local BH disabled and the pool lock held. */
 #define link_to_pool(n)						\
 do {								\
 	n->avl_height = 1;					\
 	n->avl_left = peer_avl_empty;				\
 	n->avl_right = peer_avl_empty;				\
+	smp_wmb(); /* lockless readers can catch us now */	\
 	**--stackptr = n;					\
 	peer_avl_rebalance(stack, stackptr);			\
 } while (0)
+
+static void inetpeer_free_rcu(struct rcu_head *head)
+{
+	kmem_cache_free(peer_cachep, container_of(head, struct inet_peer, rcu));
+}
 
 /* May be called with local BH enabled. */
 static void unlink_from_pool(struct inet_peer *p)
@@ -286,13 +317,13 @@ static void unlink_from_pool(struct inet_peer *p)
 
 	do_free = 0;
 
-	write_lock_bh(&peers.lock);
+	spin_lock_bh(&peers.lock);
 	/* Check the reference counter.  It was artificially incremented by 1
-	 * in cleanup() function to prevent sudden disappearing.  If the
-	 * reference count is still 1 then the node is referenced only as `p'
-	 * here and from the pool.  So under the exclusive pool lock it's safe
-	 * to remove the node and free it later. */
-	if (atomic_read(&p->refcnt) == 1) {
+	 * in cleanup() function to prevent sudden disappearing.  If we can
+	 * atomically (because of lockless readers) take this last reference,
+	 * it's safe to remove the node and free it later.
+	 */
+	if (atomic_cmpxchg(&p->refcnt, 1, 0) == 1) {
 		struct inet_peer **stack[PEER_MAXDEPTH];
 		struct inet_peer ***stackptr, ***delp;
 		if (lookup(p->v4daddr, stack) != p)
@@ -321,17 +352,18 @@ static void unlink_from_pool(struct inet_peer *p)
 		peers.total--;
 		do_free = 1;
 	}
-	write_unlock_bh(&peers.lock);
+	spin_unlock_bh(&peers.lock);
 
 	if (do_free)
-		kmem_cache_free(peer_cachep, p);
+		call_rcu_bh(&p->rcu, inetpeer_free_rcu);
 	else
 		/* The node is used again.  Decrease the reference counter
 		 * back.  The loop "cleanup -> unlink_from_unused
 		 *   -> unlink_from_pool -> putpeer -> link_to_unused
 		 *   -> cleanup (for the same node)"
 		 * doesn't really exist because the entry will have a
-		 * recent deletion time and will not be cleaned again soon. */
+		 * recent deletion time and will not be cleaned again soon.
+		 */
 		inet_putpeer(p);
 }
 
@@ -375,62 +407,56 @@ static int cleanup_once(unsigned long ttl)
 /* Called with or without local BH being disabled. */
 struct inet_peer *inet_getpeer(__be32 daddr, int create)
 {
-	struct inet_peer *p, *n;
+	struct inet_peer *p;
 	struct inet_peer **stack[PEER_MAXDEPTH], ***stackptr;
 
-	/* Look up for the address quickly. */
-	read_lock_bh(&peers.lock);
-	p = lookup(daddr, NULL);
-	if (p != peer_avl_empty)
-		atomic_inc(&p->refcnt);
-	read_unlock_bh(&peers.lock);
+	/* Look up for the address quickly, lockless.
+	 * Because of a concurrent writer, we might not find an existing entry.
+	 */
+	rcu_read_lock_bh();
+	p = lookup_rcu_bh(daddr);
+	rcu_read_unlock_bh();
 
-	if (p != peer_avl_empty) {
-		/* The existing node has been found. */
-		/* Remove the entry from unused list if it was there. */
+	if (p) {
+		/* The existing node has been found.
+		 * Remove the entry from unused list if it was there.
+		 */
 		unlink_from_unused(p);
 		return p;
 	}
 
-	if (!create)
-		return NULL;
-
-	/* Allocate the space outside the locked region. */
-	n = kmem_cache_alloc(peer_cachep, GFP_ATOMIC);
-	if (n == NULL)
-		return NULL;
-	n->v4daddr = daddr;
-	atomic_set(&n->refcnt, 1);
-	atomic_set(&n->rid, 0);
-	atomic_set(&n->ip_id_count, secure_ip_id(daddr));
-	n->tcp_ts_stamp = 0;
-
-	write_lock_bh(&peers.lock);
-	/* Check if an entry has suddenly appeared. */
+	/* retry an exact lookup, taking the lock before.
+	 * At least, nodes should be hot in our cache.
+	 */
+	spin_lock_bh(&peers.lock);
 	p = lookup(daddr, stack);
-	if (p != peer_avl_empty)
-		goto out_free;
+	if (p != peer_avl_empty) {
+		atomic_inc(&p->refcnt);
+		spin_unlock_bh(&peers.lock);
+		/* Remove the entry from unused list if it was there. */
+		unlink_from_unused(p);
+		return p;
+	}
+	p = create ? kmem_cache_alloc(peer_cachep, GFP_ATOMIC) : NULL;
+	if (p) {
+		p->v4daddr = daddr;
+		atomic_set(&p->refcnt, 1);
+		atomic_set(&p->rid, 0);
+		atomic_set(&p->ip_id_count, secure_ip_id(daddr));
+		p->tcp_ts_stamp = 0;
+		INIT_LIST_HEAD(&p->unused);
 
-	/* Link the node. */
-	link_to_pool(n);
-	INIT_LIST_HEAD(&n->unused);
-	peers.total++;
-	write_unlock_bh(&peers.lock);
+
+		/* Link the node. */
+		link_to_pool(p);
+		peers.total++;
+	}
+	spin_unlock_bh(&peers.lock);
 
 	if (peers.total >= inet_peer_threshold)
 		/* Remove one less-recently-used entry. */
 		cleanup_once(0);
 
-	return n;
-
-out_free:
-	/* The appropriate node is already in the pool. */
-	atomic_inc(&p->refcnt);
-	write_unlock_bh(&peers.lock);
-	/* Remove the entry from unused list if it was there. */
-	unlink_from_unused(p);
-	/* Free preallocated the preallocated node. */
-	kmem_cache_free(peer_cachep, n);
 	return p;
 }
 

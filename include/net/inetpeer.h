@@ -26,6 +26,7 @@ struct inet_peer {
 	atomic_t		ip_id_count;	/* IP ID for the next packet */
 	__u32			tcp_ts;
 	__u32			tcp_ts_stamp;
+	struct rcu_head		rcu;
 };
 
 void			inet_initpeers(void) __init;
