@@ -1,42 +1,15 @@
 /****************************************************************
-//    CopyRight(C) 2008 by Rock-Chip Fuzhou
-//      All Rights Reserved
-//文件名:hw_sdram.c
-//描述:sdram driver implement
-//作者:hcy
-//创建日期:2008-11-08
-//更改记录:
-$Log: hw_sdram.c,v $
-Revision 1.1.1.1  2009/12/15 01:46:27  zjd
-20091215 杨永忠提交初始版本
-
-Revision 1.1.1.1  2009/09/25 08:00:32  zjd
-20090925 黄德胜提交 V1.3.1
-
-Revision 1.1.1.1  2009/08/18 06:43:26  Administrator
-no message
-
-Revision 1.1.1.1  2009/08/14 08:02:00  Administrator
-no message
-
-Revision 1.4  2009/04/02 03:03:37  hcy
-更新SDRAM时序配置，只考虑-6，-75系列SDRAM
-
-Revision 1.3  2009/03/19 13:38:39  hxy
-hcy去掉SDRAM保守时序,保守时序不对,导致MP3播放时界面抖动
-
-Revision 1.2  2009/03/19 12:21:18  hxy
-hcy增加SDRAM保守时序供测试
-
-Revision 1.1.1.1  2009/03/16 01:34:06  zjd
-20090316 邓训金提供初始SDK版本
-
-Revision 1.2  2009/03/07 07:30:18  yk
-(yk)更新SCU模块各频率设置，完成所有函数及代码，更新初始化设置，
-更新遥控器代码，删除FPGA_BOARD宏。
-(hcy)SDRAM驱动改成28的
-
-//当前版本:1.00
+*    	CopyRight(C) 2010 by Rock-Chip Fuzhou
+*     All Rights Reserved
+*	文件名:ddr.c
+*	描述:sdram driver implement
+*	作者:hcy
+*	创建日期:2008-11-08
+*	更改记录:
+*	$Log: ddr.c,v $
+*	当前版本:1.00   20100315 hyc 提交初始版本
+*	Revision 1.01 2010/06/15 01:46:27  wqq 
+*	增加复位代码
 ****************************************************************/
 #define  DRIVERS_DDRAM
 
@@ -99,12 +72,53 @@ typedef volatile struct tagSCU_REG
     unsigned int SCU_CPUPD;
 	unsigned int SCU_CLKSEL2_CON;
 }SCU_REG,*pSCU_REG;
+/*intc*/
+typedef volatile struct tagINTC_REG
+{	/*offset 0x00~0x30*/
+	unsigned int IRQ_INTEN_L;	   //IRQ interrupt source enable register (low)
+	unsigned int IRQ_INTEN_H;	   //IRQ interrupt source enable register (high)
+	unsigned int IRQ_INTMASK_L;    //IRQ interrupt source mask register (low).
+	unsigned int IRQ_INTMASK_H;    //IRQ interrupt source mask register (high).
+	unsigned int IRQ_INTFORCE_L;   //IRQ interrupt force register
+	unsigned int IRQ_INTFORCE_H;   //
+	unsigned int IRQ_RAWSTATUS_L;  //IRQ raw status register
+	unsigned int IRQ_RAWSTATUS_H;  //
+	unsigned int IRQ_STATUS_L;	   //IRQ status register
+	unsigned int IRQ_STATUS_H;	   //
+	unsigned int IRQ_MASKSTATUS_L; //IRQ interrupt mask status register
+	unsigned int IRQ_MASKSTATUS_H; //
+	unsigned int IRQ_FINALSTATUS_L;//IRQ interrupt final status
+	unsigned int IRQ_FINALSTATUS_H; 
+	unsigned int reserved0[(0xC0-0x38)/4];
+	
+	/*offset 0xc0~0xd8*/
+	unsigned int FIQ_INTEN; 	   //Fast interrupt enable register
+	unsigned int FIQ_INTMASK;	   //Fast interrupt mask register
+	unsigned int FIQ_INTFORCE;	   //Fast interrupt force register
+	unsigned int FIQ_RAWSTATUS;    //Fast interrupt source raw status register
+	unsigned int FIQ_STATUS;	   //Fast interrupt status register
+	unsigned int FIQ_FINALSTATUS;  //Fast interrupt final status register
+	unsigned int IRQ_PLEVEL;	   //IRQ System Priority Level Register
+	unsigned int reserved1[(0xe8-0xdc)/4];
+	
+	/*offset 0xe8~0xe8+39*4*/
+	unsigned int IRQ_PN_OFFSET[40];//Interrupt N priority level register(s),
+							 // where N is from 0 to 15
+	unsigned int reserved2[(0x3f0-0x188)/4];
+	
+	/*offset 0x3f0~0x3fc*/
+	unsigned int ICTL_COMP_PARAMS_2;   //Component Parameter Register 2
+	unsigned int ICTL_COMP_PARAMS_1;   //Component Parameter Register 1
+	unsigned int AHB_ICTL_COMP_VERSION;//Version register
+	unsigned int ICTL_COMP_TYPE;	   //Component Type Register
+}INTC_REG, *pINTC_REG;
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
 typedef u32 uint32;
 #define SCU_BASE_ADDR_VA	RK2818_SCU_BASE
 #define SDRAMC_BASE_ADDR_VA	RK2818_SDRAMC_BASE
 #define REG_FILE_BASE_ADDR_VA	RK2818_REGFILE_BASE
+#define INTC_BASE_ADDR_VA		RK2818_INTC_BASE
 #endif
 
 #define SDRAM_REG_BASE     (SDRAMC_BASE_ADDR_VA)
@@ -1115,7 +1129,7 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
     {
         case Mobile_SDRAM:
         case SDRAM:
-			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
+//			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
 			#if 0
             KHz = PLLGetAHBFreq();
             if(KHz < SDRAMnewKHz)  //升频
@@ -1151,7 +1165,7 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
             }
             DDRPreUpdateRef(DDRnewKHz);
             DDRPreUpdateTiming(DDRnewKHz);
-	     printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
+	//     printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
 			//WAIT_ME();
             while(pGRF_Reg->CPU_APB_REG1 & 0x100);
 			tmp = *p_ddr;  //read to wakeup
@@ -1204,7 +1218,7 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
     {
         case Mobile_SDRAM:
         case SDRAM:
-			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
+		//	printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
 			#if 0
            // ahbKHz = PLLGetAHBFreq();
             if(ahbKHz > SDRAMoldKHz)  //升频
@@ -1345,7 +1359,7 @@ static void  SDRAM_DDR_Init(void)
                 }
             }
             KHz = PLLGetDDRFreq();
-			printk("PLLGetDDRFreq=%ld KHZ\n" , KHz);
+	//		printk("PLLGetDDRFreq=%ld KHZ\n" , KHz);
             if(110000 > KHz)
             {
                 DLLBypass(KHz);
@@ -1365,7 +1379,7 @@ static void  SDRAM_DDR_Init(void)
             DDRUpdateTiming();
             pDDR_Reg->CTRL_REG_36 = 0x1F1F;
 			
-	printk("..%s -->capability ==%ld telement==%ld -->%d\n",__FUNCTION__,capability,telement,__LINE__);
+//	printk("..%s -->capability ==%ld telement==%ld -->%d\n",__FUNCTION__,capability,telement,__LINE__);
 	ddr_change_freq( 266 );
 }
 
@@ -1392,7 +1406,6 @@ static int __init update_frq(void)
 	unsigned long ps_sram = (DTCM_END&(~7));
 	//printk(">>>>>%s-->%d\n",__FUNCTION__,__LINE__);
 	int *reg = (int *)(SCU_BASE_ADDR_VA);
-
 	strcpy( (char*)(ps_sram-0x40) , "rk281x_ddr_sram-wqq\n" );
 //	printk( "sram data:%s\n" , (char*)(ps_sram-0x40) );
 	local_irq_disable();
@@ -1417,15 +1430,15 @@ static int __init update_frq(void)
 }
 core_initcall_sync(update_frq);
 
-/****************************************************************/
-//函数名:SDRAM_DDR_Disable_Sleep
-//描述:禁止自动sleep模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:
-/****************************************************************/
-static void  SDRAM_DDR_Disable_Sleep(void)
+
+/****************************************************************
+* 函数名:disable_DDR_Sleep
+* 描述:禁止自动sleep模式
+* 参数说明:
+* 返回值:
+* 相关全局变量:
+****************************************************************/
+static void __tcmfunc  disable_DDR_Sleep(void)
 {
 	volatile uint32 *p_ddr = (volatile uint32 *)0xc0080000;
 	unsigned int tmp;
@@ -1439,148 +1452,105 @@ static void  SDRAM_DDR_Disable_Sleep(void)
         while(pGRF_Reg->CPU_APB_REG1 & 0x100);
 }
 
-static void rk2818_reduce_ddrfrq(void)
+static void __tcmfunc rk2818_reduce_armfrq(void)
 {
-	unsigned long ps_sram = (DTCM_END&(~7));
-	save_sp = ddr_save_sp(ps_sram);
-	ddr_change_freq( 133);
-	ddr_save_sp(save_sp);
+#define pSCU_Reg	   ((pSCU_REG)SCU_BASE_ADDR_VA)
+#define ARM_FRQ_48MHz    0x018502F6
+#define ARM_PLL_PWD	(0x1<<22)
+	pSCU_Reg->SCU_MODE_CON &= (~(0x3<<2)); // arm slow mod
+	udelay(100);
+	pSCU_Reg->SCU_CLKSEL0_CON &= (~(0xf<<0));	//arm:ahb:apb=1:1:1
+	udelay(100);
+	pSCU_Reg->SCU_APLL_CON =  ARM_FRQ_48MHz;
+	udelay(100);
+	pSCU_Reg->SCU_APLL_CON |=ARM_PLL_PWD;
+	udelay(100);
 }
-static void __tcmfunc rk2818_reduce_corevoltage(int mmu)
+ void __tcmfunc rk281x_reboot( void )
 {
-#define 	read_XDATA32(address)			   (*((unsigned int volatile*)(address)))
-#define 	write_XDATA32(address, value)	   (*((unsigned int volatile*)(address)) = value)
+#define pSCU_Reg	((pSCU_REG)SCU_BASE_ADDR_VA)
+#define g_intcReg 	((pINTC_REG)(INTC_BASE_ADDR_VA))
 
- 	if(mmu)
- 	{
-
-		write_XDATA32((RK2818_GPIO1_BASE+0x24), (read_XDATA32(RK2818_GPIO1_BASE+0x24)&(~(1ul<<6)))); //GPIOPortH_Pin6
-		write_XDATA32((RK2818_GPIO1_BASE+0x28), (read_XDATA32(RK2818_GPIO1_BASE+0x28)&(~(1ul<<6))));
-	}	
-	else
-	{
-		write_XDATA32((RK2818_GPIO1_PHYS+0x24), 0);//GPIOPortH_Pin6
-		write_XDATA32((RK2818_GPIO1_PHYS+0x28), 0);
-	}
-}
- void __tcmfunc rk281x_restart( void )
-{
-		int i;
-		void (*boot)(void) = (void (*)(void))0;
-		#define pSCU_Reg	   ((pSCU_REG)SCU_BASE_ADDR_VA)
-		#define pGRF_Reg	   ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
-		SDRAM_DDR_Disable_Sleep();
-		pSCU_Reg->SCU_CLKSEL0_CON &= (~(3<<2));
-		pSCU_Reg->SCU_MODE_CON |= (3<<2); // arm slow mod
-		for(i=0;i<10000;i++);
-		pGRF_Reg->CPU_APB_REG5 &= ~(1<<0); // no remap.
+		g_intcReg->FIQ_INTEN &= 0x0;
+		g_intcReg->IRQ_INTEN_H &= 0x0;
+		g_intcReg->IRQ_INTEN_L &= 0x0;
+		g_intcReg->IRQ_INTMASK_L &= 0x0;
+		g_intcReg->IRQ_INTMASK_H &= 0x0;	
 		
-		rk2818_reduce_corevoltage(1);
+		rk2818_reduce_armfrq();
+		disable_DDR_Sleep();
+		printk("start reboot!!!\n");
 		asm( "MRC p15,0,r0,c1,c0,0\n"
 				"BIC r0,r0,#(1<<0)	   @disable mmu\n"
 				"BIC r0,r0,#(1<<13)    @set vector to 0x00000000\n"
 				"MCR p15,0,r0,c1,c0,0\n"
 				"mov r1,r1\n"
 				"mov r1,r1\n" 
+							
+
+				"ldr r2,=0x18018000        @ set dsp power domain on\n"
+  				"ldr r3,[r2,#0x10]\n"
+  				"bic r3,r3,#(1<<0)\n"
+  				"str r3,[r2,#0x10]\n"
+  
+ 				" ldr r3,[r2,#0x24]     @ enable dsp ahb clk\n"
+  				"bic r3,r3,#(1<<2)\n"
+  				"str r3,[r2,#0x24]\n"
+  
+  				"ldr r3,[r2,#0x1c]     @ gate 0 ,enable dsp clk\n"
+  				"bic r3,r3,#(1<<1)\n"
+  				"str r3,[r2,#0x1c]\n"
+  
+  				"ldr r3,[r2,#0x28]     @dsp soft reset , for dsp l2 cache as maskrom stack.\n"
+  				"ORR r3,r3,#((1<<5))\n"
+  				"str r3,[r2,#0x28]\n"
+  				"BIC r3,r3,#((1<<5))\n"
+  				"str r3,[r2,#0x28]\n"
+
+				"ldr r2,=0x18018000      @ enable sram arm dsp clock\n"
+  				"ldr r3,[r2,#0x1c]\n"
+  				"bic r3,r3,#(1<<3)\n"
+  				"bic r3,r3,#(1<<4)\n"
+  				"str r3,[r2,#0x1c]\n"
+				
+				
 				 "ldr r2,=0x10040804        @usb soft disconnect.\n"
                  		" mov r3,#2\n"
                		 "str r3,[r2,#0]\n"
 
+				
+
                		 "ldr r2,=0x100AE00C       @ BCH reset.\n"
                 		" mov r3,#1\n"
                 		"str r3,[r2,#0]\n"
+
+				"MRC p15,0,r0,c1,c0,0\n"
+				"BIC r0,r0,#(1<<2)	@ disable IDcache \n"
+				"MCR p15,0,r0,c1,c0,0\n"
+				"mov r0,#0\n"
+				"MCR  p15, 0, r0, c7, c7, 0    @flush I-cache & D-cache\n"
+
+				"ldr r2,=0x18019000        @ DisableRemap\n"
+  				"ldr r3,[r2,#0x14]\n"
+  				"bic r3,r3,#(1<<0)\n"
+  				"bic r3,r3,#(1<<1)\n"
+  				"str r3,[r2,#0x14]\n"
+
+				"ldr r2,=0x18009000       @rk2818_reduce_corevoltage\n"
+				"ldr r3,[r2,#0x24]\n"
+				"bic r3,#(1<<6)\n"
+				"str r3,[r2,#0x24]\n"
+				"ldr r3,[r2,#0x28]\n"
+				"bic r3,#(1<<6)\n"
+				"str r3,[r2,#0x28]\n"
+
+				"mov r12,#0\n"
+				"mov pc ,r12\n"
 				);
-		//while(rk28_debugs);
-		boot();
+
 }
 
+void(*rk2818_reboot)(void )= (void(*)(void ))rk281x_reboot;
 
-void(*rk2818_reboot)(void )= (void(*)(void ))rk281x_restart;
-
-#if 0
-/****************************************************************/
-//函数名:SDRAM_EnterSelfRefresh
-//描述:SDRAM进入自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
-//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
-/****************************************************************/
-void SDRAM_EnterSelfRefresh(void)
-{
-    volatile uint32 value =0;
-    uint32 memType = (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
-    
-    switch(memType)
-    {
-        case SDRAM:
-        case Mobile_SDRAM:
-            value = pSDR_Reg->MSDR_SCTLR;
-            value |= ENTER_SELF_REFRESH;
-            pSDR_Reg->MSDR_SCTLR = value;
-
-            while(!((value = pSDR_Reg->MSDR_SCTLR) & SR_MODE));  //确定已经进入self-refresh
-            SCUDisableClk(CLK_GATE_EXTMEM);
-            if(SDRAM == memType)
-            {
-                SCUDisableClk(CLK_GATE_SDRMEM);
-            }
-            else
-            {
-                SCUDisableClk(CLK_GATE_MSDRMEM);
-            }
-            break;
-        case DDRII:
-        case Mobile_DDR:
-            pDDR_Reg->CTRL_REG_62 = pDDR_Reg->CTRL_REG_62 & (~(0xFFFF<<16)) | MODE5_CNT(0x1);
-            break;
-    }
-}
-
-/****************************************************************/
-//函数名:SDRAM_ExitSelfRefresh
-//描述:SDRAM退出自刷新模式
-//参数说明:
-//返回值:
-//相关全局变量:
-//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
-//     (2)必须保证运行时这个函数的代码不在SDRAM上
-/****************************************************************/
-void SDRAM_ExitSelfRefresh(void)
-{
-    volatile uint32 value =0;
-    uint32 memType = (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
-
-    switch(memType)
-    {
-        case SDRAM:
-        case Mobile_SDRAM:
-            SCUEnableClk(CLK_GATE_EXTMEM);
-            if(SDRAM == memType)
-            {
-                SCUEnableClk(CLK_GATE_SDRMEM);
-            }
-            else
-            {
-                SCUEnableClk(CLK_GATE_MSDRMEM);
-            }
-            DRVDelayUs(1);
-    
-            value = pSDR_Reg->MSDR_SCTLR;
-            value &= ~(ENTER_SELF_REFRESH);
-            pSDR_Reg->MSDR_SCTLR = value;
-
-            while((value = pSDR_Reg->MSDR_SCTLR) & SR_MODE);  //确定退出进入self-refresh
-            break;
-        case DDRII:
-        case Mobile_DDR:
-            pDDR_Reg->CTRL_REG_62 = pDDR_Reg->CTRL_REG_62 & (~(0xFFFF<<16)) | MODE5_CNT(0xFFFF);
-            break;
-    }
-    
-    DRVDelayUs(100); //延时一下比较安全，保证退出后稳定
-}
-#endif
 #endif //endi of #ifdef DRIVERS_SDRAM
 

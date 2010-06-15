@@ -12,9 +12,15 @@
 *
 */
 
+#include <linux/types.h>
+#include <linux/module.h>
+
+#include <linux/init.h>
 #include <linux/irqflags.h>
 #include <linux/kernel.h>
 #include <asm/io.h>
+#include <asm/memory.h>
+//#include <asm/cpu-single.h>
 #include <mach/gpio.h>
 #include <mach/hardware.h>
 #include <mach/rk2818_iomap.h>
@@ -31,13 +37,8 @@
 #endif
 
 extern void(*rk2818_reboot)(void );
-
-static void rk2818_kernel_reboot(void)
-{
-	restart_dbg("%s->%s->%d",__FILE__,__FUNCTION__,__LINE__);
-	local_irq_disable();
-	rk2818_reboot();
-}
+extern void setup_mm_for_reboot(char mode);
+//extern void cpu_proc_fin(void);
 
 
 /* 
@@ -51,7 +52,8 @@ static void rk2818_kernel_reboot(void)
 		restart_dbg("%s->%s->%d",__FILE__,__FUNCTION__,__LINE__);
 		switch ( mode ) {
 		case 0:
-				rk2818_kernel_reboot( );	// normal 
+				local_irq_disable();
+				rk2818_reboot( );	// normal 
 				break;
 		case 1:
 				//rk28_usb();
