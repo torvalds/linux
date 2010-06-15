@@ -457,8 +457,6 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /* Handlers */
 void iwl_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb);
-bool iwl_good_ack_health(struct iwl_priv *priv,
-				 struct iwl_rx_packet *pkt);
 void iwl_recover_from_statistics(struct iwl_priv *priv,
 				struct iwl_rx_packet *pkt);
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
