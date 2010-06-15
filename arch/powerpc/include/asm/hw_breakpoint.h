@@ -27,6 +27,7 @@
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 
 struct arch_hw_breakpoint {
+	bool		extraneous_interrupt;
 	u8		len; /* length of the target data symbol */
 	int		type;
 	unsigned long	address;

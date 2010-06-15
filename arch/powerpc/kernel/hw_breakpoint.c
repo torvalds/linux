@@ -204,6 +204,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	int stepped = 1;
 	struct arch_hw_breakpoint *info;
 	unsigned int instr;
+	unsigned long dar = regs->dar;
 
 	/* Disable breakpoints during exception handling */
 	set_dabr(0);
@@ -234,6 +235,22 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 		goto out;
 	}
 
+	/*
+	 * Verify if dar lies within the address range occupied by the symbol
+	 * being watched to filter extraneous exceptions.
+	 */
+	if (!((bp->attr.bp_addr <= dar) &&
+	     (dar <= (bp->attr.bp_addr + bp->attr.bp_len)))) {
+		/*
+		 * This exception is triggered not because of a memory access
+		 * on the monitored variable but in the double-word address
+		 * range in which it is contained. We will consume this
+		 * exception, considering it as 'noise'.
+		 */
+		info->extraneous_interrupt = true;
+	} else
+		info->extraneous_interrupt = false;
+
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
 		bp->ctx->task->thread.last_hit_ubp = bp;
@@ -261,7 +278,8 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	 * As a policy, the callback is invoked in a 'trigger-after-execute'
 	 * fashion
 	 */
-	perf_bp_event(bp, regs);
+	if (!info->extraneous_interrupt)
+		perf_bp_event(bp, regs);
 
 	set_dabr(info->address | info->type | DABR_TRANSLATION);
 out:
@@ -292,7 +310,8 @@ int __kprobes single_step_dabr_instruction(struct die_args *args)
 	 * We shall invoke the user-defined callback function in the single
 	 * stepping handler to confirm to 'trigger-after-execute' semantics
 	 */
-	perf_bp_event(bp, regs);
+	if (!bp_info->extraneous_interrupt)
+		perf_bp_event(bp, regs);
 
 	/*
 	 * Do not disable MSR_SE if the process was already in
