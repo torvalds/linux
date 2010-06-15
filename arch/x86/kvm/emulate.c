@@ -1553,6 +1553,64 @@ exception:
 	return X86EMUL_PROPAGATE_FAULT;
 }
 
+static inline int writeback(struct x86_emulate_ctxt *ctxt,
+			    struct x86_emulate_ops *ops)
+{
+	int rc;
+	struct decode_cache *c = &ctxt->decode;
+	u32 err;
+
+	switch (c->dst.type) {
+	case OP_REG:
+		/* The 4-byte case *is* correct:
+		 * in 64-bit mode we zero-extend.
+		 */
+		switch (c->dst.bytes) {
+		case 1:
+			*(u8 *)c->dst.ptr = (u8)c->dst.val;
+			break;
+		case 2:
+			*(u16 *)c->dst.ptr = (u16)c->dst.val;
+			break;
+		case 4:
+			*c->dst.ptr = (u32)c->dst.val;
+			break;	/* 64b: zero-ext */
+		case 8:
+			*c->dst.ptr = c->dst.val;
+			break;
+		}
+		break;
+	case OP_MEM:
+		if (c->lock_prefix)
+			rc = ops->cmpxchg_emulated(
+					(unsigned long)c->dst.ptr,
+					&c->dst.orig_val,
+					&c->dst.val,
+					c->dst.bytes,
+					&err,
+					ctxt->vcpu);
+		else
+			rc = ops->write_emulated(
+					(unsigned long)c->dst.ptr,
+					&c->dst.val,
+					c->dst.bytes,
+					&err,
+					ctxt->vcpu);
+		if (rc == X86EMUL_PROPAGATE_FAULT)
+			emulate_pf(ctxt,
+					      (unsigned long)c->dst.ptr, err);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+		break;
+	case OP_NONE:
+		/* no writeback */
+		break;
+	default:
+		break;
+	}
+	return X86EMUL_CONTINUE;
+}
+
 static inline void emulate_push(struct x86_emulate_ctxt *ctxt,
 				struct x86_emulate_ops *ops)
 {
@@ -1651,11 +1709,12 @@ static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
-static void emulate_pusha(struct x86_emulate_ctxt *ctxt,
+static int emulate_pusha(struct x86_emulate_ctxt *ctxt,
 			  struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	unsigned long old_esp = c->regs[VCPU_REGS_RSP];
+	int rc = X86EMUL_CONTINUE;
 	int reg = VCPU_REGS_RAX;
 
 	while (reg <= VCPU_REGS_RDI) {
@@ -1663,8 +1722,18 @@ static void emulate_pusha(struct x86_emulate_ctxt *ctxt,
 		(c->src.val = old_esp) : (c->src.val = c->regs[reg]);
 
 		emulate_push(ctxt, ops);
+
+		rc = writeback(ctxt, ops);
+		if (rc != X86EMUL_CONTINUE)
+			return rc;
+
 		++reg;
 	}
+
+	/* Disable writeback. */
+	c->dst.type = OP_NONE;
+
+	return rc;
 }
 
 static int emulate_popa(struct x86_emulate_ctxt *ctxt,
@@ -1815,64 +1884,6 @@ static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
 		return rc;
 	rc = load_segment_descriptor(ctxt, ops, (u16)cs, VCPU_SREG_CS);
 	return rc;
-}
-
-static inline int writeback(struct x86_emulate_ctxt *ctxt,
-			    struct x86_emulate_ops *ops)
-{
-	int rc;
-	struct decode_cache *c = &ctxt->decode;
-	u32 err;
-
-	switch (c->dst.type) {
-	case OP_REG:
-		/* The 4-byte case *is* correct:
-		 * in 64-bit mode we zero-extend.
-		 */
-		switch (c->dst.bytes) {
-		case 1:
-			*(u8 *)c->dst.ptr = (u8)c->dst.val;
-			break;
-		case 2:
-			*(u16 *)c->dst.ptr = (u16)c->dst.val;
-			break;
-		case 4:
-			*c->dst.ptr = (u32)c->dst.val;
-			break;	/* 64b: zero-ext */
-		case 8:
-			*c->dst.ptr = c->dst.val;
-			break;
-		}
-		break;
-	case OP_MEM:
-		if (c->lock_prefix)
-			rc = ops->cmpxchg_emulated(
-					(unsigned long)c->dst.ptr,
-					&c->dst.orig_val,
-					&c->dst.val,
-					c->dst.bytes,
-					&err,
-					ctxt->vcpu);
-		else
-			rc = ops->write_emulated(
-					(unsigned long)c->dst.ptr,
-					&c->dst.val,
-					c->dst.bytes,
-					&err,
-					ctxt->vcpu);
-		if (rc == X86EMUL_PROPAGATE_FAULT)
-			emulate_pf(ctxt,
-					      (unsigned long)c->dst.ptr, err);
-		if (rc != X86EMUL_CONTINUE)
-			return rc;
-		break;
-	case OP_NONE:
-		/* no writeback */
-		break;
-	default:
-		break;
-	}
-	return X86EMUL_CONTINUE;
 }
 
 static inline void
@@ -2689,7 +2700,9 @@ special_insn:
 			goto done;
 		break;
 	case 0x60:	/* pusha */
-		emulate_pusha(ctxt, ops);
+		rc = emulate_pusha(ctxt, ops);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 		break;
 	case 0x61:	/* popa */
 		rc = emulate_popa(ctxt, ops);
