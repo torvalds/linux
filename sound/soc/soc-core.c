@@ -2433,14 +2433,12 @@ int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	if (oval != val) {
 		ret = snd_soc_write(codec, mc->reg, val);
 		if (ret < 0)
-			return 0;
-		ret = 1;
+			return ret;
 	}
 	if (ovalr != valr) {
 		ret = snd_soc_write(codec, mc->rreg, valr);
 		if (ret < 0)
-			return 0;
-		ret = 1;
+			return ret;
 	}
 
 	return 0;
