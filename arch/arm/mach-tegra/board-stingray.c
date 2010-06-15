@@ -246,6 +246,35 @@ static struct platform_device androidusb_device = {
 	},
 };
 
+static char *factory_usb_functions[] = {
+	"usbnet"
+};
+
+static struct android_usb_product factory_usb_products[] = {
+	{
+		.product_id	= 0x70ac,
+		.num_functions	= ARRAY_SIZE(factory_usb_functions),
+		.functions	= factory_usb_functions,
+	},
+};
+
+/* android USB platform data for factory test mode*/
+static struct android_usb_platform_data andusb_plat_factory = {
+	.vendor_id		= 0x22b8,
+	.product_id		= 0x70ac,
+	.manufacturer_name	= "Motorola Inc.",
+	.product_name		= "Motorola Factory Support",
+	.serial_number		= "000000000",
+	.num_products = ARRAY_SIZE(factory_usb_products),
+	.products = factory_usb_products,
+	.num_functions = ARRAY_SIZE(factory_usb_functions),
+	.functions = factory_usb_functions,
+};
+
+static struct platform_device usbnet_device = {
+	.name	= "usbnet",
+};
+
 /* bq24617 charger */
 static struct resource bq24617_resources[] = {
 	[0] = {
@@ -343,7 +372,6 @@ static struct tegra_w1_platform_data tegra_w1_pdata = {
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&tegra_otg,
-	&androidusb_device,
 	&bq24617_device,
 	&bcm4329_rfkill,
 	&hs_uarta,
@@ -410,7 +438,6 @@ static void stingray_sdhci_init(void)
 	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device4);
 }
-
 #define ATAG_BDADDR 0x43294329	/* stingray bluetooth address tag */
 #define ATAG_BDADDR_SIZE 4
 #define BDADDR_STR_SIZE 18
@@ -441,6 +468,30 @@ static void stingray_w1_init(void)
 	platform_device_register(&tegra_w1_device);
 }
 
+#define BOOT_MODE_MAX_LEN 30
+static char boot_mode[BOOT_MODE_MAX_LEN+1];
+int __init board_boot_mode_init(char *s)
+
+{
+	strncpy(boot_mode, s, BOOT_MODE_MAX_LEN);
+
+	printk(KERN_INFO "boot_mode=%s\n", boot_mode);
+
+	return 1;
+}
+__setup("androidboot.mode=", board_boot_mode_init);
+
+static void stingray_gadget_init(void)
+{
+	int factory_test = !strcmp(boot_mode, "factorycable");
+
+	/* use different USB configuration when in factory test mode */
+	if (factory_test) {
+		androidusb_device.dev.platform_data = &andusb_plat_factory;
+		platform_device_register(&usbnet_device);
+	}
+	platform_device_register(&androidusb_device);
+}
 static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
@@ -553,6 +604,8 @@ static void __init tegra_stingray_init(void)
 	stingray_sensors_init();
 	stingray_wlan_init();
 	stingray_gps_init();
+	stingray_gadget_init();
+
 }
 
 MACHINE_START(STINGRAY, "stingray")
