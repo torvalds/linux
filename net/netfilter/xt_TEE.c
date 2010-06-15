@@ -104,7 +104,7 @@ tee_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 #ifdef WITH_CONNTRACK
 	/* Avoid counting cloned packets towards the original connection. */
 	nf_conntrack_put(skb->nfct);
-	skb->nfct     = &nf_conntrack_untracked.ct_general;
+	skb->nfct     = &nf_ct_untracked_get()->ct_general;
 	skb->nfctinfo = IP_CT_NEW;
 	nf_conntrack_get(skb->nfct);
 #endif
@@ -177,7 +177,7 @@ tee_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 
 #ifdef WITH_CONNTRACK
 	nf_conntrack_put(skb->nfct);
-	skb->nfct     = &nf_conntrack_untracked.ct_general;
+	skb->nfct     = &nf_ct_untracked_get()->ct_general;
 	skb->nfctinfo = IP_CT_NEW;
 	nf_conntrack_get(skb->nfct);
 #endif

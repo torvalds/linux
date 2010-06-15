@@ -98,7 +98,7 @@ nf_nat_fn(unsigned int hooknum,
 		return NF_ACCEPT;
 
 	/* Don't try to NAT if this packet is not conntracked */
-	if (ct == &nf_conntrack_untracked)
+	if (nf_ct_is_untracked(ct))
 		return NF_ACCEPT;
 
 	nat = nfct_nat(ct);

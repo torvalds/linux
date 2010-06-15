@@ -212,9 +212,7 @@ static __sum16 nf_ip_checksum_partial(struct sk_buff *skb, unsigned int hook,
 		skb->csum = csum_tcpudp_nofold(iph->saddr, iph->daddr, protocol,
 					       skb->len - dataoff, 0);
 		skb->ip_summed = CHECKSUM_NONE;
-		csum = __skb_checksum_complete_head(skb, dataoff + len);
-		if (!csum)
-			skb->ip_summed = CHECKSUM_UNNECESSARY;
+		return __skb_checksum_complete_head(skb, dataoff + len);
 	}
 	return csum;
 }

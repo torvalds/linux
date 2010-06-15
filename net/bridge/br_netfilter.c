@@ -245,8 +245,7 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 		kfree_skb(skb);
 		return 0;
 	}
-	dst_hold(&rt->dst);
-	skb_dst_set(skb, &rt->dst);
+	skb_dst_set_noref(skb, &rt->dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_update_protocol(skb);
@@ -397,8 +396,7 @@ bridged_dnat:
 			kfree_skb(skb);
 			return 0;
 		}
-		dst_hold(&rt->dst);
-		skb_dst_set(skb, &rt->dst);
+		skb_dst_set_noref(skb, &rt->dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
