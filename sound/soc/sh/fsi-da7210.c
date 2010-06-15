@@ -10,16 +10,7 @@
  *  option) any later version.
  */
 
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
-#include <linux/i2c.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/soc.h>
-#include <sound/soc-dapm.h>
-
 #include <sound/sh_fsi.h>
 #include "../codecs/da7210.h"
 
