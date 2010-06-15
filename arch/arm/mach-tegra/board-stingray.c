@@ -206,8 +206,8 @@ static struct platform_device tegra_otg = {
 	.num_resources = ARRAY_SIZE(tegra_otg_resources),
 };
 
-static char *usb_functions[] = { "usb_mass_storage" };
-static char *usb_functions_adb[] = { "usb_mass_storage", "adb" };
+static char *usb_functions[] = { "mtp" };
+static char *usb_functions_adb[] = { "mtp", "adb" };
 
 static struct android_usb_product usb_products[] = {
 	{
@@ -225,7 +225,7 @@ static struct android_usb_product usb_products[] = {
 /* standard android USB platform data */
 static struct android_usb_platform_data andusb_plat = {
 	.vendor_id                      = 0x18d1,
-	.product_id                     = 0x0002,
+	.product_id                     = 0xDEAD,
 	.manufacturer_name      = "Google",
 	.product_name           = "Stingray!",
 	.serial_number          = "0000",
