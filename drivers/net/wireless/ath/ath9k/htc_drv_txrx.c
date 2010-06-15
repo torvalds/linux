@@ -187,6 +187,19 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	return htc_send(priv->htc, skb, epid, &tx_ctl);
 }
 
+static bool ath9k_htc_check_tx_aggr(struct ath9k_htc_priv *priv,
+				    struct ath9k_htc_sta *ista, u8 tid)
+{
+	bool ret = false;
+
+	spin_lock_bh(&priv->tx_lock);
+	if ((tid < ATH9K_HTC_MAX_TID) && (ista->tid_state[tid] == AGGR_STOP))
+		ret = true;
+	spin_unlock_bh(&priv->tx_lock);
+
+	return ret;
+}
+
 void ath9k_tx_tasklet(unsigned long data)
 {
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *)data;
@@ -216,8 +229,7 @@ void ath9k_tx_tasklet(unsigned long data)
 		/* Check if we need to start aggregation */
 
 		if (sta && conf_is_ht(&priv->hw->conf) &&
-		    (priv->op_flags & OP_TXAGGR)
-		    && !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
+		    !(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
 			if (ieee80211_is_data_qos(fc)) {
 				u8 *qc, tid;
 				struct ath9k_htc_sta *ista;
@@ -226,10 +238,11 @@ void ath9k_tx_tasklet(unsigned long data)
 				tid = qc[0] & 0xf;
 				ista = (struct ath9k_htc_sta *)sta->drv_priv;
 
-				if ((tid < ATH9K_HTC_MAX_TID) &&
-				    ista->tid_state[tid] == AGGR_STOP) {
+				if (ath9k_htc_check_tx_aggr(priv, ista, tid)) {
 					ieee80211_start_tx_ba_session(sta, tid);
+					spin_lock_bh(&priv->tx_lock);
 					ista->tid_state[tid] = AGGR_PROGRESS;
+					spin_unlock_bh(&priv->tx_lock);
 				}
 			}
 		}

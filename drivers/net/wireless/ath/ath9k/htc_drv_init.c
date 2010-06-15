@@ -606,7 +606,6 @@ static void ath9k_init_misc(struct ath9k_htc_priv *priv)
 	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
 		memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 
-	priv->op_flags |= OP_TXAGGR;
 	priv->ah->opmode = NL80211_IFTYPE_STATION;
 }
 
@@ -638,14 +637,12 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	spin_lock_init(&priv->beacon_lock);
 	spin_lock_init(&priv->tx_lock);
 	mutex_init(&priv->mutex);
-	mutex_init(&priv->aggr_work.mutex);
 	mutex_init(&priv->htc_pm_lock);
 	tasklet_init(&priv->wmi_tasklet, ath9k_wmi_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->rx_tasklet, ath9k_rx_tasklet,
 		     (unsigned long)priv);
 	tasklet_init(&priv->tx_tasklet, ath9k_tx_tasklet, (unsigned long)priv);
-	INIT_DELAYED_WORK(&priv->ath9k_aggr_work, ath9k_htc_aggr_work);
 	INIT_DELAYED_WORK(&priv->ath9k_ani_work, ath9k_ani_work);
 	INIT_WORK(&priv->ps_work, ath9k_ps_work);
 

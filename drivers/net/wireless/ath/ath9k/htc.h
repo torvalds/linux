@@ -223,15 +223,6 @@ struct ath9k_htc_sta {
 	enum tid_aggr_state tid_state[ATH9K_HTC_MAX_TID];
 };
 
-struct ath9k_htc_aggr_work {
-	u16 tid;
-	u8 sta_addr[ETH_ALEN];
-	struct ieee80211_hw *hw;
-	struct ieee80211_vif *vif;
-	enum ieee80211_ampdu_mlme_action action;
-	struct mutex mutex;
-};
-
 #define ATH9K_HTC_RXBUF 256
 #define HTC_RX_FRAME_HEADER_SIZE 40
 
@@ -331,11 +322,10 @@ struct htc_beacon_config {
 #define OP_LED_ON         BIT(4)
 #define OP_PREAMBLE_SHORT BIT(5)
 #define OP_PROTECT_ENABLE BIT(6)
-#define OP_TXAGGR         BIT(7)
-#define OP_ASSOCIATED     BIT(8)
-#define OP_ENABLE_BEACON  BIT(9)
-#define OP_LED_DEINIT     BIT(10)
-#define OP_UNPLUGGED      BIT(11)
+#define OP_ASSOCIATED     BIT(7)
+#define OP_ENABLE_BEACON  BIT(8)
+#define OP_LED_DEINIT     BIT(9)
+#define OP_UNPLUGGED      BIT(10)
 
 struct ath9k_htc_priv {
 	struct device *dev;
@@ -376,8 +366,6 @@ struct ath9k_htc_priv {
 	struct ath9k_htc_rx rx;
 	struct tasklet_struct tx_tasklet;
 	struct sk_buff_head tx_queue;
-	struct ath9k_htc_aggr_work aggr_work;
-	struct delayed_work ath9k_aggr_work;
 	struct delayed_work ath9k_ani_work;
 	struct work_struct ps_work;
 
