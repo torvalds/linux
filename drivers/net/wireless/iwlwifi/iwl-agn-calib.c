@@ -96,14 +96,14 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 			hcmd.len = priv->calib_results[i].buf_len;
 			hcmd.data = priv->calib_results[i].buf;
 			ret = iwl_send_cmd_sync(priv, &hcmd);
-			if (ret)
-				goto err;
+			if (ret) {
+				IWL_ERR(priv, "Error %d iteration %d\n",
+					ret, i);
+				break;
+			}
 		}
 	}
 
-	return 0;
-err:
-	IWL_ERR(priv, "Error %d iteration %d\n", ret, i);
 	return ret;
 }
 
