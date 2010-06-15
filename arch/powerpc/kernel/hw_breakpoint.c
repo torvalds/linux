@@ -175,6 +175,24 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 }
 
 /*
+ * Restores the breakpoint on the debug registers.
+ * Invoke this function if it is known that the execution context is
+ * about to change to cause loss of MSR_SE settings.
+ */
+void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
+{
+	struct arch_hw_breakpoint *info;
+
+	if (likely(!tsk->thread.last_hit_ubp))
+		return;
+
+	info = counter_arch_bp(tsk->thread.last_hit_ubp);
+	regs->msr &= ~MSR_SE;
+	set_dabr(info->address | info->type | DABR_TRANSLATION);
+	tsk->thread.last_hit_ubp = NULL;
+}
+
+/*
  * Handle debug exception notifications.
  */
 int __kprobes hw_breakpoint_handler(struct die_args *args)

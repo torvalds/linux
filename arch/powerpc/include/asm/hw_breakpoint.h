@@ -65,9 +65,12 @@ static inline void hw_breakpoint_disable(void)
 {
 	set_dabr(0);
 }
+extern void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs);
 
 #else	/* CONFIG_HAVE_HW_BREAKPOINT */
 static inline void hw_breakpoint_disable(void) { }
+static inline void thread_change_pc(struct task_struct *tsk,
+					struct pt_regs *regs) { }
 #endif	/* CONFIG_HAVE_HW_BREAKPOINT */
 #endif	/* __KERNEL__ */
 #endif	/* _PPC_BOOK3S_64_HW_BREAKPOINT_H */
