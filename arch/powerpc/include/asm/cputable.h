@@ -517,6 +517,10 @@ static inline int cpu_has_feature(unsigned long feature)
 		& feature);
 }
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+#define HBP_NUM 1
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __KERNEL__ */

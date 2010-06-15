@@ -37,6 +37,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/personality.h>
 #include <linux/random.h>
+#include <linux/hw_breakpoint.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -462,8 +463,14 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	switch_booke_debug_regs(&new->thread);
 #else
+/*
+ * For PPC_BOOK3S_64, we use the hw-breakpoint interfaces that would
+ * schedule DABR
+ */
+#ifndef CONFIG_HAVE_HW_BREAKPOINT
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
 
 
@@ -642,7 +649,11 @@ void flush_thread(void)
 {
 	discard_lazy_cpu_state();
 
+#ifdef CONFIG_HAVE_HW_BREAKPOINTS
+	flush_ptrace_hw_breakpoint(current);
+#else /* CONFIG_HAVE_HW_BREAKPOINTS */
 	set_debug_reg_defaults(&current->thread);
+#endif /* CONFIG_HAVE_HW_BREAKPOINTS */
 }
 
 void
@@ -660,6 +671,9 @@ void prepare_to_copy(struct task_struct *tsk)
 	flush_altivec_to_thread(current);
 	flush_vsx_to_thread(current);
 	flush_spe_to_thread(current);
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	flush_ptrace_hw_breakpoint(tsk);
+#endif /* CONFIG_HAVE_HW_BREAKPOINT */
 }
 
 /*

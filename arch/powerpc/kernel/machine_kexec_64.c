@@ -25,6 +25,7 @@
 #include <asm/sections.h>	/* _end */
 #include <asm/prom.h>
 #include <asm/smp.h>
+#include <asm/hw_breakpoint.h>
 
 int default_machine_kexec_prepare(struct kimage *image)
 {
@@ -165,6 +166,7 @@ static void kexec_smp_down(void *arg)
 	while(kexec_all_irq_disabled == 0)
 		cpu_relax();
 	mb(); /* make sure all irqs are disabled before this */
+	hw_breakpoint_disable();
 	/*
 	 * Now every CPU has IRQs off, we can clear out any pending
 	 * IPIs and be sure that no more will come in after this.
@@ -180,6 +182,7 @@ static void kexec_prepare_cpus_wait(int wait_state)
 {
 	int my_cpu, i, notified=-1;
 
+	hw_breakpoint_disable();
 	my_cpu = get_cpu();
 	/* Make sure each CPU has atleast made it to the state we need */
 	for (i=0; i < NR_CPUS; i++) {
