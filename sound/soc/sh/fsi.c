@@ -12,21 +12,12 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/list.h>
 #include <linux/pm_runtime.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/initval.h>
 #include <sound/soc.h>
-#include <sound/pcm_params.h>
 #include <sound/sh_fsi.h>
-#include <asm/atomic.h>
 
 #define DO_FMT		0x0000
 #define DOFF_CTL	0x0004
