@@ -1461,13 +1461,13 @@ bool iwl_good_ack_health(struct iwl_priv *priv,
 
 	actual_ack_cnt_delta =
 		le32_to_cpu(pkt->u.stats.tx.actual_ack_cnt) -
-		le32_to_cpu(priv->statistics.tx.actual_ack_cnt);
+		le32_to_cpu(priv->_agn.statistics.tx.actual_ack_cnt);
 	expected_ack_cnt_delta =
 		le32_to_cpu(pkt->u.stats.tx.expected_ack_cnt) -
-		le32_to_cpu(priv->statistics.tx.expected_ack_cnt);
+		le32_to_cpu(priv->_agn.statistics.tx.expected_ack_cnt);
 	ba_timeout_delta =
 		le32_to_cpu(pkt->u.stats.tx.agg.ba_timeout) -
-		le32_to_cpu(priv->statistics.tx.agg.ba_timeout);
+		le32_to_cpu(priv->_agn.statistics.tx.agg.ba_timeout);
 	if ((priv->_agn.agg_tids_count > 0) &&
 	    (expected_ack_cnt_delta > 0) &&
 	    (((actual_ack_cnt_delta * 100) / expected_ack_cnt_delta)
@@ -1484,10 +1484,10 @@ bool iwl_good_ack_health(struct iwl_priv *priv,
 		 * DEBUG is not, these will just compile out.
 		 */
 		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta = %d\n",
-				priv->delta_statistics.tx.rx_detected_cnt);
+				priv->_agn.delta_statistics.tx.rx_detected_cnt);
 		IWL_DEBUG_RADIO(priv,
 				"ack_or_ba_timeout_collision delta = %d\n",
-				priv->delta_statistics.tx.
+				priv->_agn.delta_statistics.tx.
 				ack_or_ba_timeout_collision);
 #endif
 		IWL_DEBUG_RADIO(priv, "agg ba_timeout delta = %d\n",
@@ -2935,9 +2935,9 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		iwl_chain_noise_calibration(priv, &priv->statistics);
+		iwl_chain_noise_calibration(priv, &priv->_agn.statistics);
 
-		iwl_sensitivity_calibration(priv, &priv->statistics);
+		iwl_sensitivity_calibration(priv, &priv->_agn.statistics);
 	}
 
 	mutex_unlock(&priv->mutex);

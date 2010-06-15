@@ -68,7 +68,7 @@ void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,
 static void iwl_rx_calc_noise(struct iwl_priv *priv)
 {
 	struct statistics_rx_non_phy *rx_info
-				= &(priv->statistics.rx.general);
+				= &(priv->_agn.statistics.rx.general);
 	int num_active_rx = 0;
 	int total_silence = 0;
 	int bcn_silence_a =
@@ -117,10 +117,10 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 	u32 *accum_stats;
 	u32 *delta, *max_delta;
 
-	prev_stats = (__le32 *)&priv->statistics;
-	accum_stats = (u32 *)&priv->accum_statistics;
-	delta = (u32 *)&priv->delta_statistics;
-	max_delta = (u32 *)&priv->max_delta;
+	prev_stats = (__le32 *)&priv->_agn.statistics;
+	accum_stats = (u32 *)&priv->_agn.accum_statistics;
+	delta = (u32 *)&priv->_agn.delta_statistics;
+	max_delta = (u32 *)&priv->_agn.max_delta;
 
 	for (i = sizeof(__le32); i < sizeof(struct iwl_notif_statistics);
 	     i += sizeof(__le32), stats++, prev_stats++, delta++,
@@ -135,18 +135,18 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 	}
 
 	/* reset accumulative statistics for "no-counter" type statistics */
-	priv->accum_statistics.general.temperature =
-		priv->statistics.general.temperature;
-	priv->accum_statistics.general.temperature_m =
-		priv->statistics.general.temperature_m;
-	priv->accum_statistics.general.ttl_timestamp =
-		priv->statistics.general.ttl_timestamp;
-	priv->accum_statistics.tx.tx_power.ant_a =
-		priv->statistics.tx.tx_power.ant_a;
-	priv->accum_statistics.tx.tx_power.ant_b =
-		priv->statistics.tx.tx_power.ant_b;
-	priv->accum_statistics.tx.tx_power.ant_c =
-		priv->statistics.tx.tx_power.ant_c;
+	priv->_agn.accum_statistics.general.temperature =
+		priv->_agn.statistics.general.temperature;
+	priv->_agn.accum_statistics.general.temperature_m =
+		priv->_agn.statistics.general.temperature_m;
+	priv->_agn.accum_statistics.general.ttl_timestamp =
+		priv->_agn.statistics.general.ttl_timestamp;
+	priv->_agn.accum_statistics.tx.tx_power.ant_a =
+		priv->_agn.statistics.tx.tx_power.ant_a;
+	priv->_agn.accum_statistics.tx.tx_power.ant_b =
+		priv->_agn.statistics.tx.tx_power.ant_b;
+	priv->_agn.accum_statistics.tx.tx_power.ant_c =
+		priv->_agn.statistics.tx.tx_power.ant_c;
 }
 #endif
 
@@ -181,9 +181,9 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 	if (plcp_msec) {
 		combined_plcp_delta =
 			(le32_to_cpu(pkt->u.stats.rx.ofdm.plcp_err) -
-			le32_to_cpu(priv->statistics.rx.ofdm.plcp_err)) +
+			le32_to_cpu(priv->_agn.statistics.rx.ofdm.plcp_err)) +
 			(le32_to_cpu(pkt->u.stats.rx.ofdm_ht.plcp_err) -
-			le32_to_cpu(priv->statistics.rx.ofdm_ht.plcp_err));
+			le32_to_cpu(priv->_agn.statistics.rx.ofdm_ht.plcp_err));
 
 		if ((combined_plcp_delta > 0) &&
 		    ((combined_plcp_delta * 100) / plcp_msec) >
@@ -204,10 +204,10 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 				priv->cfg->plcp_delta_threshold,
 				le32_to_cpu(pkt->u.stats.rx.ofdm.plcp_err),
 				le32_to_cpu(
-				       priv->statistics.rx.ofdm.plcp_err),
+				       priv->_agn.statistics.rx.ofdm.plcp_err),
 				le32_to_cpu(pkt->u.stats.rx.ofdm_ht.plcp_err),
 				le32_to_cpu(
-				  priv->statistics.rx.ofdm_ht.plcp_err),
+				  priv->_agn.statistics.rx.ofdm_ht.plcp_err),
 				combined_plcp_delta, plcp_msec);
 			rc = false;
 		}
@@ -223,12 +223,12 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 
 
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(priv->statistics),
+		     (int)sizeof(priv->_agn.statistics),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
-	change = ((priv->statistics.general.temperature !=
+	change = ((priv->_agn.statistics.general.temperature !=
 		   pkt->u.stats.general.temperature) ||
-		  ((priv->statistics.flag &
+		  ((priv->_agn.statistics.flag &
 		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
 		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
 
@@ -237,8 +237,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 #endif
 	iwl_recover_from_statistics(priv, pkt);
 
-	memcpy(&priv->statistics, &pkt->u.stats,
-	       sizeof(priv->statistics));
+	memcpy(&priv->_agn.statistics, &pkt->u.stats,
+	       sizeof(priv->_agn.statistics));
 
 	set_bit(STATUS_STATISTICS, &priv->status);
 
@@ -265,11 +265,11 @@ void iwl_reply_statistics(struct iwl_priv *priv,
 
 	if (le32_to_cpu(pkt->u.stats.flag) & UCODE_STATISTICS_CLEAR_MSK) {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-		memset(&priv->accum_statistics, 0,
+		memset(&priv->_agn.accum_statistics, 0,
 			sizeof(struct iwl_notif_statistics));
-		memset(&priv->delta_statistics, 0,
+		memset(&priv->_agn.delta_statistics, 0,
 			sizeof(struct iwl_notif_statistics));
-		memset(&priv->max_delta, 0,
+		memset(&priv->_agn.max_delta, 0,
 			sizeof(struct iwl_notif_statistics));
 #endif
 		IWL_DEBUG_RX(priv, "Statistics have been cleared\n");
