@@ -555,8 +555,13 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		REGWRITE_BUFFER_FLUSH(ah);
 		DISABLE_REGWRITE_BUFFER(ah);
 
-		/* cwmin and cwmax should be 0 for beacon queue */
-		if (AR_SREV_9300_20_OR_LATER(ah)) {
+		/*
+		 * cwmin and cwmax should be 0 for beacon queue
+		 * but not for IBSS as we would create an imbalance
+		 * on beaconing fairness for participating nodes.
+		 */
+		if (AR_SREV_9300_20_OR_LATER(ah) &&
+		    ah->opmode != NL80211_IFTYPE_ADHOC) {
 			REG_WRITE(ah, AR_DLCL_IFS(q), SM(0, AR_D_LCL_IFS_CWMIN)
 				  | SM(0, AR_D_LCL_IFS_CWMAX)
 				  | SM(qi->tqi_aifs, AR_D_LCL_IFS_AIFS));
