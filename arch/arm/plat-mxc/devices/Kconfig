@@ -1,0 +1,2 @@
+config IMX_HAVE_PLATFORM_MXC_NAND
+	bool

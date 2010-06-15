@@ -13,3 +13,9 @@
 struct platform_device *imx_add_platform_device(const char *name, int id,
 		const struct resource *res, unsigned int num_resources,
 		const void *data, size_t size_data);
+
+#include <mach/mxc_nand.h>
+struct platform_device *__init imx_add_mxc_nand_v1(resource_size_t iobase,
+		int irq, const struct mxc_nand_platform_data *pdata);
+struct platform_device *__init imx_add_mxc_nand_v21(resource_size_t iobase,
+		int irq, const struct mxc_nand_platform_data *pdata);
