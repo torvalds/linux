@@ -3829,6 +3829,7 @@ static int __floppy_read_block_0(struct block_device *bdev)
 	bio.bi_size = size;
 	bio.bi_bdev = bdev;
 	bio.bi_sector = 0;
+	bio.bi_flags = BIO_QUIET;
 	init_completion(&complete);
 	bio.bi_private = &complete;
 	bio.bi_end_io = floppy_rb0_complete;
