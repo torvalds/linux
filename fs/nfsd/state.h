@@ -234,6 +234,7 @@ struct nfs4_client {
 	u32			cl_cb_ident;
 	atomic_t		cl_cb_set;
 	struct nfsd4_callback	cl_cb_null;
+	struct nfsd4_session	*cl_cb_session;
 
 	/* for all client information that callback code might need: */
 	spinlock_t		cl_lock;

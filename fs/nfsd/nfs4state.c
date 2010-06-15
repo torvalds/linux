@@ -771,6 +771,19 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 		free_session(&new->se_ref);
 		return nfserr_jukebox;
 	}
+	if (!clp->cl_cb_session && (cses->flags & SESSION4_BACK_CHAN)) {
+		struct sockaddr *sa = svc_addr(rqstp);
+
+		clp->cl_cb_session = new;
+		clp->cl_cb_conn.cb_xprt = rqstp->rq_xprt;
+		svc_xprt_get(rqstp->rq_xprt);
+		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
+		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
+		clp->cl_cb_conn.cb_minorversion = 1;
+		clp->cl_cb_conn.cb_prog = cses->callback_prog;
+		clp->cl_cb_seq_nr = 1;
+		nfsd4_probe_callback(clp, &clp->cl_cb_conn);
+	}
 	return nfs_ok;
 }
 
@@ -1045,7 +1058,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	clp->cl_flavor = rqstp->rq_flavor;
 	copy_cred(&clp->cl_cred, &rqstp->rq_cred);
 	gen_confirm(clp);
-
+	clp->cl_cb_session = NULL;
 	return clp;
 }
 
@@ -1515,20 +1528,6 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 		cs_slot->sl_seqid++; /* from 0 to 1 */
 		move_to_confirmed(unconf);
-
-		if (cr_ses->flags & SESSION4_BACK_CHAN) {
-			unconf->cl_cb_conn.cb_xprt = rqstp->rq_xprt;
-			svc_xprt_get(rqstp->rq_xprt);
-			rpc_copy_addr(
-				(struct sockaddr *)&unconf->cl_cb_conn.cb_addr,
-				sa);
-			unconf->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
-			unconf->cl_cb_conn.cb_minorversion =
-				cstate->minorversion;
-			unconf->cl_cb_conn.cb_prog = cr_ses->callback_prog;
-			unconf->cl_cb_seq_nr = 1;
-			nfsd4_probe_callback(unconf, &unconf->cl_cb_conn);
-		}
 		conf = unconf;
 	} else {
 		status = nfserr_stale_clientid;
