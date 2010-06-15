@@ -40,6 +40,11 @@ struct macvlan_port {
 	struct rcu_head		rcu;
 };
 
+#define macvlan_port_get_rcu(dev) \
+	((struct macvlan_port *) rcu_dereference(dev->rx_handler_data))
+#define macvlan_port_get(dev) ((struct macvlan_port *) dev->rx_handler_data)
+#define macvlan_port_exists(dev) (dev->priv_flags & IFF_MACVLAN_PORT)
+
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
 					       const unsigned char *addr)
 {
@@ -155,7 +160,7 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	struct net_device *dev;
 	unsigned int len;
 
-	port = rcu_dereference(skb->dev->macvlan_port);
+	port = macvlan_port_get_rcu(skb->dev);
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		src = macvlan_hash_lookup(port, eth->h_source);
 		if (!src)
@@ -530,14 +535,12 @@ static int macvlan_port_create(struct net_device *dev)
 	INIT_LIST_HEAD(&port->vlans);
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++)
 		INIT_HLIST_HEAD(&port->vlan_hash[i]);
-	rcu_assign_pointer(dev->macvlan_port, port);
 
-	err = netdev_rx_handler_register(dev, macvlan_handle_frame, NULL);
-	if (err) {
-		rcu_assign_pointer(dev->macvlan_port, NULL);
+	err = netdev_rx_handler_register(dev, macvlan_handle_frame, port);
+	if (err)
 		kfree(port);
-	}
 
+	dev->priv_flags |= IFF_MACVLAN_PORT;
 	return err;
 }
 
@@ -551,10 +554,10 @@ static void macvlan_port_rcu_free(struct rcu_head *head)
 
 static void macvlan_port_destroy(struct net_device *dev)
 {
-	struct macvlan_port *port = dev->macvlan_port;
+	struct macvlan_port *port = macvlan_port_get(dev);
 
+	dev->priv_flags &= ~IFF_MACVLAN_PORT;
 	netdev_rx_handler_unregister(dev);
-	rcu_assign_pointer(dev->macvlan_port, NULL);
 	call_rcu(&port->rcu, macvlan_port_rcu_free);
 }
 
@@ -633,12 +636,12 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 	if (!tb[IFLA_ADDRESS])
 		random_ether_addr(dev->dev_addr);
 
-	if (lowerdev->macvlan_port == NULL) {
+	if (!macvlan_port_exists(lowerdev)) {
 		err = macvlan_port_create(lowerdev);
 		if (err < 0)
 			return err;
 	}
-	port = lowerdev->macvlan_port;
+	port = macvlan_port_get(lowerdev);
 
 	vlan->lowerdev = lowerdev;
 	vlan->dev      = dev;
@@ -748,9 +751,10 @@ static int macvlan_device_event(struct notifier_block *unused,
 	struct macvlan_dev *vlan, *next;
 	struct macvlan_port *port;
 
-	port = dev->macvlan_port;
-	if (port == NULL)
+	if (!macvlan_port_exists(dev))
 		return NOTIFY_DONE;
+
+	port = macvlan_port_get(dev);
 
 	switch (event) {
 	case NETDEV_CHANGE:
