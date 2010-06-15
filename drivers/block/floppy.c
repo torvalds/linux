@@ -3337,7 +3337,7 @@ static int set_geometry(unsigned int cmd, struct floppy_struct *g,
 }
 
 /* handle obsolete ioctl's */
-static int ioctl_table[] = {
+static unsigned int ioctl_table[] = {
 	FDCLRPRM,
 	FDSETPRM,
 	FDDEFPRM,
@@ -3365,7 +3365,7 @@ static int ioctl_table[] = {
 	FDTWADDLE
 };
 
-static int normalize_ioctl(int *cmd, int *size)
+static int normalize_ioctl(unsigned int *cmd, int *size)
 {
 	int i;
 
