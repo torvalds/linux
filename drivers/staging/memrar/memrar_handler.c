@@ -291,7 +291,7 @@ static int memrar_init_rar_resources(int rarnum, char const *devname)
 	if (rar_get_address(rarnum, &low, &high) != 0)
 		/* No RAR is available. */
 		return -ENODEV;
-	
+
 	if (low == 0 || high == 0) {
 		rar->base      = 0;
 		rar->length    = 0;
@@ -311,7 +311,8 @@ static int memrar_init_rar_resources(int rarnum, char const *devname)
 	/* Claim RAR memory as our own. */
 	if (request_mem_region(low, rar->length, devname) == NULL) {
 		rar->length = 0;
-		pr_err("%s: Unable to claim RAR[%d] memory.\n", devname, rarnum);
+		pr_err("%s: Unable to claim RAR[%d] memory.\n",
+		       devname, rarnum);
 		pr_err("%s: RAR[%d] disabled.\n", devname, rarnum);
 		return -EBUSY;
 	}
@@ -347,7 +348,7 @@ static int memrar_init_rar_resources(int rarnum, char const *devname)
 	}
 
 	pr_info("%s: BRAR[%d] bus address range = [0x%lx, 0x%lx]\n",
-			devname, rarnum, (unsigned long) low, (unsigned long) high);
+		devname, rarnum, (unsigned long) low, (unsigned long) high);
 
 	pr_info("%s: BRAR[%d] size = %zu KiB\n",
 			devname, rarnum, rar->allocator->capacity / 1024);
@@ -531,7 +532,7 @@ static long memrar_get_stat(struct RAR_stat *r)
 {
 	struct memrar_allocator *allocator;
 
- 	if (!memrar_is_valid_rar_type(r->type))
+	if (!memrar_is_valid_rar_type(r->type))
 		return -EINVAL;
 
 	if (!memrars[r->type].allocated)
