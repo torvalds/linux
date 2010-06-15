@@ -2241,7 +2241,6 @@ static conf_t *setup_conf(mddev_t *mddev)
 	if (!conf->thread)
 		goto out;
 
-	conf->scale_disks = 0;
 	conf->mddev = mddev;
 	return conf;
 
@@ -2300,11 +2299,6 @@ static int run(mddev_t *mddev)
 		if (disk_idx >= conf->raid_disks
 		    || disk_idx < 0)
 			continue;
-		if (conf->scale_disks) {
-			disk_idx *= conf->scale_disks;
-			rdev->raid_disk = disk_idx;
-			/* MOVE 'rd%d' link !! */
-		}
 		disk = conf->mirrors + disk_idx;
 
 		disk->rdev = rdev;
@@ -2435,13 +2429,6 @@ static void *raid10_takeover_raid0(mddev_t *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	/* Update slot numbers to obtain
-	 * degraded raid10 with missing mirrors
-	 */
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
-		rdev->raid_disk *= 2;
-	}
-
 	/* Set new parameters */
 	mddev->new_level = 10;
 	/* new layout: far_copies = 1, near_copies = 2 */
@@ -2454,7 +2441,11 @@ static void *raid10_takeover_raid0(mddev_t *mddev)
 	mddev->recovery_cp = MaxSector;
 
 	conf = setup_conf(mddev);
-	conf->scale_disks = 2;
+	if (!IS_ERR(conf))
+		list_for_each_entry(rdev, &mddev->disks, same_set)
+			if (rdev->raid_disk >= 0)
+				rdev->new_raid_disk = rdev->raid_disk * 2;
+		
 	return conf;
 }
 
