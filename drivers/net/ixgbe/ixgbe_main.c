@@ -2992,6 +2992,48 @@ static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
 }
 
 /**
+ * ixgbe_write_uc_addr_list - write unicast addresses to RAR table
+ * @netdev: network interface device structure
+ *
+ * Writes unicast address list to the RAR table.
+ * Returns: -ENOMEM on failure/insufficient address space
+ *                0 on no addresses written
+ *                X on writing X addresses to the RAR table
+ **/
+static int ixgbe_write_uc_addr_list(struct net_device *netdev)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned int vfn = adapter->num_vfs;
+	unsigned int rar_entries = hw->mac.num_rar_entries - (vfn + 1);
+	int count = 0;
+
+	/* return ENOMEM indicating insufficient memory for addresses */
+	if (netdev_uc_count(netdev) > rar_entries)
+		return -ENOMEM;
+
+	if (!netdev_uc_empty(netdev) && rar_entries) {
+		struct netdev_hw_addr *ha;
+		/* return error if we do not support writing to RAR table */
+		if (!hw->mac.ops.set_rar)
+			return -ENOMEM;
+
+		netdev_for_each_uc_addr(ha, netdev) {
+			if (!rar_entries)
+				break;
+			hw->mac.ops.set_rar(hw, rar_entries--, ha->addr,
+					    vfn, IXGBE_RAH_AV);
+			count++;
+		}
+	}
+	/* write the addresses in reverse order to avoid write combining */
+	for (; rar_entries > 0 ; rar_entries--)
+		hw->mac.ops.clear_rar(hw, rar_entries);
+
+	return count;
+}
+
+/**
  * ixgbe_set_rx_mode - Unicast, Multicast and Promiscuous mode set
  * @netdev: network interface device structure
  *
@@ -3004,38 +3046,58 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 fctrl;
+	u32 fctrl, vmolr = IXGBE_VMOLR_BAM | IXGBE_VMOLR_AUPE;
+	int count;
 
 	/* Check for Promiscuous and All Multicast modes */
 
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 
+	/* clear the bits we are changing the status of */
+	fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+
 	if (netdev->flags & IFF_PROMISC) {
 		hw->addr_ctrl.user_set_promisc = true;
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+		vmolr |= (IXGBE_VMOLR_ROPE | IXGBE_VMOLR_MPE);
 		/* don't hardware filter vlans in promisc mode */
 		ixgbe_vlan_filter_disable(adapter);
 	} else {
 		if (netdev->flags & IFF_ALLMULTI) {
 			fctrl |= IXGBE_FCTRL_MPE;
-			fctrl &= ~IXGBE_FCTRL_UPE;
-		} else if (!hw->addr_ctrl.uc_set_promisc) {
-			fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
+			vmolr |= IXGBE_VMOLR_MPE;
+		} else {
+			/*
+			 * Write addresses to the MTA, if the attempt fails
+			 * then we should just turn on promiscous mode so
+			 * that we can at least receive multicast traffic
+			 */
+			hw->mac.ops.update_mc_addr_list(hw, netdev);
+			vmolr |= IXGBE_VMOLR_ROMPE;
 		}
 		ixgbe_vlan_filter_enable(adapter);
 		hw->addr_ctrl.user_set_promisc = false;
+		/*
+		 * Write addresses to available RAR registers, if there is not
+		 * sufficient space to store all the addresses then enable
+		 * unicast promiscous mode
+		 */
+		count = ixgbe_write_uc_addr_list(netdev);
+		if (count < 0) {
+			fctrl |= IXGBE_FCTRL_UPE;
+			vmolr |= IXGBE_VMOLR_ROPE;
+		}
+	}
+
+	if (adapter->num_vfs) {
+		ixgbe_restore_vf_multicasts(adapter);
+		vmolr |= IXGBE_READ_REG(hw, IXGBE_VMOLR(adapter->num_vfs)) &
+			 ~(IXGBE_VMOLR_MPE | IXGBE_VMOLR_ROMPE |
+			   IXGBE_VMOLR_ROPE);
+		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(adapter->num_vfs), vmolr);
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
-
-	/* reprogram secondary unicast list */
-	hw->mac.ops.update_uc_addr_list(hw, netdev);
-
-	/* reprogram multicast list */
-	hw->mac.ops.update_mc_addr_list(hw, netdev);
-
-	if (adapter->num_vfs)
-		ixgbe_restore_vf_multicasts(adapter);
 }
 
 static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
