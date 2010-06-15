@@ -191,13 +191,13 @@ int platform_device_add_resources(struct platform_device *pdev,
 {
 	struct resource *r;
 
-	r = kmalloc(sizeof(struct resource) * num, GFP_KERNEL);
+	r = kmemdup(res, sizeof(struct resource) * num, GFP_KERNEL);
 	if (r) {
-		memcpy(r, res, sizeof(struct resource) * num);
 		pdev->resource = r;
 		pdev->num_resources = num;
+		return 0;
 	}
-	return r ? 0 : -ENOMEM;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(platform_device_add_resources);
 
