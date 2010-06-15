@@ -2860,6 +2860,7 @@ static void ehea_reset_port(struct work_struct *work)
 		container_of(work, struct ehea_port, reset_task);
 	struct net_device *dev = port->netdev;
 
+	mutex_lock(&dlpar_mem_lock);
 	port->resets++;
 	mutex_lock(&port->port_lock);
 	netif_stop_queue(dev);
@@ -2882,6 +2883,7 @@ static void ehea_reset_port(struct work_struct *work)
 	netif_wake_queue(dev);
 out:
 	mutex_unlock(&port->port_lock);
+	mutex_unlock(&dlpar_mem_lock);
 }
 
 static void ehea_rereg_mrs(struct work_struct *work)
@@ -3543,10 +3545,7 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 	int ret = NOTIFY_BAD;
 	struct memory_notify *arg = data;
 
-	if (!mutex_trylock(&dlpar_mem_lock)) {
-		ehea_info("ehea_mem_notifier must not be called parallelized");
-		goto out;
-	}
+	mutex_lock(&dlpar_mem_lock);
 
 	switch (action) {
 	case MEM_CANCEL_OFFLINE:
@@ -3575,7 +3574,6 @@ static int ehea_mem_notifier(struct notifier_block *nb,
 
 out_unlock:
 	mutex_unlock(&dlpar_mem_lock);
-out:
 	return ret;
 }
 
