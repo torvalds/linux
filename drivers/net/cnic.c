@@ -3198,25 +3198,19 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 
 static int cnic_ready_to_close(struct cnic_sock *csk, u32 opcode)
 {
-	if (opcode == L4_KCQE_OPCODE_VALUE_RESET_RECEIVED) {
-		if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags))
-			csk->state = opcode;
+	if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags)) {
+		/* Unsolicited RESET_COMP or RESET_RECEIVED */
+		opcode = L4_KCQE_OPCODE_VALUE_RESET_RECEIVED;
+		csk->state = opcode;
 	}
-	if ((opcode == csk->state) ||
-	    (opcode == L4_KCQE_OPCODE_VALUE_RESET_RECEIVED &&
-	     csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP)) {
+
+	/* 1. If event opcode matches the expected event in csk->state
+	 * 2. If the expected event is CLOSE_COMP, we accept any event
+	 */
+	if (opcode == csk->state ||
+	     csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP) {
 		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags))
 			return 1;
-	}
-	/* 57710+ only  workaround to handle unsolicited RESET_COMP
-	 * which will be treated like a RESET RCVD notification
-	 * which triggers the clean up procedure
-	 */
-	else if (opcode == L4_KCQE_OPCODE_VALUE_RESET_COMP) {
-		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags)) {
-			csk->state = L4_KCQE_OPCODE_VALUE_RESET_RECEIVED;
-			return 1;
-		}
 	}
 	return 0;
 }
