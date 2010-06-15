@@ -26,9 +26,9 @@
  *
  * Functions:
  *
- *   device_found1 - module initial (insmod) driver entry
- *   device_remove1 - module remove entry
- *   device_init_info - device structure resource allocation function
+ *   vt6655_probe - module initial (insmod) driver entry
+ *   vt6655_remove - module remove entry
+ *   vt6655_init_info - device structure resource allocation function
  *   device_free_info - device structure resource free function
  *   device_get_pci_info - get allocated pci io/mem resource
  *   device_print_info - print out resource
@@ -284,7 +284,7 @@ static CHIP_INFO chip_info_table[]= {
     {0,NULL}
 };
 
-DEFINE_PCI_DEVICE_TABLE(device_id_table) = {
+DEFINE_PCI_DEVICE_TABLE(vt6655_pci_id_table) = {
 	{ PCI_VDEVICE(VIA, 0x3253), (kernel_ulong_t)chip_info_table},
 	{ 0, }
 };
@@ -292,8 +292,8 @@ DEFINE_PCI_DEVICE_TABLE(device_id_table) = {
 /*---------------------  Static Functions  --------------------------*/
 
 
-static int  device_found1(struct pci_dev *pcid, const struct pci_device_id *ent);
-static BOOL device_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
+static int  vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent);
+static BOOL vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice, PCHIP_INFO);
 static void device_free_info(PSDevice pDevice);
 static BOOL device_get_pci_info(PSDevice, struct pci_dev* pcid);
 static void device_print_info(PSDevice pDevice);
@@ -358,7 +358,7 @@ static char* get_chip_name(int chip_id) {
     return chip_info_table[i].name;
 }
 
-static void device_remove1(struct pci_dev *pcid)
+static void __devexit vt6655_remove(struct pci_dev *pcid)
 {
     PSDevice pDevice=pci_get_drvdata(pcid);
 
@@ -915,8 +915,8 @@ static const struct net_device_ops device_netdev_ops = {
 
 
 
-static int
-device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
+static int __devinit
+vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 {
     static BOOL bFirst = TRUE;
     struct net_device*  dev = NULL;
@@ -948,7 +948,7 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
         bFirst=FALSE;
     }
 
-    if (!device_init_info(pcid, &pDevice, pChip_info)) {
+    if (!vt6655_init_info(pcid, &pDevice, pChip_info)) {
         return -ENOMEM;
     }
     pDevice->dev = dev;
@@ -1122,7 +1122,7 @@ static void device_print_info(PSDevice pDevice)
 
 }
 
-static BOOL device_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
+static BOOL __devinit vt6655_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
     PCHIP_INFO pChip_info) {
 
     PSDevice p;
@@ -3601,20 +3601,20 @@ static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 
 /*------------------------------------------------------------------*/
 
-MODULE_DEVICE_TABLE(pci, device_id_table);
+MODULE_DEVICE_TABLE(pci, vt6655_pci_id_table);
 
 static struct pci_driver device_driver = {
         name:       DEVICE_NAME,
-        id_table:   device_id_table,
-        probe:      device_found1,
-        remove:     device_remove1,
+        id_table:   vt6655_pci_id_table,
+        probe:      vt6655_probe,
+        remove:     vt6655_remove,
 #ifdef CONFIG_PM
         suspend:    viawget_suspend,
         resume:     viawget_resume,
 #endif
 };
 
-static int __init device_init_module(void)
+static int __init vt6655_init_module(void)
 {
     int ret;
 
@@ -3630,7 +3630,7 @@ static int __init device_init_module(void)
     return ret;
 }
 
-static void __exit device_cleanup_module(void)
+static void __exit vt6655_cleanup_module(void)
 {
 
 
@@ -3641,8 +3641,8 @@ static void __exit device_cleanup_module(void)
 
 }
 
-module_init(device_init_module);
-module_exit(device_cleanup_module);
+module_init(vt6655_init_module);
+module_exit(vt6655_cleanup_module);
 
 
 #ifdef CONFIG_PM
