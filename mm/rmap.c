@@ -1462,7 +1462,7 @@ int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
 }
 #endif /* CONFIG_MIGRATION */
 
-#ifdef CONFIG_HUGETLBFS
+#ifdef CONFIG_HUGETLB_PAGE
 /*
  * The following three functions are for anonymous (private mapped) hugepages.
  * Unlike common anonymous pages, anonymous hugepages have no accounting code
@@ -1503,4 +1503,4 @@ void hugepage_add_new_anon_rmap(struct page *page,
 	atomic_set(&page->_mapcount, 0);
 	__hugepage_set_anon_rmap(page, vma, address, 1);
 }
-#endif /* CONFIG_HUGETLBFS */
+#endif /* CONFIG_HUGETLB_PAGE */
