@@ -163,7 +163,7 @@ static int ds2782_get_capacity(struct ds278x_info *info, int *capacity)
 	if (err)
 		return err;
 	*capacity = raw;
-	return raw;
+	return 0;
 }
 
 static int ds2786_get_current(struct ds278x_info *info, int *current_uA)
