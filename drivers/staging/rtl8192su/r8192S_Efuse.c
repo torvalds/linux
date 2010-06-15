@@ -1848,22 +1848,6 @@ bool IsHexDigit(	char chTmp)
 	}
 }
 
-//
-//	Description:
-//		Translate a character to hex digit.
-//
-u32 MapCharToHexDigit(char chTmp)
-{
-	if(chTmp >= '0' && chTmp <= '9')
-		return (chTmp - '0');
-	else if(chTmp >= 'a' && chTmp <= 'f')
-		return (10 + (chTmp - 'a'));
-	else if(chTmp >= 'A' && chTmp <= 'F')
-		return (10 + (chTmp - 'A'));
-	else
-		return 0;
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	efuse_ParsingMap
  *
@@ -1917,8 +1901,7 @@ efuse_ParsingMap(char* szStr,u32* pu4bVal,u32* pu4bMove)
 	// Parse each digit.
 	do
 	{
-		(*pu4bVal) <<= 4;
-		*pu4bVal += MapCharToHexDigit(*szScan);
+		*pu4bVal = (*pu4bVal << 4) + hex_to_bin(*szScan);
 
 		szScan++;
 		(*pu4bMove)++;

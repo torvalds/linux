@@ -48,6 +48,7 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <linux/kernel.h>
 #include "comedi_pci.h"
 #include "jr3_pci.h"
 
@@ -397,14 +398,14 @@ int read_idm_word(const u8 * data, size_t size, int *pos, unsigned int *val)
 		}
 		/*  Collect value */
 		*val = 0;
-		for (; *pos < size && isxdigit(data[*pos]); (*pos)++) {
-			char ch = tolower(data[*pos]);
-			result = 1;
-			if ('0' <= ch && ch <= '9') {
-				*val = (*val << 4) + (ch - '0');
-			} else if ('a' <= ch && ch <= 'f') {
-				*val = (*val << 4) + (ch - 'a' + 10);
-			}
+		for (; *pos < size; (*pos)++) {
+			int value;
+			value = hex_to_bin(data[*pos]);
+			if (value >= 0) {
+				result = 1;
+				*val = (*val << 4) + value;
+			} else
+				break;
 		}
 	}
 	return result;
