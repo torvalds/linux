@@ -3143,12 +3143,6 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 		break;
 
 	case L4_KCQE_OPCODE_VALUE_RESET_RECEIVED:
-		if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
-			cnic_cm_upcall(cp, csk, opcode);
-			break;
-		} else if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags))
-			csk->state = opcode;
-		/* fall through */
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
 	case L5CM_RAMROD_CMD_ID_SEARCHER_DELETE:
@@ -3204,6 +3198,10 @@ static int cnic_cm_alloc_mem(struct cnic_dev *dev)
 
 static int cnic_ready_to_close(struct cnic_sock *csk, u32 opcode)
 {
+	if (opcode == L4_KCQE_OPCODE_VALUE_RESET_RECEIVED) {
+		if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags))
+			csk->state = opcode;
+	}
 	if ((opcode == csk->state) ||
 	    (opcode == L4_KCQE_OPCODE_VALUE_RESET_RECEIVED &&
 	     csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP)) {
@@ -3227,6 +3225,11 @@ static void cnic_close_bnx2_conn(struct cnic_sock *csk, u32 opcode)
 {
 	struct cnic_dev *dev = csk->dev;
 	struct cnic_local *cp = dev->cnic_priv;
+
+	if (opcode == L4_KCQE_OPCODE_VALUE_RESET_RECEIVED) {
+		cnic_cm_upcall(cp, csk, opcode);
+		return;
+	}
 
 	clear_bit(SK_F_CONNECT_START, &csk->flags);
 	cnic_close_conn(csk);
