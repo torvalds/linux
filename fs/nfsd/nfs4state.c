@@ -771,7 +771,9 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 	idx = hash_sessionid(&new->se_sessionid);
 	spin_lock(&client_lock);
 	list_add(&new->se_hash, &sessionid_hashtbl[idx]);
+	spin_lock(&clp->cl_lock);
 	list_add(&new->se_perclnt, &clp->cl_sessions);
+	spin_unlock(&clp->cl_lock);
 	spin_unlock(&client_lock);
 
 	status = nfsd4_new_conn(rqstp, new);
@@ -819,7 +821,9 @@ static void
 unhash_session(struct nfsd4_session *ses)
 {
 	list_del(&ses->se_hash);
+	spin_lock(&ses->se_client->cl_lock);
 	list_del(&ses->se_perclnt);
+	spin_unlock(&ses->se_client->cl_lock);
 }
 
 /* must be called under the client_lock */
@@ -925,8 +929,10 @@ unhash_client_locked(struct nfs4_client *clp)
 
 	mark_client_expired(clp);
 	list_del(&clp->cl_lru);
+	spin_lock(&clp->cl_lock);
 	list_for_each_entry(ses, &clp->cl_sessions, se_perclnt)
 		list_del_init(&ses->se_hash);
+	spin_unlock(&clp->cl_lock);
 }
 
 static void
