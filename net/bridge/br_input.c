@@ -41,7 +41,7 @@ static int br_pass_frame_up(struct sk_buff *skb)
 int br_handle_frame_finish(struct sk_buff *skb)
 {
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
-	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 	struct net_bridge *br;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
@@ -111,10 +111,9 @@ drop:
 /* note: already called with rcu_read_lock (preempt_disabled) */
 static int br_handle_local_finish(struct sk_buff *skb)
 {
-	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
+	struct net_bridge_port *p = br_port_get_rcu(skb->dev);
 
-	if (p)
-		br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
+	br_fdb_update(p->br, p, eth_hdr(skb)->h_source);
 	return 0;	 /* process further */
 }
 
@@ -151,7 +150,7 @@ struct sk_buff *br_handle_frame(struct sk_buff *skb)
 	if (!skb)
 		return NULL;
 
-	p = rcu_dereference(skb->dev->br_port);
+	p = br_port_get_rcu(skb->dev);
 
 	if (unlikely(is_link_local(dest))) {
 		/* Pause frames shouldn't be passed up by driver anyway */

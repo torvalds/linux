@@ -242,11 +242,11 @@ int br_fdb_test_addr(struct net_device *dev, unsigned char *addr)
 	struct net_bridge_fdb_entry *fdb;
 	int ret;
 
-	if (!dev->br_port)
+	if (!br_port_exists(dev))
 		return 0;
 
 	rcu_read_lock();
-	fdb = __br_fdb_get(dev->br_port->br, addr);
+	fdb = __br_fdb_get(br_port_get_rcu(dev)->br, addr);
 	ret = fdb && fdb->dst->dev != dev &&
 		fdb->dst->state == BR_STATE_FORWARDING;
 	rcu_read_unlock();

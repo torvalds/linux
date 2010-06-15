@@ -71,7 +71,7 @@ static int is_valid_iface(struct net_device *net_dev)
 #endif
 
 	/* Device is being bridged */
-	/* if (net_dev->br_port != NULL)
+	/* if (net_dev->priv_flags & IFF_BRIDGE_PORT)
 		return 0; */
 
 	return 1;

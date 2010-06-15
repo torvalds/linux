@@ -150,6 +150,11 @@ struct net_bridge_port
 #endif
 };
 
+#define br_port_get_rcu(dev) \
+	((struct net_bridge_port *) rcu_dereference(dev->rx_handler_data))
+#define br_port_get(dev) ((struct net_bridge_port *) dev->rx_handler_data)
+#define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
+
 struct br_cpu_netstats {
 	unsigned long	rx_packets;
 	unsigned long	rx_bytes;

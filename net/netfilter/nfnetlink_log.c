@@ -403,8 +403,9 @@ __build_packet_message(struct nfulnl_instance *inst,
 			NLA_PUT_BE32(inst->skb, NFULA_IFINDEX_PHYSINDEV,
 				     htonl(indev->ifindex));
 			/* this is the bridge group "brX" */
+			/* rcu_read_lock()ed by nf_hook_slow or nf_log_packet */
 			NLA_PUT_BE32(inst->skb, NFULA_IFINDEX_INDEV,
-				     htonl(indev->br_port->br->dev->ifindex));
+				     htonl(br_port_get_rcu(indev)->br->dev->ifindex));
 		} else {
 			/* Case 2: indev is bridge group, we need to look for
 			 * physical device (when called from ipv4) */
@@ -430,8 +431,9 @@ __build_packet_message(struct nfulnl_instance *inst,
 			NLA_PUT_BE32(inst->skb, NFULA_IFINDEX_PHYSOUTDEV,
 				     htonl(outdev->ifindex));
 			/* this is the bridge group "brX" */
+			/* rcu_read_lock()ed by nf_hook_slow or nf_log_packet */
 			NLA_PUT_BE32(inst->skb, NFULA_IFINDEX_OUTDEV,
-				     htonl(outdev->br_port->br->dev->ifindex));
+				     htonl(br_port_get_rcu(outdev)->br->dev->ifindex));
 		} else {
 			/* Case 2: indev is a bridge group, we need to look
 			 * for physical device (when called from ipv4) */

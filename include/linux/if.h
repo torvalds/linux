@@ -74,6 +74,7 @@
 #define IFF_IN_NETPOLL	0x1000		/* whether we are processing netpoll */
 #define IFF_DISABLE_NETPOLL	0x2000	/* disable netpoll at run-time */
 #define IFF_MACVLAN_PORT	0x4000	/* device used as macvlan port */
+#define IFF_BRIDGE_PORT	0x8000		/* device used as bridge port */
 
 #define IF_GET_IFACE	0x0001		/* for querying only */
 #define IF_GET_PROTO	0x0002

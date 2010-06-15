@@ -127,16 +127,17 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 
 static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
 {
-	struct net_bridge_port *port = rcu_dereference(dev->br_port);
-
-	return port ? &port->br->fake_rtable : NULL;
+	if (!br_port_exists(dev))
+		return NULL;
+	return &br_port_get_rcu(dev)->br->fake_rtable;
 }
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
 {
-	struct net_bridge_port *port = rcu_dereference(dev->br_port);
+	if (!br_port_exists(dev))
+		return NULL;
 
-	return port ? port->br->dev : NULL;
+	return br_port_get_rcu(dev)->br->dev;
 }
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)

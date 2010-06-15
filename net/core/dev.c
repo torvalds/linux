@@ -2765,7 +2765,8 @@ int __skb_bond_should_drop(struct sk_buff *skb, struct net_device *master)
 	if (master->priv_flags & IFF_MASTER_ARPMON)
 		dev->last_rx = jiffies;
 
-	if ((master->priv_flags & IFF_MASTER_ALB) && master->br_port) {
+	if ((master->priv_flags & IFF_MASTER_ALB) &&
+	    (master->priv_flags & IFF_BRIDGE_PORT)) {
 		/* Do address unmangle. The local destination address
 		 * will be always the one master has. Provides the right
 		 * functionality in a bridge.

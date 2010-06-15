@@ -177,8 +177,9 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 	if (in) {
 		strcpy(pm->physindev, in->name);
 		/* If in isn't a bridge, then physindev==indev */
-		if (in->br_port)
-			strcpy(pm->indev, in->br_port->br->dev->name);
+		if (br_port_exists(in))
+			/* rcu_read_lock()ed by nf_hook_slow */
+			strcpy(pm->indev, br_port_get_rcu(in)->br->dev->name);
 		else
 			strcpy(pm->indev, in->name);
 	} else
@@ -187,7 +188,8 @@ static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
 	if (out) {
 		/* If out exists, then out is a bridge port */
 		strcpy(pm->physoutdev, out->name);
-		strcpy(pm->outdev, out->br_port->br->dev->name);
+		/* rcu_read_lock()ed by nf_hook_slow */
+		strcpy(pm->outdev, br_port_get_rcu(out)->br->dev->name);
 	} else
 		pm->outdev[0] = pm->physoutdev[0] = '\0';
 

@@ -147,8 +147,9 @@ static void del_nbp(struct net_bridge_port *p)
 
 	list_del_rcu(&p->list);
 
+	dev->priv_flags &= ~IFF_BRIDGE_PORT;
+
 	netdev_rx_handler_unregister(dev);
-	rcu_assign_pointer(dev->br_port, NULL);
 
 	br_multicast_del_port(p);
 
@@ -400,7 +401,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		return -ELOOP;
 
 	/* Device is already being bridged */
-	if (dev->br_port != NULL)
+	if (br_port_exists(dev))
 		return -EBUSY;
 
 	/* No bridging devices that dislike that (e.g. wireless) */
@@ -431,11 +432,11 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (br_netpoll_info(br) && ((err = br_netpoll_enable(p))))
 		goto err3;
 
-	rcu_assign_pointer(dev->br_port, p);
-
-	err = netdev_rx_handler_register(dev, br_handle_frame, NULL);
+	err = netdev_rx_handler_register(dev, br_handle_frame, p);
 	if (err)
-		goto err4;
+		goto err3;
+
+	dev->priv_flags |= IFF_BRIDGE_PORT;
 
 	dev_disable_lro(dev);
 
@@ -457,8 +458,6 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	kobject_uevent(&p->kobj, KOBJ_ADD);
 
 	return 0;
-err4:
-	rcu_assign_pointer(dev->br_port, NULL);
 err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
@@ -477,9 +476,13 @@ put_back:
 /* called with RTNL */
 int br_del_if(struct net_bridge *br, struct net_device *dev)
 {
-	struct net_bridge_port *p = dev->br_port;
+	struct net_bridge_port *p;
 
-	if (!p || p->br != br)
+	if (!br_port_exists(dev))
+		return -EINVAL;
+
+	p = br_port_get(dev);
+	if (p->br != br)
 		return -EINVAL;
 
 	del_nbp(p);
