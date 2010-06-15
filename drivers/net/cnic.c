@@ -3026,6 +3026,8 @@ static int cnic_cm_close(struct cnic_sock *csk)
 	if (cnic_close_prep(csk)) {
 		csk->state = L4_KCQE_OPCODE_VALUE_CLOSE_COMP;
 		return cnic_cm_close_req(csk);
+	} else {
+		return -EALREADY;
 	}
 	return 0;
 }
