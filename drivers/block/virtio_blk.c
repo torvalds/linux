@@ -366,12 +366,32 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	vblk->disk->driverfs_dev = &vdev->dev;
 	index++;
 
-	/* If barriers are supported, tell block layer that queue is ordered */
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH)) {
+		/*
+		 * If the FLUSH feature is supported we do have support for
+		 * flushing a volatile write cache on the host.  Use that
+		 * to implement write barrier support.
+		 */
 		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH,
 				  virtblk_prepare_flush);
-	else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
+	} else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER)) {
+		/*
+		 * If the BARRIER feature is supported the host expects us
+		 * to order request by tags.  This implies there is not
+		 * volatile write cache on the host, and that the host
+		 * never re-orders outstanding I/O.  This feature is not
+		 * useful for real life scenarious and deprecated.
+		 */
 		blk_queue_ordered(q, QUEUE_ORDERED_TAG, NULL);
+	} else {
+		/*
+		 * If the FLUSH feature is not supported we must assume that
+		 * the host does not perform any kind of volatile write
+		 * caching. We still need to drain the queue to provider
+		 * proper barrier semantics.
+		 */
+		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN, NULL);
+	}
 
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))
