@@ -565,8 +565,8 @@ struct pmu {
 
 	int				*pmu_disable_count;
 
-	void (*pmu_enable)		(struct pmu *pmu);
-	void (*pmu_disable)		(struct pmu *pmu);
+	void (*pmu_enable)		(struct pmu *pmu); /* optional */
+	void (*pmu_disable)		(struct pmu *pmu); /* optional */
 
 	/*
 	 * Should return -ENOENT when the @event doesn't match this PMU.
@@ -590,19 +590,19 @@ struct pmu {
 	 * Start the transaction, after this ->enable() doesn't need to
 	 * do schedulability tests.
 	 */
-	void (*start_txn)	(struct pmu *pmu);
+	void (*start_txn)	(struct pmu *pmu); /* optional */
 	/*
 	 * If ->start_txn() disabled the ->enable() schedulability test
 	 * then ->commit_txn() is required to perform one. On success
 	 * the transaction is closed. On error the transaction is kept
 	 * open until ->cancel_txn() is called.
 	 */
-	int  (*commit_txn)	(struct pmu *pmu);
+	int  (*commit_txn)	(struct pmu *pmu); /* optional */
 	/*
 	 * Will cancel the transaction, assumes ->disable() is called
 	 * for each successfull ->enable() during the transaction.
 	 */
-	void (*cancel_txn)	(struct pmu *pmu);
+	void (*cancel_txn)	(struct pmu *pmu); /* optional */
 };
 
 /**

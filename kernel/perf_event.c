@@ -674,21 +674,14 @@ group_sched_in(struct perf_event *group_event,
 {
 	struct perf_event *event, *partial_group = NULL;
 	struct pmu *pmu = group_event->pmu;
-	bool txn = false;
 
 	if (group_event->state == PERF_EVENT_STATE_OFF)
 		return 0;
 
-	/* Check if group transaction availabe */
-	if (pmu->start_txn)
-		txn = true;
-
-	if (txn)
-		pmu->start_txn(pmu);
+	pmu->start_txn(pmu);
 
 	if (event_sched_in(group_event, cpuctx, ctx)) {
-		if (txn)
-			pmu->cancel_txn(pmu);
+		pmu->cancel_txn(pmu);
 		return -EAGAIN;
 	}
 
@@ -702,7 +695,7 @@ group_sched_in(struct perf_event *group_event,
 		}
 	}
 
-	if (!txn || !pmu->commit_txn(pmu))
+	if (!pmu->commit_txn(pmu))
 		return 0;
 
 group_error:
@@ -717,8 +710,7 @@ group_error:
 	}
 	event_sched_out(group_event, cpuctx, ctx);
 
-	if (txn)
-		pmu->cancel_txn(pmu);
+	pmu->cancel_txn(pmu);
 
 	return -EAGAIN;
 }
@@ -4965,6 +4957,31 @@ static LIST_HEAD(pmus);
 static DEFINE_MUTEX(pmus_lock);
 static struct srcu_struct pmus_srcu;
 
+static void perf_pmu_nop_void(struct pmu *pmu)
+{
+}
+
+static int perf_pmu_nop_int(struct pmu *pmu)
+{
+	return 0;
+}
+
+static void perf_pmu_start_txn(struct pmu *pmu)
+{
+	perf_pmu_disable(pmu);
+}
+
+static int perf_pmu_commit_txn(struct pmu *pmu)
+{
+	perf_pmu_enable(pmu);
+	return 0;
+}
+
+static void perf_pmu_cancel_txn(struct pmu *pmu)
+{
+	perf_pmu_enable(pmu);
+}
+
 int perf_pmu_register(struct pmu *pmu)
 {
 	int ret;
@@ -4974,6 +4991,29 @@ int perf_pmu_register(struct pmu *pmu)
 	pmu->pmu_disable_count = alloc_percpu(int);
 	if (!pmu->pmu_disable_count)
 		goto unlock;
+
+	if (!pmu->start_txn) {
+		if (pmu->pmu_enable) {
+			/*
+			 * If we have pmu_enable/pmu_disable calls, install
+			 * transaction stubs that use that to try and batch
+			 * hardware accesses.
+			 */
+			pmu->start_txn  = perf_pmu_start_txn;
+			pmu->commit_txn = perf_pmu_commit_txn;
+			pmu->cancel_txn = perf_pmu_cancel_txn;
+		} else {
+			pmu->start_txn  = perf_pmu_nop_void;
+			pmu->commit_txn = perf_pmu_nop_int;
+			pmu->cancel_txn = perf_pmu_nop_void;
+		}
+	}
+
+	if (!pmu->pmu_enable) {
+		pmu->pmu_enable  = perf_pmu_nop_void;
+		pmu->pmu_disable = perf_pmu_nop_void;
+	}
+
 	list_add_rcu(&pmu->entry, &pmus);
 	ret = 0;
 unlock:
