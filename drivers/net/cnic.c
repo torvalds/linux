@@ -2996,7 +2996,7 @@ err_out:
 static int cnic_cm_abort(struct cnic_sock *csk)
 {
 	struct cnic_local *cp = csk->dev->cnic_priv;
-	u32 opcode;
+	u32 opcode = L4_KCQE_OPCODE_VALUE_RESET_COMP;
 
 	if (!cnic_in_use(csk))
 		return -EINVAL;
@@ -3008,12 +3008,9 @@ static int cnic_cm_abort(struct cnic_sock *csk)
 	 * connect was not successful.
 	 */
 
-	csk->state = L4_KCQE_OPCODE_VALUE_RESET_COMP;
-	if (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
-		opcode = csk->state;
-	else
-		opcode = L5CM_RAMROD_CMD_ID_TERMINATE_OFFLOAD;
 	cp->close_conn(csk, opcode);
+	if (csk->state != opcode)
+		return -EALREADY;
 
 	return 0;
 }
@@ -3206,11 +3203,16 @@ static int cnic_ready_to_close(struct cnic_sock *csk, u32 opcode)
 
 	/* 1. If event opcode matches the expected event in csk->state
 	 * 2. If the expected event is CLOSE_COMP, we accept any event
+	 * 3. If the expected event is 0, meaning the connection was never
+	 *    never established, we accept the opcode from cm_abort.
 	 */
-	if (opcode == csk->state ||
-	     csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP) {
-		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags))
+	if (opcode == csk->state || csk->state == 0 ||
+	    csk->state == L4_KCQE_OPCODE_VALUE_CLOSE_COMP) {
+		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags)) {
+			if (csk->state == 0)
+				csk->state = opcode;
 			return 1;
+		}
 	}
 	return 0;
 }
@@ -3227,6 +3229,7 @@ static void cnic_close_bnx2_conn(struct cnic_sock *csk, u32 opcode)
 
 	clear_bit(SK_F_CONNECT_START, &csk->flags);
 	cnic_close_conn(csk);
+	csk->state = opcode;
 	cnic_cm_upcall(cp, csk, opcode);
 }
 
@@ -3256,8 +3259,12 @@ static void cnic_close_bnx2x_conn(struct cnic_sock *csk, u32 opcode)
 	case L4_KCQE_OPCODE_VALUE_RESET_RECEIVED:
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
 	case L4_KCQE_OPCODE_VALUE_RESET_COMP:
-		if (cnic_ready_to_close(csk, opcode))
-			cmd = L5CM_RAMROD_CMD_ID_SEARCHER_DELETE;
+		if (cnic_ready_to_close(csk, opcode)) {
+			if (test_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags))
+				cmd = L5CM_RAMROD_CMD_ID_SEARCHER_DELETE;
+			else
+				close_complete = 1;
+		}
 		break;
 	case L5CM_RAMROD_CMD_ID_SEARCHER_DELETE:
 		cmd = L5CM_RAMROD_CMD_ID_TERMINATE_OFFLOAD;
