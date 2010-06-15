@@ -673,7 +673,7 @@ struct netdev_rx_queue {
  *	1. Define @ndo_get_stats64 to update a rtnl_link_stats64 structure
  *	   (which should normally be dev->stats64) and return a ponter to
  *	   it. The structure must not be changed asynchronously.
- *	2. Define @ndo_get_stats to update a net_device_stats64 structure
+ *	2. Define @ndo_get_stats to update a net_device_stats structure
  *	   (which should normally be dev->stats) and return a pointer to
  *	   it. The structure may be changed asynchronously only if each
  *	   field is written atomically.
