@@ -9,16 +9,7 @@
  * for more details.
  */
 
-#include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
-#include <linux/io.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
-#include <sound/soc.h>
-#include <sound/soc-dapm.h>
-
 #include <sound/sh_fsi.h>
 #include <../sound/soc/codecs/ak4642.h>
 
