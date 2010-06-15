@@ -53,6 +53,7 @@ struct ath_buf;
  * @cabend: RX End of CAB traffic
  * @dtimsync: DTIM sync lossage
  * @dtim: RX Beacon with DTIM
+ * @bb_watchdog: Baseband watchdog
  */
 struct ath_interrupt_stats {
 	u32 total;
@@ -76,6 +77,7 @@ struct ath_interrupt_stats {
 	u32 cabend;
 	u32 dtimsync;
 	u32 dtim;
+	u32 bb_watchdog;
 };
 
 struct ath_rc_stats {

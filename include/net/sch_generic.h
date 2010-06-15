@@ -23,9 +23,15 @@ struct qdisc_rate_table {
 };
 
 enum qdisc_state_t {
-	__QDISC_STATE_RUNNING,
 	__QDISC_STATE_SCHED,
 	__QDISC_STATE_DEACTIVATED,
+};
+
+/*
+ * following bits are only changed while qdisc lock is held
+ */
+enum qdisc___state_t {
+	__QDISC___STATE_RUNNING,
 };
 
 struct qdisc_size_table {
@@ -72,9 +78,26 @@ struct Qdisc {
 	unsigned long		state;
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
+	unsigned long		__state;
 	struct gnet_stats_queue	qstats;
-	struct rcu_head     rcu_head;
+	struct rcu_head		rcu_head;
+	spinlock_t		busylock;
 };
+
+static inline bool qdisc_is_running(struct Qdisc *qdisc)
+{
+	return test_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+}
+
+static inline bool qdisc_run_begin(struct Qdisc *qdisc)
+{
+	return !__test_and_set_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+}
+
+static inline void qdisc_run_end(struct Qdisc *qdisc)
+{
+	__clear_bit(__QDISC___STATE_RUNNING, &qdisc->__state);
+}
 
 struct Qdisc_class_ops {
 	/* Child qdisc manipulation */

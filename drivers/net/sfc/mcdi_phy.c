@@ -20,7 +20,7 @@
 #include "nic.h"
 #include "selftest.h"
 
-struct efx_mcdi_phy_cfg {
+struct efx_mcdi_phy_data {
 	u32 flags;
 	u32 type;
 	u32 supported_cap;
@@ -35,7 +35,7 @@ struct efx_mcdi_phy_cfg {
 };
 
 static int
-efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_cfg *cfg)
+efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 {
 	u8 outbuf[MC_CMD_GET_PHY_CFG_OUT_LEN];
 	size_t outlen;
@@ -259,7 +259,7 @@ static u32 ethtool_to_mcdi_cap(u32 cap)
 
 static u32 efx_get_mcdi_phy_flags(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	enum efx_phy_mode mode, supported;
 	u32 flags;
 
@@ -307,7 +307,7 @@ static u32 mcdi_to_ethtool_media(u32 media)
 
 static int efx_mcdi_phy_probe(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_data;
+	struct efx_mcdi_phy_data *phy_data;
 	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
 	u32 caps;
 	int rc;
@@ -395,6 +395,7 @@ static int efx_mcdi_phy_probe(struct efx_nic *efx)
 	efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	if (phy_data->supported_cap & (1 << MC_CMD_PHY_CAP_AN_LBN))
 		efx->wanted_fc |= EFX_FC_AUTO;
+	efx_link_set_wanted_fc(efx, efx->wanted_fc);
 
 	return 0;
 
@@ -405,7 +406,7 @@ fail:
 
 int efx_mcdi_phy_reconfigure(struct efx_nic *efx)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 caps = (efx->link_advertising ?
 		    ethtool_to_mcdi_cap(efx->link_advertising) :
 		    phy_cfg->forced_cap);
@@ -446,7 +447,7 @@ void efx_mcdi_phy_decode_link(struct efx_nic *efx,
  */
 void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 rmtadv;
 
 	/* The link partner capabilities are only relevent if the
@@ -505,7 +506,7 @@ static void efx_mcdi_phy_remove(struct efx_nic *efx)
 
 static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u8 outbuf[MC_CMD_GET_LINK_OUT_LEN];
 	int rc;
 
@@ -535,7 +536,7 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 
 static int efx_mcdi_phy_set_settings(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 caps;
 	int rc;
 
@@ -674,7 +675,7 @@ out:
 static int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results,
 				  unsigned flags)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 	u32 mode;
 	int rc;
 
@@ -712,7 +713,7 @@ static int efx_mcdi_phy_run_tests(struct efx_nic *efx, int *results,
 
 const char *efx_mcdi_phy_test_name(struct efx_nic *efx, unsigned int index)
 {
-	struct efx_mcdi_phy_cfg *phy_cfg = efx->phy_data;
+	struct efx_mcdi_phy_data *phy_cfg = efx->phy_data;
 
 	if (phy_cfg->flags & (1 << MC_CMD_GET_PHY_CFG_BIST_LBN)) {
 		if (index == 0)

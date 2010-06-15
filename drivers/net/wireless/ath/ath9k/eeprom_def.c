@@ -617,6 +617,7 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 	int16_t minDelta = 0;
 	struct chan_centers centers;
 
+	memset(&minPwrT4, 0, AR9287_NUM_PD_GAINS);
 	ath9k_hw_get_channel_centers(ah, chan, &centers);
 
 	for (numPiers = 0; numPiers < availPiers; numPiers++) {

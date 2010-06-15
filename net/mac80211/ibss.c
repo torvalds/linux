@@ -798,6 +798,15 @@ static void ieee80211_ibss_work(struct work_struct *work)
 	}
 }
 
+static void ieee80211_queue_ibss_work(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
+	struct ieee80211_local *local = sdata->local;
+
+	set_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request);
+	ieee80211_queue_work(&local->hw, &ifibss->work);
+}
+
 static void ieee80211_ibss_timer(unsigned long data)
 {
 	struct ieee80211_sub_if_data *sdata =
@@ -810,8 +819,7 @@ static void ieee80211_ibss_timer(unsigned long data)
 		return;
 	}
 
-	set_bit(IEEE80211_IBSS_REQ_RUN, &ifibss->request);
-	ieee80211_queue_work(&local->hw, &ifibss->work);
+	ieee80211_queue_ibss_work(sdata);
 }
 
 #ifdef CONFIG_PM
@@ -859,7 +867,7 @@ void ieee80211_ibss_notify_scan_completed(struct ieee80211_local *local)
 		if (!sdata->u.ibss.ssid_len)
 			continue;
 		sdata->u.ibss.last_scan_completed = jiffies;
-		mod_timer(&sdata->u.ibss.timer, 0);
+		ieee80211_queue_ibss_work(sdata);
 	}
 	mutex_unlock(&local->iflist_mtx);
 }

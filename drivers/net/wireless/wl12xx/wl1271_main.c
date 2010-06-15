@@ -566,14 +566,21 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	if (fw->size != sizeof(struct wl1271_nvs_file)) {
+	/*
+	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
+	 * configurations) can be removed when those NVS files stop floating
+	 * around.
+	 */
+	if (fw->size != sizeof(struct wl1271_nvs_file) &&
+	    (fw->size != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
+	     wl1271_11a_enabled())) {
 		wl1271_error("nvs size is not as expected: %zu != %zu",
 			     fw->size, sizeof(struct wl1271_nvs_file));
 		ret = -EILSEQ;
 		goto out;
 	}
 
-	wl->nvs = kmalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kzalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
@@ -581,7 +588,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		goto out;
 	}
 
-	memcpy(wl->nvs, fw->data, sizeof(struct wl1271_nvs_file));
+	memcpy(wl->nvs, fw->data, fw->size);
 
 out:
 	release_firmware(fw);
@@ -1044,7 +1051,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl1271_tx_flush(wl);
+	wl1271_tx_reset(wl);
 	wl1271_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -1241,6 +1248,42 @@ static u32 wl1271_min_rate_get(struct wl1271 *wl)
 	return rate;
 }
 
+static int wl1271_handle_idle(struct wl1271 *wl, bool idle)
+{
+	int ret;
+
+	if (idle) {
+		if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
+			ret = wl1271_unjoin(wl);
+			if (ret < 0)
+				goto out;
+		}
+		wl->rate_set = wl1271_min_rate_get(wl);
+		wl->sta_rate_set = 0;
+		ret = wl1271_acx_rate_policies(wl);
+		if (ret < 0)
+			goto out;
+		ret = wl1271_acx_keep_alive_config(
+			wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+			ACX_KEEP_ALIVE_TPL_INVALID);
+		if (ret < 0)
+			goto out;
+		set_bit(WL1271_FLAG_IDLE, &wl->flags);
+	} else {
+		/* increment the session counter */
+		wl->session_counter++;
+		if (wl->session_counter >= SESSION_COUNTER_MAX)
+			wl->session_counter = 0;
+		ret = wl1271_dummy_join(wl);
+		if (ret < 0)
+			goto out;
+		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+	}
+
+out:
+	return ret;
+}
+
 static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1271 *wl = hw->priv;
@@ -1254,6 +1297,15 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
 		     conf->power_level,
 		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use");
+
+	/*
+	 * mac80211 will go to idle nearly immediately after transmitting some
+	 * frames, such as the deauth. To make sure those frames reach the air,
+	 * wait here until the TX queue is fully flushed.
+	 */
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    (conf->flags & IEEE80211_CONF_IDLE))
+		wl1271_tx_flush(wl);
 
 	mutex_lock(&wl->mutex);
 
@@ -1295,22 +1347,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		if (conf->flags & IEEE80211_CONF_IDLE &&
-		    test_bit(WL1271_FLAG_JOINED, &wl->flags))
-			wl1271_unjoin(wl);
-		else if (!(conf->flags & IEEE80211_CONF_IDLE))
-			wl1271_dummy_join(wl);
-
-		if (conf->flags & IEEE80211_CONF_IDLE) {
-			wl->rate_set = wl1271_min_rate_get(wl);
-			wl->sta_rate_set = 0;
-			wl1271_acx_rate_policies(wl);
-			wl1271_acx_keep_alive_config(
-				wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
-				ACX_KEEP_ALIVE_TPL_INVALID);
-			set_bit(WL1271_FLAG_IDLE, &wl->flags);
-		} else
-			clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+		ret = wl1271_handle_idle(wl, conf->flags & IEEE80211_CONF_IDLE);
+		if (ret < 0)
+			wl1271_warning("idle mode change failed %d", ret);
 	}
 
 	if (conf->flags & IEEE80211_CONF_PS &&
@@ -1595,13 +1634,11 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 
 	if (wl1271_11a_enabled())
-		ret = wl1271_cmd_scan(hw->priv, ssid, len,
-				      req->ie, req->ie_len, 1, 0,
-				      WL1271_SCAN_BAND_DUAL, 3);
+		ret = wl1271_cmd_scan(hw->priv, ssid, len, req,
+				      1, 0, WL1271_SCAN_BAND_DUAL, 3);
 	else
-		ret = wl1271_cmd_scan(hw->priv, ssid, len,
-				      req->ie, req->ie_len, 1, 0,
-				      WL1271_SCAN_BAND_2_4_GHZ, 3);
+		ret = wl1271_cmd_scan(hw->priv, ssid, len, req,
+				      1, 0, WL1271_SCAN_BAND_2_4_GHZ, 3);
 
 	wl1271_ps_elp_sleep(wl);
 
@@ -1991,7 +2028,7 @@ static struct ieee80211_channel wl1271_channels[] = {
 };
 
 /* mapping to indexes for wl1271_rates */
-const static u8 wl1271_rate_to_idx_2ghz[] = {
+static const u8 wl1271_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
@@ -2103,7 +2140,7 @@ static struct ieee80211_channel wl1271_channels_5ghz[] = {
 };
 
 /* mapping to indexes for wl1271_rates_5ghz */
-const static u8 wl1271_rate_to_idx_5ghz[] = {
+static const u8 wl1271_rate_to_idx_5ghz[] = {
 	/* MCS rates are used only with 11n */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
@@ -2139,7 +2176,7 @@ static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
 };
 
-const static u8 *wl1271_band_rate_to_idx[] = {
+static const u8 *wl1271_band_rate_to_idx[] = {
 	[IEEE80211_BAND_2GHZ] = wl1271_rate_to_idx_2ghz,
 	[IEEE80211_BAND_5GHZ] = wl1271_rate_to_idx_5ghz
 };

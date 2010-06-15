@@ -666,7 +666,7 @@ void lbs_scan_worker(struct work_struct *work)
 /**
  *  @brief Interpret a BSS scan response returned from the firmware
  *
- *  Parse the various fixed fields and IEs passed back for a a BSS probe
+ *  Parse the various fixed fields and IEs passed back for a BSS probe
  *  response or beacon from the scan command.  Record information as needed
  *  in the scan table struct bss_descriptor for that entry.
  *

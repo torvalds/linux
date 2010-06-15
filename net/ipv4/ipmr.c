@@ -267,8 +267,10 @@ static void __net_exit ipmr_rules_exit(struct net *net)
 {
 	struct mr_table *mrt, *next;
 
-	list_for_each_entry_safe(mrt, next, &net->ipv4.mr_tables, list)
+	list_for_each_entry_safe(mrt, next, &net->ipv4.mr_tables, list) {
+		list_del(&mrt->list);
 		kfree(mrt);
+	}
 	fib_rules_unregister(net->ipv4.mr_rules_ops);
 }
 #else
@@ -1551,9 +1553,9 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 			goto out_free;
 	}
 
-	dev = rt->u.dst.dev;
+	dev = rt->dst.dev;
 
-	if (skb->len+encap > dst_mtu(&rt->u.dst) && (ntohs(iph->frag_off) & IP_DF)) {
+	if (skb->len+encap > dst_mtu(&rt->dst) && (ntohs(iph->frag_off) & IP_DF)) {
 		/* Do not fragment multicasts. Alas, IPv4 does not
 		   allow to send ICMP, so that packets will disappear
 		   to blackhole.
@@ -1564,7 +1566,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		goto out_free;
 	}
 
-	encap += LL_RESERVED_SPACE(dev) + rt->u.dst.header_len;
+	encap += LL_RESERVED_SPACE(dev) + rt->dst.header_len;
 
 	if (skb_cow(skb, encap)) {
 		ip_rt_put(rt);
@@ -1575,7 +1577,7 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	vif->bytes_out += skb->len;
 
 	skb_dst_drop(skb);
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 	ip_decrease_ttl(ip_hdr(skb));
 
 	/* FIXME: forward and output firewalls used to be called here.

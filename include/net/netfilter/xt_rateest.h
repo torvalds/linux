@@ -13,6 +13,7 @@ struct xt_rateest {
 	char				name[IFNAMSIZ];
 	unsigned int			refcnt;
 	struct gnet_estimator		params;
+	struct rcu_head			rcu;
 };
 
 extern struct xt_rateest *xt_rateest_lookup(const char *name);

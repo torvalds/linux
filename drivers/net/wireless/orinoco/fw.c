@@ -49,7 +49,7 @@ struct orinoco_fw_header {
 	__le32 pri_offset;      /* Offset to primary plug data */
 	__le32 compat_offset;   /* Offset to compatibility data*/
 	char signature[0];      /* FW signature length headersize-20 */
-} __attribute__ ((packed));
+} __packed;
 
 /* Check the range of various header entries. Return a pointer to a
  * description of the problem, or NULL if everything checks out. */

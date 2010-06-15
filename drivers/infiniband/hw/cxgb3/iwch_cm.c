@@ -1364,7 +1364,7 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 		       __func__);
 		goto reject;
 	}
-	dst = &rt->u.dst;
+	dst = &rt->dst;
 	l2t = t3_l2t_get(tdev, dst->neighbour, dst->neighbour->dev);
 	if (!l2t) {
 		printk(KERN_ERR MOD "%s - failed to allocate l2t entry!\n",
@@ -1932,7 +1932,7 @@ int iwch_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		err = -EHOSTUNREACH;
 		goto fail3;
 	}
-	ep->dst = &rt->u.dst;
+	ep->dst = &rt->dst;
 
 	/* get a l2t entry */
 	ep->l2t = t3_l2t_get(ep->com.tdev, ep->dst->neighbour,

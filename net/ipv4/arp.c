@@ -427,7 +427,7 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 
 	if (ip_route_output_key(net, &rt, &fl) < 0)
 		return 1;
-	if (rt->u.dst.dev != dev) {
+	if (rt->dst.dev != dev) {
 		NET_INC_STATS_BH(net, LINUX_MIB_ARPFILTER);
 		flag = 1;
 	}
@@ -532,7 +532,7 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
 	struct in_device *out_dev;
 	int imi, omi = -1;
 
-	if (rt->u.dst.dev == dev)
+	if (rt->dst.dev == dev)
 		return 0;
 
 	if (!IN_DEV_PROXY_ARP(in_dev))
@@ -545,10 +545,10 @@ static inline int arp_fwd_proxy(struct in_device *in_dev,
 
 	/* place to check for proxy_arp for routes */
 
-	if ((out_dev = in_dev_get(rt->u.dst.dev)) != NULL) {
+	out_dev = __in_dev_get_rcu(rt->dst.dev);
+	if (out_dev)
 		omi = IN_DEV_MEDIUM_ID(out_dev);
-		in_dev_put(out_dev);
-	}
+
 	return (omi != imi && omi != -1);
 }
 
@@ -576,7 +576,7 @@ static inline int arp_fwd_pvlan(struct in_device *in_dev,
 				__be32 sip, __be32 tip)
 {
 	/* Private VLAN is only concerned about the same ethernet segment */
-	if (rt->u.dst.dev != dev)
+	if (rt->dst.dev != dev)
 		return 0;
 
 	/* Don't reply on self probes (often done by windowz boxes)*/
@@ -741,7 +741,7 @@ void arp_send(int type, int ptype, __be32 dest_ip,
 static int arp_process(struct sk_buff *skb)
 {
 	struct net_device *dev = skb->dev;
-	struct in_device *in_dev = in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rcu(dev);
 	struct arphdr *arp;
 	unsigned char *arp_ptr;
 	struct rtable *rt;
@@ -890,7 +890,6 @@ static int arp_process(struct sk_buff *skb)
 					arp_send(ARPOP_REPLY,ETH_P_ARP,sip,dev,tip,sha,dev->dev_addr,sha);
 				} else {
 					pneigh_enqueue(&arp_tbl, in_dev->arp_parms, skb);
-					in_dev_put(in_dev);
 					return 0;
 				}
 				goto out;
@@ -936,8 +935,6 @@ static int arp_process(struct sk_buff *skb)
 	}
 
 out:
-	if (in_dev)
-		in_dev_put(in_dev);
 	consume_skb(skb);
 	return 0;
 }
@@ -1045,7 +1042,7 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 		struct rtable * rt;
 		if ((err = ip_route_output_key(net, &rt, &fl)) != 0)
 			return err;
-		dev = rt->u.dst.dev;
+		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!dev)
 			return -EINVAL;
@@ -1152,7 +1149,7 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 		struct rtable * rt;
 		if ((err = ip_route_output_key(net, &rt, &fl)) != 0)
 			return err;
-		dev = rt->u.dst.dev;
+		dev = rt->dst.dev;
 		ip_rt_put(rt);
 		if (!dev)
 			return -EINVAL;

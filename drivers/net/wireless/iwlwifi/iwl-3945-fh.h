@@ -175,13 +175,13 @@
 struct iwl3945_tfd_tb {
 	__le32 addr;
 	__le32 len;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwl3945_tfd {
 	__le32 control_flags;
 	struct iwl3945_tfd_tb tbs[4];
 	u8 __pad[28];
-} __attribute__ ((packed));
+} __packed;
 
 
 #endif /* __iwl_3945_fh_h__ */

@@ -113,26 +113,6 @@ int rt2x00usb_vendor_request_buff(struct rt2x00_dev *rt2x00dev,
 				  const u16 offset, void *buffer,
 				  const u16 buffer_length, const int timeout)
 {
-	int status;
-
-	mutex_lock(&rt2x00dev->csr_mutex);
-
-	status = rt2x00usb_vendor_req_buff_lock(rt2x00dev, request,
-						requesttype, offset, buffer,
-						buffer_length, timeout);
-
-	mutex_unlock(&rt2x00dev->csr_mutex);
-
-	return status;
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
-
-int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
-					const u8 request, const u8 requesttype,
-					const u16 offset, const void *buffer,
-					const u16 buffer_length,
-					const int timeout)
-{
 	int status = 0;
 	unsigned char *tb;
 	u16 off, len, bsize;
@@ -157,7 +137,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 
 	return status;
 }
-EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_large_buff);
+EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
 
 int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   const unsigned int offset,
@@ -196,6 +176,11 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
+
+	/*
+	 * Remove the descriptor from the front of the skb.
+	 */
+	skb_pull(entry->skb, entry->queue->desc_size);
 
 	/*
 	 * Obtain the status about this packet.
@@ -243,10 +228,10 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry,
 			  rt2x00usb_interrupt_txdone, entry);
 
 	/*
-	 * Make sure the skb->data pointer points to the frame, not the
-	 * descriptor.
+	 * Call the driver's write_tx_datadesc function, if it exists.
 	 */
-	skb_pull(entry->skb, entry->queue->desc_size);
+	if (rt2x00dev->ops->lib->write_tx_datadesc)
+		rt2x00dev->ops->lib->write_tx_datadesc(entry, txdesc);
 
 	return 0;
 }

@@ -330,7 +330,7 @@ struct _dlci_stat
 {
 	short dlci;
 	char  flags;
-} __attribute__((packed));
+} __packed;
 
 struct _frad_stat 
 {

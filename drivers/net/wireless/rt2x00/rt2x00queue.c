@@ -100,21 +100,8 @@ void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 
-	/*
-	 * If device has requested headroom, we should make sure that
-	 * is also mapped to the DMA so it can be used for transfering
-	 * additional descriptor information to the hardware.
-	 */
-	skb_push(skb, rt2x00dev->ops->extra_tx_headroom);
-
 	skbdesc->skb_dma =
 	    dma_map_single(rt2x00dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
-
-	/*
-	 * Restore data pointer to original location again.
-	 */
-	skb_pull(skb, rt2x00dev->ops->extra_tx_headroom);
-
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
@@ -130,16 +117,12 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	}
 
 	if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
-		/*
-		 * Add headroom to the skb length, it has been removed
-		 * by the driver, but it was actually mapped to DMA.
-		 */
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma,
-				 skb->len + rt2x00dev->ops->extra_tx_headroom,
+		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
 				 DMA_TO_DEVICE);
 		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_TX;
 	}
 }
+EXPORT_SYMBOL_GPL(rt2x00queue_unmap_skb);
 
 void rt2x00queue_free_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
@@ -421,7 +404,6 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 {
 	struct data_queue *queue = entry->queue;
 	struct rt2x00_dev *rt2x00dev = queue->rt2x00dev;
-	enum rt2x00_dump_type dump_type;
 
 	rt2x00dev->ops->lib->write_tx_desc(rt2x00dev, entry->skb, txdesc);
 
@@ -429,9 +411,7 @@ static void rt2x00queue_write_tx_descriptor(struct queue_entry *entry,
 	 * All processing on the frame has been completed, this means
 	 * it is now ready to be dumped to userspace through debugfs.
 	 */
-	dump_type = (txdesc->queue == QID_BEACON) ?
-					DUMP_FRAME_BEACON : DUMP_FRAME_TX;
-	rt2x00debug_dump_frame(rt2x00dev, dump_type, entry->skb);
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_TX, entry->skb);
 }
 
 static void rt2x00queue_kick_tx_queue(struct queue_entry *entry,
@@ -537,9 +517,6 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 		return -EIO;
 	}
 
-	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
-		rt2x00queue_map_txskb(queue->rt2x00dev, skb);
-
 	set_bit(ENTRY_DATA_PENDING, &entry->flags);
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
@@ -593,11 +570,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	skbdesc = get_skb_frame_desc(intf->beacon->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = intf->beacon;
-
-	/*
-	 * Write TX descriptor into reserved room in front of the beacon.
-	 */
-	rt2x00queue_write_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
 	 * Send beacon to hardware and enable beacon genaration..

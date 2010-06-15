@@ -165,8 +165,8 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 	rcu_read_unlock();
 
 	if (rt != NULL) {
-		mtu = dst_mtu(&rt->u.dst);
-		dst_release(&rt->u.dst);
+		mtu = dst_mtu(&rt->dst);
+		dst_release(&rt->dst);
 	}
 	return mtu;
 }

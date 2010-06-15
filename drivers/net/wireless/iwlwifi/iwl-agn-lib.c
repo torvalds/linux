@@ -77,7 +77,7 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 		IWL_DEBUG_TX_REPLY(priv, "FrameCnt = %d, StartIdx=%d idx=%d\n",
 				   agg->frame_count, agg->start_idx, idx);
 
-		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb[0]);
+		info = IEEE80211_SKB_CB(priv->txq[txq_id].txb[idx].skb);
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_tx_status_to_mac80211(status);
@@ -93,6 +93,12 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 	} else {
 		/* Two or more frames were attempted; expect block-ack */
 		u64 bitmap = 0;
+
+		/*
+		 * Start is the lowest frame sent. It may not be the first
+		 * frame in the batch; we figure this out dynamically during
+		 * the following loop.
+		 */
 		int start = agg->start_idx;
 
 		/* Construct bit-map of pending frames within Tx window */
@@ -131,25 +137,58 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 			IWL_DEBUG_TX_REPLY(priv, "AGG Frame i=%d idx %d seq=%d\n",
 					   i, idx, SEQ_TO_SN(sc));
 
+			/*
+			 * sh -> how many frames ahead of the starting frame is
+			 * the current one?
+			 *
+			 * Note that all frames sent in the batch must be in a
+			 * 64-frame window, so this number should be in [0,63].
+			 * If outside of this window, then we've found a new
+			 * "first" frame in the batch and need to change start.
+			 */
 			sh = idx - start;
-			if (sh > 64) {
-				sh = (start - idx) + 0xff;
+
+			/*
+			 * If >= 64, out of window. start must be at the front
+			 * of the circular buffer, idx must be near the end of
+			 * the buffer, and idx is the new "first" frame. Shift
+			 * the indices around.
+			 */
+			if (sh >= 64) {
+				/* Shift bitmap by start - idx, wrapped */
+				sh = 0x100 - idx + start;
 				bitmap = bitmap << sh;
+				/* Now idx is the new start so sh = 0 */
 				sh = 0;
 				start = idx;
-			} else if (sh < -64)
-				sh  = 0xff - (start - idx);
-			else if (sh < 0) {
+			/*
+			 * If <= -64 then wraps the 256-pkt circular buffer
+			 * (e.g., start = 255 and idx = 0, sh should be 1)
+			 */
+			} else if (sh <= -64) {
+				sh  = 0x100 - start + idx;
+			/*
+			 * If < 0 but > -64, out of window. idx is before start
+			 * but not wrapped. Shift the indices around.
+			 */
+			} else if (sh < 0) {
+				/* Shift by how far start is ahead of idx */
 				sh = start - idx;
-				start = idx;
 				bitmap = bitmap << sh;
+				/* Now idx is the new start so sh = 0 */
+				start = idx;
 				sh = 0;
 			}
+			/* Sequence number start + sh was sent in this batch */
 			bitmap |= 1ULL << sh;
 			IWL_DEBUG_TX_REPLY(priv, "start=%d bitmap=0x%llx\n",
 					   start, (unsigned long long)bitmap);
 		}
 
+		/*
+		 * Store the bitmap and possibly the new start, if we wrapped
+		 * the buffer above
+		 */
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
 		IWL_DEBUG_TX_REPLY(priv, "Frames %d start_idx=%d bitmap=0x%llx\n",
@@ -184,6 +223,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	int tid;
 	int sta_id;
 	int freed;
+	unsigned long flags;
 
 	if ((index >= txq->q.n_bd) || (iwl_queue_used(&txq->q, index) == 0)) {
 		IWL_ERR(priv, "Read index for DMA queue txq_id (%d) index %d "
@@ -193,15 +233,16 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
+	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	memset(&info->status, 0, sizeof(info->status));
 
 	tid = (tx_resp->ra_tid & IWL50_TX_RES_TID_MSK) >> IWL50_TX_RES_TID_POS;
 	sta_id = (tx_resp->ra_tid & IWL50_TX_RES_RA_MSK) >> IWL50_TX_RES_RA_POS;
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
 	if (txq->sched_retry) {
 		const u32 scd_ssn = iwlagn_get_scd_ssn(tx_resp);
-		struct iwl_ht_agg *agg = NULL;
+		struct iwl_ht_agg *agg;
 
 		agg = &priv->stations[sta_id].tid[tid].agg;
 
@@ -256,6 +297,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
 void iwlagn_rx_handler_setup(struct iwl_priv *priv)
@@ -755,132 +797,6 @@ static inline int iwlagn_calc_rssi(struct iwl_priv *priv,
 	return priv->cfg->ops->utils->calc_rssi(priv, rx_resp);
 }
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-/**
- * iwlagn_dbg_report_frame - dump frame to syslog during debug sessions
- *
- * You may hack this function to show different aspects of received frames,
- * including selective frame dumps.
- * group100 parameter selects whether to show 1 out of 100 good data frames.
- *    All beacon and probe response frames are printed.
- */
-static void iwlagn_dbg_report_frame(struct iwl_priv *priv,
-		      struct iwl_rx_phy_res *phy_res, u16 length,
-		      struct ieee80211_hdr *header, int group100)
-{
-	u32 to_us;
-	u32 print_summary = 0;
-	u32 print_dump = 0;	/* set to 1 to dump all frames' contents */
-	u32 hundred = 0;
-	u32 dataframe = 0;
-	__le16 fc;
-	u16 seq_ctl;
-	u16 channel;
-	u16 phy_flags;
-	u32 rate_n_flags;
-	u32 tsf_low;
-	int rssi;
-
-	if (likely(!(iwl_get_debug_level(priv) & IWL_DL_RX)))
-		return;
-
-	/* MAC header */
-	fc = header->frame_control;
-	seq_ctl = le16_to_cpu(header->seq_ctrl);
-
-	/* metadata */
-	channel = le16_to_cpu(phy_res->channel);
-	phy_flags = le16_to_cpu(phy_res->phy_flags);
-	rate_n_flags = le32_to_cpu(phy_res->rate_n_flags);
-
-	/* signal statistics */
-	rssi = iwlagn_calc_rssi(priv, phy_res);
-	tsf_low = le64_to_cpu(phy_res->timestamp) & 0x0ffffffff;
-
-	to_us = !compare_ether_addr(header->addr1, priv->mac_addr);
-
-	/* if data frame is to us and all is good,
-	 *   (optionally) print summary for only 1 out of every 100 */
-	if (to_us && (fc & ~cpu_to_le16(IEEE80211_FCTL_PROTECTED)) ==
-	    cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FTYPE_DATA)) {
-		dataframe = 1;
-		if (!group100)
-			print_summary = 1;	/* print each frame */
-		else if (priv->framecnt_to_us < 100) {
-			priv->framecnt_to_us++;
-			print_summary = 0;
-		} else {
-			priv->framecnt_to_us = 0;
-			print_summary = 1;
-			hundred = 1;
-		}
-	} else {
-		/* print summary for all other frames */
-		print_summary = 1;
-	}
-
-	if (print_summary) {
-		char *title;
-		int rate_idx;
-		u32 bitrate;
-
-		if (hundred)
-			title = "100Frames";
-		else if (ieee80211_has_retry(fc))
-			title = "Retry";
-		else if (ieee80211_is_assoc_resp(fc))
-			title = "AscRsp";
-		else if (ieee80211_is_reassoc_resp(fc))
-			title = "RasRsp";
-		else if (ieee80211_is_probe_resp(fc)) {
-			title = "PrbRsp";
-			print_dump = 1;	/* dump frame contents */
-		} else if (ieee80211_is_beacon(fc)) {
-			title = "Beacon";
-			print_dump = 1;	/* dump frame contents */
-		} else if (ieee80211_is_atim(fc))
-			title = "ATIM";
-		else if (ieee80211_is_auth(fc))
-			title = "Auth";
-		else if (ieee80211_is_deauth(fc))
-			title = "DeAuth";
-		else if (ieee80211_is_disassoc(fc))
-			title = "DisAssoc";
-		else
-			title = "Frame";
-
-		rate_idx = iwl_hwrate_to_plcp_idx(rate_n_flags);
-		if (unlikely((rate_idx < 0) || (rate_idx >= IWL_RATE_COUNT))) {
-			bitrate = 0;
-			WARN_ON_ONCE(1);
-		} else {
-			bitrate = iwl_rates[rate_idx].ieee / 2;
-		}
-
-		/* print frame summary.
-		 * MAC addresses show just the last byte (for brevity),
-		 *    but you can hack it to show more, if you'd like to. */
-		if (dataframe)
-			IWL_DEBUG_RX(priv, "%s: mhd=0x%04x, dst=0x%02x, "
-				     "len=%u, rssi=%d, chnl=%d, rate=%u,\n",
-				     title, le16_to_cpu(fc), header->addr1[5],
-				     length, rssi, channel, bitrate);
-		else {
-			/* src/dst addresses assume managed mode */
-			IWL_DEBUG_RX(priv, "%s: 0x%04x, dst=0x%02x, src=0x%02x, "
-				     "len=%u, rssi=%d, tim=%lu usec, "
-				     "phy=0x%02x, chnl=%d\n",
-				     title, le16_to_cpu(fc), header->addr1[5],
-				     header->addr3[5], length, rssi,
-				     tsf_low - priv->scan_start_tsf,
-				     phy_flags, channel);
-		}
-	}
-	if (print_dump)
-		iwl_print_hex_dump(priv, IWL_DL_RX, header, length);
-}
-#endif
-
 static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 {
 	u32 decrypt_out = 0;
@@ -1060,11 +976,6 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	rx_status.signal = iwlagn_calc_rssi(priv, phy_res);
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-	/* Set "1" to report good data frames in groups of 100 */
-	if (unlikely(iwl_get_debug_level(priv) & IWL_DL_RX))
-		iwlagn_dbg_report_frame(priv, phy_res, len, header, 1);
-#endif
 	iwl_dbg_log_rx_data_frame(priv, len, header);
 	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",
 		rx_status.signal, (unsigned long long)rx_status.mactime);
@@ -1119,10 +1030,9 @@ static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 					   struct iwl_scan_channel *scan_ch)
 {
 	const struct ieee80211_supported_band *sband;
-	const struct iwl_channel_info *ch_info;
 	u16 passive_dwell = 0;
 	u16 active_dwell = 0;
-	int i, added = 0;
+	int added = 0;
 	u16 channel = 0;
 
 	sband = iwl_get_hw_mode(priv, band);
@@ -1137,32 +1047,7 @@ static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
 
-	/* only scan single channel, good enough to reset the RF */
-	/* pick the first valid not in-use channel */
-	if (band == IEEE80211_BAND_5GHZ) {
-		for (i = 14; i < priv->channel_count; i++) {
-			if (priv->channel_info[i].channel !=
-			    le16_to_cpu(priv->staging_rxon.channel)) {
-				channel = priv->channel_info[i].channel;
-				ch_info = iwl_get_channel_info(priv,
-					band, channel);
-				if (is_channel_valid(ch_info))
-					break;
-			}
-		}
-	} else {
-		for (i = 0; i < 14; i++) {
-			if (priv->channel_info[i].channel !=
-			    le16_to_cpu(priv->staging_rxon.channel)) {
-					channel =
-						priv->channel_info[i].channel;
-					ch_info = iwl_get_channel_info(priv,
-						band, channel);
-					if (is_channel_valid(ch_info))
-						break;
-			}
-		}
-	}
+	channel = iwl_get_single_channel_number(priv, band);
 	if (channel) {
 		scan_ch->channel = cpu_to_le16(channel);
 		scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
@@ -1278,6 +1163,7 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	bool is_active = false;
 	int  chan_mod;
 	u8 active_chains;
+	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -1429,11 +1315,14 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	band = priv->scan_band;
 
-	if (priv->cfg->scan_antennas[band])
-		rx_ant = priv->cfg->scan_antennas[band];
+	if (priv->cfg->scan_rx_antennas[band])
+		rx_ant = priv->cfg->scan_rx_antennas[band];
 
-	priv->scan_tx_ant[band] =
-			iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band]);
+	if (priv->cfg->scan_tx_antennas[band])
+		scan_tx_antennas = priv->cfg->scan_tx_antennas[band];
+
+	priv->scan_tx_ant[band] = iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band],
+						    scan_tx_antennas);
 	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
@@ -1459,13 +1348,15 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (!priv->is_internal_short_scan) {
 		cmd_len = iwl_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
+					vif->addr,
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
 	} else {
+		/* use bcast addr, will not be transmitted but must be valid */
 		cmd_len = iwl_fill_probe_req(priv,
 					(struct ieee80211_mgmt *)scan->data,
-					NULL, 0,
+					iwl_bcast_addr, NULL, 0,
 					IWL_MAX_SCAN_SIZE - sizeof(*scan));
 
 	}
@@ -1527,4 +1418,19 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
 					     &vif_priv->ibss_bssid_sta_id);
 	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
 				  vif->bss_conf.bssid);
+}
+
+void iwl_free_tfds_in_queue(struct iwl_priv *priv,
+			    int sta_id, int tid, int freed)
+{
+	WARN_ON(!spin_is_locked(&priv->sta_lock));
+
+	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
+		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
+	else {
+		IWL_DEBUG_TX(priv, "free more than tfds_in_queue (%u:%d)\n",
+			priv->stations[sta_id].tid[tid].tfds_in_queue,
+			freed);
+		priv->stations[sta_id].tid[tid].tfds_in_queue = 0;
+	}
 }

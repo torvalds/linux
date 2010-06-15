@@ -681,8 +681,8 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 		priv->rx_queue[i] = NULL;
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
-		priv->tx_queue[i] =  (struct gfar_priv_tx_q *)kzalloc(
-				sizeof (struct gfar_priv_tx_q), GFP_KERNEL);
+		priv->tx_queue[i] = kzalloc(sizeof(struct gfar_priv_tx_q),
+					    GFP_KERNEL);
 		if (!priv->tx_queue[i]) {
 			err = -ENOMEM;
 			goto tx_alloc_failed;
@@ -694,8 +694,8 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
-		priv->rx_queue[i] = (struct gfar_priv_rx_q *)kzalloc(
-					sizeof (struct gfar_priv_rx_q), GFP_KERNEL);
+		priv->rx_queue[i] = kzalloc(sizeof(struct gfar_priv_rx_q),
+					    GFP_KERNEL);
 		if (!priv->rx_queue[i]) {
 			err = -ENOMEM;
 			goto rx_alloc_failed;
@@ -747,8 +747,7 @@ static int gfar_of_init(struct of_device *ofdev, struct net_device **pdev)
 			FSL_GIANFAR_DEV_HAS_CSUM |
 			FSL_GIANFAR_DEV_HAS_VLAN |
 			FSL_GIANFAR_DEV_HAS_MAGIC_PACKET |
-			FSL_GIANFAR_DEV_HAS_EXTENDED_HASH |
-			FSL_GIANFAR_DEV_HAS_TIMER;
+			FSL_GIANFAR_DEV_HAS_EXTENDED_HASH;
 
 	ctype = of_get_property(np, "phy-connection-type", NULL);
 

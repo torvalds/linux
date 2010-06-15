@@ -169,7 +169,7 @@
 #include <asm/dma.h>
 #include <asm/div64.h>		/* do_div */
 
-#define VERSION 	"2.73"
+#define VERSION	"2.74"
 #define IP_NAME_SZ 32
 #define MAX_MPLS_LABELS 16 /* This is the max label stack depth */
 #define MPLS_STACK_BOTTOM htonl(0x00000100)
@@ -978,6 +978,40 @@ static ssize_t pktgen_if_write(struct file *file,
 
 		sprintf(pg_result, "OK: delay=%llu",
 			(unsigned long long) pkt_dev->delay);
+		return count;
+	}
+	if (!strcmp(name, "rate")) {
+		len = num_arg(&user_buffer[i], 10, &value);
+		if (len < 0)
+			return len;
+
+		i += len;
+		if (!value)
+			return len;
+		pkt_dev->delay = pkt_dev->min_pkt_size*8*NSEC_PER_USEC/value;
+		if (debug)
+			printk(KERN_INFO
+				 "pktgen: Delay set at: %llu ns\n",
+					pkt_dev->delay);
+
+		sprintf(pg_result, "OK: rate=%lu", value);
+		return count;
+	}
+	if (!strcmp(name, "ratep")) {
+		len = num_arg(&user_buffer[i], 10, &value);
+		if (len < 0)
+			return len;
+
+		i += len;
+		if (!value)
+			return len;
+		pkt_dev->delay = NSEC_PER_SEC/value;
+		if (debug)
+			printk(KERN_INFO
+				 "pktgen: Delay set at: %llu ns\n",
+					pkt_dev->delay);
+
+		sprintf(pg_result, "OK: rate=%lu", value);
 		return count;
 	}
 	if (!strcmp(name, "udp_src_min")) {
@@ -2142,15 +2176,15 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	hrtimer_set_expires(&t.timer, spin_until);
 
-	remaining = ktime_to_us(hrtimer_expires_remaining(&t.timer));
+	remaining = ktime_to_ns(hrtimer_expires_remaining(&t.timer));
 	if (remaining <= 0) {
 		pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
 		return;
 	}
 
 	start_time = ktime_now();
-	if (remaining < 100)
-		udelay(remaining); 	/* really small just spin */
+	if (remaining < 100000)
+		ndelay(remaining);	/* really small just spin */
 	else {
 		/* see do_nanosleep */
 		hrtimer_init_sleeper(&t, current);
@@ -2170,7 +2204,7 @@ static void spin(struct pktgen_dev *pkt_dev, ktime_t spin_until)
 	end_time = ktime_now();
 
 	pkt_dev->idle_acc += ktime_to_ns(ktime_sub(end_time, start_time));
-	pkt_dev->next_tx = ktime_add_ns(end_time, pkt_dev->delay);
+	pkt_dev->next_tx = ktime_add_ns(spin_until, pkt_dev->delay);
 }
 
 static inline void set_pkt_overhead(struct pktgen_dev *pkt_dev)

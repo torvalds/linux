@@ -848,7 +848,7 @@ struct i2400m_cmd_enter_power_save {
 	struct i2400m_l3l4_hdr hdr;
 	struct i2400m_tlv_hdr tlv;
 	__le32 val;
-} __attribute__((packed));
+} __packed;
 
 
 /*

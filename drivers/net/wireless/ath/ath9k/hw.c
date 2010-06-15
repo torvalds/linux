@@ -392,12 +392,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.rx_intr_mitigation = true;
 
 	/*
-	 * Tx IQ Calibration (ah->config.tx_iq_calibration) is only
-	 * used by AR9003, but it is showing reliability issues.
-	 * It will take a while to fix so this is currently disabled.
-	 */
-
-	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
 	 * _and_ if on non-uniprocessor systems (Multiprocessor/HT).
 	 * This means we use it for all AR5416 devices, and the few
@@ -627,6 +621,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ar9003_hw_set_nf_limits(ah);
 
 	ath9k_init_nfcal_hist_buffer(ah);
+	ah->bb_watchdog_timeout_ms = 25;
 
 	common->state = ATH_HW_INITIALIZED;
 
@@ -1303,6 +1298,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ar9002_hw_enable_async_fifo(ah);
+
 	r = ath9k_hw_process_ini(ah, chan);
 	if (r)
 		return r;
@@ -1375,7 +1373,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_init_global_settings(ah);
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		ar9002_hw_enable_async_fifo(ah);
+		ar9002_hw_update_async_fifo(ah);
 		ar9002_hw_enable_wep_aggregation(ah);
 	}
 
@@ -1426,9 +1424,13 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 				"Setting CFG 0x%x\n", REG_READ(ah, AR_CFG));
 		}
 	} else {
-		/* Configure AR9271 target WLAN */
-                if (AR_SREV_9271(ah))
-			REG_WRITE(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB);
+		if (common->bus_ops->ath_bus_type == ATH_USB) {
+			/* Configure AR9271 target WLAN */
+			if (AR_SREV_9271(ah))
+				REG_WRITE(ah, AR_CFG, AR_CFG_SWRB | AR_CFG_SWTB);
+			else
+				REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
+		}
 #ifdef __BIG_ENDIAN
                 else
 			REG_WRITE(ah, AR_CFG, AR_CFG_SWTD | AR_CFG_SWRD);
@@ -1441,6 +1443,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		ath9k_hw_loadnf(ah, curchan);
 		ath9k_hw_start_nfcal(ah);
+		ar9003_hw_bb_watchdog_config(ah);
 	}
 
 	return 0;
@@ -1489,6 +1492,7 @@ EXPORT_SYMBOL(ath9k_hw_keyreset);
 bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 {
 	u32 macHi, macLo;
+	u32 unicast_flag = AR_KEYTABLE_VALID;
 
 	if (entry >= ah->caps.keycache_size) {
 		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
@@ -1497,6 +1501,16 @@ bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 	}
 
 	if (mac != NULL) {
+		/*
+		 * AR_KEYTABLE_VALID indicates that the address is a unicast
+		 * address, which must match the transmitter address for
+		 * decrypting frames.
+		 * Not setting this bit allows the hardware to use the key
+		 * for multicast frame decryption.
+		 */
+		if (mac[0] & 0x01)
+			unicast_flag = 0;
+
 		macHi = (mac[5] << 8) | mac[4];
 		macLo = (mac[3] << 24) |
 			(mac[2] << 16) |
@@ -1509,7 +1523,7 @@ bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 		macLo = macHi = 0;
 	}
 	REG_WRITE(ah, AR_KEYTABLE_MAC0(entry), macLo);
-	REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), macHi | AR_KEYTABLE_VALID);
+	REG_WRITE(ah, AR_KEYTABLE_MAC1(entry), macHi | unicast_flag);
 
 	return true;
 }
@@ -2165,7 +2179,7 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps |= ATH9K_HW_CAP_RFSILENT;
 	}
 #endif
-	if (AR_SREV_9271(ah))
+	if (AR_SREV_9271(ah) || AR_SREV_9300_20_OR_LATER(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_AUTOSLEEP;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_AUTOSLEEP;
@@ -2231,6 +2245,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_RAC_SUPPORTED;
+
+	if (AR_SREV_9287_10_OR_LATER(ah) || AR_SREV_9271(ah))
+		pCap->hw_caps |= ATH9K_HW_CAP_SGI_20;
 
 	return 0;
 }

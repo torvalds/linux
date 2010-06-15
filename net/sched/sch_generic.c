@@ -205,7 +205,7 @@ void __qdisc_run(struct Qdisc *q)
 		}
 	}
 
-	clear_bit(__QDISC_STATE_RUNNING, &q->state);
+	qdisc_run_end(q);
 }
 
 unsigned long dev_trans_start(struct net_device *dev)
@@ -561,6 +561,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 
 	INIT_LIST_HEAD(&sch->list);
 	skb_queue_head_init(&sch->q);
+	spin_lock_init(&sch->busylock);
 	sch->ops = ops;
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
@@ -797,7 +798,7 @@ static bool some_qdisc_is_busy(struct net_device *dev)
 
 		spin_lock_bh(root_lock);
 
-		val = (test_bit(__QDISC_STATE_RUNNING, &q->state) ||
+		val = (qdisc_is_running(q) ||
 		       test_bit(__QDISC_STATE_SCHED, &q->state));
 
 		spin_unlock_bh(root_lock);

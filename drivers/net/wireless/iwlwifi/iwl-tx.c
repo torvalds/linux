@@ -77,21 +77,6 @@ void iwl_txq_update_write_ptr(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 }
 EXPORT_SYMBOL(iwl_txq_update_write_ptr);
 
-
-void iwl_free_tfds_in_queue(struct iwl_priv *priv,
-			    int sta_id, int tid, int freed)
-{
-	if (priv->stations[sta_id].tid[tid].tfds_in_queue >= freed)
-		priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
-	else {
-		IWL_DEBUG_TX(priv, "free more than tfds_in_queue (%u:%d)\n",
-			priv->stations[sta_id].tid[tid].tfds_in_queue,
-			freed);
-		priv->stations[sta_id].tid[tid].tfds_in_queue = 0;
-	}
-}
-EXPORT_SYMBOL(iwl_free_tfds_in_queue);
-
 /**
  * iwl_tx_queue_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
@@ -169,15 +154,15 @@ void iwl_cmd_queue_free(struct iwl_priv *priv)
 		}
 
 		pci_unmap_single(priv->pci_dev,
-				 pci_unmap_addr(&txq->meta[i], mapping),
-				 pci_unmap_len(&txq->meta[i], len),
+				 dma_unmap_addr(&txq->meta[i], mapping),
+				 dma_unmap_len(&txq->meta[i], len),
 				 PCI_DMA_BIDIRECTIONAL);
 	}
 	if (huge) {
 		i = q->n_window;
 		pci_unmap_single(priv->pci_dev,
-				 pci_unmap_addr(&txq->meta[i], mapping),
-				 pci_unmap_len(&txq->meta[i], len),
+				 dma_unmap_addr(&txq->meta[i], mapping),
+				 dma_unmap_len(&txq->meta[i], len),
 				 PCI_DMA_BIDIRECTIONAL);
 	}
 
@@ -287,7 +272,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (id != IWL_CMD_QUEUE_NUM) {
-		txq->txb = kmalloc(sizeof(txq->txb[0]) *
+		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
 			IWL_ERR(priv, "kmalloc for auxiliary BD "
@@ -531,8 +516,8 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	phys_addr = pci_map_single(priv->pci_dev, &out_cmd->hdr,
 				   fix_size, PCI_DMA_BIDIRECTIONAL);
-	pci_unmap_addr_set(out_meta, mapping, phys_addr);
-	pci_unmap_len_set(out_meta, len, fix_size);
+	dma_unmap_addr_set(out_meta, mapping, phys_addr);
+	dma_unmap_len_set(out_meta, len, fix_size);
 
 	trace_iwlwifi_dev_hcmd(priv, &out_cmd->hdr, fix_size, cmd->flags);
 
@@ -626,8 +611,8 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	meta = &txq->meta[cmd_index];
 
 	pci_unmap_single(priv->pci_dev,
-			 pci_unmap_addr(meta, mapping),
-			 pci_unmap_len(meta, len),
+			 dma_unmap_addr(meta, mapping),
+			 dma_unmap_len(meta, len),
 			 PCI_DMA_BIDIRECTIONAL);
 
 	/* Input error checking is done when commands are added to queue. */

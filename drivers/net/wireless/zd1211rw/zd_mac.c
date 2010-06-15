@@ -855,7 +855,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	if (skb == NULL)
 		return -ENOMEM;
 	if (need_padding) {
-		/* Make sure the the payload data is 4 byte aligned. */
+		/* Make sure the payload data is 4 byte aligned. */
 		skb_reserve(skb, 2);
 	}
 

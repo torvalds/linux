@@ -90,7 +90,7 @@ struct header_struct {
 	/* SNAP */
 	u8 oui[3];
 	__be16 ethertype;
-} __attribute__ ((packed));
+} __packed;
 
 struct ez_usb_fw {
 	u16 size;
@@ -222,7 +222,7 @@ struct ezusb_packet {
 	__le16 hermes_len;
 	__le16 hermes_rid;
 	u8 data[0];
-} __attribute__ ((packed));
+} __packed;
 
 /* Table of devices that work or may work with this driver */
 static struct usb_device_id ezusb_table[] = {
@@ -356,11 +356,9 @@ static struct request_context *ezusb_alloc_ctx(struct ezusb_priv *upriv,
 {
 	struct request_context *ctx;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_ATOMIC);
+	ctx = kzalloc(sizeof(*ctx), GFP_ATOMIC);
 	if (!ctx)
 		return NULL;
-
-	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->buf = kmalloc(BULK_BUF_SIZE, GFP_ATOMIC);
 	if (!ctx->buf) {

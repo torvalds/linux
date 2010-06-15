@@ -18,6 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/timer.h>
 #include <linux/mdio.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -221,7 +222,6 @@ struct efx_tx_queue {
  *	If both this and skb are %NULL, the buffer slot is currently free.
  * @data: Pointer to ethernet header
  * @len: Buffer length, in bytes.
- * @unmap_addr: DMA address to unmap
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
@@ -229,7 +229,24 @@ struct efx_rx_buffer {
 	struct page *page;
 	char *data;
 	unsigned int len;
-	dma_addr_t unmap_addr;
+};
+
+/**
+ * struct efx_rx_page_state - Page-based rx buffer state
+ *
+ * Inserted at the start of every page allocated for receive buffers.
+ * Used to facilitate sharing dma mappings between recycled rx buffers
+ * and those passed up to the kernel.
+ *
+ * @refcnt: Number of struct efx_rx_buffer's referencing this page.
+ *	When refcnt falls to zero, the page is unmapped for dma
+ * @dma_addr: The dma address of this page.
+ */
+struct efx_rx_page_state {
+	unsigned refcnt;
+	dma_addr_t dma_addr;
+
+	unsigned int __pad[0] ____cacheline_aligned;
 };
 
 /**
@@ -242,10 +259,6 @@ struct efx_rx_buffer {
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
- * @add_lock: Receive queue descriptor add spin lock.
- *	This lock must be held in order to add buffers to the RX
- *	descriptor ring (rxd and buffer) and to update added_count (but
- *	not removed_count).
  * @max_fill: RX descriptor maximum fill level (<= ring size)
  * @fast_fill_trigger: RX descriptor fill level that will trigger a fast fill
  *	(<= @max_fill)
@@ -259,12 +272,7 @@ struct efx_rx_buffer {
  *	overflow was observed.  It should never be set.
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
- * @work: Descriptor push work thread
- * @buf_page: Page for next RX buffer.
- *	We can use a single page for multiple RX buffers. This tracks
- *	the remaining space in the allocation.
- * @buf_dma_addr: Page's DMA address.
- * @buf_data: Page's host address.
+ * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
  * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
@@ -277,7 +285,6 @@ struct efx_rx_queue {
 	int added_count;
 	int notified_count;
 	int removed_count;
-	spinlock_t add_lock;
 	unsigned int max_fill;
 	unsigned int fast_fill_trigger;
 	unsigned int fast_fill_limit;
@@ -285,12 +292,9 @@ struct efx_rx_queue {
 	unsigned int min_overfill;
 	unsigned int alloc_page_count;
 	unsigned int alloc_skb_count;
-	struct delayed_work work;
+	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
 
-	struct page *buf_page;
-	dma_addr_t buf_dma_addr;
-	char *buf_data;
 	enum efx_flush_state flushed;
 };
 
@@ -336,7 +340,7 @@ enum efx_rx_alloc_method {
  * @eventq: Event queue buffer
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
- * @eventq_magic: Event queue magic value for driver-generated test events
+ * @magic_count: Event queue test event count
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
@@ -367,7 +371,7 @@ struct efx_channel {
 	struct efx_special_buffer eventq;
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
-	unsigned int eventq_magic;
+	unsigned int magic_count;
 
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
@@ -645,6 +649,7 @@ union efx_multicast_hash {
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
+ * @port_num: Index of this host port within the controller
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
@@ -728,6 +733,7 @@ union efx_multicast_hash {
 struct efx_nic {
 	char name[IFNAMSIZ];
 	struct pci_dev *pci_dev;
+	unsigned port_num;
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	struct workqueue_struct *workqueue;
@@ -830,7 +836,7 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
 
 static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
-	return PCI_FUNC(efx->pci_dev->devfn);
+	return efx->net_dev->dev_id;
 }
 
 /**

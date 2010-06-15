@@ -1413,7 +1413,8 @@ struct tcp_iter_state {
 	sa_family_t		family;
 	enum tcp_seq_states	state;
 	struct sock		*syn_wait_sk;
-	int			bucket, sbucket, num, uid;
+	int			bucket, offset, sbucket, num, uid;
+	loff_t			last_pos;
 };
 
 extern int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo);

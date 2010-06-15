@@ -1062,7 +1062,7 @@ struct tx_buf_desc {
 #define TX_DESC_LEN_MASK	0x000fffff
 #define TX_DESC_C	0x40000000
 #define TX_DESC_E	0x80000000
-} __attribute((packed));
+} __packed;
 
 /*
  * IOCB Definitions...
@@ -1095,7 +1095,7 @@ struct ob_mac_iocb_req {
 	__le16 vlan_tci;
 	__le16 reserved4;
 	struct tx_buf_desc tbd[TX_DESC_PER_IOCB];
-} __attribute((packed));
+} __packed;
 
 struct ob_mac_iocb_rsp {
 	u8 opcode;		/* */
@@ -1112,7 +1112,7 @@ struct ob_mac_iocb_rsp {
 	u32 tid;
 	u32 txq_idx;
 	__le32 reserved[13];
-} __attribute((packed));
+} __packed;
 
 struct ob_mac_tso_iocb_req {
 	u8 opcode;
@@ -1140,7 +1140,7 @@ struct ob_mac_tso_iocb_req {
 	__le16 vlan_tci;
 	__le16 mss;
 	struct tx_buf_desc tbd[TX_DESC_PER_IOCB];
-} __attribute((packed));
+} __packed;
 
 struct ob_mac_tso_iocb_rsp {
 	u8 opcode;
@@ -1157,7 +1157,7 @@ struct ob_mac_tso_iocb_rsp {
 	u32 tid;
 	u32 txq_idx;
 	__le32 reserved2[13];
-} __attribute((packed));
+} __packed;
 
 struct ib_mac_iocb_rsp {
 	u8 opcode;		/* 0x20 */
@@ -1216,7 +1216,7 @@ struct ib_mac_iocb_rsp {
 #define IB_MAC_IOCB_RSP_HL	0x80
 	__le32 hdr_len;		/* */
 	__le64 hdr_addr;	/* */
-} __attribute((packed));
+} __packed;
 
 struct ib_ae_iocb_rsp {
 	u8 opcode;
@@ -1237,7 +1237,7 @@ struct ib_ae_iocb_rsp {
 #define PCI_ERR_ANON_BUF_RD        0x40
 	u8 q_id;
 	__le32 reserved[15];
-} __attribute((packed));
+} __packed;
 
 /*
  * These three structures are for generic
@@ -1249,7 +1249,7 @@ struct ql_net_rsp_iocb {
 	__le16 length;
 	__le32 tid;
 	__le32 reserved[14];
-} __attribute((packed));
+} __packed;
 
 struct net_req_iocb {
 	u8 opcode;
@@ -1257,7 +1257,7 @@ struct net_req_iocb {
 	__le16 flags1;
 	__le32 tid;
 	__le32 reserved1[30];
-} __attribute((packed));
+} __packed;
 
 /*
  * tx ring initialization control block for chip.
@@ -1283,7 +1283,7 @@ struct wqicb {
 	__le16 rid;
 	__le64 addr;
 	__le64 cnsmr_idx_addr;
-} __attribute((packed));
+} __packed;
 
 /*
  * rx ring initialization control block for chip.
@@ -1317,7 +1317,7 @@ struct cqicb {
 	__le64 sbq_addr;
 	__le16 sbq_buf_size;
 	__le16 sbq_len;		/* entry count */
-} __attribute((packed));
+} __packed;
 
 struct ricb {
 	u8 base_cq;
@@ -1335,7 +1335,7 @@ struct ricb {
 	u8 hash_cq_id[1024];
 	__le32 ipv6_hash_key[10];
 	__le32 ipv4_hash_key[4];
-} __attribute((packed));
+} __packed;
 
 /* SOFTWARE/DRIVER DATA STRUCTURES. */
 

@@ -326,7 +326,7 @@ struct txpd {
 	u8 pktdelay_2ms;
 	/* reserved */
 	u8 reserved1;
-} __attribute__ ((packed));
+} __packed;
 
 /* RxPD Descriptor */
 struct rxpd {
@@ -339,8 +339,8 @@ struct rxpd {
 			u8 bss_type;
 			/* BSS number */
 			u8 bss_num;
-		} __attribute__ ((packed)) bss;
-	} __attribute__ ((packed)) u;
+		} __packed bss;
+	} __packed u;
 
 	/* SNR */
 	u8 snr;
@@ -366,14 +366,14 @@ struct rxpd {
 	/* Pkt Priority */
 	u8 priority;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_header {
 	__le16 command;
 	__le16 size;
 	__le16 seqnum;
 	__le16 result;
-} __attribute__ ((packed));
+} __packed;
 
 /* Generic structure to hold all key types. */
 struct enc_key {
@@ -387,7 +387,7 @@ struct enc_key {
 struct lbs_offset_value {
 	u32 offset;
 	u32 value;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Define data structure for CMD_GET_HW_SPEC
@@ -426,7 +426,7 @@ struct cmd_ds_get_hw_spec {
 
 	/*FW/HW capability */
 	__le32 fwcapinfo;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_subscribe_event {
 	struct cmd_header hdr;
@@ -440,7 +440,7 @@ struct cmd_ds_802_11_subscribe_event {
 	 * bump this up a bit.
 	 */
 	uint8_t tlv[128];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * This scan handle Country Information IE(802.11d compliant)
@@ -452,7 +452,7 @@ struct cmd_ds_802_11_scan {
 	uint8_t bsstype;
 	uint8_t bssid[ETH_ALEN];
 	uint8_t tlvbuffer[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_scan_rsp {
 	struct cmd_header hdr;
@@ -460,7 +460,7 @@ struct cmd_ds_802_11_scan_rsp {
 	__le16 bssdescriptsize;
 	uint8_t nr_sets;
 	uint8_t bssdesc_and_tlvbuffer[0];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_get_log {
 	struct cmd_header hdr;
@@ -478,20 +478,20 @@ struct cmd_ds_802_11_get_log {
 	__le32 fcserror;
 	__le32 txframe;
 	__le32 wepundecryptable;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_mac_control {
 	struct cmd_header hdr;
 	__le16 action;
 	u16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_mac_multicast_adr {
 	struct cmd_header hdr;
 	__le16 action;
 	__le16 nr_of_adrs;
 	u8 maclist[ETH_ALEN * MRVDRV_MAX_MULTICAST_LIST_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_authenticate {
 	struct cmd_header hdr;
@@ -499,14 +499,14 @@ struct cmd_ds_802_11_authenticate {
 	u8 bssid[ETH_ALEN];
 	u8 authtype;
 	u8 reserved[10];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_deauthenticate {
 	struct cmd_header hdr;
 
 	u8 macaddr[ETH_ALEN];
 	__le16 reasoncode;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_associate {
 	struct cmd_header hdr;
@@ -517,7 +517,7 @@ struct cmd_ds_802_11_associate {
 	__le16 bcnperiod;
 	u8 dtimperiod;
 	u8 iebuf[512];    /* Enough for required and most optional IEs */
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_associate_response {
 	struct cmd_header hdr;
@@ -526,7 +526,7 @@ struct cmd_ds_802_11_associate_response {
 	__le16 statuscode;
 	__le16 aid;
 	u8 iebuf[512];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_set_wep {
 	struct cmd_header hdr;
@@ -540,7 +540,7 @@ struct cmd_ds_802_11_set_wep {
 	/* 40, 128bit or TXWEP */
 	uint8_t keytype[4];
 	uint8_t keymaterial[4][16];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_snmp_mib {
 	struct cmd_header hdr;
@@ -549,40 +549,40 @@ struct cmd_ds_802_11_snmp_mib {
 	__le16 oid;
 	__le16 bufsize;
 	u8 value[128];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_mac_reg_access {
 	__le16 action;
 	__le16 offset;
 	__le32 value;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_bbp_reg_access {
 	__le16 action;
 	__le16 offset;
 	u8 value;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_rf_reg_access {
 	__le16 action;
 	__le16 offset;
 	u8 value;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_radio_control {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 control;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_beacon_control {
 	__le16 action;
 	__le16 beacon_enable;
 	__le16 beacon_period;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_sleep_params {
 	struct cmd_header hdr;
@@ -607,7 +607,7 @@ struct cmd_ds_802_11_sleep_params {
 
 	/* reserved field, should be set to zero */
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_rf_channel {
 	struct cmd_header hdr;
@@ -617,7 +617,7 @@ struct cmd_ds_802_11_rf_channel {
 	__le16 rftype;      /* unused */
 	__le16 reserved;    /* unused */
 	u8 channellist[32]; /* unused */
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_rssi {
 	/* weighting factor */
@@ -626,21 +626,21 @@ struct cmd_ds_802_11_rssi {
 	__le16 reserved_0;
 	__le16 reserved_1;
 	__le16 reserved_2;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_rssi_rsp {
 	__le16 SNR;
 	__le16 noisefloor;
 	__le16 avgSNR;
 	__le16 avgnoisefloor;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_mac_address {
 	struct cmd_header hdr;
 
 	__le16 action;
 	u8 macadd[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_rf_tx_power {
 	struct cmd_header hdr;
@@ -649,26 +649,26 @@ struct cmd_ds_802_11_rf_tx_power {
 	__le16 curlevel;
 	s8 maxlevel;
 	s8 minlevel;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_monitor_mode {
 	__le16 action;
 	__le16 mode;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_set_boot2_ver {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 version;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_fw_wake_method {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 method;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_ps_mode {
 	__le16 action;
@@ -676,7 +676,7 @@ struct cmd_ds_802_11_ps_mode {
 	__le16 multipledtim;
 	__le16 reserved;
 	__le16 locallisteninterval;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_confirm_sleep {
 	struct cmd_header hdr;
@@ -686,7 +686,7 @@ struct cmd_confirm_sleep {
 	__le16 multipledtim;
 	__le16 reserved;
 	__le16 locallisteninterval;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_data_rate {
 	struct cmd_header hdr;
@@ -694,14 +694,14 @@ struct cmd_ds_802_11_data_rate {
 	__le16 action;
 	__le16 reserved;
 	u8 rates[MAX_RATES];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_rate_adapt_rateset {
 	struct cmd_header hdr;
 	__le16 action;
 	__le16 enablehwauto;
 	__le16 bitmap;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_ad_hoc_start {
 	struct cmd_header hdr;
@@ -718,14 +718,14 @@ struct cmd_ds_802_11_ad_hoc_start {
 	__le16 capability;
 	u8 rates[MAX_RATES];
 	u8 tlv_memory_size_pad[100];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_ad_hoc_result {
 	struct cmd_header hdr;
 
 	u8 pad[3];
 	u8 bssid[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct adhoc_bssdesc {
 	u8 bssid[ETH_ALEN];
@@ -746,7 +746,7 @@ struct adhoc_bssdesc {
 	 * Adhoc join command and will cause a binary layout mismatch with
 	 * the firmware
 	 */
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_ad_hoc_join {
 	struct cmd_header hdr;
@@ -754,18 +754,18 @@ struct cmd_ds_802_11_ad_hoc_join {
 	struct adhoc_bssdesc bss;
 	__le16 failtimeout;   /* Reserved on v9 and later */
 	__le16 probedelay;    /* Reserved on v9 and later */
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_ad_hoc_stop {
 	struct cmd_header hdr;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_enable_rsn {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le16 enable;
-} __attribute__ ((packed));
+} __packed;
 
 struct MrvlIEtype_keyParamSet {
 	/* type ID */
@@ -785,7 +785,7 @@ struct MrvlIEtype_keyParamSet {
 
 	/* key material of size keylen */
 	u8 key[32];
-} __attribute__ ((packed));
+} __packed;
 
 #define MAX_WOL_RULES 		16
 
@@ -797,7 +797,7 @@ struct host_wol_rule {
 	__le16 reserve;
 	__be32 sig_mask;
 	__be32 signature;
-} __attribute__ ((packed));
+} __packed;
 
 struct wol_config {
 	uint8_t action;
@@ -805,7 +805,7 @@ struct wol_config {
 	uint8_t no_rules_in_cmd;
 	uint8_t result;
 	struct host_wol_rule rule[MAX_WOL_RULES];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_host_sleep {
 	struct cmd_header hdr;
@@ -813,7 +813,7 @@ struct cmd_ds_host_sleep {
 	uint8_t gpio;
 	uint16_t gap;
 	struct wol_config wol_conf;
-} __attribute__ ((packed));
+} __packed;
 
 
 
@@ -822,7 +822,7 @@ struct cmd_ds_802_11_key_material {
 
 	__le16 action;
 	struct MrvlIEtype_keyParamSet keyParamSet[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_eeprom_access {
 	struct cmd_header hdr;
@@ -832,7 +832,7 @@ struct cmd_ds_802_11_eeprom_access {
 	/* firmware says it returns a maximum of 20 bytes */
 #define LBS_EEPROM_READ_LEN 20
 	u8 value[LBS_EEPROM_READ_LEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_tpc_cfg {
 	struct cmd_header hdr;
@@ -843,7 +843,7 @@ struct cmd_ds_802_11_tpc_cfg {
 	int8_t P1;
 	int8_t P2;
 	uint8_t usesnr;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct cmd_ds_802_11_pa_cfg {
@@ -854,14 +854,14 @@ struct cmd_ds_802_11_pa_cfg {
 	int8_t P0;
 	int8_t P1;
 	int8_t P2;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct cmd_ds_802_11_led_ctrl {
 	__le16 action;
 	__le16 numled;
 	u8 data[256];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11_afc {
 	__le16 afc_auto;
@@ -875,22 +875,22 @@ struct cmd_ds_802_11_afc {
 			__le16 carrier_offset; /* signed */
 		};
 	};
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_tx_rate_query {
 	__le16 txrate;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_get_tsf {
 	__le64 tsfvalue;
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_bt_access {
 	__le16 action;
 	__le32 id;
 	u8 addr1[ETH_ALEN];
 	u8 addr2[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_fwt_access {
 	__le16 action;
@@ -910,7 +910,7 @@ struct cmd_ds_fwt_access {
 	__le32 snr;
 	__le32 references;
 	u8 prec[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_mesh_config {
 	struct cmd_header hdr;
@@ -920,14 +920,14 @@ struct cmd_ds_mesh_config {
 	__le16 type;
 	__le16 length;
 	u8 data[128];	/* last position reserved */
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_mesh_access {
 	struct cmd_header hdr;
 
 	__le16 action;
 	__le32 data[32];	/* last position reserved */
-} __attribute__ ((packed));
+} __packed;
 
 /* Number of stats counters returned by the firmware */
 #define MESH_STATS_NUM 8
@@ -957,6 +957,6 @@ struct cmd_ds_command {
 		struct cmd_ds_fwt_access fwt;
 		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
-} __attribute__ ((packed));
+} __packed;
 
 #endif

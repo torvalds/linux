@@ -557,7 +557,7 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 		pr_warning("Freeing alive inet6 address %p\n", ifp);
 		return;
 	}
-	dst_release(&ifp->rt->u.dst);
+	dst_release(&ifp->rt->dst);
 
 	call_rcu(&ifp->rcu, inet6_ifa_finish_destroy_rcu);
 }
@@ -823,7 +823,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 				rt->rt6i_flags |= RTF_EXPIRES;
 			}
 		}
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 	}
 
 out:
@@ -1863,7 +1863,7 @@ void addrconf_prefix_rcv(struct net_device *dev, u8 *opt, int len)
 					      dev, expires, flags);
 		}
 		if (rt)
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 	}
 
 	/* Try to figure out our local address for this prefix */
@@ -4093,11 +4093,11 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		if (ifp->idev->cnf.forwarding)
 			addrconf_leave_anycast(ifp);
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
-		dst_hold(&ifp->rt->u.dst);
+		dst_hold(&ifp->rt->dst);
 
 		if (ifp->state == INET6_IFADDR_STATE_DEAD &&
 		    ip6_del_rt(ifp->rt))
-			dst_free(&ifp->rt->u.dst);
+			dst_free(&ifp->rt->dst);
 		break;
 	}
 }

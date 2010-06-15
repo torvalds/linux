@@ -1463,7 +1463,7 @@ struct iucv_path_pending {
 	u32 res3;
 	u8  ippollfg;
 	u8  res4[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_pending(struct iucv_irq_data *data)
 {
@@ -1524,7 +1524,7 @@ struct iucv_path_complete {
 	u32 res3;
 	u8  ippollfg;
 	u8  res4[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_complete(struct iucv_irq_data *data)
 {
@@ -1554,7 +1554,7 @@ struct iucv_path_severed {
 	u32 res4;
 	u8  ippollfg;
 	u8  res5[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_severed(struct iucv_irq_data *data)
 {
@@ -1590,7 +1590,7 @@ struct iucv_path_quiesced {
 	u32 res4;
 	u8  ippollfg;
 	u8  res5[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_quiesced(struct iucv_irq_data *data)
 {
@@ -1618,7 +1618,7 @@ struct iucv_path_resumed {
 	u32 res4;
 	u8  ippollfg;
 	u8  res5[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_path_resumed(struct iucv_irq_data *data)
 {
@@ -1649,7 +1649,7 @@ struct iucv_message_complete {
 	u32 ipbfln2f;
 	u8  ippollfg;
 	u8  res2[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_message_complete(struct iucv_irq_data *data)
 {
@@ -1694,7 +1694,7 @@ struct iucv_message_pending {
 	u32 ipbfln2f;
 	u8  ippollfg;
 	u8  res2[3];
-} __attribute__ ((packed));
+} __packed;
 
 static void iucv_message_pending(struct iucv_irq_data *data)
 {

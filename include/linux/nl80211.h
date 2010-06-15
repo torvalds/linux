@@ -132,7 +132,7 @@
  * 	%NL80211_ATTR_REG_RULE_POWER_MAX_ANT_GAIN and
  * 	%NL80211_ATTR_REG_RULE_POWER_MAX_EIRP.
  * @NL80211_CMD_REQ_SET_REG: ask the wireless core to set the regulatory domain
- * 	to the the specified ISO/IEC 3166-1 alpha2 country code. The core will
+ * 	to the specified ISO/IEC 3166-1 alpha2 country code. The core will
  * 	store this as a valid request and then query userspace for it.
  *
  * @NL80211_CMD_GET_MESH_PARAMS: Get mesh networking properties for the

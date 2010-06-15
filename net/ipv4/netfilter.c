@@ -43,7 +43,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 
 		/* Drop old route. */
 		skb_dst_drop(skb);
-		skb_dst_set(skb, &rt->u.dst);
+		skb_dst_set(skb, &rt->dst);
 	} else {
 		/* non-local src, find valid iif to satisfy
 		 * rp-filter when calling ip_route_input. */
@@ -53,11 +53,11 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned addr_type)
 
 		orefdst = skb->_skb_refdst;
 		if (ip_route_input(skb, iph->daddr, iph->saddr,
-				   RT_TOS(iph->tos), rt->u.dst.dev) != 0) {
-			dst_release(&rt->u.dst);
+				   RT_TOS(iph->tos), rt->dst.dev) != 0) {
+			dst_release(&rt->dst);
 			return -1;
 		}
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 		refdst_drop(orefdst);
 	}
 

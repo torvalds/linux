@@ -238,19 +238,19 @@ struct ndis_80211_auth_request {
 	u8 bssid[6];
 	u8 padding[2];
 	__le32 flags;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_pmkid_candidate {
 	u8 bssid[6];
 	u8 padding[2];
 	__le32 flags;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_pmkid_cand_list {
 	__le32 version;
 	__le32 num_candidates;
 	struct ndis_80211_pmkid_candidate candidate_list[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_status_indication {
 	__le32 status_type;
@@ -260,19 +260,19 @@ struct ndis_80211_status_indication {
 		struct ndis_80211_auth_request		auth_request[0];
 		struct ndis_80211_pmkid_cand_list	cand_list;
 	} u;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_ssid {
 	__le32 length;
 	u8 essid[NDIS_802_11_LENGTH_SSID];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_conf_freq_hop {
 	__le32 length;
 	__le32 hop_pattern;
 	__le32 hop_set;
 	__le32 dwell_time;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_conf {
 	__le32 length;
@@ -280,7 +280,7 @@ struct ndis_80211_conf {
 	__le32 atim_window;
 	__le32 ds_config;
 	struct ndis_80211_conf_freq_hop fh_config;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_bssid_ex {
 	__le32 length;
@@ -295,25 +295,25 @@ struct ndis_80211_bssid_ex {
 	u8 rates[NDIS_802_11_LENGTH_RATES_EX];
 	__le32 ie_length;
 	u8 ies[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_bssid_list_ex {
 	__le32 num_items;
 	struct ndis_80211_bssid_ex bssid[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_fixed_ies {
 	u8 timestamp[8];
 	__le16 beacon_interval;
 	__le16 capabilities;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_wep_key {
 	__le32 size;
 	__le32 index;
 	__le32 length;
 	u8 material[32];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_key {
 	__le32 size;
@@ -323,14 +323,14 @@ struct ndis_80211_key {
 	u8 padding[6];
 	u8 rsc[8];
 	u8 material[32];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_remove_key {
 	__le32 size;
 	__le32 index;
 	u8 bssid[6];
 	u8 padding[2];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_config_param {
 	__le32 name_offs;
@@ -338,7 +338,7 @@ struct ndis_config_param {
 	__le32 type;
 	__le32 value_offs;
 	__le32 value_length;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_assoc_info {
 	__le32 length;
@@ -358,12 +358,12 @@ struct ndis_80211_assoc_info {
 	} resp_ie;
 	__le32 resp_ie_length;
 	__le32 offset_resp_ies;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_auth_encr_pair {
 	__le32 auth_mode;
 	__le32 encr_mode;
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_capability {
 	__le32 length;
@@ -371,7 +371,7 @@ struct ndis_80211_capability {
 	__le32 num_pmkids;
 	__le32 num_auth_encr_pair;
 	struct ndis_80211_auth_encr_pair auth_encr_pair[0];
-} __attribute__((packed));
+} __packed;
 
 struct ndis_80211_bssid_info {
 	u8 bssid[6];
@@ -2495,8 +2495,7 @@ static int rndis_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
-	struct ndis_80211_assoc_info *info;
-	u8 assoc_buf[sizeof(*info) + IW_CUSTOM_MAX + 32];
+	struct ndis_80211_assoc_info *info = NULL;
 	u8 bssid[ETH_ALEN];
 	int resp_ie_len, req_ie_len;
 	u8 *req_ie, *resp_ie;
@@ -2515,23 +2514,43 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	resp_ie = NULL;
 
 	if (priv->infra_mode == NDIS_80211_INFRA_INFRA) {
-		memset(assoc_buf, 0, sizeof(assoc_buf));
-		info = (void *)assoc_buf;
+		info = kzalloc(CONTROL_BUFFER_SIZE, GFP_KERNEL);
+		if (!info) {
+			/* No memory? Try resume work later */
+			set_bit(WORK_LINK_UP, &priv->work_pending);
+			queue_work(priv->workqueue, &priv->work);
+			return;
+		}
 
-		/* Get association info IEs from device and send them back to
-		 * userspace. */
-		ret = get_association_info(usbdev, info, sizeof(assoc_buf));
+		/* Get association info IEs from device. */
+		ret = get_association_info(usbdev, info, CONTROL_BUFFER_SIZE);
 		if (!ret) {
 			req_ie_len = le32_to_cpu(info->req_ie_length);
 			if (req_ie_len > 0) {
 				offset = le32_to_cpu(info->offset_req_ies);
+
+				if (offset > CONTROL_BUFFER_SIZE)
+					offset = CONTROL_BUFFER_SIZE;
+
 				req_ie = (u8 *)info + offset;
+
+				if (offset + req_ie_len > CONTROL_BUFFER_SIZE)
+					req_ie_len =
+						CONTROL_BUFFER_SIZE - offset;
 			}
 
 			resp_ie_len = le32_to_cpu(info->resp_ie_length);
 			if (resp_ie_len > 0) {
 				offset = le32_to_cpu(info->offset_resp_ies);
+
+				if (offset > CONTROL_BUFFER_SIZE)
+					offset = CONTROL_BUFFER_SIZE;
+
 				resp_ie = (u8 *)info + offset;
+
+				if (offset + resp_ie_len > CONTROL_BUFFER_SIZE)
+					resp_ie_len =
+						CONTROL_BUFFER_SIZE - offset;
 			}
 		}
 	} else if (WARN_ON(priv->infra_mode != NDIS_80211_INFRA_ADHOC))
@@ -2562,6 +2581,9 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 					resp_ie, resp_ie_len, GFP_KERNEL);
 	} else if (priv->infra_mode == NDIS_80211_INFRA_ADHOC)
 		cfg80211_ibss_joined(usbdev->net, bssid, GFP_KERNEL);
+
+	if (info != NULL)
+		kfree(info);
 
 	priv->connected = true;
 	memcpy(priv->bssid, bssid, ETH_ALEN);

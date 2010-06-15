@@ -81,6 +81,24 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry,
 		return -EINVAL;
 	}
 
+	/*
+	 * Add the requested extra tx headroom in front of the skb.
+	 */
+	skb_push(entry->skb, rt2x00dev->ops->extra_tx_headroom);
+	memset(entry->skb->data, 0, rt2x00dev->ops->extra_tx_headroom);
+
+	/*
+	 * Call the driver's write_tx_datadesc function, if it exists.
+	 */
+	if (rt2x00dev->ops->lib->write_tx_datadesc)
+		rt2x00dev->ops->lib->write_tx_datadesc(entry, txdesc);
+
+	/*
+	 * Map the skb to DMA.
+	 */
+	if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags))
+		rt2x00queue_map_txskb(rt2x00dev, entry->skb);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_write_tx_data);
@@ -88,6 +106,34 @@ EXPORT_SYMBOL_GPL(rt2x00pci_write_tx_data);
 /*
  * TX/RX data handlers.
  */
+void rt2x00pci_txdone(struct queue_entry *entry,
+		      struct txdone_entry_desc *txdesc)
+{
+	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+
+	/*
+	 * Unmap the skb.
+	 */
+	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
+
+	/*
+	 * Remove the extra tx headroom from the skb.
+	 */
+	skb_pull(entry->skb, rt2x00dev->ops->extra_tx_headroom);
+
+	/*
+	 * Signal that the TX descriptor is no longer in the skb.
+	 */
+	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
+
+	/*
+	 * Pass on to rt2x00lib.
+	 */
+	rt2x00lib_txdone(entry, txdesc);
+}
+EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
+
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;
@@ -305,7 +351,10 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	rt2x00dev->irq = pci_dev->irq;
 	rt2x00dev->name = pci_name(pci_dev);
 
-	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
+	if (pci_dev->is_pcie)
+		rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCIE);
+	else
+		rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
 
 	retval = rt2x00pci_alloc_reg(rt2x00dev);
 	if (retval)

@@ -37,6 +37,7 @@ struct macvlan_port {
 	struct net_device	*dev;
 	struct hlist_head	vlan_hash[MACVLAN_HASH_SIZE];
 	struct list_head	vlans;
+	struct rcu_head		rcu;
 };
 
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
@@ -145,15 +146,16 @@ static void macvlan_broadcast(struct sk_buff *skb,
 }
 
 /* called under rcu_read_lock() from netif_receive_skb */
-static struct sk_buff *macvlan_handle_frame(struct macvlan_port *port,
-					    struct sk_buff *skb)
+static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 {
+	struct macvlan_port *port;
 	const struct ethhdr *eth = eth_hdr(skb);
 	const struct macvlan_dev *vlan;
 	const struct macvlan_dev *src;
 	struct net_device *dev;
 	unsigned int len;
 
+	port = rcu_dereference(skb->dev->macvlan_port);
 	if (is_multicast_ether_addr(eth->h_dest)) {
 		src = macvlan_hash_lookup(port, eth->h_source);
 		if (!src)
@@ -515,6 +517,7 @@ static int macvlan_port_create(struct net_device *dev)
 {
 	struct macvlan_port *port;
 	unsigned int i;
+	int err;
 
 	if (dev->type != ARPHRD_ETHER || dev->flags & IFF_LOOPBACK)
 		return -EINVAL;
@@ -528,16 +531,31 @@ static int macvlan_port_create(struct net_device *dev)
 	for (i = 0; i < MACVLAN_HASH_SIZE; i++)
 		INIT_HLIST_HEAD(&port->vlan_hash[i]);
 	rcu_assign_pointer(dev->macvlan_port, port);
-	return 0;
+
+	err = netdev_rx_handler_register(dev, macvlan_handle_frame);
+	if (err) {
+		rcu_assign_pointer(dev->macvlan_port, NULL);
+		kfree(port);
+	}
+
+	return err;
+}
+
+static void macvlan_port_rcu_free(struct rcu_head *head)
+{
+	struct macvlan_port *port;
+
+	port = container_of(head, struct macvlan_port, rcu);
+	kfree(port);
 }
 
 static void macvlan_port_destroy(struct net_device *dev)
 {
 	struct macvlan_port *port = dev->macvlan_port;
 
+	netdev_rx_handler_unregister(dev);
 	rcu_assign_pointer(dev->macvlan_port, NULL);
-	synchronize_rcu();
-	kfree(port);
+	call_rcu(&port->rcu, macvlan_port_rcu_free);
 }
 
 static int macvlan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -767,14 +785,12 @@ static int __init macvlan_init_module(void)
 	int err;
 
 	register_netdevice_notifier(&macvlan_notifier_block);
-	macvlan_handle_frame_hook = macvlan_handle_frame;
 
 	err = macvlan_link_register(&macvlan_link_ops);
 	if (err < 0)
 		goto err1;
 	return 0;
 err1:
-	macvlan_handle_frame_hook = NULL;
 	unregister_netdevice_notifier(&macvlan_notifier_block);
 	return err;
 }
@@ -782,7 +798,6 @@ err1:
 static void __exit macvlan_cleanup_module(void)
 {
 	rtnl_link_unregister(&macvlan_link_ops);
-	macvlan_handle_frame_hook = NULL;
 	unregister_netdevice_notifier(&macvlan_notifier_block);
 }
 

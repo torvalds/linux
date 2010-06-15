@@ -44,11 +44,9 @@
 #include <linux/dca.h>
 #endif
 
-#define PFX "ixgbe: "
-#define DPRINTK(nlevel, klevel, fmt, args...) \
-	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
-	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__func__ , ## args)))
+/* common prefix used by pr_<> macros */
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 /* TX/RX descriptor defines */
 #define IXGBE_DEFAULT_TXD		    512

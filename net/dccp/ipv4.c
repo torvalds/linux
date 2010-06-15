@@ -105,7 +105,7 @@ int dccp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		goto failure;
 
 	/* OK, now commit destination to socket.  */
-	sk_setup_caps(sk, &rt->u.dst);
+	sk_setup_caps(sk, &rt->dst);
 
 	dp->dccps_iss = secure_dccp_sequence_number(inet->inet_saddr,
 						    inet->inet_daddr,
@@ -475,7 +475,7 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 		return NULL;
 	}
 
-	return &rt->u.dst;
+	return &rt->dst;
 }
 
 static int dccp_v4_send_response(struct sock *sk, struct request_sock *req,

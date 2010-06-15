@@ -548,7 +548,9 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
 	efx_oword_t reg;
-	int link_speed;
+	int link_speed, isolate;
+
+	isolate = (efx->reset_pending != RESET_TYPE_NONE);
 
 	switch (link_state->speed) {
 	case 10000: link_speed = 3; break;
@@ -570,7 +572,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	 * discarded. */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
 		EFX_SET_OWORD_FIELD(reg, FRF_BB_TXFIFO_DRAIN_EN,
-				    !link_state->up);
+				    !link_state->up || isolate);
 	}
 
 	efx_writeo(efx, &reg, FR_AB_MAC_CTRL);
@@ -584,7 +586,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(reg, FRF_AZ_RX_XOFF_MAC_EN, 1);
 	/* Unisolate the MAC -> RX */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
-		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, !isolate);
 	efx_writeo(efx, &reg, FR_AZ_RX_CFG);
 }
 

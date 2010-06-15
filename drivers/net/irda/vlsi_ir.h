@@ -544,9 +544,9 @@ struct ring_descr_hw {
 		struct {
 			u8		addr_res[3];
 			volatile u8	status;		/* descriptor status */
-		} __attribute__((packed)) rd_s;
-	} __attribute((packed)) rd_u;
-} __attribute__ ((packed));
+		} __packed rd_s;
+	} __packed rd_u;
+} __packed;
 
 #define rd_addr		rd_u.addr
 #define rd_status	rd_u.rd_s.status

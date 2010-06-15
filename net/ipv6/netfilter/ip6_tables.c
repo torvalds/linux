@@ -363,7 +363,7 @@ ip6t_do_table(struct sk_buff *skb,
 	cpu        = smp_processor_id();
 	table_base = private->entries[cpu];
 	jumpstack  = (struct ip6t_entry **)private->jumpstack[cpu];
-	stackptr   = &private->stackptr[cpu];
+	stackptr   = per_cpu_ptr(private->stackptr, cpu);
 	origptr    = *stackptr;
 
 	e = get_entry(table_base, private->hook_entry[hook]);

@@ -803,35 +803,31 @@ struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
 /**
- *	dev_get_by_flags - find any device with given flags
+ *	dev_get_by_flags_rcu - find any device with given flags
  *	@net: the applicable net namespace
  *	@if_flags: IFF_* values
  *	@mask: bitmask of bits in if_flags to check
  *
  *	Search for any interface with the given flags. Returns NULL if a device
- *	is not found or a pointer to the device. The device returned has
- *	had a reference added and the pointer is safe until the user calls
- *	dev_put to indicate they have finished with it.
+ *	is not found or a pointer to the device. Must be called inside
+ *	rcu_read_lock(), and result refcount is unchanged.
  */
 
-struct net_device *dev_get_by_flags(struct net *net, unsigned short if_flags,
+struct net_device *dev_get_by_flags_rcu(struct net *net, unsigned short if_flags,
 				    unsigned short mask)
 {
 	struct net_device *dev, *ret;
 
 	ret = NULL;
-	rcu_read_lock();
 	for_each_netdev_rcu(net, dev) {
 		if (((dev->flags ^ if_flags) & mask) == 0) {
-			dev_hold(dev);
 			ret = dev;
 			break;
 		}
 	}
-	rcu_read_unlock();
 	return ret;
 }
-EXPORT_SYMBOL(dev_get_by_flags);
+EXPORT_SYMBOL(dev_get_by_flags_rcu);
 
 /**
  *	dev_valid_name - check if name is okay for network device
@@ -2040,14 +2036,24 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 				 struct netdev_queue *txq)
 {
 	spinlock_t *root_lock = qdisc_lock(q);
+	bool contended = qdisc_is_running(q);
 	int rc;
+
+	/*
+	 * Heuristic to force contended enqueues to serialize on a
+	 * separate lock before trying to get qdisc main lock.
+	 * This permits __QDISC_STATE_RUNNING owner to get the lock more often
+	 * and dequeue packets faster.
+	 */
+	if (unlikely(contended))
+		spin_lock(&q->busylock);
 
 	spin_lock(root_lock);
 	if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
 		kfree_skb(skb);
 		rc = NET_XMIT_DROP;
 	} else if ((q->flags & TCQ_F_CAN_BYPASS) && !qdisc_qlen(q) &&
-		   !test_and_set_bit(__QDISC_STATE_RUNNING, &q->state)) {
+		   qdisc_run_begin(q)) {
 		/*
 		 * This is a work-conserving queue; there are no old skbs
 		 * waiting to be sent out; and the qdisc is not running -
@@ -2056,19 +2062,30 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 		if (!(dev->priv_flags & IFF_XMIT_DST_RELEASE))
 			skb_dst_force(skb);
 		__qdisc_update_bstats(q, skb->len);
-		if (sch_direct_xmit(skb, q, dev, txq, root_lock))
+		if (sch_direct_xmit(skb, q, dev, txq, root_lock)) {
+			if (unlikely(contended)) {
+				spin_unlock(&q->busylock);
+				contended = false;
+			}
 			__qdisc_run(q);
-		else
-			clear_bit(__QDISC_STATE_RUNNING, &q->state);
+		} else
+			qdisc_run_end(q);
 
 		rc = NET_XMIT_SUCCESS;
 	} else {
 		skb_dst_force(skb);
 		rc = qdisc_enqueue_root(skb, q);
-		qdisc_run(q);
+		if (qdisc_run_begin(q)) {
+			if (unlikely(contended)) {
+				spin_unlock(&q->busylock);
+				contended = false;
+			}
+			__qdisc_run(q);
+		}
 	}
 	spin_unlock(root_lock);
-
+	if (unlikely(contended))
+		spin_unlock(&q->busylock);
 	return rc;
 }
 
@@ -2082,9 +2099,10 @@ static inline int __dev_xmit_skb(struct sk_buff *skb, struct Qdisc *q,
 static inline int skb_needs_linearize(struct sk_buff *skb,
 				      struct net_device *dev)
 {
-	return (skb_has_frags(skb) && !(dev->features & NETIF_F_FRAGLIST)) ||
-	       (skb_shinfo(skb)->nr_frags && (!(dev->features & NETIF_F_SG) ||
-					      illegal_highdma(dev, skb)));
+	return skb_is_nonlinear(skb) &&
+	       ((skb_has_frags(skb) && !(dev->features & NETIF_F_FRAGLIST)) ||
+	        (skb_shinfo(skb)->nr_frags && (!(dev->features & NETIF_F_SG) ||
+					      illegal_highdma(dev, skb))));
 }
 
 /**
@@ -2255,11 +2273,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
 		if (unlikely(index >= dev->num_rx_queues)) {
-			if (net_ratelimit()) {
-				pr_warning("%s received packet on queue "
-					"%u, but number of RX queues is %u\n",
-					dev->name, index, dev->num_rx_queues);
-			}
+			WARN_ONCE(dev->num_rx_queues > 1, "%s received packet "
+				"on queue %u, but number of RX queues is %u\n",
+				dev->name, index, dev->num_rx_queues);
 			goto done;
 		}
 		rxqueue = dev->_rx + index;
@@ -2583,68 +2599,12 @@ static inline int deliver_skb(struct sk_buff *skb,
 	return pt_prev->func(skb, skb->dev, pt_prev, orig_dev);
 }
 
-#if defined(CONFIG_BRIDGE) || defined (CONFIG_BRIDGE_MODULE)
-
-#if defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE)
+#if (defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)) && \
+    (defined(CONFIG_ATM_LANE) || defined(CONFIG_ATM_LANE_MODULE))
 /* This hook is defined here for ATM LANE */
 int (*br_fdb_test_addr_hook)(struct net_device *dev,
 			     unsigned char *addr) __read_mostly;
 EXPORT_SYMBOL_GPL(br_fdb_test_addr_hook);
-#endif
-
-/*
- * If bridge module is loaded call bridging hook.
- *  returns NULL if packet was consumed.
- */
-struct sk_buff *(*br_handle_frame_hook)(struct net_bridge_port *p,
-					struct sk_buff *skb) __read_mostly;
-EXPORT_SYMBOL_GPL(br_handle_frame_hook);
-
-static inline struct sk_buff *handle_bridge(struct sk_buff *skb,
-					    struct packet_type **pt_prev, int *ret,
-					    struct net_device *orig_dev)
-{
-	struct net_bridge_port *port;
-
-	if (skb->pkt_type == PACKET_LOOPBACK ||
-	    (port = rcu_dereference(skb->dev->br_port)) == NULL)
-		return skb;
-
-	if (*pt_prev) {
-		*ret = deliver_skb(skb, *pt_prev, orig_dev);
-		*pt_prev = NULL;
-	}
-
-	return br_handle_frame_hook(port, skb);
-}
-#else
-#define handle_bridge(skb, pt_prev, ret, orig_dev)	(skb)
-#endif
-
-#if defined(CONFIG_MACVLAN) || defined(CONFIG_MACVLAN_MODULE)
-struct sk_buff *(*macvlan_handle_frame_hook)(struct macvlan_port *p,
-					     struct sk_buff *skb) __read_mostly;
-EXPORT_SYMBOL_GPL(macvlan_handle_frame_hook);
-
-static inline struct sk_buff *handle_macvlan(struct sk_buff *skb,
-					     struct packet_type **pt_prev,
-					     int *ret,
-					     struct net_device *orig_dev)
-{
-	struct macvlan_port *port;
-
-	port = rcu_dereference(skb->dev->macvlan_port);
-	if (!port)
-		return skb;
-
-	if (*pt_prev) {
-		*ret = deliver_skb(skb, *pt_prev, orig_dev);
-		*pt_prev = NULL;
-	}
-	return macvlan_handle_frame_hook(port, skb);
-}
-#else
-#define handle_macvlan(skb, pt_prev, ret, orig_dev)	(skb)
 #endif
 
 #ifdef CONFIG_NET_CLS_ACT
@@ -2697,9 +2657,6 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	if (*pt_prev) {
 		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
-	} else {
-		/* Huh? Why does turning on AF_PACKET affect this? */
-		skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
 	}
 
 	switch (ing_filter(skb)) {
@@ -2741,6 +2698,47 @@ void netif_nit_deliver(struct sk_buff *skb)
 	}
 	rcu_read_unlock();
 }
+
+/**
+ *	netdev_rx_handler_register - register receive handler
+ *	@dev: device to register a handler for
+ *	@rx_handler: receive handler to register
+ *
+ *	Register a receive hander for a device. This handler will then be
+ *	called from __netif_receive_skb. A negative errno code is returned
+ *	on a failure.
+ *
+ *	The caller must hold the rtnl_mutex.
+ */
+int netdev_rx_handler_register(struct net_device *dev,
+			       rx_handler_func_t *rx_handler)
+{
+	ASSERT_RTNL();
+
+	if (dev->rx_handler)
+		return -EBUSY;
+
+	rcu_assign_pointer(dev->rx_handler, rx_handler);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(netdev_rx_handler_register);
+
+/**
+ *	netdev_rx_handler_unregister - unregister receive handler
+ *	@dev: device to unregister a handler from
+ *
+ *	Unregister a receive hander from a device.
+ *
+ *	The caller must hold the rtnl_mutex.
+ */
+void netdev_rx_handler_unregister(struct net_device *dev)
+{
+
+	ASSERT_RTNL();
+	rcu_assign_pointer(dev->rx_handler, NULL);
+}
+EXPORT_SYMBOL_GPL(netdev_rx_handler_unregister);
 
 static inline void skb_bond_set_mac_by_master(struct sk_buff *skb,
 					      struct net_device *master)
@@ -2794,10 +2792,11 @@ EXPORT_SYMBOL(__skb_bond_should_drop);
 static int __netif_receive_skb(struct sk_buff *skb)
 {
 	struct packet_type *ptype, *pt_prev;
+	rx_handler_func_t *rx_handler;
 	struct net_device *orig_dev;
 	struct net_device *master;
 	struct net_device *null_or_orig;
-	struct net_device *null_or_bond;
+	struct net_device *orig_or_bond;
 	int ret = NET_RX_DROP;
 	__be16 type;
 
@@ -2814,13 +2813,24 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	if (!skb->skb_iif)
 		skb->skb_iif = skb->dev->ifindex;
 
+	/*
+	 * bonding note: skbs received on inactive slaves should only
+	 * be delivered to pkt handlers that are exact matches.  Also
+	 * the deliver_no_wcard flag will be set.  If packet handlers
+	 * are sensitive to duplicate packets these skbs will need to
+	 * be dropped at the handler.  The vlan accel path may have
+	 * already set the deliver_no_wcard flag.
+	 */
 	null_or_orig = NULL;
 	orig_dev = skb->dev;
 	master = ACCESS_ONCE(orig_dev->master);
-	if (master) {
-		if (skb_bond_should_drop(skb, master))
+	if (skb->deliver_no_wcard)
+		null_or_orig = orig_dev;
+	else if (master) {
+		if (skb_bond_should_drop(skb, master)) {
+			skb->deliver_no_wcard = 1;
 			null_or_orig = orig_dev; /* deliver only exact match */
-		else
+		} else
 			skb->dev = master;
 	}
 
@@ -2856,12 +2866,17 @@ static int __netif_receive_skb(struct sk_buff *skb)
 ncls:
 #endif
 
-	skb = handle_bridge(skb, &pt_prev, &ret, orig_dev);
-	if (!skb)
-		goto out;
-	skb = handle_macvlan(skb, &pt_prev, &ret, orig_dev);
-	if (!skb)
-		goto out;
+	/* Handle special case of bridge or macvlan */
+	rx_handler = rcu_dereference(skb->dev->rx_handler);
+	if (rx_handler) {
+		if (pt_prev) {
+			ret = deliver_skb(skb, pt_prev, orig_dev);
+			pt_prev = NULL;
+		}
+		skb = rx_handler(skb);
+		if (!skb)
+			goto out;
+	}
 
 	/*
 	 * Make sure frames received on VLAN interfaces stacked on
@@ -2869,10 +2884,10 @@ ncls:
 	 * device that may have registered for a specific ptype.  The
 	 * handler may have to adjust skb->dev and orig_dev.
 	 */
-	null_or_bond = NULL;
+	orig_or_bond = orig_dev;
 	if ((skb->dev->priv_flags & IFF_802_1Q_VLAN) &&
 	    (vlan_dev_real_dev(skb->dev)->priv_flags & IFF_BONDING)) {
-		null_or_bond = vlan_dev_real_dev(skb->dev);
+		orig_or_bond = vlan_dev_real_dev(skb->dev);
 	}
 
 	type = skb->protocol;
@@ -2880,7 +2895,7 @@ ncls:
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
 		if (ptype->type == type && (ptype->dev == null_or_orig ||
 		     ptype->dev == skb->dev || ptype->dev == orig_dev ||
-		     ptype->dev == null_or_bond)) {
+		     ptype->dev == orig_or_bond)) {
 			if (pt_prev)
 				ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = ptype;
@@ -3686,10 +3701,10 @@ void dev_seq_stop(struct seq_file *seq, void *v)
 
 static void dev_seq_printf_stats(struct seq_file *seq, struct net_device *dev)
 {
-	const struct net_device_stats *stats = dev_get_stats(dev);
+	const struct rtnl_link_stats64 *stats = dev_get_stats(dev);
 
-	seq_printf(seq, "%6s: %7lu %7lu %4lu %4lu %4lu %5lu %10lu %9lu "
-		   "%8lu %7lu %4lu %4lu %4lu %5lu %7lu %10lu\n",
+	seq_printf(seq, "%6s: %7llu %7llu %4llu %4llu %4llu %5llu %10llu %9llu "
+		   "%8llu %7llu %4llu %4llu %4llu %5llu %7llu %10llu\n",
 		   dev->name, stats->rx_bytes, stats->rx_packets,
 		   stats->rx_errors,
 		   stats->rx_dropped + stats->rx_missed_errors,
@@ -5266,18 +5281,21 @@ EXPORT_SYMBOL(dev_txq_stats_fold);
  *	@dev: device to get statistics from
  *
  *	Get network statistics from device. The device driver may provide
- *	its own method by setting dev->netdev_ops->get_stats; otherwise
- *	the internal statistics structure is used.
+ *	its own method by setting dev->netdev_ops->get_stats64 or
+ *	dev->netdev_ops->get_stats; otherwise the internal statistics
+ *	structure is used.
  */
-const struct net_device_stats *dev_get_stats(struct net_device *dev)
+const struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 
+	if (ops->ndo_get_stats64)
+		return ops->ndo_get_stats64(dev);
 	if (ops->ndo_get_stats)
-		return ops->ndo_get_stats(dev);
+		return (struct rtnl_link_stats64 *)ops->ndo_get_stats(dev);
 
 	dev_txq_stats_fold(dev, &dev->stats);
-	return &dev->stats;
+	return &dev->stats64;
 }
 EXPORT_SYMBOL(dev_get_stats);
 

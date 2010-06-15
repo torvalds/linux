@@ -683,13 +683,13 @@ static int qlcnic_loopback_test(struct net_device *netdev)
 	if (ret)
 		goto clear_it;
 
-	ret = qlcnic_set_ilb_mode(adapter);
+	ret = adapter->nic_ops->set_ilb_mode(adapter);
 	if (ret)
 		goto done;
 
 	ret = qlcnic_do_ilb_test(adapter);
 
-	qlcnic_clear_ilb_mode(adapter);
+	adapter->nic_ops->clear_ilb_mode(adapter);
 
 done:
 	qlcnic_diag_free_res(netdev, max_sds_rings);
@@ -715,7 +715,8 @@ static int qlcnic_irq_test(struct net_device *netdev)
 
 	adapter->diag_cnt = 0;
 	ret = qlcnic_issue_cmd(adapter, adapter->ahw.pci_func,
-			QLCHAL_VERSION, adapter->portnum, 0, 0, 0x00000011);
+			adapter->fw_hal_version, adapter->portnum,
+			0, 0, 0x00000011);
 	if (ret)
 		goto done;
 
@@ -834,7 +835,7 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int ret;
 
-	ret = qlcnic_config_led(adapter, 1, 0xf);
+	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to set LED blink state.\n");
@@ -843,7 +844,7 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 
 	msleep_interruptible(val * 1000);
 
-	ret = qlcnic_config_led(adapter, 0, 0xf);
+	ret = adapter->nic_ops->config_led(adapter, 0, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
 			"Failed to reset LED blink state.\n");

@@ -286,7 +286,6 @@ struct board_info {
 	unsigned int            clock_mc3;
 	unsigned int            clock_mc4;
 	unsigned int            espi_nports;
-	unsigned int            clock_cspi;
 	unsigned int            clock_elmer0;
 	unsigned char           mdio_mdien;
 	unsigned char           mdio_mdiinv;

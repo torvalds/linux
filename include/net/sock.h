@@ -1524,20 +1524,7 @@ extern void sk_stop_timer(struct sock *sk, struct timer_list* timer);
 
 extern int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 
-static inline int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
-{
-	/* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
-	   number of warnings when compiling with -W --ANK
-	 */
-	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-	    (unsigned)sk->sk_rcvbuf)
-		return -ENOMEM;
-	skb_set_owner_r(skb, sk);
-	skb_queue_tail(&sk->sk_error_queue, skb);
-	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb->len);
-	return 0;
-}
+extern int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb);
 
 /*
  *	Recover an error report and clear atomically
@@ -1724,19 +1711,13 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 static inline
 struct net *sock_net(const struct sock *sk)
 {
-#ifdef CONFIG_NET_NS
-	return sk->sk_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&sk->sk_net);
 }
 
 static inline
 void sock_net_set(struct sock *sk, struct net *net)
 {
-#ifdef CONFIG_NET_NS
-	sk->sk_net = net;
-#endif
+	write_pnet(&sk->sk_net, net);
 }
 
 /*

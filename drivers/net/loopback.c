@@ -60,10 +60,50 @@
 #include <net/net_namespace.h>
 
 struct pcpu_lstats {
-	unsigned long packets;
-	unsigned long bytes;
+	u64 packets;
+	u64 bytes;
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+	seqcount_t seq;
+#endif
 	unsigned long drops;
 };
+
+#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
+static void inline lstats_update_begin(struct pcpu_lstats *lstats)
+{
+	write_seqcount_begin(&lstats->seq);
+}
+static void inline lstats_update_end(struct pcpu_lstats *lstats)
+{
+	write_seqcount_end(&lstats->seq);
+}
+static void inline lstats_fetch_and_add(u64 *packets, u64 *bytes, const struct pcpu_lstats *lstats)
+{
+	u64 tpackets, tbytes;
+	unsigned int seq;
+
+	do {
+		seq = read_seqcount_begin(&lstats->seq);
+		tpackets = lstats->packets;
+		tbytes = lstats->bytes;
+	} while (read_seqcount_retry(&lstats->seq, seq));
+
+	*packets += tpackets;
+	*bytes += tbytes;
+}
+#else
+static void inline lstats_update_begin(struct pcpu_lstats *lstats)
+{
+}
+static void inline lstats_update_end(struct pcpu_lstats *lstats)
+{
+}
+static void inline lstats_fetch_and_add(u64 *packets, u64 *bytes, const struct pcpu_lstats *lstats)
+{
+	*packets += lstats->packets;
+	*bytes += lstats->bytes;
+}
+#endif
 
 /*
  * The higher levels take care of making this non-reentrant (it's
@@ -86,21 +126,23 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
+		lstats_update_begin(lb_stats);
 		lb_stats->bytes += len;
 		lb_stats->packets++;
+		lstats_update_end(lb_stats);
 	} else
 		lb_stats->drops++;
 
 	return NETDEV_TX_OK;
 }
 
-static struct net_device_stats *loopback_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev)
 {
 	const struct pcpu_lstats __percpu *pcpu_lstats;
-	struct net_device_stats *stats = &dev->stats;
-	unsigned long bytes = 0;
-	unsigned long packets = 0;
-	unsigned long drops = 0;
+	struct rtnl_link_stats64 *stats = &dev->stats64;
+	u64 bytes = 0;
+	u64 packets = 0;
+	u64 drops = 0;
 	int i;
 
 	pcpu_lstats = (void __percpu __force *)dev->ml_priv;
@@ -108,8 +150,7 @@ static struct net_device_stats *loopback_get_stats(struct net_device *dev)
 		const struct pcpu_lstats *lb_stats;
 
 		lb_stats = per_cpu_ptr(pcpu_lstats, i);
-		bytes   += lb_stats->bytes;
-		packets += lb_stats->packets;
+		lstats_fetch_and_add(&packets, &bytes, lb_stats);
 		drops   += lb_stats->drops;
 	}
 	stats->rx_packets = packets;
@@ -158,7 +199,7 @@ static void loopback_dev_free(struct net_device *dev)
 static const struct net_device_ops loopback_ops = {
 	.ndo_init      = loopback_dev_init,
 	.ndo_start_xmit= loopback_xmit,
-	.ndo_get_stats = loopback_get_stats,
+	.ndo_get_stats64 = loopback_get_stats64,
 };
 
 /*

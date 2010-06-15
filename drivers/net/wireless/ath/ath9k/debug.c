@@ -42,7 +42,7 @@ static ssize_t read_file_debug(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->debug_mask);
+	len = sprintf(buf, "0x%08x\n", common->debug_mask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -57,7 +57,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &mask))
@@ -86,7 +86,7 @@ static ssize_t read_file_tx_chainmask(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->tx_chainmask);
+	len = sprintf(buf, "0x%08x\n", common->tx_chainmask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -101,7 +101,7 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &mask))
@@ -128,7 +128,7 @@ static ssize_t read_file_rx_chainmask(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->rx_chainmask);
+	len = sprintf(buf, "0x%08x\n", common->rx_chainmask);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -143,7 +143,7 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &mask))
@@ -176,7 +176,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(DMA_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return 0;
+		return -ENOMEM;
 
 	ath9k_ps_wakeup(sc);
 
@@ -248,6 +248,9 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 
 	ath9k_ps_restore(sc);
 
+	if (len > DMA_BUF_LEN)
+		len = DMA_BUF_LEN;
+
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
 	return retval;
@@ -269,6 +272,8 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 			sc->debug.stats.istats.rxlp++;
 		if (status & ATH9K_INT_RXHP)
 			sc->debug.stats.istats.rxhp++;
+		if (status & ATH9K_INT_BB_WATCHDOG)
+			sc->debug.stats.istats.bb_watchdog++;
 	} else {
 		if (status & ATH9K_INT_RX)
 			sc->debug.stats.istats.rxok++;
@@ -319,6 +324,9 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 			"%8s: %10u\n", "RXLP", sc->debug.stats.istats.rxlp);
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"%8s: %10u\n", "RXHP", sc->debug.stats.istats.rxhp);
+		len += snprintf(buf + len, sizeof(buf) - len,
+			"%8s: %10u\n", "WATCHDOG",
+			sc->debug.stats.istats.bb_watchdog);
 	} else {
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"%8s: %10u\n", "RX", sc->debug.stats.istats.rxok);
@@ -357,6 +365,9 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 		"%8s: %10u\n", "DTIM", sc->debug.stats.istats.dtim);
 	len += snprintf(buf + len, sizeof(buf) - len,
 		"%8s: %10u\n", "TOTAL", sc->debug.stats.istats.total);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -397,11 +408,10 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 	if (sc->cur_rate_table == NULL)
 		return 0;
 
-	max = 80 + sc->cur_rate_table->rate_cnt * 1024;
-	buf = kmalloc(max + 1, GFP_KERNEL);
+	max = 80 + sc->cur_rate_table->rate_cnt * 1024 + 1;
+	buf = kmalloc(max, GFP_KERNEL);
 	if (buf == NULL)
-		return 0;
-	buf[max] = 0;
+		return -ENOMEM;
 
 	len += sprintf(buf, "%6s %6s %6s "
 		       "%10s %10s %10s %10s\n",
@@ -442,6 +452,9 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 			stats->xretries,
 			stats->per);
 	}
+
+	if (len > max)
+		len = max;
 
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
@@ -504,6 +517,9 @@ static ssize_t read_file_wiphy(struct file *file, char __user *user_buf,
 	put_unaligned_le16(REG_READ_D(sc->sc_ah, AR_BSSMSKU) & 0xffff, addr + 4);
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"addrmask: %pM\n", addr);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
 
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
@@ -630,7 +646,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return 0;
+		return -ENOMEM;
 
 	len += sprintf(buf, "%30s %10s%10s%10s\n\n", "BE", "BK", "VI", "VO");
 
@@ -647,6 +663,9 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("DESC CFG Error:  ", desc_cfg_err);
 	PR("DATA Underrun:   ", data_underrun);
 	PR("DELIM Underrun:  ", delim_underrun);
+
+	if (len > size)
+		len = size;
 
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
@@ -700,7 +719,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return 0;
+		return -ENOMEM;
 
 	len += snprintf(buf + len, size - len,
 			"%18s : %10u\n", "CRC ERR",
@@ -750,6 +769,9 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	PHY_ERR("HT-CRC", ATH9K_PHYERR_HT_CRC_ERROR);
 	PHY_ERR("HT-LENGTH", ATH9K_PHYERR_HT_LENGTH_ILLEGAL);
 	PHY_ERR("HT-RATE", ATH9K_PHYERR_HT_RATE_ILLEGAL);
+
+	if (len > size)
+		len = size;
 
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
@@ -802,7 +824,7 @@ static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
 	char buf[32];
 	unsigned int len;
 
-	len = snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.regidx);
+	len = sprintf(buf, "0x%08x\n", sc->debug.regidx);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -816,7 +838,7 @@ static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &regidx))
@@ -843,7 +865,7 @@ static ssize_t read_file_regval(struct file *file, char __user *user_buf,
 	u32 regval;
 
 	regval = REG_READ_D(ah, sc->debug.regidx);
-	len = snprintf(buf, sizeof(buf), "0x%08x\n", regval);
+	len = sprintf(buf, "0x%08x\n", regval);
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 
@@ -858,7 +880,7 @@ static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &regval))

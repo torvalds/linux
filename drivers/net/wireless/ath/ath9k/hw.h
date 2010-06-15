@@ -199,6 +199,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(18),
 	ATH9K_HW_CAP_LDPC			= BIT(19),
 	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
+	ATH9K_HW_CAP_SGI_20			= BIT(21),
 };
 
 enum ath9k_capability_type {
@@ -262,7 +263,6 @@ struct ath9k_ops_config {
 #define AR_BASE_FREQ_5GHZ   	4900
 #define AR_SPUR_FEEQ_BOUND_HT40 19
 #define AR_SPUR_FEEQ_BOUND_HT20 10
-	bool tx_iq_calibration; /* Only available for >= AR9003 */
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
@@ -279,6 +279,7 @@ enum ath9k_int {
 	ATH9K_INT_TX = 0x00000040,
 	ATH9K_INT_TXDESC = 0x00000080,
 	ATH9K_INT_TIM_TIMER = 0x00000100,
+	ATH9K_INT_BB_WATCHDOG = 0x00000400,
 	ATH9K_INT_TXURN = 0x00000800,
 	ATH9K_INT_MIB = 0x00001000,
 	ATH9K_INT_RXPHY = 0x00004000,
@@ -459,7 +460,7 @@ struct ath9k_hw_version {
 #define AR_GENTMR_BIT(_index)	(1 << (_index))
 
 /*
- * Using de Bruijin sequence to to look up 1's index in a 32 bit number
+ * Using de Bruijin sequence to look up 1's index in a 32 bit number
  * debruijn32 = 0000 0111 0111 1100 1011 0101 0011 0001
  */
 #define debruijn32 0x077CB531U
@@ -789,6 +790,9 @@ struct ath_hw {
 	u32 ts_paddr_end;
 	u16 ts_tail;
 	u8 ts_size;
+
+	u32 bb_watchdog_last_status;
+	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -907,13 +911,17 @@ void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
 int ar9002_hw_rf_claim(struct ath_hw *ah);
 void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
+void ar9002_hw_update_async_fifo(struct ath_hw *ah);
 void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
 
 /*
- * Code specifric to AR9003, we stuff these here to avoid callbacks
+ * Code specific to AR9003, we stuff these here to avoid callbacks
  * for older families
  */
 void ar9003_hw_set_nf_limits(struct ath_hw *ah);
+void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
+void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
+void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);

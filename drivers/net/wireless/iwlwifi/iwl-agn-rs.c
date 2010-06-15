@@ -313,8 +313,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 			 */
 			IWL_DEBUG_HT(priv, "Fail start Tx agg on tid: %d\n",
 				tid);
-			ieee80211_stop_tx_ba_session(sta, tid,
-						WLAN_BACK_INITIATOR);
+			ieee80211_stop_tx_ba_session(sta, tid);
 		}
 	} else
 		IWL_ERR(priv, "Fail finding valid aggregation tid: %d\n", tid);

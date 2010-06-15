@@ -85,7 +85,7 @@ struct event_debug_report {
 	__le32 report_1;
 	__le32 report_2;
 	__le32 report_3;
-} __attribute__ ((packed));
+} __packed;
 
 #define NUM_OF_RSSI_SNR_TRIGGERS 8
 
@@ -116,7 +116,7 @@ struct event_mailbox {
 	u8 ps_status;
 
 	u8 reserved_5[29];
-} __attribute__ ((packed));
+} __packed;
 
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);

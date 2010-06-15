@@ -165,7 +165,7 @@ struct lsi_umts {
 	u8 gw_addr_len; /* NW-supplied GW address len */
 	u8 gw_addr[16]; /* NW-supplied GW address (bigendian) */
 	u8 reserved[8];
-} __attribute__ ((packed));
+} __packed;
 
 #define SIERRA_NET_LSI_COMMON_LEN      4
 #define SIERRA_NET_LSI_UMTS_LEN        (sizeof(struct lsi_umts))

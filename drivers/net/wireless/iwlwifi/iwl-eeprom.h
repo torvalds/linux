@@ -118,7 +118,7 @@ enum {
 struct iwl_eeprom_channel {
 	u8 flags;		/* EEPROM_CHANNEL_* flags copied from EEPROM */
 	s8 max_power_avg;	/* max power (dBm) on this chnl, limit 31 */
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * iwl_eeprom_enhanced_txpwr structure
@@ -144,7 +144,7 @@ struct iwl_eeprom_enhanced_txpwr {
 	s8 reserved;
 	s8 mimo2_max;
 	s8 mimo3_max;
-} __attribute__ ((packed));
+} __packed;
 
 /* 3945 Specific */
 #define EEPROM_3945_EEPROM_VERSION	(0x2f)
@@ -312,7 +312,7 @@ struct iwl_eeprom_calib_measure {
 	u8 gain_idx;		/* Index into gain table */
 	u8 actual_pow;		/* Measured RF output power, half-dBm */
 	s8 pa_det;		/* Power amp detector level (not used) */
-} __attribute__ ((packed));
+} __packed;
 
 
 /*
@@ -328,7 +328,7 @@ struct iwl_eeprom_calib_ch_info {
 	struct iwl_eeprom_calib_measure
 		measurements[EEPROM_TX_POWER_TX_CHAINS]
 			[EEPROM_TX_POWER_MEASUREMENTS];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * txpower subband info.
@@ -345,7 +345,7 @@ struct iwl_eeprom_calib_subband_info {
 	u8 ch_to;	/* channel number of highest channel in subband */
 	struct iwl_eeprom_calib_ch_info ch1;
 	struct iwl_eeprom_calib_ch_info ch2;
-} __attribute__ ((packed));
+} __packed;
 
 
 /*
@@ -374,7 +374,7 @@ struct iwl_eeprom_calib_info {
 	__le16 voltage;		/* signed */
 	struct iwl_eeprom_calib_subband_info
 		band_info[EEPROM_TX_POWER_BANDS];
-} __attribute__ ((packed));
+} __packed;
 
 
 #define ADDRESS_MSK                 0x0000FFFF

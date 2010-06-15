@@ -222,6 +222,29 @@ void ath9k_htc_swba(struct ath9k_htc_priv *priv, u8 beacon_pending)
 	spin_unlock_bh(&priv->beacon_lock);
 }
 
+/* Currently, only for IBSS */
+void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+	struct ath9k_tx_queue_info qi, qi_be;
+	int qnum = priv->hwq_map[ATH9K_WME_AC_BE];
+
+	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
+	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));
+
+	ath9k_hw_get_txq_props(ah, qnum, &qi_be);
+
+	qi.tqi_aifs = qi_be.tqi_aifs;
+	qi.tqi_cwmin = 4*qi_be.tqi_cwmin;
+	qi.tqi_cwmax = qi_be.tqi_cwmax;
+
+	if (!ath9k_hw_set_txq_props(ah, priv->beaconq, &qi)) {
+		ath_print(ath9k_hw_common(ah), ATH_DBG_FATAL,
+			  "Unable to update beacon queue %u!\n", qnum);
+	} else {
+		ath9k_hw_resettxqueue(ah, priv->beaconq);
+	}
+}
 
 void ath9k_htc_beacon_config(struct ath9k_htc_priv *priv,
 			     struct ieee80211_vif *vif)

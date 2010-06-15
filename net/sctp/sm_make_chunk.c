@@ -1817,7 +1817,7 @@ malformed:
 struct __sctp_missing {
 	__be32 num_missing;
 	__be16 type;
-}  __attribute__((packed));
+}  __packed;
 
 /*
  * Report a missing mandatory parameter.

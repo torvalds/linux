@@ -84,8 +84,4 @@ extern int macvlan_link_register(struct rtnl_link_ops *ops);
 extern netdev_tx_t macvlan_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev);
 
-
-extern struct sk_buff *(*macvlan_handle_frame_hook)(struct macvlan_port *,
-						    struct sk_buff *);
-
 #endif /* _LINUX_IF_MACVLAN_H */

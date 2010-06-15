@@ -109,7 +109,7 @@ struct tx_control {
 	unsigned xfer_pad:1;
 
 	unsigned reserved:7;
-} __attribute__ ((packed));
+} __packed;
 
 
 struct tx_double_buffer_desc {
@@ -156,7 +156,7 @@ struct tx_double_buffer_desc {
 	u8 num_mem_blocks;
 
 	u8 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	TX_SUCCESS              = 0,
@@ -208,7 +208,7 @@ struct tx_result {
 
 	/* See done_1 */
 	u8 done_2;
-} __attribute__ ((packed));
+} __packed;
 
 static inline int wl1251_tx_get_queue(int queue)
 {

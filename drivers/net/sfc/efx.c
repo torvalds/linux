@@ -27,6 +27,7 @@
 #include "nic.h"
 
 #include "mcdi.h"
+#include "workarounds.h"
 
 /**************************************************************************
  *
@@ -91,13 +92,6 @@ const char *efx_reset_type_names[] = {
 };
 
 #define EFX_MAX_MTU (9 * 1024)
-
-/* RX slow fill workqueue. If memory allocation fails in the fast path,
- * a work item is pushed onto this work queue to retry the allocation later,
- * to avoid the NIC being starved of RX buffers. Since this is a per cpu
- * workqueue, there is nothing to be gained in making it per NIC
- */
-static struct workqueue_struct *refill_workqueue;
 
 /* Reset workqueue. If any NIC has a hardware failure then a reset will be
  * queued onto this work queue. This is not a per-nic work queue, because
@@ -475,7 +469,8 @@ static void efx_init_channels(struct efx_nic *efx)
 	efx->rx_buffer_len = (max(EFX_PAGE_IP_ALIGN, NET_IP_ALIGN) +
 			      EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			      efx->type->rx_buffer_padding);
-	efx->rx_buffer_order = get_order(efx->rx_buffer_len);
+	efx->rx_buffer_order = get_order(efx->rx_buffer_len +
+					 sizeof(struct efx_rx_page_state));
 
 	/* Initialise the channels */
 	efx_for_each_channel(channel, efx) {
@@ -515,11 +510,11 @@ static void efx_start_channel(struct efx_channel *channel)
 	channel->enabled = true;
 	smp_wmb();
 
-	napi_enable(&channel->napi_str);
-
-	/* Load up RX descriptors */
+	/* Fill the queues before enabling NAPI */
 	efx_for_each_channel_rx_queue(rx_queue, channel)
 		efx_fast_push_rx_descriptors(rx_queue);
+
+	napi_enable(&channel->napi_str);
 }
 
 /* This disables event queue processing and packet transmission.
@@ -528,8 +523,6 @@ static void efx_start_channel(struct efx_channel *channel)
  */
 static void efx_stop_channel(struct efx_channel *channel)
 {
-	struct efx_rx_queue *rx_queue;
-
 	if (!channel->enabled)
 		return;
 
@@ -537,12 +530,6 @@ static void efx_stop_channel(struct efx_channel *channel)
 
 	channel->enabled = false;
 	napi_disable(&channel->napi_str);
-
-	/* Ensure that any worker threads have exited or will be no-ops */
-	efx_for_each_channel_rx_queue(rx_queue, channel) {
-		spin_lock_bh(&rx_queue->add_lock);
-		spin_unlock_bh(&rx_queue->add_lock);
-	}
 }
 
 static void efx_fini_channels(struct efx_nic *efx)
@@ -556,10 +543,18 @@ static void efx_fini_channels(struct efx_nic *efx)
 	BUG_ON(efx->port_enabled);
 
 	rc = efx_nic_flush_queues(efx);
-	if (rc)
+	if (rc && EFX_WORKAROUND_7803(efx)) {
+		/* Schedule a reset to recover from the flush failure. The
+		 * descriptor caches reference memory we're about to free,
+		 * but falcon_reconfigure_mac_wrapper() won't reconnect
+		 * the MACs because of the pending reset. */
+		EFX_ERR(efx, "Resetting to recover from flush failure\n");
+		efx_schedule_reset(efx, RESET_TYPE_ALL);
+	} else if (rc) {
 		EFX_ERR(efx, "failed to flush queues\n");
-	else
+	} else {
 		EFX_LOG(efx, "successfully flushed all queues\n");
+	}
 
 	efx_for_each_channel(channel, efx) {
 		EFX_LOG(channel->efx, "shut down chan %d\n", channel->channel);
@@ -586,9 +581,9 @@ static void efx_remove_channel(struct efx_channel *channel)
 	efx_remove_eventq(channel);
 }
 
-void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay)
+void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 {
-	queue_delayed_work(refill_workqueue, &rx_queue->work, delay);
+	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
 }
 
 /**************************************************************************
@@ -1233,15 +1228,8 @@ static void efx_start_all(struct efx_nic *efx)
  * since we're holding the rtnl_lock at this point. */
 static void efx_flush_all(struct efx_nic *efx)
 {
-	struct efx_rx_queue *rx_queue;
-
 	/* Make sure the hardware monitor is stopped */
 	cancel_delayed_work_sync(&efx->monitor_work);
-
-	/* Ensure that all RX slow refills are complete. */
-	efx_for_each_rx_queue(rx_queue, efx)
-		cancel_delayed_work_sync(&rx_queue->work);
-
 	/* Stop scheduled port reconfigurations */
 	cancel_work_sync(&efx->mac_work);
 }
@@ -1504,11 +1492,11 @@ static int efx_net_stop(struct net_device *net_dev)
 }
 
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
-static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
+static struct rtnl_link_stats64 *efx_net_stats(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
-	struct net_device_stats *stats = &net_dev->stats;
+	struct rtnl_link_stats64 *stats = &net_dev->stats64;
 
 	spin_lock_bh(&efx->stats_lock);
 	efx->type->update_stats(efx);
@@ -1530,11 +1518,8 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	stats->tx_window_errors = mac_stats->tx_late_collision;
 
 	stats->rx_errors = (stats->rx_length_errors +
-			    stats->rx_over_errors +
 			    stats->rx_crc_errors +
 			    stats->rx_frame_errors +
-			    stats->rx_fifo_errors +
-			    stats->rx_missed_errors +
 			    mac_stats->rx_symbol_error);
 	stats->tx_errors = (stats->tx_window_errors +
 			    mac_stats->tx_bad);
@@ -1645,7 +1630,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 static const struct net_device_ops efx_netdev_ops = {
 	.ndo_open		= efx_net_open,
 	.ndo_stop		= efx_net_stop,
-	.ndo_get_stats		= efx_net_stats,
+	.ndo_get_stats64	= efx_net_stats,
 	.ndo_tx_timeout		= efx_watchdog,
 	.ndo_start_xmit		= efx_hard_start_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -1886,6 +1871,9 @@ static void efx_reset_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic, reset_work);
 
+	if (efx->reset_pending == RESET_TYPE_NONE)
+		return;
+
 	/* If we're not RUNNING then don't reset. Leave the reset_pending
 	 * flag set so that efx_pci_probe_main will be retried */
 	if (efx->state != STATE_RUNNING) {
@@ -2052,8 +2040,8 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 		rx_queue->queue = i;
 		rx_queue->channel = &efx->channel[0]; /* for safety */
 		rx_queue->buffer = NULL;
-		spin_lock_init(&rx_queue->add_lock);
-		INIT_DELAYED_WORK(&rx_queue->work, efx_rx_work);
+		setup_timer(&rx_queue->slow_fill, efx_rx_slow_fill,
+			    (unsigned long)rx_queue);
 	}
 
 	efx->type = type;
@@ -2332,6 +2320,9 @@ static int efx_pm_thaw(struct device *dev)
 
 	efx->type->resume_wol(efx);
 
+	/* Reschedule any quenched resets scheduled during efx_pm_freeze() */
+	queue_work(reset_workqueue, &efx->reset_work);
+
 	return 0;
 }
 
@@ -2421,11 +2412,6 @@ static int __init efx_init_module(void)
 	if (rc)
 		goto err_notifier;
 
-	refill_workqueue = create_workqueue("sfc_refill");
-	if (!refill_workqueue) {
-		rc = -ENOMEM;
-		goto err_refill;
-	}
 	reset_workqueue = create_singlethread_workqueue("sfc_reset");
 	if (!reset_workqueue) {
 		rc = -ENOMEM;
@@ -2441,8 +2427,6 @@ static int __init efx_init_module(void)
  err_pci:
 	destroy_workqueue(reset_workqueue);
  err_reset:
-	destroy_workqueue(refill_workqueue);
- err_refill:
 	unregister_netdevice_notifier(&efx_netdev_notifier);
  err_notifier:
 	return rc;
@@ -2454,7 +2438,6 @@ static void __exit efx_exit_module(void)
 
 	pci_unregister_driver(&efx_pci_driver);
 	destroy_workqueue(reset_workqueue);
-	destroy_workqueue(refill_workqueue);
 	unregister_netdevice_notifier(&efx_netdev_notifier);
 
 }

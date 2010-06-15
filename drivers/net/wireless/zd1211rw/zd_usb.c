@@ -844,7 +844,7 @@ out:
  * @usb: a &struct zd_usb pointer
  * @urb: URB to be freed
  *
- * Frees the the transmission URB, which means to put it on the free URB
+ * Frees the transmission URB, which means to put it on the free URB
  * list.
  */
 static void free_tx_urb(struct zd_usb *usb, struct urb *urb)

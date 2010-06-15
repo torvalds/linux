@@ -179,7 +179,7 @@ struct ax88172_int_data {
 	__le16 res2;
 	u8 status;
 	__le16 res3;
-} __attribute__ ((packed));
+} __packed;
 
 static int asix_read_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 			    u16 size, void *data)
@@ -344,7 +344,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			return 2;
 		}
 
-		if (size > ETH_FRAME_LEN) {
+		if (size > dev->net->mtu + ETH_HLEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   size);
 			return 0;

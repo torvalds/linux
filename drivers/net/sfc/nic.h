@@ -190,8 +190,8 @@ extern int efx_nic_rx_xoff_thresh, efx_nic_rx_xon_thresh;
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_generate_test_event(struct efx_channel *channel,
-					unsigned int magic);
+extern void efx_nic_generate_test_event(struct efx_channel *channel);
+extern void efx_nic_generate_fill_event(struct efx_channel *channel);
 extern void efx_nic_generate_interrupt(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);

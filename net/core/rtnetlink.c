@@ -579,7 +579,7 @@ static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
 }
 
 static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
-				 const struct net_device_stats *b)
+				 const struct rtnl_link_stats64 *b)
 {
 	a->rx_packets = b->rx_packets;
 	a->tx_packets = b->tx_packets;
@@ -610,7 +610,7 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 }
 
-static void copy_rtnl_link_stats64(void *v, const struct net_device_stats *b)
+static void copy_rtnl_link_stats64(void *v, const struct rtnl_link_stats64 *b)
 {
 	struct rtnl_link_stats64 a;
 
@@ -791,7 +791,7 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 {
 	struct ifinfomsg *ifm;
 	struct nlmsghdr *nlh;
-	const struct net_device_stats *stats;
+	const struct rtnl_link_stats64 *stats;
 	struct nlattr *attr;
 
 	nlh = nlmsg_put(skb, pid, seq, type, sizeof(*ifm), flags);

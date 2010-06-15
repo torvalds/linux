@@ -18,6 +18,7 @@
 #include "ar5008_initvals.h"
 #include "ar9001_initvals.h"
 #include "ar9002_initvals.h"
+#include "ar9002_phy.h"
 
 /* General hardware code for the A5008/AR9001/AR9002 hadware families */
 
@@ -436,55 +437,84 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 		}
 
 		udelay(1000);
+	}
 
-		/* set bit 19 to allow forcing of pcie core into L1 state */
-		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	if (power_off) {
+		/* clear bit 19 to disable L1 */
+		REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 
-		/* Several PCIe massages to ensure proper behaviour */
+		val = REG_READ(ah, AR_WA);
+
+		/*
+		 * Set PCIe workaround bits
+		 * In AR9280 and AR9285, bit 14 in WA register (disable L1)
+		 * should only  be set when device enters D3 and be
+		 * cleared when device comes back to D0.
+		 */
+		if (ah->config.pcie_waen) {
+			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
+				val |= AR_WA_D3_L1_DISABLE;
+		} else {
+			if (((AR_SREV_9285(ah) ||
+			      AR_SREV_9271(ah) ||
+			      AR_SREV_9287(ah)) &&
+			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
+			    (AR_SREV_9280(ah) &&
+			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
+				val |= AR_WA_D3_L1_DISABLE;
+			}
+		}
+
+		if (AR_SREV_9280(ah) || AR_SREV_9285(ah) || AR_SREV_9287(ah)) {
+			/*
+			 * Disable bit 6 and 7 before entering D3 to
+			 * prevent system hang.
+			 */
+			val &= ~(AR_WA_BIT6 | AR_WA_BIT7);
+		}
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		REG_WRITE(ah, AR_WA, val);
+	} else {
 		if (ah->config.pcie_waen) {
 			val = ah->config.pcie_waen;
 			if (!power_off)
 				val &= (~AR_WA_D3_L1_DISABLE);
 		} else {
-			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
+			if (AR_SREV_9285(ah) ||
+			    AR_SREV_9271(ah) ||
 			    AR_SREV_9287(ah)) {
 				val = AR9285_WA_DEFAULT;
 				if (!power_off)
 					val &= (~AR_WA_D3_L1_DISABLE);
-			} else if (AR_SREV_9280(ah)) {
+			}
+			else if (AR_SREV_9280(ah)) {
 				/*
-				 * On AR9280 chips bit 22 of 0x4004 needs to be
-				 * set otherwise card may disappear.
+				 * For AR9280 chips, bit 22 of 0x4004
+				 * needs to be set.
 				 */
 				val = AR9280_WA_DEFAULT;
 				if (!power_off)
 					val &= (~AR_WA_D3_L1_DISABLE);
-			} else
+			} else {
 				val = AR_WA_DEFAULT;
-		}
-
-		REG_WRITE(ah, AR_WA, val);
-	}
-
-	if (power_off) {
-		/*
-		 * Set PCIe workaround bits
-		 * bit 14 in WA register (disable L1) should only
-		 * be set when device enters D3 and be cleared
-		 * when device comes back to D0.
-		 */
-		if (ah->config.pcie_waen) {
-			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
-				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
-		} else {
-			if (((AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
-			      AR_SREV_9287(ah)) &&
-			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
-			    (AR_SREV_9280(ah) &&
-			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
-				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
 			}
 		}
+
+		/* WAR for ASPM system hang */
+		if (AR_SREV_9280(ah) || AR_SREV_9285(ah) || AR_SREV_9287(ah)) {
+			val |= (AR_WA_BIT6 | AR_WA_BIT7);
+		}
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		REG_WRITE(ah, AR_WA, val);
+
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 	}
 }
 
@@ -536,18 +566,29 @@ int ar9002_hw_rf_claim(struct ath_hw *ah)
 	return 0;
 }
 
+void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
+{
+	if (AR_SREV_9287_13_OR_LATER(ah)) {
+		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL);
+		REG_SET_BIT(ah, AR_PHY_MODE, AR_PHY_MODE_ASYNCFIFO);
+		REG_CLR_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
+				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
+	}
+}
+
 /*
- * Enable ASYNC FIFO
- *
  * If Async FIFO is enabled, the following counters change as MAC now runs
  * at 117 Mhz instead of 88/44MHz when async FIFO is disabled.
  *
  * The values below tested for ht40 2 chain.
  * Overwrite the delay/timeouts initialized in process ini.
  */
-void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
+void ar9002_hw_update_async_fifo(struct ath_hw *ah)
 {
-	if (AR_SREV_9287_12_OR_LATER(ah)) {
+	if (AR_SREV_9287_13_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_D_GBL_IFS_SIFS,
 			  AR_D_GBL_IFS_SIFS_ASYNC_FIFO_DUR);
 		REG_WRITE(ah, AR_D_GBL_IFS_SLOT,
@@ -571,9 +612,9 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah)
  */
 void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah)
 {
-	if (AR_SREV_9287_12_OR_LATER(ah)) {
+	if (AR_SREV_9287_13_OR_LATER(ah)) {
 		REG_SET_BIT(ah, AR_PCU_MISC_MODE2,
-				AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
+			    AR_PCU_MISC_MODE2_ENABLE_AGGWEP);
 	}
 }
 

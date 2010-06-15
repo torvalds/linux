@@ -984,32 +984,6 @@ int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype)
 	return qnum;
 }
 
-struct ath_txq *ath_test_get_txq(struct ath_softc *sc, struct sk_buff *skb)
-{
-	struct ath_txq *txq = NULL;
-	u16 skb_queue = skb_get_queue_mapping(skb);
-	int qnum;
-
-	qnum = ath_get_hal_qnum(skb_queue, sc);
-	txq = &sc->tx.txq[qnum];
-
-	spin_lock_bh(&txq->axq_lock);
-
-	if (txq->axq_depth >= (ATH_TXBUF - 20)) {
-		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_XMIT,
-			  "TX queue: %d is full, depth: %d\n",
-			  qnum, txq->axq_depth);
-		ath_mac80211_stop_queue(sc, skb_queue);
-		txq->stopped = 1;
-		spin_unlock_bh(&txq->axq_lock);
-		return NULL;
-	}
-
-	spin_unlock_bh(&txq->axq_lock);
-
-	return txq;
-}
-
 int ath_txq_update(struct ath_softc *sc, int qnum,
 		   struct ath9k_tx_queue_info *qinfo)
 {
@@ -1809,6 +1783,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_txq *txq = txctl->txq;
 	struct ath_buf *bf;
 	int r;
 
@@ -1818,10 +1793,16 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		return -1;
 	}
 
+	bf->txq = txctl->txq;
+	spin_lock_bh(&bf->txq->axq_lock);
+	if (++bf->txq->pending_frames > ATH_MAX_QDEPTH && !txq->stopped) {
+		ath_mac80211_stop_queue(sc, skb_get_queue_mapping(skb));
+		txq->stopped = 1;
+	}
+	spin_unlock_bh(&bf->txq->axq_lock);
+
 	r = ath_tx_setup_buffer(hw, bf, skb, txctl);
 	if (unlikely(r)) {
-		struct ath_txq *txq = txctl->txq;
-
 		ath_print(common, ATH_DBG_FATAL, "TX mem alloc failure\n");
 
 		/* upon ath_tx_processq() this TX queue will be resumed, we
@@ -1829,7 +1810,7 @@ int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 * we will at least have to run TX completionon one buffer
 		 * on the queue */
 		spin_lock_bh(&txq->axq_lock);
-		if (sc->tx.txq[txq->axq_qnum].axq_depth > 1) {
+		if (!txq->stopped && txq->axq_depth > 1) {
 			ath_mac80211_stop_queue(sc, skb_get_queue_mapping(skb));
 			txq->stopped = 1;
 		}
@@ -1970,6 +1951,13 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 			tx_flags |= ATH_TX_XRETRY;
 	}
 
+	if (bf->txq) {
+		spin_lock_bh(&bf->txq->axq_lock);
+		bf->txq->pending_frames--;
+		spin_unlock_bh(&bf->txq->axq_lock);
+		bf->txq = NULL;
+	}
+
 	dma_unmap_single(sc->dev, bf->bf_dmacontext, skb->len, DMA_TO_DEVICE);
 	ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 	ath_debug_stat_tx(sc, txq, bf, ts);
@@ -2058,8 +2046,7 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 	int qnum;
 
 	spin_lock_bh(&txq->axq_lock);
-	if (txq->stopped &&
-	    sc->tx.txq[txq->axq_qnum].axq_depth <= (ATH_TXBUF - 20)) {
+	if (txq->stopped && txq->pending_frames < ATH_MAX_QDEPTH) {
 		qnum = ath_get_mac80211_qnum(txq->axq_qnum, sc);
 		if (qnum != -1) {
 			ath_mac80211_start_queue(sc, qnum);
@@ -2278,6 +2265,17 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 		spin_unlock_bh(&txq->axq_lock);
 
 		txok = !(txs.ts_status & ATH9K_TXERR_MASK);
+
+		/*
+		 * Make sure null func frame is acked before configuring
+		 * hw into ps mode.
+		 */
+		if (bf->bf_isnullfunc && txok) {
+			if ((sc->ps_flags & PS_ENABLED))
+				ath9k_enable_ps(sc);
+			else
+				sc->ps_flags |= PS_NULLFUNC_COMPLETED;
+		}
 
 		if (!bf_isampdu(bf)) {
 			bf->bf_retries = txs.ts_longretry;

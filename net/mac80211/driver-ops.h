@@ -83,6 +83,23 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 	trace_drv_bss_info_changed(local, sdata, info, changed);
 }
 
+struct in_ifaddr;
+static inline int drv_configure_arp_filter(struct ieee80211_local *local,
+					   struct ieee80211_vif *vif,
+					   struct in_ifaddr *ifa_list)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	if (local->ops->configure_arp_filter)
+		ret = local->ops->configure_arp_filter(&local->hw, vif,
+						       ifa_list);
+
+	trace_drv_configure_arp_filter(local, vif_to_sdata(vif), ifa_list, ret);
+	return ret;
+}
+
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 					struct netdev_hw_addr_list *mc_list)
 {
@@ -252,9 +269,6 @@ static inline int drv_sta_add(struct ieee80211_local *local,
 
 	if (local->ops->sta_add)
 		ret = local->ops->sta_add(&local->hw, &sdata->vif, sta);
-	else if (local->ops->sta_notify)
-		local->ops->sta_notify(&local->hw, &sdata->vif,
-					STA_NOTIFY_ADD, sta);
 
 	trace_drv_sta_add(local, sdata, sta, ret);
 
@@ -269,9 +283,6 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 
 	if (local->ops->sta_remove)
 		local->ops->sta_remove(&local->hw, &sdata->vif, sta);
-	else if (local->ops->sta_notify)
-		local->ops->sta_notify(&local->hw, &sdata->vif,
-					STA_NOTIFY_REMOVE, sta);
 
 	trace_drv_sta_remove(local, sdata, sta);
 }
@@ -349,7 +360,7 @@ static inline int drv_get_survey(struct ieee80211_local *local, int idx,
 				struct survey_info *survey)
 {
 	int ret = -EOPNOTSUPP;
-	if (local->ops->conf_tx)
+	if (local->ops->get_survey)
 		ret = local->ops->get_survey(&local->hw, idx, survey);
 	/* trace_drv_get_survey(local, idx, survey, ret); */
 	return ret;

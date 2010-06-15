@@ -436,8 +436,8 @@ struct rx_free_desc {
 	__le16 buf_len;		/* Size of the receive buffer in host memory */
 	u16 coalese;		/* Update consumer index to host after the
 				 * reception of this frame */
-	/* __attribute__ ((packed)) is required */
-} __attribute__ ((packed));
+	/* __packed is required */
+} __packed;
 
 /*
  * The L1 transmit packet descriptor is comprised of four 32-bit words.

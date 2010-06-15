@@ -38,7 +38,7 @@ struct efx_loopback_payload {
 	struct udphdr udp;
 	__be16 iteration;
 	const char msg[64];
-} __attribute__ ((packed));
+} __packed;
 
 /* Loopback test source MAC address */
 static const unsigned char payload_source[ETH_ALEN] = {
@@ -161,23 +161,17 @@ static int efx_test_interrupts(struct efx_nic *efx,
 static int efx_test_eventq_irq(struct efx_channel *channel,
 			       struct efx_self_tests *tests)
 {
-	unsigned int magic, count;
-
-	/* Channel specific code, limited to 20 bits */
-	magic = (0x00010150 + channel->channel);
-	EFX_LOG(channel->efx, "channel %d testing event queue with code %x\n",
-		channel->channel, magic);
+	unsigned int magic_count, count;
 
 	tests->eventq_dma[channel->channel] = -1;
 	tests->eventq_int[channel->channel] = -1;
 	tests->eventq_poll[channel->channel] = -1;
 
-	/* Reset flag and zero magic word */
+	magic_count = channel->magic_count;
 	channel->efx->last_irq_cpu = -1;
-	channel->eventq_magic = 0;
 	smp_wmb();
 
-	efx_nic_generate_test_event(channel, magic);
+	efx_nic_generate_test_event(channel);
 
 	/* Wait for arrival of interrupt */
 	count = 0;
@@ -187,7 +181,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 		if (channel->work_pending)
 			efx_process_channel_now(channel);
 
-		if (channel->eventq_magic == magic)
+		if (channel->magic_count != magic_count)
 			goto eventq_ok;
 	} while (++count < 2);
 
@@ -204,7 +198,7 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 
 	/* Check to see if event was received even if interrupt wasn't */
 	efx_process_channel_now(channel);
-	if (channel->eventq_magic == magic) {
+	if (channel->magic_count != magic_count) {
 		EFX_ERR(channel->efx, "channel %d event was generated, but "
 			"failed to trigger an interrupt\n", channel->channel);
 		tests->eventq_dma[channel->channel] = 1;
@@ -545,7 +539,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 static int efx_wait_for_link(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
-	int count;
+	int count, link_up_count = 0;
 	bool link_up;
 
 	for (count = 0; count < 40; count++) {
@@ -567,8 +561,12 @@ static int efx_wait_for_link(struct efx_nic *efx)
 			link_up = !efx->mac_op->check_fault(efx);
 		mutex_unlock(&efx->mac_lock);
 
-		if (link_up)
-			return 0;
+		if (link_up) {
+			if (++link_up_count == 2)
+				return 0;
+		} else {
+			link_up_count = 0;
+		}
 	}
 
 	return -ETIMEDOUT;

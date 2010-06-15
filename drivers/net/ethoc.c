@@ -180,6 +180,7 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
  * @dty_tx:	last buffer actually sent
  * @num_rx:	number of receive buffers
  * @cur_rx:	current receive buffer
+ * @vma:        pointer to array of virtual memory addresses for buffers
  * @netdev:	pointer to network device structure
  * @napi:	NAPI structure
  * @stats:	network device statistics
@@ -202,6 +203,8 @@ struct ethoc {
 
 	unsigned int num_rx;
 	unsigned int cur_rx;
+
+	void** vma;
 
 	struct net_device *netdev;
 	struct napi_struct napi;
@@ -285,18 +288,22 @@ static inline void ethoc_disable_rx_and_tx(struct ethoc *dev)
 	ethoc_write(dev, MODER, mode);
 }
 
-static int ethoc_init_ring(struct ethoc *dev)
+static int ethoc_init_ring(struct ethoc *dev, void* mem_start)
 {
 	struct ethoc_bd bd;
 	int i;
+	void* vma;
 
 	dev->cur_tx = 0;
 	dev->dty_tx = 0;
 	dev->cur_rx = 0;
 
+	ethoc_write(dev, TX_BD_NUM, dev->num_tx);
+
 	/* setup transmission buffers */
-	bd.addr = virt_to_phys(dev->membase);
+	bd.addr = mem_start;
 	bd.stat = TX_BD_IRQ | TX_BD_CRC;
+	vma = dev->membase;
 
 	for (i = 0; i < dev->num_tx; i++) {
 		if (i == dev->num_tx - 1)
@@ -304,6 +311,9 @@ static int ethoc_init_ring(struct ethoc *dev)
 
 		ethoc_write_bd(dev, i, &bd);
 		bd.addr += ETHOC_BUFSIZ;
+
+		dev->vma[i] = vma;
+		vma += ETHOC_BUFSIZ;
 	}
 
 	bd.stat = RX_BD_EMPTY | RX_BD_IRQ;
@@ -314,6 +324,9 @@ static int ethoc_init_ring(struct ethoc *dev)
 
 		ethoc_write_bd(dev, dev->num_tx + i, &bd);
 		bd.addr += ETHOC_BUFSIZ;
+
+		dev->vma[dev->num_tx + i] = vma;
+		vma += ETHOC_BUFSIZ;
 	}
 
 	return 0;
@@ -415,7 +428,7 @@ static int ethoc_rx(struct net_device *dev, int limit)
 			skb = netdev_alloc_skb_ip_align(dev, size);
 
 			if (likely(skb)) {
-				void *src = phys_to_virt(bd.addr);
+				void *src = priv->vma[entry];
 				memcpy_fromio(skb_put(skb, size), src, size);
 				skb->protocol = eth_type_trans(skb, dev);
 				priv->stats.rx_packets++;
@@ -600,8 +613,11 @@ static int ethoc_mdio_write(struct mii_bus *bus, int phy, int reg, u16 val)
 
 	while (time_before(jiffies, timeout)) {
 		u32 stat = ethoc_read(priv, MIISTATUS);
-		if (!(stat & MIISTATUS_BUSY))
+		if (!(stat & MIISTATUS_BUSY)) {
+			/* reset MII command register */
+			ethoc_write(priv, MIICOMMAND, 0);
 			return 0;
+		}
 
 		schedule();
 	}
@@ -622,21 +638,12 @@ static int ethoc_mdio_probe(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	struct phy_device *phy;
-	int i;
+	int err;
 
-	for (i = 0; i < PHY_MAX_ADDR; i++) {
-		phy = priv->mdio->phy_map[i];
-		if (phy) {
-			if (priv->phy_id != -1) {
-				/* attach to specified PHY */
-				if (priv->phy_id == phy->addr)
-					break;
-			} else {
-				/* autoselect PHY if none was specified */
-				if (phy->addr != 0)
-					break;
-			}
-		}
+	if (priv->phy_id != -1) {
+		phy = priv->mdio->phy_map[priv->phy_id];
+	} else {
+		phy = phy_find_first(priv->mdio);
 	}
 
 	if (!phy) {
@@ -644,11 +651,11 @@ static int ethoc_mdio_probe(struct net_device *dev)
 		return -ENXIO;
 	}
 
-	phy = phy_connect(dev, dev_name(&phy->dev), ethoc_mdio_poll, 0,
+	err = phy_connect_direct(dev, phy, ethoc_mdio_poll, 0,
 			PHY_INTERFACE_MODE_GMII);
-	if (IS_ERR(phy)) {
+	if (err) {
 		dev_err(&dev->dev, "could not attach to PHY\n");
-		return PTR_ERR(phy);
+		return err;
 	}
 
 	priv->phy = phy;
@@ -658,8 +665,6 @@ static int ethoc_mdio_probe(struct net_device *dev)
 static int ethoc_open(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
-	unsigned int min_tx = 2;
-	unsigned int num_bd;
 	int ret;
 
 	ret = request_irq(dev->irq, ethoc_interrupt, IRQF_SHARED,
@@ -667,14 +672,7 @@ static int ethoc_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	/* calculate the number of TX/RX buffers, maximum 128 supported */
-	num_bd = min_t(unsigned int,
-		128, (dev->mem_end - dev->mem_start + 1) / ETHOC_BUFSIZ);
-	priv->num_tx = max(min_tx, num_bd / 4);
-	priv->num_rx = num_bd - priv->num_tx;
-	ethoc_write(priv, TX_BD_NUM, priv->num_tx);
-
-	ethoc_init_ring(priv);
+	ethoc_init_ring(priv, (void*)dev->mem_start);
 	ethoc_reset(priv);
 
 	if (netif_queue_stopped(dev)) {
@@ -838,7 +836,7 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	else
 		bd.stat &= ~TX_BD_PAD;
 
-	dest = phys_to_virt(bd.addr);
+	dest = priv->vma[entry];
 	memcpy_toio(dest, skb->data, skb->len);
 
 	bd.stat &= ~(TX_BD_STATS | TX_BD_LEN_MASK);
@@ -884,6 +882,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	struct resource *mem = NULL;
 	struct ethoc *priv = NULL;
 	unsigned int phy;
+	int num_bd;
 	int ret = 0;
 
 	/* allocate networking device */
@@ -965,7 +964,7 @@ static int ethoc_probe(struct platform_device *pdev)
 		}
 	} else {
 		/* Allocate buffer memory */
-		priv->membase = dma_alloc_coherent(NULL,
+		priv->membase = dmam_alloc_coherent(&pdev->dev,
 			buffer_size, (void *)&netdev->mem_start,
 			GFP_KERNEL);
 		if (!priv->membase) {
@@ -976,6 +975,18 @@ static int ethoc_probe(struct platform_device *pdev)
 		}
 		netdev->mem_end = netdev->mem_start + buffer_size;
 		priv->dma_alloc = buffer_size;
+	}
+
+	/* calculate the number of TX/RX buffers, maximum 128 supported */
+	num_bd = min_t(unsigned int,
+		128, (netdev->mem_end - netdev->mem_start + 1) / ETHOC_BUFSIZ);
+	priv->num_tx = max(2, num_bd / 4);
+	priv->num_rx = num_bd - priv->num_tx;
+
+	priv->vma = devm_kzalloc(&pdev->dev, num_bd*sizeof(void*), GFP_KERNEL);
+	if (!priv->vma) {
+		ret = -ENOMEM;
+		goto error;
 	}
 
 	/* Allow the platform setup code to pass in a MAC address. */
@@ -1063,21 +1074,6 @@ free_mdio:
 	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
-	if (priv) {
-		if (priv->dma_alloc)
-			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
-					  netdev->mem_start);
-		else if (priv->membase)
-			devm_iounmap(&pdev->dev, priv->membase);
-		if (priv->iobase)
-			devm_iounmap(&pdev->dev, priv->iobase);
-	}
-	if (mem)
-		devm_release_mem_region(&pdev->dev, mem->start,
-					mem->end - mem->start + 1);
-	if (mmio)
-		devm_release_mem_region(&pdev->dev, mmio->start,
-					mmio->end - mmio->start + 1);
 	free_netdev(netdev);
 out:
 	return ret;
@@ -1104,17 +1100,6 @@ static int ethoc_remove(struct platform_device *pdev)
 			kfree(priv->mdio->irq);
 			mdiobus_free(priv->mdio);
 		}
-		if (priv->dma_alloc)
-			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
-				netdev->mem_start);
-		else {
-			devm_iounmap(&pdev->dev, priv->membase);
-			devm_release_mem_region(&pdev->dev, netdev->mem_start,
-				netdev->mem_end - netdev->mem_start + 1);
-		}
-		devm_iounmap(&pdev->dev, priv->iobase);
-		devm_release_mem_region(&pdev->dev, netdev->base_addr,
-			priv->io_region_size);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}

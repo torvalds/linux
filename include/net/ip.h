@@ -61,11 +61,14 @@ struct ipcm_cookie {
 struct ip_ra_chain {
 	struct ip_ra_chain	*next;
 	struct sock		*sk;
-	void			(*destructor)(struct sock *);
+	union {
+		void			(*destructor)(struct sock *);
+		struct sock		*saved_sk;
+	};
+	struct rcu_head		rcu;
 };
 
 extern struct ip_ra_chain *ip_ra_chain;
-extern rwlock_t ip_ra_lock;
 
 /* IP flags. */
 #define IP_CE		0x8000		/* Flag: "Congestion"		*/

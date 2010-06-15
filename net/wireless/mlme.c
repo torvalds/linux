@@ -827,6 +827,7 @@ int cfg80211_mlme_action(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev,
 			 struct ieee80211_channel *chan,
 			 enum nl80211_channel_type channel_type,
+			 bool channel_type_valid,
 			 const u8 *buf, size_t len, u64 *cookie)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -855,7 +856,7 @@ int cfg80211_mlme_action(struct cfg80211_registered_device *rdev,
 
 	/* Transmit the Action frame as requested by user space */
 	return rdev->ops->action(&rdev->wiphy, dev, chan, channel_type,
-				 buf, len, cookie);
+				 channel_type_valid, buf, len, cookie);
 }
 
 bool cfg80211_rx_action(struct net_device *dev, int freq, const u8 *buf,

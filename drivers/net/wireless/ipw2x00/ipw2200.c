@@ -6624,13 +6624,12 @@ static int ipw_wx_set_genie(struct net_device *dev,
 		return -EINVAL;
 
 	if (wrqu->data.length) {
-		buf = kmalloc(wrqu->data.length, GFP_KERNEL);
+		buf = kmemdup(extra, wrqu->data.length, GFP_KERNEL);
 		if (buf == NULL) {
 			err = -ENOMEM;
 			goto out;
 		}
 
-		memcpy(buf, extra, wrqu->data.length);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = wrqu->data.length;

@@ -1229,7 +1229,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			ND_PRINTK0(KERN_ERR
 				   "ICMPv6 RA: %s() got default router without neighbour.\n",
 				   __func__);
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 			in6_dev_put(in6_dev);
 			return;
 		}
@@ -1244,7 +1244,7 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 	if (ra_msg->icmph.icmp6_hop_limit) {
 		in6_dev->cnf.hop_limit = ra_msg->icmph.icmp6_hop_limit;
 		if (rt)
-			rt->u.dst.metrics[RTAX_HOPLIMIT-1] = ra_msg->icmph.icmp6_hop_limit;
+			rt->dst.metrics[RTAX_HOPLIMIT-1] = ra_msg->icmph.icmp6_hop_limit;
 	}
 
 skip_defrtr:
@@ -1363,7 +1363,7 @@ skip_linkparms:
 			in6_dev->cnf.mtu6 = mtu;
 
 			if (rt)
-				rt->u.dst.metrics[RTAX_MTU-1] = mtu;
+				rt->dst.metrics[RTAX_MTU-1] = mtu;
 
 			rt6_mtu_change(skb->dev, mtu);
 		}
@@ -1384,7 +1384,7 @@ skip_linkparms:
 	}
 out:
 	if (rt)
-		dst_release(&rt->u.dst);
+		dst_release(&rt->dst);
 	else if (neigh)
 		neigh_release(neigh);
 	in6_dev_put(in6_dev);

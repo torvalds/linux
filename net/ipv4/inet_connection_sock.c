@@ -383,7 +383,7 @@ struct dst_entry *inet_csk_route_req(struct sock *sk,
 		goto no_route;
 	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
 		goto route_err;
-	return &rt->u.dst;
+	return &rt->dst;
 
 route_err:
 	ip_rt_put(rt);

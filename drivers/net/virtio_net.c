@@ -340,7 +340,7 @@ static int add_recvbuf_small(struct virtnet_info *vi, gfp_t gfp)
 
 	skb_to_sgvec(skb, vi->rx_sg + 1, 0, skb->len);
 
-	err = virtqueue_add_buf(vi->rvq, vi->rx_sg, 0, 2, skb);
+	err = virtqueue_add_buf_gfp(vi->rvq, vi->rx_sg, 0, 2, skb, gfp);
 	if (err < 0)
 		dev_kfree_skb(skb);
 
@@ -385,8 +385,8 @@ static int add_recvbuf_big(struct virtnet_info *vi, gfp_t gfp)
 
 	/* chain first in list head */
 	first->private = (unsigned long)list;
-	err = virtqueue_add_buf(vi->rvq, vi->rx_sg, 0, MAX_SKB_FRAGS + 2,
-				       first);
+	err = virtqueue_add_buf_gfp(vi->rvq, vi->rx_sg, 0, MAX_SKB_FRAGS + 2,
+				    first, gfp);
 	if (err < 0)
 		give_pages(vi, first);
 
@@ -404,7 +404,7 @@ static int add_recvbuf_mergeable(struct virtnet_info *vi, gfp_t gfp)
 
 	sg_init_one(vi->rx_sg, page_address(page), PAGE_SIZE);
 
-	err = virtqueue_add_buf(vi->rvq, vi->rx_sg, 0, 1, page);
+	err = virtqueue_add_buf_gfp(vi->rvq, vi->rx_sg, 0, 1, page, gfp);
 	if (err < 0)
 		give_pages(vi, page);
 

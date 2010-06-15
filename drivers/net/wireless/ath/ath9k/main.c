@@ -520,6 +520,12 @@ irqreturn_t ath_isr(int irq, void *dev)
 	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
 		goto chip_reset;
 
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
+	    (status & ATH9K_INT_BB_WATCHDOG)) {
+		ar9003_hw_bb_watchdog_dbg_info(ah);
+		goto chip_reset;
+	}
+
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
 
@@ -613,234 +619,6 @@ static u32 ath_get_extchanmode(struct ath_softc *sc,
 	}
 
 	return chanmode;
-}
-
-static int ath_setkey_tkip(struct ath_common *common, u16 keyix, const u8 *key,
-			   struct ath9k_keyval *hk, const u8 *addr,
-			   bool authenticator)
-{
-	struct ath_hw *ah = common->ah;
-	const u8 *key_rxmic;
-	const u8 *key_txmic;
-
-	key_txmic = key + NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY;
-	key_rxmic = key + NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY;
-
-	if (addr == NULL) {
-		/*
-		 * Group key installation - only two key cache entries are used
-		 * regardless of splitmic capability since group key is only
-		 * used either for TX or RX.
-		 */
-		if (authenticator) {
-			memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
-			memcpy(hk->kv_txmic, key_txmic, sizeof(hk->kv_mic));
-		} else {
-			memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
-			memcpy(hk->kv_txmic, key_rxmic, sizeof(hk->kv_mic));
-		}
-		return ath9k_hw_set_keycache_entry(ah, keyix, hk, addr);
-	}
-	if (!common->splitmic) {
-		/* TX and RX keys share the same key cache entry. */
-		memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
-		memcpy(hk->kv_txmic, key_txmic, sizeof(hk->kv_txmic));
-		return ath9k_hw_set_keycache_entry(ah, keyix, hk, addr);
-	}
-
-	/* Separate key cache entries for TX and RX */
-
-	/* TX key goes at first index, RX key at +32. */
-	memcpy(hk->kv_mic, key_txmic, sizeof(hk->kv_mic));
-	if (!ath9k_hw_set_keycache_entry(ah, keyix, hk, NULL)) {
-		/* TX MIC entry failed. No need to proceed further */
-		ath_print(common, ATH_DBG_FATAL,
-			  "Setting TX MIC Key Failed\n");
-		return 0;
-	}
-
-	memcpy(hk->kv_mic, key_rxmic, sizeof(hk->kv_mic));
-	/* XXX delete tx key on failure? */
-	return ath9k_hw_set_keycache_entry(ah, keyix + 32, hk, addr);
-}
-
-static int ath_reserve_key_cache_slot_tkip(struct ath_common *common)
-{
-	int i;
-
-	for (i = IEEE80211_WEP_NKID; i < common->keymax / 2; i++) {
-		if (test_bit(i, common->keymap) ||
-		    test_bit(i + 64, common->keymap))
-			continue; /* At least one part of TKIP key allocated */
-		if (common->splitmic &&
-		    (test_bit(i + 32, common->keymap) ||
-		     test_bit(i + 64 + 32, common->keymap)))
-			continue; /* At least one part of TKIP key allocated */
-
-		/* Found a free slot for a TKIP key */
-		return i;
-	}
-	return -1;
-}
-
-static int ath_reserve_key_cache_slot(struct ath_common *common)
-{
-	int i;
-
-	/* First, try to find slots that would not be available for TKIP. */
-	if (common->splitmic) {
-		for (i = IEEE80211_WEP_NKID; i < common->keymax / 4; i++) {
-			if (!test_bit(i, common->keymap) &&
-			    (test_bit(i + 32, common->keymap) ||
-			     test_bit(i + 64, common->keymap) ||
-			     test_bit(i + 64 + 32, common->keymap)))
-				return i;
-			if (!test_bit(i + 32, common->keymap) &&
-			    (test_bit(i, common->keymap) ||
-			     test_bit(i + 64, common->keymap) ||
-			     test_bit(i + 64 + 32, common->keymap)))
-				return i + 32;
-			if (!test_bit(i + 64, common->keymap) &&
-			    (test_bit(i , common->keymap) ||
-			     test_bit(i + 32, common->keymap) ||
-			     test_bit(i + 64 + 32, common->keymap)))
-				return i + 64;
-			if (!test_bit(i + 64 + 32, common->keymap) &&
-			    (test_bit(i, common->keymap) ||
-			     test_bit(i + 32, common->keymap) ||
-			     test_bit(i + 64, common->keymap)))
-				return i + 64 + 32;
-		}
-	} else {
-		for (i = IEEE80211_WEP_NKID; i < common->keymax / 2; i++) {
-			if (!test_bit(i, common->keymap) &&
-			    test_bit(i + 64, common->keymap))
-				return i;
-			if (test_bit(i, common->keymap) &&
-			    !test_bit(i + 64, common->keymap))
-				return i + 64;
-		}
-	}
-
-	/* No partially used TKIP slots, pick any available slot */
-	for (i = IEEE80211_WEP_NKID; i < common->keymax; i++) {
-		/* Do not allow slots that could be needed for TKIP group keys
-		 * to be used. This limitation could be removed if we know that
-		 * TKIP will not be used. */
-		if (i >= 64 && i < 64 + IEEE80211_WEP_NKID)
-			continue;
-		if (common->splitmic) {
-			if (i >= 32 && i < 32 + IEEE80211_WEP_NKID)
-				continue;
-			if (i >= 64 + 32 && i < 64 + 32 + IEEE80211_WEP_NKID)
-				continue;
-		}
-
-		if (!test_bit(i, common->keymap))
-			return i; /* Found a free slot for a key */
-	}
-
-	/* No free slot found */
-	return -1;
-}
-
-static int ath_key_config(struct ath_common *common,
-			  struct ieee80211_vif *vif,
-			  struct ieee80211_sta *sta,
-			  struct ieee80211_key_conf *key)
-{
-	struct ath_hw *ah = common->ah;
-	struct ath9k_keyval hk;
-	const u8 *mac = NULL;
-	int ret = 0;
-	int idx;
-
-	memset(&hk, 0, sizeof(hk));
-
-	switch (key->alg) {
-	case ALG_WEP:
-		hk.kv_type = ATH9K_CIPHER_WEP;
-		break;
-	case ALG_TKIP:
-		hk.kv_type = ATH9K_CIPHER_TKIP;
-		break;
-	case ALG_CCMP:
-		hk.kv_type = ATH9K_CIPHER_AES_CCM;
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
-
-	hk.kv_len = key->keylen;
-	memcpy(hk.kv_val, key->key, key->keylen);
-
-	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
-		/* For now, use the default keys for broadcast keys. This may
-		 * need to change with virtual interfaces. */
-		idx = key->keyidx;
-	} else if (key->keyidx) {
-		if (WARN_ON(!sta))
-			return -EOPNOTSUPP;
-		mac = sta->addr;
-
-		if (vif->type != NL80211_IFTYPE_AP) {
-			/* Only keyidx 0 should be used with unicast key, but
-			 * allow this for client mode for now. */
-			idx = key->keyidx;
-		} else
-			return -EIO;
-	} else {
-		if (WARN_ON(!sta))
-			return -EOPNOTSUPP;
-		mac = sta->addr;
-
-		if (key->alg == ALG_TKIP)
-			idx = ath_reserve_key_cache_slot_tkip(common);
-		else
-			idx = ath_reserve_key_cache_slot(common);
-		if (idx < 0)
-			return -ENOSPC; /* no free key cache entries */
-	}
-
-	if (key->alg == ALG_TKIP)
-		ret = ath_setkey_tkip(common, idx, key->key, &hk, mac,
-				      vif->type == NL80211_IFTYPE_AP);
-	else
-		ret = ath9k_hw_set_keycache_entry(ah, idx, &hk, mac);
-
-	if (!ret)
-		return -EIO;
-
-	set_bit(idx, common->keymap);
-	if (key->alg == ALG_TKIP) {
-		set_bit(idx + 64, common->keymap);
-		if (common->splitmic) {
-			set_bit(idx + 32, common->keymap);
-			set_bit(idx + 64 + 32, common->keymap);
-		}
-	}
-
-	return idx;
-}
-
-static void ath_key_delete(struct ath_common *common, struct ieee80211_key_conf *key)
-{
-	struct ath_hw *ah = common->ah;
-
-	ath9k_hw_keyreset(ah, key->hw_key_idx);
-	if (key->hw_key_idx < IEEE80211_WEP_NKID)
-		return;
-
-	clear_bit(key->hw_key_idx, common->keymap);
-	if (key->alg != ALG_TKIP)
-		return;
-
-	clear_bit(key->hw_key_idx + 64, common->keymap);
-	if (common->splitmic) {
-		ath9k_hw_keyreset(ah, key->hw_key_idx + 32);
-		clear_bit(key->hw_key_idx + 32, common->keymap);
-		clear_bit(key->hw_key_idx + 64 + 32, common->keymap);
-	}
 }
 
 static void ath9k_bss_assoc_info(struct ath_softc *sc,
@@ -1195,7 +973,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		    ATH9K_INT_GLOBAL;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-		ah->imask |= ATH9K_INT_RXHP | ATH9K_INT_RXLP;
+		ah->imask |= ATH9K_INT_RXHP |
+			     ATH9K_INT_RXLP |
+			     ATH9K_INT_BB_WATCHDOG;
 	else
 		ah->imask |= ATH9K_INT_RX;
 
@@ -1245,6 +1025,7 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ath_tx_control txctl;
 	int padpos, padsize;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	int qnum;
 
 	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
 		ath_print(common, ATH_DBG_XMIT,
@@ -1274,7 +1055,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		 * completed and if needed, also for RX of buffered frames.
 		 */
 		ath9k_ps_wakeup(sc);
-		ath9k_hw_setrxabort(sc->sc_ah, 0);
+		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
+			ath9k_hw_setrxabort(sc->sc_ah, 0);
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
 			ath_print(common, ATH_DBG_PS,
 				  "Sending PS-Poll to pick a buffered frame\n");
@@ -1316,11 +1098,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	/* Check if a tx queue is available */
-
-	txctl.txq = ath_test_get_txq(sc, skb);
-	if (!txctl.txq)
-		goto exit;
+	qnum = ath_get_hal_qnum(skb_get_queue_mapping(skb), sc);
+	txctl.txq = &sc->tx.txq[qnum];
 
 	ath_print(common, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
 
@@ -1538,8 +1317,8 @@ void ath9k_enable_ps(struct ath_softc *sc)
 			ah->imask |= ATH9K_INT_TIM_TIMER;
 			ath9k_hw_set_interrupts(ah, ah->imask);
 		}
+		ath9k_hw_setrxabort(ah, 1);
 	}
-	ath9k_hw_setrxabort(ah, 1);
 }
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
@@ -1804,7 +1583,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case SET_KEY:
-		ret = ath_key_config(common, vif, sta, key);
+		ret = ath9k_cmn_key_config(common, vif, sta, key);
 		if (ret >= 0) {
 			key->hw_key_idx = ret;
 			/* push IV and Michael MIC generation to stack */
@@ -1817,7 +1596,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 		}
 		break;
 	case DISABLE_KEY:
-		ath_key_delete(common, key);
+		ath9k_cmn_key_delete(common, key);
 		break;
 	default:
 		ret = -EINVAL;

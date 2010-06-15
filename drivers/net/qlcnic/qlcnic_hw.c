@@ -538,7 +538,7 @@ int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable)
 	return rv;
 }
 
-int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, int enable)
+int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
 {
 	struct qlcnic_nic_req req;
 	u64 word;
@@ -704,21 +704,15 @@ int qlcnic_change_mtu(struct net_device *netdev, int mtu)
 	return rc;
 }
 
-int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u64 *mac)
+int qlcnic_get_mac_addr(struct qlcnic_adapter *adapter, u8 *mac)
 {
-	u32 crbaddr, mac_hi, mac_lo;
+	u32 crbaddr;
 	int pci_func = adapter->ahw.pci_func;
 
 	crbaddr = CRB_MAC_BLOCK_START +
 		(4 * ((pci_func/2) * 3)) + (4 * (pci_func & 1));
 
-	mac_lo = QLCRD32(adapter, crbaddr);
-	mac_hi = QLCRD32(adapter, crbaddr+4);
-
-	if (pci_func & 1)
-		*mac = le64_to_cpu((mac_lo >> 16) | ((u64)mac_hi << 16));
-	else
-		*mac = le64_to_cpu((u64)mac_lo | ((u64)mac_hi << 32));
+	qlcnic_fetch_mac(adapter, crbaddr, crbaddr+4, pci_func & 1, mac);
 
 	return 0;
 }

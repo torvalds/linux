@@ -129,7 +129,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	struct in6_addr *saddr = NULL, *final_p = NULL, final;
+	struct in6_addr *saddr = NULL, *final_p, final;
 	struct flowi fl;
 	struct dst_entry *dst;
 	int addr_type;
@@ -250,12 +250,7 @@ static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 	fl.fl_ip_dport = usin->sin6_port;
 	fl.fl_ip_sport = inet->inet_sport;
 
-	if (np->opt && np->opt->srcrt) {
-		struct rt0_hdr *rt0 = (struct rt0_hdr *)np->opt->srcrt;
-		ipv6_addr_copy(&final, &fl.fl6_dst);
-		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-		final_p = &final;
-	}
+	final_p = fl6_update_dst(&fl, np->opt, &final);
 
 	security_sk_classify_flow(sk, &fl);
 
@@ -477,7 +472,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct sk_buff * skb;
 	struct ipv6_txoptions *opt = NULL;
-	struct in6_addr * final_p = NULL, final;
+	struct in6_addr * final_p, final;
 	struct flowi fl;
 	struct dst_entry *dst;
 	int err = -1;
@@ -494,12 +489,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct request_sock *req,
 	security_req_classify_flow(req, &fl);
 
 	opt = np->opt;
-	if (opt && opt->srcrt) {
-		struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
-		ipv6_addr_copy(&final, &fl.fl6_dst);
-		ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-		final_p = &final;
-	}
+	final_p = fl6_update_dst(&fl, opt, &final);
 
 	err = ip6_dst_lookup(sk, &dst, &fl);
 	if (err)
@@ -1167,7 +1157,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
 	}
 
 #ifdef CONFIG_SYN_COOKIES
-	if (!th->rst && !th->syn && th->ack)
+	if (!th->syn)
 		sk = cookie_v6_check(sk, skb);
 #endif
 	return sk;
@@ -1392,18 +1382,13 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		goto out_overflow;
 
 	if (dst == NULL) {
-		struct in6_addr *final_p = NULL, final;
+		struct in6_addr *final_p, final;
 		struct flowi fl;
 
 		memset(&fl, 0, sizeof(fl));
 		fl.proto = IPPROTO_TCP;
 		ipv6_addr_copy(&fl.fl6_dst, &treq->rmt_addr);
-		if (opt && opt->srcrt) {
-			struct rt0_hdr *rt0 = (struct rt0_hdr *) opt->srcrt;
-			ipv6_addr_copy(&final, &fl.fl6_dst);
-			ipv6_addr_copy(&fl.fl6_dst, rt0->addr);
-			final_p = &final;
-		}
+		final_p = fl6_update_dst(&fl, opt, &final);
 		ipv6_addr_copy(&fl.fl6_src, &treq->loc_addr);
 		fl.oif = sk->sk_bound_dev_if;
 		fl.mark = sk->sk_mark;

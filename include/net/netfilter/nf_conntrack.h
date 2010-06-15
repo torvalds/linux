@@ -152,11 +152,7 @@ extern struct net init_net;
 
 static inline struct net *nf_ct_net(const struct nf_conn *ct)
 {
-#ifdef CONFIG_NET_NS
-	return ct->ct_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&ct->ct_net);
 }
 
 /* Alter reply tuple (maybe alter helper). */

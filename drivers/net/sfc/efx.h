@@ -47,12 +47,12 @@ extern void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_rx_strategy(struct efx_channel *channel);
 extern void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue);
-extern void efx_rx_work(struct work_struct *data);
+extern void efx_rx_slow_fill(unsigned long context);
 extern void __efx_rx_packet(struct efx_channel *channel,
 			    struct efx_rx_buffer *rx_buf, bool checksummed);
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 			  unsigned int len, bool checksummed, bool discard);
-extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay);
+extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 #define EFX_RXQ_SIZE 1024
 #define EFX_RXQ_MASK (EFX_RXQ_SIZE - 1)
 

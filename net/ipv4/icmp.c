@@ -271,7 +271,7 @@ int xrlim_allow(struct dst_entry *dst, int timeout)
 static inline int icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 		int type, int code)
 {
-	struct dst_entry *dst = &rt->u.dst;
+	struct dst_entry *dst = &rt->dst;
 	int rc = 1;
 
 	if (type > NR_ICMP_TYPES)
@@ -327,7 +327,7 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 	struct sock *sk;
 	struct sk_buff *skb;
 
-	sk = icmp_sk(dev_net((*rt)->u.dst.dev));
+	sk = icmp_sk(dev_net((*rt)->dst.dev));
 	if (ip_append_data(sk, icmp_glue_bits, icmp_param,
 			   icmp_param->data_len+icmp_param->head_len,
 			   icmp_param->head_len,
@@ -359,7 +359,7 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 {
 	struct ipcm_cookie ipc;
 	struct rtable *rt = skb_rtable(skb);
-	struct net *net = dev_net(rt->u.dst.dev);
+	struct net *net = dev_net(rt->dst.dev);
 	struct sock *sk;
 	struct inet_sock *inet;
 	__be32 daddr;
@@ -427,7 +427,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 
 	if (!rt)
 		goto out;
-	net = dev_net(rt->u.dst.dev);
+	net = dev_net(rt->dst.dev);
 
 	/*
 	 *	Find the original header. It is expected to be valid, of course.
@@ -596,9 +596,9 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 			/* Ugh! */
 			orefdst = skb_in->_skb_refdst; /* save old refdst */
 			err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,
-					     RT_TOS(tos), rt2->u.dst.dev);
+					     RT_TOS(tos), rt2->dst.dev);
 
-			dst_release(&rt2->u.dst);
+			dst_release(&rt2->dst);
 			rt2 = skb_rtable(skb_in);
 			skb_in->_skb_refdst = orefdst; /* restore old refdst */
 		}
@@ -610,7 +610,7 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 				  XFRM_LOOKUP_ICMP);
 		switch (err) {
 		case 0:
-			dst_release(&rt->u.dst);
+			dst_release(&rt->dst);
 			rt = rt2;
 			break;
 		case -EPERM:
@@ -629,7 +629,7 @@ route_done:
 
 	/* RFC says return as much as we can without exceeding 576 bytes. */
 
-	room = dst_mtu(&rt->u.dst);
+	room = dst_mtu(&rt->dst);
 	if (room > 576)
 		room = 576;
 	room -= sizeof(struct iphdr) + icmp_param.replyopts.optlen;
@@ -925,6 +925,7 @@ static void icmp_address(struct sk_buff *skb)
 /*
  * RFC1812 (4.3.3.9).	A router SHOULD listen all replies, and complain
  *			loudly if an inconsistency is found.
+ * called with rcu_read_lock()
  */
 
 static void icmp_address_reply(struct sk_buff *skb)
@@ -935,12 +936,12 @@ static void icmp_address_reply(struct sk_buff *skb)
 	struct in_ifaddr *ifa;
 
 	if (skb->len < 4 || !(rt->rt_flags&RTCF_DIRECTSRC))
-		goto out;
+		return;
 
-	in_dev = in_dev_get(dev);
+	in_dev = __in_dev_get_rcu(dev);
 	if (!in_dev)
-		goto out;
-	rcu_read_lock();
+		return;
+
 	if (in_dev->ifa_list &&
 	    IN_DEV_LOG_MARTIANS(in_dev) &&
 	    IN_DEV_FORWARD(in_dev)) {
@@ -958,9 +959,6 @@ static void icmp_address_reply(struct sk_buff *skb)
 			       mp, dev->name, &rt->rt_src);
 		}
 	}
-	rcu_read_unlock();
-	in_dev_put(in_dev);
-out:;
 }
 
 static void icmp_discard(struct sk_buff *skb)
@@ -974,7 +972,7 @@ int icmp_rcv(struct sk_buff *skb)
 {
 	struct icmphdr *icmph;
 	struct rtable *rt = skb_rtable(skb);
-	struct net *net = dev_net(rt->u.dst.dev);
+	struct net *net = dev_net(rt->dst.dev);
 
 	if (!xfrm4_policy_check(NULL, XFRM_POLICY_IN, skb)) {
 		struct sec_path *sp = skb_sec_path(skb);

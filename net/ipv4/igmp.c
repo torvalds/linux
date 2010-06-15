@@ -312,7 +312,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 		return NULL;
 	}
 
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 	skb->dev = dev;
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
@@ -330,7 +330,7 @@ static struct sk_buff *igmpv3_newpack(struct net_device *dev, int size)
 	pip->saddr    = rt->rt_src;
 	pip->protocol = IPPROTO_IGMP;
 	pip->tot_len  = 0;	/* filled in later */
-	ip_select_ident(pip, &rt->u.dst, NULL);
+	ip_select_ident(pip, &rt->dst, NULL);
 	((u8*)&pip[1])[0] = IPOPT_RA;
 	((u8*)&pip[1])[1] = 4;
 	((u8*)&pip[1])[2] = 0;
@@ -660,7 +660,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 		return -1;
 	}
 
-	skb_dst_set(skb, &rt->u.dst);
+	skb_dst_set(skb, &rt->dst);
 
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
 
@@ -676,7 +676,7 @@ static int igmp_send_report(struct in_device *in_dev, struct ip_mc_list *pmc,
 	iph->daddr    = dst;
 	iph->saddr    = rt->rt_src;
 	iph->protocol = IPPROTO_IGMP;
-	ip_select_ident(iph, &rt->u.dst, NULL);
+	ip_select_ident(iph, &rt->dst, NULL);
 	((u8*)&iph[1])[0] = IPOPT_RA;
 	((u8*)&iph[1])[1] = 4;
 	((u8*)&iph[1])[2] = 0;
@@ -916,18 +916,19 @@ static void igmp_heard_query(struct in_device *in_dev, struct sk_buff *skb,
 	read_unlock(&in_dev->mc_list_lock);
 }
 
+/* called in rcu_read_lock() section */
 int igmp_rcv(struct sk_buff *skb)
 {
 	/* This basically follows the spec line by line -- see RFC1112 */
 	struct igmphdr *ih;
-	struct in_device *in_dev = in_dev_get(skb->dev);
+	struct in_device *in_dev = __in_dev_get_rcu(skb->dev);
 	int len = skb->len;
 
 	if (in_dev == NULL)
 		goto drop;
 
 	if (!pskb_may_pull(skb, sizeof(struct igmphdr)))
-		goto drop_ref;
+		goto drop;
 
 	switch (skb->ip_summed) {
 	case CHECKSUM_COMPLETE:
@@ -937,7 +938,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_NONE:
 		skb->csum = 0;
 		if (__skb_checksum_complete(skb))
-			goto drop_ref;
+			goto drop;
 	}
 
 	ih = igmp_hdr(skb);
@@ -957,7 +958,6 @@ int igmp_rcv(struct sk_buff *skb)
 		break;
 	case IGMP_PIM:
 #ifdef CONFIG_IP_PIMSM_V1
-		in_dev_put(in_dev);
 		return pim_rcv_v1(skb);
 #endif
 	case IGMPV3_HOST_MEMBERSHIP_REPORT:
@@ -971,8 +971,6 @@ int igmp_rcv(struct sk_buff *skb)
 		break;
 	}
 
-drop_ref:
-	in_dev_put(in_dev);
 drop:
 	kfree_skb(skb);
 	return 0;
@@ -1427,7 +1425,7 @@ static struct in_device *ip_mc_find_dev(struct net *net, struct ip_mreqn *imr)
 	}
 
 	if (!dev && !ip_route_output_key(net, &rt, &fl)) {
-		dev = rt->u.dst.dev;
+		dev = rt->dst.dev;
 		ip_rt_put(rt);
 	}
 	if (dev) {
@@ -1646,8 +1644,7 @@ static int sf_setstate(struct ip_mc_list *pmc)
 				if (dpsf->sf_inaddr == psf->sf_inaddr)
 					break;
 			if (!dpsf) {
-				dpsf = (struct ip_sf_list *)
-					kmalloc(sizeof(*dpsf), GFP_ATOMIC);
+				dpsf = kmalloc(sizeof(*dpsf), GFP_ATOMIC);
 				if (!dpsf)
 					continue;
 				*dpsf = *psf;

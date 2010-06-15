@@ -643,7 +643,7 @@ int usbnet_stop (struct net_device *net)
 	netif_stop_queue (net);
 
 	netif_info(dev, ifdown, dev->net,
-		   "stop stats: rx/tx %ld/%ld, errs %ld/%ld\n",
+		   "stop stats: rx/tx %lu/%lu, errs %lu/%lu\n",
 		   net->stats.rx_packets, net->stats.tx_packets,
 		   net->stats.rx_errors, net->stats.tx_errors);
 

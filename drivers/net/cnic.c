@@ -2824,7 +2824,7 @@ static int cnic_get_v4_route(struct sockaddr_in *dst_addr,
 
 	err = ip_route_output_key(&init_net, &rt, &fl);
 	if (!err)
-		*dst = &rt->u.dst;
+		*dst = &rt->dst;
 	return err;
 #else
 	return -ENETUNREACH;

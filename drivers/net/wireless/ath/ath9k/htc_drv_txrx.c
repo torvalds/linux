@@ -20,6 +20,16 @@
 /* TX */
 /******/
 
+#define ATH9K_HTC_INIT_TXQ(subtype) do {			\
+		qi.tqi_subtype = subtype;			\
+		qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;		\
+		qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;		\
+		qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;		\
+		qi.tqi_physCompBuf = 0;				\
+		qi.tqi_qflags = TXQ_FLAG_TXEOLINT_ENABLE |	\
+			TXQ_FLAG_TXDESCINT_ENABLE;		\
+	} while (0)
+
 int get_hw_qnum(u16 queue, int *hwq_map)
 {
 	switch (queue) {
@@ -71,7 +81,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	struct ath9k_htc_vif *avp;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	enum htc_endpoint_id epid;
-	u16 qnum, hw_qnum;
+	u16 qnum;
 	__le16 fc;
 	u8 *tx_fhdr;
 	u8 sta_idx;
@@ -131,20 +141,23 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		memcpy(tx_fhdr, (u8 *) &tx_hdr, sizeof(tx_hdr));
 
 		qnum = skb_get_queue_mapping(skb);
-		hw_qnum = get_hw_qnum(qnum, priv->hwq_map);
 
-		switch (hw_qnum) {
+		switch (qnum) {
 		case 0:
-			epid = priv->data_be_ep;
-			break;
-		case 2:
-			epid = priv->data_vi_ep;
-			break;
-		case 3:
+			TX_QSTAT_INC(WME_AC_VO);
 			epid = priv->data_vo_ep;
 			break;
 		case 1:
+			TX_QSTAT_INC(WME_AC_VI);
+			epid = priv->data_vi_ep;
+			break;
+		case 2:
+			TX_QSTAT_INC(WME_AC_BE);
+			epid = priv->data_be_ep;
+			break;
+		case 3:
 		default:
+			TX_QSTAT_INC(WME_AC_BK);
 			epid = priv->data_bk_ep;
 			break;
 		}
@@ -293,13 +306,7 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 	int qnum;
 
 	memset(&qi, 0, sizeof(qi));
-
-	qi.tqi_subtype = subtype;
-	qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_physCompBuf = 0;
-	qi.tqi_qflags = TXQ_FLAG_TXEOLINT_ENABLE | TXQ_FLAG_TXDESCINT_ENABLE;
+	ATH9K_HTC_INIT_TXQ(subtype);
 
 	qnum = ath9k_hw_setuptxqueue(priv->ah, ATH9K_TX_QUEUE_DATA, &qi);
 	if (qnum == -1)
@@ -315,6 +322,16 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 
 	priv->hwq_map[subtype] = qnum;
 	return true;
+}
+
+int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv)
+{
+	struct ath9k_tx_queue_info qi;
+
+	memset(&qi, 0, sizeof(qi));
+	ATH9K_HTC_INIT_TXQ(0);
+
+	return ath9k_hw_setuptxqueue(priv->ah, ATH9K_TX_QUEUE_CAB, &qi);
 }
 
 /******/
