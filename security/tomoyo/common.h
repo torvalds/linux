@@ -189,6 +189,20 @@ enum tomoyo_mac_category_index {
 /********** Structure definitions. **********/
 
 /*
+ * tomoyo_acl_head is a structure which is used for holding elements not in
+ * domain policy.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_policy_list[] .
+ *  (2) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
+struct tomoyo_acl_head {
+	struct list_head list;
+	bool is_deleted;
+} __packed;
+
+/*
  * tomoyo_request_info is a structure which is used for holding
  *
  * (1) Domain information of current process.
@@ -274,15 +288,13 @@ struct tomoyo_number_group {
 
 /* Structure for "path_group" directive. */
 struct tomoyo_path_group_member {
-	struct list_head list;
-	bool is_deleted;
+	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *member_name;
 };
 
 /* Structure for "number_group" directive. */
 struct tomoyo_number_group_member {
-	struct list_head list;
-	bool is_deleted;
+	struct tomoyo_acl_head head;
 	struct tomoyo_number_union number;
 };
 
@@ -523,15 +535,12 @@ struct tomoyo_io_buffer {
  * "allow_read" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_globally_readable_list .
+ *  (1) "head" is "struct tomoyo_acl_head".
  *  (2) "filename" is a pathname which is allowed to open(O_RDONLY).
- *  (3) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
  */
 struct tomoyo_globally_readable_file_entry {
-	struct list_head list;
+	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *filename;
-	bool is_deleted;
 };
 
 /*
@@ -539,16 +548,13 @@ struct tomoyo_globally_readable_file_entry {
  * "tomoyo_pattern_list" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_pattern_list .
+ *  (1) "head" is "struct tomoyo_acl_head".
  *  (2) "pattern" is a pathname pattern which is used for converting pathnames
  *      to pathname patterns during learning mode.
- *  (3) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
  */
 struct tomoyo_pattern_entry {
-	struct list_head list;
+	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *pattern;
-	bool is_deleted;
 };
 
 /*
@@ -556,16 +562,13 @@ struct tomoyo_pattern_entry {
  * "deny_rewrite" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_no_rewrite_list .
+ *  (1) "head" is "struct tomoyo_acl_head".
  *  (2) "pattern" is a pathname which is by default not permitted to modify
  *      already existing content.
- *  (3) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
  */
 struct tomoyo_no_rewrite_entry {
-	struct list_head list;
+	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *pattern;
-	bool is_deleted;
 };
 
 /*
@@ -573,25 +576,22 @@ struct tomoyo_no_rewrite_entry {
  * "initialize_domain" and "no_initialize_domain" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_domain_initializer_list .
- *  (2) "domainname" which is "a domainname" or "the last component of a
- *      domainname". This field is NULL if "from" clause is not specified.
- *  (3) "program" which is a program's pathname.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *  (1) "head" is "struct tomoyo_acl_head".
+ *  (2) "is_not" is a bool which is true if "no_initialize_domain", false
  *      otherwise.
- *  (5) "is_not" is a bool which is true if "no_initialize_domain", false
- *      otherwise.
- *  (6) "is_last_name" is a bool which is true if "domainname" is "the last
+ *  (3) "is_last_name" is a bool which is true if "domainname" is "the last
  *      component of a domainname", false otherwise.
+ *  (4) "domainname" which is "a domainname" or "the last component of a
+ *      domainname". This field is NULL if "from" clause is not specified.
+ *  (5) "program" which is a program's pathname.
  */
 struct tomoyo_domain_initializer_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *domainname;    /* This may be NULL */
-	const struct tomoyo_path_info *program;
-	bool is_deleted;
+	struct tomoyo_acl_head head;
 	bool is_not;       /* True if this entry is "no_initialize_domain".  */
 	/* True if the domainname is tomoyo_get_last_name(). */
 	bool is_last_name;
+	const struct tomoyo_path_info *domainname;    /* This may be NULL */
+	const struct tomoyo_path_info *program;
 };
 
 /*
@@ -599,26 +599,23 @@ struct tomoyo_domain_initializer_entry {
  * "keep_domain" and "no_keep_domain" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_domain_keeper_list .
- *  (2) "domainname" which is "a domainname" or "the last component of a
- *      domainname".
- *  (3) "program" which is a program's pathname.
- *      This field is NULL if "from" clause is not specified.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *  (1) "head" is "struct tomoyo_acl_head".
+ *  (2) "is_not" is a bool which is true if "no_initialize_domain", false
  *      otherwise.
- *  (5) "is_not" is a bool which is true if "no_initialize_domain", false
- *      otherwise.
- *  (6) "is_last_name" is a bool which is true if "domainname" is "the last
+ *  (3) "is_last_name" is a bool which is true if "domainname" is "the last
  *      component of a domainname", false otherwise.
+ *  (4) "domainname" which is "a domainname" or "the last component of a
+ *      domainname".
+ *  (5) "program" which is a program's pathname.
+ *      This field is NULL if "from" clause is not specified.
  */
 struct tomoyo_domain_keeper_entry {
-	struct list_head list;
-	const struct tomoyo_path_info *domainname;
-	const struct tomoyo_path_info *program;       /* This may be NULL */
-	bool is_deleted;
+	struct tomoyo_acl_head head;
 	bool is_not;       /* True if this entry is "no_keep_domain".        */
 	/* True if the domainname is tomoyo_get_last_name(). */
 	bool is_last_name;
+	const struct tomoyo_path_info *domainname;
+	const struct tomoyo_path_info *program;       /* This may be NULL */
 };
 
 /*
@@ -626,34 +623,28 @@ struct tomoyo_domain_keeper_entry {
  * "aggregator" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_aggregator_list .
+ *  (1) "head" is "struct tomoyo_acl_head".
  *  (2) "original_name" which is originally requested name.
  *  (3) "aggregated_name" which is name to rewrite.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
  */
 struct tomoyo_aggregator_entry {
-	struct list_head list;
+	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *original_name;
 	const struct tomoyo_path_info *aggregated_name;
-	bool is_deleted;
 };
 
 /*
  * tomoyo_alias_entry is a structure which is used for holding "alias" entries.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_alias_list .
+ *  (1) "head" is "struct tomoyo_acl_head".
  *  (2) "original_name" which is a dereferenced pathname.
  *  (3) "aliased_name" which is a symlink's pathname.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
  */
 struct tomoyo_alias_entry {
-	struct list_head list;
+	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *original_name;
 	const struct tomoyo_path_info *aliased_name;
-	bool is_deleted;
 };
 
 /*
@@ -662,19 +653,16 @@ struct tomoyo_alias_entry {
  * /sys/kernel/security/tomoyo/ interface.
  * It has following fields.
  *
- *  (1) "list" which is linked to tomoyo_policy_manager_list .
- *  (2) "manager" is a domainname or a program's pathname.
- *  (3) "is_domain" is a bool which is true if "manager" is a domainname, false
+ *  (1) "head" is "struct tomoyo_acl_head".
+ *  (2) "is_domain" is a bool which is true if "manager" is a domainname, false
  *      otherwise.
- *  (4) "is_deleted" is a bool which is true if marked as deleted, false
- *      otherwise.
+ *  (3) "manager" is a domainname or a program's pathname.
  */
 struct tomoyo_policy_manager_entry {
-	struct list_head list;
+	struct tomoyo_acl_head head;
+	bool is_domain;  /* True if manager is a domainname. */
 	/* A path to program or a domainname. */
 	const struct tomoyo_path_info *manager;
-	bool is_domain;  /* True if manager is a domainname. */
-	bool is_deleted; /* True if this entry is deleted. */
 };
 
 struct tomoyo_preference {

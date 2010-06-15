@@ -216,33 +216,34 @@ static void tomoyo_collect_entry(void)
 	{
 		struct tomoyo_globally_readable_file_entry *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list,
-					list) {
-			if (!ptr->is_deleted)
+					head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_GLOBALLY_READABLE, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
 	}
 	{
 		struct tomoyo_pattern_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
-			if (!ptr->is_deleted)
+		list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_PATTERN, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
 	}
 	{
 		struct tomoyo_no_rewrite_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
-			if (!ptr->is_deleted)
+		list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list,
+					head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_NO_REWRITE, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
@@ -250,44 +251,46 @@ static void tomoyo_collect_entry(void)
 	{
 		struct tomoyo_domain_initializer_entry *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list,
-					list) {
-			if (!ptr->is_deleted)
+					head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_DOMAIN_INITIALIZER, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
 	}
 	{
 		struct tomoyo_domain_keeper_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
-			if (!ptr->is_deleted)
+		list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list,
+					head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_DOMAIN_KEEPER, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
 	}
 	{
 		struct tomoyo_aggregator_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, list) {
-			if (!ptr->is_deleted)
+		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list,
+					head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_AGGREGATOR, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
 	}
 	{
 		struct tomoyo_alias_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
-			if (!ptr->is_deleted)
+		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_ALIAS, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
@@ -295,11 +298,11 @@ static void tomoyo_collect_entry(void)
 	{
 		struct tomoyo_policy_manager_entry *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list,
-					list) {
-			if (!ptr->is_deleted)
+					head.list) {
+			if (!ptr->head.is_deleted)
 				continue;
 			if (tomoyo_add_to_gc(TOMOYO_ID_MANAGER, ptr))
-				list_del_rcu(&ptr->list);
+				list_del_rcu(&ptr->head.list);
 			else
 				break;
 		}
@@ -352,12 +355,12 @@ static void tomoyo_collect_entry(void)
 		list_for_each_entry_rcu(group, &tomoyo_path_group_list, list) {
 			struct tomoyo_path_group_member *member;
 			list_for_each_entry_rcu(member, &group->member_list,
-						list) {
-				if (!member->is_deleted)
+						head.list) {
+				if (!member->head.is_deleted)
 					continue;
 				if (tomoyo_add_to_gc(TOMOYO_ID_PATH_GROUP_MEMBER,
 						     member))
-					list_del_rcu(&member->list);
+					list_del_rcu(&member->head.list);
 				else
 					break;
 			}
@@ -375,12 +378,12 @@ static void tomoyo_collect_entry(void)
 		list_for_each_entry_rcu(group, &tomoyo_number_group_list, list) {
 			struct tomoyo_number_group_member *member;
 			list_for_each_entry_rcu(member, &group->member_list,
-						list) {
-				if (!member->is_deleted)
+						head.list) {
+				if (!member->head.is_deleted)
 					continue;
 				if (tomoyo_add_to_gc(TOMOYO_ID_NUMBER_GROUP_MEMBER,
 						     member))
-					list_del_rcu(&member->list);
+					list_del_rcu(&member->head.list);
 				else
 					break;
 			}

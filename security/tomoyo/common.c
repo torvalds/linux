@@ -499,10 +499,10 @@ static int tomoyo_update_manager_entry(const char *manager,
 		return -ENOMEM;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, head.list) {
 		if (ptr->manager != e.manager)
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -510,7 +510,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 		struct tomoyo_policy_manager_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list,
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_policy_manager_list);
 			error = 0;
 		}
@@ -562,8 +562,8 @@ static int tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 			     &tomoyo_policy_manager_list) {
 		struct tomoyo_policy_manager_entry *ptr;
 		ptr = list_entry(pos, struct tomoyo_policy_manager_entry,
-				 list);
-		if (ptr->is_deleted)
+				 head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, "%s\n", ptr->manager->name);
 		if (!done)
@@ -593,8 +593,8 @@ static bool tomoyo_is_policy_manager(void)
 		return true;
 	if (!tomoyo_manage_by_non_root && (task->cred->uid || task->cred->euid))
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
-		if (!ptr->is_deleted && ptr->is_domain
+	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, head.list) {
+		if (!ptr->head.is_deleted && ptr->is_domain
 		    && !tomoyo_pathcmp(domainname, ptr->manager)) {
 			found = true;
 			break;
@@ -605,8 +605,8 @@ static bool tomoyo_is_policy_manager(void)
 	exe = tomoyo_get_exe();
 	if (!exe)
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
-		if (!ptr->is_deleted && !ptr->is_domain
+	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, head.list) {
+		if (!ptr->head.is_deleted && !ptr->is_domain
 		    && !strcmp(exe, ptr->manager->name)) {
 			found = true;
 			break;

@@ -199,10 +199,11 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 		goto out;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list,
+				head.list) {
 		if (!tomoyo_is_same_domain_initializer_entry(ptr, &e))
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -210,7 +211,7 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 		struct tomoyo_domain_initializer_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list,
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_domain_initializer_list);
 			error = 0;
 		}
@@ -243,8 +244,8 @@ bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head)
 		const char *domain = "";
 		struct tomoyo_domain_initializer_entry *ptr;
 		ptr = list_entry(pos, struct tomoyo_domain_initializer_entry,
-				  list);
-		if (ptr->is_deleted)
+				 head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		no = ptr->is_not ? "no_" : "";
 		if (ptr->domainname) {
@@ -308,8 +309,9 @@ static bool tomoyo_is_domain_initializer(const struct tomoyo_path_info *
 	struct tomoyo_domain_initializer_entry *ptr;
 	bool flag = false;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
-		if (ptr->is_deleted)
+	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list,
+				head.list) {
+		if (ptr->head.is_deleted)
 			continue;
 		if (ptr->domainname) {
 			if (!ptr->is_last_name) {
@@ -409,10 +411,10 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 		goto out;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, head.list) {
 		if (!tomoyo_is_same_domain_keeper_entry(ptr, &e))
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -420,7 +422,7 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 		struct tomoyo_domain_keeper_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list,
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_domain_keeper_list);
 			error = 0;
 		}
@@ -475,8 +477,9 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
 		const char *from = "";
 		const char *program = "";
 
-		ptr = list_entry(pos, struct tomoyo_domain_keeper_entry, list);
-		if (ptr->is_deleted)
+		ptr = list_entry(pos, struct tomoyo_domain_keeper_entry,
+				 head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		no = ptr->is_not ? "no_" : "";
 		if (ptr->program) {
@@ -512,8 +515,8 @@ static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
 	struct tomoyo_domain_keeper_entry *ptr;
 	bool flag = false;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
-		if (ptr->is_deleted)
+	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, head.list) {
+		if (ptr->head.is_deleted)
 			continue;
 		if (!ptr->is_last_name) {
 			if (ptr->domainname != domainname)
@@ -591,10 +594,10 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 		goto out;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, head.list) {
 		if (!tomoyo_is_same_aggregator_entry(ptr, &e))
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -602,7 +605,7 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 		struct tomoyo_aggregator_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list,
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_aggregator_list);
 			error = 0;
 		}
@@ -631,8 +634,9 @@ bool tomoyo_read_aggregator_policy(struct tomoyo_io_buffer *head)
 	list_for_each_cookie(pos, head->read_var2, &tomoyo_aggregator_list) {
 		struct tomoyo_aggregator_entry *ptr;
 
-		ptr = list_entry(pos, struct tomoyo_aggregator_entry, list);
-		if (ptr->is_deleted)
+		ptr = list_entry(pos, struct tomoyo_aggregator_entry,
+				 head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_AGGREGATOR
 					"%s %s\n", ptr->original_name->name,
@@ -724,10 +728,10 @@ static int tomoyo_update_alias_entry(const char *original_name,
 		goto out; /* No patterns allowed. */
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, head.list) {
 		if (!tomoyo_is_same_alias_entry(ptr, &e))
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -735,7 +739,8 @@ static int tomoyo_update_alias_entry(const char *original_name,
 		struct tomoyo_alias_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list, &tomoyo_alias_list);
+			list_add_tail_rcu(&entry->head.list,
+					  &tomoyo_alias_list);
 			error = 0;
 		}
 	}
@@ -763,8 +768,8 @@ bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head)
 	list_for_each_cookie(pos, head->read_var2, &tomoyo_alias_list) {
 		struct tomoyo_alias_entry *ptr;
 
-		ptr = list_entry(pos, struct tomoyo_alias_entry, list);
-		if (ptr->is_deleted)
+		ptr = list_entry(pos, struct tomoyo_alias_entry, head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALIAS "%s %s\n",
 					ptr->original_name->name,
@@ -901,8 +906,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (tomoyo_pathcmp(&rn, &sn)) {
 		struct tomoyo_alias_entry *ptr;
 		/* Is this program allowed to be called via symbolic links? */
-		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
-			if (ptr->is_deleted ||
+		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, head.list) {
+			if (ptr->head.is_deleted ||
 			    tomoyo_pathcmp(&rn, ptr->original_name) ||
 			    tomoyo_pathcmp(&sn, ptr->aliased_name))
 				continue;
@@ -917,8 +922,9 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	/* Check 'aggregator' directive. */
 	{
 		struct tomoyo_aggregator_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, list) {
-			if (ptr->is_deleted ||
+		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list,
+					head.list) {
+			if (ptr->head.is_deleted ||
 			    !tomoyo_path_matches_pattern(&rn,
 							 ptr->original_name))
 				continue;

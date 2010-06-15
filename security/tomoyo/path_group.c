@@ -79,10 +79,10 @@ int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 		goto out;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(member, &group->member_list, list) {
+	list_for_each_entry_rcu(member, &group->member_list, head.list) {
 		if (member->member_name != e.member_name)
 			continue;
-		member->is_deleted = is_delete;
+		member->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -90,7 +90,8 @@ int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 		struct tomoyo_path_group_member *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list, &group->member_list);
+			list_add_tail_rcu(&entry->head.list,
+					  &group->member_list);
 			error = 0;
 		}
 	}
@@ -122,8 +123,8 @@ bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head)
 			struct tomoyo_path_group_member *member;
 			member = list_entry(mpos,
 					    struct tomoyo_path_group_member,
-					    list);
-			if (member->is_deleted)
+					    head.list);
+			if (member->head.is_deleted)
 				continue;
 			if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_PATH_GROUP
 					      "%s %s\n",
@@ -150,8 +151,8 @@ bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
 {
 	struct tomoyo_path_group_member *member;
 	bool matched = false;
-	list_for_each_entry_rcu(member, &group->member_list, list) {
-		if (member->is_deleted)
+	list_for_each_entry_rcu(member, &group->member_list, head.list) {
+		if (member->head.is_deleted)
 			continue;
 		if (!tomoyo_path_matches_pattern(pathname,
 						 member->member_name))

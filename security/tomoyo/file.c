@@ -277,10 +277,11 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 		return -ENOMEM;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list,
+				head.list) {
 		if (ptr->filename != e.filename)
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -288,7 +289,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 		struct tomoyo_globally_readable_file_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list,
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_globally_readable_list);
 			error = 0;
 		}
@@ -314,8 +315,9 @@ static bool tomoyo_is_globally_readable_file(const struct tomoyo_path_info *
 	struct tomoyo_globally_readable_file_entry *ptr;
 	bool found = false;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
-		if (!ptr->is_deleted &&
+	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list,
+				head.list) {
+		if (!ptr->head.is_deleted &&
 		    tomoyo_path_matches_pattern(filename, ptr->filename)) {
 			found = true;
 			break;
@@ -358,8 +360,8 @@ bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
 		struct tomoyo_globally_readable_file_entry *ptr;
 		ptr = list_entry(pos,
 				 struct tomoyo_globally_readable_file_entry,
-				 list);
-		if (ptr->is_deleted)
+				 head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_READ "%s\n",
 					ptr->filename->name);
@@ -424,10 +426,10 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 		return error;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, head.list) {
 		if (e.pattern != ptr->pattern)
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -435,7 +437,8 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 		struct tomoyo_pattern_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list, &tomoyo_pattern_list);
+			list_add_tail_rcu(&entry->head.list,
+					  &tomoyo_pattern_list);
 			error = 0;
 		}
 	}
@@ -459,8 +462,8 @@ const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename)
 	struct tomoyo_pattern_entry *ptr;
 	const struct tomoyo_path_info *pattern = NULL;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
-		if (ptr->is_deleted)
+	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, head.list) {
+		if (ptr->head.is_deleted)
 			continue;
 		if (!tomoyo_path_matches_pattern(filename, ptr->pattern))
 			continue;
@@ -508,8 +511,8 @@ bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
 
 	list_for_each_cookie(pos, head->read_var2, &tomoyo_pattern_list) {
 		struct tomoyo_pattern_entry *ptr;
-		ptr = list_entry(pos, struct tomoyo_pattern_entry, list);
-		if (ptr->is_deleted)
+		ptr = list_entry(pos, struct tomoyo_pattern_entry, head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_FILE_PATTERN
 					"%s\n", ptr->pattern->name);
@@ -574,10 +577,10 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 		return error;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, head.list) {
 		if (ptr->pattern != e.pattern)
 			continue;
-		ptr->is_deleted = is_delete;
+		ptr->head.is_deleted = is_delete;
 		error = 0;
 		break;
 	}
@@ -585,7 +588,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 		struct tomoyo_no_rewrite_entry *entry =
 			tomoyo_commit_ok(&e, sizeof(e));
 		if (entry) {
-			list_add_tail_rcu(&entry->list,
+			list_add_tail_rcu(&entry->head.list,
 					  &tomoyo_no_rewrite_list);
 			error = 0;
 		}
@@ -611,8 +614,8 @@ static bool tomoyo_is_no_rewrite_file(const struct tomoyo_path_info *filename)
 	struct tomoyo_no_rewrite_entry *ptr;
 	bool found = false;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
-		if (ptr->is_deleted)
+	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, head.list) {
+		if (ptr->head.is_deleted)
 			continue;
 		if (!tomoyo_path_matches_pattern(filename, ptr->pattern))
 			continue;
@@ -653,8 +656,9 @@ bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head)
 
 	list_for_each_cookie(pos, head->read_var2, &tomoyo_no_rewrite_list) {
 		struct tomoyo_no_rewrite_entry *ptr;
-		ptr = list_entry(pos, struct tomoyo_no_rewrite_entry, list);
-		if (ptr->is_deleted)
+		ptr = list_entry(pos, struct tomoyo_no_rewrite_entry,
+				 head.list);
+		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_DENY_REWRITE
 					"%s\n", ptr->pattern->name);
