@@ -644,7 +644,7 @@ static void nfsd4_conn_lost(struct svc_xpt_user *u)
 	spin_unlock(&clp->cl_lock);
 }
 
-static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp)
+static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp, u32 flags)
 {
 	struct nfsd4_conn *conn;
 
@@ -653,7 +653,7 @@ static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp)
 		return NULL;
 	svc_xprt_get(rqstp->rq_xprt);
 	conn->cn_xprt = rqstp->rq_xprt;
-	conn->cn_flags = NFS4_CDFC4_FORE;
+	conn->cn_flags = flags;
 	INIT_LIST_HEAD(&conn->cn_xpt_user.list);
 	return conn;
 }
@@ -682,8 +682,11 @@ static void nfsd4_register_conn(struct nfsd4_conn *conn)
 static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 {
 	struct nfsd4_conn *conn;
+	u32 flags = NFS4_CDFC4_FORE;
 
-	conn = alloc_conn(rqstp);
+	if (ses->se_flags & SESSION4_BACK_CHAN)
+		flags |= NFS4_CDFC4_BACK;
+	conn = alloc_conn(rqstp, flags);
 	if (!conn)
 		return nfserr_jukebox;
 	nfsd4_hash_conn(conn, ses);
@@ -1640,7 +1643,7 @@ static void nfsd4_sequence_check_conn(struct svc_rqst *rqstp, struct nfsd4_sessi
 	if (c)
 		return;
 
-	new = alloc_conn(rqstp);
+	new = alloc_conn(rqstp, NFS4_CDFC4_FORE);
 
 	spin_lock(&clp->cl_lock);
 	c = __nfsd4_find_conn(rqstp, ses);
