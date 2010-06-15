@@ -642,6 +642,7 @@ static void nfsd4_conn_lost(struct svc_xpt_user *u)
 		free_conn(c);
 	}
 	spin_unlock(&clp->cl_lock);
+	/* XXX: mark callback for update, probe callback */
 }
 
 static struct nfsd4_conn *alloc_conn(struct svc_rqst *rqstp, u32 flags)
@@ -790,16 +791,19 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 		free_session(&new->se_ref);
 		return NULL;
 	}
-	if (!clp->cl_cb_session && (cses->flags & SESSION4_BACK_CHAN)) {
+	if (cses->flags & SESSION4_BACK_CHAN) {
 		struct sockaddr *sa = svc_addr(rqstp);
-
-		clp->cl_cb_session = new;
-		clp->cl_cb_conn.cb_xprt = rqstp->rq_xprt;
-		svc_xprt_get(rqstp->rq_xprt);
+		/*
+		 * This is a little silly; with sessions there's no real
+		 * use for the callback address.  Use the peer address
+		 * as a reasonable default for now, but consider fixing
+		 * the rpc client not to require an address in the
+		 * future:
+		 */
 		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
-		nfsd4_probe_callback(clp);
 	}
+	nfsd4_probe_callback(clp);
 	return new;
 }
 

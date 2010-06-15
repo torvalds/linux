@@ -473,8 +473,7 @@ static int max_cb_time(void)
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cl_cb_set an atomic? */
 
-static int setup_callback_client(struct nfs4_client *clp,
-		struct nfs4_cb_conn *conn)
+static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
 	struct rpc_timeout	timeparms = {
 		.to_initval	= max_cb_time(),
@@ -501,6 +500,10 @@ static int setup_callback_client(struct nfs4_client *clp,
 		args.protocol = XPRT_TRANSPORT_TCP;
 		clp->cl_cb_ident = conn->cb_ident;
 	} else {
+		if (!conn->cb_xprt)
+			return -EINVAL;
+		clp->cl_cb_conn.cb_xprt = conn->cb_xprt;
+		clp->cl_cb_session = ses;
 		args.bc_xprt = conn->cb_xprt;
 		args.prognumber = clp->cl_cb_session->se_cb_prog;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
@@ -756,10 +759,27 @@ static void nfsd4_release_cb(struct nfsd4_callback *cb)
 		cb->cb_ops->rpc_release(cb);
 }
 
+/* requires cl_lock: */
+static struct nfsd4_conn * __nfsd4_find_backchannel(struct nfs4_client *clp)
+{
+	struct nfsd4_session *s;
+	struct nfsd4_conn *c;
+
+	list_for_each_entry(s, &clp->cl_sessions, se_perclnt) {
+		list_for_each_entry(c, &s->se_conns, cn_persession) {
+			if (c->cn_flags & NFS4_CDFC4_BACK)
+				return c;
+		}
+	}
+	return NULL;
+}
+
 static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 {
 	struct nfs4_cb_conn conn;
 	struct nfs4_client *clp = cb->cb_clp;
+	struct nfsd4_session *ses = NULL;
+	struct nfsd4_conn *c;
 	int err;
 
 	/*
@@ -769,6 +789,10 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	if (clp->cl_cb_client) {
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
+	}
+	if (clp->cl_cb_conn.cb_xprt) {
+		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
+		clp->cl_cb_conn.cb_xprt = NULL;
 	}
 	if (test_bit(NFSD4_CLIENT_KILL, &clp->cl_cb_flags))
 		return;
@@ -780,9 +804,15 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	BUG_ON(!clp->cl_cb_flags);
 	clear_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_cb_flags);
 	memcpy(&conn, &cb->cb_clp->cl_cb_conn, sizeof(struct nfs4_cb_conn));
+	c = __nfsd4_find_backchannel(clp);
+	if (c) {
+		svc_xprt_get(c->cn_xprt);
+		conn.cb_xprt = c->cn_xprt;
+		ses = c->cn_session;
+	}
 	spin_unlock(&clp->cl_lock);
 
-	err = setup_callback_client(clp, &conn);
+	err = setup_callback_client(clp, &conn, ses);
 	if (err)
 		warn_no_callback_path(clp, err);
 }
