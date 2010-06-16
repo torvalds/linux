@@ -265,14 +265,6 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 				 tomoyo_file_pattern(filename), buffer);
 }
 
-static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
-				   const char *filename2,
-				   struct tomoyo_domain_info *const domain,
-				   const bool is_delete);
-static int tomoyo_update_path_acl(const u8 type, const char *filename,
-				  struct tomoyo_domain_info *const domain,
-				  const bool is_delete);
-
 /*
  * tomoyo_globally_readable_list is used for holding list of pathnames which
  * are by default allowed to be open()ed for reading by any process.
@@ -1046,37 +1038,6 @@ static int tomoyo_update_path_number_acl(const u8 type, const char *filename,
 }
 
 /**
- * tomoyo_path_number_perm2 - Check permission for "create", "mkdir", "mkfifo", "mksock", "ioctl", "chmod", "chown", "chgrp".
- *
- * @r:        Pointer to "strct tomoyo_request_info".
- * @filename: Filename to check.
- * @number:   Number.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_path_number_perm2(struct tomoyo_request_info *r,
-				    const u8 type,
-				    const struct tomoyo_path_info *filename,
-				    const unsigned long number)
-{
-	int error;
-
-	if (!filename)
-		return 0;
-	r->param_type = TOMOYO_TYPE_PATH_NUMBER_ACL;
-	r->param.path_number.operation = type;
-	r->param.path_number.filename = filename;
-	r->param.path_number.number = number;
-	do {
-		tomoyo_check_acl(r, tomoyo_check_path_number_acl);
-		error = tomoyo_audit_path_number_log(r);
-	} while (error == TOMOYO_RETRY_REQUEST);
-	return error;
-}
-
-/**
  * tomoyo_path_number_perm - Check permission for "create", "mkdir", "mkfifo", "mksock", "ioctl", "chmod", "chown", "chgrp".
  *
  * @type:   Type of operation.
@@ -1101,9 +1062,16 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 		goto out;
 	if (type == TOMOYO_TYPE_MKDIR)
 		tomoyo_add_slash(&buf);
-	error = tomoyo_path_number_perm2(&r, type, &buf, number);
- out:
+	r.param_type = TOMOYO_TYPE_PATH_NUMBER_ACL;
+	r.param.path_number.operation = type;
+	r.param.path_number.filename = &buf;
+	r.param.path_number.number = number;
+	do {
+		tomoyo_check_acl(&r, tomoyo_check_path_number_acl);
+		error = tomoyo_audit_path_number_log(&r);
+	} while (error == TOMOYO_RETRY_REQUEST);
 	kfree(buf.name);
+ out:
 	tomoyo_read_unlock(idx);
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
