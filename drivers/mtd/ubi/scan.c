@@ -842,11 +842,11 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		switch (vidh->compat) {
 		case UBI_COMPAT_DELETE:
 			ubi_msg("\"delete\" compatible internal volume %d:%d"
-				" found, remove it", vol_id, lnum);
+				" found, will remove it", vol_id, lnum);
 			err = add_to_list(si, pnum, ec, &si->corr);
 			if (err)
 				return err;
-			break;
+			return 0;
 
 		case UBI_COMPAT_RO:
 			ubi_msg("read-only compatible internal volume %d:%d"
