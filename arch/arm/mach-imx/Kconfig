@@ -68,6 +68,7 @@ comment "MX21 platforms:"
 
 config MACH_MX21ADS
 	bool "MX21ADS platform"
+	select IMX_HAVE_PLATFORM_MXC_NAND
 	help
 	  Include support for MX21ADS platform. This includes specific
 	  configurations for the board and its peripherals.

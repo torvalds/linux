@@ -357,10 +357,6 @@ struct platform_device mxc_w1_master_device = {
 		.resource = pfx ## _nand_resources,			\
 	}
 
-#ifdef CONFIG_MACH_MX21
-DEFINE_MXC_NAND_DEVICE(imx21, MX21_NFC_BASE_ADDR, MX21_INT_NANDFC);
-#endif
-
 #ifdef CONFIG_MACH_MX27
 DEFINE_MXC_NAND_DEVICE(imx27, MX27_NFC_BASE_ADDR, MX27_INT_NANDFC);
 #endif
