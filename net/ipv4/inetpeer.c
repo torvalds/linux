@@ -64,7 +64,7 @@
  *		   usually under some other lock to prevent node disappearing
  *		dtime: unused node list lock
  *		v4daddr: unchangeable
- *		ip_id_count: idlock
+ *		ip_id_count: atomic value (no lock needed)
  */
 
 static struct kmem_cache *peer_cachep __read_mostly;
@@ -129,7 +129,7 @@ void __init inet_initpeers(void)
 
 	peer_cachep = kmem_cache_create("inet_peer_cache",
 			sizeof(struct inet_peer),
-			0, SLAB_PANIC,
+			0, SLAB_HWCACHE_ALIGN | SLAB_PANIC,
 			NULL);
 
 	/* All the timers, started at system startup tend

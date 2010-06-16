@@ -204,10 +204,12 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		 * TIME-WAIT * and initialize rx_opt.ts_recent from it,
 		 * when trying new connection.
 		 */
-		if (peer != NULL &&
-		    (u32)get_seconds() - peer->tcp_ts_stamp <= TCP_PAWS_MSL) {
-			tp->rx_opt.ts_recent_stamp = peer->tcp_ts_stamp;
-			tp->rx_opt.ts_recent = peer->tcp_ts;
+		if (peer) {
+			inet_peer_refcheck(peer);
+			if ((u32)get_seconds() - peer->tcp_ts_stamp <= TCP_PAWS_MSL) {
+				tp->rx_opt.ts_recent_stamp = peer->tcp_ts_stamp;
+				tp->rx_opt.ts_recent = peer->tcp_ts;
+			}
 		}
 	}
 
@@ -1351,6 +1353,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		    (dst = inet_csk_route_req(sk, req)) != NULL &&
 		    (peer = rt_get_peer((struct rtable *)dst)) != NULL &&
 		    peer->v4daddr == saddr) {
+			inet_peer_refcheck(peer);
 			if ((u32)get_seconds() - peer->tcp_ts_stamp < TCP_PAWS_MSL &&
 			    (s32)(peer->tcp_ts - req->ts_recent) >
 							TCP_PAWS_WINDOW) {
