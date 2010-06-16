@@ -3313,20 +3313,20 @@ static inline bool hpsa_board_disabled(struct pci_dev *pdev)
 	return ((command & PCI_COMMAND_MEMORY) == 0);
 }
 
-static int __devinit hpsa_pci_find_memory_BAR(struct ctlr_info *h,
+static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 	unsigned long *memory_bar)
 {
 	int i;
 
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++)
-		if (pci_resource_flags(h->pdev, i) & IORESOURCE_MEM) {
+		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM) {
 			/* addressing mode bits already removed */
-			*memory_bar = pci_resource_start(h->pdev, i);
-			dev_dbg(&h->pdev->dev, "memory BAR = %lx\n",
+			*memory_bar = pci_resource_start(pdev, i);
+			dev_dbg(&pdev->dev, "memory BAR = %lx\n",
 				*memory_bar);
 			return 0;
 		}
-	dev_warn(&h->pdev->dev, "no memory BAR found\n");
+	dev_warn(&pdev->dev, "no memory BAR found\n");
 	return -ENODEV;
 }
 
@@ -3503,7 +3503,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		return err;
 	}
 	hpsa_interrupt_mode(h);
-	err = hpsa_pci_find_memory_BAR(h, &h->paddr);
+	err = hpsa_pci_find_memory_BAR(h->pdev, &h->paddr);
 	if (err)
 		goto err_out_free_res;
 	h->vaddr = remap_pci_mem(h->paddr, 0x250);
