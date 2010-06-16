@@ -812,7 +812,7 @@ static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
 			continue;
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s ",
-				      tomoyo_path2keyword(bit)) ||
+				      tomoyo_path_keyword[bit]) ||
 		    !tomoyo_print_name_union(head, &ptr->name) ||
 		    !tomoyo_io_printf(head, "\n"))
 			goto out;
@@ -845,7 +845,7 @@ static bool tomoyo_print_path2_acl(struct tomoyo_io_buffer *head,
 			continue;
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s ",
-				      tomoyo_path22keyword(bit)) ||
+				      tomoyo_path2_keyword[bit]) ||
 		    !tomoyo_print_name_union(head, &ptr->name1) ||
 		    !tomoyo_print_name_union(head, &ptr->name2) ||
 		    !tomoyo_io_printf(head, "\n"))
@@ -879,7 +879,7 @@ static bool tomoyo_print_path_number_acl(struct tomoyo_io_buffer *head,
 			continue;
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s",
-				      tomoyo_path_number2keyword(bit)) ||
+				      tomoyo_path_number_keyword[bit]) ||
 		    !tomoyo_print_name_union(head, &ptr->name) ||
 		    !tomoyo_print_number_union(head, &ptr->number) ||
 		    !tomoyo_io_printf(head, "\n"))
@@ -913,7 +913,7 @@ static bool tomoyo_print_mkdev_acl(struct tomoyo_io_buffer *head,
 			continue;
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s",
-				      tomoyo_mkdev2keyword(bit)) ||
+				      tomoyo_mkdev_keyword[bit]) ||
 		    !tomoyo_print_name_union(head, &ptr->name) ||
 		    !tomoyo_print_number_union(head, &ptr->mode) ||
 		    !tomoyo_print_number_union(head, &ptr->major) ||

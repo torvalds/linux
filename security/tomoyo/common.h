@@ -804,14 +804,8 @@ bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head);
 bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
 /* Write domain policy violation warning message to console? */
 bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
-/* Convert double path operation to operation name. */
-const char *tomoyo_path22keyword(const u8 operation);
-const char *tomoyo_path_number2keyword(const u8 operation);
-const char *tomoyo_mkdev2keyword(const u8 operation);
 /* Get the last component of the given domainname. */
 const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
-/* Convert single path operation to operation name. */
-const char *tomoyo_path2keyword(const u8 operation);
 /* Fill "struct tomoyo_request_info". */
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
 			     struct tomoyo_domain_info *domain,
@@ -984,6 +978,11 @@ extern bool tomoyo_policy_loaded;
 
 /* The kernel's domain. */
 extern struct tomoyo_domain_info tomoyo_kernel_domain;
+
+extern const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION];
+extern const char *tomoyo_mkdev_keyword[TOMOYO_MAX_MKDEV_OPERATION];
+extern const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION];
+extern const char *tomoyo_path_number_keyword[TOMOYO_MAX_PATH_NUMBER_OPERATION];
 
 extern unsigned int tomoyo_quota_for_query;
 extern unsigned int tomoyo_query_memory_size;

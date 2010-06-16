@@ -10,7 +10,7 @@
 #include <linux/slab.h>
 
 /* Keyword array for operations with one pathname. */
-static const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
+const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
 	[TOMOYO_TYPE_READ_WRITE] = "read/write",
 	[TOMOYO_TYPE_EXECUTE]    = "execute",
 	[TOMOYO_TYPE_READ]       = "read",
@@ -25,22 +25,20 @@ static const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
 };
 
 /* Keyword array for operations with one pathname and three numbers. */
-static const char *tomoyo_mkdev_keyword
-[TOMOYO_MAX_MKDEV_OPERATION] = {
+const char *tomoyo_mkdev_keyword[TOMOYO_MAX_MKDEV_OPERATION] = {
 	[TOMOYO_TYPE_MKBLOCK]    = "mkblock",
 	[TOMOYO_TYPE_MKCHAR]     = "mkchar",
 };
 
 /* Keyword array for operations with two pathnames. */
-static const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION] = {
+const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION] = {
 	[TOMOYO_TYPE_LINK]       = "link",
 	[TOMOYO_TYPE_RENAME]     = "rename",
 	[TOMOYO_TYPE_PIVOT_ROOT] = "pivot_root",
 };
 
 /* Keyword array for operations with one pathname and one number. */
-static const char *tomoyo_path_number_keyword
-[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
+const char *tomoyo_path_number_keyword[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
 	[TOMOYO_TYPE_CREATE]     = "create",
 	[TOMOYO_TYPE_MKDIR]      = "mkdir",
 	[TOMOYO_TYPE_MKFIFO]     = "mkfifo",
@@ -117,58 +115,6 @@ bool tomoyo_compare_number_union(const unsigned long value,
 	if (ptr->is_group)
 		return tomoyo_number_matches_group(value, value, ptr->group);
 	return value >= ptr->values[0] && value <= ptr->values[1];
-}
-
-/**
- * tomoyo_path2keyword - Get the name of single path operation.
- *
- * @operation: Type of operation.
- *
- * Returns the name of single path operation.
- */
-const char *tomoyo_path2keyword(const u8 operation)
-{
-	return (operation < TOMOYO_MAX_PATH_OPERATION)
-		? tomoyo_path_keyword[operation] : NULL;
-}
-
-/**
- * tomoyo_mkdev2keyword - Get the name of path/number/number/number operations.
- *
- * @operation: Type of operation.
- *
- * Returns the name of path/number/number/number operation.
- */
-const char *tomoyo_mkdev2keyword(const u8 operation)
-{
-	return (operation < TOMOYO_MAX_MKDEV_OPERATION)
-		? tomoyo_mkdev_keyword[operation] : NULL;
-}
-
-/**
- * tomoyo_path22keyword - Get the name of double path operation.
- *
- * @operation: Type of operation.
- *
- * Returns the name of double path operation.
- */
-const char *tomoyo_path22keyword(const u8 operation)
-{
-	return (operation < TOMOYO_MAX_PATH2_OPERATION)
-		? tomoyo_path2_keyword[operation] : NULL;
-}
-
-/**
- * tomoyo_path_number2keyword - Get the name of path/number operations.
- *
- * @operation: Type of operation.
- *
- * Returns the name of path/number operation.
- */
-const char *tomoyo_path_number2keyword(const u8 operation)
-{
-	return (operation < TOMOYO_MAX_PATH_NUMBER_OPERATION)
-		? tomoyo_path_number_keyword[operation] : NULL;
 }
 
 static void tomoyo_add_slash(struct tomoyo_path_info *buf)
@@ -266,8 +212,7 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
  */
 static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 {
-	const char *operation = tomoyo_mkdev2keyword(r->param.mkdev.
-							    operation);
+	const char *operation = tomoyo_mkdev_keyword[r->param.mkdev.operation];
 	const struct tomoyo_path_info *filename = r->param.mkdev.filename;
 	const unsigned int major = r->param.mkdev.major;
 	const unsigned int minor = r->param.mkdev.minor;
