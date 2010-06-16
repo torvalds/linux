@@ -3188,6 +3188,7 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 	enum drbd_conns nconn, oconn;
 	union drbd_state ns, peer_state;
 	enum drbd_disk_state real_peer_disk;
+	enum chg_state_flags cs_flags;
 	int rv;
 
 	ERR_IF(h->length != (sizeof(*p)-sizeof(*h)))
@@ -3265,6 +3266,7 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 	ns.peer_isp = (peer_state.aftr_isp | peer_state.user_isp);
 	if ((nconn == C_CONNECTED || nconn == C_WF_BITMAP_S) && ns.disk == D_NEGOTIATING)
 		ns.disk = mdev->new_state_tmp.disk;
+	cs_flags = CS_VERBOSE + (oconn < C_CONNECTED && nconn >= C_CONNECTED ? 0 : CS_HARD);
 	if (ns.pdsk == D_CONSISTENT && ns.susp && nconn == C_CONNECTED && oconn < C_CONNECTED &&
 	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
 		/* Do not allow tl_restart(resend) for a rebooted peer. We can only allow this
@@ -3277,7 +3279,7 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 		drbd_force_state(mdev, NS2(conn, C_PROTOCOL_ERROR, susp, 0));
 		return FALSE;
 	}
-	rv = _drbd_set_state(mdev, ns, CS_VERBOSE | CS_HARD, NULL);
+	rv = _drbd_set_state(mdev, ns, cs_flags, NULL);
 	ns = mdev->state;
 	spin_unlock_irq(&mdev->req_lock);
 
