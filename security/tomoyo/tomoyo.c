@@ -142,7 +142,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 	default:
 		goto no_dev;
 	}
-	return tomoyo_path_number3_perm(type, &path, perm, dev);
+	return tomoyo_mkdev_perm(type, &path, perm, dev);
  no_dev:
 	switch (mode & S_IFMT) {
 	case S_IFIFO:

@@ -89,7 +89,7 @@ void tomoyo_print_ulong(char *buffer, const int buffer_len,
 bool tomoyo_parse_name_union(const char *filename,
 			     struct tomoyo_name_union *ptr)
 {
-	if (!tomoyo_is_correct_word(filename))
+	if (!tomoyo_correct_word(filename))
 		return false;
 	if (filename[0] == '@') {
 		ptr->group = tomoyo_get_path_group(filename + 1);
@@ -115,7 +115,7 @@ bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
 	unsigned long v;
 	memset(num, 0, sizeof(*num));
 	if (data[0] == '@') {
-		if (!tomoyo_is_correct_word(data))
+		if (!tomoyo_correct_word(data))
 			return false;
 		num->group = tomoyo_get_number_group(data + 1);
 		num->is_group = true;
@@ -142,7 +142,7 @@ bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
 }
 
 /**
- * tomoyo_is_byte_range - Check whether the string is a \ooo style octal value.
+ * tomoyo_byte_range - Check whether the string is a \ooo style octal value.
  *
  * @str: Pointer to the string.
  *
@@ -151,7 +151,7 @@ bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
  * TOMOYO uses \ooo style representation for 0x01 - 0x20 and 0x7F - 0xFF.
  * This function verifies that \ooo is in valid range.
  */
-static inline bool tomoyo_is_byte_range(const char *str)
+static inline bool tomoyo_byte_range(const char *str)
 {
 	return *str >= '0' && *str++ <= '3' &&
 		*str >= '0' && *str++ <= '7' &&
@@ -159,13 +159,13 @@ static inline bool tomoyo_is_byte_range(const char *str)
 }
 
 /**
- * tomoyo_is_alphabet_char - Check whether the character is an alphabet.
+ * tomoyo_alphabet_char - Check whether the character is an alphabet.
  *
  * @c: The character to check.
  *
  * Returns true if @c is an alphabet character, false otherwise.
  */
-static inline bool tomoyo_is_alphabet_char(const char c)
+static inline bool tomoyo_alphabet_char(const char c)
 {
 	return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
 }
@@ -223,15 +223,15 @@ void tomoyo_normalize_line(unsigned char *buffer)
 	unsigned char *dp = buffer;
 	bool first = true;
 
-	while (tomoyo_is_invalid(*sp))
+	while (tomoyo_invalid(*sp))
 		sp++;
 	while (*sp) {
 		if (!first)
 			*dp++ = ' ';
 		first = false;
-		while (tomoyo_is_valid(*sp))
+		while (tomoyo_valid(*sp))
 			*dp++ = *sp++;
-		while (tomoyo_is_invalid(*sp))
+		while (tomoyo_invalid(*sp))
 			sp++;
 	}
 	*dp = '\0';
@@ -265,7 +265,7 @@ bool tomoyo_tokenize(char *buffer, char *w[], size_t size)
 }
 
 /**
- * tomoyo_is_correct_word2 - Validate a string.
+ * tomoyo_correct_word2 - Validate a string.
  *
  * @string: The string to check. May be non-'\0'-terminated.
  * @len:    Length of @string.
@@ -273,7 +273,7 @@ bool tomoyo_tokenize(char *buffer, char *w[], size_t size)
  * Check whether the given string follows the naming rules.
  * Returns true if @string follows the naming rules, false otherwise.
  */
-static bool tomoyo_is_correct_word2(const char *string, size_t len)
+static bool tomoyo_correct_word2(const char *string, size_t len)
 {
 	const char *const start = string;
 	bool in_repetition = false;
@@ -325,13 +325,13 @@ static bool tomoyo_is_correct_word2(const char *string, size_t len)
 				if (d < '0' || d > '7' || e < '0' || e > '7')
 					break;
 				c = tomoyo_make_byte(c, d, e);
-				if (tomoyo_is_invalid(c))
+				if (tomoyo_invalid(c))
 					continue; /* pattern is not \000 */
 			}
 			goto out;
 		} else if (in_repetition && c == '/') {
 			goto out;
-		} else if (tomoyo_is_invalid(c)) {
+		} else if (tomoyo_invalid(c)) {
 			goto out;
 		}
 	}
@@ -343,39 +343,39 @@ static bool tomoyo_is_correct_word2(const char *string, size_t len)
 }
 
 /**
- * tomoyo_is_correct_word - Validate a string.
+ * tomoyo_correct_word - Validate a string.
  *
  * @string: The string to check.
  *
  * Check whether the given string follows the naming rules.
  * Returns true if @string follows the naming rules, false otherwise.
  */
-bool tomoyo_is_correct_word(const char *string)
+bool tomoyo_correct_word(const char *string)
 {
-	return tomoyo_is_correct_word2(string, strlen(string));
+	return tomoyo_correct_word2(string, strlen(string));
 }
 
 /**
- * tomoyo_is_correct_path - Validate a pathname.
+ * tomoyo_correct_path - Validate a pathname.
  *
  * @filename: The pathname to check.
  *
  * Check whether the given pathname follows the naming rules.
  * Returns true if @filename follows the naming rules, false otherwise.
  */
-bool tomoyo_is_correct_path(const char *filename)
+bool tomoyo_correct_path(const char *filename)
 {
-	return *filename == '/' && tomoyo_is_correct_word(filename);
+	return *filename == '/' && tomoyo_correct_word(filename);
 }
 
 /**
- * tomoyo_is_correct_domain - Check whether the given domainname follows the naming rules.
+ * tomoyo_correct_domain - Check whether the given domainname follows the naming rules.
  *
  * @domainname: The domainname to check.
  *
  * Returns true if @domainname follows the naming rules, false otherwise.
  */
-bool tomoyo_is_correct_domain(const unsigned char *domainname)
+bool tomoyo_correct_domain(const unsigned char *domainname)
 {
 	if (!domainname || strncmp(domainname, TOMOYO_ROOT_NAME,
 				   TOMOYO_ROOT_NAME_LEN))
@@ -390,23 +390,23 @@ bool tomoyo_is_correct_domain(const unsigned char *domainname)
 		if (!cp)
 			break;
 		if (*domainname != '/' ||
-		    !tomoyo_is_correct_word2(domainname, cp - domainname - 1))
+		    !tomoyo_correct_word2(domainname, cp - domainname - 1))
 			goto out;
 		domainname = cp + 1;
 	}
-	return tomoyo_is_correct_path(domainname);
+	return tomoyo_correct_path(domainname);
  out:
 	return false;
 }
 
 /**
- * tomoyo_is_domain_def - Check whether the given token can be a domainname.
+ * tomoyo_domain_def - Check whether the given token can be a domainname.
  *
  * @buffer: The token to check.
  *
  * Returns true if @buffer possibly be a domainname, false otherwise.
  */
-bool tomoyo_is_domain_def(const unsigned char *buffer)
+bool tomoyo_domain_def(const unsigned char *buffer)
 {
 	return !strncmp(buffer, TOMOYO_ROOT_NAME, TOMOYO_ROOT_NAME_LEN);
 }
@@ -528,7 +528,7 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 			} else if (c == '\\') {
 				if (filename[1] == '\\')
 					filename++;
-				else if (tomoyo_is_byte_range(filename + 1))
+				else if (tomoyo_byte_range(filename + 1))
 					filename += 3;
 				else
 					return false;
@@ -549,14 +549,14 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 				return false;
 			break;
 		case 'a':
-			if (!tomoyo_is_alphabet_char(c))
+			if (!tomoyo_alphabet_char(c))
 				return false;
 			break;
 		case '0':
 		case '1':
 		case '2':
 		case '3':
-			if (c == '\\' && tomoyo_is_byte_range(filename + 1)
+			if (c == '\\' && tomoyo_byte_range(filename + 1)
 			    && strncmp(filename + 1, pattern, 3) == 0) {
 				filename += 3;
 				pattern += 2;
@@ -577,7 +577,7 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 					continue;
 				if (filename[i + 1] == '\\')
 					i++;
-				else if (tomoyo_is_byte_range(filename + i + 1))
+				else if (tomoyo_byte_range(filename + i + 1))
 					i += 3;
 				else
 					break; /* Bad pattern. */
@@ -593,7 +593,7 @@ static bool tomoyo_file_matches_pattern2(const char *filename,
 				while (isxdigit(filename[j]))
 					j++;
 			} else if (c == 'A') {
-				while (tomoyo_is_alphabet_char(filename[j]))
+				while (tomoyo_alphabet_char(filename[j]))
 					j++;
 			}
 			for (i = 1; i <= j; i++) {
@@ -939,10 +939,10 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 				if (perm & (1 << i))
 					count++;
 			break;
-		case TOMOYO_TYPE_PATH_NUMBER3_ACL:
-			perm = container_of(ptr, struct tomoyo_path_number3_acl,
+		case TOMOYO_TYPE_MKDEV_ACL:
+			perm = container_of(ptr, struct tomoyo_mkdev_acl,
 					    head)->perm;
-			for (i = 0; i < TOMOYO_MAX_PATH_NUMBER3_OPERATION; i++)
+			for (i = 0; i < TOMOYO_MAX_MKDEV_OPERATION; i++)
 				if (perm & (1 << i))
 					count++;
 			break;

@@ -25,8 +25,8 @@ static const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
 };
 
 /* Keyword array for operations with one pathname and three numbers. */
-static const char *tomoyo_path_number3_keyword
-[TOMOYO_MAX_PATH_NUMBER3_OPERATION] = {
+static const char *tomoyo_mkdev_keyword
+[TOMOYO_MAX_MKDEV_OPERATION] = {
 	[TOMOYO_TYPE_MKBLOCK]    = "mkblock",
 	[TOMOYO_TYPE_MKCHAR]     = "mkchar",
 };
@@ -65,7 +65,7 @@ static const u8 tomoyo_p2mac[TOMOYO_MAX_PATH_OPERATION] = {
 	[TOMOYO_TYPE_UMOUNT]     = TOMOYO_MAC_FILE_UMOUNT,
 };
 
-static const u8 tomoyo_pnnn2mac[TOMOYO_MAX_PATH_NUMBER3_OPERATION] = {
+static const u8 tomoyo_pnnn2mac[TOMOYO_MAX_MKDEV_OPERATION] = {
 	[TOMOYO_TYPE_MKBLOCK] = TOMOYO_MAC_FILE_MKBLOCK,
 	[TOMOYO_TYPE_MKCHAR]  = TOMOYO_MAC_FILE_MKCHAR,
 };
@@ -133,16 +133,16 @@ const char *tomoyo_path2keyword(const u8 operation)
 }
 
 /**
- * tomoyo_path_number32keyword - Get the name of path/number/number/number operations.
+ * tomoyo_mkdev2keyword - Get the name of path/number/number/number operations.
  *
  * @operation: Type of operation.
  *
  * Returns the name of path/number/number/number operation.
  */
-const char *tomoyo_path_number32keyword(const u8 operation)
+const char *tomoyo_mkdev2keyword(const u8 operation)
 {
-	return (operation < TOMOYO_MAX_PATH_NUMBER3_OPERATION)
-		? tomoyo_path_number3_keyword[operation] : NULL;
+	return (operation < TOMOYO_MAX_MKDEV_OPERATION)
+		? tomoyo_mkdev_keyword[operation] : NULL;
 }
 
 /**
@@ -266,7 +266,7 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
  */
 static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 {
-	const char *operation = tomoyo_path_number32keyword(r->param.mkdev.
+	const char *operation = tomoyo_mkdev2keyword(r->param.mkdev.
 							    operation);
 	const struct tomoyo_path_info *filename = r->param.mkdev.filename;
 	const unsigned int major = r->param.mkdev.major;
@@ -380,7 +380,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	struct tomoyo_globally_readable_file_entry e = { };
 	int error;
 
-	if (!tomoyo_is_correct_word(filename))
+	if (!tomoyo_correct_word(filename))
 		return -EINVAL;
 	e.filename = tomoyo_get_name(filename);
 	if (!e.filename)
@@ -393,7 +393,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 }
 
 /**
- * tomoyo_is_globally_readable_file - Check if the file is unconditionnaly permitted to be open()ed for reading.
+ * tomoyo_globally_readable_file - Check if the file is unconditionnaly permitted to be open()ed for reading.
  *
  * @filename: The filename to check.
  *
@@ -401,7 +401,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_is_globally_readable_file(const struct tomoyo_path_info *
+static bool tomoyo_globally_readable_file(const struct tomoyo_path_info *
 					     filename)
 {
 	struct tomoyo_globally_readable_file_entry *ptr;
@@ -517,7 +517,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 	struct tomoyo_pattern_entry e = { };
 	int error;
 
-	if (!tomoyo_is_correct_word(pattern))
+	if (!tomoyo_correct_word(pattern))
 		return -EINVAL;
 	e.pattern = tomoyo_get_name(pattern);
 	if (!e.pattern)
@@ -658,7 +658,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	struct tomoyo_no_rewrite_entry e = { };
 	int error;
 
-	if (!tomoyo_is_correct_word(pattern))
+	if (!tomoyo_correct_word(pattern))
 		return -EINVAL;
 	e.pattern = tomoyo_get_name(pattern);
 	if (!e.pattern)
@@ -671,7 +671,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 }
 
 /**
- * tomoyo_is_no_rewrite_file - Check if the given pathname is not permitted to be rewrited.
+ * tomoyo_no_rewrite_file - Check if the given pathname is not permitted to be rewrited.
  *
  * @filename: Filename to check.
  *
@@ -680,7 +680,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_is_no_rewrite_file(const struct tomoyo_path_info *filename)
+static bool tomoyo_no_rewrite_file(const struct tomoyo_path_info *filename)
 {
 	struct tomoyo_no_rewrite_entry *ptr;
 	bool found = false;
@@ -774,7 +774,7 @@ static bool tomoyo_check_path2_acl(const struct tomoyo_request_info *r,
 static bool tomoyo_check_mkdev_acl(const struct tomoyo_request_info *r,
 				const struct tomoyo_acl_info *ptr)
 {
-	const struct tomoyo_path_number3_acl *acl =
+	const struct tomoyo_mkdev_acl *acl =
 		container_of(ptr, typeof(*acl), head);
 	return (acl->perm & (1 << r->param.mkdev.operation)) &&
 		tomoyo_compare_number_union(r->param.mkdev.mode,
@@ -792,8 +792,8 @@ static bool tomoyo_same_path_acl(const struct tomoyo_acl_info *a,
 {
 	const struct tomoyo_path_acl *p1 = container_of(a, typeof(*p1), head);
 	const struct tomoyo_path_acl *p2 = container_of(b, typeof(*p2), head);
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
-		tomoyo_is_same_name_union(&p1->name, &p2->name);
+	return tomoyo_same_acl_head(&p1->head, &p2->head) &&
+		tomoyo_same_name_union(&p1->name, &p2->name);
 }
 
 static bool tomoyo_merge_path_acl(struct tomoyo_acl_info *a,
@@ -853,28 +853,28 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 	return error;
 }
 
-static bool tomoyo_same_path_number3_acl(const struct tomoyo_acl_info *a,
+static bool tomoyo_same_mkdev_acl(const struct tomoyo_acl_info *a,
 					 const struct tomoyo_acl_info *b)
 {
-	const struct tomoyo_path_number3_acl *p1 = container_of(a, typeof(*p1),
+	const struct tomoyo_mkdev_acl *p1 = container_of(a, typeof(*p1),
 								head);
-	const struct tomoyo_path_number3_acl *p2 = container_of(b, typeof(*p2),
+	const struct tomoyo_mkdev_acl *p2 = container_of(b, typeof(*p2),
 								head);
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
-		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
-		&& tomoyo_is_same_number_union(&p1->mode, &p2->mode)
-		&& tomoyo_is_same_number_union(&p1->major, &p2->major)
-		&& tomoyo_is_same_number_union(&p1->minor, &p2->minor);
+	return tomoyo_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_same_name_union(&p1->name, &p2->name)
+		&& tomoyo_same_number_union(&p1->mode, &p2->mode)
+		&& tomoyo_same_number_union(&p1->major, &p2->major)
+		&& tomoyo_same_number_union(&p1->minor, &p2->minor);
 }
 
-static bool tomoyo_merge_path_number3_acl(struct tomoyo_acl_info *a,
+static bool tomoyo_merge_mkdev_acl(struct tomoyo_acl_info *a,
 					  struct tomoyo_acl_info *b,
 					  const bool is_delete)
 {
-	u8 *const a_perm = &container_of(a, struct tomoyo_path_number3_acl,
+	u8 *const a_perm = &container_of(a, struct tomoyo_mkdev_acl,
 					 head)->perm;
 	u8 perm = *a_perm;
-	const u8 b_perm = container_of(b, struct tomoyo_path_number3_acl, head)
+	const u8 b_perm = container_of(b, struct tomoyo_mkdev_acl, head)
 		->perm;
 	if (is_delete)
 		perm &= ~b_perm;
@@ -885,7 +885,7 @@ static bool tomoyo_merge_path_number3_acl(struct tomoyo_acl_info *a,
 }
 
 /**
- * tomoyo_update_path_number3_acl - Update "struct tomoyo_path_number3_acl" list.
+ * tomoyo_update_mkdev_acl - Update "struct tomoyo_mkdev_acl" list.
  *
  * @type:      Type of operation.
  * @filename:  Filename.
@@ -899,13 +899,13 @@ static bool tomoyo_merge_path_number3_acl(struct tomoyo_acl_info *a,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_path_number3_acl(const u8 type, const char *filename,
+static int tomoyo_update_mkdev_acl(const u8 type, const char *filename,
 					  char *mode, char *major, char *minor,
 					  struct tomoyo_domain_info * const
 					  domain, const bool is_delete)
 {
-	struct tomoyo_path_number3_acl e = {
-		.head.type = TOMOYO_TYPE_PATH_NUMBER3_ACL,
+	struct tomoyo_mkdev_acl e = {
+		.head.type = TOMOYO_TYPE_MKDEV_ACL,
 		.perm = 1 << type
 	};
 	int error = is_delete ? -ENOENT : -ENOMEM;
@@ -915,8 +915,8 @@ static int tomoyo_update_path_number3_acl(const u8 type, const char *filename,
 	    !tomoyo_parse_number_union(minor, &e.minor))
 		goto out;
 	error = tomoyo_update_domain(&e.head, sizeof(e), is_delete, domain,
-				     tomoyo_same_path_number3_acl,
-				     tomoyo_merge_path_number3_acl);
+				     tomoyo_same_mkdev_acl,
+				     tomoyo_merge_mkdev_acl);
  out:
 	tomoyo_put_name_union(&e.name);
 	tomoyo_put_number_union(&e.mode);
@@ -930,9 +930,9 @@ static bool tomoyo_same_path2_acl(const struct tomoyo_acl_info *a,
 {
 	const struct tomoyo_path2_acl *p1 = container_of(a, typeof(*p1), head);
 	const struct tomoyo_path2_acl *p2 = container_of(b, typeof(*p2), head);
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
-		&& tomoyo_is_same_name_union(&p1->name1, &p2->name1)
-		&& tomoyo_is_same_name_union(&p1->name2, &p2->name2);
+	return tomoyo_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_same_name_union(&p1->name1, &p2->name1)
+		&& tomoyo_same_name_union(&p1->name2, &p2->name2);
 }
 
 static bool tomoyo_merge_path2_acl(struct tomoyo_acl_info *a,
@@ -1014,7 +1014,7 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 		tomoyo_check_acl(r, tomoyo_check_path_acl);
 		if (!r->granted && operation == TOMOYO_TYPE_READ &&
 		    !r->domain->ignore_global_allow_read &&
-		    tomoyo_is_globally_readable_file(filename))
+		    tomoyo_globally_readable_file(filename))
 			r->granted = true;
 		error = tomoyo_audit_path_log(r);
 		/*
@@ -1029,7 +1029,7 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	 * specified by "deny_rewrite" keyword.
 	 */
 	if (!error && operation == TOMOYO_TYPE_TRUNCATE &&
-	    tomoyo_is_no_rewrite_file(filename)) {
+	    tomoyo_no_rewrite_file(filename)) {
 		operation = TOMOYO_TYPE_REWRITE;
 		goto next;
 	}
@@ -1043,9 +1043,9 @@ static bool tomoyo_same_path_number_acl(const struct tomoyo_acl_info *a,
 							       head);
 	const struct tomoyo_path_number_acl *p2 = container_of(b, typeof(*p2),
 							       head);
-	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
-		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
-		&& tomoyo_is_same_number_union(&p1->number, &p2->number);
+	return tomoyo_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_same_name_union(&p1->name, &p2->name)
+		&& tomoyo_same_number_union(&p1->number, &p2->number);
 }
 
 static bool tomoyo_merge_path_number_acl(struct tomoyo_acl_info *a,
@@ -1204,7 +1204,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 			error = -ENOMEM;
 			goto out;
 		}
-		if (tomoyo_is_no_rewrite_file(&buf))
+		if (tomoyo_no_rewrite_file(&buf))
 			error = tomoyo_path_permission(&r, TOMOYO_TYPE_REWRITE,
 						       &buf);
 	}
@@ -1258,7 +1258,7 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 		goto out;
 	switch (operation) {
 	case TOMOYO_TYPE_REWRITE:
-		if (!tomoyo_is_no_rewrite_file(&buf)) {
+		if (!tomoyo_no_rewrite_file(&buf)) {
 			error = 0;
 			goto out;
 		}
@@ -1279,7 +1279,7 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 }
 
 /**
- * tomoyo_path_number3_perm - Check permission for "mkblock" and "mkchar".
+ * tomoyo_mkdev_perm - Check permission for "mkblock" and "mkchar".
  *
  * @operation: Type of operation. (TOMOYO_TYPE_MKCHAR or TOMOYO_TYPE_MKBLOCK)
  * @path:      Pointer to "struct path".
@@ -1288,7 +1288,7 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
  *
  * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_path_number3_perm(const u8 operation, struct path *path,
+int tomoyo_mkdev_perm(const u8 operation, struct path *path,
 			     const unsigned int mode, unsigned int dev)
 {
 	struct tomoyo_request_info r;
@@ -1304,7 +1304,7 @@ int tomoyo_path_number3_perm(const u8 operation, struct path *path,
 	error = -ENOMEM;
 	if (tomoyo_get_realpath(&buf, path)) {
 		dev = new_decode_dev(dev);
-		r.param_type = TOMOYO_TYPE_PATH_NUMBER3_ACL;
+		r.param_type = TOMOYO_TYPE_MKDEV_ACL;
 		r.param.mkdev.filename = &buf;
 		r.param.mkdev.operation = operation;
 		r.param.mkdev.mode = mode;
@@ -1420,11 +1420,11 @@ int tomoyo_write_file_policy(char *data, struct tomoyo_domain_info *domain,
 	}
 	if (!w[3][0] || !w[4][0])
 		goto out;
-	for (type = 0; type < TOMOYO_MAX_PATH_NUMBER3_OPERATION; type++) {
-		if (strcmp(w[0], tomoyo_path_number3_keyword[type]))
+	for (type = 0; type < TOMOYO_MAX_MKDEV_OPERATION; type++) {
+		if (strcmp(w[0], tomoyo_mkdev_keyword[type]))
 			continue;
-		return tomoyo_update_path_number3_acl(type, w[1], w[2], w[3],
-						      w[4], domain, is_delete);
+		return tomoyo_update_mkdev_acl(type, w[1], w[2], w[3],
+					       w[4], domain, is_delete);
 	}
  out:
 	return -EINVAL;

@@ -80,7 +80,7 @@ enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_PATH_ACL,
 	TOMOYO_TYPE_PATH2_ACL,
 	TOMOYO_TYPE_PATH_NUMBER_ACL,
-	TOMOYO_TYPE_PATH_NUMBER3_ACL,
+	TOMOYO_TYPE_MKDEV_ACL,
 	TOMOYO_TYPE_MOUNT_ACL,
 };
 
@@ -114,10 +114,10 @@ enum tomoyo_path_acl_index {
 
 #define TOMOYO_RW_MASK ((1 << TOMOYO_TYPE_READ) | (1 << TOMOYO_TYPE_WRITE))
 
-enum tomoyo_path_number3_acl_index {
+enum tomoyo_mkdev_acl_index {
 	TOMOYO_TYPE_MKBLOCK,
 	TOMOYO_TYPE_MKCHAR,
-	TOMOYO_MAX_PATH_NUMBER3_OPERATION
+	TOMOYO_MAX_MKDEV_OPERATION
 };
 
 enum tomoyo_path2_acl_index {
@@ -342,7 +342,7 @@ struct tomoyo_number_group_member {
  *
  * Packing "struct tomoyo_acl_info" allows
  * "struct tomoyo_path_acl" to embed "u16" and "struct tomoyo_path2_acl"
- * "struct tomoyo_path_number_acl" "struct tomoyo_path_number3_acl" to embed
+ * "struct tomoyo_path_number_acl" "struct tomoyo_mkdev_acl" to embed
  * "u8" without enlarging their structure size.
  */
 struct tomoyo_acl_info {
@@ -439,7 +439,7 @@ struct tomoyo_path_number_acl {
 };
 
 /*
- * tomoyo_path_number3_acl is a structure which is used for holding an
+ * tomoyo_mkdev_acl is a structure which is used for holding an
  * entry with one pathname and three numbers operation.
  * It has following fields.
  *
@@ -452,8 +452,8 @@ struct tomoyo_path_number_acl {
  * Directives held by this structure are "allow_mkchar", "allow_mkblock".
  *
  */
-struct tomoyo_path_number3_acl {
-	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_NUMBER3_ACL */
+struct tomoyo_mkdev_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MKDEV_ACL */
 	u8 perm;
 	struct tomoyo_name_union name;
 	struct tomoyo_number_union mode;
@@ -756,12 +756,12 @@ int tomoyo_get_mode(const u8 profile, const u8 index);
 bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
 /* Check whether the domainname is correct. */
-bool tomoyo_is_correct_domain(const unsigned char *domainname);
+bool tomoyo_correct_domain(const unsigned char *domainname);
 /* Check whether the token is correct. */
-bool tomoyo_is_correct_path(const char *filename);
-bool tomoyo_is_correct_word(const char *string);
+bool tomoyo_correct_path(const char *filename);
+bool tomoyo_correct_word(const char *string);
 /* Check whether the token can be a domainname. */
-bool tomoyo_is_domain_def(const unsigned char *buffer);
+bool tomoyo_domain_def(const unsigned char *buffer);
 bool tomoyo_parse_name_union(const char *filename,
 			     struct tomoyo_name_union *ptr);
 /* Check whether the given filename matches the given path_group. */
@@ -807,7 +807,7 @@ bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
 /* Convert double path operation to operation name. */
 const char *tomoyo_path22keyword(const u8 operation);
 const char *tomoyo_path_number2keyword(const u8 operation);
-const char *tomoyo_path_number32keyword(const u8 operation);
+const char *tomoyo_mkdev2keyword(const u8 operation);
 /* Get the last component of the given domainname. */
 const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
 /* Convert single path operation to operation name. */
@@ -919,8 +919,8 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
 int tomoyo_path_number_perm(const u8 operation, struct path *path,
 			    unsigned long number);
-int tomoyo_path_number3_perm(const u8 operation, struct path *path,
-			     const unsigned int mode, unsigned int dev);
+int tomoyo_mkdev_perm(const u8 operation, struct path *path,
+		      const unsigned int mode, unsigned int dev);
 int tomoyo_path_perm(const u8 operation, struct path *path);
 int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
@@ -1008,25 +1008,25 @@ static inline bool tomoyo_pathcmp(const struct tomoyo_path_info *a,
 }
 
 /**
- * tomoyo_is_valid - Check whether the character is a valid char.
+ * tomoyo_valid - Check whether the character is a valid char.
  *
  * @c: The character to check.
  *
  * Returns true if @c is a valid character, false otherwise.
  */
-static inline bool tomoyo_is_valid(const unsigned char c)
+static inline bool tomoyo_valid(const unsigned char c)
 {
 	return c > ' ' && c < 127;
 }
 
 /**
- * tomoyo_is_invalid - Check whether the character is an invalid char.
+ * tomoyo_invalid - Check whether the character is an invalid char.
  *
  * @c: The character to check.
  *
  * Returns true if @c is an invalid character, false otherwise.
  */
-static inline bool tomoyo_is_invalid(const unsigned char c)
+static inline bool tomoyo_invalid(const unsigned char c)
 {
 	return c && (c <= ' ' || c >= 127);
 }
@@ -1063,20 +1063,20 @@ static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 	return task_cred_xxx(task, security);
 }
 
-static inline bool tomoyo_is_same_acl_head(const struct tomoyo_acl_info *p1,
+static inline bool tomoyo_same_acl_head(const struct tomoyo_acl_info *p1,
 					   const struct tomoyo_acl_info *p2)
 {
 	return p1->type == p2->type;
 }
 
-static inline bool tomoyo_is_same_name_union
+static inline bool tomoyo_same_name_union
 (const struct tomoyo_name_union *p1, const struct tomoyo_name_union *p2)
 {
 	return p1->filename == p2->filename && p1->group == p2->group &&
 		p1->is_group == p2->is_group;
 }
 
-static inline bool tomoyo_is_same_number_union
+static inline bool tomoyo_same_number_union
 (const struct tomoyo_number_union *p1, const struct tomoyo_number_union *p2)
 {
 	return p1->values[0] == p2->values[0] && p1->values[1] == p2->values[1]

@@ -494,12 +494,12 @@ static int tomoyo_update_manager_entry(const char *manager,
 	struct tomoyo_policy_manager_entry e = { };
 	int error;
 
-	if (tomoyo_is_domain_def(manager)) {
-		if (!tomoyo_is_correct_domain(manager))
+	if (tomoyo_domain_def(manager)) {
+		if (!tomoyo_correct_domain(manager))
 			return -EINVAL;
 		e.is_domain = true;
 	} else {
-		if (!tomoyo_is_correct_path(manager))
+		if (!tomoyo_correct_path(manager))
 			return -EINVAL;
 	}
 	e.manager = tomoyo_get_name(manager);
@@ -565,14 +565,14 @@ static int tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_is_policy_manager - Check whether the current process is a policy manager.
+ * tomoyo_policy_manager - Check whether the current process is a policy manager.
  *
  * Returns true if the current process is permitted to modify policy
  * via /sys/kernel/security/tomoyo/ interface.
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_is_policy_manager(void)
+static bool tomoyo_policy_manager(void)
 {
 	struct tomoyo_policy_manager_entry *ptr;
 	const char *exe;
@@ -617,7 +617,7 @@ static bool tomoyo_is_policy_manager(void)
 }
 
 /**
- * tomoyo_is_select_one - Parse select command.
+ * tomoyo_select_one - Parse select command.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  * @data: String to parse.
@@ -626,7 +626,7 @@ static bool tomoyo_is_policy_manager(void)
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_is_select_one(struct tomoyo_io_buffer *head,
+static bool tomoyo_select_one(struct tomoyo_io_buffer *head,
 				 const char *data)
 {
 	unsigned int pid;
@@ -647,7 +647,7 @@ static bool tomoyo_is_select_one(struct tomoyo_io_buffer *head,
 		read_unlock(&tasklist_lock);
 		rcu_read_unlock();
 	} else if (!strncmp(data, "domain=", 7)) {
-		if (tomoyo_is_domain_def(data + 7))
+		if (tomoyo_domain_def(data + 7))
 			domain = tomoyo_find_domain(data + 7);
 	} else
 		return false;
@@ -748,12 +748,12 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 		is_delete = true;
 	else if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_SELECT))
 		is_select = true;
-	if (is_select && tomoyo_is_select_one(head, data))
+	if (is_select && tomoyo_select_one(head, data))
 		return 0;
 	/* Don't allow updating policies by non manager programs. */
-	if (!tomoyo_is_policy_manager())
+	if (!tomoyo_policy_manager())
 		return -EPERM;
-	if (tomoyo_is_domain_def(data)) {
+	if (tomoyo_domain_def(data)) {
 		domain = NULL;
 		if (is_delete)
 			tomoyo_delete_domain(data);
@@ -894,26 +894,26 @@ static bool tomoyo_print_path_number_acl(struct tomoyo_io_buffer *head,
 }
 
 /**
- * tomoyo_print_path_number3_acl - Print a path_number3 ACL entry.
+ * tomoyo_print_mkdev_acl - Print a mkdev ACL entry.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_path_number3_acl".
+ * @ptr:  Pointer to "struct tomoyo_mkdev_acl".
  *
  * Returns true on success, false otherwise.
  */
-static bool tomoyo_print_path_number3_acl(struct tomoyo_io_buffer *head,
-					  struct tomoyo_path_number3_acl *ptr)
+static bool tomoyo_print_mkdev_acl(struct tomoyo_io_buffer *head,
+					  struct tomoyo_mkdev_acl *ptr)
 {
 	int pos;
 	u8 bit;
 	const u16 perm = ptr->perm;
-	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_NUMBER3_OPERATION;
+	for (bit = head->read_bit; bit < TOMOYO_MAX_MKDEV_OPERATION;
 	     bit++) {
 		if (!(perm & (1 << bit)))
 			continue;
 		pos = head->read_avail;
 		if (!tomoyo_io_printf(head, "allow_%s",
-				      tomoyo_path_number32keyword(bit)) ||
+				      tomoyo_mkdev2keyword(bit)) ||
 		    !tomoyo_print_name_union(head, &ptr->name) ||
 		    !tomoyo_print_number_union(head, &ptr->mode) ||
 		    !tomoyo_print_number_union(head, &ptr->major) ||
@@ -984,11 +984,11 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 				       head);
 		return tomoyo_print_path_number_acl(head, acl);
 	}
-	if (acl_type == TOMOYO_TYPE_PATH_NUMBER3_ACL) {
-		struct tomoyo_path_number3_acl *acl
-			= container_of(ptr, struct tomoyo_path_number3_acl,
+	if (acl_type == TOMOYO_TYPE_MKDEV_ACL) {
+		struct tomoyo_mkdev_acl *acl
+			= container_of(ptr, struct tomoyo_mkdev_acl,
 				       head);
-		return tomoyo_print_path_number3_acl(head, acl);
+		return tomoyo_print_mkdev_acl(head, acl);
 	}
 	if (acl_type == TOMOYO_TYPE_MOUNT_ACL) {
 		struct tomoyo_mount_acl *acl
@@ -1910,7 +1910,7 @@ int tomoyo_write_control(struct file *file, const char __user *buffer,
 	/* Don't allow updating policies by non manager programs. */
 	if (head->write != tomoyo_write_pid &&
 	    head->write != tomoyo_write_domain_policy &&
-	    !tomoyo_is_policy_manager())
+	    !tomoyo_policy_manager())
 		return -EPERM;
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;

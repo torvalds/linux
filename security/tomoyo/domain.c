@@ -256,13 +256,13 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	struct tomoyo_domain_initializer_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(program))
+	if (!tomoyo_correct_path(program))
 		return -EINVAL;
 	if (domainname) {
-		if (!tomoyo_is_domain_def(domainname) &&
-		    tomoyo_is_correct_path(domainname))
+		if (!tomoyo_domain_def(domainname) &&
+		    tomoyo_correct_path(domainname))
 			e.is_last_name = true;
-		else if (!tomoyo_is_correct_domain(domainname))
+		else if (!tomoyo_correct_domain(domainname))
 			return -EINVAL;
 		e.domainname = tomoyo_get_name(domainname);
 		if (!e.domainname)
@@ -346,7 +346,7 @@ int tomoyo_write_domain_initializer_policy(char *data, const bool is_not,
 }
 
 /**
- * tomoyo_is_domain_initializer - Check whether the given program causes domainname reinitialization.
+ * tomoyo_domain_initializer - Check whether the given program causes domainname reinitialization.
  *
  * @domainname: The name of domain.
  * @program:    The name of program.
@@ -357,7 +357,7 @@ int tomoyo_write_domain_initializer_policy(char *data, const bool is_not,
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_is_domain_initializer(const struct tomoyo_path_info *
+static bool tomoyo_domain_initializer(const struct tomoyo_path_info *
 					 domainname,
 					 const struct tomoyo_path_info *program,
 					 const struct tomoyo_path_info *
@@ -462,13 +462,13 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	struct tomoyo_domain_keeper_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_domain_def(domainname) &&
-	    tomoyo_is_correct_path(domainname))
+	if (!tomoyo_domain_def(domainname) &&
+	    tomoyo_correct_path(domainname))
 		e.is_last_name = true;
-	else if (!tomoyo_is_correct_domain(domainname))
+	else if (!tomoyo_correct_domain(domainname))
 		return -EINVAL;
 	if (program) {
-		if (!tomoyo_is_correct_path(program))
+		if (!tomoyo_correct_path(program))
 			return -EINVAL;
 		e.program = tomoyo_get_name(program);
 		if (!e.program)
@@ -549,7 +549,7 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_is_domain_keeper - Check whether the given program causes domain transition suppression.
+ * tomoyo_domain_keeper - Check whether the given program causes domain transition suppression.
  *
  * @domainname: The name of domain.
  * @program:    The name of program.
@@ -560,7 +560,7 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
+static bool tomoyo_domain_keeper(const struct tomoyo_path_info *domainname,
 				    const struct tomoyo_path_info *program,
 				    const struct tomoyo_path_info *last_name)
 {
@@ -646,8 +646,8 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 	struct tomoyo_aggregator_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(original_name) ||
-	    !tomoyo_is_correct_path(aggregated_name))
+	if (!tomoyo_correct_path(original_name) ||
+	    !tomoyo_correct_path(aggregated_name))
 		return -EINVAL;
 	e.original_name = tomoyo_get_name(original_name);
 	e.aggregated_name = tomoyo_get_name(aggregated_name);
@@ -774,8 +774,8 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	struct tomoyo_alias_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(original_name) ||
-	    !tomoyo_is_correct_path(aliased_name))
+	if (!tomoyo_correct_path(original_name) ||
+	    !tomoyo_correct_path(aliased_name))
 		return -EINVAL;
 	e.original_name = tomoyo_get_name(original_name);
 	e.aliased_name = tomoyo_get_name(aliased_name);
@@ -859,7 +859,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	const struct tomoyo_path_info *saved_domainname;
 	bool found = false;
 
-	if (!tomoyo_is_correct_domain(domainname))
+	if (!tomoyo_correct_domain(domainname))
 		return NULL;
 	saved_domainname = tomoyo_get_name(domainname);
 	if (!saved_domainname)
@@ -984,7 +984,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto out;
 
-	if (tomoyo_is_domain_initializer(old_domain->domainname, &rn, &ln)) {
+	if (tomoyo_domain_initializer(old_domain->domainname, &rn, &ln)) {
 		/* Transit to the child of tomoyo_kernel_domain domain. */
 		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1,
 			 TOMOYO_ROOT_NAME " " "%s", rn.name);
@@ -996,7 +996,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		 * initializers because they might start before /sbin/init.
 		 */
 		domain = old_domain;
-	} else if (tomoyo_is_domain_keeper(old_domain->domainname, &rn, &ln)) {
+	} else if (tomoyo_domain_keeper(old_domain->domainname, &rn, &ln)) {
 		/* Keep current domain. */
 		domain = old_domain;
 	} else {

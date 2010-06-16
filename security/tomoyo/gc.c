@@ -122,9 +122,9 @@ static void tomoyo_del_acl(struct tomoyo_acl_info *acl)
 			tomoyo_put_number_union(&entry->number);
 		}
 		break;
-	case TOMOYO_TYPE_PATH_NUMBER3_ACL:
+	case TOMOYO_TYPE_MKDEV_ACL:
 		{
-			struct tomoyo_path_number3_acl *entry
+			struct tomoyo_mkdev_acl *entry
 				= container_of(acl, typeof(*entry), head);
 			tomoyo_put_name_union(&entry->name);
 			tomoyo_put_number_union(&entry->mode);
