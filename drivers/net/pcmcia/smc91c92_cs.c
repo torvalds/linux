@@ -322,6 +322,7 @@ static int smc91c92_probe(struct pcmcia_device *link)
 	return -ENOMEM;
     smc = netdev_priv(dev);
     smc->p_dev = link;
+    link->priv = dev;
 
     spin_lock_init(&smc->lock);
     link->io.NumPorts1 = 16;

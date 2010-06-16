@@ -3653,6 +3653,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPEACONF_DOUBLE_WIDE;
 	}
 
+	dspcntr |= DISPLAY_PLANE_ENABLE;
+	pipeconf |= PIPEACONF_ENABLE;
+	dpll |= DPLL_VCO_ENABLE;
+
+
 	/* Disable the panel fitter if it was on our pipe */
 	if (!HAS_PCH_SPLIT(dev) && intel_panel_fitter_pipe(dev) == pipe)
 		I915_WRITE(PFIT_CONTROL, 0);
@@ -3973,6 +3978,13 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			DRM_ERROR("failed to pin cursor bo\n");
 			goto fail_locked;
 		}
+
+		ret = i915_gem_object_set_to_gtt_domain(bo, 0);
+		if (ret) {
+			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			goto fail_unpin;
+		}
+
 		addr = obj_priv->gtt_offset;
 	} else {
 		ret = i915_gem_attach_phys_object(dev, bo, (pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
@@ -4016,6 +4028,8 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	intel_crtc->cursor_bo = bo;
 
 	return 0;
+fail_unpin:
+	i915_gem_object_unpin(bo);
 fail_locked:
 	mutex_unlock(&dev->struct_mutex);
 fail:
@@ -5461,7 +5475,6 @@ static void intel_init_display(struct drm_device *dev)
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int num_pipe;
 	int i;
 
 	drm_mode_config_init(dev);
@@ -5491,13 +5504,13 @@ void intel_modeset_init(struct drm_device *dev)
 		dev->mode_config.fb_base = pci_resource_start(dev->pdev, 0);
 
 	if (IS_MOBILE(dev) || IS_I9XX(dev))
-		num_pipe = 2;
+		dev_priv->num_pipe = 2;
 	else
-		num_pipe = 1;
+		dev_priv->num_pipe = 1;
 	DRM_DEBUG_KMS("%d display pipe%s available.\n",
-		  num_pipe, num_pipe > 1 ? "s" : "");
+		      dev_priv->num_pipe, dev_priv->num_pipe > 1 ? "s" : "");
 
-	for (i = 0; i < num_pipe; i++) {
+	for (i = 0; i < dev_priv->num_pipe; i++) {
 		intel_crtc_init(dev, i);
 	}
 
