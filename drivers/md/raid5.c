@@ -366,6 +366,73 @@ static struct stripe_head *__find_stripe(raid5_conf_t *conf, sector_t sector,
 	return NULL;
 }
 
+/*
+ * Need to check if array has failed when deciding whether to:
+ *  - start an array
+ *  - remove non-faulty devices
+ *  - add a spare
+ *  - allow a reshape
+ * This determination is simple when no reshape is happening.
+ * However if there is a reshape, we need to carefully check
+ * both the before and after sections.
+ * This is because some failed devices may only affect one
+ * of the two sections, and some non-in_sync devices may
+ * be insync in the section most affected by failed devices.
+ */
+static int has_failed(raid5_conf_t *conf)
+{
+	int degraded;
+	int i;
+	if (conf->mddev->reshape_position == MaxSector)
+		return conf->mddev->degraded > conf->max_degraded;
+
+	rcu_read_lock();
+	degraded = 0;
+	for (i = 0; i < conf->previous_raid_disks; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		if (!rdev || test_bit(Faulty, &rdev->flags))
+			degraded++;
+		else if (test_bit(In_sync, &rdev->flags))
+			;
+		else
+			/* not in-sync or faulty.
+			 * If the reshape increases the number of devices,
+			 * this is being recovered by the reshape, so
+			 * this 'previous' section is not in_sync.
+			 * If the number of devices is being reduced however,
+			 * the device can only be part of the array if
+			 * we are reverting a reshape, so this section will
+			 * be in-sync.
+			 */
+			if (conf->raid_disks >= conf->previous_raid_disks)
+				degraded++;
+	}
+	rcu_read_unlock();
+	if (degraded > conf->max_degraded)
+		return 1;
+	rcu_read_lock();
+	degraded = 0;
+	for (i = 0; i < conf->raid_disks; i++) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		if (!rdev || test_bit(Faulty, &rdev->flags))
+			degraded++;
+		else if (test_bit(In_sync, &rdev->flags))
+			;
+		else
+			/* not in-sync or faulty.
+			 * If reshape increases the number of devices, this
+			 * section has already been recovered, else it
+			 * almost certainly hasn't.
+			 */
+			if (conf->raid_disks <= conf->previous_raid_disks)
+				degraded++;
+	}
+	rcu_read_unlock();
+	if (degraded > conf->max_degraded)
+		return 1;
+	return 0;
+}
+
 static void unplug_slaves(mddev_t *mddev);
 static void raid5_unplug_device(struct request_queue *q);
 
@@ -5006,7 +5073,7 @@ static int run(mddev_t *mddev)
 	mddev->degraded = (max(conf->raid_disks, conf->previous_raid_disks)
 			   - working_disks);
 
-	if (mddev->degraded > conf->max_degraded) {
+	if (has_failed(conf)) {
 		printk(KERN_ERR "md/raid:%s: not enough operational devices"
 			" (%d/%d failed)\n",
 			mdname(mddev), mddev->degraded, conf->raid_disks);
@@ -5244,7 +5311,7 @@ static int raid5_remove_disk(mddev_t *mddev, int number)
 		 * isn't possible.
 		 */
 		if (!test_bit(Faulty, &rdev->flags) &&
-		    mddev->degraded <= conf->max_degraded &&
+		    !has_failed(conf) &&
 		    number < conf->raid_disks) {
 			err = -EBUSY;
 			goto abort;
@@ -5272,7 +5339,7 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	int first = 0;
 	int last = conf->raid_disks - 1;
 
-	if (mddev->degraded > conf->max_degraded)
+	if (has_failed(conf))
 		/* no point adding a device */
 		return -EINVAL;
 
@@ -5364,7 +5431,7 @@ static int check_reshape(mddev_t *mddev)
 	if (mddev->bitmap)
 		/* Cannot grow a bitmap yet */
 		return -EBUSY;
-	if (mddev->degraded > conf->max_degraded)
+	if (has_failed(conf))
 		return -EINVAL;
 	if (mddev->delta_disks < 0) {
 		/* We might be able to shrink, but the devices must
