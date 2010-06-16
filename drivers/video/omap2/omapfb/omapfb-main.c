@@ -702,8 +702,16 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 			var->xres, var->yres,
 			var->xres_virtual, var->yres_virtual);
 
-	var->height             = -1;
-	var->width              = -1;
+	if (display && display->driver->get_dimensions) {
+		u32 w, h;
+		display->driver->get_dimensions(display, &w, &h);
+		var->width = DIV_ROUND_CLOSEST(w, 1000);
+		var->height = DIV_ROUND_CLOSEST(h, 1000);
+	} else {
+		var->height = -1;
+		var->width = -1;
+	}
+
 	var->grayscale          = 0;
 
 	if (display && display->driver->get_timings) {
