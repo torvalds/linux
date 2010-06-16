@@ -421,6 +421,7 @@ struct e1000_info {
 #define FLAG2_HAS_PHY_WAKEUP              (1 << 1)
 #define FLAG2_IS_DISCARDING               (1 << 2)
 #define FLAG2_DISABLE_ASPM_L1             (1 << 3)
+#define FLAG2_HAS_PHY_STATS               (1 << 4)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))

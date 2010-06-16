@@ -3672,6 +3672,110 @@ static void e1000_update_phy_info(unsigned long data)
 }
 
 /**
+ * e1000e_update_phy_stats - Update the PHY statistics counters
+ * @adapter: board private structure
+ **/
+static void e1000e_update_phy_stats(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	s32 ret_val;
+	u16 phy_data;
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		return;
+
+	hw->phy.addr = 1;
+
+#define HV_PHY_STATS_PAGE	778
+	/*
+	 * A page set is expensive so check if already on desired page.
+	 * If not, set to the page with the PHY status registers.
+	 */
+	ret_val = e1000e_read_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT,
+					   &phy_data);
+	if (ret_val)
+		goto release;
+	if (phy_data != (HV_PHY_STATS_PAGE << IGP_PAGE_SHIFT)) {
+		ret_val = e1000e_write_phy_reg_mdic(hw,
+						    IGP01E1000_PHY_PAGE_SELECT,
+						    (HV_PHY_STATS_PAGE <<
+						     IGP_PAGE_SHIFT));
+		if (ret_val)
+			goto release;
+	}
+
+	/* Read/clear the upper 16-bit registers and read/accumulate lower */
+
+	/* Single Collision Count */
+	e1000e_read_phy_reg_mdic(hw, HV_SCC_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_SCC_LOWER & MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		adapter->stats.scc += phy_data;
+
+	/* Excessive Collision Count */
+	e1000e_read_phy_reg_mdic(hw, HV_ECOL_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_ECOL_LOWER & MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		adapter->stats.ecol += phy_data;
+
+	/* Multiple Collision Count */
+	e1000e_read_phy_reg_mdic(hw, HV_MCC_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_MCC_LOWER & MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		adapter->stats.mcc += phy_data;
+
+	/* Late Collision Count */
+	e1000e_read_phy_reg_mdic(hw, HV_LATECOL_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_LATECOL_LOWER &
+					   MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		adapter->stats.latecol += phy_data;
+
+	/* Collision Count - also used for adaptive IFS */
+	e1000e_read_phy_reg_mdic(hw, HV_COLC_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_COLC_LOWER & MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		hw->mac.collision_delta = phy_data;
+
+	/* Defer Count */
+	e1000e_read_phy_reg_mdic(hw, HV_DC_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_DC_LOWER & MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		adapter->stats.dc += phy_data;
+
+	/* Transmit with no CRS */
+	e1000e_read_phy_reg_mdic(hw, HV_TNCRS_UPPER & MAX_PHY_REG_ADDRESS,
+				 &phy_data);
+	ret_val = e1000e_read_phy_reg_mdic(hw,
+					   HV_TNCRS_LOWER & MAX_PHY_REG_ADDRESS,
+					   &phy_data);
+	if (!ret_val)
+		adapter->stats.tncrs += phy_data;
+
+release:
+	hw->phy.ops.release(hw);
+}
+
+/**
  * e1000e_update_stats - Update the board statistics counters
  * @adapter: board private structure
  **/
@@ -3680,7 +3784,6 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	u16 phy_data;
 
 	/*
 	 * Prevent stats update while adapter is being reset, or if the pci
@@ -3700,34 +3803,27 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.roc += er32(ROC);
 
 	adapter->stats.mpc += er32(MPC);
-	if ((hw->phy.type == e1000_phy_82578) ||
-	    (hw->phy.type == e1000_phy_82577)) {
-		e1e_rphy(hw, HV_SCC_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_SCC_LOWER, &phy_data))
-			adapter->stats.scc += phy_data;
 
-		e1e_rphy(hw, HV_ECOL_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_ECOL_LOWER, &phy_data))
-			adapter->stats.ecol += phy_data;
+	/* Half-duplex statistics */
+	if (adapter->link_duplex == HALF_DUPLEX) {
+		if (adapter->flags2 & FLAG2_HAS_PHY_STATS) {
+			e1000e_update_phy_stats(adapter);
+		} else {
+			adapter->stats.scc += er32(SCC);
+			adapter->stats.ecol += er32(ECOL);
+			adapter->stats.mcc += er32(MCC);
+			adapter->stats.latecol += er32(LATECOL);
+			adapter->stats.dc += er32(DC);
 
-		e1e_rphy(hw, HV_MCC_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_MCC_LOWER, &phy_data))
-			adapter->stats.mcc += phy_data;
+			hw->mac.collision_delta = er32(COLC);
 
-		e1e_rphy(hw, HV_LATECOL_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_LATECOL_LOWER, &phy_data))
-			adapter->stats.latecol += phy_data;
-
-		e1e_rphy(hw, HV_DC_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_DC_LOWER, &phy_data))
-			adapter->stats.dc += phy_data;
-	} else {
-		adapter->stats.scc += er32(SCC);
-		adapter->stats.ecol += er32(ECOL);
-		adapter->stats.mcc += er32(MCC);
-		adapter->stats.latecol += er32(LATECOL);
-		adapter->stats.dc += er32(DC);
+			if ((hw->mac.type != e1000_82574) &&
+			    (hw->mac.type != e1000_82583))
+				adapter->stats.tncrs += er32(TNCRS);
+		}
+		adapter->stats.colc += hw->mac.collision_delta;
 	}
+
 	adapter->stats.xonrxc += er32(XONRXC);
 	adapter->stats.xontxc += er32(XONTXC);
 	adapter->stats.xoffrxc += er32(XOFFRXC);
@@ -3745,28 +3841,9 @@ void e1000e_update_stats(struct e1000_adapter *adapter)
 
 	hw->mac.tx_packet_delta = er32(TPT);
 	adapter->stats.tpt += hw->mac.tx_packet_delta;
-	if ((hw->phy.type == e1000_phy_82578) ||
-	    (hw->phy.type == e1000_phy_82577)) {
-		e1e_rphy(hw, HV_COLC_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_COLC_LOWER, &phy_data))
-			hw->mac.collision_delta = phy_data;
-	} else {
-		hw->mac.collision_delta = er32(COLC);
-	}
-	adapter->stats.colc += hw->mac.collision_delta;
 
 	adapter->stats.algnerrc += er32(ALGNERRC);
 	adapter->stats.rxerrc += er32(RXERRC);
-	if ((hw->phy.type == e1000_phy_82578) ||
-	    (hw->phy.type == e1000_phy_82577)) {
-		e1e_rphy(hw, HV_TNCRS_UPPER, &phy_data);
-		if (!e1e_rphy(hw, HV_TNCRS_LOWER, &phy_data))
-			adapter->stats.tncrs += phy_data;
-	} else {
-		if ((hw->mac.type != e1000_82574) &&
-		    (hw->mac.type != e1000_82583))
-			adapter->stats.tncrs += er32(TNCRS);
-	}
 	adapter->stats.cexterr += er32(CEXTERR);
 	adapter->stats.tsctc += er32(TSCTC);
 	adapter->stats.tsctfc += er32(TSCTFC);
