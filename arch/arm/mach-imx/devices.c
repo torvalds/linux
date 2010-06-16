@@ -337,30 +337,6 @@ struct platform_device mxc_w1_master_device = {
 	.resource = mxc_w1_master_resources,
 };
 
-#define DEFINE_MXC_NAND_DEVICE(pfx, baseaddr, irq)			\
-	static struct resource pfx ## _nand_resources[] = {		\
-		{							\
-			.start = baseaddr,				\
-			.end = baseaddr + SZ_4K - 1,			\
-			.flags = IORESOURCE_MEM,			\
-		}, {							\
-			.start = irq,					\
-			.end = irq,					\
-			.flags = IORESOURCE_IRQ,			\
-		},							\
-	};								\
-									\
-	struct platform_device pfx ## _nand_device = {			\
-		.name = "mxc_nand",					\
-		.id = 0,						\
-		.num_resources = ARRAY_SIZE(pfx ## _nand_resources),	\
-		.resource = pfx ## _nand_resources,			\
-	}
-
-#ifdef CONFIG_MACH_MX27
-DEFINE_MXC_NAND_DEVICE(imx27, MX27_NFC_BASE_ADDR, MX27_INT_NANDFC);
-#endif
-
 /*
  * lcdc:
  * - i.MX1: the basic controller

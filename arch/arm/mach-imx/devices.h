@@ -26,9 +26,6 @@ extern struct platform_device imx2x_uart_device4;
 extern struct platform_device imx2x_uart_device5;
 #endif
 extern struct platform_device mxc_w1_master_device;
-#ifdef CONFIG_MACH_MX27
-extern struct platform_device imx27_nand_device;
-#endif
 extern struct platform_device mxc_fb_device;
 extern struct platform_device mxc_fec_device;
 extern struct platform_device mxc_pwm_device;

@@ -40,6 +40,7 @@
 #include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 static int eukrea_cpuimx27_pins[] = {
@@ -119,7 +120,8 @@ static struct imxuart_platform_data uart_pdata[] = {
 	},
 };
 
-static struct mxc_nand_platform_data eukrea_cpuimx27_nand_board_info = {
+static const struct mxc_nand_platform_data
+cpuimx27_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -189,8 +191,7 @@ static void __init eukrea_cpuimx27_init(void)
 
 	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
 
-	mxc_register_device(&imx27_nand_device,
-			&eukrea_cpuimx27_nand_board_info);
+	imx27_add_mxc_nand(&cpuimx27_nand_board_info);
 
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));

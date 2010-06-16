@@ -50,6 +50,7 @@
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 #define OTG_PHY_CS_GPIO (GPIO_PORTB + 23)
@@ -137,7 +138,8 @@ static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct mxc_nand_platform_data pca100_nand_board_info = {
+static const struct mxc_nand_platform_data
+pca100_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -325,7 +327,7 @@ static void __init pca100_init(void)
 	mxc_gpio_mode(GPIO_PORTC | 29 | GPIO_GPIO | GPIO_IN);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);
 
-	mxc_register_device(&imx27_nand_device, &pca100_nand_board_info);
+	imx27_add_mxc_nand(&pca100_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, pca100_i2c_devices,

@@ -36,6 +36,7 @@
 #include <mach/imxfb.h>
 #include <mach/mmc.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 static unsigned int mxt_td60_pins[] __initdata = {
@@ -124,7 +125,8 @@ static unsigned int mxt_td60_pins[] __initdata = {
 	PB9_PF_SD2_CLK,
 };
 
-static struct mxc_nand_platform_data mxt_td60_nand_board_info = {
+static const struct mxc_nand_platform_data
+mxt_td60_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -253,7 +255,7 @@ static void __init mxt_td60_board_init(void)
 	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
 	mxc_register_device(&imx2x_uart_device1, &uart_pdata[1]);
 	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
-	mxc_register_device(&imx27_nand_device, &mxt_td60_nand_board_info);
+	imx27_add_mxc_nand(&mxt_td60_nand_board_info);
 
 	i2c_register_board_info(0, mxt_td60_i2c_devices,
 				ARRAY_SIZE(mxt_td60_i2c_devices));

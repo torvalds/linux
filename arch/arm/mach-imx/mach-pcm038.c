@@ -43,6 +43,7 @@
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 static int pcm038_pins[] = {
@@ -172,7 +173,8 @@ static struct imxuart_platform_data uart_pdata[] = {
 	},
 };
 
-static struct mxc_nand_platform_data pcm038_nand_board_info = {
+static const struct mxc_nand_platform_data
+pcm038_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -310,7 +312,7 @@ static void __init pcm038_init(void)
 	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
 
 	mxc_gpio_mode(PE16_AF_OWIRE);
-	mxc_register_device(&imx27_nand_device, &pcm038_nand_board_info);
+	imx27_add_mxc_nand(&pcm038_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, pcm038_i2c_devices,
