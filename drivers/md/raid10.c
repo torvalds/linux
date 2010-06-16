@@ -2161,22 +2161,22 @@ static conf_t *setup_conf(mddev_t *mddev)
 	sector_t stride, size;
 	int err = -EINVAL;
 
-	if (mddev->chunk_sectors < (PAGE_SIZE >> 9) ||
-	    !is_power_of_2(mddev->chunk_sectors)) {
+	if (mddev->new_chunk_sectors < (PAGE_SIZE >> 9) ||
+	    !is_power_of_2(mddev->new_chunk_sectors)) {
 		printk(KERN_ERR "md/raid10:%s: chunk size must be "
 		       "at least PAGE_SIZE(%ld) and be a power of 2.\n",
 		       mdname(mddev), PAGE_SIZE);
 		goto out;
 	}
 
-	nc = mddev->layout & 255;
-	fc = (mddev->layout >> 8) & 255;
-	fo = mddev->layout & (1<<16);
+	nc = mddev->new_layout & 255;
+	fc = (mddev->new_layout >> 8) & 255;
+	fo = mddev->new_layout & (1<<16);
 
 	if ((nc*fc) <2 || (nc*fc) > mddev->raid_disks ||
-	    (mddev->layout >> 17)) {
+	    (mddev->new_layout >> 17)) {
 		printk(KERN_ERR "md/raid10:%s: unsupported raid10 layout: 0x%8x\n",
-		       mdname(mddev), mddev->layout);
+		       mdname(mddev), mddev->new_layout);
 		goto out;
 	}
 
@@ -2435,7 +2435,6 @@ static void *raid10_takeover_raid0(mddev_t *mddev)
 	mddev->new_layout = (1<<8) + 2;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->delta_disks = mddev->raid_disks;
-	mddev->degraded = mddev->raid_disks;
 	mddev->raid_disks *= 2;
 	/* make sure it will be not marked as dirty */
 	mddev->recovery_cp = MaxSector;
