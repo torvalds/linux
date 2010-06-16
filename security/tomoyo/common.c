@@ -352,14 +352,12 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
  * tomoyo_read_profile - Read profile table.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns 0.
  */
-static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
+static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 {
 	int index;
 	if (head->read_eof)
-		return 0;
+		return;
 	if (head->read_bit)
 		goto body;
 	tomoyo_io_printf(head, "PROFILE_VERSION=%s\n", "20090903");
@@ -434,7 +432,6 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
 	}
 	if (index == TOMOYO_MAX_PROFILES)
 		head->read_eof = true;
-	return 0;
 }
 
 /*
@@ -538,17 +535,15 @@ static int tomoyo_write_manager_policy(struct tomoyo_io_buffer *head)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns 0.
- *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
+static void tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 {
 	struct list_head *pos;
 	bool done = true;
 
 	if (head->read_eof)
-		return 0;
+		return;
 	list_for_each_cookie(pos, head->read_var2,
 			     &tomoyo_policy_manager_list) {
 		struct tomoyo_policy_manager_entry *ptr;
@@ -561,7 +556,6 @@ static int tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 			break;
 	}
 	head->read_eof = done;
-	return 0;
 }
 
 /**
@@ -1004,18 +998,16 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns 0.
- *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_read_domain_policy(struct tomoyo_io_buffer *head)
+static void tomoyo_read_domain_policy(struct tomoyo_io_buffer *head)
 {
 	struct list_head *dpos;
 	struct list_head *apos;
 	bool done = true;
 
 	if (head->read_eof)
-		return 0;
+		return;
 	if (head->read_step == 0)
 		head->read_step = 1;
 	list_for_each_cookie(dpos, head->read_var1, &tomoyo_domain_list) {
@@ -1070,7 +1062,6 @@ tail_mark:
 			break;
 	}
 	head->read_eof = done;
-	return 0;
 }
 
 /**
@@ -1122,13 +1113,13 @@ static int tomoyo_write_domain_profile(struct tomoyo_io_buffer *head)
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
+static void tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
 {
 	struct list_head *pos;
 	bool done = true;
 
 	if (head->read_eof)
-		return 0;
+		return;
 	list_for_each_cookie(pos, head->read_var1, &tomoyo_domain_list) {
 		struct tomoyo_domain_info *domain;
 		domain = list_entry(pos, struct tomoyo_domain_info, list);
@@ -1140,7 +1131,6 @@ static int tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
 			break;
 	}
 	head->read_eof = done;
-	return 0;
 }
 
 /**
@@ -1170,7 +1160,7 @@ static int tomoyo_write_pid(struct tomoyo_io_buffer *head)
  * The PID is specified by tomoyo_write_pid() so that the user can obtain
  * using read()/write() interface rather than sysctl() interface.
  */
-static int tomoyo_read_pid(struct tomoyo_io_buffer *head)
+static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 {
 	if (head->read_avail == 0 && !head->read_eof) {
 		const int pid = head->read_step;
@@ -1188,7 +1178,6 @@ static int tomoyo_read_pid(struct tomoyo_io_buffer *head)
 					 domain->domainname->name);
 		head->read_eof = true;
 	}
-	return 0;
 }
 
 /**
@@ -1238,11 +1227,9 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
- * Returns 0 on success, -EINVAL otherwise.
- *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
+static void tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
 		switch (head->read_step) {
@@ -1302,11 +1289,8 @@ static int tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 		case 11:
 			head->read_eof = true;
 			break;
-		default:
-			return -EINVAL;
 		}
 	}
-	return 0;
 }
 
 /**
@@ -1560,17 +1544,15 @@ static int tomoyo_poll_query(struct file *file, poll_table *wait)
  * tomoyo_read_query - Read access requests which violated policy in enforcing mode.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns 0.
  */
-static int tomoyo_read_query(struct tomoyo_io_buffer *head)
+static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 {
 	struct list_head *tmp;
 	int pos = 0;
 	int len = 0;
 	char *buf;
 	if (head->read_avail)
-		return 0;
+		return;
 	if (head->read_buf) {
 		kfree(head->read_buf);
 		head->read_buf = NULL;
@@ -1590,11 +1572,11 @@ static int tomoyo_read_query(struct tomoyo_io_buffer *head)
 	spin_unlock(&tomoyo_query_list_lock);
 	if (!len) {
 		head->read_step = 0;
-		return 0;
+		return;
 	}
 	buf = kzalloc(len, GFP_NOFS);
 	if (!buf)
-		return 0;
+		return;
 	pos = 0;
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
@@ -1621,7 +1603,6 @@ static int tomoyo_read_query(struct tomoyo_io_buffer *head)
 	} else {
 		kfree(buf);
 	}
-	return 0;
 }
 
 /**
@@ -1667,13 +1648,12 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
  *
  * Returns version information.
  */
-static int tomoyo_read_version(struct tomoyo_io_buffer *head)
+static void tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
 		tomoyo_io_printf(head, "2.3.0-pre");
 		head->read_eof = true;
 	}
-	return 0;
 }
 
 /**
@@ -1683,7 +1663,7 @@ static int tomoyo_read_version(struct tomoyo_io_buffer *head)
  *
  * Returns the current process's domainname.
  */
-static int tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
+static void tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
 		/*
@@ -1694,7 +1674,6 @@ static int tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
 		tomoyo_io_printf(head, "%s", tomoyo_domain()->domainname->name);
 		head->read_eof = true;
 	}
-	return 0;
 }
 
 /**
@@ -1862,7 +1841,7 @@ int tomoyo_read_control(struct file *file, char __user *buffer,
 	if (mutex_lock_interruptible(&head->io_sem))
 		return -EINTR;
 	/* Call the policy handler. */
-	len = head->read(head);
+	head->read(head);
 	if (len < 0)
 		goto out;
 	/* Write to buffer. */

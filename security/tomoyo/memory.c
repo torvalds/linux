@@ -184,7 +184,7 @@ unsigned int tomoyo_quota_for_query;
  *
  * Returns memory usage.
  */
-int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
+void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
 		const unsigned int policy
@@ -212,7 +212,6 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 		tomoyo_io_printf(head, "Total:        %10u\n", policy + query);
 		head->read_eof = true;
 	}
-	return 0;
 }
 
 /**

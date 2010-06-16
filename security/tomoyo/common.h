@@ -526,7 +526,7 @@ struct tomoyo_mount_acl {
  * is appended.
  */
 struct tomoyo_io_buffer {
-	int (*read) (struct tomoyo_io_buffer *);
+	void (*read) (struct tomoyo_io_buffer *);
 	int (*write) (struct tomoyo_io_buffer *);
 	int (*poll) (struct file *file, poll_table *wait);
 	/* Exclusive lock for this structure.   */
@@ -900,7 +900,7 @@ void *tomoyo_commit_ok(void *data, const unsigned int size);
 const struct tomoyo_path_info *tomoyo_get_name(const char *name);
 
 /* Check for memory usage. */
-int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
+void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
 
 /* Set memory quota. */
 int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
