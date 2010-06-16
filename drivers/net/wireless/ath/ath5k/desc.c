@@ -499,10 +499,11 @@ int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	*/
 	memset(&desc->ud.ds_rx, 0, sizeof(struct ath5k_hw_all_rx_desc));
 
+	if (unlikely(size & ~AR5K_DESC_RX_CTL1_BUF_LEN))
+		return -EINVAL;
+
 	/* Setup descriptor */
 	rx_ctl->rx_control_1 = size & AR5K_DESC_RX_CTL1_BUF_LEN;
-	if (unlikely(rx_ctl->rx_control_1 != size))
-		return -EINVAL;
 
 	if (flags & AR5K_RXDESC_INTREQ)
 		rx_ctl->rx_control_1 |= AR5K_DESC_RX_CTL1_INTREQ;
@@ -522,8 +523,10 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 
 	/* No frame received / not ready */
 	if (unlikely(!(rx_status->rx_status_1 &
-	AR5K_5210_RX_DESC_STATUS1_DONE)))
+			AR5K_5210_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
+
+	memset(rs, 0, sizeof(struct ath5k_rx_status));
 
 	/*
 	 * Frame receive status
@@ -536,7 +539,11 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 		AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE);
 	rs->rs_more = !!(rx_status->rx_status_0 &
 		AR5K_5210_RX_DESC_STATUS0_MORE);
-	/* TODO: this timestamp is 13 bit, later on we assume 15 bit */
+	/* TODO: this timestamp is 13 bit, later on we assume 15 bit!
+	 * also the HAL code for 5210 says the timestamp is bits [10..22] of the
+	 * TSF, and extends the timestamp here to 15 bit.
+	 * we need to check on 5210...
+	 */
 	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
 		AR5K_5210_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
 
@@ -547,9 +554,6 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 		rs->rs_antenna = (rx_status->rx_status_0 &
 				AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5210)
 				? 2 : 1;
-
-	rs->rs_status = 0;
-	rs->rs_phyerr = 0;
 
 	/*
 	 * Key table status
@@ -564,19 +568,21 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 	 * Receive/descriptor errors
 	 */
 	if (!(rx_status->rx_status_1 &
-	AR5K_5210_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
+			AR5K_5210_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
 		if (rx_status->rx_status_1 &
 				AR5K_5210_RX_DESC_STATUS1_CRC_ERROR)
 			rs->rs_status |= AR5K_RXERR_CRC;
 
-		if (rx_status->rx_status_1 &
-				AR5K_5210_RX_DESC_STATUS1_FIFO_OVERRUN_5210)
+		/* only on 5210 */
+		if ((ah->ah_version == AR5K_AR5210) &&
+		    (rx_status->rx_status_1 &
+				AR5K_5210_RX_DESC_STATUS1_FIFO_OVERRUN_5210))
 			rs->rs_status |= AR5K_RXERR_FIFO;
 
 		if (rx_status->rx_status_1 &
 				AR5K_5210_RX_DESC_STATUS1_PHY_ERROR) {
 			rs->rs_status |= AR5K_RXERR_PHY;
-			rs->rs_phyerr |= AR5K_REG_MS(rx_status->rx_status_1,
+			rs->rs_phyerr = AR5K_REG_MS(rx_status->rx_status_1,
 				AR5K_5210_RX_DESC_STATUS1_PHY_ERROR);
 		}
 
@@ -604,6 +610,8 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 				AR5K_5212_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
 
+	memset(rs, 0, sizeof(struct ath5k_rx_status));
+
 	/*
 	 * Frame receive status
 	 */
@@ -619,8 +627,6 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 		AR5K_5212_RX_DESC_STATUS0_MORE);
 	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
 		AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
-	rs->rs_status = 0;
-	rs->rs_phyerr = 0;
 
 	/*
 	 * Key table status
@@ -643,7 +649,7 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 		if (rx_status->rx_status_1 &
 				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
 			rs->rs_status |= AR5K_RXERR_PHY;
-			rs->rs_phyerr |= AR5K_REG_MS(rx_status->rx_status_1,
+			rs->rs_phyerr = AR5K_REG_MS(rx_status->rx_status_1,
 				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE);
 			ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
 		}
