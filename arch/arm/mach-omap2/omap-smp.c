@@ -28,6 +28,8 @@
 
 #include "common.h"
 
+#include "clockdomain.h"
+
 /* SCU base address */
 static void __iomem *scu_base;
 
@@ -68,6 +70,8 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
+	static struct clockdomain *cpu1_clkdm;
+	static bool booted;
 	/*
 	 * Set synchronisation state between this boot processor
 	 * and the secondary one
@@ -83,6 +87,29 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	omap_modify_auxcoreboot0(0x200, 0xfffffdff);
 	flush_cache_all();
 	smp_wmb();
+
+	if (!cpu1_clkdm)
+		cpu1_clkdm = clkdm_lookup("mpu1_clkdm");
+
+	/*
+	 * The SGI(Software Generated Interrupts) are not wakeup capable
+	 * from low power states. This is known limitation on OMAP4 and
+	 * needs to be worked around by using software forced clockdomain
+	 * wake-up. To wakeup CPU1, CPU0 forces the CPU1 clockdomain to
+	 * software force wakeup. The clockdomain is then put back to
+	 * hardware supervised mode.
+	 * More details can be found in OMAP4430 TRM - Version J
+	 * Section :
+	 *	4.3.4.2 Power States of CPU0 and CPU1
+	 */
+	if (booted) {
+		clkdm_wakeup(cpu1_clkdm);
+		clkdm_allow_idle(cpu1_clkdm);
+	} else {
+		dsb_sev();
+		booted = true;
+	}
+
 	gic_raise_softirq(cpumask_of(cpu), 1);
 
 	/*
