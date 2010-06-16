@@ -92,7 +92,7 @@ static struct pad_desc mx51babbage_pads[] = {
 	MX51_PAD_USBH1_DATA7__USBH1_DATA7,
 
 	/* USB HUB reset line*/
-	MX51_PAD_GPIO_1_7__GPIO1_7,
+	MX51_PAD_GPIO_1_7__GPIO_1_7,
 };
 
 /* Serial ports */
