@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/mount.h>
+#include <linux/file.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -183,6 +184,8 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 				pCifsInode->clientCanCacheRead = true;
 	}
 	write_unlock(&GlobalSMBSeslock);
+
+	file->private_data = pCifsFile;
 
 	return pCifsFile;
 }
@@ -463,14 +466,22 @@ cifs_create_set_dentry:
 
 	if (newinode && nd && (nd->flags & LOOKUP_OPEN)) {
 		struct cifsFileInfo *pfile_info;
-		/*
-		 * cifs_fill_filedata() takes care of setting cifsFileInfo
-		 * pointer to file->private_data.
-		 */
-		pfile_info = cifs_new_fileinfo(newinode, fileHandle, NULL,
+		struct file *filp;
+
+		filp = lookup_instantiate_filp(nd, direntry, generic_file_open);
+		if (IS_ERR(filp)) {
+			rc = PTR_ERR(filp);
+			CIFSSMBClose(xid, tcon, fileHandle);
+			goto cifs_create_out;
+		}
+
+		pfile_info = cifs_new_fileinfo(newinode, fileHandle, filp,
 					       nd->path.mnt, oflags);
-		if (pfile_info == NULL)
+		if (pfile_info == NULL) {
+			fput(filp);
+			CIFSSMBClose(xid, tcon, fileHandle);
 			rc = -ENOMEM;
+		}
 	} else {
 		CIFSSMBClose(xid, tcon, fileHandle);
 	}
@@ -717,15 +728,23 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 			direntry->d_op = &cifs_dentry_ops;
 		d_add(direntry, newInode);
 		if (posix_open) {
-			cfile = cifs_new_fileinfo(newInode, fileHandle, NULL,
+			filp = lookup_instantiate_filp(nd, direntry,
+						       generic_file_open);
+			if (IS_ERR(filp)) {
+				rc = PTR_ERR(filp);
+				CIFSSMBClose(xid, pTcon, fileHandle);
+				goto lookup_out;
+			}
+
+			cfile = cifs_new_fileinfo(newInode, fileHandle, filp,
 						  nd->path.mnt,
 						  nd->intent.open.flags);
 			if (cfile == NULL) {
+				fput(filp);
 				CIFSSMBClose(xid, pTcon, fileHandle);
 				rc = -ENOMEM;
 				goto lookup_out;
 			}
-			filp = lookup_instantiate_filp(nd, direntry, NULL);
 		}
 		/* since paths are not looked up by component - the parent
 		   directories are presumed to be good here */
