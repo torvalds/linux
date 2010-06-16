@@ -566,7 +566,7 @@ enum ath5k_pkt_type {
 )
 
 /*
- * DMA size definitions (2^n+2)
+ * DMA size definitions (2^(n+2))
  */
 enum ath5k_dmasize {
 	AR5K_DMASIZE_4B	= 0,
