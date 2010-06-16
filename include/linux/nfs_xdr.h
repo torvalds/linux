@@ -196,8 +196,10 @@ struct nfs_openargs {
 	__u64                   clientid;
 	__u64                   id;
 	union {
-		struct iattr *  attrs;    /* UNCHECKED, GUARDED */
-		nfs4_verifier   verifier; /* EXCLUSIVE */
+		struct {
+			struct iattr *  attrs;    /* UNCHECKED, GUARDED */
+			nfs4_verifier   verifier; /* EXCLUSIVE */
+		};
 		nfs4_stateid	delegation;		/* CLAIM_DELEGATE_CUR */
 		fmode_t		delegation_type;	/* CLAIM_PREVIOUS */
 	} u;

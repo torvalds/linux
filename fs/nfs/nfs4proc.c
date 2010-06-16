@@ -744,19 +744,14 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
 	p->o_arg.claim = NFS4_OPEN_CLAIM_NULL;
-	if (flags & O_EXCL) {
-		if (nfs4_has_persistent_session(server->nfs_client)) {
-			/* GUARDED */
-			p->o_arg.u.attrs = &p->attrs;
-			memcpy(&p->attrs, attrs, sizeof(p->attrs));
-		} else { /* EXCLUSIVE4_1 */
-			u32 *s = (u32 *) p->o_arg.u.verifier.data;
-			s[0] = jiffies;
-			s[1] = current->pid;
-		}
-	} else if (flags & O_CREAT) {
+	if (flags & O_CREAT) {
+		u32 *s;
+
 		p->o_arg.u.attrs = &p->attrs;
 		memcpy(&p->attrs, attrs, sizeof(p->attrs));
+		s = (u32 *) p->o_arg.u.verifier.data;
+		s[0] = jiffies;
+		s[1] = current->pid;
 	}
 	p->c_arg.fh = &p->o_res.fh;
 	p->c_arg.stateid = &p->o_res.stateid;
