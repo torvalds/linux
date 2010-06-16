@@ -651,7 +651,8 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 			rs->rs_status |= AR5K_RXERR_PHY;
 			rs->rs_phyerr = AR5K_REG_MS(rx_status->rx_status_1,
 				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE);
-			ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
+			if (!ah->ah_capabilities.cap_has_phyerr_counters)
+				ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
 		}
 
 		if (rx_status->rx_status_1 &
