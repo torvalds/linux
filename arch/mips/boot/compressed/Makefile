@@ -65,8 +65,11 @@ vmlinuzobjs-y += $(obj)/piggy.o
 
 quiet_cmd_zld = LD      $@
       cmd_zld = $(LD) $(LDFLAGS) -Ttext $(VMLINUZ_LOAD_ADDRESS) -T $< $(vmlinuzobjs-y) -o $@
+quiet_cmd_strip = STRIP   $@
+      cmd_strip = $(STRIP) -s $@
 vmlinuz: $(src)/ld.script $(vmlinuzobjs-y) $(obj)/calc_vmlinuz_load_addr
 	$(call cmd,zld)
+	$(call cmd,strip)
 
 #
 # Some DECstations need all possible sections of an ECOFF executable
