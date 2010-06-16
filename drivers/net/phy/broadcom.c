@@ -685,7 +685,7 @@ static int brcm_fet_config_intr(struct phy_device *phydev)
 }
 
 static struct phy_driver bcm5411_driver = {
-	.phy_id		= 0x00206070,
+	.phy_id		= PHY_ID_BCM5411,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5411",
 	.features	= PHY_GBIT_FEATURES |
@@ -700,7 +700,7 @@ static struct phy_driver bcm5411_driver = {
 };
 
 static struct phy_driver bcm5421_driver = {
-	.phy_id		= 0x002060e0,
+	.phy_id		= PHY_ID_BCM5421,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5421",
 	.features	= PHY_GBIT_FEATURES |
@@ -715,7 +715,7 @@ static struct phy_driver bcm5421_driver = {
 };
 
 static struct phy_driver bcm5461_driver = {
-	.phy_id		= 0x002060c0,
+	.phy_id		= PHY_ID_BCM5461,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5461",
 	.features	= PHY_GBIT_FEATURES |
@@ -730,7 +730,7 @@ static struct phy_driver bcm5461_driver = {
 };
 
 static struct phy_driver bcm5464_driver = {
-	.phy_id		= 0x002060b0,
+	.phy_id		= PHY_ID_BCM5464,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5464",
 	.features	= PHY_GBIT_FEATURES |
@@ -745,7 +745,7 @@ static struct phy_driver bcm5464_driver = {
 };
 
 static struct phy_driver bcm5481_driver = {
-	.phy_id		= 0x0143bca0,
+	.phy_id		= PHY_ID_BCM5481,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5481",
 	.features	= PHY_GBIT_FEATURES |
@@ -760,7 +760,7 @@ static struct phy_driver bcm5481_driver = {
 };
 
 static struct phy_driver bcm5482_driver = {
-	.phy_id		= 0x0143bcb0,
+	.phy_id		= PHY_ID_BCM5482,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Broadcom BCM5482",
 	.features	= PHY_GBIT_FEATURES |
@@ -910,12 +910,12 @@ module_init(broadcom_init);
 module_exit(broadcom_exit);
 
 static struct mdio_device_id broadcom_tbl[] = {
-	{ 0x00206070, 0xfffffff0 },
-	{ 0x002060e0, 0xfffffff0 },
-	{ 0x002060c0, 0xfffffff0 },
-	{ 0x002060b0, 0xfffffff0 },
-	{ 0x0143bca0, 0xfffffff0 },
-	{ 0x0143bcb0, 0xfffffff0 },
+	{ PHY_ID_BCM5411, 0xfffffff0 },
+	{ PHY_ID_BCM5421, 0xfffffff0 },
+	{ PHY_ID_BCM5461, 0xfffffff0 },
+	{ PHY_ID_BCM5464, 0xfffffff0 },
+	{ PHY_ID_BCM5482, 0xfffffff0 },
+	{ PHY_ID_BCM5482, 0xfffffff0 },
 	{ PHY_ID_BCM50610, 0xfffffff0 },
 	{ PHY_ID_BCM50610M, 0xfffffff0 },
 	{ PHY_ID_BCM57780, 0xfffffff0 },
