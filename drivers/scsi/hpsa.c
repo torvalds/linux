@@ -179,6 +179,7 @@ static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 	u64 *cfg_offset);
 static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 	unsigned long *memory_bar);
+static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id);
 
 static DEVICE_ATTR(raid_level, S_IRUGO, raid_level_show, NULL);
 static DEVICE_ATTR(lunid, S_IRUGO, lunid_show, NULL);
@@ -3148,7 +3149,7 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	int rc, i;
 	struct CfgTable __iomem *cfgtable;
 	bool use_doorbell;
-
+	u32 board_id;
 
 	/* For controllers as old as the P600, this is very nearly
 	 * the same thing as
@@ -3170,6 +3171,18 @@ static __devinit int hpsa_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 * method of resetting doesn't work so we have another way
 	 * using the doorbell register.
 	 */
+
+	/* Exclude 640x boards.  These are two pci devices in one slot
+	 * which share a battery backed cache module.  One controls the
+	 * cache, the other accesses the cache through the one that controls
+	 * it.  If we reset the one controlling the cache, the other will
+	 * likely not be happy.  Just forbid resetting this conjoined mess.
+	 * The 640x isn't really supported by hpsa anyway.
+	 */
+	hpsa_lookup_board_id(pdev, &board_id);
+	if (board_id == 0x409C0E11 || board_id == 0x409D0E11)
+		return -ENOTSUPP;
+
 	for (i = 0; i < 32; i++)
 		pci_read_config_word(pdev, 2*i, &saved_config_space[i]);
 
@@ -3669,7 +3682,8 @@ static __devinit int hpsa_init_reset_devices(struct pci_dev *pdev)
 
 	/* -ENOTSUPP here means we cannot reset the controller
 	 * but it's already (and still) up and running in
-	 * "performant mode".
+	 * "performant mode".  Or, it might be 640x, which can't reset
+	 * due to concerns about shared bbwc between 6402/6404 pair.
 	 */
 	if (rc == -ENOTSUPP)
 		return 0; /* just try to do the kdump anyhow. */
