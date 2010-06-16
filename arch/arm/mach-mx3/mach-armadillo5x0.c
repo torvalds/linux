@@ -499,7 +499,6 @@ static struct imxuart_platform_data uart_pdata = {
 
 static struct platform_device *devices[] __initdata = {
 	&armadillo5x0_smc911x_device,
-	&mxc_i2c_device1,
 	&armadillo5x0_button_device,
 };
 
@@ -512,6 +511,7 @@ static void __init armadillo5x0_init(void)
 			ARRAY_SIZE(armadillo5x0_pins), "armadillo5x0");
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	imx31_add_imx_i2c1(NULL);
 
 	/* Register UART */
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);

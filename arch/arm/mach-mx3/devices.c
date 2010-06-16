@@ -167,6 +167,7 @@ struct platform_device mxc_w1_master_device = {
 	.resource = mxc_w1_master_resources,
 };
 
+#if defined(CONFIG_ARCH_MX35)
 static struct resource mxc_i2c0_resources[] = {
 	{
 		.start = I2C_BASE_ADDR,
@@ -223,6 +224,7 @@ struct platform_device mxc_i2c_device2 = {
 	.num_resources = ARRAY_SIZE(mxc_i2c2_resources),
 	.resource = mxc_i2c2_resources,
 };
+#endif
 
 #ifdef CONFIG_ARCH_MX31
 static struct resource mxcsdhc0_resources[] = {

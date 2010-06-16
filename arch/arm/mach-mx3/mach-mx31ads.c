@@ -38,6 +38,7 @@
 #include <linux/mfd/wm8350/pmic.h>
 #endif
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 /* Base address of PBC controller */
@@ -500,7 +501,7 @@ static void mxc_init_i2c(void)
 	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_CSPI2_MOSI, IOMUX_CONFIG_ALT1));
 	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_CSPI2_MISO, IOMUX_CONFIG_ALT1));
 
-	mxc_register_device(&mxc_i2c_device1, NULL);
+	imx31_add_imx_i2c1(NULL);
 }
 #else
 static void mxc_init_i2c(void)

@@ -41,7 +41,6 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
@@ -280,11 +279,11 @@ pcm037_nand_board_info __initconst = {
 	.hw_ecc = 1,
 };
 
-static struct imxi2c_platform_data pcm037_i2c_1_data = {
+static const struct imxi2c_platform_data pcm037_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
-static struct imxi2c_platform_data pcm037_i2c_2_data = {
+static const struct imxi2c_platform_data pcm037_i2c2_data __initconst = {
 	.bitrate = 20000,
 };
 
@@ -630,8 +629,8 @@ static void __init mxc_board_init(void)
 	i2c_register_board_info(1, pcm037_i2c_devices,
 			ARRAY_SIZE(pcm037_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device1, &pcm037_i2c_1_data);
-	mxc_register_device(&mxc_i2c_device2, &pcm037_i2c_2_data);
+	imx31_add_imx_i2c1(&pcm037_i2c1_data);
+	imx31_add_imx_i2c2(&pcm037_i2c2_data);
 
 	imx31_add_mxc_nand(&pcm037_nand_board_info);
 	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);

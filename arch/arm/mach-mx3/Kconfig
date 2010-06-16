@@ -15,6 +15,7 @@ comment "MX3 platforms:"
 config MACH_MX31ADS
 	bool "Support MX31ADS platforms"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	default y
 	help
 	  Include support for MX31ADS platform. This includes specific
@@ -34,6 +35,7 @@ config MACH_MX31ADS_WM1133_EV1
 config MACH_PCM037
 	bool "Support Phytec pcm037 (i.MX31) platforms"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select MXC_ULPI if USB_ULPI
 	help
@@ -77,6 +79,7 @@ config MACH_MX31_3DS_MXC_NAND_USE_BBT
 config MACH_MX31MOBOARD
 	bool "Support mx31moboard platforms (EPFL Mobots group)"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for mx31moboard platform. This includes specific
@@ -109,6 +112,7 @@ config MACH_PCM043
 config MACH_ARMADILLO5X0
 	bool "Support Atmark Armadillo-500 Development Base Board"
 	select ARCH_MX31
+	select IMX_HAVE_PLATFORM_IMX_I2C
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select MXC_ULPI if USB_ULPI
 	help

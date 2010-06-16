@@ -41,13 +41,13 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
-#include <mach/i2c.h>
 #include <mach/mmc.h>
 #include <mach/mxc_ehci.h>
 #include <mach/mx3_camera.h>
 #include <mach/spi.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 static unsigned int moboard_pins[] = {
@@ -139,11 +139,11 @@ static struct imxuart_platform_data uart4_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct imxi2c_platform_data moboard_i2c0_pdata = {
+static const struct imxi2c_platform_data moboard_i2c0_data __initconst = {
 	.bitrate = 400000,
 };
 
-static struct imxi2c_platform_data moboard_i2c1_pdata = {
+static const struct imxi2c_platform_data moboard_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -499,8 +499,8 @@ static void __init mxc_board_init(void)
 
 	mxc_register_device(&mxc_uart_device4, &uart4_pdata);
 
-	mxc_register_device(&mxc_i2c_device0, &moboard_i2c0_pdata);
-	mxc_register_device(&mxc_i2c_device1, &moboard_i2c1_pdata);
+	imx31_add_imx_i2c0(&moboard_i2c0_data);
+	imx31_add_imx_i2c1(&moboard_i2c1_data);
 
 	mxc_register_device(&mxc_spi_device1, &moboard_spi1_master);
 	mxc_register_device(&mxc_spi_device2, &moboard_spi2_master);
