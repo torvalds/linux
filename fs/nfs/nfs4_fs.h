@@ -49,6 +49,7 @@ enum nfs4_client_state {
 };
 
 enum nfs4_session_state {
+	NFS4_SESSION_INITING,
 	NFS4_SESSION_DRAINING,
 };
 
