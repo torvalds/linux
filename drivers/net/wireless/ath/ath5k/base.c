@@ -1111,8 +1111,9 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 static int
 ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 {
-	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "(%u MHz) -> (%u MHz)\n",
-		sc->curchan->center_freq, chan->center_freq);
+	ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+		  "channel set, resetting (%u -> %u MHz)\n",
+		  sc->curchan->center_freq, chan->center_freq);
 
 	/*
 	 * To switch channels clear any pending DMA operations;
@@ -2298,6 +2299,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 			ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 				"stuck beacon time (%u missed)\n",
 				sc->bmisscount);
+			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+				  "stuck beacon, resetting\n");
 			tasklet_schedule(&sc->restq);
 		}
 		return;
@@ -2705,6 +2708,8 @@ ath5k_intr(int irq, void *dev_id)
 			 * Fatal errors are unrecoverable.
 			 * Typically these are caused by DMA errors.
 			 */
+			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+				  "fatal int, resetting\n");
 			tasklet_schedule(&sc->restq);
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
 			/*
@@ -2717,8 +2722,11 @@ ath5k_intr(int irq, void *dev_id)
 			 * this guess is copied from the HAL.
 			 */
 			sc->stats.rxorn_intr++;
-			if (ah->ah_mac_srev < AR5K_SREV_AR5212)
+			if (ah->ah_mac_srev < AR5K_SREV_AR5212) {
+				ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+					  "rx overrun, resetting\n");
 				tasklet_schedule(&sc->restq);
+			}
 			else
 				tasklet_schedule(&sc->rxtq);
 		} else {
