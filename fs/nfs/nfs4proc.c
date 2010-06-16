@@ -667,7 +667,7 @@ int _nfs4_call_sync(struct nfs_server *server,
 }
 
 #define nfs4_call_sync(server, msg, args, res, cache_reply) \
-	(server)->nfs_client->cl_call_sync((server), (msg), &(args)->seq_args, \
+	(server)->nfs_client->cl_mvops->call_sync((server), (msg), &(args)->seq_args, \
 			&(res)->seq_res, (cache_reply))
 
 static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
@@ -5353,6 +5353,18 @@ struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
 };
 #endif
 
+static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
+	.minor_version = 0,
+	.call_sync = _nfs4_call_sync,
+};
+
+#if defined(CONFIG_NFS_V4_1)
+static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
+	.minor_version = 1,
+	.call_sync = _nfs4_call_sync_session,
+};
+#endif
+
 /*
  * Per minor version reboot and network partition recovery ops
  */
@@ -5375,6 +5387,13 @@ struct nfs4_state_maintenance_ops *nfs4_state_renewal_ops[] = {
 	&nfs40_state_renewal_ops,
 #if defined(CONFIG_NFS_V4_1)
 	&nfs41_state_renewal_ops,
+#endif
+};
+
+const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
+	[0] = &nfs_v4_0_minor_ops,
+#if defined(CONFIG_NFS_V4_1)
+	[1] = &nfs_v4_1_minor_ops,
 #endif
 };
 

@@ -52,6 +52,16 @@ enum nfs4_session_state {
 	NFS4_SESSION_DRAINING,
 };
 
+struct nfs4_minor_version_ops {
+	u32	minor_version;
+
+	int	(*call_sync)(struct nfs_server *server,
+			struct rpc_message *msg,
+			struct nfs4_sequence_args *args,
+			struct nfs4_sequence_res *res,
+			int cache_reply);
+};
+
 /*
  * struct rpc_sequence ensures that RPC calls are sent in the exact
  * order that they appear on the list.
@@ -260,6 +270,7 @@ static inline int nfs4_init_session(struct nfs_server *server)
 }
 #endif /* CONFIG_NFS_V4_1 */
 
+extern const struct nfs4_minor_version_ops *nfs_v4_minor_ops[];
 extern struct nfs4_state_maintenance_ops *nfs4_state_renewal_ops[];
 
 extern const u32 nfs4_fattr_bitmap[2];
