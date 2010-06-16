@@ -60,6 +60,9 @@ struct nfs4_minor_version_ops {
 			struct nfs4_sequence_args *args,
 			struct nfs4_sequence_res *res,
 			int cache_reply);
+	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
+	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
+	const struct nfs4_state_maintenance_ops *state_renewal_ops;
 };
 
 /*
@@ -233,8 +236,6 @@ extern int nfs4_server_capabilities(struct nfs_server *server, struct nfs_fh *fh
 extern int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page);
 
-extern struct nfs4_state_recovery_ops *nfs4_reboot_recovery_ops[];
-extern struct nfs4_state_recovery_ops *nfs4_nograce_recovery_ops[];
 #if defined(CONFIG_NFS_V4_1)
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
 {
@@ -271,7 +272,6 @@ static inline int nfs4_init_session(struct nfs_server *server)
 #endif /* CONFIG_NFS_V4_1 */
 
 extern const struct nfs4_minor_version_ops *nfs_v4_minor_ops[];
-extern struct nfs4_state_maintenance_ops *nfs4_state_renewal_ops[];
 
 extern const u32 nfs4_fattr_bitmap[2];
 extern const u32 nfs4_statfs_bitmap[2];

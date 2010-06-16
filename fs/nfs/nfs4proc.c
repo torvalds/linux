@@ -5356,39 +5356,20 @@ struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
 static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 	.minor_version = 0,
 	.call_sync = _nfs4_call_sync,
+	.reboot_recovery_ops = &nfs40_reboot_recovery_ops,
+	.nograce_recovery_ops = &nfs40_nograce_recovery_ops,
+	.state_renewal_ops = &nfs40_state_renewal_ops,
 };
 
 #if defined(CONFIG_NFS_V4_1)
 static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.minor_version = 1,
 	.call_sync = _nfs4_call_sync_session,
+	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
+	.nograce_recovery_ops = &nfs41_nograce_recovery_ops,
+	.state_renewal_ops = &nfs41_state_renewal_ops,
 };
 #endif
-
-/*
- * Per minor version reboot and network partition recovery ops
- */
-
-struct nfs4_state_recovery_ops *nfs4_reboot_recovery_ops[] = {
-	&nfs40_reboot_recovery_ops,
-#if defined(CONFIG_NFS_V4_1)
-	&nfs41_reboot_recovery_ops,
-#endif
-};
-
-struct nfs4_state_recovery_ops *nfs4_nograce_recovery_ops[] = {
-	&nfs40_nograce_recovery_ops,
-#if defined(CONFIG_NFS_V4_1)
-	&nfs41_nograce_recovery_ops,
-#endif
-};
-
-struct nfs4_state_maintenance_ops *nfs4_state_renewal_ops[] = {
-	&nfs40_state_renewal_ops,
-#if defined(CONFIG_NFS_V4_1)
-	&nfs41_state_renewal_ops,
-#endif
-};
 
 const struct nfs4_minor_version_ops *nfs_v4_minor_ops[] = {
 	[0] = &nfs_v4_0_minor_ops,
