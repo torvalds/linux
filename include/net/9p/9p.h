@@ -94,6 +94,8 @@ do { \
  * @P9_RMKNOD: create a special file object response
  * @P9_TRENAME: rename request
  * @P9_RRENAME: rename response
+ * @P9_TMKDIR: create a directory request
+ * @P9_RMKDIR: create a directory response
  * @P9_TVERSION: version handshake request
  * @P9_RVERSION: version handshake response
  * @P9_TAUTH: request to establish authentication channel
@@ -149,6 +151,8 @@ enum p9_msg_t {
 	P9_RREADDIR,
 	P9_TLINK = 70,
 	P9_RLINK,
+	P9_TMKDIR = 72,
+	P9_RMKDIR,
 	P9_TVERSION = 100,
 	P9_RVERSION,
 	P9_TAUTH = 102,

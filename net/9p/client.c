@@ -1653,3 +1653,34 @@ error:
 
 }
 EXPORT_SYMBOL(p9_client_mknod_dotl);
+
+int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
+				gid_t gid, struct p9_qid *qid)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TMKDIR fid %d name %s mode %d gid %d\n",
+		 fid->fid, name, mode, gid);
+	req = p9_client_rpc(clnt, P9_TMKDIR, "dsdd", fid->fid, name, mode,
+		gid);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RMKDIR qid %x.%llx.%x\n", qid->type,
+				(unsigned long long)qid->path, qid->version);
+
+error:
+	p9_free_req(clnt, req);
+	return err;
+
+}
+EXPORT_SYMBOL(p9_client_mkdir_dotl);

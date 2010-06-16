@@ -247,6 +247,8 @@ struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 
 int p9_client_mknod_dotl(struct p9_fid *oldfid, char *name, int mode,
 			dev_t rdev, gid_t gid, struct p9_qid *);
+int p9_client_mkdir_dotl(struct p9_fid *fid, char *name, int mode,
+				gid_t gid, struct p9_qid *);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
 

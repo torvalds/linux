@@ -731,6 +731,83 @@ static int v9fs_vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return err;
 }
 
+
+/**
+ * v9fs_vfs_mkdir_dotl - VFS mkdir hook to create a directory
+ * @dir:  inode that is being unlinked
+ * @dentry: dentry that is being unlinked
+ * @mode: mode for new directory
+ *
+ */
+
+static int v9fs_vfs_mkdir_dotl(struct inode *dir, struct dentry *dentry,
+					int mode)
+{
+	int err;
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid = NULL, *dfid = NULL;
+	gid_t gid;
+	char *name;
+	struct inode *inode;
+	struct p9_qid qid;
+	struct dentry *dir_dentry;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "name %s\n", dentry->d_name.name);
+	err = 0;
+	v9ses = v9fs_inode2v9ses(dir);
+
+	mode |= S_IFDIR;
+	dir_dentry = v9fs_dentry_from_dir_inode(dir);
+	dfid = v9fs_fid_lookup(dir_dentry);
+	if (IS_ERR(dfid)) {
+		err = PTR_ERR(dfid);
+		P9_DPRINTK(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		dfid = NULL;
+		goto error;
+	}
+
+	gid = v9fs_get_fsgid_for_create(dir);
+	if (gid < 0) {
+		P9_DPRINTK(P9_DEBUG_VFS, "v9fs_get_fsgid_for_create failed\n");
+		goto error;
+	}
+
+	name = (char *) dentry->d_name.name;
+	err = p9_client_mkdir_dotl(dfid, name, mode, gid, &qid);
+	if (err < 0)
+		goto error;
+
+	/* instantiate inode and assign the unopened fid to the dentry */
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE) {
+		fid = p9_client_walk(dfid, 1, &name, 1);
+		if (IS_ERR(fid)) {
+			err = PTR_ERR(fid);
+			P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n",
+				err);
+			fid = NULL;
+			goto error;
+		}
+
+		inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+		if (IS_ERR(inode)) {
+			err = PTR_ERR(inode);
+			P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n",
+				err);
+			goto error;
+		}
+		dentry->d_op = &v9fs_cached_dentry_operations;
+		d_instantiate(dentry, inode);
+		err = v9fs_fid_add(dentry, fid);
+		if (err < 0)
+			goto error;
+		fid = NULL;
+	}
+error:
+	if (fid)
+		p9_client_clunk(fid);
+	return err;
+}
+
 /**
  * v9fs_vfs_lookup - VFS lookup hook to "walk" to a new inode
  * @dir:  inode that is being walked from
@@ -1641,7 +1718,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int mode,
 	struct inode *inode;
 	gid_t gid;
 	struct p9_qid qid;
-	struct dentry *dir_entry;
+	struct dentry *dir_dentry;
 
 	P9_DPRINTK(P9_DEBUG_VFS,
 		" %lu,%s mode: %x MAJOR: %u MINOR: %u\n", dir->i_ino,
@@ -1652,7 +1729,7 @@ v9fs_vfs_mknod_dotl(struct inode *dir, struct dentry *dentry, int mode,
 
 	v9ses = v9fs_inode2v9ses(dir);
 	dir_dentry = v9fs_dentry_from_dir_inode(dir);
-	dfid = v9fs_fid_lookup(dir_entry);
+	dfid = v9fs_fid_lookup(dir_dentry);
 	if (IS_ERR(dfid)) {
 		err = PTR_ERR(dfid);
 		P9_DPRINTK(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
@@ -1736,7 +1813,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.link = v9fs_vfs_link_dotl,
 	.symlink = v9fs_vfs_symlink_dotl,
 	.unlink = v9fs_vfs_unlink,
-	.mkdir = v9fs_vfs_mkdir,
+	.mkdir = v9fs_vfs_mkdir_dotl,
 	.rmdir = v9fs_vfs_rmdir,
 	.mknod = v9fs_vfs_mknod_dotl,
 	.rename = v9fs_vfs_rename,
