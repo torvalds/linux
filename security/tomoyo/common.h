@@ -880,7 +880,7 @@ int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
 
 /* Initialize mm related code. */
 void __init tomoyo_mm_init(void);
-int tomoyo_check_exec_perm(struct tomoyo_request_info *r,
+int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);

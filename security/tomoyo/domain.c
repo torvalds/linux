@@ -960,7 +960,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_check_exec_perm(&r, &rn);
+	retval = tomoyo_path_permission(&r, TOMOYO_TYPE_EXECUTE, &rn);
 	if (retval == TOMOYO_RETRY_REQUEST)
 		goto retry;
 	if (retval < 0)

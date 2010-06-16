@@ -670,62 +670,6 @@ static int tomoyo_path_acl(const struct tomoyo_request_info *r,
 	return error;
 }
 
-/**
- * tomoyo_file_perm - Check permission for opening files.
- *
- * @r:         Pointer to "struct tomoyo_request_info".
- * @filename:  Filename to check.
- * @mode:      Mode ("read" or "write" or "read/write" or "execute").
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_file_perm(struct tomoyo_request_info *r,
-			    const struct tomoyo_path_info *filename,
-			    const u8 mode)
-{
-	const char *msg = "<unknown>";
-	int error = 0;
-	u32 perm = 0;
-
-	if (!filename)
-		return 0;
-
-	if (mode == 6) {
-		msg = tomoyo_path2keyword(TOMOYO_TYPE_READ_WRITE);
-		perm = 1 << TOMOYO_TYPE_READ_WRITE;
-	} else if (mode == 4) {
-		msg = tomoyo_path2keyword(TOMOYO_TYPE_READ);
-		perm = 1 << TOMOYO_TYPE_READ;
-	} else if (mode == 2) {
-		msg = tomoyo_path2keyword(TOMOYO_TYPE_WRITE);
-		perm = 1 << TOMOYO_TYPE_WRITE;
-	} else if (mode == 1) {
-		msg = tomoyo_path2keyword(TOMOYO_TYPE_EXECUTE);
-		perm = 1 << TOMOYO_TYPE_EXECUTE;
-	} else
-		BUG();
-	do {
-		error = tomoyo_path_acl(r, filename, perm);
-		if (error && mode == 4 && !r->domain->ignore_global_allow_read
-		    && tomoyo_is_globally_readable_file(filename))
-			error = 0;
-		if (!error)
-			break;
-		tomoyo_warn_log(r, "%s %s", msg, filename->name);
-		error = tomoyo_supervisor(r, "allow_%s %s\n", msg,
-					  tomoyo_file_pattern(filename));
-		/*
-                 * Do not retry for execute request, for alias may have
-		 * changed.
-                 */
-	} while (error == TOMOYO_RETRY_REQUEST && mode != 1);
-	if (r->mode != TOMOYO_CONFIG_ENFORCING)
-		error = 0;
-	return error;
-}
-
 static bool tomoyo_same_path_acl(const struct tomoyo_acl_info *a,
 				 const struct tomoyo_acl_info *b)
 {
@@ -1018,8 +962,8 @@ static int tomoyo_path2_acl(const struct tomoyo_request_info *r, const u8 type,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
-				  const struct tomoyo_path_info *filename)
+int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
+			   const struct tomoyo_path_info *filename)
 {
 	const char *msg;
 	int error;
@@ -1031,15 +975,22 @@ static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 		return 0;
 	do {
 		error = tomoyo_path_acl(r, filename, 1 << operation);
+		if (error && operation == TOMOYO_TYPE_READ &&
+		    !r->domain->ignore_global_allow_read &&
+		    tomoyo_is_globally_readable_file(filename))
+			error = 0;
 		if (!error)
 			break;
 		msg = tomoyo_path2keyword(operation);
 		tomoyo_warn_log(r, "%s %s", msg, filename->name);
 		error = tomoyo_supervisor(r, "allow_%s %s\n", msg,
 					  tomoyo_file_pattern(filename));
-	} while (error == TOMOYO_RETRY_REQUEST);
-	if (r->mode != TOMOYO_CONFIG_ENFORCING)
-		error = 0;
+		/*
+		 * Do not retry for execute request, for alias may have
+		 * changed.
+		 */
+	} while (error == TOMOYO_RETRY_REQUEST &&
+		 operation != TOMOYO_TYPE_EXECUTE);
 	/*
 	 * Since "allow_truncate" doesn't imply "allow_rewrite" permission,
 	 * we need to check "allow_rewrite" permission if the filename is
@@ -1202,8 +1153,6 @@ static int tomoyo_path_number_perm2(struct tomoyo_request_info *r,
 					  tomoyo_file_pattern(filename),
 					  buffer);
 	} while (error == TOMOYO_RETRY_REQUEST);
-	if (r->mode != TOMOYO_CONFIG_ENFORCING)
-		error = 0;
 	return error;
 }
 
@@ -1239,24 +1188,6 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
 	return error;
-}
-
-/**
- * tomoyo_check_exec_perm - Check permission for "execute".
- *
- * @r:        Pointer to "struct tomoyo_request_info".
- * @filename: Check permission for "execute".
- *
- * Returns 0 on success, negativevalue otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_check_exec_perm(struct tomoyo_request_info *r,
-			   const struct tomoyo_path_info *filename)
-{
-	if (r->mode == TOMOYO_CONFIG_DISABLED)
-		return 0;
-	return tomoyo_file_perm(r, filename, 1);
 }
 
 /**
@@ -1305,11 +1236,18 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	if (!error && acc_mode &&
 	    tomoyo_init_request_info(&r, domain, TOMOYO_MAC_FILE_OPEN)
 	    != TOMOYO_CONFIG_DISABLED) {
+		u8 operation;
 		if (!buf.name && !tomoyo_get_realpath(&buf, path)) {
 			error = -ENOMEM;
 			goto out;
 		}
-		error = tomoyo_file_perm(&r, &buf, acc_mode);
+		if (acc_mode == (MAY_READ | MAY_WRITE))
+			operation = TOMOYO_TYPE_READ_WRITE;
+		else if (acc_mode == MAY_READ)
+			operation = TOMOYO_TYPE_READ;
+		else
+			operation = TOMOYO_TYPE_WRITE;
+		error = tomoyo_path_permission(&r, operation, &buf);
 	}
  out:
 	kfree(buf.name);
