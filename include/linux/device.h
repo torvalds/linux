@@ -84,9 +84,8 @@ struct device *bus_find_device_by_name(struct bus_type *bus,
 				       struct device *start,
 				       const char *name);
 
-int __must_check bus_for_each_drv(struct bus_type *bus,
-				  struct device_driver *start, void *data,
-				  int (*fn)(struct device_driver *, void *));
+int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
+		     void *data, int (*fn)(struct device_driver *, void *));
 
 void bus_sort_breadthfirst(struct bus_type *bus,
 			   int (*compare)(const struct device *a,
