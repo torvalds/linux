@@ -43,12 +43,12 @@
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_nand.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 #include <mach/audmux.h>
 #include <mach/ssi.h>
 
+#include "devices-imx35.h"
 #include "devices.h"
 
 static const struct fb_videomode fb_modedb[] = {
@@ -300,7 +300,8 @@ static struct imx_ssi_platform_data pcm043_ssi_pdata = {
 	.flags = IMX_SSI_USE_AC97,
 };
 
-static struct mxc_nand_platform_data pcm037_nand_board_info = {
+static const struct mxc_nand_platform_data
+pcm037_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -358,7 +359,7 @@ static void __init mxc_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
+	imx35_add_mxc_nand(&pcm037_nand_board_info);
 	mxc_register_device(&imx_ssi_device0, &pcm043_ssi_pdata);
 
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);

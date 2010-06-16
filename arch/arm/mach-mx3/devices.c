@@ -167,27 +167,6 @@ struct platform_device mxc_w1_master_device = {
 	.resource = mxc_w1_master_resources,
 };
 
-#if defined(CONFIG_ARCH_MX35)
-static struct resource mxc_nand_resources[] = {
-	{
-		.start	= 0, /* runtime dependent */
-		.end	= 0,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= MXC_INT_NANDFC,
-		.end	= MXC_INT_NANDFC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_nand_device = {
-	.name = "mxc_nand",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_nand_resources),
-	.resource = mxc_nand_resources,
-};
-#endif
-
 static struct resource mxc_i2c0_resources[] = {
 	{
 		.start = I2C_BASE_ADDR,
@@ -639,8 +618,6 @@ static int __init mx3_devices_init(void)
 #endif
 #if defined(CONFIG_ARCH_MX35)
 	if (cpu_is_mx35()) {
-		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
-		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0x1fff;
 		otg_resources[0].start = MX35_OTG_BASE_ADDR;
 		otg_resources[0].end = MX35_OTG_BASE_ADDR + 0x1ff;
 		otg_resources[1].start = MXC_INT_USBOTG;
