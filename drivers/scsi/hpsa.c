@@ -126,7 +126,8 @@ static struct board_type products[] = {
 
 static int number_of_controllers;
 
-static irqreturn_t do_hpsa_intr(int irq, void *dev_id);
+static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id);
+static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id);
 static int hpsa_ioctl(struct scsi_device *dev, int cmd, void *arg);
 static void start_io(struct ctlr_info *h);
 
@@ -2858,9 +2859,8 @@ static inline bool interrupt_pending(struct ctlr_info *h)
 
 static inline long interrupt_not_for_us(struct ctlr_info *h)
 {
-	return !(h->msi_vector || h->msix_vector) &&
-		((h->access.intr_pending(h) == 0) ||
-		(h->interrupts_enabled == 0));
+	return (h->access.intr_pending(h) == 0) ||
+		(h->interrupts_enabled == 0);
 }
 
 static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
@@ -2934,7 +2934,7 @@ static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
 	return next_command(h);
 }
 
-static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
+static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id)
 {
 	struct ctlr_info *h = dev_id;
 	unsigned long flags;
@@ -2942,6 +2942,26 @@ static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
+	spin_lock_irqsave(&h->lock, flags);
+	while (interrupt_pending(h)) {
+		raw_tag = get_next_completion(h);
+		while (raw_tag != FIFO_EMPTY) {
+			if (hpsa_tag_contains_index(raw_tag))
+				raw_tag = process_indexed_cmd(h, raw_tag);
+			else
+				raw_tag = process_nonindexed_cmd(h, raw_tag);
+		}
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id)
+{
+	struct ctlr_info *h = dev_id;
+	unsigned long flags;
+	u32 raw_tag;
+
 	spin_lock_irqsave(&h->lock, flags);
 	raw_tag = get_next_completion(h);
 	while (raw_tag != FIFO_EMPTY) {
@@ -3754,8 +3774,13 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 
 	/* make sure the board interrupts are off */
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
-	rc = request_irq(h->intr[PERF_MODE_INT], do_hpsa_intr,
-			IRQF_DISABLED, h->devname, h);
+
+	if (h->msix_vector || h->msi_vector)
+		rc = request_irq(h->intr[PERF_MODE_INT], do_hpsa_intr_msi,
+				IRQF_DISABLED, h->devname, h);
+	else
+		rc = request_irq(h->intr[PERF_MODE_INT], do_hpsa_intr_intx,
+				IRQF_DISABLED, h->devname, h);
 	if (rc) {
 		dev_err(&pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[PERF_MODE_INT], h->devname);
