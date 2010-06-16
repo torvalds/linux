@@ -60,6 +60,8 @@ struct nfs4_minor_version_ops {
 			struct nfs4_sequence_args *args,
 			struct nfs4_sequence_res *res,
 			int cache_reply);
+	int	(*validate_stateid)(struct nfs_delegation *,
+			const nfs4_stateid *);
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;

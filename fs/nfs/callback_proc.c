@@ -62,16 +62,6 @@ out:
 	return res->status;
 }
 
-static int (*nfs_validate_delegation_stateid(struct nfs_client *clp))(struct nfs_delegation *, const nfs4_stateid *)
-{
-#if defined(CONFIG_NFS_V4_1)
-	if (clp->cl_minorversion > 0)
-		return nfs41_validate_delegation_stateid;
-#endif
-	return nfs4_validate_delegation_stateid;
-}
-
-
 __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 {
 	struct nfs_client *clp;
@@ -92,8 +82,7 @@ __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy)
 		inode = nfs_delegation_find_inode(clp, &args->fh);
 		if (inode != NULL) {
 			/* Set up a helper thread to actually return the delegation */
-			switch (nfs_async_inode_return_delegation(inode, &args->stateid,
-								  nfs_validate_delegation_stateid(clp))) {
+			switch (nfs_async_inode_return_delegation(inode, &args->stateid)) {
 				case 0:
 					res = 0;
 					break;

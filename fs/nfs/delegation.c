@@ -471,9 +471,7 @@ void nfs_expire_unreferenced_delegations(struct nfs_client *clp)
 /*
  * Asynchronous delegation recall!
  */
-int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid,
-				      int (*validate_stateid)(struct nfs_delegation *delegation,
-							      const nfs4_stateid *stateid))
+int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *stateid)
 {
 	struct nfs_client *clp = NFS_SERVER(inode)->nfs_client;
 	struct nfs_delegation *delegation;
@@ -481,7 +479,7 @@ int nfs_async_inode_return_delegation(struct inode *inode, const nfs4_stateid *s
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
 
-	if (!validate_stateid(delegation, stateid)) {
+	if (!clp->cl_mvops->validate_stateid(delegation, stateid)) {
 		rcu_read_unlock();
 		return -ENOENT;
 	}
