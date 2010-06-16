@@ -19,33 +19,19 @@
 
 #include <linux/bitops.h>
 #include <linux/init.h>
-#include <linux/list.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/usb.h>
-#include <linux/moduleparam.h>
-#include <linux/mutex.h>
 #include <linux/usb/audio.h>
 #include <linux/usb/audio-v2.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/initval.h>
 
 #include "usbaudio.h"
 #include "card.h"
-#include "midi.h"
-#include "mixer.h"
-#include "proc.h"
-#include "quirks.h"
-#include "endpoint.h"
 #include "helper.h"
-#include "debug.h"
-#include "pcm.h"
-#include "urb.h"
-#include "format.h"
+#include "clock.h"
 
 static struct uac_clock_source_descriptor *
 	snd_usb_find_clock_source(struct usb_host_interface *ctrl_iface,
