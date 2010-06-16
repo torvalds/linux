@@ -966,7 +966,7 @@ static struct resource bfin_spi1_resource[] = {
 
 /* SPI controller data */
 static struct bfin5xx_spi_master bf54x_spi_master_info0 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -982,7 +982,7 @@ static struct platform_device bf54x_spi_master0 = {
 };
 
 static struct bfin5xx_spi_master bf54x_spi_master_info1 = {
-	.num_chipselect = 3,
+	.num_chipselect = 4,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };

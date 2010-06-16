@@ -312,7 +312,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI (0) */
 static struct bfin5xx_spi_master bfin_spi0_info = {
-	.num_chipselect = 5,
+	.num_chipselect = 6,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -347,7 +347,7 @@ static struct platform_device bfin_spi0_device = {
 
 /* SPI (1) */
 static struct bfin5xx_spi_master bfin_spi1_info = {
-	.num_chipselect = 5,
+	.num_chipselect = 6,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI1_SCK, P_SPI1_MISO, P_SPI1_MOSI, 0},
 };
