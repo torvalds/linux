@@ -121,7 +121,7 @@ struct uac2_feature_unit_descriptor {
 
 /* 4.9.2 Class-Specific AS Interface Descriptor */
 
-struct uac_as_header_descriptor_v2 {
+struct uac2_as_header_descriptor {
 	__u8 bLength;
 	__u8 bDescriptorType;
 	__u8 bDescriptorSubtype;

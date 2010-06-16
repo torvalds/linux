@@ -39,8 +39,8 @@
 #define UAC_MIXER_UNIT			0x04
 #define UAC_SELECTOR_UNIT		0x05
 #define UAC_FEATURE_UNIT		0x06
-#define UAC_PROCESSING_UNIT_V1		0x07
-#define UAC_EXTENSION_UNIT_V1		0x08
+#define UAC1_PROCESSING_UNIT		0x07
+#define UAC1_EXTENSION_UNIT		0x08
 
 /* A.6 Audio Class-Specific AS Interface Descriptor Subtypes */
 #define UAC_AS_GENERAL			0x01
@@ -151,7 +151,7 @@
 
 /* Terminal Control Selectors */
 /* 4.3.2  Class-Specific AC Interface Descriptor */
-struct uac_ac_header_descriptor_v1 {
+struct uac1_ac_header_descriptor {
 	__u8  bLength;			/* 8 + n */
 	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
 	__u8  bDescriptorSubtype;	/* UAC_MS_HEADER */
@@ -165,7 +165,7 @@ struct uac_ac_header_descriptor_v1 {
 
 /* As above, but more useful for defining your own descriptors: */
 #define DECLARE_UAC_AC_HEADER_DESCRIPTOR(n)			\
-struct uac_ac_header_descriptor_v1_##n {			\
+struct uac1_ac_header_descriptor_##n {			\
 	__u8  bLength;						\
 	__u8  bDescriptorType;					\
 	__u8  bDescriptorSubtype;				\
@@ -205,7 +205,7 @@ struct uac_input_terminal_descriptor {
 #define UAC_TERMINAL_CS_COPY_PROTECT_CONTROL		0x01
 
 /* 4.3.2.2 Output Terminal Descriptor */
-struct uac_output_terminal_descriptor_v1 {
+struct uac1_output_terminal_descriptor {
 	__u8  bLength;			/* in bytes: 9 */
 	__u8  bDescriptorType;		/* CS_INTERFACE descriptor type */
 	__u8  bDescriptorSubtype;	/* OUTPUT_TERMINAL descriptor subtype */
@@ -395,7 +395,7 @@ static inline __u8 *uac_processing_unit_specific(struct uac_processing_unit_desc
 }
 
 /* 4.5.2 Class-Specific AS Interface Descriptor */
-struct uac_as_header_descriptor_v1 {
+struct uac1_as_header_descriptor {
 	__u8  bLength;			/* in bytes: 7 */
 	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
 	__u8  bDescriptorSubtype;	/* AS_GENERAL */

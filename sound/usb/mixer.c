@@ -582,9 +582,9 @@ static int get_term_name(struct mixer_build *state, struct usb_audio_term *iterm
 		switch (iterm->type >> 16) {
 		case UAC_SELECTOR_UNIT:
 			strcpy(name, "Selector"); return 8;
-		case UAC_PROCESSING_UNIT_V1:
+		case UAC1_PROCESSING_UNIT:
 			strcpy(name, "Process Unit"); return 12;
-		case UAC_EXTENSION_UNIT_V1:
+		case UAC1_EXTENSION_UNIT:
 			strcpy(name, "Ext Unit"); return 8;
 		case UAC_MIXER_UNIT:
 			strcpy(name, "Mixer"); return 5;
@@ -672,8 +672,8 @@ static int check_input_term(struct mixer_build *state, int id, struct usb_audio_
 			term->name = uac_selector_unit_iSelector(d);
 			return 0;
 		}
-		case UAC_PROCESSING_UNIT_V1:
-		case UAC_EXTENSION_UNIT_V1: {
+		case UAC1_PROCESSING_UNIT:
+		case UAC1_EXTENSION_UNIT: {
 			struct uac_processing_unit_descriptor *d = p1;
 			if (d->bNrInPins) {
 				id = d->baSourceID[0];
@@ -1855,13 +1855,13 @@ static int parse_audio_unit(struct mixer_build *state, int unitid)
 		return parse_audio_selector_unit(state, unitid, p1);
 	case UAC_FEATURE_UNIT:
 		return parse_audio_feature_unit(state, unitid, p1);
-	case UAC_PROCESSING_UNIT_V1:
+	case UAC1_PROCESSING_UNIT:
 	/*   UAC2_EFFECT_UNIT has the same value */
 		if (state->mixer->protocol == UAC_VERSION_1)
 			return parse_audio_processing_unit(state, unitid, p1);
 		else
 			return 0; /* FIXME - effect units not implemented yet */
-	case UAC_EXTENSION_UNIT_V1:
+	case UAC1_EXTENSION_UNIT:
 	/*   UAC2_PROCESSING_UNIT_V2 has the same value */
 		if (state->mixer->protocol == UAC_VERSION_1)
 			return parse_audio_extension_unit(state, unitid, p1);
@@ -1925,7 +1925,7 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 	p = NULL;
 	while ((p = snd_usb_find_csint_desc(hostif->extra, hostif->extralen, p, UAC_OUTPUT_TERMINAL)) != NULL) {
 		if (mixer->protocol == UAC_VERSION_1) {
-			struct uac_output_terminal_descriptor_v1 *desc = p;
+			struct uac1_output_terminal_descriptor *desc = p;
 
 			if (desc->bLength < sizeof(*desc))
 				continue; /* invalid descriptor? */
