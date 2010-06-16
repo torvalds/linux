@@ -277,12 +277,13 @@ out:
 	return sh;
 }
 
-static void shrink_buffers(struct stripe_head *sh, int num)
+static void shrink_buffers(struct stripe_head *sh)
 {
 	struct page *p;
 	int i;
+	int num = sh->raid_conf->pool_size;
 
-	for (i=0; i<num ; i++) {
+	for (i = 0; i < num ; i++) {
 		p = sh->dev[i].page;
 		if (!p)
 			continue;
@@ -291,11 +292,12 @@ static void shrink_buffers(struct stripe_head *sh, int num)
 	}
 }
 
-static int grow_buffers(struct stripe_head *sh, int num)
+static int grow_buffers(struct stripe_head *sh)
 {
 	int i;
+	int num = sh->raid_conf->pool_size;
 
-	for (i=0; i<num; i++) {
+	for (i = 0; i < num; i++) {
 		struct page *page;
 
 		if (!(page = alloc_page(GFP_KERNEL))) {
@@ -1240,19 +1242,18 @@ static void raid_run_ops(struct stripe_head *sh, unsigned long ops_request)
 static int grow_one_stripe(raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
-	int disks = max(conf->raid_disks, conf->previous_raid_disks);
 	sh = kmem_cache_alloc(conf->slab_cache, GFP_KERNEL);
 	if (!sh)
 		return 0;
-	memset(sh, 0, sizeof(*sh) + (disks-1)*sizeof(struct r5dev));
+	memset(sh, 0, sizeof(*sh) + (conf->pool_size-1)*sizeof(struct r5dev));
 	sh->raid_conf = conf;
 	spin_lock_init(&sh->lock);
 	#ifdef CONFIG_MULTICORE_RAID456
 	init_waitqueue_head(&sh->ops.wait_for_ops);
 	#endif
 
-	if (grow_buffers(sh, disks)) {
-		shrink_buffers(sh, disks);
+	if (grow_buffers(sh)) {
+		shrink_buffers(sh);
 		kmem_cache_free(conf->slab_cache, sh);
 		return 0;
 	}
@@ -1468,7 +1469,7 @@ static int drop_one_stripe(raid5_conf_t *conf)
 	if (!sh)
 		return 0;
 	BUG_ON(atomic_read(&sh->count));
-	shrink_buffers(sh, conf->pool_size);
+	shrink_buffers(sh);
 	kmem_cache_free(conf->slab_cache, sh);
 	atomic_dec(&conf->active_stripes);
 	return 1;
