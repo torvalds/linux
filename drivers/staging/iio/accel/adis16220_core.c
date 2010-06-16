@@ -414,7 +414,7 @@ static ssize_t adis16220_capture_buffer_read(struct adis16220_state *st,
 	return count;
 }
 
-static ssize_t adis16220_accel_bin_read(struct kobject *kobj,
+static ssize_t adis16220_accel_bin_read(struct file *filp, struct kobject *kobj,
 					struct bin_attribute *attr,
 					char *buf,
 					loff_t off,
@@ -438,7 +438,7 @@ static struct bin_attribute accel_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static ssize_t adis16220_adc1_bin_read(struct kobject *kobj,
+static ssize_t adis16220_adc1_bin_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buf, loff_t off,
 				size_t count)
@@ -461,7 +461,7 @@ static struct bin_attribute adc1_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static ssize_t adis16220_adc2_bin_read(struct kobject *kobj,
+static ssize_t adis16220_adc2_bin_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr,
 				char *buf, loff_t off,
 				size_t count)
