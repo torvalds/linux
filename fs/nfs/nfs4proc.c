@@ -3457,9 +3457,11 @@ static int nfs4_proc_set_acl(struct inode *inode, const void *buf, size_t buflen
 }
 
 static int
-_nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs_client *clp, struct nfs4_state *state)
+nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs4_state *state)
 {
-	if (!clp || task->tk_status >= 0)
+	struct nfs_client *clp = server->nfs_client;
+
+	if (task->tk_status >= 0)
 		return 0;
 	switch(task->tk_status) {
 		case -NFS4ERR_ADMIN_REVOKED:
@@ -3491,8 +3493,7 @@ _nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server,
 			return -EAGAIN;
 #endif /* CONFIG_NFS_V4_1 */
 		case -NFS4ERR_DELAY:
-			if (server)
-				nfs_inc_server_stats(server, NFSIOS_DELAY);
+			nfs_inc_server_stats(server, NFSIOS_DELAY);
 		case -NFS4ERR_GRACE:
 		case -EKEYEXPIRED:
 			rpc_delay(task, NFS4_POLL_RETRY_MAX);
@@ -3511,12 +3512,6 @@ do_state_recovery:
 		rpc_wake_up_queued_task(&clp->cl_rpcwaitq, task);
 	task->tk_status = 0;
 	return -EAGAIN;
-}
-
-static int
-nfs4_async_handle_error(struct rpc_task *task, const struct nfs_server *server, struct nfs4_state *state)
-{
-	return _nfs4_async_handle_error(task, server, server->nfs_client, state);
 }
 
 int nfs4_proc_setclientid(struct nfs_client *clp, u32 program,
@@ -5088,6 +5083,19 @@ static void nfs41_sequence_release(void *data)
 	kfree(calldata);
 }
 
+static int nfs41_sequence_handle_errors(struct rpc_task *task, struct nfs_client *clp)
+{
+	switch(task->tk_status) {
+	case -NFS4ERR_DELAY:
+	case -EKEYEXPIRED:
+		rpc_delay(task, NFS4_POLL_RETRY_MAX);
+		return -EAGAIN;
+	default:
+		nfs4_schedule_state_recovery(clp);
+	}
+	return 0;
+}
+
 static void nfs41_sequence_call_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_sequence_data *calldata = data;
@@ -5100,9 +5108,8 @@ static void nfs41_sequence_call_done(struct rpc_task *task, void *data)
 		if (atomic_read(&clp->cl_count) == 1)
 			goto out;
 
-		if (_nfs4_async_handle_error(task, NULL, clp, NULL)
-								== -EAGAIN) {
-			nfs_restart_rpc(task, clp);
+		if (nfs41_sequence_handle_errors(task, clp) == -EAGAIN) {
+			rpc_restart_call_prepare(task);
 			return;
 		}
 	}
@@ -5175,6 +5182,23 @@ static void nfs4_reclaim_complete_prepare(struct rpc_task *task, void *data)
 	rpc_call_start(task);
 }
 
+static int nfs41_reclaim_complete_handle_errors(struct rpc_task *task, struct nfs_client *clp)
+{
+	switch(task->tk_status) {
+	case 0:
+	case -NFS4ERR_COMPLETE_ALREADY:
+	case -NFS4ERR_WRONG_CRED: /* What to do here? */
+		break;
+	case -NFS4ERR_DELAY:
+	case -EKEYEXPIRED:
+		rpc_delay(task, NFS4_POLL_RETRY_MAX);
+		return -EAGAIN;
+	default:
+		nfs4_schedule_state_recovery(clp);
+	}
+	return 0;
+}
+
 static void nfs4_reclaim_complete_done(struct rpc_task *task, void *data)
 {
 	struct nfs4_reclaim_complete_data *calldata = data;
@@ -5183,31 +5207,11 @@ static void nfs4_reclaim_complete_done(struct rpc_task *task, void *data)
 
 	dprintk("--> %s\n", __func__);
 	nfs41_sequence_done(res);
-	switch (task->tk_status) {
-	case 0:
-	case -NFS4ERR_COMPLETE_ALREADY:
-		break;
-	case -NFS4ERR_BADSESSION:
-	case -NFS4ERR_DEADSESSION:
-		/*
-		 * Handle the session error, but do not retry the operation, as
-		 * we have no way of telling whether the clientid had to be
-		 * reset before we got our reply.  If reset, a new wave of
-		 * reclaim operations will follow, containing their own reclaim
-		 * complete.  We don't want our retry to get on the way of
-		 * recovery by incorrectly indicating to the server that we're
-		 * done reclaiming state since the process had to be restarted.
-		 */
-		_nfs4_async_handle_error(task, NULL, clp, NULL);
-		break;
-	default:
-		if (_nfs4_async_handle_error(
-				task, NULL, clp, NULL) == -EAGAIN) {
-			rpc_restart_call_prepare(task);
-			return;
-		}
-	}
 
+	if (nfs41_reclaim_complete_handle_errors(task, clp) == -EAGAIN) {
+		rpc_restart_call_prepare(task);
+		return;
+	}
 	dprintk("<-- %s\n", __func__);
 }
 
