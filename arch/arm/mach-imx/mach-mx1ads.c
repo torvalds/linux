@@ -30,6 +30,7 @@
 #include <mach/iomux-mx1.h>
 #include <mach/irqs.h>
 
+#include "devices-imx1.h"
 #include "devices.h"
 
 static int mx1ads_pins[] = {
@@ -98,7 +99,7 @@ static struct pcf857x_platform_data pcf857x_data[] = {
 	}
 };
 
-static struct imxi2c_platform_data mx1ads_i2c_data = {
+static const struct imxi2c_platform_data mx1ads_i2c_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -131,7 +132,7 @@ static void __init mx1ads_init(void)
 	i2c_register_board_info(0, mx1ads_i2c_devices,
 				ARRAY_SIZE(mx1ads_i2c_devices));
 
-	mxc_register_device(&imx_i2c_device0, &mx1ads_i2c_data);
+	imx1_add_i2c_imx(&mx1ads_i2c_data);
 }
 
 static void __init mx1ads_timer_init(void)

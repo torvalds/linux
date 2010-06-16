@@ -70,25 +70,6 @@ struct platform_device imx1_camera_device = {
 	.num_resources  = ARRAY_SIZE(imx1_camera_resources),
 };
 
-static struct resource imx_i2c_resources[] = {
-	{
-		.start  = 0x00217000,
-		.end    = 0x00217010,
-		.flags  = IORESOURCE_MEM,
-	}, {
-		.start  = MX1_I2C_INT,
-		.end    = MX1_I2C_INT,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device imx_i2c_device0 = {
-	.name           = "imx-i2c",
-	.id             = 0,
-	.resource       = imx_i2c_resources,
-	.num_resources  = ARRAY_SIZE(imx_i2c_resources),
-};
-
 #define DEFINE_IMX1_UART_DEVICE(n, baseaddr, irqrx, irqtx, irqrts)	\
 	static struct resource imx1_uart_resources ## n[] = {		\
 		{							\
