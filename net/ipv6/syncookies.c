@@ -180,8 +180,8 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
 
-	if (tcp_opt.saw_tstamp)
-		cookie_check_timestamp(&tcp_opt);
+	if (!cookie_check_timestamp(&tcp_opt))
+		goto out;
 
 	ret = NULL;
 	req = inet6_reqsk_alloc(&tcp6_request_sock_ops);

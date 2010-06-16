@@ -230,11 +230,21 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
  * The lowest 4 bits are for snd_wscale
  * The next 4 lsb are for rcv_wscale
  * The next lsb is for sack_ok
+ *
+ * return false if we decode an option that should not be.
  */
-void cookie_check_timestamp(struct tcp_options_received *tcp_opt)
+bool cookie_check_timestamp(struct tcp_options_received *tcp_opt)
 {
 	/* echoed timestamp, 9 lowest bits contain options */
 	u32 options = tcp_opt->rcv_tsecr & TSMASK;
+
+	if (!tcp_opt->saw_tstamp)  {
+		tcp_clear_options(tcp_opt);
+		return true;
+	}
+
+	if (!sysctl_tcp_timestamps)
+		return false;
 
 	tcp_opt->snd_wscale = options & 0xf;
 	options >>= 4;
@@ -242,11 +252,14 @@ void cookie_check_timestamp(struct tcp_options_received *tcp_opt)
 
 	tcp_opt->sack_ok = (options >> 4) & 0x1;
 
-	if (tcp_opt->sack_ok)
-		tcp_sack_reset(tcp_opt);
+	if (tcp_opt->sack_ok && !sysctl_tcp_sack)
+		return false;
 
-	if (tcp_opt->snd_wscale || tcp_opt->rcv_wscale)
+	if (tcp_opt->snd_wscale || tcp_opt->rcv_wscale) {
 		tcp_opt->wscale_ok = 1;
+		return sysctl_tcp_window_scaling != 0;
+	}
+	return true;
 }
 EXPORT_SYMBOL(cookie_check_timestamp);
 
@@ -281,8 +294,8 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
 
-	if (tcp_opt.saw_tstamp)
-		cookie_check_timestamp(&tcp_opt);
+	if (!cookie_check_timestamp(&tcp_opt))
+		goto out;
 
 	ret = NULL;
 	req = inet_reqsk_alloc(&tcp_request_sock_ops); /* for safety */
