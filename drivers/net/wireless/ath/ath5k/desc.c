@@ -577,7 +577,8 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
  * Proccess the rx status descriptor on 5212
  */
 static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
-		struct ath5k_desc *desc, struct ath5k_rx_status *rs)
+					struct ath5k_desc *desc,
+					struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw_rx_status *rx_status;
 	struct ath5k_hw_rx_error *rx_err;
@@ -589,7 +590,7 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 
 	/* No frame received / not ready */
 	if (unlikely(!(rx_status->rx_status_1 &
-	AR5K_5212_RX_DESC_STATUS1_DONE)))
+				AR5K_5212_RX_DESC_STATUS1_DONE)))
 		return -EINPROGRESS;
 
 	/*
@@ -615,7 +616,7 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	 */
 	if (rx_status->rx_status_1 & AR5K_5212_RX_DESC_STATUS1_KEY_INDEX_VALID)
 		rs->rs_keyix = AR5K_REG_MS(rx_status->rx_status_1,
-				AR5K_5212_RX_DESC_STATUS1_KEY_INDEX);
+					   AR5K_5212_RX_DESC_STATUS1_KEY_INDEX);
 	else
 		rs->rs_keyix = AR5K_RXKEYIX_INVALID;
 
@@ -623,7 +624,7 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 	 * Receive/descriptor errors
 	 */
 	if (!(rx_status->rx_status_1 &
-	AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
+	    AR5K_5212_RX_DESC_STATUS1_FRAME_RECEIVE_OK)) {
 		if (rx_status->rx_status_1 &
 				AR5K_5212_RX_DESC_STATUS1_CRC_ERROR)
 			rs->rs_status |= AR5K_RXERR_CRC;
@@ -644,7 +645,6 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 				AR5K_5212_RX_DESC_STATUS1_MIC_ERROR)
 			rs->rs_status |= AR5K_RXERR_MIC;
 	}
-
 	return 0;
 }
 
