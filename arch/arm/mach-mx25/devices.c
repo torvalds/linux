@@ -333,63 +333,6 @@ struct platform_device mxc_pwm_device3 = {
 	.resource = mxc_pwm_resources3,
 };
 
-static struct resource mxc_i2c_1_resources[] = {
-	{
-		.start	= 0x43f80000,
-		.end	= 0x43f83fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= 3,
-		.end	= 3,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device0 = {
-	.name = "imx-i2c",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_i2c_1_resources),
-	.resource = mxc_i2c_1_resources,
-};
-
-static struct resource mxc_i2c_2_resources[] = {
-	{
-		.start	= 0x43f98000,
-		.end	= 0x43f9bfff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= 4,
-		.end	= 4,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device1 = {
-	.name = "imx-i2c",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_i2c_2_resources),
-	.resource = mxc_i2c_2_resources,
-};
-
-static struct resource mxc_i2c_3_resources[] = {
-	{
-		.start	= 0x43f84000,
-		.end	= 0x43f87fff,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= 10,
-		.end	= 10,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-struct platform_device mxc_i2c_device2 = {
-	.name = "imx-i2c",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_i2c_3_resources),
-	.resource = mxc_i2c_3_resources,
-};
-
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{
 		.chip.label = "gpio-0",
