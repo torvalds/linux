@@ -163,11 +163,11 @@ psx_client_can_cache:
 }
 
 /* all arguments to this function must be checked for validity in caller */
-static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
-	struct cifsInodeInfo *pCifsInode, struct cifsFileInfo *pCifsFile,
+static inline int cifs_open_inode_helper(struct inode *inode,
 	struct cifsTconInfo *pTcon, int *oplock, FILE_ALL_INFO *buf,
 	char *full_path, int xid)
 {
+	struct cifsInodeInfo *pCifsInode = CIFS_I(inode);
 	struct timespec temp;
 	int rc;
 
@@ -181,36 +181,35 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 	/* if not oplocked, invalidate inode pages if mtime or file
 	   size changed */
 	temp = cifs_NTtimeToUnix(buf->LastWriteTime);
-	if (timespec_equal(&file->f_path.dentry->d_inode->i_mtime, &temp) &&
-			   (file->f_path.dentry->d_inode->i_size ==
+	if (timespec_equal(&inode->i_mtime, &temp) &&
+			   (inode->i_size ==
 			    (loff_t)le64_to_cpu(buf->EndOfFile))) {
 		cFYI(1, "inode unchanged on server");
 	} else {
-		if (file->f_path.dentry->d_inode->i_mapping) {
+		if (inode->i_mapping) {
 			/* BB no need to lock inode until after invalidate
 			since namei code should already have it locked? */
-			rc = filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
+			rc = filemap_write_and_wait(inode->i_mapping);
 			if (rc != 0)
-				CIFS_I(file->f_path.dentry->d_inode)->write_behind_rc = rc;
+				pCifsInode->write_behind_rc = rc;
 		}
 		cFYI(1, "invalidating remote inode since open detected it "
 			 "changed");
-		invalidate_remote_inode(file->f_path.dentry->d_inode);
+		invalidate_remote_inode(inode);
 	}
 
 client_can_cache:
 	if (pTcon->unix_ext)
-		rc = cifs_get_inode_info_unix(&file->f_path.dentry->d_inode,
-			full_path, inode->i_sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, full_path, inode->i_sb,
+					      xid);
 	else
-		rc = cifs_get_inode_info(&file->f_path.dentry->d_inode,
-			full_path, buf, inode->i_sb, xid, NULL);
+		rc = cifs_get_inode_info(&inode, full_path, buf, inode->i_sb,
+					 xid, NULL);
 
 	if ((*oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 		pCifsInode->clientCanCacheAll = true;
 		pCifsInode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p",
-			 file->f_path.dentry->d_inode);
+		cFYI(1, "Exclusive Oplock granted on inode %p", inode);
 	} else if ((*oplock & 0xF) == OPLOCK_READ)
 		pCifsInode->clientCanCacheRead = true;
 
@@ -367,8 +366,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	rc = cifs_open_inode_helper(inode, file, pCifsInode, pCifsFile, tcon,
-				    &oplock, buf, full_path, xid);
+	rc = cifs_open_inode_helper(inode, tcon, &oplock, buf, full_path, xid);
 
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to
