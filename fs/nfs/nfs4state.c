@@ -145,7 +145,9 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	struct nfs4_session *ses = clp->cl_session;
 	int max_slots;
 
-	if (test_and_clear_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state)) {
+	if (ses == NULL)
+		return;
+	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
 		spin_lock(&ses->fc_slot_table.slot_tbl_lock);
 		max_slots = ses->fc_slot_table.max_slots;
 		while (max_slots--) {
@@ -167,7 +169,7 @@ static int nfs4_begin_drain_session(struct nfs_client *clp)
 	struct nfs4_slot_table *tbl = &ses->fc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	set_bit(NFS4CLNT_SESSION_DRAINING, &clp->cl_state);
+	set_bit(NFS4_SESSION_DRAINING, &ses->session_state);
 	if (tbl->highest_used_slotid != -1) {
 		INIT_COMPLETION(ses->complete);
 		spin_unlock(&tbl->slot_tbl_lock);

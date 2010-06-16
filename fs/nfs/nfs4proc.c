@@ -356,7 +356,7 @@ static void nfs41_check_drain_session_complete(struct nfs4_session *ses)
 {
 	struct rpc_task *task;
 
-	if (!test_bit(NFS4CLNT_SESSION_DRAINING, &ses->clp->cl_state)) {
+	if (!test_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
 		task = rpc_wake_up_next(&ses->fc_slot_table.slot_tbl_waitq);
 		if (task)
 			rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
@@ -489,7 +489,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	tbl = &session->fc_slot_table;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	if (test_bit(NFS4CLNT_SESSION_DRAINING, &session->clp->cl_state) &&
+	if (test_bit(NFS4_SESSION_DRAINING, &session->session_state) &&
 	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
 		/*
 		 * The state manager will wait until the slot table is empty.
