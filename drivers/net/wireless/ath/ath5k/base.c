@@ -1973,6 +1973,61 @@ ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
 	ieee80211_rx(sc->hw, skb);
 }
 
+/** ath5k_frame_receive_ok() - Do we want to receive this frame or not?
+ *
+ * Check if we want to further process this frame or not. Also update
+ * statistics. Return true if we want this frame, false if not.
+ */
+static bool
+ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
+{
+	sc->stats.rx_all_count++;
+
+	if (unlikely(rs->rs_status)) {
+		if (rs->rs_status & AR5K_RXERR_CRC)
+			sc->stats.rxerr_crc++;
+		if (rs->rs_status & AR5K_RXERR_FIFO)
+			sc->stats.rxerr_fifo++;
+		if (rs->rs_status & AR5K_RXERR_PHY) {
+			sc->stats.rxerr_phy++;
+			if (rs->rs_phyerr > 0 && rs->rs_phyerr < 32)
+				sc->stats.rxerr_phy_code[rs->rs_phyerr]++;
+			return false;
+		}
+		if (rs->rs_status & AR5K_RXERR_DECRYPT) {
+			/*
+			 * Decrypt error.  If the error occurred
+			 * because there was no hardware key, then
+			 * let the frame through so the upper layers
+			 * can process it.  This is necessary for 5210
+			 * parts which have no way to setup a ``clear''
+			 * key cache entry.
+			 *
+			 * XXX do key cache faulting
+			 */
+			sc->stats.rxerr_decrypt++;
+			if (rs->rs_keyix == AR5K_RXKEYIX_INVALID &&
+			    !(rs->rs_status & AR5K_RXERR_CRC))
+				return true;
+		}
+		if (rs->rs_status & AR5K_RXERR_MIC) {
+			sc->stats.rxerr_mic++;
+			return true;
+		}
+
+		/* let crypto-error packets fall through in MNTR */
+		if ((rs->rs_status & ~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
+		    sc->opmode != NL80211_IFTYPE_MONITOR)
+			return false;
+	}
+
+	if (unlikely(rs->rs_more)) {
+		sc->stats.rxerr_jumbo++;
+		return false;
+	}
+	return true;
+}
+
 static void
 ath5k_tasklet_rx(unsigned long data)
 {
@@ -2010,78 +2065,33 @@ ath5k_tasklet_rx(unsigned long data)
 			break;
 		}
 
-		sc->stats.rx_all_count++;
+		if (ath5k_receive_frame_ok(sc, &rs)) {
+			next_skb = ath5k_rx_skb_alloc(sc, &next_skb_addr);
 
-		if (unlikely(rs.rs_status)) {
-			if (rs.rs_status & AR5K_RXERR_CRC)
-				sc->stats.rxerr_crc++;
-			if (rs.rs_status & AR5K_RXERR_FIFO)
-				sc->stats.rxerr_fifo++;
-			if (rs.rs_status & AR5K_RXERR_PHY) {
-				sc->stats.rxerr_phy++;
-				if (rs.rs_phyerr > 0 && rs.rs_phyerr < 32)
-					sc->stats.rxerr_phy_code[rs.rs_phyerr]++;
+			/*
+			 * If we can't replace bf->skb with a new skb under
+			 * memory pressure, just skip this packet
+			 */
+			if (!next_skb)
 				goto next;
-			}
-			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
-				/*
-				 * Decrypt error.  If the error occurred
-				 * because there was no hardware key, then
-				 * let the frame through so the upper layers
-				 * can process it.  This is necessary for 5210
-				 * parts which have no way to setup a ``clear''
-				 * key cache entry.
-				 *
-				 * XXX do key cache faulting
-				 */
-				sc->stats.rxerr_decrypt++;
-				if (rs.rs_keyix == AR5K_RXKEYIX_INVALID &&
-				    !(rs.rs_status & AR5K_RXERR_CRC))
-					goto accept;
-			}
-			if (rs.rs_status & AR5K_RXERR_MIC) {
-				sc->stats.rxerr_mic++;
-				goto accept;
-			}
 
-			/* let crypto-error packets fall through in MNTR */
-			if ((rs.rs_status &
-				~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
-					sc->opmode != NL80211_IFTYPE_MONITOR)
-				goto next;
+			pci_unmap_single(sc->pdev, bf->skbaddr,
+					 common->rx_bufsize,
+					 PCI_DMA_FROMDEVICE);
+
+			skb_put(skb, rs.rs_datalen);
+
+			ath5k_receive_frame(sc, skb, &rs);
+
+			bf->skb = next_skb;
+			bf->skbaddr = next_skb_addr;
 		}
-
-		if (unlikely(rs.rs_more)) {
-			sc->stats.rxerr_jumbo++;
-			goto next;
-
-		}
-accept:
-		next_skb = ath5k_rx_skb_alloc(sc, &next_skb_addr);
-
-		/*
-		 * If we can't replace bf->skb with a new skb under memory
-		 * pressure, just skip this packet
-		 */
-		if (!next_skb)
-			goto next;
-
-		pci_unmap_single(sc->pdev, bf->skbaddr, common->rx_bufsize,
-				PCI_DMA_FROMDEVICE);
-		skb_put(skb, rs.rs_datalen);
-
-		ath5k_receive_frame(sc, skb, &rs);
-
-		bf->skb = next_skb;
-		bf->skbaddr = next_skb_addr;
 next:
 		list_move_tail(&bf->list, &sc->rxbuf);
 	} while (ath5k_rxbuf_setup(sc, bf) == 0);
 unlock:
 	spin_unlock(&sc->rxbuflock);
 }
-
-
 
 
 /*************\
