@@ -33,6 +33,7 @@
 #include "pcm.h"
 #include "helper.h"
 #include "format.h"
+#include "clock.h"
 
 /*
  * free a substream
