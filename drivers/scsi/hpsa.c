@@ -95,6 +95,8 @@ static const struct pci_device_id hpsa_pci_device_id[] = {
 	{PCI_VENDOR_ID_HP,     PCI_DEVICE_ID_HP_CISSF,     0x103C, 0x333F},
 	{PCI_VENDOR_ID_HP,     PCI_ANY_ID,             PCI_ANY_ID, PCI_ANY_ID,
 		PCI_CLASS_STORAGE_RAID << 8, 0xffff << 8, 0},
+	{PCI_VENDOR_ID_COMPAQ,     PCI_ANY_ID,             PCI_ANY_ID, PCI_ANY_ID,
+		PCI_CLASS_STORAGE_RAID << 8, 0xffff << 8, 0},
 	{0,}
 };
 
@@ -3293,7 +3295,9 @@ static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 		if (*board_id == products[i].board_id)
 			return i;
 
-	if (subsystem_vendor_id != PCI_VENDOR_ID_HP || !hpsa_allow_any) {
+	if ((subsystem_vendor_id != PCI_VENDOR_ID_HP &&
+		subsystem_vendor_id != PCI_VENDOR_ID_COMPAQ) ||
+		!hpsa_allow_any) {
 		dev_warn(&pdev->dev, "unrecognized board ID: "
 			"0x%08x, ignoring.\n", *board_id);
 			return -ENODEV;
