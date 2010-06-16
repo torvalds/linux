@@ -73,7 +73,7 @@ static bool tomoyo_check_mount_acl(const struct tomoyo_request_info *r,
 }
 
 /**
- * tomoyo_mount_acl2 - Check permission for mount() operation.
+ * tomoyo_mount_acl - Check permission for mount() operation.
  *
  * @r:        Pointer to "struct tomoyo_request_info".
  * @dev_name: Name of device file.
@@ -85,8 +85,8 @@ static bool tomoyo_check_mount_acl(const struct tomoyo_request_info *r,
  *
  * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
-			     struct path *dir, char *type, unsigned long flags)
+static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
+			    struct path *dir, char *type, unsigned long flags)
 {
 	struct path path;
 	struct file_system_type *fstype = NULL;
@@ -179,94 +179,6 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 }
 
 /**
- * tomoyo_mount_acl - Check permission for mount() operation.
- *
- * @r:        Pointer to "struct tomoyo_request_info".
- * @dev_name: Name of device file.
- * @dir:      Pointer to "struct path".
- * @type:     Name of filesystem type.
- * @flags:    Mount options.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
-			    struct path *dir, char *type, unsigned long flags)
-{
-	int error;
-	error = -EPERM;
-	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
-		flags &= ~MS_MGC_MSK;
-	switch (flags & (MS_REMOUNT | MS_MOVE | MS_BIND)) {
-	case MS_REMOUNT:
-	case MS_MOVE:
-	case MS_BIND:
-	case 0:
-		break;
-	default:
-		printk(KERN_WARNING "ERROR: "
-		       "%s%s%sare given for single mount operation.\n",
-		       flags & MS_REMOUNT ? "'remount' " : "",
-		       flags & MS_MOVE    ? "'move' " : "",
-		       flags & MS_BIND    ? "'bind' " : "");
-		return -EINVAL;
-	}
-	switch (flags & (MS_UNBINDABLE | MS_PRIVATE | MS_SLAVE | MS_SHARED)) {
-	case MS_UNBINDABLE:
-	case MS_PRIVATE:
-	case MS_SLAVE:
-	case MS_SHARED:
-	case 0:
-		break;
-	default:
-		printk(KERN_WARNING "ERROR: "
-		       "%s%s%s%sare given for single mount operation.\n",
-		       flags & MS_UNBINDABLE ? "'unbindable' " : "",
-		       flags & MS_PRIVATE    ? "'private' " : "",
-		       flags & MS_SLAVE      ? "'slave' " : "",
-		       flags & MS_SHARED     ? "'shared' " : "");
-		return -EINVAL;
-	}
-	if (flags & MS_REMOUNT)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_REMOUNT_KEYWORD,
-				      flags & ~MS_REMOUNT);
-	else if (flags & MS_MOVE)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_MOVE_KEYWORD,
-				      flags & ~MS_MOVE);
-	else if (flags & MS_BIND)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_BIND_KEYWORD,
-				      flags & ~MS_BIND);
-	else if (flags & MS_UNBINDABLE)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD,
-				      flags & ~MS_UNBINDABLE);
-	else if (flags & MS_PRIVATE)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD,
-				      flags & ~MS_PRIVATE);
-	else if (flags & MS_SLAVE)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD,
-				      flags & ~MS_SLAVE);
-	else if (flags & MS_SHARED)
-		error = tomoyo_mount_acl(r, dev_name, dir,
-				      TOMOYO_MOUNT_MAKE_SHARED_KEYWORD,
-				      flags & ~MS_SHARED);
-	else
-		do {
-			error = tomoyo_mount_acl2(r, dev_name, dir, type,
-						  flags);
-		} while (error == TOMOYO_RETRY_REQUEST);
-	if (r->mode != TOMOYO_CONFIG_ENFORCING)
-		error = 0;
-	return error;
-}
-
-/**
  * tomoyo_mount_permission - Check permission for mount() operation.
  *
  * @dev_name:  Name of device file.
@@ -287,6 +199,36 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 	if (tomoyo_init_request_info(&r, NULL, TOMOYO_MAC_FILE_MOUNT)
 	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
+	if ((flags & MS_MGC_MSK) == MS_MGC_VAL)
+		flags &= ~MS_MGC_MSK;
+	if (flags & MS_REMOUNT) {
+		type = TOMOYO_MOUNT_REMOUNT_KEYWORD;
+		flags &= ~MS_REMOUNT;
+	}
+	if (flags & MS_MOVE) {
+		type = TOMOYO_MOUNT_MOVE_KEYWORD;
+		flags &= ~MS_MOVE;
+	}
+	if (flags & MS_BIND) {
+		type = TOMOYO_MOUNT_BIND_KEYWORD;
+		flags &= ~MS_BIND;
+	}
+	if (flags & MS_UNBINDABLE) {
+		type = TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD;
+		flags &= ~MS_UNBINDABLE;
+	}
+	if (flags & MS_PRIVATE) {
+		type = TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD;
+		flags &= ~MS_PRIVATE;
+	}
+	if (flags & MS_SLAVE) {
+		type = TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD;
+		flags &= ~MS_SLAVE;
+	}
+	if (flags & MS_SHARED) {
+		type = TOMOYO_MOUNT_MAKE_SHARED_KEYWORD;
+		flags &= ~MS_SHARED;
+	}
 	if (!type)
 		type = "<NULL>";
 	idx = tomoyo_read_lock();
