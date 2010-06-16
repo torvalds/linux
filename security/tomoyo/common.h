@@ -212,6 +212,39 @@ struct tomoyo_acl_head {
  */
 struct tomoyo_request_info {
 	struct tomoyo_domain_info *domain;
+	/* For holding parameters. */
+	union {
+		struct {
+			const struct tomoyo_path_info *filename;
+			u8 operation;
+		} path;
+		struct {
+			const struct tomoyo_path_info *filename1;
+			const struct tomoyo_path_info *filename2;
+			u8 operation;
+		} path2;
+		struct {
+			const struct tomoyo_path_info *filename;
+			unsigned int mode;
+			unsigned int major;
+			unsigned int minor;
+			u8 operation;
+		} mkdev;
+		struct {
+			const struct tomoyo_path_info *filename;
+			unsigned long number;
+			u8 operation;
+		} path_number;
+		struct {
+			const struct tomoyo_path_info *type;
+			const struct tomoyo_path_info *dir;
+			const struct tomoyo_path_info *dev;
+			unsigned long flags;
+			int need_dev;
+		} mount;
+	} param;
+	u8 param_type;
+	bool granted;
 	u8 retry;
 	u8 profile;
 	u8 mode; /* One of tomoyo_mode_index . */

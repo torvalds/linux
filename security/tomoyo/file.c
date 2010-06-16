@@ -973,6 +973,9 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	r->mode = tomoyo_get_mode(r->profile, r->type);
 	if (r->mode == TOMOYO_CONFIG_DISABLED)
 		return 0;
+	r->param_type = TOMOYO_TYPE_PATH_ACL;
+	r->param.path.filename = filename;
+	r->param.path.operation = operation;
 	do {
 		error = tomoyo_path_acl(r, filename, 1 << operation);
 		if (error && operation == TOMOYO_TYPE_READ &&
@@ -1143,6 +1146,10 @@ static int tomoyo_path_number_perm2(struct tomoyo_request_info *r,
 		break;
 	}
 	tomoyo_print_ulong(buffer, sizeof(buffer), number, radix);
+	r->param_type = TOMOYO_TYPE_PATH_NUMBER_ACL;
+	r->param.path_number.operation = type;
+	r->param.path_number.filename = filename;
+	r->param.path_number.number = number;
 	do {
 		error = tomoyo_path_number_acl(r, type, filename, number);
 		if (!error)
@@ -1369,8 +1376,15 @@ int tomoyo_path_number3_perm(const u8 operation, struct path *path,
 	idx = tomoyo_read_lock();
 	error = -ENOMEM;
 	if (tomoyo_get_realpath(&buf, path)) {
+		dev = new_decode_dev(dev);
+		r.param_type = TOMOYO_TYPE_PATH_NUMBER3_ACL;
+		r.param.mkdev.filename = &buf;
+		r.param.mkdev.operation = operation;
+		r.param.mkdev.mode = mode;
+		r.param.mkdev.major = MAJOR(dev);
+		r.param.mkdev.minor = MINOR(dev);
 		error = tomoyo_path_number3_perm2(&r, operation, &buf, mode,
-						  new_decode_dev(dev));
+						  dev);
 		kfree(buf.name);
 	}
 	tomoyo_read_unlock(idx);
@@ -1421,6 +1435,10 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
                 tomoyo_add_slash(&buf2);
 		break;
         }
+	r.param_type = TOMOYO_TYPE_PATH2_ACL;
+	r.param.path2.operation = operation;
+	r.param.path2.filename1 = &buf1;
+	r.param.path2.filename2 = &buf2;
 	do {
 		error = tomoyo_path2_acl(&r, operation, &buf1, &buf2);
 		if (!error)

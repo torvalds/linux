@@ -112,6 +112,12 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 	}
 	rdev.name = requested_dev_name;
 	tomoyo_fill_path_info(&rdev);
+	r->param_type = TOMOYO_TYPE_MOUNT_ACL;
+	r->param.mount.need_dev = need_dev;
+	r->param.mount.dev = &rdev;
+	r->param.mount.dir = &rdir;
+	r->param.mount.type = &rtype;
+	r->param.mount.flags = flags;
 	list_for_each_entry_rcu(ptr, &r->domain->acl_info_list, list) {
 		struct tomoyo_mount_acl *acl;
 		if (ptr->is_deleted || ptr->type != TOMOYO_TYPE_MOUNT_ACL)
