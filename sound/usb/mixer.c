@@ -26,6 +26,22 @@
  *
  */
 
+/*
+ * TODOs, for both the mixer and the streaming interfaces:
+ *
+ *  - support for UAC2 effect units
+ *  - support for graphical equalizers
+ *  - RANGE and MEM set commands (UAC2)
+ *  - RANGE and MEM interrupt dispatchers (UAC2)
+ *  - audio channel clustering (UAC2)
+ *  - audio sample rate converter units (UAC2)
+ *  - proper handling of clock multipliers (UAC2)
+ *  - dispatch clock change notifications (UAC2)
+ *  	- stop PCM streams which use a clock that became invalid
+ *  	- stop PCM streams which use a clock selector that has changed
+ *  	- parse available sample rates again when clock sources changed
+ */
+
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/list.h>
@@ -1199,14 +1215,6 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 		}
 	} else { /* UAC_VERSION_2 */
 		for (i = 0; i < 30/2; i++) {
-			/* From the USB Audio spec v2.0:
-			   bmaControls() is a (ch+1)-element array of 4-byte bitmaps,
-			   each containing a set of bit pairs. If a Control is present,
-			   it must be Host readable. If a certain Control is not
-			   present then the bit pair must be set to 0b00.
-			   If a Control is present but read-only, the bit pair must be
-			   set to 0b01. If a Control is also Host programmable, the bit
-			   pair must be set to 0b11. The value 0b10 is not allowed. */
 			unsigned int ch_bits = 0;
 			unsigned int ch_read_only = 0;
 

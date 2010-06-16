@@ -18,6 +18,21 @@
 /* v1.0 and v2.0 of this standard have many things in common. For the rest
  * of the definitions, please refer to audio.h */
 
+/*
+ * bmControl field decoders
+ *
+ * From the USB Audio spec v2.0:
+ *
+ *   bmaControls() is a (ch+1)-element array of 4-byte bitmaps,
+ *   each containing a set of bit pairs. If a Control is present,
+ *   it must be Host readable. If a certain Control is not
+ *   present then the bit pair must be set to 0b00.
+ *   If a Control is present but read-only, the bit pair must be
+ *   set to 0b01. If a Control is also Host programmable, the bit
+ *   pair must be set to 0b11. The value 0b10 is not allowed.
+ *
+ */
+
 static inline bool uac2_control_is_readable(u32 bmControls, u8 control)
 {
 	return (bmControls >> (control * 2)) & 0x1;
