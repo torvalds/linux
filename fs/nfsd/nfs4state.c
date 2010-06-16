@@ -591,10 +591,8 @@ find_in_sessionid_hashtbl(struct nfs4_sessionid *sessionid)
 
 	dump_sessionid(__func__, sessionid);
 	idx = hash_sessionid(sessionid);
-	dprintk("%s: idx is %d\n", __func__, idx);
 	/* Search in the appropriate list */
 	list_for_each_entry(elem, &sessionid_hashtbl[idx], se_hash) {
-		dump_sessionid("list traversal", &elem->se_sessionid);
 		if (!memcmp(elem->se_sessionid.data, sessionid->data,
 			    NFS4_MAX_SESSIONID_LEN)) {
 			return elem;
