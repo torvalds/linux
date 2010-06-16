@@ -68,7 +68,7 @@
 #define MCE_PULSE_BIT	0x80 /* Pulse bit, MSB set == PULSE else SPACE */
 #define MCE_PULSE_MASK	0x7F /* Pulse mask */
 #define MCE_MAX_PULSE_LENGTH 0x7F /* Longest transmittable pulse symbol */
-#define MCE_PACKET_LENGTH_MASK  0xF /* Packet length mask */
+#define MCE_PACKET_LENGTH_MASK  0x1F /* Packet length mask */
 
 
 /* module parameters */
@@ -206,11 +206,6 @@ static struct usb_device_id mceusb_dev_table[] = {
 static struct usb_device_id gen3_list[] = {
 	{ USB_DEVICE(VENDOR_PINNACLE, 0x0225) },
 	{ USB_DEVICE(VENDOR_TOPSEED, 0x0008) },
-	{}
-};
-
-static struct usb_device_id pinnacle_list[] = {
-	{ USB_DEVICE(VENDOR_PINNACLE, 0x0225) },
 	{}
 };
 
@@ -542,6 +537,7 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
 	struct ir_raw_event rawir = { .pulse = false, .duration = 0 };
 	int i, start_index = 0;
+	u8 hdr = MCE_CONTROL_HEADER;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
 	if (ir->flags.microsoft_gen1)
@@ -551,15 +547,16 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 		if (ir->rem == 0) {
 			/* decode mce packets of the form (84),AA,BB,CC,DD */
 			/* IR data packets can span USB messages - rem */
-			ir->rem = (ir->buf_in[i] & MCE_PACKET_LENGTH_MASK);
-			ir->cmd = (ir->buf_in[i] & ~MCE_PACKET_LENGTH_MASK);
+			hdr = ir->buf_in[i];
+			ir->rem = (hdr & MCE_PACKET_LENGTH_MASK);
+			ir->cmd = (hdr & ~MCE_PACKET_LENGTH_MASK);
 			dev_dbg(ir->dev, "New data. rem: 0x%02x, cmd: 0x%02x\n",
 				ir->rem, ir->cmd);
 			i++;
 		}
 
-		/* Only cmd 0x8<bytes> is IR data, don't process MCE commands */
-		if (ir->cmd != 0x80) {
+		/* don't process MCE commands */
+		if (hdr == MCE_CONTROL_HEADER || hdr == 0xff) {
 			ir->rem = 0;
 			return;
 		}
@@ -841,12 +838,10 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	struct usb_endpoint_descriptor *ep_out = NULL;
 	struct usb_host_config *config;
 	struct mceusb_dev *ir = NULL;
-	int pipe, maxp;
-	int i, ret;
+	int pipe, maxp, i;
 	char buf[63], name[128] = "";
 	bool is_gen3;
 	bool is_microsoft_gen1;
-	bool is_pinnacle;
 	bool tx_mask_inverted;
 
 	dev_dbg(&intf->dev, ": %s called\n", __func__);
@@ -858,7 +853,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 
 	is_gen3 = usb_match_id(intf, gen3_list) ? 1 : 0;
 	is_microsoft_gen1 = usb_match_id(intf, microsoft_gen1_list) ? 1 : 0;
-	is_pinnacle = usb_match_id(intf, pinnacle_list) ? 1 : 0;
 	tx_mask_inverted = usb_match_id(intf, std_tx_mask_list) ? 0 : 1;
 
 	/* step through the endpoints to find first bulk in and out endpoint */
@@ -873,19 +867,11 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 			|| ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 			    == USB_ENDPOINT_XFER_INT))) {
 
-			dev_dbg(&intf->dev, ": acceptable inbound endpoint "
-				"found\n");
 			ep_in = ep;
 			ep_in->bmAttributes = USB_ENDPOINT_XFER_INT;
-			if (!is_pinnacle)
-				/*
-				 * Ideally, we'd use what the device offers up,
-				 * but that leads to non-functioning first and
-				 * second-gen devices, and many devices have an
-				 * invalid bInterval of 0. Pinnacle devices
-				 * don't work witha  bInterval of 1 though.
-				 */
-				ep_in->bInterval = 1;
+			ep_in->bInterval = 1;
+			dev_dbg(&intf->dev, ": acceptable inbound endpoint "
+				"found\n");
 		}
 
 		if ((ep_out == NULL)
@@ -896,19 +882,11 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 			|| ((ep->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK)
 			    == USB_ENDPOINT_XFER_INT))) {
 
-			dev_dbg(&intf->dev, ": acceptable outbound endpoint "
-				"found\n");
 			ep_out = ep;
 			ep_out->bmAttributes = USB_ENDPOINT_XFER_INT;
-			if (!is_pinnacle)
-				/*
-				 * Ideally, we'd use what the device offers up,
-				 * but that leads to non-functioning first and
-				 * second-gen devices, and many devices have an
-				 * invalid bInterval of 0. Pinnacle devices
-				 * don't work witha  bInterval of 1 though.
-				 */
-				ep_out->bInterval = 1;
+			ep_out->bInterval = 1;
+			dev_dbg(&intf->dev, ": acceptable outbound endpoint "
+				"found\n");
 		}
 	}
 	if (ep_in == NULL) {
@@ -961,19 +939,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 		maxp, (usb_complete_t) mceusb_dev_recv, ir, ep_in->bInterval);
 	ir->urb_in->transfer_dma = ir->dma_in;
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
-
-	if (is_pinnacle) {
-		/*
-		 * I have no idea why but this reset seems to be crucial to
-		 * getting the device to do outbound IO correctly - without
-		 * this the device seems to hang, ignoring all input - although
-		 * IR signals are correctly sent from the device, no input is
-		 * interpreted by the device and the host never does the
-		 * completion routine
-		 */
-		ret = usb_reset_configuration(dev);
-		dev_info(&intf->dev, "usb reset config ret %x\n", ret);
-	}
 
 	/* initialize device */
 	if (ir->flags.gen3)
