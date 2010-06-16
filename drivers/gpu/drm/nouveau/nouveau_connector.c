@@ -737,7 +737,7 @@ nouveau_connector_create(struct drm_device *dev,
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int type;
+	int type, ret = 0;
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -813,9 +813,21 @@ nouveau_connector_create(struct drm_device *dev,
 
 	if (!connector->encoder_ids[0]) {
 		NV_WARN(dev, "  no encoders, ignoring\n");
-		drm_connector_cleanup(connector);
-		kfree(connector);
-		return 0;
+		goto fail;
+	}
+
+	/* Check if we need dithering enabled */
+	if (dcb->type == DCB_CONNECTOR_LVDS) {
+		bool dummy, is_24bit = false;
+
+		ret = nouveau_bios_parse_lvds_table(dev, 0, &dummy, &is_24bit);
+		if (ret) {
+			NV_ERROR(dev, "Error parsing LVDS table, disabling "
+				 "LVDS\n");
+			goto fail;
+		}
+
+		nv_connector->use_dithering = !is_24bit;
 	}
 
 	/* Init DVI-I specific properties */
@@ -865,4 +877,10 @@ nouveau_connector_create(struct drm_device *dev,
 
 	drm_sysfs_connector_add(connector);
 	return 0;
+
+fail:
+	drm_connector_cleanup(connector);
+	kfree(connector);
+	return ret;
+
 }
