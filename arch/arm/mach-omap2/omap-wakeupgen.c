@@ -22,10 +22,16 @@
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
+#include <linux/notifier.h>
+#include <linux/cpu_pm.h>
 
 #include <asm/hardware/gic.h>
 
 #include <mach/omap-wakeupgen.h>
+#include <mach/omap-secure.h>
+
+#include "omap4-sar-layout.h"
+#include "common.h"
 
 #define NR_REG_BANKS		4
 #define MAX_IRQS		128
@@ -36,6 +42,7 @@
 #define CPU1_ID			0x1
 
 static void __iomem *wakeupgen_base;
+static void __iomem *sar_base;
 static DEFINE_PER_CPU(u32 [NR_REG_BANKS], irqmasks);
 static DEFINE_SPINLOCK(wakeupgen_lock);
 static unsigned int irq_target_cpu[NR_IRQS];
@@ -53,6 +60,11 @@ static inline void wakeupgen_writel(u32 val, u8 idx, u32 cpu)
 {
 	__raw_writel(val, wakeupgen_base + OMAP_WKG_ENB_A_0 +
 				(cpu * CPU_ENA_OFFSET) + (idx * 4));
+}
+
+static inline void sar_writel(u32 val, u32 offset, u8 idx)
+{
+	__raw_writel(val, sar_base + offset + (idx * 4));
 }
 
 static void _wakeupgen_set_all(unsigned int cpu, unsigned int reg)
@@ -180,6 +192,93 @@ static void wakeupgen_irqmask_all(unsigned int cpu, unsigned int set)
 	spin_unlock_irqrestore(&wakeupgen_lock, flags);
 }
 
+#ifdef CONFIG_CPU_PM
+/*
+ * Save WakeupGen interrupt context in SAR BANK3. Restore is done by
+ * ROM code. WakeupGen IP is integrated along with GIC to manage the
+ * interrupt wakeups from CPU low power states. It manages
+ * masking/unmasking of Shared peripheral interrupts(SPI). So the
+ * interrupt enable/disable control should be in sync and consistent
+ * at WakeupGen and GIC so that interrupts are not lost.
+ */
+static void irq_save_context(void)
+{
+	u32 i, val;
+
+	if (omap_rev() == OMAP4430_REV_ES1_0)
+		return;
+
+	if (!sar_base)
+		sar_base = omap4_get_sar_ram_base();
+
+	for (i = 0; i < NR_REG_BANKS; i++) {
+		/* Save the CPUx interrupt mask for IRQ 0 to 127 */
+		val = wakeupgen_readl(i, 0);
+		sar_writel(val, WAKEUPGENENB_OFFSET_CPU0, i);
+		val = wakeupgen_readl(i, 1);
+		sar_writel(val, WAKEUPGENENB_OFFSET_CPU1, i);
+
+		/*
+		 * Disable the secure interrupts for CPUx. The restore
+		 * code blindly restores secure and non-secure interrupt
+		 * masks from SAR RAM. Secure interrupts are not suppose
+		 * to be enabled from HLOS. So overwrite the SAR location
+		 * so that the secure interrupt remains disabled.
+		 */
+		sar_writel(0x0, WAKEUPGENENB_SECURE_OFFSET_CPU0, i);
+		sar_writel(0x0, WAKEUPGENENB_SECURE_OFFSET_CPU1, i);
+	}
+
+	/* Save AuxBoot* registers */
+	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
+	__raw_writel(val, sar_base + AUXCOREBOOT0_OFFSET);
+	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
+	__raw_writel(val, sar_base + AUXCOREBOOT1_OFFSET);
+
+	/* Save SyncReq generation logic */
+	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
+	__raw_writel(val, sar_base + AUXCOREBOOT0_OFFSET);
+	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
+	__raw_writel(val, sar_base + AUXCOREBOOT1_OFFSET);
+
+	/* Save SyncReq generation logic */
+	val = __raw_readl(wakeupgen_base + OMAP_PTMSYNCREQ_MASK);
+	__raw_writel(val, sar_base + PTMSYNCREQ_MASK_OFFSET);
+	val = __raw_readl(wakeupgen_base + OMAP_PTMSYNCREQ_EN);
+	__raw_writel(val, sar_base + PTMSYNCREQ_EN_OFFSET);
+
+	/* Set the Backup Bit Mask status */
+	val = __raw_readl(sar_base + SAR_BACKUP_STATUS_OFFSET);
+	val |= SAR_BACKUP_STATUS_WAKEUPGEN;
+	__raw_writel(val, sar_base + SAR_BACKUP_STATUS_OFFSET);
+}
+
+/*
+ * Clear WakeupGen SAR backup status.
+ */
+void irq_sar_clear(void)
+{
+	u32 val;
+	val = __raw_readl(sar_base + SAR_BACKUP_STATUS_OFFSET);
+	val &= ~SAR_BACKUP_STATUS_WAKEUPGEN;
+	__raw_writel(val, sar_base + SAR_BACKUP_STATUS_OFFSET);
+}
+
+/*
+ * Save GIC and Wakeupgen interrupt context using secure API
+ * for HS/EMU devices.
+ */
+static void irq_save_secure_context(void)
+{
+	u32 ret;
+	ret = omap_secure_dispatcher(OMAP4_HAL_SAVEGIC_INDEX,
+				FLAG_START_CRITICAL,
+				0, 0, 0, 0, 0);
+	if (ret != API_HAL_RET_VALUE_OK)
+		pr_err("GIC and Wakeupgen context save failed\n");
+}
+#endif
+
 #ifdef CONFIG_HOTPLUG_CPU
 static int __cpuinit irq_cpu_hotplug_notify(struct notifier_block *self,
 					 unsigned long action, void *hcpu)
@@ -207,6 +306,37 @@ static void __init irq_hotplug_init(void)
 }
 #else
 static void __init irq_hotplug_init(void)
+{}
+#endif
+
+#ifdef CONFIG_CPU_PM
+static int irq_notifier(struct notifier_block *self, unsigned long cmd,	void *v)
+{
+	switch (cmd) {
+	case CPU_CLUSTER_PM_ENTER:
+		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+			irq_save_context();
+		else
+			irq_save_secure_context();
+		break;
+	case CPU_CLUSTER_PM_EXIT:
+		if (omap_type() == OMAP2_DEVICE_TYPE_GP)
+			irq_sar_clear();
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block irq_notifier_block = {
+	.notifier_call = irq_notifier,
+};
+
+static void __init irq_pm_init(void)
+{
+	cpu_pm_register_notifier(&irq_notifier_block);
+}
+#else
+static void __init irq_pm_init(void)
 {}
 #endif
 
@@ -253,6 +383,7 @@ int __init omap_wakeupgen_init(void)
 		irq_target_cpu[i] = boot_cpu;
 
 	irq_hotplug_init();
+	irq_pm_init();
 
 	return 0;
 }
