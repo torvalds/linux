@@ -109,6 +109,24 @@ int tomoyo_update_domain(struct tomoyo_acl_info *new_entry, const int size,
 	return error;
 }
 
+void tomoyo_check_acl(struct tomoyo_request_info *r,
+		      bool (*check_entry) (const struct tomoyo_request_info *,
+					   const struct tomoyo_acl_info *))
+{
+	const struct tomoyo_domain_info *domain = r->domain;
+	struct tomoyo_acl_info *ptr;
+
+	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
+		if (ptr->is_deleted || ptr->type != r->param_type)
+			continue;
+		if (check_entry(r, ptr)) {
+			r->granted = true;
+			return;
+		}
+	}
+	r->granted = false;
+}
+
 /*
  * tomoyo_domain_list is used for holding list of domains.
  * The ->acl_info_list of "struct tomoyo_domain_info" is used for holding

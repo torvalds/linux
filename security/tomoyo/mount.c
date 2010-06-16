@@ -25,6 +25,54 @@
 #define TOMOYO_MOUNT_MAKE_SHARED_KEYWORD                 "--make-shared"
 
 /**
+ * tomoyo_audit_mount_log - Audit mount log.
+ *
+ * @r: Pointer to "struct tomoyo_request_info".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
+{
+	const char *dev = r->param.mount.dev->name;
+	const char *dir = r->param.mount.dir->name;
+	const char *type = r->param.mount.type->name;
+	const unsigned long flags = r->param.mount.flags;
+	if (r->granted)
+		return 0;
+	if (!strcmp(type, TOMOYO_MOUNT_REMOUNT_KEYWORD))
+		tomoyo_warn_log(r, "mount -o remount %s 0x%lX", dir, flags);
+	else if (!strcmp(type, TOMOYO_MOUNT_BIND_KEYWORD)
+		 || !strcmp(type, TOMOYO_MOUNT_MOVE_KEYWORD))
+		tomoyo_warn_log(r, "mount %s %s %s 0x%lX", type, dev, dir,
+				flags);
+	else if (!strcmp(type, TOMOYO_MOUNT_MAKE_UNBINDABLE_KEYWORD) ||
+		 !strcmp(type, TOMOYO_MOUNT_MAKE_PRIVATE_KEYWORD) ||
+		 !strcmp(type, TOMOYO_MOUNT_MAKE_SLAVE_KEYWORD) ||
+		 !strcmp(type, TOMOYO_MOUNT_MAKE_SHARED_KEYWORD))
+		tomoyo_warn_log(r, "mount %s %s 0x%lX", type, dir, flags);
+	else
+		tomoyo_warn_log(r, "mount -t %s %s %s 0x%lX", type, dev, dir,
+				flags);
+	return tomoyo_supervisor(r,
+				 TOMOYO_KEYWORD_ALLOW_MOUNT "%s %s %s 0x%lX\n",
+				 tomoyo_file_pattern(r->param.mount.dev),
+				 tomoyo_file_pattern(r->param.mount.dir), type,
+				 flags);
+}
+
+static bool tomoyo_check_mount_acl(const struct tomoyo_request_info *r,
+				   const struct tomoyo_acl_info *ptr)
+{
+	const struct tomoyo_mount_acl *acl =
+		container_of(ptr, typeof(*acl), head);
+	return tomoyo_compare_number_union(r->param.mount.flags, &acl->flags) &&
+		tomoyo_compare_name_union(r->param.mount.type, &acl->fs_type) &&
+		tomoyo_compare_name_union(r->param.mount.dir, &acl->dir_name) &&
+		(!r->param.mount.need_dev ||
+		 tomoyo_compare_name_union(r->param.mount.dev, &acl->dev_name));
+}
+
+/**
  * tomoyo_mount_acl2 - Check permission for mount() operation.
  *
  * @r:        Pointer to "struct tomoyo_request_info".
@@ -41,7 +89,6 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 			     struct path *dir, char *type, unsigned long flags)
 {
 	struct path path;
-	struct tomoyo_acl_info *ptr;
 	struct file_system_type *fstype = NULL;
 	const char *requested_type = NULL;
 	const char *requested_dir_name = NULL;
@@ -118,26 +165,10 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 	r->param.mount.dir = &rdir;
 	r->param.mount.type = &rtype;
 	r->param.mount.flags = flags;
-	list_for_each_entry_rcu(ptr, &r->domain->acl_info_list, list) {
-		struct tomoyo_mount_acl *acl;
-		if (ptr->is_deleted || ptr->type != TOMOYO_TYPE_MOUNT_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_mount_acl, head);
-		if (!tomoyo_compare_number_union(flags, &acl->flags) ||
-		    !tomoyo_compare_name_union(&rtype, &acl->fs_type) ||
-		    !tomoyo_compare_name_union(&rdir, &acl->dir_name) ||
-		    (need_dev &&
-		     !tomoyo_compare_name_union(&rdev, &acl->dev_name)))
-			continue;
-		error = 0;
-		break;
-	}
-	if (error)
-		error = tomoyo_supervisor(r, TOMOYO_KEYWORD_ALLOW_MOUNT
-					  "%s %s %s 0x%lX\n",
-					  tomoyo_file_pattern(&rdev),
-					  tomoyo_file_pattern(&rdir),
-					  requested_type, flags);
+	do {
+		tomoyo_check_acl(r, tomoyo_check_mount_acl);
+		error = tomoyo_audit_mount_log(r);
+	} while (error == TOMOYO_RETRY_REQUEST);
  out:
 	kfree(requested_dev_name);
 	kfree(requested_dir_name);

@@ -218,6 +218,108 @@ static bool tomoyo_get_realpath(struct tomoyo_path_info *buf, struct path *path)
         return false;
 }
 
+/**
+ * tomoyo_audit_path_log - Audit path request log.
+ *
+ * @r: Pointer to "struct tomoyo_request_info".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
+{
+	const char *operation = tomoyo_path_keyword[r->param.path.operation];
+	const struct tomoyo_path_info *filename = r->param.path.filename;
+	if (r->granted)
+		return 0;
+	tomoyo_warn_log(r, "%s %s", operation, filename->name);
+	return tomoyo_supervisor(r, "allow_%s %s\n", operation,
+				 tomoyo_file_pattern(filename));
+}
+
+/**
+ * tomoyo_audit_path2_log - Audit path/path request log.
+ *
+ * @r: Pointer to "struct tomoyo_request_info".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
+{
+	const char *operation = tomoyo_path2_keyword[r->param.path2.operation];
+	const struct tomoyo_path_info *filename1 = r->param.path2.filename1;
+	const struct tomoyo_path_info *filename2 = r->param.path2.filename2;
+	if (r->granted)
+		return 0;
+	tomoyo_warn_log(r, "%s %s %s", operation, filename1->name,
+			filename2->name);
+	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
+				 tomoyo_file_pattern(filename1),
+				 tomoyo_file_pattern(filename2));
+}
+
+/**
+ * tomoyo_audit_mkdev_log - Audit path/number/number/number request log.
+ *
+ * @r: Pointer to "struct tomoyo_request_info".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
+{
+	const char *operation = tomoyo_path_number32keyword(r->param.mkdev.
+							    operation);
+	const struct tomoyo_path_info *filename = r->param.mkdev.filename;
+	const unsigned int major = r->param.mkdev.major;
+	const unsigned int minor = r->param.mkdev.minor;
+	const unsigned int mode = r->param.mkdev.mode;
+	if (r->granted)
+		return 0;
+	tomoyo_warn_log(r, "%s %s 0%o %u %u", operation, filename->name, mode,
+			major, minor);
+	return tomoyo_supervisor(r, "allow_%s %s 0%o %u %u\n", operation,
+				 tomoyo_file_pattern(filename), mode, major,
+				 minor);
+}
+
+/**
+ * tomoyo_audit_path_number_log - Audit path/number request log.
+ *
+ * @r:     Pointer to "struct tomoyo_request_info".
+ * @error: Error code.
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
+{
+	const u8 type = r->param.path_number.operation;
+	u8 radix;
+	const struct tomoyo_path_info *filename = r->param.path_number.filename;
+	const char *operation = tomoyo_path_number_keyword[type];
+	char buffer[64];
+	if (r->granted)
+		return 0;
+	switch (type) {
+	case TOMOYO_TYPE_CREATE:
+	case TOMOYO_TYPE_MKDIR:
+	case TOMOYO_TYPE_MKFIFO:
+	case TOMOYO_TYPE_MKSOCK:
+	case TOMOYO_TYPE_CHMOD:
+		radix = TOMOYO_VALUE_TYPE_OCTAL;
+		break;
+	case TOMOYO_TYPE_IOCTL:
+		radix = TOMOYO_VALUE_TYPE_HEXADECIMAL;
+		break;
+	default:
+		radix = TOMOYO_VALUE_TYPE_DECIMAL;
+		break;
+	}
+	tomoyo_print_ulong(buffer, sizeof(buffer), r->param.path_number.number,
+			   radix);
+	tomoyo_warn_log(r, "%s %s %s", operation, filename->name, buffer);
+	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
+				 tomoyo_file_pattern(filename), buffer);
+}
+
 static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 				   const char *filename2,
 				   struct tomoyo_domain_info *const domain,
@@ -637,37 +739,52 @@ bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head)
 	return done;
 }
 
-/**
- * tomoyo_path_acl - Check permission for single path operation.
- *
- * @r:               Pointer to "struct tomoyo_request_info".
- * @filename:        Filename to check.
- * @perm:            Permission.
- *
- * Returns 0 on success, -EPERM otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_path_acl(const struct tomoyo_request_info *r,
-			   const struct tomoyo_path_info *filename,
-			   const u32 perm)
+static bool tomoyo_check_path_acl(const struct tomoyo_request_info *r,
+				  const struct tomoyo_acl_info *ptr)
 {
-	struct tomoyo_domain_info *domain = r->domain;
-	struct tomoyo_acl_info *ptr;
-	int error = -EPERM;
+	const struct tomoyo_path_acl *acl = container_of(ptr, typeof(*acl),
+							 head);
+	return (acl->perm & (1 << r->param.path.operation)) &&
+		tomoyo_compare_name_union(r->param.path.filename, &acl->name);
+}
 
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path_acl *acl;
-		if (ptr->type != TOMOYO_TYPE_PATH_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_path_acl, head);
-		if (!(acl->perm & perm) ||
-		    !tomoyo_compare_name_union(filename, &acl->name))
-			continue;
-		error = 0;
-		break;
-	}
-	return error;
+static bool tomoyo_check_path_number_acl(const struct tomoyo_request_info *r,
+					 const struct tomoyo_acl_info *ptr)
+{
+	const struct tomoyo_path_number_acl *acl =
+		container_of(ptr, typeof(*acl), head);
+	return (acl->perm & (1 << r->param.path_number.operation)) &&
+		tomoyo_compare_number_union(r->param.path_number.number,
+					    &acl->number) &&
+		tomoyo_compare_name_union(r->param.path_number.filename,
+					  &acl->name);
+}
+
+static bool tomoyo_check_path2_acl(const struct tomoyo_request_info *r,
+				   const struct tomoyo_acl_info *ptr)
+{
+	const struct tomoyo_path2_acl *acl =
+		container_of(ptr, typeof(*acl), head);
+	return (acl->perm & (1 << r->param.path2.operation)) &&
+		tomoyo_compare_name_union(r->param.path2.filename1, &acl->name1)
+		&& tomoyo_compare_name_union(r->param.path2.filename2,
+					     &acl->name2);
+}
+
+static bool tomoyo_check_mkdev_acl(const struct tomoyo_request_info *r,
+				const struct tomoyo_acl_info *ptr)
+{
+	const struct tomoyo_path_number3_acl *acl =
+		container_of(ptr, typeof(*acl), head);
+	return (acl->perm & (1 << r->param.mkdev.operation)) &&
+		tomoyo_compare_number_union(r->param.mkdev.mode,
+					    &acl->mode) &&
+		tomoyo_compare_number_union(r->param.mkdev.major,
+					    &acl->major) &&
+		tomoyo_compare_number_union(r->param.mkdev.minor,
+					    &acl->minor) &&
+		tomoyo_compare_name_union(r->param.mkdev.filename,
+					  &acl->name);
 }
 
 static bool tomoyo_same_path_acl(const struct tomoyo_acl_info *a,
@@ -870,88 +987,6 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 }
 
 /**
- * tomoyo_path_number3_acl - Check permission for path/number/number/number operation.
- *
- * @r:        Pointer to "struct tomoyo_request_info".
- * @filename: Filename to check.
- * @perm:     Permission.
- * @mode:     Create mode.
- * @major:    Device major number.
- * @minor:    Device minor number.
- *
- * Returns 0 on success, -EPERM otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_path_number3_acl(struct tomoyo_request_info *r,
-				   const struct tomoyo_path_info *filename,
-				   const u16 perm, const unsigned int mode,
-				   const unsigned int major,
-				   const unsigned int minor)
-{
-	struct tomoyo_domain_info *domain = r->domain;
-	struct tomoyo_acl_info *ptr;
-	int error = -EPERM;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path_number3_acl *acl;
-		if (ptr->type != TOMOYO_TYPE_PATH_NUMBER3_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_path_number3_acl, head);
-		if (!tomoyo_compare_number_union(mode, &acl->mode))
-			continue;
-		if (!tomoyo_compare_number_union(major, &acl->major))
-			continue;
-		if (!tomoyo_compare_number_union(minor, &acl->minor))
-			continue;
-		if (!(acl->perm & perm))
-			continue;
-		if (!tomoyo_compare_name_union(filename, &acl->name))
-			continue;
-		error = 0;
-		break;
-	}
-	return error;
-}
-
-/**
- * tomoyo_path2_acl - Check permission for double path operation.
- *
- * @r:         Pointer to "struct tomoyo_request_info".
- * @type:      Type of operation.
- * @filename1: First filename to check.
- * @filename2: Second filename to check.
- *
- * Returns 0 on success, -EPERM otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_path2_acl(const struct tomoyo_request_info *r, const u8 type,
-			    const struct tomoyo_path_info *filename1,
-			    const struct tomoyo_path_info *filename2)
-{
-	const struct tomoyo_domain_info *domain = r->domain;
-	struct tomoyo_acl_info *ptr;
-	const u8 perm = 1 << type;
-	int error = -EPERM;
-
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path2_acl *acl;
-		if (ptr->type != TOMOYO_TYPE_PATH2_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_path2_acl, head);
-		if (!(acl->perm & perm))
-			continue;
-		if (!tomoyo_compare_name_union(filename1, &acl->name1))
-			continue;
-		if (!tomoyo_compare_name_union(filename2, &acl->name2))
-			continue;
-		error = 0;
-		break;
-	}
-	return error;
-}
-
-/**
  * tomoyo_path_permission - Check permission for single path operation.
  *
  * @r:         Pointer to "struct tomoyo_request_info".
@@ -965,7 +1000,6 @@ static int tomoyo_path2_acl(const struct tomoyo_request_info *r, const u8 type,
 int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 			   const struct tomoyo_path_info *filename)
 {
-	const char *msg;
 	int error;
 
  next:
@@ -977,17 +1011,12 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	r->param.path.filename = filename;
 	r->param.path.operation = operation;
 	do {
-		error = tomoyo_path_acl(r, filename, 1 << operation);
-		if (error && operation == TOMOYO_TYPE_READ &&
+		tomoyo_check_acl(r, tomoyo_check_path_acl);
+		if (!r->granted && operation == TOMOYO_TYPE_READ &&
 		    !r->domain->ignore_global_allow_read &&
 		    tomoyo_is_globally_readable_file(filename))
-			error = 0;
-		if (!error)
-			break;
-		msg = tomoyo_path2keyword(operation);
-		tomoyo_warn_log(r, "%s %s", msg, filename->name);
-		error = tomoyo_supervisor(r, "allow_%s %s\n", msg,
-					  tomoyo_file_pattern(filename));
+			r->granted = true;
+		error = tomoyo_audit_path_log(r);
 		/*
 		 * Do not retry for execute request, for alias may have
 		 * changed.
@@ -1003,42 +1032,6 @@ int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	    tomoyo_is_no_rewrite_file(filename)) {
 		operation = TOMOYO_TYPE_REWRITE;
 		goto next;
-	}
-	return error;
-}
-
-/**
- * tomoyo_path_number_acl - Check permission for ioctl/chmod/chown/chgrp operation.
- *
- * @r:        Pointer to "struct tomoyo_request_info".
- * @type:     Operation.
- * @filename: Filename to check.
- * @number:   Number.
- *
- * Returns 0 on success, -EPERM otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_path_number_acl(struct tomoyo_request_info *r, const u8 type,
-				  const struct tomoyo_path_info *filename,
-				  const unsigned long number)
-{
-	struct tomoyo_domain_info *domain = r->domain;
-	struct tomoyo_acl_info *ptr;
-	const u8 perm = 1 << type;
-	int error = -EPERM;
-	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		struct tomoyo_path_number_acl *acl;
-		if (ptr->type != TOMOYO_TYPE_PATH_NUMBER_ACL)
-			continue;
-		acl = container_of(ptr, struct tomoyo_path_number_acl,
-				   head);
-		if (!(acl->perm & perm) ||
-		    !tomoyo_compare_number_union(number, &acl->number) ||
-		    !tomoyo_compare_name_union(filename, &acl->name))
-			continue;
-		error = 0;
-		break;
 	}
 	return error;
 }
@@ -1123,42 +1116,17 @@ static int tomoyo_path_number_perm2(struct tomoyo_request_info *r,
 				    const struct tomoyo_path_info *filename,
 				    const unsigned long number)
 {
-	char buffer[64];
 	int error;
-	u8 radix;
-	const char *msg;
 
 	if (!filename)
 		return 0;
-	switch (type) {
-	case TOMOYO_TYPE_CREATE:
-	case TOMOYO_TYPE_MKDIR:
-	case TOMOYO_TYPE_MKFIFO:
-	case TOMOYO_TYPE_MKSOCK:
-	case TOMOYO_TYPE_CHMOD:
-		radix = TOMOYO_VALUE_TYPE_OCTAL;
-		break;
-	case TOMOYO_TYPE_IOCTL:
-		radix = TOMOYO_VALUE_TYPE_HEXADECIMAL;
-		break;
-	default:
-		radix = TOMOYO_VALUE_TYPE_DECIMAL;
-		break;
-	}
-	tomoyo_print_ulong(buffer, sizeof(buffer), number, radix);
 	r->param_type = TOMOYO_TYPE_PATH_NUMBER_ACL;
 	r->param.path_number.operation = type;
 	r->param.path_number.filename = filename;
 	r->param.path_number.number = number;
 	do {
-		error = tomoyo_path_number_acl(r, type, filename, number);
-		if (!error)
-			break;
-		msg = tomoyo_path_number2keyword(type);
-		tomoyo_warn_log(r, "%s %s %s", msg, filename->name, buffer);
-		error = tomoyo_supervisor(r, "allow_%s %s %s\n", msg,
-					  tomoyo_file_pattern(filename),
-					  buffer);
+		tomoyo_check_acl(r, tomoyo_check_path_number_acl);
+		error = tomoyo_audit_path_number_log(r);
 	} while (error == TOMOYO_RETRY_REQUEST);
 	return error;
 }
@@ -1311,47 +1279,6 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 }
 
 /**
- * tomoyo_path_number3_perm2 - Check permission for path/number/number/number operation.
- *
- * @r:         Pointer to "struct tomoyo_request_info".
- * @operation: Type of operation.
- * @filename:  Filename to check.
- * @mode:      Create mode.
- * @dev:       Device number.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_path_number3_perm2(struct tomoyo_request_info *r,
-				     const u8 operation,
-				     const struct tomoyo_path_info *filename,
-				     const unsigned int mode,
-				     const unsigned int dev)
-{
-	int error;
-	const char *msg;
-	const unsigned int major = MAJOR(dev);
-	const unsigned int minor = MINOR(dev);
-
-	do {
-		error = tomoyo_path_number3_acl(r, filename, 1 << operation,
-						mode, major, minor);
-		if (!error)
-			break;
-		msg = tomoyo_path_number32keyword(operation);
-		tomoyo_warn_log(r, "%s %s 0%o %u %u", msg, filename->name,
-				mode, major, minor);
-		error = tomoyo_supervisor(r, "allow_%s %s 0%o %u %u\n", msg,
-					  tomoyo_file_pattern(filename), mode,
-					  major, minor);
-	} while (error == TOMOYO_RETRY_REQUEST);
-        if (r->mode != TOMOYO_CONFIG_ENFORCING)
-		error = 0;
-	return error;
-}
-
-/**
  * tomoyo_path_number3_perm - Check permission for "mkblock" and "mkchar".
  *
  * @operation: Type of operation. (TOMOYO_TYPE_MKCHAR or TOMOYO_TYPE_MKBLOCK)
@@ -1383,8 +1310,8 @@ int tomoyo_path_number3_perm(const u8 operation, struct path *path,
 		r.param.mkdev.mode = mode;
 		r.param.mkdev.major = MAJOR(dev);
 		r.param.mkdev.minor = MINOR(dev);
-		error = tomoyo_path_number3_perm2(&r, operation, &buf, mode,
-						  dev);
+		tomoyo_check_acl(&r, tomoyo_check_mkdev_acl);
+		error = tomoyo_audit_mkdev_log(&r);
 		kfree(buf.name);
 	}
 	tomoyo_read_unlock(idx);
@@ -1406,7 +1333,6 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2)
 {
 	int error = -ENOMEM;
-	const char *msg;
 	struct tomoyo_path_info buf1;
 	struct tomoyo_path_info buf2;
 	struct tomoyo_request_info r;
@@ -1440,15 +1366,9 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	r.param.path2.filename1 = &buf1;
 	r.param.path2.filename2 = &buf2;
 	do {
-		error = tomoyo_path2_acl(&r, operation, &buf1, &buf2);
-		if (!error)
-			break;
-		msg = tomoyo_path22keyword(operation);
-		tomoyo_warn_log(&r, "%s %s %s", msg, buf1.name, buf2.name);
-		error = tomoyo_supervisor(&r, "allow_%s %s %s\n", msg,
-					  tomoyo_file_pattern(&buf1),
-					  tomoyo_file_pattern(&buf2));
-        } while (error == TOMOYO_RETRY_REQUEST);
+		tomoyo_check_acl(&r, tomoyo_check_path2_acl);
+		error = tomoyo_audit_path2_log(&r);
+	} while (error == TOMOYO_RETRY_REQUEST);
  out:
 	kfree(buf1.name);
 	kfree(buf2.name);

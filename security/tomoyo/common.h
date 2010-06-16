@@ -952,6 +952,9 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 						  *,
 						  const struct tomoyo_acl_head
 						  *));
+void tomoyo_check_acl(struct tomoyo_request_info *r,
+		      bool (*check_entry) (const struct tomoyo_request_info *,
+					   const struct tomoyo_acl_info *));
 
 /********** External variable definitions. **********/
 
