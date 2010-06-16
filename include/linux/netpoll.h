@@ -64,7 +64,7 @@ static inline bool netpoll_rx(struct sk_buff *skb)
 	bool ret = false;
 
 	rcu_read_lock_bh();
-	npinfo = rcu_dereference(skb->dev->npinfo);
+	npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
 	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
 		goto out;
@@ -82,7 +82,7 @@ out:
 
 static inline int netpoll_rx_on(struct sk_buff *skb)
 {
-	struct netpoll_info *npinfo = rcu_dereference(skb->dev->npinfo);
+	struct netpoll_info *npinfo = rcu_dereference_bh(skb->dev->npinfo);
 
 	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
 }
