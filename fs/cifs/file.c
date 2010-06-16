@@ -268,17 +268,20 @@ int cifs_open(struct inode *inode, struct file *file)
 			/* no need for special case handling of setting mode
 			   on read only files needed here */
 
+			rc = cifs_posix_open_inode_helper(inode, file,
+					pCifsInode, oplock, netfid);
+			if (rc != 0) {
+				CIFSSMBClose(xid, tcon, netfid);
+				goto out;
+			}
+
 			pCifsFile = cifs_new_fileinfo(inode, netfid, file,
 							file->f_path.mnt,
 							oflags);
 			if (pCifsFile == NULL) {
 				CIFSSMBClose(xid, tcon, netfid);
 				rc = -ENOMEM;
-				goto out;
 			}
-
-			rc = cifs_posix_open_inode_helper(inode, file,
-					pCifsInode, oplock, netfid);
 			goto out;
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
@@ -359,14 +362,16 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
+	rc = cifs_open_inode_helper(inode, tcon, &oplock, buf, full_path, xid);
+	if (rc != 0)
+		goto out;
+
 	pCifsFile = cifs_new_fileinfo(inode, netfid, file, file->f_path.mnt,
 					file->f_flags);
 	if (pCifsFile == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
-
-	rc = cifs_open_inode_helper(inode, tcon, &oplock, buf, full_path, xid);
 
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to
