@@ -820,14 +820,6 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 word_addr, reg_data, reg_addr, phy_page = 0;
 
-	if (!(hw->mac.type == e1000_ich8lan && phy->type == e1000_phy_igp_3) &&
-		!(hw->mac.type == e1000_pchlan))
-		return ret_val;
-
-	ret_val = hw->phy.ops.acquire(hw);
-	if (ret_val)
-		return ret_val;
-
 	/*
 	 * Initialize the PHY from the NVM on ICH platforms.  This
 	 * is needed due to an issue where the NVM configuration is
@@ -835,12 +827,26 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	 * Therefore, after each PHY reset, we will load the
 	 * configuration data out of the NVM manually.
 	 */
-	if ((adapter->pdev->device == E1000_DEV_ID_ICH8_IGP_M_AMT) ||
-	    (adapter->pdev->device == E1000_DEV_ID_ICH8_IGP_M) ||
-	    (hw->mac.type == e1000_pchlan))
+	switch (hw->mac.type) {
+	case e1000_ich8lan:
+		if (phy->type != e1000_phy_igp_3)
+			return ret_val;
+
+		if (adapter->pdev->device == E1000_DEV_ID_ICH8_IGP_AMT) {
+			sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG;
+			break;
+		}
+		/* Fall-thru */
+	case e1000_pchlan:
 		sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG_ICH8M;
-	else
-		sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG;
+		break;
+	default:
+		return ret_val;
+	}
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		return ret_val;
 
 	data = er32(FEXTNVM);
 	if (!(data & sw_cfg_mask))
