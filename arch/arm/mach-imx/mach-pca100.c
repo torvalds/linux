@@ -36,7 +36,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
-#include <mach/i2c.h>
 #include <asm/mach/time.h>
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 #include <mach/spi.h>
@@ -150,7 +149,7 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mxc_wdt,
 };
 
-static struct imxi2c_platform_data pca100_i2c_1_data = {
+static const struct imxi2c_platform_data pca100_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -333,7 +332,7 @@ static void __init pca100_init(void)
 	i2c_register_board_info(1, pca100_i2c_devices,
 				ARRAY_SIZE(pca100_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device1, &pca100_i2c_1_data);
+	imx27_add_i2c_imx1(&pca100_i2c1_data);
 
 	mxc_gpio_mode(GPIO_PORTD | 28 | GPIO_GPIO | GPIO_OUT);
 	mxc_gpio_mode(GPIO_PORTD | 27 | GPIO_GPIO | GPIO_OUT);

@@ -31,7 +31,6 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/i2c.h>
 #include <linux/i2c/pca953x.h>
 #include <mach/imxfb.h>
 #include <mach/mmc.h>
@@ -131,7 +130,7 @@ mxt_td60_nand_board_info __initconst = {
 	.hw_ecc = 1,
 };
 
-static struct imxi2c_platform_data mxt_td60_i2c_data = {
+static const struct imxi2c_platform_data mxt_td60_i2c0_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -171,7 +170,7 @@ static struct i2c_board_info mxt_td60_i2c_devices[] = {
 	},
 };
 
-static struct imxi2c_platform_data mxt_td60_i2c2_data = {
+static const struct imxi2c_platform_data mxt_td60_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -263,8 +262,8 @@ static void __init mxt_td60_board_init(void)
 	i2c_register_board_info(1, mxt_td60_i2c2_devices,
 				ARRAY_SIZE(mxt_td60_i2c2_devices));
 
-	mxc_register_device(&mxc_i2c_device0, &mxt_td60_i2c_data);
-	mxc_register_device(&mxc_i2c_device1, &mxt_td60_i2c2_data);
+	imx27_add_i2c_imx0(&mxt_td60_i2c0_data);
+	imx27_add_i2c_imx1(&mxt_td60_i2c1_data);
 	mxc_register_device(&mxc_fb_device, &mxt_td60_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
 

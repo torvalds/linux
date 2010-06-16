@@ -35,7 +35,6 @@
 #include <mach/board-pcm038.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
 #include <mach/iomux-mx27.h>
 #include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
@@ -194,7 +193,7 @@ static void __init pcm038_init_sram(void)
 	mx27_setup_weimcs(1, 0x0000d843, 0x22252521, 0x22220a00);
 }
 
-static struct imxi2c_platform_data pcm038_i2c_1_data = {
+static const struct imxi2c_platform_data pcm038_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -318,7 +317,7 @@ static void __init pcm038_init(void)
 	i2c_register_board_info(1, pcm038_i2c_devices,
 				ARRAY_SIZE(pcm038_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device1, &pcm038_i2c_1_data);
+	imx27_add_i2c_imx1(&pcm038_i2c1_data);
 
 	/* PE18 for user-LED D40 */
 	mxc_gpio_mode(GPIO_PORTE | 18 | GPIO_GPIO | GPIO_OUT);

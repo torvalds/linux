@@ -28,10 +28,6 @@ extern struct platform_device mxc_w1_master_device;
 extern struct platform_device mxc_fb_device;
 extern struct platform_device mxc_fec_device;
 extern struct platform_device mxc_pwm_device;
-#ifdef CONFIG_MACH_MX27
-extern struct platform_device mxc_i2c_device0;
-extern struct platform_device mxc_i2c_device1;
-#endif
 extern struct platform_device mxc_sdhc_device0;
 extern struct platform_device mxc_sdhc_device1;
 extern struct platform_device mxc_otg_udc_device;

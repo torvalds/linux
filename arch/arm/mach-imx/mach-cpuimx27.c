@@ -35,7 +35,6 @@
 #include <mach/board-eukrea_cpuimx27.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/i2c.h>
 #include <mach/iomux-mx27.h>
 #include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
@@ -131,7 +130,7 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mxc_fec_device,
 };
 
-static struct imxi2c_platform_data eukrea_cpuimx27_i2c_1_data = {
+static const struct imxi2c_platform_data cpuimx27_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -196,7 +195,7 @@ static void __init eukrea_cpuimx27_init(void)
 	i2c_register_board_info(0, eukrea_cpuimx27_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx27_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device0, &eukrea_cpuimx27_i2c_1_data);
+	imx27_add_i2c_imx1(&cpuimx27_i2c1_data);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 

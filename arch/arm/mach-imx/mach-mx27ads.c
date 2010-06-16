@@ -31,7 +31,6 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
-#include <mach/i2c.h>
 #include <mach/imxfb.h>
 #include <mach/mmc.h>
 
@@ -195,7 +194,7 @@ static struct platform_device mx27ads_nor_mtd_device = {
 	.resource = &mx27ads_flash_resource,
 };
 
-static struct imxi2c_platform_data mx27ads_i2c_data = {
+static const struct imxi2c_platform_data mx27ads_i2c1_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -322,7 +321,7 @@ static void __init mx27ads_board_init(void)
 	/* only the i2c master 1 is used on this CPU card */
 	i2c_register_board_info(1, mx27ads_i2c_devices,
 				ARRAY_SIZE(mx27ads_i2c_devices));
-	mxc_register_device(&mxc_i2c_device1, &mx27ads_i2c_data);
+	imx27_add_i2c_imx1(&mx27ads_i2c1_data);
 	mxc_register_device(&mxc_fb_device, &mx27ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &sdhc1_pdata);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc2_pdata);
