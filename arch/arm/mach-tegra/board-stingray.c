@@ -26,6 +26,7 @@
 #include <linux/pda_power.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 #include <linux/i2c-tegra.h>
 
 #include <asm/mach-types.h>
@@ -396,15 +397,24 @@ static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *t
 
 static void stingray_power_off(void)
 {
+	printk(KERN_INFO "stingray_pm_power_off...\n");
+
+	local_irq_disable();
+
+	/* signal WDI gpio to shutdown CPCAP, which will
+	   cascade to all of the regulators. */
 	gpio_direction_output(TEGRA_GPIO_PV7, 0);
+
+	do {} while (1);
+
+	local_irq_enable();
 }
 
 static void __init stingray_power_off_init(void)
 {
 	tegra_gpio_enable(TEGRA_GPIO_PV7);
-	if (!gpio_request(TEGRA_GPIO_PV7, "wdi")) {
+	if (!gpio_request(TEGRA_GPIO_PV7, "wdi"))
 		pm_power_off = stingray_power_off;
-	}
 }
 
 static int stingray_board_revision = STINGRAY_REVISION_UNKNOWN;
