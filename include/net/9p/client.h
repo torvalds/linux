@@ -245,6 +245,8 @@ int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *attr);
 struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 							u64 request_mask);
 
+int p9_client_mknod_dotl(struct p9_fid *oldfid, char *name, int mode,
+			dev_t rdev, gid_t gid, struct p9_qid *);
 struct p9_req_t *p9_tag_lookup(struct p9_client *, u16);
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req);
 

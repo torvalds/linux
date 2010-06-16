@@ -1622,3 +1622,34 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_readdir);
+
+int p9_client_mknod_dotl(struct p9_fid *fid, char *name, int mode,
+			dev_t rdev, gid_t gid, struct p9_qid *qid)
+{
+	int err;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TMKNOD fid %d name %s mode %d major %d "
+		"minor %d\n", fid->fid, name, mode, MAJOR(rdev), MINOR(rdev));
+	req = p9_client_rpc(clnt, P9_TMKNOD, "dsdddd", fid->fid, name, mode,
+		MAJOR(rdev), MINOR(rdev), gid);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", qid);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RMKNOD qid %x.%llx.%x\n", qid->type,
+				(unsigned long long)qid->path, qid->version);
+
+error:
+	p9_free_req(clnt, req);
+	return err;
+
+}
+EXPORT_SYMBOL(p9_client_mknod_dotl);

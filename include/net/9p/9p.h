@@ -90,6 +90,8 @@ do { \
  * @P9_RSTATFS: file system status response
  * @P9_TSYMLINK: make symlink request
  * @P9_RSYMLINK: make symlink response
+ * @P9_TMKNOD: create a special file object request
+ * @P9_RMKNOD: create a special file object response
  * @P9_TRENAME: rename request
  * @P9_RRENAME: rename response
  * @P9_TVERSION: version handshake request
@@ -135,6 +137,8 @@ enum p9_msg_t {
 	P9_RSTATFS,
 	P9_TSYMLINK = 16,
 	P9_RSYMLINK,
+	P9_TMKNOD = 18,
+	P9_RMKNOD,
 	P9_TRENAME = 20,
 	P9_RRENAME,
 	P9_TGETATTR = 24,
