@@ -515,12 +515,21 @@ static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
 	return 0;
 }
 
+static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct nmk_gpio_chip *nmk_chip =
+		container_of(chip, struct nmk_gpio_chip, chip);
+
+	return NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base) + offset;
+}
+
 /* This structure is replicated for each GPIO block allocated at probe time */
 static struct gpio_chip nmk_gpio_template = {
 	.direction_input	= nmk_gpio_make_input,
 	.get			= nmk_gpio_get_input,
 	.direction_output	= nmk_gpio_make_output,
 	.set			= nmk_gpio_set_output,
+	.to_irq			= nmk_gpio_to_irq,
 	.ngpio			= NMK_GPIO_PER_CHIP,
 	.can_sleep		= 0,
 };
