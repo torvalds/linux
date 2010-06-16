@@ -52,7 +52,9 @@
 
 #include "e1000.h"
 
-#define DRV_VERSION "1.0.2-k4"
+#define DRV_EXTRAVERSION "-k2"
+
+#define DRV_VERSION "1.2.7" DRV_EXTRAVERSION
 char e1000e_driver_name[] = "e1000e";
 const char e1000e_driver_version[] = DRV_VERSION;
 
