@@ -761,6 +761,10 @@ static int af9013_set_frontend(struct dvb_frontend *fe,
 
 	state->frequency = params->frequency;
 
+	/* program tuner */
+	if (fe->ops.tuner_ops.set_params)
+		fe->ops.tuner_ops.set_params(fe, params);
+
 	/* program CFOE coefficients */
 	ret = af9013_set_coeff(state, params->u.ofdm.bandwidth);
 	if (ret)
@@ -790,10 +794,6 @@ static int af9013_set_frontend(struct dvb_frontend *fe,
 	ret = af9013_write_reg_bits(state, 0x9bc2, 0, 1, 0);
 	if (ret)
 		goto error;
-
-	/* program tuner */
-	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, params);
 
 	/* program TPS and bandwidth, check if auto mode needed */
 	ret = af9013_set_ofdm_params(state, &params->u.ofdm, &auto_mode);
