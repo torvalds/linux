@@ -667,7 +667,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 {
 	struct ttm_page_pool *pool = ttm_get_pool(flags, cstate);
 	struct page *p = NULL;
-	int gfp_flags = 0;
+	int gfp_flags = GFP_USER;
 	int r;
 
 	/* set zero flag for page allocation if required */
