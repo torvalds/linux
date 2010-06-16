@@ -187,7 +187,12 @@ static struct inet_peer *lookup_rcu_bh(__be32 daddr)
 
 	while (u != peer_avl_empty) {
 		if (daddr == u->v4daddr) {
-			if (unlikely(!atomic_inc_not_zero(&u->refcnt)))
+			/* Before taking a reference, check if this entry was
+			 * deleted, unlink_from_pool() sets refcnt=-1 to make
+			 * distinction between an unused entry (refcnt=0) and
+			 * a freed one.
+			 */
+			if (unlikely(!atomic_add_unless(&u->refcnt, 1, -1)))
 				u = NULL;
 			return u;
 		}
@@ -322,8 +327,9 @@ static void unlink_from_pool(struct inet_peer *p)
 	 * in cleanup() function to prevent sudden disappearing.  If we can
 	 * atomically (because of lockless readers) take this last reference,
 	 * it's safe to remove the node and free it later.
+	 * We use refcnt=-1 to alert lockless readers this entry is deleted.
 	 */
-	if (atomic_cmpxchg(&p->refcnt, 1, 0) == 1) {
+	if (atomic_cmpxchg(&p->refcnt, 1, -1) == 1) {
 		struct inet_peer **stack[PEER_MAXDEPTH];
 		struct inet_peer ***stackptr, ***delp;
 		if (lookup(p->v4daddr, stack) != p)
