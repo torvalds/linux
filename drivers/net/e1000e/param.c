@@ -161,6 +161,15 @@ E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lea
 E1000_PARAM(CrcStripping, "Enable CRC Stripping, disable if your BMC needs " \
                           "the CRC");
 
+/*
+ * Enable/disable EEE (a.k.a. IEEE802.3az)
+ *
+ * Valid Range: 0, 1
+ *
+ * Default Value: 1
+ */
+E1000_PARAM(EEE, "Enable/disable on parts that support the feature");
+
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
 	const char *name;
@@ -474,6 +483,25 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 			} else {
 				if (opt.def)
 					adapter->flags |= FLAG_READ_ONLY_NVM;
+			}
+		}
+	}
+	{ /* EEE for parts supporting the feature */
+		static const struct e1000_option opt = {
+			.type = enable_option,
+			.name = "EEE Support",
+			.err  = "defaulting to Enabled",
+			.def  = OPTION_ENABLED
+		};
+
+		if (adapter->flags2 & FLAG2_HAS_EEE) {
+			/* Currently only supported on 82579 */
+			if (num_EEE > bd) {
+				unsigned int eee = EEE[bd];
+				e1000_validate_option(&eee, &opt, adapter);
+				hw->dev_spec.ich8lan.eee_disable = !eee;
+			} else {
+				hw->dev_spec.ich8lan.eee_disable = !opt.def;
 			}
 		}
 	}

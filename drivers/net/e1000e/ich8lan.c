@@ -131,6 +131,10 @@
 /* PHY Power Management Control */
 #define HV_PM_CTRL		PHY_REG(770, 17)
 
+/* PHY Low Power Idle Control */
+#define I82579_LPI_CTRL			PHY_REG(772, 20)
+#define I82579_LPI_CTRL_ENABLE_MASK	0x6000
+
 /* Strapping Option Register - RO */
 #define E1000_STRAP                     0x0000C
 #define E1000_STRAP_SMBUS_ADDRESS_MASK  0x00FE0000
@@ -569,6 +573,35 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 }
 
 /**
+ *  e1000_set_eee_pchlan - Enable/disable EEE support
+ *  @hw: pointer to the HW structure
+ *
+ *  Enable/disable EEE based on setting in dev_spec structure.  The bits in
+ *  the LPI Control register will remain set only if/when link is up.
+ **/
+static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u16 phy_reg;
+
+	if (hw->phy.type != e1000_phy_82579)
+		goto out;
+
+	ret_val = e1e_rphy(hw, I82579_LPI_CTRL, &phy_reg);
+	if (ret_val)
+		goto out;
+
+	if (hw->dev_spec.ich8lan.eee_disable)
+		phy_reg &= ~I82579_LPI_CTRL_ENABLE_MASK;
+	else
+		phy_reg |= I82579_LPI_CTRL_ENABLE_MASK;
+
+	ret_val = e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_check_for_copper_link_ich8lan - Check for link (Copper)
  *  @hw: pointer to the HW structure
  *
@@ -624,6 +657,11 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 * immediately after link-up
 	 */
 	e1000e_check_downshift(hw);
+
+	/* Enable/Disable EEE after link up */
+	ret_val = e1000_set_eee_pchlan(hw);
+	if (ret_val)
+		goto out;
 
 	/*
 	 * If we are forcing speed/duplex, then we simply return since
@@ -3820,7 +3858,8 @@ struct e1000_info e1000_pch2_info = {
 				  | FLAG_HAS_FLASH
 				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_APME_IN_WUC,
-	.flags2			= FLAG2_HAS_PHY_STATS,
+	.flags2			= FLAG2_HAS_PHY_STATS
+				  | FLAG2_HAS_EEE,
 	.pba			= 18,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_ich8lan,
