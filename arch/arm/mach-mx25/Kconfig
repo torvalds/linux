@@ -4,5 +4,6 @@ comment "MX25 platforms:"
 
 config MACH_MX25_3DS
 	bool "Support MX25PDK (3DS) Platform"
+	select IMX_HAVE_PLATFORM_MXC_NAND
 
 endif

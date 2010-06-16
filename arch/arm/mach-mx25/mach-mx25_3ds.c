@@ -40,10 +40,11 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/mx25.h>
-#include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
-#include "devices.h"
 #include <mach/iomux-mx25.h>
+
+#include "devices-imx25.h"
+#include "devices.h"
 
 static struct imxuart_platform_data uart_pdata = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -109,7 +110,8 @@ static void __init mx25pdk_fec_reset(void)
 	gpio_set_value(FEC_RESET_B_GPIO, 1);
 }
 
-static struct mxc_nand_platform_data mx25pdk_nand_board_info = {
+static const struct mxc_nand_platform_data
+mx25pdk_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 	.flash_bbt	= 1,
@@ -150,7 +152,7 @@ static void __init mx25pdk_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_usbh2, NULL);
-	mxc_register_device(&mxc_nand_device, &mx25pdk_nand_board_info);
+	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
 	mxc_register_device(&mx25_rtc_device, NULL);
 	mxc_register_device(&mx25_fb_device, &mx25pdk_fb_pdata);
 

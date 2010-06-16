@@ -439,26 +439,6 @@ struct platform_device mx25_fec_device = {
 	.resource	= mx25_fec_resources,
 };
 
-static struct resource mxc_nand_resources[] = {
-	{
-		.start	= MX25_NFC_BASE_ADDR,
-		.end	= MX25_NFC_BASE_ADDR + 0x1fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.start	= MX25_INT_NANDFC,
-		.end	= MX25_INT_NANDFC,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_nand_device = {
-	.name		= "mxc_nand",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(mxc_nand_resources),
-	.resource	= mxc_nand_resources,
-};
-
 static struct resource mx25_rtc_resources[] = {
 	{
 		.start	= MX25_DRYICE_BASE_ADDR,
