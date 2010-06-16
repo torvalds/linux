@@ -66,6 +66,7 @@ struct omap4_cpu_pm_info {
 };
 
 static DEFINE_PER_CPU(struct omap4_cpu_pm_info, omap4_pm_info);
+static struct powerdomain *mpuss_pd;
 
 /*
  * Program the wakeup routine address for the CPU0 and CPU1
@@ -140,6 +141,13 @@ static void scu_pwrst_prepare(unsigned int cpu_id, unsigned int cpu_state)
  * of OMAP4 MPUSS subsystem
  * @cpu : CPU ID
  * @power_state: Low power state.
+ *
+ * MPUSS states for the context save:
+ * save_state =
+ *	0 - Nothing lost and no need to save: MPUSS INACTIVE
+ *	1 - CPUx L1 and logic lost: MPUSS CSWR
+ *	2 - CPUx L1 and logic lost + GIC lost: MPUSS OSWR
+ *	3 - CPUx L1 and logic lost + GIC + L2 lost: DEVICE OFF
  */
 int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 {
@@ -169,6 +177,7 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 		return -ENXIO;
 	}
 
+	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 	clear_cpu_prev_pwrst(cpu);
 	set_cpu_next_pwrst(cpu, power_state);
 	set_cpu_wakeup_addr(cpu, virt_to_phys(omap4_cpu_resume));
@@ -267,6 +276,13 @@ int __init omap4_mpuss_init(void)
 
 	/* Initialise CPU1 power domain state to ON */
 	pwrdm_set_next_pwrst(pm_info->pwrdm, PWRDM_POWER_ON);
+
+	mpuss_pd = pwrdm_lookup("mpu_pwrdm");
+	if (!mpuss_pd) {
+		pr_err("Failed to lookup MPUSS power domain\n");
+		return -ENODEV;
+	}
+	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 
 	/* Save device type on scratchpad for low level code to use */
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP)
