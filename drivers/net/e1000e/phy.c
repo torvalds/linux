@@ -2319,6 +2319,9 @@ enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id)
 	case I82577_E_PHY_ID:
 		phy_type = e1000_phy_82577;
 		break;
+	case I82579_E_PHY_ID:
+		phy_type = e1000_phy_82579;
+		break;
 	default:
 		phy_type = e1000_phy_unknown;
 		break;

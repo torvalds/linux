@@ -52,6 +52,8 @@
  * 82577LC Gigabit Network Connection
  * 82578DM Gigabit Network Connection
  * 82578DC Gigabit Network Connection
+ * 82579LM Gigabit Network Connection
+ * 82579V Gigabit Network Connection
  */
 
 #include "e1000.h"
@@ -125,6 +127,9 @@
 #define HV_SMB_ADDR            PHY_REG(768, 26)
 #define HV_SMB_ADDR_PEC_EN     0x0200
 #define HV_SMB_ADDR_VALID      0x0080
+
+/* PHY Power Management Control */
+#define HV_PM_CTRL		PHY_REG(770, 17)
 
 /* Strapping Option Register - RO */
 #define E1000_STRAP                     0x0000C
@@ -279,13 +284,13 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
+	/*
+	 * The MAC-PHY interconnect may still be in SMBus mode
+	 * after Sx->S0.  If the manageability engine (ME) is
+	 * disabled, then toggle the LANPHYPC Value bit to force
+	 * the interconnect to PCIe mode.
+	 */
 	if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-		/*
-		 * The MAC-PHY interconnect may still be in SMBus mode
-		 * after Sx->S0.  Toggle the LANPHYPC Value bit to force
-		 * the interconnect to PCIe mode, but only if there is no
-		 * firmware present otherwise firmware will have done it.
-		 */
 		ctrl = er32(CTRL);
 		ctrl |=  E1000_CTRL_LANPHYPC_OVERRIDE;
 		ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
@@ -326,6 +331,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 
 	switch (phy->type) {
 	case e1000_phy_82577:
+	case e1000_phy_82579:
 		phy->ops.check_polarity = e1000_check_polarity_82577;
 		phy->ops.force_speed_duplex =
 			e1000_phy_force_speed_duplex_82577;
@@ -530,6 +536,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 		mac->ops.led_off = e1000_led_off_ich8lan;
 		break;
 	case e1000_pchlan:
+	case e1000_pch2lan:
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_pchlan;
 		/* ID LED init */
@@ -549,6 +556,14 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 	/* Enable PCS Lock-loss workaround for ICH8 */
 	if (mac->type == e1000_ich8lan)
 		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
+
+	/* Disable PHY configuration by hardware, config by software */
+	if (mac->type == e1000_pch2lan) {
+		u32 extcnf_ctrl = er32(EXTCNF_CTRL);
+
+		extcnf_ctrl |= E1000_EXTCNF_CTRL_GATE_PHY_CFG;
+		ew32(EXTCNF_CTRL, extcnf_ctrl);
+	}
 
 	return 0;
 }
@@ -653,10 +668,19 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	if (rc)
 		return rc;
 
-	if (hw->mac.type == e1000_pchlan)
-		rc = e1000_init_phy_params_pchlan(hw);
-	else
+	switch (hw->mac.type) {
+	case e1000_ich8lan:
+	case e1000_ich9lan:
+	case e1000_ich10lan:
 		rc = e1000_init_phy_params_ich8lan(hw);
+		break;
+	case e1000_pchlan:
+	case e1000_pch2lan:
+		rc = e1000_init_phy_params_pchlan(hw);
+		break;
+	default:
+		break;
+	}
 	if (rc)
 		return rc;
 
@@ -861,6 +885,7 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 		}
 		/* Fall-thru */
 	case e1000_pchlan:
+	case e1000_pch2lan:
 		sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG_ICH8M;
 		break;
 	default:
@@ -880,8 +905,10 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	 * extended configuration before SW configuration
 	 */
 	data = er32(EXTCNF_CTRL);
-	if (data & E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE)
-		goto out;
+	if (!(hw->mac.type == e1000_pch2lan)) {
+		if (data & E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE)
+			goto out;
+	}
 
 	cnf_size = er32(EXTCNF_SIZE);
 	cnf_size &= E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH_MASK;
@@ -893,7 +920,8 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	cnf_base_addr >>= E1000_EXTCNF_CTRL_EXT_CNF_POINTER_SHIFT;
 
 	if (!(data & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE) &&
-	    (hw->mac.type == e1000_pchlan)) {
+	    ((hw->mac.type == e1000_pchlan) ||
+	     (hw->mac.type == e1000_pch2lan))) {
 		/*
 		 * HW configures the SMBus address and LEDs when the
 		 * OEM and LCD Write Enable bits are set in the NVM.
@@ -1100,16 +1128,18 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 	u32 mac_reg;
 	u16 oem_reg;
 
-	if (hw->mac.type != e1000_pchlan)
+	if ((hw->mac.type != e1000_pch2lan) && (hw->mac.type != e1000_pchlan))
 		return ret_val;
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		return ret_val;
 
-	mac_reg = er32(EXTCNF_CTRL);
-	if (mac_reg & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE)
-		goto out;
+	if (!(hw->mac.type == e1000_pch2lan)) {
+		mac_reg = er32(EXTCNF_CTRL);
+		if (mac_reg & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE)
+			goto out;
+	}
 
 	mac_reg = er32(FEXTNVM);
 	if (!(mac_reg & E1000_FEXTNVM_SW_CONFIG_ICH8M))
@@ -1250,6 +1280,243 @@ out:
 }
 
 /**
+ *  e1000_copy_rx_addrs_to_phy_ich8lan - Copy Rx addresses from MAC to PHY
+ *  @hw:   pointer to the HW structure
+ **/
+void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
+{
+	u32 mac_reg;
+	u16 i;
+
+	/* Copy both RAL/H (rar_entry_count) and SHRAL/H (+4) to PHY */
+	for (i = 0; i < (hw->mac.rar_entry_count + 4); i++) {
+		mac_reg = er32(RAL(i));
+		e1e_wphy(hw, BM_RAR_L(i), (u16)(mac_reg & 0xFFFF));
+		e1e_wphy(hw, BM_RAR_M(i), (u16)((mac_reg >> 16) & 0xFFFF));
+		mac_reg = er32(RAH(i));
+		e1e_wphy(hw, BM_RAR_H(i), (u16)(mac_reg & 0xFFFF));
+		e1e_wphy(hw, BM_RAR_CTRL(i), (u16)((mac_reg >> 16) & 0x8000));
+	}
+}
+
+static u32 e1000_calc_rx_da_crc(u8 mac[])
+{
+	u32 poly = 0xEDB88320;	/* Polynomial for 802.3 CRC calculation */
+	u32 i, j, mask, crc;
+
+	crc = 0xffffffff;
+	for (i = 0; i < 6; i++) {
+		crc = crc ^ mac[i];
+		for (j = 8; j > 0; j--) {
+			mask = (crc & 1) * (-1);
+			crc = (crc >> 1) ^ (poly & mask);
+		}
+	}
+	return ~crc;
+}
+
+/**
+ *  e1000_lv_jumbo_workaround_ich8lan - required for jumbo frame operation
+ *  with 82579 PHY
+ *  @hw: pointer to the HW structure
+ *  @enable: flag to enable/disable workaround when enabling/disabling jumbos
+ **/
+s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
+{
+	s32 ret_val = 0;
+	u16 phy_reg, data;
+	u32 mac_reg;
+	u16 i;
+
+	if (hw->mac.type != e1000_pch2lan)
+		goto out;
+
+	/* disable Rx path while enabling/disabling workaround */
+	e1e_rphy(hw, PHY_REG(769, 20), &phy_reg);
+	ret_val = e1e_wphy(hw, PHY_REG(769, 20), phy_reg | (1 << 14));
+	if (ret_val)
+		goto out;
+
+	if (enable) {
+		/*
+		 * Write Rx addresses (rar_entry_count for RAL/H, +4 for
+		 * SHRAL/H) and initial CRC values to the MAC
+		 */
+		for (i = 0; i < (hw->mac.rar_entry_count + 4); i++) {
+			u8 mac_addr[ETH_ALEN] = {0};
+			u32 addr_high, addr_low;
+
+			addr_high = er32(RAH(i));
+			if (!(addr_high & E1000_RAH_AV))
+				continue;
+			addr_low = er32(RAL(i));
+			mac_addr[0] = (addr_low & 0xFF);
+			mac_addr[1] = ((addr_low >> 8) & 0xFF);
+			mac_addr[2] = ((addr_low >> 16) & 0xFF);
+			mac_addr[3] = ((addr_low >> 24) & 0xFF);
+			mac_addr[4] = (addr_high & 0xFF);
+			mac_addr[5] = ((addr_high >> 8) & 0xFF);
+
+			ew32(PCH_RAICC(i),
+					e1000_calc_rx_da_crc(mac_addr));
+		}
+
+		/* Write Rx addresses to the PHY */
+		e1000_copy_rx_addrs_to_phy_ich8lan(hw);
+
+		/* Enable jumbo frame workaround in the MAC */
+		mac_reg = er32(FFLT_DBG);
+		mac_reg &= ~(1 << 14);
+		mac_reg |= (7 << 15);
+		ew32(FFLT_DBG, mac_reg);
+
+		mac_reg = er32(RCTL);
+		mac_reg |= E1000_RCTL_SECRC;
+		ew32(RCTL, mac_reg);
+
+		ret_val = e1000e_read_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_CTRL_OFFSET,
+						&data);
+		if (ret_val)
+			goto out;
+		ret_val = e1000e_write_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_CTRL_OFFSET,
+						data | (1 << 0));
+		if (ret_val)
+			goto out;
+		ret_val = e1000e_read_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_HD_CTRL,
+						&data);
+		if (ret_val)
+			goto out;
+		data &= ~(0xF << 8);
+		data |= (0xB << 8);
+		ret_val = e1000e_write_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_HD_CTRL,
+						data);
+		if (ret_val)
+			goto out;
+
+		/* Enable jumbo frame workaround in the PHY */
+		e1e_rphy(hw, PHY_REG(769, 20), &data);
+		ret_val = e1e_wphy(hw, PHY_REG(769, 20), data & ~(1 << 14));
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, PHY_REG(769, 23), &data);
+		data &= ~(0x7F << 5);
+		data |= (0x37 << 5);
+		ret_val = e1e_wphy(hw, PHY_REG(769, 23), data);
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, PHY_REG(769, 16), &data);
+		data &= ~(1 << 13);
+		data |= (1 << 12);
+		ret_val = e1e_wphy(hw, PHY_REG(769, 16), data);
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, PHY_REG(776, 20), &data);
+		data &= ~(0x3FF << 2);
+		data |= (0x1A << 2);
+		ret_val = e1e_wphy(hw, PHY_REG(776, 20), data);
+		if (ret_val)
+			goto out;
+		ret_val = e1e_wphy(hw, PHY_REG(776, 23), 0xFE00);
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, HV_PM_CTRL, &data);
+		ret_val = e1e_wphy(hw, HV_PM_CTRL, data | (1 << 10));
+		if (ret_val)
+			goto out;
+	} else {
+		/* Write MAC register values back to h/w defaults */
+		mac_reg = er32(FFLT_DBG);
+		mac_reg &= ~(0xF << 14);
+		ew32(FFLT_DBG, mac_reg);
+
+		mac_reg = er32(RCTL);
+		mac_reg &= ~E1000_RCTL_SECRC;
+		ew32(FFLT_DBG, mac_reg);
+
+		ret_val = e1000e_read_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_CTRL_OFFSET,
+						&data);
+		if (ret_val)
+			goto out;
+		ret_val = e1000e_write_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_CTRL_OFFSET,
+						data & ~(1 << 0));
+		if (ret_val)
+			goto out;
+		ret_val = e1000e_read_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_HD_CTRL,
+						&data);
+		if (ret_val)
+			goto out;
+		data &= ~(0xF << 8);
+		data |= (0xB << 8);
+		ret_val = e1000e_write_kmrn_reg(hw,
+						E1000_KMRNCTRLSTA_HD_CTRL,
+						data);
+		if (ret_val)
+			goto out;
+
+		/* Write PHY register values back to h/w defaults */
+		e1e_rphy(hw, PHY_REG(769, 20), &data);
+		ret_val = e1e_wphy(hw, PHY_REG(769, 20), data & ~(1 << 14));
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, PHY_REG(769, 23), &data);
+		data &= ~(0x7F << 5);
+		ret_val = e1e_wphy(hw, PHY_REG(769, 23), data);
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, PHY_REG(769, 16), &data);
+		data &= ~(1 << 12);
+		data |= (1 << 13);
+		ret_val = e1e_wphy(hw, PHY_REG(769, 16), data);
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, PHY_REG(776, 20), &data);
+		data &= ~(0x3FF << 2);
+		data |= (0x8 << 2);
+		ret_val = e1e_wphy(hw, PHY_REG(776, 20), data);
+		if (ret_val)
+			goto out;
+		ret_val = e1e_wphy(hw, PHY_REG(776, 23), 0x7E00);
+		if (ret_val)
+			goto out;
+		e1e_rphy(hw, HV_PM_CTRL, &data);
+		ret_val = e1e_wphy(hw, HV_PM_CTRL, data & ~(1 << 10));
+		if (ret_val)
+			goto out;
+	}
+
+	/* re-enable Rx path after enabling/disabling workaround */
+	ret_val = e1e_wphy(hw, PHY_REG(769, 20), phy_reg & ~(1 << 14));
+
+out:
+	return ret_val;
+}
+
+/**
+ *  e1000_lv_phy_workarounds_ich8lan - A series of Phy workarounds to be
+ *  done after every PHY reset.
+ **/
+static s32 e1000_lv_phy_workarounds_ich8lan(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	if (hw->mac.type != e1000_pch2lan)
+		goto out;
+
+	/* Set MDIO slow mode before any other MDIO access */
+	ret_val = e1000_set_mdio_slow_mode_hv(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  *  e1000_lan_init_done_ich8lan - Check for PHY config completion
  *  @hw: pointer to the HW structure
  *
@@ -1300,12 +1567,17 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 		break;
+	case e1000_pch2lan:
+		ret_val = e1000_lv_phy_workarounds_ich8lan(hw);
+		if (ret_val)
+			goto out;
+		break;
 	default:
 		break;
 	}
 
 	/* Dummy read to clear the phy wakeup bit after lcd reset */
-	if (hw->mac.type == e1000_pchlan)
+	if (hw->mac.type >= e1000_pchlan)
 		e1e_rphy(hw, BM_WUC, &reg);
 
 	/* Configure the LCD with the extended configuration region in NVM */
@@ -2829,6 +3101,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 
 	ew32(FCTTV, hw->fc.pause_time);
 	if ((hw->phy.type == e1000_phy_82578) ||
+	    (hw->phy.type == e1000_phy_82579) ||
 	    (hw->phy.type == e1000_phy_82577)) {
 		ew32(FCRTV_PCH, hw->fc.refresh_time);
 
@@ -2892,6 +3165,7 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 			return ret_val;
 		break;
 	case e1000_phy_82577:
+	case e1000_phy_82579:
 		ret_val = e1000_copper_link_setup_82577(hw);
 		if (ret_val)
 			return ret_val;
@@ -3399,6 +3673,7 @@ static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 
 	/* Clear PHY statistics registers */
 	if ((hw->phy.type == e1000_phy_82578) ||
+	    (hw->phy.type == e1000_phy_82579) ||
 	    (hw->phy.type == e1000_phy_82577)) {
 		hw->phy.ops.read_reg(hw, HV_SCC_UPPER, &phy_data);
 		hw->phy.ops.read_reg(hw, HV_SCC_LOWER, &phy_data);
@@ -3529,6 +3804,25 @@ struct e1000_info e1000_pch_info = {
 	.flags2			= FLAG2_HAS_PHY_STATS,
 	.pba			= 26,
 	.max_hw_frame_size	= 4096,
+	.get_variants		= e1000_get_variants_ich8lan,
+	.mac_ops		= &ich8_mac_ops,
+	.phy_ops		= &ich8_phy_ops,
+	.nvm_ops		= &ich8_nvm_ops,
+};
+
+struct e1000_info e1000_pch2_info = {
+	.mac			= e1000_pch2lan,
+	.flags			= FLAG_IS_ICH
+				  | FLAG_HAS_WOL
+				  | FLAG_RX_CSUM_ENABLED
+				  | FLAG_HAS_CTRLEXT_ON_LOAD
+				  | FLAG_HAS_AMT
+				  | FLAG_HAS_FLASH
+				  | FLAG_HAS_JUMBO_FRAMES
+				  | FLAG_APME_IN_WUC,
+	.flags2			= FLAG2_HAS_PHY_STATS,
+	.pba			= 18,
+	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_ich8lan,
 	.mac_ops		= &ich8_mac_ops,
 	.phy_ops		= &ich8_phy_ops,

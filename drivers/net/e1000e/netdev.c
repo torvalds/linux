@@ -67,6 +67,7 @@ static const struct e1000_info *e1000_info_tbl[] = {
 	[board_ich9lan]		= &e1000_ich9_info,
 	[board_ich10lan]	= &e1000_ich10_info,
 	[board_pchlan]		= &e1000_pch_info,
+	[board_pch2lan]		= &e1000_pch2_info,
 };
 
 struct e1000_reg_info {
@@ -2723,6 +2724,16 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 		e1e_wphy(hw, 22, phy_data);
 	}
 
+	/* Workaround Si errata on 82579 - configure jumbo frame flow */
+	if (hw->mac.type == e1000_pch2lan) {
+		s32 ret_val;
+
+		if (rctl & E1000_RCTL_LPE)
+			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, true);
+		else
+			ret_val = e1000_lv_jumbo_workaround_ich8lan(hw, false);
+	}
+
 	/* Setup buffer sizes */
 	rctl &= ~E1000_RCTL_SZ_4096;
 	rctl |= E1000_RCTL_BSEX;
@@ -3118,7 +3129,27 @@ void e1000e_reset(struct e1000_adapter *adapter)
 	 *   with ERT support assuming ERT set to E1000_ERT_2048), or
 	 * - the full Rx FIFO size minus one full frame
 	 */
-	if (hw->mac.type == e1000_pchlan) {
+	if (adapter->flags & FLAG_DISABLE_FC_PAUSE_TIME)
+		fc->pause_time = 0xFFFF;
+	else
+		fc->pause_time = E1000_FC_PAUSE_TIME;
+	fc->send_xon = 1;
+	fc->current_mode = fc->requested_mode;
+
+	switch (hw->mac.type) {
+	default:
+		if ((adapter->flags & FLAG_HAS_ERT) &&
+		    (adapter->netdev->mtu > ETH_DATA_LEN))
+			hwm = min(((pba << 10) * 9 / 10),
+				  ((pba << 10) - (E1000_ERT_2048 << 3)));
+		else
+			hwm = min(((pba << 10) * 9 / 10),
+				  ((pba << 10) - adapter->max_frame_size));
+
+		fc->high_water = hwm & E1000_FCRTH_RTH; /* 8-byte granularity */
+		fc->low_water = fc->high_water - 8;
+		break;
+	case e1000_pchlan:
 		/*
 		 * Workaround PCH LOM adapter hangs with certain network
 		 * loads.  If hangs persist, try disabling Tx flow control.
@@ -3131,25 +3162,14 @@ void e1000e_reset(struct e1000_adapter *adapter)
 			fc->low_water  = 0x3000;
 		}
 		fc->refresh_time = 0x1000;
-	} else {
-		if ((adapter->flags & FLAG_HAS_ERT) &&
-		    (adapter->netdev->mtu > ETH_DATA_LEN))
-			hwm = min(((pba << 10) * 9 / 10),
-				  ((pba << 10) - (E1000_ERT_2048 << 3)));
-		else
-			hwm = min(((pba << 10) * 9 / 10),
-				  ((pba << 10) - adapter->max_frame_size));
-
-		fc->high_water = hwm & E1000_FCRTH_RTH; /* 8-byte granularity */
-		fc->low_water = fc->high_water - 8;
+		break;
+	case e1000_pch2lan:
+		fc->high_water = 0x05C20;
+		fc->low_water = 0x05048;
+		fc->pause_time = 0x0650;
+		fc->refresh_time = 0x0400;
+		break;
 	}
-
-	if (adapter->flags & FLAG_DISABLE_FC_PAUSE_TIME)
-		fc->pause_time = 0xFFFF;
-	else
-		fc->pause_time = E1000_FC_PAUSE_TIME;
-	fc->send_xon = 1;
-	fc->current_mode = fc->requested_mode;
 
 	/* Allow time for pending master requests to run */
 	mac->ops.reset_hw(hw);
@@ -4918,14 +4938,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 	int retval = 0;
 
 	/* copy MAC RARs to PHY RARs */
-	for (i = 0; i < adapter->hw.mac.rar_entry_count; i++) {
-		mac_reg = er32(RAL(i));
-		e1e_wphy(hw, BM_RAR_L(i), (u16)(mac_reg & 0xFFFF));
-		e1e_wphy(hw, BM_RAR_M(i), (u16)((mac_reg >> 16) & 0xFFFF));
-		mac_reg = er32(RAH(i));
-		e1e_wphy(hw, BM_RAR_H(i), (u16)(mac_reg & 0xFFFF));
-		e1e_wphy(hw, BM_RAR_CTRL(i), (u16)((mac_reg >> 16) & 0xFFFF));
-	}
+	e1000_copy_rx_addrs_to_phy_ich8lan(hw);
 
 	/* copy MAC MTA to PHY MTA */
 	for (i = 0; i < adapter->hw.mac.mta_reg_count; i++) {
@@ -5975,6 +5988,9 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_M_HV_LC), board_pchlan },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_D_HV_DM), board_pchlan },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH_D_HV_DC), board_pchlan },
+
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_LM), board_pch2lan },
+	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_PCH2_LV_V), board_pch2lan },
 
 	{ }	/* terminate list */
 };
