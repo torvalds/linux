@@ -1172,7 +1172,7 @@ static inline void encode_createmode(struct xdr_stream *xdr, const struct nfs_op
 		break;
 	default:
 		clp = arg->server->nfs_client;
-		if (clp->cl_minorversion > 0) {
+		if (clp->cl_mvops->minor_version > 0) {
 			if (nfs4_has_persistent_session(clp)) {
 				*p = cpu_to_be32(NFS4_CREATE_GUARDED);
 				encode_attrs(xdr, arg->u.attrs, arg->server);
@@ -1704,7 +1704,7 @@ static u32 nfs4_xdr_minorversion(const struct nfs4_sequence_args *args)
 {
 #if defined(CONFIG_NFS_V4_1)
 	if (args->sa_session)
-		return args->sa_session->clp->cl_minorversion;
+		return args->sa_session->clp->cl_mvops->minor_version;
 #endif /* CONFIG_NFS_V4_1 */
 	return 0;
 }
@@ -2395,7 +2395,7 @@ static int nfs4_xdr_enc_exchange_id(struct rpc_rqst *req, uint32_t *p,
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.minorversion = args->client->cl_minorversion,
+		.minorversion = args->client->cl_mvops->minor_version,
 	};
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
@@ -2413,7 +2413,7 @@ static int nfs4_xdr_enc_create_session(struct rpc_rqst *req, uint32_t *p,
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.minorversion = args->client->cl_minorversion,
+		.minorversion = args->client->cl_mvops->minor_version,
 	};
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
@@ -2431,7 +2431,7 @@ static int nfs4_xdr_enc_destroy_session(struct rpc_rqst *req, uint32_t *p,
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.minorversion = session->clp->cl_minorversion,
+		.minorversion = session->clp->cl_mvops->minor_version,
 	};
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
