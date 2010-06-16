@@ -299,8 +299,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
 		oflags |= SMB_O_CREAT;
 		/* can not refresh inode info since size could be stale */
-		rc = cifs_posix_open(full_path, &inode, file->f_path.mnt,
-				inode->i_sb,
+		rc = cifs_posix_open(full_path, &inode, inode->i_sb,
 				cifs_sb->mnt_file_mode /* ignored */,
 				oflags, &oplock, &netfid, xid);
 		if (rc == 0) {
@@ -308,7 +307,16 @@ int cifs_open(struct inode *inode, struct file *file)
 			/* no need for special case handling of setting mode
 			   on read only files needed here */
 
-			pCifsFile = cifs_fill_filedata(file);
+			pCifsFile = cifs_new_fileinfo(inode, netfid, file,
+							file->f_path.mnt,
+							oflags);
+			if (pCifsFile == NULL) {
+				CIFSSMBClose(xid, tcon, netfid);
+				rc = -ENOMEM;
+				goto out;
+			}
+			file->private_data = pCifsFile;
+
 			cifs_posix_open_inode_helper(inode, file, pCifsInode,
 						     oplock, netfid);
 			goto out;
@@ -513,8 +521,7 @@ reopen_error_exit:
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
 		/* can not refresh inode info since size could be stale */
-		rc = cifs_posix_open(full_path, NULL, file->f_path.mnt,
-				inode->i_sb,
+		rc = cifs_posix_open(full_path, NULL, inode->i_sb,
 				cifs_sb->mnt_file_mode /* ignored */,
 				oflags, &oplock, &netfid, xid);
 		if (rc == 0) {

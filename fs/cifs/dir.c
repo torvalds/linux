@@ -188,8 +188,7 @@ cifs_new_fileinfo(struct inode *newinode, __u16 fileHandle,
 }
 
 int cifs_posix_open(char *full_path, struct inode **pinode,
-			struct vfsmount *mnt, struct super_block *sb,
-			int mode, int oflags,
+			struct super_block *sb, int mode, int oflags,
 			__u32 *poplock, __u16 *pnetfid, int xid)
 {
 	int rc;
@@ -258,19 +257,6 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 		cifs_fattr_to_inode(*pinode, &fattr);
 	}
 
-	/*
-	 * cifs_fill_filedata() takes care of setting cifsFileInfo pointer to
-	 * file->private_data.
-	 */
-	if (mnt) {
-		struct cifsFileInfo *pfile_info;
-
-		pfile_info = cifs_new_fileinfo(*pinode, *pnetfid, NULL, mnt,
-					       oflags);
-		if (pfile_info == NULL)
-			rc = -ENOMEM;
-	}
-
 posix_open_ret:
 	kfree(presp_data);
 	return rc;
@@ -298,7 +284,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	int create_options = CREATE_NOT_DIR;
 	__u32 oplock = 0;
 	int oflags;
-	bool posix_create = false;
 	/*
 	 * BB below access is probably too much for mknod to request
 	 *    but we have to do query and setpathinfo so requesting
@@ -339,7 +324,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 	    (CIFS_UNIX_POSIX_PATH_OPS_CAP &
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		rc = cifs_posix_open(full_path, &newinode,
-			nd ? nd->path.mnt : NULL,
 			inode->i_sb, mode, oflags, &oplock, &fileHandle, xid);
 		/* EIO could indicate that (posix open) operation is not
 		   supported, despite what server claimed in capability
@@ -347,7 +331,6 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		   handled in posix open */
 
 		if (rc == 0) {
-			posix_create = true;
 			if (newinode == NULL) /* query inode info */
 				goto cifs_create_get_file_info;
 			else /* success, no need to query */
@@ -478,11 +461,7 @@ cifs_create_set_dentry:
 	else
 		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
 
-	/* nfsd case - nfs srv does not set nd */
-	if ((nd == NULL) || (!(nd->flags & LOOKUP_OPEN))) {
-		/* mknod case - do not leave file open */
-		CIFSSMBClose(xid, tcon, fileHandle);
-	} else if (!(posix_create) && (newinode)) {
+	if (newinode && nd && (nd->flags & LOOKUP_OPEN)) {
 		struct cifsFileInfo *pfile_info;
 		/*
 		 * cifs_fill_filedata() takes care of setting cifsFileInfo
@@ -492,7 +471,10 @@ cifs_create_set_dentry:
 					       nd->path.mnt, oflags);
 		if (pfile_info == NULL)
 			rc = -ENOMEM;
+	} else {
+		CIFSSMBClose(xid, tcon, fileHandle);
 	}
+
 cifs_create_out:
 	kfree(buf);
 	kfree(full_path);
@@ -636,6 +618,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	bool posix_open = false;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
+	struct cifsFileInfo *cfile;
 	struct inode *newInode = NULL;
 	char *full_path = NULL;
 	struct file *filp;
@@ -703,7 +686,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		if (nd && !(nd->flags & (LOOKUP_PARENT | LOOKUP_DIRECTORY)) &&
 		     (nd->flags & LOOKUP_OPEN) && !pTcon->broken_posix_open &&
 		     (nd->intent.open.flags & O_CREAT)) {
-			rc = cifs_posix_open(full_path, &newInode, nd->path.mnt,
+			rc = cifs_posix_open(full_path, &newInode,
 					parent_dir_inode->i_sb,
 					nd->intent.open.create_mode,
 					nd->intent.open.flags, &oplock,
@@ -733,8 +716,17 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		else
 			direntry->d_op = &cifs_dentry_ops;
 		d_add(direntry, newInode);
-		if (posix_open)
+		if (posix_open) {
+			cfile = cifs_new_fileinfo(newInode, fileHandle, NULL,
+						  nd->path.mnt,
+						  nd->intent.open.flags);
+			if (cfile == NULL) {
+				CIFSSMBClose(xid, pTcon, fileHandle);
+				rc = -ENOMEM;
+				goto lookup_out;
+			}
 			filp = lookup_instantiate_filp(nd, direntry, NULL);
+		}
 		/* since paths are not looked up by component - the parent
 		   directories are presumed to be good here */
 		renew_parental_timestamps(direntry);
@@ -755,6 +747,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		is a common return code */
 	}
 
+lookup_out:
 	kfree(full_path);
 	FreeXid(xid);
 	return ERR_PTR(rc);
