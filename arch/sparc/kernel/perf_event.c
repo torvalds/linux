@@ -658,13 +658,16 @@ static u64 maybe_change_configuration(struct cpu_hw_events *cpuc, u64 pcr)
 
 		enc = perf_event_get_enc(cpuc->events[i]);
 		pcr &= ~mask_for_index(idx);
-		pcr |= event_encoding(enc, idx);
+		if (hwc->state & PERF_HES_STOPPED)
+			pcr |= nop_for_index(idx);
+		else
+			pcr |= event_encoding(enc, idx);
 	}
 out:
 	return pcr;
 }
 
-static void sparc_pmu_pmu_enable(struct pmu *pmu)
+static void sparc_pmu_enable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 pcr;
@@ -691,7 +694,7 @@ static void sparc_pmu_pmu_enable(struct pmu *pmu)
 	pcr_ops->write(cpuc->pcr);
 }
 
-static void sparc_pmu_pmu_disable(struct pmu *pmu)
+static void sparc_pmu_disable(struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	u64 val;
@@ -710,48 +713,6 @@ static void sparc_pmu_pmu_disable(struct pmu *pmu)
 	pcr_ops->write(cpuc->pcr);
 }
 
-static void sparc_pmu_disable(struct perf_event *event)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct hw_perf_event *hwc = &event->hw;
-	unsigned long flags;
-	int i;
-
-	local_irq_save(flags);
-	perf_pmu_disable(event->pmu);
-
-	for (i = 0; i < cpuc->n_events; i++) {
-		if (event == cpuc->event[i]) {
-			int idx = cpuc->current_idx[i];
-
-			/* Shift remaining entries down into
-			 * the existing slot.
-			 */
-			while (++i < cpuc->n_events) {
-				cpuc->event[i - 1] = cpuc->event[i];
-				cpuc->events[i - 1] = cpuc->events[i];
-				cpuc->current_idx[i - 1] =
-					cpuc->current_idx[i];
-			}
-
-			/* Absorb the final count and turn off the
-			 * event.
-			 */
-			sparc_pmu_disable_event(cpuc, hwc, idx);
-			barrier();
-			sparc_perf_event_update(event, hwc, idx);
-
-			perf_event_update_userpage(event);
-
-			cpuc->n_events--;
-			break;
-		}
-	}
-
-	perf_pmu_enable(event->pmu);
-	local_irq_restore(flags);
-}
-
 static int active_event_index(struct cpu_hw_events *cpuc,
 			      struct perf_event *event)
 {
@@ -765,6 +726,74 @@ static int active_event_index(struct cpu_hw_events *cpuc,
 	return cpuc->current_idx[i];
 }
 
+static void sparc_pmu_start(struct perf_event *event, int flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int idx = active_event_index(cpuc, event);
+
+	if (flags & PERF_EF_RELOAD) {
+		WARN_ON_ONCE(!(event->hw.state & PERF_HES_UPTODATE));
+		sparc_perf_event_set_period(event, &event->hw, idx);
+	}
+
+	event->hw.state = 0;
+
+	sparc_pmu_enable_event(cpuc, &event->hw, idx);
+}
+
+static void sparc_pmu_stop(struct perf_event *event, int flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int idx = active_event_index(cpuc, event);
+
+	if (!(event->hw.state & PERF_HES_STOPPED)) {
+		sparc_pmu_disable_event(cpuc, &event->hw, idx);
+		event->hw.state |= PERF_HES_STOPPED;
+	}
+
+	if (!(event->hw.state & PERF_HES_UPTODATE) && (flags & PERF_EF_UPDATE)) {
+		sparc_perf_event_update(event, &event->hw, idx);
+		event->hw.state |= PERF_HES_UPTODATE;
+	}
+}
+
+static void sparc_pmu_del(struct perf_event *event, int _flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	unsigned long flags;
+	int i;
+
+	local_irq_save(flags);
+	perf_pmu_disable(event->pmu);
+
+	for (i = 0; i < cpuc->n_events; i++) {
+		if (event == cpuc->event[i]) {
+			/* Absorb the final count and turn off the
+			 * event.
+			 */
+			sparc_pmu_stop(event, PERF_EF_UPDATE);
+
+			/* Shift remaining entries down into
+			 * the existing slot.
+			 */
+			while (++i < cpuc->n_events) {
+				cpuc->event[i - 1] = cpuc->event[i];
+				cpuc->events[i - 1] = cpuc->events[i];
+				cpuc->current_idx[i - 1] =
+					cpuc->current_idx[i];
+			}
+
+			perf_event_update_userpage(event);
+
+			cpuc->n_events--;
+			break;
+		}
+	}
+
+	perf_pmu_enable(event->pmu);
+	local_irq_restore(flags);
+}
+
 static void sparc_pmu_read(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
@@ -772,15 +801,6 @@ static void sparc_pmu_read(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 
 	sparc_perf_event_update(event, hwc, idx);
-}
-
-static void sparc_pmu_unthrottle(struct perf_event *event)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	int idx = active_event_index(cpuc, event);
-	struct hw_perf_event *hwc = &event->hw;
-
-	sparc_pmu_enable_event(cpuc, hwc, idx);
 }
 
 static atomic_t active_events = ATOMIC_INIT(0);
@@ -984,7 +1004,7 @@ static int collect_events(struct perf_event *group, int max_count,
 	return n;
 }
 
-static int sparc_pmu_enable(struct perf_event *event)
+static int sparc_pmu_add(struct perf_event *event, int ef_flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int n0, ret = -EAGAIN;
@@ -1000,6 +1020,10 @@ static int sparc_pmu_enable(struct perf_event *event)
 	cpuc->event[n0] = event;
 	cpuc->events[n0] = event->hw.event_base;
 	cpuc->current_idx[n0] = PIC_NO_INDEX;
+
+	event->hw.state = PERF_HES_UPTODATE;
+	if (!(ef_flags & PERF_EF_START))
+		event->hw.state |= PERF_HES_STOPPED;
 
 	/*
 	 * If group events scheduling transaction was started,
@@ -1156,13 +1180,14 @@ static int sparc_pmu_commit_txn(struct pmu *pmu)
 }
 
 static struct pmu pmu = {
-	.pmu_enable	= sparc_pmu_pmu_enable,
-	.pmu_disable	= sparc_pmu_pmu_disable,
+	.pmu_enable	= sparc_pmu_enable,
+	.pmu_disable	= sparc_pmu_disable,
 	.event_init	= sparc_pmu_event_init,
-	.enable		= sparc_pmu_enable,
-	.disable	= sparc_pmu_disable,
+	.add		= sparc_pmu_add,
+	.del		= sparc_pmu_del,
+	.start		= sparc_pmu_start,
+	.stop		= sparc_pmu_stop,
 	.read		= sparc_pmu_read,
-	.unthrottle	= sparc_pmu_unthrottle,
 	.start_txn	= sparc_pmu_start_txn,
 	.cancel_txn	= sparc_pmu_cancel_txn,
 	.commit_txn	= sparc_pmu_commit_txn,
@@ -1243,7 +1268,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			sparc_pmu_disable_event(cpuc, hwc, idx);
+			sparc_pmu_stop(event, 0);
 	}
 
 	return NOTIFY_STOP;

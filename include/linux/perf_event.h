@@ -538,6 +538,7 @@ struct hw_perf_event {
 		};
 #endif
 	};
+	int				state;
 	local64_t			prev_count;
 	u64				sample_period;
 	u64				last_period;
@@ -548,6 +549,13 @@ struct hw_perf_event {
 	u64				freq_count_stamp;
 #endif
 };
+
+/*
+ * hw_perf_event::state flags
+ */
+#define PERF_HES_STOPPED	0x01 /* the counter is stopped */
+#define PERF_HES_UPTODATE	0x02 /* event->count up-to-date */
+#define PERF_HES_ARCH		0x04
 
 struct perf_event;
 
@@ -564,42 +572,62 @@ struct pmu {
 
 	int				*pmu_disable_count;
 
+	/*
+	 * Fully disable/enable this PMU, can be used to protect from the PMI
+	 * as well as for lazy/batch writing of the MSRs.
+	 */
 	void (*pmu_enable)		(struct pmu *pmu); /* optional */
 	void (*pmu_disable)		(struct pmu *pmu); /* optional */
 
 	/*
+	 * Try and initialize the event for this PMU.
 	 * Should return -ENOENT when the @event doesn't match this PMU.
 	 */
 	int (*event_init)		(struct perf_event *event);
 
-	int  (*enable)			(struct perf_event *event);
-	void (*disable)			(struct perf_event *event);
-	int  (*start)			(struct perf_event *event);
-	void (*stop)			(struct perf_event *event);
+#define PERF_EF_START	0x01		/* start the counter when adding    */
+#define PERF_EF_RELOAD	0x02		/* reload the counter when starting */
+#define PERF_EF_UPDATE	0x04		/* update the counter when stopping */
+
+	/*
+	 * Adds/Removes a counter to/from the PMU, can be done inside
+	 * a transaction, see the ->*_txn() methods.
+	 */
+	int  (*add)			(struct perf_event *event, int flags);
+	void (*del)			(struct perf_event *event, int flags);
+
+	/*
+	 * Starts/Stops a counter present on the PMU. The PMI handler
+	 * should stop the counter when perf_event_overflow() returns
+	 * !0. ->start() will be used to continue.
+	 */
+	void (*start)			(struct perf_event *event, int flags);
+	void (*stop)			(struct perf_event *event, int flags);
+
+	/*
+	 * Updates the counter value of the event.
+	 */
 	void (*read)			(struct perf_event *event);
-	void (*unthrottle)		(struct perf_event *event);
 
 	/*
 	 * Group events scheduling is treated as a transaction, add
 	 * group events as a whole and perform one schedulability test.
 	 * If the test fails, roll back the whole group
-	 */
-
-	/*
-	 * Start the transaction, after this ->enable() doesn't need to
+	 *
+	 * Start the transaction, after this ->add() doesn't need to
 	 * do schedulability tests.
 	 */
 	void (*start_txn)	(struct pmu *pmu); /* optional */
 	/*
-	 * If ->start_txn() disabled the ->enable() schedulability test
+	 * If ->start_txn() disabled the ->add() schedulability test
 	 * then ->commit_txn() is required to perform one. On success
 	 * the transaction is closed. On error the transaction is kept
 	 * open until ->cancel_txn() is called.
 	 */
 	int  (*commit_txn)	(struct pmu *pmu); /* optional */
 	/*
-	 * Will cancel the transaction, assumes ->disable() is called
-	 * for each successfull ->enable() during the transaction.
+	 * Will cancel the transaction, assumes ->del() is called
+	 * for each successfull ->add() during the transaction.
 	 */
 	void (*cancel_txn)	(struct pmu *pmu); /* optional */
 };
@@ -680,7 +708,7 @@ struct perf_event {
 	int				nr_siblings;
 	int				group_flags;
 	struct perf_event		*group_leader;
-	struct pmu		*pmu;
+	struct pmu			*pmu;
 
 	enum perf_event_active_state	state;
 	unsigned int			attach_state;

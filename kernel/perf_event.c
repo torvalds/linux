@@ -424,7 +424,7 @@ event_sched_out(struct perf_event *event,
 		event->state = PERF_EVENT_STATE_OFF;
 	}
 	event->tstamp_stopped = ctx->time;
-	event->pmu->disable(event);
+	event->pmu->del(event, 0);
 	event->oncpu = -1;
 
 	if (!is_software_event(event))
@@ -649,7 +649,7 @@ event_sched_in(struct perf_event *event,
 	 */
 	smp_wmb();
 
-	if (event->pmu->enable(event)) {
+	if (event->pmu->add(event, PERF_EF_START)) {
 		event->state = PERF_EVENT_STATE_INACTIVE;
 		event->oncpu = -1;
 		return -EAGAIN;
@@ -1482,22 +1482,6 @@ do {					\
 	return div64_u64(dividend, divisor);
 }
 
-static void perf_event_stop(struct perf_event *event)
-{
-	if (!event->pmu->stop)
-		return event->pmu->disable(event);
-
-	return event->pmu->stop(event);
-}
-
-static int perf_event_start(struct perf_event *event)
-{
-	if (!event->pmu->start)
-		return event->pmu->enable(event);
-
-	return event->pmu->start(event);
-}
-
 static void perf_adjust_period(struct perf_event *event, u64 nsec, u64 count)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -1517,9 +1501,9 @@ static void perf_adjust_period(struct perf_event *event, u64 nsec, u64 count)
 	hwc->sample_period = sample_period;
 
 	if (local64_read(&hwc->period_left) > 8*sample_period) {
-		perf_event_stop(event);
+		event->pmu->stop(event, PERF_EF_UPDATE);
 		local64_set(&hwc->period_left, 0);
-		perf_event_start(event);
+		event->pmu->start(event, PERF_EF_RELOAD);
 	}
 }
 
@@ -1548,7 +1532,7 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 		 */
 		if (interrupts == MAX_INTERRUPTS) {
 			perf_log_throttle(event, 1);
-			event->pmu->unthrottle(event);
+			event->pmu->start(event, 0);
 		}
 
 		if (!event->attr.freq || !event->attr.sample_freq)
@@ -2506,6 +2490,9 @@ int perf_event_task_disable(void)
 
 static int perf_event_index(struct perf_event *event)
 {
+	if (event->hw.state & PERF_HES_STOPPED)
+		return 0;
+
 	if (event->state != PERF_EVENT_STATE_ACTIVE)
 		return 0;
 
@@ -4120,8 +4107,6 @@ static int __perf_event_overflow(struct perf_event *event, int nmi,
 	struct hw_perf_event *hwc = &event->hw;
 	int ret = 0;
 
-	throttle = (throttle && event->pmu->unthrottle != NULL);
-
 	if (!throttle) {
 		hwc->interrupts++;
 	} else {
@@ -4246,7 +4231,7 @@ static void perf_swevent_overflow(struct perf_event *event, u64 overflow,
 	}
 }
 
-static void perf_swevent_add(struct perf_event *event, u64 nr,
+static void perf_swevent_event(struct perf_event *event, u64 nr,
 			       int nmi, struct perf_sample_data *data,
 			       struct pt_regs *regs)
 {
@@ -4272,6 +4257,9 @@ static void perf_swevent_add(struct perf_event *event, u64 nr,
 static int perf_exclude_event(struct perf_event *event,
 			      struct pt_regs *regs)
 {
+	if (event->hw.state & PERF_HES_STOPPED)
+		return 0;
+
 	if (regs) {
 		if (event->attr.exclude_user && user_mode(regs))
 			return 1;
@@ -4371,7 +4359,7 @@ static void do_perf_sw_event(enum perf_type_id type, u32 event_id,
 
 	hlist_for_each_entry_rcu(event, node, head, hlist_entry) {
 		if (perf_swevent_match(event, type, event_id, data, regs))
-			perf_swevent_add(event, nr, nmi, data, regs);
+			perf_swevent_event(event, nr, nmi, data, regs);
 	}
 end:
 	rcu_read_unlock();
@@ -4415,7 +4403,7 @@ static void perf_swevent_read(struct perf_event *event)
 {
 }
 
-static int perf_swevent_enable(struct perf_event *event)
+static int perf_swevent_add(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct perf_cpu_context *cpuctx;
@@ -4428,6 +4416,8 @@ static int perf_swevent_enable(struct perf_event *event)
 		perf_swevent_set_period(event);
 	}
 
+	hwc->state = !(flags & PERF_EF_START);
+
 	head = find_swevent_head(cpuctx, event);
 	if (WARN_ON_ONCE(!head))
 		return -EINVAL;
@@ -4437,18 +4427,19 @@ static int perf_swevent_enable(struct perf_event *event)
 	return 0;
 }
 
-static void perf_swevent_disable(struct perf_event *event)
+static void perf_swevent_del(struct perf_event *event, int flags)
 {
 	hlist_del_rcu(&event->hlist_entry);
 }
 
-static void perf_swevent_void(struct perf_event *event)
+static void perf_swevent_start(struct perf_event *event, int flags)
 {
+	event->hw.state = 0;
 }
 
-static int perf_swevent_int(struct perf_event *event)
+static void perf_swevent_stop(struct perf_event *event, int flags)
 {
-	return 0;
+	event->hw.state = PERF_HES_STOPPED;
 }
 
 /* Deref the hlist from the update side */
@@ -4604,12 +4595,11 @@ static int perf_swevent_init(struct perf_event *event)
 
 static struct pmu perf_swevent = {
 	.event_init	= perf_swevent_init,
-	.enable		= perf_swevent_enable,
-	.disable	= perf_swevent_disable,
-	.start		= perf_swevent_int,
-	.stop		= perf_swevent_void,
+	.add		= perf_swevent_add,
+	.del		= perf_swevent_del,
+	.start		= perf_swevent_start,
+	.stop		= perf_swevent_stop,
 	.read		= perf_swevent_read,
-	.unthrottle	= perf_swevent_void, /* hwc->interrupts already reset */
 };
 
 #ifdef CONFIG_EVENT_TRACING
@@ -4657,7 +4647,7 @@ void perf_tp_event(u64 addr, u64 count, void *record, int entry_size,
 
 	hlist_for_each_entry_rcu(event, node, head, hlist_entry) {
 		if (perf_tp_event_match(event, &data, regs))
-			perf_swevent_add(event, count, 1, &data, regs);
+			perf_swevent_event(event, count, 1, &data, regs);
 	}
 
 	perf_swevent_put_recursion_context(rctx);
@@ -4696,12 +4686,11 @@ static int perf_tp_event_init(struct perf_event *event)
 
 static struct pmu perf_tracepoint = {
 	.event_init	= perf_tp_event_init,
-	.enable		= perf_trace_enable,
-	.disable	= perf_trace_disable,
-	.start		= perf_swevent_int,
-	.stop		= perf_swevent_void,
+	.add		= perf_trace_add,
+	.del		= perf_trace_del,
+	.start		= perf_swevent_start,
+	.stop		= perf_swevent_stop,
 	.read		= perf_swevent_read,
-	.unthrottle	= perf_swevent_void,
 };
 
 static inline void perf_tp_register(void)
@@ -4757,8 +4746,8 @@ void perf_bp_event(struct perf_event *bp, void *data)
 
 	perf_sample_data_init(&sample, bp->attr.bp_addr);
 
-	if (!perf_exclude_event(bp, regs))
-		perf_swevent_add(bp, 1, 1, &sample, regs);
+	if (!bp->hw.state && !perf_exclude_event(bp, regs))
+		perf_swevent_event(bp, 1, 1, &sample, regs);
 }
 #endif
 
@@ -4834,30 +4823,37 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
 
 static void cpu_clock_event_update(struct perf_event *event)
 {
-	int cpu = raw_smp_processor_id();
 	s64 prev;
 	u64 now;
 
-	now = cpu_clock(cpu);
+	now = local_clock();
 	prev = local64_xchg(&event->hw.prev_count, now);
 	local64_add(now - prev, &event->count);
 }
 
-static int cpu_clock_event_enable(struct perf_event *event)
+static void cpu_clock_event_start(struct perf_event *event, int flags)
 {
-	struct hw_perf_event *hwc = &event->hw;
-	int cpu = raw_smp_processor_id();
-
-	local64_set(&hwc->prev_count, cpu_clock(cpu));
+	local64_set(&event->hw.prev_count, local_clock());
 	perf_swevent_start_hrtimer(event);
+}
+
+static void cpu_clock_event_stop(struct perf_event *event, int flags)
+{
+	perf_swevent_cancel_hrtimer(event);
+	cpu_clock_event_update(event);
+}
+
+static int cpu_clock_event_add(struct perf_event *event, int flags)
+{
+	if (flags & PERF_EF_START)
+		cpu_clock_event_start(event, flags);
 
 	return 0;
 }
 
-static void cpu_clock_event_disable(struct perf_event *event)
+static void cpu_clock_event_del(struct perf_event *event, int flags)
 {
-	perf_swevent_cancel_hrtimer(event);
-	cpu_clock_event_update(event);
+	cpu_clock_event_stop(event, flags);
 }
 
 static void cpu_clock_event_read(struct perf_event *event)
@@ -4878,8 +4874,10 @@ static int cpu_clock_event_init(struct perf_event *event)
 
 static struct pmu perf_cpu_clock = {
 	.event_init	= cpu_clock_event_init,
-	.enable		= cpu_clock_event_enable,
-	.disable	= cpu_clock_event_disable,
+	.add		= cpu_clock_event_add,
+	.del		= cpu_clock_event_del,
+	.start		= cpu_clock_event_start,
+	.stop		= cpu_clock_event_stop,
 	.read		= cpu_clock_event_read,
 };
 
@@ -4897,25 +4895,29 @@ static void task_clock_event_update(struct perf_event *event, u64 now)
 	local64_add(delta, &event->count);
 }
 
-static int task_clock_event_enable(struct perf_event *event)
+static void task_clock_event_start(struct perf_event *event, int flags)
 {
-	struct hw_perf_event *hwc = &event->hw;
-	u64 now;
-
-	now = event->ctx->time;
-
-	local64_set(&hwc->prev_count, now);
-
+	local64_set(&event->hw.prev_count, event->ctx->time);
 	perf_swevent_start_hrtimer(event);
+}
+
+static void task_clock_event_stop(struct perf_event *event, int flags)
+{
+	perf_swevent_cancel_hrtimer(event);
+	task_clock_event_update(event, event->ctx->time);
+}
+
+static int task_clock_event_add(struct perf_event *event, int flags)
+{
+	if (flags & PERF_EF_START)
+		task_clock_event_start(event, flags);
 
 	return 0;
 }
 
-static void task_clock_event_disable(struct perf_event *event)
+static void task_clock_event_del(struct perf_event *event, int flags)
 {
-	perf_swevent_cancel_hrtimer(event);
-	task_clock_event_update(event, event->ctx->time);
-
+	task_clock_event_stop(event, PERF_EF_UPDATE);
 }
 
 static void task_clock_event_read(struct perf_event *event)
@@ -4947,8 +4949,10 @@ static int task_clock_event_init(struct perf_event *event)
 
 static struct pmu perf_task_clock = {
 	.event_init	= task_clock_event_init,
-	.enable		= task_clock_event_enable,
-	.disable	= task_clock_event_disable,
+	.add		= task_clock_event_add,
+	.del		= task_clock_event_del,
+	.start		= task_clock_event_start,
+	.stop		= task_clock_event_stop,
 	.read		= task_clock_event_read,
 };
 

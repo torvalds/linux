@@ -101,7 +101,7 @@ int perf_trace_init(struct perf_event *p_event)
 	return ret;
 }
 
-int perf_trace_enable(struct perf_event *p_event)
+int perf_trace_add(struct perf_event *p_event, int flags)
 {
 	struct ftrace_event_call *tp_event = p_event->tp_event;
 	struct hlist_head __percpu *pcpu_list;
@@ -111,13 +111,16 @@ int perf_trace_enable(struct perf_event *p_event)
 	if (WARN_ON_ONCE(!pcpu_list))
 		return -EINVAL;
 
+	if (!(flags & PERF_EF_START))
+		p_event->hw.state = PERF_HES_STOPPED;
+
 	list = this_cpu_ptr(pcpu_list);
 	hlist_add_head_rcu(&p_event->hlist_entry, list);
 
 	return 0;
 }
 
-void perf_trace_disable(struct perf_event *p_event)
+void perf_trace_del(struct perf_event *p_event, int flags)
 {
 	hlist_del_rcu(&p_event->hlist_entry);
 }

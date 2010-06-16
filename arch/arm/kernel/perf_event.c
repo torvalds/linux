@@ -221,27 +221,6 @@ again:
 }
 
 static void
-armpmu_disable(struct perf_event *event)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct hw_perf_event *hwc = &event->hw;
-	int idx = hwc->idx;
-
-	WARN_ON(idx < 0);
-
-	clear_bit(idx, cpuc->active_mask);
-	armpmu->disable(hwc, idx);
-
-	barrier();
-
-	armpmu_event_update(event, hwc, idx);
-	cpuc->events[idx] = NULL;
-	clear_bit(idx, cpuc->used_mask);
-
-	perf_event_update_userpage(event);
-}
-
-static void
 armpmu_read(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
@@ -254,13 +233,44 @@ armpmu_read(struct perf_event *event)
 }
 
 static void
-armpmu_unthrottle(struct perf_event *event)
+armpmu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
+	if (!armpmu)
+		return;
+
+	/*
+	 * ARM pmu always has to update the counter, so ignore
+	 * PERF_EF_UPDATE, see comments in armpmu_start().
+	 */
+	if (!(hwc->state & PERF_HES_STOPPED)) {
+		armpmu->disable(hwc, hwc->idx);
+		barrier(); /* why? */
+		armpmu_event_update(event, hwc, hwc->idx);
+		hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
+	}
+}
+
+static void
+armpmu_start(struct perf_event *event, int flags)
+{
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (!armpmu)
+		return;
+
+	/*
+	 * ARM pmu always has to reprogram the period, so ignore
+	 * PERF_EF_RELOAD, see the comment below.
+	 */
+	if (flags & PERF_EF_RELOAD)
+		WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
+
+	hwc->state = 0;
 	/*
 	 * Set the period again. Some counters can't be stopped, so when we
-	 * were throttled we simply disabled the IRQ source and the counter
+	 * were stopped we simply disabled the IRQ source and the counter
 	 * may have been left counting. If we don't do this step then we may
 	 * get an interrupt too soon or *way* too late if the overflow has
 	 * happened since disabling.
@@ -269,8 +279,25 @@ armpmu_unthrottle(struct perf_event *event)
 	armpmu->enable(hwc, hwc->idx);
 }
 
+static void
+armpmu_del(struct perf_event *event, int flags)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
+	int idx = hwc->idx;
+
+	WARN_ON(idx < 0);
+
+	clear_bit(idx, cpuc->active_mask);
+	armpmu_stop(event, PERF_EF_UPDATE);
+	cpuc->events[idx] = NULL;
+	clear_bit(idx, cpuc->used_mask);
+
+	perf_event_update_userpage(event);
+}
+
 static int
-armpmu_enable(struct perf_event *event)
+armpmu_add(struct perf_event *event, int flags)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
@@ -295,11 +322,9 @@ armpmu_enable(struct perf_event *event)
 	cpuc->events[idx] = event;
 	set_bit(idx, cpuc->active_mask);
 
-	/* Set the period for the event. */
-	armpmu_event_set_period(event, hwc, idx);
-
-	/* Enable the event. */
-	armpmu->enable(hwc, idx);
+	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
+	if (flags & PERF_EF_START)
+		armpmu_start(event, PERF_EF_RELOAD);
 
 	/* Propagate our changes to the userspace mapping. */
 	perf_event_update_userpage(event);
@@ -534,7 +559,7 @@ static int armpmu_event_init(struct perf_event *event)
 	return err;
 }
 
-static void armpmu_pmu_enable(struct pmu *pmu)
+static void armpmu_enable(struct pmu *pmu)
 {
 	/* Enable all of the perf events on hardware. */
 	int idx;
@@ -555,20 +580,21 @@ static void armpmu_pmu_enable(struct pmu *pmu)
 	armpmu->start();
 }
 
-static void armpmu_pmu_disable(struct pmu *pmu)
+static void armpmu_disable(struct pmu *pmu)
 {
 	if (armpmu)
 		armpmu->stop();
 }
 
 static struct pmu pmu = {
-	.pmu_enable = armpmu_pmu_enable,
-	.pmu_disable= armpmu_pmu_disable,
-	.event_init = armpmu_event_init,
-	.enable	    = armpmu_enable,
-	.disable    = armpmu_disable,
-	.unthrottle = armpmu_unthrottle,
-	.read	    = armpmu_read,
+	.pmu_enable	= armpmu_enable,
+	.pmu_disable	= armpmu_disable,
+	.event_init	= armpmu_event_init,
+	.add		= armpmu_add,
+	.del		= armpmu_del,
+	.start		= armpmu_start,
+	.stop		= armpmu_stop,
+	.read		= armpmu_read,
 };
 
 /*
