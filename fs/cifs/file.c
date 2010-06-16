@@ -277,8 +277,8 @@ int cifs_open(struct inode *inode, struct file *file)
 				goto out;
 			}
 
-			cifs_posix_open_inode_helper(inode, file, pCifsInode,
-						     oplock, netfid);
+			rc = cifs_posix_open_inode_helper(inode, file,
+					pCifsInode, oplock, netfid);
 			goto out;
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
