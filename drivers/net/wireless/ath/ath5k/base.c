@@ -322,6 +322,8 @@ static inline void ath5k_txbuf_free_skb(struct ath5k_softc *sc,
 			PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(bf->skb);
 	bf->skb = NULL;
+	bf->skbaddr = 0;
+	bf->desc->ds_data = 0;
 }
 
 static inline void ath5k_rxbuf_free_skb(struct ath5k_softc *sc,
@@ -337,6 +339,8 @@ static inline void ath5k_rxbuf_free_skb(struct ath5k_softc *sc,
 			PCI_DMA_FROMDEVICE);
 	dev_kfree_skb_any(bf->skb);
 	bf->skb = NULL;
+	bf->skbaddr = 0;
+	bf->desc->ds_data = 0;
 }
 
 
@@ -1455,9 +1459,12 @@ ath5k_desc_free(struct ath5k_softc *sc, struct pci_dev *pdev)
 
 	/* Free memory associated with all descriptors */
 	pci_free_consistent(pdev, sc->desc_len, sc->desc, sc->desc_daddr);
+	sc->desc = NULL;
+	sc->desc_daddr = 0;
 
 	kfree(sc->bufptr);
 	sc->bufptr = NULL;
+	sc->bbuf = NULL;
 }
 
 
