@@ -3571,33 +3571,44 @@ static void __devinit hpsa_hba_inquiry(struct ctlr_info *h)
 	}
 }
 
+static __devinit int hpsa_init_reset_devices(struct pci_dev *pdev)
+{
+	int i;
+
+	if (!reset_devices)
+		return 0;
+
+	/* Reset the controller with a PCI power-cycle */
+	if (hpsa_hard_reset_controller(pdev) || hpsa_reset_msi(pdev))
+		return -ENODEV;
+
+	/* Some devices (notably the HP Smart Array 5i Controller)
+	   need a little pause here */
+	msleep(HPSA_POST_RESET_PAUSE_MSECS);
+
+	/* Now try to get the controller to respond to a no-op */
+	for (i = 0; i < HPSA_POST_RESET_NOOP_RETRIES; i++) {
+		if (hpsa_noop(pdev) == 0)
+			break;
+		else
+			dev_warn(&pdev->dev, "no-op failed%s\n",
+					(i < 11 ? "; re-trying" : ""));
+	}
+	return 0;
+}
+
 static int __devinit hpsa_init_one(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
-	int i, rc;
-	int dac;
+	int dac, rc;
 	struct ctlr_info *h;
 
 	if (number_of_controllers == 0)
 		printk(KERN_INFO DRIVER_NAME "\n");
-	if (reset_devices) {
-		/* Reset the controller with a PCI power-cycle */
-		if (hpsa_hard_reset_controller(pdev) || hpsa_reset_msi(pdev))
-			return -ENODEV;
 
-		/* Some devices (notably the HP Smart Array 5i Controller)
-		   need a little pause here */
-		msleep(HPSA_POST_RESET_PAUSE_MSECS);
-
-		/* Now try to get the controller to respond to a no-op */
-		for (i = 0; i < HPSA_POST_RESET_NOOP_RETRIES; i++) {
-			if (hpsa_noop(pdev) == 0)
-				break;
-			else
-				dev_warn(&pdev->dev, "no-op failed%s\n",
-						(i < 11 ? "; re-trying" : ""));
-		}
-	}
+	rc = hpsa_init_reset_devices(pdev);
+	if (rc)
+		return rc;
 
 	/* Command structures must be aligned on a 32-byte boundary because
 	 * the 5 lower bits of the address are used by the hardware. and by
