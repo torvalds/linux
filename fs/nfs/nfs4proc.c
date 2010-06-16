@@ -480,7 +480,6 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	if (res->sr_slotid != NFS4_MAX_SLOT_TABLE)
 		return 0;
 
-	memset(res, 0, sizeof(*res));
 	res->sr_slotid = NFS4_MAX_SLOT_TABLE;
 	tbl = &session->fc_slot_table;
 
@@ -525,6 +524,7 @@ static int nfs41_setup_sequence(struct nfs4_session *session,
 	res->sr_session = session;
 	res->sr_slotid = slotid;
 	res->sr_renewal_time = jiffies;
+	res->sr_status_flags = 0;
 	/*
 	 * sr_status is only set in decode_sequence, and so will remain
 	 * set to 1 if an rpc level failure occurs.
@@ -548,11 +548,6 @@ int nfs4_setup_sequence(struct nfs_client *clp,
 		goto out;
 	ret = nfs41_setup_sequence(clp->cl_session, args, res, cache_reply,
 				   task);
-	if (ret && ret != -EAGAIN) {
-		/* terminate rpc task */
-		task->tk_status = ret;
-		task->tk_action = NULL;
-	}
 out:
 	dprintk("<-- %s status=%d\n", __func__, ret);
 	return ret;
