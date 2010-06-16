@@ -3931,16 +3931,16 @@ expected:
 		return 0;
 	}
 
+	err = l2cap_push_rx_skb(sk, skb, rx_control);
+	if (err < 0)
+		return 0;
+
 	if (rx_control & L2CAP_CTRL_FINAL) {
 		if (pi->conn_state & L2CAP_CONN_REJ_ACT)
 			pi->conn_state &= ~L2CAP_CONN_REJ_ACT;
 		else
 			l2cap_retransmit_frames(sk);
 	}
-
-	err = l2cap_push_rx_skb(sk, skb, rx_control);
-	if (err < 0)
-		return 0;
 
 	__mod_ack_timer();
 
