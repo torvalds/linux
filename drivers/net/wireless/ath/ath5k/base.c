@@ -1243,8 +1243,10 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	ds->ds_link = bf->daddr;	/* link to self */
 	ds->ds_data = bf->skbaddr;
 	ret = ah->ah_setup_rx_desc(ah, ds, ah->common.rx_bufsize, 0);
-	if (ret)
+	if (ret) {
+		ATH5K_ERR(sc, "%s: could not setup RX desc\n", __func__);
 		return ret;
+	}
 
 	if (sc->rxlink != NULL)
 		*sc->rxlink = bf->daddr;
