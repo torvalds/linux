@@ -1943,7 +1943,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 	return ictx;
 
 urb_submit_failed:
-	input_unregister_device(ictx->idev);
+	ir_input_unregister(ictx->idev);
 	input_free_device(ictx->idev);
 idev_setup_failed:
 find_endpoint_failed:
@@ -2306,7 +2306,7 @@ static void __devexit imon_disconnect(struct usb_interface *interface)
 	if (ifnum == 0) {
 		ictx->dev_present_intf0 = false;
 		usb_kill_urb(ictx->rx_urb_intf0);
-		input_unregister_device(ictx->idev);
+		ir_input_unregister(ictx->idev);
 		if (ictx->display_supported) {
 			if (ictx->display_type == IMON_DISPLAY_TYPE_LCD)
 				usb_deregister_dev(interface, &imon_lcd_class);
