@@ -167,6 +167,7 @@ struct platform_device mxc_w1_master_device = {
 	.resource = mxc_w1_master_resources,
 };
 
+#if defined(CONFIG_ARCH_MX35)
 static struct resource mxc_nand_resources[] = {
 	{
 		.start	= 0, /* runtime dependent */
@@ -185,6 +186,7 @@ struct platform_device mxc_nand_device = {
 	.num_resources = ARRAY_SIZE(mxc_nand_resources),
 	.resource = mxc_nand_resources,
 };
+#endif
 
 static struct resource mxc_i2c0_resources[] = {
 	{
@@ -628,13 +630,14 @@ struct platform_device imx_kpp_device = {
 
 static int __init mx3_devices_init(void)
 {
+#if defined(CONFIG_ARCH_MX31)
 	if (cpu_is_mx31()) {
-		mxc_nand_resources[0].start = MX31_NFC_BASE_ADDR;
-		mxc_nand_resources[0].end = MX31_NFC_BASE_ADDR + 0xfff;
 		imx_wdt_resources[0].start = MX31_WDOG_BASE_ADDR;
 		imx_wdt_resources[0].end = MX31_WDOG_BASE_ADDR + 0x3fff;
 		mxc_register_device(&mxc_rnga_device, NULL);
 	}
+#endif
+#if defined(CONFIG_ARCH_MX35)
 	if (cpu_is_mx35()) {
 		mxc_nand_resources[0].start = MX35_NFC_BASE_ADDR;
 		mxc_nand_resources[0].end = MX35_NFC_BASE_ADDR + 0x1fff;
@@ -653,6 +656,7 @@ static int __init mx3_devices_init(void)
 		imx_wdt_resources[0].start = MX35_WDOG_BASE_ADDR;
 		imx_wdt_resources[0].end = MX35_WDOG_BASE_ADDR + 0x3fff;
 	}
+#endif
 
 	return 0;
 }

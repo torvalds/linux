@@ -41,11 +41,11 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/irqs.h>
-#include <mach/mxc_nand.h>
 #include <mach/spi.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 /*
@@ -65,7 +65,8 @@ static unsigned int mx31lite_pins[] = {
 	MX31_PIN_CSPI2_SS2__SS2,
 };
 
-static struct mxc_nand_platform_data mx31lite_nand_board_info = {
+static const struct mxc_nand_platform_data
+mx31lite_nand_board_info __initconst  = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -249,7 +250,7 @@ static void __init mxc_board_init(void)
 
 	/* NOR and NAND flash */
 	platform_device_register(&physmap_flash_device);
-	mxc_register_device(&mxc_nand_device, &mx31lite_nand_board_info);
+	imx31_add_mxc_nand(&mx31lite_nand_board_info);
 
 	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
 	spi_register_board_info(&mc13783_spi_dev, 1);

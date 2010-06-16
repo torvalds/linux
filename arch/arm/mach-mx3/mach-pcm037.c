@@ -48,10 +48,10 @@
 #include <mach/mmc.h>
 #include <mach/mx3_camera.h>
 #include <mach/mx3fb.h>
-#include <mach/mxc_nand.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 #include "pcm037.h"
 
@@ -274,7 +274,8 @@ static struct platform_device pcm037_sram_device = {
 	.resource = &pcm038_sram_resource,
 };
 
-static struct mxc_nand_platform_data pcm037_nand_board_info = {
+static const struct mxc_nand_platform_data
+pcm037_nand_board_info __initconst = {
 	.width = 1,
 	.hw_ecc = 1,
 };
@@ -632,7 +633,7 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_i2c_device1, &pcm037_i2c_1_data);
 	mxc_register_device(&mxc_i2c_device2, &pcm037_i2c_2_data);
 
-	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
+	imx31_add_mxc_nand(&pcm037_nand_board_info);
 	mxc_register_device(&mxcsdhc_device0, &sdhc_pdata);
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);

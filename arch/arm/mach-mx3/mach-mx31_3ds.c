@@ -35,8 +35,9 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/mxc_nand.h>
 #include <mach/spi.h>
+
+#include "devices-imx31.h"
 #include "devices.h"
 
 /* Definitions for components on the Debug board */
@@ -189,7 +190,8 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 /*
  * NAND Flash
  */
-static struct mxc_nand_platform_data imx31_3ds_nand_flash_pdata = {
+static const struct mxc_nand_platform_data
+mx31_3ds_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 #ifdef MACH_MX31_3DS_MXC_NAND_USE_BBT
@@ -415,7 +417,7 @@ static void __init mxc_board_init(void)
 				      "mx31_3ds");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &imx31_3ds_nand_flash_pdata);
+	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
 	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
 	spi_register_board_info(mx31_3ds_spi_devs,
