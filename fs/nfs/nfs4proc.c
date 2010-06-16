@@ -430,6 +430,13 @@ out:
 	nfs41_sequence_free_slot(res);
 }
 
+static void nfs4_sequence_done(const struct nfs_server *server,
+			       struct nfs4_sequence_res *res, int rpc_status)
+{
+	if (res->sr_session != NULL)
+		nfs41_sequence_done(res);
+}
+
 /*
  * nfs4_find_slot - efficiently look for a free slot
  *
@@ -642,6 +649,11 @@ int _nfs4_call_sync_session(struct nfs_server *server,
 	return nfs4_call_sync_sequence(server, msg, args, res, cache_reply, 0);
 }
 
+#else
+static void nfs4_sequence_done(const struct nfs_server *server,
+			       struct nfs4_sequence_res *res, int rpc_status)
+{
+}
 #endif /* CONFIG_NFS_V4_1 */
 
 int _nfs4_call_sync(struct nfs_server *server,
@@ -657,15 +669,6 @@ int _nfs4_call_sync(struct nfs_server *server,
 #define nfs4_call_sync(server, msg, args, res, cache_reply) \
 	(server)->nfs_client->cl_call_sync((server), (msg), &(args)->seq_args, \
 			&(res)->seq_res, (cache_reply))
-
-static void nfs4_sequence_done(const struct nfs_server *server,
-			       struct nfs4_sequence_res *res, int rpc_status)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(server->nfs_client))
-		nfs41_sequence_done(res);
-#endif /* CONFIG_NFS_V4_1 */
-}
 
 static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
 {
