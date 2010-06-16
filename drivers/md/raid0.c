@@ -569,7 +569,7 @@ static void raid0_status(struct seq_file *seq, mddev_t *mddev)
 	return;
 }
 
-static void *raid0_takeover_raid5(mddev_t *mddev)
+static void *raid0_takeover_raid45(mddev_t *mddev)
 {
 	mdk_rdev_t *rdev;
 	raid0_conf_t *priv_conf;
@@ -647,12 +647,16 @@ static void *raid0_takeover_raid10(mddev_t *mddev)
 static void *raid0_takeover(mddev_t *mddev)
 {
 	/* raid0 can take over:
+	 *  raid4 - if all data disks are active.
 	 *  raid5 - providing it is Raid4 layout and one disk is faulty
 	 *  raid10 - assuming we have all necessary active disks
 	 */
+	if (mddev->level == 4)
+		return raid0_takeover_raid45(mddev);
+
 	if (mddev->level == 5) {
 		if (mddev->layout == ALGORITHM_PARITY_N)
-			return raid0_takeover_raid5(mddev);
+			return raid0_takeover_raid45(mddev);
 
 		printk(KERN_ERR "md/raid0:%s: Raid can only takeover Raid5 with layout: %d\n",
 		       mdname(mddev), ALGORITHM_PARITY_N);
