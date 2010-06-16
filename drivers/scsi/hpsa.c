@@ -3505,13 +3505,25 @@ static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 	return 0;
 }
 
+static void __devinit hpsa_get_max_perf_mode_cmds(struct ctlr_info *h)
+{
+	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	if (h->max_commands < 16) {
+		dev_warn(&h->pdev->dev, "Controller reports "
+			"max supported commands of %d, an obvious lie. "
+			"Using 16.  Ensure that firmware is up to date.\n",
+			h->max_commands);
+		h->max_commands = 16;
+	}
+}
+
 /* Interrogate the hardware for some limits:
  * max commands, max SG elements without chaining, and with chaining,
  * SG chain block size, etc.
  */
 static void __devinit hpsa_find_board_params(struct ctlr_info *h)
 {
-	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	hpsa_get_max_perf_mode_cmds(h);
 	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
 	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
 	/*
@@ -4056,7 +4068,7 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	if (!(trans_support & PERFORMANT_MODE))
 		return;
 
-	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	hpsa_get_max_perf_mode_cmds(h);
 	h->max_sg_entries = 32;
 	/* Performant mode ring buffer and supporting data structures */
 	h->reply_pool_size = h->max_commands * sizeof(u64);
