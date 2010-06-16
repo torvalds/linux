@@ -4795,13 +4795,6 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	if (!session)
 		return NULL;
 
-	/*
-	 * The create session reply races with the server back
-	 * channel probe. Mark the client NFS_CS_SESSION_INITING
-	 * so that the client back channel can find the
-	 * nfs_client struct
-	 */
-	clp->cl_cons_state = NFS_CS_SESSION_INITING;
 	init_completion(&session->complete);
 
 	tbl = &session->fc_slot_table;
