@@ -24,9 +24,11 @@
 
 #ifndef __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H
 #define __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H
+#ifndef __ASSEMBLER__
 
 #include <linux/delay.h>
 #include <plat/common.h>
+#include <asm/proc-fns.h>
 
 #ifdef CONFIG_SOC_OMAP2420
 extern void omap242x_map_common_io(void);
@@ -183,6 +185,7 @@ static inline void __iomem *omap4_get_scu_base(void)
 extern void __init gic_init_irq(void);
 extern void omap_smc1(u32 fn, u32 arg);
 extern void __iomem *omap4_get_sar_ram_base(void);
+extern void omap_do_wfi(void);
 
 #ifdef CONFIG_SMP
 /* Needed for secondary core boot */
@@ -192,4 +195,31 @@ extern void omap_auxcoreboot_addr(u32 cpu_addr);
 extern u32 omap_read_auxcoreboot0(void);
 #endif
 
+#if defined(CONFIG_SMP) && defined(CONFIG_PM)
+extern int omap4_mpuss_init(void);
+extern int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state);
+extern int omap4_finish_suspend(unsigned long cpu_state);
+extern void omap4_cpu_resume(void);
+#else
+static inline int omap4_enter_lowpower(unsigned int cpu,
+					unsigned int power_state)
+{
+	cpu_do_idle();
+	return 0;
+}
+
+static inline int omap4_mpuss_init(void)
+{
+	return 0;
+}
+
+static inline int omap4_finish_suspend(unsigned long cpu_state)
+{
+	return 0;
+}
+
+static inline void omap4_cpu_resume(void)
+{}
+#endif
+#endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

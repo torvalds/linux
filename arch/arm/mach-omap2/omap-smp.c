@@ -24,6 +24,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
+#include <mach/omap-secure.h>
 
 #include "common.h"
 
@@ -39,6 +40,18 @@ void __iomem *omap4_get_scu_base(void)
 
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
+	/*
+	 * Configure ACTRL and enable NS SMP bit access on CPU1 on HS device.
+	 * OMAP44XX EMU/HS devices - CPU0 SMP bit access is enabled in PPA
+	 * init and for CPU1, a secure PPA API provided. CPU0 must be ON
+	 * while executing NS_SMP API on CPU1 and PPA version must be 1.4.0+.
+	 * OMAP443X GP devices- SMP bit isn't accessible.
+	 * OMAP446X GP devices - SMP bit access is enabled on both CPUs.
+	 */
+	if (cpu_is_omap443x() && (omap_type() != OMAP2_DEVICE_TYPE_GP))
+		omap_secure_dispatcher(OMAP4_PPA_CPU_ACTRL_SMP_INDEX,
+							4, 0, 0, 0, 0, 0);
+
 	/*
 	 * If any interrupts are already enabled for the primary
 	 * core (e.g. timer irq), then they will not have been enabled

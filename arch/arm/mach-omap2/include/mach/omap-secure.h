@@ -35,9 +35,18 @@
 #define OMAP4_HAL_SAVEALL_INDEX		0x1c
 #define OMAP4_HAL_SAVEGIC_INDEX		0x1d
 
+/* Secure Monitor mode APIs */
+#define OMAP4_MON_SCU_PWR_INDEX		0x108
+
+/* Secure PPA(Primary Protected Application) APIs */
+#define OMAP4_PPA_CPU_ACTRL_SMP_INDEX	0x25
+
+#ifndef __ASSEMBLER__
+
 extern u32 omap_secure_dispatcher(u32 idx, u32 flag, u32 nargs,
 				u32 arg1, u32 arg2, u32 arg3, u32 arg4);
 extern u32 omap_smc2(u32 id, u32 falg, u32 pargs);
 extern phys_addr_t omap_secure_ram_mempool_base(void);
 
+#endif /* __ASSEMBLER__ */
 #endif /* OMAP_ARCH_OMAP_SECURE_H */
