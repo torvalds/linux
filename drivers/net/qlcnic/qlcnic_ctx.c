@@ -637,6 +637,11 @@ int qlcnic_get_nic_info(struct qlcnic_adapter *adapter, u8 func_id)
 		adapter->capabilities = le32_to_cpu(nic_info->capabilities);
 		adapter->max_mac_filters = nic_info->max_mac_filters;
 
+		if (adapter->capabilities & BIT_6)
+			adapter->flags |= QLCNIC_ESWITCH_ENABLED;
+		else
+			adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
+
 		dev_info(&adapter->pdev->dev,
 			"phy port: %d switch_mode: %d,\n"
 			"\tmax_tx_q: %d max_rx_q: %d min_tx_bw: 0x%x,\n"

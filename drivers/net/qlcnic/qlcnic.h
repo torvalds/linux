@@ -891,7 +891,7 @@ struct qlcnic_mac_req {
 #define QLCNIC_LRO_ENABLED		0x08
 #define QLCNIC_BRIDGE_ENABLED       	0X10
 #define QLCNIC_DIAG_ENABLED		0x20
-#define QLCNIC_NPAR_ENABLED		0x40
+#define QLCNIC_ESWITCH_ENABLED		0x40
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
