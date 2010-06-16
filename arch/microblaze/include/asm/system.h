@@ -101,10 +101,7 @@ extern struct dentry *of_debugfs_root;
  * MicroBlaze doesn't handle unaligned accesses in hardware.
  *
  * Based on this we force the IP header alignment in network drivers.
- * We also modify NET_SKB_PAD to be a cacheline in size, thus maintaining
- * cacheline alignment of buffers.
  */
 #define NET_IP_ALIGN	2
-#define NET_SKB_PAD	L1_CACHE_BYTES
 
 #endif /* _ASM_MICROBLAZE_SYSTEM_H */
