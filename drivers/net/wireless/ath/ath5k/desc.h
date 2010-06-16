@@ -45,7 +45,7 @@ struct ath5k_hw_rx_status {
 /* RX status word 0 fields/flags */
 #define AR5K_5210_RX_DESC_STATUS0_DATA_LEN		0x00000fff /* RX data length */
 #define AR5K_5210_RX_DESC_STATUS0_MORE			0x00001000 /* more desc for this frame */
-#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5210	0x00004000 /* [5210] receive on ant 1 TODO */
+#define AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5210	0x00004000 /* [5210] receive on ant 1 */
 #define AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE		0x00078000 /* reception rate */
 #define AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE_S	15
 #define AR5K_5210_RX_DESC_STATUS0_RECEIVE_SIGNAL	0x07f80000 /* rssi */
@@ -139,7 +139,7 @@ struct ath5k_hw_2w_tx_ctl {
 #define AR5K_2W_TX_DESC_CTL0_XMIT_RATE_S	18
 #define AR5K_2W_TX_DESC_CTL0_RTSENA		0x00400000 /* RTS/CTS enable */
 #define AR5K_2W_TX_DESC_CTL0_LONG_PACKET_5210	0x00800000 /* [5210] long packet */
-#define AR5K_2W_TX_DESC_CTL0_VEOL		0x00800000 /* [5211] virtual end-of-list TODO */
+#define AR5K_2W_TX_DESC_CTL0_VEOL_5211		0x00800000 /* [5211] virtual end-of-list */
 #define AR5K_2W_TX_DESC_CTL0_CLRDMASK		0x01000000 /* clear destination mask */
 #define AR5K_2W_TX_DESC_CTL0_ANT_MODE_XMIT_5210	0x02000000 /* [5210] antenna selection */
 #define AR5K_2W_TX_DESC_CTL0_ANT_MODE_XMIT_5211	0x1e000000 /* [5211] antenna selection */
@@ -165,7 +165,7 @@ struct ath5k_hw_2w_tx_ctl {
 #define AR5K_2W_TX_DESC_CTL1_ENC_KEY_IDX_S	13
 #define AR5K_2W_TX_DESC_CTL1_FRAME_TYPE_5211	0x00700000 /* [5211] frame type */
 #define AR5K_2W_TX_DESC_CTL1_FRAME_TYPE_5211_S	20
-#define AR5K_2W_TX_DESC_CTL1_NOACK		0x00800000 /* [5211] no ACK TODO */
+#define AR5K_2W_TX_DESC_CTL1_NOACK_5211		0x00800000 /* [5211] no ACK */
 #define AR5K_2W_TX_DESC_CTL1_RTS_DURATION_5210	0xfff80000 /* [5210] lower 13 bit of duration */
 
 /* Frame types */

@@ -91,8 +91,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	tx_ctl->tx_control_1 = pkt_len & AR5K_2W_TX_DESC_CTL1_BUF_LEN;
 
 	/*
-	 * Verify and set header length
-	 * XXX: I only found that on 5210 code, does it work on 5211 ?
+	 * Verify and set header length (only 5210)
 	 */
 	if (ah->ah_version == AR5K_AR5210) {
 		if (hdr_len & ~AR5K_2W_TX_DESC_CTL0_HEADER_LEN_5210)
@@ -125,19 +124,28 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 		tx_ctl->tx_control_1 |=
 			AR5K_REG_SM(type, AR5K_2W_TX_DESC_CTL1_FRAME_TYPE_5211);
 	}
+
 #define _TX_FLAGS(_c, _flag)					\
 	if (flags & AR5K_TXDESC_##_flag) {			\
 		tx_ctl->tx_control_##_c |=			\
 			AR5K_2W_TX_DESC_CTL##_c##_##_flag;	\
 	}
-
+#define _TX_FLAGS_5211(_c, _flag)					\
+	if (flags & AR5K_TXDESC_##_flag) {				\
+		tx_ctl->tx_control_##_c |=				\
+			AR5K_2W_TX_DESC_CTL##_c##_##_flag##_5211;	\
+	}
 	_TX_FLAGS(0, CLRDMASK);
-	_TX_FLAGS(0, VEOL);
 	_TX_FLAGS(0, INTREQ);
 	_TX_FLAGS(0, RTSENA);
-	_TX_FLAGS(1, NOACK);
+
+	if (ah->ah_version == AR5K_AR5211) {
+		_TX_FLAGS_5211(0, VEOL);
+		_TX_FLAGS_5211(1, NOACK);
+	}
 
 #undef _TX_FLAGS
+#undef _TX_FLAGS_5211
 
 	/*
 	 * WEP crap
@@ -526,13 +534,20 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 		AR5K_5210_RX_DESC_STATUS0_RECEIVE_SIGNAL);
 	rs->rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
 		AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE);
-	rs->rs_antenna = AR5K_REG_MS(rx_status->rx_status_0,
-		AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5211);
 	rs->rs_more = !!(rx_status->rx_status_0 &
 		AR5K_5210_RX_DESC_STATUS0_MORE);
 	/* TODO: this timestamp is 13 bit, later on we assume 15 bit */
 	rs->rs_tstamp = AR5K_REG_MS(rx_status->rx_status_1,
 		AR5K_5210_RX_DESC_STATUS1_RECEIVE_TIMESTAMP);
+
+	if (ah->ah_version == AR5K_AR5211)
+		rs->rs_antenna = AR5K_REG_MS(rx_status->rx_status_0,
+				AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5211);
+	else
+		rs->rs_antenna = (rx_status->rx_status_0 &
+				AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5210)
+				? 2 : 1;
+
 	rs->rs_status = 0;
 	rs->rs_phyerr = 0;
 
