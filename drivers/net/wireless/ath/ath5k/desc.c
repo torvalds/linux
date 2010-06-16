@@ -95,10 +95,10 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	 * XXX: I only found that on 5210 code, does it work on 5211 ?
 	 */
 	if (ah->ah_version == AR5K_AR5210) {
-		if (hdr_len & ~AR5K_2W_TX_DESC_CTL0_HEADER_LEN)
+		if (hdr_len & ~AR5K_2W_TX_DESC_CTL0_HEADER_LEN_5210)
 			return -EINVAL;
 		tx_ctl->tx_control_0 |=
-			AR5K_REG_SM(hdr_len, AR5K_2W_TX_DESC_CTL0_HEADER_LEN);
+			AR5K_REG_SM(hdr_len, AR5K_2W_TX_DESC_CTL0_HEADER_LEN_5210);
 	}
 
 	/*Differences between 5210-5211*/
@@ -114,7 +114,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 		}
 
 		tx_ctl->tx_control_0 |=
-		AR5K_REG_SM(frame_type, AR5K_2W_TX_DESC_CTL0_FRAME_TYPE) |
+		AR5K_REG_SM(frame_type, AR5K_2W_TX_DESC_CTL0_FRAME_TYPE_5210) |
 		AR5K_REG_SM(tx_rate0, AR5K_2W_TX_DESC_CTL0_XMIT_RATE);
 
 	} else {
@@ -123,7 +123,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 			AR5K_REG_SM(antenna_mode,
 				AR5K_2W_TX_DESC_CTL0_ANT_MODE_XMIT);
 		tx_ctl->tx_control_1 |=
-			AR5K_REG_SM(type, AR5K_2W_TX_DESC_CTL1_FRAME_TYPE);
+			AR5K_REG_SM(type, AR5K_2W_TX_DESC_CTL1_FRAME_TYPE_5211);
 	}
 #define _TX_FLAGS(_c, _flag)					\
 	if (flags & AR5K_TXDESC_##_flag) {			\
@@ -147,7 +147,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 			AR5K_2W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
 		tx_ctl->tx_control_1 |=
 			AR5K_REG_SM(key_index,
-			AR5K_2W_TX_DESC_CTL1_ENCRYPT_KEY_INDEX);
+			AR5K_2W_TX_DESC_CTL1_ENC_KEY_IDX);
 	}
 
 	/*
@@ -156,7 +156,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	if ((ah->ah_version == AR5K_AR5210) &&
 			(flags & (AR5K_TXDESC_RTSENA | AR5K_TXDESC_CTSENA)))
 		tx_ctl->tx_control_1 |= rtscts_duration &
-				AR5K_2W_TX_DESC_CTL1_RTS_DURATION;
+				AR5K_2W_TX_DESC_CTL1_RTS_DURATION_5210;
 
 	return 0;
 }
@@ -255,7 +255,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	if (key_index != AR5K_TXKEYIX_INVALID) {
 		tx_ctl->tx_control_0 |= AR5K_4W_TX_DESC_CTL0_ENCRYPT_KEY_VALID;
 		tx_ctl->tx_control_1 |= AR5K_REG_SM(key_index,
-				AR5K_4W_TX_DESC_CTL1_ENCRYPT_KEY_INDEX);
+				AR5K_4W_TX_DESC_CTL1_ENCRYPT_KEY_IDX);
 	}
 
 	/*
@@ -409,11 +409,11 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 	ts->ts_rssi = AR5K_REG_MS(tx_status->tx_status_1,
 		AR5K_DESC_TX_STATUS1_ACK_SIG_STRENGTH);
 	ts->ts_antenna = (tx_status->tx_status_1 &
-		AR5K_DESC_TX_STATUS1_XMIT_ANTENNA) ? 2 : 1;
+		AR5K_DESC_TX_STATUS1_XMIT_ANTENNA_5212) ? 2 : 1;
 	ts->ts_status = 0;
 
 	ts->ts_final_idx = AR5K_REG_MS(tx_status->tx_status_1,
-			AR5K_DESC_TX_STATUS1_FINAL_TS_INDEX);
+			AR5K_DESC_TX_STATUS1_FINAL_TS_IX_5212);
 
 	/* The longretry counter has the number of un-acked retries
 	 * for the final rate. To get the total number of retries
@@ -527,7 +527,7 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 	rs->rs_rate = AR5K_REG_MS(rx_status->rx_status_0,
 		AR5K_5210_RX_DESC_STATUS0_RECEIVE_RATE);
 	rs->rs_antenna = AR5K_REG_MS(rx_status->rx_status_0,
-		AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANTENNA);
+		AR5K_5210_RX_DESC_STATUS0_RECEIVE_ANT_5211);
 	rs->rs_more = !!(rx_status->rx_status_0 &
 		AR5K_5210_RX_DESC_STATUS0_MORE);
 	/* TODO: this timestamp is 13 bit, later on we assume 15 bit */
@@ -555,7 +555,7 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 			rs->rs_status |= AR5K_RXERR_CRC;
 
 		if (rx_status->rx_status_1 &
-				AR5K_5210_RX_DESC_STATUS1_FIFO_OVERRUN)
+				AR5K_5210_RX_DESC_STATUS1_FIFO_OVERRUN_5210)
 			rs->rs_status |= AR5K_RXERR_FIFO;
 
 		if (rx_status->rx_status_1 &
