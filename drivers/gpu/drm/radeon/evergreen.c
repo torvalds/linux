@@ -1222,11 +1222,11 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 		ps_thread_count = 128;
 
 	sq_thread_resource_mgmt = NUM_PS_THREADS(ps_thread_count);
-	sq_thread_resource_mgmt |= NUM_VS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt |= NUM_GS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt |= NUM_ES_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt_2 = NUM_HS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
-	sq_thread_resource_mgmt_2 |= NUM_LS_THREADS(((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8;
+	sq_thread_resource_mgmt |= NUM_VS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt |= NUM_GS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt |= NUM_ES_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt_2 = NUM_HS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
+	sq_thread_resource_mgmt_2 |= NUM_LS_THREADS((((rdev->config.evergreen.max_threads - ps_thread_count) / 6) / 8) * 8);
 
 	sq_stack_resource_mgmt_1 = NUM_PS_STACK_ENTRIES((rdev->config.evergreen.max_stack_entries * 1) / 6);
 	sq_stack_resource_mgmt_1 |= NUM_VS_STACK_ENTRIES((rdev->config.evergreen.max_stack_entries * 1) / 6);
