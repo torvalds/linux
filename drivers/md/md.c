@@ -2087,6 +2087,7 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 	/* First make sure individual recovery_offsets are correct */
 	list_for_each_entry(rdev, &mddev->disks, same_set) {
 		if (rdev->raid_disk >= 0 &&
+		    mddev->delta_disks >= 0 &&
 		    !test_bit(In_sync, &rdev->flags) &&
 		    mddev->curr_resync_completed > rdev->recovery_offset)
 				rdev->recovery_offset = mddev->curr_resync_completed;
@@ -6872,6 +6873,7 @@ void md_do_sync(mddev_t *mddev)
 			rcu_read_lock();
 			list_for_each_entry_rcu(rdev, &mddev->disks, same_set)
 				if (rdev->raid_disk >= 0 &&
+				    mddev->delta_disks >= 0 &&
 				    !test_bit(Faulty, &rdev->flags) &&
 				    !test_bit(In_sync, &rdev->flags) &&
 				    rdev->recovery_offset < mddev->curr_resync)
