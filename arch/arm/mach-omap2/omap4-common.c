@@ -22,6 +22,7 @@
 #include <plat/irqs.h>
 
 #include <mach/hardware.h>
+#include <mach/omap-wakeupgen.h>
 
 #include "common.h"
 #include "omap4-sar-layout.h"
@@ -44,6 +45,8 @@ void __init gic_init_irq(void)
 	/* Static mapping, never released */
 	omap_irq_base = ioremap(OMAP44XX_GIC_CPU_BASE, SZ_512);
 	BUG_ON(!omap_irq_base);
+
+	omap_wakeupgen_init();
 
 	gic_init(0, 29, gic_dist_base_addr, omap_irq_base);
 }
