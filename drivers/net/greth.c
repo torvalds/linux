@@ -1499,7 +1499,8 @@ static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_dev
 	if (i == 6) {
 		const unsigned char *addr;
 		int len;
-		addr = of_get_property(ofdev->node, "local-mac-address", &len);
+		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
+					&len);
 		if (addr != NULL && len == 6) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];
@@ -1606,14 +1607,13 @@ static struct of_device_id greth_of_match[] = {
 MODULE_DEVICE_TABLE(of, greth_of_match);
 
 static struct of_platform_driver greth_of_driver = {
-	.name = "grlib-greth",
-	.match_table = greth_of_match,
+	.driver = {
+		.name = "grlib-greth",
+		.owner = THIS_MODULE,
+		.of_match_table = greth_of_match,
+	},
 	.probe = greth_of_probe,
 	.remove = __devexit_p(greth_of_remove),
-	.driver = {
-		   .owner = THIS_MODULE,
-		   .name = "grlib-greth",
-		   },
 };
 
 static int __init greth_init(void)

@@ -37,6 +37,7 @@
 #include <linux/highuid.h>
 #include <linux/writeback.h>
 #include <linux/ratelimit.h>
+#include <linux/compaction.h>
 #include <linux/hugetlb.h>
 #include <linux/initrd.h>
 #include <linux/key.h>
@@ -52,6 +53,7 @@
 #include <linux/slow-work.h>
 #include <linux/perf_event.h>
 #include <linux/kprobes.h>
+#include <linux/pipe_fs_i.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -259,6 +261,11 @@ static int min_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
 static int max_sched_tunable_scaling = SCHED_TUNABLESCALING_END-1;
 static int min_sched_shares_ratelimit = 100000; /* 100 usec */
 static int max_sched_shares_ratelimit = NSEC_PER_SEC; /* 1 second */
+#endif
+
+#ifdef CONFIG_COMPACTION
+static int min_extfrag_threshold;
+static int max_extfrag_threshold = 1000;
 #endif
 
 static struct ctl_table kern_table[] = {
@@ -1120,6 +1127,25 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= drop_caches_sysctl_handler,
 	},
+#ifdef CONFIG_COMPACTION
+	{
+		.procname	= "compact_memory",
+		.data		= &sysctl_compact_memory,
+		.maxlen		= sizeof(int),
+		.mode		= 0200,
+		.proc_handler	= sysctl_compaction_handler,
+	},
+	{
+		.procname	= "extfrag_threshold",
+		.data		= &sysctl_extfrag_threshold,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= sysctl_extfrag_handler,
+		.extra1		= &min_extfrag_threshold,
+		.extra2		= &max_extfrag_threshold,
+	},
+
+#endif /* CONFIG_COMPACTION */
 	{
 		.procname	= "min_free_kbytes",
 		.data		= &min_free_kbytes,
@@ -1444,6 +1470,14 @@ static struct ctl_table fs_table[] = {
 		.child		= binfmt_misc_table,
 	},
 #endif
+	{
+		.procname	= "pipe-max-size",
+		.data		= &pipe_max_size,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &pipe_proc_fn,
+		.extra1		= &pipe_min_size,
+	},
 /*
  * NOTE: do not add new entries to this table unless you have read
  * Documentation/sysctl/ctl_unnumbered.txt
@@ -2083,20 +2117,20 @@ static void proc_skip_char(char **buf, size_t *size, const char v)
 
 #define TMPBUFLEN 22
 /**
- * proc_get_long - reads an ASCII formated integer from a user buffer
+ * proc_get_long - reads an ASCII formatted integer from a user buffer
  *
- * @buf - a kernel buffer
- * @size - size of the kernel buffer
- * @val - this is where the number will be stored
- * @neg - set to %TRUE if number is negative
- * @perm_tr - a vector which contains the allowed trailers
- * @perm_tr_len - size of the perm_tr vector
- * @tr - pointer to store the trailer character
+ * @buf: a kernel buffer
+ * @size: size of the kernel buffer
+ * @val: this is where the number will be stored
+ * @neg: set to %TRUE if number is negative
+ * @perm_tr: a vector which contains the allowed trailers
+ * @perm_tr_len: size of the perm_tr vector
+ * @tr: pointer to store the trailer character
  *
- * In case of success 0 is returned and buf and size are updated with
- * the amount of bytes read. If tr is non NULL and a trailing
- * character exist (size is non zero after returning from this
- * function) tr is updated with the trailing character.
+ * In case of success %0 is returned and @buf and @size are updated with
+ * the amount of bytes read. If @tr is non-NULL and a trailing
+ * character exists (size is non-zero after returning from this
+ * function), @tr is updated with the trailing character.
  */
 static int proc_get_long(char **buf, size_t *size,
 			  unsigned long *val, bool *neg,
@@ -2147,15 +2181,15 @@ static int proc_get_long(char **buf, size_t *size,
 }
 
 /**
- * proc_put_long - coverts an integer to a decimal ASCII formated string
+ * proc_put_long - converts an integer to a decimal ASCII formatted string
  *
- * @buf - the user buffer
- * @size - the size of the user buffer
- * @val - the integer to be converted
- * @neg - sign of the number, %TRUE for negative
+ * @buf: the user buffer
+ * @size: the size of the user buffer
+ * @val: the integer to be converted
+ * @neg: sign of the number, %TRUE for negative
  *
- * In case of success 0 is returned and buf and size are updated with
- * the amount of bytes read.
+ * In case of success %0 is returned and @buf and @size are updated with
+ * the amount of bytes written.
  */
 static int proc_put_long(void __user **buf, size_t *size, unsigned long val,
 			  bool neg)
@@ -2253,6 +2287,8 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		if (write) {
 			left -= proc_skip_spaces(&kbuf);
 
+			if (!left)
+				break;
 			err = proc_get_long(&kbuf, &left, &lval, &neg,
 					     proc_wspace_sep,
 					     sizeof(proc_wspace_sep), NULL);
@@ -2279,7 +2315,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 
 	if (!write && !first && left && !err)
 		err = proc_put_char(&buffer, &left, '\n');
-	if (write && !err)
+	if (write && !err && left)
 		left -= proc_skip_spaces(&kbuf);
 free:
 	if (write) {

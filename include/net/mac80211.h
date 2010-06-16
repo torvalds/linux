@@ -815,6 +815,7 @@ enum ieee80211_key_flags {
  *	encrypted in hardware.
  * @alg: The key algorithm.
  * @flags: key flags, see &enum ieee80211_key_flags.
+ * @ap_addr: AP's MAC address
  * @keyidx: the key index (0-3)
  * @keylen: key material length
  * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
@@ -831,7 +832,6 @@ struct ieee80211_key_conf {
 	u8 iv_len;
 	u8 hw_key_idx;
 	u8 flags;
-	u8 *ap_addr;
 	s8 keyidx;
 	u8 keylen;
 	u8 key[0];
@@ -1637,6 +1637,8 @@ enum ieee80211_ampdu_mlme_action {
  * 	that TX/RX_STOP can pass NULL for this parameter.
  *	Returns a negative error code on failure.
  *	The callback must be atomic.
+ *
+ * @get_survey: Return per-channel survey information
  *
  * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
  *	need to set wiphy->rfkill_poll to %true before registration,

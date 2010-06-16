@@ -56,15 +56,6 @@ struct writeback_control {
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
 	unsigned more_io:1;		/* more io to be dispatched */
-	/*
-	 * write_cache_pages() won't update wbc->nr_to_write and
-	 * mapping->writeback_index if no_nrwrite_index_update
-	 * is set.  write_cache_pages() may write more than we
-	 * requested and we want to make sure nr_to_write and
-	 * writeback_index are updated in a consistent manner
-	 * so we use a single control to update them
-	 */
-	unsigned no_nrwrite_index_update:1;
 };
 
 /*
@@ -96,8 +87,14 @@ static inline void inode_sync_wait(struct inode *inode)
 /*
  * mm/page-writeback.c
  */
-void laptop_io_completion(void);
+#ifdef CONFIG_BLOCK
+void laptop_io_completion(struct backing_dev_info *info);
 void laptop_sync_completion(void);
+void laptop_mode_sync(struct work_struct *work);
+void laptop_mode_timer_fn(unsigned long data);
+#else
+static inline void laptop_sync_completion(void) { }
+#endif
 void throttle_vm_writeout(gfp_t gfp_mask);
 
 /* These are exported to sysctl. */

@@ -132,15 +132,10 @@ xlog_align(
 	int		nbblks,
 	xfs_buf_t	*bp)
 {
-	xfs_daddr_t	offset;
-	xfs_caddr_t	ptr;
+	xfs_daddr_t	offset = blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1);
 
-	offset = blk_no & ((xfs_daddr_t) log->l_sectBBsize - 1);
-	ptr = XFS_BUF_PTR(bp) + BBTOB(offset);
-
-	ASSERT(ptr + BBTOB(nbblks) <= XFS_BUF_PTR(bp) + XFS_BUF_SIZE(bp));
-
-	return ptr;
+	ASSERT(BBTOB(offset + nbblks) <= XFS_BUF_SIZE(bp));
+	return XFS_BUF_PTR(bp) + BBTOB(offset);
 }
 
 
@@ -1576,7 +1571,7 @@ xlog_recover_reorder_trans(
 
 		switch (ITEM_TYPE(item)) {
 		case XFS_LI_BUF:
-			if (!(buf_f->blf_flags & XFS_BLI_CANCEL)) {
+			if (!(buf_f->blf_flags & XFS_BLF_CANCEL)) {
 				trace_xfs_log_recover_item_reorder_head(log,
 							trans, item, pass);
 				list_move(&item->ri_list, &trans->r_itemq);
@@ -1638,7 +1633,7 @@ xlog_recover_do_buffer_pass1(
 	/*
 	 * If this isn't a cancel buffer item, then just return.
 	 */
-	if (!(flags & XFS_BLI_CANCEL)) {
+	if (!(flags & XFS_BLF_CANCEL)) {
 		trace_xfs_log_recover_buf_not_cancel(log, buf_f);
 		return;
 	}
@@ -1696,7 +1691,7 @@ xlog_recover_do_buffer_pass1(
  * Check to see whether the buffer being recovered has a corresponding
  * entry in the buffer cancel record table.  If it does then return 1
  * so that it will be cancelled, otherwise return 0.  If the buffer is
- * actually a buffer cancel item (XFS_BLI_CANCEL is set), then decrement
+ * actually a buffer cancel item (XFS_BLF_CANCEL is set), then decrement
  * the refcount on the entry in the table and remove it from the table
  * if this is the last reference.
  *
@@ -1721,7 +1716,7 @@ xlog_check_buffer_cancelled(
 		 * There is nothing in the table built in pass one,
 		 * so this buffer must not be cancelled.
 		 */
-		ASSERT(!(flags & XFS_BLI_CANCEL));
+		ASSERT(!(flags & XFS_BLF_CANCEL));
 		return 0;
 	}
 
@@ -1733,7 +1728,7 @@ xlog_check_buffer_cancelled(
 		 * There is no corresponding entry in the table built
 		 * in pass one, so this buffer has not been cancelled.
 		 */
-		ASSERT(!(flags & XFS_BLI_CANCEL));
+		ASSERT(!(flags & XFS_BLF_CANCEL));
 		return 0;
 	}
 
@@ -1752,7 +1747,7 @@ xlog_check_buffer_cancelled(
 			 * one in the table and remove it if this is the
 			 * last reference.
 			 */
-			if (flags & XFS_BLI_CANCEL) {
+			if (flags & XFS_BLF_CANCEL) {
 				bcp->bc_refcount--;
 				if (bcp->bc_refcount == 0) {
 					if (prevp == NULL) {
@@ -1772,7 +1767,7 @@ xlog_check_buffer_cancelled(
 	 * We didn't find a corresponding entry in the table, so
 	 * return 0 so that the buffer is NOT cancelled.
 	 */
-	ASSERT(!(flags & XFS_BLI_CANCEL));
+	ASSERT(!(flags & XFS_BLF_CANCEL));
 	return 0;
 }
 
@@ -1874,8 +1869,8 @@ xlog_recover_do_inode_buffer(
 			nbits = xfs_contig_bits(data_map, map_size,
 							 bit);
 			ASSERT(nbits > 0);
-			reg_buf_offset = bit << XFS_BLI_SHIFT;
-			reg_buf_bytes = nbits << XFS_BLI_SHIFT;
+			reg_buf_offset = bit << XFS_BLF_SHIFT;
+			reg_buf_bytes = nbits << XFS_BLF_SHIFT;
 			item_index++;
 		}
 
@@ -1889,7 +1884,7 @@ xlog_recover_do_inode_buffer(
 		}
 
 		ASSERT(item->ri_buf[item_index].i_addr != NULL);
-		ASSERT((item->ri_buf[item_index].i_len % XFS_BLI_CHUNK) == 0);
+		ASSERT((item->ri_buf[item_index].i_len % XFS_BLF_CHUNK) == 0);
 		ASSERT((reg_buf_offset + reg_buf_bytes) <= XFS_BUF_COUNT(bp));
 
 		/*
@@ -1955,9 +1950,9 @@ xlog_recover_do_reg_buffer(
 		nbits = xfs_contig_bits(data_map, map_size, bit);
 		ASSERT(nbits > 0);
 		ASSERT(item->ri_buf[i].i_addr != NULL);
-		ASSERT(item->ri_buf[i].i_len % XFS_BLI_CHUNK == 0);
+		ASSERT(item->ri_buf[i].i_len % XFS_BLF_CHUNK == 0);
 		ASSERT(XFS_BUF_COUNT(bp) >=
-		       ((uint)bit << XFS_BLI_SHIFT)+(nbits<<XFS_BLI_SHIFT));
+		       ((uint)bit << XFS_BLF_SHIFT)+(nbits<<XFS_BLF_SHIFT));
 
 		/*
 		 * Do a sanity check if this is a dquot buffer. Just checking
@@ -1966,7 +1961,7 @@ xlog_recover_do_reg_buffer(
 		 */
 		error = 0;
 		if (buf_f->blf_flags &
-		   (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
+		   (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
 			if (item->ri_buf[i].i_addr == NULL) {
 				cmn_err(CE_ALERT,
 					"XFS: NULL dquot in %s.", __func__);
@@ -1987,9 +1982,9 @@ xlog_recover_do_reg_buffer(
 		}
 
 		memcpy(xfs_buf_offset(bp,
-			(uint)bit << XFS_BLI_SHIFT),	/* dest */
+			(uint)bit << XFS_BLF_SHIFT),	/* dest */
 			item->ri_buf[i].i_addr,		/* source */
-			nbits<<XFS_BLI_SHIFT);		/* length */
+			nbits<<XFS_BLF_SHIFT);		/* length */
  next:
 		i++;
 		bit += nbits;
@@ -2148,11 +2143,11 @@ xlog_recover_do_dquot_buffer(
 	}
 
 	type = 0;
-	if (buf_f->blf_flags & XFS_BLI_UDQUOT_BUF)
+	if (buf_f->blf_flags & XFS_BLF_UDQUOT_BUF)
 		type |= XFS_DQ_USER;
-	if (buf_f->blf_flags & XFS_BLI_PDQUOT_BUF)
+	if (buf_f->blf_flags & XFS_BLF_PDQUOT_BUF)
 		type |= XFS_DQ_PROJ;
-	if (buf_f->blf_flags & XFS_BLI_GDQUOT_BUF)
+	if (buf_f->blf_flags & XFS_BLF_GDQUOT_BUF)
 		type |= XFS_DQ_GROUP;
 	/*
 	 * This type of quotas was turned off, so ignore this buffer
@@ -2173,7 +2168,7 @@ xlog_recover_do_dquot_buffer(
  * here which overlaps that may be stale.
  *
  * When meta-data buffers are freed at run time we log a buffer item
- * with the XFS_BLI_CANCEL bit set to indicate that previous copies
+ * with the XFS_BLF_CANCEL bit set to indicate that previous copies
  * of the buffer in the log should not be replayed at recovery time.
  * This is so that if the blocks covered by the buffer are reused for
  * file data before we crash we don't end up replaying old, freed
@@ -2207,7 +2202,7 @@ xlog_recover_do_buffer_trans(
 	if (pass == XLOG_RECOVER_PASS1) {
 		/*
 		 * In this pass we're only looking for buf items
-		 * with the XFS_BLI_CANCEL bit set.
+		 * with the XFS_BLF_CANCEL bit set.
 		 */
 		xlog_recover_do_buffer_pass1(log, buf_f);
 		return 0;
@@ -2244,7 +2239,7 @@ xlog_recover_do_buffer_trans(
 
 	mp = log->l_mp;
 	buf_flags = XBF_LOCK;
-	if (!(flags & XFS_BLI_INODE_BUF))
+	if (!(flags & XFS_BLF_INODE_BUF))
 		buf_flags |= XBF_MAPPED;
 
 	bp = xfs_buf_read(mp->m_ddev_targp, blkno, len, buf_flags);
@@ -2257,10 +2252,10 @@ xlog_recover_do_buffer_trans(
 	}
 
 	error = 0;
-	if (flags & XFS_BLI_INODE_BUF) {
+	if (flags & XFS_BLF_INODE_BUF) {
 		error = xlog_recover_do_inode_buffer(mp, item, bp, buf_f);
 	} else if (flags &
-		  (XFS_BLI_UDQUOT_BUF|XFS_BLI_PDQUOT_BUF|XFS_BLI_GDQUOT_BUF)) {
+		  (XFS_BLF_UDQUOT_BUF|XFS_BLF_PDQUOT_BUF|XFS_BLF_GDQUOT_BUF)) {
 		xlog_recover_do_dquot_buffer(mp, log, item, bp, buf_f);
 	} else {
 		xlog_recover_do_reg_buffer(mp, item, bp, buf_f);

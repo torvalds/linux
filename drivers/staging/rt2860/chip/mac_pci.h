@@ -147,13 +147,12 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 
 /* ----------------- Frimware Related MACRO ----------------- */
 #define RTMP_WRITE_FIRMWARE(_pAd, _pFwImage, _FwLen)			\
-	do{								\
+	do {								\
 		unsigned long	_i, _firm;					\
 		RTMP_IO_WRITE32(_pAd, PBF_SYS_CTRL, 0x10000);		\
 									\
-		for(_i=0; _i<_FwLen; _i+=4)				\
-		{							\
-			_firm = _pFwImage[_i] +				\
+		for (_i = 0; _i < _FwLen; _i += 4) {				\
+				_firm = _pFwImage[_i] +				\
 			   (_pFwImage[_i+3] << 24) +			\
 			   (_pFwImage[_i+2] << 16) +			\
 			   (_pFwImage[_i+1] << 8);			\
@@ -165,19 +164,19 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 		/* initialize BBP R/W access agent */			\
 		RTMP_IO_WRITE32(_pAd, H2M_BBP_AGENT, 0);		\
 		RTMP_IO_WRITE32(_pAd, H2M_MAILBOX_CSR, 0);		\
-	}while(0)
+	} while (0)
 
 /* ----------------- TX Related MACRO ----------------- */
-#define RTMP_START_DEQUEUE(pAd, QueIdx, irqFlags)		do{}while(0)
-#define RTMP_STOP_DEQUEUE(pAd, QueIdx, irqFlags)		do{}while(0)
+#define RTMP_START_DEQUEUE(pAd, QueIdx, irqFlags)		do {} while (0)
+#define RTMP_STOP_DEQUEUE(pAd, QueIdx, irqFlags)		do {} while (0)
 
 #define RTMP_HAS_ENOUGH_FREE_DESC(pAd, pTxBlk, freeNum, pPacket) \
 		((freeNum) >= (unsigned long)(pTxBlk->TotalFragNum + RTMP_GET_PACKET_FRAGMENTS(pPacket) + 3))	/* rough estimate we will use 3 more descriptor. */
-#define RTMP_RELEASE_DESC_RESOURCE(pAd, QueIdx)	\
-		do{}while(0)
+#define RTMP_RELEASE_DESC_RESOURCE(pAd, QueIdx)			do {} while (0)
 
 #define NEED_QUEUE_BACK_FOR_AGG(pAd, QueIdx, freeNum, _TxFrameType) \
-		(((freeNum != (TX_RING_SIZE-1)) && (pAd->TxSwQueue[QueIdx].Number == 0)) || (freeNum<3))
+		(((freeNum != (TX_RING_SIZE-1)) && \
+		(pAd->TxSwQueue[QueIdx].Number == 0)) || (freeNum < 3))
 
 #define HAL_KickOutMgmtTx(_pAd, _QueIdx, _pPacket, _pSrcBufVA, _SrcBufLen)	\
 			RtmpPCIMgmtKickOut(_pAd, _QueIdx, _pPacket, _pSrcBufVA, _SrcBufLen)
@@ -185,19 +184,19 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 #define HAL_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)	\
 				/* RtmpPCI_WriteSubTxResource(pAd, pTxBlk, bIsLast, pFreeNumber) */
 
-#define HAL_WriteTxResource(pAd, pTxBlk,bIsLast, pFreeNumber)	\
+#define HAL_WriteTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)	\
 			RtmpPCI_WriteSingleTxResource(pAd, pTxBlk, bIsLast, pFreeNumber)
 
 #define HAL_WriteFragTxResource(pAd, pTxBlk, fragNum, pFreeNumber) \
 			RtmpPCI_WriteFragTxResource(pAd, pTxBlk, fragNum, pFreeNumber)
 
-#define HAL_WriteMultiTxResource(pAd, pTxBlk,frameNum, pFreeNumber)	\
+#define HAL_WriteMultiTxResource(pAd, pTxBlk, frameNum, pFreeNumber) \
 			RtmpPCI_WriteMultiTxResource(pAd, pTxBlk, frameNum, pFreeNumber)
 
 #define HAL_FinalWriteTxResource(_pAd, _pTxBlk, _TotalMPDUSize, _FirstTxIdx)	\
 			RtmpPCI_FinalWriteTxResource(_pAd, _pTxBlk, _TotalMPDUSize, _FirstTxIdx)
 
-#define HAL_LastTxIdx(_pAd, _QueIdx,_LastTxIdx) \
+#define HAL_LastTxIdx(_pAd, _QueIdx, _LastTxIdx) \
 				/*RtmpPCIDataLastTxIdx(_pAd, _QueIdx,_LastTxIdx) */
 
 #define HAL_KickOutTx(_pAd, _pTxBlk, _QueIdx)	\
@@ -259,24 +258,24 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 
 /* Insert the BA bitmap to ASIC for the Wcid entry */
 #define RTMP_ADD_BA_SESSION_TO_ASIC(_pAd, _Aid, _TID)	\
-		do{					\
+		do {					\
 			u32 _Value = 0, _Offset;					\
 			_Offset = MAC_WCID_BASE + (_Aid) * HW_WCID_ENTRY_SIZE + 4;	\
 			RTMP_IO_READ32((_pAd), _Offset, &_Value);\
 			_Value |= (0x10000<<(_TID));	\
 			RTMP_IO_WRITE32((_pAd), _Offset, _Value);\
-		}while(0)
+		} while (0)
 
 /* Remove the BA bitmap from ASIC for the Wcid entry */
 /*              bitmap field starts at 0x10000 in ASIC WCID table */
 #define RTMP_DEL_BA_SESSION_FROM_ASIC(_pAd, _Wcid, _TID)				\
-		do{								\
+		do {								\
 			u32 _Value = 0, _Offset;				\
 			_Offset = MAC_WCID_BASE + (_Wcid) * HW_WCID_ENTRY_SIZE + 4;	\
 			RTMP_IO_READ32((_pAd), _Offset, &_Value);			\
 			_Value &= (~(0x10000 << (_TID)));				\
 			RTMP_IO_WRITE32((_pAd), _Offset, _Value);			\
-		}while(0)
+		} while (0)
 
 /* ----------------- Interface Related MACRO ----------------- */
 
@@ -285,16 +284,16 @@ typedef union _TX_ATTENUATION_CTRL_STRUC {
 /* Since it use ADAPTER structure, it have to be put after structure definition. */
 /* */
 #define RTMP_ASIC_INTERRUPT_DISABLE(_pAd)		\
-	do{			\
+	do {			\
 		RTMP_IO_WRITE32((_pAd), INT_MASK_CSR, 0x0);     /* 0: disable */	\
 		RTMP_CLEAR_FLAG((_pAd), fRTMP_ADAPTER_INTERRUPT_ACTIVE);		\
-	}while(0)
+	} while (0)
 
 #define RTMP_ASIC_INTERRUPT_ENABLE(_pAd)\
-	do{				\
+	do {				\
 		RTMP_IO_WRITE32((_pAd), INT_MASK_CSR, (_pAd)->int_enable_reg /*DELAYINTMASK*/);     /* 1:enable */	\
 		RTMP_SET_FLAG((_pAd), fRTMP_ADAPTER_INTERRUPT_ACTIVE);	\
-	}while(0)
+	} while (0)
 
 #define RTMP_IRQ_INIT(pAd)	\
 	{	pAd->int_enable_reg = ((DELAYINTMASK) |		\

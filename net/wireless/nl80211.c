@@ -4443,9 +4443,10 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 		if (channel_type != NL80211_CHAN_NO_HT &&
 		    channel_type != NL80211_CHAN_HT20 &&
 		    channel_type != NL80211_CHAN_HT40PLUS &&
-		    channel_type != NL80211_CHAN_HT40MINUS)
+		    channel_type != NL80211_CHAN_HT40MINUS) {
 			err = -EINVAL;
 			goto out;
+		}
 	}
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
@@ -4717,9 +4718,10 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 		if (channel_type != NL80211_CHAN_NO_HT &&
 		    channel_type != NL80211_CHAN_HT20 &&
 		    channel_type != NL80211_CHAN_HT40PLUS &&
-		    channel_type != NL80211_CHAN_HT40MINUS)
+		    channel_type != NL80211_CHAN_HT40MINUS) {
 			err = -EINVAL;
 			goto out;
+		}
 	}
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);

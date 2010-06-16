@@ -59,8 +59,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
 
-source "drivers/staging/poch/Kconfig"
-
 source "drivers/staging/otus/Kconfig"
 
 source "drivers/staging/rt2860/Kconfig"
@@ -113,6 +111,8 @@ source "drivers/staging/vme/Kconfig"
 
 source "drivers/staging/rar_register/Kconfig"
 
+source "drivers/staging/memrar/Kconfig"
+
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
@@ -127,19 +127,25 @@ source "drivers/staging/batman-adv/Kconfig"
 
 source "drivers/staging/samsung-laptop/Kconfig"
 
-source "drivers/staging/strip/Kconfig"
-
-source "drivers/staging/arlan/Kconfig"
-
-source "drivers/staging/wavelan/Kconfig"
-
-source "drivers/staging/netwave/Kconfig"
-
 source "drivers/staging/sm7xx/Kconfig"
 
 source "drivers/staging/dt3155/Kconfig"
 
+source "drivers/staging/dt3155v4l/Kconfig"
+
 source "drivers/staging/crystalhd/Kconfig"
+
+source "drivers/staging/cxt1e1/Kconfig"
+
+source "drivers/staging/ti-st/Kconfig"
+
+source "drivers/staging/adis16255/Kconfig"
+
+source "drivers/staging/xgifb/Kconfig"
+
+source "drivers/staging/mrst-touchscreen/Kconfig"
+
+source "drivers/staging/msm/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

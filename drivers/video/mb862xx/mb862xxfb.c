@@ -553,7 +553,7 @@ static int mb862xx_gdc_init(struct mb862xxfb_par *par)
 static int __devinit of_platform_mb862xx_probe(struct of_device *ofdev,
 					       const struct of_device_id *id)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device *dev = &ofdev->dev;
 	struct mb862xxfb_par *par;
 	struct fb_info *info;
@@ -718,9 +718,11 @@ static struct of_device_id __devinitdata of_platform_mb862xx_tbl[] = {
 };
 
 static struct of_platform_driver of_platform_mb862xxfb_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRV_NAME,
-	.match_table	= of_platform_mb862xx_tbl,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = of_platform_mb862xx_tbl,
+	},
 	.probe		= of_platform_mb862xx_probe,
 	.remove		= __devexit_p(of_platform_mb862xx_remove),
 };

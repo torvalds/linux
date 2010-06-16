@@ -53,6 +53,8 @@ extern int pcibios_last_bus;
 extern struct pci_bus *pci_root_bus;
 extern struct pci_ops pci_root_ops;
 
+void pcibios_scan_specific_bus(int busn);
+
 /* pci-irq.c */
 
 struct irq_info {
@@ -83,7 +85,7 @@ struct irq_routing_table {
 
 extern unsigned int pcibios_irq_mask;
 
-extern spinlock_t pci_config_lock;
+extern raw_spinlock_t pci_config_lock;
 
 extern int (*pcibios_enable_irq)(struct pci_dev *dev);
 extern void (*pcibios_disable_irq)(struct pci_dev *dev);

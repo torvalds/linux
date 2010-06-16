@@ -241,7 +241,8 @@ nouveau_connector_detect(struct drm_connector *connector)
 	if (nv_encoder && nv_connector->native_mode) {
 		unsigned status = connector_status_connected;
 
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI_BUTTON) || \
+	(defined(CONFIG_ACPI_BUTTON_MODULE) && defined(MODULE))
 		if (!nouveau_ignorelid && !acpi_lid_open())
 			status = connector_status_unknown;
 #endif
@@ -431,24 +432,27 @@ nouveau_connector_set_property(struct drm_connector *connector,
 }
 
 static struct drm_display_mode *
-nouveau_connector_native_mode(struct nouveau_connector *connector)
+nouveau_connector_native_mode(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->base.dev;
+	struct drm_connector_helper_funcs *helper = connector->helper_private;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode, *largest = NULL;
 	int high_w = 0, high_h = 0, high_v = 0;
 
-	/* Use preferred mode if there is one.. */
-	list_for_each_entry(mode, &connector->base.probed_modes, head) {
+	list_for_each_entry(mode, &nv_connector->base.probed_modes, head) {
+		if (helper->mode_valid(connector, mode) != MODE_OK)
+			continue;
+
+		/* Use preferred mode if there is one.. */
 		if (mode->type & DRM_MODE_TYPE_PREFERRED) {
 			NV_DEBUG_KMS(dev, "native mode from preferred\n");
 			return drm_mode_duplicate(dev, mode);
 		}
-	}
 
-	/* Otherwise, take the resolution with the largest width, then height,
-	 * then vertical refresh
-	 */
-	list_for_each_entry(mode, &connector->base.probed_modes, head) {
+		/* Otherwise, take the resolution with the largest width, then
+		 * height, then vertical refresh
+		 */
 		if (mode->hdisplay < high_w)
 			continue;
 
@@ -552,7 +556,7 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	 */
 	if (!nv_connector->native_mode)
 		nv_connector->native_mode =
-			nouveau_connector_native_mode(nv_connector);
+			nouveau_connector_native_mode(connector);
 	if (ret == 0 && nv_connector->native_mode) {
 		struct drm_display_mode *mode;
 
@@ -583,9 +587,9 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 
 	switch (nv_encoder->dcb->type) {
 	case OUTPUT_LVDS:
-		BUG_ON(!nv_connector->native_mode);
-		if (mode->hdisplay > nv_connector->native_mode->hdisplay ||
-		    mode->vdisplay > nv_connector->native_mode->vdisplay)
+		if (nv_connector->native_mode &&
+		    (mode->hdisplay > nv_connector->native_mode->hdisplay ||
+		     mode->vdisplay > nv_connector->native_mode->vdisplay))
 			return MODE_PANEL;
 
 		min_clock = 0;
@@ -593,8 +597,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		break;
 	case OUTPUT_TMDS:
 		if ((dev_priv->card_type >= NV_50 && !nouveau_duallink) ||
-		    (dev_priv->card_type < NV_50 &&
-		     !nv_encoder->dcb->duallink_possible))
+		    !nv_encoder->dcb->duallink_possible)
 			max_clock = 165000;
 		else
 			max_clock = 330000;
@@ -728,7 +731,7 @@ nouveau_connector_create_lvds(struct drm_device *dev,
 	if (ret == 0)
 		goto out;
 	nv_connector->detected_encoder = nv_encoder;
-	nv_connector->native_mode = nouveau_connector_native_mode(nv_connector);
+	nv_connector->native_mode = nouveau_connector_native_mode(connector);
 	list_for_each_entry_safe(mode, temp, &connector->probed_modes, head)
 		drm_mode_remove(connector, mode);
 

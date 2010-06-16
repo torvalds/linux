@@ -443,8 +443,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 	if (size_change)
 		put_write_access(inode);
 	if (!err)
-		if (EX_ISSYNC(fhp->fh_export))
-			write_inode_now(inode, 1);
+		commit_metadata(fhp);
 out:
 	return err;
 
@@ -999,7 +998,7 @@ static int wait_for_concurrent_writes(struct file *file)
 
 	if (inode->i_state & I_DIRTY) {
 		dprintk("nfsd: write sync %d\n", task_pid_nr(current));
-		err = vfs_fsync(file, file->f_path.dentry, 0);
+		err = vfs_fsync(file, 0);
 	}
 	last_ino = inode->i_ino;
 	last_dev = inode->i_sb->s_dev;
@@ -1175,8 +1174,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (err)
 		goto out;
 	if (EX_ISSYNC(fhp->fh_export)) {
-		int err2 = vfs_fsync_range(file, file->f_path.dentry,
-				offset, end, 0);
+		int err2 = vfs_fsync_range(file, offset, end, 0);
 
 		if (err2 != -EINVAL)
 			err = nfserrno(err2);

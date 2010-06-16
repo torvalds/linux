@@ -332,6 +332,7 @@ static __always_inline __pure bool __static_cpu_has(u8 bit)
 #endif
 }
 
+#if __GNUC__ >= 4
 #define static_cpu_has(bit)					\
 (								\
 	__builtin_constant_p(boot_cpu_has(bit)) ?		\
@@ -340,6 +341,12 @@ static __always_inline __pure bool __static_cpu_has(u8 bit)
 		__static_cpu_has(bit) :				\
 		boot_cpu_has(bit)				\
 )
+#else
+/*
+ * gcc 3.x is too stupid to do the static test; fall back to dynamic.
+ */
+#define static_cpu_has(bit) boot_cpu_has(bit)
+#endif
 
 #endif /* defined(__KERNEL__) && !defined(__ASSEMBLY__) */
 

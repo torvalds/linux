@@ -42,7 +42,6 @@
 #include <linux/unistd.h>
 #include <linux/vmalloc.h>
 #include <linux/random.h>
-#include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
 #include "drbd_int.h"
@@ -80,30 +79,128 @@ static struct drbd_epoch *previous_epoch(struct drbd_conf *mdev, struct drbd_epo
 
 #define GFP_TRY	(__GFP_HIGHMEM | __GFP_NOWARN)
 
-static struct page *drbd_pp_first_page_or_try_alloc(struct drbd_conf *mdev)
+/*
+ * some helper functions to deal with single linked page lists,
+ * page->private being our "next" pointer.
+ */
+
+/* If at least n pages are linked at head, get n pages off.
+ * Otherwise, don't modify head, and return NULL.
+ * Locking is the responsibility of the caller.
+ */
+static struct page *page_chain_del(struct page **head, int n)
+{
+	struct page *page;
+	struct page *tmp;
+
+	BUG_ON(!n);
+	BUG_ON(!head);
+
+	page = *head;
+
+	if (!page)
+		return NULL;
+
+	while (page) {
+		tmp = page_chain_next(page);
+		if (--n == 0)
+			break; /* found sufficient pages */
+		if (tmp == NULL)
+			/* insufficient pages, don't use any of them. */
+			return NULL;
+		page = tmp;
+	}
+
+	/* add end of list marker for the returned list */
+	set_page_private(page, 0);
+	/* actual return value, and adjustment of head */
+	page = *head;
+	*head = tmp;
+	return page;
+}
+
+/* may be used outside of locks to find the tail of a (usually short)
+ * "private" page chain, before adding it back to a global chain head
+ * with page_chain_add() under a spinlock. */
+static struct page *page_chain_tail(struct page *page, int *len)
+{
+	struct page *tmp;
+	int i = 1;
+	while ((tmp = page_chain_next(page)))
+		++i, page = tmp;
+	if (len)
+		*len = i;
+	return page;
+}
+
+static int page_chain_free(struct page *page)
+{
+	struct page *tmp;
+	int i = 0;
+	page_chain_for_each_safe(page, tmp) {
+		put_page(page);
+		++i;
+	}
+	return i;
+}
+
+static void page_chain_add(struct page **head,
+		struct page *chain_first, struct page *chain_last)
+{
+#if 1
+	struct page *tmp;
+	tmp = page_chain_tail(chain_first, NULL);
+	BUG_ON(tmp != chain_last);
+#endif
+
+	/* add chain to head */
+	set_page_private(chain_last, (unsigned long)*head);
+	*head = chain_first;
+}
+
+static struct page *drbd_pp_first_pages_or_try_alloc(struct drbd_conf *mdev, int number)
 {
 	struct page *page = NULL;
+	struct page *tmp = NULL;
+	int i = 0;
 
 	/* Yes, testing drbd_pp_vacant outside the lock is racy.
 	 * So what. It saves a spin_lock. */
-	if (drbd_pp_vacant > 0) {
+	if (drbd_pp_vacant >= number) {
 		spin_lock(&drbd_pp_lock);
-		page = drbd_pp_pool;
-		if (page) {
-			drbd_pp_pool = (struct page *)page_private(page);
-			set_page_private(page, 0); /* just to be polite */
-			drbd_pp_vacant--;
-		}
+		page = page_chain_del(&drbd_pp_pool, number);
+		if (page)
+			drbd_pp_vacant -= number;
 		spin_unlock(&drbd_pp_lock);
+		if (page)
+			return page;
 	}
+
 	/* GFP_TRY, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
-	if (!page)
-		page = alloc_page(GFP_TRY);
-	if (page)
-		atomic_inc(&mdev->pp_in_use);
-	return page;
+	for (i = 0; i < number; i++) {
+		tmp = alloc_page(GFP_TRY);
+		if (!tmp)
+			break;
+		set_page_private(tmp, (unsigned long)page);
+		page = tmp;
+	}
+
+	if (i == number)
+		return page;
+
+	/* Not enough pages immediately available this time.
+	 * No need to jump around here, drbd_pp_alloc will retry this
+	 * function "soon". */
+	if (page) {
+		tmp = page_chain_tail(page, NULL);
+		spin_lock(&drbd_pp_lock);
+		page_chain_add(&drbd_pp_pool, page, tmp);
+		drbd_pp_vacant += i;
+		spin_unlock(&drbd_pp_lock);
+	}
+	return NULL;
 }
 
 /* kick lower level device, if we have more than (arbitrary number)
@@ -127,7 +224,7 @@ static void reclaim_net_ee(struct drbd_conf *mdev, struct list_head *to_be_freed
 
 	list_for_each_safe(le, tle, &mdev->net_ee) {
 		e = list_entry(le, struct drbd_epoch_entry, w.list);
-		if (drbd_bio_has_active_page(e->private_bio))
+		if (drbd_ee_has_active_page(e))
 			break;
 		list_move(le, to_be_freed);
 	}
@@ -148,32 +245,34 @@ static void drbd_kick_lo_and_reclaim_net(struct drbd_conf *mdev)
 }
 
 /**
- * drbd_pp_alloc() - Returns a page, fails only if a signal comes in
+ * drbd_pp_alloc() - Returns @number pages, retries forever (or until signalled)
  * @mdev:	DRBD device.
- * @retry:	whether or not to retry allocation forever (or until signalled)
+ * @number:	number of pages requested
+ * @retry:	whether to retry, if not enough pages are available right now
  *
- * Tries to allocate a page, first from our own page pool, then from the
- * kernel, unless this allocation would exceed the max_buffers setting.
- * If @retry is non-zero, retry until DRBD frees a page somewhere else.
+ * Tries to allocate number pages, first from our own page pool, then from
+ * the kernel, unless this allocation would exceed the max_buffers setting.
+ * Possibly retry until DRBD frees sufficient pages somewhere else.
+ *
+ * Returns a page chain linked via page->private.
  */
-static struct page *drbd_pp_alloc(struct drbd_conf *mdev, int retry)
+static struct page *drbd_pp_alloc(struct drbd_conf *mdev, unsigned number, bool retry)
 {
 	struct page *page = NULL;
 	DEFINE_WAIT(wait);
 
-	if (atomic_read(&mdev->pp_in_use) < mdev->net_conf->max_buffers) {
-		page = drbd_pp_first_page_or_try_alloc(mdev);
-		if (page)
-			return page;
-	}
+	/* Yes, we may run up to @number over max_buffers. If we
+	 * follow it strictly, the admin will get it wrong anyways. */
+	if (atomic_read(&mdev->pp_in_use) < mdev->net_conf->max_buffers)
+		page = drbd_pp_first_pages_or_try_alloc(mdev, number);
 
-	for (;;) {
+	while (page == NULL) {
 		prepare_to_wait(&drbd_pp_wait, &wait, TASK_INTERRUPTIBLE);
 
 		drbd_kick_lo_and_reclaim_net(mdev);
 
 		if (atomic_read(&mdev->pp_in_use) < mdev->net_conf->max_buffers) {
-			page = drbd_pp_first_page_or_try_alloc(mdev);
+			page = drbd_pp_first_pages_or_try_alloc(mdev, number);
 			if (page)
 				break;
 		}
@@ -190,62 +289,32 @@ static struct page *drbd_pp_alloc(struct drbd_conf *mdev, int retry)
 	}
 	finish_wait(&drbd_pp_wait, &wait);
 
+	if (page)
+		atomic_add(number, &mdev->pp_in_use);
 	return page;
 }
 
 /* Must not be used from irq, as that may deadlock: see drbd_pp_alloc.
- * Is also used from inside an other spin_lock_irq(&mdev->req_lock) */
+ * Is also used from inside an other spin_lock_irq(&mdev->req_lock);
+ * Either links the page chain back to the global pool,
+ * or returns all pages to the system. */
 static void drbd_pp_free(struct drbd_conf *mdev, struct page *page)
 {
-	int free_it;
-
-	spin_lock(&drbd_pp_lock);
-	if (drbd_pp_vacant > (DRBD_MAX_SEGMENT_SIZE/PAGE_SIZE)*minor_count) {
-		free_it = 1;
-	} else {
-		set_page_private(page, (unsigned long)drbd_pp_pool);
-		drbd_pp_pool = page;
-		drbd_pp_vacant++;
-		free_it = 0;
-	}
-	spin_unlock(&drbd_pp_lock);
-
-	atomic_dec(&mdev->pp_in_use);
-
-	if (free_it)
-		__free_page(page);
-
-	wake_up(&drbd_pp_wait);
-}
-
-static void drbd_pp_free_bio_pages(struct drbd_conf *mdev, struct bio *bio)
-{
-	struct page *p_to_be_freed = NULL;
-	struct page *page;
-	struct bio_vec *bvec;
 	int i;
-
-	spin_lock(&drbd_pp_lock);
-	__bio_for_each_segment(bvec, bio, i, 0) {
-		if (drbd_pp_vacant > (DRBD_MAX_SEGMENT_SIZE/PAGE_SIZE)*minor_count) {
-			set_page_private(bvec->bv_page, (unsigned long)p_to_be_freed);
-			p_to_be_freed = bvec->bv_page;
-		} else {
-			set_page_private(bvec->bv_page, (unsigned long)drbd_pp_pool);
-			drbd_pp_pool = bvec->bv_page;
-			drbd_pp_vacant++;
-		}
+	if (drbd_pp_vacant > (DRBD_MAX_SEGMENT_SIZE/PAGE_SIZE)*minor_count)
+		i = page_chain_free(page);
+	else {
+		struct page *tmp;
+		tmp = page_chain_tail(page, &i);
+		spin_lock(&drbd_pp_lock);
+		page_chain_add(&drbd_pp_pool, page, tmp);
+		drbd_pp_vacant += i;
+		spin_unlock(&drbd_pp_lock);
 	}
-	spin_unlock(&drbd_pp_lock);
-	atomic_sub(bio->bi_vcnt, &mdev->pp_in_use);
-
-	while (p_to_be_freed) {
-		page = p_to_be_freed;
-		p_to_be_freed = (struct page *)page_private(page);
-		set_page_private(page, 0); /* just to be polite */
-		put_page(page);
-	}
-
+	atomic_sub(i, &mdev->pp_in_use);
+	i = atomic_read(&mdev->pp_in_use);
+	if (i < 0)
+		dev_warn(DEV, "ASSERTION FAILED: pp_in_use: %d < 0\n", i);
 	wake_up(&drbd_pp_wait);
 }
 
@@ -270,11 +339,9 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 				     unsigned int data_size,
 				     gfp_t gfp_mask) __must_hold(local)
 {
-	struct request_queue *q;
 	struct drbd_epoch_entry *e;
 	struct page *page;
-	struct bio *bio;
-	unsigned int ds;
+	unsigned nr_pages = (data_size + PAGE_SIZE -1) >> PAGE_SHIFT;
 
 	if (FAULT_ACTIVE(mdev, DRBD_FAULT_AL_EE))
 		return NULL;
@@ -286,84 +353,32 @@ struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 		return NULL;
 	}
 
-	bio = bio_alloc(gfp_mask & ~__GFP_HIGHMEM, div_ceil(data_size, PAGE_SIZE));
-	if (!bio) {
-		if (!(gfp_mask & __GFP_NOWARN))
-			dev_err(DEV, "alloc_ee: Allocation of a bio failed\n");
-		goto fail1;
-	}
+	page = drbd_pp_alloc(mdev, nr_pages, (gfp_mask & __GFP_WAIT));
+	if (!page)
+		goto fail;
 
-	bio->bi_bdev = mdev->ldev->backing_bdev;
-	bio->bi_sector = sector;
-
-	ds = data_size;
-	while (ds) {
-		page = drbd_pp_alloc(mdev, (gfp_mask & __GFP_WAIT));
-		if (!page) {
-			if (!(gfp_mask & __GFP_NOWARN))
-				dev_err(DEV, "alloc_ee: Allocation of a page failed\n");
-			goto fail2;
-		}
-		if (!bio_add_page(bio, page, min_t(int, ds, PAGE_SIZE), 0)) {
-			drbd_pp_free(mdev, page);
-			dev_err(DEV, "alloc_ee: bio_add_page(s=%llu,"
-			    "data_size=%u,ds=%u) failed\n",
-			    (unsigned long long)sector, data_size, ds);
-
-			q = bdev_get_queue(bio->bi_bdev);
-			if (q->merge_bvec_fn) {
-				struct bvec_merge_data bvm = {
-					.bi_bdev = bio->bi_bdev,
-					.bi_sector = bio->bi_sector,
-					.bi_size = bio->bi_size,
-					.bi_rw = bio->bi_rw,
-				};
-				int l = q->merge_bvec_fn(q, &bvm,
-						&bio->bi_io_vec[bio->bi_vcnt]);
-				dev_err(DEV, "merge_bvec_fn() = %d\n", l);
-			}
-
-			/* dump more of the bio. */
-			dev_err(DEV, "bio->bi_max_vecs = %d\n", bio->bi_max_vecs);
-			dev_err(DEV, "bio->bi_vcnt = %d\n", bio->bi_vcnt);
-			dev_err(DEV, "bio->bi_size = %d\n", bio->bi_size);
-			dev_err(DEV, "bio->bi_phys_segments = %d\n", bio->bi_phys_segments);
-
-			goto fail2;
-			break;
-		}
-		ds -= min_t(int, ds, PAGE_SIZE);
-	}
-
-	D_ASSERT(data_size == bio->bi_size);
-
-	bio->bi_private = e;
-	e->mdev = mdev;
-	e->sector = sector;
-	e->size = bio->bi_size;
-
-	e->private_bio = bio;
-	e->block_id = id;
 	INIT_HLIST_NODE(&e->colision);
 	e->epoch = NULL;
+	e->mdev = mdev;
+	e->pages = page;
+	atomic_set(&e->pending_bios, 0);
+	e->size = data_size;
 	e->flags = 0;
+	e->sector = sector;
+	e->sector = sector;
+	e->block_id = id;
 
 	return e;
 
- fail2:
-	drbd_pp_free_bio_pages(mdev, bio);
-	bio_put(bio);
- fail1:
+ fail:
 	mempool_free(e, drbd_ee_mempool);
-
 	return NULL;
 }
 
 void drbd_free_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 {
-	struct bio *bio = e->private_bio;
-	drbd_pp_free_bio_pages(mdev, bio);
-	bio_put(bio);
+	drbd_pp_free(mdev, e->pages);
+	D_ASSERT(atomic_read(&e->pending_bios) == 0);
 	D_ASSERT(hlist_unhashed(&e->colision));
 	mempool_free(e, drbd_ee_mempool);
 }
@@ -555,6 +570,25 @@ static int drbd_recv(struct drbd_conf *mdev, void *buf, size_t size)
 	return rv;
 }
 
+/* quoting tcp(7):
+ *   On individual connections, the socket buffer size must be set prior to the
+ *   listen(2) or connect(2) calls in order to have it take effect.
+ * This is our wrapper to do so.
+ */
+static void drbd_setbufsize(struct socket *sock, unsigned int snd,
+		unsigned int rcv)
+{
+	/* open coded SO_SNDBUF, SO_RCVBUF */
+	if (snd) {
+		sock->sk->sk_sndbuf = snd;
+		sock->sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
+	}
+	if (rcv) {
+		sock->sk->sk_rcvbuf = rcv;
+		sock->sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
+	}
+}
+
 static struct socket *drbd_try_connect(struct drbd_conf *mdev)
 {
 	const char *what;
@@ -576,6 +610,8 @@ static struct socket *drbd_try_connect(struct drbd_conf *mdev)
 
 	sock->sk->sk_rcvtimeo =
 	sock->sk->sk_sndtimeo =  mdev->net_conf->try_connect_int*HZ;
+	drbd_setbufsize(sock, mdev->net_conf->sndbuf_size,
+			mdev->net_conf->rcvbuf_size);
 
        /* explicitly bind to the configured IP as source IP
 	*  for the outgoing connections.
@@ -654,6 +690,8 @@ static struct socket *drbd_wait_for_connect(struct drbd_conf *mdev)
 	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
 	s_listen->sk->sk_rcvtimeo = timeo;
 	s_listen->sk->sk_sndtimeo = timeo;
+	drbd_setbufsize(s_listen, mdev->net_conf->sndbuf_size,
+			mdev->net_conf->rcvbuf_size);
 
 	what = "bind before listen";
 	err = s_listen->ops->bind(s_listen,
@@ -840,16 +878,6 @@ retry:
 	sock->sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
 	msock->sk->sk_priority = TC_PRIO_INTERACTIVE;
 
-	if (mdev->net_conf->sndbuf_size) {
-		sock->sk->sk_sndbuf = mdev->net_conf->sndbuf_size;
-		sock->sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-	}
-
-	if (mdev->net_conf->rcvbuf_size) {
-		sock->sk->sk_rcvbuf = mdev->net_conf->rcvbuf_size;
-		sock->sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-	}
-
 	/* NOT YET ...
 	 * sock->sk->sk_sndtimeo = mdev->net_conf->timeout*HZ/10;
 	 * sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
@@ -902,7 +930,7 @@ retry:
 	if (!drbd_send_protocol(mdev))
 		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
-	drbd_send_sizes(mdev, 0);
+	drbd_send_sizes(mdev, 0, 0);
 	drbd_send_uuids(mdev);
 	drbd_send_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
@@ -946,7 +974,8 @@ static enum finish_epoch drbd_flush_after_epoch(struct drbd_conf *mdev, struct d
 	int rv;
 
 	if (mdev->write_ordering >= WO_bdev_flush && get_ldev(mdev)) {
-		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, NULL);
+		rv = blkdev_issue_flush(mdev->ldev->backing_bdev, GFP_KERNEL,
+					NULL, BLKDEV_IFL_WAIT);
 		if (rv) {
 			dev_err(DEV, "local disk flush failed with status %d\n", rv);
 			/* would rather check on EOPNOTSUPP, but that is not reliable.
@@ -1120,6 +1149,90 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 }
 
 /**
+ * drbd_submit_ee()
+ * @mdev:	DRBD device.
+ * @e:		epoch entry
+ * @rw:		flag field, see bio->bi_rw
+ */
+/* TODO allocate from our own bio_set. */
+int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
+		const unsigned rw, const int fault_type)
+{
+	struct bio *bios = NULL;
+	struct bio *bio;
+	struct page *page = e->pages;
+	sector_t sector = e->sector;
+	unsigned ds = e->size;
+	unsigned n_bios = 0;
+	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
+
+	/* In most cases, we will only need one bio.  But in case the lower
+	 * level restrictions happen to be different at this offset on this
+	 * side than those of the sending peer, we may need to submit the
+	 * request in more than one bio. */
+next_bio:
+	bio = bio_alloc(GFP_NOIO, nr_pages);
+	if (!bio) {
+		dev_err(DEV, "submit_ee: Allocation of a bio failed\n");
+		goto fail;
+	}
+	/* > e->sector, unless this is the first bio */
+	bio->bi_sector = sector;
+	bio->bi_bdev = mdev->ldev->backing_bdev;
+	/* we special case some flags in the multi-bio case, see below
+	 * (BIO_RW_UNPLUG, BIO_RW_BARRIER) */
+	bio->bi_rw = rw;
+	bio->bi_private = e;
+	bio->bi_end_io = drbd_endio_sec;
+
+	bio->bi_next = bios;
+	bios = bio;
+	++n_bios;
+
+	page_chain_for_each(page) {
+		unsigned len = min_t(unsigned, ds, PAGE_SIZE);
+		if (!bio_add_page(bio, page, len, 0)) {
+			/* a single page must always be possible! */
+			BUG_ON(bio->bi_vcnt == 0);
+			goto next_bio;
+		}
+		ds -= len;
+		sector += len >> 9;
+		--nr_pages;
+	}
+	D_ASSERT(page == NULL);
+	D_ASSERT(ds == 0);
+
+	atomic_set(&e->pending_bios, n_bios);
+	do {
+		bio = bios;
+		bios = bios->bi_next;
+		bio->bi_next = NULL;
+
+		/* strip off BIO_RW_UNPLUG unless it is the last bio */
+		if (bios)
+			bio->bi_rw &= ~(1<<BIO_RW_UNPLUG);
+
+		drbd_generic_make_request(mdev, fault_type, bio);
+
+		/* strip off BIO_RW_BARRIER,
+		 * unless it is the first or last bio */
+		if (bios && bios->bi_next)
+			bios->bi_rw &= ~(1<<BIO_RW_BARRIER);
+	} while (bios);
+	maybe_kick_lo(mdev);
+	return 0;
+
+fail:
+	while (bios) {
+		bio = bios;
+		bios = bios->bi_next;
+		bio_put(bio);
+	}
+	return -ENOMEM;
+}
+
+/**
  * w_e_reissue() - Worker callback; Resubmit a bio, without BIO_RW_BARRIER set
  * @mdev:	DRBD device.
  * @w:		work object.
@@ -1128,8 +1241,6 @@ void drbd_bump_write_ordering(struct drbd_conf *mdev, enum write_ordering_e wo) 
 int w_e_reissue(struct drbd_conf *mdev, struct drbd_work *w, int cancel) __releases(local)
 {
 	struct drbd_epoch_entry *e = (struct drbd_epoch_entry *)w;
-	struct bio *bio = e->private_bio;
-
 	/* We leave DE_CONTAINS_A_BARRIER and EE_IS_BARRIER in place,
 	   (and DE_BARRIER_IN_NEXT_EPOCH_ISSUED in the previous Epoch)
 	   so that we can finish that epoch in drbd_may_finish_epoch().
@@ -1143,33 +1254,17 @@ int w_e_reissue(struct drbd_conf *mdev, struct drbd_work *w, int cancel) __relea
 	if (previous_epoch(mdev, e->epoch))
 		dev_warn(DEV, "Write ordering was not enforced (one time event)\n");
 
-	/* prepare bio for re-submit,
-	 * re-init volatile members */
 	/* we still have a local reference,
 	 * get_ldev was done in receive_Data. */
-	bio->bi_bdev = mdev->ldev->backing_bdev;
-	bio->bi_sector = e->sector;
-	bio->bi_size = e->size;
-	bio->bi_idx = 0;
-
-	bio->bi_flags &= ~(BIO_POOL_MASK - 1);
-	bio->bi_flags |= 1 << BIO_UPTODATE;
-
-	/* don't know whether this is necessary: */
-	bio->bi_phys_segments = 0;
-	bio->bi_next = NULL;
-
-	/* these should be unchanged: */
-	/* bio->bi_end_io = drbd_endio_write_sec; */
-	/* bio->bi_vcnt = whatever; */
 
 	e->w.cb = e_end_block;
-
-	/* This is no longer a barrier request. */
-	bio->bi_rw &= ~(1UL << BIO_RW_BARRIER);
-
-	drbd_generic_make_request(mdev, DRBD_FAULT_DT_WR, bio);
-
+	if (drbd_submit_ee(mdev, e, WRITE, DRBD_FAULT_DT_WR) != 0) {
+		/* drbd_submit_ee fails for one reason only:
+		 * if was not able to allocate sufficient bios.
+		 * requeue, try again later. */
+		e->w.cb = w_e_reissue;
+		drbd_queue_work(&mdev->data.work, &e->w);
+	}
 	return 1;
 }
 
@@ -1261,13 +1356,13 @@ static int receive_Barrier(struct drbd_conf *mdev, struct p_header *h)
 static struct drbd_epoch_entry *
 read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __must_hold(local)
 {
+	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
 	struct drbd_epoch_entry *e;
-	struct bio_vec *bvec;
 	struct page *page;
-	struct bio *bio;
-	int dgs, ds, i, rr;
+	int dgs, ds, rr;
 	void *dig_in = mdev->int_dig_in;
 	void *dig_vv = mdev->int_dig_vv;
+	unsigned long *data;
 
 	dgs = (mdev->agreed_pro_version >= 87 && mdev->integrity_r_tfm) ?
 		crypto_hash_digestsize(mdev->integrity_r_tfm) : 0;
@@ -1286,29 +1381,44 @@ read_in_block(struct drbd_conf *mdev, u64 id, sector_t sector, int data_size) __
 	ERR_IF(data_size &  0x1ff) return NULL;
 	ERR_IF(data_size >  DRBD_MAX_SEGMENT_SIZE) return NULL;
 
+	/* even though we trust out peer,
+	 * we sometimes have to double check. */
+	if (sector + (data_size>>9) > capacity) {
+		dev_err(DEV, "capacity: %llus < sector: %llus + size: %u\n",
+			(unsigned long long)capacity,
+			(unsigned long long)sector, data_size);
+		return NULL;
+	}
+
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
 	 * "criss-cross" setup, that might cause write-out on some other DRBD,
 	 * which in turn might block on the other node at this very place.  */
 	e = drbd_alloc_ee(mdev, id, sector, data_size, GFP_NOIO);
 	if (!e)
 		return NULL;
-	bio = e->private_bio;
+
 	ds = data_size;
-	bio_for_each_segment(bvec, bio, i) {
-		page = bvec->bv_page;
-		rr = drbd_recv(mdev, kmap(page), min_t(int, ds, PAGE_SIZE));
+	page = e->pages;
+	page_chain_for_each(page) {
+		unsigned len = min_t(int, ds, PAGE_SIZE);
+		data = kmap(page);
+		rr = drbd_recv(mdev, data, len);
+		if (FAULT_ACTIVE(mdev, DRBD_FAULT_RECEIVE)) {
+			dev_err(DEV, "Fault injection: Corrupting data on receive\n");
+			data[0] = data[0] ^ (unsigned long)-1;
+		}
 		kunmap(page);
-		if (rr != min_t(int, ds, PAGE_SIZE)) {
+		if (rr != len) {
 			drbd_free_ee(mdev, e);
 			dev_warn(DEV, "short read receiving data: read %d expected %d\n",
-			     rr, min_t(int, ds, PAGE_SIZE));
+			     rr, len);
 			return NULL;
 		}
 		ds -= rr;
 	}
 
 	if (dgs) {
-		drbd_csum(mdev, mdev->integrity_r_tfm, bio, dig_vv);
+		drbd_csum_ee(mdev, mdev->integrity_r_tfm, e, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED.\n");
 			drbd_bcast_ee(mdev, "digest failed",
@@ -1330,7 +1440,10 @@ static int drbd_drain_block(struct drbd_conf *mdev, int data_size)
 	int rr, rv = 1;
 	void *data;
 
-	page = drbd_pp_alloc(mdev, 1);
+	if (!data_size)
+		return TRUE;
+
+	page = drbd_pp_alloc(mdev, 1, 1);
 
 	data = kmap(page);
 	while (data_size) {
@@ -1394,7 +1507,7 @@ static int recv_dless_read(struct drbd_conf *mdev, struct drbd_request *req,
 	}
 
 	if (dgs) {
-		drbd_csum(mdev, mdev->integrity_r_tfm, bio, dig_vv);
+		drbd_csum_bio(mdev, mdev->integrity_r_tfm, bio, dig_vv);
 		if (memcmp(dig_in, dig_vv, dgs)) {
 			dev_err(DEV, "Digest integrity check FAILED. Broken NICs?\n");
 			return 0;
@@ -1415,7 +1528,7 @@ static int e_end_resync_block(struct drbd_conf *mdev, struct drbd_work *w, int u
 
 	D_ASSERT(hlist_unhashed(&e->colision));
 
-	if (likely(drbd_bio_uptodate(e->private_bio))) {
+	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
 		drbd_set_in_sync(mdev, sector, e->size);
 		ok = drbd_send_ack(mdev, P_RS_WRITE_ACK, e);
 	} else {
@@ -1434,30 +1547,28 @@ static int recv_resync_read(struct drbd_conf *mdev, sector_t sector, int data_si
 	struct drbd_epoch_entry *e;
 
 	e = read_in_block(mdev, ID_SYNCER, sector, data_size);
-	if (!e) {
-		put_ldev(mdev);
-		return FALSE;
-	}
+	if (!e)
+		goto fail;
 
 	dec_rs_pending(mdev);
-
-	e->private_bio->bi_end_io = drbd_endio_write_sec;
-	e->private_bio->bi_rw = WRITE;
-	e->w.cb = e_end_resync_block;
 
 	inc_unacked(mdev);
 	/* corresponding dec_unacked() in e_end_resync_block()
 	 * respective _drbd_clear_done_ee */
 
+	e->w.cb = e_end_resync_block;
+
 	spin_lock_irq(&mdev->req_lock);
 	list_add(&e->w.list, &mdev->sync_ee);
 	spin_unlock_irq(&mdev->req_lock);
 
-	drbd_generic_make_request(mdev, DRBD_FAULT_RS_WR, e->private_bio);
-	/* accounting done in endio */
+	if (drbd_submit_ee(mdev, e, WRITE, DRBD_FAULT_RS_WR) == 0)
+		return TRUE;
 
-	maybe_kick_lo(mdev);
-	return TRUE;
+	drbd_free_ee(mdev, e);
+fail:
+	put_ldev(mdev);
+	return FALSE;
 }
 
 static int receive_DataReply(struct drbd_conf *mdev, struct p_header *h)
@@ -1552,7 +1663,7 @@ static int e_end_block(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	}
 
 	if (mdev->net_conf->wire_protocol == DRBD_PROT_C) {
-		if (likely(drbd_bio_uptodate(e->private_bio))) {
+		if (likely((e->flags & EE_WAS_ERROR) == 0)) {
 			pcmd = (mdev->state.conn >= C_SYNC_SOURCE &&
 				mdev->state.conn <= C_PAUSED_SYNC_T &&
 				e->flags & EE_MAY_SET_IN_SYNC) ?
@@ -1698,7 +1809,6 @@ static int receive_Data(struct drbd_conf *mdev, struct p_header *h)
 		return FALSE;
 	}
 
-	e->private_bio->bi_end_io = drbd_endio_write_sec;
 	e->w.cb = e_end_block;
 
 	spin_lock(&mdev->epoch_lock);
@@ -1894,12 +2004,8 @@ static int receive_Data(struct drbd_conf *mdev, struct p_header *h)
 		drbd_al_begin_io(mdev, e->sector);
 	}
 
-	e->private_bio->bi_rw = rw;
-	drbd_generic_make_request(mdev, DRBD_FAULT_DT_WR, e->private_bio);
-	/* accounting done in endio */
-
-	maybe_kick_lo(mdev);
-	return TRUE;
+	if (drbd_submit_ee(mdev, e, rw, DRBD_FAULT_DT_WR) == 0)
+		return TRUE;
 
 out_interrupted:
 	/* yes, the epoch_size now is imbalanced.
@@ -1945,7 +2051,7 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 			    "no local data.\n");
 		drbd_send_ack_rp(mdev, h->command == P_DATA_REQUEST ? P_NEG_DREPLY :
 				 P_NEG_RS_DREPLY , p);
-		return TRUE;
+		return drbd_drain_block(mdev, h->length - brps);
 	}
 
 	/* GFP_NOIO, because we must not cause arbitrary write-out: in a DRBD
@@ -1956,9 +2062,6 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 		put_ldev(mdev);
 		return FALSE;
 	}
-
-	e->private_bio->bi_rw = READ;
-	e->private_bio->bi_end_io = drbd_endio_read_sec;
 
 	switch (h->command) {
 	case P_DATA_REQUEST:
@@ -2053,10 +2156,8 @@ static int receive_DataRequest(struct drbd_conf *mdev, struct p_header *h)
 
 	inc_unacked(mdev);
 
-	drbd_generic_make_request(mdev, fault_type, e->private_bio);
-	maybe_kick_lo(mdev);
-
-	return TRUE;
+	if (drbd_submit_ee(mdev, e, READ, fault_type) == 0)
+		return TRUE;
 
 out_free_e:
 	kfree(di);
@@ -2473,6 +2574,9 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		     hg > 0 ? "source" : "target");
 	}
 
+	if (abs(hg) == 100)
+		drbd_khelper(mdev, "initial-split-brain");
+
 	if (hg == 100 || (hg == -100 && mdev->net_conf->always_asbp)) {
 		int pcount = (mdev->state.role == R_PRIMARY)
 			   + (peer_role == R_PRIMARY);
@@ -2518,7 +2622,7 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 		 * after an attempted attach on a diskless node.
 		 * We just refuse to attach -- well, we drop the "connection"
 		 * to that disk, in a way... */
-		dev_alert(DEV, "Split-Brain detected, dropping connection!\n");
+		dev_alert(DEV, "Split-Brain detected but unresolved, dropping connection!\n");
 		drbd_khelper(mdev, "split-brain");
 		return C_MASK;
 	}
@@ -2849,7 +2953,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 	unsigned int max_seg_s;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
-	enum drbd_conns nconn;
+	enum dds_flags ddsf;
 
 	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
 	if (drbd_recv(mdev, h->payload, h->length) != h->length)
@@ -2905,8 +3009,9 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 	}
 #undef min_not_zero
 
+	ddsf = be16_to_cpu(p->dds_flags);
 	if (get_ldev(mdev)) {
-	  dd = drbd_determin_dev_size(mdev, 0);
+		dd = drbd_determin_dev_size(mdev, ddsf);
 		put_ldev(mdev);
 		if (dd == dev_size_error)
 			return FALSE;
@@ -2916,33 +3021,21 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 		drbd_set_my_capacity(mdev, p_size);
 	}
 
-	if (mdev->p_uuid && mdev->state.conn <= C_CONNECTED && get_ldev(mdev)) {
-		nconn = drbd_sync_handshake(mdev,
-				mdev->state.peer, mdev->state.pdsk);
-		put_ldev(mdev);
-
-		if (nconn == C_MASK) {
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-			return FALSE;
-		}
-
-		if (drbd_request_state(mdev, NS(conn, nconn)) < SS_SUCCESS) {
-			drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
-			return FALSE;
-		}
-	}
-
 	if (get_ldev(mdev)) {
 		if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev)) {
 			mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
 			ldsc = 1;
 		}
 
-		max_seg_s = be32_to_cpu(p->max_segment_size);
+		if (mdev->agreed_pro_version < 94)
+			max_seg_s = be32_to_cpu(p->max_segment_size);
+		else /* drbd 8.3.8 onwards */
+			max_seg_s = DRBD_MAX_SEGMENT_SIZE;
+
 		if (max_seg_s != queue_max_segment_size(mdev->rq_queue))
 			drbd_setup_queue_param(mdev, max_seg_s);
 
-		drbd_setup_order_type(mdev, be32_to_cpu(p->queue_order_type));
+		drbd_setup_order_type(mdev, be16_to_cpu(p->queue_order_type));
 		put_ldev(mdev);
 	}
 
@@ -2951,14 +3044,17 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 		    drbd_get_capacity(mdev->this_bdev) || ldsc) {
 			/* we have different sizes, probably peer
 			 * needs to know my new size... */
-			drbd_send_sizes(mdev, 0);
+			drbd_send_sizes(mdev, 0, ddsf);
 		}
 		if (test_and_clear_bit(RESIZE_PENDING, &mdev->flags) ||
 		    (dd == grew && mdev->state.conn == C_CONNECTED)) {
 			if (mdev->state.pdsk >= D_INCONSISTENT &&
-			    mdev->state.disk >= D_INCONSISTENT)
-				resync_after_online_grow(mdev);
-			else
+			    mdev->state.disk >= D_INCONSISTENT) {
+				if (ddsf & DDSF_NO_RESYNC)
+					dev_info(DEV, "Resync of new storage suppressed with --assume-clean\n");
+				else
+					resync_after_online_grow(mdev);
+			} else
 				set_bit(RESYNC_AFTER_NEG, &mdev->flags);
 		}
 	}
@@ -3490,6 +3586,92 @@ static int receive_UnplugRemote(struct drbd_conf *mdev, struct p_header *h)
 	return TRUE;
 }
 
+static void timeval_sub_us(struct timeval* tv, unsigned int us)
+{
+	tv->tv_sec -= us / 1000000;
+	us = us % 1000000;
+	if (tv->tv_usec > us) {
+		tv->tv_usec += 1000000;
+		tv->tv_sec--;
+	}
+	tv->tv_usec -= us;
+}
+
+static void got_delay_probe(struct drbd_conf *mdev, int from, struct p_delay_probe *p)
+{
+	struct delay_probe *dp;
+	struct list_head *le;
+	struct timeval now;
+	int seq_num;
+	int offset;
+	int data_delay;
+
+	seq_num = be32_to_cpu(p->seq_num);
+	offset  = be32_to_cpu(p->offset);
+
+	spin_lock(&mdev->peer_seq_lock);
+	if (!list_empty(&mdev->delay_probes)) {
+		if (from == USE_DATA_SOCKET)
+			le = mdev->delay_probes.next;
+		else
+			le = mdev->delay_probes.prev;
+
+		dp = list_entry(le, struct delay_probe, list);
+
+		if (dp->seq_num == seq_num) {
+			list_del(le);
+			spin_unlock(&mdev->peer_seq_lock);
+			do_gettimeofday(&now);
+			timeval_sub_us(&now, offset);
+			data_delay =
+				now.tv_usec - dp->time.tv_usec +
+				(now.tv_sec - dp->time.tv_sec) * 1000000;
+
+			if (data_delay > 0)
+				mdev->data_delay = data_delay;
+
+			kfree(dp);
+			return;
+		}
+
+		if (dp->seq_num > seq_num) {
+			spin_unlock(&mdev->peer_seq_lock);
+			dev_warn(DEV, "Previous allocation failure of struct delay_probe?\n");
+			return; /* Do not alloca a struct delay_probe.... */
+		}
+	}
+	spin_unlock(&mdev->peer_seq_lock);
+
+	dp = kmalloc(sizeof(struct delay_probe), GFP_NOIO);
+	if (!dp) {
+		dev_warn(DEV, "Failed to allocate a struct delay_probe, do not worry.\n");
+		return;
+	}
+
+	dp->seq_num = seq_num;
+	do_gettimeofday(&dp->time);
+	timeval_sub_us(&dp->time, offset);
+
+	spin_lock(&mdev->peer_seq_lock);
+	if (from == USE_DATA_SOCKET)
+		list_add(&dp->list, &mdev->delay_probes);
+	else
+		list_add_tail(&dp->list, &mdev->delay_probes);
+	spin_unlock(&mdev->peer_seq_lock);
+}
+
+static int receive_delay_probe(struct drbd_conf *mdev, struct p_header *h)
+{
+	struct p_delay_probe *p = (struct p_delay_probe *)h;
+
+	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
+	if (drbd_recv(mdev, h->payload, h->length) != h->length)
+		return FALSE;
+
+	got_delay_probe(mdev, USE_DATA_SOCKET, p);
+	return TRUE;
+}
+
 typedef int (*drbd_cmd_handler_f)(struct drbd_conf *, struct p_header *);
 
 static drbd_cmd_handler_f drbd_default_handler[] = {
@@ -3513,6 +3695,7 @@ static drbd_cmd_handler_f drbd_default_handler[] = {
 	[P_OV_REQUEST]      = receive_DataRequest,
 	[P_OV_REPLY]        = receive_DataRequest,
 	[P_CSUM_RS_REQUEST]    = receive_DataRequest,
+	[P_DELAY_PROBE]     = receive_delay_probe,
 	/* anything missing from this table is in
 	 * the asender_tbl, see get_asender_cmd */
 	[P_MAX_CMD]	    = NULL,
@@ -3739,7 +3922,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 		dev_info(DEV, "net_ee not empty, killed %u entries\n", i);
 	i = atomic_read(&mdev->pp_in_use);
 	if (i)
-		dev_info(DEV, "pp_in_use = %u, expected 0\n", i);
+		dev_info(DEV, "pp_in_use = %d, expected 0\n", i);
 
 	D_ASSERT(list_empty(&mdev->read_ee));
 	D_ASSERT(list_empty(&mdev->active_ee));
@@ -4232,7 +4415,6 @@ static int got_NegRSDReply(struct drbd_conf *mdev, struct p_header *h)
 
 	sector = be64_to_cpu(p->sector);
 	size = be32_to_cpu(p->blksize);
-	D_ASSERT(p->block_id == ID_SYNCER);
 
 	update_peer_seq(mdev, be32_to_cpu(p->seq_num));
 
@@ -4290,6 +4472,14 @@ static int got_OVResult(struct drbd_conf *mdev, struct p_header *h)
 	return TRUE;
 }
 
+static int got_delay_probe_m(struct drbd_conf *mdev, struct p_header *h)
+{
+	struct p_delay_probe *p = (struct p_delay_probe *)h;
+
+	got_delay_probe(mdev, USE_META_SOCKET, p);
+	return TRUE;
+}
+
 struct asender_cmd {
 	size_t pkt_size;
 	int (*process)(struct drbd_conf *mdev, struct p_header *h);
@@ -4314,6 +4504,7 @@ static struct asender_cmd *get_asender_cmd(int cmd)
 	[P_BARRIER_ACK]	    = { sizeof(struct p_barrier_ack), got_BarrierAck },
 	[P_STATE_CHG_REPLY] = { sizeof(struct p_req_state_reply), got_RqSReply },
 	[P_RS_IS_IN_SYNC]   = { sizeof(struct p_block_ack), got_IsInSync },
+	[P_DELAY_PROBE]     = { sizeof(struct p_delay_probe), got_delay_probe_m },
 	[P_MAX_CMD]	    = { 0, NULL },
 	};
 	if (cmd > P_MAX_CMD || asender_tbl[cmd].process == NULL)

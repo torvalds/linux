@@ -14,20 +14,23 @@
 #include <linux/workqueue.h>
 #include "ring_sw.h"
 
-static inline int __iio_init_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
-					    int bytes_per_datum, int length)
+static inline int __iio_allocate_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
+						int bytes_per_datum, int length)
 {
 	if ((length == 0) || (bytes_per_datum == 0))
 		return -EINVAL;
-
-	__iio_init_ring_buffer(&ring->buf, bytes_per_datum, length);
-	spin_lock_init(&ring->use_lock);
-	ring->data = kmalloc(length*ring->buf.bpd, GFP_KERNEL);
-	ring->read_p = 0;
-	ring->write_p = 0;
-	ring->last_written_p = 0;
-	ring->half_p = 0;
+	__iio_update_ring_buffer(&ring->buf, bytes_per_datum, length);
+	ring->data = kmalloc(length*ring->buf.bpd, GFP_ATOMIC);
+	ring->read_p = NULL;
+	ring->write_p = NULL;
+	ring->last_written_p = NULL;
+	ring->half_p = NULL;
 	return ring->data ? 0 : -ENOMEM;
+}
+
+static inline void __iio_init_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
+{
+	spin_lock_init(&ring->use_lock);
 }
 
 static inline void __iio_free_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
@@ -59,16 +62,15 @@ EXPORT_SYMBOL(iio_unmark_sw_rb_in_use);
  * in the device driver */
 /* Lock always held if their is a chance this may be called */
 /* Only one of these per ring may run concurrently - enforced by drivers */
-int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
-			 unsigned char *data,
-			 s64 timestamp)
+static int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
+				unsigned char *data, s64 timestamp)
 {
 	int ret = 0;
 	int code;
 	unsigned char *temp_ptr, *change_test_ptr;
 
 	/* initial store */
-	if (unlikely(ring->write_p == 0)) {
+	if (unlikely(ring->write_p == NULL)) {
 		ring->write_p = ring->data;
 		/* Doesn't actually matter if this is out of the set
 		 * as long as the read pointer is valid before this
@@ -99,7 +101,7 @@ int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 	 */
 	ring->write_p = temp_ptr;
 
-	if (ring->read_p == 0)
+	if (ring->read_p == NULL)
 		ring->read_p = ring->data;
 	/* Buffer full - move the read pointer and create / escalate
 	 * ring event */
@@ -123,8 +125,7 @@ int iio_store_to_sw_ring(struct iio_sw_ring_buffer *ring,
 		spin_lock(&ring->buf.shared_ev_pointer.lock);
 
 		ret = iio_push_or_escallate_ring_event(&ring->buf,
-						       IIO_EVENT_CODE_RING_100_FULL,
-						       timestamp);
+			       IIO_EVENT_CODE_RING_100_FULL, timestamp);
 		spin_unlock(&ring->buf.shared_ev_pointer.lock);
 		if (ret)
 			goto error_ret;
@@ -180,7 +181,7 @@ int iio_rip_sw_rb(struct iio_ring_buffer *r,
 
 	/* build local copy */
 	initial_read_p = ring->read_p;
-	if (unlikely(initial_read_p == 0)) { /* No data here as yet */
+	if (unlikely(initial_read_p == NULL)) { /* No data here as yet */
 		ret = 0;
 		goto error_free_data_cpy;
 	}
@@ -278,8 +279,8 @@ int iio_store_to_sw_rb(struct iio_ring_buffer *r, u8 *data, s64 timestamp)
 }
 EXPORT_SYMBOL(iio_store_to_sw_rb);
 
-int iio_read_last_from_sw_ring(struct iio_sw_ring_buffer *ring,
-			       unsigned char *data)
+static int iio_read_last_from_sw_ring(struct iio_sw_ring_buffer *ring,
+				      unsigned char *data)
 {
 	unsigned char *last_written_p_copy;
 
@@ -289,7 +290,7 @@ again:
 	last_written_p_copy = ring->last_written_p;
 	barrier(); /*unnessecary? */
 	/* Check there is anything here */
-	if (last_written_p_copy == 0)
+	if (last_written_p_copy == NULL)
 		return -EAGAIN;
 	memcpy(data, last_written_p_copy, ring->buf.bpd);
 
@@ -320,7 +321,8 @@ int iio_request_update_sw_rb(struct iio_ring_buffer *r)
 		goto error_ret;
 	}
 	__iio_free_sw_ring_buffer(ring);
-	ret = __iio_init_sw_ring_buffer(ring, ring->buf.bpd, ring->buf.length);
+	ret = __iio_allocate_sw_ring_buffer(ring, ring->buf.bpd,
+					    ring->buf.length);
 error_ret:
 	spin_unlock(&ring->use_lock);
 	return ret;
@@ -409,14 +411,14 @@ struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 
 	ring = kzalloc(sizeof *ring, GFP_KERNEL);
 	if (!ring)
-		return 0;
+		return NULL;
 	buf = &ring->buf;
-
 	iio_ring_buffer_init(buf, indio_dev);
+	__iio_init_sw_ring_buffer(ring);
 	buf->dev.type = &iio_sw_ring_type;
 	device_initialize(&buf->dev);
 	buf->dev.parent = &indio_dev->dev;
-	buf->dev.class = &iio_class;
+	buf->dev.bus = &iio_bus_type;
 	dev_set_drvdata(&buf->dev, (void *)buf);
 
 	return buf;

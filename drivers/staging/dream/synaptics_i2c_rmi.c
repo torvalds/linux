@@ -109,9 +109,7 @@ static void decode_report(struct synaptics_ts_data *ts, u8 *buf)
 	int f, a;
 	int base = 2;
 	int z = buf[1];
-	int w = buf[0] >> 4;
 	int finger = buf[0] & 7;
-	int finger2_pressed;
 
 	for (f = 0; f < 2; f++) {
 		u32 flip_flag = SYNAPTICS_FLIP_X;
@@ -151,14 +149,7 @@ static void decode_report(struct synaptics_ts_data *ts, u8 *buf)
 		input_report_abs(ts->input_dev, ABS_Y, pos[0][1]);
 	}
 	input_report_abs(ts->input_dev, ABS_PRESSURE, z);
-	input_report_abs(ts->input_dev, ABS_TOOL_WIDTH, w);
 	input_report_key(ts->input_dev, BTN_TOUCH, finger);
-	finger2_pressed = finger > 1 && finger != 7;
-	input_report_key(ts->input_dev, BTN_2, finger2_pressed);
-	if (finger2_pressed) {
-		input_report_abs(ts->input_dev, ABS_HAT0X, pos[1][0]);
-		input_report_abs(ts->input_dev, ABS_HAT0Y, pos[1][1]);
-	}
 	input_sync(ts->input_dev);
 }
 
@@ -208,8 +199,6 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
 		decode_report(ts, buf);
 	}
-	if (ts->use_irq)
-		enable_irq(ts->client->irq);
 }
 
 static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
@@ -227,8 +216,7 @@ static irqreturn_t synaptics_ts_irq_handler(int irq, void *dev_id)
 {
 	struct synaptics_ts_data *ts = dev_id;
 
-	disable_irq_nosync(ts->client->irq);
-	queue_work(synaptics_wq, &ts->work);
+	synaptics_ts_work_func(&ts->work);
 	return IRQ_HANDLED;
 }
 
@@ -347,11 +335,6 @@ static void compute_areas(struct synaptics_ts_data *ts,
 			     -inactive_area_top, max_y + inactive_area_bottom,
 			     fuzz_y, 0);
 	input_set_abs_params(ts->input_dev, ABS_PRESSURE, 0, 255, fuzz_p, 0);
-	input_set_abs_params(ts->input_dev, ABS_TOOL_WIDTH, 0, 15, fuzz_w, 0);
-	input_set_abs_params(ts->input_dev, ABS_HAT0X, -inactive_area_left,
-			     max_x + inactive_area_right, fuzz_x, 0);
-	input_set_abs_params(ts->input_dev, ABS_HAT0Y, -inactive_area_top,
-			     max_y + inactive_area_bottom, fuzz_y, 0);
 }
 
 static struct synaptics_i2c_rmi_platform_data fake_pdata;
@@ -487,7 +470,6 @@ static int __devinit synaptics_ts_probe(
 	__set_bit(EV_SYN, ts->input_dev->evbit);
 	__set_bit(EV_KEY, ts->input_dev->evbit);
 	__set_bit(BTN_TOUCH, ts->input_dev->keybit);
-	__set_bit(BTN_2, ts->input_dev->keybit);
 	__set_bit(EV_ABS, ts->input_dev->evbit);
 
 	compute_areas(ts, pdata, max_x, max_y);
@@ -500,8 +482,10 @@ static int __devinit synaptics_ts_probe(
 		goto err_input_register_device_failed;
 	}
 	if (client->irq) {
-		ret = request_irq(client->irq, synaptics_ts_irq_handler,
-				  0, client->name, ts);
+		ret = request_threaded_irq(client->irq, NULL,
+					synaptics_ts_irq_handler,
+					IRQF_TRIGGER_LOW|IRQF_ONESHOT,
+					client->name, ts);
 		if (ret == 0) {
 			ret = i2c_set(ts, 0xf1, 0x01, "enable abs int");
 			if (ret)

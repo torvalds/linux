@@ -8,14 +8,11 @@
 #include <linux/module.h>
 #include <linux/mount.h>
 #include <linux/parser.h>
-#include <linux/rwsem.h>
 #include <linux/sched.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/string.h>
-#include <linux/version.h>
-#include <linux/vmalloc.h>
 
 #include "decode.h"
 #include "super.h"
@@ -92,7 +89,7 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_files = le64_to_cpu(st.num_objects);
 	buf->f_ffree = -1;
-	buf->f_namelen = PATH_MAX;
+	buf->f_namelen = NAME_MAX;
 	buf->f_frsize = PAGE_CACHE_SIZE;
 
 	/* leave fsid little-endian, regardless of host endianness */
@@ -107,58 +104,10 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 static int ceph_syncfs(struct super_block *sb, int wait)
 {
 	dout("sync_fs %d\n", wait);
-	ceph_osdc_sync(&ceph_client(sb)->osdc);
-	ceph_mdsc_sync(&ceph_client(sb)->mdsc);
+	ceph_osdc_sync(&ceph_sb_to_client(sb)->osdc);
+	ceph_mdsc_sync(&ceph_sb_to_client(sb)->mdsc);
 	dout("sync_fs %d done\n", wait);
 	return 0;
-}
-
-
-/**
- * ceph_show_options - Show mount options in /proc/mounts
- * @m: seq_file to write to
- * @mnt: mount descriptor
- */
-static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
-{
-	struct ceph_client *client = ceph_sb_to_client(mnt->mnt_sb);
-	struct ceph_mount_args *args = client->mount_args;
-
-	if (args->flags & CEPH_OPT_FSID)
-		seq_printf(m, ",fsidmajor=%llu,fsidminor%llu",
-			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[0]),
-			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[8]));
-	if (args->flags & CEPH_OPT_NOSHARE)
-		seq_puts(m, ",noshare");
-	if (args->flags & CEPH_OPT_DIRSTAT)
-		seq_puts(m, ",dirstat");
-	if ((args->flags & CEPH_OPT_RBYTES) == 0)
-		seq_puts(m, ",norbytes");
-	if (args->flags & CEPH_OPT_NOCRC)
-		seq_puts(m, ",nocrc");
-	if (args->flags & CEPH_OPT_NOASYNCREADDIR)
-		seq_puts(m, ",noasyncreaddir");
-	if (strcmp(args->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
-		seq_printf(m, ",snapdirname=%s", args->snapdir_name);
-	if (args->name)
-		seq_printf(m, ",name=%s", args->name);
-	if (args->secret)
-		seq_puts(m, ",secret=<hidden>");
-	return 0;
-}
-
-/*
- * caches
- */
-struct kmem_cache *ceph_inode_cachep;
-struct kmem_cache *ceph_cap_cachep;
-struct kmem_cache *ceph_dentry_cachep;
-struct kmem_cache *ceph_file_cachep;
-
-static void ceph_inode_init_once(void *foo)
-{
-	struct ceph_inode_info *ci = foo;
-	inode_init_once(&ci->vfs_inode);
 }
 
 static int default_congestion_kb(void)
@@ -188,6 +137,82 @@ static int default_congestion_kb(void)
 		congestion_kb = 256*1024;
 
 	return congestion_kb;
+}
+
+/**
+ * ceph_show_options - Show mount options in /proc/mounts
+ * @m: seq_file to write to
+ * @mnt: mount descriptor
+ */
+static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
+{
+	struct ceph_client *client = ceph_sb_to_client(mnt->mnt_sb);
+	struct ceph_mount_args *args = client->mount_args;
+
+	if (args->flags & CEPH_OPT_FSID)
+		seq_printf(m, ",fsidmajor=%llu,fsidminor%llu",
+			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[0]),
+			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[8]));
+	if (args->flags & CEPH_OPT_NOSHARE)
+		seq_puts(m, ",noshare");
+	if (args->flags & CEPH_OPT_DIRSTAT)
+		seq_puts(m, ",dirstat");
+	if ((args->flags & CEPH_OPT_RBYTES) == 0)
+		seq_puts(m, ",norbytes");
+	if (args->flags & CEPH_OPT_NOCRC)
+		seq_puts(m, ",nocrc");
+	if (args->flags & CEPH_OPT_NOASYNCREADDIR)
+		seq_puts(m, ",noasyncreaddir");
+
+	if (args->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
+		seq_printf(m, ",mount_timeout=%d", args->mount_timeout);
+	if (args->osd_idle_ttl != CEPH_OSD_IDLE_TTL_DEFAULT)
+		seq_printf(m, ",osd_idle_ttl=%d", args->osd_idle_ttl);
+	if (args->osd_timeout != CEPH_OSD_TIMEOUT_DEFAULT)
+		seq_printf(m, ",osdtimeout=%d", args->osd_timeout);
+	if (args->osd_keepalive_timeout != CEPH_OSD_KEEPALIVE_DEFAULT)
+		seq_printf(m, ",osdkeepalivetimeout=%d",
+			 args->osd_keepalive_timeout);
+	if (args->wsize)
+		seq_printf(m, ",wsize=%d", args->wsize);
+	if (args->rsize != CEPH_MOUNT_RSIZE_DEFAULT)
+		seq_printf(m, ",rsize=%d", args->rsize);
+	if (args->congestion_kb != default_congestion_kb())
+		seq_printf(m, ",write_congestion_kb=%d", args->congestion_kb);
+	if (args->caps_wanted_delay_min != CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT)
+		seq_printf(m, ",caps_wanted_delay_min=%d",
+			 args->caps_wanted_delay_min);
+	if (args->caps_wanted_delay_max != CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT)
+		seq_printf(m, ",caps_wanted_delay_max=%d",
+			   args->caps_wanted_delay_max);
+	if (args->cap_release_safety != CEPH_CAP_RELEASE_SAFETY_DEFAULT)
+		seq_printf(m, ",cap_release_safety=%d",
+			   args->cap_release_safety);
+	if (args->max_readdir != CEPH_MAX_READDIR_DEFAULT)
+		seq_printf(m, ",readdir_max_entries=%d", args->max_readdir);
+	if (args->max_readdir_bytes != CEPH_MAX_READDIR_BYTES_DEFAULT)
+		seq_printf(m, ",readdir_max_bytes=%d", args->max_readdir_bytes);
+	if (strcmp(args->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
+		seq_printf(m, ",snapdirname=%s", args->snapdir_name);
+	if (args->name)
+		seq_printf(m, ",name=%s", args->name);
+	if (args->secret)
+		seq_puts(m, ",secret=<hidden>");
+	return 0;
+}
+
+/*
+ * caches
+ */
+struct kmem_cache *ceph_inode_cachep;
+struct kmem_cache *ceph_cap_cachep;
+struct kmem_cache *ceph_dentry_cachep;
+struct kmem_cache *ceph_file_cachep;
+
+static void ceph_inode_init_once(void *foo)
+{
+	struct ceph_inode_info *ci = foo;
+	inode_init_once(&ci->vfs_inode);
 }
 
 static int __init init_caches(void)
@@ -308,7 +333,9 @@ enum {
 	Opt_osd_idle_ttl,
 	Opt_caps_wanted_delay_min,
 	Opt_caps_wanted_delay_max,
+	Opt_cap_release_safety,
 	Opt_readdir_max_entries,
+	Opt_readdir_max_bytes,
 	Opt_congestion_kb,
 	Opt_last_int,
 	/* int args above */
@@ -339,7 +366,9 @@ static match_table_t arg_tokens = {
 	{Opt_osd_idle_ttl, "osd_idle_ttl=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
+	{Opt_cap_release_safety, "cap_release_safety=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
+	{Opt_readdir_max_bytes, "readdir_max_bytes=%d"},
 	{Opt_congestion_kb, "write_congestion_kb=%d"},
 	/* int args above */
 	{Opt_snapdirname, "snapdirname=%s"},
@@ -388,8 +417,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	args->caps_wanted_delay_max = CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT;
 	args->rsize = CEPH_MOUNT_RSIZE_DEFAULT;
 	args->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
-	args->cap_release_safety = CEPH_CAPS_PER_RELEASE * 4;
-	args->max_readdir = 1024;
+	args->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
+	args->max_readdir = CEPH_MAX_READDIR_DEFAULT;
+	args->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
 	args->congestion_kb = default_congestion_kb();
 
 	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
@@ -496,6 +526,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 			break;
 		case Opt_readdir_max_entries:
 			args->max_readdir = intval;
+			break;
+		case Opt_readdir_max_bytes:
+			args->max_readdir_bytes = intval;
 			break;
 		case Opt_congestion_kb:
 			args->congestion_kb = intval;
@@ -636,8 +669,16 @@ static void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_mdsc_stop(&client->mdsc);
-	ceph_monc_stop(&client->monc);
 	ceph_osdc_stop(&client->osdc);
+
+	/*
+	 * make sure mds and osd connections close out before destroying
+	 * the auth module, which is needed to free those connections'
+	 * ceph_authorizers.
+	 */
+	ceph_msgr_flush();
+
+	ceph_monc_stop(&client->monc);
 
 	ceph_adjust_min_caps(-client->min_caps);
 
@@ -682,9 +723,10 @@ int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid)
 /*
  * true if we have the mon map (and have thus joined the cluster)
  */
-static int have_mon_map(struct ceph_client *client)
+static int have_mon_and_osd_map(struct ceph_client *client)
 {
-	return client->monc.monmap && client->monc.monmap->epoch;
+	return client->monc.monmap && client->monc.monmap->epoch &&
+	       client->osdc.osdmap && client->osdc.osdmap->epoch;
 }
 
 /*
@@ -704,7 +746,7 @@ static struct dentry *open_root_dentry(struct ceph_client *client,
 	dout("open_root_inode opening '%s'\n", path);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
 	if (IS_ERR(req))
-		return ERR_PTR(PTR_ERR(req));
+		return ERR_CAST(req);
 	req->r_path1 = kstrdup(path, GFP_NOFS);
 	req->r_ino1.ino = CEPH_INO_ROOT;
 	req->r_ino1.snap = CEPH_NOSNAP;
@@ -762,7 +804,7 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 	if (err < 0)
 		goto out;
 
-	while (!have_mon_map(client)) {
+	while (!have_mon_and_osd_map(client)) {
 		err = -EIO;
 		if (timeout && time_after_eq(jiffies, started + timeout))
 			goto out;
@@ -770,8 +812,8 @@ static int ceph_mount(struct ceph_client *client, struct vfsmount *mnt,
 		/* wait */
 		dout("mount waiting for mon_map\n");
 		err = wait_event_interruptible_timeout(client->auth_wq,
-			       have_mon_map(client) || (client->auth_err < 0),
-			       timeout);
+		       have_mon_and_osd_map(client) || (client->auth_err < 0),
+		       timeout);
 		if (err == -EINTR || err == -ERESTARTSYS)
 			goto out;
 		if (client->auth_err < 0) {
@@ -884,6 +926,8 @@ static int ceph_compare_super(struct super_block *sb, void *data)
 /*
  * construct our own bdi so we can control readahead, etc.
  */
+static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
+
 static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 {
 	int err;
@@ -893,7 +937,8 @@ static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 		client->backing_dev_info.ra_pages =
 			(client->mount_args->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
-	err = bdi_register_dev(&client->backing_dev_info, sb->s_dev);
+	err = bdi_register(&client->backing_dev_info, NULL, "ceph-%d",
+			   atomic_long_inc_return(&bdi_seq));
 	if (!err)
 		sb->s_bdi = &client->backing_dev_info;
 	return err;
@@ -932,9 +977,9 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 		goto out;
 	}
 
-	if (ceph_client(sb) != client) {
+	if (ceph_sb_to_client(sb) != client) {
 		ceph_destroy_client(client);
-		client = ceph_client(sb);
+		client = ceph_sb_to_client(sb);
 		dout("get_sb got existing client %p\n", client);
 	} else {
 		dout("get_sb using new client %p\n", client);
@@ -952,8 +997,7 @@ static int ceph_get_sb(struct file_system_type *fs_type,
 
 out_splat:
 	ceph_mdsc_close_sessions(&client->mdsc);
-	up_write(&sb->s_umount);
-	deactivate_super(sb);
+	deactivate_locked_super(sb);
 	goto out_final;
 
 out:

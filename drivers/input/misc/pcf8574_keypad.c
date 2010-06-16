@@ -168,8 +168,6 @@ static int __devexit pcf8574_kp_remove(struct i2c_client *client)
 	input_unregister_device(lp->idev);
 	kfree(lp);
 
-	i2c_set_clientdata(client, NULL);
-
 	return 0;
 }
 

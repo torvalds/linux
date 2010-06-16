@@ -397,7 +397,7 @@ static int __init spi_ppc4xx_of_probe(struct of_device *op,
 	struct spi_master *master;
 	struct spi_bitbang *bbp;
 	struct resource resource;
-	struct device_node *np = op->node;
+	struct device_node *np = op->dev.of_node;
 	struct device *dev = &op->dev;
 	struct device_node *opbnp;
 	int ret;
@@ -587,12 +587,12 @@ static const struct of_device_id spi_ppc4xx_of_match[] = {
 MODULE_DEVICE_TABLE(of, spi_ppc4xx_of_match);
 
 static struct of_platform_driver spi_ppc4xx_of_driver = {
-	.match_table = spi_ppc4xx_of_match,
 	.probe = spi_ppc4xx_of_probe,
 	.remove = __exit_p(spi_ppc4xx_of_remove),
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = spi_ppc4xx_of_match,
 	},
 };
 

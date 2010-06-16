@@ -14,6 +14,7 @@
 #include <linux/dnotify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pipe_fs_i.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
@@ -273,7 +274,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 
 	ret = copy_from_user(&owner, owner_p, sizeof(owner));
 	if (ret)
-		return ret;
+		return -EFAULT;
 
 	switch (owner.type) {
 	case F_OWNER_TID:
@@ -331,8 +332,11 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 	}
 	read_unlock(&filp->f_owner.lock);
 
-	if (!ret)
+	if (!ret) {
 		ret = copy_to_user(owner_p, &owner, sizeof(owner));
+		if (ret)
+			ret = -EFAULT;
+	}
 	return ret;
 }
 
@@ -411,6 +415,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_NOTIFY:
 		err = fcntl_dirnotify(fd, filp, arg);
+		break;
+	case F_SETPIPE_SZ:
+	case F_GETPIPE_SZ:
+		err = pipe_fcntl(filp, cmd, arg);
 		break;
 	default:
 		break;

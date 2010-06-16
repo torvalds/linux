@@ -109,12 +109,7 @@ DEFINE_IMX_GPT_DEVICE(4, MX27_GPT5_BASE_ADDR, MX27_INT_GPT5);
 DEFINE_IMX_GPT_DEVICE(5, MX27_GPT6_BASE_ADDR, MX27_INT_GPT6);
 #endif
 
-/*
- * Watchdog:
- * - i.MX1
- * - i.MX21
- * - i.MX27
- */
+/* Watchdog: i.MX1 has seperate driver, i.MX21 and i.MX27 are equal */
 static struct resource mxc_wdt_resources[] = {
 	{
 		.start = MX2x_WDOG_BASE_ADDR,
@@ -124,7 +119,7 @@ static struct resource mxc_wdt_resources[] = {
 };
 
 struct platform_device mxc_wdt = {
-	.name = "mxc_wdt",
+	.name = "imx2-wdt",
 	.id = 0,
 	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
 	.resource = mxc_wdt_resources,
@@ -483,8 +478,8 @@ int __init mxc_register_gpios(void)
 #ifdef CONFIG_MACH_MX21
 static struct resource mx21_usbhc_resources[] = {
 	{
-		.start	= MX21_BASE_ADDR,
-		.end	= MX21_BASE_ADDR + 0x1FFF,
+		.start	= MX21_USBOTG_BASE_ADDR,
+		.end	= MX21_USBOTG_BASE_ADDR + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{

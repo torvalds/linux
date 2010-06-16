@@ -186,15 +186,19 @@ struct request {
 	};
 
 	/*
-	 * two pointers are available for the IO schedulers, if they need
+	 * Three pointers are available for the IO schedulers, if they need
 	 * more they have to dynamically allocate it.
 	 */
 	void *elevator_private;
 	void *elevator_private2;
+	void *elevator_private3;
 
 	struct gendisk *rq_disk;
 	unsigned long start_time;
-
+#ifdef CONFIG_BLK_CGROUP
+	unsigned long long start_time_ns;
+	unsigned long long io_start_time_ns;    /* when passed to hardware */
+#endif
 	/* Number of scatter-gather DMA addr+len pairs after
 	 * physical address coalescing is performed.
 	 */
@@ -917,7 +921,12 @@ extern void blk_abort_queue(struct request_queue *);
  */
 extern struct request_queue *blk_init_queue_node(request_fn_proc *rfn,
 					spinlock_t *lock, int node_id);
+extern struct request_queue *blk_init_allocated_queue_node(struct request_queue *,
+							   request_fn_proc *,
+							   spinlock_t *, int node_id);
 extern struct request_queue *blk_init_queue(request_fn_proc *, spinlock_t *);
+extern struct request_queue *blk_init_allocated_queue(struct request_queue *,
+						      request_fn_proc *, spinlock_t *);
 extern void blk_cleanup_queue(struct request_queue *);
 extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
 extern void blk_queue_bounce_limit(struct request_queue *, u64);
@@ -994,20 +1003,25 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 		return NULL;
 	return bqt->tag_index[tag];
 }
-
-extern int blkdev_issue_flush(struct block_device *, sector_t *);
-#define DISCARD_FL_WAIT		0x01	/* wait for completion */
-#define DISCARD_FL_BARRIER	0x02	/* issue DISCARD_BARRIER request */
-extern int blkdev_issue_discard(struct block_device *, sector_t sector,
-		sector_t nr_sects, gfp_t, int flags);
-
+enum{
+	BLKDEV_WAIT,	/* wait for completion */
+	BLKDEV_BARRIER,	/*issue request with barrier */
+};
+#define BLKDEV_IFL_WAIT		(1 << BLKDEV_WAIT)
+#define BLKDEV_IFL_BARRIER	(1 << BLKDEV_BARRIER)
+extern int blkdev_issue_flush(struct block_device *, gfp_t, sector_t *,
+			unsigned long);
+extern int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+		sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
+extern int blkdev_issue_zeroout(struct block_device *bdev, sector_t sector,
+			sector_t nr_sects, gfp_t gfp_mask, unsigned long flags);
 static inline int sb_issue_discard(struct super_block *sb,
 				   sector_t block, sector_t nr_blocks)
 {
 	block <<= (sb->s_blocksize_bits - 9);
 	nr_blocks <<= (sb->s_blocksize_bits - 9);
 	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_KERNEL,
-				    DISCARD_FL_BARRIER);
+				   BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
@@ -1196,6 +1210,48 @@ static inline void put_dev_sector(Sector p)
 struct work_struct;
 int kblockd_schedule_work(struct request_queue *q, struct work_struct *work);
 
+#ifdef CONFIG_BLK_CGROUP
+/*
+ * This should not be using sched_clock(). A real patch is in progress
+ * to fix this up, until that is in place we need to disable preemption
+ * around sched_clock() in this function and set_io_start_time_ns().
+ */
+static inline void set_start_time_ns(struct request *req)
+{
+	preempt_disable();
+	req->start_time_ns = sched_clock();
+	preempt_enable();
+}
+
+static inline void set_io_start_time_ns(struct request *req)
+{
+	preempt_disable();
+	req->io_start_time_ns = sched_clock();
+	preempt_enable();
+}
+
+static inline uint64_t rq_start_time_ns(struct request *req)
+{
+        return req->start_time_ns;
+}
+
+static inline uint64_t rq_io_start_time_ns(struct request *req)
+{
+        return req->io_start_time_ns;
+}
+#else
+static inline void set_start_time_ns(struct request *req) {}
+static inline void set_io_start_time_ns(struct request *req) {}
+static inline uint64_t rq_start_time_ns(struct request *req)
+{
+	return 0;
+}
+static inline uint64_t rq_io_start_time_ns(struct request *req)
+{
+	return 0;
+}
+#endif
+
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
@@ -1283,10 +1339,11 @@ struct block_device_operations {
 	int (*direct_access) (struct block_device *, sector_t,
 						void **, unsigned long *);
 	int (*media_changed) (struct gendisk *);
-	unsigned long long (*set_capacity) (struct gendisk *,
-						unsigned long long);
+	void (*unlock_native_capacity) (struct gendisk *);
 	int (*revalidate_disk) (struct gendisk *);
 	int (*getgeo)(struct block_device *, struct hd_geometry *);
+	/* this callback is with swap_lock and sometimes page table lock held */
+	void (*swap_slot_free_notify) (struct block_device *, unsigned long);
 	struct module *owner;
 };
 

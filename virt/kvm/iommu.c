@@ -127,7 +127,7 @@ static int kvm_iommu_map_memslots(struct kvm *kvm)
 	int i, r = 0;
 	struct kvm_memslots *slots;
 
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		r = kvm_iommu_map_pages(kvm, &slots->memslots[i]);
@@ -271,7 +271,7 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 		pfn  = phys >> PAGE_SHIFT;
 
 		/* Unmap address from IO address space */
-		order       = iommu_unmap(domain, gfn_to_gpa(gfn), PAGE_SIZE);
+		order       = iommu_unmap(domain, gfn_to_gpa(gfn), 0);
 		unmap_pages = 1ULL << order;
 
 		/* Unpin all pages we just unmapped to not leak any memory */
@@ -286,7 +286,7 @@ static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 	int i;
 	struct kvm_memslots *slots;
 
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
 
 	for (i = 0; i < slots->nmemslots; i++) {
 		kvm_iommu_put_pages(kvm, slots->memslots[i].base_gfn,

@@ -152,6 +152,7 @@ struct c4iw_dev {
 	struct list_head entry;
 	struct delayed_work db_drop_task;
 	struct dentry *debugfs_root;
+	u8 registered;
 };
 
 static inline struct c4iw_dev *to_c4iw_dev(struct ib_device *ibdev)

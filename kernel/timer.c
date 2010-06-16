@@ -750,13 +750,18 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 	unsigned long expires_limit, mask;
 	int bit;
 
-	expires_limit = expires + timer->slack;
+	expires_limit = expires;
 
-	if (timer->slack < 0) /* auto slack: use 0.4% */
-		expires_limit = expires + (expires - jiffies)/256;
+	if (timer->slack >= 0) {
+		expires_limit = expires + timer->slack;
+	} else {
+		unsigned long now = jiffies;
 
+		/* No slack, if already expired else auto slack 0.4% */
+		if (time_after(expires, now))
+			expires_limit = expires + (expires - now)/256;
+	}
 	mask = expires ^ expires_limit;
-
 	if (mask == 0)
 		return expires;
 
@@ -1679,11 +1684,14 @@ static int __cpuinit timer_cpu_notify(struct notifier_block *self,
 				unsigned long action, void *hcpu)
 {
 	long cpu = (long)hcpu;
+	int err;
+
 	switch(action) {
 	case CPU_UP_PREPARE:
 	case CPU_UP_PREPARE_FROZEN:
-		if (init_timers_cpu(cpu) < 0)
-			return NOTIFY_BAD;
+		err = init_timers_cpu(cpu);
+		if (err < 0)
+			return notifier_from_errno(err);
 		break;
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_DEAD:
@@ -1709,7 +1717,7 @@ void __init init_timers(void)
 
 	init_timer_stats();
 
-	BUG_ON(err == NOTIFY_BAD);
+	BUG_ON(err != NOTIFY_OK);
 	register_cpu_notifier(&timers_nb);
 	open_softirq(TIMER_SOFTIRQ, run_timer_softirq);
 }

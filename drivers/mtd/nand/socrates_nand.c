@@ -183,7 +183,7 @@ static int __devinit socrates_nand_probe(struct of_device *ofdev,
 		return -ENOMEM;
 	}
 
-	host->io_base = of_iomap(ofdev->node, 0);
+	host->io_base = of_iomap(ofdev->dev.of_node, 0);
 	if (host->io_base == NULL) {
 		printk(KERN_ERR "socrates_nand: ioremap failed\n");
 		kfree(host);
@@ -244,7 +244,7 @@ static int __devinit socrates_nand_probe(struct of_device *ofdev,
 #ifdef CONFIG_MTD_OF_PARTS
 	if (num_partitions == 0) {
 		num_partitions = of_mtd_parse_partitions(&ofdev->dev,
-							 ofdev->node,
+							 ofdev->dev.of_node,
 							 &partitions);
 		if (num_partitions < 0) {
 			res = num_partitions;
@@ -301,8 +301,11 @@ static const struct of_device_id socrates_nand_match[] =
 MODULE_DEVICE_TABLE(of, socrates_nand_match);
 
 static struct of_platform_driver socrates_nand_driver = {
-	.name		= "socrates_nand",
-	.match_table	= socrates_nand_match,
+	.driver = {
+		.name = "socrates_nand",
+		.owner = THIS_MODULE,
+		.of_match_table = socrates_nand_match,
+	},
 	.probe		= socrates_nand_probe,
 	.remove		= __devexit_p(socrates_nand_remove),
 };

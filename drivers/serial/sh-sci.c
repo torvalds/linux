@@ -1004,8 +1004,9 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 	s->chan_rx = NULL;
 	s->cookie_rx[0] = s->cookie_rx[1] = -EINVAL;
 	dma_release_channel(chan);
-	dma_free_coherent(port->dev, s->buf_len_rx * 2,
-			  sg_virt(&s->sg_rx[0]), sg_dma_address(&s->sg_rx[0]));
+	if (sg_dma_address(&s->sg_rx[0]))
+		dma_free_coherent(port->dev, s->buf_len_rx * 2,
+				  sg_virt(&s->sg_rx[0]), sg_dma_address(&s->sg_rx[0]));
 	if (enable_pio)
 		sci_start_rx(port);
 }
@@ -1091,7 +1092,7 @@ static void work_fn_rx(struct work_struct *work)
 		unsigned long flags;
 		int count;
 
-		chan->device->device_terminate_all(chan);
+		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		dev_dbg(port->dev, "Read %u bytes with cookie %d\n",
 			sh_desc->partial, sh_desc->cookie);
 

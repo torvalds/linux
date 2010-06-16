@@ -1097,8 +1097,8 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		if (dev->is_added)
 			continue;
 
-		/* Setup OF node pointer in archdata */
-		sd->of_node = pci_device_to_OF_node(dev);
+		/* Setup OF node pointer in the device */
+		dev->dev.of_node = pci_device_to_OF_node(dev);
 
 		/* Fixup NUMA node as it may not be setup yet by the generic
 		 * code and is needed by the DMA init
@@ -1309,6 +1309,7 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 		printk(KERN_WARNING "PCI: Cannot allocate resource region "
 		       "%d of PCI bridge %d, will remap\n", i, bus->number);
 clear_resource:
+		res->start = res->end = 0;
 		res->flags = 0;
 	}
 

@@ -13,7 +13,6 @@
 
 #include <linux/types.h>
 #include <linux/amba/pl061.h>
-#include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/io.h>
 #include <asm/hardware/vic.h>

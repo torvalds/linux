@@ -954,18 +954,22 @@ int dev_alloc_name(struct net_device *dev, const char *name)
 }
 EXPORT_SYMBOL(dev_alloc_name);
 
-static int dev_get_valid_name(struct net *net, const char *name, char *buf,
-			      bool fmt)
+static int dev_get_valid_name(struct net_device *dev, const char *name, bool fmt)
 {
+	struct net *net;
+
+	BUG_ON(!dev_net(dev));
+	net = dev_net(dev);
+
 	if (!dev_valid_name(name))
 		return -EINVAL;
 
 	if (fmt && strchr(name, '%'))
-		return __dev_alloc_name(net, name, buf);
+		return dev_alloc_name(dev, name);
 	else if (__dev_get_by_name(net, name))
 		return -EEXIST;
-	else if (buf != name)
-		strlcpy(buf, name, IFNAMSIZ);
+	else if (dev->name != name)
+		strlcpy(dev->name, name, IFNAMSIZ);
 
 	return 0;
 }
@@ -997,7 +1001,7 @@ int dev_change_name(struct net_device *dev, const char *newname)
 
 	memcpy(oldname, dev->name, IFNAMSIZ);
 
-	err = dev_get_valid_name(net, newname, dev->name, 1);
+	err = dev_get_valid_name(dev, newname, 1);
 	if (err < 0)
 		return err;
 
@@ -2249,11 +2253,9 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	if (skb_rx_queue_recorded(skb)) {
 		u16 index = skb_get_rx_queue(skb);
 		if (unlikely(index >= dev->num_rx_queues)) {
-			if (net_ratelimit()) {
-				pr_warning("%s received packet on queue "
-					"%u, but number of RX queues is %u\n",
-					dev->name, index, dev->num_rx_queues);
-			}
+			WARN_ONCE(dev->num_rx_queues > 1, "%s received packet "
+				"on queue %u, but number of RX queues is %u\n",
+				dev->name, index, dev->num_rx_queues);
 			goto done;
 		}
 		rxqueue = dev->_rx + index;
@@ -2421,10 +2423,7 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 		if (skb_queue_len(&sd->input_pkt_queue)) {
 enqueue:
 			__skb_queue_tail(&sd->input_pkt_queue, skb);
-#ifdef CONFIG_RPS
-			*qtail = sd->input_queue_head +
-					skb_queue_len(&sd->input_pkt_queue);
-#endif
+			input_queue_tail_incr_save(sd, qtail);
 			rps_unlock(sd);
 			local_irq_restore(flags);
 			return NET_RX_SUCCESS;
@@ -2794,7 +2793,7 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	struct net_device *orig_dev;
 	struct net_device *master;
 	struct net_device *null_or_orig;
-	struct net_device *null_or_bond;
+	struct net_device *orig_or_bond;
 	int ret = NET_RX_DROP;
 	__be16 type;
 
@@ -2811,13 +2810,24 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	if (!skb->skb_iif)
 		skb->skb_iif = skb->dev->ifindex;
 
+	/*
+	 * bonding note: skbs received on inactive slaves should only
+	 * be delivered to pkt handlers that are exact matches.  Also
+	 * the deliver_no_wcard flag will be set.  If packet handlers
+	 * are sensitive to duplicate packets these skbs will need to
+	 * be dropped at the handler.  The vlan accel path may have
+	 * already set the deliver_no_wcard flag.
+	 */
 	null_or_orig = NULL;
 	orig_dev = skb->dev;
 	master = ACCESS_ONCE(orig_dev->master);
-	if (master) {
-		if (skb_bond_should_drop(skb, master))
+	if (skb->deliver_no_wcard)
+		null_or_orig = orig_dev;
+	else if (master) {
+		if (skb_bond_should_drop(skb, master)) {
+			skb->deliver_no_wcard = 1;
 			null_or_orig = orig_dev; /* deliver only exact match */
-		else
+		} else
 			skb->dev = master;
 	}
 
@@ -2867,10 +2877,10 @@ ncls:
 	 * device that may have registered for a specific ptype.  The
 	 * handler may have to adjust skb->dev and orig_dev.
 	 */
-	null_or_bond = NULL;
+	orig_or_bond = orig_dev;
 	if ((skb->dev->priv_flags & IFF_802_1Q_VLAN) &&
 	    (vlan_dev_real_dev(skb->dev)->priv_flags & IFF_BONDING)) {
-		null_or_bond = vlan_dev_real_dev(skb->dev);
+		orig_or_bond = vlan_dev_real_dev(skb->dev);
 	}
 
 	type = skb->protocol;
@@ -2878,7 +2888,7 @@ ncls:
 			&ptype_base[ntohs(type) & PTYPE_HASH_MASK], list) {
 		if (ptype->type == type && (ptype->dev == null_or_orig ||
 		     ptype->dev == skb->dev || ptype->dev == orig_dev ||
-		     ptype->dev == null_or_bond)) {
+		     ptype->dev == orig_or_bond)) {
 			if (pt_prev)
 				ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = ptype;
@@ -2959,7 +2969,7 @@ static void flush_backlog(void *arg)
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &sd->input_pkt_queue);
 			kfree_skb(skb);
-			input_queue_head_add(sd, 1);
+			input_queue_head_incr(sd);
 		}
 	}
 	rps_unlock(sd);
@@ -2968,6 +2978,7 @@ static void flush_backlog(void *arg)
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &sd->process_queue);
 			kfree_skb(skb);
+			input_queue_head_incr(sd);
 		}
 	}
 }
@@ -3323,18 +3334,20 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		while ((skb = __skb_dequeue(&sd->process_queue))) {
 			local_irq_enable();
 			__netif_receive_skb(skb);
-			if (++work >= quota)
-				return work;
 			local_irq_disable();
+			input_queue_head_incr(sd);
+			if (++work >= quota) {
+				local_irq_enable();
+				return work;
+			}
 		}
 
 		rps_lock(sd);
 		qlen = skb_queue_len(&sd->input_pkt_queue);
-		if (qlen) {
-			input_queue_head_add(sd, qlen);
+		if (qlen)
 			skb_queue_splice_tail_init(&sd->input_pkt_queue,
 						   &sd->process_queue);
-		}
+
 		if (qlen < quota - work) {
 			/*
 			 * Inline a custom version of __napi_complete().
@@ -4960,7 +4973,7 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
-	ret = dev_get_valid_name(net, dev->name, dev->name, 0);
+	ret = dev_get_valid_name(dev, dev->name, 0);
 	if (ret)
 		goto err_uninit;
 
@@ -5558,7 +5571,7 @@ int dev_change_net_namespace(struct net_device *dev, struct net *net, const char
 		/* We get here if we can't use the current device name */
 		if (!pat)
 			goto out;
-		if (dev_get_valid_name(net, pat, dev->name, 1))
+		if (dev_get_valid_name(dev, pat, 1))
 			goto out;
 	}
 
@@ -5661,12 +5674,14 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	local_irq_enable();
 
 	/* Process offline CPU's input_pkt_queue */
+	while ((skb = __skb_dequeue(&oldsd->process_queue))) {
+		netif_rx(skb);
+		input_queue_head_incr(oldsd);
+	}
 	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue))) {
 		netif_rx(skb);
-		input_queue_head_add(oldsd, 1);
+		input_queue_head_incr(oldsd);
 	}
-	while ((skb = __skb_dequeue(&oldsd->process_queue)))
-		netif_rx(skb);
 
 	return NOTIFY_OK;
 }

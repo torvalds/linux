@@ -566,8 +566,7 @@
 #define PCI_ERR_ROOT_FIRST_FATAL	0x00000010	/* First Fatal */
 #define PCI_ERR_ROOT_NONFATAL_RCV	0x00000020	/* Non-Fatal Received */
 #define PCI_ERR_ROOT_FATAL_RCV		0x00000040	/* Fatal Received */
-#define PCI_ERR_ROOT_COR_SRC	52
-#define PCI_ERR_ROOT_SRC	54
+#define PCI_ERR_ROOT_ERR_SRC	52	/* Error Source Identification */
 
 /* Virtual Channel */
 #define PCI_VC_PORT_REG1	4

@@ -72,9 +72,9 @@ const BYTE abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
  * Return Value: none.
  *
 -*/
-VOID
+void
 WPA2_ClearRSN (
-    IN PKnownBSS        pBSSNode
+    PKnownBSS        pBSSNode
     )
 {
     int ii;
@@ -107,10 +107,10 @@ WPA2_ClearRSN (
  * Return Value: none.
  *
 -*/
-VOID
+void
 WPA2vParseRSN (
-    IN PKnownBSS        pBSSNode,
-    IN PWLAN_IE_RSN     pRSN
+    PKnownBSS        pBSSNode,
+    PWLAN_IE_RSN     pRSN
     )
 {
     int                 i, j;
@@ -263,8 +263,8 @@ WPA2vParseRSN (
 -*/
 UINT
 WPA2uSetIEs(
-    IN PVOID pMgmtHandle,
-    OUT PWLAN_IE_RSN pRSNIEs
+    void *pMgmtHandle,
+    PWLAN_IE_RSN pRSNIEs
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtHandle;
@@ -346,7 +346,7 @@ WPA2uSetIEs(
             *pwPMKID = 0;                               // Initialize PMKID count
             pbyBuffer = &pRSNIEs->abyRSN[20];           // Point to PMKID list
             for (ii = 0; ii < pMgmt->gsPMKIDCache.BSSIDInfoCount; ii++) {
-                if ( !memcmp(&pMgmt->gsPMKIDCache.BSSIDInfo[ii].abyBSSID[0], pMgmt->abyCurrBSSID, U_ETHER_ADDR_LEN)) {
+                if ( !memcmp(&pMgmt->gsPMKIDCache.BSSIDInfo[ii].abyBSSID[0], pMgmt->abyCurrBSSID, ETH_ALEN)) {
                     (*pwPMKID) ++;
                     memcpy(pbyBuffer, pMgmt->gsPMKIDCache.BSSIDInfo[ii].abyPMKID, 16);
                     pbyBuffer += 16;

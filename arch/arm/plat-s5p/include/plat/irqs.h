@@ -87,4 +87,11 @@
 #define IRQ_TIMER3		S5P_TIMER_IRQ(3)
 #define IRQ_TIMER4		S5P_TIMER_IRQ(4)
 
+#define IRQ_EINT(x)		((x) < 16 ? ((x) + S5P_EINT_BASE1) \
+					: ((x) - 16 + S5P_EINT_BASE2))
+
+#define EINT_OFFSET(irq)	((irq) < S5P_EINT_BASE2 ? \
+						((irq) - S5P_EINT_BASE1) : \
+						((irq) + 16 - S5P_EINT_BASE2))
+
 #endif /* __ASM_PLAT_S5P_IRQS_H */

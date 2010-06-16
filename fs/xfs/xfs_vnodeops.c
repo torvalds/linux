@@ -267,7 +267,7 @@ xfs_setattr(
 		if (code) {
 			ASSERT(tp == NULL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
-			ASSERT(lock_flags == XFS_IOLOCK_EXCL);
+			ASSERT(lock_flags == XFS_IOLOCK_EXCL || !need_iolock);
 			goto error_return;
 		}
 		tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);

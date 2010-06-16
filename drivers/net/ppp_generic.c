@@ -1422,7 +1422,7 @@ static int ppp_mp_explode(struct ppp *ppp, struct sk_buff *skb)
 		flen = len;
 		if (nfree > 0) {
 			if (pch->speed == 0) {
-				flen = totlen/nfree;
+				flen = len/nfree;
 				if (nbigger > 0) {
 					flen++;
 					nbigger--;
@@ -2926,5 +2926,5 @@ EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV_MAJOR(PPP_MAJOR);
-MODULE_ALIAS("/dev/ppp");
+MODULE_ALIAS_CHARDEV(PPP_MAJOR, 0);
+MODULE_ALIAS("devname:ppp");

@@ -674,7 +674,7 @@ int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
 						   start * sects_per_block,
 						   nblocks * sects_per_block,
 						   GFP_NOFS,
-						   DISCARD_FL_BARRIER);
+						   BLKDEV_IFL_BARRIER);
 			if (ret < 0)
 				return ret;
 			nblocks = 0;
@@ -684,7 +684,7 @@ int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
 		ret = blkdev_issue_discard(nilfs->ns_bdev,
 					   start * sects_per_block,
 					   nblocks * sects_per_block,
-					   GFP_NOFS, DISCARD_FL_BARRIER);
+					   GFP_NOFS, BLKDEV_IFL_BARRIER);
 	return ret;
 }
 

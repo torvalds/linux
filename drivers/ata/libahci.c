@@ -541,28 +541,10 @@ static int ahci_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
 	return -EINVAL;
 }
 
-static int ahci_is_device_present(void __iomem *port_mmio)
-{
-	u8 status = readl(port_mmio + PORT_TFDATA) & 0xff;
-
-	/* Make sure PxTFD.STS.BSY and PxTFD.STS.DRQ are 0 */
-	if (status & (ATA_BUSY | ATA_DRQ))
-		return 0;
-
-	/* Make sure PxSSTS.DET is 3h */
-	status = readl(port_mmio + PORT_SCR_STAT) & 0xf;
-	if (status != 3)
-		return 0;
-	return 1;
-}
-
 void ahci_start_engine(struct ata_port *ap)
 {
 	void __iomem *port_mmio = ahci_port_base(ap);
 	u32 tmp;
-
-	if (!ahci_is_device_present(port_mmio))
-		return;
 
 	/* start DMA */
 	tmp = readl(port_mmio + PORT_CMD);
@@ -1892,6 +1874,9 @@ static void ahci_error_handler(struct ata_port *ap)
 	}
 
 	sata_pmp_error_handler(ap);
+
+	if (!ata_dev_enabled(ap->link.device))
+		ahci_stop_engine(ap);
 }
 
 static void ahci_post_internal_cmd(struct ata_queued_cmd *qc)

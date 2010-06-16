@@ -377,6 +377,7 @@ int nouveau_fbcon_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fbdev *nfbdev;
+	int ret;
 
 	nfbdev = kzalloc(sizeof(struct nouveau_fbdev), GFP_KERNEL);
 	if (!nfbdev)
@@ -386,7 +387,12 @@ int nouveau_fbcon_init(struct drm_device *dev)
 	dev_priv->nfbdev = nfbdev;
 	nfbdev->helper.funcs = &nouveau_fbcon_helper_funcs;
 
-	drm_fb_helper_init(dev, &nfbdev->helper, 2, 4);
+	ret = drm_fb_helper_init(dev, &nfbdev->helper, 2, 4);
+	if (ret) {
+		kfree(nfbdev);
+		return ret;
+	}
+
 	drm_fb_helper_single_add_all_connectors(&nfbdev->helper);
 	drm_fb_helper_initial_config(&nfbdev->helper, 32);
 	return 0;

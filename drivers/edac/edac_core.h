@@ -341,12 +341,30 @@ struct csrow_info {
 	struct channel_info *channels;
 };
 
+struct mcidev_sysfs_group {
+	const char *name;				/* group name */
+	struct mcidev_sysfs_attribute *mcidev_attr;	/* group attributes */
+};
+
+struct mcidev_sysfs_group_kobj {
+	struct list_head list;		/* list for all instances within a mc */
+
+	struct kobject kobj;		/* kobj for the group */
+
+	struct mcidev_sysfs_group *grp;	/* group description table */
+	struct mem_ctl_info *mci;	/* the parent */
+};
+
 /* mcidev_sysfs_attribute structure
  *	used for driver sysfs attributes and in mem_ctl_info
  * 	sysfs top level entries
  */
 struct mcidev_sysfs_attribute {
-        struct attribute attr;
+	/* It should use either attr or grp */
+	struct attribute attr;
+	struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
+
+	/* Ops for show/store values at the attribute - not used on group */
         ssize_t (*show)(struct mem_ctl_info *,char *);
         ssize_t (*store)(struct mem_ctl_info *, const char *,size_t);
 };
@@ -423,6 +441,9 @@ struct mem_ctl_info {
 
 	/* edac sysfs device control */
 	struct kobject edac_mci_kobj;
+
+	/* list for all grp instances within a mc */
+	struct list_head grp_kobj_list;
 
 	/* Additional top controller level attributes, but specified
 	 * by the low level driver.

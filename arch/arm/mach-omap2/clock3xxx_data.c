@@ -3284,7 +3284,7 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK("mmci-omap-hs.2",	"ick",	&mmchs3_ick,	CK_3430ES2 | CK_AM35XX),
 	CLK(NULL,	"icr_ick",	&icr_ick,	CK_343X),
 	CLK(NULL,	"aes2_ick",	&aes2_ick,	CK_343X),
-	CLK(NULL,	"sha12_ick",	&sha12_ick,	CK_343X),
+	CLK("omap-sham",	"ick",	&sha12_ick,	CK_343X),
 	CLK(NULL,	"des2_ick",	&des2_ick,	CK_343X),
 	CLK("mmci-omap-hs.1",	"ick",	&mmchs2_ick,	CK_3XXX),
 	CLK("mmci-omap-hs.0",	"ick",	&mmchs1_ick,	CK_3XXX),

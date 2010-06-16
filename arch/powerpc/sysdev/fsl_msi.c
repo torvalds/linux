@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc.
  *
  * Author: Tony Li <tony.li@freescale.com>
  *	   Jason Jin <Jason.jin@freescale.com>
@@ -22,14 +22,20 @@
 #include <asm/prom.h>
 #include <asm/hw_irq.h>
 #include <asm/ppc-pci.h>
+#include <asm/mpic.h>
 #include "fsl_msi.h"
+
+LIST_HEAD(msi_head);
 
 struct fsl_msi_feature {
 	u32 fsl_pic_ip;
 	u32 msiir_offset;
 };
 
-static struct fsl_msi *fsl_msi;
+struct fsl_msi_cascade_data {
+	struct fsl_msi *msi_data;
+	int index;
+};
 
 static inline u32 fsl_msi_read(u32 __iomem *base, unsigned int reg)
 {
@@ -54,10 +60,12 @@ static struct irq_chip fsl_msi_chip = {
 static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
+	struct fsl_msi *msi_data = h->host_data;
 	struct irq_chip *chip = &fsl_msi_chip;
 
 	irq_to_desc(virq)->status |= IRQ_TYPE_EDGE_FALLING;
 
+	set_irq_chip_data(virq, msi_data);
 	set_irq_chip_and_handler(virq, chip, handle_edge_irq);
 
 	return 0;
@@ -96,11 +104,12 @@ static int fsl_msi_check_device(struct pci_dev *pdev, int nvec, int type)
 static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		if (entry->irq == NO_IRQ)
 			continue;
+		msi_data = get_irq_data(entry->irq);
 		set_irq_msi(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_data->bitmap,
 				       virq_to_hw(entry->irq), 1);
@@ -111,9 +120,10 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 }
 
 static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
-				  struct msi_msg *msg)
+				struct msi_msg *msg,
+				struct fsl_msi *fsl_msi_data)
 {
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data = fsl_msi_data;
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	u32 base = 0;
 
@@ -130,14 +140,19 @@ static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
 
 static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 {
-	int rc, hwirq;
+	int rc, hwirq = -ENOMEM;
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
-		hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
+		list_for_each_entry(msi_data, &msi_head, list) {
+			hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
+			if (hwirq >= 0)
+				break;
+		}
+
 		if (hwirq < 0) {
 			rc = hwirq;
 			pr_debug("%s: fail allocating msi interrupt\n",
@@ -154,25 +169,31 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 			rc = -ENOSPC;
 			goto out_free;
 		}
+		set_irq_data(virq, msi_data);
 		set_irq_msi(virq, entry);
 
-		fsl_compose_msi_msg(pdev, hwirq, &msg);
+		fsl_compose_msi_msg(pdev, hwirq, &msg, msi_data);
 		write_msi_msg(virq, &msg);
 	}
 	return 0;
 
 out_free:
+	/* free by the caller of this function */
 	return rc;
 }
 
 static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq;
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data;
 	int msir_index = -1;
 	u32 msir_value = 0;
 	u32 intr_index;
 	u32 have_shift = 0;
+	struct fsl_msi_cascade_data *cascade_data;
+
+	cascade_data = (struct fsl_msi_cascade_data *)get_irq_data(irq);
+	msi_data = cascade_data->msi_data;
 
 	raw_spin_lock(&desc->lock);
 	if ((msi_data->feature &  FSL_PIC_IP_MASK) == FSL_PIC_IP_IPIC) {
@@ -187,13 +208,13 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 	if (unlikely(desc->status & IRQ_INPROGRESS))
 		goto unlock;
 
-	msir_index = (int)desc->handler_data;
+	msir_index = cascade_data->index;
 
 	if (msir_index >= NR_MSI_REG)
 		cascade_irq = NO_IRQ;
 
 	desc->status |= IRQ_INPROGRESS;
-	switch (fsl_msi->feature & FSL_PIC_IP_MASK) {
+	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
 		msir_value = fsl_msi_read(msi_data->msi_regs,
 			msir_index * 0x10);
@@ -229,6 +250,30 @@ unlock:
 	raw_spin_unlock(&desc->lock);
 }
 
+static int fsl_of_msi_remove(struct of_device *ofdev)
+{
+	struct fsl_msi *msi = ofdev->dev.platform_data;
+	int virq, i;
+	struct fsl_msi_cascade_data *cascade_data;
+
+	if (msi->list.prev != NULL)
+		list_del(&msi->list);
+	for (i = 0; i < NR_MSI_REG; i++) {
+		virq = msi->msi_virqs[i];
+		if (virq != NO_IRQ) {
+			cascade_data = get_irq_data(virq);
+			kfree(cascade_data);
+			irq_dispose_mapping(virq);
+		}
+	}
+	if (msi->bitmap.bitmap)
+		msi_bitmap_free(&msi->bitmap);
+	iounmap(msi->msi_regs);
+	kfree(msi);
+
+	return 0;
+}
+
 static int __devinit fsl_of_msi_probe(struct of_device *dev,
 				const struct of_device_id *match)
 {
@@ -239,17 +284,20 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	int virt_msir;
 	const u32 *p;
 	struct fsl_msi_feature *features = match->data;
+	struct fsl_msi_cascade_data *cascade_data = NULL;
+	int len;
+	u32 offset;
 
 	printk(KERN_DEBUG "Setting up Freescale MSI support\n");
 
 	msi = kzalloc(sizeof(struct fsl_msi), GFP_KERNEL);
 	if (!msi) {
 		dev_err(&dev->dev, "No memory for MSI structure\n");
-		err = -ENOMEM;
-		goto error_out;
+		return -ENOMEM;
 	}
+	dev->dev.platform_data = msi;
 
-	msi->irqhost = irq_alloc_host(dev->node, IRQ_HOST_MAP_LINEAR,
+	msi->irqhost = irq_alloc_host(dev->dev.of_node, IRQ_HOST_MAP_LINEAR,
 				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);
 
 	if (msi->irqhost == NULL) {
@@ -259,10 +307,10 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	}
 
 	/* Get the MSI reg base */
-	err = of_address_to_resource(dev->node, 0, &res);
+	err = of_address_to_resource(dev->dev.of_node, 0, &res);
 	if (err) {
 		dev_err(&dev->dev, "%s resource error!\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		goto error_out;
 	}
 
@@ -285,40 +333,60 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		goto error_out;
 	}
 
-	p = of_get_property(dev->node, "interrupts", &count);
+	p = of_get_property(dev->dev.of_node, "interrupts", &count);
 	if (!p) {
 		dev_err(&dev->dev, "no interrupts property found on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -ENODEV;
 		goto error_out;
 	}
 	if (count % 8 != 0) {
 		dev_err(&dev->dev, "Malformed interrupts property on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -EINVAL;
 		goto error_out;
 	}
+	offset = 0;
+	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
+	if (p)
+		offset = *p / IRQS_PER_MSI_REG;
 
 	count /= sizeof(u32);
-	for (i = 0; i < count / 2; i++) {
-		if (i > NR_MSI_REG)
-			break;
-		virt_msir = irq_of_parse_and_map(dev->node, i);
+	for (i = 0; i < min(count / 2, NR_MSI_REG); i++) {
+		virt_msir = irq_of_parse_and_map(dev->dev.of_node, i);
 		if (virt_msir != NO_IRQ) {
-			set_irq_data(virt_msir, (void *)i);
+			cascade_data = kzalloc(
+					sizeof(struct fsl_msi_cascade_data),
+					GFP_KERNEL);
+			if (!cascade_data) {
+				dev_err(&dev->dev,
+					"No memory for MSI cascade data\n");
+				err = -ENOMEM;
+				goto error_out;
+			}
+			msi->msi_virqs[i] = virt_msir;
+			cascade_data->index = i + offset;
+			cascade_data->msi_data = msi;
+			set_irq_data(virt_msir, (void *)cascade_data);
 			set_irq_chained_handler(virt_msir, fsl_msi_cascade);
 		}
 	}
 
-	fsl_msi = msi;
+	list_add_tail(&msi->list, &msi_head);
 
-	WARN_ON(ppc_md.setup_msi_irqs);
-	ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
-	ppc_md.msi_check_device = fsl_msi_check_device;
+	/* The multiple setting ppc_md.setup_msi_irqs will not harm things */
+	if (!ppc_md.setup_msi_irqs) {
+		ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
+		ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
+		ppc_md.msi_check_device = fsl_msi_check_device;
+	} else if (ppc_md.setup_msi_irqs != fsl_setup_msi_irqs) {
+		dev_err(&dev->dev, "Different MSI driver already installed!\n");
+		err = -ENODEV;
+		goto error_out;
+	}
 	return 0;
 error_out:
-	kfree(msi);
+	fsl_of_msi_remove(dev);
 	return err;
 }
 
@@ -345,9 +413,13 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 };
 
 static struct of_platform_driver fsl_of_msi_driver = {
-	.name = "fsl-msi",
-	.match_table = fsl_of_msi_ids,
+	.driver = {
+		.name = "fsl-msi",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_of_msi_ids,
+	},
 	.probe = fsl_of_msi_probe,
+	.remove = fsl_of_msi_remove,
 };
 
 static __init int fsl_of_msi_init(void)

@@ -29,6 +29,11 @@
 #include <asm/irq.h>
 #include <plat/regs-rtc.h>
 
+enum s3c_cpu_type {
+	TYPE_S3C2410,
+	TYPE_S3C64XX,
+};
+
 /* I have yet to find an S3C implementation with more than one
  * of these rtc blocks in */
 
@@ -37,6 +42,7 @@ static struct resource *s3c_rtc_mem;
 static void __iomem *s3c_rtc_base;
 static int s3c_rtc_alarmno = NO_IRQ;
 static int s3c_rtc_tickno  = NO_IRQ;
+static enum s3c_cpu_type s3c_rtc_cpu_type;
 
 static DEFINE_SPINLOCK(s3c_rtc_pie_lock);
 
@@ -80,12 +86,25 @@ static int s3c_rtc_setpie(struct device *dev, int enabled)
 	pr_debug("%s: pie=%d\n", __func__, enabled);
 
 	spin_lock_irq(&s3c_rtc_pie_lock);
-	tmp = readb(s3c_rtc_base + S3C2410_TICNT) & ~S3C2410_TICNT_ENABLE;
 
-	if (enabled)
-		tmp |= S3C2410_TICNT_ENABLE;
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
+		tmp = readb(s3c_rtc_base + S3C2410_RTCCON);
+		tmp &= ~S3C64XX_RTCCON_TICEN;
 
-	writeb(tmp, s3c_rtc_base + S3C2410_TICNT);
+		if (enabled)
+			tmp |= S3C64XX_RTCCON_TICEN;
+
+		writeb(tmp, s3c_rtc_base + S3C2410_RTCCON);
+	} else {
+		tmp = readb(s3c_rtc_base + S3C2410_TICNT);
+		tmp &= ~S3C2410_TICNT_ENABLE;
+
+		if (enabled)
+			tmp |= S3C2410_TICNT_ENABLE;
+
+		writeb(tmp, s3c_rtc_base + S3C2410_TICNT);
+	}
+
 	spin_unlock_irq(&s3c_rtc_pie_lock);
 
 	return 0;
@@ -93,15 +112,21 @@ static int s3c_rtc_setpie(struct device *dev, int enabled)
 
 static int s3c_rtc_setfreq(struct device *dev, int freq)
 {
-	unsigned int tmp;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rtc_device *rtc_dev = platform_get_drvdata(pdev);
+	unsigned int tmp = 0;
 
 	if (!is_power_of_2(freq))
 		return -EINVAL;
 
 	spin_lock_irq(&s3c_rtc_pie_lock);
 
-	tmp = readb(s3c_rtc_base + S3C2410_TICNT) & S3C2410_TICNT_ENABLE;
-	tmp |= (128 / freq)-1;
+	if (s3c_rtc_cpu_type == TYPE_S3C2410) {
+		tmp = readb(s3c_rtc_base + S3C2410_TICNT);
+		tmp &= S3C2410_TICNT_ENABLE;
+	}
+
+	tmp |= (rtc_dev->max_user_freq / freq)-1;
 
 	writeb(tmp, s3c_rtc_base + S3C2410_TICNT);
 	spin_unlock_irq(&s3c_rtc_pie_lock);
@@ -283,10 +308,17 @@ static int s3c_rtc_setalarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int s3c_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	unsigned int ticnt = readb(s3c_rtc_base + S3C2410_TICNT);
+	unsigned int ticnt;
 
-	seq_printf(seq, "periodic_IRQ\t: %s\n",
-		     (ticnt & S3C2410_TICNT_ENABLE) ? "yes" : "no" );
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
+		ticnt = readb(s3c_rtc_base + S3C2410_RTCCON);
+		ticnt &= S3C64XX_RTCCON_TICEN;
+	} else {
+		ticnt = readb(s3c_rtc_base + S3C2410_TICNT);
+		ticnt &= S3C2410_TICNT_ENABLE;
+	}
+
+	seq_printf(seq, "periodic_IRQ\t: %s\n", ticnt  ? "yes" : "no");
 	return 0;
 }
 
@@ -353,10 +385,16 @@ static void s3c_rtc_enable(struct platform_device *pdev, int en)
 
 	if (!en) {
 		tmp = readb(base + S3C2410_RTCCON);
-		writeb(tmp & ~S3C2410_RTCCON_RTCEN, base + S3C2410_RTCCON);
+		if (s3c_rtc_cpu_type == TYPE_S3C64XX)
+			tmp &= ~S3C64XX_RTCCON_TICEN;
+		tmp &= ~S3C2410_RTCCON_RTCEN;
+		writeb(tmp, base + S3C2410_RTCCON);
 
-		tmp = readb(base + S3C2410_TICNT);
-		writeb(tmp & ~S3C2410_TICNT_ENABLE, base + S3C2410_TICNT);
+		if (s3c_rtc_cpu_type == TYPE_S3C2410) {
+			tmp = readb(base + S3C2410_TICNT);
+			tmp &= ~S3C2410_TICNT_ENABLE;
+			writeb(tmp, base + S3C2410_TICNT);
+		}
 	} else {
 		/* re-enable the device, and check it is ok */
 
@@ -457,8 +495,6 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
  	pr_debug("s3c2410_rtc: RTCCON=%02x\n",
 		 readb(s3c_rtc_base + S3C2410_RTCCON));
 
-	s3c_rtc_setfreq(&pdev->dev, 1);
-
 	device_init_wakeup(&pdev->dev, 1);
 
 	/* register RTC and exit */
@@ -472,9 +508,17 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		goto err_nortc;
 	}
 
-	rtc->max_user_freq = 128;
+	s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
+
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
+		rtc->max_user_freq = 32768;
+	else
+		rtc->max_user_freq = 128;
 
 	platform_set_drvdata(pdev, rtc);
+
+	s3c_rtc_setfreq(&pdev->dev, 1);
+
 	return 0;
 
  err_nortc:
@@ -492,20 +536,30 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 
 /* RTC Power management control */
 
-static int ticnt_save;
+static int ticnt_save, ticnt_en_save;
 
 static int s3c_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	/* save TICNT for anyone using periodic interrupts */
 	ticnt_save = readb(s3c_rtc_base + S3C2410_TICNT);
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX) {
+		ticnt_en_save = readb(s3c_rtc_base + S3C2410_RTCCON);
+		ticnt_en_save &= S3C64XX_RTCCON_TICEN;
+	}
 	s3c_rtc_enable(pdev, 0);
 	return 0;
 }
 
 static int s3c_rtc_resume(struct platform_device *pdev)
 {
+	unsigned int tmp;
+
 	s3c_rtc_enable(pdev, 1);
 	writeb(ticnt_save, s3c_rtc_base + S3C2410_TICNT);
+	if (s3c_rtc_cpu_type == TYPE_S3C64XX && ticnt_en_save) {
+		tmp = readb(s3c_rtc_base + S3C2410_RTCCON);
+		writeb(tmp | ticnt_en_save, s3c_rtc_base + S3C2410_RTCCON);
+	}
 	return 0;
 }
 #else
@@ -513,13 +567,27 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 #define s3c_rtc_resume  NULL
 #endif
 
-static struct platform_driver s3c2410_rtc_driver = {
+static struct platform_device_id s3c_rtc_driver_ids[] = {
+	{
+		.name		= "s3c2410-rtc",
+		.driver_data	= TYPE_S3C2410,
+	}, {
+		.name		= "s3c64xx-rtc",
+		.driver_data	= TYPE_S3C64XX,
+	},
+	{ }
+};
+
+MODULE_DEVICE_TABLE(platform, s3c_rtc_driver_ids);
+
+static struct platform_driver s3c_rtc_driver = {
 	.probe		= s3c_rtc_probe,
 	.remove		= __devexit_p(s3c_rtc_remove),
 	.suspend	= s3c_rtc_suspend,
 	.resume		= s3c_rtc_resume,
+	.id_table	= s3c_rtc_driver_ids,
 	.driver		= {
-		.name	= "s3c2410-rtc",
+		.name	= "s3c-rtc",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -529,12 +597,12 @@ static char __initdata banner[] = "S3C24XX RTC, (c) 2004,2006 Simtec Electronics
 static int __init s3c_rtc_init(void)
 {
 	printk(banner);
-	return platform_driver_register(&s3c2410_rtc_driver);
+	return platform_driver_register(&s3c_rtc_driver);
 }
 
 static void __exit s3c_rtc_exit(void)
 {
-	platform_driver_unregister(&s3c2410_rtc_driver);
+	platform_driver_unregister(&s3c_rtc_driver);
 }
 
 module_init(s3c_rtc_init);

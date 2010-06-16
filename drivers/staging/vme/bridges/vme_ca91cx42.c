@@ -26,9 +26,9 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <asm/time.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/time.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 
 #include "../vme.h"
 #include "../vme_bridge.h"
@@ -94,31 +94,35 @@ static u32 ca91cx42_IACK_irqhandler(struct ca91cx42_driver *bridge)
 	return CA91CX42_LINT_SW_IACK;
 }
 
-static u32 ca91cx42_VERR_irqhandler(struct ca91cx42_driver *bridge)
+static u32 ca91cx42_VERR_irqhandler(struct vme_bridge *ca91cx42_bridge)
 {
 	int val;
+	struct ca91cx42_driver *bridge;
+
+	bridge = ca91cx42_bridge->driver_priv;
 
 	val = ioread32(bridge->base + DGCS);
 
 	if (!(val & 0x00000800)) {
-		printk(KERN_ERR "ca91c042: ca91cx42_VERR_irqhandler DMA Read "
-			"Error DGCS=%08X\n", val);
+		dev_err(ca91cx42_bridge->parent, "ca91cx42_VERR_irqhandler DMA "
+			"Read Error DGCS=%08X\n", val);
 	}
 
 	return CA91CX42_LINT_VERR;
 }
 
-static u32 ca91cx42_LERR_irqhandler(struct ca91cx42_driver *bridge)
+static u32 ca91cx42_LERR_irqhandler(struct vme_bridge *ca91cx42_bridge)
 {
 	int val;
+	struct ca91cx42_driver *bridge;
+
+	bridge = ca91cx42_bridge->driver_priv;
 
 	val = ioread32(bridge->base + DGCS);
 
-	if (!(val & 0x00000800)) {
-		printk(KERN_ERR "ca91c042: ca91cx42_LERR_irqhandler DMA Read "
-			"Error DGCS=%08X\n", val);
-
-	}
+	if (!(val & 0x00000800))
+		dev_err(ca91cx42_bridge->parent, "ca91cx42_LERR_irqhandler DMA "
+			"Read Error DGCS=%08X\n", val);
 
 	return CA91CX42_LINT_LERR;
 }
@@ -176,9 +180,9 @@ static irqreturn_t ca91cx42_irqhandler(int irq, void *ptr)
 	if (stat & CA91CX42_LINT_SW_IACK)
 		serviced |= ca91cx42_IACK_irqhandler(bridge);
 	if (stat & CA91CX42_LINT_VERR)
-		serviced |= ca91cx42_VERR_irqhandler(bridge);
+		serviced |= ca91cx42_VERR_irqhandler(ca91cx42_bridge);
 	if (stat & CA91CX42_LINT_LERR)
-		serviced |= ca91cx42_LERR_irqhandler(bridge);
+		serviced |= ca91cx42_LERR_irqhandler(ca91cx42_bridge);
 	if (stat & (CA91CX42_LINT_VIRQ1 | CA91CX42_LINT_VIRQ2 |
 			CA91CX42_LINT_VIRQ3 | CA91CX42_LINT_VIRQ4 |
 			CA91CX42_LINT_VIRQ5 | CA91CX42_LINT_VIRQ6 |
@@ -326,9 +330,12 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	unsigned int i, addr = 0, granularity;
 	unsigned int temp_ctl = 0;
 	unsigned int vme_bound, pci_offset;
+	struct vme_bridge *ca91cx42_bridge;
 	struct ca91cx42_driver *bridge;
 
-	bridge = image->parent->driver_priv;
+	ca91cx42_bridge = image->parent;
+
+	bridge = ca91cx42_bridge->driver_priv;
 
 	i = image->number;
 
@@ -353,7 +360,7 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 	case VME_USER3:
 	case VME_USER4:
 	default:
-		printk(KERN_ERR "Invalid address space\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid address space\n");
 		return -EINVAL;
 		break;
 	}
@@ -371,15 +378,18 @@ int ca91cx42_slave_set(struct vme_slave_resource *image, int enabled,
 		granularity = 0x10000;
 
 	if (vme_base & (granularity - 1)) {
-		printk(KERN_ERR "Invalid VME base alignment\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid VME base "
+			"alignment\n");
 		return -EINVAL;
 	}
 	if (vme_bound & (granularity - 1)) {
-		printk(KERN_ERR "Invalid VME bound alignment\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid VME bound "
+			"alignment\n");
 		return -EINVAL;
 	}
 	if (pci_offset & (granularity - 1)) {
-		printk(KERN_ERR "Invalid PCI Offset alignment\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid PCI Offset "
+			"alignment\n");
 		return -EINVAL;
 	}
 
@@ -491,7 +501,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 
 	/* Find pci_dev container of dev */
 	if (ca91cx42_bridge->parent == NULL) {
-		printk(KERN_ERR "Dev entry NULL\n");
+		dev_err(ca91cx42_bridge->parent, "Dev entry NULL\n");
 		return -EINVAL;
 	}
 	pdev = container_of(ca91cx42_bridge->parent, struct pci_dev, dev);
@@ -513,10 +523,10 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	}
 
 	if (image->bus_resource.name == NULL) {
-		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_KERNEL);
+		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_ATOMIC);
 		if (image->bus_resource.name == NULL) {
-			printk(KERN_ERR "Unable to allocate memory for resource"
-				" name\n");
+			dev_err(ca91cx42_bridge->parent, "Unable to allocate "
+				"memory for resource name\n");
 			retval = -ENOMEM;
 			goto err_name;
 		}
@@ -533,8 +543,8 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 		&(image->bus_resource), size, size, PCIBIOS_MIN_MEM,
 		0, NULL, NULL);
 	if (retval) {
-		printk(KERN_ERR "Failed to allocate mem resource for "
-			"window %d size 0x%lx start 0x%lx\n",
+		dev_err(ca91cx42_bridge->parent, "Failed to allocate mem "
+			"resource for window %d size 0x%lx start 0x%lx\n",
 			image->number, (unsigned long)size,
 			(unsigned long)image->bus_resource.start);
 		goto err_resource;
@@ -543,7 +553,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	image->kern_base = ioremap_nocache(
 		image->bus_resource.start, size);
 	if (image->kern_base == NULL) {
-		printk(KERN_ERR "Failed to remap resource\n");
+		dev_err(ca91cx42_bridge->parent, "Failed to remap resource\n");
 		retval = -ENOMEM;
 		goto err_remap;
 	}
@@ -582,9 +592,12 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 	unsigned int i, granularity = 0;
 	unsigned int temp_ctl = 0;
 	unsigned long long pci_bound, vme_offset, pci_base;
+	struct vme_bridge *ca91cx42_bridge;
 	struct ca91cx42_driver *bridge;
 
-	bridge = image->parent->driver_priv;
+	ca91cx42_bridge = image->parent;
+
+	bridge = ca91cx42_bridge->driver_priv;
 
 	i = image->number;
 
@@ -595,12 +608,14 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 
 	/* Verify input data */
 	if (vme_base & (granularity - 1)) {
-		printk(KERN_ERR "Invalid VME Window alignment\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid VME Window "
+			"alignment\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
 	if (size & (granularity - 1)) {
-		printk(KERN_ERR "Invalid VME Window alignment\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid VME Window "
+			"alignment\n");
 		retval = -EINVAL;
 		goto err_window;
 	}
@@ -614,8 +629,8 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 	retval = ca91cx42_alloc_resource(image, size);
 	if (retval) {
 		spin_unlock(&(image->lock));
-		printk(KERN_ERR "Unable to allocate memory for resource "
-			"name\n");
+		dev_err(ca91cx42_bridge->parent, "Unable to allocate memory "
+			"for resource name\n");
 		retval = -ENOMEM;
 		goto err_res;
 	}
@@ -658,7 +673,7 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 		break;
 	default:
 		spin_unlock(&(image->lock));
-		printk(KERN_ERR "Invalid data width\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid data width\n");
 		retval = -EINVAL;
 		goto err_dwidth;
 		break;
@@ -690,7 +705,7 @@ int ca91cx42_master_set(struct vme_master_resource *image, int enabled,
 	case VME_USER4:
 	default:
 		spin_unlock(&(image->lock));
-		printk(KERN_ERR "Invalid address space\n");
+		dev_err(ca91cx42_bridge->parent, "Invalid address space\n");
 		retval = -EINVAL;
 		goto err_aspace;
 		break;
@@ -921,12 +936,14 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	struct vme_dma_vme *vme_attr;
 	dma_addr_t desc_ptr;
 	int retval = 0;
+	struct device *dev;
+
+	dev = list->parent->parent->parent;
 
 	/* XXX descriptor must be aligned on 64-bit boundaries */
-	entry = (struct ca91cx42_dma_entry *)
-		kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
+	entry = kmalloc(sizeof(struct ca91cx42_dma_entry), GFP_KERNEL);
 	if (entry == NULL) {
-		printk(KERN_ERR "Failed to allocate memory for dma resource "
+		dev_err(dev, "Failed to allocate memory for dma resource "
 			"structure\n");
 		retval = -ENOMEM;
 		goto err_mem;
@@ -934,7 +951,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 
 	/* Test descriptor alignment */
 	if ((unsigned long)&(entry->descriptor) & CA91CX42_DCPP_M) {
-		printk("Descriptor not aligned to 16 byte boundary as "
+		dev_err(dev, "Descriptor not aligned to 16 byte boundary as "
 			"required: %p\n", &(entry->descriptor));
 		retval = -EINVAL;
 		goto err_align;
@@ -955,7 +972,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	if ((vme_attr->aspace & ~(VME_A16 | VME_A24 | VME_A32 | VME_USER1 |
 		VME_USER2)) != 0) {
 
-		printk(KERN_ERR "Unsupported cycle type\n");
+		dev_err(dev, "Unsupported cycle type\n");
 		retval = -EINVAL;
 		goto err_aspace;
 	}
@@ -963,7 +980,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	if ((vme_attr->cycle & ~(VME_SCT | VME_BLT | VME_SUPER | VME_USER |
 		VME_PROG | VME_DATA)) != 0) {
 
-		printk(KERN_ERR "Unsupported cycle type\n");
+		dev_err(dev, "Unsupported cycle type\n");
 		retval = -EINVAL;
 		goto err_cycle;
 	}
@@ -972,7 +989,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	if (!(((src->type == VME_DMA_PCI) && (dest->type == VME_DMA_VME)) ||
 		((src->type == VME_DMA_VME) && (dest->type == VME_DMA_PCI)))) {
 
-		printk(KERN_ERR "Cannot perform transfer with this "
+		dev_err(dev, "Cannot perform transfer with this "
 			"source-destination combination\n");
 		retval = -EINVAL;
 		goto err_direct;
@@ -997,7 +1014,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		entry->descriptor.dctl |= CA91CX42_DCTL_VDW_D64;
 		break;
 	default:
-		printk(KERN_ERR "Invalid data width\n");
+		dev_err(dev, "Invalid data width\n");
 		return -EINVAL;
 	}
 
@@ -1019,7 +1036,7 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		entry->descriptor.dctl |= CA91CX42_DCTL_VAS_USER2;
 		break;
 	default:
-		printk(KERN_ERR "Invalid address space\n");
+		dev_err(dev, "Invalid address space\n");
 		return -EINVAL;
 		break;
 	}
@@ -1079,12 +1096,13 @@ int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 	int retval = 0;
 	dma_addr_t bus_addr;
 	u32 val;
-
+	struct device *dev;
 	struct ca91cx42_driver *bridge;
 
 	ctrlr = list->parent;
 
 	bridge = ctrlr->parent->driver_priv;
+	dev = ctrlr->parent->parent;
 
 	mutex_lock(&(ctrlr->mtx));
 
@@ -1140,7 +1158,7 @@ int ca91cx42_dma_list_exec(struct vme_dma_list *list)
 	if (val & (CA91CX42_DGCS_LERR | CA91CX42_DGCS_VERR |
 		CA91CX42_DGCS_PERR)) {
 
-		printk(KERN_ERR "ca91c042: DMA Error. DGCS=%08X\n", val);
+		dev_err(dev, "ca91c042: DMA Error. DGCS=%08X\n", val);
 		val = ioread32(bridge->base + DCTL);
 	}
 
@@ -1476,7 +1494,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* We want to support more than one of each bridge so we need to
 	 * dynamically allocate the bridge structure
 	 */
-	ca91cx42_bridge = kmalloc(sizeof(struct vme_bridge), GFP_KERNEL);
+	ca91cx42_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
 
 	if (ca91cx42_bridge == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for device "
@@ -1485,9 +1503,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_struct;
 	}
 
-	memset(ca91cx42_bridge, 0, sizeof(struct vme_bridge));
-
-	ca91cx42_device = kmalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
+	ca91cx42_device = kzalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
 
 	if (ca91cx42_device == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for device "
@@ -1495,8 +1511,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		retval = -ENOMEM;
 		goto err_driver;
 	}
-
-	memset(ca91cx42_device, 0, sizeof(struct ca91cx42_driver));
 
 	ca91cx42_bridge->driver_priv = ca91cx42_device;
 
@@ -1665,9 +1679,8 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "Slot ID is %d\n",
 		ca91cx42_slot_get(ca91cx42_bridge));
 
-	if (ca91cx42_crcsr_init(ca91cx42_bridge, pdev)) {
+	if (ca91cx42_crcsr_init(ca91cx42_bridge, pdev))
 		dev_err(&pdev->dev, "CR/CSR configuration failed.\n");
-	}
 
 	/* Need to save ca91cx42_bridge pointer locally in link list for use in
 	 * ca91cx42_remove()

@@ -467,14 +467,6 @@ out:
  * End of slob allocator proper. Begin kmem_cache_alloc and kmalloc frontend.
  */
 
-#ifndef ARCH_KMALLOC_MINALIGN
-#define ARCH_KMALLOC_MINALIGN __alignof__(unsigned long)
-#endif
-
-#ifndef ARCH_SLAB_MINALIGN
-#define ARCH_SLAB_MINALIGN __alignof__(unsigned long)
-#endif
-
 void *__kmalloc_node(size_t size, gfp_t gfp, int node)
 {
 	unsigned int *m;

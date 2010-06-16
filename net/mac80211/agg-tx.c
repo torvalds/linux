@@ -332,14 +332,16 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 		IEEE80211_QUEUE_STOP_REASON_AGGREGATION);
 
 	spin_unlock(&local->ampdu_lock);
-	spin_unlock_bh(&sta->lock);
 
-	/* send an addBA request */
+	/* prepare tid data */
 	sta->ampdu_mlme.dialog_token_allocator++;
 	sta->ampdu_mlme.tid_tx[tid]->dialog_token =
 			sta->ampdu_mlme.dialog_token_allocator;
 	sta->ampdu_mlme.tid_tx[tid]->ssn = start_seq_num;
 
+	spin_unlock_bh(&sta->lock);
+
+	/* send AddBA request */
 	ieee80211_send_addba_request(sdata, pubsta->addr, tid,
 			 sta->ampdu_mlme.tid_tx[tid]->dialog_token,
 			 sta->ampdu_mlme.tid_tx[tid]->ssn,

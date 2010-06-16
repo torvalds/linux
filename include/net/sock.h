@@ -312,7 +312,7 @@ struct sock {
 	void			*sk_security;
 #endif
 	__u32			sk_mark;
-	/* XXX 4 bytes hole on 64 bit */
+	u32			sk_classid;
 	void			(*sk_state_change)(struct sock *sk);
 	void			(*sk_data_ready)(struct sock *sk, int bytes);
 	void			(*sk_write_space)(struct sock *sk);
@@ -1026,15 +1026,23 @@ extern void release_sock(struct sock *sk);
 				SINGLE_DEPTH_NESTING)
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
-static inline void lock_sock_bh(struct sock *sk)
+extern bool lock_sock_fast(struct sock *sk);
+/**
+ * unlock_sock_fast - complement of lock_sock_fast
+ * @sk: socket
+ * @slow: slow mode
+ *
+ * fast unlock socket for user context.
+ * If slow mode is on, we call regular release_sock()
+ */
+static inline void unlock_sock_fast(struct sock *sk, bool slow)
 {
-	spin_lock_bh(&sk->sk_lock.slock);
+	if (slow)
+		release_sock(sk);
+	else
+		spin_unlock_bh(&sk->sk_lock.slock);
 }
 
-static inline void unlock_sock_bh(struct sock *sk)
-{
-	spin_unlock_bh(&sk->sk_lock.slock);
-}
 
 extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
@@ -1073,6 +1081,14 @@ extern void *sock_kmalloc(struct sock *sk, int size,
 			  gfp_t priority);
 extern void sock_kfree_s(struct sock *sk, void *mem, int size);
 extern void sk_send_sigurg(struct sock *sk);
+
+#ifdef CONFIG_CGROUPS
+extern void sock_update_classid(struct sock *sk);
+#else
+static inline void sock_update_classid(struct sock *sk)
+{
+}
+#endif
 
 /*
  * Functions to fill in entries in struct proto_ops when a protocol
@@ -1404,7 +1420,7 @@ static inline int sk_has_allocations(const struct sock *sk)
 
 /**
  * wq_has_sleeper - check if there are any waiting processes
- * @sk: struct socket_wq
+ * @wq: struct socket_wq
  *
  * Returns true if socket_wq has waiting processes
  *
@@ -1508,20 +1524,7 @@ extern void sk_stop_timer(struct sock *sk, struct timer_list* timer);
 
 extern int sock_queue_rcv_skb(struct sock *sk, struct sk_buff *skb);
 
-static inline int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
-{
-	/* Cast skb->rcvbuf to unsigned... It's pointless, but reduces
-	   number of warnings when compiling with -W --ANK
-	 */
-	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-	    (unsigned)sk->sk_rcvbuf)
-		return -ENOMEM;
-	skb_set_owner_r(skb, sk);
-	skb_queue_tail(&sk->sk_error_queue, skb);
-	if (!sock_flag(sk, SOCK_DEAD))
-		sk->sk_data_ready(sk, skb->len);
-	return 0;
-}
+extern int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb);
 
 /*
  *	Recover an error report and clear atomically

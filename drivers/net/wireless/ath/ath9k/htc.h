@@ -23,6 +23,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "common.h"

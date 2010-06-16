@@ -43,9 +43,9 @@
  * inode to disk.
  */
 
-int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
+int ext3_sync_file(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	struct ext3_inode_info *ei = EXT3_I(inode);
 	journal_t *journal = EXT3_SB(inode->i_sb)->s_journal;
 	int ret, needs_barrier = 0;
@@ -90,6 +90,7 @@ int ext3_sync_file(struct file * file, struct dentry *dentry, int datasync)
 	 * storage
 	 */
 	if (needs_barrier)
-		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL,
+				BLKDEV_IFL_WAIT);
 	return ret;
 }

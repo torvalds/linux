@@ -160,6 +160,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_DCR              15
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
+#define KVM_EXIT_OSI              18
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -259,6 +260,10 @@ struct kvm_run {
 			__u32 ndata;
 			__u64 data[16];
 		} internal;
+		/* KVM_EXIT_OSI */
+		struct {
+			__u64 gprs[32];
+		} osi;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -400,6 +405,15 @@ struct kvm_ioeventfd {
 	__u8  pad[36];
 };
 
+/* for KVM_ENABLE_CAP */
+struct kvm_enable_cap {
+	/* in */
+	__u32 cap;
+	__u32 flags;
+	__u64 args[4];
+	__u8  pad[64];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -501,7 +515,15 @@ struct kvm_ioeventfd {
 #define KVM_CAP_HYPERV_VAPIC 45
 #define KVM_CAP_HYPERV_SPIN 46
 #define KVM_CAP_PCI_SEGMENT 47
+#define KVM_CAP_PPC_PAIRED_SINGLES 48
+#define KVM_CAP_INTR_SHADOW 49
+#ifdef __KVM_HAVE_DEBUGREGS
+#define KVM_CAP_DEBUGREGS 50
+#endif
 #define KVM_CAP_X86_ROBUST_SINGLESTEP 51
+#define KVM_CAP_PPC_OSI 52
+#define KVM_CAP_PPC_UNSET_IRQ 53
+#define KVM_CAP_ENABLE_CAP 54
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -688,6 +710,10 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_VCPU_EVENTS */
 #define KVM_GET_VCPU_EVENTS       _IOR(KVMIO,  0x9f, struct kvm_vcpu_events)
 #define KVM_SET_VCPU_EVENTS       _IOW(KVMIO,  0xa0, struct kvm_vcpu_events)
+/* Available with KVM_CAP_DEBUGREGS */
+#define KVM_GET_DEBUGREGS         _IOR(KVMIO,  0xa1, struct kvm_debugregs)
+#define KVM_SET_DEBUGREGS         _IOW(KVMIO,  0xa2, struct kvm_debugregs)
+#define KVM_ENABLE_CAP            _IOW(KVMIO,  0xa3, struct kvm_enable_cap)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 

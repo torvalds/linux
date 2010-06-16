@@ -188,7 +188,6 @@ good_area:
 	if ((error_code & ACE_INSTRUCTION) && !(vma->vm_flags & VM_EXEC))
 	  goto bad_area;
 
-survive:
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
@@ -271,15 +270,10 @@ no_context:
  */
 out_of_memory:
 	up_read(&mm->mmap_sem);
-	if (is_global_init(tsk)) {
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
-	printk("VM: killing process %s\n", tsk->comm);
-	if (error_code & ACE_USERMODE)
-		do_group_exit(SIGKILL);
-	goto no_context;
+	if (!(error_code & ACE_USERMODE))
+		goto no_context;
+	pagefault_out_of_memory();
+	return;
 
 do_sigbus:
 	up_read(&mm->mmap_sem);

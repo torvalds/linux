@@ -33,9 +33,6 @@ int numa_off __initdata;
 static unsigned long __initdata nodemap_addr;
 static unsigned long __initdata nodemap_size;
 
-DEFINE_PER_CPU(int, node_number) = 0;
-EXPORT_PER_CPU_SYMBOL(node_number);
-
 /*
  * Map cpu index to node index
  */
@@ -809,7 +806,7 @@ void __cpuinit numa_set_node(int cpu, int node)
 	per_cpu(x86_cpu_to_node_map, cpu) = node;
 
 	if (node != NUMA_NO_NODE)
-		per_cpu(node_number, cpu) = node;
+		set_cpu_numa_node(cpu, node);
 }
 
 void __cpuinit numa_clear_node(int cpu)
@@ -867,7 +864,7 @@ void __cpuinit numa_remove_cpu(int cpu)
 	numa_set_cpumask(cpu, 0);
 }
 
-int cpu_to_node(int cpu)
+int __cpu_to_node(int cpu)
 {
 	if (early_per_cpu_ptr(x86_cpu_to_node_map)) {
 		printk(KERN_WARNING
@@ -877,7 +874,7 @@ int cpu_to_node(int cpu)
 	}
 	return per_cpu(x86_cpu_to_node_map, cpu);
 }
-EXPORT_SYMBOL(cpu_to_node);
+EXPORT_SYMBOL(__cpu_to_node);
 
 /*
  * Same function as cpu_to_node() but used if called before the

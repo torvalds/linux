@@ -46,32 +46,42 @@
 static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 					 int write_bytes,
 					 struct page **prepared_pages,
-					 const char __user *buf)
+					 struct iov_iter *i)
 {
-	long page_fault = 0;
-	int i;
+	size_t copied;
+	int pg = 0;
 	int offset = pos & (PAGE_CACHE_SIZE - 1);
 
-	for (i = 0; i < num_pages && write_bytes > 0; i++, offset = 0) {
+	while (write_bytes > 0) {
 		size_t count = min_t(size_t,
 				     PAGE_CACHE_SIZE - offset, write_bytes);
-		struct page *page = prepared_pages[i];
-		fault_in_pages_readable(buf, count);
+		struct page *page = prepared_pages[pg];
+again:
+		if (unlikely(iov_iter_fault_in_readable(i, count)))
+			return -EFAULT;
 
 		/* Copy data from userspace to the current page */
-		kmap(page);
-		page_fault = __copy_from_user(page_address(page) + offset,
-					      buf, count);
+		copied = iov_iter_copy_from_user(page, i, offset, count);
+
 		/* Flush processor's dcache for this page */
 		flush_dcache_page(page);
-		kunmap(page);
-		buf += count;
-		write_bytes -= count;
+		iov_iter_advance(i, copied);
+		write_bytes -= copied;
 
-		if (page_fault)
-			break;
+		if (unlikely(copied == 0)) {
+			count = min_t(size_t, PAGE_CACHE_SIZE - offset,
+				      iov_iter_single_seg_count(i));
+			goto again;
+		}
+
+		if (unlikely(copied < PAGE_CACHE_SIZE - offset)) {
+			offset += copied;
+		} else {
+			pg++;
+			offset = 0;
+		}
 	}
-	return page_fault ? -EFAULT : 0;
+	return 0;
 }
 
 /*
@@ -126,8 +136,7 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	end_of_last_block = start_pos + num_bytes - 1;
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
 					NULL);
-	if (err)
-		return err;
+	BUG_ON(err);
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
@@ -142,7 +151,7 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		 * at this time.
 		 */
 	}
-	return err;
+	return 0;
 }
 
 /*
@@ -823,44 +832,45 @@ again:
 	return 0;
 }
 
-static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
-				size_t count, loff_t *ppos)
+static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
+				    const struct iovec *iov,
+				    unsigned long nr_segs, loff_t pos)
 {
-	loff_t pos;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct page *pinned[2];
+	struct page **pages = NULL;
+	struct iov_iter i;
+	loff_t *ppos = &iocb->ki_pos;
 	loff_t start_pos;
 	ssize_t num_written = 0;
 	ssize_t err = 0;
+	size_t count;
+	size_t ocount;
 	int ret = 0;
-	struct inode *inode = fdentry(file)->d_inode;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct page **pages = NULL;
 	int nrptrs;
-	struct page *pinned[2];
 	unsigned long first_index;
 	unsigned long last_index;
 	int will_write;
+	int buffered = 0;
 
 	will_write = ((file->f_flags & O_DSYNC) || IS_SYNC(inode) ||
 		      (file->f_flags & O_DIRECT));
 
-	nrptrs = min((count + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE,
-		     PAGE_CACHE_SIZE / (sizeof(struct page *)));
 	pinned[0] = NULL;
 	pinned[1] = NULL;
 
-	pos = *ppos;
 	start_pos = pos;
 
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 
-	/* do the reserve before the mutex lock in case we have to do some
-	 * flushing.  We wouldn't deadlock, but this is more polite.
-	 */
-	err = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
-	if (err)
-		goto out_nolock;
-
 	mutex_lock(&inode->i_mutex);
+
+	err = generic_segment_checks(iov, &nr_segs, &ocount, VERIFY_READ);
+	if (err)
+		goto out;
+	count = ocount;
 
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
@@ -875,15 +885,53 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		goto out;
 
 	file_update_time(file);
+	BTRFS_I(inode)->sequence++;
 
+	if (unlikely(file->f_flags & O_DIRECT)) {
+		num_written = generic_file_direct_write(iocb, iov, &nr_segs,
+							pos, ppos, count,
+							ocount);
+		/*
+		 * the generic O_DIRECT will update in-memory i_size after the
+		 * DIOs are done.  But our endio handlers that update the on
+		 * disk i_size never update past the in memory i_size.  So we
+		 * need one more update here to catch any additions to the
+		 * file
+		 */
+		if (inode->i_size != BTRFS_I(inode)->disk_i_size) {
+			btrfs_ordered_update_i_size(inode, inode->i_size, NULL);
+			mark_inode_dirty(inode);
+		}
+
+		if (num_written < 0) {
+			ret = num_written;
+			num_written = 0;
+			goto out;
+		} else if (num_written == count) {
+			/* pick up pos changes done by the generic code */
+			pos = *ppos;
+			goto out;
+		}
+		/*
+		 * We are going to do buffered for the rest of the range, so we
+		 * need to make sure to invalidate the buffered pages when we're
+		 * done.
+		 */
+		buffered = 1;
+		pos += num_written;
+	}
+
+	iov_iter_init(&i, iov, nr_segs, count, num_written);
+	nrptrs = min((iov_iter_count(&i) + PAGE_CACHE_SIZE - 1) /
+		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
+		     (sizeof(struct page *)));
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
 	/* generic_write_checks can change our pos */
 	start_pos = pos;
 
-	BTRFS_I(inode)->sequence++;
 	first_index = pos >> PAGE_CACHE_SHIFT;
-	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
+	last_index = (pos + iov_iter_count(&i)) >> PAGE_CACHE_SHIFT;
 
 	/*
 	 * there are lots of better ways to do this, but this code
@@ -900,7 +948,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 			unlock_page(pinned[0]);
 		}
 	}
-	if ((pos + count) & (PAGE_CACHE_SIZE - 1)) {
+	if ((pos + iov_iter_count(&i)) & (PAGE_CACHE_SIZE - 1)) {
 		pinned[1] = grab_cache_page(inode->i_mapping, last_index);
 		if (!PageUptodate(pinned[1])) {
 			ret = btrfs_readpage(NULL, pinned[1]);
@@ -911,10 +959,10 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		}
 	}
 
-	while (count > 0) {
+	while (iov_iter_count(&i) > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
-		size_t write_bytes = min(count, nrptrs *
-					(size_t)PAGE_CACHE_SIZE -
+		size_t write_bytes = min(iov_iter_count(&i),
+					 nrptrs * (size_t)PAGE_CACHE_SIZE -
 					 offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;
@@ -922,7 +970,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(struct page *) * nrptrs);
 
-		ret = btrfs_check_data_free_space(root, inode, write_bytes);
+		ret = btrfs_delalloc_reserve_space(inode, write_bytes);
 		if (ret)
 			goto out;
 
@@ -930,26 +978,20 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 				    pos, first_index, last_index,
 				    write_bytes);
 		if (ret) {
-			btrfs_free_reserved_data_space(root, inode,
-						       write_bytes);
+			btrfs_delalloc_release_space(inode, write_bytes);
 			goto out;
 		}
 
 		ret = btrfs_copy_from_user(pos, num_pages,
-					   write_bytes, pages, buf);
-		if (ret) {
-			btrfs_free_reserved_data_space(root, inode,
-						       write_bytes);
-			btrfs_drop_pages(pages, num_pages);
-			goto out;
+					   write_bytes, pages, &i);
+		if (ret == 0) {
+			dirty_and_release_pages(NULL, root, file, pages,
+						num_pages, pos, write_bytes);
 		}
 
-		ret = dirty_and_release_pages(NULL, root, file, pages,
-					      num_pages, pos, write_bytes);
 		btrfs_drop_pages(pages, num_pages);
 		if (ret) {
-			btrfs_free_reserved_data_space(root, inode,
-						       write_bytes);
+			btrfs_delalloc_release_space(inode, write_bytes);
 			goto out;
 		}
 
@@ -965,8 +1007,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 			btrfs_throttle(root);
 		}
 
-		buf += write_bytes;
-		count -= write_bytes;
 		pos += write_bytes;
 		num_written += write_bytes;
 
@@ -976,9 +1016,7 @@ out:
 	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		err = ret;
-	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 
-out_nolock:
 	kfree(pages);
 	if (pinned[0])
 		page_cache_release(pinned[0]);
@@ -1008,7 +1046,7 @@ out_nolock:
 			num_written = err;
 
 		if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
-			trans = btrfs_start_transaction(root, 1);
+			trans = btrfs_start_transaction(root, 0);
 			ret = btrfs_log_dentry_safe(trans, root,
 						    file->f_dentry);
 			if (ret == 0) {
@@ -1023,7 +1061,7 @@ out_nolock:
 				btrfs_end_transaction(trans, root);
 			}
 		}
-		if (file->f_flags & O_DIRECT) {
+		if (file->f_flags & O_DIRECT && buffered) {
 			invalidate_mapping_pages(inode->i_mapping,
 			      start_pos >> PAGE_CACHE_SHIFT,
 			     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
@@ -1063,8 +1101,9 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
  * important optimization for directories because holding the mutex prevents
  * new operations on the dir while we write to disk.
  */
-int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
+int btrfs_sync_file(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
@@ -1101,12 +1140,12 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
-	if (file && file->private_data)
+	if (file->private_data)
 		btrfs_ioctl_trans_end(file);
 
-	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
-		ret = -ENOMEM;
+	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
 		goto out;
 	}
 
@@ -1151,17 +1190,25 @@ static const struct vm_operations_struct btrfs_file_vm_ops = {
 
 static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 {
-	vma->vm_ops = &btrfs_file_vm_ops;
+	struct address_space *mapping = filp->f_mapping;
+
+	if (!mapping->a_ops->readpage)
+		return -ENOEXEC;
+
 	file_accessed(filp);
+	vma->vm_ops = &btrfs_file_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
+
 	return 0;
 }
 
 const struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
+	.write		= do_sync_write,
 	.aio_read       = generic_file_aio_read,
 	.splice_read	= generic_file_splice_read,
-	.write		= btrfs_file_write,
+	.aio_write	= btrfs_file_aio_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,
 	.release	= btrfs_release_file,

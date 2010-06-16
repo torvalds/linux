@@ -273,7 +273,7 @@ static int __devinit gef_wdt_probe(struct of_device *dev,
 		bus_clk = freq;
 
 	/* Map devices registers into memory */
-	gef_wdt_regs = of_iomap(dev->node, 0);
+	gef_wdt_regs = of_iomap(dev->dev.of_node, 0);
 	if (gef_wdt_regs == NULL)
 		return -ENOMEM;
 
@@ -303,9 +303,11 @@ static const struct of_device_id gef_wdt_ids[] = {
 };
 
 static struct of_platform_driver gef_wdt_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "gef_wdt",
-	.match_table	= gef_wdt_ids,
+	.driver = {
+		.name = "gef_wdt",
+		.owner = THIS_MODULE,
+		.of_match_table = gef_wdt_ids,
+	},
 	.probe		= gef_wdt_probe,
 };
 

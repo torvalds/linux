@@ -867,7 +867,7 @@ static void mt_ase_fp_affinity(void)
 				= current->cpus_allowed;
 			cpus_and(tmask, current->cpus_allowed,
 				mt_fpu_cpumask);
-			set_cpus_allowed(current, tmask);
+			set_cpus_allowed_ptr(current, &tmask);
 			set_thread_flag(TIF_FPUBOUND);
 		}
 	}

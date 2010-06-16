@@ -176,5 +176,6 @@
 175 -> Leadtek Winfast DTV1000S                 [107d:6655]
 176 -> Beholder BeholdTV 505 RDS                [0000:5051]
 177 -> Hawell HW-404M7
-179 -> Beholder BeholdTV H7			[5ace:7190]
-180 -> Beholder BeholdTV A7			[5ace:7090]
+178 -> Beholder BeholdTV H7                     [5ace:7190]
+179 -> Beholder BeholdTV A7                     [5ace:7090]
+180 -> Avermedia M733A                          [1461:4155,1461:4255]

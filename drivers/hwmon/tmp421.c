@@ -295,7 +295,6 @@ exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &tmp421_group);
 
 exit_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return err;
@@ -308,7 +307,6 @@ static int tmp421_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &tmp421_group);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 
 	return 0;

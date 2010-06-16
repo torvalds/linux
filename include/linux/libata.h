@@ -386,6 +386,7 @@ enum {
 	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
 	ATA_HORKAGE_NOSETXFER	= (1 << 14),	/* skip SETXFER, SATA only */
 	ATA_HORKAGE_BROKEN_FPDMA_AA	= (1 << 15),	/* skip AA */
+	ATA_HORKAGE_DUMP_ID	= (1 << 16),	/* dump IDENTIFY data */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
@@ -513,7 +514,9 @@ struct ata_ioports {
 	void __iomem		*command_addr;
 	void __iomem		*altstatus_addr;
 	void __iomem		*ctl_addr;
+#ifdef CONFIG_ATA_BMDMA
 	void __iomem		*bmdma_addr;
+#endif /* CONFIG_ATA_BMDMA */
 	void __iomem		*scr_addr;
 };
 #endif /* CONFIG_ATA_SFF */
@@ -721,8 +724,10 @@ struct ata_port {
 	u8			ctl;	/* cache of ATA control register */
 	u8			last_ctl;	/* Cache last written value */
 	struct delayed_work	sff_pio_task;
+#ifdef CONFIG_ATA_BMDMA
 	struct ata_bmdma_prd	*bmdma_prd;	/* BMDMA SG list */
 	dma_addr_t		bmdma_prd_dma;	/* and its DMA mapping */
+#endif /* CONFIG_ATA_BMDMA */
 #endif /* CONFIG_ATA_SFF */
 
 	unsigned int		pio_mask;
@@ -856,10 +861,12 @@ struct ata_port_operations {
 	void (*sff_irq_clear)(struct ata_port *);
 	void (*sff_drain_fifo)(struct ata_queued_cmd *qc);
 
+#ifdef CONFIG_ATA_BMDMA
 	void (*bmdma_setup)(struct ata_queued_cmd *qc);
 	void (*bmdma_start)(struct ata_queued_cmd *qc);
 	void (*bmdma_stop)(struct ata_queued_cmd *qc);
 	u8   (*bmdma_status)(struct ata_port *ap);
+#endif /* CONFIG_ATA_BMDMA */
 #endif /* CONFIG_ATA_SFF */
 
 	ssize_t (*em_show)(struct ata_port *ap, char *buf);
@@ -1016,6 +1023,7 @@ extern void ata_scsi_simulate(struct ata_device *dev, struct scsi_cmnd *cmd,
 extern int ata_std_bios_param(struct scsi_device *sdev,
 			      struct block_device *bdev,
 			      sector_t capacity, int geom[]);
+extern void ata_scsi_unlock_native_capacity(struct scsi_device *sdev);
 extern int ata_scsi_slave_config(struct scsi_device *sdev);
 extern void ata_scsi_slave_destroy(struct scsi_device *sdev);
 extern int ata_scsi_change_queue_depth(struct scsi_device *sdev,
@@ -1167,6 +1175,7 @@ extern struct device_attribute *ata_common_sdev_attrs[];
 	.slave_configure	= ata_scsi_slave_config,	\
 	.slave_destroy		= ata_scsi_slave_destroy,	\
 	.bios_param		= ata_std_bios_param,		\
+	.unlock_native_capacity	= ata_scsi_unlock_native_capacity, \
 	.sdev_attrs		= ata_common_sdev_attrs
 
 #define ATA_NCQ_SHT(drv_name)					\
@@ -1555,16 +1564,10 @@ extern void sata_pmp_error_handler(struct ata_port *ap);
 #ifdef CONFIG_ATA_SFF
 
 extern const struct ata_port_operations ata_sff_port_ops;
-extern const struct ata_port_operations ata_bmdma_port_ops;
 extern const struct ata_port_operations ata_bmdma32_port_ops;
 
 /* PIO only, sg_tablesize and dma_boundary limits can be removed */
 #define ATA_PIO_SHT(drv_name)					\
-	ATA_BASE_SHT(drv_name),					\
-	.sg_tablesize		= LIBATA_MAX_PRD,		\
-	.dma_boundary		= ATA_DMA_BOUNDARY
-
-#define ATA_BMDMA_SHT(drv_name)					\
 	ATA_BASE_SHT(drv_name),					\
 	.sg_tablesize		= LIBATA_MAX_PRD,		\
 	.dma_boundary		= ATA_DMA_BOUNDARY
@@ -1593,7 +1596,7 @@ extern int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 extern void ata_sff_queue_pio_task(struct ata_port *ap, unsigned long delay);
 extern unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc);
 extern bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc);
-extern unsigned int ata_sff_host_intr(struct ata_port *ap,
+extern unsigned int ata_sff_port_intr(struct ata_port *ap,
 				      struct ata_queued_cmd *qc);
 extern irqreturn_t ata_sff_interrupt(int irq, void *dev_instance);
 extern void ata_sff_lost_interrupt(struct ata_port *ap);
@@ -1625,11 +1628,24 @@ extern int ata_pci_sff_init_one(struct pci_dev *pdev,
 		struct scsi_host_template *sht, void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
 
+#ifdef CONFIG_ATA_BMDMA
+
+extern const struct ata_port_operations ata_bmdma_port_ops;
+
+#define ATA_BMDMA_SHT(drv_name)					\
+	ATA_BASE_SHT(drv_name),					\
+	.sg_tablesize		= LIBATA_MAX_PRD,		\
+	.dma_boundary		= ATA_DMA_BOUNDARY
+
 extern void ata_bmdma_qc_prep(struct ata_queued_cmd *qc);
 extern unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc);
 extern void ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *qc);
+extern unsigned int ata_bmdma_port_intr(struct ata_port *ap,
+				      struct ata_queued_cmd *qc);
+extern irqreturn_t ata_bmdma_interrupt(int irq, void *dev_instance);
 extern void ata_bmdma_error_handler(struct ata_port *ap);
 extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
+extern void ata_bmdma_irq_clear(struct ata_port *ap);
 extern void ata_bmdma_setup(struct ata_queued_cmd *qc);
 extern void ata_bmdma_start(struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
@@ -1640,7 +1656,15 @@ extern int ata_bmdma_port_start32(struct ata_port *ap);
 #ifdef CONFIG_PCI
 extern int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev);
 extern void ata_pci_bmdma_init(struct ata_host *host);
+extern int ata_pci_bmdma_prepare_host(struct pci_dev *pdev,
+				      const struct ata_port_info * const * ppi,
+				      struct ata_host **r_host);
+extern int ata_pci_bmdma_init_one(struct pci_dev *pdev,
+				  const struct ata_port_info * const * ppi,
+				  struct scsi_host_template *sht,
+				  void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
+#endif /* CONFIG_ATA_BMDMA */
 
 /**
  *	ata_sff_busy_wait - Wait for a port status register

@@ -170,6 +170,18 @@ config CRYPTO_DEV_MV_CESA
 
 	  Currently the driver supports AES in ECB and CBC mode without DMA.
 
+config CRYPTO_DEV_NIAGARA2
+       tristate "Niagara2 Stream Processing Unit driver"
+       select CRYPTO_ALGAPI
+       depends on SPARC64
+       help
+	  Each core of a Niagara2 processor contains a Stream
+	  Processing Unit, which itself contains several cryptographic
+	  sub-units.  One set provides the Modular Arithmetic Unit,
+	  used for SSL offload.  The other set provides the Cipher
+	  Group, which can perform encryption, decryption, hashing,
+	  checksumming, and raw copies.
+
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
 	select CRYPTO_DES
@@ -221,5 +233,14 @@ config CRYPTO_DEV_PPC4XX
 	select CRYPTO_BLKCIPHER
 	help
 	  This option allows you to have support for AMCC crypto acceleration.
+
+config CRYPTO_DEV_OMAP_SHAM
+	tristate "Support for OMAP SHA1/MD5 hw accelerator"
+	depends on ARCH_OMAP2 || ARCH_OMAP3
+	select CRYPTO_SHA1
+	select CRYPTO_MD5
+	help
+	  OMAP processors have SHA1/MD5 hw accelerator. Select this if you
+	  want to use the OMAP module for SHA1/MD5 algorithms.
 
 endif # CRYPTO_HW

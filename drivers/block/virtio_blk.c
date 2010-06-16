@@ -50,7 +50,7 @@ static void blk_done(struct virtqueue *vq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&vblk->lock, flags);
-	while ((vbr = vblk->vq->vq_ops->get_buf(vblk->vq, &len)) != NULL) {
+	while ((vbr = virtqueue_get_buf(vblk->vq, &len)) != NULL) {
 		int error;
 
 		switch (vbr->status) {
@@ -70,6 +70,8 @@ static void blk_done(struct virtqueue *vq)
 			vbr->req->sense_len = vbr->in_hdr.sense_len;
 			vbr->req->errors = vbr->in_hdr.errors;
 		}
+		if (blk_special_request(vbr->req))
+			vbr->req->errors = (error != 0);
 
 		__blk_end_request_all(vbr->req, error);
 		list_del(&vbr->list);
@@ -100,6 +102,11 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		break;
 	case REQ_TYPE_BLOCK_PC:
 		vbr->out_hdr.type = VIRTIO_BLK_T_SCSI_CMD;
+		vbr->out_hdr.sector = 0;
+		vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
+		break;
+	case REQ_TYPE_SPECIAL:
+		vbr->out_hdr.type = VIRTIO_BLK_T_GET_ID;
 		vbr->out_hdr.sector = 0;
 		vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
 		break;
@@ -151,7 +158,7 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 		}
 	}
 
-	if (vblk->vq->vq_ops->add_buf(vblk->vq, vblk->sg, out, in, vbr) < 0) {
+	if (virtqueue_add_buf(vblk->vq, vblk->sg, out, in, vbr) < 0) {
 		mempool_free(vbr, vblk->pool);
 		return false;
 	}
@@ -180,7 +187,7 @@ static void do_virtblk_request(struct request_queue *q)
 	}
 
 	if (issued)
-		vblk->vq->vq_ops->kick(vblk->vq);
+		virtqueue_kick(vblk->vq);
 }
 
 static void virtblk_prepare_flush(struct request_queue *q, struct request *req)
@@ -189,12 +196,45 @@ static void virtblk_prepare_flush(struct request_queue *q, struct request *req)
 	req->cmd[0] = REQ_LB_OP_FLUSH;
 }
 
+/* return id (s/n) string for *disk to *id_str
+ */
+static int virtblk_get_id(struct gendisk *disk, char *id_str)
+{
+	struct virtio_blk *vblk = disk->private_data;
+	struct request *req;
+	struct bio *bio;
+
+	bio = bio_map_kern(vblk->disk->queue, id_str, VIRTIO_BLK_ID_BYTES,
+			   GFP_KERNEL);
+	if (IS_ERR(bio))
+		return PTR_ERR(bio);
+
+	req = blk_make_request(vblk->disk->queue, bio, GFP_KERNEL);
+	if (IS_ERR(req)) {
+		bio_put(bio);
+		return PTR_ERR(req);
+	}
+
+	req->cmd_type = REQ_TYPE_SPECIAL;
+	return blk_execute_rq(vblk->disk->queue, vblk->disk, req, false);
+}
+
 static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 			 unsigned cmd, unsigned long data)
 {
 	struct gendisk *disk = bdev->bd_disk;
 	struct virtio_blk *vblk = disk->private_data;
 
+	if (cmd == 0x56424944) { /* 'VBID' */
+		void __user *usr_data = (void __user *)data;
+		char id_str[VIRTIO_BLK_ID_BYTES];
+		int err;
+
+		err = virtblk_get_id(disk, id_str);
+		if (!err && copy_to_user(usr_data, id_str, VIRTIO_BLK_ID_BYTES))
+			err = -EFAULT;
+		return err;
+	}
 	/*
 	 * Only allow the generic SCSI ioctls if the host can support it.
 	 */
@@ -258,7 +298,9 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
 				offsetof(struct virtio_blk_config, seg_max),
 				&sg_elems);
-	if (err)
+
+	/* We need at least one SG element, whatever they say. */
+	if (err || !sg_elems)
 		sg_elems = 1;
 
 	/* We need an extra sg elements at head and tail. */

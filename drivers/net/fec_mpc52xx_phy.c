@@ -66,7 +66,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 		const struct of_device_id *match)
 {
 	struct device *dev = &of->dev;
-	struct device_node *np = of->node;
+	struct device_node *np = of->dev.of_node;
 	struct mii_bus *bus;
 	struct mpc52xx_fec_mdio_priv *priv;
 	struct resource res = {};
@@ -107,7 +107,7 @@ static int mpc52xx_fec_mdio_probe(struct of_device *of,
 
 	/* set MII speed */
 	out_be32(&priv->regs->mii_speed,
-		((mpc5xxx_get_bus_frequency(of->node) >> 20) / 5) << 1);
+		((mpc5xxx_get_bus_frequency(of->dev.of_node) >> 20) / 5) << 1);
 
 	err = of_mdiobus_register(bus, np);
 	if (err)
@@ -159,10 +159,13 @@ static struct of_device_id mpc52xx_fec_mdio_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_mdio_match);
 
 struct of_platform_driver mpc52xx_fec_mdio_driver = {
-	.name = "mpc5200b-fec-phy",
+	.driver = {
+		.name = "mpc5200b-fec-phy",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_mdio_match,
+	},
 	.probe = mpc52xx_fec_mdio_probe,
 	.remove = mpc52xx_fec_mdio_remove,
-	.match_table = mpc52xx_fec_mdio_match,
 };
 
 /* let fec driver call it, since this has to be registered before it */

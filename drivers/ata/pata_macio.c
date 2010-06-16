@@ -1110,7 +1110,7 @@ static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
 
 	/* Start it up */
 	priv->irq = irq;
-	return ata_host_activate(priv->host, irq, ata_sff_interrupt, 0,
+	return ata_host_activate(priv->host, irq, ata_bmdma_interrupt, 0,
 				 &pata_macio_sht);
 }
 
@@ -1140,7 +1140,7 @@ static int __devinit pata_macio_attach(struct macio_dev *mdev,
 			"Failed to allocate private memory\n");
 		return -ENOMEM;
 	}
-	priv->node = of_node_get(mdev->ofdev.node);
+	priv->node = of_node_get(mdev->ofdev.dev.of_node);
 	priv->mdev = mdev;
 	priv->dev = &mdev->ofdev.dev;
 
@@ -1355,8 +1355,11 @@ static struct of_device_id pata_macio_match[] =
 
 static struct macio_driver pata_macio_driver =
 {
-	.name 		= "pata-macio",
-	.match_table	= pata_macio_match,
+	.driver = {
+		.name 		= "pata-macio",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pata_macio_match,
+	},
 	.probe		= pata_macio_attach,
 	.remove		= pata_macio_detach,
 #ifdef CONFIG_PM
@@ -1366,9 +1369,6 @@ static struct macio_driver pata_macio_driver =
 #ifdef CONFIG_PMAC_MEDIABAY
 	.mediabay_event	= pata_macio_mb_event,
 #endif
-	.driver = {
-		.owner		= THIS_MODULE,
-	},
 };
 
 static const struct pci_device_id pata_macio_pci_match[] = {

@@ -95,6 +95,16 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	panel_fixed_mode->clock = dvo_timing->clock * 10;
 	panel_fixed_mode->type = DRM_MODE_TYPE_PREFERRED;
 
+	if (dvo_timing->hsync_positive)
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (dvo_timing->vsync_positive)
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		panel_fixed_mode->flags |= DRM_MODE_FLAG_NVSYNC;
+
 	/* Some VBTs have bogus h/vtotal values */
 	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
 		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;

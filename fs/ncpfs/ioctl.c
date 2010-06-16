@@ -20,6 +20,7 @@
 #include <linux/smp_lock.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>
+#include <linux/smp_lock.h>
 
 #include <linux/ncp_fs.h>
 
@@ -261,9 +262,9 @@ ncp_get_charsets(struct ncp_server* server, struct ncp_nls_ioctl __user *arg)
 }
 #endif /* CONFIG_NCPFS_NLS */
 
-static int __ncp_ioctl(struct inode *inode, struct file *filp,
-	      unsigned int cmd, unsigned long arg)
+static long __ncp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_dentry->d_inode;
 	struct ncp_server *server = NCP_SERVER(inode);
 	int result;
 	struct ncp_ioctl_request request;
@@ -841,11 +842,11 @@ static int ncp_ioctl_need_write(unsigned int cmd)
 	}
 }
 
-int ncp_ioctl(struct inode *inode, struct file *filp,
-	      unsigned int cmd, unsigned long arg)
+long ncp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	int ret;
+	long ret;
 
+	lock_kernel();
 	if (ncp_ioctl_need_write(cmd)) {
 		/*
 		 * inside the ioctl(), any failures which
@@ -853,24 +854,28 @@ int ncp_ioctl(struct inode *inode, struct file *filp,
 		 * -EACCESS, so it seems consistent to keep
 		 *  that here.
 		 */
-		if (mnt_want_write(filp->f_path.mnt))
-			return -EACCES;
+		if (mnt_want_write(filp->f_path.mnt)) {
+			ret = -EACCES;
+			goto out;
+		}
 	}
-	ret = __ncp_ioctl(inode, filp, cmd, arg);
+	ret = __ncp_ioctl(filp, cmd, arg);
 	if (ncp_ioctl_need_write(cmd))
 		mnt_drop_write(filp->f_path.mnt);
+
+out:
+	unlock_kernel();
 	return ret;
 }
 
 #ifdef CONFIG_COMPAT
 long ncp_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	int ret;
+	long ret;
 
 	lock_kernel();
 	arg = (unsigned long) compat_ptr(arg);
-	ret = ncp_ioctl(inode, file, cmd, arg);
+	ret = ncp_ioctl(file, cmd, arg);
 	unlock_kernel();
 	return ret;
 }

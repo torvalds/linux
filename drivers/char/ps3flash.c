@@ -305,8 +305,7 @@ static int ps3flash_flush(struct file *file, fl_owner_t id)
 	return ps3flash_writeback(ps3flash_dev);
 }
 
-static int ps3flash_fsync(struct file *file, struct dentry *dentry,
-			  int datasync)
+static int ps3flash_fsync(struct file *file, int datasync)
 {
 	return ps3flash_writeback(ps3flash_dev);
 }

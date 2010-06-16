@@ -898,6 +898,18 @@ config LKDTM
 	Documentation on how to use the module can be found in
 	Documentation/fault-injection/provoke-crashes.txt
 
+config CPU_NOTIFIER_ERROR_INJECT
+	tristate "CPU notifier error injection module"
+	depends on HOTPLUG_CPU && DEBUG_KERNEL
+	help
+	  This option provides a kernel module that can be used to test
+	  the error handling of the cpu notifiers
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cpu-notifier-error-inject.
+
+	  If unsure, say N.
+
 config FAULT_INJECTION
 	bool "Fault-injection framework"
 	depends on DEBUG_KERNEL
@@ -1039,10 +1051,10 @@ config DYNAMIC_DEBUG
 
 	  Usage:
 
-	  Dynamic debugging is controlled via the 'dynamic_debug/ddebug' file,
+	  Dynamic debugging is controlled via the 'dynamic_debug/control' file,
 	  which is contained in the 'debugfs' filesystem. Thus, the debugfs
 	  filesystem must first be mounted before making use of this feature.
-	  We refer the control file as: <debugfs>/dynamic_debug/ddebug. This
+	  We refer the control file as: <debugfs>/dynamic_debug/control. This
 	  file contains a list of the debug statements that can be enabled. The
 	  format for each line of the file is:
 
@@ -1057,7 +1069,7 @@ config DYNAMIC_DEBUG
 
 	  From a live system:
 
-		nullarbor:~ # cat <debugfs>/dynamic_debug/ddebug
+		nullarbor:~ # cat <debugfs>/dynamic_debug/control
 		# filename:lineno [module]function flags format
 		fs/aio.c:222 [aio]__put_ioctx - "__put_ioctx:\040freeing\040%p\012"
 		fs/aio.c:248 [aio]ioctx_alloc - "ENOMEM:\040nr_events\040too\040high\012"
@@ -1067,23 +1079,23 @@ config DYNAMIC_DEBUG
 
 		// enable the message at line 1603 of file svcsock.c
 		nullarbor:~ # echo -n 'file svcsock.c line 1603 +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// enable all the messages in file svcsock.c
 		nullarbor:~ # echo -n 'file svcsock.c +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// enable all the messages in the NFS server module
 		nullarbor:~ # echo -n 'module nfsd +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// enable all 12 messages in the function svc_process()
 		nullarbor:~ # echo -n 'func svc_process +p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 		// disable all 12 messages in the function svc_process()
 		nullarbor:~ # echo -n 'func svc_process -p' >
-						<debugfs>/dynamic_debug/ddebug
+						<debugfs>/dynamic_debug/control
 
 	  See Documentation/dynamic-debug-howto.txt for additional information.
 

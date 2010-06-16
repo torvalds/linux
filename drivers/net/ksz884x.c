@@ -4854,7 +4854,7 @@ static inline void copy_old_skb(struct sk_buff *old, struct sk_buff *skb)
  *
  * Return 0 if successful; otherwise an error code indicating failure.
  */
-static int netdev_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t netdev_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
@@ -6863,6 +6863,7 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= netdev_tx_timeout,
 	.ndo_change_mtu		= netdev_change_mtu,
 	.ndo_set_mac_address	= netdev_set_mac_address,
+	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= netdev_ioctl,
 	.ndo_set_rx_mode	= netdev_set_rx_mode,
 #ifdef CONFIG_NET_POLL_CONTROLLER

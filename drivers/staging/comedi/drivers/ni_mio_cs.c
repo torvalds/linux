@@ -123,7 +123,7 @@ static const struct ni_board_struct ni_boards[] = {
 	 .adbits = 12,
 	 .ai_fifo_depth = 1024,
 	 .alwaysdither = 0,
-	 .gainlkup = ai_gain_16,
+	 .gainlkup = ai_gain_4,
 	 .ai_speed = 5000,
 	 .n_aochan = 2,
 	 .aobits = 12,
@@ -428,8 +428,6 @@ static int ni_getboardtype(struct comedi_device *dev,
 
 #ifdef MODULE
 
-MODULE_LICENSE("GPL");
-
 static struct pcmcia_device_id ni_mio_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010d),	/* DAQCard-ai-16xe-50 */
 	PCMCIA_DEVICE_MANF_CARD(0x010b, 0x010c),	/* DAQCard-ai-16e-4 */
@@ -440,6 +438,9 @@ static struct pcmcia_device_id ni_mio_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, ni_mio_cs_ids);
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments DAQCard E series");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver ni_mio_cs_driver = {
 	.probe = &cs_attach,

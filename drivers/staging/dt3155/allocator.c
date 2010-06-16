@@ -45,7 +45,6 @@
 #  define MODULE
 #endif
 
-#include <linux/version.h>
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -58,6 +57,8 @@
 #include <linux/slab.h>
 
 #include <asm/page.h>
+
+#include "allocator.h"
 
 /*#define ALL_DEBUG*/
 #define ALL_MSG "allocator: "
@@ -84,9 +85,9 @@
 /*#define PDEBUGG(fmt, args...) printk( KERN_DEBUG ALL_MSG fmt, ## args)*/
 
 
-int allocator_himem = 1; /* 0 = probe, pos. = megs, neg. = disable   */
-int allocator_step = 1;  /* This is the step size in MB              */
-int allocator_probe = 1; /* This is a flag -- 1=probe, 0=don't probe */
+static int allocator_himem = 1; /* 0 = probe, pos. = megs, neg. = disable   */
+static int allocator_step = 1;  /* This is the step size in MB              */
+static int allocator_probe = 1; /* This is a flag -- 1=probe, 0=don't probe */
 
 static unsigned long allocator_buffer;		/* physical address */
 static unsigned long allocator_buffer_size;	/* kilobytes */
@@ -102,8 +103,7 @@ struct allocator_struct {
 	struct allocator_struct *next;
 };
 
-struct allocator_struct *allocator_list;
-
+static struct allocator_struct *allocator_list;
 
 #ifdef ALL_DEBUG
 static int dump_list(void)
@@ -125,7 +125,7 @@ static int dump_list(void)
  * be used straight ahead for DMA, but needs remapping for program use).
  */
 
-unsigned long allocator_allocate_dma(unsigned long kilobytes, int prio)
+unsigned long allocator_allocate_dma(unsigned long kilobytes, gfp_t flags)
 {
 	struct allocator_struct *ptr = allocator_list, *newptr;
 	unsigned long bytes = kilobytes << 10;
@@ -148,7 +148,7 @@ unsigned long allocator_allocate_dma(unsigned long kilobytes, int prio)
 		PDEBUG("alloc failed\n");
 		return 0; /* end of list */
 	}
-	newptr = kmalloc(sizeof(struct allocator_struct), prio);
+	newptr = kmalloc(sizeof(struct allocator_struct), flags);
 	if (!newptr)
 		return 0;
 
@@ -176,9 +176,7 @@ int allocator_free_dma(unsigned long address)
 	prev = ptr; ptr = ptr->next;
 
 	if (!ptr) {
-		printk(KERN_ERR ALL_MSG
-			"free_dma(0x%08lx) but add. not allocated\n",
-			ptr->address);
+		pr_err(ALL_MSG "free_dma but add. not allocated\n");
 		return -EINVAL;
 	}
 	PDEBUGG("freeing: %08lx (%li) next %08lx\n", ptr->address, ptr->size,

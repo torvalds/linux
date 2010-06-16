@@ -140,7 +140,6 @@ static void ieee80211_key_enable_hw_accel(struct ieee80211_key *key)
 				     struct ieee80211_sub_if_data,
 				     u.ap);
 
-	key->conf.ap_addr = sdata->dev->dev_addr;
 	ret = drv_set_key(key->local, SET_KEY, sdata, sta, &key->conf);
 
 	if (!ret) {

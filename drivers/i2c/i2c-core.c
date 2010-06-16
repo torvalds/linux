@@ -47,7 +47,6 @@ static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 static struct device_type i2c_client_type;
-static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 /* ------------------------------------------------------------------------- */
@@ -371,6 +370,59 @@ struct i2c_client *i2c_verify_client(struct device *dev)
 EXPORT_SYMBOL(i2c_verify_client);
 
 
+/* This is a permissive address validity check, I2C address map constraints
+ * are purposedly not enforced, except for the general call address. */
+static int i2c_check_client_addr_validity(const struct i2c_client *client)
+{
+	if (client->flags & I2C_CLIENT_TEN) {
+		/* 10-bit address, all values are valid */
+		if (client->addr > 0x3ff)
+			return -EINVAL;
+	} else {
+		/* 7-bit address, reject the general call address */
+		if (client->addr == 0x00 || client->addr > 0x7f)
+			return -EINVAL;
+	}
+	return 0;
+}
+
+/* And this is a strict address validity check, used when probing. If a
+ * device uses a reserved address, then it shouldn't be probed. 7-bit
+ * addressing is assumed, 10-bit address devices are rare and should be
+ * explicitly enumerated. */
+static int i2c_check_addr_validity(unsigned short addr)
+{
+	/*
+	 * Reserved addresses per I2C specification:
+	 *  0x00       General call address / START byte
+	 *  0x01       CBUS address
+	 *  0x02       Reserved for different bus format
+	 *  0x03       Reserved for future purposes
+	 *  0x04-0x07  Hs-mode master code
+	 *  0x78-0x7b  10-bit slave addressing
+	 *  0x7c-0x7f  Reserved for future purposes
+	 */
+	if (addr < 0x08 || addr > 0x77)
+		return -EINVAL;
+	return 0;
+}
+
+static int __i2c_check_addr_busy(struct device *dev, void *addrp)
+{
+	struct i2c_client	*client = i2c_verify_client(dev);
+	int			addr = *(int *)addrp;
+
+	if (client && client->addr == addr)
+		return -EBUSY;
+	return 0;
+}
+
+static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
+{
+	return device_for_each_child(&adapter->dev, &addr,
+				     __i2c_check_addr_busy);
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -410,14 +462,25 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 
+	/* Check for address validity */
+	status = i2c_check_client_addr_validity(client);
+	if (status) {
+		dev_err(&adap->dev, "Invalid %d-bit I2C address 0x%02hx\n",
+			client->flags & I2C_CLIENT_TEN ? 10 : 7, client->addr);
+		goto out_err_silent;
+	}
+
 	/* Check for address business */
-	status = i2c_check_addr(adap, client->addr);
+	status = i2c_check_addr_busy(adap, client->addr);
 	if (status)
 		goto out_err;
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
 	client->dev.type = &i2c_client_type;
+#ifdef CONFIG_OF
+	client->dev.of_node = info->of_node;
+#endif
 
 	dev_set_name(&client->dev, "%d-%04x", i2c_adapter_id(adap),
 		     client->addr);
@@ -433,6 +496,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 out_err:
 	dev_err(&adap->dev, "Failed to register i2c client %s at 0x%02x "
 		"(%d)\n", client->name, client->addr, status);
+out_err_silent:
 	kfree(client);
 	return NULL;
 }
@@ -558,15 +622,9 @@ i2c_sysfs_new_device(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	if (info.addr < 0x03 || info.addr > 0x77) {
-		dev_err(dev, "%s: Invalid I2C address 0x%hx\n", "new_device",
-			info.addr);
-		return -EINVAL;
-	}
-
 	client = i2c_new_device(adap, &info);
 	if (!client)
-		return -EEXIST;
+		return -EINVAL;
 
 	/* Keep track of the added device */
 	i2c_lock_adapter(adap);
@@ -1021,21 +1079,6 @@ EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
 
-static int __i2c_check_addr(struct device *dev, void *addrp)
-{
-	struct i2c_client	*client = i2c_verify_client(dev);
-	int			addr = *(int *)addrp;
-
-	if (client && client->addr == addr)
-		return -EBUSY;
-	return 0;
-}
-
-static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
-{
-	return device_for_each_child(&adapter->dev, &addr, __i2c_check_addr);
-}
-
 /**
  * i2c_use_client - increments the reference count of the i2c client structure
  * @client: the client being referenced
@@ -1274,6 +1317,41 @@ EXPORT_SYMBOL(i2c_master_recv);
  * ----------------------------------------------------
  */
 
+/*
+ * Legacy default probe function, mostly relevant for SMBus. The default
+ * probe method is a quick write, but it is known to corrupt the 24RF08
+ * EEPROMs due to a state machine bug, and could also irreversibly
+ * write-protect some EEPROMs, so for address ranges 0x30-0x37 and 0x50-0x5f,
+ * we use a short byte read instead. Also, some bus drivers don't implement
+ * quick write, so we fallback to a byte read in that case too.
+ * On x86, there is another special case for FSC hardware monitoring chips,
+ * which want regular byte reads (address 0x73.) Fortunately, these are the
+ * only known chips using this I2C address on PC hardware.
+ * Returns 1 if probe succeeded, 0 if not.
+ */
+static int i2c_default_probe(struct i2c_adapter *adap, unsigned short addr)
+{
+	int err;
+	union i2c_smbus_data dummy;
+
+#ifdef CONFIG_X86
+	if (addr == 0x73 && (adap->class & I2C_CLASS_HWMON)
+	 && i2c_check_functionality(adap, I2C_FUNC_SMBUS_READ_BYTE_DATA))
+		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_READ, 0,
+				     I2C_SMBUS_BYTE_DATA, &dummy);
+	else
+#endif
+	if ((addr & ~0x07) == 0x30 || (addr & ~0x0f) == 0x50
+	 || !i2c_check_functionality(adap, I2C_FUNC_SMBUS_QUICK))
+		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_READ, 0,
+				     I2C_SMBUS_BYTE, &dummy);
+	else
+		err = i2c_smbus_xfer(adap, addr, 0, I2C_SMBUS_WRITE, 0,
+				     I2C_SMBUS_QUICK, NULL);
+
+	return err >= 0;
+}
+
 static int i2c_detect_address(struct i2c_client *temp_client,
 			      struct i2c_driver *driver)
 {
@@ -1283,34 +1361,20 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	int err;
 
 	/* Make sure the address is valid */
-	if (addr < 0x03 || addr > 0x77) {
+	err = i2c_check_addr_validity(addr);
+	if (err) {
 		dev_warn(&adapter->dev, "Invalid probe address 0x%02x\n",
 			 addr);
-		return -EINVAL;
+		return err;
 	}
 
 	/* Skip if already in use */
-	if (i2c_check_addr(adapter, addr))
+	if (i2c_check_addr_busy(adapter, addr))
 		return 0;
 
 	/* Make sure there is something at this address */
-	if (addr == 0x73 && (adapter->class & I2C_CLASS_HWMON)) {
-		/* Special probe for FSC hwmon chips */
-		union i2c_smbus_data dummy;
-
-		if (i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_READ, 0,
-				   I2C_SMBUS_BYTE_DATA, &dummy) < 0)
-			return 0;
-	} else {
-		if (i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_WRITE, 0,
-				   I2C_SMBUS_QUICK, NULL) < 0)
-			return 0;
-
-		/* Prevent 24RF08 corruption */
-		if ((addr & ~0x0f) == 0x50)
-			i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_WRITE, 0,
-				       I2C_SMBUS_QUICK, NULL);
-	}
+	if (!i2c_default_probe(adapter, addr))
+		return 0;
 
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));
@@ -1404,42 +1468,22 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 
 	for (i = 0; addr_list[i] != I2C_CLIENT_END; i++) {
 		/* Check address validity */
-		if (addr_list[i] < 0x03 || addr_list[i] > 0x77) {
+		if (i2c_check_addr_validity(addr_list[i]) < 0) {
 			dev_warn(&adap->dev, "Invalid 7-bit address "
 				 "0x%02x\n", addr_list[i]);
 			continue;
 		}
 
 		/* Check address availability */
-		if (i2c_check_addr(adap, addr_list[i])) {
+		if (i2c_check_addr_busy(adap, addr_list[i])) {
 			dev_dbg(&adap->dev, "Address 0x%02x already in "
 				"use, not probing\n", addr_list[i]);
 			continue;
 		}
 
-		/* Test address responsiveness
-		   The default probe method is a quick write, but it is known
-		   to corrupt the 24RF08 EEPROMs due to a state machine bug,
-		   and could also irreversibly write-protect some EEPROMs, so
-		   for address ranges 0x30-0x37 and 0x50-0x5f, we use a byte
-		   read instead. Also, some bus drivers don't implement
-		   quick write, so we fallback to a byte read it that case
-		   too. */
-		if ((addr_list[i] & ~0x07) == 0x30
-		 || (addr_list[i] & ~0x0f) == 0x50
-		 || !i2c_check_functionality(adap, I2C_FUNC_SMBUS_QUICK)) {
-			union i2c_smbus_data data;
-
-			if (i2c_smbus_xfer(adap, addr_list[i], 0,
-					   I2C_SMBUS_READ, 0,
-					   I2C_SMBUS_BYTE, &data) >= 0)
-				break;
-		} else {
-			if (i2c_smbus_xfer(adap, addr_list[i], 0,
-					   I2C_SMBUS_WRITE, 0,
-					   I2C_SMBUS_QUICK, NULL) >= 0)
-				break;
-		}
+		/* Test address responsiveness */
+		if (i2c_default_probe(adap, addr_list[i]))
+			break;
 	}
 
 	if (addr_list[i] == I2C_CLIENT_END) {

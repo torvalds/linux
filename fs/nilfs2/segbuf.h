@@ -127,8 +127,6 @@ struct nilfs_segment_buffer {
 
 extern struct kmem_cache *nilfs_segbuf_cachep;
 
-int __init nilfs_init_segbuf_cache(void);
-void nilfs_destroy_segbuf_cache(void);
 struct nilfs_segment_buffer *nilfs_segbuf_new(struct super_block *);
 void nilfs_segbuf_free(struct nilfs_segment_buffer *);
 void nilfs_segbuf_map(struct nilfs_segment_buffer *, __u64, unsigned long,

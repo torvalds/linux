@@ -634,11 +634,18 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		return err;
+		goto destroy_port;
 
 	list_add_tail(&vlan->list, &port->vlans);
 	netif_stacked_transfer_operstate(lowerdev, dev);
+
 	return 0;
+
+destroy_port:
+	if (list_empty(&port->vlans))
+		macvlan_port_destroy(lowerdev);
+
+	return err;
 }
 EXPORT_SYMBOL_GPL(macvlan_common_newlink);
 

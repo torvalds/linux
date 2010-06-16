@@ -8,6 +8,9 @@ menu "Graphics support"
 config HAVE_FB_ATMEL
 	bool
 
+config HAVE_FB_IMX
+	bool
+
 source "drivers/char/agp/Kconfig"
 
 source "drivers/gpu/vga/Kconfig"
@@ -399,9 +402,6 @@ config FB_SA1100
 
 	  If you plan to use the LCD display with your SA-1100 system, say
 	  Y here.
-
-config HAVE_FB_IMX
-	bool
 
 config FB_IMX
 	tristate "Motorola i.MX LCD support"
@@ -2202,7 +2202,6 @@ config FB_MSM
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	default y
 
 config FB_MX3
 	tristate "MX3 Framebuffer support"

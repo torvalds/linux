@@ -101,7 +101,7 @@ static struct uac_feature_unit_descriptor_0 feature_unit_desc = {
 static struct usb_audio_control mute_control = {
 	.list = LIST_HEAD_INIT(mute_control.list),
 	.name = "Mute Control",
-	.type = UAC_MUTE_CONTROL,
+	.type = UAC_FU_MUTE,
 	/* Todo: add real Mute control code */
 	.set = generic_set_cmd,
 	.get = generic_get_cmd,
@@ -110,7 +110,7 @@ static struct usb_audio_control mute_control = {
 static struct usb_audio_control volume_control = {
 	.list = LIST_HEAD_INIT(volume_control.list),
 	.name = "Volume Control",
-	.type = UAC_VOLUME_CONTROL,
+	.type = UAC_FU_VOLUME,
 	/* Todo: add real Volume control code */
 	.set = generic_set_cmd,
 	.get = generic_get_cmd,

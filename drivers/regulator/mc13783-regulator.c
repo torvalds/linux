@@ -440,8 +440,8 @@ static int mc13783_fixed_regulator_set_voltage(struct regulator_dev *rdev,
 	dev_dbg(rdev_get_dev(rdev), "%s id: %d min_uV: %d max_uV: %d\n",
 		__func__, id, min_uV, max_uV);
 
-	if (min_uV > mc13783_regulators[id].voltages[0] &&
-	    max_uV < mc13783_regulators[id].voltages[0])
+	if (min_uV >= mc13783_regulators[id].voltages[0] &&
+	    max_uV <= mc13783_regulators[id].voltages[0])
 		return 0;
 	else
 		return -EINVAL;
@@ -649,6 +649,6 @@ static void __exit mc13783_regulator_exit(void)
 module_exit(mc13783_regulator_exit);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de");
+MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_DESCRIPTION("Regulator Driver for Freescale MC13783 PMIC");
 MODULE_ALIAS("platform:mc13783-regulator");

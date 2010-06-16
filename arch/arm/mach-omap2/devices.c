@@ -28,6 +28,7 @@
 #include <plat/mux.h>
 #include <mach/gpio.h>
 #include <plat/mmc.h>
+#include <plat/dma.h>
 
 #include "mux.h"
 
@@ -486,8 +487,10 @@ static void omap_init_pmu(void)
 }
 
 
-#ifdef CONFIG_OMAP_SHA1_MD5
-static struct resource sha1_md5_resources[] = {
+#if defined(CONFIG_CRYPTO_DEV_OMAP_SHAM) || defined(CONFIG_CRYPTO_DEV_OMAP_SHAM_MODULE)
+
+#ifdef CONFIG_ARCH_OMAP2
+static struct resource omap2_sham_resources[] = {
 	{
 		.start	= OMAP24XX_SEC_SHA1MD5_BASE,
 		.end	= OMAP24XX_SEC_SHA1MD5_BASE + 0x64,
@@ -498,20 +501,55 @@ static struct resource sha1_md5_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	}
 };
+static int omap2_sham_resources_sz = ARRAY_SIZE(omap2_sham_resources);
+#else
+#define omap2_sham_resources		NULL
+#define omap2_sham_resources_sz		0
+#endif
 
-static struct platform_device sha1_md5_device = {
-	.name		= "OMAP SHA1/MD5",
+#ifdef CONFIG_ARCH_OMAP3
+static struct resource omap3_sham_resources[] = {
+	{
+		.start	= OMAP34XX_SEC_SHA1MD5_BASE,
+		.end	= OMAP34XX_SEC_SHA1MD5_BASE + 0x64,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= INT_34XX_SHA1MD52_IRQ,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= OMAP34XX_DMA_SHA1MD5_RX,
+		.flags	= IORESOURCE_DMA,
+	}
+};
+static int omap3_sham_resources_sz = ARRAY_SIZE(omap3_sham_resources);
+#else
+#define omap3_sham_resources		NULL
+#define omap3_sham_resources_sz		0
+#endif
+
+static struct platform_device sham_device = {
+	.name		= "omap-sham",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(sha1_md5_resources),
-	.resource	= sha1_md5_resources,
 };
 
-static void omap_init_sha1_md5(void)
+static void omap_init_sham(void)
 {
-	platform_device_register(&sha1_md5_device);
+	if (cpu_is_omap24xx()) {
+		sham_device.resource = omap2_sham_resources;
+		sham_device.num_resources = omap2_sham_resources_sz;
+	} else if (cpu_is_omap34xx()) {
+		sham_device.resource = omap3_sham_resources;
+		sham_device.num_resources = omap3_sham_resources_sz;
+	} else {
+		pr_err("%s: platform not supported\n", __func__);
+		return;
+	}
+	platform_device_register(&sham_device);
 }
 #else
-static inline void omap_init_sha1_md5(void) { }
+static inline void omap_init_sham(void) { }
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -869,7 +907,7 @@ static int __init omap2_init_devices(void)
 	omap_init_pmu();
 	omap_hdq_init();
 	omap_init_sti();
-	omap_init_sha1_md5();
+	omap_init_sham();
 	omap_init_vout();
 
 	return 0;

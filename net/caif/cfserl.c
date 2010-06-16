@@ -59,14 +59,18 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 	u8 stx = CFSERL_STX;
 	int ret;
 	u16 expectlen = 0;
+
 	caif_assert(newpkt != NULL);
 	spin_lock(&layr->sync);
 
 	if (layr->incomplete_frm != NULL) {
-
 		layr->incomplete_frm =
 		    cfpkt_append(layr->incomplete_frm, newpkt, expectlen);
 		pkt = layr->incomplete_frm;
+		if (pkt == NULL) {
+			spin_unlock(&layr->sync);
+			return -ENOMEM;
+		}
 	} else {
 		pkt = newpkt;
 	}
@@ -154,7 +158,6 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 			if (layr->usestx) {
 				if (tail_pkt != NULL)
 					pkt = cfpkt_append(pkt, tail_pkt, 0);
-
 				/* Start search for next STX if frame failed */
 				continue;
 			} else {

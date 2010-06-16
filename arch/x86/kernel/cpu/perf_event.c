@@ -106,6 +106,7 @@ struct cpu_hw_events {
 
 	int			n_events;
 	int			n_added;
+	int			n_txn;
 	int			assign[X86_PMC_IDX_MAX]; /* event to counter assignment */
 	u64			tags[X86_PMC_IDX_MAX];
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
@@ -983,6 +984,7 @@ static int x86_pmu_enable(struct perf_event *event)
 out:
 	cpuc->n_events = n;
 	cpuc->n_added += n - n0;
+	cpuc->n_txn += n - n0;
 
 	return 0;
 }
@@ -1088,6 +1090,14 @@ static void x86_pmu_disable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	int i;
+
+	/*
+	 * If we're called during a txn, we don't need to do anything.
+	 * The events never got scheduled and ->cancel_txn will truncate
+	 * the event_list.
+	 */
+	if (cpuc->group_flag & PERF_EVENT_TXN_STARTED)
+		return;
 
 	x86_pmu_stop(event);
 
@@ -1379,6 +1389,7 @@ static void x86_pmu_start_txn(const struct pmu *pmu)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	cpuc->group_flag |= PERF_EVENT_TXN_STARTED;
+	cpuc->n_txn = 0;
 }
 
 /*
@@ -1391,6 +1402,11 @@ static void x86_pmu_cancel_txn(const struct pmu *pmu)
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
 	cpuc->group_flag &= ~PERF_EVENT_TXN_STARTED;
+	/*
+	 * Truncate the collected events.
+	 */
+	cpuc->n_added -= cpuc->n_txn;
+	cpuc->n_events -= cpuc->n_txn;
 }
 
 /*
@@ -1418,6 +1434,12 @@ static int x86_pmu_commit_txn(const struct pmu *pmu)
 	 * will be used by hw_perf_enable()
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
+
+	/*
+	 * Clear out the txn count so that ->cancel_txn() which gets
+	 * run after ->commit_txn() doesn't undo things.
+	 */
+	cpuc->n_txn = 0;
 
 	return 0;
 }
@@ -1717,7 +1739,11 @@ void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int ski
 	 */
 	regs->bp = rewind_frame_pointer(skip + 1);
 	regs->cs = __KERNEL_CS;
-	local_save_flags(regs->flags);
+	/*
+	 * We abuse bit 3 to pass exact information, see perf_misc_flags
+	 * and the comment with PERF_EFLAGS_EXACT.
+	 */
+	regs->flags = 0;
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)

@@ -592,18 +592,30 @@ static ssize_t tsl2563_calib1_store(struct device *dev,
  * once I understand what they mean */
 static DEVICE_ATTR(adc0, S_IRUGO, tsl2563_adc0_show, NULL);
 static DEVICE_ATTR(adc1, S_IRUGO, tsl2563_adc1_show, NULL);
-static DEVICE_ATTR(lux, S_IRUGO, tsl2563_lux_show, NULL);
+static DEVICE_ATTR(illuminance0_input, S_IRUGO, tsl2563_lux_show, NULL);
 static DEVICE_ATTR(calib0, S_IRUGO | S_IWUSR,
 		   tsl2563_calib0_show, tsl2563_calib0_store);
 static DEVICE_ATTR(calib1, S_IRUGO | S_IWUSR,
 		   tsl2563_calib1_show, tsl2563_calib1_store);
 
+static ssize_t tsl2563_show_name(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct tsl2563_chip *chip = indio_dev->dev_data;
+	return sprintf(buf, "%s\n", chip->client->name);
+}
+
+static DEVICE_ATTR(name, S_IRUGO, tsl2563_show_name, NULL);
+
 static struct attribute *tsl2563_attributes[] = {
 	&dev_attr_adc0.attr,
 	&dev_attr_adc1.attr,
-	&dev_attr_lux.attr,
+	&dev_attr_illuminance0_input.attr,
 	&dev_attr_calib0.attr,
 	&dev_attr_calib1.attr,
+	&dev_attr_name.attr,
 	NULL
 };
 
@@ -634,7 +646,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 
 	err = tsl2563_detect(chip);
 	if (err) {
-		dev_err(&client->dev, "device not found, error %d \n", -err);
+		dev_err(&client->dev, "device not found, error %d\n", -err);
 		goto fail1;
 	}
 
@@ -682,7 +694,6 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 fail2:
 	iio_device_unregister(chip->indio_dev);
 fail1:
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return err;
 }
@@ -693,7 +704,6 @@ static int tsl2563_remove(struct i2c_client *client)
 
 	iio_device_unregister(chip->indio_dev);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return 0;
 }

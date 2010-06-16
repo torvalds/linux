@@ -80,22 +80,6 @@ static int acpi_sleep_prepare(u32 acpi_state)
 
 #ifdef CONFIG_ACPI_SLEEP
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
-/*
- * According to the ACPI specification the BIOS should make sure that ACPI is
- * enabled and SCI_EN bit is set on wake-up from S1 - S3 sleep states.  Still,
- * some BIOSes don't do that and therefore we use acpi_enable() to enable ACPI
- * on such systems during resume.  Unfortunately that doesn't help in
- * particularly pathological cases in which SCI_EN has to be set directly on
- * resume, although the specification states very clearly that this flag is
- * owned by the hardware.  The set_sci_en_on_resume variable will be set in such
- * cases.
- */
-static bool set_sci_en_on_resume;
-
-void __init acpi_set_sci_en_on_resume(void)
-{
-	set_sci_en_on_resume = true;
-}
 
 /*
  * ACPI 1.0 wants us to execute _PTS before suspending devices, so we allow the
@@ -110,11 +94,13 @@ void __init acpi_old_suspend_ordering(void)
 }
 
 /**
- *	acpi_pm_disable_gpes - Disable the GPEs.
+ * acpi_pm_freeze - Disable the GPEs and suspend EC transactions.
  */
-static int acpi_pm_disable_gpes(void)
+static int acpi_pm_freeze(void)
 {
 	acpi_disable_all_gpes();
+	acpi_os_wait_events_complete(NULL);
+	acpi_ec_block_transactions();
 	return 0;
 }
 
@@ -142,7 +128,8 @@ static int acpi_pm_prepare(void)
 	int error = __acpi_pm_prepare();
 
 	if (!error)
-		acpi_disable_all_gpes();
+		acpi_pm_freeze();
+
 	return error;
 }
 
@@ -253,11 +240,8 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		break;
 	}
 
-	/* If ACPI is not enabled by the BIOS, we need to enable it here. */
-	if (set_sci_en_on_resume)
-		acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
-	else
-		acpi_enable();
+	/* This violates the spec but is required for bug compatibility. */
+	acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 
 	/* Reprogram control registers and execute _BFS */
 	acpi_leave_sleep_state_prep(acpi_state);
@@ -275,6 +259,8 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	 * acpi_leave_sleep_state will reenable specific GPEs later
 	 */
 	acpi_disable_all_gpes();
+	/* Allow EC transactions to happen. */
+	acpi_ec_unblock_transactions_early();
 
 	local_irq_restore(flags);
 	printk(KERN_DEBUG "Back to C!\n");
@@ -284,6 +270,12 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 		acpi_restore_state_mem();
 
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
+}
+
+static void acpi_suspend_finish(void)
+{
+	acpi_ec_unblock_transactions();
+	acpi_pm_finish();
 }
 
 static int acpi_suspend_state_valid(suspend_state_t pm_state)
@@ -307,7 +299,7 @@ static struct platform_suspend_ops acpi_suspend_ops = {
 	.begin = acpi_suspend_begin,
 	.prepare_late = acpi_pm_prepare,
 	.enter = acpi_suspend_enter,
-	.wake = acpi_pm_finish,
+	.wake = acpi_suspend_finish,
 	.end = acpi_pm_end,
 };
 
@@ -333,9 +325,9 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
-	.prepare_late = acpi_pm_disable_gpes,
+	.prepare_late = acpi_pm_freeze,
 	.enter = acpi_suspend_enter,
-	.wake = acpi_pm_finish,
+	.wake = acpi_suspend_finish,
 	.end = acpi_pm_end,
 	.recover = acpi_pm_finish,
 };
@@ -343,12 +335,6 @@ static struct platform_suspend_ops acpi_suspend_ops_old = {
 static int __init init_old_suspend_ordering(const struct dmi_system_id *d)
 {
 	old_suspend_ordering = true;
-	return 0;
-}
-
-static int __init init_set_sci_en_on_resume(const struct dmi_system_id *d)
-{
-	set_sci_en_on_resume = true;
 	return 0;
 }
 
@@ -370,115 +356,11 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 		},
 	},
 	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Apple MacBook 1,1",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Apple MacMini 1,1",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Macmini1,1"),
-		},
-	},
-	{
 	.callback = init_old_suspend_ordering,
 	.ident = "Asus Pundit P1-AH2 (M2N8L motherboard)",
 	.matches = {
 		DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek Computer INC."),
 		DMI_MATCH(DMI_BOARD_NAME, "M2N8L"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Toshiba Satellite L300",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L300"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard HP G7000 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP G7000 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard HP Pavilion dv3 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv3 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Pavilion dv4",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv4"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Pavilion dv7",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv7"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Compaq Presario C700 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Compaq Presario C700 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Hewlett-Packard Compaq Presario CQ40 Notebook PC",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Compaq Presario CQ40 Notebook PC"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Lenovo ThinkPad T410",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T410"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Lenovo ThinkPad T510",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad T510"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Lenovo ThinkPad W510",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad W510"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Lenovo ThinkPad X201[s]",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad X201"),
 		},
 	},
 	{
@@ -488,30 +370,6 @@ static struct dmi_system_id __initdata acpisleep_dmi_table[] = {
 		DMI_MATCH(DMI_BOARD_VENDOR,
 				"Matsushita Electric Industrial Co.,Ltd."),
 		DMI_MATCH(DMI_BOARD_NAME, "CF51-2L"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Dell Studio 1558",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Studio 1558"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Dell Studio 1557",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Studio 1557"),
-		},
-	},
-	{
-	.callback = init_set_sci_en_on_resume,
-	.ident = "Dell Studio 1555",
-	.matches = {
-		DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		DMI_MATCH(DMI_PRODUCT_NAME, "Studio 1555"),
 		},
 	},
 	{},
@@ -586,6 +444,7 @@ static int acpi_hibernation_enter(void)
 static void acpi_hibernation_finish(void)
 {
 	hibernate_nvs_free();
+	acpi_ec_unblock_transactions();
 	acpi_pm_finish();
 }
 
@@ -606,19 +465,13 @@ static void acpi_hibernation_leave(void)
 	}
 	/* Restore the NVS memory area */
 	hibernate_nvs_restore();
+	/* Allow EC transactions to happen. */
+	acpi_ec_unblock_transactions_early();
 }
 
-static int acpi_pm_pre_restore(void)
+static void acpi_pm_thaw(void)
 {
-	acpi_disable_all_gpes();
-	acpi_os_wait_events_complete(NULL);
-	acpi_ec_suspend_transactions();
-	return 0;
-}
-
-static void acpi_pm_restore_cleanup(void)
-{
-	acpi_ec_resume_transactions();
+	acpi_ec_unblock_transactions();
 	acpi_enable_all_runtime_gpes();
 }
 
@@ -630,8 +483,8 @@ static struct platform_hibernation_ops acpi_hibernation_ops = {
 	.prepare = acpi_pm_prepare,
 	.enter = acpi_hibernation_enter,
 	.leave = acpi_hibernation_leave,
-	.pre_restore = acpi_pm_pre_restore,
-	.restore_cleanup = acpi_pm_restore_cleanup,
+	.pre_restore = acpi_pm_freeze,
+	.restore_cleanup = acpi_pm_thaw,
 };
 
 /**
@@ -663,12 +516,9 @@ static int acpi_hibernation_begin_old(void)
 
 static int acpi_hibernation_pre_snapshot_old(void)
 {
-	int error = acpi_pm_disable_gpes();
-
-	if (!error)
-		hibernate_nvs_save();
-
-	return error;
+	acpi_pm_freeze();
+	hibernate_nvs_save();
+	return 0;
 }
 
 /*
@@ -680,11 +530,11 @@ static struct platform_hibernation_ops acpi_hibernation_ops_old = {
 	.end = acpi_pm_end,
 	.pre_snapshot = acpi_hibernation_pre_snapshot_old,
 	.finish = acpi_hibernation_finish,
-	.prepare = acpi_pm_disable_gpes,
+	.prepare = acpi_pm_freeze,
 	.enter = acpi_hibernation_enter,
 	.leave = acpi_hibernation_leave,
-	.pre_restore = acpi_pm_pre_restore,
-	.restore_cleanup = acpi_pm_restore_cleanup,
+	.pre_restore = acpi_pm_freeze,
+	.restore_cleanup = acpi_pm_thaw,
 	.recover = acpi_pm_finish,
 };
 #endif /* CONFIG_HIBERNATION */

@@ -60,6 +60,8 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		size = __btrfs_getxattr(inode, name, value, size);
 		if (size > 0) {
 			acl = posix_acl_from_xattr(value, size);
+			if (IS_ERR(acl))
+				return acl;
 			set_cached_acl(inode, type, acl);
 		}
 		kfree(value);
@@ -159,6 +161,12 @@ static int btrfs_xattr_acl_set(struct dentry *dentry, const char *name,
 {
 	int ret;
 	struct posix_acl *acl = NULL;
+
+	if (!is_owner_or_cap(dentry->d_inode))
+		return -EPERM;
+
+	if (!IS_POSIXACL(dentry->d_inode))
+		return -EOPNOTSUPP;
 
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);
@@ -282,14 +290,14 @@ int btrfs_acl_chmod(struct inode *inode)
 	return ret;
 }
 
-struct xattr_handler btrfs_xattr_acl_default_handler = {
+const struct xattr_handler btrfs_xattr_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.get	= btrfs_xattr_acl_get,
 	.set	= btrfs_xattr_acl_set,
 };
 
-struct xattr_handler btrfs_xattr_acl_access_handler = {
+const struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.get	= btrfs_xattr_acl_get,

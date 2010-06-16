@@ -656,7 +656,7 @@ EXPORT_SYMBOL(radix_tree_next_hole);
  *
  *	Returns: the index of the hole if found, otherwise returns an index
  *	outside of the set specified (in which case 'index - return >= max_scan'
- *	will be true). In rare cases of wrap-around, LONG_MAX will be returned.
+ *	will be true). In rare cases of wrap-around, ULONG_MAX will be returned.
  *
  *	radix_tree_next_hole may be called under rcu_read_lock. However, like
  *	radix_tree_gang_lookup, this will not atomically search a snapshot of
@@ -674,7 +674,7 @@ unsigned long radix_tree_prev_hole(struct radix_tree_root *root,
 		if (!radix_tree_lookup(root, index))
 			break;
 		index--;
-		if (index == LONG_MAX)
+		if (index == ULONG_MAX)
 			break;
 	}
 

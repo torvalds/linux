@@ -49,6 +49,8 @@ static DEFINE_SPINLOCK(dwarf_fde_lock);
 
 static struct dwarf_cie *cached_cie;
 
+static unsigned int dwarf_unwinder_ready;
+
 /**
  *	dwarf_frame_alloc_reg - allocate memory for a DWARF register
  *	@frame: the DWARF frame whose list of registers we insert on
@@ -582,6 +584,13 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	unsigned long addr;
 
 	/*
+	 * If we've been called in to before initialization has
+	 * completed, bail out immediately.
+	 */
+	if (!dwarf_unwinder_ready)
+		return NULL;
+
+	/*
 	 * If we're starting at the top of the stack we need get the
 	 * contents of a physical register to get the CFA in order to
 	 * begin the virtual unwinding of the stack.
@@ -845,8 +854,10 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	rb_link_node(&cie->node, parent, rb_node);
 	rb_insert_color(&cie->node, &cie_root);
 
+#ifdef CONFIG_MODULES
 	if (mod != NULL)
 		list_add_tail(&cie->link, &mod->arch.cie_list);
+#endif
 
 	spin_unlock_irqrestore(&dwarf_cie_lock, flags);
 
@@ -935,8 +946,10 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 	rb_link_node(&fde->node, parent, rb_node);
 	rb_insert_color(&fde->node, &fde_root);
 
+#ifdef CONFIG_MODULES
 	if (mod != NULL)
 		list_add_tail(&fde->link, &mod->arch.fde_list);
+#endif
 
 	spin_unlock_irqrestore(&dwarf_fde_lock, flags);
 
@@ -1163,7 +1176,7 @@ void module_dwarf_cleanup(struct module *mod)
  */
 static int __init dwarf_unwinder_init(void)
 {
-	int err;
+	int err = -ENOMEM;
 
 	dwarf_frame_cachep = kmem_cache_create("dwarf_frames",
 			sizeof(struct dwarf_frame), 0,
@@ -1177,11 +1190,15 @@ static int __init dwarf_unwinder_init(void)
 					  mempool_alloc_slab,
 					  mempool_free_slab,
 					  dwarf_frame_cachep);
+	if (!dwarf_frame_pool)
+		goto out;
 
 	dwarf_reg_pool = mempool_create(DWARF_REG_MIN_REQ,
 					 mempool_alloc_slab,
 					 mempool_free_slab,
 					 dwarf_reg_cachep);
+	if (!dwarf_reg_pool)
+		goto out;
 
 	err = dwarf_parse_section(__start_eh_frame, __stop_eh_frame, NULL);
 	if (err)
@@ -1191,11 +1208,13 @@ static int __init dwarf_unwinder_init(void)
 	if (err)
 		goto out;
 
+	dwarf_unwinder_ready = 1;
+
 	return 0;
 
 out:
 	printk(KERN_ERR "Failed to initialise DWARF unwinder: %d\n", err);
 	dwarf_unwinder_cleanup();
-	return -EINVAL;
+	return err;
 }
 early_initcall(dwarf_unwinder_init);

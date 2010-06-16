@@ -225,7 +225,6 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	ret = power_supply_register(&client->dev, &chip->battery);
 	if (ret) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		i2c_set_clientdata(client, NULL);
 		kfree(chip);
 		return ret;
 	}
@@ -245,7 +244,6 @@ static int __devexit max17040_remove(struct i2c_client *client)
 
 	power_supply_unregister(&chip->battery);
 	cancel_delayed_work(&chip->work);
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return 0;
 }

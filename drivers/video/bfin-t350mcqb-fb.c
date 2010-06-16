@@ -420,7 +420,9 @@ static irqreturn_t bfin_t350mcqb_irq_error(int irq, void *dev_id)
 
 static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 {
+#ifndef NO_BL_SUPPORT
 	struct backlight_properties props;
+#endif
 	struct bfin_t350mcqbfb_info *info;
 	struct fb_info *fbinfo;
 	int ret;
@@ -550,7 +552,8 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 		printk(KERN_ERR DRIVER_NAME
 			": unable to register backlight.\n");
 		ret = -EINVAL;
-		goto out9;
+		unregister_framebuffer(fbinfo);
+		goto out8;
 	}
 
 	lcd_dev = lcd_device_register(DRIVER_NAME, NULL, &bfin_lcd_ops);
@@ -559,8 +562,6 @@ static int __devinit bfin_t350mcqb_probe(struct platform_device *pdev)
 
 	return 0;
 
-out9:
-	unregister_framebuffer(fbinfo);
 out8:
 	free_irq(info->irq, info);
 out7:

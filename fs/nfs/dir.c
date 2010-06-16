@@ -53,7 +53,7 @@ static int nfs_link(struct dentry *, struct inode *, struct dentry *);
 static int nfs_mknod(struct inode *, struct dentry *, int, dev_t);
 static int nfs_rename(struct inode *, struct dentry *,
 		      struct inode *, struct dentry *);
-static int nfs_fsync_dir(struct file *, struct dentry *, int);
+static int nfs_fsync_dir(struct file *, int);
 static loff_t nfs_llseek_dir(struct file *, loff_t, int);
 
 const struct file_operations nfs_dir_operations = {
@@ -641,8 +641,10 @@ out:
  * All directory operations under NFS are synchronous, so fsync()
  * is a dummy operation.
  */
-static int nfs_fsync_dir(struct file *filp, struct dentry *dentry, int datasync)
+static int nfs_fsync_dir(struct file *filp, int datasync)
 {
+	struct dentry *dentry = filp->f_path.dentry;
+
 	dfprintk(FILE, "NFS: fsync dir(%s/%s) datasync %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			datasync);
@@ -1741,6 +1743,7 @@ remove_lru_entry:
 			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
 			smp_mb__after_clear_bit();
 		}
+		spin_unlock(&inode->i_lock);
 	}
 	spin_unlock(&nfs_access_lru_lock);
 	nfs_access_free_list(&head);

@@ -260,6 +260,7 @@ static void microcode_dev_exit(void)
 }
 
 MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
+MODULE_ALIAS("devname:cpu/microcode");
 #else
 #define microcode_dev_init()	0
 #define microcode_dev_exit()	do { } while (0)

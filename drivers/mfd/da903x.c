@@ -534,7 +534,6 @@ static int __devinit da903x_probe(struct i2c_client *client,
 out_free_irq:
 	free_irq(client->irq, chip);
 out_free_chip:
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return ret;
 }

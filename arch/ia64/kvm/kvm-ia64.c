@@ -144,6 +144,7 @@ int kvm_arch_hardware_enable(void *garbage)
 				VP_INIT_ENV : VP_INIT_ENV_INITALIZE,
 			__pa(kvm_vm_buffer), KVM_VM_BUFFER_BASE, &tmp_base);
 	if (status != 0) {
+		spin_unlock(&vp_lock);
 		printk(KERN_WARNING"kvm: Failed to Enable VT Support!!!!\n");
 		return -EINVAL;
 	}
@@ -979,11 +980,13 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = -EFAULT;
 		if (copy_from_user(&irq_event, argp, sizeof irq_event))
 			goto out;
+		r = -ENXIO;
 		if (irqchip_in_kernel(kvm)) {
 			__s32 status;
 			status = kvm_set_irq(kvm, KVM_USERSPACE_IRQ_SOURCE_ID,
 				    irq_event.irq, irq_event.level);
 			if (ioctl == KVM_IRQ_LINE_STATUS) {
+				r = -EFAULT;
 				irq_event.status = status;
 				if (copy_to_user(argp, &irq_event,
 							sizeof irq_event))
@@ -1379,7 +1382,7 @@ static void kvm_release_vm_pages(struct kvm *kvm)
 	int i, j;
 	unsigned long base_gfn;
 
-	slots = rcu_dereference(kvm->memslots);
+	slots = kvm_memslots(kvm);
 	for (i = 0; i < slots->nmemslots; i++) {
 		memslot = &slots->memslots[i];
 		base_gfn = memslot->base_gfn;
@@ -1535,8 +1538,10 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			goto out;
 
 		if (copy_to_user(user_stack, stack,
-				 sizeof(struct kvm_ia64_vcpu_stack)))
+				 sizeof(struct kvm_ia64_vcpu_stack))) {
+			r = -EFAULT;
 			goto out;
+		}
 
 		break;
 	}

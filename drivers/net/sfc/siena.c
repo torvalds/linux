@@ -206,6 +206,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 {
 	struct siena_nic_data *nic_data;
 	bool already_attached = 0;
+	efx_oword_t reg;
 	int rc;
 
 	/* Allocate storage for hardware specific data */
@@ -219,6 +220,9 @@ static int siena_probe_nic(struct efx_nic *efx)
 		rc = -ENODEV;
 		goto fail1;
 	}
+
+	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
+	efx->net_dev->dev_id = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
 	efx_mcdi_init(efx);
 

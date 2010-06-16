@@ -68,6 +68,10 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #include "addi_common.h"
 #include "addi_amcc_s5933.h"
 
+#ifndef ADDIDATA_DRIVER_NAME
+#define ADDIDATA_DRIVER_NAME	"addi_common"
+#endif
+
 /* Update-0.7.57->0.7.68MODULE_AUTHOR("ADDI-DATA GmbH <info@addi-data.com>"); */
 /* Update-0.7.57->0.7.68MODULE_DESCRIPTION("Comedi ADDI-DATA module"); */
 /* Update-0.7.57->0.7.68MODULE_LICENSE("GPL"); */
@@ -293,8 +297,8 @@ static const struct addi_board boardtypes[] = {
 			0,
 			0,
 			0,
-			0,
-			0,
+			NULL,
+			NULL,
 			32,
 			0,
 			0,
@@ -2527,8 +2531,8 @@ static const struct addi_board boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
 
-struct comedi_driver driver_addi = {
-	.driver_name = "addi_common",
+static struct comedi_driver driver_addi = {
+	.driver_name = ADDIDATA_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = i_ADDI_Attach,
 	.detach = i_ADDI_Detach,
@@ -2570,10 +2574,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pcilst_struct *card = NULL;
 	unsigned char pci_bus, pci_slot, pci_func;
 	int i_Dma = 0;
-	static char c_Identifier[150];
-
-	sprintf(c_Identifier, "Addi-Data GmbH Comedi %s",
-		this_board->pc_DriverName);
 
 	ret = alloc_private(dev, sizeof(struct addi_private));
 	if (ret < 0)
@@ -2583,7 +2583,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
 		pci_list_builded = 1;
 	}
-	/* printk("comedi%d: addi_common: board=%s",dev->minor,this_board->pc_DriverName); */
+	/* printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s",dev->minor,this_board->pc_DriverName); */
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
@@ -2639,9 +2639,8 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->ps_BoardInfo = this_board;
 		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
-		devpriv->dw_AiBase =
-			(unsigned long) ioremap(io_addr[3],
-			this_board->i_IorangeBase3);
+		devpriv->dw_AiBase = ioremap(io_addr[3],
+					     this_board->i_IorangeBase3);
 		printk("\nioremap end");
 	}
 
@@ -2649,7 +2648,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (irq > 0) {
 		if (request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
-				c_Identifier, dev) < 0) {
+				this_board->pc_DriverName, dev) < 0) {
 			printk(", unable to allocate IRQ %u, DISABLING IT",
 				irq);
 			irq = 0;	/* Can't use IRQ */
@@ -2952,7 +2951,7 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 					devpriv->ui_DmaBufferPages[1]);
 			}
 		} else {
-			iounmap((void *)devpriv->dw_AiBase);
+			iounmap(devpriv->dw_AiBase);
 
 			if (devpriv->allocated) {
 				i_pci_card_free(devpriv->amcc);

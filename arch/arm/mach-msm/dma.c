@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
+#include <linux/completion.h>
 #include <mach/dma.h>
 
 #define MSM_DMOV_CHANNEL_COUNT 16
@@ -69,6 +70,8 @@ void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 			writel(DMOV_CONFIG_IRQ_EN, DMOV_CONFIG(id));
 		}
 #endif
+		if (cmd->execute_func)
+			cmd->execute_func(cmd);
 		PRINT_IO("msm_dmov_enqueue_cmd(%d), start command, status %x\n", id, status);
 		list_add_tail(&cmd->list, &active_commands[id]);
 		if (!channel_active)
@@ -116,6 +119,7 @@ int msm_dmov_exec_cmd(unsigned id, unsigned int cmdptr)
 
 	cmd.dmov_cmd.cmdptr = cmdptr;
 	cmd.dmov_cmd.complete_func = dmov_exec_cmdptr_complete_func;
+	cmd.dmov_cmd.execute_func = NULL;
 	cmd.id = id;
 	init_completion(&cmd.complete);
 
@@ -221,6 +225,8 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 				cmd = list_entry(ready_commands[id].next, typeof(*cmd), list);
 				list_del(&cmd->list);
 				list_add_tail(&cmd->list, &active_commands[id]);
+				if (cmd->execute_func)
+					cmd->execute_func(cmd);
 				PRINT_FLOW("msm_datamover_irq_handler id %d, start command\n", id);
 				writel(cmd->cmdptr, DMOV_CMD_PTR(id));
 			}

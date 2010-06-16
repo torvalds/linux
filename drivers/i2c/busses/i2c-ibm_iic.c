@@ -664,7 +664,7 @@ static inline u8 iic_clckdiv(unsigned int opb)
 static int __devinit iic_request_irq(struct of_device *ofdev,
 				     struct ibm_iic_private *dev)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	int irq;
 
 	if (iic_force_poll)
@@ -695,7 +695,7 @@ static int __devinit iic_request_irq(struct of_device *ofdev,
 static int __devinit iic_probe(struct of_device *ofdev,
 			       const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct ibm_iic_private *dev;
 	struct i2c_adapter *adap;
 	const u32 *freq;
@@ -807,8 +807,11 @@ static const struct of_device_id ibm_iic_match[] = {
 };
 
 static struct of_platform_driver ibm_iic_driver = {
-	.name	= "ibm-iic",
-	.match_table = ibm_iic_match,
+	.driver = {
+		.name = "ibm-iic",
+		.owner = THIS_MODULE,
+		.of_match_table = ibm_iic_match,
+	},
 	.probe	= iic_probe,
 	.remove	= __devexit_p(iic_remove),
 };

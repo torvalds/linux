@@ -125,7 +125,7 @@ static void __devinit esp_get_scsi_id(struct esp *esp, struct of_device *espdma)
 	struct of_device *op = esp->dev;
 	struct device_node *dp;
 
-	dp = op->node;
+	dp = op->dev.of_node;
 	esp->scsi_id = of_getintprop_default(dp, "initiator-id", 0xff);
 	if (esp->scsi_id != 0xff)
 		goto done;
@@ -134,7 +134,7 @@ static void __devinit esp_get_scsi_id(struct esp *esp, struct of_device *espdma)
 	if (esp->scsi_id != 0xff)
 		goto done;
 
-	esp->scsi_id = of_getintprop_default(espdma->node,
+	esp->scsi_id = of_getintprop_default(espdma->dev.of_node,
 					     "scsi-initiator-id", 7);
 
 done:
@@ -147,7 +147,7 @@ static void __devinit esp_get_differential(struct esp *esp)
 	struct of_device *op = esp->dev;
 	struct device_node *dp;
 
-	dp = op->node;
+	dp = op->dev.of_node;
 	if (of_find_property(dp, "differential", NULL))
 		esp->flags |= ESP_FLAG_DIFFERENTIAL;
 	else
@@ -160,7 +160,7 @@ static void __devinit esp_get_clock_params(struct esp *esp)
 	struct device_node *bus_dp, *dp;
 	int fmhz;
 
-	dp = op->node;
+	dp = op->dev.of_node;
 	bus_dp = dp->parent;
 
 	fmhz = of_getintprop_default(dp, "clock-frequency", 0);
@@ -172,12 +172,12 @@ static void __devinit esp_get_clock_params(struct esp *esp)
 
 static void __devinit esp_get_bursts(struct esp *esp, struct of_device *dma_of)
 {
-	struct device_node *dma_dp = dma_of->node;
+	struct device_node *dma_dp = dma_of->dev.of_node;
 	struct of_device *op = esp->dev;
 	struct device_node *dp;
 	u8 bursts, val;
 
-	dp = op->node;
+	dp = op->dev.of_node;
 	bursts = of_getintprop_default(dp, "burst-sizes", 0xff);
 	val = of_getintprop_default(dma_dp, "burst-sizes", 0xff);
 	if (val != 0xff)
@@ -565,7 +565,7 @@ fail:
 static int __devinit esp_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dma_node = NULL;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct of_device *dma_of = NULL;
 	int hme = 0;
 
@@ -574,7 +574,7 @@ static int __devinit esp_sbus_probe(struct of_device *op, const struct of_device
 	     !strcmp(dp->parent->name, "dma")))
 		dma_node = dp->parent;
 	else if (!strcmp(dp->name, "SUNW,fas")) {
-		dma_node = op->node;
+		dma_node = op->dev.of_node;
 		hme = 1;
 	}
 	if (dma_node)
@@ -633,8 +633,11 @@ static const struct of_device_id esp_match[] = {
 MODULE_DEVICE_TABLE(of, esp_match);
 
 static struct of_platform_driver esp_sbus_driver = {
-	.name		= "esp",
-	.match_table	= esp_match,
+	.driver = {
+		.name = "esp",
+		.owner = THIS_MODULE,
+		.of_match_table = esp_match,
+	},
 	.probe		= esp_sbus_probe,
 	.remove		= __devexit_p(esp_sbus_remove),
 };

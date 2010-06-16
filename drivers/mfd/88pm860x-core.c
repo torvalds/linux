@@ -173,33 +173,35 @@ static struct resource regulator_resources[] = {
 	PM8607_REG_RESOURCE(LDO9,  LDO9),
 	PM8607_REG_RESOURCE(LDO10, LDO10),
 	PM8607_REG_RESOURCE(LDO12, LDO12),
+	PM8607_REG_RESOURCE(VIBRATOR_SET, VIBRATOR_SET),
 	PM8607_REG_RESOURCE(LDO14, LDO14),
 };
 
-#define PM8607_REG_DEVS(_name, _id)					\
+#define PM8607_REG_DEVS(_id)						\
 {									\
-	.name		= "88pm8607-" #_name,				\
+	.name		= "88pm860x-regulator",				\
 	.num_resources	= 1,						\
 	.resources	= &regulator_resources[PM8607_ID_##_id],	\
 	.id		= PM8607_ID_##_id,				\
 }
 
 static struct mfd_cell regulator_devs[] = {
-	PM8607_REG_DEVS(buck1, BUCK1),
-	PM8607_REG_DEVS(buck2, BUCK2),
-	PM8607_REG_DEVS(buck3, BUCK3),
-	PM8607_REG_DEVS(ldo1,  LDO1),
-	PM8607_REG_DEVS(ldo2,  LDO2),
-	PM8607_REG_DEVS(ldo3,  LDO3),
-	PM8607_REG_DEVS(ldo4,  LDO4),
-	PM8607_REG_DEVS(ldo5,  LDO5),
-	PM8607_REG_DEVS(ldo6,  LDO6),
-	PM8607_REG_DEVS(ldo7,  LDO7),
-	PM8607_REG_DEVS(ldo8,  LDO8),
-	PM8607_REG_DEVS(ldo9,  LDO9),
-	PM8607_REG_DEVS(ldo10, LDO10),
-	PM8607_REG_DEVS(ldo12, LDO12),
-	PM8607_REG_DEVS(ldo14, LDO14),
+	PM8607_REG_DEVS(BUCK1),
+	PM8607_REG_DEVS(BUCK2),
+	PM8607_REG_DEVS(BUCK3),
+	PM8607_REG_DEVS(LDO1),
+	PM8607_REG_DEVS(LDO2),
+	PM8607_REG_DEVS(LDO3),
+	PM8607_REG_DEVS(LDO4),
+	PM8607_REG_DEVS(LDO5),
+	PM8607_REG_DEVS(LDO6),
+	PM8607_REG_DEVS(LDO7),
+	PM8607_REG_DEVS(LDO8),
+	PM8607_REG_DEVS(LDO9),
+	PM8607_REG_DEVS(LDO10),
+	PM8607_REG_DEVS(LDO12),
+	PM8607_REG_DEVS(LDO13),
+	PM8607_REG_DEVS(LDO14),
 };
 
 struct pm860x_irq_data {
@@ -564,7 +566,7 @@ out:
 	return ret;
 }
 
-static void __devexit device_irq_exit(struct pm860x_chip *chip)
+static void device_irq_exit(struct pm860x_chip *chip)
 {
 	if (chip->core_irq)
 		free_irq(chip->core_irq, chip);
@@ -701,7 +703,7 @@ out:
 	return;
 }
 
-int pm860x_device_init(struct pm860x_chip *chip,
+int __devinit pm860x_device_init(struct pm860x_chip *chip,
 		       struct pm860x_platform_data *pdata)
 {
 	chip->core_irq = 0;
@@ -729,7 +731,7 @@ int pm860x_device_init(struct pm860x_chip *chip,
 	return 0;
 }
 
-void pm860x_device_exit(struct pm860x_chip *chip)
+void __devexit pm860x_device_exit(struct pm860x_chip *chip)
 {
 	device_irq_exit(chip);
 	mfd_remove_devices(chip->dev);

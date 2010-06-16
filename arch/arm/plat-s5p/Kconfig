@@ -7,7 +7,7 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210)
+	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PC100 || ARCH_S5PV210)
 	default y
 	select ARM_VIC
 	select NO_IOPORT
@@ -24,3 +24,9 @@ config PLAT_S5P
 	select SAMSUNG_IRQ_UART
 	help
 	  Base platform code for Samsung's S5P series SoC.
+
+config S5P_EXT_INT
+	bool
+	help
+	  Use the external interrupts (other than GPIO interrupts.)
+	  Note: Do not choose this for S5P6440.

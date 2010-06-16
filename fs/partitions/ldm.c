@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/stringify.h>
+#include <linux/kernel.h>
 #include "ldm.h"
 #include "check.h"
 #include "msdos.h"
@@ -77,17 +78,16 @@ static int ldm_parse_hexbyte (const u8 *src)
 	int h;
 
 	/* high part */
-	if      ((x = src[0] - '0') <= '9'-'0') h = x;
-	else if ((x = src[0] - 'a') <= 'f'-'a') h = x+10;
-	else if ((x = src[0] - 'A') <= 'F'-'A') h = x+10;
-	else return -1;
-	h <<= 4;
+	x = h = hex_to_bin(src[0]);
+	if (h < 0)
+		return -1;
 
 	/* low part */
-	if ((x = src[1] - '0') <= '9'-'0') return h | x;
-	if ((x = src[1] - 'a') <= 'f'-'a') return h | (x+10);
-	if ((x = src[1] - 'A') <= 'F'-'A') return h | (x+10);
-	return -1;
+	h = hex_to_bin(src[1]);
+	if (h < 0)
+		return -1;
+
+	return (x << 4) + h;
 }
 
 /**
@@ -309,7 +309,7 @@ static bool ldm_compare_tocblocks (const struct tocblock *toc1,
 
 /**
  * ldm_validate_privheads - Compare the primary privhead with its backups
- * @bdev:  Device holding the LDM Database
+ * @state: Partition check state including device holding the LDM Database
  * @ph1:   Memory struct to fill with ph contents
  *
  * Read and compare all three privheads from disk.
@@ -321,8 +321,8 @@ static bool ldm_compare_tocblocks (const struct tocblock *toc1,
  * Return:  'true'   Success
  *          'false'  Error
  */
-static bool ldm_validate_privheads (struct block_device *bdev,
-				    struct privhead *ph1)
+static bool ldm_validate_privheads(struct parsed_partitions *state,
+				   struct privhead *ph1)
 {
 	static const int off[3] = { OFF_PRIV1, OFF_PRIV2, OFF_PRIV3 };
 	struct privhead *ph[3] = { ph1 };
@@ -332,7 +332,7 @@ static bool ldm_validate_privheads (struct block_device *bdev,
 	long num_sects;
 	int i;
 
-	BUG_ON (!bdev || !ph1);
+	BUG_ON (!state || !ph1);
 
 	ph[1] = kmalloc (sizeof (*ph[1]), GFP_KERNEL);
 	ph[2] = kmalloc (sizeof (*ph[2]), GFP_KERNEL);
@@ -346,8 +346,8 @@ static bool ldm_validate_privheads (struct block_device *bdev,
 
 	/* Read and parse privheads */
 	for (i = 0; i < 3; i++) {
-		data = read_dev_sector (bdev,
-			ph[0]->config_start + off[i], &sect);
+		data = read_part_sector(state, ph[0]->config_start + off[i],
+					&sect);
 		if (!data) {
 			ldm_crit ("Disk read failed.");
 			goto out;
@@ -363,7 +363,7 @@ static bool ldm_validate_privheads (struct block_device *bdev,
 		}
 	}
 
-	num_sects = bdev->bd_inode->i_size >> 9;
+	num_sects = state->bdev->bd_inode->i_size >> 9;
 
 	if ((ph[0]->config_start > num_sects) ||
 	   ((ph[0]->config_start + ph[0]->config_size) > num_sects)) {
@@ -397,20 +397,20 @@ out:
 
 /**
  * ldm_validate_tocblocks - Validate the table of contents and its backups
- * @bdev:  Device holding the LDM Database
- * @base:  Offset, into @bdev, of the database
+ * @state: Partition check state including device holding the LDM Database
+ * @base:  Offset, into @state->bdev, of the database
  * @ldb:   Cache of the database structures
  *
  * Find and compare the four tables of contents of the LDM Database stored on
- * @bdev and return the parsed information into @toc1.
+ * @state->bdev and return the parsed information into @toc1.
  *
  * The offsets and sizes of the configs are range-checked against a privhead.
  *
  * Return:  'true'   @toc1 contains validated TOCBLOCK info
  *          'false'  @toc1 contents are undefined
  */
-static bool ldm_validate_tocblocks(struct block_device *bdev,
-	unsigned long base, struct ldmdb *ldb)
+static bool ldm_validate_tocblocks(struct parsed_partitions *state,
+				   unsigned long base, struct ldmdb *ldb)
 {
 	static const int off[4] = { OFF_TOCB1, OFF_TOCB2, OFF_TOCB3, OFF_TOCB4};
 	struct tocblock *tb[4];
@@ -420,7 +420,7 @@ static bool ldm_validate_tocblocks(struct block_device *bdev,
 	int i, nr_tbs;
 	bool result = false;
 
-	BUG_ON(!bdev || !ldb);
+	BUG_ON(!state || !ldb);
 	ph = &ldb->ph;
 	tb[0] = &ldb->toc;
 	tb[1] = kmalloc(sizeof(*tb[1]) * 3, GFP_KERNEL);
@@ -437,7 +437,7 @@ static bool ldm_validate_tocblocks(struct block_device *bdev,
 	 * skip any that fail as long as we get at least one valid TOCBLOCK.
 	 */
 	for (nr_tbs = i = 0; i < 4; i++) {
-		data = read_dev_sector(bdev, base + off[i], &sect);
+		data = read_part_sector(state, base + off[i], &sect);
 		if (!data) {
 			ldm_error("Disk read failed for TOCBLOCK %d.", i);
 			continue;
@@ -473,7 +473,7 @@ err:
 
 /**
  * ldm_validate_vmdb - Read the VMDB and validate it
- * @bdev:  Device holding the LDM Database
+ * @state: Partition check state including device holding the LDM Database
  * @base:  Offset, into @bdev, of the database
  * @ldb:   Cache of the database structures
  *
@@ -483,8 +483,8 @@ err:
  * Return:  'true'   @ldb contains validated VBDB info
  *          'false'  @ldb contents are undefined
  */
-static bool ldm_validate_vmdb (struct block_device *bdev, unsigned long base,
-			       struct ldmdb *ldb)
+static bool ldm_validate_vmdb(struct parsed_partitions *state,
+			      unsigned long base, struct ldmdb *ldb)
 {
 	Sector sect;
 	u8 *data;
@@ -492,12 +492,12 @@ static bool ldm_validate_vmdb (struct block_device *bdev, unsigned long base,
 	struct vmdb *vm;
 	struct tocblock *toc;
 
-	BUG_ON (!bdev || !ldb);
+	BUG_ON (!state || !ldb);
 
 	vm  = &ldb->vm;
 	toc = &ldb->toc;
 
-	data = read_dev_sector (bdev, base + OFF_VMDB, &sect);
+	data = read_part_sector(state, base + OFF_VMDB, &sect);
 	if (!data) {
 		ldm_crit ("Disk read failed.");
 		return false;
@@ -534,21 +534,21 @@ out:
 
 /**
  * ldm_validate_partition_table - Determine whether bdev might be a dynamic disk
- * @bdev:  Device holding the LDM Database
+ * @state: Partition check state including device holding the LDM Database
  *
  * This function provides a weak test to decide whether the device is a dynamic
  * disk or not.  It looks for an MS-DOS-style partition table containing at
  * least one partition of type 0x42 (formerly SFS, now used by Windows for
  * dynamic disks).
  *
- * N.B.  The only possible error can come from the read_dev_sector and that is
+ * N.B.  The only possible error can come from the read_part_sector and that is
  *       only likely to happen if the underlying device is strange.  If that IS
  *       the case we should return zero to let someone else try.
  *
- * Return:  'true'   @bdev is a dynamic disk
- *          'false'  @bdev is not a dynamic disk, or an error occurred
+ * Return:  'true'   @state->bdev is a dynamic disk
+ *          'false'  @state->bdev is not a dynamic disk, or an error occurred
  */
-static bool ldm_validate_partition_table (struct block_device *bdev)
+static bool ldm_validate_partition_table(struct parsed_partitions *state)
 {
 	Sector sect;
 	u8 *data;
@@ -556,9 +556,9 @@ static bool ldm_validate_partition_table (struct block_device *bdev)
 	int i;
 	bool result = false;
 
-	BUG_ON (!bdev);
+	BUG_ON(!state);
 
-	data = read_dev_sector (bdev, 0, &sect);
+	data = read_part_sector(state, 0, &sect);
 	if (!data) {
 		ldm_crit ("Disk read failed.");
 		return false;
@@ -1391,8 +1391,8 @@ static bool ldm_frag_commit (struct list_head *frags, struct ldmdb *ldb)
 
 /**
  * ldm_get_vblks - Read the on-disk database of VBLKs into memory
- * @bdev:  Device holding the LDM Database
- * @base:  Offset, into @bdev, of the database
+ * @state: Partition check state including device holding the LDM Database
+ * @base:  Offset, into @state->bdev, of the database
  * @ldb:   Cache of the database structures
  *
  * To use the information from the VBLKs, they need to be read from the disk,
@@ -1401,8 +1401,8 @@ static bool ldm_frag_commit (struct list_head *frags, struct ldmdb *ldb)
  * Return:  'true'   All the VBLKs were read successfully
  *          'false'  An error occurred
  */
-static bool ldm_get_vblks (struct block_device *bdev, unsigned long base,
-			   struct ldmdb *ldb)
+static bool ldm_get_vblks(struct parsed_partitions *state, unsigned long base,
+			  struct ldmdb *ldb)
 {
 	int size, perbuf, skip, finish, s, v, recs;
 	u8 *data = NULL;
@@ -1410,7 +1410,7 @@ static bool ldm_get_vblks (struct block_device *bdev, unsigned long base,
 	bool result = false;
 	LIST_HEAD (frags);
 
-	BUG_ON (!bdev || !ldb);
+	BUG_ON(!state || !ldb);
 
 	size   = ldb->vm.vblk_size;
 	perbuf = 512 / size;
@@ -1418,7 +1418,7 @@ static bool ldm_get_vblks (struct block_device *bdev, unsigned long base,
 	finish = (size * ldb->vm.last_vblk_seq) >> 9;
 
 	for (s = skip; s < finish; s++) {		/* For each sector */
-		data = read_dev_sector (bdev, base + OFF_VMDB + s, &sect);
+		data = read_part_sector(state, base + OFF_VMDB + s, &sect);
 		if (!data) {
 			ldm_crit ("Disk read failed.");
 			goto out;
@@ -1474,8 +1474,7 @@ static void ldm_free_vblks (struct list_head *lh)
 
 /**
  * ldm_partition - Find out whether a device is a dynamic disk and handle it
- * @pp:    List of the partitions parsed so far
- * @bdev:  Device holding the LDM Database
+ * @state: Partition check state including device holding the LDM Database
  *
  * This determines whether the device @bdev is a dynamic disk and if so creates
  * the partitions necessary in the gendisk structure pointed to by @hd.
@@ -1485,21 +1484,21 @@ static void ldm_free_vblks (struct list_head *lh)
  * example, if the device is hda, we would have: hda1: LDM database, hda2, hda3,
  * and so on: the actual data containing partitions.
  *
- * Return:  1 Success, @bdev is a dynamic disk and we handled it
- *          0 Success, @bdev is not a dynamic disk
+ * Return:  1 Success, @state->bdev is a dynamic disk and we handled it
+ *          0 Success, @state->bdev is not a dynamic disk
  *         -1 An error occurred before enough information had been read
- *            Or @bdev is a dynamic disk, but it may be corrupted
+ *            Or @state->bdev is a dynamic disk, but it may be corrupted
  */
-int ldm_partition (struct parsed_partitions *pp, struct block_device *bdev)
+int ldm_partition(struct parsed_partitions *state)
 {
 	struct ldmdb  *ldb;
 	unsigned long base;
 	int result = -1;
 
-	BUG_ON (!pp || !bdev);
+	BUG_ON(!state);
 
 	/* Look for signs of a Dynamic Disk */
-	if (!ldm_validate_partition_table (bdev))
+	if (!ldm_validate_partition_table(state))
 		return 0;
 
 	ldb = kmalloc (sizeof (*ldb), GFP_KERNEL);
@@ -1509,15 +1508,15 @@ int ldm_partition (struct parsed_partitions *pp, struct block_device *bdev)
 	}
 
 	/* Parse and check privheads. */
-	if (!ldm_validate_privheads (bdev, &ldb->ph))
+	if (!ldm_validate_privheads(state, &ldb->ph))
 		goto out;		/* Already logged */
 
 	/* All further references are relative to base (database start). */
 	base = ldb->ph.config_start;
 
 	/* Parse and check tocs and vmdb. */
-	if (!ldm_validate_tocblocks (bdev, base, ldb) ||
-	    !ldm_validate_vmdb      (bdev, base, ldb))
+	if (!ldm_validate_tocblocks(state, base, ldb) ||
+	    !ldm_validate_vmdb(state, base, ldb))
 	    	goto out;		/* Already logged */
 
 	/* Initialize vblk lists in ldmdb struct */
@@ -1527,13 +1526,13 @@ int ldm_partition (struct parsed_partitions *pp, struct block_device *bdev)
 	INIT_LIST_HEAD (&ldb->v_comp);
 	INIT_LIST_HEAD (&ldb->v_part);
 
-	if (!ldm_get_vblks (bdev, base, ldb)) {
+	if (!ldm_get_vblks(state, base, ldb)) {
 		ldm_crit ("Failed to read the VBLKs from the database.");
 		goto cleanup;
 	}
 
 	/* Finally, create the data partition devices. */
-	if (ldm_create_data_partitions (pp, ldb)) {
+	if (ldm_create_data_partitions(state, ldb)) {
 		ldm_debug ("Parsed LDM database successfully.");
 		result = 1;
 	}

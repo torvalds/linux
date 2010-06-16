@@ -66,12 +66,12 @@ typedef struct tagSKeyItem
     BYTE        byCipherSuite;
     BYTE        byReserved0;
     DWORD       dwKeyIndex;
-    PVOID       pvKeyTable;
+    void *pvKeyTable;
 } SKeyItem, *PSKeyItem; //64
 
 typedef struct tagSKeyTable
 {
-    BYTE        abyBSSID[U_ETHER_ADDR_LEN];  //6
+    BYTE        abyBSSID[ETH_ALEN];  //6
     BYTE        byReserved0[2];              //8
     SKeyItem    PairwiseKey;
     SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328
@@ -101,13 +101,13 @@ typedef struct tagSKeyManagement
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID KeyvInitTable(PSKeyManagement pTable, DWORD_PTR dwIoBase);
+void KeyvInitTable(PSKeyManagement pTable, DWORD_PTR dwIoBase);
 
 BOOL KeybGetKey(
-    IN  PSKeyManagement pTable,
-    IN  PBYTE           pbyBSSID,
-    IN  DWORD           dwKeyIndex,
-    OUT PSKeyItem       *pKey
+    PSKeyManagement pTable,
+    PBYTE           pbyBSSID,
+    DWORD           dwKeyIndex,
+    PSKeyItem       *pKey
     );
 
 BOOL KeybSetKey(
@@ -141,15 +141,15 @@ BOOL KeybRemoveKey(
     );
 
 BOOL KeybGetTransmitKey(
-    IN  PSKeyManagement pTable,
-    IN  PBYTE           pbyBSSID,
-    IN  DWORD           dwKeyType,
-    OUT PSKeyItem       *pKey
+    PSKeyManagement pTable,
+    PBYTE           pbyBSSID,
+    DWORD           dwKeyType,
+    PSKeyItem       *pKey
     );
 
 BOOL KeybCheckPairewiseKey(
-    IN  PSKeyManagement pTable,
-    OUT PSKeyItem       *pKey
+    PSKeyManagement pTable,
+    PSKeyItem       *pKey
     );
 
 BOOL KeybRemoveAllKey(
@@ -158,13 +158,13 @@ BOOL KeybRemoveAllKey(
     DWORD_PTR       dwIoBase
     );
 
-VOID KeyvRemoveWEPKey(
+void KeyvRemoveWEPKey(
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
     DWORD_PTR       dwIoBase
     );
 
-VOID KeyvRemoveAllWEPKey(
+void KeyvRemoveAllWEPKey(
     PSKeyManagement pTable,
     DWORD_PTR       dwIoBase
     );

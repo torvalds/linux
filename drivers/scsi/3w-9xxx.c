@@ -125,7 +125,7 @@ static void twa_aen_queue_event(TW_Device_Extension *tw_dev, TW_Command_Apache_H
 static int twa_aen_read_queue(TW_Device_Extension *tw_dev, int request_id);
 static char *twa_aen_severity_lookup(unsigned char severity_code);
 static void twa_aen_sync_time(TW_Device_Extension *tw_dev, int request_id);
-static int twa_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg);
+static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 static int twa_chrdev_open(struct inode *inode, struct file *file);
 static int twa_fill_sense(TW_Device_Extension *tw_dev, int request_id, int copy_sense, int print_host);
 static void twa_free_request_id(TW_Device_Extension *tw_dev,int request_id);
@@ -220,7 +220,7 @@ static struct device_attribute *twa_host_attrs[] = {
 /* File operations struct for character device */
 static const struct file_operations twa_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= twa_chrdev_ioctl,
+	.unlocked_ioctl	= twa_chrdev_ioctl,
 	.open		= twa_chrdev_open,
 	.release	= NULL
 };
@@ -637,8 +637,9 @@ out:
 } /* End twa_check_srl() */
 
 /* This function handles ioctl for the character device */
-static int twa_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long twa_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = file->f_path.dentry->d_inode;
 	long timeout;
 	unsigned long *cpu_addr, data_buffer_length_adjusted = 0, flags = 0;
 	dma_addr_t dma_handle;
@@ -656,6 +657,8 @@ static int twa_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int
 	TW_Device_Extension *tw_dev = twa_device_extension_list[iminor(inode)];
 	int retval = TW_IOCTL_ERROR_OS_EFAULT;
 	void __user *argp = (void __user *)arg;
+
+	lock_kernel();
 
 	/* Only let one of these through at a time */
 	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
@@ -876,6 +879,7 @@ out3:
 out2:
 	mutex_unlock(&tw_dev->ioctl_lock);
 out:
+	unlock_kernel();
 	return retval;
 } /* End twa_chrdev_ioctl() */
 

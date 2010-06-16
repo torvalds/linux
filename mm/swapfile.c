@@ -139,7 +139,8 @@ static int discard_swap(struct swap_info_struct *si)
 	nr_blocks = ((sector_t)se->nr_pages - 1) << (PAGE_SHIFT - 9);
 	if (nr_blocks) {
 		err = blkdev_issue_discard(si->bdev, start_block,
-				nr_blocks, GFP_KERNEL, DISCARD_FL_BARRIER);
+				nr_blocks, GFP_KERNEL,
+				BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 		if (err)
 			return err;
 		cond_resched();
@@ -150,7 +151,8 @@ static int discard_swap(struct swap_info_struct *si)
 		nr_blocks = (sector_t)se->nr_pages << (PAGE_SHIFT - 9);
 
 		err = blkdev_issue_discard(si->bdev, start_block,
-				nr_blocks, GFP_KERNEL, DISCARD_FL_BARRIER);
+				nr_blocks, GFP_KERNEL,
+				BLKDEV_IFL_WAIT | BLKDEV_IFL_BARRIER);
 		if (err)
 			break;
 
@@ -189,7 +191,8 @@ static void discard_swap_cluster(struct swap_info_struct *si,
 			start_block <<= PAGE_SHIFT - 9;
 			nr_blocks <<= PAGE_SHIFT - 9;
 			if (blkdev_issue_discard(si->bdev, start_block,
-				    nr_blocks, GFP_NOIO, DISCARD_FL_BARRIER))
+				    nr_blocks, GFP_NOIO, BLKDEV_IFL_WAIT |
+							BLKDEV_IFL_BARRIER))
 				break;
 		}
 
@@ -574,6 +577,7 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 
 	/* free if no reference */
 	if (!usage) {
+		struct gendisk *disk = p->bdev->bd_disk;
 		if (offset < p->lowest_bit)
 			p->lowest_bit = offset;
 		if (offset > p->highest_bit)
@@ -583,6 +587,9 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
 			swap_list.next = p->type;
 		nr_swap_pages++;
 		p->inuse_pages--;
+		if ((p->flags & SWP_BLKDEV) &&
+				disk->fops->swap_slot_free_notify)
+			disk->fops->swap_slot_free_notify(p->bdev, offset);
 	}
 
 	return usage;
@@ -1884,6 +1891,7 @@ SYSCALL_DEFINE2(swapon, const char __user *, specialfile, int, swap_flags)
 		if (error < 0)
 			goto bad_swap;
 		p->bdev = bdev;
+		p->flags |= SWP_BLKDEV;
 	} else if (S_ISREG(inode->i_mode)) {
 		p->bdev = inode->i_sb->s_bdev;
 		mutex_lock(&inode->i_mutex);

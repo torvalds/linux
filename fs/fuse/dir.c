@@ -1156,10 +1156,9 @@ static int fuse_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int fuse_dir_fsync(struct file *file, struct dentry *de, int datasync)
+static int fuse_dir_fsync(struct file *file, int datasync)
 {
-	/* nfsd can call this with no file */
-	return file ? fuse_fsync_common(file, de, datasync, 1) : 0;
+	return fuse_fsync_common(file, datasync, 1);
 }
 
 static bool update_mtime(unsigned ivalid)

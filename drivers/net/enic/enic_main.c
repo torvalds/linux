@@ -1029,127 +1029,133 @@ static int enic_dev_init_done(struct enic *enic, int *done, int *error)
 	return err;
 }
 
-static int enic_set_port_profile(struct enic *enic, u8 request, u8 *mac,
-	char *name, u8 *instance_uuid, u8 *host_uuid)
+static int enic_set_port_profile(struct enic *enic, u8 *mac)
 {
 	struct vic_provinfo *vp;
 	u8 oui[3] = VIC_PROVINFO_CISCO_OUI;
-	unsigned short *uuid;
+	u8 *uuid;
 	char uuid_str[38];
-	static char *uuid_fmt = "%04X%04X-%04X-%04X-%04X-%04X%04X%04X";
+	static char *uuid_fmt = "%02X%02X%02X%02X-%02X%02X-%02X%02X-"
+		"%02X%02X-%02X%02X%02X%02X%0X%02X";
 	int err;
-
-	if (!name)
-		return -EINVAL;
-
-	if (!is_valid_ether_addr(mac))
-		return -EADDRNOTAVAIL;
-
-	vp = vic_provinfo_alloc(GFP_KERNEL, oui, VIC_PROVINFO_LINUX_TYPE);
-	if (!vp)
-		return -ENOMEM;
-
-	vic_provinfo_add_tlv(vp,
-		VIC_LINUX_PROV_TLV_PORT_PROFILE_NAME_STR,
-		strlen(name) + 1, name);
-
-	vic_provinfo_add_tlv(vp,
-		VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
-		ETH_ALEN, mac);
-
-	if (instance_uuid) {
-		uuid = (unsigned short *)instance_uuid;
-		sprintf(uuid_str, uuid_fmt,
-			uuid[0], uuid[1], uuid[2], uuid[3],
-			uuid[4], uuid[5], uuid[6], uuid[7]);
-		vic_provinfo_add_tlv(vp,
-			VIC_LINUX_PROV_TLV_CLIENT_UUID_STR,
-			sizeof(uuid_str), uuid_str);
-	}
-
-	if (host_uuid) {
-		uuid = (unsigned short *)host_uuid;
-		sprintf(uuid_str, uuid_fmt,
-			uuid[0], uuid[1], uuid[2], uuid[3],
-			uuid[4], uuid[5], uuid[6], uuid[7]);
-		vic_provinfo_add_tlv(vp,
-			VIC_LINUX_PROV_TLV_HOST_UUID_STR,
-			sizeof(uuid_str), uuid_str);
-	}
 
 	err = enic_vnic_dev_deinit(enic);
 	if (err)
-		goto err_out;
+		return err;
 
-	memset(&enic->pp, 0, sizeof(enic->pp));
+	switch (enic->pp.request) {
 
-	err = enic_dev_init_prov(enic, vp);
-	if (err)
-		goto err_out;
+	case PORT_REQUEST_ASSOCIATE:
 
-	enic->pp.request = request;
-	memcpy(enic->pp.name, name, PORT_PROFILE_MAX);
-	if (instance_uuid)
-		memcpy(enic->pp.instance_uuid,
-			instance_uuid, PORT_UUID_MAX);
-	if (host_uuid)
-		memcpy(enic->pp.host_uuid,
-			host_uuid, PORT_UUID_MAX);
+		if (!(enic->pp.set & ENIC_SET_NAME) || !strlen(enic->pp.name))
+			return -EINVAL;
 
-err_out:
-	vic_provinfo_free(vp);
+		if (!is_valid_ether_addr(mac))
+			return -EADDRNOTAVAIL;
 
-	return err;
-}
+		vp = vic_provinfo_alloc(GFP_KERNEL, oui,
+			VIC_PROVINFO_LINUX_TYPE);
+		if (!vp)
+			return -ENOMEM;
 
-static int enic_unset_port_profile(struct enic *enic)
-{
-	memset(&enic->pp, 0, sizeof(enic->pp));
-	return enic_vnic_dev_deinit(enic);
+		vic_provinfo_add_tlv(vp,
+			VIC_LINUX_PROV_TLV_PORT_PROFILE_NAME_STR,
+			strlen(enic->pp.name) + 1, enic->pp.name);
+
+		vic_provinfo_add_tlv(vp,
+			VIC_LINUX_PROV_TLV_CLIENT_MAC_ADDR,
+			ETH_ALEN, mac);
+
+		if (enic->pp.set & ENIC_SET_INSTANCE) {
+			uuid = enic->pp.instance_uuid;
+			sprintf(uuid_str, uuid_fmt,
+				uuid[0],  uuid[1],  uuid[2],  uuid[3],
+				uuid[4],  uuid[5],  uuid[6],  uuid[7],
+				uuid[8],  uuid[9],  uuid[10], uuid[11],
+				uuid[12], uuid[13], uuid[14], uuid[15]);
+			vic_provinfo_add_tlv(vp,
+				VIC_LINUX_PROV_TLV_CLIENT_UUID_STR,
+				sizeof(uuid_str), uuid_str);
+		}
+
+		if (enic->pp.set & ENIC_SET_HOST) {
+			uuid = enic->pp.host_uuid;
+			sprintf(uuid_str, uuid_fmt,
+				uuid[0],  uuid[1],  uuid[2],  uuid[3],
+				uuid[4],  uuid[5],  uuid[6],  uuid[7],
+				uuid[8],  uuid[9],  uuid[10], uuid[11],
+				uuid[12], uuid[13], uuid[14], uuid[15]);
+			vic_provinfo_add_tlv(vp,
+				VIC_LINUX_PROV_TLV_HOST_UUID_STR,
+				sizeof(uuid_str), uuid_str);
+		}
+
+		err = enic_dev_init_prov(enic, vp);
+		vic_provinfo_free(vp);
+		if (err)
+			return err;
+		break;
+
+	case PORT_REQUEST_DISASSOCIATE:
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	enic->pp.set |= ENIC_SET_APPLIED;
+	return 0;
 }
 
 static int enic_set_vf_port(struct net_device *netdev, int vf,
 	struct nlattr *port[])
 {
 	struct enic *enic = netdev_priv(netdev);
-	char *name = NULL;
-	u8 *instance_uuid = NULL;
-	u8 *host_uuid = NULL;
-	u8 request = PORT_REQUEST_DISASSOCIATE;
+
+	memset(&enic->pp, 0, sizeof(enic->pp));
+
+	if (port[IFLA_PORT_REQUEST]) {
+		enic->pp.set |= ENIC_SET_REQUEST;
+		enic->pp.request = nla_get_u8(port[IFLA_PORT_REQUEST]);
+	}
+
+	if (port[IFLA_PORT_PROFILE]) {
+		enic->pp.set |= ENIC_SET_NAME;
+		memcpy(enic->pp.name, nla_data(port[IFLA_PORT_PROFILE]),
+			PORT_PROFILE_MAX);
+	}
+
+	if (port[IFLA_PORT_INSTANCE_UUID]) {
+		enic->pp.set |= ENIC_SET_INSTANCE;
+		memcpy(enic->pp.instance_uuid,
+			nla_data(port[IFLA_PORT_INSTANCE_UUID]), PORT_UUID_MAX);
+	}
+
+	if (port[IFLA_PORT_HOST_UUID]) {
+		enic->pp.set |= ENIC_SET_HOST;
+		memcpy(enic->pp.host_uuid,
+			nla_data(port[IFLA_PORT_HOST_UUID]), PORT_UUID_MAX);
+	}
 
 	/* don't support VFs, yet */
 	if (vf != PORT_SELF_VF)
 		return -EOPNOTSUPP;
 
-	if (port[IFLA_PORT_REQUEST])
-		request = nla_get_u8(port[IFLA_PORT_REQUEST]);
+	if (!(enic->pp.set & ENIC_SET_REQUEST))
+		return -EOPNOTSUPP;
 
-	switch (request) {
-	case PORT_REQUEST_ASSOCIATE:
+	if (enic->pp.request == PORT_REQUEST_ASSOCIATE) {
 
-		if (port[IFLA_PORT_PROFILE])
-			name = nla_data(port[IFLA_PORT_PROFILE]);
+		/* If the interface mac addr hasn't been assigned,
+		 * assign a random mac addr before setting port-
+		 * profile.
+		 */
 
-		if (port[IFLA_PORT_INSTANCE_UUID])
-			instance_uuid =
-				nla_data(port[IFLA_PORT_INSTANCE_UUID]);
-
-		if (port[IFLA_PORT_HOST_UUID])
-			host_uuid = nla_data(port[IFLA_PORT_HOST_UUID]);
-
-		return enic_set_port_profile(enic, request,
-			netdev->dev_addr, name,
-			instance_uuid, host_uuid);
-
-	case PORT_REQUEST_DISASSOCIATE:
-
-		return enic_unset_port_profile(enic);
-
-	default:
-		break;
+		if (is_zero_ether_addr(netdev->dev_addr))
+			random_ether_addr(netdev->dev_addr);
 	}
 
-	return -EOPNOTSUPP;
+	return enic_set_port_profile(enic, netdev->dev_addr);
 }
 
 static int enic_get_vf_port(struct net_device *netdev, int vf,
@@ -1159,14 +1165,12 @@ static int enic_get_vf_port(struct net_device *netdev, int vf,
 	int err, error, done;
 	u16 response = PORT_PROFILE_RESPONSE_SUCCESS;
 
-	/* don't support VFs, yet */
-	if (vf != PORT_SELF_VF)
-		return -EOPNOTSUPP;
+	if (!(enic->pp.set & ENIC_SET_APPLIED))
+		return -ENODATA;
 
 	err = enic_dev_init_done(enic, &done, &error);
-
 	if (err)
-		return err;
+		error = err;
 
 	switch (error) {
 	case ERR_SUCCESS:
@@ -1189,12 +1193,15 @@ static int enic_get_vf_port(struct net_device *netdev, int vf,
 
 	NLA_PUT_U16(skb, IFLA_PORT_REQUEST, enic->pp.request);
 	NLA_PUT_U16(skb, IFLA_PORT_RESPONSE, response);
-	NLA_PUT(skb, IFLA_PORT_PROFILE, PORT_PROFILE_MAX,
-		enic->pp.name);
-	NLA_PUT(skb, IFLA_PORT_INSTANCE_UUID, PORT_UUID_MAX,
-		enic->pp.instance_uuid);
-	NLA_PUT(skb, IFLA_PORT_HOST_UUID, PORT_UUID_MAX,
-		enic->pp.host_uuid);
+	if (enic->pp.set & ENIC_SET_NAME)
+		NLA_PUT(skb, IFLA_PORT_PROFILE, PORT_PROFILE_MAX,
+			enic->pp.name);
+	if (enic->pp.set & ENIC_SET_INSTANCE)
+		NLA_PUT(skb, IFLA_PORT_INSTANCE_UUID, PORT_UUID_MAX,
+			enic->pp.instance_uuid);
+	if (enic->pp.set & ENIC_SET_HOST)
+		NLA_PUT(skb, IFLA_PORT_HOST_UUID, PORT_UUID_MAX,
+			enic->pp.host_uuid);
 
 	return 0;
 

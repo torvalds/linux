@@ -1001,6 +1001,7 @@ static int nes_netdev_change_mtu(struct net_device *netdev, int new_mtu)
 	return ret;
 }
 
+
 static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"Link Change Interrupts",
 	"Linearized SKBs",
@@ -1015,11 +1016,15 @@ static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"Rx Jabber Errors",
 	"Rx Oversized Frames",
 	"Rx Short Frames",
+	"Rx Length Errors",
+	"Rx CRC Errors",
+	"Rx Port Discard",
 	"Endnode Rx Discards",
 	"Endnode Rx Octets",
 	"Endnode Rx Frames",
 	"Endnode Tx Octets",
 	"Endnode Tx Frames",
+	"Tx Errors",
 	"mh detected",
 	"mh pauses",
 	"Retransmission Count",
@@ -1048,19 +1053,13 @@ static const char nes_ethtool_stringset[][ETH_GSTRING_LEN] = {
 	"CM Nodes Destroyed",
 	"CM Accel Drops",
 	"CM Resets Received",
+	"Free 4Kpbls",
+	"Free 256pbls",
 	"Timer Inits",
-	"CQ Depth 1",
-	"CQ Depth 4",
-	"CQ Depth 16",
-	"CQ Depth 24",
-	"CQ Depth 32",
-	"CQ Depth 128",
-	"CQ Depth 256",
 	"LRO aggregated",
 	"LRO flushed",
 	"LRO no_desc",
 };
-
 #define NES_ETHTOOL_STAT_COUNT  ARRAY_SIZE(nes_ethtool_stringset)
 
 /**
@@ -1120,12 +1119,14 @@ static void nes_netdev_get_strings(struct net_device *netdev, u32 stringset,
 /**
  * nes_netdev_get_ethtool_stats
  */
+
 static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 		struct ethtool_stats *target_ethtool_stats, u64 *target_stat_values)
 {
 	u64 u64temp;
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
+	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 nic_count;
 	u32 u32temp;
 	u32 index = 0;
@@ -1153,6 +1154,46 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 			NES_IDX_PORT_TX_DISCARDS + (nesvnic->nesdev->mac_index*0x40));
 	nesvnic->nesdev->port_tx_discards += u32temp;
 	nesvnic->netstats.tx_dropped += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_RX_SHORT_FRAMES + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->netstats.rx_dropped += u32temp;
+	nesvnic->nesdev->mac_rx_errors += u32temp;
+	nesvnic->nesdev->mac_rx_short_frames += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_RX_OVERSIZED_FRAMES + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->netstats.rx_dropped += u32temp;
+	nesvnic->nesdev->mac_rx_errors += u32temp;
+	nesvnic->nesdev->mac_rx_oversized_frames += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_RX_JABBER_FRAMES + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->netstats.rx_dropped += u32temp;
+	nesvnic->nesdev->mac_rx_errors += u32temp;
+	nesvnic->nesdev->mac_rx_jabber_frames += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_RX_SYMBOL_ERR_FRAMES + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->netstats.rx_dropped += u32temp;
+	nesvnic->nesdev->mac_rx_errors += u32temp;
+	nesvnic->nesdev->mac_rx_symbol_err_frames += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_RX_LENGTH_ERR_FRAMES + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->netstats.rx_length_errors += u32temp;
+	nesvnic->nesdev->mac_rx_errors += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_RX_CRC_ERR_FRAMES + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->nesdev->mac_rx_errors += u32temp;
+	nesvnic->nesdev->mac_rx_crc_errors += u32temp;
+	nesvnic->netstats.rx_crc_errors += u32temp;
+
+	u32temp = nes_read_indexed(nesdev,
+			NES_IDX_MAC_TX_ERRORS + (nesvnic->nesdev->mac_index*0x200));
+	nesvnic->nesdev->mac_tx_errors += u32temp;
+	nesvnic->netstats.tx_errors += u32temp;
 
 	for (nic_count = 0; nic_count < NES_MAX_PORT_COUNT; nic_count++) {
 		if (nesvnic->qp_nic_index[nic_count] == 0xf)
@@ -1218,11 +1259,15 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	target_stat_values[++index] = nesvnic->nesdev->mac_rx_jabber_frames;
 	target_stat_values[++index] = nesvnic->nesdev->mac_rx_oversized_frames;
 	target_stat_values[++index] = nesvnic->nesdev->mac_rx_short_frames;
+	target_stat_values[++index] = nesvnic->netstats.rx_length_errors;
+	target_stat_values[++index] = nesvnic->nesdev->mac_rx_crc_errors;
+	target_stat_values[++index] = nesvnic->nesdev->port_rx_discards;
 	target_stat_values[++index] = nesvnic->endnode_nstat_rx_discard;
 	target_stat_values[++index] = nesvnic->endnode_nstat_rx_octets;
 	target_stat_values[++index] = nesvnic->endnode_nstat_rx_frames;
 	target_stat_values[++index] = nesvnic->endnode_nstat_tx_octets;
 	target_stat_values[++index] = nesvnic->endnode_nstat_tx_frames;
+	target_stat_values[++index] = nesvnic->nesdev->mac_tx_errors;
 	target_stat_values[++index] = mh_detected;
 	target_stat_values[++index] = mh_pauses_sent;
 	target_stat_values[++index] = nesvnic->endnode_ipv4_tcp_retransmits;
@@ -1251,20 +1296,13 @@ static void nes_netdev_get_ethtool_stats(struct net_device *netdev,
 	target_stat_values[++index] = atomic_read(&cm_nodes_destroyed);
 	target_stat_values[++index] = atomic_read(&cm_accel_dropped_pkts);
 	target_stat_values[++index] = atomic_read(&cm_resets_recvd);
+	target_stat_values[++index] = nesadapter->free_4kpbl;
+	target_stat_values[++index] = nesadapter->free_256pbl;
 	target_stat_values[++index] = int_mod_timer_init;
-	target_stat_values[++index] = int_mod_cq_depth_1;
-	target_stat_values[++index] = int_mod_cq_depth_4;
-	target_stat_values[++index] = int_mod_cq_depth_16;
-	target_stat_values[++index] = int_mod_cq_depth_24;
-	target_stat_values[++index] = int_mod_cq_depth_32;
-	target_stat_values[++index] = int_mod_cq_depth_128;
-	target_stat_values[++index] = int_mod_cq_depth_256;
 	target_stat_values[++index] = nesvnic->lro_mgr.stats.aggregated;
 	target_stat_values[++index] = nesvnic->lro_mgr.stats.flushed;
 	target_stat_values[++index] = nesvnic->lro_mgr.stats.no_desc;
-
 }
-
 
 /**
  * nes_netdev_get_drvinfo

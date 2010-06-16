@@ -828,7 +828,14 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			pci_name(pdev), err);
 		return err;
 	}
+
 	bus = pdev->subordinate;
+	if (!bus) {
+		dev_notice(&pdev->dev, "the device is not a bridge, "
+				"skipping\n");
+		rc = -ENODEV;
+		goto err_disable_device;
+	}
 
 	/* Need to read VID early b/c it's used to differentiate CPQ and INTC
 	 * discovery
@@ -1075,13 +1082,12 @@ static int cpqhpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* make our own copy of the pci bus structure,
 	 * as we like tweaking it a lot */
-	ctrl->pci_bus = kmalloc(sizeof(*ctrl->pci_bus), GFP_KERNEL);
+	ctrl->pci_bus = kmemdup(pdev->bus, sizeof(*ctrl->pci_bus), GFP_KERNEL);
 	if (!ctrl->pci_bus) {
 		err("out of memory\n");
 		rc = -ENOMEM;
 		goto err_free_ctrl;
 	}
-	memcpy(ctrl->pci_bus, pdev->bus, sizeof(*ctrl->pci_bus));
 
 	ctrl->bus = pdev->bus->number;
 	ctrl->rev = pdev->revision;

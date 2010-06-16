@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"

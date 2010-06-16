@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/timer.h>
 #include <linux/writeback.h>
 #include <asm/atomic.h>
 
@@ -88,6 +89,8 @@ struct backing_dev_info {
 
 	struct device *dev;
 
+	struct timer_list laptop_mode_wb_timer;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debug_dir;
 	struct dentry *debug_stats;
@@ -106,6 +109,7 @@ void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
 				long nr_pages);
 int bdi_writeback_task(struct bdi_writeback *wb);
 int bdi_has_dirty_io(struct backing_dev_info *bdi);
+void bdi_arm_supers_timer(void);
 
 extern spinlock_t bdi_lock;
 extern struct list_head bdi_list;

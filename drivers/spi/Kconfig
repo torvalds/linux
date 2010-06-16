@@ -117,6 +117,16 @@ config SPI_DAVINCI
 	help
 	  SPI master controller for DaVinci and DA8xx SPI modules.
 
+config SPI_EP93XX
+	tristate "Cirrus Logic EP93xx SPI controller"
+	depends on ARCH_EP93XX
+	help
+	  This enables using the Cirrus EP93xx SPI controller in master
+	  mode.
+
+	  To compile this driver as a module, choose M here. The module will be
+	  called ep93xx_spi.
+
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
 	depends on GENERIC_GPIO
@@ -164,6 +174,13 @@ config SPI_MPC52xx_PSC
 	help
 	  This enables using the Freescale MPC52xx Programmable Serial
 	  Controller in master SPI mode.
+
+config SPI_MPC512x_PSC
+	tristate "Freescale MPC512x PSC SPI controller"
+	depends on SPI_MASTER && PPC_MPC512x
+	help
+	  This enables using the Freescale MPC5121 Programmable Serial
+	  Controller in SPI master mode.
 
 config SPI_MPC8xxx
 	tristate "Freescale MPC8xxx SPI controller"

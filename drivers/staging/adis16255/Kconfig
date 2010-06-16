@@ -1,0 +1,11 @@
+config ADIS16255
+	tristate "Analog Devices ADIS16250/16255"
+	depends on SPI && SYSFS
+	---help---
+	If you say yes here you get support for the Analog Devices
+	ADIS16250/16255 Low Power Gyroscope. The driver exposes
+	orientation and gyroscope value, as well as sample rate
+	to the sysfs.
+
+	This driver can also be built as a module. If so, the module
+	will be called adis16255.

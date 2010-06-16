@@ -83,7 +83,7 @@ static int cfrfml_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	if (!cfsrvl_ready(service, &ret))
 		return ret;
 
-	if (!cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
+	if (cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
 		pr_err("CAIF: %s():Packet too large - size=%d\n",
 			__func__, cfpkt_getlen(pkt));
 		return -EOVERFLOW;

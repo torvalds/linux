@@ -223,9 +223,11 @@ static int empress_g_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_dev *dev = file->private_data;
+	struct v4l2_mbus_framefmt mbus_fmt;
 
-	saa_call_all(dev, video, g_fmt, f);
+	saa_call_all(dev, video, g_mbus_fmt, &mbus_fmt);
 
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;
 
@@ -236,8 +238,11 @@ static int empress_s_fmt_vid_cap(struct file *file, void *priv,
 				struct v4l2_format *f)
 {
 	struct saa7134_dev *dev = file->private_data;
+	struct v4l2_mbus_framefmt mbus_fmt;
 
-	saa_call_all(dev, video, s_fmt, f);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	saa_call_all(dev, video, s_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 
 	f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
 	f->fmt.pix.sizeimage    = TS_PACKET_SIZE * dev->ts.nr_packets;

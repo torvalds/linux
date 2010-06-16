@@ -77,50 +77,18 @@ int sync_filesystem(struct super_block *sb)
 }
 EXPORT_SYMBOL_GPL(sync_filesystem);
 
+static void sync_one_sb(struct super_block *sb, void *arg)
+{
+	if (!(sb->s_flags & MS_RDONLY) && sb->s_bdi)
+		__sync_filesystem(sb, *(int *)arg);
+}
 /*
  * Sync all the data for all the filesystems (called by sys_sync() and
  * emergency sync)
- *
- * This operation is careful to avoid the livelock which could easily happen
- * if two or more filesystems are being continuously dirtied.  s_need_sync
- * is used only here.  We set it against all filesystems and then clear it as
- * we sync them.  So redirtied filesystems are skipped.
- *
- * But if process A is currently running sync_filesystems and then process B
- * calls sync_filesystems as well, process B will set all the s_need_sync
- * flags again, which will cause process A to resync everything.  Fix that with
- * a local mutex.
  */
 static void sync_filesystems(int wait)
 {
-	struct super_block *sb;
-	static DEFINE_MUTEX(mutex);
-
-	mutex_lock(&mutex);		/* Could be down_interruptible */
-	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list)
-		sb->s_need_sync = 1;
-
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (!sb->s_need_sync)
-			continue;
-		sb->s_need_sync = 0;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-
-		down_read(&sb->s_umount);
-		if (!(sb->s_flags & MS_RDONLY) && sb->s_root && sb->s_bdi)
-			__sync_filesystem(sb, wait);
-		up_read(&sb->s_umount);
-
-		/* restart only when sb is no longer on the list */
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
-	mutex_unlock(&mutex);
+	iterate_supers(sync_one_sb, &wait);
 }
 
 /*
@@ -162,12 +130,10 @@ void emergency_sync(void)
 
 /*
  * Generic function to fsync a file.
- *
- * filp may be NULL if called via the msync of a vma.
  */
-int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int file_fsync(struct file *filp, int datasync)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	struct super_block * sb;
 	int ret, err;
 
@@ -190,7 +156,6 @@ EXPORT_SYMBOL(file_fsync);
 /**
  * vfs_fsync_range - helper to sync a range of data & metadata to disk
  * @file:		file to sync
- * @dentry:		dentry of @file
  * @start:		offset in bytes of the beginning of data range to sync
  * @end:		offset in bytes of the end of data range (inclusive)
  * @datasync:		perform only datasync
@@ -198,32 +163,13 @@ EXPORT_SYMBOL(file_fsync);
  * Write back data in range @start..@end and metadata for @file to disk.  If
  * @datasync is set only metadata needed to access modified file data is
  * written.
- *
- * In case this function is called from nfsd @file may be %NULL and
- * only @dentry is set.  This can only happen when the filesystem
- * implements the export_operations API.
  */
-int vfs_fsync_range(struct file *file, struct dentry *dentry, loff_t start,
-		    loff_t end, int datasync)
+int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	const struct file_operations *fop;
-	struct address_space *mapping;
+	struct address_space *mapping = file->f_mapping;
 	int err, ret;
 
-	/*
-	 * Get mapping and operations from the file in case we have
-	 * as file, or get the default values for them in case we
-	 * don't have a struct file available.  Damn nfsd..
-	 */
-	if (file) {
-		mapping = file->f_mapping;
-		fop = file->f_op;
-	} else {
-		mapping = dentry->d_inode->i_mapping;
-		fop = dentry->d_inode->i_fop;
-	}
-
-	if (!fop || !fop->fsync) {
+	if (!file->f_op || !file->f_op->fsync) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -235,7 +181,7 @@ int vfs_fsync_range(struct file *file, struct dentry *dentry, loff_t start,
 	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
-	err = fop->fsync(file, dentry, datasync);
+	err = file->f_op->fsync(file, datasync);
 	if (!ret)
 		ret = err;
 	mutex_unlock(&mapping->host->i_mutex);
@@ -248,19 +194,14 @@ EXPORT_SYMBOL(vfs_fsync_range);
 /**
  * vfs_fsync - perform a fsync or fdatasync on a file
  * @file:		file to sync
- * @dentry:		dentry of @file
  * @datasync:		only perform a fdatasync operation
  *
  * Write back data and metadata for @file to disk.  If @datasync is
  * set only metadata needed to access modified file data is written.
- *
- * In case this function is called from nfsd @file may be %NULL and
- * only @dentry is set.  This can only happen when the filesystem
- * implements the export_operations API.
  */
-int vfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int vfs_fsync(struct file *file, int datasync)
 {
-	return vfs_fsync_range(file, dentry, 0, LLONG_MAX, datasync);
+	return vfs_fsync_range(file, 0, LLONG_MAX, datasync);
 }
 EXPORT_SYMBOL(vfs_fsync);
 
@@ -271,7 +212,7 @@ static int do_fsync(unsigned int fd, int datasync)
 
 	file = fget(fd);
 	if (file) {
-		ret = vfs_fsync(file, file->f_path.dentry, datasync);
+		ret = vfs_fsync(file, datasync);
 		fput(file);
 	}
 	return ret;
@@ -299,8 +240,7 @@ int generic_write_sync(struct file *file, loff_t pos, loff_t count)
 {
 	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
 		return 0;
-	return vfs_fsync_range(file, file->f_path.dentry, pos,
-			       pos + count - 1,
+	return vfs_fsync_range(file, pos, pos + count - 1,
 			       (file->f_flags & __O_SYNC) ? 0 : 1);
 }
 EXPORT_SYMBOL(generic_write_sync);

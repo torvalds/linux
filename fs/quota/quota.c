@@ -45,36 +45,22 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 	return security_quotactl(cmd, type, id, sb);
 }
 
+static void quota_sync_one(struct super_block *sb, void *arg)
+{
+	if (sb->s_qcop && sb->s_qcop->quota_sync)
+		sb->s_qcop->quota_sync(sb, *(int *)arg, 1);
+}
+
 static int quota_sync_all(int type)
 {
-	struct super_block *sb;
 	int ret;
 
 	if (type >= MAXQUOTAS)
 		return -EINVAL;
 	ret = security_quotactl(Q_SYNC, type, 0, NULL);
-	if (ret)
-		return ret;
-
-	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		if (!sb->s_qcop || !sb->s_qcop->quota_sync)
-			continue;
-
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			sb->s_qcop->quota_sync(sb, type, 1);
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
-
-	return 0;
+	if (!ret)
+		iterate_supers(quota_sync_one, &type);
+	return ret;
 }
 
 static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
@@ -87,7 +73,7 @@ static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,
 	if (IS_ERR(pathname))
 		return PTR_ERR(pathname);
 	if (sb->s_qcop->quota_on)
-		ret = sb->s_qcop->quota_on(sb, type, id, pathname, 0);
+		ret = sb->s_qcop->quota_on(sb, type, id, pathname);
 	putname(pathname);
 	return ret;
 }
@@ -274,7 +260,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id,
 	case Q_QUOTAOFF:
 		if (!sb->s_qcop->quota_off)
 			return -ENOSYS;
-		return sb->s_qcop->quota_off(sb, type, 0);
+		return sb->s_qcop->quota_off(sb, type);
 	case Q_GETFMT:
 		return quota_getfmt(sb, type, addr);
 	case Q_GETINFO:

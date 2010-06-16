@@ -20,7 +20,6 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 

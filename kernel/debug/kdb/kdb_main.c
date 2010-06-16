@@ -1857,12 +1857,6 @@ static int kdb_ef(int argc, const char **argv)
 }
 
 #if defined(CONFIG_MODULES)
-/* modules using other modules */
-struct module_use {
-	struct list_head list;
-	struct module *module_which_uses;
-};
-
 /*
  * kdb_lsmod - This function implements the 'lsmod' command.  Lists
  *	currently loaded kernel modules.
@@ -1894,9 +1888,9 @@ static int kdb_lsmod(int argc, const char **argv)
 		{
 			struct module_use *use;
 			kdb_printf(" [ ");
-			list_for_each_entry(use, &mod->modules_which_use_me,
-					    list)
-				kdb_printf("%s ", use->module_which_uses->name);
+			list_for_each_entry(use, &mod->source_list,
+					    source_list)
+				kdb_printf("%s ", use->target->name);
 			kdb_printf("]\n");
 		}
 #endif

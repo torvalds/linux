@@ -170,6 +170,7 @@ int machine__load_vmlinux_path(struct machine *self, enum map_type type,
 
 size_t __dsos__fprintf(struct list_head *head, FILE *fp);
 
+size_t machine__fprintf_dsos_buildid(struct machine *self, FILE *fp, bool with_hits);
 size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp);
 size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits);
 
@@ -215,6 +216,6 @@ int machines__create_guest_kernel_maps(struct rb_root *self);
 int symbol__init(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
-size_t vmlinux_path__fprintf(FILE *fp);
+size_t machine__fprintf_vmlinux_path(struct machine *self, FILE *fp);
 
 #endif /* __PERF_SYMBOL */

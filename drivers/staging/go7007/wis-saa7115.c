@@ -433,7 +433,6 @@ static int wis_saa7115_remove(struct i2c_client *client)
 {
 	struct wis_saa7115 *dec = i2c_get_clientdata(client);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(dec);
 	return 0;
 }

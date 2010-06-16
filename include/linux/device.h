@@ -33,6 +33,7 @@ struct class;
 struct class_private;
 struct bus_type;
 struct bus_type_private;
+struct device_node;
 
 struct bus_attribute {
 	struct attribute	attr;
@@ -126,6 +127,10 @@ struct device_driver {
 	const char		*mod_name;	/* used for built-in modules */
 
 	bool suppress_bind_attrs;	/* disables bind/unbind via sysfs */
+
+#if defined(CONFIG_OF)
+	const struct of_device_id	*of_match_table;
+#endif
 
 	int (*probe) (struct device *dev);
 	int (*remove) (struct device *dev);
@@ -435,6 +440,9 @@ struct device {
 					     override */
 	/* arch specific additions */
 	struct dev_archdata	archdata;
+#ifdef CONFIG_OF
+	struct device_node	*of_node;
+#endif
 
 	dev_t			devt;	/* dev_t, creates the sysfs "dev" */
 

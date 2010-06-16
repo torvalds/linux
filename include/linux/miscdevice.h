@@ -3,6 +3,12 @@
 #include <linux/module.h>
 #include <linux/major.h>
 
+/*
+ *	These allocations are managed by device@lanana.org. If you use an
+ *	entry that is not in assigned your entry may well be moved and
+ *	reassigned, or set dynamic if a fixed value is not justified.
+ */
+
 #define PSMOUSE_MINOR		1
 #define MS_BUSMOUSE_MINOR	2
 #define ATIXL_BUSMOUSE_MINOR	3
@@ -30,7 +36,8 @@
 #define HPET_MINOR		228
 #define FUSE_MINOR		229
 #define KVM_MINOR		232
-#define VHOST_NET_MINOR		233
+#define BTRFS_MINOR		234
+#define AUTOFS_MINOR		235
 #define MISC_DYNAMIC_MINOR	255
 
 struct device;

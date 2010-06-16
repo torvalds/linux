@@ -1153,7 +1153,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 
 	if (macio_resource_count(mdev) == 0) {
 		printk(KERN_WARNING "ide-pmac: no address for %s\n",
-				    mdev->ofdev.node->full_name);
+				    mdev->ofdev.dev.of_node->full_name);
 		rc = -ENXIO;
 		goto out_free_pmif;
 	}
@@ -1161,7 +1161,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Request memory resource for IO ports */
 	if (macio_request_resource(mdev, 0, "ide-pmac (ports)")) {
 		printk(KERN_ERR "ide-pmac: can't request MMIO resource for "
-				"%s!\n", mdev->ofdev.node->full_name);
+				"%s!\n", mdev->ofdev.dev.of_node->full_name);
 		rc = -EBUSY;
 		goto out_free_pmif;
 	}
@@ -1173,7 +1173,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	 */
 	if (macio_irq_count(mdev) == 0) {
 		printk(KERN_WARNING "ide-pmac: no intrs for device %s, using "
-				    "13\n", mdev->ofdev.node->full_name);
+				    "13\n", mdev->ofdev.dev.of_node->full_name);
 		irq = irq_create_mapping(NULL, 13);
 	} else
 		irq = macio_irq(mdev, 0);
@@ -1182,7 +1182,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	regbase = (unsigned long) base;
 
 	pmif->mdev = mdev;
-	pmif->node = mdev->ofdev.node;
+	pmif->node = mdev->ofdev.dev.of_node;
 	pmif->regbase = regbase;
 	pmif->irq = irq;
 	pmif->kauai_fcr = NULL;
@@ -1191,7 +1191,7 @@ pmac_ide_macio_attach(struct macio_dev *mdev, const struct of_device_id *match)
 		if (macio_request_resource(mdev, 1, "ide-pmac (dma)"))
 			printk(KERN_WARNING "ide-pmac: can't request DMA "
 					    "resource for %s!\n",
-					    mdev->ofdev.node->full_name);
+					    mdev->ofdev.dev.of_node->full_name);
 		else
 			pmif->dma_regs = ioremap(macio_resource_start(mdev, 1), 0x1000);
 	} else
@@ -1400,8 +1400,11 @@ static struct of_device_id pmac_ide_macio_match[] =
 
 static struct macio_driver pmac_ide_macio_driver = 
 {
-	.name 		= "ide-pmac",
-	.match_table	= pmac_ide_macio_match,
+	.driver = {
+		.name 		= "ide-pmac",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pmac_ide_macio_match,
+	},
 	.probe		= pmac_ide_macio_attach,
 	.suspend	= pmac_ide_macio_suspend,
 	.resume		= pmac_ide_macio_resume,

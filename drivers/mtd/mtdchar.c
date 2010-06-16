@@ -404,14 +404,9 @@ static int mtd_do_writeoob(struct file *file, struct mtd_info *mtd,
 	if (ops.ooboffs && ops.ooblen > (mtd->oobsize - ops.ooboffs))
 		return -EINVAL;
 
-	ops.oobbuf = kmalloc(length, GFP_KERNEL);
-	if (!ops.oobbuf)
-		return -ENOMEM;
-
-	if (copy_from_user(ops.oobbuf, ptr, length)) {
-		kfree(ops.oobbuf);
-		return -EFAULT;
-	}
+	ops.oobbuf = memdup_user(ptr, length);
+	if (IS_ERR(ops.oobbuf))
+		return PTR_ERR(ops.oobbuf);
 
 	start &= ~((uint64_t)mtd->oobsize - 1);
 	ret = mtd->write_oob(mtd, start, &ops);
@@ -468,8 +463,7 @@ static int mtd_do_readoob(struct mtd_info *mtd, uint64_t start,
 	return ret;
 }
 
-static int mtd_ioctl(struct inode *inode, struct file *file,
-		     u_int cmd, u_long arg)
+static int mtd_ioctl(struct file *file, u_int cmd, u_long arg)
 {
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
@@ -840,6 +834,17 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	return ret;
 } /* memory_ioctl */
 
+static long mtd_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = mtd_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 #ifdef CONFIG_COMPAT
 
 struct mtd_oob_buf32 {
@@ -854,7 +859,6 @@ struct mtd_oob_buf32 {
 static long mtd_compat_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
 	void __user *argp = compat_ptr(arg);
@@ -892,7 +896,7 @@ static long mtd_compat_ioctl(struct file *file, unsigned int cmd,
 		break;
 	}
 	default:
-		ret = mtd_ioctl(inode, file, cmd, (unsigned long)argp);
+		ret = mtd_ioctl(file, cmd, (unsigned long)argp);
 	}
 
 	unlock_kernel();
@@ -960,7 +964,7 @@ static const struct file_operations mtd_fops = {
 	.llseek		= mtd_lseek,
 	.read		= mtd_read,
 	.write		= mtd_write,
-	.ioctl		= mtd_ioctl,
+	.unlocked_ioctl	= mtd_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= mtd_compat_ioctl,
 #endif

@@ -32,6 +32,7 @@ static struct platform_device *platform_devs[] __initdata = {
 	&u8500_gpio_devs[6],
 	&u8500_gpio_devs[7],
 	&u8500_gpio_devs[8],
+	&u8500_dma40_device,
 };
 
 /* minimum static i/o mapping required to boot U8500 platforms */
@@ -70,6 +71,9 @@ void __init u8500_map_io(void)
 void __init u8500_init_devices(void)
 {
 	ux500_init_devices();
+
+	if (cpu_is_u8500ed())
+		dma40_u8500ed_fixup();
 
 	/* Register the platform devices */
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));

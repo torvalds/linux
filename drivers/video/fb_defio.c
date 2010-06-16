@@ -66,7 +66,7 @@ static int fb_deferred_io_fault(struct vm_area_struct *vma,
 	return 0;
 }
 
-int fb_deferred_io_fsync(struct file *file, struct dentry *dentry, int datasync)
+int fb_deferred_io_fsync(struct file *file, int datasync)
 {
 	struct fb_info *info = file->private_data;
 
@@ -100,6 +100,16 @@ static int fb_deferred_io_mkwrite(struct vm_area_struct *vma,
 	/* protect against the workqueue changing the page list */
 	mutex_lock(&fbdefio->lock);
 
+	/*
+	 * We want the page to remain locked from ->page_mkwrite until
+	 * the PTE is marked dirty to avoid page_mkclean() being called
+	 * before the PTE is updated, which would leave the page ignored
+	 * by defio.
+	 * Do this by locking the page here and informing the caller
+	 * about it with VM_FAULT_LOCKED.
+	 */
+	lock_page(page);
+
 	/* we loop through the pagelist before adding in order
 	to keep the pagelist sorted */
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
@@ -121,7 +131,7 @@ page_already_added:
 
 	/* come back after delay to process the deferred IO */
 	schedule_delayed_work(&info->deferred_work, fbdefio->delay);
-	return 0;
+	return VM_FAULT_LOCKED;
 }
 
 static const struct vm_operations_struct fb_deferred_io_vm_ops = {

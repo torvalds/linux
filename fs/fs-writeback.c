@@ -42,9 +42,9 @@ struct wb_writeback_args {
 	long nr_pages;
 	struct super_block *sb;
 	enum writeback_sync_modes sync_mode;
-	int for_kupdate:1;
-	int range_cyclic:1;
-	int for_background:1;
+	unsigned int for_kupdate:1;
+	unsigned int range_cyclic:1;
+	unsigned int for_background:1;
 };
 
 /*
@@ -398,11 +398,11 @@ static void inode_wait_for_writeback(struct inode *inode)
 	wait_queue_head_t *wqh;
 
 	wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
-	do {
+	 while (inode->i_state & I_SYNC) {
 		spin_unlock(&inode_lock);
 		__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
 		spin_lock(&inode_lock);
-	} while (inode->i_state & I_SYNC);
+	}
 }
 
 /*
@@ -452,11 +452,9 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	BUG_ON(inode->i_state & I_SYNC);
 
-	/* Set I_SYNC, reset I_DIRTY */
-	dirty = inode->i_state & I_DIRTY;
+	/* Set I_SYNC, reset I_DIRTY_PAGES */
 	inode->i_state |= I_SYNC;
-	inode->i_state &= ~I_DIRTY;
-
+	inode->i_state &= ~I_DIRTY_PAGES;
 	spin_unlock(&inode_lock);
 
 	ret = do_writepages(mapping, wbc);
@@ -472,6 +470,15 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 			ret = err;
 	}
 
+	/*
+	 * Some filesystems may redirty the inode during the writeback
+	 * due to delalloc, clear dirty metadata flags right before
+	 * write_inode()
+	 */
+	spin_lock(&inode_lock);
+	dirty = inode->i_state & I_DIRTY;
+	inode->i_state &= ~(I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	spin_unlock(&inode_lock);
 	/* Don't write the inode if only I_DIRTY_PAGES was set */
 	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
 		int err = write_inode(inode, wbc);
@@ -852,6 +859,12 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 	unsigned long expired;
 	long nr_pages;
 
+	/*
+	 * When set to zero, disable periodic writeback
+	 */
+	if (!dirty_writeback_interval)
+		return 0;
+
 	expired = wb->last_old_flush +
 			msecs_to_jiffies(dirty_writeback_interval * 10);
 	if (time_before(jiffies, expired))
@@ -947,8 +960,17 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 				break;
 		}
 
-		wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
-		schedule_timeout_interruptible(wait_jiffies);
+		if (dirty_writeback_interval) {
+			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
+			schedule_timeout_interruptible(wait_jiffies);
+		} else {
+			set_current_state(TASK_INTERRUPTIBLE);
+			if (list_empty_careful(&wb->bdi->work_list) &&
+			    !kthread_should_stop())
+				schedule();
+			__set_current_state(TASK_RUNNING);
+		}
+
 		try_to_freeze();
 	}
 

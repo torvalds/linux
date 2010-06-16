@@ -1172,7 +1172,9 @@ struct ib_client {
 struct ib_device *ib_alloc_device(size_t size);
 void ib_dealloc_device(struct ib_device *device);
 
-int ib_register_device   (struct ib_device *device);
+int ib_register_device(struct ib_device *device,
+		       int (*port_callback)(struct ib_device *,
+					    u8, struct kobject *));
 void ib_unregister_device(struct ib_device *device);
 
 int ib_register_client   (struct ib_client *client);

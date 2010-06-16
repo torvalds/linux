@@ -544,6 +544,8 @@ struct rq {
 	struct root_domain *rd;
 	struct sched_domain *sd;
 
+	unsigned long cpu_power;
+
 	unsigned char idle_at_tick;
 	/* For active balancing */
 	int post_schedule;
@@ -967,14 +969,6 @@ static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
 			return rq;
 		raw_spin_unlock_irqrestore(&rq->lock, *flags);
 	}
-}
-
-void task_rq_unlock_wait(struct task_struct *p)
-{
-	struct rq *rq = task_rq(p);
-
-	smp_mb(); /* spin-unlock-wait is not a full memory barrier */
-	raw_spin_unlock_wait(&rq->lock);
 }
 
 static void __task_rq_unlock(struct rq *rq)
@@ -1507,24 +1501,9 @@ static unsigned long target_load(int cpu, int type)
 	return max(rq->cpu_load[type-1], total);
 }
 
-static struct sched_group *group_of(int cpu)
-{
-	struct sched_domain *sd = rcu_dereference_sched(cpu_rq(cpu)->sd);
-
-	if (!sd)
-		return NULL;
-
-	return sd->groups;
-}
-
 static unsigned long power_of(int cpu)
 {
-	struct sched_group *group = group_of(cpu);
-
-	if (!group)
-		return SCHED_LOAD_SCALE;
-
-	return group->cpu_power;
+	return cpu_rq(cpu)->cpu_power;
 }
 
 static int task_hot(struct task_struct *p, u64 now, struct sched_domain *sd);
@@ -1862,8 +1841,8 @@ static void dec_nr_running(struct rq *rq)
 static void set_load_weight(struct task_struct *p)
 {
 	if (task_has_rt_policy(p)) {
-		p->se.load.weight = prio_to_weight[0] * 2;
-		p->se.load.inv_weight = prio_to_wmult[0] >> 1;
+		p->se.load.weight = 0;
+		p->se.load.inv_weight = WMULT_CONST;
 		return;
 	}
 
@@ -4060,6 +4039,23 @@ int __sched wait_for_completion_killable(struct completion *x)
 	return 0;
 }
 EXPORT_SYMBOL(wait_for_completion_killable);
+
+/**
+ * wait_for_completion_killable_timeout: - waits for completion of a task (w/(to,killable))
+ * @x:  holds the state of this particular completion
+ * @timeout:  timeout value in jiffies
+ *
+ * This waits for either a completion of a specific task to be
+ * signaled or for a specified timeout to expire. It can be
+ * interrupted by a kill signal. The timeout is in jiffies.
+ */
+unsigned long __sched
+wait_for_completion_killable_timeout(struct completion *x,
+				     unsigned long timeout)
+{
+	return wait_for_common(x, timeout, TASK_KILLABLE);
+}
+EXPORT_SYMBOL(wait_for_completion_killable_timeout);
 
 /**
  *	try_wait_for_completion - try to decrement a completion without blocking
@@ -7596,6 +7592,7 @@ void __init sched_init(void)
 #ifdef CONFIG_SMP
 		rq->sd = NULL;
 		rq->rd = NULL;
+		rq->cpu_power = SCHED_LOAD_SCALE;
 		rq->post_schedule = 0;
 		rq->active_balance = 0;
 		rq->next_balance = jiffies;

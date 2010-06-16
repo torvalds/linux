@@ -545,7 +545,6 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 {
 	struct iommu_window *window;
 	struct cbe_iommu *iommu;
-	struct dev_archdata *archdata = &dev->archdata;
 
 	/* Current implementation uses the first window available in that
 	 * node's iommu. We -might- do something smarter later though it may
@@ -554,7 +553,7 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 	iommu = cell_iommu_for_node(dev_to_node(dev));
 	if (iommu == NULL || list_empty(&iommu->windows)) {
 		printk(KERN_ERR "iommu: missing iommu for %s (node %d)\n",
-		       archdata->of_node ? archdata->of_node->full_name : "?",
+		       dev->of_node ? dev->of_node->full_name : "?",
 		       dev_to_node(dev));
 		return NULL;
 	}
@@ -897,7 +896,7 @@ static u64 cell_iommu_get_fixed_address(struct device *dev)
 	const u32 *ranges = NULL;
 	int i, len, best, naddr, nsize, pna, range_size;
 
-	np = of_node_get(dev->archdata.of_node);
+	np = of_node_get(dev->of_node);
 	while (1) {
 		naddr = of_n_addr_cells(np);
 		nsize = of_n_size_cells(np);
@@ -1067,7 +1066,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	fbase = _ALIGN_UP(fbase, 1 << IO_SEGMENT_SHIFT);
 	fsize = lmb_phys_mem_size();
 
-	if ((fbase + fsize) <= 0x800000000)
+	if ((fbase + fsize) <= 0x800000000ul)
 		hbase = 0; /* use the device tree window */
 	else {
 		/* If we're over 32 GB we need to cheat. We can't map all of

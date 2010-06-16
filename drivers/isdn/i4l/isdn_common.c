@@ -1272,9 +1272,9 @@ isdn_poll(struct file *file, poll_table * wait)
 
 
 static int
-isdn_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg)
+isdn_ioctl(struct file *file, uint cmd, ulong arg)
 {
-	uint minor = iminor(inode);
+	uint minor = iminor(file->f_path.dentry->d_inode);
 	isdn_ctrl c;
 	int drvidx;
 	int chidx;
@@ -1722,6 +1722,18 @@ isdn_ioctl(struct inode *inode, struct file *file, uint cmd, ulong arg)
 #undef cfg
 }
 
+static long
+isdn_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = isdn_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 /*
  * Open the device code.
  */
@@ -1838,7 +1850,7 @@ static const struct file_operations isdn_fops =
 	.read		= isdn_read,
 	.write		= isdn_write,
 	.poll		= isdn_poll,
-	.ioctl		= isdn_ioctl,
+	.unlocked_ioctl	= isdn_unlocked_ioctl,
 	.open		= isdn_open,
 	.release	= isdn_close,
 };

@@ -2026,6 +2026,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 					combios_setup_i2c_bus(rdev, RADEON_GPIO_CRT2_DDC);
 				break;
 			default:
+				ddc_i2c.valid = false;
 				break;
 			}
 
@@ -2339,6 +2340,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 			if (RBIOS8(tv_info + 6) == 'T') {
 				if (radeon_apply_legacy_tv_quirks(dev)) {
 					hpd.hpd = RADEON_HPD_NONE;
+					ddc_i2c.valid = false;
 					radeon_add_legacy_encoder(dev,
 								  radeon_get_encoder_id
 								  (dev,
@@ -2454,7 +2456,12 @@ default_mode:
 	rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
-	rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+	if ((state_index > 0) &&
+	    (rdev->pm.power_state[0].clock_info[0].voltage.type == VOLTAGE_GPIO))
+		rdev->pm.power_state[state_index].clock_info[0].voltage =
+			rdev->pm.power_state[0].clock_info[0].voltage;
+	else
+		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 	rdev->pm.power_state[state_index].pcie_lanes = 16;
 	rdev->pm.power_state[state_index].flags = 0;
 	rdev->pm.default_power_state_index = state_index;

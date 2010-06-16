@@ -80,7 +80,7 @@ struct arcfb_par {
 	spinlock_t lock;
 };
 
-static struct fb_fix_screeninfo arcfb_fix __initdata = {
+static struct fb_fix_screeninfo arcfb_fix __devinitdata = {
 	.id =		"arcfb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_MONO01,
@@ -90,7 +90,7 @@ static struct fb_fix_screeninfo arcfb_fix __initdata = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo arcfb_var __initdata = {
+static struct fb_var_screeninfo arcfb_var __devinitdata = {
 	.xres		= 128,
 	.yres		= 64,
 	.xres_virtual	= 128,
@@ -588,7 +588,7 @@ err:
 	return retval;
 }
 
-static int arcfb_remove(struct platform_device *dev)
+static int __devexit arcfb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = platform_get_drvdata(dev);
 
@@ -602,7 +602,7 @@ static int arcfb_remove(struct platform_device *dev)
 
 static struct platform_driver arcfb_driver = {
 	.probe	= arcfb_probe,
-	.remove = arcfb_remove,
+	.remove = __devexit_p(arcfb_remove),
 	.driver	= {
 		.name	= "arcfb",
 	},
