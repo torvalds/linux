@@ -592,6 +592,7 @@ static void *raid0_takeover_raid5(mddev_t *mddev)
 
 	/* Set new parameters */
 	mddev->new_level = 0;
+	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->raid_disks--;
 	mddev->delta_disks = -1;
@@ -631,6 +632,7 @@ static void *raid0_takeover_raid10(mddev_t *mddev)
 
 	/* Set new parameters */
 	mddev->new_level = 0;
+	mddev->new_layout = 0;
 	mddev->new_chunk_sectors = mddev->chunk_sectors;
 	mddev->delta_disks = - mddev->raid_disks / 2;
 	mddev->raid_disks += mddev->delta_disks;
