@@ -192,6 +192,38 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	return 0;
 }
 
+/**
+ * omap4_hotplug_cpu: OMAP4 CPU hotplug entry
+ * @cpu : CPU ID
+ * @power_state: CPU low power state.
+ */
+int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
+{
+	unsigned int cpu_state = 0;
+
+	if (omap_rev() == OMAP4430_REV_ES1_0)
+		return -ENXIO;
+
+	if (power_state == PWRDM_POWER_OFF)
+		cpu_state = 1;
+
+	clear_cpu_prev_pwrst(cpu);
+	set_cpu_next_pwrst(cpu, power_state);
+	set_cpu_wakeup_addr(cpu, virt_to_phys(omap_secondary_startup));
+	scu_pwrst_prepare(cpu, power_state);
+
+	/*
+	 * CPU never retuns back if targetted power state is OFF mode.
+	 * CPU ONLINE follows normal CPU ONLINE ptah via
+	 * omap_secondary_startup().
+	 */
+	omap4_finish_suspend(cpu_state);
+
+	set_cpu_next_pwrst(cpu, PWRDM_POWER_ON);
+	return 0;
+}
+
+
 /*
  * Initialise OMAP4 MPUSS
  */

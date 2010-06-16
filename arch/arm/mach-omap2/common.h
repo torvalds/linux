@@ -200,9 +200,16 @@ extern int omap4_mpuss_init(void);
 extern int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state);
 extern int omap4_finish_suspend(unsigned long cpu_state);
 extern void omap4_cpu_resume(void);
+extern int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state);
 #else
 static inline int omap4_enter_lowpower(unsigned int cpu,
 					unsigned int power_state)
+{
+	cpu_do_idle();
+	return 0;
+}
+
+static inline int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 {
 	cpu_do_idle();
 	return 0;

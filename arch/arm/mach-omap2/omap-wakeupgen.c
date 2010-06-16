@@ -180,6 +180,36 @@ static void wakeupgen_irqmask_all(unsigned int cpu, unsigned int set)
 	spin_unlock_irqrestore(&wakeupgen_lock, flags);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+static int __cpuinit irq_cpu_hotplug_notify(struct notifier_block *self,
+					 unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned int)hcpu;
+
+	switch (action) {
+	case CPU_ONLINE:
+		wakeupgen_irqmask_all(cpu, 0);
+		break;
+	case CPU_DEAD:
+		wakeupgen_irqmask_all(cpu, 1);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __refdata irq_hotplug_notifier = {
+	.notifier_call = irq_cpu_hotplug_notify,
+};
+
+static void __init irq_hotplug_init(void)
+{
+	register_hotcpu_notifier(&irq_hotplug_notifier);
+}
+#else
+static void __init irq_hotplug_init(void)
+{}
+#endif
+
 /*
  * Initialise the wakeupgen module.
  */
@@ -221,6 +251,8 @@ int __init omap_wakeupgen_init(void)
 	/* Associate all the IRQs to boot CPU like GIC init does. */
 	for (i = 0; i < NR_IRQS; i++)
 		irq_target_cpu[i] = boot_cpu;
+
+	irq_hotplug_init();
 
 	return 0;
 }
