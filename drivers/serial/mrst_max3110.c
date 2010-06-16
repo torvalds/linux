@@ -721,7 +721,7 @@ static int serial_m3110_probe(struct spi_device *spi)
 	struct uart_max3110 *max;
 	int ret;
 	unsigned char *buffer;
-
+	u16 res;
 	max = kzalloc(sizeof(*max), GFP_KERNEL);
 	if (!max)
 		return -ENOMEM;
@@ -753,7 +753,16 @@ static int serial_m3110_probe(struct spi_device *spi)
 
 	max->cur_conf = 0;
 	atomic_set(&max->irq_pending, 0);
+	/* Check if reading configuration register returns something sane */
 
+	res = RC_TAG;
+	ret = max3110_write_then_read(max, (u8 *)&res, (u8 *)&res, 2, 0);
+	if (ret < 0 || res == 0 || res == 0xffff) {
+		printk(KERN_ERR "MAX3111 deemed not present (conf reg %04x)",
+									res);
+		ret = -ENODEV;
+		goto err_get_page;
+	}
 	buffer = (unsigned char *)__get_free_page(GFP_KERNEL);
 	if (!buffer) {
 		ret = -ENOMEM;
