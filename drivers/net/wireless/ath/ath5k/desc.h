@@ -96,21 +96,8 @@ struct ath5k_hw_rx_status {
 #define AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP	0x7fff0000
 #define AR5K_5212_RX_DESC_STATUS1_RECEIVE_TIMESTAMP_S	16
 #define AR5K_5212_RX_DESC_STATUS1_KEY_CACHE_MISS	0x80000000
-
-/*
- * common hardware RX error descriptor
- */
-struct ath5k_hw_rx_error {
-	u32	rx_error_0; /* RX status word 0 */
-	u32	rx_error_1; /* RX status word 1 */
-} __packed;
-
-/* RX error word 0 fields/flags */
-#define AR5K_RX_DESC_ERROR0			0x00000000
-
-/* RX error word 1 fields/flags */
-#define AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE	0x0000ff00
-#define AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE_S	8
+#define AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE	0x0000ff00
+#define AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE_S	8
 
 /**
  * enum ath5k_phy_error_code - PHY Error codes
@@ -316,11 +303,8 @@ struct ath5k_hw_5212_tx_desc {
  * common hardware RX descriptor
  */
 struct ath5k_hw_all_rx_desc {
-	struct ath5k_hw_rx_ctl			rx_ctl;
-	union {
-		struct ath5k_hw_rx_status	rx_stat;
-		struct ath5k_hw_rx_error	rx_err;
-	} u;
+	struct ath5k_hw_rx_ctl		rx_ctl;
+	struct ath5k_hw_rx_status	rx_stat;
 } __packed;
 
 /*

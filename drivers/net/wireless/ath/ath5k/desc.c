@@ -510,7 +510,7 @@ static int ath5k_hw_proc_5210_rx_status(struct ath5k_hw *ah,
 {
 	struct ath5k_hw_rx_status *rx_status;
 
-	rx_status = &desc->ud.ds_rx.u.rx_stat;
+	rx_status = &desc->ud.ds_rx.rx_stat;
 
 	/* No frame received / not ready */
 	if (unlikely(!(rx_status->rx_status_1 &
@@ -581,12 +581,8 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 					struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw_rx_status *rx_status;
-	struct ath5k_hw_rx_error *rx_err;
 
-	rx_status = &desc->ud.ds_rx.u.rx_stat;
-
-	/* Overlay on error */
-	rx_err = &desc->ud.ds_rx.u.rx_err;
+	rx_status = &desc->ud.ds_rx.rx_stat;
 
 	/* No frame received / not ready */
 	if (unlikely(!(rx_status->rx_status_1 &
@@ -632,8 +628,8 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 		if (rx_status->rx_status_1 &
 				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR) {
 			rs->rs_status |= AR5K_RXERR_PHY;
-			rs->rs_phyerr |= AR5K_REG_MS(rx_err->rx_error_1,
-					   AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE);
+			rs->rs_phyerr |= AR5K_REG_MS(rx_status->rx_status_1,
+				AR5K_5212_RX_DESC_STATUS1_PHY_ERROR_CODE);
 			ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
 		}
 
