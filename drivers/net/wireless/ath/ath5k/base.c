@@ -311,7 +311,8 @@ static int 	ath5k_rxbuf_setup(struct ath5k_softc *sc,
 static int 	ath5k_txbuf_setup(struct ath5k_softc *sc,
 				struct ath5k_buf *bf,
 				struct ath5k_txq *txq, int padsize);
-static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
+
+static inline void ath5k_txbuf_free_skb(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
 	BUG_ON(!bf);
@@ -323,7 +324,7 @@ static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 	bf->skb = NULL;
 }
 
-static inline void ath5k_rxbuf_free(struct ath5k_softc *sc,
+static inline void ath5k_rxbuf_free_skb(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
 	struct ath5k_hw *ah = sc->ah;
@@ -1444,11 +1445,11 @@ ath5k_desc_free(struct ath5k_softc *sc, struct pci_dev *pdev)
 {
 	struct ath5k_buf *bf;
 
-	ath5k_txbuf_free(sc, sc->bbuf);
+	ath5k_txbuf_free_skb(sc, sc->bbuf);
 	list_for_each_entry(bf, &sc->txbuf, list)
-		ath5k_txbuf_free(sc, bf);
+		ath5k_txbuf_free_skb(sc, bf);
 	list_for_each_entry(bf, &sc->rxbuf, list)
-		ath5k_rxbuf_free(sc, bf);
+		ath5k_rxbuf_free_skb(sc, bf);
 
 	/* Free memory associated with all descriptors */
 	pci_free_consistent(pdev, sc->desc_len, sc->desc, sc->desc_daddr);
@@ -1603,7 +1604,7 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
 		ath5k_debug_printtxbuf(sc, bf);
 
-		ath5k_txbuf_free(sc, bf);
+		ath5k_txbuf_free_skb(sc, bf);
 
 		spin_lock_bh(&sc->txbuflock);
 		list_move_tail(&bf->list, &sc->txbuf);
@@ -2650,7 +2651,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 		ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 				"putting device to sleep\n");
 	}
-	ath5k_txbuf_free(sc, sc->bbuf);
+	ath5k_txbuf_free_skb(sc, sc->bbuf);
 
 	mmiowb();
 	mutex_unlock(&sc->lock);
@@ -3376,7 +3377,7 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	ath5k_debug_dump_skb(sc, skb, "BC  ", 1);
 
-	ath5k_txbuf_free(sc, sc->bbuf);
+	ath5k_txbuf_free_skb(sc, sc->bbuf);
 	sc->bbuf->skb = skb;
 	ret = ath5k_beacon_setup(sc, sc->bbuf);
 	if (ret)
