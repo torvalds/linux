@@ -37,9 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
-#if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
-#include <mach/i2c.h>
-#endif
 #include <mach/iomux-mx35.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>
@@ -123,7 +120,7 @@ static struct imxuart_platform_data uart_pdata = {
 };
 
 #if defined CONFIG_I2C_IMX || defined CONFIG_I2C_IMX_MODULE
-static struct imxi2c_platform_data pcm043_i2c_1_data = {
+static const struct imxi2c_platform_data pcm043_i2c0_data __initconst = {
 	.bitrate = 50000,
 };
 
@@ -368,7 +365,7 @@ static void __init mxc_board_init(void)
 	i2c_register_board_info(0, pcm043_i2c_devices,
 			ARRAY_SIZE(pcm043_i2c_devices));
 
-	mxc_register_device(&mxc_i2c_device0, &pcm043_i2c_1_data);
+	imx35_add_imx_i2c0(&pcm043_i2c0_data);
 #endif
 
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
