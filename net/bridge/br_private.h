@@ -305,7 +305,7 @@ static inline struct netpoll_info *br_netpoll_info(struct net_bridge *br)
 	return NULL;
 }
 
-static inline void br_netpoll_send_skb(struct net_bridge_port *p,
+static inline void br_netpoll_send_skb(const struct net_bridge_port *p,
 				       struct sk_buff *skb)
 {
 }
