@@ -769,7 +769,8 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	 * return false w/o doing anything.  MAC's that do
 	 * support it will return true w/o doing anything.
 	 */
-	ret = ah->ah_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
+	ret = ath5k_hw_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
+
 	if (ret < 0)
 		goto err;
 	if (ret > 0)
@@ -1245,7 +1246,7 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	ds = bf->desc;
 	ds->ds_link = bf->daddr;	/* link to self */
 	ds->ds_data = bf->skbaddr;
-	ret = ah->ah_setup_rx_desc(ah, ds, ah->common.rx_bufsize, 0);
+	ret = ath5k_hw_setup_rx_desc(ah, ds, ah->common.rx_bufsize, 0);
 	if (ret) {
 		ATH5K_ERR(sc, "%s: could not setup RX desc\n", __func__);
 		return ret;
@@ -1354,7 +1355,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 		mrr_tries[i] = info->control.rates[i + 1].count;
 	}
 
-	ah->ah_setup_mrr_tx_desc(ah, ds,
+	ath5k_hw_setup_mrr_tx_desc(ah, ds,
 		mrr_rate[0], mrr_tries[0],
 		mrr_rate[1], mrr_tries[1],
 		mrr_rate[2], mrr_tries[2]);

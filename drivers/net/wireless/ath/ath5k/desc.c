@@ -277,12 +277,16 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 /*
  * Initialize a 4-word multi rate retry tx control descriptor on 5212
  */
-static int
+int
 ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2,
 	u_int tx_tries2, unsigned int tx_rate3, u_int tx_tries3)
 {
 	struct ath5k_hw_4w_tx_ctl *tx_ctl;
+
+	/* no mrr support for cards older than 5212 */
+	if (ah->ah_version < AR5K_AR5212)
+		return 0;
 
 	/*
 	 * Rates can be 0 as long as the retry count is 0 too.
@@ -320,15 +324,6 @@ ath5k_hw_setup_mrr_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 		return 1;
 	}
 
-	return 0;
-}
-
-/* no mrr support for cards older than 5212 */
-static int
-ath5k_hw_setup_no_mrr(struct ath5k_hw *ah, struct ath5k_desc *desc,
-	unsigned int tx_rate1, u_int tx_tries1, u_int tx_rate2,
-	u_int tx_tries2, unsigned int tx_rate3, u_int tx_tries3)
-{
 	return 0;
 }
 
@@ -480,8 +475,8 @@ static int ath5k_hw_proc_4word_tx_status(struct ath5k_hw *ah,
 /*
  * Initialize an rx control descriptor
  */
-static int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
-			u32 size, unsigned int flags)
+int ath5k_hw_setup_rx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
+			   u32 size, unsigned int flags)
 {
 	struct ath5k_hw_rx_ctl *rx_ctl;
 
@@ -658,29 +653,15 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
  */
 int ath5k_hw_init_desc_functions(struct ath5k_hw *ah)
 {
-
-	if (ah->ah_version != AR5K_AR5210 &&
-		ah->ah_version != AR5K_AR5211 &&
-		ah->ah_version != AR5K_AR5212)
-			return -ENOTSUPP;
-
 	if (ah->ah_version == AR5K_AR5212) {
-		ah->ah_setup_rx_desc = ath5k_hw_setup_rx_desc;
 		ah->ah_setup_tx_desc = ath5k_hw_setup_4word_tx_desc;
-		ah->ah_setup_mrr_tx_desc = ath5k_hw_setup_mrr_tx_desc;
 		ah->ah_proc_tx_desc = ath5k_hw_proc_4word_tx_status;
-	} else {
-		ah->ah_setup_rx_desc = ath5k_hw_setup_rx_desc;
-		ah->ah_setup_tx_desc = ath5k_hw_setup_2word_tx_desc;
-		ah->ah_setup_mrr_tx_desc = ath5k_hw_setup_no_mrr;
-		ah->ah_proc_tx_desc = ath5k_hw_proc_2word_tx_status;
-	}
-
-	if (ah->ah_version == AR5K_AR5212)
 		ah->ah_proc_rx_desc = ath5k_hw_proc_5212_rx_status;
-	else if (ah->ah_version <= AR5K_AR5211)
+	} else if (ah->ah_version <= AR5K_AR5211) {
+		ah->ah_setup_tx_desc = ath5k_hw_setup_2word_tx_desc;
+		ah->ah_proc_tx_desc = ath5k_hw_proc_2word_tx_status;
 		ah->ah_proc_rx_desc = ath5k_hw_proc_5210_rx_status;
-
+	} else
+		return -ENOTSUPP;
 	return 0;
 }
-
