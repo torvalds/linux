@@ -295,7 +295,10 @@ void fixup_irqs(const struct cpumask *map)
 
 	for_each_irq(irq) {
 		desc = irq_to_desc(irq);
-		if (desc && desc->status & IRQ_PER_CPU)
+		if (!desc)
+			continue;
+
+		if (desc->status & IRQ_PER_CPU)
 			continue;
 
 		cpumask_and(mask, desc->affinity, map);
