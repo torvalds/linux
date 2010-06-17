@@ -344,36 +344,6 @@ int tomoyo_write_globally_readable_policy(char *data, const bool is_delete)
 	return tomoyo_update_globally_readable_entry(data, is_delete);
 }
 
-/**
- * tomoyo_read_globally_readable_policy - Read "struct tomoyo_globally_readable_file_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_list[TOMOYO_ID_GLOBALLY_READABLE]) {
-		struct tomoyo_globally_readable_file_entry *ptr;
-		ptr = list_entry(pos,
-				 struct tomoyo_globally_readable_file_entry,
-				 head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_READ "%s\n",
-					ptr->filename->name);
-		if (!done)
-			break;
-	}
-	return done;
-}
-
 static bool tomoyo_same_pattern(const struct tomoyo_acl_head *a,
 				const struct tomoyo_acl_head *b)
 {
@@ -457,34 +427,6 @@ int tomoyo_write_pattern_policy(char *data, const bool is_delete)
 	return tomoyo_update_file_pattern_entry(data, is_delete);
 }
 
-/**
- * tomoyo_read_file_pattern - Read "struct tomoyo_pattern_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_list[TOMOYO_ID_PATTERN]) {
-		struct tomoyo_pattern_entry *ptr;
-		ptr = list_entry(pos, struct tomoyo_pattern_entry, head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_FILE_PATTERN
-					"%s\n", ptr->pattern->name);
-		if (!done)
-			break;
-	}
-	return done;
-}
-
 static bool tomoyo_same_no_rewrite(const struct tomoyo_acl_head *a,
 				   const struct tomoyo_acl_head *b)
 {
@@ -561,35 +503,6 @@ static bool tomoyo_no_rewrite_file(const struct tomoyo_path_info *filename)
 int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete)
 {
 	return tomoyo_update_no_rewrite_entry(data, is_delete);
-}
-
-/**
- * tomoyo_read_no_rewrite_policy - Read "struct tomoyo_no_rewrite_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_list[TOMOYO_ID_NO_REWRITE]) {
-		struct tomoyo_no_rewrite_entry *ptr;
-		ptr = list_entry(pos, struct tomoyo_no_rewrite_entry,
-				 head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_DENY_REWRITE
-					"%s\n", ptr->pattern->name);
-		if (!done)
-			break;
-	}
-	return done;
 }
 
 static bool tomoyo_check_path_acl(const struct tomoyo_request_info *r,

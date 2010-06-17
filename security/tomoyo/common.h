@@ -794,28 +794,6 @@ bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 bool tomoyo_print_number_union(struct tomoyo_io_buffer *head,
 			       const struct tomoyo_number_union *ptr);
 bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num);
-
-/* Read "aggregator" entry in exception policy. */
-bool tomoyo_read_aggregator_policy(struct tomoyo_io_buffer *head);
-/* Read "alias" entry in exception policy. */
-bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head);
-/*
- * Read "initialize_domain" and "no_initialize_domain" entry
- * in exception policy.
- */
-bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head);
-/* Read "keep_domain" and "no_keep_domain" entry in exception policy. */
-bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head);
-/* Read "file_pattern" entry in exception policy. */
-bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head);
-/* Read "path_group" entry in exception policy. */
-bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head);
-/* Read "number_group" entry in exception policy. */
-bool tomoyo_read_number_group_policy(struct tomoyo_io_buffer *head);
-/* Read "allow_read" entry in exception policy. */
-bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head);
-/* Read "deny_rewrite" entry in exception policy. */
-bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head);
 /* Tokenize a line. */
 bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
 /* Write domain policy violation warning message to console? */

@@ -210,45 +210,6 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 }
 
 /**
- * tomoyo_read_domain_initializer_policy - Read "struct tomoyo_domain_initializer_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2, &tomoyo_policy_list
-			     [TOMOYO_ID_DOMAIN_INITIALIZER]) {
-		const char *no;
-		const char *from = "";
-		const char *domain = "";
-		struct tomoyo_domain_initializer_entry *ptr;
-		ptr = list_entry(pos, struct tomoyo_domain_initializer_entry,
-				 head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		no = ptr->is_not ? "no_" : "";
-		if (ptr->domainname) {
-			from = " from ";
-			domain = ptr->domainname->name;
-		}
-		done = tomoyo_io_printf(head,
-					"%s" TOMOYO_KEYWORD_INITIALIZE_DOMAIN
-					"%s%s%s\n", no, ptr->program->name,
-					from, domain);
-		if (!done)
-			break;
-	}
-	return done;
-}
-
-/**
  * tomoyo_write_domain_initializer_policy - Write "struct tomoyo_domain_initializer_entry" list.
  *
  * @data:      String to parse.
@@ -399,46 +360,6 @@ int tomoyo_write_domain_keeper_policy(char *data, const bool is_not,
 }
 
 /**
- * tomoyo_read_domain_keeper_policy - Read "struct tomoyo_domain_keeper_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_list[TOMOYO_ID_DOMAIN_KEEPER]) {
-		struct tomoyo_domain_keeper_entry *ptr;
-		const char *no;
-		const char *from = "";
-		const char *program = "";
-
-		ptr = list_entry(pos, struct tomoyo_domain_keeper_entry,
-				 head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		no = ptr->is_not ? "no_" : "";
-		if (ptr->program) {
-			from = " from ";
-			program = ptr->program->name;
-		}
-		done = tomoyo_io_printf(head,
-					"%s" TOMOYO_KEYWORD_KEEP_DOMAIN
-					"%s%s%s\n", no, program, from,
-					ptr->domainname->name);
-		if (!done)
-			break;
-	}
-	return done;
-}
-
-/**
  * tomoyo_domain_keeper - Check whether the given program causes domain transition suppression.
  *
  * @domainname: The name of domain.
@@ -527,37 +448,6 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 }
 
 /**
- * tomoyo_read_aggregator_policy - Read "struct tomoyo_aggregator_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_aggregator_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_list[TOMOYO_ID_AGGREGATOR]) {
-		struct tomoyo_aggregator_entry *ptr;
-
-		ptr = list_entry(pos, struct tomoyo_aggregator_entry,
-				 head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_AGGREGATOR
-					"%s %s\n", ptr->original_name->name,
-					ptr->aggregated_name->name);
-		if (!done)
-			break;
-	}
-	return done;
-}
-
-/**
  * tomoyo_write_aggregator_policy - Write "struct tomoyo_aggregator_entry" list.
  *
  * @data:      String to parse.
@@ -621,36 +511,6 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	tomoyo_put_name(e.original_name);
 	tomoyo_put_name(e.aliased_name);
 	return error;
-}
-
-/**
- * tomoyo_read_alias_policy - Read "struct tomoyo_alias_entry" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *pos;
-	bool done = true;
-
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_list[TOMOYO_ID_ALIAS]) {
-		struct tomoyo_alias_entry *ptr;
-
-		ptr = list_entry(pos, struct tomoyo_alias_entry, head.list);
-		if (ptr->head.is_deleted)
-			continue;
-		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_ALIAS "%s %s\n",
-					ptr->original_name->name,
-					ptr->aliased_name->name);
-		if (!done)
-			break;
-	}
-	return done;
 }
 
 /**

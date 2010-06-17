@@ -97,47 +97,6 @@ int tomoyo_write_number_group_policy(char *data, const bool is_delete)
 }
 
 /**
- * tomoyo_read_number_group_policy - Read "struct tomoyo_number_group" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_number_group_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *gpos;
-	struct list_head *mpos;
-	list_for_each_cookie(gpos, head->read_var1,
-			     &tomoyo_group_list[TOMOYO_NUMBER_GROUP]) {
-		struct tomoyo_group *group;
-		const char *name;
-		group = list_entry(gpos, struct tomoyo_group, list);
-		name = group->group_name->name;
-		list_for_each_cookie(mpos, head->read_var2,
-				     &group->member_list) {
-			int pos;
-			const struct tomoyo_number_group *member
-				= list_entry(mpos,
-					     struct tomoyo_number_group,
-					     head.list);
-			if (member->head.is_deleted)
-				continue;
-			pos = head->read_avail;
-			if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_NUMBER_GROUP
-					      "%s", name) ||
-			    !tomoyo_print_number_union(head, &member->number) ||
-			    !tomoyo_io_printf(head, "\n")) {
-				head->read_avail = pos;
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-/**
  * tomoyo_number_matches_group - Check whether the given number matches members of the given number group.
  *
  * @min:   Min number.

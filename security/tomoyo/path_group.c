@@ -95,41 +95,6 @@ int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 }
 
 /**
- * tomoyo_read_path_group_policy - Read "struct tomoyo_path_group" list.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- *
- * Returns true on success, false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head)
-{
-	struct list_head *gpos;
-	struct list_head *mpos;
-	list_for_each_cookie(gpos, head->read_var1,
-			     &tomoyo_group_list[TOMOYO_PATH_GROUP]) {
-		struct tomoyo_group *group;
-		group = list_entry(gpos, struct tomoyo_group, list);
-		list_for_each_cookie(mpos, head->read_var2,
-				     &group->member_list) {
-			struct tomoyo_path_group *member;
-			member = list_entry(mpos,
-					    struct tomoyo_path_group,
-					    head.list);
-			if (member->head.is_deleted)
-				continue;
-			if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_PATH_GROUP
-					      "%s %s\n",
-					      group->group_name->name,
-					      member->member_name->name))
-				return false;
-		}
-	}
-	return true;
-}
-
-/**
  * tomoyo_path_matches_group - Check whether the given pathname matches members of the given pathname group.
  *
  * @pathname:        The name of pathname.

@@ -1192,6 +1192,194 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 	return -EINVAL;
 }
 
+static void tomoyo_print_number(char *buffer, int buffer_len,
+			     const struct tomoyo_number_union *ptr)
+{
+	int i;
+	unsigned long min = ptr->values[0];
+	const unsigned long max = ptr->values[1];
+	u8 min_type = ptr->min_type;
+	const u8 max_type = ptr->max_type;
+	memset(buffer, 0, buffer_len);
+	buffer_len -= 2;
+	for (i = 0; i < 2; i++) {
+		int len;
+		switch (min_type) {
+		case TOMOYO_VALUE_TYPE_HEXADECIMAL:
+			snprintf(buffer, buffer_len, "0x%lX", min);
+			break;
+		case TOMOYO_VALUE_TYPE_OCTAL:
+			snprintf(buffer, buffer_len, "0%lo", min);
+			break;
+		default:
+			snprintf(buffer, buffer_len, "%lu", min);
+			break;
+		}
+		if (min == max && min_type == max_type)
+			break;
+		len = strlen(buffer);
+		buffer[len++] = '-';
+		buffer += len;
+		buffer_len -= len;
+		min_type = max_type;
+		min = max;
+	}
+}
+
+static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
+	[TOMOYO_PATH_GROUP] = TOMOYO_KEYWORD_PATH_GROUP,
+	[TOMOYO_NUMBER_GROUP] = TOMOYO_KEYWORD_NUMBER_GROUP
+};
+
+/**
+ * tomoyo_read_group - Read "struct tomoyo_path_group"/"struct tomoyo_number_group" list.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @idx:  Index number.
+ *
+ * Returns true on success, false otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
+{
+	struct list_head *gpos;
+	struct list_head *mpos;
+	const char *w[3] = { "", "", "" };
+	w[0] = tomoyo_group_name[idx];
+	list_for_each_cookie(gpos, head->read_var1, &tomoyo_group_list[idx]) {
+		struct tomoyo_group *group =
+			list_entry(gpos, struct tomoyo_group, list);
+		w[1] = group->group_name->name;
+		list_for_each_cookie(mpos, head->read_var2,
+				     &group->member_list) {
+			char buffer[128];
+			struct tomoyo_acl_head *ptr =
+				list_entry(mpos, struct tomoyo_acl_head, list);
+			if (ptr->is_deleted)
+				continue;
+			if (idx == TOMOYO_PATH_GROUP) {
+				w[2] = container_of(ptr,
+						    struct tomoyo_path_group,
+						    head)->member_name->name;
+			} else if (idx == TOMOYO_NUMBER_GROUP) {
+				tomoyo_print_number(buffer, sizeof(buffer),
+						    &container_of
+						    (ptr, struct
+						     tomoyo_number_group,
+						     head)->number);
+				w[2] = buffer;
+			}
+			if (!tomoyo_io_printf(head, "%s%s %s\n", w[0], w[1],
+					      w[2]))
+				return false;
+		}
+	}
+	return true;
+}
+
+/**
+ * tomoyo_read_policy - Read "struct tomoyo_..._entry" list.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @idx:  Index number.
+ *
+ * Returns true on success, false otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
+{
+	struct list_head *pos;
+	list_for_each_cookie(pos, head->read_var2, &tomoyo_policy_list[idx]) {
+		const char *w[4] = { "", "", "", "" };
+		struct tomoyo_acl_head *acl = container_of(pos, typeof(*acl),
+							   list);
+		if (acl->is_deleted)
+			continue;
+		switch (idx) {
+		case TOMOYO_ID_DOMAIN_KEEPER:
+			{
+				struct tomoyo_domain_keeper_entry *ptr =
+					container_of(acl, typeof(*ptr), head);
+				w[0] = ptr->is_not ?
+					TOMOYO_KEYWORD_NO_KEEP_DOMAIN :
+					TOMOYO_KEYWORD_KEEP_DOMAIN;
+				if (ptr->program) {
+					w[1] = ptr->program->name;
+					w[2] = " from ";
+				}
+				w[3] = ptr->domainname->name;
+			}
+			break;
+		case TOMOYO_ID_DOMAIN_INITIALIZER:
+			{
+				struct tomoyo_domain_initializer_entry *ptr =
+					container_of(acl, typeof(*ptr), head);
+				w[0] = ptr->is_not ?
+					TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN :
+					TOMOYO_KEYWORD_INITIALIZE_DOMAIN;
+				w[1] = ptr->program->name;
+				if (ptr->domainname) {
+					w[2] = " from ";
+					w[3] = ptr->domainname->name;
+				}
+			}
+			break;
+		case TOMOYO_ID_GLOBALLY_READABLE:
+			{
+				struct tomoyo_globally_readable_file_entry *ptr
+					= container_of(acl, typeof(*ptr), head);
+				w[0] = TOMOYO_KEYWORD_ALLOW_READ;
+				w[1] = ptr->filename->name;
+			}
+			break;
+		case TOMOYO_ID_ALIAS:
+			{
+				struct tomoyo_alias_entry *ptr =
+					container_of(acl, typeof(*ptr), head);
+				w[0] = TOMOYO_KEYWORD_ALIAS;
+				w[1] = ptr->original_name->name;
+				w[2] = " ";
+				w[3] = ptr->aliased_name->name;
+			}
+			break;
+		case TOMOYO_ID_AGGREGATOR:
+			{
+				struct tomoyo_aggregator_entry *ptr =
+					container_of(acl, typeof(*ptr), head);
+				w[0] = TOMOYO_KEYWORD_AGGREGATOR;
+				w[1] = ptr->original_name->name;
+				w[2] = " ";
+				w[3] = ptr->aggregated_name->name;
+			}
+			break;
+		case TOMOYO_ID_PATTERN:
+			{
+				struct tomoyo_pattern_entry *ptr =
+					container_of(acl, typeof(*ptr), head);
+				w[0] = TOMOYO_KEYWORD_FILE_PATTERN;
+				w[1] = ptr->pattern->name;
+			}
+			break;
+		case TOMOYO_ID_NO_REWRITE:
+			{
+				struct tomoyo_no_rewrite_entry *ptr =
+					container_of(acl, typeof(*ptr), head);
+				w[0] = TOMOYO_KEYWORD_DENY_REWRITE;
+				w[1] = ptr->pattern->name;
+			}
+			break;
+		default:
+			continue;
+		}
+		if (!tomoyo_io_printf(head, "%s%s%s%s\n", w[0], w[1], w[2],
+				      w[3]))
+			return false;
+	}
+	return true;
+}
+
 /**
  * tomoyo_read_exception_policy - Read exception policy.
  *
@@ -1201,66 +1389,19 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
  */
 static void tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 {
-	if (!head->read_eof) {
-		switch (head->read_step) {
-		case 0:
-			head->read_var2 = NULL;
-			head->read_step = 1;
-		case 1:
-			if (!tomoyo_read_domain_keeper_policy(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 2;
-		case 2:
-			if (!tomoyo_read_globally_readable_policy(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 3;
-		case 3:
-			head->read_var2 = NULL;
-			head->read_step = 4;
-		case 4:
-			if (!tomoyo_read_domain_initializer_policy(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 5;
-		case 5:
-			if (!tomoyo_read_alias_policy(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 6;
-		case 6:
-			if (!tomoyo_read_aggregator_policy(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 7;
-		case 7:
-			if (!tomoyo_read_file_pattern(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 8;
-		case 8:
-			if (!tomoyo_read_no_rewrite_policy(head))
-				break;
-			head->read_var2 = NULL;
-			head->read_step = 9;
-		case 9:
-			if (!tomoyo_read_path_group_policy(head))
-				break;
-			head->read_var1 = NULL;
-			head->read_var2 = NULL;
-			head->read_step = 10;
-		case 10:
-			if (!tomoyo_read_number_group_policy(head))
-				break;
-			head->read_var1 = NULL;
-			head->read_var2 = NULL;
-			head->read_step = 11;
-		case 11:
-			head->read_eof = true;
-			break;
-		}
-	}
+	if (head->read_eof)
+		return;
+	while (head->read_step < TOMOYO_MAX_POLICY &&
+	       tomoyo_read_policy(head, head->read_step))
+		head->read_step++;
+	if (head->read_step < TOMOYO_MAX_POLICY)
+		return;
+	while (head->read_step < TOMOYO_MAX_POLICY + TOMOYO_MAX_GROUP &&
+	       tomoyo_read_group(head, head->read_step - TOMOYO_MAX_POLICY))
+		head->read_step++;
+	if (head->read_step < TOMOYO_MAX_POLICY + TOMOYO_MAX_GROUP)
+		return;
+	head->read_eof = true;
 }
 
 /**
