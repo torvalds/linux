@@ -3402,6 +3402,7 @@ _base_make_ioc_ready(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
     enum reset_type type)
 {
 	u32 ioc_state;
+	int rc;
 
 	dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s\n", ioc->name,
 	    __func__));
@@ -3430,11 +3431,15 @@ _base_make_ioc_ready(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_OPERATIONAL)
 		if (!(_base_send_ioc_reset(ioc,
-		    MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET, 15, CAN_SLEEP)))
+		    MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET, 15, CAN_SLEEP))) {
+			ioc->ioc_reset_count++;
 			return 0;
+	}
 
  issue_diag_reset:
-	return _base_diag_reset(ioc, CAN_SLEEP);
+	rc = _base_diag_reset(ioc, CAN_SLEEP);
+	ioc->ioc_reset_count++;
+	return rc;
 }
 
 /**

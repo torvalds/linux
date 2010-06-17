@@ -2581,6 +2581,29 @@ _ctl_fwfault_debug_store(struct device *cdev,
 static DEVICE_ATTR(fwfault_debug, S_IRUGO | S_IWUSR,
     _ctl_fwfault_debug_show, _ctl_fwfault_debug_store);
 
+
+/**
+ * _ctl_ioc_reset_count_show - ioc reset count
+ * @cdev - pointer to embedded class device
+ * @buf - the buffer returned
+ *
+ * This is firmware queue depth limit
+ *
+ * A sysfs 'read-only' shost attribute.
+ */
+static ssize_t
+_ctl_ioc_reset_count_show(struct device *cdev, struct device_attribute *attr,
+    char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(cdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	return snprintf(buf, PAGE_SIZE, "%08d\n", ioc->ioc_reset_count);
+}
+static DEVICE_ATTR(ioc_reset_count, S_IRUGO,
+    _ctl_ioc_reset_count_show, NULL);
+
+
 struct device_attribute *mpt2sas_host_attrs[] = {
 	&dev_attr_version_fw,
 	&dev_attr_version_bios,
@@ -2597,6 +2620,7 @@ struct device_attribute *mpt2sas_host_attrs[] = {
 	&dev_attr_fwfault_debug,
 	&dev_attr_fw_queue_depth,
 	&dev_attr_host_sas_address,
+	&dev_attr_ioc_reset_count,
 	NULL,
 };
 

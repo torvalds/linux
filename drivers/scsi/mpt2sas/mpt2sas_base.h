@@ -615,6 +615,7 @@ struct MPT2SAS_ADAPTER {
 	u16		msix_vector_count;
 	u32		*msix_table;
 	u32		*msix_table_backup;
+	u32		ioc_reset_count;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
