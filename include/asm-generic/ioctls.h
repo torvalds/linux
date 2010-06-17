@@ -87,12 +87,10 @@
 #define TIOCGICOUNT	0x545D	/* read serial port inline interrupt counts */
 
 /*
- * some architectures define FIOQSIZE as 0x545E, which is used for
- * TIOCGHAYESESP on others
+ * Some arches already define FIOQSIZE due to a historical
+ * conflict with a Hayes modem-specific ioctl value.
  */
 #ifndef FIOQSIZE
-# define TIOCGHAYESESP	0x545E  /* Get Hayes ESP configuration */
-# define TIOCSHAYESESP	0x545F  /* Set Hayes ESP configuration */
 # define FIOQSIZE	0x5460
 #endif
 
