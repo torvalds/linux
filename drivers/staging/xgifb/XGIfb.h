@@ -205,9 +205,4 @@ struct video_info{
 
 extern struct video_info xgi_video_info;
 
-#ifdef __KERNEL__
-//extern void xgi_malloc(struct xgi_memreq *req);
-extern void xgi_free(unsigned long base);
-extern void xgi_dispinfo(struct ap_data *rec);
-#endif
 #endif
