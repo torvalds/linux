@@ -1,11 +1,5 @@
 #include "osdef.h"
 
-#ifdef TC
-#include <stdio.h>
-#include <string.h>
-#include <conio.h>
-#include <dos.h>
-#endif
 
 
 #ifdef LINUX_XF86
@@ -3996,57 +3990,6 @@ BOOLEAN XGI_GetLCDInfo( USHORT ModeNo , USHORT ModeIdIndex, PVB_DEVICE_INFO pVBI
 BOOLEAN XGI_SearchModeID( USHORT ModeNo , USHORT *ModeIdIndex, PVB_DEVICE_INFO pVBInfo )
 {
 
-#ifdef TC
-
-    if ( ModeNo <= 5 )
-        ModeNo |= 1 ;
-
-    if ( ModeNo <= 0x13 )
-    {
-        /* for (*ModeIdIndex=0;*ModeIdIndex<sizeof(pVBInfo->SModeIDTable)/sizeof(XGI_StStruct);(*ModeIdIndex)++) */
-        for( *ModeIdIndex = 0 ; ; ( *ModeIdIndex )++ )
-        {
-            if ( pVBInfo->SModeIDTable[ *ModeIdIndex ].St_ModeID == ModeNo )
-                break ;
-            if ( pVBInfo->SModeIDTable[ *ModeIdIndex ].St_ModeID == 0xFF )
-                return( FALSE ) ;
-        }
-
-        VGA_INFO = ( PUCHAR )MK_FP( 0 , 0x489 ) ;
-
-        if ( ModeNo == 0x07 )
-        {
-            if ( ( *VGA_INFO & 0x10 ) != 0 )
-                ( *ModeIdIndex )++ ; /* 400 lines */
-            /* else 350 lines */
-        }
-
-        if ( ModeNo <= 3 )
-        {
-            if ( ( *VGA_INFO & 0x80 ) == 0 )
-            {
-                ( *ModeIdIndex )++ ;
-                if ( ( *VGA_INFO & 0x10 ) != 0 )
-                    ( *ModeIdIndex )++ ; /* 400 lines */
-                /* else 350 lines */
-            }
-            /* else 200 lines */
-        }
-    }
-    else
-    {
-        /* for (*ModeIdIndex=0;*ModeIdIndex<sizeof(pVBInfo->EModeIDTable)/sizeof(XGI_ExtStruct);(*ModeIdIndex)++) */
-        for( *ModeIdIndex = 0 ; ; ( *ModeIdIndex )++ )
-        {
-            if ( pVBInfo->EModeIDTable[ *ModeIdIndex ].Ext_ModeID == ModeNo )
-                break ;
-            if ( pVBInfo->EModeIDTable[ *ModeIdIndex ].Ext_ModeID == 0xFF )
-                return( FALSE ) ;
-        }
-    }
-
-
-#endif
 
 
 #ifdef LINUX /* chiawen for linux solution */
@@ -4448,140 +4391,9 @@ void XGI_SenseCRT1( PVB_DEVICE_INFO pVBInfo )
 
 
 
-#ifdef TC
-/* --------------------------------------------------------------------- */
-/* Function : INT1AReturnCode */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-int INT1AReturnCode( union REGS regs )
-{
-    if ( regs.x.cflag )
-    {
-        /* printf( "Error to find pci device!\n" ) ; */
-        return( 1 ) ;
-    }
-
-    switch(regs.h.ah)
-    {
-        case 0: return 0;
-            break ;
-        case 0x81:
-            printf( "Function not support\n" ) ;
-            break ;
-        case 0x83:
-            printf( "bad vendor id\n" ) ;
-            break ;
-        case 0x86:
-            printf( "device not found\n" ) ;
-            break ;
-        case 0x87:
-            printf( "bad register number\n" ) ;
-            break ;
-        case 0x88:
-            printf( "set failed\n" ) ;
-            break ;
-        case 0x89:
-            printf( "buffer too small" ) ;
-            break ;
-        default:
-            break ;
-    }
-    return( 1 ) ;
-}
-
-
-/* --------------------------------------------------------------------- */
-/* Function : FindPCIIOBase */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-unsigned FindPCIIOBase( unsigned index , unsigned deviceid )
-{
-    union REGS regs ;
-
-    regs.h.ah = 0xb1 ;	/* PCI_FUNCTION_ID */
-    regs.h.al = 0x02 ;	/* FIND_PCI_DEVICE */
-    regs.x.cx = deviceid ;
-    regs.x.dx = 0x1039 ;
-    regs.x.si = index ;	/* find n-th device */
-
-    int86( 0x1A , &regs , &regs ) ;
-
-    if ( INT1AReturnCode( regs ) != 0 )
-        return( 0 ) ;
-
-    /* regs.h.bh bus number */
-    /* regs.h.bl device number */
-    regs.h.ah = 0xb1 ;  /* PCI_FUNCTION_ID */
-    regs.h.al = 0x09 ;  /* READ_CONFIG_WORD */
-    regs.x.cx = deviceid ;
-    regs.x.dx = 0x1039 ;
-    regs.x.di = 0x18 ;  /* register number */
-    int86( 0x1A , &regs , &regs ) ;
-
-    if ( INT1AReturnCode( regs ) != 0 )
-        return( 0 ) ;
-
-    return( regs.x.cx ) ;
-}
-
-#endif
 
 
 
-#ifdef TC
-/* --------------------------------------------------------------------- */
-/* Function : main */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-void main(int argc, char *argv[])
-{
-    XGI_HW_DEVICE_INFO HwDeviceExtension ;
-    USHORT temp ;
-    USHORT ModeNo ;
-
-    /* HwDeviceExtension.pjVirtualRomBase =(PUCHAR) MK_FP(0xC000,0); */
-    /* HwDeviceExtension.pjVideoMemoryAddress = (PUCHAR)MK_FP(0xA000,0); */
-
-
-    HwDeviceExtension.pjIOAddress = ( FindPCIIOBase( 0 ,0x6300 ) & 0xFF80 ) + 0x30 ;
-    HwDeviceExtension.jChipType = XGI_340 ;
-
-
-
-    /* HwDeviceExtension.pjIOAddress = ( FindPCIIOBase( 0 , 0x5315 ) & 0xFF80 ) + 0x30 ; */
-
-    HwDeviceExtension.pjIOAddress = ( FindPCIIOBase( 0 , 0x330 ) & 0xFF80 ) + 0x30 ;
-    HwDeviceExtension.jChipType = XGI_340 ;
-
-
-    HwDeviceExtension.ujVBChipID = VB_CHIP_301 ;
-    StrCpy(HwDeviceExtension.szVBIOSVer , "0.84" ) ;
-    HwDeviceExtension.bSkipDramSizing = FALSE ;
-    HwDeviceExtension.ulVideoMemorySize = 0 ;
-
-    if ( argc == 2 )
-    {
-        ModeNo = atoi( argv[ 1 ] ) ;
-    }
-    else
-    {
-        ModeNo = 0x2e ;
-        /* ModeNo = 0x37 ; 1024x768x 4bpp */
-        /* ModeNo = 0x38 ; 1024x768x 8bpp */
-        /* ModeNo = 0x4A ; 1024x768x 16bpp */
-        /* ModeNo = 0x47 ; 800x600x 16bpp */
-    }
-
-    /* XGIInitNew( &HwDeviceExtension ) ; */
-    XGISetModeNew( &HwDeviceExtension , ModeNo ) ;
-}
-#endif
 
 
 /* --------------------------------------------------------------------- */

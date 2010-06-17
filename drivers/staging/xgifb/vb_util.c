@@ -9,12 +9,6 @@
 #include <linux/types.h>
 #endif
 
-#ifdef TC
-#include <stdio.h>
-#include <string.h>
-#include <conio.h>
-#include <dos.h>
-#endif
 
 
 #ifdef LINUX_XF86
@@ -213,9 +207,6 @@ void NewDelaySeconds( int seconds )
 
     for( i = 0 ; i < seconds ; i++ )
     {
-#ifdef TC
-        delay( 1000 ) ;
-#endif
 
 
 

@@ -1,7 +1,6 @@
 #ifndef _OSDEF_H_
 #define _OSDEF_H_
 
-/* #define TC */
 #define LINUX_KERNEL
 /* #define LINUX_XF86 */
 
@@ -12,8 +11,6 @@
 
 
 /**********************************************************************/
-#ifdef TC
-#endif
 #ifdef LINUX_XF86
 #define LINUX
 #endif
@@ -22,9 +19,6 @@
 #endif
 
 /**********************************************************************/
-#ifdef TC
-#define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize);
-#endif
 #ifdef LINUX_XF86
 #define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize)
 #endif
@@ -35,9 +29,6 @@
 
 /**********************************************************************/
 
-#ifdef TC
-#define XGI_MemoryCopy(Destination,Soruce,Length) memmove(Destination, Soruce, Length);
-#endif
 #ifdef LINUX_XF86
 #define XGI_MemoryCopy(Destination,Soruce,Length) memcpy(Destination,Soruce,Length)
 #endif
@@ -75,14 +66,6 @@
 /*  TC                                                                */
 /**********************************************************************/
 
-#ifdef TC
-#define OutPortByte(p,v) outp((unsigned short)(p),(unsigned char)(v))
-#define OutPortWord(p,v) outp((unsigned short)(p),(unsigned short)(v))
-#define OutPortLong(p,v) outp((unsigned short)(p),(unsigned long)(v))
-#define InPortByte(p)    inp((unsigned short)(p))
-#define InPortWord(p)    inp((unsigned short)(p))
-#define InPortLong(p)    ((inp((unsigned short)(p+2))<<16) | inp((unsigned short)(p)))
-#endif
 
 /**********************************************************************/
 /*  LINUX XF86                                                        */
