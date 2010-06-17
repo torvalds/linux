@@ -207,6 +207,7 @@ out_nokvm:
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu)
 {
 	VCPU_EVENT(vcpu, 3, "%s", "free cpu");
+	clear_bit(63 - vcpu->vcpu_id, (unsigned long *) &vcpu->kvm->arch.sca->mcn);
 	if (vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda ==
 		(__u64) vcpu->arch.sie_block)
 		vcpu->kvm->arch.sca->cpu[vcpu->vcpu_id].sda = 0;
@@ -296,7 +297,7 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu)
 {
 	atomic_set(&vcpu->arch.sie_block->cpuflags, CPUSTAT_ZARCH);
 	set_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests);
-	vcpu->arch.sie_block->ecb   = 2;
+	vcpu->arch.sie_block->ecb   = 6;
 	vcpu->arch.sie_block->eca   = 0xC1002001U;
 	vcpu->arch.sie_block->fac   = (int) (long) facilities;
 	hrtimer_init(&vcpu->arch.ckc_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
@@ -329,6 +330,7 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 		kvm->arch.sca->cpu[id].sda = (__u64) vcpu->arch.sie_block;
 	vcpu->arch.sie_block->scaoh = (__u32)(((__u64)kvm->arch.sca) >> 32);
 	vcpu->arch.sie_block->scaol = (__u32)(__u64)kvm->arch.sca;
+	set_bit(63 - id, (unsigned long *) &kvm->arch.sca->mcn);
 
 	spin_lock_init(&vcpu->arch.local_int.lock);
 	INIT_LIST_HEAD(&vcpu->arch.local_int.list);

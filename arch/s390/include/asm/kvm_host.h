@@ -26,7 +26,7 @@
 
 struct sca_entry {
 	atomic_t scn;
-	__u64	reserved;
+	__u32	reserved;
 	__u64	sda;
 	__u64	reserved2[2];
 } __attribute__((packed));
