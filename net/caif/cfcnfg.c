@@ -22,6 +22,7 @@
 #define PHY_NAME_LEN 20
 
 #define container_obj(layr) container_of(layr, struct cfcnfg, layer)
+#define RFM_FRAGMENT_SIZE 4030
 
 /* Information about CAIF physical interfaces held by Config Module in order
  * to manage physical interfaces
@@ -328,7 +329,8 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 		servicel = cfdgml_create(channel_id, &phyinfo->dev_info);
 		break;
 	case CFCTRL_SRV_RFM:
-		servicel = cfrfml_create(channel_id, &phyinfo->dev_info);
+		servicel = cfrfml_create(channel_id, &phyinfo->dev_info,
+						RFM_FRAGMENT_SIZE);
 		break;
 	case CFCTRL_SRV_UTIL:
 		servicel = cfutill_create(channel_id, &phyinfo->dev_info);

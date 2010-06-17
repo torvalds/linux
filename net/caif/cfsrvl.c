@@ -159,6 +159,13 @@ void cfservl_destroy(struct cflayer *layer)
 	kfree(layer);
 }
 
+void cfsrvl_release(struct kref *kref)
+{
+	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
+	pr_info("CAIF: %s(): enter\n", __func__);
+	kfree(service);
+}
+
 void cfsrvl_init(struct cfsrvl *service,
 			u8 channel_id,
 			struct dev_info *dev_info,
@@ -174,14 +181,10 @@ void cfsrvl_init(struct cfsrvl *service,
 	service->layer.modemcmd = cfservl_modemcmd;
 	service->dev_info = *dev_info;
 	service->supports_flowctrl = supports_flowctrl;
+	service->release = cfsrvl_release;
 	kref_init(&service->ref);
 }
 
-void cfsrvl_release(struct kref *kref)
-{
-	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
-	kfree(service);
-}
 
 bool cfsrvl_ready(struct cfsrvl *service, int *err)
 {

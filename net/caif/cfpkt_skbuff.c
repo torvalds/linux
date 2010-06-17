@@ -338,7 +338,6 @@ struct cfpkt *cfpkt_append(struct cfpkt *dstpkt,
 	u16 dstlen;
 	u16 createlen;
 	if (unlikely(is_erronous(dstpkt) || is_erronous(addpkt))) {
-		cfpkt_destroy(addpkt);
 		return dstpkt;
 	}
 	if (expectlen > addlen)
