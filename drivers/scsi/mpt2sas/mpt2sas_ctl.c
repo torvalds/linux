@@ -80,6 +80,32 @@ enum block_state {
 	BLOCKING,
 };
 
+/**
+ * _ctl_sas_device_find_by_handle - sas device search
+ * @ioc: per adapter object
+ * @handle: sas device handle (assigned by firmware)
+ * Context: Calling function should acquire ioc->sas_device_lock
+ *
+ * This searches for sas_device based on sas_address, then return sas_device
+ * object.
+ */
+static struct _sas_device *
+_ctl_sas_device_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+{
+	struct _sas_device *sas_device, *r;
+
+	r = NULL;
+	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
+		if (sas_device->handle != handle)
+			continue;
+		r = sas_device;
+		goto out;
+	}
+
+ out:
+	return r;
+}
+
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 /**
  * _ctl_display_some_debug - debug routine
@@ -205,6 +231,22 @@ _ctl_display_some_debug(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 	    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
 		Mpi2SCSIIOReply_t *scsi_reply =
 		    (Mpi2SCSIIOReply_t *)mpi_reply;
+		struct _sas_device *sas_device = NULL;
+		unsigned long flags;
+
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
+		sas_device = _ctl_sas_device_find_by_handle(ioc,
+		    le16_to_cpu(scsi_reply->DevHandle));
+		if (sas_device) {
+			printk(MPT2SAS_WARN_FMT "\tsas_address(0x%016llx), "
+			    "phy(%d)\n", ioc->name, (unsigned long long)
+			    sas_device->sas_address, sas_device->phy);
+			printk(MPT2SAS_WARN_FMT
+			    "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
+			    ioc->name, sas_device->enclosure_logical_id,
+			    sas_device->slot);
+		}
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 		if (scsi_reply->SCSIState || scsi_reply->SCSIStatus)
 			printk(MPT2SAS_INFO_FMT
 			    "\tscsi_state(0x%02x), scsi_status"

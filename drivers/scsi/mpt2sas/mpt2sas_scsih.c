@@ -1749,9 +1749,10 @@ _scsih_slave_configure(struct scsi_device *sdev)
 		}
 
 		sdev_printk(KERN_INFO, sdev, "%s: handle(0x%04x), "
-		    "sas_addr(0x%016llx), device_name(0x%016llx)\n",
+		    "sas_addr(0x%016llx), phy(%d), device_name(0x%016llx)\n",
 		    ds, sas_device->handle,
 		    (unsigned long long)sas_device->sas_address,
+		    sas_device->phy,
 		    (unsigned long long)sas_device->device_name);
 		sdev_printk(KERN_INFO, sdev, "%s: "
 		    "enclosure_logical_id(0x%016llx), slot(%d)\n", ds,
@@ -3128,6 +3129,8 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	char *desc_scsi_status = NULL;
 	char *desc_scsi_state = ioc->tmp_string;
 	u32 log_info = le32_to_cpu(mpi_reply->IOCLogInfo);
+	struct _sas_device *sas_device = NULL;
+	unsigned long flags;
 
 	if (log_info == 0x31170000)
 		return;
@@ -3243,6 +3246,19 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 		strcat(desc_scsi_state, "autosense valid ");
 
 	scsi_print_command(scmd);
+
+	spin_lock_irqsave(&ioc->sas_device_lock, flags);
+	sas_device = _scsih_sas_device_find_by_handle(ioc,
+	    le16_to_cpu(mpi_reply->DevHandle));
+	if (sas_device) {
+		printk(MPT2SAS_WARN_FMT "\tsas_address(0x%016llx), phy(%d)\n",
+		    ioc->name, sas_device->sas_address, sas_device->phy);
+		printk(MPT2SAS_WARN_FMT "\tenclosure_logical_id(0x%016llx), "
+		   "slot(%d)\n", ioc->name, sas_device->enclosure_logical_id,
+		    sas_device->slot);
+	}
+	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+
 	printk(MPT2SAS_WARN_FMT "\tdev handle(0x%04x), "
 	    "ioc_status(%s)(0x%04x), smid(%d)\n", ioc->name,
 	    le16_to_cpu(mpi_reply->DevHandle), desc_ioc_state,
@@ -4187,6 +4203,7 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 	    le16_to_cpu(sas_device_pg0.Slot);
 	sas_device->device_info = device_info;
 	sas_device->sas_address = sas_address;
+	sas_device->phy = sas_device_pg0.PhyNum;
 	sas_device->hidden_raid_component = is_pd;
 
 	/* get enclosure_logical_id */

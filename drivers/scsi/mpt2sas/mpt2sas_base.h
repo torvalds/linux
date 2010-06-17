@@ -275,6 +275,7 @@ struct _internal_cmd {
  * @id: target id
  * @channel: target channel
  * @slot: number number
+ * @phy: phy identifier provided in sas device page 0
  * @hidden_raid_component: set to 1 when this is a raid member
  * @responding: used in _scsih_sas_device_mark_responding
  */
@@ -293,6 +294,7 @@ struct _sas_device {
 	int	id;
 	int	channel;
 	u16	slot;
+	u8	phy;
 	u8	hidden_raid_component;
 	u8	responding;
 };
