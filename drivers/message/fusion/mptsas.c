@@ -2549,6 +2549,7 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	device_info->sas_address = le64_to_cpu(sas_address);
 	device_info->device_info =
 	    le32_to_cpu(buffer->DeviceInfo);
+	device_info->flags = le16_to_cpu(buffer->Flags);
 
  out_free_consistent:
 	pci_free_consistent(ioc->pcidev, hdr.ExtPageLength * 4,
@@ -3840,6 +3841,13 @@ mptsas_probe_devices(MPT_ADAPTER *ioc)
 		      MPI_SAS_DEVICE_INFO_SATA_DEVICE)) == 0)
 			continue;
 
+		/* If there is no FW B_T mapping for this device then continue
+		 * */
+		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
+			|| !(sas_device.flags &
+			MPI_SAS_DEVICE0_FLAGS_DEVICE_MAPPED))
+			continue;
+
 		phy_info = mptsas_refreshing_device_handles(ioc, &sas_device);
 		if (!phy_info)
 			continue;
@@ -4149,6 +4157,14 @@ mptsas_adding_inactive_raid_components(MPT_ADAPTER *ioc, u8 channel, u8 id)
 			phys_disk.PhysDiskID))
 			continue;
 
+		/* If there is no FW B_T mapping for this device then continue
+		 * */
+		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
+			|| !(sas_device.flags &
+			MPI_SAS_DEVICE0_FLAGS_DEVICE_MAPPED))
+			continue;
+
+
 		phy_info = mptsas_find_phyinfo_by_sas_address(ioc,
 		    sas_device.sas_address);
 		mptsas_add_end_device(ioc, phy_info);
@@ -4199,6 +4215,13 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 		    (hot_plug_info->channel << 8) +
 		    hot_plug_info->id);
 
+		/* If there is no FW B_T mapping for this device then break
+		 * */
+		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
+			|| !(sas_device.flags &
+			MPI_SAS_DEVICE0_FLAGS_DEVICE_MAPPED))
+			break;
+
 		if (!sas_device.handle)
 			return;
 
@@ -4240,6 +4263,13 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 				 __func__, hot_plug_info->id, __LINE__));
 			break;
 		}
+
+		/* If there is no FW B_T mapping for this device then break
+		 * */
+		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
+			|| !(sas_device.flags &
+			MPI_SAS_DEVICE0_FLAGS_DEVICE_MAPPED))
+			break;
 
 		phy_info = mptsas_find_phyinfo_by_sas_address(
 		    ioc, sas_device.sas_address);
@@ -4293,6 +4323,13 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 				    hot_plug_info->id, __LINE__));
 			break;
 		}
+
+		/* If there is no FW B_T mapping for this device then break
+		 * */
+		if (!(sas_device.flags & MPI_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)
+			|| !(sas_device.flags &
+			MPI_SAS_DEVICE0_FLAGS_DEVICE_MAPPED))
+			break;
 
 		phy_info = mptsas_find_phyinfo_by_sas_address(ioc,
 				sas_device.sas_address);
