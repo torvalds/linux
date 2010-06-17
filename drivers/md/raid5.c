@@ -3031,7 +3031,6 @@ static void handle_stripe5(struct stripe_head *sh)
 		mdk_rdev_t *rdev;
 
 		dev = &sh->dev[i];
-		clear_bit(R5_Insync, &dev->flags);
 
 		pr_debug("check %d: state 0x%lx toread %p read %p write %p "
 			"written %p\n",	i, dev->flags, dev->toread, dev->read,
@@ -3068,17 +3067,27 @@ static void handle_stripe5(struct stripe_head *sh)
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
+		clear_bit(R5_Insync, &dev->flags);
+		if (!rdev)
+			/* Not in-sync */;
+		else if (test_bit(In_sync, &rdev->flags))
+			set_bit(R5_Insync, &dev->flags);
+		else {
+			/* could be in-sync depending on recovery/reshape status */
+			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
+				set_bit(R5_Insync, &dev->flags);
+		}
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
 			clear_bit(R5_ReWrite, &dev->flags);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)
-		    || test_bit(R5_ReadError, &dev->flags)) {
+		if (test_bit(R5_ReadError, &dev->flags))
+			clear_bit(R5_Insync, &dev->flags);
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			s.failed++;
 			s.failed_num = i;
-		} else
-			set_bit(R5_Insync, &dev->flags);
+		}
 	}
 	rcu_read_unlock();
 
@@ -3312,7 +3321,6 @@ static void handle_stripe6(struct stripe_head *sh)
 	for (i=disks; i--; ) {
 		mdk_rdev_t *rdev;
 		dev = &sh->dev[i];
-		clear_bit(R5_Insync, &dev->flags);
 
 		pr_debug("check %d: state 0x%lx read %p write %p written %p\n",
 			i, dev->flags, dev->toread, dev->towrite, dev->written);
@@ -3350,18 +3358,28 @@ static void handle_stripe6(struct stripe_head *sh)
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
+		clear_bit(R5_Insync, &dev->flags);
+		if (!rdev)
+			/* Not in-sync */;
+		else if (test_bit(In_sync, &rdev->flags))
+			set_bit(R5_Insync, &dev->flags);
+		else {
+			/* in sync if before recovery_offset */
+			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
+				set_bit(R5_Insync, &dev->flags);
+		}
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			/* The ReadError flag will just be confusing now */
 			clear_bit(R5_ReadError, &dev->flags);
 			clear_bit(R5_ReWrite, &dev->flags);
 		}
-		if (!rdev || !test_bit(In_sync, &rdev->flags)
-		    || test_bit(R5_ReadError, &dev->flags)) {
+		if (test_bit(R5_ReadError, &dev->flags))
+			clear_bit(R5_Insync, &dev->flags);
+		if (!test_bit(R5_Insync, &dev->flags)) {
 			if (s.failed < 2)
 				r6s.failed_num[s.failed] = i;
 			s.failed++;
-		} else
-			set_bit(R5_Insync, &dev->flags);
+		}
 	}
 	rcu_read_unlock();
 
