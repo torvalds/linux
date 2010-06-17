@@ -1184,45 +1184,49 @@ static int af9013_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	u8 tmp;
 	*status = 0;
 
-	/* TPS lock */
-	ret = af9013_read_reg_bits(state, 0xd330, 3, 1, &tmp);
-	if (ret)
-		goto error;
-	if (tmp)
-		*status |= FE_HAS_VITERBI | FE_HAS_CARRIER | FE_HAS_SIGNAL;
-
 	/* MPEG2 lock */
 	ret = af9013_read_reg_bits(state, 0xd507, 6, 1, &tmp);
 	if (ret)
 		goto error;
 	if (tmp)
-		*status |= FE_HAS_SYNC | FE_HAS_LOCK;
+		*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_VITERBI |
+			FE_HAS_SYNC | FE_HAS_LOCK;
 
-	if (!(*status & FE_HAS_SIGNAL)) {
+	if (!*status) {
+		/* TPS lock */
+		ret = af9013_read_reg_bits(state, 0xd330, 3, 1, &tmp);
+		if (ret)
+			goto error;
+		if (tmp)
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER |
+				FE_HAS_VITERBI;
+	}
+
+	if (!*status) {
+		/* CFO lock */
+		ret = af9013_read_reg_bits(state, 0xd333, 7, 1, &tmp);
+		if (ret)
+			goto error;
+		if (tmp)
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+	}
+
+	if (!*status) {
+		/* SFOE lock */
+		ret = af9013_read_reg_bits(state, 0xd334, 6, 1, &tmp);
+		if (ret)
+			goto error;
+		if (tmp)
+			*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER;
+	}
+
+	if (!*status) {
 		/* AGC lock */
 		ret = af9013_read_reg_bits(state, 0xd1a0, 6, 1, &tmp);
 		if (ret)
 			goto error;
 		if (tmp)
 			*status |= FE_HAS_SIGNAL;
-	}
-
-	if (!(*status & FE_HAS_CARRIER)) {
-		/* CFO lock */
-		ret = af9013_read_reg_bits(state, 0xd333, 7, 1, &tmp);
-		if (ret)
-			goto error;
-		if (tmp)
-			*status |= FE_HAS_CARRIER;
-	}
-
-	if (!(*status & FE_HAS_CARRIER)) {
-		/* SFOE lock */
-		ret = af9013_read_reg_bits(state, 0xd334, 6, 1, &tmp);
-		if (ret)
-			goto error;
-		if (tmp)
-			*status |= FE_HAS_CARRIER;
 	}
 
 	ret = af9013_update_statistics(fe);
