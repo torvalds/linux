@@ -144,6 +144,13 @@ static inline void scsi_netlink_init(void) {}
 static inline void scsi_netlink_exit(void) {}
 #endif
 
+/* scsi_pm.c */
+#ifdef CONFIG_PM_OPS
+extern const struct dev_pm_ops scsi_bus_pm_ops;
+#else
+#define scsi_bus_pm_ops		(*NULL)
+#endif
+
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport
  * classes.
