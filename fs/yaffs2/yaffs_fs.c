@@ -2083,7 +2083,7 @@ static int yaffs_BackgroundThread(void *data)
 		if(time_before(expires,now))
 			expires = now + HZ;
 
-		init_timer(&timer);
+		init_timer_on_stack(&timer);
 		timer.expires = expires+1;
 		timer.data = (unsigned long) current;
 		timer.function = yaffs_background_waker;
