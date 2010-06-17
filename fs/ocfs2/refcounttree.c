@@ -3398,6 +3398,28 @@ static int ocfs2_replace_cow(struct ocfs2_cow_context *context)
 	return ret;
 }
 
+static void ocfs2_readahead_for_cow(struct inode *inode,
+				    struct file *file,
+				    u32 start, u32 len)
+{
+	struct address_space *mapping;
+	pgoff_t index;
+	unsigned long num_pages;
+	int cs_bits = OCFS2_SB(inode->i_sb)->s_clustersize_bits;
+
+	if (!file)
+		return;
+
+	mapping = file->f_mapping;
+	num_pages = (len << cs_bits) >> PAGE_CACHE_SHIFT;
+	if (!num_pages)
+		num_pages = 1;
+
+	index = ((loff_t)start << cs_bits) >> PAGE_CACHE_SHIFT;
+	page_cache_sync_readahead(mapping, &file->f_ra, file,
+				  index, num_pages);
+}
+
 /*
  * Starting at cpos, try to CoW write_len clusters.  Don't CoW
  * past max_cpos.  This will stop when it runs into a hole or an
@@ -3432,6 +3454,8 @@ static int ocfs2_refcount_cow_hunk(struct inode *inode,
 	     cpos, write_len, cow_start, cow_len);
 
 	BUG_ON(cow_len == 0);
+
+	ocfs2_readahead_for_cow(inode, file, cow_start, cow_len);
 
 	context = kzalloc(sizeof(struct ocfs2_cow_context), GFP_NOFS);
 	if (!context) {
