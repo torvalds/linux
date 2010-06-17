@@ -244,17 +244,12 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
 	 */
 
 	switch(devid) {
-	case 0x9271:
-	case 0x1006:
-		priv->htc->credits = 33;
-		break;
 	case 0x7010:
+	case 0x9018:
 		priv->htc->credits = 45;
 		break;
 	default:
-		dev_err(priv->dev, "ath9k_htc: Unsupported device id: 0x%x\n",
-			devid);
-		goto err;
+		priv->htc->credits = 33;
 	}
 
 	ret = htc_init(priv->htc);

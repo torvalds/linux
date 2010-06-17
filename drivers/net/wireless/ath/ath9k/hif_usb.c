@@ -17,9 +17,17 @@
 #include "htc.h"
 
 static struct usb_device_id ath9k_hif_usb_ids[] = {
-	{ USB_DEVICE(0x0cf3, 0x9271) },
-	{ USB_DEVICE(0x0cf3, 0x1006) },
-	{ USB_DEVICE(0x0cf3, 0x7010) },
+	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x7010) }, /* Atheros */
+	{ USB_DEVICE(0x0cf3, 0x7015) }, /* Atheros */
+	{ USB_DEVICE(0x0846, 0x9030) }, /* Netgear N150 */
+	{ USB_DEVICE(0x0846, 0x9018) }, /* Netgear WNDA3200 */
+	{ USB_DEVICE(0x07D1, 0x3A10) }, /* Dlink Wireless 150 */
+	{ USB_DEVICE(0x13D3, 0x3327) }, /* Azurewave */
+	{ USB_DEVICE(0x13D3, 0x3328) }, /* Azurewave */
+	{ USB_DEVICE(0x04CA, 0x4605) }, /* Liteon */
+	{ USB_DEVICE(0x083A, 0xA704) }, /* SMC Networks */
 	{ },
 };
 
@@ -879,17 +887,15 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	/* Find out which firmware to load */
 
 	switch(hif_dev->device_id) {
-	case 0x9271:
-	case 0x1006:
-		hif_dev->fw_name = "ar9271.fw";
-		break;
 	case 0x7010:
+	case 0x9018:
 		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
 			hif_dev->fw_name = "ar7010_1_1.fw";
 		else
 			hif_dev->fw_name = "ar7010.fw";
 		break;
 	default:
+		hif_dev->fw_name = "ar9271.fw";
 		break;
 	}
 
