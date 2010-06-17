@@ -5526,8 +5526,13 @@ static int raid5_start_reshape(mddev_t *mddev)
 
 	/* Add some new drives, as many as will fit.
 	 * We know there are enough to make the newly sized array work.
+	 * Don't add devices if we are reducing the number of
+	 * devices in the array.  This is because it is not possible
+	 * to correctly record the "partially reconstructed" state of
+	 * such devices during the reshape and confusion could result.
 	 */
-	list_for_each_entry(rdev, &mddev->disks, same_set)
+	if (mddev->delta_disks >= 0)
+	    list_for_each_entry(rdev, &mddev->disks, same_set)
 		if (rdev->raid_disk < 0 &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev) == 0) {
@@ -5549,7 +5554,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 		}
 
 	/* When a reshape changes the number of devices, ->degraded
-	 * is measured against the large of the pre and post number of
+	 * is measured against the larger of the pre and post number of
 	 * devices.*/
 	if (mddev->delta_disks > 0) {
 		spin_lock_irqsave(&conf->device_lock, flags);
