@@ -630,7 +630,6 @@ static struct ceph_client *ceph_create_client(struct ceph_mount_args *args)
 
 	/* caps */
 	client->min_caps = args->max_readdir;
-	ceph_adjust_min_caps(client->min_caps);
 
 	/* subsystems */
 	err = ceph_monc_init(&client->monc, client);
@@ -679,8 +678,6 @@ static void ceph_destroy_client(struct ceph_client *client)
 	ceph_msgr_flush();
 
 	ceph_monc_stop(&client->monc);
-
-	ceph_adjust_min_caps(-client->min_caps);
 
 	ceph_debugfs_client_cleanup(client);
 	destroy_workqueue(client->wb_wq);
@@ -1043,8 +1040,6 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out_msgr;
 
-	ceph_caps_init();
-
 	ret = register_filesystem(&ceph_fs_type);
 	if (ret)
 		goto out_icache;
@@ -1069,7 +1064,6 @@ static void __exit exit_ceph(void)
 {
 	dout("exit_ceph\n");
 	unregister_filesystem(&ceph_fs_type);
-	ceph_caps_finalize();
 	destroy_caches();
 	ceph_msgr_exit();
 	ceph_debugfs_cleanup();

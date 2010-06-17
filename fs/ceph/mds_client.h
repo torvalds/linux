@@ -151,6 +151,7 @@ typedef void (*ceph_mds_request_callback_t) (struct ceph_mds_client *mdsc,
 struct ceph_mds_request {
 	u64 r_tid;                   /* transaction id */
 	struct rb_node r_node;
+	struct ceph_mds_client *r_mdsc;
 
 	int r_op;                    /* mds op code */
 	int r_mds;
@@ -266,6 +267,27 @@ struct ceph_mds_client {
 	int               num_cap_flushing; /* # caps we are flushing */
 	spinlock_t        cap_dirty_lock;   /* protects above items */
 	wait_queue_head_t cap_flushing_wq;
+
+	/*
+	 * Cap reservations
+	 *
+	 * Maintain a global pool of preallocated struct ceph_caps, referenced
+	 * by struct ceph_caps_reservations.  This ensures that we preallocate
+	 * memory needed to successfully process an MDS response.  (If an MDS
+	 * sends us cap information and we fail to process it, we will have
+	 * problems due to the client and MDS being out of sync.)
+	 *
+	 * Reservations are 'owned' by a ceph_cap_reservation context.
+	 */
+	spinlock_t	caps_list_lock;
+	struct		list_head caps_list; /* unused (reserved or
+						unreserved) */
+	int		caps_total_count;    /* total caps allocated */
+	int		caps_use_count;      /* in use */
+	int		caps_reserve_count;  /* unused, reserved */
+	int		caps_avail_count;    /* unused, unreserved */
+	int		caps_min_count;      /* keep at least this many
+						(unreserved) */
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry 	  *debugfs_file;

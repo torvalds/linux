@@ -449,7 +449,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 	kfree(req->r_path1);
 	kfree(req->r_path2);
 	put_request_session(req);
-	ceph_unreserve_caps(&req->r_caps_reservation);
+	ceph_unreserve_caps(req->r_mdsc, &req->r_caps_reservation);
 	kfree(req);
 }
 
@@ -512,7 +512,8 @@ static void __register_request(struct ceph_mds_client *mdsc,
 {
 	req->r_tid = ++mdsc->last_tid;
 	if (req->r_num_caps)
-		ceph_reserve_caps(&req->r_caps_reservation, req->r_num_caps);
+		ceph_reserve_caps(mdsc, &req->r_caps_reservation,
+				  req->r_num_caps);
 	dout("__register_request %p tid %lld\n", req, req->r_tid);
 	ceph_mdsc_get_request(req);
 	__insert_request(mdsc, req);
@@ -764,7 +765,7 @@ static int iterate_session_caps(struct ceph_mds_session *session,
 			last_inode = NULL;
 		}
 		if (old_cap) {
-			ceph_put_cap(old_cap);
+			ceph_put_cap(session->s_mdsc, old_cap);
 			old_cap = NULL;
 		}
 
@@ -793,7 +794,7 @@ out:
 	if (last_inode)
 		iput(last_inode);
 	if (old_cap)
-		ceph_put_cap(old_cap);
+		ceph_put_cap(session->s_mdsc, old_cap);
 
 	return ret;
 }
@@ -1251,6 +1252,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 		return ERR_PTR(-ENOMEM);
 
 	mutex_init(&req->r_fill_mutex);
+	req->r_mdsc = mdsc;
 	req->r_started = jiffies;
 	req->r_resend_mds = -1;
 	INIT_LIST_HEAD(&req->r_unsafe_dir_item);
@@ -1986,7 +1988,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	if (err == 0) {
 		if (result == 0 && rinfo->dir_nr)
 			ceph_readdir_prepopulate(req, req->r_session);
-		ceph_unreserve_caps(&req->r_caps_reservation);
+		ceph_unreserve_caps(mdsc, &req->r_caps_reservation);
 	}
 	mutex_unlock(&req->r_fill_mutex);
 
@@ -2767,6 +2769,9 @@ int ceph_mdsc_init(struct ceph_mds_client *mdsc, struct ceph_client *client)
 	spin_lock_init(&mdsc->dentry_lru_lock);
 	INIT_LIST_HEAD(&mdsc->dentry_lru);
 
+	ceph_caps_init(mdsc);
+	ceph_adjust_min_caps(mdsc, client->min_caps);
+
 	return 0;
 }
 
@@ -2962,6 +2967,7 @@ void ceph_mdsc_stop(struct ceph_mds_client *mdsc)
 	if (mdsc->mdsmap)
 		ceph_mdsmap_destroy(mdsc->mdsmap);
 	kfree(mdsc->sessions);
+	ceph_caps_finalize(mdsc);
 }
 
 
