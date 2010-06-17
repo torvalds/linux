@@ -1615,7 +1615,7 @@ static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 		break;
 	   case XGIFB_GET_INFO:  /* TW: New for communication with X driver */
 	        {
-			XGIfb_info *x = (XGIfb_info *)arg;
+			struct XGIfb_info *x = (struct XGIfb_info *)arg;
 
 			//x->XGIfb_id = XGIFB_ID;
 			x->XGIfb_version = VER_MAJOR;

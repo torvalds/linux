@@ -27,7 +27,7 @@
 #define XGIFB_ID          0x53495346    /* Identify myself with 'XGIF' */
 #endif
 
-typedef enum _XGI_CHIP_TYPE {
+enum XGI_CHIP_TYPE {
     XGI_VGALegacy = 0,
     XGI_300,
     XGI_630,
@@ -53,9 +53,9 @@ typedef enum _XGI_CHIP_TYPE {
     XG21,
     XG27,
     MAX_XGI_CHIP
-} XGI_CHIP_TYPE;
+};
 
-typedef enum _TVTYPE {
+enum xgi_tvtype {
 	TVMODE_NTSC = 0,
 	TVMODE_PAL,
 	TVMODE_HIVISION,
@@ -63,13 +63,11 @@ typedef enum _TVTYPE {
     	TVTYPE_PALN,	// vicki@030226
     	TVTYPE_NTSCJ,	// vicki@030226
 	TVMODE_TOTAL
-} XGI_TV_TYPE;
+};
 
 
-typedef struct _XGIFB_INFO XGIfb_info;
-struct _XGIFB_INFO {
-
-unsigned long XGIfb_id;
+struct XGIfb_info {
+	unsigned long XGIfb_id;
  	int    chip_id;			/* PCI ID of detected chip */
 	int    memory;			/* video memory in KB which XGIfb manages */
 	int    heapstart;               /* heap start (= XGIfb "mem" argument) in KB */
@@ -132,9 +130,9 @@ struct ap_data {
 	unsigned long iobase;
 	unsigned int  mem_size;
 	unsigned long disp_state;
-	XGI_CHIP_TYPE chip;
+	enum XGI_CHIP_TYPE chip;
 	unsigned char hasVB;
-	XGI_TV_TYPE TV_type;
+	enum xgi_tvtype TV_type;
 	XGI_TV_PLUG TV_plug;
 	unsigned long version;
 	char reserved[256];
@@ -184,7 +182,7 @@ struct video_info{
         unsigned char TV_type;
         unsigned char TV_plug;
 
-        XGI_CHIP_TYPE chip;
+	enum XGI_CHIP_TYPE chip;
         unsigned char revision_id;
 
         unsigned short DstColor;
