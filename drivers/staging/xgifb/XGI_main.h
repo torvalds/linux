@@ -805,10 +805,6 @@ extern void     fbcon_XGI_fillrect(struct fb_info *info,
                                    const struct fb_fillrect *rect);
 extern void     fbcon_XGI_copyarea(struct fb_info *info,
                                    const struct fb_copyarea *area);
-#if 0
-extern void     cfb_imageblit(struct fb_info *info,
-                              const struct fb_image *image);
-#endif
 extern int      fbcon_XGI_sync(struct fb_info *info);
 
 static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,

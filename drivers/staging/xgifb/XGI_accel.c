@@ -97,102 +97,12 @@ static const unsigned char myrops[] = {
    };
 
 /* 300 series */
-#if 0
-static void
-XGI300Sync(void)
-{
-	XGI300Idle
-}
-#endif
 static void
 XGI310Sync(void)
 {
 	XGI310Idle
 }
-#if 0
-static void
-XGI300SetupForScreenToScreenCopy(int xdir, int ydir, int rop,
-                                unsigned int planemask, int trans_color)
-{
-	XGI300SetupDSTColorDepth(xgi_video_info.DstColor);
-	XGI300SetupSRCPitch(xgi_video_info.video_linelength)
-	XGI300SetupDSTRect(xgi_video_info.video_linelength, 0xFFF)
 
-	if(trans_color != -1) {
-		XGI300SetupROP(0x0A)
-		XGI300SetupSRCTrans(trans_color)
-		XGI300SetupCMDFlag(TRANSPARENT_BITBLT)
-	} else {
-	        XGI300SetupROP(XGIALUConv[rop])
-	}
-	if(xdir > 0) {
-		XGI300SetupCMDFlag(X_INC)
-	}
-	if(ydir > 0) {
-		XGI300SetupCMDFlag(Y_INC)
-	}
-}
-
-static void
-XGI300SubsequentScreenToScreenCopy(int src_x, int src_y, int dst_x, int dst_y,
-                                int width, int height)
-{
-	long srcbase, dstbase;
-
-	srcbase = dstbase = 0;
-	if (src_y >= 2048) {
-		srcbase = xgi_video_info.video_linelength * src_y;
-		src_y = 0;
-	}
-	if (dst_y >= 2048) {
-		dstbase = xgi_video_info.video_linelength * dst_y;
-		dst_y = 0;
-	}
-
-	XGI300SetupSRCBase(srcbase);
-	XGI300SetupDSTBase(dstbase);
-
-	if(!(xgi_video_info.CommandReg & X_INC))  {
-		src_x += width-1;
-		dst_x += width-1;
-	}
-	if(!(xgi_video_info.CommandReg & Y_INC))  {
-		src_y += height-1;
-		dst_y += height-1;
-	}
-	XGI300SetupRect(width, height)
-	XGI300SetupSRCXY(src_x, src_y)
-	XGI300SetupDSTXY(dst_x, dst_y)
-	XGI300DoCMD
-}
-
-static void
-XGI300SetupForSolidFill(int color, int rop, unsigned int planemask)
-{
-	XGI300SetupPATFG(color)
-	XGI300SetupDSTRect(xgi_video_info.video_linelength, 0xFFF)
-	XGI300SetupDSTColorDepth(xgi_video_info.DstColor);
-	XGI300SetupROP(XGIPatALUConv[rop])
-	XGI300SetupCMDFlag(PATFG)
-}
-
-static void
-XGI300SubsequentSolidFillRect(int x, int y, int w, int h)
-{
-	long dstbase;
-
-	dstbase = 0;
-	if(y >= 2048) {
-		dstbase = xgi_video_info.video_linelength * y;
-		y = 0;
-	}
-	XGI300SetupDSTBase(dstbase)
-	XGI300SetupDSTXY(x,y)
-	XGI300SetupRect(w,h)
-	XGI300SetupCMDFlag(X_INC | Y_INC | BITBLT)
-	XGI300DoCMD
-}
-#endif
 /* 310/325 series ------------------------------------------------ */
 
 static void

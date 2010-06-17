@@ -371,18 +371,6 @@ XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExt
       }
     }
 
-#if 0  /* That's bullshit, only the resolution needs to be shifted */
-    if((*vmode & FB_VMODE_MASK) == FB_VMODE_INTERLACED) {
-       *upper_margin <<= 1;
-       *lower_margin <<= 1;
-       *vsync_len <<= 1;
-    } else if((*vmode & FB_VMODE_MASK) == FB_VMODE_DOUBLE) {
-       *upper_margin >>= 1;
-       *lower_margin >>= 1;
-       *vsync_len >>= 1;
-    }
-#endif
-
     return 1;
 }
 
@@ -1537,58 +1525,7 @@ static int XGIfb_pan_display( struct fb_var_screeninfo *var,
 }
 #endif
 
-#if 0
-static int XGIfb_mmap(struct fb_info *info, struct file *file,
-		      struct vm_area_struct *vma)
-{
-	unsigned long start;
-	unsigned long off;
-	u32 len, mmio_off;
 
-	DEBUGPRN("inside mmap");
-	if(vma->vm_pgoff > (~0UL >> PAGE_SHIFT))  return -EINVAL;
-
-	off = vma->vm_pgoff << PAGE_SHIFT;
-
-	start = (unsigned long) xgi_video_info.video_base;
-	len = PAGE_ALIGN((start & ~PAGE_MASK) + xgi_video_info.video_size);
-	start &= PAGE_MASK;
-#if 0
-	if (off >= len) {
-		off -= len;
-#endif
-	/* By Jake Page: Treat mmap request with offset beyond heapstart
-	 *               as request for mapping the mmio area
-	 */
-	#if 1
-	mmio_off = PAGE_ALIGN((start & ~PAGE_MASK) + xgi_video_info.heapstart);
-	if(off >= mmio_off) {
-		off -= mmio_off;
-		if(info->var.accel_flags) return -EINVAL;
-
-		start = (unsigned long) xgi_video_info.mmio_base;
-		len = PAGE_ALIGN((start & ~PAGE_MASK) + XGIfb_mmio_size);
-	}
-	start &= PAGE_MASK;
-	#endif
-	if((vma->vm_end - vma->vm_start + off) > len)	return -EINVAL;
-
-	off += start;
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	vma->vm_flags |= VM_IO;   /* by Jake Page; is that really needed? */
-
-#if defined(__i386__) || defined(__x86_64__)
-	if (boot_cpu_data.x86 > 3)
-		pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
-#endif
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT, vma->vm_end - vma->vm_start,
-				vma->vm_page_prot))
-		return -EAGAIN;
-
-        DEBUGPRN("end of mmap");
-	return 0;
-}
-#endif
 static int XGIfb_blank(int blank, struct fb_info *info)
 {
 	u8 reg;
@@ -2652,12 +2589,6 @@ static void XGIfb_post_setmode(void)
 {
 	u8 reg;
 	BOOLEAN doit = 1;
-#if 0	/* TW: Wrong: Is not in MMIO space, but in RAM */
-	/* Backup mode number to MMIO space */
-	if(xgi_video_info.mmio_vbase) {
-	  *(volatile u8 *)(((u8*)xgi_video_info.mmio_vbase) + 0x449) = (unsigned char)XGIfb_mode_no;
-	}
-#endif
 /*	outXGIIDXREG(XGISR,IND_XGI_PASSWORD,XGI_PASSWORD);
 	outXGIIDXREG(XGICR,0x13,0x00);
 	setXGIIDXREG(XGISR,0x0E,0xF0,0x01);
@@ -3444,20 +3375,6 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   }
 
 	        }
-
-
-#if 0
-#ifdef XGIFB_PAN
-		if(XGIfb_ypan) {
-	    		default_var.yres_virtual =
-				xgi_video_info.heapstart / (default_var.xres * (default_var.bits_per_pixel >> 3));
-	    		if(default_var.yres_virtual <= default_var.yres) {
-	        		default_var.yres_virtual = default_var.yres;
-	    		}
-		}
-#endif
-#endif
-
 
 		xgi_video_info.accel = 0;
 		if(XGIfb_accel) {

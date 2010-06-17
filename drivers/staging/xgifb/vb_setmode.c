@@ -2579,53 +2579,6 @@ void XGI_WriteDAC( USHORT dl , USHORT ah , USHORT al , USHORT dh,PVB_DEVICE_INFO
     XGINew_SetReg3( pVBInfo->P3c9 , ( USHORT )bl ) ;
 }
 
-#if 0
-/* --------------------------------------------------------------------- */
-/* Function : XGI_ClearBuffer */
-/* Input : */
-/* Output : */
-/* Description : */
-/* --------------------------------------------------------------------- */
-void XGI_ClearBuffer( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo, PVB_DEVICE_INFO  pVBInfo)
-{
-    void *VideoMemoryAddress = (void *)HwDeviceExtension->pjVideoMemoryAddress;
-    ULONG AdapterMemorySize  = ( ULONG )HwDeviceExtension->ulVideoMemorySize ;
-    unsigned short *pBuffer ;
-    int i ;
-
-    if ( pVBInfo->ModeType >= ModeEGA )
-    {
-        if ( ModeNo > 0x13 )
-        {
-            AdapterMemorySize = 0x40000 ;	/* clear 256k */
-            /* GetDRAMSize( HwDeviceExtension ) ; */
-	    memset(VideoMemoryAddress, 0, AdapterMemorySize);
-        }
-        else
-        {
-/*
-            pBuffer = VideoMemoryAddress ;
-            for( i = 0 ; i < 0x4000 ; i++ )
-                pBuffer[ i ] = 0x0000 ;
-*/
-        }
-    }
-    else
-    {
-        pBuffer = VideoMemoryAddress ;
-        if ( pVBInfo->ModeType < ModeCGA )
-        {
-/*
-            for ( i = 0 ; i < 0x4000 ; i++ )
-                pBuffer[ i ] = 0x0720 ;
-*/
-        }
-        else
-		memset(VideoMemoryAddress , 0, 0x8000);
-    }
-}
-
-#endif
 /* --------------------------------------------------------------------- */
 /* Function : XGI_SetLCDAGroup */
 /* Input : */
