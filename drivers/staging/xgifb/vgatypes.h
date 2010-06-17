@@ -28,20 +28,8 @@ typedef unsigned short USHORT;
 typedef unsigned long ULONG;
 #endif
 
-#ifndef PUSHORT
-typedef USHORT *PUSHORT;
-#endif
-
-#ifndef PLONGU
-typedef ULONG *PULONG;
-#endif
-
 #ifndef VOID
 typedef void VOID;
-#endif
-
-#ifndef PVOID
-typedef void *PVOID;
 #endif
 
 #ifndef BOOLEAN
@@ -126,7 +114,7 @@ struct _XGI_HW_DEVICE_INFO
 
     BOOLEAN UseROM;		 /* Use the ROM image if provided */
 
-    PVOID   pDevice;
+    void *pDevice;
 
     unsigned char *pjVideoMemoryAddress;/* base virtual memory address */
                                  /* of Linear VGA memory */

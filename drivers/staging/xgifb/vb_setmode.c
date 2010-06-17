@@ -2588,9 +2588,9 @@ void XGI_WriteDAC( USHORT dl , USHORT ah , USHORT al , USHORT dh,PVB_DEVICE_INFO
 /* --------------------------------------------------------------------- */
 void XGI_ClearBuffer( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo, PVB_DEVICE_INFO  pVBInfo)
 {
-    PVOID VideoMemoryAddress = ( PVOID )HwDeviceExtension->pjVideoMemoryAddress ;
+    void *VideoMemoryAddress = (void *)HwDeviceExtension->pjVideoMemoryAddress;
     ULONG AdapterMemorySize  = ( ULONG )HwDeviceExtension->ulVideoMemorySize ;
-    PUSHORT pBuffer ;
+    unsigned short *pBuffer ;
     int i ;
 
     if ( pVBInfo->ModeType >= ModeEGA )

@@ -1619,9 +1619,9 @@ void XGINew_SetDRAMSizingType( int index , USHORT DRAMTYPE_TABLE[][ 5 ] ,PVB_DEV
 void XGINew_CheckBusWidth_310(  PVB_DEVICE_INFO pVBInfo)
 {
     USHORT data ;
-    PULONG volatile pVideoMemory ;
+    volatile unsigned long *pVideoMemory ;
 
-    pVideoMemory = (PULONG) pVBInfo->FBAddr;
+    pVideoMemory = (unsigned long *) pVBInfo->FBAddr;
 
     if ( XGINew_Get310DRAMType( pVBInfo ) < 2 )
     {
@@ -1832,17 +1832,17 @@ int XGINew_CheckColumn( int index , USHORT DRAMTYPE_TABLE[][ 5 ], PVB_DEVICE_INF
 
     for( i = 0 , Position = 0 ; i < 2 ; i++ )
     {
-        *( ( PULONG )( pVBInfo->FBAddr + Position ) ) = Position ;
-        Position += Increment ;
+	    *((unsigned long *)(pVBInfo->FBAddr + Position)) = Position;
+	    Position += Increment ;
     }
 
 
     for( i = 0 , Position = 0 ; i < 2 ; i++ )
     {
         /* if ( pVBInfo->FBAddr[ Position ] != Position ) */
-        if ( ( *( PULONG )( pVBInfo->FBAddr + Position ) ) != Position )
-            return( 0 ) ;
-        Position += Increment ;
+	    if ((*(unsigned long *)(pVBInfo->FBAddr + Position)) != Position)
+		    return 0;
+	    Position += Increment;
     }
     return( 1 ) ;
 }
@@ -1864,16 +1864,16 @@ int XGINew_CheckBanks( int index , USHORT DRAMTYPE_TABLE[][ 5 ], PVB_DEVICE_INFO
     for( i = 0 , Position = 0 ; i < 4 ; i++ )
     {
         /* pVBInfo->FBAddr[ Position ] = Position ; */
-        *( ( PULONG )( pVBInfo->FBAddr + Position ) ) = Position ;
-        Position += Increment ;
+	    *((unsigned long *)(pVBInfo->FBAddr + Position)) = Position;
+	    Position += Increment ;
     }
 
     for( i = 0 , Position = 0 ; i < 4 ; i++ )
     {
         /* if (pVBInfo->FBAddr[ Position ] != Position ) */
-        if ( ( *( PULONG )( pVBInfo->FBAddr + Position ) ) != Position )
-            return( 0 ) ;
-        Position += Increment ;
+	    if ((*(unsigned long *)(pVBInfo->FBAddr + Position)) != Position)
+		    return 0;
+	    Position += Increment;
     }
     return( 1 ) ;
 }
@@ -1896,18 +1896,18 @@ int XGINew_CheckRank( int RankNo , int index , USHORT DRAMTYPE_TABLE[][ 5 ], PVB
     for( i = 0 , Position = 0 ; i < 2 ; i++ )
     {
         /* pVBInfo->FBAddr[ Position ] = Position ; */
-        /* *( ( PULONG )( pVBInfo->FBAddr ) ) = Position ; */
-        *( ( PULONG )( pVBInfo->FBAddr + Position ) ) = Position ;
-        Position += Increment ;
+        /* *( (unsigned long *)( pVBInfo->FBAddr ) ) = Position ; */
+	    *((unsigned long *)(pVBInfo->FBAddr + Position)) = Position;
+	    Position += Increment;
     }
 
     for( i = 0 , Position = 0 ; i < 2 ; i++ )
     {
         /* if ( pVBInfo->FBAddr[ Position ] != Position ) */
-        /* if ( ( *( PULONG )( pVBInfo->FBAddr ) ) != Position ) */
-        if ( ( *( PULONG )( pVBInfo->FBAddr + Position ) ) != Position )
-            return( 0 ) ;
-        Position += Increment ;
+        /* if ( ( *(unsigned long *)( pVBInfo->FBAddr ) ) != Position ) */
+	    if ((*(unsigned long *)(pVBInfo->FBAddr + Position)) != Position)
+		    return 0;
+	    Position += Increment;
     }
     return( 1 );
 }
@@ -1930,18 +1930,18 @@ int XGINew_CheckDDRRank( int RankNo , int index , USHORT DRAMTYPE_TABLE[][ 5 ], 
     Increment += Increment / 2 ;
 
     Position = 0;
-    *( ( PULONG )( pVBInfo->FBAddr + Position + 0 ) ) = 0x01234567 ;
-    *( ( PULONG )( pVBInfo->FBAddr + Position + 1 ) ) = 0x456789AB ;
-    *( ( PULONG )( pVBInfo->FBAddr + Position + 2 ) ) = 0x55555555 ;
-    *( ( PULONG )( pVBInfo->FBAddr + Position + 3 ) ) = 0x55555555 ;
-    *( ( PULONG )( pVBInfo->FBAddr + Position + 4 ) ) = 0xAAAAAAAA ;
-    *( ( PULONG )( pVBInfo->FBAddr + Position + 5 ) ) = 0xAAAAAAAA ;
+    *((unsigned long *)(pVBInfo->FBAddr + Position + 0)) = 0x01234567;
+    *((unsigned long *)(pVBInfo->FBAddr + Position + 1)) = 0x456789AB;
+    *((unsigned long *)(pVBInfo->FBAddr + Position + 2)) = 0x55555555;
+    *((unsigned long *)(pVBInfo->FBAddr + Position + 3)) = 0x55555555;
+    *((unsigned long *)(pVBInfo->FBAddr + Position + 4)) = 0xAAAAAAAA;
+    *((unsigned long *)(pVBInfo->FBAddr + Position + 5)) = 0xAAAAAAAA;
 
-    if ( ( *( PULONG )( pVBInfo->FBAddr + 1 ) ) == 0x456789AB )
-        return( 1 ) ;
+    if ((*(unsigned long *)(pVBInfo->FBAddr + 1)) == 0x456789AB)
+	    return 1;
 
-    if ( ( *( PULONG )( pVBInfo->FBAddr + 0 ) ) == 0x01234567 )
-        return( 0 ) ;
+    if ((*(unsigned long *)(pVBInfo->FBAddr + 0)) == 0x01234567)
+	    return 0;
 
     data = XGINew_GetReg1( pVBInfo->P3c4 , 0x14 ) ;
     data &= 0xF3 ;
@@ -2147,26 +2147,26 @@ int XGINew_ReadWriteRest( USHORT StopAddr , USHORT StartAddr, PVB_DEVICE_INFO pV
     int i ;
     ULONG Position = 0 ;
 
-   *( ( PULONG )( pVBInfo->FBAddr + Position ) ) = Position ;
+    *((unsigned long *)(pVBInfo->FBAddr + Position)) = Position;
 
     for( i = StartAddr ; i <= StopAddr ; i++ )
     {
         Position = 1 << i ;
-        *( ( PULONG )( pVBInfo->FBAddr + Position ) ) = Position ;
+	*((unsigned long *)(pVBInfo->FBAddr + Position)) = Position;
     }
 
     DelayUS( 500 ) ;	/* [Vicent] 2004/04/16. Fix #1759 Memory Size error in Multi-Adapter. */
 
     Position = 0 ;
 
-   if ( ( *( PULONG )( pVBInfo->FBAddr + Position ) ) != Position )
-        return( 0 ) ;
+   if ((*(unsigned long *)(pVBInfo->FBAddr + Position)) != Position)
+	   return 0;
 
     for( i = StartAddr ; i <= StopAddr ; i++ )
     {
         Position = 1 << i ;
-        if ( ( *( PULONG )( pVBInfo->FBAddr + Position ) ) != Position )
-            return( 0 ) ;
+	if ((*(unsigned long *)(pVBInfo->FBAddr + Position)) != Position)
+		return 0;
     }
     return( 1 ) ;
 }
