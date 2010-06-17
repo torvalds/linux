@@ -620,7 +620,8 @@ static struct mmc_blk_data *mmc_blk_alloc(struct mmc_card *card)
 	 * messages to tell when the card is present.
 	 */
 
-	sprintf(md->disk->disk_name, "mmcblk%d", devidx);
+	snprintf(md->disk->disk_name, sizeof(md->disk->disk_name),
+		"mmcblk%d", devidx);
 
 	blk_queue_logical_block_size(md->queue.queue, 512);
 
