@@ -126,6 +126,7 @@ static void mptsas_scan_sas_topology(MPT_ADAPTER *ioc);
 static void mptsas_broadcast_primative_work(struct fw_event_work *fw_event);
 static void mptsas_handle_queue_full_event(struct fw_event_work *fw_event);
 static void mptsas_volume_delete(MPT_ADAPTER *ioc, u8 id);
+void	mptsas_schedule_target_reset(void *ioc);
 
 static void mptsas_print_phy_data(MPT_ADAPTER *ioc,
 					MPI_SAS_IO_UNIT0_PHY_DATA *phy_data)
@@ -1139,6 +1140,44 @@ mptsas_target_reset_queue(MPT_ADAPTER *ioc,
 }
 
 /**
+ * mptsas_schedule_target_reset- send pending target reset
+ * @iocp: per adapter object
+ *
+ * This function will delete scheduled target reset from the list and
+ * try to send next target reset. This will be called from completion
+ * context of any Task managment command.
+ */
+
+void
+mptsas_schedule_target_reset(void *iocp)
+{
+	MPT_ADAPTER *ioc = (MPT_ADAPTER *)(iocp);
+	MPT_SCSI_HOST	*hd = shost_priv(ioc->sh);
+	struct list_head *head = &hd->target_reset_list;
+	struct mptsas_target_reset_event	*target_reset_list;
+	u8		id, channel;
+	/*
+	 * issue target reset to next device in the queue
+	 */
+
+	head = &hd->target_reset_list;
+	if (list_empty(head))
+		return;
+
+	target_reset_list = list_entry(head->next,
+		struct mptsas_target_reset_event, list);
+
+	id = target_reset_list->sas_event_data.TargetID;
+	channel = target_reset_list->sas_event_data.Bus;
+	target_reset_list->time_count = jiffies;
+
+	if (mptsas_target_reset(ioc, channel, id))
+		target_reset_list->target_reset_issued = 1;
+	return;
+}
+
+
+/**
  *	mptsas_taskmgmt_complete - complete SAS task management function
  *	@ioc: Pointer to MPT_ADAPTER structure
  *
@@ -1227,23 +1266,7 @@ mptsas_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 			&target_reset_list->sas_event_data);
 
 
-	/*
-	 * issue target reset to next device in the queue
-	 */
-
-	head = &hd->target_reset_list;
-	if (list_empty(head))
-		return 1;
-
-	target_reset_list = list_entry(head->next, struct mptsas_target_reset_event,
-	    list);
-
-	id = target_reset_list->sas_event_data.TargetID;
-	channel = target_reset_list->sas_event_data.Bus;
-	target_reset_list->time_count = jiffies;
-
-	if (mptsas_target_reset(ioc, channel, id))
-		target_reset_list->target_reset_issued = 1;
+	ioc->schedule_target_reset(ioc);
 
 	return 1;
 }
@@ -4961,7 +4984,7 @@ mptsas_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	ioc->DoneCtx = mptsasDoneCtx;
 	ioc->TaskCtx = mptsasTaskCtx;
 	ioc->InternalCtx = mptsasInternalCtx;
-
+	ioc->schedule_target_reset = &mptsas_schedule_target_reset;
 	/*  Added sanity check on readiness of the MPT adapter.
 	 */
 	if (ioc->last_state != MPI_IOC_STATE_OPERATIONAL) {

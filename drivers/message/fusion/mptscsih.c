@@ -2134,6 +2134,8 @@ mptscsih_taskmgmt_complete(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf,
 		mpt_clear_taskmgmt_in_progress_flag(ioc);
 		ioc->taskmgmt_cmds.status &= ~MPT_MGMT_STATUS_PENDING;
 		complete(&ioc->taskmgmt_cmds.done);
+		if (ioc->bus_type == SAS)
+			ioc->schedule_target_reset(ioc);
 		return 1;
 	}
 	return 0;

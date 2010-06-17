@@ -580,6 +580,7 @@ struct mptfc_rport_info
 typedef void (*MPT_ADD_SGE)(void *pAddr, u32 flagslength, dma_addr_t dma_addr);
 typedef void (*MPT_ADD_CHAIN)(void *pAddr, u8 next, u16 length,
 		dma_addr_t dma_addr);
+typedef void (*MPT_SCHEDULE_TARGET_RESET)(void *ioc);
 
 /*
  *  Adapter Structure - pci_dev specific. Maximum: MPT_MAX_ADAPTERS
@@ -738,6 +739,7 @@ typedef struct _MPT_ADAPTER
 	int			 taskmgmt_in_progress;
 	u8			 taskmgmt_quiesce_io;
 	u8			 ioc_reset_in_progress;
+	MPT_SCHEDULE_TARGET_RESET schedule_target_reset;
 	struct work_struct	 sas_persist_task;
 
 	struct work_struct	 fc_setup_reset_work;
