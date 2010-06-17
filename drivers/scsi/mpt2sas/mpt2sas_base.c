@@ -3804,7 +3804,7 @@ _wait_for_commands_to_complete(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		return;
 
 	/* wait for pending commands to complete */
-	wait_event_timeout(ioc->reset_wq, ioc->pending_io_count == 0, 3 * HZ);
+	wait_event_timeout(ioc->reset_wq, ioc->pending_io_count == 0, 10 * HZ);
 }
 
 /**
@@ -3828,13 +3828,24 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	if (mpt2sas_fwfault_debug)
 		mpt2sas_halt_firmware(ioc);
 
-	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
-	if (ioc->shost_recovery) {
-		spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
-		printk(MPT2SAS_ERR_FMT "%s: busy\n",
-		    ioc->name, __func__);
-		return -EBUSY;
+	/* TODO - What we really should be doing is pulling
+	 * out all the code associated with NO_SLEEP; its never used.
+	 * That is legacy code from mpt fusion driver, ported over.
+	 * I will leave this BUG_ON here for now till its been resolved.
+	 */
+	BUG_ON(sleep_flag == NO_SLEEP);
+
+	/* wait for an active reset in progress to complete */
+	if (!mutex_trylock(&ioc->reset_in_progress_mutex)) {
+		do {
+			ssleep(1);
+		} while (ioc->shost_recovery == 1);
+		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: exit\n", ioc->name,
+		    __func__));
+		return ioc->ioc_reset_in_progress_status;
 	}
+
+	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	ioc->shost_recovery = 1;
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
@@ -3853,9 +3864,13 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	    ioc->name, __func__, ((r == 0) ? "SUCCESS" : "FAILED")));
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+	ioc->ioc_reset_in_progress_status = r;
 	ioc->shost_recovery = 0;
 	complete(&ioc->shost_recovery_done);
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
+	mutex_unlock(&ioc->reset_in_progress_mutex);
 
+	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: exit\n", ioc->name,
+	    __func__));
 	return r;
 }

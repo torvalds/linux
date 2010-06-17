@@ -600,9 +600,13 @@ struct MPT2SAS_ADAPTER {
 	int		aen_event_read_flag;
 	u8		broadcast_aen_busy;
 	u8		shost_recovery;
+
+	struct mutex	reset_in_progress_mutex;
 	struct completion	shost_recovery_done;
 	spinlock_t 	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
+	int		ioc_reset_in_progress_status;
+
 	u8		ignore_loginfos;
 	u8		remove_host;
 	u8		wait_for_port_enable_to_complete;
