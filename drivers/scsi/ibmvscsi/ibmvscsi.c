@@ -102,7 +102,7 @@ static int client_reserve = 1;
 
 static struct scsi_transport_template *ibmvscsi_transport_template;
 
-#define IBMVSCSI_VERSION "1.5.8"
+#define IBMVSCSI_VERSION "1.5.9"
 
 static struct ibmvscsi_ops *ibmvscsi_ops;
 
