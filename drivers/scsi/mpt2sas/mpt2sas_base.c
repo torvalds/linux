@@ -3529,8 +3529,12 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	if (sleep_flag == CAN_SLEEP)
 		_base_static_config_pages(ioc);
 
-	if (ioc->wait_for_port_enable_to_complete && disable_discovery > 0)
-		return r;
+	if (ioc->wait_for_port_enable_to_complete) {
+		if (diag_buffer_enable != 0)
+			mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
+		if (disable_discovery > 0)
+			return r;
+	}
 
 	r = _base_send_port_enable(ioc, sleep_flag);
 	if (r)
@@ -3679,8 +3683,6 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	mpt2sas_base_start_watchdog(ioc);
-	if (diag_buffer_enable != 0)
-		mpt2sas_enable_diag_buffer(ioc, diag_buffer_enable);
 	return 0;
 
  out_free_resources:

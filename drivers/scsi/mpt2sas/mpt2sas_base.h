@@ -750,6 +750,8 @@ struct MPT2SAS_ADAPTER {
 	Mpi2ManufacturingPage10_t manu_pg10;
 	u32		product_specific[MPI2_DIAG_BUF_TYPE_COUNT][23];
 	u32		diagnostic_flags[MPI2_DIAG_BUF_TYPE_COUNT];
+	u32		ring_buffer_offset;
+	u32		ring_buffer_sz;
 };
 
 typedef u8 (*MPT_CALLBACK)(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
