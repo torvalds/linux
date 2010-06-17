@@ -151,5 +151,7 @@ source "drivers/staging/msm/Kconfig"
 
 source "drivers/staging/easycap/Kconfig"
 
+source "drivers/staging/solo6x10/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

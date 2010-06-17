@@ -56,3 +56,4 @@ obj-$(CONFIG_FB_XGI)		+= xgifb/
 obj-$(CONFIG_TOUCHSCREEN_MRSTOUCH)	+= mrst-touchscreen/
 obj-$(CONFIG_MSM_STAGING)	+= msm/
 obj-$(CONFIG_EASYCAP)		+= easycap/
+obj-$(CONFIG_SOLO6X10)		+= solo6x10/
