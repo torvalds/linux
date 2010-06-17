@@ -474,23 +474,26 @@ static int map_data_for_srp_cmd(struct scsi_cmnd *cmd,
  */
 static void purge_requests(struct ibmvscsi_host_data *hostdata, int error_code)
 {
-	struct srp_event_struct *tmp_evt, *pos;
+	struct srp_event_struct *evt;
 	unsigned long flags;
 
 	spin_lock_irqsave(hostdata->host->host_lock, flags);
-	list_for_each_entry_safe(tmp_evt, pos, &hostdata->sent, list) {
-		list_del(&tmp_evt->list);
-		del_timer(&tmp_evt->timer);
-		if (tmp_evt->cmnd) {
-			tmp_evt->cmnd->result = (error_code << 16);
-			unmap_cmd_data(&tmp_evt->iu.srp.cmd,
-				       tmp_evt,
-				       tmp_evt->hostdata->dev);
-			if (tmp_evt->cmnd_done)
-				tmp_evt->cmnd_done(tmp_evt->cmnd);
-		} else if (tmp_evt->done)
-			tmp_evt->done(tmp_evt);
-		free_event_struct(&tmp_evt->hostdata->pool, tmp_evt);
+	while (!list_empty(&hostdata->sent)) {
+		evt = list_first_entry(&hostdata->sent, struct srp_event_struct, list);
+		list_del(&evt->list);
+		del_timer(&evt->timer);
+
+		spin_unlock_irqrestore(hostdata->host->host_lock, flags);
+		if (evt->cmnd) {
+			evt->cmnd->result = (error_code << 16);
+			unmap_cmd_data(&evt->iu.srp.cmd, evt,
+				       evt->hostdata->dev);
+			if (evt->cmnd_done)
+				evt->cmnd_done(evt->cmnd);
+		} else if (evt->done)
+			evt->done(evt);
+		free_event_struct(&evt->hostdata->pool, evt);
+		spin_lock_irqsave(hostdata->host->host_lock, flags);
 	}
 	spin_unlock_irqrestore(hostdata->host->host_lock, flags);
 }
