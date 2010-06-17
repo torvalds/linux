@@ -7,6 +7,7 @@ struct request_queue;
 struct request;
 struct scsi_cmnd;
 struct scsi_device;
+struct scsi_target;
 struct scsi_host_template;
 struct Scsi_Host;
 struct scsi_nl_hdr;
@@ -147,9 +148,20 @@ static inline void scsi_netlink_exit(void) {}
 /* scsi_pm.c */
 #ifdef CONFIG_PM_OPS
 extern const struct dev_pm_ops scsi_bus_pm_ops;
-#else
+#else /* CONFIG_PM_OPS */
 #define scsi_bus_pm_ops		(*NULL)
 #endif
+#ifdef CONFIG_PM_RUNTIME
+extern void scsi_autopm_get_target(struct scsi_target *);
+extern void scsi_autopm_put_target(struct scsi_target *);
+extern int scsi_autopm_get_host(struct Scsi_Host *);
+extern void scsi_autopm_put_host(struct Scsi_Host *);
+#else
+static inline void scsi_autopm_get_target(struct scsi_target *t) {}
+static inline void scsi_autopm_put_target(struct scsi_target *t) {}
+static inline int scsi_autopm_get_host(struct Scsi_Host *h) { return 0; }
+static inline void scsi_autopm_put_host(struct Scsi_Host *h) {}
+#endif /* CONFIG_PM_RUNTIME */
 
 /* 
  * internal scsi timeout functions: for use by mid-layer and transport
