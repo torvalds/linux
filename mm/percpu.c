@@ -1086,7 +1086,7 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	static int group_map[NR_CPUS] __initdata;
 	static int group_cnt[NR_CPUS] __initdata;
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
-	int group_cnt_max = 0, nr_groups = 1, nr_units = 0;
+	int nr_groups = 1, nr_units = 0;
 	size_t size_sum, min_unit_size, alloc_size;
 	int upa, max_upa, uninitialized_var(best_upa);	/* units_per_alloc */
 	int last_allocs, group, unit;
@@ -1096,7 +1096,7 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 
 	/* this function may be called multiple times */
 	memset(group_map, 0, sizeof(group_map));
-	memset(group_cnt, 0, sizeof(group_map));
+	memset(group_cnt, 0, sizeof(group_cnt));
 
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
@@ -1130,7 +1130,6 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 		}
 		group_map[cpu] = group;
 		group_cnt[group]++;
-		group_cnt_max = max(group_cnt_max, group_cnt[group]);
 	}
 
 	/*
