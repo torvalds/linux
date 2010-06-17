@@ -435,7 +435,7 @@ _scsih_determine_boot_device(struct MPT2SAS_ADAPTER *ioc,
 		    (ioc->bios_pg2.ReqBootDeviceForm &
 		    MPI2_BIOSPAGE2_FORM_MASK),
 		    &ioc->bios_pg2.RequestedBootDevice)) {
-			dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+			dinitprintk(ioc, printk(MPT2SAS_INFO_FMT
 			   "%s: req_boot_device(0x%016llx)\n",
 			    ioc->name, __func__,
 			    (unsigned long long)sas_address));
@@ -450,7 +450,7 @@ _scsih_determine_boot_device(struct MPT2SAS_ADAPTER *ioc,
 		    (ioc->bios_pg2.ReqAltBootDeviceForm &
 		    MPI2_BIOSPAGE2_FORM_MASK),
 		    &ioc->bios_pg2.RequestedAltBootDevice)) {
-			dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+			dinitprintk(ioc, printk(MPT2SAS_INFO_FMT
 			   "%s: req_alt_boot_device(0x%016llx)\n",
 			    ioc->name, __func__,
 			    (unsigned long long)sas_address));
@@ -465,7 +465,7 @@ _scsih_determine_boot_device(struct MPT2SAS_ADAPTER *ioc,
 		    (ioc->bios_pg2.CurrentBootDeviceForm &
 		    MPI2_BIOSPAGE2_FORM_MASK),
 		    &ioc->bios_pg2.CurrentBootDevice)) {
-			dinitprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+			dinitprintk(ioc, printk(MPT2SAS_INFO_FMT
 			   "%s: current_boot_device(0x%016llx)\n",
 			    ioc->name, __func__,
 			    (unsigned long long)sas_address));
@@ -566,7 +566,7 @@ _scsih_sas_device_add(struct MPT2SAS_ADAPTER *ioc,
 {
 	unsigned long flags;
 
-	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: handle"
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: handle"
 	    "(0x%04x), sas_addr(0x%016llx)\n", ioc->name, __func__,
 	    sas_device->handle, (unsigned long long)sas_device->sas_address));
 
@@ -593,7 +593,7 @@ _scsih_sas_device_init_add(struct MPT2SAS_ADAPTER *ioc,
 {
 	unsigned long flags;
 
-	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: handle"
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: handle"
 	    "(0x%04x), sas_addr(0x%016llx)\n", ioc->name, __func__,
 	    sas_device->handle, (unsigned long long)sas_device->sas_address));
 
@@ -695,7 +695,7 @@ _scsih_raid_device_add(struct MPT2SAS_ADAPTER *ioc,
 {
 	unsigned long flags;
 
-	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: handle"
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: handle"
 	    "(0x%04x), wwid(0x%016llx)\n", ioc->name, __func__,
 	    raid_device->handle, (unsigned long long)raid_device->wwid));
 
@@ -2002,7 +2002,7 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
 
 	ioc_state = mpt2sas_base_get_iocstate(ioc, 0);
 	if (ioc_state & MPI2_DOORBELL_USED) {
-		dhsprintk(ioc, printk(MPT2SAS_DEBUG_FMT "unexpected doorbell "
+		dhsprintk(ioc, printk(MPT2SAS_INFO_FMT "unexpected doorbell "
 		    "active!\n", ioc->name));
 		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 		    FORCE_BIG_HAMMER);
@@ -2806,7 +2806,7 @@ _scsih_check_topo_delete_events(struct MPT2SAS_ADAPTER *ioc,
 		    MPI2_EVENT_SAS_TOPO_ES_RESPONDING) {
 			if (le16_to_cpu(local_event_data->ExpanderDevHandle) ==
 			    expander_handle) {
-				dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+				dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
 				    "setting ignoring flag\n", ioc->name));
 				fw_event->ignore = 1;
 			}
@@ -4347,9 +4347,9 @@ _scsih_sas_topology_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 		status_str = "unknown status";
 		break;
 	}
-	printk(MPT2SAS_DEBUG_FMT "sas topology change: (%s)\n",
+	printk(MPT2SAS_INFO_FMT "sas topology change: (%s)\n",
 	    ioc->name, status_str);
-	printk(KERN_DEBUG "\thandle(0x%04x), enclosure_handle(0x%04x) "
+	printk(KERN_INFO "\thandle(0x%04x), enclosure_handle(0x%04x) "
 	    "start_phy(%02d), count(%d)\n",
 	    le16_to_cpu(event_data->ExpanderDevHandle),
 	    le16_to_cpu(event_data->EnclosureHandle),
@@ -4383,7 +4383,7 @@ _scsih_sas_topology_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 		}
 		link_rate = event_data->PHY[i].LinkRate >> 4;
 		prev_link_rate = event_data->PHY[i].LinkRate & 0xF;
-		printk(KERN_DEBUG "\tphy(%02d), attached_handle(0x%04x): %s:"
+		printk(KERN_INFO "\tphy(%02d), attached_handle(0x%04x): %s:"
 		    " link rate: new(0x%02x), old(0x%02x)\n", phy_number,
 		    handle, status_str, link_rate, prev_link_rate);
 
@@ -4427,7 +4427,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		_scsih_sas_host_refresh(ioc);
 
 	if (fw_event->ignore) {
-		dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "ignoring expander "
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "ignoring expander "
 		    "event\n", ioc->name));
 		return;
 	}
@@ -4453,7 +4453,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 	/* handle siblings events */
 	for (i = 0; i < event_data->NumEntries; i++) {
 		if (fw_event->ignore) {
-			dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "ignoring "
+			dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "ignoring "
 			    "expander event\n", ioc->name));
 			return;
 		}
@@ -4573,12 +4573,12 @@ _scsih_sas_device_status_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 		reason_str = "unknown reason";
 		break;
 	}
-	printk(MPT2SAS_DEBUG_FMT "device status change: (%s)\n"
+	printk(MPT2SAS_INFO_FMT "device status change: (%s)\n"
 	    "\thandle(0x%04x), sas address(0x%016llx)", ioc->name,
 	    reason_str, le16_to_cpu(event_data->DevHandle),
 	    (unsigned long long)le64_to_cpu(event_data->SASAddress));
 	if (event_data->ReasonCode == MPI2_EVENT_SAS_DEV_STAT_RC_SMART_DATA)
-		printk(MPT2SAS_DEBUG_FMT ", ASC(0x%x), ASCQ(0x%x)\n", ioc->name,
+		printk(MPT2SAS_INFO_FMT ", ASC(0x%x), ASCQ(0x%x)\n", ioc->name,
 		    event_data->ASC, event_data->ASCQ);
 	printk(KERN_INFO "\n");
 }
@@ -4662,7 +4662,7 @@ _scsih_sas_enclosure_dev_status_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 		break;
 	}
 
-	printk(MPT2SAS_DEBUG_FMT "enclosure status change: (%s)\n"
+	printk(MPT2SAS_INFO_FMT "enclosure status change: (%s)\n"
 	    "\thandle(0x%04x), enclosure logical id(0x%016llx)"
 	    " number slots(%d)\n", ioc->name, reason_str,
 	    le16_to_cpu(event_data->EnclosureHandle),
@@ -4713,10 +4713,10 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	Mpi2EventDataSasBroadcastPrimitive_t *event_data = fw_event->event_data;
 #endif
 	u16 ioc_status;
-	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "broadcast primative: "
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "broadcast primative: "
 	    "phy number(%d), width(%d)\n", ioc->name, event_data->PhyNum,
 	    event_data->PortWidth));
-	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
+	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
 	termination_count = 0;
@@ -4760,7 +4760,7 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	}
 	ioc->broadcast_aen_busy = 0;
 
-	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT
+	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT
 	    "%s - exit, query_count = %d termination_count = %d\n",
 	    ioc->name, __func__, query_count, termination_count));
 }
@@ -4781,7 +4781,7 @@ _scsih_sas_discovery_event(struct MPT2SAS_ADAPTER *ioc,
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	if (ioc->logging_level & MPT_DEBUG_EVENT_WORK_TASK) {
-		printk(MPT2SAS_DEBUG_FMT "discovery event: (%s)", ioc->name,
+		printk(MPT2SAS_INFO_FMT "discovery event: (%s)", ioc->name,
 		    (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED) ?
 		    "start" : "stop");
 	if (event_data->DiscoveryStatus)
@@ -5075,7 +5075,7 @@ _scsih_sas_ir_config_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 
 	element = (Mpi2EventIrConfigElement_t *)&event_data->ConfigElement[0];
 
-	printk(MPT2SAS_DEBUG_FMT "raid config change: (%s), elements(%d)\n",
+	printk(MPT2SAS_INFO_FMT "raid config change: (%s), elements(%d)\n",
 	    ioc->name, (le32_to_cpu(event_data->Flags) &
 	    MPI2_EVENT_IR_CHANGE_FLAGS_FOREIGN_CONFIG) ?
 	    "foreign" : "native", event_data->NumElements);
@@ -5128,7 +5128,7 @@ _scsih_sas_ir_config_change_event_debug(struct MPT2SAS_ADAPTER *ioc,
 			element_str = "unknown element";
 			break;
 		}
-		printk(KERN_DEBUG "\t(%s:%s), vol handle(0x%04x), "
+		printk(KERN_INFO "\t(%s:%s), vol handle(0x%04x), "
 		    "pd handle(0x%04x), pd num(0x%02x)\n", element_str,
 		    reason_str, le16_to_cpu(element->VolDevHandle),
 		    le16_to_cpu(element->PhysDiskDevHandle),
@@ -5218,7 +5218,7 @@ _scsih_sas_ir_volume_event(struct MPT2SAS_ADAPTER *ioc,
 
 	handle = le16_to_cpu(event_data->VolDevHandle);
 	state = le32_to_cpu(event_data->NewValue);
-	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: handle(0x%04x), "
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: handle(0x%04x), "
 	    "old(0x%08x), new(0x%08x)\n", ioc->name, __func__,  handle,
 	    le32_to_cpu(event_data->PreviousValue), state));
 
@@ -5306,7 +5306,7 @@ _scsih_sas_ir_physical_disk_event(struct MPT2SAS_ADAPTER *ioc,
 	handle = le16_to_cpu(event_data->PhysDiskDevHandle);
 	state = le32_to_cpu(event_data->NewValue);
 
-	dewtprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: handle(0x%04x), "
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: handle(0x%04x), "
 	    "old(0x%08x), new(0x%08x)\n", ioc->name, __func__,  handle,
 	    le32_to_cpu(event_data->PreviousValue), state));
 
@@ -5494,7 +5494,7 @@ _scsih_task_set_full(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
 	}
 
 	if (ioc->logging_level & MPT_DEBUG_TASK_SET_FULL)
-		starget_printk(KERN_DEBUG, sas_device->starget, "task set "
+		starget_printk(KERN_INFO, sas_device->starget, "task set "
 		    "full: handle(0x%04x), sas_addr(0x%016llx), depth(%d)\n",
 		    handle, (unsigned long long)sas_address, current_depth);
 
@@ -5885,11 +5885,11 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 {
 	switch (reset_phase) {
 	case MPT2_IOC_PRE_RESET:
-		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
+		dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: "
 		    "MPT2_IOC_PRE_RESET\n", ioc->name, __func__));
 		break;
 	case MPT2_IOC_AFTER_RESET:
-		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
+		dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: "
 		    "MPT2_IOC_AFTER_RESET\n", ioc->name, __func__));
 		if (ioc->scsih_cmds.status & MPT2_CMD_PENDING) {
 			ioc->scsih_cmds.status |= MPT2_CMD_RESET;
@@ -5906,7 +5906,7 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 		_scsih_queue_rescan(ioc);
 		break;
 	case MPT2_IOC_DONE_RESET:
-		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
+		dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: "
 		    "MPT2_IOC_DONE_RESET\n", ioc->name, __func__));
 		_scsih_sas_host_refresh(ioc);
 		_scsih_prep_device_scan(ioc);
