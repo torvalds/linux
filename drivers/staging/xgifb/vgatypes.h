@@ -5,7 +5,7 @@
 #include <linux/ioctl.h>
 
 #ifndef VBIOS_VER_MAX_LENGTH
-#define VBIOS_VER_MAX_LENGTH    4
+#define VBIOS_VER_MAX_LENGTH    5
 #endif
 
 #ifndef XGI_VB_CHIP_TYPE
