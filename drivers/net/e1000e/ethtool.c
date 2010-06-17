@@ -118,7 +118,6 @@ static int e1000_get_settings(struct net_device *netdev,
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	u32 status;
 
 	if (hw->phy.media_type == e1000_media_type_copper) {
 
@@ -156,22 +155,29 @@ static int e1000_get_settings(struct net_device *netdev,
 		ecmd->transceiver = XCVR_EXTERNAL;
 	}
 
-	status = er32(STATUS);
-	if (status & E1000_STATUS_LU) {
-		if (status & E1000_STATUS_SPEED_1000)
-			ecmd->speed = 1000;
-		else if (status & E1000_STATUS_SPEED_100)
-			ecmd->speed = 100;
-		else
-			ecmd->speed = 10;
+	ecmd->speed = -1;
+	ecmd->duplex = -1;
 
-		if (status & E1000_STATUS_FD)
-			ecmd->duplex = DUPLEX_FULL;
-		else
-			ecmd->duplex = DUPLEX_HALF;
+	if (netif_running(netdev)) {
+		if (netif_carrier_ok(netdev)) {
+			ecmd->speed = adapter->link_speed;
+			ecmd->duplex = adapter->link_duplex - 1;
+		}
 	} else {
-		ecmd->speed = -1;
-		ecmd->duplex = -1;
+		u32 status = er32(STATUS);
+		if (status & E1000_STATUS_LU) {
+			if (status & E1000_STATUS_SPEED_1000)
+				ecmd->speed = 1000;
+			else if (status & E1000_STATUS_SPEED_100)
+				ecmd->speed = 100;
+			else
+				ecmd->speed = 10;
+
+			if (status & E1000_STATUS_FD)
+				ecmd->duplex = DUPLEX_FULL;
+			else
+				ecmd->duplex = DUPLEX_HALF;
+		}
 	}
 
 	ecmd->autoneg = ((hw->phy.media_type == e1000_media_type_fiber) ||
@@ -179,7 +185,7 @@ static int e1000_get_settings(struct net_device *netdev,
 
 	/* MDI-X => 2; MDI =>1; Invalid =>0 */
 	if ((hw->phy.media_type == e1000_media_type_copper) &&
-	    !hw->mac.get_link_status)
+	    netif_carrier_ok(netdev))
 		ecmd->eth_tp_mdix = hw->phy.is_mdix ? ETH_TP_MDI_X :
 		                                      ETH_TP_MDI;
 	else
@@ -191,19 +197,15 @@ static int e1000_get_settings(struct net_device *netdev,
 static u32 e1000_get_link(struct net_device *netdev)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_mac_info *mac = &adapter->hw.mac;
+	struct e1000_hw *hw = &adapter->hw;
 
 	/*
-	 * If the link is not reported up to netdev, interrupts are disabled,
-	 * and so the physical link state may have changed since we last
-	 * looked. Set get_link_status to make sure that the true link
-	 * state is interrogated, rather than pulling a cached and possibly
-	 * stale link state from the driver.
+	 * Avoid touching hardware registers when possible, otherwise
+	 * link negotiation can get messed up when user-level scripts
+	 * are rapidly polling the driver to see if link is up.
 	 */
-	if (!netif_carrier_ok(netdev))
-		mac->get_link_status = 1;
-
-	return e1000e_has_link(adapter);
+	return netif_running(netdev) ? netif_carrier_ok(netdev) :
+	    !!(er32(STATUS) & E1000_STATUS_LU);
 }
 
 static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)
