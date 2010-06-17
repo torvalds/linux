@@ -39,6 +39,11 @@
 
 #include <wlioctl.h>
 
+#ifdef SET_RANDOM_MAC_SOFTAP
+#include <linux/random.h>
+#include <linux/jiffies.h>
+#endif
+
 #ifdef GET_CUSTOM_MAC_ENABLE
 int wifi_get_mac_addr(unsigned char *buf);
 #endif /* GET_CUSTOM_MAC_ENABLE */
@@ -1259,11 +1264,35 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
 		if (ret < 0) {
 			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
-		}
-		else
+		} else
 			memcpy(dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
 	}
 #endif /* GET_CUSTOM_MAC_ENABLE */
+
+#ifdef SET_RANDOM_MAC_SOFTAP
+	if (strstr(fw_path, "apsta") != NULL) {
+		uint rand_mac;
+		int ret;
+
+		memcpy(iovbuf, dhd->mac.octet, ETHER_ADDR_LEN);
+		srandom32((uint)jiffies);
+		rand_mac = random32();
+		iovbuf[0] |= 0x02;              /* locally administered bit */
+		iovbuf[3] = (unsigned char)rand_mac;
+		iovbuf[4] = (unsigned char)(rand_mac >> 8);
+		iovbuf[5] = (unsigned char)(rand_mac >> 16);
+
+		printk("Broadcom Dongle Host Driver mac=%02x:%02x:%02x:%02x:%02x:%02x\n",
+			iovbuf[0], iovbuf[1], iovbuf[2], iovbuf[3], iovbuf[4], iovbuf[5]);
+
+		bcm_mkiovar("cur_etheraddr", (void *)iovbuf, ETHER_ADDR_LEN, buf, sizeof(buf));
+		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+		if (ret < 0) {
+			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
+		} else
+			memcpy(dhd->mac.octet, iovbuf, ETHER_ADDR_LEN);
+	}
+#endif /* SET_RANDOM_MAC_SOFTAP */
 
 	/* Set Country code */
 	if (dhd->country_code[0] != 0) {
