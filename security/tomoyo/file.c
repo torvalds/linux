@@ -90,7 +90,7 @@ void tomoyo_put_name_union(struct tomoyo_name_union *ptr)
 	if (!ptr)
 		return;
 	if (ptr->is_group)
-		tomoyo_put_path_group(ptr->group);
+		tomoyo_put_group(ptr->group);
 	else
 		tomoyo_put_name(ptr->filename);
 }
@@ -106,7 +106,7 @@ bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 void tomoyo_put_number_union(struct tomoyo_number_union *ptr)
 {
 	if (ptr && ptr->is_group)
-		tomoyo_put_number_group(ptr->group);
+		tomoyo_put_group(ptr->group);
 }
 
 bool tomoyo_compare_number_union(const unsigned long value,

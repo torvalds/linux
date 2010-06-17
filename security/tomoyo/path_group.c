@@ -10,16 +10,16 @@
 LIST_HEAD(tomoyo_path_group_list);
 
 /**
- * tomoyo_get_path_group - Allocate memory for "struct tomoyo_path_group".
+ * tomoyo_get_group - Allocate memory for "struct tomoyo_path_group".
  *
  * @group_name: The name of pathname group.
  *
  * Returns pointer to "struct tomoyo_path_group" on success, NULL otherwise.
  */
-struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name)
+struct tomoyo_group *tomoyo_get_path_group(const char *group_name)
 {
-	struct tomoyo_path_group *entry = NULL;
-	struct tomoyo_path_group *group = NULL;
+	struct tomoyo_group *entry = NULL;
+	struct tomoyo_group *group = NULL;
 	const struct tomoyo_path_info *saved_group_name;
 	int error = -ENOMEM;
 	if (!tomoyo_correct_word(group_name))
@@ -57,9 +57,9 @@ struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name)
 static bool tomoyo_same_path_group(const struct tomoyo_acl_head *a,
 				   const struct tomoyo_acl_head *b)
 {
-	return container_of(a, struct tomoyo_path_group_member, head)
+	return container_of(a, struct tomoyo_path_group, head)
 		->member_name ==
-		container_of(b, struct tomoyo_path_group_member, head)
+		container_of(b, struct tomoyo_path_group, head)
 		->member_name;
 }
 
@@ -73,8 +73,8 @@ static bool tomoyo_same_path_group(const struct tomoyo_acl_head *a,
  */
 int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 {
-	struct tomoyo_path_group *group;
-	struct tomoyo_path_group_member e = { };
+	struct tomoyo_group *group;
+	struct tomoyo_path_group e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 	char *w[2];
 	if (!tomoyo_tokenize(data, w, sizeof(w)) || !w[1][0])
@@ -90,7 +90,7 @@ int tomoyo_write_path_group_policy(char *data, const bool is_delete)
 				     tomoyo_same_path_group);
  out:
 	tomoyo_put_name(e.member_name);
-	tomoyo_put_path_group(group);
+	tomoyo_put_group(group);
 	return error;
 }
 
@@ -108,13 +108,13 @@ bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head)
 	struct list_head *gpos;
 	struct list_head *mpos;
 	list_for_each_cookie(gpos, head->read_var1, &tomoyo_path_group_list) {
-		struct tomoyo_path_group *group;
-		group = list_entry(gpos, struct tomoyo_path_group, list);
+		struct tomoyo_group *group;
+		group = list_entry(gpos, struct tomoyo_group, list);
 		list_for_each_cookie(mpos, head->read_var2,
 				     &group->member_list) {
-			struct tomoyo_path_group_member *member;
+			struct tomoyo_path_group *member;
 			member = list_entry(mpos,
-					    struct tomoyo_path_group_member,
+					    struct tomoyo_path_group,
 					    head.list);
 			if (member->head.is_deleted)
 				continue;
@@ -139,9 +139,9 @@ bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head)
  * Caller holds tomoyo_read_lock().
  */
 bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			       const struct tomoyo_path_group *group)
+			       const struct tomoyo_group *group)
 {
-	struct tomoyo_path_group_member *member;
+	struct tomoyo_path_group *member;
 	bool matched = false;
 	list_for_each_entry_rcu(member, &group->member_list, head.list) {
 		if (member->head.is_deleted)

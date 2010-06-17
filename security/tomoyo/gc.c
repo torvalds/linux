@@ -12,10 +12,9 @@
 #include <linux/slab.h>
 
 enum tomoyo_policy_id {
+	TOMOYO_ID_GROUP,
 	TOMOYO_ID_PATH_GROUP,
-	TOMOYO_ID_PATH_GROUP_MEMBER,
 	TOMOYO_ID_NUMBER_GROUP,
-	TOMOYO_ID_NUMBER_GROUP_MEMBER,
 	TOMOYO_ID_DOMAIN_INITIALIZER,
 	TOMOYO_ID_DOMAIN_KEEPER,
 	TOMOYO_ID_AGGREGATOR,
@@ -207,31 +206,24 @@ static void tomoyo_del_name(struct list_head *element)
 		container_of(element, typeof(*ptr), list);
 }
 
-static void tomoyo_del_path_group_member(struct list_head *element)
+static void tomoyo_del_path_group(struct list_head *element)
 {
-	struct tomoyo_path_group_member *member =
+	struct tomoyo_path_group *member =
 		container_of(element, typeof(*member), head.list);
 	tomoyo_put_name(member->member_name);
 }
 
-static void tomoyo_del_path_group(struct list_head *element)
+static void tomoyo_del_group(struct list_head *element)
 {
-	struct tomoyo_path_group *group =
+	struct tomoyo_group *group =
 		container_of(element, typeof(*group), list);
 	tomoyo_put_name(group->group_name);
-}
-
-static void tomoyo_del_number_group_member(struct list_head *element)
-{
-	struct tomoyo_number_group_member *member =
-		container_of(element, typeof(*member), head.list);
 }
 
 static void tomoyo_del_number_group(struct list_head *element)
 {
-	struct tomoyo_number_group *group =
-		container_of(element, typeof(*group), list);
-	tomoyo_put_name(group->group_name);
+	struct tomoyo_number_group *member =
+		container_of(element, typeof(*member), head.list);
 }
 
 static struct list_head *tomoyo_policy_list[TOMOYO_MAX_POLICY] = {
@@ -305,28 +297,28 @@ static void tomoyo_collect_entry(void)
 		}
 	}
 	{
-		struct tomoyo_path_group *group;
+		struct tomoyo_group *group;
 		list_for_each_entry_rcu(group, &tomoyo_path_group_list, list) {
 			tomoyo_collect_member(&group->member_list,
-					      TOMOYO_ID_PATH_GROUP_MEMBER);
+					      TOMOYO_ID_PATH_GROUP);
 			if (!list_empty(&group->member_list) ||
 			    atomic_read(&group->users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_PATH_GROUP,
+			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
 					      &group->list))
 				goto unlock;
 		}
 	}
 	{
-		struct tomoyo_number_group *group;
+		struct tomoyo_group *group;
 		list_for_each_entry_rcu(group, &tomoyo_number_group_list,
 					list) {
 			tomoyo_collect_member(&group->member_list,
-					      TOMOYO_ID_NUMBER_GROUP_MEMBER);
+					      TOMOYO_ID_NUMBER_GROUP);
 			if (!list_empty(&group->member_list) ||
 			    atomic_read(&group->users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_NUMBER_GROUP,
+			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
 					      &group->list))
 				goto unlock;
 		}
@@ -377,14 +369,11 @@ static void tomoyo_kfree_entry(void)
 			if (!tomoyo_del_domain(element))
 				continue;
 			break;
-		case TOMOYO_ID_PATH_GROUP_MEMBER:
-			tomoyo_del_path_group_member(element);
-			break;
 		case TOMOYO_ID_PATH_GROUP:
 			tomoyo_del_path_group(element);
 			break;
-		case TOMOYO_ID_NUMBER_GROUP_MEMBER:
-			tomoyo_del_number_group_member(element);
+		case TOMOYO_ID_GROUP:
+			tomoyo_del_group(element);
 			break;
 		case TOMOYO_ID_NUMBER_GROUP:
 			tomoyo_del_number_group(element);

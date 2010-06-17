@@ -11,17 +11,17 @@
 LIST_HEAD(tomoyo_number_group_list);
 
 /**
- * tomoyo_get_number_group - Allocate memory for "struct tomoyo_number_group".
+ * tomoyo_get_group - Allocate memory for "struct tomoyo_number_group".
  *
  * @group_name: The name of number group.
  *
  * Returns pointer to "struct tomoyo_number_group" on success,
  * NULL otherwise.
  */
-struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name)
+struct tomoyo_group *tomoyo_get_number_group(const char *group_name)
 {
-	struct tomoyo_number_group *entry = NULL;
-	struct tomoyo_number_group *group = NULL;
+	struct tomoyo_group *entry = NULL;
+	struct tomoyo_group *group = NULL;
 	const struct tomoyo_path_info *saved_group_name;
 	int error = -ENOMEM;
 	if (!tomoyo_correct_word(group_name))
@@ -59,12 +59,12 @@ struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name)
 static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
 				     const struct tomoyo_acl_head *b)
 {
-	return !memcmp(&container_of(a, struct tomoyo_number_group_member,
+	return !memcmp(&container_of(a, struct tomoyo_number_group,
 				     head)->number,
-		       &container_of(b, struct tomoyo_number_group_member,
+		       &container_of(b, struct tomoyo_number_group,
 				     head)->number,
 		       sizeof(container_of(a,
-					   struct tomoyo_number_group_member,
+					   struct tomoyo_number_group,
 					   head)->number));
 }
 
@@ -78,8 +78,8 @@ static bool tomoyo_same_number_group(const struct tomoyo_acl_head *a,
  */
 int tomoyo_write_number_group_policy(char *data, const bool is_delete)
 {
-	struct tomoyo_number_group *group;
-	struct tomoyo_number_group_member e = { };
+	struct tomoyo_group *group;
+	struct tomoyo_number_group e = { };
 	int error;
 	char *w[2];
 	if (!tomoyo_tokenize(data, w, sizeof(w)))
@@ -93,7 +93,7 @@ int tomoyo_write_number_group_policy(char *data, const bool is_delete)
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
 				     &group->member_list,
 				     tomoyo_same_number_group);
-	tomoyo_put_number_group(group);
+	tomoyo_put_group(group);
 	return error;
 }
 
@@ -111,16 +111,16 @@ bool tomoyo_read_number_group_policy(struct tomoyo_io_buffer *head)
 	struct list_head *gpos;
 	struct list_head *mpos;
 	list_for_each_cookie(gpos, head->read_var1, &tomoyo_number_group_list) {
-		struct tomoyo_number_group *group;
+		struct tomoyo_group *group;
 		const char *name;
-		group = list_entry(gpos, struct tomoyo_number_group, list);
+		group = list_entry(gpos, struct tomoyo_group, list);
 		name = group->group_name->name;
 		list_for_each_cookie(mpos, head->read_var2,
 				     &group->member_list) {
 			int pos;
-			const struct tomoyo_number_group_member *member
+			const struct tomoyo_number_group *member
 				= list_entry(mpos,
-					     struct tomoyo_number_group_member,
+					     struct tomoyo_number_group,
 					     head.list);
 			if (member->head.is_deleted)
 				continue;
@@ -150,9 +150,9 @@ bool tomoyo_read_number_group_policy(struct tomoyo_io_buffer *head)
  */
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
-				 const struct tomoyo_number_group *group)
+				 const struct tomoyo_group *group)
 {
-	struct tomoyo_number_group_member *member;
+	struct tomoyo_number_group *member;
 	bool matched = false;
 	list_for_each_entry_rcu(member, &group->member_list, head.list) {
 		if (member->head.is_deleted)

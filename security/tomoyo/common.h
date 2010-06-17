@@ -291,42 +291,34 @@ struct tomoyo_name_entry {
 
 struct tomoyo_name_union {
 	const struct tomoyo_path_info *filename;
-	struct tomoyo_path_group *group;
+	struct tomoyo_group *group;
 	u8 is_group;
 };
 
 struct tomoyo_number_union {
 	unsigned long values[2];
-	struct tomoyo_number_group *group;
+	struct tomoyo_group *group;
 	u8 min_type;
 	u8 max_type;
 	u8 is_group;
 };
 
+/* Structure for "path_group"/"number_group" directive. */
+struct tomoyo_group {
+	struct list_head list;
+	const struct tomoyo_path_info *group_name;
+	struct list_head member_list;
+	atomic_t users;
+};
+
 /* Structure for "path_group" directive. */
 struct tomoyo_path_group {
-	struct list_head list;
-	const struct tomoyo_path_info *group_name;
-	struct list_head member_list;
-	atomic_t users;
-};
-
-/* Structure for "number_group" directive. */
-struct tomoyo_number_group {
-	struct list_head list;
-	const struct tomoyo_path_info *group_name;
-	struct list_head member_list;
-	atomic_t users;
-};
-
-/* Structure for "path_group" directive. */
-struct tomoyo_path_group_member {
 	struct tomoyo_acl_head head;
 	const struct tomoyo_path_info *member_name;
 };
 
 /* Structure for "number_group" directive. */
-struct tomoyo_number_group_member {
+struct tomoyo_number_group {
 	struct tomoyo_acl_head head;
 	struct tomoyo_number_union number;
 };
@@ -766,11 +758,11 @@ bool tomoyo_parse_name_union(const char *filename,
 			     struct tomoyo_name_union *ptr);
 /* Check whether the given filename matches the given path_group. */
 bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			       const struct tomoyo_path_group *group);
+			       const struct tomoyo_group *group);
 /* Check whether the given value matches the given number_group. */
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
-				 const struct tomoyo_number_group *group);
+				 const struct tomoyo_group *group);
 /* Check whether the given filename matches the given pattern. */
 bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 				 const struct tomoyo_path_info *pattern);
@@ -858,8 +850,8 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    const u8 profile);
 struct tomoyo_profile *tomoyo_profile(const u8 profile);
 /* Allocate memory for "struct tomoyo_path_group". */
-struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name);
-struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name);
+struct tomoyo_group *tomoyo_get_path_group(const char *group_name);
+struct tomoyo_group *tomoyo_get_number_group(const char *group_name);
 
 /* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
@@ -1039,13 +1031,7 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 	}
 }
 
-static inline void tomoyo_put_path_group(struct tomoyo_path_group *group)
-{
-	if (group)
-		atomic_dec(&group->users);
-}
-
-static inline void tomoyo_put_number_group(struct tomoyo_number_group *group)
+static inline void tomoyo_put_group(struct tomoyo_group *group)
 {
 	if (group)
 		atomic_dec(&group->users);
