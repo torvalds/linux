@@ -872,7 +872,7 @@ static void __init prom_send_capabilities(void)
 				    "ibm_architecture_vec structure inconsistent: 0x%x !\n",
 				    *cores);
 		} else {
-			*cores = NR_CPUS / prom_count_smt_threads();
+			*cores = DIV_ROUND_UP(NR_CPUS, prom_count_smt_threads());
 			prom_printf("Max number of cores passed to firmware: 0x%x\n",
 				    (unsigned long)*cores);
 		}
