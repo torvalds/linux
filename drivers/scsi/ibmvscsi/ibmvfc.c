@@ -2311,6 +2311,7 @@ static int ibmvfc_eh_abort_handler(struct scsi_cmnd *cmd)
 	int rc = FAILED;
 
 	ENTER;
+	fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
 	cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_ABORT_TASK_SET);
 	abort_rc = ibmvfc_abort_task_set(sdev);
@@ -2337,6 +2338,7 @@ static int ibmvfc_eh_device_reset_handler(struct scsi_cmnd *cmd)
 	int rc = FAILED;
 
 	ENTER;
+	fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
 	cancel_rc = ibmvfc_cancel_all(sdev, IBMVFC_TMF_LUN_RESET);
 	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_LUN_RESET, "LUN");
@@ -2401,6 +2403,7 @@ static int ibmvfc_eh_target_reset_handler(struct scsi_cmnd *cmd)
 	unsigned long cancel_rc = 0;
 
 	ENTER;
+	fc_block_scsi_eh(cmd);
 	ibmvfc_wait_while_resetting(vhost);
 	starget_for_each_device(starget, &cancel_rc, ibmvfc_dev_cancel_all_reset);
 	reset_rc = ibmvfc_reset_device(sdev, IBMVFC_TARGET_RESET, "target");
@@ -2422,6 +2425,7 @@ static int ibmvfc_eh_host_reset_handler(struct scsi_cmnd *cmd)
 	int rc;
 	struct ibmvfc_host *vhost = shost_priv(cmd->device->host);
 
+	fc_block_scsi_eh(cmd);
 	dev_err(vhost->dev, "Resetting connection due to error recovery\n");
 	rc = ibmvfc_issue_fc_host_lip(vhost->host);
 	return rc ? FAILED : SUCCESS;
