@@ -6974,6 +6974,7 @@ mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
 
 	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
 	if (ioc->taskmgmt_in_progress) {
+		ioc->ioc_reset_in_progress = 0;
 		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
 		return -1;
 	}
