@@ -227,7 +227,7 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
 	struct ath9k_tx_queue_info qi, qi_be;
-	int qnum = priv->hwq_map[ATH9K_WME_AC_BE];
+	int qnum = priv->hwq_map[WME_AC_BE];
 
 	memset(&qi, 0, sizeof(struct ath9k_tx_queue_info));
 	memset(&qi_be, 0, sizeof(struct ath9k_tx_queue_info));

@@ -313,4 +313,6 @@ void ar9003_hw_attach_ops(struct ath_hw *ah)
 	ar9003_hw_attach_phy_ops(ah);
 	ar9003_hw_attach_calib_ops(ah);
 	ar9003_hw_attach_mac_ops(ah);
+
+	ath9k_hw_attach_ani_ops_new(ah);
 }

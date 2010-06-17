@@ -19,7 +19,6 @@
 #include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
-#include <linux/inetdevice.h>
 #include <net/cfg80211.h>
 
 /**
@@ -147,6 +146,7 @@ struct ieee80211_low_level_stats {
  *	enabled/disabled (beaconing modes)
  * @BSS_CHANGED_CQM: Connection quality monitor config changed
  * @BSS_CHANGED_IBSS: IBSS join status changed
+ * @BSS_CHANGED_ARP_FILTER: Hardware ARP filter address list or state changed.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -161,9 +161,17 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
 	BSS_CHANGED_CQM			= 1<<10,
 	BSS_CHANGED_IBSS		= 1<<11,
+	BSS_CHANGED_ARP_FILTER		= 1<<12,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
+
+/*
+ * The maximum number of IPv4 addresses listed for ARP filtering. If the number
+ * of addresses for an interface increase beyond this value, hardware ARP
+ * filtering will be disabled.
+ */
+#define IEEE80211_BSS_ARP_ADDR_LIST_LEN 4
 
 /**
  * struct ieee80211_bss_conf - holds the BSS's changing parameters
@@ -200,6 +208,15 @@ enum ieee80211_bss_change {
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
  *	implies disabled
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
+ * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
+ *	may filter ARP queries targeted for other addresses than listed here.
+ *	The driver must allow ARP queries targeted for all address listed here
+ *	to pass through. An empty list implies no ARP queries need to pass.
+ * @arp_addr_cnt: Number of addresses currently on the list.
+ * @arp_filter_enabled: Enable ARP filtering - if enabled, the hardware may
+ *	filter ARP queries based on the @arp_addr_list, if disabled, the
+ *	hardware must not perform any ARP filtering. Note, that the filter will
+ *	be enabled also in promiscuous mode.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -220,6 +237,9 @@ struct ieee80211_bss_conf {
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
 	enum nl80211_channel_type channel_type;
+	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
+	u8 arp_addr_cnt;
+	bool arp_filter_enabled;
 };
 
 /**
@@ -675,9 +695,6 @@ enum ieee80211_smps_mode {
  * @dynamic_ps_timeout: The dynamic powersave timeout (in ms), see the
  *	powersave documentation below. This variable is valid only when
  *	the CONF_PS flag is set.
- * @dynamic_ps_forced_timeout: The dynamic powersave timeout (in ms) configured
- *	by cfg80211 (essentially, wext) If set, this value overrules the value
- *	chosen by mac80211 based on ps qos network latency.
  *
  * @power_level: requested transmit power (in dBm)
  *
@@ -697,7 +714,7 @@ enum ieee80211_smps_mode {
  */
 struct ieee80211_conf {
 	u32 flags;
-	int power_level, dynamic_ps_timeout, dynamic_ps_forced_timeout;
+	int power_level, dynamic_ps_timeout;
 	int max_sleep_period;
 
 	u16 listen_interval;
@@ -1445,7 +1462,7 @@ enum ieee80211_filter_flags {
  *
  * Note that drivers MUST be able to deal with a TX aggregation
  * session being stopped even before they OK'ed starting it by
- * calling ieee80211_start_tx_ba_cb(_irqsafe), because the peer
+ * calling ieee80211_start_tx_ba_cb_irqsafe, because the peer
  * might receive the addBA frame and send a delBA right away!
  *
  * @IEEE80211_AMPDU_RX_START: start Rx aggregation
@@ -1528,16 +1545,6 @@ enum ieee80211_ampdu_mlme_action {
  *	for association indication. The @changed parameter indicates which
  *	of the bss parameters has changed when a call is made. The callback
  *	can sleep.
- *
- * @configure_arp_filter: Configuration function for hardware ARP query filter.
- *	This function is called with all the IP addresses configured to the
- *	interface as argument - all ARP queries targeted to any of these
- *	addresses must pass through. If the hardware filter does not support
- *	enought addresses, hardware filtering must be disabled. The ifa_list
- *	argument may be NULL, indicating that filtering must be disabled.
- *	This function is called upon association complete with current
- *	address(es), and while associated whenever the IP address(es) change.
- *	The callback can sleep.
  *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
@@ -1640,7 +1647,7 @@ enum ieee80211_ampdu_mlme_action {
  * 	is the first frame we expect to perform the action on. Notice
  * 	that TX/RX_STOP can pass NULL for this parameter.
  *	Returns a negative error code on failure.
- *	The callback must be atomic.
+ *	The callback can sleep.
  *
  * @get_survey: Return per-channel survey information
  *
@@ -1678,9 +1685,6 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
-	int (*configure_arp_filter)(struct ieee80211_hw *hw,
-				    struct ieee80211_vif *vif,
-				    struct in_ifaddr *ifa_list);
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
@@ -2314,25 +2318,14 @@ void ieee80211_queue_delayed_work(struct ieee80211_hw *hw,
 int ieee80211_start_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
- * ieee80211_start_tx_ba_cb - low level driver ready to aggregate.
- * @vif: &struct ieee80211_vif pointer from the add_interface callback
- * @ra: receiver address of the BA session recipient.
- * @tid: the TID to BA on.
- *
- * This function must be called by low level driver once it has
- * finished with preparations for the BA session.
- */
-void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid);
-
-/**
  * ieee80211_start_tx_ba_cb_irqsafe - low level driver ready to aggregate.
  * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the TID to BA on.
  *
  * This function must be called by low level driver once it has
- * finished with preparations for the BA session.
- * This version of the function is IRQ-safe.
+ * finished with preparations for the BA session. It can be called
+ * from any context.
  */
 void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				      u16 tid);
@@ -2351,25 +2344,14 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
- * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
- * @vif: &struct ieee80211_vif pointer from the add_interface callback
- * @ra: receiver address of the BA session recipient.
- * @tid: the desired TID to BA on.
- *
- * This function must be called by low level driver once it has
- * finished with preparations for the BA session tear down.
- */
-void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid);
-
-/**
  * ieee80211_stop_tx_ba_cb_irqsafe - low level driver ready to stop aggregate.
  * @vif: &struct ieee80211_vif pointer from the add_interface callback
  * @ra: receiver address of the BA session recipient.
  * @tid: the desired TID to BA on.
  *
  * This function must be called by low level driver once it has
- * finished with preparations for the BA session tear down.
- * This version of the function is IRQ-safe.
+ * finished with preparations for the BA session tear down. It
+ * can be called from any context.
  */
 void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
 				     u16 tid);

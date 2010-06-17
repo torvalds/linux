@@ -486,7 +486,7 @@ int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 
 	/* Tell device where to find RBD circular buffer in DRAM */
 	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-			   (u32)(rxq->dma_addr >> 8));
+			   (u32)(rxq->bd_dma >> 8));
 
 	/* Tell device where in DRAM to update its Rx status */
 	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
@@ -751,7 +751,7 @@ void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 	}
 
 	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->dma_addr);
+			  rxq->bd_dma);
 	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
 			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;
@@ -904,7 +904,7 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
-	struct iwl4965_rx_mpdu_res_start *amsdu;
+	struct iwl_rx_mpdu_res_start *amsdu;
 	u32 len;
 	u32 ampdu_status;
 	u32 rate_n_flags;
@@ -933,7 +933,7 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			return;
 		}
 		phy_res = &priv->_agn.last_phy_res;
-		amsdu = (struct iwl4965_rx_mpdu_res_start *)pkt->u.raw;
+		amsdu = (struct iwl_rx_mpdu_res_start *)pkt->u.raw;
 		header = (struct ieee80211_hdr *)(pkt->u.raw + sizeof(*amsdu));
 		len = le16_to_cpu(amsdu->byte_count);
 		rx_pkt_status = *(__le32 *)(pkt->u.raw + sizeof(*amsdu) + len);

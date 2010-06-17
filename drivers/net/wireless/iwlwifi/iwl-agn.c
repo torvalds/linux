@@ -941,6 +941,8 @@ void iwl_rx_handle(struct iwl_priv *priv)
 		fill_rx = 1;
 
 	while (i != r) {
+		int len;
+
 		rxb = rxq->queue[i];
 
 		/* If an RXB doesn't have a Rx queue slot associated with it,
@@ -955,8 +957,9 @@ void iwl_rx_handle(struct iwl_priv *priv)
 			       PCI_DMA_FROMDEVICE);
 		pkt = rxb_addr(rxb);
 
-		trace_iwlwifi_dev_rx(priv, pkt,
-			le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len += sizeof(u32); /* account for status word */
+		trace_iwlwifi_dev_rx(priv, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -3462,10 +3465,12 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	int ret;
 	u8 sta_id;
 
-	sta_priv->common.sta_id = IWL_INVALID_STATION;
-
 	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
 			sta->addr);
+	mutex_lock(&priv->mutex);
+	IWL_DEBUG_INFO(priv, "proceeding to add station %pM\n",
+			sta->addr);
+	sta_priv->common.sta_id = IWL_INVALID_STATION;
 
 	atomic_set(&sta_priv->pending_frames, 0);
 	if (vif->type == NL80211_IFTYPE_AP)
@@ -3477,6 +3482,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
+		mutex_unlock(&priv->mutex);
 		return ret;
 	}
 
@@ -3486,6 +3492,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl_rs_rate_init(priv, sta, sta_id);
+	mutex_unlock(&priv->mutex);
 
 	return 0;
 }
@@ -3638,6 +3645,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->scan_check);
 	cancel_work_sync(&priv->start_internal_scan);
 	cancel_delayed_work(&priv->alive_start);
+	cancel_work_sync(&priv->run_time_calib_work);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
 	del_timer_sync(&priv->ucode_trace);

@@ -365,7 +365,7 @@ minstrel_aggr_check(struct minstrel_priv *mp, struct ieee80211_sta *pubsta, stru
 		return;
 
 	tid = *ieee80211_get_qos_ctl(hdr) & IEEE80211_QOS_CTL_TID_MASK;
-	if (likely(sta->ampdu_mlme.tid_state_tx[tid] != HT_AGG_STATE_IDLE))
+	if (likely(sta->ampdu_mlme.tid_tx[tid]))
 		return;
 
 	ieee80211_start_tx_ba_session(pubsta, tid);

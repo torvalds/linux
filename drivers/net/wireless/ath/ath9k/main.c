@@ -51,13 +51,11 @@ static void ath_cache_conf_rate(struct ath_softc *sc,
 static void ath_update_txpow(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
-	u32 txpow;
 
 	if (sc->curtxpow != sc->config.txpowlimit) {
 		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit);
 		/* read back in case value is clamped */
-		ath9k_hw_getcapability(ah, ATH9K_CAP_TXPOW, 1, &txpow);
-		sc->curtxpow = txpow;
+		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 	}
 }
 
@@ -232,6 +230,113 @@ int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	return r;
 }
 
+static void ath_paprd_activate(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	int chain;
+
+	if (!ah->curchan->paprd_done)
+		return;
+
+	ath9k_ps_wakeup(sc);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->caps.tx_chainmask & BIT(chain)))
+			continue;
+
+		ar9003_paprd_populate_single_table(ah, ah->curchan, chain);
+	}
+
+	ar9003_paprd_enable(ah, true);
+	ath9k_ps_restore(sc);
+}
+
+void ath_paprd_calibrate(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, paprd_work);
+	struct ieee80211_hw *hw = sc->hw;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ieee80211_hdr *hdr;
+	struct sk_buff *skb = NULL;
+	struct ieee80211_tx_info *tx_info;
+	int band = hw->conf.channel->band;
+	struct ieee80211_supported_band *sband = &sc->sbands[band];
+	struct ath_tx_control txctl;
+	int qnum, ftype;
+	int chain_ok = 0;
+	int chain;
+	int len = 1800;
+	int time_left;
+	int i;
+
+	ath9k_ps_wakeup(sc);
+	skb = alloc_skb(len, GFP_KERNEL);
+	if (!skb)
+		return;
+
+	tx_info = IEEE80211_SKB_CB(skb);
+
+	skb_put(skb, len);
+	memset(skb->data, 0, len);
+	hdr = (struct ieee80211_hdr *)skb->data;
+	ftype = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC;
+	hdr->frame_control = cpu_to_le16(ftype);
+	hdr->duration_id = 10;
+	memcpy(hdr->addr1, hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr2, hw->wiphy->perm_addr, ETH_ALEN);
+	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
+
+	memset(&txctl, 0, sizeof(txctl));
+	qnum = sc->tx.hwq_map[WME_AC_BE];
+	txctl.txq = &sc->tx.txq[qnum];
+
+	ar9003_paprd_init_table(ah);
+	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
+		if (!(ah->caps.tx_chainmask & BIT(chain)))
+			continue;
+
+		chain_ok = 0;
+		memset(tx_info, 0, sizeof(*tx_info));
+		tx_info->band = band;
+
+		for (i = 0; i < 4; i++) {
+			tx_info->control.rates[i].idx = sband->n_bitrates - 1;
+			tx_info->control.rates[i].count = 6;
+		}
+
+		init_completion(&sc->paprd_complete);
+		ar9003_paprd_setup_gain_table(ah, chain);
+		txctl.paprd = BIT(chain);
+		if (ath_tx_start(hw, skb, &txctl) != 0)
+			break;
+
+		time_left = wait_for_completion_timeout(&sc->paprd_complete,
+							100);
+		if (!time_left) {
+			ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
+				  "Timeout waiting for paprd training on "
+				  "TX chain %d\n",
+				  chain);
+			break;
+		}
+
+		if (!ar9003_paprd_is_done(ah))
+			break;
+
+		if (ar9003_paprd_create_curve(ah, ah->curchan, chain) != 0)
+			break;
+
+		chain_ok = 1;
+	}
+	kfree_skb(skb);
+
+	if (chain_ok) {
+		ah->curchan->paprd_done = true;
+		ath_paprd_activate(sc);
+	}
+
+	ath9k_ps_restore(sc);
+}
+
 /*
  *  This routine performs the periodic noise floor calibration function
  *  that is used to adjust and optimize the chip performance.  This
@@ -285,7 +390,8 @@ void ath_ani_calibrate(unsigned long data)
 	}
 
 	/* Verify whether we must check ANI */
-	if ((timestamp - common->ani.checkani_timer) >= ATH_ANI_POLLINTERVAL) {
+	if ((timestamp - common->ani.checkani_timer) >=
+	     ah->config.ani_poll_interval) {
 		aniflag = true;
 		common->ani.checkani_timer = timestamp;
 	}
@@ -326,15 +432,24 @@ set_timer:
 	*/
 	cal_interval = ATH_LONG_CALINTERVAL;
 	if (sc->sc_ah->config.enable_ani)
-		cal_interval = min(cal_interval, (u32)ATH_ANI_POLLINTERVAL);
+		cal_interval = min(cal_interval,
+				   (u32)ah->config.ani_poll_interval);
 	if (!common->ani.caldone)
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) &&
+	    !(sc->sc_flags & SC_OP_SCANNING)) {
+		if (!sc->sc_ah->curchan->paprd_done)
+			ieee80211_queue_work(sc->hw, &sc->paprd_work);
+		else
+			ath_paprd_activate(sc);
+	}
 }
 
 static void ath_start_ani(struct ath_common *common)
 {
+	struct ath_hw *ah = common->ah;
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
 
 	common->ani.longcal_timer = timestamp;
@@ -342,7 +457,8 @@ static void ath_start_ani(struct ath_common *common)
 	common->ani.checkani_timer = timestamp;
 
 	mod_timer(&common->ani.timer,
-		  jiffies + msecs_to_jiffies(ATH_ANI_POLLINTERVAL));
+		  jiffies +
+			msecs_to_jiffies((u32)ah->config.ani_poll_interval));
 }
 
 /*
@@ -804,25 +920,25 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	return r;
 }
 
-int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
+static int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
 {
 	int qnum;
 
 	switch (queue) {
 	case 0:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_VO];
+		qnum = sc->tx.hwq_map[WME_AC_VO];
 		break;
 	case 1:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_VI];
+		qnum = sc->tx.hwq_map[WME_AC_VI];
 		break;
 	case 2:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_BE];
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		break;
 	case 3:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_BK];
+		qnum = sc->tx.hwq_map[WME_AC_BK];
 		break;
 	default:
-		qnum = sc->tx.hwq_map[ATH9K_WME_AC_BE];
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		break;
 	}
 
@@ -834,16 +950,16 @@ int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc)
 	int qnum;
 
 	switch (queue) {
-	case ATH9K_WME_AC_VO:
+	case WME_AC_VO:
 		qnum = 0;
 		break;
-	case ATH9K_WME_AC_VI:
+	case WME_AC_VI:
 		qnum = 1;
 		break;
-	case ATH9K_WME_AC_BE:
+	case WME_AC_BE:
 		qnum = 2;
 		break;
-	case ATH9K_WME_AC_BK:
+	case WME_AC_BK:
 		qnum = 3;
 		break;
 	default:
@@ -1127,6 +1243,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&sc->ath_led_blink_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
+	cancel_work_sync(&sc->paprd_work);
 
 	if (!sc->num_sec_wiphy) {
 		cancel_delayed_work_sync(&sc->wiphy_work);
@@ -1555,7 +1672,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
 
 	if (sc->sc_ah->opmode == NL80211_IFTYPE_ADHOC)
-		if ((qnum == sc->tx.hwq_map[ATH9K_WME_AC_BE]) && !ret)
+		if ((qnum == sc->tx.hwq_map[WME_AC_BE]) && !ret)
 			ath_beaconq_config(sc);
 
 	mutex_unlock(&sc->mutex);
@@ -1769,6 +1886,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	struct ath_softc *sc = aphy->sc;
 	int ret = 0;
 
+	local_bh_disable();
+
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		if (!(sc->sc_flags & SC_OP_RXAGGR))
@@ -1797,6 +1916,8 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		ath_print(ath9k_hw_common(sc->sc_ah), ATH_DBG_FATAL,
 			  "Unknown AMPDU action\n");
 	}
+
+	local_bh_enable();
 
 	return ret;
 }
@@ -1842,6 +1963,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	ath9k_wiphy_pause_all_forced(sc, aphy);
 	sc->sc_flags |= SC_OP_SCANNING;
 	del_timer_sync(&common->ani.timer);
+	cancel_work_sync(&sc->paprd_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	mutex_unlock(&sc->mutex);
 }

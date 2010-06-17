@@ -158,6 +158,9 @@
 #define ATH9K_HW_RX_HP_QDEPTH	16
 #define ATH9K_HW_RX_LP_QDEPTH	128
 
+#define PAPRD_GAIN_TABLE_ENTRIES    32
+#define PAPRD_TABLE_SZ              24
+
 enum ath_ini_subsys {
 	ATH_INI_PRE = 0,
 	ATH_INI_CORE,
@@ -200,15 +203,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_LDPC			= BIT(19),
 	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
 	ATH9K_HW_CAP_SGI_20			= BIT(21),
-};
-
-enum ath9k_capability_type {
-	ATH9K_CAP_CIPHER = 0,
-	ATH9K_CAP_TKIP_MIC,
-	ATH9K_CAP_TKIP_SPLIT,
-	ATH9K_CAP_TXPOW,
-	ATH9K_CAP_MCAST_KEYSRCH,
-	ATH9K_CAP_DS
+	ATH9K_HW_CAP_PAPRD			= BIT(22),
 };
 
 struct ath9k_hw_capabilities {
@@ -238,7 +233,7 @@ struct ath9k_ops_config {
 	int sw_beacon_response_time;
 	int additional_swba_backoff;
 	int ack_6mb;
-	int cwm_ignore_extcca;
+	u32 cwm_ignore_extcca;
 	u8 pcie_powersave_enable;
 	u8 pcie_clock_req;
 	u32 pcie_waen;
@@ -266,6 +261,7 @@ struct ath9k_ops_config {
 	int spurmode;
 	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 	u8 max_txtrig_level;
+	u16 ani_poll_interval; /* ANI poll interval in ms */
 };
 
 enum ath9k_int {
@@ -359,6 +355,9 @@ struct ath9k_channel {
 	int8_t iCoff;
 	int8_t qCoff;
 	int16_t rawNoiseFloor;
+	bool paprd_done;
+	u16 small_signal_gain[AR9300_MAX_CHAINS];
+	u32 pa_table[AR9300_MAX_CHAINS][PAPRD_TABLE_SZ];
 };
 
 #define IS_CHAN_G(_c) ((((_c)->channelFlags & (CHANNEL_G)) == CHANNEL_G) || \
@@ -511,6 +510,17 @@ struct ath_gen_timer_table {
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
  * @loadnf: load noise floor read from each chain on the CCA registers
+ *
+ * @ani_reset: reset ANI parameters to default values
+ * @ani_lower_immunity: lower the noise immunity level. The level controls
+ *	the power-based packet detection on hardware. If a power jump is
+ *	detected the adapter takes it as an indication that a packet has
+ *	arrived. The level ranges from 0-5. Each level corresponds to a
+ *	few dB more of noise immunity. If you have a strong time-varying
+ *	interference that is causing false detections (OFDM timing errors or
+ *	CCK timing errors) the level can be increased.
+ * @ani_cache_ini_regs: cache the values for ANI from the initial
+ *	register settings through the register initialization.
  */
 struct ath_hw_private_ops {
 	/* Calibration ops */
@@ -554,6 +564,11 @@ struct ath_hw_private_ops {
 			    int param);
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
 	void (*loadnf)(struct ath_hw *ah, struct ath9k_channel *chan);
+
+	/* ANI */
+	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
+	void (*ani_lower_immunity)(struct ath_hw *ah);
+	void (*ani_cache_ini_regs)(struct ath_hw *ah);
 };
 
 /**
@@ -564,6 +579,11 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
+ *
+ * @ani_proc_mib_event: process MIB events, this would happen upon specific ANI
+ *	thresholds being reached or having overflowed.
+ * @ani_monitor: called periodically by the core driver to collect
+ *	MIB stats and adjust ANI if specific thresholds have been reached.
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -604,6 +624,9 @@ struct ath_hw_ops {
 				     u32 burstDuration);
 	void (*set11n_virtualmorefrag)(struct ath_hw *ah, void *ds,
 				       u32 vmf);
+
+	void (*ani_proc_mib_event)(struct ath_hw *ah);
+	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
 struct ath_hw {
@@ -793,6 +816,9 @@ struct ath_hw {
 
 	u32 bb_watchdog_last_status;
 	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */
+
+	u32 paprd_gain_table_entries[PAPRD_GAIN_TABLE_ENTRIES];
+	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -822,10 +848,6 @@ int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
-bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 *result);
-bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 setting, int *status);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
 /* Key Cache Management */
@@ -860,7 +882,6 @@ void ath9k_hw_setrxfilter(struct ath_hw *ah, u32 bits);
 bool ath9k_hw_phy_disable(struct ath_hw *ah);
 bool ath9k_hw_disable(struct ath_hw *ah);
 void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit);
-void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac);
 void ath9k_hw_setopmode(struct ath_hw *ah);
 void ath9k_hw_setmcastfilter(struct ath_hw *ah, u32 filter0, u32 filter1);
 void ath9k_hw_setbssidmask(struct ath_hw *ah);
@@ -869,7 +890,6 @@ u64 ath9k_hw_gettsf64(struct ath_hw *ah);
 void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
-u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp);
 void ath9k_hw_init_global_settings(struct ath_hw *ah);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
@@ -922,6 +942,15 @@ void ar9003_hw_set_nf_limits(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
+void ar9003_paprd_enable(struct ath_hw *ah, bool val);
+void ar9003_paprd_populate_single_table(struct ath_hw *ah,
+					struct ath9k_channel *chan, int chain);
+int ar9003_paprd_create_curve(struct ath_hw *ah, struct ath9k_channel *chan,
+			      int chain);
+int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
+int ar9003_paprd_init_table(struct ath_hw *ah);
+bool ar9003_paprd_is_done(struct ath_hw *ah);
+void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
@@ -934,8 +963,24 @@ void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 void ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
+/*
+ * ANI work can be shared between all families but a next
+ * generation implementation of ANI will be used only for AR9003 only
+ * for now as the other families still need to be tested with the same
+ * next generation ANI. Feel free to start testing it though for the
+ * older families (AR5008, AR9001, AR9002) by using modparam_force_new_ani.
+ */
+extern int modparam_force_new_ani;
+void ath9k_hw_attach_ani_ops_old(struct ath_hw *ah);
+void ath9k_hw_attach_ani_ops_new(struct ath_hw *ah);
+
 #define ATH_PCIE_CAP_LINK_CTRL	0x70
 #define ATH_PCIE_CAP_LINK_L0S	1
 #define ATH_PCIE_CAP_LINK_L1	2
+
+#define ATH9K_CLOCK_RATE_CCK		22
+#define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
+#define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
+#define ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM 44
 
 #endif

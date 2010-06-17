@@ -27,13 +27,11 @@ static struct dentry *ath9k_debugfs_root;
 static void ath_update_txpow(struct ath9k_htc_priv *priv)
 {
 	struct ath_hw *ah = priv->ah;
-	u32 txpow;
 
 	if (priv->curtxpow != priv->txpowlimit) {
 		ath9k_hw_set_txpowerlimit(ah, priv->txpowlimit);
 		/* read back in case value is clamped */
-		ath9k_hw_getcapability(ah, ATH9K_CAP_TXPOW, 1, &txpow);
-		priv->curtxpow = txpow;
+		priv->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
 	}
 }
 
@@ -364,11 +362,8 @@ static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
 		trate->rates.ht_rates.rs_nrates = j;
 
 		caps = WLAN_RC_HT_FLAG;
-		if (priv->ah->caps.tx_chainmask != 1 &&
-		    ath9k_hw_getcapability(priv->ah, ATH9K_CAP_DS, 0, NULL)) {
-			if (sta->ht_cap.mcs.rx_mask[1])
-				caps |= WLAN_RC_DS_FLAG;
-		}
+		if (sta->ht_cap.mcs.rx_mask[1])
+			caps |= WLAN_RC_DS_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			caps |= WLAN_RC_40_FLAG;
 		if (conf_is_ht40(&priv->hw->conf) &&
@@ -443,13 +438,13 @@ static void ath9k_htc_update_rate(struct ath9k_htc_priv *priv,
 			  bss_conf->bssid, be32_to_cpu(trate.capflags));
 }
 
-static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
-			       struct ieee80211_vif *vif,
-			       u8 *sta_addr, u8 tid, bool oper)
+int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
+			   struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   enum ieee80211_ampdu_mlme_action action, u16 tid)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_target_aggr aggr;
-	struct ieee80211_sta *sta = NULL;
 	struct ath9k_htc_sta *ista;
 	int ret = 0;
 	u8 cmd_rsp;
@@ -458,72 +453,28 @@ static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 		return -EINVAL;
 
 	memset(&aggr, 0, sizeof(struct ath9k_htc_target_aggr));
-
-	rcu_read_lock();
-
-	/* Check if we are able to retrieve the station */
-	sta = ieee80211_find_sta(vif, sta_addr);
-	if (!sta) {
-		rcu_read_unlock();
-		return -EINVAL;
-	}
-
 	ista = (struct ath9k_htc_sta *) sta->drv_priv;
 
-	if (oper)
-		ista->tid_state[tid] = AGGR_START;
-	else
-		ista->tid_state[tid] = AGGR_STOP;
-
 	aggr.sta_index = ista->index;
-
-	rcu_read_unlock();
-
-	aggr.tidno = tid;
-	aggr.aggr_enable = oper;
+	aggr.tidno = tid & 0xf;
+	aggr.aggr_enable = (action == IEEE80211_AMPDU_TX_START) ? true : false;
 
 	WMI_CMD_BUF(WMI_TX_AGGR_ENABLE_CMDID, &aggr);
 	if (ret)
 		ath_print(common, ATH_DBG_CONFIG,
 			  "Unable to %s TX aggregation for (%pM, %d)\n",
-			  (oper) ? "start" : "stop", sta->addr, tid);
+			  (aggr.aggr_enable) ? "start" : "stop", sta->addr, tid);
 	else
 		ath_print(common, ATH_DBG_CONFIG,
-			  "%s aggregation for (%pM, %d)\n",
-			  (oper) ? "Starting" : "Stopping", sta->addr, tid);
+			  "%s TX aggregation for (%pM, %d)\n",
+			  (aggr.aggr_enable) ? "Starting" : "Stopping",
+			  sta->addr, tid);
+
+	spin_lock_bh(&priv->tx_lock);
+	ista->tid_state[tid] = (aggr.aggr_enable && !ret) ? AGGR_START : AGGR_STOP;
+	spin_unlock_bh(&priv->tx_lock);
 
 	return ret;
-}
-
-void ath9k_htc_aggr_work(struct work_struct *work)
-{
-	int ret = 0;
-	struct ath9k_htc_priv *priv =
-		container_of(work, struct ath9k_htc_priv,
-			     ath9k_aggr_work.work);
-	struct ath9k_htc_aggr_work *wk = &priv->aggr_work;
-
-	mutex_lock(&wk->mutex);
-
-	switch (wk->action) {
-	case IEEE80211_AMPDU_TX_START:
-		ret = ath9k_htc_aggr_oper(priv, wk->vif, wk->sta_addr,
-					  wk->tid, true);
-		if (!ret)
-			ieee80211_start_tx_ba_cb(wk->vif, wk->sta_addr,
-						 wk->tid);
-		break;
-	case IEEE80211_AMPDU_TX_STOP:
-		ath9k_htc_aggr_oper(priv, wk->vif, wk->sta_addr,
-				    wk->tid, false);
-		ieee80211_stop_tx_ba_cb(wk->vif, wk->sta_addr, wk->tid);
-		break;
-	default:
-		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_FATAL,
-			  "Unknown AMPDU action\n");
-	}
-
-	mutex_unlock(&wk->mutex);
 }
 
 /*********/
@@ -1271,7 +1222,6 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	/* Cancel all the running timers/work .. */
 	cancel_work_sync(&priv->ps_work);
 	cancel_delayed_work_sync(&priv->ath9k_ani_work);
-	cancel_delayed_work_sync(&priv->ath9k_aggr_work);
 	cancel_delayed_work_sync(&priv->ath9k_led_blink_work);
 	ath9k_led_stop_brightness(priv);
 
@@ -1590,7 +1540,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	}
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
-	    (qnum == priv->hwq_map[ATH9K_WME_AC_BE]))
+	    (qnum == priv->hwq_map[WME_AC_BE]))
 		    ath9k_htc_beaconq_config(priv);
 out:
 	ath9k_htc_ps_restore(priv);
@@ -1772,8 +1722,8 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 				  u16 tid, u16 *ssn)
 {
 	struct ath9k_htc_priv *priv = hw->priv;
-	struct ath9k_htc_aggr_work *work = &priv->aggr_work;
 	struct ath9k_htc_sta *ista;
+	int ret = 0;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -1781,26 +1731,26 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_RX_STOP:
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		ret = ath9k_htc_tx_aggr_oper(priv, vif, sta, action, tid);
+		if (!ret)
+			ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
 	case IEEE80211_AMPDU_TX_STOP:
-		if (!(priv->op_flags & OP_TXAGGR))
-			return -ENOTSUPP;
-		memcpy(work->sta_addr, sta->addr, ETH_ALEN);
-		work->hw = hw;
-		work->vif = vif;
-		work->action = action;
-		work->tid = tid;
-		ieee80211_queue_delayed_work(hw, &priv->ath9k_aggr_work, 0);
+		ath9k_htc_tx_aggr_oper(priv, vif, sta, action, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		ista = (struct ath9k_htc_sta *) sta->drv_priv;
+		spin_lock_bh(&priv->tx_lock);
 		ista->tid_state[tid] = AGGR_OPERATIONAL;
+		spin_unlock_bh(&priv->tx_lock);
 		break;
 	default:
 		ath_print(ath9k_hw_common(priv->ah), ATH_DBG_FATAL,
 			  "Unknown AMPDU action\n");
 	}
 
-	return 0;
+	return ret;
 }
 
 static void ath9k_htc_sw_scan_start(struct ieee80211_hw *hw)

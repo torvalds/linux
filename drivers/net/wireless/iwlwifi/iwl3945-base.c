@@ -1171,7 +1171,7 @@ static void iwl3945_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rx
 	}
 
 	dma_free_coherent(&priv->pci_dev->dev, 4 * RX_QUEUE_SIZE, rxq->bd,
-			  rxq->dma_addr);
+			  rxq->bd_dma);
 	dma_free_coherent(&priv->pci_dev->dev, sizeof(struct iwl_rb_status),
 			  rxq->rb_stts, rxq->rb_stts_dma);
 	rxq->bd = NULL;
@@ -1252,6 +1252,8 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
 
 	while (i != r) {
+		int len;
+
 		rxb = rxq->queue[i];
 
 		/* If an RXB doesn't have a Rx queue slot associated with it,
@@ -1266,8 +1268,9 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			       PCI_DMA_FROMDEVICE);
 		pkt = rxb_addr(rxb);
 
-		trace_iwlwifi_dev_rx(priv, pkt,
-			le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len += sizeof(u32); /* account for status word */
+		trace_iwlwifi_dev_rx(priv, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
@@ -3360,10 +3363,13 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 	bool is_ap = vif->type == NL80211_IFTYPE_STATION;
 	u8 sta_id;
 
-	sta_priv->common.sta_id = IWL_INVALID_STATION;
-
 	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
 			sta->addr);
+	mutex_lock(&priv->mutex);
+	IWL_DEBUG_INFO(priv, "proceeding to add station %pM\n",
+			sta->addr);
+	sta_priv->common.sta_id = IWL_INVALID_STATION;
+
 
 	ret = iwl_add_station_common(priv, sta->addr, is_ap, &sta->ht_cap,
 				     &sta_id);
@@ -3371,6 +3377,7 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
 			sta->addr, ret);
 		/* Should we return success if return code is EEXIST ? */
+		mutex_unlock(&priv->mutex);
 		return ret;
 	}
 
@@ -3380,6 +3387,7 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl3945_rs_rate_init(priv, sta, sta_id);
+	mutex_unlock(&priv->mutex);
 
 	return 0;
 }

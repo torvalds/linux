@@ -470,6 +470,14 @@ static void ar9003_hw_set11n_virtualmorefrag(struct ath_hw *ah, void *ds,
 		ads->ctl11 &= ~AR_VirtMoreFrag;
 }
 
+void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains)
+{
+	struct ar9003_txc *ads = ds;
+
+	ads->ctl12 |= SM(chains, AR_PAPRDChainMask);
+}
+EXPORT_SYMBOL(ar9003_hw_set_paprd_txdesc);
+
 void ar9003_hw_attach_mac_ops(struct ath_hw *hw)
 {
 	struct ath_hw_ops *ops = ath9k_hw_ops(hw);

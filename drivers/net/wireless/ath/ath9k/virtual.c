@@ -219,7 +219,7 @@ static int ath9k_send_nullfunc(struct ath_wiphy *aphy,
 	info->control.rates[1].idx = -1;
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
-	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[ATH9K_WME_AC_VO]];
+	txctl.txq = &sc->tx.txq[sc->tx.hwq_map[WME_AC_VO]];
 	txctl.frame_type = ps ? ATH9K_IFT_PAUSE : ATH9K_IFT_UNPAUSE;
 
 	if (ath_tx_start(aphy->hw, skb, &txctl) != 0)

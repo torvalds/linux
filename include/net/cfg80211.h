@@ -810,6 +810,7 @@ struct cfg80211_disassoc_request {
  * @beacon_interval: beacon interval to use
  * @privacy: this is a protected network, keys will be configured
  *	after joining
+ * @basic_rates: bitmap of basic rates to use when creating the IBSS
  */
 struct cfg80211_ibss_params {
 	u8 *ssid;
@@ -818,6 +819,7 @@ struct cfg80211_ibss_params {
 	u8 *ie;
 	u8 ssid_len, ie_len;
 	u16 beacon_interval;
+	u32 basic_rates;
 	bool channel_fixed;
 	bool privacy;
 };

@@ -311,7 +311,8 @@ static int 	ath5k_rxbuf_setup(struct ath5k_softc *sc,
 static int 	ath5k_txbuf_setup(struct ath5k_softc *sc,
 				struct ath5k_buf *bf,
 				struct ath5k_txq *txq, int padsize);
-static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
+
+static inline void ath5k_txbuf_free_skb(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
 	BUG_ON(!bf);
@@ -321,9 +322,11 @@ static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 			PCI_DMA_TODEVICE);
 	dev_kfree_skb_any(bf->skb);
 	bf->skb = NULL;
+	bf->skbaddr = 0;
+	bf->desc->ds_data = 0;
 }
 
-static inline void ath5k_rxbuf_free(struct ath5k_softc *sc,
+static inline void ath5k_rxbuf_free_skb(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
 	struct ath5k_hw *ah = sc->ah;
@@ -336,6 +339,8 @@ static inline void ath5k_rxbuf_free(struct ath5k_softc *sc,
 			PCI_DMA_FROMDEVICE);
 	dev_kfree_skb_any(bf->skb);
 	bf->skb = NULL;
+	bf->skbaddr = 0;
+	bf->desc->ds_data = 0;
 }
 
 
@@ -352,7 +357,6 @@ static void 	ath5k_txq_release(struct ath5k_softc *sc);
 static int 	ath5k_rx_start(struct ath5k_softc *sc);
 static void 	ath5k_rx_stop(struct ath5k_softc *sc);
 static unsigned int ath5k_rx_decrypted(struct ath5k_softc *sc,
-					struct ath5k_desc *ds,
 					struct sk_buff *skb,
 					struct ath5k_rx_status *rs);
 static void 	ath5k_tasklet_rx(unsigned long data);
@@ -765,7 +769,8 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	 * return false w/o doing anything.  MAC's that do
 	 * support it will return true w/o doing anything.
 	 */
-	ret = ah->ah_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
+	ret = ath5k_hw_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
+
 	if (ret < 0)
 		goto err;
 	if (ret > 0)
@@ -1111,8 +1116,9 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 static int
 ath5k_chan_set(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 {
-	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "(%u MHz) -> (%u MHz)\n",
-		sc->curchan->center_freq, chan->center_freq);
+	ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+		  "channel set, resetting (%u -> %u MHz)\n",
+		  sc->curchan->center_freq, chan->center_freq);
 
 	/*
 	 * To switch channels clear any pending DMA operations;
@@ -1228,21 +1234,23 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	 * not get overrun under high load (as can happen with a
 	 * 5212 when ANI processing enables PHY error frames).
 	 *
-	 * To insure the last descriptor is self-linked we create
+	 * To ensure the last descriptor is self-linked we create
 	 * each descriptor as self-linked and add it to the end.  As
 	 * each additional descriptor is added the previous self-linked
-	 * entry is ``fixed'' naturally.  This should be safe even
+	 * entry is "fixed" naturally.  This should be safe even
 	 * if DMA is happening.  When processing RX interrupts we
 	 * never remove/process the last, self-linked, entry on the
-	 * descriptor list.  This insures the hardware always has
+	 * descriptor list.  This ensures the hardware always has
 	 * someplace to write a new frame.
 	 */
 	ds = bf->desc;
 	ds->ds_link = bf->daddr;	/* link to self */
 	ds->ds_data = bf->skbaddr;
-	ret = ah->ah_setup_rx_desc(ah, ds, ah->common.rx_bufsize, 0);
-	if (ret)
+	ret = ath5k_hw_setup_rx_desc(ah, ds, ah->common.rx_bufsize, 0);
+	if (ret) {
+		ATH5K_ERR(sc, "%s: could not setup RX desc\n", __func__);
 		return ret;
+	}
 
 	if (sc->rxlink != NULL)
 		*sc->rxlink = bf->daddr;
@@ -1347,7 +1355,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 		mrr_tries[i] = info->control.rates[i + 1].count;
 	}
 
-	ah->ah_setup_mrr_tx_desc(ah, ds,
+	ath5k_hw_setup_mrr_tx_desc(ah, ds,
 		mrr_rate[0], mrr_tries[0],
 		mrr_rate[1], mrr_tries[1],
 		mrr_rate[2], mrr_tries[2]);
@@ -1443,17 +1451,20 @@ ath5k_desc_free(struct ath5k_softc *sc, struct pci_dev *pdev)
 {
 	struct ath5k_buf *bf;
 
-	ath5k_txbuf_free(sc, sc->bbuf);
+	ath5k_txbuf_free_skb(sc, sc->bbuf);
 	list_for_each_entry(bf, &sc->txbuf, list)
-		ath5k_txbuf_free(sc, bf);
+		ath5k_txbuf_free_skb(sc, bf);
 	list_for_each_entry(bf, &sc->rxbuf, list)
-		ath5k_rxbuf_free(sc, bf);
+		ath5k_rxbuf_free_skb(sc, bf);
 
 	/* Free memory associated with all descriptors */
 	pci_free_consistent(pdev, sc->desc_len, sc->desc, sc->desc_daddr);
+	sc->desc = NULL;
+	sc->desc_daddr = 0;
 
 	kfree(sc->bufptr);
 	sc->bufptr = NULL;
+	sc->bbuf = NULL;
 }
 
 
@@ -1602,7 +1613,7 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 	list_for_each_entry_safe(bf, bf0, &txq->q, list) {
 		ath5k_debug_printtxbuf(sc, bf);
 
-		ath5k_txbuf_free(sc, bf);
+		ath5k_txbuf_free_skb(sc, bf);
 
 		spin_lock_bh(&sc->txbuflock);
 		list_move_tail(&bf->list, &sc->txbuf);
@@ -1721,8 +1732,8 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 }
 
 static unsigned int
-ath5k_rx_decrypted(struct ath5k_softc *sc, struct ath5k_desc *ds,
-		struct sk_buff *skb, struct ath5k_rx_status *rs)
+ath5k_rx_decrypted(struct ath5k_softc *sc, struct sk_buff *skb,
+		   struct ath5k_rx_status *rs)
 {
 	struct ath5k_hw *ah = sc->ah;
 	struct ath_common *common = ath5k_hw_common(ah);
@@ -1889,9 +1900,138 @@ static int ath5k_remove_padding(struct sk_buff *skb)
 }
 
 static void
-ath5k_tasklet_rx(unsigned long data)
+ath5k_receive_frame(struct ath5k_softc *sc, struct sk_buff *skb,
+		    struct ath5k_rx_status *rs)
 {
 	struct ieee80211_rx_status *rxs;
+
+	/* The MAC header is padded to have 32-bit boundary if the
+	 * packet payload is non-zero. The general calculation for
+	 * padsize would take into account odd header lengths:
+	 * padsize = (4 - hdrlen % 4) % 4; However, since only
+	 * even-length headers are used, padding can only be 0 or 2
+	 * bytes and we can optimize this a bit. In addition, we must
+	 * not try to remove padding from short control frames that do
+	 * not have payload. */
+	ath5k_remove_padding(skb);
+
+	rxs = IEEE80211_SKB_RXCB(skb);
+
+	rxs->flag = 0;
+	if (unlikely(rs->rs_status & AR5K_RXERR_MIC))
+		rxs->flag |= RX_FLAG_MMIC_ERROR;
+
+	/*
+	 * always extend the mac timestamp, since this information is
+	 * also needed for proper IBSS merging.
+	 *
+	 * XXX: it might be too late to do it here, since rs_tstamp is
+	 * 15bit only. that means TSF extension has to be done within
+	 * 32768usec (about 32ms). it might be necessary to move this to
+	 * the interrupt handler, like it is done in madwifi.
+	 *
+	 * Unfortunately we don't know when the hardware takes the rx
+	 * timestamp (beginning of phy frame, data frame, end of rx?).
+	 * The only thing we know is that it is hardware specific...
+	 * On AR5213 it seems the rx timestamp is at the end of the
+	 * frame, but i'm not sure.
+	 *
+	 * NOTE: mac80211 defines mactime at the beginning of the first
+	 * data symbol. Since we don't have any time references it's
+	 * impossible to comply to that. This affects IBSS merge only
+	 * right now, so it's not too bad...
+	 */
+	rxs->mactime = ath5k_extend_tsf(sc->ah, rs->rs_tstamp);
+	rxs->flag |= RX_FLAG_TSFT;
+
+	rxs->freq = sc->curchan->center_freq;
+	rxs->band = sc->curband->band;
+
+	rxs->signal = sc->ah->ah_noise_floor + rs->rs_rssi;
+
+	rxs->antenna = rs->rs_antenna;
+
+	if (rs->rs_antenna > 0 && rs->rs_antenna < 5)
+		sc->stats.antenna_rx[rs->rs_antenna]++;
+	else
+		sc->stats.antenna_rx[0]++; /* invalid */
+
+	rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs->rs_rate);
+	rxs->flag |= ath5k_rx_decrypted(sc, skb, rs);
+
+	if (rxs->rate_idx >= 0 && rs->rs_rate ==
+	    sc->curband->bitrates[rxs->rate_idx].hw_value_short)
+		rxs->flag |= RX_FLAG_SHORTPRE;
+
+	ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
+
+	ath5k_update_beacon_rssi(sc, skb, rs->rs_rssi);
+
+	/* check beacons in IBSS mode */
+	if (sc->opmode == NL80211_IFTYPE_ADHOC)
+		ath5k_check_ibss_tsf(sc, skb, rxs);
+
+	ieee80211_rx(sc->hw, skb);
+}
+
+/** ath5k_frame_receive_ok() - Do we want to receive this frame or not?
+ *
+ * Check if we want to further process this frame or not. Also update
+ * statistics. Return true if we want this frame, false if not.
+ */
+static bool
+ath5k_receive_frame_ok(struct ath5k_softc *sc, struct ath5k_rx_status *rs)
+{
+	sc->stats.rx_all_count++;
+
+	if (unlikely(rs->rs_status)) {
+		if (rs->rs_status & AR5K_RXERR_CRC)
+			sc->stats.rxerr_crc++;
+		if (rs->rs_status & AR5K_RXERR_FIFO)
+			sc->stats.rxerr_fifo++;
+		if (rs->rs_status & AR5K_RXERR_PHY) {
+			sc->stats.rxerr_phy++;
+			if (rs->rs_phyerr > 0 && rs->rs_phyerr < 32)
+				sc->stats.rxerr_phy_code[rs->rs_phyerr]++;
+			return false;
+		}
+		if (rs->rs_status & AR5K_RXERR_DECRYPT) {
+			/*
+			 * Decrypt error.  If the error occurred
+			 * because there was no hardware key, then
+			 * let the frame through so the upper layers
+			 * can process it.  This is necessary for 5210
+			 * parts which have no way to setup a ``clear''
+			 * key cache entry.
+			 *
+			 * XXX do key cache faulting
+			 */
+			sc->stats.rxerr_decrypt++;
+			if (rs->rs_keyix == AR5K_RXKEYIX_INVALID &&
+			    !(rs->rs_status & AR5K_RXERR_CRC))
+				return true;
+		}
+		if (rs->rs_status & AR5K_RXERR_MIC) {
+			sc->stats.rxerr_mic++;
+			return true;
+		}
+
+		/* let crypto-error packets fall through in MNTR */
+		if ((rs->rs_status & ~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
+		    sc->opmode != NL80211_IFTYPE_MONITOR)
+			return false;
+	}
+
+	if (unlikely(rs->rs_more)) {
+		sc->stats.rxerr_jumbo++;
+		return false;
+	}
+	return true;
+}
+
+static void
+ath5k_tasklet_rx(unsigned long data)
+{
 	struct ath5k_rx_status rs = {};
 	struct sk_buff *skb, *next_skb;
 	dma_addr_t next_skb_addr;
@@ -1901,7 +2041,6 @@ ath5k_tasklet_rx(unsigned long data)
 	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
 	int ret;
-	int rx_flag;
 
 	spin_lock(&sc->rxbuflock);
 	if (list_empty(&sc->rxbuf)) {
@@ -1909,8 +2048,6 @@ ath5k_tasklet_rx(unsigned long data)
 		goto unlock;
 	}
 	do {
-		rx_flag = 0;
-
 		bf = list_first_entry(&sc->rxbuf, struct ath5k_buf, list);
 		BUG_ON(bf->skb == NULL);
 		skb = bf->skb;
@@ -1926,145 +2063,36 @@ ath5k_tasklet_rx(unsigned long data)
 		else if (unlikely(ret)) {
 			ATH5K_ERR(sc, "error in processing rx descriptor\n");
 			sc->stats.rxerr_proc++;
-			spin_unlock(&sc->rxbuflock);
-			return;
+			break;
 		}
 
-		sc->stats.rx_all_count++;
+		if (ath5k_receive_frame_ok(sc, &rs)) {
+			next_skb = ath5k_rx_skb_alloc(sc, &next_skb_addr);
 
-		if (unlikely(rs.rs_status)) {
-			if (rs.rs_status & AR5K_RXERR_CRC)
-				sc->stats.rxerr_crc++;
-			if (rs.rs_status & AR5K_RXERR_FIFO)
-				sc->stats.rxerr_fifo++;
-			if (rs.rs_status & AR5K_RXERR_PHY) {
-				sc->stats.rxerr_phy++;
-				if (rs.rs_phyerr > 0 && rs.rs_phyerr < 32)
-					sc->stats.rxerr_phy_code[rs.rs_phyerr]++;
+			/*
+			 * If we can't replace bf->skb with a new skb under
+			 * memory pressure, just skip this packet
+			 */
+			if (!next_skb)
 				goto next;
-			}
-			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
-				/*
-				 * Decrypt error.  If the error occurred
-				 * because there was no hardware key, then
-				 * let the frame through so the upper layers
-				 * can process it.  This is necessary for 5210
-				 * parts which have no way to setup a ``clear''
-				 * key cache entry.
-				 *
-				 * XXX do key cache faulting
-				 */
-				sc->stats.rxerr_decrypt++;
-				if (rs.rs_keyix == AR5K_RXKEYIX_INVALID &&
-				    !(rs.rs_status & AR5K_RXERR_CRC))
-					goto accept;
-			}
-			if (rs.rs_status & AR5K_RXERR_MIC) {
-				rx_flag |= RX_FLAG_MMIC_ERROR;
-				sc->stats.rxerr_mic++;
-				goto accept;
-			}
 
-			/* let crypto-error packets fall through in MNTR */
-			if ((rs.rs_status &
-				~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
-					sc->opmode != NL80211_IFTYPE_MONITOR)
-				goto next;
+			pci_unmap_single(sc->pdev, bf->skbaddr,
+					 common->rx_bufsize,
+					 PCI_DMA_FROMDEVICE);
+
+			skb_put(skb, rs.rs_datalen);
+
+			ath5k_receive_frame(sc, skb, &rs);
+
+			bf->skb = next_skb;
+			bf->skbaddr = next_skb_addr;
 		}
-
-		if (unlikely(rs.rs_more)) {
-			sc->stats.rxerr_jumbo++;
-			goto next;
-
-		}
-accept:
-		next_skb = ath5k_rx_skb_alloc(sc, &next_skb_addr);
-
-		/*
-		 * If we can't replace bf->skb with a new skb under memory
-		 * pressure, just skip this packet
-		 */
-		if (!next_skb)
-			goto next;
-
-		pci_unmap_single(sc->pdev, bf->skbaddr, common->rx_bufsize,
-				PCI_DMA_FROMDEVICE);
-		skb_put(skb, rs.rs_datalen);
-
-		/* The MAC header is padded to have 32-bit boundary if the
-		 * packet payload is non-zero. The general calculation for
-		 * padsize would take into account odd header lengths:
-		 * padsize = (4 - hdrlen % 4) % 4; However, since only
-		 * even-length headers are used, padding can only be 0 or 2
-		 * bytes and we can optimize this a bit. In addition, we must
-		 * not try to remove padding from short control frames that do
-		 * not have payload. */
-		ath5k_remove_padding(skb);
-
-		rxs = IEEE80211_SKB_RXCB(skb);
-
-		/*
-		 * always extend the mac timestamp, since this information is
-		 * also needed for proper IBSS merging.
-		 *
-		 * XXX: it might be too late to do it here, since rs_tstamp is
-		 * 15bit only. that means TSF extension has to be done within
-		 * 32768usec (about 32ms). it might be necessary to move this to
-		 * the interrupt handler, like it is done in madwifi.
-		 *
-		 * Unfortunately we don't know when the hardware takes the rx
-		 * timestamp (beginning of phy frame, data frame, end of rx?).
-		 * The only thing we know is that it is hardware specific...
-		 * On AR5213 it seems the rx timestamp is at the end of the
-		 * frame, but i'm not sure.
-		 *
-		 * NOTE: mac80211 defines mactime at the beginning of the first
-		 * data symbol. Since we don't have any time references it's
-		 * impossible to comply to that. This affects IBSS merge only
-		 * right now, so it's not too bad...
-		 */
-		rxs->mactime = ath5k_extend_tsf(sc->ah, rs.rs_tstamp);
-		rxs->flag = rx_flag | RX_FLAG_TSFT;
-
-		rxs->freq = sc->curchan->center_freq;
-		rxs->band = sc->curband->band;
-
-		rxs->signal = sc->ah->ah_noise_floor + rs.rs_rssi;
-
-		rxs->antenna = rs.rs_antenna;
-
-		if (rs.rs_antenna > 0 && rs.rs_antenna < 5)
-			sc->stats.antenna_rx[rs.rs_antenna]++;
-		else
-			sc->stats.antenna_rx[0]++; /* invalid */
-
-		rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
-		rxs->flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
-
-		if (rxs->rate_idx >= 0 && rs.rs_rate ==
-		    sc->curband->bitrates[rxs->rate_idx].hw_value_short)
-			rxs->flag |= RX_FLAG_SHORTPRE;
-
-		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
-
-		ath5k_update_beacon_rssi(sc, skb, rs.rs_rssi);
-
-		/* check beacons in IBSS mode */
-		if (sc->opmode == NL80211_IFTYPE_ADHOC)
-			ath5k_check_ibss_tsf(sc, skb, rxs);
-
-		ieee80211_rx(sc->hw, skb);
-
-		bf->skb = next_skb;
-		bf->skbaddr = next_skb_addr;
 next:
 		list_move_tail(&bf->list, &sc->rxbuf);
 	} while (ath5k_rxbuf_setup(sc, bf) == 0);
 unlock:
 	spin_unlock(&sc->rxbuflock);
 }
-
-
 
 
 /*************\
@@ -2298,6 +2326,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 			ATH5K_DBG(sc, ATH5K_DEBUG_BEACON,
 				"stuck beacon time (%u missed)\n",
 				sc->bmisscount);
+			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+				  "stuck beacon, resetting\n");
 			tasklet_schedule(&sc->restq);
 		}
 		return;
@@ -2647,7 +2677,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 		ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 				"putting device to sleep\n");
 	}
-	ath5k_txbuf_free(sc, sc->bbuf);
+	ath5k_txbuf_free_skb(sc, sc->bbuf);
 
 	mmiowb();
 	mutex_unlock(&sc->lock);
@@ -2705,6 +2735,8 @@ ath5k_intr(int irq, void *dev_id)
 			 * Fatal errors are unrecoverable.
 			 * Typically these are caused by DMA errors.
 			 */
+			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+				  "fatal int, resetting\n");
 			tasklet_schedule(&sc->restq);
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
 			/*
@@ -2717,8 +2749,11 @@ ath5k_intr(int irq, void *dev_id)
 			 * this guess is copied from the HAL.
 			 */
 			sc->stats.rxorn_intr++;
-			if (ah->ah_mac_srev < AR5K_SREV_AR5212)
+			if (ah->ah_mac_srev < AR5K_SREV_AR5212) {
+				ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
+					  "rx overrun, resetting\n");
 				tasklet_schedule(&sc->restq);
+			}
 			else
 				tasklet_schedule(&sc->rxtq);
 		} else {
@@ -3368,7 +3403,7 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	ath5k_debug_dump_skb(sc, skb, "BC  ", 1);
 
-	ath5k_txbuf_free(sc, sc->bbuf);
+	ath5k_txbuf_free_skb(sc, sc->bbuf);
 	sc->bbuf->skb = skb;
 	ret = ath5k_beacon_setup(sc, sc->bbuf);
 	if (ret)

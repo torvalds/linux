@@ -273,7 +273,7 @@ struct ieee80211_key *ieee80211_key_alloc(enum ieee80211_key_alg alg,
 		key->conf.iv_len = CCMP_HDR_LEN;
 		key->conf.icv_len = CCMP_MIC_LEN;
 		if (seq) {
-			for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+			for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++)
 				for (j = 0; j < CCMP_PN_LEN; j++)
 					key->u.ccmp.rx_pn[i][j] =
 						seq[CCMP_PN_LEN - j - 1];

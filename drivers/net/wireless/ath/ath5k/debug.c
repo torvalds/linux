@@ -278,6 +278,7 @@ static ssize_t write_file_reset(struct file *file,
 				 size_t count, loff_t *ppos)
 {
 	struct ath5k_softc *sc = file->private_data;
+	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "debug file triggered reset\n");
 	tasklet_schedule(&sc->restq);
 	return count;
 }
@@ -924,7 +925,7 @@ ath5k_debug_printrxbuf(struct ath5k_buf *bf, int done,
 		ds, (unsigned long long)bf->daddr,
 		ds->ds_link, ds->ds_data,
 		rd->rx_ctl.rx_control_0, rd->rx_ctl.rx_control_1,
-		rd->u.rx_stat.rx_status_0, rd->u.rx_stat.rx_status_0,
+		rd->rx_stat.rx_status_0, rd->rx_stat.rx_status_1,
 		!done ? ' ' : (rs->rs_status == 0) ? '*' : '!');
 }
 
@@ -939,7 +940,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 	if (likely(!(sc->debug.level & ATH5K_DEBUG_RESET)))
 		return;
 
-	printk(KERN_DEBUG "rx queue %x, link %p\n",
+	printk(KERN_DEBUG "rxdp %x, rxlink %p\n",
 		ath5k_hw_get_rxdp(ah), sc->rxlink);
 
 	spin_lock_bh(&sc->rxbuflock);

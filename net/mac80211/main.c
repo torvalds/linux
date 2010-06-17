@@ -20,6 +20,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/bitmap.h>
 #include <linux/pm_qos_params.h>
+#include <linux/inetdevice.h>
 #include <net/net_namespace.h>
 #include <net/cfg80211.h>
 
@@ -259,7 +260,6 @@ static void ieee80211_tasklet_handler(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *) data;
 	struct sk_buff *skb;
-	struct ieee80211_ra_tid *ra_tid;
 
 	while ((skb = skb_dequeue(&local->skb_queue)) ||
 	       (skb = skb_dequeue(&local->skb_queue_unreliable))) {
@@ -274,18 +274,6 @@ static void ieee80211_tasklet_handler(unsigned long data)
 			skb->pkt_type = 0;
 			ieee80211_tx_status(local_to_hw(local), skb);
 			break;
-		case IEEE80211_DELBA_MSG:
-			ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-			ieee80211_stop_tx_ba_cb(ra_tid->vif, ra_tid->ra,
-						ra_tid->tid);
-			dev_kfree_skb(skb);
-			break;
-		case IEEE80211_ADDBA_MSG:
-			ra_tid = (struct ieee80211_ra_tid *) &skb->cb;
-			ieee80211_start_tx_ba_cb(ra_tid->vif, ra_tid->ra,
-						 ra_tid->tid);
-			dev_kfree_skb(skb);
-			break ;
 		default:
 			WARN(1, "mac80211: Packet is of unknown type %d\n",
 			     skb->pkt_type);
@@ -330,23 +318,6 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 }
 
 #ifdef CONFIG_INET
-int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata)
-{
-	struct in_device *idev;
-	int ret = 0;
-
-	BUG_ON(!sdata);
-	ASSERT_RTNL();
-
-	idev = sdata->dev->ip_ptr;
-	if (!idev)
-		return 0;
-
-	ret = drv_configure_arp_filter(sdata->local, &sdata->vif,
-				       idev->ifa_list);
-	return ret;
-}
-
 static int ieee80211_ifa_changed(struct notifier_block *nb,
 				 unsigned long data, void *arg)
 {
@@ -356,8 +327,11 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 			     ifa_notifier);
 	struct net_device *ndev = ifa->ifa_dev->dev;
 	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct in_device *idev;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_bss_conf *bss_conf;
 	struct ieee80211_if_managed *ifmgd;
+	int c = 0;
 
 	if (!netif_running(ndev))
 		return NOTIFY_DONE;
@@ -369,17 +343,44 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 	if (wdev->wiphy != local->hw.wiphy)
 		return NOTIFY_DONE;
 
-	/* We are concerned about IP addresses only when associated */
 	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
+	bss_conf = &sdata->vif.bss_conf;
 
 	/* ARP filtering is only supported in managed mode */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return NOTIFY_DONE;
 
+	idev = sdata->dev->ip_ptr;
+	if (!idev)
+		return NOTIFY_DONE;
+
 	ifmgd = &sdata->u.mgd;
 	mutex_lock(&ifmgd->mtx);
-	if (ifmgd->associated)
-		ieee80211_set_arp_filter(sdata);
+
+	/* Copy the addresses to the bss_conf list */
+	ifa = idev->ifa_list;
+	while (c < IEEE80211_BSS_ARP_ADDR_LIST_LEN && ifa) {
+		bss_conf->arp_addr_list[c] = ifa->ifa_address;
+		ifa = ifa->ifa_next;
+		c++;
+	}
+
+	/* If not all addresses fit the list, disable filtering */
+	if (ifa) {
+		sdata->arp_filter_state = false;
+		c = 0;
+	} else {
+		sdata->arp_filter_state = true;
+	}
+	bss_conf->arp_addr_cnt = c;
+
+	/* Configure driver only if associated */
+	if (ifmgd->associated) {
+		bss_conf->arp_filter_enabled = sdata->arp_filter_state;
+		ieee80211_bss_info_change_notify(sdata,
+						 BSS_CHANGED_ARP_FILTER);
+	}
+
 	mutex_unlock(&ifmgd->mtx);
 
 	return NOTIFY_DONE;
@@ -476,8 +477,10 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	sta_info_init(local);
 
-	for (i = 0; i < IEEE80211_MAX_QUEUES; i++)
+	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
 		skb_queue_head_init(&local->pending[i]);
+		atomic_set(&local->agg_queue_stop[i], 0);
+	}
 	tasklet_init(&local->tx_pending_tasklet, ieee80211_tx_pending,
 		     (unsigned long)local);
 
@@ -487,8 +490,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	skb_queue_head_init(&local->skb_queue);
 	skb_queue_head_init(&local->skb_queue_unreliable);
-
-	spin_lock_init(&local->ampdu_lock);
 
 	return local_to_hw(local);
 }
@@ -629,7 +630,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 
-	local->hw.conf.dynamic_ps_forced_timeout = -1;
+	local->dynamic_ps_forced_timeout = -1;
 
 	result = sta_info_start(local);
 	if (result < 0)

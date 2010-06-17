@@ -40,6 +40,10 @@
 
 #define AR_Not_Sounding	0x20000000
 
+/* ctl 12 */
+#define AR_PAPRDChainMask	0x00000e00
+#define AR_PAPRDChainMask_S	9
+
 #define MAP_ISR_S2_CST          6
 #define MAP_ISR_S2_GTT          6
 #define MAP_ISR_S2_TIM          3

@@ -1366,7 +1366,7 @@ struct iwl_rx_phy_res {
 	__le16 reserved3;
 } __packed;
 
-struct iwl4965_rx_mpdu_res_start {
+struct iwl_rx_mpdu_res_start {
 	__le16 byte_count;
 	__le16 reserved;
 } __packed;

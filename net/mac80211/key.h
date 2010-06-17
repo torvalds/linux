@@ -77,7 +77,13 @@ struct ieee80211_key {
 		} tkip;
 		struct {
 			u8 tx_pn[6];
-			u8 rx_pn[NUM_RX_DATA_QUEUES][6];
+			/*
+			 * Last received packet number. The first
+			 * NUM_RX_DATA_QUEUES counters are used with Data
+			 * frames and the last counter is used with Robust
+			 * Management frames.
+			 */
+			u8 rx_pn[NUM_RX_DATA_QUEUES + 1][6];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
 			/* scratch buffers for virt_to_page() (crypto API) */

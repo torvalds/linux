@@ -20,6 +20,7 @@
 #include <linux/etherdevice.h>
 #include <linux/device.h>
 #include <linux/leds.h>
+#include <linux/completion.h>
 
 #include "debug.h"
 #include "common.h"
@@ -194,6 +195,7 @@ enum ATH_AGGR_STATUS {
 
 #define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
+	int axq_class;
 	u32 axq_qnum;
 	u32 *axq_link;
 	struct list_head axq_q;
@@ -206,7 +208,6 @@ struct ath_txq {
 	struct list_head txq_fifo_pending;
 	u8 txq_headidx;
 	u8 txq_tailidx;
-	int pending_frames;
 };
 
 struct ath_atx_ac {
@@ -224,6 +225,7 @@ struct ath_buf_state {
 	int bfs_tidno;
 	int bfs_retries;
 	u8 bf_type;
+	u8 bfs_paprd;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
@@ -244,7 +246,6 @@ struct ath_buf {
 	struct ath_buf_state bf_state;
 	dma_addr_t bf_dmacontext;
 	struct ath_wiphy *aphy;
-	struct ath_txq *txq;
 };
 
 struct ath_atx_tid {
@@ -281,6 +282,7 @@ struct ath_tx_control {
 	struct ath_txq *txq;
 	int if_id;
 	enum ath9k_internal_frame_type frame_type;
+	u8 paprd;
 };
 
 #define ATH_TX_ERROR        0x01
@@ -290,11 +292,12 @@ struct ath_tx_control {
 struct ath_tx {
 	u16 seq_no;
 	u32 txqsetup;
-	int hwq_map[ATH9K_WME_AC_VO+1];
+	int hwq_map[WME_NUM_AC];
 	spinlock_t txbuflock;
 	struct list_head txbuf;
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
+	int pending_frames[WME_NUM_AC];
 };
 
 struct ath_rx_edma {
@@ -417,10 +420,12 @@ int ath_beaconq_config(struct ath_softc *sc);
 
 #define ATH_STA_SHORT_CALINTERVAL 1000    /* 1 second */
 #define ATH_AP_SHORT_CALINTERVAL  100     /* 100 ms */
-#define ATH_ANI_POLLINTERVAL      100     /* 100 ms */
+#define ATH_ANI_POLLINTERVAL_OLD  100     /* 100 ms */
+#define ATH_ANI_POLLINTERVAL_NEW  1000    /* 1000 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
+void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 
 /**********/
@@ -552,6 +557,9 @@ struct ath_softc {
 	spinlock_t sc_serial_rw;
 	spinlock_t sc_pm_lock;
 	struct mutex mutex;
+	struct work_struct paprd_work;
+	struct completion paprd_complete;
+	int paprd_txok;
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
@@ -610,7 +618,6 @@ struct ath_wiphy {
 
 void ath9k_tasklet(unsigned long data);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
-int ath_get_hal_qnum(u16 queue, struct ath_softc *sc);
 int ath_get_mac80211_qnum(u32 queue, struct ath_softc *sc);
 int ath_cabq_update(struct ath_softc *);
 
@@ -626,8 +633,6 @@ irqreturn_t ath_isr(int irq, void *dev);
 int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 		    const struct ath_bus_ops *bus_ops);
 void ath9k_deinit_device(struct ath_softc *sc);
-const char *ath_mac_bb_name(u32 mac_bb_version);
-const char *ath_rf_name(u16 rf_version);
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw);
 void ath9k_update_ichannel(struct ath_softc *sc, struct ieee80211_hw *hw,
 			   struct ath9k_channel *ichan);
@@ -677,8 +682,6 @@ void ath9k_set_wiphy_idle(struct ath_wiphy *aphy, bool idle);
 
 void ath_mac80211_stop_queue(struct ath_softc *sc, u16 skb_queue);
 void ath_mac80211_start_queue(struct ath_softc *sc, u16 skb_queue);
-
-int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype);
 
 void ath_start_rfkill_poll(struct ath_softc *sc);
 extern void ath9k_rfkill_poll_state(struct ieee80211_hw *hw);

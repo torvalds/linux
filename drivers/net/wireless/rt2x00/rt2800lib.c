@@ -1,9 +1,9 @@
 /*
+	Copyright (C) 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>
 	Copyright (C) 2009 Gertjan van Wingerde <gwingerde@gmail.com>
 
 	Based on the original rt2800pci.c and rt2800usb.c.
-	  Copyright (C) 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	  Copyright (C) 2009 Alban Browaeys <prahal@yahoo.com>
 	  Copyright (C) 2009 Felix Fietkau <nbd@openwrt.org>
 	  Copyright (C) 2009 Luis Correia <luis.f.correia@gmail.com>
@@ -40,10 +40,6 @@
 #include "rt2x00.h"
 #include "rt2800lib.h"
 #include "rt2800.h"
-
-MODULE_AUTHOR("Bartlomiej Zolnierkiewicz");
-MODULE_DESCRIPTION("rt2800 library");
-MODULE_LICENSE("GPL");
 
 /*
  * Register access.
@@ -558,15 +554,28 @@ static void rt2800_config_wcid_attr(struct rt2x00_dev *rt2x00dev,
 
 	offset = MAC_WCID_ATTR_ENTRY(key->hw_key_idx);
 
-	rt2800_register_read(rt2x00dev, offset, &reg);
-	rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_KEYTAB,
-			   !!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE));
-	rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_CIPHER,
-			   (crypto->cmd == SET_KEY) * crypto->cipher);
-	rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_BSS_IDX,
-			   (crypto->cmd == SET_KEY) * crypto->bssidx);
-	rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_RX_WIUDF, crypto->cipher);
-	rt2800_register_write(rt2x00dev, offset, reg);
+	if (crypto->cmd == SET_KEY) {
+		rt2800_register_read(rt2x00dev, offset, &reg);
+		rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_KEYTAB,
+				   !!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE));
+		/*
+		 * Both the cipher as the BSS Idx numbers are split in a main
+		 * value of 3 bits, and a extended field for adding one additional
+		 * bit to the value.
+		 */
+		rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_CIPHER,
+				   (crypto->cipher & 0x7));
+		rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_CIPHER_EXT,
+				   (crypto->cipher & 0x8) >> 3);
+		rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_BSS_IDX,
+				   (crypto->bssidx & 0x7));
+		rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_BSS_IDX_EXT,
+				   (crypto->bssidx & 0x8) >> 3);
+		rt2x00_set_field32(&reg, MAC_WCID_ATTRIBUTE_RX_WIUDF, crypto->cipher);
+		rt2800_register_write(rt2x00dev, offset, reg);
+	} else {
+		rt2800_register_write(rt2x00dev, offset, 0);
+	}
 
 	offset = MAC_IVEIV_ENTRY(key->hw_key_idx);
 
@@ -1079,7 +1088,7 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 	u8 r1;
 
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
-	rt2x00_set_field8(&reg, BBP1_TX_POWER, 0);
+	rt2x00_set_field8(&r1, BBP1_TX_POWER, 0);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
 
 	rt2800_register_read(rt2x00dev, TX_PWR_CFG_0, &reg);
@@ -2497,6 +2506,18 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 				rt2x00_eeprom_addr(rt2x00dev,
 						   EEPROM_MAC_ADDR_0));
 
+	/*
+	 * As rt2800 has a global fallback table we cannot specify
+	 * more then one tx rate per frame but since the hw will
+	 * try several rates (based on the fallback table) we should
+	 * still initialize max_rates to the maximum number of rates
+	 * we are going to try. Otherwise mac80211 will truncate our
+	 * reported tx rates and the rc algortihm will end up with
+	 * incorrect data.
+	 */
+	rt2x00dev->hw->max_rates = 7;
+	rt2x00dev->hw->max_rate_tries = 1;
+
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &eeprom);
 
 	/*
@@ -2749,3 +2770,8 @@ const struct ieee80211_ops rt2800_mac80211_ops = {
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 };
 EXPORT_SYMBOL_GPL(rt2800_mac80211_ops);
+
+MODULE_AUTHOR(DRV_PROJECT ", Bartlomiej Zolnierkiewicz");
+MODULE_VERSION(DRV_VERSION);
+MODULE_DESCRIPTION("Ralink RT2800 library");
+MODULE_LICENSE("GPL");

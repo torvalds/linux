@@ -379,36 +379,14 @@ static void ath9k_init_crypto(struct ath_softc *sc)
 	for (i = 0; i < common->keymax; i++)
 		ath9k_hw_keyreset(sc->sc_ah, (u16) i);
 
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)) {
-		/*
-		 * Whether we should enable h/w TKIP MIC.
-		 * XXX: if we don't support WME TKIP MIC, then we wouldn't
-		 * report WMM capable, so it's always safe to turn on
-		 * TKIP MIC in this case.
-		 */
-		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC, 0, 1, NULL);
-	}
-
 	/*
 	 * Check whether the separate key cache entries
 	 * are required to handle both tx+rx MIC keys.
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_CIPHER,
-				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_TKIP_SPLIT,
-				      0, NULL))
+	if (!(sc->sc_ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA))
 		common->splitmic = 1;
-
-	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_MCAST_KEYSRCH,
-					     1, 1, NULL);
-
 }
 
 static int ath9k_init_btcoex(struct ath_softc *sc)
@@ -426,7 +404,7 @@ static int ath9k_init_btcoex(struct ath_softc *sc)
 		r = ath_init_btcoex_timer(sc);
 		if (r)
 			return -1;
-		qnum = ath_tx_get_qnum(sc, ATH9K_TX_QUEUE_DATA, ATH9K_WME_AC_BE);
+		qnum = sc->tx.hwq_map[WME_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		break;
@@ -463,23 +441,23 @@ static int ath9k_init_queues(struct ath_softc *sc)
 	sc->config.cabqReadytime = ATH_CABQ_READY_TIME;
 	ath_cabq_update(sc);
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BK)) {
+	if (!ath_tx_setup(sc, WME_AC_BK)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BK traffic\n");
 		goto err;
 	}
 
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_BE)) {
+	if (!ath_tx_setup(sc, WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VI)) {
+	if (!ath_tx_setup(sc, WME_AC_VI)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VI traffic\n");
 		goto err;
 	}
-	if (!ath_tx_setup(sc, ATH9K_WME_AC_VO)) {
+	if (!ath_tx_setup(sc, WME_AC_VO)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for VO traffic\n");
 		goto err;
@@ -736,6 +714,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
 			goto error_world;
 	}
 
+	INIT_WORK(&sc->paprd_work, ath_paprd_calibrate);
 	INIT_WORK(&sc->chan_work, ath9k_wiphy_chan_work);
 	INIT_DELAYED_WORK(&sc->wiphy_work, ath9k_wiphy_work);
 	sc->wiphy_scheduler_int = msecs_to_jiffies(500);

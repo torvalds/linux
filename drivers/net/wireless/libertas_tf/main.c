@@ -549,7 +549,7 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 
 	prxpd = (struct rxpd *) skb->data;
 
-	stats.flag = 0;
+	memset(&stats, 0, sizeof(stats));
 	if (!(prxpd->status & cpu_to_le16(MRVDRV_RXPD_STATUS_OK)))
 		stats.flag |= RX_FLAG_FAILED_FCS_CRC;
 	stats.freq = priv->cur_freq;

@@ -23,11 +23,6 @@
 #include "rc.h"
 #include "ar9003_mac.h"
 
-#define ATH9K_CLOCK_RATE_CCK		22
-#define ATH9K_CLOCK_RATE_5GHZ_OFDM	40
-#define ATH9K_CLOCK_RATE_2GHZ_OFDM	44
-#define ATH9K_CLOCK_FAST_RATE_5GHZ_OFDM 44
-
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 
 MODULE_AUTHOR("Atheros Communications");
@@ -78,6 +73,15 @@ static void ath9k_hw_init_mode_gain_regs(struct ath_hw *ah)
 		return;
 
 	ath9k_hw_private_ops(ah)->init_mode_gain_regs(ah);
+}
+
+static void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
+{
+	/* You will not have this callback if using the old ANI */
+	if (!ath9k_hw_private_ops(ah)->ani_cache_ini_regs)
+		return;
+
+	ath9k_hw_private_ops(ah)->ani_cache_ini_regs(ah);
 }
 
 /********************/
@@ -371,13 +375,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.ofdm_trig_high = 500;
 	ah->config.cck_trig_high = 200;
 	ah->config.cck_trig_low = 100;
-
-	/*
-	 * For now ANI is disabled for AR9003, it is still
-	 * being tested.
-	 */
-	if (!AR_SREV_9300_20_OR_LATER(ah))
-		ah->config.enable_ani = 1;
+	ah->config.enable_ani = true;
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		ah->config.spurchans[i][0] = AR_NO_SPUR;
@@ -427,7 +425,9 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 		ah->ah_flags = AH_USE_EEPROM;
 
 	ah->atim_window = 0;
-	ah->sta_id1_defaults = AR_STA_ID1_CRPT_MIC_ENABLE;
+	ah->sta_id1_defaults =
+		AR_STA_ID1_CRPT_MIC_ENABLE |
+		AR_STA_ID1_MCAST_KSRCH;
 	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
 	ah->slottime = (u32) -1;
@@ -565,6 +565,8 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ah->ani_function = ATH9K_ANI_ALL;
 	if (AR_SREV_9280_10_OR_LATER(ah) && !AR_SREV_9300_20_OR_LATER(ah))
 		ah->ani_function &= ~ATH9K_ANI_NOISE_IMMUNITY_LEVEL;
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ah->ani_function &= ~ATH9K_ANI_MRC_CCK;
 
 	ath9k_hw_init_mode_regs(ah);
 
@@ -1365,6 +1367,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		ath9k_hw_resettxqueue(ah, i);
 
 	ath9k_hw_init_interrupt_masks(ah, ah->opmode);
+	ath9k_hw_ani_cache_ini_regs(ah);
 	ath9k_hw_init_qos(ah);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
@@ -2234,6 +2237,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->rx_status_len = sizeof(struct ar9003_rxs);
 		pCap->tx_desc_len = sizeof(struct ar9003_txc);
 		pCap->txs_len = sizeof(struct ar9003_txs);
+		if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD))
+			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
 		if (AR_SREV_9280_20(ah) &&
@@ -2251,98 +2256,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	return 0;
 }
-
-bool ath9k_hw_getcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 *result)
-{
-	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
-	switch (type) {
-	case ATH9K_CAP_CIPHER:
-		switch (capability) {
-		case ATH9K_CIPHER_AES_CCM:
-		case ATH9K_CIPHER_AES_OCB:
-		case ATH9K_CIPHER_TKIP:
-		case ATH9K_CIPHER_WEP:
-		case ATH9K_CIPHER_MIC:
-		case ATH9K_CIPHER_CLR:
-			return true;
-		default:
-			return false;
-		}
-	case ATH9K_CAP_TKIP_MIC:
-		switch (capability) {
-		case 0:
-			return true;
-		case 1:
-			return (ah->sta_id1_defaults &
-				AR_STA_ID1_CRPT_MIC_ENABLE) ? true :
-			false;
-		}
-	case ATH9K_CAP_TKIP_SPLIT:
-		return (ah->misc_mode & AR_PCU_MIC_NEW_LOC_ENA) ?
-			false : true;
-	case ATH9K_CAP_MCAST_KEYSRCH:
-		switch (capability) {
-		case 0:
-			return true;
-		case 1:
-			if (REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_ADHOC) {
-				return false;
-			} else {
-				return (ah->sta_id1_defaults &
-					AR_STA_ID1_MCAST_KSRCH) ? true :
-					false;
-			}
-		}
-		return false;
-	case ATH9K_CAP_TXPOW:
-		switch (capability) {
-		case 0:
-			return 0;
-		case 1:
-			*result = regulatory->power_limit;
-			return 0;
-		case 2:
-			*result = regulatory->max_power_level;
-			return 0;
-		case 3:
-			*result = regulatory->tp_scale;
-			return 0;
-		}
-		return false;
-	case ATH9K_CAP_DS:
-		return (AR_SREV_9280_20_OR_LATER(ah) &&
-			(ah->eep_ops->get_eeprom(ah, EEP_RC_CHAIN_MASK) == 1))
-			? false : true;
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_getcapability);
-
-bool ath9k_hw_setcapability(struct ath_hw *ah, enum ath9k_capability_type type,
-			    u32 capability, u32 setting, int *status)
-{
-	switch (type) {
-	case ATH9K_CAP_TKIP_MIC:
-		if (setting)
-			ah->sta_id1_defaults |=
-				AR_STA_ID1_CRPT_MIC_ENABLE;
-		else
-			ah->sta_id1_defaults &=
-				~AR_STA_ID1_CRPT_MIC_ENABLE;
-		return true;
-	case ATH9K_CAP_MCAST_KEYSRCH:
-		if (setting)
-			ah->sta_id1_defaults |= AR_STA_ID1_MCAST_KSRCH;
-		else
-			ah->sta_id1_defaults &= ~AR_STA_ID1_MCAST_KSRCH;
-		return true;
-	default:
-		return false;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_setcapability);
 
 /****************************/
 /* GPIO / RFKILL / Antennae */
@@ -2537,12 +2450,6 @@ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit)
 }
 EXPORT_SYMBOL(ath9k_hw_set_txpowerlimit);
 
-void ath9k_hw_setmac(struct ath_hw *ah, const u8 *mac)
-{
-	memcpy(ath9k_hw_common(ah)->macaddr, mac, ETH_ALEN);
-}
-EXPORT_SYMBOL(ath9k_hw_setmac);
-
 void ath9k_hw_setopmode(struct ath_hw *ah)
 {
 	ath9k_hw_set_operating_mode(ah, ah->opmode);
@@ -2614,21 +2521,6 @@ void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting)
 		ah->misc_mode &= ~AR_PCU_TX_ADD_TSF;
 }
 EXPORT_SYMBOL(ath9k_hw_set_tsfadjust);
-
-/*
- *  Extend 15-bit time stamp from rx descriptor to
- *  a full 64-bit TSF using the current h/w TSF.
-*/
-u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp)
-{
-	u64 tsf;
-
-	tsf = ath9k_hw_gettsf64(ah);
-	if ((tsf & 0x7fff) < rstamp)
-		tsf -= 0x8000;
-	return (tsf & ~0x7fff) | rstamp;
-}
-EXPORT_SYMBOL(ath9k_hw_extend_tsf);
 
 void ath9k_hw_set11nmac2040(struct ath_hw *ah)
 {
