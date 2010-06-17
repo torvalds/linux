@@ -9,7 +9,7 @@
 #endif
 
 #ifndef XGI_VB_CHIP_TYPE
-typedef enum _XGI_VB_CHIP_TYPE {
+enum XGI_VB_CHIP_TYPE {
     VB_CHIP_Legacy = 0,
     VB_CHIP_301,
     VB_CHIP_301B,
@@ -21,11 +21,11 @@ typedef enum _XGI_VB_CHIP_TYPE {
     VB_CHIP_302ELV,
     VB_CHIP_UNKNOWN, /* other video bridge or no video bridge */
     MAX_VB_CHIP
-} XGI_VB_CHIP_TYPE;
+};
 #endif
 
 #ifndef XGI_LCD_TYPE
-typedef enum _XGI_LCD_TYPE {
+enum XGI_LCD_TYPE {
     LCD_INVALID = 0,
     LCD_320x480,       /* FSTN, DSTN */
     LCD_640x480,
@@ -49,7 +49,7 @@ typedef enum _XGI_LCD_TYPE {
     LCD_2048x1536,
     LCD_CUSTOM,
     LCD_UNKNOWN
-} XGI_LCD_TYPE;
+};
 #endif
 
 #ifndef PXGI_DSReg
