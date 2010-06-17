@@ -707,6 +707,7 @@ struct ceph_osdmap *osdmap_apply_incremental(void **p, void *end,
 		newcrush = crush_decode(*p, min(*p+len, end));
 		if (IS_ERR(newcrush))
 			return ERR_CAST(newcrush);
+		*p += len;
 	}
 
 	/* new flags? */
