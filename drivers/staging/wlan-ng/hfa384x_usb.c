@@ -2805,11 +2805,13 @@ void hfa384x_tx_timeout(wlandevice_t *wlandev)
 
 	spin_lock_irqsave(&hw->ctlxq.lock, flags);
 
-	if (!hw->wlandev->hwremoved &&
-	    /* Note the bitwise OR, not the logical OR. */
-	    (!test_and_set_bit(WORK_TX_HALT, &hw->usb_flags) |
-	     !test_and_set_bit(WORK_RX_HALT, &hw->usb_flags))) {
-		schedule_work(&hw->usb_work);
+	if (!hw->wlandev->hwremoved) {
+		int sched;
+
+		sched = !test_and_set_bit(WORK_TX_HALT, &hw->usb_flags);
+		sched |= !test_and_set_bit(WORK_RX_HALT, &hw->usb_flags);
+		if (sched)
+			schedule_work(&hw->usb_work);
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);
