@@ -2364,7 +2364,7 @@ mptsas_sas_io_unit_pg1(MPT_ADAPTER *ioc)
 	SasIOUnitPage1_t *buffer;
 	dma_addr_t dma_handle;
 	int error;
-	u16 device_missing_delay;
+	u8 device_missing_delay;
 
 	memset(&hdr, 0, sizeof(ConfigExtendedPageHeader_t));
 	memset(&cfg, 0, sizeof(CONFIGPARMS));
@@ -2401,7 +2401,7 @@ mptsas_sas_io_unit_pg1(MPT_ADAPTER *ioc)
 
 	ioc->io_missing_delay  =
 	    le16_to_cpu(buffer->IODeviceMissingDelay);
-	device_missing_delay = le16_to_cpu(buffer->ReportDeviceMissingDelay);
+	device_missing_delay = buffer->ReportDeviceMissingDelay;
 	ioc->device_missing_delay = (device_missing_delay & MPI_SAS_IOUNIT1_REPORT_MISSING_UNIT_16) ?
 	    (device_missing_delay & MPI_SAS_IOUNIT1_REPORT_MISSING_TIMEOUT_MASK) * 16 :
 	    device_missing_delay & MPI_SAS_IOUNIT1_REPORT_MISSING_TIMEOUT_MASK;

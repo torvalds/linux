@@ -601,7 +601,7 @@ typedef struct _MPT_ADAPTER
 	u16			 nvdata_version_default;
 	int			 debug_level;
 	u8			 io_missing_delay;
-	u8			 device_missing_delay;
+	u16			 device_missing_delay;
 	SYSIF_REGS __iomem	*chip;		/* == c8817000 (mmap) */
 	SYSIF_REGS __iomem	*pio_chip;	/* Programmed IO (downloadboot) */
 	u8			 bus_type;
