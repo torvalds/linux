@@ -180,7 +180,7 @@ int main(int argc, char **argv)
 	if (argc < 3) {
 		fprintf(stderr, "%s: usage is \"%s <ifname> <operation>"
 				"[<address>] [<value>]\"\n", prgname, prgname);
-		fprintf(stderr, "valid operation : read, write, mem, reg, \n");
+		fprintf(stderr, "valid operation : read, write, mem, reg,\n");
 		fprintf(stderr, "		: txd, rxd, rmem, wmem\n");
 		fprintf(stderr, "		: dmat, regt, test\n");
 
