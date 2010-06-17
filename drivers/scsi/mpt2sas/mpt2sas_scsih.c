@@ -2123,8 +2123,59 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
 }
 
 /**
+ * _scsih_tm_display_info - displays info about the device
+ * @ioc: per adapter struct
+ * @scmd: pointer to scsi command object
+ *
+ * Called by task management callback handlers.
+ */
+static void
+_scsih_tm_display_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd)
+{
+	struct scsi_target *starget = scmd->device->sdev_target;
+	struct MPT2SAS_TARGET *priv_target = starget->hostdata;
+	struct _sas_device *sas_device = NULL;
+	unsigned long flags;
+
+	if (!priv_target)
+		return;
+
+	scsi_print_command(scmd);
+	if (priv_target->flags & MPT_TARGET_FLAGS_VOLUME) {
+		starget_printk(KERN_INFO, starget, "volume handle(0x%04x), "
+		    "volume wwid(0x%016llx)\n",
+		    priv_target->handle,
+		    (unsigned long long)priv_target->sas_address);
+	} else {
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
+		sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+		    priv_target->sas_address);
+		if (sas_device) {
+			if (priv_target->flags &
+			    MPT_TARGET_FLAGS_RAID_COMPONENT) {
+				starget_printk(KERN_INFO, starget,
+				    "volume handle(0x%04x), "
+				    "volume wwid(0x%016llx)\n",
+				    sas_device->volume_handle,
+				   (unsigned long long)sas_device->volume_wwid);
+			}
+			starget_printk(KERN_INFO, starget,
+			    "handle(0x%04x), sas_address(0x%016llx), phy(%d)\n",
+			    sas_device->handle,
+			    (unsigned long long)sas_device->sas_address,
+			    sas_device->phy);
+			starget_printk(KERN_INFO, starget,
+			    "enclosure_logical_id(0x%016llx), slot(%d)\n",
+			   (unsigned long long)sas_device->enclosure_logical_id,
+			    sas_device->slot);
+		}
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+	}
+}
+
+/**
  * _scsih_abort - eh threads main abort routine
- * @sdev: scsi device struct
+ * @scmd: pointer to scsi command object
  *
  * Returns SUCCESS if command aborted else FAILED
  */
@@ -2137,14 +2188,14 @@ _scsih_abort(struct scsi_cmnd *scmd)
 	u16 handle;
 	int r;
 
-	printk(MPT2SAS_INFO_FMT "attempting task abort! scmd(%p)\n",
-	    ioc->name, scmd);
-	scsi_print_command(scmd);
+	sdev_printk(KERN_INFO, scmd->device, "attempting task abort! "
+	    "scmd(%p)\n", scmd);
+	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
-		printk(MPT2SAS_INFO_FMT "device been deleted! scmd(%p)\n",
-		    ioc->name, scmd);
+		sdev_printk(KERN_INFO, scmd->device, "device been deleted! "
+		    "scmd(%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		r = SUCCESS;
@@ -2176,14 +2227,14 @@ _scsih_abort(struct scsi_cmnd *scmd)
 	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30, scmd);
 
  out:
-	printk(MPT2SAS_INFO_FMT "task abort: %s scmd(%p)\n",
-	    ioc->name, ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
+	sdev_printk(KERN_INFO, scmd->device, "task abort: %s scmd(%p)\n",
+	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 	return r;
 }
 
 /**
  * _scsih_dev_reset - eh threads main device reset routine
- * @sdev: scsi device struct
+ * @scmd: pointer to scsi command object
  *
  * Returns SUCCESS if command aborted else FAILED
  */
@@ -2197,14 +2248,16 @@ _scsih_dev_reset(struct scsi_cmnd *scmd)
 	u16	handle;
 	int r;
 
-	printk(MPT2SAS_INFO_FMT "attempting device reset! scmd(%p)\n",
-	    ioc->name, scmd);
-	scsi_print_command(scmd);
+	struct scsi_target *starget = scmd->device->sdev_target;
+
+	starget_printk(KERN_INFO, starget, "attempting target reset! "
+	    "scmd(%p)\n", scmd);
+	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
-		printk(MPT2SAS_INFO_FMT "device been deleted! scmd(%p)\n",
-		    ioc->name, scmd);
+		starget_printk(KERN_INFO, starget, "target been deleted! "
+		    "scmd(%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		r = SUCCESS;
@@ -2235,14 +2288,14 @@ _scsih_dev_reset(struct scsi_cmnd *scmd)
 	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 30, scmd);
 
  out:
-	printk(MPT2SAS_INFO_FMT "device reset: %s scmd(%p)\n",
-	    ioc->name, ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
+	sdev_printk(KERN_INFO, scmd->device, "device reset: %s scmd(%p)\n",
+	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 	return r;
 }
 
 /**
  * _scsih_target_reset - eh threads main target reset routine
- * @sdev: scsi device struct
+ * @scmd: pointer to scsi command object
  *
  * Returns SUCCESS if command aborted else FAILED
  */
@@ -2255,15 +2308,16 @@ _scsih_target_reset(struct scsi_cmnd *scmd)
 	unsigned long flags;
 	u16	handle;
 	int r;
+	struct scsi_target *starget = scmd->device->sdev_target;
 
-	printk(MPT2SAS_INFO_FMT "attempting target reset! scmd(%p)\n",
-	    ioc->name, scmd);
-	scsi_print_command(scmd);
+	starget_printk(KERN_INFO, starget, "attempting target reset! "
+	    "scmd(%p)\n", scmd);
+	_scsih_tm_display_info(ioc, scmd);
 
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
-		printk(MPT2SAS_INFO_FMT "target been deleted! scmd(%p)\n",
-		    ioc->name, scmd);
+		starget_printk(KERN_INFO, starget, "target been deleted! "
+		    "scmd(%p)\n", scmd);
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		r = SUCCESS;
@@ -2294,14 +2348,14 @@ _scsih_target_reset(struct scsi_cmnd *scmd)
 	    30, scmd);
 
  out:
-	printk(MPT2SAS_INFO_FMT "target reset: %s scmd(%p)\n",
-	    ioc->name, ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
+	starget_printk(KERN_INFO, starget, "target reset: %s scmd(%p)\n",
+	    ((r == SUCCESS) ? "SUCCESS" : "FAILED"), scmd);
 	return r;
 }
 
 /**
  * _scsih_host_reset - eh threads main host reset routine
- * @sdev: scsi device struct
+ * @scmd: pointer to scsi command object
  *
  * Returns SUCCESS if command aborted else FAILED
  */
@@ -3425,6 +3479,11 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 	u32 log_info = le32_to_cpu(mpi_reply->IOCLogInfo);
 	struct _sas_device *sas_device = NULL;
 	unsigned long flags;
+	struct scsi_target *starget = scmd->device->sdev_target;
+	struct MPT2SAS_TARGET *priv_target = starget->hostdata;
+
+	if (!priv_target)
+		return;
 
 	if (log_info == 0x31170000)
 		return;
@@ -3541,22 +3600,28 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 
 	scsi_print_command(scmd);
 
-	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = _scsih_sas_device_find_by_handle(ioc,
-	    le16_to_cpu(mpi_reply->DevHandle));
-	if (sas_device) {
-		printk(MPT2SAS_WARN_FMT "\tsas_address(0x%016llx), phy(%d)\n",
-		    ioc->name, sas_device->sas_address, sas_device->phy);
-		printk(MPT2SAS_WARN_FMT "\tenclosure_logical_id(0x%016llx), "
-		   "slot(%d)\n", ioc->name, sas_device->enclosure_logical_id,
-		    sas_device->slot);
+	if (priv_target->flags & MPT_TARGET_FLAGS_VOLUME) {
+		printk(MPT2SAS_WARN_FMT "\tvolume wwid(0x%016llx)\n", ioc->name,
+		    (unsigned long long)priv_target->sas_address);
+	} else {
+		spin_lock_irqsave(&ioc->sas_device_lock, flags);
+		sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+		    priv_target->sas_address);
+		if (sas_device) {
+			printk(MPT2SAS_WARN_FMT "\tsas_address(0x%016llx), "
+			    "phy(%d)\n", ioc->name, sas_device->sas_address,
+			    sas_device->phy);
+			printk(MPT2SAS_WARN_FMT
+			    "\tenclosure_logical_id(0x%016llx), slot(%d)\n",
+			    ioc->name, sas_device->enclosure_logical_id,
+			    sas_device->slot);
+		}
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 	}
-	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	printk(MPT2SAS_WARN_FMT "\tdev handle(0x%04x), "
-	    "ioc_status(%s)(0x%04x), smid(%d)\n", ioc->name,
-	    le16_to_cpu(mpi_reply->DevHandle), desc_ioc_state,
-		ioc_status, smid);
+	printk(MPT2SAS_WARN_FMT "\thandle(0x%04x), ioc_status(%s)(0x%04x), "
+	    "smid(%d)\n", ioc->name, le16_to_cpu(mpi_reply->DevHandle),
+	    desc_ioc_state, ioc_status, smid);
 	printk(MPT2SAS_WARN_FMT "\trequest_len(%d), underflow(%d), "
 	    "resid(%d)\n", ioc->name, scsi_bufflen(scmd), scmd->underflow,
 	    scsi_get_resid(scmd));
