@@ -32,6 +32,7 @@
 #include <linux/time.h>
 #include <linux/wait.h>
 #include <linux/earlysuspend.h>
+#include <linux/cpufreq.h>
 
 
 #include <asm/io.h>
@@ -74,6 +75,7 @@
 #define LcdRdReg(inf, addr)             (inf->preg->addr)
 #define LcdSetBit(inf, addr, msk)       inf->preg->addr=((inf->regbak.addr) |= (msk))
 #define LcdClrBit(inf, addr, msk)       inf->preg->addr=((inf->regbak.addr) &= ~(msk))
+#define LcdSetRegBit(inf, addr, msk)    inf->preg->addr=((inf->preg->addr) |= (msk))
 #define LcdMskReg(inf, addr, msk, val)  (inf->regbak.addr)&=~(msk);   inf->preg->addr=(inf->regbak.addr|=(val))
 
 
@@ -167,6 +169,9 @@ struct rk2818fb_inf {
     struct rk28fb_screen tv_info[5];
     struct rk28fb_screen hdmi_info[2];
     struct rk28fb_screen *cur_screen;
+#ifdef CONFIG_CPU_FREQ
+    struct notifier_block freq_transition;
+#endif
 
 };
 
@@ -210,7 +215,6 @@ void set_lcd_pin(struct platform_device *pdev, int enable)
 	int lcd_standby_pol = (mach_info->gpio->lcd_standby>>16)&0xffff;
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-	fbprintk(">>>>>> lcd_cs(%d) = %d \n", lcd_cs, enable ? lcd_cs_pol : !lcd_cs_pol);
 	fbprintk(">>>>>> display_on(%d) = %d \n", display_on, enable ? display_on_pol : !display_on_pol);
 	fbprintk(">>>>>> lcd_standby(%d) = %d \n", lcd_standby, enable ? lcd_standby_pol : !lcd_standby_pol);
 
@@ -272,7 +276,7 @@ int mcu_do_refresh(struct rk2818fb_inf *inf)
             if(inf->cur_screen->refresh)    inf->cur_screen->refresh(REFRESH_PRE);
             inf->mcu_needflush = 0;
             inf->mcu_isrcnt = 0;
-            LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);
+            LcdSetRegBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);           
         }
     }
     return 0;
@@ -519,11 +523,6 @@ void load_screen(struct fb_info *info, bool initscreen)
             v_OUTPUT_RB_SWAP(screen->swap_rb) | v_OUTPUT_RG_SWAP(screen->swap_rg) | v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy));
 
 	// set horizontal & vertical out timing
-	if(IsMcuLandscape()) 
-    {
-        x_res = (screen->mcu_usefmk) ? (screen->y_res/2) : (screen->y_res);
-        y_res = screen->x_res;
-	}
 	if(SCREEN_MCU==inf->cur_screen->type) 
     {
 	    right_margin = x_res/6;
@@ -552,10 +551,6 @@ void load_screen(struct fb_info *info, bool initscreen)
     clk_set_parent(inf->dclk_divider, inf->dclk_parent);
     clk_set_parent(inf->dclk, inf->dclk_divider);
 
-    //clk_set_parent(inf->dclk, inf->dclk_parent);
-
-    clk_rate = clk_get_rate(inf->dclk_parent);
-
     dclk_rate = screen->pixclock * 1000000;
     
     fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, clk_rate);
@@ -577,6 +572,38 @@ void load_screen(struct fb_info *info, bool initscreen)
     	screen->init();
     }
 }
+#ifdef CONFIG_CPU_FREQ
+/*
+* CPU clock speed change handler. We need to adjust the LCD timing
+* parameters when the CPU clock is adjusted by the power management
+* subsystem.
+*/
+#define TO_INF(ptr,member) container_of(ptr,struct rk2818fb_inf,member)
+
+static int
+rk2818fb_freq_transition(struct notifier_block *nb, unsigned long val, void *data)
+{
+    struct rk2818fb_inf *inf = TO_INF(nb, freq_transition);
+    struct rk28fb_screen *screen = inf->cur_screen;
+    u32 dclk_rate = 0;
+
+    switch (val)
+    {
+    case CPUFREQ_PRECHANGE:        
+          break;
+    case CPUFREQ_POSTCHANGE:
+        {
+         dclk_rate = screen->pixclock * 1000000;
+     
+         fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, dclk_rate);
+     
+         clk_set_rate(inf->dclk_divider, dclk_rate);
+         break;
+        }
+    }
+    return 0;
+} 
+#endif
 
 static inline unsigned int chan_to_field(unsigned int chan,
 					 struct fb_bitfield *bf)
@@ -759,11 +786,6 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 ylcd = screen->y_res;
     u16 yres = 0;
     
-    if(IsMcuLandscape()) 
-    {
-        xlcd = screen->y_res;
-        ylcd = screen->x_res;
-    }
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1447,10 +1469,7 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
     case FB1_IOCTL_GET_PANEL_SIZE:    //get panel size
         {
             u32 panel_size[2];
-            if(IsMcuLandscape()) {
-                panel_size[0] = inf->cur_screen->y_res;
-                panel_size[1] = inf->cur_screen->x_res;
-            } else {
+          {
                 panel_size[0] = inf->cur_screen->x_res;
                 panel_size[1] = inf->cur_screen->y_res;
             }
@@ -1531,6 +1550,8 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
         case 270:
             win0fb_rotate(info, 270);
             break;
+        default:
+            return -1;
         }
         break;
     case FB1_IOCTL_SET_I2P_ODD_ADDR:
@@ -2018,7 +2039,7 @@ static irqreturn_t rk2818fb_irq(int irq, void *dev_id)
                     inf->cur_screen->refresh(REFRESH_PRE);
                 inf->mcu_needflush = 0;                
                 inf->mcu_isrcnt = 0;
-                LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST);               
+                LcdSetRegBit(inf, MCU_TIMING_CTRL, m_MCU_HOLDMODE_FRAME_ST); 
             } else {
                 if(inf->cur_screen->refresh)
                     inf->cur_screen->refresh(REFRESH_END);
@@ -2348,7 +2369,10 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 		ret = -ENOENT;
 		goto unregister_win1fb;
 	}
-    
+  #ifdef CONFIG_CPU_FREQ
+    inf->freq_transition.notifier_call = rk2818fb_freq_transition;
+    cpufreq_register_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+  #endif
 	fbprintk("got clock\n");  
     
 	mach_info = pdev->dev.platform_data;
@@ -2521,7 +2545,11 @@ static int rk2818fb_remove(struct platform_device *pdev)
         framebuffer_release(inf->win1fb);
         inf->win1fb = NULL;
     }
-
+    
+  #ifdef CONFIG_CPU_FREQ
+    cpufreq_unregister_notifier(&inf->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+  #endif
+  
 	if (inf->clk)
     {
 		clk_disable(inf->clk);
