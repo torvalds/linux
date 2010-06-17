@@ -626,7 +626,7 @@ static long
 _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
     struct mpt2_ioctl_command karg, void __user *mf, enum block_state state)
 {
-	MPI2RequestHeader_t *mpi_request;
+	MPI2RequestHeader_t *mpi_request = NULL, *request;
 	MPI2DefaultReply_t *mpi_reply;
 	u32 ioc_state;
 	u16 ioc_status;
@@ -679,30 +679,49 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		printk(MPT2SAS_INFO_FMT "%s: ioc is operational\n",
 		    ioc->name, __func__);
 
-	smid = mpt2sas_base_get_smid_scsiio(ioc, ioc->ctl_cb_idx, NULL);
-	if (!smid) {
-		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
-		    ioc->name, __func__);
-		ret = -EAGAIN;
+	mpi_request = kzalloc(ioc->request_sz, GFP_KERNEL);
+	if (!mpi_request) {
+		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a memory for "
+		    "mpi_request\n", ioc->name, __func__);
+		ret = -ENOMEM;
 		goto out;
 	}
-
-	ret = 0;
-	ioc->ctl_cmds.status = MPT2_CMD_PENDING;
-	memset(ioc->ctl_cmds.reply, 0, ioc->reply_sz);
-	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
-	ioc->ctl_cmds.smid = smid;
-	data_out_sz = karg.data_out_size;
-	data_in_sz = karg.data_in_size;
 
 	/* copy in request message frame from user */
 	if (copy_from_user(mpi_request, mf, karg.data_sge_offset*4)) {
 		printk(KERN_ERR "failure at %s:%d/%s()!\n", __FILE__, __LINE__,
 		    __func__);
 		ret = -EFAULT;
-		mpt2sas_base_free_smid(ioc, smid);
 		goto out;
 	}
+
+	if (mpi_request->Function == MPI2_FUNCTION_SCSI_TASK_MGMT) {
+		smid = mpt2sas_base_get_smid_hpr(ioc, ioc->ctl_cb_idx);
+		if (!smid) {
+			printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
+			    ioc->name, __func__);
+			ret = -EAGAIN;
+			goto out;
+		}
+	} else {
+
+		smid = mpt2sas_base_get_smid_scsiio(ioc, ioc->ctl_cb_idx, NULL);
+		if (!smid) {
+			printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
+			    ioc->name, __func__);
+			ret = -EAGAIN;
+			goto out;
+		}
+	}
+
+	ret = 0;
+	ioc->ctl_cmds.status = MPT2_CMD_PENDING;
+	memset(ioc->ctl_cmds.reply, 0, ioc->reply_sz);
+	request = mpt2sas_base_get_msg_frame(ioc, smid);
+	memcpy(request, mpi_request, karg.data_sge_offset*4);
+	ioc->ctl_cmds.smid = smid;
+	data_out_sz = karg.data_out_size;
+	data_in_sz = karg.data_in_size;
 
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 	    mpi_request->Function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
@@ -749,7 +768,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	}
 
 	/* add scatter gather elements */
-	psge = (void *)mpi_request + (karg.data_sge_offset*4);
+	psge = (void *)request + (karg.data_sge_offset*4);
 
 	if (!data_out_sz && !data_in_sz) {
 		mpt2sas_base_build_zero_len_sge(ioc, psge);
@@ -797,7 +816,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	case MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH:
 	{
 		Mpi2SCSIIORequest_t *scsiio_request =
-		    (Mpi2SCSIIORequest_t *)mpi_request;
+		    (Mpi2SCSIIORequest_t *)request;
 		scsiio_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
 		scsiio_request->SenseBufferLowAddress =
 		    mpt2sas_base_get_sense_buffer_dma(ioc, smid);
@@ -812,7 +831,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	case MPI2_FUNCTION_SCSI_TASK_MGMT:
 	{
 		Mpi2SCSITaskManagementRequest_t *tm_request =
-		    (Mpi2SCSITaskManagementRequest_t *)mpi_request;
+		    (Mpi2SCSITaskManagementRequest_t *)request;
 
 		dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "TASK_MGMT: "
 		    "handle(0x%04x), task_type(0x%02x)\n", ioc->name,
@@ -985,6 +1004,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		pci_free_consistent(ioc->pdev, data_out_sz, data_out,
 		    data_out_dma);
 
+	kfree(mpi_request);
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_unlock(&ioc->ctl_cmds.mutex);
 	return ret;
