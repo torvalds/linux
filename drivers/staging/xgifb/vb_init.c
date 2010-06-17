@@ -72,38 +72,38 @@ unsigned short XGINew_DDRDRAM_TYPE20[12][5] = {
 	{ 2, 12,  9,  8, 0x35},
 	{ 2, 12,  8,  4, 0x31} };
 
-void     XGINew_SetDRAMSize_340(PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO);
-void     XGINew_SetDRAMSize_310(PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO);
-void     XGINew_SetMemoryClock(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
+void     XGINew_SetDRAMSize_340(struct xgi_hw_device_info *, PVB_DEVICE_INFO);
+void     XGINew_SetDRAMSize_310(struct xgi_hw_device_info *, PVB_DEVICE_INFO);
+void     XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO);
 void     XGINew_SetDRAMModeRegister(PVB_DEVICE_INFO );
-void     XGINew_SetDRAMModeRegister340( PXGI_HW_DEVICE_INFO HwDeviceExtension );
-void XGINew_SetDRAMDefaultRegister340(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void     XGINew_SetDRAMModeRegister340(struct xgi_hw_device_info *HwDeviceExtension);
+void XGINew_SetDRAMDefaultRegister340(struct xgi_hw_device_info *HwDeviceExtension,
 				      unsigned long, PVB_DEVICE_INFO);
-unsigned char XGINew_GetXG20DRAMType(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+unsigned char XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 				     PVB_DEVICE_INFO pVBInfo);
-unsigned char XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension);
+unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension);
 
-int      XGINew_DDRSizing340( PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO );
-void     XGINew_DisableRefresh( PXGI_HW_DEVICE_INFO ,PVB_DEVICE_INFO) ;
+int      XGINew_DDRSizing340(struct xgi_hw_device_info *, PVB_DEVICE_INFO);
+void     XGINew_DisableRefresh(struct xgi_hw_device_info *, PVB_DEVICE_INFO) ;
 void     XGINew_CheckBusWidth_310( PVB_DEVICE_INFO) ;
 int      XGINew_SDRSizing(PVB_DEVICE_INFO);
 int      XGINew_DDRSizing( PVB_DEVICE_INFO );
-void     XGINew_EnableRefresh( PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO);
+void     XGINew_EnableRefresh(struct xgi_hw_device_info *, PVB_DEVICE_INFO);
 int      XGINew_RAMType;                  /*int      ModeIDOffset,StandTable,CRT1Table,ScreenOffset,REFIndex;*/
 unsigned long	 UNIROM;			  /* UNIROM */
 unsigned char  ChkLFB(PVB_DEVICE_INFO);
 void     XGINew_Delay15us(unsigned long);
-void     SetPowerConsume(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void     SetPowerConsume(struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned long XGI_P3d4Port);
 void     ReadVBIOSTablData(unsigned char ChipType, PVB_DEVICE_INFO pVBInfo);
 void     XGINew_DDR1x_MRS_XG20(unsigned long P3c4, PVB_DEVICE_INFO pVBInfo);
-void     XGINew_SetDRAMModeRegister_XG20( PXGI_HW_DEVICE_INFO HwDeviceExtension );
-void     XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension );
-void 	 XGINew_ChkSenseStatus ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo ) ;
-void     XGINew_SetModeScratch ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo ) ;
-void     XGINew_GetXG21Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
+void     XGINew_SetDRAMModeRegister_XG20(struct xgi_hw_device_info *HwDeviceExtension);
+void     XGINew_SetDRAMModeRegister_XG27(struct xgi_hw_device_info *HwDeviceExtension);
+void     XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
+void     XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
+void     XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
 unsigned char    GetXG21FPBits(PVB_DEVICE_INFO pVBInfo);
-void     XGINew_GetXG27Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
+void     XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
 unsigned char    GetXG27FPBits(PVB_DEVICE_INFO pVBInfo);
 
 void DelayUS(unsigned long MicroSeconds)
@@ -118,7 +118,7 @@ void DelayUS(unsigned long MicroSeconds)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension)
+unsigned char XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension)
 {
 
     VB_DEVICE_INFO VBINF;
@@ -546,7 +546,7 @@ return 1;
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_GetXG20DRAMType(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+unsigned char XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 				     PVB_DEVICE_INFO pVBInfo)
 {
     unsigned char data, temp;
@@ -740,7 +740,7 @@ void XGINew_DDR2x_MRS_340(unsigned long P3c4 , PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDRII_Bootup_XG27(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_DDRII_Bootup_XG27(struct xgi_hw_device_info *HwDeviceExtension,
 			      unsigned long P3c4, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned long P3d4 = P3c4 + 0x10 ;
@@ -819,7 +819,7 @@ void XGINew_DDRII_Bootup_XG27(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2_MRS_XG20(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_DDR2_MRS_XG20(struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned long P3c4, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned long P3d4 = P3c4 + 0x10 ;
@@ -872,7 +872,7 @@ void XGINew_DDR2_MRS_XG20(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2_MRS_XG27(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_DDR2_MRS_XG27(struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned long P3c4, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned long P3d4 = P3c4 + 0x10 ;
@@ -951,7 +951,7 @@ void XGINew_DDR2_MRS_XG27(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR1x_DefaultRegister(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_DDR1x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
 				  unsigned long Port, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned long P3d4 = Port ,
@@ -1012,7 +1012,7 @@ void XGINew_DDR1x_DefaultRegister(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2x_DefaultRegister(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_DDR2x_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
 				  unsigned long Port, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned long P3d4 = Port ,
@@ -1064,7 +1064,7 @@ void XGINew_DDR2x_DefaultRegister(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DDR2_DefaultRegister(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_DDR2_DefaultRegister(struct xgi_hw_device_info *HwDeviceExtension,
 				 unsigned long Port, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned long P3d4 = Port ,
@@ -1103,7 +1103,7 @@ void XGINew_DDR2_DefaultRegister(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetDRAMDefaultRegister340(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void XGINew_SetDRAMDefaultRegister340(struct xgi_hw_device_info *HwDeviceExtension,
 				      unsigned long Port, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned char temp, temp1, temp2, temp3 ,
@@ -1315,7 +1315,7 @@ void XGINew_DDR_MRS(PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_VerifyMclk( PXGI_HW_DEVICE_INFO  HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGINew_VerifyMclk(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned char *pVideoMemory = pVBInfo->FBAddr ;
     unsigned char i, j ;
@@ -1361,7 +1361,7 @@ void XGINew_VerifyMclk( PXGI_HW_DEVICE_INFO  HwDeviceExtension , PVB_DEVICE_INFO
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetDRAMSize_340( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGINew_SetDRAMSize_340(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned short  data ;
 
@@ -1390,7 +1390,7 @@ void XGINew_SetDRAMSize_340( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetDRAMSize_310( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGINew_SetDRAMSize_310(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned short data ;
     pVBInfo->ROMAddr  = HwDeviceExtension->pjVirtualRomBase ,
@@ -1454,7 +1454,7 @@ void XGINew_SetDRAMSize_310( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_
 /* Description : */
 /* --------------------------------------------------------------------- */
 
-void XGINew_SetDRAMModeRegister340( PXGI_HW_DEVICE_INFO HwDeviceExtension )
+void XGINew_SetDRAMModeRegister340(struct xgi_hw_device_info *HwDeviceExtension)
 {
     unsigned char data ;
     VB_DEVICE_INFO VBINF;
@@ -1528,7 +1528,7 @@ void XGINew_SetDRAMModeRegister( PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_DisableRefresh( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGINew_DisableRefresh(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned short  data ;
 
@@ -1546,7 +1546,7 @@ void XGINew_DisableRefresh( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_I
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_EnableRefresh( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGINew_EnableRefresh(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
 
     XGINew_SetReg1( pVBInfo->P3c4 , 0x1B , pVBInfo->SR15[ 3 ][ XGINew_RAMType ] ) ;	/* SR1B */
@@ -2228,7 +2228,7 @@ unsigned char XGINew_CheckFrequence(PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_CheckChannel( PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+void XGINew_CheckChannel(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned char data;
 
@@ -2509,7 +2509,7 @@ void XGINew_CheckChannel( PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-int XGINew_DDRSizing340( PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+int XGINew_DDRSizing340(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     int i ;
     unsigned short memsize , addr ;
@@ -2595,7 +2595,7 @@ int XGINew_DDRSizing(PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetMemoryClock( PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
 
 
@@ -2644,7 +2644,7 @@ unsigned char ChkLFB(PVB_DEVICE_INFO pVBInfo)
 /* in second chip, assume CR A1 D[6]="1" in this case */
 /* output : none */
 /* --------------------------------------------------------------------- */
-void SetPowerConsume(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+void SetPowerConsume(struct xgi_hw_device_info *HwDeviceExtension,
 		     unsigned long XGI_P3d4Port)
 {
     unsigned long   lTemp ;
@@ -2673,7 +2673,7 @@ void SetPowerConsume(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 }
 
 
-void XGINew_InitVBIOSData(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+void XGINew_InitVBIOSData(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
 
 	/* unsigned long ROMAddr = (unsigned long)HwDeviceExtension->pjVirtualRomBase; */
@@ -2828,7 +2828,7 @@ void XGINew_DDR1x_MRS_XG20(unsigned long P3c4, PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetDRAMModeRegister_XG20( PXGI_HW_DEVICE_INFO HwDeviceExtension )
+void XGINew_SetDRAMModeRegister_XG20(struct xgi_hw_device_info *HwDeviceExtension)
 {
     VB_DEVICE_INFO VBINF;
     PVB_DEVICE_INFO pVBInfo = &VBINF;
@@ -2867,7 +2867,7 @@ void XGINew_SetDRAMModeRegister_XG20( PXGI_HW_DEVICE_INFO HwDeviceExtension )
     XGINew_SetReg1( pVBInfo->P3c4 , 0x1B , 0x03 ) ;
 }
 
-void XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension )
+void XGINew_SetDRAMModeRegister_XG27(struct xgi_hw_device_info *HwDeviceExtension)
 {
     VB_DEVICE_INFO VBINF;
     PVB_DEVICE_INFO pVBInfo = &VBINF;
@@ -2909,7 +2909,7 @@ void XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension )
 
 }
 /*
-void XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension )
+void XGINew_SetDRAMModeRegister_XG27(struct xgi_hw_device_info *HwDeviceExtension)
 {
 
     unsigned char data ;
@@ -2956,7 +2956,7 @@ void XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension )
 /* Output : */
 /* Description : */
 /* -------------------------------------------------------- */
-void XGINew_ChkSenseStatus ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
+void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned short tempbx = 0, temp, tempcx, CR3CData;
 
@@ -3017,7 +3017,7 @@ void XGINew_ChkSenseStatus ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_
 /* Output : */
 /* Description : */
 /* -------------------------------------------------------- */
-void XGINew_SetModeScratch ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo )
+void XGINew_SetModeScratch(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned short temp , tempcl = 0 , tempch = 0 , CR31Data , CR38Data;
 
@@ -3114,7 +3114,7 @@ void XGINew_SetModeScratch ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_
 /* Output : */
 /* Description : */
 /* -------------------------------------------------------- */
-void XGINew_GetXG21Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     unsigned char Temp;
     volatile unsigned char *pVideoMemory = (unsigned char *)pVBInfo->ROMAddr;
@@ -3156,7 +3156,7 @@ void XGINew_GetXG21Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO 
 /* Output : */
 /* Description : */
 /* -------------------------------------------------------- */
-void XGINew_GetXG27Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
 	unsigned char Temp, bCR4A;
 

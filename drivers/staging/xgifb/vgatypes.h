@@ -58,14 +58,7 @@ struct XGI_DSReg
   unsigned char  jVal;
 };
 
-
-#ifndef XGI_HW_DEVICE_INFO
-
-typedef struct _XGI_HW_DEVICE_INFO  XGI_HW_DEVICE_INFO, *PXGI_HW_DEVICE_INFO;
-
-typedef unsigned char (*PXGI_QUERYSPACE)   (PXGI_HW_DEVICE_INFO, unsigned long, unsigned long, unsigned long *);
-
-struct _XGI_HW_DEVICE_INFO
+struct xgi_hw_device_info
 {
     unsigned long  ulExternalChip;       /* NO VB or other video bridge*/
                                  /* if ujVBChipID = VB_CHIP_UNKNOWN, */
@@ -124,18 +117,18 @@ struct _XGI_HW_DEVICE_INFO
                                  /* end data :(idx, val) =  (FF, FF) */
                                  /* Note : restore cR registers if  */
                                  /* bSkipDramSizing = 1 */
-/*
-#endif
-*/
 
-    PXGI_QUERYSPACE  pQueryVGAConfigSpace;
+	unsigned char(*pQueryVGAConfigSpace)(struct xgi_hw_device_info *,
+					    unsigned long, unsigned long,
+					    unsigned long *);
 
-    PXGI_QUERYSPACE  pQueryNorthBridgeSpace;
+	unsigned char(*pQueryNorthBridgeSpace)(struct xgi_hw_device_info *,
+					      unsigned long, unsigned long,
+					      unsigned long *);
 
     unsigned char szVBIOSVer[VBIOS_VER_MAX_LENGTH];
 
 };
-#endif
 
 /* Addtional IOCTL for communication xgifb <> X driver        */
 /* If changing this, xgifb.h must also be changed (for xgifb) */

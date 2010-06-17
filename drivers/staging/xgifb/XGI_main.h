@@ -248,9 +248,6 @@ MODULE_DEVICE_TABLE(pci, xgifb_pci_table);
 #define BRI_DRAM_SIZE_32MB        0x04
 #define BRI_DRAM_SIZE_64MB        0x05
 
-#define HW_DEVICE_EXTENSION	  XGI_HW_DEVICE_INFO
-#define PHW_DEVICE_EXTENSION      PXGI_HW_DEVICE_INFO
-
 #define SR_BUFFER_SIZE            5
 #define CR_BUFFER_SIZE            5
 
@@ -376,7 +373,7 @@ unsigned char XGIfb_detectedlcda = 0xff;
 /* XGIfb_info XGIfbinfo; */
 
 /* TW: Hardware extension; contains data on hardware */
-HW_DEVICE_EXTENSION XGIhw_ext;
+struct xgi_hw_device_info XGIhw_ext;
 
 /* TW: XGI private structure */
 VB_DEVICE_INFO  XGI_Pr;
@@ -812,9 +809,9 @@ static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 
 /*
 extern int	XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr,
-			      PXGI_HW_DEVICE_INFO HwDeviceExtension,
+			      struct xgi_hw_device_info *HwDeviceExtension,
 			      unsigned char modeno, unsigned char rateindex);
-extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
+extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned char modeno, unsigned char rateindex,
 			 unsigned int *left_margin, unsigned int *right_margin,
 			 unsigned int *upper_margin, unsigned int *lower_margin,
@@ -881,20 +878,22 @@ static XGI_OH   *XGIfb_poh_free(unsigned long base);
 static void     XGIfb_free_node(XGI_OH *poh);
 
 /* Internal routines to access PCI configuration space */
-unsigned char         XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
-	          	unsigned long offset, unsigned long set, unsigned long *value);
+unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,
+					   unsigned long offset,
+					   unsigned long set,
+					   unsigned long *value);
 //BOOLEAN         XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 //	         	unsigned long offset, unsigned long set, unsigned long *value);
 
 
 /* Routines from init.c/init301.c */
 extern void     InitTo330Pointer(unsigned char, PVB_DEVICE_INFO pVBInfo);
-extern unsigned char  XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension);
-extern unsigned char XGISetModeNew(PXGI_HW_DEVICE_INFO HwDeviceExtension,
-			     unsigned short ModeNo);
+extern unsigned char  XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension);
+extern unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
+				   unsigned short ModeNo);
 //extern void     XGI_SetEnableDstn(VB_DEVICE_INFO *XGI_Pr);
 extern void     XGI_LongWait(VB_DEVICE_INFO *XGI_Pr);
-extern unsigned short XGI_GetRatePtrCRT2(PXGI_HW_DEVICE_INFO pXGIHWDE,
+extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 					 unsigned short ModeNo,
 					 unsigned short ModeIdIndex,
 					 PVB_DEVICE_INFO pVBInfo);

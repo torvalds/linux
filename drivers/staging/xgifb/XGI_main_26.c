@@ -162,7 +162,7 @@ struct video_info  xgi_video_info;
 /* --------------- Hardware Access Routines -------------------------- */
 
 int
-XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
+XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned char modeno, unsigned char rateindex)
 {
     unsigned short ModeNo = modeno;
@@ -197,7 +197,7 @@ XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceEx
 }
 
 int
-XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
+XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned char modeno, unsigned char rateindex,
 			 u32 *left_margin, u32 *right_margin,
 			 u32 *upper_margin, u32 *lower_margin,
@@ -416,7 +416,7 @@ u32 XGIfb_get_reg3(u16 port)
 /* ------------ Interface for init & mode switching code ------------- */
 
 unsigned char
-XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
+XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext,
 	unsigned long offset, unsigned long set, unsigned long *value)
 {
 	static struct pci_dev *pdev = NULL;
@@ -450,7 +450,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	return 1;
 }
 
-/*unsigned char XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
+/*unsigned char XGIfb_query_north_bridge_space(struct xgi_hw_device_info *pXGIhw_ext,
 	unsigned long offset, unsigned long set, unsigned long *value)
 {
 	static struct pci_dev *pdev = NULL;
@@ -2881,7 +2881,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	XGIfb_registered = 0;
 
-	memset(&XGIhw_ext, 0, sizeof(HW_DEVICE_EXTENSION));
+	memset(&XGIhw_ext, 0, sizeof(struct xgi_hw_device_info));
 	  fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	  if(!fb_info) return -ENOMEM;
 
