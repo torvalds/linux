@@ -275,6 +275,9 @@ mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply)
 {
 	MPI2DefaultReply_t *mpi_reply;
+	Mpi2SCSIIOReply_t *scsiio_reply;
+	const void *sense_data;
+	u32 sz;
 
 	if (ioc->ctl_cmds.status == MPT2_CMD_NOT_USED)
 		return 1;
@@ -285,6 +288,20 @@ mpt2sas_ctl_done(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	if (mpi_reply) {
 		memcpy(ioc->ctl_cmds.reply, mpi_reply, mpi_reply->MsgLength*4);
 		ioc->ctl_cmds.status |= MPT2_CMD_REPLY_VALID;
+		/* get sense data */
+		if (mpi_reply->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
+		    mpi_reply->Function ==
+		    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) {
+			scsiio_reply = (Mpi2SCSIIOReply_t *)mpi_reply;
+			if (scsiio_reply->SCSIState &
+			    MPI2_SCSI_STATE_AUTOSENSE_VALID) {
+				sz = min_t(u32, SCSI_SENSE_BUFFERSIZE,
+				    le32_to_cpu(scsiio_reply->SenseCount));
+				sense_data = mpt2sas_base_get_sense_buffer(ioc,
+				    smid);
+				memcpy(ioc->ctl_cmds.sense, sense_data, sz);
+			}
+		}
 	}
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
 	_ctl_display_some_debug(ioc, smid, "ctl_done", mpi_reply);
@@ -618,7 +635,6 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	u8 issue_reset;
 	u32 sz;
 	void *psge;
-	void *priv_sense = NULL;
 	void *data_out = NULL;
 	dma_addr_t data_out_dma;
 	size_t data_out_sz = 0;
@@ -782,10 +798,10 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	{
 		Mpi2SCSIIORequest_t *scsiio_request =
 		    (Mpi2SCSIIORequest_t *)mpi_request;
+		scsiio_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
 		scsiio_request->SenseBufferLowAddress =
 		    mpt2sas_base_get_sense_buffer_dma(ioc, smid);
-		priv_sense = mpt2sas_base_get_sense_buffer(ioc, smid);
-		memset(priv_sense, 0, SCSI_SENSE_BUFFERSIZE);
+		memset(ioc->ctl_cmds.sense, 0, SCSI_SENSE_BUFFERSIZE);
 		if (mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST)
 			mpt2sas_base_put_smid_scsi_io(ioc, smid,
 			    le16_to_cpu(mpi_request->FunctionDependent1));
@@ -929,7 +945,8 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	    MPI2_FUNCTION_SCSI_IO_REQUEST || mpi_request->Function ==
 	    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
 		sz = min_t(u32, karg.max_sense_bytes, SCSI_SENSE_BUFFERSIZE);
-		if (copy_to_user(karg.sense_data_ptr, priv_sense, sz)) {
+		if (copy_to_user(karg.sense_data_ptr,
+			ioc->ctl_cmds.sense, sz)) {
 			printk(KERN_ERR "failure at %s:%d/%s()!\n", __FILE__,
 			    __LINE__, __func__);
 			ret = -ENODATA;

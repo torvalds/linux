@@ -247,6 +247,7 @@ struct MPT2SAS_DEVICE {
  * @mutex: mutex
  * @done: completion
  * @reply: reply message pointer
+ * @sense: sense data
  * @status: MPT2_CMD_XXX status
  * @smid: system message id
  */
@@ -254,6 +255,7 @@ struct _internal_cmd {
 	struct mutex mutex;
 	struct completion done;
 	void 	*reply;
+	void	*sense;
 	u16	status;
 	u16	smid;
 };

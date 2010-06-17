@@ -3668,12 +3668,14 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 
 	/* ctl module internal command bits */
 	ioc->ctl_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
+	ioc->ctl_cmds.sense = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_init(&ioc->ctl_cmds.mutex);
 
 	if (!ioc->base_cmds.reply || !ioc->transport_cmds.reply ||
 	    !ioc->scsih_cmds.reply || !ioc->tm_cmds.reply ||
-	    !ioc->config_cmds.reply || !ioc->ctl_cmds.reply) {
+	    !ioc->config_cmds.reply || !ioc->ctl_cmds.reply ||
+	    !ioc->ctl_cmds.sense) {
 		r = -ENOMEM;
 		goto out_free_resources;
 	}
@@ -3722,6 +3724,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	kfree(ioc->config_cmds.reply);
 	kfree(ioc->base_cmds.reply);
 	kfree(ioc->ctl_cmds.reply);
+	kfree(ioc->ctl_cmds.sense);
 	kfree(ioc->pfacts);
 	ioc->ctl_cmds.reply = NULL;
 	ioc->base_cmds.reply = NULL;
@@ -3754,6 +3757,7 @@ mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 	kfree(ioc->pd_handles);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
+	kfree(ioc->ctl_cmds.sense);
 	kfree(ioc->base_cmds.reply);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
