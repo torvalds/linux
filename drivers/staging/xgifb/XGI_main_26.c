@@ -3510,7 +3510,8 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		XGIfb_registered = 1;
 
-		printk(KERN_INFO "XGIfb: Installed XGIFB_GET_INFO ioctl (%x)\n", XGIFB_GET_INFO);
+		printk(KERN_INFO "XGIfb: Installed XGIFB_GET_INFO ioctl (%lx)\n",
+		       XGIFB_GET_INFO);
 
 /*		printk(KERN_INFO "XGIfb: 2D acceleration is %s, scrolling mode %s\n",
 		     XGIfb_accel ? "enabled" : "disabled",
