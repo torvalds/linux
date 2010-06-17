@@ -413,7 +413,7 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 
 	/* resetall */
 	qlcnic_rom_lock(adapter);
-	QLCWR32(adapter, QLCNIC_ROMUSB_GLB_SW_RESET, 0xffffffff);
+	QLCWR32(adapter, QLCNIC_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	qlcnic_rom_unlock(adapter);
 
 	if (qlcnic_rom_fast_read(adapter, 0, &n) != 0 || (n != 0xcafecafe) ||
