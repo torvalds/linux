@@ -589,11 +589,10 @@ int qlcnic_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
 			0,
 			QLCNIC_CDRP_CMD_MAC_ADDRESS);
 
-	if (err == QLCNIC_RCODE_SUCCESS) {
+	if (err == QLCNIC_RCODE_SUCCESS)
 		qlcnic_fetch_mac(adapter, QLCNIC_ARG1_CRB_OFFSET,
 				QLCNIC_ARG2_CRB_OFFSET, 0, mac);
-		dev_info(&adapter->pdev->dev, "MAC address: %pM\n", mac);
-	} else {
+	else {
 		dev_err(&adapter->pdev->dev,
 			"Failed to get mac address%d\n", err);
 		err = -EIO;

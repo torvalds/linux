@@ -35,14 +35,14 @@
 #include <linux/inetdevice.h>
 #include <linux/sysfs.h>
 
-MODULE_DESCRIPTION("QLogic 10 GbE Converged Ethernet Driver");
+MODULE_DESCRIPTION("QLogic 1/10 GbE Converged/Intelligent Ethernet Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(QLCNIC_LINUX_VERSIONID);
 MODULE_FIRMWARE(QLCNIC_UNIFIED_ROMIMAGE_NAME);
 
 char qlcnic_driver_name[] = "qlcnic";
-static const char qlcnic_driver_string[] = "QLogic Converged Ethernet Driver v"
-    QLCNIC_LINUX_VERSIONID;
+static const char qlcnic_driver_string[] = "QLogic 1/10 GbE "
+	"Converged/Intelligent Ethernet Driver v" QLCNIC_LINUX_VERSIONID;
 
 static int port_mode = QLCNIC_PORT_MODE_AUTO_NEG;
 
@@ -661,7 +661,7 @@ static void get_brd_name(struct qlcnic_adapter *adapter, char *name)
 	}
 
 	if (!found)
-		name = "Unknown";
+		sprintf(name, "%pM Gigabit Ethernet", adapter->mac_addr);
 }
 
 static void
