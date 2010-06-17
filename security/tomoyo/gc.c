@@ -11,24 +11,6 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 
-enum tomoyo_policy_id {
-	TOMOYO_ID_GROUP,
-	TOMOYO_ID_PATH_GROUP,
-	TOMOYO_ID_NUMBER_GROUP,
-	TOMOYO_ID_DOMAIN_INITIALIZER,
-	TOMOYO_ID_DOMAIN_KEEPER,
-	TOMOYO_ID_AGGREGATOR,
-	TOMOYO_ID_ALIAS,
-	TOMOYO_ID_GLOBALLY_READABLE,
-	TOMOYO_ID_PATTERN,
-	TOMOYO_ID_NO_REWRITE,
-	TOMOYO_ID_MANAGER,
-	TOMOYO_ID_NAME,
-	TOMOYO_ID_ACL,
-	TOMOYO_ID_DOMAIN,
-	TOMOYO_MAX_POLICY
-};
-
 struct tomoyo_gc_entry {
 	struct list_head list;
 	int type;
@@ -226,17 +208,6 @@ static void tomoyo_del_number_group(struct list_head *element)
 		container_of(element, typeof(*member), head.list);
 }
 
-static struct list_head *tomoyo_policy_list[TOMOYO_MAX_POLICY] = {
-	[TOMOYO_ID_GLOBALLY_READABLE] = &tomoyo_globally_readable_list,
-	[TOMOYO_ID_PATTERN] = &tomoyo_pattern_list,
-	[TOMOYO_ID_NO_REWRITE] = &tomoyo_no_rewrite_list,
-	[TOMOYO_ID_DOMAIN_INITIALIZER] = &tomoyo_domain_initializer_list,
-	[TOMOYO_ID_DOMAIN_KEEPER] = &tomoyo_domain_keeper_list,
-	[TOMOYO_ID_AGGREGATOR] = &tomoyo_aggregator_list,
-	[TOMOYO_ID_ALIAS] = &tomoyo_alias_list,
-	[TOMOYO_ID_MANAGER] = &tomoyo_policy_manager_list,
-};
-
 static bool tomoyo_collect_member(struct list_head *member_list, int id)
 {
 	struct tomoyo_acl_head *member;
@@ -267,9 +238,8 @@ static void tomoyo_collect_entry(void)
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return;
 	for (i = 0; i < TOMOYO_MAX_POLICY; i++) {
-		if (tomoyo_policy_list[i])
-			if (!tomoyo_collect_member(tomoyo_policy_list[i], i))
-				goto unlock;
+		if (!tomoyo_collect_member(&tomoyo_policy_list[i], i))
+			goto unlock;
 	}
 	{
 		struct tomoyo_domain_info *domain;
@@ -298,7 +268,9 @@ static void tomoyo_collect_entry(void)
 	}
 	{
 		struct tomoyo_group *group;
-		list_for_each_entry_rcu(group, &tomoyo_path_group_list, list) {
+		list_for_each_entry_rcu(group,
+					&tomoyo_group_list[TOMOYO_PATH_GROUP],
+					list) {
 			tomoyo_collect_member(&group->member_list,
 					      TOMOYO_ID_PATH_GROUP);
 			if (!list_empty(&group->member_list) ||
@@ -311,7 +283,8 @@ static void tomoyo_collect_entry(void)
 	}
 	{
 		struct tomoyo_group *group;
-		list_for_each_entry_rcu(group, &tomoyo_number_group_list,
+		list_for_each_entry_rcu(group,
+					&tomoyo_group_list[TOMOYO_NUMBER_GROUP],
 					list) {
 			tomoyo_collect_member(&group->member_list,
 					      TOMOYO_ID_NUMBER_GROUP);

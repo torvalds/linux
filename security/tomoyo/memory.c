@@ -153,6 +153,10 @@ void __init tomoyo_mm_init(void)
 {
 	int idx;
 
+	for (idx = 0; idx < TOMOYO_MAX_POLICY; idx++)
+		INIT_LIST_HEAD(&tomoyo_policy_list[idx]);
+	for (idx = 0; idx < TOMOYO_MAX_GROUP; idx++)
+		INIT_LIST_HEAD(&tomoyo_group_list[idx]);
 	for (idx = 0; idx < TOMOYO_MAX_HASH; idx++)
 		INIT_LIST_HEAD(&tomoyo_name_list[idx]);
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);

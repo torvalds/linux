@@ -434,38 +434,6 @@ static void tomoyo_read_profile(struct tomoyo_io_buffer *head)
 		head->read_eof = true;
 }
 
-/*
- * tomoyo_policy_manager_list is used for holding list of domainnames or
- * programs which are permitted to modify configuration via
- * /sys/kernel/security/tomoyo/ interface.
- *
- * An entry is added by
- *
- * # echo '<kernel> /sbin/mingetty /bin/login /bin/bash' > \
- *                                        /sys/kernel/security/tomoyo/manager
- *  (if you want to specify by a domainname)
- *
- *  or
- *
- * # echo '/usr/sbin/tomoyo-editpolicy' > /sys/kernel/security/tomoyo/manager
- *  (if you want to specify by a program's location)
- *
- * and is deleted by
- *
- * # echo 'delete <kernel> /sbin/mingetty /bin/login /bin/bash' > \
- *                                        /sys/kernel/security/tomoyo/manager
- *
- *  or
- *
- * # echo 'delete /usr/sbin/tomoyo-editpolicy' > \
- *                                        /sys/kernel/security/tomoyo/manager
- *
- * and all entries are retrieved by
- *
- * # cat /sys/kernel/security/tomoyo/manager
- */
-LIST_HEAD(tomoyo_policy_manager_list);
-
 static bool tomoyo_same_manager_entry(const struct tomoyo_acl_head *a,
 				      const struct tomoyo_acl_head *b)
 {
@@ -503,7 +471,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 	if (!e.manager)
 		return -ENOMEM;
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_manager_list,
+				     &tomoyo_policy_list[TOMOYO_ID_MANAGER],
 				     tomoyo_same_manager_entry);
 	tomoyo_put_name(e.manager);
 	return error;
@@ -545,7 +513,7 @@ static void tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 	if (head->read_eof)
 		return;
 	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_policy_manager_list) {
+			     &tomoyo_policy_list[TOMOYO_ID_MANAGER]) {
 		struct tomoyo_policy_manager_entry *ptr;
 		ptr = list_entry(pos, struct tomoyo_policy_manager_entry,
 				 head.list);
@@ -578,7 +546,8 @@ static bool tomoyo_policy_manager(void)
 		return true;
 	if (!tomoyo_manage_by_non_root && (task->cred->uid || task->cred->euid))
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, head.list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_policy_list[TOMOYO_ID_MANAGER],
+				head.list) {
 		if (!ptr->head.is_deleted && ptr->is_domain
 		    && !tomoyo_pathcmp(domainname, ptr->manager)) {
 			found = true;
@@ -590,7 +559,8 @@ static bool tomoyo_policy_manager(void)
 	exe = tomoyo_get_exe();
 	if (!exe)
 		return false;
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, head.list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_policy_list[TOMOYO_ID_MANAGER],
+				head.list) {
 		if (!ptr->head.is_deleted && !ptr->is_domain
 		    && !strcmp(exe, ptr->manager->name)) {
 			found = true;

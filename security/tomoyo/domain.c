@@ -127,45 +127,11 @@ void tomoyo_check_acl(struct tomoyo_request_info *r,
 	r->granted = false;
 }
 
-/*
- * tomoyo_domain_list is used for holding list of domains.
- * The ->acl_info_list of "struct tomoyo_domain_info" is used for holding
- * permissions (e.g. "allow_read /lib/libc-2.5.so") given to each domain.
- *
- * An entry is added by
- *
- * # ( echo "<kernel>"; echo "allow_execute /sbin/init" ) > \
- *                                  /sys/kernel/security/tomoyo/domain_policy
- *
- * and is deleted by
- *
- * # ( echo "<kernel>"; echo "delete allow_execute /sbin/init" ) > \
- *                                  /sys/kernel/security/tomoyo/domain_policy
- *
- * and all entries are retrieved by
- *
- * # cat /sys/kernel/security/tomoyo/domain_policy
- *
- * A domain is added by
- *
- * # echo "<kernel>" > /sys/kernel/security/tomoyo/domain_policy
- *
- * and is deleted by
- *
- * # echo "delete <kernel>" > /sys/kernel/security/tomoyo/domain_policy
- *
- * and all domains are retrieved by
- *
- * # grep '^<kernel>' /sys/kernel/security/tomoyo/domain_policy
- *
- * Normally, a domainname is monotonically getting longer because a domainname
- * which the process will belong to if an execve() operation succeeds is
- * defined as a concatenation of "current domainname" + "pathname passed to
- * execve()".
- * See tomoyo_domain_initializer_list and tomoyo_domain_keeper_list for
- * exceptions.
- */
+/* The list for "struct tomoyo_domain_info". */
 LIST_HEAD(tomoyo_domain_list);
+
+struct list_head tomoyo_policy_list[TOMOYO_MAX_POLICY];
+struct list_head tomoyo_group_list[TOMOYO_MAX_GROUP];
 
 /**
  * tomoyo_get_last_name - Get last component of a domainname.
@@ -183,44 +149,6 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
 		return cp1 + 1;
 	return cp0;
 }
-
-/*
- * tomoyo_domain_initializer_list is used for holding list of programs which
- * triggers reinitialization of domainname. Normally, a domainname is
- * monotonically getting longer. But sometimes, we restart daemon programs.
- * It would be convenient for us that "a daemon started upon system boot" and
- * "the daemon restarted from console" belong to the same domain. Thus, TOMOYO
- * provides a way to shorten domainnames.
- *
- * An entry is added by
- *
- * # echo 'initialize_domain /usr/sbin/httpd' > \
- *                               /sys/kernel/security/tomoyo/exception_policy
- *
- * and is deleted by
- *
- * # echo 'delete initialize_domain /usr/sbin/httpd' > \
- *                               /sys/kernel/security/tomoyo/exception_policy
- *
- * and all entries are retrieved by
- *
- * # grep ^initialize_domain /sys/kernel/security/tomoyo/exception_policy
- *
- * In the example above, /usr/sbin/httpd will belong to
- * "<kernel> /usr/sbin/httpd" domain.
- *
- * You may specify a domainname using "from" keyword.
- * "initialize_domain /usr/sbin/httpd from <kernel> /etc/rc.d/init.d/httpd"
- * will cause "/usr/sbin/httpd" executed from "<kernel> /etc/rc.d/init.d/httpd"
- * domain to belong to "<kernel> /usr/sbin/httpd" domain.
- *
- * You may add "no_" prefix to "initialize_domain".
- * "initialize_domain /usr/sbin/httpd" and
- * "no_initialize_domain /usr/sbin/httpd from <kernel> /etc/rc.d/init.d/httpd"
- * will cause "/usr/sbin/httpd" to belong to "<kernel> /usr/sbin/httpd" domain
- * unless executed from "<kernel> /etc/rc.d/init.d/httpd" domain.
- */
-LIST_HEAD(tomoyo_domain_initializer_list);
 
 static bool tomoyo_same_domain_initializer_entry(const struct tomoyo_acl_head *
 						 a,
@@ -272,7 +200,8 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	if (!e.program)
 		goto out;
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_domain_initializer_list,
+				     &tomoyo_policy_list
+				     [TOMOYO_ID_DOMAIN_INITIALIZER],
 				     tomoyo_same_domain_initializer_entry);
  out:
 	tomoyo_put_name(e.domainname);
@@ -294,8 +223,8 @@ bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head)
 	struct list_head *pos;
 	bool done = true;
 
-	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_domain_initializer_list) {
+	list_for_each_cookie(pos, head->read_var2, &tomoyo_policy_list
+			     [TOMOYO_ID_DOMAIN_INITIALIZER]) {
 		const char *no;
 		const char *from = "";
 		const char *domain = "";
@@ -366,8 +295,8 @@ static bool tomoyo_domain_initializer(const struct tomoyo_path_info *
 	struct tomoyo_domain_initializer_entry *ptr;
 	bool flag = false;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list,
-				head.list) {
+	list_for_each_entry_rcu(ptr, &tomoyo_policy_list
+				[TOMOYO_ID_DOMAIN_INITIALIZER], head.list) {
 		if (ptr->head.is_deleted)
 			continue;
 		if (ptr->domainname) {
@@ -389,46 +318,6 @@ static bool tomoyo_domain_initializer(const struct tomoyo_path_info *
 	}
 	return flag;
 }
-
-/*
- * tomoyo_domain_keeper_list is used for holding list of domainnames which
- * suppresses domain transition. Normally, a domainname is monotonically
- * getting longer. But sometimes, we want to suppress domain transition.
- * It would be convenient for us that programs executed from a login session
- * belong to the same domain. Thus, TOMOYO provides a way to suppress domain
- * transition.
- *
- * An entry is added by
- *
- * # echo 'keep_domain <kernel> /usr/sbin/sshd /bin/bash' > \
- *                              /sys/kernel/security/tomoyo/exception_policy
- *
- * and is deleted by
- *
- * # echo 'delete keep_domain <kernel> /usr/sbin/sshd /bin/bash' > \
- *                              /sys/kernel/security/tomoyo/exception_policy
- *
- * and all entries are retrieved by
- *
- * # grep ^keep_domain /sys/kernel/security/tomoyo/exception_policy
- *
- * In the example above, any process which belongs to
- * "<kernel> /usr/sbin/sshd /bin/bash" domain will remain in that domain,
- * unless explicitly specified by "initialize_domain" or "no_keep_domain".
- *
- * You may specify a program using "from" keyword.
- * "keep_domain /bin/pwd from <kernel> /usr/sbin/sshd /bin/bash"
- * will cause "/bin/pwd" executed from "<kernel> /usr/sbin/sshd /bin/bash"
- * domain to remain in "<kernel> /usr/sbin/sshd /bin/bash" domain.
- *
- * You may add "no_" prefix to "keep_domain".
- * "keep_domain <kernel> /usr/sbin/sshd /bin/bash" and
- * "no_keep_domain /usr/bin/passwd from <kernel> /usr/sbin/sshd /bin/bash" will
- * cause "/usr/bin/passwd" to belong to
- * "<kernel> /usr/sbin/sshd /bin/bash /usr/bin/passwd" domain, unless
- * explicitly specified by "initialize_domain".
- */
-LIST_HEAD(tomoyo_domain_keeper_list);
 
 static bool tomoyo_same_domain_keeper_entry(const struct tomoyo_acl_head *a,
 					    const struct tomoyo_acl_head *b)
@@ -478,7 +367,8 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	if (!e.domainname)
 		goto out;
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_domain_keeper_list,
+				     &tomoyo_policy_list
+				     [TOMOYO_ID_DOMAIN_KEEPER],
 				     tomoyo_same_domain_keeper_entry);
  out:
 	tomoyo_put_name(e.domainname);
@@ -523,7 +413,7 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head)
 	bool done = true;
 
 	list_for_each_cookie(pos, head->read_var2,
-			     &tomoyo_domain_keeper_list) {
+			     &tomoyo_policy_list[TOMOYO_ID_DOMAIN_KEEPER]) {
 		struct tomoyo_domain_keeper_entry *ptr;
 		const char *no;
 		const char *from = "";
@@ -567,7 +457,9 @@ static bool tomoyo_domain_keeper(const struct tomoyo_path_info *domainname,
 	struct tomoyo_domain_keeper_entry *ptr;
 	bool flag = false;
 
-	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, head.list) {
+	list_for_each_entry_rcu(ptr,
+				&tomoyo_policy_list[TOMOYO_ID_DOMAIN_KEEPER],
+				head.list) {
 		if (ptr->head.is_deleted)
 			continue;
 		if (!ptr->is_last_name) {
@@ -587,35 +479,6 @@ static bool tomoyo_domain_keeper(const struct tomoyo_path_info *domainname,
 	}
 	return flag;
 }
-
-/*
- * tomoyo_aggregator_list is used for holding list of rewrite table for
- * execve() request. Some programs provides similar functionality. This keyword
- * allows users to aggregate such programs.
- *
- * Entries are added by
- *
- * # echo 'aggregator /usr/bin/vi /./editor' > \
- *                            /sys/kernel/security/tomoyo/exception_policy
- * # echo 'aggregator /usr/bin/emacs /./editor' > \
- *                            /sys/kernel/security/tomoyo/exception_policy
- *
- * and are deleted by
- *
- * # echo 'delete aggregator /usr/bin/vi /./editor' > \
- *                            /sys/kernel/security/tomoyo/exception_policy
- * # echo 'delete aggregator /usr/bin/emacs /./editor' > \
- *                            /sys/kernel/security/tomoyo/exception_policy
- *
- * and all entries are retrieved by
- *
- * # grep ^aggregator /sys/kernel/security/tomoyo/exception_policy
- *
- * In the example above, if /usr/bin/vi or /usr/bin/emacs are executed,
- * permission is checked for /./editor and domainname which the current process
- * will belong to after execve() succeeds is calculated using /./editor .
- */
-LIST_HEAD(tomoyo_aggregator_list);
 
 static bool tomoyo_same_aggregator_entry(const struct tomoyo_acl_head *a,
 					 const struct tomoyo_acl_head *b)
@@ -655,7 +518,7 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 	    e.aggregated_name->is_patterned) /* No patterns allowed. */
 		goto out;
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_aggregator_list,
+				     &tomoyo_policy_list[TOMOYO_ID_AGGREGATOR],
 				     tomoyo_same_aggregator_entry);
  out:
 	tomoyo_put_name(e.original_name);
@@ -677,7 +540,8 @@ bool tomoyo_read_aggregator_policy(struct tomoyo_io_buffer *head)
 	struct list_head *pos;
 	bool done = true;
 
-	list_for_each_cookie(pos, head->read_var2, &tomoyo_aggregator_list) {
+	list_for_each_cookie(pos, head->read_var2,
+			     &tomoyo_policy_list[TOMOYO_ID_AGGREGATOR]) {
 		struct tomoyo_aggregator_entry *ptr;
 
 		ptr = list_entry(pos, struct tomoyo_aggregator_entry,
@@ -712,38 +576,6 @@ int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
 	*cp++ = '\0';
 	return tomoyo_update_aggregator_entry(data, cp, is_delete);
 }
-
-/*
- * tomoyo_alias_list is used for holding list of symlink's pathnames which are
- * allowed to be passed to an execve() request. Normally, the domainname which
- * the current process will belong to after execve() succeeds is calculated
- * using dereferenced pathnames. But some programs behave differently depending
- * on the name passed to argv[0]. For busybox, calculating domainname using
- * dereferenced pathnames will cause all programs in the busybox to belong to
- * the same domain. Thus, TOMOYO provides a way to allow use of symlink's
- * pathname for checking execve()'s permission and calculating domainname which
- * the current process will belong to after execve() succeeds.
- *
- * An entry is added by
- *
- * # echo 'alias /bin/busybox /bin/cat' > \
- *                            /sys/kernel/security/tomoyo/exception_policy
- *
- * and is deleted by
- *
- * # echo 'delete alias /bin/busybox /bin/cat' > \
- *                            /sys/kernel/security/tomoyo/exception_policy
- *
- * and all entries are retrieved by
- *
- * # grep ^alias /sys/kernel/security/tomoyo/exception_policy
- *
- * In the example above, if /bin/cat is a symlink to /bin/busybox and execution
- * of /bin/cat is requested, permission is checked for /bin/cat rather than
- * /bin/busybox and domainname which the current process will belong to after
- * execve() succeeds is calculated using /bin/cat rather than /bin/busybox .
- */
-LIST_HEAD(tomoyo_alias_list);
 
 static bool tomoyo_same_alias_entry(const struct tomoyo_acl_head *a,
 				    const struct tomoyo_acl_head *b)
@@ -783,7 +615,7 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	    e.original_name->is_patterned || e.aliased_name->is_patterned)
 		goto out; /* No patterns allowed. */
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_alias_list,
+				     &tomoyo_policy_list[TOMOYO_ID_ALIAS],
 				     tomoyo_same_alias_entry);
  out:
 	tomoyo_put_name(e.original_name);
@@ -805,7 +637,8 @@ bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head)
 	struct list_head *pos;
 	bool done = true;
 
-	list_for_each_cookie(pos, head->read_var2, &tomoyo_alias_list) {
+	list_for_each_cookie(pos, head->read_var2,
+			     &tomoyo_policy_list[TOMOYO_ID_ALIAS]) {
 		struct tomoyo_alias_entry *ptr;
 
 		ptr = list_entry(pos, struct tomoyo_alias_entry, head.list);
@@ -946,7 +779,9 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (tomoyo_pathcmp(&rn, &sn)) {
 		struct tomoyo_alias_entry *ptr;
 		/* Is this program allowed to be called via symbolic links? */
-		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, head.list) {
+		list_for_each_entry_rcu(ptr,
+					&tomoyo_policy_list[TOMOYO_ID_ALIAS],
+					head.list) {
 			if (ptr->head.is_deleted ||
 			    tomoyo_pathcmp(&rn, ptr->original_name) ||
 			    tomoyo_pathcmp(&sn, ptr->aliased_name))
@@ -962,8 +797,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	/* Check 'aggregator' directive. */
 	{
 		struct tomoyo_aggregator_entry *ptr;
-		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list,
-					head.list) {
+		list_for_each_entry_rcu(ptr, &tomoyo_policy_list
+					[TOMOYO_ID_AGGREGATOR], head.list) {
 			if (ptr->head.is_deleted ||
 			    !tomoyo_path_matches_pattern(&rn,
 							 ptr->original_name))

@@ -46,6 +46,30 @@ enum tomoyo_mode_index {
 	TOMOYO_CONFIG_USE_DEFAULT = 255
 };
 
+enum tomoyo_policy_id {
+	TOMOYO_ID_GROUP,
+	TOMOYO_ID_PATH_GROUP,
+	TOMOYO_ID_NUMBER_GROUP,
+	TOMOYO_ID_DOMAIN_INITIALIZER,
+	TOMOYO_ID_DOMAIN_KEEPER,
+	TOMOYO_ID_AGGREGATOR,
+	TOMOYO_ID_ALIAS,
+	TOMOYO_ID_GLOBALLY_READABLE,
+	TOMOYO_ID_PATTERN,
+	TOMOYO_ID_NO_REWRITE,
+	TOMOYO_ID_MANAGER,
+	TOMOYO_ID_NAME,
+	TOMOYO_ID_ACL,
+	TOMOYO_ID_DOMAIN,
+	TOMOYO_MAX_POLICY
+};
+
+enum tomoyo_group_id {
+	TOMOYO_PATH_GROUP,
+	TOMOYO_NUMBER_GROUP,
+	TOMOYO_MAX_GROUP
+};
+
 /* Keywords for ACLs. */
 #define TOMOYO_KEYWORD_AGGREGATOR                "aggregator "
 #define TOMOYO_KEYWORD_ALIAS                     "alias "
@@ -570,7 +594,7 @@ struct tomoyo_globally_readable_file_entry {
 
 /*
  * tomoyo_pattern_entry is a structure which is used for holding
- * "tomoyo_pattern_list" entries.
+ * "file_pattern" entries.
  * It has following fields.
  *
  *  (1) "head" is "struct tomoyo_acl_head".
@@ -950,16 +974,8 @@ extern struct srcu_struct tomoyo_ss;
 /* The list for "struct tomoyo_domain_info". */
 extern struct list_head tomoyo_domain_list;
 
-extern struct list_head tomoyo_path_group_list;
-extern struct list_head tomoyo_number_group_list;
-extern struct list_head tomoyo_domain_initializer_list;
-extern struct list_head tomoyo_domain_keeper_list;
-extern struct list_head tomoyo_aggregator_list;
-extern struct list_head tomoyo_alias_list;
-extern struct list_head tomoyo_globally_readable_list;
-extern struct list_head tomoyo_pattern_list;
-extern struct list_head tomoyo_no_rewrite_list;
-extern struct list_head tomoyo_policy_manager_list;
+extern struct list_head tomoyo_policy_list[TOMOYO_MAX_POLICY];
+extern struct list_head tomoyo_group_list[TOMOYO_MAX_GROUP];
 extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
 
 /* Lock for protecting policy. */

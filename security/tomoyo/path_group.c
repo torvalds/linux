@@ -6,8 +6,6 @@
 
 #include <linux/slab.h>
 #include "common.h"
-/* The list for "struct tomoyo_path_group". */
-LIST_HEAD(tomoyo_path_group_list);
 
 /**
  * tomoyo_get_group - Allocate memory for "struct tomoyo_path_group".
@@ -30,7 +28,8 @@ struct tomoyo_group *tomoyo_get_path_group(const char *group_name)
 	entry = kzalloc(sizeof(*entry), GFP_NOFS);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
-	list_for_each_entry_rcu(group, &tomoyo_path_group_list, list) {
+	list_for_each_entry_rcu(group, &tomoyo_group_list[TOMOYO_PATH_GROUP],
+				list) {
 		if (saved_group_name != group->group_name)
 			continue;
 		atomic_inc(&group->users);
@@ -42,7 +41,8 @@ struct tomoyo_group *tomoyo_get_path_group(const char *group_name)
 		entry->group_name = saved_group_name;
 		saved_group_name = NULL;
 		atomic_set(&entry->users, 1);
-		list_add_tail_rcu(&entry->list, &tomoyo_path_group_list);
+		list_add_tail_rcu(&entry->list,
+				  &tomoyo_group_list[TOMOYO_PATH_GROUP]);
 		group = entry;
 		entry = NULL;
 		error = 0;
@@ -107,7 +107,8 @@ bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head)
 {
 	struct list_head *gpos;
 	struct list_head *mpos;
-	list_for_each_cookie(gpos, head->read_var1, &tomoyo_path_group_list) {
+	list_for_each_cookie(gpos, head->read_var1,
+			     &tomoyo_group_list[TOMOYO_PATH_GROUP]) {
 		struct tomoyo_group *group;
 		group = list_entry(gpos, struct tomoyo_group, list);
 		list_for_each_cookie(mpos, head->read_var2,
