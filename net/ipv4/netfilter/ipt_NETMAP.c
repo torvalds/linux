@@ -48,7 +48,8 @@ netmap_tg(struct sk_buff *skb, const struct xt_action_param *par)
 
 	NF_CT_ASSERT(par->hooknum == NF_INET_PRE_ROUTING ||
 		     par->hooknum == NF_INET_POST_ROUTING ||
-		     par->hooknum == NF_INET_LOCAL_OUT);
+		     par->hooknum == NF_INET_LOCAL_OUT ||
+		     par->hooknum == NF_INET_LOCAL_IN);
 	ct = nf_ct_get(skb, &ctinfo);
 
 	netmask = ~(mr->range[0].min_ip ^ mr->range[0].max_ip);
@@ -77,7 +78,8 @@ static struct xt_target netmap_tg_reg __read_mostly = {
 	.table		= "nat",
 	.hooks		= (1 << NF_INET_PRE_ROUTING) |
 			  (1 << NF_INET_POST_ROUTING) |
-			  (1 << NF_INET_LOCAL_OUT),
+			  (1 << NF_INET_LOCAL_OUT) |
+			  (1 << NF_INET_LOCAL_IN),
 	.checkentry 	= netmap_tg_check,
 	.me 		= THIS_MODULE
 };
