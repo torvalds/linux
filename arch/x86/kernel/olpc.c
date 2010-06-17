@@ -142,7 +142,7 @@ restart:
 	 * The OBF flag will sometimes misbehave due to what we believe
 	 * is a hardware quirk..
 	 */
-	printk(KERN_DEBUG "olpc-ec:  running cmd 0x%x\n", cmd);
+	pr_devel("olpc-ec:  running cmd 0x%x\n", cmd);
 	outb(cmd, 0x6c);
 
 	if (wait_on_ibf(0x6c, 0)) {
@@ -159,8 +159,7 @@ restart:
 						" EC accept data!\n");
 				goto err;
 			}
-			printk(KERN_DEBUG "olpc-ec:  sending cmd arg 0x%x\n",
-					inbuf[i]);
+			pr_devel("olpc-ec:  sending cmd arg 0x%x\n", inbuf[i]);
 			outb(inbuf[i], 0x68);
 		}
 	}
@@ -173,8 +172,7 @@ restart:
 				goto restart;
 			}
 			outbuf[i] = inb(0x68);
-			printk(KERN_DEBUG "olpc-ec:  received 0x%x\n",
-					outbuf[i]);
+			pr_devel("olpc-ec:  received 0x%x\n", outbuf[i]);
 		}
 	}
 
