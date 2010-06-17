@@ -1059,7 +1059,7 @@ static int __init qlogic_ib_init(void)
 		goto bail_dev;
 	}
 
-	qib_cq_wq = create_workqueue("qib_cq");
+	qib_cq_wq = create_singlethread_workqueue("qib_cq");
 	if (!qib_cq_wq) {
 		ret = -ENOMEM;
 		goto bail_wq;
