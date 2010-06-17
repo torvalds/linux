@@ -1472,6 +1472,9 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 		dma_addr_t pa = rcd->rcvegrbuf_phys[chunk];
 		unsigned i;
 
+		/* clear for security and sanity on each use */
+		memset(rcd->rcvegrbuf[chunk], 0, size);
+
 		for (i = 0; e < egrcnt && i < egrperchunk; e++, i++) {
 			dd->f_put_tid(dd, e + egroff +
 					  (u64 __iomem *)
