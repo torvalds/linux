@@ -1100,9 +1100,9 @@ static const struct qib_hwerror_msgs qib_7322_hwerror_msgs[] = {
 	HWE_AUTO_P(SDmaMemReadErr, 1),
 	HWE_AUTO_P(SDmaMemReadErr, 0),
 	HWE_AUTO_P(IBCBusFromSPCParityErr, 1),
+	HWE_AUTO_P(IBCBusToSPCParityErr, 1),
 	HWE_AUTO_P(IBCBusFromSPCParityErr, 0),
-	HWE_AUTO_P(statusValidNoEop, 1),
-	HWE_AUTO_P(statusValidNoEop, 0),
+	HWE_AUTO(statusValidNoEop),
 	HWE_AUTO(LATriggered),
 	{ .mask = 0 }
 };
@@ -4763,6 +4763,8 @@ static void qib_7322_mini_pcs_reset(struct qib_pportdata *ppd)
 		SYM_MASK(IBPCSConfig_0, tx_rx_reset);
 
 	val = qib_read_kreg_port(ppd, krp_ib_pcsconfig);
+	qib_write_kreg(dd, kr_hwerrmask,
+		       dd->cspec->hwerrmask & ~HWE_MASK(statusValidNoEop));
 	qib_write_kreg_port(ppd, krp_ibcctrl_a,
 			    ppd->cpspec->ibcctrl_a &
 			    ~SYM_MASK(IBCCtrlA_0, IBLinkEn));
@@ -4772,6 +4774,9 @@ static void qib_7322_mini_pcs_reset(struct qib_pportdata *ppd)
 	qib_write_kreg_port(ppd, krp_ib_pcsconfig, val & ~reset_bits);
 	qib_write_kreg_port(ppd, krp_ibcctrl_a, ppd->cpspec->ibcctrl_a);
 	qib_write_kreg(dd, kr_scratch, 0ULL);
+	qib_write_kreg(dd, kr_hwerrclear,
+		       SYM_MASK(HwErrClear, statusValidNoEopClear));
+	qib_write_kreg(dd, kr_hwerrmask, dd->cspec->hwerrmask);
 }
 
 /*
