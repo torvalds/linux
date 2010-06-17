@@ -16,17 +16,6 @@
 #include <dos.h>
 #endif
 
-#ifdef WIN2000
-#include <dderror.h>
-#include <devioctl.h>
-#include <miniport.h>
-#include <ntddvdeo.h>
-#include <video.h>
-
-#include "xgiv.h"
-#include "dd_i2c.h"
-#include "tools.h"
-#endif
 
 #ifdef LINUX_XF86
 #include "xf86.h"
@@ -219,9 +208,6 @@ void XGINew_SetRegOR( ULONG Port , USHORT Index , USHORT DataOR )
 /* --------------------------------------------------------------------- */
 void NewDelaySeconds( int seconds )
 {
-#ifdef WIN2000
-    int j ;
-#endif
     int i ;
 
 
@@ -231,11 +217,6 @@ void NewDelaySeconds( int seconds )
         delay( 1000 ) ;
 #endif
 
-#ifdef WIN2000
-
-        for ( j = 0 ; j < 20000 ; j++ )
-            VideoPortStallExecution( 50 ) ;
-#endif
 
 #ifdef WINCE_HEADER
 #endif

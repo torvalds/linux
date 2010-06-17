@@ -14,16 +14,6 @@
 #endif */
 #endif
 
-#ifdef WIN2000
-#include <dderror.h>
-#include <devioctl.h>
-#include <miniport.h>
-#include <ntddvdeo.h>
-#include <video.h>
-#include "xgiv.h"
-#include "dd_i2c.h"
-#include "tools.h"
-#endif
 
 #include "vb_def.h"
 #include "vb_struct.h"
@@ -136,11 +126,6 @@ UCHAR    GetXG21FPBits(PVB_DEVICE_INFO pVBInfo);
 void     XGINew_GetXG27Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
 UCHAR    GetXG27FPBits(PVB_DEVICE_INFO pVBInfo);
 
-#ifdef WIN2000
-/* [Billy] 2007/05/20 For CH7007 */
-extern  UCHAR CH7007TVReg_UNTSC[][8],CH7007TVReg_ONTSC[][8],CH7007TVReg_UPAL[][8],CH7007TVReg_OPAL[][8];
-extern  UCHAR XGI7007_CHTVVCLKUNTSC[],XGI7007_CHTVVCLKONTSC[],XGI7007_CHTVVCLKUPAL[],XGI7007_CHTVVCLKOPAL[];
-#endif
 
 #ifdef LINUX_KERNEL
 void DelayUS(ULONG MicroSeconds)
@@ -1878,9 +1863,6 @@ int XGINew_CheckColumn( int index , USHORT DRAMTYPE_TABLE[][ 5 ], PVB_DEVICE_INF
         Position += Increment ;
     }
 
-#ifdef WIN2000  /* chiawen for linux solution */
-    DelayUS( 100 ) ;
-#endif
 
     for( i = 0 , Position = 0 ; i < 2 ; i++ )
     {
@@ -3332,16 +3314,6 @@ void XGINew_GetXG21Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO 
 
     pVBInfo->IF_DEF_LVDS = 0 ;
 
-#ifdef WIN2000
-   pVBInfo->IF_DEF_CH7007 = 0 ;
-    if ( ( pVideoMemory[ 0x65 ] & 0x02 ) )			/* For XG21 CH7007 */
-    {
-        /* VideoDebugPrint((0, "ReadVBIOSTablData: pVideoMemory[ 0x65 ] =%x\n",pVideoMemory[ 0x65 ])); */
-        pVBInfo->IF_DEF_CH7007 = 1 ;                            /* [Billy] 07/05/03 */
-        XGINew_SetRegANDOR( pVBInfo->P3d4 , 0x38 , ~0xE0 , 0x60 ) ; /* CH7007 on chip */
-    }
-    else
-#endif
 #if 1
     if (( pVideoMemory[ 0x65 ] & 0x01 ) )			/* For XG21 LVDS */
     {

@@ -2,7 +2,6 @@
 #define _OSDEF_H_
 
 /* #define WINCE_HEADER*/
-/*#define WIN2000*/
 /* #define TC */
 #define LINUX_KERNEL
 /* #define LINUX_XF86 */
@@ -16,8 +15,6 @@
 /**********************************************************************/
 #ifdef TC
 #endif
-#ifdef WIN2000
-#endif
 #ifdef WINCE_HEADER
 #endif
 #ifdef LINUX_XF86
@@ -30,9 +27,6 @@
 /**********************************************************************/
 #ifdef TC
 #define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize);
-#endif
-#ifdef WIN2000
-#define XGI_SetMemory(MemoryAddress,MemorySize,value) MemFill((PVOID) MemoryAddress,(ULONG) MemorySize,(UCHAR) value);
 #endif
 #ifdef WINCE_HEADER
 #define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize);
@@ -49,9 +43,6 @@
 
 #ifdef TC
 #define XGI_MemoryCopy(Destination,Soruce,Length) memmove(Destination, Soruce, Length);
-#endif
-#ifdef WIN2000
-#define XGI_MemoryCopy(Destination,Soruce,Length)  /*VideoPortMoveMemory((PUCHAR)Destination , Soruce,length);*/
 #endif
 #ifdef WINCE_HEADER
 #define XGI_MemoryCopy(Destination,Soruce,Length) memmove(Destination, Soruce, Length);
@@ -128,14 +119,6 @@
 /*  WIN 2000                                                          */
 /**********************************************************************/
 
-#ifdef WIN2000
-#define OutPortByte(p,v) VideoPortWritePortUchar ((PUCHAR) (p), (UCHAR) (v))
-#define OutPortWord(p,v) VideoPortWritePortUshort((PUSHORT) (p), (USHORT) (v))
-#define OutPortLong(p,v) VideoPortWritePortUlong ((PULONG) (p), (ULONG) (v))
-#define InPortByte(p)    VideoPortReadPortUchar  ((PUCHAR) (p))
-#define InPortWord(p)    VideoPortReadPortUshort ((PUSHORT) (p))
-#define InPortLong(p)    VideoPortReadPortUlong  ((PULONG) (p))
-#endif
 
 
 /**********************************************************************/

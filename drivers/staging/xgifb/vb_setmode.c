@@ -22,17 +22,6 @@
 #include "XGIfb.h"
 #endif
 
-#ifdef WIN2000
-#include <dderror.h>
-#include <devioctl.h>
-#include <miniport.h>
-#include <ntddvdeo.h>
-#include <video.h>
-
-#include "xgiv.h"
-#include "dd_i2c.h"
-#include "tools.h"
-#endif
 
 #include "vb_def.h"
 #include "vgatypes.h"
@@ -179,19 +168,6 @@ void     XGI_SetXG27LVDSPara(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO p
 UCHAR    XGI_SetDefaultVCLK( PVB_DEVICE_INFO pVBInfo );
 
 extern   void 	  ReadVBIOSTablData( UCHAR ChipType , PVB_DEVICE_INFO pVBInfo);
-#ifdef WIN2000
-/* [Billy] 2007/05/17 For CH7007 */
-extern  UCHAR CH7007TVReg_UNTSC[][8],CH7007TVReg_ONTSC[][8],CH7007TVReg_UPAL[][8],CH7007TVReg_OPAL[][8];
-extern  UCHAR CH7007TVCRT1UNTSC_H[][10],CH7007TVCRT1ONTSC_H[][10],CH7007TVCRT1UPAL_H[][10],CH7007TVCRT1OPAL_H[][10] ;
-extern  UCHAR CH7007TVCRT1UNTSC_V[][10],CH7007TVCRT1ONTSC_V[][10],CH7007TVCRT1UPAL_V[][10],CH7007TVCRT1OPAL_V[][10] ;
-extern  UCHAR XGI7007_CHTVVCLKUNTSC[],XGI7007_CHTVVCLKONTSC[],XGI7007_CHTVVCLKUPAL[],XGI7007_CHTVVCLKOPAL[];
-
-extern  BOOLEAN XGI_XG21CheckCH7007TVMode(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO pVBInfo ) ;
-extern  void SetCH7007Regs(PXGI_HW_DEVICE_INFO HwDeviceExtension, USHORT ModeNo, USHORT ModeIdIndex, USHORT RefreshRateTableIndex, PVB_DEVICE_INFO  pVBInfo ) ;
-extern  VP_STATUS TurnOnCH7007(PHW_DEVICE_EXTENSION pHWDE) ;
-extern  VP_STATUS TurnOffCH7007(PHW_DEVICE_EXTENSION pHWDE) ;
-extern  BOOLEAN IsCH7007TVMode(PVB_DEVICE_INFO pVBInfo) ;
-#endif
 
 /* USHORT XGINew_flag_clearbuffer; 0: no clear frame buffer 1:clear frame buffer */
 
@@ -480,9 +456,6 @@ BOOLEAN XGISetModeNew( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo )
     XGI_GetVBType( pVBInfo ) ;
 
     InitTo330Pointer( HwDeviceExtension->jChipType, pVBInfo ) ;
-#ifdef WIN2000
-    ReadVBIOSTablData( HwDeviceExtension->jChipType , pVBInfo) ;
-#endif
     if ( ModeNo & 0x80 )
     {
         ModeNo = ModeNo & 0x7F ;
@@ -555,21 +528,6 @@ BOOLEAN XGISetModeNew( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo )
     }	/* !XG20 */
     else
     {
-#ifdef WIN2000
-        if ( pVBInfo->IF_DEF_CH7007 == 1 )
-        {
-
-            VideoDebugPrint((0, "XGISetModeNew: pVBIfo->IF_DEF_CH7007==1\n"));
-            pVBInfo->VBType = VB_CH7007 ;
-            XGI_GetVBInfo(ModeNo , ModeIdIndex , HwDeviceExtension, pVBInfo ) ;
-            XGI_GetTVInfo(ModeNo , ModeIdIndex, pVBInfo ) ;
-            XGI_GetLCDInfo(ModeNo , ModeIdIndex, pVBInfo ) ;
-            if( !(XGI_XG21CheckCH7007TVMode(ModeNo, ModeIdIndex, pVBInfo )) )
-            {
-              return FALSE;
-            }
-        }
-#endif
 
 
         if ( pVBInfo->IF_DEF_LVDS == 1 )
@@ -758,13 +716,6 @@ void XGI_SetCRT1Group( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo , U
 
     XGI_LoadDAC( ModeNo , ModeIdIndex, pVBInfo ) ;
     /* XGI_ClearBuffer( HwDeviceExtension , ModeNo, pVBInfo ) ; */
-#ifdef WIN2000
-   if ( pVBInfo->IF_DEF_CH7007 == 1 )  /* [Billy]  2007/05/14  */
-   {
-       VideoDebugPrint((0, "XGI_SetCRT1Group: VBInfo->IF_DEF_CH7007==1\n"));
-       SetCH7007Regs(HwDeviceExtension, ModeNo, ModeIdIndex, RefreshRateTableIndex, pVBInfo ) ; /* 07/05/28 */
-   }
-#endif
 }
 
 
@@ -4097,41 +4048,6 @@ BOOLEAN XGI_SearchModeID( USHORT ModeNo , USHORT *ModeIdIndex, PVB_DEVICE_INFO p
 
 #endif
 
-#ifdef WIN2000
-
-    if ( ModeNo <= 5 )
-        ModeNo |= 1 ;
-    if ( ModeNo <= 0x13 )
-    {
-        /* for (*ModeIdIndex=0;*ModeIdIndex<sizeof(pVBInfo->SModeIDTable)/sizeof(XGI_StStruct);(*ModeIdIndex)++) */
-        for( *ModeIdIndex = 0 ; ; ( *ModeIdIndex )++ )
-        {
-            if ( pVBInfo->SModeIDTable[ *ModeIdIndex ].St_ModeID == ModeNo )
-                break ;
-            if ( pVBInfo->SModeIDTable[ *ModeIdIndex ].St_ModeID == 0xFF )
-                return( FALSE ) ;
-        }
-
-        if ( ModeNo == 0x07 )
-            ( *ModeIdIndex )++ ; /* 400 lines */
-
-        if ( ModeNo <=3 )
-            ( *ModeIdIndex ) += 2 ; /* 400 lines */
-        /* else 350 lines */
-    }
-    else
-    {
-        /* for (*ModeIdIndex=0;*ModeIdIndex<sizeof(pVBInfo->EModeIDTable)/sizeof(XGI_ExtStruct);(*ModeIdIndex)++) */
-        for( *ModeIdIndex = 0 ; ; ( *ModeIdIndex )++ )
-        {
-            if ( pVBInfo->EModeIDTable[ *ModeIdIndex ].Ext_ModeID == ModeNo )
-                break ;
-            if ( pVBInfo->EModeIDTable[ *ModeIdIndex ].Ext_ModeID == 0xFF )
-                return( FALSE ) ;
-        }
-    }
-
-#endif
 
 #ifdef LINUX /* chiawen for linux solution */
 
@@ -4326,12 +4242,6 @@ void XGI_DisplayOn( PXGI_HW_DEVICE_INFO pXGIHWDE , PVB_DEVICE_INFO pVBInfo )
 
     if (pVBInfo->IF_DEF_CH7007 == 1) /* [Billy] 07/05/23 For CH7007 */
     {
-#ifdef WIN2000
-       if ( IsCH7007TVMode( pVBInfo ) )
-       {
-           TurnOnCH7007(pXGIHWDE->pDevice) ; /* 07/05/28 */
-       }
-#endif
 
     }
 
@@ -4387,9 +4297,6 @@ void XGI_DisplayOff( PXGI_HW_DEVICE_INFO pXGIHWDE , PVB_DEVICE_INFO pVBInfo )
     {
        /* if( IsCH7007TVMode( pVBInfo ) == 0 ) */
        {
-#ifdef WIN2000
-         TurnOffCH7007(pXGIHWDE->pDevice) ;  /* 07/05/28 */
-#endif
        }
     }
 
@@ -7950,53 +7857,9 @@ void* XGI_GetTVPtr (USHORT BX,USHORT ModeNo,USHORT ModeIdIndex,USHORT RefreshRat
 
     if ( table == 0x00 ) /* 07/05/22 */
     {
-#ifdef WIN2000
-        if ( pVBInfo->IF_DEF_CH7007 == 1 )
-        {
-          switch( tempdi[ i ].DATAPTR )
-          {
-            case 0:
-                return &CH7007TVCRT1UNTSC_H[ tempal ] ;
-                break ;
-            case 1:
-                return &CH7007TVCRT1ONTSC_H[ tempal ] ;
-                break ;
-            case 2:
-                return &CH7007TVCRT1UPAL_H[ tempal ] ;
-                break ;
-            case 3:
-                return &CH7007TVCRT1OPAL_H[ tempal ] ;
-                break ;
-            default:
-                break ;
-          }
-        }
-#endif
     }
     else if ( table == 0x01 )
     {
-#ifdef WIN2000
-        if ( pVBInfo->IF_DEF_CH7007 == 1 )
-        {
-          switch( tempdi[ i ].DATAPTR )
-          {
-            case 0:
-                return &CH7007TVCRT1UNTSC_V[ tempal ] ;
-                break ;
-            case 1:
-                return &CH7007TVCRT1ONTSC_V[ tempal ] ;
-                break ;
-            case 2:
-                return &CH7007TVCRT1UPAL_V[ tempal ] ;
-                break ;
-            case 3:
-                return &CH7007TVCRT1OPAL_V[ tempal ] ;
-                break ;
-            default:
-                break ;
-          }
-        }
-#endif
     }
     else if ( table == 0x04 )
     {
@@ -8070,49 +7933,6 @@ void* XGI_GetTVPtr (USHORT BX,USHORT ModeNo,USHORT ModeIdIndex,USHORT RefreshRat
     }
     else if( table == 0x06 )
     {
-#ifdef WIN2000
-        if ( pVBInfo->IF_DEF_CH7007 == 1 )
-        {
-          /* VideoDebugPrint((0, "XGI_GetTVPtr: pVBInfo->IF_DEF_CH7007==1\n")); */
-          switch( tempdi[ i ].DATAPTR )
-          {
-            case 0:
-                return &CH7007TVReg_UNTSC[ tempal ] ;
-                break ;
-            case 1:
-                return &CH7007TVReg_ONTSC[ tempal ] ;
-                break ;
-            case 2:
-                return &CH7007TVReg_UPAL[ tempal ] ;
-                break ;
-            case 3:
-                return &CH7007TVReg_OPAL[ tempal ] ;
-                break ;
-            default:
-                break ;
-          }
-        }
-        else
-        {
-            switch( tempdi[ i ].DATAPTR )
-            {
-              case 0:
-                return &XGI_CHTVRegUNTSC[ tempal ] ;
-                break ;
-              case 1:
-                return &XGI_CHTVRegONTSC[ tempal ] ;
-                break ;
-              case 2:
-                return &XGI_CHTVRegUPAL[ tempal ] ;
-                break ;
-              case 3:
-                return &XGI_CHTVRegOPAL[ tempal ] ;
-                break ;
-              default:
-                break ;
-            }
-        }
-#endif
     }
     return( 0 ) ;
 }
