@@ -4210,6 +4210,7 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 	struct mptsas_devinfo sas_device;
 	VirtTarget *vtarget;
 	int i;
+	struct mptsas_portinfo *port_info;
 
 	switch (hot_plug_info->event_type) {
 
@@ -4249,8 +4250,36 @@ mptsas_hotplug_work(MPT_ADAPTER *ioc, struct fw_event_work *fw_event,
 			return;
 
 		phy_info = mptsas_refreshing_device_handles(ioc, &sas_device);
-		if (!phy_info)
+		/* Only For SATA Device ADD */
+		if (!phy_info && (sas_device.device_info &
+				MPI_SAS_DEVICE_INFO_SATA_DEVICE)) {
+			devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+				"%s %d SATA HOT PLUG: "
+				"parent handle of device %x\n", ioc->name,
+				__func__, __LINE__, sas_device.handle_parent));
+			port_info = mptsas_find_portinfo_by_handle(ioc,
+				sas_device.handle_parent);
+
+			if (port_info == ioc->hba_port_info)
+				mptsas_probe_hba_phys(ioc);
+			else if (port_info)
+				mptsas_expander_refresh(ioc, port_info);
+			else {
+				dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
+					"%s %d port info is NULL\n",
+					ioc->name, __func__, __LINE__));
+				break;
+			}
+			phy_info = mptsas_refreshing_device_handles
+				(ioc, &sas_device);
+		}
+
+		if (!phy_info) {
+			dfailprintk(ioc, printk(MYIOC_s_ERR_FMT
+				"%s %d phy info is NULL\n",
+				ioc->name, __func__, __LINE__));
 			break;
+		}
 
 		if (mptsas_get_rphy(phy_info))
 			break;
