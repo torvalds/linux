@@ -16,6 +16,8 @@
 #include "symbol.h"
 #include "debug.h"
 
+static bool no_buildid_cache = false;
+
 /*
  * Create new perf.data header attribute:
  */
@@ -470,7 +472,8 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		}
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) -
 					  buildid_sec->offset;
-		perf_session__cache_build_ids(session);
+		if (!no_buildid_cache)
+			perf_session__cache_build_ids(session);
 	}
 
 	lseek(fd, sec_start, SEEK_SET);
@@ -1188,4 +1191,9 @@ int event__process_build_id(event_t *self,
 				 self->build_id.filename,
 				 session);
 	return 0;
+}
+
+void disable_buildid_cache(void)
+{
+	no_buildid_cache = true;
 }

@@ -60,6 +60,7 @@ static bool			call_graph			=  false;
 static bool			inherit_stat			=  false;
 static bool			no_samples			=  false;
 static bool			sample_address			=  false;
+static bool			no_buildid			=  false;
 
 static long			samples				=      0;
 static u64			bytes_written			=      0;
@@ -825,6 +826,8 @@ static const struct option options[] = {
 		    "Sample addresses"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
+	OPT_BOOLEAN('N', "no-buildid-cache", &no_buildid,
+		    "do not update the buildid cache"),
 	OPT_END()
 };
 
@@ -849,6 +852,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	}
 
 	symbol__init();
+	if (no_buildid)
+		disable_buildid_cache();
 
 	if (!nr_counters) {
 		nr_counters	= 1;
