@@ -95,6 +95,10 @@ int mpt2sas_fwfault_debug;
 MODULE_PARM_DESC(mpt2sas_fwfault_debug, " enable detection of firmware fault "
     "and halt firmware - (default=0)");
 
+static int disable_discovery = -1;
+module_param(disable_discovery, int, 0);
+MODULE_PARM_DESC(disable_discovery, " disable discovery ");
+
 /**
  * _scsih_set_fwfault_debug - global setting of ioc->fwfault_debug.
  *
@@ -3519,6 +3523,9 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 
 	if (sleep_flag == CAN_SLEEP)
 		_base_static_config_pages(ioc);
+
+	if (ioc->wait_for_port_enable_to_complete && disable_discovery > 0)
+		return r;
 
 	r = _base_send_port_enable(ioc, sleep_flag);
 	if (r)
