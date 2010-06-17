@@ -951,11 +951,229 @@ _transport_find_local_phy(struct MPT2SAS_ADAPTER *ioc, struct sas_phy *phy)
 	return NULL;
 }
 
+/* report phy error log structure */
+struct phy_error_log_request{
+	u8 smp_frame_type; /* 0x40 */
+	u8 function; /* 0x11 */
+	u8 allocated_response_length;
+	u8 request_length; /* 02 */
+	u8 reserved_1[5];
+	u8 phy_identifier;
+	u8 reserved_2[2];
+};
+
+/* report phy error log reply structure */
+struct phy_error_log_reply{
+	u8 smp_frame_type; /* 0x41 */
+	u8 function; /* 0x11 */
+	u8 function_result;
+	u8 response_length;
+	u16 expander_change_count;
+	u8 reserved_1[3];
+	u8 phy_identifier;
+	u8 reserved_2[2];
+	u32 invalid_dword;
+	u32 running_disparity_error;
+	u32 loss_of_dword_sync;
+	u32 phy_reset_problem;
+};
+
 /**
- * _transport_get_linkerrors -
+ * _transport_get_expander_phy_error_log - return expander counters
+ * @ioc: per adapter object
  * @phy: The sas phy object
  *
- * Only support sas_host direct attached phys.
+ * Returns 0 for success, non-zero for failure.
+ *
+ */
+static int
+_transport_get_expander_phy_error_log(struct MPT2SAS_ADAPTER *ioc,
+    struct sas_phy *phy)
+{
+	Mpi2SmpPassthroughRequest_t *mpi_request;
+	Mpi2SmpPassthroughReply_t *mpi_reply;
+	struct phy_error_log_request *phy_error_log_request;
+	struct phy_error_log_reply *phy_error_log_reply;
+	int rc;
+	u16 smid;
+	u32 ioc_state;
+	unsigned long timeleft;
+	void *psge;
+	u32 sgl_flags;
+	u8 issue_reset = 0;
+	void *data_out = NULL;
+	dma_addr_t data_out_dma;
+	u32 sz;
+	u64 *sas_address_le;
+	u16 wait_state_count;
+
+	if (ioc->shost_recovery) {
+		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
+		    __func__, ioc->name);
+		return -EFAULT;
+	}
+
+	mutex_lock(&ioc->transport_cmds.mutex);
+
+	if (ioc->transport_cmds.status != MPT2_CMD_NOT_USED) {
+		printk(MPT2SAS_ERR_FMT "%s: transport_cmds in use\n",
+		    ioc->name, __func__);
+		rc = -EAGAIN;
+		goto out;
+	}
+	ioc->transport_cmds.status = MPT2_CMD_PENDING;
+
+	wait_state_count = 0;
+	ioc_state = mpt2sas_base_get_iocstate(ioc, 1);
+	while (ioc_state != MPI2_IOC_STATE_OPERATIONAL) {
+		if (wait_state_count++ == 10) {
+			printk(MPT2SAS_ERR_FMT
+			    "%s: failed due to ioc not operational\n",
+			    ioc->name, __func__);
+			rc = -EFAULT;
+			goto out;
+		}
+		ssleep(1);
+		ioc_state = mpt2sas_base_get_iocstate(ioc, 1);
+		printk(MPT2SAS_INFO_FMT "%s: waiting for "
+		    "operational state(count=%d)\n", ioc->name,
+		    __func__, wait_state_count);
+	}
+	if (wait_state_count)
+		printk(MPT2SAS_INFO_FMT "%s: ioc is operational\n",
+		    ioc->name, __func__);
+
+	smid = mpt2sas_base_get_smid(ioc, ioc->transport_cb_idx);
+	if (!smid) {
+		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
+		    ioc->name, __func__);
+		rc = -EAGAIN;
+		goto out;
+	}
+
+	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
+	ioc->transport_cmds.smid = smid;
+
+	sz = sizeof(struct phy_error_log_request) +
+	    sizeof(struct phy_error_log_reply);
+	data_out = pci_alloc_consistent(ioc->pdev, sz, &data_out_dma);
+	if (!data_out) {
+		printk(KERN_ERR "failure at %s:%d/%s()!\n", __FILE__,
+		    __LINE__, __func__);
+		rc = -ENOMEM;
+		mpt2sas_base_free_smid(ioc, smid);
+		goto out;
+	}
+
+	rc = -EINVAL;
+	memset(data_out, 0, sz);
+	phy_error_log_request = data_out;
+	phy_error_log_request->smp_frame_type = 0x40;
+	phy_error_log_request->function = 0x11;
+	phy_error_log_request->request_length = 2;
+	phy_error_log_request->allocated_response_length = 0;
+	phy_error_log_request->phy_identifier = phy->number;
+
+	memset(mpi_request, 0, sizeof(Mpi2SmpPassthroughRequest_t));
+	mpi_request->Function = MPI2_FUNCTION_SMP_PASSTHROUGH;
+	mpi_request->PhysicalPort = 0xFF;
+	mpi_request->VF_ID = 0; /* TODO */
+	mpi_request->VP_ID = 0;
+	sas_address_le = (u64 *)&mpi_request->SASAddress;
+	*sas_address_le = cpu_to_le64(phy->identify.sas_address);
+	mpi_request->RequestDataLength =
+	    cpu_to_le16(sizeof(struct phy_error_log_request));
+	psge = &mpi_request->SGL;
+
+	/* WRITE sgel first */
+	sgl_flags = (MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
+	    MPI2_SGE_FLAGS_END_OF_BUFFER | MPI2_SGE_FLAGS_HOST_TO_IOC);
+	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
+	ioc->base_add_sg_single(psge, sgl_flags |
+	    sizeof(struct phy_error_log_request), data_out_dma);
+
+	/* incr sgel */
+	psge += ioc->sge_size;
+
+	/* READ sgel last */
+	sgl_flags = (MPI2_SGE_FLAGS_SIMPLE_ELEMENT |
+	    MPI2_SGE_FLAGS_LAST_ELEMENT | MPI2_SGE_FLAGS_END_OF_BUFFER |
+	    MPI2_SGE_FLAGS_END_OF_LIST);
+	sgl_flags = sgl_flags << MPI2_SGE_FLAGS_SHIFT;
+	ioc->base_add_sg_single(psge, sgl_flags |
+	    sizeof(struct phy_error_log_reply), data_out_dma +
+	    sizeof(struct phy_error_log_request));
+
+	dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT "phy_error_log - "
+	    "send to sas_addr(0x%016llx), phy(%d)\n", ioc->name,
+	    (unsigned long long)phy->identify.sas_address, phy->number));
+	mpt2sas_base_put_smid_default(ioc, smid);
+	init_completion(&ioc->transport_cmds.done);
+	timeleft = wait_for_completion_timeout(&ioc->transport_cmds.done,
+	    10*HZ);
+
+	if (!(ioc->transport_cmds.status & MPT2_CMD_COMPLETE)) {
+		printk(MPT2SAS_ERR_FMT "%s: timeout\n",
+		    ioc->name, __func__);
+		_debug_dump_mf(mpi_request,
+		    sizeof(Mpi2SmpPassthroughRequest_t)/4);
+		if (!(ioc->transport_cmds.status & MPT2_CMD_RESET))
+			issue_reset = 1;
+		goto issue_host_reset;
+	}
+
+	dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT "phy_error_log - "
+	    "complete\n", ioc->name));
+
+	if (ioc->transport_cmds.status & MPT2_CMD_REPLY_VALID) {
+
+		mpi_reply = ioc->transport_cmds.reply;
+
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
+		    "phy_error_log - reply data transfer size(%d)\n",
+		    ioc->name, le16_to_cpu(mpi_reply->ResponseDataLength)));
+
+		if (le16_to_cpu(mpi_reply->ResponseDataLength) !=
+		    sizeof(struct phy_error_log_reply))
+			goto out;
+
+		phy_error_log_reply = data_out +
+		    sizeof(struct phy_error_log_request);
+
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
+		    "phy_error_log - function_result(%d)\n",
+		    ioc->name, phy_error_log_reply->function_result));
+
+		phy->invalid_dword_count =
+		    be32_to_cpu(phy_error_log_reply->invalid_dword);
+		phy->running_disparity_error_count =
+		    be32_to_cpu(phy_error_log_reply->running_disparity_error);
+		phy->loss_of_dword_sync_count =
+		    be32_to_cpu(phy_error_log_reply->loss_of_dword_sync);
+		phy->phy_reset_problem_count =
+		    be32_to_cpu(phy_error_log_reply->phy_reset_problem);
+		rc = 0;
+	} else
+		dtransportprintk(ioc, printk(MPT2SAS_INFO_FMT
+		    "phy_error_log - no reply\n", ioc->name));
+
+ issue_host_reset:
+	if (issue_reset)
+		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+		    FORCE_BIG_HAMMER);
+ out:
+	ioc->transport_cmds.status = MPT2_CMD_NOT_USED;
+	if (data_out)
+		pci_free_consistent(ioc->pdev, sz, data_out, data_out_dma);
+
+	mutex_unlock(&ioc->transport_cmds.mutex);
+	return rc;
+}
+
+/**
+ * _transport_get_linkerrors - return phy counters for both hba and expanders
+ * @phy: The sas phy object
+ *
  * Returns 0 for success, non-zero for failure.
  *
  */
@@ -963,17 +1181,24 @@ static int
 _transport_get_linkerrors(struct sas_phy *phy)
 {
 	struct MPT2SAS_ADAPTER *ioc = phy_to_ioc(phy);
-	struct _sas_phy *mpt2sas_phy;
+	unsigned long flags;
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasPhyPage1_t phy_pg1;
 
-	mpt2sas_phy = _transport_find_local_phy(ioc, phy);
-
-	if (!mpt2sas_phy) /* this phy not on sas_host */
+	spin_lock_irqsave(&ioc->sas_node_lock, flags);
+	if (_transport_sas_node_find_by_sas_address(ioc,
+	    phy->identify.sas_address) == NULL) {
+		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return -EINVAL;
+	}
+	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 
+	if (phy->identify.sas_address != ioc->sas_hba.sas_address)
+		return _transport_get_expander_phy_error_log(ioc, phy);
+
+	/* get hba phy error logs */
 	if ((mpt2sas_config_get_phy_pg1(ioc, &mpi_reply, &phy_pg1,
-		    mpt2sas_phy->phy_id))) {
+		    phy->number))) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 		return -ENXIO;
@@ -982,8 +1207,7 @@ _transport_get_linkerrors(struct sas_phy *phy)
 	if (mpi_reply.IOCStatus || mpi_reply.IOCLogInfo)
 		printk(MPT2SAS_INFO_FMT "phy(%d), ioc_status"
 		    "(0x%04x), loginfo(0x%08x)\n", ioc->name,
-		    mpt2sas_phy->phy_id,
-		    le16_to_cpu(mpi_reply.IOCStatus),
+		    phy->number, le16_to_cpu(mpi_reply.IOCStatus),
 		    le32_to_cpu(mpi_reply.IOCLogInfo));
 
 	phy->invalid_dword_count = le32_to_cpu(phy_pg1.InvalidDwordCount);
