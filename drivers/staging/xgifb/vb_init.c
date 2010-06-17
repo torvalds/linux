@@ -129,7 +129,7 @@ unsigned char XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension)
 
     /* unsigned long j, k ; */
 
-    PXGI_DSReg pSR ;
+    struct XGI_DSReg *pSR ;
 
     unsigned long Temp ;
 

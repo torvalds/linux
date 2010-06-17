@@ -2994,7 +2994,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  strcpy(XGIhw_ext.szVBIOSVer, "0.84");
 
 
-    XGIhw_ext.pSR = vmalloc(sizeof(XGI_DSReg) * SR_BUFFER_SIZE);
+    XGIhw_ext.pSR = vmalloc(sizeof(struct XGI_DSReg) * SR_BUFFER_SIZE);
 	  if (XGIhw_ext.pSR == NULL)
 	  {
 		    printk(KERN_ERR "XGIfb: Fatal error: Allocating SRReg space failed.\n");
@@ -3002,7 +3002,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  }
 	  XGIhw_ext.pSR[0].jIdx = XGIhw_ext.pSR[0].jVal = 0xFF;
 
-	  XGIhw_ext.pCR = vmalloc(sizeof(XGI_DSReg) * CR_BUFFER_SIZE);
+	  XGIhw_ext.pCR = vmalloc(sizeof(struct XGI_DSReg) * CR_BUFFER_SIZE);
 	  if (XGIhw_ext.pCR == NULL)
 	  {
 	      vfree(XGIhw_ext.pSR);

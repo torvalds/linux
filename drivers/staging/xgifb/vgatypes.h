@@ -52,13 +52,12 @@ enum XGI_LCD_TYPE {
 };
 #endif
 
-#ifndef PXGI_DSReg
-typedef struct _XGI_DSReg
+struct XGI_DSReg
 {
   unsigned char  jIdx;
   unsigned char  jVal;
-} XGI_DSReg, *PXGI_DSReg;
-#endif
+};
+
 
 #ifndef XGI_HW_DEVICE_INFO
 
@@ -116,12 +115,12 @@ struct _XGI_HW_DEVICE_INFO
     unsigned char bIsPowerSaving;     /* True: XGIInit() is invoked by power management,
                                    otherwise by 2nd adapter's initialzation */
 
-    PXGI_DSReg  pSR;             /* restore SR registers in initial function. */
+    struct XGI_DSReg  *pSR;             /* restore SR registers in initial function. */
                                  /* end data :(idx, val) =  (FF, FF). */
                                  /* Note : restore SR registers if  */
                                  /* bSkipDramSizing = 1 */
 
-    PXGI_DSReg  pCR;             /* restore CR registers in initial function. */
+    struct XGI_DSReg  *pCR;             /* restore CR registers in initial function. */
                                  /* end data :(idx, val) =  (FF, FF) */
                                  /* Note : restore cR registers if  */
                                  /* bSkipDramSizing = 1 */
