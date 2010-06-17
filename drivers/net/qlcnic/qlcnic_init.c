@@ -543,15 +543,33 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	return 0;
 }
 
+int
+qlcnic_check_flash_fw_ver(struct qlcnic_adapter *adapter)
+{
+	u32 ver = -1, min_ver;
+
+	qlcnic_rom_fast_read(adapter, QLCNIC_FW_VERSION_OFFSET, (int *)&ver);
+
+	ver = QLCNIC_DECODE_VERSION(ver);
+	min_ver = QLCNIC_MIN_FW_VERSION;
+
+	if (ver < min_ver) {
+		dev_err(&adapter->pdev->dev,
+			"firmware version %d.%d.%d unsupported."
+			"Min supported version %d.%d.%d\n",
+			_major(ver), _minor(ver), _build(ver),
+			_major(min_ver), _minor(min_ver), _build(min_ver));
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int
 qlcnic_has_mn(struct qlcnic_adapter *adapter)
 {
-	u32 capability, flashed_ver;
+	u32 capability;
 	capability = 0;
-
-	qlcnic_rom_fast_read(adapter,
-			QLCNIC_FW_VERSION_OFFSET, (int *)&flashed_ver);
-	flashed_ver = QLCNIC_DECODE_VERSION(flashed_ver);
 
 	capability = QLCRD32(adapter, QLCNIC_PEG_TUNE_CAPABILITY);
 	if (capability & QLCNIC_PEG_TUNE_MN_PRESENT)
@@ -1006,7 +1024,7 @@ static int
 qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 {
 	__le32 val;
-	u32 ver, min_ver, bios, min_size;
+	u32 ver, bios, min_size;
 	struct pci_dev *pdev = adapter->pdev;
 	const struct firmware *fw = adapter->fw;
 	u8 fw_type = adapter->fw_type;
@@ -1028,12 +1046,9 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 		return -EINVAL;
 
 	val = qlcnic_get_fw_version(adapter);
-
-	min_ver = QLCNIC_VERSION_CODE(4, 0, 216);
-
 	ver = QLCNIC_DECODE_VERSION(val);
 
-	if ((_major(ver) > _QLCNIC_LINUX_MAJOR) || (ver < min_ver)) {
+	if (ver < QLCNIC_MIN_FW_VERSION) {
 		dev_err(&pdev->dev,
 				"%s: firmware version %d.%d.%d unsupported\n",
 		fw_name[fw_type], _major(ver), _minor(ver), _build(ver));

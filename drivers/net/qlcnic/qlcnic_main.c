@@ -83,6 +83,7 @@ static void qlcnic_schedule_work(struct qlcnic_adapter *adapter,
 		work_func_t func, int delay);
 static void qlcnic_cancel_fw_work(struct qlcnic_adapter *adapter);
 static int qlcnic_poll(struct napi_struct *napi, int budget);
+static int qlcnic_rx_poll(struct napi_struct *napi, int budget);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void qlcnic_poll_controller(struct net_device *netdev);
 #endif
@@ -195,8 +196,13 @@ qlcnic_napi_add(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 	for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 		sds_ring = &recv_ctx->sds_rings[ring];
-		netif_napi_add(netdev, &sds_ring->napi,
-				qlcnic_poll, QLCNIC_NETDEV_WEIGHT);
+
+		if (ring == adapter->max_sds_rings - 1)
+			netif_napi_add(netdev, &sds_ring->napi, qlcnic_poll,
+				QLCNIC_NETDEV_WEIGHT/adapter->max_sds_rings);
+		else
+			netif_napi_add(netdev, &sds_ring->napi,
+				qlcnic_rx_poll, QLCNIC_NETDEV_WEIGHT*2);
 	}
 
 	return 0;
@@ -743,8 +749,12 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 
 	if (load_fw_file)
 		qlcnic_request_firmware(adapter);
-	else
+	else {
+		if (qlcnic_check_flash_fw_ver(adapter))
+			goto err_out;
+
 		adapter->fw_type = QLCNIC_FLASH_ROMIMAGE;
+	}
 
 	err = qlcnic_need_fw_reset(adapter);
 	if (err < 0)
@@ -2052,6 +2062,25 @@ static int qlcnic_poll(struct napi_struct *napi, int budget)
 	work_done = qlcnic_process_rcv_ring(sds_ring, budget);
 
 	if ((work_done < budget) && tx_complete) {
+		napi_complete(&sds_ring->napi);
+		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
+			qlcnic_enable_int(sds_ring);
+	}
+
+	return work_done;
+}
+
+static int qlcnic_rx_poll(struct napi_struct *napi, int budget)
+{
+	struct qlcnic_host_sds_ring *sds_ring =
+		container_of(napi, struct qlcnic_host_sds_ring, napi);
+
+	struct qlcnic_adapter *adapter = sds_ring->adapter;
+	int work_done;
+
+	work_done = qlcnic_process_rcv_ring(sds_ring, budget);
+
+	if (work_done < budget) {
 		napi_complete(&sds_ring->napi);
 		if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
 			qlcnic_enable_int(sds_ring);

@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 4
-#define QLCNIC_LINUX_VERSIONID  "5.0.4"
+#define _QLCNIC_LINUX_SUBVERSION 5
+#define QLCNIC_LINUX_VERSIONID  "5.0.5"
 #define QLCNIC_DRV_IDC_VER  0x01
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
@@ -68,6 +68,7 @@
 #define QLCNIC_DECODE_VERSION(v) \
 	QLCNIC_VERSION_CODE(((v) & 0xff), (((v) >> 8) & 0xff), ((v) >> 16))
 
+#define QLCNIC_MIN_FW_VERSION     QLCNIC_VERSION_CODE(4, 4, 2)
 #define QLCNIC_NUM_FLASH_SECTORS (64)
 #define QLCNIC_FLASH_SECTOR_SIZE (64 * 1024)
 #define QLCNIC_FLASH_TOTAL_SIZE  (QLCNIC_NUM_FLASH_SECTORS \
@@ -567,6 +568,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CAP0_LSO 		(1 << 6)
 #define QLCNIC_CAP0_JUMBO_CONTIGUOUS	(1 << 7)
 #define QLCNIC_CAP0_LRO_CONTIGUOUS	(1 << 8)
+#define QLCNIC_CAP0_VALIDOFF		(1 << 11)
 
 /*
  * Context state
@@ -602,9 +604,10 @@ struct qlcnic_hostrq_rx_ctx {
 	__le32 sds_ring_offset;	/* Offset to SDS config */
 	__le16 num_rds_rings;	/* Count of RDS rings */
 	__le16 num_sds_rings;	/* Count of SDS rings */
-	__le16 rsvd1;		/* Padding */
-	__le16 rsvd2;		/* Padding */
-	u8  reserved[128]; 	/* reserve space for future expansion*/
+	__le16 valid_field_offset;
+	u8  txrx_sds_binding;
+	u8  msix_handler;
+	u8  reserved[128];      /* reserve space for future expansion*/
 	/* MUST BE 64-bit aligned.
 	   The following is packed:
 	   - N hostrq_rds_rings
@@ -1109,6 +1112,7 @@ void qlcnic_request_firmware(struct qlcnic_adapter *adapter);
 void qlcnic_release_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter);
 int qlcnic_setup_idc_param(struct qlcnic_adapter *adapter);
+int qlcnic_check_flash_fw_ver(struct qlcnic_adapter *adapter);
 
 int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp);
 int qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,
