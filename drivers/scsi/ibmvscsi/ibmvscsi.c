@@ -548,6 +548,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	u64 *crq_as_u64 = (u64 *) &evt_struct->crq;
 	int request_status = 0;
 	int rc;
+	int srp_req = 0;
 
 	/* If we have exhausted our request limit, just fail this request,
 	 * unless it is for a reset or abort.
@@ -556,6 +557,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	 * can handle more requests (can_queue) when we actually can't
 	 */
 	if (evt_struct->crq.format == VIOSRP_SRP_FORMAT) {
+		srp_req = 1;
 		request_status =
 			atomic_dec_if_positive(&hostdata->request_limit);
 		/* If request limit was -1 when we started, it is now even
@@ -630,7 +632,8 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 			goto send_busy;
 		}
 		dev_err(hostdata->dev, "send error %d\n", rc);
-		atomic_inc(&hostdata->request_limit);
+		if (srp_req)
+			atomic_inc(&hostdata->request_limit);
 		goto send_error;
 	}
 
@@ -640,7 +643,7 @@ static int ibmvscsi_send_srp_event(struct srp_event_struct *evt_struct,
 	unmap_cmd_data(&evt_struct->iu.srp.cmd, evt_struct, hostdata->dev);
 
 	free_event_struct(&hostdata->pool, evt_struct);
-	if (request_status != -1)
+	if (srp_req && request_status != -1)
 		atomic_inc(&hostdata->request_limit);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
