@@ -2377,9 +2377,11 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 		oldstate = ceph_mdsmap_get_state(oldmap, i);
 		newstate = ceph_mdsmap_get_state(newmap, i);
 
-		dout("check_new_map mds%d state %s -> %s (session %s)\n",
+		dout("check_new_map mds%d state %s%s -> %s%s (session %s)\n",
 		     i, ceph_mds_state_name(oldstate),
+		     ceph_mdsmap_is_laggy(oldmap, i) ? " (laggy)" : "",
 		     ceph_mds_state_name(newstate),
+		     ceph_mdsmap_is_laggy(newmap, i) ? " (laggy)" : "",
 		     session_state_name(s->s_state));
 
 		if (memcmp(ceph_mdsmap_get_addr(oldmap, i),
