@@ -1,4 +1,3 @@
-#include "osdef.h"
 #include "vgatypes.h"
 
 #include <linux/version.h>

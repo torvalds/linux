@@ -2,8 +2,6 @@
 #ifndef _VGATYPES_
 #define _VGATYPES_
 
-#include "osdef.h"
-
 #include <linux/ioctl.h>
 
 #ifndef FALSE

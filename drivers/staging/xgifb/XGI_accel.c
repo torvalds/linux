@@ -43,7 +43,6 @@
 #include <asm/mtrr.h>
 #endif
 
-#include "osdef.h"
 #include "vgatypes.h"
 #include "vb_struct.h"
 #include "XGIfb.h"

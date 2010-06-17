@@ -1,4 +1,3 @@
-#include "osdef.h"
 #include "vb_def.h"
 #include "vgatypes.h"
 #include "vb_struct.h"
@@ -28,8 +27,8 @@ void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);
 /* --------------------------------------------------------------------- */
 void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 {
-    OutPortByte( port , index ) ;
-    OutPortByte( port + 1 , data ) ;
+	outb(index, port);
+	outb(data, port + 1);
 }
 
 
@@ -56,7 +55,7 @@ void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 /* --------------------------------------------------------------------- */
 void XGINew_SetReg3( ULONG port , USHORT data )
 {
-    OutPortByte( port , data ) ;
+	outb(data, port);
 }
 
 
@@ -68,7 +67,7 @@ void XGINew_SetReg3( ULONG port , USHORT data )
 /* --------------------------------------------------------------------- */
 void XGINew_SetReg4( ULONG port , ULONG data )
 {
-    OutPortLong( port , data ) ;
+	outl(data, port);
 }
 
 
@@ -82,9 +81,8 @@ UCHAR XGINew_GetReg1( ULONG port , USHORT index )
 {
     UCHAR data ;
 
-    OutPortByte( port , index ) ;
-    data = InPortByte( port + 1 ) ;
-
+    outb(index, port);
+    data = inb(port + 1) ;
     return( data ) ;
 }
 
@@ -99,7 +97,7 @@ UCHAR XGINew_GetReg2( ULONG port )
 {
     UCHAR data ;
 
-    data = InPortByte( port ) ;
+    data = inb(port) ;
 
     return( data ) ;
 }
@@ -115,7 +113,7 @@ ULONG XGINew_GetReg3( ULONG port )
 {
     ULONG data ;
 
-    data = InPortLong( port ) ;
+    data = inl(port) ;
 
     return( data ) ;
 }

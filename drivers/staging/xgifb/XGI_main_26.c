@@ -29,8 +29,6 @@
 #include <linux/types.h>
 #include <linux/proc_fs.h>
 
-#include "osdef.h"
-
 
 #ifndef XGIFB_PAN
 #define XGIFB_PAN

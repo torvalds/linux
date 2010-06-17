@@ -1,5 +1,3 @@
-#include "osdef.h"
-
 #include <linux/version.h>
 #include <asm/io.h>
 #include <linux/types.h>
