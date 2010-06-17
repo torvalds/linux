@@ -56,8 +56,7 @@ struct uart_max3110 {
 	wait_queue_head_t wq;
 	struct task_struct *main_thread;
 	struct task_struct *read_thread;
-	int mthread_up;
-	spinlock_t lock;
+	struct mutex thread_mutex;;
 
 	u32 baud;
 	u16 cur_conf;
@@ -397,7 +396,8 @@ static int max3110_main_thread(void *_max)
 					       atomic_read(&max->con_tx_need) ||
 					     atomic_read(&max->uart_tx_need)) ||
 					     kthread_should_stop());
-		max->mthread_up = 1;
+
+		mutex_lock(&max->thread_mutex);
 
 #ifdef CONFIG_MRST_MAX3110_IRQ
 		if (atomic_read(&max->irq_pending)) {
@@ -417,7 +417,7 @@ static int max3110_main_thread(void *_max)
 			transmit_char(max);
 			atomic_set(&max->uart_tx_need, 0);
 		}
-		max->mthread_up = 0;
+		mutex_unlock(&max->thread_mutex);
 	} while (!kthread_should_stop());
 
 	return ret;
@@ -444,8 +444,9 @@ static int max3110_read_thread(void *_max)
 
 	pr_info(PR_FMT "start read thread\n");
 	do {
-		if (!max->mthread_up)
-			max3110_console_receive(max);
+		mutex_lock(&max->thread_mutex);
+		max3110_console_receive(max);
+		mutex_unlock(&max->thread_mutex);
 
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(HZ / 20);
@@ -745,7 +746,7 @@ static int serial_m3110_probe(struct spi_device *spi)
 	max->name = spi->modalias;	/* use spi name as the name */
 	max->irq = (u16)spi->irq;
 
-	spin_lock_init(&max->lock);
+	mutex_init(&max->thread_mutex);
 
 	max->word_7bits = 0;
 	max->parity = 0;
