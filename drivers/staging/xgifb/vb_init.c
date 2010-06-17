@@ -127,7 +127,7 @@ BOOLEAN XGIInitNew( PXGI_HW_DEVICE_INFO HwDeviceExtension )
     PVB_DEVICE_INFO pVBInfo = &VBINF;
     UCHAR   i , temp = 0 , temp1 ;
      //       VBIOSVersion[ 5 ] ;
-    PUCHAR  volatile pVideoMemory;
+    volatile unsigned char *pVideoMemory;
 
     /* ULONG j, k ; */
 
@@ -141,7 +141,7 @@ BOOLEAN XGIInitNew( PXGI_HW_DEVICE_INFO HwDeviceExtension )
 
     pVBInfo->BaseAddr = (ULONG)HwDeviceExtension->pjIOAddress ;
 
-    pVideoMemory = ( PUCHAR )pVBInfo->ROMAddr;
+    pVideoMemory = (unsigned char *)pVBInfo->ROMAddr;
 
 
 //    Newdebugcode( 0x99 ) ;
@@ -1254,7 +1254,7 @@ void XGINew_DDR_MRS(PVB_DEVICE_INFO pVBInfo)
 {
     USHORT data ;
 
-    PUCHAR volatile pVideoMemory = ( PUCHAR )pVBInfo->ROMAddr ;
+    volatile unsigned char *pVideoMemory = (unsigned char *)pVBInfo->ROMAddr;
 
     /* SR16 <- 1F,DF,2F,AF */
     /* yriver modified SR16 <- 0F,DF,0F,AF */
@@ -1320,7 +1320,7 @@ void XGINew_DDR_MRS(PVB_DEVICE_INFO pVBInfo)
 /* --------------------------------------------------------------------- */
 void XGINew_VerifyMclk( PXGI_HW_DEVICE_INFO  HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
 {
-    PUCHAR pVideoMemory = pVBInfo->FBAddr ;
+    unsigned char *pVideoMemory = pVBInfo->FBAddr ;
     UCHAR i , j ;
     USHORT Temp , SR21 ;
 
@@ -2697,7 +2697,7 @@ void XGINew_InitVBIOSData(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO
 /* --------------------------------------------------------------------- */
 void ReadVBIOSTablData( UCHAR ChipType , PVB_DEVICE_INFO pVBInfo)
 {
-    PUCHAR  volatile pVideoMemory = ( PUCHAR )pVBInfo->ROMAddr ;
+	volatile unsigned char *pVideoMemory = (unsigned char *)pVBInfo->ROMAddr;
     ULONG   i ;
     UCHAR   j , k ;
 #if 0
@@ -3279,7 +3279,7 @@ void XGINew_SetModeScratch ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_
 void XGINew_GetXG21Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
     UCHAR Temp;
-    PUCHAR  volatile pVideoMemory = ( PUCHAR )pVBInfo->ROMAddr ;
+    volatile unsigned char *pVideoMemory = (unsigned char *)pVBInfo->ROMAddr;
 
     pVBInfo->IF_DEF_LVDS = 0 ;
 

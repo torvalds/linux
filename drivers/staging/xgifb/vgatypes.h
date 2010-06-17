@@ -28,10 +28,6 @@ typedef unsigned short USHORT;
 typedef unsigned long ULONG;
 #endif
 
-#ifndef PUCHAR
-typedef UCHAR *PUCHAR;
-#endif
-
 #ifndef PUSHORT
 typedef USHORT *PUSHORT;
 #endif
@@ -126,25 +122,25 @@ struct _XGI_HW_DEVICE_INFO
     ULONG  ulExternalChip;       /* NO VB or other video bridge*/
                                  /* if ujVBChipID = VB_CHIP_UNKNOWN, */
 
-    PUCHAR  pjVirtualRomBase;    /* ROM image */
+    unsigned char *pjVirtualRomBase;    /* ROM image */
 
     BOOLEAN UseROM;		 /* Use the ROM image if provided */
 
     PVOID   pDevice;
 
-    PUCHAR  pjVideoMemoryAddress;/* base virtual memory address */
+    unsigned char *pjVideoMemoryAddress;/* base virtual memory address */
                                  /* of Linear VGA memory */
 
     ULONG  ulVideoMemorySize;    /* size, in bytes, of the memory on the board */
 
-    PUCHAR pjIOAddress;          /* base I/O address of VGA ports (0x3B0) */
+    unsigned char *pjIOAddress;          /* base I/O address of VGA ports (0x3B0) */
 
-    PUCHAR pjCustomizedROMImage;
+    unsigned char *pjCustomizedROMImage;
 
-    PUCHAR pj2ndVideoMemoryAddress;
+    unsigned char *pj2ndVideoMemoryAddress;
     ULONG  ul2ndVideoMemorySize;
 
-    PUCHAR pj2ndIOAddress;
+    unsigned char *pj2ndIOAddress;
     UCHAR  jChipType;            /* Used to Identify Graphics Chip */
                                  /* defined in the data structure type  */
                                  /* "XGI_CHIP_TYPE" */

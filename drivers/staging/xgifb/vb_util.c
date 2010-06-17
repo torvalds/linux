@@ -13,7 +13,7 @@ void XGINew_SetReg4( ULONG , ULONG ) ;
 UCHAR XGINew_GetReg1( ULONG , USHORT) ;
 UCHAR XGINew_GetReg2( ULONG ) ;
 ULONG XGINew_GetReg3( ULONG ) ;
-void XGINew_ClearDAC( PUCHAR ) ;
+void XGINew_ClearDAC(unsigned char *) ;
 void     XGINew_SetRegANDOR(ULONG Port,USHORT Index,USHORT DataAND,USHORT DataOR);
 void     XGINew_SetRegOR(ULONG Port,USHORT Index,USHORT DataOR);
 void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);

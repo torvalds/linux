@@ -415,8 +415,8 @@ struct _VB_DEVICE_INFO
     USHORT   NewFlickerMode;
     USHORT   SelectCRT2Rate;
 
-    PUCHAR ROMAddr;
-    PUCHAR FBAddr;
+    unsigned char *ROMAddr;
+    unsigned char *FBAddr;
     ULONG BaseAddr;
     ULONG RelIO;
 

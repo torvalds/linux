@@ -2970,9 +2970,10 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  xgi_video_info.mmio_base = pci_resource_start(pdev, 1);
 	  XGIfb_mmio_size =  pci_resource_len(pdev, 1);
 	  xgi_video_info.vga_base = pci_resource_start(pdev, 2) + 0x30;
-	  XGIhw_ext.pjIOAddress = (PUCHAR)xgi_video_info.vga_base;
+	  XGIhw_ext.pjIOAddress = (unsigned char *)xgi_video_info.vga_base;
 	  //XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30;
-	  printk("XGIfb: Relocate IO address: %lx [%08lx] \n", (unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
+	  printk("XGIfb: Relocate IO address: %lx [%08lx]\n",
+		 (unsigned long)pci_resource_start(pdev, 2), XGI_Pr.RelIO);
 
 	  if (pci_enable_device(pdev))
 	          return -EIO;
