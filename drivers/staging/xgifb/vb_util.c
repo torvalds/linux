@@ -218,8 +218,6 @@ void NewDelaySeconds( int seconds )
 #endif
 
 
-#ifdef WINCE_HEADER
-#endif
 
 #ifdef LINUX_KERNEL
 #endif

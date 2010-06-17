@@ -1,7 +1,6 @@
 #ifndef _OSDEF_H_
 #define _OSDEF_H_
 
-/* #define WINCE_HEADER*/
 /* #define TC */
 #define LINUX_KERNEL
 /* #define LINUX_XF86 */
@@ -15,8 +14,6 @@
 /**********************************************************************/
 #ifdef TC
 #endif
-#ifdef WINCE_HEADER
-#endif
 #ifdef LINUX_XF86
 #define LINUX
 #endif
@@ -26,9 +23,6 @@
 
 /**********************************************************************/
 #ifdef TC
-#define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize);
-#endif
-#ifdef WINCE_HEADER
 #define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize);
 #endif
 #ifdef LINUX_XF86
@@ -42,9 +36,6 @@
 /**********************************************************************/
 
 #ifdef TC
-#define XGI_MemoryCopy(Destination,Soruce,Length) memmove(Destination, Soruce, Length);
-#endif
-#ifdef WINCE_HEADER
 #define XGI_MemoryCopy(Destination,Soruce,Length) memmove(Destination, Soruce, Length);
 #endif
 #ifdef LINUX_XF86
@@ -125,12 +116,4 @@
 /*  WIN CE                                                          */
 /**********************************************************************/
 
-#ifdef WINCE_HEADER
-#define OutPortByte(p,v) WRITE_PORT_UCHAR ((PUCHAR) (p), (UCHAR) (v))
-#define OutPortWord(p,v) WRITE_PORT_USHORT((PUSHORT) (p), (USHORT) (v))
-#define OutPortLong(p,v) WRITE_PORT_ULONG ((PULONG) (p), (ULONG) (v))
-#define InPortByte(p)    READ_PORT_UCHAR  ((PUCHAR) (p))
-#define InPortWord(p)    READ_PORT_USHORT ((PUSHORT) (p))
-#define InPortLong(p)    READ_PORT_ULONG  ((PULONG) (p))
-#endif
 #endif // _OSDEF_H_
