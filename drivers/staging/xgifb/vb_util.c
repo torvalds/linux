@@ -10,8 +10,8 @@ void XGINew_SetReg1(unsigned long,unsigned short,unsigned short);
 void XGINew_SetReg2(unsigned long,unsigned short,unsigned short);
 void XGINew_SetReg3(unsigned long,unsigned short);
 void XGINew_SetReg4(unsigned long,unsigned long);
-UCHAR XGINew_GetReg1(unsigned long,unsigned short);
-UCHAR XGINew_GetReg2(unsigned long);
+unsigned char XGINew_GetReg1(unsigned long, unsigned short);
+unsigned char XGINew_GetReg2(unsigned long);
 unsigned long XGINew_GetReg3(unsigned long);
 void XGINew_ClearDAC(unsigned char *);
 void XGINew_SetRegANDOR(unsigned long Port,unsigned short Index,
@@ -43,7 +43,7 @@ void XGINew_SetReg1( unsigned long port , unsigned short index , unsigned short 
 /* --------------------------------------------------------------------- */
 /*void XGINew_SetReg2( unsigned long port , unsigned short index , unsigned short data )
 {
-    InPortByte( ( PUCHAR )port + 0x3da - 0x3c0 ) ;
+    InPortByte((P unsigned char )port + 0x3da - 0x3c0) ;
     OutPortByte( XGINew_P3c0 , index ) ;
     OutPortByte( XGINew_P3c0 , data ) ;
     OutPortByte( XGINew_P3c0 , 0x20 ) ;
@@ -80,9 +80,9 @@ void XGINew_SetReg4( unsigned long port , unsigned long data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-UCHAR XGINew_GetReg1( unsigned long port , unsigned short index )
+unsigned char XGINew_GetReg1(unsigned long port, unsigned short index)
 {
-    UCHAR data ;
+    unsigned char data ;
 
     outb(index, port);
     data = inb(port + 1) ;
@@ -96,9 +96,9 @@ UCHAR XGINew_GetReg1( unsigned long port , unsigned short index )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-UCHAR XGINew_GetReg2( unsigned long port )
+unsigned char XGINew_GetReg2(unsigned long port)
 {
-    UCHAR data ;
+    unsigned char data ;
 
     data = inb(port) ;
 
@@ -197,7 +197,7 @@ void NewDelaySeconds( int seconds )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void Newdebugcode( UCHAR code )
+void Newdebugcode(unsigned char code)
 {
 //    OutPortByte ( 0x80 , code ) ;
     /* OutPortByte ( 0x300 , code ) ; */

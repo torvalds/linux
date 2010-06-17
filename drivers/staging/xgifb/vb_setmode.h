@@ -1,7 +1,7 @@
 #ifndef  _VBSETMODE_
 #define  _VBSETMODE_
 
-extern   void     InitTo330Pointer(UCHAR,PVB_DEVICE_INFO);
+extern   void     InitTo330Pointer(unsigned char, PVB_DEVICE_INFO);
 extern   void     XGI_UnLockCRT2(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
 extern   void     XGI_LockCRT2(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO );
 extern   void     XGI_LongWait( PVB_DEVICE_INFO );

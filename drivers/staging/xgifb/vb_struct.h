@@ -12,7 +12,7 @@
 
 typedef struct _XGI_PanelDelayTblStruct
 {
- UCHAR timer[2];
+ unsigned char timer[2];
 } XGI_PanelDelayTblStruct;
 
 typedef struct _XGI_LCDDataStruct
@@ -28,11 +28,11 @@ typedef struct _XGI_LCDDataStruct
 
 typedef struct _XGI_LVDSCRT1HDataStruct
 {
- UCHAR Reg[8];
+ unsigned char Reg[8];
 } XGI_LVDSCRT1HDataStruct;
 typedef struct _XGI_LVDSCRT1VDataStruct
 {
- UCHAR Reg[7];
+ unsigned char Reg[7];
 } XGI_LVDSCRT1VDataStruct;
 
 
@@ -45,12 +45,12 @@ typedef struct _XGI_TVDataStruct
  unsigned short TVHDE;
  unsigned short TVVDE;
  unsigned short RVBHRS;
- UCHAR FlickerMode;
+ unsigned char FlickerMode;
  unsigned short HALFRVBHRS;
- UCHAR RY1COE;
- UCHAR RY2COE;
- UCHAR RY3COE;
- UCHAR RY4COE;
+ unsigned char RY1COE;
+ unsigned char RY2COE;
+ unsigned char RY3COE;
+ unsigned char RY4COE;
 } XGI_TVDataStruct;
 
 typedef struct _XGI_LVDSDataStruct
@@ -69,7 +69,7 @@ typedef struct _XGI_LVDSDesStruct
 
 typedef struct _XGI_LVDSCRT1DataStruct
 {
- UCHAR CR[15];
+ unsigned char CR[15];
 } XGI_LVDSCRT1DataStruct;
 
 /*add for LCDA*/
@@ -77,53 +77,53 @@ typedef struct _XGI_LVDSCRT1DataStruct
 
 typedef struct _XGI_StStruct
 {
- UCHAR St_ModeID;
+ unsigned char St_ModeID;
  unsigned short St_ModeFlag;
- UCHAR St_StTableIndex;
- UCHAR St_CRT2CRTC;
- UCHAR St_CRT2CRTC2;
- UCHAR St_ResInfo;
- UCHAR VB_StTVFlickerIndex;
- UCHAR VB_StTVEdgeIndex;
- UCHAR VB_StTVYFilterIndex;
+ unsigned char St_StTableIndex;
+ unsigned char St_CRT2CRTC;
+ unsigned char St_CRT2CRTC2;
+ unsigned char St_ResInfo;
+ unsigned char VB_StTVFlickerIndex;
+ unsigned char VB_StTVEdgeIndex;
+ unsigned char VB_StTVYFilterIndex;
 } XGI_StStruct;
 
 typedef struct _XGI_StandTableStruct
 {
- UCHAR CRT_COLS;
- UCHAR ROWS;
- UCHAR CHAR_HEIGHT;
+ unsigned char CRT_COLS;
+ unsigned char ROWS;
+ unsigned char CHAR_HEIGHT;
  unsigned short CRT_LEN;
- UCHAR SR[4];
- UCHAR MISC;
- UCHAR CRTC[0x19];
- UCHAR ATTR[0x14];
- UCHAR GRC[9];
+ unsigned char SR[4];
+ unsigned char MISC;
+ unsigned char CRTC[0x19];
+ unsigned char ATTR[0x14];
+ unsigned char GRC[9];
 } XGI_StandTableStruct;
 
 typedef struct _XGI_ExtStruct
 {
- UCHAR Ext_ModeID;
+ unsigned char Ext_ModeID;
  unsigned short Ext_ModeFlag;
  unsigned short Ext_ModeInfo;
  unsigned short Ext_Point;
  unsigned short Ext_VESAID;
- UCHAR Ext_VESAMEMSize;
- UCHAR Ext_RESINFO;
- UCHAR VB_ExtTVFlickerIndex;
- UCHAR VB_ExtTVEdgeIndex;
- UCHAR VB_ExtTVYFilterIndex;
- UCHAR REFindex;
+ unsigned char Ext_VESAMEMSize;
+ unsigned char Ext_RESINFO;
+ unsigned char VB_ExtTVFlickerIndex;
+ unsigned char VB_ExtTVEdgeIndex;
+ unsigned char VB_ExtTVYFilterIndex;
+ unsigned char REFindex;
 } XGI_ExtStruct;
 
 typedef struct _XGI_Ext2Struct
 {
  unsigned short Ext_InfoFlag;
- UCHAR Ext_CRT1CRTC;
- UCHAR Ext_CRTVCLK;
- UCHAR Ext_CRT2CRTC;
- UCHAR Ext_CRT2CRTC2;
- UCHAR  ModeID;
+ unsigned char Ext_CRT1CRTC;
+ unsigned char Ext_CRTVCLK;
+ unsigned char Ext_CRT2CRTC;
+ unsigned char Ext_CRT2CRTC2;
+ unsigned char  ModeID;
  unsigned short XRes;
  unsigned short YRes;
  /* unsigned short ROM_OFFSET; */
@@ -132,25 +132,25 @@ typedef struct _XGI_Ext2Struct
 
 typedef struct _XGI_MCLKDataStruct
 {
- UCHAR SR28,SR29,SR2A;
+ unsigned char SR28, SR29, SR2A;
  unsigned short CLOCK;
 } XGI_MCLKDataStruct;
 
 typedef struct _XGI_ECLKDataStruct
 {
- UCHAR SR2E,SR2F,SR30;
+ unsigned char SR2E, SR2F, SR30;
  unsigned short CLOCK;
 } XGI_ECLKDataStruct;
 
 typedef struct _XGI_VCLKDataStruct
 {
- UCHAR SR2B,SR2C;
+ unsigned char SR2B, SR2C;
  unsigned short CLOCK;
 } XGI_VCLKDataStruct;
 
 typedef struct _XGI_VBVCLKDataStruct
 {
- UCHAR Part4_A,Part4_B;
+ unsigned char Part4_A, Part4_B;
  unsigned short CLOCK;
 } XGI_VBVCLKDataStruct;
 
@@ -164,13 +164,13 @@ typedef struct _XGI_ModeResInfoStruct
 {
  unsigned short HTotal;
  unsigned short VTotal;
- UCHAR  XChar;
- UCHAR  YChar;
+ unsigned char  XChar;
+ unsigned char  YChar;
 } XGI_ModeResInfoStruct;
 
 typedef struct _XGI_LCDNBDesStruct
 {
-  UCHAR NB[12];
+  unsigned char NB[12];
 } XGI_LCDNBDesStruct;
  /*add for new UNIVGABIOS*/
 typedef struct _XGI_LCDDesStruct
@@ -183,7 +183,7 @@ typedef struct _XGI_LCDDesStruct
 
 typedef struct _XGI_LCDDataTablStruct
 {
- UCHAR  PANELID;
+ unsigned char  PANELID;
  unsigned short MASK;
  unsigned short CAP;
  unsigned short DATAPTR;
@@ -243,13 +243,13 @@ typedef struct _XGI330_TVDataStruct
  unsigned short TVHDE;
  unsigned short TVVDE;
  unsigned short RVBHRS;
- UCHAR FlickerMode;
+ unsigned char FlickerMode;
  unsigned short HALFRVBHRS;
 } XGI330_TVDataStruct;
 
 typedef struct _XGI330_LCDDataTablStruct
 {
- UCHAR  PANELID;
+ unsigned char  PANELID;
  unsigned short MASK;
  unsigned short CAP;
  unsigned short DATAPTR;
@@ -273,61 +273,61 @@ typedef struct _XGI330_CHTVDataStruct
 
 typedef struct _XGI_TimingHStruct
 {
-  UCHAR data[8];
+  unsigned char data[8];
 } XGI_TimingHStruct;
 
 typedef struct _XGI_TimingVStruct
 {
-  UCHAR data[7];
+  unsigned char data[7];
 } XGI_TimingVStruct;
 
 typedef struct _XGI_CH7007TV_TimingHStruct
 {
-  UCHAR data[10];
+  unsigned char data[10];
 } XGI_CH7007TV_TimingHStruct;
 
 typedef struct _XGI_CH7007TV_TimingVStruct
 {
-  UCHAR data[10];
+  unsigned char data[10];
 } XGI_CH7007TV_TimingVStruct;
 
 typedef struct _XGI_XG21CRT1Struct
 {
- UCHAR ModeID,CR02,CR03,CR15,CR16;
+ unsigned char ModeID, CR02, CR03, CR15, CR16;
 } XGI_XG21CRT1Struct;
 
 typedef struct _XGI330_CHTVRegDataStruct
 {
- UCHAR Reg[16];
+ unsigned char Reg[16];
 } XGI330_CHTVRegDataStruct;
 
 typedef struct _XGI330_LCDCapStruct
 {
- 		UCHAR      LCD_ID;
+		unsigned char	   LCD_ID;
 		unsigned short	   LCD_Capability;
-                UCHAR      LCD_SetFlag;
-                UCHAR      LCD_DelayCompensation;
-                UCHAR      LCD_HSyncWidth;
-                UCHAR      LCD_VSyncWidth;
-                UCHAR      LCD_VCLK;
-                UCHAR      LCDA_VCLKData1;
-                UCHAR      LCDA_VCLKData2;
-                UCHAR      LCUCHAR_VCLKData1;
-                UCHAR      LCUCHAR_VCLKData2;
-                UCHAR      PSC_S1;
-                UCHAR      PSC_S2;
-                UCHAR      PSC_S3;
-                UCHAR      PSC_S4;
-                UCHAR      PSC_S5;
-                UCHAR      PWD_2B;
-                UCHAR      PWD_2C;
-                UCHAR      PWD_2D;
-                UCHAR      PWD_2E;
-                UCHAR      PWD_2F;
-                UCHAR      Spectrum_31;
-                UCHAR      Spectrum_32;
-                UCHAR      Spectrum_33;
-                UCHAR      Spectrum_34;
+		unsigned char	   LCD_SetFlag;
+		unsigned char	   LCD_DelayCompensation;
+		unsigned char	   LCD_HSyncWidth;
+		unsigned char	   LCD_VSyncWidth;
+		unsigned char	   LCD_VCLK;
+		unsigned char	   LCDA_VCLKData1;
+		unsigned char	   LCDA_VCLKData2;
+		unsigned char	   LCUCHAR_VCLKData1;
+		unsigned char	   LCUCHAR_VCLKData2;
+		unsigned char	   PSC_S1;
+		unsigned char	   PSC_S2;
+		unsigned char	   PSC_S3;
+		unsigned char	   PSC_S4;
+		unsigned char	   PSC_S5;
+		unsigned char	   PWD_2B;
+		unsigned char	   PWD_2C;
+		unsigned char	   PWD_2D;
+		unsigned char	   PWD_2E;
+		unsigned char	   PWD_2F;
+		unsigned char	   Spectrum_31;
+		unsigned char	   Spectrum_32;
+		unsigned char	   Spectrum_33;
+		unsigned char	   Spectrum_34;
 } XGI330_LCDCapStruct;
 
 typedef struct _XGI21_LVDSCapStruct
@@ -341,50 +341,50 @@ typedef struct _XGI21_LVDSCapStruct
 		unsigned short	   LVDSVFP;
 		unsigned short	   LVDSHSYNC;
 		unsigned short	   LVDSVSYNC;
-                UCHAR      VCLKData1;
-                UCHAR      VCLKData2;
-                UCHAR      PSC_S1;
-                UCHAR      PSC_S2;
-                UCHAR      PSC_S3;
-                UCHAR      PSC_S4;
-                UCHAR      PSC_S5;
+		unsigned char	   VCLKData1;
+		unsigned char	   VCLKData2;
+		unsigned char	   PSC_S1;
+		unsigned char	   PSC_S2;
+		unsigned char	   PSC_S3;
+		unsigned char	   PSC_S4;
+		unsigned char	   PSC_S5;
 } XGI21_LVDSCapStruct;
 
 typedef struct _XGI_CRT1TableStruct
 {
-  UCHAR CR[16];
+  unsigned char CR[16];
 } XGI_CRT1TableStruct;
 
 
 typedef struct _XGI330_VCLKDataStruct
 {
-    UCHAR SR2B,SR2C;
+    unsigned char SR2B, SR2C;
     unsigned short CLOCK;
 } XGI330_VCLKDataStruct;
 
 typedef struct _XGI301C_Tap4TimingStruct
 {
     unsigned short DE;
-    UCHAR  Reg[64];   /* C0-FF */
+    unsigned char  Reg[64];   /* C0-FF */
 } XGI301C_Tap4TimingStruct;
 
 typedef struct _XGI_New_StandTableStruct
 {
-	UCHAR  CRT_COLS;
-	UCHAR  ROWS;
-	UCHAR  CHAR_HEIGHT;
+	unsigned char  CRT_COLS;
+	unsigned char  ROWS;
+	unsigned char  CHAR_HEIGHT;
 	unsigned short CRT_LEN;
-	UCHAR  SR[4];
-	UCHAR  MISC;
-	UCHAR  CRTC[0x19];
-	UCHAR  ATTR[0x14];
-	UCHAR  GRC[9];
+	unsigned char  SR[4];
+	unsigned char  MISC;
+	unsigned char  CRTC[0x19];
+	unsigned char  ATTR[0x14];
+	unsigned char  GRC[9];
 } XGI_New_StandTableStruct;
 
-typedef UCHAR DRAM8Type[8];
-typedef UCHAR DRAM4Type[4];
-typedef UCHAR DRAM32Type[32];
-typedef UCHAR DRAM2Type[2];
+typedef unsigned char DRAM8Type[8];
+typedef unsigned char DRAM4Type[4];
+typedef unsigned char DRAM32Type[32];
+typedef unsigned char DRAM2Type[2];
 
 typedef struct _VB_DEVICE_INFO  VB_DEVICE_INFO;
 typedef VB_DEVICE_INFO *	PVB_DEVICE_INFO;
@@ -427,8 +427,8 @@ struct _VB_DEVICE_INFO
 
     DRAM8Type  *SR15; /* pointer : point to array */
     DRAM8Type  *CR40;
-    UCHAR  *pSoftSetting;
-    UCHAR  *pOutputSelect;
+    unsigned char  *pSoftSetting;
+    unsigned char  *pOutputSelect;
 
     unsigned short *pRGBSenseData;
     unsigned short *pRGBSenseData2; /*301b*/
@@ -437,62 +437,62 @@ struct _VB_DEVICE_INFO
     unsigned short *pYCSenseData;
     unsigned short *pYCSenseData2;
 
-    UCHAR  *pSR07;
-    UCHAR  *CR49;
-    UCHAR  *pSR1F;
-    UCHAR  *AGPReg;
-    UCHAR  *SR16;
-    UCHAR  *pSR21;
-    UCHAR  *pSR22;
-    UCHAR  *pSR23;
-    UCHAR  *pSR24;
-    UCHAR  *SR25;
-    UCHAR  *pSR31;
-    UCHAR  *pSR32;
-    UCHAR  *pSR33;
-    UCHAR  *pSR36;      /* alan 12/07/2006 */
-    UCHAR  *pCRCF;
-    UCHAR  *pCRD0;      /* alan 12/07/2006 */
-    UCHAR  *pCRDE;      /* alan 12/07/2006 */
-    UCHAR  *pCR8F;      /* alan 12/07/2006 */
-    UCHAR  *pSR40;      /* alan 12/07/2006 */
-    UCHAR  *pSR41;      /* alan 12/07/2006 */
-    UCHAR  *pDVOSetting;
-    UCHAR  *pCR2E;
-    UCHAR  *pCR2F;
-    UCHAR  *pCR46;
-    UCHAR  *pCR47;
-    UCHAR  *pCRT2Data_1_2;
-    UCHAR  *pCRT2Data_4_D;
-    UCHAR  *pCRT2Data_4_E;
-    UCHAR  *pCRT2Data_4_10;
+    unsigned char  *pSR07;
+    unsigned char  *CR49;
+    unsigned char  *pSR1F;
+    unsigned char  *AGPReg;
+    unsigned char  *SR16;
+    unsigned char  *pSR21;
+    unsigned char  *pSR22;
+    unsigned char  *pSR23;
+    unsigned char  *pSR24;
+    unsigned char  *SR25;
+    unsigned char  *pSR31;
+    unsigned char  *pSR32;
+    unsigned char  *pSR33;
+    unsigned char  *pSR36;      /* alan 12/07/2006 */
+    unsigned char  *pCRCF;
+    unsigned char  *pCRD0;      /* alan 12/07/2006 */
+    unsigned char  *pCRDE;      /* alan 12/07/2006 */
+    unsigned char  *pCR8F;      /* alan 12/07/2006 */
+    unsigned char  *pSR40;      /* alan 12/07/2006 */
+    unsigned char  *pSR41;      /* alan 12/07/2006 */
+    unsigned char  *pDVOSetting;
+    unsigned char  *pCR2E;
+    unsigned char  *pCR2F;
+    unsigned char  *pCR46;
+    unsigned char  *pCR47;
+    unsigned char  *pCRT2Data_1_2;
+    unsigned char  *pCRT2Data_4_D;
+    unsigned char  *pCRT2Data_4_E;
+    unsigned char  *pCRT2Data_4_10;
     XGI_MCLKDataStruct  *MCLKData;
     XGI_ECLKDataStruct  *ECLKData;
 
-    UCHAR   *XGI_TVDelayList;
-    UCHAR   *XGI_TVDelayList2;
-    UCHAR   *CHTVVCLKUNTSC;
-    UCHAR   *CHTVVCLKONTSC;
-    UCHAR   *CHTVVCLKUPAL;
-    UCHAR   *CHTVVCLKOPAL;
-    UCHAR   *NTSCTiming;
-    UCHAR   *PALTiming;
-    UCHAR   *HiTVExtTiming;
-    UCHAR   *HiTVSt1Timing;
-    UCHAR   *HiTVSt2Timing;
-    UCHAR   *HiTVTextTiming;
-    UCHAR   *YPbPr750pTiming;
-    UCHAR   *YPbPr525pTiming;
-    UCHAR   *YPbPr525iTiming;
-    UCHAR   *HiTVGroup3Data;
-    UCHAR   *HiTVGroup3Simu;
-    UCHAR   *HiTVGroup3Text;
-    UCHAR   *Ren525pGroup3;
-    UCHAR   *Ren750pGroup3;
-    UCHAR   *ScreenOffset;
-    UCHAR   *pXGINew_DRAMTypeDefinition;
-    UCHAR   *pXGINew_I2CDefinition ;
-    UCHAR   *pXGINew_CR97 ;
+    unsigned char   *XGI_TVDelayList;
+    unsigned char   *XGI_TVDelayList2;
+    unsigned char   *CHTVVCLKUNTSC;
+    unsigned char   *CHTVVCLKONTSC;
+    unsigned char   *CHTVVCLKUPAL;
+    unsigned char   *CHTVVCLKOPAL;
+    unsigned char   *NTSCTiming;
+    unsigned char   *PALTiming;
+    unsigned char   *HiTVExtTiming;
+    unsigned char   *HiTVSt1Timing;
+    unsigned char   *HiTVSt2Timing;
+    unsigned char   *HiTVTextTiming;
+    unsigned char   *YPbPr750pTiming;
+    unsigned char   *YPbPr525pTiming;
+    unsigned char   *YPbPr525iTiming;
+    unsigned char   *HiTVGroup3Data;
+    unsigned char   *HiTVGroup3Simu;
+    unsigned char   *HiTVGroup3Text;
+    unsigned char   *Ren525pGroup3;
+    unsigned char   *Ren750pGroup3;
+    unsigned char   *ScreenOffset;
+    unsigned char   *pXGINew_DRAMTypeDefinition;
+    unsigned char   *pXGINew_I2CDefinition ;
+    unsigned char   *pXGINew_CR97 ;
 
     XGI330_LCDCapStruct  *LCDCapList;
     XGI21_LVDSCapStruct  *XG21_LVDSCapList;
@@ -525,8 +525,8 @@ typedef struct
     unsigned short    Vertical_SYNC;
     unsigned short    Vertical_BP;
     double    DCLK;
-    UCHAR     FrameRate;
-    UCHAR     Interlace;
+    unsigned char     FrameRate;
+    unsigned char     Interlace;
     unsigned short    Margin;
 } TimingInfo;
 

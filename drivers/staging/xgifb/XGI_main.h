@@ -888,7 +888,7 @@ unsigned char         XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ex
 
 
 /* Routines from init.c/init301.c */
-extern void     InitTo330Pointer(UCHAR,PVB_DEVICE_INFO pVBInfo);
+extern void     InitTo330Pointer(unsigned char, PVB_DEVICE_INFO pVBInfo);
 extern unsigned char  XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension);
 extern unsigned char XGISetModeNew(PXGI_HW_DEVICE_INFO HwDeviceExtension,
 			     unsigned short ModeNo);

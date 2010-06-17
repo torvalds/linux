@@ -4,25 +4,6 @@
 
 #include <linux/ioctl.h>
 
-#ifndef CHAR
-typedef char CHAR;
-#endif
-
-#ifndef SHORT
-typedef short SHORT;
-#endif
-
-#ifndef LONG
-typedef long  LONG;
-#endif
-
-#ifndef UCHAR
-typedef unsigned char UCHAR;
-#endif
-
-typedef unsigned long XGIIOADDRESS;
-
-
 #ifndef VBIOS_VER_MAX_LENGTH
 #define VBIOS_VER_MAX_LENGTH    4
 #endif
@@ -74,8 +55,8 @@ typedef enum _XGI_LCD_TYPE {
 #ifndef PXGI_DSReg
 typedef struct _XGI_DSReg
 {
-  UCHAR  jIdx;
-  UCHAR  jVal;
+  unsigned char  jIdx;
+  unsigned char  jVal;
 } XGI_DSReg, *PXGI_DSReg;
 #endif
 
@@ -109,13 +90,13 @@ struct _XGI_HW_DEVICE_INFO
     unsigned long  ul2ndVideoMemorySize;
 
     unsigned char *pj2ndIOAddress;
-    UCHAR  jChipType;            /* Used to Identify Graphics Chip */
+    unsigned char  jChipType;            /* Used to Identify Graphics Chip */
                                  /* defined in the data structure type  */
                                  /* "XGI_CHIP_TYPE" */
 
-    UCHAR  jChipRevision;        /* Used to Identify Graphics Chip Revision */
+    unsigned char  jChipRevision;        /* Used to Identify Graphics Chip Revision */
 
-    UCHAR  ujVBChipID;           /* the ID of video bridge */
+    unsigned char  ujVBChipID;           /* the ID of video bridge */
                                  /* defined in the data structure type */
                                  /* "XGI_VB_CHIP_TYPE" */
 
@@ -152,7 +133,7 @@ struct _XGI_HW_DEVICE_INFO
 
     PXGI_QUERYSPACE  pQueryNorthBridgeSpace;
 
-    UCHAR  szVBIOSVer[VBIOS_VER_MAX_LENGTH];
+    unsigned char szVBIOSVer[VBIOS_VER_MAX_LENGTH];
 
 };
 #endif

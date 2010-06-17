@@ -9,8 +9,8 @@
 #include "vb_util.h"
 #include "vb_setmode.h"
 #include "vb_ext.h"
-extern   UCHAR XGI330_SoftSetting;
-extern   UCHAR XGI330_OutputSelect;
+extern   unsigned char XGI330_SoftSetting;
+extern   unsigned char XGI330_OutputSelect;
 extern   unsigned short XGI330_RGBSenseData2;
 extern   unsigned short XGI330_YCSenseData2;
 extern   unsigned short XGI330_VideoSenseData2;
@@ -139,7 +139,7 @@ void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
 		unsigned long VESA_POWER_STATE)
 {
     unsigned short ModeNo, ModeIdIndex;
-    UCHAR  temp ;
+    unsigned char temp;
     VB_DEVICE_INFO VBINF;
     PVB_DEVICE_INFO pVBInfo = &VBINF;
     pVBInfo->BaseAddr = (unsigned long)pXGIHWDE->pjIOAddress ;
@@ -209,18 +209,18 @@ void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
     }
 
     if ( VESA_POWER_STATE == 0x00000400 )
-      XGINew_SetReg1( pVBInfo->Part4Port , 0x31 , ( UCHAR )( XGINew_GetReg1( pVBInfo->Part4Port , 0x31 ) & 0xFE ) ) ;
+	    XGINew_SetReg1(pVBInfo->Part4Port, 0x31, (unsigned char)(XGINew_GetReg1(pVBInfo->Part4Port, 0x31) & 0xFE));
     else
-      XGINew_SetReg1( pVBInfo->Part4Port , 0x31 , ( UCHAR )( XGINew_GetReg1( pVBInfo->Part4Port , 0x31 ) | 0x01 ) ) ;
+	    XGINew_SetReg1(pVBInfo->Part4Port, 0x31, (unsigned char)(XGINew_GetReg1(pVBInfo->Part4Port, 0x31) | 0x01));
 
-    temp = ( UCHAR )XGINew_GetReg1( pVBInfo->P3c4 , 0x1f ) ;
+    temp = (unsigned char)XGINew_GetReg1(pVBInfo->P3c4, 0x1f);
     temp &= 0x3f ;
     switch ( VESA_POWER_STATE )
     {
         case 0x00000000: /* on */
             if ( ( pXGIHWDE->ujVBChipID == VB_CHIP_301 ) || ( pXGIHWDE->ujVBChipID == VB_CHIP_302 ) )
             {
-                XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0x00 ) ) ;
+		XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0x00));
                 XGI_EnableBridge( pXGIHWDE, pVBInfo ) ;
             }
             else
@@ -278,7 +278,7 @@ void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
                 XGI_DisplayOff( pXGIHWDE, pVBInfo );
             }
 
-            XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0x40 ) ) ;
+	    XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0x40));
             break ;
         case 0x00000200: /* suspend */
             if ( pXGIHWDE->jChipType == XG21 )
@@ -291,12 +291,12 @@ void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
                 XGI_DisplayOff( pXGIHWDE, pVBInfo );
                 XGI_XG27BLSignalVDD( 0x20 , 0x00, pVBInfo ) ; /* LVDS signal off */
             }
-            XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0x80 ) ) ;
+	    XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0x80));
             break ;
         case 0x00000400: /* off */
             if ( (pXGIHWDE->ujVBChipID == VB_CHIP_301 ) || ( pXGIHWDE->ujVBChipID == VB_CHIP_302 ) )
             {
-                XGINew_SetReg1( pVBInfo->P3c4 , 0x1f , ( UCHAR )( temp | 0xc0 ) ) ;
+		XGINew_SetReg1(pVBInfo->P3c4, 0x1f, (unsigned char)(temp | 0xc0));
                 XGI_DisableBridge( pXGIHWDE, pVBInfo ) ;
             }
             else
@@ -837,7 +837,7 @@ void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
         ModeNo = pVBInfo->EModeIDTable[ ModeIdIndex ].Ext_ModeID;
         if ( pVBInfo->EModeIDTable[ ModeIdIndex ].Ext_ModeID == 0xFF )
         {
-            pBiosArguments->h.bh = (UCHAR) EModeCount;
+	    pBiosArguments->h.bh = (unsigned char) EModeCount;
             return;
         }
         if ( !XGI_XG21CheckLVDSMode( ModeNo , ModeIdIndex, pVBInfo) )
@@ -883,7 +883,7 @@ void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
         if (EModeCount == EModeIndex)
         {
             resindex = XGI_GetResInfo( ModeNo , ModeIdIndex, pVBInfo ) ;
-            pBiosArguments->h.bl = (UCHAR) ModeNo;
+	    pBiosArguments->h.bl = (unsigned char) ModeNo;
             pBiosArguments->x.cx = pVBInfo->ModeResInfo[ resindex ].HTotal ;			  /* xres->ax */
             pBiosArguments->x.dx = pVBInfo->ModeResInfo[ resindex ].VTotal ;			  /* yres->bx */
             pBiosArguments->x.ax = 0x0014;
@@ -966,7 +966,7 @@ void XGI_XG21Fun14Sub72( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 */
 void XGI_XG21Fun14Sub73( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 {
-    UCHAR Select;
+    unsigned char Select;
 
     unsigned short lvdstableindex;
 

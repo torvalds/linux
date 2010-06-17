@@ -11,7 +11,8 @@ struct WORDREGS {
 };
 
 struct BYTEREGS {
-    UCHAR   al, ah, hi_al, hi_ah, bl, bh, hi_bl, hi_bh, cl, ch, hi_cl, hi_ch, dl, dh, hi_dl, hi_dh;
+     unsigned char al, ah, hi_al, hi_ah, bl, bh, hi_bl, hi_bh, cl, ch,
+	     hi_cl, hi_ch, dl, dh, hi_dl, hi_dh;
 };
 
 typedef union   _X86_REGS    {
@@ -25,7 +26,8 @@ extern void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
 		       unsigned long VESA_POWER_STATE);
 extern   void     XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo );
 extern   void     XGINew_SetModeScratch ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo ) ;
-extern   void 	  ReadVBIOSTablData( UCHAR ChipType , PVB_DEVICE_INFO pVBInfo);
+extern void ReadVBIOSTablData(unsigned char ChipType,
+			      PVB_DEVICE_INFO pVBInfo);
 extern unsigned short XGINew_SenseLCD(PXGI_HW_DEVICE_INFO,
 				      PVB_DEVICE_INFO pVBInfo);
 
