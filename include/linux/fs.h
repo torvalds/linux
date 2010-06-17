@@ -136,7 +136,7 @@ struct inodes_stat_t {
  * SWRITE_SYNC
  * SWRITE_SYNC_PLUG	Like WRITE_SYNC/WRITE_SYNC_PLUG, but locks the buffer.
  *			See SWRITE.
- * WRITE_BARRIER	Like WRITE, but tells the block layer that all
+ * WRITE_BARRIER	Like WRITE_SYNC, but tells the block layer that all
  *			previously submitted writes must be safely on storage
  *			before this one is started. Also guarantees that when
  *			this write is complete, it itself is also safely on
@@ -159,7 +159,7 @@ struct inodes_stat_t {
 #define SWRITE_SYNC_PLUG	\
 			(SWRITE | (1 << BIO_RW_SYNCIO) | (1 << BIO_RW_NOIDLE))
 #define SWRITE_SYNC	(SWRITE_SYNC_PLUG | (1 << BIO_RW_UNPLUG))
-#define WRITE_BARRIER	(WRITE | (1 << BIO_RW_BARRIER))
+#define WRITE_BARRIER	(WRITE_SYNC | (1 << BIO_RW_BARRIER))
 
 /*
  * These aren't really reads or writes, they pass down information about
