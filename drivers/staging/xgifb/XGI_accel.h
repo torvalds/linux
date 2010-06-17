@@ -491,21 +491,9 @@ void XGIfb_syncaccel(void);
 
 extern struct video_info xgi_video_info;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,33)
-void fbcon_XGI_bmove(struct display *p, int srcy, int srcx, int dsty,
-                     int dstx, int height, int width);
-void fbcon_XGI_revc(struct display *p, int srcy, int srcx);
-void fbcon_XGI_clear8(struct vc_data *conp, struct display *p, int srcy,
-                      int srcx, int height, int width);
-void fbcon_XGI_clear16(struct vc_data *conp, struct display *p, int srcy,
-                       int srcx, int height, int width);
-void fbcon_XGI_clear32(struct vc_data *conp, struct display *p, int srcy,
-                       int srcx, int height, int width);
-#endif
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,34)
 extern int XGIfb_accel;
 void fbcon_XGI_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 void fbcon_XGI_copyarea(struct fb_info *info, const struct fb_copyarea *area);
-#endif
+
 
 #endif

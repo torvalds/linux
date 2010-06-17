@@ -20,11 +20,6 @@
 #include <linux/types.h>
 #include <linux/version.h>
 #include "XGIfb.h"
-/*#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0)
-#include <video/XGIfb.h>
-#else
-#include <linux/XGIfb.h>
-#endif*/
 #endif
 
 #ifdef WIN2000

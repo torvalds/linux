@@ -1349,11 +1349,7 @@ static int XGIfb_set_par(struct fb_info *info)
 //	printk("XGIfb: inside set_par\n");
         if((err = XGIfb_do_set_var(&info->var, 1, info)))
 		return err;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,10)
-	XGIfb_get_fix(&info->fix, info->currcon, info);
-#else
 	XGIfb_get_fix(&info->fix, -1, info);
-#endif
 //	printk("XGIfb:end of set_par\n");
 	return 0;
 }
@@ -1609,15 +1605,8 @@ static int XGIfb_blank(int blank, struct fb_info *info)
 }
 
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,15)
 static int XGIfb_ioctl(struct fb_info *info, unsigned int cmd,
 			    unsigned long arg)
-#else
-static int XGIfb_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg,
-		       struct fb_info *info)
-#endif
-
 {
 	DEBUGPRN("inside ioctl");
 	switch (cmd) {
@@ -1785,9 +1774,6 @@ static struct fb_ops XGIfb_ops = {
 	.fb_fillrect  = fbcon_XGI_fillrect,
 	.fb_copyarea  = fbcon_XGI_copyarea,
 	.fb_imageblit = cfb_imageblit,
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,15)
-	.fb_cursor    = soft_cursor,
-#endif
 	.fb_sync      = fbcon_XGI_sync,
 	.fb_ioctl     =	XGIfb_ioctl,
 //	.fb_mmap      =	XGIfb_mmap,
@@ -2962,14 +2948,8 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	XGIfb_registered = 0;
 
 	memset(&XGIhw_ext, 0, sizeof(HW_DEVICE_EXTENSION));
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3))
 	  fb_info = framebuffer_alloc(sizeof(struct fb_info), &pdev->dev);
 	  if(!fb_info) return -ENOMEM;
-#else
-	  XGI_fb_info = kmalloc( sizeof(struct fb_info), GFP_KERNEL);
-	  if(!XGI_fb_info) return -ENOMEM;
-	  memset(XGI_fb_info, 0,  sizeof(struct fb_info));
-#endif
 
   	xgi_video_info.chip_id = pdev->device;
 	  pci_read_config_byte(pdev, PCI_REVISION_ID,&xgi_video_info.revision_id);
@@ -3538,11 +3518,7 @@ static void __devexit xgifb_remove(struct pci_dev *pdev)
 	/* Unregister the framebuffer */
 //	if(xgi_video_info.registered) {
 		unregister_framebuffer(fb_info);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,3))
 		framebuffer_release(fb_info);
-#else
-		kfree(fb_info);
-#endif
 //	}
 
 	pci_set_drvdata(pdev, NULL);
@@ -3558,7 +3534,6 @@ static struct pci_driver xgifb_driver = {
 
 XGIINITSTATIC int __init xgifb_init(void)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
 #ifndef MODULE
 	char *option = NULL;
 
@@ -3566,14 +3541,12 @@ XGIINITSTATIC int __init xgifb_init(void)
 		return -ENODEV;
 	XGIfb_setup(option);
 #endif
-#endif
 	return(pci_register_driver(&xgifb_driver));
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2,6,8)
+
 #ifndef MODULE
 module_init(xgifb_init);
-#endif
 #endif
 
 /*****************************************************/
