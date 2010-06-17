@@ -336,11 +336,11 @@ static u32 group_table[] = {
 	[Group1A*8] =
 	DstMem | SrcNone | ModRM | Mov | Stack, 0, 0, 0, 0, 0, 0, 0,
 	[Group3_Byte*8] =
-	ByteOp | SrcImm | DstMem | ModRM, 0,
+	ByteOp | SrcImm | DstMem | ModRM, ByteOp | SrcImm | DstMem | ModRM,
 	ByteOp | DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
 	0, 0, 0, 0,
 	[Group3*8] =
-	DstMem | SrcImm | ModRM, 0,
+	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
 	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
 	0, 0, 0, 0,
 	[Group4*8] =
