@@ -2,12 +2,6 @@
 
 
 
-#ifdef LINUX_XF86
-#include "xf86.h"
-#include "xf86PciInfo.h"
-#include "xgi.h"
-#include "xgi_regs.h"
-#endif
 
 #ifdef LINUX_KERNEL
 #include <asm/io.h>
@@ -2609,9 +2603,7 @@ void XGI_ClearBuffer( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo, PVB
     PVOID VideoMemoryAddress = ( PVOID )HwDeviceExtension->pjVideoMemoryAddress ;
     ULONG AdapterMemorySize  = ( ULONG )HwDeviceExtension->ulVideoMemorySize ;
     PUSHORT pBuffer ;
-#ifndef LINUX_XF86
     int i ;
-#endif
 
     if ( pVBInfo->ModeType >= ModeEGA )
     {
@@ -4901,10 +4893,7 @@ UCHAR XGI_GetVCLKPtr(USHORT RefreshRateTableIndex,USHORT ModeNo,USHORT ModeIdInd
 
     USHORT index ,
            modeflag ;
-#ifndef LINUX_XF86
     USHORT tempbx ;
-#endif
-
     UCHAR tempal ;
     UCHAR *CHTVVCLKPtr = NULL ;
 

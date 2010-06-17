@@ -2,7 +2,6 @@
 #define _OSDEF_H_
 
 #define LINUX_KERNEL
-/* #define LINUX_XF86 */
 
 /**********************************************************************/
 #ifdef LINUX_KERNEL
@@ -11,17 +10,11 @@
 
 
 /**********************************************************************/
-#ifdef LINUX_XF86
-#define LINUX
-#endif
 #ifdef LINUX_KERNEL
 #define LINUX
 #endif
 
 /**********************************************************************/
-#ifdef LINUX_XF86
-#define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize)
-#endif
 #ifdef LINUX_KERNEL
 #define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize)
 #endif
@@ -29,9 +22,6 @@
 
 /**********************************************************************/
 
-#ifdef LINUX_XF86
-#define XGI_MemoryCopy(Destination,Soruce,Length) memcpy(Destination,Soruce,Length)
-#endif
 #ifdef LINUX_KERNEL
 #define XGI_MemoryCopy(Destination,Soruce,Length) memcpy(Destination,Soruce,Length)
 #endif
@@ -71,14 +61,6 @@
 /*  LINUX XF86                                                        */
 /**********************************************************************/
 
-#ifdef LINUX_XF86
-#define OutPortByte(p,v) outb((CARD16)(p),(CARD8)(v))
-#define OutPortWord(p,v) outw((CARD16)(p),(CARD16)(v))
-#define OutPortLong(p,v) outl((CARD16)(p),(CARD32)(v))
-#define InPortByte(p)    inb((CARD16)(p))
-#define InPortWord(p)    inw((CARD16)(p))
-#define InPortLong(p)    inl((CARD16)(p))
-#endif
 
 #ifdef LINUX_KERNEL
 #define OutPortByte(p,v) outb((u8)(v),(p))

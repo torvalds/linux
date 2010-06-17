@@ -9,18 +9,6 @@
 #include <linux/types.h>
 #endif
 
-
-
-#ifdef LINUX_XF86
-#include "xf86.h"
-#include "xf86PciInfo.h"
-#include "xgi.h"
-#include "xgi_regs.h"
-#endif
-
-
-
-
 void XGINew_SetReg1( ULONG , USHORT , USHORT ) ;
 void XGINew_SetReg2( ULONG , USHORT , USHORT ) ;
 void XGINew_SetReg3( ULONG , USHORT ) ;
@@ -42,13 +30,8 @@ void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);
 /* --------------------------------------------------------------------- */
 void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 {
-#ifdef LINUX_XF86
-    OutPortByte( ( PUCHAR )(ULONG)port , index ) ;
-    OutPortByte( ( PUCHAR )(ULONG)port + 1 , data ) ;
-#else
     OutPortByte( port , index ) ;
     OutPortByte( port + 1 , data ) ;
-#endif
 }
 
 
@@ -101,13 +84,8 @@ UCHAR XGINew_GetReg1( ULONG port , USHORT index )
 {
     UCHAR data ;
 
-#ifdef LINUX_XF86
-    OutPortByte( ( PUCHAR )(ULONG)port , index ) ;
-    data = InPortByte( ( PUCHAR )(ULONG)port + 1 ) ;
-#else
     OutPortByte( port , index ) ;
     data = InPortByte( port + 1 ) ;
-#endif
 
     return( data ) ;
 }

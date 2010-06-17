@@ -22,12 +22,6 @@
 #include "vb_init.h"
 #include "vb_ext.h"
 
-#ifdef LINUX_XF86
-#include "xf86.h"
-#include "xf86PciInfo.h"
-#include "xgi.h"
-#include "xgi_regs.h"
-#endif
 
 #ifdef LINUX_KERNEL
 #include <asm/io.h>
@@ -2674,7 +2668,7 @@ void SetPowerConsume ( PXGI_HW_DEVICE_INFO HwDeviceExtension , ULONG XGI_P3d4Por
 
 
 
-#if defined(LINUX_XF86)||defined(LINUX_KERNEL)
+#if defined(LINUX_KERNEL)
 void XGINew_InitVBIOSData(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
 
@@ -3103,9 +3097,8 @@ void XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension )
 /*
 void XGINew_SetDRAMModeRegister_XG27( PXGI_HW_DEVICE_INFO HwDeviceExtension )
 {
-#ifndef LINUX_XF86
+
     UCHAR data ;
-#endif
     VB_DEVICE_INFO VBINF;
     PVB_DEVICE_INFO pVBInfo = &VBINF;
     pVBInfo->ROMAddr = HwDeviceExtension->pjVirtualRomBase ;

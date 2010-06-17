@@ -4,10 +4,6 @@
 
 #include "osdef.h"
 
-#ifdef LINUX_XF86
-#include "xf86Version.h"
-#include "xf86Pci.h"
-#endif
 
 #ifdef LINUX_KERNEL  /* We don't want the X driver to depend on kernel source */
 #include <linux/ioctl.h>
@@ -81,14 +77,6 @@ typedef UCHAR bool;
 typedef unsigned long XGIIOADDRESS;
 #endif
 
-#ifdef LINUX_XF86
-#if XF86_VERSION_CURRENT < XF86_VERSION_NUMERIC(4,2,0,0,0)
-typedef unsigned char IOADDRESS;
-typedef unsigned char XGIIOADDRESS;
-#else
-typedef IOADDRESS XGIIOADDRESS;
-#endif
-#endif
 
 #ifndef VBIOS_VER_MAX_LENGTH
 #define VBIOS_VER_MAX_LENGTH    4
@@ -98,10 +86,6 @@ typedef IOADDRESS XGIIOADDRESS;
 #ifndef XGI_CHIP_TYPE
 typedef enum _XGI_CHIP_TYPE {
     XGI_VGALegacy = 0,
-#ifdef LINUX_XF86
-    XGI_530,
-    XGI_OLD,
-#endif
     XGI_300,
     XGI_630,
     XGI_640,
@@ -190,9 +174,6 @@ struct _XGI_HW_DEVICE_INFO
 {
     ULONG  ulExternalChip;       /* NO VB or other video bridge*/
                                  /* if ujVBChipID = VB_CHIP_UNKNOWN, */
-#ifdef LINUX_XF86
-    PCITAG PciTag;		 /* PCI Tag */
-#endif
 
     PUCHAR  pjVirtualRomBase;    /* ROM image */
 
@@ -264,55 +245,6 @@ struct _XGI_HW_DEVICE_INFO
 /* Addtional IOCTL for communication xgifb <> X driver        */
 /* If changing this, xgifb.h must also be changed (for xgifb) */
 
-#ifdef LINUX_XF86  /* We don't want the X driver to depend on the kernel source */
-
-/* ioctl for identifying and giving some info (esp. memory heap start) */
-#define XGIFB_GET_INFO    0x80046ef8  /* Wow, what a terrible hack... */
-
-/* Structure argument for XGIFB_GET_INFO ioctl  */
-typedef struct _XGIFB_INFO xgifb_info, *pxgifb_info;
-
-struct _XGIFB_INFO {
-	CARD32 	xgifb_id;         	/* for identifying xgifb */
-#ifndef XGIFB_ID
-#define XGIFB_ID	  0x53495346    /* Identify myself with 'XGIF' */
-#endif
- 	CARD32 	chip_id;		/* PCI ID of detected chip */
-	CARD32	memory;			/* video memory in KB which xgifb manages */
-	CARD32	heapstart;             	/* heap start (= xgifb "mem" argument) in KB */
-	CARD8 	fbvidmode;		/* current xgifb mode */
-
-	CARD8 	xgifb_version;
-	CARD8	xgifb_revision;
-	CARD8 	xgifb_patchlevel;
-
-	CARD8 	xgifb_caps;		/* xgifb's capabilities */
-
-	CARD32 	xgifb_tqlen;		/* turbo queue length (in KB) */
-
-	CARD32 	xgifb_pcibus;      	/* The card's PCI ID */
-	CARD32 	xgifb_pcislot;
-	CARD32 	xgifb_pcifunc;
-
-	CARD8 	xgifb_lcdpdc;
-
-	CARD8	xgifb_lcda;
-
-	CARD32	xgifb_vbflags;
-	CARD32	xgifb_currentvbflags;
-
-	CARD32 	xgifb_scalelcd;
-	CARD32 	xgifb_specialtiming;
-
-	CARD8 	xgifb_haveemi;
-	CARD8 	xgifb_emi30,xgifb_emi31,xgifb_emi32,xgifb_emi33;
-	CARD8 	xgifb_haveemilcd;
-
-	CARD8 	xgifb_lcdpdca;
-
-	CARD8 reserved[212]; 		/* for future use */
-};
-#endif
 
 #endif
 
