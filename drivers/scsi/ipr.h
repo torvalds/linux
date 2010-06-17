@@ -272,6 +272,7 @@ IPR_PCII_NO_HOST_RRQ | IPR_PCII_IOARRIN_LOST | IPR_PCII_MMIO_ERROR)
 
 #define IPR_UPROCI_RESET_ALERT			(0x80000000 >> 7)
 #define IPR_UPROCI_IO_DEBUG_ALERT			(0x80000000 >> 9)
+#define IPR_UPROCI_SIS64_START_BIST			(0x80000000 >> 23)
 
 #define IPR_LDUMP_MAX_LONG_ACK_DELAY_IN_USEC		200000	/* 200 ms */
 #define IPR_LDUMP_MAX_SHORT_ACK_DELAY_IN_USEC		200000	/* 200 ms */
@@ -1301,6 +1302,9 @@ struct ipr_chip_t {
 	u16 sis_type;
 #define IPR_SIS32			0x00
 #define IPR_SIS64			0x01
+	u16 bist_method;
+#define IPR_PCI_CFG			0x00
+#define IPR_MMIO			0x01
 	const struct ipr_chip_cfg_t *cfg;
 };
 
