@@ -276,7 +276,6 @@ struct _internal_cmd {
  * @channel: target channel
  * @slot: number number
  * @phy: phy identifier provided in sas device page 0
- * @hidden_raid_component: set to 1 when this is a raid member
  * @responding: used in _scsih_sas_device_mark_responding
  */
 struct _sas_device {
@@ -295,7 +294,6 @@ struct _sas_device {
 	int	channel;
 	u16	slot;
 	u8	phy;
-	u8	hidden_raid_component;
 	u8	responding;
 };
 
@@ -489,6 +487,8 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @ctl_cb_idx: clt internal commands
  * @base_cb_idx: base internal commands
  * @config_cb_idx: base internal commands
+ * @tm_tr_cb_idx : device removal target reset handshake
+ * @tm_tr_volume_cb_idx : volume removal target reset
  * @base_cmds:
  * @transport_cmds:
  * @scsih_cmds:
@@ -517,6 +517,9 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @sas_device_lock:
  * @io_missing_delay: time for IO completed by fw when PDR enabled
  * @device_missing_delay: time for device missing by fw when PDR enabled
+ * @sas_id : used for setting volume target IDs
+ * @pd_handles : bitmask for PD handles
+ * @pd_handles_sz : size of pd_handle bitmask
  * @config_page_sz: config page size
  * @config_page: reserve memory for config page payload
  * @config_page_dma:
@@ -569,6 +572,8 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @reply_post_free_dma:
  * @reply_post_free_dma_pool:
  * @reply_post_host_index: head index in the pool where FW completes IO
+ * @delayed_tr_list: target reset link list
+ * @delayed_tr_volume_list: volume target reset link list
  */
 struct MPT2SAS_ADAPTER {
 	struct list_head list;
@@ -627,6 +632,7 @@ struct MPT2SAS_ADAPTER {
 	u8		base_cb_idx;
 	u8		config_cb_idx;
 	u8		tm_tr_cb_idx;
+	u8		tm_tr_volume_cb_idx;
 	u8		tm_sas_control_cb_idx;
 	struct _internal_cmd base_cmds;
 	struct _internal_cmd transport_cmds;
@@ -669,6 +675,9 @@ struct MPT2SAS_ADAPTER {
 	u8		io_missing_delay;
 	u16		device_missing_delay;
 	int		sas_id;
+
+	void		*pd_handles;
+	u16		pd_handles_sz;
 
 	/* config page */
 	u16		config_page_sz;
@@ -741,6 +750,7 @@ struct MPT2SAS_ADAPTER {
 	u32		reply_post_host_index;
 
 	struct list_head delayed_tr_list;
+	struct list_head delayed_tr_volume_list;
 
 	/* diag buffer support */
 	u8		*diag_buffer[MPI2_DIAG_BUF_TYPE_COUNT];

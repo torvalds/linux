@@ -3468,6 +3468,12 @@ _base_make_ioc_operational(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 		kfree(delayed_tr);
 	}
 
+	list_for_each_entry_safe(delayed_tr, delayed_tr_next,
+	    &ioc->delayed_tr_volume_list, list) {
+		list_del(&delayed_tr->list);
+		kfree(delayed_tr);
+	}
+
 	/* initialize the scsi lookup free list */
 	spin_lock_irqsave(&ioc->scsi_lookup_lock, flags);
 	INIT_LIST_HEAD(&ioc->free_list);
@@ -3622,6 +3628,15 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 
 	init_waitqueue_head(&ioc->reset_wq);
 
+	/* allocate memory pd handle bitmask list */
+	ioc->pd_handles_sz = (ioc->facts.MaxDevHandle / 8);
+	if (ioc->facts.MaxDevHandle % 8)
+		ioc->pd_handles_sz++;
+	ioc->pd_handles = kzalloc(ioc->pd_handles_sz,
+	    GFP_KERNEL);
+	if (!ioc->pd_handles)
+		goto out_free_resources;
+
 	ioc->fwfault_debug = mpt2sas_fwfault_debug;
 
 	/* base internal command bits */
@@ -3691,6 +3706,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
+	kfree(ioc->pd_handles);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->scsih_cmds.reply);
@@ -3726,6 +3742,7 @@ mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 	mpt2sas_base_free_resources(ioc);
 	_base_release_memory_pools(ioc);
 	pci_set_drvdata(ioc->pdev, NULL);
+	kfree(ioc->pd_handles);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->base_cmds.reply);
