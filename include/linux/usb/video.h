@@ -160,5 +160,12 @@
 #define UVC_STATUS_TYPE_CONTROL				1
 #define UVC_STATUS_TYPE_STREAMING			2
 
+/* 4.1.2. Control Capabilities */
+#define UVC_CONTROL_CAP_GET				(1 << 0)
+#define UVC_CONTROL_CAP_SET				(1 << 1)
+#define UVC_CONTROL_CAP_DISABLED			(1 << 2)
+#define UVC_CONTROL_CAP_AUTOUPDATE			(1 << 3)
+#define UVC_CONTROL_CAP_ASYNCHRONOUS			(1 << 4)
+
 #endif /* __LINUX_USB_VIDEO_H */
 

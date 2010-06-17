@@ -1324,9 +1324,8 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 		/* Check if the device control information and length match
 		 * the user supplied information.
 		 */
-		__u32 flags;
 		__le16 size;
-		__u8 inf;
+		__u8 _info;
 
 		ret = uvc_query_ctrl(dev, UVC_GET_LEN, ctrl->entity->id,
 			dev->intfnum, info->selector, (__u8 *)&size, 2);
@@ -1345,7 +1344,7 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 		}
 
 		ret = uvc_query_ctrl(dev, UVC_GET_INFO, ctrl->entity->id,
-			dev->intfnum, info->selector, &inf, 1);
+				     dev->intfnum, info->selector, &_info, 1);
 		if (ret < 0) {
 			uvc_trace(UVC_TRACE_CONTROL,
 				"GET_INFO failed on control %pUl/%u (%d).\n",
@@ -1353,9 +1352,10 @@ static void uvc_ctrl_add_ctrl(struct uvc_device *dev,
 			return;
 		}
 
-		flags = info->flags;
-		if (((flags & UVC_CONTROL_GET_CUR) && !(inf & (1 << 0))) ||
-		    ((flags & UVC_CONTROL_SET_CUR) && !(inf & (1 << 1)))) {
+		if (((info->flags & UVC_CONTROL_GET_CUR) &&
+		    !(_info & UVC_CONTROL_CAP_GET)) ||
+		    ((info->flags & UVC_CONTROL_SET_CUR) &&
+		    !(_info & UVC_CONTROL_CAP_SET))) {
 			uvc_trace(UVC_TRACE_CONTROL, "Control %pUl/%u flags "
 				"don't match supported operations.\n",
 				info->entity, info->selector);
