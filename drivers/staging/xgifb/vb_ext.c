@@ -14,27 +14,27 @@ extern   unsigned char XGI330_OutputSelect;
 extern   unsigned short XGI330_RGBSenseData2;
 extern   unsigned short XGI330_YCSenseData2;
 extern   unsigned short XGI330_VideoSenseData2;
-void     XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo);
-unsigned char  XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo);
+void     XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo);
+unsigned char  XGINew_GetPanelID(struct vb_device_info *pVBInfo);
 unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *,
-			       PVB_DEVICE_INFO pVBInfo);
+			       struct vb_device_info *pVBInfo);
 unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension,
-			     PVB_DEVICE_INFO pVBInfo);
+			     struct vb_device_info *pVBInfo);
 void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
 		unsigned long VESA_POWER_STATE);
-unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *, PVB_DEVICE_INFO pVBInfo);
+unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *, struct vb_device_info *pVBInfo);
 unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx,
-		     PVB_DEVICE_INFO pVBInfo);
+		     struct vb_device_info *pVBInfo);
 unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension,
-			       PVB_DEVICE_INFO pVBInfo);
+			       struct vb_device_info *pVBInfo);
 
 /**************************************************************
 	Dynamic Sense
 *************************************************************/
 
 void XGI_WaitDisplay(void);
-unsigned char XGI_Is301C(PVB_DEVICE_INFO);
-unsigned char XGI_Is301LV(PVB_DEVICE_INFO);
+unsigned char XGI_Is301C(struct vb_device_info *);
+unsigned char XGI_Is301LV(struct vb_device_info *);
 
 
 
@@ -44,7 +44,7 @@ unsigned char XGI_Is301LV(PVB_DEVICE_INFO);
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_Is301B(PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_Is301B(struct vb_device_info *pVBInfo)
 {
     unsigned short flag ;
 
@@ -62,7 +62,7 @@ unsigned char XGINew_Is301B(PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGI_Is301C(PVB_DEVICE_INFO pVBInfo)
+unsigned char XGI_Is301C(struct vb_device_info *pVBInfo)
 {
     if ( ( XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) & 0xF0 ) == 0xC0 )
         return( 1 ) ;
@@ -83,7 +83,7 @@ unsigned char XGI_Is301C(PVB_DEVICE_INFO pVBInfo)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGI_Is301LV(PVB_DEVICE_INFO pVBInfo)
+unsigned char XGI_Is301LV(struct vb_device_info *pVBInfo)
 {
     if ( XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) >= 0xD0 )
     {
@@ -104,7 +104,7 @@ unsigned char XGI_Is301LV(PVB_DEVICE_INFO pVBInfo)
 /* --------------------------------------------------------------------- */
 unsigned char XGINew_Sense(unsigned short tempbx,
 		     unsigned short tempcx,
-		     PVB_DEVICE_INFO pVBInfo)
+		     struct vb_device_info *pVBInfo)
 {
     unsigned short temp, i, tempch;
 
@@ -140,8 +140,8 @@ void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
 {
     unsigned short ModeNo, ModeIdIndex;
     unsigned char temp;
-    VB_DEVICE_INFO VBINF;
-    PVB_DEVICE_INFO pVBInfo = &VBINF;
+    struct vb_device_info VBINF;
+    struct vb_device_info *pVBInfo = &VBINF;
     pVBInfo->BaseAddr = (unsigned long)pXGIHWDE->pjIOAddress ;
     pVBInfo->ROMAddr  = pXGIHWDE->pjVirtualRomBase ;
 
@@ -359,7 +359,7 @@ void XGISetDPMS(struct xgi_hw_device_info *pXGIHWDE,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
     unsigned short tempax = 0 , tempbx , tempcx , temp ,
            P2reg0 = 0 , SenseModeNo = 0 , OutputSelect = *pVBInfo->pOutputSelect ,
@@ -559,7 +559,7 @@ void XGI_GetSenseStatus(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE
 /* Description : */
 /* --------------------------------------------------------------------- */
 unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension,
-			       PVB_DEVICE_INFO pVBInfo)
+			       struct vb_device_info *pVBInfo)
 {
     /* unsigned short SoftSetting ; */
     unsigned short temp ;
@@ -582,7 +582,7 @@ unsigned short XGINew_SenseLCD(struct xgi_hw_device_info *HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
     unsigned short temp ;
 
@@ -635,7 +635,7 @@ unsigned char XGINew_GetLCDDDCInfo(struct xgi_hw_device_info *HwDeviceExtension,
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_GetPanelID(struct vb_device_info *pVBInfo)
 {
 	unsigned short PanelTypeTable[16] = {
 		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType00,
@@ -708,7 +708,7 @@ unsigned char XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
     unsigned short flag ;
 
@@ -735,7 +735,7 @@ unsigned char XGINew_BridgeIsEnable(struct xgi_hw_device_info *HwDeviceExtension
 /* Output : */
 /* Description : */
 /* ------------------------------------------------------ */
-unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, struct vb_device_info *pVBInfo)
 {
     unsigned short tempbx , tempcx , temp , i , tempch;
 
@@ -816,7 +816,7 @@ unsigned char XGINew_SenseHiTV(struct xgi_hw_device_info *HwDeviceExtension, PVB
 ;		     DX: PAnel V. resolution
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub70(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
 
     unsigned short ModeIdIndex;
@@ -859,7 +859,7 @@ void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 ;
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub71(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
 
     unsigned short EModeCount;
@@ -905,7 +905,7 @@ void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 ;
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub72( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub72(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
     unsigned short ModeIdIndex, resindex;
     unsigned short ModeNo;
@@ -964,7 +964,7 @@ void XGI_XG21Fun14Sub72( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 ;                       BX[6]: *Value1 D[6] Panel H. Polarity
 ;-----------------------------------------------------------------------------
 */
-void XGI_XG21Fun14Sub73( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
+void XGI_XG21Fun14Sub73(struct vb_device_info *pVBInfo, PX86_REGS pBiosArguments)
 {
     unsigned char Select;
 
@@ -1000,8 +1000,8 @@ void XGI_XG21Fun14Sub73( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 
 void XGI_XG21Fun14(struct xgi_hw_device_info *pXGIHWDE, PX86_REGS pBiosArguments)
 {
-    VB_DEVICE_INFO VBINF;
-    PVB_DEVICE_INFO pVBInfo = &VBINF;
+    struct vb_device_info VBINF;
+    struct vb_device_info *pVBInfo = &VBINF;
 
     pVBInfo->IF_DEF_LVDS = 0 ;
     pVBInfo->IF_DEF_CH7005 = 0 ;

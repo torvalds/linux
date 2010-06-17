@@ -376,7 +376,7 @@ unsigned char XGIfb_detectedlcda = 0xff;
 struct xgi_hw_device_info XGIhw_ext;
 
 /* TW: XGI private structure */
-VB_DEVICE_INFO  XGI_Pr;
+struct vb_device_info  XGI_Pr;
 
 /* card parameters */
 static unsigned long XGIfb_mmio_size = 0;
@@ -820,7 +820,7 @@ extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_d
 */
 extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
 				unsigned short *ModeIdIndex,
-				PVB_DEVICE_INFO);
+				struct vb_device_info *);
 static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 			      struct fb_info *info);
 
@@ -887,31 +887,31 @@ unsigned char XGIfb_query_VGA_config_space(struct xgi_hw_device_info *pXGIhw_ext
 
 
 /* Routines from init.c/init301.c */
-extern void     InitTo330Pointer(unsigned char, PVB_DEVICE_INFO pVBInfo);
+extern void     InitTo330Pointer(unsigned char, struct vb_device_info *pVBInfo);
 extern unsigned char  XGIInitNew(struct xgi_hw_device_info *HwDeviceExtension);
 extern unsigned char XGISetModeNew(struct xgi_hw_device_info *HwDeviceExtension,
 				   unsigned short ModeNo);
 //extern void     XGI_SetEnableDstn(VB_DEVICE_INFO *XGI_Pr);
-extern void     XGI_LongWait(VB_DEVICE_INFO *XGI_Pr);
+extern void     XGI_LongWait(struct vb_device_info *XGI_Pr);
 extern unsigned short XGI_GetRatePtrCRT2(struct xgi_hw_device_info *pXGIHWDE,
 					 unsigned short ModeNo,
 					 unsigned short ModeIdIndex,
-					 PVB_DEVICE_INFO pVBInfo);
+					 struct vb_device_info *pVBInfo);
 /* TW: Chrontel TV functions */
-extern unsigned short XGI_GetCH700x(VB_DEVICE_INFO *XGI_Pr,
+extern unsigned short XGI_GetCH700x(struct vb_device_info *XGI_Pr,
 				    unsigned short tempbx);
-extern void XGI_SetCH700x(VB_DEVICE_INFO *XGI_Pr, unsigned short tempbx);
-extern unsigned short XGI_GetCH701x(VB_DEVICE_INFO *XGI_Pr,
+extern void XGI_SetCH700x(struct vb_device_info *XGI_Pr, unsigned short tempbx);
+extern unsigned short XGI_GetCH701x(struct vb_device_info *XGI_Pr,
 				    unsigned short tempbx);
-extern void XGI_SetCH701x(VB_DEVICE_INFO *XGI_Pr, unsigned short tempbx);
-extern void XGI_SetCH70xxANDOR(VB_DEVICE_INFO *XGI_Pr,
+extern void XGI_SetCH701x(struct vb_device_info *XGI_Pr, unsigned short tempbx);
+extern void XGI_SetCH70xxANDOR(struct vb_device_info *XGI_Pr,
 			       unsigned short tempax,
 			       unsigned short tempbh);
-extern void XGI_DDC2Delay(VB_DEVICE_INFO *XGI_Pr, unsigned short delaytime);
+extern void XGI_DDC2Delay(struct vb_device_info *XGI_Pr, unsigned short delaytime);
 
 /* TW: Sensing routines */
 void            XGI_Sense30x(void);
 int             XGIDoSense(int tempbl, int tempbh, int tempcl, int tempch);
 
-extern XGI21_LVDSCapStruct XGI21_LCDCapList[13];
+extern struct XGI21_LVDSCapStruct XGI21_LCDCapList[13];
 #endif

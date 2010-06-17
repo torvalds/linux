@@ -162,7 +162,7 @@ struct video_info  xgi_video_info;
 /* --------------- Hardware Access Routines -------------------------- */
 
 int
-XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
+XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			  unsigned char modeno, unsigned char rateindex)
 {
     unsigned short ModeNo = modeno;
@@ -197,7 +197,7 @@ XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwD
 }
 
 int
-XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
+XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr, struct xgi_hw_device_info *HwDeviceExtension,
 			 unsigned char modeno, unsigned char rateindex,
 			 u32 *left_margin, u32 *right_margin,
 			 u32 *upper_margin, u32 *lower_margin,
@@ -377,7 +377,7 @@ XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, struct xgi_hw_device_info *HwDe
 
 
 
-void XGIRegInit(VB_DEVICE_INFO *XGI_Pr, unsigned long BaseAddr)
+void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
    XGI_Pr->RelIO = BaseAddr;
    XGI_Pr->P3c4 = BaseAddr + 0x14;
@@ -610,7 +610,8 @@ int XGIfb_GetXG21LVDSData(void)
                 i += 25;
                 j--;
                 k++;
-        } while ( (j>0) && ( k < (sizeof(XGI21_LCDCapList)/sizeof(XGI21_LVDSCapStruct)) ) );
+	} while ((j > 0) &&
+		 (k < (sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct))));
         return 1;
     }
     return 0;
@@ -3132,7 +3133,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		    xgi_video_info.disp_state = DISPTYPE_LCD;
         	    if (!XGIfb_GetXG21LVDSData()) {
 			    int m;
-			    for (m=0; m < sizeof(XGI21_LCDCapList)/sizeof(XGI21_LVDSCapStruct); m++) {
+			    for (m = 0; m < sizeof(XGI21_LCDCapList)/sizeof(struct XGI21_LVDSCapStruct); m++) {
 				    if ((XGI21_LCDCapList[m].LVDSHDE == XGIbios_mode[xgifb_mode_idx].xres) &&
 					(XGI21_LCDCapList[m].LVDSVDE == XGIbios_mode[xgifb_mode_idx].yres)) {
 						XGINew_SetReg1( XGI_Pr.P3d4 , 0x36, m) ;
