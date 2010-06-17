@@ -1147,6 +1147,7 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
 	struct ieee80211_sta *sta;
 	struct iwl_station_priv *sta_priv;
 
+	rcu_read_lock();
 	sta = ieee80211_find_sta(priv->vif, hdr->addr1);
 	if (sta) {
 		sta_priv = (void *)sta->drv_priv;
@@ -1155,6 +1156,7 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
 		    atomic_dec_return(&sta_priv->pending_frames) == 0)
 			ieee80211_sta_block_awake(priv->hw, sta, false);
 	}
+	rcu_read_unlock();
 
 	ieee80211_tx_status_irqsafe(priv->hw, skb);
 }
@@ -1322,6 +1324,11 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	sta_id = ba_resp->sta_id;
 	tid = ba_resp->tid;
 	agg = &priv->stations[sta_id].tid[tid].agg;
+	if (unlikely(agg->txq_id != scd_flow)) {
+		IWL_ERR(priv, "BA scd_flow %d does not match txq_id %d\n",
+			scd_flow, agg->txq_id);
+		return;
+	}
 
 	/* Find index just before block-ack window */
 	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);

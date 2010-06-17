@@ -2966,20 +2966,14 @@ F:	drivers/net/ixgb/
 F:	drivers/net/ixgbe/
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
-M:	Reinette Chatre <reinette.chatre@intel.com>
-M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://ipw2100.sourceforge.net
-S:	Odd Fixes
+S:	Orphan
 F:	Documentation/networking/README.ipw2100
 F:	drivers/net/wireless/ipw2x00/ipw2100.*
 
 INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
-M:	Reinette Chatre <reinette.chatre@intel.com>
-M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
-W:	http://ipw2200.sourceforge.net
-S:	Odd Fixes
+S:	Orphan
 F:	Documentation/networking/README.ipw2200
 F:	drivers/net/wireless/ipw2x00/ipw2200.*
 
