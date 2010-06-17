@@ -3457,21 +3457,12 @@ void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 {
 	u32 phy_ctrl;
 
-	switch (hw->mac.type) {
-	case e1000_ich8lan:
-	case e1000_ich9lan:
-	case e1000_ich10lan:
-	case e1000_pchlan:
-		phy_ctrl = er32(PHY_CTRL);
-		phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU |
-		            E1000_PHY_CTRL_GBE_DISABLE;
-		ew32(PHY_CTRL, phy_ctrl);
+	phy_ctrl = er32(PHY_CTRL);
+	phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU | E1000_PHY_CTRL_GBE_DISABLE;
+	ew32(PHY_CTRL, phy_ctrl);
 
-		if (hw->mac.type == e1000_pchlan)
-			e1000_phy_hw_reset_ich8lan(hw);
-	default:
-		break;
-	}
+	if (hw->mac.type >= e1000_pchlan)
+		e1000_phy_hw_reset_ich8lan(hw);
 }
 
 /**
