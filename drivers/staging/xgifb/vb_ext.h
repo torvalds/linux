@@ -2,11 +2,12 @@
 #define  _VBEXT_
 
 struct DWORDREGS {
-    ULONG    Eax, Ebx, Ecx, Edx, Esi, Edi, Ebp;
+    unsigned long    Eax, Ebx, Ecx, Edx, Esi, Edi, Ebp;
 };
 
 struct WORDREGS {
-    USHORT    ax, hi_ax, bx, hi_bx, cx, hi_cx, dx, hi_dx, si, hi_si, di ,hi_di, bp, hi_bp;
+    unsigned short ax, hi_ax, bx, hi_bx, cx, hi_cx, dx, hi_dx, si,
+	    hi_si, di, hi_di, bp, hi_bp;
 };
 
 struct BYTEREGS {
@@ -20,10 +21,12 @@ typedef union   _X86_REGS    {
 } X86_REGS, *PX86_REGS;
 
 extern   void     XGI_XG21Fun14( PXGI_HW_DEVICE_INFO pXGIHWDE, PX86_REGS pBiosArguments);
-extern   void     XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE ) ;
+extern void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
+		       unsigned long VESA_POWER_STATE);
 extern   void     XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo );
 extern   void     XGINew_SetModeScratch ( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo ) ;
 extern   void 	  ReadVBIOSTablData( UCHAR ChipType , PVB_DEVICE_INFO pVBInfo);
-extern   USHORT   XGINew_SenseLCD(PXGI_HW_DEVICE_INFO,PVB_DEVICE_INFO pVBInfo);
+extern unsigned short XGINew_SenseLCD(PXGI_HW_DEVICE_INFO,
+				      PVB_DEVICE_INFO pVBInfo);
 
 #endif

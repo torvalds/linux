@@ -499,13 +499,13 @@ u8  XGIfb_mode_no  = 0;
 u8  XGIfb_rate_idx = 0;
 
 /* TW: CR36 evaluation */
-const USHORT XGI300paneltype[] =
+const unsigned short XGI300paneltype[] =
     { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
       LCD_1280x960,  LCD_640x480,  LCD_1024x600,  LCD_1152x768,
        LCD_1024x768, LCD_1024x768,  LCD_1024x768,
       LCD_1024x768,  LCD_1024x768, LCD_1024x768,  LCD_1024x768 };
 
-const USHORT XGI310paneltype[] =
+const unsigned short XGI310paneltype[] =
     { LCD_UNKNOWN,   LCD_800x600,  LCD_1024x768,  LCD_1280x1024,
       LCD_640x480,   LCD_1024x600, LCD_1152x864,  LCD_1280x960,
       LCD_1152x768,  LCD_1400x1050,LCD_1280x768,  LCD_1600x1200,
@@ -821,7 +821,9 @@ extern int      XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_
 			 unsigned int *hsync_len, unsigned int *vsync_len,
 			 unsigned int *sync, unsigned int *vmode);
 */
-			extern   BOOLEAN  XGI_SearchModeID( USHORT ModeNo,USHORT  *ModeIdIndex, PVB_DEVICE_INFO );
+extern unsigned char XGI_SearchModeID(unsigned short ModeNo,
+				unsigned short *ModeIdIndex,
+				PVB_DEVICE_INFO);
 static int      XGIfb_get_fix(struct fb_fix_screeninfo *fix, int con,
 			      struct fb_info *info);
 
@@ -841,10 +843,10 @@ static int      XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 static void     XGIfb_pre_setmode(void);
 static void     XGIfb_post_setmode(void);
 
-static BOOLEAN  XGIfb_CheckVBRetrace(void);
-static BOOLEAN  XGIfbcheckvretracecrt2(void);
-static BOOLEAN  XGIfbcheckvretracecrt1(void);
-static BOOLEAN  XGIfb_bridgeisslave(void);
+static unsigned char  XGIfb_CheckVBRetrace(void);
+static unsigned char  XGIfbcheckvretracecrt2(void);
+static unsigned char  XGIfbcheckvretracecrt1(void);
+static unsigned char  XGIfb_bridgeisslave(void);
 
 struct XGI_memreq {
 	unsigned long offset;
@@ -879,7 +881,7 @@ static XGI_OH   *XGIfb_poh_free(unsigned long base);
 static void     XGIfb_free_node(XGI_OH *poh);
 
 /* Internal routines to access PCI configuration space */
-BOOLEAN         XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
+unsigned char         XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	          	unsigned long offset, unsigned long set, unsigned long *value);
 //BOOLEAN         XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 //	         	unsigned long offset, unsigned long set, unsigned long *value);
@@ -887,18 +889,26 @@ BOOLEAN         XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 
 /* Routines from init.c/init301.c */
 extern void     InitTo330Pointer(UCHAR,PVB_DEVICE_INFO pVBInfo);
-extern BOOLEAN  XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension);
-extern BOOLEAN  XGISetModeNew(PXGI_HW_DEVICE_INFO HwDeviceExtension, USHORT ModeNo);
+extern unsigned char  XGIInitNew(PXGI_HW_DEVICE_INFO HwDeviceExtension);
+extern unsigned char XGISetModeNew(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+			     unsigned short ModeNo);
 //extern void     XGI_SetEnableDstn(VB_DEVICE_INFO *XGI_Pr);
 extern void     XGI_LongWait(VB_DEVICE_INFO *XGI_Pr);
-extern USHORT   XGI_GetRatePtrCRT2( PXGI_HW_DEVICE_INFO pXGIHWDE, USHORT ModeNo,USHORT ModeIdIndex,PVB_DEVICE_INFO pVBInfo );
+extern unsigned short XGI_GetRatePtrCRT2(PXGI_HW_DEVICE_INFO pXGIHWDE,
+					 unsigned short ModeNo,
+					 unsigned short ModeIdIndex,
+					 PVB_DEVICE_INFO pVBInfo);
 /* TW: Chrontel TV functions */
-extern USHORT 	XGI_GetCH700x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern void 	XGI_SetCH700x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern USHORT 	XGI_GetCH701x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern void 	XGI_SetCH701x(VB_DEVICE_INFO *XGI_Pr, USHORT tempbx);
-extern void     XGI_SetCH70xxANDOR(VB_DEVICE_INFO *XGI_Pr, USHORT tempax,USHORT tempbh);
-extern void     XGI_DDC2Delay(VB_DEVICE_INFO *XGI_Pr, USHORT delaytime);
+extern unsigned short XGI_GetCH700x(VB_DEVICE_INFO *XGI_Pr,
+				    unsigned short tempbx);
+extern void XGI_SetCH700x(VB_DEVICE_INFO *XGI_Pr, unsigned short tempbx);
+extern unsigned short XGI_GetCH701x(VB_DEVICE_INFO *XGI_Pr,
+				    unsigned short tempbx);
+extern void XGI_SetCH701x(VB_DEVICE_INFO *XGI_Pr, unsigned short tempbx);
+extern void XGI_SetCH70xxANDOR(VB_DEVICE_INFO *XGI_Pr,
+			       unsigned short tempax,
+			       unsigned short tempbh);
+extern void XGI_DDC2Delay(VB_DEVICE_INFO *XGI_Pr, unsigned short delaytime);
 
 /* TW: Sensing routines */
 void            XGI_Sense30x(void);

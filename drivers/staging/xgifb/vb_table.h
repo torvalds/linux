@@ -2938,7 +2938,7 @@ XGI330_TVDataTablStruct XGI_TVDataTable[]=
  {0xffff,0x0000,12}  	/* END */
 };
 
-USHORT TVLenList[]=
+unsigned short TVLenList[] =
 {
    LVDSCRT1Len_H,
    LVDSCRT1Len_V,
@@ -2980,7 +2980,7 @@ XGI330_TVDataTablStruct XGI_EPLCHTVRegPtr[]=
   {0xFFFF,0x0000,4}
 };
 
-USHORT LCDLenList[]=
+unsigned short LCDLenList[] =
 {
    LVDSCRT1Len_H,
    LVDSCRT1Len_V,
@@ -3471,12 +3471,12 @@ UCHAR XGI330_CRT2Data_1_2 = 0x0;
 UCHAR XGI330_CRT2Data_4_D = 0x0;
 UCHAR XGI330_CRT2Data_4_E = 0x0;
 UCHAR XGI330_CRT2Data_4_10 = 0x80;
-USHORT XGI330_RGBSenseData = 0xd1;
-USHORT XGI330_VideoSenseData = 0xb9;
-USHORT XGI330_YCSenseData = 0xb3;
-USHORT XGI330_RGBSenseData2 = 0x0190;     /*301b*/
-USHORT XGI330_VideoSenseData2 = 0x0110;
-USHORT XGI330_YCSenseData2 = 0x016B;
+unsigned short XGI330_RGBSenseData = 0xd1;
+unsigned short XGI330_VideoSenseData = 0xb9;
+unsigned short XGI330_YCSenseData = 0xb3;
+unsigned short XGI330_RGBSenseData2 = 0x0190;     /*301b*/
+unsigned short XGI330_VideoSenseData2 = 0x0110;
+unsigned short XGI330_YCSenseData2 = 0x016B;
 UCHAR XGI330_NTSCPhase[] = {0x21,0xed,0x8a,0x8};
 UCHAR XGI330_PALPhase[] = {0x2a,0x5,0xd3,0x0};
 UCHAR XGI330_NTSCPhase2[] = {0x21,0xF0,0x7B,0xD6};/*301b*/
@@ -4045,7 +4045,7 @@ UCHAR TVEdgeList[]=
       0x00             /* ; 1 HiTV */
 };
 
-ULONG TVPhaseList[]=
+unsigned long TVPhaseList[]=
 {      0x08BAED21, /* ; 0 NTSC phase */
        0x00E3052A, /* ; 1 PAL phase */
        0x9B2EE421, /* ; 2 PAL-M phase */

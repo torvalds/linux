@@ -165,11 +165,11 @@ int
 XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
 			  unsigned char modeno, unsigned char rateindex)
 {
-    USHORT ModeNo = modeno;
-    USHORT ModeIdIndex = 0, ClockIndex = 0;
-    USHORT RefreshRateTableIndex = 0;
+    unsigned short ModeNo = modeno;
+    unsigned short ModeIdIndex = 0, ClockIndex = 0;
+    unsigned short RefreshRateTableIndex = 0;
 
-    /*ULONG  temp = 0;*/
+    /*unsigned long  temp = 0;*/
     int    Clock;
     XGI_Pr->ROMAddr  = HwDeviceExtension->pjVirtualRomBase;
     InitTo330Pointer( HwDeviceExtension->jChipType, XGI_Pr ) ;
@@ -204,9 +204,9 @@ XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExt
 			 u32 *hsync_len, u32 *vsync_len,
 			 u32 *sync, u32 *vmode)
 {
-    USHORT ModeNo = modeno;
-    USHORT ModeIdIndex = 0, index = 0;
-    USHORT RefreshRateTableIndex = 0;
+    unsigned short ModeNo = modeno;
+    unsigned short ModeIdIndex = 0, index = 0;
+    unsigned short RefreshRateTableIndex = 0;
 
     unsigned short VRE, VBE, VRS, VBS, VDE, VT;
     unsigned short HRE, HBE, HRS, HBS, HDE, HT;
@@ -377,7 +377,7 @@ XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExt
 
 
 
-void XGIRegInit(VB_DEVICE_INFO *XGI_Pr, ULONG BaseAddr)
+void XGIRegInit(VB_DEVICE_INFO *XGI_Pr, unsigned long BaseAddr)
 {
    XGI_Pr->RelIO = BaseAddr;
    XGI_Pr->P3c4 = BaseAddr + 0x14;
@@ -415,7 +415,7 @@ u32 XGIfb_get_reg3(u16 port)
 
 /* ------------ Interface for init & mode switching code ------------- */
 
-BOOLEAN
+unsigned char
 XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	unsigned long offset, unsigned long set, unsigned long *value)
 {
@@ -450,7 +450,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	return 1;
 }
 
-/*BOOLEAN XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
+/*unsigned char XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	unsigned long offset, unsigned long set, unsigned long *value)
 {
 	static struct pci_dev *pdev = NULL;
@@ -937,7 +937,7 @@ static void XGIfb_search_tvstd(const char *name)
 	}
 }
 
-static BOOLEAN XGIfb_bridgeisslave(void)
+static unsigned char XGIfb_bridgeisslave(void)
 {
    unsigned char usScratchP1_00;
 
@@ -951,7 +951,7 @@ static BOOLEAN XGIfb_bridgeisslave(void)
 	   return 0;
 }
 
-static BOOLEAN XGIfbcheckvretracecrt1(void)
+static unsigned char XGIfbcheckvretracecrt1(void)
 {
    unsigned char temp;
 
@@ -970,7 +970,7 @@ static BOOLEAN XGIfbcheckvretracecrt1(void)
 	   return 0;
 }
 
-static BOOLEAN XGIfbcheckvretracecrt2(void)
+static unsigned char XGIfbcheckvretracecrt2(void)
 {
    unsigned char temp;
    if (xgi_video_info.hasVB == HASVB_NONE)
@@ -982,7 +982,7 @@ static BOOLEAN XGIfbcheckvretracecrt2(void)
 	   return 1;
 }
 
-static BOOLEAN XGIfb_CheckVBRetrace(void)
+static unsigned char XGIfb_CheckVBRetrace(void)
 {
    if(xgi_video_info.disp_state & DISPTYPE_DISP2) {
       if(XGIfb_bridgeisslave()) {
@@ -2588,7 +2588,7 @@ static void XGIfb_pre_setmode(void)
 static void XGIfb_post_setmode(void)
 {
 	u8 reg;
-	BOOLEAN doit = 1;
+	unsigned char doit = 1;
 /*	outXGIIDXREG(XGISR,IND_XGI_PASSWORD,XGI_PASSWORD);
 	outXGIIDXREG(XGICR,0x13,0x00);
 	setXGIIDXREG(XGISR,0x0E,0xF0,0x01);
@@ -2826,7 +2826,7 @@ XGIINITSTATIC int __init XGIfb_setup(char *options)
 
 static unsigned char VBIOS_BUF[65535];
 
-unsigned char* attempt_map_rom(struct pci_dev *dev,void *copy_address)
+unsigned char *attempt_map_rom(struct pci_dev *dev, void *copy_address)
 {
     u32 rom_size      = 0;
     u32 rom_address   = 0;
@@ -2909,7 +2909,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	  if (pci_enable_device(pdev))
 	          return -EIO;
 
-    XGIRegInit(&XGI_Pr, (ULONG)XGIhw_ext.pjIOAddress);
+    XGIRegInit(&XGI_Pr, (unsigned long)XGIhw_ext.pjIOAddress);
 
     outXGIIDXREG(XGISR, IND_XGI_PASSWORD, XGI_PASSWORD);
     inXGIIDXREG(XGISR, IND_XGI_PASSWORD, reg1);

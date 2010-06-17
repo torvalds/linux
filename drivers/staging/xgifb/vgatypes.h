@@ -20,26 +20,6 @@ typedef long  LONG;
 typedef unsigned char UCHAR;
 #endif
 
-#ifndef USHORT
-typedef unsigned short USHORT;
-#endif
-
-#ifndef ULONG
-typedef unsigned long ULONG;
-#endif
-
-#ifndef VOID
-typedef void VOID;
-#endif
-
-#ifndef BOOLEAN
-typedef UCHAR BOOLEAN;
-#endif
-/*
-#ifndef bool
-typedef UCHAR bool;
-#endif
-*/
 typedef unsigned long XGIIOADDRESS;
 
 
@@ -103,30 +83,30 @@ typedef struct _XGI_DSReg
 
 typedef struct _XGI_HW_DEVICE_INFO  XGI_HW_DEVICE_INFO, *PXGI_HW_DEVICE_INFO;
 
-typedef BOOLEAN (*PXGI_QUERYSPACE)   (PXGI_HW_DEVICE_INFO, ULONG, ULONG, ULONG *);
+typedef unsigned char (*PXGI_QUERYSPACE)   (PXGI_HW_DEVICE_INFO, unsigned long, unsigned long, unsigned long *);
 
 struct _XGI_HW_DEVICE_INFO
 {
-    ULONG  ulExternalChip;       /* NO VB or other video bridge*/
+    unsigned long  ulExternalChip;       /* NO VB or other video bridge*/
                                  /* if ujVBChipID = VB_CHIP_UNKNOWN, */
 
     unsigned char *pjVirtualRomBase;    /* ROM image */
 
-    BOOLEAN UseROM;		 /* Use the ROM image if provided */
+    unsigned char UseROM;		 /* Use the ROM image if provided */
 
     void *pDevice;
 
     unsigned char *pjVideoMemoryAddress;/* base virtual memory address */
                                  /* of Linear VGA memory */
 
-    ULONG  ulVideoMemorySize;    /* size, in bytes, of the memory on the board */
+    unsigned long  ulVideoMemorySize;    /* size, in bytes, of the memory on the board */
 
     unsigned char *pjIOAddress;          /* base I/O address of VGA ports (0x3B0) */
 
     unsigned char *pjCustomizedROMImage;
 
     unsigned char *pj2ndVideoMemoryAddress;
-    ULONG  ul2ndVideoMemorySize;
+    unsigned long  ul2ndVideoMemorySize;
 
     unsigned char *pj2ndIOAddress;
     UCHAR  jChipType;            /* Used to Identify Graphics Chip */
@@ -139,20 +119,20 @@ struct _XGI_HW_DEVICE_INFO
                                  /* defined in the data structure type */
                                  /* "XGI_VB_CHIP_TYPE" */
 
-    BOOLEAN    bNewScratch;
+    unsigned char    bNewScratch;
 
-    ULONG  ulCRT2LCDType;        /* defined in the data structure type */
+    unsigned long  ulCRT2LCDType;        /* defined in the data structure type */
 
-    ULONG usExternalChip;       /* NO VB or other video bridge (other than  */
+    unsigned long usExternalChip;       /* NO VB or other video bridge (other than  */
                                  /*  video bridge) */
 
-    BOOLEAN bIntegratedMMEnabled;/* supporting integration MM enable */
+    unsigned char bIntegratedMMEnabled;/* supporting integration MM enable */
 
-    BOOLEAN bSkipDramSizing;     /* True: Skip video memory sizing. */
+    unsigned char bSkipDramSizing;     /* True: Skip video memory sizing. */
 
-    BOOLEAN bSkipSense;
+    unsigned char bSkipSense;
 
-    BOOLEAN bIsPowerSaving;     /* True: XGIInit() is invoked by power management,
+    unsigned char bIsPowerSaving;     /* True: XGIInit() is invoked by power management,
                                    otherwise by 2nd adapter's initialzation */
 
     PXGI_DSReg  pSR;             /* restore SR registers in initial function. */

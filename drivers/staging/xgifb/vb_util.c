@@ -6,17 +6,20 @@
 #include <asm/io.h>
 #include <linux/types.h>
 
-void XGINew_SetReg1( ULONG , USHORT , USHORT ) ;
-void XGINew_SetReg2( ULONG , USHORT , USHORT ) ;
-void XGINew_SetReg3( ULONG , USHORT ) ;
-void XGINew_SetReg4( ULONG , ULONG ) ;
-UCHAR XGINew_GetReg1( ULONG , USHORT) ;
-UCHAR XGINew_GetReg2( ULONG ) ;
-ULONG XGINew_GetReg3( ULONG ) ;
-void XGINew_ClearDAC(unsigned char *) ;
-void     XGINew_SetRegANDOR(ULONG Port,USHORT Index,USHORT DataAND,USHORT DataOR);
-void     XGINew_SetRegOR(ULONG Port,USHORT Index,USHORT DataOR);
-void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);
+void XGINew_SetReg1(unsigned long,unsigned short,unsigned short);
+void XGINew_SetReg2(unsigned long,unsigned short,unsigned short);
+void XGINew_SetReg3(unsigned long,unsigned short);
+void XGINew_SetReg4(unsigned long,unsigned long);
+UCHAR XGINew_GetReg1(unsigned long,unsigned short);
+UCHAR XGINew_GetReg2(unsigned long);
+unsigned long XGINew_GetReg3(unsigned long);
+void XGINew_ClearDAC(unsigned char *);
+void XGINew_SetRegANDOR(unsigned long Port,unsigned short Index,
+			unsigned short DataAND,unsigned short DataOR);
+void XGINew_SetRegOR(unsigned long Port,unsigned short Index,
+		     unsigned short DataOR);
+void XGINew_SetRegAND(unsigned long Port,unsigned short Index,
+		      unsigned short DataAND);
 
 
 /* --------------------------------------------------------------------- */
@@ -25,7 +28,7 @@ void     XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND);
 /* Output : */
 /* Description : SR CRTC GR */
 /* --------------------------------------------------------------------- */
-void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
+void XGINew_SetReg1( unsigned long port , unsigned short index , unsigned short data )
 {
 	outb(index, port);
 	outb(data, port + 1);
@@ -38,7 +41,7 @@ void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 /* Output : */
 /* Description : AR( 3C0 ) */
 /* --------------------------------------------------------------------- */
-/*void XGINew_SetReg2( ULONG port , USHORT index , USHORT data )
+/*void XGINew_SetReg2( unsigned long port , unsigned short index , unsigned short data )
 {
     InPortByte( ( PUCHAR )port + 0x3da - 0x3c0 ) ;
     OutPortByte( XGINew_P3c0 , index ) ;
@@ -53,7 +56,7 @@ void XGINew_SetReg1( ULONG port , USHORT index , USHORT data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetReg3( ULONG port , USHORT data )
+void XGINew_SetReg3( unsigned long port , unsigned short data )
 {
 	outb(data, port);
 }
@@ -65,7 +68,7 @@ void XGINew_SetReg3( ULONG port , USHORT data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetReg4( ULONG port , ULONG data )
+void XGINew_SetReg4( unsigned long port , unsigned long data )
 {
 	outl(data, port);
 }
@@ -77,7 +80,7 @@ void XGINew_SetReg4( ULONG port , ULONG data )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-UCHAR XGINew_GetReg1( ULONG port , USHORT index )
+UCHAR XGINew_GetReg1( unsigned long port , unsigned short index )
 {
     UCHAR data ;
 
@@ -93,7 +96,7 @@ UCHAR XGINew_GetReg1( ULONG port , USHORT index )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-UCHAR XGINew_GetReg2( ULONG port )
+UCHAR XGINew_GetReg2( unsigned long port )
 {
     UCHAR data ;
 
@@ -109,9 +112,9 @@ UCHAR XGINew_GetReg2( ULONG port )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-ULONG XGINew_GetReg3( ULONG port )
+unsigned long XGINew_GetReg3( unsigned long port )
 {
-    ULONG data ;
+    unsigned long data ;
 
     data = inl(port) ;
 
@@ -126,9 +129,9 @@ ULONG XGINew_GetReg3( ULONG port )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetRegANDOR( ULONG Port , USHORT Index , USHORT DataAND , USHORT DataOR )
+void XGINew_SetRegANDOR( unsigned long Port , unsigned short Index , unsigned short DataAND , unsigned short DataOR )
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     temp = XGINew_GetReg1( Port , Index ) ;		/* XGINew_Part1Port index 02 */
     temp = ( temp & ( DataAND ) ) | DataOR ;
@@ -142,9 +145,9 @@ void XGINew_SetRegANDOR( ULONG Port , USHORT Index , USHORT DataAND , USHORT Dat
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND)
+void XGINew_SetRegAND(unsigned long Port,unsigned short Index,unsigned short DataAND)
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     temp = XGINew_GetReg1( Port , Index ) ;	/* XGINew_Part1Port index 02 */
     temp &= DataAND ;
@@ -158,9 +161,9 @@ void XGINew_SetRegAND(ULONG Port,USHORT Index,USHORT DataAND)
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-void XGINew_SetRegOR( ULONG Port , USHORT Index , USHORT DataOR )
+void XGINew_SetRegOR( unsigned long Port , unsigned short Index , unsigned short DataOR )
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     temp = XGINew_GetReg1( Port , Index ) ;	/* XGINew_Part1Port index 02 */
     temp |= DataOR ;

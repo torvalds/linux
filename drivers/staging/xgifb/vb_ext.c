@@ -11,25 +11,30 @@
 #include "vb_ext.h"
 extern   UCHAR XGI330_SoftSetting;
 extern   UCHAR XGI330_OutputSelect;
-extern   USHORT XGI330_RGBSenseData2;
-extern   USHORT XGI330_YCSenseData2;
-extern   USHORT XGI330_VideoSenseData2;
+extern   unsigned short XGI330_RGBSenseData2;
+extern   unsigned short XGI330_YCSenseData2;
+extern   unsigned short XGI330_VideoSenseData2;
 void     XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo );
-BOOLEAN  XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo);
-USHORT   XGINew_SenseLCD(PXGI_HW_DEVICE_INFO,PVB_DEVICE_INFO pVBInfo);
-BOOLEAN  XGINew_GetLCDDDCInfo(PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_INFO pVBInfo);
-void XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE ) ;
-BOOLEAN  XGINew_BridgeIsEnable(PXGI_HW_DEVICE_INFO,PVB_DEVICE_INFO pVBInfo );
-BOOLEAN  XGINew_Sense(USHORT tempbx,USHORT tempcx, PVB_DEVICE_INFO pVBInfo);
-BOOLEAN  XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo ) ;
+unsigned char  XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo);
+unsigned short XGINew_SenseLCD(PXGI_HW_DEVICE_INFO,
+			       PVB_DEVICE_INFO pVBInfo);
+unsigned char XGINew_GetLCDDDCInfo(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+			     PVB_DEVICE_INFO pVBInfo);
+void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
+		unsigned long VESA_POWER_STATE);
+unsigned char XGINew_BridgeIsEnable(PXGI_HW_DEVICE_INFO, PVB_DEVICE_INFO pVBInfo);
+unsigned char XGINew_Sense(unsigned short tempbx, unsigned short tempcx,
+		     PVB_DEVICE_INFO pVBInfo);
+unsigned char XGINew_SenseHiTV(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+			       PVB_DEVICE_INFO pVBInfo);
 
 /**************************************************************
 	Dynamic Sense
 *************************************************************/
 
 void XGI_WaitDisplay(void);
-BOOLEAN XGI_Is301C(PVB_DEVICE_INFO);
-BOOLEAN XGI_Is301LV(PVB_DEVICE_INFO);
+unsigned char XGI_Is301C(PVB_DEVICE_INFO);
+unsigned char XGI_Is301LV(PVB_DEVICE_INFO);
 
 
 
@@ -39,9 +44,9 @@ BOOLEAN XGI_Is301LV(PVB_DEVICE_INFO);
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_Is301B( PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_Is301B(PVB_DEVICE_INFO pVBInfo)
 {
-    USHORT flag ;
+    unsigned short flag ;
 
     flag = XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) ;
 
@@ -57,7 +62,7 @@ BOOLEAN XGINew_Is301B( PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGI_Is301C( PVB_DEVICE_INFO pVBInfo )
+unsigned char XGI_Is301C(PVB_DEVICE_INFO pVBInfo)
 {
     if ( ( XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) & 0xF0 ) == 0xC0 )
         return( 1 ) ;
@@ -78,7 +83,7 @@ BOOLEAN XGI_Is301C( PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGI_Is301LV( PVB_DEVICE_INFO pVBInfo )
+unsigned char XGI_Is301LV(PVB_DEVICE_INFO pVBInfo)
 {
     if ( XGINew_GetReg1( pVBInfo->Part4Port , 0x01 ) >= 0xD0 )
     {
@@ -97,9 +102,11 @@ BOOLEAN XGI_Is301LV( PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_Sense(  USHORT tempbx , USHORT tempcx, PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_Sense(unsigned short tempbx,
+		     unsigned short tempcx,
+		     PVB_DEVICE_INFO pVBInfo)
 {
-    USHORT temp , i , tempch ;
+    unsigned short temp, i, tempch;
 
     temp = tempbx & 0xFF ;
     XGINew_SetReg1( pVBInfo->Part4Port , 0x11 , temp ) ;
@@ -128,13 +135,14 @@ BOOLEAN XGINew_Sense(  USHORT tempbx , USHORT tempcx, PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
+void XGISetDPMS(PXGI_HW_DEVICE_INFO pXGIHWDE,
+		unsigned long VESA_POWER_STATE)
 {
-    USHORT ModeNo, ModeIdIndex ;
+    unsigned short ModeNo, ModeIdIndex;
     UCHAR  temp ;
     VB_DEVICE_INFO VBINF;
     PVB_DEVICE_INFO pVBInfo = &VBINF;
-    pVBInfo->BaseAddr = (ULONG)pXGIHWDE->pjIOAddress ;
+    pVBInfo->BaseAddr = (unsigned long)pXGIHWDE->pjIOAddress ;
     pVBInfo->ROMAddr  = pXGIHWDE->pjVirtualRomBase ;
 
 
@@ -353,10 +361,10 @@ VOID XGISetDPMS( PXGI_HW_DEVICE_INFO pXGIHWDE , ULONG VESA_POWER_STATE )
 /* --------------------------------------------------------------------- */
 void XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo)
 {
-    USHORT tempax = 0 , tempbx , tempcx , temp ,
+    unsigned short tempax = 0 , tempbx , tempcx , temp ,
            P2reg0 = 0 , SenseModeNo = 0 , OutputSelect = *pVBInfo->pOutputSelect ,
            ModeIdIndex , i ;
-    pVBInfo->BaseAddr = (ULONG)HwDeviceExtension->pjIOAddress ;
+    pVBInfo->BaseAddr = (unsigned long)HwDeviceExtension->pjIOAddress ;
 
     if ( pVBInfo->IF_DEF_LVDS == 1 )
     {
@@ -550,10 +558,11 @@ void XGI_GetSenseStatus( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-USHORT XGINew_SenseLCD( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO pVBInfo)
+unsigned short XGINew_SenseLCD(PXGI_HW_DEVICE_INFO HwDeviceExtension,
+			       PVB_DEVICE_INFO pVBInfo)
 {
-    /* USHORT SoftSetting ; */
-    USHORT temp ;
+    /* unsigned short SoftSetting ; */
+    unsigned short temp ;
 
     if ( ( HwDeviceExtension->jChipType >= XG20 ) || ( HwDeviceExtension->jChipType >= XG40 ) )
         temp = 0 ;
@@ -573,9 +582,9 @@ USHORT XGINew_SenseLCD( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO p
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_INFO pVBInfo)
 {
-    USHORT temp ;
+    unsigned short temp ;
 
     /* add lcd sense */
     if ( HwDeviceExtension->ulCRT2LCDType == LCD_UNKNOWN )
@@ -584,7 +593,7 @@ BOOLEAN XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_I
     }
     else
     {
-        temp = ( USHORT )HwDeviceExtension->ulCRT2LCDType ;
+	    temp = (unsigned short)HwDeviceExtension->ulCRT2LCDType ;
         switch( HwDeviceExtension->ulCRT2LCDType )
         {
             case LCD_INVALID:
@@ -626,26 +635,27 @@ BOOLEAN XGINew_GetLCDDDCInfo( PXGI_HW_DEVICE_INFO HwDeviceExtension,PVB_DEVICE_I
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
 {
-    USHORT PanelTypeTable[ 16 ] = { SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType00 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType01 ,
-                                    SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType02 ,
-                                    SyncNN | PanelRGB18Bit | Panel640x480  | _PanelType03 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType04 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType05 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType06 ,
-                                    SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType07 ,
-                                    SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType08 ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType09 ,
-                                    SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType0A ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0B ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0C ,
-                                    SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType0D ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0E ,
-                                    SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0F } ;
-    USHORT tempax , tempbx , temp ;
-    /* USHORT return_flag ; */
+	unsigned short PanelTypeTable[16] = {
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType00,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType01,
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType02,
+		SyncNN | PanelRGB18Bit | Panel640x480  | _PanelType03,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType04,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType05,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType06,
+		SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType07,
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType08,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType09,
+		SyncNN | PanelRGB18Bit | Panel800x600  | _PanelType0A,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0B,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0C,
+		SyncNN | PanelRGB24Bit | Panel1024x768 | _PanelType0D,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0E,
+		SyncNN | PanelRGB18Bit | Panel1024x768 | _PanelType0F };
+	unsigned short tempax , tempbx, temp;
+    /* unsigned short return_flag ; */
 
     tempax = XGINew_GetReg1( pVBInfo->P3c4 , 0x1A ) ;
     tempbx = tempax & 0x1E ;
@@ -698,9 +708,9 @@ BOOLEAN XGINew_GetPanelID(PVB_DEVICE_INFO pVBInfo )
 /* Output : */
 /* Description : */
 /* --------------------------------------------------------------------- */
-BOOLEAN XGINew_BridgeIsEnable( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO pVBInfo)
+unsigned char XGINew_BridgeIsEnable( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE_INFO pVBInfo)
 {
-    USHORT flag ;
+    unsigned short flag ;
 
     if ( XGI_BridgeIsOn( pVBInfo ) == 0 )
     {
@@ -725,9 +735,9 @@ BOOLEAN XGINew_BridgeIsEnable( PXGI_HW_DEVICE_INFO HwDeviceExtension ,PVB_DEVICE
 /* Output : */
 /* Description : */
 /* ------------------------------------------------------ */
-BOOLEAN XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo )
+unsigned char XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INFO pVBInfo )
 {
-    USHORT tempbx , tempcx , temp , i , tempch;
+    unsigned short tempbx , tempcx , temp , i , tempch;
 
     tempbx = *pVBInfo->pYCSenseData2 ;
 
@@ -809,11 +819,11 @@ BOOLEAN XGINew_SenseHiTV( PXGI_HW_DEVICE_INFO HwDeviceExtension , PVB_DEVICE_INF
 void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 {
 
-    USHORT ModeIdIndex;
-    USHORT ModeNo;
+    unsigned short ModeIdIndex;
+    unsigned short ModeNo;
 
-    USHORT EModeCount;
-    USHORT lvdstableindex;
+    unsigned short EModeCount;
+    unsigned short lvdstableindex;
 
     lvdstableindex = XGI_GetLVDSOEMTableIndex( pVBInfo );
     pBiosArguments->h.bl = 0x81;
@@ -852,10 +862,10 @@ void XGI_XG21Fun14Sub70( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 {
 
-    USHORT EModeCount;
-    USHORT ModeIdIndex,resindex;
-    USHORT ModeNo;
-    USHORT EModeIndex = pBiosArguments->h.bh;
+    unsigned short EModeCount;
+    unsigned short ModeIdIndex, resindex;
+    unsigned short ModeNo;
+    unsigned short EModeIndex = pBiosArguments->h.bh;
 
     EModeCount = 0;
     for( ModeIdIndex = 0 ; ;  ModeIdIndex ++ )
@@ -897,8 +907,8 @@ void XGI_XG21Fun14Sub71( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 */
 void XGI_XG21Fun14Sub72( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 {
-    USHORT ModeIdIndex,resindex;
-    USHORT ModeNo;
+    unsigned short ModeIdIndex, resindex;
+    unsigned short ModeNo;
 
 
     ModeNo = pBiosArguments->h.bl ;
@@ -958,7 +968,7 @@ void XGI_XG21Fun14Sub73( PVB_DEVICE_INFO pVBInfo , PX86_REGS pBiosArguments )
 {
     UCHAR Select;
 
-    USHORT lvdstableindex;
+    unsigned short lvdstableindex;
 
     lvdstableindex = XGI_GetLVDSOEMTableIndex( pVBInfo );
     Select = pBiosArguments->h.bl;
