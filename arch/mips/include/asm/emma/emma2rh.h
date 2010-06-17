@@ -101,7 +101,6 @@
 
 #define NUM_EMMA2RH_IRQ		96
 
-#define CPU_EMMA2RH_CASCADE	2
 #define EMMA2RH_IRQ_BASE	(MIPS_CPU_IRQ_BASE + 8)
 
 /*

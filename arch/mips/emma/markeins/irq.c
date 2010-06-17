@@ -301,7 +301,7 @@ void __init arch_init_irq(void)
 	/* setup cascade interrupts */
 	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_SW_CASCADE, &irq_cascade);
 	setup_irq(EMMA2RH_IRQ_BASE + EMMA2RH_GPIO_CASCADE, &irq_cascade);
-	setup_irq(MIPS_CPU_IRQ_BASE + CPU_EMMA2RH_CASCADE, &irq_cascade);
+	setup_irq(MIPS_CPU_IRQ_BASE + 2, &irq_cascade);
 }
 
 asmlinkage void plat_irq_dispatch(void)
