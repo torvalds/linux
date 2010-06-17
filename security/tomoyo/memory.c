@@ -89,6 +89,50 @@ void tomoyo_memory_free(void *ptr)
 	kfree(ptr);
 }
 
+/**
+ * tomoyo_get_group - Allocate memory for "struct tomoyo_path_group"/"struct tomoyo_number_group".
+ *
+ * @group_name: The name of address group.
+ * @idx:        Index number.
+ *
+ * Returns pointer to "struct tomoyo_group" on success, NULL otherwise.
+ */
+struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 idx)
+{
+	struct tomoyo_group e = { };
+	struct tomoyo_group *group = NULL;
+	bool found = false;
+	if (!tomoyo_correct_word(group_name) || idx >= TOMOYO_MAX_GROUP)
+		return NULL;
+	e.group_name = tomoyo_get_name(group_name);
+	if (!e.group_name)
+		return NULL;
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
+	list_for_each_entry(group, &tomoyo_group_list[idx], list) {
+		if (e.group_name != group->group_name)
+			continue;
+		atomic_inc(&group->users);
+		found = true;
+		break;
+	}
+	if (!found) {
+		struct tomoyo_group *entry = tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			INIT_LIST_HEAD(&entry->member_list);
+			atomic_set(&entry->users, 1);
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_group_list[idx]);
+			group = entry;
+			found = true;
+		}
+	}
+	mutex_unlock(&tomoyo_policy_lock);
+ out:
+	tomoyo_put_name(e.group_name);
+	return found ? group : NULL;
+}
+
 /*
  * tomoyo_name_list is used for holding string data used by TOMOYO.
  * Since same string data is likely used for multiple times (e.g.

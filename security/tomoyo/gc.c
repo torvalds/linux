@@ -266,33 +266,25 @@ static void tomoyo_collect_entry(void)
 				goto unlock;
 		}
 	}
-	{
+	for (i = 0; i < TOMOYO_MAX_GROUP; i++) {
+		struct list_head *list = &tomoyo_group_list[i];
+		int id;
 		struct tomoyo_group *group;
-		list_for_each_entry_rcu(group,
-					&tomoyo_group_list[TOMOYO_PATH_GROUP],
-					list) {
-			tomoyo_collect_member(&group->member_list,
-					      TOMOYO_ID_PATH_GROUP);
-			if (!list_empty(&group->member_list) ||
-			    atomic_read(&group->users))
-				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
-					      &group->list))
-				goto unlock;
+		switch (i) {
+		case 0:
+			id = TOMOYO_ID_PATH_GROUP;
+			break;
+		default:
+			id = TOMOYO_ID_NUMBER_GROUP;
+			break;
 		}
-	}
-	{
-		struct tomoyo_group *group;
-		list_for_each_entry_rcu(group,
-					&tomoyo_group_list[TOMOYO_NUMBER_GROUP],
-					list) {
-			tomoyo_collect_member(&group->member_list,
-					      TOMOYO_ID_NUMBER_GROUP);
+		list_for_each_entry(group, list, list) {
+			if (!tomoyo_collect_member(&group->member_list, id))
+				goto unlock;
 			if (!list_empty(&group->member_list) ||
 			    atomic_read(&group->users))
 				continue;
-			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP,
-					      &group->list))
+			if (!tomoyo_add_to_gc(TOMOYO_ID_GROUP, &group->list))
 				goto unlock;
 		}
 	}

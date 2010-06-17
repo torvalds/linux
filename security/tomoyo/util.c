@@ -92,7 +92,7 @@ bool tomoyo_parse_name_union(const char *filename,
 	if (!tomoyo_correct_word(filename))
 		return false;
 	if (filename[0] == '@') {
-		ptr->group = tomoyo_get_path_group(filename + 1);
+		ptr->group = tomoyo_get_group(filename + 1, TOMOYO_PATH_GROUP);
 		ptr->is_group = true;
 		return ptr->group != NULL;
 	}
@@ -117,7 +117,7 @@ bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
 	if (data[0] == '@') {
 		if (!tomoyo_correct_word(data))
 			return false;
-		num->group = tomoyo_get_number_group(data + 1);
+		num->group = tomoyo_get_group(data + 1, TOMOYO_NUMBER_GROUP);
 		num->is_group = true;
 		return num->group != NULL;
 	}

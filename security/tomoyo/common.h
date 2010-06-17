@@ -838,12 +838,10 @@ int tomoyo_write_mount_policy(char *data, struct tomoyo_domain_info *domain,
 int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete);
 /* Create "file_pattern" entry in exception policy. */
 int tomoyo_write_pattern_policy(char *data, const bool is_delete);
-/* Create "path_group" entry in exception policy. */
-int tomoyo_write_path_group_policy(char *data, const bool is_delete);
+/* Create "path_group"/"number_group" entry in exception policy. */
+int tomoyo_write_group(char *data, const bool is_delete, const u8 type);
 int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
      __attribute__ ((format(printf, 2, 3)));
-/* Create "number_group" entry in exception policy. */
-int tomoyo_write_number_group_policy(char *data, const bool is_delete);
 /* Find a domain by the given name. */
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 /* Find or create a domain by the given name. */
@@ -851,9 +849,10 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile);
 struct tomoyo_profile *tomoyo_profile(const u8 profile);
-/* Allocate memory for "struct tomoyo_path_group". */
-struct tomoyo_group *tomoyo_get_path_group(const char *group_name);
-struct tomoyo_group *tomoyo_get_number_group(const char *group_name);
+/*
+ * Allocate memory for "struct tomoyo_path_group"/"struct tomoyo_number_group".
+ */
+struct tomoyo_group *tomoyo_get_group(const char *group_name, const u8 type);
 
 /* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,

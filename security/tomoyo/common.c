@@ -1186,9 +1186,9 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_DENY_REWRITE))
 		return tomoyo_write_no_rewrite_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_PATH_GROUP))
-		return tomoyo_write_path_group_policy(data, is_delete);
+		return tomoyo_write_group(data, is_delete, TOMOYO_PATH_GROUP);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_NUMBER_GROUP))
-		return tomoyo_write_number_group_policy(data, is_delete);
+		return tomoyo_write_group(data, is_delete, TOMOYO_NUMBER_GROUP);
 	return -EINVAL;
 }
 
