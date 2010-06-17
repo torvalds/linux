@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.13
+ *    mpi2_cnfg.h Version:  02.00.14
  *
  *  Version History
  *  ---------------
@@ -109,6 +109,18 @@
  *                      Added Ethernet configuration pages.
  *  10-28-09  02.00.13  Added MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY.
  *                      Added SAS PHY Page 4 structure and defines.
+ *  02-10-10  02.00.14  Modified the comments for the configuration page
+ *                      structures that contain an array of data. The host
+ *                      should use the "count" field in the page data (e.g. the
+ *                      NumPhys field) to determine the number of valid elements
+ *                      in the array.
+ *                      Added/modified some MPI2_MFGPAGE_DEVID_SAS defines.
+ *                      Added PowerManagementCapabilities to IO Unit Page 7.
+ *                      Added PortWidthModGroup field to
+ *                      MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_6 and related defines.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_7 and related defines.
+ *                      Added MPI2_CONFIG_PAGE_SASIOUNIT_8 and related defines.
  *  --------------------------------------------------------------------------
  */
 
@@ -373,8 +385,9 @@ typedef struct _MPI2_CONFIG_REPLY
 #define MPI2_MFGPAGE_DEVID_SAS2208_4                (0x0083)
 #define MPI2_MFGPAGE_DEVID_SAS2208_5                (0x0084)
 #define MPI2_MFGPAGE_DEVID_SAS2208_6                (0x0085)
-#define MPI2_MFGPAGE_DEVID_SAS2208_7                (0x0086)
-#define MPI2_MFGPAGE_DEVID_SAS2208_8                (0x0087)
+#define MPI2_MFGPAGE_DEVID_SAS2308_1                (0x0086)
+#define MPI2_MFGPAGE_DEVID_SAS2308_2                (0x0087)
+#define MPI2_MFGPAGE_DEVID_SAS2308_3                (0x006E)
 
 
 /* Manufacturing Page 0 */
@@ -540,7 +553,7 @@ typedef struct _MPI2_CONFIG_PAGE_MAN_4
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_MAN_PAGE_5_PHY_ENTRIES
 #define MPI2_MAN_PAGE_5_PHY_ENTRIES         (1)
@@ -618,7 +631,7 @@ typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_MANPAGE7_CONNECTOR_INFO_MAX
 #define MPI2_MANPAGE7_CONNECTOR_INFO_MAX  (1)
@@ -731,7 +744,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
+ * one and check the value returned for GPIOCount at runtime.
  */
 #ifndef MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX
 #define MPI2_IO_UNIT_PAGE_3_GPIO_VAL_MAX    (1)
@@ -760,7 +773,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_3
 
 /*
  * Upper layer code (drivers, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumDmaEngines at runtime.
+ * one and check the value returned for NumDmaEngines at runtime.
  */
 #ifndef MPI2_IOUNITPAGE5_DMAENGINE_ENTRIES
 #define MPI2_IOUNITPAGE5_DMAENGINE_ENTRIES      (1)
@@ -823,7 +836,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
     U8                      PCIeWidth;                              /* 0x06 */
     U8                      PCIeSpeed;                              /* 0x07 */
     U32                     ProcessorState;                         /* 0x08 */
-    U32                     Reserved2;                              /* 0x0C */
+    U32                     PowerManagementCapabilities;            /* 0x0C */
     U16                     IOCTemperature;                         /* 0x10 */
     U8                      IOCTemperatureUnits;                    /* 0x12 */
     U8                      IOCSpeed;                               /* 0x13 */
@@ -831,7 +844,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 } MPI2_CONFIG_PAGE_IO_UNIT_7, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_IO_UNIT_7,
   Mpi2IOUnitPage7_t, MPI2_POINTER pMpi2IOUnitPage7_t;
 
-#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x00)
+#define MPI2_IOUNITPAGE7_PAGEVERSION                    (0x01)
 
 /* defines for IO Unit Page 7 PCIeWidth field */
 #define MPI2_IOUNITPAGE7_PCIE_WIDTH_X1              (0x01)
@@ -851,6 +864,14 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_7 {
 #define MPI2_IOUNITPAGE7_PSTATE_NOT_PRESENT         (0x00)
 #define MPI2_IOUNITPAGE7_PSTATE_DISABLED            (0x01)
 #define MPI2_IOUNITPAGE7_PSTATE_ENABLED             (0x02)
+
+/* defines for IO Unit Page 7 PowerManagementCapabilities field */
+#define MPI2_IOUNITPAGE7_PMCAP_12_5_PCT_IOCSPEED    (0x00000400)
+#define MPI2_IOUNITPAGE7_PMCAP_25_0_PCT_IOCSPEED    (0x00000200)
+#define MPI2_IOUNITPAGE7_PMCAP_50_0_PCT_IOCSPEED    (0x00000100)
+#define MPI2_IOUNITPAGE7_PMCAP_PCIE_WIDTH_CHANGE    (0x00000008)
+#define MPI2_IOUNITPAGE7_PMCAP_PCIE_SPEED_CHANGE    (0x00000004)
+
 
 /* defines for IO Unit Page 7 IOCTemperatureUnits field */
 #define MPI2_IOUNITPAGE7_IOC_TEMP_NOT_PRESENT       (0x00)
@@ -1195,7 +1216,7 @@ typedef struct _MPI2_CONFIG_PAGE_BIOS_3
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_BIOS_PAGE_4_PHY_ENTRIES
 #define MPI2_BIOS_PAGE_4_PHY_ENTRIES        (1)
@@ -1269,7 +1290,7 @@ typedef struct _MPI2_RAIDVOL0_SETTINGS
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength at runtime.
+ * one and check the value returned for NumPhysDisks at runtime.
  */
 #ifndef MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX
 #define MPI2_RAID_VOL_PAGE_0_PHYSDISK_MAX       (1)
@@ -1471,7 +1492,7 @@ typedef struct _MPI2_CONFIG_PAGE_RD_PDISK_0
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.PageLength or NumPhysDiskPaths at runtime.
+ * one and check the value returned for NumPhysDiskPaths at runtime.
  */
 #ifndef MPI2_RAID_PHYS_DISK1_PATH_MAX
 #define MPI2_RAID_PHYS_DISK1_PATH_MAX   (1)
@@ -1633,7 +1654,7 @@ typedef struct _MPI2_SAS_IO_UNIT0_PHY_DATA
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT0_PHY_MAX
 #define MPI2_SAS_IOUNIT0_PHY_MAX        (1)
@@ -1704,7 +1725,7 @@ typedef struct _MPI2_SAS_IO_UNIT1_PHY_DATA
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT1_PHY_MAX
 #define MPI2_SAS_IOUNIT1_PHY_MAX        (1)
@@ -1795,7 +1816,7 @@ typedef struct _MPI2_SAS_IOUNIT4_SPINUP_GROUP
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * four and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT4_PHY_MAX
 #define MPI2_SAS_IOUNIT4_PHY_MAX        (4)
@@ -1833,7 +1854,7 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_4
 
 typedef struct _MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS {
     U8          ControlFlags;               /* 0x00 */
-    U8          Reserved1;                  /* 0x01 */
+    U8          PortWidthModGroup;          /* 0x01 */
     U16         InactivityTimerExponent;    /* 0x02 */
     U8          SATAPartialTimeout;         /* 0x04 */
     U8          Reserved2;                  /* 0x05 */
@@ -1852,6 +1873,9 @@ typedef struct _MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS {
 #define MPI2_SASIOUNIT5_CONTROL_SAS_PARTIAL_ENABLE      (0x04)
 #define MPI2_SASIOUNIT5_CONTROL_SATA_SLUMBER_ENABLE     (0x02)
 #define MPI2_SASIOUNIT5_CONTROL_SATA_PARTIAL_ENABLE     (0x01)
+
+/* defines for PortWidthModeGroup field */
+#define MPI2_SASIOUNIT5_PWMG_DISABLE                    (0xFF)
 
 /* defines for InactivityTimerExponent field */
 #define MPI2_SASIOUNIT5_ITE_MASK_SAS_SLUMBER            (0x7000)
@@ -1874,7 +1898,7 @@ typedef struct _MPI2_SAS_IO_UNIT5_PHY_PM_SETTINGS {
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumPhys at runtime.
  */
 #ifndef MPI2_SAS_IOUNIT5_PHY_MAX
 #define MPI2_SAS_IOUNIT5_PHY_MAX        (1)
@@ -1892,7 +1916,132 @@ typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_5 {
   MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_5,
   Mpi2SasIOUnitPage5_t, MPI2_POINTER pMpi2SasIOUnitPage5_t;
 
-#define MPI2_SASIOUNITPAGE5_PAGEVERSION     (0x00)
+#define MPI2_SASIOUNITPAGE5_PAGEVERSION     (0x01)
+
+
+/* SAS IO Unit Page 6 */
+
+typedef struct _MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS {
+    U8          CurrentStatus;              /* 0x00 */
+    U8          CurrentModulation;          /* 0x01 */
+    U8          CurrentUtilization;         /* 0x02 */
+    U8          Reserved1;                  /* 0x03 */
+    U32         Reserved2;                  /* 0x04 */
+} MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS,
+  MPI2_POINTER PTR_MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS,
+  Mpi2SasIOUnit6PortWidthModGroupStatus_t,
+  MPI2_POINTER pMpi2SasIOUnit6PortWidthModGroupStatus_t;
+
+/* defines for CurrentStatus field */
+#define MPI2_SASIOUNIT6_STATUS_UNAVAILABLE                      (0x00)
+#define MPI2_SASIOUNIT6_STATUS_UNCONFIGURED                     (0x01)
+#define MPI2_SASIOUNIT6_STATUS_INVALID_CONFIG                   (0x02)
+#define MPI2_SASIOUNIT6_STATUS_LINK_DOWN                        (0x03)
+#define MPI2_SASIOUNIT6_STATUS_OBSERVATION_ONLY                 (0x04)
+#define MPI2_SASIOUNIT6_STATUS_INACTIVE                         (0x05)
+#define MPI2_SASIOUNIT6_STATUS_ACTIVE_IOUNIT                    (0x06)
+#define MPI2_SASIOUNIT6_STATUS_ACTIVE_HOST                      (0x07)
+
+/* defines for CurrentModulation field */
+#define MPI2_SASIOUNIT6_MODULATION_25_PERCENT                   (0x00)
+#define MPI2_SASIOUNIT6_MODULATION_50_PERCENT                   (0x01)
+#define MPI2_SASIOUNIT6_MODULATION_75_PERCENT                   (0x02)
+#define MPI2_SASIOUNIT6_MODULATION_100_PERCENT                  (0x03)
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumGroups at runtime.
+ */
+#ifndef MPI2_SAS_IOUNIT6_GROUP_MAX
+#define MPI2_SAS_IOUNIT6_GROUP_MAX      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_6 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                     /* 0x00 */
+    U32                                 Reserved1;                  /* 0x08 */
+    U32                                 Reserved2;                  /* 0x0C */
+    U8                                  NumGroups;                  /* 0x10 */
+    U8                                  Reserved3;                  /* 0x11 */
+    U16                                 Reserved4;                  /* 0x12 */
+    MPI2_SAS_IO_UNIT6_PORT_WIDTH_MOD_GROUP_STATUS
+	PortWidthModulationGroupStatus[MPI2_SAS_IOUNIT6_GROUP_MAX]; /* 0x14 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_6,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_6,
+  Mpi2SasIOUnitPage6_t, MPI2_POINTER pMpi2SasIOUnitPage6_t;
+
+#define MPI2_SASIOUNITPAGE6_PAGEVERSION     (0x00)
+
+
+/* SAS IO Unit Page 7 */
+
+typedef struct _MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS {
+    U8          Flags;                      /* 0x00 */
+    U8          Reserved1;                  /* 0x01 */
+    U16         Reserved2;                  /* 0x02 */
+    U8          Threshold75Pct;             /* 0x04 */
+    U8          Threshold50Pct;             /* 0x05 */
+    U8          Threshold25Pct;             /* 0x06 */
+    U8          Reserved3;                  /* 0x07 */
+} MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS,
+  MPI2_POINTER PTR_MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS,
+  Mpi2SasIOUnit7PortWidthModGroupSettings_t,
+  MPI2_POINTER pMpi2SasIOUnit7PortWidthModGroupSettings_t;
+
+/* defines for Flags field */
+#define MPI2_SASIOUNIT7_FLAGS_ENABLE_PORT_WIDTH_MODULATION  (0x01)
+
+
+/*
+ * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
+ * one and check the value returned for NumGroups at runtime.
+ */
+#ifndef MPI2_SAS_IOUNIT7_GROUP_MAX
+#define MPI2_SAS_IOUNIT7_GROUP_MAX      (1)
+#endif
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_7 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER            Header;             /* 0x00 */
+    U8                                          SamplingInterval;   /* 0x08 */
+    U8                                          WindowLength;       /* 0x09 */
+    U16                                         Reserved1;          /* 0x0A */
+    U32                                         Reserved2;          /* 0x0C */
+    U32                                         Reserved3;          /* 0x10 */
+    U8                                          NumGroups;          /* 0x14 */
+    U8                                          Reserved4;          /* 0x15 */
+    U16                                         Reserved5;          /* 0x16 */
+    MPI2_SAS_IO_UNIT7_PORT_WIDTH_MOD_GROUP_SETTINGS
+	PortWidthModulationGroupSettings[MPI2_SAS_IOUNIT7_GROUP_MAX]; /* 0x18 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_7,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_7,
+  Mpi2SasIOUnitPage7_t, MPI2_POINTER pMpi2SasIOUnitPage7_t;
+
+#define MPI2_SASIOUNITPAGE7_PAGEVERSION     (0x00)
+
+
+/* SAS IO Unit Page 8 */
+
+typedef struct _MPI2_CONFIG_PAGE_SASIOUNIT_8 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;			/* 0x00 */
+    U32                                 Reserved1;		/* 0x08 */
+    U32                                 PowerManagementCapabilities;/* 0x0C */
+    U32                                 Reserved2;		/* 0x10 */
+} MPI2_CONFIG_PAGE_SASIOUNIT_8,
+  MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SASIOUNIT_8,
+  Mpi2SasIOUnitPage8_t, MPI2_POINTER pMpi2SasIOUnitPage8_t;
+
+#define MPI2_SASIOUNITPAGE8_PAGEVERSION     (0x00)
+
+/* defines for PowerManagementCapabilities field */
+#define MPI2_SASIOUNIT8_PM_HOST_PORT_WIDTH_MOD          (0x000001000)
+#define MPI2_SASIOUNIT8_PM_HOST_SAS_SLUMBER_MODE        (0x000000800)
+#define MPI2_SASIOUNIT8_PM_HOST_SAS_PARTIAL_MODE        (0x000000400)
+#define MPI2_SASIOUNIT8_PM_HOST_SATA_SLUMBER_MODE       (0x000000200)
+#define MPI2_SASIOUNIT8_PM_HOST_SATA_PARTIAL_MODE       (0x000000100)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_PORT_WIDTH_MOD        (0x000000010)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SAS_SLUMBER_MODE      (0x000000008)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SAS_PARTIAL_MODE      (0x000000004)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SATA_SLUMBER_MODE     (0x000000002)
+#define MPI2_SASIOUNIT8_PM_IOUNIT_SATA_PARTIAL_MODE     (0x000000001)
 
 
 
@@ -2182,7 +2331,7 @@ typedef struct _MPI2_SASPHY2_PHY_EVENT {
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhyEvents at runtime.
+ * one and check the value returned for NumPhyEvents at runtime.
  */
 #ifndef MPI2_SASPHY2_PHY_EVENT_MAX
 #define MPI2_SASPHY2_PHY_EVENT_MAX      (1)
@@ -2274,7 +2423,7 @@ typedef struct _MPI2_SASPHY3_PHY_EVENT_CONFIG {
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhyEvents at runtime.
+ * one and check the value returned for NumPhyEvents at runtime.
  */
 #ifndef MPI2_SASPHY3_PHY_EVENT_MAX
 #define MPI2_SASPHY3_PHY_EVENT_MAX      (1)
@@ -2385,7 +2534,7 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_ENCLOSURE_0
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumLogEntries at runtime.
  */
 #ifndef MPI2_LOG_0_NUM_LOG_ENTRIES
 #define MPI2_LOG_0_NUM_LOG_ENTRIES          (1)
@@ -2435,7 +2584,7 @@ typedef struct _MPI2_CONFIG_PAGE_LOG_0
 
 /*
  * Host code (drivers, BIOS, utilities, etc.) should leave this define set to
- * one and check Header.ExtPageLength or NumPhys at runtime.
+ * one and check the value returned for NumElements at runtime.
  */
 #ifndef MPI2_RAIDCONFIG0_MAX_ELEMENTS
 #define MPI2_RAIDCONFIG0_MAX_ELEMENTS       (1)
