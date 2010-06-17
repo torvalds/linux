@@ -766,7 +766,7 @@ qlcnic_pci_get_crb_addr_2M(struct qlcnic_adapter *adapter,
  * Out: 'off' is 2M pci map addr
  * side effect: lock crb window
  */
-static void
+static int
 qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 {
 	u32 window;
@@ -775,6 +775,10 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 	off -= QLCNIC_PCI_CRBSPACE;
 
 	window = CRB_HI(off);
+	if (window == 0) {
+		dev_err(&adapter->pdev->dev, "Invalid offset 0x%lx\n", off);
+		return -EIO;
+	}
 
 	writel(window, addr);
 	if (readl(addr) != window) {
@@ -782,7 +786,9 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 			dev_warn(&adapter->pdev->dev,
 				"failed to set CRB window to %d off 0x%lx\n",
 				window, off);
+		return -EIO;
 	}
+	return 0;
 }
 
 int
@@ -803,11 +809,12 @@ qlcnic_hw_write_wx_2M(struct qlcnic_adapter *adapter, ulong off, u32 data)
 		/* indirect access */
 		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		crb_win_lock(adapter);
-		qlcnic_pci_set_crbwindow_2M(adapter, off);
-		writel(data, addr);
+		rv = qlcnic_pci_set_crbwindow_2M(adapter, off);
+		if (!rv)
+			writel(data, addr);
 		crb_win_unlock(adapter);
 		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
-		return 0;
+		return rv;
 	}
 
 	dev_err(&adapter->pdev->dev,
@@ -821,7 +828,7 @@ qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off)
 {
 	unsigned long flags;
 	int rv;
-	u32 data;
+	u32 data = -1;
 	void __iomem *addr = NULL;
 
 	rv = qlcnic_pci_get_crb_addr_2M(adapter, off, &addr);
@@ -833,8 +840,8 @@ qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off)
 		/* indirect access */
 		write_lock_irqsave(&adapter->ahw.crb_lock, flags);
 		crb_win_lock(adapter);
-		qlcnic_pci_set_crbwindow_2M(adapter, off);
-		data = readl(addr);
+		if (!qlcnic_pci_set_crbwindow_2M(adapter, off))
+			data = readl(addr);
 		crb_win_unlock(adapter);
 		write_unlock_irqrestore(&adapter->ahw.crb_lock, flags);
 		return data;
