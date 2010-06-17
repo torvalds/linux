@@ -77,10 +77,10 @@ Memory
 
 Guest memory (gpa) is part of the user address space of the process that is
 using kvm.  Userspace defines the translation between guest addresses and user
-addresses (gpa->hva); note that two gpas may alias to the same gva, but not
+addresses (gpa->hva); note that two gpas may alias to the same hva, but not
 vice versa.
 
-These gvas may be backed using any method available to the host: anonymous
+These hvas may be backed using any method available to the host: anonymous
 memory, file backed memory, and device memory.  Memory might be paged by the
 host at any time.
 
