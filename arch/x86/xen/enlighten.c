@@ -1318,6 +1318,7 @@ static void __init xen_hvm_guest_init(void)
 	have_vcpu_info_placement = 0;
 	x86_init.irqs.intr_init = xen_init_IRQ;
 	xen_hvm_init_time_ops();
+	xen_hvm_init_mmu_ops();
 }
 
 static bool __init xen_hvm_platform(void)
