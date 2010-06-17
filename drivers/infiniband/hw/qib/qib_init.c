@@ -1499,6 +1499,12 @@ bail:
 	return -ENOMEM;
 }
 
+/*
+ * Note: Changes to this routine should be mirrored
+ * for the diagnostics routine qib_remap_ioaddr32().
+ * There is also related code for VL15 buffers in qib_init_7322_variables().
+ * The teardown code that unmaps is in qib_pcie_ddcleanup()
+ */
 int init_chip_wc_pat(struct qib_devdata *dd, u32 vl15buflen)
 {
 	u64 __iomem *qib_kregbase = NULL;
