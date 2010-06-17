@@ -1913,6 +1913,9 @@ mpt_attach(struct pci_dev *pdev, const struct pci_device_id *id)
 		ioc->msi_enable = 0;
 		break;
 	}
+
+	ioc->fw_events_off = 1;
+
 	if (ioc->errata_flag_1064)
 		pci_disable_io_access(pdev);
 
