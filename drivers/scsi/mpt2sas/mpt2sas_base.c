@@ -3634,8 +3634,10 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		ioc->pd_handles_sz++;
 	ioc->pd_handles = kzalloc(ioc->pd_handles_sz,
 	    GFP_KERNEL);
-	if (!ioc->pd_handles)
+	if (!ioc->pd_handles) {
+		r = -ENOMEM;
 		goto out_free_resources;
+	}
 
 	ioc->fwfault_debug = mpt2sas_fwfault_debug;
 
@@ -3668,6 +3670,13 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->ctl_cmds.reply = kzalloc(ioc->reply_sz, GFP_KERNEL);
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_init(&ioc->ctl_cmds.mutex);
+
+	if (!ioc->base_cmds.reply || !ioc->transport_cmds.reply ||
+	    !ioc->scsih_cmds.reply || !ioc->tm_cmds.reply ||
+	    !ioc->config_cmds.reply || !ioc->ctl_cmds.reply) {
+		r = -ENOMEM;
+		goto out_free_resources;
+	}
 
 	if (!ioc->base_cmds.reply || !ioc->transport_cmds.reply ||
 	    !ioc->scsih_cmds.reply || !ioc->tm_cmds.reply ||
