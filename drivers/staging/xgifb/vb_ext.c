@@ -1,18 +1,9 @@
 #include "osdef.h"
 
-
-
-
-
-
-#ifdef LINUX_KERNEL
 #include <linux/version.h>
 #include <asm/io.h>
 #include <linux/types.h>
 #include "XGIfb.h"
-#endif
-
-
 
 #include "vb_def.h"
 #include "vgatypes.h"

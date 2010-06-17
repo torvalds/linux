@@ -3,12 +3,10 @@
 
 
 
-#ifdef LINUX_KERNEL
 #include <asm/io.h>
 #include <linux/types.h>
 #include <linux/version.h>
 #include "XGIfb.h"
-#endif
 
 
 #include "vb_def.h"

@@ -3,11 +3,9 @@
 #include "vgatypes.h"
 #include "vb_struct.h"
 
-#ifdef LINUX_KERNEL
 #include "XGIfb.h"
 #include <asm/io.h>
 #include <linux/types.h>
-#endif
 
 void XGINew_SetReg1( ULONG , USHORT , USHORT ) ;
 void XGINew_SetReg2( ULONG , USHORT , USHORT ) ;
@@ -188,8 +186,6 @@ void NewDelaySeconds( int seconds )
 
 
 
-#ifdef LINUX_KERNEL
-#endif
     }
 }
 

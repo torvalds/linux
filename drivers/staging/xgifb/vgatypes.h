@@ -4,10 +4,7 @@
 
 #include "osdef.h"
 
-
-#ifdef LINUX_KERNEL  /* We don't want the X driver to depend on kernel source */
 #include <linux/ioctl.h>
-#endif
 
 #ifndef FALSE
 #define FALSE   0
@@ -73,43 +70,11 @@ typedef UCHAR BOOLEAN;
 typedef UCHAR bool;
 #endif
 */
-#ifdef LINUX_KERNEL
 typedef unsigned long XGIIOADDRESS;
-#endif
 
 
 #ifndef VBIOS_VER_MAX_LENGTH
 #define VBIOS_VER_MAX_LENGTH    4
-#endif
-
-#ifndef LINUX_KERNEL   /* For the linux kernel, this is defined in xgifb.h */
-#ifndef XGI_CHIP_TYPE
-typedef enum _XGI_CHIP_TYPE {
-    XGI_VGALegacy = 0,
-    XGI_300,
-    XGI_630,
-    XGI_640,
-    XGI_315H,
-    XGI_315,
-    XGI_315PRO,
-    XGI_550,
-    XGI_650,
-    XGI_650M,
-    XGI_740,
-    XGI_330,
-    XGI_661,
-    XGI_660,
-    XGI_760,
-    XG40 = 32,
-    XG41,
-    XG42,
-    XG45,
-    XG20 = 48,
-    XG21,
-    XG27,
-    MAX_XGI_CHIP
-} XGI_CHIP_TYPE;
-#endif
 #endif
 
 #ifndef XGI_VB_CHIP_TYPE

@@ -163,7 +163,6 @@ struct video_info  xgi_video_info;
 
 /* --------------- Hardware Access Routines -------------------------- */
 
-#ifdef LINUX_KERNEL
 int
 XGIfb_mode_rate_to_dclock(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExtension,
 			  unsigned char modeno, unsigned char rateindex)
@@ -389,7 +388,6 @@ XGIfb_mode_rate_to_ddata(VB_DEVICE_INFO *XGI_Pr, PXGI_HW_DEVICE_INFO HwDeviceExt
     return 1;
 }
 
-#endif
 
 
 

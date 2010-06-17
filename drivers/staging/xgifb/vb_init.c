@@ -1,19 +1,10 @@
 #include "osdef.h"
 #include "vgatypes.h"
 
-
-#ifdef LINUX_KERNEL
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/delay.h> /* udelay */
 #include "XGIfb.h"
-/*#if LINUX_VERSxION_CODE >= KERNEL_VERSION(2,5,0)
-#include <video/XGIfb.h>
-#else
-#include <linux/XGIfb.h>
-#endif */
-#endif
-
 
 #include "vb_def.h"
 #include "vb_struct.h"
@@ -23,9 +14,7 @@
 #include "vb_ext.h"
 
 
-#ifdef LINUX_KERNEL
 #include <asm/io.h>
-#endif
 
 
 
@@ -120,13 +109,11 @@ UCHAR    GetXG21FPBits(PVB_DEVICE_INFO pVBInfo);
 void     XGINew_GetXG27Sense(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo) ;
 UCHAR    GetXG27FPBits(PVB_DEVICE_INFO pVBInfo);
 
-
-#ifdef LINUX_KERNEL
 void DelayUS(ULONG MicroSeconds)
 {
 	udelay(MicroSeconds);
 }
-#endif
+
 
 /* --------------------------------------------------------------------- */
 /* Function : XGIInitNew */
@@ -2667,8 +2654,6 @@ void SetPowerConsume ( PXGI_HW_DEVICE_INFO HwDeviceExtension , ULONG XGI_P3d4Por
 }
 
 
-
-#if defined(LINUX_KERNEL)
 void XGINew_InitVBIOSData(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO pVBInfo)
 {
 
@@ -2711,7 +2696,6 @@ void XGINew_InitVBIOSData(PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_INFO
 	}
 
 }
-#endif /* For Linux */
 
 /* --------------------------------------------------------------------- */
 /* Function : ReadVBIOSTablData */
