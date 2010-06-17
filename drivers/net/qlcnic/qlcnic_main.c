@@ -132,12 +132,6 @@ qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
 		struct qlcnic_host_tx_ring *tx_ring)
 {
 	writel(tx_ring->producer, tx_ring->crb_cmd_producer);
-
-	if (qlcnic_tx_avail(tx_ring) <= TX_STOP_THRESH) {
-		netif_stop_queue(adapter->netdev);
-		smp_mb();
-		adapter->stats.xmit_off++;
-	}
 }
 
 static const u32 msi_tgt_status[8] = {
@@ -1137,7 +1131,7 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	adapter->max_mc_count = 38;
 
 	netdev->netdev_ops	   = &qlcnic_netdev_ops;
-	netdev->watchdog_timeo     = 2*HZ;
+	netdev->watchdog_timeo     = 5*HZ;
 
 	qlcnic_change_mtu(netdev, netdev->mtu);
 
@@ -1709,10 +1703,15 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 	/* 4 fragments per cmd des */
 	no_of_desc = (frag_count + 3) >> 2;
 
-	if (unlikely(no_of_desc + 2 > qlcnic_tx_avail(tx_ring))) {
+	if (unlikely(qlcnic_tx_avail(tx_ring) <= TX_STOP_THRESH)) {
 		netif_stop_queue(netdev);
-		adapter->stats.xmit_off++;
-		return NETDEV_TX_BUSY;
+		smp_mb();
+		if (qlcnic_tx_avail(tx_ring) > TX_STOP_THRESH)
+			netif_start_queue(netdev);
+		else {
+			adapter->stats.xmit_off++;
+			return NETDEV_TX_BUSY;
+		}
 	}
 
 	producer = tx_ring->producer;
@@ -2018,14 +2017,12 @@ static int qlcnic_process_cmd_ring(struct qlcnic_adapter *adapter)
 		smp_mb();
 
 		if (netif_queue_stopped(netdev) && netif_carrier_ok(netdev)) {
-			__netif_tx_lock(tx_ring->txq, smp_processor_id());
 			if (qlcnic_tx_avail(tx_ring) > TX_STOP_THRESH) {
 				netif_wake_queue(netdev);
-				adapter->tx_timeo_cnt = 0;
 				adapter->stats.xmit_on++;
 			}
-			__netif_tx_unlock(tx_ring->txq);
 		}
+		adapter->tx_timeo_cnt = 0;
 	}
 	/*
 	 * If everything is freed up to consumer then check if the ring is full

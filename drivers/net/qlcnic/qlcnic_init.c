@@ -181,7 +181,9 @@ skip_rds:
 
 	tx_ring = adapter->tx_ring;
 	vfree(tx_ring->cmd_buf_arr);
+	tx_ring->cmd_buf_arr = NULL;
 	kfree(adapter->tx_ring);
+	adapter->tx_ring = NULL;
 }
 
 int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)

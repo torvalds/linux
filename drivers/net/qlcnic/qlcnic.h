@@ -113,8 +113,10 @@
 #define TX_UDPV6_PKT	0x0c
 
 /* Tx defines */
-#define MAX_BUFFERS_PER_CMD	32
-#define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + 4)
+#define MAX_TSO_HEADER_DESC	2
+#define MGMT_CMD_DESC_RESV	4
+#define TX_STOP_THRESH		((MAX_SKB_FRAGS >> 2) + MAX_TSO_HEADER_DESC \
+							+ MGMT_CMD_DESC_RESV)
 #define QLCNIC_MAX_TX_TIMEOUTS	2
 
 /*
@@ -369,7 +371,7 @@ struct qlcnic_recv_crb {
  */
 struct qlcnic_cmd_buffer {
 	struct sk_buff *skb;
-	struct qlcnic_skb_frag frag_array[MAX_BUFFERS_PER_CMD + 1];
+	struct qlcnic_skb_frag frag_array[MAX_SKB_FRAGS + 1];
 	u32 frag_count;
 };
 
