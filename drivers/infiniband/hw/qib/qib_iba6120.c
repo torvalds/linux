@@ -1355,8 +1355,7 @@ static int qib_6120_bringup_serdes(struct qib_pportdata *ppd)
 	hwstat = qib_read_kreg64(dd, kr_hwerrstatus);
 	if (hwstat) {
 		/* should just have PLL, clear all set, in an case */
-		if (hwstat & ~QLOGIC_IB_HWE_SERDESPLLFAILED)
-			qib_write_kreg(dd, kr_hwerrclear, hwstat);
+		qib_write_kreg(dd, kr_hwerrclear, hwstat);
 		qib_write_kreg(dd, kr_errclear, ERR_MASK(HardwareErr));
 	}
 
