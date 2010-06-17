@@ -142,4 +142,11 @@ config CHARGER_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
 
+config BATTERY_INTEL_MID
+	tristate "Battery driver for Intel MID platforms"
+	depends on INTEL_SCU_IPC && SPI
+	help
+	  Say Y here to enable the battery driver on Intel MID
+	  platforms.
+
 endif # POWER_SUPPLY
