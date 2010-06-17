@@ -95,7 +95,7 @@ struct XGIfb_info {
 
 
 
-typedef enum _TVPLUGTYPE {	// vicki@030226
+enum xgi_tv_plug {	/* vicki@030226 */
 //	TVPLUG_Legacy = 0,
 //	TVPLUG_COMPOSITE,
 //	TVPLUG_SVIDEO,
@@ -111,7 +111,7 @@ typedef enum _TVPLUGTYPE {	// vicki@030226
     	TVPLUG_YPBPR_750P = 7,
     	TVPLUG_YPBPR_1080i = 8,
 	TVPLUG_TOTAL
-} XGI_TV_PLUG;
+};
 
 
 struct mode_info {
@@ -133,7 +133,7 @@ struct ap_data {
 	enum XGI_CHIP_TYPE chip;
 	unsigned char hasVB;
 	enum xgi_tvtype TV_type;
-	XGI_TV_PLUG TV_plug;
+	enum xgi_tv_plug TV_plug;
 	unsigned long version;
 	char reserved[256];
 };
