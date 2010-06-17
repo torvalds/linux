@@ -23,28 +23,24 @@
 
 static int cfrfml_receive(struct cflayer *layr, struct cfpkt *pkt);
 static int cfrfml_transmit(struct cflayer *layr, struct cfpkt *pkt);
-static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl);
 
 struct cflayer *cfrfml_create(u8 channel_id, struct dev_info *dev_info)
 {
 	struct cfsrvl *rfm = kmalloc(sizeof(struct cfsrvl), GFP_ATOMIC);
+
 	if (!rfm) {
 		pr_warning("CAIF: %s(): Out of memory\n", __func__);
 		return NULL;
 	}
+
 	caif_assert(offsetof(struct cfsrvl, layer) == 0);
+
 	memset(rfm, 0, sizeof(struct cfsrvl));
-	cfsrvl_init(rfm, channel_id, dev_info);
-	rfm->layer.modemcmd = cfservl_modemcmd;
+	cfsrvl_init(rfm, channel_id, dev_info, false);
 	rfm->layer.receive = cfrfml_receive;
 	rfm->layer.transmit = cfrfml_transmit;
 	snprintf(rfm->layer.name, CAIF_LAYER_NAME_SZ, "rfm%d", channel_id);
 	return &rfm->layer;
-}
-
-static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
-{
-       return -EPROTO;
 }
 
 static int cfrfml_receive(struct cflayer *layr, struct cfpkt *pkt)

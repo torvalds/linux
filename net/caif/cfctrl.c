@@ -43,7 +43,7 @@ struct cflayer *cfctrl_create(void)
 	memset(&dev_info, 0, sizeof(dev_info));
 	dev_info.id = 0xff;
 	memset(this, 0, sizeof(*this));
-	cfsrvl_init(&this->serv, 0, &dev_info);
+	cfsrvl_init(&this->serv, 0, &dev_info, false);
 	atomic_set(&this->req_seq_no, 1);
 	atomic_set(&this->rsp_seq_no, 1);
 	this->serv.layer.receive = cfctrl_recv;
