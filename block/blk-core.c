@@ -1149,13 +1149,10 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	else
 		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD))
 		req->cmd_flags |= REQ_DISCARD;
-		if (bio_rw_flagged(bio, BIO_RW_BARRIER))
-			req->cmd_flags |= REQ_SOFTBARRIER;
-	} else if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)))
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER))
 		req->cmd_flags |= REQ_HARDBARRIER;
-
 	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		req->cmd_flags |= REQ_RW_SYNC;
 	if (bio_rw_flagged(bio, BIO_RW_META))
