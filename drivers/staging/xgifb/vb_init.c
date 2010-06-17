@@ -148,18 +148,16 @@ BOOLEAN XGIInitNew( PXGI_HW_DEVICE_INFO HwDeviceExtension )
 
 
    /* if ( pVBInfo->ROMAddr == 0 ) */
-   /* return( FALSE ) ; */
+   /* return( 0 ) ; */
 
-    if ( pVBInfo->FBAddr == 0 )
-{
+    if (pVBInfo->FBAddr == 0) {
        printk("\n pVBInfo->FBAddr == 0 ");
-       return( FALSE ) ;
-}
+       return 0;
+    }
 printk("1");
-    if ( pVBInfo->BaseAddr == 0 )
-{
-       printk("\npVBInfo->BaseAddr == 0 ");
-        return( FALSE ) ;
+if (pVBInfo->BaseAddr == 0) {
+	printk("\npVBInfo->BaseAddr == 0 ");
+	return 0;
 }
 printk("2");
 
@@ -169,9 +167,8 @@ printk("2");
 printk("3");
 
 if ( !HwDeviceExtension->bIntegratedMMEnabled )
-{
-        return( FALSE ) ;	/* alan */
-}
+	return 0;	/* alan */
+
 printk("4");
 
  //   VBIOSVersion[ 4 ] = 0x0 ;
@@ -422,15 +419,14 @@ printk("18");
         XGINew_SetReg1( pVBInfo->P3d4 , 0x83 , 0x00 ) ;
 printk("181");
 
-    if ( HwDeviceExtension->bSkipSense == FALSE )
-    {
-printk("182");
+if (HwDeviceExtension->bSkipSense == 0) {
+	printk("182");
 
         XGI_SenseCRT1(pVBInfo) ;
 
-printk("183");
+	printk("183");
         /* XGINew_DetectMonitor( HwDeviceExtension ) ; */
-pVBInfo->IF_DEF_CH7007 = 0;
+	pVBInfo->IF_DEF_CH7007 = 0;
         if ( ( HwDeviceExtension->jChipType == XG21 ) && (pVBInfo->IF_DEF_CH7007) )
         {
 printk("184");
@@ -466,8 +462,7 @@ printk("19");
 
         XGINew_SetDRAMDefaultRegister340( HwDeviceExtension ,  pVBInfo->P3d4,  pVBInfo ) ;
 
-        if ( HwDeviceExtension->bSkipDramSizing == TRUE )
-        {
+	if (HwDeviceExtension->bSkipDramSizing == 1) {
             pSR = HwDeviceExtension->pSR ;
             if ( pSR!=NULL )
             {
@@ -547,7 +542,7 @@ XGINew_SetReg1( pVBInfo->P3d4 , 0x8c , 0x87);
 XGINew_SetReg1( pVBInfo->P3c4 , 0x14 , 0x31);
 printk("25");
 
-    return( TRUE ) ;
+return 1;
 } /* end of init */
 
 
@@ -2608,10 +2603,10 @@ void XGINew_SetMemoryClock( PXGI_HW_DEVICE_INFO HwDeviceExtension, PVB_DEVICE_IN
 /* --------------------------------------------------------------------- */
 BOOLEAN ChkLFB( PVB_DEVICE_INFO pVBInfo )
 {
-    if ( LFBDRAMTrap & XGINew_GetReg1( pVBInfo->P3d4 , 0x78 ) )
-        return( TRUE ) ;
-    else
-        return( FALSE );
+	if (LFBDRAMTrap & XGINew_GetReg1(pVBInfo->P3d4 , 0x78))
+		return 1;
+	else
+		return 0;
 }
 
 

@@ -440,10 +440,10 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 		DPRINTK("XGIfb: Set offset 0x%lx to 0x%lx\n", offset, *value);
 
 	if (!init) {
-		init = TRUE;
+		init = 1;
 		pdev = pci_get_device(PCI_VENDOR_ID_XG, xgi_video_info.chip_id, pdev);
 		if (pdev) {
-			valid_pdev = TRUE;
+			valid_pdev = 1;
 			pci_dev_put(pdev);
 		}
 	}
@@ -451,7 +451,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	if (!valid_pdev) {
 		printk(KERN_DEBUG "XGIfb: Can't find XGI %d VGA device.\n",
 				xgi_video_info.chip_id);
-		return FALSE;
+		return 0;
 	}
 
 	if (set == 0)
@@ -459,7 +459,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	else
 		pci_write_config_dword(pdev, offset, (u32)(*value));
 
-	return TRUE;
+	return 1;
 }
 
 /*BOOLEAN XGIfb_query_north_bridge_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
@@ -470,7 +470,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	u16 nbridge_id = 0;
 
 	if (!init) {
-		init = TRUE;
+		init = 1;
 		switch (xgi_video_info.chip) {
 		case XGI_540:
 			nbridge_id = PCI_DEVICE_ID_XG_540;
@@ -497,13 +497,13 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 
 		pdev = pci_find_device(PCI_VENDOR_ID_SI, nbridge_id, pdev);
 		if (pdev)
-			valid_pdev = TRUE;
+			valid_pdev = 1;
 	}
 
 	if (!valid_pdev) {
 		printk(KERN_DEBUG "XGIfb: Can't find XGI %d North Bridge device.\n",
 				nbridge_id);
-		return FALSE;
+		return 0;
 	}
 
 	if (set == 0)
@@ -511,7 +511,7 @@ XGIfb_query_VGA_config_space(PXGI_HW_DEVICE_INFO pXGIhw_ext,
 	else
 		pci_write_config_dword(pdev, offset, (u32)(*value));
 
-	return TRUE;
+	return 1;
 }
 */
 /* ------------------ Internal helper routines ----------------- */
@@ -953,14 +953,14 @@ static BOOLEAN XGIfb_bridgeisslave(void)
 {
    unsigned char usScratchP1_00;
 
-   if(xgi_video_info.hasVB == HASVB_NONE) return FALSE;
+   if (xgi_video_info.hasVB == HASVB_NONE)
+	   return 0;
 
    inXGIIDXREG(XGIPART1,0x00,usScratchP1_00);
-   if( (usScratchP1_00 & 0x50) == 0x10)  {
-	   return TRUE;
-   } else {
-           return FALSE;
-   }
+   if ((usScratchP1_00 & 0x50) == 0x10)
+	   return 1;
+   else
+	   return 0;
 }
 
 static BOOLEAN XGIfbcheckvretracecrt1(void)
@@ -968,24 +968,30 @@ static BOOLEAN XGIfbcheckvretracecrt1(void)
    unsigned char temp;
 
    inXGIIDXREG(XGICR,0x17,temp);
-   if(!(temp & 0x80)) return FALSE;
+   if (!(temp & 0x80))
+	   return 0;
 
 
    inXGIIDXREG(XGISR,0x1f,temp);
-   if(temp & 0xc0) return FALSE;
+   if (temp & 0xc0)
+	   return 0;
 
-
-   if(inXGIREG(XGIINPSTAT) & 0x08) return TRUE;
-   else 			   return FALSE;
+   if (inXGIREG(XGIINPSTAT) & 0x08)
+	   return 1;
+   else
+	   return 0;
 }
 
 static BOOLEAN XGIfbcheckvretracecrt2(void)
 {
    unsigned char temp;
-   if(xgi_video_info.hasVB == HASVB_NONE) return FALSE;
+   if (xgi_video_info.hasVB == HASVB_NONE)
+	   return 0;
    inXGIIDXREG(XGIPART1, 0x30, temp);
-   if(temp & 0x02) return FALSE;
-   else 	   return TRUE;
+   if (temp & 0x02)
+	   return 0;
+   else
+	   return 1;
 }
 
 static BOOLEAN XGIfb_CheckVBRetrace(void)
@@ -1989,9 +1995,9 @@ static int XGIfb_has_VB(void)
 		break;
 	   default:
 		xgi_video_info.hasVB = HASVB_NONE;
-		return FALSE;
+		return 0;
 	}
-	return TRUE;
+	return 1;
 }
 
 
@@ -2645,7 +2651,7 @@ static void XGIfb_pre_setmode(void)
 static void XGIfb_post_setmode(void)
 {
 	u8 reg;
-	BOOLEAN doit = TRUE;
+	BOOLEAN doit = 1;
 #if 0	/* TW: Wrong: Is not in MMIO space, but in RAM */
 	/* Backup mode number to MMIO space */
 	if(xgi_video_info.mmio_vbase) {
@@ -2659,11 +2665,11 @@ static void XGIfb_post_setmode(void)
 	if (xgi_video_info.video_bpp == 8) {
 		/* TW: We can't switch off CRT1 on LVDS/Chrontel in 8bpp Modes */
 		if ((xgi_video_info.hasVB == HASVB_LVDS) || (xgi_video_info.hasVB == HASVB_LVDS_CHRONTEL)) {
-			doit = FALSE;
+			doit = 0;
 		}
 		/* TW: We can't switch off CRT1 on 301B-DH in 8bpp Modes if using LCD */
 		if  (xgi_video_info.disp_state & DISPTYPE_LCD)  {
-	        	doit = FALSE;
+			doit = 0;
 	        }
 	}
 
@@ -2672,14 +2678,15 @@ static void XGIfb_post_setmode(void)
 		inXGIIDXREG(XGIPART1, 0x00, reg);
 
 
-		if((reg & 0x50) == 0x10) {
-			doit = FALSE;
-		}
+		if ((reg & 0x50) == 0x10)
+			doit = 0;
 
-	} else XGIfb_crt1off = 0;
+
+	} else
+		XGIfb_crt1off = 0;
 
 	inXGIIDXREG(XGICR, 0x17, reg);
-	if((XGIfb_crt1off) && (doit))
+	if ((XGIfb_crt1off) && (doit))
 		reg &= ~0x80;
 	else
 		reg |= 0x80;
@@ -3027,7 +3034,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		   case XG20:
 		   case XG21:
                    case XG27:
-                   XGIhw_ext.bIntegratedMMEnabled = TRUE;
+			   XGIhw_ext.bIntegratedMMEnabled = 1;
 			break;
 
 		   default:
@@ -3316,14 +3323,14 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	          inXGIIDXREG(XGICR,0x38,tmp);
 		      if((tmp & 0x03) == 0x03)
 		      {
-//		          XGI_Pr.XGI_UseLCDA = TRUE;
+/*		          XGI_Pr.XGI_UseLCDA = 1; */
 		      }else
 		      {
 		     //  Currently on LCDA? (Some newer BIOSes set D0 in CR35)
 		         inXGIIDXREG(XGICR,0x35,tmp);
 		         if(tmp & 0x01)
 		         {
-//		              XGI_Pr.XGI_UseLCDA = TRUE;
+/*		              XGI_Pr.XGI_UseLCDA = 1; */
 		           }else
 		           {
 		               inXGIIDXREG(XGICR,0x30,tmp);
@@ -3332,7 +3339,7 @@ int __devinit xgifb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		                   inXGIIDXREG(XGIPART1,0x13,tmp);
 			               if(tmp & 0x04)
 			               {
-//			                XGI_Pr.XGI_UseLCDA = TRUE;
+/*			                XGI_Pr.XGI_UseLCDA = 1; */
 			               }
 		               }
 		           }

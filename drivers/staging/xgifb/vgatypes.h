@@ -4,18 +4,6 @@
 
 #include <linux/ioctl.h>
 
-#ifndef FALSE
-#define FALSE   0
-#endif
-
-#ifndef TRUE
-#define TRUE    1
-#endif
-
-#ifndef NULL
-#define NULL    0
-#endif
-
 #ifndef CHAR
 typedef char CHAR;
 #endif
@@ -186,12 +174,12 @@ struct _XGI_HW_DEVICE_INFO
     PXGI_DSReg  pSR;             /* restore SR registers in initial function. */
                                  /* end data :(idx, val) =  (FF, FF). */
                                  /* Note : restore SR registers if  */
-                                 /* bSkipDramSizing = TRUE */
+                                 /* bSkipDramSizing = 1 */
 
     PXGI_DSReg  pCR;             /* restore CR registers in initial function. */
                                  /* end data :(idx, val) =  (FF, FF) */
                                  /* Note : restore cR registers if  */
-                                 /* bSkipDramSizing = TRUE */
+                                 /* bSkipDramSizing = 1 */
 /*
 #endif
 */

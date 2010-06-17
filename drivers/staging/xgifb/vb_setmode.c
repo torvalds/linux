@@ -510,15 +510,9 @@ BOOLEAN XGISetModeNew( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo )
     }	/* !XG20 */
     else
     {
-
-
-        if ( pVBInfo->IF_DEF_LVDS == 1 )
-        {
-            if ( !XGI_XG21CheckLVDSMode(ModeNo , ModeIdIndex, pVBInfo) )
-            {
-              return FALSE;
-            }
-        }
+	    if (pVBInfo->IF_DEF_LVDS == 1)
+		    if (!XGI_XG21CheckLVDSMode(ModeNo , ModeIdIndex, pVBInfo))
+			    return 0;
 
         if ( ModeNo <= 0x13 )
         {
@@ -577,7 +571,7 @@ BOOLEAN XGISetModeNew( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo )
     XGI_LockCRT2( HwDeviceExtension, pVBInfo ) ;
 }
 
-    return( TRUE ) ;
+    return 1;
 }
 
 
@@ -3987,10 +3981,10 @@ BOOLEAN XGI_SearchModeID( USHORT ModeNo , USHORT *ModeIdIndex, PVB_DEVICE_INFO p
         /* for (*ModeIdIndex=0;*ModeIdIndex<sizeof(pVBInfo->SModeIDTable)/sizeof(XGI_StStruct);(*ModeIdIndex)++) */
         for( *ModeIdIndex = 0 ; ; ( *ModeIdIndex )++ )
         {
-            if ( pVBInfo->SModeIDTable[ *ModeIdIndex ].St_ModeID == ModeNo )
-                break ;
-            if ( pVBInfo->SModeIDTable[ *ModeIdIndex ].St_ModeID == 0xFF )
-                return( FALSE ) ;
+		if (pVBInfo->SModeIDTable[*ModeIdIndex].St_ModeID == ModeNo)
+			break;
+		if (pVBInfo->SModeIDTable[*ModeIdIndex].St_ModeID == 0xFF)
+			return 0;
         }
 
         if ( ModeNo == 0x07 )
@@ -4005,16 +3999,16 @@ BOOLEAN XGI_SearchModeID( USHORT ModeNo , USHORT *ModeIdIndex, PVB_DEVICE_INFO p
         /* for (*ModeIdIndex=0;*ModeIdIndex<sizeof(pVBInfo->EModeIDTable)/sizeof(XGI_ExtStruct);(*ModeIdIndex)++) */
         for( *ModeIdIndex = 0 ; ; ( *ModeIdIndex )++ )
         {
-            if ( pVBInfo->EModeIDTable[ *ModeIdIndex ].Ext_ModeID == ModeNo )
-                break ;
-            if ( pVBInfo->EModeIDTable[ *ModeIdIndex ].Ext_ModeID == 0xFF )
-                return( FALSE ) ;
+		if (pVBInfo->EModeIDTable[*ModeIdIndex].Ext_ModeID == ModeNo)
+			break;
+		if (pVBInfo->EModeIDTable[*ModeIdIndex].Ext_ModeID == 0xFF)
+			return 0;
         }
     }
 
 #endif
 
-    return( TRUE ) ;
+    return 1;
 }
 
 
@@ -4039,7 +4033,7 @@ BOOLEAN XGINew_CheckMemorySize(PXGI_HW_DEVICE_INFO HwDeviceExtension,USHORT Mode
 /*  if ( ( HwDeviceExtension->jChipType == XGI_650 ) ||
          ( HwDeviceExtension->jChipType == XGI_650M ) )
     {
-        return( TRUE ) ;
+	return 1;
     } */
 
     if ( ModeNo <= 0x13 )
@@ -4097,10 +4091,10 @@ BOOLEAN XGINew_CheckMemorySize(PXGI_HW_DEVICE_INFO HwDeviceExtension,USHORT Mode
             temp <<= 1 ;
         }
     }
-    if ( temp < memorysize )
-        return( FALSE ) ;
+    if (temp < memorysize)
+	    return 0;
     else
-        return( TRUE ) ;
+	    return 1;
 }
 
 
@@ -7736,7 +7730,7 @@ void* XGI_GetTVPtr (USHORT BX,USHORT ModeNo,USHORT ModeIdIndex,USHORT RefreshRat
 /* --------------------------------------------------------------------- */
 /* Function : XGI_BacklightByDrv */
 /* Input : */
-/* Output : TRUE -> Skip backlight control */
+/* Output : 1 -> Skip backlight control */
 /* Description : */
 /* --------------------------------------------------------------------- */
 BOOLEAN XGI_BacklightByDrv( PVB_DEVICE_INFO pVBInfo )
@@ -7744,10 +7738,10 @@ BOOLEAN XGI_BacklightByDrv( PVB_DEVICE_INFO pVBInfo )
     UCHAR tempah ;
 
     tempah = ( UCHAR )XGINew_GetReg1( pVBInfo->P3d4 , 0x3A ) ;
-    if ( tempah & BacklightControlBit )
-        return TRUE ;
+    if (tempah & BacklightControlBit)
+	    return 1;
     else
-        return FALSE ;
+	    return 0;
 }
 
 
@@ -8055,10 +8049,10 @@ BOOLEAN XGI_XG21CheckLVDSMode(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO 
 
     lvdstableindex = XGI_GetLVDSOEMTableIndex( pVBInfo );
     if ( xres > (pVBInfo->XG21_LVDSCapList[lvdstableindex].LVDSHDE) )
-      return FALSE;
+	    return 0;
 
     if ( yres > (pVBInfo->XG21_LVDSCapList[lvdstableindex].LVDSVDE) )
-      return FALSE;
+	    return 0;
 
     if ( ModeNo > 0x13 )
     {
@@ -8066,13 +8060,12 @@ BOOLEAN XGI_XG21CheckLVDSMode(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO 
            ( yres != (pVBInfo->XG21_LVDSCapList[lvdstableindex].LVDSVDE)) )
       {
           colordepth = XGI_GetColorDepth( ModeNo , ModeIdIndex, pVBInfo ) ;
-          if ( colordepth > 2 )
-          {
-            return FALSE;
-          }
+	  if (colordepth > 2)
+		  return 0;
+
       }
     }
-    return TRUE;
+    return 1;
 }
 
 void XGI_SetXG21FPBits(PVB_DEVICE_INFO pVBInfo)
@@ -8463,8 +8456,8 @@ void XGI_SetXG27LVDSPara(USHORT ModeNo,USHORT ModeIdIndex, PVB_DEVICE_INFO pVBIn
 /* --------------------------------------------------------------------- */
 /* Function : XGI_IsLCDON */
 /* Input : */
-/* Output : FALSE : Skip PSC Control */
-/* TRUE: Disable PSC */
+/* Output : 0 : Skip PSC Control */
+/* 1: Disable PSC */
 /* Description : */
 /* --------------------------------------------------------------------- */
 BOOLEAN XGI_IsLCDON(PVB_DEVICE_INFO pVBInfo)
@@ -8473,11 +8466,11 @@ BOOLEAN XGI_IsLCDON(PVB_DEVICE_INFO pVBInfo)
 
     tempax = pVBInfo->VBInfo ;
     if ( tempax & SetCRT2ToDualEdge )
-        return FALSE ;
+	    return 0;
     else if ( tempax & ( DisableCRT2Display | SwitchToCRT2 | SetSimuScanMode ) )
-        return TRUE ;
+	    return 1;
 
-    return FALSE ;
+    return 0;
 }
 
 
@@ -8518,7 +8511,7 @@ void XGI_DisablePWD( PVB_DEVICE_INFO pVBInfo )
 /* --------------------------------------------------------------------- */
 /* Function : XGI_DisableChISLCD */
 /* Input : */
-/* Output : FALSE -> Not LCD Mode */
+/* Output : 0 -> Not LCD Mode */
 /* Description : */
 /* --------------------------------------------------------------------- */
 BOOLEAN XGI_DisableChISLCD(PVB_DEVICE_INFO pVBInfo)
@@ -8532,16 +8525,16 @@ BOOLEAN XGI_DisableChISLCD(PVB_DEVICE_INFO pVBInfo)
     if ( tempbx & ( EnableChA | DisableChA ) )
     {
         if ( !( tempah & 0x08 ) )		/* Chk LCDA Mode */
-            return FALSE ;
+		return 0 ;
     }
 
     if ( !( tempbx & ( EnableChB | DisableChB ) ) )
-        return FALSE ;
+	    return 0;
 
     if ( tempah & 0x01 )       /* Chk LCDB Mode */
-        return TRUE ;
+	    return 1;
 
-    return FALSE ;
+    return 0;
 }
 
 
@@ -8563,16 +8556,16 @@ BOOLEAN XGI_EnableChISLCD(PVB_DEVICE_INFO pVBInfo)
     if ( tempbx & ( EnableChA | DisableChA ) )
     {
         if ( !( tempah & 0x08 ) )		/* Chk LCDA Mode */
-            return FALSE ;
+		return 0;
     }
 
     if ( !( tempbx & ( EnableChB | DisableChB ) ) )
-        return FALSE ;
+	    return 0;
 
     if ( tempah & 0x01 )       /* Chk LCDB Mode */
-        return TRUE ;
+	    return 1;
 
-    return FALSE ;
+    return 0;
 }
 
 
