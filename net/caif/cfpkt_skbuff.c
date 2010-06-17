@@ -9,8 +9,8 @@
 #include <linux/hardirq.h>
 #include <net/caif/cfpkt.h>
 
-#define PKT_PREFIX CAIF_NEEDED_HEADROOM
-#define PKT_POSTFIX CAIF_NEEDED_TAILROOM
+#define PKT_PREFIX  16
+#define PKT_POSTFIX 2
 #define PKT_LEN_WHEN_EXTENDING 128
 #define PKT_ERROR(pkt, errmsg) do {	   \
     cfpkt_priv(pkt)->erronous = true;	   \

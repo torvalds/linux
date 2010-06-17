@@ -162,7 +162,6 @@ void cfservl_destroy(struct cflayer *layer)
 void cfsrvl_release(struct kref *kref)
 {
 	struct cfsrvl *service = container_of(kref, struct cfsrvl, ref);
-	pr_info("CAIF: %s(): enter\n", __func__);
 	kfree(service);
 }
 

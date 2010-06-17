@@ -90,12 +90,6 @@ static int cfutill_transmit(struct cflayer *layr, struct cfpkt *pkt)
 	if (!cfsrvl_ready(service, &ret))
 		return ret;
 
-	if (cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
-		pr_err("CAIF: %s(): packet too large size=%d\n",
-			__func__, cfpkt_getlen(pkt));
-		return -EOVERFLOW;
-	}
-
 	cfpkt_add_head(pkt, &zero, 1);
 	/* Add info for MUX-layer to route the packet out. */
 	info = cfpkt_info(pkt);

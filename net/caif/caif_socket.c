@@ -28,8 +28,8 @@
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(AF_CAIF);
 
-#define CAIF_DEF_SNDBUF (CAIF_MAX_PAYLOAD_SIZE*10)
-#define CAIF_DEF_RCVBUF (CAIF_MAX_PAYLOAD_SIZE*100)
+#define CAIF_DEF_SNDBUF (4096*10)
+#define CAIF_DEF_RCVBUF (4096*100)
 
 /*
  * CAIF state is re-using the TCP socket states.
@@ -76,6 +76,7 @@ struct caifsock {
 	struct caif_connect_request conn_req;
 	struct mutex readlock;
 	struct dentry *debugfs_socket_dir;
+	int headroom, tailroom, maxframe;
 };
 
 static int rx_flow_is_on(struct caifsock *cf_sk)
@@ -594,23 +595,32 @@ static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
 		goto err;
 	noblock = msg->msg_flags & MSG_DONTWAIT;
 
-	buffer_size = len + CAIF_NEEDED_HEADROOM + CAIF_NEEDED_TAILROOM;
-
 	timeo = sock_sndtimeo(sk, noblock);
 	timeo = caif_wait_for_flow_on(container_of(sk, struct caifsock, sk),
 				1, timeo, &ret);
 
+	if (ret)
+		goto err;
 	ret = -EPIPE;
 	if (cf_sk->sk.sk_state != CAIF_CONNECTED ||
 		sock_flag(sk, SOCK_DEAD) ||
 		(sk->sk_shutdown & RCV_SHUTDOWN))
 		goto err;
 
+	/* Error if trying to write more than maximum frame size. */
+	ret = -EMSGSIZE;
+	if (len > cf_sk->maxframe && cf_sk->sk.sk_protocol != CAIFPROTO_RFM)
+		goto err;
+
+	buffer_size = len + cf_sk->headroom + cf_sk->tailroom;
+
 	ret = -ENOMEM;
 	skb = sock_alloc_send_skb(sk, buffer_size, noblock, &ret);
-	if (!skb)
+
+	if (!skb || skb_tailroom(skb) < buffer_size)
 		goto err;
-	skb_reserve(skb, CAIF_NEEDED_HEADROOM);
+
+	skb_reserve(skb, cf_sk->headroom);
 
 	ret = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
 
@@ -641,7 +651,6 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	long timeo;
 
 	err = -EOPNOTSUPP;
-
 	if (unlikely(msg->msg_flags&MSG_OOB))
 		goto out_err;
 
@@ -658,8 +667,8 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 
 		size = len-sent;
 
-		if (size > CAIF_MAX_PAYLOAD_SIZE)
-			size = CAIF_MAX_PAYLOAD_SIZE;
+		if (size > cf_sk->maxframe)
+			size = cf_sk->maxframe;
 
 		/* If size is more than half of sndbuf, chop up message */
 		if (size > ((sk->sk_sndbuf >> 1) - 64))
@@ -669,14 +678,14 @@ static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
 			size = SKB_MAX_ALLOC;
 
 		skb = sock_alloc_send_skb(sk,
-					size + CAIF_NEEDED_HEADROOM
-					+ CAIF_NEEDED_TAILROOM,
+					size + cf_sk->headroom +
+					cf_sk->tailroom,
 					msg->msg_flags&MSG_DONTWAIT,
 					&err);
 		if (skb == NULL)
 			goto out_err;
 
-		skb_reserve(skb, CAIF_NEEDED_HEADROOM);
+		skb_reserve(skb, cf_sk->headroom);
 		/*
 		 *	If you pass two values to the sock_alloc_send_skb
 		 *	it tries to grab the large buffer with GFP_NOFS
@@ -817,17 +826,15 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 	long timeo;
 	int err;
+	int ifindex, headroom, tailroom;
+	struct net_device *dev;
+
 	lock_sock(sk);
 
 	err = -EAFNOSUPPORT;
 	if (uaddr->sa_family != AF_CAIF)
 		goto out;
 
-	err = -ESOCKTNOSUPPORT;
-	if (unlikely(!(sk->sk_type == SOCK_STREAM &&
-		       cf_sk->sk.sk_protocol == CAIFPROTO_AT) &&
-		       sk->sk_type != SOCK_SEQPACKET))
-		goto out;
 	switch (sock->state) {
 	case SS_UNCONNECTED:
 		/* Normal case, a fresh connect */
@@ -883,10 +890,21 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	dbfs_atomic_inc(&cnt.num_connect_req);
 	cf_sk->layer.receive = caif_sktrecv_cb;
 	err = caif_connect_client(&cf_sk->conn_req,
-				&cf_sk->layer);
+				&cf_sk->layer, &ifindex, &headroom, &tailroom);
 	if (err < 0) {
 		cf_sk->sk.sk_socket->state = SS_UNCONNECTED;
 		cf_sk->sk.sk_state = CAIF_DISCONNECTED;
+		goto out;
+	}
+	dev = dev_get_by_index(sock_net(sk), ifindex);
+	cf_sk->headroom = LL_RESERVED_SPACE_EXTRA(dev, headroom);
+	cf_sk->tailroom = tailroom;
+	cf_sk->maxframe = dev->mtu - (headroom + tailroom);
+	dev_put(dev);
+	if (cf_sk->maxframe < 1) {
+		pr_warning("CAIF: %s(): CAIF Interface MTU too small (%d)\n",
+			__func__, dev->mtu);
+		err = -ENODEV;
 		goto out;
 	}
 

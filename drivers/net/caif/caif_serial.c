@@ -403,7 +403,6 @@ static void caifdev_setup(struct net_device *dev)
 	dev->type = ARPHRD_CAIF;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
 	dev->mtu = CAIF_MAX_MTU;
-	dev->hard_header_len = CAIF_NEEDED_HEADROOM;
 	dev->tx_queue_len = 0;
 	dev->destructor = free_netdev;
 	skb_queue_head_init(&serdev->head);

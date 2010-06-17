@@ -50,6 +50,9 @@ struct caif_connect_request {
  * @client_layer:	User implementation of client layer. This layer
  *			MUST have receive and control callback functions
  *			implemented.
+ * @ifindex:		Link layer interface index used for this connection.
+ * @headroom:		Head room needed by CAIF protocol.
+ * @tailroom:		Tail room needed by CAIF protocol.
  *
  * This function connects a CAIF channel. The Client must implement
  * the struct cflayer. This layer represents the Client layer and holds
@@ -59,8 +62,9 @@ struct caif_connect_request {
  * E.g. CAIF Socket will call this function for each socket it connects
  * and have one client_layer instance for each socket.
  */
-int caif_connect_client(struct caif_connect_request *config,
-			   struct cflayer *client_layer);
+int caif_connect_client(struct caif_connect_request *conn_req,
+			struct cflayer *client_layer, int *ifindex,
+			int *headroom, int *tailroom);
 
 /**
  * caif_disconnect_client - Disconnects a client from the CAIF stack.
