@@ -5952,6 +5952,7 @@ static void
 _scsih_search_responding_raid_devices(struct MPT2SAS_ADAPTER *ioc)
 {
 	Mpi2RaidVolPage1_t volume_pg1;
+	Mpi2RaidVolPage0_t volume_pg0;
 	Mpi2RaidPhysDiskPage0_t pd_pg0;
 	Mpi2ConfigReply_t mpi_reply;
 	u16 ioc_status;
@@ -5971,8 +5972,17 @@ _scsih_search_responding_raid_devices(struct MPT2SAS_ADAPTER *ioc)
 		if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 			break;
 		handle = le16_to_cpu(volume_pg1.DevHandle);
-		_scsih_mark_responding_raid_device(ioc,
-		    le64_to_cpu(volume_pg1.WWID), handle);
+
+		if (mpt2sas_config_get_raid_volume_pg0(ioc, &mpi_reply,
+		    &volume_pg0, MPI2_RAID_VOLUME_PGAD_FORM_HANDLE, handle,
+		     sizeof(Mpi2RaidVolPage0_t)))
+			continue;
+
+		if (volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_OPTIMAL ||
+		    volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_ONLINE ||
+		    volume_pg0.VolumeState == MPI2_RAID_VOL_STATE_DEGRADED)
+			_scsih_mark_responding_raid_device(ioc,
+			    le64_to_cpu(volume_pg1.WWID), handle);
 	}
 
 	/* refresh the pd_handles */
