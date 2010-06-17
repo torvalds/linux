@@ -48,10 +48,6 @@
 #include "XGIfb.h"
 #include "XGI_accel.h"
 
-
-extern struct     video_info xgi_video_info;
-extern int XGIfb_accel;
-
 static const int XGIALUConv[] =
 {
     0x00,       /* dest = 0;            0,      GXclear,        0 */
