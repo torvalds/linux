@@ -742,7 +742,9 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 				if (ioc_status & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
 					if ((log_info & SAS_LOGINFO_MASK)
 					    == SAS_LOGINFO_NEXUS_LOSS) {
-						sc->result = (DID_BUS_BUSY << 16);
+						sc->result =
+							(DID_TRANSPORT_DISRUPTED
+							<< 16);
 						break;
 					}
 				}
