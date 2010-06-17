@@ -936,43 +936,47 @@ static int mxcmci_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int mxcmci_suspend(struct platform_device *dev, pm_message_t state)
+static int mxcmci_suspend(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mxcmci_host *host = mmc_priv(mmc);
 	int ret = 0;
 
 	if (mmc)
 		ret = mmc_suspend_host(mmc);
+	clk_disable(host->clk);
 
 	return ret;
 }
 
-static int mxcmci_resume(struct platform_device *dev)
+static int mxcmci_resume(struct device *dev)
 {
-	struct mmc_host *mmc = platform_get_drvdata(dev);
-	struct mxcmci_host *host;
+	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mxcmci_host *host = mmc_priv(mmc);
 	int ret = 0;
 
-	if (mmc) {
-		host = mmc_priv(mmc);
+	clk_enable(host->clk);
+	if (mmc)
 		ret = mmc_resume_host(mmc);
-	}
 
 	return ret;
 }
-#else
-#define mxcmci_suspend  NULL
-#define mxcmci_resume   NULL
-#endif /* CONFIG_PM */
+
+static const struct dev_pm_ops mxcmci_pm_ops = {
+	.suspend	= mxcmci_suspend,
+	.resume		= mxcmci_resume,
+};
+#endif
 
 static struct platform_driver mxcmci_driver = {
 	.probe		= mxcmci_probe,
 	.remove		= mxcmci_remove,
-	.suspend	= mxcmci_suspend,
-	.resume		= mxcmci_resume,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &mxcmci_pm_ops,
+#endif
 	}
 };
 
