@@ -1007,18 +1007,18 @@ static int
 _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 {
 	struct MPT2SAS_ADAPTER *ioc = rphy_to_ioc(rphy);
-	struct _sas_node *sas_expander;
+	struct _sas_device *sas_device;
 	unsigned long flags;
 
-	spin_lock_irqsave(&ioc->sas_node_lock, flags);
-	sas_expander = mpt2sas_scsih_expander_find_by_sas_address(ioc,
+	spin_lock_irqsave(&ioc->sas_device_lock, flags);
+	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	    rphy->identify.sas_address);
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
+	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	if (!sas_expander)
+	if (!sas_device)
 		return -ENXIO;
 
-	*identifier = sas_expander->enclosure_logical_id;
+	*identifier = sas_device->enclosure_logical_id;
 	return 0;
 }
 
