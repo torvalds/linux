@@ -73,6 +73,7 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pm.h>
+#include <linux/kthread.h>
 #include <asm/firmware.h>
 #include <asm/vio.h>
 #include <scsi/scsi.h>
@@ -504,14 +505,8 @@ static void ibmvscsi_reset_host(struct ibmvscsi_host_data *hostdata)
 	atomic_set(&hostdata->request_limit, 0);
 
 	purge_requests(hostdata, DID_ERROR);
-	if ((ibmvscsi_ops->reset_crq_queue(&hostdata->queue, hostdata)) ||
-	    (ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0)) ||
-	    (vio_enable_interrupts(to_vio_dev(hostdata->dev)))) {
-		atomic_set(&hostdata->request_limit, -1);
-		dev_err(hostdata->dev, "error after reset\n");
-	}
-
-	scsi_unblock_requests(hostdata->host);
+	hostdata->reset_crq = 1;
+	wake_up(&hostdata->work_wait_q);
 }
 
 /**
@@ -1462,30 +1457,14 @@ void ibmvscsi_handle_crq(struct viosrp_crq *crq,
 			/* We need to re-setup the interpartition connection */
 			dev_info(hostdata->dev, "Re-enabling adapter!\n");
 			hostdata->client_migrated = 1;
+			hostdata->reenable_crq = 1;
 			purge_requests(hostdata, DID_REQUEUE);
-			if ((ibmvscsi_ops->reenable_crq_queue(&hostdata->queue,
-							      hostdata)) ||
-			    (ibmvscsi_ops->send_crq(hostdata,
-						    0xC001000000000000LL, 0))) {
-					atomic_set(&hostdata->request_limit,
-						   -1);
-					dev_err(hostdata->dev, "error after enable\n");
-			}
+			wake_up(&hostdata->work_wait_q);
 		} else {
 			dev_err(hostdata->dev, "Virtual adapter failed rc %d!\n",
 				crq->format);
-
-			purge_requests(hostdata, DID_ERROR);
-			if ((ibmvscsi_ops->reset_crq_queue(&hostdata->queue,
-							   hostdata)) ||
-			    (ibmvscsi_ops->send_crq(hostdata,
-						    0xC001000000000000LL, 0))) {
-					atomic_set(&hostdata->request_limit,
-						   -1);
-					dev_err(hostdata->dev, "error after reset\n");
-			}
+			ibmvscsi_reset_host(hostdata);
 		}
-		scsi_unblock_requests(hostdata->host);
 		return;
 	case 0x80:		/* real payload */
 		break;
@@ -1850,6 +1829,75 @@ static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
 	return desired_io;
 }
 
+static void ibmvscsi_do_work(struct ibmvscsi_host_data *hostdata)
+{
+	int rc;
+	char *action = "reset";
+
+	if (hostdata->reset_crq) {
+		smp_rmb();
+		hostdata->reset_crq = 0;
+
+		rc = ibmvscsi_ops->reset_crq_queue(&hostdata->queue, hostdata);
+		if (!rc)
+			rc = ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0);
+		if (!rc)
+			rc = vio_enable_interrupts(to_vio_dev(hostdata->dev));
+	} else if (hostdata->reenable_crq) {
+		smp_rmb();
+		action = "enable";
+		rc = ibmvscsi_ops->reenable_crq_queue(&hostdata->queue, hostdata);
+		hostdata->reenable_crq = 0;
+		if (!rc)
+			rc = ibmvscsi_ops->send_crq(hostdata, 0xC001000000000000LL, 0);
+	} else
+		return;
+
+	if (rc) {
+		atomic_set(&hostdata->request_limit, -1);
+		dev_err(hostdata->dev, "error after %s\n", action);
+	}
+
+	scsi_unblock_requests(hostdata->host);
+}
+
+static int ibmvscsi_work_to_do(struct ibmvscsi_host_data *hostdata)
+{
+	if (kthread_should_stop())
+		return 1;
+	else if (hostdata->reset_crq) {
+		smp_rmb();
+		return 1;
+	} else if (hostdata->reenable_crq) {
+		smp_rmb();
+		return 1;
+	}
+
+	return 0;
+}
+
+static int ibmvscsi_work(void *data)
+{
+	struct ibmvscsi_host_data *hostdata = data;
+	int rc;
+
+	set_user_nice(current, -20);
+
+	while (1) {
+		rc = wait_event_interruptible(hostdata->work_wait_q,
+					      ibmvscsi_work_to_do(hostdata));
+
+		BUG_ON(rc);
+
+		if (kthread_should_stop())
+			break;
+
+		ibmvscsi_do_work(hostdata);
+	}
+
+	return 0;
+}
+
 /**
  * Called by bus code for each adapter
  */
@@ -1875,6 +1923,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	hostdata = shost_priv(host);
 	memset(hostdata, 0x00, sizeof(*hostdata));
 	INIT_LIST_HEAD(&hostdata->sent);
+	init_waitqueue_head(&hostdata->work_wait_q);
 	hostdata->host = host;
 	hostdata->dev = dev;
 	atomic_set(&hostdata->request_limit, -1);
@@ -1885,10 +1934,19 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 		goto persist_bufs_failed;
 	}
 
+	hostdata->work_thread = kthread_run(ibmvscsi_work, hostdata, "%s_%d",
+					    "ibmvscsi", host->host_no);
+
+	if (IS_ERR(hostdata->work_thread)) {
+		dev_err(&vdev->dev, "couldn't initialize kthread. rc=%ld\n",
+			PTR_ERR(hostdata->work_thread));
+		goto init_crq_failed;
+	}
+
 	rc = ibmvscsi_ops->init_crq_queue(&hostdata->queue, hostdata, max_events);
 	if (rc != 0 && rc != H_RESOURCE) {
 		dev_err(&vdev->dev, "couldn't initialize crq. rc=%d\n", rc);
-		goto init_crq_failed;
+		goto kill_kthread;
 	}
 	if (initialize_event_pool(&hostdata->pool, max_events, hostdata) != 0) {
 		dev_err(&vdev->dev, "couldn't initialize event pool\n");
@@ -1944,6 +2002,8 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	release_event_pool(&hostdata->pool, hostdata);
       init_pool_failed:
 	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata, max_events);
+      kill_kthread:
+      kthread_stop(hostdata->work_thread);
       init_crq_failed:
 	unmap_persist_bufs(hostdata);
       persist_bufs_failed:
@@ -1960,6 +2020,7 @@ static int ibmvscsi_remove(struct vio_dev *vdev)
 	ibmvscsi_ops->release_crq_queue(&hostdata->queue, hostdata,
 					max_events);
 
+	kthread_stop(hostdata->work_thread);
 	srp_remove_host(hostdata->host);
 	scsi_remove_host(hostdata->host);
 	scsi_host_put(hostdata->host);
