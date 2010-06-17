@@ -175,8 +175,6 @@ if ( !HwDeviceExtension->bIntegratedMMEnabled )
 }
 printk("4");
 
-//    XGI_MemoryCopy( VBIOSVersion , HwDeviceExtension->szVBIOSVer , 4 ) ;
-
  //   VBIOSVersion[ 4 ] = 0x0 ;
 
     /* 09/07/99 modify by domao */

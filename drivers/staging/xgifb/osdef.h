@@ -1,10 +1,6 @@
 #ifndef _OSDEF_H_
 #define _OSDEF_H_
 
-#define XGI_SetMemory(MemoryAddress,MemorySize,value) memset(MemoryAddress, value, MemorySize)
-
-#define XGI_MemoryCopy(Destination,Soruce,Length) memcpy(Destination,Soruce,Length)
-
 /**********************************************************************/
 
 #ifdef OutPortByte

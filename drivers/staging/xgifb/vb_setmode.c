@@ -2609,7 +2609,7 @@ void XGI_ClearBuffer( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo, PVB
         {
             AdapterMemorySize = 0x40000 ;	/* clear 256k */
             /* GetDRAMSize( HwDeviceExtension ) ; */
-            XGI_SetMemory( VideoMemoryAddress , AdapterMemorySize , 0 ) ;
+	    memset(VideoMemoryAddress, 0, AdapterMemorySize);
         }
         else
         {
@@ -2631,7 +2631,7 @@ void XGI_ClearBuffer( PXGI_HW_DEVICE_INFO HwDeviceExtension , USHORT ModeNo, PVB
 */
         }
         else
-            XGI_SetMemory( VideoMemoryAddress , 0x8000 , 0 ) ;
+		memset(VideoMemoryAddress , 0, 0x8000);
     }
 }
 
