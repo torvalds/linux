@@ -507,9 +507,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 #define SAVE_STATE	\
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
 	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* Save r11 */	\
-	set_bip;	/*equalize initial state for all possible entries*/\
-	clear_eip;							\
-	set_ee;								\
 	/* See if already in kernel mode.*/				\
 	mfs	r11, rmsr;						\
 	nop;								\
@@ -569,7 +566,7 @@ C_ENTRY(full_exception_trap):
 	nop
 	addik	r12, r0, full_exception
 	set_vms;
-	rtbd	r12, 0;
+	rted	r12, 0;
 	nop;
 
 /*
@@ -583,6 +580,17 @@ C_ENTRY(full_exception_trap):
  * The assembler routine is in "arch/microblaze/kernel/hw_exception_handler.S"
  */
 C_ENTRY(unaligned_data_trap):
+	/* MS: I have to save r11 value and then restore it because
+	 * set_bit, clear_eip, set_ee use r11 as temp register if MSR
+	 * instructions are not used. We don't need to do if MSR instructions
+	 * are used and they use r0 instead of r11.
+	 * I am using ENTRY_SP which should be primary used only for stack
+	 * pointer saving. */
+	swi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
+	set_bip;        /* equalize initial state for all possible entries */
+	clear_eip;
+	set_ee;
+	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
@@ -625,7 +633,7 @@ C_ENTRY(page_fault_data_trap):
 	nop
 	addik	r12, r0, do_page_fault
 	set_vms;
-	rtbd	r12, 0;	/* interrupts enabled */
+	rted	r12, 0;	/* interrupts enabled */
 	nop;
 
 C_ENTRY(page_fault_instr_trap):
@@ -638,7 +646,7 @@ C_ENTRY(page_fault_instr_trap):
 	ori	r7, r0, 0		/* parameter unsigned long error_code */
 	addik	r12, r0, do_page_fault
 	set_vms;
-	rtbd	r12, 0;	/* interrupts enabled */
+	rted	r12, 0;	/* interrupts enabled */
 	nop;
 
 /* Entry point used to return from an exception.  */
