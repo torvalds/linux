@@ -9,6 +9,7 @@
 #include <linux/of.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>
+#include <linux/of_irq.h>
 #include <linux/of_spi.h>
 
 /**

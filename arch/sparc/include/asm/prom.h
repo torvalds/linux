@@ -56,7 +56,6 @@ extern void of_fill_in_cpu_data(void);
  * register them in the of_device objects, whereas powerpc computes them
  * on request.
  */
-extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
 static inline void irq_dispose_mapping(unsigned int virq)
 {
 }

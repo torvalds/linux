@@ -20,6 +20,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
+#include <linux/of_irq.h>
 #include <linux/of_fdt.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
@@ -92,18 +93,6 @@ extern const void *of_get_mac_address(struct device_node *np);
  * OF interrupt mapping
  */
 
-/* This structure is returned when an interrupt is mapped. The controller
- * field needs to be put() after use
- */
-
-#define OF_MAX_IRQ_SPEC		4 /* We handle specifiers of at most 4 cells */
-
-struct of_irq {
-	struct device_node *controller; /* Interrupt controller node */
-	u32 size; /* Specifier size */
-	u32 specifier[OF_MAX_IRQ_SPEC]; /* Specifier copy */
-};
-
 /**
  * of_irq_map_init - Initialize the irq remapper
  * @flags:	flags defining workarounds to enable
@@ -136,19 +125,6 @@ extern void of_irq_map_init(unsigned int flags);
 
 extern int of_irq_map_raw(struct device_node *parent, const u32 *intspec,
 			u32 ointsize, const u32 *addr,
-			struct of_irq *out_irq);
-
-/**
- * of_irq_map_one - Resolve an interrupt for a device
- * @device:	the device whose interrupt is to be resolved
- * @index:	index of the interrupt to resolve
- * @out_irq:	structure of_irq filled by this function
- *
- * This function resolves an interrupt, walking the tree, for a given
- * device-tree node. It's the high level pendant to of_irq_map_raw().
- * It also implements the workarounds for OldWolrd Macs.
- */
-extern int of_irq_map_one(struct device_node *device, int index,
 			struct of_irq *out_irq);
 
 /**

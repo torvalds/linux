@@ -6,6 +6,10 @@ config OF_DYNAMIC
 	def_bool y
 	depends on OF && PPC_OF
 
+config OF_IRQ
+	def_bool y
+	depends on OF && !SPARC
+
 config OF_DEVICE
 	def_bool y
 	depends on OF && (SPARC || PPC_OF || MICROBLAZE)
