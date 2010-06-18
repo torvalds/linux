@@ -537,6 +537,15 @@ void iwl_bg_scan_completed(struct work_struct *work)
 	/* Since setting the TXPOWER may have been deferred while
 	 * performing the scan, fire one off */
 	iwl_set_tx_power(priv, priv->tx_power_user_lmt, true);
+
+	/*
+	 * Since setting the RXON may have been deferred while
+	 * performing the scan, fire one off if needed
+	 */
+	if (memcmp(&priv->active_rxon,
+		   &priv->staging_rxon, sizeof(priv->staging_rxon)))
+		iwlcore_commit_rxon(priv);
+
  out:
 	mutex_unlock(&priv->mutex);
 

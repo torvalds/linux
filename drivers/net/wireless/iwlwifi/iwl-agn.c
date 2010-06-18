@@ -3368,6 +3368,25 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
+/*
+ * switch to RTS/CTS for TX
+ */
+static void iwl_enable_rts_cts(struct iwl_priv *priv)
+{
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	priv->staging_rxon.flags &= ~RXON_FLG_SELF_CTS_EN;
+	if (!test_bit(STATUS_SCANNING, &priv->status)) {
+		IWL_DEBUG_INFO(priv, "use RTS/CTS protection\n");
+		iwlcore_commit_rxon(priv);
+	} else {
+		/* scanning, defer the request until scan completed */
+		IWL_DEBUG_INFO(priv, "defer setting RTS/CTS protection\n");
+	}
+}
+
 static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				enum ieee80211_ampdu_mlme_action action,
@@ -3416,7 +3435,14 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			ret = 0;
 		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		/* do nothing, return value ignored */
+		if (priv->cfg->use_rts_for_ht) {
+			/*
+			 * switch to RTS/CTS if it is the prefer protection
+			 * method for HT traffic
+			 */
+			iwl_enable_rts_cts(priv);
+		}
+		ret = 0;
 		break;
 	}
 	mutex_unlock(&priv->mutex);
