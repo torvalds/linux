@@ -32,7 +32,7 @@ static const s32 Angles[] = {
     FIXED(DEG2RAD(0.111906)), FIXED(DEG2RAD(0.055953)), FIXED(DEG2RAD(0.027977))
 };
 
-/****************** LOCAL FUNCTION DECLARATION SECTION **********************
+/****************** LOCAL FUNCTION DECLARATION SECTION **********************/
 
 /*
  * void    _phy_rf_write_delay(struct hw_data *phw_data);
@@ -142,7 +142,6 @@ u32 _s32_to_s6(s32 data)
         data = 31;
     else if (data < -32)
         data = -32;
-    }
 
     val = data & 0x003F;
 
@@ -1496,7 +1495,7 @@ void phy_calibration_winbond(struct hw_data *phw_data, u32 frequency)
 /******************/
 void phy_set_rf_data(struct hw_data *pHwData, u32 index, u32 value)
 {
-   u32 ltmpi = 0;
+   u32 ltmp = 0;
 
     switch (pHwData->phy_type) {
     case RF_MAXIM_2825:
