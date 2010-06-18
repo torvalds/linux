@@ -1033,7 +1033,9 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	else
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
 
-	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND)) {
+	if (drbd_md_test_flag(mdev->ldev, MDF_PRIMARY_IND) &&
+	    !(mdev->state.role == R_PRIMARY && mdev->state.susp &&
+	      mdev->sync_conf.on_no_data == OND_SUSPEND_IO)) {
 		set_bit(CRASHED_PRIMARY, &mdev->flags);
 		cp_discovered = 1;
 	}
