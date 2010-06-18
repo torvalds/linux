@@ -1360,11 +1360,10 @@ fec_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-
 static int
-fec_suspend(struct platform_device *dev, pm_message_t state)
+fec_suspend(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep;
 
 	if (ndev) {
@@ -1377,9 +1376,9 @@ fec_suspend(struct platform_device *dev, pm_message_t state)
 }
 
 static int
-fec_resume(struct platform_device *dev)
+fec_resume(struct device *dev)
 {
-	struct net_device *ndev = platform_get_drvdata(dev);
+	struct net_device *ndev = dev_get_drvdata(dev);
 	struct fec_enet_private *fep;
 
 	if (ndev) {
@@ -1399,23 +1398,18 @@ static const struct dev_pm_ops fec_pm_ops = {
 	.poweroff	= fec_suspend,
 	.restore	= fec_resume,
 };
-
-#define FEC_PM_OPS (&fec_pm_ops)
-
-#else /* !CONFIG_PM */
-
-#define FEC_PM_OPS NULL
-
-#endif /* !CONFIG_PM */
+#endif
 
 static struct platform_driver fec_driver = {
 	.driver	= {
-		.name    = "fec",
-		.owner	 = THIS_MODULE,
-		.pm		 = FEC_PM_OPS,
+		.name	= "fec",
+		.owner	= THIS_MODULE,
+#ifdef CONFIG_PM
+		.pm	= &fec_pm_ops,
+#endif
 	},
-	.probe   = fec_probe,
-	.remove  = __devexit_p(fec_drv_remove),
+	.probe	= fec_probe,
+	.remove	= __devexit_p(fec_drv_remove),
 };
 
 static int __init
