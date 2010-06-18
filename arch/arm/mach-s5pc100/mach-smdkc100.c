@@ -157,11 +157,8 @@ static struct s3c_ide_platdata smdkc100_ide_pdata __initdata = {
 };
 
 static struct platform_device *smdkc100_devices[] __initdata = {
-<<<<<<< HEAD:arch/arm/mach-s5pc100/mach-smdkc100.c
-	&s3c_device_cfcon,
-=======
 	&s3c_device_adc,
->>>>>>> c1b6d71... ARM: S5PC100: Add Touchscreen support.:arch/arm/mach-s5pc100/mach-smdkc100.c
+	&s3c_device_cfcon,
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_fb,
@@ -169,6 +166,7 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&s3c_device_ts,
+	&s3c_device_wdt,
 	&smdkc100_lcd_powerdev,
 	&s5pc100_device_iis0,
 	&s5pc100_device_ac97,
