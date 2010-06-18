@@ -262,7 +262,8 @@ struct uvc_control {
 	     modified : 1,
 	     cached : 1;
 
-	__u8 *data;
+	__u8 *uvc_data;
+	__u8 *uvc_info;
 };
 
 struct uvc_format_desc {

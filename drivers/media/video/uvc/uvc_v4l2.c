@@ -1028,6 +1028,9 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 
+		if (xinfo->size == 0)
+			return -EINVAL;
+
 		info = kzalloc(sizeof *info, GFP_KERNEL);
 		if (info == NULL)
 			return -ENOMEM;
