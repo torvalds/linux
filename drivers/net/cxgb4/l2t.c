@@ -310,6 +310,13 @@ static void t4_l2e_free(struct l2t_entry *e)
 			neigh_release(e->neigh);
 			e->neigh = NULL;
 		}
+		while (e->arpq_head) {
+			struct sk_buff *skb = e->arpq_head;
+
+			e->arpq_head = skb->next;
+			kfree(skb);
+		}
+		e->arpq_tail = NULL;
 	}
 	spin_unlock_bh(&e->lock);
 

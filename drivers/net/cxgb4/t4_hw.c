@@ -221,6 +221,13 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	if ((size & 15) || size > MBOX_LEN)
 		return -EINVAL;
 
+	/*
+	 * If the device is off-line, as in EEH, commands will time out.
+	 * Fail them early so we don't waste time waiting.
+	 */
+	if (adap->pdev->error_state != pci_channel_io_normal)
+		return -EIO;
+
 	v = MBOWNER_GET(t4_read_reg(adap, ctl_reg));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_GET(t4_read_reg(adap, ctl_reg));
@@ -3045,7 +3052,7 @@ static void __devinit init_link_config(struct link_config *lc,
 	}
 }
 
-static int __devinit wait_dev_ready(struct adapter *adap)
+int t4_wait_dev_ready(struct adapter *adap)
 {
 	if (t4_read_reg(adap, PL_WHOAMI) != 0xffffffff)
 		return 0;
@@ -3093,7 +3100,7 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 {
 	int ret;
 
-	ret = wait_dev_ready(adapter);
+	ret = t4_wait_dev_ready(adapter);
 	if (ret < 0)
 		return ret;
 

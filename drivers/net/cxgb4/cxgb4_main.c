@@ -2483,6 +2483,7 @@ static void cxgb_down(struct adapter *adapter)
 	t4_intr_disable(adapter);
 	cancel_work_sync(&adapter->tid_release_task);
 	adapter->tid_release_task_busy = false;
+	adapter->tid_release_head = NULL;
 
 	if (adapter->flags & USING_MSIX) {
 		free_msix_queue_irqs(adapter);
@@ -2907,6 +2908,108 @@ bye:	if (ret != -ETIMEDOUT && ret != -EIO)
 	return ret;
 }
 
+/* EEH callbacks */
+
+static pci_ers_result_t eeh_err_detected(struct pci_dev *pdev,
+					 pci_channel_state_t state)
+{
+	int i;
+	struct adapter *adap = pci_get_drvdata(pdev);
+
+	if (!adap)
+		goto out;
+
+	rtnl_lock();
+	adap->flags &= ~FW_OK;
+	notify_ulds(adap, CXGB4_STATE_START_RECOVERY);
+	for_each_port(adap, i) {
+		struct net_device *dev = adap->port[i];
+
+		netif_device_detach(dev);
+		netif_carrier_off(dev);
+	}
+	if (adap->flags & FULL_INIT_DONE)
+		cxgb_down(adap);
+	rtnl_unlock();
+	pci_disable_device(pdev);
+out:	return state == pci_channel_io_perm_failure ?
+		PCI_ERS_RESULT_DISCONNECT : PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t eeh_slot_reset(struct pci_dev *pdev)
+{
+	int i, ret;
+	struct fw_caps_config_cmd c;
+	struct adapter *adap = pci_get_drvdata(pdev);
+
+	if (!adap) {
+		pci_restore_state(pdev);
+		pci_save_state(pdev);
+		return PCI_ERS_RESULT_RECOVERED;
+	}
+
+	if (pci_enable_device(pdev)) {
+		dev_err(&pdev->dev, "cannot reenable PCI device after reset\n");
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	pci_set_master(pdev);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+
+	if (t4_wait_dev_ready(adap) < 0)
+		return PCI_ERS_RESULT_DISCONNECT;
+	if (t4_fw_hello(adap, 0, 0, MASTER_MUST, NULL))
+		return PCI_ERS_RESULT_DISCONNECT;
+	adap->flags |= FW_OK;
+	if (adap_init1(adap, &c))
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	for_each_port(adap, i) {
+		struct port_info *p = adap2pinfo(adap, i);
+
+		ret = t4_alloc_vi(adap, 0, p->tx_chan, 0, 0, 1, NULL, NULL);
+		if (ret < 0)
+			return PCI_ERS_RESULT_DISCONNECT;
+		p->viid = ret;
+		p->xact_addr_filt = -1;
+	}
+
+	t4_load_mtus(adap, adap->params.mtus, adap->params.a_wnd,
+		     adap->params.b_wnd);
+	if (cxgb_up(adap))
+		return PCI_ERS_RESULT_DISCONNECT;
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void eeh_resume(struct pci_dev *pdev)
+{
+	int i;
+	struct adapter *adap = pci_get_drvdata(pdev);
+
+	if (!adap)
+		return;
+
+	rtnl_lock();
+	for_each_port(adap, i) {
+		struct net_device *dev = adap->port[i];
+
+		if (netif_running(dev)) {
+			link_start(dev);
+			cxgb_set_rxmode(dev);
+		}
+		netif_device_attach(dev);
+	}
+	rtnl_unlock();
+}
+
+static struct pci_error_handlers cxgb4_eeh = {
+	.error_detected = eeh_err_detected,
+	.slot_reset     = eeh_slot_reset,
+	.resume         = eeh_resume,
+};
+
 static inline bool is_10g_port(const struct link_config *lc)
 {
 	return (lc->supported & FW_PORT_CAP_SPEED_10G) != 0;
@@ -3154,8 +3257,10 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 	/* We control everything through PF 0 */
 	func = PCI_FUNC(pdev->devfn);
-	if (func > 0)
+	if (func > 0) {
+		pci_save_state(pdev);        /* to restore SR-IOV later */
 		goto sriov;
+	}
 
 	err = pci_enable_device(pdev);
 	if (err) {
@@ -3396,6 +3501,7 @@ static struct pci_driver cxgb4_driver = {
 	.id_table = cxgb4_pci_tbl,
 	.probe    = init_one,
 	.remove   = __devexit_p(remove_one),
+	.err_handler = &cxgb4_eeh,
 };
 
 static int __init cxgb4_init_module(void)
