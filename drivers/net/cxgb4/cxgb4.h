@@ -309,7 +309,6 @@ enum {                                 /* adapter flags */
 	FULL_INIT_DONE     = (1 << 0),
 	USING_MSI          = (1 << 1),
 	USING_MSIX         = (1 << 2),
-	QUEUES_BOUND       = (1 << 3),
 	FW_OK              = (1 << 4),
 };
 

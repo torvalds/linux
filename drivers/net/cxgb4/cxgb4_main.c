@@ -2758,8 +2758,8 @@ static int adap_init1(struct adapter *adap, struct fw_caps_config_cmd *c)
 	if (ret < 0)
 		return ret;
 
-	ret = t4_cfg_pfvf(adap, 0, 0, 0, 64, 64, 64, 0, 0, 4, 0xf, 0xf, 16,
-			  FW_CMD_CAP_PF, FW_CMD_CAP_PF);
+	ret = t4_cfg_pfvf(adap, 0, 0, 0, MAX_EGRQ, 64, MAX_INGQ, 0, 0, 4,
+			  0xf, 0xf, 16, FW_CMD_CAP_PF, FW_CMD_CAP_PF);
 	if (ret < 0)
 		return ret;
 
