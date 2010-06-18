@@ -834,7 +834,7 @@ init_i2c_device_find(struct drm_device *dev, int i2c_index)
 	if (i2c_index == 0x81)
 		i2c_index = (dcb->i2c_default_indices & 0xf0) >> 4;
 
-	if (i2c_index > DCB_MAX_NUM_I2C_ENTRIES) {
+	if (i2c_index >= DCB_MAX_NUM_I2C_ENTRIES) {
 		NV_ERROR(dev, "invalid i2c_index 0x%x\n", i2c_index);
 		return NULL;
 	}
@@ -3920,7 +3920,8 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 
 static uint8_t *
 bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
-			 uint16_t record, int record_len, int record_nr)
+			 uint16_t record, int record_len, int record_nr,
+			 bool match_link)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
@@ -3928,11 +3929,27 @@ bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
 	uint16_t table;
 	int i, v;
 
+	switch (dcbent->type) {
+	case OUTPUT_TMDS:
+	case OUTPUT_LVDS:
+	case OUTPUT_DP:
+		break;
+	default:
+		match_link = false;
+		break;
+	}
+
 	for (i = 0; i < record_nr; i++, record += record_len) {
 		table = ROM16(bios->data[record]);
 		if (!table)
 			continue;
 		entry = ROM32(bios->data[table]);
+
+		if (match_link) {
+			v = (entry & 0x00c00000) >> 22;
+			if (!(v & dcbent->sorconf.link))
+				continue;
+		}
 
 		v = (entry & 0x000f0000) >> 16;
 		if (!(v & dcbent->or))
@@ -3975,7 +3992,7 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	*length = table[4];
 	return bios_output_config_match(dev, dcbent,
 					bios->display.dp_table_ptr + table[1],
-					table[2], table[3]);
+					table[2], table[3], table[0] >= 0x21);
 }
 
 int
@@ -4064,7 +4081,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 			dcbent->type, dcbent->location, dcbent->or);
 	otable = bios_output_config_match(dev, dcbent, table[1] +
 					  bios->display.script_table_ptr,
-					  table[2], table[3]);
+					  table[2], table[3], table[0] >= 0x21);
 	if (!otable) {
 		NV_ERROR(dev, "Couldn't find matching output script table\n");
 		return 1;

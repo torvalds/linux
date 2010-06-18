@@ -622,6 +622,11 @@ static int sil24_exec_polled_cmd(struct ata_port *ap, int pmp,
 	irq_enabled = readl(port + PORT_IRQ_ENABLE_SET);
 	writel(PORT_IRQ_COMPLETE | PORT_IRQ_ERROR, port + PORT_IRQ_ENABLE_CLR);
 
+	/*
+	 * The barrier is required to ensure that writes to cmd_block reach
+	 * the memory before the write to PORT_CMD_ACTIVATE.
+	 */
+	wmb();
 	writel((u32)paddr, port + PORT_CMD_ACTIVATE);
 	writel((u64)paddr >> 32, port + PORT_CMD_ACTIVATE + 4);
 
@@ -865,7 +870,7 @@ static void sil24_qc_prep(struct ata_queued_cmd *qc)
 	} else {
 		prb = &cb->atapi.prb;
 		sge = cb->atapi.sge;
-		memset(cb->atapi.cdb, 0, 32);
+		memset(cb->atapi.cdb, 0, sizeof(cb->atapi.cdb));
 		memcpy(cb->atapi.cdb, qc->cdb, qc->dev->cdb_len);
 
 		if (ata_is_data(qc->tf.protocol)) {
@@ -895,6 +900,11 @@ static unsigned int sil24_qc_issue(struct ata_queued_cmd *qc)
 	paddr = pp->cmd_block_dma + tag * sizeof(*pp->cmd_block);
 	activate = port + PORT_CMD_ACTIVATE + tag * 8;
 
+	/*
+	 * The barrier is required to ensure that writes to cmd_block reach
+	 * the memory before the write to PORT_CMD_ACTIVATE.
+	 */
+	wmb();
 	writel((u32)paddr, activate);
 	writel((u64)paddr >> 32, activate + 4);
 

@@ -1745,7 +1745,12 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 	if (symbol_conf.vmlinux_name != NULL) {
 		err = dso__load_vmlinux(self, map,
 					symbol_conf.vmlinux_name, filter);
-		goto out_try_fixup;
+		if (err > 0) {
+			dso__set_long_name(self,
+					   strdup(symbol_conf.vmlinux_name));
+			goto out_fixup;
+		}
+		return err;
 	}
 
 	if (vmlinux_path != NULL) {
@@ -1806,7 +1811,6 @@ do_kallsyms:
 		pr_debug("Using %s for symbols\n", kallsyms_filename);
 	free(kallsyms_allocated_filename);
 
-out_try_fixup:
 	if (err > 0) {
 out_fixup:
 		if (kallsyms_filename != NULL)

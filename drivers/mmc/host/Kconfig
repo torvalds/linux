@@ -249,7 +249,7 @@ config MMC_IMX
 
 config MMC_MSM7X00A
 	tristate "Qualcomm MSM 7X00A SDCC Controller Support"
-	depends on MMC && ARCH_MSM
+	depends on MMC && ARCH_MSM && !ARCH_MSM7X30
 	help
 	  This provides support for the SD/MMC cell found in the
           MSM 7X00A controllers from Qualcomm.
