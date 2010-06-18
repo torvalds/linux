@@ -237,6 +237,7 @@ int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
 							int proto_version);
 struct p9_wstat *p9_client_stat(struct p9_fid *fid);
 int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
+int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *attr);
 
 struct p9_stat_dotl *p9_client_getattr_dotl(struct p9_fid *fid,
 							u64 request_mask);

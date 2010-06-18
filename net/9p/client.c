@@ -1426,6 +1426,36 @@ error:
 }
 EXPORT_SYMBOL(p9_client_wstat);
 
+int p9_client_setattr(struct p9_fid *fid, struct p9_iattr_dotl *p9attr)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	err = 0;
+	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TSETATTR fid %d\n", fid->fid);
+	P9_DPRINTK(P9_DEBUG_9P,
+		"    valid=%x mode=%x uid=%d gid=%d size=%lld\n"
+		"    atime_sec=%lld atime_nsec=%lld\n"
+		"    mtime_sec=%lld mtime_nsec=%lld\n",
+		p9attr->valid, p9attr->mode, p9attr->uid, p9attr->gid,
+		p9attr->size, p9attr->atime_sec, p9attr->atime_nsec,
+		p9attr->mtime_sec, p9attr->mtime_nsec);
+
+	req = p9_client_rpc(clnt, P9_TSETATTR, "dI", fid->fid, p9attr);
+
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RSETATTR fid %d\n", fid->fid);
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_setattr);
+
 int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb)
 {
 	int err;

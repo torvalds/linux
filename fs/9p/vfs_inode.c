@@ -977,6 +977,49 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 }
 
 /**
+ * v9fs_vfs_setattr_dotl - set file metadata
+ * @dentry: file whose metadata to set
+ * @iattr: metadata assignment structure
+ *
+ */
+
+static int v9fs_vfs_setattr_dotl(struct dentry *dentry, struct iattr *iattr)
+{
+	int retval;
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid;
+	struct p9_iattr_dotl p9attr;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "\n");
+
+	retval = inode_change_ok(dentry->d_inode, iattr);
+	if (retval)
+		return retval;
+
+	p9attr.valid = iattr->ia_valid;
+	p9attr.mode = iattr->ia_mode;
+	p9attr.uid = iattr->ia_uid;
+	p9attr.gid = iattr->ia_gid;
+	p9attr.size = iattr->ia_size;
+	p9attr.atime_sec = iattr->ia_atime.tv_sec;
+	p9attr.atime_nsec = iattr->ia_atime.tv_nsec;
+	p9attr.mtime_sec = iattr->ia_mtime.tv_sec;
+	p9attr.mtime_nsec = iattr->ia_mtime.tv_nsec;
+
+	retval = -EPERM;
+	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+
+	retval = p9_client_setattr(fid, &p9attr);
+	if (retval >= 0)
+		retval = inode_setattr(dentry->d_inode, iattr);
+
+	return retval;
+}
+
+/**
  * v9fs_stat2inode - populate an inode structure with mistat info
  * @stat: Plan 9 metadata (mistat) structure
  * @inode: inode to populate
@@ -1400,7 +1443,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.mknod = v9fs_vfs_mknod,
 	.rename = v9fs_vfs_rename,
 	.getattr = v9fs_vfs_getattr_dotl,
-	.setattr = v9fs_vfs_setattr,
+	.setattr = v9fs_vfs_setattr_dotl,
 };
 
 static const struct inode_operations v9fs_dir_inode_operations = {
@@ -1422,7 +1465,7 @@ static const struct inode_operations v9fs_file_inode_operations = {
 
 static const struct inode_operations v9fs_file_inode_operations_dotl = {
 	.getattr = v9fs_vfs_getattr_dotl,
-	.setattr = v9fs_vfs_setattr,
+	.setattr = v9fs_vfs_setattr_dotl,
 };
 
 static const struct inode_operations v9fs_symlink_inode_operations = {
@@ -1438,5 +1481,5 @@ static const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.follow_link = v9fs_vfs_follow_link,
 	.put_link = v9fs_vfs_put_link,
 	.getattr = v9fs_vfs_getattr_dotl,
-	.setattr = v9fs_vfs_setattr,
+	.setattr = v9fs_vfs_setattr_dotl,
 };

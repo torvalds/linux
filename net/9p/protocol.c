@@ -516,6 +516,23 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				}
 			}
 			break;
+		case 'I':{
+				struct p9_iattr_dotl *p9attr = va_arg(ap,
+							struct p9_iattr_dotl *);
+
+				errcode = p9pdu_writef(pdu, proto_version,
+							"ddddqqqqq",
+							p9attr->valid,
+							p9attr->mode,
+							p9attr->uid,
+							p9attr->gid,
+							p9attr->size,
+							p9attr->atime_sec,
+							p9attr->atime_nsec,
+							p9attr->mtime_sec,
+							p9attr->mtime_nsec);
+			}
+			break;
 		case '?':
 			if ((proto_version != p9_proto_2000u) &&
 				(proto_version != p9_proto_2000L))

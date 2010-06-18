@@ -135,6 +135,8 @@ enum p9_msg_t {
 	P9_RRENAME,
 	P9_TGETATTR = 24,
 	P9_RGETATTR,
+	P9_TSETATTR = 26,
+	P9_RSETATTR,
 	P9_TREADDIR = 40,
 	P9_RREADDIR,
 	P9_TVERSION = 100,
@@ -405,6 +407,32 @@ struct p9_stat_dotl {
 
 #define P9_STATS_BASIC		0x000007ffULL /* Mask for fields up to BLOCKS */
 #define P9_STATS_ALL		0x00003fffULL /* Mask for All fields above */
+
+/**
+ * struct p9_iattr_dotl - P9 inode attribute for setattr
+ * @valid: bitfield specifying which fields are valid
+ *         same as in struct iattr
+ * @mode: File permission bits
+ * @uid: user id of owner
+ * @gid: group id
+ * @size: File size
+ * @atime_sec: Last access time, seconds
+ * @atime_nsec: Last access time, nanoseconds
+ * @mtime_sec: Last modification time, seconds
+ * @mtime_nsec: Last modification time, nanoseconds
+ */
+
+struct p9_iattr_dotl {
+	u32 valid;
+	u32 mode;
+	u32 uid;
+	u32 gid;
+	u64 size;
+	u64 atime_sec;
+	u64 atime_nsec;
+	u64 mtime_sec;
+	u64 mtime_nsec;
+};
 
 /* Structures for Protocol Operations */
 struct p9_tstatfs {
