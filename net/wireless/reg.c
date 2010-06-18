@@ -2630,7 +2630,7 @@ out:
 	mutex_unlock(&reg_mutex);
 }
 
-int regulatory_init(void)
+int __init regulatory_init(void)
 {
 	int err = 0;
 
@@ -2676,7 +2676,7 @@ int regulatory_init(void)
 	return 0;
 }
 
-void regulatory_exit(void)
+void /* __init_or_exit */ regulatory_exit(void)
 {
 	struct regulatory_request *reg_request, *tmp;
 	struct reg_beacon *reg_beacon, *btmp;
