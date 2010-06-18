@@ -1135,6 +1135,38 @@ void blk_put_request(struct request *req)
 }
 EXPORT_SYMBOL(blk_put_request);
 
+/**
+ * blk_add_request_payload - add a payload to a request
+ * @rq: request to update
+ * @page: page backing the payload
+ * @len: length of the payload.
+ *
+ * This allows to later add a payload to an already submitted request by
+ * a block driver.  The driver needs to take care of freeing the payload
+ * itself.
+ *
+ * Note that this is a quite horrible hack and nothing but handling of
+ * discard requests should ever use it.
+ */
+void blk_add_request_payload(struct request *rq, struct page *page,
+		unsigned int len)
+{
+	struct bio *bio = rq->bio;
+
+	bio->bi_io_vec->bv_page = page;
+	bio->bi_io_vec->bv_offset = 0;
+	bio->bi_io_vec->bv_len = len;
+
+	bio->bi_size = len;
+	bio->bi_vcnt = 1;
+	bio->bi_phys_segments = 1;
+
+	rq->__data_len = rq->resid_len = len;
+	rq->nr_phys_segments = 1;
+	rq->buffer = bio_data(bio);
+}
+EXPORT_SYMBOL_GPL(blk_add_request_payload);
+
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
 	req->cpu = bio->bi_comp_cpu;

@@ -411,22 +411,25 @@ static void sd_prot_op(struct scsi_cmnd *scmd, unsigned int dif)
 }
 
 /**
- * sd_prepare_discard - unmap blocks on thinly provisioned device
+ * scsi_setup_discard_cmnd - unmap blocks on thinly provisioned device
+ * @sdp: scsi device to operate one
  * @rq: Request to prepare
  *
  * Will issue either UNMAP or WRITE SAME(16) depending on preference
  * indicated by target device.
  **/
-static int sd_prepare_discard(struct request *rq)
+static int scsi_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 {
 	struct scsi_disk *sdkp = scsi_disk(rq->rq_disk);
 	struct bio *bio = rq->bio;
 	sector_t sector = bio->bi_sector;
-	unsigned int num = bio_sectors(bio);
+	unsigned int nr_sectors = bio_sectors(bio);
+	unsigned int len;
+	struct page *page;
 
 	if (sdkp->device->sector_size == 4096) {
 		sector >>= 3;
-		num >>= 3;
+		nr_sectors >>= 3;
 	}
 
 	rq->cmd_type = REQ_TYPE_BLOCK_PC;
@@ -434,31 +437,35 @@ static int sd_prepare_discard(struct request *rq)
 
 	memset(rq->cmd, 0, rq->cmd_len);
 
-	if (sdkp->unmap) {
-		char *buf = kmap_atomic(bio_page(bio), KM_USER0);
+	page = alloc_page(GFP_ATOMIC | __GFP_ZERO);
+	if (!page)
+		return BLKPREP_DEFER;
 
+	if (sdkp->unmap) {
+		char *buf = page_address(page);
+
+		rq->cmd_len = 10;
 		rq->cmd[0] = UNMAP;
 		rq->cmd[8] = 24;
-		rq->cmd_len = 10;
-
-		/* Ensure that data length matches payload */
-		rq->__data_len = bio->bi_size = bio->bi_io_vec->bv_len = 24;
 
 		put_unaligned_be16(6 + 16, &buf[0]);
 		put_unaligned_be16(16, &buf[2]);
 		put_unaligned_be64(sector, &buf[8]);
-		put_unaligned_be32(num, &buf[16]);
+		put_unaligned_be32(nr_sectors, &buf[16]);
 
-		kunmap_atomic(buf, KM_USER0);
+		len = 24;
 	} else {
+		rq->cmd_len = 16;
 		rq->cmd[0] = WRITE_SAME_16;
 		rq->cmd[1] = 0x8; /* UNMAP */
 		put_unaligned_be64(sector, &rq->cmd[2]);
-		put_unaligned_be32(num, &rq->cmd[10]);
-		rq->cmd_len = 16;
+		put_unaligned_be32(nr_sectors, &rq->cmd[10]);
+
+		len = sdkp->device->sector_size;
 	}
 
-	return BLKPREP_OK;
+	blk_add_request_payload(rq, page, len);
+	return scsi_setup_blk_pc_cmnd(sdp, rq);
 }
 
 /**
@@ -485,10 +492,10 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	 * Discard request come in as REQ_TYPE_FS but we turn them into
 	 * block PC requests to make life easier.
 	 */
-	if (rq->cmd_flags & REQ_DISCARD)
-		ret = sd_prepare_discard(rq);
-
-	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
+	if (rq->cmd_flags & REQ_DISCARD) {
+		ret = scsi_setup_discard_cmnd(sdp, rq);
+		goto out;
+	} else if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		ret = scsi_setup_blk_pc_cmnd(sdp, rq);
 		goto out;
 	} else if (rq->cmd_type != REQ_TYPE_FS) {
@@ -1162,6 +1169,15 @@ static int sd_done(struct scsi_cmnd *SCpnt)
 	struct scsi_disk *sdkp = scsi_disk(SCpnt->request->rq_disk);
 	int sense_valid = 0;
 	int sense_deferred = 0;
+
+	/*
+	 * If this is a discard request that originated from the kernel
+	 * we need to free our payload here.  Note that we need to check
+	 * the request flag as the normal payload rules apply for
+	 * pass-through UNMAP / WRITE SAME requests.
+	 */
+	if (SCpnt->request->cmd_flags & REQ_DISCARD)
+		__free_page(bio_page(SCpnt->request->bio));
 
 	if (result) {
 		sense_valid = scsi_command_normalize_sense(SCpnt, &sshdr);

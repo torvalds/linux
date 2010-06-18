@@ -705,6 +705,8 @@ extern struct request *blk_make_request(struct request_queue *, struct bio *,
 					gfp_t);
 extern void blk_insert_request(struct request_queue *, struct request *, int, void *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
+extern void blk_add_request_payload(struct request *rq, struct page *page,
+		unsigned int len);
 extern int blk_rq_check_limits(struct request_queue *q, struct request *rq);
 extern int blk_lld_busy(struct request_queue *q);
 extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
