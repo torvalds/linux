@@ -694,7 +694,6 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 fail2:
 	iio_device_unregister(chip->indio_dev);
 fail1:
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return err;
 }
@@ -705,7 +704,6 @@ static int tsl2563_remove(struct i2c_client *client)
 
 	iio_device_unregister(chip->indio_dev);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return 0;
 }

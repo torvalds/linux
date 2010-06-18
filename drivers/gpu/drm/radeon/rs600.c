@@ -74,7 +74,8 @@ void rs600_pm_misc(struct radeon_device *rdev)
 			if (voltage->delay)
 				udelay(voltage->delay);
 		}
-	}
+	} else if (voltage->type == VOLTAGE_VDDC)
+		radeon_atom_set_voltage(rdev, voltage->vddc_id);
 
 	dyn_pwrmgt_sclk_length = RREG32_PLL(DYN_PWRMGT_SCLK_LENGTH);
 	dyn_pwrmgt_sclk_length &= ~REDUCED_POWER_SCLK_HILEN(0xf);

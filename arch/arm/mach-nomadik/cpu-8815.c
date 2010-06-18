@@ -31,6 +31,8 @@
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 
+#include "clock.h"
+
 #define __MEM_4K_RESOURCE(x) \
 	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
 
@@ -143,6 +145,12 @@ void __init cpu8815_init_irq(void)
 	/* This modified VIC cell has two register blocks, at 0 and 0x20 */
 	vic_init(io_p2v(NOMADIK_IC_BASE + 0x00), IRQ_VIC_START +  0, ~0, 0);
 	vic_init(io_p2v(NOMADIK_IC_BASE + 0x20), IRQ_VIC_START + 32, ~0, 0);
+
+	/*
+	 * Init clocks here so that they are available for system timer
+	 * initialization.
+	 */
+	clk_init();
 }
 
 /*

@@ -173,7 +173,7 @@ static irqreturn_t stylus_irq(int irq, void *dev_id)
 	if (down)
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
 	else
-		dev_info(ts.dev, "%s: count=%d\n", __func__, ts.count);
+		dev_dbg(ts.dev, "%s: count=%d\n", __func__, ts.count);
 
 	if (ts.features & FEAT_PEN_IRQ) {
 		/* Clear pen down/up interrupt */

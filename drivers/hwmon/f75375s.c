@@ -662,7 +662,6 @@ exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 exit_free:
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 	return err;
 }
 
@@ -672,7 +671,6 @@ static int f75375_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

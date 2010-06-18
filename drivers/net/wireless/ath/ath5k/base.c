@@ -195,7 +195,7 @@ static const struct ieee80211_rate ath5k_rates[] = {
 static int __devinit	ath5k_pci_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id);
 static void __devexit	ath5k_pci_remove(struct pci_dev *pdev);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int		ath5k_pci_suspend(struct device *dev);
 static int		ath5k_pci_resume(struct device *dev);
 
@@ -203,7 +203,7 @@ static SIMPLE_DEV_PM_OPS(ath5k_pm_ops, ath5k_pci_suspend, ath5k_pci_resume);
 #define ATH5K_PM_OPS	(&ath5k_pm_ops)
 #else
 #define ATH5K_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver ath5k_pci_driver = {
 	.name		= KBUILD_MODNAME,
@@ -222,7 +222,6 @@ static int ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 		struct ath5k_txq *txq);
 static int ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan);
-static int ath5k_reset_wake(struct ath5k_softc *sc);
 static int ath5k_start(struct ieee80211_hw *hw);
 static void ath5k_stop(struct ieee80211_hw *hw);
 static int ath5k_add_interface(struct ieee80211_hw *hw,
@@ -709,7 +708,7 @@ ath5k_pci_remove(struct pci_dev *pdev)
 	ieee80211_free_hw(hw);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ath5k_pci_suspend(struct device *dev)
 {
 	struct ieee80211_hw *hw = pci_get_drvdata(to_pci_dev(dev));
@@ -735,7 +734,7 @@ static int ath5k_pci_resume(struct device *dev)
 	ath5k_led_enable(sc);
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 
 /***********************\
@@ -2770,7 +2769,7 @@ ath5k_tasklet_reset(unsigned long data)
 {
 	struct ath5k_softc *sc = (void *)data;
 
-	ath5k_reset_wake(sc);
+	ath5k_reset(sc, sc->curchan);
 }
 
 /*
@@ -2941,20 +2940,10 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	ath5k_beacon_config(sc);
 	/* intrs are enabled by ath5k_beacon_config */
 
+	ieee80211_wake_queues(sc->hw);
+
 	return 0;
 err:
-	return ret;
-}
-
-static int
-ath5k_reset_wake(struct ath5k_softc *sc)
-{
-	int ret;
-
-	ret = ath5k_reset(sc, sc->curchan);
-	if (!ret)
-		ieee80211_wake_queues(sc->hw);
-
 	return ret;
 }
 
@@ -3151,12 +3140,14 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	if (changed_flags & (FIF_PROMISC_IN_BSS | FIF_OTHER_BSS)) {
 		if (*new_flags & FIF_PROMISC_IN_BSS) {
-			rfilt |= AR5K_RX_FILTER_PROM;
 			__set_bit(ATH_STAT_PROMISC, sc->status);
 		} else {
 			__clear_bit(ATH_STAT_PROMISC, sc->status);
 		}
 	}
+
+	if (test_bit(ATH_STAT_PROMISC, sc->status))
+		rfilt |= AR5K_RX_FILTER_PROM;
 
 	/* Note, AR5K_RX_FILTER_MCAST is already enabled */
 	if (*new_flags & FIF_ALLMULTI) {

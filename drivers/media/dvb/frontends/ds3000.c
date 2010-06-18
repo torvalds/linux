@@ -969,14 +969,11 @@ struct dvb_frontend *ds3000_attach(const struct ds3000_config *config,
 	dprintk("%s\n", __func__);
 
 	/* allocate memory for the internal state */
-	state = kmalloc(sizeof(struct ds3000_state), GFP_KERNEL);
+	state = kzalloc(sizeof(struct ds3000_state), GFP_KERNEL);
 	if (state == NULL) {
 		printk(KERN_ERR "Unable to kmalloc\n");
 		goto error2;
 	}
-
-	/* setup the state */
-	memset(state, 0, sizeof(struct ds3000_state));
 
 	state->config = config;
 	state->i2c = i2c;

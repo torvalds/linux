@@ -328,7 +328,7 @@ static struct soc_camera_platform_info camera_info = {
 	.set_capture = camera_set_capture,
 };
 
-struct soc_camera_link camera_link = {
+static struct soc_camera_link camera_link = {
 	.bus_id		= 0,
 	.add_device	= ap325rxa_camera_add,
 	.del_device	= ap325rxa_camera_del,

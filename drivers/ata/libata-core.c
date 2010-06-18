@@ -4119,9 +4119,8 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 	    dev->n_sectors > n_sectors && dev->n_sectors == n_native_sectors) {
 		ata_dev_printk(dev, KERN_WARNING,
 			       "new n_sectors matches native, probably "
-			       "late HPA unlock, continuing\n");
-		/* keep using the old n_sectors */
-		dev->n_sectors = n_sectors;
+			       "late HPA unlock, n_sectors updated\n");
+		/* use the larger n_sectors */
 		return 0;
 	}
 
@@ -6669,6 +6668,7 @@ EXPORT_SYMBOL_GPL(ata_dummy_port_info);
 EXPORT_SYMBOL_GPL(ata_link_next);
 EXPORT_SYMBOL_GPL(ata_dev_next);
 EXPORT_SYMBOL_GPL(ata_std_bios_param);
+EXPORT_SYMBOL_GPL(ata_scsi_unlock_native_capacity);
 EXPORT_SYMBOL_GPL(ata_host_init);
 EXPORT_SYMBOL_GPL(ata_host_alloc);
 EXPORT_SYMBOL_GPL(ata_host_alloc_pinfo);

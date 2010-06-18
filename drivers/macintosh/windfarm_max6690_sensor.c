@@ -81,7 +81,6 @@ static int wf_max6690_probe(struct i2c_client *client,
 
 	rc = wf_register_sensor(&max->sens);
 	if (rc) {
-		i2c_set_clientdata(client, NULL);
 		kfree(max);
 	}
 

@@ -2639,7 +2639,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 	if (sk->sk_family == AF_INET) {
 		printk(KERN_DEBUG "Undo %s %pI4/%u c%u l%u ss%u/%u p%u\n",
 		       msg,
-		       &inet->daddr, ntohs(inet->dport),
+		       &inet->inet_daddr, ntohs(inet->inet_dport),
 		       tp->snd_cwnd, tcp_left_out(tp),
 		       tp->snd_ssthresh, tp->prior_ssthresh,
 		       tp->packets_out);
@@ -2649,7 +2649,7 @@ static void DBGUNDO(struct sock *sk, const char *msg)
 		struct ipv6_pinfo *np = inet6_sk(sk);
 		printk(KERN_DEBUG "Undo %s %pI6/%u c%u l%u ss%u/%u p%u\n",
 		       msg,
-		       &np->daddr, ntohs(inet->dport),
+		       &np->daddr, ntohs(inet->inet_dport),
 		       tp->snd_cwnd, tcp_left_out(tp),
 		       tp->snd_ssthresh, tp->prior_ssthresh,
 		       tp->packets_out);

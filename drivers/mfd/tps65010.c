@@ -530,7 +530,6 @@ static int __exit tps65010_remove(struct i2c_client *client)
 	cancel_delayed_work(&tps->work);
 	flush_scheduled_work();
 	debugfs_remove(tps->file);
-	i2c_set_clientdata(client, NULL);
 	kfree(tps);
 	the_tps = NULL;
 	return 0;

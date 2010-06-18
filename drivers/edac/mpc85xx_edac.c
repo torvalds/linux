@@ -229,7 +229,7 @@ static int __devinit mpc85xx_pci_err_probe(struct of_device *op,
 
 	pdata->edac_idx = edac_pci_idx++;
 
-	res = of_address_to_resource(op->node, 0, &r);
+	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
 		printk(KERN_ERR "%s: Unable to get resource for "
 		       "PCI err regs\n", __func__);
@@ -274,7 +274,7 @@ static int __devinit mpc85xx_pci_err_probe(struct of_device *op,
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(op->node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_pci_isr, IRQF_DISABLED,
 				       "[EDAC] PCI err", pci);
@@ -529,7 +529,7 @@ static int __devinit mpc85xx_l2_err_probe(struct of_device *op,
 	edac_dev->ctl_name = pdata->name;
 	edac_dev->dev_name = pdata->name;
 
-	res = of_address_to_resource(op->node, 0, &r);
+	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
 		printk(KERN_ERR "%s: Unable to get resource for "
 		       "L2 err regs\n", __func__);
@@ -576,7 +576,7 @@ static int __devinit mpc85xx_l2_err_probe(struct of_device *op,
 	}
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
-		pdata->irq = irq_of_parse_and_map(op->node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_l2_isr, IRQF_DISABLED,
 				       "[EDAC] L2 err", edac_dev);
@@ -978,7 +978,7 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 	mci->ctl_name = pdata->name;
 	mci->dev_name = pdata->name;
 
-	res = of_address_to_resource(op->node, 0, &r);
+	res = of_address_to_resource(op->dev.of_node, 0, &r);
 	if (res) {
 		printk(KERN_ERR "%s: Unable to get resource for MC err regs\n",
 		       __func__);
@@ -1052,7 +1052,7 @@ static int __devinit mpc85xx_mc_err_probe(struct of_device *op,
 		out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_SBE, 0x10000);
 
 		/* register interrupts */
-		pdata->irq = irq_of_parse_and_map(op->node, 0);
+		pdata->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 		res = devm_request_irq(&op->dev, pdata->irq,
 				       mpc85xx_mc_isr,
 					IRQF_DISABLED | IRQF_SHARED,

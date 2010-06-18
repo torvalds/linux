@@ -56,24 +56,6 @@ struct writeback_control {
 	unsigned for_reclaim:1;		/* Invoked from the page allocator */
 	unsigned range_cyclic:1;	/* range_start is cyclic */
 	unsigned more_io:1;		/* more io to be dispatched */
-	/*
-	 * write_cache_pages() won't update wbc->nr_to_write and
-	 * mapping->writeback_index if no_nrwrite_index_update
-	 * is set.  write_cache_pages() may write more than we
-	 * requested and we want to make sure nr_to_write and
-	 * writeback_index are updated in a consistent manner
-	 * so we use a single control to update them
-	 */
-	unsigned no_nrwrite_index_update:1;
-
-	/*
-	 * For WB_SYNC_ALL, the sb must always be pinned. For WB_SYNC_NONE,
-	 * the writeback code will pin the sb for the caller. However,
-	 * for eg umount, the caller does WB_SYNC_NONE but already has
-	 * the sb pinned. If the below is set, caller already has the
-	 * sb pinned.
-	 */
-	unsigned sb_pinned:1;
 };
 
 /*
@@ -82,7 +64,6 @@ struct writeback_control {
 struct bdi_writeback;
 int inode_wait(void *);
 void writeback_inodes_sb(struct super_block *);
-void writeback_inodes_sb_locked(struct super_block *);
 int writeback_inodes_sb_if_idle(struct super_block *);
 void sync_inodes_sb(struct super_block *);
 void writeback_inodes_wbc(struct writeback_control *wbc);

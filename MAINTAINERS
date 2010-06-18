@@ -1731,7 +1731,7 @@ S:	Maintained
 F:	sound/pci/cs5535audio/
 
 CX18 VIDEO4LINUX DRIVER
-M:	Andy Walls <awalls@radix.net>
+M:	Andy Walls <awalls@md.metrocast.net>
 L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
@@ -2978,7 +2978,6 @@ F:	drivers/net/ixgb/
 F:	drivers/net/ixgbe/
 
 INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
-M:	Zhu Yi <yi.zhu@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
@@ -2988,7 +2987,6 @@ F:	Documentation/networking/README.ipw2100
 F:	drivers/net/wireless/ipw2x00/ipw2100.*
 
 INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
-M:	Zhu Yi <yi.zhu@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
@@ -3019,8 +3017,8 @@ F:	drivers/net/wimax/i2400m/
 F:	include/linux/wimax/i2400m.h
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
-M:	Zhu Yi <yi.zhu@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
+M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
@@ -3030,7 +3028,6 @@ F:	drivers/net/wireless/iwlwifi/
 
 INTEL WIRELESS MULTICOMM 3200 WIFI (iwmc3200wifi)
 M:	Samuel Ortiz <samuel.ortiz@intel.com>
-M:	Zhu Yi <yi.zhu@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
@@ -3165,7 +3162,7 @@ F:	Documentation/hwmon/it87
 F:	drivers/hwmon/it87.c
 
 IVTV VIDEO4LINUX DRIVER
-M:	Andy Walls <awalls@radix.net>
+M:	Andy Walls <awalls@md.metrocast.net>
 L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
@@ -3242,7 +3239,7 @@ L:	autofs@linux.kernel.org
 S:	Maintained
 F:	fs/autofs4/
 
-KERNEL BUILD
+KERNEL BUILD + files below scripts/ (unless maintained elsewhere)
 M:	Michal Marek <mmarek@suse.cz>
 T:	git git://repo.or.cz/linux-kbuild.git for-next
 T:	git git://repo.or.cz/linux-kbuild.git for-linus
@@ -3251,6 +3248,9 @@ S:	Maintained
 F:	Documentation/kbuild/
 F:	Makefile
 F:	scripts/Makefile.*
+F:	scripts/basic/
+F:	scripts/mk*
+F:	scripts/package/
 
 KERNEL JANITORS
 L:	kernel-janitors@vger.kernel.org
@@ -3493,9 +3493,8 @@ F:	arch/powerpc/platforms/83xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
 M:	Olof Johansson <olof@lixom.net>
-W:	http://www.pasemi.com/
 L:	linuxppc-dev@ozlabs.org
-S:	Supported
+S:	Maintained
 F:	arch/powerpc/platforms/pasemi/
 F:	drivers/*/*pasemi*
 F:	drivers/*/*/*pasemi*

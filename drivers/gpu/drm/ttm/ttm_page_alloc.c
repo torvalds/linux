@@ -77,7 +77,7 @@ struct ttm_page_pool {
 /**
  * Limits for the pool. They are handled without locks because only place where
  * they may change is in sysfs store. They won't have immediate effect anyway
- * so forcing serialiazation to access them is pointless.
+ * so forcing serialization to access them is pointless.
  */
 
 struct ttm_pool_opts {
@@ -165,16 +165,18 @@ static ssize_t ttm_pool_store(struct kobject *kobj,
 		m->options.small = val;
 	else if (attr == &ttm_page_pool_alloc_size) {
 		if (val > NUM_PAGES_TO_ALLOC*8) {
-			printk(KERN_ERR "[ttm] Setting allocation size to %lu "
-					"is not allowed. Recomended size is "
-					"%lu\n",
-					NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 7),
-					NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
+			printk(KERN_ERR TTM_PFX
+			       "Setting allocation size to %lu "
+			       "is not allowed. Recommended size is "
+			       "%lu\n",
+			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 7),
+			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
 			return size;
 		} else if (val > NUM_PAGES_TO_ALLOC) {
-			printk(KERN_WARNING "[ttm] Setting allocation size to "
-					"larger than %lu is not recomended.\n",
-					NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
+			printk(KERN_WARNING TTM_PFX
+			       "Setting allocation size to "
+			       "larger than %lu is not recommended.\n",
+			       NUM_PAGES_TO_ALLOC*(PAGE_SIZE >> 10));
 		}
 		m->options.alloc_size = val;
 	}
@@ -277,7 +279,7 @@ static void ttm_pages_put(struct page *pages[], unsigned npages)
 {
 	unsigned i;
 	if (set_pages_array_wb(pages, npages))
-		printk(KERN_ERR "[ttm] Failed to set %d pages to wb!\n",
+		printk(KERN_ERR TTM_PFX "Failed to set %d pages to wb!\n",
 				npages);
 	for (i = 0; i < npages; ++i)
 		__free_page(pages[i]);
@@ -313,7 +315,8 @@ static int ttm_page_pool_free(struct ttm_page_pool *pool, unsigned nr_free)
 	pages_to_free = kmalloc(npages_to_free * sizeof(struct page *),
 			GFP_KERNEL);
 	if (!pages_to_free) {
-		printk(KERN_ERR "Failed to allocate memory for pool free operation.\n");
+		printk(KERN_ERR TTM_PFX
+		       "Failed to allocate memory for pool free operation.\n");
 		return 0;
 	}
 
@@ -390,7 +393,7 @@ static int ttm_pool_get_num_unused_pages(void)
 }
 
 /**
- * Calback for mm to request pool to reduce number of page held.
+ * Callback for mm to request pool to reduce number of page held.
  */
 static int ttm_pool_mm_shrink(int shrink_pages, gfp_t gfp_mask)
 {
@@ -433,14 +436,16 @@ static int ttm_set_pages_caching(struct page **pages,
 	case tt_uncached:
 		r = set_pages_array_uc(pages, cpages);
 		if (r)
-			printk(KERN_ERR "[ttm] Failed to set %d pages to uc!\n",
-					cpages);
+			printk(KERN_ERR TTM_PFX
+			       "Failed to set %d pages to uc!\n",
+			       cpages);
 		break;
 	case tt_wc:
 		r = set_pages_array_wc(pages, cpages);
 		if (r)
-			printk(KERN_ERR "[ttm] Failed to set %d pages to wc!\n",
-					cpages);
+			printk(KERN_ERR TTM_PFX
+			       "Failed to set %d pages to wc!\n",
+			       cpages);
 		break;
 	default:
 		break;
@@ -458,7 +463,7 @@ static void ttm_handle_caching_state_failure(struct list_head *pages,
 		struct page **failed_pages, unsigned cpages)
 {
 	unsigned i;
-	/* Failed pages has to be reed */
+	/* Failed pages have to be freed */
 	for (i = 0; i < cpages; ++i) {
 		list_del(&failed_pages[i]->lru);
 		__free_page(failed_pages[i]);
@@ -485,7 +490,8 @@ static int ttm_alloc_new_pages(struct list_head *pages, int gfp_flags,
 	caching_array = kmalloc(max_cpages*sizeof(struct page *), GFP_KERNEL);
 
 	if (!caching_array) {
-		printk(KERN_ERR "[ttm] unable to allocate table for new pages.");
+		printk(KERN_ERR TTM_PFX
+		       "Unable to allocate table for new pages.");
 		return -ENOMEM;
 	}
 
@@ -493,12 +499,13 @@ static int ttm_alloc_new_pages(struct list_head *pages, int gfp_flags,
 		p = alloc_page(gfp_flags);
 
 		if (!p) {
-			printk(KERN_ERR "[ttm] unable to get page %u\n", i);
+			printk(KERN_ERR TTM_PFX "Unable to get page %u.\n", i);
 
 			/* store already allocated pages in the pool after
 			 * setting the caching state */
 			if (cpages) {
-				r = ttm_set_pages_caching(caching_array, cstate, cpages);
+				r = ttm_set_pages_caching(caching_array,
+							  cstate, cpages);
 				if (r)
 					ttm_handle_caching_state_failure(pages,
 						ttm_flags, cstate,
@@ -590,7 +597,8 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 			++pool->nrefills;
 			pool->npages += alloc_size;
 		} else {
-			printk(KERN_ERR "[ttm] Failed to fill pool (%p).", pool);
+			printk(KERN_ERR TTM_PFX
+			       "Failed to fill pool (%p).", pool);
 			/* If we have any pages left put them to the pool. */
 			list_for_each_entry(p, &pool->list, lru) {
 				++cpages;
@@ -671,13 +679,14 @@ int ttm_get_pages(struct list_head *pages, int flags,
 		if (flags & TTM_PAGE_FLAG_DMA32)
 			gfp_flags |= GFP_DMA32;
 		else
-			gfp_flags |= __GFP_HIGHMEM;
+			gfp_flags |= GFP_HIGHUSER;
 
 		for (r = 0; r < count; ++r) {
 			p = alloc_page(gfp_flags);
 			if (!p) {
 
-				printk(KERN_ERR "[ttm] unable to allocate page.");
+				printk(KERN_ERR TTM_PFX
+				       "Unable to allocate page.");
 				return -ENOMEM;
 			}
 
@@ -709,8 +718,9 @@ int ttm_get_pages(struct list_head *pages, int flags,
 		if (r) {
 			/* If there is any pages in the list put them back to
 			 * the pool. */
-			printk(KERN_ERR "[ttm] Failed to allocate extra pages "
-					"for large request.");
+			printk(KERN_ERR TTM_PFX
+			       "Failed to allocate extra pages "
+			       "for large request.");
 			ttm_put_pages(pages, 0, flags, cstate);
 			return r;
 		}
@@ -778,7 +788,7 @@ int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 	if (atomic_add_return(1, &_manager.page_alloc_inited) > 1)
 		return 0;
 
-	printk(KERN_INFO "[ttm] Initializing pool allocator.\n");
+	printk(KERN_INFO TTM_PFX "Initializing pool allocator.\n");
 
 	ttm_page_pool_init_locked(&_manager.wc_pool, GFP_HIGHUSER, "wc");
 
@@ -813,7 +823,7 @@ void ttm_page_alloc_fini()
 	if (atomic_sub_return(1, &_manager.page_alloc_inited) > 0)
 		return;
 
-	printk(KERN_INFO "[ttm] Finilizing pool allocator.\n");
+	printk(KERN_INFO TTM_PFX "Finalizing pool allocator.\n");
 	ttm_pool_mm_shrink_fini(&_manager);
 
 	for (i = 0; i < NUM_POOLS; ++i)

@@ -30,13 +30,16 @@ enum {
 	SINGLE_VIEW, SPLIT_VIEW, FULL_VIEW
 };
 
+enum {
+	OPT_NORMAL, OPT_ALL, OPT_PROMPT
+};
+
 static gint view_mode = FULL_VIEW;
 static gboolean show_name = TRUE;
 static gboolean show_range = TRUE;
 static gboolean show_value = TRUE;
-static gboolean show_all = FALSE;
-static gboolean show_debug = FALSE;
 static gboolean resizeable = FALSE;
+static int opt_mode = OPT_NORMAL;
 
 GtkWidget *main_wnd = NULL;
 GtkWidget *tree1_w = NULL;	// left  frame
@@ -76,36 +79,7 @@ static void conf_changed(void);
 
 /* Helping/Debugging Functions */
 
-
-const char *dbg_print_stype(int val)
-{
-	static char buf[256];
-
-	bzero(buf, 256);
-
-	if (val == S_UNKNOWN)
-		strcpy(buf, "unknown");
-	if (val == S_BOOLEAN)
-		strcpy(buf, "boolean");
-	if (val == S_TRISTATE)
-		strcpy(buf, "tristate");
-	if (val == S_INT)
-		strcpy(buf, "int");
-	if (val == S_HEX)
-		strcpy(buf, "hex");
-	if (val == S_STRING)
-		strcpy(buf, "string");
-	if (val == S_OTHER)
-		strcpy(buf, "other");
-
-#ifdef DEBUG
-	printf("%s", buf);
-#endif
-
-	return buf;
-}
-
-const char *dbg_print_flags(int val)
+const char *dbg_sym_flags(int val)
 {
 	static char buf[256];
 
@@ -131,39 +105,9 @@ const char *dbg_print_flags(int val)
 		strcat(buf, "auto/");
 
 	buf[strlen(buf) - 1] = '\0';
-#ifdef DEBUG
-	printf("%s", buf);
-#endif
 
 	return buf;
 }
-
-const char *dbg_print_ptype(int val)
-{
-	static char buf[256];
-
-	bzero(buf, 256);
-
-	if (val == P_UNKNOWN)
-		strcpy(buf, "unknown");
-	if (val == P_PROMPT)
-		strcpy(buf, "prompt");
-	if (val == P_COMMENT)
-		strcpy(buf, "comment");
-	if (val == P_MENU)
-		strcpy(buf, "menu");
-	if (val == P_DEFAULT)
-		strcpy(buf, "default");
-	if (val == P_CHOICE)
-		strcpy(buf, "choice");
-
-#ifdef DEBUG
-	printf("%s", buf);
-#endif
-
-	return buf;
-}
-
 
 void replace_button_icon(GladeXML * xml, GdkDrawable * window,
 			 GtkStyle * style, gchar * btn_name, gchar ** xpm)
@@ -697,20 +641,29 @@ void on_show_data1_activate(GtkMenuItem * menuitem, gpointer user_data)
 
 
 void
-on_show_all_options1_activate(GtkMenuItem * menuitem, gpointer user_data)
+on_set_option_mode1_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
-	show_all = GTK_CHECK_MENU_ITEM(menuitem)->active;
-
+	opt_mode = OPT_NORMAL;
 	gtk_tree_store_clear(tree2);
-	display_tree(&rootmenu);	// instead of update_tree to speed-up
+	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
 }
 
 
 void
-on_show_debug_info1_activate(GtkMenuItem * menuitem, gpointer user_data)
+on_set_option_mode2_activate(GtkMenuItem *menuitem, gpointer user_data)
 {
-	show_debug = GTK_CHECK_MENU_ITEM(menuitem)->active;
-	update_tree(&rootmenu, NULL);
+	opt_mode = OPT_ALL;
+	gtk_tree_store_clear(tree2);
+	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
+}
+
+
+void
+on_set_option_mode3_activate(GtkMenuItem *menuitem, gpointer user_data)
+{
+	opt_mode = OPT_PROMPT;
+	gtk_tree_store_clear(tree2);
+	display_tree(&rootmenu);	/* instead of update_tree to speed-up */
 }
 
 
@@ -1163,7 +1116,10 @@ static gchar **fill_row(struct menu *menu)
 	    g_strdup_printf("%s %s", _(menu_get_prompt(menu)),
 			    sym && sym_has_value(sym) ? "(NEW)" : "");
 
-	if (show_all && !menu_is_visible(menu))
+	if (opt_mode == OPT_ALL && !menu_is_visible(menu))
+		row[COL_COLOR] = g_strdup("DarkGray");
+	else if (opt_mode == OPT_PROMPT &&
+			menu_has_prompt(menu) && !menu_is_visible(menu))
 		row[COL_COLOR] = g_strdup("DarkGray");
 	else
 		row[COL_COLOR] = g_strdup("Black");
@@ -1386,16 +1342,19 @@ static void update_tree(struct menu *src, GtkTreeIter * dst)
 		       menu2 ? menu_get_prompt(menu2) : "nil");
 #endif
 
-		if (!menu_is_visible(child1) && !show_all) {	// remove node
+		if ((opt_mode == OPT_NORMAL && !menu_is_visible(child1)) ||
+		    (opt_mode == OPT_PROMPT && !menu_has_prompt(child1))) {
+
+			/* remove node */
 			if (gtktree_iter_find_node(dst, menu1) != NULL) {
 				memcpy(&tmp, child2, sizeof(GtkTreeIter));
 				valid = gtk_tree_model_iter_next(model2,
 								 child2);
 				gtk_tree_store_remove(tree2, &tmp);
 				if (!valid)
-					return;	// next parent
+					return;		/* next parent */
 				else
-					goto reparse;	// next child
+					goto reparse;	/* next child */
 			} else
 				continue;
 		}
@@ -1464,17 +1423,19 @@ static void display_tree(struct menu *menu)
 		    && (tree == tree2))
 			continue;
 
-		if (menu_is_visible(child) || show_all)
+		if ((opt_mode == OPT_NORMAL && menu_is_visible(child)) ||
+		    (opt_mode == OPT_PROMPT && menu_has_prompt(child)) ||
+		    (opt_mode == OPT_ALL))
 			place_node(child, fill_row(child));
 #ifdef DEBUG
 		printf("%*c%s: ", indent, ' ', menu_get_prompt(child));
 		printf("%s", child->flags & MENU_ROOT ? "rootmenu | " : "");
-		dbg_print_ptype(ptype);
+		printf("%s", prop_get_type_name(ptype));
 		printf(" | ");
 		if (sym) {
-			dbg_print_stype(sym->type);
+			printf("%s", sym_type_name(sym->type));
 			printf(" | ");
-			dbg_print_flags(sym->flags);
+			printf("%s", dbg_sym_flags(sym->flags));
 			printf("\n");
 		} else
 			printf("\n");

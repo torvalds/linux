@@ -2404,7 +2404,7 @@ static int __init_or_module r8a66597_remove(struct platform_device *pdev)
 
 	del_timer_sync(&r8a66597->rh_timer);
 	usb_remove_hcd(hcd);
-	iounmap((void *)r8a66597->reg);
+	iounmap(r8a66597->reg);
 #ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip)
 		clk_put(r8a66597->clk);
@@ -2496,7 +2496,7 @@ static int __devinit r8a66597_probe(struct platform_device *pdev)
 	init_timer(&r8a66597->rh_timer);
 	r8a66597->rh_timer.function = r8a66597_timer;
 	r8a66597->rh_timer.data = (unsigned long)r8a66597;
-	r8a66597->reg = (unsigned long)reg;
+	r8a66597->reg = reg;
 
 	/* make sure no interrupts are pending */
 	ret = r8a66597_clock_enable(r8a66597);

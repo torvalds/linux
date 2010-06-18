@@ -242,8 +242,10 @@ int elevator_init(struct request_queue *q, char *name)
 {
 	struct elevator_type *e = NULL;
 	struct elevator_queue *eq;
-	int ret = 0;
 	void *data;
+
+	if (unlikely(q->elevator))
+		return 0;
 
 	INIT_LIST_HEAD(&q->queue_head);
 	q->last_merge = NULL;
@@ -284,7 +286,7 @@ int elevator_init(struct request_queue *q, char *name)
 	}
 
 	elevator_attach(q, eq, data);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(elevator_init);
 
@@ -1097,7 +1099,7 @@ ssize_t elv_iosched_show(struct request_queue *q, char *name)
 	struct elevator_type *__e;
 	int len = 0;
 
-	if (!q->elevator)
+	if (!q->elevator || !blk_queue_stackable(q))
 		return sprintf(name, "none\n");
 
 	elv = e->elevator_type;

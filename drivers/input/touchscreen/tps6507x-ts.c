@@ -221,7 +221,7 @@ done:
 
 	if (poll) {
 		schd = queue_delayed_work(tsc->wq, &tsc->work,
-					  tsc->poll_period * HZ / 1000);
+					  msecs_to_jiffies(tsc->poll_period));
 		if (schd)
 			tsc->polling = 1;
 		else {
@@ -326,7 +326,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 		goto err2;
 
 	schd = queue_delayed_work(tsc->wq, &tsc->work,
-				  tsc->poll_period * HZ / 1000);
+				  msecs_to_jiffies(tsc->poll_period));
 
 	if (schd)
 		tsc->polling = 1;
@@ -339,10 +339,8 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 	return 0;
 
 err2:
-	cancel_delayed_work(&tsc->work);
-	flush_workqueue(tsc->wq);
+	cancel_delayed_work_sync(&tsc->work);
 	destroy_workqueue(tsc->wq);
-	tsc->wq = 0;
 	input_free_device(input_dev);
 err1:
 	kfree(tsc);
@@ -360,10 +358,8 @@ static int __devexit tps6507x_ts_remove(struct platform_device *pdev)
 	if (!tsc)
 		return 0;
 
-	cancel_delayed_work(&tsc->work);
-	flush_workqueue(tsc->wq);
+	cancel_delayed_work_sync(&tsc->work);
 	destroy_workqueue(tsc->wq);
-	tsc->wq = 0;
 
 	input_free_device(input_dev);
 

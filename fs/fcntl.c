@@ -274,7 +274,7 @@ static int f_setown_ex(struct file *filp, unsigned long arg)
 
 	ret = copy_from_user(&owner, owner_p, sizeof(owner));
 	if (ret)
-		return ret;
+		return -EFAULT;
 
 	switch (owner.type) {
 	case F_OWNER_TID:
@@ -332,8 +332,11 @@ static int f_getown_ex(struct file *filp, unsigned long arg)
 	}
 	read_unlock(&filp->f_owner.lock);
 
-	if (!ret)
+	if (!ret) {
 		ret = copy_to_user(owner_p, &owner, sizeof(owner));
+		if (ret)
+			ret = -EFAULT;
+	}
 	return ret;
 }
 

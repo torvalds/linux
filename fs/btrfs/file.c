@@ -1140,7 +1140,7 @@ int btrfs_sync_file(struct file *file, int datasync)
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
-	if (file && file->private_data)
+	if (file->private_data)
 		btrfs_ioctl_trans_end(file);
 
 	trans = btrfs_start_transaction(root, 0);
@@ -1190,14 +1190,22 @@ static const struct vm_operations_struct btrfs_file_vm_ops = {
 
 static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 {
-	vma->vm_ops = &btrfs_file_vm_ops;
+	struct address_space *mapping = filp->f_mapping;
+
+	if (!mapping->a_ops->readpage)
+		return -ENOEXEC;
+
 	file_accessed(filp);
+	vma->vm_ops = &btrfs_file_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
+
 	return 0;
 }
 
 const struct file_operations btrfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
+	.write		= do_sync_write,
 	.aio_read       = generic_file_aio_read,
 	.splice_read	= generic_file_splice_read,
 	.aio_write	= btrfs_file_aio_write,

@@ -202,6 +202,7 @@ input_file() {
 			print_mtime "$1" >> ${output}
 			cat "$1"         >> ${output}
 		else
+		        echo "$1 \\"
 			cat "$1" | while read type dir file perm ; do
 				if [ "$type" == "file" ]; then
 					echo "$file \\";
@@ -231,7 +232,7 @@ arg="$1"
 case "$arg" in
 	"-l")	# files included in initramfs - used by kbuild
 		dep_list="list_"
-		echo "deps_initramfs := \\"
+		echo "deps_initramfs := $0 \\"
 		shift
 		;;
 	"-o")	# generate compressed cpio image named $1

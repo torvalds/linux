@@ -351,8 +351,7 @@ static int usbdux_ai_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 	int ret = 0;
 
 	if (!this_usbduxsub) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi?: usbdux_ai_stop: this_usbduxsub=NULL!\n");
+		pr_err("comedi?: usbdux_ai_stop: this_usbduxsub=NULL!\n");
 		return -EFAULT;
 	}
 	dev_dbg(&this_usbduxsub->interface->dev, "comedi: usbdux_ai_stop\n");
