@@ -240,6 +240,8 @@ void pci_enable_bridges(struct pci_bus *bus)
 		if (dev->subordinate) {
 			if (!pci_is_enabled(dev)) {
 				retval = pci_enable_device(dev);
+				if (retval)
+					dev_err(&dev->dev, "Error enabling bridge (%d), continuing\n", retval);
 				pci_set_master(dev);
 			}
 			pci_enable_bridges(dev->subordinate);
