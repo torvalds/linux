@@ -326,6 +326,9 @@
 
 #define EDC_1_BASE_ADDR 0x7980
 
+#define CIM_BOOT_CFG 0x7b00
+#define  BOOTADDR_MASK 0xffffff00U
+
 #define CIM_PF_MAILBOX_DATA 0x240
 #define CIM_PF_MAILBOX_CTRL 0x280
 #define  MBMSGVALID     0x00000008U

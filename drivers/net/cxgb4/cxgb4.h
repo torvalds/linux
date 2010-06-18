@@ -219,6 +219,10 @@ struct adapter_params {
 	struct vpd_params vpd;
 	struct pci_params pci;
 
+	unsigned int sf_size;             /* serial flash size in bytes */
+	unsigned int sf_nsec;             /* # of flash sectors */
+	unsigned int sf_fw_start;         /* start of FW image in flash */
+
 	unsigned int fw_vers;
 	unsigned int tp_vers;
 	u8 api_vers[7];

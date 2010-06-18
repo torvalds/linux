@@ -449,12 +449,10 @@ enum {
 	SF_RD_STATUS    = 5,          /* read status register */
 	SF_WR_ENABLE    = 6,          /* enable writes */
 	SF_RD_DATA_FAST = 0xb,        /* read flash */
+	SF_RD_ID        = 0x9f,       /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
 
-	FW_START_SEC = 8,             /* first flash sector for FW */
-	FW_END_SEC = 15,              /* last flash sector for FW */
-	FW_IMG_START = FW_START_SEC * SF_SEC_SIZE,
-	FW_MAX_SIZE = (FW_END_SEC - FW_START_SEC + 1) * SF_SEC_SIZE,
+	FW_MAX_SIZE = 512 * 1024,
 };
 
 /**
@@ -558,7 +556,7 @@ static int t4_read_flash(struct adapter *adapter, unsigned int addr,
 {
 	int ret;
 
-	if (addr + nwords * sizeof(u32) > SF_SIZE || (addr & 3))
+	if (addr + nwords * sizeof(u32) > adapter->params.sf_size || (addr & 3))
 		return -EINVAL;
 
 	addr = swab32(addr) | SF_RD_DATA_FAST;
@@ -596,7 +594,7 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	u32 buf[64];
 	unsigned int i, c, left, val, offset = addr & 0xff;
 
-	if (addr >= SF_SIZE || offset + n > SF_PAGE_SIZE)
+	if (addr >= adapter->params.sf_size || offset + n > SF_PAGE_SIZE)
 		return -EINVAL;
 
 	val = swab32(addr) | SF_PROG_PAGE;
@@ -614,7 +612,7 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 		if (ret)
 			goto unlock;
 	}
-	ret = flash_wait_op(adapter, 5, 1);
+	ret = flash_wait_op(adapter, 8, 1);
 	if (ret)
 		goto unlock;
 
@@ -647,9 +645,8 @@ unlock:
  */
 static int get_fw_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter,
-			     FW_IMG_START + offsetof(struct fw_hdr, fw_ver), 1,
-			     vers, 0);
+	return t4_read_flash(adapter, adapter->params.sf_fw_start +
+			     offsetof(struct fw_hdr, fw_ver), 1, vers, 0);
 }
 
 /**
@@ -661,8 +658,8 @@ static int get_fw_version(struct adapter *adapter, u32 *vers)
  */
 static int get_tp_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, FW_IMG_START + offsetof(struct fw_hdr,
-							      tp_microcode_ver),
+	return t4_read_flash(adapter, adapter->params.sf_fw_start +
+			     offsetof(struct fw_hdr, tp_microcode_ver),
 			     1, vers, 0);
 }
 
@@ -684,9 +681,9 @@ int t4_check_fw_version(struct adapter *adapter)
 	if (!ret)
 		ret = get_tp_version(adapter, &adapter->params.tp_vers);
 	if (!ret)
-		ret = t4_read_flash(adapter,
-			FW_IMG_START + offsetof(struct fw_hdr, intfver_nic),
-			2, api_vers, 1);
+		ret = t4_read_flash(adapter, adapter->params.sf_fw_start +
+				    offsetof(struct fw_hdr, intfver_nic),
+				    2, api_vers, 1);
 	if (ret)
 		return ret;
 
@@ -726,7 +723,7 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 		if ((ret = sf1_write(adapter, 1, 0, 1, SF_WR_ENABLE)) != 0 ||
 		    (ret = sf1_write(adapter, 4, 0, 1,
 				     SF_ERASE_SECTOR | (start << 8))) != 0 ||
-		    (ret = flash_wait_op(adapter, 5, 500)) != 0) {
+		    (ret = flash_wait_op(adapter, 14, 500)) != 0) {
 			dev_err(adapter->pdev_dev,
 				"erase of flash sector %d failed, error %d\n",
 				start, ret);
@@ -754,6 +751,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	u8 first_page[SF_PAGE_SIZE];
 	const u32 *p = (const u32 *)fw_data;
 	const struct fw_hdr *hdr = (const struct fw_hdr *)fw_data;
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+	unsigned int fw_img_start = adap->params.sf_fw_start;
+	unsigned int fw_start_sec = fw_img_start / sf_sec_size;
 
 	if (!size) {
 		dev_err(adap->pdev_dev, "FW image has no data\n");
@@ -784,8 +784,8 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 		return -EINVAL;
 	}
 
-	i = DIV_ROUND_UP(size, SF_SEC_SIZE);        /* # of sectors spanned */
-	ret = t4_flash_erase_sectors(adap, FW_START_SEC, FW_START_SEC + i - 1);
+	i = DIV_ROUND_UP(size, sf_sec_size);        /* # of sectors spanned */
+	ret = t4_flash_erase_sectors(adap, fw_start_sec, fw_start_sec + i - 1);
 	if (ret)
 		goto out;
 
@@ -796,11 +796,11 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = htonl(0xffffffff);
-	ret = t4_write_flash(adap, FW_IMG_START, SF_PAGE_SIZE, first_page);
+	ret = t4_write_flash(adap, fw_img_start, SF_PAGE_SIZE, first_page);
 	if (ret)
 		goto out;
 
-	addr = FW_IMG_START;
+	addr = fw_img_start;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
@@ -810,7 +810,7 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	ret = t4_write_flash(adap,
-			     FW_IMG_START + offsetof(struct fw_hdr, fw_ver),
+			     fw_img_start + offsetof(struct fw_hdr, fw_ver),
 			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver);
 out:
 	if (ret)
@@ -3053,6 +3053,33 @@ static int __devinit wait_dev_ready(struct adapter *adap)
 	return t4_read_reg(adap, PL_WHOAMI) != 0xffffffff ? 0 : -EIO;
 }
 
+static int __devinit get_flash_params(struct adapter *adap)
+{
+	int ret;
+	u32 info;
+
+	ret = sf1_write(adap, 1, 1, 0, SF_RD_ID);
+	if (!ret)
+		ret = sf1_read(adap, 3, 0, 1, &info);
+	t4_write_reg(adap, SF_OP, 0);                    /* unlock SF */
+	if (ret)
+		return ret;
+
+	if ((info & 0xff) != 0x20)             /* not a Numonix flash */
+		return -EINVAL;
+	info >>= 16;                           /* log2 of size */
+	if (info >= 0x14 && info < 0x18)
+		adap->params.sf_nsec = 1 << (info - 16);
+	else if (info == 0x18)
+		adap->params.sf_nsec = 64;
+	else
+		return -EINVAL;
+	adap->params.sf_size = 1 << info;
+	adap->params.sf_fw_start =
+		t4_read_reg(adap, CIM_BOOT_CFG) & BOOTADDR_MASK;
+	return 0;
+}
+
 /**
  *	t4_prep_adapter - prepare SW and HW for operation
  *	@adapter: the adapter
@@ -3072,6 +3099,12 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 
 	get_pci_mode(adapter, &adapter->params.pci);
 	adapter->params.rev = t4_read_reg(adapter, PL_REV);
+
+	ret = get_flash_params(adapter);
+	if (ret < 0) {
+		dev_err(adapter->pdev_dev, "error %d identifying flash\n", ret);
+		return ret;
+	}
 
 	ret = get_vpd_params(adapter, &adapter->params.vpd);
 	if (ret < 0)

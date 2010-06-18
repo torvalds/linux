@@ -57,8 +57,6 @@ enum {
 
 enum {
 	SF_PAGE_SIZE = 256,           /* serial flash page size */
-	SF_SEC_SIZE = 64 * 1024,      /* serial flash sector size */
-	SF_SIZE = SF_SEC_SIZE * 16,   /* serial flash size */
 };
 
 enum { RSP_TYPE_FLBUF, RSP_TYPE_CPL, RSP_TYPE_INTR }; /* response entry types */
