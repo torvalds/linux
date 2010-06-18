@@ -2396,8 +2396,8 @@ int snd_soc_get_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	int val = snd_soc_read(codec, mc->reg) & mask;
 	int valr = snd_soc_read(codec, mc->rreg) & mask;
 
-	ucontrol->value.integer.value[0] = ((val & 0xff)-min);
-	ucontrol->value.integer.value[1] = ((valr & 0xff)-min);
+	ucontrol->value.integer.value[0] = ((val & 0xff)-min) & mask;
+	ucontrol->value.integer.value[1] = ((valr & 0xff)-min) & mask;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r_sx);
