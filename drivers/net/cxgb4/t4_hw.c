@@ -1135,6 +1135,7 @@ static void cim_intr_handler(struct adapter *adapter)
 static void ulprx_intr_handler(struct adapter *adapter)
 {
 	static struct intr_info ulprx_intr_info[] = {
+		{ 0x1800000, "ULPRX context error", -1, 1 },
 		{ 0x7fffff, "ULPRX parity error", -1, 1 },
 		{ 0 }
 	};
