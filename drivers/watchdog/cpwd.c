@@ -545,7 +545,7 @@ static int __devinit cpwd_probe(struct of_device *op,
 		goto out;
 	}
 
-	p->irq = op->irqs[0];
+	p->irq = op->archdata.irqs[0];
 
 	spin_lock_init(&p->lock);
 

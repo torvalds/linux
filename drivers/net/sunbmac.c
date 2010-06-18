@@ -1201,7 +1201,7 @@ static int __devinit bigmac_ether_init(struct of_device *op,
 	dev->watchdog_timeo = 5*HZ;
 
 	/* Finish net device registration. */
-	dev->irq = bp->bigmac_op->irqs[0];
+	dev->irq = bp->bigmac_op->archdata.irqs[0];
 	dev->dma = 0;
 
 	if (register_netdev(dev)) {

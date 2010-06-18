@@ -1079,7 +1079,7 @@ static int __devinit myri_sbus_probe(struct of_device *op, const struct of_devic
 
 	mp->dev = dev;
 	dev->watchdog_timeo = 5*HZ;
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 	dev->netdev_ops = &myri_ops;
 
 	/* Register interrupt handler now. */

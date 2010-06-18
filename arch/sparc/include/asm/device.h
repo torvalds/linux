@@ -6,6 +6,8 @@
 #ifndef _ASM_SPARC_DEVICE_H
 #define _ASM_SPARC_DEVICE_H
 
+#include <asm/openprom.h>
+
 struct device_node;
 struct of_device;
 
@@ -18,6 +20,9 @@ struct dev_archdata {
 };
 
 struct pdev_archdata {
+	struct resource		resource[PROMREG_MAX];
+	unsigned int		irqs[PROMINTR_MAX];
+	int			num_irqs;
 };
 
 #endif /* _ASM_SPARC_DEVICE_H */

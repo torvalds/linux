@@ -267,6 +267,8 @@ static void __init build_device_resources(struct of_device *op,
 	/* Conver to num-entries.  */
 	num_reg /= na + ns;
 
+	op->resource = op->archdata.resource;
+	op->num_resources = num_reg;
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
@@ -349,27 +351,21 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 
 	op->dev.of_node = dp;
 
-	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
-					       (25*1000*1000));
-	op->portid = of_getintprop_default(dp, "upa-portid", -1);
-	if (op->portid == -1)
-		op->portid = of_getintprop_default(dp, "portid", -1);
-
 	intr = of_get_property(dp, "intr", &len);
 	if (intr) {
-		op->num_irqs = len / sizeof(struct linux_prom_irqs);
-		for (i = 0; i < op->num_irqs; i++)
-			op->irqs[i] = intr[i].pri;
+		op->archdata.num_irqs = len / sizeof(struct linux_prom_irqs);
+		for (i = 0; i < op->archdata.num_irqs; i++)
+			op->archdata.irqs[i] = intr[i].pri;
 	} else {
 		const unsigned int *irq =
 			of_get_property(dp, "interrupts", &len);
 
 		if (irq) {
-			op->num_irqs = len / sizeof(unsigned int);
-			for (i = 0; i < op->num_irqs; i++)
-				op->irqs[i] = irq[i];
+			op->archdata.num_irqs = len / sizeof(unsigned int);
+			for (i = 0; i < op->archdata.num_irqs; i++)
+				op->archdata.irqs[i] = irq[i];
 		} else {
-			op->num_irqs = 0;
+			op->archdata.num_irqs = 0;
 		}
 	}
 	if (sparc_cpu_model == sun4d) {
@@ -411,8 +407,8 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 			goto build_resources;
 		}
 
-		for (i = 0; i < op->num_irqs; i++) {
-			int this_irq = op->irqs[i];
+		for (i = 0; i < op->archdata.num_irqs; i++) {
+			int this_irq = op->archdata.irqs[i];
 			int sbusl = pil_to_sbus[this_irq];
 
 			if (sbusl)
@@ -420,7 +416,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 					    (sbusl << 2) +
 					    slot);
 
-			op->irqs[i] = this_irq;
+			op->archdata.irqs[i] = this_irq;
 		}
 	}
 

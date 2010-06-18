@@ -36,7 +36,7 @@ static int __devinit has_button_interrupt(unsigned int irq, struct device_node *
 static int __devinit power_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct resource *res = &op->resource[0];
-	unsigned int irq= op->irqs[0];
+	unsigned int irq = op->archdata.irqs[0];
 
 	power_reg = of_ioremap(res, 0, 0x4, "power");
 

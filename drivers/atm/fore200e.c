@@ -2657,7 +2657,7 @@ static int __devinit fore200e_sba_probe(struct of_device *op,
 
 	fore200e->bus = bus;
 	fore200e->bus_dev = op;
-	fore200e->irq = op->irqs[0];
+	fore200e->irq = op->archdata.irqs[0];
 	fore200e->phys_base = op->resource[0].start;
 
 	sprintf(fore200e->name, "%s-%d", bus->model_name, index);

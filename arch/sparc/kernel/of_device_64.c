@@ -344,6 +344,8 @@ static void __init build_device_resources(struct of_device *op,
 		num_reg = PROMREG_MAX;
 	}
 
+	op->resource = op->archdata.resource;
+	op->num_resources = num_reg;
 	for (index = 0; index < num_reg; index++) {
 		struct resource *r = &op->resource[index];
 		u32 addr[OF_MAX_ADDR_CELLS];
@@ -644,31 +646,25 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 
 	op->dev.of_node = dp;
 
-	op->clock_freq = of_getintprop_default(dp, "clock-frequency",
-					       (25*1000*1000));
-	op->portid = of_getintprop_default(dp, "upa-portid", -1);
-	if (op->portid == -1)
-		op->portid = of_getintprop_default(dp, "portid", -1);
-
 	irq = of_get_property(dp, "interrupts", &len);
 	if (irq) {
-		op->num_irqs = len / 4;
+		op->archdata.num_irqs = len / 4;
 
 		/* Prevent overrunning the op->irqs[] array.  */
-		if (op->num_irqs > PROMINTR_MAX) {
+		if (op->archdata.num_irqs > PROMINTR_MAX) {
 			printk(KERN_WARNING "%s: Too many irqs (%d), "
 			       "limiting to %d.\n",
-			       dp->full_name, op->num_irqs, PROMINTR_MAX);
-			op->num_irqs = PROMINTR_MAX;
+			       dp->full_name, op->archdata.num_irqs, PROMINTR_MAX);
+			op->archdata.num_irqs = PROMINTR_MAX;
 		}
-		memcpy(op->irqs, irq, op->num_irqs * 4);
+		memcpy(op->archdata.irqs, irq, op->archdata.num_irqs * 4);
 	} else {
-		op->num_irqs = 0;
+		op->archdata.num_irqs = 0;
 	}
 
 	build_device_resources(op, parent);
-	for (i = 0; i < op->num_irqs; i++)
-		op->irqs[i] = build_one_device_irq(op, parent, op->irqs[i]);
+	for (i = 0; i < op->archdata.num_irqs; i++)
+		op->archdata.irqs[i] = build_one_device_irq(op, parent, op->archdata.irqs[i]);
 
 	op->dev.parent = parent;
 	op->dev.bus = &of_platform_bus_type;

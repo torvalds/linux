@@ -1443,7 +1443,7 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 		return -ENOMEM;
 	}
 
-	up->port.irq = op->irqs[0];
+	up->port.irq = op->archdata.irqs[0];
 
 	up->port.dev = &op->dev;
 

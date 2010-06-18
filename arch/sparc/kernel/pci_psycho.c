@@ -302,23 +302,23 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	 * 5: POWER MANAGEMENT
 	 */
 
-	if (op->num_irqs < 6)
+	if (op->archdata.num_irqs < 6)
 		return;
 
 	/* We really mean to ignore the return result here.  Two
 	 * PCI controller share the same interrupt numbers and
 	 * drive the same front-end hardware.
 	 */
-	err = request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED,
+	err = request_irq(op->archdata.irqs[1], psycho_ue_intr, IRQF_SHARED,
 			  "PSYCHO_UE", pbm);
-	err = request_irq(op->irqs[2], psycho_ce_intr, IRQF_SHARED,
+	err = request_irq(op->archdata.irqs[2], psycho_ce_intr, IRQF_SHARED,
 			  "PSYCHO_CE", pbm);
 
 	/* This one, however, ought not to fail.  We can just warn
 	 * about it since the system can still operate properly even
 	 * if this fails.
 	 */
-	err = request_irq(op->irqs[0], psycho_pcierr_intr, IRQF_SHARED,
+	err = request_irq(op->archdata.irqs[0], psycho_pcierr_intr, IRQF_SHARED,
 			  "PSYCHO_PCIERR", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Could not register PCIERR, "

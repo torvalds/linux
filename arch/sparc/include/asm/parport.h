@@ -116,7 +116,7 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 	parent = op->dev.of_node->parent;
 	if (!strcmp(parent->name, "dma")) {
 		p = parport_pc_probe_port(base, base + 0x400,
-					  op->irqs[0], PARPORT_DMA_NOFIFO,
+					  op->archdata.irqs[0], PARPORT_DMA_NOFIFO,
 					  op->dev.parent->parent, 0);
 		if (!p)
 			return -ENOMEM;
@@ -166,7 +166,7 @@ static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id 
 		       0, PTR_LPT_REG_DIR);
 
 	p = parport_pc_probe_port(base, base + 0x400,
-				  op->irqs[0],
+				  op->archdata.irqs[0],
 				  slot,
 				  op->dev.parent,
 				  0);

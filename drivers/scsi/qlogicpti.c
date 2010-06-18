@@ -729,7 +729,7 @@ static int __devinit qpti_register_irq(struct qlogicpti *qpti)
 {
 	struct of_device *op = qpti->op;
 
-	qpti->qhost->irq = qpti->irq = op->irqs[0];
+	qpti->qhost->irq = qpti->irq = op->archdata.irqs[0];
 
 	/* We used to try various overly-clever things to
 	 * reduce the interrupt processing overhead on
@@ -1302,7 +1302,7 @@ static int __devinit qpti_sbus_probe(struct of_device *op, const struct of_devic
 	/* Sometimes Antares cards come up not completely
 	 * setup, and we get a report of a zero IRQ.
 	 */
-	if (op->irqs[0] == 0)
+	if (op->archdata.irqs[0] == 0)
 		return -ENODEV;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct qlogicpti));

@@ -329,7 +329,7 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 	 * 2: CE ERR
 	 * 3: POWER FAIL
 	 */
-	if (op->num_irqs < 4)
+	if (op->archdata.num_irqs < 4)
 		return;
 
 	/* We clear the error bits in the appropriate AFSR before
@@ -341,7 +341,7 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		    SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE),
 		   base + SABRE_UE_AFSR);
 
-	err = request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
+	err = request_irq(op->archdata.irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register UE, err=%d.\n",
 		       pbm->name, err);
@@ -351,11 +351,11 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		   base + SABRE_CE_AFSR);
 
 
-	err = request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
+	err = request_irq(op->archdata.irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register CE, err=%d.\n",
 		       pbm->name, err);
-	err = request_irq(op->irqs[0], psycho_pcierr_intr, 0,
+	err = request_irq(op->archdata.irqs[0], psycho_pcierr_intr, 0,
 			  "SABRE_PCIERR", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register PCIERR, err=%d.\n",

@@ -9119,12 +9119,12 @@ static int __devinit niu_n2_irq_init(struct niu *np, u8 *ldg_num_map)
 	if (!int_prop)
 		return -ENODEV;
 
-	for (i = 0; i < op->num_irqs; i++) {
+	for (i = 0; i < op->archdata.num_irqs; i++) {
 		ldg_num_map[i] = int_prop[i];
-		np->ldg[i].irq = op->irqs[i];
+		np->ldg[i].irq = op->archdata.irqs[i];
 	}
 
-	np->num_ldg = op->num_irqs;
+	np->num_ldg = op->archdata.num_irqs;
 
 	return 0;
 #else

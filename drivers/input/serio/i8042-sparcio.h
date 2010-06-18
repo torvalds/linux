@@ -58,9 +58,9 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 		if (!strcmp(dp->name, OBP_PS2KBD_NAME1) ||
 		    !strcmp(dp->name, OBP_PS2KBD_NAME2)) {
 			struct of_device *kbd = of_find_device_by_node(dp);
-			unsigned int irq = kbd->irqs[0];
+			unsigned int irq = kbd->archdata.irqs[0];
 			if (irq == 0xffffffff)
-				irq = op->irqs[0];
+				irq = op->archdata.irqs[0];
 			i8042_kbd_irq = irq;
 			kbd_iobase = of_ioremap(&kbd->resource[0],
 						0, 8, "kbd");
@@ -68,9 +68,9 @@ static int __devinit sparc_i8042_probe(struct of_device *op, const struct of_dev
 		} else if (!strcmp(dp->name, OBP_PS2MS_NAME1) ||
 			   !strcmp(dp->name, OBP_PS2MS_NAME2)) {
 			struct of_device *ms = of_find_device_by_node(dp);
-			unsigned int irq = ms->irqs[0];
+			unsigned int irq = ms->archdata.irqs[0];
 			if (irq == 0xffffffff)
-				irq = op->irqs[0];
+				irq = op->archdata.irqs[0];
 			i8042_aux_irq = irq;
 		}
 

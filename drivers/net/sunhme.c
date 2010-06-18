@@ -2561,7 +2561,7 @@ static int __init quattro_sbus_register_irqs(void)
 		if (skip)
 			continue;
 
-		err = request_irq(op->irqs[0],
+		err = request_irq(op->archdata.irqs[0],
 				  quattro_sbus_interrupt,
 				  IRQF_SHARED, "Quattro",
 				  qp);
@@ -2590,7 +2590,7 @@ static void quattro_sbus_free_irqs(void)
 		if (skip)
 			continue;
 
-		free_irq(op->irqs[0], qp);
+		free_irq(op->archdata.irqs[0], qp);
 	}
 }
 #endif /* CONFIG_SBUS */
@@ -2790,7 +2790,7 @@ static int __devinit happy_meal_sbus_probe_one(struct of_device *op, int is_qfe)
 	/* Happy Meal can do it all... */
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 
 #if defined(CONFIG_SBUS) && defined(CONFIG_PCI)
 	/* Hook up SBUS register/descriptor accessors. */

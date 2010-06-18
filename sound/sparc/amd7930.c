@@ -1010,7 +1010,7 @@ static int __devinit amd7930_sbus_probe(struct of_device *op, const struct of_de
 	struct snd_amd7930 *amd;
 	int err, irq;
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 
 	if (dev_num >= SNDRV_CARDS)
 		return -ENODEV;

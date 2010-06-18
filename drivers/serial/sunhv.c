@@ -525,7 +525,7 @@ static int __devinit hv_probe(struct of_device *op, const struct of_device_id *m
 	unsigned long minor;
 	int err;
 
-	if (op->irqs[0] == 0xffffffff)
+	if (op->archdata.irqs[0] == 0xffffffff)
 		return -ENODEV;
 
 	port = kzalloc(sizeof(struct uart_port), GFP_KERNEL);
@@ -557,7 +557,7 @@ static int __devinit hv_probe(struct of_device *op, const struct of_device_id *m
 
 	port->membase = (unsigned char __iomem *) __pa(port);
 
-	port->irq = op->irqs[0];
+	port->irq = op->archdata.irqs[0];
 
 	port->dev = &op->dev;
 

@@ -2608,7 +2608,7 @@ static int __devinit dbri_probe(struct of_device *op, const struct of_device_id 
 		return -ENOENT;
 	}
 
-	irq = op->irqs[0];
+	irq = op->archdata.irqs[0];
 	if (irq <= 0) {
 		printk(KERN_ERR "DBRI-%d: No IRQ.\n", dev);
 		return -ENODEV;

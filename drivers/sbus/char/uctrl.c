@@ -367,7 +367,7 @@ static int __devinit uctrl_probe(struct of_device *op,
 		goto out_free;
 	}
 
-	p->irq = op->irqs[0];
+	p->irq = op->archdata.irqs[0];
 	err = request_irq(p->irq, uctrl_interrupt, 0, "uctrl", p);
 	if (err) {
 		printk(KERN_ERR "uctrl: Unable to register irq.\n");

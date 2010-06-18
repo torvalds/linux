@@ -1474,7 +1474,7 @@ no_link_test:
 	dev->ethtool_ops = &sparc_lance_ethtool_ops;
 	dev->netdev_ops = &sparc_lance_ops;
 
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 
 	/* We cannot sleep if the chip is busy during a
 	 * multicast list update event, because such events

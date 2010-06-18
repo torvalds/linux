@@ -803,7 +803,7 @@ static struct sunqec * __devinit get_qec(struct of_device *child)
 
 			qec_init_once(qecp, op);
 
-			if (request_irq(op->irqs[0], qec_interrupt,
+			if (request_irq(op->archdata.irqs[0], qec_interrupt,
 					IRQF_SHARED, "qec", (void *) qecp)) {
 				printk(KERN_ERR "qec: Can't register irq.\n");
 				goto fail;
@@ -901,7 +901,7 @@ static int __devinit qec_ether_init(struct of_device *op)
 	SET_NETDEV_DEV(dev, &op->dev);
 
 	dev->watchdog_timeo = 5*HZ;
-	dev->irq = op->irqs[0];
+	dev->irq = op->archdata.irqs[0];
 	dev->dma = 0;
 	dev->ethtool_ops = &qe_ethtool_ops;
 	dev->netdev_ops = &qec_ops;
@@ -999,7 +999,7 @@ static void __exit qec_exit(void)
 		struct sunqec *next = root_qec_dev->next_module;
 		struct of_device *op = root_qec_dev->op;
 
-		free_irq(op->irqs[0], (void *) root_qec_dev);
+		free_irq(op->archdata.irqs[0], (void *) root_qec_dev);
 		of_iounmap(&op->resource[0], root_qec_dev->gregs,
 			   GLOB_REG_SIZE);
 		kfree(root_qec_dev);

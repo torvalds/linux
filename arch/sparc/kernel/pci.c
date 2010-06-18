@@ -340,7 +340,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
 
-		dev->irq = sd->op->irqs[0];
+		dev->irq = sd->op->archdata.irqs[0];
 		if (dev->irq == 0xffffffff)
 			dev->irq = PCI_IRQ_NONE;
 	}

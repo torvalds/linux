@@ -567,7 +567,7 @@ static unsigned long __init sun_floppy_init(void)
 	}
 	if (op) {
 		floppy_op = op;
-		FLOPPY_IRQ = op->irqs[0];
+		FLOPPY_IRQ = op->archdata.irqs[0];
 	} else {
 		struct device_node *ebus_dp;
 		void __iomem *auxio_reg;
@@ -593,7 +593,7 @@ static unsigned long __init sun_floppy_init(void)
 		if (state_prop && !strncmp(state_prop, "disabled", 8))
 			return 0;
 
-		FLOPPY_IRQ = op->irqs[0];
+		FLOPPY_IRQ = op->archdata.irqs[0];
 
 		/* Make sure the high density bit is set, some systems
 		 * (most notably Ultra5/Ultra10) come up with it clear.

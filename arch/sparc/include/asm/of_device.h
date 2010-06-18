@@ -15,15 +15,10 @@
 struct of_device
 {
 	struct device			dev;
-	struct resource			resource[PROMREG_MAX];
-	unsigned int			irqs[PROMINTR_MAX];
-	int				num_irqs;
+	u32				num_resources;
+	struct resource			*resource;
 
-	void				*sysdata;
-
-	int				slot;
-	int				portid;
-	int				clock_freq;
+	struct pdev_archdata		archdata;
 };
 
 extern void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
