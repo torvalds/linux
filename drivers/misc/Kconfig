@@ -460,6 +460,12 @@ config APANIC_PLABEL
 	 If your platform uses a different flash partition label for storing
  	 crashdumps, enter it here.
 
+config GPS_GPIO_BRCM4750
+	bool "Enable gpio controller for GPS brcm 4750"
+	default y
+	---help---
+	Adds GPIO controller driver for GPS Broadcom 4750 chipset
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
