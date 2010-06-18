@@ -92,6 +92,8 @@ do { \
  * @P9_RSYMLINK: make symlink response
  * @P9_TMKNOD: create a special file object request
  * @P9_RMKNOD: create a special file object response
+ * @P9_TLCREATE: prepare a handle for I/O on an new file for 9P2000.L
+ * @P9_RLCREATE: response with file access information for 9P2000.L
  * @P9_TRENAME: rename request
  * @P9_RRENAME: rename response
  * @P9_TMKDIR: create a directory request
@@ -137,6 +139,8 @@ do { \
 enum p9_msg_t {
 	P9_TSTATFS = 8,
 	P9_RSTATFS,
+	P9_TLCREATE = 14,
+	P9_RLCREATE,
 	P9_TSYMLINK = 16,
 	P9_RSYMLINK,
 	P9_TMKNOD = 18,

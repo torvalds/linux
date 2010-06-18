@@ -642,6 +642,118 @@ error:
 }
 
 /**
+ * v9fs_vfs_create_dotl - VFS hook to create files for 9P2000.L protocol.
+ * @dir: directory inode that is being created
+ * @dentry:  dentry that is being deleted
+ * @mode: create permissions
+ * @nd: path information
+ *
+ */
+
+static int
+v9fs_vfs_create_dotl(struct inode *dir, struct dentry *dentry, int mode,
+		struct nameidata *nd)
+{
+	int err = 0;
+	char *name = NULL;
+	gid_t gid;
+	int flags;
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid = NULL;
+	struct p9_fid *dfid, *ofid;
+	struct file *filp;
+	struct p9_qid qid;
+	struct inode *inode;
+
+	v9ses = v9fs_inode2v9ses(dir);
+	if (nd && nd->flags & LOOKUP_OPEN)
+		flags = nd->intent.open.flags - 1;
+	else
+		flags = O_RDWR;
+
+	name = (char *) dentry->d_name.name;
+	P9_DPRINTK(P9_DEBUG_VFS, "v9fs_vfs_create_dotl: name:%s flags:0x%x "
+			"mode:0x%x\n", name, flags, mode);
+
+	dfid = v9fs_fid_lookup(dentry->d_parent);
+	if (IS_ERR(dfid)) {
+		err = PTR_ERR(dfid);
+		P9_DPRINTK(P9_DEBUG_VFS, "fid lookup failed %d\n", err);
+		return err;
+	}
+
+	/* clone a fid to use for creation */
+	ofid = p9_client_walk(dfid, 0, NULL, 1);
+	if (IS_ERR(ofid)) {
+		err = PTR_ERR(ofid);
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
+		return err;
+	}
+
+	gid = v9fs_get_fsgid_for_create(dir);
+	err = p9_client_create_dotl(ofid, name, flags, mode, gid, &qid);
+	if (err < 0) {
+		P9_DPRINTK(P9_DEBUG_VFS,
+				"p9_client_open_dotl failed in creat %d\n",
+				err);
+		goto error;
+	}
+
+	/* No need to populate the inode if we are not opening the file AND
+	 * not in cached mode.
+	 */
+	if (!v9ses->cache && !(nd && nd->flags & LOOKUP_OPEN)) {
+		/* Not in cached mode. No need to populate inode with stat */
+		dentry->d_op = &v9fs_dentry_operations;
+		p9_client_clunk(ofid);
+		d_instantiate(dentry, NULL);
+		return 0;
+	}
+
+	/* Now walk from the parent so we can get an unopened fid. */
+	fid = p9_client_walk(dfid, 1, &name, 1);
+	if (IS_ERR(fid)) {
+		err = PTR_ERR(fid);
+		P9_DPRINTK(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
+		fid = NULL;
+		goto error;
+	}
+
+	/* instantiate inode and assign the unopened fid to dentry */
+	inode = v9fs_inode_from_fid(v9ses, fid, dir->i_sb);
+	if (IS_ERR(inode)) {
+		err = PTR_ERR(inode);
+		P9_DPRINTK(P9_DEBUG_VFS, "inode creation failed %d\n", err);
+		goto error;
+	}
+	dentry->d_op = &v9fs_cached_dentry_operations;
+	d_instantiate(dentry, inode);
+	err = v9fs_fid_add(dentry, fid);
+	if (err < 0)
+		goto error;
+
+	/* if we are opening a file, assign the open fid to the file */
+	if (nd && nd->flags & LOOKUP_OPEN) {
+		filp = lookup_instantiate_filp(nd, dentry, v9fs_open_created);
+		if (IS_ERR(filp)) {
+			p9_client_clunk(ofid);
+			return PTR_ERR(filp);
+		}
+		filp->private_data = ofid;
+	} else
+		p9_client_clunk(ofid);
+
+	return 0;
+
+error:
+	if (ofid)
+		p9_client_clunk(ofid);
+	if (fid)
+		p9_client_clunk(fid);
+	return err;
+}
+
+/**
  * v9fs_vfs_create - VFS hook to create files
  * @dir: directory inode that is being created
  * @dentry:  dentry that is being deleted
@@ -1808,7 +1920,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotu = {
 };
 
 static const struct inode_operations v9fs_dir_inode_operations_dotl = {
-	.create = v9fs_vfs_create,
+	.create = v9fs_vfs_create_dotl,
 	.lookup = v9fs_vfs_lookup,
 	.link = v9fs_vfs_link_dotl,
 	.symlink = v9fs_vfs_symlink_dotl,

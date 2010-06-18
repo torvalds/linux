@@ -1050,6 +1050,50 @@ error:
 }
 EXPORT_SYMBOL(p9_client_open);
 
+int p9_client_create_dotl(struct p9_fid *ofid, char *name, u32 flags, u32 mode,
+		gid_t gid, struct p9_qid *qid)
+{
+	int err = 0;
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+	int iounit;
+
+	P9_DPRINTK(P9_DEBUG_9P,
+			">>> TLCREATE fid %d name %s flags %d mode %d gid %d\n",
+			ofid->fid, name, flags, mode, gid);
+	clnt = ofid->clnt;
+
+	if (ofid->mode != -1)
+		return -EINVAL;
+
+	req = p9_client_rpc(clnt, P9_TLCREATE, "dsddd", ofid->fid, name, flags,
+			mode, gid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", qid, &iounit);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		goto free_and_error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RLCREATE qid %x.%llx.%x iounit %x\n",
+			qid->type,
+			(unsigned long long)qid->path,
+			qid->version, iounit);
+
+	ofid->mode = mode;
+	ofid->iounit = iounit;
+
+free_and_error:
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_create_dotl);
+
 int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 		     char *extension)
 {
