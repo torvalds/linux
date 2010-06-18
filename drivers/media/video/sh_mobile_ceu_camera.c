@@ -1005,7 +1005,7 @@ static int sh_mobile_ceu_get_formats(struct soc_camera_device *icd, unsigned int
 		xlate->code	= code;
 		xlate++;
 		dev_dbg(dev, "Providing format %s in pass-through mode\n",
-			xlate->host_fmt->name);
+			fmt->name);
 	}
 
 	return formats;
