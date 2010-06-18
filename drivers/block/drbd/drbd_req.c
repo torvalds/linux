@@ -660,7 +660,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 	case resend:
 		/* If RQ_NET_OK is already set, we got a P_WRITE_ACK or P_RECV_ACK
-		   before the connection loss; only P_BARRIER_ACK was missing.
+		   before the connection loss (B&C only); only P_BARRIER_ACK was missing.
 		   Trowing them out of the TL here by pretending we got a BARRIER_ACK
 		   TODO: Either resync them, or ensure peer was not rebooted. */
 		if (!(req->rq_state & RQ_NET_OK)) {

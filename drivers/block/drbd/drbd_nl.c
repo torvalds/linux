@@ -806,6 +806,15 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 		goto fail;
 	}
 
+	if (get_net_conf(mdev)) {
+		int prot = mdev->net_conf->wire_protocol;
+		put_net_conf(mdev);
+		if (nbc->dc.fencing == FP_STONITH && prot == DRBD_PROT_A) {
+			retcode = ERR_STONITH_AND_PROT_A;
+			goto fail;
+		}
+	}
+
 	nbc->lo_file = filp_open(nbc->dc.backing_dev, O_RDWR, 0);
 	if (IS_ERR(nbc->lo_file)) {
 		dev_err(DEV, "open(\"%s\") failed with %ld\n", nbc->dc.backing_dev,
@@ -1238,7 +1247,16 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	    && (new_conf->wire_protocol != DRBD_PROT_C)) {
 		retcode = ERR_NOT_PROTO_C;
 		goto fail;
-	};
+	}
+
+	if (get_ldev(mdev)) {
+		enum drbd_fencing_p fp = mdev->ldev->dc.fencing;
+		put_ldev(mdev);
+		if (new_conf->wire_protocol == DRBD_PROT_A && fp == FP_STONITH) {
+			retcode = ERR_STONITH_AND_PROT_A;
+			goto fail;
+		}
+	}
 
 	if (mdev->state.role == R_PRIMARY && new_conf->want_lose) {
 		retcode = ERR_DISCARD;

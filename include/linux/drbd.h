@@ -145,6 +145,7 @@ enum drbd_ret_codes {
 	ERR_CONNECTED		= 151, /* DRBD 8.3 only */
 	ERR_PERM		= 152,
 	ERR_NEED_APV_93		= 153,
+	ERR_STONITH_AND_PROT_A  = 154,
 
 	/* insert new ones above this line */
 	AFTER_LAST_ERR_CODE
