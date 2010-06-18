@@ -402,16 +402,16 @@ static void send_read_id_v1_v2(struct mxc_nand_host *host)
 	/* Wait for operation to complete */
 	wait_op_done(host, true);
 
-	if (this->options & NAND_BUSWIDTH_16) {
-		void __iomem *main_buf = host->main_area0;
-		/* compress the ID info */
-		writeb(readb(main_buf + 2), main_buf + 1);
-		writeb(readb(main_buf + 4), main_buf + 2);
-		writeb(readb(main_buf + 6), main_buf + 3);
-		writeb(readb(main_buf + 8), main_buf + 4);
-		writeb(readb(main_buf + 10), main_buf + 5);
-	}
 	memcpy(host->data_buf, host->main_area0, 16);
+
+	if (this->options & NAND_BUSWIDTH_16) {
+		/* compress the ID info */
+		host->data_buf[1] = host->data_buf[2];
+		host->data_buf[2] = host->data_buf[4];
+		host->data_buf[3] = host->data_buf[6];
+		host->data_buf[4] = host->data_buf[8];
+		host->data_buf[5] = host->data_buf[10];
+	}
 }
 
 static uint16_t get_dev_status_v3(struct mxc_nand_host *host)
