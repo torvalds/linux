@@ -93,18 +93,8 @@ extern const void *of_get_mac_address(struct device_node *np);
  * OF interrupt mapping
  */
 
-/**
- * of_irq_map_init - Initialize the irq remapper
- * @flags:	flags defining workarounds to enable
- *
- * Some machines have bugs in the device-tree which require certain workarounds
- * to be applied. Call this before any interrupt mapping attempts to enable
- * those workarounds.
- */
 #define OF_IMAP_OLDWORLD_MAC	0x00000001
 #define OF_IMAP_NO_PHANDLE	0x00000002
-
-extern void of_irq_map_init(unsigned int flags);
 
 /**
  * of_irq_map_raw - Low level interrupt tree parsing
