@@ -212,11 +212,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 static void iwlagn_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 			__le32 *tx_flags)
 {
-	if ((info->control.rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS) ||
-	    (info->control.rates[0].flags & IEEE80211_TX_RC_USE_CTS_PROTECT))
-		*tx_flags |= TX_CMD_FLG_RTS_CTS_MSK;
-	else
-		*tx_flags &= ~TX_CMD_FLG_RTS_CTS_MSK;
+	*tx_flags |= TX_CMD_FLG_RTS_CTS_MSK;
 }
 
 /* Calc max signal level (dBm) among 3 possible receivers */
