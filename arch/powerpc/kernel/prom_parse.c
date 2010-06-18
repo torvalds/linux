@@ -682,9 +682,6 @@ void of_parse_dma_window(struct device_node *dn, const void *dma_window_prop,
  * Interrupt remapper
  */
 
-static unsigned int of_irq_workarounds;
-static struct device_node *of_irq_dflt_pic;
-
 static struct device_node *of_irq_find_parent(struct device_node *child)
 {
 	struct device_node *p;
@@ -708,44 +705,6 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
 	} while (p && of_get_property(p, "#interrupt-cells", NULL) == NULL);
 
 	return p;
-}
-
-/* This doesn't need to be called if you don't have any special workaround
- * flags to pass
- */
-void of_irq_map_init(unsigned int flags)
-{
-	of_irq_workarounds = flags;
-
-	/* OldWorld, don't bother looking at other things */
-	if (flags & OF_IMAP_OLDWORLD_MAC)
-		return;
-
-	/* If we don't have phandles, let's try to locate a default interrupt
-	 * controller (happens when booting with BootX). We do a first match
-	 * here, hopefully, that only ever happens on machines with one
-	 * controller.
-	 */
-	if (flags & OF_IMAP_NO_PHANDLE) {
-		struct device_node *np;
-
-		for_each_node_with_property(np, "interrupt-controller") {
-			/* Skip /chosen/interrupt-controller */
-			if (strcmp(np->name, "chosen") == 0)
-				continue;
-			/* It seems like at least one person on this planet wants
-			 * to use BootX on a machine with an AppleKiwi controller
-			 * which happens to pretend to be an interrupt
-			 * controller too.
-			 */
-			if (strcmp(np->name, "AppleKiwi") == 0)
-				continue;
-			/* I think we found one ! */
-			of_irq_dflt_pic = np;
-			break;
-		}
-	}
-
 }
 
 int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
@@ -921,50 +880,6 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 	return -EINVAL;
 }
 EXPORT_SYMBOL_GPL(of_irq_map_raw);
-
-#if defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)
-static int of_irq_map_oldworld(struct device_node *device, int index,
-			       struct of_irq *out_irq)
-{
-	const u32 *ints = NULL;
-	int intlen;
-
-	/*
-	 * Old machines just have a list of interrupt numbers
-	 * and no interrupt-controller nodes. We also have dodgy
-	 * cases where the APPL,interrupts property is completely
-	 * missing behind pci-pci bridges and we have to get it
-	 * from the parent (the bridge itself, as apple just wired
-	 * everything together on these)
-	 */
-	while (device) {
-		ints = of_get_property(device, "AAPL,interrupts", &intlen);
-		if (ints != NULL)
-			break;
-		device = device->parent;
-		if (device && strcmp(device->type, "pci") != 0)
-			break;
-	}
-	if (ints == NULL)
-		return -EINVAL;
-	intlen /= sizeof(u32);
-
-	if (index >= intlen)
-		return -EINVAL;
-
-	out_irq->controller = NULL;
-	out_irq->specifier[0] = ints[index];
-	out_irq->size = 1;
-
-	return 0;
-}
-#else /* defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32) */
-static int of_irq_map_oldworld(struct device_node *device, int index,
-			       struct of_irq *out_irq)
-{
-	return -EINVAL;
-}
-#endif /* !(defined(CONFIG_PPC_PMAC) && defined(CONFIG_PPC32)) */
 
 int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq)
 {
