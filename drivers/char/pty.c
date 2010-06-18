@@ -62,7 +62,9 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 		if (tty->driver == ptm_driver)
 			devpts_pty_kill(tty->link);
 #endif
-		tty_vhangup_locked(tty->link);
+		tty_unlock();
+		tty_vhangup(tty->link);
+		tty_lock();
 	}
 }
 

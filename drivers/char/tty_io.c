@@ -471,7 +471,7 @@ void tty_wakeup(struct tty_struct *tty)
 EXPORT_SYMBOL_GPL(tty_wakeup);
 
 /**
- *	do_tty_hangup		-	actual handler for hangup events
+ *	__tty_hangup		-	actual handler for hangup events
  *	@work: tty device
  *
  *	This can be called by the "eventd" kernel thread.  That is process
@@ -492,7 +492,7 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *		  tasklist_lock to walk task list for hangup event
  *		    ->siglock to protect ->signal/->sighand
  */
-void tty_vhangup_locked(struct tty_struct *tty)
+void __tty_hangup(struct tty_struct *tty)
 {
 	struct file *cons_filp = NULL;
 	struct file *filp, *f = NULL;
@@ -512,10 +512,12 @@ void tty_vhangup_locked(struct tty_struct *tty)
 	}
 	spin_unlock(&redirect_lock);
 
+	tty_lock();
+
 	/* inuse_filps is protected by the single tty lock,
 	   this really needs to change if we want to flush the
 	   workqueue with the lock held */
-	check_tty_count(tty, "do_tty_hangup");
+	check_tty_count(tty, "tty_hangup");
 
 	file_list_lock();
 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
@@ -594,6 +596,9 @@ void tty_vhangup_locked(struct tty_struct *tty)
 	 */
 	set_bit(TTY_HUPPED, &tty->flags);
 	tty_ldisc_enable(tty);
+
+	tty_unlock();
+
 	if (f)
 		fput(f);
 }
@@ -603,9 +608,7 @@ static void do_tty_hangup(struct work_struct *work)
 	struct tty_struct *tty =
 		container_of(work, struct tty_struct, hangup_work);
 
-	tty_lock();
-	tty_vhangup_locked(tty);
-	tty_unlock();
+	__tty_hangup(tty);
 }
 
 /**
@@ -643,12 +646,11 @@ void tty_vhangup(struct tty_struct *tty)
 
 	printk(KERN_DEBUG "%s vhangup...\n", tty_name(tty, buf));
 #endif
-	tty_lock();
-	tty_vhangup_locked(tty);
-	tty_unlock();
+	__tty_hangup(tty);
 }
 
 EXPORT_SYMBOL(tty_vhangup);
+
 
 /**
  *	tty_vhangup_self	-	process vhangup for own ctty
@@ -727,10 +729,8 @@ void disassociate_ctty(int on_exit)
 	if (tty) {
 		tty_pgrp = get_pid(tty->pgrp);
 		if (on_exit) {
-			tty_lock();
 			if (tty->driver->type != TTY_DRIVER_TYPE_PTY)
-				tty_vhangup_locked(tty);
-			tty_unlock();
+				tty_vhangup(tty);
 		}
 		tty_kref_put(tty);
 	} else if (on_exit) {
