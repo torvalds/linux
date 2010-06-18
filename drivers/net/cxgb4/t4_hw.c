@@ -2580,7 +2580,7 @@ int t4_alloc_vi(struct adapter *adap, unsigned int mbox, unsigned int port,
 	}
 	if (rss_size)
 		*rss_size = FW_VI_CMD_RSSSIZE_GET(ntohs(c.rsssize_pkd));
-	return ntohs(c.viid_pkd);
+	return FW_VI_CMD_VIID_GET(ntohs(c.type_viid));
 }
 
 /**
@@ -2603,7 +2603,7 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
 			    FW_CMD_EXEC | FW_VI_CMD_PFN(pf) |
 			    FW_VI_CMD_VFN(vf));
 	c.alloc_to_len16 = htonl(FW_VI_CMD_FREE | FW_LEN16(c));
-	c.viid_pkd = htons(FW_VI_CMD_VIID(viid));
+	c.type_viid = htons(FW_VI_CMD_VIID(viid));
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
 }
 
@@ -3169,7 +3169,7 @@ int __devinit t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 		p->mdio_addr = (ret & FW_PORT_CMD_MDIOCAP) ?
 			FW_PORT_CMD_MDIOADDR_GET(ret) : -1;
 		p->port_type = FW_PORT_CMD_PTYPE_GET(ret);
-		p->mod_type = FW_PORT_CMD_MODTYPE_GET(ret);
+		p->mod_type = FW_PORT_MOD_TYPE_NA;
 
 		init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
 		j++;

@@ -216,7 +216,7 @@ void t4_os_link_changed(struct adapter *adapter, int port_id, int link_stat)
 void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 {
 	static const char *mod_str[] = {
-		NULL, "LR", "SR", "ER", "passive DA", "active DA"
+		NULL, "LR", "SR", "ER", "passive DA", "active DA", "LRM"
 	};
 
 	const struct net_device *dev = adap->port[port_id];
@@ -224,7 +224,7 @@ void t4_os_portmod_changed(const struct adapter *adap, int port_id)
 
 	if (pi->mod_type == FW_PORT_MOD_TYPE_NONE)
 		netdev_info(dev, "port module unplugged\n");
-	else
+	else if (pi->mod_type < ARRAY_SIZE(mod_str))
 		netdev_info(dev, "%s module inserted\n", mod_str[pi->mod_type]);
 }
 
@@ -1234,7 +1234,8 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 {
 	unsigned int v = 0;
 
-	if (type == FW_PORT_TYPE_BT_SGMII || type == FW_PORT_TYPE_BT_XAUI) {
+	if (type == FW_PORT_TYPE_BT_SGMII || type == FW_PORT_TYPE_BT_XFI ||
+	    type == FW_PORT_TYPE_BT_XAUI) {
 		v |= SUPPORTED_TP;
 		if (caps & FW_PORT_CAP_SPEED_100M)
 			v |= SUPPORTED_100baseT_Full;
@@ -1250,7 +1251,10 @@ static unsigned int from_fw_linkcaps(unsigned int type, unsigned int caps)
 			v |= SUPPORTED_10000baseKX4_Full;
 	} else if (type == FW_PORT_TYPE_KR)
 		v |= SUPPORTED_Backplane | SUPPORTED_10000baseKR_Full;
-	else if (type == FW_PORT_TYPE_FIBER)
+	else if (type == FW_PORT_TYPE_BP_AP)
+		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC;
+	else if (type == FW_PORT_TYPE_FIBER_XFI ||
+		 type == FW_PORT_TYPE_FIBER_XAUI || type == FW_PORT_TYPE_SFP)
 		v |= SUPPORTED_FIBRE;
 
 	if (caps & FW_PORT_CAP_ANEG)
@@ -1276,13 +1280,19 @@ static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	const struct port_info *p = netdev_priv(dev);
 
 	if (p->port_type == FW_PORT_TYPE_BT_SGMII ||
+	    p->port_type == FW_PORT_TYPE_BT_XFI ||
 	    p->port_type == FW_PORT_TYPE_BT_XAUI)
 		cmd->port = PORT_TP;
-	else if (p->port_type == FW_PORT_TYPE_FIBER)
+	else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
+		 p->port_type == FW_PORT_TYPE_FIBER_XAUI)
 		cmd->port = PORT_FIBRE;
-	else if (p->port_type == FW_PORT_TYPE_TWINAX)
-		cmd->port = PORT_DA;
-	else
+	else if (p->port_type == FW_PORT_TYPE_SFP) {
+		if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+		    p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+			cmd->port = PORT_DA;
+		else
+			cmd->port = PORT_FIBRE;
+	} else
 		cmd->port = PORT_OTHER;
 
 	if (p->mdio_addr >= 0) {
@@ -2814,13 +2824,19 @@ static int adap_init0(struct adapter *adap)
 	for (v = 1; v < SGE_NCOUNTERS; v++)
 		adap->sge.counter_val[v] = min(intr_cnt[v - 1],
 					       THRESHOLD_3_MASK);
-	ret = adap_init1(adap, &c);
-	if (ret < 0)
-		goto bye;
-
 #define FW_PARAM_DEV(param) \
 	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_DEV) | \
 	 FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_DEV_##param))
+
+	params[0] = FW_PARAM_DEV(CCLK);
+	ret = t4_query_params(adap, 0, 0, 0, 1, params, val);
+	if (ret < 0)
+		goto bye;
+	adap->params.vpd.cclk = val[0];
+
+	ret = adap_init1(adap, &c);
+	if (ret < 0)
+		goto bye;
 
 #define FW_PARAM_PFVF(param) \
 	(FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) | \
@@ -2874,6 +2890,18 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.rq.size = val[3] - val[2] + 1;
 		adap->vres.pbl.start = val[4];
 		adap->vres.pbl.size = val[5] - val[4] + 1;
+
+		params[0] = FW_PARAM_PFVF(SQRQ_START);
+		params[1] = FW_PARAM_PFVF(SQRQ_END);
+		params[2] = FW_PARAM_PFVF(CQ_START);
+		params[3] = FW_PARAM_PFVF(CQ_END);
+		ret = t4_query_params(adap, 0, 0, 0, 4, params, val);
+		if (ret < 0)
+			goto bye;
+		adap->vres.qp.start = val[0];
+		adap->vres.qp.size = val[1] - val[0] + 1;
+		adap->vres.cq.start = val[2];
+		adap->vres.cq.size = val[3] - val[2] + 1;
 	}
 	if (c.iscsicaps) {
 		params[0] = FW_PARAM_PFVF(ISCSI_START);
@@ -3194,7 +3222,8 @@ static int __devinit enable_msix(struct adapter *adap)
 static void __devinit print_port_info(struct adapter *adap)
 {
 	static const char *base[] = {
-		"R", "KX4", "T", "KX", "T", "KR", "CX4"
+		"R XFI", "R XAUI", "T SGMII", "T XFI", "T XAUI", "KX4", "CX4",
+		"KX", "KR", "KR SFP+", "KR FEC"
 	};
 
 	int i;

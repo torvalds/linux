@@ -185,6 +185,8 @@ struct cxgb4_virt_res {                      /* virtualized HW resources */
 	struct cxgb4_range stag;
 	struct cxgb4_range rq;
 	struct cxgb4_range pbl;
+	struct cxgb4_range qp;
+	struct cxgb4_range cq;
 };
 
 /*
