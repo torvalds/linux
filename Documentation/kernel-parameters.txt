@@ -2048,7 +2048,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			WARNING: Forcing ASPM on may cause system lockups.
 
 	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
-		off	Do not use native PCIe PME signaling.
+			Format: {auto|force}[,nomsi]
+		auto	Use native PCIe PME signaling if the BIOS allows the
+			kernel to control PCIe config registers of root ports.
 		force	Use native PCIe PME signaling even if the BIOS refuses
 			to allow the kernel to control the relevant PCIe config
 			registers.
