@@ -286,6 +286,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	local->scanning = 0;
 	local->scan_channel = NULL;
 
+	drv_sw_scan_complete(local);
+
 	/* we only have to protect scan_req and hw/sw scan */
 	mutex_unlock(&local->scan_mtx);
 
@@ -294,8 +296,6 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 		goto done;
 
 	ieee80211_configure_filter(local);
-
-	drv_sw_scan_complete(local);
 
 	ieee80211_offchannel_return(local, true);
 
