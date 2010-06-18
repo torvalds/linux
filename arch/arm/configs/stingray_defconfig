@@ -576,6 +576,11 @@ CONFIG_RFKILL=y
 #
 
 #
+# GPS Driver
+#
+CONFIG_GPS_GPIO_BRCM4750=y
+
+#
 # Generic Driver Options
 #
 CONFIG_UEVENT_HELPER_PATH=""
