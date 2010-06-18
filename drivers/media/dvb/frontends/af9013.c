@@ -1578,7 +1578,7 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 {
 	int ret;
 	struct af9013_state *state = NULL;
-	u8 buf[3], i;
+	u8 buf[4], i;
 
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct af9013_state), GFP_KERNEL);
@@ -1611,12 +1611,12 @@ struct dvb_frontend *af9013_attach(const struct af9013_config *config,
 	}
 
 	/* firmware version */
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		ret = af9013_read_reg(state, 0x5103 + i, &buf[i]);
 		if (ret)
 			goto error;
 	}
-	info("firmware version:%d.%d.%d", buf[0], buf[1], buf[2]);
+	info("firmware version:%d.%d.%d.%d", buf[0], buf[1], buf[2], buf[3]);
 
 	/* settings for mp2if */
 	if (state->config.output_mode == AF9013_OUTPUT_MODE_USB) {
