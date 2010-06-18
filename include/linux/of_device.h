@@ -3,8 +3,25 @@
 
 #ifdef CONFIG_OF_DEVICE
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/mod_devicetable.h>
+
+
+/*
+ * The of_device *was* a kind of "base class" that was a superset of
+ * struct device for use by devices attached to an OF node and probed
+ * using OF properties.  However, the important bit of OF-style
+ * probing, namely the device node pointer, has been moved into the
+ * common struct device when CONFIG_OF is set to make OF-style probing
+ * available to all bus types.  So now, just make of_device and
+ * platform_device equivalent so that current of_platform bus users
+ * can be transparently migrated over to using the platform bus.
+ *
+ * This line will go away once all references to of_device are removed
+ * from the kernel.
+ */
+#define of_device platform_device
 
 #include <asm/of_device.h>
 

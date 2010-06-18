@@ -15,16 +15,6 @@
 #include <linux/device.h>
 #include <linux/of.h>
 
-/*
- * The of_device is a kind of "base class" that is a superset of
- * struct device for use by devices attached to an OF node and
- * probed using OF properties.
- */
-struct of_device {
-	struct device		dev; /* Generic device interface */
-	struct pdev_archdata	archdata;
-};
-
 extern ssize_t of_device_get_modalias(struct of_device *ofdev,
 					char *str, ssize_t len);
 

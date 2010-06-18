@@ -5,17 +5,6 @@
 #include <linux/device.h>
 #include <linux/of.h>
 
-/*
- * The of_device is a kind of "base class" that is a superset of
- * struct device for use by devices attached to an OF node and
- * probed using OF properties.
- */
-struct of_device
-{
-	struct device		dev;		/* Generic device interface */
-	struct pdev_archdata	archdata;
-};
-
 extern struct of_device *of_device_alloc(struct device_node *np,
 					 const char *bus_id,
 					 struct device *parent);

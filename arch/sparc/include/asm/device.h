@@ -9,13 +9,13 @@
 #include <asm/openprom.h>
 
 struct device_node;
-struct of_device;
+struct platform_device;
 
 struct dev_archdata {
 	void			*iommu;
 	void			*stc;
 	void			*host_controller;
-	struct of_device	*op;
+	struct platform_device	*op;
 	int			numa_node;
 };
 
