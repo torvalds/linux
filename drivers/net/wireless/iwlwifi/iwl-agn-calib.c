@@ -843,10 +843,10 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 
 	if (active_chains != priv->hw_params.valid_rx_ant &&
 	    active_chains != priv->chain_noise_data.active_chains)
-		IWL_WARN(priv,
-			 "Detected that not all antennas are connected! "
-			 "Connected: %#x, valid: %#x.\n",
-			 active_chains, priv->hw_params.valid_rx_ant);
+		IWL_DEBUG_CALIB(priv,
+				"Detected that not all antennas are connected! "
+				"Connected: %#x, valid: %#x.\n",
+				active_chains, priv->hw_params.valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	priv->chain_noise_data.active_chains = active_chains;
