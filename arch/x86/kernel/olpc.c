@@ -21,10 +21,7 @@
 #include <asm/geode.h>
 #include <asm/setup.h>
 #include <asm/olpc.h>
-
-#ifdef CONFIG_OPEN_FIRMWARE
-#include <asm/ofw.h>
-#endif
+#include <asm/olpc_ofw.h>
 
 struct olpc_platform_t olpc_platform_info;
 EXPORT_SYMBOL_GPL(olpc_platform_info);
@@ -188,14 +185,15 @@ err:
 }
 EXPORT_SYMBOL_GPL(olpc_ec_cmd);
 
-#ifdef CONFIG_OPEN_FIRMWARE
+#ifdef CONFIG_OLPC_OPENFIRMWARE
 static void __init platform_detect(void)
 {
 	size_t propsize;
 	__be32 rev;
+	void *args[] = { NULL, "board-revision-int", &rev, (void *)4 };
+	void *res[] = { &propsize };
 
-	if (ofw("getprop", 4, 1, NULL, "board-revision-int", &rev, 4,
-			&propsize) || propsize != 4) {
+	if (olpc_ofw("getprop", args, res) || propsize != 4) {
 		printk(KERN_ERR "ofw: getprop call failed!\n");
 		rev = cpu_to_be32(0);
 	}
