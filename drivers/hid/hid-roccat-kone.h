@@ -14,8 +14,6 @@
 
 #include <linux/types.h>
 
-#define ROCCAT_KONE_ABI_VERSION "1"
-
 #pragma pack(push)
 #pragma pack(1)
 
