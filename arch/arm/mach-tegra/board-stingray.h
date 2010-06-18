@@ -25,6 +25,7 @@ int stingray_sensors_init(void);
 int stingray_touch_init(void);
 int stingray_spi_init(void);
 int stingray_revision(void);
+void stingray_gps_init(void);
 
 enum {
 	STINGRAY_REVISION_UNKNOWN,

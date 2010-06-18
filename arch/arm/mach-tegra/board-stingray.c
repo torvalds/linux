@@ -552,6 +552,7 @@ static void __init tegra_stingray_init(void)
 	stingray_w1_init();
 	stingray_sensors_init();
 	stingray_wlan_init();
+	stingray_gps_init();
 }
 
 MACHINE_START(STINGRAY, "stingray")

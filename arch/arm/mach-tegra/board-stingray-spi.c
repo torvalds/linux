@@ -365,6 +365,9 @@ struct regulator_consumer_supply cpcap_vaudio_consumers[] = {
 	REGULATOR_CONSUMER("vaudio", NULL /* mic opamp */),
 };
 
+struct regulator_consumer_supply cpcap_vdig_consumers[] = {
+	REGULATOR_CONSUMER("vdig", NULL /* gps */),
+};
 static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 	[CPCAP_SW2] = {
 		.constraints = {
@@ -428,10 +431,14 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 	},
 	[CPCAP_VDIG] = {
 		.constraints = {
-			.min_uV			= 1200000,
+			.min_uV			= 1875000,
 			.max_uV			= 1875000,
 			.valid_ops_mask		= 0,
+			.always_on		= 1,
+			.apply_uV		= 1,
 		},
+		.num_consumer_supplies	= ARRAY_SIZE(cpcap_vdig_consumers),
+		.consumer_supplies	= cpcap_vdig_consumers,
 	},
 	[CPCAP_VFUSE] = {
 		.constraints = {
