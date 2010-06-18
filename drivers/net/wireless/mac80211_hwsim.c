@@ -1291,6 +1291,11 @@ static int __init init_mac80211_hwsim(void)
 		hw->wiphy->n_addresses = 2;
 		hw->wiphy->addresses = data->addresses;
 
+		if (fake_hw_scan) {
+			hw->wiphy->max_scan_ssids = 255;
+			hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
+		}
+
 		hw->channel_change_time = 1;
 		hw->queues = 4;
 		hw->wiphy->interface_modes =
