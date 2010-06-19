@@ -1356,6 +1356,7 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 	INIT_LIST_HEAD(&socket->devices_list);
 	memset(&socket->pcmcia_state, 0, sizeof(u8));
 	socket->device_count = 0;
+	atomic_set(&socket->present, 0);
 
 	ret = pccard_register_pcmcia(socket, &pcmcia_bus_callback);
 	if (ret) {
@@ -1363,8 +1364,6 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 		pcmcia_put_socket(socket);
 		return ret;
 	}
-
-	atomic_set(&socket->present, 0);
 
 	return 0;
 }
