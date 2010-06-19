@@ -45,8 +45,6 @@ enum bdi_stat_item {
 #define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
 struct bdi_writeback {
-	struct list_head list;			/* hangs off the bdi */
-
 	struct backing_dev_info *bdi;		/* our parent bdi */
 	unsigned int nr;
 
@@ -80,8 +78,7 @@ struct backing_dev_info {
 	unsigned int max_ratio, max_prop_frac;
 
 	struct bdi_writeback wb;  /* default writeback info for this bdi */
-	spinlock_t wb_lock;	  /* protects update side of wb_list */
-	struct list_head wb_list; /* the flusher threads hanging off this bdi */
+	spinlock_t wb_lock;	  /* protects work_list */
 
 	struct list_head work_list;
 
