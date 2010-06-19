@@ -307,7 +307,7 @@ EXPORT_SYMBOL_GPL(ide_cd_expiry);
 
 int ide_cd_get_xferlen(struct request *rq)
 {
-	switch (rq->cmd_type)
+	switch (rq->cmd_type) {
 	case REQ_TYPE_FS:
 		return 32768;
 	case REQ_TYPE_SENSE:
@@ -477,12 +477,12 @@ static ide_startstop_t ide_pc_intr(ide_drive_t *drive)
 		if (uptodate == 0)
 			drive->failed_pc = NULL;
 
-		if (rq->cmd_type == REQ_TYPE_SPECIAL)
+		if (rq->cmd_type == REQ_TYPE_SPECIAL) {
 			rq->errors = 0;
 			error = 0;
 		} else {
 
-			if (req->cmd_type != REQ_TYPE_FS && uptodate <= 0) {
+			if (rq->cmd_type != REQ_TYPE_FS && uptodate <= 0) {
 				if (rq->errors == 0)
 					rq->errors = -EIO;
 			}

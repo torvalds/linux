@@ -648,7 +648,7 @@ static int ub_request_fn_1(struct ub_lun *lun, struct request *rq)
 		return 0;
 	}
 
-	if (lun->changed && rq->cmd_type != REQ_TYPE_BLOCK_PC)
+	if (lun->changed && rq->cmd_type != REQ_TYPE_BLOCK_PC) {
 		blk_start_request(rq);
 		ub_end_rq(rq, SAM_STAT_CHECK_CONDITION);
 		return 0;

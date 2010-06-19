@@ -318,7 +318,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 			cdrom_saw_media_change(drive);
 
 			if (rq->cmd_type == REQ_TYPE_FS &&
-			    !(rq->cmd_flags & REQ_QUIET)) {
+			    !(rq->cmd_flags & REQ_QUIET))
 				printk(KERN_ERR PFX "%s: tray open\n",
 					drive->name);
 		}
@@ -375,7 +375,7 @@ static int cdrom_decode_status(ide_drive_t *drive, u8 stat)
 		do_end_request = 1;
 		break;
 	default:
-		if (req->cmd_type != REQ_TYPE_FS)
+		if (rq->cmd_type != REQ_TYPE_FS)
 			break;
 		if (err & ~ATA_ABORTED) {
 			/* go to the default handler for other errors */

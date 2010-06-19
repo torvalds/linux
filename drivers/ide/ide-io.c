@@ -353,7 +353,7 @@ static ide_startstop_t start_request (ide_drive_t *drive, struct request *rq)
 			    pm->pm_step == IDE_PM_COMPLETED)
 				ide_complete_pm_rq(drive, rq);
 			return startstop;
-		} else if (!rq->rq_disk && rq->cmd_type == REQ_TYPE_SPECIAL) {
+		} else if (!rq->rq_disk && rq->cmd_type == REQ_TYPE_SPECIAL)
 			/*
 			 * TODO: Once all ULDs have been modified to
 			 * check for specific op codes rather than
