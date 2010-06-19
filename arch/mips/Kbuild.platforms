@@ -9,6 +9,7 @@ platforms += cobalt
 platforms += dec
 platforms += emma
 platforms += jazz
+platforms += jz4740
 platforms += lasat
 platforms += loongson
 platforms += mipssim

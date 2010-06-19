@@ -1,0 +1,8 @@
+choice
+	prompt "Machine type"
+	depends on MACH_JZ4740
+
+endchoice
+
+config HAVE_PWM
+	bool
