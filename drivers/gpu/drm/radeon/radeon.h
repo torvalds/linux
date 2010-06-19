@@ -1084,6 +1084,7 @@ struct radeon_device {
 	struct mutex vram_mutex;
 
 	/* audio stuff */
+	bool			audio_enabled;
 	struct timer_list	audio_timer;
 	int			audio_channels;
 	int			audio_rate;

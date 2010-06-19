@@ -160,6 +160,7 @@ static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
 {
 	DRM_INFO("%s audio support", enable ? "Enabling" : "Disabling");
 	WREG32_P(R600_AUDIO_ENABLE, enable ? 0x81000000 : 0x0, ~0x81000000);
+	rdev->audio_enabled = enable;
 }
 
 /*
@@ -200,7 +201,8 @@ void r600_audio_enable_polling(struct drm_encoder *encoder)
 		return;
 
 	radeon_encoder->audio_polling_active = 1;
-	mod_timer(&rdev->audio_timer, jiffies + 1);
+	if (rdev->audio_enabled)
+		mod_timer(&rdev->audio_timer, jiffies + 1);
 }
 
 /*
@@ -266,7 +268,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
  */
 void r600_audio_fini(struct radeon_device *rdev)
 {
-	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
+	if (!rdev->audio_enabled)
 		return;
 
 	del_timer(&rdev->audio_timer);
