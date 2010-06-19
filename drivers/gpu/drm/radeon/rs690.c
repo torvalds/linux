@@ -640,6 +640,13 @@ static int rs690_startup(struct radeon_device *rdev)
 		dev_err(rdev->dev, "failled initializing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing audio\n");
+		return r;
+	}
+
 	return 0;
 }
 
@@ -666,6 +673,7 @@ int rs690_resume(struct radeon_device *rdev)
 
 int rs690_suspend(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r100_cp_disable(rdev);
 	r100_wb_disable(rdev);
 	rs600_irq_disable(rdev);
@@ -675,6 +683,7 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
+	r600_audio_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
