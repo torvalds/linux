@@ -560,13 +560,16 @@ static int tlv320aic23_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		/* vref/mid, osc on, dac unmute */
+		reg &= ~(TLV320AIC23_DEVICE_PWR_OFF | TLV320AIC23_OSC_OFF | \
+			TLV320AIC23_DAC_OFF);
 		tlv320aic23_write(codec, TLV320AIC23_PWR, reg);
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* everything off except vref/vmid, */
-		tlv320aic23_write(codec, TLV320AIC23_PWR, reg | 0x0040);
+		tlv320aic23_write(codec, TLV320AIC23_PWR, reg | \
+			TLV320AIC23_CLK_OFF);
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* everything off, dac mute, inactive */
@@ -615,7 +618,6 @@ static int tlv320aic23_suspend(struct platform_device *pdev,
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
-	tlv320aic23_write(codec, TLV320AIC23_ACTIVE, 0x0);
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
 	return 0;
@@ -632,7 +634,6 @@ static int tlv320aic23_resume(struct platform_device *pdev)
 		u16 val = tlv320aic23_read_reg_cache(codec, reg);
 		tlv320aic23_write(codec, reg, val);
 	}
-
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
 	return 0;
