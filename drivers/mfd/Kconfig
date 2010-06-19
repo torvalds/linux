@@ -7,7 +7,16 @@ menuconfig MFD_SUPPORT
 	depends on HAS_IOMEM
 	default y
 	help
-	  Configure MFD device drivers.
+	  Multifunction devices embed several functions (e.g. GPIOs,
+	  touchscreens, keyboards, current regulators, power management chips,
+	  etc...) in one single integrated circuit. They usually talk to the
+	  main CPU through one or more IRQ lines and low speed data busses (SPI,
+	  I2C, etc..). They appear as one single device to the main system
+	  through the data bus and the MFD framework allows for sub devices
+	  (a.k.a. functions) to appear as discrete platform devices.
+	  MFDs are typically found on embedded platforms.
+
+	  This option alone does not add any kernel code.
 
 if MFD_SUPPORT
 
