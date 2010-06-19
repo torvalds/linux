@@ -630,9 +630,6 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		err = -EINVAL;
 		goto failed_sbh;
 	}
-	/* Dummy values  */
-	nilfs->ns_free_segments_count =
-		nilfs->ns_nsegments - (nilfs->ns_segnum + 1);
 
 	/* Initialize gcinode cache */
 	err = nilfs_init_gccache(nilfs);
