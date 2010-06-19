@@ -260,48 +260,6 @@ static void bdi_wb_init(struct bdi_writeback *wb, struct backing_dev_info *bdi)
 	INIT_LIST_HEAD(&wb->b_more_io);
 }
 
-static int bdi_start_fn(void *ptr)
-{
-	struct bdi_writeback *wb = ptr;
-	struct backing_dev_info *bdi = wb->bdi;
-	int ret;
-
-	/*
-	 * Add us to the active bdi_list
-	 */
-	spin_lock_bh(&bdi_lock);
-	list_add_rcu(&bdi->bdi_list, &bdi_list);
-	spin_unlock_bh(&bdi_lock);
-
-	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
-	set_freezable();
-
-	/*
-	 * Our parent may run at a different priority, just set us to normal
-	 */
-	set_user_nice(current, 0);
-
-	/*
-	 * Clear pending bit and wakeup anybody waiting to tear us down
-	 */
-	clear_bit(BDI_pending, &bdi->state);
-	smp_mb__after_clear_bit();
-	wake_up_bit(&bdi->state, BDI_pending);
-
-	ret = bdi_writeback_task(wb);
-
-	wb->task = NULL;
-
-	/*
-	 * Flush any work that raced with us exiting. No new work
-	 * will be added, since this bdi isn't discoverable anymore.
-	 */
-	if (!list_empty(&bdi->work_list))
-		wb_do_writeback(wb, 1);
-
-	return ret;
-}
-
 int bdi_has_dirty_io(struct backing_dev_info *bdi)
 {
 	return wb_has_dirty_io(&bdi->wb);
@@ -425,7 +383,7 @@ static int bdi_forker_task(void *ptr)
 		spin_unlock_bh(&bdi_lock);
 
 		wb = &bdi->wb;
-		wb->task = kthread_run(bdi_start_fn, wb, "flush-%s",
+		wb->task = kthread_run(bdi_writeback_thread, wb, "flush-%s",
 					dev_name(bdi->dev));
 		/*
 		 * If task creation fails, then readd the bdi to
