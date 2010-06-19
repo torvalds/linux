@@ -1095,6 +1095,11 @@ MODULE_LICENSE ("GPL");
 #define TMIO_OHCI_DRIVER	ohci_hcd_tmio_driver
 #endif
 
+#ifdef CONFIG_MACH_JZ4740
+#include "ohci-jz4740.c"
+#define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
+#endif
+
 #if	!defined(PCI_DRIVER) &&		\
 	!defined(PLATFORM_DRIVER) &&	\
 	!defined(OMAP1_PLATFORM_DRIVER) &&	\
