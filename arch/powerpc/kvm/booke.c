@@ -144,7 +144,7 @@ static int kvmppc_booke_irqprio_deliver(struct kvm_vcpu *vcpu,
                                         unsigned int priority)
 {
 	int allowed = 0;
-	ulong msr_mask;
+	ulong uninitialized_var(msr_mask);
 	bool update_esr = false, update_dear = false;
 
 	switch (priority) {
