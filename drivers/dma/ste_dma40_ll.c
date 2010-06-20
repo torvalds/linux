@@ -420,7 +420,7 @@ int d40_log_sg_to_lli(int lcla_id,
 	return total_size;
 }
 
-void d40_log_lli_write(struct d40_log_lli_full *lcpa,
+int d40_log_lli_write(struct d40_log_lli_full *lcpa,
 		       struct d40_log_lli *lcla_src,
 		       struct d40_log_lli *lcla_dst,
 		       struct d40_log_lli *lli_dst,
@@ -448,4 +448,7 @@ void d40_log_lli_write(struct d40_log_lli_full *lcpa,
 		slos = lli_src[i + 1].lcsp13 & D40_MEM_LCSP1_SLOS_MASK;
 		dlos = lli_dst[i + 1].lcsp13 & D40_MEM_LCSP3_DLOS_MASK;
 	}
+
+	return i;
+
 }

@@ -339,12 +339,12 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 		      bool term_int, dma_addr_t dev_addr, int max_len,
 		      int llis_per_log);
 
-void d40_log_lli_write(struct d40_log_lli_full *lcpa,
-		       struct d40_log_lli *lcla_src,
-		       struct d40_log_lli *lcla_dst,
-		       struct d40_log_lli *lli_dst,
-		       struct d40_log_lli *lli_src,
-		       int llis_per_log);
+int d40_log_lli_write(struct d40_log_lli_full *lcpa,
+		      struct d40_log_lli *lcla_src,
+		      struct d40_log_lli *lcla_dst,
+		      struct d40_log_lli *lli_dst,
+		      struct d40_log_lli *lli_src,
+		      int llis_per_log);
 
 int d40_log_sg_to_lli(int lcla_id,
 		      struct scatterlist *sg,
