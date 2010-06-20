@@ -204,10 +204,21 @@ struct fw_cdev_event_request2 {
  * @header:	Stripped headers, if any
  *
  * This event is sent when the controller has completed an &fw_cdev_iso_packet
- * with the %FW_CDEV_ISO_INTERRUPT bit set.  In the receive case, the headers
- * stripped of all packets up until and including the interrupt packet are
- * returned in the @header field.  The amount of header data per packet is as
- * specified at iso context creation by &fw_cdev_create_iso_context.header_size.
+ * with the %FW_CDEV_ISO_INTERRUPT bit set.
+ *
+ * Isochronous transmit events:
+ *
+ * In version 1 of the ABI, &header_length is 0.  In version 3 and some
+ * implementations of version 2 of the ABI, &header_length is a multiple of 4
+ * and &header contains timestamps of all packets up until the interrupt packet.
+ * The format of the timestamps is as described below for isochronous reception.
+ *
+ * Isochronous receive events:
+ *
+ * The headers stripped of all packets up until and including the interrupt
+ * packet are returned in the @header field.  The amount of header data per
+ * packet is as specified at iso context creation by
+ * &fw_cdev_create_iso_context.header_size.
  *
  * In version 1 of this ABI, header data consisted of the 1394 isochronous
  * packet header, followed by quadlets from the packet payload if
