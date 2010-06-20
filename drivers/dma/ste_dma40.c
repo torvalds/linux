@@ -595,6 +595,7 @@ static void d40_config_set_event(struct d40_chan *d40c, bool do_enable)
 	u32 val;
 	unsigned long flags;
 
+	/* Notice, that disable requires the physical channel to be stopped */
 	if (do_enable)
 		val = D40_ACTIVATE_EVENTLINE;
 	else
@@ -740,18 +741,10 @@ static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
 
 static int d40_start(struct d40_chan *d40c)
 {
-	int err;
-
-	if (d40c->log_num != D40_PHY_CHAN) {
-		err = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
-		if (err)
-			return err;
+	if (d40c->log_num != D40_PHY_CHAN)
 		d40_config_set_event(d40c, true);
-	}
 
-	err = d40_channel_execute_command(d40c, D40_DMA_RUN);
-
-	return err;
+	return d40_channel_execute_command(d40c, D40_DMA_RUN);
 }
 
 static struct d40_desc *d40_queue_start(struct d40_chan *d40c)
@@ -1340,7 +1333,6 @@ static bool d40_is_paused(struct d40_chan *d40c)
 	void __iomem *active_reg;
 	u32 status;
 	u32 event;
-	int res;
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -1359,10 +1351,6 @@ static bool d40_is_paused(struct d40_chan *d40c)
 		goto _exit;
 	}
 
-	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
-	if (res != 0)
-		goto _exit;
-
 	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
 	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM)
 		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
@@ -1379,12 +1367,6 @@ static bool d40_is_paused(struct d40_chan *d40c)
 
 	if (status != D40_DMA_RUN)
 		is_paused = true;
-
-	/* Resume the other logical channels if any */
-	if (d40_chan_has_events(d40c))
-		res = d40_channel_execute_command(d40c,
-						  D40_DMA_RUN);
-
 _exit:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return is_paused;
@@ -1430,20 +1412,13 @@ static int d40_resume(struct dma_chan *chan)
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
-	if (d40c->log_num != D40_PHY_CHAN) {
-		res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
-		if (res)
-			goto out;
-
-		/* If bytes left to transfer or linked tx resume job */
-		if (d40_residue(d40c) || d40_tx_is_linked(d40c)) {
+	/* If bytes left to transfer or linked tx resume job */
+	if (d40_residue(d40c) || d40_tx_is_linked(d40c)) {
+		if (d40c->log_num != D40_PHY_CHAN)
 			d40_config_set_event(d40c, true);
-			res = d40_channel_execute_command(d40c, D40_DMA_RUN);
-		}
-	} else if (d40_residue(d40c) || d40_tx_is_linked(d40c))
 		res = d40_channel_execute_command(d40c, D40_DMA_RUN);
+	}
 
-out:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return res;
 }
