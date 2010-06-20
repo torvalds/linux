@@ -1220,7 +1220,7 @@ static int d40_free_dma(struct d40_chan *d40c)
 {
 
 	int res = 0;
-	u32 event, dir;
+	u32 event;
 	struct d40_phy_res *phy = d40c->phy_chan;
 	bool is_src;
 	struct d40_desc *d;
@@ -1252,21 +1252,12 @@ static int d40_free_dma(struct d40_chan *d40c)
 		return -EINVAL;
 	}
 
-	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
-	if (res) {
-		dev_err(&d40c->chan.dev->device, "[%s] suspend failed\n",
-			__func__);
-		return res;
-	}
-
 	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
 	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
 		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
-		dir = D40_CHAN_REG_SDLNK;
 		is_src = false;
 	} else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
 		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
-		dir = D40_CHAN_REG_SSLNK;
 		is_src = true;
 	} else {
 		dev_err(&d40c->chan.dev->device,
@@ -1274,16 +1265,17 @@ static int d40_free_dma(struct d40_chan *d40c)
 		return -EINVAL;
 	}
 
-	if (d40c->log_num != D40_PHY_CHAN) {
-		/*
-		 * Release logical channel, deactivate the event line during
-		 * the time physical res is suspended.
-		 */
-		writel((D40_DEACTIVATE_EVENTLINE << D40_EVENTLINE_POS(event)) &
-		       D40_EVENTLINE_MASK(event),
-		       d40c->base->virtbase + D40_DREG_PCBASE +
-		       phy->num * D40_DREG_PCDELTA + dir);
+	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
+	if (res) {
+		dev_err(&d40c->chan.dev->device, "[%s] suspend failed\n",
+			__func__);
+		return res;
+	}
 
+	if (d40c->log_num != D40_PHY_CHAN) {
+		/* Release logical channel, deactivate the event line */
+
+		d40_config_set_event(d40c, false);
 		d40c->base->lookup_log_chans[d40c->log_num] = NULL;
 
 		/*
@@ -1304,8 +1296,9 @@ static int d40_free_dma(struct d40_chan *d40c)
 			}
 			return 0;
 		}
-	} else
-		d40_alloc_mask_free(phy, is_src, 0);
+	} else {
+		(void) d40_alloc_mask_free(phy, is_src, 0);
+	}
 
 	/* Release physical channel */
 	res = d40_channel_execute_command(d40c, D40_DMA_STOP);
