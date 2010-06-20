@@ -1759,7 +1759,7 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 				 0,
 				 d40c->log_def.lcsp1,
 				 d40c->dma_cfg.src_info.data_width,
-				 true, true);
+				 false, true);
 
 		d40_log_fill_lli(d40d->lli_log.dst,
 				 dst,

@@ -315,11 +315,8 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 	int total_size = 0;
 	struct scatterlist *current_sg = sg;
 	int i;
-	u32 next_lli_off_dst;
-	u32 next_lli_off_src;
-
-	next_lli_off_src = 0;
-	next_lli_off_dst = 0;
+	u32 next_lli_off_dst = 0;
+	u32 next_lli_off_src = 0;
 
 	for_each_sg(sg, current_sg, sg_len, i) {
 		total_size += sg_dma_len(current_sg);
@@ -351,7 +348,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 					 sg_dma_len(current_sg),
 					 next_lli_off_src,
 					 lcsp->lcsp1, src_data_width,
-					 term_int && !next_lli_off_src,
+					 false,
 					 true);
 			d40_log_fill_lli(&lli->dst[i],
 					 dev_addr,
@@ -375,7 +372,7 @@ int d40_log_sg_to_dev(struct d40_lcla_elem *lcla,
 					 sg_dma_len(current_sg),
 					 next_lli_off_src,
 					 lcsp->lcsp1, src_data_width,
-					 term_int && !next_lli_off_src,
+					 false,
 					 false);
 		}
 	}
