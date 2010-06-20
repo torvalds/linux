@@ -508,6 +508,7 @@ static int d40_channel_execute_command(struct d40_chan *d40c,
 	void __iomem *active_reg;
 	int ret = 0;
 	unsigned long flags;
+	u32 wmask;
 
 	spin_lock_irqsave(&d40c->base->execmd_lock, flags);
 
@@ -525,7 +526,9 @@ static int d40_channel_execute_command(struct d40_chan *d40c,
 			goto done;
 	}
 
-	writel(command << D40_CHAN_POS(d40c->phy_chan->num), active_reg);
+	wmask = 0xffffffff & ~(D40_CHAN_POS_MASK(d40c->phy_chan->num));
+	writel(wmask | (command << D40_CHAN_POS(d40c->phy_chan->num)),
+	       active_reg);
 
 	if (command == D40_DMA_SUSPEND_REQ) {
 
