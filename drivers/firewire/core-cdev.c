@@ -627,6 +627,8 @@ static void release_request(struct client *client,
 		kfree(r->data);
 	else
 		fw_send_response(r->card, r->request, RCODE_CONFLICT_ERROR);
+
+	fw_card_put(r->card);
 	kfree(r);
 }
 
@@ -640,6 +642,9 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	struct inbound_transaction_event *e;
 	void *fcp_frame = NULL;
 	int ret;
+
+	/* card may be different from handler->client->device->card */
+	fw_card_get(card);
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
@@ -686,6 +691,8 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 
 	if (!is_fcp_request(request))
 		fw_send_response(card, request, RCODE_CONFLICT_ERROR);
+
+	fw_card_put(card);
 }
 
 static void release_address_handler(struct client *client,
@@ -768,6 +775,7 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 	}
 	fw_send_response(r->card, r->request, a->rcode);
  out:
+	fw_card_put(r->card);
 	kfree(r);
 
 	return ret;
