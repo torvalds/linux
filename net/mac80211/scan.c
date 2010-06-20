@@ -734,7 +734,7 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	int ret = -EBUSY;
-	enum nl80211_band band;
+	enum ieee80211_band band;
 
 	mutex_lock(&local->scan_mtx);
 
