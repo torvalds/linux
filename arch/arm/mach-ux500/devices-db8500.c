@@ -194,6 +194,7 @@ static struct stedma40_platform_data dma40_plat_data = {
 	.memcpy_conf_phy = &dma40_memcpy_conf_phy,
 	.memcpy_conf_log = &dma40_memcpy_conf_log,
 	.llis_per_log = 8,
+	.disabled_channels = {-1},
 };
 
 struct platform_device u8500_dma40_device = {
