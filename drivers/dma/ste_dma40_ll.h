@@ -13,6 +13,9 @@
 #define D40_DREG_PCDELTA	(8 * 4)
 #define D40_LLI_ALIGN		16 /* LLI alignment must be 16 bytes. */
 
+#define D40_LCPA_CHAN_SIZE 32
+#define D40_LCPA_CHAN_DST_DELTA 16
+
 #define D40_TYPE_TO_GROUP(type) (type / 16)
 #define D40_TYPE_TO_EVENT(type) (type % 16)
 

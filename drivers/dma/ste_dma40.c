@@ -1210,30 +1210,6 @@ out:
 
 }
 
-static int d40_config_chan(struct d40_chan *d40c,
-			   struct stedma40_chan_cfg *info)
-{
-
-	/* Fill in basic CFG register values */
-	d40_phy_cfg(&d40c->dma_cfg, &d40c->src_def_cfg,
-		    &d40c->dst_def_cfg, d40c->log_num != D40_PHY_CHAN);
-
-	if (d40c->log_num != D40_PHY_CHAN) {
-		d40_log_cfg(&d40c->dma_cfg,
-			    &d40c->log_def.lcsp1, &d40c->log_def.lcsp3);
-
-		if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
-			d40c->lcpa = d40c->base->lcpa_base +
-				d40c->dma_cfg.src_dev_type * 32;
-		else
-			d40c->lcpa = d40c->base->lcpa_base +
-				d40c->dma_cfg.dst_dev_type * 32 + 16;
-	}
-
-	/* Write channel configuration to the DMA */
-	return d40_config_write(d40c);
-}
-
 static int d40_config_memcpy(struct d40_chan *d40c)
 {
 	dma_cap_mask_t cap = d40c->chan.device->cap_mask;
@@ -1691,20 +1667,21 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	unsigned long flags;
 	struct d40_chan *d40c =
 		container_of(chan, struct d40_chan, chan);
-
+	bool is_free_phy;
 	spin_lock_irqsave(&d40c->lock, flags);
 
 	d40c->completed = chan->cookie = 1;
 
 	/*
 	 * If no dma configuration is set (channel_type == 0)
-	 * use default configuration
+	 * use default configuration (memcpy)
 	 */
 	if (d40c->dma_cfg.channel_type == 0) {
 		err = d40_config_memcpy(d40c);
 		if (err)
 			goto err_alloc;
 	}
+	is_free_phy = (d40c->phy_chan == NULL);
 
 	err = d40_allocate_channel(d40c);
 	if (err) {
@@ -1713,12 +1690,35 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 		goto err_alloc;
 	}
 
-	err = d40_config_chan(d40c, &d40c->dma_cfg);
-	if (err) {
-		dev_err(&d40c->chan.dev->device,
-			"[%s] Failed to configure channel\n",
-			__func__);
-		goto err_config;
+	/* Fill in basic CFG register values */
+	d40_phy_cfg(&d40c->dma_cfg, &d40c->src_def_cfg,
+		    &d40c->dst_def_cfg, d40c->log_num != D40_PHY_CHAN);
+
+	if (d40c->log_num != D40_PHY_CHAN) {
+		d40_log_cfg(&d40c->dma_cfg,
+			    &d40c->log_def.lcsp1, &d40c->log_def.lcsp3);
+
+		if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
+			d40c->lcpa = d40c->base->lcpa_base +
+			  d40c->dma_cfg.src_dev_type * D40_LCPA_CHAN_SIZE;
+		else
+			d40c->lcpa = d40c->base->lcpa_base +
+			  d40c->dma_cfg.dst_dev_type *
+			  D40_LCPA_CHAN_SIZE + D40_LCPA_CHAN_DST_DELTA;
+	}
+
+	/*
+	 * Only write channel configuration to the DMA if the physical
+	 * resource is free. In case of multiple logical channels
+	 * on the same physical resource, only the first write is necessary.
+	 */
+	if (is_free_phy) {
+		err = d40_config_write(d40c);
+		if (err) {
+			dev_err(&d40c->chan.dev->device,
+				"[%s] Failed to configure channel\n",
+				__func__);
+		}
 	}
 
 	spin_unlock_irqrestore(&d40c->lock, flags);
