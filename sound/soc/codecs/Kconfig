@@ -24,8 +24,8 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
 	select SND_SOC_CS4270 if I2C
-	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_DA7210 if I2C
+	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if I2C
@@ -128,9 +128,6 @@ config SND_SOC_CS42L51
 config SND_SOC_CS4270
 	tristate
 
-config SND_SOC_DA7210
-        tristate
-
 # Cirrus Logic CS4270 Codec VD = 3.3V Errata
 # Select if you are affected by the errata where the part will not function
 # if MCLK divide-by-1.5 is selected and VD is set to 3.3V.  The driver will
@@ -144,6 +141,9 @@ config SND_SOC_CX20442
 
 config SND_SOC_L3
        tristate
+
+config SND_SOC_DA7210
+        tristate
 
 config SND_SOC_PCM3008
        tristate
