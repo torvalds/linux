@@ -272,7 +272,7 @@ static ssize_t kone_sysfs_read_settings(struct file *fp, struct kobject *kobj,
 		count = sizeof(struct kone_settings) - off;
 
 	mutex_lock(&kone->kone_lock);
-	memcpy(buf, &kone->settings + off, count);
+	memcpy(buf, ((char const *)&kone->settings) + off, count);
 	mutex_unlock(&kone->kone_lock);
 
 	return count;
@@ -332,7 +332,7 @@ static ssize_t kone_sysfs_read_profilex(struct kobject *kobj,
 		count = sizeof(struct kone_profile) - off;
 
 	mutex_lock(&kone->kone_lock);
-	memcpy(buf, &kone->profiles[number - 1], sizeof(struct kone_profile));
+	memcpy(buf, ((char const *)&kone->profiles[number - 1]) + off, count);
 	mutex_unlock(&kone->kone_lock);
 
 	return count;
