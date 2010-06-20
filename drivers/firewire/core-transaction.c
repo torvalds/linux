@@ -802,7 +802,7 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	else
 		handler->address_callback(card, request,
 					  tcode, destination, source,
-					  p->generation, p->speed, offset,
+					  p->generation, offset,
 					  request->data, request->length,
 					  handler->callback_data);
 }
@@ -840,8 +840,8 @@ static void handle_fcp_region_request(struct fw_card *card,
 		if (is_enclosing_handler(handler, offset, request->length))
 			handler->address_callback(card, NULL, tcode,
 						  destination, source,
-						  p->generation, p->speed,
-						  offset, request->data,
+						  p->generation, offset,
+						  request->data,
 						  request->length,
 						  handler->callback_data);
 	}
@@ -951,8 +951,8 @@ static const struct fw_address_region topology_map_region =
 
 static void handle_topology_map(struct fw_card *card, struct fw_request *request,
 		int tcode, int destination, int source, int generation,
-		int speed, unsigned long long offset,
-		void *payload, size_t length, void *callback_data)
+		unsigned long long offset, void *payload, size_t length,
+		void *callback_data)
 {
 	int start;
 
@@ -996,8 +996,8 @@ static void update_split_timeout(struct fw_card *card)
 
 static void handle_registers(struct fw_card *card, struct fw_request *request,
 		int tcode, int destination, int source, int generation,
-		int speed, unsigned long long offset,
-		void *payload, size_t length, void *callback_data)
+		unsigned long long offset, void *payload, size_t length,
+		void *callback_data)
 {
 	int reg = offset & ~CSR_REGISTER_BASE;
 	__be32 *data = payload;

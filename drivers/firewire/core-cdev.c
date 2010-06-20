@@ -632,8 +632,7 @@ static void release_request(struct client *client,
 
 static void handle_request(struct fw_card *card, struct fw_request *request,
 			   int tcode, int destination, int source,
-			   int generation, int speed,
-			   unsigned long long offset,
+			   int generation, unsigned long long offset,
 			   void *payload, size_t length, void *callback_data)
 {
 	struct address_handler_resource *handler = callback_data;

@@ -410,8 +410,7 @@ static void free_orb(struct kref *kref)
 
 static void sbp2_status_write(struct fw_card *card, struct fw_request *request,
 			      int tcode, int destination, int source,
-			      int generation, int speed,
-			      unsigned long long offset,
+			      int generation, unsigned long long offset,
 			      void *payload, size_t length, void *callback_data)
 {
 	struct sbp2_logical_unit *lu = callback_data;

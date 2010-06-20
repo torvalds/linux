@@ -265,7 +265,7 @@ typedef void (*fw_transaction_callback_t)(struct fw_card *card, int rcode,
 typedef void (*fw_address_callback_t)(struct fw_card *card,
 				      struct fw_request *request,
 				      int tcode, int destination, int source,
-				      int generation, int speed,
+				      int generation,
 				      unsigned long long offset,
 				      void *data, size_t length,
 				      void *callback_data);
