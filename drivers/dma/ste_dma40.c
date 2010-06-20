@@ -374,7 +374,6 @@ static void d40_desc_remove(struct d40_desc *d40d)
 
 static struct d40_desc *d40_desc_get(struct d40_chan *d40c)
 {
-	struct d40_desc *desc;
 	struct d40_desc *d;
 	struct d40_desc *_d;
 
@@ -583,8 +582,6 @@ done:
 static void d40_term_all(struct d40_chan *d40c)
 {
 	struct d40_desc *d40d;
-	struct d40_desc *d;
-	struct d40_desc *_d;
 
 	/* Release active descriptors */
 	while ((d40d = d40_first_active_get(d40c))) {
@@ -601,15 +598,6 @@ static void d40_term_all(struct d40_chan *d40c)
 		/* Return desc to free-list */
 		d40_desc_free(d40c, d40d);
 	}
-
-	/* Release client owned descriptors */
-	if (!list_empty(&d40c->client))
-		list_for_each_entry_safe(d, _d, &d40c->client, node) {
-			d40_pool_lli_free(d);
-			d40_desc_remove(d);
-			/* Return desc to free-list */
-			d40_desc_free(d40c, d40d);
-		}
 
 	d40_lcla_id_put(d40c, &d40c->base->lcla_pool,
 			d40c->lcla.src_id);
@@ -1240,9 +1228,21 @@ static int d40_free_dma(struct d40_chan *d40c)
 	u32 event, dir;
 	struct d40_phy_res *phy = d40c->phy_chan;
 	bool is_src;
+	struct d40_desc *d;
+	struct d40_desc *_d;
+
 
 	/* Terminate all queued and active transfers */
 	d40_term_all(d40c);
+
+	/* Release client owned descriptors */
+	if (!list_empty(&d40c->client))
+		list_for_each_entry_safe(d, _d, &d40c->client, node) {
+			d40_pool_lli_free(d);
+			d40_desc_remove(d);
+			/* Return desc to free-list */
+			d40_desc_free(d40c, d);
+		}
 
 	if (phy == NULL) {
 		dev_err(&d40c->chan.dev->device, "[%s] phy == null\n",
