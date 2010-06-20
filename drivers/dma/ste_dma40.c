@@ -1515,6 +1515,12 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					     chan);
 	unsigned long flags;
 
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Unallocated channel.\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
 	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
 
@@ -1710,6 +1716,13 @@ static void d40_free_chan_resources(struct dma_chan *chan)
 	int err;
 	unsigned long flags;
 
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Cannot free unallocated channel\n", __func__);
+		return;
+	}
+
+
 	spin_lock_irqsave(&d40c->lock, flags);
 
 	err = d40_free_dma(d40c);
@@ -1731,6 +1744,12 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 					     chan);
 	unsigned long flags;
 	int err = 0;
+
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Channel is not allocated.\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
 
 	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
@@ -1947,6 +1966,12 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 	unsigned long flags;
 	int err;
 
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Cannot prepare unallocated channel\n", __func__);
+		return ERR_PTR(-EINVAL);
+	}
+
 	if (d40c->dma_cfg.pre_transfer)
 		d40c->dma_cfg.pre_transfer(chan,
 					   d40c->dma_cfg.pre_transfer_data,
@@ -1993,6 +2018,13 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	dma_cookie_t last_complete;
 	int ret;
 
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Cannot read status of unallocated channel\n",
+			__func__);
+		return -EINVAL;
+	}
+
 	last_complete = d40c->completed;
 	last_used = chan->cookie;
 
@@ -2012,6 +2044,12 @@ static void d40_issue_pending(struct dma_chan *chan)
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
 	unsigned long flags;
 
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Channel is not allocated!\n", __func__);
+		return;
+	}
+
 	spin_lock_irqsave(&d40c->lock, flags);
 
 	/* Busy means that pending jobs are already being processed */
@@ -2026,6 +2064,12 @@ static int d40_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 {
 	unsigned long flags;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan, chan);
+
+	if (d40c->phy_chan == NULL) {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Channel is not allocated!\n", __func__);
+		return -EINVAL;
+	}
 
 	switch (cmd) {
 	case DMA_TERMINATE_ALL:
