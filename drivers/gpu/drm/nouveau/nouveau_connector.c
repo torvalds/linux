@@ -365,6 +365,7 @@ out:
 #endif
 
 	drm_mode_connector_update_edid_property(connector, nv_connector->edid);
+	nouveau_connector_set_encoder(connector, nv_encoder);
 	return status;
 }
 
