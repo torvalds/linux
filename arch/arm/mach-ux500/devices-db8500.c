@@ -113,26 +113,21 @@ struct platform_device u8500_i2c4_device = {
 static struct resource dma40_resources[] = {
 	[0] = {
 		.start = U8500_DMA_BASE,
-		.end = U8500_DMA_BASE + SZ_4K - 1,
+		.end   = U8500_DMA_BASE + SZ_4K - 1,
 		.flags = IORESOURCE_MEM,
-		.name = "base",
+		.name  = "base",
 	},
 	[1] = {
 		.start = U8500_DMA_LCPA_BASE,
-		.end = U8500_DMA_LCPA_BASE + SZ_4K - 1,
+		.end   = U8500_DMA_LCPA_BASE + 2 * SZ_1K - 1,
 		.flags = IORESOURCE_MEM,
-		.name = "lcpa",
+		.name  = "lcpa",
 	},
 	[2] = {
-		.start = U8500_DMA_LCLA_BASE,
-		.end = U8500_DMA_LCLA_BASE + 16 * 1024 - 1,
-		.flags = IORESOURCE_MEM,
-		.name = "lcla",
-	},
-	[3] = {
 		.start = IRQ_DMA,
-		.end = IRQ_DMA,
-		.flags = IORESOURCE_IRQ}
+		.end   = IRQ_DMA,
+		.flags = IORESOURCE_IRQ,
+	}
 };
 
 /* Default configuration for physcial memcpy */
