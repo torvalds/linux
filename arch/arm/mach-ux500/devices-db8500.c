@@ -177,10 +177,12 @@ static const dma_addr_t dma40_rx_map[STEDMA40_NR_DEV];
 
 /* Reserved event lines for memcpy only */
 static int dma40_memcpy_event[] = {
+	STEDMA40_MEMCPY_TX_0,
 	STEDMA40_MEMCPY_TX_1,
 	STEDMA40_MEMCPY_TX_2,
 	STEDMA40_MEMCPY_TX_3,
 	STEDMA40_MEMCPY_TX_4,
+	STEDMA40_MEMCPY_TX_5,
 };
 
 static struct stedma40_platform_data dma40_plat_data = {
