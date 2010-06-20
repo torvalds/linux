@@ -1239,7 +1239,7 @@ static int d40_free_dma(struct d40_chan *d40c)
 
 	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
 	if (res) {
-		dev_err(&d40c->chan.dev->device, "[%s] suspend\n",
+		dev_err(&d40c->chan.dev->device, "[%s] suspend failed\n",
 			__func__);
 		return res;
 	}
@@ -1657,8 +1657,12 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	 */
 	if (d40c->dma_cfg.channel_type == 0) {
 		err = d40_config_memcpy(d40c);
-		if (err)
-			goto err_alloc;
+		if (err) {
+			dev_err(&d40c->chan.dev->device,
+				"[%s] Failed to configure memcpy channel\n",
+				__func__);
+			goto fail;
+		}
 	}
 	is_free_phy = (d40c->phy_chan == NULL);
 
@@ -1666,7 +1670,7 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	if (err) {
 		dev_err(&d40c->chan.dev->device,
 			"[%s] Failed to allocate channel\n", __func__);
-		goto err_alloc;
+		goto fail;
 	}
 
 	/* Fill in basic CFG register values */
@@ -1699,17 +1703,9 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 				__func__);
 		}
 	}
-
+fail:
 	spin_unlock_irqrestore(&d40c->lock, flags);
-	return 0;
-
- err_config:
-	(void) d40_free_dma(d40c);
- err_alloc:
-	spin_unlock_irqrestore(&d40c->lock, flags);
-	dev_err(&d40c->chan.dev->device,
-		"[%s] Channel allocation failed\n", __func__);
-	return -EINVAL;
+	return err;
 }
 
 static void d40_free_chan_resources(struct dma_chan *chan)
