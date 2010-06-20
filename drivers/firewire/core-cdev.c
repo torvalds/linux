@@ -49,7 +49,8 @@
 /*
  * ABI version history is documented in linux/firewire-cdev.h.
  */
-#define FW_CDEV_KERNEL_VERSION 3
+#define FW_CDEV_KERNEL_VERSION		4
+#define FW_CDEV_VERSION_EVENT_REQUEST2	4
 
 struct client {
 	u32 version;
@@ -176,7 +177,10 @@ struct outbound_transaction_event {
 
 struct inbound_transaction_event {
 	struct event event;
-	struct fw_cdev_event_request request;
+	union {
+		struct fw_cdev_event_request request;
+		struct fw_cdev_event_request2 request2;
+	} req;
 };
 
 struct iso_interrupt_event {
@@ -645,6 +649,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	struct address_handler_resource *handler = callback_data;
 	struct inbound_transaction_resource *r;
 	struct inbound_transaction_event *e;
+	size_t event_size0;
 	void *fcp_frame = NULL;
 	int ret;
 
@@ -678,15 +683,37 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	if (ret < 0)
 		goto failed;
 
-	e->request.type    = FW_CDEV_EVENT_REQUEST;
-	e->request.tcode   = tcode;
-	e->request.offset  = offset;
-	e->request.length  = length;
-	e->request.handle  = r->resource.handle;
-	e->request.closure = handler->closure;
+	if (handler->client->version < FW_CDEV_VERSION_EVENT_REQUEST2) {
+		struct fw_cdev_event_request *req = &e->req.request;
+
+		if (tcode & 0x10)
+			tcode = TCODE_LOCK_REQUEST;
+
+		req->type	= FW_CDEV_EVENT_REQUEST;
+		req->tcode	= tcode;
+		req->offset	= offset;
+		req->length	= length;
+		req->handle	= r->resource.handle;
+		req->closure	= handler->closure;
+		event_size0	= sizeof(*req);
+	} else {
+		struct fw_cdev_event_request2 *req = &e->req.request2;
+
+		req->type	= FW_CDEV_EVENT_REQUEST2;
+		req->tcode	= tcode;
+		req->offset	= offset;
+		req->source_node_id = source;
+		req->destination_node_id = destination;
+		req->card	= card->index;
+		req->generation	= generation;
+		req->length	= length;
+		req->handle	= r->resource.handle;
+		req->closure	= handler->closure;
+		event_size0	= sizeof(*req);
+	}
 
 	queue_event(handler->client, &e->event,
-		    &e->request, sizeof(e->request), r->data, length);
+		    &e->req, event_size0, r->data, length);
 	return;
 
  failed:

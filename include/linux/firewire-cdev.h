@@ -32,6 +32,9 @@
 #define FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED	0x04
 #define FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED	0x05
 
+/* available since kernel version 2.6.36 */
+#define FW_CDEV_EVENT_REQUEST2			0x06
+
 /**
  * struct fw_cdev_event_common - Common part of all fw_cdev_event_ types
  * @closure:	For arbitrary use by userspace
@@ -98,11 +101,46 @@ struct fw_cdev_event_response {
 };
 
 /**
- * struct fw_cdev_event_request - Sent on incoming request to an address region
+ * struct fw_cdev_event_request - Old version of &fw_cdev_event_request2
  * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_ALLOCATE ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_REQUEST
+ * @tcode:	See &fw_cdev_event_request2
+ * @offset:	See &fw_cdev_event_request2
+ * @handle:	See &fw_cdev_event_request2
+ * @length:	See &fw_cdev_event_request2
+ * @data:	See &fw_cdev_event_request2
+ *
+ * This event is sent instead of &fw_cdev_event_request2 if the kernel or
+ * the client implements ABI version <= 3.
+ *
+ * Unlike &fw_cdev_event_request2, the sender identity cannot be established,
+ * broadcast write requests cannot be distinguished from unicast writes, and
+ * @tcode of lock requests is %TCODE_LOCK_REQUEST.
+ *
+ * Requests to the FCP_REQUEST or FCP_RESPONSE register are responded to as
+ * with &fw_cdev_event_request2, except in kernel 2.6.32 and older which send
+ * the response packet of the client's %FW_CDEV_IOC_SEND_RESPONSE ioctl.
+ */
+struct fw_cdev_event_request {
+	__u64 closure;
+	__u32 type;
+	__u32 tcode;
+	__u64 offset;
+	__u32 handle;
+	__u32 length;
+	__u32 data[0];
+};
+
+/**
+ * struct fw_cdev_event_request2 - Sent on incoming request to an address region
+ * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_ALLOCATE ioctl
+ * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_REQUEST2
  * @tcode:	Transaction code of the incoming request
  * @offset:	The offset into the 48-bit per-node address space
+ * @source_node_id: Sender node ID
+ * @destination_node_id: Destination node ID
+ * @card:	The index of the card from which the request came
+ * @generation:	Bus generation in which the request is valid
  * @handle:	Reference to the kernel-side pending request
  * @length:	Data length, i.e. the request's payload size in bytes
  * @data:	Incoming data, if any
@@ -115,12 +153,42 @@ struct fw_cdev_event_response {
  *
  * The payload data for requests carrying data (write and lock requests)
  * follows immediately and can be accessed through the @data field.
+ *
+ * Unlike &fw_cdev_event_request, @tcode of lock requests is one of the
+ * firewire-core specific %TCODE_LOCK_MASK_SWAP...%TCODE_LOCK_VENDOR_DEPENDENT,
+ * i.e. encodes the extended transaction code.
+ *
+ * @card may differ from &fw_cdev_get_info.card because requests are received
+ * from all cards of the Linux host.  @source_node_id, @destination_node_id, and
+ * @generation pertain to that card.  Destination node ID and bus generation may
+ * therefore differ from the corresponding fields of the last
+ * &fw_cdev_event_bus_reset.
+ *
+ * @destination_node_id may also differ from the current node ID because of a
+ * non-local bus ID part or in case of a broadcast write request.  Note, a
+ * client must call an %FW_CDEV_IOC_SEND_RESPONSE ioctl even in case of a
+ * broadcast write request; the kernel will then release the kernel-side pending
+ * request but will not actually send a response packet.
+ *
+ * In case of a write request to FCP_REQUEST or FCP_RESPONSE, the kernel already
+ * sent a write response immediately after the request was received; in this
+ * case the client must still call an %FW_CDEV_IOC_SEND_RESPONSE ioctl to
+ * release the kernel-side pending request, though another response won't be
+ * sent.
+ *
+ * If the client subsequently needs to initiate requests to the sender node of
+ * an &fw_cdev_event_request2, it needs to use a device file with matching
+ * card index, node ID, and generation for outbound requests.
  */
-struct fw_cdev_event_request {
+struct fw_cdev_event_request2 {
 	__u64 closure;
 	__u32 type;
 	__u32 tcode;
 	__u64 offset;
+	__u32 source_node_id;
+	__u32 destination_node_id;
+	__u32 card;
+	__u32 generation;
 	__u32 handle;
 	__u32 length;
 	__u32 data[0];
@@ -200,6 +268,7 @@ struct fw_cdev_event_iso_resource {
  * @bus_reset:     Valid if @common.type == %FW_CDEV_EVENT_BUS_RESET
  * @response:      Valid if @common.type == %FW_CDEV_EVENT_RESPONSE
  * @request:       Valid if @common.type == %FW_CDEV_EVENT_REQUEST
+ * @request2:      Valid if @common.type == %FW_CDEV_EVENT_REQUEST2
  * @iso_interrupt: Valid if @common.type == %FW_CDEV_EVENT_ISO_INTERRUPT
  * @iso_resource:  Valid if @common.type ==
  *				%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
@@ -218,6 +287,7 @@ union fw_cdev_event {
 	struct fw_cdev_event_bus_reset		bus_reset;
 	struct fw_cdev_event_response		response;
 	struct fw_cdev_event_request		request;
+	struct fw_cdev_event_request2		request2;     /* added in 2.6.36 */
 	struct fw_cdev_event_iso_interrupt	iso_interrupt;
 	struct fw_cdev_event_iso_resource	iso_resource; /* added in 2.6.30 */
 };
@@ -263,8 +333,10 @@ union fw_cdev_event {
  *     (2.6.32)  - added time stamp to xmit &fw_cdev_event_iso_interrupt
  *     (2.6.33)  - IR has always packet-per-buffer semantics now, not one of
  *                 dual-buffer or packet-per-buffer depending on hardware
+ *               - shared use and auto-response for FCP registers
  *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
  *               - added %FW_CDEV_IOC_GET_CYCLE_TIMER2
+ *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2
  */
 #define FW_CDEV_VERSION 3 /* Meaningless; don't use this macro. */
 
