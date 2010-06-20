@@ -441,6 +441,7 @@ static int d40_lcla_id_get(struct d40_chan *d40c,
 		pool->base + d40c->phy_chan->num * 1024;
 	int i;
 	int lli_per_log = d40c->base->plat_data->llis_per_log;
+	unsigned long flags;
 
 	if (d40c->lcla.src_id >= 0 && d40c->lcla.dst_id >= 0)
 		return 0;
@@ -448,7 +449,7 @@ static int d40_lcla_id_get(struct d40_chan *d40c,
 	if (pool->num_blocks > 32)
 		return -EINVAL;
 
-	spin_lock(&pool->lock);
+	spin_lock_irqsave(&pool->lock, flags);
 
 	for (i = 0; i < pool->num_blocks; i++) {
 		if (!(pool->alloc_map[d40c->phy_chan->num] & (0x1 << i))) {
@@ -477,10 +478,10 @@ static int d40_lcla_id_get(struct d40_chan *d40c,
 	d40c->lcla.src = lcla_lidx_base + src_id * lli_per_log + 1;
 
 
-	spin_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, flags);
 	return 0;
 err:
-	spin_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, flags);
 	return -EINVAL;
 }
 
@@ -488,15 +489,16 @@ static void d40_lcla_id_put(struct d40_chan *d40c,
 			    struct d40_lcla_pool *pool,
 			    int id)
 {
+	unsigned long flags;
 	if (id < 0)
 		return;
 
 	d40c->lcla.src_id = -1;
 	d40c->lcla.dst_id = -1;
 
-	spin_lock(&pool->lock);
+	spin_lock_irqsave(&pool->lock, flags);
 	pool->alloc_map[d40c->phy_chan->num] &= (~(0x1 << id));
-	spin_unlock(&pool->lock);
+	spin_unlock_irqrestore(&pool->lock, flags);
 }
 
 static int d40_channel_execute_command(struct d40_chan *d40c,
@@ -1983,8 +1985,6 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 
 	if (d40d == NULL)
 		return NULL;
-
-	memset(d40d, 0, sizeof(struct d40_desc));
 
 	if (d40c->log_num != D40_PHY_CHAN)
 		err = d40_prep_slave_sg_log(d40d, d40c, sgl, sg_len,
