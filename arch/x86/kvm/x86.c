@@ -2436,25 +2436,29 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	int r;
-	struct kvm_lapic_state *lapic = NULL;
-	struct kvm_xsave *xsave = NULL;
-	struct kvm_xcrs *xcrs = NULL;
+	union {
+		struct kvm_lapic_state *lapic;
+		struct kvm_xsave *xsave;
+		struct kvm_xcrs *xcrs;
+		void *buffer;
+	} u;
 
+	u.buffer = NULL;
 	switch (ioctl) {
 	case KVM_GET_LAPIC: {
 		r = -EINVAL;
 		if (!vcpu->arch.apic)
 			goto out;
-		lapic = kzalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
+		u.lapic = kzalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
 
 		r = -ENOMEM;
-		if (!lapic)
+		if (!u.lapic)
 			goto out;
-		r = kvm_vcpu_ioctl_get_lapic(vcpu, lapic);
+		r = kvm_vcpu_ioctl_get_lapic(vcpu, u.lapic);
 		if (r)
 			goto out;
 		r = -EFAULT;
-		if (copy_to_user(argp, lapic, sizeof(struct kvm_lapic_state)))
+		if (copy_to_user(argp, u.lapic, sizeof(struct kvm_lapic_state)))
 			goto out;
 		r = 0;
 		break;
@@ -2463,14 +2467,14 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 		if (!vcpu->arch.apic)
 			goto out;
-		lapic = kmalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
+		u.lapic = kmalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
 		r = -ENOMEM;
-		if (!lapic)
+		if (!u.lapic)
 			goto out;
 		r = -EFAULT;
-		if (copy_from_user(lapic, argp, sizeof(struct kvm_lapic_state)))
+		if (copy_from_user(u.lapic, argp, sizeof(struct kvm_lapic_state)))
 			goto out;
-		r = kvm_vcpu_ioctl_set_lapic(vcpu, lapic);
+		r = kvm_vcpu_ioctl_set_lapic(vcpu, u.lapic);
 		if (r)
 			goto out;
 		r = 0;
@@ -2634,68 +2638,66 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_GET_XSAVE: {
-		xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
+		u.xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
 		r = -ENOMEM;
-		if (!xsave)
+		if (!u.xsave)
 			break;
 
-		kvm_vcpu_ioctl_x86_get_xsave(vcpu, xsave);
+		kvm_vcpu_ioctl_x86_get_xsave(vcpu, u.xsave);
 
 		r = -EFAULT;
-		if (copy_to_user(argp, xsave, sizeof(struct kvm_xsave)))
+		if (copy_to_user(argp, u.xsave, sizeof(struct kvm_xsave)))
 			break;
 		r = 0;
 		break;
 	}
 	case KVM_SET_XSAVE: {
-		xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
+		u.xsave = kzalloc(sizeof(struct kvm_xsave), GFP_KERNEL);
 		r = -ENOMEM;
-		if (!xsave)
+		if (!u.xsave)
 			break;
 
 		r = -EFAULT;
-		if (copy_from_user(xsave, argp, sizeof(struct kvm_xsave)))
+		if (copy_from_user(u.xsave, argp, sizeof(struct kvm_xsave)))
 			break;
 
-		r = kvm_vcpu_ioctl_x86_set_xsave(vcpu, xsave);
+		r = kvm_vcpu_ioctl_x86_set_xsave(vcpu, u.xsave);
 		break;
 	}
 	case KVM_GET_XCRS: {
-		xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
+		u.xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
 		r = -ENOMEM;
-		if (!xcrs)
+		if (!u.xcrs)
 			break;
 
-		kvm_vcpu_ioctl_x86_get_xcrs(vcpu, xcrs);
+		kvm_vcpu_ioctl_x86_get_xcrs(vcpu, u.xcrs);
 
 		r = -EFAULT;
-		if (copy_to_user(argp, xcrs,
+		if (copy_to_user(argp, u.xcrs,
 				 sizeof(struct kvm_xcrs)))
 			break;
 		r = 0;
 		break;
 	}
 	case KVM_SET_XCRS: {
-		xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
+		u.xcrs = kzalloc(sizeof(struct kvm_xcrs), GFP_KERNEL);
 		r = -ENOMEM;
-		if (!xcrs)
+		if (!u.xcrs)
 			break;
 
 		r = -EFAULT;
-		if (copy_from_user(xcrs, argp,
+		if (copy_from_user(u.xcrs, argp,
 				   sizeof(struct kvm_xcrs)))
 			break;
 
-		r = kvm_vcpu_ioctl_x86_set_xcrs(vcpu, xcrs);
+		r = kvm_vcpu_ioctl_x86_set_xcrs(vcpu, u.xcrs);
 		break;
 	}
 	default:
 		r = -EINVAL;
 	}
 out:
-	kfree(lapic);
-	kfree(xsave);
-	kfree(xcrs);
+	kfree(u.buffer);
 	return r;
 }
 
