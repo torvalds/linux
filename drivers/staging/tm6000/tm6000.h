@@ -171,6 +171,8 @@ struct tm6000_core {
 
 	struct tm6000_gpio		gpio;
 
+	char				*ir_codes;
+
 	/* Demodulator configuration */
 	int				demod_addr;	/* demodulator address */
 
@@ -204,6 +206,8 @@ struct tm6000_core {
 	/* audio support */
 	struct snd_tm6000_card		*adev;
 
+	struct tm6000_IR		*ir;
+
 	/* locks */
 	struct mutex			lock;
 
@@ -211,6 +215,7 @@ struct tm6000_core {
 	struct usb_device		*udev;		/* the usb device */
 
 	struct tm6000_endpoint		bulk_in, bulk_out, isoc_in, isoc_out;
+	struct tm6000_endpoint		int_in, int_out;
 
 	/* scaler!=0 if scaler is active*/
 	int				scaler;
@@ -317,6 +322,10 @@ int tm6000_queue_init(struct tm6000_core *dev);
 /* In tm6000-alsa.c */
 /*int tm6000_audio_init(struct tm6000_core *dev, int idx);*/
 
+/* In tm6000-input.c */
+int tm6000_ir_init(struct tm6000_core *dev);
+int tm6000_ir_fini(struct tm6000_core *dev);
+void tm6000_ir_wait(struct tm6000_core *dev, u8 state);
 
 /* Debug stuff */
 

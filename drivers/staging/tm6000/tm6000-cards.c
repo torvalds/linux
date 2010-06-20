@@ -29,6 +29,7 @@
 #include <media/tuner.h>
 #include <media/tvaudio.h>
 #include <media/i2c-addr.h>
+#include <media/rc-map.h>
 
 #include "tm6000.h"
 #include "tm6000-regs.h"
@@ -69,6 +70,8 @@ struct tm6000_board {
 	int             demod_addr;     /* demodulator address */
 
 	struct tm6000_gpio gpio;
+
+	char		*ir_codes;
 };
 
 struct tm6000_board tm6000_boards[] = {
@@ -276,6 +279,7 @@ struct tm6000_board tm6000_boards[] = {
 			.dvb_led	= TM6010_GPIO_5,
 			.ir		= TM6010_GPIO_0,
 		},
+		.ir_codes = RC_MAP_NEC_TERRATEC_CINERGY_XS,
 	},
 	[TM6010_BOARD_TWINHAN_TU501] = {
 		.name         = "Twinhan TU501(704D1)",
@@ -361,6 +365,8 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 
 	switch (command) {
 	case XC2028_RESET_CLK:
+		tm6000_ir_wait(dev, 0);
+
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 					0x02, arg);
 		msleep(10);
@@ -410,13 +416,14 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 				msleep(130);
 				break;
 			}
+
+			tm6000_ir_wait(dev, 1);
 			break;
 		case 1:
 			tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 						0x02, 0x01);
 			msleep(10);
 			break;
-
 		case 2:
 			rc = tm6000_i2c_reset(dev, 100);
 			break;
@@ -636,6 +643,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	dev->gpio = tm6000_boards[dev->model].gpio;
 
+	dev->ir_codes = tm6000_boards[dev->model].ir_codes;
+
 	dev->demod_addr = tm6000_boards[dev->model].demod_addr;
 
 	dev->caps = tm6000_boards[dev->model].caps;
@@ -683,6 +692,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 
 	tm6000_add_into_devlist(dev);
 	tm6000_init_extension(dev);
+
+	tm6000_ir_init(dev);
 
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -829,6 +840,19 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 							 &dev->isoc_out);
 				}
 				break;
+			case USB_ENDPOINT_XFER_INT:
+				if (!dir_out) {
+					get_max_endpoint(usbdev,
+							&interface->altsetting[i],
+							"INT IN", e,
+							&dev->int_in);
+				} else {
+					get_max_endpoint(usbdev,
+							&interface->altsetting[i],
+							"INT OUT", e,
+							&dev->int_out);
+				}
+				break;
 			}
 		}
 	}
@@ -886,6 +910,8 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	printk(KERN_INFO "tm6000: disconnecting %s\n", dev->name);
 
 	mutex_lock(&dev->lock);
+
+	tm6000_ir_fini(dev);
 
 	if (dev->gpio.power_led) {
 		switch (dev->model) {
