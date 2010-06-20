@@ -161,7 +161,8 @@ struct d40_base;
  * @pending_tx: The number of pending transfers. Used between interrupt handler
  * and tasklet.
  * @busy: Set to true when transfer is ongoing on this channel.
- * @phy_chan: Pointer to physical channel which this instance runs on.
+ * @phy_chan: Pointer to physical channel which this instance runs on. If this
+ * point is NULL, then the channel is not allocated.
  * @chan: DMA engine handle.
  * @tasklet: Tasklet that gets scheduled from interrupt context to complete a
  * transfer and call client callback.
@@ -1236,7 +1237,6 @@ static int d40_free_dma(struct d40_chan *d40c)
 		return -EINVAL;
 	}
 
-
 	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
 	if (res) {
 		dev_err(&d40c->chan.dev->device, "[%s] suspend failed\n",
@@ -1305,8 +1305,6 @@ static int d40_free_dma(struct d40_chan *d40c)
 	d40c->base->lookup_phy_chans[phy->num] = NULL;
 
 	return 0;
-
-
 }
 
 static int d40_pause(struct dma_chan *chan)
@@ -1314,7 +1312,6 @@ static int d40_pause(struct dma_chan *chan)
 	struct d40_chan *d40c =
 		container_of(chan, struct d40_chan, chan);
 	int res;
-
 	unsigned long flags;
 
 	spin_lock_irqsave(&d40c->lock, flags);
@@ -1510,25 +1507,23 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 						   struct scatterlist *sgl_dst,
 						   struct scatterlist *sgl_src,
 						   unsigned int sgl_len,
-						   unsigned long flags)
+						   unsigned long dma_flags)
 {
 	int res;
 	struct d40_desc *d40d;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan,
 					     chan);
-	unsigned long flg;
+	unsigned long flags;
 
-
-	spin_lock_irqsave(&d40c->lock, flg);
+	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
 
 	if (d40d == NULL)
 		goto err;
 
-	memset(d40d, 0, sizeof(struct d40_desc));
 	d40d->lli_len = sgl_len;
 	d40d->lli_tx_len = d40d->lli_len;
-	d40d->txd.flags = flags;
+	d40d->txd.flags = dma_flags;
 
 	if (d40c->log_num != D40_PHY_CHAN) {
 		if (d40d->lli_len > d40c->base->plat_data->llis_per_log)
@@ -1556,7 +1551,7 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					 d40d->lli_log.src,
 					 d40c->log_def.lcsp1,
 					 d40c->dma_cfg.src_info.data_width,
-					 flags & DMA_PREP_INTERRUPT,
+					 dma_flags & DMA_PREP_INTERRUPT,
 					 d40d->lli_tx_len,
 					 d40c->base->plat_data->llis_per_log);
 
@@ -1566,7 +1561,7 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 					 d40d->lli_log.dst,
 					 d40c->log_def.lcsp3,
 					 d40c->dma_cfg.dst_info.data_width,
-					 flags & DMA_PREP_INTERRUPT,
+					 dma_flags & DMA_PREP_INTERRUPT,
 					 d40d->lli_tx_len,
 					 d40c->base->plat_data->llis_per_log);
 
@@ -1612,11 +1607,11 @@ struct dma_async_tx_descriptor *stedma40_memcpy_sg(struct dma_chan *chan,
 
 	d40d->txd.tx_submit = d40_tx_submit;
 
-	spin_unlock_irqrestore(&d40c->lock, flg);
+	spin_unlock_irqrestore(&d40c->lock, flags);
 
 	return &d40d->txd;
 err:
-	spin_unlock_irqrestore(&d40c->lock, flg);
+	spin_unlock_irqrestore(&d40c->lock, flags);
 	return NULL;
 }
 EXPORT_SYMBOL(stedma40_memcpy_sg);
@@ -1729,15 +1724,15 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 						       dma_addr_t dst,
 						       dma_addr_t src,
 						       size_t size,
-						       unsigned long flags)
+						       unsigned long dma_flags)
 {
 	struct d40_desc *d40d;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan,
 					     chan);
-	unsigned long flg;
+	unsigned long flags;
 	int err = 0;
 
-	spin_lock_irqsave(&d40c->lock, flg);
+	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
 
 	if (d40d == NULL) {
@@ -1746,9 +1741,7 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 		goto err;
 	}
 
-	memset(d40d, 0, sizeof(struct d40_desc));
-
-	d40d->txd.flags = flags;
+	d40d->txd.flags = dma_flags;
 
 	dma_async_tx_descriptor_init(&d40d->txd, chan);
 
@@ -1817,7 +1810,7 @@ static struct dma_async_tx_descriptor *d40_prep_memcpy(struct dma_chan *chan,
 				      d40d->lli_pool.size, DMA_TO_DEVICE);
 	}
 
-	spin_unlock_irqrestore(&d40c->lock, flg);
+	spin_unlock_irqrestore(&d40c->lock, flags);
 	return &d40d->txd;
 
 err_fill_lli:
@@ -1825,7 +1818,7 @@ err_fill_lli:
 		"[%s] Failed filling in PHY LLI\n", __func__);
 	d40_pool_lli_free(d40d);
 err:
-	spin_unlock_irqrestore(&d40c->lock, flg);
+	spin_unlock_irqrestore(&d40c->lock, flags);
 	return NULL;
 }
 
@@ -1834,7 +1827,7 @@ static int d40_prep_slave_sg_log(struct d40_desc *d40d,
 				 struct scatterlist *sgl,
 				 unsigned int sg_len,
 				 enum dma_data_direction direction,
-				 unsigned long flags)
+				 unsigned long dma_flags)
 {
 	dma_addr_t dev_addr = 0;
 	int total_size;
@@ -1860,32 +1853,24 @@ static int d40_prep_slave_sg_log(struct d40_desc *d40d,
 		if (d40_lcla_id_get(d40c, &d40c->base->lcla_pool) != 0)
 			d40d->lli_tx_len = 1;
 
-	if (direction == DMA_FROM_DEVICE) {
+	if (direction == DMA_FROM_DEVICE)
 		dev_addr = d40c->base->plat_data->dev_rx[d40c->dma_cfg.src_dev_type];
-		total_size = d40_log_sg_to_dev(&d40c->lcla,
-					       sgl, sg_len,
-					       &d40d->lli_log,
-					       &d40c->log_def,
-					       d40c->dma_cfg.src_info.data_width,
-					       d40c->dma_cfg.dst_info.data_width,
-					       direction,
-					       flags & DMA_PREP_INTERRUPT,
-					       dev_addr, d40d->lli_tx_len,
-					       d40c->base->plat_data->llis_per_log);
-	} else if (direction == DMA_TO_DEVICE) {
+	else if (direction == DMA_TO_DEVICE)
 		dev_addr = d40c->base->plat_data->dev_tx[d40c->dma_cfg.dst_dev_type];
-		total_size = d40_log_sg_to_dev(&d40c->lcla,
-					       sgl, sg_len,
-					       &d40d->lli_log,
-					       &d40c->log_def,
-					       d40c->dma_cfg.src_info.data_width,
-					       d40c->dma_cfg.dst_info.data_width,
-					       direction,
-					       flags & DMA_PREP_INTERRUPT,
-					       dev_addr, d40d->lli_tx_len,
-					       d40c->base->plat_data->llis_per_log);
-	} else
+	else
 		return -EINVAL;
+
+	total_size = d40_log_sg_to_dev(&d40c->lcla,
+				       sgl, sg_len,
+				       &d40d->lli_log,
+				       &d40c->log_def,
+				       d40c->dma_cfg.src_info.data_width,
+				       d40c->dma_cfg.dst_info.data_width,
+				       direction,
+				       dma_flags & DMA_PREP_INTERRUPT,
+				       dev_addr, d40d->lli_tx_len,
+				       d40c->base->plat_data->llis_per_log);
+
 	if (total_size < 0)
 		return -EINVAL;
 
@@ -1897,7 +1882,7 @@ static int d40_prep_slave_sg_phy(struct d40_desc *d40d,
 				 struct scatterlist *sgl,
 				 unsigned int sgl_len,
 				 enum dma_data_direction direction,
-				 unsigned long flags)
+				 unsigned long dma_flags)
 {
 	dma_addr_t src_dev_addr;
 	dma_addr_t dst_dev_addr;
@@ -1954,12 +1939,12 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 							 struct scatterlist *sgl,
 							 unsigned int sg_len,
 							 enum dma_data_direction direction,
-							 unsigned long flags)
+							 unsigned long dma_flags)
 {
 	struct d40_desc *d40d;
 	struct d40_chan *d40c = container_of(chan, struct d40_chan,
 					     chan);
-	unsigned long flg;
+	unsigned long flags;
 	int err;
 
 	if (d40c->dma_cfg.pre_transfer)
@@ -1967,9 +1952,9 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 					   d40c->dma_cfg.pre_transfer_data,
 					   sg_dma_len(sgl));
 
-	spin_lock_irqsave(&d40c->lock, flg);
+	spin_lock_irqsave(&d40c->lock, flags);
 	d40d = d40_desc_get(d40c);
-	spin_unlock_irqrestore(&d40c->lock, flg);
+	spin_unlock_irqrestore(&d40c->lock, flags);
 
 	if (d40d == NULL)
 		return NULL;
@@ -1978,10 +1963,10 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 
 	if (d40c->log_num != D40_PHY_CHAN)
 		err = d40_prep_slave_sg_log(d40d, d40c, sgl, sg_len,
-					    direction, flags);
+					    direction, dma_flags);
 	else
 		err = d40_prep_slave_sg_phy(d40d, d40c, sgl, sg_len,
-					    direction, flags);
+					    direction, dma_flags);
 	if (err) {
 		dev_err(&d40c->chan.dev->device,
 			"[%s] Failed to prepare %s slave sg job: %d\n",
@@ -1990,7 +1975,7 @@ static struct dma_async_tx_descriptor *d40_prep_slave_sg(struct dma_chan *chan,
 		return NULL;
 	}
 
-	d40d->txd.flags = flags;
+	d40d->txd.flags = dma_flags;
 
 	dma_async_tx_descriptor_init(&d40d->txd, chan);
 
