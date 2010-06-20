@@ -46,6 +46,11 @@
 
 #include "core.h"
 
+/*
+ * ABI version history is documented in linux/firewire-cdev.h.
+ */
+#define FW_CDEV_KERNEL_VERSION 3
+
 struct client {
 	u32 version;
 	struct fw_device *device;
@@ -395,7 +400,7 @@ static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
 	unsigned long ret = 0;
 
 	client->version = a->version;
-	a->version = FW_CDEV_VERSION;
+	a->version = FW_CDEV_KERNEL_VERSION;
 	a->card = client->device->card->index;
 
 	down_read(&fw_device_rwsem);

@@ -219,7 +219,7 @@ union fw_cdev_event {
 	struct fw_cdev_event_response		response;
 	struct fw_cdev_event_request		request;
 	struct fw_cdev_event_iso_interrupt	iso_interrupt;
-	struct fw_cdev_event_iso_resource	iso_resource;
+	struct fw_cdev_event_iso_resource	iso_resource; /* added in 2.6.30 */
 };
 
 /* available since kernel version 2.6.22 */
@@ -252,22 +252,32 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_GET_CYCLE_TIMER2   _IOWR('#', 0x14, struct fw_cdev_get_cycle_timer2)
 
 /*
- * FW_CDEV_VERSION History
+ * ABI version history
  *  1  (2.6.22)  - initial version
+ *     (2.6.24)  - added %FW_CDEV_IOC_GET_CYCLE_TIMER
  *  2  (2.6.30)  - changed &fw_cdev_event_iso_interrupt.header if
  *                 &fw_cdev_create_iso_context.header_size is 8 or more
+ *               - added %FW_CDEV_IOC_*_ISO_RESOURCE*,
+ *                 %FW_CDEV_IOC_GET_SPEED, %FW_CDEV_IOC_SEND_BROADCAST_REQUEST,
+ *                 %FW_CDEV_IOC_SEND_STREAM_PACKET
  *     (2.6.32)  - added time stamp to xmit &fw_cdev_event_iso_interrupt
  *     (2.6.33)  - IR has always packet-per-buffer semantics now, not one of
  *                 dual-buffer or packet-per-buffer depending on hardware
  *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
+ *               - added %FW_CDEV_IOC_GET_CYCLE_TIMER2
  */
-#define FW_CDEV_VERSION 3
+#define FW_CDEV_VERSION 3 /* Meaningless; don't use this macro. */
 
 /**
  * struct fw_cdev_get_info - General purpose information ioctl
- * @version:	The version field is just a running serial number.
- *		We never break backwards compatibility, but may add more
- *		structs and ioctls in later revisions.
+ * @version:	The version field is just a running serial number.  Both an
+ *		input parameter (ABI version implemented by the client) and
+ *		output parameter (ABI version implemented by the kernel).
+ *		A client must not fill in an %FW_CDEV_VERSION defined from an
+ *		included kernel header file but the actual version for which
+ *		the client was implemented.  This is necessary for forward
+ *		compatibility.  We never break backwards compatibility, but
+ *		may add more structs, events, and ioctls in later revisions.
  * @rom_length:	If @rom is non-zero, at most rom_length bytes of configuration
  *		ROM will be copied into that user space address.  In either
  *		case, @rom_length is updated with the actual length of the
