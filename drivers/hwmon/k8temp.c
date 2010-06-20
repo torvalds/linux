@@ -120,7 +120,7 @@ static ssize_t show_temp(struct device *dev,
 	int temp;
 	struct k8temp_data *data = k8temp_update_device(dev);
 
-	if (data->swap_core_select)
+	if (data->swap_core_select && (data->sensorsp & SEL_CORE))
 		core = core ? 0 : 1;
 
 	temp = TEMP_FROM_REG(data->temp[core][place]) + data->temp_offset;
