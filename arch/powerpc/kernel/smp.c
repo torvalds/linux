@@ -288,8 +288,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 			max_cpus = NR_CPUS;
 	else
 		max_cpus = 1;
- 
-	smp_space_timers(max_cpus);
 
 	for_each_possible_cpu(cpu)
 		if (cpu != boot_cpuid)
