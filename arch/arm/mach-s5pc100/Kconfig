@@ -30,6 +30,11 @@ config S5PC100_SETUP_IDE
 	help
 	  Common setup code for S5PC100 IDE GPIO configurations
 
+config S5PC100_SETUP_KEYPAD
+	bool
+	help
+	  Common setup code for KEYPAD GPIO configurations.
+
 config S5PC100_SETUP_SDHCI
 	bool
 	select S5PC100_SETUP_SDHCI_GPIO
@@ -51,12 +56,14 @@ config MACH_SMDKC100
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
+	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_TS
 	select S3C_DEV_WDT
 	select HAVE_S3C2410_WATCHDOG
 	select S5PC100_SETUP_FB_24BPP
 	select S5PC100_SETUP_I2C1
 	select S5PC100_SETUP_IDE
+	select S5PC100_SETUP_KEYPAD
 	select S5PC100_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDKC100

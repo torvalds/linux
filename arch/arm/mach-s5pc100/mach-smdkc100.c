@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
+#include <linux/input.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -44,6 +45,7 @@
 #include <plat/iic.h>
 #include <plat/ata.h>
 #include <plat/adc.h>
+#include <plat/keypad.h>
 #include <plat/ts.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -156,6 +158,25 @@ static struct s3c_ide_platdata smdkc100_ide_pdata __initdata = {
 	.setup_gpio	= s5pc100_ide_setup_gpio,
 };
 
+static uint32_t smdkc100_keymap[] __initdata = {
+	/* KEY(row, col, keycode) */
+	KEY(0, 3, KEY_1), KEY(0, 4, KEY_2), KEY(0, 5, KEY_3),
+	KEY(0, 6, KEY_4), KEY(0, 7, KEY_5),
+	KEY(1, 3, KEY_A), KEY(1, 4, KEY_B), KEY(1, 5, KEY_C),
+	KEY(1, 6, KEY_D), KEY(1, 7, KEY_E)
+};
+
+static struct matrix_keymap_data smdkc100_keymap_data __initdata = {
+	.keymap		= smdkc100_keymap,
+	.keymap_size	= ARRAY_SIZE(smdkc100_keymap),
+};
+
+static struct samsung_keypad_platdata smdkc100_keypad_data __initdata = {
+	.keymap_data	= &smdkc100_keymap_data,
+	.rows		= 2,
+	.cols		= 8,
+};
+
 static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_adc,
 	&s3c_device_cfcon,
@@ -169,6 +190,7 @@ static struct platform_device *smdkc100_devices[] __initdata = {
 	&s3c_device_wdt,
 	&smdkc100_lcd_powerdev,
 	&s5pc100_device_iis0,
+	&samsung_device_keypad,
 	&s5pc100_device_ac97,
 };
 
@@ -197,6 +219,8 @@ static void __init smdkc100_machine_init(void)
 
 	s3c_fb_set_platdata(&smdkc100_lcd_pdata);
 	s3c_ide_set_platdata(&smdkc100_ide_pdata);
+
+	samsung_keypad_set_platdata(&smdkc100_keypad_data);
 
 	/* LCD init */
 	gpio_request(S5PC100_GPD(0), "GPD");
