@@ -73,6 +73,18 @@ struct qeth_dbf_info {
 #define QETH_DBF_TEXT_(name, level, text...) \
 	qeth_dbf_longtext(qeth_dbf[QETH_DBF_##name].id, level, text)
 
+#define QETH_CARD_TEXT(card, level, text) \
+	debug_text_event(card->debug, level, text)
+
+#define QETH_CARD_HEX(card, level, addr, len) \
+	debug_event(card->debug, level, (void *)(addr), len)
+
+#define QETH_CARD_MESSAGE(card, text...) \
+	debug_sprintf_event(card->debug, level, text)
+
+#define QETH_CARD_TEXT_(card, level, text...) \
+	qeth_dbf_longtext(card->debug, level, text)
+
 #define SENSE_COMMAND_REJECT_BYTE 0
 #define SENSE_COMMAND_REJECT_FLAG 0x80
 #define SENSE_RESETTING_EVENT_BYTE 1
@@ -738,6 +750,7 @@ struct qeth_card {
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
+	debug_info_t *debug;
 	struct mutex conf_mutex;
 };
 

@@ -4282,6 +4282,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	struct device *dev;
 	int rc;
 	unsigned long flags;
+	char dbf_name[20];
 
 	QETH_DBF_TEXT(SETUP, 2, "probedev");
 
@@ -4297,6 +4298,17 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 		rc = -ENOMEM;
 		goto err_dev;
 	}
+
+	snprintf(dbf_name, sizeof(dbf_name), "qeth_card_%s",
+		dev_name(&gdev->dev));
+	card->debug = debug_register(dbf_name, 2, 1, 8);
+	if (!card->debug) {
+		QETH_DBF_TEXT_(SETUP, 2, "%s", "qcdbf");
+		rc = -ENOMEM;
+		goto err_card;
+	}
+	debug_register_view(card->debug, &debug_hex_ascii_view);
+
 	card->read.ccwdev  = gdev->cdev[0];
 	card->write.ccwdev = gdev->cdev[1];
 	card->data.ccwdev  = gdev->cdev[2];
@@ -4309,12 +4321,12 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	rc = qeth_determine_card_type(card);
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "3err%d", rc);
-		goto err_card;
+		goto err_dbf;
 	}
 	rc = qeth_setup_card(card);
 	if (rc) {
 		QETH_DBF_TEXT_(SETUP, 2, "2err%d", rc);
-		goto err_card;
+		goto err_dbf;
 	}
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
@@ -4322,7 +4334,7 @@ static int qeth_core_probe_device(struct ccwgroup_device *gdev)
 	else
 		rc = qeth_core_create_device_attributes(dev);
 	if (rc)
-		goto err_card;
+		goto err_dbf;
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_OSN:
 	case QETH_CARD_TYPE_OSM:
@@ -4352,6 +4364,8 @@ err_attr:
 		qeth_core_remove_osn_attributes(dev);
 	else
 		qeth_core_remove_device_attributes(dev);
+err_dbf:
+	debug_unregister(card->debug);
 err_card:
 	qeth_core_free_card(card);
 err_dev:
@@ -4375,6 +4389,7 @@ static void qeth_core_remove_device(struct ccwgroup_device *gdev)
 	} else {
 		qeth_core_remove_device_attributes(&gdev->dev);
 	}
+	debug_unregister(card->debug);
 	write_lock_irqsave(&qeth_core_card_list.rwlock, flags);
 	list_del(&card->list);
 	write_unlock_irqrestore(&qeth_core_card_list.rwlock, flags);
