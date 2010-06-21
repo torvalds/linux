@@ -741,6 +741,14 @@ static void __open_export_target_sessions(struct ceph_mds_client *mdsc,
 	}
 }
 
+void ceph_mdsc_open_export_target_sessions(struct ceph_mds_client *mdsc,
+					   struct ceph_mds_session *session)
+{
+	mutex_lock(&mdsc->mutex);
+	__open_export_target_sessions(mdsc, session);
+	mutex_unlock(&mdsc->mutex);
+}
+
 /*
  * session caps
  */
