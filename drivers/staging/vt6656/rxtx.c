@@ -3071,28 +3071,12 @@ nsDMA_tx_packet(
         }
         else {
 
-#if 0
-            if((pDevice->fWPA_Authened == FALSE) &&
-		((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK)||(pMgmt->eAuthenMode = WMAC_AUTH_WPA2PSK))){
-                  dev_kfree_skb_irq(skb);
-                  pStats->tx_dropped++;
-                  return STATUS_FAILURE;
-            }
-	        else if (pTransmitKey == NULL) {
-                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
-                dev_kfree_skb_irq(skb);
-                pStats->tx_dropped++;
-                return STATUS_FAILURE;
-            }
-#else
             if (pTransmitKey == NULL) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"return no tx key\n");
                 dev_kfree_skb_irq(skb);
                 pStats->tx_dropped++;
                 return STATUS_FAILURE;
             }
-#endif
-
         }
     }
 

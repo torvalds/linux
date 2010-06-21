@@ -716,18 +716,6 @@ void vRunCommand(void *hDeviceContext)
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
-		 #if 0
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-                    // if(pDevice->bWPASuppWextEnabled == TRUE)
-                        {
-                  	union iwreq_data  wrqu;
-                  	memset(&wrqu, 0, sizeof (wrqu));
-                          wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-                  	printk("wireless_send_event--->SIOCGIWAP(disassociated:AUTHENTICATE_WAIT_timeout)\n");
-                  	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
-                       }
-                    #endif
-	         #endif
 
             s_bCommandComplete(pDevice);
             break;
@@ -785,18 +773,6 @@ void vRunCommand(void *hDeviceContext)
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
-		#if 0
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-                    // if(pDevice->bWPASuppWextEnabled == TRUE)
-                        {
-                  	union iwreq_data  wrqu;
-                  	memset(&wrqu, 0, sizeof (wrqu));
-                          wrqu.ap_addr.sa_family = ARPHRD_ETHER;
-                  	printk("wireless_send_event--->SIOCGIWAP(disassociated:ASSOCIATE_WAIT_timeout)\n");
-                  	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
-                       }
-                    #endif
-		#endif
 
             s_bCommandComplete(pDevice);
             break;

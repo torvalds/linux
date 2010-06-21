@@ -716,28 +716,6 @@ BOOL BSSbUpdateToBSSList(void *hDeviceContext,
         pBSSList->uIELength = WLAN_BEACON_FR_MAXLEN;
     memcpy(pBSSList->abyIEs, pbyIEs, pBSSList->uIELength);
 
-//mike add: if  the AP in this pBSSList is hidden ssid and we can find two of them,
-//                  you need upgrade the other related pBSSList of which ssid is obvious,
-//                  for these two AP is the same one!!!!
-/********judge by:BSSID is the same,but ssid is different!*****************/
-#if 0
-   for (ii = 0; ii < MAX_BSS_NUM; ii++) {
-      if (IS_ETH_ADDRESS_EQUAL(pMgmt->sBSSList[ii].abyBSSID, pBSSList->abyBSSID)) {   //BSSID is the same!
-         if (memcmp(((PWLAN_IE_SSID)pMgmt->sBSSList[ii].abySSID)->abySSID,                  //ssid is different??
-		 	      ((PWLAN_IE_SSID)pBSSList->abySSID)->abySSID,
-		 	      ((PWLAN_IE_SSID)pBSSList->abySSID)->len) != 0) {
-                  //reserve temp
-               memset(abyTmpSSID,0,sizeof(abyTmpSSID));
-	      memcpy(abyTmpSSID,pMgmt->sBSSList[ii].abySSID,sizeof(abyTmpSSID));
-		  //upgrade the other one pBSSList
-	      memcpy(&(pMgmt->sBSSList[ii]),pBSSList,sizeof(KnownBSS));
-		  //recover ssid info
-	      memcpy(pMgmt->sBSSList[ii].abySSID,abyTmpSSID,sizeof(abyTmpSSID));
-           }
-       }
-    }
-#endif
-
     return TRUE;
 }
 

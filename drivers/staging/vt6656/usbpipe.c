@@ -381,17 +381,6 @@ PIPEnsInterruptRead(
     // Now that we have created the urb, we will send a
     // request to the USB device object.
     //
-#if 0            //reserve int URB submit
-	usb_fill_int_urb(pDevice->pInterruptURB,
-	                 pDevice->usb,
-	                 usb_rcvintpipe(pDevice->usb, 1),
-			 (void *) pDevice->intBuf.pDataBuf,
-	                 MAX_INTERRUPT_SIZE,
-	                 s_nsInterruptUsbIoCompleteRead,
-	                 pDevice,
-	                 pDevice->int_interval
-	                 );
-#else            //replace int URB submit by bulk transfer
 #ifndef Safe_Close
 	usb_fill_int_urb(pDevice->pInterruptURB,
 	                 pDevice->usb,
@@ -413,7 +402,6 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
 		MAX_INTERRUPT_SIZE,
 		s_nsInterruptUsbIoCompleteRead,
 		pDevice);
-#endif
 #endif
 
 	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
@@ -495,12 +483,6 @@ s_nsInterruptUsbIoCompleteRead(
 
 
     if (pDevice->fKillEventPollingThread != TRUE) {
-   #if 0               //reserve int URB submit
-	ntStatus = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ntStatus != 0) {
-	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Re-Submit int URB failed %d\n", ntStatus);
-    }
-   #else                                                                                     //replace int URB submit by bulk transfer
     #ifdef Safe_Close
        usb_fill_bulk_urb(pDevice->pInterruptURB,
 		      pDevice->usb,
@@ -518,7 +500,6 @@ s_nsInterruptUsbIoCompleteRead(
     #else
         tasklet_schedule(&pDevice->EventWorkItem);
     #endif
-#endif
     }
     //
     // We return STATUS_MORE_PROCESSING_REQUIRED so that the completion

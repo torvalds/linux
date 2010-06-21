@@ -812,16 +812,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
         return -ENODEV;
     }
 
-//2008-07-21-01<Add>by MikeLiu
-//register wpadev
-#if 0
-   if(wpa_set_wpadev(pDevice, 1)!=0) {
-     printk("Fail to Register WPADEV?\n");
-        unregister_netdev(pDevice->dev);
-        free_netdev(netdev);
-        kfree(pDevice);
-   }
-#endif
          usb_device_reset(pDevice);
 
 #ifdef SndEvt_ToAPI
