@@ -199,13 +199,8 @@ int hna_local_seq_print_text(struct seq_file *seq, void *offset)
 	while (hash_iterate(hna_local_hash, &hashit)) {
 		hna_local_entry = hashit.bucket->data;
 
-		pos += snprintf(buff + pos, 22, " * " MAC_FMT "\n",
-				hna_local_entry->addr[0],
-				hna_local_entry->addr[1],
-				hna_local_entry->addr[2],
-				hna_local_entry->addr[3],
-				hna_local_entry->addr[4],
-				hna_local_entry->addr[5]);
+		pos += snprintf(buff + pos, 22, " * %pM\n",
+				hna_local_entry->addr);
 	}
 
 	spin_unlock_irqrestore(&hna_local_hash_lock, flags);
@@ -417,19 +412,8 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 		hna_global_entry = hashit.bucket->data;
 
 		pos += snprintf(buff + pos, 44,
-				" * " MAC_FMT " via " MAC_FMT "\n",
-				hna_global_entry->addr[0],
-				hna_global_entry->addr[1],
-				hna_global_entry->addr[2],
-				hna_global_entry->addr[3],
-				hna_global_entry->addr[4],
-				hna_global_entry->addr[5],
-				hna_global_entry->orig_node->orig[0],
-				hna_global_entry->orig_node->orig[1],
-				hna_global_entry->orig_node->orig[2],
-				hna_global_entry->orig_node->orig[3],
-				hna_global_entry->orig_node->orig[4],
-				hna_global_entry->orig_node->orig[5]);
+				" * %pM via %pM\n", hna_global_entry->addr,
+				hna_global_entry->orig_node->orig);
 	}
 
 	spin_unlock_irqrestore(&hna_global_hash_lock, flags);
