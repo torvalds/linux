@@ -28,6 +28,7 @@
 #include <plat/adc.h>
 #include <plat/ts.h>
 #include <plat/ata.h>
+#include <plat/keypad.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -78,11 +79,31 @@ static struct s3c_ide_platdata smdkv210_ide_pdata __initdata = {
 	.setup_gpio	= s5pv210_ide_setup_gpio,
 };
 
+static uint32_t smdkv210_keymap[] __initdata = {
+	/* KEY(row, col, keycode) */
+	KEY(0, 3, KEY_1), KEY(0, 4, KEY_2), KEY(0, 5, KEY_3),
+	KEY(0, 6, KEY_4), KEY(0, 7, KEY_5),
+	KEY(1, 3, KEY_A), KEY(1, 4, KEY_B), KEY(1, 5, KEY_C),
+	KEY(1, 6, KEY_D), KEY(1, 7, KEY_E)
+};
+
+static struct matrix_keymap_data smdkv210_keymap_data __initdata = {
+	.keymap		= smdkv210_keymap,
+	.keymap_size	= ARRAY_SIZE(smdkv210_keymap),
+};
+
+static struct samsung_keypad_platdata smdkv210_keypad_data __initdata = {
+	.keymap_data	= &smdkv210_keymap_data,
+	.rows		= 8,
+	.cols		= 8,
+};
+
 static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_iis0,
 	&s5pv210_device_ac97,
 	&s3c_device_adc,
 	&s3c_device_cfcon,
+	&samsung_device_keypad,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 };
@@ -102,6 +123,7 @@ static void __init smdkv210_map_io(void)
 
 static void __init smdkv210_machine_init(void)
 {
+	samsung_keypad_set_platdata(&smdkv210_keypad_data);
 	s3c24xx_ts_set_platdata(&s3c_ts_platform);
 	s3c_ide_set_platdata(&smdkv210_ide_pdata);
 
