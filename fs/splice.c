@@ -597,7 +597,6 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	struct page *pages[PIPE_DEF_BUFFERS];
 	struct partial_page partial[PIPE_DEF_BUFFERS];
 	struct iovec *vec, __vec[PIPE_DEF_BUFFERS];
-	pgoff_t index;
 	ssize_t res;
 	size_t this_len;
 	int error;
@@ -621,7 +620,6 @@ ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 			goto shrink_ret;
 	}
 
-	index = *ppos >> PAGE_CACHE_SHIFT;
 	offset = *ppos & ~PAGE_CACHE_MASK;
 	nr_pages = (len + offset + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 
