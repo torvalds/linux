@@ -2904,17 +2904,9 @@ static inline int qeth_l3_tso_elements(struct sk_buff *skb)
 	unsigned long tcpd = (unsigned long)tcp_hdr(skb) +
 		tcp_hdr(skb)->doff * 4;
 	int tcpd_len = skb->len - (tcpd - (unsigned long)skb->data);
-	int elements = PFN_UP(tcpd + tcpd_len) - PFN_DOWN(tcpd);
+	int elements = PFN_UP(tcpd + tcpd_len - 1) - PFN_DOWN(tcpd);
 	elements += skb_shinfo(skb)->nr_frags;
 	return elements;
-}
-
-static inline int qeth_l3_tso_check(struct sk_buff *skb)
-{
-	int len = ((unsigned long)tcp_hdr(skb) + tcp_hdr(skb)->doff * 4) -
-		(unsigned long)skb->data;
-	return (((unsigned long)skb->data & PAGE_MASK) !=
-		(((unsigned long)skb->data + len) & PAGE_MASK));
 }
 
 static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -3016,8 +3008,6 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	    (cast_type == RTN_UNSPEC)) {
 		hdr = (struct qeth_hdr *)skb_push(new_skb,
 						sizeof(struct qeth_hdr_tso));
-		if (qeth_l3_tso_check(new_skb))
-			QETH_DBF_MESSAGE(2, "tso skb misaligned\n");
 		memset(hdr, 0, sizeof(struct qeth_hdr_tso));
 		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type);
 		qeth_tso_fill_header(card, hdr, new_skb);
@@ -3048,10 +3038,20 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	elements_needed += elems;
 	nr_frags = skb_shinfo(new_skb)->nr_frags;
 
-	if (card->info.type != QETH_CARD_TYPE_IQD)
+	if (card->info.type != QETH_CARD_TYPE_IQD) {
+		int len;
+		if (large_send == QETH_LARGE_SEND_TSO)
+			len = ((unsigned long)tcp_hdr(new_skb) +
+				tcp_hdr(new_skb)->doff * 4) -
+				(unsigned long)new_skb->data;
+		else
+			len = sizeof(struct qeth_hdr_layer3);
+
+		if (qeth_hdr_chk_and_bounce(new_skb, len))
+			goto tx_drop;
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
 					 elements_needed);
-	else
+	} else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
 					elements_needed, data_offset, 0);
 

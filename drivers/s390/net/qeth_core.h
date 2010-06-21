@@ -869,6 +869,7 @@ void qeth_core_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 void qeth_dbf_longtext(debug_info_t *id, int level, char *text, ...);
 int qeth_core_ethtool_get_settings(struct net_device *, struct ethtool_cmd *);
 int qeth_set_access_ctrl_online(struct qeth_card *card);
+int qeth_hdr_chk_and_bounce(struct sk_buff *, int);
 
 /* exports for OSN */
 int qeth_osn_assist(struct net_device *, void *, int);
