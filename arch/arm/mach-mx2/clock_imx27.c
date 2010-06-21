@@ -644,7 +644,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("spi_imx.1", NULL, cspi2_clk)
 	_REGISTER_CLOCK("spi_imx.2", NULL, cspi3_clk)
 	_REGISTER_CLOCK("imx-fb.0", NULL, lcdc_clk)
-	_REGISTER_CLOCK(NULL, "csi", csi_clk)
+	_REGISTER_CLOCK("mx2-camera.0", NULL, csi_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usb_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", usb_clk1)
 	_REGISTER_CLOCK("mxc-ehci.0", "usb", usb_clk)
