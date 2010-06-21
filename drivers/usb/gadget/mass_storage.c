@@ -143,6 +143,9 @@ static int msg_thread_exits(struct fsg_common *common)
 
 static int __init msg_do_config(struct usb_configuration *c)
 {
+	static const struct fsg_operations ops = {
+		.thread_exits = msg_thread_exits,
+	};
 	static struct fsg_common common;
 
 	struct fsg_common *retp;
@@ -155,7 +158,7 @@ static int __init msg_do_config(struct usb_configuration *c)
 	}
 
 	fsg_config_from_params(&config, &mod_data);
-	config.thread_exits = msg_thread_exits;
+	config.ops = &ops;
 
 	retp = fsg_common_init(&common, c->cdev, &config);
 	if (IS_ERR(retp))
