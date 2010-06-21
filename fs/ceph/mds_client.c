@@ -705,6 +705,43 @@ static int __open_session(struct ceph_mds_client *mdsc,
 }
 
 /*
+ * open sessions for any export targets for the given mds
+ *
+ * called under mdsc->mutex
+ */
+static void __open_export_target_sessions(struct ceph_mds_client *mdsc,
+					  struct ceph_mds_session *session)
+{
+	struct ceph_mds_info *mi;
+	struct ceph_mds_session *ts;
+	int i, mds = session->s_mds;
+	int target;
+
+	if (mds >= mdsc->mdsmap->m_max_mds)
+		return;
+	mi = &mdsc->mdsmap->m_info[mds];
+	dout("open_export_target_sessions for mds%d (%d targets)\n",
+	     session->s_mds, mi->num_export_targets);
+
+	for (i = 0; i < mi->num_export_targets; i++) {
+		target = mi->export_targets[i];
+		ts = __ceph_lookup_mds_session(mdsc, target);
+		if (!ts) {
+			ts = register_session(mdsc, target);
+			if (IS_ERR(ts))
+				return;
+		}
+		if (session->s_state == CEPH_MDS_SESSION_NEW ||
+		    session->s_state == CEPH_MDS_SESSION_CLOSING)
+			__open_session(mdsc, session);
+		else
+			dout(" mds%d target mds%d %p is %s\n", session->s_mds,
+			     i, ts, session_state_name(ts->s_state));
+		ceph_put_mds_session(ts);
+	}
+}
+
+/*
  * session caps
  */
 
