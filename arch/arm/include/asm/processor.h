@@ -91,7 +91,11 @@ extern void release_thread(struct task_struct *);
 
 unsigned long get_wchan(struct task_struct *p);
 
+#if __LINUX_ARM_ARCH__ == 6
+#define cpu_relax()			smp_mb()
+#else
 #define cpu_relax()			barrier()
+#endif
 
 /*
  * Create a new kernel thread
