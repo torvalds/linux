@@ -1269,7 +1269,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	treq = inet6_rsk(req);
 	ipv6_addr_copy(&treq->rmt_addr, &ipv6_hdr(skb)->saddr);
 	ipv6_addr_copy(&treq->loc_addr, &ipv6_hdr(skb)->daddr);
-	if (!want_cookie)
+	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
 
 	if (!isn) {

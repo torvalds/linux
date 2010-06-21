@@ -19,7 +19,7 @@
 #include <net/route.h>
 
 /* Timestamps: lowest bits store TCP options */
-#define TSBITS 5
+#define TSBITS 6
 #define TSMASK (((__u32)1 << TSBITS) - 1)
 
 extern int sysctl_tcp_syncookies;
@@ -73,6 +73,7 @@ __u32 cookie_init_timestamp(struct request_sock *req)
 
 	options = ireq->wscale_ok ? ireq->snd_wscale : 0xf;
 	options |= ireq->sack_ok << 4;
+	options |= ireq->ecn_ok << 5;
 
 	ts = ts_now & ~TSMASK;
 	ts |= options;
@@ -226,11 +227,11 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
  * This extracts these options from the timestamp echo.
  *
  * The lowest 4 bits store snd_wscale.
- * The next lsb is for sack_ok
+ * next 2 bits indicate SACK and ECN support.
  *
  * return false if we decode an option that should not be.
  */
-bool cookie_check_timestamp(struct tcp_options_received *tcp_opt)
+bool cookie_check_timestamp(struct tcp_options_received *tcp_opt, bool *ecn_ok)
 {
 	/* echoed timestamp, lowest bits contain options */
 	u32 options = tcp_opt->rcv_tsecr & TSMASK;
@@ -244,6 +245,9 @@ bool cookie_check_timestamp(struct tcp_options_received *tcp_opt)
 		return false;
 
 	tcp_opt->sack_ok = (options >> 4) & 0x1;
+	*ecn_ok = (options >> 5) & 1;
+	if (*ecn_ok && !sysctl_tcp_ecn)
+		return false;
 
 	if (tcp_opt->sack_ok && !sysctl_tcp_sack)
 		return false;
@@ -272,6 +276,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	int mss;
 	struct rtable *rt;
 	__u8 rcv_wscale;
+	bool ecn_ok;
 
 	if (!sysctl_tcp_syncookies || !th->ack || th->rst)
 		goto out;
@@ -288,7 +293,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	memset(&tcp_opt, 0, sizeof(tcp_opt));
 	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
 
-	if (!cookie_check_timestamp(&tcp_opt))
+	if (!cookie_check_timestamp(&tcp_opt, &ecn_ok))
 		goto out;
 
 	ret = NULL;
@@ -305,7 +310,7 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	ireq->rmt_port		= th->source;
 	ireq->loc_addr		= ip_hdr(skb)->daddr;
 	ireq->rmt_addr		= ip_hdr(skb)->saddr;
-	ireq->ecn_ok		= 0;
+	ireq->ecn_ok		= ecn_ok;
 	ireq->snd_wscale	= tcp_opt.snd_wscale;
 	ireq->sack_ok		= tcp_opt.sack_ok;
 	ireq->wscale_ok		= tcp_opt.wscale_ok;

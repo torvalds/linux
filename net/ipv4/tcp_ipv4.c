@@ -1328,14 +1328,12 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (security_inet_conn_request(sk, skb, req))
 		goto drop_and_free;
 
-	if (!want_cookie)
+	if (!want_cookie || tmp_opt.tstamp_ok)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
 
 	if (want_cookie) {
-#ifdef CONFIG_SYN_COOKIES
-		req->cookie_ts = tmp_opt.tstamp_ok;
-#endif
 		isn = cookie_v4_init_sequence(sk, skb, &req->mss);
+		req->cookie_ts = tmp_opt.tstamp_ok;
 	} else if (!isn) {
 		struct inet_peer *peer = NULL;
 
