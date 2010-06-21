@@ -1166,7 +1166,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	char **commands;
 	char *s;
 	u8 *pp;
-	int i, l;
+	int i, l, lbc, lhlc;
 	u16 info;
 
 	/* decode message */
@@ -1293,42 +1293,59 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 		goto error;
 	}
 
-	/* check/encode parameter: BC */
-	if (cmsg->BC && cmsg->BC[0]) {
-		/* explicit BC overrides CIP */
-		l = 2*cmsg->BC[0] + 7;
+	/*
+	 * check/encode parameters: BC & HLC
+	 * must be encoded together as device doesn't accept HLC separately
+	 * explicit parameters override values derived from CIP
+	 */
+
+	/* determine lengths */
+	if (cmsg->BC && cmsg->BC[0])		/* BC specified explicitly */
+		lbc = 2*cmsg->BC[0];
+	else if (cip2bchlc[cmsg->CIPValue].bc)	/* BC derived from CIP */
+		lbc = strlen(cip2bchlc[cmsg->CIPValue].bc);
+	else					/* no BC */
+		lbc = 0;
+	if (cmsg->HLC && cmsg->HLC[0])		/* HLC specified explicitly */
+		lhlc = 2*cmsg->HLC[0];
+	else if (cip2bchlc[cmsg->CIPValue].hlc)	/* HLC derived from CIP */
+		lhlc = strlen(cip2bchlc[cmsg->CIPValue].hlc);
+	else					/* no HLC */
+		lhlc = 0;
+
+	if (lbc) {
+		/* have BC: allocate and assemble command string */
+		l = lbc + 7;		/* "^SBC=" + value + "\r" + null byte */
+		if (lhlc)
+			l += lhlc + 7;	/* ";^SHLC=" + value */
 		commands[AT_BC] = kmalloc(l, GFP_KERNEL);
 		if (!commands[AT_BC])
 			goto oom;
 		strcpy(commands[AT_BC], "^SBC=");
-		decode_ie(cmsg->BC, commands[AT_BC]+5);
+		if (cmsg->BC && cmsg->BC[0])	/* BC specified explicitly */
+			decode_ie(cmsg->BC, commands[AT_BC] + 5);
+		else				/* BC derived from CIP */
+			strcpy(commands[AT_BC] + 5,
+			       cip2bchlc[cmsg->CIPValue].bc);
+		if (lhlc) {
+			strcpy(commands[AT_BC] + lbc + 5, ";^SHLC=");
+			if (cmsg->HLC && cmsg->HLC[0])
+				/* HLC specified explicitly */
+				decode_ie(cmsg->HLC,
+					  commands[AT_BC] + lbc + 12);
+			else	/* HLC derived from CIP */
+				strcpy(commands[AT_BC] + lbc + 12,
+				       cip2bchlc[cmsg->CIPValue].hlc);
+		}
 		strcpy(commands[AT_BC] + l - 2, "\r");
-	} else if (cip2bchlc[cmsg->CIPValue].bc) {
-		l = strlen(cip2bchlc[cmsg->CIPValue].bc) + 7;
-		commands[AT_BC] = kmalloc(l, GFP_KERNEL);
-		if (!commands[AT_BC])
-			goto oom;
-		snprintf(commands[AT_BC], l, "^SBC=%s\r",
-			 cip2bchlc[cmsg->CIPValue].bc);
-	}
-
-	/* check/encode parameter: HLC */
-	if (cmsg->HLC && cmsg->HLC[0]) {
-		/* explicit HLC overrides CIP */
-		l = 2*cmsg->HLC[0] + 7;
-		commands[AT_HLC] = kmalloc(l, GFP_KERNEL);
-		if (!commands[AT_HLC])
-			goto oom;
-		strcpy(commands[AT_HLC], "^SHLC=");
-		decode_ie(cmsg->HLC, commands[AT_HLC]+5);
-		strcpy(commands[AT_HLC] + l - 2, "\r");
-	} else if (cip2bchlc[cmsg->CIPValue].hlc) {
-		l = strlen(cip2bchlc[cmsg->CIPValue].hlc) + 7;
-		commands[AT_HLC] = kmalloc(l, GFP_KERNEL);
-		if (!commands[AT_HLC])
-			goto oom;
-		snprintf(commands[AT_HLC], l, "^SHLC=%s\r",
-			 cip2bchlc[cmsg->CIPValue].hlc);
+	} else {
+		/* no BC */
+		if (lhlc) {
+			dev_notice(cs->dev, "%s: cannot set HLC without BC\n",
+				   "CONNECT_REQ");
+			info = CapiIllMessageParmCoding; /* ? */
+			goto error;
+		}
 	}
 
 	/* check/encode parameter: B Protocol */
