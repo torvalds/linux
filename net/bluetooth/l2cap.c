@@ -77,6 +77,8 @@ static void l2cap_sock_kill(struct sock *sk);
 static struct sk_buff *l2cap_build_cmd(struct l2cap_conn *conn,
 				u8 code, u8 ident, u16 dlen, void *data);
 
+static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb);
+
 /* ---- L2CAP timers ---- */
 static void l2cap_sock_timeout(unsigned long arg)
 {
@@ -2447,6 +2449,8 @@ static inline void l2cap_ertm_init(struct sock *sk)
 	__skb_queue_head_init(BUSY_QUEUE(sk));
 
 	INIT_WORK(&l2cap_pi(sk)->busy_work, l2cap_busy_work);
+
+	sk->sk_backlog_rcv = l2cap_ertm_data_rcv;
 }
 
 static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
@@ -4171,13 +4175,83 @@ static inline int l2cap_data_channel_sframe(struct sock *sk, u16 rx_control, str
 	return 0;
 }
 
+static int l2cap_ertm_data_rcv(struct sock *sk, struct sk_buff *skb)
+{
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	u16 control;
+	u8 req_seq;
+	int len, next_tx_seq_offset, req_seq_offset;
+
+	control = get_unaligned_le16(skb->data);
+	skb_pull(skb, 2);
+	len = skb->len;
+
+	/*
+	 * We can just drop the corrupted I-frame here.
+	 * Receiver will miss it and start proper recovery
+	 * procedures and ask retransmission.
+	 */
+	if (l2cap_check_fcs(pi, skb))
+		goto drop;
+
+	if (__is_sar_start(control) && __is_iframe(control))
+		len -= 2;
+
+	if (pi->fcs == L2CAP_FCS_CRC16)
+		len -= 2;
+
+	if (len > pi->mps) {
+		l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
+		goto drop;
+	}
+
+	req_seq = __get_reqseq(control);
+	req_seq_offset = (req_seq - pi->expected_ack_seq) % 64;
+	if (req_seq_offset < 0)
+		req_seq_offset += 64;
+
+	next_tx_seq_offset =
+		(pi->next_tx_seq - pi->expected_ack_seq) % 64;
+	if (next_tx_seq_offset < 0)
+		next_tx_seq_offset += 64;
+
+	/* check for invalid req-seq */
+	if (req_seq_offset > next_tx_seq_offset) {
+		l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
+		goto drop;
+	}
+
+	if (__is_iframe(control)) {
+		if (len < 0) {
+			l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
+			goto drop;
+		}
+
+		l2cap_data_channel_iframe(sk, control, skb);
+	} else {
+		if (len != 0) {
+			BT_ERR("%d", len);
+			l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
+			goto drop;
+		}
+
+		l2cap_data_channel_sframe(sk, control, skb);
+	}
+
+	return 0;
+
+drop:
+	kfree_skb(skb);
+	return 0;
+}
+
 static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk_buff *skb)
 {
 	struct sock *sk;
 	struct l2cap_pinfo *pi;
 	u16 control;
-	u8 tx_seq, req_seq;
-	int len, next_tx_seq_offset, req_seq_offset;
+	u8 tx_seq;
+	int len;
 
 	sk = l2cap_get_chan_by_scid(&conn->chan_list, cid);
 	if (!sk) {
@@ -4207,59 +4281,11 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		break;
 
 	case L2CAP_MODE_ERTM:
-		control = get_unaligned_le16(skb->data);
-		skb_pull(skb, 2);
-		len = skb->len;
-
-		/*
-		 * We can just drop the corrupted I-frame here.
-		 * Receiver will miss it and start proper recovery
-		 * procedures and ask retransmission.
-		 */
-		if (l2cap_check_fcs(pi, skb))
-			goto drop;
-
-		if (__is_sar_start(control) && __is_iframe(control))
-			len -= 2;
-
-		if (pi->fcs == L2CAP_FCS_CRC16)
-			len -= 2;
-
-		if (len > pi->mps) {
-			l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
-			goto drop;
-		}
-
-		req_seq = __get_reqseq(control);
-		req_seq_offset = (req_seq - pi->expected_ack_seq) % 64;
-		if (req_seq_offset < 0)
-			req_seq_offset += 64;
-
-		next_tx_seq_offset =
-			(pi->next_tx_seq - pi->expected_ack_seq) % 64;
-		if (next_tx_seq_offset < 0)
-			next_tx_seq_offset += 64;
-
-		/* check for invalid req-seq */
-		if (req_seq_offset > next_tx_seq_offset) {
-			l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
-			goto drop;
-		}
-
-		if (__is_iframe(control)) {
-			if (len < 0) {
-				l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
-				goto drop;
-			}
-
-			l2cap_data_channel_iframe(sk, control, skb);
+		if (!sock_owned_by_user(sk)) {
+			l2cap_ertm_data_rcv(sk, skb);
 		} else {
-			if (len != 0) {
-				l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
+			if (sk_add_backlog(sk, skb))
 				goto drop;
-			}
-
-			l2cap_data_channel_sframe(sk, control, skb);
 		}
 
 		goto done;
