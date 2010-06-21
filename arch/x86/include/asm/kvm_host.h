@@ -69,8 +69,6 @@
 
 #define IOPL_SHIFT 12
 
-#define KVM_ALIAS_SLOTS 4
-
 #define KVM_PERMILLE_MMU_PAGES 20
 #define KVM_MIN_ALLOC_MMU_PAGES 64
 #define KVM_MMU_HASH_SHIFT 10
@@ -362,24 +360,7 @@ struct kvm_vcpu_arch {
 	u64 hv_vapic;
 };
 
-struct kvm_mem_alias {
-	gfn_t base_gfn;
-	unsigned long npages;
-	gfn_t target_gfn;
-#define KVM_ALIAS_INVALID     1UL
-	unsigned long flags;
-};
-
-#define KVM_ARCH_HAS_UNALIAS_INSTANTIATION
-
-struct kvm_mem_aliases {
-	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
-	int naliases;
-};
-
 struct kvm_arch {
-	struct kvm_mem_aliases *aliases;
-
 	unsigned int n_free_mmu_pages;
 	unsigned int n_requested_mmu_pages;
 	unsigned int n_alloc_mmu_pages;
@@ -654,8 +635,6 @@ void kvm_disable_tdp(void);
 
 int complete_pio(struct kvm_vcpu *vcpu);
 bool kvm_check_iopl(struct kvm_vcpu *vcpu);
-
-struct kvm_memory_slot *gfn_to_memslot_unaliased(struct kvm *kvm, gfn_t gfn);
 
 static inline struct kvm_mmu_page *page_header(hpa_t shadow_page)
 {

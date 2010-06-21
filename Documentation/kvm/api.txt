@@ -226,17 +226,7 @@ Type: vm ioctl
 Parameters: struct kvm_memory_alias (in)
 Returns: 0 (success), -1 (error)
 
-struct kvm_memory_alias {
-	__u32 slot;  /* this has a different namespace than memory slots */
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size;
-	__u64 target_phys_addr;
-};
-
-Defines a guest physical address space region as an alias to another
-region.  Useful for aliased address, for example the VGA low memory
-window. Should not be used with userspace memory.
+This ioctl is obsolete and has been removed.
 
 4.9 KVM_RUN
 

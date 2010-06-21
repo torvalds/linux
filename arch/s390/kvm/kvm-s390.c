@@ -723,11 +723,6 @@ void kvm_arch_flush_shadow(struct kvm *kvm)
 {
 }
 
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
-{
-	return gfn;
-}
-
 static int __init kvm_s390_init(void)
 {
 	int ret;

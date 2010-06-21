@@ -434,9 +434,7 @@ static void account_shadowed(struct kvm *kvm, gfn_t gfn)
 	int *write_count;
 	int i;
 
-	gfn = unalias_gfn(kvm, gfn);
-
-	slot = gfn_to_memslot_unaliased(kvm, gfn);
+	slot = gfn_to_memslot(kvm, gfn);
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
 		write_count   = slot_largepage_idx(gfn, slot, i);
@@ -450,8 +448,7 @@ static void unaccount_shadowed(struct kvm *kvm, gfn_t gfn)
 	int *write_count;
 	int i;
 
-	gfn = unalias_gfn(kvm, gfn);
-	slot = gfn_to_memslot_unaliased(kvm, gfn);
+	slot = gfn_to_memslot(kvm, gfn);
 	for (i = PT_DIRECTORY_LEVEL;
 	     i < PT_PAGE_TABLE_LEVEL + KVM_NR_PAGE_SIZES; ++i) {
 		write_count   = slot_largepage_idx(gfn, slot, i);
@@ -467,8 +464,7 @@ static int has_wrprotected_page(struct kvm *kvm,
 	struct kvm_memory_slot *slot;
 	int *largepage_idx;
 
-	gfn = unalias_gfn(kvm, gfn);
-	slot = gfn_to_memslot_unaliased(kvm, gfn);
+	slot = gfn_to_memslot(kvm, gfn);
 	if (slot) {
 		largepage_idx = slot_largepage_idx(gfn, slot, level);
 		return *largepage_idx;
@@ -521,7 +517,6 @@ static int mapping_level(struct kvm_vcpu *vcpu, gfn_t large_gfn)
 
 /*
  * Take gfn and return the reverse mapping to it.
- * Note: gfn must be unaliased before this function get called
  */
 
 static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int level)
@@ -561,7 +556,6 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 
 	if (!is_rmap_spte(*spte))
 		return count;
-	gfn = unalias_gfn(vcpu->kvm, gfn);
 	sp = page_header(__pa(spte));
 	kvm_mmu_page_set_gfn(sp, spte - sp->spt, gfn);
 	rmapp = gfn_to_rmap(vcpu->kvm, gfn, sp->role.level);
@@ -698,7 +692,6 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 	u64 *spte;
 	int i, write_protected = 0;
 
-	gfn = unalias_gfn(kvm, gfn);
 	rmapp = gfn_to_rmap(kvm, gfn, PT_PAGE_TABLE_LEVEL);
 
 	spte = rmap_next(kvm, rmapp, NULL);
@@ -885,7 +878,6 @@ static void rmap_recycle(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 
 	sp = page_header(__pa(spte));
 
-	gfn = unalias_gfn(vcpu->kvm, gfn);
 	rmapp = gfn_to_rmap(vcpu->kvm, gfn, sp->role.level);
 
 	kvm_unmap_rmapp(vcpu->kvm, rmapp, 0);
@@ -3510,8 +3502,7 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 		if (sp->unsync)
 			continue;
 
-		gfn = unalias_gfn(vcpu->kvm, sp->gfn);
-		slot = gfn_to_memslot_unaliased(vcpu->kvm, sp->gfn);
+		slot = gfn_to_memslot(vcpu->kvm, sp->gfn);
 		rmapp = &slot->rmap[gfn - slot->base_gfn];
 
 		spte = rmap_next(vcpu->kvm, rmapp, NULL);

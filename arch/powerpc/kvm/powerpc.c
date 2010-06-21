@@ -36,11 +36,6 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
-{
-	return gfn;
-}
-
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
 	return !(v->arch.msr & MSR_WE) || !!(v->arch.pending_exceptions);

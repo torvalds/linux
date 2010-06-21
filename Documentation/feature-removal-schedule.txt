@@ -538,17 +538,6 @@ Who:	Jan Kiszka <jan.kiszka@web.de>
 
 ----------------------------
 
-What:	KVM memory aliases support
-When:	July 2010
-Why:	Memory aliasing support is used for speeding up guest vga access
-	through the vga windows.
-
-	Modern userspace no longer uses this feature, so it's just bitrotted
-	code and can be removed with no impact.
-Who:	Avi Kivity <avi@redhat.com>
-
-----------------------------
-
 What:	xtime, wall_to_monotonic
 When:	2.6.36+
 Files:	kernel/time/timekeeping.c include/linux/time.h
