@@ -88,6 +88,8 @@ static struct bat_debuginfo *mesh_debuginfos[] = {
 void debugfs_init(void)
 {
 	bat_debugfs = debugfs_create_dir(DEBUGFS_BAT_SUBDIR, NULL);
+	if (bat_debugfs == ERR_PTR(-ENODEV))
+		bat_debugfs = NULL;
 }
 
 void debugfs_destroy(void)
