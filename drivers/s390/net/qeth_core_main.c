@@ -36,8 +36,6 @@ struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS] = {
 				2, 1,   8, 2, &debug_hex_ascii_view, NULL},
 	[QETH_DBF_MSG]   = {"qeth_msg",
 				8, 1, 128, 3, &debug_sprintf_view,   NULL},
-	[QETH_DBF_MISC]	 = {"qeth_misc",
-				2, 1, 256, 2, &debug_hex_ascii_view, NULL},
 	[QETH_DBF_CTRL]  = {"qeth_control",
 		8, 1, QETH_DBF_CTRL_LEN, 5, &debug_hex_ascii_view, NULL},
 };
@@ -4117,7 +4115,7 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 				QETH_DBF_TEXT(QERR, 2, "unexeob");
 				QETH_DBF_TEXT_(QERR, 2, "%s",
 					CARD_BUS_ID(card));
-				QETH_DBF_HEX(MISC, 4, buffer, sizeof(*buffer));
+				QETH_CARD_HEX(card, 2, buffer, sizeof(void *));
 				dev_kfree_skb_any(skb);
 				card->stats.rx_errors++;
 				return NULL;
