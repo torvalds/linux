@@ -3335,7 +3335,7 @@ fill_serial:
 }
 
 
-static int __init fsg_bind(struct usb_gadget *gadget)
+static int __ref fsg_bind(struct usb_gadget *gadget)
 {
 	struct fsg_dev		*fsg = the_fsg;
 	int			rc;
