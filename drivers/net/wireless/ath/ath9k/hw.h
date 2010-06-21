@@ -819,6 +819,12 @@ struct ath_hw {
 
 	u32 paprd_gain_table_entries[PAPRD_GAIN_TABLE_ENTRIES];
 	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
+	/*
+	 * Store the permanent value of Reg 0x4004in WARegVal
+	 * so we dont have to R/M/W. We should not be reading
+	 * this register when in sleep states.
+	 */
+	u32 WARegVal;
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)

@@ -704,6 +704,11 @@
 #define AR_WA_BIT7			(1 << 7)
 #define AR_WA_BIT23			(1 << 23)
 #define AR_WA_D3_L1_DISABLE		(1 << 14)
+#define AR_WA_D3_TO_L1_DISABLE_REAL     (1 << 16)
+#define AR_WA_ASPM_TIMER_BASED_DISABLE  (1 << 17)
+#define AR_WA_RESET_EN                  (1 << 18) /* Sw Control to enable PCI-Reset to POR (bit 15) */
+#define AR_WA_ANALOG_SHIFT              (1 << 20)
+#define AR_WA_POR_SHORT                 (1 << 21) /* PCI-E Phy reset control */
 #define AR9285_WA_DEFAULT		0x004a050b
 #define AR9280_WA_DEFAULT           	0x0040073b
 #define AR_WA_DEFAULT               	0x0000073f
