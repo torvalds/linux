@@ -122,14 +122,12 @@ struct rk28dsp_inf {
 
 typedef enum _DSP_STATUS {
     DS_NORMAL = 0,
-    DS_TOSLOW,
-    DS_SLOW,
+    DS_TOSLEEP,
     DS_SLEEP,
 } DSP_STATUS;
 
 typedef enum _DSP_PWR_CTL {
     DPC_NORMAL = 0,
-    DPC_SLOW,
     DPC_SLEEP,
 } DSP_PWR_CTL;
 
@@ -230,12 +228,6 @@ void dsp_powerctl(int ctl, int arg)
 
     switch(ctl)
     {
-    case DPC_SLOW:
-        {
-            /* dsp work mode :slow mode*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
-        }
-        break;
     case DPC_NORMAL:
         {
 #if USE_CLOCK_FUN
@@ -245,6 +237,9 @@ void dsp_powerctl(int ctl, int arg)
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
             mdelay(15);
 
+            /* dsp core & peripheral rst */
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
+			udelay(300);		//0.3ms
 #else
             /* dsp clock enable 0x12*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x02)) , RK2818_SCU_BASE+0x1c);
@@ -253,6 +248,9 @@ void dsp_powerctl(int ctl, int arg)
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
             mdelay(15);
 
+            /* dsp core & peripheral rst */
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
+
 			/* dsp pll enable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) & (~(0x01u<<22))) , RK2818_SCU_BASE+0x04);
 			udelay(300);		//0.3ms
@@ -260,24 +258,22 @@ void dsp_powerctl(int ctl, int arg)
 			/* dsp set clk */
 			dsp_set_clk(arg);
 
+			/* wait dsp pll lock */
+			while(!(__raw_readl(RK2818_REGFILE_BASE) & 0x00000100)) {
+				udelay(10);
+				printk("wait dsp pll lock ... \n");
+			}
+
+            /* dsp peripheral urst */
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x02000020)) , RK2818_SCU_BASE+0x28);
+            //mdelay(15);
+
             /* dsp ahb bus clock enable*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x24) & (~0x04)) , RK2818_SCU_BASE+0x24);
             /* sram arm clock enable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x08)) , RK2818_SCU_BASE+0x1c);
             /* sram dsp clock enable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x10)) , RK2818_SCU_BASE+0x1c);
-
-            /* dsp core peripheral rest then not rest */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x02000020)) , RK2818_SCU_BASE+0x28);
-            //mdelay(15);
-
-            /* dsp work mode :slow mode*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
-            //mdelay(15);
-
-            /* change dsp & arm to normal mode */
-            __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
         }
         break;
     case DPC_SLEEP:
@@ -327,16 +323,14 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 	if((0==strcmp(lst_fwname, fwname)) && (DS_SLEEP!=inf->dsp_status)) {
 	    if(1==inf->cur_req) {
 	        dspprintk("%s already down, not redown! \n", fwname);
-
 	        /* change dsp & arm to normal mode */
-	        //if(DS_SLOW==inf->dsp_status)    printk("dsp work mode : slow -> normal mode \n");
 	        inf->dsp_status = DS_NORMAL;
 	        __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
             return 0;
 	    }
     }
 
-    //if(DS_SLEEP==inf->dsp_status)    printk("dsp work mode : sleep -> normal mode \n");
+    if(DS_SLEEP==inf->dsp_status)    printk("dsp : sleep -> normal \n");
     inf->dsp_status = DS_NORMAL;
 
     dspprintk("down firmware (%s) ... \n", fwname);
@@ -453,7 +447,16 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 
 	DSP_BOOT_CTRL();
     mdelay(10);
-    __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x00000010)) , RK2818_SCU_BASE+0x28); /* dsp core peripheral not rest*/
+
+    /* dsp work mode :slow mode*/
+    __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
+    //mdelay(15);
+
+	/* dsp core urst*/
+    __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x00000010)) , RK2818_SCU_BASE+0x28);
+
+    /* change dsp & arm to normal mode */
+    __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
 
 	strcpy(lst_fwname, fwname);
 
@@ -464,36 +467,23 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 void dsptimer_callback(unsigned long arg)
 {
     struct rk28dsp_inf *inf = g_inf;
-    static int sec_cnt = 0;
     if(!inf)      return;
-
-    mod_timer(&inf->dsp_timer, jiffies + HZ);
 
     switch(inf->dsp_status)
     {
-    case DS_TOSLOW:
-        dsp_powerctl(DPC_SLOW, 0);
-        inf->dsp_status = DS_SLOW;
-        //printk("dsp work mode : slow mode \n");
-        sec_cnt = 0;
-        break;
-    case DS_SLOW:
-        if(++sec_cnt>=5) {
-            dsp_powerctl(DPC_SLEEP, 0);
-            inf->dsp_status = DS_SLEEP;
-            //printk("dsp work mode : sleep mode \n");
-        }
+    case DS_NORMAL:
+		break;
+    case DS_TOSLEEP:
+		dsp_powerctl(DPC_SLEEP, 0);
+      	inf->dsp_status = DS_SLEEP;
+     	printk("dsp : normal -> sleep \n");
         break;
     case DS_SLEEP:
         break;
-    case DS_NORMAL:
     default:
         inf->dsp_status = DS_NORMAL;
-        sec_cnt = 0;
         break;
     }
-
-
 }
 
 
@@ -621,8 +611,10 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			inf->cur_req = 0;
 			inf->cur_pid = 0;
 
-            mod_timer(&inf->dsp_timer, jiffies + HZ);
-            inf->dsp_status = DS_TOSLOW;
+			/* dsp work mode :slow mode*/
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
+			inf->dsp_status = DS_TOSLEEP;
+            mod_timer(&inf->dsp_timer, jiffies + 5*HZ);
 		}
 
         /* force DSP_IOCTL_RECV_MSG return */
@@ -892,7 +884,7 @@ static int __init dsp_drv_probe(struct platform_device *pdev)
 
     init_timer(&inf->dsp_timer);
     inf->dsp_timer.function = dsptimer_callback;
-    inf->dsp_timer.expires = jiffies + HZ;
+    inf->dsp_timer.expires = jiffies + 5*HZ;
     add_timer(&inf->dsp_timer);
 
 	inf->miscdev = dsp_dev;
@@ -966,9 +958,9 @@ static int dsp_drv_suspend(struct platform_device *pdev, pm_message_t state)
     if(DS_NORMAL==inf->dsp_status)  return -EPERM;
 
 	if(DS_SLEEP != inf->dsp_status ) {
-        dsp_powerctl(DPC_SLEEP, 0);
-        inf->dsp_status = DS_SLEEP;
-        //printk("dsp work mode : sleep mode \n");
+		inf->dsp_status = DS_SLEEP;
+	    dsp_powerctl(DPC_SLEEP, 0);
+	    printk("dsp : normal -> sleep \n");
 	}
     return 0;
 }
