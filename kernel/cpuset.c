@@ -2118,7 +2118,7 @@ static void scan_for_empty_cpusets(struct cpuset *root)
  * Called within get_online_cpus().  Needs to call cgroup_lock()
  * before calling generate_sched_domains().
  */
-void __cpuexit cpuset_update_active_cpus(void)
+void cpuset_update_active_cpus(void)
 {
 	struct sched_domain_attr *attr;
 	cpumask_var_t *doms;

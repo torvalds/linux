@@ -7477,8 +7477,8 @@ int __init sched_create_sysfs_power_savings_entries(struct sysdev_class *cls)
  * disabled, cpuset_update_active_cpus() becomes a simple wrapper
  * around partition_sched_domains().
  */
-static int __cpuexit cpuset_cpu_active(struct notifier_block *nfb,
-				       unsigned long action, void *hcpu)
+static int cpuset_cpu_active(struct notifier_block *nfb, unsigned long action,
+			     void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
@@ -7490,8 +7490,8 @@ static int __cpuexit cpuset_cpu_active(struct notifier_block *nfb,
 	}
 }
 
-static int __cpuexit cpuset_cpu_inactive(struct notifier_block *nfb,
-					 unsigned long action, void *hcpu)
+static int cpuset_cpu_inactive(struct notifier_block *nfb, unsigned long action,
+			       void *hcpu)
 {
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DOWN_PREPARE:
