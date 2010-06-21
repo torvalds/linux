@@ -67,6 +67,11 @@ config S3C64XX_SETUP_FB_24BPP
 	help
 	  Common setup code for S3C64XX with an 24bpp RGB display helper.
 
+config S3C64XX_SETUP_KEYPAD
+	bool
+	help
+	  Common setup code for S3C64XX KEYPAD GPIO configurations
+
 config S3C64XX_SETUP_SDHCI_GPIO
 	bool
 	help
@@ -107,11 +112,13 @@ config MACH_SMDK6410
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
 	select S3C_DEV_WDT
+	select SAMSUNG_DEV_KEYPAD
 	select HAVE_S3C2410_WATCHDOG
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_I2C1
 	select S3C64XX_SETUP_IDE
 	select S3C64XX_SETUP_FB_24BPP
+	select S3C64XX_SETUP_KEYPAD
 	help
 	  Machine support for the Samsung SMDK6410
 

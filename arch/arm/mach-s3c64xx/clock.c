@@ -171,6 +171,12 @@ static struct clk init_clocks_disable[] = {
 		.ctrlbit	= S3C6410_CLKCON_PCLK_IIS2,
 	}, {
 #endif
+		.name		= "keypad",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c64xx_pclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_PCLK_KEYPAD,
+	}, {
 		.name		= "spi",
 		.id		= 0,
 		.parent		= &clk_p,
