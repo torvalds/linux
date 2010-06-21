@@ -1327,13 +1327,13 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 			bcs->proto2 = L2_HDLC;
 			break;
 		case 1:
-			bcs->proto2 = L2_BITSYNC;
+			bcs->proto2 = L2_VOICE;
 			break;
 		default:
 			dev_warn(cs->dev,
 			    "B1 Protocol %u unsupported, using Transparent\n",
 				 cmsg->B1protocol);
-			bcs->proto2 = L2_BITSYNC;
+			bcs->proto2 = L2_VOICE;
 		}
 		if (cmsg->B2protocol != 1)
 			dev_warn(cs->dev,
@@ -1456,13 +1456,13 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 				bcs->proto2 = L2_HDLC;
 				break;
 			case 1:
-				bcs->proto2 = L2_BITSYNC;
+				bcs->proto2 = L2_VOICE;
 				break;
 			default:
 				dev_warn(cs->dev,
 			"B1 Protocol %u unsupported, using Transparent\n",
 					 cmsg->B1protocol);
-				bcs->proto2 = L2_BITSYNC;
+				bcs->proto2 = L2_VOICE;
 			}
 			if (cmsg->B2protocol != 1)
 				dev_warn(cs->dev,
