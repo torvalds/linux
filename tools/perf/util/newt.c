@@ -267,6 +267,7 @@ struct ui_browser {
 	void		*first_visible_entry, *entries;
 	u16		top, left, width, height;
 	void		*priv;
+	unsigned int	(*refresh_entries)(struct ui_browser *self);
 	void		(*seek)(struct ui_browser *self,
 				off_t offset, int whence);
 	u32		nr_entries;
@@ -405,26 +406,10 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 
 static int ui_browser__refresh_entries(struct ui_browser *self)
 {
-	struct objdump_line *pos;
-	struct list_head *head = self->entries;
-	struct hist_entry *he = self->priv;
-	int row = 0;
-	int len = he->ms.sym->end - he->ms.sym->start;
+	int row;
 
-	if (self->first_visible_entry == NULL || self->first_visible_entry == self->entries)
-                self->first_visible_entry = head->next;
-
-	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
-
-	list_for_each_entry_from(pos, head, node) {
-		bool current_entry = ui_browser__is_current_entry(self, row);
-		SLsmg_gotorc(self->top + row, self->left);
-		objdump_line__show(pos, head, self->width,
-				   he, len, current_entry);
-		if (++row == self->height)
-			break;
-	}
-
+	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
+	row = self->refresh_entries(self);
 	SLsmg_set_color(HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->top + row, self->left,
 			  self->height - row, self->width, ' ');
@@ -555,6 +540,31 @@ static char *callchain_list__sym_name(struct callchain_list *self,
 
 	snprintf(bf, bfsize, "%#Lx", self->ip);
 	return bf;
+}
+
+static unsigned int hist_entry__annotate_browser_refresh(struct ui_browser *self)
+{
+	struct objdump_line *pos;
+	struct list_head *head = self->entries;
+	struct hist_entry *he = self->priv;
+	int row = 0;
+	int len = he->ms.sym->end - he->ms.sym->start;
+
+	if (self->first_visible_entry == NULL || self->first_visible_entry == self->entries)
+                self->first_visible_entry = head->next;
+
+	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
+
+	list_for_each_entry_from(pos, head, node) {
+		bool current_entry = ui_browser__is_current_entry(self, row);
+		SLsmg_gotorc(self->top + row, self->left);
+		objdump_line__show(pos, head, self->width,
+				   he, len, current_entry);
+		if (++row == self->height)
+			break;
+	}
+
+	return row;
 }
 
 static void __callchain__append_graph_browser(struct callchain_node *self,
@@ -720,6 +730,7 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 
 	memset(&browser, 0, sizeof(browser));
 	browser.entries		= &head;
+	browser.refresh_entries = hist_entry__annotate_browser_refresh;
 	browser.seek		= ui_browser__list_head_seek;
 	browser.priv = self;
 	list_for_each_entry(pos, &head, node) {
