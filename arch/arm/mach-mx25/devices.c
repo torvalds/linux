@@ -181,63 +181,6 @@ struct platform_device mxc_usbh2 = {
 	.num_resources = ARRAY_SIZE(mxc_usbh2_resources),
 };
 
-static struct resource mxc_spi_resources0[] = {
-	{
-	       .start = 0x43fa4000,
-	       .end = 0x43fa7fff,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = 14,
-	       .end = 14,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device0 = {
-	.name = "spi_imx",
-	.id = 0,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources0),
-	.resource = mxc_spi_resources0,
-};
-
-static struct resource mxc_spi_resources1[] = {
-	{
-	       .start = 0x50010000,
-	       .end = 0x50013fff,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = 13,
-	       .end = 13,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device1 = {
-	.name = "spi_imx",
-	.id = 1,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources1),
-	.resource = mxc_spi_resources1,
-};
-
-static struct resource mxc_spi_resources2[] = {
-	{
-	       .start = 0x50004000,
-	       .end = 0x50007fff,
-	       .flags = IORESOURCE_MEM,
-	}, {
-	       .start = 0,
-	       .end = 0,
-	       .flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_spi_device2 = {
-	.name = "spi_imx",
-	.id = 2,
-	.num_resources = ARRAY_SIZE(mxc_spi_resources2),
-	.resource = mxc_spi_resources2,
-};
-
 static struct resource mxc_pwm_resources0[] = {
 	{
 		.start	= 0x53fe0000,
