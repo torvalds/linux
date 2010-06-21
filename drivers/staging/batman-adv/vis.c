@@ -115,7 +115,7 @@ static void vis_data_insert_interface(const uint8_t *interface,
 	}
 
 	/* its a new address, add it to the list */
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	entry = kmalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return;
 	memcpy(entry->addr, interface, ETH_ALEN);
@@ -142,12 +142,29 @@ static ssize_t vis_data_read_prim_sec(char *buff, struct hlist_head *if_list)
 	return len;
 }
 
+static size_t vis_data_count_prim_sec(struct hlist_head *if_list)
+{
+	struct if_list_entry *entry;
+	struct hlist_node *pos;
+	size_t count = 0;
+
+	hlist_for_each_entry(entry, pos, if_list, list) {
+		if (entry->primary)
+			count += 9;
+		else
+			count += 23;
+	}
+
+	return count;
+}
+
 /* read an entry  */
 static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
 				   uint8_t *src, bool primary)
 {
-	char to[40];
+	char to[18];
 
+	/* maximal length: max(4+17+2, 3+17+1+3+2) == 26 */
 	addr_to_string(to, entry->dest);
 	if (primary && entry->quality == 0)
 		return sprintf(buff, "HNA %s, ", to);
@@ -157,37 +174,73 @@ static ssize_t vis_data_read_entry(char *buff, struct vis_info_entry *entry,
 	return 0;
 }
 
-ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
-			      size_t count, loff_t off)
+int vis_seq_print_text(struct seq_file *seq, void *offset)
 {
 	HASHIT(hashit);
+	HASHIT(hashit_count);
 	struct vis_info *info;
 	struct vis_info_entry *entries;
+	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	HLIST_HEAD(vis_if_list);
 	struct if_list_entry *entry;
 	struct hlist_node *pos, *n;
-	size_t hdr_len, tmp_len;
-	int i, bytes_written = 0;
+	int i;
 	char tmp_addr_str[ETH_STR_LEN];
 	unsigned long flags;
 	int vis_server = atomic_read(&bat_priv->vis_mode);
+	size_t buff_pos, buf_size;
+	char *buff;
 
 	if ((!bat_priv->primary_if) ||
 	    (vis_server == VIS_TYPE_CLIENT_UPDATE))
 		return 0;
 
-	hdr_len = 0;
-
+	buf_size = 1;
+	/* Estimate length */
 	spin_lock_irqsave(&vis_hash_lock, flags);
+	while (hash_iterate(vis_hash, &hashit_count)) {
+		info = hashit_count.bucket->data;
+		entries = (struct vis_info_entry *)
+			((char *)info + sizeof(struct vis_info));
+
+		for (i = 0; i < info->packet.entries; i++) {
+			if (entries[i].quality == 0)
+				continue;
+			vis_data_insert_interface(entries[i].src, &vis_if_list,
+				compare_orig(entries[i].src,
+						info->packet.vis_orig));
+		}
+
+		hlist_for_each_entry(entry, pos, &vis_if_list, list) {
+			buf_size += 18 + 26 * info->packet.entries;
+
+			/* add primary/secondary records */
+			if (compare_orig(entry->addr, info->packet.vis_orig))
+				buf_size +=
+					vis_data_count_prim_sec(&vis_if_list);
+
+			buf_size += 1;
+		}
+
+		hlist_for_each_entry_safe(entry, pos, n, &vis_if_list, list) {
+			hlist_del(&entry->list);
+			kfree(entry);
+		}
+	}
+
+	buff = kmalloc(buf_size, GFP_ATOMIC);
+	if (!buff) {
+		spin_unlock_irqrestore(&vis_hash_lock, flags);
+		return -ENOMEM;
+	}
+	buff[0] = '\0';
+	buff_pos = 0;
+
 	while (hash_iterate(vis_hash, &hashit)) {
 		info = hashit.bucket->data;
 		entries = (struct vis_info_entry *)
 			((char *)info + sizeof(struct vis_info));
-
-		/* estimated line length */
-		if (count < bytes_written + 200)
-			break;
 
 		for (i = 0; i < info->packet.entries; i++) {
 			if (entries[i].quality == 0)
@@ -199,30 +252,22 @@ ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
 
 		hlist_for_each_entry(entry, pos, &vis_if_list, list) {
 			addr_to_string(tmp_addr_str, entry->addr);
-			tmp_len = sprintf(buff + bytes_written,
-					  "%s,", tmp_addr_str);
+			buff_pos += sprintf(buff + buff_pos, "%s,",
+					    tmp_addr_str);
 
 			for (i = 0; i < info->packet.entries; i++)
-				tmp_len += vis_data_read_entry(
-						buff + bytes_written + tmp_len,
-						&entries[i], entry->addr,
-						entry->primary);
+				buff_pos += vis_data_read_entry(buff + buff_pos,
+								&entries[i],
+								entry->addr,
+								entry->primary);
 
 			/* add primary/secondary records */
 			if (compare_orig(entry->addr, info->packet.vis_orig))
-				tmp_len += vis_data_read_prim_sec(
-						buff + bytes_written + tmp_len,
-						&vis_if_list);
+				buff_pos +=
+					vis_data_read_prim_sec(buff + buff_pos,
+							       &vis_if_list);
 
-			tmp_len += sprintf(buff + bytes_written + tmp_len,
-					  "\n");
-
-			hdr_len += tmp_len;
-
-			if (off >= hdr_len)
-				continue;
-
-			bytes_written += tmp_len;
+			buff_pos += sprintf(buff + buff_pos, "\n");
 		}
 
 		hlist_for_each_entry_safe(entry, pos, n, &vis_if_list, list) {
@@ -230,9 +275,13 @@ ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
 			kfree(entry);
 		}
 	}
+
 	spin_unlock_irqrestore(&vis_hash_lock, flags);
 
-	return bytes_written;
+	seq_printf(seq, "%s", buff);
+	kfree(buff);
+
+	return 0;
 }
 
 /* add the info packet to the send list, if it was not

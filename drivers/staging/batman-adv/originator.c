@@ -271,48 +271,37 @@ void purge_orig(struct work_struct *work)
 		start_purge_timer();
 }
 
-ssize_t orig_fill_buffer_text(struct net_device *net_dev, char *buff,
-			      size_t count, loff_t off)
+int orig_seq_print_text(struct seq_file *seq, void *offset)
 {
 	HASHIT(hashit);
+	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node;
-	size_t hdr_len, tmp_len;
-	int batman_count = 0, bytes_written = 0;
+	int batman_count = 0;
 	unsigned long flags;
 	char orig_str[ETH_STR_LEN], router_str[ETH_STR_LEN];
 
-	if (!bat_priv->primary_if) {
-		if (off == 0)
-			return sprintf(buff,
-				     "BATMAN mesh %s disabled - "
+	if ((!bat_priv->primary_if) ||
+	    (bat_priv->primary_if->if_status != IF_ACTIVE)) {
+		if (!bat_priv->primary_if)
+			return seq_printf(seq, "BATMAN mesh %s disabled - "
 				     "please specify interfaces to enable it\n",
 				     net_dev->name);
 
-		return 0;
+		return seq_printf(seq, "BATMAN mesh %s "
+				  "disabled - primary interface not active\n",
+				  net_dev->name);
 	}
 
-	if (bat_priv->primary_if->if_status != IF_ACTIVE && off == 0)
-		return sprintf(buff,
-			       "BATMAN mesh %s "
-			       "disabled - primary interface not active\n",
-			       net_dev->name);
-	else if (bat_priv->primary_if->if_status != IF_ACTIVE)
-		return 0;
-
 	rcu_read_lock();
-	hdr_len = sprintf(buff,
-		   "  %-14s (%s/%i) %17s [%10s]: %20s "
+	seq_printf(seq, "  %-14s (%s/%i) %17s [%10s]: %20s "
 		   "... [B.A.T.M.A.N. adv %s%s, MainIF/MAC: %s/%s (%s)]\n",
 		   "Originator", "#", TQ_MAX_VALUE, "Nexthop", "outgoingIF",
 		   "Potential nexthops", SOURCE_VERSION, REVISION_VERSION_STR,
 		   bat_priv->primary_if->dev, bat_priv->primary_if->addr_str,
 		   net_dev->name);
 	rcu_read_unlock();
-
-	if (off < hdr_len)
-		bytes_written = hdr_len;
 
 	spin_lock_irqsave(&orig_hash_lock, flags);
 
@@ -326,44 +315,29 @@ ssize_t orig_fill_buffer_text(struct net_device *net_dev, char *buff,
 		if (orig_node->router->tq_avg == 0)
 			continue;
 
-		/* estimated line length */
-		if (count < bytes_written + 200)
-			break;
-
 		addr_to_string(orig_str, orig_node->orig);
 		addr_to_string(router_str, orig_node->router->addr);
 
-		tmp_len = sprintf(buff + bytes_written,
-				  "%-17s  (%3i) %17s [%10s]:",
-				   orig_str, orig_node->router->tq_avg,
-				   router_str,
-				   orig_node->router->if_incoming->dev);
+		seq_printf(seq, "%-17s  (%3i) %17s [%10s]:",
+			   orig_str, orig_node->router->tq_avg, router_str,
+			   orig_node->router->if_incoming->dev);
 
 		list_for_each_entry(neigh_node, &orig_node->neigh_list, list) {
 			addr_to_string(orig_str, neigh_node->addr);
-			tmp_len += sprintf(buff + bytes_written + tmp_len,
-					   " %17s (%3i)", orig_str,
+			seq_printf(seq, " %17s (%3i)", orig_str,
 					   neigh_node->tq_avg);
 		}
 
-		tmp_len += sprintf(buff + bytes_written + tmp_len, "\n");
-
+		seq_printf(seq, "\n");
 		batman_count++;
-		hdr_len += tmp_len;
-
-		if (off >= hdr_len)
-			continue;
-
-		bytes_written += tmp_len;
 	}
 
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
-	if ((batman_count == 0) && (off == 0))
-		bytes_written += sprintf(buff + bytes_written,
-					"No batman nodes in range ...\n");
+	if ((batman_count == 0))
+		seq_printf(seq, "No batman nodes in range ...\n");
 
-	return bytes_written;
+	return 0;
 }
 
 static int orig_node_add_if(struct orig_node *orig_node, int max_if_num)

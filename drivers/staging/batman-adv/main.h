@@ -72,7 +72,7 @@
 #define MODULE_ACTIVE 1
 #define MODULE_DEACTIVATING 2
 
-#define BCAST_QUEUE_LEN 256
+#define BCAST_QUEUE_LEN		256
 #define BATMAN_QUEUE_LEN	256
 
 /*
@@ -119,6 +119,7 @@ extern int bat_debug_type(int type);
 #include <linux/slab.h>
 #include <net/sock.h>		/* struct sock */
 #include <linux/jiffies.h>
+#include <linux/seq_file.h>
 #include "types.h"
 
 #ifndef REVISION_VERSION

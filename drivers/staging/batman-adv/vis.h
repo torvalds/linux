@@ -47,8 +47,7 @@ struct recvlist_node {
 extern struct hashtable_t *vis_hash;
 extern spinlock_t vis_hash_lock;
 
-ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
-			      size_t count, loff_t off);
+int vis_seq_print_text(struct seq_file *seq, void *offset);
 void receive_server_sync_packet(struct bat_priv *bat_priv,
 				struct vis_packet *vis_packet,
 				int vis_info_len);

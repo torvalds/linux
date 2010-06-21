@@ -36,14 +36,6 @@ struct bat_attribute bat_attr_##_name = {	\
 	.store  = _store,			\
 };
 
-#define BAT_BIN_ATTR(_name, _mode, _read, _write)	\
-struct bin_attribute bat_attr_##_name = {		\
-	.attr = { .name = __stringify(_name),		\
-		  .mode = _mode, },			\
-	.read = _read,					\
-	.write = _write,				\
-};
-
 static ssize_t show_aggr_ogm(struct kobject *kobj, struct attribute *attr,
 			     char *buff)
 {
@@ -201,65 +193,11 @@ static struct bat_attribute *mesh_attrs[] = {
 	NULL,
 };
 
-static ssize_t transtable_local_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
-				  char *buff, loff_t off, size_t count)
-{
-	struct device *dev = to_dev(kobj->parent);
-	struct net_device *net_dev = to_net_dev(dev);
-
-	return hna_local_fill_buffer_text(net_dev, buff, count, off);
-}
-
-static ssize_t transtable_global_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
-				  char *buff, loff_t off, size_t count)
-{
-	struct device *dev = to_dev(kobj->parent);
-	struct net_device *net_dev = to_net_dev(dev);
-
-	return hna_global_fill_buffer_text(net_dev, buff, count, off);
-}
-
-static ssize_t originators_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
-				  char *buff, loff_t off, size_t count)
-{
-	struct device *dev = to_dev(kobj->parent);
-	struct net_device *net_dev = to_net_dev(dev);
-
-	return orig_fill_buffer_text(net_dev, buff, count, off);
-}
-
-static ssize_t vis_data_read(struct file *filp, struct kobject *kobj,
-				  struct bin_attribute *bin_attr,
-				  char *buff, loff_t off, size_t count)
-{
-	struct device *dev = to_dev(kobj->parent);
-	struct net_device *net_dev = to_net_dev(dev);
-
-	return vis_fill_buffer_text(net_dev, buff, count, off);
-}
-
-static BAT_BIN_ATTR(transtable_local, S_IRUGO, transtable_local_read, NULL);
-static BAT_BIN_ATTR(transtable_global, S_IRUGO, transtable_global_read, NULL);
-static BAT_BIN_ATTR(originators, S_IRUGO, originators_read, NULL);
-static BAT_BIN_ATTR(vis_data, S_IRUGO, vis_data_read, NULL);
-
-static struct bin_attribute *mesh_bin_attrs[] = {
-	&bat_attr_transtable_local,
-	&bat_attr_transtable_global,
-	&bat_attr_originators,
-	&bat_attr_vis_data,
-	NULL,
-};
-
 int sysfs_add_meshif(struct net_device *dev)
 {
 	struct kobject *batif_kobject = &dev->dev.kobj;
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct bat_attribute **bat_attr;
-	struct bin_attribute **bin_attr;
 	int err;
 
 	/* FIXME: should be done in the general mesh setup
@@ -289,21 +227,8 @@ int sysfs_add_meshif(struct net_device *dev)
 		}
 	}
 
-	for (bin_attr = mesh_bin_attrs; *bin_attr; ++bin_attr) {
-		err = sysfs_create_bin_file(bat_priv->mesh_obj, (*bin_attr));
-		if (err) {
-			printk(KERN_ERR "batman-adv:Can't add sysfs file: %s/%s/%s\n",
-			       dev->name, SYSFS_IF_MESH_SUBDIR,
-			       ((*bin_attr)->attr).name);
-			goto rem_bin_attr;
-		}
-	}
-
 	return 0;
 
-rem_bin_attr:
-	for (bin_attr = mesh_bin_attrs; *bin_attr; ++bin_attr)
-		sysfs_remove_bin_file(bat_priv->mesh_obj, (*bin_attr));
 rem_attr:
 	for (bat_attr = mesh_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(bat_priv->mesh_obj, &((*bat_attr)->attr));
@@ -318,10 +243,6 @@ void sysfs_del_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct bat_attribute **bat_attr;
-	struct bin_attribute **bin_attr;
-
-	for (bin_attr = mesh_bin_attrs; *bin_attr; ++bin_attr)
-		sysfs_remove_bin_file(bat_priv->mesh_obj, (*bin_attr));
 
 	for (bat_attr = mesh_attrs; *bat_attr; ++bat_attr)
 		sysfs_remove_file(bat_priv->mesh_obj, &((*bat_attr)->attr));
