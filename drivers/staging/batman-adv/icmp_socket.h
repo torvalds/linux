@@ -25,4 +25,5 @@
 
 void bat_socket_init(void);
 int bat_socket_setup(struct bat_priv *bat_priv);
-void bat_socket_receive_packet(struct icmp_packet *icmp_packet);
+void bat_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
+			       size_t icmp_len);

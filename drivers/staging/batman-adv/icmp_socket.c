@@ -32,7 +32,8 @@
 static struct socket_client *socket_client_hash[256];
 
 static void bat_socket_add_packet(struct socket_client *socket_client,
-				  struct icmp_packet *icmp_packet);
+				  struct icmp_packet_rr *icmp_packet,
+				  size_t icmp_len);
 
 void bat_socket_init(void)
 {
@@ -110,6 +111,7 @@ static ssize_t bat_socket_read(struct file *file, char __user *buf,
 	struct socket_client *socket_client =
 		(struct socket_client *)file->private_data;
 	struct socket_packet *socket_packet;
+	size_t packet_len;
 	int error;
 	unsigned long flags;
 
@@ -138,14 +140,15 @@ static ssize_t bat_socket_read(struct file *file, char __user *buf,
 	spin_unlock_irqrestore(&socket_client->lock, flags);
 
 	error = __copy_to_user(buf, &socket_packet->icmp_packet,
-			       sizeof(struct icmp_packet));
+			       socket_packet->icmp_len);
 
+	packet_len = socket_packet->icmp_len;
 	kfree(socket_packet);
 
 	if (error)
 		return -EFAULT;
 
-	return sizeof(struct icmp_packet);
+	return packet_len;
 }
 
 static ssize_t bat_socket_write(struct file *file, const char __user *buff,
@@ -153,9 +156,10 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 {
 	struct socket_client *socket_client =
 		(struct socket_client *)file->private_data;
-	struct icmp_packet icmp_packet;
+	struct icmp_packet_rr icmp_packet;
 	struct orig_node *orig_node;
 	struct batman_if *batman_if;
+	size_t packet_len = sizeof(struct icmp_packet);
 	uint8_t dstaddr[ETH_ALEN];
 	unsigned long flags;
 
@@ -166,10 +170,13 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 		return -EINVAL;
 	}
 
-	if (!access_ok(VERIFY_READ, buff, sizeof(struct icmp_packet)))
+	if (len >= sizeof(struct icmp_packet_rr))
+		packet_len = sizeof(struct icmp_packet_rr);
+
+	if (!access_ok(VERIFY_READ, buff, packet_len))
 		return -EFAULT;
 
-	if (__copy_from_user(&icmp_packet, buff, sizeof(icmp_packet)))
+	if (__copy_from_user(&icmp_packet, buff, packet_len))
 		return -EFAULT;
 
 	if (icmp_packet.packet_type != BAT_ICMP) {
@@ -191,7 +198,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (icmp_packet.version != COMPAT_VERSION) {
 		icmp_packet.msg_type = PARAMETER_PROBLEM;
 		icmp_packet.ttl = COMPAT_VERSION;
-		bat_socket_add_packet(socket_client, &icmp_packet);
+		bat_socket_add_packet(socket_client, &icmp_packet, packet_len);
 		goto out;
 	}
 
@@ -218,13 +225,13 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (batman_if->if_status != IF_ACTIVE)
 		goto dst_unreach;
 
-	memcpy(icmp_packet.orig,
-	       batman_if->net_dev->dev_addr,
-	       ETH_ALEN);
+	memcpy(icmp_packet.orig, batman_if->net_dev->dev_addr, ETH_ALEN);
+
+	if (packet_len == sizeof(struct icmp_packet_rr))
+		memcpy(icmp_packet.rr, batman_if->net_dev->dev_addr, ETH_ALEN);
 
 	send_raw_packet((unsigned char *)&icmp_packet,
-			sizeof(struct icmp_packet),
-			batman_if, dstaddr);
+			packet_len, batman_if, dstaddr);
 
 	goto out;
 
@@ -232,7 +239,7 @@ unlock:
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 dst_unreach:
 	icmp_packet.msg_type = DESTINATION_UNREACHABLE;
-	bat_socket_add_packet(socket_client, &icmp_packet);
+	bat_socket_add_packet(socket_client, &icmp_packet, packet_len);
 out:
 	return len;
 }
@@ -278,7 +285,8 @@ err:
 }
 
 static void bat_socket_add_packet(struct socket_client *socket_client,
-				  struct icmp_packet *icmp_packet)
+				  struct icmp_packet_rr *icmp_packet,
+				  size_t icmp_len)
 {
 	struct socket_packet *socket_packet;
 	unsigned long flags;
@@ -289,8 +297,8 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 		return;
 
 	INIT_LIST_HEAD(&socket_packet->list);
-	memcpy(&socket_packet->icmp_packet, icmp_packet,
-	       sizeof(struct icmp_packet));
+	memcpy(&socket_packet->icmp_packet, icmp_packet, icmp_len);
+	socket_packet->icmp_len = icmp_len;
 
 	spin_lock_irqsave(&socket_client->lock, flags);
 
@@ -319,10 +327,11 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 	wake_up(&socket_client->queue_wait);
 }
 
-void bat_socket_receive_packet(struct icmp_packet *icmp_packet)
+void bat_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
+			       size_t icmp_len)
 {
 	struct socket_client *hash = socket_client_hash[icmp_packet->uid];
 
 	if (hash)
-		bat_socket_add_packet(hash, icmp_packet);
+		bat_socket_add_packet(hash, icmp_packet, icmp_len);
 }

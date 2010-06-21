@@ -765,10 +765,10 @@ int recv_bat_packet(struct sk_buff *skb,
 	return NET_RX_SUCCESS;
 }
 
-static int recv_my_icmp_packet(struct sk_buff *skb)
+static int recv_my_icmp_packet(struct sk_buff *skb, size_t icmp_len)
 {
 	struct orig_node *orig_node;
-	struct icmp_packet *icmp_packet;
+	struct icmp_packet_rr *icmp_packet;
 	struct ethhdr *ethhdr;
 	struct sk_buff *skb_old;
 	struct batman_if *batman_if;
@@ -776,12 +776,12 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 	unsigned long flags;
 	uint8_t dstaddr[ETH_ALEN];
 
-	icmp_packet = (struct icmp_packet *)skb->data;
+	icmp_packet = (struct icmp_packet_rr *)skb->data;
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* add data to device queue */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		bat_socket_receive_packet(icmp_packet);
+		bat_socket_receive_packet(icmp_packet, icmp_len);
 		return NET_RX_DROP;
 	}
 
@@ -803,13 +803,12 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 
 		/* create a copy of the skb, if needed, to modify it. */
 		skb_old = NULL;
-		if (!skb_clone_writable(skb, sizeof(struct icmp_packet))) {
+		if (!skb_clone_writable(skb, icmp_len)) {
 			skb_old = skb;
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-
-			icmp_packet = (struct icmp_packet *)skb->data;
+			icmp_packet = (struct icmp_packet_rr *)skb->data;
 			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
@@ -828,7 +827,7 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 	return ret;
 }
 
-static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
+static int recv_icmp_ttl_exceeded(struct sk_buff *skb, size_t icmp_len)
 {
 	struct orig_node *orig_node;
 	struct icmp_packet *icmp_packet;
@@ -867,7 +866,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 		/* create a copy of the skb, if needed, to modify it. */
-		if (!skb_clone_writable(skb, sizeof(struct icmp_packet))) {
+		if (!skb_clone_writable(skb, icmp_len)) {
 			skb_old = skb;
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
@@ -894,7 +893,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 
 int recv_icmp_packet(struct sk_buff *skb)
 {
-	struct icmp_packet *icmp_packet;
+	struct icmp_packet_rr *icmp_packet;
 	struct ethhdr *ethhdr;
 	struct orig_node *orig_node;
 	struct sk_buff *skb_old;
@@ -903,6 +902,12 @@ int recv_icmp_packet(struct sk_buff *skb)
 	int ret;
 	unsigned long flags;
 	uint8_t dstaddr[ETH_ALEN];
+
+	/**
+	 * we truncate all incoming icmp packets if they don't match our size
+	 */
+	if (skb_headlen(skb) >= sizeof(struct icmp_packet_rr))
+		hdr_size = sizeof(struct icmp_packet_rr);
 
 	/* drop packet if it has not necessary minimum size */
 	if (skb_headlen(skb) < hdr_size)
@@ -922,15 +927,23 @@ int recv_icmp_packet(struct sk_buff *skb)
 	if (!is_my_mac(ethhdr->h_dest))
 		return NET_RX_DROP;
 
-	icmp_packet = (struct icmp_packet *)skb->data;
+	icmp_packet = (struct icmp_packet_rr *)skb->data;
+
+	/* add record route information if not full */
+	if ((hdr_size == sizeof(struct icmp_packet_rr)) &&
+	    (icmp_packet->rr_cur < BAT_RR_LEN)) {
+		memcpy(&(icmp_packet->rr[icmp_packet->rr_cur]),
+			ethhdr->h_dest, ETH_ALEN);
+		icmp_packet->rr_cur++;
+	}
 
 	/* packet for me */
 	if (is_my_mac(icmp_packet->dst))
-		return recv_my_icmp_packet(skb);
+		return recv_my_icmp_packet(skb, hdr_size);
 
 	/* TTL exceeded */
 	if (icmp_packet->ttl < 2)
-		return recv_icmp_ttl_exceeded(skb);
+		return recv_icmp_ttl_exceeded(skb, hdr_size);
 
 	ret = NET_RX_DROP;
 
@@ -949,12 +962,12 @@ int recv_icmp_packet(struct sk_buff *skb)
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 		/* create a copy of the skb, if needed, to modify it. */
-		if (!skb_clone_writable(skb, sizeof(struct icmp_packet))) {
+		if (!skb_clone_writable(skb, hdr_size)) {
 			skb_old = skb;
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			icmp_packet = (struct icmp_packet *)skb->data;
+			icmp_packet = (struct icmp_packet_rr *)skb->data;
 			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
