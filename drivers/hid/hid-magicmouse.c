@@ -189,7 +189,8 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 		case TOUCH_STATE_DRAG:
 			step = step / accel_profile[msc->scroll_accel];
 			if (step != 0) {
-				msc->touches[id].scroll_y = y;
+				msc->touches[id].scroll_y -=
+					step * accel_profile[msc->scroll_accel];
 				msc->scroll_jiffies = now;
 				input_report_rel(input, REL_WHEEL, step);
 			}
