@@ -62,6 +62,7 @@
 
 #include "device.h"
 #include "card.h"
+#include "channel.h"
 #include "baseband.h"
 #include "mac.h"
 #include "tether.h"
@@ -730,7 +731,7 @@ else
             pDevice->abyOFDMPwrTbl[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDMA_PWR_TBL));
             pDevice->abyOFDMDefaultPwr[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDMA_PWR_dBm));
         }
-        CARDvInitChannelTable((void *)pDevice);
+        init_channel_table((void *)pDevice);
 
 
         if (pDevice->byLocalID > REV_ID_VT3253_B1) {
@@ -2749,7 +2750,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 MACvSelectPage0(pDevice->PortOffset);
                //xxxx
                // WCMDbFlushCommandQueue(pDevice->pMgmt, TRUE);
-                if (CARDbSetChannel(pDevice, pDevice->pCurrMeasureEID->sReq.byChannel) == TRUE) {
+                if (set_channel(pDevice, pDevice->pCurrMeasureEID->sReq.byChannel) == TRUE) {
                     pDevice->bMeasureInProgress = TRUE;
                     MACvSelectPage1(pDevice->PortOffset);
                     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL, MSRCTL_READY);
@@ -2784,7 +2785,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 // clear measure control
                 MACvRegBitsOff(pDevice->PortOffset, MAC_REG_MSRCTL, MSRCTL_EN);
                 MACvSelectPage0(pDevice->PortOffset);
-                CARDbSetChannel(pDevice, pDevice->byOrgChannel);
+                set_channel(pDevice, pDevice->byOrgChannel);
                 // WCMDbResetCommandQueue(pDevice->pMgmt);
                 MACvSelectPage1(pDevice->PortOffset);
                 MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL+1, MSRCTL1_TXPAUSE);
@@ -2819,7 +2820,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 pDevice->byChannelSwitchCount--;
                 if (pDevice->byChannelSwitchCount == 0) {
                     pDevice->bChannelSwitch = FALSE;
-                    CARDbSetChannel(pDevice, pDevice->byNewChannel);
+                    set_channel(pDevice, pDevice->byNewChannel);
                     VNTWIFIbChannelSwitch(pDevice->pMgmt, pDevice->byNewChannel);
                     MACvSelectPage1(pDevice->PortOffset);
                     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL+1, MSRCTL1_TXPAUSE);
@@ -2905,7 +2906,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 pDevice->byChannelSwitchCount--;
                 if (pDevice->byChannelSwitchCount == 0) {
                     pDevice->bChannelSwitch = FALSE;
-                    CARDbSetChannel(pDevice, pDevice->byNewChannel);
+                    set_channel(pDevice, pDevice->byNewChannel);
                     VNTWIFIbChannelSwitch(pDevice->pMgmt, pDevice->byNewChannel);
                     MACvSelectPage1(pDevice->PortOffset);
                     MACvRegBitsOn(pDevice->PortOffset, MAC_REG_MSRCTL+1, MSRCTL1_TXPAUSE);

@@ -53,6 +53,7 @@
 #include "baseband.h"
 #include "rf.h"
 #include "card.h"
+#include "channel.h"
 #include "mac.h"
 #include "wpa2.h"
 #include "iowpa.h"
@@ -527,8 +528,7 @@ BSSbInsertToBSSList (
 
     if ((pIE_Country != NULL) &&
         (pMgmt->b11hEnable == TRUE)) {
-        CARDvSetCountryInfo(pMgmt->pAdapter,
-                            pBSSList->eNetworkTypeInUse,
+        set_country_info(pMgmt->pAdapter, pBSSList->eNetworkTypeInUse,
                             pIE_Country);
     }
 
@@ -704,8 +704,7 @@ BSSbUpdateToBSSList (
 
     if ((pIE_Country != NULL) &&
         (pMgmt->b11hEnable == TRUE)) {
-        CARDvSetCountryInfo(pMgmt->pAdapter,
-                            pBSSList->eNetworkTypeInUse,
+        set_country_info(pMgmt->pAdapter, pBSSList->eNetworkTypeInUse,
                             pIE_Country);
     }
 

@@ -38,6 +38,7 @@
 #include "device.h"
 #include "wmgr.h"
 #include "rxtx.h"
+#include "channel.h"
 
 /*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -245,7 +246,7 @@ IEEE11hbMgrRxAction (
                     // valid element id
                     CARDbChannelSwitch( pMgmt->pAdapter,
                                         pChannelSwitch->byMode,
-                                        CARDbyGetChannelMapping(pMgmt->pAdapter, pChannelSwitch->byChannel, pMgmt->eCurrentPHYMode),
+                                        get_channel_mapping(pMgmt->pAdapter, pChannelSwitch->byChannel, pMgmt->eCurrentPHYMode),
                                         pChannelSwitch->byCount
                                         );
                 }

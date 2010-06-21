@@ -86,7 +86,6 @@ typedef enum _CARD_OP_MODE {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL ChannelValid(unsigned int ChannelIndex);
 void CARDvSetRSPINF(void *pDeviceHandler, CARD_PHY_TYPE ePHYType);
 void vUpdateIFS(void *pDeviceHandler);
 void CARDvUpdateBasicTopRate(void *pDeviceHandler);
@@ -107,7 +106,6 @@ void CARDvSafeResetRx(void *pDeviceHandler);
 //xxx
 BOOL CARDbRadioPowerOff(void *pDeviceHandler);
 BOOL CARDbRadioPowerOn(void *pDeviceHandler);
-BOOL CARDbSetChannel(void *pDeviceHandler, unsigned int uConnectionChannel);
 //BOOL CARDbSendPacket(void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength);
 BOOL CARDbIsShortPreamble(void *pDeviceHandler);
 BOOL CARDbIsShorSlotTime(void *pDeviceHandler);
@@ -144,10 +142,6 @@ CARDpGetCurrentAddress (
     void *pDeviceHandler
     );
 
-
-void CARDvInitChannelTable(void *pDeviceHandler);
-BYTE CARDbyGetChannelMapping(void *pDeviceHandler, BYTE byChannelNumber, CARD_PHY_TYPE ePhyType);
-
 BOOL
 CARDbStartMeasure (
     void *pDeviceHandler,
@@ -179,13 +173,6 @@ CARDbStartQuiet (
     );
 
 void
-CARDvSetCountryInfo (
-    void *pDeviceHandler,
-    CARD_PHY_TYPE    ePHYType,
-    void *pIE
-    );
-
-void
 CARDvSetPowerConstraint (
     void *pDeviceHandler,
     BYTE             byChannel,
@@ -199,56 +186,10 @@ CARDvGetPowerCapability (
     unsigned char *pbyMaxPower
     );
 
-BYTE
-CARDbySetSupportChannels (
-    void *pDeviceHandler,
-    unsigned char *pbyIEs
-    );
-
 char
 CARDbyGetTransmitPower (
     void *pDeviceHandler
     );
-
-BOOL
-CARDbChannelGetList (
-    unsigned int uCountryCodeIdx,
-    unsigned char *pbyChannelTable
-    );
-
-void
-CARDvSetCountryIE(
-    void *pDeviceHandler,
-    void *pIE
-    );
-
-BOOL
-CARDbGetChannelMapInfo(
-    void *pDeviceHandler,
-    unsigned int uChannelIndex,
-    unsigned char *pbyChannelNumber,
-    unsigned char *pbyMap
-    );
-
-void
-CARDvSetChannelMapInfo(
-    void *pDeviceHandler,
-    unsigned int uChannelIndex,
-    BYTE         byMap
-    );
-
-void
-CARDvClearChannelMapInfo(
-    void *pDeviceHandler
-    );
-
-BYTE
-CARDbyAutoChannelSelect(
-    void *pDeviceHandler,
-    CARD_PHY_TYPE   ePHYType
-    );
-
-BYTE CARDbyGetChannelNumber(void *pDeviceHandler, BYTE byChannelIndex);
 
 #endif // __CARD_H__
 

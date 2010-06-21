@@ -3,7 +3,6 @@ TODO:
 - prepare for merge with vt6656 driver:
   - rename DEVICE_PRT() to DBG_PRT() -- done
   - share 80211*.h includes
-  - move code for channel mapping from card.c to channel.c
   - split rf.c
   - remove dead code
   - abstract VT3253 chipset specific code

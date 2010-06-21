@@ -52,6 +52,7 @@
 #include "rxtx.h"
 #include "rf.h"
 #include "iowpa.h"
+#include "channel.h"
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -396,7 +397,7 @@ vCommandTimer (
 
                 // Set Baseband's sensitivity back.
                 // Set channel back
-                CARDbSetChannel(pMgmt->pAdapter, pMgmt->uCurrChannel);
+                set_channel(pMgmt->pAdapter, pMgmt->uCurrChannel);
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning, set back to channel: [%d]\n", pMgmt->uCurrChannel);
                 if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
                     CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_ADHOC);
@@ -408,7 +409,7 @@ vCommandTimer (
 
             } else {
 //2008-8-4 <add> by chester
-		if (!ChannelValid(pMgmt->uScanChannel)) {
+		if (!is_channel_valid(pMgmt->uScanChannel)) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n",pMgmt->uScanChannel);
                     s_bCommandComplete(pDevice);
                     return;
@@ -431,7 +432,7 @@ vCommandTimer (
 
                 vAdHocBeaconStop(pDevice);
 
-                if (CARDbSetChannel(pMgmt->pAdapter, pMgmt->uScanChannel) == TRUE) {
+                if (set_channel(pMgmt->pAdapter, pMgmt->uScanChannel) == TRUE) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SCAN Channel: %d\n", pMgmt->uScanChannel);
                 } else {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"SET SCAN Channel Fail: %d\n", pMgmt->uScanChannel);
@@ -441,7 +442,7 @@ vCommandTimer (
       //          printk("chester-ch=%d\n",pMgmt->uScanChannel);
 	pMgmt->uScanChannel++;
 //2008-8-4 <modify> by chester
-		if (!ChannelValid(pMgmt->uScanChannel) &&
+		if (!is_channel_valid(pMgmt->uScanChannel) &&
                         pMgmt->uScanChannel <= pDevice->byMaxChannel ){
                     pMgmt->uScanChannel=pDevice->byMaxChannel+1;
 		 pMgmt->eCommandState = WLAN_CMD_SCAN_END;
@@ -469,7 +470,7 @@ vCommandTimer (
 
             // Set Baseband's sensitivity back.
             // Set channel back
-            CARDbSetChannel(pMgmt->pAdapter, pMgmt->uCurrChannel);
+            set_channel(pMgmt->pAdapter, pMgmt->uCurrChannel);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Scanning, set back to channel: [%d]\n", pMgmt->uCurrChannel);
             if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
                 CARDbSetBSSID(pMgmt->pAdapter, pMgmt->abyCurrBSSID, OP_MODE_ADHOC);

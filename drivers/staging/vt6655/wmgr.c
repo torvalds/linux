@@ -65,6 +65,7 @@
 #include "desc.h"
 #include "device.h"
 #include "card.h"
+#include "channel.h"
 #include "80211hdr.h"
 #include "80211mgr.h"
 #include "wmgr.h"
@@ -1917,7 +1918,7 @@ s_vMgrRxBeacon(
     if (sFrame.pDSParms != NULL) {
         if (byCurrChannel > CB_MAX_CHANNEL_24G) {
             // channel remapping to
-            byIEChannel = CARDbyGetChannelMapping(pDevice, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
+            byIEChannel = get_channel_mapping(pDevice, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
         } else {
             byIEChannel = sFrame.pDSParms->byCurrChannel;
         }
@@ -2122,12 +2123,12 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             if (sFrame.pIE_CHSW != NULL) {
                 CARDbChannelSwitch( pMgmt->pAdapter,
                                     sFrame.pIE_CHSW->byMode,
-                                    CARDbyGetChannelMapping(pMgmt->pAdapter, sFrame.pIE_CHSW->byMode, pMgmt->eCurrentPHYMode),
+                                    get_channel_mapping(pMgmt->pAdapter, sFrame.pIE_CHSW->byMode, pMgmt->eCurrentPHYMode),
                                     sFrame.pIE_CHSW->byCount
                                     );
 
             } else if (bIsChannelEqual == FALSE) {
-                CARDbSetChannel(pMgmt->pAdapter, pBSSList->uChannel);
+                set_channel(pMgmt->pAdapter, pBSSList->uChannel);
             }
         }
     }
@@ -2611,7 +2612,7 @@ vMgrCreateOwnIBSS(
 
     CARDbSetBeaconPeriod(pMgmt->pAdapter, pMgmt->wIBSSBeaconPeriod);
     // set channel and clear NAV
-    CARDbSetChannel(pMgmt->pAdapter, pMgmt->uIBSSChannel);
+    set_channel(pMgmt->pAdapter, pMgmt->uIBSSChannel);
     pMgmt->uCurrChannel = pMgmt->uIBSSChannel;
 
     if (CARDbIsShortPreamble(pMgmt->pAdapter)) {
@@ -3051,7 +3052,7 @@ s_vMgrSynchBSS (
         return;
     }
     // set channel and clear NAV
-    if (CARDbSetChannel(pMgmt->pAdapter, pCurr->uChannel) == FALSE) {
+    if (set_channel(pMgmt->pAdapter, pCurr->uChannel) == FALSE) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "<----s_bSynchBSS Set Channel [%d]\n", pCurr->uChannel);
         return;
     }
@@ -3343,8 +3344,8 @@ s_MgrMakeBeacon(
         (pMgmt->eCurrentPHYMode == PHY_TYPE_11A)) {
         // Country IE
         pbyBuffer = (unsigned char *)(sFrame.pBuf + sFrame.len);
-        CARDvSetCountryIE(pMgmt->pAdapter, pbyBuffer);
-        CARDvSetCountryInfo(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
+        set_country_IE(pMgmt->pAdapter, pbyBuffer);
+        set_country_info(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
         uLength += ((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN;
         pbyBuffer += (((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN);
         // Power Constrain IE
@@ -3358,7 +3359,7 @@ s_MgrMakeBeacon(
             ((PWLAN_IE_CH_SW) pbyBuffer)->byElementID = WLAN_EID_CH_SWITCH;
             ((PWLAN_IE_CH_SW) pbyBuffer)->len = 3;
             ((PWLAN_IE_CH_SW) pbyBuffer)->byMode = 1;
-            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = CARDbyGetChannelNumber(pMgmt->pAdapter, pMgmt->byNewChannel);
+            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = get_channel_number(pMgmt->pAdapter, pMgmt->byNewChannel);
             ((PWLAN_IE_CH_SW) pbyBuffer)->byCount = 0;
             pbyBuffer += (3) + WLAN_IEHDR_LEN;
             uLength += (3) + WLAN_IEHDR_LEN;
@@ -3382,7 +3383,7 @@ s_MgrMakeBeacon(
             pbyBuffer += (7) + WLAN_IEHDR_LEN;
             uLength += (7) + WLAN_IEHDR_LEN;
             for(ii=CB_MAX_CHANNEL_24G+1; ii<=CB_MAX_CHANNEL; ii++ ) {
-                if (CARDbGetChannelMapInfo(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == TRUE) {
+                if (get_channel_map_info(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == TRUE) {
                     pbyBuffer += 2;
                     uLength += 2;
                     pIBSSDFS->len += 2;
@@ -3547,8 +3548,8 @@ s_MgrMakeProbeResponse(
         (pMgmt->eCurrentPHYMode == PHY_TYPE_11A)) {
         // Country IE
         pbyBuffer = (unsigned char *)(sFrame.pBuf + sFrame.len);
-        CARDvSetCountryIE(pMgmt->pAdapter, pbyBuffer);
-        CARDvSetCountryInfo(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
+        set_country_IE(pMgmt->pAdapter, pbyBuffer);
+        set_country_info(pMgmt->pAdapter, PHY_TYPE_11A, pbyBuffer);
         uLength += ((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN;
         pbyBuffer += (((PWLAN_IE_COUNTRY) pbyBuffer)->len + WLAN_IEHDR_LEN);
         // Power Constrain IE
@@ -3562,7 +3563,7 @@ s_MgrMakeProbeResponse(
             ((PWLAN_IE_CH_SW) pbyBuffer)->byElementID = WLAN_EID_CH_SWITCH;
             ((PWLAN_IE_CH_SW) pbyBuffer)->len = 3;
             ((PWLAN_IE_CH_SW) pbyBuffer)->byMode = 1;
-            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = CARDbyGetChannelNumber(pMgmt->pAdapter, pMgmt->byNewChannel);
+            ((PWLAN_IE_CH_SW) pbyBuffer)->byChannel = get_channel_number(pMgmt->pAdapter, pMgmt->byNewChannel);
             ((PWLAN_IE_CH_SW) pbyBuffer)->byCount = 0;
             pbyBuffer += (3) + WLAN_IEHDR_LEN;
             uLength += (3) + WLAN_IEHDR_LEN;
@@ -3586,7 +3587,7 @@ s_MgrMakeProbeResponse(
             pbyBuffer += (7) + WLAN_IEHDR_LEN;
             uLength += (7) + WLAN_IEHDR_LEN;
             for(ii=CB_MAX_CHANNEL_24G+1; ii<=CB_MAX_CHANNEL; ii++ ) {
-                if (CARDbGetChannelMapInfo(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == TRUE) {
+                if (get_channel_map_info(pMgmt->pAdapter, ii, pbyBuffer, pbyBuffer+1) == TRUE) {
                     pbyBuffer += 2;
                     uLength += 2;
                     pIBSSDFS->len += 2;
@@ -3722,7 +3723,7 @@ s_MgrMakeAssocRequest(
         }
         if (sFrame.pCurrSuppCh == NULL) {
             sFrame.pCurrSuppCh = (PWLAN_IE_SUPP_CH)(sFrame.pBuf + sFrame.len);
-            sFrame.len += CARDbySetSupportChannels(pMgmt->pAdapter,(unsigned char *)sFrame.pCurrSuppCh);
+            sFrame.len += set_support_channels(pMgmt->pAdapter,(unsigned char *)sFrame.pCurrSuppCh);
         }
     }
 
@@ -4350,7 +4351,7 @@ s_vMgrRxProbeResponse(
     if (sFrame.pDSParms != 0) {
         if (byCurrChannel > CB_MAX_CHANNEL_24G) {
             // channel remapping to
-            byIEChannel = CARDbyGetChannelMapping(pMgmt->pAdapter, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
+            byIEChannel = get_channel_mapping(pMgmt->pAdapter, sFrame.pDSParms->byCurrChannel, PHY_TYPE_11A);
         } else {
             byIEChannel = sFrame.pDSParms->byCurrChannel;
         }
