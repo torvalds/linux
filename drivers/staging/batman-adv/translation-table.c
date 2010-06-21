@@ -395,8 +395,7 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 				  net_dev->name);
 	}
 
-	seq_printf(seq, "Globally announced HNAs received via the mesh %s "
-			"(translation table):\n",
+	seq_printf(seq, "Globally announced HNAs received via the mesh %s\n",
 		   net_dev->name);
 
 	spin_lock_irqsave(&hna_global_hash_lock, flags);
