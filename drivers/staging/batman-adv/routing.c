@@ -395,11 +395,132 @@ static char count_real_packets(struct ethhdr *ethhdr,
 	return is_duplicate;
 }
 
+/* copy primary address for bonding */
+static void mark_bonding_address(struct bat_priv *bat_priv,
+				 struct orig_node *orig_node,
+				 struct orig_node *orig_neigh_node,
+				 struct batman_packet *batman_packet)
+
+{
+	/* don't care if bonding is not enabled */
+	if (!atomic_read(&bat_priv->bonding_enabled)) {
+		orig_node->bond.candidates = 0;
+		return;
+	}
+
+	if (batman_packet->flags & PRIMARIES_FIRST_HOP)
+		memcpy(orig_neigh_node->primary_addr,
+		       orig_node->orig, ETH_ALEN);
+
+	return;
+}
+
+/* mark possible bond.candidates in the neighbor list */
+void update_bonding_candidates(struct bat_priv *bat_priv,
+			       struct orig_node *orig_node)
+{
+	int candidates;
+	int interference_candidate;
+	int best_tq;
+	struct neigh_node *tmp_neigh_node, *tmp_neigh_node2;
+	struct neigh_node *first_candidate, *last_candidate;
+
+	/* don't care if bonding is not enabled */
+	if (!atomic_read(&bat_priv->bonding_enabled)) {
+		orig_node->bond.candidates = 0;
+		return;
+	}
+
+	/* update the candidates for this originator */
+	if (!orig_node->router) {
+		orig_node->bond.candidates = 0;
+		return;
+	}
+
+	best_tq = orig_node->router->tq_avg;
+
+	/* update bond.candidates */
+
+	candidates = 0;
+
+	/* mark other nodes which also received "PRIMARIES FIRST HOP" packets
+	 * as "bonding partner" */
+
+	/* first, zero the list */
+	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
+		tmp_neigh_node->next_bond_candidate = NULL;
+	}
+
+	first_candidate = NULL;
+	last_candidate = NULL;
+	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
+
+		/* only consider if it has the same primary address ...  */
+		if (memcmp(orig_node->orig,
+				tmp_neigh_node->orig_node->primary_addr,
+				ETH_ALEN) != 0)
+			continue;
+
+		/* ... and is good enough to be considered */
+		if (tmp_neigh_node->tq_avg < best_tq - BONDING_TQ_THRESHOLD)
+			continue;
+
+		/* check if we have another candidate with the same
+		 * mac address or interface. If we do, we won't
+		 * select this candidate because of possible interference. */
+
+		interference_candidate = 0;
+		list_for_each_entry(tmp_neigh_node2,
+				&orig_node->neigh_list, list) {
+
+			if (tmp_neigh_node2 == tmp_neigh_node)
+				continue;
+
+			/* we only care if the other candidate is even
+			 * considered as candidate. */
+			if (tmp_neigh_node2->next_bond_candidate == NULL)
+				continue;
+
+
+			if ((tmp_neigh_node->if_incoming ==
+				tmp_neigh_node2->if_incoming)
+				|| (memcmp(tmp_neigh_node->addr,
+				tmp_neigh_node2->addr, ETH_ALEN) == 0)) {
+
+				interference_candidate = 1;
+				break;
+			}
+		}
+		/* don't care further if it is an interference candidate */
+		if (interference_candidate)
+			continue;
+
+		if (first_candidate == NULL) {
+			first_candidate = tmp_neigh_node;
+			tmp_neigh_node->next_bond_candidate = first_candidate;
+		} else
+			tmp_neigh_node->next_bond_candidate = last_candidate;
+
+		last_candidate = tmp_neigh_node;
+
+		candidates++;
+	}
+
+	if (candidates > 0) {
+		first_candidate->next_bond_candidate = last_candidate;
+		orig_node->bond.selected = first_candidate;
+	}
+
+	orig_node->bond.candidates = candidates;
+}
+
 void receive_bat_packet(struct ethhdr *ethhdr,
 				struct batman_packet *batman_packet,
 				unsigned char *hna_buff, int hna_buff_len,
 				struct batman_if *if_incoming)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_if *batman_if;
 	struct orig_node *orig_neigh_node, *orig_node;
 	char has_directlink_flag;
@@ -576,6 +697,10 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	      (orig_node->last_ttl - 3 <= batman_packet->ttl))))
 		update_orig(orig_node, ethhdr, batman_packet,
 			    if_incoming, hna_buff, hna_buff_len, is_duplicate);
+
+	mark_bonding_address(bat_priv, orig_node,
+			     orig_neigh_node, batman_packet);
+	update_bonding_candidates(bat_priv, orig_node);
 
 	/* is single hop (direct) neighbor */
 	if (is_single_hop_neigh) {
@@ -859,16 +984,75 @@ int recv_icmp_packet(struct sk_buff *skb)
 	return ret;
 }
 
+/* find a suitable router for this originator, and use
+ * bonding if possible. */
+struct neigh_node *find_router(struct orig_node *orig_node)
+{
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	struct orig_node *primary_orig_node;
+	struct orig_node *router_orig;
+	struct neigh_node *router;
+	static uint8_t zero_mac[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
+
+	if (!orig_node)
+		return NULL;
+
+	if (!orig_node->router)
+		return NULL;
+
+	/* don't care if bonding is not enabled */
+	if (!atomic_read(&bat_priv->bonding_enabled))
+		return orig_node->router;
+
+	router_orig = orig_node->router->orig_node;
+
+	/* if we have something in the primary_addr, we can search
+	 * for a potential bonding candidate. */
+	if (memcmp(router_orig->primary_addr, zero_mac, ETH_ALEN) == 0)
+		return orig_node->router;
+
+	/* find the orig_node which has the primary interface. might
+	 * even be the same as our router_orig in many cases */
+
+	if (memcmp(router_orig->primary_addr,
+				router_orig->orig, ETH_ALEN) == 0) {
+		primary_orig_node = router_orig;
+	} else {
+		primary_orig_node = hash_find(orig_hash,
+						router_orig->primary_addr);
+		if (!primary_orig_node)
+			return orig_node->router;
+	}
+
+	/* with less than 2 candidates, we can't do any
+	 * bonding and prefer the original router. */
+
+	if (primary_orig_node->bond.candidates < 2)
+		return orig_node->router;
+
+	router = primary_orig_node->bond.selected;
+
+	/* sanity check - this should never happen. */
+	if (!router)
+		return orig_node->router;
+
+	/* select the next bonding partner ... */
+	primary_orig_node->bond.selected = router->next_bond_candidate;
+
+	return router;
+}
+
 int recv_unicast_packet(struct sk_buff *skb)
 {
 	struct unicast_packet *unicast_packet;
 	struct orig_node *orig_node;
+	struct neigh_node *router;
 	struct ethhdr *ethhdr;
 	struct batman_if *batman_if;
 	struct sk_buff *skb_old;
 	uint8_t dstaddr[ETH_ALEN];
 	int hdr_size = sizeof(struct unicast_packet);
-	int ret;
 	unsigned long flags;
 
 	/* drop packet if it has not necessary minimum size */
@@ -906,42 +1090,44 @@ int recv_unicast_packet(struct sk_buff *skb)
 		return NET_RX_DROP;
 	}
 
-	ret = NET_RX_DROP;
 	/* get routing information */
 	spin_lock_irqsave(&orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
 		     hash_find(orig_hash, unicast_packet->dest));
 
-	if ((orig_node != NULL) &&
-	    (orig_node->router != NULL)) {
+	router = find_router(orig_node);
 
-		/* don't lock while sending the packets ... we therefore
-		 * copy the required data before sending */
-		batman_if = orig_node->router->if_incoming;
-		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
+	if (!router) {
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		return NET_RX_DROP;
+	}
 
-		/* create a copy of the skb, if needed, to modify it. */
-		if (!skb_clone_writable(skb, sizeof(struct unicast_packet))) {
-			skb_old = skb;
-			skb = skb_copy(skb, GFP_ATOMIC);
-			if (!skb)
-				return NET_RX_DROP;
-			unicast_packet = (struct unicast_packet *)skb->data;
-			ethhdr = (struct ethhdr *)skb_mac_header(skb);
-			kfree_skb(skb_old);
-		}
-		/* decrement ttl */
-		unicast_packet->ttl--;
+	/* don't lock while sending the packets ... we therefore
+	 * copy the required data before sending */
 
-		/* route it */
-		send_skb_packet(skb, batman_if, dstaddr);
-		ret = NET_RX_SUCCESS;
+	batman_if = router->if_incoming;
+	memcpy(dstaddr, router->addr, ETH_ALEN);
 
-	} else
-		spin_unlock_irqrestore(&orig_hash_lock, flags);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
-	return ret;
+	/* create a copy of the skb, if needed, to modify it. */
+	if (!skb_clone_writable(skb, sizeof(struct unicast_packet))) {
+		skb_old = skb;
+		skb = skb_copy(skb, GFP_ATOMIC);
+		if (!skb)
+			return NET_RX_DROP;
+		unicast_packet = (struct unicast_packet *) skb->data;
+		ethhdr = (struct ethhdr *)skb_mac_header(skb);
+		kfree_skb(skb_old);
+	}
+
+	/* decrement ttl */
+	unicast_packet->ttl--;
+
+	/* route it */
+	send_skb_packet(skb, batman_if, dstaddr);
+
+	return NET_RX_SUCCESS;
 }
 
 int recv_bcast_packet(struct sk_buff *skb)

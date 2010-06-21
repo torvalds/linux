@@ -84,6 +84,55 @@ static ssize_t store_aggr_ogms(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static ssize_t show_bond(struct kobject *kobj, struct attribute *attr,
+			     char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
+	int bond_status = atomic_read(&bat_priv->bonding_enabled);
+
+	return sprintf(buff, "%s\n",
+		       bond_status == 0 ? "disabled" : "enabled");
+}
+
+static ssize_t store_bond(struct kobject *kobj, struct attribute *attr,
+			  char *buff, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	int bonding_enabled_tmp = -1;
+
+	if (((count == 2) && (buff[0] == '1')) ||
+	    (strncmp(buff, "enable", 6) == 0))
+		bonding_enabled_tmp = 1;
+
+	if (((count == 2) && (buff[0] == '0')) ||
+	    (strncmp(buff, "disable", 7) == 0))
+		bonding_enabled_tmp = 0;
+
+	if (bonding_enabled_tmp < 0) {
+		if (buff[count - 1] == '\n')
+			buff[count - 1] = '\0';
+
+		printk(KERN_ERR "batman-adv:Invalid parameter for 'bonding' setting on mesh %s received: %s\n",
+		       net_dev->name, buff);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&bat_priv->bonding_enabled) == bonding_enabled_tmp)
+		return count;
+
+	printk(KERN_INFO "batman-adv:Changing bonding from: %s to: %s on mesh: %s\n",
+	       atomic_read(&bat_priv->bonding_enabled) == 1 ?
+	       "enabled" : "disabled",
+	       bonding_enabled_tmp == 1 ? "enabled" : "disabled",
+	       net_dev->name);
+
+	atomic_set(&bat_priv->bonding_enabled, (unsigned)bonding_enabled_tmp);
+	return count;
+}
+
 static ssize_t show_vis_mode(struct kobject *kobj, struct attribute *attr,
 			     char *buff)
 {
@@ -182,12 +231,14 @@ static ssize_t store_orig_interval(struct kobject *kobj, struct attribute *attr,
 
 static BAT_ATTR(aggregated_ogms, S_IRUGO | S_IWUSR,
 		show_aggr_ogms, store_aggr_ogms);
+static BAT_ATTR(bonding, S_IRUGO | S_IWUSR, show_bond, store_bond);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
 static BAT_ATTR(orig_interval, S_IRUGO | S_IWUSR,
 		show_orig_interval, store_orig_interval);
 
 static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_aggregated_ogms,
+	&bat_attr_bonding,
 	&bat_attr_vis_mode,
 	&bat_attr_orig_interval,
 	NULL,
@@ -203,6 +254,7 @@ int sysfs_add_meshif(struct net_device *dev)
 	/* FIXME: should be done in the general mesh setup
 		  routine as soon as we have it */
 	atomic_set(&bat_priv->aggregation_enabled, 1);
+	atomic_set(&bat_priv->bonding_enabled, 0);
 	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->orig_interval, 1000);
 	bat_priv->primary_if = NULL;

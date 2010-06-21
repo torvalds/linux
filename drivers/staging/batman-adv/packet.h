@@ -31,6 +31,7 @@
 #define COMPAT_VERSION 11
 #define DIRECTLINK 0x40
 #define VIS_SERVER 0x20
+#define PRIMARIES_FIRST_HOP 0x10
 
 /* ICMP message types */
 #define ECHO_REPLY 0

@@ -109,7 +109,7 @@ static void set_primary_if(struct bat_priv *bat_priv,
 	set_main_if_addr(batman_if->net_dev->dev_addr);
 
 	batman_packet = (struct batman_packet *)(batman_if->packet_buff);
-	batman_packet->flags = 0;
+	batman_packet->flags = PRIMARIES_FIRST_HOP;
 	batman_packet->ttl = TTL;
 
 	/***

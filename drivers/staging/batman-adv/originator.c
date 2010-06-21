@@ -226,6 +226,8 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 
 static bool purge_orig_node(struct orig_node *orig_node)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct neigh_node *best_neigh_node;
 
 	if (time_after(jiffies,
@@ -237,10 +239,14 @@ static bool purge_orig_node(struct orig_node *orig_node)
 			orig_node->orig, (orig_node->last_valid / HZ));
 		return true;
 	} else {
-		if (purge_orig_neighbors(orig_node, &best_neigh_node))
+		if (purge_orig_neighbors(orig_node, &best_neigh_node)) {
 			update_routes(orig_node, best_neigh_node,
 				      orig_node->hna_buff,
 				      orig_node->hna_buff_len);
+			/* update bonding candidates, we could have lost
+			 * some candidates. */
+			update_bonding_candidates(bat_priv, orig_node);
+		}
 	}
 
 	return false;

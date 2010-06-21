@@ -52,6 +52,7 @@ struct batman_if {
 
 /**
   *	orig_node - structure for orig_list maintaining nodes of mesh
+  *	@primary_addr: hosts primary interface address
   *	@last_valid: when last packet from this node was received
   *	@bcast_seqno_reset: time when the broadcast seqno window was reset
   *	@batman_seqno_reset: time when the batman seqno window was reset
@@ -59,9 +60,13 @@ struct batman_if {
   *	@last_real_seqno: last and best known squence number
   *	@last_ttl: ttl of last received packet
   *	@last_bcast_seqno: last broadcast sequence number received by this host
+  *
+  *	@candidates: how many candidates are available
+  *	@selected: next bonding candidate
  */
 struct orig_node {
 	uint8_t orig[ETH_ALEN];
+	uint8_t primary_addr[ETH_ALEN];
 	struct neigh_node *router;
 	TYPE_OF_WORD *bcast_own;
 	uint8_t *bcast_own_sum;
@@ -78,6 +83,10 @@ struct orig_node {
 	TYPE_OF_WORD bcast_bits[NUM_WORDS];
 	uint32_t last_bcast_seqno;
 	struct list_head neigh_list;
+	struct {
+		uint8_t candidates;
+		struct neigh_node *selected;
+	} bond;
 };
 
 /**
@@ -92,6 +101,7 @@ struct neigh_node {
 	uint8_t tq_index;
 	uint8_t tq_avg;
 	uint8_t last_ttl;
+	struct neigh_node *next_bond_candidate;
 	unsigned long last_valid;
 	TYPE_OF_WORD real_bits[NUM_WORDS];
 	struct orig_node *orig_node;
@@ -101,6 +111,7 @@ struct neigh_node {
 struct bat_priv {
 	struct net_device_stats stats;
 	atomic_t aggregation_enabled;
+	atomic_t bonding_enabled;
 	atomic_t vis_mode;
 	atomic_t orig_interval;
 	char num_ifaces;

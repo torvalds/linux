@@ -59,6 +59,11 @@
 
 #define VIS_INTERVAL 5000	/* 5 seconds */
 
+/* how much worse secondary interfaces may be to
+ * to be considered as bonding candidates */
+
+#define BONDING_TQ_THRESHOLD	50
+
 #define MAX_AGGREGATION_BYTES 512 /* should not be bigger than 512 bytes or
 				   * change the size of
 				   * forw_packet->direct_link_flags */

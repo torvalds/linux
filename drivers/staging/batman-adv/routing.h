@@ -35,3 +35,6 @@ int recv_bcast_packet(struct sk_buff *skb);
 int recv_vis_packet(struct sk_buff *skb);
 int recv_bat_packet(struct sk_buff *skb,
 				struct batman_if *batman_if);
+struct neigh_node *find_router(struct orig_node *orig_node);
+void update_bonding_candidates(struct bat_priv *bat_priv,
+			       struct orig_node *orig_node);

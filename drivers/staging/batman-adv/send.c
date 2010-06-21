@@ -287,7 +287,7 @@ void schedule_own_packet(struct batman_if *batman_if)
 		htonl((uint32_t)atomic_read(&batman_if->seqno));
 
 	if (vis_server == VIS_TYPE_SERVER_SYNC)
-		batman_packet->flags = VIS_SERVER;
+		batman_packet->flags |= VIS_SERVER;
 	else
 		batman_packet->flags &= ~VIS_SERVER;
 
@@ -349,6 +349,8 @@ void schedule_forward_packet(struct orig_node *orig_node,
 
 	batman_packet->seqno = htonl(batman_packet->seqno);
 
+	/* switch of primaries first hop flag when forwarding */
+	batman_packet->flags &= ~PRIMARIES_FIRST_HOP;
 	if (directlink)
 		batman_packet->flags |= DIRECTLINK;
 	else
