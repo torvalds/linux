@@ -102,8 +102,7 @@ config REGULATOR_MAX8925
 
 config REGULATOR_MAX8998
 	tristate "Maxim 8998 voltage regulator"
-	depends on I2C
-	default n
+	depends on MFD_MAX8998
 	help
 	  This driver controls a Maxim 8998 voltage output regulator
 	  via I2C bus. The provided regulator is suitable for S3C6410
