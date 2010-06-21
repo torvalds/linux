@@ -63,7 +63,7 @@ static inline void cfq_blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 
 static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg, uint64_t start_time, uint64_t io_start_time, bool direction, bool sync)
 {
-	cfq_blkiocg_update_completion_stats(blkg, start_time, io_start_time,
+	blkiocg_update_completion_stats(blkg, start_time, io_start_time,
 				direction, sync);
 }
 
