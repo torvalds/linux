@@ -72,11 +72,11 @@ struct orig_node {
 	unsigned long batman_seqno_reset;
 	uint8_t  flags;
 	unsigned char *hna_buff;
-	int16_t  hna_buff_len;
-	uint16_t last_real_seqno;
+	int16_t hna_buff_len;
+	uint32_t last_real_seqno;
 	uint8_t last_ttl;
 	TYPE_OF_WORD bcast_bits[NUM_WORDS];
-	uint16_t last_bcast_seqno;
+	uint32_t last_bcast_seqno;
 	struct list_head neigh_list;
 };
 

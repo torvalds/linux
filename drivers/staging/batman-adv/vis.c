@@ -357,7 +357,8 @@ static struct vis_info *add_packet(struct vis_packet *vis_packet,
 	old_info = hash_find(vis_hash, &search_elem);
 
 	if (old_info != NULL) {
-		if (!seq_after(vis_packet->seqno, old_info->packet.seqno)) {
+		if (!seq_after(ntohl(vis_packet->seqno),
+				ntohl(old_info->packet.seqno))) {
 			if (old_info->packet.seqno == vis_packet->seqno) {
 				recv_list_add(&old_info->recv_list,
 					      vis_packet->sender_orig);
@@ -525,7 +526,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	spin_lock_irqsave(&orig_hash_lock, flags);
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
 	info->packet.ttl = TTL;
-	info->packet.seqno++;
+	info->packet.seqno = htonl(ntohl(info->packet.seqno) + 1);
 	info->packet.entries = 0;
 
 	if (info->packet.vis_type == VIS_TYPE_CLIENT_UPDATE) {

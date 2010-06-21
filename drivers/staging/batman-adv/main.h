@@ -65,7 +65,7 @@
 #define MAX_AGGREGATION_MS 100
 
 #define RESET_PROTECTION_MS 30000
-#define EXPECTED_SEQNO_RANGE	4096
+#define EXPECTED_SEQNO_RANGE	65536
 /* don't reset again within 30 seconds */
 
 #define MODULE_INACTIVE 0

@@ -252,9 +252,9 @@ void receive_aggr_bat_packet(struct ethhdr *ethhdr, unsigned char *packet_buff,
 	while (aggregated_packet(buff_pos, packet_len,
 				 batman_packet->num_hna)) {
 
-		/* network to host order for our 16bit seqno, and the
+		/* network to host order for our 32bit seqno, and the
 		   orig_interval. */
-		batman_packet->seqno = ntohs(batman_packet->seqno);
+		batman_packet->seqno = ntohl(batman_packet->seqno);
 
 		hna_buff = packet_buff + buff_pos + BAT_PACKET_LEN;
 		receive_bat_packet(ethhdr, batman_packet,

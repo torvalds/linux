@@ -318,7 +318,7 @@ update_hna:
  *  0 if the packet is to be accepted
  *  1 if the packet is to be ignored.
  */
-static int window_protected(int16_t seq_num_diff,
+static int window_protected(int32_t seq_num_diff,
 				unsigned long *last_reset)
 {
 	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE)
@@ -352,7 +352,7 @@ static char count_real_packets(struct ethhdr *ethhdr,
 	struct orig_node *orig_node;
 	struct neigh_node *tmp_neigh_node;
 	char is_duplicate = 0;
-	int16_t seq_diff;
+	int32_t seq_diff;
 	int need_update = 0;
 	int set_mark;
 
@@ -406,7 +406,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	char is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
 	char is_broadcast = 0, is_bidirectional, is_single_hop_neigh;
 	char is_duplicate;
-	unsigned short if_incoming_seqno;
+	uint32_t if_incoming_seqno;
 
 	/* Silently drop when the batman packet is actually not a
 	 * correct packet.
@@ -950,7 +950,7 @@ int recv_bcast_packet(struct sk_buff *skb)
 	struct bcast_packet *bcast_packet;
 	struct ethhdr *ethhdr;
 	int hdr_size = sizeof(struct bcast_packet);
-	int16_t seq_diff;
+	int32_t seq_diff;
 	unsigned long flags;
 
 	/* drop packet if it has not necessary minimum size */
@@ -977,6 +977,9 @@ int recv_bcast_packet(struct sk_buff *skb)
 	if (is_my_mac(bcast_packet->orig))
 		return NET_RX_DROP;
 
+	if (bcast_packet->ttl < 2)
+		return NET_RX_DROP;
+
 	spin_lock_irqsave(&orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
 		     hash_find(orig_hash, bcast_packet->orig));
@@ -989,12 +992,12 @@ int recv_bcast_packet(struct sk_buff *skb)
 	/* check whether the packet is a duplicate */
 	if (get_bit_status(orig_node->bcast_bits,
 			   orig_node->last_bcast_seqno,
-			   ntohs(bcast_packet->seqno))) {
+			   ntohl(bcast_packet->seqno))) {
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 		return NET_RX_DROP;
 	}
 
-	seq_diff = ntohs(bcast_packet->seqno) - orig_node->last_bcast_seqno;
+	seq_diff = ntohl(bcast_packet->seqno) - orig_node->last_bcast_seqno;
 
 	/* check whether the packet is old and the host just restarted. */
 	if (window_protected(seq_diff, &orig_node->bcast_seqno_reset)) {
@@ -1005,7 +1008,7 @@ int recv_bcast_packet(struct sk_buff *skb)
 	/* mark broadcast in flood history, update window position
 	 * if required. */
 	if (bit_get_packet(orig_node->bcast_bits, seq_diff, 1))
-		orig_node->last_bcast_seqno = ntohs(bcast_packet->seqno);
+		orig_node->last_bcast_seqno = ntohl(bcast_packet->seqno);
 
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 	/* rebroadcast packet */

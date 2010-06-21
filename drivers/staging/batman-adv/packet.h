@@ -28,7 +28,7 @@
 #define BAT_VIS       0x05
 
 /* this file is included by batctl which needs these defines */
-#define COMPAT_VERSION 8
+#define COMPAT_VERSION 11
 #define DIRECTLINK 0x40
 #define VIS_SERVER 0x20
 
@@ -48,7 +48,7 @@ struct batman_packet {
 	uint8_t  version;  /* batman version field */
 	uint8_t  flags;    /* 0x40: DIRECTLINK flag, 0x20 VIS_SERVER flag... */
 	uint8_t  tq;
-	uint16_t seqno;
+	uint32_t seqno;
 	uint8_t  orig[6];
 	uint8_t  prev_sender[6];
 	uint8_t  ttl;
@@ -79,15 +79,16 @@ struct bcast_packet {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  orig[6];
-	uint16_t seqno;
+	uint8_t  ttl;
+	uint32_t seqno;
 } __attribute__((packed));
 
 struct vis_packet {
 	uint8_t  packet_type;
 	uint8_t  version;        /* batman version field */
 	uint8_t  vis_type;	 /* which type of vis-participant sent this? */
-	uint8_t  seqno;		 /* sequence number */
 	uint8_t  entries;	 /* number of entries behind this struct */
+	uint32_t seqno;		 /* sequence number */
 	uint8_t  ttl;		 /* TTL */
 	uint8_t  vis_orig[6];	 /* originator that informs about its
 				  * neighbors */

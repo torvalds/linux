@@ -24,10 +24,10 @@
 
 /* returns true if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno */
-uint8_t get_bit_status(TYPE_OF_WORD *seq_bits, uint16_t last_seqno,
-		       uint16_t curr_seqno)
+uint8_t get_bit_status(TYPE_OF_WORD *seq_bits, uint32_t last_seqno,
+		       uint32_t curr_seqno)
 {
-	int16_t diff, word_offset, word_num;
+	int32_t diff, word_offset, word_num;
 
 	diff = last_seqno - curr_seqno;
 	if (diff < 0 || diff >= TQ_LOCAL_WINDOW_SIZE) {
@@ -125,7 +125,7 @@ static void bit_reset_window(TYPE_OF_WORD *seq_bits)
  *  1 if the window was moved (either new or very old)
  *  0 if the window was not moved/shifted.
  */
-char bit_get_packet(TYPE_OF_WORD *seq_bits, int16_t seq_num_diff,
+char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
 		    int8_t set_mark)
 {
 	/* sequence number is slightly older. We already got a sequence number
