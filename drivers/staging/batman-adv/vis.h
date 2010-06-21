@@ -44,9 +44,6 @@ struct recvlist_node {
 	uint8_t mac[ETH_ALEN];
 };
 
-extern struct hashtable_t *vis_hash;
-extern spinlock_t vis_hash_lock;
-
 int vis_seq_print_text(struct seq_file *seq, void *offset);
 void receive_server_sync_packet(struct bat_priv *bat_priv,
 				struct vis_packet *vis_packet,

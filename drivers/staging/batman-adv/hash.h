@@ -56,9 +56,6 @@ struct hashtable_t {
 				     * argument and the size the second */
 };
 
-/* clears the hash */
-void hash_init(struct hashtable_t *hash);
-
 /* allocates and clears the hash */
 struct hashtable_t *hash_new(int size, hashdata_compare_cb compare,
 			     hashdata_choose_cb choose);
@@ -98,7 +95,4 @@ struct hashtable_t *hash_resize(struct hashtable_t *hash, int size);
  * the returned iterator to access the elements until hash_it_t returns NULL. */
 struct hash_it_t *hash_iterate(struct hashtable_t *hash,
 			       struct hash_it_t *iter_in);
-
-/* print the hash table for debugging */
-void hash_debug(struct hashtable_t *hash);
 #endif

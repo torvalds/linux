@@ -31,6 +31,8 @@
 
 #include <linux/netfilter_bridge.h>
 
+static void send_outstanding_bcast_packet(struct work_struct *work);
+
 /* apply hop penalty for a normal link */
 static uint8_t hop_penalty(const uint8_t tq)
 {
@@ -431,7 +433,7 @@ out:
 	return NETDEV_TX_BUSY;
 }
 
-void send_outstanding_bcast_packet(struct work_struct *work)
+static void send_outstanding_bcast_packet(struct work_struct *work)
 {
 	struct batman_if *batman_if;
 	struct delayed_work *delayed_work =

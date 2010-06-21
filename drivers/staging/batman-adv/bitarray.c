@@ -63,7 +63,7 @@ void bit_mark(TYPE_OF_WORD *seq_bits, int32_t n)
 }
 
 /* shift the packet array by n places. */
-void bit_shift(TYPE_OF_WORD *seq_bits, int32_t n)
+static void bit_shift(TYPE_OF_WORD *seq_bits, int32_t n)
 {
 	int32_t word_offset, word_num;
 	int32_t i;

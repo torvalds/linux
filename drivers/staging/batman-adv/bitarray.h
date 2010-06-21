@@ -32,9 +32,6 @@ uint8_t get_bit_status(TYPE_OF_WORD *seq_bits, uint16_t last_seqno,
 /* turn corresponding bit on, so we can remember that we got the packet */
 void bit_mark(TYPE_OF_WORD *seq_bits, int32_t n);
 
-/* shift the packet array by n places. */
-void bit_shift(TYPE_OF_WORD *seq_bits, int32_t n);
-
 
 /* receive and process one packet, returns 1 if received seq_num is considered
  * new, 0 if old  */

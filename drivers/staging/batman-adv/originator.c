@@ -56,21 +56,6 @@ err:
 	return 0;
 }
 
-void originator_free(void)
-{
-	unsigned long flags;
-
-	if (!orig_hash)
-		return;
-
-	cancel_delayed_work_sync(&purge_orig_wq);
-
-	spin_lock_irqsave(&orig_hash_lock, flags);
-	hash_delete(orig_hash, free_orig_node);
-	orig_hash = NULL;
-	spin_unlock_irqrestore(&orig_hash_lock, flags);
-}
-
 struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 		uint8_t *neigh, struct batman_if *if_incoming)
@@ -93,7 +78,7 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 	return neigh_node;
 }
 
-void free_orig_node(void *data)
+static void free_orig_node(void *data)
 {
 	struct list_head *list_pos, *list_pos_tmp;
 	struct neigh_node *neigh_node;
@@ -112,6 +97,21 @@ void free_orig_node(void *data)
 	kfree(orig_node->bcast_own);
 	kfree(orig_node->bcast_own_sum);
 	kfree(orig_node);
+}
+
+void originator_free(void)
+{
+	unsigned long flags;
+
+	if (!orig_hash)
+		return;
+
+	cancel_delayed_work_sync(&purge_orig_wq);
+
+	spin_lock_irqsave(&orig_hash_lock, flags);
+	hash_delete(orig_hash, free_orig_node);
+	orig_hash = NULL;
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 /* this function finds or creates an originator entry for the given

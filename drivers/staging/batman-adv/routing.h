@@ -21,8 +21,6 @@
 
 #include "types.h"
 
-extern wait_queue_head_t thread_wait;
-
 void slide_own_bcast_window(struct batman_if *batman_if);
 void receive_bat_packet(struct ethhdr *ethhdr,
 				struct batman_packet *batman_packet,

@@ -43,8 +43,8 @@
 			_dummy > smallest_signed_int(_dummy); })
 #define seq_after(x, y) seq_before(y, x)
 
-struct hashtable_t *vis_hash;
-DEFINE_SPINLOCK(vis_hash_lock);
+static struct hashtable_t *vis_hash;
+static DEFINE_SPINLOCK(vis_hash_lock);
 static DEFINE_SPINLOCK(recv_list_lock);
 static struct vis_info *my_vis_info;
 static struct list_head send_list;	/* always locked with vis_hash_lock */

@@ -32,7 +32,10 @@ atomic_t hna_local_changed;
 DEFINE_SPINLOCK(hna_local_hash_lock);
 static DEFINE_SPINLOCK(hna_global_hash_lock);
 
+static void hna_local_purge(struct work_struct *work);
 static DECLARE_DELAYED_WORK(hna_local_purge_wq, hna_local_purge);
+static void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
+				 char *message);
 
 static void hna_local_start_timer(void)
 {
@@ -242,7 +245,7 @@ void hna_local_remove(uint8_t *addr, char *message)
 	spin_unlock_irqrestore(&hna_local_hash_lock, flags);
 }
 
-void hna_local_purge(struct work_struct *work)
+static void hna_local_purge(struct work_struct *work)
 {
 	struct hna_local_entry *hna_local_entry;
 	HASHIT(hashit);
@@ -423,8 +426,8 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
-			  char *message)
+static void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
+				 char *message)
 {
 	bat_dbg(DBG_ROUTES, "Deleting global hna entry %pM (via %pM): %s\n",
 		hna_global_entry->addr, hna_global_entry->orig_node->orig,

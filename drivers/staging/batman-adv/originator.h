@@ -20,10 +20,8 @@
  */
 
 int originator_init(void);
-void free_orig_node(void *data);
 void originator_free(void);
 void purge_orig(struct work_struct *work);
-struct orig_node *orig_find(char *mac);
 struct orig_node *get_orig_node(uint8_t *addr);
 struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,

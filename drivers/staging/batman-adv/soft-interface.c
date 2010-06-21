@@ -36,7 +36,6 @@ static int32_t skb_packets;
 static int32_t skb_bad_packets;
 
 unsigned char mainIfAddr[ETH_ALEN];
-static unsigned char mainIfAddr_default[ETH_ALEN];
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
 static void bat_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info);
@@ -61,11 +60,6 @@ void set_main_if_addr(uint8_t *addr)
 	memcpy(mainIfAddr, addr, ETH_ALEN);
 }
 
-int main_if_was_up(void)
-{
-	return (memcmp(mainIfAddr, mainIfAddr_default, ETH_ALEN) != 0 ? 1 : 0);
-}
-
 int my_skb_push(struct sk_buff *skb, unsigned int len)
 {
 	int result = 0;
@@ -83,69 +77,25 @@ int my_skb_push(struct sk_buff *skb, unsigned int len)
 	return 0;
 }
 
-#ifdef HAVE_NET_DEVICE_OPS
-static const struct net_device_ops bat_netdev_ops = {
-	.ndo_open = interface_open,
-	.ndo_stop = interface_release,
-	.ndo_get_stats = interface_stats,
-	.ndo_set_mac_address = interface_set_mac_addr,
-	.ndo_change_mtu = interface_change_mtu,
-	.ndo_start_xmit = interface_tx,
-	.ndo_validate_addr = eth_validate_addr
-};
-#endif
-
-void interface_setup(struct net_device *dev)
-{
-	struct bat_priv *priv = netdev_priv(dev);
-	char dev_addr[ETH_ALEN];
-
-	ether_setup(dev);
-
-#ifdef HAVE_NET_DEVICE_OPS
-	dev->netdev_ops = &bat_netdev_ops;
-#else
-	dev->open = interface_open;
-	dev->stop = interface_release;
-	dev->get_stats = interface_stats;
-	dev->set_mac_address = interface_set_mac_addr;
-	dev->change_mtu = interface_change_mtu;
-	dev->hard_start_xmit = interface_tx;
-#endif
-	dev->destructor = free_netdev;
-
-	dev->mtu = hardif_min_mtu();
-	dev->hard_header_len = BAT_HEADER_LEN; /* reserve more space in the
-						* skbuff for our header */
-
-	/* generate random address */
-	random_ether_addr(dev_addr);
-	memcpy(dev->dev_addr, dev_addr, ETH_ALEN);
-
-	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
-
-	memset(priv, 0, sizeof(struct bat_priv));
-}
-
-int interface_open(struct net_device *dev)
+static int interface_open(struct net_device *dev)
 {
 	netif_start_queue(dev);
 	return 0;
 }
 
-int interface_release(struct net_device *dev)
+static int interface_release(struct net_device *dev)
 {
 	netif_stop_queue(dev);
 	return 0;
 }
 
-struct net_device_stats *interface_stats(struct net_device *dev)
+static struct net_device_stats *interface_stats(struct net_device *dev)
 {
 	struct bat_priv *priv = netdev_priv(dev);
 	return &priv->stats;
 }
 
-int interface_set_mac_addr(struct net_device *dev, void *p)
+static int interface_set_mac_addr(struct net_device *dev, void *p)
 {
 	struct sockaddr *addr = p;
 
@@ -163,7 +113,7 @@ int interface_set_mac_addr(struct net_device *dev, void *p)
 	return 0;
 }
 
-int interface_change_mtu(struct net_device *dev, int new_mtu)
+static int interface_change_mtu(struct net_device *dev, int new_mtu)
 {
 	/* check ranges */
 	if ((new_mtu < 68) || (new_mtu > hardif_min_mtu()))
@@ -313,6 +263,50 @@ void interface_rx(struct sk_buff *skb, int hdr_size)
 	dev->last_rx = jiffies;
 
 	netif_rx(skb);
+}
+
+#ifdef HAVE_NET_DEVICE_OPS
+static const struct net_device_ops bat_netdev_ops = {
+	.ndo_open = interface_open,
+	.ndo_stop = interface_release,
+	.ndo_get_stats = interface_stats,
+	.ndo_set_mac_address = interface_set_mac_addr,
+	.ndo_change_mtu = interface_change_mtu,
+	.ndo_start_xmit = interface_tx,
+	.ndo_validate_addr = eth_validate_addr
+};
+#endif
+
+void interface_setup(struct net_device *dev)
+{
+	struct bat_priv *priv = netdev_priv(dev);
+	char dev_addr[ETH_ALEN];
+
+	ether_setup(dev);
+
+#ifdef HAVE_NET_DEVICE_OPS
+	dev->netdev_ops = &bat_netdev_ops;
+#else
+	dev->open = interface_open;
+	dev->stop = interface_release;
+	dev->get_stats = interface_stats;
+	dev->set_mac_address = interface_set_mac_addr;
+	dev->change_mtu = interface_change_mtu;
+	dev->hard_start_xmit = interface_tx;
+#endif
+	dev->destructor = free_netdev;
+
+	dev->mtu = hardif_min_mtu();
+	dev->hard_header_len = BAT_HEADER_LEN; /* reserve more space in the
+						* skbuff for our header */
+
+	/* generate random address */
+	random_ether_addr(dev_addr);
+	memcpy(dev->dev_addr, dev_addr, ETH_ALEN);
+
+	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
+
+	memset(priv, 0, sizeof(struct bat_priv));
 }
 
 /* ethtool */
