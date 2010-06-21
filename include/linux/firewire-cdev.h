@@ -66,6 +66,10 @@ struct fw_cdev_event_common {
  * This event is sent when the bus the device belongs to goes through a bus
  * reset.  It provides information about the new bus configuration, such as
  * new node ID for this device, new root ID, and others.
+ *
+ * If @bm_node_id is 0xffff right after bus reset it can be reread by an
+ * %FW_CDEV_IOC_GET_INFO ioctl after bus manager selection was finished.
+ * Kernels with ABI version < 4 do not set @bm_node_id.
  */
 struct fw_cdev_event_bus_reset {
 	__u64 closure;
@@ -348,6 +352,7 @@ union fw_cdev_event {
  *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
  *               - added %FW_CDEV_IOC_GET_CYCLE_TIMER2
  *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2
+ *               - implemented &fw_cdev_event_bus_reset.bm_node_id
  */
 #define FW_CDEV_VERSION 3 /* Meaningless; don't use this macro. */
 

@@ -318,7 +318,7 @@ static void fill_bus_reset_event(struct fw_cdev_event_bus_reset *event,
 	event->generation    = client->device->generation;
 	event->node_id       = client->device->node_id;
 	event->local_node_id = card->local_node->node_id;
-	event->bm_node_id    = 0; /* FIXME: We don't track the BM. */
+	event->bm_node_id    = card->bm_node_id;
 	event->irm_node_id   = card->irm_node->node_id;
 	event->root_node_id  = card->root_node->node_id;
 

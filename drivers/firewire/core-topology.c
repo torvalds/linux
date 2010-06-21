@@ -552,6 +552,7 @@ void fw_core_handle_bus_reset(struct fw_card *card, int node_id, int generation,
 	smp_wmb();
 	card->generation = generation;
 	card->reset_jiffies = jiffies;
+	card->bm_node_id  = 0xffff;
 	card->bm_abdicate = bm_abdicate;
 	fw_schedule_bm_work(card, 0);
 

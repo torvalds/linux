@@ -239,7 +239,7 @@ static void fw_card_bm_work(struct work_struct *work)
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
 	struct fw_device *root_device;
 	struct fw_node *root_node;
-	int root_id, new_root_id, irm_id, local_id;
+	int root_id, new_root_id, irm_id, bm_id, local_id;
 	int gap_count, generation, grace, rcode;
 	bool do_reset = false;
 	bool root_device_is_running;
@@ -301,9 +301,15 @@ static void fw_card_bm_work(struct work_struct *work)
 			/* Another bus reset, BM work has been rescheduled. */
 			goto out;
 
-		if (rcode == RCODE_COMPLETE &&
-		    card->bm_transaction_data[0] != cpu_to_be32(0x3f)) {
+		bm_id = be32_to_cpu(card->bm_transaction_data[0]);
 
+		spin_lock_irq(&card->lock);
+		if (rcode == RCODE_COMPLETE && generation == card->generation)
+			card->bm_node_id =
+			    bm_id == 0x3f ? local_id : 0xffc0 | bm_id;
+		spin_unlock_irq(&card->lock);
+
+		if (rcode == RCODE_COMPLETE && bm_id != 0x3f) {
 			/* Somebody else is BM.  Only act as IRM. */
 			if (local_id == irm_id)
 				allocate_broadcast_channel(card, generation);

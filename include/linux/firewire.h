@@ -119,6 +119,7 @@ struct fw_card {
 	int bm_retries;
 	int bm_generation;
 	__be32 bm_transaction_data[2];
+	int bm_node_id;
 	bool bm_abdicate;
 
 	bool priority_budget_implemented;	/* controller feature */
