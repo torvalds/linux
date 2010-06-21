@@ -328,6 +328,32 @@ static void ui_browser__reset_index(struct ui_browser *self)
 	self->seek(self, 0, SEEK_SET);
 }
 
+static int ui_browser__show(struct ui_browser *self, const char *title)
+{
+	if (self->form != NULL)
+		return 0;
+	ui_browser__refresh_dimensions(self);
+	newtCenteredWindow(self->width + 2, self->height, title);
+	self->form = newt_form__new();
+	if (self->form == NULL)
+		return -1;
+
+	self->sb = newtVerticalScrollbar(self->width + 1, 0, self->height,
+					 HE_COLORSET_NORMAL,
+					 HE_COLORSET_SELECTED);
+	if (self->sb == NULL)
+		return -1;
+
+	newtFormAddHotKey(self->form, NEWT_KEY_UP);
+	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
+	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
+	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
+	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
+	newtFormAddHotKey(self->form, NEWT_KEY_END);
+	newtFormAddComponent(self->form, self->sb);
+	return 0;
+}
+
 static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 			      int width, struct hist_entry *he, int len,
 			      bool current_entry)
@@ -406,39 +432,10 @@ static int ui_browser__refresh_entries(struct ui_browser *self)
 	return 0;
 }
 
-static int ui_browser__run(struct ui_browser *self, const char *title,
-			   struct newtExitStruct *es)
+static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 {
-	if (self->form) {
-		newtFormDestroy(self->form);
-		newtPopWindow();
-	}
-
-	ui_browser__refresh_dimensions(self);
-	newtCenteredWindow(self->width + 2, self->height, title);
-	self->form = newt_form__new();
-	if (self->form == NULL)
-		return -1;
-
-	self->sb = newtVerticalScrollbar(self->width + 1, 0, self->height,
-					 HE_COLORSET_NORMAL,
-					 HE_COLORSET_SELECTED);
-	if (self->sb == NULL)
-		return -1;
-
-	newtFormAddHotKey(self->form, NEWT_KEY_UP);
-	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
-	newtFormAddHotKey(self->form, ' ');
-	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
-	newtFormAddHotKey(self->form, NEWT_KEY_END);
-	newtFormAddHotKey(self->form, NEWT_KEY_TAB);
-	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
-
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
-	newtFormAddComponent(self->form, self->sb);
 
 	while (1) {
 		off_t offset;
@@ -733,7 +730,8 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	}
 
 	browser.width += 18; /* Percentage */
-	ret = ui_browser__run(&browser, self->ms.sym->name, &es);
+	ui_browser__show(&browser, self->ms.sym->name);
+	ui_browser__run(&browser, &es);
 	newtFormDestroy(browser.form);
 	newtPopWindow();
 	list_for_each_entry_safe(pos, n, &head, node) {
