@@ -920,9 +920,8 @@ static int ips_monitor(void *data)
 	struct timer_list timer;
 	unsigned long seqno_timestamp, expire, last_msecs, last_sample_period;
 	int i;
-	u32 *cpu_samples = NULL, *mchp_samples = NULL, old_cpu_power;
-	u16 *mcp_samples = NULL, *ctv1_samples = NULL, *ctv2_samples = NULL,
-		*mch_samples = NULL;
+	u32 *cpu_samples, *mchp_samples, old_cpu_power;
+	u16 *mcp_samples, *ctv1_samples, *ctv2_samples, *mch_samples;
 	u8 cur_seqno, last_seqno;
 
 	mcp_samples = kzalloc(sizeof(u16) * IPS_SAMPLE_COUNT, GFP_KERNEL);
@@ -931,7 +930,8 @@ static int ips_monitor(void *data)
 	mch_samples = kzalloc(sizeof(u16) * IPS_SAMPLE_COUNT, GFP_KERNEL);
 	cpu_samples = kzalloc(sizeof(u32) * IPS_SAMPLE_COUNT, GFP_KERNEL);
 	mchp_samples = kzalloc(sizeof(u32) * IPS_SAMPLE_COUNT, GFP_KERNEL);
-	if (!mcp_samples || !ctv1_samples || !ctv2_samples || !mch_samples) {
+	if (!mcp_samples || !ctv1_samples || !ctv2_samples || !mch_samples ||
+			!cpu_samples || !mchp_samples) {
 		dev_err(&ips->dev->dev,
 			"failed to allocate sample array, ips disabled\n");
 		kfree(mcp_samples);
@@ -939,6 +939,7 @@ static int ips_monitor(void *data)
 		kfree(ctv2_samples);
 		kfree(mch_samples);
 		kfree(cpu_samples);
+		kfree(mchp_samples);
 		kthread_stop(ips->adjust);
 		return -ENOMEM;
 	}
