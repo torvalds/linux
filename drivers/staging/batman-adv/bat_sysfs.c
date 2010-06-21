@@ -163,7 +163,7 @@ static ssize_t store_orig_interval(struct kobject *kobj, struct attribute *attr,
 		return -EINVAL;
 	}
 
-	if (orig_interval_tmp <= JITTER * 2) {
+	if (orig_interval_tmp < JITTER * 2) {
 		printk(KERN_INFO "batman-adv:New originator interval too small: %li (min: %i)\n",
 		       orig_interval_tmp, JITTER * 2);
 		return -EINVAL;
