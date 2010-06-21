@@ -239,17 +239,16 @@ static void fw_card_bm_work(struct work_struct *work)
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
 	struct fw_device *root_device;
 	struct fw_node *root_node;
-	unsigned long flags;
 	int root_id, new_root_id, irm_id, local_id;
 	int gap_count, generation, grace, rcode;
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
 
-	spin_lock_irqsave(&card->lock, flags);
+	spin_lock_irq(&card->lock);
 
 	if (card->local_node == NULL) {
-		spin_unlock_irqrestore(&card->lock, flags);
+		spin_unlock_irq(&card->lock);
 		goto out_put_card;
 	}
 
@@ -291,7 +290,7 @@ static void fw_card_bm_work(struct work_struct *work)
 		card->bm_transaction_data[0] = cpu_to_be32(0x3f);
 		card->bm_transaction_data[1] = cpu_to_be32(local_id);
 
-		spin_unlock_irqrestore(&card->lock, flags);
+		spin_unlock_irq(&card->lock);
 
 		rcode = fw_run_transaction(card, TCODE_LOCK_COMPARE_SWAP,
 				irm_id, generation, SCODE_100,
@@ -322,7 +321,7 @@ static void fw_card_bm_work(struct work_struct *work)
 			goto out;
 		}
 
-		spin_lock_irqsave(&card->lock, flags);
+		spin_lock_irq(&card->lock);
 
 		if (rcode != RCODE_COMPLETE) {
 			/*
@@ -341,7 +340,7 @@ static void fw_card_bm_work(struct work_struct *work)
 		 * We weren't BM in the last generation, and the last
 		 * bus reset is less than 125ms ago.  Reschedule this job.
 		 */
-		spin_unlock_irqrestore(&card->lock, flags);
+		spin_unlock_irq(&card->lock);
 		fw_schedule_bm_work(card, DIV_ROUND_UP(HZ, 8));
 		goto out;
 	}
@@ -364,7 +363,7 @@ static void fw_card_bm_work(struct work_struct *work)
 		 * If we haven't probed this device yet, bail out now
 		 * and let's try again once that's done.
 		 */
-		spin_unlock_irqrestore(&card->lock, flags);
+		spin_unlock_irq(&card->lock);
 		goto out;
 	} else if (root_device_is_cmc) {
 		/*
@@ -402,7 +401,7 @@ static void fw_card_bm_work(struct work_struct *work)
 	    (card->gap_count != gap_count || new_root_id != root_id))
 		do_reset = true;
 
-	spin_unlock_irqrestore(&card->lock, flags);
+	spin_unlock_irq(&card->lock);
 
 	if (do_reset) {
 		fw_notify("phy config: card %d, new root=%x, gap_count=%d\n",
