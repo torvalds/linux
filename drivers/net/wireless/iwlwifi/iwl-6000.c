@@ -423,6 +423,8 @@ struct iwl_cfg iwl6000g2a_2abg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -456,6 +458,8 @@ struct iwl_cfg iwl6000g2a_2bg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -491,6 +495,8 @@ struct iwl_cfg iwl6000g2b_2agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -524,6 +530,8 @@ struct iwl_cfg iwl6000g2b_2abg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -559,6 +567,8 @@ struct iwl_cfg iwl6000g2b_2bgn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -592,6 +602,8 @@ struct iwl_cfg iwl6000g2b_2bg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -627,6 +639,8 @@ struct iwl_cfg iwl6000g2b_bgn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
@@ -660,6 +674,8 @@ struct iwl_cfg iwl6000g2b_bg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	.need_dc_calib = true,
 };
 
