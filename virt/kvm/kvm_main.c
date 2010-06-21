@@ -570,6 +570,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 
 	new = old = *memslot;
 
+	new.id = mem->slot;
 	new.base_gfn = base_gfn;
 	new.npages = npages;
 	new.flags = mem->flags;
