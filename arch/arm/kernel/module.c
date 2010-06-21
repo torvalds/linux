@@ -233,8 +233,6 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			*(u16 *)(loc + 2) = (u16)((lower & 0xd000) |
 						  (j1 << 13) | (j2 << 11) |
 						  ((offset >> 1) & 0x07ff));
-			upper = *(u16 *)loc;
-			lower = *(u16 *)(loc + 2);
 			break;
 
 		case R_ARM_THM_MOVW_ABS_NC:
