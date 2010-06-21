@@ -571,3 +571,25 @@ struct platform_device imx_ssi_device1 = {
 	.num_resources = ARRAY_SIZE(imx_ssi_resources1),
 	.resource = imx_ssi_resources1,
 };
+
+static struct resource mx25_csi_resources[] = {
+	{
+		.start	= MX25_CSI_BASE_ADDR,
+		.end	= MX25_CSI_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_CSI,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mx25_csi_device = {
+	.name	= "mx2-camera",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(mx25_csi_resources),
+	.resource	= mx25_csi_resources,
+	.dev		= {
+		.coherent_dma_mask = 0xffffffff,
+	},
+};
