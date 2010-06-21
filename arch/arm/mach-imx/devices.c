@@ -225,6 +225,7 @@ int __init imx1_register_gpios(void)
  * - i.MX21: 2 channel
  * - i.MX27: 3 channel
  */
+#ifdef CONFIG_MACH_MX27
 #define DEFINE_IMX_SPI_DEVICE(n, baseaddr, irq)					\
 	static struct resource mxc_spi_resources ## n[] = {			\
 		{								\
@@ -247,8 +248,6 @@ int __init imx1_register_gpios(void)
 
 DEFINE_IMX_SPI_DEVICE(0, MX2x_CSPI1_BASE_ADDR, MX2x_INT_CSPI1);
 DEFINE_IMX_SPI_DEVICE(1, MX2x_CSPI2_BASE_ADDR, MX2x_INT_CSPI2);
-
-#ifdef CONFIG_MACH_MX27
 DEFINE_IMX_SPI_DEVICE(2, MX27_CSPI3_BASE_ADDR, MX27_INT_CSPI3);
 #endif
 
