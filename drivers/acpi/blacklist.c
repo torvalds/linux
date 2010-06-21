@@ -214,7 +214,7 @@ static struct dmi_system_id acpi_osi_dmi_table[] __initdata = {
 	.ident = "Sony VGN-SR290J",
 	.matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
-		     DMI_MATCH(DMI_PRODUCT_NAME, "Sony VGN-SR290J"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "VGN-SR290J"),
 		},
 	},
 	{
