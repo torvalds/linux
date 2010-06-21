@@ -2470,6 +2470,21 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 			wake_up_session_caps(s, 1);
 		}
 	}
+
+	for (i = 0; i < newmap->m_max_mds && i < mdsc->max_sessions; i++) {
+		s = mdsc->sessions[i];
+		if (!s)
+			continue;
+		if (!ceph_mdsmap_is_laggy(newmap, i))
+			continue;
+		if (s->s_state == CEPH_MDS_SESSION_OPEN ||
+		    s->s_state == CEPH_MDS_SESSION_HUNG ||
+		    s->s_state == CEPH_MDS_SESSION_CLOSING) {
+			dout(" connecting to export targets of laggy mds%d\n",
+			     i);
+			__open_export_target_sessions(mdsc, s);
+		}
+	}
 }
 
 
