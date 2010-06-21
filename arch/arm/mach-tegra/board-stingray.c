@@ -35,6 +35,7 @@
 #include <asm/setup.h>
 
 #include <mach/io.h>
+#include <mach/w1.h>
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
@@ -317,6 +318,28 @@ static struct platform_device bcm4329_rfkill = {
 	.id = -1,
 };
 
+static struct tegra_w1_timings tegra_w1_platform_timings = {
+	.tsu = 0x1,
+	.trelease = 0xf,
+	.trdv = 0xf,
+	.tlow0 = 0x3c,
+	.tlow1 = 0x1,
+	.tslot = 0x77,
+
+	.tpdl = 0x78,
+	.tpdh = 0x1e,
+	.trstl = 0x1df,
+	.trsth = 0x1df,
+
+	.rdsclk = 0x7,
+	.psclk = 0x50,
+};
+
+static struct tegra_w1_platform_data tegra_w1_pdata = {
+	.clk_id = NULL,
+	.timings = &tegra_w1_platform_timings,
+};
+
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&tegra_otg,
@@ -412,6 +435,11 @@ static int __init parse_tag_bdaddr(const struct tag *tag)
 
 __tagtable(ATAG_BDADDR, parse_tag_bdaddr);
 
+static void stingray_w1_init(void)
+{
+	tegra_w1_device.dev.platform_data = &tegra_w1_pdata;
+	platform_device_register(&tegra_w1_device);
+}
 
 static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
@@ -521,6 +549,7 @@ static void __init tegra_stingray_init(void)
 	stingray_spi_init();
 	stingray_panel_init();
 	stingray_sdhci_init();
+	stingray_w1_init();
 	stingray_sensors_init();
 	stingray_wlan_init();
 }
