@@ -305,11 +305,15 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 	 */
 	if (ah->config.pcieSerDesWrite) {
 		unsigned int i;
+		struct ar5416IniArray *array;
 
-		for (i = 0; i < ah->iniPcieSerdesLowPower.ia_rows; i++) {
+		array = power_off ? &ah->iniPcieSerdes :
+				    &ah->iniPcieSerdesLowPower;
+
+		for (i = 0; i < array->ia_rows; i++) {
 			REG_WRITE(ah,
-				  INI_RA(&ah->iniPcieSerdesLowPower, i, 0),
-				  INI_RA(&ah->iniPcieSerdesLowPower, i, 1));
+				  INI_RA(array, i, 0),
+				  INI_RA(array, i, 1));
 		}
 	}
 }
