@@ -3104,6 +3104,11 @@ static int receive_uuids(struct drbd_conf *mdev, struct p_header *h)
 			drbd_md_sync(mdev);
 		}
 		put_ldev(mdev);
+	} else if (mdev->state.disk < D_INCONSISTENT &&
+		   mdev->state.role == R_PRIMARY) {
+		/* I am a diskless primary, the peer just created a new current UUID
+		   for me. */
+		drbd_set_ed_uuid(mdev, p_uuid[UI_CURRENT]);
 	}
 
 	/* Before we test for the disk state, we should wait until an eventually
