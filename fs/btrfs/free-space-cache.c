@@ -23,9 +23,164 @@
 #include "ctree.h"
 #include "free-space-cache.h"
 #include "transaction.h"
+#include "disk-io.h"
 
 #define BITS_PER_BITMAP		(PAGE_CACHE_SIZE * 8)
 #define MAX_CACHE_BYTES_PER_GIG	(32 * 1024)
+
+struct inode *lookup_free_space_inode(struct btrfs_root *root,
+				      struct btrfs_block_group_cache
+				      *block_group, struct btrfs_path *path)
+{
+	struct btrfs_key key;
+	struct btrfs_key location;
+	struct btrfs_disk_key disk_key;
+	struct btrfs_free_space_header *header;
+	struct extent_buffer *leaf;
+	struct inode *inode = NULL;
+	int ret;
+
+	spin_lock(&block_group->lock);
+	if (block_group->inode)
+		inode = igrab(block_group->inode);
+	spin_unlock(&block_group->lock);
+	if (inode)
+		return inode;
+
+	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
+	key.offset = block_group->key.objectid;
+	key.type = 0;
+
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		return ERR_PTR(ret);
+	if (ret > 0) {
+		btrfs_release_path(root, path);
+		return ERR_PTR(-ENOENT);
+	}
+
+	leaf = path->nodes[0];
+	header = btrfs_item_ptr(leaf, path->slots[0],
+				struct btrfs_free_space_header);
+	btrfs_free_space_key(leaf, header, &disk_key);
+	btrfs_disk_key_to_cpu(&location, &disk_key);
+	btrfs_release_path(root, path);
+
+	inode = btrfs_iget(root->fs_info->sb, &location, root, NULL);
+	if (!inode)
+		return ERR_PTR(-ENOENT);
+	if (IS_ERR(inode))
+		return inode;
+	if (is_bad_inode(inode)) {
+		iput(inode);
+		return ERR_PTR(-ENOENT);
+	}
+
+	spin_lock(&block_group->lock);
+	if (!root->fs_info->closing) {
+		block_group->inode = igrab(inode);
+		block_group->iref = 1;
+	}
+	spin_unlock(&block_group->lock);
+
+	return inode;
+}
+
+int create_free_space_inode(struct btrfs_root *root,
+			    struct btrfs_trans_handle *trans,
+			    struct btrfs_block_group_cache *block_group,
+			    struct btrfs_path *path)
+{
+	struct btrfs_key key;
+	struct btrfs_disk_key disk_key;
+	struct btrfs_free_space_header *header;
+	struct btrfs_inode_item *inode_item;
+	struct extent_buffer *leaf;
+	u64 objectid;
+	int ret;
+
+	ret = btrfs_find_free_objectid(trans, root, 0, &objectid);
+	if (ret < 0)
+		return ret;
+
+	ret = btrfs_insert_empty_inode(trans, root, path, objectid);
+	if (ret)
+		return ret;
+
+	leaf = path->nodes[0];
+	inode_item = btrfs_item_ptr(leaf, path->slots[0],
+				    struct btrfs_inode_item);
+	btrfs_item_key(leaf, &disk_key, path->slots[0]);
+	memset_extent_buffer(leaf, 0, (unsigned long)inode_item,
+			     sizeof(*inode_item));
+	btrfs_set_inode_generation(leaf, inode_item, trans->transid);
+	btrfs_set_inode_size(leaf, inode_item, 0);
+	btrfs_set_inode_nbytes(leaf, inode_item, 0);
+	btrfs_set_inode_uid(leaf, inode_item, 0);
+	btrfs_set_inode_gid(leaf, inode_item, 0);
+	btrfs_set_inode_mode(leaf, inode_item, S_IFREG | 0600);
+	btrfs_set_inode_flags(leaf, inode_item, BTRFS_INODE_NOCOMPRESS |
+			      BTRFS_INODE_PREALLOC | BTRFS_INODE_NODATASUM);
+	btrfs_set_inode_nlink(leaf, inode_item, 1);
+	btrfs_set_inode_transid(leaf, inode_item, trans->transid);
+	btrfs_set_inode_block_group(leaf, inode_item,
+				    block_group->key.objectid);
+	btrfs_mark_buffer_dirty(leaf);
+	btrfs_release_path(root, path);
+
+	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
+	key.offset = block_group->key.objectid;
+	key.type = 0;
+
+	ret = btrfs_insert_empty_item(trans, root, path, &key,
+				      sizeof(struct btrfs_free_space_header));
+	if (ret < 0) {
+		btrfs_release_path(root, path);
+		return ret;
+	}
+	leaf = path->nodes[0];
+	header = btrfs_item_ptr(leaf, path->slots[0],
+				struct btrfs_free_space_header);
+	memset_extent_buffer(leaf, 0, (unsigned long)header, sizeof(*header));
+	btrfs_set_free_space_key(leaf, header, &disk_key);
+	btrfs_mark_buffer_dirty(leaf);
+	btrfs_release_path(root, path);
+
+	return 0;
+}
+
+int btrfs_truncate_free_space_cache(struct btrfs_root *root,
+				    struct btrfs_trans_handle *trans,
+				    struct btrfs_path *path,
+				    struct inode *inode)
+{
+	loff_t oldsize;
+	int ret = 0;
+
+	trans->block_rsv = root->orphan_block_rsv;
+	ret = btrfs_block_rsv_check(trans, root,
+				    root->orphan_block_rsv,
+				    0, 5);
+	if (ret)
+		return ret;
+
+	oldsize = i_size_read(inode);
+	btrfs_i_size_write(inode, 0);
+	truncate_pagecache(inode, oldsize, 0);
+
+	/*
+	 * We don't need an orphan item because truncating the free space cache
+	 * will never be split across transactions.
+	 */
+	ret = btrfs_truncate_inode_items(trans, root, inode,
+					 0, BTRFS_EXTENT_DATA_KEY);
+	if (ret) {
+		WARN_ON(1);
+		return ret;
+	}
+
+	return btrfs_update_inode(trans, root, inode);
+}
 
 static inline unsigned long offset_to_bit(u64 bitmap_start, u64 sectorsize,
 					  u64 offset)

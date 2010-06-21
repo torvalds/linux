@@ -68,7 +68,7 @@ enum {
 	Opt_nodatacow, Opt_max_inline, Opt_alloc_start, Opt_nobarrier, Opt_ssd,
 	Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl, Opt_compress,
 	Opt_compress_force, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
-	Opt_discard, Opt_err,
+	Opt_discard, Opt_space_cache, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -92,6 +92,7 @@ static match_table_t tokens = {
 	{Opt_flushoncommit, "flushoncommit"},
 	{Opt_ratio, "metadata_ratio=%d"},
 	{Opt_discard, "discard"},
+	{Opt_space_cache, "space_cache"},
 	{Opt_err, NULL},
 };
 
@@ -234,6 +235,10 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_discard:
 			btrfs_set_opt(info->mount_opt, DISCARD);
+			break;
+		case Opt_space_cache:
+			printk(KERN_INFO "btrfs: enabling disk space caching\n");
+			btrfs_set_opt(info->mount_opt, SPACE_CACHE);
 			break;
 		case Opt_err:
 			printk(KERN_INFO "btrfs: unrecognized mount option "

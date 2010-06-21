@@ -2688,6 +2688,109 @@ next_block_group(struct btrfs_root *root,
 	return cache;
 }
 
+static int cache_save_setup(struct btrfs_block_group_cache *block_group,
+			    struct btrfs_trans_handle *trans,
+			    struct btrfs_path *path)
+{
+	struct btrfs_root *root = block_group->fs_info->tree_root;
+	struct inode *inode = NULL;
+	u64 alloc_hint = 0;
+	int num_pages = 0;
+	int retries = 0;
+	int ret = 0;
+
+	/*
+	 * If this block group is smaller than 100 megs don't bother caching the
+	 * block group.
+	 */
+	if (block_group->key.offset < (100 * 1024 * 1024)) {
+		spin_lock(&block_group->lock);
+		block_group->disk_cache_state = BTRFS_DC_WRITTEN;
+		spin_unlock(&block_group->lock);
+		return 0;
+	}
+
+again:
+	inode = lookup_free_space_inode(root, block_group, path);
+	if (IS_ERR(inode) && PTR_ERR(inode) != -ENOENT) {
+		ret = PTR_ERR(inode);
+		btrfs_release_path(root, path);
+		goto out;
+	}
+
+	if (IS_ERR(inode)) {
+		BUG_ON(retries);
+		retries++;
+
+		if (block_group->ro)
+			goto out_free;
+
+		ret = create_free_space_inode(root, trans, block_group, path);
+		if (ret)
+			goto out_free;
+		goto again;
+	}
+
+	/*
+	 * We want to set the generation to 0, that way if anything goes wrong
+	 * from here on out we know not to trust this cache when we load up next
+	 * time.
+	 */
+	BTRFS_I(inode)->generation = 0;
+	ret = btrfs_update_inode(trans, root, inode);
+	WARN_ON(ret);
+
+	if (i_size_read(inode) > 0) {
+		ret = btrfs_truncate_free_space_cache(root, trans, path,
+						      inode);
+		if (ret)
+			goto out_put;
+	}
+
+	spin_lock(&block_group->lock);
+	if (block_group->cached != BTRFS_CACHE_FINISHED) {
+		spin_unlock(&block_group->lock);
+		goto out_put;
+	}
+	spin_unlock(&block_group->lock);
+
+	num_pages = (int)div64_u64(block_group->key.offset, 1024 * 1024 * 1024);
+	if (!num_pages)
+		num_pages = 1;
+
+	/*
+	 * Just to make absolutely sure we have enough space, we're going to
+	 * preallocate 12 pages worth of space for each block group.  In
+	 * practice we ought to use at most 8, but we need extra space so we can
+	 * add our header and have a terminator between the extents and the
+	 * bitmaps.
+	 */
+	num_pages *= 16;
+	num_pages *= PAGE_CACHE_SIZE;
+
+	ret = btrfs_check_data_free_space(inode, num_pages);
+	if (ret)
+		goto out_put;
+
+	ret = btrfs_prealloc_file_range_trans(inode, trans, 0, 0, num_pages,
+					      num_pages, num_pages,
+					      &alloc_hint);
+	btrfs_free_reserved_data_space(inode, num_pages);
+out_put:
+	iput(inode);
+out_free:
+	btrfs_release_path(root, path);
+out:
+	spin_lock(&block_group->lock);
+	if (ret)
+		block_group->disk_cache_state = BTRFS_DC_ERROR;
+	else
+		block_group->disk_cache_state = BTRFS_DC_SETUP;
+	spin_unlock(&block_group->lock);
+
+	return ret;
+}
+
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
@@ -2700,6 +2803,25 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 	if (!path)
 		return -ENOMEM;
 
+again:
+	while (1) {
+		cache = btrfs_lookup_first_block_group(root->fs_info, last);
+		while (cache) {
+			if (cache->disk_cache_state == BTRFS_DC_CLEAR)
+				break;
+			cache = next_block_group(root, cache);
+		}
+		if (!cache) {
+			if (last == 0)
+				break;
+			last = 0;
+			continue;
+		}
+		err = cache_save_setup(cache, trans, path);
+		last = cache->key.objectid + cache->key.offset;
+		btrfs_put_block_group(cache);
+	}
+
 	while (1) {
 		if (last == 0) {
 			err = btrfs_run_delayed_refs(trans, root,
@@ -2709,6 +2831,11 @@ int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans,
 
 		cache = btrfs_lookup_first_block_group(root->fs_info, last);
 		while (cache) {
+			if (cache->disk_cache_state == BTRFS_DC_CLEAR) {
+				btrfs_put_block_group(cache);
+				goto again;
+			}
+
 			if (cache->dirty)
 				break;
 			cache = next_block_group(root, cache);
@@ -2883,10 +3010,15 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
 	struct btrfs_space_info *data_sinfo;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 used;
-	int ret = 0, committed = 0;
+	int ret = 0, committed = 0, alloc_chunk = 1;
 
 	/* make sure bytes are sectorsize aligned */
 	bytes = (bytes + root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
+
+	if (root == root->fs_info->tree_root) {
+		alloc_chunk = 0;
+		committed = 1;
+	}
 
 	data_sinfo = BTRFS_I(inode)->space_info;
 	if (!data_sinfo)
@@ -2906,7 +3038,7 @@ again:
 		 * if we don't have enough free bytes in this space then we need
 		 * to alloc a new chunk.
 		 */
-		if (!data_sinfo->full) {
+		if (!data_sinfo->full && alloc_chunk) {
 			u64 alloc_target;
 
 			data_sinfo->force_alloc = 1;
@@ -3777,12 +3909,12 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			      struct btrfs_root *root,
 			      u64 bytenr, u64 num_bytes, int alloc)
 {
-	struct btrfs_block_group_cache *cache;
+	struct btrfs_block_group_cache *cache = NULL;
 	struct btrfs_fs_info *info = root->fs_info;
-	int factor;
 	u64 total = num_bytes;
 	u64 old_val;
 	u64 byte_in_group;
+	int factor;
 
 	/* block accounting for super block */
 	spin_lock(&info->delalloc_lock);
@@ -3804,11 +3936,17 @@ static int update_block_group(struct btrfs_trans_handle *trans,
 			factor = 2;
 		else
 			factor = 1;
+
 		byte_in_group = bytenr - cache->key.objectid;
 		WARN_ON(byte_in_group > cache->key.offset);
 
 		spin_lock(&cache->space_info->lock);
 		spin_lock(&cache->lock);
+
+		if (btrfs_super_cache_generation(&info->super_copy) != 0 &&
+		    cache->disk_cache_state < BTRFS_DC_CLEAR)
+			cache->disk_cache_state = BTRFS_DC_CLEAR;
+
 		cache->dirty = 1;
 		old_val = btrfs_block_group_used(&cache->item);
 		num_bytes = min(total, cache->key.offset - byte_in_group);
@@ -7814,6 +7952,40 @@ out:
 	return ret;
 }
 
+void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
+{
+	struct btrfs_block_group_cache *block_group;
+	u64 last = 0;
+
+	while (1) {
+		struct inode *inode;
+
+		block_group = btrfs_lookup_first_block_group(info, last);
+		while (block_group) {
+			spin_lock(&block_group->lock);
+			if (block_group->iref)
+				break;
+			spin_unlock(&block_group->lock);
+			block_group = next_block_group(info->tree_root,
+						       block_group);
+		}
+		if (!block_group) {
+			if (last == 0)
+				break;
+			last = 0;
+			continue;
+		}
+
+		inode = block_group->inode;
+		block_group->iref = 0;
+		block_group->inode = NULL;
+		spin_unlock(&block_group->lock);
+		iput(inode);
+		last = block_group->key.objectid + block_group->key.offset;
+		btrfs_put_block_group(block_group);
+	}
+}
+
 int btrfs_free_block_groups(struct btrfs_fs_info *info)
 {
 	struct btrfs_block_group_cache *block_group;
@@ -7897,6 +8069,8 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	struct btrfs_key key;
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
+	int need_clear = 0;
+	u64 cache_gen;
 
 	root = info->extent_root;
 	key.objectid = 0;
@@ -7905,6 +8079,11 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+
+	cache_gen = btrfs_super_cache_generation(&root->fs_info->super_copy);
+	if (cache_gen != 0 &&
+	    btrfs_super_generation(&root->fs_info->super_copy) != cache_gen)
+		need_clear = 1;
 
 	while (1) {
 		ret = find_first_block_group(root, path, &key);
@@ -7927,6 +8106,9 @@ int btrfs_read_block_groups(struct btrfs_root *root)
 		cache->fs_info = info;
 		INIT_LIST_HEAD(&cache->list);
 		INIT_LIST_HEAD(&cache->cluster_list);
+
+		if (need_clear)
+			cache->disk_cache_state = BTRFS_DC_CLEAR;
 
 		/*
 		 * we only want to have 32k of ram per block group for keeping
@@ -8032,6 +8214,7 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 	cache->key.offset = size;
 	cache->key.type = BTRFS_BLOCK_GROUP_ITEM_KEY;
 	cache->sectorsize = root->sectorsize;
+	cache->fs_info = root->fs_info;
 
 	/*
 	 * we only want to have 32k of ram per block group for keeping track
@@ -8088,7 +8271,9 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct btrfs_block_group_cache *block_group;
 	struct btrfs_free_cluster *cluster;
+	struct btrfs_root *tree_root = root->fs_info->tree_root;
 	struct btrfs_key key;
+	struct inode *inode;
 	int ret;
 
 	root = root->fs_info->extent_root;
@@ -8096,8 +8281,6 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	block_group = btrfs_lookup_block_group(root->fs_info, group_start);
 	BUG_ON(!block_group);
 	BUG_ON(!block_group->ro);
-
-	memcpy(&key, &block_group->key, sizeof(key));
 
 	/* make sure this block group isn't part of an allocation cluster */
 	cluster = &root->fs_info->data_alloc_cluster;
@@ -8116,6 +8299,40 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+
+	inode = lookup_free_space_inode(root, block_group, path);
+	if (!IS_ERR(inode)) {
+		btrfs_orphan_add(trans, inode);
+		clear_nlink(inode);
+		/* One for the block groups ref */
+		spin_lock(&block_group->lock);
+		if (block_group->iref) {
+			block_group->iref = 0;
+			block_group->inode = NULL;
+			spin_unlock(&block_group->lock);
+			iput(inode);
+		} else {
+			spin_unlock(&block_group->lock);
+		}
+		/* One for our lookup ref */
+		iput(inode);
+	}
+
+	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
+	key.offset = block_group->key.objectid;
+	key.type = 0;
+
+	ret = btrfs_search_slot(trans, tree_root, &key, path, -1, 1);
+	if (ret < 0)
+		goto out;
+	if (ret > 0)
+		btrfs_release_path(tree_root, path);
+	if (ret == 0) {
+		ret = btrfs_del_item(trans, tree_root, path);
+		if (ret)
+			goto out;
+		btrfs_release_path(tree_root, path);
+	}
 
 	spin_lock(&root->fs_info->block_group_cache_lock);
 	rb_erase(&block_group->cache_node,
@@ -8139,6 +8356,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	block_group->space_info->total_bytes -= block_group->key.offset;
 	block_group->space_info->bytes_readonly -= block_group->key.offset;
 	spin_unlock(&block_group->space_info->lock);
+
+	memcpy(&key, &block_group->key, sizeof(key));
 
 	btrfs_clear_space_info_full(root->fs_info);
 

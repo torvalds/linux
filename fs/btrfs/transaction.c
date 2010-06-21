@@ -163,6 +163,7 @@ enum btrfs_trans_type {
 	TRANS_START,
 	TRANS_JOIN,
 	TRANS_USERSPACE,
+	TRANS_JOIN_NOLOCK,
 };
 
 static int may_wait_transaction(struct btrfs_root *root, int type)
@@ -186,7 +187,8 @@ again:
 	if (!h)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_lock(&root->fs_info->trans_mutex);
 	if (may_wait_transaction(root, type))
 		wait_current_trans(root);
 
@@ -195,7 +197,8 @@ again:
 
 	cur_trans = root->fs_info->running_transaction;
 	cur_trans->use_count++;
-	mutex_unlock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_unlock(&root->fs_info->trans_mutex);
 
 	h->transid = cur_trans->transid;
 	h->transaction = cur_trans;
@@ -224,9 +227,11 @@ again:
 		}
 	}
 
-	mutex_lock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_lock(&root->fs_info->trans_mutex);
 	record_root_in_trans(h, root);
-	mutex_unlock(&root->fs_info->trans_mutex);
+	if (type != TRANS_JOIN_NOLOCK)
+		mutex_unlock(&root->fs_info->trans_mutex);
 
 	if (!current->journal_info && type != TRANS_USERSPACE)
 		current->journal_info = h;
@@ -242,6 +247,12 @@ struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root,
 						   int num_blocks)
 {
 	return start_transaction(root, 0, TRANS_JOIN);
+}
+
+struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root,
+							  int num_blocks)
+{
+	return start_transaction(root, 0, TRANS_JOIN_NOLOCK);
 }
 
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
@@ -348,7 +359,7 @@ int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
 }
 
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
-			  struct btrfs_root *root, int throttle)
+			  struct btrfs_root *root, int throttle, int lock)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
@@ -376,18 +387,19 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_metadata(trans, root);
 
-	if (!root->fs_info->open_ioctl_trans &&
+	if (lock && !root->fs_info->open_ioctl_trans &&
 	    should_end_transaction(trans, root))
 		trans->transaction->blocked = 1;
 
-	if (cur_trans->blocked && !cur_trans->in_commit) {
+	if (lock && cur_trans->blocked && !cur_trans->in_commit) {
 		if (throttle)
 			return btrfs_commit_transaction(trans, root);
 		else
 			wake_up_process(info->transaction_kthread);
 	}
 
-	mutex_lock(&info->trans_mutex);
+	if (lock)
+		mutex_lock(&info->trans_mutex);
 	WARN_ON(cur_trans != info->running_transaction);
 	WARN_ON(cur_trans->num_writers < 1);
 	cur_trans->num_writers--;
@@ -395,7 +407,8 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	if (waitqueue_active(&cur_trans->writer_wait))
 		wake_up(&cur_trans->writer_wait);
 	put_transaction(cur_trans);
-	mutex_unlock(&info->trans_mutex);
+	if (lock)
+		mutex_unlock(&info->trans_mutex);
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
@@ -411,13 +424,19 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 0);
+	return __btrfs_end_transaction(trans, root, 0, 1);
 }
 
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
-	return __btrfs_end_transaction(trans, root, 1);
+	return __btrfs_end_transaction(trans, root, 1, 1);
+}
+
+int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root)
+{
+	return __btrfs_end_transaction(trans, root, 0, 0);
 }
 
 /*
@@ -966,6 +985,8 @@ static void update_super_roots(struct btrfs_root *root)
 	super->root = root_item->bytenr;
 	super->generation = root_item->generation;
 	super->root_level = root_item->level;
+	if (super->cache_generation != 0 || btrfs_test_opt(root, SPACE_CACHE))
+		super->cache_generation = root_item->generation;
 }
 
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info)

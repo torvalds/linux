@@ -29,6 +29,7 @@
 #include "locking.h"
 #include "btrfs_inode.h"
 #include "async-thread.h"
+#include "free-space-cache.h"
 
 /*
  * backref_node, mapping_node and tree_block start with this
@@ -3191,6 +3192,54 @@ static int block_use_full_backref(struct reloc_control *rc,
 	return ret;
 }
 
+static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
+				    struct inode *inode, u64 ino)
+{
+	struct btrfs_key key;
+	struct btrfs_path *path;
+	struct btrfs_root *root = fs_info->tree_root;
+	struct btrfs_trans_handle *trans;
+	unsigned long nr;
+	int ret = 0;
+
+	if (inode)
+		goto truncate;
+
+	key.objectid = ino;
+	key.type = BTRFS_INODE_ITEM_KEY;
+	key.offset = 0;
+
+	inode = btrfs_iget(fs_info->sb, &key, root, NULL);
+	if (!inode || IS_ERR(inode) || is_bad_inode(inode)) {
+		if (inode && !IS_ERR(inode))
+			iput(inode);
+		return -ENOENT;
+	}
+
+truncate:
+	path = btrfs_alloc_path();
+	if (!path) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	trans = btrfs_join_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		btrfs_free_path(path);
+		goto out;
+	}
+
+	ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
+
+	btrfs_free_path(path);
+	nr = trans->blocks_used;
+	btrfs_end_transaction(trans, root);
+	btrfs_btree_balance_dirty(root, nr);
+out:
+	iput(inode);
+	return ret;
+}
+
 /*
  * helper to add tree blocks for backref of type BTRFS_EXTENT_DATA_REF_KEY
  * this function scans fs tree to find blocks reference the data extent
@@ -3217,14 +3266,26 @@ static int find_data_references(struct reloc_control *rc,
 	int counted;
 	int ret;
 
-	path = btrfs_alloc_path();
-	if (!path)
-		return -ENOMEM;
-
 	ref_root = btrfs_extent_data_ref_root(leaf, ref);
 	ref_objectid = btrfs_extent_data_ref_objectid(leaf, ref);
 	ref_offset = btrfs_extent_data_ref_offset(leaf, ref);
 	ref_count = btrfs_extent_data_ref_count(leaf, ref);
+
+	/*
+	 * This is an extent belonging to the free space cache, lets just delete
+	 * it and redo the search.
+	 */
+	if (ref_root == BTRFS_ROOT_TREE_OBJECTID) {
+		ret = delete_block_group_cache(rc->extent_root->fs_info,
+					       NULL, ref_objectid);
+		if (ret != -ENOENT)
+			return ret;
+		ret = 0;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
 
 	root = read_fs_root(rc->extent_root->fs_info, ref_root);
 	if (IS_ERR(root)) {
@@ -3860,6 +3921,8 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 {
 	struct btrfs_fs_info *fs_info = extent_root->fs_info;
 	struct reloc_control *rc;
+	struct inode *inode;
+	struct btrfs_path *path;
 	int ret;
 	int rw = 0;
 	int err = 0;
@@ -3880,6 +3943,26 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 			goto out;
 		}
 		rw = 1;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	inode = lookup_free_space_inode(fs_info->tree_root, rc->block_group,
+					path);
+	btrfs_free_path(path);
+
+	if (!IS_ERR(inode))
+		ret = delete_block_group_cache(fs_info, inode, 0);
+	else
+		ret = PTR_ERR(inode);
+
+	if (ret && ret != -ENOENT) {
+		err = ret;
+		goto out;
 	}
 
 	rc->data_inode = create_reloc_inode(fs_info, rc->block_group);

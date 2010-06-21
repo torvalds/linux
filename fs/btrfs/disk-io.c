@@ -1685,7 +1685,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
-
 	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
 	if (!bh)
 		goto fail_iput;
@@ -1993,6 +1992,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!(sb->s_flags & MS_RDONLY)) {
 		down_read(&fs_info->cleanup_work_sem);
 		btrfs_orphan_cleanup(fs_info->fs_root);
+		btrfs_orphan_cleanup(fs_info->tree_root);
 		up_read(&fs_info->cleanup_work_sem);
 	}
 
@@ -2421,6 +2421,7 @@ int close_ctree(struct btrfs_root *root)
 	fs_info->closing = 1;
 	smp_mb();
 
+	btrfs_put_block_group_cache(fs_info);
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
 		ret =  btrfs_commit_super(root);
 		if (ret)
