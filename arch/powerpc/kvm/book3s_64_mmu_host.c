@@ -132,26 +132,6 @@ void kvmppc_mmu_pte_pflush(struct kvm_vcpu *vcpu, ulong pa_start, ulong pa_end)
 	}
 }
 
-struct kvmppc_pte *kvmppc_mmu_find_pte(struct kvm_vcpu *vcpu, u64 ea, bool data)
-{
-	int i;
-	u64 guest_vp;
-
-	guest_vp = vcpu->arch.mmu.ea_to_vp(vcpu, ea, false);
-	for (i=0; i<vcpu->arch.hpte_cache_offset; i++) {
-		struct hpte_cache *pte;
-
-		pte = &vcpu->arch.hpte_cache[i];
-		if (!pte->host_va)
-			continue;
-
-		if (pte->pte.vpage == guest_vp)
-			return &pte->pte;
-	}
-
-	return NULL;
-}
-
 static int kvmppc_mmu_hpte_cache_next(struct kvm_vcpu *vcpu)
 {
 	if (vcpu->arch.hpte_cache_offset == HPTEG_CACHE_NUM)
