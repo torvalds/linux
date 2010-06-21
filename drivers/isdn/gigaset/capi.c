@@ -80,6 +80,7 @@ struct gigaset_capi_appl {
 	struct list_head ctrlist;
 	struct gigaset_capi_appl *bcnext;
 	u16 id;
+	struct capi_register_params rp;
 	u16 nextMessageNumber;
 	u32 listenInfoMask;
 	u32 listenCIPmask;
@@ -945,6 +946,7 @@ static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
 		return;
 	}
 	ap->id = appl;
+	ap->rp = *rp;
 
 	list_add(&ap->ctrlist, &iif->appls);
 }
@@ -1166,6 +1168,9 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	}
 	ap->bcnext = NULL;
 	bcs->ap = ap;
+	bcs->rx_bufsize = ap->rp.datablklen;
+	dev_kfree_skb(bcs->rx_skb);
+	gigaset_new_rx_skb(bcs);
 	cmsg->adr.adrPLCI |= (bcs->channel + 1) << 8;
 
 	/* build command table */
@@ -1435,6 +1440,9 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 					CapiCallGivenToOtherApplication);
 		ap->bcnext = NULL;
 		bcs->ap = ap;
+		bcs->rx_bufsize = ap->rp.datablklen;
+		dev_kfree_skb(bcs->rx_skb);
+		gigaset_new_rx_skb(bcs);
 		bcs->chstate |= CHS_NOTIFY_LL;
 
 		/* check/encode B channel protocol */
