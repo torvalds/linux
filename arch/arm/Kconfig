@@ -955,7 +955,8 @@ config XSCALE_PMU
 	default y
 
 config CPU_HAS_PMU
-	depends on CPU_V6 || CPU_V7 || XSCALE_PMU
+	depends on (CPU_V6 || CPU_V7 || XSCALE_PMU) && \
+		   (!ARCH_OMAP3 || OMAP3_EMU)
 	default y
 	bool
 
