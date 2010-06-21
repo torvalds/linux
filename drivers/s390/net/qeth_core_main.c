@@ -32,8 +32,6 @@ struct qeth_dbf_info qeth_dbf[QETH_DBF_INFOS] = {
 	/*                   N  P  A    M  L  V                      H  */
 	[QETH_DBF_SETUP] = {"qeth_setup",
 				8, 1,   8, 5, &debug_hex_ascii_view, NULL},
-	[QETH_DBF_QERR]  = {"qeth_qerr",
-				2, 1,   8, 2, &debug_hex_ascii_view, NULL},
 	[QETH_DBF_MSG]   = {"qeth_msg",
 				8, 1, 128, 3, &debug_sprintf_view,   NULL},
 	[QETH_DBF_CTRL]  = {"qeth_control",
@@ -2641,12 +2639,11 @@ int qeth_check_qdio_errors(struct qeth_card *card, struct qdio_buffer *buf,
 {
 	if (qdio_error) {
 		QETH_CARD_TEXT(card, 2, dbftext);
-		QETH_DBF_TEXT(QERR, 2, dbftext);
-		QETH_DBF_TEXT_(QERR, 2, " F15=%02X",
+		QETH_CARD_TEXT_(card, 2, " F15=%02X",
 			       buf->element[15].flags & 0xff);
-		QETH_DBF_TEXT_(QERR, 2, " F14=%02X",
+		QETH_CARD_TEXT_(card, 2, " F14=%02X",
 			       buf->element[14].flags & 0xff);
-		QETH_DBF_TEXT_(QERR, 2, " qerr=%X", qdio_error);
+		QETH_CARD_TEXT_(card, 2, " qerr=%X", qdio_error);
 		if ((buf->element[15].flags & 0xff) == 0x12) {
 			card->stats.rx_dropped++;
 			return 0;
@@ -3201,7 +3198,7 @@ int qeth_do_send_packet_fast(struct qeth_card *card,
 			rc = dev_queue_xmit(skb);
 		} else {
 			dev_kfree_skb_any(skb);
-			QETH_DBF_TEXT(QERR, 2, "qrdrop");
+			QETH_CARD_TEXT(card, 2, "qrdrop");
 		}
 	}
 	return 0;
@@ -4112,9 +4109,6 @@ struct sk_buff *qeth_core_get_next_skb(struct qeth_card *card,
 		if (skb_len) {
 			if (qeth_is_last_sbale(element)) {
 				QETH_CARD_TEXT(card, 4, "unexeob");
-				QETH_DBF_TEXT(QERR, 2, "unexeob");
-				QETH_DBF_TEXT_(QERR, 2, "%s",
-					CARD_BUS_ID(card));
 				QETH_CARD_HEX(card, 2, buffer, sizeof(void *));
 				dev_kfree_skb_any(skb);
 				card->stats.rx_errors++;
