@@ -50,8 +50,7 @@ enum tomoyo_policy_id {
 	TOMOYO_ID_GROUP,
 	TOMOYO_ID_PATH_GROUP,
 	TOMOYO_ID_NUMBER_GROUP,
-	TOMOYO_ID_DOMAIN_INITIALIZER,
-	TOMOYO_ID_DOMAIN_KEEPER,
+	TOMOYO_ID_TRANSITION_CONTROL,
 	TOMOYO_ID_AGGREGATOR,
 	TOMOYO_ID_GLOBALLY_READABLE,
 	TOMOYO_ID_PATTERN,
@@ -96,6 +95,15 @@ enum tomoyo_group_id {
 #define TOMOYO_VALUE_TYPE_DECIMAL     1
 #define TOMOYO_VALUE_TYPE_OCTAL       2
 #define TOMOYO_VALUE_TYPE_HEXADECIMAL 3
+
+enum tomoyo_transition_type {
+	/* Do not change this order, */
+	TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE,
+	TOMOYO_TRANSITION_CONTROL_INITIALIZE,
+	TOMOYO_TRANSITION_CONTROL_NO_KEEP,
+	TOMOYO_TRANSITION_CONTROL_KEEP,
+	TOMOYO_MAX_TRANSITION_TYPE
+};
 
 /* Index numbers for Access Controls. */
 enum tomoyo_acl_entry_type_index {
@@ -619,50 +627,26 @@ struct tomoyo_no_rewrite_entry {
 };
 
 /*
- * tomoyo_domain_initializer_entry is a structure which is used for holding
- * "initialize_domain" and "no_initialize_domain" entries.
+ * tomoyo_transition_control is a structure which is used for holding
+ * "initialize_domain"/"no_initialize_domain"/"keep_domain"/"no_keep_domain"
+ * entries.
  * It has following fields.
  *
  *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "is_not" is a bool which is true if "no_initialize_domain", false
- *      otherwise.
- *  (3) "is_last_name" is a bool which is true if "domainname" is "the last
- *      component of a domainname", false otherwise.
- *  (4) "domainname" which is "a domainname" or "the last component of a
- *      domainname". This field is NULL if "from" clause is not specified.
- *  (5) "program" which is a program's pathname.
- */
-struct tomoyo_domain_initializer_entry {
-	struct tomoyo_acl_head head;
-	bool is_not;       /* True if this entry is "no_initialize_domain".  */
-	/* True if the domainname is tomoyo_get_last_name(). */
-	bool is_last_name;
-	const struct tomoyo_path_info *domainname;    /* This may be NULL */
-	const struct tomoyo_path_info *program;
-};
-
-/*
- * tomoyo_domain_keeper_entry is a structure which is used for holding
- * "keep_domain" and "no_keep_domain" entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "is_not" is a bool which is true if "no_initialize_domain", false
- *      otherwise.
+ *  (2) "type" is type of this entry.
  *  (3) "is_last_name" is a bool which is true if "domainname" is "the last
  *      component of a domainname", false otherwise.
  *  (4) "domainname" which is "a domainname" or "the last component of a
  *      domainname".
  *  (5) "program" which is a program's pathname.
- *      This field is NULL if "from" clause is not specified.
  */
-struct tomoyo_domain_keeper_entry {
+struct tomoyo_transition_control {
 	struct tomoyo_acl_head head;
-	bool is_not;       /* True if this entry is "no_keep_domain".        */
+	u8 type; /* One of values in "enum tomoyo_transition_type".  */
 	/* True if the domainname is tomoyo_get_last_name(). */
 	bool is_last_name;
-	const struct tomoyo_path_info *domainname;
-	const struct tomoyo_path_info *program;       /* This may be NULL */
+	const struct tomoyo_path_info *domainname; /* Maybe NULL */
+	const struct tomoyo_path_info *program;    /* Maybe NULL */
 };
 
 /*
@@ -793,15 +777,8 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 			    unsigned long flags, void *data_page);
 /* Create "aggregator" entry in exception policy. */
 int tomoyo_write_aggregator_policy(char *data, const bool is_delete);
-/*
- * Create "initialize_domain" and "no_initialize_domain" entry
- * in exception policy.
- */
-int tomoyo_write_domain_initializer_policy(char *data, const bool is_not,
-					   const bool is_delete);
-/* Create "keep_domain" and "no_keep_domain" entry in exception policy. */
-int tomoyo_write_domain_keeper_policy(char *data, const bool is_not,
-				      const bool is_delete);
+int tomoyo_write_transition_control(char *data, const bool is_delete,
+				    const u8 type);
 /*
  * Create "allow_read/write", "allow_execute", "allow_read", "allow_write",
  * "allow_create", "allow_unlink", "allow_mkdir", "allow_rmdir",
@@ -922,6 +899,7 @@ int tomoyo_update_policy(struct tomoyo_acl_head *new_entry, const int size,
 void tomoyo_check_acl(struct tomoyo_request_info *r,
 		      bool (*check_entry) (const struct tomoyo_request_info *,
 					   const struct tomoyo_acl_info *));
+const char *tomoyo_last_word(const char *name);
 
 /********** External variable definitions. **********/
 

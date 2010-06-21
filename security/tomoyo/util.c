@@ -844,7 +844,7 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
  *
  * Returns the last word of a line.
  */
-static const char *tomoyo_last_word(const char *name)
+const char *tomoyo_last_word(const char *name)
 {
 	const char *cp = strrchr(name, ' ');
 	if (cp)

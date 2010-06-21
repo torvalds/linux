@@ -1150,6 +1150,15 @@ static void tomoyo_read_pid(struct tomoyo_io_buffer *head)
 	}
 }
 
+static const char *tomoyo_transition_type[TOMOYO_MAX_TRANSITION_TYPE] = {
+	[TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE]
+	= TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN,
+	[TOMOYO_TRANSITION_CONTROL_INITIALIZE]
+	= TOMOYO_KEYWORD_INITIALIZE_DOMAIN,
+	[TOMOYO_TRANSITION_CONTROL_NO_KEEP] = TOMOYO_KEYWORD_NO_KEEP_DOMAIN,
+	[TOMOYO_TRANSITION_CONTROL_KEEP] = TOMOYO_KEYWORD_KEEP_DOMAIN
+};
+
 /**
  * tomoyo_write_exception_policy - Write exception policy.
  *
@@ -1163,18 +1172,13 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
 	bool is_delete = tomoyo_str_starts(&data, TOMOYO_KEYWORD_DELETE);
+	u8 i;
 
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_KEEP_DOMAIN))
-		return tomoyo_write_domain_keeper_policy(data, false,
-							 is_delete);
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_NO_KEEP_DOMAIN))
-		return tomoyo_write_domain_keeper_policy(data, true, is_delete);
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_INITIALIZE_DOMAIN))
-		return tomoyo_write_domain_initializer_policy(data, false,
-							      is_delete);
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN))
-		return tomoyo_write_domain_initializer_policy(data, true,
-							      is_delete);
+	for (i = 0; i < TOMOYO_MAX_TRANSITION_TYPE; i++) {
+		if (tomoyo_str_starts(&data, tomoyo_transition_type[i]))
+			return tomoyo_write_transition_control(data, is_delete,
+							       i);
+	}
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_AGGREGATOR))
 		return tomoyo_write_aggregator_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_READ))
@@ -1296,32 +1300,17 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 		if (acl->is_deleted)
 			continue;
 		switch (idx) {
-		case TOMOYO_ID_DOMAIN_KEEPER:
+		case TOMOYO_ID_TRANSITION_CONTROL:
 			{
-				struct tomoyo_domain_keeper_entry *ptr =
+				struct tomoyo_transition_control *ptr =
 					container_of(acl, typeof(*ptr), head);
-				w[0] = ptr->is_not ?
-					TOMOYO_KEYWORD_NO_KEEP_DOMAIN :
-					TOMOYO_KEYWORD_KEEP_DOMAIN;
-				if (ptr->program) {
+				w[0] = tomoyo_transition_type[ptr->type];
+				if (ptr->program)
 					w[1] = ptr->program->name;
-					w[2] = " from ";
-				}
-				w[3] = ptr->domainname->name;
-			}
-			break;
-		case TOMOYO_ID_DOMAIN_INITIALIZER:
-			{
-				struct tomoyo_domain_initializer_entry *ptr =
-					container_of(acl, typeof(*ptr), head);
-				w[0] = ptr->is_not ?
-					TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN :
-					TOMOYO_KEYWORD_INITIALIZE_DOMAIN;
-				w[1] = ptr->program->name;
-				if (ptr->domainname) {
-					w[2] = " from ";
+				if (ptr->domainname)
 					w[3] = ptr->domainname->name;
-				}
+				if (w[1][0] && w[3][0])
+					w[2] = " from ";
 			}
 			break;
 		case TOMOYO_ID_GLOBALLY_READABLE:

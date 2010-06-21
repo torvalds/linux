@@ -53,17 +53,9 @@ static void tomoyo_del_no_rewrite(struct list_head *element)
 	tomoyo_put_name(ptr->pattern);
 }
 
-static void tomoyo_del_domain_initializer(struct list_head *element)
+static void tomoyo_del_transition_control(struct list_head *element)
 {
-	struct tomoyo_domain_initializer_entry *ptr =
-		container_of(element, typeof(*ptr), head.list);
-	tomoyo_put_name(ptr->domainname);
-	tomoyo_put_name(ptr->program);
-}
-
-static void tomoyo_del_domain_keeper(struct list_head *element)
-{
-	struct tomoyo_domain_keeper_entry *ptr =
+	struct tomoyo_transition_control *ptr =
 		container_of(element, typeof(*ptr), head.list);
 	tomoyo_put_name(ptr->domainname);
 	tomoyo_put_name(ptr->program);
@@ -292,11 +284,8 @@ static void tomoyo_kfree_entry(void)
 	list_for_each_entry_safe(p, tmp, &tomoyo_gc_queue, list) {
 		struct list_head *element = p->element;
 		switch (p->type) {
-		case TOMOYO_ID_DOMAIN_INITIALIZER:
-			tomoyo_del_domain_initializer(element);
-			break;
-		case TOMOYO_ID_DOMAIN_KEEPER:
-			tomoyo_del_domain_keeper(element);
+		case TOMOYO_ID_TRANSITION_CONTROL:
+			tomoyo_del_transition_control(element);
 			break;
 		case TOMOYO_ID_AGGREGATOR:
 			tomoyo_del_aggregator(element);

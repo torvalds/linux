@@ -150,173 +150,39 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
 	return cp0;
 }
 
-static bool tomoyo_same_domain_initializer_entry(const struct tomoyo_acl_head *
+static bool tomoyo_same_transition_control_entry(const struct tomoyo_acl_head *
 						 a,
 						 const struct tomoyo_acl_head *
 						 b)
 {
-	const struct tomoyo_domain_initializer_entry *p1 =
-		container_of(a, typeof(*p1), head);
-	const struct tomoyo_domain_initializer_entry *p2 =
-		container_of(b, typeof(*p2), head);
-	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+	const struct tomoyo_transition_control *p1 = container_of(a,
+								  typeof(*p1),
+								  head);
+	const struct tomoyo_transition_control *p2 = container_of(b,
+								  typeof(*p2),
+								  head);
+	return p1->type == p2->type && p1->is_last_name == p2->is_last_name
 		&& p1->domainname == p2->domainname
 		&& p1->program == p2->program;
 }
 
 /**
- * tomoyo_update_domain_initializer_entry - Update "struct tomoyo_domain_initializer_entry" list.
+ * tomoyo_update_transition_control_entry - Update "struct tomoyo_transition_control" list.
  *
- * @domainname: The name of domain. May be NULL.
- * @program:    The name of program.
- * @is_not:     True if it is "no_initialize_domain" entry.
+ * @domainname: The name of domain. Maybe NULL.
+ * @program:    The name of program. Maybe NULL.
+ * @type:       Type of transition.
  * @is_delete:  True if it is a delete request.
  *
  * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
  */
-static int tomoyo_update_domain_initializer_entry(const char *domainname,
+static int tomoyo_update_transition_control_entry(const char *domainname,
 						  const char *program,
-						  const bool is_not,
+						  const u8 type,
 						  const bool is_delete)
 {
-	struct tomoyo_domain_initializer_entry e = { .is_not = is_not };
+	struct tomoyo_transition_control e = { .type = type };
 	int error = is_delete ? -ENOENT : -ENOMEM;
-
-	if (!tomoyo_correct_path(program))
-		return -EINVAL;
-	if (domainname) {
-		if (!tomoyo_domain_def(domainname) &&
-		    tomoyo_correct_path(domainname))
-			e.is_last_name = true;
-		else if (!tomoyo_correct_domain(domainname))
-			return -EINVAL;
-		e.domainname = tomoyo_get_name(domainname);
-		if (!e.domainname)
-			goto out;
-	}
-	e.program = tomoyo_get_name(program);
-	if (!e.program)
-		goto out;
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list
-				     [TOMOYO_ID_DOMAIN_INITIALIZER],
-				     tomoyo_same_domain_initializer_entry);
- out:
-	tomoyo_put_name(e.domainname);
-	tomoyo_put_name(e.program);
-	return error;
-}
-
-/**
- * tomoyo_write_domain_initializer_policy - Write "struct tomoyo_domain_initializer_entry" list.
- *
- * @data:      String to parse.
- * @is_not:    True if it is "no_initialize_domain" entry.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_write_domain_initializer_policy(char *data, const bool is_not,
-					   const bool is_delete)
-{
-	char *cp = strstr(data, " from ");
-
-	if (cp) {
-		*cp = '\0';
-		return tomoyo_update_domain_initializer_entry(cp + 6, data,
-							      is_not,
-							      is_delete);
-	}
-	return tomoyo_update_domain_initializer_entry(NULL, data, is_not,
-						      is_delete);
-}
-
-/**
- * tomoyo_domain_initializer - Check whether the given program causes domainname reinitialization.
- *
- * @domainname: The name of domain.
- * @program:    The name of program.
- * @last_name:  The last component of @domainname.
- *
- * Returns true if executing @program reinitializes domain transition,
- * false otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static bool tomoyo_domain_initializer(const struct tomoyo_path_info *
-					 domainname,
-					 const struct tomoyo_path_info *program,
-					 const struct tomoyo_path_info *
-					 last_name)
-{
-	struct tomoyo_domain_initializer_entry *ptr;
-	bool flag = false;
-
-	list_for_each_entry_rcu(ptr, &tomoyo_policy_list
-				[TOMOYO_ID_DOMAIN_INITIALIZER], head.list) {
-		if (ptr->head.is_deleted)
-			continue;
-		if (ptr->domainname) {
-			if (!ptr->is_last_name) {
-				if (ptr->domainname != domainname)
-					continue;
-			} else {
-				if (tomoyo_pathcmp(ptr->domainname, last_name))
-					continue;
-			}
-		}
-		if (tomoyo_pathcmp(ptr->program, program))
-			continue;
-		if (ptr->is_not) {
-			flag = false;
-			break;
-		}
-		flag = true;
-	}
-	return flag;
-}
-
-static bool tomoyo_same_domain_keeper_entry(const struct tomoyo_acl_head *a,
-					    const struct tomoyo_acl_head *b)
-{
-	const struct tomoyo_domain_keeper_entry *p1 =
-		container_of(a, typeof(*p1), head);
-	const struct tomoyo_domain_keeper_entry *p2 =
-		container_of(b, typeof(*p2), head);
-	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
-		&& p1->domainname == p2->domainname
-		&& p1->program == p2->program;
-}
-
-/**
- * tomoyo_update_domain_keeper_entry - Update "struct tomoyo_domain_keeper_entry" list.
- *
- * @domainname: The name of domain.
- * @program:    The name of program. May be NULL.
- * @is_not:     True if it is "no_keep_domain" entry.
- * @is_delete:  True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_update_domain_keeper_entry(const char *domainname,
-					     const char *program,
-					     const bool is_not,
-					     const bool is_delete)
-{
-	struct tomoyo_domain_keeper_entry e = { .is_not = is_not };
-	int error = is_delete ? -ENOENT : -ENOMEM;
-
-	if (!tomoyo_domain_def(domainname) &&
-	    tomoyo_correct_path(domainname))
-		e.is_last_name = true;
-	else if (!tomoyo_correct_domain(domainname))
-		return -EINVAL;
 	if (program) {
 		if (!tomoyo_correct_path(program))
 			return -EINVAL;
@@ -324,13 +190,20 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 		if (!e.program)
 			goto out;
 	}
-	e.domainname = tomoyo_get_name(domainname);
-	if (!e.domainname)
-		goto out;
+	if (domainname) {
+		if (!tomoyo_correct_domain(domainname)) {
+			if (!tomoyo_correct_path(domainname))
+				goto out;
+			e.is_last_name = true;
+		}
+		e.domainname = tomoyo_get_name(domainname);
+		if (!e.domainname)
+			goto out;
+	}
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
 				     &tomoyo_policy_list
-				     [TOMOYO_ID_DOMAIN_KEEPER],
-				     tomoyo_same_domain_keeper_entry);
+				     [TOMOYO_ID_TRANSITION_CONTROL],
+				     tomoyo_same_transition_control_entry);
  out:
 	tomoyo_put_name(e.domainname);
 	tomoyo_put_name(e.program);
@@ -338,67 +211,85 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 }
 
 /**
- * tomoyo_write_domain_keeper_policy - Write "struct tomoyo_domain_keeper_entry" list.
+ * tomoyo_write_transition_control - Write "struct tomoyo_transition_control" list.
  *
  * @data:      String to parse.
- * @is_not:    True if it is "no_keep_domain" entry.
  * @is_delete: True if it is a delete request.
+ * @type:      Type of this entry.
  *
- * Caller holds tomoyo_read_lock().
+ * Returns 0 on success, negative value otherwise.
  */
-int tomoyo_write_domain_keeper_policy(char *data, const bool is_not,
-				      const bool is_delete)
+int tomoyo_write_transition_control(char *data, const bool is_delete,
+				    const u8 type)
 {
-	char *cp = strstr(data, " from ");
-
-	if (cp) {
-		*cp = '\0';
-		return tomoyo_update_domain_keeper_entry(cp + 6, data, is_not,
-							 is_delete);
+	char *domainname = strstr(data, " from ");
+	if (domainname) {
+		*domainname = '\0';
+		domainname += 6;
+	} else if (type == TOMOYO_TRANSITION_CONTROL_NO_KEEP ||
+		   type == TOMOYO_TRANSITION_CONTROL_KEEP) {
+		domainname = data;
+		data = NULL;
 	}
-	return tomoyo_update_domain_keeper_entry(data, NULL, is_not, is_delete);
+	return tomoyo_update_transition_control_entry(domainname, data, type,
+						      is_delete);
 }
 
 /**
- * tomoyo_domain_keeper - Check whether the given program causes domain transition suppression.
+ * tomoyo_transition_type - Get domain transition type.
  *
  * @domainname: The name of domain.
  * @program:    The name of program.
- * @last_name:  The last component of @domainname.
  *
- * Returns true if executing @program supresses domain transition,
- * false otherwise.
+ * Returns TOMOYO_TRANSITION_CONTROL_INITIALIZE if executing @program
+ * reinitializes domain transition, TOMOYO_TRANSITION_CONTROL_KEEP if executing
+ * @program suppresses domain transition, others otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_domain_keeper(const struct tomoyo_path_info *domainname,
-				    const struct tomoyo_path_info *program,
-				    const struct tomoyo_path_info *last_name)
+static u8 tomoyo_transition_type(const struct tomoyo_path_info *domainname,
+				 const struct tomoyo_path_info *program)
 {
-	struct tomoyo_domain_keeper_entry *ptr;
-	bool flag = false;
-
-	list_for_each_entry_rcu(ptr,
-				&tomoyo_policy_list[TOMOYO_ID_DOMAIN_KEEPER],
-				head.list) {
-		if (ptr->head.is_deleted)
-			continue;
-		if (!ptr->is_last_name) {
-			if (ptr->domainname != domainname)
+	const struct tomoyo_transition_control *ptr;
+	const char *last_name = tomoyo_last_word(domainname->name);
+	u8 type;
+	for (type = 0; type < TOMOYO_MAX_TRANSITION_TYPE; type++) {
+ next:
+		list_for_each_entry_rcu(ptr, &tomoyo_policy_list
+					[TOMOYO_ID_TRANSITION_CONTROL],
+					head.list) {
+			if (ptr->head.is_deleted || ptr->type != type)
 				continue;
-		} else {
-			if (tomoyo_pathcmp(ptr->domainname, last_name))
+			if (ptr->domainname) {
+				if (!ptr->is_last_name) {
+					if (ptr->domainname != domainname)
+						continue;
+				} else {
+					/*
+					 * Use direct strcmp() since this is
+					 * unlikely used.
+					 */
+					if (strcmp(ptr->domainname->name,
+						   last_name))
+						continue;
+				}
+			}
+			if (ptr->program &&
+			    tomoyo_pathcmp(ptr->program, program))
 				continue;
+			if (type == TOMOYO_TRANSITION_CONTROL_NO_INITIALIZE) {
+				/*
+				 * Do not check for initialize_domain if
+				 * no_initialize_domain matched.
+				 */
+				type = TOMOYO_TRANSITION_CONTROL_NO_KEEP;
+				goto next;
+			}
+			goto done;
 		}
-		if (ptr->program && tomoyo_pathcmp(ptr->program, program))
-			continue;
-		if (ptr->is_not) {
-			flag = false;
-			break;
-		}
-		flag = true;
 	}
-	return flag;
+ done:
+	return type;
 }
 
 static bool tomoyo_same_aggregator_entry(const struct tomoyo_acl_head *a,
@@ -533,7 +424,6 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	char *tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
-	const char *old_domain_name = old_domain->domainname->name;
 	const char *original_name = bprm->filename;
 	u8 mode;
 	bool is_enforce;
@@ -586,25 +476,33 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto out;
 
-	if (tomoyo_domain_initializer(old_domain->domainname, &rn, &ln)) {
+	/* Calculate domain to transit to. */
+	switch (tomoyo_transition_type(old_domain->domainname, &rn)) {
+	case TOMOYO_TRANSITION_CONTROL_INITIALIZE:
 		/* Transit to the child of tomoyo_kernel_domain domain. */
-		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1,
-			 TOMOYO_ROOT_NAME " " "%s", rn.name);
-	} else if (old_domain == &tomoyo_kernel_domain &&
-		   !tomoyo_policy_loaded) {
-		/*
-		 * Needn't to transit from kernel domain before starting
-		 * /sbin/init. But transit from kernel domain if executing
-		 * initializers because they might start before /sbin/init.
-		 */
-		domain = old_domain;
-	} else if (tomoyo_domain_keeper(old_domain->domainname, &rn, &ln)) {
+		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1, TOMOYO_ROOT_NAME " "
+			 "%s", rn.name);
+		break;
+	case TOMOYO_TRANSITION_CONTROL_KEEP:
 		/* Keep current domain. */
 		domain = old_domain;
-	} else {
-		/* Normal domain transition. */
-		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1,
-			 "%s %s", old_domain_name, rn.name);
+		break;
+	default:
+		if (old_domain == &tomoyo_kernel_domain &&
+		    !tomoyo_policy_loaded) {
+			/*
+			 * Needn't to transit from kernel domain before
+			 * starting /sbin/init. But transit from kernel domain
+			 * if executing initializers because they might start
+			 * before /sbin/init.
+			 */
+			domain = old_domain;
+		} else {
+			/* Normal domain transition. */
+			snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1, "%s %s",
+				 old_domain->domainname->name, rn.name);
+		}
+		break;
 	}
 	if (domain || strlen(tmp) >= TOMOYO_EXEC_TMPSIZE - 10)
 		goto done;

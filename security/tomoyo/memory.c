@@ -211,10 +211,10 @@ void __init tomoyo_mm_init(void)
 		panic("Can't register tomoyo_kernel_domain");
 	{
 		/* Load built-in policy. */
-		tomoyo_write_domain_initializer_policy("/sbin/hotplug",
-						       false, false);
-		tomoyo_write_domain_initializer_policy("/sbin/modprobe",
-						       false, false);
+		tomoyo_write_transition_control("/sbin/hotplug", false,
+					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
+		tomoyo_write_transition_control("/sbin/modprobe", false,
+					TOMOYO_TRANSITION_CONTROL_INITIALIZE);
 	}
 	tomoyo_read_unlock(idx);
 }
