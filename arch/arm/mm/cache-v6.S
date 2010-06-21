@@ -212,7 +212,8 @@ v6_dma_inv_range:
 #endif
 1:
 #ifdef CONFIG_SMP
-	str	r0, [r0]			@ write for ownership
+	ldr	r2, [r0]			@ read for ownership
+	str	r2, [r0]			@ write for ownership
 #endif
 #ifdef HARVARD_CACHE
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D line
