@@ -46,16 +46,25 @@ static void pic_unlock(struct kvm_pic *s)
 	__releases(&s->lock)
 {
 	bool wakeup = s->wakeup_needed;
-	struct kvm_vcpu *vcpu;
+	struct kvm_vcpu *vcpu, *found = NULL;
+	int i;
 
 	s->wakeup_needed = false;
 
 	raw_spin_unlock(&s->lock);
 
 	if (wakeup) {
-		vcpu = s->kvm->bsp_vcpu;
-		if (vcpu)
-			kvm_vcpu_kick(vcpu);
+		kvm_for_each_vcpu(i, vcpu, s->kvm) {
+			if (kvm_apic_accept_pic_intr(vcpu)) {
+				found = vcpu;
+				break;
+			}
+		}
+
+		if (!found)
+			found = s->kvm->bsp_vcpu;
+
+		kvm_vcpu_kick(found);
 	}
 }
 
