@@ -1390,6 +1390,7 @@ static void qeth_init_func_level(struct qeth_card *card)
 				QETH_IDX_FUNC_LEVEL_IQD_DIS_IPAT;
 		break;
 	case QETH_CARD_TYPE_OSD:
+	case QETH_CARD_TYPE_OSN:
 		card->info.func_level = QETH_IDX_FUNC_LEVEL_OSD;
 		break;
 	default:
