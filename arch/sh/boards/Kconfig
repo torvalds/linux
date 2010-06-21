@@ -309,6 +309,17 @@ config SH_POLARIS
 	help
 	  Select if configuring for an SMSC Polaris development board
 
+config SH_SH2007
+	bool "SH-2007 board"
+	select NO_IOPORT
+	depends on CPU_SUBTYPE_SH7780
+	help
+	  SH-2007 is a single-board computer based around SH7780 chip
+	  intended for embedded applications.
+	  It has an Ethernet interface (SMC9118), direct connected
+	  Compact Flash socket, two serial ports and PC-104 bus.
+	  More information at <http://sh2000.sh-linux.org>.
+
 endmenu
 
 source "arch/sh/boards/mach-r2d/Kconfig"
