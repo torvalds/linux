@@ -242,6 +242,20 @@ static void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 	strlcpy(info->bus_info, pci_name(efx->pci_dev), sizeof(info->bus_info));
 }
 
+static int efx_ethtool_get_regs_len(struct net_device *net_dev)
+{
+	return efx_nic_get_regs_len(netdev_priv(net_dev));
+}
+
+static void efx_ethtool_get_regs(struct net_device *net_dev,
+				 struct ethtool_regs *regs, void *buf)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	regs->version = efx->type->revision;
+	efx_nic_get_regs(efx, buf);
+}
+
 /**
  * efx_fill_test - fill in an individual self-test entry
  * @test_index:		Index of the test
@@ -834,6 +848,8 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_settings		= efx_ethtool_get_settings,
 	.set_settings		= efx_ethtool_set_settings,
 	.get_drvinfo		= efx_ethtool_get_drvinfo,
+	.get_regs_len		= efx_ethtool_get_regs_len,
+	.get_regs		= efx_ethtool_get_regs,
 	.nway_reset		= efx_ethtool_nway_reset,
 	.get_link		= efx_ethtool_get_link,
 	.get_eeprom_len		= efx_ethtool_get_eeprom_len,

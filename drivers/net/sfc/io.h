@@ -211,6 +211,13 @@ static inline void efx_writed_table(struct efx_nic *efx, efx_dword_t *value,
 	efx_writed(efx, value, reg + index * sizeof(efx_oword_t));
 }
 
+/* Read from a dword register forming part of a table */
+static inline void efx_readd_table(struct efx_nic *efx, efx_dword_t *value,
+				   unsigned int reg, unsigned int index)
+{
+	efx_readd(efx, value, reg + index * sizeof(efx_dword_t));
+}
+
 /* Page-mapped register block size */
 #define EFX_PAGE_BLOCK_SIZE 0x2000
 

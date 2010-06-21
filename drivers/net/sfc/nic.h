@@ -222,6 +222,9 @@ extern int efx_nic_test_registers(struct efx_nic *efx,
 				  const struct efx_nic_register_test *regs,
 				  size_t n_regs);
 
+extern size_t efx_nic_get_regs_len(struct efx_nic *efx);
+extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
+
 /**************************************************************************
  *
  * Falcon MAC stats
