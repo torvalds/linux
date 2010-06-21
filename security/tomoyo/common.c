@@ -1177,8 +1177,6 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 							      is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_AGGREGATOR))
 		return tomoyo_write_aggregator_policy(data, is_delete);
-	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALIAS))
-		return tomoyo_write_alias_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_READ))
 		return tomoyo_write_globally_readable_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_FILE_PATTERN))
@@ -1332,16 +1330,6 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 					= container_of(acl, typeof(*ptr), head);
 				w[0] = TOMOYO_KEYWORD_ALLOW_READ;
 				w[1] = ptr->filename->name;
-			}
-			break;
-		case TOMOYO_ID_ALIAS:
-			{
-				struct tomoyo_alias_entry *ptr =
-					container_of(acl, typeof(*ptr), head);
-				w[0] = TOMOYO_KEYWORD_ALIAS;
-				w[1] = ptr->original_name->name;
-				w[2] = " ";
-				w[3] = ptr->aliased_name->name;
 			}
 			break;
 		case TOMOYO_ID_AGGREGATOR:

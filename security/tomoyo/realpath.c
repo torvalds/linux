@@ -162,25 +162,6 @@ char *tomoyo_realpath_from_path(struct path *path)
 }
 
 /**
- * tomoyo_realpath - Get realpath of a pathname.
- *
- * @pathname: The pathname to solve.
- *
- * Returns the realpath of @pathname on success, NULL otherwise.
- */
-char *tomoyo_realpath(const char *pathname)
-{
-	struct path path;
-
-	if (pathname && kern_path(pathname, LOOKUP_FOLLOW, &path) == 0) {
-		char *buf = tomoyo_realpath_from_path(&path);
-		path_put(&path);
-		return buf;
-	}
-	return NULL;
-}
-
-/**
  * tomoyo_realpath_nofollow - Get realpath of a pathname.
  *
  * @pathname: The pathname to solve.

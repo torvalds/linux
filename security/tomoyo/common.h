@@ -53,7 +53,6 @@ enum tomoyo_policy_id {
 	TOMOYO_ID_DOMAIN_INITIALIZER,
 	TOMOYO_ID_DOMAIN_KEEPER,
 	TOMOYO_ID_AGGREGATOR,
-	TOMOYO_ID_ALIAS,
 	TOMOYO_ID_GLOBALLY_READABLE,
 	TOMOYO_ID_PATTERN,
 	TOMOYO_ID_NO_REWRITE,
@@ -72,7 +71,6 @@ enum tomoyo_group_id {
 
 /* Keywords for ACLs. */
 #define TOMOYO_KEYWORD_AGGREGATOR                "aggregator "
-#define TOMOYO_KEYWORD_ALIAS                     "alias "
 #define TOMOYO_KEYWORD_ALLOW_MOUNT               "allow_mount "
 #define TOMOYO_KEYWORD_ALLOW_READ                "allow_read "
 #define TOMOYO_KEYWORD_DELETE                    "delete "
@@ -683,20 +681,6 @@ struct tomoyo_aggregator_entry {
 };
 
 /*
- * tomoyo_alias_entry is a structure which is used for holding "alias" entries.
- * It has following fields.
- *
- *  (1) "head" is "struct tomoyo_acl_head".
- *  (2) "original_name" which is a dereferenced pathname.
- *  (3) "aliased_name" which is a symlink's pathname.
- */
-struct tomoyo_alias_entry {
-	struct tomoyo_acl_head head;
-	const struct tomoyo_path_info *original_name;
-	const struct tomoyo_path_info *aliased_name;
-};
-
-/*
  * tomoyo_policy_manager_entry is a structure which is used for holding list of
  * domainnames or programs which are permitted to modify configuration via
  * /sys/kernel/security/tomoyo/ interface.
@@ -809,8 +793,6 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 			    unsigned long flags, void *data_page);
 /* Create "aggregator" entry in exception policy. */
 int tomoyo_write_aggregator_policy(char *data, const bool is_delete);
-/* Create "alias" entry in exception policy. */
-int tomoyo_write_alias_policy(char *data, const bool is_delete);
 /*
  * Create "initialize_domain" and "no_initialize_domain" entry
  * in exception policy.
@@ -868,16 +850,14 @@ void tomoyo_put_number_union(struct tomoyo_number_union *ptr);
 char *tomoyo_encode(const char *str);
 
 /*
- * Returns realpath(3) of the given pathname but ignores chroot'ed root.
- * These functions use kzalloc(), so the caller must call kfree()
- * if these functions didn't return NULL.
- */
-char *tomoyo_realpath(const char *pathname);
-/*
- * Same with tomoyo_realpath() except that it doesn't follow the final symlink.
+ * Returns realpath(3) of the given pathname except that
+ * ignores chroot'ed root and does not follow the final symlink.
  */
 char *tomoyo_realpath_nofollow(const char *pathname);
-/* Same with tomoyo_realpath() except that the pathname is already solved. */
+/*
+ * Returns realpath(3) of the given pathname except that
+ * ignores chroot'ed root and the pathname is already solved.
+ */
 char *tomoyo_realpath_from_path(struct path *path);
 /* Get patterned pathname. */
 const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename);

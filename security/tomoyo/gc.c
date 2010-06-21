@@ -77,14 +77,6 @@ static void tomoyo_del_aggregator(struct list_head *element)
 	tomoyo_put_name(ptr->aggregated_name);
 }
 
-static void tomoyo_del_alias(struct list_head *element)
-{
-	struct tomoyo_alias_entry *ptr =
-		container_of(element, typeof(*ptr), head.list);
-	tomoyo_put_name(ptr->original_name);
-	tomoyo_put_name(ptr->aliased_name);
-}
-
 static void tomoyo_del_manager(struct list_head *element)
 {
 	struct tomoyo_policy_manager_entry *ptr =
@@ -308,9 +300,6 @@ static void tomoyo_kfree_entry(void)
 			break;
 		case TOMOYO_ID_AGGREGATOR:
 			tomoyo_del_aggregator(element);
-			break;
-		case TOMOYO_ID_ALIAS:
-			tomoyo_del_alias(element);
 			break;
 		case TOMOYO_ID_GLOBALLY_READABLE:
 			tomoyo_del_allow_read(element);

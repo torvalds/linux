@@ -467,72 +467,6 @@ int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
 	return tomoyo_update_aggregator_entry(data, cp, is_delete);
 }
 
-static bool tomoyo_same_alias_entry(const struct tomoyo_acl_head *a,
-				    const struct tomoyo_acl_head *b)
-{
-	const struct tomoyo_alias_entry *p1 = container_of(a, typeof(*p1),
-							   head);
-	const struct tomoyo_alias_entry *p2 = container_of(b, typeof(*p2),
-							   head);
-	return p1->original_name == p2->original_name &&
-		p1->aliased_name == p2->aliased_name;
-}
-
-/**
- * tomoyo_update_alias_entry - Update "struct tomoyo_alias_entry" list.
- *
- * @original_name: The original program's real name.
- * @aliased_name:  The symbolic program's symbolic link's name.
- * @is_delete:     True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-static int tomoyo_update_alias_entry(const char *original_name,
-				     const char *aliased_name,
-				     const bool is_delete)
-{
-	struct tomoyo_alias_entry e = { };
-	int error = is_delete ? -ENOENT : -ENOMEM;
-
-	if (!tomoyo_correct_path(original_name) ||
-	    !tomoyo_correct_path(aliased_name))
-		return -EINVAL;
-	e.original_name = tomoyo_get_name(original_name);
-	e.aliased_name = tomoyo_get_name(aliased_name);
-	if (!e.original_name || !e.aliased_name ||
-	    e.original_name->is_patterned || e.aliased_name->is_patterned)
-		goto out; /* No patterns allowed. */
-	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
-				     &tomoyo_policy_list[TOMOYO_ID_ALIAS],
-				     tomoyo_same_alias_entry);
- out:
-	tomoyo_put_name(e.original_name);
-	tomoyo_put_name(e.aliased_name);
-	return error;
-}
-
-/**
- * tomoyo_write_alias_policy - Write "struct tomoyo_alias_entry" list.
- *
- * @data:      String to parse.
- * @is_delete: True if it is a delete request.
- *
- * Returns 0 on success, negative value otherwise.
- *
- * Caller holds tomoyo_read_lock().
- */
-int tomoyo_write_alias_policy(char *data, const bool is_delete)
-{
-	char *cp = strchr(data, ' ');
-
-	if (!cp)
-		return -EINVAL;
-	*cp++ = '\0';
-	return tomoyo_update_alias_entry(data, cp, is_delete);
-}
-
 /**
  * tomoyo_find_or_assign_new_domain - Create a domain.
  *
@@ -606,7 +540,6 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	int retval = -ENOMEM;
 	bool need_kfree = false;
 	struct tomoyo_path_info rn = { }; /* real name */
-	struct tomoyo_path_info sn = { }; /* symlink name */
 	struct tomoyo_path_info ln; /* last name */
 
 	ln.name = tomoyo_get_last_name(old_domain);
@@ -621,38 +554,13 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		kfree(rn.name);
 		need_kfree = false;
 	}
-	/* Get tomoyo_realpath of program. */
+	/* Get symlink's pathname of program. */
 	retval = -ENOENT;
-	rn.name = tomoyo_realpath(original_name);
+	rn.name = tomoyo_realpath_nofollow(original_name);
 	if (!rn.name)
 		goto out;
 	tomoyo_fill_path_info(&rn);
 	need_kfree = true;
-
-	/* Get tomoyo_realpath of symbolic link. */
-	sn.name = tomoyo_realpath_nofollow(original_name);
-	if (!sn.name)
-		goto out;
-	tomoyo_fill_path_info(&sn);
-
-	/* Check 'alias' directive. */
-	if (tomoyo_pathcmp(&rn, &sn)) {
-		struct tomoyo_alias_entry *ptr;
-		/* Is this program allowed to be called via symbolic links? */
-		list_for_each_entry_rcu(ptr,
-					&tomoyo_policy_list[TOMOYO_ID_ALIAS],
-					head.list) {
-			if (ptr->head.is_deleted ||
-			    tomoyo_pathcmp(&rn, ptr->original_name) ||
-			    tomoyo_pathcmp(&sn, ptr->aliased_name))
-				continue;
-			kfree(rn.name);
-			need_kfree = false;
-			/* This is OK because it is read only. */
-			rn = *ptr->aliased_name;
-			break;
-		}
-	}
 
 	/* Check 'aggregator' directive. */
 	{
@@ -663,8 +571,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 			    !tomoyo_path_matches_pattern(&rn,
 							 ptr->original_name))
 				continue;
-			if (need_kfree)
-				kfree(rn.name);
+			kfree(rn.name);
 			need_kfree = false;
 			/* This is OK because it is read only. */
 			rn = *ptr->aggregated_name;
@@ -729,7 +636,6 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	bprm->cred->security = domain;
 	if (need_kfree)
 		kfree(rn.name);
-	kfree(sn.name);
 	kfree(tmp);
 	return retval;
 }
