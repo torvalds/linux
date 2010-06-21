@@ -1487,7 +1487,7 @@ static ssize_t iwl_dbgfs_force_reset_write(struct file *file,
 	switch (reset) {
 	case IWL_RF_RESET:
 	case IWL_FW_RESET:
-		ret = iwl_force_reset(priv, reset);
+		ret = iwl_force_reset(priv, reset, true);
 		break;
 	default:
 		return -EINVAL;
