@@ -403,7 +403,9 @@ struct bc_state {
 		struct bas_bc_state *bas;	/* usb hardware driver (base) */
 	} hw;
 
-	void *ap;			/* LL application structure */
+	void *ap;			/* associated LL application */
+	int apconnstate;		/* LL application connection state */
+	spinlock_t aplock;
 };
 
 struct cardstate {

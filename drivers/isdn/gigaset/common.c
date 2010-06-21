@@ -649,6 +649,10 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	for (i = 0; i < AT_NUM; ++i)
 		bcs->commands[i] = NULL;
 
+	spin_lock_init(&bcs->aplock);
+	bcs->ap = NULL;
+	bcs->apconnstate = 0;
+
 	gig_dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
 	if (cs->ops->initbcshw(bcs))
 		return bcs;
