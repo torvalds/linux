@@ -30,11 +30,12 @@ void update_routes(struct orig_node *orig_node,
 				struct neigh_node *neigh_node,
 				unsigned char *hna_buff, int hna_buff_len);
 int recv_icmp_packet(struct sk_buff *skb);
-int recv_unicast_packet(struct sk_buff *skb);
+int recv_unicast_packet(struct sk_buff *skb, struct batman_if *recv_if);
 int recv_bcast_packet(struct sk_buff *skb);
 int recv_vis_packet(struct sk_buff *skb);
 int recv_bat_packet(struct sk_buff *skb,
 				struct batman_if *batman_if);
-struct neigh_node *find_router(struct orig_node *orig_node);
+struct neigh_node *find_router(struct orig_node *orig_node,
+		struct batman_if *recv_if);
 void update_bonding_candidates(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node);

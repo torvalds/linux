@@ -188,7 +188,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 		if (!orig_node)
 			orig_node = transtable_search(ethhdr->h_dest);
 
-		router = find_router(orig_node);
+		router = find_router(orig_node, NULL);
 
 		if (!router)
 			goto unlock;
