@@ -217,7 +217,6 @@ struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
 	req->retrans = 0;
 	ireq->ecn_ok		= 0;
 	ireq->snd_wscale	= tcp_opt.snd_wscale;
-	ireq->rcv_wscale	= tcp_opt.rcv_wscale;
 	ireq->sack_ok		= tcp_opt.sack_ok;
 	ireq->wscale_ok		= tcp_opt.wscale_ok;
 	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
