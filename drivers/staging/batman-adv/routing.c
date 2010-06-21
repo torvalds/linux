@@ -25,7 +25,7 @@
 #include "hash.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
-#include "device.h"
+#include "icmp_socket.h"
 #include "translation-table.h"
 #include "originator.h"
 #include "types.h"
@@ -668,7 +668,7 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 
 	/* add data to device queue */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		bat_device_receive_packet(icmp_packet);
+		bat_socket_receive_packet(icmp_packet);
 		return NET_RX_DROP;
 	}
 

@@ -106,9 +106,10 @@ struct bat_priv {
 	char num_ifaces;
 	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
+	struct dentry *debug_dir;
 };
 
-struct device_client {
+struct socket_client {
 	struct list_head queue_list;
 	unsigned int queue_len;
 	unsigned char index;
@@ -116,7 +117,7 @@ struct device_client {
 	wait_queue_head_t queue_wait;
 };
 
-struct device_packet {
+struct socket_packet {
 	struct list_head list;
 	struct icmp_packet icmp_packet;
 };
