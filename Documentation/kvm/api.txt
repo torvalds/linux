@@ -160,29 +160,7 @@ Type: vm ioctl
 Parameters: struct kvm_memory_region (in)
 Returns: 0 on success, -1 on error
 
-struct kvm_memory_region {
-	__u32 slot;
-	__u32 flags;
-	__u64 guest_phys_addr;
-	__u64 memory_size; /* bytes */
-};
-
-/* for kvm_memory_region::flags */
-#define KVM_MEM_LOG_DIRTY_PAGES  1UL
-
-This ioctl allows the user to create or modify a guest physical memory
-slot.  When changing an existing slot, it may be moved in the guest
-physical memory space, or its flags may be modified.  It may not be
-resized.  Slots may not overlap.
-
-The flags field supports just one flag, KVM_MEM_LOG_DIRTY_PAGES, which
-instructs kvm to keep track of writes to memory within the slot.  See
-the KVM_GET_DIRTY_LOG ioctl.
-
-It is recommended to use the KVM_SET_USER_MEMORY_REGION ioctl instead
-of this API, if available.  This newer API allows placing guest memory
-at specified locations in the host address space, yielding better
-control and easy access.
+This ioctl is obsolete and has been removed.
 
 4.6 KVM_CREATE_VCPU
 

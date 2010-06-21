@@ -548,16 +548,6 @@ Who:	John Stultz <johnstul@us.ibm.com>
 
 ----------------------------
 
-What:	KVM kernel-allocated memory slots
-When:	July 2010
-Why:	Since 2.6.25, kvm supports user-allocated memory slots, which are
-	much more flexible than kernel-allocated slots.  All current userspace
-	supports the newer interface and this code can be removed with no
-	impact.
-Who:	Avi Kivity <avi@redhat.com>
-
-----------------------------
-
 What:	KVM paravirt mmu host support
 When:	January 2011
 Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
