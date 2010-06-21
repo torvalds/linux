@@ -571,20 +571,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_mode_regs(ah);
 
 	/*
-	 * Configire PCIE after Ini init. SERDES values now come from ini file
-	 * This enables PCIe low power mode.
-	 */
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		unsigned int i;
-
-		for (i = 0; i < ah->iniPcieSerdesLowPower.ia_rows; i++) {
-			REG_WRITE(ah,
-				  INI_RA(&ah->iniPcieSerdesLowPower, i, 0),
-				  INI_RA(&ah->iniPcieSerdesLowPower, i, 1));
-		}
-	}
-
-	/*
 	 * Read back AR_WA into a permanent copy and set bits 14 and 17.
 	 * We need to do this to avoid RMW of this register. We cannot
 	 * read the reg when chip is asleep.

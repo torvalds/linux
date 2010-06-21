@@ -298,6 +298,20 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 		else
 			REG_WRITE(ah, AR_WA, ah->WARegVal);
 	}
+
+	/*
+	 * Configire PCIE after Ini init. SERDES values now come from ini file
+	 * This enables PCIe low power mode.
+	 */
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		unsigned int i;
+
+		for (i = 0; i < ah->iniPcieSerdesLowPower.ia_rows; i++) {
+			REG_WRITE(ah,
+				  INI_RA(&ah->iniPcieSerdesLowPower, i, 0),
+				  INI_RA(&ah->iniPcieSerdesLowPower, i, 1));
+		}
+	}
 }
 
 /* Sets up the AR9003 hardware familiy callbacks */
