@@ -42,7 +42,6 @@ enum qeth_dbf_names {
 	QETH_DBF_SETUP,
 	QETH_DBF_QERR,
 	QETH_DBF_MSG,
-	QETH_DBF_SENSE,
 	QETH_DBF_MISC,
 	QETH_DBF_CTRL,
 	QETH_DBF_INFOS	/* must be last element */
