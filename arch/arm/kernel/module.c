@@ -237,6 +237,38 @@ apply_relocate(Elf32_Shdr *sechdrs, const char *strtab, unsigned int symindex,
 			lower = *(u16 *)(loc + 2);
 			break;
 
+		case R_ARM_THM_MOVW_ABS_NC:
+		case R_ARM_THM_MOVT_ABS:
+			upper = *(u16 *)loc;
+			lower = *(u16 *)(loc + 2);
+
+			/*
+			 * MOVT/MOVW instructions encoding in Thumb-2:
+			 *
+			 * i	= upper[10]
+			 * imm4	= upper[3:0]
+			 * imm3	= lower[14:12]
+			 * imm8	= lower[7:0]
+			 *
+			 * imm16 = imm4:i:imm3:imm8
+			 */
+			offset = ((upper & 0x000f) << 12) |
+				((upper & 0x0400) << 1) |
+				((lower & 0x7000) >> 4) | (lower & 0x00ff);
+			offset = (offset ^ 0x8000) - 0x8000;
+			offset += sym->st_value;
+
+			if (ELF32_R_TYPE(rel->r_info) == R_ARM_THM_MOVT_ABS)
+				offset >>= 16;
+
+			*(u16 *)loc = (u16)((upper & 0xfbf0) |
+					    ((offset & 0xf000) >> 12) |
+					    ((offset & 0x0800) >> 1));
+			*(u16 *)(loc + 2) = (u16)((lower & 0x8f00) |
+						  ((offset & 0x0700) << 4) |
+						  (offset & 0x00ff));
+			break;
+
 		default:
 			printk(KERN_ERR "%s: unknown relocation: %u\n",
 			       module->name, ELF32_R_TYPE(rel->r_info));
