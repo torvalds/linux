@@ -3606,57 +3606,22 @@ disconnect:
 	return 0;
 }
 
-static void l2cap_busy_work(struct work_struct *work)
+static int l2cap_try_push_rx_skb(struct sock *sk)
 {
-	DECLARE_WAITQUEUE(wait, current);
-	struct l2cap_pinfo *pi =
-		container_of(work, struct l2cap_pinfo, busy_work);
-	struct sock *sk = (struct sock *)pi;
-	int n_tries = 0, timeo = HZ/5, err;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
 	struct sk_buff *skb;
 	u16 control;
+	int err;
 
-	lock_sock(sk);
-
-	add_wait_queue(sk_sleep(sk), &wait);
-	while ((skb = skb_peek(BUSY_QUEUE(sk)))) {
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		if (n_tries++ > L2CAP_LOCAL_BUSY_TRIES) {
-			err = -EBUSY;
-			l2cap_send_disconn_req(pi->conn, sk, EBUSY);
-			goto done;
+	while ((skb = skb_dequeue(BUSY_QUEUE(sk)))) {
+		control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
+		err = l2cap_ertm_reassembly_sdu(sk, skb, control);
+		if (err < 0) {
+			skb_queue_head(BUSY_QUEUE(sk), skb);
+			return -EBUSY;
 		}
 
-		if (!timeo)
-			timeo = HZ/5;
-
-		if (signal_pending(current)) {
-			err = sock_intr_errno(timeo);
-			goto done;
-		}
-
-		release_sock(sk);
-		timeo = schedule_timeout(timeo);
-		lock_sock(sk);
-
-		err = sock_error(sk);
-		if (err)
-			goto done;
-
-		while ((skb = skb_dequeue(BUSY_QUEUE(sk)))) {
-			control = bt_cb(skb)->sar << L2CAP_CTRL_SAR_SHIFT;
-			err = l2cap_ertm_reassembly_sdu(sk, skb, control);
-			if (err < 0) {
-				skb_queue_head(BUSY_QUEUE(sk), skb);
-				break;
-			}
-
-			pi->buffer_seq = (pi->buffer_seq + 1) % 64;
-		}
-
-		if (!skb)
-			break;
+		pi->buffer_seq = (pi->buffer_seq + 1) % 64;
 	}
 
 	if (!(pi->conn_state & L2CAP_CONN_RNR_SENT))
@@ -3678,6 +3643,50 @@ done:
 
 	BT_DBG("sk %p, Exit local busy", sk);
 
+	return 0;
+}
+
+static void l2cap_busy_work(struct work_struct *work)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	struct l2cap_pinfo *pi =
+		container_of(work, struct l2cap_pinfo, busy_work);
+	struct sock *sk = (struct sock *)pi;
+	int n_tries = 0, timeo = HZ/5, err;
+	struct sk_buff *skb;
+
+	lock_sock(sk);
+
+	add_wait_queue(sk_sleep(sk), &wait);
+	while ((skb = skb_peek(BUSY_QUEUE(sk)))) {
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		if (n_tries++ > L2CAP_LOCAL_BUSY_TRIES) {
+			err = -EBUSY;
+			l2cap_send_disconn_req(pi->conn, sk, EBUSY);
+			break;
+		}
+
+		if (!timeo)
+			timeo = HZ/5;
+
+		if (signal_pending(current)) {
+			err = sock_intr_errno(timeo);
+			break;
+		}
+
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
+
+		err = sock_error(sk);
+		if (err)
+			break;
+
+		if (l2cap_try_push_rx_skb(sk) == 0)
+			break;
+	}
+
 	set_current_state(TASK_RUNNING);
 	remove_wait_queue(sk_sleep(sk), &wait);
 
@@ -3692,7 +3701,9 @@ static int l2cap_push_rx_skb(struct sock *sk, struct sk_buff *skb, u16 control)
 	if (pi->conn_state & L2CAP_CONN_LOCAL_BUSY) {
 		bt_cb(skb)->sar = control >> L2CAP_CTRL_SAR_SHIFT;
 		__skb_queue_tail(BUSY_QUEUE(sk), skb);
-		return -EBUSY;
+		return l2cap_try_push_rx_skb(sk);
+
+
 	}
 
 	err = l2cap_ertm_reassembly_sdu(sk, skb, control);
