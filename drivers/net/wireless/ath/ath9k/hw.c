@@ -388,6 +388,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.ht_enable = 0;
 
 	ah->config.rx_intr_mitigation = true;
+	ah->config.pcieSerDesWrite = true;
 
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
