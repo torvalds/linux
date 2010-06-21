@@ -270,6 +270,11 @@ struct ui_browser {
 	u32		nr_entries;
 };
 
+static bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row)
+{
+	return (self->first_visible_entry_idx + row) == self->index;
+}
+
 static void ui_browser__refresh_dimensions(struct ui_browser *self)
 {
 	int cols, rows;
@@ -286,8 +291,8 @@ static void ui_browser__refresh_dimensions(struct ui_browser *self)
 
 static void ui_browser__reset_index(struct ui_browser *self)
 {
-        self->index = self->first_visible_entry_idx = 0;
-        self->first_visible_entry = NULL;
+	self->index = self->first_visible_entry_idx = 0;
+	self->first_visible_entry = NULL;
 }
 
 static int objdump_line__show(struct objdump_line *self, struct list_head *head,
@@ -353,7 +358,7 @@ static int ui_browser__refresh_entries(struct ui_browser *self)
 	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
 
 	list_for_each_entry_from(pos, head, node) {
-		bool current_entry = (self->first_visible_entry_idx + row) == self->index;
+		bool current_entry = ui_browser__is_current_entry(self, row);
 		SLsmg_gotorc(self->top + row, self->left);
 		objdump_line__show(pos, head, self->width,
 				   he, len, current_entry);
