@@ -718,33 +718,32 @@ static BOOL device_release_WPADEV(PSDevice pDevice)
 
 static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 {
- PSDevice  pDevice = usb_get_intfdata(intf);
- struct net_device *dev = pDevice->dev;
+	PSDevice device = usb_get_intfdata(intf);
 
- printk("VNTWUSB Suspend Start======>\n");
-if(dev != NULL) {
-  if(pDevice->flags & DEVICE_FLAGS_OPENED)
-     device_close(dev);
-}
+	if (!device || !device->dev)
+		return -ENODEV;
 
- usb_put_dev(interface_to_usbdev(intf));
- return 0;
+	if (device->flags & DEVICE_FLAGS_OPENED)
+		device_close(device->dev);
+
+	usb_put_dev(interface_to_usbdev(intf));
+
+	return 0;
 }
 
 static int vt6656_resume(struct usb_interface *intf)
 {
- PSDevice  pDevice = usb_get_intfdata(intf);
- struct net_device *dev = pDevice->dev;
+	PSDevice device = usb_get_intfdata(intf);
 
- printk("VNTWUSB Resume Start======>\n");
- if(dev != NULL) {
-  usb_get_dev(interface_to_usbdev(intf));
-  if(!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-    if(device_open(dev)!=0)
-        printk("VNTWUSB Resume Start======>open fail\n");
-   }
- }
- return 0;
+	if (!device || !device->dev)
+		return -ENODEV;
+
+	usb_get_dev(interface_to_usbdev(intf));
+
+	if (!(device->flags & DEVICE_FLAGS_OPENED))
+		device_open(device->dev);
+
+	return 0;
 }
 
 #endif /* CONFIG_PM */
