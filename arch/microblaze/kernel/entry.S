@@ -535,8 +535,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));	\
-	/* Save away the syscall number.  */				\
-	swi	r0, r1, PTO+PT_R0;					\
 	tovirt(r1,r1)
 
 C_ENTRY(full_exception_trap):
@@ -753,7 +751,6 @@ C_ENTRY(_interrupt):
 	swi	r11, r1, PTO+PT_R1;
 2:
 	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
-	swi	r0, r1, PTO + PT_R0;
 	tovirt(r1,r1)
 	addik	r5, r1, PTO;
 	set_vms;
@@ -868,8 +865,6 @@ C_ENTRY(_debug_exception):
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
 2:
-	/* Save away the syscall number.  */
-	swi	r0, r1, PTO+PT_R0;
 	tovirt(r1,r1)
 
 	set_vms;
