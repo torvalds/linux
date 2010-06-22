@@ -293,9 +293,9 @@
 	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
-	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
+	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
 	/* MS: I am clearing UMS even in case when I come from kernel space */ \
 	clear_ums; 							\
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
