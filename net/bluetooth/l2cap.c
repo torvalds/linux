@@ -2986,11 +2986,11 @@ static inline int l2cap_connect_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	if (scid) {
 		sk = l2cap_get_chan_by_scid(&conn->chan_list, scid);
 		if (!sk)
-			return 0;
+			return -EFAULT;
 	} else {
 		sk = l2cap_get_chan_by_ident(&conn->chan_list, cmd->ident);
 		if (!sk)
-			return 0;
+			return -EFAULT;
 	}
 
 	switch (result) {
