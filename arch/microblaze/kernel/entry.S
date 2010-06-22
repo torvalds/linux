@@ -513,9 +513,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
-	/* PC, before IRQ/trap - this is one instruction above */	\
-	swi	r17, r1, PTO+PT_PC;					\
-									\
 	addi	r11, r0, 1; 		/* Was in kernel-mode.  */	\
 	swi	r11, r1, PTO+PT_MODE; 	 				\
 	brid	2f;							\
@@ -528,20 +525,19 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
-	/* PC, before IRQ/trap - this is one instruction above FIXME*/	\
-	swi	r17, r1, PTO+PT_PC;					\
-									\
 	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */		\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
-2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));	\
-	tovirt(r1,r1)
+2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 
 C_ENTRY(full_exception_trap):
 	/* adjust exception address for privileged instruction
 	 * for finding where is it */
 	addik	r17, r17, -4
 	SAVE_STATE /* Save registers */
+	/* PC, before IRQ/trap - this is one instruction above */
+	swi	r17, r1, PTO+PT_PC;
+	tovirt(r1,r1)
 	/* FIXME this can be store directly in PT_ESR reg.
 	 * I tested it but there is a fault */
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
@@ -581,6 +577,9 @@ C_ENTRY(unaligned_data_trap):
 	set_ee;
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	SAVE_STATE		/* Save registers.*/
+	/* PC, before IRQ/trap - this is one instruction above */
+	swi	r17, r1, PTO+PT_PC;
+	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r3, resr		/* ESR */
@@ -613,6 +612,9 @@ C_ENTRY(unaligned_data_trap):
 /* data and intruction trap - which is choose is resolved int fault.c */
 C_ENTRY(page_fault_data_trap):
 	SAVE_STATE		/* Save registers.*/
+	/* PC, before IRQ/trap - this is one instruction above */
+	swi	r17, r1, PTO+PT_PC;
+	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
@@ -627,6 +629,9 @@ C_ENTRY(page_fault_data_trap):
 
 C_ENTRY(page_fault_instr_trap):
 	SAVE_STATE		/* Save registers.*/
+	/* PC, before IRQ/trap - this is one instruction above */
+	swi	r17, r1, PTO+PT_PC;
+	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
