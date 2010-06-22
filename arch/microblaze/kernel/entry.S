@@ -48,56 +48,56 @@
  */
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 	.macro	clear_bip
-	msrclr	r11, MSR_BIP
+	msrclr	r0, MSR_BIP
 	nop
 	.endm
 
 	.macro	set_bip
-	msrset	r11, MSR_BIP
+	msrset	r0, MSR_BIP
 	nop
 	.endm
 
 	.macro	clear_eip
-	msrclr	r11, MSR_EIP
+	msrclr	r0, MSR_EIP
 	nop
 	.endm
 
 	.macro	set_ee
-	msrset	r11, MSR_EE
+	msrset	r0, MSR_EE
 	nop
 	.endm
 
 	.macro	disable_irq
-	msrclr	r11, MSR_IE
+	msrclr	r0, MSR_IE
 	nop
 	.endm
 
 	.macro	enable_irq
-	msrset	r11, MSR_IE
+	msrset	r0, MSR_IE
 	nop
 	.endm
 
 	.macro	set_ums
-	msrset	r11, MSR_UMS
+	msrset	r0, MSR_UMS
 	nop
-	msrclr	r11, MSR_VMS
+	msrclr	r0, MSR_VMS
 	nop
 	.endm
 
 	.macro	set_vms
-	msrclr	r11, MSR_UMS
+	msrclr	r0, MSR_UMS
 	nop
-	msrset	r11, MSR_VMS
+	msrset	r0, MSR_VMS
 	nop
 	.endm
 
 	.macro	clear_ums
-	msrclr	r11, MSR_UMS
+	msrclr	r0, MSR_UMS
 	nop
 	.endm
 
 	.macro	clear_vms_ums
-	msrclr	r11, MSR_VMS | MSR_UMS
+	msrclr	r0, MSR_VMS | MSR_UMS
 	nop
 	.endm
 #else
