@@ -856,9 +856,6 @@ C_ENTRY(_debug_exception):
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
 
 	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* Save r11 */
-	set_bip;	/*equalize initial state for all possible entries*/
-	clear_eip;
-	enable_irq;
 	mfs	r11, rmsr
 	nop
 	andi	r11, r11, MSR_UMS
