@@ -69,6 +69,7 @@
 #define TCSETX		0x5433
 #define TCSETXF		0x5434
 #define TCSETXW		0x5435
+#define TIOCSIG		_IOW('T', 0x36, int)  /* pty: generate signal */
 
 #define FIONCLEX	0x5450
 #define FIOCLEX		0x5451
@@ -102,6 +103,7 @@
 #define TIOCPKT_START		 8
 #define TIOCPKT_NOSTOP		16
 #define TIOCPKT_DOSTOP		32
+#define TIOCPKT_IOCTL		64
 
 #define TIOCSER_TEMT	0x01	/* Transmitter physically empty */
 

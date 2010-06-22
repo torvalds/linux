@@ -171,6 +171,23 @@ static int pty_set_lock(struct tty_struct *tty, int __user *arg)
 	return 0;
 }
 
+/* Send a signal to the slave */
+static int pty_signal(struct tty_struct *tty, int sig)
+{
+	unsigned long flags;
+	struct pid *pgrp;
+
+	if (tty->link) {
+		spin_lock_irqsave(&tty->link->ctrl_lock, flags);
+		pgrp = get_pid(tty->link->pgrp);
+		spin_unlock_irqrestore(&tty->link->ctrl_lock, flags);
+
+		kill_pgrp(pgrp, sig, 1);
+		put_pid(pgrp);
+	}
+	return 0;
+}
+
 static void pty_flush_buffer(struct tty_struct *tty)
 {
 	struct tty_struct *to = tty->link;
@@ -321,6 +338,8 @@ static int pty_bsd_ioctl(struct tty_struct *tty, struct file *file,
 	switch (cmd) {
 	case TIOCSPTLCK: /* Set PT Lock (disallow slave open) */
 		return pty_set_lock(tty, (int __user *) arg);
+	case TIOCSIG:    /* Send signal to other side of pty */
+		return pty_signal(tty, (int) arg);
 	}
 	return -ENOIOCTLCMD;
 }
@@ -476,6 +495,8 @@ static int pty_unix98_ioctl(struct tty_struct *tty, struct file *file,
 		return pty_set_lock(tty, (int __user *)arg);
 	case TIOCGPTN: /* Get PT Number */
 		return put_user(tty->index, (unsigned int __user *)arg);
+	case TIOCSIG:    /* Send signal to other side of pty */
+		return pty_signal(tty, (int) arg);
 	}
 
 	return -ENOIOCTLCMD;
