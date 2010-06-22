@@ -239,8 +239,11 @@ static struct of_device_id airport_match[] =
 MODULE_DEVICE_TABLE(of, airport_match);
 
 static struct macio_driver airport_driver = {
-	.name 		= DRIVER_NAME,
-	.match_table	= airport_match,
+	.driver = {
+		.name 		= DRIVER_NAME,
+		.owner		= THIS_MODULE,
+		.of_match_table	= airport_match,
+	},
 	.probe		= airport_attach,
 	.remove		= airport_detach,
 	.suspend	= airport_suspend,

@@ -1952,6 +1952,7 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 			bytes_read -= PAGE_CACHE_SIZE;
 			continue;
 		}
+		page_cache_release(page);
 
 		target = kmap_atomic(page, KM_USER0);
 

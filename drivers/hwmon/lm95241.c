@@ -399,7 +399,6 @@ static int lm95241_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &lm95241_group);
 
-	i2c_set_clientdata(client, NULL);
 	kfree(data);
 	return 0;
 }

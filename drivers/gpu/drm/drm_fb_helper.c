@@ -264,7 +264,7 @@ bool drm_fb_helper_force_kernel_mode(void)
 int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 			void *panic_str)
 {
-	DRM_ERROR("panic occurred, switching back to text console\n");
+	printk(KERN_ERR "panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
 	return 0;
 }

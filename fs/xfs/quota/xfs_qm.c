@@ -249,8 +249,10 @@ xfs_qm_hold_quotafs_ref(
 
 	if (!xfs_Gqm) {
 		xfs_Gqm = xfs_Gqm_init();
-		if (!xfs_Gqm)
+		if (!xfs_Gqm) {
+			mutex_unlock(&xfs_Gqm_lock);
 			return ENOMEM;
+		}
 	}
 
 	/*

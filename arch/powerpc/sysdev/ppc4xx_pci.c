@@ -974,6 +974,123 @@ static struct ppc4xx_pciex_hwops ppc460ex_pcie_hwops __initdata =
 	.setup_utl	= ppc460ex_pciex_init_utl,
 };
 
+static int __init ppc460sx_pciex_core_init(struct device_node *np)
+{
+	/* HSS drive amplitude */
+	mtdcri(SDR0, PESDR0_460SX_HSSL0DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL1DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL2DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL3DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL4DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL5DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL6DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR0_460SX_HSSL7DAMP, 0xB9843211);
+
+	mtdcri(SDR0, PESDR1_460SX_HSSL0DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR1_460SX_HSSL1DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR1_460SX_HSSL2DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR1_460SX_HSSL3DAMP, 0xB9843211);
+
+	mtdcri(SDR0, PESDR2_460SX_HSSL0DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR2_460SX_HSSL1DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR2_460SX_HSSL2DAMP, 0xB9843211);
+	mtdcri(SDR0, PESDR2_460SX_HSSL3DAMP, 0xB9843211);
+
+	/* HSS TX pre-emphasis */
+	mtdcri(SDR0, PESDR0_460SX_HSSL0COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL1COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL2COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL3COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL4COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL5COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL6COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR0_460SX_HSSL7COEFA, 0xDCB98987);
+
+	mtdcri(SDR0, PESDR1_460SX_HSSL0COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR1_460SX_HSSL1COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR1_460SX_HSSL2COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR1_460SX_HSSL3COEFA, 0xDCB98987);
+
+	mtdcri(SDR0, PESDR2_460SX_HSSL0COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR2_460SX_HSSL1COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR2_460SX_HSSL2COEFA, 0xDCB98987);
+	mtdcri(SDR0, PESDR2_460SX_HSSL3COEFA, 0xDCB98987);
+
+	/* HSS TX calibration control */
+	mtdcri(SDR0, PESDR0_460SX_HSSL1CALDRV, 0x22222222);
+	mtdcri(SDR0, PESDR1_460SX_HSSL1CALDRV, 0x22220000);
+	mtdcri(SDR0, PESDR2_460SX_HSSL1CALDRV, 0x22220000);
+
+	/* HSS TX slew control */
+	mtdcri(SDR0, PESDR0_460SX_HSSSLEW, 0xFFFFFFFF);
+	mtdcri(SDR0, PESDR1_460SX_HSSSLEW, 0xFFFF0000);
+	mtdcri(SDR0, PESDR2_460SX_HSSSLEW, 0xFFFF0000);
+
+	udelay(100);
+
+	/* De-assert PLLRESET */
+	dcri_clrset(SDR0, PESDR0_PLLLCT2, 0x00000100, 0);
+
+	/* Reset DL, UTL, GPL before configuration */
+	mtdcri(SDR0, PESDR0_460SX_RCSSET,
+			PESDRx_RCSSET_RSTDL | PESDRx_RCSSET_RSTGU);
+	mtdcri(SDR0, PESDR1_460SX_RCSSET,
+			PESDRx_RCSSET_RSTDL | PESDRx_RCSSET_RSTGU);
+	mtdcri(SDR0, PESDR2_460SX_RCSSET,
+			PESDRx_RCSSET_RSTDL | PESDRx_RCSSET_RSTGU);
+
+	udelay(100);
+
+	/*
+	 * If bifurcation is not enabled, u-boot would have disabled the
+	 * third PCIe port
+	 */
+	if (((mfdcri(SDR0, PESDR1_460SX_HSSCTLSET) & 0x00000001) ==
+				0x00000001)) {
+		printk(KERN_INFO "PCI: PCIE bifurcation setup successfully.\n");
+		printk(KERN_INFO "PCI: Total 3 PCIE ports are present\n");
+		return 3;
+	}
+
+	printk(KERN_INFO "PCI: Total 2 PCIE ports are present\n");
+	return 2;
+}
+
+static int ppc460sx_pciex_init_port_hw(struct ppc4xx_pciex_port *port)
+{
+
+	if (port->endpoint)
+		dcri_clrset(SDR0, port->sdr_base + PESDRn_UTLSET2,
+				0x01000000, 0);
+	else
+		dcri_clrset(SDR0, port->sdr_base + PESDRn_UTLSET2,
+				0, 0x01000000);
+
+	/*Gen-1*/
+	mtdcri(SDR0, port->sdr_base + PESDRn_460SX_RCEI, 0x08000000);
+
+	dcri_clrset(SDR0, port->sdr_base + PESDRn_RCSSET,
+			(PESDRx_RCSSET_RSTGU | PESDRx_RCSSET_RSTDL),
+			PESDRx_RCSSET_RSTPYN);
+
+	port->has_ibpre = 1;
+
+	return 0;
+}
+
+static int ppc460sx_pciex_init_utl(struct ppc4xx_pciex_port *port)
+{
+	/* Max 128 Bytes */
+	out_be32 (port->utl_base + PEUTL_PBBSZ,   0x00000000);
+	return 0;
+}
+
+static struct ppc4xx_pciex_hwops ppc460sx_pcie_hwops __initdata = {
+	.core_init	= ppc460sx_pciex_core_init,
+	.port_init_hw	= ppc460sx_pciex_init_port_hw,
+	.setup_utl	= ppc460sx_pciex_init_utl,
+};
+
 #endif /* CONFIG_44x */
 
 #ifdef CONFIG_40x
@@ -1089,6 +1206,8 @@ static int __init ppc4xx_pciex_check_core_init(struct device_node *np)
 	}
 	if (of_device_is_compatible(np, "ibm,plb-pciex-460ex"))
 		ppc4xx_pciex_hwops = &ppc460ex_pcie_hwops;
+	if (of_device_is_compatible(np, "ibm,plb-pciex-460sx"))
+		ppc4xx_pciex_hwops = &ppc460sx_pcie_hwops;
 #endif /* CONFIG_44x    */
 #ifdef CONFIG_40x
 	if (of_device_is_compatible(np, "ibm,plb-pciex-405ex"))

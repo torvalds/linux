@@ -739,17 +739,27 @@ err_out:
 static void ar9170_usb_firmware_failed(struct ar9170_usb *aru)
 {
 	struct device *parent = aru->udev->dev.parent;
+	struct usb_device *udev;
+
+	/*
+	 * Store a copy of the usb_device pointer locally.
+	 * This is because device_release_driver initiates
+	 * ar9170_usb_disconnect, which in turn frees our
+	 * driver context (aru).
+	 */
+	udev = aru->udev;
 
 	complete(&aru->firmware_loading_complete);
 
 	/* unbind anything failed */
 	if (parent)
 		device_lock(parent);
-	device_release_driver(&aru->udev->dev);
+
+	device_release_driver(&udev->dev);
 	if (parent)
 		device_unlock(parent);
 
-	usb_put_dev(aru->udev);
+	usb_put_dev(udev);
 }
 
 static void ar9170_usb_firmware_finish(const struct firmware *fw, void *context)

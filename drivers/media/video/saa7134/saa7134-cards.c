@@ -3897,6 +3897,40 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x01,
 		},
 	},
+	[SAA7134_BOARD_AVERMEDIA_M733A] = {
+		.name		= "Avermedia PCI M733A",
+		.audio_clock	= 0x00187de7,
+		.tuner_type	= TUNER_PHILIPS_TDA8290,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tuner_config	= 0,
+		.gpiomask	= 0x020200000,
+		.inputs		= {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x00200000,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x01,
+		},
+	},
 	[SAA7134_BOARD_BEHOLD_401] = {
 		/*       Beholder Intl. Ltd. 2008      */
 		/*Dmitry Belimov <d.belimov@gmail.com> */
@@ -5822,6 +5856,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_AVERMEDIA_M135A,
 	}, {
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0x4155,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_M733A,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461, /* Avermedia Technologies Inc */
+		.subdevice    = 0x4255,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_M733A,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = PCI_VENDOR_ID_PHILIPS,
 		.subdevice    = 0x2004,
@@ -6786,6 +6832,7 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 	switch (dev->board) {
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
 	case SAA7134_BOARD_HAUPPAUGE_HVR1120:
+	case SAA7134_BOARD_AVERMEDIA_M733A:
 		/* tda8290 + tda18271 */
 		ret = saa7134_tda8290_18271_callback(dev, command, arg);
 		break;
@@ -7086,6 +7133,14 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x0000C000, 0x0000C000);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x0000C000, 0x0000C000);
+		break;
+	case SAA7134_BOARD_AVERMEDIA_M733A:
+		saa7134_set_gpio(dev, 1, 1);
+		msleep(10);
+		saa7134_set_gpio(dev, 1, 0);
+		msleep(10);
+		saa7134_set_gpio(dev, 1, 1);
+		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	}
 	return 0;

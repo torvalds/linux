@@ -188,11 +188,11 @@ scsi_cmd_free(ctlr_info_t *h, CommandList_struct *cmd)
 
 	sa = h->scsi_ctlr;
 	stk = &sa->cmd_stack; 
+	stk->top++;
 	if (stk->top >= CMD_STACK_SIZE) {
 		printk("cciss: scsi_cmd_free called too many times.\n");
 		BUG();
 	}
-	stk->top++;
 	stk->elem[stk->top] = (struct cciss_scsi_cmd_stack_elem_t *) cmd;
 }
 

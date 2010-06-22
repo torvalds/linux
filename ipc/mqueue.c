@@ -176,7 +176,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 	}
 	return inode;
 out_inode:
-	make_bad_inode(inode);
 	iput(inode);
 	return NULL;
 }

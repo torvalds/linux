@@ -380,7 +380,10 @@ struct sk_buff {
 	kmemcheck_bitfield_begin(flags2);
 	__u16			queue_mapping:16;
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
-	__u8			ndisc_nodetype:2;
+	__u8			ndisc_nodetype:2,
+				deliver_no_wcard:1;
+#else
+	__u8			deliver_no_wcard:1;
 #endif
 	kmemcheck_bitfield_end(flags2);
 
@@ -501,7 +504,7 @@ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 	return __alloc_skb(size, priority, 1, -1);
 }
 
-extern int skb_recycle_check(struct sk_buff *skb, int skb_size);
+extern bool skb_recycle_check(struct sk_buff *skb, int skb_size);
 
 extern struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src);
 extern struct sk_buff *skb_clone(struct sk_buff *skb,

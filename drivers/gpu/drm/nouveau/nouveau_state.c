@@ -376,12 +376,15 @@ out_err:
 static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 					 enum vga_switcheroo_state state)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
 		nouveau_pci_resume(pdev);
+		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		drm_kms_helper_poll_disable(dev);
 		nouveau_pci_suspend(pdev, pmm);
 	}
 }
@@ -776,29 +779,24 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 			return ret;
 	}
 
-	/* map larger RAMIN aperture on NV40 cards */
-	dev_priv->ramin  = NULL;
+	/* Map PRAMIN BAR, or on older cards, the aperture withing BAR0 */
 	if (dev_priv->card_type >= NV_40) {
 		int ramin_bar = 2;
 		if (pci_resource_len(dev->pdev, ramin_bar) == 0)
 			ramin_bar = 3;
 
 		dev_priv->ramin_size = pci_resource_len(dev->pdev, ramin_bar);
-		dev_priv->ramin = ioremap(
-				pci_resource_start(dev->pdev, ramin_bar),
+		dev_priv->ramin =
+			ioremap(pci_resource_start(dev->pdev, ramin_bar),
 				dev_priv->ramin_size);
 		if (!dev_priv->ramin) {
-			NV_ERROR(dev, "Failed to init RAMIN mapping, "
-				      "limited instance memory available\n");
+			NV_ERROR(dev, "Failed to PRAMIN BAR");
+			return -ENOMEM;
 		}
-	}
-
-	/* On older cards (or if the above failed), create a map covering
-	 * the BAR0 PRAMIN aperture */
-	if (!dev_priv->ramin) {
+	} else {
 		dev_priv->ramin_size = 1 * 1024 * 1024;
 		dev_priv->ramin = ioremap(mmio_start_offs + NV_RAMIN,
-							dev_priv->ramin_size);
+					  dev_priv->ramin_size);
 		if (!dev_priv->ramin) {
 			NV_ERROR(dev, "Failed to map BAR0 PRAMIN.\n");
 			return -ENOMEM;
@@ -912,6 +910,9 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 		break;
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = dev_priv->vm_vram_base;
+		break;
+	case NOUVEAU_GETPARAM_PTIMER_TIME:
+		getparam->value = dev_priv->engine.timer.read(dev);
 		break;
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		/* NV40 and NV50 versions are quite different, but register

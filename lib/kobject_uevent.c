@@ -83,6 +83,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_NET
 static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {
 	struct kobject *kobj = data;
@@ -98,6 +99,7 @@ static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 
 	return 0;
 }
+#endif
 
 static int kobj_usermode_filter(struct kobject *kobj)
 {
@@ -378,6 +380,7 @@ static int uevent_net_init(struct net *net)
 	if (!ue_sk->sk) {
 		printk(KERN_ERR
 		       "kobject_uevent: unable to create netlink socket!\n");
+		kfree(ue_sk);
 		return -ENODEV;
 	}
 	mutex_lock(&uevent_sock_mutex);

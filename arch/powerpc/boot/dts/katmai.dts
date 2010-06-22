@@ -44,6 +44,7 @@
 			d-cache-size = <32768>;
 			dcr-controller;
 			dcr-access-method = "native";
+			reset-type = <2>;	/* Use chip-reset */
 		};
 	};
 

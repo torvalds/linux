@@ -16,6 +16,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/module.h>
@@ -855,8 +857,8 @@ static void __init intc_register_irq(struct intc_desc *desc,
 		primary = 1;
 
 	if (!data[0] && !data[1])
-		pr_warning("intc: missing unique irq mask for "
-			   "irq %d (vect 0x%04x)\n", irq, irq2evt(irq));
+		pr_warning("missing unique irq mask for irq %d (vect 0x%04x)\n",
+			   irq, irq2evt(irq));
 
 	data[0] = data[0] ? data[0] : intc_mask_data(desc, d, enum_id, 1);
 	data[1] = data[1] ? data[1] : intc_prio_data(desc, d, enum_id, 1);
@@ -952,7 +954,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	struct intc_desc_int *d;
 	struct resource *res;
 
-	pr_info("intc: Registered controller '%s' with %u IRQs\n",
+	pr_info("Registered controller '%s' with %u IRQs\n",
 		desc->name, hw->nr_vectors);
 
 	d = kzalloc(sizeof(*d), GFP_NOWAIT);
@@ -1148,7 +1150,7 @@ int register_intc_userimask(unsigned long addr)
 	if (unlikely(!uimask))
 		return -ENOMEM;
 
-	pr_info("intc: userimask support registered for levels 0 -> %d\n",
+	pr_info("userimask support registered for levels 0 -> %d\n",
 		default_prio_level - 1);
 
 	return 0;
@@ -1286,7 +1288,7 @@ static int __init register_intc_sysdevs(void)
 	}
 
 	if (error)
-		pr_err("intc: sysdev registration error\n");
+		pr_err("sysdev registration error\n");
 
 	return error;
 }

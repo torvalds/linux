@@ -645,13 +645,6 @@ static int saa7127_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int saa7127_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	return saa7127_g_sliced_fmt(sd, &fmt->fmt.sliced);
-}
-
 static int saa7127_s_vbi_data(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *data)
 {
 	switch (data->id) {
@@ -731,7 +724,6 @@ static const struct v4l2_subdev_core_ops saa7127_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops saa7127_video_ops = {
-	.g_fmt = saa7127_g_fmt,
 	.s_std_output = saa7127_s_std_output,
 	.s_routing = saa7127_s_routing,
 	.s_stream = saa7127_s_stream,

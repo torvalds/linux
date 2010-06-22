@@ -1092,10 +1092,10 @@ static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 #endif
 };
 
-static int ov772x_enum_fmt(struct v4l2_subdev *sd, int index,
+static int ov772x_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(ov772x_cfmts))
+	if (index >= ARRAY_SIZE(ov772x_cfmts))
 		return -EINVAL;
 
 	*code = ov772x_cfmts[index].code;
@@ -1159,7 +1159,6 @@ static int ov772x_probe(struct i2c_client *client,
 	ret = ov772x_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -1172,7 +1171,6 @@ static int ov772x_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

@@ -957,7 +957,6 @@ static int __init ab3100_probe(struct i2c_client *client,
 	i2c_unregister_device(ab3100->testreg_client);
  exit_no_testreg_client:
  exit_no_detect:
-	i2c_set_clientdata(client, NULL);
 	kfree(ab3100);
 	return err;
 }
@@ -979,7 +978,6 @@ static int __exit ab3100_remove(struct i2c_client *client)
 	 * their notifiers so deactivate IRQ
 	 */
 	free_irq(client->irq, ab3100);
-	i2c_set_clientdata(client, NULL);
 	kfree(ab3100);
 	return 0;
 }

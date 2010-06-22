@@ -334,6 +334,7 @@
 #define   I915_DEBUG_INTERRUPT				(1<<2)
 #define   I915_USER_INTERRUPT				(1<<1)
 #define   I915_ASLE_INTERRUPT				(1<<0)
+#define   I915_BSD_USER_INTERRUPT                      (1<<25)
 #define EIR		0x020b0
 #define EMR		0x020b4
 #define ESR		0x020b8
@@ -368,6 +369,36 @@
 #define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
 
+/* GEN6 interrupt control */
+#define GEN6_RENDER_HWSTAM	0x2098
+#define GEN6_RENDER_IMR		0x20a8
+#define   GEN6_RENDER_CONTEXT_SWITCH_INTERRUPT		(1 << 8)
+#define   GEN6_RENDER_PPGTT_PAGE_FAULT			(1 << 7)
+#define   GEN6_RENDER TIMEOUT_COUNTER_EXPIRED		(1 << 6)
+#define   GEN6_RENDER_L3_PARITY_ERROR			(1 << 5)
+#define   GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT	(1 << 4)
+#define   GEN6_RENDER_COMMAND_PARSER_MASTER_ERROR	(1 << 3)
+#define   GEN6_RENDER_SYNC_STATUS			(1 << 2)
+#define   GEN6_RENDER_DEBUG_INTERRUPT			(1 << 1)
+#define   GEN6_RENDER_USER_INTERRUPT			(1 << 0)
+
+#define GEN6_BLITTER_HWSTAM	0x22098
+#define GEN6_BLITTER_IMR	0x220a8
+#define   GEN6_BLITTER_MI_FLUSH_DW_NOTIFY_INTERRUPT	(1 << 26)
+#define   GEN6_BLITTER_COMMAND_PARSER_MASTER_ERROR	(1 << 25)
+#define   GEN6_BLITTER_SYNC_STATUS			(1 << 24)
+#define   GEN6_BLITTER_USER_INTERRUPT			(1 << 22)
+/*
+ * BSD (bit stream decoder instruction and interrupt control register defines
+ * (G4X and Ironlake only)
+ */
+
+#define BSD_RING_TAIL          0x04030
+#define BSD_RING_HEAD          0x04034
+#define BSD_RING_START         0x04038
+#define BSD_RING_CTL           0x0403c
+#define BSD_RING_ACTHD         0x04074
+#define BSD_HWS_PGA            0x04080
 
 /*
  * Framebuffer compression (915+ only)
@@ -805,6 +836,10 @@
 #define DCC_CHANNEL_XOR_DISABLE				(1 << 10)
 #define DCC_CHANNEL_XOR_BIT_17				(1 << 9)
 
+/** Pineview MCH register contains DDR3 setting */
+#define CSHRDDR3CTL            0x101a8
+#define CSHRDDR3CTL_DDR3       (1 << 2)
+
 /** 965 MCH register controlling DRAM channel configuration */
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
@@ -825,6 +860,12 @@
 #define CLKCFG_MEM_667					(2 << 4)
 #define CLKCFG_MEM_800					(3 << 4)
 #define CLKCFG_MEM_MASK					(7 << 4)
+
+#define TR1			0x11006
+#define TSFS			0x11020
+#define   TSFS_SLOPE_MASK	0x0000ff00
+#define   TSFS_SLOPE_SHIFT	8
+#define   TSFS_INTR_MASK	0x000000ff
 
 #define CRSTANDVID		0x11100
 #define PXVFREQ_BASE		0x11110 /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
@@ -964,6 +1005,41 @@
 #define   MEMSTAT_SRC_CTL_STDBY 3
 #define RCPREVBSYTUPAVG		0x113b8
 #define RCPREVBSYTDNAVG		0x113bc
+#define SDEW			0x1124c
+#define CSIEW0			0x11250
+#define CSIEW1			0x11254
+#define CSIEW2			0x11258
+#define PEW			0x1125c
+#define DEW			0x11270
+#define MCHAFE			0x112c0
+#define CSIEC			0x112e0
+#define DMIEC			0x112e4
+#define DDREC			0x112e8
+#define PEG0EC			0x112ec
+#define PEG1EC			0x112f0
+#define GFXEC			0x112f4
+#define RPPREVBSYTUPAVG		0x113b8
+#define RPPREVBSYTDNAVG		0x113bc
+#define ECR			0x11600
+#define   ECR_GPFE		(1<<31)
+#define   ECR_IMONE		(1<<30)
+#define   ECR_CAP_MASK		0x0000001f /* Event range, 0-31 */
+#define OGW0			0x11608
+#define OGW1			0x1160c
+#define EG0			0x11610
+#define EG1			0x11614
+#define EG2			0x11618
+#define EG3			0x1161c
+#define EG4			0x11620
+#define EG5			0x11624
+#define EG6			0x11628
+#define EG7			0x1162c
+#define PXW			0x11664
+#define PXWL			0x11680
+#define LCFUSE02		0x116c0
+#define   LCFUSE_HIV_MASK	0x000000ff
+#define CSIPLL0			0x12c10
+#define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
 /*
@@ -1055,7 +1131,6 @@
 #define CRT_HOTPLUG_DETECT_VOLTAGE_325MV	(0 << 2)
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 #define CRT_HOTPLUG_MASK			(0x3fc) /* Bits 9-2 */
-#define CRT_FORCE_HOTPLUG_MASK			0xfffffe1f
 
 #define PORT_HOTPLUG_STAT	0x61114
 #define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
@@ -2355,6 +2430,8 @@
 #define GT_PIPE_NOTIFY		(1 << 4)
 #define GT_SYNC_STATUS          (1 << 2)
 #define GT_USER_INTERRUPT       (1 << 0)
+#define GT_BSD_USER_INTERRUPT   (1 << 5)
+
 
 #define GTISR   0x44010
 #define GTIMR   0x44014
@@ -2690,6 +2767,9 @@
 #define  SDVO_ENCODING          (0)
 #define  TMDS_ENCODING          (2 << 10)
 #define  NULL_PACKET_VSYNC_ENABLE       (1 << 9)
+/* CPT */
+#define  HDMI_MODE_SELECT	(1 << 9)
+#define  DVI_MODE_SELECT	(0)
 #define  SDVOB_BORDER_ENABLE    (1 << 7)
 #define  AUDIO_ENABLE           (1 << 6)
 #define  VSYNC_ACTIVE_HIGH      (1 << 4)

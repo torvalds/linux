@@ -298,7 +298,9 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 	err = virtio_config_val(vdev, VIRTIO_BLK_F_SEG_MAX,
 				offsetof(struct virtio_blk_config, seg_max),
 				&sg_elems);
-	if (err)
+
+	/* We need at least one SG element, whatever they say. */
+	if (err || !sg_elems)
 		sg_elems = 1;
 
 	/* We need an extra sg elements at head and tail. */

@@ -764,10 +764,11 @@ done2:
 static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
+	loff_t newsize = attr->ia_size;
 	int error;
 
-	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
-		loff_t newsize = attr->ia_size;
+	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)
+					&& newsize != inode->i_size) {
 		struct page *page = NULL;
 
 		if (newsize < inode->i_size) {
