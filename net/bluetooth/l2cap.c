@@ -1420,7 +1420,7 @@ static inline void l2cap_do_send(struct sock *sk, struct sk_buff *skb)
 	hci_send_acl(pi->conn->hcon, skb, 0);
 }
 
-static int l2cap_streaming_send(struct sock *sk)
+static void l2cap_streaming_send(struct sock *sk)
 {
 	struct sk_buff *skb, *tx_skb;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
@@ -1450,7 +1450,6 @@ static int l2cap_streaming_send(struct sock *sk)
 		skb = skb_dequeue(TX_QUEUE(sk));
 		kfree_skb(skb);
 	}
-	return 0;
 }
 
 static void l2cap_retransmit_one_frame(struct sock *sk, u8 tx_seq)
@@ -1866,7 +1865,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		}
 
 		if (pi->mode == L2CAP_MODE_STREAMING) {
-			err = l2cap_streaming_send(sk);
+			l2cap_streaming_send(sk);
 		} else {
 			if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY &&
 					pi->conn_state && L2CAP_CONN_WAIT_F) {
