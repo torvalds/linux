@@ -1020,6 +1020,8 @@ static struct davinci_timer_info dm365_timer_info = {
 	.clocksource_id	= T0_TOP,
 };
 
+#define DM365_UART1_BASE	(IO_PHYS + 0x106000)
+
 static struct plat_serial8250_port dm365_serial_platform_data[] = {
 	{
 		.mapbase	= DAVINCI_UART0_BASE,
@@ -1030,7 +1032,7 @@ static struct plat_serial8250_port dm365_serial_platform_data[] = {
 		.regshift	= 2,
 	},
 	{
-		.mapbase	= DAVINCI_UART1_BASE,
+		.mapbase	= DM365_UART1_BASE,
 		.irq		= IRQ_UARTINT1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_SKIP_TEST |
 				  UPF_IOREMAP,
