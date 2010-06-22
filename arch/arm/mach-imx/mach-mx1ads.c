@@ -26,7 +26,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx1.h>
 #include <mach/irqs.h>
 
@@ -59,12 +58,12 @@ static int mx1ads_pins[] = {
  * UARTs platform data
  */
 
-static struct imxuart_platform_data uart_pdata[] = {
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
+static const struct imxuart_platform_data uart0_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
+};
+       
+static const struct imxuart_platform_data uart1_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 /*
@@ -122,8 +121,8 @@ static void __init mx1ads_init(void)
 		ARRAY_SIZE(mx1ads_pins), "mx1ads");
 
 	/* UART */
-	mxc_register_device(&imx1_uart_device0, &uart_pdata[0]);
-	mxc_register_device(&imx1_uart_device1, &uart_pdata[1]);
+	imx1_add_imx_uart0(&uart0_pdata);
+	imx1_add_imx_uart1(&uart1_pdata);
 
 	/* Physmap flash */
 	mxc_register_device(&flash_device, &mx1ads_flash_data);

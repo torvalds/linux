@@ -70,37 +70,6 @@ struct platform_device imx1_camera_device = {
 	.num_resources  = ARRAY_SIZE(imx1_camera_resources),
 };
 
-#define DEFINE_IMX1_UART_DEVICE(n, baseaddr, irqrx, irqtx, irqrts)	\
-	static struct resource imx1_uart_resources ## n[] = {		\
-		{							\
-			.start = baseaddr,				\
-			.end = baseaddr + 0xd0,				\
-			.flags = IORESOURCE_MEM,			\
-		}, {							\
-			.start = irqrx,					\
-			.end = irqrx,					\
-			.flags = IORESOURCE_IRQ,			\
-		}, {							\
-			.start = irqtx,					\
-			.end = irqtx,					\
-			.flags = IORESOURCE_IRQ,			\
-		}, {							\
-			.start = irqrts,				\
-			.end = irqrts,					\
-			.flags = IORESOURCE_IRQ,			\
-		},							\
-	};								\
-									\
-	struct platform_device imx1_uart_device ## n = {		\
-		.name = "imx-uart",					\
-		.id = n,						\
-		.num_resources = ARRAY_SIZE(imx1_uart_resources ## n),	\
-		.resource = imx1_uart_resources ## n,			\
-	}
-
-DEFINE_IMX1_UART_DEVICE(0, MX1_UART1_BASE_ADDR, MX1_UART1_MINT_RX, MX1_UART1_MINT_TX, MX1_UART1_MINT_RTS);
-DEFINE_IMX1_UART_DEVICE(1, MX1_UART2_BASE_ADDR, MX1_UART2_MINT_RX, MX1_UART2_MINT_TX, MX1_UART2_MINT_RTS);
-
 static struct resource imx_rtc_resources[] = {
 	{
 		.start  = 0x00204000,

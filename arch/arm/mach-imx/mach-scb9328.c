@@ -22,9 +22,9 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx1.h>
 
+#include "devices-imx1.h"
 #include "devices.h"
 
 /*
@@ -114,7 +114,7 @@ static void uart1_mxc_exit(struct platform_device *pdev)
 			ARRAY_SIZE(mxc_uart1_pins));
 }
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.init = uart1_mxc_init,
 	.exit = uart1_mxc_exit,
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -130,7 +130,7 @@ static struct platform_device *devices[] __initdata = {
  */
 static void __init scb9328_init(void)
 {
-	mxc_register_device(&imx1_uart_device0, &uart_pdata);
+	imx1_add_imx_uart0(&uart_pdata);
 
 	printk(KERN_INFO"Scb9328: Adding devices\n");
 	platform_add_devices(devices, ARRAY_SIZE(devices));
