@@ -573,7 +573,7 @@ struct qlcnic_recv_context {
 /*
  * Context state
  */
-
+#define QLCNIC_HOST_CTX_STATE_FREED	0
 #define QLCNIC_HOST_CTX_STATE_ACTIVE	2
 
 /*

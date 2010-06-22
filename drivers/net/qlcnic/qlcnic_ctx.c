@@ -280,6 +280,8 @@ qlcnic_fw_cmd_destroy_rx_ctx(struct qlcnic_adapter *adapter)
 		dev_err(&adapter->pdev->dev,
 			"Failed to destroy rx ctx in firmware\n");
 	}
+
+	recv_ctx->state = QLCNIC_HOST_CTX_STATE_FREED;
 }
 
 static int
