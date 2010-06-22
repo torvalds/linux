@@ -3423,7 +3423,7 @@ static int l2cap_check_fcs(struct l2cap_pinfo *pi,  struct sk_buff *skb)
 		our_fcs = crc16(0, skb->data - hdr_size, skb->len + hdr_size);
 
 		if (our_fcs != rcv_fcs)
-			return -EINVAL;
+			return -EBADMSG;
 	}
 	return 0;
 }
