@@ -82,7 +82,7 @@ int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	elapsed_time = delta / 10;
 
 	if (elapsed_time != 0 &&
-	    dccp_insert_option_elapsed_time(sk, skb, elapsed_time))
+	    dccp_insert_option_elapsed_time(skb, elapsed_time))
 		return -1;
 
 	avr = dccp_ackvec_record_new();
