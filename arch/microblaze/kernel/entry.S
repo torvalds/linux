@@ -275,9 +275,12 @@ C_ENTRY(_user_exception):
 	addi	r14, r14, 4	/* return address is 4 byte after call */
 	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11);	/* Save r11 */
 
-	lwi	r11, r0, TOPHYS(PER_CPU(KM));/* See if already in kernel mode.*/
-	beqi	r11, 1f;		/* Jump ahead if coming from user */
-/* Kernel-mode state save. */
+	mfs	r11, rmsr
+	nop
+	andi	r11, r11, MSR_UMS
+	bnei	r11, 1f
+
+/* Kernel-mode state save - kernel execve */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
 	tophys(r1,r11);
 	swi	r11, r1, (PT_R1-PT_SIZE); /* Save original SP. */
@@ -307,8 +310,6 @@ C_ENTRY(_user_exception):
 	swi	r0, r1, PTO+PT_MODE;			/* Was in user-mode. */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
-	addi	r11, r0, 1;
-	swi	r11, r0, TOPHYS(PER_CPU(KM));	/* Now we're in kernel-mode.  */
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
 	swi	r12, r1, PTO+PT_R0;
@@ -423,7 +424,6 @@ C_ENTRY(ret_from_trap):
 
 /* Finally, return to user state.  */
 1:
-	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
@@ -511,8 +511,10 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	enable_irq;							\
 	set_ee;								\
 	/* See if already in kernel mode.*/				\
-	lwi	r11, r0, TOPHYS(PER_CPU(KM));				\
-	beqi	r11, 1f;		/* Jump ahead if coming from user */\
+	mfs	r11, rmsr;						\
+	nop;								\
+	andi	r11, r11, MSR_UMS;					\
+	bnei	r11, 1f;						\
 	/* Kernel-mode state save.  */					\
 	/* Reload kernel stack-ptr. */					\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
@@ -544,8 +546,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */		\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
-	addi	r11, r0, 1;						\
-	swi	r11, r0, TOPHYS(PER_CPU(KM)); /* Now we're in kernel-mode.*/\
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));	\
 	/* Save away the syscall number.  */				\
 	swi	r0, r1, PTO+PT_R0;					\
@@ -686,7 +686,7 @@ C_ENTRY(ret_from_exc):
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
 /* Finally, return to user state.  */
-1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
+1:
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
@@ -724,8 +724,10 @@ C_ENTRY(_interrupt):
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
 	swi	r11, r0, TOPHYS(PER_CPU(R11_SAVE));
 	/* MS: See if already in kernel mode. */
-	lwi	r11, r0, TOPHYS(PER_CPU(KM));
-	beqi	r11, 1f; /* MS: Jump ahead if coming from user */
+	mfs	r11, rmsr
+	nop
+	andi	r11, r11, MSR_UMS
+	bnei	r11, 1f
 
 /* Kernel-mode state save. */
 	or	r11, r1, r0
@@ -761,10 +763,6 @@ C_ENTRY(_interrupt):
 	swi	r0, r1, PTO + PT_MODE;
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;
-	/* setup kernel mode to KM */
-	addi	r11, r0, 1;
-	swi	r11, r0, TOPHYS(PER_CPU(KM));
-
 2:
 	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	swi	r0, r1, PTO + PT_R0;
@@ -803,7 +801,6 @@ ret_from_irq:
 no_intr_resched:
     /* Disable interrupts, we are now committed to the state restore */
 	disable_irq
-	swi	r0, r0, PER_CPU(KM); /* MS: Now officially in user state. */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE);
 	VM_OFF;
 	tophys(r1,r1);
@@ -858,8 +855,10 @@ C_ENTRY(_debug_exception):
 	set_bip;	/*equalize initial state for all possible entries*/
 	clear_eip;
 	enable_irq;
-	lwi	r11, r0, TOPHYS(PER_CPU(KM));/* See if already in kernel mode.*/
-	beqi	r11, 1f;		/* Jump ahead if coming from user */
+	mfs	r11, rmsr
+	nop
+	andi	r11, r11, MSR_UMS
+	bnei	r11, 1f
 	/* Kernel-mode state save.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
 	tophys(r1,r11);
@@ -887,8 +886,6 @@ C_ENTRY(_debug_exception):
 	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
-	addi	r11, r0, 1;
-	swi	r11, r0, TOPHYS(PER_CPU(KM));	/* Now we're in kernel-mode.  */
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
 	swi	r0, r1, PTO+PT_R0;
@@ -944,7 +941,7 @@ dbtrap_call:	rtbd	r11, 0;
 
 
 /* Finally, return to user state.  */
-1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
+1:
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
