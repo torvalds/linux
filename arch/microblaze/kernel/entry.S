@@ -747,15 +747,13 @@ C_ENTRY(_interrupt):
 	swi	r0, r1, PTO + PT_MODE;
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;
+	clear_ums;
 2:
 	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	tovirt(r1,r1)
-	addik	r5, r1, PTO;
-	set_vms;
-	addik	r11, r0, do_IRQ;
 	addik	r15, r0, irq_call;
-irq_call:rtbd	r11, 0;
-	nop;
+irq_call:rtbd	r0, do_IRQ;
+	addik	r5, r1, PTO;
 
 /* MS: we are in virtual mode */
 ret_from_irq:
