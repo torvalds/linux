@@ -355,9 +355,6 @@ static int __devexit tps6507x_ts_remove(struct platform_device *pdev)
 	struct tps6507x_ts *tsc = tps6507x_dev->ts;
 	struct input_dev *input_dev = tsc->input_dev;
 
-	if (!tsc)
-		return 0;
-
 	cancel_delayed_work_sync(&tsc->work);
 	destroy_workqueue(tsc->wq);
 
