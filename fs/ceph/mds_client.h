@@ -208,8 +208,8 @@ struct ceph_mds_request {
 
 	int               r_attempts;   /* resend attempts */
 	int               r_num_fwd;    /* number of forward attempts */
-	int               r_num_stale;
 	int               r_resend_mds; /* mds to resend to next, if any*/
+	u32               r_sent_on_mseq; /* cap mseq request was sent at*/
 
 	struct kref       r_kref;
 	struct list_head  r_wait;
