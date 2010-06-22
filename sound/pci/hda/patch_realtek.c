@@ -2547,7 +2547,7 @@ static struct snd_kcontrol_new alc_beep_mixer[] = {
 static int alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	struct snd_kcontrol *kctl;
+	struct snd_kcontrol *kctl = NULL;
 	struct snd_kcontrol_new *knew;
 	int i, j, err;
 	unsigned int u;
