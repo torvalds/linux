@@ -1649,6 +1649,42 @@ exit:
 		return NULL;
 }
 
+static int at76_join(struct at76_priv *priv)
+{
+	struct at76_req_join join;
+	int ret;
+
+	memset(&join, 0, sizeof(struct at76_req_join));
+	memcpy(join.essid, priv->essid, priv->essid_size);
+	join.essid_size = priv->essid_size;
+	memcpy(join.bssid, priv->bssid, ETH_ALEN);
+	join.bss_type = INFRASTRUCTURE_MODE;
+	join.channel = priv->channel;
+	join.timeout = cpu_to_le16(2000);
+
+	at76_dbg(DBG_MAC80211, "%s: sending CMD_JOIN", __func__);
+	ret = at76_set_card_command(priv->udev, CMD_JOIN, &join,
+				    sizeof(struct at76_req_join));
+
+	if (ret < 0) {
+		printk(KERN_ERR "%s: at76_set_card_command failed: %d\n",
+		       wiphy_name(priv->hw->wiphy), ret);
+		return 0;
+	}
+
+	ret = at76_wait_completion(priv, CMD_JOIN);
+	at76_dbg(DBG_MAC80211, "%s: CMD_JOIN returned: 0x%02x", __func__, ret);
+	if (ret != CMD_STATUS_COMPLETE) {
+		printk(KERN_ERR "%s: at76_wait_completion failed: %d\n",
+		       wiphy_name(priv->hw->wiphy), ret);
+		return 0;
+	}
+
+	at76_set_pm_mode(priv);
+
+	return 0;
+}
+
 static void at76_mac80211_tx_callback(struct urb *urb)
 {
 	struct at76_priv *priv = urb->context;
@@ -1816,42 +1852,6 @@ static void at76_remove_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif)
 {
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
-}
-
-static int at76_join(struct at76_priv *priv)
-{
-	struct at76_req_join join;
-	int ret;
-
-	memset(&join, 0, sizeof(struct at76_req_join));
-	memcpy(join.essid, priv->essid, priv->essid_size);
-	join.essid_size = priv->essid_size;
-	memcpy(join.bssid, priv->bssid, ETH_ALEN);
-	join.bss_type = INFRASTRUCTURE_MODE;
-	join.channel = priv->channel;
-	join.timeout = cpu_to_le16(2000);
-
-	at76_dbg(DBG_MAC80211, "%s: sending CMD_JOIN", __func__);
-	ret = at76_set_card_command(priv->udev, CMD_JOIN, &join,
-				    sizeof(struct at76_req_join));
-
-	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_set_card_command failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-		return 0;
-	}
-
-	ret = at76_wait_completion(priv, CMD_JOIN);
-	at76_dbg(DBG_MAC80211, "%s: CMD_JOIN returned: 0x%02x", __func__, ret);
-	if (ret != CMD_STATUS_COMPLETE) {
-		printk(KERN_ERR "%s: at76_wait_completion failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-		return 0;
-	}
-
-	at76_set_pm_mode(priv);
-
-	return 0;
 }
 
 static void at76_dwork_hw_scan(struct work_struct *work)
