@@ -474,7 +474,7 @@ const DWORD dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL s_bAL7230Init (DWORD_PTR dwIoBase)
+BOOL s_bAL7230Init (unsigned long dwIoBase)
 {
     int     ii;
     BOOL    bResult;
@@ -517,7 +517,7 @@ BOOL s_bAL7230Init (DWORD_PTR dwIoBase)
 }
 
 // Need to Pull PLLON low when writing channel registers through 3-wire interface
-BOOL s_bAL7230SelectChannel (DWORD_PTR dwIoBase, BYTE byChannel)
+BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, BYTE byChannel)
 {
     BOOL    bResult;
 
@@ -622,7 +622,7 @@ BOOL s_bAL7230SelectChannel (DWORD_PTR dwIoBase, BYTE byChannel)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL IFRFbWriteEmbeded (DWORD_PTR dwIoBase, DWORD dwData)
+BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, DWORD dwData)
 {
     WORD    ww;
     DWORD   dwValue;
@@ -684,7 +684,7 @@ BOOL IFRFbWriteEmbeded (DWORD_PTR dwIoBase, DWORD dwData)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL RFbAL2230Init (DWORD_PTR dwIoBase)
+BOOL RFbAL2230Init (unsigned long dwIoBase)
 {
     int     ii;
     BOOL    bResult;
@@ -734,7 +734,7 @@ MACvTimer0MicroSDelay(dwIoBase, 30); //delay 30 us
     return bResult;
 }
 
-BOOL RFbAL2230SelectChannel (DWORD_PTR dwIoBase, BYTE byChannel)
+BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, BYTE byChannel)
 {
     BOOL    bResult;
 
@@ -875,7 +875,7 @@ BOOL    bResult = TRUE;
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL RFbSelectChannel (DWORD_PTR dwIoBase, BYTE byRFType, BYTE byChannel)
+BOOL RFbSelectChannel (unsigned long dwIoBase, BYTE byRFType, BYTE byChannel)
 {
 BOOL    bResult = TRUE;
     switch (byRFType) {
@@ -911,7 +911,7 @@ BOOL    bResult = TRUE;
  * Return Value: None.
  *
  */
-BOOL RFvWriteWakeProgSyn (DWORD_PTR dwIoBase, BYTE byRFType, unsigned int uChannel)
+BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, BYTE byRFType, unsigned int uChannel)
 {
     int   ii;
     BYTE  byInitCount = 0;
@@ -1232,7 +1232,7 @@ RFvRSSITodBm (
 
 // Post processing for the 11b/g and 11a.
 // for save time on changing Reg2,3,5,7,10,12,15
-BOOL RFbAL7230SelectChannelPostProcess (DWORD_PTR dwIoBase, BYTE byOldChannel, BYTE byNewChannel)
+BOOL RFbAL7230SelectChannelPostProcess (unsigned long dwIoBase, BYTE byOldChannel, BYTE byNewChannel)
 {
     BOOL    bResult;
 

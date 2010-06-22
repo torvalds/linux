@@ -101,7 +101,7 @@ typedef struct tagSKeyManagement
 
 /*---------------------  Export Functions  --------------------------*/
 
-void KeyvInitTable(PSKeyManagement pTable, DWORD_PTR dwIoBase);
+void KeyvInitTable(PSKeyManagement pTable, unsigned long dwIoBase);
 
 BOOL KeybGetKey(
     PSKeyManagement pTable,
@@ -118,7 +118,7 @@ BOOL KeybSetKey(
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
     BYTE            byKeyDecMode,
-    DWORD_PTR       dwIoBase,
+    unsigned long dwIoBase,
     BYTE            byLocalID
     );
 
@@ -129,7 +129,7 @@ BOOL KeybSetDefaultKey(
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
     BYTE            byKeyDecMode,
-    DWORD_PTR       dwIoBase,
+    unsigned long dwIoBase,
     BYTE            byLocalID
     );
 
@@ -137,7 +137,7 @@ BOOL KeybRemoveKey(
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     DWORD           dwKeyIndex,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     );
 
 BOOL KeybGetTransmitKey(
@@ -155,18 +155,18 @@ BOOL KeybCheckPairewiseKey(
 BOOL KeybRemoveAllKey(
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     );
 
 void KeyvRemoveWEPKey(
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     );
 
 void KeyvRemoveAllWEPKey(
     PSKeyManagement pTable,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     );
 
 BOOL KeybSetAllGroupKey (
@@ -176,7 +176,7 @@ BOOL KeybSetAllGroupKey (
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
     BYTE            byKeyDecMode,
-    DWORD_PTR       dwIoBase,
+    unsigned long dwIoBase,
     BYTE            byLocalID
     );
 

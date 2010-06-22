@@ -76,7 +76,7 @@
  * Return Value: data read
  *
  */
-BYTE SROMbyReadEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset)
+BYTE SROMbyReadEmbedded(unsigned long dwIoBase, BYTE byContntOffset)
 {
     WORD    wDelay, wNoACK;
     BYTE    byWait;
@@ -125,7 +125,7 @@ BYTE SROMbyReadEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL SROMbWriteEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byData)
+BOOL SROMbWriteEmbedded(unsigned long dwIoBase, BYTE byContntOffset, BYTE byData)
 {
     WORD    wDelay, wNoACK;
     BYTE    byWait;
@@ -178,7 +178,7 @@ BOOL SROMbWriteEmbedded(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byData)
  * Return Value: none
  *
  */
-void SROMvRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits)
+void SROMvRegBitsOn(unsigned long dwIoBase, BYTE byContntOffset, BYTE byBits)
 {
     BYTE    byOrgData;
 
@@ -199,7 +199,7 @@ void SROMvRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits)
  *      none
  *
  */
-void SROMvRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits)
+void SROMvRegBitsOff(unsigned long dwIoBase, BYTE byContntOffset, BYTE byBits)
 {
     BYTE    byOrgData;
 
@@ -222,7 +222,7 @@ void SROMvRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits)
  * Return Value: TRUE if all test bits on; otherwise FALSE
  *
  */
-BOOL SROMbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits)
+BOOL SROMbIsRegBitsOn(unsigned long dwIoBase, BYTE byContntOffset, BYTE byTestBits)
 {
     BYTE    byOrgData;
 
@@ -245,7 +245,7 @@ BOOL SROMbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits)
  * Return Value: TRUE if all test bits off; otherwise FALSE
  *
  */
-BOOL SROMbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits)
+BOOL SROMbIsRegBitsOff(unsigned long dwIoBase, BYTE byContntOffset, BYTE byTestBits)
 {
     BYTE    byOrgData;
 
@@ -266,7 +266,7 @@ BOOL SROMbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits)
  * Return Value: none
  *
  */
-void SROMvReadAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs)
+void SROMvReadAllContents(unsigned long dwIoBase, unsigned char *pbyEepromRegs)
 {
     int     ii;
 
@@ -291,7 +291,7 @@ void SROMvReadAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs)
  * Return Value: none
  *
  */
-void SROMvWriteAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs)
+void SROMvWriteAllContents(unsigned long dwIoBase, unsigned char *pbyEepromRegs)
 {
     int     ii;
 
@@ -315,7 +315,7 @@ void SROMvWriteAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs)
  * Return Value: none
  *
  */
-void SROMvReadEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
+void SROMvReadEtherAddress(unsigned long dwIoBase, unsigned char *pbyEtherAddress)
 {
     BYTE     ii;
 
@@ -340,7 +340,7 @@ void SROMvReadEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
  * Return Value: none
  *
  */
-void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
+void SROMvWriteEtherAddress(unsigned long dwIoBase, unsigned char *pbyEtherAddress)
 {
     BYTE     ii;
 
@@ -364,7 +364,7 @@ void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
  * Return Value: none
  *
  */
-void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, unsigned long *pdwSubSysVenId)
+void SROMvReadSubSysVenId(unsigned long dwIoBase, unsigned long *pdwSubSysVenId)
 {
     unsigned char *pbyData;
 
@@ -389,7 +389,7 @@ void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, unsigned long *pdwSubSysVenId)
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-BOOL SROMbAutoLoad(DWORD_PTR dwIoBase)
+BOOL SROMbAutoLoad(unsigned long dwIoBase)
 {
     BYTE    byWait;
     int     ii;

@@ -59,7 +59,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Functions  --------------------------*/
 static void
-s_vCheckKeyTableValid (PSKeyManagement pTable, DWORD_PTR dwIoBase)
+s_vCheckKeyTableValid (PSKeyManagement pTable, unsigned long dwIoBase)
 {
     int i;
 
@@ -96,7 +96,7 @@ s_vCheckKeyTableValid (PSKeyManagement pTable, DWORD_PTR dwIoBase)
  * Return Value: none
  *
  */
-void KeyvInitTable (PSKeyManagement pTable, DWORD_PTR dwIoBase)
+void KeyvInitTable (PSKeyManagement pTable, unsigned long dwIoBase)
 {
     int i;
     int jj;
@@ -197,7 +197,7 @@ BOOL KeybSetKey (
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
     BYTE            byKeyDecMode,
-    DWORD_PTR       dwIoBase,
+    unsigned long dwIoBase,
     BYTE            byLocalID
     )
 {
@@ -366,7 +366,7 @@ BOOL KeybRemoveKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
     DWORD           dwKeyIndex,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     )
 {
     int  i;
@@ -438,7 +438,7 @@ BOOL KeybRemoveKey (
 BOOL KeybRemoveAllKey (
     PSKeyManagement pTable,
     unsigned char *pbyBSSID,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     )
 {
     int  i,u;
@@ -473,7 +473,7 @@ BOOL KeybRemoveAllKey (
 void KeyvRemoveWEPKey (
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     )
 {
 
@@ -494,7 +494,7 @@ void KeyvRemoveWEPKey (
 
 void KeyvRemoveAllWEPKey (
     PSKeyManagement pTable,
-    DWORD_PTR       dwIoBase
+    unsigned long dwIoBase
     )
 {
     int i;
@@ -638,7 +638,7 @@ BOOL KeybSetDefaultKey (
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
     BYTE            byKeyDecMode,
-    DWORD_PTR       dwIoBase,
+    unsigned long dwIoBase,
     BYTE            byLocalID
     )
 {
@@ -745,7 +745,7 @@ BOOL KeybSetAllGroupKey (
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
     BYTE            byKeyDecMode,
-    DWORD_PTR       dwIoBase,
+    unsigned long dwIoBase,
     BYTE            byLocalID
     )
 {

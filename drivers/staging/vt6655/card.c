@@ -1999,7 +1999,7 @@ BYTE CARDbyGetPktType (void *pDeviceHandler)
  * Return Value: none
  *
  */
-void CARDvSetLoopbackMode (DWORD_PTR dwIoBase, WORD wLoopbackMode)
+void CARDvSetLoopbackMode (unsigned long dwIoBase, WORD wLoopbackMode)
 {
     switch(wLoopbackMode) {
     case CARD_LB_NONE:
@@ -2092,7 +2092,7 @@ QWORD CARDqGetTSFOffset (BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2)
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-BOOL CARDbGetCurrentTSF (DWORD_PTR dwIoBase, PQWORD pqwCurrTSF)
+BOOL CARDbGetCurrentTSF (unsigned long dwIoBase, PQWORD pqwCurrTSF)
 {
     WORD    ww;
     BYTE    byData;
@@ -2170,7 +2170,7 @@ QWORD CARDqGetNextTBTT (QWORD qwTSF, WORD wBeaconInterval)
  * Return Value: none
  *
  */
-void CARDvSetFirstNextTBTT (DWORD_PTR dwIoBase, WORD wBeaconInterval)
+void CARDvSetFirstNextTBTT (unsigned long dwIoBase, WORD wBeaconInterval)
 {
 
     QWORD   qwNextTBTT;
@@ -2203,7 +2203,7 @@ void CARDvSetFirstNextTBTT (DWORD_PTR dwIoBase, WORD wBeaconInterval)
  * Return Value: none
  *
  */
-void CARDvUpdateNextTBTT (DWORD_PTR dwIoBase, QWORD qwTSF, WORD wBeaconInterval)
+void CARDvUpdateNextTBTT (unsigned long dwIoBase, QWORD qwTSF, WORD wBeaconInterval)
 {
 
     qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
