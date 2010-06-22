@@ -286,8 +286,7 @@ C_ENTRY(_user_exception):
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack. */
 	SAVE_REGS
 
-	addi	r11, r0, 1; 		/* Was in kernel-mode. */
-	swi	r11, r1, PTO+PT_MODE; /* pt_regs -> kernel mode */
+	swi	r1, r1, PTO + PT_MODE; /* pt_regs -> kernel mode */
 	brid	2f;
 	nop;				/* Fill delay slot */
 
@@ -303,7 +302,7 @@ C_ENTRY(_user_exception):
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
 	SAVE_REGS
 
-	swi	r0, r1, PTO+PT_MODE;			/* Was in user-mode. */
+	swi	r0, r1, PTO + PT_MODE;			/* Was in user-mode. */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
@@ -380,7 +379,7 @@ C_ENTRY(ret_from_trap):
 	swi	r3, r1, PTO + PT_R3
 	swi	r4, r1, PTO + PT_R4
 
-	lwi	r11, r1, PTO+PT_MODE;
+	lwi	r11, r1, PTO + PT_MODE;
 /* See if returning to kernel mode, if so, skip resched &c.  */
 	bnei	r11, 2f;
 	/* We're returning to user mode, so check for various conditions that
@@ -513,8 +512,7 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
-	addi	r11, r0, 1; 		/* Was in kernel-mode.  */	\
-	swi	r11, r1, PTO+PT_MODE; 	 				\
+	swi	r1, r1, PTO+PT_MODE; 	 				\
 	brid	2f;							\
 	nop;				/* Fill delay slot */		\
 1:	/* User-mode state save.  */					\
@@ -525,7 +523,7 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
-	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */		\
+	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
@@ -645,7 +643,7 @@ C_ENTRY(page_fault_instr_trap):
 
 /* Entry point used to return from an exception.  */
 C_ENTRY(ret_from_exc):
-	lwi	r11, r1, PTO+PT_MODE;
+	lwi	r11, r1, PTO + PT_MODE;
 	bnei	r11, 2f;		/* See if returning to kernel mode, */
 					/* ... if so, skip resched &c.  */
 
@@ -733,9 +731,7 @@ C_ENTRY(_interrupt):
 /* MS: Make room on the stack -> activation record */
 	addik	r1, r1, -STATE_SAVE_SIZE;
 	SAVE_REGS
-	/* MS: store mode */
-	addi	r11, r0, 1; /* MS: Was in kernel-mode. */
-	swi	r11, r1, PTO + PT_MODE; /* MS: and save it */
+	swi	r1, r1, PTO + PT_MODE; /* 0 - user mode, 1 - kernel mode */
 	brid	2f;
 	nop; /* MS: Fill delay slot */
 
@@ -852,8 +848,7 @@ C_ENTRY(_debug_exception):
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
 	SAVE_REGS;
 
-	addi	r11, r0, 1; 		/* Was in kernel-mode.  */
-	swi	r11, r1, PTO + PT_MODE;
+	swi	r1, r1, PTO + PT_MODE;
 	brid	2f;
 	nop;				/* Fill delay slot */
 1:      /* User-mode state save.  */
@@ -866,7 +861,7 @@ C_ENTRY(_debug_exception):
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
 	SAVE_REGS;
 
-	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */
+	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
 2:
@@ -880,7 +875,7 @@ dbtrap_call:	rtbd	r0, send_sig;
 	addik	r15, r0, dbtrap_call;
 
 	set_bip;			/*  Ints masked for state restore*/
-	lwi	r11, r1, PTO+PT_MODE;
+	lwi	r11, r1, PTO + PT_MODE;
 	bnei	r11, 2f;
 
 	/* Get current task ptr into r11 */
