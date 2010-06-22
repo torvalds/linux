@@ -92,9 +92,7 @@
 	.endm
 
 	.macro	clear_vms_ums
-	msrclr	r11, MSR_VMS
-	nop
-	msrclr	r11, MSR_UMS
+	msrclr	r11, MSR_VMS | MSR_UMS
 	nop
 	.endm
 #else
