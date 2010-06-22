@@ -954,9 +954,12 @@ retry_wait:
 			mpt_free_msg_frame(iocp, mf);
 			goto fwdl_out;
 		}
-		if (!timeleft)
+		if (!timeleft) {
+			printk(MYIOC_s_WARN_FMT
+			       "FW download timeout, doorbell=0x%08x\n",
+			       iocp->name, mpt_GetIocState(iocp, 0));
 			mptctl_timeout_expired(iocp, mf);
-		else
+		} else
 			goto retry_wait;
 		goto fwdl_out;
 	}
@@ -2301,6 +2304,10 @@ retry_wait:
 			goto done_free_mem;
 		}
 		if (!timeleft) {
+			printk(MYIOC_s_WARN_FMT
+			       "mpt cmd timeout, doorbell=0x%08x"
+			       " function=0x%x\n",
+			       ioc->name, mpt_GetIocState(ioc, 0), function);
 			if (function == MPI_FUNCTION_SCSI_TASK_MGMT)
 				mutex_unlock(&ioc->taskmgmt_cmds.mutex);
 			mptctl_timeout_expired(ioc, mf);
@@ -2608,9 +2615,12 @@ retry_wait:
 			mpt_free_msg_frame(ioc, mf);
 			goto out;
 		}
-		if (!timeleft)
+		if (!timeleft) {
+			printk(MYIOC_s_WARN_FMT
+			       "HOST INFO command timeout, doorbell=0x%08x\n",
+			       ioc->name, mpt_GetIocState(ioc, 0));
 			mptctl_timeout_expired(ioc, mf);
-		else
+		} else
 			goto retry_wait;
 		goto out;
 	}
