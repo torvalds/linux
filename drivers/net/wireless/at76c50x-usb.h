@@ -387,6 +387,7 @@ struct at76_priv {
 	/* work queues */
 	struct work_struct work_set_promisc;
 	struct work_struct work_submit_rx;
+	struct work_struct work_join_bssid;
 	struct delayed_work dwork_hw_scan;
 
 	struct tasklet_struct rx_tasklet;
