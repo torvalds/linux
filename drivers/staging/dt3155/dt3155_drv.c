@@ -64,8 +64,8 @@ extern void printques(int);
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/uaccess.h>
 
 #include "dt3155.h"
@@ -112,14 +112,12 @@ int dt3155_major = 0;
 struct dt3155_status dt3155_status[MAXBOARDS];
 
 /* kernel logical address of the board */
-u8 *dt3155_lbase[MAXBOARDS] = { NULL
+static void __iomem *dt3155_lbase[MAXBOARDS] = { NULL
 #if MAXBOARDS == 2
 				      , NULL
 #endif
 };
-/* DT3155 registers              */
-u8 *dt3155_bbase = NULL;		  /* kernel logical address of the *
-					   * buffer region                 */
+
 u32  dt3155_dev_open[MAXBOARDS] = {0
 #if MAXBOARDS == 2
 				       , 0
@@ -139,11 +137,11 @@ static void quick_stop (int minor)
 {
   // TODO: scott was here
 #if 1
-  ReadMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+  int_csr_r.reg = readl(dt3155_lbase[minor] + INT_CSR);
   /* disable interrupts */
   int_csr_r.fld.FLD_END_EVE_EN = 0;
   int_csr_r.fld.FLD_END_ODD_EN = 0;
-  WriteMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+  writel(int_csr_r.reg, dt3155_lbase[minor] + INT_CSR);
 
   dt3155_status[minor].state &= ~(DT3155_STATE_STOP|0xff);
   /* mark the system stopped: */
@@ -171,6 +169,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
   int    index;
   unsigned long flags;
   u32 buffer_addr;
+  void __iomem *mmio;
 
   /* find out who issued the interrupt */
   for (index = 0; index < ndevices; index++) {
@@ -187,8 +186,10 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
     return;
   }
 
+  mmio = dt3155_lbase[minor];
+
   /* Check for corruption and set a flag if so */
-  ReadMReg((dt3155_lbase[minor] + CSR1), csr1_r.reg);
+  csr1_r.reg = readl(mmio + CSR1);
 
   if ((csr1_r.fld.FLD_CRPT_EVE) || (csr1_r.fld.FLD_CRPT_ODD))
     {
@@ -200,7 +201,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
       return;
     }
 
-  ReadMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+  int_csr_r.reg = readl(mmio + INT_CSR);
 
   /* Handle the even field ... */
   if (int_csr_r.fld.FLD_END_EVE)
@@ -211,7 +212,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 	  dt3155_fbuffer[minor]->frame_count++;
 	}
 
-      ReadI2C(dt3155_lbase[minor], EVEN_CSR, &i2c_even_csr.reg);
+      ReadI2C(mmio, EVEN_CSR, &i2c_even_csr.reg);
 
       /* Clear the interrupt? */
       int_csr_r.fld.FLD_END_EVE = 1;
@@ -231,7 +232,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 	    }
 	}
 
-      WriteMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+      writel(int_csr_r.reg, mmio + INT_CSR);
 
       /* Set up next DMA if we are doing FIELDS */
       if ((dt3155_status[minor].state & DT3155_STATE_MODE) ==
@@ -249,7 +250,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 
 	  /* Set up the DMA address for the next field */
 	  local_irq_restore(flags);
-	  WriteMReg((dt3155_lbase[minor] + ODD_DMA_START), buffer_addr);
+	  writel(buffer_addr, mmio + ODD_DMA_START);
 	}
 
       /* Check for errors. */
@@ -257,7 +258,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
       if (i2c_even_csr.fld.ERROR_EVE)
 	dt3155_errno = DT_ERR_OVERRUN;
 
-      WriteI2C(dt3155_lbase[minor], EVEN_CSR, i2c_even_csr.reg);
+      WriteI2C(mmio, EVEN_CSR, i2c_even_csr.reg);
 
       /* Note that we actually saw an even field meaning  */
       /* that subsequent odd field complete the frame     */
@@ -274,7 +275,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
   /* ... now handle the odd field */
   if (int_csr_r.fld.FLD_END_ODD)
     {
-      ReadI2C(dt3155_lbase[minor], ODD_CSR, &i2c_odd_csr.reg);
+      ReadI2C(mmio, ODD_CSR, &i2c_odd_csr.reg);
 
       /* Clear the interrupt? */
       int_csr_r.fld.FLD_END_ODD = 1;
@@ -310,7 +311,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 	    }
 	}
 
-      WriteMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+      writel(int_csr_r.reg, mmio + INT_CSR);
 
       /* if the odd field has been acquired, then     */
       /* change the next dma location for both fields */
@@ -387,14 +388,14 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
       if ((dt3155_status[minor].state & DT3155_STATE_MODE) ==
 	   DT3155_STATE_FLD)
 	{
-	  WriteMReg((dt3155_lbase[minor] + EVEN_DMA_START), buffer_addr);
+	  writel(buffer_addr, mmio + EVEN_DMA_START);
 	}
       else
 	{
-	  WriteMReg((dt3155_lbase[minor] + EVEN_DMA_START), buffer_addr);
+	  writel(buffer_addr, mmio + EVEN_DMA_START);
 
-	  WriteMReg((dt3155_lbase[minor] + ODD_DMA_START), buffer_addr
-		    + dt3155_status[minor].config.cols);
+	  writel(buffer_addr + dt3155_status[minor].config.cols,
+		mmio + ODD_DMA_START);
 	}
 
       /* Do error checking */
@@ -402,7 +403,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
       if (i2c_odd_csr.fld.ERROR_ODD)
 	dt3155_errno = DT_ERR_OVERRUN;
 
-      WriteI2C(dt3155_lbase[minor], ODD_CSR, i2c_odd_csr.reg);
+      WriteI2C(mmio, ODD_CSR, i2c_odd_csr.reg);
 
       return;
     }
@@ -419,6 +420,7 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 static void dt3155_init_isr(int minor)
 {
   const u32 stride =  dt3155_status[minor].config.cols;
+  void __iomem *mmio = dt3155_lbase[minor];
 
   switch (dt3155_status[minor].state & DT3155_STATE_MODE)
     {
@@ -429,12 +431,9 @@ static void dt3155_init_isr(int minor)
 	even_dma_stride_r = 0;
 	odd_dma_stride_r  = 0;
 
-	WriteMReg((dt3155_lbase[minor] + EVEN_DMA_START),
-		  even_dma_start_r);
-	WriteMReg((dt3155_lbase[minor] + EVEN_DMA_STRIDE),
-		  even_dma_stride_r);
-	WriteMReg((dt3155_lbase[minor] + ODD_DMA_STRIDE),
-		  odd_dma_stride_r);
+	writel(even_dma_start_r, mmio + EVEN_DMA_START);
+	writel(even_dma_stride_r, mmio + EVEN_DMA_STRIDE);
+	writel(odd_dma_stride_r, mmio + ODD_DMA_STRIDE);
 	break;
       }
 
@@ -447,14 +446,10 @@ static void dt3155_init_isr(int minor)
 	even_dma_stride_r =  stride;
 	odd_dma_stride_r  =  stride;
 
-	WriteMReg((dt3155_lbase[minor] + EVEN_DMA_START),
-		  even_dma_start_r);
-	WriteMReg((dt3155_lbase[minor] + ODD_DMA_START),
-		  odd_dma_start_r);
-	WriteMReg((dt3155_lbase[minor] + EVEN_DMA_STRIDE),
-		  even_dma_stride_r);
-	WriteMReg((dt3155_lbase[minor] + ODD_DMA_STRIDE),
-		  odd_dma_stride_r);
+	writel(even_dma_start_r, mmio + EVEN_DMA_START);
+	writel(odd_dma_start_r, mmio + ODD_DMA_START);
+	writel(even_dma_stride_r, mmio + EVEN_DMA_STRIDE);
+	writel(odd_dma_stride_r, mmio + ODD_DMA_STRIDE);
 	break;
       }
     }
@@ -462,9 +457,9 @@ static void dt3155_init_isr(int minor)
   /* 50/60 Hz should be set before this point but let's make sure it is */
   /* right anyway */
 
-  ReadI2C(dt3155_lbase[minor], CSR2, &i2c_csr2.reg);
+  ReadI2C(mmio, CSR2, &i2c_csr2.reg);
   i2c_csr2.fld.HZ50 = FORMAT50HZ;
-  WriteI2C(dt3155_lbase[minor], CSR2, i2c_csr2.reg);
+  WriteI2C(mmio, CSR2, i2c_csr2.reg);
 
   /* enable busmaster chip, clear flags */
 
@@ -484,7 +479,7 @@ static void dt3155_init_isr(int minor)
   csr1_r.fld.FLD_CRPT_EVE   = 1; /* writing a 1 clears flags */
   csr1_r.fld.FLD_CRPT_ODD   = 1;
 
-  WriteMReg((dt3155_lbase[minor] + CSR1),csr1_r.reg);
+  writel(csr1_r.reg, mmio + CSR1);
 
   /* Enable interrupts at the end of each field */
 
@@ -493,14 +488,14 @@ static void dt3155_init_isr(int minor)
   int_csr_r.fld.FLD_END_ODD_EN = 1;
   int_csr_r.fld.FLD_START_EN = 0;
 
-  WriteMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+  writel(int_csr_r.reg, mmio + INT_CSR);
 
   /* start internal BUSY bits */
 
-  ReadI2C(dt3155_lbase[minor], CSR2, &i2c_csr2.reg);
+  ReadI2C(mmio, CSR2, &i2c_csr2.reg);
   i2c_csr2.fld.BUSY_ODD  = 1;
   i2c_csr2.fld.BUSY_EVE  = 1;
-  WriteI2C(dt3155_lbase[minor], CSR2, i2c_csr2.reg);
+  WriteI2C(mmio, CSR2, i2c_csr2.reg);
 
   /* Now its up to the interrupt routine!! */
 
@@ -709,7 +704,7 @@ static int dt3155_open(struct inode* inode, struct file* filep)
 
   /* Disable ALL interrupts */
   int_csr_r.reg = 0;
-  WriteMReg((dt3155_lbase[minor] + INT_CSR), int_csr_r.reg);
+  writel(int_csr_r.reg, dt3155_lbase[minor] + INT_CSR);
 
   init_waitqueue_head(&(dt3155_read_wait_queue[minor]));
 
@@ -911,7 +906,7 @@ static int find_PCI (void)
 
       /* Remap the base address to a logical address through which we
        * can access it. */
-      dt3155_lbase[pci_index - 1] = ioremap(base,PCI_PAGE_SIZE);
+      dt3155_lbase[pci_index - 1] = ioremap(base, PCI_PAGE_SIZE);
       dt3155_status[pci_index - 1].reg_addr = base;
       DT_3155_DEBUG_MSG("DT3155: New logical address is %p \n",
 			dt3155_lbase[pci_index-1]);
@@ -1036,7 +1031,7 @@ int init_module(void)
   int_csr_r.reg = 0;
   for( index = 0;  index < ndevices;  index++)
     {
-      WriteMReg((dt3155_lbase[index] + INT_CSR), int_csr_r.reg);
+      writel(int_csr_r.reg, dt3155_lbase[index] + INT_CSR);
       if(dt3155_status[index].device_installed)
 	{
 	  /*

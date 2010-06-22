@@ -34,11 +34,6 @@ MA 02111-1307 USA
 #ifndef DT3155_IO_INC
 #define DT3155_IO_INC
 
-/* macros to access registers */
-
-#define WriteMReg(Address, Data)	(*((u32 *)(Address)) = Data)
-#define ReadMReg(Address, Data)		(Data = *((u32 *)(Address)))
-
 /***************** 32 bit register globals  **************/
 
 /*  offsets for 32-bit memory mapped registers */
@@ -352,7 +347,7 @@ extern u8			i2c_pm_lut_data;
 
 /* access 8-bit IIC registers */
 
-extern int ReadI2C(u8 *lpReg, u_short wIregIndex, u8 *byVal);
-extern int WriteI2C(u8 *lpReg, u_short wIregIndex, u8 byVal);
+extern int ReadI2C(void __iomem *mmio, u_short wIregIndex, u8 *byVal);
+extern int WriteI2C(void __iomem *mmio, u_short wIregIndex, u8 byVal);
 
 #endif
