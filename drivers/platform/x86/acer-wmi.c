@@ -1327,22 +1327,31 @@ static int __init acer_wmi_init(void)
 		       "generic video driver\n");
 	}
 
-	if (platform_driver_register(&acer_platform_driver)) {
+	err = platform_driver_register(&acer_platform_driver);
+	if (err) {
 		printk(ACER_ERR "Unable to register platform driver.\n");
 		goto error_platform_register;
 	}
+
 	acer_platform_device = platform_device_alloc("acer-wmi", -1);
-	platform_device_add(acer_platform_device);
+	if (!acer_platform_device) {
+		err = -ENOMEM;
+		goto error_device_alloc;
+	}
+
+	err = platform_device_add(acer_platform_device);
+	if (err)
+		goto error_device_add;
 
 	err = create_sysfs();
 	if (err)
-		return err;
+		goto error_create_sys;
 
 	if (wmi_has_guid(WMID_GUID2)) {
 		interface->debug.wmid_devices = get_wmid_devices();
 		err = create_debugfs();
 		if (err)
-			return err;
+			goto error_create_debugfs;
 	}
 
 	/* Override any initial settings with values from the commandline */
@@ -1350,8 +1359,16 @@ static int __init acer_wmi_init(void)
 
 	return 0;
 
+error_create_debugfs:
+	remove_sysfs(acer_platform_device);
+error_create_sys:
+	platform_device_del(acer_platform_device);
+error_device_add:
+	platform_device_put(acer_platform_device);
+error_device_alloc:
+	platform_driver_unregister(&acer_platform_driver);
 error_platform_register:
-	return -ENODEV;
+	return err;
 }
 
 static void __exit acer_wmi_exit(void)
