@@ -49,138 +49,106 @@
 #if CONFIG_XILINX_MICROBLAZE0_USE_MSR_INSTR
 	.macro	clear_bip
 	msrclr	r0, MSR_BIP
-	nop
 	.endm
 
 	.macro	set_bip
 	msrset	r0, MSR_BIP
-	nop
 	.endm
 
 	.macro	clear_eip
 	msrclr	r0, MSR_EIP
-	nop
 	.endm
 
 	.macro	set_ee
 	msrset	r0, MSR_EE
-	nop
 	.endm
 
 	.macro	disable_irq
 	msrclr	r0, MSR_IE
-	nop
 	.endm
 
 	.macro	enable_irq
 	msrset	r0, MSR_IE
-	nop
 	.endm
 
 	.macro	set_ums
 	msrset	r0, MSR_UMS
-	nop
 	msrclr	r0, MSR_VMS
-	nop
 	.endm
 
 	.macro	set_vms
 	msrclr	r0, MSR_UMS
-	nop
 	msrset	r0, MSR_VMS
-	nop
 	.endm
 
 	.macro	clear_ums
 	msrclr	r0, MSR_UMS
-	nop
 	.endm
 
 	.macro	clear_vms_ums
 	msrclr	r0, MSR_VMS | MSR_UMS
-	nop
 	.endm
 #else
 	.macro	clear_bip
 	mfs	r11, rmsr
-	nop
 	andi	r11, r11, ~MSR_BIP
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	set_bip
 	mfs	r11, rmsr
-	nop
 	ori	r11, r11, MSR_BIP
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	clear_eip
 	mfs	r11, rmsr
-	nop
 	andi	r11, r11, ~MSR_EIP
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	set_ee
 	mfs	r11, rmsr
-	nop
 	ori	r11, r11, MSR_EE
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	disable_irq
 	mfs	r11, rmsr
-	nop
 	andi	r11, r11, ~MSR_IE
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	enable_irq
 	mfs	r11, rmsr
-	nop
 	ori	r11, r11, MSR_IE
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro set_ums
 	mfs	r11, rmsr
-	nop
 	ori	r11, r11, MSR_VMS
 	andni	r11, r11, MSR_UMS
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	set_vms
 	mfs	r11, rmsr
-	nop
 	ori	r11, r11, MSR_VMS
 	andni	r11, r11, MSR_UMS
 	mts	rmsr, r11
-	nop
 	.endm
 
 	.macro	clear_ums
 	mfs	r11, rmsr
-	nop
 	andni	r11, r11, MSR_UMS
 	mts	rmsr,r11
-	nop
 	.endm
 
 	.macro	clear_vms_ums
 	mfs	r11, rmsr
-	nop
 	andni	r11, r11, (MSR_VMS|MSR_UMS)
 	mts	rmsr,r11
-	nop
 	.endm
 #endif
 
@@ -233,13 +201,11 @@
 	swi	r30, r1, PTO+PT_R30;					\
 	swi	r31, r1, PTO+PT_R31;	/* Save current task reg */	\
 	mfs	r11, rmsr;		/* save MSR */			\
-	nop;								\
 	swi	r11, r1, PTO+PT_MSR;
 
 #define RESTORE_REGS \
 	lwi	r11, r1, PTO+PT_MSR;					\
 	mts	rmsr , r11;						\
-	nop;								\
 	lwi	r2, r1, PTO+PT_R2;	/* restore SDA */		\
 	lwi	r3, r1, PTO+PT_R3;					\
 	lwi	r4, r1, PTO+PT_R4;					\
@@ -273,7 +239,6 @@
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
 	/* See if already in kernel mode.*/				\
 	mfs	r1, rmsr;						\
-	nop;								\
 	andi	r1, r1, MSR_UMS;					\
 	bnei	r1, 1f;						\
 	/* Kernel-mode state save.  */					\
@@ -518,11 +483,8 @@ C_ENTRY(full_exception_trap):
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc - 8
 	mfs	r6, resr
-	nop
 	mfs	r7, rfsr;		/* save FSR */
-	nop
 	mts	rfsr, r0;	/* Clear sticky fsr */
-	nop
 	rted	r0, full_exception
 	addik	r5, r1, PTO		 /* parameter struct pt_regs * regs */
 
@@ -555,9 +517,7 @@ C_ENTRY(unaligned_data_trap):
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r3, resr		/* ESR */
-	nop
 	mfs	r4, rear		/* EAR */
-	nop
 	rtbd	r0, _unaligned_data_exception
 	addik	r7, r1, PTO		/* parameter struct pt_regs * regs */
 
@@ -587,9 +547,7 @@ C_ENTRY(page_fault_data_trap):
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r6, rear		/* parameter unsigned long address */
-	nop
 	mfs	r7, resr		/* parameter unsigned long error_code */
-	nop
 	rted	r0, do_page_fault
 	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 
@@ -601,7 +559,6 @@ C_ENTRY(page_fault_instr_trap):
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
 	mfs	r6, rear		/* parameter unsigned long address */
-	nop
 	ori	r7, r0, 0		/* parameter unsigned long error_code */
 	rted	r0, do_page_fault
 	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
@@ -936,16 +893,12 @@ ENTRY(_switch_to)
 	swi	r30, r11, CC_R30
 	/* special purpose registers */
 	mfs	r12, rmsr
-	nop
 	swi	r12, r11, CC_MSR
 	mfs	r12, rear
-	nop
 	swi	r12, r11, CC_EAR
 	mfs	r12, resr
-	nop
 	swi	r12, r11, CC_ESR
 	mfs	r12, rfsr
-	nop
 	swi	r12, r11, CC_FSR
 
 	/* update r31, the current-give me pointer to task which will be next */
@@ -984,10 +937,8 @@ ENTRY(_switch_to)
 	/* special purpose registers */
 	lwi	r12, r11, CC_FSR
 	mts	rfsr, r12
-	nop
 	lwi	r12, r11, CC_MSR
 	mts	rmsr, r12
-	nop
 
 	rtsd	r15, 8
 	nop
@@ -997,10 +948,8 @@ ENTRY(_reset)
 
 ENTRY(_break)
 	mfs	r5, rmsr
-	nop
 	swi	r5, r0, 0x250 + TOPHYS(r0_ram)
 	mfs	r5, resr
-	nop
 	swi	r5, r0, 0x254 + TOPHYS(r0_ram)
 	bri	0
 
