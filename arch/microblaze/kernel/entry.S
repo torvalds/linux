@@ -728,10 +728,8 @@ C_ENTRY(_interrupt):
 /* MS: Make room on the stack -> activation record */
 	addik	r1, r1, -STATE_SAVE_SIZE;
 	SAVE_REGS
-	swi	r1, r1, PTO + PT_MODE; /* 0 - user mode, 1 - kernel mode */
 	brid	2f;
-	nop; /* MS: Fill delay slot */
-
+	swi	r1, r1, PTO + PT_MODE; /* 0 - user mode, 1 - kernel mode */
 1:
 /* User-mode state save. */
  /* MS: get the saved current */
