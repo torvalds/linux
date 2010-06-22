@@ -1827,7 +1827,7 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	case L2CAP_MODE_BASIC:
 		/* Check outgoing MTU */
 		if (len > pi->omtu) {
-			err = -EINVAL;
+			err = -EMSGSIZE;
 			goto done;
 		}
 
