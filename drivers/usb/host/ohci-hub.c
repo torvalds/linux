@@ -284,7 +284,7 @@ static int ohci_bus_suspend (struct usb_hcd *hcd)
 
 	spin_lock_irq (&ohci->lock);
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
+	if (unlikely(!HCD_HW_ACCESSIBLE(hcd)))
 		rc = -ESHUTDOWN;
 	else
 		rc = ohci_rh_suspend (ohci, 0);
@@ -302,7 +302,7 @@ static int ohci_bus_resume (struct usb_hcd *hcd)
 
 	spin_lock_irq (&ohci->lock);
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
+	if (unlikely(!HCD_HW_ACCESSIBLE(hcd)))
 		rc = -ESHUTDOWN;
 	else
 		rc = ohci_rh_resume (ohci);
@@ -489,7 +489,7 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	unsigned long	flags;
 
 	spin_lock_irqsave (&ohci->lock, flags);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))
+	if (!HCD_HW_ACCESSIBLE(hcd))
 		goto done;
 
 	/* undocumented erratum seen on at least rev D */
@@ -533,8 +533,12 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		}
 	}
 
-	hcd->poll_rh = ohci_root_hub_state_changes(ohci, changed,
-			any_connected, rhsc_status);
+	if (ohci_root_hub_state_changes(ohci, changed,
+			any_connected, rhsc_status))
+		set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+	else
+		clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
+
 
 done:
 	spin_unlock_irqrestore (&ohci->lock, flags);
@@ -701,7 +705,7 @@ static int ohci_hub_control (
 	u32		temp;
 	int		retval = 0;
 
-	if (unlikely(!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)))
+	if (unlikely(!HCD_HW_ACCESSIBLE(hcd)))
 		return -ESHUTDOWN;
 
 	switch (typeReq) {

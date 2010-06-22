@@ -679,7 +679,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 		spin_lock_irqsave(&hcd_root_hub_lock, flags);
 		urb = hcd->status_urb;
 		if (urb) {
-			hcd->poll_pending = 0;
+			clear_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
 			hcd->status_urb = NULL;
 			urb->actual_length = length;
 			memcpy(urb->transfer_buffer, buffer, length);
@@ -690,7 +690,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 			spin_lock(&hcd_root_hub_lock);
 		} else {
 			length = 0;
-			hcd->poll_pending = 1;
+			set_bit(HCD_FLAG_POLL_PENDING, &hcd->flags);
 		}
 		spin_unlock_irqrestore(&hcd_root_hub_lock, flags);
 	}
@@ -699,7 +699,7 @@ void usb_hcd_poll_rh_status(struct usb_hcd *hcd)
 	 * exceed that limit if HZ is 100. The math is more clunky than
 	 * maybe expected, this is to make sure that all timers for USB devices
 	 * fire at the same time to give the CPU a break inbetween */
-	if (hcd->uses_new_polling ? hcd->poll_rh :
+	if (hcd->uses_new_polling ? HCD_POLL_RH(hcd) :
 			(length == 0 && hcd->status_urb != NULL))
 		mod_timer (&hcd->rh_timer, (jiffies/(HZ/4) + 1) * (HZ/4));
 }
@@ -736,7 +736,7 @@ static int rh_queue_status (struct usb_hcd *hcd, struct urb *urb)
 		mod_timer(&hcd->rh_timer, (jiffies/(HZ/4) + 1) * (HZ/4));
 
 	/* If a status change has already occurred, report it ASAP */
-	else if (hcd->poll_pending)
+	else if (HCD_POLL_PENDING(hcd))
 		mod_timer(&hcd->rh_timer, jiffies);
 	retval = 0;
  done:
@@ -1150,8 +1150,7 @@ int usb_hcd_check_unlink_urb(struct usb_hcd *hcd, struct urb *urb,
 	 * finish unlinking the initial failed usb_set_address()
 	 * or device descriptor fetch.
 	 */
-	if (!test_bit(HCD_FLAG_SAW_IRQ, &hcd->flags) &&
-			!is_root_hub(urb->dev)) {
+	if (!HCD_SAW_IRQ(hcd) && !is_root_hub(urb->dev)) {
 		dev_warn(hcd->self.controller, "Unlink after no-IRQ?  "
 			"Controller is probably using the wrong IRQ.\n");
 		set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
@@ -2063,8 +2062,7 @@ irqreturn_t usb_hcd_irq (int irq, void *__hcd)
 	 */
 	local_irq_save(flags);
 
-	if (unlikely(hcd->state == HC_STATE_HALT ||
-		     !test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags))) {
+	if (unlikely(hcd->state == HC_STATE_HALT || !HCD_HW_ACCESSIBLE(hcd))) {
 		rc = IRQ_NONE;
 	} else if (hcd->driver->irq(hcd) == IRQ_NONE) {
 		rc = IRQ_NONE;
@@ -2098,7 +2096,7 @@ void usb_hc_died (struct usb_hcd *hcd)
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->rh_registered) {
-		hcd->poll_rh = 0;
+		clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 
 		/* make khubd clean up old urbs and devices */
 		usb_set_device_state (hcd->self.root_hub,
@@ -2301,7 +2299,7 @@ int usb_add_hcd(struct usb_hcd *hcd,
 		       retval);
 		goto error_create_attr_group;
 	}
-	if (hcd->uses_new_polling && hcd->poll_rh)
+	if (hcd->uses_new_polling && HCD_POLL_RH(hcd))
 		usb_hcd_poll_rh_status(hcd);
 	return retval;
 
@@ -2320,11 +2318,11 @@ error_create_attr_group:
 	mutex_unlock(&usb_bus_list_lock);
 err_register_root_hub:
 	hcd->rh_pollable = 0;
-	hcd->poll_rh = 0;
+	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 	hcd->driver->stop(hcd);
 	hcd->state = HC_STATE_HALT;
-	hcd->poll_rh = 0;
+	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 err_hcd_driver_start:
 	if (hcd->irq >= 0)
@@ -2380,14 +2378,14 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	 * the hub_status_data() callback.
 	 */
 	hcd->rh_pollable = 0;
-	hcd->poll_rh = 0;
+	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 
 	hcd->driver->stop(hcd);
 	hcd->state = HC_STATE_HALT;
 
 	/* In case the HCD restarted the timer, stop it again. */
-	hcd->poll_rh = 0;
+	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 
 	if (hcd->irq >= 0)

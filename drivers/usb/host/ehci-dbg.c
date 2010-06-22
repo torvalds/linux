@@ -712,7 +712,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	spin_lock_irqsave (&ehci->lock, flags);
 
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		size = scnprintf (next, size,
 			"bus %s, device %s\n"
 			"%s\n"

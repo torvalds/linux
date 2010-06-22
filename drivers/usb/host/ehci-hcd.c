@@ -642,7 +642,6 @@ static int ehci_run (struct usb_hcd *hcd)
 	u32			hcc_params;
 
 	hcd->uses_new_polling = 1;
-	hcd->poll_rh = 0;
 
 	/* EHCI spec section 4.1 */
 	if ((retval = ehci_reset(ehci)) != 0) {

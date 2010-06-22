@@ -316,7 +316,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	if (time_before (jiffies, ehci->next_statechange))
 		msleep(5);
 	spin_lock_irq (&ehci->lock);
-	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
+	if (!HCD_HW_ACCESSIBLE(hcd)) {
 		spin_unlock_irq(&ehci->lock);
 		return -ESHUTDOWN;
 	}
