@@ -540,10 +540,12 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		else
 			size = len;
 
-		err = subdev->lock(subdev, ofs, size);
-
-		if (err)
-			break;
+		if (subdev->lock) {
+			err = subdev->lock(subdev, ofs, size);
+			if (err)
+				break;
+		} else
+			err = -EOPNOTSUPP;
 
 		len -= size;
 		if (len == 0)
@@ -578,10 +580,12 @@ static int concat_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		else
 			size = len;
 
-		err = subdev->unlock(subdev, ofs, size);
-
-		if (err)
-			break;
+		if (subdev->unlock) {
+			err = subdev->unlock(subdev, ofs, size);
+			if (err)
+				break;
+		} else
+			err = -EOPNOTSUPP;
 
 		len -= size;
 		if (len == 0)
