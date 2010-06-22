@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 5
-#define QLCNIC_LINUX_VERSIONID  "5.0.5"
+#define _QLCNIC_LINUX_SUBVERSION 6
+#define QLCNIC_LINUX_VERSIONID  "5.0.6"
 #define QLCNIC_DRV_IDC_VER  0x01
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
