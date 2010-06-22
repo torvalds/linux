@@ -529,7 +529,7 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 		if (DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_REQUEST) {
 			/*
 			 * Obtain RTT sample from Request/Response exchange.
-			 * This is currently used in CCID 3 initialisation.
+			 * This is currently used for TFRC initialisation.
 			 */
 			if (dccp_insert_option_timestamp(skb))
 				return -1;
@@ -560,6 +560,10 @@ int dccp_insert_options_rsk(struct dccp_request_sock *dreq, struct sk_buff *skb)
 	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
 	if (dccp_feat_insert_opts(NULL, dreq, skb))
+		return -1;
+
+	/* Obtain RTT sample from Response/Ack exchange (used by TFRC). */
+	if (dccp_insert_option_timestamp(skb))
 		return -1;
 
 	if (dreq->dreq_timestamp_echo != 0 &&
