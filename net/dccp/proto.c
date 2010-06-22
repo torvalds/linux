@@ -1002,7 +1002,8 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 static inline int dccp_mib_init(void)
 {
 	return snmp_mib_init((void __percpu **)dccp_statistics,
-			     sizeof(struct dccp_mib));
+			     sizeof(struct dccp_mib),
+			     __alignof__(struct dccp_mib));
 }
 
 static inline void dccp_mib_exit(void)

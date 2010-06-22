@@ -284,13 +284,16 @@ static void addrconf_mod_timer(struct inet6_ifaddr *ifp,
 static int snmp6_alloc_dev(struct inet6_dev *idev)
 {
 	if (snmp_mib_init((void __percpu **)idev->stats.ipv6,
-			  sizeof(struct ipstats_mib)) < 0)
+			  sizeof(struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip;
 	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6,
-			  sizeof(struct icmpv6_mib)) < 0)
+			  sizeof(struct icmpv6_mib),
+			  __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp;
 	if (snmp_mib_init((void __percpu **)idev->stats.icmpv6msg,
-			  sizeof(struct icmpv6msg_mib)) < 0)
+			  sizeof(struct icmpv6msg_mib),
+			  __alignof__(struct icmpv6msg_mib)) < 0)
 		goto err_icmpmsg;
 
 	return 0;

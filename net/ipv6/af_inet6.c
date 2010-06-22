@@ -971,19 +971,24 @@ static void ipv6_packet_cleanup(void)
 static int __net_init ipv6_init_mibs(struct net *net)
 {
 	if (snmp_mib_init((void __percpu **)net->mib.udp_stats_in6,
-			  sizeof (struct udp_mib)) < 0)
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		return -ENOMEM;
 	if (snmp_mib_init((void __percpu **)net->mib.udplite_stats_in6,
-			  sizeof (struct udp_mib)) < 0)
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udplite_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.ipv6_statistics,
-			  sizeof(struct ipstats_mib)) < 0)
+			  sizeof(struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.icmpv6_statistics,
-			  sizeof(struct icmpv6_mib)) < 0)
+			  sizeof(struct icmpv6_mib),
+			  __alignof__(struct icmpv6_mib)) < 0)
 		goto err_icmp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.icmpv6msg_statistics,
-			  sizeof(struct icmpv6msg_mib)) < 0)
+			  sizeof(struct icmpv6msg_mib),
+			  __alignof__(struct icmpv6msg_mib)) < 0)
 		goto err_icmpmsg_mib;
 	return 0;
 

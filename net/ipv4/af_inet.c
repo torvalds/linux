@@ -1427,13 +1427,13 @@ unsigned long snmp_fold_field(void __percpu *mib[], int offt)
 }
 EXPORT_SYMBOL_GPL(snmp_fold_field);
 
-int snmp_mib_init(void __percpu *ptr[2], size_t mibsize)
+int snmp_mib_init(void __percpu *ptr[2], size_t mibsize, size_t align)
 {
 	BUG_ON(ptr == NULL);
-	ptr[0] = __alloc_percpu(mibsize, __alignof__(unsigned long));
+	ptr[0] = __alloc_percpu(mibsize, align);
 	if (!ptr[0])
 		goto err0;
-	ptr[1] = __alloc_percpu(mibsize, __alignof__(unsigned long));
+	ptr[1] = __alloc_percpu(mibsize, align);
 	if (!ptr[1])
 		goto err1;
 	return 0;
@@ -1490,25 +1490,32 @@ static const struct net_protocol icmp_protocol = {
 static __net_init int ipv4_mib_init_net(struct net *net)
 {
 	if (snmp_mib_init((void __percpu **)net->mib.tcp_statistics,
-			  sizeof(struct tcp_mib)) < 0)
+			  sizeof(struct tcp_mib),
+			  __alignof__(struct tcp_mib)) < 0)
 		goto err_tcp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.ip_statistics,
-			  sizeof(struct ipstats_mib)) < 0)
+			  sizeof(struct ipstats_mib),
+			  __alignof__(struct ipstats_mib)) < 0)
 		goto err_ip_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.net_statistics,
-			  sizeof(struct linux_mib)) < 0)
+			  sizeof(struct linux_mib),
+			  __alignof__(struct linux_mib)) < 0)
 		goto err_net_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.udp_statistics,
-			  sizeof(struct udp_mib)) < 0)
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.udplite_statistics,
-			  sizeof(struct udp_mib)) < 0)
+			  sizeof(struct udp_mib),
+			  __alignof__(struct udp_mib)) < 0)
 		goto err_udplite_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.icmp_statistics,
-			  sizeof(struct icmp_mib)) < 0)
+			  sizeof(struct icmp_mib),
+			  __alignof__(struct icmp_mib)) < 0)
 		goto err_icmp_mib;
 	if (snmp_mib_init((void __percpu **)net->mib.icmpmsg_statistics,
-			  sizeof(struct icmpmsg_mib)) < 0)
+			  sizeof(struct icmpmsg_mib),
+			  __alignof__(struct icmpmsg_mib)) < 0)
 		goto err_icmpmsg_mib;
 
 	tcp_mib_init(net);

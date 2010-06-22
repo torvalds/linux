@@ -1002,7 +1002,8 @@ int sctp_register_pf(struct sctp_pf *pf, sa_family_t family)
 static inline int init_sctp_mibs(void)
 {
 	return snmp_mib_init((void __percpu **)sctp_statistics,
-			     sizeof(struct sctp_mib));
+			     sizeof(struct sctp_mib),
+			     __alignof__(struct sctp_mib));
 }
 
 static inline void cleanup_sctp_mibs(void)
