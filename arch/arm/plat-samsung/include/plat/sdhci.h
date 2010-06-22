@@ -166,8 +166,10 @@ static inline void s3c6410_default_sdhci2(void) { }
 #else
 static inline void s3c6410_default_sdhci0(void) { }
 static inline void s3c6410_default_sdhci1(void) { }
+static inline void s3c6410_default_sdhci2(void) { }
 static inline void s3c6400_default_sdhci0(void) { }
 static inline void s3c6400_default_sdhci1(void) { }
+static inline void s3c6400_default_sdhci2(void) { }
 
 #endif /* CONFIG_S3C64XX_SETUP_SDHCI */
 
