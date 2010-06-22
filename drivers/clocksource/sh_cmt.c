@@ -449,7 +449,7 @@ static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 	clk_disable(p->clk);
 
 	/* TODO: calculate good shift from rate and counter bit width */
-	cs->shift = 10;
+	cs->shift = 0;
 	cs->mult = clocksource_hz2mult(p->rate, cs->shift);
 
 	dev_info(&p->pdev->dev, "used as clock source\n");
