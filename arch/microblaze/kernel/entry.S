@@ -381,7 +381,6 @@ C_ENTRY(_user_exception):
 /* Entry point used to return from a syscall/trap */
 /* We re-enable BIP bit before state restore */
 C_ENTRY(ret_from_trap):
-	set_bip;			/*  Ints masked for state restore*/
 	swi	r3, r1, PTO + PT_R3
 	swi	r4, r1, PTO + PT_R4
 
@@ -423,7 +422,7 @@ C_ENTRY(ret_from_trap):
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
 /* Finally, return to user state.  */
-1:
+1:	set_bip;			/*  Ints masked for state restore */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
@@ -433,7 +432,8 @@ C_ENTRY(ret_from_trap):
 	bri	6f;
 
 /* Return to kernel state.  */
-2:	VM_OFF;
+2:	set_bip;			/*  Ints masked for state restore */
+	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS;
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
@@ -647,7 +647,6 @@ C_ENTRY(page_fault_instr_trap):
 
 /* Entry point used to return from an exception.  */
 C_ENTRY(ret_from_exc):
-	set_bip;			/*  Ints masked for state restore*/
 	lwi	r11, r1, PTO+PT_MODE;
 	bnei	r11, 2f;		/* See if returning to kernel mode, */
 					/* ... if so, skip resched &c.  */
@@ -686,7 +685,7 @@ C_ENTRY(ret_from_exc):
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 
 /* Finally, return to user state.  */
-1:
+1:	set_bip;			/* Ints masked for state restore */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
@@ -697,7 +696,8 @@ C_ENTRY(ret_from_exc):
 	lwi	r1, r1, PT_R1 - PT_SIZE; /* Restore user stack pointer. */
 	bri	6f;
 /* Return to kernel state.  */
-2:	VM_OFF;
+2:	set_bip;			/* Ints masked for state restore */
+	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS;
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
