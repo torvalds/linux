@@ -352,6 +352,7 @@ C_ENTRY(_user_exception):
 	swi	r0, r1, PTO + PT_MODE;			/* Was in user-mode. */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1;		/* Store user SP.  */
+	clear_ums;
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	/* Save away the syscall number.  */
 	swi	r12, r1, PTO+PT_R0;
@@ -363,10 +364,8 @@ C_ENTRY(_user_exception):
  * register should point to the location where
  * the called function should return.  [note that MAKE_SYS_CALL uses label 1] */
 
-	# Step into virtual mode.
-	set_vms;
-	addik	r11, r0, 3f
-	rtid	r11, 0
+	/* Step into virtual mode */
+	rtbd	r0, 3f
 	nop
 3:
 	lwi	r11, CURRENT_TASK, TS_THREAD_INFO /* get thread info */
