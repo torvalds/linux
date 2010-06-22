@@ -3265,7 +3265,18 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 	ns.peer_isp = (peer_state.aftr_isp | peer_state.user_isp);
 	if ((nconn == C_CONNECTED || nconn == C_WF_BITMAP_S) && ns.disk == D_NEGOTIATING)
 		ns.disk = mdev->new_state_tmp.disk;
-
+	if (ns.pdsk == D_CONSISTENT && ns.susp && nconn == C_CONNECTED && oconn < C_CONNECTED &&
+	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
+		/* Do not allow tl_restart(resend) for a rebooted peer. We can only allow this
+		   for temporal network outages! */
+		spin_unlock_irq(&mdev->req_lock);
+		dev_err(DEV, "Aborting Connect, can not thaw IO with an only Consistent peer\n");
+		tl_clear(mdev);
+		drbd_uuid_new_current(mdev);
+		clear_bit(NEW_CUR_UUID, &mdev->flags);
+		drbd_force_state(mdev, NS2(conn, C_PROTOCOL_ERROR, susp, 0));
+		return FALSE;
+	}
 	rv = _drbd_set_state(mdev, ns, CS_VERBOSE | CS_HARD, NULL);
 	ns = mdev->state;
 	spin_unlock_irq(&mdev->req_lock);

@@ -208,9 +208,6 @@ enum drbd_disk_state drbd_try_outdate_peer(struct drbd_conf *mdev)
 		return mdev->state.pdsk;
 	}
 
-	if (fp == FP_STONITH)
-		_drbd_request_state(mdev, NS(susp, 1), CS_WAIT_COMPLETE);
-
 	r = drbd_khelper(mdev, "fence-peer");
 
 	switch ((r>>8) & 0xff) {
