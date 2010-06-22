@@ -895,15 +895,12 @@ C_ENTRY(_debug_exception):
 	swi	r0, r1, PTO+PT_R0;
 	tovirt(r1,r1)
 
+	set_vms;
 	addi	r5, r0, SIGTRAP		     /* send the trap signal */
 	add	r6, r0, CURRENT_TASK; /* Get current task ptr into r11 */
 	addk	r7, r0, r0		     /* 3rd param zero */
-
-	set_vms;
-	addik	r11, r0, send_sig;
+dbtrap_call:	rtbd	r0, send_sig;
 	addik	r15, r0, dbtrap_call;
-dbtrap_call:	rtbd	r11, 0;
-	nop;
 
 	set_bip;			/*  Ints masked for state restore*/
 	lwi	r11, r1, PTO+PT_MODE;
