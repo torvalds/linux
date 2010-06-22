@@ -75,7 +75,6 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev);
 static int qlcnic_open(struct net_device *netdev);
 static int qlcnic_close(struct net_device *netdev);
 static void qlcnic_tx_timeout(struct net_device *netdev);
-static void qlcnic_tx_timeout_task(struct work_struct *work);
 static void qlcnic_attach_work(struct work_struct *work);
 static void qlcnic_fwinit_work(struct work_struct *work);
 static void qlcnic_fw_poll_work(struct work_struct *work);
@@ -911,6 +910,7 @@ __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 	qlcnic_linkevent_request(adapter, 1);
 
+	adapter->reset_context = 0;
 	set_bit(__QLCNIC_DEV_UP, &adapter->state);
 	return 0;
 }
@@ -1110,6 +1110,27 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	return 0;
 }
 
+/* Reset context in hardware only */
+static int
+qlcnic_reset_hw_context(struct qlcnic_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+
+	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+		return -EBUSY;
+
+	netif_device_detach(netdev);
+
+	qlcnic_down(adapter, netdev);
+
+	qlcnic_up(adapter, netdev);
+
+	netif_device_attach(netdev);
+
+	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	return 0;
+}
+
 int
 qlcnic_reset_context(struct qlcnic_adapter *adapter)
 {
@@ -1177,8 +1198,6 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 		netdev->features |= NETIF_F_LRO;
 
 	netdev->irq = adapter->msix_entries[0].vector;
-
-	INIT_WORK(&adapter->tx_timeout_task, qlcnic_tx_timeout_task);
 
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&pdev->dev, "failed to read mac addr\n");
@@ -1350,8 +1369,6 @@ static void __devexit qlcnic_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	cancel_work_sync(&adapter->tx_timeout_task);
-
 	qlcnic_detach(adapter);
 
 	if (adapter->npars != NULL)
@@ -1389,8 +1406,6 @@ static int __qlcnic_shutdown(struct pci_dev *pdev)
 
 	if (netif_running(netdev))
 		qlcnic_down(adapter, netdev);
-
-	cancel_work_sync(&adapter->tx_timeout_task);
 
 	qlcnic_clr_all_drv_state(adapter);
 
@@ -1854,35 +1869,11 @@ static void qlcnic_tx_timeout(struct net_device *netdev)
 		return;
 
 	dev_err(&netdev->dev, "transmit timeout, resetting.\n");
-	schedule_work(&adapter->tx_timeout_task);
-}
-
-static void qlcnic_tx_timeout_task(struct work_struct *work)
-{
-	struct qlcnic_adapter *adapter =
-		container_of(work, struct qlcnic_adapter, tx_timeout_task);
-
-	if (!netif_running(adapter->netdev))
-		return;
-
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-		return;
 
 	if (++adapter->tx_timeo_cnt >= QLCNIC_MAX_TX_TIMEOUTS)
-		goto request_reset;
-
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	if (!qlcnic_reset_context(adapter)) {
-		adapter->netdev->trans_start = jiffies;
-		return;
-
-		/* context reset failed, fall through for fw reset */
-	}
-
-request_reset:
-	adapter->need_fw_reset = 1;
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
-	QLCDB(adapter, DRV, "Resetting adapter\n");
+		adapter->need_fw_reset = 1;
+	else
+		adapter->reset_context = 1;
 }
 
 static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
@@ -2540,6 +2531,12 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		adapter->fw_fail_cnt = 0;
 		if (adapter->need_fw_reset)
 			goto detach;
+
+		if (adapter->reset_context) {
+			qlcnic_reset_hw_context(adapter);
+			adapter->netdev->trans_start = jiffies;
+		}
+
 		return 0;
 	}
 

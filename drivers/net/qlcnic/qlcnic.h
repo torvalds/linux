@@ -934,6 +934,7 @@ struct qlcnic_adapter {
 	u8 rx_csum;
 	u8 portnum;
 	u8 physical_port;
+	u8 reset_context;
 
 	u8 mc_enabled;
 	u8 max_mc_count;
@@ -1000,8 +1001,6 @@ struct qlcnic_adapter {
 	struct msix_entry msix_entries[MSIX_ENTRIES_PER_ADAPTER];
 
 	struct delayed_work fw_work;
-
-	struct work_struct  tx_timeout_task;
 
 	struct qlcnic_nic_intr_coalesce coal;
 
