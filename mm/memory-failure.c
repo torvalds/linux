@@ -1298,6 +1298,9 @@ done:
 	return ret;
 }
 
+/*
+ * The caller must hold current->mm->mmap_sem in read mode.
+ */
 int is_hwpoison_address(unsigned long addr)
 {
 	pgd_t *pgdp;

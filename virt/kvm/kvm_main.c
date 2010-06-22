@@ -947,12 +947,13 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 	if (unlikely(npages != 1)) {
 		struct vm_area_struct *vma;
 
+		down_read(&current->mm->mmap_sem);
 		if (is_hwpoison_address(addr)) {
+			up_read(&current->mm->mmap_sem);
 			get_page(hwpoison_page);
 			return page_to_pfn(hwpoison_page);
 		}
 
-		down_read(&current->mm->mmap_sem);
 		vma = find_vma(current->mm, addr);
 
 		if (vma == NULL || addr < vma->vm_start ||
