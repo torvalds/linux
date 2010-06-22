@@ -86,7 +86,6 @@ typedef UQuadWord       QWORD;          // 64-bit
 
 /****** Common pointer types ***********************************************/
 
-typedef unsigned long   ULONG_PTR;      // 32-bit
 typedef unsigned long   DWORD_PTR;      // 32-bit
 
 // boolean pointer

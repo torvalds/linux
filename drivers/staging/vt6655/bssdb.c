@@ -471,7 +471,7 @@ BSSbInsertToBSSList (
     if (pRSNWPA != NULL) {
         unsigned int uLen = pRSNWPA->len + 2;
 
-        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((unsigned char *)pRSNWPA - pbyIEs))) {
+        if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSNWPA - pbyIEs))) {
             pBSSList->wWPALen = uLen;
             memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
             WPA_ParseRSN(pBSSList, pRSNWPA);
@@ -482,7 +482,7 @@ BSSbInsertToBSSList (
 
     if (pRSN != NULL) {
         unsigned int uLen = pRSN->len + 2;
-        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((unsigned char *)pRSN - pbyIEs))) {
+        if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSN - pbyIEs))) {
             pBSSList->wRSNLen = uLen;
             memcpy(pBSSList->byRSNIE, pRSN, uLen);
             WPA2vParseRSN(pBSSList, pRSN);
@@ -671,7 +671,7 @@ BSSbUpdateToBSSList (
 
     if (pRSNWPA != NULL) {
         unsigned int uLen = pRSNWPA->len + 2;
-        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((unsigned char *)pRSNWPA - pbyIEs))) {
+        if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSNWPA - pbyIEs))) {
             pBSSList->wWPALen = uLen;
             memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
             WPA_ParseRSN(pBSSList, pRSNWPA);
@@ -682,7 +682,7 @@ BSSbUpdateToBSSList (
 
     if (pRSN != NULL) {
         unsigned int uLen = pRSN->len + 2;
-        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((unsigned char *)pRSN - pbyIEs))) {
+        if (uLen <= (uIELength - (unsigned int)((unsigned char *)pRSN - pbyIEs))) {
             pBSSList->wRSNLen = uLen;
             memcpy(pBSSList->byRSNIE, pRSN, uLen);
             WPA2vParseRSN(pBSSList, pRSN);
