@@ -505,6 +505,7 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
  */
 
 #define SAVE_STATE	\
+	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
 	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* Save r11 */	\
 	set_bip;	/*equalize initial state for all possible entries*/\
 	clear_eip;							\
@@ -552,7 +553,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	tovirt(r1,r1)
 
 C_ENTRY(full_exception_trap):
-	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	/* adjust exception address for privileged instruction
 	 * for finding where is it */
 	addik	r17, r17, -4
@@ -584,7 +584,6 @@ C_ENTRY(full_exception_trap):
  * The assembler routine is in "arch/microblaze/kernel/hw_exception_handler.S"
  */
 C_ENTRY(unaligned_data_trap):
-	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	la	r15, r0, ret_from_exc-8
@@ -617,7 +616,6 @@ C_ENTRY(unaligned_data_trap):
  */
 /* data and intruction trap - which is choose is resolved int fault.c */
 C_ENTRY(page_fault_data_trap):
-	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	la	r15, r0, ret_from_exc-8
@@ -632,7 +630,6 @@ C_ENTRY(page_fault_data_trap):
 	nop;
 
 C_ENTRY(page_fault_instr_trap):
-	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	SAVE_STATE		/* Save registers.*/
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	la	r15, r0, ret_from_exc-8
