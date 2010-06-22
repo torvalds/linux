@@ -279,8 +279,10 @@
 	/* Kernel-mode state save.  */					\
 	/* Reload kernel stack-ptr. */					\
 	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
-	tophys(r1,r1);							\
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
+	/* FIXME: I can add these two lines to one */			\
+	/* tophys(r1,r1); */						\
+	/* addik	r1, r1, -STATE_SAVE_SIZE; */			\
+	addik	r1, r1, CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE; \
 	SAVE_REGS							\
 	brid	2f;							\
 	swi	r1, r1, PTO+PT_MODE; 	 				\
@@ -288,9 +290,11 @@
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
 	tophys(r1,r1);							\
 	lwi	r1, r1, TS_THREAD_INFO;	/* get the thread info */	\
-	addik	r1, r1, THREAD_SIZE;	/* calculate kernel stack pointer */\
-	tophys(r1,r1);							\
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
+	/* MS these three instructions can be added to one */		\
+	/* addik	r1, r1, THREAD_SIZE; */				\
+	/* tophys(r1,r1); */						\
+	/* addik	r1, r1, -STATE_SAVE_SIZE; */			\
+	addik r1, r1, THREAD_SIZE + CONFIG_KERNEL_BASE_ADDR - CONFIG_KERNEL_START - STATE_SAVE_SIZE; \
 	SAVE_REGS							\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
