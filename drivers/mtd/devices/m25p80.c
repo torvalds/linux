@@ -16,6 +16,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/err.h>
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
@@ -734,21 +736,13 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 	if (tmp < 0) {
 		DEBUG(MTD_DEBUG_LEVEL0, "%s: error %d reading JEDEC ID\n",
 			dev_name(&spi->dev), tmp);
-		return NULL;
+		return ERR_PTR(tmp);
 	}
 	jedec = id[0];
 	jedec = jedec << 8;
 	jedec |= id[1];
 	jedec = jedec << 8;
 	jedec |= id[2];
-
-	/*
-	 * Some chips (like Numonyx M25P80) have JEDEC and non-JEDEC variants,
-	 * which depend on technology process. Officially RDID command doesn't
-	 * exist for non-JEDEC chips, but for compatibility they return ID 0.
-	 */
-	if (jedec == 0)
-		return NULL;
 
 	ext_jedec = id[3] << 8 | id[4];
 
@@ -760,7 +754,7 @@ static const struct spi_device_id *__devinit jedec_probe(struct spi_device *spi)
 			return &m25p_ids[tmp];
 		}
 	}
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 
@@ -805,8 +799,8 @@ static int __devinit m25p_probe(struct spi_device *spi)
 		const struct spi_device_id *jid;
 
 		jid = jedec_probe(spi);
-		if (!jid) {
-			return -ENODEV;
+		if (IS_ERR(jid)) {
+			return PTR_ERR(jid);
 		} else if (jid != id) {
 			/*
 			 * JEDEC knows better, so overwrite platform ID. We
