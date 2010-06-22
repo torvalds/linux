@@ -333,11 +333,14 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	struct net_device *dev = neigh->dev;
 	__be32 target = *(__be32*)neigh->primary_key;
 	int probes = atomic_read(&neigh->probes);
-	struct in_device *in_dev = in_dev_get(dev);
+	struct in_device *in_dev;
 
-	if (!in_dev)
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dev);
+	if (!in_dev) {
+		rcu_read_unlock();
 		return;
-
+	}
 	switch (IN_DEV_ARP_ANNOUNCE(in_dev)) {
 	default:
 	case 0:		/* By default announce any local IP */
@@ -358,9 +361,8 @@ static void arp_solicit(struct neighbour *neigh, struct sk_buff *skb)
 	case 2:		/* Avoid secondary IPs, get a primary/preferred one */
 		break;
 	}
+	rcu_read_unlock();
 
-	if (in_dev)
-		in_dev_put(in_dev);
 	if (!saddr)
 		saddr = inet_select_addr(dev, target, RT_SCOPE_LINK);
 
