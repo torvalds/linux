@@ -714,7 +714,6 @@ release_session_client(struct nfsd4_session *session)
 	} else
 		renew_client_locked(clp);
 	spin_unlock(&client_lock);
-	nfsd4_put_session(session);
 }
 
 /* must be called under the client_lock */
