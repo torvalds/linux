@@ -1279,50 +1279,35 @@ device_release_WPADEV(pDevice);
     return 0;
 }
 
-
 static void __devexit vt6656_disconnect(struct usb_interface *intf)
 {
+	PSDevice device = usb_get_intfdata(intf);
 
-	PSDevice  pDevice = usb_get_intfdata(intf);
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_disconnect1.. \n");
-    if (pDevice == NULL)
-        return;
+	if (!device)
+		return;
 
 #ifdef SndEvt_ToAPI
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_RMMOD_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
+	{
+		union iwreq_data req;
+		memset(&req, 0, sizeof(req));
+		req.data.flags = RT_RMMOD_EVENT_FLAG;
+		wireless_send_event(device->dev, IWEVCUSTOM, &req, NULL);
+	}
 #endif
 
-//2008-0714-01<Add>by MikeLiu
-device_release_WPADEV(pDevice);
+	device_release_WPADEV(device);
 
 	usb_set_intfdata(intf, NULL);
-//2008-0922-01<Add>by MikeLiu, decrease usb counter.
-     usb_put_dev(interface_to_usbdev(intf));
+	usb_put_dev(interface_to_usbdev(intf));
 
-    pDevice->flags |= DEVICE_FLAGS_UNPLUG;
-    if (pDevice->dev != NULL) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "unregister_netdev..\n");
-        unregister_netdev(pDevice->dev);
+	device->flags |= DEVICE_FLAGS_UNPLUG;
 
-//2008-07-21-01<Add>by MikeLiu
-//unregister wpadev
-   if(wpa_set_wpadev(pDevice, 0)!=0)
-     printk("unregister wpadev fail?\n");
-
-        free_netdev(pDevice->dev);
-    }
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_disconnect3.. \n");
+	if (device->dev) {
+		unregister_netdev(device->dev);
+		wpa_set_wpadev(device, 0);
+		free_netdev(device->dev);
+	}
 }
-
-
-
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
     PSDevice        pDevice=netdev_priv(dev);
