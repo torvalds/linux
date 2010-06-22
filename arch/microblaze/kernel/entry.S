@@ -411,10 +411,8 @@ C_ENTRY(_user_exception):
 
 	/* The syscall number is invalid, return an error.  */
 5:
+	rtsd	r15, 8;		/* looks like a normal subroutine return */
 	addi	r3, r0, -ENOSYS;
-	rtsd	r15,8;		/* looks like a normal subroutine return */
-	or 	r0, r0, r0
-
 
 /* Entry point used to return from a syscall/trap */
 /* We re-enable BIP bit before state restore */
@@ -491,9 +489,8 @@ C_ENTRY(sys_fork_wrapper):
 	addik	r7, r1, PTO			/* Arg 2: parent context */
 	add	r8. r0, r0			/* Arg 3: (unused) */
 	add	r9, r0, r0;			/* Arg 4: (unused) */
-	add	r10, r0, r0;			/* Arg 5: (unused) */
 	brid	do_fork		/* Do real work (tail-call) */
-	nop;
+	add	r10, r0, r0;			/* Arg 5: (unused) */
 
 /* This the initial entry point for a new child thread, with an appropriate
    stack in place that makes it look the the child is in the middle of an
@@ -504,9 +501,8 @@ C_ENTRY(ret_from_fork):
 	bralid	r15, schedule_tail; /* ...which is schedule_tail's arg */
 	add	r3, r5, r0;	/* switch_thread returns the prev task */
 				/* ( in the delay slot ) */
-	add	r3, r0, r0;	/* Child's fork call should return 0. */
 	brid	ret_from_trap;	/* Do normal trap return */
-	nop;
+	add	r3, r0, r0;	/* Child's fork call should return 0. */
 
 C_ENTRY(sys_vfork):
 	brid	microblaze_vfork	/* Do real work (tail-call) */
@@ -518,21 +514,18 @@ C_ENTRY(sys_clone):
 1:	addik	r7, r1, PTO;			/* Arg 2: parent context */
 	add	r8, r0, r0;			/* Arg 3: (unused) */
 	add	r9, r0, r0;			/* Arg 4: (unused) */
-	add	r10, r0, r0;			/* Arg 5: (unused) */
 	brid	do_fork		/* Do real work (tail-call) */
-	nop;
+	add	r10, r0, r0;			/* Arg 5: (unused) */
 
 C_ENTRY(sys_execve):
-	addik	r8, r1, PTO;		/* add user context as 4th arg */
 	brid	microblaze_execve;	/* Do real work (tail-call).*/
-	nop;
+	addik	r8, r1, PTO;		/* add user context as 4th arg */
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
 	swi	r4, r1, PTO+PT_R4;
-	addik	r5, r1, PTO;		/* add user context as 1st arg */
 	brlid	r15, sys_rt_sigreturn	/* Do real work */
-	nop;
+	addik	r5, r1, PTO;		/* add user context as 1st arg */
 	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
 	lwi	r4, r1, PTO+PT_R4;
 	bri ret_from_trap /* fall through will not work here due to align */
@@ -553,7 +546,6 @@ C_ENTRY(full_exception_trap):
 	 * I tested it but there is a fault */
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc - 8
-	addik	r5, r1, PTO		 /* parameter struct pt_regs * regs */
 	mfs	r6, resr
 	nop
 	mfs	r7, rfsr;		/* save FSR */
@@ -561,7 +553,7 @@ C_ENTRY(full_exception_trap):
 	mts	rfsr, r0;	/* Clear sticky fsr */
 	nop
 	rted	r0, full_exception
-	nop
+	addik	r5, r1, PTO		 /* parameter struct pt_regs * regs */
 
 /*
  * Unaligned data trap.
@@ -623,13 +615,12 @@ C_ENTRY(page_fault_data_trap):
 	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
-	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 	mfs	r6, rear		/* parameter unsigned long address */
 	nop
 	mfs	r7, resr		/* parameter unsigned long error_code */
 	nop
 	rted	r0, do_page_fault
-	nop
+	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 
 C_ENTRY(page_fault_instr_trap):
 	SAVE_STATE		/* Save registers.*/
@@ -638,11 +629,11 @@ C_ENTRY(page_fault_instr_trap):
 	tovirt(r1,r1)
 	/* where the trap should return need -8 to adjust for rtsd r15, 8 */
 	addik	r15, r0, ret_from_exc-8
-	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 	mfs	r6, rear		/* parameter unsigned long address */
 	nop
-	rted	r0, do_page_fault
 	ori	r7, r0, 0		/* parameter unsigned long error_code */
+	rted	r0, do_page_fault
+	addik	r5, r1, PTO		/* parameter struct pt_regs * regs */
 
 /* Entry point used to return from an exception.  */
 C_ENTRY(ret_from_exc):
