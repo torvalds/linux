@@ -1241,7 +1241,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	aphy->state = ATH_WIPHY_INACTIVE;
 
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
+	if (led_blink)
+		cancel_delayed_work_sync(&sc->ath_led_blink_work);
+
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_work_sync(&sc->paprd_work);
 

@@ -628,6 +628,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 
 extern struct ieee80211_ops ath9k_ops;
 extern int modparam_nohwcrypt;
+extern int led_blink;
 
 irqreturn_t ath_isr(int irq, void *dev);
 int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,
