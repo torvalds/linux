@@ -112,14 +112,15 @@ void qlcnic_release_rx_buffers(struct qlcnic_adapter *adapter)
 		rds_ring = &recv_ctx->rds_rings[ring];
 		for (i = 0; i < rds_ring->num_desc; ++i) {
 			rx_buf = &(rds_ring->rx_buf_arr[i]);
-			if (rx_buf->state == QLCNIC_BUFFER_FREE)
+			if (rx_buf->skb == NULL)
 				continue;
+
 			pci_unmap_single(adapter->pdev,
 					rx_buf->dma,
 					rds_ring->dma_size,
 					PCI_DMA_FROMDEVICE);
-			if (rx_buf->skb != NULL)
-				dev_kfree_skb_any(rx_buf->skb);
+
+			dev_kfree_skb_any(rx_buf->skb);
 		}
 	}
 }
@@ -266,7 +267,6 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 			list_add_tail(&rx_buf->list,
 					&rds_ring->free_list);
 			rx_buf->ref_handle = i;
-			rx_buf->state = QLCNIC_BUFFER_FREE;
 			rx_buf++;
 		}
 		spin_lock_init(&rds_ring->lock);
@@ -1281,13 +1281,11 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	dma_addr_t dma;
 	struct pci_dev *pdev = adapter->pdev;
 
-	buffer->skb = dev_alloc_skb(rds_ring->skb_size);
-	if (!buffer->skb) {
+	skb = dev_alloc_skb(rds_ring->skb_size);
+	if (!skb) {
 		adapter->stats.skb_alloc_failure++;
 		return -ENOMEM;
 	}
-
-	skb = buffer->skb;
 
 	skb_reserve(skb, 2);
 
@@ -1297,13 +1295,11 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	if (pci_dma_mapping_error(pdev, dma)) {
 		adapter->stats.rx_dma_map_error++;
 		dev_kfree_skb_any(skb);
-		buffer->skb = NULL;
 		return -ENOMEM;
 	}
 
 	buffer->skb = skb;
 	buffer->dma = dma;
-	buffer->state = QLCNIC_BUFFER_BUSY;
 
 	return 0;
 }
@@ -1316,14 +1312,15 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 
 	buffer = &rds_ring->rx_buf_arr[index];
 
+	if (unlikely(buffer->skb == NULL)) {
+		WARN_ON(1);
+		return NULL;
+	}
+
 	pci_unmap_single(adapter->pdev, buffer->dma, rds_ring->dma_size,
 			PCI_DMA_FROMDEVICE);
 
 	skb = buffer->skb;
-	if (!skb) {
-		adapter->stats.null_skb++;
-		goto no_skb;
-	}
 
 	if (likely(adapter->rx_csum && cksum == STATUS_CKSUM_OK)) {
 		adapter->stats.csummed++;
@@ -1335,8 +1332,7 @@ static struct sk_buff *qlcnic_process_rxbuf(struct qlcnic_adapter *adapter,
 	skb->dev = adapter->netdev;
 
 	buffer->skb = NULL;
-no_skb:
-	buffer->state = QLCNIC_BUFFER_FREE;
+
 	return skb;
 }
 
@@ -1511,7 +1507,7 @@ qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max)
 
 		WARN_ON(desc_cnt > 1);
 
-		if (rxbuf)
+		if (likely(rxbuf))
 			list_add_tail(&rxbuf->list, &sds_ring->free_list[ring]);
 		else
 			adapter->stats.null_rxbuf++;

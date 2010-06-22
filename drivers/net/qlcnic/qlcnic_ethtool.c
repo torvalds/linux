@@ -69,8 +69,6 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 		QLC_SIZEOF(stats.xmit_off), QLC_OFF(stats.xmit_off)},
 	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
 		QLC_OFF(stats.skb_alloc_failure)},
-	{"null skb",
-		QLC_SIZEOF(stats.null_skb), QLC_OFF(stats.null_skb)},
 	{"null rxbuf",
 		QLC_SIZEOF(stats.null_rxbuf), QLC_OFF(stats.null_rxbuf)},
 	{"rx dma map error", QLC_SIZEOF(stats.rx_dma_map_error),
