@@ -1016,14 +1016,18 @@ int p9_client_open(struct p9_fid *fid, int mode)
 	struct p9_qid qid;
 	int iounit;
 
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TOPEN fid %d mode %d\n", fid->fid, mode);
-	err = 0;
 	clnt = fid->clnt;
+	P9_DPRINTK(P9_DEBUG_9P, ">>> %s fid %d mode %d\n",
+		p9_is_proto_dotl(clnt) ? "TLOPEN" : "TOPEN", fid->fid, mode);
+	err = 0;
 
 	if (fid->mode != -1)
 		return -EINVAL;
 
-	req = p9_client_rpc(clnt, P9_TOPEN, "db", fid->fid, mode);
+	if (p9_is_proto_dotl(clnt))
+		req = p9_client_rpc(clnt, P9_TLOPEN, "dd", fid->fid, mode);
+	else
+		req = p9_client_rpc(clnt, P9_TOPEN, "db", fid->fid, mode);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		goto error;
@@ -1035,10 +1039,9 @@ int p9_client_open(struct p9_fid *fid, int mode)
 		goto free_and_error;
 	}
 
-	P9_DPRINTK(P9_DEBUG_9P, "<<< ROPEN qid %x.%llx.%x iounit %x\n",
-				qid.type,
-				(unsigned long long)qid.path,
-				qid.version, iounit);
+	P9_DPRINTK(P9_DEBUG_9P, "<<< %s qid %x.%llx.%x iounit %x\n",
+		p9_is_proto_dotl(clnt) ? "RLOPEN" : "ROPEN",  qid.type,
+		(unsigned long long)qid.path, qid.version, iounit);
 
 	fid->mode = mode;
 	fid->iounit = iounit;

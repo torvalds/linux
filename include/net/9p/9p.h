@@ -139,6 +139,8 @@ do { \
 enum p9_msg_t {
 	P9_TSTATFS = 8,
 	P9_RSTATFS,
+	P9_TLOPEN = 12,
+	P9_RLOPEN,
 	P9_TLCREATE = 14,
 	P9_RLCREATE,
 	P9_TSYMLINK = 16,
