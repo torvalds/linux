@@ -346,7 +346,7 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EINVAL;
 
-	if (netif_running(netdev)) {
+	if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		netif_device_detach(netdev);
 		qlcnic_napi_disable(adapter);
 	}
@@ -355,7 +355,7 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	qlcnic_set_multi(adapter->netdev);
 
-	if (netif_running(netdev)) {
+	if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		netif_device_attach(netdev);
 		qlcnic_napi_enable(adapter);
 	}
@@ -877,8 +877,22 @@ qlcnic_init_coalesce_defaults(struct qlcnic_adapter *adapter)
 static int
 __qlcnic_up(struct qlcnic_adapter *adapter, struct net_device *netdev)
 {
+	int ring;
+	struct qlcnic_host_rds_ring *rds_ring;
+
 	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
 		return -EIO;
+
+	if (test_bit(__QLCNIC_DEV_UP, &adapter->state))
+		return 0;
+
+	if (qlcnic_fw_create_ctx(adapter))
+		return -EIO;
+
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_ring = &adapter->recv_ctx.rds_rings[ring];
+		qlcnic_post_rx_buffers(adapter, ring, rds_ring);
+	}
 
 	qlcnic_set_multi(netdev);
 	qlcnic_fw_cmd_set_mtu(adapter, netdev->mtu);
@@ -936,6 +950,9 @@ __qlcnic_down(struct qlcnic_adapter *adapter, struct net_device *netdev)
 
 	qlcnic_napi_disable(adapter);
 
+	qlcnic_fw_destroy_ctx(adapter);
+
+	qlcnic_reset_rx_buffers_list(adapter);
 	qlcnic_release_tx_buffers(adapter);
 	spin_unlock(&adapter->tx_clean_lock);
 }
@@ -957,12 +974,10 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
-	int err, ring;
-	struct qlcnic_host_rds_ring *rds_ring;
+	int err;
 
 	if (adapter->is_up == QLCNIC_ADAPTER_UP_MAGIC)
 		return 0;
-
 
 	err = qlcnic_napi_add(adapter, netdev);
 	if (err)
@@ -971,7 +986,7 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 	err = qlcnic_alloc_sw_resources(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "Error in setting sw resources\n");
-		return err;
+		goto err_out_napi_del;
 	}
 
 	err = qlcnic_alloc_hw_resources(adapter);
@@ -980,16 +995,10 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 		goto err_out_free_sw;
 	}
 
-
-	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
-		rds_ring = &adapter->recv_ctx.rds_rings[ring];
-		qlcnic_post_rx_buffers(adapter, ring, rds_ring);
-	}
-
 	err = qlcnic_request_irq(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "failed to setup interrupt\n");
-		goto err_out_free_rxbuf;
+		goto err_out_free_hw;
 	}
 
 	qlcnic_init_coalesce_defaults(adapter);
@@ -999,11 +1008,12 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 	adapter->is_up = QLCNIC_ADAPTER_UP_MAGIC;
 	return 0;
 
-err_out_free_rxbuf:
-	qlcnic_release_rx_buffers(adapter);
+err_out_free_hw:
 	qlcnic_free_hw_resources(adapter);
 err_out_free_sw:
 	qlcnic_free_sw_resources(adapter);
+err_out_napi_del:
+	qlcnic_napi_del(adapter);
 	return err;
 }
 
@@ -1038,6 +1048,8 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 		}
 	}
 
+	qlcnic_fw_destroy_ctx(adapter);
+
 	qlcnic_detach(adapter);
 
 	adapter->diag_test = 0;
@@ -1056,6 +1068,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
+	struct qlcnic_host_rds_ring *rds_ring;
 	int ring;
 	int ret;
 
@@ -1073,6 +1086,17 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	if (ret) {
 		netif_device_attach(netdev);
 		return ret;
+	}
+
+	ret = qlcnic_fw_create_ctx(adapter);
+	if (ret) {
+		qlcnic_detach(adapter);
+		return ret;
+	}
+
+	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
+		rds_ring = &adapter->recv_ctx.rds_rings[ring];
+		qlcnic_post_rx_buffers(adapter, ring, rds_ring);
 	}
 
 	if (adapter->diag_test == QLCNIC_INTERRUPT_TEST) {
@@ -2636,7 +2660,7 @@ qlcnic_store_bridged_mode(struct device *dev,
 	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_BDG))
 		goto err_out;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		goto err_out;
 
 	if (strict_strtoul(buf, 2, &new))
@@ -2944,7 +2968,7 @@ recheck:
 	if (!adapter)
 		goto done;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		goto done;
 
 	qlcnic_config_indev_addr(dev, event);
@@ -2980,7 +3004,7 @@ recheck:
 	if (!adapter)
 		goto done;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		goto done;
 
 	switch (event) {

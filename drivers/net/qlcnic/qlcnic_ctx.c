@@ -180,6 +180,7 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	for (i = 0; i < nrds_rings; i++) {
 
 		rds_ring = &recv_ctx->rds_rings[i];
+		rds_ring->producer = 0;
 
 		prq_rds[i].host_phys_addr = cpu_to_le64(rds_ring->phys_addr);
 		prq_rds[i].ring_size = cpu_to_le32(rds_ring->num_desc);
@@ -193,6 +194,8 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	for (i = 0; i < nsds_rings; i++) {
 
 		sds_ring = &recv_ctx->sds_rings[i];
+		sds_ring->consumer = 0;
+		memset(sds_ring->desc_head, 0, STATUS_DESC_RINGSIZE(sds_ring));
 
 		prq_sds[i].host_phys_addr = cpu_to_le64(sds_ring->phys_addr);
 		prq_sds[i].ring_size = cpu_to_le32(sds_ring->num_desc);
@@ -292,6 +295,11 @@ qlcnic_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter)
 	u64	phys_addr;
 	dma_addr_t	rq_phys_addr, rsp_phys_addr;
 	struct qlcnic_host_tx_ring *tx_ring = adapter->tx_ring;
+
+	/* reset host resources */
+	tx_ring->producer = 0;
+	tx_ring->sw_consumer = 0;
+	*(tx_ring->hw_consumer) = 0;
 
 	rq_size = SIZEOF_HOSTRQ_TX(struct qlcnic_hostrq_tx_ctx);
 	rq_addr = pci_alloc_consistent(adapter->pdev,
@@ -476,20 +484,41 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 		sds_ring->desc_head = (struct status_desc *)addr;
 	}
 
-
-	err = qlcnic_fw_cmd_create_rx_ctx(adapter);
-	if (err)
-		goto err_out_free;
-	err = qlcnic_fw_cmd_create_tx_ctx(adapter);
-	if (err)
-		goto err_out_free;
-
-	set_bit(__QLCNIC_FW_ATTACHED, &adapter->state);
 	return 0;
 
 err_out_free:
 	qlcnic_free_hw_resources(adapter);
 	return err;
+}
+
+
+int qlcnic_fw_create_ctx(struct qlcnic_adapter *adapter)
+{
+	int err;
+
+	err = qlcnic_fw_cmd_create_rx_ctx(adapter);
+	if (err)
+		return err;
+
+	err = qlcnic_fw_cmd_create_tx_ctx(adapter);
+	if (err) {
+		qlcnic_fw_cmd_destroy_rx_ctx(adapter);
+		return err;
+	}
+
+	set_bit(__QLCNIC_FW_ATTACHED, &adapter->state);
+	return 0;
+}
+
+void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
+{
+	if (test_and_clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state)) {
+		qlcnic_fw_cmd_destroy_rx_ctx(adapter);
+		qlcnic_fw_cmd_destroy_tx_ctx(adapter);
+
+		/* Allow dma queues to drain after context reset */
+		msleep(20);
+	}
 }
 
 void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter)
@@ -499,15 +528,6 @@ void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter)
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_tx_ring *tx_ring;
 	int ring;
-
-
-	if (test_and_clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state)) {
-		qlcnic_fw_cmd_destroy_rx_ctx(adapter);
-		qlcnic_fw_cmd_destroy_tx_ctx(adapter);
-
-		/* Allow dma queues to drain after context reset */
-		msleep(20);
-	}
 
 	recv_ctx = &adapter->recv_ctx;
 

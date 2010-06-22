@@ -327,7 +327,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 
 	i = 0;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return -EIO;
 
 	tx_ring = adapter->tx_ring;
@@ -431,7 +431,7 @@ void qlcnic_set_multi(struct net_device *netdev)
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
 	qlcnic_nic_add_mac(adapter, adapter->mac_addr);

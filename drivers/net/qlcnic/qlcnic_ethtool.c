@@ -348,7 +348,7 @@ qlcnic_get_regs(struct net_device *dev, struct ethtool_regs *regs, void *p)
 	for (i = 0; diag_registers[i] != -1; i++)
 		regs_buff[i] = QLCRD32(adapter, diag_registers[i]);
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return;
 
 	regs_buff[i++] = 0xFFEFCDAB; /* Marker btw regs and ring count*/
@@ -833,6 +833,9 @@ static int qlcnic_blink_led(struct net_device *dev, u32 val)
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	int ret;
 
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
+		return -EIO;
+
 	ret = adapter->nic_ops->config_led(adapter, 1, 0xf);
 	if (ret) {
 		dev_err(&adapter->pdev->dev,
@@ -904,7 +907,7 @@ static int qlcnic_set_intr_coalesce(struct net_device *netdev,
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
+	if (!test_bit(__QLCNIC_DEV_UP, &adapter->state))
 		return -EINVAL;
 
 	/*

@@ -1124,6 +1124,10 @@ void __iomem *qlcnic_get_ioaddr(struct qlcnic_adapter *, u32);
 int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter);
 void qlcnic_free_hw_resources(struct qlcnic_adapter *adapter);
 
+int qlcnic_fw_create_ctx(struct qlcnic_adapter *adapter);
+void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter);
+
+void qlcnic_reset_rx_buffers_list(struct qlcnic_adapter *adapter);
 void qlcnic_release_rx_buffers(struct qlcnic_adapter *adapter);
 void qlcnic_release_tx_buffers(struct qlcnic_adapter *adapter);
 
