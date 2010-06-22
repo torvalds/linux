@@ -180,15 +180,17 @@
 
 /* turn on virtual protected mode save */
 #define VM_ON		\
-	set_ums;		\
+	set_ums;	\
 	rted	r0, 2f;	\
-2: nop;
+	nop; \
+2:
 
 /* turn off virtual protected mode save and user mode save*/
 #define VM_OFF			\
-	clear_vms_ums;			\
+	clear_vms_ums;		\
 	rted	r0, TOPHYS(1f);	\
-1: nop;
+	nop; \
+1:
 
 #define SAVE_REGS \
 	swi	r2, r1, PTO+PT_R2;	/* Save SDA */			\
