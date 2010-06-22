@@ -758,6 +758,7 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 
 	if (first_boot != 0x55555555) {
 		QLCWR32(adapter, CRB_CMDPEG_STATE, 0);
+		QLCWR32(adapter, CRB_RCVPEG_STATE, 0);
 		qlcnic_pinit_from_rom(adapter);
 		msleep(1);
 	}
@@ -780,7 +781,7 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 
 wait_init:
 	/* Handshake with the card before we register the devices. */
-	err = qlcnic_phantom_init(adapter);
+	err = qlcnic_init_firmware(adapter);
 	if (err)
 		goto err_out;
 
@@ -962,9 +963,6 @@ qlcnic_attach(struct qlcnic_adapter *adapter)
 	if (adapter->is_up == QLCNIC_ADAPTER_UP_MAGIC)
 		return 0;
 
-	err = qlcnic_init_firmware(adapter);
-	if (err)
-		return err;
 
 	err = qlcnic_napi_add(adapter, netdev);
 	if (err)

@@ -1138,7 +1138,7 @@ qlcnic_release_firmware(struct qlcnic_adapter *adapter)
 	adapter->fw = NULL;
 }
 
-int qlcnic_phantom_init(struct qlcnic_adapter *adapter)
+static int qlcnic_cmd_peg_ready(struct qlcnic_adapter *adapter)
 {
 	u32 val;
 	int retries = 60;
@@ -1163,7 +1163,8 @@ int qlcnic_phantom_init(struct qlcnic_adapter *adapter)
 	QLCWR32(adapter, CRB_CMDPEG_STATE, PHAN_INITIALIZE_FAILED);
 
 out_err:
-	dev_err(&adapter->pdev->dev, "firmware init failed\n");
+	dev_err(&adapter->pdev->dev, "Command Peg initialization not "
+		      "complete, state: 0x%x.\n", val);
 	return -EIO;
 }
 
@@ -1195,6 +1196,10 @@ qlcnic_receive_peg_ready(struct qlcnic_adapter *adapter)
 int qlcnic_init_firmware(struct qlcnic_adapter *adapter)
 {
 	int err;
+
+	err = qlcnic_cmd_peg_ready(adapter);
+	if (err)
+		return err;
 
 	err = qlcnic_receive_peg_ready(adapter);
 	if (err)
