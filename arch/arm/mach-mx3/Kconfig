@@ -45,6 +45,7 @@ config MACH_PCM037
 config MACH_PCM037_EET
 	bool "Support pcm037 EET board extensions"
 	depends on MACH_PCM037
+	select IMX_HAVE_PLATFORM_SPI_IMX
 	help
 	  Add support for PCM037 EET baseboard extensions. If you are using the
 	  OLED display with EET, use "video=mx3fb:CMEL-OLED" kernel
