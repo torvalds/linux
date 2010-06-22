@@ -34,6 +34,7 @@
 #include <mach/mmc.h>
 #include <mach/imx-uart.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 static int eukrea_mbimx27_pins[] = {
@@ -201,7 +202,7 @@ static struct spi_board_info eukrea_mbimx27_spi_board_info[] __initdata = {
 
 static int eukrea_mbimx27_spi_cs[] = {GPIO_PORTD | 28};
 
-static struct spi_imx_master eukrea_mbimx27_spi_0_data = {
+static const struct spi_imx_master eukrea_mbimx27_spi0_data __initconst = {
 	.chipselect	= eukrea_mbimx27_spi_cs,
 	.num_chipselect = ARRAY_SIZE(eukrea_mbimx27_spi_cs),
 };
@@ -233,7 +234,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	/* SPI and ADS7846 Touchscreen controler init */
 	mxc_gpio_mode(GPIO_PORTD | 28 | GPIO_GPIO | GPIO_OUT);
 	mxc_gpio_mode(GPIO_PORTD | 25 | GPIO_GPIO | GPIO_IN);
-	mxc_register_device(&mxc_spi_device0, &eukrea_mbimx27_spi_0_data);
+	imx27_add_spi_imx0(&eukrea_mbimx27_spi0_data);
 	spi_register_board_info(eukrea_mbimx27_spi_board_info,
 			ARRAY_SIZE(eukrea_mbimx27_spi_board_info));
 	ads7846_dev_init();

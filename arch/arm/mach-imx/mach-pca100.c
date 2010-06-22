@@ -37,9 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
-#if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
-#include <mach/spi.h>
-#endif
 #include <mach/imx-uart.h>
 #include <mach/audmux.h>
 #include <mach/ssi.h>
@@ -192,7 +189,7 @@ static struct spi_board_info pca100_spi_board_info[] __initdata = {
 
 static int pca100_spi_cs[] = {GPIO_PORTD + 28, GPIO_PORTD + 27};
 
-static struct spi_imx_master pca100_spi_0_data = {
+static const struct spi_imx_master pca100_spi0_data __initconst = {
 	.chipselect	= pca100_spi_cs,
 	.num_chipselect = ARRAY_SIZE(pca100_spi_cs),
 };
@@ -347,7 +344,7 @@ static void __init pca100_init(void)
 #if defined(CONFIG_SPI_IMX) || defined(CONFIG_SPI_IMX_MODULE)
 	spi_register_board_info(pca100_spi_board_info,
 				ARRAY_SIZE(pca100_spi_board_info));
-	mxc_register_device(&mxc_spi_device0, &pca100_spi_0_data);
+	imx27_add_spi_imx0(&pca100_spi_0_data);
 #endif
 
 	gpio_request(OTG_PHY_CS_GPIO, "usb-otg-cs");

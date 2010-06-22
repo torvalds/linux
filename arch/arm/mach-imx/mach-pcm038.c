@@ -38,7 +38,6 @@
 #include <mach/iomux-mx27.h>
 #include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
-#include <mach/spi.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
@@ -216,7 +215,7 @@ static struct i2c_board_info pcm038_i2c_devices[] = {
 
 static int pcm038_spi_cs[] = {GPIO_PORTD + 28};
 
-static struct spi_imx_master pcm038_spi_0_data = {
+static const struct spi_imx_master pcm038_spi0_data __initconst = {
 	.chipselect = pcm038_spi_cs,
 	.num_chipselect = ARRAY_SIZE(pcm038_spi_cs),
 };
@@ -327,7 +326,7 @@ static void __init pcm038_init(void)
 	/* MC13783 IRQ */
 	mxc_gpio_mode(GPIO_PORTB | 23 | GPIO_GPIO | GPIO_IN);
 
-	mxc_register_device(&mxc_spi_device0, &pcm038_spi_0_data);
+	imx27_add_spi_imx0(&pcm038_spi0_data);
 	spi_register_board_info(pcm038_spi_board_info,
 				ARRAY_SIZE(pcm038_spi_board_info));
 

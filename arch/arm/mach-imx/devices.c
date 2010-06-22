@@ -219,39 +219,6 @@ int __init imx1_register_gpios(void)
 
 #if defined(CONFIG_MACH_MX21) || defined(CONFIG_MACH_MX27)
 /*
- * SPI master controller
- *
- * - i.MX1: 2 channel (slighly different register setting)
- * - i.MX21: 2 channel
- * - i.MX27: 3 channel
- */
-#ifdef CONFIG_MACH_MX27
-#define DEFINE_IMX_SPI_DEVICE(n, baseaddr, irq)					\
-	static struct resource mxc_spi_resources ## n[] = {			\
-		{								\
-			.start = baseaddr,					\
-			.end = baseaddr + SZ_4K - 1,				\
-			.flags = IORESOURCE_MEM,				\
-		}, {								\
-			.start = irq,						\
-			.end = irq,						\
-			.flags = IORESOURCE_IRQ,				\
-		},								\
-	};									\
-										\
-	struct platform_device mxc_spi_device ## n = {				\
-		.name = "spi_imx",						\
-		.id = n,							\
-		.num_resources = ARRAY_SIZE(mxc_spi_resources ## n),		\
-		.resource = mxc_spi_resources ## n,				\
-	}
-
-DEFINE_IMX_SPI_DEVICE(0, MX2x_CSPI1_BASE_ADDR, MX2x_INT_CSPI1);
-DEFINE_IMX_SPI_DEVICE(1, MX2x_CSPI2_BASE_ADDR, MX2x_INT_CSPI2);
-DEFINE_IMX_SPI_DEVICE(2, MX27_CSPI3_BASE_ADDR, MX27_INT_CSPI3);
-#endif
-
-/*
  * General Purpose Timer
  * - i.MX21: 3 timers
  * - i.MX27: 6 timers
