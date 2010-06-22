@@ -509,7 +509,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* Save r11 */	\
 	set_bip;	/*equalize initial state for all possible entries*/\
 	clear_eip;							\
-	enable_irq;							\
 	set_ee;								\
 	/* See if already in kernel mode.*/				\
 	mfs	r11, rmsr;						\
