@@ -91,6 +91,11 @@
 	nop
 	.endm
 
+	.macro	clear_ums
+	msrclr	r11, MSR_UMS
+	nop
+	.endm
+
 	.macro	clear_vms_ums
 	msrclr	r11, MSR_VMS | MSR_UMS
 	nop
@@ -159,6 +164,14 @@
 	ori	r11, r11, MSR_VMS
 	andni	r11, r11, MSR_UMS
 	mts	rmsr, r11
+	nop
+	.endm
+
+	.macro	clear_ums
+	mfs	r11, rmsr
+	nop
+	andni	r11, r11, MSR_UMS
+	mts	rmsr,r11
 	nop
 	.endm
 
@@ -526,6 +539,8 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
+	/* MS: I am clearing UMS even in case when I come from kernel space */ \
+	clear_ums; 							\
 2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 
 C_ENTRY(full_exception_trap):
