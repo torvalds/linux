@@ -269,6 +269,37 @@
 	lwi	r30, r1, PTO+PT_R30;					\
 	lwi	r31, r1, PTO+PT_R31;	/* Restore cur task reg */
 
+#define SAVE_STATE	\
+	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
+	/* See if already in kernel mode.*/				\
+	mfs	r1, rmsr;						\
+	nop;								\
+	andi	r1, r1, MSR_UMS;					\
+	bnei	r1, 1f;						\
+	/* Kernel-mode state save.  */					\
+	/* Reload kernel stack-ptr. */					\
+	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
+	tophys(r1,r1);							\
+	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
+	SAVE_REGS							\
+	swi	r1, r1, PTO+PT_MODE; 	 				\
+	brid	2f;							\
+	nop;				/* Fill delay slot */		\
+1:	/* User-mode state save.  */					\
+	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
+	tophys(r1,r1);							\
+	lwi	r1, r1, TS_THREAD_INFO;	/* get the thread info */	\
+	addik	r1, r1, THREAD_SIZE;	/* calculate kernel stack pointer */\
+	tophys(r1,r1);							\
+	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
+	SAVE_REGS							\
+	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
+	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
+	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
+	/* MS: I am clearing UMS even in case when I come from kernel space */ \
+	clear_ums; 							\
+2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
+
 .text
 
 /*
@@ -511,38 +542,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 /*
  * HW EXCEPTION rutine start
  */
-
-#define SAVE_STATE	\
-	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
-	/* See if already in kernel mode.*/				\
-	mfs	r1, rmsr;						\
-	nop;								\
-	andi	r1, r1, MSR_UMS;					\
-	bnei	r1, 1f;						\
-	/* Kernel-mode state save.  */					\
-	/* Reload kernel stack-ptr. */					\
-	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
-	tophys(r1,r1);							\
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
-	SAVE_REGS							\
-	swi	r1, r1, PTO+PT_MODE; 	 				\
-	brid	2f;							\
-	nop;				/* Fill delay slot */		\
-1:	/* User-mode state save.  */					\
-	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
-	tophys(r1,r1);							\
-	lwi	r1, r1, TS_THREAD_INFO;	/* get the thread info */	\
-	addik	r1, r1, THREAD_SIZE;	/* calculate kernel stack pointer */\
-	tophys(r1,r1);							\
-	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
-	SAVE_REGS							\
-	swi	r0, r1, PTO + PT_MODE; /* Was in user-mode.  */		\
-	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
-	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */		\
-	/* MS: I am clearing UMS even in case when I come from kernel space */ \
-	clear_ums; 							\
-2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
-
 C_ENTRY(full_exception_trap):
 	/* adjust exception address for privileged instruction
 	 * for finding where is it */
