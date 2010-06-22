@@ -58,52 +58,14 @@
 #include <linux/tcp.h>
 #include <linux/percpu.h>
 #include <net/net_namespace.h>
+#include <linux/u64_stats_sync.h>
 
 struct pcpu_lstats {
-	u64 packets;
-	u64 bytes;
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-	seqcount_t seq;
-#endif
-	unsigned long drops;
+	u64			packets;
+	u64			bytes;
+	struct u64_stats_sync	syncp;
+	unsigned long		drops;
 };
-
-#if BITS_PER_LONG==32 && defined(CONFIG_SMP)
-static void inline lstats_update_begin(struct pcpu_lstats *lstats)
-{
-	write_seqcount_begin(&lstats->seq);
-}
-static void inline lstats_update_end(struct pcpu_lstats *lstats)
-{
-	write_seqcount_end(&lstats->seq);
-}
-static void inline lstats_fetch_and_add(u64 *packets, u64 *bytes, const struct pcpu_lstats *lstats)
-{
-	u64 tpackets, tbytes;
-	unsigned int seq;
-
-	do {
-		seq = read_seqcount_begin(&lstats->seq);
-		tpackets = lstats->packets;
-		tbytes = lstats->bytes;
-	} while (read_seqcount_retry(&lstats->seq, seq));
-
-	*packets += tpackets;
-	*bytes += tbytes;
-}
-#else
-static void inline lstats_update_begin(struct pcpu_lstats *lstats)
-{
-}
-static void inline lstats_update_end(struct pcpu_lstats *lstats)
-{
-}
-static void inline lstats_fetch_and_add(u64 *packets, u64 *bytes, const struct pcpu_lstats *lstats)
-{
-	*packets += lstats->packets;
-	*bytes += lstats->bytes;
-}
-#endif
 
 /*
  * The higher levels take care of making this non-reentrant (it's
@@ -126,10 +88,10 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 	len = skb->len;
 	if (likely(netif_rx(skb) == NET_RX_SUCCESS)) {
-		lstats_update_begin(lb_stats);
+		u64_stats_update_begin(&lb_stats->syncp);
 		lb_stats->bytes += len;
 		lb_stats->packets++;
-		lstats_update_end(lb_stats);
+		u64_stats_update_end(&lb_stats->syncp);
 	} else
 		lb_stats->drops++;
 
@@ -148,10 +110,18 @@ static struct rtnl_link_stats64 *loopback_get_stats64(struct net_device *dev)
 	pcpu_lstats = (void __percpu __force *)dev->ml_priv;
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
+		u64 tbytes, tpackets;
+		unsigned int start;
 
 		lb_stats = per_cpu_ptr(pcpu_lstats, i);
-		lstats_fetch_and_add(&packets, &bytes, lb_stats);
+		do {
+			start = u64_stats_fetch_begin(&lb_stats->syncp);
+			tbytes = lb_stats->bytes;
+			tpackets = lb_stats->packets;
+		} while (u64_stats_fetch_retry(&lb_stats->syncp, start));
 		drops   += lb_stats->drops;
+		bytes   += tbytes;
+		packets += tpackets;
 	}
 	stats->rx_packets = packets;
 	stats->tx_packets = packets;
