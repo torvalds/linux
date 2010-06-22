@@ -8,6 +8,8 @@
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
 #include <asm/io.h>
+#include <asm/setup.h>
+#include <linux/if.h>
 #include <linux/skbuff.h>
 #include <linux/wlan_plat.h>
 #include <mach/sdhci.h>
@@ -21,6 +23,9 @@
 #define STINGRAY_WLAN_IRQ	TEGRA_GPIO_PU5
 #define STINGRAY_WLAN_PWR	TEGRA_GPIO_PU4
 #define STINGRAY_WLAN_RST	TEGRA_GPIO_PU2
+
+#define ATAG_STINGRAY_MAC	0x57464d41
+#define ATAG_STINGRAY_MAC_DEBUG
 
 #define PREALLOC_WLAN_NUMBER_OF_SECTIONS	4
 #define PREALLOC_WLAN_NUMBER_OF_BUFFERS		160
@@ -167,22 +172,45 @@ static int stingray_wifi_reset(int on)
 	return 0;
 }
 
+static unsigned char stingray_mac_addr[IFHWADDRLEN] = { 0,0x90,0x4c,0,0,0 };
+
+static int __init parse_tag_wlan_mac(const struct tag *tag)
+{
+	unsigned char *dptr = (unsigned char *)(&tag->u);
+	unsigned size;
+#ifdef ATAG_STINGRAY_MAC_DEBUG
+	unsigned i;
+#endif
+
+	size = min((tag->hdr.size - 2) * sizeof(__u32), (unsigned)IFHWADDRLEN);
+#ifdef ATAG_STINGRAY_MAC_DEBUG
+	printk("WiFi MAC Addr [%d] = 0x%x\n", tag->hdr.size, tag->hdr.tag);
+	for(i=0;(i < size);i++) {
+		printk(" %02x", dptr[i]);
+	}
+	printk("\n");
+#endif
+	memcpy(stingray_mac_addr, dptr, size);
+	return 0;
+}
+
+__tagtable(ATAG_STINGRAY_MAC, parse_tag_wlan_mac);
+
 static int stingray_wifi_get_mac_addr(unsigned char *buf)
 {
-	static unsigned char mac_addr[6] = { 0, 0x90, 0x4c, 0, 0, 0 };
 	uint rand_mac;
 
 	if (!buf)
 		return -EINVAL;
 
-	if ((mac_addr[4] == 0) && (mac_addr[5] == 0)) {
+	if ((stingray_mac_addr[4] == 0) && (stingray_mac_addr[5] == 0)) {
 		srandom32((uint)jiffies);
 		rand_mac = random32();
-		mac_addr[3] = (unsigned char)rand_mac;
-		mac_addr[4] = (unsigned char)(rand_mac >> 8);
-		mac_addr[5] = (unsigned char)(rand_mac >> 16);
+		stingray_mac_addr[3] = (unsigned char)rand_mac;
+		stingray_mac_addr[4] = (unsigned char)(rand_mac >> 8);
+		stingray_mac_addr[5] = (unsigned char)(rand_mac >> 16);
 	}
-	memcpy(buf, mac_addr, 6);
+	memcpy(buf, stingray_mac_addr, IFHWADDRLEN);
 	return 0;
 }
 
