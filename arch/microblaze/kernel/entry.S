@@ -273,18 +273,15 @@
 C_ENTRY(_user_exception):
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)) /* save stack */
 	addi	r14, r14, 4	/* return address is 4 byte after call */
-	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11);	/* Save r11 */
 
-	mfs	r11, rmsr
+	mfs	r1, rmsr
 	nop
-	andi	r11, r11, MSR_UMS
-	bnei	r11, 1f
+	andi	r1, r1, MSR_UMS
+	bnei	r1, 1f
 
 /* Kernel-mode state save - kernel execve */
-	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
-	tophys(r1,r11);
-	swi	r11, r1, (PT_R1-PT_SIZE); /* Save original SP. */
-	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */
+	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
+	tophys(r1,r1);
 
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack. */
 	SAVE_REGS
@@ -296,7 +293,6 @@ C_ENTRY(_user_exception):
 
 /* User-mode state save.  */
 1:
-	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11);	/* restore r11 */
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
 	tophys(r1,r1);
 	lwi	r1, r1, TS_THREAD_INFO;	/* get stack from task_struct */
@@ -506,18 +502,15 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 
 #define SAVE_STATE	\
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* save stack */	\
-	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* Save r11 */	\
 	/* See if already in kernel mode.*/				\
-	mfs	r11, rmsr;						\
+	mfs	r1, rmsr;						\
 	nop;								\
-	andi	r11, r11, MSR_UMS;					\
-	bnei	r11, 1f;						\
+	andi	r1, r1, MSR_UMS;					\
+	bnei	r1, 1f;						\
 	/* Kernel-mode state save.  */					\
 	/* Reload kernel stack-ptr. */					\
-	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
-	tophys(r1,r11);							\
-	swi	r11, r1, (PT_R1-PT_SIZE); /* Save original SP. */	\
-	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */\
+	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP));			\
+	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
 	/* PC, before IRQ/trap - this is one instruction above */	\
@@ -528,13 +521,11 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	brid	2f;							\
 	nop;				/* Fill delay slot */		\
 1:	/* User-mode state save.  */					\
-	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */\
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
 	tophys(r1,r1);							\
 	lwi	r1, r1, TS_THREAD_INFO;	/* get the thread info */	\
 	addik	r1, r1, THREAD_SIZE;	/* calculate kernel stack pointer */\
 	tophys(r1,r1);							\
-									\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
 	/* PC, before IRQ/trap - this is one instruction above FIXME*/	\
@@ -726,20 +717,15 @@ C_ENTRY(_interrupt):
 /* MS: we are in physical address */
 /* Save registers, switch to proper stack, convert SP to virtual.*/
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
-	swi	r11, r0, TOPHYS(PER_CPU(R11_SAVE));
 	/* MS: See if already in kernel mode. */
-	mfs	r11, rmsr
+	mfs	r1, rmsr
 	nop
-	andi	r11, r11, MSR_UMS
-	bnei	r11, 1f
+	andi	r1, r1, MSR_UMS
+	bnei	r1, 1f
 
 /* Kernel-mode state save. */
-	or	r11, r1, r0
-	tophys(r1,r11); /* MS: I have in r1 physical address where stack is */
-/* MS: Save original SP - position PT_R1 to next stack frame 4 *1 - 152*/
-	swi	r11, r1, (PT_R1 - PT_SIZE);
-/* MS: restore r11 because of saving in SAVE_REGS */
-	lwi	r11, r0, TOPHYS(PER_CPU(R11_SAVE));
+	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
+	tophys(r1,r1); /* MS: I have in r1 physical address where stack is */
 	/* save registers */
 /* MS: Make room on the stack -> activation record */
 	addik	r1, r1, -STATE_SAVE_SIZE;
@@ -752,8 +738,6 @@ C_ENTRY(_interrupt):
 
 1:
 /* User-mode state save. */
-/* MS: restore r11 -> FIXME move before SAVE_REG */
-	lwi	r11, r0, TOPHYS(PER_CPU(R11_SAVE));
  /* MS: get the saved current */
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
 	tophys(r1,r1);
@@ -855,16 +839,13 @@ C_ENTRY(_debug_exception):
 	/* BIP bit is set on entry, no interrupts can occur */
 	swi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP))
 
-	swi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* Save r11 */
-	mfs	r11, rmsr
+	mfs	r1, rmsr
 	nop
-	andi	r11, r11, MSR_UMS
-	bnei	r11, 1f
+	andi	r1, r1, MSR_UMS
+	bnei	r1, 1f
 	/* Kernel-mode state save.  */
-	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
-	tophys(r1,r11);
-	swi	r11, r1, (PT_R1-PT_SIZE); /* Save original SP. */
-	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */
+	lwi	r1, r0, TOPHYS(PER_CPU(ENTRY_SP)); /* Reload kernel stack-ptr*/
+	tophys(r1,r1);
 
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
 	SAVE_REGS;
@@ -874,7 +855,6 @@ C_ENTRY(_debug_exception):
 	brid	2f;
 	nop;				/* Fill delay slot */
 1:      /* User-mode state save.  */
-	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */
 	tophys(r1,r1);
 	lwi	r1, r1, TS_THREAD_INFO;	/* get the thread info */
@@ -887,7 +867,7 @@ C_ENTRY(_debug_exception):
 	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */
 	lwi	r11, r0, TOPHYS(PER_CPU(ENTRY_SP));
 	swi	r11, r1, PTO+PT_R1; /* Store user SP.  */
-2:	lwi	CURRENT_TASK, r0, TOPHYS(PER_CPU(CURRENT_SAVE));
+2:
 	/* Save away the syscall number.  */
 	swi	r0, r1, PTO+PT_R0;
 	tovirt(r1,r1)
