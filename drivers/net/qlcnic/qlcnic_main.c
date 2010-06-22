@@ -1392,8 +1392,6 @@ static int __qlcnic_shutdown(struct pci_dev *pdev)
 
 	cancel_work_sync(&adapter->tx_timeout_task);
 
-	qlcnic_detach(adapter);
-
 	qlcnic_clr_all_drv_state(adapter);
 
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
@@ -1454,28 +1452,16 @@ qlcnic_resume(struct pci_dev *pdev)
 	}
 
 	if (netif_running(netdev)) {
-		err = qlcnic_attach(adapter);
-		if (err)
-			goto err_out;
-
 		err = qlcnic_up(adapter, netdev);
 		if (err)
-			goto err_out_detach;
-
+			goto done;
 
 		qlcnic_config_indev_addr(netdev, NETDEV_UP);
 	}
-
+done:
 	netif_device_attach(netdev);
 	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
 	return 0;
-
-err_out_detach:
-	qlcnic_detach(adapter);
-err_out:
-	qlcnic_clr_all_drv_state(adapter);
-	netif_device_attach(netdev);
-	return err;
 }
 #endif
 
@@ -2426,10 +2412,6 @@ qlcnic_detach_work(struct work_struct *work)
 
 	qlcnic_down(adapter, netdev);
 
-	rtnl_lock();
-	qlcnic_detach(adapter);
-	rtnl_unlock();
-
 	status = QLCRD32(adapter, QLCNIC_PEG_HALT_STATUS1);
 
 	if (status & QLCNIC_RCODE_FATAL_ERROR)
@@ -2518,18 +2500,10 @@ qlcnic_attach_work(struct work_struct *work)
 	struct qlcnic_adapter *adapter = container_of(work,
 				struct qlcnic_adapter, fw_work.work);
 	struct net_device *netdev = adapter->netdev;
-	int err;
 
 	if (netif_running(netdev)) {
-		err = qlcnic_attach(adapter);
-		if (err)
+		if (qlcnic_up(adapter, netdev))
 			goto done;
-
-		err = qlcnic_up(adapter, netdev);
-		if (err) {
-			qlcnic_detach(adapter);
-			goto done;
-		}
 
 		qlcnic_config_indev_addr(netdev, NETDEV_UP);
 	}
