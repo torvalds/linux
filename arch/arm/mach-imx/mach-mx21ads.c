@@ -24,7 +24,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/imx-uart.h>
 #include <mach/imxfb.h>
 #include <mach/iomux-mx21.h>
 #include <mach/mxc_nand.h>
@@ -164,13 +163,12 @@ static struct platform_device mx21ads_nor_mtd_device = {
 	.resource = &mx21ads_flash_resource,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata_rts __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct imxuart_platform_data uart_norts_pdata = {
+static const struct imxuart_platform_data uart_pdata_norts __initconst = {
 };
-
 
 static int mx21ads_fb_init(struct platform_device *pdev)
 {
@@ -295,9 +293,9 @@ static void __init mx21ads_board_init(void)
 	mxc_gpio_setup_multiple_pins(mx21ads_pins, ARRAY_SIZE(mx21ads_pins),
 			"mx21ads");
 
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
-	mxc_register_device(&imx2x_uart_device2, &uart_norts_pdata);
-	mxc_register_device(&imx2x_uart_device3, &uart_pdata);
+	imx21_add_imx_uart0(&uart_pdata_rts);
+	imx21_add_imx_uart2(&uart_pdata_norts);
+	imx21_add_imx_uart3(&uart_pdata_rts);
 	mxc_register_device(&mxc_fb_device, &mx21ads_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, &mx21ads_sdhc_pdata);
 	imx21_add_mxc_nand(&mx21ads_nand_board_info);
