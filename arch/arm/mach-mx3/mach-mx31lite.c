@@ -41,7 +41,6 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/irqs.h>
-#include <mach/spi.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
@@ -109,7 +108,7 @@ static int spi_internal_chipselect[] = {
 	MXC_SPI_CS(0),
 };
 
-static struct spi_imx_master spi1_pdata = {
+static const struct spi_imx_master spi1_pdata __initconst = {
 	.chipselect	= spi_internal_chipselect,
 	.num_chipselect	= ARRAY_SIZE(spi_internal_chipselect),
 };
@@ -252,7 +251,7 @@ static void __init mxc_board_init(void)
 	platform_device_register(&physmap_flash_device);
 	imx31_add_mxc_nand(&mx31lite_nand_board_info);
 
-	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	imx31_add_spi_imx1(&spi1_pdata);
 	spi_register_board_info(&mc13783_spi_dev, 1);
 
 #if defined(CONFIG_USB_ULPI)

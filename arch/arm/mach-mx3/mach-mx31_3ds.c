@@ -35,7 +35,6 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/spi.h>
 
 #include "devices-imx31.h"
 #include "devices.h"
@@ -170,7 +169,7 @@ static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(2),
 };
 
-static struct spi_imx_master spi1_pdata = {
+static const struct spi_imx_master spi1_pdata __initconst = {
 	.chipselect	= spi1_internal_chipselect,
 	.num_chipselect	= ARRAY_SIZE(spi1_internal_chipselect),
 };
@@ -419,7 +418,7 @@ static void __init mxc_board_init(void)
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
-	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	imx31_add_spi_imx0(&spi1_pdata);
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
 

@@ -152,7 +152,7 @@ static int moboard_spi1_cs[] = {
 	MXC_SPI_CS(2),
 };
 
-static struct spi_imx_master moboard_spi1_master = {
+static const struct spi_imx_master moboard_spi1_pdata __initconst = {
 	.chipselect	= moboard_spi1_cs,
 	.num_chipselect	= ARRAY_SIZE(moboard_spi1_cs),
 };
@@ -282,7 +282,7 @@ static int moboard_spi2_cs[] = {
 	MXC_SPI_CS(1),
 };
 
-static struct spi_imx_master moboard_spi2_master = {
+static const struct spi_imx_master moboard_spi2_pdata __initconst = {
 	.chipselect	= moboard_spi2_cs,
 	.num_chipselect	= ARRAY_SIZE(moboard_spi2_cs),
 };
@@ -502,8 +502,8 @@ static void __init mxc_board_init(void)
 	imx31_add_imx_i2c0(&moboard_i2c0_data);
 	imx31_add_imx_i2c1(&moboard_i2c1_data);
 
-	mxc_register_device(&mxc_spi_device1, &moboard_spi1_master);
-	mxc_register_device(&mxc_spi_device2, &moboard_spi2_master);
+	imx31_add_spi_imx1(&moboard_spi1_pdata);
+	imx31_add_spi_imx2(&moboard_spi2_pdata);
 
 	gpio_request(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3), "pmic-irq");
 	gpio_direction_input(IOMUX_TO_GPIO(MX31_PIN_GPIO1_3));
