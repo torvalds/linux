@@ -1743,9 +1743,6 @@ int usb_external_resume_device(struct usb_device *udev, pm_message_t msg)
 
 static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 {
-	int			w, i;
-	struct usb_interface	*intf;
-
 	/* Remote wakeup is needed only when we actually go to sleep.
 	 * For things like FREEZE and QUIESCE, if the device is already
 	 * autosuspended then its current wakeup setting is okay.
@@ -1755,18 +1752,10 @@ static void choose_wakeup(struct usb_device *udev, pm_message_t msg)
 		return;
 	}
 
-	/* If remote wakeup is permitted, see whether any interface drivers
+	/* Allow remote wakeup if it is enabled, even if no interface drivers
 	 * actually want it.
 	 */
-	w = 0;
-	if (device_may_wakeup(&udev->dev) && udev->actconfig) {
-		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
-			intf = udev->actconfig->interface[i];
-			w |= intf->needs_remote_wakeup;
-		}
-	}
-
-	udev->do_remote_wakeup = w;
+	udev->do_remote_wakeup = device_may_wakeup(&udev->dev);
 }
 
 int usb_suspend(struct device *dev, pm_message_t msg)
