@@ -457,7 +457,7 @@ static int set_forechannel_drc_size(struct nfsd4_channel_attrs *fchan)
 	spin_unlock(&nfsd_drc_lock);
 
 	if (fchan->maxreqs == 0)
-		return nfserr_serverfault;
+		return nfserr_jukebox;
 
 	fchan->maxresp_cached = size + NFSD_MIN_HDR_SEQ_SZ;
 	return 0;
@@ -542,7 +542,7 @@ alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp,
 	BUILD_BUG_ON(NFSD_MAX_SLOTS_PER_SESSION * sizeof(struct nfsd4_slot)
 		     + sizeof(struct nfsd4_session) > PAGE_SIZE);
 
-	status = nfserr_serverfault;
+	status = nfserr_jukebox;
 	/* allocate struct nfsd4_session and slot table pointers in one piece */
 	slotsize = tmp.se_fchannel.maxreqs * sizeof(struct nfsd4_slot *);
 	new = kzalloc(sizeof(*new) + slotsize, GFP_KERNEL);
@@ -1219,7 +1219,7 @@ out_new:
 	/* Normal case */
 	new = create_client(exid->clname, dname, rqstp, &verf);
 	if (new == NULL) {
-		status = nfserr_serverfault;
+		status = nfserr_jukebox;
 		goto out;
 	}
 
