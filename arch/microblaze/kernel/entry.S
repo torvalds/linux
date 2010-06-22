@@ -282,9 +282,8 @@
 	tophys(r1,r1);							\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
 	SAVE_REGS							\
-	swi	r1, r1, PTO+PT_MODE; 	 				\
 	brid	2f;							\
-	nop;				/* Fill delay slot */		\
+	swi	r1, r1, PTO+PT_MODE; 	 				\
 1:	/* User-mode state save.  */					\
 	lwi	r1, r0, TOPHYS(PER_CPU(CURRENT_SAVE)); /* get saved current */\
 	tophys(r1,r1);							\
