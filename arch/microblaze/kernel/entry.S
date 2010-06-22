@@ -194,6 +194,8 @@
 
 #define SAVE_REGS \
 	swi	r2, r1, PTO+PT_R2;	/* Save SDA */			\
+	swi	r3, r1, PTO+PT_R3;					\
+	swi	r4, r1, PTO+PT_R4;					\
 	swi	r5, r1, PTO+PT_R5;					\
 	swi	r6, r1, PTO+PT_R6;					\
 	swi	r7, r1, PTO+PT_R7;					\
@@ -228,6 +230,8 @@
 	mts	rmsr , r11;						\
 	nop;								\
 	lwi	r2, r1, PTO+PT_R2;	/* restore SDA */		\
+	lwi	r3, r1, PTO+PT_R3;					\
+	lwi	r4, r1, PTO+PT_R4;					\
 	lwi	r5, r1, PTO+PT_R5;					\
 	lwi	r6, r1, PTO+PT_R6;					\
 	lwi	r7, r1, PTO+PT_R7;					\
@@ -379,13 +383,12 @@ C_ENTRY(_user_exception):
 /* We re-enable BIP bit before state restore */
 C_ENTRY(ret_from_trap):
 	set_bip;			/*  Ints masked for state restore*/
-	lwi	r11, r1, PTO+PT_MODE;
-/* See if returning to kernel mode, if so, skip resched &c.  */
-	bnei	r11, 2f;
-
 	swi	r3, r1, PTO + PT_R3
 	swi	r4, r1, PTO + PT_R4
 
+	lwi	r11, r1, PTO+PT_MODE;
+/* See if returning to kernel mode, if so, skip resched &c.  */
+	bnei	r11, 2f;
 	/* We're returning to user mode, so check for various conditions that
 	 * trigger rescheduling. */
 	/* FIXME: Restructure all these flag checks. */
@@ -422,9 +425,6 @@ C_ENTRY(ret_from_trap):
 
 /* Finally, return to user state.  */
 1:
-	lwi	r3, r1, PTO + PT_R3; /* restore syscall result */
-	lwi	r4, r1, PTO + PT_R4;
-
 	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
@@ -522,10 +522,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	swi	r11, r1, (PT_R1-PT_SIZE); /* Save original SP. */	\
 	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
-	/* store return registers separately because			\
-	 * this macros is use for others exceptions */			\
-	swi	r3, r1, PTO + PT_R3;					\
-	swi	r4, r1, PTO + PT_R4;					\
 	SAVE_REGS							\
 	/* PC, before IRQ/trap - this is one instruction above */	\
 	swi	r17, r1, PTO+PT_PC;					\
@@ -543,10 +539,6 @@ C_ENTRY(sys_rt_sigreturn_wrapper):
 	tophys(r1,r1);							\
 									\
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */\
-	/* store return registers separately because this macros	\
-	 * is use for others exceptions */				\
-	swi	r3, r1, PTO + PT_R3; 					\
-	swi	r4, r1, PTO + PT_R4;					\
 	SAVE_REGS							\
 	/* PC, before IRQ/trap - this is one instruction above FIXME*/	\
 	swi	r17, r1, PTO+PT_PC;					\
@@ -689,9 +681,7 @@ C_ENTRY(ret_from_exc):
 	 * traps), but signal handlers may want to examine or change the
 	 * complete register state.  Here we save anything not saved by
 	 * the normal entry sequence, so that it may be safely restored
-	 * (in a possibly modified form) after do_signal returns.
-	 * store return registers separately because this macros is use
-	 * for others exceptions */
+	 * (in a possibly modified form) after do_signal returns. */
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
@@ -703,8 +693,6 @@ C_ENTRY(ret_from_exc):
 	VM_OFF;
 	tophys(r1,r1);
 
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
 	RESTORE_REGS;
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
 
@@ -713,8 +701,6 @@ C_ENTRY(ret_from_exc):
 /* Return to kernel state.  */
 2:	VM_OFF;
 	tophys(r1,r1);
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
 	RESTORE_REGS;
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
 
@@ -753,10 +739,6 @@ C_ENTRY(_interrupt):
 	/* save registers */
 /* MS: Make room on the stack -> activation record */
 	addik	r1, r1, -STATE_SAVE_SIZE;
-/* MS: store return registers separately because
- * this macros is use for others exceptions */
-	swi	r3, r1, PTO + PT_R3;
-	swi	r4, r1, PTO + PT_R4;
 	SAVE_REGS
 	/* MS: store mode */
 	addi	r11, r0, 1; /* MS: Was in kernel-mode. */
@@ -776,8 +758,6 @@ C_ENTRY(_interrupt):
 	tophys(r1,r1);
 	/* save registers */
 	addik	r1, r1, -STATE_SAVE_SIZE;
-	swi	r3, r1, PTO+PT_R3;
-	swi	r4, r1, PTO+PT_R4;
 	SAVE_REGS
 	/* calculate mode */
 	swi	r0, r1, PTO + PT_MODE;
@@ -829,8 +809,6 @@ no_intr_resched:
 	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE);
 	VM_OFF;
 	tophys(r1,r1);
-	lwi	r3, r1, PTO + PT_R3; /* MS: restore saved r3, r4 registers */
-	lwi	r4, r1, PTO + PT_R4;
 	RESTORE_REGS
 	addik	r1, r1, STATE_SAVE_SIZE /* MS: Clean up stack space. */
 	lwi	r1, r1, PT_R1 - PT_SIZE;
@@ -859,8 +837,6 @@ restore:
 #endif
 	VM_OFF /* MS: turn off MMU */
 	tophys(r1,r1)
-	lwi	r3, r1, PTO + PT_R3; /* MS: restore saved r3, r4 registers */
-	lwi	r4, r1, PTO + PT_R4;
 	RESTORE_REGS
 	addik	r1, r1, STATE_SAVE_SIZE	/* MS: Clean up stack space. */
 	tovirt(r1,r1);
@@ -893,8 +869,6 @@ C_ENTRY(_debug_exception):
 	lwi	r11, r0, TOPHYS(r0_ram + PTO + PT_R11); /* restore r11 */
 
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
-	swi	r3, r1, PTO + PT_R3;
-	swi	r4, r1, PTO + PT_R4;
 	SAVE_REGS;
 
 	addi	r11, r0, 1; 		/* Was in kernel-mode.  */
@@ -910,8 +884,6 @@ C_ENTRY(_debug_exception):
 	tophys(r1,r1);
 
 	addik	r1, r1, -STATE_SAVE_SIZE; /* Make room on the stack.  */
-	swi	r3, r1, PTO + PT_R3;
-	swi	r4, r1, PTO + PT_R4;
 	SAVE_REGS;
 
 	swi	r0, r1, PTO+PT_MODE; /* Was in user-mode.  */
@@ -979,8 +951,6 @@ dbtrap_call:	rtbd	r11, 0;
 	VM_OFF;
 	tophys(r1,r1);
 
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
 	RESTORE_REGS
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
 
@@ -992,8 +962,6 @@ dbtrap_call:	rtbd	r11, 0;
 /* Return to kernel state.  */
 2:	VM_OFF;
 	tophys(r1,r1);
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
 	RESTORE_REGS
 	addik	r1, r1, STATE_SAVE_SIZE		/* Clean up stack space.  */
 
