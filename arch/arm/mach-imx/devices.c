@@ -368,6 +368,7 @@ struct platform_device mxc_fec_device = {
 };
 #endif
 
+#ifdef CONFIG_MACH_MX27
 #define DEFINE_IMX_I2C_DEVICE(n, baseaddr, irq)				\
 	static struct resource mxc_i2c_resources ## n[] = {		\
 		{							\
@@ -390,7 +391,6 @@ struct platform_device mxc_fec_device = {
 
 DEFINE_IMX_I2C_DEVICE(0, MX2x_I2C_BASE_ADDR, MX2x_INT_I2C);
 
-#ifdef CONFIG_MACH_MX27
 DEFINE_IMX_I2C_DEVICE(1, MX27_I2C2_BASE_ADDR, MX27_INT_I2C2);
 #endif
 
