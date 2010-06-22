@@ -458,17 +458,6 @@ config PXA_SHARPSL
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
 
-config SHARPSL_PM
-	bool
-	select APM_EMULATION
-	select SHARPSL_PM_MAX1111
-
-config SHARPSL_PM_MAX1111
-	bool
-	depends on !CORGI_SSP_DEPRECATED
-	select HWMON
-	select SENSORS_MAX1111
-
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
 	depends on PXA_SHARPSL
@@ -520,6 +509,25 @@ config MACH_TOSA
 	depends on PXA_SHARPSL
 	select PXA25x
 	select PXA_HAVE_BOARD_IRQS
+
+config TOSA_BT
+	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
+	depends on MACH_TOSA
+	select RFKILL
+	help
+	  This is a simple driver that is able to control
+	  the state of built in bluetooth chip on tosa.
+
+config TOSA_USE_EXT_KEYCODES
+	bool "Tosa keyboard: use extended keycodes"
+	depends on MACH_TOSA
+	default n
+	help
+	  Say Y here to enable the tosa keyboard driver to generate extended
+	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
+	  by either console keyboard driver or by Kdrive keybd driver.
+
+	  Say Y only if you know, what you are doing!
 
 config MACH_ICONTROL
 	bool "TMT iControl/SafeTCam based on the MXM-8x10 CoM"
@@ -659,25 +667,16 @@ config PXA_SHARP_Cxx00
 	help
 	  Enable common support for Sharp Cxx00 models
 
-config TOSA_BT
-	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
-	depends on MACH_TOSA
-	select RFKILL
-	help
-	  This is a simple driver that is able to control
-	  the state of built in bluetooth chip on tosa.
+config SHARPSL_PM
+	bool
+	select APM_EMULATION
+	select SHARPSL_PM_MAX1111
 
-config TOSA_USE_EXT_KEYCODES
-	bool "Tosa keyboard: use extended keycodes"
-	depends on MACH_TOSA
-	default n
-	help
-	  Say Y here to enable the tosa keyboard driver to generate extended
-	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
-	  by either console keyboard driver or by Kdrive keybd driver.
-
-	  Say Y only if you know, what you are doing!
-
+config SHARPSL_PM_MAX1111
+	bool
+	depends on !CORGI_SSP_DEPRECATED
+	select HWMON
+	select SENSORS_MAX1111
 
 config PXA_HAVE_BOARD_IRQS
 	bool
