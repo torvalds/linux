@@ -153,6 +153,9 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_CQM] = { .type = NLA_NESTED, },
 	[NL80211_ATTR_LOCAL_STATE_CHANGE] = { .type = NLA_FLAG },
 	[NL80211_ATTR_AP_ISOLATE] = { .type = NLA_U8 },
+
+	[NL80211_ATTR_WIPHY_TX_POWER_SETTING] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] = { .type = NLA_U32 },
 };
 
 /* policy for the attributes */
@@ -865,6 +868,34 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
 		result = __nl80211_set_channel(rdev, wdev, info);
+		if (result)
+			goto bad_res;
+	}
+
+	if (info->attrs[NL80211_ATTR_WIPHY_TX_POWER_SETTING]) {
+		enum nl80211_tx_power_setting type;
+		int idx, mbm = 0;
+
+		if (!rdev->ops->set_tx_power) {
+			return -EOPNOTSUPP;
+			goto bad_res;
+		}
+
+		idx = NL80211_ATTR_WIPHY_TX_POWER_SETTING;
+		type = nla_get_u32(info->attrs[idx]);
+
+		if (!info->attrs[NL80211_ATTR_WIPHY_TX_POWER_LEVEL] &&
+		    (type != NL80211_TX_POWER_AUTOMATIC)) {
+			result = -EINVAL;
+			goto bad_res;
+		}
+
+		if (type != NL80211_TX_POWER_AUTOMATIC) {
+			idx = NL80211_ATTR_WIPHY_TX_POWER_LEVEL;
+			mbm = nla_get_u32(info->attrs[idx]);
+		}
+
+		result = rdev->ops->set_tx_power(&rdev->wiphy, type, mbm);
 		if (result)
 			goto bad_res;
 	}

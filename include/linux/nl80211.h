@@ -725,6 +725,12 @@ enum nl80211_commands {
  * @NL80211_ATTR_AP_ISOLATE: (AP mode) Do not forward traffic between stations
  *	connected to this BSS.
  *
+ * @NL80211_ATTR_WIPHY_TX_POWER_SETTING: Transmit power setting type. See
+ *      &enum nl80211_tx_power_setting for possible values.
+ * @NL80211_ATTR_WIPHY_TX_POWER_LEVEL: Transmit power level in signed mBm units.
+ *      This is used in association with @NL80211_ATTR_WIPHY_TX_POWER_SETTING
+ *      for non-automatic settings.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -881,6 +887,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_LOCAL_STATE_CHANGE,
 
 	NL80211_ATTR_AP_ISOLATE,
+
+	NL80211_ATTR_WIPHY_TX_POWER_SETTING,
+	NL80211_ATTR_WIPHY_TX_POWER_LEVEL,
 
 	/* add attributes here, update the policy in nl80211.c */
 
