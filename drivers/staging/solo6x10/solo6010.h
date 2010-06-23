@@ -178,7 +178,7 @@ struct solo6010_dev {
 	spinlock_t		reg_io_lock;
 
 	/* tw28xx accounting */
-	u8			tw2864, tw2815;
+	u8			tw2865, tw2864, tw2815;
 	u8			tw28_cnt;
 
 	/* i2c related items */
