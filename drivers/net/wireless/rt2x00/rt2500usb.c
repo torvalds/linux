@@ -347,6 +347,7 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 	int timeout;
 	u32 mask;
 	u16 reg;
+	enum cipher curr_cipher;
 
 	if (crypto->cmd == SET_KEY) {
 		/*
@@ -357,6 +358,7 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		mask = TXRX_CSR0_KEY_ID.bit_mask;
 
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
+		curr_cipher = rt2x00_get_field16(reg, TXRX_CSR0_ALGORITHM);
 		reg &= mask;
 
 		if (reg && reg == mask)
@@ -365,6 +367,14 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		reg = rt2x00_get_field16(reg, TXRX_CSR0_KEY_ID);
 
 		key->hw_key_idx += reg ? ffz(reg) : 0;
+		/*
+		 * Hardware requires that all keys use the same cipher
+		 * (e.g. TKIP-only, AES-only, but not TKIP+AES).
+		 * If this is not the first key, compare the cipher with the
+		 * first one and fall back to SW crypto if not the same.
+		 */
+		if (key->hw_key_idx > 0 && crypto->cipher != curr_cipher)
+			return -EOPNOTSUPP;
 
 		/*
 		 * The encryption key doesn't fit within the CSR cache,
