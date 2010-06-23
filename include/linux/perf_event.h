@@ -936,7 +936,7 @@ extern void __perf_sw_event(u32, u64, int, struct pt_regs *, u64);
 
 #ifndef perf_arch_fetch_caller_regs
 static inline void
-perf_arch_fetch_caller_regs(struct regs *regs, unsigned long ip) { }
+perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip) { }
 #endif
 
 /*
