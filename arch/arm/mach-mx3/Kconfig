@@ -116,6 +116,7 @@ config MACH_PCM043
 	bool "Support Phytec pcm043 (i.MX35) platforms"
 	select ARCH_MX35
 	select IMX_HAVE_PLATFORM_IMX_I2C
+	select IMX_HAVE_PLATFORM_IMX_UART
 	select IMX_HAVE_PLATFORM_MXC_NAND
 	select MXC_ULPI if USB_ULPI
 	help
@@ -136,6 +137,7 @@ config MACH_ARMADILLO5X0
 config MACH_MX35_3DS
 	bool "Support MX35PDK platform"
 	select ARCH_MX35
+	select IMX_HAVE_PLATFORM_IMX_UART
 	default n
 	help
 	  Include support for MX35PDK platform. This includes specific
