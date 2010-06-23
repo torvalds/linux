@@ -600,7 +600,7 @@ static struct spi_board_info stingray_spi_board_info[] __initdata = {
 	},
 };
 
-int __init stingray_spi_init(void)
+int __init stingray_power_init(void)
 {
 	int i;
 

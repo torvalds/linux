@@ -597,7 +597,7 @@ static void __init tegra_stingray_init(void)
 	stingray_power_off_init();
 	stingray_keypad_init();
 	stingray_touch_init();
-	stingray_spi_init();
+	stingray_power_init();
 	stingray_panel_init();
 	stingray_sdhci_init();
 	stingray_w1_init();
