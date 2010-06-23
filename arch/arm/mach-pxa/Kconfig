@@ -458,6 +458,14 @@ config PXA_SHARPSL
 	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
 	  handheld computer.
 
+config PXA_SHARPSL_DETECT_MACH_ID
+	bool "Detect machine ID at run-time in the decompressor"
+	depends on PXA_SHARPSL
+	help
+	  Say Y here if you want the zImage decompressor to detect
+	  the Zaurus machine ID at run-time. For latest kexec-based
+	  boot loader, this is not necessary.
+
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
 	depends on PXA_SHARPSL

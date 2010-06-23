@@ -36,7 +36,7 @@ ifeq ($(CONFIG_CPU_XSCALE),y)
 OBJS		+= head-xscale.o
 endif
 
-ifeq ($(CONFIG_PXA_SHARPSL),y)
+ifeq ($(CONFIG_PXA_SHARPSL_DETECT_MACH_ID),y)
 OBJS		+= head-sharpsl.o
 endif
 
