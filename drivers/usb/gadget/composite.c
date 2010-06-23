@@ -75,7 +75,7 @@ static ssize_t enable_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
 {
 	struct usb_function *f = dev_get_drvdata(dev);
-	return sprintf(buf, "%d\n", !f->hidden);
+	return sprintf(buf, "%d\n", !f->disabled);
 }
 
 static ssize_t enable_store(
@@ -90,13 +90,18 @@ static ssize_t enable_store(
 	if (driver->enable_function)
 		driver->enable_function(f, value);
 	else
-		f->hidden = !value;
+		usb_function_set_enabled(f, value);
 
 	return size;
 }
 
 static DEVICE_ATTR(enable, S_IRUGO | S_IWUSR, enable_show, enable_store);
 
+void usb_function_set_enabled(struct usb_function *f, int enabled)
+{
+	f->disabled = !enabled;
+	kobject_uevent(&f->dev->kobj, KOBJ_CHANGE);
+}
 
 /**
  * usb_add_function() - add a function to a configuration
@@ -311,7 +316,7 @@ static int config_buf(struct usb_configuration *config,
 			descriptors = f->hs_descriptors;
 		else
 			descriptors = f->descriptors;
-		if (f->hidden || !descriptors || descriptors[0] == NULL)
+		if (f->disabled || !descriptors || descriptors[0] == NULL)
 			continue;
 		status = usb_descriptor_fillbuf(next, len,
 			(const struct usb_descriptor_header **) descriptors);
@@ -485,7 +490,7 @@ static int set_config(struct usb_composite_dev *cdev,
 
 		if (!f)
 			break;
-		if (f->hidden)
+		if (f->disabled)
 			continue;
 
 		/*
@@ -526,6 +531,8 @@ static int set_config(struct usb_composite_dev *cdev,
 	power = c->bMaxPower ? (2 * c->bMaxPower) : CONFIG_USB_GADGET_VBUS_DRAW;
 done:
 	usb_gadget_vbus_draw(gadget, power);
+
+	switch_set_state(&cdev->sdev, number);
 	return result;
 }
 
@@ -1044,6 +1051,8 @@ static void composite_disconnect(struct usb_gadget *gadget)
 	if (composite->disconnect)
 		composite->disconnect(cdev);
 	spin_unlock_irqrestore(&cdev->lock, flags);
+
+	switch_set_state(&cdev->sdev, 0);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1104,6 +1113,8 @@ composite_unbind(struct usb_gadget *gadget)
 		kfree(cdev->req->buf);
 		usb_ep_free_request(gadget->ep0, cdev->req);
 	}
+
+	switch_dev_unregister(&cdev->sdev);
 	kfree(cdev);
 	set_gadget_data(gadget, NULL);
 	device_remove_file(&gadget->dev, &dev_attr_suspended);
@@ -1183,6 +1194,11 @@ static int composite_bind(struct usb_gadget *gadget)
 	if (status < 0)
 		goto fail;
 
+	cdev->sdev.name = "usb_configuration";
+	status = switch_dev_register(&cdev->sdev);
+	if (status < 0)
+		goto fail;
+
 	cdev->desc = *composite->dev;
 	cdev->desc.bMaxPacketSize0 = gadget->ep0->maxpacket;
 
@@ -1257,6 +1273,23 @@ composite_resume(struct usb_gadget *gadget)
 	cdev->suspended = 0;
 }
 
+static int
+composite_uevent(struct device *dev, struct kobj_uevent_env *env)
+{
+	struct usb_function *f = dev_get_drvdata(dev);
+
+	if (!f) {
+		/* this happens when the device is first created */
+		return 0;
+	}
+
+	if (add_uevent_var(env, "FUNCTION=%s", f->name))
+		return -ENOMEM;
+	if (add_uevent_var(env, "ENABLED=%d", !f->disabled))
+		return -ENOMEM;
+	return 0;
+}
+
 /*-------------------------------------------------------------------------*/
 
 static struct usb_gadget_driver composite_driver = {
@@ -1305,6 +1338,7 @@ int usb_composite_register(struct usb_composite_driver *driver)
 	driver->class = class_create(THIS_MODULE, "usb_composite");
 	if (IS_ERR(driver->class))
 		return PTR_ERR(driver->class);
+	driver->class->dev_uevent = composite_uevent;
 
 	return usb_gadget_register_driver(&composite_driver);
 }
