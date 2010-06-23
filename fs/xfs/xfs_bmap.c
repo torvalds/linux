@@ -4618,19 +4618,13 @@ xfs_bmapi(
 			 * allocate the stuff asked for in this bmap call
 			 * but that wouldn't be as good.
 			 */
-			if (wasdelay && !(flags & XFS_BMAPI_EXACT)) {
+			if (wasdelay) {
 				alen = (xfs_extlen_t)got.br_blockcount;
 				aoff = got.br_startoff;
 				if (lastx != NULLEXTNUM && lastx) {
 					ep = xfs_iext_get_ext(ifp, lastx - 1);
 					xfs_bmbt_get_all(ep, &prev);
 				}
-			} else if (wasdelay) {
-				alen = (xfs_extlen_t)
-					XFS_FILBLKS_MIN(len,
-						(got.br_startoff +
-						 got.br_blockcount) - bno);
-				aoff = bno;
 			} else {
 				alen = (xfs_extlen_t)
 					XFS_FILBLKS_MIN(len, MAXEXTLEN);
