@@ -1817,10 +1817,12 @@ static int kvm_ia64_sync_dirty_log(struct kvm *kvm,
 	n = kvm_dirty_bitmap_bytes(memslot);
 	base = memslot->base_gfn / BITS_PER_LONG;
 
+	spin_lock(&kvm->arch.dirty_log_lock);
 	for (i = 0; i < n/sizeof(long); ++i) {
 		memslot->dirty_bitmap[i] = dirty_bitmap[base + i];
 		dirty_bitmap[base + i] = 0;
 	}
+	spin_unlock(&kvm->arch.dirty_log_lock);
 	r = 0;
 out:
 	return r;
@@ -1835,7 +1837,6 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	int is_dirty = 0;
 
 	mutex_lock(&kvm->slots_lock);
-	spin_lock(&kvm->arch.dirty_log_lock);
 
 	r = kvm_ia64_sync_dirty_log(kvm, log);
 	if (r)
@@ -1855,7 +1856,6 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	r = 0;
 out:
 	mutex_unlock(&kvm->slots_lock);
-	spin_unlock(&kvm->arch.dirty_log_lock);
 	return r;
 }
 
