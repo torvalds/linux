@@ -213,6 +213,32 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		return v4l2_subdev_call(sd, pad, set_fmt, subdev_fh, format);
 	}
 
+	case VIDIOC_SUBDEV_G_CROP: {
+		struct v4l2_subdev_crop *crop = arg;
+
+		if (crop->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    crop->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (crop->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, get_crop, subdev_fh, crop);
+	}
+
+	case VIDIOC_SUBDEV_S_CROP: {
+		struct v4l2_subdev_crop *crop = arg;
+
+		if (crop->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    crop->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (crop->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, set_crop, subdev_fh, crop);
+	}
+
 	case VIDIOC_SUBDEV_ENUM_MBUS_CODE: {
 		struct v4l2_subdev_mbus_code_enum *code = arg;
 

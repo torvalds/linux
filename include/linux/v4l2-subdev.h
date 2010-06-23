@@ -51,6 +51,19 @@ struct v4l2_subdev_format {
 };
 
 /**
+ * struct v4l2_subdev_crop - Pad-level crop settings
+ * @which: format type (from enum v4l2_subdev_format_whence)
+ * @pad: pad number, as reported by the media API
+ * @rect: pad crop rectangle boundaries
+ */
+struct v4l2_subdev_crop {
+	__u32 which;
+	__u32 pad;
+	struct v4l2_rect rect;
+	__u32 reserved[8];
+};
+
+/**
  * struct v4l2_subdev_mbus_code_enum - Media bus format enumeration
  * @pad: pad number, as reported by the media API
  * @index: format index during enumeration
@@ -122,5 +135,7 @@ struct v4l2_subdev_frame_interval_enum {
 			_IOWR('V', 74, struct v4l2_subdev_frame_size_enum)
 #define VIDIOC_SUBDEV_ENUM_FRAME_INTERVAL \
 			_IOWR('V', 75, struct v4l2_subdev_frame_interval_enum)
+#define VIDIOC_SUBDEV_G_CROP	_IOWR('V', 59, struct v4l2_subdev_crop)
+#define VIDIOC_SUBDEV_S_CROP	_IOWR('V', 60, struct v4l2_subdev_crop)
 
 #endif
