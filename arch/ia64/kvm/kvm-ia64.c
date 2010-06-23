@@ -1795,24 +1795,14 @@ void kvm_arch_exit(void)
 	kvm_vmm_info = NULL;
 }
 
-static int kvm_ia64_sync_dirty_log(struct kvm *kvm,
-		struct kvm_dirty_log *log)
+static void kvm_ia64_sync_dirty_log(struct kvm *kvm,
+				    struct kvm_memory_slot *memslot)
 {
-	struct kvm_memory_slot *memslot;
-	int r, i;
+	int i;
 	long base;
 	unsigned long n;
 	unsigned long *dirty_bitmap = (unsigned long *)(kvm->arch.vm_base +
 			offsetof(struct kvm_vm_data, kvm_mem_dirty_log));
-
-	r = -EINVAL;
-	if (log->slot >= KVM_MEMORY_SLOTS)
-		goto out;
-
-	memslot = &kvm->memslots->memslots[log->slot];
-	r = -ENOENT;
-	if (!memslot->dirty_bitmap)
-		goto out;
 
 	n = kvm_dirty_bitmap_bytes(memslot);
 	base = memslot->base_gfn / BITS_PER_LONG;
@@ -1823,9 +1813,6 @@ static int kvm_ia64_sync_dirty_log(struct kvm *kvm,
 		dirty_bitmap[base + i] = 0;
 	}
 	spin_unlock(&kvm->arch.dirty_log_lock);
-	r = 0;
-out:
-	return r;
 }
 
 int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
@@ -1838,10 +1825,16 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 
 	mutex_lock(&kvm->slots_lock);
 
-	r = kvm_ia64_sync_dirty_log(kvm, log);
-	if (r)
+	r = -EINVAL;
+	if (log->slot >= KVM_MEMORY_SLOTS)
 		goto out;
 
+	memslot = &kvm->memslots->memslots[log->slot];
+	r = -ENOENT;
+	if (!memslot->dirty_bitmap)
+		goto out;
+
+	kvm_ia64_sync_dirty_log(kvm, memslot);
 	r = kvm_get_dirty_log(kvm, log, &is_dirty);
 	if (r)
 		goto out;
@@ -1849,7 +1842,6 @@ int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm,
 	/* If nothing is dirty, don't bother messing with page tables. */
 	if (is_dirty) {
 		kvm_flush_remote_tlbs(kvm);
-		memslot = &kvm->memslots->memslots[log->slot];
 		n = kvm_dirty_bitmap_bytes(memslot);
 		memset(memslot->dirty_bitmap, 0, n);
 	}
