@@ -304,15 +304,16 @@ int __kprobes single_step_dabr_instruction(struct die_args *args)
 	if (!bp_info->extraneous_interrupt)
 		perf_bp_event(bp, regs);
 
-	/*
-	 * Do not disable MSR_SE if the process was already in
-	 * single-stepping mode.
-	 */
-	if (!test_thread_flag(TIF_SINGLESTEP))
-		regs->msr &= ~MSR_SE;
-
 	set_dabr(bp_info->address | bp_info->type | DABR_TRANSLATION);
 	current->thread.last_hit_ubp = NULL;
+
+	/*
+	 * If the process was being single-stepped by ptrace, let the
+	 * other single-step actions occur (e.g. generate SIGTRAP).
+	 */
+	if (test_thread_flag(TIF_SINGLESTEP))
+		return NOTIFY_DONE;
+
 	return NOTIFY_STOP;
 }
 
