@@ -304,10 +304,9 @@ s_vSaveTxPktInfo(PSDevice pDevice, BYTE byPktNum, PBYTE pbyDestAddr, WORD wPktLe
 {
     PSStatCounter           pStatistic=&(pDevice->scStatistic);
 
-
-    if (IS_BROADCAST_ADDRESS(pbyDestAddr))
+    if (is_broadcast_ether_addr(pbyDestAddr))
         pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_BROAD;
-    else if (IS_MULTICAST_ADDRESS(pbyDestAddr))
+    else if (is_multicast_ether_addr(pbyDestAddr))
         pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_MULTI;
     else
         pStatistic->abyTxPktInfo[byPktNum].byBroadMultiUni = TX_PKT_UNI;
@@ -318,9 +317,6 @@ s_vSaveTxPktInfo(PSDevice pDevice, BYTE byPktNum, PBYTE pbyDestAddr, WORD wPktLe
 	   pbyDestAddr,
 	   ETH_ALEN);
 }
-
-
-
 
 static
 void
@@ -1494,8 +1490,8 @@ s_bPacketToWirelessUsb(
     } else { //if (pDevice->dwDiagRefCount != 0) {
         if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
             (pDevice->eOPMode == OP_MODE_AP)) {
-            if (IS_MULTICAST_ADDRESS(&(psEthHeader->abyDstAddr[0])) ||
-                IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
+	    if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
+		is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
                 bNeedACK = FALSE;
                 pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
             }
@@ -2038,8 +2034,8 @@ CMD_STATUS csMgmt_xmit(
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
 
-    if (IS_MULTICAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
-        IS_BROADCAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
+	is_broadcast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
     }
     else {
@@ -2447,8 +2443,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb) {
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
 
-    if (IS_MULTICAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0])) ||
-        IS_BROADCAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0])) ||
+	is_broadcast_ether_addr(&(p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;
@@ -2783,7 +2779,7 @@ nsDMA_tx_packet(
             return 0;
         }
 
-        if (IS_MULTICAST_ADDRESS((PBYTE)(skb->data))) {
+	if (is_multicast_ether_addr((PBYTE)(skb->data))) {
             uNodeIndex = 0;
             bNodeExist = TRUE;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {
@@ -2975,7 +2971,7 @@ nsDMA_tx_packet(
     else {
         if (pDevice->eOPMode == OP_MODE_ADHOC) {
             // Adhoc Tx rate decided from node DB
-            if (IS_MULTICAST_ADDRESS(&(pDevice->sTxEthHeader.abyDstAddr[0]))) {
+	    if (is_multicast_ether_addr(&(pDevice->sTxEthHeader.abyDstAddr[0]))) {
                 // Multicast use highest data rate
                 pDevice->wCurrentRate = pMgmt->sNodeDBTable[0].wTxDataRate;
                 // preamble type

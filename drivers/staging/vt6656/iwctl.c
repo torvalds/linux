@@ -761,7 +761,7 @@ int iwctl_siwap(struct net_device *dev,
 		memcpy(pMgmt->abyDesireBSSID, wrq->sa_data, 6);
 
 	//mike :add
-	 if ((IS_BROADCAST_ADDRESS(pMgmt->abyDesireBSSID)) ||
+	 if ((is_broadcast_ether_addr(pMgmt->abyDesireBSSID)) ||
 	     (memcmp(pMgmt->abyDesireBSSID, ZeroBSSID, 6) == 0)){
 	      PRINT_K("SIOCSIWAP:invalid desired BSSID return!\n");
                return rc;
