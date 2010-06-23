@@ -2333,13 +2333,15 @@ static void selinux_bprm_committing_creds(struct linux_binprm *bprm)
 	rc = avc_has_perm(new_tsec->osid, new_tsec->sid, SECCLASS_PROCESS,
 			  PROCESS__RLIMITINH, NULL);
 	if (rc) {
+		/* protect against do_prlimit() */
+		task_lock(current);
 		for (i = 0; i < RLIM_NLIMITS; i++) {
 			rlim = current->signal->rlim + i;
 			initrlim = init_task.signal->rlim + i;
 			rlim->rlim_cur = min(rlim->rlim_max, initrlim->rlim_cur);
 		}
-		update_rlimit_cpu(current,
-				current->signal->rlim[RLIMIT_CPU].rlim_cur);
+		task_unlock(current);
+		update_rlimit_cpu(current, rlimit(RLIMIT_CPU));
 	}
 }
 
