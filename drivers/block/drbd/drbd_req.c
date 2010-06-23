@@ -226,8 +226,6 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		return;
 	if (s & RQ_LOCAL_PENDING)
 		return;
-	if (mdev->state.susp)
-		return;
 
 	if (req->master_bio) {
 		/* this is data_received (remote read)
@@ -282,6 +280,14 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 	}
 	/* else: network part and not DONE yet. that is
 	 * protocol A or B, barrier ack still pending... */
+}
+
+static void _req_may_be_done_not_susp(struct drbd_request *req, struct bio_and_error *m)
+{
+	struct drbd_conf *mdev = req->mdev;
+
+	if (!mdev->state.susp)
+		_req_may_be_done(req, m);
 }
 
 /*
@@ -425,7 +431,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= (RQ_LOCAL_COMPLETED|RQ_LOCAL_OK);
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		put_ldev(mdev);
 		break;
 
@@ -434,7 +440,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~RQ_LOCAL_PENDING;
 
 		__drbd_chk_io_error(mdev, FALSE);
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		put_ldev(mdev);
 		break;
 
@@ -442,7 +448,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* it is legal to fail READA */
 		req->rq_state |= RQ_LOCAL_COMPLETED;
 		req->rq_state &= ~RQ_LOCAL_PENDING;
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		put_ldev(mdev);
 		break;
 
@@ -460,7 +466,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* no point in retrying if there is no good remote data,
 		 * or we have no connection. */
 		if (mdev->state.pdsk != D_UP_TO_DATE) {
-			_req_may_be_done(req, m);
+			_req_may_be_done_not_susp(req, m);
 			break;
 		}
 
@@ -546,7 +552,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~RQ_NET_QUEUED;
 		/* if we did it right, tl_clear should be scheduled only after
 		 * this, so this should not be necessary! */
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		break;
 
 	case handed_over_to_network:
@@ -571,7 +577,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		 * "completed_ok" events came in, once we return from
 		 * _drbd_send_zc_bio (drbd_send_dblock), we have to check
 		 * whether it is done already, and end it.  */
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		break;
 
 	case read_retry_remote_canceled:
@@ -587,7 +593,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* if it is still queued, we may not complete it here.
 		 * it will be canceled soon. */
 		if (!(req->rq_state & RQ_NET_QUEUED))
-			_req_may_be_done(req, m);
+			_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
 	case write_acked_by_peer_and_sis:
@@ -622,7 +628,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
 		dec_ap_pending(mdev);
 		req->rq_state &= ~RQ_NET_PENDING;
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		break;
 
 	case neg_acked:
@@ -632,7 +638,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state &= ~(RQ_NET_OK|RQ_NET_PENDING);
 
 		req->rq_state |= RQ_NET_DONE;
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		/* else: done by handed_over_to_network */
 		break;
 
@@ -640,7 +646,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		if (!(req->rq_state & RQ_LOCAL_COMPLETED))
 			break;
 
-		_req_may_be_done(req, m);
+		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
 	case restart_frozen_disk_io:
@@ -685,7 +691,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		}
 		D_ASSERT(req->rq_state & RQ_NET_SENT);
 		req->rq_state |= RQ_NET_DONE;
-		_req_may_be_done(req, m);
+		_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
 	case data_received:
@@ -693,7 +699,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		dec_ap_pending(mdev);
 		req->rq_state &= ~RQ_NET_PENDING;
 		req->rq_state |= (RQ_NET_OK|RQ_NET_DONE);
-		_req_may_be_done(req, m);
+		_req_may_be_done_not_susp(req, m);
 		break;
 	};
 
