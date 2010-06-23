@@ -114,6 +114,11 @@ ALC662/663/272
   samsung-nc10	Samsung NC10 mini notebook
   auto		auto-config reading BIOS (default)
 
+ALC680
+======
+  base		Base model (ASUS NX90)
+  auto		auto-config reading BIOS (default)
+
 ALC882/883/885/888/889
 ======================
   3stack-dig	3-jack with SPDIF I/O

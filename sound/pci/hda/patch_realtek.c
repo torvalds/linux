@@ -256,6 +256,13 @@ enum {
 	ALC882_MODEL_LAST,
 };
 
+/* ALC680 models */
+enum {
+	ALC680_BASE,
+	ALC680_AUTO,
+	ALC680_MODEL_LAST,
+};
+
 /* for GPIO Poll */
 #define GPIO_MASK	0x03
 
@@ -18997,7 +19004,8 @@ static void alc680_auto_init(struct hda_codec *codec)
  * configuration and preset
  */
 static const char *alc680_models[ALC680_MODEL_LAST] = {
-	[ALC680_BASE]		= "alc680_base",
+	[ALC680_BASE]		= "base",
+	[ALC680_AUTO]		= "auto",
 };
 
 static struct snd_pci_quirk alc680_cfg_tbl[] = {
