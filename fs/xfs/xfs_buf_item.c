@@ -33,6 +33,12 @@
 
 kmem_zone_t	*xfs_buf_item_zone;
 
+static inline struct xfs_buf_log_item *BUF_ITEM(struct xfs_log_item *lip)
+{
+	return container_of(lip, struct xfs_buf_log_item, bli_item);
+}
+
+
 #ifdef XFS_TRANS_DEBUG
 /*
  * This function uses an alternate strategy for tracking the bytes
@@ -150,12 +156,13 @@ STATIC void	xfs_buf_do_callbacks(xfs_buf_t *bp, xfs_log_item_t *lip);
  */
 STATIC uint
 xfs_buf_item_size(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_log_item	*lip)
 {
-	uint		nvecs;
-	int		next_bit;
-	int		last_bit;
-	xfs_buf_t	*bp;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf		*bp = bip->bli_buf;
+	uint			nvecs;
+	int			next_bit;
+	int			last_bit;
 
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	if (bip->bli_flags & XFS_BLI_STALE) {
@@ -169,7 +176,6 @@ xfs_buf_item_size(
 		return 1;
 	}
 
-	bp = bip->bli_buf;
 	ASSERT(bip->bli_flags & XFS_BLI_LOGGED);
 	nvecs = 1;
 	last_bit = xfs_next_bit(bip->bli_format.blf_data_map,
@@ -218,13 +224,13 @@ xfs_buf_item_size(
  */
 STATIC void
 xfs_buf_item_format(
-	xfs_buf_log_item_t	*bip,
-	xfs_log_iovec_t		*log_vector)
+	struct xfs_log_item	*lip,
+	struct xfs_log_iovec	*vecp)
 {
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf	*bp = bip->bli_buf;
 	uint		base_size;
 	uint		nvecs;
-	xfs_log_iovec_t	*vecp;
-	xfs_buf_t	*bp;
 	int		first_bit;
 	int		last_bit;
 	int		next_bit;
@@ -234,8 +240,6 @@ xfs_buf_item_format(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
-	bp = bip->bli_buf;
-	vecp = log_vector;
 
 	/*
 	 * The size of the base structure is the size of the
@@ -262,7 +266,7 @@ xfs_buf_item_format(
 	 */
 	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
 		if (!((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
-		      xfs_log_item_in_current_chkpt(&bip->bli_item)))
+		      xfs_log_item_in_current_chkpt(lip)))
 			bip->bli_format.blf_flags |= XFS_BLF_INODE_BUF;
 		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
 	}
@@ -365,20 +369,19 @@ xfs_buf_item_format(
 
 STATIC void
 xfs_buf_item_pin(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_log_item	*lip)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 
-	bp = bip->bli_buf;
-	ASSERT(XFS_BUF_ISBUSY(bp));
+	ASSERT(XFS_BUF_ISBUSY(bip->bli_buf));
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
+
 	atomic_inc(&bip->bli_refcount);
 	trace_xfs_buf_item_pin(bip);
-	xfs_bpin(bp);
+	xfs_bpin(bip->bli_buf);
 }
-
 
 /*
  * This is called to unpin the buffer associated with the buf log
@@ -396,13 +399,14 @@ xfs_buf_item_pin(
  */
 STATIC void
 xfs_buf_item_unpin(
-	xfs_buf_log_item_t	*bip,
+	struct xfs_log_item	*lip,
 	int			remove)
 {
-	struct xfs_ail	*ailp;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	xfs_buf_t	*bp = bip->bli_buf;
-	int		freed;
+	struct xfs_ail	*ailp = lip->li_ailp;
 	int		stale = bip->bli_flags & XFS_BLI_STALE;
+	int		freed;
 
 	ASSERT(XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *) == bip);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
@@ -410,8 +414,8 @@ xfs_buf_item_unpin(
 	trace_xfs_buf_item_unpin(bip);
 
 	freed = atomic_dec_and_test(&bip->bli_refcount);
-	ailp = bip->bli_item.li_ailp;
 	xfs_bunpin(bp);
+
 	if (freed && stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
 		ASSERT(XFS_BUF_VALUSEMA(bp) <= 0);
@@ -429,7 +433,7 @@ xfs_buf_item_unpin(
 			 * in xfs_trans_uncommit() will ry to reference the
 			 * buffer which we no longer have a hold on.
 			 */
-			xfs_trans_del_item(&bip->bli_item);
+			xfs_trans_del_item(lip);
 
 			/*
 			 * Since the transaction no longer refers to the buffer,
@@ -468,11 +472,11 @@ xfs_buf_item_unpin(
  */
 STATIC uint
 xfs_buf_item_trylock(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_log_item	*lip)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf		*bp = bip->bli_buf;
 
-	bp = bip->bli_buf;
 	if (XFS_BUF_ISPINNED(bp))
 		return XFS_ITEM_PINNED;
 	if (!XFS_BUF_CPSEMA(bp))
@@ -509,13 +513,12 @@ xfs_buf_item_trylock(
  */
 STATIC void
 xfs_buf_item_unlock(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_log_item	*lip)
 {
-	int		aborted;
-	xfs_buf_t	*bp;
-	uint		hold;
-
-	bp = bip->bli_buf;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf		*bp = bip->bli_buf;
+	int			aborted;
+	uint			hold;
 
 	/* Clear the buffer's association with this transaction. */
 	XFS_BUF_SET_FSPRIVATE2(bp, NULL);
@@ -526,7 +529,7 @@ xfs_buf_item_unlock(
 	 * (cancelled) buffers at unpin time, but we'll never go through the
 	 * pin/unpin cycle if we abort inside commit.
 	 */
-	aborted = (bip->bli_item.li_flags & XFS_LI_ABORTED) != 0;
+	aborted = (lip->li_flags & XFS_LI_ABORTED) != 0;
 
 	/*
 	 * Before possibly freeing the buf item, determine if we should
@@ -587,16 +590,16 @@ xfs_buf_item_unlock(
  */
 STATIC xfs_lsn_t
 xfs_buf_item_committed(
-	xfs_buf_log_item_t	*bip,
+	struct xfs_log_item	*lip,
 	xfs_lsn_t		lsn)
 {
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+
 	trace_xfs_buf_item_committed(bip);
 
-	if ((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
-	    (bip->bli_item.li_lsn != 0)) {
-		return bip->bli_item.li_lsn;
-	}
-	return (lsn);
+	if ((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) && lip->li_lsn != 0)
+		return lip->li_lsn;
+	return lsn;
 }
 
 /*
@@ -606,15 +609,16 @@ xfs_buf_item_committed(
  */
 STATIC void
 xfs_buf_item_push(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_log_item	*lip)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf		*bp = bip->bli_buf;
 
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
+	ASSERT(!XFS_BUF_ISDELAYWRITE(bp));
+
 	trace_xfs_buf_item_push(bip);
 
-	bp = bip->bli_buf;
-	ASSERT(!XFS_BUF_ISDELAYWRITE(bp));
 	xfs_buf_relse(bp);
 }
 
@@ -626,22 +630,24 @@ xfs_buf_item_push(
  */
 STATIC void
 xfs_buf_item_pushbuf(
-	xfs_buf_log_item_t	*bip)
+	struct xfs_log_item	*lip)
 {
-	xfs_buf_t	*bp;
+	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
+	struct xfs_buf		*bp = bip->bli_buf;
 
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
+	ASSERT(XFS_BUF_ISDELAYWRITE(bp));
+
 	trace_xfs_buf_item_pushbuf(bip);
 
-	bp = bip->bli_buf;
-	ASSERT(XFS_BUF_ISDELAYWRITE(bp));
 	xfs_buf_delwri_promote(bp);
 	xfs_buf_relse(bp);
 }
 
-/* ARGSUSED */
 STATIC void
-xfs_buf_item_committing(xfs_buf_log_item_t *bip, xfs_lsn_t commit_lsn)
+xfs_buf_item_committing(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		commit_lsn)
 {
 }
 
@@ -649,19 +655,16 @@ xfs_buf_item_committing(xfs_buf_log_item_t *bip, xfs_lsn_t commit_lsn)
  * This is the ops vector shared by all buf log items.
  */
 static struct xfs_item_ops xfs_buf_item_ops = {
-	.iop_size	= (uint(*)(xfs_log_item_t*))xfs_buf_item_size,
-	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
-					xfs_buf_item_format,
-	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_buf_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_buf_item_unpin,
-	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_buf_item_trylock,
-	.iop_unlock	= (void(*)(xfs_log_item_t*))xfs_buf_item_unlock,
-	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
-					xfs_buf_item_committed,
-	.iop_push	= (void(*)(xfs_log_item_t*))xfs_buf_item_push,
-	.iop_pushbuf	= (void(*)(xfs_log_item_t*))xfs_buf_item_pushbuf,
-	.iop_committing = (void(*)(xfs_log_item_t*, xfs_lsn_t))
-					xfs_buf_item_committing
+	.iop_size	= xfs_buf_item_size,
+	.iop_format	= xfs_buf_item_format,
+	.iop_pin	= xfs_buf_item_pin,
+	.iop_unpin	= xfs_buf_item_unpin,
+	.iop_trylock	= xfs_buf_item_trylock,
+	.iop_unlock	= xfs_buf_item_unlock,
+	.iop_committed	= xfs_buf_item_committed,
+	.iop_push	= xfs_buf_item_push,
+	.iop_pushbuf	= xfs_buf_item_pushbuf,
+	.iop_committing = xfs_buf_item_committing
 };
 
 
