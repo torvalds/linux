@@ -832,33 +832,29 @@ DECLARE_EVENT_CLASS(xfs_page_class,
 		__field(loff_t, size)
 		__field(unsigned long, offset)
 		__field(int, delalloc)
-		__field(int, unmapped)
 		__field(int, unwritten)
 	),
 	TP_fast_assign(
-		int delalloc = -1, unmapped = -1, unwritten = -1;
+		int delalloc = -1, unwritten = -1;
 
 		if (page_has_buffers(page))
-			xfs_count_page_state(page, &delalloc,
-					     &unmapped, &unwritten);
+			xfs_count_page_state(page, &delalloc, &unwritten);
 		__entry->dev = inode->i_sb->s_dev;
 		__entry->ino = XFS_I(inode)->i_ino;
 		__entry->pgoff = page_offset(page);
 		__entry->size = i_size_read(inode);
 		__entry->offset = off;
 		__entry->delalloc = delalloc;
-		__entry->unmapped = unmapped;
 		__entry->unwritten = unwritten;
 	),
 	TP_printk("dev %d:%d ino 0x%llx pgoff 0x%lx size 0x%llx offset %lx "
-		  "delalloc %d unmapped %d unwritten %d",
+		  "delalloc %d unwritten %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->pgoff,
 		  __entry->size,
 		  __entry->offset,
 		  __entry->delalloc,
-		  __entry->unmapped,
 		  __entry->unwritten)
 )
 
