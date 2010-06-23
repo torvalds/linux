@@ -251,7 +251,7 @@ xfs_buf_item_format(
 	base_size =
 		(uint)(sizeof(xfs_buf_log_format_t) +
 		       ((bip->bli_format.blf_map_size - 1) * sizeof(uint)));
-	vecp->i_addr = (xfs_caddr_t)&bip->bli_format;
+	vecp->i_addr = &bip->bli_format;
 	vecp->i_len = base_size;
 	vecp->i_type = XLOG_REG_TYPE_BFORMAT;
 	vecp++;

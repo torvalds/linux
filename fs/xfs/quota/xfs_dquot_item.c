@@ -65,11 +65,11 @@ xfs_qm_dquot_logitem_format(
 {
 	struct xfs_dq_logitem	*qlip = DQUOT_ITEM(lip);
 
-	logvec->i_addr = (xfs_caddr_t)&qlip->qli_format;
+	logvec->i_addr = &qlip->qli_format;
 	logvec->i_len  = sizeof(xfs_dq_logformat_t);
 	logvec->i_type = XLOG_REG_TYPE_QFORMAT;
 	logvec++;
-	logvec->i_addr = (xfs_caddr_t)&qlip->qli_dquot->q_core;
+	logvec->i_addr = &qlip->qli_dquot->q_core;
 	logvec->i_len  = sizeof(xfs_disk_dquot_t);
 	logvec->i_type = XLOG_REG_TYPE_DQUOT;
 
@@ -369,7 +369,7 @@ xfs_qm_qoff_logitem_format(
 
 	ASSERT(qflip->qql_format.qf_type == XFS_LI_QUOTAOFF);
 
-	log_vector->i_addr = (xfs_caddr_t)&(qflip->qql_format);
+	log_vector->i_addr = &qflip->qql_format;
 	log_vector->i_len = sizeof(xfs_qoff_logitem_t);
 	log_vector->i_type = XLOG_REG_TYPE_QUOTAOFF;
 	qflip->qql_format.qf_size = 1;

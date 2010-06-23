@@ -217,7 +217,7 @@ xfs_inode_item_format(
 	int			nrecs;
 	xfs_mount_t		*mp;
 
-	vecp->i_addr = (xfs_caddr_t)&iip->ili_format;
+	vecp->i_addr = &iip->ili_format;
 	vecp->i_len  = sizeof(xfs_inode_log_format_t);
 	vecp->i_type = XLOG_REG_TYPE_IFORMAT;
 	vecp++;
@@ -268,7 +268,7 @@ xfs_inode_item_format(
 	 */
 	xfs_synchronize_times(ip);
 
-	vecp->i_addr = (xfs_caddr_t)&ip->i_d;
+	vecp->i_addr = &ip->i_d;
 	vecp->i_len  = sizeof(struct xfs_icdinode);
 	vecp->i_type = XLOG_REG_TYPE_ICORE;
 	vecp++;
@@ -324,8 +324,7 @@ xfs_inode_item_format(
 				 * extents, so just point to the
 				 * real extents array.
 				 */
-				vecp->i_addr =
-					(char *)(ip->i_df.if_u1.if_extents);
+				vecp->i_addr = ip->i_df.if_u1.if_extents;
 				vecp->i_len = ip->i_df.if_bytes;
 				vecp->i_type = XLOG_REG_TYPE_IEXT;
 			} else
@@ -343,7 +342,7 @@ xfs_inode_item_format(
 				ext_buffer = kmem_alloc(ip->i_df.if_bytes,
 					KM_SLEEP);
 				iip->ili_extents_buf = ext_buffer;
-				vecp->i_addr = (xfs_caddr_t)ext_buffer;
+				vecp->i_addr = ext_buffer;
 				vecp->i_len = xfs_iextents_copy(ip, ext_buffer,
 						XFS_DATA_FORK);
 				vecp->i_type = XLOG_REG_TYPE_IEXT;
@@ -362,7 +361,7 @@ xfs_inode_item_format(
 		if (iip->ili_format.ilf_fields & XFS_ILOG_DBROOT) {
 			ASSERT(ip->i_df.if_broot_bytes > 0);
 			ASSERT(ip->i_df.if_broot != NULL);
-			vecp->i_addr = (xfs_caddr_t)ip->i_df.if_broot;
+			vecp->i_addr = ip->i_df.if_broot;
 			vecp->i_len = ip->i_df.if_broot_bytes;
 			vecp->i_type = XLOG_REG_TYPE_IBROOT;
 			vecp++;
@@ -380,7 +379,7 @@ xfs_inode_item_format(
 			ASSERT(ip->i_df.if_u1.if_data != NULL);
 			ASSERT(ip->i_d.di_size > 0);
 
-			vecp->i_addr = (xfs_caddr_t)ip->i_df.if_u1.if_data;
+			vecp->i_addr = ip->i_df.if_u1.if_data;
 			/*
 			 * Round i_bytes up to a word boundary.
 			 * The underlying memory is guaranteed to
@@ -454,7 +453,7 @@ xfs_inode_item_format(
 			 * There are not delayed allocation extents
 			 * for attributes, so just point at the array.
 			 */
-			vecp->i_addr = (char *)(ip->i_afp->if_u1.if_extents);
+			vecp->i_addr = ip->i_afp->if_u1.if_extents;
 			vecp->i_len = ip->i_afp->if_bytes;
 #else
 			ASSERT(iip->ili_aextents_buf == NULL);
@@ -464,7 +463,7 @@ xfs_inode_item_format(
 			ext_buffer = kmem_alloc(ip->i_afp->if_bytes,
 				KM_SLEEP);
 			iip->ili_aextents_buf = ext_buffer;
-			vecp->i_addr = (xfs_caddr_t)ext_buffer;
+			vecp->i_addr = ext_buffer;
 			vecp->i_len = xfs_iextents_copy(ip, ext_buffer,
 					XFS_ATTR_FORK);
 #endif
@@ -481,7 +480,7 @@ xfs_inode_item_format(
 		if (iip->ili_format.ilf_fields & XFS_ILOG_ABROOT) {
 			ASSERT(ip->i_afp->if_broot_bytes > 0);
 			ASSERT(ip->i_afp->if_broot != NULL);
-			vecp->i_addr = (xfs_caddr_t)ip->i_afp->if_broot;
+			vecp->i_addr = ip->i_afp->if_broot;
 			vecp->i_len = ip->i_afp->if_broot_bytes;
 			vecp->i_type = XLOG_REG_TYPE_IATTR_BROOT;
 			vecp++;
@@ -497,7 +496,7 @@ xfs_inode_item_format(
 			ASSERT(ip->i_afp->if_bytes > 0);
 			ASSERT(ip->i_afp->if_u1.if_data != NULL);
 
-			vecp->i_addr = (xfs_caddr_t)ip->i_afp->if_u1.if_data;
+			vecp->i_addr = ip->i_afp->if_u1.if_data;
 			/*
 			 * Round i_bytes up to a word boundary.
 			 * The underlying memory is guaranteed to
@@ -938,9 +937,8 @@ xfs_inode_item_format_convert(
 	xfs_inode_log_format_t	*in_f)
 {
 	if (buf->i_len == sizeof(xfs_inode_log_format_32_t)) {
-		xfs_inode_log_format_32_t *in_f32;
+		xfs_inode_log_format_32_t *in_f32 = buf->i_addr;
 
-		in_f32 = (xfs_inode_log_format_32_t *)buf->i_addr;
 		in_f->ilf_type = in_f32->ilf_type;
 		in_f->ilf_size = in_f32->ilf_size;
 		in_f->ilf_fields = in_f32->ilf_fields;
@@ -956,9 +954,8 @@ xfs_inode_item_format_convert(
 		in_f->ilf_boffset = in_f32->ilf_boffset;
 		return 0;
 	} else if (buf->i_len == sizeof(xfs_inode_log_format_64_t)){
-		xfs_inode_log_format_64_t *in_f64;
+		xfs_inode_log_format_64_t *in_f64 = buf->i_addr;
 
-		in_f64 = (xfs_inode_log_format_64_t *)buf->i_addr;
 		in_f->ilf_type = in_f64->ilf_type;
 		in_f->ilf_size = in_f64->ilf_size;
 		in_f->ilf_fields = in_f64->ilf_fields;

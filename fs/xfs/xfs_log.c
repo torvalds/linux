@@ -548,7 +548,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 				.magic = XLOG_UNMOUNT_TYPE,
 			};
 			struct xfs_log_iovec reg = {
-				.i_addr = (void *)&magic,
+				.i_addr = &magic,
 				.i_len = sizeof(magic),
 				.i_type = XLOG_REG_TYPE_UNMOUNT,
 			};
