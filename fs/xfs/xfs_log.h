@@ -55,14 +55,10 @@ static inline xfs_lsn_t	_lsn_cmp(xfs_lsn_t lsn1, xfs_lsn_t lsn2)
 /*
  * Flags to xfs_log_reserve()
  *
- *	XFS_LOG_SLEEP:	 If space is not available, sleep (default)
- *	XFS_LOG_NOSLEEP: If space is not available, return error
  *	XFS_LOG_PERM_RESERV: Permanent reservation.  When writes are
  *		performed against this type of reservation, the reservation
  *		is not decreased.  Long running transactions should use this.
  */
-#define XFS_LOG_SLEEP		0x0
-#define XFS_LOG_NOSLEEP		0x1
 #define XFS_LOG_PERM_RESERV	0x2
 
 /*

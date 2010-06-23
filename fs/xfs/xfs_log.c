@@ -333,7 +333,6 @@ xfs_log_reserve(
 	int			retval = 0;
 
 	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
-	ASSERT((flags & XFS_LOG_NOSLEEP) == 0);
 
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return XFS_ERROR(EIO);
