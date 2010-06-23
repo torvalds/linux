@@ -349,39 +349,6 @@ int iwctl_giwscan(struct net_device *dev,
 			}
 			iwe.u.qual.updated=7;
 
-//2008-0409-01, <Mark> by Einsn Liu
-/*
-//2008-0220-03, <Modify>  by Einsn Liu
-	if(pDevice->bLinkPass== TRUE && IS_ETH_ADDRESS_EQUAL(pBSS->abyBSSID, pMgmt->abyCurrBSSID)){
-	#ifdef Calcu_LinkQual
-	 #if 0
-	  if(pDevice->byBBType == BB_TYPE_11B) {
-	     if(pDevice->byCurrSQ > 120)
-                  pDevice->scStatistic.LinkQuality = 100;
-	     else
-		 pDevice->scStatistic.LinkQuality = pDevice->byCurrSQ*100/120;
-	    }
-	  else if(pDevice->byBBType == BB_TYPE_11G) {
-                if(pDevice->byCurrSQ < 20)
-		   pDevice->scStatistic.LinkQuality = 100;
-	       else if(pDevice->byCurrSQ >96)
-		   pDevice->scStatistic.LinkQuality  = 0;
-	       else
-		   pDevice->scStatistic.LinkQuality = (96-pDevice->byCurrSQ)*100/76;
-	   }
-	   if(pDevice->bLinkPass !=TRUE)
-	       pDevice->scStatistic.LinkQuality = 0;
-	  #endif
-	   if(pDevice->scStatistic.LinkQuality > 100)
-   	       pDevice->scStatistic.LinkQuality = 100;
-              iwe.u.qual.qual =(BYTE) pDevice->scStatistic.LinkQuality;
-	#else
-	iwe.u.qual.qual = pDevice->byCurrSQ;
-	#endif
-		}else {
-	        iwe.u.qual.qual = 0;
-		}
-*/
                  current_ev = iwe_stream_add_event(info,current_ev, end_buf, &iwe, IW_EV_QUAL_LEN);
        	//ADD encryption
             memset(&iwe, 0, sizeof(iwe));
@@ -772,7 +739,8 @@ int iwctl_siwap(struct net_device *dev,
 		unsigned int ii, uSameBssidNum = 0;
                   for (ii = 0; ii < MAX_BSS_NUM; ii++) {
                      if (pMgmt->sBSSList[ii].bActive &&
-                        IS_ETH_ADDRESS_EQUAL(pMgmt->sBSSList[ii].abyBSSID,pMgmt->abyDesireBSSID)) {
+			 !compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
+					     pMgmt->abyDesireBSSID)) {
                         uSameBssidNum++;
                      }
                   }
@@ -957,7 +925,8 @@ int iwctl_siwessid(struct net_device *dev,
                      //         by means of judging if there are two same BSSID exist in list ?
                   for (ii = 0; ii < MAX_BSS_NUM; ii++) {
                      if (pMgmt->sBSSList[ii].bActive &&
-                        IS_ETH_ADDRESS_EQUAL(pMgmt->sBSSList[ii].abyBSSID, pCurr->abyBSSID)) {
+			 !compare_ether_addr(pMgmt->sBSSList[ii].abyBSSID,
+					     pCurr->abyBSSID)) {
                         uSameBssidNum++;
                      }
                   }

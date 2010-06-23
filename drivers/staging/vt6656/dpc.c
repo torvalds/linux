@@ -195,10 +195,9 @@ s_vProcessRxMACHeader (
     };
 
     pbyRxBuffer = (PBYTE) (pbyRxBufferAddr + cbHeaderSize);
-    if (IS_ETH_ADDRESS_EQUAL(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
+    if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_Bridgetunnel[0])) {
         cbHeaderSize += 6;
-    }
-    else if (IS_ETH_ADDRESS_EQUAL(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
+    } else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
         pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
         if ((*pwType!= TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
@@ -453,7 +452,7 @@ RXbBulkInProcessData (
     if ((pMgmt->eCurrMode == WMAC_MODE_STANDBY) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_STA)) {
        if (pMgmt->sNodeDBTable[0].bActive) {
-         if(IS_ETH_ADDRESS_EQUAL (pMgmt->abyCurrBSSID, pMACHeader->abyAddr2) ) {
+	 if (!compare_ether_addr(pMgmt->abyCurrBSSID, pMACHeader->abyAddr2)) {
 	    if (pMgmt->sNodeDBTable[0].uInActiveCount != 0)
                   pMgmt->sNodeDBTable[0].uInActiveCount = 0;
            }
@@ -466,8 +465,9 @@ RXbBulkInProcessData (
             return FALSE;
         }
 
-        if ( !IS_ETH_ADDRESS_EQUAL (pDevice->abyCurrentNetAddr, pMACHeader->abyAddr1) ) {
-            return FALSE;
+	if (compare_ether_addr(pDevice->abyCurrentNetAddr,
+			       pMACHeader->abyAddr1)) {
+		return FALSE;
         }
     }
 
@@ -475,7 +475,8 @@ RXbBulkInProcessData (
     // Use for TKIP MIC
     s_vGetDASA(pbyFrame, &cbHeaderSize, &pDevice->sRxEthHeader);
 
-    if (IS_ETH_ADDRESS_EQUAL((PBYTE)&(pDevice->sRxEthHeader.abySrcAddr[0]), pDevice->abyCurrentNetAddr))
+    if (!compare_ether_addr((PBYTE)&(pDevice->sRxEthHeader.abySrcAddr[0]),
+			    pDevice->abyCurrentNetAddr))
         return FALSE;
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) || (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA)) {

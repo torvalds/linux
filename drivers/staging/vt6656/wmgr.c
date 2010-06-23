@@ -1705,7 +1705,8 @@ s_vMgrRxDeauthentication(
 	   pDevice->fWPA_Authened = FALSE;
             DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO  "AP deauthed me, reason=%d.\n", cpu_to_le16((*(sFrame.pwReason))));
             // TODO: update BSS list for specific BSSID if pre-authentication case
-            if (IS_ETH_ADDRESS_EQUAL(sFrame.pHdr->sA3.abyAddr3, pMgmt->abyCurrBSSID)) {
+	    if (!compare_ether_addr(sFrame.pHdr->sA3.abyAddr3,
+				    pMgmt->abyCurrBSSID)) {
                 if (pMgmt->eCurrState >= WMAC_STATE_AUTHPENDING) {
                     pMgmt->sNodeDBTable[0].bActive = FALSE;
                     pMgmt->eCurrMode = WMAC_MODE_STANDBY;
@@ -3099,12 +3100,6 @@ s_vMgrSynchBSS (
   PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);
   /* unsigned int ii, uSameBssidNum=0; */
 
-        //  for (ii = 0; ii < MAX_BSS_NUM; ii++) {
-          //   if (pMgmt->sBSSList[ii].bActive &&
-            //      IS_ETH_ADDRESS_EQUAL(pMgmt->sBSSList[ii].abyBSSID, pCurr->abyBSSID)) {
-             //       uSameBssidNum++;
-               //   }
-           // }
   //   if( uSameBssidNum>=2) {	 //we only check AP in hidden sssid  mode
         if ((pMgmt->eAuthenMode == WMAC_AUTH_WPAPSK) ||           //networkmanager 0.7.0 does not give the pairwise-key selsection,
              (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) {         // so we need re-selsect it according to real pairwise-key info.

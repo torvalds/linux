@@ -204,12 +204,6 @@ S802_11Header, *PS802_11Header;
     (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0)      \
 )
 
-#define IS_ETH_ADDRESS_EQUAL(pbyAddr1, pbyAddr2) (  \
-    (*(PDWORD)(pbyAddr1) == *(PDWORD)(pbyAddr2)) && \
-    (*(PWORD)((PBYTE)(pbyAddr1) + 4) ==             \
-    *(PWORD)((PBYTE)(pbyAddr2) + 4))                \
-)
-
 /*---------------------  Export Classes  ----------------------------*/
 
 /*---------------------  Export Variables  --------------------------*/
