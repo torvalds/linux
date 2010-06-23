@@ -974,7 +974,7 @@ xfs_aops_discard_page(
 		 */
 		error = xfs_bmapi(NULL, ip, offset_fsb, 1,
 				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
-				&nimaps, NULL, NULL);
+				&nimaps, NULL);
 
 		if (error) {
 			/* something screwed, just bail */
@@ -1002,7 +1002,7 @@ xfs_aops_discard_page(
 		 */
 		xfs_bmap_init(&flist, &firstblock);
 		error = xfs_bunmapi(NULL, ip, offset_fsb, 1, 0, 1, &firstblock,
-					&flist, NULL, &done);
+					&flist, &done);
 
 		ASSERT(!flist.xbf_count && !flist.xbf_first);
 		if (error) {

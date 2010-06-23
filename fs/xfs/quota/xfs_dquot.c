@@ -385,7 +385,7 @@ xfs_qm_dqalloc(
 			      XFS_BMAPI_METADATA | XFS_BMAPI_WRITE,
 			      &firstblock,
 			      XFS_QM_DQALLOC_SPACE_RES(mp),
-			      &map, &nmaps, &flist, NULL))) {
+			      &map, &nmaps, &flist))) {
 		goto error0;
 	}
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);
@@ -501,7 +501,7 @@ xfs_qm_dqtobp(
 		error = xfs_bmapi(NULL, quotip, dqp->q_fileoffset,
 				  XFS_DQUOT_CLUSTER_SIZE_FSB,
 				  XFS_BMAPI_METADATA,
-				  NULL, 0, &map, &nmaps, NULL, NULL);
+				  NULL, 0, &map, &nmaps, NULL);
 
 		xfs_iunlock(quotip, XFS_ILOCK_SHARED);
 		if (error)

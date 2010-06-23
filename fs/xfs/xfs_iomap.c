@@ -118,7 +118,7 @@ xfs_iomap(
 	error = xfs_bmapi(NULL, ip, offset_fsb,
 			(xfs_filblks_t)(end_fsb - offset_fsb),
 			bmapi_flags,  NULL, 0, imap,
-			nimaps, NULL, NULL);
+			nimaps, NULL);
 
 	if (error)
 		goto out;
@@ -341,7 +341,7 @@ xfs_iomap_write_direct(
 	xfs_bmap_init(&free_list, &firstfsb);
 	nimaps = 1;
 	error = xfs_bmapi(tp, ip, offset_fsb, count_fsb, bmapi_flag,
-		&firstfsb, 0, &imap, &nimaps, &free_list, NULL);
+		&firstfsb, 0, &imap, &nimaps, &free_list);
 	if (error)
 		goto error0;
 
@@ -419,7 +419,7 @@ xfs_iomap_eof_want_preallocate(
 		imaps = nimaps;
 		firstblock = NULLFSBLOCK;
 		error = xfs_bmapi(NULL, ip, start_fsb, count_fsb, 0,
-				  &firstblock, 0, imap, &imaps, NULL, NULL);
+				  &firstblock, 0, imap, &imaps, NULL);
 		if (error)
 			return error;
 		for (n = 0; n < imaps; n++) {
@@ -494,7 +494,7 @@ retry:
 			  (xfs_filblks_t)(last_fsb - offset_fsb),
 			  XFS_BMAPI_DELAY | XFS_BMAPI_WRITE |
 			  XFS_BMAPI_ENTIRE, &firstblock, 1, imap,
-			  &nimaps, NULL, NULL);
+			  &nimaps, NULL);
 	if (error && (error != ENOSPC))
 		return XFS_ERROR(error);
 
@@ -650,7 +650,7 @@ xfs_iomap_write_allocate(
 			/* Go get the actual blocks */
 			error = xfs_bmapi(tp, ip, map_start_fsb, count_fsb,
 					XFS_BMAPI_WRITE, &first_block, 1,
-					&imap, &nimaps, &free_list, NULL);
+					&imap, &nimaps, &free_list);
 			if (error)
 				goto trans_cancel;
 
@@ -768,7 +768,7 @@ xfs_iomap_write_unwritten(
 		nimaps = 1;
 		error = xfs_bmapi(tp, ip, offset_fsb, count_fsb,
 				  XFS_BMAPI_WRITE|XFS_BMAPI_CONVERT, &firstfsb,
-				  1, &imap, &nimaps, &free_list, NULL);
+				  1, &imap, &nimaps, &free_list);
 		if (error)
 			goto error_on_bmapi_transaction;
 

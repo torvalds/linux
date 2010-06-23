@@ -873,7 +873,7 @@ xfs_dir2_leaf_getdents(
 					xfs_dir2_byte_to_da(mp,
 						XFS_DIR2_LEAF_OFFSET) - map_off,
 					XFS_BMAPI_METADATA, NULL, 0,
-					&map[map_valid], &nmap, NULL, NULL);
+					&map[map_valid], &nmap, NULL);
 				/*
 				 * Don't know if we should ignore this or
 				 * try to return an error.
