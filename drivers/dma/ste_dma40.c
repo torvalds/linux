@@ -218,6 +218,7 @@ struct d40_chan {
  * the same physical register.
  * @dev: The device structure.
  * @virtbase: The virtual base address of the DMA's register.
+ * @rev: silicon revision detected.
  * @clk: Pointer to the DMA clock structure.
  * @phy_start: Physical memory start of the DMA registers.
  * @phy_size: Size of the DMA register map.
@@ -250,6 +251,7 @@ struct d40_base {
 	spinlock_t			 execmd_lock;
 	struct device			 *dev;
 	void __iomem			 *virtbase;
+	u8				  rev:4;
 	struct clk			 *clk;
 	phys_addr_t			  phy_start;
 	resource_size_t			  phy_size;
@@ -757,6 +759,17 @@ static dma_cookie_t d40_tx_submit(struct dma_async_tx_descriptor *tx)
 
 static int d40_start(struct d40_chan *d40c)
 {
+	if (d40c->base->rev == 0) {
+		int err;
+
+		if (d40c->log_num != D40_PHY_CHAN) {
+			err = d40_channel_execute_command(d40c,
+							  D40_DMA_SUSPEND_REQ);
+			if (err)
+				return err;
+		}
+	}
+
 	if (d40c->log_num != D40_PHY_CHAN)
 		d40_config_set_event(d40c, true);
 
@@ -1426,6 +1439,13 @@ static int d40_resume(struct dma_chan *chan)
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
+	if (d40c->base->rev == 0)
+		if (d40c->log_num != D40_PHY_CHAN) {
+			res = d40_channel_execute_command(d40c,
+							  D40_DMA_SUSPEND_REQ);
+			goto no_suspend;
+		}
+
 	/* If bytes left to transfer or linked tx resume job */
 	if (d40_residue(d40c) || d40_tx_is_linked(d40c)) {
 		if (d40c->log_num != D40_PHY_CHAN)
@@ -1433,6 +1453,7 @@ static int d40_resume(struct dma_chan *chan)
 		res = d40_channel_execute_command(d40c, D40_DMA_RUN);
 	}
 
+no_suspend:
 	spin_unlock_irqrestore(&d40c->lock, flags);
 	return res;
 }
@@ -2286,6 +2307,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	int num_log_chans = 0;
 	int num_phy_chans;
 	int i;
+	u32 val;
 
 	clk = clk_get(&pdev->dev, NULL);
 
@@ -2324,12 +2346,13 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		}
 	}
 
-	i = readl(virtbase + D40_DREG_PERIPHID2);
+	/* Get silicon revision */
+	val = readl(virtbase + D40_DREG_PERIPHID2);
 
-	if ((i & 0xf) != D40_PERIPHID2_DESIGNER) {
+	if ((val & 0xf) != D40_PERIPHID2_DESIGNER) {
 		dev_err(&pdev->dev,
 			"[%s] Unknown designer! Got %x wanted %x\n",
-			__func__, i & 0xf, D40_PERIPHID2_DESIGNER);
+			__func__, val & 0xf, D40_PERIPHID2_DESIGNER);
 		goto failure;
 	}
 
@@ -2337,7 +2360,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	num_phy_chans = 4 * (readl(virtbase + D40_DREG_ICFG) & 0x7) + 4;
 
 	dev_info(&pdev->dev, "hardware revision: %d @ 0x%x\n",
-		 (i >> 4) & 0xf, res->start);
+		 (val >> 4) & 0xf, res->start);
 
 	plat_data = pdev->dev.platform_data;
 
@@ -2359,6 +2382,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		goto failure;
 	}
 
+	base->rev = (val >> 4) & 0xf;
 	base->clk = clk;
 	base->num_phy_chans = num_phy_chans;
 	base->num_log_chans = num_log_chans;
