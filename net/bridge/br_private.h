@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
 #include <linux/netpoll.h>
+#include <linux/u64_stats_sync.h>
 #include <net/route.h>
 
 #define BR_HASH_BITS 8
@@ -156,10 +157,11 @@ struct net_bridge_port
 #define br_port_exists(dev) (dev->priv_flags & IFF_BRIDGE_PORT)
 
 struct br_cpu_netstats {
-	unsigned long	rx_packets;
-	unsigned long	rx_bytes;
-	unsigned long	tx_packets;
-	unsigned long	tx_bytes;
+	u64			rx_packets;
+	u64			rx_bytes;
+	u64			tx_packets;
+	u64			tx_bytes;
+	struct u64_stats_sync	syncp;
 };
 
 struct net_bridge
