@@ -546,6 +546,17 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 	return efx->rx_checksum_enabled;
 }
 
+static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	u32 supported = efx->type->offload_features & ETH_FLAG_RXHASH;
+
+	if (data & ~supported)
+		return -EOPNOTSUPP;
+
+	return ethtool_op_set_flags(net_dev, data);
+}
+
 static void efx_ethtool_self_test(struct net_device *net_dev,
 				  struct ethtool_test *test, u64 *data)
 {
@@ -888,6 +899,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	/* Need to enable/disable TSO-IPv6 too */
 	.set_tso		= efx_ethtool_set_tso,
 	.get_flags		= ethtool_op_get_flags,
+	.set_flags		= efx_ethtool_set_flags,
 	.get_sset_count		= efx_ethtool_get_sset_count,
 	.self_test		= efx_ethtool_self_test,
 	.get_strings		= efx_ethtool_get_strings,

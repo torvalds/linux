@@ -258,6 +258,9 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 
 	payload = &state->payload;
 
+	buf_ptr += efx->type->rx_buffer_hash_size;
+	pkt_len -= efx->type->rx_buffer_hash_size;
+
 	received = (struct efx_loopback_payload *) buf_ptr;
 	received->ip.saddr = payload->ip.saddr;
 	if (state->offload_csum)
