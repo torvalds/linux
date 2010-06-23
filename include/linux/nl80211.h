@@ -1659,4 +1659,17 @@ enum nl80211_cqm_rssi_threshold_event {
 	NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
 };
 
+
+/**
+ * enum nl80211_tx_power_setting - TX power adjustment
+ * @NL80211_TX_POWER_AUTOMATIC: automatically determine transmit power
+ * @NL80211_TX_POWER_LIMITED: limit TX power by the mBm parameter
+ * @NL80211_TX_POWER_FIXED: fix TX power to the mBm parameter
+ */
+enum nl80211_tx_power_setting {
+	NL80211_TX_POWER_AUTOMATIC,
+	NL80211_TX_POWER_LIMITED,
+	NL80211_TX_POWER_FIXED,
+};
+
 #endif /* __LINUX_NL80211_H */

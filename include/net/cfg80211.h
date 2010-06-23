@@ -875,19 +875,6 @@ enum wiphy_params_flags {
 	WIPHY_PARAM_COVERAGE_CLASS	= 1 << 4,
 };
 
-/**
- * enum tx_power_setting - TX power adjustment
- *
- * @TX_POWER_AUTOMATIC: the dbm parameter is ignored
- * @TX_POWER_LIMITED: limit TX power by the dbm parameter
- * @TX_POWER_FIXED: fix TX power to the dbm parameter
- */
-enum tx_power_setting {
-	TX_POWER_AUTOMATIC,
-	TX_POWER_LIMITED,
-	TX_POWER_FIXED,
-};
-
 /*
  * cfg80211_bitrate_mask - masks for bitrate control
  */
@@ -1149,7 +1136,7 @@ struct cfg80211_ops {
 	int	(*set_wiphy_params)(struct wiphy *wiphy, u32 changed);
 
 	int	(*set_tx_power)(struct wiphy *wiphy,
-				enum tx_power_setting type, int dbm);
+				enum nl80211_tx_power_setting type, int mbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
 
 	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,

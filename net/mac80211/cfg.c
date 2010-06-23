@@ -1329,28 +1329,28 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 }
 
 static int ieee80211_set_tx_power(struct wiphy *wiphy,
-				  enum tx_power_setting type, int dbm)
+				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_channel *chan = local->hw.conf.channel;
 	u32 changes = 0;
 
 	switch (type) {
-	case TX_POWER_AUTOMATIC:
+	case NL80211_TX_POWER_AUTOMATIC:
 		local->user_power_level = -1;
 		break;
-	case TX_POWER_LIMITED:
-		if (dbm < 0)
-			return -EINVAL;
-		local->user_power_level = dbm;
+	case NL80211_TX_POWER_LIMITED:
+		if (mbm < 0 || (mbm % 100))
+			return -EOPNOTSUPP;
+		local->user_power_level = MBM_TO_DBM(mbm);
 		break;
-	case TX_POWER_FIXED:
-		if (dbm < 0)
-			return -EINVAL;
+	case NL80211_TX_POWER_FIXED:
+		if (mbm < 0 || (mbm % 100))
+			return -EOPNOTSUPP;
 		/* TODO: move to cfg80211 when it knows the channel */
-		if (dbm > chan->max_power)
+		if (MBM_TO_DBM(mbm) > chan->max_power)
 			return -EINVAL;
-		local->user_power_level = dbm;
+		local->user_power_level = MBM_TO_DBM(mbm);
 		break;
 	}
 
