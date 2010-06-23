@@ -21,6 +21,7 @@ static struct map_desc u5500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U5500_GPIO2_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GPIO3_BASE, SZ_4K),
 	__IO_DEV_DESC(U5500_GPIO4_BASE, SZ_4K),
+	__IO_DEV_DESC(U5500_PRCMU_BASE, SZ_4K),
 };
 
 static struct platform_device *u5500_platform_devs[] __initdata = {
