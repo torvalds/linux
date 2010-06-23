@@ -26,6 +26,7 @@
 
 #include "board.h"
 #include "clock.h"
+#include "fuse.h"
 
 static __initdata struct tegra_clk_init_table common_clk_init_table[] = {
 	/* name		parent		rate		enabled */
@@ -55,6 +56,7 @@ void __init tegra_init_cache(void)
 
 void __init tegra_common_init(void)
 {
+	tegra_init_fuse();
 	tegra_init_clock();
 	tegra_clk_init_from_table(common_clk_init_table);
 	tegra_init_cache();
