@@ -36,6 +36,7 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/switch.h>
 
 
 struct usb_configuration;
@@ -100,7 +101,9 @@ struct usb_function {
 	struct usb_descriptor_header	**hs_descriptors;
 
 	struct usb_configuration	*config;
-	int				hidden;
+
+	/* disabled is zero if the function is enabled */
+	int				disabled;
 
 	/* REVISIT:  bind() functions can be marked __init, which
 	 * makes trouble for section mismatch analysis.  See if
@@ -137,6 +140,8 @@ int usb_function_deactivate(struct usb_function *);
 int usb_function_activate(struct usb_function *);
 
 int usb_interface_id(struct usb_configuration *, struct usb_function *);
+
+void usb_function_set_enabled(struct usb_function *, int);
 
 /**
  * ep_choose - select descriptor endpoint at current device speed
@@ -344,6 +349,8 @@ struct usb_composite_dev {
 
 	/* protects at least deactivation count */
 	spinlock_t			lock;
+
+	struct switch_dev sdev;
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);
