@@ -38,7 +38,6 @@
 #include <mach/board-mx31moboard.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
 #include <mach/mmc.h>
@@ -131,11 +130,11 @@ static int moboard_uart0_init(struct platform_device *pdev)
 	return 0;
 }
 
-static struct imxuart_platform_data uart0_pdata = {
+static const struct imxuart_platform_data uart0_pdata __initconst = {
 	.init = moboard_uart0_init,
 };
 
-static struct imxuart_platform_data uart4_pdata = {
+static const struct imxuart_platform_data uart4_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -495,9 +494,8 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_uart_device0, &uart0_pdata);
-
-	mxc_register_device(&mxc_uart_device4, &uart4_pdata);
+	imx31_add_imx_uart0(&uart0_pdata);
+	imx31_add_imx_uart4(&uart4_pdata);
 
 	imx31_add_imx_i2c0(&moboard_i2c0_data);
 	imx31_add_imx_i2c1(&moboard_i2c1_data);

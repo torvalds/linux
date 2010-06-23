@@ -30,8 +30,9 @@
 #include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+
+#include "devices-imx31.h"
 #include "devices.h"
 
 /* FPGA defines */
@@ -57,7 +58,7 @@
  * This file contains the board-specific initialization routines.
  */
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -68,11 +69,11 @@ static int uart_pins[] = {
 	MX31_PIN_RXD1__RXD1
 };
 
-static inline void mxc_init_imx_uart(void)
+static inline void __init mxc_init_imx_uart(void)
 {
 	mxc_iomux_setup_multiple_pins(uart_pins, ARRAY_SIZE(uart_pins),
 			"uart-0");
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
 }
 
 static struct resource dnet_resources[] = {

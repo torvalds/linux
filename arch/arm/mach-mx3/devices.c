@@ -25,11 +25,11 @@
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/mx3_camera.h>
 
 #include "devices.h"
 
+#if defined(CONFIG_ARCH_MX35)
 static struct resource uart0[] = {
 	{
 		.start = UART1_BASE_ADDR,
@@ -86,46 +86,7 @@ struct platform_device mxc_uart_device2 = {
 	.resource = uart2,
 	.num_resources = ARRAY_SIZE(uart2),
 };
-
-#ifdef CONFIG_ARCH_MX31
-static struct resource uart3[] = {
-	{
-		.start = UART4_BASE_ADDR,
-		.end = UART4_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART4,
-		.end = MXC_INT_UART4,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device3 = {
-	.name = "imx-uart",
-	.id = 3,
-	.resource = uart3,
-	.num_resources = ARRAY_SIZE(uart3),
-};
-
-static struct resource uart4[] = {
-	{
-		.start = UART5_BASE_ADDR,
-		.end = UART5_BASE_ADDR + 0x0B5,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = MXC_INT_UART5,
-		.end = MXC_INT_UART5,
-		.flags = IORESOURCE_IRQ,
-	},
-};
-
-struct platform_device mxc_uart_device4 = {
-	.name = "imx-uart",
-	.id = 4,
-	.resource = uart4,
-	.num_resources = ARRAY_SIZE(uart4),
-};
-#endif /* CONFIG_ARCH_MX31 */
+#endif
 
 /* GPIO port description */
 static struct mxc_gpio_port imx_gpio_ports[] = {

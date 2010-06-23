@@ -48,7 +48,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/mmc.h>
 #include <mach/ipu.h>
@@ -493,7 +492,7 @@ static struct platform_device armadillo5x0_smc911x_device = {
 };
 
 /* UART device data */
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -514,8 +513,8 @@ static void __init armadillo5x0_init(void)
 	imx31_add_imx_i2c1(NULL);
 
 	/* Register UART */
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_imx_uart1(&uart_pdata);
 
 	/* SMSC9118 IRQ pin */
 	gpio_direction_input(MX31_PIN_GPIO1_0);

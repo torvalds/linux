@@ -26,7 +26,6 @@
 
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/board-mx31moboard.h>
 #include <mach/mxc_ehci.h>
@@ -34,6 +33,7 @@
 
 #include <media/soc_camera.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 static unsigned int smartbot_pins[] = {
@@ -55,7 +55,7 @@ static unsigned int smartbot_pins[] = {
 	MX31_PIN_RI_DCE1__GPIO2_10, MX31_PIN_DCD_DCE1__GPIO2_11,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -179,8 +179,7 @@ void __init mx31moboard_smartbot_init(int board)
 	mxc_iomux_setup_multiple_pins(smartbot_pins, ARRAY_SIZE(smartbot_pins),
 		"smartbot");
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-
+	imx31_add_imx_uart1(&uart_pdata);
 
 	switch (board) {
 	case MX31SMARTBOT:

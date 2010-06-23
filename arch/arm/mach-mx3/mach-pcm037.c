@@ -41,7 +41,6 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/ipu.h>
 #include <mach/mmc.h>
@@ -219,7 +218,7 @@ static struct platform_device pcm037_flash = {
 	.num_resources = 1,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -609,9 +608,10 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
-	mxc_register_device(&mxc_uart_device2, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	/* XXX: should't this have .flags = 0 (i.e. no RTSCTS) on PCM037_EET? */
+	imx31_add_imx_uart1(&uart_pdata);
+	imx31_add_imx_uart2(&uart_pdata);
 
 	mxc_register_device(&mxc_w1_master_device, NULL);
 

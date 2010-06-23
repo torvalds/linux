@@ -35,10 +35,10 @@
 
 #include <mach/clock.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/memory.h>
 
+#include "devices-imx31.h"
 #include "devices.h"
 
 #define KZM_ARM11_IO_ADDRESS(x) (					\
@@ -185,15 +185,14 @@ static inline int kzm_init_smsc9118(void)
 #endif
 
 #if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static void __init kzm_init_imx_uart(void)
 {
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_imx_uart1(&uart_pdata);
 }
 #else
 static inline void kzm_init_imx_uart(void)
