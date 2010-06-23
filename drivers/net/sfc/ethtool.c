@@ -218,8 +218,8 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 
 	/* GMAC does not support 1000Mbps HD */
 	if (ecmd->speed == SPEED_1000 && ecmd->duplex != DUPLEX_FULL) {
-		EFX_LOG(efx, "rejecting unsupported 1000Mbps HD"
-			" setting\n");
+		netif_dbg(efx, drv, efx->net_dev,
+			  "rejecting unsupported 1000Mbps HD setting\n");
 		return -EINVAL;
 	}
 
@@ -254,6 +254,18 @@ static void efx_ethtool_get_regs(struct net_device *net_dev,
 
 	regs->version = efx->type->revision;
 	efx_nic_get_regs(efx, buf);
+}
+
+static u32 efx_ethtool_get_msglevel(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	return efx->msg_enable;
+}
+
+static void efx_ethtool_set_msglevel(struct net_device *net_dev, u32 msg_enable)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	efx->msg_enable = msg_enable;
 }
 
 /**
@@ -553,7 +565,8 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (!already_up) {
 		rc = dev_open(efx->net_dev);
 		if (rc) {
-			EFX_ERR(efx, "failed opening device.\n");
+			netif_err(efx, drv, efx->net_dev,
+				  "failed opening device.\n");
 			goto fail2;
 		}
 	}
@@ -565,9 +578,9 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (!already_up)
 		dev_close(efx->net_dev);
 
-	EFX_LOG(efx, "%s %sline self-tests\n",
-		rc == 0 ? "passed" : "failed",
-		(test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
+	netif_dbg(efx, drv, efx->net_dev, "%s %sline self-tests\n",
+		  rc == 0 ? "passed" : "failed",
+		  (test->flags & ETH_TEST_FL_OFFLINE) ? "off" : "on");
 
  fail2:
  fail1:
@@ -693,8 +706,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 		return -EOPNOTSUPP;
 
 	if (coalesce->rx_coalesce_usecs || coalesce->tx_coalesce_usecs) {
-		EFX_ERR(efx, "invalid coalescing setting. "
-			"Only rx/tx_coalesce_usecs_irq are supported\n");
+		netif_err(efx, drv, efx->net_dev, "invalid coalescing setting. "
+			  "Only rx/tx_coalesce_usecs_irq are supported\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -706,8 +719,8 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 	efx_for_each_tx_queue(tx_queue, efx) {
 		if ((tx_queue->channel->channel < efx->n_rx_channels) &&
 		    tx_usecs) {
-			EFX_ERR(efx, "Channel is shared. "
-				"Only RX coalescing may be set\n");
+			netif_err(efx, drv, efx->net_dev, "Channel is shared. "
+				  "Only RX coalescing may be set\n");
 			return -EOPNOTSUPP;
 		}
 	}
@@ -735,13 +748,15 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 		     (pause->autoneg ? EFX_FC_AUTO : 0));
 
 	if ((wanted_fc & EFX_FC_TX) && !(wanted_fc & EFX_FC_RX)) {
-		EFX_LOG(efx, "Flow control unsupported: tx ON rx OFF\n");
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Flow control unsupported: tx ON rx OFF\n");
 		rc = -EINVAL;
 		goto out;
 	}
 
 	if ((wanted_fc & EFX_FC_AUTO) && !efx->link_advertising) {
-		EFX_LOG(efx, "Autonegotiation is disabled\n");
+		netif_dbg(efx, drv, efx->net_dev,
+			  "Autonegotiation is disabled\n");
 		rc = -EINVAL;
 		goto out;
 	}
@@ -772,8 +787,9 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 	    (efx->wanted_fc ^ old_fc) & EFX_FC_AUTO) {
 		rc = efx->phy_op->reconfigure(efx);
 		if (rc) {
-			EFX_ERR(efx, "Unable to advertise requested flow "
-				"control setting\n");
+			netif_err(efx, drv, efx->net_dev,
+				  "Unable to advertise requested flow "
+				  "control setting\n");
 			goto out;
 		}
 	}
@@ -850,6 +866,8 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_drvinfo		= efx_ethtool_get_drvinfo,
 	.get_regs_len		= efx_ethtool_get_regs_len,
 	.get_regs		= efx_ethtool_get_regs,
+	.get_msglevel		= efx_ethtool_get_msglevel,
+	.set_msglevel		= efx_ethtool_set_msglevel,
 	.nway_reset		= efx_ethtool_nway_reset,
 	.get_link		= efx_ethtool_get_link,
 	.get_eeprom_len		= efx_ethtool_get_eeprom_len,

@@ -71,7 +71,7 @@ efx_mcdi_get_phy_cfg(struct efx_nic *efx, struct efx_mcdi_phy_data *cfg)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -97,7 +97,7 @@ static int efx_mcdi_set_link(struct efx_nic *efx, u32 capabilities,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -122,7 +122,7 @@ static int efx_mcdi_loopback_modes(struct efx_nic *efx, u64 *loopback_modes)
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -150,7 +150,7 @@ int efx_mcdi_mdio_read(struct efx_nic *efx, unsigned int bus,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -178,7 +178,7 @@ int efx_mcdi_mdio_write(struct efx_nic *efx, unsigned int bus,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
@@ -466,8 +466,8 @@ void efx_mcdi_phy_check_fcntl(struct efx_nic *efx, u32 lpa)
 		rmtadv |=  ADVERTISED_Asym_Pause;
 
 	if ((efx->wanted_fc & EFX_FC_TX) && rmtadv == ADVERTISED_Asym_Pause)
-		EFX_ERR(efx, "warning: link partner doesn't support "
-			"pause frames");
+		netif_err(efx, link, efx->net_dev,
+			  "warning: link partner doesn't support pause frames");
 }
 
 static bool efx_mcdi_phy_poll(struct efx_nic *efx)
@@ -483,7 +483,8 @@ static bool efx_mcdi_phy_poll(struct efx_nic *efx)
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc) {
-		EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
 		efx->link_state.up = false;
 	} else {
 		efx_mcdi_phy_decode_link(
@@ -526,7 +527,8 @@ static void efx_mcdi_phy_get_settings(struct efx_nic *efx, struct ethtool_cmd *e
 	rc = efx_mcdi_rpc(efx, MC_CMD_GET_LINK, NULL, 0,
 			  outbuf, sizeof(outbuf), NULL);
 	if (rc) {
-		EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
+			  __func__, rc);
 		return;
 	}
 	ecmd->lp_advertising =

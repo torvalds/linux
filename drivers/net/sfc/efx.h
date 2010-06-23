@@ -106,8 +106,9 @@ extern unsigned int efx_monitor_interval;
 
 static inline void efx_schedule_channel(struct efx_channel *channel)
 {
-	EFX_TRACE(channel->efx, "channel %d scheduling NAPI poll on CPU%d\n",
-		  channel->channel, raw_smp_processor_id());
+	netif_vdbg(channel->efx, intr, channel->efx->net_dev,
+		   "channel %d scheduling NAPI poll on CPU%d\n",
+		   channel->channel, raw_smp_processor_id());
 	channel->work_pending = true;
 
 	napi_schedule(&channel->napi_str);

@@ -13,6 +13,10 @@
 #ifndef EFX_NET_DRIVER_H
 #define EFX_NET_DRIVER_H
 
+#if defined(EFX_ENABLE_DEBUG) && !defined(DEBUG)
+#define DEBUG
+#endif
+
 #include <linux/version.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -47,35 +51,6 @@
 #define EFX_BUG_ON_PARANOID(x) do {} while (0)
 #define EFX_WARN_ON_PARANOID(x) do {} while (0)
 #endif
-
-/* Un-rate-limited logging */
-#define EFX_ERR(efx, fmt, args...) \
-dev_err(&((efx)->pci_dev->dev), "ERR: %s " fmt, efx_dev_name(efx), ##args)
-
-#define EFX_INFO(efx, fmt, args...) \
-dev_info(&((efx)->pci_dev->dev), "INFO: %s " fmt, efx_dev_name(efx), ##args)
-
-#ifdef EFX_ENABLE_DEBUG
-#define EFX_LOG(efx, fmt, args...) \
-dev_info(&((efx)->pci_dev->dev), "DBG: %s " fmt, efx_dev_name(efx), ##args)
-#else
-#define EFX_LOG(efx, fmt, args...) \
-dev_dbg(&((efx)->pci_dev->dev), "DBG: %s " fmt, efx_dev_name(efx), ##args)
-#endif
-
-#define EFX_TRACE(efx, fmt, args...) do {} while (0)
-
-#define EFX_REGDUMP(efx, fmt, args...) do {} while (0)
-
-/* Rate-limited logging */
-#define EFX_ERR_RL(efx, fmt, args...) \
-do {if (net_ratelimit()) EFX_ERR(efx, fmt, ##args); } while (0)
-
-#define EFX_INFO_RL(efx, fmt, args...) \
-do {if (net_ratelimit()) EFX_INFO(efx, fmt, ##args); } while (0)
-
-#define EFX_LOG_RL(efx, fmt, args...) \
-do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
 
 /**************************************************************************
  *
@@ -663,6 +638,7 @@ union efx_multicast_hash {
  * @interrupt_mode: Interrupt mode
  * @irq_rx_adaptive: Adaptive IRQ moderation enabled for RX event queues
  * @irq_rx_moderation: IRQ moderation time for RX event queues
+ * @msg_enable: Log message enable flags
  * @state: Device state flag. Serialised by the rtnl_lock.
  * @reset_pending: Pending reset method (normally RESET_TYPE_NONE)
  * @tx_queue: TX DMA queues
@@ -746,6 +722,7 @@ struct efx_nic {
 	enum efx_int_mode interrupt_mode;
 	bool irq_rx_adaptive;
 	unsigned int irq_rx_moderation;
+	u32 msg_enable;
 
 	enum nic_state state;
 	enum reset_type reset_pending;

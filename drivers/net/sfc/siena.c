@@ -118,10 +118,11 @@ static int siena_probe_port(struct efx_nic *efx)
 				  MC_CMD_MAC_NSTATS * sizeof(u64));
 	if (rc)
 		return rc;
-	EFX_LOG(efx, "stats buffer at %llx (virt %p phys %llx)\n",
-		(u64)efx->stats_buffer.dma_addr,
-		efx->stats_buffer.addr,
-		(u64)virt_to_phys(efx->stats_buffer.addr));
+	netif_dbg(efx, probe, efx->net_dev,
+		  "stats buffer at %llx (virt %p phys %llx)\n",
+		  (u64)efx->stats_buffer.dma_addr,
+		  efx->stats_buffer.addr,
+		  (u64)virt_to_phys(efx->stats_buffer.addr));
 
 	efx_mcdi_mac_stats(efx, efx->stats_buffer.dma_addr, 0, 0, 1);
 
@@ -216,7 +217,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 	efx->nic_data = nic_data;
 
 	if (efx_nic_fpga_ver(efx) != 0) {
-		EFX_ERR(efx, "Siena FPGA not supported\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "Siena FPGA not supported\n");
 		rc = -ENODEV;
 		goto fail1;
 	}
@@ -233,8 +235,8 @@ static int siena_probe_nic(struct efx_nic *efx)
 
 	rc = efx_mcdi_fwver(efx, &nic_data->fw_version, &nic_data->fw_build);
 	if (rc) {
-		EFX_ERR(efx, "Failed to read MCPU firmware version - "
-			"rc %d\n", rc);
+		netif_err(efx, probe, efx->net_dev,
+			  "Failed to read MCPU firmware version - rc %d\n", rc);
 		goto fail1; /* MCPU absent? */
 	}
 
@@ -242,17 +244,19 @@ static int siena_probe_nic(struct efx_nic *efx)
 	 * filter settings. We must do this before we reset the NIC */
 	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
 	if (rc) {
-		EFX_ERR(efx, "Unable to register driver with MCPU\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "Unable to register driver with MCPU\n");
 		goto fail2;
 	}
 	if (already_attached)
 		/* Not a fatal error */
-		EFX_ERR(efx, "Host already registered with MCPU\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "Host already registered with MCPU\n");
 
 	/* Now we can reset the NIC */
 	rc = siena_reset_hw(efx, RESET_TYPE_ALL);
 	if (rc) {
-		EFX_ERR(efx, "failed to reset NIC\n");
+		netif_err(efx, probe, efx->net_dev, "failed to reset NIC\n");
 		goto fail3;
 	}
 
@@ -264,15 +268,17 @@ static int siena_probe_nic(struct efx_nic *efx)
 		goto fail4;
 	BUG_ON(efx->irq_status.dma_addr & 0x0f);
 
-	EFX_LOG(efx, "INT_KER at %llx (virt %p phys %llx)\n",
-		(unsigned long long)efx->irq_status.dma_addr,
-		efx->irq_status.addr,
-		(unsigned long long)virt_to_phys(efx->irq_status.addr));
+	netif_dbg(efx, probe, efx->net_dev,
+		  "INT_KER at %llx (virt %p phys %llx)\n",
+		  (unsigned long long)efx->irq_status.dma_addr,
+		  efx->irq_status.addr,
+		  (unsigned long long)virt_to_phys(efx->irq_status.addr));
 
 	/* Read in the non-volatile configuration */
 	rc = siena_probe_nvconfig(efx);
 	if (rc == -EINVAL) {
-		EFX_ERR(efx, "NVRAM is invalid therefore using defaults\n");
+		netif_err(efx, probe, efx->net_dev,
+			  "NVRAM is invalid therefore using defaults\n");
 		efx->phy_type = PHY_TYPE_NONE;
 		efx->mdio.prtad = MDIO_PRTAD_NONE;
 	} else if (rc) {
@@ -344,7 +350,8 @@ static int siena_init_nic(struct efx_nic *efx)
 
 	if (efx_nic_rx_xoff_thresh >= 0 || efx_nic_rx_xon_thresh >= 0)
 		/* No MCDI operation has been defined to set thresholds */
-		EFX_ERR(efx, "ignoring RX flow control thresholds\n");
+		netif_err(efx, hw, efx->net_dev,
+			  "ignoring RX flow control thresholds\n");
 
 	/* Enable event logging */
 	rc = efx_mcdi_log_ctrl(efx, true, false, 0);
@@ -565,7 +572,8 @@ static int siena_set_wol(struct efx_nic *efx, u32 type)
 
 	return 0;
  fail:
-	EFX_ERR(efx, "%s failed: type=%d rc=%d\n", __func__, type, rc);
+	netif_err(efx, hw, efx->net_dev, "%s failed: type=%d rc=%d\n",
+		  __func__, type, rc);
 	return rc;
 }
 

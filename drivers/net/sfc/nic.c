@@ -179,9 +179,10 @@ int efx_nic_test_registers(struct efx_nic *efx,
 	return 0;
 
 fail:
-	EFX_ERR(efx, "wrote "EFX_OWORD_FMT" read "EFX_OWORD_FMT
-		" at address 0x%x mask "EFX_OWORD_FMT"\n", EFX_OWORD_VAL(reg),
-		EFX_OWORD_VAL(buf), address, EFX_OWORD_VAL(mask));
+	netif_err(efx, hw, efx->net_dev,
+		  "wrote "EFX_OWORD_FMT" read "EFX_OWORD_FMT
+		  " at address 0x%x mask "EFX_OWORD_FMT"\n", EFX_OWORD_VAL(reg),
+		  EFX_OWORD_VAL(buf), address, EFX_OWORD_VAL(mask));
 	return -EIO;
 }
 
@@ -214,8 +215,9 @@ efx_init_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	for (i = 0; i < buffer->entries; i++) {
 		index = buffer->index + i;
 		dma_addr = buffer->dma_addr + (i * 4096);
-		EFX_LOG(efx, "mapping special buffer %d at %llx\n",
-			index, (unsigned long long)dma_addr);
+		netif_dbg(efx, probe, efx->net_dev,
+			  "mapping special buffer %d at %llx\n",
+			  index, (unsigned long long)dma_addr);
 		EFX_POPULATE_QWORD_3(buf_desc,
 				     FRF_AZ_BUF_ADR_REGION, 0,
 				     FRF_AZ_BUF_ADR_FBUF, dma_addr >> 12,
@@ -235,8 +237,8 @@ efx_fini_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	if (!buffer->entries)
 		return;
 
-	EFX_LOG(efx, "unmapping special buffers %d-%d\n",
-		buffer->index, buffer->index + buffer->entries - 1);
+	netif_dbg(efx, hw, efx->net_dev, "unmapping special buffers %d-%d\n",
+		  buffer->index, buffer->index + buffer->entries - 1);
 
 	EFX_POPULATE_OWORD_4(buf_tbl_upd,
 			     FRF_AZ_BUF_UPD_CMD, 0,
@@ -276,11 +278,12 @@ static int efx_alloc_special_buffer(struct efx_nic *efx,
 	buffer->index = efx->next_buffer_table;
 	efx->next_buffer_table += buffer->entries;
 
-	EFX_LOG(efx, "allocating special buffers %d-%d at %llx+%x "
-		"(virt %p phys %llx)\n", buffer->index,
-		buffer->index + buffer->entries - 1,
-		(u64)buffer->dma_addr, len,
-		buffer->addr, (u64)virt_to_phys(buffer->addr));
+	netif_dbg(efx, probe, efx->net_dev,
+		  "allocating special buffers %d-%d at %llx+%x "
+		  "(virt %p phys %llx)\n", buffer->index,
+		  buffer->index + buffer->entries - 1,
+		  (u64)buffer->dma_addr, len,
+		  buffer->addr, (u64)virt_to_phys(buffer->addr));
 
 	return 0;
 }
@@ -291,11 +294,12 @@ efx_free_special_buffer(struct efx_nic *efx, struct efx_special_buffer *buffer)
 	if (!buffer->addr)
 		return;
 
-	EFX_LOG(efx, "deallocating special buffers %d-%d at %llx+%x "
-		"(virt %p phys %llx)\n", buffer->index,
-		buffer->index + buffer->entries - 1,
-		(u64)buffer->dma_addr, buffer->len,
-		buffer->addr, (u64)virt_to_phys(buffer->addr));
+	netif_dbg(efx, hw, efx->net_dev,
+		  "deallocating special buffers %d-%d at %llx+%x "
+		  "(virt %p phys %llx)\n", buffer->index,
+		  buffer->index + buffer->entries - 1,
+		  (u64)buffer->dma_addr, buffer->len,
+		  buffer->addr, (u64)virt_to_phys(buffer->addr));
 
 	pci_free_consistent(efx->pci_dev, buffer->len, buffer->addr,
 			    buffer->dma_addr);
@@ -555,9 +559,10 @@ void efx_nic_init_rx(struct efx_rx_queue *rx_queue)
 	bool is_b0 = efx_nic_rev(efx) >= EFX_REV_FALCON_B0;
 	bool iscsi_digest_en = is_b0;
 
-	EFX_LOG(efx, "RX queue %d ring in special buffers %d-%d\n",
-		rx_queue->queue, rx_queue->rxd.index,
-		rx_queue->rxd.index + rx_queue->rxd.entries - 1);
+	netif_dbg(efx, hw, efx->net_dev,
+		  "RX queue %d ring in special buffers %d-%d\n",
+		  rx_queue->queue, rx_queue->rxd.index,
+		  rx_queue->rxd.index + rx_queue->rxd.entries - 1);
 
 	rx_queue->flushed = FLUSH_NONE;
 
@@ -694,9 +699,10 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 		   EFX_WORKAROUND_10727(efx)) {
 		efx_schedule_reset(efx, RESET_TYPE_TX_DESC_FETCH);
 	} else {
-		EFX_ERR(efx, "channel %d unexpected TX event "
-			EFX_QWORD_FMT"\n", channel->channel,
-			EFX_QWORD_VAL(*event));
+		netif_err(efx, tx_err, efx->net_dev,
+			  "channel %d unexpected TX event "
+			  EFX_QWORD_FMT"\n", channel->channel,
+			  EFX_QWORD_VAL(*event));
 	}
 
 	return tx_packets;
@@ -759,20 +765,21 @@ static void efx_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 	 * to a FIFO overflow.
 	 */
 #ifdef EFX_ENABLE_DEBUG
-	if (rx_ev_other_err) {
-		EFX_INFO_RL(efx, " RX queue %d unexpected RX event "
-			    EFX_QWORD_FMT "%s%s%s%s%s%s%s%s\n",
-			    rx_queue->queue, EFX_QWORD_VAL(*event),
-			    rx_ev_buf_owner_id_err ? " [OWNER_ID_ERR]" : "",
-			    rx_ev_ip_hdr_chksum_err ?
-			    " [IP_HDR_CHKSUM_ERR]" : "",
-			    rx_ev_tcp_udp_chksum_err ?
-			    " [TCP_UDP_CHKSUM_ERR]" : "",
-			    rx_ev_eth_crc_err ? " [ETH_CRC_ERR]" : "",
-			    rx_ev_frm_trunc ? " [FRM_TRUNC]" : "",
-			    rx_ev_drib_nib ? " [DRIB_NIB]" : "",
-			    rx_ev_tobe_disc ? " [TOBE_DISC]" : "",
-			    rx_ev_pause_frm ? " [PAUSE]" : "");
+	if (rx_ev_other_err && net_ratelimit()) {
+		netif_dbg(efx, rx_err, efx->net_dev,
+			  " RX queue %d unexpected RX event "
+			  EFX_QWORD_FMT "%s%s%s%s%s%s%s%s\n",
+			  rx_queue->queue, EFX_QWORD_VAL(*event),
+			  rx_ev_buf_owner_id_err ? " [OWNER_ID_ERR]" : "",
+			  rx_ev_ip_hdr_chksum_err ?
+			  " [IP_HDR_CHKSUM_ERR]" : "",
+			  rx_ev_tcp_udp_chksum_err ?
+			  " [TCP_UDP_CHKSUM_ERR]" : "",
+			  rx_ev_eth_crc_err ? " [ETH_CRC_ERR]" : "",
+			  rx_ev_frm_trunc ? " [FRM_TRUNC]" : "",
+			  rx_ev_drib_nib ? " [DRIB_NIB]" : "",
+			  rx_ev_tobe_disc ? " [TOBE_DISC]" : "",
+			  rx_ev_pause_frm ? " [PAUSE]" : "");
 	}
 #endif
 }
@@ -786,8 +793,9 @@ efx_handle_rx_bad_index(struct efx_rx_queue *rx_queue, unsigned index)
 
 	expected = rx_queue->removed_count & EFX_RXQ_MASK;
 	dropped = (index - expected) & EFX_RXQ_MASK;
-	EFX_INFO(efx, "dropped %d events (index=%d expected=%d)\n",
-		dropped, index, expected);
+	netif_info(efx, rx_err, efx->net_dev,
+		   "dropped %d events (index=%d expected=%d)\n",
+		   dropped, index, expected);
 
 	efx_schedule_reset(efx, EFX_WORKAROUND_5676(efx) ?
 			   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
@@ -873,9 +881,9 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 		 * queue. Refill it here */
 		efx_fast_push_rx_descriptors(&efx->rx_queue[channel->channel]);
 	else
-		EFX_LOG(efx, "channel %d received generated "
-			"event "EFX_QWORD_FMT"\n", channel->channel,
-			EFX_QWORD_VAL(*event));
+		netif_dbg(efx, hw, efx->net_dev, "channel %d received "
+			  "generated event "EFX_QWORD_FMT"\n",
+			  channel->channel, EFX_QWORD_VAL(*event));
 }
 
 /* Global events are basically PHY events */
@@ -901,8 +909,9 @@ efx_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
 	if (efx_nic_rev(efx) <= EFX_REV_FALCON_A1 ?
 	    EFX_QWORD_FIELD(*event, FSF_AA_GLB_EV_RX_RECOVERY) :
 	    EFX_QWORD_FIELD(*event, FSF_BB_GLB_EV_RX_RECOVERY)) {
-		EFX_ERR(efx, "channel %d seen global RX_RESET "
-			"event. Resetting.\n", channel->channel);
+		netif_err(efx, rx_err, efx->net_dev,
+			  "channel %d seen global RX_RESET event. Resetting.\n",
+			  channel->channel);
 
 		atomic_inc(&efx->rx_reset);
 		efx_schedule_reset(efx, EFX_WORKAROUND_6555(efx) ?
@@ -911,9 +920,10 @@ efx_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
 	}
 
 	if (!handled)
-		EFX_ERR(efx, "channel %d unknown global event "
-			EFX_QWORD_FMT "\n", channel->channel,
-			EFX_QWORD_VAL(*event));
+		netif_err(efx, hw, efx->net_dev,
+			  "channel %d unknown global event "
+			  EFX_QWORD_FMT "\n", channel->channel,
+			  EFX_QWORD_VAL(*event));
 }
 
 static void
@@ -928,31 +938,35 @@ efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 
 	switch (ev_sub_code) {
 	case FSE_AZ_TX_DESCQ_FLS_DONE_EV:
-		EFX_TRACE(efx, "channel %d TXQ %d flushed\n",
-			  channel->channel, ev_sub_data);
+		netif_vdbg(efx, hw, efx->net_dev, "channel %d TXQ %d flushed\n",
+			   channel->channel, ev_sub_data);
 		break;
 	case FSE_AZ_RX_DESCQ_FLS_DONE_EV:
-		EFX_TRACE(efx, "channel %d RXQ %d flushed\n",
-			  channel->channel, ev_sub_data);
+		netif_vdbg(efx, hw, efx->net_dev, "channel %d RXQ %d flushed\n",
+			   channel->channel, ev_sub_data);
 		break;
 	case FSE_AZ_EVQ_INIT_DONE_EV:
-		EFX_LOG(efx, "channel %d EVQ %d initialised\n",
-			channel->channel, ev_sub_data);
+		netif_dbg(efx, hw, efx->net_dev,
+			  "channel %d EVQ %d initialised\n",
+			  channel->channel, ev_sub_data);
 		break;
 	case FSE_AZ_SRM_UPD_DONE_EV:
-		EFX_TRACE(efx, "channel %d SRAM update done\n",
-			  channel->channel);
+		netif_vdbg(efx, hw, efx->net_dev,
+			   "channel %d SRAM update done\n", channel->channel);
 		break;
 	case FSE_AZ_WAKE_UP_EV:
-		EFX_TRACE(efx, "channel %d RXQ %d wakeup event\n",
-			  channel->channel, ev_sub_data);
+		netif_vdbg(efx, hw, efx->net_dev,
+			   "channel %d RXQ %d wakeup event\n",
+			   channel->channel, ev_sub_data);
 		break;
 	case FSE_AZ_TIMER_EV:
-		EFX_TRACE(efx, "channel %d RX queue %d timer expired\n",
-			  channel->channel, ev_sub_data);
+		netif_vdbg(efx, hw, efx->net_dev,
+			   "channel %d RX queue %d timer expired\n",
+			   channel->channel, ev_sub_data);
 		break;
 	case FSE_AA_RX_RECOVER_EV:
-		EFX_ERR(efx, "channel %d seen DRIVER RX_RESET event. "
+		netif_err(efx, rx_err, efx->net_dev,
+			  "channel %d seen DRIVER RX_RESET event. "
 			"Resetting.\n", channel->channel);
 		atomic_inc(&efx->rx_reset);
 		efx_schedule_reset(efx,
@@ -961,19 +975,22 @@ efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 				   RESET_TYPE_DISABLE);
 		break;
 	case FSE_BZ_RX_DSC_ERROR_EV:
-		EFX_ERR(efx, "RX DMA Q %d reports descriptor fetch error."
-			" RX Q %d is disabled.\n", ev_sub_data, ev_sub_data);
+		netif_err(efx, rx_err, efx->net_dev,
+			  "RX DMA Q %d reports descriptor fetch error."
+			  " RX Q %d is disabled.\n", ev_sub_data, ev_sub_data);
 		efx_schedule_reset(efx, RESET_TYPE_RX_DESC_FETCH);
 		break;
 	case FSE_BZ_TX_DSC_ERROR_EV:
-		EFX_ERR(efx, "TX DMA Q %d reports descriptor fetch error."
-			" TX Q %d is disabled.\n", ev_sub_data, ev_sub_data);
+		netif_err(efx, tx_err, efx->net_dev,
+			  "TX DMA Q %d reports descriptor fetch error."
+			  " TX Q %d is disabled.\n", ev_sub_data, ev_sub_data);
 		efx_schedule_reset(efx, RESET_TYPE_TX_DESC_FETCH);
 		break;
 	default:
-		EFX_TRACE(efx, "channel %d unknown driver event code %d "
-			  "data %04x\n", channel->channel, ev_sub_code,
-			  ev_sub_data);
+		netif_vdbg(efx, hw, efx->net_dev,
+			   "channel %d unknown driver event code %d "
+			   "data %04x\n", channel->channel, ev_sub_code,
+			   ev_sub_data);
 		break;
 	}
 }
@@ -996,8 +1013,9 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 			/* End of events */
 			break;
 
-		EFX_TRACE(channel->efx, "channel %d event is "EFX_QWORD_FMT"\n",
-			  channel->channel, EFX_QWORD_VAL(event));
+		netif_vdbg(channel->efx, intr, channel->efx->net_dev,
+			   "channel %d event is "EFX_QWORD_FMT"\n",
+			   channel->channel, EFX_QWORD_VAL(event));
 
 		/* Clear this event by marking it all ones */
 		EFX_SET_QWORD(*p_event);
@@ -1033,9 +1051,10 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 			efx_mcdi_process_event(channel, &event);
 			break;
 		default:
-			EFX_ERR(channel->efx, "channel %d unknown event type %d"
-				" (data " EFX_QWORD_FMT ")\n", channel->channel,
-				ev_code, EFX_QWORD_VAL(event));
+			netif_err(channel->efx, hw, channel->efx->net_dev,
+				  "channel %d unknown event type %d (data "
+				  EFX_QWORD_FMT ")\n", channel->channel,
+				  ev_code, EFX_QWORD_VAL(event));
 		}
 	}
 
@@ -1060,9 +1079,10 @@ void efx_nic_init_eventq(struct efx_channel *channel)
 	efx_oword_t reg;
 	struct efx_nic *efx = channel->efx;
 
-	EFX_LOG(efx, "channel %d event queue in special buffers %d-%d\n",
-		channel->channel, channel->eventq.index,
-		channel->eventq.index + channel->eventq.entries - 1);
+	netif_dbg(efx, hw, efx->net_dev,
+		  "channel %d event queue in special buffers %d-%d\n",
+		  channel->channel, channel->eventq.index,
+		  channel->eventq.index + channel->eventq.entries - 1);
 
 	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0) {
 		EFX_POPULATE_OWORD_3(reg,
@@ -1240,14 +1260,16 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 	 * leading to a reset, or fake up success anyway */
 	efx_for_each_tx_queue(tx_queue, efx) {
 		if (tx_queue->flushed != FLUSH_DONE)
-			EFX_ERR(efx, "tx queue %d flush command timed out\n",
-				tx_queue->queue);
+			netif_err(efx, hw, efx->net_dev,
+				  "tx queue %d flush command timed out\n",
+				  tx_queue->queue);
 		tx_queue->flushed = FLUSH_DONE;
 	}
 	efx_for_each_rx_queue(rx_queue, efx) {
 		if (rx_queue->flushed != FLUSH_DONE)
-			EFX_ERR(efx, "rx queue %d flush command timed out\n",
-				rx_queue->queue);
+			netif_err(efx, hw, efx->net_dev,
+				  "rx queue %d flush command timed out\n",
+				  rx_queue->queue);
 		rx_queue->flushed = FLUSH_DONE;
 	}
 
@@ -1319,10 +1341,10 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 	efx_reado(efx, &fatal_intr, FR_AZ_FATAL_INTR_KER);
 	error = EFX_OWORD_FIELD(fatal_intr, FRF_AZ_FATAL_INTR);
 
-	EFX_ERR(efx, "SYSTEM ERROR " EFX_OWORD_FMT " status "
-		EFX_OWORD_FMT ": %s\n", EFX_OWORD_VAL(*int_ker),
-		EFX_OWORD_VAL(fatal_intr),
-		error ? "disabling bus mastering" : "no recognised error");
+	netif_err(efx, hw, efx->net_dev, "SYSTEM ERROR "EFX_OWORD_FMT" status "
+		  EFX_OWORD_FMT ": %s\n", EFX_OWORD_VAL(*int_ker),
+		  EFX_OWORD_VAL(fatal_intr),
+		  error ? "disabling bus mastering" : "no recognised error");
 
 	/* If this is a memory parity error dump which blocks are offending */
 	mem_perr = (EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER) ||
@@ -1330,8 +1352,9 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 	if (mem_perr) {
 		efx_oword_t reg;
 		efx_reado(efx, &reg, FR_AZ_MEM_STAT);
-		EFX_ERR(efx, "SYSTEM ERROR: memory parity error "
-			EFX_OWORD_FMT "\n", EFX_OWORD_VAL(reg));
+		netif_err(efx, hw, efx->net_dev,
+			  "SYSTEM ERROR: memory parity error "EFX_OWORD_FMT"\n",
+			  EFX_OWORD_VAL(reg));
 	}
 
 	/* Disable both devices */
@@ -1348,11 +1371,13 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 			jiffies + EFX_INT_ERROR_EXPIRE * HZ;
 	}
 	if (++efx->int_error_count < EFX_MAX_INT_ERRORS) {
-		EFX_ERR(efx, "SYSTEM ERROR - reset scheduled\n");
+		netif_err(efx, hw, efx->net_dev,
+			  "SYSTEM ERROR - reset scheduled\n");
 		efx_schedule_reset(efx, RESET_TYPE_INT_ERROR);
 	} else {
-		EFX_ERR(efx, "SYSTEM ERROR - max number of errors seen."
-			"NIC will be disabled\n");
+		netif_err(efx, hw, efx->net_dev,
+			  "SYSTEM ERROR - max number of errors seen."
+			  "NIC will be disabled\n");
 		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 	}
 
@@ -1415,8 +1440,9 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 
 	if (result == IRQ_HANDLED) {
 		efx->last_irq_cpu = raw_smp_processor_id();
-		EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
-			  irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
+		netif_vdbg(efx, intr, efx->net_dev,
+			   "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
+			   irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
 	}
 
 	return result;
@@ -1437,8 +1463,9 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 	int syserr;
 
 	efx->last_irq_cpu = raw_smp_processor_id();
-	EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
-		  irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
+	netif_vdbg(efx, intr, efx->net_dev,
+		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
+		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
 	/* Check to see if we have a serious error condition */
 	if (channel->channel == efx->fatal_irq_level) {
@@ -1494,8 +1521,9 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 		rc = request_irq(efx->legacy_irq, handler, IRQF_SHARED,
 				 efx->name, efx);
 		if (rc) {
-			EFX_ERR(efx, "failed to hook legacy IRQ %d\n",
-				efx->pci_dev->irq);
+			netif_err(efx, drv, efx->net_dev,
+				  "failed to hook legacy IRQ %d\n",
+				  efx->pci_dev->irq);
 			goto fail1;
 		}
 		return 0;
@@ -1507,7 +1535,8 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 				 IRQF_PROBE_SHARED, /* Not shared */
 				 channel->name, channel);
 		if (rc) {
-			EFX_ERR(efx, "failed to hook IRQ %d\n", channel->irq);
+			netif_err(efx, drv, efx->net_dev,
+				  "failed to hook IRQ %d\n", channel->irq);
 			goto fail2;
 		}
 	}
