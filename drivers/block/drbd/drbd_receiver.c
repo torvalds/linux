@@ -3775,7 +3775,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	if (os.conn == C_DISCONNECTING) {
 		struct hlist_head *h;
-		wait_event(mdev->misc_wait, atomic_read(&mdev->net_cnt) == 0);
+		wait_event(mdev->net_cnt_wait, atomic_read(&mdev->net_cnt) == 0);
 
 		/* we must not free the tl_hash
 		 * while application io is still on the fly */

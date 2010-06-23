@@ -2763,6 +2763,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 
 	init_waitqueue_head(&mdev->misc_wait);
 	init_waitqueue_head(&mdev->state_wait);
+	init_waitqueue_head(&mdev->net_cnt_wait);
 	init_waitqueue_head(&mdev->ee_wait);
 	init_waitqueue_head(&mdev->al_wait);
 	init_waitqueue_head(&mdev->seq_wait);

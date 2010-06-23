@@ -947,6 +947,7 @@ struct drbd_conf {
 	union drbd_state state;
 	wait_queue_head_t misc_wait;
 	wait_queue_head_t state_wait;  /* upon each state change. */
+	wait_queue_head_t net_cnt_wait;
 	unsigned int send_cnt;
 	unsigned int recv_cnt;
 	unsigned int read_cnt;
@@ -2018,7 +2019,7 @@ static inline void inc_unacked(struct drbd_conf *mdev)
 static inline void put_net_conf(struct drbd_conf *mdev)
 {
 	if (atomic_dec_and_test(&mdev->net_cnt))
-		wake_up(&mdev->misc_wait);
+		wake_up(&mdev->net_cnt_wait);
 }
 
 /**
