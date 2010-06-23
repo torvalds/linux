@@ -258,11 +258,6 @@ static inline int xfs_buf_geterror(xfs_buf_t *bp)
 /* Buffer Utility Routines */
 extern xfs_caddr_t xfs_buf_offset(xfs_buf_t *, size_t);
 
-/* Pinning Buffer Storage in Memory */
-extern void xfs_buf_pin(xfs_buf_t *);
-extern void xfs_buf_unpin(xfs_buf_t *);
-extern int xfs_buf_ispin(xfs_buf_t *);
-
 /* Delayed Write Buffer Routines */
 extern void xfs_buf_delwri_dequeue(xfs_buf_t *);
 extern void xfs_buf_delwri_promote(xfs_buf_t *);
@@ -351,7 +346,7 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_SET_VTYPE(bp, type)		do { } while (0)
 #define XFS_BUF_SET_REF(bp, ref)		do { } while (0)
 
-#define XFS_BUF_ISPINNED(bp)	xfs_buf_ispin(bp)
+#define XFS_BUF_ISPINNED(bp)	atomic_read(&((bp)->b_pin_count))
 
 #define XFS_BUF_VALUSEMA(bp)	xfs_buf_lock_value(bp)
 #define XFS_BUF_CPSEMA(bp)	(xfs_buf_cond_lock(bp) == 0)
@@ -370,8 +365,6 @@ static inline void xfs_buf_relse(xfs_buf_t *bp)
 	xfs_buf_rele(bp);
 }
 
-#define xfs_bpin(bp)		xfs_buf_pin(bp)
-#define xfs_bunpin(bp)		xfs_buf_unpin(bp)
 #define xfs_biodone(bp)		xfs_buf_ioend(bp, 0)
 
 #define xfs_biomove(bp, off, len, data, rw) \

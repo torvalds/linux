@@ -896,36 +896,6 @@ xfs_buf_unlock(
 	trace_xfs_buf_unlock(bp, _RET_IP_);
 }
 
-
-/*
- *	Pinning Buffer Storage in Memory
- *	Ensure that no attempt to force a buffer to disk will succeed.
- */
-void
-xfs_buf_pin(
-	xfs_buf_t		*bp)
-{
-	trace_xfs_buf_pin(bp, _RET_IP_);
-	atomic_inc(&bp->b_pin_count);
-}
-
-void
-xfs_buf_unpin(
-	xfs_buf_t		*bp)
-{
-	trace_xfs_buf_unpin(bp, _RET_IP_);
-
-	if (atomic_dec_and_test(&bp->b_pin_count))
-		wake_up_all(&bp->b_waiters);
-}
-
-int
-xfs_buf_ispin(
-	xfs_buf_t		*bp)
-{
-	return atomic_read(&bp->b_pin_count);
-}
-
 STATIC void
 xfs_buf_wait_unpin(
 	xfs_buf_t		*bp)
@@ -1803,7 +1773,7 @@ xfs_buf_delwri_split(
 		trace_xfs_buf_delwri_split(bp, _RET_IP_);
 		ASSERT(bp->b_flags & XBF_DELWRI);
 
-		if (!xfs_buf_ispin(bp) && !xfs_buf_cond_lock(bp)) {
+		if (!XFS_BUF_ISPINNED(bp) && !xfs_buf_cond_lock(bp)) {
 			if (!force &&
 			    time_before(jiffies, bp->b_queuetime + age)) {
 				xfs_buf_unlock(bp);

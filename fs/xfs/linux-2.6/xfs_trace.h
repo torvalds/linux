@@ -317,8 +317,6 @@ DEFINE_BUF_EVENT(xfs_buf_init);
 DEFINE_BUF_EVENT(xfs_buf_free);
 DEFINE_BUF_EVENT(xfs_buf_hold);
 DEFINE_BUF_EVENT(xfs_buf_rele);
-DEFINE_BUF_EVENT(xfs_buf_pin);
-DEFINE_BUF_EVENT(xfs_buf_unpin);
 DEFINE_BUF_EVENT(xfs_buf_iodone);
 DEFINE_BUF_EVENT(xfs_buf_iorequest);
 DEFINE_BUF_EVENT(xfs_buf_bawrite);

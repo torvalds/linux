@@ -359,14 +359,13 @@ xfs_buf_item_format(
 
 /*
  * This is called to pin the buffer associated with the buf log item in memory
- * so it cannot be written out.  Simply call bpin() on the buffer to do this.
+ * so it cannot be written out.
  *
  * We also always take a reference to the buffer log item here so that the bli
  * is held while the item is pinned in memory. This means that we can
  * unconditionally drop the reference count a transaction holds when the
  * transaction is completed.
  */
-
 STATIC void
 xfs_buf_item_pin(
 	struct xfs_log_item	*lip)
@@ -378,15 +377,15 @@ xfs_buf_item_pin(
 	ASSERT((bip->bli_flags & XFS_BLI_LOGGED) ||
 	       (bip->bli_flags & XFS_BLI_STALE));
 
-	atomic_inc(&bip->bli_refcount);
 	trace_xfs_buf_item_pin(bip);
-	xfs_bpin(bip->bli_buf);
+
+	atomic_inc(&bip->bli_refcount);
+	atomic_inc(&bip->bli_buf->b_pin_count);
 }
 
 /*
  * This is called to unpin the buffer associated with the buf log
  * item which was previously pinned with a call to xfs_buf_item_pin().
- * Just call bunpin() on the buffer to do this.
  *
  * Also drop the reference to the buf item for the current transaction.
  * If the XFS_BLI_STALE flag is set and we are the last reference,
@@ -414,7 +413,9 @@ xfs_buf_item_unpin(
 	trace_xfs_buf_item_unpin(bip);
 
 	freed = atomic_dec_and_test(&bip->bli_refcount);
-	xfs_bunpin(bp);
+
+	if (atomic_dec_and_test(&bp->b_pin_count))
+		wake_up_all(&bp->b_waiters);
 
 	if (freed && stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
