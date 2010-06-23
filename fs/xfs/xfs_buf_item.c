@@ -460,13 +460,10 @@ xfs_buf_item_unpin_remove(
 		 * occurs later in the xfs_trans_uncommit() will try to
 		 * reference the buffer which we no longer have a hold on.
 		 */
-		struct xfs_log_item_desc *lidp;
-
 		ASSERT(XFS_BUF_VALUSEMA(bip->bli_buf) <= 0);
 		trace_xfs_buf_item_unpin_stale(bip);
 
-		lidp = xfs_trans_find_item(tp, (xfs_log_item_t *)bip);
-		xfs_trans_free_item(tp, lidp);
+		xfs_trans_del_item(&bip->bli_item);
 
 		/*
 		 * Since the transaction no longer refers to the buffer, the

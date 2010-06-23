@@ -5857,43 +5857,18 @@ xfs_bmap_get_bp(
 		bp = NULL;
 
 	if (!bp) { /* Chase down all the log items to see if the bp is there */
-		xfs_log_item_chunk_t    *licp;
-		xfs_trans_t		*tp;
+		struct xfs_log_item_desc *lidp;
+		struct xfs_buf_log_item	*bip;
 
-		tp = cur->bc_tp;
-		licp = &tp->t_items;
-		while (!bp && licp != NULL) {
-			if (xfs_lic_are_all_free(licp)) {
-				licp = licp->lic_next;
-				continue;
-			}
-			for (i = 0; i < licp->lic_unused; i++) {
-				xfs_log_item_desc_t	*lidp;
-				xfs_log_item_t		*lip;
-				xfs_buf_log_item_t	*bip;
-				xfs_buf_t		*lbp;
-
-				if (xfs_lic_isfree(licp, i)) {
-					continue;
-				}
-
-				lidp = xfs_lic_slot(licp, i);
-				lip = lidp->lid_item;
-				if (lip->li_type != XFS_LI_BUF)
-					continue;
-
-				bip = (xfs_buf_log_item_t *)lip;
-				lbp = bip->bli_buf;
-
-				if (XFS_BUF_ADDR(lbp) == bno) {
-					bp = lbp;
-					break; /* Found it */
-				}
-			}
-			licp = licp->lic_next;
+		list_for_each_entry(lidp, &cur->bc_tp->t_items, lid_trans) {
+			bip = (struct xfs_buf_log_item *)lidp->lid_item;
+			if (bip->bli_item.li_type == XFS_LI_BUF &&
+			    XFS_BUF_ADDR(bip->bli_buf) == bno)
+				return bip->bli_buf;
 		}
 	}
-	return(bp);
+
+	return bp;
 }
 
 STATIC void

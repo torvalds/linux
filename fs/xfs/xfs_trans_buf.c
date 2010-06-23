@@ -47,36 +47,17 @@ xfs_trans_buf_item_match(
 	xfs_daddr_t		blkno,
 	int			len)
 {
-	xfs_log_item_chunk_t	*licp;
-	xfs_log_item_desc_t	*lidp;
-	xfs_buf_log_item_t	*blip;
-	int			i;
+	struct xfs_log_item_desc *lidp;
+	struct xfs_buf_log_item	*blip;
 
 	len = BBTOB(len);
-	for (licp = &tp->t_items; licp != NULL; licp = licp->lic_next) {
-		if (xfs_lic_are_all_free(licp)) {
-			ASSERT(licp == &tp->t_items);
-			ASSERT(licp->lic_next == NULL);
-			return NULL;
-		}
-
-		for (i = 0; i < licp->lic_unused; i++) {
-			/*
-			 * Skip unoccupied slots.
-			 */
-			if (xfs_lic_isfree(licp, i))
-				continue;
-
-			lidp = xfs_lic_slot(licp, i);
-			blip = (xfs_buf_log_item_t *)lidp->lid_item;
-			if (blip->bli_item.li_type != XFS_LI_BUF)
-				continue;
-
-			if (XFS_BUF_TARGET(blip->bli_buf) == target &&
-			    XFS_BUF_ADDR(blip->bli_buf) == blkno &&
-			    XFS_BUF_COUNT(blip->bli_buf) == len)
-				return blip->bli_buf;
-		}
+	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
+		blip = (struct xfs_buf_log_item *)lidp->lid_item;
+		if (blip->bli_item.li_type == XFS_LI_BUF &&
+		    XFS_BUF_TARGET(blip->bli_buf) == target &&
+		    XFS_BUF_ADDR(blip->bli_buf) == blkno &&
+		    XFS_BUF_COUNT(blip->bli_buf) == len)
+			return blip->bli_buf;
 	}
 
 	return NULL;
@@ -123,7 +104,7 @@ _xfs_trans_bjoin(
 	/*
 	 * Get a log_item_desc to point at the new item.
 	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t *)bip);
+	xfs_trans_add_item(tp, &bip->bli_item);
 
 	/*
 	 * Initialize b_fsprivate2 so we can find it with incore_match()
@@ -479,7 +460,6 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 {
 	xfs_buf_log_item_t	*bip;
 	xfs_log_item_t		*lip;
-	xfs_log_item_desc_t	*lidp;
 
 	/*
 	 * Default to a normal brelse() call if the tp is NULL.
@@ -510,13 +490,6 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	ASSERT(!(bip->bli_format.blf_flags & XFS_BLF_CANCEL));
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
-	/*
-	 * Find the item descriptor pointing to this buffer's
-	 * log item.  It must be there.
-	 */
-	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)bip);
-	ASSERT(lidp != NULL);
-
 	trace_xfs_trans_brelse(bip);
 
 	/*
@@ -532,7 +505,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	 * If the buffer is dirty within this transaction, we can't
 	 * release it until we commit.
 	 */
-	if (lidp->lid_flags & XFS_LID_DIRTY)
+	if (bip->bli_item.li_desc->lid_flags & XFS_LID_DIRTY)
 		return;
 
 	/*
@@ -549,7 +522,7 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 	/*
 	 * Free up the log item descriptor tracking the released item.
 	 */
-	xfs_trans_free_item(tp, lidp);
+	xfs_trans_del_item(&bip->bli_item);
 
 	/*
 	 * Clear the hold flag in the buf log item if it is set.
@@ -661,7 +634,6 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 		  uint		last)
 {
 	xfs_buf_log_item_t	*bip;
-	xfs_log_item_desc_t	*lidp;
 
 	ASSERT(XFS_BUF_ISBUSY(bp));
 	ASSERT(XFS_BUF_FSPRIVATE2(bp, xfs_trans_t *) == tp);
@@ -703,11 +675,8 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 		bip->bli_format.blf_flags &= ~XFS_BLF_CANCEL;
 	}
 
-	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)bip);
-	ASSERT(lidp != NULL);
-
 	tp->t_flags |= XFS_TRANS_DIRTY;
-	lidp->lid_flags |= XFS_LID_DIRTY;
+	bip->bli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 	bip->bli_flags |= XFS_BLI_LOGGED;
 	xfs_buf_item_log(bip, first, last);
 }
@@ -736,7 +705,6 @@ xfs_trans_binval(
 	xfs_trans_t	*tp,
 	xfs_buf_t	*bp)
 {
-	xfs_log_item_desc_t	*lidp;
 	xfs_buf_log_item_t	*bip;
 
 	ASSERT(XFS_BUF_ISBUSY(bp));
@@ -744,8 +712,6 @@ xfs_trans_binval(
 	ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
 
 	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
-	lidp = xfs_trans_find_item(tp, (xfs_log_item_t*)bip);
-	ASSERT(lidp != NULL);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	trace_xfs_trans_binval(bip);
@@ -760,7 +726,7 @@ xfs_trans_binval(
 		ASSERT(!(bip->bli_flags & (XFS_BLI_LOGGED | XFS_BLI_DIRTY)));
 		ASSERT(!(bip->bli_format.blf_flags & XFS_BLF_INODE_BUF));
 		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
-		ASSERT(lidp->lid_flags & XFS_LID_DIRTY);
+		ASSERT(bip->bli_item.li_desc->lid_flags & XFS_LID_DIRTY);
 		ASSERT(tp->t_flags & XFS_TRANS_DIRTY);
 		return;
 	}
@@ -793,7 +759,7 @@ xfs_trans_binval(
 	bip->bli_format.blf_flags |= XFS_BLF_CANCEL;
 	memset((char *)(bip->bli_format.blf_data_map), 0,
 	      (bip->bli_format.blf_map_size * sizeof(uint)));
-	lidp->lid_flags |= XFS_LID_DIRTY;
+	bip->bli_item.li_desc->lid_flags |= XFS_LID_DIRTY;
 	tp->t_flags |= XFS_TRANS_DIRTY;
 }
 

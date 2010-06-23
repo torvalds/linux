@@ -87,7 +87,6 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_trans_buf.o \
 				   xfs_trans_extfree.o \
 				   xfs_trans_inode.o \
-				   xfs_trans_item.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
 				   xfs_rw.o

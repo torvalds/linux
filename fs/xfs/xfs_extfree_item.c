@@ -131,18 +131,18 @@ STATIC void
 xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
 {
 	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
-	xfs_log_item_desc_t	*lidp;
 
 	spin_lock(&ailp->xa_lock);
 	if (efip->efi_flags & XFS_EFI_CANCELED) {
+		struct xfs_log_item	*lip = &efip->efi_item;
+
 		/*
 		 * free the xaction descriptor pointing to this item
 		 */
-		lidp = xfs_trans_find_item(tp, (xfs_log_item_t *) efip);
-		xfs_trans_free_item(tp, lidp);
+		xfs_trans_del_item(lip);
 
 		/* xfs_trans_ail_delete() drops the AIL lock. */
-		xfs_trans_ail_delete(ailp, (xfs_log_item_t *)efip);
+		xfs_trans_ail_delete(ailp, lip);
 		xfs_efi_item_free(efip);
 	} else {
 		efip->efi_flags |= XFS_EFI_COMMITTED;

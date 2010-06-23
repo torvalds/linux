@@ -1703,6 +1703,12 @@ xfs_init_zones(void)
 	if (!xfs_trans_zone)
 		goto out_destroy_ifork_zone;
 
+	xfs_log_item_desc_zone =
+		kmem_zone_init(sizeof(struct xfs_log_item_desc),
+			       "xfs_log_item_desc");
+	if (!xfs_log_item_desc_zone)
+		goto out_destroy_trans_zone;
+
 	/*
 	 * The size of the zone allocated buf log item is the maximum
 	 * size possible under XFS.  This wastes a little bit of memory,
@@ -1712,7 +1718,7 @@ xfs_init_zones(void)
 				(((XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK) /
 				  NBWORD) * sizeof(int))), "xfs_buf_item");
 	if (!xfs_buf_item_zone)
-		goto out_destroy_trans_zone;
+		goto out_destroy_log_item_desc_zone;
 
 	xfs_efd_zone = kmem_zone_init((sizeof(xfs_efd_log_item_t) +
 			((XFS_EFD_MAX_FAST_EXTENTS - 1) *
@@ -1749,6 +1755,8 @@ xfs_init_zones(void)
 	kmem_zone_destroy(xfs_efd_zone);
  out_destroy_buf_item_zone:
 	kmem_zone_destroy(xfs_buf_item_zone);
+ out_destroy_log_item_desc_zone:
+	kmem_zone_destroy(xfs_log_item_desc_zone);
  out_destroy_trans_zone:
 	kmem_zone_destroy(xfs_trans_zone);
  out_destroy_ifork_zone:
@@ -1779,6 +1787,7 @@ xfs_destroy_zones(void)
 	kmem_zone_destroy(xfs_efi_zone);
 	kmem_zone_destroy(xfs_efd_zone);
 	kmem_zone_destroy(xfs_buf_item_zone);
+	kmem_zone_destroy(xfs_log_item_desc_zone);
 	kmem_zone_destroy(xfs_trans_zone);
 	kmem_zone_destroy(xfs_ifork_zone);
 	kmem_zone_destroy(xfs_dabuf_zone);
