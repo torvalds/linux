@@ -533,8 +533,10 @@ struct hw_perf_event {
 			struct hrtimer	hrtimer;
 		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-		/* breakpoint */
-		struct arch_hw_breakpoint	info;
+		struct { /* breakpoint */
+			struct arch_hw_breakpoint	info;
+			struct list_head		bp_list;
+		};
 #endif
 	};
 	local64_t			prev_count;
