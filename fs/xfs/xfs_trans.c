@@ -1375,7 +1375,7 @@ xfs_trans_item_committed(
 	 * log item flags, if anyone else stales the buffer we do not want to
 	 * pay any attention to it.
 	 */
-	IOP_UNPIN(lip);
+	IOP_UNPIN(lip, 0);
 }
 
 /*
@@ -1422,7 +1422,7 @@ xfs_trans_uncommit(
 		 * Unpin all but those that aren't dirty.
 		 */
 		if (lidp->lid_flags & XFS_LID_DIRTY)
-			IOP_UNPIN_REMOVE(lidp->lid_item, tp);
+			IOP_UNPIN(lidp->lid_item, 1);
 	}
 
 	xfs_trans_unreserve_and_mod_sb(tp);

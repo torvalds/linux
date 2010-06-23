@@ -103,32 +103,8 @@ xfs_efi_item_pin(xfs_efi_log_item_t *efip)
  * Here we coordinate with xfs_efi_cancel() to determine who gets to
  * free the EFI.
  */
-/*ARGSUSED*/
 STATIC void
-xfs_efi_item_unpin(xfs_efi_log_item_t *efip)
-{
-	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
-
-	spin_lock(&ailp->xa_lock);
-	if (efip->efi_flags & XFS_EFI_CANCELED) {
-		/* xfs_trans_ail_delete() drops the AIL lock. */
-		xfs_trans_ail_delete(ailp, (xfs_log_item_t *)efip);
-		xfs_efi_item_free(efip);
-	} else {
-		efip->efi_flags |= XFS_EFI_COMMITTED;
-		spin_unlock(&ailp->xa_lock);
-	}
-}
-
-/*
- * like unpin only we have to also clear the xaction descriptor
- * pointing the log item if we free the item.  This routine duplicates
- * unpin because efi_flags is protected by the AIL lock.  Freeing
- * the descriptor and then calling unpin would force us to drop the AIL
- * lock which would open up a race condition.
- */
-STATIC void
-xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
+xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int remove)
 {
 	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
 
@@ -136,10 +112,8 @@ xfs_efi_item_unpin_remove(xfs_efi_log_item_t *efip, xfs_trans_t *tp)
 	if (efip->efi_flags & XFS_EFI_CANCELED) {
 		struct xfs_log_item	*lip = &efip->efi_item;
 
-		/*
-		 * free the xaction descriptor pointing to this item
-		 */
-		xfs_trans_del_item(lip);
+		if (remove)
+			xfs_trans_del_item(lip);
 
 		/* xfs_trans_ail_delete() drops the AIL lock. */
 		xfs_trans_ail_delete(ailp, lip);
@@ -223,9 +197,7 @@ static struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efi_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_efi_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_efi_item_unpin,
-	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t *))
-					xfs_efi_item_unpin_remove,
+	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_efi_item_unpin,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_efi_item_trylock,
 	.iop_unlock	= (void(*)(xfs_log_item_t*))xfs_efi_item_unlock,
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
@@ -424,14 +396,7 @@ xfs_efd_item_pin(xfs_efd_log_item_t *efdp)
  */
 /*ARGSUSED*/
 STATIC void
-xfs_efd_item_unpin(xfs_efd_log_item_t *efdp)
-{
-	return;
-}
-
-/*ARGSUSED*/
-STATIC void
-xfs_efd_item_unpin_remove(xfs_efd_log_item_t *efdp, xfs_trans_t *tp)
+xfs_efd_item_unpin(xfs_efd_log_item_t *efdp, int remove)
 {
 	return;
 }
@@ -514,9 +479,7 @@ static struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efd_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_efd_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_efd_item_unpin,
-	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
-					xfs_efd_item_unpin_remove,
+	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_efd_item_unpin,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_efd_item_trylock,
 	.iop_unlock	= (void(*)(xfs_log_item_t*))xfs_efd_item_unlock,
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))

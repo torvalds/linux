@@ -388,20 +388,25 @@ xfs_buf_item_pin(
  * Also drop the reference to the buf item for the current transaction.
  * If the XFS_BLI_STALE flag is set and we are the last reference,
  * then free up the buf log item and unlock the buffer.
+ *
+ * If the remove flag is set we are called from uncommit in the
+ * forced-shutdown path.  If that is true and the reference count on
+ * the log item is going to drop to zero we need to free the item's
+ * descriptor in the transaction.
  */
 STATIC void
 xfs_buf_item_unpin(
-	xfs_buf_log_item_t	*bip)
+	xfs_buf_log_item_t	*bip,
+	int			remove)
 {
 	struct xfs_ail	*ailp;
-	xfs_buf_t	*bp;
+	xfs_buf_t	*bp = bip->bli_buf;
 	int		freed;
 	int		stale = bip->bli_flags & XFS_BLI_STALE;
 
-	bp = bip->bli_buf;
-	ASSERT(bp != NULL);
 	ASSERT(XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *) == bip);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
+
 	trace_xfs_buf_item_unpin(bip);
 
 	freed = atomic_dec_and_test(&bip->bli_refcount);
@@ -413,7 +418,25 @@ xfs_buf_item_unpin(
 		ASSERT(!(XFS_BUF_ISDELAYWRITE(bp)));
 		ASSERT(XFS_BUF_ISSTALE(bp));
 		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
+
 		trace_xfs_buf_item_unpin_stale(bip);
+
+		if (remove) {
+			/*
+			 * We have to remove the log item from the transaction
+			 * as we are about to release our reference to the
+			 * buffer.  If we don't, the unlock that occurs later
+			 * in xfs_trans_uncommit() will ry to reference the
+			 * buffer which we no longer have a hold on.
+			 */
+			xfs_trans_del_item(&bip->bli_item);
+
+			/*
+			 * Since the transaction no longer refers to the buffer,
+			 * the buffer should no longer refer to the transaction.
+			 */
+			XFS_BUF_SET_FSPRIVATE2(bp, NULL);
+		}
 
 		/*
 		 * If we get called here because of an IO error, we may
@@ -433,45 +456,6 @@ xfs_buf_item_unpin(
 		}
 		xfs_buf_relse(bp);
 	}
-}
-
-/*
- * this is called from uncommit in the forced-shutdown path.
- * we need to check to see if the reference count on the log item
- * is going to drop to zero.  If so, unpin will free the log item
- * so we need to free the item's descriptor (that points to the item)
- * in the transaction.
- */
-STATIC void
-xfs_buf_item_unpin_remove(
-	xfs_buf_log_item_t	*bip,
-	xfs_trans_t		*tp)
-{
-	/* will xfs_buf_item_unpin() call xfs_buf_item_relse()? */
-	if ((atomic_read(&bip->bli_refcount) == 1) &&
-	    (bip->bli_flags & XFS_BLI_STALE)) {
-		/*
-		 * yes -- We can safely do some work here and then call
-		 * buf_item_unpin to do the rest because we are
-		 * are holding the buffer locked so no one else will be
-		 * able to bump up the refcount. We have to remove the
-		 * log item from the transaction as we are about to release
-		 * our reference to the buffer. If we don't, the unlock that
-		 * occurs later in the xfs_trans_uncommit() will try to
-		 * reference the buffer which we no longer have a hold on.
-		 */
-		ASSERT(XFS_BUF_VALUSEMA(bip->bli_buf) <= 0);
-		trace_xfs_buf_item_unpin_stale(bip);
-
-		xfs_trans_del_item(&bip->bli_item);
-
-		/*
-		 * Since the transaction no longer refers to the buffer, the
-		 * buffer should no longer refer to the transaction.
-		 */
-		XFS_BUF_SET_FSPRIVATE2(bip->bli_buf, NULL);
-	}
-	xfs_buf_item_unpin(bip);
 }
 
 /*
@@ -669,9 +653,7 @@ static struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_buf_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_buf_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_buf_item_unpin,
-	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t *))
-					xfs_buf_item_unpin_remove,
+	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_buf_item_unpin,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_buf_item_trylock,
 	.iop_unlock	= (void(*)(xfs_log_item_t*))xfs_buf_item_unlock,
 	.iop_committed	= (xfs_lsn_t(*)(xfs_log_item_t*, xfs_lsn_t))
