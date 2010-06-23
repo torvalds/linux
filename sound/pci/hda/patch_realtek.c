@@ -18612,7 +18612,7 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 
 	add_verb(spec, alc662_init_verbs);
 	if (codec->vendor_id == 0x10ec0272 || codec->vendor_id == 0x10ec0663 ||
-	    codec->vendor_id == 0x10ec0665)
+	    codec->vendor_id == 0x10ec0665 || codec->vendor_id == 0x10ec0670)
 		add_verb(spec, alc663_init_verbs);
 
 	if (codec->vendor_id == 0x10ec0272)
@@ -18756,6 +18756,334 @@ static int patch_alc888(struct hda_codec *codec)
 }
 
 /*
+ * ALC680 support
+ */
+#define ALC680_DIGOUT_NID	ALC880_DIGOUT_NID
+#define alc680_modes		alc260_modes
+
+static hda_nid_t alc680_dac_nids[3] = {
+	/* Lout1, Lout2, hp */
+	0x02, 0x03, 0x04
+};
+
+static hda_nid_t alc680_adc_nids[3] = {
+	/* ADC0-2 */
+	/* DMIC, MIC, Line-in*/
+	0x07, 0x08, 0x09
+};
+
+static struct snd_kcontrol_new alc680_base_mixer[] = {
+	/* output mixer control */
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x2, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x4, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x16, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	{ }
+};
+
+static struct snd_kcontrol_new alc680_capture_mixer[] = {
+	HDA_CODEC_VOLUME("Capture Volume", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x07, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 2, 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 2, 0x09, 0x0, HDA_INPUT),
+	{ } /* end */
+};
+
+/*
+ * generic initialization of ADC, input mixers and output mixers
+ */
+static struct hda_verb alc680_init_verbs[] = {
+	/* Unmute DAC0-1 and set vol = 0 */
+	{0x02, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x03, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+	{0x04, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_ZERO},
+
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{0x16, AC_VERB_SET_PIN_WIDGET_CONTROL, 0xc0},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
+	{ }
+};
+
+/* create input playback/capture controls for the given pin */
+static int alc680_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
+				    const char *ctlname, int idx)
+{
+	hda_nid_t dac;
+	int err;
+
+	switch (nid) {
+	case 0x14:
+		dac = 0x02;
+		break;
+	case 0x15:
+		dac = 0x03;
+		break;
+	case 0x16:
+		dac = 0x04;
+		break;
+	default:
+		return 0;
+	}
+	if (spec->multiout.dac_nids[0] != dac &&
+	    spec->multiout.dac_nids[1] != dac) {
+		err = add_pb_vol_ctrl(spec, ALC_CTL_WIDGET_VOL, ctlname,
+				  HDA_COMPOSE_AMP_VAL(dac, 3, idx,
+						      HDA_OUTPUT));
+		if (err < 0)
+			return err;
+
+		err = add_pb_sw_ctrl(spec, ALC_CTL_WIDGET_MUTE, ctlname,
+			  HDA_COMPOSE_AMP_VAL(nid, 3, idx, HDA_OUTPUT));
+
+		if (err < 0)
+			return err;
+		spec->multiout.dac_nids[spec->multiout.num_dacs++] = dac;
+	}
+
+	return 0;
+}
+
+/* add playback controls from the parsed DAC table */
+static int alc680_auto_create_multi_out_ctls(struct alc_spec *spec,
+					     const struct auto_pin_cfg *cfg)
+{
+	hda_nid_t nid;
+	int err;
+
+	spec->multiout.dac_nids = spec->private_dac_nids;
+
+	nid = cfg->line_out_pins[0];
+	if (nid) {
+		const char *name;
+		if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT)
+			name = "Speaker";
+		else
+			name = "Front";
+		err = alc680_new_analog_output(spec, nid, name, 0);
+		if (err < 0)
+			return err;
+	}
+
+	nid = cfg->speaker_pins[0];
+	if (nid) {
+		err = alc680_new_analog_output(spec, nid, "Speaker", 0);
+		if (err < 0)
+			return err;
+	}
+	nid = cfg->hp_pins[0];
+	if (nid) {
+		err = alc680_new_analog_output(spec, nid, "Headphone", 0);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
+static void alc680_auto_set_output_and_unmute(struct hda_codec *codec,
+					      hda_nid_t nid, int pin_type)
+{
+	alc_set_pin_output(codec, nid, pin_type);
+}
+
+static void alc680_auto_init_multi_out(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t nid = spec->autocfg.line_out_pins[0];
+	if (nid) {
+		int pin_type = get_pin_type(spec->autocfg.line_out_type);
+		alc680_auto_set_output_and_unmute(codec, nid, pin_type);
+	}
+}
+
+static void alc680_auto_init_hp_out(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	hda_nid_t pin;
+
+	pin = spec->autocfg.hp_pins[0];
+	if (pin)
+		alc680_auto_set_output_and_unmute(codec, pin, PIN_HP);
+	pin = spec->autocfg.speaker_pins[0];
+	if (pin)
+		alc680_auto_set_output_and_unmute(codec, pin, PIN_OUT);
+}
+
+/* pcm configuration: identical with ALC880 */
+#define alc680_pcm_analog_playback	alc880_pcm_analog_playback
+#define alc680_pcm_analog_capture	alc880_pcm_analog_capture
+#define alc680_pcm_analog_alt_capture	alc880_pcm_analog_alt_capture
+#define alc680_pcm_digital_playback	alc880_pcm_digital_playback
+
+static struct hda_input_mux alc680_capture_source = {
+	.num_items = 1,
+	.items = {
+		{ "Mic", 0x0 },
+	},
+};
+
+/*
+ * BIOS auto configuration
+ */
+static int alc680_parse_auto_config(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	int err;
+	static hda_nid_t alc680_ignore[] = { 0 };
+
+	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg,
+					   alc680_ignore);
+	if (err < 0)
+		return err;
+	if (!spec->autocfg.line_outs) {
+		if (spec->autocfg.dig_outs || spec->autocfg.dig_in_pin) {
+			spec->multiout.max_channels = 2;
+			spec->no_analog = 1;
+			goto dig_only;
+		}
+		return 0; /* can't find valid BIOS pin config */
+	}
+	err = alc680_auto_create_multi_out_ctls(spec, &spec->autocfg);
+	if (err < 0)
+		return err;
+
+	spec->multiout.max_channels = 2;
+
+ dig_only:
+	/* digital only support output */
+	if (spec->autocfg.dig_outs) {
+		spec->multiout.dig_out_nid = ALC680_DIGOUT_NID;
+		spec->dig_out_type = spec->autocfg.dig_out_type[0];
+	}
+	if (spec->kctls.list)
+		add_mixer(spec, spec->kctls.list);
+
+	add_verb(spec, alc680_init_verbs);
+	spec->num_mux_defs = 1;
+	spec->input_mux = &alc680_capture_source;
+
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
+
+	return 1;
+}
+
+#define alc680_auto_init_analog_input	alc882_auto_init_analog_input
+
+/* init callback for auto-configuration model -- overriding the default init */
+static void alc680_auto_init(struct hda_codec *codec)
+{
+	struct alc_spec *spec = codec->spec;
+	alc680_auto_init_multi_out(codec);
+	alc680_auto_init_hp_out(codec);
+	alc680_auto_init_analog_input(codec);
+	if (spec->unsol_event)
+		alc_inithook(codec);
+}
+
+/*
+ * configuration and preset
+ */
+static const char *alc680_models[ALC680_MODEL_LAST] = {
+	[ALC680_BASE]		= "alc680_base",
+};
+
+static struct snd_pci_quirk alc680_cfg_tbl[] = {
+	SND_PCI_QUIRK(0x1043, 0x12f3, "ASUS NX90", ALC680_BASE),
+	{}
+};
+
+static struct alc_config_preset alc680_presets[] = {
+	[ALC680_BASE] = {
+		.mixers = { alc680_base_mixer },
+		.cap_mixer =  alc680_capture_mixer,
+		.init_verbs = { alc680_init_verbs },
+		.num_dacs = ARRAY_SIZE(alc680_dac_nids),
+		.dac_nids = alc680_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc680_adc_nids),
+		.adc_nids = alc680_adc_nids,
+		.hp_nid = 0x04,
+		.dig_out_nid = ALC680_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc680_modes),
+		.channel_mode = alc680_modes,
+		.input_mux = &alc680_capture_source,
+	},
+};
+
+static int patch_alc680(struct hda_codec *codec)
+{
+	struct alc_spec *spec;
+	int board_config;
+	int err;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (spec == NULL)
+		return -ENOMEM;
+
+	codec->spec = spec;
+
+	board_config = snd_hda_check_board_config(codec, ALC680_MODEL_LAST,
+						  alc680_models,
+						  alc680_cfg_tbl);
+
+	if (board_config < 0 || board_config >= ALC680_MODEL_LAST) {
+		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
+		       codec->chip_name);
+		board_config = ALC680_AUTO;
+	}
+
+	if (board_config == ALC680_AUTO) {
+		/* automatic parse from the BIOS config */
+		err = alc680_parse_auto_config(codec);
+		if (err < 0) {
+			alc_free(codec);
+			return err;
+		} else if (!err) {
+			printk(KERN_INFO
+			       "hda_codec: Cannot set up configuration "
+			       "from BIOS.  Using base mode...\n");
+			board_config = ALC680_BASE;
+		}
+	}
+
+	if (board_config != ALC680_AUTO)
+		setup_preset(codec, &alc680_presets[board_config]);
+
+	spec->stream_analog_playback = &alc680_pcm_analog_playback;
+	spec->stream_analog_capture = &alc680_pcm_analog_capture;
+	spec->stream_analog_alt_capture = &alc680_pcm_analog_alt_capture;
+	spec->stream_digital_playback = &alc680_pcm_digital_playback;
+
+	if (!spec->adc_nids) {
+		spec->adc_nids = alc680_adc_nids;
+		spec->num_adc_nids = ARRAY_SIZE(alc680_adc_nids);
+	}
+
+	if (!spec->cap_mixer)
+		set_capture_mixer(codec);
+
+	spec->vmaster_nid = 0x02;
+
+	codec->patch_ops = alc_patch_ops;
+	if (board_config == ALC680_AUTO)
+		spec->init_hook = alc680_auto_init;
+
+	return 0;
+}
+
+/*
  * patch entries
  */
 static struct hda_codec_preset snd_hda_preset_realtek[] = {
@@ -18779,6 +19107,7 @@ static struct hda_codec_preset snd_hda_preset_realtek[] = {
 	{ .id = 0x10ec0663, .name = "ALC663", .patch = patch_alc662 },
 	{ .id = 0x10ec0665, .name = "ALC665", .patch = patch_alc662 },
 	{ .id = 0x10ec0670, .name = "ALC670", .patch = patch_alc662 },
+	{ .id = 0x10ec0680, .name = "ALC680", .patch = patch_alc680 },
 	{ .id = 0x10ec0880, .name = "ALC880", .patch = patch_alc880 },
 	{ .id = 0x10ec0882, .name = "ALC882", .patch = patch_alc882 },
 	{ .id = 0x10ec0883, .name = "ALC883", .patch = patch_alc882 },
