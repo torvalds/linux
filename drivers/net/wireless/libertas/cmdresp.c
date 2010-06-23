@@ -103,7 +103,7 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
  *  @param resp    pointer to command response buffer
  *  @return        0; -1
  */
-int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp)
+static int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp)
 {
 	struct cmd_ds_802_11d_domain_info *domaininfo =
 			&resp->params.domaininforesp;
