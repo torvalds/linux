@@ -16,6 +16,15 @@
 
 #include "htc.h"
 
+/* identify firmware images */
+#define FIRMWARE_AR7010		"ar7010.fw"
+#define FIRMWARE_AR7010_1_1	"ar7010_1_1.fw"
+#define FIRMWARE_AR9271		"ar9271.fw"
+
+MODULE_FIRMWARE(FIRMWARE_AR7010);
+MODULE_FIRMWARE(FIRMWARE_AR7010_1_1);
+MODULE_FIRMWARE(FIRMWARE_AR9271);
+
 static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x9271) }, /* Atheros */
 	{ USB_DEVICE(0x0cf3, 0x1006) }, /* Atheros */
@@ -890,12 +899,12 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	case 0x7010:
 	case 0x9018:
 		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
-			hif_dev->fw_name = "ar7010_1_1.fw";
+			hif_dev->fw_name = FIRMWARE_AR7010_1_1;
 		else
-			hif_dev->fw_name = "ar7010.fw";
+			hif_dev->fw_name = FIRMWARE_AR7010;
 		break;
 	default:
-		hif_dev->fw_name = "ar9271.fw";
+		hif_dev->fw_name = FIRMWARE_AR9271;
 		break;
 	}
 
