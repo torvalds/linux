@@ -867,14 +867,14 @@ xfs_inode_item_destroy(
  * from the AIL if it has not been re-logged, and unlocking the inode's
  * flush lock.
  */
-/*ARGSUSED*/
 void
 xfs_iflush_done(
-	xfs_buf_t		*bp,
-	xfs_inode_log_item_t	*iip)
+	struct xfs_buf		*bp,
+	struct xfs_log_item	*lip)
 {
+	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	xfs_inode_t		*ip = iip->ili_inode;
-	struct xfs_ail		*ailp = iip->ili_item.li_ailp;
+	struct xfs_ail		*ailp = lip->li_ailp;
 
 	/*
 	 * We only want to pull the item from the AIL if it is
@@ -885,12 +885,11 @@ xfs_iflush_done(
 	 * the lock since it's cheaper, and then we recheck while
 	 * holding the lock before removing the inode from the AIL.
 	 */
-	if (iip->ili_logged &&
-	    (iip->ili_item.li_lsn == iip->ili_flush_lsn)) {
+	if (iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn) {
 		spin_lock(&ailp->xa_lock);
-		if (iip->ili_item.li_lsn == iip->ili_flush_lsn) {
+		if (lip->li_lsn == iip->ili_flush_lsn) {
 			/* xfs_trans_ail_delete() drops the AIL lock. */
-			xfs_trans_ail_delete(ailp, (xfs_log_item_t*)iip);
+			xfs_trans_ail_delete(ailp, lip);
 		} else {
 			spin_unlock(&ailp->xa_lock);
 		}
@@ -908,8 +907,6 @@ xfs_iflush_done(
 	 * Release the inode's flush lock since we're done with it.
 	 */
 	xfs_ifunlock(ip);
-
-	return;
 }
 
 /*
@@ -959,10 +956,10 @@ xfs_iflush_abort(
 
 void
 xfs_istale_done(
-	xfs_buf_t		*bp,
-	xfs_inode_log_item_t	*iip)
+	struct xfs_buf		*bp,
+	struct xfs_log_item	*lip)
 {
-	xfs_iflush_abort(iip->ili_inode);
+	xfs_iflush_abort(INODE_ITEM(lip)->ili_inode);
 }
 
 /*

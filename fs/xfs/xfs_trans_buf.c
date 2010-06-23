@@ -658,7 +658,7 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 	XFS_BUF_SET_IODONE_FUNC(bp, xfs_buf_iodone_callbacks);
-	bip->bli_item.li_cb = (void(*)(xfs_buf_t*,xfs_log_item_t*))xfs_buf_iodone;
+	bip->bli_item.li_cb = xfs_buf_iodone;
 
 	trace_xfs_trans_log_buf(bip);
 
@@ -815,11 +815,8 @@ xfs_trans_stale_inode_buf(
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
 	bip->bli_flags |= XFS_BLI_STALE_INODE;
-	bip->bli_item.li_cb = (void(*)(xfs_buf_t*,xfs_log_item_t*))
-		xfs_buf_iodone;
+	bip->bli_item.li_cb = xfs_buf_iodone;
 }
-
-
 
 /*
  * Mark the buffer as being one which contains newly allocated

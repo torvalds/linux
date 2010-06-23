@@ -54,8 +54,6 @@
    flush lock - ditto.
 */
 
-STATIC void		xfs_qm_dqflush_done(xfs_buf_t *, xfs_dq_logitem_t *);
-
 #ifdef DEBUG
 xfs_buftarg_t *xfs_dqerror_target;
 int xfs_do_dqerror;
@@ -1131,6 +1129,46 @@ xfs_qm_dqrele(
 	xfs_qm_dqput(dqp);
 }
 
+/*
+ * This is the dquot flushing I/O completion routine.  It is called
+ * from interrupt level when the buffer containing the dquot is
+ * flushed to disk.  It is responsible for removing the dquot logitem
+ * from the AIL if it has not been re-logged, and unlocking the dquot's
+ * flush lock. This behavior is very similar to that of inodes..
+ */
+STATIC void
+xfs_qm_dqflush_done(
+	struct xfs_buf		*bp,
+	struct xfs_log_item	*lip)
+{
+	xfs_dq_logitem_t	*qip = (struct xfs_dq_logitem *)lip;
+	xfs_dquot_t		*dqp = qip->qli_dquot;
+	struct xfs_ail		*ailp = lip->li_ailp;
+
+	/*
+	 * We only want to pull the item from the AIL if its
+	 * location in the log has not changed since we started the flush.
+	 * Thus, we only bother if the dquot's lsn has
+	 * not changed. First we check the lsn outside the lock
+	 * since it's cheaper, and then we recheck while
+	 * holding the lock before removing the dquot from the AIL.
+	 */
+	if ((lip->li_flags & XFS_LI_IN_AIL) &&
+	    lip->li_lsn == qip->qli_flush_lsn) {
+
+		/* xfs_trans_ail_delete() drops the AIL lock. */
+		spin_lock(&ailp->xa_lock);
+		if (lip->li_lsn == qip->qli_flush_lsn)
+			xfs_trans_ail_delete(ailp, lip);
+		else
+			spin_unlock(&ailp->xa_lock);
+	}
+
+	/*
+	 * Release the dq's flush lock since we're done with it.
+	 */
+	xfs_dqfunlock(dqp);
+}
 
 /*
  * Write a modified dquot to disk.
@@ -1212,8 +1250,9 @@ xfs_qm_dqflush(
 	 * Attach an iodone routine so that we can remove this dquot from the
 	 * AIL and release the flush lock once the dquot is synced to disk.
 	 */
-	xfs_buf_attach_iodone(bp, (void(*)(xfs_buf_t *, xfs_log_item_t *))
-			      xfs_qm_dqflush_done, &(dqp->q_logitem.qli_item));
+	xfs_buf_attach_iodone(bp, xfs_qm_dqflush_done,
+				  &dqp->q_logitem.qli_item);
+
 	/*
 	 * If the buffer is pinned then push on the log so we won't
 	 * get stuck waiting in the write for too long.
@@ -1235,50 +1274,6 @@ xfs_qm_dqflush(
 	 */
 	return error;
 
-}
-
-/*
- * This is the dquot flushing I/O completion routine.  It is called
- * from interrupt level when the buffer containing the dquot is
- * flushed to disk.  It is responsible for removing the dquot logitem
- * from the AIL if it has not been re-logged, and unlocking the dquot's
- * flush lock. This behavior is very similar to that of inodes..
- */
-/*ARGSUSED*/
-STATIC void
-xfs_qm_dqflush_done(
-	xfs_buf_t		*bp,
-	xfs_dq_logitem_t	*qip)
-{
-	xfs_dquot_t		*dqp;
-	struct xfs_ail		*ailp;
-
-	dqp = qip->qli_dquot;
-	ailp = qip->qli_item.li_ailp;
-
-	/*
-	 * We only want to pull the item from the AIL if its
-	 * location in the log has not changed since we started the flush.
-	 * Thus, we only bother if the dquot's lsn has
-	 * not changed. First we check the lsn outside the lock
-	 * since it's cheaper, and then we recheck while
-	 * holding the lock before removing the dquot from the AIL.
-	 */
-	if ((qip->qli_item.li_flags & XFS_LI_IN_AIL) &&
-	    qip->qli_item.li_lsn == qip->qli_flush_lsn) {
-
-		/* xfs_trans_ail_delete() drops the AIL lock. */
-		spin_lock(&ailp->xa_lock);
-		if (qip->qli_item.li_lsn == qip->qli_flush_lsn)
-			xfs_trans_ail_delete(ailp, (xfs_log_item_t*)qip);
-		else
-			spin_unlock(&ailp->xa_lock);
-	}
-
-	/*
-	 * Release the dq's flush lock since we're done with it.
-	 */
-	xfs_dqfunlock(dqp);
 }
 
 int

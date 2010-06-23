@@ -1981,7 +1981,7 @@ xfs_ifree_cluster(
 			if (lip->li_type == XFS_LI_INODE) {
 				iip = (xfs_inode_log_item_t *)lip;
 				ASSERT(iip->ili_logged == 1);
-				lip->li_cb = (void(*)(xfs_buf_t*,xfs_log_item_t*)) xfs_istale_done;
+				lip->li_cb = xfs_istale_done;
 				xfs_trans_ail_copy_lsn(mp->m_ail,
 							&iip->ili_flush_lsn,
 							&iip->ili_item.li_lsn);
@@ -2051,9 +2051,8 @@ xfs_ifree_cluster(
 			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 						&iip->ili_item.li_lsn);
 
-			xfs_buf_attach_iodone(bp,
-				(void(*)(xfs_buf_t*,xfs_log_item_t*))
-				xfs_istale_done, (xfs_log_item_t *)iip);
+			xfs_buf_attach_iodone(bp, xfs_istale_done,
+						  &iip->ili_item);
 
 			if (ip != free_ip)
 				xfs_iunlock(ip, XFS_ILOCK_EXCL);
@@ -3065,8 +3064,7 @@ xfs_iflush_int(
 		 * and unlock the inode's flush lock when the inode is
 		 * completely written to disk.
 		 */
-		xfs_buf_attach_iodone(bp, (void(*)(xfs_buf_t*,xfs_log_item_t*))
-				      xfs_iflush_done, (xfs_log_item_t *)iip);
+		xfs_buf_attach_iodone(bp, xfs_iflush_done, &iip->ili_item);
 
 		ASSERT(XFS_BUF_FSPRIVATE(bp, void *) != NULL);
 		ASSERT(XFS_BUF_IODONE_FUNC(bp) != NULL);

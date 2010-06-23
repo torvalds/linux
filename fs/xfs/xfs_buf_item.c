@@ -1079,15 +1079,14 @@ xfs_buf_error_relse(
  * It is called by xfs_buf_iodone_callbacks() above which will take
  * care of cleaning up the buffer itself.
  */
-/* ARGSUSED */
 void
 xfs_buf_iodone(
-	xfs_buf_t		*bp,
-	xfs_buf_log_item_t	*bip)
+	struct xfs_buf		*bp,
+	struct xfs_log_item	*lip)
 {
-	struct xfs_ail		*ailp = bip->bli_item.li_ailp;
+	struct xfs_ail		*ailp = lip->li_ailp;
 
-	ASSERT(bip->bli_buf == bp);
+	ASSERT(BUF_ITEM(lip)->bli_buf == bp);
 
 	xfs_buf_rele(bp);
 
@@ -1101,6 +1100,6 @@ xfs_buf_iodone(
 	 * Either way, AIL is useless if we're forcing a shutdown.
 	 */
 	spin_lock(&ailp->xa_lock);
-	xfs_trans_ail_delete(ailp, (xfs_log_item_t *)bip);
-	xfs_buf_item_free(bip);
+	xfs_trans_ail_delete(ailp, lip);
+	xfs_buf_item_free(BUF_ITEM(lip));
 }
