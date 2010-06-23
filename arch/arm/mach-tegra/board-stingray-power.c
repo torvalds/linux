@@ -17,6 +17,7 @@
  */
 
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
@@ -27,6 +28,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/max8649.h>
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
 #include <linux/spi/spi.h>
@@ -600,6 +602,38 @@ static struct spi_board_info stingray_spi_board_info[] __initdata = {
 	},
 };
 
+struct regulator_consumer_supply max8649_consumers[] = {
+	REGULATOR_CONSUMER("vdd_cpu", NULL /* cpu */),
+};
+
+struct regulator_init_data max8649_regulator_init_data[] = {
+	{
+		.constraints = {
+			.min_uV			= 750000,
+			.max_uV			= 1100000,
+			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
+			.always_on		= 1,
+		},
+		.num_consumer_supplies	= ARRAY_SIZE(max8649_consumers),
+		.consumer_supplies	= max8649_consumers,
+	},
+};
+
+struct max8649_platform_data stingray_max8649_pdata = {
+	.regulator = max8649_regulator_init_data,
+	.mode = 3,
+	.extclk = 0,
+	.ramp_timing = MAX8649_RAMP_32MV,
+	.ramp_down = 0,
+};
+
+static struct i2c_board_info __initdata stingray_i2c_bus4_power_info[] = {
+	{
+		I2C_BOARD_INFO("max8649", 0x60),
+		.platform_data = &stingray_max8649_pdata,
+	},
+};
+
 int __init stingray_power_init(void)
 {
 	int i;
@@ -623,6 +657,9 @@ int __init stingray_power_init(void)
 		cpcap_device_register(cpcap_devices[i]);
 
 	(void) cpcap_driver_register(&cpcap_validity_driver);
+
+	i2c_register_board_info(3, stingray_i2c_bus4_power_info,
+		ARRAY_SIZE(stingray_i2c_bus4_power_info));
 
 	return 0;
 }
