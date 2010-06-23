@@ -415,6 +415,35 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 }
 
 /**
+ *	ata_scsi_unlock_native_capacity - unlock native capacity
+ *	@sdev: SCSI device to adjust device capacity for
+ *
+ *	This function is called if a partition on @sdev extends beyond
+ *	the end of the device.  It requests EH to unlock HPA.
+ *
+ *	LOCKING:
+ *	Defined by the SCSI layer.  Might sleep.
+ */
+void ata_scsi_unlock_native_capacity(struct scsi_device *sdev)
+{
+	struct ata_port *ap = ata_shost_to_port(sdev->host);
+	struct ata_device *dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(ap->lock, flags);
+
+	dev = ata_scsi_find_dev(ap, sdev);
+	if (dev && dev->n_sectors < dev->n_native_sectors) {
+		dev->flags |= ATA_DFLAG_UNLOCK_HPA;
+		dev->link->eh_info.action |= ATA_EH_RESET;
+		ata_port_schedule_eh(ap);
+	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
+	ata_port_wait_eh(ap);
+}
+
+/**
  *	ata_get_identity - Handler for HDIO_GET_IDENTITY ioctl
  *	@ap: target port
  *	@sdev: SCSI device to get identify data for

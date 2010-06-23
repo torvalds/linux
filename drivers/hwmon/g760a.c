@@ -236,7 +236,6 @@ error_hwmon_device_register:
 	sysfs_remove_group(&client->dev.kobj, &g760a_group);
 error_sysfs_create_group:
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return err;
 }
@@ -247,7 +246,6 @@ static int g760a_remove(struct i2c_client *client)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &g760a_group);
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }

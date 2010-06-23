@@ -366,7 +366,7 @@ static int hdpvr_open(struct file *file)
 
 	dev = (struct hdpvr_device *)video_get_drvdata(video_devdata(file));
 	if (!dev) {
-		v4l2_err(&dev->v4l2_dev, "open failing with with ENODEV\n");
+		pr_err("open failing with with ENODEV\n");
 		retval = -ENODEV;
 		goto err;
 	}

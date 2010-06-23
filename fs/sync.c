@@ -42,7 +42,7 @@ static int __sync_filesystem(struct super_block *sb, int wait)
 	if (wait)
 		sync_inodes_sb(sb);
 	else
-		writeback_inodes_sb_locked(sb);
+		writeback_inodes_sb(sb);
 
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, wait);

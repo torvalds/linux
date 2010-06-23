@@ -1017,10 +1017,10 @@ static int mt9t112_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int mt9t112_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9t112_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(mt9t112_cfmts))
+	if (index >= ARRAY_SIZE(mt9t112_cfmts))
 		return -EINVAL;
 
 	*code = mt9t112_cfmts[index].code;
@@ -1119,7 +1119,6 @@ static int mt9t112_probe(struct i2c_client *client,
 	ret = mt9t112_camera_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -1132,7 +1131,6 @@ static int mt9t112_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

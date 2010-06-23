@@ -178,6 +178,25 @@ out:
 	pci_disable_rom(dev->pdev);
 }
 
+static void load_vbios_acpi(struct drm_device *dev, uint8_t *data)
+{
+	int i;
+	int ret;
+	int size = 64 * 1024;
+
+	if (!nouveau_acpi_rom_supported(dev->pdev))
+		return;
+
+	for (i = 0; i < (size / ROM_BIOS_PAGE); i++) {
+		ret = nouveau_acpi_get_bios_chunk(data,
+						  (i * ROM_BIOS_PAGE),
+						  ROM_BIOS_PAGE);
+		if (ret <= 0)
+			break;
+	}
+	return;
+}
+
 struct methods {
 	const char desc[8];
 	void (*loadbios)(struct drm_device *, uint8_t *);
@@ -191,6 +210,7 @@ static struct methods nv04_methods[] = {
 };
 
 static struct methods nv50_methods[] = {
+	{ "ACPI", load_vbios_acpi, true },
 	{ "PRAMIN", load_vbios_pramin, true },
 	{ "PROM", load_vbios_prom, false },
 	{ "PCIROM", load_vbios_pci, true },
@@ -2807,7 +2827,10 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 		BIOSLOG(bios, "0x%04X: Entry: 0x%08X\n", offset, gpio->entry);
 
-		nv50_gpio_set(bios->dev, gpio->tag, gpio->state_default);
+		BIOSLOG(bios, "0x%04X: set gpio 0x%02x, state %d\n",
+			offset, gpio->tag, gpio->state_default);
+		if (bios->execute)
+			nv50_gpio_set(bios->dev, gpio->tag, gpio->state_default);
 
 		/* The NVIDIA binary driver doesn't appear to actually do
 		 * any of this, my VBIOS does however.
@@ -5533,12 +5556,6 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	entry->bus = (conn >> 16) & 0xf;
 	entry->location = (conn >> 20) & 0x3;
 	entry->or = (conn >> 24) & 0xf;
-	/*
-	 * Normal entries consist of a single bit, but dual link has the
-	 * next most significant bit set too
-	 */
-	entry->duallink_possible =
-			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
 
 	switch (entry->type) {
 	case OUTPUT_ANALOG:
@@ -5620,6 +5637,16 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		return false;
 	default:
 		break;
+	}
+
+	if (dcb->version < 0x40) {
+		/* Normal entries consist of a single bit, but dual link has
+		 * the next most significant bit set too
+		 */
+		entry->duallink_possible =
+			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
+	} else {
+		entry->duallink_possible = (entry->sorconf.link == 3);
 	}
 
 	/* unsure what DCB version introduces this, 3.0? */
@@ -6205,6 +6232,30 @@ nouveau_bios_i2c_devices_takedown(struct drm_device *dev)
 		nouveau_i2c_fini(dev, entry);
 }
 
+static bool
+nouveau_bios_posted(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	bool was_locked;
+	unsigned htotal;
+
+	if (dev_priv->chipset >= NV_50) {
+		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
+		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
+			return false;
+		return true;
+	}
+
+	was_locked = NVLockVgaCrtcs(dev, false);
+	htotal  = NVReadVgaCrtc(dev, 0, 0x06);
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x01) << 8;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x20) << 4;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x25) & 0x01) << 10;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x41) & 0x01) << 11;
+	NVLockVgaCrtcs(dev, was_locked);
+	return (htotal != 0);
+}
+
 int
 nouveau_bios_init(struct drm_device *dev)
 {
@@ -6239,11 +6290,9 @@ nouveau_bios_init(struct drm_device *dev)
 	bios->execute = false;
 
 	/* ... unless card isn't POSTed already */
-	if (dev_priv->card_type >= NV_10 &&
-	    NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
-	    NVReadVgaCrtc(dev, 0, 0x1a) == 0) {
+	if (!nouveau_bios_posted(dev)) {
 		NV_INFO(dev, "Adaptor not initialised\n");
-		if (dev_priv->card_type < NV_50) {
+		if (dev_priv->card_type < NV_40) {
 			NV_ERROR(dev, "Unable to POST this chipset\n");
 			return -ENODEV;
 		}

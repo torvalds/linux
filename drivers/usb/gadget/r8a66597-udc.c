@@ -1500,7 +1500,7 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
 
 	del_timer_sync(&r8a66597->timer);
-	iounmap((void *)r8a66597->reg);
+	iounmap(r8a66597->reg);
 	free_irq(platform_get_irq(pdev, 0), r8a66597);
 	r8a66597_free_request(&r8a66597->ep[0].ep, r8a66597->ep0_req);
 #ifdef CONFIG_HAVE_CLK
@@ -1578,7 +1578,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	init_timer(&r8a66597->timer);
 	r8a66597->timer.function = r8a66597_timer;
 	r8a66597->timer.data = (unsigned long)r8a66597;
-	r8a66597->reg = (unsigned long)reg;
+	r8a66597->reg = reg;
 
 #ifdef CONFIG_HAVE_CLK
 	if (r8a66597->pdata->on_chip) {

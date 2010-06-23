@@ -550,7 +550,7 @@ static void leo_unmap_regs(struct of_device *op, struct fb_info *info,
 static int __devinit leo_probe(struct of_device *op,
 			       const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct leo_par *par;
 	int linebytes, err;

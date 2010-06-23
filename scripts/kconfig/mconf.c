@@ -67,12 +67,14 @@ static const char mconf_readme[] = N_(
 "             there is a delayed response which you may find annoying.\n"
 "\n"
 "   Also, the <TAB> and cursor keys will cycle between <Select>,\n"
-"   <Exit> and <Help>\n"
+"   <Exit> and <Help>.\n"
 "\n"
 "o  To get help with an item, use the cursor keys to highlight <Help>\n"
-"   and Press <ENTER>.\n"
+"   and press <ENTER>.\n"
 "\n"
 "   Shortcut: Press <H> or <?>.\n"
+"\n"
+"o  To show hidden options, press <Z>.\n"
 "\n"
 "\n"
 "Radiolists  (Choice lists)\n"
@@ -272,6 +274,7 @@ static int indent;
 static struct menu *current_menu;
 static int child_count;
 static int single_menu_mode;
+static int show_all_options;
 
 static void conf(struct menu *menu);
 static void conf_choice(struct menu *menu);
@@ -281,19 +284,6 @@ static void conf_save(void);
 static void show_textbox(const char *title, const char *text, int r, int c);
 static void show_helptext(const char *title, const char *text);
 static void show_help(struct menu *menu);
-
-static struct gstr get_relations_str(struct symbol **sym_arr)
-{
-	struct symbol *sym;
-	struct gstr res = str_new();
-	int i;
-
-	for (i = 0; sym_arr && (sym = sym_arr[i]); i++)
-		get_symbol_str(&res, sym);
-	if (!i)
-		str_append(&res, _("No matches found.\n"));
-	return res;
-}
 
 static char filename[PATH_MAX+1];
 static void set_config_filename(const char *config_filename)
@@ -359,8 +349,16 @@ static void build_conf(struct menu *menu)
 	int type, tmp, doint = 2;
 	tristate val;
 	char ch;
+	bool visible;
 
-	if (!menu_is_visible(menu))
+	/*
+	 * note: menu_is_visible() has side effect that it will
+	 * recalc the value of the symbol.
+	 */
+	visible = menu_is_visible(menu);
+	if (show_all_options && !menu_has_prompt(menu))
+		return;
+	else if (!show_all_options && !visible)
 		return;
 
 	sym = menu->sym;
@@ -619,6 +617,9 @@ static void conf(struct menu *menu)
 		case 7:
 			search_conf();
 			break;
+		case 8:
+			show_all_options = !show_all_options;
+			break;
 		}
 	}
 }
@@ -638,6 +639,7 @@ static void show_help(struct menu *menu)
 {
 	struct gstr help = str_new();
 
+	help.max_width = getmaxx(stdscr) - 10;
 	menu_get_ext_help(menu, &help);
 
 	show_helptext(_(menu_get_prompt(menu)), str_get(&help));

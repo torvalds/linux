@@ -2153,6 +2153,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 		return 0;
 	}
 
+	skb_dst_force(skb);
 	dst = skb_dst(skb);
 
 	res = xfrm_lookup(net, &dst, &fl, NULL, 0) == 0;

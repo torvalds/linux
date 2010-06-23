@@ -2005,8 +2005,11 @@ static struct of_device_id pmz_match[] =
 MODULE_DEVICE_TABLE (of, pmz_match);
 
 static struct macio_driver pmz_driver = {
-	.name 		= "pmac_zilog",
-	.match_table	= pmz_match,
+	.driver = {
+		.name 		= "pmac_zilog",
+		.owner		= THIS_MODULE,
+		.of_match_table	= pmz_match,
+	},
 	.probe		= pmz_attach,
 	.remove		= pmz_detach,
 	.suspend	= pmz_suspend,

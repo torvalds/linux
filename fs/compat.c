@@ -626,7 +626,7 @@ ssize_t compat_rw_copy_check_uvector(int type,
 		tot_len += len;
 		if (tot_len < tmp) /* maths overflow on the compat_ssize_t */
 			goto out;
-		if (!access_ok(vrfy_dir(type), buf, len)) {
+		if (!access_ok(vrfy_dir(type), compat_ptr(buf), len)) {
 			ret = -EFAULT;
 			goto out;
 		}

@@ -32,6 +32,7 @@
 
 #include "i915_reg.h"
 #include "intel_bios.h"
+#include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 
 /* General customization:
@@ -54,6 +55,8 @@ enum plane {
 };
 
 #define I915_NUM_PIPE	2
+
+#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
 
 /* Interface history:
  *
@@ -88,16 +91,6 @@ struct drm_i915_gem_phys_object {
 	drm_dma_handle_t *handle;
 	struct drm_gem_object *cur_obj;
 };
-
-typedef struct _drm_i915_ring_buffer {
-	unsigned long Size;
-	u8 *virtual_start;
-	int head;
-	int tail;
-	int space;
-	drm_local_map_t map;
-	struct drm_gem_object *ring_obj;
-} drm_i915_ring_buffer_t;
 
 struct mem_block {
 	struct mem_block *next;
@@ -241,17 +234,15 @@ typedef struct drm_i915_private {
 	void __iomem *regs;
 
 	struct pci_dev *bridge_dev;
-	drm_i915_ring_buffer_t ring;
+	struct intel_ring_buffer render_ring;
+	struct intel_ring_buffer bsd_ring;
 
 	drm_dma_handle_t *status_page_dmah;
-	void *hw_status_page;
 	void *seqno_page;
 	dma_addr_t dma_status_page;
 	uint32_t counter;
-	unsigned int status_gfx_addr;
 	unsigned int seqno_gfx_addr;
 	drm_local_map_t hws_map;
-	struct drm_gem_object *hws_obj;
 	struct drm_gem_object *seqno_obj;
 	struct drm_gem_object *pwrctx;
 
@@ -267,8 +258,6 @@ typedef struct drm_i915_private {
 	atomic_t irq_received;
 	/** Protects user_irq_refcount and irq_mask_reg */
 	spinlock_t user_irq_lock;
-	/** Refcount for i915_user_irq_get() versus i915_user_irq_put(). */
-	int user_irq_refcount;
 	u32 trace_irq_seqno;
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
@@ -334,7 +323,7 @@ typedef struct drm_i915_private {
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
 
-	unsigned int fsb_freq, mem_freq;
+	unsigned int fsb_freq, mem_freq, is_ddr3;
 
 	spinlock_t error_lock;
 	struct drm_i915_error_state *first_error;
@@ -514,18 +503,7 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head shrink_list;
 
-		/**
-		 * List of objects currently involved in rendering from the
-		 * ringbuffer.
-		 *
-		 * Includes buffers having the contents of their GPU caches
-		 * flushed, not necessarily primitives.  last_rendering_seqno
-		 * represents when the rendering involved will be completed.
-		 *
-		 * A reference is held on the buffer while on this list.
-		 */
 		spinlock_t active_list_lock;
-		struct list_head active_list;
 
 		/**
 		 * List of objects which are not in the ringbuffer but which
@@ -561,12 +539,6 @@ typedef struct drm_i915_private {
 
 		/** LRU list of objects with fence regs on them. */
 		struct list_head fence_list;
-
-		/**
-		 * List of breadcrumbs associated with GPU requests currently
-		 * outstanding.
-		 */
-		struct list_head request_list;
 
 		/**
 		 * We leave the user IRQ off as much as possible,
@@ -644,6 +616,18 @@ typedef struct drm_i915_private {
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
+	u8 fmax;
+	u8 fstart;
+
+ 	u64 last_count1;
+ 	unsigned long last_time1;
+ 	u64 last_count2;
+ 	struct timespec last_time2;
+ 	unsigned long gfx_power;
+ 	int c_m;
+ 	int r_t;
+ 	u8 corr;
+	spinlock_t *mchdev_lock;
 
 	enum no_fbc_reason no_fbc_reason;
 
@@ -671,19 +655,64 @@ struct drm_i915_gem_object {
 	 * (has pending rendering), and is not set if it's on inactive (ready
 	 * to be unbound).
 	 */
-	int active;
+	unsigned int active : 1;
 
 	/**
 	 * This is set if the object has been written to since last bound
 	 * to the GTT
 	 */
-	int dirty;
+	unsigned int dirty : 1;
+
+	/**
+	 * Fence register bits (if any) for this object.  Will be set
+	 * as needed when mapped into the GTT.
+	 * Protected by dev->struct_mutex.
+	 *
+	 * Size: 4 bits for 16 fences + sign (for FENCE_REG_NONE)
+	 */
+	int fence_reg : 5;
+
+	/**
+	 * Used for checking the object doesn't appear more than once
+	 * in an execbuffer object list.
+	 */
+	unsigned int in_execbuffer : 1;
+
+	/**
+	 * Advice: are the backing pages purgeable?
+	 */
+	unsigned int madv : 2;
+
+	/**
+	 * Refcount for the pages array. With the current locking scheme, there
+	 * are at most two concurrent users: Binding a bo to the gtt and
+	 * pwrite/pread using physical addresses. So two bits for a maximum
+	 * of two users are enough.
+	 */
+	unsigned int pages_refcount : 2;
+#define DRM_I915_GEM_OBJECT_MAX_PAGES_REFCOUNT 0x3
+
+	/**
+	 * Current tiling mode for the object.
+	 */
+	unsigned int tiling_mode : 2;
+
+	/** How many users have pinned this object in GTT space. The following
+	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
+	 * (via user_pin_count), execbuffer (objects are not allowed multiple
+	 * times for the same batchbuffer), and the framebuffer code. When
+	 * switching/pageflipping, the framebuffer code has at most two buffers
+	 * pinned per crtc.
+	 *
+	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
+	 * bits with absolutely no headroom. So use 4 bits. */
+	int pin_count : 4;
+#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 
 	/** AGP memory structure for our GTT binding. */
 	DRM_AGP_MEM *agp_mem;
 
 	struct page **pages;
-	int pages_refcount;
 
 	/**
 	 * Current offset of the object in GTT space.
@@ -692,26 +721,18 @@ struct drm_i915_gem_object {
 	 */
 	uint32_t gtt_offset;
 
+	/* Which ring is refering to is this object */
+	struct intel_ring_buffer *ring;
+
 	/**
 	 * Fake offset for use by mmap(2)
 	 */
 	uint64_t mmap_offset;
 
-	/**
-	 * Fence register bits (if any) for this object.  Will be set
-	 * as needed when mapped into the GTT.
-	 * Protected by dev->struct_mutex.
-	 */
-	int fence_reg;
-
-	/** How many users have pinned this object in GTT space */
-	int pin_count;
-
 	/** Breadcrumb of last rendering to the buffer. */
 	uint32_t last_rendering_seqno;
 
-	/** Current tiling mode for the object. */
-	uint32_t tiling_mode;
+	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
 
 	/** Record of address bit 17 of each page at last unbind. */
@@ -734,17 +755,6 @@ struct drm_i915_gem_object {
 	struct drm_i915_gem_phys_object *phys_obj;
 
 	/**
-	 * Used for checking the object doesn't appear more than once
-	 * in an execbuffer object list.
-	 */
-	int in_execbuffer;
-
-	/**
-	 * Advice: are the backing pages purgeable?
-	 */
-	int madv;
-
-	/**
 	 * Number of crtcs where this object is currently the fb, but
 	 * will be page flipped away on the next vblank.  When it
 	 * reaches 0, dev_priv->pending_flip_queue will be woken up.
@@ -765,6 +775,9 @@ struct drm_i915_gem_object {
  * an emission time with seqnos for tracking how far ahead of the GPU we are.
  */
 struct drm_i915_gem_request {
+	/** On Which ring this request was generated */
+	struct intel_ring_buffer *ring;
+
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
@@ -821,6 +834,11 @@ extern int i915_emit_box(struct drm_device *dev,
 			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
 extern int i965_reset(struct drm_device *dev, u8 flags);
+extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
+extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
+extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
+extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
+
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
@@ -829,9 +847,7 @@ extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-void i915_user_irq_get(struct drm_device *dev);
 void i915_trace_irq_get(struct drm_device *dev, u32 seqno);
-void i915_user_irq_put(struct drm_device *dev);
 extern void i915_enable_interrupt (struct drm_device *dev);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
@@ -849,6 +865,11 @@ extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
+extern void i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask);
+extern void ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv,
+		u32 mask);
+extern void ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv,
+		u32 mask);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
@@ -922,11 +943,13 @@ void i915_gem_object_unpin(struct drm_gem_object *obj);
 int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_release_mmap(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
-uint32_t i915_get_gem_seqno(struct drm_device *dev);
+uint32_t i915_get_gem_seqno(struct drm_device *dev,
+		struct intel_ring_buffer *ring);
 bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 int i915_gem_object_put_fence_reg(struct drm_gem_object *obj);
-void i915_gem_retire_requests(struct drm_device *dev);
+void i915_gem_retire_requests(struct drm_device *dev,
+		 struct intel_ring_buffer *ring);
 void i915_gem_retire_work_handler(struct work_struct *work);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
 int i915_gem_object_set_domain(struct drm_gem_object *obj,
@@ -937,9 +960,13 @@ void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
 int i915_gem_idle(struct drm_device *dev);
-uint32_t i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
-			  uint32_t flush_domains);
-int i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible);
+uint32_t i915_add_request(struct drm_device *dev,
+		struct drm_file *file_priv,
+		uint32_t flush_domains,
+		struct intel_ring_buffer *ring);
+int i915_do_wait_request(struct drm_device *dev,
+		uint32_t seqno, int interruptible,
+		struct intel_ring_buffer *ring);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
@@ -1015,7 +1042,7 @@ extern void g4x_disable_fbc(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern bool intel_fbc_enabled(struct drm_device *dev);
-
+extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch (struct drm_device *dev);
 extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 
@@ -1026,7 +1053,8 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
  * has access to the ring.
  */
 #define RING_LOCK_TEST_WITH_RETURN(dev, file_priv) do {			\
-	if (((drm_i915_private_t *)dev->dev_private)->ring.ring_obj == NULL) \
+	if (((drm_i915_private_t *)dev->dev_private)->render_ring.gem_object \
+			== NULL)					\
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
@@ -1039,35 +1067,31 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 #define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
 #define I915_READ64(reg)	readq(dev_priv->regs + (reg))
 #define POSTING_READ(reg)	(void)I915_READ(reg)
+#define POSTING_READ16(reg)	(void)I915_READ16(reg)
 
 #define I915_VERBOSE 0
 
-#define RING_LOCALS	volatile unsigned int *ring_virt__;
-
-#define BEGIN_LP_RING(n) do {						\
-	int bytes__ = 4*(n);						\
-	if (I915_VERBOSE) DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
-	/* a wrap must occur between instructions so pad beforehand */	\
-	if (unlikely (dev_priv->ring.tail + bytes__ > dev_priv->ring.Size)) \
-		i915_wrap_ring(dev);					\
-	if (unlikely (dev_priv->ring.space < bytes__))			\
-		i915_wait_ring(dev, bytes__, __func__);			\
-	ring_virt__ = (unsigned int *)					\
-	        (dev_priv->ring.virtual_start + dev_priv->ring.tail);	\
-	dev_priv->ring.tail += bytes__;					\
-	dev_priv->ring.tail &= dev_priv->ring.Size - 1;			\
-	dev_priv->ring.space -= bytes__;				\
+#define BEGIN_LP_RING(n)  do { \
+	drm_i915_private_t *dev_priv = dev->dev_private;                \
+	if (I915_VERBOSE)						\
+		DRM_DEBUG("   BEGIN_LP_RING %x\n", (int)(n));		\
+	intel_ring_begin(dev, &dev_priv->render_ring, 4*(n));		\
 } while (0)
 
-#define OUT_RING(n) do {						\
-	if (I915_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
-	*ring_virt__++ = (n);						\
+
+#define OUT_RING(x) do {						\
+	drm_i915_private_t *dev_priv = dev->dev_private;		\
+	if (I915_VERBOSE)						\
+		DRM_DEBUG("   OUT_RING %x\n", (int)(x));		\
+	intel_ring_emit(dev, &dev_priv->render_ring, x);		\
 } while (0)
 
 #define ADVANCE_LP_RING() do {						\
+	drm_i915_private_t *dev_priv = dev->dev_private;                \
 	if (I915_VERBOSE)						\
-		DRM_DEBUG("ADVANCE_LP_RING %x\n", dev_priv->ring.tail);	\
-	I915_WRITE(PRB0_TAIL, dev_priv->ring.tail);			\
+		DRM_DEBUG("ADVANCE_LP_RING %x\n",			\
+				dev_priv->render_ring.tail);		\
+	intel_ring_advance(dev, &dev_priv->render_ring);		\
 } while(0)
 
 /**
@@ -1085,13 +1109,11 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
  *
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
-#define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
+#define READ_HWSP(dev_priv, reg)  (((volatile u32 *)\
+			(dev_priv->render_ring.status_page.page_addr))[reg])
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
 #define I915_BREADCRUMB_INDEX		0x21
-
-extern int i915_wrap_ring(struct drm_device * dev);
-extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
 
@@ -1138,6 +1160,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 			 (dev)->pci_device == 0x2A42 ||		\
 			 (dev)->pci_device == 0x2E42)
 
+#define HAS_BSD(dev)            (IS_IRONLAKE(dev) || IS_G4X(dev))
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte

@@ -48,7 +48,7 @@
 #define TM6000_MIN_BUF 4
 #define TM6000_DEF_BUF 8
 
-#define TM6000_MAX_ISO_PACKETS	40	/* Max number of ISO packets */
+#define TM6000_MAX_ISO_PACKETS	46	/* Max number of ISO packets */
 
 /* Declare static vars that will be used as parameters */
 static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
@@ -205,7 +205,11 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 		c = (header >> 24) & 0xff;
 
 		/* split the header fields */
-		size  = (((header & 0x7e) << 1) -1) *4;
+		size  = ((header & 0x7e) << 1);
+
+		if (size > 0)
+			size -= 4;
+
 		block = (header >> 7) & 0xf;
 		field = (header >> 11) & 0x1;
 		line  = (header >> 12) & 0x1ff;
@@ -307,9 +311,11 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 		case TM6000_URB_MSG_PTS:
 			break;
 		case TM6000_URB_MSG_AUDIO:
-/* Need some code to process audio */
-printk ("%ld: cmd=%s, size=%d\n", jiffies,
+			/* Need some code to process audio */
+			printk ("%ld: cmd=%s, size=%d\n", jiffies,
 				tm6000_msg_type[cmd],size);
+			break;
+		case TM6000_URB_MSG_VBI:
 			break;
 		default:
 			dprintk (dev, V4L2_DEBUG_ISOC, "cmd=%s, size=%d\n",
@@ -333,14 +339,23 @@ printk ("%ld: cmd=%s, size=%d\n", jiffies,
 	return rc;
 }
 
-static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
-			struct urb *urb, struct tm6000_buffer **buf)
+static int copy_streams(u8 *data, unsigned long len,
+			struct urb *urb)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
 	u8 *ptr=data, *endp=data+len;
 	unsigned long header=0;
 	int rc=0;
+	struct tm6000_buffer *buf;
+	char *outp = NULL;
+
+	get_next_buf(dma_q, &buf);
+	if (buf)
+		outp = videobuf_to_vmalloc(&buf->vb);
+
+	if (!outp)
+		return 0;
 
 	for (ptr=data; ptr<endp;) {
 		if (!dev->isoc_ctl.cmd) {
@@ -388,14 +403,14 @@ static int copy_streams(u8 *data, u8 *out_p, unsigned long len,
 		}
 HEADER:
 		/* Copy or continue last copy */
-		rc=copy_packet(urb,header,&ptr,endp,out_p,buf);
+		rc=copy_packet(urb,header,&ptr,endp,outp,&buf);
 		if (rc<0) {
 			buf=NULL;
 			printk(KERN_ERR "tm6000: buffer underrun at %ld\n",
 					jiffies);
 			return rc;
 		}
-		if (!*buf)
+		if (!buf)
 			return 0;
 	}
 
@@ -404,31 +419,40 @@ HEADER:
 /*
  * Identify the tm5600/6000 buffer header type and properly handles
  */
-static int copy_multiplexed(u8 *ptr, u8 *out_p, unsigned long len,
-			struct urb *urb, struct tm6000_buffer **buf)
+static int copy_multiplexed(u8 *ptr, unsigned long len,
+			struct urb *urb)
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
 	unsigned int pos=dev->isoc_ctl.pos,cpysize;
 	int rc=1;
+	struct tm6000_buffer *buf;
+	char *outp = NULL;
+
+	get_next_buf(dma_q, &buf);
+	if (buf)
+		outp = videobuf_to_vmalloc(&buf->vb);
+
+	if (!outp)
+		return 0;
 
 	while (len>0) {
-		cpysize=min(len,(*buf)->vb.size-pos);
-//printk("Copying %d bytes (max=%lu) from %p to %p[%u]\n",cpysize,(*buf)->vb.size,ptr,out_p,pos);
-		memcpy(&out_p[pos], ptr, cpysize);
+		cpysize=min(len,buf->vb.size-pos);
+		//printk("Copying %d bytes (max=%lu) from %p to %p[%u]\n",cpysize,(*buf)->vb.size,ptr,out_p,pos);
+		memcpy(&outp[pos], ptr, cpysize);
 		pos+=cpysize;
 		ptr+=cpysize;
 		len-=cpysize;
-		if (pos >= (*buf)->vb.size) {
+		if (pos >= buf->vb.size) {
 			pos=0;
 			/* Announces that a new buffer were filled */
-			buffer_filled (dev, dma_q, *buf);
+			buffer_filled (dev, dma_q, buf);
 			dprintk(dev, V4L2_DEBUG_ISOC, "new buffer filled\n");
-			get_next_buf (dma_q, buf);
-			if (!*buf)
+			get_next_buf (dma_q, &buf);
+			if (!buf)
 				break;
-			out_p = videobuf_to_vmalloc(&((*buf)->vb));
-			if (!out_p)
+			outp = videobuf_to_vmalloc(&(buf->vb));
+			if (!outp)
 				return rc;
 			pos = 0;
 		}
@@ -487,52 +511,36 @@ static inline int tm6000_isoc_copy(struct urb *urb)
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev= container_of(dma_q,struct tm6000_core,vidq);
 	struct tm6000_buffer *buf;
-	int i, len=0, rc=1;
-	int size;
-	char *outp = NULL, *p;
-	unsigned long copied;
+	int i, len=0, rc=1, status;
+	char *p;
 
-	get_next_buf(dma_q, &buf);
-	if (buf)
-		outp = videobuf_to_vmalloc(&buf->vb);
-
-	if (!outp)
-		return 0;
-
-	size = buf->vb.size;
-
-	copied=0;
-
-	if (urb->status<0) {
-		print_err_status (dev,-1,urb->status);
+	if (urb->status < 0) {
+		print_err_status (dev, -1, urb->status);
 		return 0;
 	}
 
 	for (i = 0; i < urb->number_of_packets; i++) {
-		int status = urb->iso_frame_desc[i].status;
+		status = urb->iso_frame_desc[i].status;
 
 		if (status<0) {
 			print_err_status (dev,i,status);
 			continue;
 		}
 
-		len=urb->iso_frame_desc[i].actual_length;
+		len = urb->iso_frame_desc[i].actual_length;
 
-//		if (len>=TM6000_URB_MSG_LEN) {
-			p=urb->transfer_buffer + urb->iso_frame_desc[i].offset;
+		if (len > 0) {
+			p = urb->transfer_buffer + urb->iso_frame_desc[i].offset;
 			if (!urb->iso_frame_desc[i].status) {
-				if ((buf->fmt->fourcc)==V4L2_PIX_FMT_TM6000) {
-					rc=copy_multiplexed(p, outp, len, urb, &buf);
+				if ((dev->fourcc)==V4L2_PIX_FMT_TM6000) {
+					rc=copy_multiplexed(p, len, urb);
 					if (rc<=0)
 						return rc;
 				} else {
-					copy_streams(p, outp, len, urb, &buf);
+					copy_streams(p, len, urb);
 				}
 			}
-			copied += len;
-			if (copied >= size || !buf)
-				break;
-//		}
+		}
 	}
 	return rc;
 }
@@ -612,7 +620,7 @@ static void tm6000_uninit_isoc(struct tm6000_core *dev)
 static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 {
 	struct tm6000_dmaqueue *dma_q = &dev->vidq;
-	int i, j, sb_size, pipe, size, max_packets, num_bufs = 5;
+	int i, j, sb_size, pipe, size, max_packets, num_bufs = 8;
 	struct urb *urb;
 
 	/* De-allocates all pending stuff */

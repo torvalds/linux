@@ -1328,6 +1328,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
 
 	/* For all other calls, take the device back to full power and
 	 * tell the PM core in case it was autosuspended previously.
+	 * Unbind the interfaces that will need rebinding later.
 	 */
 	} else {
 		status = usb_resume_both(udev, msg);
@@ -1336,6 +1337,7 @@ int usb_resume(struct device *dev, pm_message_t msg)
 			pm_runtime_set_active(dev);
 			pm_runtime_enable(dev);
 			udev->last_busy = jiffies;
+			do_unbind_rebind(udev, DO_REBIND);
 		}
 	}
 

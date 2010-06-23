@@ -542,10 +542,8 @@ static int qibfs_fill_super(struct super_block *sb, void *data, int silent)
 	list_for_each_entry_safe(dd, tmp, &qib_dev_list, list) {
 		spin_unlock_irqrestore(&qib_devs_lock, flags);
 		ret = add_cntr_files(sb, dd);
-		if (ret) {
-			deactivate_super(sb);
+		if (ret)
 			goto bail;
-		}
 		spin_lock_irqsave(&qib_devs_lock, flags);
 	}
 

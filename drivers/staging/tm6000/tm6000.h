@@ -168,6 +168,10 @@ struct tm6000_core {
 	struct i2c_adapter		i2c_adap;
 	struct i2c_client		i2c_client;
 
+
+	/* extension */
+	struct list_head		devlist;
+
 	/* video for linux */
 	int				users;
 
@@ -203,6 +207,16 @@ struct tm6000_core {
 	spinlock_t                   slock;
 };
 
+#define TM6000_AUDIO 0x10
+
+struct tm6000_ops {
+	struct list_head	next;
+	char			*name;
+	int			id;
+	int (*init)(struct tm6000_core *);
+	int (*fini)(struct tm6000_core *);
+};
+
 struct tm6000_fh {
 	struct tm6000_core           *dev;
 
@@ -232,6 +246,8 @@ int tm6000_get_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg32(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
+int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep);
+
 int tm6000_init (struct tm6000_core *dev);
 
 int tm6000_init_analog_mode (struct tm6000_core *dev);
@@ -245,6 +261,13 @@ int tm6000_v4l2_register(struct tm6000_core *dev);
 int tm6000_v4l2_unregister(struct tm6000_core *dev);
 int tm6000_v4l2_exit(void);
 void tm6000_set_fourcc_format(struct tm6000_core *dev);
+
+void tm6000_remove_from_devlist(struct tm6000_core *dev);
+void tm6000_add_into_devlist(struct tm6000_core *dev);
+int tm6000_register_extension(struct tm6000_ops *ops);
+void tm6000_unregister_extension(struct tm6000_ops *ops);
+void tm6000_init_extension(struct tm6000_core *dev);
+void tm6000_close_extension(struct tm6000_core *dev);
 
 /* In tm6000-stds.c */
 void tm6000_get_std_res(struct tm6000_core *dev);
@@ -275,7 +298,7 @@ unsigned int tm6000_v4l2_poll(struct file *file,
 int tm6000_queue_init(struct tm6000_core *dev);
 
 /* In tm6000-alsa.c */
-int tm6000_audio_init(struct tm6000_core *dev, int idx);
+/*int tm6000_audio_init(struct tm6000_core *dev, int idx);*/
 
 
 /* Debug stuff */

@@ -190,26 +190,40 @@
 		  </child>
 
 		  <child>
-		    <widget class="GtkCheckMenuItem" id="show_all_options1">
+		    <widget class="GtkRadioMenuItem" id="set_option_mode1">
+		      <property name="visible">True</property>
+		      <property name="tooltip" translatable="yes">Show normal options</property>
+		      <property name="label" translatable="yes">Show normal options</property>
+		      <property name="use_underline">True</property>
+		      <property name="active">True</property>
+		      <signal name="activate" handler="on_set_option_mode1_activate"/>
+		    </widget>
+		  </child>
+
+		  <child>
+		    <widget class="GtkRadioMenuItem" id="set_option_mode2">
 		      <property name="visible">True</property>
 		      <property name="tooltip" translatable="yes">Show all options</property>
 		      <property name="label" translatable="yes">Show all _options</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
-		      <signal name="activate" handler="on_show_all_options1_activate"/>
+		      <property name="group">set_option_mode1</property>
+		      <signal name="activate" handler="on_set_option_mode2_activate"/>
 		    </widget>
 		  </child>
 
 		  <child>
-		    <widget class="GtkCheckMenuItem" id="show_debug_info1">
+		    <widget class="GtkRadioMenuItem" id="set_option_mode3">
 		      <property name="visible">True</property>
-		      <property name="tooltip" translatable="yes">Show masked options</property>
-		      <property name="label" translatable="yes">Show _debug info</property>
+		      <property name="tooltip" translatable="yes">Show all options with prompts</property>
+		      <property name="label" translatable="yes">Show all prompt options</property>
 		      <property name="use_underline">True</property>
 		      <property name="active">False</property>
-		      <signal name="activate" handler="on_show_debug_info1_activate"/>
+		      <property name="group">set_option_mode1</property>
+		      <signal name="activate" handler="on_set_option_mode3_activate"/>
 		    </widget>
 		  </child>
+
 		</widget>
 	      </child>
 	    </widget>

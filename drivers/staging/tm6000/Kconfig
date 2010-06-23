@@ -2,7 +2,8 @@ config VIDEO_TM6000
 	tristate "TV Master TM5600/6000/6010 driver"
 	depends on VIDEO_DEV && I2C && INPUT && USB && EXPERIMENTAL
 	select VIDEO_TUNER
-	select TUNER_XC2028
+	select MEDIA_TUNER_XC2028
+	select MEDIA_TUNER_XC5000
 	select VIDEOBUF_VMALLOC
 	help
 	  Support for TM5600/TM6000/TM6010 USB Device

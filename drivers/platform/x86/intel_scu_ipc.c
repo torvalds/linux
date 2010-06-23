@@ -524,7 +524,7 @@ int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
 	for (i = 0; i < inlen; i++)
 		ipc_data_writel(*in++, 4 * i);
 
-	ipc_command(cmd << 12 | sub);
+	ipc_command((cmd << 12) | sub | (inlen << 18));
 	err = busy_loop();
 
 	for (i = 0; i < outlen; i++)
