@@ -28,7 +28,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
@@ -289,20 +288,8 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mxc_w1_master_device,
 };
 
-static struct imxuart_platform_data uart_pdata[] = {
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static void __init mx27ads_board_init(void)
@@ -310,12 +297,12 @@ static void __init mx27ads_board_init(void)
 	mxc_gpio_setup_multiple_pins(mx27ads_pins, ARRAY_SIZE(mx27ads_pins),
 			"mx27ads");
 
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
-	mxc_register_device(&imx2x_uart_device1, &uart_pdata[1]);
-	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
-	mxc_register_device(&imx2x_uart_device3, &uart_pdata[3]);
-	mxc_register_device(&imx2x_uart_device4, &uart_pdata[4]);
-	mxc_register_device(&imx2x_uart_device5, &uart_pdata[5]);
+	imx27_add_imx_uart0(&uart_pdata);
+	imx27_add_imx_uart1(&uart_pdata);
+	imx27_add_imx_uart2(&uart_pdata);
+	imx27_add_imx_uart3(&uart_pdata);
+	imx27_add_imx_uart4(&uart_pdata);
+	imx27_add_imx_uart5(&uart_pdata);
 	imx27_add_mxc_nand(&mx27ads_nand_board_info);
 
 	/* only the i2c master 1 is used on this CPU card */

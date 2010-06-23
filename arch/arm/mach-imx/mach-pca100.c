@@ -37,7 +37,6 @@
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
 #include <asm/mach/time.h>
-#include <mach/imx-uart.h>
 #include <mach/audmux.h>
 #include <mach/ssi.h>
 #include <mach/mxc_nand.h>
@@ -130,7 +129,7 @@ static int pca100_pins[] = {
 	PD26_AF_USBH2_DATA5,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -318,7 +317,7 @@ static void __init pca100_init(void)
 
 	mxc_register_device(&imx_ssi_device0, &pca100_ssi_pdata);
 
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
+	imx27_add_imx_uart0(&uart_pdata);
 
 	mxc_gpio_mode(GPIO_PORTC | 29 | GPIO_GPIO | GPIO_IN);
 	mxc_register_device(&mxc_sdhc_device1, &sdhc_pdata);

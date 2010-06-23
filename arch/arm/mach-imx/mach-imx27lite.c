@@ -22,9 +22,9 @@
 #include <asm/mach/map.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
 
+#include "devices-imx27.h"
 #include "devices.h"
 
 static unsigned int mx27lite_pins[] = {
@@ -54,7 +54,7 @@ static unsigned int mx27lite_pins[] = {
 	PF23_AIN_FEC_TX_EN,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -66,7 +66,7 @@ static void __init mx27lite_init(void)
 {
 	mxc_gpio_setup_multiple_pins(mx27lite_pins, ARRAY_SIZE(mx27lite_pins),
 		"imx27lite");
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata);
+	imx27_add_imx_uart0(&uart_pdata);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
 

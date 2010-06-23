@@ -28,7 +28,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 #include <linux/gpio.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
 #include <mach/mxc_nand.h>
 #include <linux/i2c/pca953x.h>
@@ -236,14 +235,8 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mxc_fec_device,
 };
 
-static struct imxuart_platform_data uart_pdata[] = {
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static void __init mxt_td60_board_init(void)
@@ -251,9 +244,9 @@ static void __init mxt_td60_board_init(void)
 	mxc_gpio_setup_multiple_pins(mxt_td60_pins, ARRAY_SIZE(mxt_td60_pins),
 			"MXT_TD60");
 
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
-	mxc_register_device(&imx2x_uart_device1, &uart_pdata[1]);
-	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
+	imx27_add_imx_uart0(&uart_pdata);
+	imx27_add_imx_uart1(&uart_pdata);
+	imx27_add_imx_uart2(&uart_pdata);
 	imx27_add_mxc_nand(&mxt_td60_nand_board_info);
 
 	i2c_register_board_info(0, mxt_td60_i2c_devices,

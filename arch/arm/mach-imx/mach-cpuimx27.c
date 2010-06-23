@@ -36,7 +36,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
-#include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
 
 #include "devices-imx27.h"
@@ -111,12 +110,8 @@ static struct platform_device eukrea_cpuimx27_nor_mtd_device = {
 	.resource = &eukrea_cpuimx27_flash_resource,
 };
 
-static struct imxuart_platform_data uart_pdata[] = {
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static const struct mxc_nand_platform_data
@@ -188,7 +183,7 @@ static void __init eukrea_cpuimx27_init(void)
 	mxc_gpio_setup_multiple_pins(eukrea_cpuimx27_pins,
 		ARRAY_SIZE(eukrea_cpuimx27_pins), "CPUIMX27");
 
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
+	imx27_add_imx_uart0(&uart_pdata);
 
 	imx27_add_mxc_nand(&cpuimx27_nand_board_info);
 
@@ -203,7 +198,7 @@ static void __init eukrea_cpuimx27_init(void)
 	/* SDHC2 can be used for Wifi */
 	mxc_register_device(&mxc_sdhc_device1, NULL);
 	/* in which case UART4 is also used for Bluetooth */
-	mxc_register_device(&imx2x_uart_device3, &uart_pdata[1]);
+	imx27_add_imx_uart3(&uart_pdata);
 #endif
 
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)

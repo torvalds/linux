@@ -36,7 +36,6 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx27.h>
-#include <mach/imx-uart.h>
 #include <mach/mxc_nand.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
@@ -161,14 +160,8 @@ static struct platform_device pcm038_nor_mtd_device = {
 	.resource = &pcm038_flash_resource,
 };
 
-static struct imxuart_platform_data uart_pdata[] = {
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	}, {
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 static const struct mxc_nand_platform_data
@@ -305,9 +298,9 @@ static void __init pcm038_init(void)
 
 	pcm038_init_sram();
 
-	mxc_register_device(&imx2x_uart_device0, &uart_pdata[0]);
-	mxc_register_device(&imx2x_uart_device1, &uart_pdata[1]);
-	mxc_register_device(&imx2x_uart_device2, &uart_pdata[2]);
+	imx27_add_imx_uart0(&uart_pdata);
+	imx27_add_imx_uart1(&uart_pdata);
+	imx27_add_imx_uart2(&uart_pdata);
 
 	mxc_gpio_mode(PE16_AF_OWIRE);
 	imx27_add_mxc_nand(&pcm038_nand_board_info);

@@ -32,7 +32,6 @@
 #include <mach/imxfb.h>
 #include <mach/hardware.h>
 #include <mach/mmc.h>
-#include <mach/imx-uart.h>
 
 #include "devices-imx27.h"
 #include "devices.h"
@@ -154,13 +153,8 @@ static struct imx_fb_platform_data eukrea_mbimx27_fb_data = {
 	.dmacr		= 0x00040060,
 };
 
-static struct imxuart_platform_data uart_pdata[] = {
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
-	{
-		.flags = IMXUART_HAVE_RTSCTS,
-	},
+static const struct imxuart_platform_data uart_pdata __initconst = {
+	.flags = IMXUART_HAVE_RTSCTS,
 };
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846)
@@ -223,8 +217,8 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	mxc_gpio_setup_multiple_pins(eukrea_mbimx27_pins,
 		ARRAY_SIZE(eukrea_mbimx27_pins), "MBIMX27");
 
-	mxc_register_device(&imx2x_uart_device1, &uart_pdata[0]);
-	mxc_register_device(&imx2x_uart_device2, &uart_pdata[1]);
+	imx27_add_imx_uart1(&uart_pdata);
+	imx27_add_imx_uart2(&uart_pdata);
 
 	mxc_register_device(&mxc_fb_device, &eukrea_mbimx27_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, NULL);
