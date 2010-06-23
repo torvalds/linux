@@ -347,7 +347,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 	struct nand_chip *chip = mtd->priv;
 	u16 bad;
 
-	if (chip->options & NAND_BB_LAST_PAGE)
+	if (chip->options & NAND_BBT_SCANLASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
 
 	page = (int)(ofs >> chip->page_shift) & chip->pagemask;
@@ -399,7 +399,7 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	uint8_t buf[2] = { 0, 0 };
 	int block, ret;
 
-	if (chip->options & NAND_BB_LAST_PAGE)
+	if (chip->options & NAND_BBT_SCANLASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
 
 	/* Get block number */
@@ -2946,7 +2946,7 @@ static struct nand_flash_dev *nand_get_flash_type(struct mtd_info *mtd,
 	if ((chip->cellinfo & NAND_CI_CELLTYPE_MSK) &&
 			(*maf_id == NAND_MFR_SAMSUNG ||
 			 *maf_id == NAND_MFR_HYNIX))
-		chip->options |= NAND_BB_LAST_PAGE;
+		chip->options |= NAND_BBT_SCANLASTPAGE;
 
 	/* Check for AND chips with 4 page planes */
 	if (chip->options & NAND_4PAGE_ARRAY)

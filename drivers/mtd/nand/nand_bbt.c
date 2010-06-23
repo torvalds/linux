@@ -432,7 +432,7 @@ static int create_bbt(struct mtd_info *mtd, uint8_t *buf,
 		from = (loff_t)startblock << (this->bbt_erase_shift - 1);
 	}
 
-	if (this->options & NAND_BB_LAST_PAGE)
+	if (this->options & NAND_BBT_SCANLASTPAGE)
 		from += mtd->erasesize - (mtd->writesize * len);
 
 	for (i = startblock; i < numblocks;) {

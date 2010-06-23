@@ -181,8 +181,6 @@ typedef enum {
 #define NAND_NO_READRDY		0x00000100
 /* Chip does not allow subpage writes */
 #define NAND_NO_SUBPAGE_WRITE	0x00000200
-/* Chip stores bad block marker on the last page of the eraseblock */
-#define NAND_BB_LAST_PAGE	0x00000400
 
 /* Device is one of 'new' xD cards that expose fake nand command set */
 #define NAND_BROKEN_XD		0x00000400
