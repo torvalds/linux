@@ -24,7 +24,6 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_ag.h"
-#include "xfs_dmapi.h"
 #include "xfs_log.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"

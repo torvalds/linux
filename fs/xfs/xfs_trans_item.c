@@ -28,7 +28,6 @@
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 
 STATIC int	xfs_trans_unlock_chunk(xfs_log_item_chunk_t *,

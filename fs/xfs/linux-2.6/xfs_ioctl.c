@@ -25,7 +25,6 @@
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_alloc_btree.h"
@@ -1116,16 +1115,7 @@ xfs_ioctl_setattr(
 	xfs_qm_dqrele(udqp);
 	xfs_qm_dqrele(gdqp);
 
-	if (code)
-		return code;
-
-	if (DM_EVENT_ENABLED(ip, DM_EVENT_ATTRIBUTE)) {
-		XFS_SEND_NAMESP(mp, DM_EVENT_ATTRIBUTE, ip, DM_RIGHT_NULL,
-				NULL, DM_RIGHT_NULL, NULL, NULL, 0, 0,
-				(mask & FSX_NONBLOCK) ? DM_FLAGS_NDELAY : 0);
-	}
-
-	return 0;
+	return code;
 
  error_return:
 	xfs_qm_dqrele(udqp);

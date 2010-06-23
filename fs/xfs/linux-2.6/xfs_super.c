@@ -25,7 +25,6 @@
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
-#include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
 #include "xfs_bmap_btree.h"
@@ -116,9 +115,6 @@ mempool_t *xfs_ioend_pool;
 #define MNTOPT_GQUOTANOENF "gqnoenforce"/* group quota limit enforcement */
 #define MNTOPT_PQUOTANOENF "pqnoenforce"/* project quota limit enforcement */
 #define MNTOPT_QUOTANOENF  "qnoenforce"	/* same as uqnoenforce */
-#define MNTOPT_DMAPI	"dmapi"		/* DMI enabled (DMAPI / XDSM) */
-#define MNTOPT_XDSM	"xdsm"		/* DMI enabled (DMAPI / XDSM) */
-#define MNTOPT_DMI	"dmi"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_DELAYLOG   "delaylog"	/* Delayed loging enabled */
 #define MNTOPT_NODELAYLOG "nodelaylog"	/* Delayed loging disabled */
 
@@ -172,15 +168,13 @@ suffix_strtoul(char *s, char **endp, unsigned int base)
 STATIC int
 xfs_parseargs(
 	struct xfs_mount	*mp,
-	char			*options,
-	char			**mtpt)
+	char			*options)
 {
 	struct super_block	*sb = mp->m_super;
 	char			*this_char, *value, *eov;
 	int			dsunit = 0;
 	int			dswidth = 0;
 	int			iosize = 0;
-	int			dmapi_implies_ikeep = 1;
 	__uint8_t		iosizelog = 0;
 
 	/*
@@ -243,15 +237,10 @@ xfs_parseargs(
 			if (!mp->m_logname)
 				return ENOMEM;
 		} else if (!strcmp(this_char, MNTOPT_MTPT)) {
-			if (!value || !*value) {
-				cmn_err(CE_WARN,
-					"XFS: %s option requires an argument",
-					this_char);
-				return EINVAL;
-			}
-			*mtpt = kstrndup(value, MAXNAMELEN, GFP_KERNEL);
-			if (!*mtpt)
-				return ENOMEM;
+			cmn_err(CE_WARN,
+				"XFS: %s option not allowed on this system",
+				this_char);
+			return EINVAL;
 		} else if (!strcmp(this_char, MNTOPT_RTDEV)) {
 			if (!value || !*value) {
 				cmn_err(CE_WARN,
@@ -329,7 +318,6 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
 			mp->m_flags |= XFS_MOUNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
-			dmapi_implies_ikeep = 0;
 			mp->m_flags &= ~XFS_MOUNT_IKEEP;
 		} else if (!strcmp(this_char, MNTOPT_LARGEIO)) {
 			mp->m_flags &= ~XFS_MOUNT_COMPAT_IOSIZE;
@@ -370,12 +358,6 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_GQUOTANOENF)) {
 			mp->m_qflags |= (XFS_GQUOTA_ACCT | XFS_GQUOTA_ACTIVE);
 			mp->m_qflags &= ~XFS_OQUOTA_ENFD;
-		} else if (!strcmp(this_char, MNTOPT_DMAPI)) {
-			mp->m_flags |= XFS_MOUNT_DMAPI;
-		} else if (!strcmp(this_char, MNTOPT_XDSM)) {
-			mp->m_flags |= XFS_MOUNT_DMAPI;
-		} else if (!strcmp(this_char, MNTOPT_DMI)) {
-			mp->m_flags |= XFS_MOUNT_DMAPI;
 		} else if (!strcmp(this_char, MNTOPT_DELAYLOG)) {
 			mp->m_flags |= XFS_MOUNT_DELAYLOG;
 			cmn_err(CE_WARN,
@@ -430,12 +412,6 @@ xfs_parseargs(
 		return EINVAL;
 	}
 
-	if ((mp->m_flags & XFS_MOUNT_DMAPI) && (!*mtpt || *mtpt[0] == '\0')) {
-		printk("XFS: %s option needs the mount point option as well\n",
-			MNTOPT_DMAPI);
-		return EINVAL;
-	}
-
 	if ((dsunit && !dswidth) || (!dsunit && dswidth)) {
 		cmn_err(CE_WARN,
 			"XFS: sunit and swidth must be specified together");
@@ -448,18 +424,6 @@ xfs_parseargs(
 			dswidth, dsunit);
 		return EINVAL;
 	}
-
-	/*
-	 * Applications using DMI filesystems often expect the
-	 * inode generation number to be monotonically increasing.
-	 * If we delete inode chunks we break this assumption, so
-	 * keep unused inode chunks on disk for DMI filesystems
-	 * until we come up with a better solution.
-	 * Note that if "ikeep" or "noikeep" mount options are
-	 * supplied, then they are honored.
-	 */
-	if ((mp->m_flags & XFS_MOUNT_DMAPI) && dmapi_implies_ikeep)
-		mp->m_flags |= XFS_MOUNT_IKEEP;
 
 done:
 	if (!(mp->m_flags & XFS_MOUNT_NOALIGN)) {
@@ -542,7 +506,6 @@ xfs_showargs(
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
 		{ XFS_MOUNT_ATTR2,		"," MNTOPT_ATTR2 },
 		{ XFS_MOUNT_FILESTREAMS,	"," MNTOPT_FILESTREAM },
-		{ XFS_MOUNT_DMAPI,		"," MNTOPT_DMAPI },
 		{ XFS_MOUNT_GRPID,		"," MNTOPT_GRPID },
 		{ XFS_MOUNT_DELAYLOG,		"," MNTOPT_DELAYLOG },
 		{ 0, NULL }
@@ -1207,8 +1170,6 @@ xfs_fs_put_super(
 		xfs_sync_attr(mp, 0);
 	}
 
-	XFS_SEND_PREUNMOUNT(mp);
-
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
 	 * This can and will cause log traffic as inodes go inactive
@@ -1218,14 +1179,11 @@ xfs_fs_put_super(
 
 	XFS_bflush(mp->m_ddev_targp);
 
-	XFS_SEND_UNMOUNT(mp);
-
 	xfs_unmountfs(mp);
 	xfs_freesb(mp);
 	xfs_inode_shrinker_unregister(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
-	xfs_dmops_put(mp);
 	xfs_free_fsname(mp);
 	kfree(mp);
 }
@@ -1543,7 +1501,6 @@ xfs_fs_fill_super(
 	struct inode		*root;
 	struct xfs_mount	*mp = NULL;
 	int			flags = 0, error = ENOMEM;
-	char			*mtpt = NULL;
 
 	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL);
 	if (!mp)
@@ -1559,7 +1516,7 @@ xfs_fs_fill_super(
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
 
-	error = xfs_parseargs(mp, (char *)data, &mtpt);
+	error = xfs_parseargs(mp, (char *)data);
 	if (error)
 		goto out_free_fsname;
 
@@ -1571,16 +1528,12 @@ xfs_fs_fill_super(
 #endif
 	sb->s_op = &xfs_super_operations;
 
-	error = xfs_dmops_get(mp);
-	if (error)
-		goto out_free_fsname;
-
 	if (silent)
 		flags |= XFS_MFSI_QUIET;
 
 	error = xfs_open_devices(mp);
 	if (error)
-		goto out_put_dmops;
+		goto out_free_fsname;
 
 	if (xfs_icsb_init_counters(mp))
 		mp->m_flags |= XFS_MOUNT_NO_PERCPU_SB;
@@ -1607,8 +1560,6 @@ xfs_fs_fill_super(
 	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
-
-	XFS_SEND_MOUNT(mp, DM_RIGHT_NULL, mtpt, mp->m_fsname);
 
 	sb->s_magic = XFS_SB_MAGIC;
 	sb->s_blocksize = mp->m_sb.sb_blocksize;
@@ -1638,7 +1589,6 @@ xfs_fs_fill_super(
 
 	xfs_inode_shrinker_register(mp);
 
-	kfree(mtpt);
 	return 0;
 
  out_filestream_unmount:
@@ -1648,11 +1598,8 @@ xfs_fs_fill_super(
  out_destroy_counters:
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
- out_put_dmops:
-	xfs_dmops_put(mp);
  out_free_fsname:
 	xfs_free_fsname(mp);
-	kfree(mtpt);
 	kfree(mp);
  out:
 	return -error;

@@ -39,7 +39,6 @@
 #include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
-#include "xfs_dmapi.h"
 #include "xfs_mount.h"
 #include "xfs_trace.h"
 
