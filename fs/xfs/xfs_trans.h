@@ -184,8 +184,6 @@ struct xfs_log_item_desc {
 /*
  * Values for call flags parameter.
  */
-#define	XFS_TRANS_NOSLEEP		0x1
-#define	XFS_TRANS_WAIT			0x2
 #define	XFS_TRANS_RELEASE_LOG_RES	0x4
 #define	XFS_TRANS_ABORT			0x8
 
