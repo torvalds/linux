@@ -1,0 +1,72 @@
+/*
+ * dspchnl.h
+ *
+ * DSP-BIOS Bridge driver support functions for TI OMAP processors.
+ *
+ * Declares the upper edge channel class library functions required by
+ * all Bridge driver / DSP API driver interface tables. These functions are
+ * implemented by every class of Bridge channel library.
+ *
+ * Notes:
+ *   The function comment headers reside in dspdefs.h.
+ *
+ * Copyright (C) 2005-2006 Texas Instruments, Inc.
+ *
+ * This package is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * THIS PACKAGE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+ * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ */
+
+#ifndef DSPCHNL_
+#define DSPCHNL_
+
+extern int bridge_chnl_create(OUT struct chnl_mgr **phChnlMgr,
+				     struct dev_object *hdev_obj,
+				     IN CONST struct chnl_mgrattrs
+				     *pMgrAttrs);
+
+extern int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr);
+
+extern int bridge_chnl_open(OUT struct chnl_object **phChnl,
+				   struct chnl_mgr *hchnl_mgr,
+				   s8 chnl_mode,
+				   u32 uChnlId,
+				   CONST IN OPTIONAL struct chnl_attr
+				   *pattrs);
+
+extern int bridge_chnl_close(struct chnl_object *chnl_obj);
+
+extern int bridge_chnl_add_io_req(struct chnl_object *chnl_obj,
+				      void *pHostBuf,
+				      u32 byte_size, u32 buf_size,
+				      OPTIONAL u32 dw_dsp_addr, u32 dw_arg);
+
+extern int bridge_chnl_get_ioc(struct chnl_object *chnl_obj,
+				   u32 dwTimeOut, OUT struct chnl_ioc *pIOC);
+
+extern int bridge_chnl_cancel_io(struct chnl_object *chnl_obj);
+
+extern int bridge_chnl_flush_io(struct chnl_object *chnl_obj,
+				    u32 dwTimeOut);
+
+extern int bridge_chnl_get_info(struct chnl_object *chnl_obj,
+				    OUT struct chnl_info *pInfo);
+
+extern int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr,
+					u32 uChnlID, OUT struct chnl_mgrinfo
+					*pMgrInfo);
+
+extern int bridge_chnl_idle(struct chnl_object *chnl_obj,
+				   u32 dwTimeOut, bool fFlush);
+
+extern int bridge_chnl_register_notify(struct chnl_object *chnl_obj,
+					   u32 event_mask,
+					   u32 notify_type,
+					   struct dsp_notification
+					   *hnotification);
+
+#endif /* DSPCHNL_ */
