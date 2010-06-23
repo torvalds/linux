@@ -857,9 +857,14 @@ void ath_radio_disable(struct ath_softc *sc, struct ieee80211_hw *hw)
 	ath9k_ps_wakeup(sc);
 	ieee80211_stop_queues(hw);
 
-	/* Disable LED */
-	ath9k_hw_set_gpio(ah, ah->led_pin, 1);
-	ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
+	/*
+	 * Keep the LED on when the radio is disabled
+	 * during idle unassociated state.
+	 */
+	if (!sc->ps_idle) {
+		ath9k_hw_set_gpio(ah, ah->led_pin, 1);
+		ath9k_hw_cfg_gpio_input(ah, ah->led_pin);
+	}
 
 	/* Disable interrupts */
 	ath9k_hw_set_interrupts(ah, 0);
