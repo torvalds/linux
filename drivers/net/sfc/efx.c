@@ -2432,7 +2432,7 @@ static struct dev_pm_ops efx_pm_ops = {
 };
 
 static struct pci_driver efx_pci_driver = {
-	.name		= EFX_DRIVER_NAME,
+	.name		= KBUILD_MODNAME,
 	.id_table	= efx_pci_table,
 	.probe		= efx_pci_probe,
 	.remove		= efx_pci_remove,

@@ -39,9 +39,7 @@
  * Build definitions
  *
  **************************************************************************/
-#ifndef EFX_DRIVER_NAME
-#define EFX_DRIVER_NAME	"sfc"
-#endif
+
 #define EFX_DRIVER_VERSION	"3.0"
 
 #ifdef EFX_ENABLE_DEBUG
