@@ -61,6 +61,10 @@ static char *states[] = {
 	NULL,
 };
 
+static int dack_mode;
+module_param(dack_mode, int, 0644);
+MODULE_PARM_DESC(dack_mode, "Delayed ack mode (default=0)");
+
 int c4iw_max_read_depth = 8;
 module_param(c4iw_max_read_depth, int, 0644);
 MODULE_PARM_DESC(c4iw_max_read_depth, "Per-connection max ORD/IRD (default=8)");
@@ -474,6 +478,7 @@ static int send_connect(struct c4iw_ep *ep)
 	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
 	wscale = compute_wscale(rcv_win);
 	opt0 = KEEP_ALIVE(1) |
+	       DELACK(1) |
 	       WND_SCALE(wscale) |
 	       MSS_IDX(mtu_idx) |
 	       L2T_IDX(ep->l2t->idx) |
@@ -845,7 +850,9 @@ static int update_rx_credits(struct c4iw_ep *ep, u32 credits)
 	INIT_TP_WR(req, ep->hwtid);
 	OPCODE_TID(req) = cpu_to_be32(MK_OPCODE_TID(CPL_RX_DATA_ACK,
 						    ep->hwtid));
-	req->credit_dack = cpu_to_be32(credits);
+	req->credit_dack = cpu_to_be32(credits | RX_FORCE_ACK(1) |
+				       F_RX_DACK_CHANGE |
+				       V_RX_DACK_MODE(dack_mode));
 	set_wr_txq(skb, CPL_PRIORITY_ACK, ep->txq_idx);
 	c4iw_ofld_send(&ep->com.dev->rdev, skb);
 	return credits;
@@ -1264,6 +1271,7 @@ static void accept_cr(struct c4iw_ep *ep, __be32 peer_ip, struct sk_buff *skb,
 	cxgb4_best_mtu(ep->com.dev->rdev.lldi.mtus, ep->mtu, &mtu_idx);
 	wscale = compute_wscale(rcv_win);
 	opt0 = KEEP_ALIVE(1) |
+	       DELACK(1) |
 	       WND_SCALE(wscale) |
 	       MSS_IDX(mtu_idx) |
 	       L2T_IDX(ep->l2t->idx) |
