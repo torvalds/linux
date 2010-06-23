@@ -197,7 +197,6 @@ void thread_change_pc(struct task_struct *tsk, struct pt_regs *regs)
  */
 int __kprobes hw_breakpoint_handler(struct die_args *args)
 {
-	bool is_ptrace_bp = false;
 	int rc = NOTIFY_STOP;
 	struct perf_event *bp;
 	struct pt_regs *regs = args->regs;
@@ -208,6 +207,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 
 	/* Disable breakpoints during exception handling */
 	set_dabr(0);
+
 	/*
 	 * The counter may be concurrently released but that can only
 	 * occur from a call_rcu() path. We can then safely fetch
@@ -220,8 +220,6 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	if (!bp)
 		goto out;
 	info = counter_arch_bp(bp);
-	is_ptrace_bp = (bp->overflow_handler == ptrace_triggered) ?
-			true : false;
 
 	/*
 	 * Return early after invoking user-callback function without restoring
@@ -229,7 +227,7 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 	 * one-shot mode. The ptrace-ed process will receive the SIGTRAP signal
 	 * generated in do_dabr().
 	 */
-	if (is_ptrace_bp) {
+	if (bp->overflow_handler == ptrace_triggered) {
 		perf_bp_event(bp, regs);
 		rc = NOTIFY_DONE;
 		goto out;
@@ -237,19 +235,12 @@ int __kprobes hw_breakpoint_handler(struct die_args *args)
 
 	/*
 	 * Verify if dar lies within the address range occupied by the symbol
-	 * being watched to filter extraneous exceptions.
+	 * being watched to filter extraneous exceptions.  If it doesn't,
+	 * we still need to single-step the instruction, but we don't
+	 * generate an event.
 	 */
-	if (!((bp->attr.bp_addr <= dar) &&
-	     (dar <= (bp->attr.bp_addr + bp->attr.bp_len)))) {
-		/*
-		 * This exception is triggered not because of a memory access
-		 * on the monitored variable but in the double-word address
-		 * range in which it is contained. We will consume this
-		 * exception, considering it as 'noise'.
-		 */
-		info->extraneous_interrupt = true;
-	} else
-		info->extraneous_interrupt = false;
+	info->extraneous_interrupt = !((bp->attr.bp_addr <= dar) &&
+			(dar - bp->attr.bp_addr < bp->attr.bp_len));
 
 	/* Do not emulate user-space instructions, instead single-step them */
 	if (user_mode(regs)) {
