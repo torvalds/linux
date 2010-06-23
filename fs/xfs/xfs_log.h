@@ -201,9 +201,4 @@ int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
 bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 
 #endif
-
-
-extern int xlog_debug;		/* set to 1 to enable real log */
-
-
 #endif	/* __XFS_LOG_H__ */
