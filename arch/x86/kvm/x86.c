@@ -4616,15 +4616,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
 		vcpu->run->request_interrupt_window;
 
-	if (vcpu->requests)
+	if (vcpu->requests) {
 		if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu))
 			kvm_mmu_unload(vcpu);
-
-	r = kvm_mmu_reload(vcpu);
-	if (unlikely(r))
-		goto out;
-
-	if (vcpu->requests) {
 		if (kvm_check_request(KVM_REQ_MIGRATE_TIMER, vcpu))
 			__kvm_migrate_timers(vcpu);
 		if (kvm_check_request(KVM_REQ_KVMCLOCK_UPDATE, vcpu))
@@ -4648,6 +4642,10 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_x86_ops->fpu_deactivate(vcpu);
 		}
 	}
+
+	r = kvm_mmu_reload(vcpu);
+	if (unlikely(r))
+		goto out;
 
 	preempt_disable();
 
