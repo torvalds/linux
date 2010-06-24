@@ -2056,11 +2056,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	nskb = skb_copy_expand(rx->skb, local->hw.extra_tx_headroom, 0,
 			       GFP_ATOMIC);
 	if (nskb) {
-		struct ieee80211_mgmt *mgmt = (void *)nskb->data;
+		struct ieee80211_mgmt *nmgmt = (void *)nskb->data;
 
-		mgmt->u.action.category |= 0x80;
-		memcpy(mgmt->da, mgmt->sa, ETH_ALEN);
-		memcpy(mgmt->sa, rx->sdata->vif.addr, ETH_ALEN);
+		nmgmt->u.action.category |= 0x80;
+		memcpy(nmgmt->da, nmgmt->sa, ETH_ALEN);
+		memcpy(nmgmt->sa, rx->sdata->vif.addr, ETH_ALEN);
 
 		memset(nskb->cb, 0, sizeof(nskb->cb));
 
