@@ -865,8 +865,9 @@ xfs_dqrele_inode(
 		xfs_qm_dqrele(ip->i_gdquot);
 		ip->i_gdquot = NULL;
 	}
-	xfs_iput(ip, XFS_ILOCK_EXCL);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
+	IRELE(ip);
 	return 0;
 }
 
@@ -1133,7 +1134,8 @@ xfs_qm_internalqcheck_adjust(
 	 * of those now.
 	 */
 	if (! ipreleased) {
-		xfs_iput(ip, lock_flags);
+		xfs_iunlock(ip, lock_flags);
+		IRELE(ip);
 		ipreleased = B_TRUE;
 		goto again;
 	}
@@ -1150,7 +1152,8 @@ xfs_qm_internalqcheck_adjust(
 		ASSERT(gd);
 		xfs_qm_internalqcheck_dqadjust(ip, gd);
 	}
-	xfs_iput(ip, lock_flags);
+	xfs_iunlock(ip, lock_flags);
+	IRELE(ip);
 	*res = BULKSTAT_RV_DIDONE;
 	return (0);
 }

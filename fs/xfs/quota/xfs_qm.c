@@ -1662,7 +1662,8 @@ xfs_qm_dqusage_adjust(
 	 * making us disable quotas for the file system.
 	 */
 	if ((error = xfs_qm_dqget_noattach(ip, &udqp, &gdqp))) {
-		xfs_iput(ip, XFS_ILOCK_EXCL);
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		IRELE(ip);
 		*res = BULKSTAT_RV_GIVEUP;
 		return error;
 	}
@@ -1675,7 +1676,8 @@ xfs_qm_dqusage_adjust(
 		 * Walk thru the extent list and count the realtime blocks.
 		 */
 		if ((error = xfs_qm_get_rtblks(ip, &rtblks))) {
-			xfs_iput(ip, XFS_ILOCK_EXCL);
+			xfs_iunlock(ip, XFS_ILOCK_EXCL);
+			IRELE(ip);
 			if (udqp)
 				xfs_qm_dqput(udqp);
 			if (gdqp)

@@ -418,23 +418,6 @@ out_error_or_again:
 }
 
 /*
- * Decrement reference count of an inode structure and unlock it.
- *
- * ip -- the inode being released
- * lock_flags -- this parameter indicates the inode's locks to be
- *       to be released.  See the comment on xfs_iunlock() for a list
- *	 of valid values.
- */
-void
-xfs_iput(xfs_inode_t	*ip,
-	 uint		lock_flags)
-{
-	xfs_itrace_entry(ip);
-	xfs_iunlock(ip, lock_flags);
-	IRELE(ip);
-}
-
-/*
  * This is called free all the memory associated with an inode.
  * It must free the inode itself and any buffers allocated for
  * if_extents/if_data and if_broot.  It must also free the lock
