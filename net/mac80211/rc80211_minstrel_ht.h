@@ -29,6 +29,8 @@ struct mcs_group {
 	unsigned int duration[MCS_GROUP_RATES];
 };
 
+extern const struct mcs_group minstrel_mcs_groups[];
+
 struct minstrel_rate_stats {
 	/* current / last sampling period attempts/success counters */
 	unsigned int attempts, last_attempts;
