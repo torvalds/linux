@@ -595,10 +595,7 @@ int gl860_RTx(struct gspca_dev *gspca_dev,
 	else if (len > 1 && r < len)
 		PDEBUG(D_ERR, "short ctrl transfer %d/%d", r, len);
 
-	if (_MI2020_ && (val || index))
-		msleep(1);
-	if (_OV2640_)
-		msleep(1);
+	msleep(1);
 
 	return r;
 }
