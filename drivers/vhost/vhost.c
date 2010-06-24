@@ -873,12 +873,13 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
  * number of output then some number of input descriptors, it's actually two
  * iovecs, but we pack them into one and note how many of each there were.
  *
- * This function returns the descriptor number found, or vq->num (which
- * is never a valid descriptor number) if none was found. */
-unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
-			   struct iovec iov[], unsigned int iov_size,
-			   unsigned int *out_num, unsigned int *in_num,
-			   struct vhost_log *log, unsigned int *log_num)
+ * This function returns the descriptor number found, or vq->num (which is
+ * never a valid descriptor number) if none was found.  A negative code is
+ * returned on error. */
+int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
+		      struct iovec iov[], unsigned int iov_size,
+		      unsigned int *out_num, unsigned int *in_num,
+		      struct vhost_log *log, unsigned int *log_num)
 {
 	struct vring_desc desc;
 	unsigned int i, head, found = 0;
@@ -890,13 +891,13 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 	if (get_user(vq->avail_idx, &vq->avail->idx)) {
 		vq_err(vq, "Failed to access avail idx at %p\n",
 		       &vq->avail->idx);
-		return vq->num;
+		return -EFAULT;
 	}
 
 	if ((u16)(vq->avail_idx - last_avail_idx) > vq->num) {
 		vq_err(vq, "Guest moved used index from %u to %u",
 		       last_avail_idx, vq->avail_idx);
-		return vq->num;
+		return -EFAULT;
 	}
 
 	/* If there's nothing new since last we looked, return invalid. */
@@ -912,14 +913,14 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 		vq_err(vq, "Failed to read head: idx %d address %p\n",
 		       last_avail_idx,
 		       &vq->avail->ring[last_avail_idx % vq->num]);
-		return vq->num;
+		return -EFAULT;
 	}
 
 	/* If their number is silly, that's an error. */
 	if (head >= vq->num) {
 		vq_err(vq, "Guest says index %u > %u is available",
 		       head, vq->num);
-		return vq->num;
+		return -EINVAL;
 	}
 
 	/* When we start there are none of either input nor output. */
@@ -933,19 +934,19 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 		if (i >= vq->num) {
 			vq_err(vq, "Desc index is %u > %u, head = %u",
 			       i, vq->num, head);
-			return vq->num;
+			return -EINVAL;
 		}
 		if (++found > vq->num) {
 			vq_err(vq, "Loop detected: last one at %u "
 			       "vq size %u head %u\n",
 			       i, vq->num, head);
-			return vq->num;
+			return -EINVAL;
 		}
 		ret = copy_from_user(&desc, vq->desc + i, sizeof desc);
 		if (ret) {
 			vq_err(vq, "Failed to get descriptor: idx %d addr %p\n",
 			       i, vq->desc + i);
-			return vq->num;
+			return -EFAULT;
 		}
 		if (desc.flags & VRING_DESC_F_INDIRECT) {
 			ret = get_indirect(dev, vq, iov, iov_size,
@@ -954,7 +955,7 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 			if (ret < 0) {
 				vq_err(vq, "Failure detected "
 				       "in indirect descriptor at idx %d\n", i);
-				return vq->num;
+				return ret;
 			}
 			continue;
 		}
@@ -964,7 +965,7 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 		if (ret < 0) {
 			vq_err(vq, "Translation failure %d descriptor idx %d\n",
 			       ret, i);
-			return vq->num;
+			return ret;
 		}
 		if (desc.flags & VRING_DESC_F_WRITE) {
 			/* If this is an input descriptor,
@@ -981,7 +982,7 @@ unsigned vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 			if (*in_num) {
 				vq_err(vq, "Descriptor has out after in: "
 				       "idx %d\n", i);
-				return vq->num;
+				return -EINVAL;
 			}
 			*out_num += ret;
 		}

@@ -98,7 +98,8 @@ static void tx_poll_start(struct vhost_net *net, struct socket *sock)
 static void handle_tx(struct vhost_net *net)
 {
 	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_TX];
-	unsigned head, out, in, s;
+	unsigned out, in, s;
+	int head;
 	struct msghdr msg = {
 		.msg_name = NULL,
 		.msg_namelen = 0,
@@ -135,6 +136,9 @@ static void handle_tx(struct vhost_net *net)
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 NULL, NULL);
+		/* On error, stop handling until the next kick. */
+		if (head < 0)
+			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
 			wmem = atomic_read(&sock->sk->sk_wmem_alloc);
@@ -192,7 +196,8 @@ static void handle_tx(struct vhost_net *net)
 static void handle_rx(struct vhost_net *net)
 {
 	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_RX];
-	unsigned head, out, in, log, s;
+	unsigned out, in, log, s;
+	int head;
 	struct vhost_log *vq_log;
 	struct msghdr msg = {
 		.msg_name = NULL,
@@ -228,6 +233,9 @@ static void handle_rx(struct vhost_net *net)
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 vq_log, &log);
+		/* On error, stop handling until the next kick. */
+		if (head < 0)
+			break;
 		/* OK, now we need to know about added descriptors. */
 		if (head == vq->num) {
 			if (unlikely(vhost_enable_notify(vq))) {
