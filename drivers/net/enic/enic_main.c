@@ -594,7 +594,7 @@ static irqreturn_t enic_isr_msix_notify(int irq, void *data)
 
 static inline void enic_queue_wq_skb_cont(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb,
-	unsigned int len_left)
+	unsigned int len_left, int loopback)
 {
 	skb_frag_t *frag;
 
@@ -606,13 +606,14 @@ static inline void enic_queue_wq_skb_cont(struct enic *enic,
 				frag->page_offset, frag->size,
 				PCI_DMA_TODEVICE),
 			frag->size,
-			(len_left == 0));	/* EOP? */
+			(len_left == 0),	/* EOP? */
+			loopback);
 	}
 }
 
 static inline void enic_queue_wq_skb_vlan(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb,
-	int vlan_tag_insert, unsigned int vlan_tag)
+	int vlan_tag_insert, unsigned int vlan_tag, int loopback)
 {
 	unsigned int head_len = skb_headlen(skb);
 	unsigned int len_left = skb->len - head_len;
@@ -628,15 +629,15 @@ static inline void enic_queue_wq_skb_vlan(struct enic *enic,
 			head_len, PCI_DMA_TODEVICE),
 		head_len,
 		vlan_tag_insert, vlan_tag,
-		eop);
+		eop, loopback);
 
 	if (!eop)
-		enic_queue_wq_skb_cont(enic, wq, skb, len_left);
+		enic_queue_wq_skb_cont(enic, wq, skb, len_left, loopback);
 }
 
 static inline void enic_queue_wq_skb_csum_l4(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb,
-	int vlan_tag_insert, unsigned int vlan_tag)
+	int vlan_tag_insert, unsigned int vlan_tag, int loopback)
 {
 	unsigned int head_len = skb_headlen(skb);
 	unsigned int len_left = skb->len - head_len;
@@ -656,15 +657,15 @@ static inline void enic_queue_wq_skb_csum_l4(struct enic *enic,
 		csum_offset,
 		hdr_len,
 		vlan_tag_insert, vlan_tag,
-		eop);
+		eop, loopback);
 
 	if (!eop)
-		enic_queue_wq_skb_cont(enic, wq, skb, len_left);
+		enic_queue_wq_skb_cont(enic, wq, skb, len_left, loopback);
 }
 
 static inline void enic_queue_wq_skb_tso(struct enic *enic,
 	struct vnic_wq *wq, struct sk_buff *skb, unsigned int mss,
-	int vlan_tag_insert, unsigned int vlan_tag)
+	int vlan_tag_insert, unsigned int vlan_tag, int loopback)
 {
 	unsigned int frag_len_left = skb_headlen(skb);
 	unsigned int len_left = skb->len - frag_len_left;
@@ -701,7 +702,7 @@ static inline void enic_queue_wq_skb_tso(struct enic *enic,
 			len,
 			mss, hdr_len,
 			vlan_tag_insert, vlan_tag,
-			eop && (len == frag_len_left));
+			eop && (len == frag_len_left), loopback);
 		frag_len_left -= len;
 		offset += len;
 	}
@@ -727,7 +728,8 @@ static inline void enic_queue_wq_skb_tso(struct enic *enic,
 				dma_addr,
 				len,
 				(len_left == 0) &&
-				(len == frag_len_left));	/* EOP? */
+				(len == frag_len_left),		/* EOP? */
+				loopback);
 			frag_len_left -= len;
 			offset += len;
 		}
@@ -740,22 +742,26 @@ static inline void enic_queue_wq_skb(struct enic *enic,
 	unsigned int mss = skb_shinfo(skb)->gso_size;
 	unsigned int vlan_tag = 0;
 	int vlan_tag_insert = 0;
+	int loopback = 0;
 
 	if (enic->vlan_group && vlan_tx_tag_present(skb)) {
 		/* VLAN tag from trunking driver */
 		vlan_tag_insert = 1;
 		vlan_tag = vlan_tx_tag_get(skb);
+	} else if (enic->loop_enable) {
+		vlan_tag = enic->loop_tag;
+		loopback = 1;
 	}
 
 	if (mss)
 		enic_queue_wq_skb_tso(enic, wq, skb, mss,
-			vlan_tag_insert, vlan_tag);
+			vlan_tag_insert, vlan_tag, loopback);
 	else if	(skb->ip_summed == CHECKSUM_PARTIAL)
 		enic_queue_wq_skb_csum_l4(enic, wq, skb,
-			vlan_tag_insert, vlan_tag);
+			vlan_tag_insert, vlan_tag, loopback);
 	else
 		enic_queue_wq_skb_vlan(enic, wq, skb,
-			vlan_tag_insert, vlan_tag);
+			vlan_tag_insert, vlan_tag, loopback);
 }
 
 /* netif_tx_lock held, process context with BHs disabled, or BH */
@@ -1275,7 +1281,7 @@ static int enic_rq_alloc_buf(struct vnic_rq *rq)
 	struct enic *enic = vnic_dev_priv(rq->vdev);
 	struct net_device *netdev = enic->netdev;
 	struct sk_buff *skb;
-	unsigned int len = netdev->mtu + ETH_HLEN;
+	unsigned int len = netdev->mtu + VLAN_ETH_HLEN;
 	unsigned int os_buf_index = 0;
 	dma_addr_t dma_addr;
 
@@ -2441,6 +2447,12 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	netdev->ethtool_ops = &enic_ethtool_ops;
 
 	netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	if (ENIC_SETTING(enic, LOOP)) {
+		netdev->features &= ~NETIF_F_HW_VLAN_TX;
+		enic->loop_enable = 1;
+		enic->loop_tag = enic->config.loop_tag;
+		dev_info(dev, "loopback tag=0x%04x\n", enic->loop_tag);
+	}
 	if (ENIC_SETTING(enic, TXCSUM))
 		netdev->features |= NETIF_F_SG | NETIF_F_HW_CSUM;
 	if (ENIC_SETTING(enic, TSO))
