@@ -16,6 +16,17 @@
 #define imx25_add_imx_i2c2(pdata)	\
 	imx_add_imx_i2c(2, MX25_I2C3_BASE_ADDR, SZ_16K, MX25_INT_I2C3, pdata)
 
+#define imx25_add_imx_uart0(pdata)	\
+	imx_add_imx_uart_1irq(0, MX25_UART1_BASE_ADDR, SZ_16K, MX25_INT_UART1, pdata)
+#define imx25_add_imx_uart1(pdata)	\
+	imx_add_imx_uart_1irq(1, MX25_UART2_BASE_ADDR, SZ_16K, MX25_INT_UART2, pdata)
+#define imx25_add_imx_uart2(pdata)	\
+	imx_add_imx_uart_1irq(2, MX25_UART3_BASE_ADDR, SZ_16K, MX25_INT_UART3, pdata)
+#define imx25_add_imx_uart3(pdata)	\
+	imx_add_imx_uart_1irq(3, MX25_UART4_BASE_ADDR, SZ_16K, MX25_INT_UART4, pdata)
+#define imx25_add_imx_uart4(pdata)	\
+	imx_add_imx_uart_1irq(4, MX25_UART5_BASE_ADDR, SZ_16K, MX25_INT_UART5, pdata)
+
 #define imx25_add_mxc_nand(pdata)	\
 	imx_add_mxc_nand_v21(MX25_NFC_BASE_ADDR, MX25_INT_NANDFC, pdata)
 

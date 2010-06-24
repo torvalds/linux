@@ -38,7 +38,6 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
 #include <mach/mx25.h>
 #include <mach/imxfb.h>
 #include <mach/iomux-mx25.h>
@@ -46,7 +45,7 @@
 #include "devices-imx25.h"
 #include "devices.h"
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -150,7 +149,7 @@ static void __init mx25pdk_init(void)
 	mxc_iomux_v3_setup_multiple_pads(mx25pdk_pads,
 			ARRAY_SIZE(mx25pdk_pads));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	imx25_add_imx_uart0(&uart_pdata);
 	mxc_register_device(&mxc_usbh2, NULL);
 	imx25_add_mxc_nand(&mx25pdk_nand_board_info);
 	mxc_register_device(&mx25_rtc_device, NULL);
