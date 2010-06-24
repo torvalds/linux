@@ -211,6 +211,12 @@ enum vnic_devcmd_cmd {
 	 * in: (u16)a0=interrupt number to assert
 	 */
 	CMD_IAR			= _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 38),
+
+	/*
+	 * Set hw ingress packet vlan rewrite mode:
+	 * in:  (u32)a0=new vlan rewrite mode
+	 * out: (u32)a0=old vlan rewrite mode */
+	CMD_IG_VLAN_REWRITE_MODE = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 41),
 };
 
 /* flags for CMD_OPEN */
@@ -225,6 +231,12 @@ enum vnic_devcmd_cmd {
 #define CMD_PFILTER_BROADCAST		0x04
 #define CMD_PFILTER_PROMISCUOUS		0x08
 #define CMD_PFILTER_ALL_MULTICAST	0x10
+
+/* rewrite modes for CMD_IG_VLAN_REWRITE_MODE */
+#define IG_VLAN_REWRITE_MODE_DEFAULT_TRUNK              0
+#define IG_VLAN_REWRITE_MODE_UNTAG_DEFAULT_VLAN         1
+#define IG_VLAN_REWRITE_MODE_PRIORITY_TAG_DEFAULT_VLAN  2
+#define IG_VLAN_REWRITE_MODE_PASS_THRU                  3
 
 enum vnic_devcmd_status {
 	STAT_NONE = 0,

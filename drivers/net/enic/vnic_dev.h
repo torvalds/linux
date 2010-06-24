@@ -133,6 +133,8 @@ void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
 	enum vnic_dev_intr_mode intr_mode);
 enum vnic_dev_intr_mode vnic_dev_get_intr_mode(struct vnic_dev *vdev);
 void vnic_dev_unregister(struct vnic_dev *vdev);
+int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
+	u8 ig_vlan_rewrite_mode);
 struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	void *priv, struct pci_dev *pdev, struct vnic_dev_bar *bar,
 	unsigned int num_bars);

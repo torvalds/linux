@@ -564,6 +564,20 @@ int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 	return err;
 }
 
+int vnic_dev_set_ig_vlan_rewrite_mode(struct vnic_dev *vdev,
+	u8 ig_vlan_rewrite_mode)
+{
+	u64 a0 = ig_vlan_rewrite_mode, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_IG_VLAN_REWRITE_MODE, &a0, &a1, wait);
+	if (err == ERR_ECMDUNKNOWN)
+		return 0;
+
+	return err;
+}
+
 int vnic_dev_raise_intr(struct vnic_dev *vdev, u16 intr)
 {
 	u64 a0 = intr, a1 = 0;

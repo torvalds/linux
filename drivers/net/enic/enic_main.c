@@ -1300,7 +1300,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	u8 tcp_udp_csum_ok, udp, tcp, ipv4_csum_ok;
 	u8 ipv6, ipv4, ipv4_fragment, fcs_ok, rss_type, csum_not_calc;
 	u8 packet_error;
-	u16 q_number, completed_index, bytes_written, vlan, checksum;
+	u16 q_number, completed_index, bytes_written, vlan_tci, checksum;
 	u32 rss_hash;
 
 	if (skipped)
@@ -1315,7 +1315,7 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 		&type, &color, &q_number, &completed_index,
 		&ingress_port, &fcoe, &eop, &sop, &rss_type,
 		&csum_not_calc, &rss_hash, &bytes_written,
-		&packet_error, &vlan_stripped, &vlan, &checksum,
+		&packet_error, &vlan_stripped, &vlan_tci, &checksum,
 		&fcoe_sof, &fcoe_fc_crc_ok, &fcoe_enc_error,
 		&fcoe_eof, &tcp_udp_csum_ok, &udp, &tcp,
 		&ipv4_csum_ok, &ipv6, &ipv4, &ipv4_fragment,
@@ -1350,14 +1350,15 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		skb->dev = netdev;
 
-		if (enic->vlan_group && vlan_stripped) {
+		if (enic->vlan_group && vlan_stripped &&
+			(vlan_tci & CQ_ENET_RQ_DESC_VLAN_TCI_VLAN_MASK)) {
 
 			if (netdev->features & NETIF_F_GRO)
 				vlan_gro_receive(&enic->napi, enic->vlan_group,
-					vlan, skb);
+					vlan_tci, skb);
 			else
 				vlan_hwaccel_receive_skb(skb,
-					enic->vlan_group, vlan);
+					enic->vlan_group, vlan_tci);
 
 		} else {
 
@@ -1879,6 +1880,18 @@ static int enic_set_niccfg(struct enic *enic)
 		ig_vlan_strip_en);
 }
 
+int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_set_ig_vlan_rewrite_mode(enic->vdev,
+		IG_VLAN_REWRITE_MODE_PRIORITY_TAG_DEFAULT_VLAN);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
 static void enic_reset(struct work_struct *work)
 {
 	struct enic *enic = container_of(work, struct enic, reset);
@@ -1898,6 +1911,7 @@ static void enic_reset(struct work_struct *work)
 	enic_reset_mcaddrs(enic);
 	enic_init_vnic_resources(enic);
 	enic_set_niccfg(enic);
+	enic_dev_set_ig_vlan_rewrite_mode(enic);
 	enic_open(enic->netdev);
 
 	rtnl_unlock();
@@ -2107,6 +2121,13 @@ int enic_dev_init(struct enic *enic)
 	if (err) {
 		printk(KERN_ERR PFX
 			"Failed to config nic, aborting.\n");
+		goto err_out_free_vnic_resources;
+	}
+
+	err = enic_dev_set_ig_vlan_rewrite_mode(enic);
+	if (err) {
+		printk(KERN_ERR PFX
+			"Failed to set ingress vlan rewrite mode, aborting.\n");
 		goto err_out_free_vnic_resources;
 	}
 
