@@ -129,6 +129,8 @@ int vnic_dev_init_prov(struct vnic_dev *vdev, u8 *buf, u32 len);
 int vnic_dev_deinit(struct vnic_dev *vdev);
 int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg);
 int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done);
+int vnic_dev_hang_reset(struct vnic_dev *vdev, int arg);
+int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done);
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,
 	enum vnic_dev_intr_mode intr_mode);
 enum vnic_dev_intr_mode vnic_dev_get_intr_mode(struct vnic_dev *vdev);

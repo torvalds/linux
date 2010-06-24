@@ -812,9 +812,10 @@ static struct net_device_stats *enic_get_stats(struct net_device *netdev)
 	return net_stats;
 }
 
-static void enic_reset_mcaddrs(struct enic *enic)
+static void enic_reset_multicast_list(struct enic *enic)
 {
 	enic->mc_count = 0;
+	enic->flags = 0;
 }
 
 static int enic_set_mac_addr(struct net_device *netdev, char *addr)
@@ -1847,15 +1848,15 @@ static int enic_dev_open(struct enic *enic)
 	return err;
 }
 
-static int enic_dev_soft_reset(struct enic *enic)
+static int enic_dev_hang_reset(struct enic *enic)
 {
 	int err;
 
-	err = enic_dev_wait(enic->vdev, vnic_dev_soft_reset,
-		vnic_dev_soft_reset_done, 0);
+	err = enic_dev_wait(enic->vdev, vnic_dev_hang_reset,
+		vnic_dev_hang_reset_done, 0);
 	if (err)
 		printk(KERN_ERR PFX
-			"vNIC soft reset failed, err %d.\n", err);
+			"vNIC hang reset failed, err %d.\n", err);
 
 	return err;
 }
@@ -1906,9 +1907,8 @@ static void enic_reset(struct work_struct *work)
 	spin_unlock(&enic->devcmd_lock);
 
 	enic_stop(enic->netdev);
-	enic_dev_soft_reset(enic);
-	vnic_dev_init(enic->vdev, 0);
-	enic_reset_mcaddrs(enic);
+	enic_dev_hang_reset(enic);
+	enic_reset_multicast_list(enic);
 	enic_init_vnic_resources(enic);
 	enic_set_niccfg(enic);
 	enic_dev_set_ig_vlan_rewrite_mode(enic);

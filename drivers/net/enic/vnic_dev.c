@@ -486,6 +486,44 @@ int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done)
 	return 0;
 }
 
+int vnic_dev_hang_reset(struct vnic_dev *vdev, int arg)
+{
+	u64 a0 = (u32)arg, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_HANG_RESET, &a0, &a1, wait);
+	if (err == ERR_ECMDUNKNOWN) {
+		err = vnic_dev_soft_reset(vdev, arg);
+		if (err)
+			return err;
+
+		return vnic_dev_init(vdev, 0);
+	}
+
+	return err;
+}
+
+int vnic_dev_hang_reset_done(struct vnic_dev *vdev, int *done)
+{
+	u64 a0 = 0, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	*done = 0;
+
+	err = vnic_dev_cmd(vdev, CMD_HANG_RESET_STATUS, &a0, &a1, wait);
+	if (err) {
+		if (err == ERR_ECMDUNKNOWN)
+			return vnic_dev_soft_reset_done(vdev, done);
+		return err;
+	}
+
+	*done = (a0 == 0);
+
+	return 0;
+}
+
 int vnic_dev_hang_notify(struct vnic_dev *vdev)
 {
 	u64 a0, a1;

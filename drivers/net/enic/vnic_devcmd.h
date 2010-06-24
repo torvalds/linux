@@ -212,6 +212,13 @@ enum vnic_devcmd_cmd {
 	 */
 	CMD_IAR			= _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 38),
 
+	/* initiate hangreset, like softreset after hang detected */
+	CMD_HANG_RESET		= _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 39),
+
+	/* hangreset status:
+	 *    out: a0=0 reset complete, a0=1 reset in progress */
+	CMD_HANG_RESET_STATUS   = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 40),
+
 	/*
 	 * Set hw ingress packet vlan rewrite mode:
 	 * in:  (u32)a0=new vlan rewrite mode
