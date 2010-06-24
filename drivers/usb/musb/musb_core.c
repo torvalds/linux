@@ -219,8 +219,8 @@ static int musb_ulpi_write(struct otg_transceiver *otg,
 	return 0;
 }
 #else
-#define musb_ulpi_read(a, b)		NULL
-#define musb_ulpi_write(a, b, c)	NULL
+#define musb_ulpi_read		NULL
+#define musb_ulpi_write		NULL
 #endif
 
 static struct otg_io_access_ops musb_ulpi_access = {
