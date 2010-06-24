@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/bio.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
