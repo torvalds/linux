@@ -466,6 +466,13 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 
 		perf_bp_event(bp, args->regs);
 
+		/*
+		 * Set up resume flag to avoid breakpoint recursion when
+		 * returning back to origin.
+		 */
+		if (bp->hw.info.type == X86_BREAKPOINT_EXECUTE)
+			args->regs->flags |= X86_EFLAGS_RF;
+
 		rcu_read_unlock();
 	}
 	/*
