@@ -3639,6 +3639,44 @@ out_exit:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static void iwl_mac_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	mutex_lock(&priv->mutex);
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	/* do not support "flush" */
+	if (!priv->cfg->ops->lib->txfifo_flush)
+		goto done;
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+		IWL_DEBUG_TX(priv, "Aborting flush due to device shutdown\n");
+		goto done;
+	}
+	if (iwl_is_rfkill(priv)) {
+		IWL_DEBUG_TX(priv, "Aborting flush due to RF Kill\n");
+		goto done;
+	}
+
+	/*
+	 * mac80211 will not push any more frames for transmit
+	 * until the flush is completed
+	 */
+	if (drop) {
+		IWL_DEBUG_MAC80211(priv, "send flush command\n");
+		if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+			IWL_ERR(priv, "flush request fail\n");
+			goto done;
+		}
+	}
+	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
+	iwlagn_wait_tx_queue_empty(priv);
+done:
+	mutex_unlock(&priv->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+}
+
 /*****************************************************************************
  *
  * driver setup and teardown
@@ -3812,6 +3850,7 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.sta_add = iwlagn_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
 	.channel_switch = iwl_mac_channel_switch,
+	.flush = iwl_mac_flush,
 };
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

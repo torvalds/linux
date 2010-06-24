@@ -1216,6 +1216,10 @@ struct iwl_rem_sta_cmd {
 #define IWL_TX_FIFO_VO_MSK		cpu_to_le32(BIT(3))
 #define IWL_AGG_TX_QUEUE_MSK		cpu_to_le32(0xffc00)
 
+#define IWL_DROP_SINGLE		0
+#define IWL_DROP_SELECTED	1
+#define IWL_DROP_ALL		2
+
 /*
  * REPLY_TXFIFO_FLUSH = 0x1e(command and response)
  *

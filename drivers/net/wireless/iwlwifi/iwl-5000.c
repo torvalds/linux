@@ -402,6 +402,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
+	.txfifo_flush = iwlagn_txfifo_flush,
 };
 
 static struct iwl_lib_ops iwl5150_lib = {
@@ -465,6 +466,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
 	.check_plcp_health = iwl_good_plcp_health,
 	.check_ack_health = iwl_good_ack_health,
+	.txfifo_flush = iwlagn_txfifo_flush,
 };
 
 static const struct iwl_ops iwl5000_ops = {
