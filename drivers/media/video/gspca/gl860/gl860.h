@@ -41,7 +41,7 @@
 #define IMAGE_640   0
 #define IMAGE_800   1
 #define IMAGE_1280  2
-#define IMAGE_1600 3
+#define IMAGE_1600  3
 
 struct sd_gl860 {
 	u16 backlight;
@@ -72,10 +72,10 @@ struct sd {
 	int  (*dev_camera_settings)(struct gspca_dev *);
 
 	u8   swapRB;
-	u8  mirrorMask;
-	u8  sensor;
-	s32 nbIm;
-	s32 nbRightUp;
+	u8   mirrorMask;
+	u8   sensor;
+	s32  nbIm;
+	s32  nbRightUp;
 	u8   waitSet;
 };
 
