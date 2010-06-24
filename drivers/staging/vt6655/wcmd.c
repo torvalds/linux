@@ -904,7 +904,7 @@ s_bCommandComplete (
 {
     PWLAN_IE_SSID pSSID;
     BOOL          bRadioCmd = FALSE;
-    //WORD          wDeAuthenReason = 0;
+    //unsigned short wDeAuthenReason = 0;
     BOOL          bForceSCAN = TRUE;
     PSMgmtObject  pMgmt = pDevice->pMgmt;
 

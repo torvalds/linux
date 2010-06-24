@@ -89,14 +89,14 @@ typedef enum _CARD_OP_MODE {
 void CARDvSetRSPINF(void *pDeviceHandler, CARD_PHY_TYPE ePHYType);
 void vUpdateIFS(void *pDeviceHandler);
 void CARDvUpdateBasicTopRate(void *pDeviceHandler);
-BOOL CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx);
+BOOL CARDbAddBasicRate(void *pDeviceHandler, unsigned short wRateIdx);
 BOOL CARDbIsOFDMinBasicRate(void *pDeviceHandler);
-void CARDvSetLoopbackMode(unsigned long dwIoBase, WORD wLoopbackMode);
+void CARDvSetLoopbackMode(unsigned long dwIoBase, unsigned short wLoopbackMode);
 BOOL CARDbSoftwareReset(void *pDeviceHandler);
-void CARDvSetFirstNextTBTT(unsigned long dwIoBase, WORD wBeaconInterval);
-void CARDvUpdateNextTBTT(unsigned long dwIoBase, QWORD qwTSF, WORD wBeaconInterval);
+void CARDvSetFirstNextTBTT(unsigned long dwIoBase, unsigned short wBeaconInterval);
+void CARDvUpdateNextTBTT(unsigned long dwIoBase, QWORD qwTSF, unsigned short wBeaconInterval);
 BOOL CARDbGetCurrentTSF(unsigned long dwIoBase, PQWORD pqwCurrTSF);
-QWORD CARDqGetNextTBTT(QWORD qwTSF, WORD wBeaconInterval);
+QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval);
 QWORD CARDqGetTSFOffset(BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2);
 BOOL CARDbSetTxPower(void *pDeviceHandler, unsigned long ulTxPower);
 BYTE CARDbyGetPktType(void *pDeviceHandler);
@@ -109,11 +109,11 @@ BOOL CARDbRadioPowerOn(void *pDeviceHandler);
 //BOOL CARDbSendPacket(void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength);
 BOOL CARDbIsShortPreamble(void *pDeviceHandler);
 BOOL CARDbIsShorSlotTime(void *pDeviceHandler);
-BOOL CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, WORD wCapInfo, BYTE byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);
+BOOL CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, BYTE byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);
 BOOL CARDbUpdateTSF(void *pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF);
 BOOL CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
 BOOL CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
-BOOL CARDbSetBeaconPeriod(void *pDeviceHandler, WORD wBeaconInterval);
+BOOL CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval);
 BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode);
 
 BOOL
@@ -123,7 +123,7 @@ CARDbPowerDown(
 
 BOOL CARDbSetTxDataRate(
     void *pDeviceHandler,
-    WORD    wDataRate
+    unsigned short wDataRate
     );
 
 
@@ -134,7 +134,7 @@ CARDbAdd_PMKID_Candidate (
     void *pDeviceHandler,
     unsigned char *pbyBSSID,
     BOOL             bRSNCapExist,
-    WORD             wRSNCap
+    unsigned short wRSNCap
     );
 
 void *
@@ -163,8 +163,8 @@ CARDbSetQuiet (
     BOOL             bResetQuiet,
     BYTE             byQuietCount,
     BYTE             byQuietPeriod,
-    WORD             wQuietDuration,
-    WORD             wQuietOffset
+    unsigned short wQuietDuration,
+    unsigned short wQuietOffset
     );
 
 BOOL

@@ -267,7 +267,7 @@ static int hostap_add_sta(PSDevice pDevice,
     pMgmt->sNodeDBTable[uNodeIndex].bShortPreamble =
             WLAN_GET_CAP_INFO_SHORTPREAMBLE(pMgmt->sNodeDBTable[uNodeIndex].wCapInfo);
 
-    pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)param->u.add_sta.aid;
+    pMgmt->sNodeDBTable[uNodeIndex].wAID = (unsigned short)param->u.add_sta.aid;
 
     pMgmt->sNodeDBTable[uNodeIndex].ulLastRxJiffer = jiffies;
 
@@ -480,7 +480,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 	int     iNodeIndex = -1;
 	int     ii;
 	BOOL    bKeyTableFull = FALSE;
-	WORD    wKeyCtl = 0;
+	unsigned short wKeyCtl = 0;
 
 
 	param->u.crypt.err = 0;

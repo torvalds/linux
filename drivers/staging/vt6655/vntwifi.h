@@ -143,8 +143,8 @@ typedef enum tagWMAC_POWER_MODE {
 void
 VNTWIFIvSetIBSSParameter (
     void *pMgmtHandle,
-    WORD  wBeaconPeriod,
-    WORD  wATIMWindow,
+    unsigned short wBeaconPeriod,
+    unsigned short wATIMWindow,
     unsigned int uChannel
     );
 
@@ -164,7 +164,7 @@ VNTWIFIpGetCurrentChannel(
     void *pMgmtHandle
     );
 
-WORD
+unsigned short
 VNTWIFIwGetAssocID (
     void *pMgmtHandle
     );
@@ -231,7 +231,7 @@ VNTWIFIvUpdateNodeTxCounter(
     void *pMgmtHandle,
     unsigned char *pbyDestAddress,
     BOOL     bTxOk,
-    WORD     wRate,
+    unsigned short wRate,
     unsigned char *pbyTxFailCount
     );
 
@@ -274,7 +274,7 @@ VNTWIFIbCommandRunning (
     void *pMgmtObject
     );
 
-WORD
+unsigned short
 VNTWIFIwGetMaxSupportRate(
     void *pMgmtObject
     );

@@ -51,7 +51,7 @@
 /*---------------------  Static Classes  ----------------------------*/
 
 
- extern WORD TxRate_iwconfig; //2008-5-8 <add> by chester
+ extern unsigned short TxRate_iwconfig; //2008-5-8 <add> by chester
 /*---------------------  Static Variables  --------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -158,12 +158,12 @@ DATARATEbyGetRateIdx (
  * Return Value: RateIdx
  *
 -*/
-WORD
+unsigned short
 wGetRateIdx(
     BYTE byRate
     )
 {
-    WORD    ii;
+    unsigned short ii;
 
     //Erase basicRate flag.
     byRate = byRate & 0x7F;//0111 1111
@@ -211,7 +211,7 @@ PSDevice  pDevice = (PSDevice) pDeviceHandler;
 unsigned int ii;
 BYTE  byHighSuppRate = 0;
 BYTE  byRate = 0;
-WORD  wOldBasicRate = pDevice->wBasicRate;
+unsigned short wOldBasicRate = pDevice->wBasicRate;
 unsigned int uRateLen;
 
 
@@ -314,13 +314,13 @@ RATEvTxRateFallBack (
     )
 {
 PSDevice        pDevice = (PSDevice) pDeviceHandler;
-WORD            wIdxDownRate = 0;
+unsigned short wIdxDownRate = 0;
 unsigned int ii;
 //unsigned long dwRateTable[MAX_RATE]  = {1,   2,   5,   11,  6,    9,    12,   18,  24,  36,  48,  54};
 BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
 	unsigned long dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
 	unsigned long dwThroughput = 0;
-WORD            wIdxUpRate = 0;
+	unsigned short wIdxUpRate = 0;
 	unsigned long dwTxDiff = 0;
 
     if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING) {
@@ -347,7 +347,7 @@ WORD            wIdxUpRate = 0;
     for(ii=0;ii<MAX_RATE;ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
             if (bAutoRate[ii] == TRUE) {
-                wIdxUpRate = (WORD) ii;
+                wIdxUpRate = (unsigned short) ii;
             }
         } else {
             bAutoRate[ii] = FALSE;
@@ -374,7 +374,7 @@ WORD            wIdxUpRate = 0;
         if ( (dwThroughputTbl[ii] > dwThroughput) &&
              (bAutoRate[ii]==TRUE) ) {
             dwThroughput = dwThroughputTbl[ii];
-            wIdxDownRate = (WORD) ii;
+            wIdxDownRate = (unsigned short) ii;
         }
     }
     psNodeDBTable->wTxDataRate = wIdxDownRate;

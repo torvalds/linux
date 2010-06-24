@@ -97,7 +97,7 @@ typedef struct tagSERPObject {
 
 typedef struct tagSRSNCapObject {
     BOOL    bRSNCapExist;
-    WORD    wRSNCap;
+    unsigned short wRSNCap;
 }SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
@@ -111,12 +111,12 @@ typedef struct tagKnownBSS {
     BYTE            abyExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     unsigned int	uRSSI;
     BYTE            bySQ;
-    WORD            wBeaconInterval;
-    WORD            wCapInfo;
+    unsigned short wBeaconInterval;
+    unsigned short wCapInfo;
     BYTE            abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     BYTE            byRxRate;
 
-//    WORD            wATIMWindow;
+//    unsigned short wATIMWindow;
     BYTE            byRSSIStatCnt;
     long            ldBmMAX;
     long            ldBmAverage[RSSI_STAT_COUNT];
@@ -128,9 +128,9 @@ typedef struct tagKnownBSS {
     BOOL            bWPAValid;
     BYTE            byGKType;
     BYTE            abyPKType[4];
-    WORD            wPKCount;
+    unsigned short wPKCount;
     BYTE            abyAuthType[4];
-    WORD            wAuthCount;
+    unsigned short wAuthCount;
     BYTE            byDefaultK_as_PK;
     BYTE            byReplayIdx;
     //--
@@ -138,16 +138,16 @@ typedef struct tagKnownBSS {
     //++ WPA2 informations
     BOOL            bWPA2Valid;
     BYTE            byCSSGK;
-    WORD            wCSSPKCount;
+    unsigned short wCSSPKCount;
     BYTE            abyCSSPK[4];
-    WORD            wAKMSSAuthCount;
+    unsigned short wAKMSSAuthCount;
     BYTE            abyAKMSSAuthType[4];
 
     //++  wpactl
     BYTE            byWPAIE[MAX_WPA_IE_LEN];
     BYTE            byRSNIE[MAX_WPA_IE_LEN];
-    WORD            wWPALen;
-    WORD            wRSNLen;
+    unsigned short wWPALen;
+    unsigned short wRSNLen;
 
     // Clear count
     unsigned int	uClearCount;
@@ -185,22 +185,22 @@ typedef struct tagKnownNodeDB {
     BYTE            abyMACAddr[WLAN_ADDR_LEN];
     BYTE            abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     BYTE            abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
-    WORD            wTxDataRate;
+    unsigned short wTxDataRate;
     BOOL            bShortPreamble;
     BOOL            bERPExist;
     BOOL            bShortSlotTime;
     unsigned int	uInActiveCount;
-    WORD            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
-    WORD            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
-    WORD            wSuppRate;
+    unsigned short wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
+    unsigned short wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
+    unsigned short wSuppRate;
     BYTE            byTopOFDMBasicRate;//Records the highest basic rate in OFDM mode
     BYTE            byTopCCKBasicRate; //Records the highest basic rate in CCK mode
 
     // For AP mode
     struct sk_buff_head sTxPSQueue;
-    WORD            wCapInfo;
-    WORD            wListenInterval;
-    WORD            wAID;
+    unsigned short wCapInfo;
+    unsigned short wListenInterval;
+    unsigned short wAID;
     NODE_STATE      eNodeState;
     BOOL            bPSEnable;
     BOOL            bRxPSPoll;
@@ -208,7 +208,7 @@ typedef struct tagKnownNodeDB {
     unsigned long ulLastRxJiffer;
     BYTE            bySuppRate;
     unsigned long dwFlags;
-    WORD            wEnQueueCnt;
+    unsigned short wEnQueueCnt;
 
     BOOL            bOnFly;
     unsigned long long       KeyRSC;
@@ -216,7 +216,7 @@ typedef struct tagKnownNodeDB {
     unsigned long dwKeyIndex;
     BYTE            byCipherSuite;
     unsigned long dwTSC47_16;
-    WORD            wTSC15_0;
+    unsigned short wTSC15_0;
     unsigned int	uWepKeyLength;
     BYTE            abyWepKey[WLAN_WEPMAX_KEYLEN];
     //
@@ -268,8 +268,8 @@ BSSbInsertToBSSList(
     void *hDeviceContext,
     unsigned char *abyBSSIDAddr,
     QWORD qwTimestamp,
-    WORD wBeaconInterval,
-    WORD wCapInfo,
+    unsigned short wBeaconInterval,
+    unsigned short wCapInfo,
     BYTE byCurrChannel,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pSuppRates,
@@ -289,8 +289,8 @@ BOOL
 BSSbUpdateToBSSList(
     void *hDeviceContext,
     QWORD qwTimestamp,
-    WORD wBeaconInterval,
-    WORD wCapInfo,
+    unsigned short wBeaconInterval,
+    unsigned short wCapInfo,
     BYTE byCurrChannel,
     BOOL bChannelHit,
     PWLAN_IE_SSID pSSID,

@@ -243,7 +243,7 @@ BYTE abyRoundKey[16];
  * Return Value: MIC compare result
  *
  */
-BOOL AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, WORD wFrameSize)
+BOOL AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, unsigned short wFrameSize)
 {
 BYTE            abyNonce[13];
 BYTE            MIC_IV[16];
@@ -258,11 +258,11 @@ BYTE            abyLastCipher[16];
 PS802_11Header  pMACHeader = (PS802_11Header) pbyFrame;
 unsigned char *pbyIV;
 unsigned char *pbyPayload;
-WORD            wHLen = 22;
-WORD            wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;//8 is IV, 8 is MIC, 4 is CRC
+unsigned short wHLen = 22;
+unsigned short wPayloadSize = wFrameSize - 8 - 8 - 4 - WLAN_HDR_ADDR3_LEN;//8 is IV, 8 is MIC, 4 is CRC
 BOOL            bA4 = FALSE;
 BYTE            byTmp;
-WORD            wCnt;
+unsigned short wCnt;
 int             ii,jj,kk;
 
 

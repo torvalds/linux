@@ -624,7 +624,7 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, BYTE byChannel)
  */
 BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
 {
-    WORD    ww;
+    unsigned short ww;
     unsigned long dwValue;
 
     VNSvOutPortD(dwIoBase + MAC_REG_IFREGCTL, dwData);
@@ -932,11 +932,11 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, BYTE byRFType, unsigned int uC
             }
 
             for (ii = 0; ii < CB_AL2230_INIT_SEQ; ii++ ) {
-                MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230InitTable[ii]);
+                MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230InitTable[ii]);
             }
-            MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230ChannelTable0[uChannel-1]);
+            MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230ChannelTable0[uChannel-1]);
             ii ++;
-            MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230ChannelTable1[uChannel-1]);
+            MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL2230ChannelTable1[uChannel-1]);
             break;
 
         //{{ RobertYu: 20050104
@@ -951,21 +951,21 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, BYTE byRFType, unsigned int uC
             if (uChannel <= CB_MAX_CHANNEL_24G)
             {
                 for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++ ) {
-                    MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTable[ii]);
+                    MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTable[ii]);
                 }
             }
             else
             {
                 for (ii = 0; ii < CB_AL7230_INIT_SEQ; ii++ ) {
-                    MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTableAMode[ii]);
+                    MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230InitTableAMode[ii]);
                 }
             }
 
-            MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable0[uChannel-1]);
+            MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable0[uChannel-1]);
             ii ++;
-            MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable1[uChannel-1]);
+            MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable1[uChannel-1]);
             ii ++;
-            MACvSetMISCFifo(dwIoBase, (WORD)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable2[uChannel-1]);
+            MACvSetMISCFifo(dwIoBase, (unsigned short)(MISCFIFO_SYNDATA_IDX + ii), dwAL7230ChannelTable2[uChannel-1]);
             break;
         //}} RobertYu
 

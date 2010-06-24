@@ -63,7 +63,7 @@ PSvDisablePowerSaving(
 void
 PSvEnablePowerSaving(
     void *hDeviceContext,
-    WORD wListenInterval
+    unsigned short wListenInterval
     );
 
 void

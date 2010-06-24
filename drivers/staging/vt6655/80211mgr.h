@@ -262,7 +262,7 @@ WLAN_IE_SUPP_RATES,  *PWLAN_IE_SUPP_RATES;
 typedef struct _WLAN_IE_FH_PARMS {
     BYTE    byElementID;
     BYTE    len;
-    WORD    wDwellTime;
+    unsigned short wDwellTime;
     BYTE    byHopSet;
     BYTE    byHopPattern;
     BYTE    byHopIndex;
@@ -285,8 +285,8 @@ typedef struct tagWLAN_IE_CF_PARMS {
     BYTE   len;
     BYTE   byCFPCount;
     BYTE   byCFPPeriod;
-    WORD   wCFPMaxDuration;
-    WORD   wCFPDurRemaining;
+    unsigned short wCFPMaxDuration;
+    unsigned short wCFPDurRemaining;
 }__attribute__ ((__packed__))
 WLAN_IE_CF_PARMS,  *PWLAN_IE_CF_PARMS;
 
@@ -309,7 +309,7 @@ WLAN_IE_TIM,  *PWLAN_IE_TIM;
 typedef struct tagWLAN_IE_IBSS_PARMS {
     BYTE   byElementID;
     BYTE   len;
-    WORD   wATIMWindow;
+    unsigned short wATIMWindow;
 }__attribute__ ((__packed__))
 WLAN_IE_IBSS_PARMS, *PWLAN_IE_IBSS_PARMS;
 
@@ -329,9 +329,9 @@ typedef struct tagWLAN_IE_RSN_EXT {
     BYTE byElementID;
     BYTE len;
     BYTE abyOUI[4];
-    WORD wVersion;
+    unsigned short wVersion;
     BYTE abyMulticast[4];
-    WORD wPKCount;
+    unsigned short wPKCount;
     struct {
         BYTE abyOUI[4];
     } PKSList[1]; // the rest is variable so need to
@@ -340,7 +340,7 @@ typedef struct tagWLAN_IE_RSN_EXT {
 
 #pragma pack(1)
 typedef struct tagWLAN_IE_RSN_AUTH {
-    WORD wAuthCount;
+    unsigned short wAuthCount;
     struct {
         BYTE abyOUI[4];
     } AuthKSList[1];
@@ -351,7 +351,7 @@ typedef struct tagWLAN_IE_RSN_AUTH {
 typedef struct tagWLAN_IE_RSN {
     BYTE   byElementID;
     BYTE   len;
-    WORD   wVersion;
+    unsigned short wVersion;
     BYTE   abyRSN[WLAN_MIN_ARRAY];
 } WLAN_IE_RSN, *PWLAN_IE_RSN;
 

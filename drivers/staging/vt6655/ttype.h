@@ -69,7 +69,6 @@ typedef int             BOOL;
  */
 
 typedef unsigned char   BYTE;           //  8-bit
-typedef unsigned short  WORD;           // 16-bit
 
 // QWORD is for those situation that we want
 // an 8-byte-aligned 8 byte long structure

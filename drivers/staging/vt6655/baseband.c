@@ -1712,7 +1712,7 @@ BYTE byVT3253B0_AGC[CB_VT3253B0_AGC][2] = {
     {0xF0, 0x00},
 };
 
-const WORD awcFrameTime[MAX_RATE] =
+const unsigned short awcFrameTime[MAX_RATE] =
 {10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
 
 
@@ -1781,7 +1781,7 @@ BBuGetFrameTime (
     BYTE byPreambleType,
     BYTE byPktType,
     unsigned int cbFrameLength,
-    WORD wRate
+    unsigned short wRate
     )
 {
     unsigned int uFrameTime;
@@ -1847,7 +1847,7 @@ void
 BBvCaculateParameter (
     PSDevice pDevice,
     unsigned int cbFrameLength,
-    WORD wRate,
+    unsigned short wRate,
     BYTE byPacketType,
     unsigned short *pwPhyLen,
     unsigned char *pbyPhySrv,
@@ -1994,11 +1994,11 @@ BBvCaculateParameter (
         *pbyPhySrv = 0x00;
         if (bExtBit)
             *pbyPhySrv = *pbyPhySrv | 0x80;
-        *pwPhyLen = (WORD)cbUsCount;
+        *pwPhyLen = (unsigned short)cbUsCount;
     }
     else {
         *pbyPhySrv = 0x00;
-        *pwPhyLen = (WORD)cbFrameLength;
+        *pwPhyLen = (unsigned short)cbFrameLength;
     }
 }
 
@@ -2017,7 +2017,7 @@ BBvCaculateParameter (
  */
 BOOL BBbReadEmbeded (unsigned long dwIoBase, BYTE byBBAddr, unsigned char *pbyData)
 {
-    WORD    ww;
+    unsigned short ww;
     BYTE    byValue;
 
     // BB reg offset
@@ -2060,7 +2060,7 @@ BOOL BBbReadEmbeded (unsigned long dwIoBase, BYTE byBBAddr, unsigned char *pbyDa
  */
 BOOL BBbWriteEmbeded (unsigned long dwIoBase, BYTE byBBAddr, BYTE byData)
 {
-    WORD    ww;
+    unsigned short ww;
     BYTE    byValue;
 
     // BB reg offset

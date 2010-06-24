@@ -101,8 +101,8 @@ VNTWIFIvSetOPMode (
 void
 VNTWIFIvSetIBSSParameter (
     void *pMgmtHandle,
-    WORD  wBeaconPeriod,
-    WORD  wATIMWindow,
+    unsigned short wBeaconPeriod,
+    unsigned short wATIMWindow,
     unsigned int uChannel
     )
 {
@@ -176,7 +176,7 @@ VNTWIFIpGetCurrentChannel (
  * Return Value: current Assoc ID
  *
 -*/
-WORD
+unsigned short
 VNTWIFIwGetAssocID (
     void *pMgmtHandle
     )
@@ -499,7 +499,7 @@ VNTWIFIvUpdateNodeTxCounter(
     void *pMgmtHandle,
     unsigned char *pbyDestAddress,
     BOOL     bTxOk,
-    WORD     wRate,
+    unsigned short wRate,
     unsigned char *pbyTxFailCount
     )
 {
@@ -541,7 +541,7 @@ VNTWIFIvGetTxRate(
 {
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
     unsigned int uNodeIndex = 0;
-    WORD                wTxDataRate = RATE_1M;
+    unsigned short wTxDataRate = RATE_1M;
     BYTE                byACKRate = RATE_1M;
     BYTE                byCCKBasicRate = RATE_1M;
     BYTE                byOFDMBasicRate = RATE_24M;
@@ -681,12 +681,12 @@ VNTWIFIbSetPMKIDCache (
 
 
 
-WORD
+unsigned short
 VNTWIFIwGetMaxSupportRate(
     void *pMgmtObject
     )
 {
-    WORD wRate = RATE_54M;
+    unsigned short wRate = RATE_54M;
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
 
     for(wRate = RATE_54M; wRate > RATE_1M; wRate--) {

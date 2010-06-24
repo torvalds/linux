@@ -77,12 +77,12 @@ static int          msglevel                =MSG_LEVEL_INFO;
 void
 PSvEnablePowerSaving(
     void *hDeviceContext,
-    WORD wListenInterval
+    unsigned short wListenInterval
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    WORD            wAID = pMgmt->wCurrAID | BIT14 | BIT15;
+    unsigned short wAID = pMgmt->wCurrAID | BIT14 | BIT15;
 
     // set period of power up before TBTT
     VNSvOutPortW(pDevice->PortOffset + MAC_REG_PWBT, C_PWBT);
@@ -350,7 +350,7 @@ PSbSendNullPacket(
     }
 
     if(pMgmt->eCurrMode != WMAC_MODE_IBSS_STA) {
-        pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_TODS(1));
+        pTxPacket->p80211Header->sA3.wFrameCtl |= cpu_to_le16((unsigned short)WLAN_SET_FC_TODS(1));
     }
 
     memcpy(pTxPacket->p80211Header->sA3.abyAddr1, pMgmt->abyCurrBSSID, WLAN_ADDR_LEN);

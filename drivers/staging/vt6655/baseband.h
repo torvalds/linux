@@ -123,14 +123,14 @@ BBuGetFrameTime(
     BYTE byPreambleType,
     BYTE byPktType,
     unsigned int cbFrameLength,
-    WORD wRate
+    unsigned short wRate
     );
 
 void
 BBvCaculateParameter (
     PSDevice pDevice,
     unsigned int cbFrameLength,
-    WORD wRate,
+    unsigned short wRate,
     BYTE byPacketType,
     unsigned short *pwPhyLen,
     unsigned char *pbyPhySrv,

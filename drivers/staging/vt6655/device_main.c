@@ -775,7 +775,7 @@ else
         if (pDevice->uConnectionRate == RATE_AUTO) {
             pDevice->wCurrentRate = RATE_54M;
         } else {
-            pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+            pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
         }
 
         // default G Mode
@@ -1753,7 +1753,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 
                 if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) &&
                     (pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)) {
-                    WORD    wAID;
+                    unsigned short wAID;
                     BYTE    byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 
                     skb = pTD->pTDInfo->skb;
@@ -1798,7 +1798,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 }
 
 
-static void device_error(PSDevice pDevice, WORD status) {
+static void device_error(PSDevice pDevice, unsigned short status) {
 
     if (status & ISR_FETALERR) {
         DBG_PRT(MSG_LEVEL_ERR, KERN_ERR
@@ -2176,13 +2176,13 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
             if (pDevice->uConnectionRate >= RATE_11M) {
                 pDevice->wCurrentRate = RATE_11M;
             } else {
-                pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
             }
         } else {
             if (pDevice->uConnectionRate >= RATE_54M)
                 pDevice->wCurrentRate = RATE_54M;
             else
-                pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
         }
     }
     else {
@@ -2274,7 +2274,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     PSTxDesc        pHeadTD, pLastTD;
     unsigned int uNodeIndex = 0;
     BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    WORD            wAID;
+    unsigned short wAID;
     unsigned int uMACfragNum = 1;
     unsigned int cbFrameBodySize;
     BYTE            byPktType;
@@ -2457,7 +2457,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
             if (pDevice->uConnectionRate >= RATE_11M) {
                 pDevice->wCurrentRate = RATE_11M;
             } else {
-                pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
             }
         } else {
             if ((pDevice->eCurrentPHYType == PHY_TYPE_11A) &&
@@ -2467,7 +2467,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 if (pDevice->uConnectionRate >= RATE_54M)
                     pDevice->wCurrentRate = RATE_54M;
                 else
-                    pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                    pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
 
             }
         }
@@ -2637,7 +2637,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
     BYTE  Protocol_Version;    //802.1x Authentication
     BYTE  Packet_Type;           //802.1x Authentication
     BYTE  Descriptor_type;
-    WORD Key_info;
+    unsigned short Key_info;
 BOOL            bTxeapol_key = FALSE;
     Protocol_Version = skb->data[ETH_HLEN];
     Packet_Type = skb->data[ETH_HLEN+1];

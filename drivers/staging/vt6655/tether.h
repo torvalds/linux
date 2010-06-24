@@ -156,7 +156,7 @@
 typedef struct tagSEthernetHeader {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
-    WORD    wType;
+    unsigned short wType;
 }__attribute__ ((__packed__))
 SEthernetHeader, *PSEthernetHeader;
 
@@ -167,7 +167,7 @@ SEthernetHeader, *PSEthernetHeader;
 typedef struct tagS802_3Header {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
-    WORD    wLen;
+    unsigned short wLen;
 }__attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
 
@@ -175,12 +175,12 @@ S802_3Header, *PS802_3Header;
 // 802_11 packet
 //
 typedef struct tagS802_11Header {
-    WORD    wFrameCtl;
-    WORD    wDurationID;
+    unsigned short wFrameCtl;
+    unsigned short wDurationID;
     BYTE    abyAddr1[ETH_ALEN];
     BYTE    abyAddr2[ETH_ALEN];
     BYTE    abyAddr3[ETH_ALEN];
-    WORD    wSeqCtl;
+    unsigned short wSeqCtl;
     BYTE    abyAddr4[ETH_ALEN];
 }__attribute__ ((__packed__))
 S802_11Header, *PS802_11Header;

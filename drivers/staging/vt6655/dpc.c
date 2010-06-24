@@ -359,7 +359,7 @@ device_receive_frame (
     BOOL            bIsWEP = FALSE;
     unsigned int cbHeaderOffset;
     unsigned int FrameSize;
-    WORD            wEtherType = 0;
+    unsigned short wEtherType = 0;
     int             iSANodeIndex = -1;
     int             iDANodeIndex = -1;
     unsigned int ii;
@@ -370,7 +370,7 @@ device_receive_frame (
     unsigned char *pbySQ;
     unsigned int cbHeaderSize;
     PSKeyItem       pKey = NULL;
-    WORD            wRxTSC15_0 = 0;
+    unsigned short wRxTSC15_0 = 0;
     unsigned long dwRxTSC47_16 = 0;
     SKeyItem        STempKey;
     // 802.11h RPI
@@ -917,12 +917,12 @@ device_receive_frame (
     if ((pKey != NULL) && ((pKey->byCipherSuite == KEY_CTL_TKIP) ||
                            (pKey->byCipherSuite == KEY_CTL_CCMP))) {
         if (bIsWEP) {
-            WORD        wLocalTSC15_0 = 0;
+            unsigned short wLocalTSC15_0 = 0;
             unsigned long dwLocalTSC47_16 = 0;
             unsigned long long       RSC = 0;
             // endian issues
             RSC = *((unsigned long long *) &(pKey->KeyRSC));
-            wLocalTSC15_0 = (WORD) RSC;
+            wLocalTSC15_0 = (unsigned short) RSC;
             dwLocalTSC47_16 = (unsigned long) (RSC>>16);
 
             RSC = dwRxTSC47_16;
@@ -1452,7 +1452,7 @@ static BOOL s_bAPModeRxData (
     BOOL                bRelayAndForward = FALSE;
     BOOL                bRelayOnly = FALSE;
     BYTE                byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    WORD                wAID;
+    unsigned short wAID;
 
 
     struct sk_buff* skbcpy = NULL;

@@ -97,34 +97,34 @@
 //      2048 bits = 256 bytes = 128 words
 //
 typedef struct tagSSromReg {
-    BYTE    abyPAR[6];                  // 0x00 (WORD)
+    BYTE    abyPAR[6];                  // 0x00 (unsigned short)
 
-    WORD    wSUB_VID;                   // 0x03 (WORD)
-    WORD    wSUB_SID;
+    unsigned short wSUB_VID;                   // 0x03 (unsigned short)
+    unsigned short wSUB_SID;
 
-    BYTE    byBCFG0;                    // 0x05 (WORD)
+    BYTE    byBCFG0;                    // 0x05 (unsigned short)
     BYTE    byBCFG1;
 
-    BYTE    byFCR0;                     // 0x06 (WORD)
+    BYTE    byFCR0;                     // 0x06 (unsigned short)
     BYTE    byFCR1;
-    BYTE    byPMC0;                     // 0x07 (WORD)
+    BYTE    byPMC0;                     // 0x07 (unsigned short)
     BYTE    byPMC1;
-    BYTE    byMAXLAT;                   // 0x08 (WORD)
+    BYTE    byMAXLAT;                   // 0x08 (unsigned short)
     BYTE    byMINGNT;
-    BYTE    byCFG0;                     // 0x09 (WORD)
+    BYTE    byCFG0;                     // 0x09 (unsigned short)
     BYTE    byCFG1;
-    WORD    wCISPTR;                    // 0x0A (WORD)
-    WORD    wRsv0;                      // 0x0B (WORD)
-    WORD    wRsv1;                      // 0x0C (WORD)
-    BYTE    byBBPAIR;                   // 0x0D (WORD)
+    unsigned short wCISPTR;                    // 0x0A (unsigned short)
+    unsigned short wRsv0;                      // 0x0B (unsigned short)
+    unsigned short wRsv1;                      // 0x0C (unsigned short)
+    BYTE    byBBPAIR;                   // 0x0D (unsigned short)
     BYTE    byRFTYPE;
-    BYTE    byMinChannel;               // 0x0E (WORD)
+    BYTE    byMinChannel;               // 0x0E (unsigned short)
     BYTE    byMaxChannel;
-    BYTE    bySignature;                // 0x0F (WORD)
+    BYTE    bySignature;                // 0x0F (unsigned short)
     BYTE    byCheckSum;
 
-    BYTE    abyReserved0[96];           // 0x10 (WORD)
-    BYTE    abyCIS[128];                // 0x80 (WORD)
+    BYTE    abyReserved0[96];           // 0x10 (unsigned short)
+    BYTE    abyCIS[128];                // 0x80 (unsigned short)
 } SSromReg, *PSSromReg;
 
 /*---------------------  Export Macros ------------------------------*/

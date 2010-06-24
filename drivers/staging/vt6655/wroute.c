@@ -139,7 +139,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
             if (pDevice->uConnectionRate >= RATE_11M) {
                 pDevice->wCurrentRate = RATE_11M;
             } else {
-                pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
             }
         } else {
             if ((pDevice->eCurrentPHYType == PHY_TYPE_11A) &&
@@ -149,7 +149,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
                 if (pDevice->uConnectionRate >= RATE_54M)
                     pDevice->wCurrentRate = RATE_54M;
                 else
-                    pDevice->wCurrentRate = (WORD)pDevice->uConnectionRate;
+                    pDevice->wCurrentRate = (unsigned short)pDevice->uConnectionRate;
             }
         }
     }

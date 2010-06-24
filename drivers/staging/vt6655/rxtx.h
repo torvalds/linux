@@ -64,10 +64,10 @@ void
 vGenerateMACHeader (
     PSDevice         pDevice,
     unsigned char *pbyBufferAddr,
-    WORD             wDuration,
+    unsigned short wDuration,
     PSEthernetHeader psEthHeader,
     BOOL             bNeedEncrypt,
-    WORD             wFragType,
+    unsigned short wFragType,
     unsigned int uDMAIdx,
     unsigned int uFragIdx
     );

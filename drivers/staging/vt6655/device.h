@@ -282,7 +282,7 @@ typedef struct tagSQuietControl {
     BOOL        bEnable;
     unsigned long dwStartTime;
     BYTE        byPeriod;
-    WORD        wDuration;
+    unsigned short wDuration;
 } SQuietControl, *PSQuietControl;
 
 //--
@@ -303,7 +303,7 @@ typedef enum {
 
 // The receive duplicate detection cache entry
 typedef struct tagSCacheEntry{
-    WORD        wFmSequence;
+    unsigned short wFmSequence;
     BYTE        abyAddr2[ETH_ALEN];
 } SCacheEntry, *PSCacheEntry;
 
@@ -319,8 +319,8 @@ typedef struct tagSCache{
 // DeFragment Control Block, used for collecting fragments prior to reassembly
 typedef struct tagSDeFragControlBlock
 {
-    WORD            wSequence;
-    WORD            wFragNum;
+    unsigned short wSequence;
+    unsigned short wFragNum;
     BYTE            abyAddr2[ETH_ALEN];
     unsigned int uLifetime;
     struct sk_buff* skb;
@@ -430,8 +430,8 @@ typedef struct __device_info {
     u32                         io_size;
 
     BYTE                        byRevId;
-    WORD                        SubSystemID;
-    WORD                        SubVendorID;
+    unsigned short SubSystemID;
+    unsigned short SubVendorID;
 
     int                         nTxQueues;
     volatile int                iTDUsed[TYPE_MAXTD];
@@ -525,7 +525,7 @@ typedef struct __device_info {
 
     VIA_BB_TYPE                 byBBType; //0: 11A, 1:11B, 2:11G
     VIA_PKT_TYPE                byPacketType; //0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate)
-    WORD                        wBasicRate;
+    unsigned short wBasicRate;
     BYTE                        byACKRate;
     BYTE                        byTopOFDMBasicRate;
     BYTE                        byTopCCKBasicRate;
@@ -537,20 +537,20 @@ typedef struct __device_info {
     BYTE                        byPreambleType;
     BYTE                        byShortPreamble;
 
-    WORD                        wCurrentRate;
-    WORD                        wRTSThreshold;
-    WORD                        wFragmentationThreshold;
+    unsigned short wCurrentRate;
+    unsigned short wRTSThreshold;
+    unsigned short wFragmentationThreshold;
     BYTE                        byShortRetryLimit;
     BYTE                        byLongRetryLimit;
     CARD_OP_MODE                eOPMode;
     BYTE                        byOpMode;
     BOOL                        bBSSIDFilter;
-    WORD                        wMaxTransmitMSDULifetime;
+    unsigned short wMaxTransmitMSDULifetime;
     BYTE                        abyBSSID[ETH_ALEN];
     BYTE                        abyDesireBSSID[ETH_ALEN];
-    WORD                        wCTSDuration;       // update while speed change
-    WORD                        wACKDuration;       // update while speed change
-    WORD                        wRTSTransmitLen;    // update while speed change
+    unsigned short wCTSDuration;       // update while speed change
+    unsigned short wACKDuration;       // update while speed change
+    unsigned short wRTSTransmitLen;    // update while speed change
     BYTE                        byRTSServiceField;  // update while speed change
     BYTE                        byRTSSignalField;   // update while speed change
 
@@ -565,12 +565,12 @@ typedef struct __device_info {
     BOOL                        bBarkerPreambleMd;
 
     BYTE                        byERPFlag;
-    WORD                        wUseProtectCntDown;
+    unsigned short wUseProtectCntDown;
 
     BOOL                        bRadioControlOff;
     BOOL                        bRadioOff;
     BOOL                    bEnablePSMode;
-    WORD                    wListenInterval;
+    unsigned short wListenInterval;
     BOOL                    bPWBitOn;
     WMAC_POWER_MODE         ePSMode;
 
@@ -583,8 +583,8 @@ typedef struct __device_info {
     BOOL                    bGPIOBlockRead;
 
     // Beacon releated
-    WORD                    wSeqCounter;
-    WORD                    wBCNBufLen;
+    unsigned short wSeqCounter;
+    unsigned short wBCNBufLen;
     BOOL                    bBeaconBufReady;
     BOOL                    bBeaconSent;
     BOOL                    bIsBeaconBufReadySet;
@@ -748,7 +748,7 @@ typedef struct __device_info {
 
 
     unsigned long uNumSQ3[MAX_RATE];
-    WORD                    wAntDiversityMaxRate;
+    unsigned short wAntDiversityMaxRate;
 
 
     SEthernetHeader         sTxEthHeader;
@@ -790,7 +790,7 @@ typedef struct __device_info {
     BOOL                    bCountryInfo5G;
     BOOL                    bCountryInfo24G;
 
-    WORD                    wBeaconInterval;
+    unsigned short wBeaconInterval;
 
     //WPA supplicant deamon
 	struct net_device       *wpadev;

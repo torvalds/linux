@@ -45,7 +45,7 @@
 #endif
 
 #include <net/iw_handler.h>
-extern WORD TxRate_iwconfig;//2008-5-8 <add> by chester
+extern unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
 
 /*---------------------  Static Definitions -------------------------*/
 

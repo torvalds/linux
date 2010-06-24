@@ -166,7 +166,7 @@ WPA_ParseRSN (
                     break;
                 //DBG_PRN_GRP14(("abyPKType[%d]: %X\n", j-1, pBSSList->abyPKType[j-1]));
             } //for
-            pBSSList->wPKCount = (WORD)j;
+            pBSSList->wPKCount = (unsigned short)j;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wPKCount: %d\n", pBSSList->wPKCount);
         }
 
@@ -195,7 +195,7 @@ WPA_ParseRSN (
                 //DBG_PRN_GRP14(("abyAuthType[%d]: %X\n", j-1, pBSSList->abyAuthType[j-1]));
             }
             if(j > 0)
-                pBSSList->wAuthCount = (WORD)j;
+                pBSSList->wAuthCount = (unsigned short)j;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAuthCount: %d\n", pBSSList->wAuthCount);
         }
 

@@ -276,10 +276,10 @@ typedef struct tagSMgmtObject
     BYTE                    abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                    abyCurrSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     BYTE                    abyCurrBSSID[WLAN_BSSID_LEN];
-    WORD                    wCurrCapInfo;
-    WORD                    wCurrAID;
-    WORD                    wCurrATIMWindow;
-    WORD                    wCurrBeaconPeriod;
+    unsigned short wCurrCapInfo;
+    unsigned short wCurrAID;
+    unsigned short wCurrATIMWindow;
+    unsigned short wCurrBeaconPeriod;
     BOOL                    bIsDS;
     BYTE                    byERPContext;
 
@@ -292,13 +292,13 @@ typedef struct tagSMgmtObject
 
     // Adhoc or AP configuration vars
   //BYTE                    abyAdHocSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    WORD                    wIBSSBeaconPeriod;
-    WORD                    wIBSSATIMWindow;
+    unsigned short wIBSSBeaconPeriod;
+    unsigned short wIBSSATIMWindow;
     unsigned int	uIBSSChannel;
     BYTE                    abyIBSSSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                    byAPBBType;
     BYTE                    abyWPAIE[MAX_WPA_IE_LEN];
-    WORD                    wWPAIELen;
+    unsigned short wWPAIELen;
 
     unsigned int	uAssocCount;
     BOOL                    bMoreData;
@@ -308,7 +308,7 @@ typedef struct tagSMgmtObject
     WMAC_SCAN_TYPE          eScanType;
     unsigned int	uScanStartCh;
     unsigned int	uScanEndCh;
-    WORD                    wScanSteps;
+    unsigned short wScanSteps;
     unsigned int	uScanBSSType;
     // Desire scannig vars
     BYTE                    abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
@@ -329,8 +329,8 @@ typedef struct tagSMgmtObject
 
     // Power saving state vars
     WMAC_POWER_MODE         ePSMode;
-    WORD                    wListenInterval;
-    WORD                    wCountToWakeUp;
+    unsigned short wListenInterval;
+    unsigned short wCountToWakeUp;
     BOOL                    bInTIMWake;
     unsigned char *pbyPSPacketPool;
     BYTE                    byPSPacketPool[sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN];
@@ -433,7 +433,7 @@ vMgrDisassocBeginSta(
     void *hDeviceContext,
     PSMgmtObject pMgmt,
     unsigned char *abyDestAddress,
-    WORD    wReason,
+    unsigned short wReason,
     PCMD_STATUS pStatus
     );
 
@@ -476,7 +476,7 @@ vMgrDeAuthenBeginSta(
     void *hDeviceContext,
     PSMgmtObject  pMgmt,
     unsigned char *abyDestAddress,
-    WORD    wReason,
+    unsigned short wReason,
     PCMD_STATUS pStatus
     );
 

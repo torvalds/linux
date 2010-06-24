@@ -106,8 +106,8 @@ s_MgrMakeAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     unsigned char *pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -128,8 +128,8 @@ s_MgrMakeReAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     unsigned char *pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -241,10 +241,10 @@ PSTxMgmtPacket
 s_MgrMakeBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
     unsigned int uCurrChannel,
-    WORD wCurrATIMWinodw,
+    unsigned short wCurrATIMWinodw,
     PWLAN_IE_SSID pCurrSSID,
     unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
@@ -258,9 +258,9 @@ PSTxMgmtPacket
 s_MgrMakeAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
     unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -272,9 +272,9 @@ PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
     unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -286,10 +286,10 @@ PSTxMgmtPacket
 s_MgrMakeProbeResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
     unsigned int uCurrChannel,
-    WORD wCurrATIMWinodw,
+    unsigned short wCurrATIMWinodw,
     unsigned char *pDstAddr,
     PWLAN_IE_SSID pCurrSSID,
     unsigned char *pCurrBSSID,
@@ -303,7 +303,7 @@ static
 void
 s_vMgrLogStatus(
     PSMgmtObject pMgmt,
-    WORD wStatus
+    unsigned short wStatus
     );
 
 
@@ -621,7 +621,7 @@ vMgrDisassocBeginSta(
     void *hDeviceContext,
     PSMgmtObject pMgmt,
     unsigned char *abyDestAddress,
-    WORD    wReason,
+    unsigned short wReason,
     PCMD_STATUS pStatus
     )
 {
@@ -690,8 +690,8 @@ s_vMgrRxAssocRequest(
     WLAN_FR_ASSOCREQ    sFrame;
     CMD_STATUS          Status;
     PSTxMgmtPacket      pTxPacket;
-    WORD                wAssocStatus = 0;
-    WORD                wAssocAID = 0;
+    unsigned short wAssocStatus = 0;
+    unsigned short wAssocAID = 0;
     unsigned int uRateLen = WLAN_RATES_MAXLEN;
     BYTE                abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
@@ -759,9 +759,9 @@ s_vMgrRxAssocRequest(
                 WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime =
                 WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
-        pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)uNodeIndex;
+        pMgmt->sNodeDBTable[uNodeIndex].wAID = (unsigned short)uNodeIndex;
         wAssocStatus = WLAN_MGMT_STATUS_SUCCESS;
-        wAssocAID = (WORD)uNodeIndex;
+        wAssocAID = (unsigned short)uNodeIndex;
         // check if ERP support
         if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
            pMgmt->sNodeDBTable[uNodeIndex].bERPExist = TRUE;
@@ -852,8 +852,8 @@ s_vMgrRxReAssocRequest(
     WLAN_FR_REASSOCREQ    sFrame;
     CMD_STATUS          Status;
     PSTxMgmtPacket      pTxPacket;
-    WORD                wAssocStatus = 0;
-    WORD                wAssocAID = 0;
+    unsigned short wAssocStatus = 0;
+    unsigned short wAssocAID = 0;
     unsigned int	uRateLen = WLAN_RATES_MAXLEN;
     BYTE                abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
@@ -918,9 +918,9 @@ s_vMgrRxReAssocRequest(
                 WLAN_GET_CAP_INFO_SHORTPREAMBLE(*sFrame.pwCapInfo);
         pMgmt->sNodeDBTable[uNodeIndex].bShortSlotTime =
                 WLAN_GET_CAP_INFO_SHORTSLOTTIME(*sFrame.pwCapInfo);
-        pMgmt->sNodeDBTable[uNodeIndex].wAID = (WORD)uNodeIndex;
+        pMgmt->sNodeDBTable[uNodeIndex].wAID = (unsigned short)uNodeIndex;
         wAssocStatus = WLAN_MGMT_STATUS_SUCCESS;
-        wAssocAID = (WORD)uNodeIndex;
+        wAssocAID = (unsigned short)uNodeIndex;
 
         // if suppurt ERP
         if(pMgmt->sNodeDBTable[uNodeIndex].wMaxSuppRate > RATE_11M)
@@ -1214,7 +1214,7 @@ vMgrDeAuthenBeginSta(
     void *hDeviceContext,
     PSMgmtObject  pMgmt,
     unsigned char *abyDestAddress,
-    WORD    wReason,
+    unsigned short wReason,
     PCMD_STATUS pStatus
     )
 {
@@ -1885,12 +1885,12 @@ s_vMgrRxBeacon(
     BOOL                bIsChannelEqual = FALSE;
     unsigned int uLocateByteIndex;
     BYTE                byTIMBitOn = 0;
-    WORD                wAIDNumber = 0;
+    unsigned short wAIDNumber = 0;
     unsigned int uNodeIndex;
     QWORD               qwTimestamp, qwLocalTSF;
     QWORD               qwCurrTSF;
-    WORD                wStartIndex = 0;
-    WORD                wAIDIndex = 0;
+    unsigned short wStartIndex = 0;
+    unsigned short wAIDIndex = 0;
     BYTE                byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
     unsigned int uRateLen = WLAN_RATES_MAXLEN;
@@ -2393,8 +2393,8 @@ vMgrCreateOwnIBSS(
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    WORD                wMaxBasicRate;
-    WORD                wMaxSuppRate;
+    unsigned short wMaxBasicRate;
+    unsigned short wMaxSuppRate;
     BYTE                byTopCCKBasicRate;
     BYTE                byTopOFDMBasicRate;
     QWORD               qwCurrTSF;
@@ -2402,7 +2402,7 @@ vMgrCreateOwnIBSS(
     BYTE    abyRATE[] = {0x82, 0x84, 0x8B, 0x96, 0x24, 0x30, 0x48, 0x6C, 0x0C, 0x12, 0x18, 0x60};
     BYTE    abyCCK_RATE[] = {0x82, 0x84, 0x8B, 0x96};
     BYTE    abyOFDM_RATE[] = {0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
-    WORD                wSuppRate;
+    unsigned short wSuppRate;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create Basic Service Set .......\n");
 
@@ -2667,9 +2667,9 @@ vMgrJoinBSSBegin(
     PWLAN_IE_SUPP_RATES pItemExtRates = NULL;
     PWLAN_IE_SSID   pItemSSID;
     unsigned int uRateLen = WLAN_RATES_MAXLEN;
-    WORD            wMaxBasicRate = RATE_1M;
-    WORD            wMaxSuppRate = RATE_1M;
-    WORD            wSuppRate;
+    unsigned short wMaxBasicRate = RATE_1M;
+    unsigned short wMaxSuppRate = RATE_1M;
+    unsigned short wSuppRate;
     BYTE            byTopCCKBasicRate = RATE_1M;
     BYTE            byTopOFDMBasicRate = RATE_1M;
 
@@ -3157,8 +3157,8 @@ s_vMgrFormatTIM(
     unsigned int ii, jj;
     BOOL        bStartFound = FALSE;
     BOOL        bMulticast = FALSE;
-    WORD        wStartIndex = 0;
-    WORD        wEndIndex = 0;
+    unsigned short wStartIndex = 0;
+    unsigned short wEndIndex = 0;
 
 
     // Find size of partial virtual bitmap
@@ -3225,10 +3225,10 @@ PSTxMgmtPacket
 s_MgrMakeBeacon(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
     unsigned int uCurrChannel,
-    WORD wCurrATIMWinodw,
+    unsigned short wCurrATIMWinodw,
     PWLAN_IE_SSID pCurrSSID,
     unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
@@ -3259,7 +3259,7 @@ s_MgrMakeBeacon(
         ));
 
     if (pDevice->bEnablePSMode) {
-        sFrame.pHdr->sA3.wFrameCtl |= cpu_to_le16((WORD)WLAN_SET_FC_PWRMGT(1));
+        sFrame.pHdr->sA3.wFrameCtl |= cpu_to_le16((unsigned short)WLAN_SET_FC_PWRMGT(1));
     }
 
     memcpy( sFrame.pHdr->sA3.abyAddr1, abyBroadcastAddr, WLAN_ADDR_LEN);
@@ -3454,10 +3454,10 @@ PSTxMgmtPacket
 s_MgrMakeProbeResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wCurrBeaconPeriod,
+    unsigned short wCurrCapInfo,
+    unsigned short wCurrBeaconPeriod,
     unsigned int uCurrChannel,
-    WORD wCurrATIMWinodw,
+    unsigned short wCurrATIMWinodw,
     unsigned char *pDstAddr,
     PWLAN_IE_SSID pCurrSSID,
     unsigned char *pCurrBSSID,
@@ -3494,7 +3494,7 @@ s_MgrMakeProbeResponse(
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
 
     if (byPHYType == BB_TYPE_11B) {
-        *sFrame.pwCapInfo &= cpu_to_le16((WORD)~(WLAN_SET_CAP_INFO_SHORTSLOTTIME(1)));
+        *sFrame.pwCapInfo &= cpu_to_le16((unsigned short)~(WLAN_SET_CAP_INFO_SHORTSLOTTIME(1)));
     }
 
     // Copy SSID
@@ -3644,8 +3644,8 @@ s_MgrMakeAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     unsigned char *pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -3919,8 +3919,8 @@ s_MgrMakeReAssocRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
     unsigned char *pDAddr,
-    WORD wCurrCapInfo,
-    WORD wListenInterval,
+    unsigned short wCurrCapInfo,
+    unsigned short wListenInterval,
     PWLAN_IE_SSID pCurrSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -4170,9 +4170,9 @@ PSTxMgmtPacket
 s_MgrMakeAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
     unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -4201,7 +4201,7 @@ s_MgrMakeAssocResponse(
 
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
     *sFrame.pwStatus = cpu_to_le16(wAssocStatus);
-    *sFrame.pwAid = cpu_to_le16((WORD)(wAssocAID | BIT14 | BIT15));
+    *sFrame.pwAid = cpu_to_le16((unsigned short)(wAssocAID | BIT14 | BIT15));
 
     // Copy the rate set
     sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
@@ -4244,9 +4244,9 @@ PSTxMgmtPacket
 s_MgrMakeReAssocResponse(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    WORD wCurrCapInfo,
-    WORD wAssocStatus,
-    WORD wAssocAID,
+    unsigned short wCurrCapInfo,
+    unsigned short wAssocStatus,
+    unsigned short wAssocAID,
     unsigned char *pDstAddr,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -4275,7 +4275,7 @@ s_MgrMakeReAssocResponse(
 
     *sFrame.pwCapInfo = cpu_to_le16(wCurrCapInfo);
     *sFrame.pwStatus = cpu_to_le16(wAssocStatus);
-    *sFrame.pwAid = cpu_to_le16((WORD)(wAssocAID | BIT14 | BIT15));
+    *sFrame.pwAid = cpu_to_le16((unsigned short)(wAssocAID | BIT14 | BIT15));
 
     // Copy the rate set
     sFrame.pSuppRates = (PWLAN_IE_SUPP_RATES)(sFrame.pBuf + sFrame.len);
@@ -4742,7 +4742,7 @@ static
 void
 s_vMgrLogStatus(
     PSMgmtObject pMgmt,
-    WORD  wStatus
+    unsigned short wStatus
     )
 {
     switch( wStatus ){

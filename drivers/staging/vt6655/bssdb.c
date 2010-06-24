@@ -72,14 +72,14 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 
 
-const WORD             awHWRetry0[5][5] = {
+const unsigned short awHWRetry0[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_12M, RATE_12M},
                                             {RATE_24M, RATE_24M, RATE_18M, RATE_12M, RATE_12M},
                                             {RATE_36M, RATE_36M, RATE_24M, RATE_18M, RATE_18M},
                                             {RATE_48M, RATE_48M, RATE_36M, RATE_24M, RATE_24M},
                                             {RATE_54M, RATE_54M, RATE_48M, RATE_36M, RATE_36M}
                                            };
-const WORD             awHWRetry1[5][5] = {
+const unsigned short awHWRetry1[5][5] = {
                                             {RATE_18M, RATE_18M, RATE_12M, RATE_6M, RATE_6M},
                                             {RATE_24M, RATE_24M, RATE_18M, RATE_6M, RATE_6M},
                                             {RATE_36M, RATE_36M, RATE_24M, RATE_12M, RATE_12M},
@@ -372,8 +372,8 @@ BSSbInsertToBSSList (
     void *hDeviceContext,
     unsigned char *abyBSSIDAddr,
     QWORD qwTimestamp,
-    WORD wBeaconInterval,
-    WORD wCapInfo,
+    unsigned short wBeaconInterval,
+    unsigned short wCapInfo,
     BYTE byCurrChannel,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pSuppRates,
@@ -587,8 +587,8 @@ BOOL
 BSSbUpdateToBSSList (
     void *hDeviceContext,
     QWORD qwTimestamp,
-    WORD wBeaconInterval,
-    WORD wCapInfo,
+    unsigned short wBeaconInterval,
+    unsigned short wCapInfo,
     BYTE byCurrChannel,
     BOOL bChannelHit,
     PWLAN_IE_SSID pSSID,
@@ -1402,8 +1402,8 @@ BSSvUpdateNodeTxCounter(
     BYTE            byTxRetry = (byTsr0 & TSR0_NCR);
     PSTxBufHead     pTxBufHead;
     PS802_11Header  pMACHeader;
-    WORD            wRate;
-    WORD            wFallBackRate = RATE_1M;
+    unsigned short wRate;
+    unsigned short wFallBackRate = RATE_1M;
     BYTE            byFallBack;
     unsigned int ii;
 //	unsigned int txRetryTemp;

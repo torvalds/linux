@@ -670,7 +670,7 @@
 
 #define MACvWordRegBitsOn(dwIoBase, byRegOfs, wBits)        \
 {                                                           \
-    WORD wData;                                             \
+    unsigned short wData;                                   \
     VNSvInPortW(dwIoBase + byRegOfs, &wData);               \
     VNSvOutPortW(dwIoBase + byRegOfs, wData | (wBits));     \
 }
@@ -699,7 +699,7 @@
 
 #define MACvWordRegBitsOff(dwIoBase, byRegOfs, wBits)       \
 {                                                           \
-    WORD wData;                                             \
+    unsigned short wData;                                   \
     VNSvInPortW(dwIoBase + byRegOfs, &wData);               \
     VNSvOutPortW(dwIoBase + byRegOfs, wData & ~(wBits));    \
 }
@@ -1074,7 +1074,7 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-extern WORD TxRate_iwconfig;//2008-5-8 <add> by chester
+extern unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
 void MACvReadAllRegs(unsigned long dwIoBase, unsigned char *pbyMacRegs);
 
 BOOL MACbIsRegBitsOn(unsigned long dwIoBase, BYTE byRegOfs, BYTE byTestBits);
@@ -1105,7 +1105,7 @@ void MACvGetLongRetryLimit(unsigned long dwIoBase, unsigned char *pbyRetryLimit)
 void MACvSetLoopbackMode(unsigned long dwIoBase, BYTE byLoopbackMode);
 BOOL MACbIsInLoopbackMode(unsigned long dwIoBase);
 
-void MACvSetPacketFilter(unsigned long dwIoBase, WORD wFilterType);
+void MACvSetPacketFilter(unsigned long dwIoBase, unsigned short wFilterType);
 
 void MACvSaveContext(unsigned long dwIoBase, unsigned char *pbyCxtBuf);
 void MACvRestoreContext(unsigned long dwIoBase, unsigned char *pbyCxtBuf);
@@ -1129,7 +1129,7 @@ void MACvTimer0MicroSDelay(unsigned long dwIoBase, unsigned int uDelay);
 void MACvOneShotTimer0MicroSec(unsigned long dwIoBase, unsigned int uDelayTime);
 void MACvOneShotTimer1MicroSec(unsigned long dwIoBase, unsigned int uDelayTime);
 
-void MACvSetMISCFifo(unsigned long dwIoBase, WORD wOffset, unsigned long dwData);
+void MACvSetMISCFifo(unsigned long dwIoBase, unsigned short wOffset, unsigned long dwData);
 
 BOOL MACbTxDMAOff (unsigned long dwIoBase, unsigned int idx);
 
@@ -1139,7 +1139,7 @@ void MACvEnableBusSusEn(unsigned long dwIoBase);
 BOOL MACbFlushSYNCFifo(unsigned long dwIoBase);
 BOOL MACbPSWakeup(unsigned long dwIoBase);
 
-void MACvSetKeyEntry(unsigned long dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
+void MACvSetKeyEntry(unsigned long dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx,
 		unsigned int uKeyIdx, unsigned char *pbyAddr, unsigned long *pdwKey, BYTE byLocalID);
 void MACvDisableKeyEntry(unsigned long dwIoBase, unsigned int uEntryIdx);
 void MACvSetDefaultKeyEntry(unsigned long dwIoBase, unsigned int uKeyLen,
@@ -1148,7 +1148,7 @@ void MACvSetDefaultKeyEntry(unsigned long dwIoBase, unsigned int uKeyLen,
 void MACvDisableDefaultKey(unsigned long dwIoBase);
 void MACvSetDefaultTKIPKeyEntry(unsigned long dwIoBase, unsigned int uKeyLen,
 		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID);
-void MACvSetDefaultKeyCtl(unsigned long dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID);
+void MACvSetDefaultKeyCtl(unsigned long dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID);
 
 #endif // __MAC_H__
 

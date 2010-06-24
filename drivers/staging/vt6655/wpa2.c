@@ -114,7 +114,7 @@ WPA2vParseRSN (
     )
 {
     int                 i, j;
-    WORD                m = 0, n = 0;
+    unsigned short m = 0, n = 0;
     unsigned char *pbyOUI;
     BOOL                bUseGK = FALSE;
 
@@ -209,7 +209,7 @@ WPA2vParseRSN (
                 // invalid CSS, No valid PK.
                 return;
             }
-            pBSSNode->wCSSPKCount = (WORD)j;
+            pBSSNode->wCSSPKCount = (unsigned short)j;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wCSSPKCount: %d\n", pBSSNode->wCSSPKCount);
         }
 
@@ -232,7 +232,7 @@ WPA2vParseRSN (
                 } else
                     break;
             }
-            pBSSNode->wAKMSSAuthCount = (WORD)j;
+            pBSSNode->wAKMSSAuthCount = (unsigned short)j;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAKMSSAuthCount: %d\n", pBSSNode->wAKMSSAuthCount);
 
             n = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;

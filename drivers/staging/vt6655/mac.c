@@ -72,7 +72,7 @@
 #include "tether.h"
 #include "mac.h"
 
-WORD TxRate_iwconfig;//2008-5-8 <add> by chester
+unsigned short TxRate_iwconfig;//2008-5-8 <add> by chester
 /*---------------------  Static Definitions -------------------------*/
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
@@ -583,7 +583,7 @@ BOOL MACbIsInLoopbackMode (unsigned long dwIoBase)
  * Return Value: none
  *
  */
-void MACvSetPacketFilter (unsigned long dwIoBase, WORD wFilterType)
+void MACvSetPacketFilter (unsigned long dwIoBase, unsigned short wFilterType)
 {
     BYTE    byOldRCR;
     BYTE    byNewRCR = 0;
@@ -776,7 +776,7 @@ BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
 BOOL MACbSoftwareReset (unsigned long dwIoBase)
 {
     BYTE    byData;
-    WORD    ww;
+    unsigned short ww;
 
     // turn on HOSTCR_SOFTRST, just write 0x01 to reset
     //MACvRegBitsOn(dwIoBase, MAC_REG_HOSTCR, HOSTCR_SOFTRST);
@@ -841,7 +841,7 @@ BOOL MACbSafeSoftwareReset (unsigned long dwIoBase)
  */
 BOOL MACbSafeRxOff (unsigned long dwIoBase)
 {
-    WORD    ww;
+    unsigned short ww;
     unsigned long dwData;
     BYTE    byData;
 
@@ -902,7 +902,7 @@ BOOL MACbSafeRxOff (unsigned long dwIoBase)
  */
 BOOL MACbSafeTxOff (unsigned long dwIoBase)
 {
-    WORD    ww;
+    unsigned short ww;
     unsigned long dwData;
     BYTE    byData;
 
@@ -1081,7 +1081,7 @@ void MACvInitialize (unsigned long dwIoBase)
  */
 void MACvSetCurrRx0DescAddr (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
-WORD    ww;
+unsigned short ww;
 BYTE    byData;
 BYTE    byOrgDMACtl;
 
@@ -1119,7 +1119,7 @@ BYTE    byOrgDMACtl;
  */
 void MACvSetCurrRx1DescAddr (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
-WORD    ww;
+unsigned short ww;
 BYTE    byData;
 BYTE    byOrgDMACtl;
 
@@ -1157,7 +1157,7 @@ BYTE    byOrgDMACtl;
  */
 void MACvSetCurrTx0DescAddrEx (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
-WORD    ww;
+unsigned short ww;
 BYTE    byData;
 BYTE    byOrgDMACtl;
 
@@ -1196,7 +1196,7 @@ BYTE    byOrgDMACtl;
  //TxDMA1 = AC0DMA
 void MACvSetCurrAC0DescAddrEx (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
-WORD    ww;
+unsigned short ww;
 BYTE    byData;
 BYTE    byOrgDMACtl;
 
@@ -1309,7 +1309,7 @@ void MACvOneShotTimer1MicroSec (unsigned long dwIoBase, unsigned int uDelayTime)
 }
 
 
-void MACvSetMISCFifo (unsigned long dwIoBase, WORD wOffset, unsigned long dwData)
+void MACvSetMISCFifo (unsigned long dwIoBase, unsigned short wOffset, unsigned long dwData)
 {
     if (wOffset > 273)
         return;
@@ -1455,10 +1455,10 @@ BOOL MACbPSWakeup (unsigned long dwIoBase)
  *
  */
 
-void MACvSetKeyEntry (unsigned long dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
+void MACvSetKeyEntry (unsigned long dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx,
 		unsigned int uKeyIdx, unsigned char *pbyAddr, unsigned long *pdwKey, BYTE byLocalID)
 {
-WORD    wOffset;
+unsigned short wOffset;
 unsigned long dwData;
 int     ii;
 
@@ -1524,7 +1524,7 @@ int     ii;
  */
 void MACvDisableKeyEntry (unsigned long dwIoBase, unsigned int uEntryIdx)
 {
-WORD    wOffset;
+unsigned short wOffset;
 
     wOffset = MISCFIFO_KEYETRY0;
     wOffset += (uEntryIdx * MISCFIFO_KEYENTRYSIZE);
@@ -1553,7 +1553,7 @@ WORD    wOffset;
 void MACvSetDefaultKeyEntry (unsigned long dwIoBase, unsigned int uKeyLen,
 		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID)
 {
-WORD    wOffset;
+unsigned short wOffset;
 unsigned long dwData;
 int     ii;
 
@@ -1603,7 +1603,7 @@ int     ii;
 /*
 void MACvEnableDefaultKey (unsigned long dwIoBase, BYTE byLocalID)
 {
-WORD    wOffset;
+unsigned short wOffset;
 unsigned long dwData;
 
 
@@ -1638,7 +1638,7 @@ unsigned long dwData;
  */
 void MACvDisableDefaultKey (unsigned long dwIoBase)
 {
-WORD    wOffset;
+unsigned short wOffset;
 unsigned long dwData;
 
 
@@ -1669,7 +1669,7 @@ unsigned long dwData;
 void MACvSetDefaultTKIPKeyEntry (unsigned long dwIoBase, unsigned int uKeyLen,
 		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID)
 {
-WORD    wOffset;
+unsigned short wOffset;
 unsigned long dwData;
 int     ii;
 
@@ -1723,9 +1723,9 @@ int     ii;
  *
  */
 
-void MACvSetDefaultKeyCtl (unsigned long dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID)
+void MACvSetDefaultKeyCtl (unsigned long dwIoBase, unsigned short wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID)
 {
-WORD    wOffset;
+unsigned short wOffset;
 unsigned long dwData;
 
     if (byLocalID <= 1)

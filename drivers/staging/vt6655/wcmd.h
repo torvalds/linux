@@ -77,7 +77,7 @@ typedef struct tagCMD_ITEM {
     CMD_CODE eCmd;
     BYTE     abyCmdDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     BOOL     bNeedRadioOFF;
-    WORD     wDeAuthenReason;
+    unsigned short wDeAuthenReason;
     BOOL     bRadioCmd;
     BOOL     bForceSCAN;
 } CMD_ITEM, *PCMD_ITEM;

@@ -80,7 +80,7 @@ RATEuSetIE(
     unsigned int uRateLen
     );
 
-WORD
+unsigned short
 wGetRateIdx(
     BYTE byRate
     );

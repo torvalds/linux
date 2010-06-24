@@ -635,9 +635,9 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    pNodeList->sNodeList[jj].wAID = pNode->wAID;
     		    memcpy(pNodeList->sNodeList[jj].abyMACAddr, pNode->abyMACAddr, WLAN_ADDR_LEN);
     		    pNodeList->sNodeList[jj].wTxDataRate = pNode->wTxDataRate;
-    		    pNodeList->sNodeList[jj].wInActiveCount = (WORD)pNode->uInActiveCount;
-    		    pNodeList->sNodeList[jj].wEnQueueCnt = (WORD)pNode->wEnQueueCnt;
-    		    pNodeList->sNodeList[jj].wFlags = (WORD)pNode->dwFlags;
+    		    pNodeList->sNodeList[jj].wInActiveCount = (unsigned short)pNode->uInActiveCount;
+    		    pNodeList->sNodeList[jj].wEnQueueCnt = (unsigned short)pNode->wEnQueueCnt;
+    		    pNodeList->sNodeList[jj].wFlags = (unsigned short)pNode->dwFlags;
     		    pNodeList->sNodeList[jj].bPWBitOn = pNode->bPSEnable;
     		    pNodeList->sNodeList[jj].byKeyIndex = pNode->byKeyIndex;
     		    pNodeList->sNodeList[jj].wWepKeyLength = pNode->uWepKeyLength;
@@ -652,7 +652,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    pNodeList->sNodeList[jj].bIsInFallback = pNode->bIsInFallback;
     		    pNodeList->sNodeList[jj].uTxFailures = pNode->uTxFailures;
     		    pNodeList->sNodeList[jj].uTxAttempts = pNode->uTxAttempts;
-    		    pNodeList->sNodeList[jj].wFailureRatio = (WORD)pNode->uFailureRatio;
+    		    pNodeList->sNodeList[jj].wFailureRatio = (unsigned short)pNode->uFailureRatio;
     		    jj ++;
     		    if (jj >= pNodeList->uItem)
     		        break;

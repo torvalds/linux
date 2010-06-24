@@ -62,7 +62,7 @@ typedef struct tagSKeyItem
     BYTE        abyKey[MAX_KEY_LEN];
     QWORD       KeyRSC;
     unsigned long dwTSC47_16;
-    WORD        wTSC15_0;
+    unsigned short wTSC15_0;
     BYTE        byCipherSuite;
     BYTE        byReserved0;
     unsigned long dwKeyIndex;
@@ -78,10 +78,10 @@ typedef struct tagSKeyTable
     unsigned long dwGTKeyIndex;            // GroupTransmitKey Index
     BOOL        bInUse;
     //2006-1116-01,<Modify> by NomadZhao
-    //WORD      wKeyCtl;
+    //unsigned short wKeyCtl;
     //BOOL      bSoftWEP;
     BOOL        bSoftWEP;
-    WORD        wKeyCtl;      // for address of wKeyCtl at align 4
+    unsigned short wKeyCtl;      // for address of wKeyCtl at align 4
 
     BYTE        byReserved1[6];
 } SKeyTable, *PSKeyTable; //348

@@ -78,7 +78,7 @@
  */
 BYTE SROMbyReadEmbedded(unsigned long dwIoBase, BYTE byContntOffset)
 {
-    WORD    wDelay, wNoACK;
+    unsigned short wDelay, wNoACK;
     BYTE    byWait;
     BYTE    byData;
     BYTE    byOrg;
@@ -127,7 +127,7 @@ BYTE SROMbyReadEmbedded(unsigned long dwIoBase, BYTE byContntOffset)
  */
 BOOL SROMbWriteEmbedded(unsigned long dwIoBase, BYTE byContntOffset, BYTE byData)
 {
-    WORD    wDelay, wNoACK;
+    unsigned short wDelay, wNoACK;
     BYTE    byWait;
 
     BYTE    byOrg;
