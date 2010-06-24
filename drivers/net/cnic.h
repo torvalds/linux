@@ -248,8 +248,10 @@ struct cnic_local {
 	struct cnic_iscsi	*iscsi_tbl;
 	struct cnic_context	*ctx_tbl;
 	struct cnic_id_tbl	cid_tbl;
-	int			max_iscsi_conn;
 	atomic_t		iscsi_conn;
+	u32			iscsi_start_cid;
+
+	u32			max_cid_space;
 
 	/* per connection parameters */
 	int			num_iscsi_tasks;
