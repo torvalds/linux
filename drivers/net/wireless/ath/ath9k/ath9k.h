@@ -562,7 +562,6 @@ struct ath_softc {
 	struct mutex mutex;
 	struct work_struct paprd_work;
 	struct completion paprd_complete;
-	int paprd_txok;
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */

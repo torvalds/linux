@@ -1948,12 +1948,10 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	if (bf->bf_state.bfs_paprd) {
 		if (time_after(jiffies,
 			       bf->bf_state.bfs_paprd_timestamp +
-			       msecs_to_jiffies(ATH_PAPRD_TIMEOUT))) {
+			       msecs_to_jiffies(ATH_PAPRD_TIMEOUT)))
 			dev_kfree_skb_any(skb);
-		} else {
-			sc->paprd_txok = txok;
+		else
 			complete(&sc->paprd_complete);
-		}
 	} else {
 		ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 		ath_debug_stat_tx(sc, txq, bf, ts);
