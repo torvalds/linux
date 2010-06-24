@@ -45,7 +45,7 @@ static const char uda134x_reg[UDA134X_REGS_NUM] = {
 	/* Extended address registers */
 	0x04, 0x04, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 	/* Status, data regs */
-	0x00, 0x83, 0x00, 0x40, 0x80, 0x00,
+	0x00, 0x83, 0x00, 0x40, 0x80, 0xC0, 0x00,
 };
 
 /*
@@ -104,6 +104,7 @@ static int uda134x_write(struct snd_soc_codec *codec, unsigned int reg,
 	case UDA134X_DATA000:
 	case UDA134X_DATA001:
 	case UDA134X_DATA010:
+	case UDA134X_DATA011:
 		addr = UDA134X_DATA0_ADDR;
 		break;
 	case UDA134X_DATA1:
