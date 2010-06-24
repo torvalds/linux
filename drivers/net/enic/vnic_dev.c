@@ -78,19 +78,19 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		return -EINVAL;
 
 	if (bar->len < VNIC_MAX_RES_HDR_SIZE) {
-		printk(KERN_ERR "vNIC BAR0 res hdr length error\n");
+		pr_err("vNIC BAR0 res hdr length error\n");
 		return -EINVAL;
 	}
 
 	rh = bar->vaddr;
 	if (!rh) {
-		printk(KERN_ERR "vNIC BAR0 res hdr not mem-mapped\n");
+		pr_err("vNIC BAR0 res hdr not mem-mapped\n");
 		return -EINVAL;
 	}
 
 	if (ioread32(&rh->magic) != VNIC_RES_MAGIC ||
 	    ioread32(&rh->version) != VNIC_RES_VERSION) {
-		printk(KERN_ERR "vNIC BAR0 res magic/version error "
+		pr_err("vNIC BAR0 res magic/version error "
 			"exp (%lx/%lx) curr (%x/%x)\n",
 			VNIC_RES_MAGIC, VNIC_RES_VERSION,
 			ioread32(&rh->magic), ioread32(&rh->version));
@@ -122,7 +122,7 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 			/* each count is stride bytes long */
 			len = count * VNIC_RES_STRIDE;
 			if (len + bar_offset > bar[bar_num].len) {
-				printk(KERN_ERR "vNIC BAR0 resource %d "
+				pr_err("vNIC BAR0 resource %d "
 					"out-of-bounds, offset 0x%x + "
 					"size 0x%x > bar len 0x%lx\n",
 					type, bar_offset,
@@ -229,8 +229,7 @@ int vnic_dev_alloc_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring,
 		&ring->base_addr_unaligned);
 
 	if (!ring->descs_unaligned) {
-		printk(KERN_ERR
-		  "Failed to allocate ring (size=%d), aborting\n",
+		pr_err("Failed to allocate ring (size=%d), aborting\n",
 			(int)ring->size);
 		return -ENOMEM;
 	}
@@ -268,7 +267,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 
 	status = ioread32(&devcmd->status);
 	if (status & STAT_BUSY) {
-		printk(KERN_ERR "Busy devcmd %d\n", _CMD_N(cmd));
+		pr_err("Busy devcmd %d\n", _CMD_N(cmd));
 		return -EBUSY;
 	}
 
@@ -294,7 +293,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 				err = (int)readq(&devcmd->args[0]);
 				if (err != ERR_ECMDUNKNOWN ||
 				    cmd != CMD_CAPABILITY)
-					printk(KERN_ERR "Error %d devcmd %d\n",
+					pr_err("Error %d devcmd %d\n",
 						err, _CMD_N(cmd));
 				return err;
 			}
@@ -309,7 +308,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		}
 	}
 
-	printk(KERN_ERR "Timedout devcmd %d\n", _CMD_N(cmd));
+	pr_err("Timedout devcmd %d\n", _CMD_N(cmd));
 	return -ETIMEDOUT;
 }
 
@@ -565,7 +564,7 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 
 	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER, &a0, &a1, wait);
 	if (err)
-		printk(KERN_ERR "Can't set packet filter\n");
+		pr_err("Can't set packet filter\n");
 
 	return err;
 }
@@ -582,7 +581,7 @@ int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 	if (err)
-		printk(KERN_ERR "Can't add addr [%pM], %d\n", addr, err);
+		pr_err("Can't add addr [%pM], %d\n", addr, err);
 
 	return err;
 }
@@ -599,7 +598,7 @@ int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr)
 
 	err = vnic_dev_cmd(vdev, CMD_ADDR_DEL, &a0, &a1, wait);
 	if (err)
-		printk(KERN_ERR "Can't del addr [%pM], %d\n", addr, err);
+		pr_err("Can't del addr [%pM], %d\n", addr, err);
 
 	return err;
 }
@@ -626,8 +625,7 @@ int vnic_dev_raise_intr(struct vnic_dev *vdev, u16 intr)
 
 	err = vnic_dev_cmd(vdev, CMD_IAR, &a0, &a1, wait);
 	if (err)
-		printk(KERN_ERR "Failed to raise INTR[%d], err %d\n",
-			intr, err);
+		pr_err("Failed to raise INTR[%d], err %d\n", intr, err);
 
 	return err;
 }
@@ -658,8 +656,7 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	dma_addr_t notify_pa;
 
 	if (vdev->notify || vdev->notify_pa) {
-		printk(KERN_ERR "notify block %p still allocated",
-			vdev->notify);
+		pr_err("notify block %p still allocated", vdev->notify);
 		return -EINVAL;
 	}
 

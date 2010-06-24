@@ -39,7 +39,7 @@ static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 	for (i = 0; i < blks; i++) {
 		wq->bufs[i] = kzalloc(VNIC_WQ_BUF_BLK_SZ, GFP_ATOMIC);
 		if (!wq->bufs[i]) {
-			printk(KERN_ERR "Failed to alloc wq_bufs\n");
+			pr_err("Failed to alloc wq_bufs\n");
 			return -ENOMEM;
 		}
 	}
@@ -94,7 +94,7 @@ int vnic_wq_alloc(struct vnic_dev *vdev, struct vnic_wq *wq, unsigned int index,
 
 	wq->ctrl = vnic_dev_get_res(vdev, RES_TYPE_WQ, index);
 	if (!wq->ctrl) {
-		printk(KERN_ERR "Failed to hook WQ[%d] resource\n", index);
+		pr_err("Failed to hook WQ[%d] resource\n", index);
 		return -EINVAL;
 	}
 
@@ -167,7 +167,7 @@ int vnic_wq_disable(struct vnic_wq *wq)
 		udelay(10);
 	}
 
-	printk(KERN_ERR "Failed to disable WQ[%d]\n", wq->index);
+	pr_err("Failed to disable WQ[%d]\n", wq->index);
 
 	return -ETIMEDOUT;
 }

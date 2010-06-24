@@ -41,6 +41,9 @@ static inline void writeq(u64 val, void __iomem *reg)
 }
 #endif
 
+#undef pr_fmt
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 enum vnic_dev_hw_version {
 	VNIC_DEV_HW_VER_UNKNOWN,
 	VNIC_DEV_HW_VER_A1,

@@ -418,15 +418,15 @@ static void enic_log_q_error(struct enic *enic)
 	for (i = 0; i < enic->wq_count; i++) {
 		error_status = vnic_wq_error_status(&enic->wq[i]);
 		if (error_status)
-			printk(KERN_ERR PFX "%s: WQ[%d] error_status %d\n",
-				enic->netdev->name, i, error_status);
+			netdev_err(enic->netdev, "WQ[%d] error_status %d\n",
+				i, error_status);
 	}
 
 	for (i = 0; i < enic->rq_count; i++) {
 		error_status = vnic_rq_error_status(&enic->rq[i]);
 		if (error_status)
-			printk(KERN_ERR PFX "%s: RQ[%d] error_status %d\n",
-				enic->netdev->name, i, error_status);
+			netdev_err(enic->netdev, "RQ[%d] error_status %d\n",
+				i, error_status);
 	}
 }
 
@@ -435,8 +435,8 @@ static void enic_msglvl_check(struct enic *enic)
 	u32 msg_enable = vnic_dev_msg_lvl(enic->vdev);
 
 	if (msg_enable != enic->msg_enable) {
-		printk(KERN_INFO PFX "%s: msg lvl changed from 0x%x to 0x%x\n",
-			enic->netdev->name, enic->msg_enable, msg_enable);
+		netdev_info(enic->netdev, "msg lvl changed from 0x%x to 0x%x\n",
+			enic->msg_enable, msg_enable);
 		enic->msg_enable = msg_enable;
 	}
 }
@@ -444,14 +444,15 @@ static void enic_msglvl_check(struct enic *enic)
 static void enic_mtu_check(struct enic *enic)
 {
 	u32 mtu = vnic_dev_mtu(enic->vdev);
+	struct net_device *netdev = enic->netdev;
 
 	if (mtu && mtu != enic->port_mtu) {
 		enic->port_mtu = mtu;
-		if (mtu < enic->netdev->mtu)
-			printk(KERN_WARNING PFX
-				"%s: interface MTU (%d) set higher "
+		if (mtu < netdev->mtu)
+			netdev_warn(netdev,
+				"interface MTU (%d) set higher "
 				"than switch port MTU (%d)\n",
-				enic->netdev->name, enic->netdev->mtu, mtu);
+				netdev->mtu, mtu);
 	}
 }
 
@@ -461,10 +462,10 @@ static void enic_link_check(struct enic *enic)
 	int carrier_ok = netif_carrier_ok(enic->netdev);
 
 	if (link_status && !carrier_ok) {
-		printk(KERN_INFO PFX "%s: Link UP\n", enic->netdev->name);
+		netdev_info(enic->netdev, "Link UP\n");
 		netif_carrier_on(enic->netdev);
 	} else if (!link_status && carrier_ok) {
-		printk(KERN_INFO PFX "%s: Link DOWN\n", enic->netdev->name);
+		netdev_info(enic->netdev, "Link DOWN\n");
 		netif_carrier_off(enic->netdev);
 	}
 }
@@ -788,8 +789,7 @@ static netdev_tx_t enic_hard_start_xmit(struct sk_buff *skb,
 	    skb_shinfo(skb)->nr_frags + ENIC_DESC_MAX_SPLITS) {
 		netif_stop_queue(netdev);
 		/* This is a hard error, log it */
-		printk(KERN_ERR PFX "%s: BUG! Tx ring full when "
-			"queue awake!\n", netdev->name);
+		netdev_err(netdev, "BUG! Tx ring full when queue awake!\n");
 		spin_unlock_irqrestore(&enic->wq_lock[0], flags);
 		return NETDEV_TX_BUSY;
 	}
@@ -1738,16 +1738,14 @@ static int enic_open(struct net_device *netdev)
 
 	err = enic_request_intr(enic);
 	if (err) {
-		printk(KERN_ERR PFX "%s: Unable to request irq.\n",
-			netdev->name);
+		netdev_err(netdev, "Unable to request irq.\n");
 		return err;
 	}
 
 	err = enic_dev_notify_set(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"%s: Failed to alloc notify buffer, aborting.\n",
-			netdev->name);
+		netdev_err(netdev,
+			"Failed to alloc notify buffer, aborting.\n");
 		goto err_out_free_intr;
 	}
 
@@ -1755,9 +1753,7 @@ static int enic_open(struct net_device *netdev)
 		vnic_rq_fill(&enic->rq[i], enic->rq_alloc_buf);
 		/* Need at least one buffer on ring to get going */
 		if (vnic_rq_desc_used(&enic->rq[i]) == 0) {
-			printk(KERN_ERR PFX
-				"%s: Unable to alloc receive buffers.\n",
-				netdev->name);
+			netdev_err(netdev, "Unable to alloc receive buffers\n");
 			err = -ENOMEM;
 			goto err_out_notify_unset;
 		}
@@ -1851,10 +1847,9 @@ static int enic_change_mtu(struct net_device *netdev, int new_mtu)
 	netdev->mtu = new_mtu;
 
 	if (netdev->mtu > enic->port_mtu)
-		printk(KERN_WARNING PFX
-			"%s: interface MTU (%d) set higher "
-			"than port MTU (%d)\n",
-			netdev->name, netdev->mtu, enic->port_mtu);
+		netdev_warn(netdev,
+			"interface MTU (%d) set higher than port MTU (%d)\n",
+			netdev->mtu, enic->port_mtu);
 
 	if (running)
 		enic_open(netdev);
@@ -1927,8 +1922,8 @@ static int enic_dev_open(struct enic *enic)
 	err = enic_dev_wait(enic->vdev, vnic_dev_open,
 		vnic_dev_open_done, 0);
 	if (err)
-		printk(KERN_ERR PFX
-			"vNIC device open failed, err %d.\n", err);
+		dev_err(enic_get_dev(enic), "vNIC device open failed, err %d\n",
+			err);
 
 	return err;
 }
@@ -1940,8 +1935,8 @@ static int enic_dev_hang_reset(struct enic *enic)
 	err = enic_dev_wait(enic->vdev, vnic_dev_hang_reset,
 		vnic_dev_hang_reset_done, 0);
 	if (err)
-		printk(KERN_ERR PFX
-			"vNIC hang reset failed, err %d.\n", err);
+		netdev_err(enic->netdev, "vNIC hang reset failed, err %d\n",
+			err);
 
 	return err;
 }
@@ -2177,6 +2172,7 @@ static int enic_dev_stats_clear(struct enic *enic)
 
 int enic_dev_init(struct enic *enic)
 {
+	struct device *dev = enic_get_dev(enic);
 	struct net_device *netdev = enic->netdev;
 	int err;
 
@@ -2185,8 +2181,7 @@ int enic_dev_init(struct enic *enic)
 
 	err = enic_get_vnic_config(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Get vNIC configuration failed, aborting.\n");
+		dev_err(dev, "Get vNIC configuration failed, aborting\n");
 		return err;
 	}
 
@@ -2201,9 +2196,8 @@ int enic_dev_init(struct enic *enic)
 
 	err = enic_set_intr_mode(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to set intr mode based on resource "
-			"counts and system capabilities, aborting.\n");
+		dev_err(dev, "Failed to set intr mode based on resource "
+			"counts and system capabilities, aborting\n");
 		return err;
 	}
 
@@ -2212,8 +2206,7 @@ int enic_dev_init(struct enic *enic)
 
 	err = enic_alloc_vnic_resources(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to alloc vNIC resources, aborting.\n");
+		dev_err(dev, "Failed to alloc vNIC resources, aborting\n");
 		goto err_out_free_vnic_resources;
 	}
 
@@ -2225,21 +2218,19 @@ int enic_dev_init(struct enic *enic)
 
 	err = enic_set_rq_alloc_buf(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to set RQ buffer allocator, aborting.\n");
+		dev_err(dev, "Failed to set RQ buffer allocator, aborting\n");
 		goto err_out_free_vnic_resources;
 	}
 
 	err = enic_set_niccfg(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Failed to config nic, aborting.\n");
+		dev_err(dev, "Failed to config nic, aborting\n");
 		goto err_out_free_vnic_resources;
 	}
 
 	err = enic_dev_set_ig_vlan_rewrite_mode(enic);
 	if (err) {
-		printk(KERN_ERR PFX
+		netdev_err(netdev,
 			"Failed to set ingress vlan rewrite mode, aborting.\n");
 		goto err_out_free_vnic_resources;
 	}
@@ -2274,6 +2265,7 @@ static void enic_iounmap(struct enic *enic)
 static int __devinit enic_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
+	struct device *dev = &pdev->dev;
 	struct net_device *netdev;
 	struct enic *enic;
 	int using_dac = 0;
@@ -2286,7 +2278,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	netdev = alloc_etherdev(sizeof(struct enic));
 	if (!netdev) {
-		printk(KERN_ERR PFX "Etherdev alloc failed, aborting.\n");
+		pr_err("Etherdev alloc failed, aborting\n");
 		return -ENOMEM;
 	}
 
@@ -2303,15 +2295,13 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Cannot enable PCI device, aborting.\n");
+		dev_err(dev, "Cannot enable PCI device, aborting\n");
 		goto err_out_free_netdev;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Cannot request PCI regions, aborting.\n");
+		dev_err(dev, "Cannot request PCI regions, aborting\n");
 		goto err_out_disable_device;
 	}
 
@@ -2326,23 +2316,20 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	if (err) {
 		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			printk(KERN_ERR PFX
-				"No usable DMA configuration, aborting.\n");
+			dev_err(dev, "No usable DMA configuration, aborting\n");
 			goto err_out_release_regions;
 		}
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 		if (err) {
-			printk(KERN_ERR PFX
-				"Unable to obtain 32-bit DMA "
-				"for consistent allocations, aborting.\n");
+			dev_err(dev, "Unable to obtain %u-bit DMA "
+				"for consistent allocations, aborting\n", 32);
 			goto err_out_release_regions;
 		}
 	} else {
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
 		if (err) {
-			printk(KERN_ERR PFX
-				"Unable to obtain 40-bit DMA "
-				"for consistent allocations, aborting.\n");
+			dev_err(dev, "Unable to obtain %u-bit DMA "
+				"for consistent allocations, aborting\n", 40);
 			goto err_out_release_regions;
 		}
 		using_dac = 1;
@@ -2357,8 +2344,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		enic->bar[i].len = pci_resource_len(pdev, i);
 		enic->bar[i].vaddr = pci_iomap(pdev, i, enic->bar[i].len);
 		if (!enic->bar[i].vaddr) {
-			printk(KERN_ERR PFX
-				"Cannot memory-map BAR %d, aborting.\n", i);
+			dev_err(dev, "Cannot memory-map BAR %d, aborting\n", i);
 			err = -ENODEV;
 			goto err_out_iounmap;
 		}
@@ -2371,8 +2357,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	enic->vdev = vnic_dev_register(NULL, enic, pdev, enic->bar,
 		ARRAY_SIZE(enic->bar));
 	if (!enic->vdev) {
-		printk(KERN_ERR PFX
-			"vNIC registration failed, aborting.\n");
+		dev_err(dev, "vNIC registration failed, aborting\n");
 		err = -ENODEV;
 		goto err_out_iounmap;
 	}
@@ -2382,8 +2367,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	err = enic_dev_open(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"vNIC dev open failed, aborting.\n");
+		dev_err(dev, "vNIC dev open failed, aborting\n");
 		goto err_out_vnic_unregister;
 	}
 
@@ -2397,11 +2381,15 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	netif_carrier_off(netdev);
 
+	/* Do not call dev_init for a dynamic vnic.
+	 * For a dynamic vnic, init_prov_info will be
+	 * called later by an upper layer.
+	 */
+
 	if (!enic_is_dynamic(enic)) {
 		err = vnic_dev_init(enic->vdev, 0);
 		if (err) {
-			printk(KERN_ERR PFX
-				"vNIC dev init failed, aborting.\n");
+			dev_err(dev, "vNIC dev init failed, aborting\n");
 			goto err_out_dev_close;
 		}
 	}
@@ -2413,8 +2401,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	err = enic_dev_init(enic);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Device initialization failed, aborting.\n");
+		dev_err(dev, "Device initialization failed, aborting\n");
 		goto err_out_dev_close;
 	}
 
@@ -2438,8 +2425,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	err = enic_set_mac_addr(netdev, enic->mac_addr);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Invalid MAC address, aborting.\n");
+		dev_err(dev, "Invalid MAC address, aborting\n");
 		goto err_out_dev_deinit;
 	}
 
@@ -2469,8 +2455,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	err = register_netdev(netdev);
 	if (err) {
-		printk(KERN_ERR PFX
-			"Cannot register net device, aborting.\n");
+		dev_err(dev, "Cannot register net device, aborting\n");
 		goto err_out_dev_deinit;
 	}
 
@@ -2524,7 +2509,7 @@ static struct pci_driver enic_driver = {
 
 static int __init enic_init_module(void)
 {
-	printk(KERN_INFO PFX "%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
+	pr_info("%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
 
 	return pci_register_driver(&enic_driver);
 }

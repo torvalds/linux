@@ -34,7 +34,6 @@
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
 #define DRV_VERSION		"1.4.1.1"
 #define DRV_COPYRIGHT		"Copyright 2008-2009 Cisco Systems, Inc"
-#define PFX			DRV_NAME ": "
 
 #define ENIC_BARS_MAX		6
 
@@ -129,5 +128,10 @@ struct enic {
 	____cacheline_aligned struct vnic_cq cq[ENIC_CQ_MAX];
 	unsigned int cq_count;
 };
+
+static inline struct device *enic_get_dev(struct enic *enic)
+{
+	return &(enic->pdev->dev);
+}
 
 #endif /* _ENIC_H_ */
