@@ -169,26 +169,14 @@ xfs_rename(
 	/*
 	 * Join all the inodes to the transaction. From this point on,
 	 * we can rely on either trans_commit or trans_cancel to unlock
-	 * them.  Note that we need to add a vnode reference to the
-	 * directories since trans_commit & trans_cancel will decrement
-	 * them when they unlock the inodes.  Also, we need to be careful
-	 * not to add an inode to the transaction more than once.
+	 * them.
 	 */
-	IHOLD(src_dp);
-	xfs_trans_ijoin(tp, src_dp, XFS_ILOCK_EXCL);
-
-	if (new_parent) {
-		IHOLD(target_dp);
-		xfs_trans_ijoin(tp, target_dp, XFS_ILOCK_EXCL);
-	}
-
-	IHOLD(src_ip);
-	xfs_trans_ijoin(tp, src_ip, XFS_ILOCK_EXCL);
-
-	if (target_ip) {
-		IHOLD(target_ip);
-		xfs_trans_ijoin(tp, target_ip, XFS_ILOCK_EXCL);
-	}
+	xfs_trans_ijoin_ref(tp, src_dp, XFS_ILOCK_EXCL);
+	if (new_parent)
+		xfs_trans_ijoin_ref(tp, target_dp, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, src_ip, XFS_ILOCK_EXCL);
+	if (target_ip)
+		xfs_trans_ijoin_ref(tp, target_ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * If we are using project inheritance, we only allow renames

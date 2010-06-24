@@ -1023,8 +1023,7 @@ xfs_log_inode(
 	 * an inode in another recent transaction.  So we play it safe and
 	 * fire off the transaction anyway.
 	 */
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_ihold(tp, ip);
+	xfs_trans_ijoin(tp, ip);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);

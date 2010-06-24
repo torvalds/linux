@@ -103,12 +103,6 @@ typedef struct xfs_inode_log_format_64 {
 				 XFS_ILOG_ADATA | XFS_ILOG_AEXT | \
 				 XFS_ILOG_ABROOT)
 
-#define	XFS_ILI_HOLD		0x1
-#define	XFS_ILI_IOLOCKED_EXCL	0x2
-#define	XFS_ILI_IOLOCKED_SHARED	0x4
-
-#define	XFS_ILI_IOLOCKED_ANY   (XFS_ILI_IOLOCKED_EXCL | XFS_ILI_IOLOCKED_SHARED)
-
 static inline int xfs_ilog_fbroot(int w)
 {
 	return (w == XFS_DATA_FORK ? XFS_ILOG_DBROOT : XFS_ILOG_ABROOT);
@@ -137,7 +131,7 @@ typedef struct xfs_inode_log_item {
 	struct xfs_inode	*ili_inode;	   /* inode ptr */
 	xfs_lsn_t		ili_flush_lsn;	   /* lsn at last flush */
 	xfs_lsn_t		ili_last_lsn;	   /* lsn at last transaction */
-	unsigned short		ili_flags;	   /* misc flags */
+	unsigned short		ili_lock_flags;	   /* lock flags */
 	unsigned short		ili_logged;	   /* flushed logged data */
 	unsigned int		ili_last_fields;   /* fields when flushed */
 	struct xfs_bmbt_rec	*ili_extents_buf;  /* array of logged

@@ -378,14 +378,7 @@ xfs_qm_dqalloc(
 		return (ESRCH);
 	}
 
-	/*
-	 * xfs_trans_commit normally decrements the vnode ref count
-	 * when it unlocks the inode. Since we want to keep the quota
-	 * inode around, we bump the vnode ref count now.
-	 */
-	IHOLD(quotip);
-
-	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
+	xfs_trans_ijoin_ref(tp, quotip, XFS_ILOCK_EXCL);
 	nmaps = 1;
 	if ((error = xfs_bmapi(tp, quotip,
 			      offset_fsb, XFS_DQUOT_CLUSTER_SIZE_FSB,

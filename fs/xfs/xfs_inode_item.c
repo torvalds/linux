@@ -628,19 +628,10 @@ xfs_inode_item_unlock(
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
-	uint			hold;
-	uint			iolocked;
-	uint			lock_flags;
+	unsigned short		lock_flags;
 
-	ASSERT(iip != NULL);
 	ASSERT(iip->ili_inode->i_itemp != NULL);
 	ASSERT(xfs_isilocked(iip->ili_inode, XFS_ILOCK_EXCL));
-	ASSERT((!(iip->ili_inode->i_itemp->ili_flags &
-		  XFS_ILI_IOLOCKED_EXCL)) ||
-	       xfs_isilocked(iip->ili_inode, XFS_IOLOCK_EXCL));
-	ASSERT((!(iip->ili_inode->i_itemp->ili_flags &
-		  XFS_ILI_IOLOCKED_SHARED)) ||
-	       xfs_isilocked(iip->ili_inode, XFS_IOLOCK_SHARED));
 
 	/*
 	 * Clear the transaction pointer in the inode.
@@ -668,35 +659,10 @@ xfs_inode_item_unlock(
 		iip->ili_aextents_buf = NULL;
 	}
 
-	/*
-	 * Figure out if we should unlock the inode or not.
-	 */
-	hold = iip->ili_flags & XFS_ILI_HOLD;
-
-	/*
-	 * Before clearing out the flags, remember whether we
-	 * are holding the inode's IO lock.
-	 */
-	iolocked = iip->ili_flags & XFS_ILI_IOLOCKED_ANY;
-
-	/*
-	 * Clear out the fields of the inode log item particular
-	 * to the current transaction.
-	 */
-	iip->ili_flags = 0;
-
-	/*
-	 * Unlock the inode if XFS_ILI_HOLD was not set.
-	 */
-	if (!hold) {
-		lock_flags = XFS_ILOCK_EXCL;
-		if (iolocked & XFS_ILI_IOLOCKED_EXCL) {
-			lock_flags |= XFS_IOLOCK_EXCL;
-		} else if (iolocked & XFS_ILI_IOLOCKED_SHARED) {
-			lock_flags |= XFS_IOLOCK_SHARED;
-		}
+	lock_flags = iip->ili_lock_flags;
+	iip->ili_lock_flags = 0;
+	if (lock_flags)
 		xfs_iput(iip->ili_inode, lock_flags);
-	}
 }
 
 /*

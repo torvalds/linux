@@ -374,8 +374,8 @@ xfs_truncate_file(
 	 * of references will stay constant.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	xfs_trans_ihold(tp, ip);
+	xfs_trans_ijoin(tp, ip);
+
 	/*
 	 * Signal a sync xaction.  The only case where that isn't
 	 * the case is if we're truncating an already unlinked file
