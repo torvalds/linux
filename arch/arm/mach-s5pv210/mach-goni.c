@@ -36,9 +36,7 @@
 
 #define S5PV210_ULCON_DEFAULT	S3C2410_LCON_CS8
 
-#define S5PV210_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
-				 S5PV210_UFCON_TXTRIG4 |	\
-				 S5PV210_UFCON_RXTRIG4)
+#define S5PV210_UFCON_DEFAULT	S3C2410_UFCON_FIFOMODE
 
 static struct s3c2410_uartcfg goni_uartcfgs[] __initdata = {
 	[0] = {
@@ -46,28 +44,32 @@ static struct s3c2410_uartcfg goni_uartcfgs[] __initdata = {
 		.flags		= 0,
 		.ucon		= S5PV210_UCON_DEFAULT,
 		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT |
+			S5PV210_UFCON_TXTRIG256 | S5PV210_UFCON_RXTRIG256,
 	},
 	[1] = {
 		.hwport		= 1,
 		.flags		= 0,
 		.ucon		= S5PV210_UCON_DEFAULT,
 		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT |
+			S5PV210_UFCON_TXTRIG64 | S5PV210_UFCON_RXTRIG64,
 	},
 	[2] = {
 		.hwport		= 2,
 		.flags		= 0,
 		.ucon		= S5PV210_UCON_DEFAULT,
 		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT |
+			S5PV210_UFCON_TXTRIG16 | S5PV210_UFCON_RXTRIG16,
 	},
 	[3] = {
 		.hwport		= 3,
 		.flags		= 0,
 		.ucon		= S5PV210_UCON_DEFAULT,
 		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ufcon		= S5PV210_UFCON_DEFAULT |
+			S5PV210_UFCON_TXTRIG16 | S5PV210_UFCON_RXTRIG16,
 	},
 };
 
