@@ -2962,7 +2962,7 @@ struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 	spin_unlock(&tcp_md5sig_pool_lock);
 
 	if (p)
-		return *per_cpu_ptr(p, smp_processor_id());
+		return *this_cpu_ptr(p);
 
 	local_bh_enable();
 	return NULL;
