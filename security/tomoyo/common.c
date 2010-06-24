@@ -507,16 +507,14 @@ static int tomoyo_write_manager_policy(struct tomoyo_io_buffer *head)
  */
 static void tomoyo_read_manager_policy(struct tomoyo_io_buffer *head)
 {
-	struct list_head *pos;
 	bool done = true;
 
 	if (head->read_eof)
 		return;
-	list_for_each_cookie(pos, head->read_var2,
+	list_for_each_cookie(head->read_var2,
 			     &tomoyo_policy_list[TOMOYO_ID_MANAGER]) {
-		struct tomoyo_policy_manager_entry *ptr;
-		ptr = list_entry(pos, struct tomoyo_policy_manager_entry,
-				 head.list);
+		struct tomoyo_policy_manager_entry *ptr =
+			list_entry(head->read_var2, typeof(*ptr), head.list);
 		if (ptr->head.is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, "%s\n", ptr->manager->name);
@@ -590,8 +588,7 @@ static bool tomoyo_policy_manager(void)
  *
  * Caller holds tomoyo_read_lock().
  */
-static bool tomoyo_select_one(struct tomoyo_io_buffer *head,
-				 const char *data)
+static bool tomoyo_select_one(struct tomoyo_io_buffer *head, const char *data)
 {
 	unsigned int pid;
 	struct tomoyo_domain_info *domain = NULL;
@@ -623,20 +620,12 @@ static bool tomoyo_select_one(struct tomoyo_io_buffer *head,
 	tomoyo_io_printf(head, "# select %s\n", data);
 	head->read_single_domain = true;
 	head->read_eof = !domain;
-	if (domain) {
-		struct tomoyo_domain_info *d;
-		head->read_var1 = NULL;
-		list_for_each_entry_rcu(d, &tomoyo_domain_list, list) {
-			if (d == domain)
-				break;
-			head->read_var1 = &d->list;
-		}
-		head->read_var2 = NULL;
-		head->read_bit = 0;
-		head->read_step = 0;
-		if (domain->is_deleted)
-			tomoyo_io_printf(head, "# This is a deleted domain.\n");
-	}
+	head->read_var1 = &domain->list;
+	head->read_var2 = NULL;
+	head->read_bit = 0;
+	head->read_step = 0;
+	if (domain && domain->is_deleted)
+		tomoyo_io_printf(head, "# This is a deleted domain.\n");
 	return true;
 }
 
@@ -972,20 +961,18 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
  */
 static void tomoyo_read_domain_policy(struct tomoyo_io_buffer *head)
 {
-	struct list_head *dpos;
-	struct list_head *apos;
 	bool done = true;
 
 	if (head->read_eof)
 		return;
 	if (head->read_step == 0)
 		head->read_step = 1;
-	list_for_each_cookie(dpos, head->read_var1, &tomoyo_domain_list) {
-		struct tomoyo_domain_info *domain;
+	list_for_each_cookie(head->read_var1, &tomoyo_domain_list) {
+		struct tomoyo_domain_info *domain =
+			list_entry(head->read_var1, typeof(*domain), list);
 		const char *quota_exceeded = "";
 		const char *transition_failed = "";
 		const char *ignore_global_allow_read = "";
-		domain = list_entry(dpos, struct tomoyo_domain_info, list);
 		if (head->read_step != 1)
 			goto acl_loop;
 		if (domain->is_deleted && !head->read_single_domain)
@@ -1011,17 +998,17 @@ acl_loop:
 		if (head->read_step == 3)
 			goto tail_mark;
 		/* Print ACL entries in the domain. */
-		list_for_each_cookie(apos, head->read_var2,
+		list_for_each_cookie(head->read_var2,
 				     &domain->acl_info_list) {
-			struct tomoyo_acl_info *ptr
-				= list_entry(apos, struct tomoyo_acl_info,
-					     list);
+			struct tomoyo_acl_info *ptr =
+				list_entry(head->read_var2, typeof(*ptr), list);
 			done = tomoyo_print_entry(head, ptr);
 			if (!done)
 				break;
 		}
 		if (!done)
 			break;
+		head->read_var2 = NULL;
 		head->read_step = 3;
 tail_mark:
 		done = tomoyo_io_printf(head, "\n");
@@ -1085,14 +1072,13 @@ static int tomoyo_write_domain_profile(struct tomoyo_io_buffer *head)
  */
 static void tomoyo_read_domain_profile(struct tomoyo_io_buffer *head)
 {
-	struct list_head *pos;
 	bool done = true;
 
 	if (head->read_eof)
 		return;
-	list_for_each_cookie(pos, head->read_var1, &tomoyo_domain_list) {
-		struct tomoyo_domain_info *domain;
-		domain = list_entry(pos, struct tomoyo_domain_info, list);
+	list_for_each_cookie(head->read_var1, &tomoyo_domain_list) {
+		struct tomoyo_domain_info *domain =
+			list_entry(head->read_var1, typeof(*domain), list);
 		if (domain->is_deleted)
 			continue;
 		done = tomoyo_io_printf(head, "%u %s\n", domain->profile,
@@ -1245,19 +1231,16 @@ static const char *tomoyo_group_name[TOMOYO_MAX_GROUP] = {
  */
 static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
 {
-	struct list_head *gpos;
-	struct list_head *mpos;
 	const char *w[3] = { "", "", "" };
 	w[0] = tomoyo_group_name[idx];
-	list_for_each_cookie(gpos, head->read_var1, &tomoyo_group_list[idx]) {
+	list_for_each_cookie(head->read_var1, &tomoyo_group_list[idx]) {
 		struct tomoyo_group *group =
-			list_entry(gpos, struct tomoyo_group, list);
+			list_entry(head->read_var1, typeof(*group), list);
 		w[1] = group->group_name->name;
-		list_for_each_cookie(mpos, head->read_var2,
-				     &group->member_list) {
+		list_for_each_cookie(head->read_var2, &group->member_list) {
 			char buffer[128];
 			struct tomoyo_acl_head *ptr =
-				list_entry(mpos, struct tomoyo_acl_head, list);
+				list_entry(head->read_var2, typeof(*ptr), list);
 			if (ptr->is_deleted)
 				continue;
 			if (idx == TOMOYO_PATH_GROUP) {
@@ -1276,7 +1259,9 @@ static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
 					      w[2]))
 				return false;
 		}
+		head->read_var2 = NULL;
 	}
+	head->read_var1 = NULL;
 	return true;
 }
 
@@ -1292,11 +1277,10 @@ static bool tomoyo_read_group(struct tomoyo_io_buffer *head, const int idx)
  */
 static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 {
-	struct list_head *pos;
-	list_for_each_cookie(pos, head->read_var2, &tomoyo_policy_list[idx]) {
+	list_for_each_cookie(head->read_var2, &tomoyo_policy_list[idx]) {
 		const char *w[4] = { "", "", "", "" };
-		struct tomoyo_acl_head *acl = container_of(pos, typeof(*acl),
-							   list);
+		struct tomoyo_acl_head *acl =
+			container_of(head->read_var2, typeof(*acl), list);
 		if (acl->is_deleted)
 			continue;
 		switch (idx) {
@@ -1354,6 +1338,7 @@ static bool tomoyo_read_policy(struct tomoyo_io_buffer *head, const int idx)
 				      w[3]))
 			return false;
 	}
+	head->read_var2 = NULL;
 	return true;
 }
 
