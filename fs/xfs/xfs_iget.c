@@ -435,29 +435,6 @@ xfs_iput(xfs_inode_t	*ip,
 }
 
 /*
- * Special iput for brand-new inodes that are still locked
- */
-void
-xfs_iput_new(
-	xfs_inode_t	*ip,
-	uint		lock_flags)
-{
-	struct inode	*inode = VFS_I(ip);
-
-	xfs_itrace_entry(ip);
-
-	if ((ip->i_d.di_mode == 0)) {
-		ASSERT(!xfs_iflags_test(ip, XFS_IRECLAIMABLE));
-		make_bad_inode(inode);
-	}
-	if (inode->i_state & I_NEW)
-		unlock_new_inode(inode);
-	if (lock_flags)
-		xfs_iunlock(ip, lock_flags);
-	IRELE(ip);
-}
-
-/*
  * This is called free all the memory associated with an inode.
  * It must free the inode itself and any buffers allocated for
  * if_extents/if_data and if_broot.  It must also free the lock
