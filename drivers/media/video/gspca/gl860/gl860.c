@@ -63,7 +63,7 @@ static int sd_set_##thename(struct gspca_dev *gspca_dev, s32 val)\
 \
 	sd->vcur.thename = val;\
 	if (gspca_dev->streaming)\
-		sd->dev_camera_settings(gspca_dev);\
+		sd->waitSet = 1;\
 	return 0;\
 } \
 static int sd_get_##thename(struct gspca_dev *gspca_dev, s32 *val)\
