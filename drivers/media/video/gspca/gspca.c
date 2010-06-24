@@ -1724,49 +1724,6 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-static int vidiocgmbuf(struct file *file, void *priv,
-			struct video_mbuf *mbuf)
-{
-	struct gspca_dev *gspca_dev = file->private_data;
-	int i;
-
-	PDEBUG(D_STREAM, "cgmbuf");
-	if (gspca_dev->nframes == 0) {
-		int ret;
-
-		{
-			struct v4l2_format fmt;
-
-			fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			i = gspca_dev->cam.nmodes - 1;	/* highest mode */
-			fmt.fmt.pix.width = gspca_dev->cam.cam_mode[i].width;
-			fmt.fmt.pix.height = gspca_dev->cam.cam_mode[i].height;
-			fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_BGR24;
-			ret = vidioc_s_fmt_vid_cap(file, priv, &fmt);
-			if (ret != 0)
-				return ret;
-		}
-		{
-			struct v4l2_requestbuffers rb;
-
-			memset(&rb, 0, sizeof rb);
-			rb.count = 4;
-			rb.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-			rb.memory = V4L2_MEMORY_MMAP;
-			ret = vidioc_reqbufs(file, priv, &rb);
-			if (ret != 0)
-				return ret;
-		}
-	}
-	mbuf->frames = gspca_dev->nframes;
-	mbuf->size = gspca_dev->frsz * gspca_dev->nframes;
-	for (i = 0; i < mbuf->frames; i++)
-		mbuf->offsets[i] = gspca_dev->frame[i].v4l2_buf.m.offset;
-	return 0;
-}
-#endif
-
 static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct gspca_dev *gspca_dev = file->private_data;
@@ -1807,12 +1764,7 @@ static int dev_mmap(struct file *file, struct vm_area_struct *vma)
 		ret = -EINVAL;
 		goto out;
 	}
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	/* v4l1 maps all the buffers */
-	if (i != 0
-	    || size != frame->v4l2_buf.length * gspca_dev->nframes)
-#endif
-	    if (size != frame->v4l2_buf.length) {
+	if (size != frame->v4l2_buf.length) {
 		PDEBUG(D_STREAM, "mmap bad size");
 		ret = -EINVAL;
 		goto out;
@@ -2204,9 +2156,6 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_s_register	= vidioc_s_register,
 #endif
 	.vidioc_g_chip_ident	= vidioc_g_chip_ident,
-#ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf          = vidiocgmbuf,
-#endif
 };
 
 static struct video_device gspca_template = {
