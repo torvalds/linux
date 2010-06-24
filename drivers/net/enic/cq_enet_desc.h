@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -82,7 +82,7 @@ struct cq_enet_rq_desc {
 	((1 << CQ_ENET_RQ_DESC_VLAN_TCI_USER_PRIO_BITS) - 1)
 #define CQ_ENET_RQ_DESC_VLAN_TCI_USER_PRIO_SHIFT    13
 
-#define CQ_ENET_RQ_DESC_FCOE_SOF_BITS               4
+#define CQ_ENET_RQ_DESC_FCOE_SOF_BITS               8
 #define CQ_ENET_RQ_DESC_FCOE_SOF_MASK \
 	((1 << CQ_ENET_RQ_DESC_FCOE_SOF_BITS) - 1)
 #define CQ_ENET_RQ_DESC_FCOE_EOF_BITS               8

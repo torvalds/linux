@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -23,7 +23,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/if_ether.h>
-#include <linux/slab.h>
 
 #include "vnic_resource.h"
 #include "vnic_devcmd.h"
@@ -41,8 +40,6 @@ struct vnic_res {
 	unsigned int count;
 };
 
-#define VNIC_DEV_CAP_INIT	0x0001
-
 struct vnic_dev {
 	void *priv;
 	struct pci_dev *pdev;
@@ -53,13 +50,11 @@ struct vnic_dev {
 	struct vnic_devcmd_notify notify_copy;
 	dma_addr_t notify_pa;
 	u32 notify_sz;
-	u32 *linkstatus;
 	dma_addr_t linkstatus_pa;
 	struct vnic_stats *stats;
 	dma_addr_t stats_pa;
 	struct vnic_devcmd_fw_info *fw_info;
 	dma_addr_t fw_info_pa;
-	u32 cap_flags;
 	enum vnic_proxy_type proxy;
 	u32 proxy_index;
 	u64 args[VNIC_DEVCMD_NARGS];
@@ -279,7 +274,6 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		/* PCI-e target device is gone */
 		return -ENODEV;
 	}
-
 	if (status & STAT_BUSY) {
 		pr_err("Busy devcmd %d\n", _CMD_N(cmd));
 		return -EBUSY;
@@ -852,7 +846,7 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 	int wait = 1000;
 	int r = 0;
 
-	if (vdev->cap_flags & VNIC_DEV_CAP_INIT)
+	if (vnic_dev_capable(vdev, CMD_INIT))
 		r = vnic_dev_cmd(vdev, CMD_INIT, &a0, &a1, wait);
 	else {
 		vnic_dev_cmd(vdev, CMD_INIT_v1, &a0, &a1, wait);
@@ -919,9 +913,6 @@ int vnic_dev_deinit(struct vnic_dev *vdev)
 
 int vnic_dev_link_status(struct vnic_dev *vdev)
 {
-	if (vdev->linkstatus)
-		return *vdev->linkstatus;
-
 	if (!vnic_dev_notify_ready(vdev))
 		return 0;
 
@@ -996,14 +987,9 @@ void vnic_dev_unregister(struct vnic_dev *vdev)
 				sizeof(struct vnic_devcmd_notify),
 				vdev->notify,
 				vdev->notify_pa);
-		if (vdev->linkstatus)
-			pci_free_consistent(vdev->pdev,
-				sizeof(u32),
-				vdev->linkstatus,
-				vdev->linkstatus_pa);
 		if (vdev->stats)
 			pci_free_consistent(vdev->pdev,
-				sizeof(struct vnic_dev),
+				sizeof(struct vnic_stats),
 				vdev->stats, vdev->stats_pa);
 		if (vdev->fw_info)
 			pci_free_consistent(vdev->pdev,
@@ -1032,11 +1018,6 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	vdev->devcmd = vnic_dev_get_res(vdev, RES_TYPE_DEVCMD, 0);
 	if (!vdev->devcmd)
 		goto err_out;
-
-	vdev->cap_flags = 0;
-
-	if (vnic_dev_capable(vdev, CMD_INIT))
-		vdev->cap_flags |= VNIC_DEV_CAP_INIT;
 
 	return vdev;
 

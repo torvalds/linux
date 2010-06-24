@@ -1,5 +1,5 @@
 /*
- * Copyright 2008 Cisco Systems, Inc.  All rights reserved.
+ * Copyright 2008-2010 Cisco Systems, Inc.  All rights reserved.
  * Copyright 2007 Nuova Systems, Inc.  All rights reserved.
  *
  * This program is free software; you may redistribute it and/or modify
@@ -61,7 +61,11 @@ static inline void vnic_intr_unmask(struct vnic_intr *intr)
 static inline void vnic_intr_mask(struct vnic_intr *intr)
 {
 	iowrite32(1, &intr->ctrl->mask);
-	(void)ioread32(&intr->ctrl->mask);
+}
+
+static inline int vnic_intr_masked(struct vnic_intr *intr)
+{
+	return ioread32(&intr->ctrl->mask);
 }
 
 static inline void vnic_intr_return_credits(struct vnic_intr *intr,
