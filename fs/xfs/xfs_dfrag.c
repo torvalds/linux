@@ -62,7 +62,9 @@ xfs_swapext(
 		goto out;
 	}
 
-	if (!(file->f_mode & FMODE_WRITE) || (file->f_flags & O_APPEND)) {
+	if (!(file->f_mode & FMODE_WRITE) ||
+	    !(file->f_mode & FMODE_READ) ||
+	    (file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_file;
 	}
@@ -74,6 +76,7 @@ xfs_swapext(
 	}
 
 	if (!(target_file->f_mode & FMODE_WRITE) ||
+	    !(target_file->f_mode & FMODE_READ) ||
 	    (target_file->f_flags & O_APPEND)) {
 		error = XFS_ERROR(EBADF);
 		goto out_put_target_file;
