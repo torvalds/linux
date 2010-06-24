@@ -519,10 +519,6 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 	codec->read = uda134x_read_reg_cache;
 	codec->write = uda134x_write;
 
-	if (!pd->is_powered_on_standby) {
-		codec->set_bias_level = uda134x_set_bias_level;
-	}
-
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
@@ -532,6 +528,14 @@ static int uda134x_soc_probe(struct platform_device *pdev)
 		pd->power(1);
 
 	uda134x_reset(codec);
+
+	if (pd->is_powered_on_standby) {
+		codec->set_bias_level = NULL;
+		uda134x_set_bias_level(codec, SND_SOC_BIAS_ON);
+	} else {
+		codec->set_bias_level = uda134x_set_bias_level;
+		uda134x_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+	}
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
