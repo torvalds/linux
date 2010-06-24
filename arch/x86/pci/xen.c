@@ -17,6 +17,44 @@
 #include <xen/events.h>
 #include <asm/xen/pci.h>
 
+#ifdef CONFIG_ACPI
+static int xen_hvm_register_pirq(u32 gsi, int triggering)
+{
+	int rc, irq;
+	struct physdev_map_pirq map_irq;
+	int shareable = 0;
+	char *name;
+
+	if (!xen_hvm_domain())
+		return -1;
+
+	map_irq.domid = DOMID_SELF;
+	map_irq.type = MAP_PIRQ_TYPE_GSI;
+	map_irq.index = gsi;
+	map_irq.pirq = -1;
+
+	rc = HYPERVISOR_physdev_op(PHYSDEVOP_map_pirq, &map_irq);
+	if (rc) {
+		printk(KERN_WARNING "xen map irq failed %d\n", rc);
+		return -1;
+	}
+
+	if (triggering == ACPI_EDGE_SENSITIVE) {
+		shareable = 0;
+		name = "ioapic-edge";
+	} else {
+		shareable = 1;
+		name = "ioapic-level";
+	}
+
+	irq = xen_map_pirq_gsi(map_irq.pirq, gsi, shareable, name);
+
+	printk(KERN_DEBUG "xen: --> irq=%d, pirq=%d\n", irq, map_irq.pirq);
+
+	return irq;
+}
+#endif
+
 #if defined(CONFIG_PCI_MSI)
 #include <linux/msi.h>
 
