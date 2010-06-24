@@ -594,9 +594,16 @@ static inline u32 qdisc_l2t(struct qdisc_rate_table* rtab, unsigned int pktlen)
 }
 
 #ifdef CONFIG_NET_CLS_ACT
-static inline struct sk_buff *skb_act_clone(struct sk_buff *skb, gfp_t gfp_mask)
+static inline struct sk_buff *skb_act_clone(struct sk_buff *skb, gfp_t gfp_mask,
+					    int action)
 {
-	struct sk_buff *n = skb_clone(skb, gfp_mask);
+	struct sk_buff *n;
+
+	if ((action == TC_ACT_STOLEN || action == TC_ACT_QUEUED) &&
+	    !skb_shared(skb))
+		n = skb_get(skb);
+	else
+		n = skb_clone(skb, gfp_mask);
 
 	if (n) {
 		n->tc_verd = SET_TC_VERD(n->tc_verd, 0);
