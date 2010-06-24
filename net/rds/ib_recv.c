@@ -353,7 +353,7 @@ out:
  *
  * -1 is returned if posting fails due to temporary resource exhaustion.
  */
-int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
+void rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_recv_work *recv;
@@ -367,14 +367,12 @@ int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 		if (pos >= ic->i_recv_ring.w_nr) {
 			printk(KERN_NOTICE "Argh - ring alloc returned pos=%u\n",
 					pos);
-			ret = -EINVAL;
 			break;
 		}
 
 		recv = &ic->i_recvs[pos];
 		ret = rds_ib_recv_refill_one(conn, recv, prefill);
 		if (ret) {
-			ret = -1;
 			break;
 		}
 
@@ -388,7 +386,6 @@ int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 			       "%pI4 returned %d, disconnecting and "
 			       "reconnecting\n", &conn->c_faddr,
 			       ret);
-			ret = -1;
 			break;
 		}
 
@@ -401,7 +398,6 @@ int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 
 	if (ret)
 		rds_ib_ring_unalloc(&ic->i_recv_ring, 1);
-	return ret;
 }
 
 /*
