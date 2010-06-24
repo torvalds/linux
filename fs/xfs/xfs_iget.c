@@ -208,7 +208,7 @@ xfs_iget_cache_hit(
 			ip->i_flags &= ~XFS_INEW;
 			ip->i_flags |= XFS_IRECLAIMABLE;
 			__xfs_inode_set_reclaim_tag(pag, ip);
-			trace_xfs_iget_reclaim(ip);
+			trace_xfs_iget_reclaim_fail(ip);
 			goto out_error;
 		}
 
@@ -223,6 +223,7 @@ xfs_iget_cache_hit(
 	} else {
 		/* If the VFS inode is being torn down, pause and try again. */
 		if (!igrab(inode)) {
+			trace_xfs_iget_skip(ip);
 			error = EAGAIN;
 			goto out_error;
 		}
@@ -230,6 +231,7 @@ xfs_iget_cache_hit(
 		/* We've got a live one. */
 		spin_unlock(&ip->i_flags_lock);
 		read_unlock(&pag->pag_ici_lock);
+		trace_xfs_iget_hit(ip);
 	}
 
 	if (lock_flags != 0)
@@ -238,7 +240,6 @@ xfs_iget_cache_hit(
 	xfs_iflags_clear(ip, XFS_ISTALE);
 	XFS_STATS_INC(xs_ig_found);
 
-	trace_xfs_iget_found(ip);
 	return 0;
 
 out_error:
@@ -271,7 +272,7 @@ xfs_iget_cache_miss(
 	if (error)
 		goto out_destroy;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_iget_miss(ip);
 
 	if ((ip->i_d.di_mode == 0) && !(flags & XFS_IGET_CREATE)) {
 		error = ENOENT;
@@ -317,7 +318,6 @@ xfs_iget_cache_miss(
 	write_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
 
-	trace_xfs_iget_alloc(ip);
 	*ipp = ip;
 	return 0;
 

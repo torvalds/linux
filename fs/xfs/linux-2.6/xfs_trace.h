@@ -561,8 +561,9 @@ DEFINE_EVENT(xfs_iget_class, name, \
 	TP_ARGS(ip))
 DEFINE_IGET_EVENT(xfs_iget_skip);
 DEFINE_IGET_EVENT(xfs_iget_reclaim);
-DEFINE_IGET_EVENT(xfs_iget_found);
-DEFINE_IGET_EVENT(xfs_iget_alloc);
+DEFINE_IGET_EVENT(xfs_iget_reclaim_fail);
+DEFINE_IGET_EVENT(xfs_iget_hit);
+DEFINE_IGET_EVENT(xfs_iget_miss);
 
 DECLARE_EVENT_CLASS(xfs_inode_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip),
