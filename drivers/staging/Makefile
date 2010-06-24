@@ -57,3 +57,4 @@ obj-$(CONFIG_TOUCHSCREEN_MRSTOUCH)	+= mrst-touchscreen/
 obj-$(CONFIG_MSM_STAGING)	+= msm/
 obj-$(CONFIG_EASYCAP)		+= easycap/
 obj-$(CONFIG_SOLO6X10)		+= solo6x10/
+obj-$(CONFIG_TIDSPBRIDGE)	+= tidspbridge/
