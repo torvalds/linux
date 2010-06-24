@@ -1287,51 +1287,6 @@ static int enic_set_rq_alloc_buf(struct enic *enic)
 	return 0;
 }
 
-static int enic_get_skb_header(struct sk_buff *skb, void **iphdr,
-	void **tcph, u64 *hdr_flags, void *priv)
-{
-	struct cq_enet_rq_desc *cq_desc = priv;
-	unsigned int ip_len;
-	struct iphdr *iph;
-
-	u8 type, color, eop, sop, ingress_port, vlan_stripped;
-	u8 fcoe, fcoe_sof, fcoe_fc_crc_ok, fcoe_enc_error, fcoe_eof;
-	u8 tcp_udp_csum_ok, udp, tcp, ipv4_csum_ok;
-	u8 ipv6, ipv4, ipv4_fragment, fcs_ok, rss_type, csum_not_calc;
-	u8 packet_error;
-	u16 q_number, completed_index, bytes_written, vlan, checksum;
-	u32 rss_hash;
-
-	cq_enet_rq_desc_dec(cq_desc,
-		&type, &color, &q_number, &completed_index,
-		&ingress_port, &fcoe, &eop, &sop, &rss_type,
-		&csum_not_calc, &rss_hash, &bytes_written,
-		&packet_error, &vlan_stripped, &vlan, &checksum,
-		&fcoe_sof, &fcoe_fc_crc_ok, &fcoe_enc_error,
-		&fcoe_eof, &tcp_udp_csum_ok, &udp, &tcp,
-		&ipv4_csum_ok, &ipv6, &ipv4, &ipv4_fragment,
-		&fcs_ok);
-
-	if (!(ipv4 && tcp && !ipv4_fragment))
-		return -1;
-
-	skb_reset_network_header(skb);
-	iph = ip_hdr(skb);
-
-	ip_len = ip_hdrlen(skb);
-	skb_set_transport_header(skb, ip_len);
-
-	/* check if ip header and tcp header are complete */
-	if (ntohs(iph->tot_len) < ip_len + tcp_hdrlen(skb))
-		return -1;
-
-	*hdr_flags = LRO_IPV4 | LRO_TCP;
-	*tcph = tcp_hdr(skb);
-	*iphdr = iph;
-
-	return 0;
-}
-
 static void enic_rq_indicate_buf(struct vnic_rq *rq,
 	struct cq_desc *cq_desc, struct vnic_rq_buf *buf,
 	int skipped, void *opaque)
@@ -1397,18 +1352,17 @@ static void enic_rq_indicate_buf(struct vnic_rq *rq,
 
 		if (enic->vlan_group && vlan_stripped) {
 
-			if ((netdev->features & NETIF_F_LRO) && ipv4)
-				lro_vlan_hwaccel_receive_skb(&enic->lro_mgr,
-					skb, enic->vlan_group,
-					vlan, cq_desc);
+			if (netdev->features & NETIF_F_GRO)
+				vlan_gro_receive(&enic->napi, enic->vlan_group,
+					vlan, skb);
 			else
 				vlan_hwaccel_receive_skb(skb,
 					enic->vlan_group, vlan);
 
 		} else {
 
-			if ((netdev->features & NETIF_F_LRO) && ipv4)
-				lro_receive_skb(&enic->lro_mgr, skb, cq_desc);
+			if (netdev->features & NETIF_F_GRO)
+				napi_gro_receive(&enic->napi, skb);
 			else
 				netif_receive_skb(skb);
 
@@ -1438,7 +1392,6 @@ static int enic_rq_service(struct vnic_dev *vdev, struct cq_desc *cq_desc,
 static int enic_poll(struct napi_struct *napi, int budget)
 {
 	struct enic *enic = container_of(napi, struct enic, napi);
-	struct net_device *netdev = enic->netdev;
 	unsigned int rq_work_to_do = budget;
 	unsigned int wq_work_to_do = -1; /* no limit */
 	unsigned int  work_done, rq_work_done, wq_work_done;
@@ -1478,11 +1431,8 @@ static int enic_poll(struct napi_struct *napi, int budget)
 	if (rq_work_done < rq_work_to_do) {
 
 		/* Some work done, but not enough to stay in polling,
-		 * flush all LROs and exit polling
+		 * exit polling
 		 */
-
-		if (netdev->features & NETIF_F_LRO)
-			lro_flush_all(&enic->lro_mgr);
 
 		napi_complete(napi);
 		vnic_intr_unmask(&enic->intr[ENIC_INTX_WQ_RQ]);
@@ -1494,7 +1444,6 @@ static int enic_poll(struct napi_struct *napi, int budget)
 static int enic_poll_msix(struct napi_struct *napi, int budget)
 {
 	struct enic *enic = container_of(napi, struct enic, napi);
-	struct net_device *netdev = enic->netdev;
 	unsigned int work_to_do = budget;
 	unsigned int work_done;
 	int err;
@@ -1528,11 +1477,8 @@ static int enic_poll_msix(struct napi_struct *napi, int budget)
 	if (work_done < work_to_do) {
 
 		/* Some work done, but not enough to stay in polling,
-		 * flush all LROs and exit polling
+		 * exit polling
 		 */
-
-		if (netdev->features & NETIF_F_LRO)
-			lro_flush_all(&enic->lro_mgr);
 
 		napi_complete(napi);
 		vnic_intr_unmask(&enic->intr[ENIC_MSIX_RQ]);
@@ -2378,20 +2324,11 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		netdev->features |= NETIF_F_TSO |
 			NETIF_F_TSO6 | NETIF_F_TSO_ECN;
 	if (ENIC_SETTING(enic, LRO))
-		netdev->features |= NETIF_F_LRO;
+		netdev->features |= NETIF_F_GRO;
 	if (using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;
 
 	enic->csum_rx_enabled = ENIC_SETTING(enic, RXCSUM);
-
-	enic->lro_mgr.max_aggr = ENIC_LRO_MAX_AGGR;
-	enic->lro_mgr.max_desc = ENIC_LRO_MAX_DESC;
-	enic->lro_mgr.lro_arr = enic->lro_desc;
-	enic->lro_mgr.get_skb_header = enic_get_skb_header;
-	enic->lro_mgr.features	= LRO_F_NAPI | LRO_F_EXTRACT_VLAN_ID;
-	enic->lro_mgr.dev = netdev;
-	enic->lro_mgr.ip_summed = CHECKSUM_COMPLETE;
-	enic->lro_mgr.ip_summed_aggr = CHECKSUM_UNNECESSARY;
 
 	err = register_netdev(netdev);
 	if (err) {

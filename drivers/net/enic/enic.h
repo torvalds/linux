@@ -20,8 +20,6 @@
 #ifndef _ENIC_H_
 #define _ENIC_H_
 
-#include <linux/inet_lro.h>
-
 #include "vnic_enet.h"
 #include "vnic_dev.h"
 #include "vnic_wq.h"
@@ -34,12 +32,9 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"1.3.1.1-pp"
+#define DRV_VERSION		"1.4.1.1"
 #define DRV_COPYRIGHT		"Copyright 2008-2009 Cisco Systems, Inc"
 #define PFX			DRV_NAME ": "
-
-#define ENIC_LRO_MAX_DESC	8
-#define ENIC_LRO_MAX_AGGR	64
 
 #define ENIC_BARS_MAX		6
 
@@ -124,8 +119,6 @@ struct enic {
 	u64 rq_truncated_pkts;
 	u64 rq_bad_fcs;
 	struct napi_struct napi;
-	struct net_lro_mgr lro_mgr;
-	struct net_lro_desc lro_desc[ENIC_LRO_MAX_DESC];
 
 	/* interrupt resource cache line section */
 	____cacheline_aligned struct vnic_intr intr[ENIC_INTR_MAX];
