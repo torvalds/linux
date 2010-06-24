@@ -100,7 +100,7 @@ xfs_file_fsync(
 	int			error = 0;
 	int			log_flushed = 0;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_file_fsync(ip);
 
 	if (XFS_FORCED_SHUTDOWN(ip->i_mount))
 		return -XFS_ERROR(EIO);

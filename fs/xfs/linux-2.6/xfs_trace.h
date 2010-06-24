@@ -539,7 +539,7 @@ DEFINE_LOCK_EVENT(xfs_ilock_nowait);
 DEFINE_LOCK_EVENT(xfs_ilock_demote);
 DEFINE_LOCK_EVENT(xfs_iunlock);
 
-DECLARE_EVENT_CLASS(xfs_iget_class,
+DECLARE_EVENT_CLASS(xfs_inode_class,
 	TP_PROTO(struct xfs_inode *ip),
 	TP_ARGS(ip),
 	TP_STRUCT__entry(
@@ -555,17 +555,36 @@ DECLARE_EVENT_CLASS(xfs_iget_class,
 		  __entry->ino)
 )
 
-#define DEFINE_IGET_EVENT(name) \
-DEFINE_EVENT(xfs_iget_class, name, \
+#define DEFINE_INODE_EVENT(name) \
+DEFINE_EVENT(xfs_inode_class, name, \
 	TP_PROTO(struct xfs_inode *ip), \
 	TP_ARGS(ip))
-DEFINE_IGET_EVENT(xfs_iget_skip);
-DEFINE_IGET_EVENT(xfs_iget_reclaim);
-DEFINE_IGET_EVENT(xfs_iget_reclaim_fail);
-DEFINE_IGET_EVENT(xfs_iget_hit);
-DEFINE_IGET_EVENT(xfs_iget_miss);
+DEFINE_INODE_EVENT(xfs_iget_skip);
+DEFINE_INODE_EVENT(xfs_iget_reclaim);
+DEFINE_INODE_EVENT(xfs_iget_reclaim_fail);
+DEFINE_INODE_EVENT(xfs_iget_hit);
+DEFINE_INODE_EVENT(xfs_iget_miss);
 
-DECLARE_EVENT_CLASS(xfs_inode_class,
+DEFINE_INODE_EVENT(xfs_getattr);
+DEFINE_INODE_EVENT(xfs_setattr);
+DEFINE_INODE_EVENT(xfs_readlink);
+DEFINE_INODE_EVENT(xfs_alloc_file_space);
+DEFINE_INODE_EVENT(xfs_free_file_space);
+DEFINE_INODE_EVENT(xfs_readdir);
+DEFINE_INODE_EVENT(xfs_check_acl);
+DEFINE_INODE_EVENT(xfs_vm_bmap);
+DEFINE_INODE_EVENT(xfs_file_ioctl);
+DEFINE_INODE_EVENT(xfs_file_compat_ioctl);
+DEFINE_INODE_EVENT(xfs_ioctl_setattr);
+DEFINE_INODE_EVENT(xfs_file_fsync);
+DEFINE_INODE_EVENT(xfs_destroy_inode);
+DEFINE_INODE_EVENT(xfs_write_inode);
+DEFINE_INODE_EVENT(xfs_clear_inode);
+
+DEFINE_INODE_EVENT(xfs_dquot_dqalloc);
+DEFINE_INODE_EVENT(xfs_dquot_dqdetach);
+
+DECLARE_EVENT_CLASS(xfs_iref_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip),
 	TP_ARGS(ip, caller_ip),
 	TP_STRUCT__entry(
@@ -590,20 +609,71 @@ DECLARE_EVENT_CLASS(xfs_inode_class,
 		  (char *)__entry->caller_ip)
 )
 
-#define DEFINE_INODE_EVENT(name) \
-DEFINE_EVENT(xfs_inode_class, name, \
+#define DEFINE_IREF_EVENT(name) \
+DEFINE_EVENT(xfs_iref_class, name, \
 	TP_PROTO(struct xfs_inode *ip, unsigned long caller_ip), \
 	TP_ARGS(ip, caller_ip))
-DEFINE_INODE_EVENT(xfs_ihold);
-DEFINE_INODE_EVENT(xfs_irele);
-DEFINE_INODE_EVENT(xfs_inode_pin);
-DEFINE_INODE_EVENT(xfs_inode_unpin);
-DEFINE_INODE_EVENT(xfs_inode_unpin_nowait);
+DEFINE_IREF_EVENT(xfs_ihold);
+DEFINE_IREF_EVENT(xfs_irele);
+DEFINE_IREF_EVENT(xfs_inode_pin);
+DEFINE_IREF_EVENT(xfs_inode_unpin);
+DEFINE_IREF_EVENT(xfs_inode_unpin_nowait);
 
-/* the old xfs_itrace_entry tracer - to be replaced by s.th. in the VFS */
-DEFINE_INODE_EVENT(xfs_inode);
-#define xfs_itrace_entry(ip)    \
-	trace_xfs_inode(ip, _THIS_IP_)
+DECLARE_EVENT_CLASS(xfs_namespace_class,
+	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name),
+	TP_ARGS(dp, name),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dp_ino)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(dp)->i_sb->s_dev;
+		__entry->dp_ino = dp->i_ino;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d dp ino 0x%llx name %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dp_ino,
+		  __get_str(name))
+)
+
+#define DEFINE_NAMESPACE_EVENT(name) \
+DEFINE_EVENT(xfs_namespace_class, name, \
+	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name), \
+	TP_ARGS(dp, name))
+DEFINE_NAMESPACE_EVENT(xfs_remove);
+DEFINE_NAMESPACE_EVENT(xfs_link);
+DEFINE_NAMESPACE_EVENT(xfs_lookup);
+DEFINE_NAMESPACE_EVENT(xfs_create);
+DEFINE_NAMESPACE_EVENT(xfs_symlink);
+
+TRACE_EVENT(xfs_rename,
+	TP_PROTO(struct xfs_inode *src_dp, struct xfs_inode *target_dp,
+		 struct xfs_name *src_name, struct xfs_name *target_name),
+	TP_ARGS(src_dp, target_dp, src_name, target_name),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, src_dp_ino)
+		__field(xfs_ino_t, target_dp_ino)
+		__dynamic_array(char, src_name, src_name->len)
+		__dynamic_array(char, target_name, target_name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(src_dp)->i_sb->s_dev;
+		__entry->src_dp_ino = src_dp->i_ino;
+		__entry->target_dp_ino = target_dp->i_ino;
+		memcpy(__get_str(src_name), src_name->name, src_name->len);
+		memcpy(__get_str(target_name), target_name->name, target_name->len);
+	),
+	TP_printk("dev %d:%d src dp ino 0x%llx target dp ino 0x%llx"
+		  " src name %s target name %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->src_dp_ino,
+		  __entry->target_dp_ino,
+		  __get_str(src_name),
+		  __get_str(target_name))
+)
 
 DECLARE_EVENT_CLASS(xfs_dquot_class,
 	TP_PROTO(struct xfs_dquot *dqp),
@@ -683,9 +753,6 @@ DEFINE_DQUOT_EVENT(xfs_dqrele);
 DEFINE_DQUOT_EVENT(xfs_dqflush);
 DEFINE_DQUOT_EVENT(xfs_dqflush_force);
 DEFINE_DQUOT_EVENT(xfs_dqflush_done);
-/* not really iget events, but we re-use the format */
-DEFINE_IGET_EVENT(xfs_dquot_dqalloc);
-DEFINE_IGET_EVENT(xfs_dquot_dqdetach);
 
 DECLARE_EVENT_CLASS(xfs_loggrant_class,
 	TP_PROTO(struct log *log, struct xlog_ticket *tic),

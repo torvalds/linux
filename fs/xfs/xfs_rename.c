@@ -113,8 +113,7 @@ xfs_rename(
 	int		spaceres;
 	int		num_inodes;
 
-	xfs_itrace_entry(src_dp);
-	xfs_itrace_entry(target_dp);
+	trace_xfs_rename(src_dp, target_dp, src_name, target_name);
 
 	new_parent = (src_dp != target_dp);
 	src_is_directory = ((src_ip->i_d.di_mode & S_IFMT) == S_IFDIR);

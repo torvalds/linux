@@ -540,7 +540,7 @@ xfs_file_compat_ioctl(
 	if (filp->f_mode & FMODE_NOCMTIME)
 		ioflags |= IO_INVIS;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_file_compat_ioctl(ip);
 
 	switch (cmd) {
 	/* No size or alignment issues on any arch */

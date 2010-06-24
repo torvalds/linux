@@ -907,7 +907,7 @@ xfs_fs_destroy_inode(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 
-	xfs_itrace_entry(ip);
+	trace_xfs_destroy_inode(ip);
 
 	XFS_STATS_INC(vn_reclaim);
 
@@ -1040,7 +1040,7 @@ xfs_fs_write_inode(
 	struct xfs_mount	*mp = ip->i_mount;
 	int			error = EAGAIN;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_write_inode(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -1107,7 +1107,8 @@ xfs_fs_clear_inode(
 {
 	xfs_inode_t		*ip = XFS_I(inode);
 
-	xfs_itrace_entry(ip);
+	trace_xfs_clear_inode(ip);
+
 	XFS_STATS_INC(vn_rele);
 	XFS_STATS_INC(vn_remove);
 	XFS_STATS_DEC(vn_active);

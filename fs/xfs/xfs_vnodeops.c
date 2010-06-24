@@ -68,7 +68,7 @@ xfs_setattr(
 	struct xfs_dquot	*udqp, *gdqp, *olddquot1, *olddquot2;
 	int			need_iolock = 1;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_setattr(ip);
 
 	if (mp->m_flags & XFS_MOUNT_RDONLY)
 		return XFS_ERROR(EROFS);
@@ -533,7 +533,7 @@ xfs_readlink(
 	int		pathlen;
 	int		error = 0;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_readlink(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -1005,8 +1005,6 @@ xfs_inactive(
 	int		error;
 	int		truncate;
 
-	xfs_itrace_entry(ip);
-
 	/*
 	 * If the inode is already free, then there can be nothing
 	 * to clean up here.
@@ -1221,7 +1219,7 @@ xfs_lookup(
 	int			error;
 	uint			lock_mode;
 
-	xfs_itrace_entry(dp);
+	trace_xfs_lookup(dp, name);
 
 	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return XFS_ERROR(EIO);
@@ -1273,7 +1271,7 @@ xfs_create(
 	uint			log_res;
 	uint			log_count;
 
-	xfs_itrace_entry(dp);
+	trace_xfs_create(dp, name);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -1670,8 +1668,7 @@ xfs_remove(
 	uint			resblks;
 	uint			log_count;
 
-	xfs_itrace_entry(dp);
-	xfs_itrace_entry(ip);
+	trace_xfs_remove(dp, name);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -1832,8 +1829,7 @@ xfs_link(
 	int			committed;
 	int			resblks;
 
-	xfs_itrace_entry(tdp);
-	xfs_itrace_entry(sip);
+	trace_xfs_link(tdp, target_name);
 
 	ASSERT(!S_ISDIR(sip->i_d.di_mode));
 
@@ -1966,7 +1962,7 @@ xfs_symlink(
 	ip = NULL;
 	tp = NULL;
 
-	xfs_itrace_entry(dp);
+	trace_xfs_symlink(dp, link_name);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -2256,7 +2252,7 @@ xfs_alloc_file_space(
 	int			committed;
 	int			error;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_alloc_file_space(ip);
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
@@ -2517,7 +2513,7 @@ xfs_free_file_space(
 
 	mp = ip->i_mount;
 
-	xfs_itrace_entry(ip);
+	trace_xfs_free_file_space(ip);
 
 	error = xfs_qm_dqattach(ip, 0);
 	if (error)
@@ -2706,8 +2702,6 @@ xfs_change_file_space(
 	xfs_off_t	llen;
 	xfs_trans_t	*tp;
 	struct iattr	iattr;
-
-	xfs_itrace_entry(ip);
 
 	if (!S_ISREG(ip->i_d.di_mode))
 		return XFS_ERROR(EINVAL);
