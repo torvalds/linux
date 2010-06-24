@@ -606,7 +606,7 @@ static struct of_platform_driver sabre_driver = {
 
 static int __init sabre_init(void)
 {
-	return of_register_driver(&sabre_driver, &of_bus_type);
+	return of_register_platform_driver(&sabre_driver);
 }
 
 subsys_initcall(sabre_init);

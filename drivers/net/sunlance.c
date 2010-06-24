@@ -1558,12 +1558,12 @@ static struct of_platform_driver sunlance_sbus_driver = {
 /* Find all the lance cards on the system and initialize them */
 static int __init sparc_lance_init(void)
 {
-	return of_register_driver(&sunlance_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&sunlance_sbus_driver);
 }
 
 static void __exit sparc_lance_exit(void)
 {
-	of_unregister_driver(&sunlance_sbus_driver);
+	of_unregister_platform_driver(&sunlance_sbus_driver);
 }
 
 module_init(sparc_lance_init);

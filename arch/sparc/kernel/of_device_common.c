@@ -21,7 +21,7 @@ static int node_match(struct device *dev, void *data)
 
 struct of_device *of_find_device_by_node(struct device_node *dp)
 {
-	struct device *dev = bus_find_device(&of_platform_bus_type, NULL,
+	struct device *dev = bus_find_device(&platform_bus_type, NULL,
 					     dp, node_match);
 
 	if (dev)

@@ -644,12 +644,12 @@ static int __init sunhv_init(void)
 	if (tlb_type != hypervisor)
 		return -ENODEV;
 
-	return of_register_driver(&hv_driver, &of_bus_type);
+	return of_register_platform_driver(&hv_driver);
 }
 
 static void __exit sunhv_exit(void)
 {
-	of_unregister_driver(&hv_driver);
+	of_unregister_platform_driver(&hv_driver);
 }
 
 module_init(sunhv_init);

@@ -988,12 +988,12 @@ static struct of_platform_driver qec_sbus_driver = {
 
 static int __init qec_init(void)
 {
-	return of_register_driver(&qec_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&qec_sbus_driver);
 }
 
 static void __exit qec_exit(void)
 {
-	of_unregister_driver(&qec_sbus_driver);
+	of_unregister_platform_driver(&qec_sbus_driver);
 
 	while (root_qec_dev) {
 		struct sunqec *next = root_qec_dev->next_module;

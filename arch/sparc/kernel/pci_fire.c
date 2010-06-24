@@ -518,7 +518,7 @@ static struct of_platform_driver fire_driver = {
 
 static int __init fire_init(void)
 {
-	return of_register_driver(&fire_driver, &of_bus_type);
+	return of_register_platform_driver(&fire_driver);
 }
 
 subsys_initcall(fire_init);

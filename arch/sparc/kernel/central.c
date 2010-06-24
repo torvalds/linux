@@ -265,8 +265,8 @@ static struct of_platform_driver fhc_driver = {
 
 static int __init sunfire_init(void)
 {
-	(void) of_register_driver(&fhc_driver, &of_platform_bus_type);
-	(void) of_register_driver(&clock_board_driver, &of_platform_bus_type);
+	(void) of_register_platform_driver(&fhc_driver);
+	(void) of_register_platform_driver(&clock_board_driver);
 	return 0;
 }
 

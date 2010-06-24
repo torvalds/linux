@@ -70,7 +70,7 @@ static struct of_platform_driver power_driver = {
 
 static int __init power_init(void)
 {
-	return of_register_driver(&power_driver, &of_platform_bus_type);
+	return of_register_platform_driver(&power_driver);
 }
 
 device_initcall(power_init);

@@ -644,12 +644,12 @@ static struct of_platform_driver esp_sbus_driver = {
 
 static int __init sunesp_init(void)
 {
-	return of_register_driver(&esp_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&esp_sbus_driver);
 }
 
 static void __exit sunesp_exit(void)
 {
-	of_unregister_driver(&esp_sbus_driver);
+	of_unregister_platform_driver(&esp_sbus_driver);
 }
 
 MODULE_DESCRIPTION("Sun ESP SCSI driver");

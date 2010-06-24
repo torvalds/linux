@@ -586,9 +586,9 @@ static int __init clock_init(void)
 	if (tlb_type == hypervisor)
 		return platform_device_register(&rtc_sun4v_device);
 
-	(void) of_register_driver(&rtc_driver, &of_platform_bus_type);
-	(void) of_register_driver(&mostek_driver, &of_platform_bus_type);
-	(void) of_register_driver(&bq4802_driver, &of_platform_bus_type);
+	(void) of_register_platform_driver(&rtc_driver);
+	(void) of_register_platform_driver(&mostek_driver);
+	(void) of_register_platform_driver(&bq4802_driver);
 
 	return 0;
 }

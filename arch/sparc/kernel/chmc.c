@@ -848,7 +848,7 @@ static int __init us3mc_init(void)
 	ret = register_dimm_printer(us3mc_dimm_printer);
 
 	if (!ret) {
-		ret = of_register_driver(&us3mc_driver, &of_bus_type);
+		ret = of_register_platform_driver(&us3mc_driver);
 		if (ret)
 			unregister_dimm_printer(us3mc_dimm_printer);
 	}
@@ -859,7 +859,7 @@ static void __exit us3mc_cleanup(void)
 {
 	if (us3mc_platform()) {
 		unregister_dimm_printer(us3mc_dimm_printer);
-		of_unregister_driver(&us3mc_driver);
+		of_unregister_platform_driver(&us3mc_driver);
 	}
 }
 

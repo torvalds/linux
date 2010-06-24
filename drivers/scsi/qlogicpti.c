@@ -1467,12 +1467,12 @@ static struct of_platform_driver qpti_sbus_driver = {
 
 static int __init qpti_init(void)
 {
-	return of_register_driver(&qpti_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&qpti_sbus_driver);
 }
 
 static void __exit qpti_exit(void)
 {
-	of_unregister_driver(&qpti_sbus_driver);
+	of_unregister_platform_driver(&qpti_sbus_driver);
 }
 
 MODULE_DESCRIPTION("QlogicISP SBUS driver");

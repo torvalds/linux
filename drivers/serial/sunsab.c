@@ -1130,12 +1130,12 @@ static int __init sunsab_init(void)
 		}
 	}
 
-	return of_register_driver(&sab_driver, &of_bus_type);
+	return of_register_platform_driver(&sab_driver);
 }
 
 static void __exit sunsab_exit(void)
 {
-	of_unregister_driver(&sab_driver);
+	of_unregister_platform_driver(&sab_driver);
 	if (sunsab_reg.nr) {
 		sunserial_unregister_minors(&sunsab_reg, sunsab_reg.nr);
 	}

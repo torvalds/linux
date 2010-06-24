@@ -1172,12 +1172,12 @@ static struct of_platform_driver myri_sbus_driver = {
 
 static int __init myri_sbus_init(void)
 {
-	return of_register_driver(&myri_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&myri_sbus_driver);
 }
 
 static void __exit myri_sbus_exit(void)
 {
-	of_unregister_driver(&myri_sbus_driver);
+	of_unregister_platform_driver(&myri_sbus_driver);
 }
 
 module_init(myri_sbus_init);

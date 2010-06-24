@@ -89,7 +89,7 @@ static struct of_platform_driver pmc_driver = {
 
 static int __init pmc_init(void)
 {
-	return of_register_driver(&pmc_driver, &of_bus_type);
+	return of_register_platform_driver(&pmc_driver);
 }
 
 /* This driver is not critical to the boot process

@@ -19,12 +19,6 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
-/*
- * of_platform_bus_type isn't it's own bus anymore.  It's now just an alias
- * for the platform bus.
- */
-#define of_platform_bus_type platform_bus_type
-
 extern const struct of_device_id of_default_bus_ids[];
 
 /*

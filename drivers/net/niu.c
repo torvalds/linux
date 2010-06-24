@@ -10251,14 +10251,14 @@ static int __init niu_init(void)
 	niu_debug = netif_msg_init(debug, NIU_MSG_DEFAULT);
 
 #ifdef CONFIG_SPARC64
-	err = of_register_driver(&niu_of_driver, &of_bus_type);
+	err = of_register_platform_driver(&niu_of_driver);
 #endif
 
 	if (!err) {
 		err = pci_register_driver(&niu_pci_driver);
 #ifdef CONFIG_SPARC64
 		if (err)
-			of_unregister_driver(&niu_of_driver);
+			of_unregister_platform_driver(&niu_of_driver);
 #endif
 	}
 
@@ -10269,7 +10269,7 @@ static void __exit niu_exit(void)
 {
 	pci_unregister_driver(&niu_pci_driver);
 #ifdef CONFIG_SPARC64
-	of_unregister_driver(&niu_of_driver);
+	of_unregister_platform_driver(&niu_of_driver);
 #endif
 }
 

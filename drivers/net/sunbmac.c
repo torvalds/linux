@@ -1301,12 +1301,12 @@ static struct of_platform_driver bigmac_sbus_driver = {
 
 static int __init bigmac_init(void)
 {
-	return of_register_driver(&bigmac_sbus_driver, &of_bus_type);
+	return of_register_platform_driver(&bigmac_sbus_driver);
 }
 
 static void __exit bigmac_exit(void)
 {
-	of_unregister_driver(&bigmac_sbus_driver);
+	of_unregister_platform_driver(&bigmac_sbus_driver);
 }
 
 module_init(bigmac_init);

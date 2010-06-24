@@ -870,12 +870,12 @@ static int __init cg6_init(void)
 	if (fb_get_options("cg6fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&cg6_driver, &of_bus_type);
+	return of_register_platform_driver(&cg6_driver);
 }
 
 static void __exit cg6_exit(void)
 {
-	of_unregister_driver(&cg6_driver);
+	of_unregister_platform_driver(&cg6_driver);
 }
 
 module_init(cg6_init);

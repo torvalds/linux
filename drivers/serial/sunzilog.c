@@ -1576,7 +1576,7 @@ static int __init sunzilog_init(void)
 			goto out_free_tables;
 	}
 
-	err = of_register_driver(&zs_driver, &of_bus_type);
+	err = of_register_platform_driver(&zs_driver);
 	if (err)
 		goto out_unregister_uart;
 
@@ -1604,7 +1604,7 @@ out:
 	return err;
 
 out_unregister_driver:
-	of_unregister_driver(&zs_driver);
+	of_unregister_platform_driver(&zs_driver);
 
 out_unregister_uart:
 	if (num_sunzilog) {
@@ -1619,7 +1619,7 @@ out_free_tables:
 
 static void __exit sunzilog_exit(void)
 {
-	of_unregister_driver(&zs_driver);
+	of_unregister_platform_driver(&zs_driver);
 
 	if (zilog_irq != -1) {
 		struct uart_sunzilog_port *up = sunzilog_irq_chain;

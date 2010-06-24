@@ -1019,7 +1019,7 @@ static struct of_platform_driver pci_sun4v_driver = {
 
 static int __init pci_sun4v_init(void)
 {
-	return of_register_driver(&pci_sun4v_driver, &of_bus_type);
+	return of_register_platform_driver(&pci_sun4v_driver);
 }
 
 subsys_initcall(pci_sun4v_init);

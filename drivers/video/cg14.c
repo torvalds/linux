@@ -610,12 +610,12 @@ static int __init cg14_init(void)
 	if (fb_get_options("cg14fb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&cg14_driver, &of_bus_type);
+	return of_register_platform_driver(&cg14_driver);
 }
 
 static void __exit cg14_exit(void)
 {
-	of_unregister_driver(&cg14_driver);
+	of_unregister_platform_driver(&cg14_driver);
 }
 
 module_init(cg14_init);

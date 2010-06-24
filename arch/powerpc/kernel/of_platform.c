@@ -61,8 +61,7 @@ struct of_device *of_find_device_by_node(struct device_node *np)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&of_platform_bus_type,
-			      NULL, np, of_dev_node_match);
+	dev = bus_find_device(&platform_bus_type, NULL, np, of_dev_node_match);
 	if (dev)
 		return to_of_device(dev);
 	return NULL;

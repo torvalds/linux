@@ -1586,7 +1586,7 @@ static int __init sunsu_init(void)
 			return err;
 	}
 
-	err = of_register_driver(&su_driver, &of_bus_type);
+	err = of_register_platform_driver(&su_driver);
 	if (err && num_uart)
 		sunserial_unregister_minors(&sunsu_reg, num_uart);
 

@@ -13,6 +13,4 @@
  *
  */
 
-#define of_bus_type	of_platform_bus_type	/* for compatibility */
-
 #endif

@@ -116,8 +116,7 @@ static int __init i8042_platform_init(void)
 		if (!kbd_iobase)
 			return -ENODEV;
 	} else {
-		int err = of_register_driver(&sparc_i8042_driver,
-					     &of_bus_type);
+		int err = of_register_platform_driver(&sparc_i8042_driver);
 		if (err)
 			return err;
 
@@ -141,7 +140,7 @@ static inline void i8042_platform_exit(void)
 	struct device_node *root = of_find_node_by_path("/");
 
 	if (strcmp(root->name, "SUNW,JavaStation-1"))
-		of_unregister_driver(&sparc_i8042_driver);
+		of_unregister_platform_driver(&sparc_i8042_driver);
 }
 
 #else /* !CONFIG_PCI */

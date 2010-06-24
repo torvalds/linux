@@ -184,7 +184,7 @@ static struct of_platform_driver apc_driver = {
 
 static int __init apc_init(void)
 {
-	return of_register_driver(&apc_driver, &of_bus_type);
+	return of_register_platform_driver(&apc_driver);
 }
 
 /* This driver is not critical to the boot process

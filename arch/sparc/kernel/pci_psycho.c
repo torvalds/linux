@@ -612,7 +612,7 @@ static struct of_platform_driver psycho_driver = {
 
 static int __init psycho_init(void)
 {
-	return of_register_driver(&psycho_driver, &of_bus_type);
+	return of_register_platform_driver(&psycho_driver);
 }
 
 subsys_initcall(psycho_init);

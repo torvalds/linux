@@ -762,12 +762,12 @@ static struct of_platform_driver n2rng_driver = {
 
 static int __init n2rng_init(void)
 {
-	return of_register_driver(&n2rng_driver, &of_bus_type);
+	return of_register_platform_driver(&n2rng_driver);
 }
 
 static void __exit n2rng_exit(void)
 {
-	of_unregister_driver(&n2rng_driver);
+	of_unregister_platform_driver(&n2rng_driver);
 }
 
 module_init(n2rng_init);

@@ -1501,7 +1501,7 @@ static struct of_platform_driver schizo_driver = {
 
 static int __init schizo_init(void)
 {
-	return of_register_driver(&schizo_driver, &of_bus_type);
+	return of_register_platform_driver(&schizo_driver);
 }
 
 subsys_initcall(schizo_init);

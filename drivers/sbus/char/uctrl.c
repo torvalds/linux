@@ -437,12 +437,12 @@ static struct of_platform_driver uctrl_driver = {
 
 static int __init uctrl_init(void)
 {
-	return of_register_driver(&uctrl_driver, &of_bus_type);
+	return of_register_platform_driver(&uctrl_driver);
 }
 
 static void __exit uctrl_exit(void)
 {
-	of_unregister_driver(&uctrl_driver);
+	of_unregister_platform_driver(&uctrl_driver);
 }
 
 module_init(uctrl_init);

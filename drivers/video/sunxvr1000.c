@@ -213,12 +213,12 @@ static int __init gfb_init(void)
 	if (fb_get_options("gfb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&gfb_driver, &of_bus_type);
+	return of_register_platform_driver(&gfb_driver);
 }
 
 static void __exit gfb_exit(void)
 {
-	of_unregister_driver(&gfb_driver);
+	of_unregister_platform_driver(&gfb_driver);
 }
 
 module_init(gfb_init);

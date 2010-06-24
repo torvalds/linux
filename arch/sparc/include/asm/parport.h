@@ -243,9 +243,7 @@ static struct of_platform_driver ecpp_driver = {
 
 static int parport_pc_find_nonpci_ports(int autoirq, int autodma)
 {
-	of_register_driver(&ecpp_driver, &of_bus_type);
-
-	return 0;
+	return of_register_platform_driver(&ecpp_driver);
 }
 
 #endif /* !(_ASM_SPARC64_PARPORT_H */

@@ -526,12 +526,12 @@ static int __init tcx_init(void)
 	if (fb_get_options("tcxfb", NULL))
 		return -ENODEV;
 
-	return of_register_driver(&tcx_driver, &of_bus_type);
+	return of_register_platform_driver(&tcx_driver);
 }
 
 static void __exit tcx_exit(void)
 {
-	of_unregister_driver(&tcx_driver);
+	of_unregister_platform_driver(&tcx_driver);
 }
 
 module_init(tcx_init);

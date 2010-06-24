@@ -3304,7 +3304,7 @@ static int __init happy_meal_sbus_init(void)
 {
 	int err;
 
-	err = of_register_driver(&hme_sbus_driver, &of_bus_type);
+	err = of_register_platform_driver(&hme_sbus_driver);
 	if (!err)
 		err = quattro_sbus_register_irqs();
 
@@ -3313,7 +3313,7 @@ static int __init happy_meal_sbus_init(void)
 
 static void happy_meal_sbus_exit(void)
 {
-	of_unregister_driver(&hme_sbus_driver);
+	of_unregister_platform_driver(&hme_sbus_driver);
 	quattro_sbus_free_irqs();
 
 	while (qfe_sbus_list) {
