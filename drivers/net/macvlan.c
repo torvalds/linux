@@ -431,29 +431,38 @@ static void macvlan_uninit(struct net_device *dev)
 	free_percpu(vlan->rx_stats);
 }
 
-static struct net_device_stats *macvlan_dev_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev)
 {
-	struct net_device_stats *stats = &dev->stats;
+	struct rtnl_link_stats64 *stats = &dev->stats64;
 	struct macvlan_dev *vlan = netdev_priv(dev);
 
-	dev_txq_stats_fold(dev, stats);
+	dev_txq_stats_fold(dev, &dev->stats);
 
 	if (vlan->rx_stats) {
-		struct macvlan_rx_stats *p, rx = {0};
+		struct macvlan_rx_stats *p, accum = {0};
+		u64 rx_packets, rx_bytes, rx_multicast;
+		unsigned int start;
 		int i;
 
 		for_each_possible_cpu(i) {
 			p = per_cpu_ptr(vlan->rx_stats, i);
-			rx.rx_packets += p->rx_packets;
-			rx.rx_bytes   += p->rx_bytes;
-			rx.rx_errors  += p->rx_errors;
-			rx.multicast  += p->multicast;
+			do {
+				start = u64_stats_fetch_begin_bh(&p->syncp);
+				rx_packets	= p->rx_packets;
+				rx_bytes	= p->rx_bytes;
+				rx_multicast	= p->rx_multicast;
+			} while (u64_stats_fetch_retry_bh(&p->syncp, start));
+			accum.rx_packets	+= rx_packets;
+			accum.rx_bytes		+= rx_bytes;
+			accum.rx_multicast	+= rx_multicast;
+			/* rx_errors is an ulong, updated without syncp protection */
+			accum.rx_errors		+= p->rx_errors;
 		}
-		stats->rx_packets = rx.rx_packets;
-		stats->rx_bytes   = rx.rx_bytes;
-		stats->rx_errors  = rx.rx_errors;
-		stats->rx_dropped = rx.rx_errors;
-		stats->multicast  = rx.multicast;
+		stats->rx_packets = accum.rx_packets;
+		stats->rx_bytes   = accum.rx_bytes;
+		stats->rx_errors  = accum.rx_errors;
+		stats->rx_dropped = accum.rx_errors;
+		stats->multicast  = accum.rx_multicast;
 	}
 	return stats;
 }
@@ -502,7 +511,7 @@ static const struct net_device_ops macvlan_netdev_ops = {
 	.ndo_change_rx_flags	= macvlan_change_rx_flags,
 	.ndo_set_mac_address	= macvlan_set_mac_address,
 	.ndo_set_multicast_list	= macvlan_set_multicast_list,
-	.ndo_get_stats		= macvlan_dev_get_stats,
+	.ndo_get_stats64	= macvlan_dev_get_stats64,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
