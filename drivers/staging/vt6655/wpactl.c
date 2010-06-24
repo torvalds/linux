@@ -203,7 +203,7 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 {
     struct viawget_wpa_param *param=ctx;
     PSMgmtObject pMgmt = pDevice->pMgmt;
-    DWORD   dwKeyIndex = 0;
+    unsigned long dwKeyIndex = 0;
     BYTE    abyKey[MAX_KEY_LEN];
     BYTE    abySeq[MAX_KEY_LEN];
     QWORD   KeyRSC;
@@ -243,7 +243,7 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 spin_lock_irq(&pDevice->lock);
     	}
 
-    dwKeyIndex = (DWORD)(param->u.wpa_key.key_index);
+    dwKeyIndex = (unsigned long)(param->u.wpa_key.key_index);
 
 	if (param->u.wpa_key.alg_name == WPA_ALG_WEP) {
         if (dwKeyIndex > 3) {

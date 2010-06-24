@@ -187,7 +187,7 @@ void TKIPvMixKey(
     unsigned char *pbyTKey,
     unsigned char *pbyTA,
     WORD    wTSC15_0,
-    DWORD   dwTSC47_16,
+    unsigned long dwTSC47_16,
     unsigned char *pbyRC4Key
     )
 {

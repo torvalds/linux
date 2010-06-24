@@ -90,7 +90,7 @@ void STAvClearAllCounter (PSStatCounter pStatistic)
  * Return Value: none
  *
  */
-void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, DWORD dwIsr)
+void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, unsigned long dwIsr)
 {
     /**********************/
     /* ABNORMAL interrupt */
@@ -523,7 +523,7 @@ void
 STAvUpdateTDStatCounterEx (
     PSStatCounter   pStatistic,
     unsigned char *pbyBuffer,
-    DWORD           cbFrameLength
+    unsigned long cbFrameLength
     )
 {
     unsigned int uPktLength;
@@ -555,7 +555,7 @@ void
 STAvUpdate802_11Counter(
     PSDot11Counters         p802_11Counter,
     PSStatCounter           pStatistic,
-    DWORD                   dwCounter
+    unsigned long dwCounter
     )
 {
     //p802_11Counter->TransmittedFragmentCount

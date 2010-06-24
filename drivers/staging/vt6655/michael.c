@@ -26,8 +26,8 @@
  * Date: Sep 4, 2002
  *
  * Functions:
- *      s_dwGetUINT32 - Convert from BYTE[] to DWORD in a portable way
- *      s_vPutUINT32 - Convert from DWORD to BYTE[] in a portable way
+ *      s_dwGetUINT32 - Convert from BYTE[] to unsigned long in a portable way
+ *      s_vPutUINT32 - Convert from unsigned long to BYTE[] in a portable way
  *      s_vClear - Reset the state to the empty message.
  *      s_vSetKey - Set the key.
  *      MIC_vInit - Set the key.
@@ -48,28 +48,28 @@
 
 /*---------------------  Static Functions  --------------------------*/
 /*
-static DWORD s_dwGetUINT32(BYTE * p);         // Get DWORD from 4 bytes LSByte first
-static void s_vPutUINT32(BYTE* p, DWORD val); // Put DWORD into 4 bytes LSByte first
+static unsigned long s_dwGetUINT32(BYTE * p);         // Get unsigned long from 4 bytes LSByte first
+static void s_vPutUINT32(BYTE* p, unsigned long val); // Put unsigned long into 4 bytes LSByte first
 */
 static void s_vClear(void);                       // Clear the internal message,
                                               // resets the object to the state just after construction.
-static void s_vSetKey(DWORD dwK0, DWORD dwK1);
+static void s_vSetKey(unsigned long dwK0, unsigned long dwK1);
 static void s_vAppendByte(BYTE b);            // Add a single byte to the internal message
 
 /*---------------------  Export Variables  --------------------------*/
-static DWORD  L, R;           // Current state
+static unsigned long L, R;           // Current state
 
-static DWORD  K0, K1;         // Key
-static DWORD  M;              // Message accumulator (single word)
+static unsigned long K0, K1;         // Key
+static unsigned long M;              // Message accumulator (single word)
 static unsigned int nBytesInM;      // # bytes in M
 
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-static DWORD s_dwGetUINT32 (BYTE * p)
-// Convert from BYTE[] to DWORD in a portable way
+static unsigned long s_dwGetUINT32 (BYTE * p)
+// Convert from BYTE[] to unsigned long in a portable way
 {
-    DWORD res = 0;
+    unsigned long res = 0;
     unsigned int i;
     for(i=0; i<4; i++ )
     {
@@ -78,8 +78,8 @@ static DWORD s_dwGetUINT32 (BYTE * p)
     return res;
 }
 
-static void s_vPutUINT32 (BYTE* p, DWORD val)
-// Convert from DWORD to BYTE[] in a portable way
+static void s_vPutUINT32 (BYTE* p, unsigned long val)
+// Convert from unsigned long to BYTE[] in a portable way
 {
     unsigned int i;
     for(i=0; i<4; i++ )
@@ -99,7 +99,7 @@ static void s_vClear (void)
     M = 0;
 }
 
-static void s_vSetKey (DWORD dwK0, DWORD dwK1)
+static void s_vSetKey (unsigned long dwK0, unsigned long dwK1)
 {
     // Set the key
     K0 = dwK0;
@@ -131,7 +131,7 @@ static void s_vAppendByte (BYTE b)
     }
 }
 
-void MIC_vInit (DWORD dwK0, DWORD dwK1)
+void MIC_vInit (unsigned long dwK0, unsigned long dwK1)
 {
     // Set the key
     s_vSetKey(dwK0, dwK1);

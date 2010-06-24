@@ -354,8 +354,8 @@ typedef struct tagDEVICE_TD_INFO{
     dma_addr_t          skb_dma;
     dma_addr_t          buf_dma;
     dma_addr_t          curr_desc;
-    DWORD               dwReqCount;
-    DWORD               dwHeaderLength;
+    unsigned long dwReqCount;
+    unsigned long dwHeaderLength;
     BYTE                byFlags;
 } DEVICE_TD_INFO,    *PDEVICE_TD_INFO;
 
@@ -391,13 +391,13 @@ typedef const STxDesc *PCSTxDesc;
 typedef struct tagSTxSyncDesc {
     volatile    STDES0  m_td0TD0;
     volatile    STDES1  m_td1TD1;
-    volatile    DWORD   buff_addr; // pointer to logical buffer
-    volatile    DWORD   next_desc; // pointer to next logical descriptor
+    volatile    u32 buff_addr; // pointer to logical buffer
+    volatile    u32 next_desc; // pointer to next logical descriptor
     volatile    WORD    m_wFIFOCtl;
     volatile    WORD    m_wTimeStamp;
     struct tagSTxSyncDesc*  next; //4 bytes
     volatile    PDEVICE_TD_INFO pTDInfo;//4 bytes
-    volatile    DWORD   m_dwReserved2;
+    volatile    u32 m_dwReserved2;
 } __attribute__ ((__packed__))
 STxSyncDesc, *PSTxSyncDesc;
 typedef const STxSyncDesc *PCSTxSyncDesc;
@@ -556,7 +556,7 @@ typedef const SCTS_FB *PCSCTS_FB;
 // Tx FIFO header
 //
 typedef struct tagSTxBufHead {
-    DWORD   adwTxKey[4];
+    u32 adwTxKey[4];
     WORD    wFIFOCtl;
     WORD    wTimeStamp;
     WORD    wFragCtl;
@@ -636,24 +636,24 @@ typedef const STxDataHead_a_FB *PCSTxDataHead_a_FB;
 // MICHDR data header
 //
 typedef struct tagSMICHDRHead {
-    DWORD   adwHDR0[4];
-    DWORD   adwHDR1[4];
-    DWORD   adwHDR2[4];
+    u32 adwHDR0[4];
+    u32 adwHDR1[4];
+    u32 adwHDR2[4];
 }__attribute__ ((__packed__))
 SMICHDRHead, *PSMICHDRHead;
 typedef const SMICHDRHead *PCSMICHDRHead;
 
 typedef struct tagSBEACONCtl {
-    DWORD   BufReady : 1;
-    DWORD   TSF      : 15;
-    DWORD   BufLen   : 11;
-    DWORD   Reserved : 5;
+    u32 BufReady : 1;
+    u32 TSF      : 15;
+    u32 BufLen   : 11;
+    u32 Reserved : 5;
 }__attribute__ ((__packed__))
 SBEACONCtl;
 
 
 typedef struct tagSSecretKey {
-    DWORD   dwLowDword;
+    u32 dwLowDword;
     BYTE    byHighByte;
 }__attribute__ ((__packed__))
 SSecretKey;
@@ -662,11 +662,11 @@ typedef struct tagSKeyEntry {
     BYTE  abyAddrHi[2];
     WORD  wKCTL;
     BYTE  abyAddrLo[4];
-    DWORD dwKey0[4];
-    DWORD dwKey1[4];
-    DWORD dwKey2[4];
-    DWORD dwKey3[4];
-    DWORD dwKey4[4];
+    u32 dwKey0[4];
+    u32 dwKey1[4];
+    u32 dwKey2[4];
+    u32 dwKey3[4];
+    u32 dwKey4[4];
 }__attribute__ ((__packed__))
 SKeyEntry;
 /*---------------------  Export Macros ------------------------------*/

@@ -316,12 +316,12 @@ RATEvTxRateFallBack (
 PSDevice        pDevice = (PSDevice) pDeviceHandler;
 WORD            wIdxDownRate = 0;
 unsigned int ii;
-//DWORD           dwRateTable[MAX_RATE]  = {1,   2,   5,   11,  6,    9,    12,   18,  24,  36,  48,  54};
+//unsigned long dwRateTable[MAX_RATE]  = {1,   2,   5,   11,  6,    9,    12,   18,  24,  36,  48,  54};
 BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
-DWORD           dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
-DWORD           dwThroughput = 0;
+	unsigned long dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
+	unsigned long dwThroughput = 0;
 WORD            wIdxUpRate = 0;
-DWORD           dwTxDiff = 0;
+	unsigned long dwTxDiff = 0;
 
     if (pDevice->pMgmt->eScanState != WMAC_NO_SCANNING) {
         // Don't do Fallback when scanning Channel

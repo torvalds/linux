@@ -42,7 +42,7 @@
 /*
 void vGenerateMACHeader(
     PSDevice pDevice,
-    DWORD dwTxBufferAddr,
+    unsigned long dwTxBufferAddr,
     unsigned char *pbySkbData,
     unsigned int cbPacketSize,
     BOOL bDMA0Used,
@@ -52,7 +52,7 @@ void vGenerateMACHeader(
 
 void vProcessRxMACHeader (
     PSDevice pDevice,
-    DWORD dwRxBufferAddr,
+    unsigned long dwRxBufferAddr,
     unsigned int cbPacketSize,
     BOOL bIsWEP,
     PUINT pcbHeadSize

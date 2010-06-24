@@ -77,24 +77,24 @@ typedef struct tagSMib2Counter {
                                         // e.g. "interface 1"
     long    ifType;
     long    ifMtu;
-    DWORD   ifSpeed;
+    unsigned long ifSpeed;
     BYTE    ifPhysAddress[ETH_ALEN];
     long    ifAdminStatus;
     long    ifOperStatus;
-    DWORD   ifLastChange;
-    DWORD   ifInOctets;
-    DWORD   ifInUcastPkts;
-    DWORD   ifInNUcastPkts;
-    DWORD   ifInDiscards;
-    DWORD   ifInErrors;
-    DWORD   ifInUnknownProtos;
-    DWORD   ifOutOctets;
-    DWORD   ifOutUcastPkts;
-    DWORD   ifOutNUcastPkts;
-    DWORD   ifOutDiscards;
-    DWORD   ifOutErrors;
-    DWORD   ifOutQLen;
-    DWORD   ifSpecific;
+    unsigned long ifLastChange;
+    unsigned long ifInOctets;
+    unsigned long ifInUcastPkts;
+    unsigned long ifInNUcastPkts;
+    unsigned long ifInDiscards;
+    unsigned long ifInErrors;
+    unsigned long ifInUnknownProtos;
+    unsigned long ifOutOctets;
+    unsigned long ifOutUcastPkts;
+    unsigned long ifOutNUcastPkts;
+    unsigned long ifOutDiscards;
+    unsigned long ifOutErrors;
+    unsigned long ifOutQLen;
+    unsigned long ifSpecific;
 } SMib2Counter, *PSMib2Counter;
 
 // Value in the ifType entry
@@ -112,26 +112,26 @@ typedef struct tagSMib2Counter {
 //
 typedef struct tagSRmonCounter {
     long    etherStatsIndex;
-    DWORD   etherStatsDataSource;
-    DWORD   etherStatsDropEvents;
-    DWORD   etherStatsOctets;
-    DWORD   etherStatsPkts;
-    DWORD   etherStatsBroadcastPkts;
-    DWORD   etherStatsMulticastPkts;
-    DWORD   etherStatsCRCAlignErrors;
-    DWORD   etherStatsUndersizePkts;
-    DWORD   etherStatsOversizePkts;
-    DWORD   etherStatsFragments;
-    DWORD   etherStatsJabbers;
-    DWORD   etherStatsCollisions;
-    DWORD   etherStatsPkt64Octets;
-    DWORD   etherStatsPkt65to127Octets;
-    DWORD   etherStatsPkt128to255Octets;
-    DWORD   etherStatsPkt256to511Octets;
-    DWORD   etherStatsPkt512to1023Octets;
-    DWORD   etherStatsPkt1024to1518Octets;
-    DWORD   etherStatsOwners;
-    DWORD   etherStatsStatus;
+    unsigned long etherStatsDataSource;
+    unsigned long etherStatsDropEvents;
+    unsigned long etherStatsOctets;
+    unsigned long etherStatsPkts;
+    unsigned long etherStatsBroadcastPkts;
+    unsigned long etherStatsMulticastPkts;
+    unsigned long etherStatsCRCAlignErrors;
+    unsigned long etherStatsUndersizePkts;
+    unsigned long etherStatsOversizePkts;
+    unsigned long etherStatsFragments;
+    unsigned long etherStatsJabbers;
+    unsigned long etherStatsCollisions;
+    unsigned long etherStatsPkt64Octets;
+    unsigned long etherStatsPkt65to127Octets;
+    unsigned long etherStatsPkt128to255Octets;
+    unsigned long etherStatsPkt256to511Octets;
+    unsigned long etherStatsPkt512to1023Octets;
+    unsigned long etherStatsPkt1024to1518Octets;
+    unsigned long etherStatsOwners;
+    unsigned long etherStatsStatus;
 } SRmonCounter, *PSRmonCounter;
 
 //
@@ -179,27 +179,27 @@ typedef struct tagSCustomCounters {
 typedef struct tagSISRCounters {
     unsigned long Length;
 
-    DWORD   dwIsrTx0OK;
-    DWORD   dwIsrAC0TxOK;
-    DWORD   dwIsrBeaconTxOK;
-    DWORD   dwIsrRx0OK;
-    DWORD   dwIsrTBTTInt;
-    DWORD   dwIsrSTIMERInt;
-    DWORD   dwIsrWatchDog;
-    DWORD   dwIsrUnrecoverableError;
-    DWORD   dwIsrSoftInterrupt;
-    DWORD   dwIsrMIBNearfull;
-    DWORD   dwIsrRxNoBuf;
+    unsigned long dwIsrTx0OK;
+    unsigned long dwIsrAC0TxOK;
+    unsigned long dwIsrBeaconTxOK;
+    unsigned long dwIsrRx0OK;
+    unsigned long dwIsrTBTTInt;
+    unsigned long dwIsrSTIMERInt;
+    unsigned long dwIsrWatchDog;
+    unsigned long dwIsrUnrecoverableError;
+    unsigned long dwIsrSoftInterrupt;
+    unsigned long dwIsrMIBNearfull;
+    unsigned long dwIsrRxNoBuf;
 
-    DWORD   dwIsrUnknown;               // unknown interrupt count
+    unsigned long dwIsrUnknown;               // unknown interrupt count
 
-    DWORD   dwIsrRx1OK;
-    DWORD   dwIsrATIMTxOK;
-    DWORD   dwIsrSYNCTxOK;
-    DWORD   dwIsrCFPEnd;
-    DWORD   dwIsrATIMEnd;
-    DWORD   dwIsrSYNCFlushOK;
-    DWORD   dwIsrSTIMER1Int;
+    unsigned long dwIsrRx1OK;
+    unsigned long dwIsrATIMTxOK;
+    unsigned long dwIsrSYNCTxOK;
+    unsigned long dwIsrCFPEnd;
+    unsigned long dwIsrATIMEnd;
+    unsigned long dwIsrSYNCFlushOK;
+    unsigned long dwIsrSTIMER1Int;
     /////////////////////////////////////
 } SISRCounters, *PSISRCounters;
 
@@ -222,34 +222,34 @@ typedef struct tagSStatCounter {
 
     // RSR status count
     //
-    DWORD   dwRsrFrmAlgnErr;
-    DWORD   dwRsrErr;
-    DWORD   dwRsrCRCErr;
-    DWORD   dwRsrCRCOk;
-    DWORD   dwRsrBSSIDOk;
-    DWORD   dwRsrADDROk;
-    DWORD   dwRsrBCNSSIDOk;
-    DWORD   dwRsrLENErr;
-    DWORD   dwRsrTYPErr;
+    unsigned long dwRsrFrmAlgnErr;
+    unsigned long dwRsrErr;
+    unsigned long dwRsrCRCErr;
+    unsigned long dwRsrCRCOk;
+    unsigned long dwRsrBSSIDOk;
+    unsigned long dwRsrADDROk;
+    unsigned long dwRsrBCNSSIDOk;
+    unsigned long dwRsrLENErr;
+    unsigned long dwRsrTYPErr;
 
-    DWORD   dwNewRsrDECRYPTOK;
-    DWORD   dwNewRsrCFP;
-    DWORD   dwNewRsrUTSF;
-    DWORD   dwNewRsrHITAID;
-    DWORD   dwNewRsrHITAID0;
+    unsigned long dwNewRsrDECRYPTOK;
+    unsigned long dwNewRsrCFP;
+    unsigned long dwNewRsrUTSF;
+    unsigned long dwNewRsrHITAID;
+    unsigned long dwNewRsrHITAID0;
 
-    DWORD   dwRsrLong;
-    DWORD   dwRsrRunt;
+    unsigned long dwRsrLong;
+    unsigned long dwRsrRunt;
 
-    DWORD   dwRsrRxControl;
-    DWORD   dwRsrRxData;
-    DWORD   dwRsrRxManage;
+    unsigned long dwRsrRxControl;
+    unsigned long dwRsrRxData;
+    unsigned long dwRsrRxManage;
 
-    DWORD   dwRsrRxPacket;
-    DWORD   dwRsrRxOctet;
-    DWORD   dwRsrBroadcast;
-    DWORD   dwRsrMulticast;
-    DWORD   dwRsrDirected;
+    unsigned long dwRsrRxPacket;
+    unsigned long dwRsrRxOctet;
+    unsigned long dwRsrBroadcast;
+    unsigned long dwRsrMulticast;
+    unsigned long dwRsrDirected;
     // 64-bit OID
     unsigned long long   ullRsrOK;
 
@@ -261,36 +261,36 @@ typedef struct tagSStatCounter {
     unsigned long long   ullRxMulticastFrames;
     unsigned long long   ullRxDirectedFrames;
 
-    DWORD   dwRsrRxFragment;
-    DWORD   dwRsrRxFrmLen64;
-    DWORD   dwRsrRxFrmLen65_127;
-    DWORD   dwRsrRxFrmLen128_255;
-    DWORD   dwRsrRxFrmLen256_511;
-    DWORD   dwRsrRxFrmLen512_1023;
-    DWORD   dwRsrRxFrmLen1024_1518;
+    unsigned long dwRsrRxFragment;
+    unsigned long dwRsrRxFrmLen64;
+    unsigned long dwRsrRxFrmLen65_127;
+    unsigned long dwRsrRxFrmLen128_255;
+    unsigned long dwRsrRxFrmLen256_511;
+    unsigned long dwRsrRxFrmLen512_1023;
+    unsigned long dwRsrRxFrmLen1024_1518;
 
     // TSR status count
     //
-    DWORD   dwTsrTotalRetry[TYPE_MAXTD];        // total collision retry count
-    DWORD   dwTsrOnceRetry[TYPE_MAXTD];         // this packet only occur one collision
-    DWORD   dwTsrMoreThanOnceRetry[TYPE_MAXTD]; // this packet occur more than one collision
-    DWORD   dwTsrRetry[TYPE_MAXTD];             // this packet has ever occur collision,
+    unsigned long dwTsrTotalRetry[TYPE_MAXTD];        // total collision retry count
+    unsigned long dwTsrOnceRetry[TYPE_MAXTD];         // this packet only occur one collision
+    unsigned long dwTsrMoreThanOnceRetry[TYPE_MAXTD]; // this packet occur more than one collision
+    unsigned long dwTsrRetry[TYPE_MAXTD];             // this packet has ever occur collision,
                                          // that is (dwTsrOnceCollision0 + dwTsrMoreThanOnceCollision0)
-    DWORD   dwTsrACKData[TYPE_MAXTD];
-    DWORD   dwTsrErr[TYPE_MAXTD];
-    DWORD   dwAllTsrOK[TYPE_MAXTD];
-    DWORD   dwTsrRetryTimeout[TYPE_MAXTD];
-    DWORD   dwTsrTransmitTimeout[TYPE_MAXTD];
+    unsigned long dwTsrACKData[TYPE_MAXTD];
+    unsigned long dwTsrErr[TYPE_MAXTD];
+    unsigned long dwAllTsrOK[TYPE_MAXTD];
+    unsigned long dwTsrRetryTimeout[TYPE_MAXTD];
+    unsigned long dwTsrTransmitTimeout[TYPE_MAXTD];
 
-    DWORD   dwTsrTxPacket[TYPE_MAXTD];
-    DWORD   dwTsrTxOctet[TYPE_MAXTD];
-    DWORD   dwTsrBroadcast[TYPE_MAXTD];
-    DWORD   dwTsrMulticast[TYPE_MAXTD];
-    DWORD   dwTsrDirected[TYPE_MAXTD];
+    unsigned long dwTsrTxPacket[TYPE_MAXTD];
+    unsigned long dwTsrTxOctet[TYPE_MAXTD];
+    unsigned long dwTsrBroadcast[TYPE_MAXTD];
+    unsigned long dwTsrMulticast[TYPE_MAXTD];
+    unsigned long dwTsrDirected[TYPE_MAXTD];
 
     // RD/TD count
-    DWORD   dwCntRxFrmLength;
-    DWORD   dwCntTxBufLength;
+    unsigned long dwCntRxFrmLength;
+    unsigned long dwCntTxBufLength;
 
     BYTE    abyCntRxPattern[16];
     BYTE    abyCntTxPattern[16];
@@ -298,9 +298,9 @@ typedef struct tagSStatCounter {
 
 
     // Software check....
-    DWORD   dwCntRxDataErr;             // rx buffer data software compare CRC err count
-    DWORD   dwCntDecryptErr;            // rx buffer data software compare CRC err count
-    DWORD   dwCntRxICVErr;              // rx buffer data software compare CRC err count
+    unsigned long dwCntRxDataErr;             // rx buffer data software compare CRC err count
+    unsigned long dwCntDecryptErr;            // rx buffer data software compare CRC err count
+    unsigned long dwCntRxICVErr;              // rx buffer data software compare CRC err count
     unsigned int idxRxErrorDesc[TYPE_MAXRD]; // index for rx data error RD
 
     // 64-bit OID
@@ -314,7 +314,7 @@ typedef struct tagSStatCounter {
     unsigned long long   ullTxMulticastBytes[TYPE_MAXTD];
     unsigned long long   ullTxDirectedBytes[TYPE_MAXTD];
 
-//    DWORD   dwTxRetryCount[8];
+//    unsigned long dwTxRetryCount[8];
     //
     // ISR status count
     //
@@ -344,7 +344,7 @@ typedef struct tagSStatCounter {
 
 void STAvClearAllCounter(PSStatCounter pStatistic);
 
-void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, DWORD dwIsr);
+void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, unsigned long dwIsr);
 
 void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
@@ -360,13 +360,13 @@ void STAvUpdateTDStatCounter(PSStatCounter pStatistic, BYTE byTSR0, BYTE byTSR1,
 void STAvUpdateTDStatCounterEx(
     PSStatCounter   pStatistic,
     unsigned char *pbyBuffer,
-    DWORD           cbFrameLength
+    unsigned long cbFrameLength
     );
 
 void STAvUpdate802_11Counter(
     PSDot11Counters p802_11Counter,
     PSStatCounter   pStatistic,
-    DWORD           dwCounter
+    unsigned long dwCounter
     );
 
 void STAvClear802_11Counter(PSDot11Counters p802_11Counter);

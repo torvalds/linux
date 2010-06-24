@@ -44,7 +44,7 @@
 #define LOWORD(d)           ((WORD)(d))
 #endif
 #if !defined(HIWORD)
-#define HIWORD(d)           ((WORD)((((DWORD)(d)) >> 16) & 0xFFFF))
+#define HIWORD(d)           ((WORD)((((unsigned long)(d)) >> 16) & 0xFFFF))
 #endif
 
 #define LODWORD(q)          ((q).u.dwLowDword)
@@ -54,7 +54,7 @@
 #define MAKEWORD(lb, hb)    ((WORD)(((BYTE)(lb)) | (((WORD)((BYTE)(hb))) << 8)))
 #endif
 #if !defined(MAKEDWORD)
-#define MAKEDWORD(lw, hw)   ((DWORD)(((WORD)(lw)) | (((DWORD)((WORD)(hw))) << 16)))
+#define MAKEDWORD(lw, hw)   ((unsigned long)(((WORD)(lw)) | (((unsigned long)((WORD)(hw))) << 16)))
 #endif
 
 #endif // __TMACRO_H__

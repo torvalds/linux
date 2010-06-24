@@ -371,10 +371,10 @@ device_receive_frame (
     unsigned int cbHeaderSize;
     PSKeyItem       pKey = NULL;
     WORD            wRxTSC15_0 = 0;
-    DWORD           dwRxTSC47_16 = 0;
+    unsigned long dwRxTSC47_16 = 0;
     SKeyItem        STempKey;
     // 802.11h RPI
-    DWORD           dwDuration = 0;
+    unsigned long dwDuration = 0;
     long            ldBm = 0;
     long            ldBmThreshold = 0;
     PS802_11Header pMACHeader;
@@ -802,10 +802,10 @@ device_receive_frame (
         if (bIsWEP) {
             unsigned long *pdwMIC_L;
             unsigned long *pdwMIC_R;
-            DWORD           dwMIC_Priority;
-            DWORD           dwMICKey0 = 0, dwMICKey1 = 0;
-            DWORD           dwLocalMIC_L = 0;
-            DWORD           dwLocalMIC_R = 0;
+            unsigned long dwMIC_Priority;
+            unsigned long dwMICKey0 = 0, dwMICKey1 = 0;
+            unsigned long dwLocalMIC_L = 0;
+            unsigned long dwLocalMIC_R = 0;
             viawget_wpa_header *wpahdr;
 
 
@@ -918,12 +918,12 @@ device_receive_frame (
                            (pKey->byCipherSuite == KEY_CTL_CCMP))) {
         if (bIsWEP) {
             WORD        wLocalTSC15_0 = 0;
-            DWORD       dwLocalTSC47_16 = 0;
+            unsigned long dwLocalTSC47_16 = 0;
             unsigned long long       RSC = 0;
             // endian issues
             RSC = *((unsigned long long *) &(pKey->KeyRSC));
             wLocalTSC15_0 = (WORD) RSC;
-            dwLocalTSC47_16 = (DWORD) (RSC>>16);
+            dwLocalTSC47_16 = (unsigned long) (RSC>>16);
 
             RSC = dwRxTSC47_16;
             RSC <<= 16;

@@ -70,15 +70,14 @@ typedef int             BOOL;
 
 typedef unsigned char   BYTE;           //  8-bit
 typedef unsigned short  WORD;           // 16-bit
-typedef unsigned long   DWORD;          // 32-bit
 
 // QWORD is for those situation that we want
 // an 8-byte-aligned 8 byte long structure
 // which is NOT really a floating point number.
 typedef union tagUQuadWord {
     struct {
-        DWORD   dwLowDword;
-        DWORD   dwHighDword;
+        unsigned int dwLowDword;
+        unsigned int dwHighDword;
     } u;
     double      DoNotUseThisField;
 } UQuadWord;

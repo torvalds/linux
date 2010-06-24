@@ -35,7 +35,7 @@
 
 /*---------------------  Export Types  ------------------------------*/
 
-void MIC_vInit(DWORD dwK0, DWORD dwK1);
+void MIC_vInit(unsigned long dwK0, unsigned long dwK1);
 
 void MIC_vUnInit(void);
 

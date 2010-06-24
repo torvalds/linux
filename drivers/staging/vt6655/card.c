@@ -1336,7 +1336,7 @@ CARDbSetQuiet (
         pDevice->sQuiet[pDevice->uQuietEnqueue].bEnable = TRUE;
         pDevice->sQuiet[pDevice->uQuietEnqueue].byPeriod = byQuietPeriod;
         pDevice->sQuiet[pDevice->uQuietEnqueue].wDuration = wQuietDuration;
-        pDevice->sQuiet[pDevice->uQuietEnqueue].dwStartTime = (DWORD) byQuietCount;
+        pDevice->sQuiet[pDevice->uQuietEnqueue].dwStartTime = (unsigned long) byQuietCount;
         pDevice->sQuiet[pDevice->uQuietEnqueue].dwStartTime *= pDevice->wBeaconInterval;
         pDevice->sQuiet[pDevice->uQuietEnqueue].dwStartTime += wQuietOffset;
         pDevice->uQuietEnqueue++;
@@ -1372,11 +1372,11 @@ CARDbStartQuiet (
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     unsigned int ii = 0;
-    DWORD       dwStartTime = 0xFFFFFFFF;
+    unsigned long dwStartTime = 0xFFFFFFFF;
     unsigned int uCurrentQuietIndex = 0;
-    DWORD       dwNextTime = 0;
-    DWORD       dwGap = 0;
-    DWORD       dwDuration = 0;
+    unsigned long dwNextTime = 0;
+    unsigned long dwGap = 0;
+    unsigned long dwDuration = 0;
 
     for(ii=0;ii<MAX_QUIET_COUNT;ii++) {
         if ((pDevice->sQuiet[ii].bEnable == TRUE) &&
@@ -1434,7 +1434,7 @@ CARDbStartQuiet (
             pDevice->sQuiet[uCurrentQuietIndex].bEnable = FALSE;
         } else {
             // set next period start time
-            dwNextTime = (DWORD) pDevice->sQuiet[uCurrentQuietIndex].byPeriod;
+            dwNextTime = (unsigned long) pDevice->sQuiet[uCurrentQuietIndex].byPeriod;
             dwNextTime *= pDevice->wBeaconInterval;
             pDevice->sQuiet[uCurrentQuietIndex].dwStartTime = dwNextTime;
         }
@@ -2063,8 +2063,8 @@ QWORD CARDqGetTSFOffset (BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2)
     HIDWORD(qwTSFOffset) = 0;
     LODWORD(qwTSFOffset) = 0;
     wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate%MAX_RATE];
-    (qwTSF2).u.dwLowDword += (DWORD)(wRxBcnTSFOffst);
-    if ((qwTSF2).u.dwLowDword < (DWORD)(wRxBcnTSFOffst)) {
+    (qwTSF2).u.dwLowDword += (unsigned long)(wRxBcnTSFOffst);
+    if ((qwTSF2).u.dwLowDword < (unsigned long)(wRxBcnTSFOffst)) {
         (qwTSF2).u.dwHighDword++;
     }
     LODWORD(qwTSFOffset) = LODWORD(qwTSF1) - LODWORD(qwTSF2);

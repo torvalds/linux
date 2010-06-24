@@ -186,7 +186,7 @@ BOOL MACbIsRegBitsOff (unsigned long dwIoBase, BYTE byRegOfs, BYTE byTestBits)
  */
 BOOL MACbIsIntDisable (unsigned long dwIoBase)
 {
-    DWORD dwData;
+    unsigned long dwData;
 
     VNSvInPortD(dwIoBase + MAC_REG_IMR, &dwData);
     if (dwData != 0)
@@ -595,7 +595,7 @@ void MACvSetPacketFilter (unsigned long dwIoBase, WORD wFilterType)
         // set multicast address to accept none
         MACvSelectPage1(dwIoBase);
         VNSvOutPortD(dwIoBase + MAC_REG_MAR0, 0L);
-        VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(DWORD), 0L);
+        VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(unsigned long), 0L);
         MACvSelectPage0(dwIoBase);
     }
 
@@ -603,7 +603,7 @@ void MACvSetPacketFilter (unsigned long dwIoBase, WORD wFilterType)
         // set multicast address to accept all
         MACvSelectPage1(dwIoBase);
         VNSvOutPortD(dwIoBase + MAC_REG_MAR0, 0xFFFFFFFFL);
-        VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(DWORD), 0xFFFFFFFFL);
+        VNSvOutPortD(dwIoBase + MAC_REG_MAR0 + sizeof(unsigned long), 0xFFFFFFFFL);
         MACvSelectPage0(dwIoBase);
     }
 
@@ -730,7 +730,7 @@ void MACvRestoreContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
  */
 BOOL MACbCompareContext (unsigned long dwIoBase, unsigned char *pbyCxtBuf)
 {
-    DWORD       dwData;
+    unsigned long dwData;
 
     // compare MAC context to determine if this is a power lost init,
     // return TRUE for power remaining init, return FALSE for power lost init
@@ -842,7 +842,7 @@ BOOL MACbSafeSoftwareReset (unsigned long dwIoBase)
 BOOL MACbSafeRxOff (unsigned long dwIoBase)
 {
     WORD    ww;
-    DWORD   dwData;
+    unsigned long dwData;
     BYTE    byData;
 
     // turn off wow temp for turn off Rx safely
@@ -903,7 +903,7 @@ BOOL MACbSafeRxOff (unsigned long dwIoBase)
 BOOL MACbSafeTxOff (unsigned long dwIoBase)
 {
     WORD    ww;
-    DWORD   dwData;
+    unsigned long dwData;
     BYTE    byData;
 
     // Clear TX DMA
@@ -1079,7 +1079,7 @@ void MACvInitialize (unsigned long dwIoBase)
  * Return Value: none
  *
  */
-void MACvSetCurrRx0DescAddr (unsigned long dwIoBase, DWORD dwCurrDescAddr)
+void MACvSetCurrRx0DescAddr (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
 WORD    ww;
 BYTE    byData;
@@ -1117,7 +1117,7 @@ BYTE    byOrgDMACtl;
  * Return Value: none
  *
  */
-void MACvSetCurrRx1DescAddr (unsigned long dwIoBase, DWORD dwCurrDescAddr)
+void MACvSetCurrRx1DescAddr (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
 WORD    ww;
 BYTE    byData;
@@ -1155,7 +1155,7 @@ BYTE    byOrgDMACtl;
  * Return Value: none
  *
  */
-void MACvSetCurrTx0DescAddrEx (unsigned long dwIoBase, DWORD dwCurrDescAddr)
+void MACvSetCurrTx0DescAddrEx (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
 WORD    ww;
 BYTE    byData;
@@ -1194,7 +1194,7 @@ BYTE    byOrgDMACtl;
  *
  */
  //TxDMA1 = AC0DMA
-void MACvSetCurrAC0DescAddrEx (unsigned long dwIoBase, DWORD dwCurrDescAddr)
+void MACvSetCurrAC0DescAddrEx (unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
 WORD    ww;
 BYTE    byData;
@@ -1221,7 +1221,7 @@ BYTE    byOrgDMACtl;
 
 
 
-void MACvSetCurrTXDescAddr (int iTxType, unsigned long dwIoBase, DWORD dwCurrDescAddr)
+void MACvSetCurrTXDescAddr (int iTxType, unsigned long dwIoBase, unsigned long dwCurrDescAddr)
 {
     if(iTxType == TYPE_AC0DMA){
         MACvSetCurrAC0DescAddrEx(dwIoBase, dwCurrDescAddr);
@@ -1309,7 +1309,7 @@ void MACvOneShotTimer1MicroSec (unsigned long dwIoBase, unsigned int uDelayTime)
 }
 
 
-void MACvSetMISCFifo (unsigned long dwIoBase, WORD wOffset, DWORD dwData)
+void MACvSetMISCFifo (unsigned long dwIoBase, WORD wOffset, unsigned long dwData)
 {
     if (wOffset > 273)
         return;
@@ -1349,7 +1349,7 @@ unsigned int ww = 0;
 
 void MACvClearBusSusInd (unsigned long dwIoBase)
 {
-    DWORD dwOrgValue;
+    unsigned long dwOrgValue;
     unsigned int ww;
     // check if BcnSusInd enabled
     VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);
@@ -1372,7 +1372,7 @@ void MACvClearBusSusInd (unsigned long dwIoBase)
 void MACvEnableBusSusEn (unsigned long dwIoBase)
 {
     BYTE  byOrgValue;
-    DWORD dwOrgValue;
+    unsigned long dwOrgValue;
     unsigned int ww;
     // check if BcnSusInd enabled
     VNSvInPortB(dwIoBase + MAC_REG_CFG , &byOrgValue);
@@ -1459,7 +1459,7 @@ void MACvSetKeyEntry (unsigned long dwIoBase, WORD wKeyCtl, unsigned int uEntryI
 		unsigned int uKeyIdx, unsigned char *pbyAddr, unsigned long *pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
-DWORD   dwData;
+unsigned long dwData;
 int     ii;
 
     if (byLocalID <= 1)
@@ -1554,7 +1554,7 @@ void MACvSetDefaultKeyEntry (unsigned long dwIoBase, unsigned int uKeyLen,
 		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
-DWORD   dwData;
+unsigned long dwData;
 int     ii;
 
     if (byLocalID <= 1)
@@ -1604,7 +1604,7 @@ int     ii;
 void MACvEnableDefaultKey (unsigned long dwIoBase, BYTE byLocalID)
 {
 WORD    wOffset;
-DWORD   dwData;
+unsigned long dwData;
 
 
     if (byLocalID <= 1)
@@ -1639,7 +1639,7 @@ DWORD   dwData;
 void MACvDisableDefaultKey (unsigned long dwIoBase)
 {
 WORD    wOffset;
-DWORD   dwData;
+unsigned long dwData;
 
 
     wOffset = MISCFIFO_KEYETRY0;
@@ -1670,7 +1670,7 @@ void MACvSetDefaultTKIPKeyEntry (unsigned long dwIoBase, unsigned int uKeyLen,
 		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
-DWORD   dwData;
+unsigned long dwData;
 int     ii;
 
     if (byLocalID <= 1)
@@ -1726,7 +1726,7 @@ int     ii;
 void MACvSetDefaultKeyCtl (unsigned long dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID)
 {
 WORD    wOffset;
-DWORD   dwData;
+unsigned long dwData;
 
     if (byLocalID <= 1)
         return;

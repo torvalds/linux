@@ -1294,7 +1294,7 @@ int iwctl_siwencode(struct net_device *dev,
 {
     PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
     PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-	DWORD dwKeyIndex = (DWORD)(wrq->flags & IW_ENCODE_INDEX);
+	unsigned long dwKeyIndex = (unsigned long)(wrq->flags & IW_ENCODE_INDEX);
 	int ii,uu, rc = 0;
 	int index = (wrq->flags & IW_ENCODE_INDEX);
 
@@ -1358,7 +1358,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
         if (pDevice->flags & DEVICE_FLAGS_OPENED) {
             spin_lock_irq(&pDevice->lock);
             KeybSetDefaultKey(&(pDevice->sKey),
-                            (DWORD)(dwKeyIndex | (1 << 31)),
+                            (unsigned long)(dwKeyIndex | (1 << 31)),
                            	wrq->length,
                             NULL,
                             pDevice->abyKey,
@@ -1450,7 +1450,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
         if (pDevice->flags & DEVICE_FLAGS_OPENED) {
             spin_lock_irq(&pDevice->lock);
             KeybSetDefaultKey(&(pDevice->sKey),
-                            (DWORD)(pDevice->byKeyIndex | (1 << 31)),
+                            (unsigned long)(pDevice->byKeyIndex | (1 << 31)),
                             pDevice->uKeyLength,
                             NULL,
                             pDevice->abyKey,

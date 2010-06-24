@@ -471,7 +471,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 				       int param_len)
 {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    DWORD   dwKeyIndex = 0;
+    unsigned long dwKeyIndex = 0;
     BYTE    abyKey[MAX_KEY_LEN];
     BYTE    abySeq[MAX_KEY_LEN];
     NDIS_802_11_KEY_RSC   KeyRSC;
@@ -553,7 +553,7 @@ static int hostap_set_encryption(PSDevice pDevice,
             param->u.crypt.key_len
            );
 
-    dwKeyIndex = (DWORD)(param->u.crypt.idx);
+    dwKeyIndex = (unsigned long)(param->u.crypt.idx);
     if (param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) {
         pDevice->byKeyIndex = (BYTE)dwKeyIndex;
         pDevice->bTransmitKey = TRUE;

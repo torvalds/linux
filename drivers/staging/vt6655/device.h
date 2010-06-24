@@ -280,7 +280,7 @@ typedef struct tagSPMKIDCandidateEvent {
 
 typedef struct tagSQuietControl {
     BOOL        bEnable;
-    DWORD       dwStartTime;
+    unsigned long dwStartTime;
     BYTE        byPeriod;
     WORD        wDuration;
 } SQuietControl, *PSQuietControl;
@@ -424,7 +424,7 @@ typedef struct __device_info {
     CHIP_TYPE                   chip_id;
 
     unsigned long               PortOffset;
-    DWORD                       dwIsr;
+    unsigned long dwIsr;
     u32                         memaddr;
     u32                         ioaddr;
     u32                         io_size;
@@ -500,8 +500,8 @@ typedef struct __device_info {
     unsigned int	uCurrRSSI;
     BYTE                        byCurrSQ;
 
-    DWORD                       dwTxAntennaSel;
-    DWORD                       dwRxAntennaSel;
+    unsigned long dwTxAntennaSel;
+    unsigned long dwRxAntennaSel;
     BYTE                        byAntennaCount;
     BYTE                        byRxAntennaMode;
     BYTE                        byTxAntennaMode;
@@ -554,7 +554,7 @@ typedef struct __device_info {
     BYTE                        byRTSServiceField;  // update while speed change
     BYTE                        byRTSSignalField;   // update while speed change
 
-    DWORD                       dwMaxReceiveLifetime;       // dot11MaxReceiveLifetime
+    unsigned long dwMaxReceiveLifetime;       // dot11MaxReceiveLifetime
 
     BOOL                        bCCK;
     BOOL                        bEncryptionEnable;
@@ -626,7 +626,7 @@ typedef struct __device_info {
     NDIS_802_11_WEP_STATUS  eOldEncryptionStatus;
 
     SKeyManagement          sKey;
-    DWORD                   dwIVCounter;
+    unsigned long dwIVCounter;
 
     QWORD                   qwPacketNumber; //For CCMP and TKIP as TSC(6 bytes)
     unsigned int	uCurrentWEPMode;
@@ -673,7 +673,7 @@ typedef struct __device_info {
 
 
     BOOL                    bRadioCmd;
-    DWORD                   dwDiagRefCount;
+    unsigned long dwDiagRefCount;
 
     // For FOE Tuning
     BYTE                    byFOETuning;
@@ -756,7 +756,7 @@ typedef struct __device_info {
     BYTE                    abyBroadcastAddr[ETH_ALEN];
     BYTE                    abySNAP_RFC1042[ETH_ALEN];
     BYTE                    abySNAP_Bridgetunnel[ETH_ALEN];
-     BYTE                        abyEEPROM[EEP_MAX_CONTEXT_SIZE];  //DWORD alignment
+     BYTE                        abyEEPROM[EEP_MAX_CONTEXT_SIZE];  //unsigned long alignment
     // Pre-Authentication & PMK cache
     SPMKID                  gsPMKID;
     SPMKIDCandidateEvent    gsPMKIDCandidate;
@@ -771,12 +771,12 @@ typedef struct __device_info {
     BOOL                    bMeasureInProgress;
     BYTE                    byOrgChannel;
     BYTE                    byOrgRCR;
-    DWORD                   dwOrgMAR0;
-    DWORD                   dwOrgMAR4;
+    unsigned long dwOrgMAR0;
+    unsigned long dwOrgMAR4;
     BYTE                    byBasicMap;
     BYTE                    byCCAFraction;
     BYTE                    abyRPIs[8];
-    DWORD                   dwRPIs[8];
+    unsigned long dwRPIs[8];
     BOOL                    bChannelSwitch;
     BYTE                    byNewChannel;
     BYTE                    byChannelSwitchCount;
@@ -784,7 +784,7 @@ typedef struct __device_info {
     BOOL                    bEnableFirstQuiet;
     BYTE                    byQuietStartCount;
     unsigned int	uQuietEnqueue;
-    DWORD                   dwCurrentQuietEndTime;
+    unsigned long dwCurrentQuietEndTime;
     SQuietControl           sQuiet[MAX_QUIET_COUNT];
     // for 802.11h TPC
     BOOL                    bCountryInfo5G;

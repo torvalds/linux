@@ -77,7 +77,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     SCmdLinkStatus      sLinkStatus;
     BYTE                abySuppRates[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
     BYTE                abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    DWORD               dwKeyIndex= 0;
+    unsigned long dwKeyIndex= 0;
     BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     long                ldBm;
 
@@ -717,7 +717,7 @@ if(wpa_Result.authenticated==TRUE) {
 void
 vConfigWEPKey (
     PSDevice pDevice,
-    DWORD    dwKeyIndex,
+    unsigned long dwKeyIndex,
     unsigned char *pbyKey,
     unsigned long uKeyLength
     )

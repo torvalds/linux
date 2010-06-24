@@ -225,7 +225,7 @@ s_vFillTxKey (
     unsigned long *pdwExtIV = (unsigned long *) ((unsigned char *)pbyIVHead+4);
     WORD            wValue;
     PS802_11Header  pMACHeader = (PS802_11Header)pbyHdrBuf;
-    DWORD           dwRevIVCounter;
+    unsigned long dwRevIVCounter;
     BYTE            byKeyIndex = 0;
 
 
@@ -337,7 +337,7 @@ s_vSWencryption (
     )
 {
     unsigned int cbICVlen = 4;
-    DWORD  dwICV = 0xFFFFFFFFL;
+    unsigned long dwICV = 0xFFFFFFFFL;
     unsigned long *pdwICV;
 
     if (pTransmitKey == NULL)
@@ -1355,13 +1355,13 @@ s_cbFillTxBufHead (
     unsigned int uLength = 0;
     unsigned int uTmpLen = 0;
 //    BYTE           abyTmp[8];
-//    DWORD          dwCRC;
+//    unsigned long dwCRC;
     unsigned int cbMICHDR = 0;
-    DWORD          dwMICKey0, dwMICKey1;
-    DWORD          dwMIC_Priority;
+    unsigned long dwMICKey0, dwMICKey1;
+    unsigned long dwMIC_Priority;
     unsigned long *pdwMIC_L;
     unsigned long *pdwMIC_R;
-    DWORD          dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
+    unsigned long dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
     BOOL           bMIC2Frag = FALSE;
     unsigned int uMICFragLen = 0;
     unsigned int uMACfragNum = 1;
@@ -2850,8 +2850,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     unsigned int uPadding = 0;
     unsigned int cbMICHDR = 0;
     unsigned int uLength = 0;
-    DWORD           dwMICKey0, dwMICKey1;
-    DWORD           dwMIC_Priority;
+    unsigned long dwMICKey0, dwMICKey1;
+    unsigned long dwMIC_Priority;
     unsigned long *pdwMIC_L;
     unsigned long *pdwMIC_R;
     WORD            wTxBufSize;

@@ -87,7 +87,7 @@
 }
 
 #define VNSvInPortD(dwIOAddress, pdwData) {                     \
-	volatile DWORD* pdwAddr = ((unsigned long *)(dwIOAddress));          \
+	volatile unsigned long *pdwAddr = ((unsigned long *)(dwIOAddress));          \
 	*(pdwData) = readl(pdwAddr);                           \
 }
 
@@ -104,8 +104,8 @@
 }
 
 #define VNSvOutPortD(dwIOAddress, dwData) {                     \
-    volatile DWORD* pdwAddr = ((unsigned long *)(dwIOAddress));          \
-    writel((DWORD)dwData, pdwAddr);					    \
+    volatile unsigned long *pdwAddr = ((unsigned long *)(dwIOAddress));          \
+    writel((unsigned long)dwData, pdwAddr);					    \
 }
 
 #endif

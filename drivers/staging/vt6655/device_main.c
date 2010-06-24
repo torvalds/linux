@@ -134,10 +134,10 @@ DEVICE_PARAM(TxDescriptors1,"Number of transmit descriptors1");
 
 
 #define IP_ALIG_DEF     0
-/* IP_byte_align[] is used for IP header DWORD byte aligned
-   0: indicate the IP header won't be DWORD byte aligned.(Default) .
-   1: indicate the IP header will be DWORD byte aligned.
-      In some enviroment, the IP header should be DWORD byte aligned,
+/* IP_byte_align[] is used for IP header unsigned long byte aligned
+   0: indicate the IP header won't be unsigned long byte aligned.(Default) .
+   1: indicate the IP header will be unsigned long byte aligned.
+      In some enviroment, the IP header should be unsigned long byte aligned,
       or the packet will be droped when we receive it. (eg: IPVS)
 */
 DEVICE_PARAM(IP_byte_align,"Enable IP header dword aligned");
@@ -483,7 +483,7 @@ pDevice->bUpdateBBVGA = TRUE;
 static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
 {
     unsigned int ii;
-    DWORD   dwDuration = 0;
+    unsigned long dwDuration = 0;
     BYTE    byRPI0 = 0;
 
     for(ii=1;ii<8;ii++) {
@@ -1022,8 +1022,8 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 #ifdef	DEBUG
 	//return  0  ;
 #endif
-    pDevice->PortOffset = (DWORD)ioremap(pDevice->memaddr & PCI_BASE_ADDRESS_MEM_MASK, pDevice->io_size);
-	//pDevice->PortOffset = (DWORD)ioremap(pDevice->ioaddr & PCI_BASE_ADDRESS_IO_MASK, pDevice->io_size);
+    pDevice->PortOffset = (unsigned long)ioremap(pDevice->memaddr & PCI_BASE_ADDRESS_MEM_MASK, pDevice->io_size);
+	//pDevice->PortOffset = (unsigned long)ioremap(pDevice->ioaddr & PCI_BASE_ADDRESS_IO_MASK, pDevice->io_size);
 
 	if(pDevice->PortOffset == 0) {
        printk(KERN_ERR DEVICE_NAME ": Failed to IO remapping ..\n");
@@ -1996,7 +1996,7 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call device_init_registers\n");
     // Patch: if WEP key already set by iwconfig but device not yet open
     if ((pDevice->bEncryptionEnable == TRUE) && (pDevice->bTransmitKey == TRUE)) {
         KeybSetDefaultKey(&(pDevice->sKey),
-                            (DWORD)(pDevice->byKeyIndex | (1 << 31)),
+                            (unsigned long)(pDevice->byKeyIndex | (1 << 31)),
                             pDevice->uKeyLength,
                             NULL,
                             pDevice->abyKey,
@@ -2677,7 +2677,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
     PSDevice     pDevice=(PSDevice) netdev_priv(dev);
 
     int             max_count=0;
-    DWORD           dwMIBCounter=0;
+    unsigned long dwMIBCounter=0;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     BYTE            byOrgPageSel=0;
     int             handled = 0;

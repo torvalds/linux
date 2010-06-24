@@ -94,7 +94,7 @@
 
 
 
-const DWORD dwAL2230InitTable[CB_AL2230_INIT_SEQ] = {
+const unsigned long dwAL2230InitTable[CB_AL2230_INIT_SEQ] = {
     0x03F79000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, //
     0x03333100+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, //
     0x01A00200+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, //
@@ -112,7 +112,7 @@ const DWORD dwAL2230InitTable[CB_AL2230_INIT_SEQ] = {
     0x00580F00+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW
     };
 
-const DWORD dwAL2230ChannelTable0[CB_MAX_CHANNEL] = {
+const unsigned long dwAL2230ChannelTable0[CB_MAX_CHANNEL] = {
     0x03F79000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 1, Tf = 2412MHz
     0x03F79000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 2, Tf = 2417MHz
     0x03E79000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 3, Tf = 2422MHz
@@ -129,7 +129,7 @@ const DWORD dwAL2230ChannelTable0[CB_MAX_CHANNEL] = {
     0x03E7C000+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW  // channel = 14, Tf = 2412M
     };
 
-const DWORD dwAL2230ChannelTable1[CB_MAX_CHANNEL] = {
+const unsigned long dwAL2230ChannelTable1[CB_MAX_CHANNEL] = {
     0x03333100+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 1, Tf = 2412MHz
     0x0B333100+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 2, Tf = 2417MHz
     0x03333100+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW, // channel = 3, Tf = 2422MHz
@@ -146,7 +146,7 @@ const DWORD dwAL2230ChannelTable1[CB_MAX_CHANNEL] = {
     0x06666100+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW  // channel = 14, Tf = 2412M
     };
 
-DWORD dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
+unsigned long dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
     0x04040900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04041900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
     0x04042900+(BY_AL2230_REG_LEN<<3)+IFREGCTL_REGW,
@@ -216,7 +216,7 @@ DWORD dwAL2230PowerTable[AL2230_PWR_IDX_LEN] = {
 //{{ RobertYu:20050104
 // 40MHz reference frequency
 // Need to Pull PLLON(PE3) low when writing channel registers through 3-wire.
-const DWORD dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
+const unsigned long dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
     0x00379000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Channel1 // Need modify for 11a
     0x13333100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Channel1 // Need modify for 11a
     0x841FF200+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11a: 451FE2
@@ -239,7 +239,7 @@ const DWORD dwAL7230InitTable[CB_AL7230_INIT_SEQ] = {
     0x1ABA8F00+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW  // Need modify for 11a: 12BACF
     };
 
-const DWORD dwAL7230InitTableAMode[CB_AL7230_INIT_SEQ] = {
+const unsigned long dwAL7230InitTableAMode[CB_AL7230_INIT_SEQ] = {
     0x0FF52000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Channel184 // Need modify for 11b/g
     0x00000100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Channel184 // Need modify for 11b/g
     0x451FE200+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // Need modify for 11b/g
@@ -259,7 +259,7 @@ const DWORD dwAL7230InitTableAMode[CB_AL7230_INIT_SEQ] = {
     };
 
 
-const DWORD dwAL7230ChannelTable0[CB_MAX_CHANNEL] = {
+const unsigned long dwAL7230ChannelTable0[CB_MAX_CHANNEL] = {
     0x00379000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  1, Tf = 2412MHz
     0x00379000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  2, Tf = 2417MHz
     0x00379000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  3, Tf = 2422MHz
@@ -325,7 +325,7 @@ const DWORD dwAL7230ChannelTable0[CB_MAX_CHANNEL] = {
     0x0FF61000+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW  // channel = 165, Tf = 5825MHz (56)
     };
 
-const DWORD dwAL7230ChannelTable1[CB_MAX_CHANNEL] = {
+const unsigned long dwAL7230ChannelTable1[CB_MAX_CHANNEL] = {
     0x13333100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  1, Tf = 2412MHz
     0x1B333100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  2, Tf = 2417MHz
     0x03333100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  3, Tf = 2422MHz
@@ -389,7 +389,7 @@ const DWORD dwAL7230ChannelTable1[CB_MAX_CHANNEL] = {
     0x02AAA100+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW  // channel = 165, Tf = 5825MHz (56)
     };
 
-const DWORD dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
+const unsigned long dwAL7230ChannelTable2[CB_MAX_CHANNEL] = {
     0x7FD78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  1, Tf = 2412MHz
     0x7FD78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  2, Tf = 2417MHz
     0x7FD78400+(BY_AL7230_REG_LEN<<3)+IFREGCTL_REGW, // channel =  3, Tf = 2422MHz
@@ -622,10 +622,10 @@ BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, BYTE byChannel)
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, DWORD dwData)
+BOOL IFRFbWriteEmbeded (unsigned long dwIoBase, unsigned long dwData)
 {
     WORD    ww;
-    DWORD   dwValue;
+    unsigned long dwValue;
 
     VNSvOutPortD(dwIoBase + MAC_REG_IFREGCTL, dwData);
 
@@ -978,7 +978,7 @@ BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, BYTE byRFType, unsigned int uC
             break;
     }
 
-    MACvSetMISCFifo(dwIoBase, MISCFIFO_SYNINFO_IDX, (DWORD)MAKEWORD(bySleepCount, byInitCount));
+    MACvSetMISCFifo(dwIoBase, MISCFIFO_SYNINFO_IDX, (unsigned long )MAKEWORD(bySleepCount, byInitCount));
 
     return TRUE;
 }
@@ -1142,7 +1142,7 @@ BOOL RFbRawSetPower (
     )
 {
 BOOL    bResult = TRUE;
-DWORD   dwMax7230Pwr = 0;
+unsigned long dwMax7230Pwr = 0;
 
     if (byPwr >=  pDevice->byMaxPwrLevel) {
         return (FALSE);
