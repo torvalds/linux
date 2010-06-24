@@ -634,9 +634,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 		}
 	}
 
-	error = gfs2_write_alloc_required(ip, pos, len, &alloc_required);
-	if (error)
-		goto out_unlock;
+	alloc_required = gfs2_write_alloc_required(ip, pos, len);
 
 	if (alloc_required || gfs2_is_jdata(ip))
 		gfs2_write_calc_reserv(ip, len, &data_blocks, &ind_blocks);
