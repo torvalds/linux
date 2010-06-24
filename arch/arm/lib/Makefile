@@ -41,7 +41,6 @@ else
 endif
 
 lib-$(CONFIG_ARCH_RPC)		+= ecard.o io-acorn.o floppydma.o
-lib-$(CONFIG_ARCH_L7200)	+= io-acorn.o
 lib-$(CONFIG_ARCH_SHARK)	+= io-shark.o
 
 $(obj)/csumpartialcopy.o:	$(obj)/csumpartialcopygeneric.S
