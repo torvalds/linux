@@ -746,217 +746,121 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 }
 
 /**
- * tomoyo_print_path_acl - Print a single path ACL entry.
+ * tomoyo_fns - Find next set bit.
  *
- * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_path_acl".
+ * @perm: 8 bits value.
+ * @bit:  First bit to find.
  *
- * Returns true on success, false otherwise.
+ * Returns next on-bit on success, 8 otherwise.
  */
-static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
-				  struct tomoyo_path_acl *ptr)
+static u8 tomoyo_fns(const u8 perm, u8 bit)
 {
-	int pos;
-	u8 bit;
-	const u16 perm = ptr->perm;
-
-	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
-		if (!(perm & (1 << bit)))
-			continue;
-		if (head->print_execute_only && bit != TOMOYO_TYPE_EXECUTE)
-			continue;
-		/* Print "read/write" instead of "read" and "write". */
-		if ((bit == TOMOYO_TYPE_READ || bit == TOMOYO_TYPE_WRITE)
-		    && (perm & (1 << TOMOYO_TYPE_READ_WRITE)))
-			continue;
-		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s ",
-				      tomoyo_path_keyword[bit]) ||
-		    !tomoyo_print_name_union(head, &ptr->name) ||
-		    !tomoyo_io_printf(head, "\n"))
-			goto out;
-	}
-	head->read_bit = 0;
-	return true;
- out:
-	head->read_bit = bit;
-	head->read_avail = pos;
-	return false;
-}
-
-/**
- * tomoyo_print_path2_acl - Print a double path ACL entry.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_path2_acl".
- *
- * Returns true on success, false otherwise.
- */
-static bool tomoyo_print_path2_acl(struct tomoyo_io_buffer *head,
-				   struct tomoyo_path2_acl *ptr)
-{
-	int pos;
-	const u8 perm = ptr->perm;
-	u8 bit;
-
-	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH2_OPERATION; bit++) {
-		if (!(perm & (1 << bit)))
-			continue;
-		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s ",
-				      tomoyo_path2_keyword[bit]) ||
-		    !tomoyo_print_name_union(head, &ptr->name1) ||
-		    !tomoyo_print_name_union(head, &ptr->name2) ||
-		    !tomoyo_io_printf(head, "\n"))
-			goto out;
-	}
-	head->read_bit = 0;
-	return true;
- out:
-	head->read_bit = bit;
-	head->read_avail = pos;
-	return false;
-}
-
-/**
- * tomoyo_print_path_number_acl - Print a path_number ACL entry.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_path_number_acl".
- *
- * Returns true on success, false otherwise.
- */
-static bool tomoyo_print_path_number_acl(struct tomoyo_io_buffer *head,
-					 struct tomoyo_path_number_acl *ptr)
-{
-	int pos;
-	u8 bit;
-	const u8 perm = ptr->perm;
-	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_NUMBER_OPERATION;
-	     bit++) {
-		if (!(perm & (1 << bit)))
-			continue;
-		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s",
-				      tomoyo_path_number_keyword[bit]) ||
-		    !tomoyo_print_name_union(head, &ptr->name) ||
-		    !tomoyo_print_number_union(head, &ptr->number) ||
-		    !tomoyo_io_printf(head, "\n"))
-			goto out;
-	}
-	head->read_bit = 0;
-	return true;
- out:
-	head->read_bit = bit;
-	head->read_avail = pos;
-	return false;
-}
-
-/**
- * tomoyo_print_mkdev_acl - Print a mkdev ACL entry.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_mkdev_acl".
- *
- * Returns true on success, false otherwise.
- */
-static bool tomoyo_print_mkdev_acl(struct tomoyo_io_buffer *head,
-					  struct tomoyo_mkdev_acl *ptr)
-{
-	int pos;
-	u8 bit;
-	const u16 perm = ptr->perm;
-	for (bit = head->read_bit; bit < TOMOYO_MAX_MKDEV_OPERATION;
-	     bit++) {
-		if (!(perm & (1 << bit)))
-			continue;
-		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s",
-				      tomoyo_mkdev_keyword[bit]) ||
-		    !tomoyo_print_name_union(head, &ptr->name) ||
-		    !tomoyo_print_number_union(head, &ptr->mode) ||
-		    !tomoyo_print_number_union(head, &ptr->major) ||
-		    !tomoyo_print_number_union(head, &ptr->minor) ||
-		    !tomoyo_io_printf(head, "\n"))
-			goto out;
-	}
-	head->read_bit = 0;
-	return true;
- out:
-	head->read_bit = bit;
-	head->read_avail = pos;
-	return false;
-}
-
-/**
- * tomoyo_print_mount_acl - Print a mount ACL entry.
- *
- * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to "struct tomoyo_mount_acl".
- *
- * Returns true on success, false otherwise.
- */
-static bool tomoyo_print_mount_acl(struct tomoyo_io_buffer *head,
-				   struct tomoyo_mount_acl *ptr)
-{
-	const int pos = head->read_avail;
-	if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_MOUNT) ||
-	    !tomoyo_print_name_union(head, &ptr->dev_name) ||
-	    !tomoyo_print_name_union(head, &ptr->dir_name) ||
-	    !tomoyo_print_name_union(head, &ptr->fs_type) ||
-	    !tomoyo_print_number_union(head, &ptr->flags) ||
-	    !tomoyo_io_printf(head, "\n")) {
-		head->read_avail = pos;
-		return false;
-	}
-	return true;
+	for ( ; bit < 8; bit++)
+		if (perm & (1 << bit))
+			break;
+	return bit;
 }
 
 /**
  * tomoyo_print_entry - Print an ACL entry.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
- * @ptr:  Pointer to an ACL entry.
+ * @acl:  Pointer to an ACL entry.
  *
  * Returns true on success, false otherwise.
  */
 static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
-			       struct tomoyo_acl_info *ptr)
+			       struct tomoyo_acl_info *acl)
 {
-	const u8 acl_type = ptr->type;
+	const u8 acl_type = acl->type;
+	u8 bit = head->read_bit;
+	int pos = head->read_avail;
 
-	if (ptr->is_deleted)
+	if (acl->is_deleted)
 		return true;
+ next:
 	if (acl_type == TOMOYO_TYPE_PATH_ACL) {
-		struct tomoyo_path_acl *acl
-			= container_of(ptr, struct tomoyo_path_acl, head);
-		return tomoyo_print_path_acl(head, acl);
-	}
-	if (head->print_execute_only)
+		struct tomoyo_path_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		const u16 perm = ptr->perm;
+		for ( ; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
+			if (!(perm & (1 << bit)))
+				continue;
+			if (head->print_execute_only &&
+			    bit != TOMOYO_TYPE_EXECUTE)
+				continue;
+			/* Print "read/write" instead of "read" and "write". */
+			if ((bit == TOMOYO_TYPE_READ ||
+			     bit == TOMOYO_TYPE_WRITE)
+			    && (perm & (1 << TOMOYO_TYPE_READ_WRITE)))
+				continue;
+			break;
+		}
+		if (bit >= TOMOYO_MAX_PATH_OPERATION)
+			goto done;
+		if (!tomoyo_io_printf(head, "allow_%s ",
+				      tomoyo_path_keyword[bit]) ||
+		    !tomoyo_print_name_union(head, &ptr->name))
+			goto out;
+	} else if (head->print_execute_only) {
 		return true;
-	if (acl_type == TOMOYO_TYPE_PATH2_ACL) {
-		struct tomoyo_path2_acl *acl
-			= container_of(ptr, struct tomoyo_path2_acl, head);
-		return tomoyo_print_path2_acl(head, acl);
+	} else if (acl_type == TOMOYO_TYPE_PATH2_ACL) {
+		struct tomoyo_path2_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		bit = tomoyo_fns(ptr->perm, bit);
+		if (bit >= TOMOYO_MAX_PATH2_OPERATION)
+			goto done;
+		if (!tomoyo_io_printf(head, "allow_%s ",
+				      tomoyo_path2_keyword[bit]) ||
+		    !tomoyo_print_name_union(head, &ptr->name1) ||
+		    !tomoyo_print_name_union(head, &ptr->name2))
+			goto out;
+	} else if (acl_type == TOMOYO_TYPE_PATH_NUMBER_ACL) {
+		struct tomoyo_path_number_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		bit = tomoyo_fns(ptr->perm, bit);
+		if (bit >= TOMOYO_MAX_PATH_NUMBER_OPERATION)
+			goto done;
+		if (!tomoyo_io_printf(head, "allow_%s",
+				      tomoyo_path_number_keyword[bit]) ||
+		    !tomoyo_print_name_union(head, &ptr->name) ||
+		    !tomoyo_print_number_union(head, &ptr->number))
+			goto out;
+	} else if (acl_type == TOMOYO_TYPE_MKDEV_ACL) {
+		struct tomoyo_mkdev_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		bit = tomoyo_fns(ptr->perm, bit);
+		if (bit >= TOMOYO_MAX_MKDEV_OPERATION)
+			goto done;
+		if (!tomoyo_io_printf(head, "allow_%s",
+				      tomoyo_mkdev_keyword[bit]) ||
+		    !tomoyo_print_name_union(head, &ptr->name) ||
+		    !tomoyo_print_number_union(head, &ptr->mode) ||
+		    !tomoyo_print_number_union(head, &ptr->major) ||
+		    !tomoyo_print_number_union(head, &ptr->minor))
+			goto out;
+	} else if (acl_type == TOMOYO_TYPE_MOUNT_ACL) {
+		struct tomoyo_mount_acl *ptr =
+			container_of(acl, typeof(*ptr), head);
+		if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_MOUNT) ||
+		    !tomoyo_print_name_union(head, &ptr->dev_name) ||
+		    !tomoyo_print_name_union(head, &ptr->dir_name) ||
+		    !tomoyo_print_name_union(head, &ptr->fs_type) ||
+		    !tomoyo_print_number_union(head, &ptr->flags))
+			goto out;
 	}
-	if (acl_type == TOMOYO_TYPE_PATH_NUMBER_ACL) {
-		struct tomoyo_path_number_acl *acl
-			= container_of(ptr, struct tomoyo_path_number_acl,
-				       head);
-		return tomoyo_print_path_number_acl(head, acl);
+	if (!tomoyo_io_printf(head, "\n"))
+		goto out;
+	head->read_bit = bit;
+	if (acl_type != TOMOYO_TYPE_MOUNT_ACL) {
+		bit++;
+		goto next;
 	}
-	if (acl_type == TOMOYO_TYPE_MKDEV_ACL) {
-		struct tomoyo_mkdev_acl *acl
-			= container_of(ptr, struct tomoyo_mkdev_acl,
-				       head);
-		return tomoyo_print_mkdev_acl(head, acl);
-	}
-	if (acl_type == TOMOYO_TYPE_MOUNT_ACL) {
-		struct tomoyo_mount_acl *acl
-			= container_of(ptr, struct tomoyo_mount_acl, head);
-		return tomoyo_print_mount_acl(head, acl);
-	}
-	BUG(); /* This must not happen. */
+ done:
+	head->read_bit = 0;
+	return true;
+ out:
+	head->read_avail = pos;
 	return false;
 }
 
