@@ -635,6 +635,9 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	INIT_LIST_HEAD(&vp_dev->virtqueues);
 	spin_lock_init(&vp_dev->lock);
 
+	/* Disable MSI/MSIX to bring device to a known good state. */
+	pci_msi_off(pci_dev);
+
 	/* enable the device */
 	err = pci_enable_device(pci_dev);
 	if (err)
