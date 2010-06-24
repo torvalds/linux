@@ -1460,7 +1460,7 @@ int tcp_may_send_now(struct sock *sk)
  * packet has never been sent out before (and thus is not cloned).
  */
 static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
-			unsigned int mss_now)
+			unsigned int mss_now, gfp_t gfp)
 {
 	struct sk_buff *buff;
 	int nlen = skb->len - len;
@@ -1470,7 +1470,7 @@ static int tso_fragment(struct sock *sk, struct sk_buff *skb, unsigned int len,
 	if (skb->len != skb->data_len)
 		return tcp_fragment(sk, skb, len, mss_now);
 
-	buff = sk_stream_alloc_skb(sk, 0, GFP_ATOMIC);
+	buff = sk_stream_alloc_skb(sk, 0, gfp);
 	if (unlikely(buff == NULL))
 		return -ENOMEM;
 
@@ -1768,7 +1768,7 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 						    cwnd_quota);
 
 		if (skb->len > limit &&
-		    unlikely(tso_fragment(sk, skb, limit, mss_now)))
+		    unlikely(tso_fragment(sk, skb, limit, mss_now, gfp)))
 			break;
 
 		TCP_SKB_CB(skb)->when = tcp_time_stamp;
