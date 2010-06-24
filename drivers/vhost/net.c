@@ -177,8 +177,8 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 		if (err != len)
-			pr_err("Truncated TX packet: "
-			       " len %d != %zd\n", err, len);
+			pr_debug("Truncated TX packet: "
+				 " len %d != %zd\n", err, len);
 		vhost_add_used_and_signal(&net->dev, vq, head, 0);
 		total_len += len;
 		if (unlikely(total_len >= VHOST_NET_WEIGHT)) {
@@ -275,8 +275,8 @@ static void handle_rx(struct vhost_net *net)
 		}
 		/* TODO: Should check and handle checksum. */
 		if (err > len) {
-			pr_err("Discarded truncated rx packet: "
-			       " len %d > %zd\n", err, len);
+			pr_debug("Discarded truncated rx packet: "
+				 " len %d > %zd\n", err, len);
 			vhost_discard_vq_desc(vq);
 			continue;
 		}
