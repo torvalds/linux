@@ -225,16 +225,6 @@ static int virtblk_ioctl(struct block_device *bdev, fmode_t mode,
 	struct gendisk *disk = bdev->bd_disk;
 	struct virtio_blk *vblk = disk->private_data;
 
-	if (cmd == 0x56424944) { /* 'VBID' */
-		void __user *usr_data = (void __user *)data;
-		char id_str[VIRTIO_BLK_ID_BYTES];
-		int err;
-
-		err = virtblk_get_id(disk, id_str);
-		if (!err && copy_to_user(usr_data, id_str, VIRTIO_BLK_ID_BYTES))
-			err = -EFAULT;
-		return err;
-	}
 	/*
 	 * Only allow the generic SCSI ioctls if the host can support it.
 	 */
