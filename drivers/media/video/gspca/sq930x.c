@@ -51,8 +51,11 @@ struct sd {
 	u8 sensor;
 enum {
 	SENSOR_ICX098BQ,
-	SENSOR_MI0360,
 	SENSOR_LZ24BP,
+	SENSOR_MI0360,
+	SENSOR_MT9V111,
+	SENSOR_OV7660,
+	SENSOR_OV9630,
 } sensors;
 	u8 type;
 #define Generic 0
@@ -295,10 +298,55 @@ static const struct i2c_write_cmd mi0360_start_4[] = {
 	{0x05, 0x03f5},		/* horiz blanking */
 };
 
+static const struct i2c_write_cmd mt9v111_init_0[] = {
+	{0x01, 0x0001},
+	{0x06, 0x300c},
+	{0x08, 0xcc00},
+	{0x01, 0x0004},
+};
+static const struct i2c_write_cmd mt9v111_init_1[] = {
+	{0x03, 0x01e5},
+	{0x04, 0x0285},
+};
+static const struct i2c_write_cmd mt9v111_init_2[] = {
+	{0x30, 0x7800},
+	{0x31, 0x0000},
+	{0x07, 0x3002},
+	{0x35, 0x0020},
+	{0x2b, 0x0020},
+	{0x2c, 0x0020},
+	{0x2d, 0x0020},
+	{0x2e, 0x0020},
+};
+static const struct ucbus_write_cmd mt9v111_start_1[] = {
+	{0xf5f0, 0x11}, {0xf5f1, 0x96}, {0xf5f2, 0x80}, {0xf5f3, 0x80},
+	{0xf5f4, 0xaa},
+	{0xf5f0, 0x51}, {0xf5f1, 0x96}, {0xf5f2, 0x80}, {0xf5f3, 0x80},
+	{0xf5f4, 0xaa},
+	{0xf5fa, 0x00}, {0xf5f6, 0x0a}, {0xf5f7, 0x0a}, {0xf5f8, 0x0a},
+	{0xf5f9, 0x0a}
+};
+static const struct i2c_write_cmd mt9v111_init_3[] = {
+	{0x62, 0x0405},
+};
+static const struct i2c_write_cmd mt9v111_init_4[] = {
+	{0x05, 0x00ce},
+};
+
+static const struct ucbus_write_cmd ov7660_start_0[] = {
+	{0x0354, 0x00}, {0x03fa, 0x00}, {0xf332, 0x00}, {0xf333, 0xc0},
+	{0xf334, 0x39}, {0xf335, 0xe7}, {0xf33f, 0x03}
+};
+
+static const struct ucbus_write_cmd ov9630_start_0[] = {
+	{0x0354, 0x00}, {0x03fa, 0x00}, {0xf332, 0x00}, {0xf333, 0x00},
+	{0xf334, 0x3e}, {0xf335, 0xf8}, {0xf33f, 0x03}
+};
+
 static const struct cap_s {
 	u8	cc_sizeid;
 	u8	cc_bytes[32];
-} capconfig[3][3] = {
+} capconfig[4][3] = {
 	[SENSOR_ICX098BQ] = {
 		{0,				/* JPEG, 160x120 */
 		  {0x01, 0x1f, 0x20, 0x0e, 0x00, 0x9f, 0x02, 0xee,
@@ -351,6 +399,101 @@ static const struct cap_s {
 		   0x07, 0xe1, 0x01, 0xe1, 0x01, 0x3f, 0x01, 0x3f,
 		   0x01, 0x3f, 0x01, 0x05, 0x80, 0x02, 0xe0, 0x01} },
 	},
+	[SENSOR_MT9V111] = {
+		{0,				/* JPEG, 160x120 */
+		  {0x05, 0x3d, 0x20, 0x0b, 0x00, 0xbd, 0x02, 0x0b,
+		   0x02, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x02, 0x01, 0x01, 0x01, 0x01, 0x9f, 0x00, 0x9f,
+		   0x00, 0x9f, 0x01, 0x05, 0xa0, 0x00, 0x80, 0x00} },
+		{2,				/* JPEG, 320x240 */
+		  {0x01, 0x02, 0x20, 0x03, 0x20, 0x82, 0x02, 0xe3,
+		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x02, 0xdf, 0x01, 0x00, 0x00, 0x3f, 0x01, 0x3f,
+		   0x01, 0x00, 0x00, 0x05, 0x40, 0x01, 0xf0, 0x00} },
+		{4,				/* JPEG, 640x480 */
+		  {0x01, 0x02, 0x20, 0x03, 0x20, 0x82, 0x02, 0xe3,
+		   0x01, 0x02, 0x00, 0x08, 0x18, 0x12, 0x78, 0xc8,
+		   0x07, 0xe1, 0x01, 0xe1, 0x01, 0x3f, 0x01, 0x3f,
+		   0x01, 0x3f, 0x01, 0x05, 0x80, 0x02, 0xe0, 0x01} },
+	},
+};
+
+struct sensor_s {
+	const char *name;
+	u8 i2c_addr;
+	u8 i2c_dum;
+	u8 gpio[5];
+	u8 cmd_len;
+	const struct ucbus_write_cmd *cmd;
+};
+
+static const struct sensor_s sensor_tb[] = {
+	[SENSOR_ICX098BQ] = {
+		"icx098bp",
+		0x00, 0x00,
+		{0,
+		 SQ930_GPIO_DFL_I2C_SDA | SQ930_GPIO_DFL_I2C_SCL,
+		 SQ930_GPIO_DFL_I2C_SDA,
+		 0,
+		 SQ930_GPIO_RSTBAR
+		},
+		8, icx098bq_start_0
+	    },
+	[SENSOR_LZ24BP] = {
+		"lz24bp",
+		0x00, 0x00,
+		{0,
+		 SQ930_GPIO_DFL_I2C_SDA | SQ930_GPIO_DFL_I2C_SCL,
+		 SQ930_GPIO_DFL_I2C_SDA,
+		 0,
+		 SQ930_GPIO_RSTBAR
+		},
+		8, lz24bp_start_0
+	    },
+	[SENSOR_MI0360] = {
+		"mi0360",
+		0x5d, 0x80,
+		{SQ930_GPIO_RSTBAR,
+		 SQ930_GPIO_DFL_I2C_SDA | SQ930_GPIO_DFL_I2C_SCL,
+		 SQ930_GPIO_DFL_I2C_SDA,
+		 0,
+		 0
+		},
+		7, mi0360_start_0
+	    },
+	[SENSOR_MT9V111] = {
+		"mt9v111",
+		0x5c, 0x7f,
+		{SQ930_GPIO_RSTBAR,
+		 SQ930_GPIO_DFL_I2C_SDA | SQ930_GPIO_DFL_I2C_SCL,
+		 SQ930_GPIO_DFL_I2C_SDA,
+		 0,
+		 0
+		},
+		7, mi0360_start_0
+	    },
+	[SENSOR_OV7660] = {
+		"ov7660",
+		0x21, 0x00,
+		{0,
+		 SQ930_GPIO_DFL_I2C_SDA | SQ930_GPIO_DFL_I2C_SCL,
+		 SQ930_GPIO_DFL_I2C_SDA,
+		 0,
+		 SQ930_GPIO_RSTBAR
+		},
+		7, ov7660_start_0
+	    },
+	[SENSOR_OV9630] = {
+		"ov9630",
+		0x30, 0x00,
+		{0,
+		 SQ930_GPIO_DFL_I2C_SDA | SQ930_GPIO_DFL_I2C_SCL,
+		 SQ930_GPIO_DFL_I2C_SDA,
+		 0,
+		 SQ930_GPIO_RSTBAR
+		},
+		7, ov9630_start_0
+	    },
 };
 
 static void reg_r(struct gspca_dev *gspca_dev,
@@ -415,10 +558,12 @@ static void reg_wb(struct gspca_dev *gspca_dev, u16 value, u16 index,
 	}
 }
 
-static void i2c_write(struct gspca_dev *gspca_dev,
+static void i2c_write(struct sd *sd,
 			const struct i2c_write_cmd *cmd,
 			int ncmds)
 {
+	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	const struct sensor_s *sensor;
 	u16 val, idx;
 	u8 *buf;
 	int ret;
@@ -426,18 +571,20 @@ static void i2c_write(struct gspca_dev *gspca_dev,
 	if (gspca_dev->usb_err < 0)
 		return;
 
-	val = (0x5d << 8) | SQ930_CTRL_I2C_IO;	/* 0x5d = mi0360 i2c addr */
+	sensor = &sensor_tb[sd->sensor];
+
+	val = (sensor->i2c_addr << 8) | SQ930_CTRL_I2C_IO;
 	idx = (cmd->val & 0xff00) | cmd->reg;
 
 	buf = gspca_dev->usb_buf;
-	*buf++ = 0x80;
+	*buf++ = sensor->i2c_dum;
 	*buf++ = cmd->val;
 
 	while (--ncmds > 0) {
 		cmd++;
 		*buf++ = cmd->reg;
 		*buf++ = cmd->val >> 8;
-		*buf++ = 0x80;
+		*buf++ = sensor->i2c_dum;
 		*buf++ = cmd->val;
 	}
 
@@ -538,7 +685,17 @@ static void gpio_set(struct sd *sd, u16 val, u16 mask)
 	}
 }
 
-static void global_init(struct sd *sd, int first_time)
+static void gpio_init(struct sd *sd,
+			const u8 *gpio)
+{
+	gpio_set(sd, *gpio++, 0x000f);
+	gpio_set(sd, *gpio++, 0x000f);
+	gpio_set(sd, *gpio++, 0x000f);
+	gpio_set(sd, *gpio++, 0x000f);
+	gpio_set(sd, *gpio, 0x000f);
+}
+
+static void bridge_init(struct sd *sd)
 {
 	static const struct ucbus_write_cmd clkfreq_cmd = {
 				0xf031, 0	/* SQ930_CLKFREQ_60MHZ */
@@ -547,19 +704,81 @@ static void global_init(struct sd *sd, int first_time)
 	ucbus_write(&sd->gspca_dev, &clkfreq_cmd, 1, 1);
 
 	gpio_set(sd, SQ930_GPIO_POWER, 0xff00);
+}
+
+static void cmos_probe(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	const struct sensor_s *sensor;
+	static const u8 probe_order[] = {
+/*		SENSOR_LZ24BP,		(tested as ccd) */
+		SENSOR_OV9630,
+		SENSOR_MI0360,
+		SENSOR_OV7660,
+		SENSOR_MT9V111,
+	};
+
+	for (i = 0; i < ARRAY_SIZE(probe_order); i++) {
+		sensor = &sensor_tb[probe_order[i]];
+		ucbus_write(&sd->gspca_dev, sensor->cmd, sensor->cmd_len, 8);
+		gpio_init(sd, sensor->gpio);
+		msleep(100);
+		reg_r(gspca_dev, (sensor->i2c_addr << 8) | 0x001c, 1);
+		msleep(100);
+		if (gspca_dev->usb_buf[0] != 0)
+			break;
+	}
+	if (i >= ARRAY_SIZE(probe_order))
+		PDEBUG(D_PROBE, "Unknown sensor");
+	else
+		sd->sensor = probe_order[i];
+}
+
+static void mt9v111_init(struct gspca_dev *gspca_dev)
+{
+	int i, nwait;
+	static const u8 cmd_001b[] = {
+		0x00, 0x3b, 0xf6, 0x01, 0x03, 0x02, 0x00, 0x00,
+		0x00, 0x00, 0x00
+	};
+	static const u8 cmd_011b[][7] = {
+		{0x10, 0x01, 0x66, 0x08, 0x00, 0x00, 0x00},
+		{0x01, 0x00, 0x1a, 0x04, 0x00, 0x00, 0x00},
+		{0x20, 0x00, 0x10, 0x04, 0x00, 0x00, 0x00},
+		{0x02, 0x01, 0xae, 0x01, 0x00, 0x00, 0x00},
+	};
+
+	reg_wb(gspca_dev, 0x001b, 0x0000, cmd_001b, sizeof cmd_001b);
+	for (i = 0; i < ARRAY_SIZE(cmd_011b); i++) {
+		reg_wb(gspca_dev, 0x001b, 0x0000, cmd_011b[i],
+				ARRAY_SIZE(cmd_011b[0]));
+		msleep(400);
+		nwait = 20;
+		for (;;) {
+			reg_r(gspca_dev, 0x031b, 1);
+			if (gspca_dev->usb_buf[0] == 0
+			 || gspca_dev->usb_err != 0)
+				break;
+			if (--nwait < 0) {
+				PDEBUG(D_PROBE, "mt9v111_init timeout");
+				gspca_dev->usb_err = -ETIME;
+				return;
+			}
+			msleep(50);
+		}
+	}
+}
+
+static void global_init(struct sd *sd, int first_time)
+{
 	switch (sd->sensor) {
 	case SENSOR_ICX098BQ:
 		if (first_time)
 			ucbus_write(&sd->gspca_dev,
 					icx098bq_start_0,
 					8, 8);
-		gpio_set(sd, 0, 0x00ff);
-		gpio_set(sd, SQ930_GPIO_DFL_I2C_SCL | SQ930_GPIO_DFL_I2C_SDA,
-			     SQ930_GPIO_DFL_I2C_SCL | SQ930_GPIO_DFL_I2C_SDA);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SCL);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SDA);
-		gpio_set(sd, SQ930_GPIO_RSTBAR,
-			     SQ930_GPIO_RSTBAR);
+		gpio_init(sd, sensor_tb[sd->sensor].gpio);
 		break;
 	case SENSOR_LZ24BP:
 		if (sd->type != Creative_live_motion)
@@ -571,33 +790,23 @@ static void global_init(struct sd *sd, int first_time)
 			ucbus_write(&sd->gspca_dev,
 					lz24bp_start_0,
 					8, 8);
-		gpio_set(sd, 0, 0x0001);		/* no change */
-		gpio_set(sd, SQ930_GPIO_DFL_I2C_SCL | SQ930_GPIO_DFL_I2C_SDA,
-			     SQ930_GPIO_DFL_I2C_SCL | SQ930_GPIO_DFL_I2C_SDA);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SCL);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SDA);
-		gpio_set(sd, SQ930_GPIO_RSTBAR,
-			     SQ930_GPIO_RSTBAR);
+		gpio_init(sd, sensor_tb[sd->sensor].gpio);
 		break;
-	default:
-/*	case SENSOR_MI0360: */
-		if (first_time) {
+	case SENSOR_MI0360:
+		if (first_time)
 			ucbus_write(&sd->gspca_dev,
 					mi0360_start_0,
 					ARRAY_SIZE(mi0360_start_0),
 					8);
-			gpio_set(sd, SQ930_GPIO_RSTBAR, 0x00ff);
-		} else {
-			gpio_set(sd, SQ930_GPIO_EXTRA2 | SQ930_GPIO_RSTBAR,
-					0x00ff);
-		}
-		gpio_set(sd, SQ930_GPIO_DFL_I2C_SCL | SQ930_GPIO_DFL_I2C_SDA,
-			     SQ930_GPIO_RSTBAR |
-			     SQ930_GPIO_DFL_I2C_SCL | SQ930_GPIO_DFL_I2C_SDA);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SCL);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SDA);
-		gpio_set(sd, 0, SQ930_GPIO_DFL_I2C_SDA);
+		gpio_init(sd, sensor_tb[sd->sensor].gpio);
 		gpio_set(sd, SQ930_GPIO_EXTRA2, SQ930_GPIO_EXTRA2);
+		break;
+	default:
+/*	case SENSOR_MT9V111: */
+		if (first_time)
+			mt9v111_init(&sd->gspca_dev);
+		else
+			gpio_init(sd, sensor_tb[sd->sensor].gpio);
 		break;
 	}
 }
@@ -616,30 +825,17 @@ static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, integclks, intstartclk, frameclks, min_frclk;
+	const struct sensor_s *sensor;
 	u16 cmd;
 	u8 buf[15];
 
 	integclks = sd->expo;
 	i = 0;
 	cmd = SQ930_CTRL_SET_EXPOSURE;
-	if (sd->sensor == SENSOR_MI0360) {
-		cmd |= 0x0100;
-		buf[i++] = 0x5d;	/* i2c_slave_addr */
-		buf[i++] = 0x08;	/* 2 * ni2c */
-		buf[i++] = 0x09;	/* reg = shutter width */
-		buf[i++] = integclks >> 8; /* val H */
-		buf[i++] = 0x80;
-		buf[i++] = integclks;	/* val L */
-		buf[i++] = 0x35;	/* reg = global gain */
-		buf[i++] = 0x00;	/* val H */
-		buf[i++] = 0x80;
-		buf[i++] = sd->gain;	/* val L */
-		buf[i++] = 0x00;
-		buf[i++] = 0x00;
-		buf[i++] = 0x00;
-		buf[i++] = 0x00;
-		buf[i++] = 0x83;
-	} else {
+
+	switch (sd->sensor) {
+	case SENSOR_ICX098BQ:			/* ccd */
+	case SENSOR_LZ24BP:
 		min_frclk = sd->sensor == SENSOR_ICX098BQ ? 0x210 : 0x26f;
 		if (integclks >= min_frclk) {
 			intstartclk = 0;
@@ -653,6 +849,28 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		buf[i++] = frameclks >> 8;
 		buf[i++] = frameclks;
 		buf[i++] = sd->gain;
+		break;
+	default:				/* cmos */
+/*	case SENSOR_MI0360: */
+/*	case SENSOR_MT9V111: */
+		cmd |= 0x0100;
+		sensor = &sensor_tb[sd->sensor];
+		buf[i++] = sensor->i2c_addr;	/* i2c_slave_addr */
+		buf[i++] = 0x08;	/* 2 * ni2c */
+		buf[i++] = 0x09;	/* reg = shutter width */
+		buf[i++] = integclks >> 8; /* val H */
+		buf[i++] = sensor->i2c_dum;
+		buf[i++] = integclks;	/* val L */
+		buf[i++] = 0x35;	/* reg = global gain */
+		buf[i++] = 0x00;	/* val H */
+		buf[i++] = sensor->i2c_dum;
+		buf[i++] = sd->gain;	/* val L */
+		buf[i++] = 0x00;
+		buf[i++] = 0x00;
+		buf[i++] = 0x00;
+		buf[i++] = 0x00;
+		buf[i++] = 0x83;
+		break;
 	}
 	reg_wb(gspca_dev, cmd, 0, buf, i);
 }
@@ -688,8 +906,10 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	sd->gpio[0] = sd->gpio[1] = 0xff;	/* force gpio rewrite */
 
+/*fixme: is this needed for icx098bp and mi0360?
 	if (sd->sensor != SENSOR_LZ24BP)
 		reg_w(gspca_dev, SQ930_CTRL_RESET, 0x0000);
+ */
 
 	reg_r(gspca_dev, SQ930_CTRL_GET_DEV_INFO, 8);
 /* it returns:
@@ -706,7 +926,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
  * 2: 06 / 07 / 12 = mode webcam? firmware??
  * 3: 93 chip = 930b (930b or 930c)
  * 4: 0b
- * 5: f6 = cdd (icx098bq, lz24bp) / fe = cmos (i2c) (mi0360, ov9630)
+ * 5: f6 = cdd (icx098bq, lz24bp) / fe or de = cmos (i2c) (other sensors)
  * 6: c8 / c9 / ca / cf = mode webcam?, sensor? webcam?
  * 7: 00
  */
@@ -720,13 +940,21 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			gspca_dev->usb_buf[6],
 			gspca_dev->usb_buf[7]);
 
-/*fixme: no sensor probe - special case for icam tracer */
-	if (gspca_dev->usb_buf[5] == 0xf6
-	 && sd->sensor == SENSOR_MI0360) {
-		sd->sensor = SENSOR_ICX098BQ;
-		gspca_dev->cam.cam_mode = &vga_mode[1];	/* only 320x240 */
-		gspca_dev->cam.nmodes = 1;
+	bridge_init(sd);
+
+	if (sd->sensor == SENSOR_MI0360) {
+
+		/* no sensor probe for icam tracer */
+		if (gspca_dev->usb_buf[5] == 0xf6) {	/* if CMOS */
+			sd->sensor = SENSOR_ICX098BQ;
+			gspca_dev->cam.cam_mode = &vga_mode[1];
+			gspca_dev->cam.nmodes = 1;	/* only 320x240 */
+		} else {
+			cmos_probe(gspca_dev);
+		}
 	}
+
+	PDEBUG(D_PROBE, "Sensor %s", sensor_tb[sd->sensor].name);
 
 	global_init(sd, 1);
 	return gspca_dev->usb_err;
@@ -799,6 +1027,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			0x21);		/* JPEG 422 */
 	sd_jpeg_set_qual(sd->jpeg_hdr, sd->quality);
 
+	bridge_init(sd);
 	global_init(sd, 0);
 	msleep(100);
 
@@ -845,23 +1074,22 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		lz24bp_ppl(sd, mode == 2 ? 0x0564 : 0x0310);
 		msleep(10);
 		break;
-	default:
-/*	case SENSOR_MI0360: */
+	case SENSOR_MI0360:
 		ucbus_write(gspca_dev, mi0360_start_0,
 				ARRAY_SIZE(mi0360_start_0),
 				8);
-		i2c_write(gspca_dev, mi0360_init_23,
+		i2c_write(sd, mi0360_init_23,
 				ARRAY_SIZE(mi0360_init_23));
-		i2c_write(gspca_dev, mi0360_init_24,
+		i2c_write(sd, mi0360_init_24,
 				ARRAY_SIZE(mi0360_init_24));
-		i2c_write(gspca_dev, mi0360_init_25,
+		i2c_write(sd, mi0360_init_25,
 				ARRAY_SIZE(mi0360_init_25));
 		ucbus_write(gspca_dev, mi0360_start_1,
 				ARRAY_SIZE(mi0360_start_1),
 				5);
-		i2c_write(gspca_dev, mi0360_start_2,
+		i2c_write(sd, mi0360_start_2,
 				ARRAY_SIZE(mi0360_start_2));
-		i2c_write(gspca_dev, mi0360_start_3,
+		i2c_write(sd, mi0360_start_3,
 				ARRAY_SIZE(mi0360_start_3));
 
 		/* 1st start */
@@ -869,8 +1097,27 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		msleep(60);
 		reg_w(gspca_dev, SQ930_CTRL_CAP_STOP, 0x0000);
 
-		i2c_write(gspca_dev,
+		i2c_write(sd,
 			mi0360_start_4, ARRAY_SIZE(mi0360_start_4));
+		break;
+	default:
+/*	case SENSOR_MT9V111: */
+		ucbus_write(gspca_dev, mi0360_start_0,
+				ARRAY_SIZE(mi0360_start_0),
+				8);
+		i2c_write(sd, mt9v111_init_0,
+				ARRAY_SIZE(mt9v111_init_0));
+		i2c_write(sd, mt9v111_init_1,
+				ARRAY_SIZE(mt9v111_init_1));
+		i2c_write(sd, mt9v111_init_2,
+				ARRAY_SIZE(mt9v111_init_2));
+		ucbus_write(gspca_dev, mt9v111_start_1,
+				ARRAY_SIZE(mt9v111_start_1),
+				8);
+		i2c_write(sd, mt9v111_init_3,
+				ARRAY_SIZE(mt9v111_init_3));
+		i2c_write(sd, mt9v111_init_4,
+				ARRAY_SIZE(mt9v111_init_4));
 		break;
 	}
 
@@ -880,6 +1127,9 @@ out:
 
 	sd->eof_len = 0;	/* init packet scan */
 
+	if (sd->sensor == SENSOR_MT9V111)
+		gpio_set(sd, SQ930_GPIO_DFL_LED, SQ930_GPIO_DFL_LED);
+
 	sd->do_ctrl = 1;	/* set the exposure */
 
 	return gspca_dev->usb_err;
@@ -887,6 +1137,10 @@ out:
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_MT9V111)
+		gpio_set(sd, 0, SQ930_GPIO_DFL_LED);
 	send_stop(gspca_dev);
 }
 
@@ -1101,7 +1355,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x403c), ST(LZ24BP, 0)},
 	{USB_DEVICE(0x041e, 0x403d), ST(LZ24BP, 0)},
 	{USB_DEVICE(0x041e, 0x4041), ST(LZ24BP, Creative_live_motion)},
-	{USB_DEVICE(0x2770, 0x930b), ST(MI0360, 0)}, /* or ICX098BQ */
+	{USB_DEVICE(0x2770, 0x930b), ST(MI0360, 0)},
 	{USB_DEVICE(0x2770, 0x930c), ST(MI0360, 0)},
 	{}
 };
