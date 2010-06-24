@@ -85,7 +85,7 @@ static int octeon_mdiobus_write(struct mii_bus *bus, int phy_id,
 	return 0;
 }
 
-static int __init octeon_mdiobus_probe(struct platform_device *pdev)
+static int __devinit octeon_mdiobus_probe(struct platform_device *pdev)
 {
 	struct octeon_mdiobus *bus;
 	union cvmx_smix_en smi_en;
@@ -143,7 +143,7 @@ err:
 	return err;
 }
 
-static int __exit octeon_mdiobus_remove(struct platform_device *pdev)
+static int __devexit octeon_mdiobus_remove(struct platform_device *pdev)
 {
 	struct octeon_mdiobus *bus;
 	union cvmx_smix_en smi_en;
@@ -163,7 +163,7 @@ static struct platform_driver octeon_mdiobus_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= octeon_mdiobus_probe,
-	.remove		= __exit_p(octeon_mdiobus_remove),
+	.remove		= __devexit_p(octeon_mdiobus_remove),
 };
 
 void octeon_mdiobus_force_mod_depencency(void)
