@@ -366,6 +366,7 @@ static int crush_choose(struct crush_map *map,
 					BUG_ON(item >= 0 ||
 					       (-1-item) >= map->max_buckets);
 					in = map->buckets[-1-item];
+					retry_bucket = 1;
 					continue;
 				}
 
