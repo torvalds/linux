@@ -3691,6 +3691,36 @@ void drbd_flush_workqueue(struct drbd_conf *mdev)
 	wait_for_completion(&barr.done);
 }
 
+void drbd_free_tl_hash(struct drbd_conf *mdev)
+{
+	struct hlist_head *h;
+
+	spin_lock_irq(&mdev->req_lock);
+
+	if (!mdev->tl_hash || mdev->state.conn != C_STANDALONE) {
+		spin_unlock_irq(&mdev->req_lock);
+		return;
+	}
+	/* paranoia code */
+	for (h = mdev->ee_hash; h < mdev->ee_hash + mdev->ee_hash_s; h++)
+		if (h->first)
+			dev_err(DEV, "ASSERT FAILED ee_hash[%u].first == %p, expected NULL\n",
+				(int)(h - mdev->ee_hash), h->first);
+	kfree(mdev->ee_hash);
+	mdev->ee_hash = NULL;
+	mdev->ee_hash_s = 0;
+
+	/* paranoia code */
+	for (h = mdev->tl_hash; h < mdev->tl_hash + mdev->tl_hash_s; h++)
+		if (h->first)
+			dev_err(DEV, "ASSERT FAILED tl_hash[%u] == %p, expected NULL\n",
+				(int)(h - mdev->tl_hash), h->first);
+	kfree(mdev->tl_hash);
+	mdev->tl_hash = NULL;
+	mdev->tl_hash_s = 0;
+	spin_unlock_irq(&mdev->req_lock);
+}
+
 static void drbd_disconnect(struct drbd_conf *mdev)
 {
 	enum drbd_fencing_p fp;
@@ -3774,32 +3804,14 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 	spin_unlock_irq(&mdev->req_lock);
 
 	if (os.conn == C_DISCONNECTING) {
-		struct hlist_head *h;
 		wait_event(mdev->net_cnt_wait, atomic_read(&mdev->net_cnt) == 0);
 
-		/* we must not free the tl_hash
-		 * while application io is still on the fly */
-		wait_event(mdev->misc_wait, atomic_read(&mdev->ap_bio_cnt) == 0);
-
-		spin_lock_irq(&mdev->req_lock);
-		/* paranoia code */
-		for (h = mdev->ee_hash; h < mdev->ee_hash + mdev->ee_hash_s; h++)
-			if (h->first)
-				dev_err(DEV, "ASSERT FAILED ee_hash[%u].first == %p, expected NULL\n",
-						(int)(h - mdev->ee_hash), h->first);
-		kfree(mdev->ee_hash);
-		mdev->ee_hash = NULL;
-		mdev->ee_hash_s = 0;
-
-		/* paranoia code */
-		for (h = mdev->tl_hash; h < mdev->tl_hash + mdev->tl_hash_s; h++)
-			if (h->first)
-				dev_err(DEV, "ASSERT FAILED tl_hash[%u] == %p, expected NULL\n",
-						(int)(h - mdev->tl_hash), h->first);
-		kfree(mdev->tl_hash);
-		mdev->tl_hash = NULL;
-		mdev->tl_hash_s = 0;
-		spin_unlock_irq(&mdev->req_lock);
+		if (!mdev->state.susp) {
+			/* we must not free the tl_hash
+			 * while application io is still on the fly */
+			wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
+			drbd_free_tl_hash(mdev);
+		}
 
 		crypto_free_hash(mdev->cram_hmac_tfm);
 		mdev->cram_hmac_tfm = NULL;

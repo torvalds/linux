@@ -1409,6 +1409,10 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	    (os.user_isp && !ns.user_isp))
 		resume_next_sg(mdev);
 
+	/* free tl_hash if we Got thawed and are C_STANDALONE */
+	if (ns.conn == C_STANDALONE && ns.susp == 0 && mdev->tl_hash)
+		drbd_free_tl_hash(mdev);
+
 	/* Upon network connection, we need to start the receiver */
 	if (os.conn == C_STANDALONE && ns.conn == C_UNCONNECTED)
 		drbd_thread_start(&mdev->receiver);

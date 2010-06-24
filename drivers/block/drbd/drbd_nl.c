@@ -1391,6 +1391,7 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		}
 	}
 
+	drbd_flush_workqueue(mdev);
 	spin_lock_irq(&mdev->req_lock);
 	if (mdev->net_conf != NULL) {
 		retcode = ERR_NET_CONFIGURED;
@@ -1429,9 +1430,8 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	mdev->int_dig_out=int_dig_out;
 	mdev->int_dig_in=int_dig_in;
 	mdev->int_dig_vv=int_dig_vv;
+	retcode = _drbd_set_state(_NS(mdev, conn, C_UNCONNECTED), CS_VERBOSE, NULL);
 	spin_unlock_irq(&mdev->req_lock);
-
-	retcode = _drbd_request_state(mdev, NS(conn, C_UNCONNECTED), CS_VERBOSE);
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 	reply->ret_code = retcode;
