@@ -85,7 +85,7 @@ cbGetFragCount(
 void
 vGenerateFIFOHeader (
     PSDevice         pDevice,
-    BYTE             byPktTyp,
+    unsigned char byPktTyp,
     unsigned char *pbyTxBufferAddr,
     BOOL             bNeedEncrypt,
     unsigned int	cbPayloadSize,

@@ -26,8 +26,8 @@
  * Date: Sep 4, 2002
  *
  * Functions:
- *      s_dwGetUINT32 - Convert from BYTE[] to unsigned long in a portable way
- *      s_vPutUINT32 - Convert from unsigned long to BYTE[] in a portable way
+ *      s_dwGetUINT32 - Convert from unsigned char [] to unsigned long in a portable way
+ *      s_vPutUINT32 - Convert from unsigned long to unsigned char [] in a portable way
  *      s_vClear - Reset the state to the empty message.
  *      s_vSetKey - Set the key.
  *      MIC_vInit - Set the key.
@@ -48,13 +48,13 @@
 
 /*---------------------  Static Functions  --------------------------*/
 /*
-static unsigned long s_dwGetUINT32(BYTE * p);         // Get unsigned long from 4 bytes LSByte first
-static void s_vPutUINT32(BYTE* p, unsigned long val); // Put unsigned long into 4 bytes LSByte first
+static unsigned long s_dwGetUINT32(unsigned char *p);         // Get unsigned long from 4 bytes LSByte first
+static void s_vPutUINT32(unsigned char *p, unsigned long val); // Put unsigned long into 4 bytes LSByte first
 */
 static void s_vClear(void);                       // Clear the internal message,
                                               // resets the object to the state just after construction.
 static void s_vSetKey(unsigned long dwK0, unsigned long dwK1);
-static void s_vAppendByte(BYTE b);            // Add a single byte to the internal message
+static void s_vAppendByte(unsigned char b);            // Add a single byte to the internal message
 
 /*---------------------  Export Variables  --------------------------*/
 static unsigned long L, R;           // Current state
@@ -66,8 +66,8 @@ static unsigned int nBytesInM;      // # bytes in M
 /*---------------------  Export Functions  --------------------------*/
 
 /*
-static unsigned long s_dwGetUINT32 (BYTE * p)
-// Convert from BYTE[] to unsigned long in a portable way
+static unsigned long s_dwGetUINT32 (unsigned char *p)
+// Convert from unsigned char [] to unsigned long in a portable way
 {
     unsigned long res = 0;
     unsigned int i;
@@ -78,13 +78,13 @@ static unsigned long s_dwGetUINT32 (BYTE * p)
     return res;
 }
 
-static void s_vPutUINT32 (BYTE* p, unsigned long val)
-// Convert from unsigned long to BYTE[] in a portable way
+static void s_vPutUINT32 (unsigned char *p, unsigned long val)
+// Convert from unsigned long to unsigned char [] in a portable way
 {
     unsigned int i;
     for(i=0; i<4; i++ )
     {
-        *p++ = (BYTE) (val & 0xff);
+        *p++ = (unsigned char) (val & 0xff);
         val >>= 8;
     }
 }
@@ -108,7 +108,7 @@ static void s_vSetKey (unsigned long dwK0, unsigned long dwK1)
     s_vClear();
 }
 
-static void s_vAppendByte (BYTE b)
+static void s_vAppendByte (unsigned char b)
 {
     // Append the byte to our word-sized buffer
     M |= b << (8*nBytesInM);

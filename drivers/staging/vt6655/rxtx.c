@@ -132,21 +132,21 @@ static
 void
 s_vFillRTSHead(
     PSDevice         pDevice,
-    BYTE             byPktType,
+    unsigned char byPktType,
     void *           pvRTS,
     unsigned int	cbFrameLength,
     BOOL             bNeedAck,
     BOOL             bDisCRC,
     PSEthernetHeader psEthHeader,
     unsigned short wCurrentRate,
-    BYTE             byFBOption
+    unsigned char byFBOption
     );
 
 static
 void
 s_vGenerateTxParameter(
     PSDevice         pDevice,
-    BYTE            byPktType,
+    unsigned char byPktType,
     void *           pTxBufHead,
     void *           pvRrvTime,
     void *           pvRTS,
@@ -174,7 +174,7 @@ static
 unsigned int
 s_cbFillTxBufHead (
     PSDevice         pDevice,
-    BYTE             byPktType,
+    unsigned char byPktType,
     unsigned char *pbyTxBufferAddr,
     unsigned int	cbFrameBodySize,
     unsigned int	uDMAIdx,
@@ -192,7 +192,7 @@ static
 unsigned int
 s_uFillDataHead (
     PSDevice pDevice,
-    BYTE     byPktType,
+    unsigned char byPktType,
     void *   pTxDataHead,
     unsigned int cbFrameLength,
     unsigned int uDMAIdx,
@@ -200,7 +200,7 @@ s_uFillDataHead (
     unsigned int uFragIdx,
     unsigned int cbLastFragmentSize,
     unsigned int uMACfragNum,
-    BYTE     byFBOption,
+    unsigned char byFBOption,
     unsigned short wCurrentRate
     );
 
@@ -226,7 +226,7 @@ s_vFillTxKey (
     unsigned short wValue;
     PS802_11Header  pMACHeader = (PS802_11Header)pbyHdrBuf;
     unsigned long dwRevIVCounter;
-    BYTE            byKeyIndex = 0;
+    unsigned char byKeyIndex = 0;
 
 
 
@@ -270,7 +270,7 @@ s_vFillTxKey (
         // Make IV
         memcpy(pdwIV, pDevice->abyPRNG, 3);
 
-        *(pbyIVHead+3) = (BYTE)(((byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
+        *(pbyIVHead+3) = (unsigned char)(((byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
         // Append IV&ExtIV after Mac Header
         *pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"vFillTxKey()---- pdwExtIV: %lx\n", *pdwExtIV);
@@ -284,7 +284,7 @@ s_vFillTxKey (
 
         // Make IV
         *pdwIV = 0;
-        *(pbyIVHead+3) = (BYTE)(((byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
+        *(pbyIVHead+3) = (unsigned char)(((byKeyIndex << 6) & 0xc0) | 0x20); // 0x20 is ExtIV
         *pdwIV |= cpu_to_le16((unsigned short)(pTransmitKey->wTSC15_0));
         //Append IV&ExtIV after Mac Header
         *pdwExtIV = cpu_to_le32(pTransmitKey->dwTSC47_16);
@@ -380,7 +380,7 @@ static
 unsigned int
 s_uGetTxRsvTime (
     PSDevice pDevice,
-    BYTE     byPktType,
+    unsigned char byPktType,
     unsigned int cbFrameLength,
     unsigned short wRate,
     BOOL     bNeedAck
@@ -411,8 +411,8 @@ static
 unsigned int
 s_uGetRTSCTSRsvTime (
     PSDevice pDevice,
-    BYTE byRTSRsvType,
-    BYTE byPktType,
+    unsigned char byRTSRsvType,
+    unsigned char byPktType,
     unsigned int cbFrameLength,
     unsigned short wCurrentRate
     )
@@ -453,15 +453,15 @@ static
 unsigned int
 s_uGetDataDuration (
     PSDevice pDevice,
-    BYTE     byDurType,
+    unsigned char byDurType,
     unsigned int cbFrameLength,
-    BYTE     byPktType,
+    unsigned char byPktType,
     unsigned short wRate,
     BOOL     bNeedAck,
     unsigned int uFragIdx,
     unsigned int cbLastFragmentSize,
     unsigned int uMACfragNum,
-    BYTE     byFBOption
+    unsigned char byFBOption
     )
 {
     BOOL bLastFrag = 0;
@@ -624,12 +624,12 @@ static
 unsigned int
 s_uGetRTSCTSDuration (
     PSDevice pDevice,
-    BYTE byDurType,
+    unsigned char byDurType,
     unsigned int cbFrameLength,
-    BYTE byPktType,
+    unsigned char byPktType,
     unsigned short wRate,
     BOOL bNeedAck,
-    BYTE byFBOption
+    unsigned char byFBOption
     )
 {
     unsigned int uCTSTime = 0, uDurTime = 0;
@@ -722,7 +722,7 @@ static
 unsigned int
 s_uFillDataHead (
     PSDevice pDevice,
-    BYTE     byPktType,
+    unsigned char byPktType,
     void *   pTxDataHead,
     unsigned int cbFrameLength,
     unsigned int uDMAIdx,
@@ -730,7 +730,7 @@ s_uFillDataHead (
     unsigned int uFragIdx,
     unsigned int cbLastFragmentSize,
     unsigned int uMACfragNum,
-    BYTE     byFBOption,
+    unsigned char byFBOption,
     unsigned short wCurrentRate
     )
 {
@@ -854,14 +854,14 @@ static
 void
 s_vFillRTSHead (
     PSDevice         pDevice,
-    BYTE             byPktType,
+    unsigned char byPktType,
     void *           pvRTS,
     unsigned int cbFrameLength,
     BOOL             bNeedAck,
     BOOL             bDisCRC,
     PSEthernetHeader psEthHeader,
     unsigned short wCurrentRate,
-    BYTE             byFBOption
+    unsigned char byFBOption
     )
 {
     unsigned int uRTSFrameLen = 20;
@@ -1049,13 +1049,13 @@ void
 s_vFillCTSHead (
     PSDevice pDevice,
     unsigned int uDMAIdx,
-    BYTE     byPktType,
+    unsigned char byPktType,
     void *   pvCTS,
     unsigned int cbFrameLength,
     BOOL     bNeedAck,
     BOOL     bDisCRC,
     unsigned short wCurrentRate,
-    BYTE     byFBOption
+    unsigned char byFBOption
     )
 {
     unsigned int uCTSFrameLen = 14;
@@ -1153,7 +1153,7 @@ static
 void
 s_vGenerateTxParameter (
     PSDevice         pDevice,
-    BYTE             byPktType,
+    unsigned char byPktType,
     void *           pTxBufHead,
     void *           pvRrvTime,
     void *           pvRTS,
@@ -1168,7 +1168,7 @@ s_vGenerateTxParameter (
     unsigned int cbMACHdLen = WLAN_HDR_ADDR3_LEN; //24
     unsigned short wFifoCtl;
     BOOL bDisCRC = FALSE;
-    BYTE byFBOption = AUTO_FB_NONE;
+    unsigned char byFBOption = AUTO_FB_NONE;
 //    unsigned short wCurrentRate = pDevice->wCurrentRate;
 
     //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_vGenerateTxParameter...\n");
@@ -1319,7 +1319,7 @@ static
 unsigned int
 s_cbFillTxBufHead (
     PSDevice         pDevice,
-    BYTE             byPktType,
+    unsigned char byPktType,
     unsigned char *pbyTxBufferAddr,
     unsigned int cbFrameBodySize,
     unsigned int uDMAIdx,
@@ -1346,7 +1346,7 @@ s_cbFillTxBufHead (
     unsigned int uDuration;
     unsigned char *pbyBuffer;
 //    unsigned int uKeyEntryIdx = NUM_KEY_ENTRY+1;
-//    BYTE           byKeySel = 0xFF;
+//    unsigned char byKeySel = 0xFF;
     unsigned int cbIVlen = 0;
     unsigned int cbICVlen = 0;
     unsigned int cbMIClen = 0;
@@ -1354,7 +1354,7 @@ s_cbFillTxBufHead (
     unsigned int cb802_1_H_len = 0;
     unsigned int uLength = 0;
     unsigned int uTmpLen = 0;
-//    BYTE           abyTmp[8];
+//    unsigned char abyTmp[8];
 //    unsigned long dwCRC;
     unsigned int cbMICHDR = 0;
     unsigned long dwMICKey0, dwMICKey1;
@@ -1383,7 +1383,7 @@ s_cbFillTxBufHead (
     void *         pvTxDataHd;
     unsigned short wTxBufSize;   // FFinfo size
     unsigned int uTotalCopyLength = 0;
-    BYTE           byFBOption = AUTO_FB_NONE;
+    unsigned char byFBOption = AUTO_FB_NONE;
     BOOL           bIsWEP256 = FALSE;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
 
@@ -2096,7 +2096,7 @@ s_cbFillTxBufHead (
 void
 vGenerateFIFOHeader (
     PSDevice         pDevice,
-    BYTE             byPktType,
+    unsigned char byPktType,
     unsigned char *pbyTxBufferAddr,
     BOOL             bNeedEncrypt,
     unsigned int cbPayloadSize,
@@ -2340,7 +2340,7 @@ vGenerateMACHeader (
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
     PSTxDesc        pFrstTD;
-    BYTE            byPktType;
+    unsigned char byPktType;
     unsigned char *pbyTxBufferAddr;
     void *          pvRTS;
     PSCTS           pCTS;
@@ -2661,7 +2661,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
-    BYTE             byPktType;
+    unsigned char byPktType;
     unsigned char *pbyBuffer = (unsigned char *)pDevice->tx_beacon_bufs;
     unsigned int cbFrameSize = pPacket->cbMPDULen + WLAN_FCS_LEN;
     unsigned int cbHeaderSize = 0;
@@ -2829,7 +2829,7 @@ void
 vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, unsigned int cbMPDULen) {
 
     PSTxDesc        pFrstTD;
-    BYTE            byPktType;
+    unsigned char byPktType;
     unsigned char *pbyTxBufferAddr;
     void *          pvRTS;
     void *          pvCTS;

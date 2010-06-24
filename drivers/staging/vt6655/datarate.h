@@ -73,7 +73,7 @@ RATEvTxRateFallBack(
     PKnownNodeDB psNodeDBTable
     );
 
-BYTE
+unsigned char
 RATEuSetIE(
     PWLAN_IE_SUPP_RATES pSrcRates,
     PWLAN_IE_SUPP_RATES pDstRates,
@@ -82,13 +82,13 @@ RATEuSetIE(
 
 unsigned short
 wGetRateIdx(
-    BYTE byRate
+    unsigned char byRate
     );
 
 
-BYTE
+unsigned char
 DATARATEbyGetRateIdx(
-    BYTE byRate
+    unsigned char byRate
     );
 
 

@@ -101,10 +101,10 @@ static SChannelTblElement sChannelTbl[CARD_MAX_CHANNEL_TBL + 1] =
  ************************************************************************/
 static struct
 {
-	BYTE byChannelCountryCode;             /* The country code         */
+	unsigned char byChannelCountryCode;             /* The country code         */
 	char chCountryCode[2];
-	BYTE bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
-	BYTE byPower[CB_MAX_CHANNEL];
+	unsigned char bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
+	unsigned char byPower[CB_MAX_CHANNEL];
 } ChannelRuleTab[] =
 {
 /************************************************************************
@@ -495,7 +495,7 @@ void init_channel_table(void *pDeviceHandler)
 	}
 }
 
-BYTE get_channel_mapping(void *pDeviceHandler, BYTE byChannelNumber, CARD_PHY_TYPE ePhyType)
+unsigned char get_channel_mapping(void *pDeviceHandler, unsigned char byChannelNumber, CARD_PHY_TYPE ePhyType)
 {
 	unsigned int ii;
 
@@ -504,13 +504,13 @@ BYTE get_channel_mapping(void *pDeviceHandler, BYTE byChannelNumber, CARD_PHY_TY
 
 	for(ii = (CB_MAX_CHANNEL_24G + 1); ii <= CB_MAX_CHANNEL; ) {
 		if (sChannelTbl[ii].byChannelNumber == byChannelNumber)
-			return ((BYTE) ii);
+			return ((unsigned char) ii);
 		ii++;
 	}
 	return 0;
 }
 
-BYTE get_channel_number(void *pDeviceHandler, BYTE byChannelIndex)
+unsigned char get_channel_number(void *pDeviceHandler, unsigned char byChannelIndex)
 {
 	//PSDevice    pDevice = (PSDevice) pDeviceHandler;
 	return(sChannelTbl[byChannelIndex].byChannelNumber);
@@ -554,20 +554,20 @@ BOOL set_channel (void *pDeviceHandler, unsigned int uConnectionChannel)
 
 	if ( pDevice->byRFType == RF_AIROHA7230 )
 	{
-		RFbAL7230SelectChannelPostProcess(pDevice->PortOffset, pDevice->byCurrentCh, (BYTE)uConnectionChannel);
+		RFbAL7230SelectChannelPostProcess(pDevice->PortOffset, pDevice->byCurrentCh, (unsigned char)uConnectionChannel);
 	}
 	//}} RobertYu
 
 
-	pDevice->byCurrentCh = (BYTE)uConnectionChannel;
-	bResult &= RFbSelectChannel(pDevice->PortOffset, pDevice->byRFType, (BYTE)uConnectionChannel);
+	pDevice->byCurrentCh = (unsigned char)uConnectionChannel;
+	bResult &= RFbSelectChannel(pDevice->PortOffset, pDevice->byRFType, (unsigned char)uConnectionChannel);
 
 	// Init Synthesizer Table
 	if (pDevice->bEnablePSMode == TRUE)
 		RFvWriteWakeProgSyn(pDevice->PortOffset, pDevice->byRFType, uConnectionChannel);
 
 
-	//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDbSetMediaChannel: %d\n", (BYTE)uConnectionChannel);
+	//DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"CARDbSetMediaChannel: %d\n", (unsigned char)uConnectionChannel);
 	BBvSoftwareReset(pDevice->PortOffset);
 
 	if (pDevice->byLocalID > REV_ID_VT3253_B1) {
@@ -609,7 +609,7 @@ void set_country_info(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, void *pIE)
 	unsigned int uu = 0;
 	unsigned int step = 0;
 	unsigned int uNumOfCountryInfo = 0;
-	BYTE byCh = 0;
+	unsigned char byCh = 0;
 	PWLAN_IE_COUNTRY pIE_Country = (PWLAN_IE_COUNTRY) pIE;
 
 
@@ -635,7 +635,7 @@ void set_country_info(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, void *pIE)
 
 	for(ii = 0 ; ii < uNumOfCountryInfo ; ii++) {
 		for(uu = 0 ; uu < pIE_Country->abyCountryInfo[ii*3+1] ; uu++) {
-			byCh = get_channel_mapping(pDevice, (BYTE)(pIE_Country->abyCountryInfo[ii*3]+step*uu), ePHYType);
+			byCh = get_channel_mapping(pDevice, (unsigned char)(pIE_Country->abyCountryInfo[ii*3]+step*uu), ePHYType);
 			sChannelTbl[byCh].bValid = TRUE;
 			pDevice->abyRegPwr[byCh] = pIE_Country->abyCountryInfo[ii*3+2];
 		}
@@ -652,14 +652,14 @@ void set_country_info(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, void *pIE)
  *
  */
 
-BYTE set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
+unsigned char set_support_channels(void *pDeviceHandler, unsigned char *pbyIEs)
 {
 	PSDevice pDevice = (PSDevice) pDeviceHandler;
 	unsigned int ii;
-	BYTE byCount;
+	unsigned char byCount;
 	PWLAN_IE_SUPP_CH pIE = (PWLAN_IE_SUPP_CH) pbyIEs;
 	unsigned char *pbyChTupple;
-	BYTE byLen = 0;
+	unsigned char byLen = 0;
 
 
 	pIE->byElementID = WLAN_EID_SUPP_CH;
@@ -758,7 +758,7 @@ BOOL get_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
 }
 
 void set_channel_map_info(void *pDeviceHandler, unsigned int uChannelIndex,
-		BYTE byMap)
+		unsigned char byMap)
 {
 
 	if (uChannelIndex > CB_MAX_CHANNEL) {
@@ -776,22 +776,22 @@ void clear_channel_map_info(void *pDeviceHandler)
 	}
 }
 
-BYTE auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
+unsigned char auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 {
 	unsigned int ii = 0;
-	BYTE byOptionChannel = 0;
+	unsigned char byOptionChannel = 0;
 	int aiWeight[CB_MAX_CHANNEL_24G+1] = {-1000,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 	if (ePHYType == PHY_TYPE_11A) {
 		for(ii = CB_MAX_CHANNEL_24G + 1 ; ii <= CB_MAX_CHANNEL ; ii++) {
 			if (sChannelTbl[ii].bValid == TRUE) {
 				if (byOptionChannel == 0) {
-					byOptionChannel = (BYTE) ii;
+					byOptionChannel = (unsigned char) ii;
 				}
 				if (sChannelTbl[ii].byMAP == 0) {
-					return ((BYTE) ii);
+					return ((unsigned char) ii);
 				} else if ( !(sChannelTbl[ii].byMAP & 0x08)) {
-					byOptionChannel = (BYTE) ii;
+					byOptionChannel = (unsigned char) ii;
 				}
 			}
 		}
@@ -827,7 +827,7 @@ BYTE auto_channel_select(void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 		for(ii = 1 ; ii <= CB_MAX_CHANNEL_24G ; ii++) {
 			if ((sChannelTbl[ii].bValid == TRUE) &&
 					(aiWeight[ii] > aiWeight[byOptionChannel])) {
-				byOptionChannel = (BYTE) ii;
+				byOptionChannel = (unsigned char) ii;
 			}
 		}
 	}

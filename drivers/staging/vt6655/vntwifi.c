@@ -202,14 +202,14 @@ VNTWIFIwGetAssocID (
  * Return Value: max support rate
  *
 -*/
-BYTE
+unsigned char
 VNTWIFIbyGetMaxSupportRate (
     PWLAN_IE_SUPP_RATES pSupportRateIEs,
     PWLAN_IE_SUPP_RATES pExtSupportRateIEs
     )
 {
-    BYTE    byMaxSupportRate = RATE_1M;
-    BYTE    bySupportRate = RATE_1M;
+    unsigned char byMaxSupportRate = RATE_1M;
+    unsigned char bySupportRate = RATE_1M;
     unsigned int ii = 0;
 
     if (pSupportRateIEs) {
@@ -248,15 +248,15 @@ VNTWIFIbyGetMaxSupportRate (
  * Return Value: max support rate
  *
 -*/
-BYTE
+unsigned char
 VNTWIFIbyGetACKTxRate (
-    BYTE byRxDataRate,
+    unsigned char byRxDataRate,
     PWLAN_IE_SUPP_RATES pSupportRateIEs,
     PWLAN_IE_SUPP_RATES pExtSupportRateIEs
     )
 {
-    BYTE    byMaxAckRate;
-    BYTE    byBasicRate;
+    unsigned char byMaxAckRate;
+    unsigned char byBasicRate;
     unsigned int ii;
 
     if (byRxDataRate <= RATE_11M) {
@@ -542,9 +542,9 @@ VNTWIFIvGetTxRate(
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
     unsigned int uNodeIndex = 0;
     unsigned short wTxDataRate = RATE_1M;
-    BYTE                byACKRate = RATE_1M;
-    BYTE                byCCKBasicRate = RATE_1M;
-    BYTE                byOFDMBasicRate = RATE_24M;
+    unsigned char byACKRate = RATE_1M;
+    unsigned char byCCKBasicRate = RATE_1M;
+    unsigned char byOFDMBasicRate = RATE_24M;
     PWLAN_IE_SUPP_RATES pSupportRateIEs = NULL;
     PWLAN_IE_SUPP_RATES pExtSupportRateIEs = NULL;
 
@@ -579,12 +579,12 @@ VNTWIFIvGetTxRate(
         pSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrSuppRates;
         pExtSupportRateIEs = (PWLAN_IE_SUPP_RATES) pMgmt->abyCurrExtSuppRates;
     }
-    byACKRate = VNTWIFIbyGetACKTxRate(  (BYTE) wTxDataRate,
+    byACKRate = VNTWIFIbyGetACKTxRate(  (unsigned char) wTxDataRate,
                                         pSupportRateIEs,
                                         pExtSupportRateIEs
                                         );
-    if (byACKRate > (BYTE) wTxDataRate) {
-        byACKRate = (BYTE) wTxDataRate;
+    if (byACKRate > (unsigned char) wTxDataRate) {
+        byACKRate = (unsigned char) wTxDataRate;
     }
     byCCKBasicRate = VNTWIFIbyGetACKTxRate( RATE_11M,
                                             pSupportRateIEs,
@@ -601,7 +601,7 @@ VNTWIFIvGetTxRate(
     return;
 }
 
-BYTE
+unsigned char
 VNTWIFIbyGetKeyCypher(
     void *pMgmtHandle,
     BOOL     bGroupKey
@@ -718,9 +718,9 @@ VNTWIFIbMeasureReport(
     void *pMgmtObject,
     BOOL  bEndOfReport,
     void *pvMeasureEID,
-    BYTE  byReportMode,
-    BYTE  byBasicMap,
-    BYTE  byCCAFraction,
+    unsigned char byReportMode,
+    unsigned char byBasicMap,
+    unsigned char byCCAFraction,
     unsigned char *pbyRPIs
     )
 {
@@ -776,7 +776,7 @@ VNTWIFIbMeasureReport(
 BOOL
 VNTWIFIbChannelSwitch(
     void *pMgmtObject,
-    BYTE  byNewChannel
+    unsigned char byNewChannel
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
@@ -792,16 +792,16 @@ VNTWIFIbChannelSwitch(
 BOOL
 VNTWIFIbRadarPresent(
     void *pMgmtObject,
-    BYTE  byChannel
+    unsigned char byChannel
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) &&
-        (byChannel == (BYTE) pMgmt->uCurrChannel) &&
+        (byChannel == (unsigned char) pMgmt->uCurrChannel) &&
         (pMgmt->bSwitchChannel != TRUE) &&
         (pMgmt->b11hEnable == TRUE)) {
         if (!compare_ether_addr(pMgmt->abyIBSSDFSOwner, CARDpGetCurrentAddress(pMgmt->pAdapter))) {
-            pMgmt->byNewChannel = CARDbyAutoChannelSelect(pMgmt->pAdapter,(BYTE) pMgmt->uCurrChannel);
+            pMgmt->byNewChannel = CARDbyAutoChannelSelect(pMgmt->pAdapter,(unsigned char) pMgmt->uCurrChannel);
             pMgmt->bSwitchChannel = TRUE;
         }
         BEACONbSendBeacon(pMgmt);

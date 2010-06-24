@@ -472,10 +472,10 @@ static int hostap_set_encryption(PSDevice pDevice,
 {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     unsigned long dwKeyIndex = 0;
-    BYTE    abyKey[MAX_KEY_LEN];
-    BYTE    abySeq[MAX_KEY_LEN];
+    unsigned char abyKey[MAX_KEY_LEN];
+    unsigned char abySeq[MAX_KEY_LEN];
     NDIS_802_11_KEY_RSC   KeyRSC;
-    BYTE    byKeyDecMode = KEY_CTL_WEP;
+    unsigned char byKeyDecMode = KEY_CTL_WEP;
 	int     ret = 0;
 	int     iNodeIndex = -1;
 	int     ii;
@@ -555,7 +555,7 @@ static int hostap_set_encryption(PSDevice pDevice,
 
     dwKeyIndex = (unsigned long)(param->u.crypt.idx);
     if (param->u.crypt.flags & HOSTAP_CRYPT_FLAG_SET_TX_KEY) {
-        pDevice->byKeyIndex = (BYTE)dwKeyIndex;
+        pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
         pDevice->bTransmitKey = TRUE;
         dwKeyIndex |= (1 << 31);
     }
@@ -736,7 +736,7 @@ static int hostap_get_encryption(PSDevice pDevice,
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "hostap_get_encryption: %d\n", iNodeIndex);
     memset(param->u.crypt.seq, 0, 8);
     for (ii = 0 ; ii < 8 ; ii++) {
-        param->u.crypt.seq[ii] = (BYTE)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
+        param->u.crypt.seq[ii] = (unsigned char)pMgmt->sNodeDBTable[iNodeIndex].KeyRSC >> (ii * 8);
     }
 
 	return ret;

@@ -66,7 +66,7 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-const BYTE acbyRxRate[MAX_RATE] =
+const unsigned char acbyRxRate[MAX_RATE] =
 {2, 4, 11, 22, 12, 18, 24, 36, 48, 72, 96, 108};
 
 
@@ -76,7 +76,7 @@ const BYTE acbyRxRate[MAX_RATE] =
 
 /*---------------------  Static Functions  --------------------------*/
 
-static BYTE s_byGetRateIdx(BYTE byRate);
+static unsigned char s_byGetRateIdx(unsigned char byRate);
 
 
 static
@@ -249,9 +249,9 @@ s_vProcessRxMACHeader (
 
 
 
-static BYTE s_byGetRateIdx (BYTE byRate)
+static unsigned char s_byGetRateIdx (unsigned char byRate)
 {
-    BYTE    byRateIdx;
+    unsigned char byRateIdx;
 
     for (byRateIdx = 0; byRateIdx <MAX_RATE ; byRateIdx++) {
         if (acbyRxRate[byRateIdx%MAX_RATE] == byRate)
@@ -684,8 +684,8 @@ device_receive_frame (
             }
    //mike add:station mode check eapol-key challenge--->
    	  {
-   	    BYTE  Protocol_Version;    //802.1x Authentication
-	    BYTE  Packet_Type;           //802.1x Authentication
+   	    unsigned char Protocol_Version;    //802.1x Authentication
+	    unsigned char Packet_Type;           //802.1x Authentication
               if (bIsWEP)
                   cbIVOffset = 8;
               else
@@ -753,7 +753,7 @@ device_receive_frame (
     // -----------------------------------------------
 
     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) && (pDevice->bEnable8021x == TRUE)){
-        BYTE    abyMacHdr[24];
+        unsigned char abyMacHdr[24];
 
         // Only 802.1x packet incoming allowed
         if (bIsWEP)
@@ -1176,9 +1176,9 @@ static BOOL s_bHandleRxEncryption (
 {
     unsigned int PayloadLen = FrameSize;
     unsigned char *pbyIV;
-    BYTE            byKeyIdx;
+    unsigned char byKeyIdx;
     PSKeyItem       pKey = NULL;
-    BYTE            byDecMode = KEY_CTL_WEP;
+    unsigned char byDecMode = KEY_CTL_WEP;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
 
 
@@ -1323,8 +1323,8 @@ static BOOL s_bHostWepRxEncryption (
 {
     unsigned int PayloadLen = FrameSize;
     unsigned char *pbyIV;
-    BYTE            byKeyIdx;
-    BYTE            byDecMode = KEY_CTL_WEP;
+    unsigned char byKeyIdx;
+    unsigned char byDecMode = KEY_CTL_WEP;
     PS802_11Header  pMACHeader;
 
 
@@ -1451,7 +1451,7 @@ static BOOL s_bAPModeRxData (
     PSMgmtObject        pMgmt = pDevice->pMgmt;
     BOOL                bRelayAndForward = FALSE;
     BOOL                bRelayOnly = FALSE;
-    BYTE                byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+    unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     unsigned short wAID;
 
 

@@ -40,8 +40,8 @@
 #define MAX_PMKID_CACHE         16
 
 typedef struct tagsPMKIDInfo {
-    BYTE    abyBSSID[6];
-    BYTE    abyPMKID[16];
+    unsigned char abyBSSID[6];
+    unsigned char abyPMKID[16];
 } PMKIDInfo, *PPMKIDInfo;
 
 typedef struct tagSPMKIDCache {

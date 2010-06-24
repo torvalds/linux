@@ -204,11 +204,11 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
     struct viawget_wpa_param *param=ctx;
     PSMgmtObject pMgmt = pDevice->pMgmt;
     unsigned long dwKeyIndex = 0;
-    BYTE    abyKey[MAX_KEY_LEN];
-    BYTE    abySeq[MAX_KEY_LEN];
+    unsigned char abyKey[MAX_KEY_LEN];
+    unsigned char abySeq[MAX_KEY_LEN];
     QWORD   KeyRSC;
 //    NDIS_802_11_KEY_RSC KeyRSC;
-    BYTE    byKeyDecMode = KEY_CTL_WEP;
+    unsigned char byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
 	int uu, ii;
 
@@ -251,7 +251,7 @@ spin_lock_irq(&pDevice->lock);
         }
         else {
             if (param->u.wpa_key.set_tx) {
-                pDevice->byKeyIndex = (BYTE)dwKeyIndex;
+                pDevice->byKeyIndex = (unsigned char)dwKeyIndex;
                 pDevice->bTransmitKey = TRUE;
 		        dwKeyIndex |= (1 << 31);
             }
@@ -422,7 +422,7 @@ spin_lock_irq(&pDevice->lock);
         }
     } // BSSID not 0xffffffffffff
     if ((ret == 0) && ((param->u.wpa_key.set_tx) != 0)) {
-        pDevice->byKeyIndex = (BYTE)param->u.wpa_key.key_index;
+        pDevice->byKeyIndex = (unsigned char)param->u.wpa_key.key_index;
         pDevice->bTransmitKey = TRUE;
     }
     pDevice->bEncryptionEnable = TRUE;
@@ -752,8 +752,8 @@ static int wpa_set_associate(PSDevice pDevice,
 {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PWLAN_IE_SSID   pItemSSID;
-    BYTE    abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-    BYTE    abyWPAIE[64];
+    unsigned char abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    unsigned char abyWPAIE[64];
     int ret = 0;
     BOOL bWepEnabled=FALSE;
 

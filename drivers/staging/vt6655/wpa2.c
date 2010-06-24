@@ -42,14 +42,14 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 /*---------------------  Static Variables  --------------------------*/
 
-const BYTE abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
-const BYTE abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const BYTE abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
-const BYTE abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
-const BYTE abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
+const unsigned char abyOUIGK[4]      = { 0x00, 0x0F, 0xAC, 0x00 };
+const unsigned char abyOUIWEP40[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+const unsigned char abyOUIWEP104[4]  = { 0x00, 0x0F, 0xAC, 0x05 };
+const unsigned char abyOUITKIP[4]    = { 0x00, 0x0F, 0xAC, 0x02 };
+const unsigned char abyOUICCMP[4]    = { 0x00, 0x0F, 0xAC, 0x04 };
 
-const BYTE abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
-const BYTE abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
+const unsigned char abyOUI8021X[4]   = { 0x00, 0x0F, 0xAC, 0x01 };
+const unsigned char abyOUIPSK[4]     = { 0x00, 0x0F, 0xAC, 0x02 };
 
 
 /*---------------------  Static Functions  --------------------------*/
@@ -168,7 +168,7 @@ WPA2vParseRSN (
             j = 0;
             pbyOUI = &(pRSN->abyRSN[6]);
 
-            for (i = 0; (i < pBSSNode->wCSSPKCount) && (j < sizeof(pBSSNode->abyCSSPK)/sizeof(BYTE)); i++) {
+            for (i = 0; (i < pBSSNode->wCSSPKCount) && (j < sizeof(pBSSNode->abyCSSPK)/sizeof(unsigned char)); i++) {
 
                 if (pRSN->len >= 8+i*4+4) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*i)
                     if ( !memcmp(pbyOUI, abyOUIGK, 4)) {
@@ -219,7 +219,7 @@ WPA2vParseRSN (
             pBSSNode->wAKMSSAuthCount = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;
             j = 0;
             pbyOUI = &(pRSN->abyRSN[8+4*m]);
-            for (i = 0; (i < pBSSNode->wAKMSSAuthCount) && (j < sizeof(pBSSNode->abyAKMSSAuthType)/sizeof(BYTE)); i++) {
+            for (i = 0; (i < pBSSNode->wAKMSSAuthCount) && (j < sizeof(pBSSNode->abyAKMSSAuthType)/sizeof(unsigned char)); i++) {
                 if (pRSN->len >= 10+(m+i)*4+4) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSS(2)+AKS(4*i)
                     if ( !memcmp(pbyOUI, abyOUI8021X, 4))
                         pBSSNode->abyAKMSSAuthType[j++] = WLAN_11i_AKMSS_802_1X;

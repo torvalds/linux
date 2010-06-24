@@ -61,14 +61,14 @@
  * Return Value: Hash value
  *
  */
-BYTE ETHbyGetHashIndexByCrc32 (unsigned char *pbyMultiAddr)
+unsigned char ETHbyGetHashIndexByCrc32 (unsigned char *pbyMultiAddr)
 {
     int     ii;
-    BYTE    byTmpHash;
-    BYTE    byHash = 0;
+    unsigned char byTmpHash;
+    unsigned char byHash = 0;
 
     // get the least 6-bits from CRC generator
-    byTmpHash = (BYTE)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
+    byTmpHash = (unsigned char)(CRCdwCrc32(pbyMultiAddr, ETH_ALEN,
             0xFFFFFFFFL) & 0x3F);
     // reverse most bit to least bit
     for (ii = 0; ii < (sizeof(byTmpHash) * 8); ii++) {

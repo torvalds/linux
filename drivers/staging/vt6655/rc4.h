@@ -37,7 +37,7 @@
 typedef struct {
     unsigned int ux;
     unsigned int uy;
-    BYTE abystate[256];
+    unsigned char abystate[256];
 } RC4Ext, *PRC4Ext;
 
 void rc4_init(PRC4Ext pRC4, unsigned char *pbyKey, unsigned int cbKey_len);

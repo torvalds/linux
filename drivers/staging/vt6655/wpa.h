@@ -71,8 +71,8 @@ WPA_ParseRSN(
 
 BOOL
 WPA_SearchRSN(
-    BYTE                byCmd,
-    BYTE                byEncrypt,
+    unsigned char byCmd,
+    unsigned char byEncrypt,
     PKnownBSS        pBSSList
     );
 

@@ -47,40 +47,40 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 typedef struct _WLAN_FRAME_ACTION {
     WLAN_80211HDR_A3    Header;
-    BYTE                byCategory;
-    BYTE                byAction;
-    BYTE                abyVars[1];
+    unsigned char byCategory;
+    unsigned char byAction;
+    unsigned char abyVars[1];
 } WLAN_FRAME_ACTION, *PWLAN_FRAME_ACTION;
 
 typedef struct _WLAN_FRAME_MSRREQ {
     WLAN_80211HDR_A3    Header;
-    BYTE                byCategory;
-    BYTE                byAction;
-    BYTE                byDialogToken;
+    unsigned char byCategory;
+    unsigned char byAction;
+    unsigned char byDialogToken;
     WLAN_IE_MEASURE_REQ sMSRReqEIDs[1];
 } WLAN_FRAME_MSRREQ, *PWLAN_FRAME_MSRREQ;
 
 typedef struct _WLAN_FRAME_MSRREP {
     WLAN_80211HDR_A3    Header;
-    BYTE                byCategory;
-    BYTE                byAction;
-    BYTE                byDialogToken;
+    unsigned char byCategory;
+    unsigned char byAction;
+    unsigned char byDialogToken;
     WLAN_IE_MEASURE_REP sMSRRepEIDs[1];
 } WLAN_FRAME_MSRREP, *PWLAN_FRAME_MSRREP;
 
 typedef struct _WLAN_FRAME_TPCREQ {
     WLAN_80211HDR_A3    Header;
-    BYTE                byCategory;
-    BYTE                byAction;
-    BYTE                byDialogToken;
+    unsigned char byCategory;
+    unsigned char byAction;
+    unsigned char byDialogToken;
     WLAN_IE_TPC_REQ     sTPCReqEIDs;
 } WLAN_FRAME_TPCREQ, *PWLAN_FRAME_TPCREQ;
 
 typedef struct _WLAN_FRAME_TPCREP {
     WLAN_80211HDR_A3    Header;
-    BYTE                byCategory;
-    BYTE                byAction;
-    BYTE                byDialogToken;
+    unsigned char byCategory;
+    unsigned char byAction;
+    unsigned char byDialogToken;
     WLAN_IE_TPC_REP     sTPCRepEIDs;
 } WLAN_FRAME_TPCREP, *PWLAN_FRAME_TPCREP;
 
@@ -118,7 +118,7 @@ static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
 }
 
 
-static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, BYTE byRate, BYTE byRSSI)
+static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, unsigned char byRate, unsigned char byRSSI)
 {
     PWLAN_FRAME_TPCREP  pFrame;
     PSTxMgmtPacket      pTxPacket = NULL;
@@ -235,7 +235,7 @@ IEEE11hbMgrRxAction (
                 return (s_bRxTPCReq(pMgmt,
                                     (PWLAN_FRAME_TPCREQ) pAction,
                                     ((PSRxMgmtPacket)pRxPacket)->byRxRate,
-                                    (BYTE) ((PSRxMgmtPacket)pRxPacket)->uRSSI));
+                                    (unsigned char) ((PSRxMgmtPacket)pRxPacket)->uRSSI));
                 break;
             case ACTION_TPCREP:
                 break;

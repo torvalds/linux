@@ -78,7 +78,7 @@ typedef struct tagSMib2Counter {
     long    ifType;
     long    ifMtu;
     unsigned long ifSpeed;
-    BYTE    ifPhysAddress[ETH_ALEN];
+    unsigned char ifPhysAddress[ETH_ALEN];
     long    ifAdminStatus;
     long    ifOperStatus;
     unsigned long ifLastChange;
@@ -292,8 +292,8 @@ typedef struct tagSStatCounter {
     unsigned long dwCntRxFrmLength;
     unsigned long dwCntTxBufLength;
 
-    BYTE    abyCntRxPattern[16];
-    BYTE    abyCntTxPattern[16];
+    unsigned char abyCntRxPattern[16];
+    unsigned char abyCntTxPattern[16];
 
 
 
@@ -347,14 +347,14 @@ void STAvClearAllCounter(PSStatCounter pStatistic);
 void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, unsigned long dwIsr);
 
 void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
+                              unsigned char byRSR, unsigned char byNewRSR, unsigned char byRxRate,
                               unsigned char *pbyBuffer, unsigned int cbFrameLength);
 
 void STAvUpdateRDStatCounterEx(PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRsr, BYTE byRxRate,
+                              unsigned char byRSR, unsigned char byNewRsr, unsigned char byRxRate,
                               unsigned char *pbyBuffer, unsigned int cbFrameLength);
 
-void STAvUpdateTDStatCounter(PSStatCounter pStatistic, BYTE byTSR0, BYTE byTSR1,
+void STAvUpdateTDStatCounter(PSStatCounter pStatistic, unsigned char byTSR0, unsigned char byTSR1,
 		unsigned char *pbyBuffer, unsigned int cbFrameLength, unsigned int uIdx);
 
 void STAvUpdateTDStatCounterEx(

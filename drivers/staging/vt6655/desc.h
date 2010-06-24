@@ -304,8 +304,8 @@ typedef const SRxDesc *PCSRxDesc;
 
 /*
 typedef struct tagTDES0 {
-    volatile    BYTE    byTSR0;
-    volatile    BYTE    byTSR1;
+    volatile    unsigned char byTSR0;
+    volatile    unsigned char byTSR1;
     volatile    unsigned short wOwner_Txtime;
 //    volatile    unsigned short f15Txtime : 15;
 //    volatile    unsigned short f1Owner:1;
@@ -314,8 +314,8 @@ STDES0;
 */
 
 typedef struct tagTDES0 {
-    volatile    BYTE    byTSR0;
-    volatile    BYTE    byTSR1;
+    volatile    unsigned char byTSR0;
+    volatile    unsigned char byTSR1;
 	union {
 		volatile u16    f15Txtime;
 		struct {
@@ -330,8 +330,8 @@ STDES0, PSTDES0;
 #else
 
 typedef struct tagTDES0 {
-    volatile    BYTE    byTSR0;
-    volatile    BYTE    byTSR1;
+    volatile    unsigned char byTSR0;
+    volatile    unsigned char byTSR1;
     volatile    unsigned short f15Txtime : 15;
     volatile    unsigned short f1Owner:1;
 } __attribute__ ((__packed__))
@@ -342,8 +342,8 @@ STDES0;
 
 typedef struct tagTDES1 {
     volatile    unsigned short wReqCount;
-    volatile    BYTE    byTCR;
-    volatile    BYTE    byReserved;
+    volatile    unsigned char byTCR;
+    volatile    unsigned char byReserved;
 } __attribute__ ((__packed__))
 STDES1;
 
@@ -356,7 +356,7 @@ typedef struct tagDEVICE_TD_INFO{
     dma_addr_t          curr_desc;
     unsigned long dwReqCount;
     unsigned long dwHeaderLength;
-    BYTE                byFlags;
+    unsigned char byFlags;
 } DEVICE_TD_INFO,    *PDEVICE_TD_INFO;
 
 /*
@@ -446,18 +446,18 @@ typedef const SRrvTime_atim *PCSRrvTime_atim;
 typedef struct tagSRTSData {
     unsigned short wFrameControl;
     unsigned short wDurationID;
-    BYTE    abyRA[ETH_ALEN];
-    BYTE    abyTA[ETH_ALEN];
+    unsigned char abyRA[ETH_ALEN];
+    unsigned char abyTA[ETH_ALEN];
 }__attribute__ ((__packed__))
 SRTSData, *PSRTSData;
 typedef const SRTSData *PCSRTSData;
 
 typedef struct tagSRTS_g {
-    BYTE        bySignalField_b;
-    BYTE        byServiceField_b;
+    unsigned char bySignalField_b;
+    unsigned char byServiceField_b;
     unsigned short wTransmitLength_b;
-    BYTE        bySignalField_a;
-    BYTE        byServiceField_a;
+    unsigned char bySignalField_a;
+    unsigned char byServiceField_a;
     unsigned short wTransmitLength_a;
     unsigned short wDuration_ba;
     unsigned short wDuration_aa;
@@ -470,11 +470,11 @@ typedef const SRTS_g *PCSRTS_g;
 
 
 typedef struct tagSRTS_g_FB {
-    BYTE        bySignalField_b;
-    BYTE        byServiceField_b;
+    unsigned char bySignalField_b;
+    unsigned char byServiceField_b;
     unsigned short wTransmitLength_b;
-    BYTE        bySignalField_a;
-    BYTE        byServiceField_a;
+    unsigned char bySignalField_a;
+    unsigned char byServiceField_a;
     unsigned short wTransmitLength_a;
     unsigned short wDuration_ba;
     unsigned short wDuration_aa;
@@ -491,8 +491,8 @@ typedef const SRTS_g_FB *PCSRTS_g_FB;
 
 
 typedef struct tagSRTS_ab {
-    BYTE        bySignalField;
-    BYTE        byServiceField;
+    unsigned char bySignalField;
+    unsigned char byServiceField;
     unsigned short wTransmitLength;
     unsigned short wDuration;
     unsigned short wReserved;
@@ -503,8 +503,8 @@ typedef const SRTS_ab *PCSRTS_ab;
 
 
 typedef struct tagSRTS_a_FB {
-    BYTE        bySignalField;
-    BYTE        byServiceField;
+    unsigned char bySignalField;
+    unsigned char byServiceField;
     unsigned short wTransmitLength;
     unsigned short wDuration;
     unsigned short wReserved;
@@ -522,14 +522,14 @@ typedef const SRTS_a_FB *PCSRTS_a_FB;
 typedef struct tagSCTSData {
     unsigned short wFrameControl;
     unsigned short wDurationID;
-    BYTE    abyRA[ETH_ALEN];
+    unsigned char abyRA[ETH_ALEN];
     unsigned short wReserved;
 }__attribute__ ((__packed__))
 SCTSData, *PSCTSData;
 
 typedef struct tagSCTS {
-    BYTE        bySignalField_b;
-    BYTE        byServiceField_b;
+    unsigned char bySignalField_b;
+    unsigned char byServiceField_b;
     unsigned short wTransmitLength_b;
     unsigned short wDuration_ba;
     unsigned short wReserved;
@@ -539,8 +539,8 @@ SCTS, *PSCTS;
 typedef const SCTS *PCSCTS;
 
 typedef struct tagSCTS_FB {
-    BYTE        bySignalField_b;
-    BYTE        byServiceField_b;
+    unsigned char bySignalField_b;
+    unsigned char byServiceField_b;
     unsigned short wTransmitLength_b;
     unsigned short wDuration_ba;
     unsigned short wReserved;
@@ -560,8 +560,8 @@ typedef struct tagSTxBufHead {
     unsigned short wFIFOCtl;
     unsigned short wTimeStamp;
     unsigned short wFragCtl;
-    BYTE    byTxPower;
-    BYTE    wReserved;
+    unsigned char byTxPower;
+    unsigned char wReserved;
 }__attribute__ ((__packed__))
 STxBufHead, *PSTxBufHead;
 typedef const STxBufHead *PCSTxBufHead;
@@ -577,11 +577,11 @@ typedef const STxShortBufHead *PCSTxShortBufHead;
 // Tx data header
 //
 typedef struct tagSTxDataHead_g {
-    BYTE    bySignalField_b;
-    BYTE    byServiceField_b;
+    unsigned char bySignalField_b;
+    unsigned char byServiceField_b;
     unsigned short wTransmitLength_b;
-    BYTE    bySignalField_a;
-    BYTE    byServiceField_a;
+    unsigned char bySignalField_a;
+    unsigned char byServiceField_a;
     unsigned short wTransmitLength_a;
     unsigned short wDuration_b;
     unsigned short wDuration_a;
@@ -592,11 +592,11 @@ STxDataHead_g, *PSTxDataHead_g;
 typedef const STxDataHead_g *PCSTxDataHead_g;
 
 typedef struct tagSTxDataHead_g_FB {
-    BYTE    bySignalField_b;
-    BYTE    byServiceField_b;
+    unsigned char bySignalField_b;
+    unsigned char byServiceField_b;
     unsigned short wTransmitLength_b;
-    BYTE    bySignalField_a;
-    BYTE    byServiceField_a;
+    unsigned char bySignalField_a;
+    unsigned char byServiceField_a;
     unsigned short wTransmitLength_a;
     unsigned short wDuration_b;
     unsigned short wDuration_a;
@@ -610,8 +610,8 @@ typedef const STxDataHead_g_FB *PCSTxDataHead_g_FB;
 
 
 typedef struct tagSTxDataHead_ab {
-    BYTE    bySignalField;
-    BYTE    byServiceField;
+    unsigned char bySignalField;
+    unsigned char byServiceField;
     unsigned short wTransmitLength;
     unsigned short wDuration;
     unsigned short wTimeStampOff;
@@ -621,8 +621,8 @@ typedef const STxDataHead_ab *PCSTxDataHead_ab;
 
 
 typedef struct tagSTxDataHead_a_FB {
-    BYTE    bySignalField;
-    BYTE    byServiceField;
+    unsigned char bySignalField;
+    unsigned char byServiceField;
     unsigned short wTransmitLength;
     unsigned short wDuration;
     unsigned short wTimeStampOff;
@@ -654,14 +654,14 @@ SBEACONCtl;
 
 typedef struct tagSSecretKey {
     u32 dwLowDword;
-    BYTE    byHighByte;
+    unsigned char byHighByte;
 }__attribute__ ((__packed__))
 SSecretKey;
 
 typedef struct tagSKeyEntry {
-    BYTE  abyAddrHi[2];
+    unsigned char abyAddrHi[2];
     unsigned short wKCTL;
-    BYTE  abyAddrLo[4];
+    unsigned char abyAddrLo[4];
     u32 dwKey0[4];
     u32 dwKey1[4];
     u32 dwKey2[4];

@@ -431,9 +431,9 @@ pOpts->flags|=DEVICE_FLAGS_DiversityANT;
 static void
 device_set_options(PSDevice pDevice) {
 
-    BYTE    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    BYTE    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
-    BYTE    abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
+    unsigned char abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    unsigned char abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
+    unsigned char abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
 
 
     memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
@@ -480,18 +480,18 @@ pDevice->bUpdateBBVGA = TRUE;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->bDiversityRegCtlON= %d\n",(int)pDevice->bDiversityRegCtlON);
 }
 
-static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
+static void s_vCompleteCurrentMeasure (PSDevice pDevice, unsigned char byResult)
 {
     unsigned int ii;
     unsigned long dwDuration = 0;
-    BYTE    byRPI0 = 0;
+    unsigned char byRPI0 = 0;
 
     for(ii=1;ii<8;ii++) {
         pDevice->dwRPIs[ii] *= 255;
         dwDuration |= *((unsigned short *) (pDevice->pCurrMeasureEID->sReq.abyDuration));
         dwDuration <<= 10;
         pDevice->dwRPIs[ii] /= dwDuration;
-        pDevice->abyRPIs[ii] = (BYTE) pDevice->dwRPIs[ii];
+        pDevice->abyRPIs[ii] = (unsigned char) pDevice->dwRPIs[ii];
         byRPI0 += pDevice->abyRPIs[ii];
     }
     pDevice->abyRPIs[0] = (0xFF - byRPI0);
@@ -528,10 +528,10 @@ static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
 static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 {
     unsigned int ii;
-    BYTE    byValue;
-	BYTE    byValue1;
-    BYTE    byCCKPwrdBm = 0;
-    BYTE    byOFDMPwrdBm = 0;
+    unsigned char byValue;
+    unsigned char byValue1;
+    unsigned char byCCKPwrdBm = 0;
+    unsigned char byOFDMPwrdBm = 0;
     int zonetype=0;
      PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     MACbShutdown(pDevice->PortOffset);
@@ -702,11 +702,11 @@ else
 
 
         for (ii=0;ii<CB_MAX_CHANNEL_24G;ii++) {
-            pDevice->abyCCKPwrTbl[ii+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_CCK_PWR_TBL));
+            pDevice->abyCCKPwrTbl[ii+1] = SROMbyReadEmbedded(pDevice->PortOffset, (unsigned char)(ii + EEP_OFS_CCK_PWR_TBL));
             if (pDevice->abyCCKPwrTbl[ii+1] == 0) {
                 pDevice->abyCCKPwrTbl[ii+1] = pDevice->byCCKPwr;
             }
-            pDevice->abyOFDMPwrTbl[ii+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDM_PWR_TBL));
+            pDevice->abyOFDMPwrTbl[ii+1] = SROMbyReadEmbedded(pDevice->PortOffset, (unsigned char)(ii + EEP_OFS_OFDM_PWR_TBL));
             if (pDevice->abyOFDMPwrTbl[ii+1] == 0) {
                 pDevice->abyOFDMPwrTbl[ii+1] = pDevice->byOFDMPwrG;
             }
@@ -728,8 +728,8 @@ else
 
         // Load OFDM A Power Table
         for (ii=0;ii<CB_MAX_CHANNEL_5G;ii++) { //RobertYu:20041224, bug using CB_MAX_CHANNEL
-            pDevice->abyOFDMPwrTbl[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDMA_PWR_TBL));
-            pDevice->abyOFDMDefaultPwr[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (BYTE)(ii + EEP_OFS_OFDMA_PWR_dBm));
+            pDevice->abyOFDMPwrTbl[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (unsigned char)(ii + EEP_OFS_OFDMA_PWR_TBL));
+            pDevice->abyOFDMDefaultPwr[ii+CB_MAX_CHANNEL_24G+1] = SROMbyReadEmbedded(pDevice->PortOffset, (unsigned char)(ii + EEP_OFS_OFDMA_PWR_dBm));
         }
         init_channel_table((void *)pDevice);
 
@@ -1043,7 +1043,7 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 
     dev->base_addr = pDevice->ioaddr;
 #ifdef	PLICE_DEBUG
-	BYTE	value;
+	unsigned char 	value;
 
 	VNSvInPortB(pDevice->PortOffset+0x4F, &value);
 	printk("Before write: value is %x\n",value);
@@ -1157,8 +1157,8 @@ static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
     u8  b;
     unsigned int cis_addr;
 #ifdef	PLICE_DEBUG
-	BYTE       pci_config[256];
-	BYTE	value =0x00;
+	unsigned char pci_config[256];
+	unsigned char 	value =0x00;
 	int		ii,j;
 	u16	max_lat=0x0000;
 	memset(pci_config,0x00,256);
@@ -1668,8 +1668,8 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
     PSTxDesc                 pTD;
     BOOL                     bFull=FALSE;
     int                      works = 0;
-    BYTE                     byTsr0;
-    BYTE                     byTsr1;
+    unsigned char byTsr0;
+    unsigned char byTsr1;
     unsigned int	uFrameSize, uFIFOHeaderSize;
     PSTxBufHead              pTxBufHead;
     struct net_device_stats* pStats = &pDevice->stats;
@@ -1754,7 +1754,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
                 if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) &&
                     (pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)) {
                     unsigned short wAID;
-                    BYTE    byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+                    unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 
                     skb = pTD->pTDInfo->skb;
                     if (BSSDBbIsSTAInNodeDB(pMgmt, (unsigned char *)(skb->data), &uNodeIndex)) {
@@ -2123,13 +2123,13 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
     PSTxDesc        pHeadTD, pLastTD;
     unsigned int cbFrameBodySize;
     unsigned int uMACfragNum;
-    BYTE            byPktType;
+    unsigned char byPktType;
     BOOL            bNeedEncryption = FALSE;
     PSKeyItem       pTransmitKey = NULL;
     unsigned int cbHeaderSize;
     unsigned int ii;
     SKeyItem        STempKey;
-//    BYTE            byKeyIndex = 0;
+//    unsigned char byKeyIndex = 0;
 
 
     if (pDevice->bStopTx0Pkt == TRUE) {
@@ -2168,7 +2168,7 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
         dev_kfree_skb_irq(skb);
         return FALSE;
     }
-    byPktType = (BYTE)pDevice->byPacketType;
+    byPktType = (unsigned char)pDevice->byPacketType;
 
 
     if (pDevice->bFixRate) {
@@ -2273,11 +2273,11 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
     unsigned int uNodeIndex = 0;
-    BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+    unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     unsigned short wAID;
     unsigned int uMACfragNum = 1;
     unsigned int cbFrameBodySize;
-    BYTE            byPktType;
+    unsigned char byPktType;
     unsigned int cbHeaderSize;
     BOOL            bNeedEncryption = FALSE;
     PSKeyItem       pTransmitKey = NULL;
@@ -2446,7 +2446,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
         }
     }
 
-    byPktType = (BYTE)pDevice->byPacketType;
+    byPktType = (unsigned char)pDevice->byPacketType;
 
     if (pDevice->bFixRate) {
 #ifdef	PLICE_DEBUG
@@ -2471,7 +2471,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 
             }
         }
-        pDevice->byACKRate = (BYTE) pDevice->wCurrentRate;
+        pDevice->byACKRate = (unsigned char) pDevice->wCurrentRate;
         pDevice->byTopCCKBasicRate = RATE_1M;
         pDevice->byTopOFDMBasicRate = RATE_6M;
     }
@@ -2634,9 +2634,9 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
 //#endif
 
 {
-    BYTE  Protocol_Version;    //802.1x Authentication
-    BYTE  Packet_Type;           //802.1x Authentication
-    BYTE  Descriptor_type;
+    unsigned char Protocol_Version;    //802.1x Authentication
+    unsigned char Packet_Type;           //802.1x Authentication
+    unsigned char Descriptor_type;
     unsigned short Key_info;
 BOOL            bTxeapol_key = FALSE;
     Protocol_Version = skb->data[ETH_HLEN];
@@ -2679,11 +2679,11 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
     int             max_count=0;
     unsigned long dwMIBCounter=0;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    BYTE            byOrgPageSel=0;
+    unsigned char byOrgPageSel=0;
     int             handled = 0;
-    BYTE            byData = 0;
+    unsigned char byData = 0;
     int             ii= 0;
-//    BYTE            byRSSI;
+//    unsigned char byRSSI;
 
 
     MACvReadISR(pDevice->PortOffset, &pDevice->dwIsr);
@@ -2835,7 +2835,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 if ((pDevice->bUpdateBBVGA) && (pDevice->bLinkPass == TRUE) && (pDevice->uCurrRSSI != 0)) {
                     long            ldBm;
 
-                    RFvRSSITodBm(pDevice, (BYTE) pDevice->uCurrRSSI, &ldBm);
+                    RFvRSSITodBm(pDevice, (unsigned char) pDevice->uCurrRSSI, &ldBm);
                     for (ii=0;ii<BB_VGA_LEVEL;ii++) {
                         if (ldBm < pDevice->ldBmThreshold[ii]) {
                             pDevice->byBBVGANew = pDevice->abyBBVGA[ii];

@@ -290,7 +290,7 @@
 #define IEEE_ADDR_GROUP             0x01
 
 typedef struct {
-    BYTE            abyAddr[6];
+    unsigned char abyAddr[6];
 } IEEE_ADDR, *PIEEE_ADDR;
 
 /* 802.11 Header Format */
@@ -299,8 +299,8 @@ typedef struct tagWLAN_80211HDR_A2 {
 
     unsigned short wFrameCtl;
     unsigned short wDurationID;
-    BYTE    abyAddr1[WLAN_ADDR_LEN];
-    BYTE    abyAddr2[WLAN_ADDR_LEN];
+    unsigned char abyAddr1[WLAN_ADDR_LEN];
+    unsigned char abyAddr2[WLAN_ADDR_LEN];
 
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A2, *PWLAN_80211HDR_A2;
@@ -309,9 +309,9 @@ typedef struct tagWLAN_80211HDR_A3 {
 
     unsigned short wFrameCtl;
     unsigned short wDurationID;
-    BYTE    abyAddr1[WLAN_ADDR_LEN];
-    BYTE    abyAddr2[WLAN_ADDR_LEN];
-    BYTE    abyAddr3[WLAN_ADDR_LEN];
+    unsigned char abyAddr1[WLAN_ADDR_LEN];
+    unsigned char abyAddr2[WLAN_ADDR_LEN];
+    unsigned char abyAddr3[WLAN_ADDR_LEN];
     unsigned short wSeqCtl;
 
 }__attribute__ ((__packed__))
@@ -321,11 +321,11 @@ typedef struct tagWLAN_80211HDR_A4 {
 
     unsigned short wFrameCtl;
     unsigned short wDurationID;
-    BYTE    abyAddr1[WLAN_ADDR_LEN];
-    BYTE    abyAddr2[WLAN_ADDR_LEN];
-    BYTE    abyAddr3[WLAN_ADDR_LEN];
+    unsigned char abyAddr1[WLAN_ADDR_LEN];
+    unsigned char abyAddr2[WLAN_ADDR_LEN];
+    unsigned char abyAddr3[WLAN_ADDR_LEN];
     unsigned short wSeqCtl;
-    BYTE    abyAddr4[WLAN_ADDR_LEN];
+    unsigned char abyAddr4[WLAN_ADDR_LEN];
 
 } __attribute__ ((__packed__))
 WLAN_80211HDR_A4, *PWLAN_80211HDR_A4;

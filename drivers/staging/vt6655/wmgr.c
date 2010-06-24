@@ -96,7 +96,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 //2008-8-4 <add> by chester
 static BOOL ChannelExceedZoneType(
     PSDevice pDevice,
-    BYTE byCurrChannel
+    unsigned char byCurrChannel
     );
 
 // Association/diassociation functions
@@ -295,7 +295,7 @@ s_MgrMakeProbeResponse(
     unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates,
-    BYTE byPHYType
+    unsigned char byPHYType
     );
 
 // received status
@@ -693,8 +693,8 @@ s_vMgrRxAssocRequest(
     unsigned short wAssocStatus = 0;
     unsigned short wAssocAID = 0;
     unsigned int uRateLen = WLAN_RATES_MAXLEN;
-    BYTE                abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
-    BYTE                abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned char abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP)
@@ -855,8 +855,8 @@ s_vMgrRxReAssocRequest(
     unsigned short wAssocStatus = 0;
     unsigned short wAssocAID = 0;
     unsigned int	uRateLen = WLAN_RATES_MAXLEN;
-    BYTE                abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
-    BYTE                abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned char abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    unsigned char abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP)
         return;
@@ -1076,7 +1076,7 @@ s_vMgrRxAssocResponse(
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	//if(pDevice->bWPADevEnable == TRUE)
 		{
-		BYTE buf[512];
+		unsigned char buf[512];
 		size_t len;
 		union iwreq_data  wrqu;
 		int we_event;
@@ -1829,7 +1829,7 @@ s_vMgrRxDeauthentication(
 static BOOL
 ChannelExceedZoneType(
     PSDevice pDevice,
-    BYTE byCurrChannel
+    unsigned char byCurrChannel
     )
 {
   BOOL exceed=FALSE;
@@ -1884,19 +1884,19 @@ s_vMgrRxBeacon(
     BOOL                bIsAPBeacon = FALSE;
     BOOL                bIsChannelEqual = FALSE;
     unsigned int uLocateByteIndex;
-    BYTE                byTIMBitOn = 0;
+    unsigned char byTIMBitOn = 0;
     unsigned short wAIDNumber = 0;
     unsigned int uNodeIndex;
     QWORD               qwTimestamp, qwLocalTSF;
     QWORD               qwCurrTSF;
     unsigned short wStartIndex = 0;
     unsigned short wAIDIndex = 0;
-    BYTE                byCurrChannel = pRxPacket->byRxChannel;
+    unsigned char byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
     unsigned int uRateLen = WLAN_RATES_MAXLEN;
     BOOL                bChannelHit = FALSE;
     BOOL                bUpdatePhyParameter = FALSE;
-    BYTE                byIEChannel = 0;
+    unsigned char byIEChannel = 0;
 
 
     memset(&sFrame, 0, sizeof(WLAN_FR_BEACON));
@@ -1994,7 +1994,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
         return;
     }
 
-    if(byCurrChannel == (BYTE)pMgmt->uCurrChannel)
+    if(byCurrChannel == (unsigned char)pMgmt->uCurrChannel)
        bIsChannelEqual = TRUE;
 
     if (bIsChannelEqual && (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
@@ -2116,7 +2116,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
             }
             if (sFrame.pIE_PowerConstraint != NULL) {
                 CARDvSetPowerConstraint(pMgmt->pAdapter,
-                                        (BYTE) pBSSList->uChannel,
+                                        (unsigned char) pBSSList->uChannel,
                                         sFrame.pIE_PowerConstraint->byPower
                                         );
             }
@@ -2395,13 +2395,13 @@ vMgrCreateOwnIBSS(
     PSMgmtObject        pMgmt = pDevice->pMgmt;
     unsigned short wMaxBasicRate;
     unsigned short wMaxSuppRate;
-    BYTE                byTopCCKBasicRate;
-    BYTE                byTopOFDMBasicRate;
+    unsigned char byTopCCKBasicRate;
+    unsigned char byTopOFDMBasicRate;
     QWORD               qwCurrTSF;
     unsigned int ii;
-    BYTE    abyRATE[] = {0x82, 0x84, 0x8B, 0x96, 0x24, 0x30, 0x48, 0x6C, 0x0C, 0x12, 0x18, 0x60};
-    BYTE    abyCCK_RATE[] = {0x82, 0x84, 0x8B, 0x96};
-    BYTE    abyOFDM_RATE[] = {0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+    unsigned char abyRATE[] = {0x82, 0x84, 0x8B, 0x96, 0x24, 0x30, 0x48, 0x6C, 0x0C, 0x12, 0x18, 0x60};
+    unsigned char abyCCK_RATE[] = {0x82, 0x84, 0x8B, 0x96};
+    unsigned char abyOFDM_RATE[] = {0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
     unsigned short wSuppRate;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Create Basic Service Set .......\n");
@@ -2534,12 +2534,12 @@ vMgrCreateOwnIBSS(
     if (pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) {
 
         // BSSID selected must be randomized as spec 11.1.3
-        pMgmt->abyCurrBSSID[5] = (BYTE) (LODWORD(qwCurrTSF)& 0x000000ff);
-        pMgmt->abyCurrBSSID[4] = (BYTE)((LODWORD(qwCurrTSF)& 0x0000ff00) >> 8);
-        pMgmt->abyCurrBSSID[3] = (BYTE)((LODWORD(qwCurrTSF)& 0x00ff0000) >> 16);
-        pMgmt->abyCurrBSSID[2] = (BYTE)((LODWORD(qwCurrTSF)& 0x00000ff0) >> 4);
-        pMgmt->abyCurrBSSID[1] = (BYTE)((LODWORD(qwCurrTSF)& 0x000ff000) >> 12);
-        pMgmt->abyCurrBSSID[0] = (BYTE)((LODWORD(qwCurrTSF)& 0x0ff00000) >> 20);
+        pMgmt->abyCurrBSSID[5] = (unsigned char) (LODWORD(qwCurrTSF)& 0x000000ff);
+        pMgmt->abyCurrBSSID[4] = (unsigned char)((LODWORD(qwCurrTSF)& 0x0000ff00) >> 8);
+        pMgmt->abyCurrBSSID[3] = (unsigned char)((LODWORD(qwCurrTSF)& 0x00ff0000) >> 16);
+        pMgmt->abyCurrBSSID[2] = (unsigned char)((LODWORD(qwCurrTSF)& 0x00000ff0) >> 4);
+        pMgmt->abyCurrBSSID[1] = (unsigned char)((LODWORD(qwCurrTSF)& 0x000ff000) >> 12);
+        pMgmt->abyCurrBSSID[0] = (unsigned char)((LODWORD(qwCurrTSF)& 0x0ff00000) >> 20);
         pMgmt->abyCurrBSSID[5] ^= pMgmt->abyMACAddr[0];
         pMgmt->abyCurrBSSID[4] ^= pMgmt->abyMACAddr[1];
         pMgmt->abyCurrBSSID[3] ^= pMgmt->abyMACAddr[2];
@@ -2670,8 +2670,8 @@ vMgrJoinBSSBegin(
     unsigned short wMaxBasicRate = RATE_1M;
     unsigned short wMaxSuppRate = RATE_1M;
     unsigned short wSuppRate;
-    BYTE            byTopCCKBasicRate = RATE_1M;
-    BYTE            byTopOFDMBasicRate = RATE_1M;
+    unsigned char byTopCCKBasicRate = RATE_1M;
+    unsigned char byTopOFDMBasicRate = RATE_1M;
 
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
@@ -2771,9 +2771,9 @@ vMgrJoinBSSBegin(
                     if (pItemExtRates->len <= ii)
                         break;
                 }
-                pItemRates->len += (BYTE)ii;
+                pItemRates->len += (unsigned char)ii;
                 if (pItemExtRates->len - ii > 0) {
-                    pItemExtRates->len -= (BYTE)ii;
+                    pItemExtRates->len -= (unsigned char)ii;
                     for (uu = 0; uu < pItemExtRates->len; uu ++) {
                         pItemExtRates->abyRates[uu] = pItemExtRates->abyRates[uu + ii];
                     }
@@ -2933,11 +2933,11 @@ s_vMgrSynchBSS (
     PSMgmtObject  pMgmt = pDevice->pMgmt;
 //    int     ii;
                                                      //1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
-    BYTE abyCurrSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
-    BYTE abyCurrExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
+    unsigned char abyCurrSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
+    unsigned char abyCurrExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
                                                            //6M,   9M,   12M,  48M
-    BYTE abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
-    BYTE abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
+    unsigned char abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+    unsigned char abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
 
 
     *pStatus = CMD_STATUS_FAILURE;
@@ -3152,8 +3152,8 @@ s_vMgrFormatTIM(
     PWLAN_IE_TIM pTIM
     )
 {
-    BYTE        byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
-    BYTE        byMap;
+    unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+    unsigned char byMap;
     unsigned int ii, jj;
     BOOL        bStartFound = FALSE;
     BOOL        bMulticast = FALSE;
@@ -3237,7 +3237,7 @@ s_MgrMakeBeacon(
 {
     PSTxMgmtPacket      pTxPacket = NULL;
     WLAN_FR_BEACON      sFrame;
-    BYTE                abyBroadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    unsigned char abyBroadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
     unsigned char *pbyBuffer;
     unsigned int uLength = 0;
     PWLAN_IE_IBSS_DFS   pIBSSDFS = NULL;
@@ -3287,7 +3287,7 @@ s_MgrMakeBeacon(
         sFrame.len += (1) + WLAN_IEHDR_LEN;
         sFrame.pDSParms->byElementID = WLAN_EID_DS_PARMS;
         sFrame.pDSParms->len = 1;
-        sFrame.pDSParms->byCurrChannel = (BYTE)uCurrChannel;
+        sFrame.pDSParms->byCurrChannel = (unsigned char)uCurrChannel;
     }
     // TIM field
     if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -3463,7 +3463,7 @@ s_MgrMakeProbeResponse(
     unsigned char *pCurrBSSID,
     PWLAN_IE_SUPP_RATES pCurrSuppRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates,
-    BYTE byPHYType
+    unsigned char byPHYType
     )
 {
     PSTxMgmtPacket      pTxPacket = NULL;
@@ -3519,7 +3519,7 @@ s_MgrMakeProbeResponse(
         sFrame.len += (1) + WLAN_IEHDR_LEN;
         sFrame.pDSParms->byElementID = WLAN_EID_DS_PARMS;
         sFrame.pDSParms->len = 1;
-        sFrame.pDSParms->byCurrChannel = (BYTE)uCurrChannel;
+        sFrame.pDSParms->byCurrChannel = (unsigned char)uCurrChannel;
     }
 
     if (pMgmt->eCurrMode != WMAC_MODE_ESS_AP) {
@@ -4323,9 +4323,9 @@ s_vMgrRxProbeResponse(
 {
     PKnownBSS           pBSSList = NULL;
     WLAN_FR_PROBERESP   sFrame;
-    BYTE                byCurrChannel = pRxPacket->byRxChannel;
+    unsigned char byCurrChannel = pRxPacket->byRxChannel;
     ERPObject           sERP;
-    BYTE                byIEChannel = 0;
+    unsigned char byIEChannel = 0;
     BOOL                bChannelHit = TRUE;
 
 
@@ -4449,7 +4449,7 @@ s_vMgrRxProbeRequest(
     WLAN_FR_PROBEREQ    sFrame;
     CMD_STATUS          Status;
     PSTxMgmtPacket      pTxPacket;
-    BYTE                byPHYType = BB_TYPE_11B;
+    unsigned char byPHYType = BB_TYPE_11B;
 
     // STA in Ad-hoc mode: when latest TBTT beacon transmit success,
     // STA have to response this request.
@@ -4890,8 +4890,8 @@ s_bCipherMatch (
     unsigned char *pbyCCSGK
     )
 {
-    BYTE byMulticastCipher = KEY_CTL_INVALID;
-    BYTE byCipherMask = 0x00;
+    unsigned char byMulticastCipher = KEY_CTL_INVALID;
+    unsigned char byCipherMask = 0x00;
     int i;
 
     if (pBSSNode == NULL)

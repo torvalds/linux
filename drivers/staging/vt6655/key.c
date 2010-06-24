@@ -196,9 +196,9 @@ BOOL KeybSetKey (
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
-    BYTE            byKeyDecMode,
+    unsigned char byKeyDecMode,
     unsigned long dwIoBase,
-    BYTE            byLocalID
+    unsigned char byLocalID
     )
 {
     int         i,j;
@@ -637,9 +637,9 @@ BOOL KeybSetDefaultKey (
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
-    BYTE            byKeyDecMode,
+    unsigned char byKeyDecMode,
     unsigned long dwIoBase,
-    BYTE            byLocalID
+    unsigned char byLocalID
     )
 {
     unsigned int ii;
@@ -744,9 +744,9 @@ BOOL KeybSetAllGroupKey (
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
-    BYTE            byKeyDecMode,
+    unsigned char byKeyDecMode,
     unsigned long dwIoBase,
-    BYTE            byLocalID
+    unsigned char byLocalID
     )
 {
     int         i;

@@ -75,10 +75,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     PKnownNodeDB        pNode;
     unsigned int ii, jj;
     SCmdLinkStatus      sLinkStatus;
-    BYTE                abySuppRates[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
-    BYTE                abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+    unsigned char abySuppRates[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
+    unsigned char abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     unsigned long dwKeyIndex= 0;
-    BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
+    unsigned char abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     long                ldBm;
 
     pReq->wResult = 0;
@@ -147,7 +147,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             }
 	else {
           ///////read zonetype
-	  BYTE                       zonetype=0;
+	  unsigned char zonetype=0;
 
 
            if(zonetype == 0x00)  { //USA
@@ -340,7 +340,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
     		    pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
 //    		    pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI;
-    		    RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
+    		    RFvRSSITodBm(pDevice, (unsigned char)(pBSS->uRSSI), &ldBm);
     		    pList->sBSSIDList[ii].uRSSI = (unsigned int)ldBm;
     		    memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);
     		    pItemSSID = (PWLAN_IE_SSID)pBSS->abySSID;

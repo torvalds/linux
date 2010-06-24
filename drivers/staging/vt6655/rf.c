@@ -517,7 +517,7 @@ BOOL s_bAL7230Init (unsigned long dwIoBase)
 }
 
 // Need to Pull PLLON low when writing channel registers through 3-wire interface
-BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, BYTE byChannel)
+BOOL s_bAL7230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
 {
     BOOL    bResult;
 
@@ -734,7 +734,7 @@ MACvTimer0MicroSDelay(dwIoBase, 30); //delay 30 us
     return bResult;
 }
 
-BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, BYTE byChannel)
+BOOL RFbAL2230SelectChannel (unsigned long dwIoBase, unsigned char byChannel)
 {
     BOOL    bResult;
 
@@ -875,7 +875,7 @@ BOOL    bResult = TRUE;
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL RFbSelectChannel (unsigned long dwIoBase, BYTE byRFType, BYTE byChannel)
+BOOL RFbSelectChannel (unsigned long dwIoBase, unsigned char byRFType, unsigned char byChannel)
 {
 BOOL    bResult = TRUE;
     switch (byRFType) {
@@ -911,11 +911,11 @@ BOOL    bResult = TRUE;
  * Return Value: None.
  *
  */
-BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, BYTE byRFType, unsigned int uChannel)
+BOOL RFvWriteWakeProgSyn (unsigned long dwIoBase, unsigned char byRFType, unsigned int uChannel)
 {
     int   ii;
-    BYTE  byInitCount = 0;
-    BYTE  bySleepCount = 0;
+    unsigned char byInitCount = 0;
+    unsigned char bySleepCount = 0;
 
     VNSvOutPortW(dwIoBase + MAC_REG_MISCFFNDEX, 0);
     switch (byRFType) {
@@ -1003,9 +1003,9 @@ BOOL RFbSetPower (
     )
 {
 BOOL    bResult = TRUE;
-BYTE    byPwr = 0;
-BYTE    byDec = 0;
-BYTE    byPwrdBm = 0;
+unsigned char byPwr = 0;
+unsigned char byDec = 0;
+unsigned char byPwrdBm = 0;
 
     if (pDevice->dwDiagRefCount != 0) {
         return TRUE;
@@ -1137,7 +1137,7 @@ BYTE    byPwrdBm = 0;
 
 BOOL RFbRawSetPower (
     PSDevice  pDevice,
-    BYTE      byPwr,
+    unsigned char byPwr,
     unsigned int uRATE
     )
 {
@@ -1204,14 +1204,14 @@ unsigned long dwMax7230Pwr = 0;
 void
 RFvRSSITodBm (
     PSDevice pDevice,
-    BYTE     byCurrRSSI,
+    unsigned char byCurrRSSI,
     long *    pldBm
     )
 {
-    BYTE byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);
+    unsigned char byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);
     long b = (byCurrRSSI & 0x3F);
     long a = 0;
-    BYTE abyAIROHARF[4] = {0, 18, 0, 40};
+    unsigned char abyAIROHARF[4] = {0, 18, 0, 40};
 
     switch (pDevice->byRFType) {
         case RF_AIROHA:
@@ -1232,7 +1232,7 @@ RFvRSSITodBm (
 
 // Post processing for the 11b/g and 11a.
 // for save time on changing Reg2,3,5,7,10,12,15
-BOOL RFbAL7230SelectChannelPostProcess (unsigned long dwIoBase, BYTE byOldChannel, BYTE byNewChannel)
+BOOL RFbAL7230SelectChannelPostProcess (unsigned long dwIoBase, unsigned char byOldChannel, unsigned char byNewChannel)
 {
     BOOL    bResult;
 

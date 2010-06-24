@@ -71,7 +71,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
     PSTxDesc        pHeadTD, pLastTD;
     unsigned int cbFrameBodySize;
     unsigned int uMACfragNum;
-    BYTE            byPktType;
+    unsigned char byPktType;
     BOOL            bNeedEncryption = FALSE;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
@@ -132,7 +132,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, unsigned char *pbySkbData, unsigned int uDat
     if (uMACfragNum > AVAIL_TD(pDevice,TYPE_AC0DMA)) {
         return FALSE;
     }
-    byPktType = (BYTE)pDevice->byPacketType;
+    byPktType = (unsigned char)pDevice->byPacketType;
 
     if (pDevice->bFixRate) {
         if (pDevice->eCurrentPHYType == PHY_TYPE_11B) {

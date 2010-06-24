@@ -97,9 +97,9 @@ void CARDvSetFirstNextTBTT(unsigned long dwIoBase, unsigned short wBeaconInterva
 void CARDvUpdateNextTBTT(unsigned long dwIoBase, QWORD qwTSF, unsigned short wBeaconInterval);
 BOOL CARDbGetCurrentTSF(unsigned long dwIoBase, PQWORD pqwCurrTSF);
 QWORD CARDqGetNextTBTT(QWORD qwTSF, unsigned short wBeaconInterval);
-QWORD CARDqGetTSFOffset(BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2);
+QWORD CARDqGetTSFOffset(unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2);
 BOOL CARDbSetTxPower(void *pDeviceHandler, unsigned long ulTxPower);
-BYTE CARDbyGetPktType(void *pDeviceHandler);
+unsigned char CARDbyGetPktType(void *pDeviceHandler);
 void CARDvSafeResetTx(void *pDeviceHandler);
 void CARDvSafeResetRx(void *pDeviceHandler);
 
@@ -109,8 +109,8 @@ BOOL CARDbRadioPowerOn(void *pDeviceHandler);
 //BOOL CARDbSendPacket(void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength);
 BOOL CARDbIsShortPreamble(void *pDeviceHandler);
 BOOL CARDbIsShorSlotTime(void *pDeviceHandler);
-BOOL CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, BYTE byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);
-BOOL CARDbUpdateTSF(void *pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF);
+BOOL CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, unsigned char byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);
+BOOL CARDbUpdateTSF(void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF);
 BOOL CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
 BOOL CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
 BOOL CARDbSetBeaconPeriod(void *pDeviceHandler, unsigned short wBeaconInterval);
@@ -152,17 +152,17 @@ CARDbStartMeasure (
 BOOL
 CARDbChannelSwitch (
     void *pDeviceHandler,
-    BYTE             byMode,
-    BYTE             byNewChannel,
-    BYTE             byCount
+    unsigned char byMode,
+    unsigned char byNewChannel,
+    unsigned char byCount
     );
 
 BOOL
 CARDbSetQuiet (
     void *pDeviceHandler,
     BOOL             bResetQuiet,
-    BYTE             byQuietCount,
-    BYTE             byQuietPeriod,
+    unsigned char byQuietCount,
+    unsigned char byQuietPeriod,
     unsigned short wQuietDuration,
     unsigned short wQuietOffset
     );
@@ -175,7 +175,7 @@ CARDbStartQuiet (
 void
 CARDvSetPowerConstraint (
     void *pDeviceHandler,
-    BYTE             byChannel,
+    unsigned char byChannel,
     char byPower
     );
 

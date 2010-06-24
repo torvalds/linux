@@ -177,7 +177,7 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, unsigned long dwIsr)
  *
  */
 void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
+                              unsigned char byRSR, unsigned char byNewRSR, unsigned char byRxRate,
                               unsigned char *pbyBuffer, unsigned int cbFrameLength)
 {
     //need change
@@ -389,9 +389,9 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
 void
 STAvUpdateRDStatCounterEx (
     PSStatCounter   pStatistic,
-    BYTE            byRSR,
-    BYTE            byNewRSR,
-    BYTE            byRxRate,
+    unsigned char byRSR,
+    unsigned char byNewRSR,
+    unsigned char byRxRate,
     unsigned char *pbyBuffer,
     unsigned int cbFrameLength
     )
@@ -432,8 +432,8 @@ STAvUpdateRDStatCounterEx (
 void
 STAvUpdateTDStatCounter (
     PSStatCounter   pStatistic,
-    BYTE            byTSR0,
-    BYTE            byTSR1,
+    unsigned char byTSR0,
+    unsigned char byTSR1,
     unsigned char *pbyBuffer,
     unsigned int cbFrameLength,
     unsigned int uIdx
@@ -441,7 +441,7 @@ STAvUpdateTDStatCounter (
 {
     PWLAN_80211HDR_A4   pHeader;
     unsigned char *pbyDestAddr;
-    BYTE                byTSR0_NCR = byTSR0 & TSR0_NCR;
+    unsigned char byTSR0_NCR = byTSR0 & TSR0_NCR;
 
 
 

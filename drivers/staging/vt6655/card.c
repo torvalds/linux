@@ -80,13 +80,13 @@ static int          msglevel                =MSG_LEVEL_INFO;
 #define WAIT_BEACON_TX_DOWN_TMO         3    // Times
 
                                                               //1M,   2M,   5M,  11M,  18M,  24M,  36M,  54M
-static BYTE abyDefaultSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
+static unsigned char abyDefaultSuppRatesG[] = {WLAN_EID_SUPP_RATES, 8, 0x02, 0x04, 0x0B, 0x16, 0x24, 0x30, 0x48, 0x6C};
                                                                     //6M,   9M,  12M,  48M
-static BYTE abyDefaultExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
+static unsigned char abyDefaultExtSuppRatesG[] = {WLAN_EID_EXTSUPP_RATES, 4, 0x0C, 0x12, 0x18, 0x60};
                                                               //6M,   9M,  12M,  18M,  24M,  36M,  48M,  54M
-static BYTE abyDefaultSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
+static unsigned char abyDefaultSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
                                                               //1M,   2M,   5M,  11M,
-static BYTE abyDefaultSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
+static unsigned char abyDefaultSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
 
 
 /*---------------------  Static Variables  --------------------------*/
@@ -101,7 +101,7 @@ const unsigned short cwRXBCNTSFOff[MAX_RATE] =
 static
 void
 s_vCaculateOFDMRParameter(
-    BYTE byRate,
+    unsigned char byRate,
     CARD_PHY_TYPE ePHYType,
     unsigned char *pbyTxRate,
     unsigned char *pbyRsvTime
@@ -127,7 +127,7 @@ s_vCaculateOFDMRParameter(
 static
 void
 s_vCaculateOFDMRParameter (
-    BYTE byRate,
+    unsigned char byRate,
     CARD_PHY_TYPE ePHYType,
     unsigned char *pbyTxRate,
     unsigned char *pbyRsvTime
@@ -243,9 +243,9 @@ static
 void
 s_vSetRSPINF (PSDevice pDevice, CARD_PHY_TYPE ePHYType, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
-    BYTE  byServ = 0, bySignal = 0; // For CCK
+    unsigned char byServ = 0, bySignal = 0; // For CCK
     unsigned short wLen = 0;
-    BYTE  byTxRate = 0, byRsvTime = 0;    // For OFDM
+    unsigned char byTxRate = 0, byRsvTime = 0;    // For OFDM
 
     //Set to Page1
     MACvSelectPage1(pDevice->PortOffset);
@@ -437,14 +437,14 @@ BOOL CARDbIsShorSlotTime (void *pDeviceHandler)
  * Return Value: None.
  *
  */
-BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, BYTE byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
+BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigned short wCapInfo, unsigned char byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BYTE        byCWMaxMin = 0;
-    BYTE        bySlot = 0;
-    BYTE        bySIFS = 0;
-    BYTE        byDIFS = 0;
-    BYTE        byData;
+    unsigned char byCWMaxMin = 0;
+    unsigned char bySlot = 0;
+    unsigned char bySIFS = 0;
+    unsigned char byDIFS = 0;
+    unsigned char byData;
 //    PWLAN_IE_SUPP_RATES pRates = NULL;
     PWLAN_IE_SUPP_RATES pSupportRates = (PWLAN_IE_SUPP_RATES) pvSupportRateIEs;
     PWLAN_IE_SUPP_RATES pExtSupportRates = (PWLAN_IE_SUPP_RATES) pvExtSupportRateIEs;
@@ -624,7 +624,7 @@ BOOL CARDbSetPhyParameter (void *pDeviceHandler, CARD_PHY_TYPE ePHYType, unsigne
  * Return Value: none
  *
  */
-BOOL CARDbUpdateTSF (void *pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
+BOOL CARDbUpdateTSF (void *pDeviceHandler, unsigned char byRxRate, QWORD qwBSSTimestamp, QWORD qwLocalTSF)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     QWORD       qwTSFOffset;
@@ -1269,9 +1269,9 @@ CARDbStartMeasure (
 BOOL
 CARDbChannelSwitch (
     void *pDeviceHandler,
-    BYTE             byMode,
-    BYTE             byNewChannel,
-    BYTE             byCount
+    unsigned char byMode,
+    unsigned char byNewChannel,
+    unsigned char byCount
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -1313,8 +1313,8 @@ BOOL
 CARDbSetQuiet (
     void *pDeviceHandler,
     BOOL             bResetQuiet,
-    BYTE             byQuietCount,
-    BYTE             byQuietPeriod,
+    unsigned char byQuietCount,
+    unsigned char byQuietPeriod,
     unsigned short wQuietDuration,
     unsigned short wQuietOffset
     )
@@ -1468,7 +1468,7 @@ CARDbStartQuiet (
 void
 CARDvSetPowerConstraint (
     void *pDeviceHandler,
-    BYTE             byChannel,
+    unsigned char byChannel,
     char byPower
     )
 {
@@ -1508,7 +1508,7 @@ CARDvGetPowerCapability (
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    BYTE        byDec = 0;
+    unsigned char byDec = 0;
 
     *pbyMaxPower = pDevice->abyOFDMDefaultPwr[pDevice->byCurrentCh];
     byDec = pDevice->abyOFDMPwrTbl[pDevice->byCurrentCh];
@@ -1730,9 +1730,9 @@ unsigned short CARDwGetOFDMControlRate (void *pDeviceHandler, unsigned short wRa
 void CARDvSetRSPINF (void *pDeviceHandler, CARD_PHY_TYPE ePHYType)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
-    BYTE  byServ = 0x00, bySignal = 0x00; //For CCK
+    unsigned char byServ = 0x00, bySignal = 0x00; //For CCK
     unsigned short wLen = 0x0000;
-    BYTE  byTxRate, byRsvTime;             //For OFDM
+    unsigned char byTxRate, byRsvTime;             //For OFDM
 
     //Set to Page1
     MACvSelectPage1(pDevice->PortOffset);
@@ -1857,7 +1857,7 @@ void vUpdateIFS (void *pDeviceHandler)
     //Set SIFS, DIFS, EIFS, SlotTime, CwMin
     PSDevice pDevice = (PSDevice) pDeviceHandler;
 
-    BYTE byMaxMin = 0;
+    unsigned char byMaxMin = 0;
     if (pDevice->byPacketType==PK_TYPE_11A) {//0000 0000 0000 0000,11a
         pDevice->uSlot = C_SLOT_SHORT;
         pDevice->uSIFS = C_SIFS_A;
@@ -1894,23 +1894,23 @@ void vUpdateIFS (void *pDeviceHandler)
     pDevice->uEIFS = C_EIFS;
     if (pDevice->byRFType == RF_RFMD2959) {
         // bcs TX_PE will reserve 3 us
-        VNSvOutPortB(pDevice->PortOffset + MAC_REG_SIFS, (BYTE)(pDevice->uSIFS - 3));
-        VNSvOutPortB(pDevice->PortOffset + MAC_REG_DIFS, (BYTE)(pDevice->uDIFS - 3));
+        VNSvOutPortB(pDevice->PortOffset + MAC_REG_SIFS, (unsigned char)(pDevice->uSIFS - 3));
+        VNSvOutPortB(pDevice->PortOffset + MAC_REG_DIFS, (unsigned char)(pDevice->uDIFS - 3));
     } else {
-        VNSvOutPortB(pDevice->PortOffset + MAC_REG_SIFS, (BYTE)pDevice->uSIFS);
-        VNSvOutPortB(pDevice->PortOffset + MAC_REG_DIFS, (BYTE)pDevice->uDIFS);
+        VNSvOutPortB(pDevice->PortOffset + MAC_REG_SIFS, (unsigned char)pDevice->uSIFS);
+        VNSvOutPortB(pDevice->PortOffset + MAC_REG_DIFS, (unsigned char)pDevice->uDIFS);
     }
-    VNSvOutPortB(pDevice->PortOffset + MAC_REG_EIFS, (BYTE)pDevice->uEIFS);
-    VNSvOutPortB(pDevice->PortOffset + MAC_REG_SLOT, (BYTE)pDevice->uSlot);
+    VNSvOutPortB(pDevice->PortOffset + MAC_REG_EIFS, (unsigned char)pDevice->uEIFS);
+    VNSvOutPortB(pDevice->PortOffset + MAC_REG_SLOT, (unsigned char)pDevice->uSlot);
     byMaxMin |= 0xA0;//1010 1111,C_CWMAX = 1023
-    VNSvOutPortB(pDevice->PortOffset + MAC_REG_CWMAXMIN0, (BYTE)byMaxMin);
+    VNSvOutPortB(pDevice->PortOffset + MAC_REG_CWMAXMIN0, (unsigned char)byMaxMin);
 }
 
 void CARDvUpdateBasicTopRate (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
-    BYTE byTopOFDM = RATE_24M, byTopCCK = RATE_1M;
-    BYTE ii;
+    unsigned char byTopOFDM = RATE_24M, byTopCCK = RATE_1M;
+    unsigned char ii;
 
      //Determines the highest basic rate.
      for (ii = RATE_54M; ii >= RATE_6M; ii --) {
@@ -1971,12 +1971,12 @@ BOOL CARDbIsOFDMinBasicRate (void *pDeviceHandler)
     return FALSE;
 }
 
-BYTE CARDbyGetPktType (void *pDeviceHandler)
+unsigned char CARDbyGetPktType (void *pDeviceHandler)
 {
     PSDevice pDevice = (PSDevice) pDeviceHandler;
 
     if (pDevice->byBBType == BB_TYPE_11A || pDevice->byBBType == BB_TYPE_11B) {
-        return (BYTE)pDevice->byBBType;
+        return (unsigned char)pDevice->byBBType;
     }
     else if (CARDbIsOFDMinBasicRate((void *)pDevice)) {
         return PK_TYPE_11GA;
@@ -2055,7 +2055,7 @@ BOOL CARDbSoftwareReset (void *pDeviceHandler)
  * Return Value: TSF Offset value
  *
  */
-QWORD CARDqGetTSFOffset (BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2)
+QWORD CARDqGetTSFOffset (unsigned char byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 {
     QWORD   qwTSFOffset;
     unsigned short wRxBcnTSFOffst= 0;;
@@ -2095,7 +2095,7 @@ QWORD CARDqGetTSFOffset (BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2)
 BOOL CARDbGetCurrentTSF (unsigned long dwIoBase, PQWORD pqwCurrTSF)
 {
     unsigned short ww;
-    BYTE    byData;
+    unsigned char byData;
 
     MACvRegBitsOn(dwIoBase, MAC_REG_TFTCTL, TFTCTL_TSFCNTRRD);
     for (ww = 0; ww < W_MAX_TIMEOUT; ww++) {

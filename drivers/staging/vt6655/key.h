@@ -59,20 +59,20 @@ typedef struct tagSKeyItem
 {
     BOOL        bKeyValid;
     unsigned long uKeyLength;
-    BYTE        abyKey[MAX_KEY_LEN];
+    unsigned char abyKey[MAX_KEY_LEN];
     QWORD       KeyRSC;
     unsigned long dwTSC47_16;
     unsigned short wTSC15_0;
-    BYTE        byCipherSuite;
-    BYTE        byReserved0;
+    unsigned char byCipherSuite;
+    unsigned char byReserved0;
     unsigned long dwKeyIndex;
     void *pvKeyTable;
 } SKeyItem, *PSKeyItem; //64
 
 typedef struct tagSKeyTable
 {
-    BYTE        abyBSSID[ETH_ALEN];  //6
-    BYTE        byReserved0[2];              //8
+    unsigned char abyBSSID[ETH_ALEN];  //6
+    unsigned char byReserved0[2];              //8
     SKeyItem    PairwiseKey;
     SKeyItem    GroupKey[MAX_GROUP_KEY]; //64*5 = 320, 320+8=328
     unsigned long dwGTKeyIndex;            // GroupTransmitKey Index
@@ -83,7 +83,7 @@ typedef struct tagSKeyTable
     BOOL        bSoftWEP;
     unsigned short wKeyCtl;      // for address of wKeyCtl at align 4
 
-    BYTE        byReserved1[6];
+    unsigned char byReserved1[6];
 } SKeyTable, *PSKeyTable; //348
 
 typedef struct tagSKeyManagement
@@ -117,9 +117,9 @@ BOOL KeybSetKey(
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
-    BYTE            byKeyDecMode,
+    unsigned char byKeyDecMode,
     unsigned long dwIoBase,
-    BYTE            byLocalID
+    unsigned char byLocalID
     );
 
 BOOL KeybSetDefaultKey(
@@ -128,9 +128,9 @@ BOOL KeybSetDefaultKey(
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
-    BYTE            byKeyDecMode,
+    unsigned char byKeyDecMode,
     unsigned long dwIoBase,
-    BYTE            byLocalID
+    unsigned char byLocalID
     );
 
 BOOL KeybRemoveKey(
@@ -175,9 +175,9 @@ BOOL KeybSetAllGroupKey (
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     unsigned char *pbyKey,
-    BYTE            byKeyDecMode,
+    unsigned char byKeyDecMode,
     unsigned long dwIoBase,
-    BYTE            byLocalID
+    unsigned char byLocalID
     );
 
 #endif // __KEY_H__

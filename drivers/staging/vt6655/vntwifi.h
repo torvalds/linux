@@ -169,15 +169,15 @@ VNTWIFIwGetAssocID (
     void *pMgmtHandle
     );
 
-BYTE
+unsigned char
 VNTWIFIbyGetMaxSupportRate (
     PWLAN_IE_SUPP_RATES pSupportRateIEs,
     PWLAN_IE_SUPP_RATES pExtSupportRateIEs
     );
 
-BYTE
+unsigned char
 VNTWIFIbyGetACKTxRate (
-    BYTE byRxDataRate,
+    unsigned char byRxDataRate,
     PWLAN_IE_SUPP_RATES pSupportRateIEs,
     PWLAN_IE_SUPP_RATES pExtSupportRateIEs
     );
@@ -253,7 +253,7 @@ VNTWIFIbInit(
     );
 */
 
-BYTE
+unsigned char
 VNTWIFIbyGetKeyCypher(
     void *pMgmtHandle,
     BOOL     bGroupKey
@@ -291,22 +291,22 @@ VNTWIFIbMeasureReport(
     void *pMgmtObject,
     BOOL  bEndOfReport,
     void *pvMeasureEID,
-    BYTE  byReportMode,
-    BYTE  byBasicMap,
-    BYTE  byCCAFraction,
+    unsigned char byReportMode,
+    unsigned char byBasicMap,
+    unsigned char byCCAFraction,
     unsigned char *pbyRPIs
     );
 
 BOOL
 VNTWIFIbChannelSwitch(
     void *pMgmtObject,
-    BYTE  byNewChannel
+    unsigned char byNewChannel
     );
 /*
 BOOL
 VNTWIFIbRadarPresent(
     void *pMgmtObject,
-    BYTE  byChannel
+    unsigned char byChannel
     );
 */
 

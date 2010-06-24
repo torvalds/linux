@@ -281,7 +281,7 @@ typedef struct tagSPMKIDCandidateEvent {
 typedef struct tagSQuietControl {
     BOOL        bEnable;
     unsigned long dwStartTime;
-    BYTE        byPeriod;
+    unsigned char byPeriod;
     unsigned short wDuration;
 } SQuietControl, *PSQuietControl;
 
@@ -304,7 +304,7 @@ typedef enum {
 // The receive duplicate detection cache entry
 typedef struct tagSCacheEntry{
     unsigned short wFmSequence;
-    BYTE        abyAddr2[ETH_ALEN];
+    unsigned char abyAddr2[ETH_ALEN];
 } SCacheEntry, *PSCacheEntry;
 
 typedef struct tagSCache{
@@ -321,7 +321,7 @@ typedef struct tagSDeFragControlBlock
 {
     unsigned short wSequence;
     unsigned short wFragNum;
-    BYTE            abyAddr2[ETH_ALEN];
+    unsigned char abyAddr2[ETH_ALEN];
     unsigned int uLifetime;
     struct sk_buff* skb;
     unsigned char *pbyRxBuffer;
@@ -429,7 +429,7 @@ typedef struct __device_info {
     u32                         ioaddr;
     u32                         io_size;
 
-    BYTE                        byRevId;
+    unsigned char byRevId;
     unsigned short SubSystemID;
     unsigned short SubVendorID;
 
@@ -458,7 +458,7 @@ typedef struct __device_info {
 
     u32                         rx_buf_sz;
     int                         multicast_limit;
-    BYTE                        byRxMode;
+    unsigned char byRxMode;
 
     spinlock_t                  lock;
 //PLICE_DEBUG->
@@ -475,16 +475,16 @@ typedef struct __device_info {
     u32                         rx_bytes;
 
     // Version control
-    BYTE                        byLocalID;
-    BYTE                        byRFType;
+    unsigned char byLocalID;
+    unsigned char byRFType;
 
-    BYTE                        byMaxPwrLevel;
-    BYTE                        byZoneType;
+    unsigned char byMaxPwrLevel;
+    unsigned char byZoneType;
     BOOL                        bZoneRegExist;
-   BYTE                        byOriginalZonetype;
-    BYTE                        abyMacContext[MAC_MAX_CONTEXT_REG];
+   unsigned char byOriginalZonetype;
+    unsigned char abyMacContext[MAC_MAX_CONTEXT_REG];
     BOOL                        bLinkPass;          // link status: OK or fail
-    BYTE                        abyCurrentNetAddr[ETH_ALEN];
+    unsigned char abyCurrentNetAddr[ETH_ALEN];
 
     // Adapter statistics
     SStatCounter                scStatistic;
@@ -498,13 +498,13 @@ typedef struct __device_info {
 
     // 802.11 MAC specific
     unsigned int	uCurrRSSI;
-    BYTE                        byCurrSQ;
+    unsigned char byCurrSQ;
 
     unsigned long dwTxAntennaSel;
     unsigned long dwRxAntennaSel;
-    BYTE                        byAntennaCount;
-    BYTE                        byRxAntennaMode;
-    BYTE                        byTxAntennaMode;
+    unsigned char byAntennaCount;
+    unsigned char byRxAntennaMode;
+    unsigned char byTxAntennaMode;
     BOOL                        bTxRxAntInv;
 
     unsigned char *pbyTmpBuff;
@@ -515,44 +515,44 @@ typedef struct __device_info {
     unsigned int	uCwMin;   //Current CwMin
     unsigned int	uCwMax;   //CwMax is fixed on 1023.
     // PHY parameter
-    BYTE                        bySIFS;
-    BYTE                        byDIFS;
-    BYTE                        byEIFS;
-    BYTE                        bySlot;
-    BYTE                        byCWMaxMin;
+    unsigned char bySIFS;
+    unsigned char byDIFS;
+    unsigned char byEIFS;
+    unsigned char bySlot;
+    unsigned char byCWMaxMin;
     CARD_PHY_TYPE               eCurrentPHYType;
 
 
     VIA_BB_TYPE                 byBBType; //0: 11A, 1:11B, 2:11G
     VIA_PKT_TYPE                byPacketType; //0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate)
     unsigned short wBasicRate;
-    BYTE                        byACKRate;
-    BYTE                        byTopOFDMBasicRate;
-    BYTE                        byTopCCKBasicRate;
+    unsigned char byACKRate;
+    unsigned char byTopOFDMBasicRate;
+    unsigned char byTopCCKBasicRate;
 
-    BYTE                        byMinChannel;
-    BYTE                        byMaxChannel;
+    unsigned char byMinChannel;
+    unsigned char byMaxChannel;
     unsigned int	uConnectionRate;
 
-    BYTE                        byPreambleType;
-    BYTE                        byShortPreamble;
+    unsigned char byPreambleType;
+    unsigned char byShortPreamble;
 
     unsigned short wCurrentRate;
     unsigned short wRTSThreshold;
     unsigned short wFragmentationThreshold;
-    BYTE                        byShortRetryLimit;
-    BYTE                        byLongRetryLimit;
+    unsigned char byShortRetryLimit;
+    unsigned char byLongRetryLimit;
     CARD_OP_MODE                eOPMode;
-    BYTE                        byOpMode;
+    unsigned char byOpMode;
     BOOL                        bBSSIDFilter;
     unsigned short wMaxTransmitMSDULifetime;
-    BYTE                        abyBSSID[ETH_ALEN];
-    BYTE                        abyDesireBSSID[ETH_ALEN];
+    unsigned char abyBSSID[ETH_ALEN];
+    unsigned char abyDesireBSSID[ETH_ALEN];
     unsigned short wCTSDuration;       // update while speed change
     unsigned short wACKDuration;       // update while speed change
     unsigned short wRTSTransmitLen;    // update while speed change
-    BYTE                        byRTSServiceField;  // update while speed change
-    BYTE                        byRTSSignalField;   // update while speed change
+    unsigned char byRTSServiceField;  // update while speed change
+    unsigned char byRTSSignalField;   // update while speed change
 
     unsigned long dwMaxReceiveLifetime;       // dot11MaxReceiveLifetime
 
@@ -564,7 +564,7 @@ typedef struct __device_info {
     BOOL                        bNonERPPresent;
     BOOL                        bBarkerPreambleMd;
 
-    BYTE                        byERPFlag;
+    unsigned char byERPFlag;
     unsigned short wUseProtectCntDown;
 
     BOOL                        bRadioControlOff;
@@ -576,8 +576,8 @@ typedef struct __device_info {
 
 
     // GPIO Radio Control
-    BYTE                    byRadioCtl;
-    BYTE                    byGPIO;
+    unsigned char byRadioCtl;
+    unsigned char byGPIO;
     BOOL                    bHWRadioOff;
     BOOL                    bPrvActive4RadioOFF;
     BOOL                    bGPIOBlockRead;
@@ -590,7 +590,7 @@ typedef struct __device_info {
     BOOL                    bIsBeaconBufReadySet;
     unsigned int	cbBeaconBufReadySetCnt;
     BOOL                    bFixRate;
-    BYTE                    byCurrentCh;
+    unsigned char byCurrentCh;
     unsigned int	uScanTime;
 
     CMD_STATE               eCommandState;
@@ -616,7 +616,7 @@ typedef struct __device_info {
 
     BOOL                    bRoaming;
     //WOW
-    BYTE                    abyIPAddr[4];
+    unsigned char abyIPAddr[4];
 
     unsigned long ulTxPower;
     NDIS_802_11_WEP_STATUS  eEncryptionStatus;
@@ -632,13 +632,13 @@ typedef struct __device_info {
     unsigned int	uCurrentWEPMode;
 
     RC4Ext                  SBox;
-    BYTE                    abyPRNG[WLAN_WEPMAX_KEYLEN+3];
-    BYTE                    byKeyIndex;
+    unsigned char abyPRNG[WLAN_WEPMAX_KEYLEN+3];
+    unsigned char byKeyIndex;
     unsigned int	uKeyLength;
-    BYTE                    abyKey[WLAN_WEP232_KEYLEN];
+    unsigned char abyKey[WLAN_WEP232_KEYLEN];
 
     BOOL                    bAES;
-    BYTE                    byCntMeasure;
+    unsigned char byCntMeasure;
 
     // for AP mode
     unsigned int	uAssocCount;
@@ -651,7 +651,7 @@ typedef struct __device_info {
     BOOL                    bAssocInfoSet;
 
 
-    BYTE                    byAutoFBCtrl;
+    unsigned char byAutoFBCtrl;
 
     BOOL                    bTxMICFail;
     BOOL                    bRxMICFail;
@@ -663,24 +663,24 @@ typedef struct __device_info {
     // For Update BaseBand VGA Gain Offset
     BOOL                    bUpdateBBVGA;
     unsigned int	uBBVGADiffCount;
-    BYTE                    byBBVGANew;
-    BYTE                    byBBVGACurrent;
-    BYTE                    abyBBVGA[BB_VGA_LEVEL];
+    unsigned char byBBVGANew;
+    unsigned char byBBVGACurrent;
+    unsigned char abyBBVGA[BB_VGA_LEVEL];
     long                    ldBmThreshold[BB_VGA_LEVEL];
 
-    BYTE                    byBBPreEDRSSI;
-    BYTE                    byBBPreEDIndex;
+    unsigned char byBBPreEDRSSI;
+    unsigned char byBBPreEDIndex;
 
 
     BOOL                    bRadioCmd;
     unsigned long dwDiagRefCount;
 
     // For FOE Tuning
-    BYTE                    byFOETuning;
+    unsigned char byFOETuning;
 
     // For Auto Power Tunning
 
-    BYTE                    byAutoPwrTunning;
+    unsigned char byAutoPwrTunning;
     short                   sPSetPointCCK;
     short                   sPSetPointOFDMG;
     short                   sPSetPointOFDMA;
@@ -690,12 +690,12 @@ typedef struct __device_info {
     char                    cMinTxAGC;
 
     // For RF Power table
-    BYTE                    byCCKPwr;
-    BYTE                    byOFDMPwrG;
-    BYTE                    byCurPwr;
+    unsigned char byCCKPwr;
+    unsigned char byOFDMPwrG;
+    unsigned char byCurPwr;
     char	 byCurPwrdBm;
-    BYTE                    abyCCKPwrTbl[CB_MAX_CHANNEL_24G+1];
-    BYTE                    abyOFDMPwrTbl[CB_MAX_CHANNEL+1];
+    unsigned char abyCCKPwrTbl[CB_MAX_CHANNEL_24G+1];
+    unsigned char abyOFDMPwrTbl[CB_MAX_CHANNEL+1];
     char	abyCCKDefaultPwr[CB_MAX_CHANNEL_24G+1];
     char	abyOFDMDefaultPwr[CB_MAX_CHANNEL+1];
     char	abyRegPwr[CB_MAX_CHANNEL+1];
@@ -703,10 +703,10 @@ typedef struct __device_info {
 
 
     // BaseBand Loopback Use
-    BYTE                    byBBCR4d;
-    BYTE                    byBBCRc9;
-    BYTE                    byBBCR88;
-    BYTE                    byBBCR09;
+    unsigned char byBBCR4d;
+    unsigned char byBBCRc9;
+    unsigned char byBBCR88;
+    unsigned char byBBCR09;
 
     // command timer
     struct timer_list       sTimerCommand;
@@ -720,24 +720,24 @@ typedef struct __device_info {
 #ifdef WPA_SM_Transtatus
     BOOL  fWPA_Authened;           //is WPA/WPA-PSK or WPA2/WPA2-PSK authen??
 #endif
-    BYTE            byReAssocCount;   //mike add:re-association retry times!
-    BYTE            byLinkWaitCount;
+    unsigned char byReAssocCount;   //mike add:re-association retry times!
+    unsigned char byLinkWaitCount;
 
 
-    BYTE                    abyNodeName[17];
+    unsigned char abyNodeName[17];
 
     BOOL                    bDiversityRegCtlON;
     BOOL                    bDiversityEnable;
     unsigned long ulDiversityNValue;
     unsigned long ulDiversityMValue;
-    BYTE                    byTMax;
-    BYTE                    byTMax2;
-    BYTE                    byTMax3;
+    unsigned char byTMax;
+    unsigned char byTMax2;
+    unsigned char byTMax3;
     unsigned long ulSQ3TH;
 
 // ANT diversity
     unsigned long uDiversityCnt;
-    BYTE                    byAntennaState;
+    unsigned char byAntennaState;
     unsigned long ulRatio_State0;
     unsigned long ulRatio_State1;
 
@@ -753,10 +753,10 @@ typedef struct __device_info {
 
     SEthernetHeader         sTxEthHeader;
     SEthernetHeader         sRxEthHeader;
-    BYTE                    abyBroadcastAddr[ETH_ALEN];
-    BYTE                    abySNAP_RFC1042[ETH_ALEN];
-    BYTE                    abySNAP_Bridgetunnel[ETH_ALEN];
-     BYTE                        abyEEPROM[EEP_MAX_CONTEXT_SIZE];  //unsigned long alignment
+    unsigned char abyBroadcastAddr[ETH_ALEN];
+    unsigned char abySNAP_RFC1042[ETH_ALEN];
+    unsigned char abySNAP_Bridgetunnel[ETH_ALEN];
+     unsigned char abyEEPROM[EEP_MAX_CONTEXT_SIZE];  //unsigned long alignment
     // Pre-Authentication & PMK cache
     SPMKID                  gsPMKID;
     SPMKIDCandidateEvent    gsPMKIDCandidate;
@@ -764,25 +764,25 @@ typedef struct __device_info {
 
     // for 802.11h
     BOOL                    b11hEnable;
-    BYTE                    abyCountryCode[3];
+    unsigned char abyCountryCode[3];
     // for 802.11h DFS
     unsigned int	uNumOfMeasureEIDs;
     PWLAN_IE_MEASURE_REQ    pCurrMeasureEID;
     BOOL                    bMeasureInProgress;
-    BYTE                    byOrgChannel;
-    BYTE                    byOrgRCR;
+    unsigned char byOrgChannel;
+    unsigned char byOrgRCR;
     unsigned long dwOrgMAR0;
     unsigned long dwOrgMAR4;
-    BYTE                    byBasicMap;
-    BYTE                    byCCAFraction;
-    BYTE                    abyRPIs[8];
+    unsigned char byBasicMap;
+    unsigned char byCCAFraction;
+    unsigned char abyRPIs[8];
     unsigned long dwRPIs[8];
     BOOL                    bChannelSwitch;
-    BYTE                    byNewChannel;
-    BYTE                    byChannelSwitchCount;
+    unsigned char byNewChannel;
+    unsigned char byChannelSwitchCount;
     BOOL                    bQuietEnable;
     BOOL                    bEnableFirstQuiet;
-    BYTE                    byQuietStartCount;
+    unsigned char byQuietStartCount;
     unsigned int	uQuietEnqueue;
     unsigned long dwCurrentQuietEndTime;
     SQuietControl           sQuiet[MAX_QUIET_COUNT];

@@ -76,7 +76,7 @@
 
 
 #define VNSvInPortB(dwIOAddress, pbyData) {                     \
-	volatile BYTE* pbyAddr = ((unsigned char *)(dwIOAddress));            \
+	volatile unsigned char * pbyAddr = ((unsigned char *)(dwIOAddress));            \
 	*(pbyData) = readb(pbyAddr);                           \
 }
 
@@ -93,8 +93,8 @@
 
 
 #define VNSvOutPortB(dwIOAddress, byData) {                     \
-    volatile BYTE* pbyAddr = ((unsigned char *)(dwIOAddress));            \
-    writeb((BYTE)byData, pbyAddr);							\
+    volatile unsigned char * pbyAddr = ((unsigned char *)(dwIOAddress));            \
+    writeb((unsigned char)byData, pbyAddr);							\
 }
 
 
@@ -140,7 +140,7 @@
 
 
 #define PCAvDelayByIO(uDelayUnit) {             \
-    BYTE    byData;                             \
+    unsigned char byData;                       \
     unsigned long ii;                           \
                                                 \
     if (uDelayUnit <= 50) {                     \

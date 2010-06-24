@@ -68,8 +68,6 @@ typedef int             BOOL;
  * but it doesn't matter if they're signed or unsigned.
  */
 
-typedef unsigned char   BYTE;           //  8-bit
-
 // QWORD is for those situation that we want
 // an 8-byte-aligned 8 byte long structure
 // which is NOT really a floating point number.

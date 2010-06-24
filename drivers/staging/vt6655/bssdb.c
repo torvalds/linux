@@ -138,7 +138,7 @@ BSSpSearchBSSList(
     PWLAN_IE_SSID   pSSID = NULL;
     PKnownBSS       pCurrBSS = NULL;
     PKnownBSS       pSelect = NULL;
-BYTE                 ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
+    unsigned char ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
     unsigned int ii = 0;
 
     if (pbyDesireBSSID != NULL) {
@@ -374,7 +374,7 @@ BSSbInsertToBSSList (
     QWORD qwTimestamp,
     unsigned short wBeaconInterval,
     unsigned short wCapInfo,
-    BYTE byCurrChannel,
+    unsigned char byCurrChannel,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pSuppRates,
     PWLAN_IE_SUPP_RATES pExtSuppRates,
@@ -520,7 +520,7 @@ BSSbInsertToBSSList (
     if (pDevice->bUpdateBBVGA) {
         // Moniter if RSSI is too strong.
         pBSSList->byRSSIStatCnt = 0;
-        RFvRSSITodBm(pDevice, (BYTE)(pRxPacket->uRSSI), &pBSSList->ldBmMAX);
+        RFvRSSITodBm(pDevice, (unsigned char)(pRxPacket->uRSSI), &pBSSList->ldBmMAX);
         pBSSList->ldBmAverage[0] = pBSSList->ldBmMAX;
         for (ii = 1; ii < RSSI_STAT_COUNT; ii++)
             pBSSList->ldBmAverage[ii] = 0;
@@ -589,7 +589,7 @@ BSSbUpdateToBSSList (
     QWORD qwTimestamp,
     unsigned short wBeaconInterval,
     unsigned short wCapInfo,
-    BYTE byCurrChannel,
+    unsigned char byCurrChannel,
     BOOL bChannelHit,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pSuppRates,
@@ -690,7 +690,7 @@ BSSbUpdateToBSSList (
     }
 
     if (pRxPacket->uRSSI != 0) {
-        RFvRSSITodBm(pDevice, (BYTE)(pRxPacket->uRSSI), &ldBm);
+        RFvRSSITodBm(pDevice, (unsigned char)(pRxPacket->uRSSI), &ldBm);
         // Moniter if RSSI is too strong.
         pBSSList->byRSSIStatCnt++;
         pBSSList->byRSSIStatCnt %= RSSI_STAT_COUNT;
@@ -870,7 +870,7 @@ BSSvRemoveOneNode(
 
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
+    unsigned char byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     struct sk_buff  *skb;
 
 
@@ -1390,8 +1390,8 @@ start:
 void
 BSSvUpdateNodeTxCounter(
     void *hDeviceContext,
-    BYTE        byTsr0,
-    BYTE        byTsr1,
+    unsigned char byTsr0,
+    unsigned char byTsr1,
     unsigned char *pbyBuffer,
     unsigned int uFIFOHeaderSize
     )
@@ -1399,12 +1399,12 @@ BSSvUpdateNodeTxCounter(
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     unsigned int uNodeIndex = 0;
-    BYTE            byTxRetry = (byTsr0 & TSR0_NCR);
+    unsigned char byTxRetry = (byTsr0 & TSR0_NCR);
     PSTxBufHead     pTxBufHead;
     PS802_11Header  pMACHeader;
     unsigned short wRate;
     unsigned short wFallBackRate = RATE_1M;
-    BYTE            byFallBack;
+    unsigned char byFallBack;
     unsigned int ii;
 //	unsigned int txRetryTemp;
 //PLICE_DEBUG->
@@ -1700,7 +1700,7 @@ if(pDevice->bLinkPass !=TRUE)
 }
 else
 {
-   RFvRSSITodBm(pDevice, (BYTE)(pDevice->uCurrRSSI), &ldBm);
+   RFvRSSITodBm(pDevice, (unsigned char)(pDevice->uCurrRSSI), &ldBm);
    if(-ldBm < 50)  {
    	RssiRatio = 4000;
      }
@@ -1734,7 +1734,7 @@ void s_vCheckPreEDThreshold(
         ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED))) {
         pBSSList = BSSpAddrIsInBSSList(pDevice, pMgmt->abyCurrBSSID, (PWLAN_IE_SSID)pMgmt->abyCurrSSID);
         if (pBSSList != NULL) {
-            pDevice->byBBPreEDRSSI = (BYTE) (~(pBSSList->ldBmAverRange) + 1);
+            pDevice->byBBPreEDRSSI = (unsigned char) (~(pBSSList->ldBmAverRange) + 1);
             //BBvUpdatePreEDThreshold(pDevice, FALSE);
         }
     }
