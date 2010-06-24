@@ -65,7 +65,7 @@ static void sdhci_status_notify_cb(int card_present, void *dev_id)
 	if (status ^ oldstat) {
 		pr_debug("%s: Slot status change detected (%d -> %d)\n",
 			mmc_hostname(host->mmc), oldstat, status);
-		if (status)
+		if (status && !tegra_host->plat->mmc_data.built_in)
 			mmc_detect_change(host->mmc, (5 * HZ) / 2);
 		else
 			mmc_detect_change(host->mmc, 0);
