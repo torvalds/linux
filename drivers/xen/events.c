@@ -623,7 +623,8 @@ int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 
 	/* If we are a PV guest, we don't have GSIs (no ACPI passed). Therefore
 	 * we are using the !xen_initial_domain() to drop in the function.*/
-	if (identity_mapped_irq(gsi) || !xen_initial_domain()) {
+	if (identity_mapped_irq(gsi) || (!xen_initial_domain() &&
+				xen_pv_domain())) {
 		irq = gsi;
 		irq_alloc_desc_at(irq, 0);
 	} else
@@ -1397,6 +1398,9 @@ void __init xen_init_IRQ(void)
 	if (xen_hvm_domain()) {
 		xen_callback_vector();
 		native_init_IRQ();
+		/* pci_xen_hvm_init must be called after native_init_IRQ so that
+		 * __acpi_register_gsi can point at the right function */
+		pci_xen_hvm_init();
 	} else {
 		irq_ctx_init(smp_processor_id());
 	}

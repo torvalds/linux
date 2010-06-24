@@ -14,6 +14,7 @@
 
 #include <asm/xen/hypervisor.h>
 
+#include <xen/features.h>
 #include <xen/events.h>
 #include <asm/xen/pci.h>
 
@@ -181,6 +182,21 @@ int __init pci_xen_init(void)
 	x86_msi.setup_msi_irqs = xen_setup_msi_irqs;
 	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 	x86_msi.teardown_msi_irqs = xen_teardown_msi_irqs;
+#endif
+	return 0;
+}
+
+int __init pci_xen_hvm_init(void)
+{
+	if (!xen_feature(XENFEAT_hvm_pirqs))
+		return 0;
+
+#ifdef CONFIG_ACPI
+	/*
+	 * We don't want to change the actual ACPI delivery model,
+	 * just how GSIs get registered.
+	 */
+	__acpi_register_gsi = acpi_register_gsi_xen_hvm;
 #endif
 	return 0;
 }

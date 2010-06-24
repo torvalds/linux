@@ -3,10 +3,15 @@
 
 #if defined(CONFIG_PCI_XEN)
 extern int __init pci_xen_init(void);
+extern int __init pci_xen_hvm_init(void);
 #define pci_xen 1
 #else
 #define pci_xen 0
 #define pci_xen_init (0)
+static inline int pci_xen_hvm_init(void)
+{
+	return -1;
+}
 #endif
 
 #if defined(CONFIG_PCI_MSI)
