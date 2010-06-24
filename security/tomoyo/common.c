@@ -594,6 +594,10 @@ static bool tomoyo_select_one(struct tomoyo_io_buffer *head, const char *data)
 	struct tomoyo_domain_info *domain = NULL;
 	bool global_pid = false;
 
+	if (!strcmp(data, "allow_execute")) {
+		head->print_execute_only = true;
+		return true;
+	}
 	if (sscanf(data, "pid=%u", &pid) == 1 ||
 	    (global_pid = true, sscanf(data, "global-pid=%u", &pid) == 1)) {
 		struct task_struct *p;
@@ -758,6 +762,8 @@ static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
 
 	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
 		if (!(perm & (1 << bit)))
+			continue;
+		if (head->print_execute_only && bit != TOMOYO_TYPE_EXECUTE)
 			continue;
 		/* Print "read/write" instead of "read" and "write". */
 		if ((bit == TOMOYO_TYPE_READ || bit == TOMOYO_TYPE_WRITE)
@@ -926,6 +932,8 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 			= container_of(ptr, struct tomoyo_path_acl, head);
 		return tomoyo_print_path_acl(head, acl);
 	}
+	if (head->print_execute_only)
+		return true;
 	if (acl_type == TOMOYO_TYPE_PATH2_ACL) {
 		struct tomoyo_path2_acl *acl
 			= container_of(ptr, struct tomoyo_path2_acl, head);

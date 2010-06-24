@@ -571,6 +571,8 @@ struct tomoyo_io_buffer {
 	bool read_single_domain;
 	/* Extra variable for reading.          */
 	u8 read_bit;
+	/* Read only TOMOYO_TYPE_EXECUTE        */
+	bool print_execute_only;
 	/* Bytes available for reading.         */
 	int read_avail;
 	/* Size of read buffer.                 */
