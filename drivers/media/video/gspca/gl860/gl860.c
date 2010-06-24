@@ -219,9 +219,9 @@ static struct v4l2_pix_format mi2020_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0
 	},
-	{ 800,  600, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{ 800,  598, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 800,
-		.sizeimage = 800 * 600,
+		.sizeimage = 800 * 598,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1
 	},
@@ -231,9 +231,9 @@ static struct v4l2_pix_format mi2020_mode[] = {
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2
 	},
-	{1600, 1200, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+	{1600, 1198, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 1600,
-		.sizeimage = 1600 * 1200,
+		.sizeimage = 1600 * 1198,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3
 	},
