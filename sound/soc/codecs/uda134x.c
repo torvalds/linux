@@ -341,8 +341,22 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		/* ADC, DAC on */
-		reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
-		uda134x_write(codec, UDA134X_STATUS1, reg | 0x03);
+		switch (pd->model) {
+		case UDA134X_UDA1340:
+		case UDA134X_UDA1344:
+		case UDA134X_UDA1345:
+			reg = uda134x_read_reg_cache(codec, UDA134X_DATA011);
+			uda134x_write(codec, UDA134X_DATA011, reg | 0x03);
+			break;
+		case UDA134X_UDA1341:
+			reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
+			uda134x_write(codec, UDA134X_STATUS1, reg | 0x03);
+			break;
+		default:
+			printk(KERN_ERR "UDA134X SoC codec: "
+			       "unsupported model %d\n", pd->model);
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_BIAS_PREPARE:
 		/* power on */
@@ -355,8 +369,22 @@ static int uda134x_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* ADC, DAC power off */
-		reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
-		uda134x_write(codec, UDA134X_STATUS1, reg & ~(0x03));
+		switch (pd->model) {
+		case UDA134X_UDA1340:
+		case UDA134X_UDA1344:
+		case UDA134X_UDA1345:
+			reg = uda134x_read_reg_cache(codec, UDA134X_DATA011);
+			uda134x_write(codec, UDA134X_DATA011, reg & ~(0x03));
+			break;
+		case UDA134X_UDA1341:
+			reg = uda134x_read_reg_cache(codec, UDA134X_STATUS1);
+			uda134x_write(codec, UDA134X_STATUS1, reg & ~(0x03));
+			break;
+		default:
+			printk(KERN_ERR "UDA134X SoC codec: "
+			       "unsupported model %d\n", pd->model);
+			return -EINVAL;
+		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* power off */
