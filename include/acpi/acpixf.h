@@ -292,6 +292,8 @@ acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 gpe_type);
 
 acpi_status acpi_clear_gpe(acpi_handle gpe_device, u32 gpe_number);
 
+acpi_status acpi_gpe_wakeup(acpi_handle gpe_device, u32 gpe_number, u8 action);
+
 acpi_status
 acpi_get_gpe_status(acpi_handle gpe_device,
 		    u32 gpe_number, acpi_event_status *event_status);

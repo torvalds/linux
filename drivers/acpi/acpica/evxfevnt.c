@@ -308,6 +308,73 @@ ACPI_EXPORT_SYMBOL(acpi_set_gpe)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_gpe_wakeup
+ *
+ * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
+ *              gpe_number      - GPE level within the GPE block
+ *              Action          - Enable or Disable
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Set or clear the GPE's wakeup enable mask bit.
+ *
+ ******************************************************************************/
+acpi_status acpi_gpe_wakeup(acpi_handle gpe_device, u32 gpe_number, u8 action)
+{
+	acpi_status status = AE_OK;
+	struct acpi_gpe_event_info *gpe_event_info;
+	struct acpi_gpe_register_info *gpe_register_info;
+	acpi_cpu_flags flags;
+	u32 register_bit;
+
+	ACPI_FUNCTION_TRACE(acpi_gpe_wakeup);
+
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+
+	/* Ensure that we have a valid GPE number */
+
+	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
+	if (!gpe_event_info) {
+		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit;
+	}
+
+	gpe_register_info = gpe_event_info->register_info;
+	if (!gpe_register_info) {
+		status = AE_NOT_EXIST;
+		goto unlock_and_exit;
+	}
+
+	register_bit =
+	    acpi_hw_get_gpe_register_bit(gpe_event_info, gpe_register_info);
+
+	/* Perform the action */
+
+	switch (action) {
+	case ACPI_GPE_ENABLE:
+		ACPI_SET_BIT(gpe_register_info->enable_for_wake, register_bit);
+		break;
+
+	case ACPI_GPE_DISABLE:
+		ACPI_CLEAR_BIT(gpe_register_info->enable_for_wake,
+			       register_bit);
+		break;
+
+	default:
+		ACPI_ERROR((AE_INFO, "%u, Invalid action", action));
+		status = AE_BAD_PARAMETER;
+		break;
+	}
+
+unlock_and_exit:
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+	return_ACPI_STATUS(status);
+}
+
+ACPI_EXPORT_SYMBOL(acpi_gpe_wakeup)
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_enable_gpe
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
