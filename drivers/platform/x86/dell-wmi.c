@@ -221,7 +221,7 @@ static void dell_wmi_notify(u32 value, void *context)
 			return;
 		}
 
-		if (dell_new_hk_type)
+		if (dell_new_hk_type || buffer_entry[1] == 0x0)
 			reported_key = (int)buffer_entry[2];
 		else
 			reported_key = (int)buffer_entry[1] & 0xffff;
