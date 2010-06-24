@@ -52,7 +52,7 @@
 static unsigned char smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
 
 /* crystal frequency to HSIO bus frequency multiplier (HSS) */
-static unsigned char hss_mult[4] = { 8, 12, 16, 0 };
+static unsigned char hss_mult[4] = { 8, 12, 16, 24 };
 
 /*
  * Get the clock frequency as reflected by CCSR and the turbo flag.
