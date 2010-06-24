@@ -23,6 +23,10 @@
  *    pure reads. But if they have to fetch many values, it's better to not allow
  *    preemptions/interruptions to avoid many retries.
  *
+ * 6) If counter might be written by an interrupt, readers should block interrupts.
+ *    (On UP, there is no seqcount_t protection, a reader allowing interrupts could
+ *     read partial values)
+ *
  * Usage :
  *
  * Stats producer (writer) should use following template granted it already got
@@ -46,7 +50,7 @@
  *         start = u64_stats_fetch_begin(&stats->syncp);
  *         tbytes = stats->bytes64; // non atomic operation
  *         tpackets = stats->packets64; // non atomic operation
- * } while (u64_stats_fetch_retry(&stats->lock, syncp));
+ * } while (u64_stats_fetch_retry(&stats->syncp, start));
  *
  *
  * Example of use in drivers/net/loopback.c, using per_cpu containers,
