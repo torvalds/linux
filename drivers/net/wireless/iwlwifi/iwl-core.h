@@ -206,6 +206,7 @@ struct iwl_lib_ops {
 	bool (*check_ack_health)(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt);
 	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
+	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
 
 	struct iwl_debugfs_ops debugfs_ops;
 };

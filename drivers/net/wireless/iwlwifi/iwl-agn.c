@@ -859,6 +859,24 @@ int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 	return 0;
 }
 
+static void iwl_bg_tx_flush(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, tx_flush);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	/* do nothing if rf-kill is on */
+	if (!iwl_is_ready_rf(priv))
+		return;
+
+	if (priv->cfg->ops->lib->txfifo_flush) {
+		IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
+		iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	}
+}
+
 /**
  * iwl_setup_rx_handlers - Initialize Rx handler callbacks
  *
@@ -3693,6 +3711,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
+	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 

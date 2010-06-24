@@ -1345,6 +1345,7 @@ struct iwl_priv {
 	struct work_struct ct_enter;
 	struct work_struct ct_exit;
 	struct work_struct start_internal_scan;
+	struct work_struct tx_flush;
 
 	struct tasklet_struct irq_tasklet;
 

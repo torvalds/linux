@@ -205,7 +205,9 @@ void iwl_check_abort_status(struct iwl_priv *priv,
 			    u8 frame_count, u32 status)
 {
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
-		IWL_ERR(priv, "TODO: Implement Tx flush command!!!\n");
+		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
+		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
+			queue_work(priv->workqueue, &priv->tx_flush);
 	}
 }
 
@@ -1497,4 +1499,19 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
 	return iwl_send_cmd(priv, &cmd);
+}
+
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+{
+	mutex_lock(&priv->mutex);
+	ieee80211_stop_queues(priv->hw);
+	if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+		IWL_ERR(priv, "flush request fail\n");
+		goto done;
+	}
+	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
+	iwlagn_wait_tx_queue_empty(priv);
+done:
+	ieee80211_wake_queues(priv->hw);
+	mutex_unlock(&priv->mutex);
 }
