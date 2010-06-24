@@ -97,6 +97,7 @@ enum {
 	REPLY_ADD_STA = 0x18,
 	REPLY_REMOVE_STA = 0x19,
 	REPLY_REMOVE_ALL_STA = 0x1a,	/* not used */
+	REPLY_TXFIFO_FLUSH = 0x1e,
 
 	/* Security */
 	REPLY_WEPKEY = 0x20,
@@ -1207,6 +1208,39 @@ struct iwl_rem_sta_cmd {
 	u8 reserved[3];
 	u8 addr[ETH_ALEN]; /* MAC addr of the first station */
 	u8 reserved2[2];
+} __attribute__ ((packed));
+
+#define IWL_TX_FIFO_BK_MSK		cpu_to_le32(BIT(0))
+#define IWL_TX_FIFO_BE_MSK		cpu_to_le32(BIT(1))
+#define IWL_TX_FIFO_VI_MSK		cpu_to_le32(BIT(2))
+#define IWL_TX_FIFO_VO_MSK		cpu_to_le32(BIT(3))
+#define IWL_AGG_TX_QUEUE_MSK		cpu_to_le32(0xffc00)
+
+/*
+ * REPLY_TXFIFO_FLUSH = 0x1e(command and response)
+ *
+ * When using full FIFO flush this command checks the scheduler HW block WR/RD
+ * pointers to check if all the frames were transferred by DMA into the
+ * relevant TX FIFO queue. Only when the DMA is finished and the queue is
+ * empty the command can finish.
+ * This command is used to flush the TXFIFO from transmit commands, it may
+ * operate on single or multiple queues, the command queue can't be flushed by
+ * this command. The command response is returned when all the queue flush
+ * operations are done. Each TX command flushed return response with the FLUSH
+ * status set in the TX response status. When FIFO flush operation is used,
+ * the flush operation ends when both the scheduler DMA done and TXFIFO empty
+ * are set.
+ *
+ * @fifo_control: bit mask for which queues to flush
+ * @flush_control: flush controls
+ *	0: Dump single MSDU
+ *	1: Dump multiple MSDU according to PS, INVALID STA, TTL, TID disable.
+ *	2: Dump all FIFO
+ */
+struct iwl_txfifo_flush_cmd {
+	__le32 fifo_control;
+	__le16 flush_control;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 /*
