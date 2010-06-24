@@ -103,17 +103,7 @@ int enic_get_vnic_config(struct enic *enic)
 	return 0;
 }
 
-void enic_add_multicast_addr(struct enic *enic, u8 *addr)
-{
-	vnic_dev_add_addr(enic->vdev, addr);
-}
-
-void enic_del_multicast_addr(struct enic *enic, u8 *addr)
-{
-	vnic_dev_del_addr(enic->vdev, addr);
-}
-
-void enic_add_vlan(struct enic *enic, u16 vlanid)
+int enic_add_vlan(struct enic *enic, u16 vlanid)
 {
 	u64 a0 = vlanid, a1 = 0;
 	int wait = 1000;
@@ -122,9 +112,11 @@ void enic_add_vlan(struct enic *enic, u16 vlanid)
 	err = vnic_dev_cmd(enic->vdev, CMD_VLAN_ADD, &a0, &a1, wait);
 	if (err)
 		printk(KERN_ERR PFX "Can't add vlan id, %d\n", err);
+
+	return err;
 }
 
-void enic_del_vlan(struct enic *enic, u16 vlanid)
+int enic_del_vlan(struct enic *enic, u16 vlanid)
 {
 	u64 a0 = vlanid, a1 = 0;
 	int wait = 1000;
@@ -133,6 +125,8 @@ void enic_del_vlan(struct enic *enic, u16 vlanid)
 	err = vnic_dev_cmd(enic->vdev, CMD_VLAN_DEL, &a0, &a1, wait);
 	if (err)
 		printk(KERN_ERR PFX "Can't delete vlan id, %d\n", err);
+
+	return err;
 }
 
 int enic_set_nic_cfg(struct enic *enic, u8 rss_default_cpu, u8 rss_hash_type,
@@ -304,11 +298,6 @@ void enic_init_vnic_resources(struct enic *enic)
 			enic->config.intr_timer_type,
 			mask_on_assertion);
 	}
-
-	/* Clear LIF stats
-	 */
-
-	vnic_dev_stats_clear(enic->vdev);
 }
 
 int enic_alloc_vnic_resources(struct enic *enic)

@@ -550,7 +550,7 @@ int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr)
 	return 0;
 }
 
-void vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
+int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	int broadcast, int promisc, int allmulti)
 {
 	u64 a0, a1 = 0;
@@ -566,6 +566,8 @@ void vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER, &a0, &a1, wait);
 	if (err)
 		printk(KERN_ERR "Can't set packet filter\n");
+
+	return err;
 }
 
 int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr)
@@ -670,22 +672,25 @@ int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr)
 	return vnic_dev_notify_setcmd(vdev, notify_addr, notify_pa, intr);
 }
 
-void vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
+int vnic_dev_notify_unsetcmd(struct vnic_dev *vdev)
 {
 	u64 a0, a1;
 	int wait = 1000;
+	int err;
 
 	a0 = 0;  /* paddr = 0 to unset notify buffer */
 	a1 = 0x0000ffff00000000ULL; /* intr num = -1 to unreg for intr */
 	a1 += sizeof(struct vnic_devcmd_notify);
 
-	vnic_dev_cmd(vdev, CMD_NOTIFY, &a0, &a1, wait);
+	err = vnic_dev_cmd(vdev, CMD_NOTIFY, &a0, &a1, wait);
 	vdev->notify = NULL;
 	vdev->notify_pa = 0;
 	vdev->notify_sz = 0;
+
+	return err;
 }
 
-void vnic_dev_notify_unset(struct vnic_dev *vdev)
+int vnic_dev_notify_unset(struct vnic_dev *vdev)
 {
 	if (vdev->notify) {
 		pci_free_consistent(vdev->pdev,
@@ -694,7 +699,7 @@ void vnic_dev_notify_unset(struct vnic_dev *vdev)
 			vdev->notify_pa);
 	}
 
-	vnic_dev_notify_unsetcmd(vdev);
+	return vnic_dev_notify_unsetcmd(vdev);
 }
 
 static int vnic_dev_notify_ready(struct vnic_dev *vdev)
@@ -837,6 +842,14 @@ u32 vnic_dev_notify_status(struct vnic_dev *vdev)
 		return 0;
 
 	return vdev->notify_copy.status;
+}
+
+u32 vnic_dev_uif(struct vnic_dev *vdev)
+{
+	if (!vnic_dev_notify_ready(vdev))
+		return 0;
+
+	return vdev->notify_copy.uif;
 }
 
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,

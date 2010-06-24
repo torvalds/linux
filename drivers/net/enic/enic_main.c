@@ -145,15 +145,25 @@ static int enic_get_settings(struct net_device *netdev,
 	return 0;
 }
 
+static int enic_dev_fw_info(struct enic *enic,
+	struct vnic_devcmd_fw_info **fw_info)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_fw_info(enic->vdev, fw_info);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
 static void enic_get_drvinfo(struct net_device *netdev,
 	struct ethtool_drvinfo *drvinfo)
 {
 	struct enic *enic = netdev_priv(netdev);
 	struct vnic_devcmd_fw_info *fw_info;
 
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_fw_info(enic->vdev, &fw_info);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_fw_info(enic, &fw_info);
 
 	strncpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
 	strncpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
@@ -191,6 +201,17 @@ static int enic_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
+static int enic_dev_stats_dump(struct enic *enic, struct vnic_stats **vstats)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_stats_dump(enic->vdev, vstats);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
 static void enic_get_ethtool_stats(struct net_device *netdev,
 	struct ethtool_stats *stats, u64 *data)
 {
@@ -198,9 +219,7 @@ static void enic_get_ethtool_stats(struct net_device *netdev,
 	struct vnic_stats *vstats;
 	unsigned int i;
 
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_stats_dump(enic->vdev, &vstats);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_stats_dump(enic, &vstats);
 
 	for (i = 0; i < enic_n_tx_stats; i++)
 		*(data++) = ((u64 *)&vstats->tx)[enic_tx_stats[i].offset];
@@ -411,17 +430,14 @@ static void enic_log_q_error(struct enic *enic)
 	}
 }
 
-static void enic_link_check(struct enic *enic)
+static void enic_msglvl_check(struct enic *enic)
 {
-	int link_status = vnic_dev_link_status(enic->vdev);
-	int carrier_ok = netif_carrier_ok(enic->netdev);
+	u32 msg_enable = vnic_dev_msg_lvl(enic->vdev);
 
-	if (link_status && !carrier_ok) {
-		printk(KERN_INFO PFX "%s: Link UP\n", enic->netdev->name);
-		netif_carrier_on(enic->netdev);
-	} else if (!link_status && carrier_ok) {
-		printk(KERN_INFO PFX "%s: Link DOWN\n", enic->netdev->name);
-		netif_carrier_off(enic->netdev);
+	if (msg_enable != enic->msg_enable) {
+		printk(KERN_INFO PFX "%s: msg lvl changed from 0x%x to 0x%x\n",
+			enic->netdev->name, enic->msg_enable, msg_enable);
+		enic->msg_enable = msg_enable;
 	}
 }
 
@@ -439,14 +455,17 @@ static void enic_mtu_check(struct enic *enic)
 	}
 }
 
-static void enic_msglvl_check(struct enic *enic)
+static void enic_link_check(struct enic *enic)
 {
-	u32 msg_enable = vnic_dev_msg_lvl(enic->vdev);
+	int link_status = vnic_dev_link_status(enic->vdev);
+	int carrier_ok = netif_carrier_ok(enic->netdev);
 
-	if (msg_enable != enic->msg_enable) {
-		printk(KERN_INFO PFX "%s: msg lvl changed from 0x%x to 0x%x\n",
-			enic->netdev->name, enic->msg_enable, msg_enable);
-		enic->msg_enable = msg_enable;
+	if (link_status && !carrier_ok) {
+		printk(KERN_INFO PFX "%s: Link UP\n", enic->netdev->name);
+		netif_carrier_on(enic->netdev);
+	} else if (!link_status && carrier_ok) {
+		printk(KERN_INFO PFX "%s: Link DOWN\n", enic->netdev->name);
+		netif_carrier_off(enic->netdev);
 	}
 }
 
@@ -792,9 +811,7 @@ static struct net_device_stats *enic_get_stats(struct net_device *netdev)
 	struct net_device_stats *net_stats = &netdev->stats;
 	struct vnic_stats *stats;
 
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_stats_dump(enic->vdev, &stats);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_stats_dump(enic, &stats);
 
 	net_stats->tx_packets = stats->tx.tx_frames_ok;
 	net_stats->tx_bytes = stats->tx.tx_bytes_ok;
@@ -892,6 +909,41 @@ static int enic_set_mac_address(struct net_device *netdev, void *p)
 	return -EOPNOTSUPP;
 }
 
+static int enic_dev_packet_filter(struct enic *enic, int directed,
+	int multicast, int broadcast, int promisc, int allmulti)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_packet_filter(enic->vdev, directed,
+		multicast, broadcast, promisc, allmulti);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
+static int enic_dev_add_multicast_addr(struct enic *enic, u8 *addr)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_add_addr(enic->vdev, addr);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
+static int enic_dev_del_multicast_addr(struct enic *enic, u8 *addr)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_del_addr(enic->vdev, addr);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
 /* netif_tx_lock held, BHs disabled */
 static void enic_set_multicast_list(struct net_device *netdev)
 {
@@ -911,11 +963,9 @@ static void enic_set_multicast_list(struct net_device *netdev)
 	if (mc_count > ENIC_MULTICAST_PERFECT_FILTERS)
 		mc_count = ENIC_MULTICAST_PERFECT_FILTERS;
 
-	spin_lock(&enic->devcmd_lock);
-
 	if (enic->flags != flags) {
 		enic->flags = flags;
-		vnic_dev_packet_filter(enic->vdev, directed,
+		enic_dev_packet_filter(enic, directed,
 			multicast, broadcast, promisc, allmulti);
 	}
 
@@ -938,7 +988,7 @@ static void enic_set_multicast_list(struct net_device *netdev)
 				mc_addr[j]) == 0)
 				break;
 		if (j == mc_count)
-			enic_del_multicast_addr(enic, enic->mc_addr[i]);
+			enic_dev_del_multicast_addr(enic, enic->mc_addr[i]);
 	}
 
 	for (i = 0; i < mc_count; i++) {
@@ -947,7 +997,7 @@ static void enic_set_multicast_list(struct net_device *netdev)
 				enic->mc_addr[j]) == 0)
 				break;
 		if (j == enic->mc_count)
-			enic_add_multicast_addr(enic, mc_addr[i]);
+			enic_dev_add_multicast_addr(enic, mc_addr[i]);
 	}
 
 	/* Save the list to compare against next time
@@ -957,8 +1007,6 @@ static void enic_set_multicast_list(struct net_device *netdev)
 		memcpy(enic->mc_addr[i], mc_addr[i], ETH_ALEN);
 
 	enic->mc_count = mc_count;
-
-	spin_unlock(&enic->devcmd_lock);
 }
 
 /* rtnl lock is held */
@@ -1264,12 +1312,24 @@ static int enic_rq_alloc_buf_a1(struct vnic_rq *rq)
 	return 0;
 }
 
+static int enic_dev_hw_version(struct enic *enic,
+	enum vnic_dev_hw_version *hw_ver)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_hw_version(enic->vdev, hw_ver);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
 static int enic_set_rq_alloc_buf(struct enic *enic)
 {
 	enum vnic_dev_hw_version hw_ver;
 	int err;
 
-	err = vnic_dev_hw_version(enic->vdev, &hw_ver);
+	err = enic_dev_hw_version(enic, &hw_ver);
 	if (err)
 		return err;
 
@@ -1603,7 +1663,7 @@ static void enic_synchronize_irqs(struct enic *enic)
 	}
 }
 
-static int enic_notify_set(struct enic *enic)
+static int enic_dev_notify_set(struct enic *enic)
 {
 	int err;
 
@@ -1619,6 +1679,39 @@ static int enic_notify_set(struct enic *enic)
 		err = vnic_dev_notify_set(enic->vdev, -1 /* no intr */);
 		break;
 	}
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
+static int enic_dev_notify_unset(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_notify_unset(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
+static int enic_dev_enable(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_enable(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
+static int enic_dev_disable(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_disable(enic->vdev);
 	spin_unlock(&enic->devcmd_lock);
 
 	return err;
@@ -1650,7 +1743,7 @@ static int enic_open(struct net_device *netdev)
 		return err;
 	}
 
-	err = enic_notify_set(enic);
+	err = enic_dev_notify_set(enic);
 	if (err) {
 		printk(KERN_ERR PFX
 			"%s: Failed to alloc notify buffer, aborting.\n",
@@ -1680,9 +1773,7 @@ static int enic_open(struct net_device *netdev)
 
 	netif_wake_queue(netdev);
 	napi_enable(&enic->napi);
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_enable(enic->vdev);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_enable(enic);
 
 	for (i = 0; i < enic->intr_count; i++)
 		vnic_intr_unmask(&enic->intr[i]);
@@ -1692,9 +1783,7 @@ static int enic_open(struct net_device *netdev)
 	return 0;
 
 err_out_notify_unset:
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_notify_unset(enic->vdev);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_notify_unset(enic);
 err_out_free_intr:
 	enic_free_intr(enic);
 
@@ -1715,9 +1804,7 @@ static int enic_stop(struct net_device *netdev)
 
 	del_timer_sync(&enic->notify_timer);
 
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_disable(enic->vdev);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_disable(enic);
 	napi_disable(&enic->napi);
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
@@ -1735,9 +1822,7 @@ static int enic_stop(struct net_device *netdev)
 			return err;
 	}
 
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_notify_unset(enic->vdev);
-	spin_unlock(&enic->devcmd_lock);
+	enic_dev_notify_unset(enic);
 	enic_free_intr(enic);
 
 	for (i = 0; i < enic->wq_count; i++)
@@ -1870,15 +1955,31 @@ static int enic_set_niccfg(struct enic *enic)
 	const u8 rss_enable = 0;
 	const u8 tso_ipid_split_en = 0;
 	const u8 ig_vlan_strip_en = 1;
+	int err;
 
 	/* Enable VLAN tag stripping.  RSS not enabled (yet).
 	 */
 
-	return enic_set_nic_cfg(enic,
+	spin_lock(&enic->devcmd_lock);
+	err = enic_set_nic_cfg(enic,
 		rss_default_cpu, rss_hash_type,
 		rss_hash_bits, rss_base_cpu,
 		rss_enable, tso_ipid_split_en,
 		ig_vlan_strip_en);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
+}
+
+static int enic_dev_hang_notify(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_hang_notify(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
 }
 
 int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic)
@@ -1902,10 +2003,7 @@ static void enic_reset(struct work_struct *work)
 
 	rtnl_lock();
 
-	spin_lock(&enic->devcmd_lock);
-	vnic_dev_hang_notify(enic->vdev);
-	spin_unlock(&enic->devcmd_lock);
-
+	enic_dev_hang_notify(enic);
 	enic_stop(enic->netdev);
 	enic_dev_hang_reset(enic);
 	enic_reset_multicast_list(enic);
@@ -2047,8 +2145,8 @@ static const struct net_device_ops enic_netdev_ops = {
 	.ndo_start_xmit		= enic_hard_start_xmit,
 	.ndo_get_stats		= enic_get_stats,
 	.ndo_validate_addr	= eth_validate_addr,
-	.ndo_set_multicast_list	= enic_set_multicast_list,
 	.ndo_set_mac_address	= enic_set_mac_address,
+	.ndo_set_multicast_list	= enic_set_multicast_list,
 	.ndo_change_mtu		= enic_change_mtu,
 	.ndo_vlan_rx_register	= enic_vlan_rx_register,
 	.ndo_vlan_rx_add_vid	= enic_vlan_rx_add_vid,
@@ -2064,6 +2162,17 @@ void enic_dev_deinit(struct enic *enic)
 	netif_napi_del(&enic->napi);
 	enic_free_vnic_resources(enic);
 	enic_clear_intr_mode(enic);
+}
+
+static int enic_dev_stats_clear(struct enic *enic)
+{
+	int err;
+
+	spin_lock(&enic->devcmd_lock);
+	err = vnic_dev_stats_clear(enic->vdev);
+	spin_unlock(&enic->devcmd_lock);
+
+	return err;
 }
 
 int enic_dev_init(struct enic *enic)
@@ -2109,6 +2218,10 @@ int enic_dev_init(struct enic *enic)
 	}
 
 	enic_init_vnic_resources(enic);
+
+	/* Clear LIF stats
+	 */
+	enic_dev_stats_clear(enic);
 
 	err = enic_set_rq_alloc_buf(enic);
 	if (err) {
@@ -2293,6 +2406,11 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		}
 	}
 
+	/* Setup devcmd lock
+	 */
+
+	spin_lock_init(&enic->devcmd_lock);
+
 	err = enic_dev_init(enic);
 	if (err) {
 		printk(KERN_ERR PFX
@@ -2300,7 +2418,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 		goto err_out_dev_close;
 	}
 
-	/* Setup notification timer, HW reset task, and locks
+	/* Setup notification timer, HW reset task, and wq locks
 	 */
 
 	init_timer(&enic->notify_timer);
@@ -2311,8 +2429,6 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 
 	for (i = 0; i < enic->wq_count; i++)
 		spin_lock_init(&enic->wq_lock[i]);
-
-	spin_lock_init(&enic->devcmd_lock);
 
 	/* Register net device
 	 */
