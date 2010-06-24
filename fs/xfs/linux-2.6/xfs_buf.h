@@ -44,57 +44,57 @@ typedef enum {
 	XBRW_ZERO = 3,			/* Zero target memory */
 } xfs_buf_rw_t;
 
-typedef enum {
-	XBF_READ = (1 << 0),	/* buffer intended for reading from device */
-	XBF_WRITE = (1 << 1),	/* buffer intended for writing to device   */
-	XBF_MAPPED = (1 << 2),  /* buffer mapped (b_addr valid)            */
-	XBF_ASYNC = (1 << 4),   /* initiator will not wait for completion  */
-	XBF_DONE = (1 << 5),    /* all pages in the buffer uptodate	   */
-	XBF_DELWRI = (1 << 6),  /* buffer has dirty pages                  */
-	XBF_STALE = (1 << 7),	/* buffer has been staled, do not find it  */
-	XBF_FS_MANAGED = (1 << 8),  /* filesystem controls freeing memory  */
- 	XBF_ORDERED = (1 << 11),    /* use ordered writes		   */
-	XBF_READ_AHEAD = (1 << 12), /* asynchronous read-ahead		   */
-	XBF_LOG_BUFFER = (1 << 13), /* this is a buffer used for the log   */
+#define XBF_READ	(1 << 0) /* buffer intended for reading from device */
+#define XBF_WRITE	(1 << 1) /* buffer intended for writing to device */
+#define XBF_MAPPED	(1 << 2) /* buffer mapped (b_addr valid) */
+#define XBF_ASYNC	(1 << 4) /* initiator will not wait for completion */
+#define XBF_DONE	(1 << 5) /* all pages in the buffer uptodate */
+#define XBF_DELWRI	(1 << 6) /* buffer has dirty pages */
+#define XBF_STALE	(1 << 7) /* buffer has been staled, do not find it */
+#define XBF_FS_MANAGED	(1 << 8) /* filesystem controls freeing memory */
+#define XBF_ORDERED	(1 << 11)/* use ordered writes */
+#define XBF_READ_AHEAD	(1 << 12)/* asynchronous read-ahead */
+#define XBF_LOG_BUFFER	(1 << 13)/* this is a buffer used for the log */
 
-	/* flags used only as arguments to access routines */
-	XBF_LOCK = (1 << 14),       /* lock requested			   */
-	XBF_TRYLOCK = (1 << 15),    /* lock requested, but do not wait	   */
-	XBF_DONT_BLOCK = (1 << 16), /* do not block in current thread	   */
+/* flags used only as arguments to access routines */
+#define XBF_LOCK	(1 << 14)/* lock requested */
+#define XBF_TRYLOCK	(1 << 15)/* lock requested, but do not wait */
+#define XBF_DONT_BLOCK	(1 << 16)/* do not block in current thread */
 
-	/* flags used only internally */
-	_XBF_PAGE_CACHE = (1 << 17),/* backed by pagecache		   */
-	_XBF_PAGES = (1 << 18),	    /* backed by refcounted pages	   */
-	_XBF_RUN_QUEUES = (1 << 19),/* run block device task queue	   */
-	_XBF_DELWRI_Q = (1 << 21),   /* buffer on delwri queue		   */
+/* flags used only internally */
+#define _XBF_PAGE_CACHE	(1 << 17)/* backed by pagecache */
+#define _XBF_PAGES	(1 << 18)/* backed by refcounted pages */
+#define	_XBF_RUN_QUEUES	(1 << 19)/* run block device task queue	*/
+#define _XBF_DELWRI_Q	(1 << 21)/* buffer on delwri queue */
 
-	/*
-	 * Special flag for supporting metadata blocks smaller than a FSB.
-	 *
-	 * In this case we can have multiple xfs_buf_t on a single page and
-	 * need to lock out concurrent xfs_buf_t readers as they only
-	 * serialise access to the buffer.
-	 *
-	 * If the FSB size >= PAGE_CACHE_SIZE case, we have no serialisation
-	 * between reads of the page. Hence we can have one thread read the
-	 * page and modify it, but then race with another thread that thinks
-	 * the page is not up-to-date and hence reads it again.
-	 *
-	 * The result is that the first modifcation to the page is lost.
-	 * This sort of AGF/AGI reading race can happen when unlinking inodes
-	 * that require truncation and results in the AGI unlinked list
-	 * modifications being lost.
-	 */
-	_XBF_PAGE_LOCKED = (1 << 22),
+/*
+ * Special flag for supporting metadata blocks smaller than a FSB.
+ *
+ * In this case we can have multiple xfs_buf_t on a single page and
+ * need to lock out concurrent xfs_buf_t readers as they only
+ * serialise access to the buffer.
+ *
+ * If the FSB size >= PAGE_CACHE_SIZE case, we have no serialisation
+ * between reads of the page. Hence we can have one thread read the
+ * page and modify it, but then race with another thread that thinks
+ * the page is not up-to-date and hence reads it again.
+ *
+ * The result is that the first modifcation to the page is lost.
+ * This sort of AGF/AGI reading race can happen when unlinking inodes
+ * that require truncation and results in the AGI unlinked list
+ * modifications being lost.
+ */
+#define _XBF_PAGE_LOCKED	(1 << 22)
 
-	/*
-	 * If we try a barrier write, but it fails we have to communicate
-	 * this to the upper layers.  Unfortunately b_error gets overwritten
-	 * when the buffer is re-issued so we have to add another flag to
-	 * keep this information.
-	 */
-	_XFS_BARRIER_FAILED = (1 << 23),
-} xfs_buf_flags_t;
+/*
+ * If we try a barrier write, but it fails we have to communicate
+ * this to the upper layers.  Unfortunately b_error gets overwritten
+ * when the buffer is re-issued so we have to add another flag to
+ * keep this information.
+ */
+#define _XFS_BARRIER_FAILED	(1 << 23)
+
+typedef unsigned int xfs_buf_flags_t;
 
 #define XFS_BUF_FLAGS \
 	{ XBF_READ,		"READ" }, \
