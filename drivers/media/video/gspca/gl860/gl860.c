@@ -91,7 +91,6 @@ SD_SETGET(contrast)
 /* control table */
 static struct ctrl sd_ctrls_mi1320[GL860_NCTRLS];
 static struct ctrl sd_ctrls_mi2020[GL860_NCTRLS];
-static struct ctrl sd_ctrls_mi2020b[GL860_NCTRLS];
 static struct ctrl sd_ctrls_ov2640[GL860_NCTRLS];
 static struct ctrl sd_ctrls_ov9655[GL860_NCTRLS];
 
@@ -121,8 +120,6 @@ static int gl860_build_control_table(struct gspca_dev *gspca_dev)
 		sd_ctrls = sd_ctrls_mi1320;
 	else if (_MI2020_)
 		sd_ctrls = sd_ctrls_mi2020;
-	else if (_MI2020b_)
-		sd_ctrls = sd_ctrls_mi2020b;
 	else if (_OV2640_)
 		sd_ctrls = sd_ctrls_ov2640;
 	else if (_OV9655_)
@@ -177,19 +174,6 @@ static const struct sd_desc sd_desc_mi1320 = {
 static const struct sd_desc sd_desc_mi2020 = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_mi2020,
-	.nctrls      = GL860_NCTRLS,
-	.config      = sd_config,
-	.init        = sd_init,
-	.isoc_init   = sd_isoc_init,
-	.start       = sd_start,
-	.stop0       = sd_stop0,
-	.pkt_scan    = sd_pkt_scan,
-	.dq_callback = sd_callback,
-};
-
-static const struct sd_desc sd_desc_mi2020b = {
-	.name        = MODULE_NAME,
-	.ctrls       = sd_ctrls_mi2020b,
 	.nctrls      = GL860_NCTRLS,
 	.config      = sd_config,
 	.init        = sd_init,
@@ -344,8 +328,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->sensor = ID_OV9655;
 	else if (strcmp(sensor, "MI2020") == 0)
 		sd->sensor = ID_MI2020;
-	else if (strcmp(sensor, "MI2020b") == 0)
-		sd->sensor = ID_MI2020b;
 
 	/* Get sensor and set the suitable init/start/../stop functions */
 	if (gl860_guess_sensor(gspca_dev, vendor_id, product_id) == -1)
@@ -364,13 +346,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	case ID_MI2020:
 		gspca_dev->sd_desc = &sd_desc_mi2020;
-		cam->cam_mode = mi2020_mode;
-		cam->nmodes = ARRAY_SIZE(mi2020_mode);
-		dev_init_settings   = mi2020_init_settings;
-		break;
-
-	case ID_MI2020b:
-		gspca_dev->sd_desc = &sd_desc_mi2020b;
 		cam->cam_mode = mi2020_mode;
 		cam->nmodes = ARRAY_SIZE(mi2020_mode);
 		dev_init_settings   = mi2020_init_settings;
@@ -620,7 +595,7 @@ int gl860_RTx(struct gspca_dev *gspca_dev,
 	else if (len > 1 && r < len)
 		PDEBUG(D_ERR, "short ctrl transfer %d/%d", r, len);
 
-	if ((_MI2020_ || _MI2020b_ || _MI2020c_) && (val || index))
+	if (_MI2020_ && (val || index))
 		msleep(1);
 	if (_OV2640_)
 		msleep(1);
@@ -767,8 +742,6 @@ static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "05e3:f191 sensor MI1320 (1.3M)");
 	} else if (_MI2020_) {
 		PDEBUG(D_PROBE, "05e3:0503 sensor MI2020 (2.0M)");
-	} else if (_MI2020b_) {
-		PDEBUG(D_PROBE, "05e3:0503 sensor MI2020 alt. driver (2.0M)");
 	} else if (_OV9655_) {
 		PDEBUG(D_PROBE, "05e3:0503 sensor OV9655 (1.3M)");
 	} else if (_OV2640_) {

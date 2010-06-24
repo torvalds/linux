@@ -32,12 +32,9 @@
 #define ID_OV2640   2
 #define ID_OV9655   4
 #define ID_MI2020   8
-#define ID_MI2020b 16
 
 #define _MI1320_  (((struct sd *) gspca_dev)->sensor == ID_MI1320)
 #define _MI2020_  (((struct sd *) gspca_dev)->sensor == ID_MI2020)
-#define _MI2020b_ (((struct sd *) gspca_dev)->sensor == ID_MI2020b)
-#define _MI2020c_ 0
 #define _OV2640_  (((struct sd *) gspca_dev)->sensor == ID_OV2640)
 #define _OV9655_  (((struct sd *) gspca_dev)->sensor == ID_OV9655)
 
