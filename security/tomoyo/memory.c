@@ -234,7 +234,7 @@ unsigned int tomoyo_quota_for_query;
  */
 void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 {
-	if (!head->read_eof) {
+	if (!head->r.eof) {
 		const unsigned int policy
 			= atomic_read(&tomoyo_policy_memory_size);
 		const unsigned int query = tomoyo_query_memory_size;
@@ -258,7 +258,7 @@ void tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 		tomoyo_io_printf(head, "Query lists:  %10u%s\n", query,
 				 buffer);
 		tomoyo_io_printf(head, "Total:        %10u\n", policy + query);
-		head->read_eof = true;
+		head->r.eof = true;
 	}
 }
 

@@ -524,28 +524,11 @@ struct tomoyo_mount_acl {
 	struct tomoyo_number_union flags;
 };
 
+#define TOMOYO_MAX_IO_READ_QUEUE 32
+
 /*
- * tomoyo_io_buffer is a structure which is used for reading and modifying
- * configuration via /sys/kernel/security/tomoyo/ interface.
- * It has many fields. ->read_var1 , ->read_var2 , ->write_var1 are used as
- * cursors.
- *
- * Since the content of /sys/kernel/security/tomoyo/domain_policy is a list of
- * "struct tomoyo_domain_info" entries and each "struct tomoyo_domain_info"
- * entry has a list of "struct tomoyo_acl_info", we need two cursors when
- * reading (one is for traversing tomoyo_domain_list and the other is for
- * traversing "struct tomoyo_acl_info"->acl_info_list ).
- *
- * If a line written to /sys/kernel/security/tomoyo/domain_policy starts with
- * "select ", TOMOYO seeks the cursor ->read_var1 and ->write_var1 to the
- * domain with the domainname specified by the rest of that line (NULL is set
- * if seek failed).
- * If a line written to /sys/kernel/security/tomoyo/domain_policy starts with
- * "delete ", TOMOYO deletes an entry or a domain specified by the rest of that
- * line (->write_var1 is set to NULL if a domain was deleted).
- * If a line written to /sys/kernel/security/tomoyo/domain_policy starts with
- * neither "select " nor "delete ", an entry or a domain specified by that line
- * is appended.
+ * Structure for reading/writing policy via /sys/kernel/security/tomoyo
+ * interfaces.
  */
 struct tomoyo_io_buffer {
 	void (*read) (struct tomoyo_io_buffer *);
@@ -555,26 +538,27 @@ struct tomoyo_io_buffer {
 	struct mutex io_sem;
 	/* Index returned by tomoyo_read_lock(). */
 	int reader_idx;
-	/* The position currently reading from. */
-	struct list_head *read_var1;
-	/* Extra variables for reading.         */
-	struct list_head *read_var2;
+	char __user *read_user_buf;
+	int read_user_buf_avail;
+	struct {
+		struct list_head *domain;
+		struct list_head *group;
+		struct list_head *acl;
+		int avail;
+		int step;
+		int query_index;
+		u16 index;
+		u8 bit;
+		u8 w_pos;
+		bool eof;
+		bool print_this_domain_only;
+		bool print_execute_only;
+		const char *w[TOMOYO_MAX_IO_READ_QUEUE];
+	} r;
 	/* The position currently writing to.   */
 	struct tomoyo_domain_info *write_var1;
-	/* The step for reading.                */
-	int read_step;
 	/* Buffer for reading.                  */
 	char *read_buf;
-	/* EOF flag for reading.                */
-	bool read_eof;
-	/* Read domain ACL of specified PID?    */
-	bool read_single_domain;
-	/* Extra variable for reading.          */
-	u8 read_bit;
-	/* Read only TOMOYO_TYPE_EXECUTE        */
-	bool print_execute_only;
-	/* Bytes available for reading.         */
-	int read_avail;
 	/* Size of read buffer.                 */
 	int readbuf_size;
 	/* Buffer for writing.                  */
@@ -738,8 +722,7 @@ bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
 int tomoyo_get_mode(const u8 profile, const u8 index);
-/* Transactional sprintf() for policy dump. */
-bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
+void tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
 /* Check whether the domainname is correct. */
 bool tomoyo_correct_domain(const unsigned char *domainname);
@@ -761,8 +744,6 @@ bool tomoyo_number_matches_group(const unsigned long min,
 bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 				 const struct tomoyo_path_info *pattern);
 
-bool tomoyo_print_number_union(struct tomoyo_io_buffer *head,
-			       const struct tomoyo_number_union *ptr);
 bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num);
 /* Tokenize a line. */
 bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
