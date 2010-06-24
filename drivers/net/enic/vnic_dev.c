@@ -275,6 +275,11 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	int err;
 
 	status = ioread32(&devcmd->status);
+	if (status == 0xFFFFFFFF) {
+		/* PCI-e target device is gone */
+		return -ENODEV;
+	}
+
 	if (status & STAT_BUSY) {
 		pr_err("Busy devcmd %d\n", _CMD_N(cmd));
 		return -EBUSY;
@@ -296,6 +301,10 @@ static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		udelay(100);
 
 		status = ioread32(&devcmd->status);
+		if (status == 0xFFFFFFFF) {
+			/* PCI-e target device is gone */
+			return -ENODEV;
+		}
 
 		if (!(status & STAT_BUSY)) {
 
