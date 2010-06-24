@@ -4800,14 +4800,13 @@ static void perf_swevent_start_hrtimer(struct perf_event *event)
 	hrtimer_init(&hwc->hrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hwc->hrtimer.function = perf_swevent_hrtimer;
 	if (hwc->sample_period) {
-		u64 period;
+		s64 period = local64_read(&hwc->period_left);
 
-		if (hwc->remaining) {
-			if (hwc->remaining < 0)
+		if (period) {
+			if (period < 0)
 				period = 10000;
-			else
-				period = hwc->remaining;
-			hwc->remaining = 0;
+
+			local64_set(&hwc->period_left, 0);
 		} else {
 			period = max_t(u64, 10000, hwc->sample_period);
 		}
@@ -4823,7 +4822,7 @@ static void perf_swevent_cancel_hrtimer(struct perf_event *event)
 
 	if (hwc->sample_period) {
 		ktime_t remaining = hrtimer_get_remaining(&hwc->hrtimer);
-		hwc->remaining = ktime_to_ns(remaining);
+		local64_set(&hwc->period_left, ktime_to_ns(remaining));
 
 		hrtimer_cancel(&hwc->hrtimer);
 	}

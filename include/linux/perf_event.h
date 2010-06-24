@@ -529,7 +529,6 @@ struct hw_perf_event {
 			int		last_cpu;
 		};
 		struct { /* software */
-			s64		remaining;
 			struct hrtimer	hrtimer;
 		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
