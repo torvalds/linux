@@ -313,11 +313,8 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	pr_debug(PREFIX "transaction start\n");
 	/* disable GPE during transaction if storm is detected */
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
-		/*
-		 * It has to be disabled at the hardware level regardless of the
-		 * GPE reference counting, so that it doesn't trigger.
-		 */
-		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
+		/* It has to be disabled, so that it doesn't trigger. */
+		acpi_disable_gpe(NULL, ec->gpe);
 	}
 
 	status = acpi_ec_transaction_unlocked(ec, t);
@@ -326,12 +323,8 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	ec_check_sci_sync(ec, acpi_ec_read_status(ec));
 	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
 		msleep(1);
-		/*
-		 * It is safe to enable the GPE outside of the transaction.  Use
-		 * acpi_set_gpe() for that, since we used it to disable the GPE
-		 * above.
-		 */
-		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
+		/* It is safe to enable the GPE outside of the transaction. */
+		acpi_enable_gpe(NULL, ec->gpe);
 	} else if (t->irq_count > ACPI_EC_STORM_THRESHOLD) {
 		pr_info(PREFIX "GPE storm detected, "
 			"transactions will use polling mode\n");
