@@ -356,12 +356,20 @@ static const struct cap_s {
 static void reg_r(struct gspca_dev *gspca_dev,
 		u16 value, int len)
 {
-	usb_control_msg(gspca_dev->dev,
+	int ret;
+
+	if (gspca_dev->usb_err < 0)
+		return;
+	ret = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0x0c,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			value, 0, gspca_dev->usb_buf, len,
 			500);
+	if (ret < 0) {
+		PDEBUG(D_ERR, "reg_r %04x failed %d", value, ret);
+		gspca_dev->usb_err = ret;
+	}
 }
 
 static void reg_w(struct gspca_dev *gspca_dev, u16 value, u16 index)
