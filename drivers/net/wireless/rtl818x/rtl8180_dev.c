@@ -671,7 +671,7 @@ static u64 rtl8180_get_tsf(struct ieee80211_hw *dev)
 	       (u64)(rtl818x_ioread32(priv, &priv->map->TSFT[1])) << 32;
 }
 
-void rtl8180_beacon_work(struct work_struct *work)
+static void rtl8180_beacon_work(struct work_struct *work)
 {
 	struct rtl8180_vif *vif_priv =
 		container_of(work, struct rtl8180_vif, beacon_work.work);
