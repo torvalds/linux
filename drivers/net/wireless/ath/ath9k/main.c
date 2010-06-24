@@ -310,13 +310,13 @@ void ath_paprd_calibrate(struct work_struct *work)
 			break;
 
 		time_left = wait_for_completion_timeout(&sc->paprd_complete,
-							100);
+				msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
 		if (!time_left) {
 			ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
 				  "Timeout waiting for paprd training on "
 				  "TX chain %d\n",
 				  chain);
-			break;
+			goto fail_paprd;
 		}
 
 		if (!ar9003_paprd_is_done(ah))
@@ -334,6 +334,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 		ath_paprd_activate(sc);
 	}
 
+fail_paprd:
 	ath9k_ps_restore(sc);
 }
 

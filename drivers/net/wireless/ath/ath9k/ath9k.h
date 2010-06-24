@@ -226,6 +226,7 @@ struct ath_buf_state {
 	int bfs_retries;
 	u8 bf_type;
 	u8 bfs_paprd;
+	unsigned long bfs_paprd_timestamp;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
@@ -424,6 +425,8 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_ANI_POLLINTERVAL_NEW  1000    /* 1000 ms */
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
+
+#define ATH_PAPRD_TIMEOUT	100 /* msecs */
 
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);

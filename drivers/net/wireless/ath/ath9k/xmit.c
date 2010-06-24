@@ -1644,6 +1644,8 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	}
 
 	bf->bf_state.bfs_paprd = txctl->paprd;
+	if (txctl->paprd)
+		bf->bf_state.bfs_paprd_timestamp = jiffies;
 	bf->bf_flags = setup_tx_flags(skb, use_ldpc);
 
 	bf->bf_keytype = get_hw_crypto_keytype(skb);
@@ -1944,8 +1946,14 @@ static void ath_tx_complete_buf(struct ath_softc *sc, struct ath_buf *bf,
 	dma_unmap_single(sc->dev, bf->bf_dmacontext, skb->len, DMA_TO_DEVICE);
 
 	if (bf->bf_state.bfs_paprd) {
-		sc->paprd_txok = txok;
-		complete(&sc->paprd_complete);
+		if (time_after(jiffies,
+			       bf->bf_state.bfs_paprd_timestamp +
+			       msecs_to_jiffies(ATH_PAPRD_TIMEOUT))) {
+			dev_kfree_skb_any(skb);
+		} else {
+			sc->paprd_txok = txok;
+			complete(&sc->paprd_complete);
+		}
 	} else {
 		ath_tx_complete(sc, skb, bf->aphy, tx_flags);
 		ath_debug_stat_tx(sc, txq, bf, ts);
