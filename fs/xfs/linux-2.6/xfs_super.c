@@ -1146,18 +1146,6 @@ xfs_fs_put_super(
 
 	xfs_syncd_stop(mp);
 
-	if (!(sb->s_flags & MS_RDONLY)) {
-		/*
-		 * XXX(hch): this should be SYNC_WAIT.
-		 *
-		 * Or more likely not needed at all because the VFS is already
-		 * calling ->sync_fs after shutting down all filestem
-		 * operations and just before calling ->put_super.
-		 */
-		xfs_sync_data(mp, 0);
-		xfs_sync_attr(mp, 0);
-	}
-
 	/*
 	 * Blow away any referenced inode in the filestreams cache.
 	 * This can and will cause log traffic as inodes go inactive
