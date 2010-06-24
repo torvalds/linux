@@ -179,8 +179,8 @@ static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 			priv->cfg->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
-	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
@@ -226,8 +226,8 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 			priv->cfg->num_of_queues *
 			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
-	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
-	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
+	priv->hw_params.max_stations = IWLAGN_STATION_COUNT;
+	priv->hw_params.bcast_sta_id = IWLAGN_BROADCAST_ID;
 
 	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
 	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
