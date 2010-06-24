@@ -80,7 +80,7 @@ static const struct ieee80211_regdomain *country_ie_regdomain;
  *     - country_ie_regdomain
  *     - last_request
  */
-DEFINE_MUTEX(reg_mutex);
+static DEFINE_MUTEX(reg_mutex);
 #define assert_reg_lock() WARN_ON(!mutex_is_locked(&reg_mutex))
 
 /* Used to queue up regulatory hints */
