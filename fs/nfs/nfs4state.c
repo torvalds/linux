@@ -373,7 +373,6 @@ nfs4_alloc_state_owner(void)
 		return NULL;
 	spin_lock_init(&sp->so_lock);
 	INIT_LIST_HEAD(&sp->so_states);
-	INIT_LIST_HEAD(&sp->so_delegations);
 	rpc_init_wait_queue(&sp->so_sequence.wait, "Seqid_waitqueue");
 	sp->so_seqid.sequence = &sp->so_sequence;
 	spin_lock_init(&sp->so_sequence.lock);
@@ -386,7 +385,7 @@ static void
 nfs4_drop_state_owner(struct nfs4_state_owner *sp)
 {
 	if (!RB_EMPTY_NODE(&sp->so_client_node)) {
-		struct nfs_client *clp = sp->so_client;
+		struct nfs_client *clp = sp->so_server->nfs_client;
 
 		spin_lock(&clp->cl_lock);
 		rb_erase(&sp->so_client_node, &clp->cl_state_owners);
@@ -408,7 +407,6 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 	new = nfs4_alloc_state_owner();
 	if (new == NULL)
 		return NULL;
-	new->so_client = clp;
 	new->so_server = server;
 	new->so_cred = cred;
 	spin_lock(&clp->cl_lock);
@@ -425,7 +423,7 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 
 void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 {
-	struct nfs_client *clp = sp->so_client;
+	struct nfs_client *clp = sp->so_server->nfs_client;
 	struct rpc_cred *cred = sp->so_cred;
 
 	if (!atomic_dec_and_lock(&sp->so_count, &clp->cl_lock))
@@ -624,7 +622,7 @@ __nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
 static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
 {
 	struct nfs4_lock_state *lsp;
-	struct nfs_client *clp = state->owner->so_client;
+	struct nfs_client *clp = state->owner->so_server->nfs_client;
 
 	lsp = kzalloc(sizeof(*lsp), GFP_NOFS);
 	if (lsp == NULL)
@@ -645,7 +643,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 
 static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
 {
-	struct nfs_client *clp = lsp->ls_state->owner->so_client;
+	struct nfs_client *clp = lsp->ls_state->owner->so_server->nfs_client;
 
 	spin_lock(&clp->cl_lock);
 	nfs_free_unique_id(&clp->cl_lockowner_id, &lsp->ls_id);
@@ -1043,11 +1041,11 @@ restart:
 			case -NFS4ERR_BAD_STATEID:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:
-				nfs4_state_mark_reclaim_nograce(sp->so_client, state);
+				nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
 				break;
 			case -NFS4ERR_EXPIRED:
 			case -NFS4ERR_NO_GRACE:
-				nfs4_state_mark_reclaim_nograce(sp->so_client, state);
+				nfs4_state_mark_reclaim_nograce(sp->so_server->nfs_client, state);
 			case -NFS4ERR_STALE_CLIENTID:
 			case -NFS4ERR_BADSESSION:
 			case -NFS4ERR_BADSLOT:

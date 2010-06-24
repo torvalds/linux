@@ -1350,7 +1350,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	}
 	/* Update sequence id. */
 	data->o_arg.id = sp->so_owner_id.id;
-	data->o_arg.clientid = sp->so_client->cl_clientid;
+	data->o_arg.clientid = sp->so_server->nfs_client->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
 		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);

@@ -108,7 +108,6 @@ struct nfs_unique_id {
  */
 struct nfs4_state_owner {
 	struct nfs_unique_id so_owner_id;
-	struct nfs_client    *so_client;
 	struct nfs_server    *so_server;
 	struct rb_node	     so_client_node;
 
@@ -118,7 +117,6 @@ struct nfs4_state_owner {
 	atomic_t	     so_count;
 	unsigned long	     so_flags;
 	struct list_head     so_states;
-	struct list_head     so_delegations;
 	struct nfs_seqid_counter so_seqid;
 	struct rpc_sequence  so_sequence;
 };
