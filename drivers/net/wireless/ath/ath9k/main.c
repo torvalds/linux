@@ -268,7 +268,6 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int time_left;
 	int i;
 
-	ath9k_ps_wakeup(sc);
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
 		return;
@@ -289,6 +288,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	qnum = sc->tx.hwq_map[WME_AC_BE];
 	txctl.txq = &sc->tx.txq[qnum];
 
+	ath9k_ps_wakeup(sc);
 	ar9003_paprd_init_table(ah);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(ah->caps.tx_chainmask & BIT(chain)))
