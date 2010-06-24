@@ -130,6 +130,7 @@ struct tegra_sdhci_platform_data stingray_wifi_data = {
 	.force_hs = 0,
 	.mmc_data = {
 		.ocr_mask		= MMC_VDD_165_195,
+		.built_in		= 1,
 		.status			= stingray_wifi_status,
 		.register_status_notify	= stingray_wifi_status_register,
 		.embedded_sdio		= &stingray_wifi_emb_data,
