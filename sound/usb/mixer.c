@@ -306,7 +306,7 @@ static int get_ctl_value_v1(struct usb_mixer_elem_info *cval, int request, int v
 		}
 	}
 	snd_printdd(KERN_ERR "cannot get ctl value: req = %#x, wValue = %#x, wIndex = %#x, type = %d\n",
-		    request, validx, cval->mixer->ctrlif | (cval->id << 8), cval->val_type);
+		    request, validx, snd_usb_ctrl_intf(chip) | (cval->id << 8), cval->val_type);
 	return -EINVAL;
 }
 
