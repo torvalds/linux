@@ -53,6 +53,12 @@ static int xen_hvm_register_pirq(u32 gsi, int triggering)
 
 	return irq;
 }
+
+static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
+				 int trigger, int polarity)
+{
+	return xen_hvm_register_pirq(gsi, trigger);
+}
 #endif
 
 #if defined(CONFIG_PCI_MSI)
