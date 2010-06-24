@@ -1295,9 +1295,9 @@ __xfs_get_blocks(
 	sector_t		iblock,
 	struct buffer_head	*bh_result,
 	int			create,
-	int			direct,
-	bmapi_flags_t		flags)
+	int			direct)
 {
+	int			flags = create ? BMAPI_WRITE : BMAPI_READ;
 	struct xfs_bmbt_irec	imap;
 	xfs_off_t		offset;
 	ssize_t			size;
@@ -1312,8 +1312,11 @@ __xfs_get_blocks(
 	if (!create && direct && offset >= i_size_read(inode))
 		return 0;
 
-	error = xfs_iomap(XFS_I(inode), offset, size,
-			     create ? flags : BMAPI_READ, &imap, &nimap, &new);
+	if (direct && create)
+		flags |= BMAPI_DIRECT;
+
+	error = xfs_iomap(XFS_I(inode), offset, size, flags, &imap, &nimap,
+			  &new);
 	if (error)
 		return -error;
 	if (nimap == 0)
@@ -1393,8 +1396,7 @@ xfs_get_blocks(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_blocks(inode, iblock,
-				bh_result, create, 0, BMAPI_WRITE);
+	return __xfs_get_blocks(inode, iblock, bh_result, create, 0);
 }
 
 STATIC int
@@ -1404,8 +1406,7 @@ xfs_get_blocks_direct(
 	struct buffer_head	*bh_result,
 	int			create)
 {
-	return __xfs_get_blocks(inode, iblock,
-				bh_result, create, 1, BMAPI_WRITE|BMAPI_DIRECT);
+	return __xfs_get_blocks(inode, iblock, bh_result, create, 1);
 }
 
 STATIC void

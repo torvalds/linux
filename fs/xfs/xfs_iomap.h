@@ -26,7 +26,6 @@ typedef enum {
 	/* modifiers */
 	BMAPI_IGNSTATE = (1 << 4),	/* ignore unwritten state on read */
 	BMAPI_DIRECT = (1 << 5),	/* direct instead of buffered write */
-	BMAPI_MMAP = (1 << 6),		/* allocate for mmap write */
 	BMAPI_TRYLOCK = (1 << 7),	/* non-blocking request */
 } bmapi_flags_t;
 
@@ -36,7 +35,6 @@ typedef enum {
 	{ BMAPI_ALLOCATE,	"ALLOCATE" }, \
 	{ BMAPI_IGNSTATE,	"IGNSTATE" }, \
 	{ BMAPI_DIRECT,		"DIRECT" }, \
-	{ BMAPI_MMAP,		"MMAP" }, \
 	{ BMAPI_TRYLOCK,	"TRYLOCK" }
 
 struct xfs_inode;

@@ -133,7 +133,7 @@ xfs_iomap(
 			break;
 		}
 
-		if (flags & (BMAPI_DIRECT|BMAPI_MMAP)) {
+		if (flags & BMAPI_DIRECT) {
 			error = xfs_iomap_write_direct(ip, offset, count, flags,
 						       imap, nimaps);
 		} else {
