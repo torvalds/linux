@@ -1209,6 +1209,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags)
 {
 	enum drbd_fencing_p fp;
+	enum drbd_req_event what = nothing;
 
 	if (os.conn != C_CONNECTED && ns.conn == C_CONNECTED) {
 		clear_bit(CRASHED_PRIMARY, &mdev->flags);
@@ -1234,21 +1235,14 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	if (os.susp && ns.susp && mdev->sync_conf.on_no_data == OND_SUSPEND_IO) {
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
-			if (ns.conn == C_CONNECTED) {
-				spin_lock_irq(&mdev->req_lock);
-				_tl_restart(mdev, resend);
-				_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
-				spin_unlock_irq(&mdev->req_lock);
-			} else /* ns.conn > C_CONNECTED */
+			if (ns.conn == C_CONNECTED)
+				what = resend;
+			else /* ns.conn > C_CONNECTED */
 				dev_err(DEV, "Unexpected Resynd going on!\n");
 		}
 
-		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING) {
-			spin_lock_irq(&mdev->req_lock);
-			_tl_restart(mdev, restart_frozen_disk_io);
-			_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
-			spin_unlock_irq(&mdev->req_lock);
-		}
+		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING)
+			what = restart_frozen_disk_io;
 	}
 
 	if (fp == FP_STONITH && ns.susp) {
@@ -1267,12 +1261,17 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		/* case2: The connection was established again: */
 		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
 			clear_bit(NEW_CUR_UUID, &mdev->flags);
-			spin_lock_irq(&mdev->req_lock);
-			_tl_restart(mdev, resend);
-			_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
-			spin_unlock_irq(&mdev->req_lock);
+			what = resend;
 		}
 	}
+
+	if (what != nothing) {
+		spin_lock_irq(&mdev->req_lock);
+		_tl_restart(mdev, what);
+		_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
+		spin_unlock_irq(&mdev->req_lock);
+	}
+
 	/* Do not change the order of the if above and the two below... */
 	if (os.pdsk == D_DISKLESS && ns.pdsk > D_DISKLESS) {      /* attach on the peer */
 		drbd_send_uuids(mdev);
