@@ -98,6 +98,9 @@ enum vnic_devcmd_cmd {
 	/* set Rx packet filter: (u32)a0=filters (see CMD_PFILTER_*) */
 	CMD_PACKET_FILTER	= _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ENET, 7),
 
+	/* set Rx packet filter for all: (u32)a0=filters (see CMD_PFILTER_*) */
+	CMD_PACKET_FILTER_ALL   = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 7),
+
 	/* hang detection notification */
 	CMD_HANG_NOTIFY         = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 8),
 
@@ -171,6 +174,9 @@ enum vnic_devcmd_cmd {
 	/* enable virtual link */
 	CMD_ENABLE		= _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 28),
 
+	/* enable virtual link, waiting variant. */
+	CMD_ENABLE_WAIT		= _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 28),
+
 	/* disable virtual link */
 	CMD_DISABLE		= _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 29),
 
@@ -224,6 +230,14 @@ enum vnic_devcmd_cmd {
 	 * in:  (u32)a0=new vlan rewrite mode
 	 * out: (u32)a0=old vlan rewrite mode */
 	CMD_IG_VLAN_REWRITE_MODE = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 41),
+
+	/*
+	 * in:  (u16)a0=bdf of target vnic
+	 *      (u32)a1=cmd to proxy
+	 *      a2-a15=args to cmd in a1
+	 * out: (u32)a0=status of proxied cmd
+	 *      a1-a15=out args of proxied cmd */
+	CMD_PROXY_BY_BDF =	_CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 42),
 };
 
 /* flags for CMD_OPEN */

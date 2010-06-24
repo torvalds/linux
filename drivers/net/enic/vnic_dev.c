@@ -30,6 +30,11 @@
 #include "vnic_dev.h"
 #include "vnic_stats.h"
 
+enum vnic_proxy_type {
+	PROXY_NONE,
+	PROXY_BY_BDF,
+};
+
 struct vnic_res {
 	void __iomem *vaddr;
 	dma_addr_t bus_addr;
@@ -55,6 +60,9 @@ struct vnic_dev {
 	struct vnic_devcmd_fw_info *fw_info;
 	dma_addr_t fw_info_pa;
 	u32 cap_flags;
+	enum vnic_proxy_type proxy;
+	u32 proxy_index;
+	u64 args[VNIC_DEVCMD_NARGS];
 };
 
 #define VNIC_MAX_RES_HDR_SIZE \
@@ -257,10 +265,11 @@ void vnic_dev_free_desc_ring(struct vnic_dev *vdev, struct vnic_dev_ring *ring)
 	}
 }
 
-int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
-	u64 *a0, u64 *a1, int wait)
+static int _vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+	int wait)
 {
 	struct vnic_devcmd __iomem *devcmd = vdev->devcmd;
+	unsigned int i;
 	int delay;
 	u32 status;
 	int err;
@@ -272,8 +281,8 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 	}
 
 	if (_CMD_DIR(cmd) & _CMD_DIR_WRITE) {
-		writeq(*a0, &devcmd->args[0]);
-		writeq(*a1, &devcmd->args[1]);
+		for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
+			writeq(vdev->args[i], &devcmd->args[i]);
 		wmb();
 	}
 
@@ -287,6 +296,7 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 		udelay(100);
 
 		status = ioread32(&devcmd->status);
+
 		if (!(status & STAT_BUSY)) {
 
 			if (status & STAT_ERROR) {
@@ -300,8 +310,8 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 
 			if (_CMD_DIR(cmd) & _CMD_DIR_READ) {
 				rmb();
-				*a0 = readq(&devcmd->args[0]);
-				*a1 = readq(&devcmd->args[1]);
+				for (i = 0; i < VNIC_DEVCMD_NARGS; i++)
+					vdev->args[i] = readq(&devcmd->args[i]);
 			}
 
 			return 0;
@@ -310,6 +320,80 @@ int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
 
 	pr_err("Timedout devcmd %d\n", _CMD_N(cmd));
 	return -ETIMEDOUT;
+}
+
+static int vnic_dev_cmd_proxy_by_bdf(struct vnic_dev *vdev,
+	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
+{
+	u32 status;
+	int err;
+
+	memset(vdev->args, 0, sizeof(vdev->args));
+
+	vdev->args[0] = vdev->proxy_index; /* bdf */
+	vdev->args[1] = cmd;
+	vdev->args[2] = *a0;
+	vdev->args[3] = *a1;
+
+	err = _vnic_dev_cmd(vdev, CMD_PROXY_BY_BDF, wait);
+	if (err)
+		return err;
+
+	status = (u32)vdev->args[0];
+	if (status & STAT_ERROR) {
+		err = (int)vdev->args[1];
+		if (err != ERR_ECMDUNKNOWN ||
+		    cmd != CMD_CAPABILITY)
+			pr_err("Error %d proxy devcmd %d\n", err, _CMD_N(cmd));
+		return err;
+	}
+
+	*a0 = vdev->args[1];
+	*a1 = vdev->args[2];
+
+	return 0;
+}
+
+static int vnic_dev_cmd_no_proxy(struct vnic_dev *vdev,
+	enum vnic_devcmd_cmd cmd, u64 *a0, u64 *a1, int wait)
+{
+	int err;
+
+	vdev->args[0] = *a0;
+	vdev->args[1] = *a1;
+
+	err = _vnic_dev_cmd(vdev, cmd, wait);
+
+	*a0 = vdev->args[0];
+	*a1 = vdev->args[1];
+
+	return err;
+}
+
+void vnic_dev_cmd_proxy_by_bdf_start(struct vnic_dev *vdev, u16 bdf)
+{
+	vdev->proxy = PROXY_BY_BDF;
+	vdev->proxy_index = bdf;
+}
+
+void vnic_dev_cmd_proxy_end(struct vnic_dev *vdev)
+{
+	vdev->proxy = PROXY_NONE;
+	vdev->proxy_index = 0;
+}
+
+int vnic_dev_cmd(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd,
+	u64 *a0, u64 *a1, int wait)
+{
+	memset(vdev->args, 0, sizeof(vdev->args));
+
+	switch (vdev->proxy) {
+	case PROXY_BY_BDF:
+		return vnic_dev_cmd_proxy_by_bdf(vdev, cmd, a0, a1, wait);
+	case PROXY_NONE:
+	default:
+		return vnic_dev_cmd_no_proxy(vdev, cmd, a0, a1, wait);
+	}
 }
 
 static int vnic_dev_capable(struct vnic_dev *vdev, enum vnic_devcmd_cmd cmd)
@@ -428,6 +512,19 @@ int vnic_dev_enable(struct vnic_dev *vdev)
 	u64 a0 = 0, a1 = 0;
 	int wait = 1000;
 	return vnic_dev_cmd(vdev, CMD_ENABLE, &a0, &a1, wait);
+}
+
+int vnic_dev_enable_wait(struct vnic_dev *vdev)
+{
+	u64 a0 = 0, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_ENABLE_WAIT, &a0, &a1, wait);
+	if (err == ERR_ECMDUNKNOWN)
+		return vnic_dev_cmd(vdev, CMD_ENABLE, &a0, &a1, wait);
+
+	return err;
 }
 
 int vnic_dev_disable(struct vnic_dev *vdev)
@@ -563,6 +660,26 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	     (allmulti ? CMD_PFILTER_ALL_MULTICAST : 0);
 
 	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER, &a0, &a1, wait);
+	if (err)
+		pr_err("Can't set packet filter\n");
+
+	return err;
+}
+
+int vnic_dev_packet_filter_all(struct vnic_dev *vdev, int directed,
+	int multicast, int broadcast, int promisc, int allmulti)
+{
+	u64 a0, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	a0 = (directed ? CMD_PFILTER_DIRECTED : 0) |
+	     (multicast ? CMD_PFILTER_MULTICAST : 0) |
+	     (broadcast ? CMD_PFILTER_BROADCAST : 0) |
+	     (promisc ? CMD_PFILTER_PROMISCUOUS : 0) |
+	     (allmulti ? CMD_PFILTER_ALL_MULTICAST : 0);
+
+	err = vnic_dev_cmd(vdev, CMD_PACKET_FILTER_ALL, &a0, &a1, wait);
 	if (err)
 		pr_err("Can't set packet filter\n");
 
@@ -731,8 +848,9 @@ int vnic_dev_init(struct vnic_dev *vdev, int arg)
 	else {
 		vnic_dev_cmd(vdev, CMD_INIT_v1, &a0, &a1, wait);
 		if (a0 & CMD_INITF_DEFAULT_MAC) {
-			// Emulate these for old CMD_INIT_v1 which
-			// didn't pass a0 so no CMD_INITF_*.
+			/* Emulate these for old CMD_INIT_v1 which
+			 * didn't pass a0 so no CMD_INITF_*.
+			 */
 			vnic_dev_cmd(vdev, CMD_MAC_ADDR, &a0, &a1, wait);
 			vnic_dev_cmd(vdev, CMD_ADDR_ADD, &a0, &a1, wait);
 		}
@@ -754,7 +872,7 @@ int vnic_dev_init_done(struct vnic_dev *vdev, int *done, int *err)
 
 	*done = (a0 == 0);
 
-	*err = (a0 == 0) ? a1 : 0;
+	*err = (a0 == 0) ? (int)a1:0;
 
 	return 0;
 }
