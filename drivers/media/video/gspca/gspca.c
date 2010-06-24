@@ -506,36 +506,6 @@ static int gspca_is_compressed(__u32 format)
 	return 0;
 }
 
-static void *rvmalloc(long size)
-{
-	void *mem;
-	unsigned long adr;
-
-	mem = vmalloc_32(size);
-	if (mem != NULL) {
-		adr = (unsigned long) mem;
-		while (size > 0) {
-			SetPageReserved(vmalloc_to_page((void *) adr));
-			adr += PAGE_SIZE;
-			size -= PAGE_SIZE;
-		}
-	}
-	return mem;
-}
-
-static void rvfree(void *mem, long size)
-{
-	unsigned long adr;
-
-	adr = (unsigned long) mem;
-	while (size > 0) {
-		ClearPageReserved(vmalloc_to_page((void *) adr));
-		adr += PAGE_SIZE;
-		size -= PAGE_SIZE;
-	}
-	vfree(mem);
-}
-
 static int frame_alloc(struct gspca_dev *gspca_dev,
 			unsigned int count)
 {
@@ -550,7 +520,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	gspca_dev->frsz = frsz;
 	if (count > GSPCA_MAX_FRAMES)
 		count = GSPCA_MAX_FRAMES;
-	gspca_dev->frbuf = rvmalloc(frsz * count);
+	gspca_dev->frbuf = vmalloc_32(frsz * count);
 	if (!gspca_dev->frbuf) {
 		err("frame alloc failed");
 		return -ENOMEM;
@@ -582,8 +552,7 @@ static void frame_free(struct gspca_dev *gspca_dev)
 
 	PDEBUG(D_STREAM, "frame free");
 	if (gspca_dev->frbuf != NULL) {
-		rvfree(gspca_dev->frbuf,
-			gspca_dev->nframes * gspca_dev->frsz);
+		vfree(gspca_dev->frbuf);
 		gspca_dev->frbuf = NULL;
 		for (i = 0; i < gspca_dev->nframes; i++)
 			gspca_dev->frame[i].data = NULL;
