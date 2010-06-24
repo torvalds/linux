@@ -35,6 +35,8 @@ void __init setup_olpc_ofw_pgd(void)
 
 	/* install OFW's PDE permanently into the kernel's pgtable */
 	set_pgd(&swapper_pg_dir[OLPC_OFW_PDE_NR], *ofw_pde);
+	/* implicit optimization barrier here due to uninline function return */
+
 	early_iounmap(base, sizeof(olpc_ofw_pgd) * PTRS_PER_PGD);
 }
 
