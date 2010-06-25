@@ -705,6 +705,8 @@ void tomoyo_check_profile(void);
 int tomoyo_open_control(const u8 type, struct file *file);
 /* Close /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_close_control(struct file *file);
+/* Poll operation for /sys/kernel/security/tomoyo/ interface. */
+int tomoyo_poll_control(struct file *file, poll_table *wait);
 /* Read operation for /sys/kernel/security/tomoyo/ interface. */
 int tomoyo_read_control(struct file *file, char __user *buffer,
 			const int buffer_len);

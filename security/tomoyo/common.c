@@ -1898,6 +1898,23 @@ int tomoyo_open_control(const u8 type, struct file *file)
 }
 
 /**
+ * tomoyo_poll_control - poll() for /sys/kernel/security/tomoyo/ interface.
+ *
+ * @file: Pointer to "struct file".
+ * @wait: Pointer to "poll_table".
+ *
+ * Waits for read readiness.
+ * /sys/kernel/security/tomoyo/query is handled by /usr/sbin/tomoyo-queryd .
+ */
+int tomoyo_poll_control(struct file *file, poll_table *wait)
+{
+	struct tomoyo_io_buffer *head = file->private_data;
+	if (!head->poll)
+		return -ENOSYS;
+	return head->poll(file, wait);
+}
+
+/**
  * tomoyo_read_control - read() for /sys/kernel/security/tomoyo/ interface.
  *
  * @file:       Pointer to "struct file".

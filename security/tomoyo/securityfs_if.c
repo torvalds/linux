@@ -38,6 +38,19 @@ static int tomoyo_release(struct inode *inode, struct file *file)
 }
 
 /**
+ * tomoyo_poll - poll() for /proc/ccs/ interface.
+ *
+ * @file: Pointer to "struct file".
+ * @wait: Pointer to "poll_table".
+ *
+ * Returns 0 on success, negative value otherwise.
+ */
+static unsigned int tomoyo_poll(struct file *file, poll_table *wait)
+{
+	return tomoyo_poll_control(file, wait);
+}
+
+/**
  * tomoyo_read - read() for /sys/kernel/security/tomoyo/ interface.
  *
  * @file:  Pointer to "struct file".
@@ -79,6 +92,7 @@ static ssize_t tomoyo_write(struct file *file, const char __user *buf,
 static const struct file_operations tomoyo_operations = {
 	.open    = tomoyo_open,
 	.release = tomoyo_release,
+	.poll    = tomoyo_poll,
 	.read    = tomoyo_read,
 	.write   = tomoyo_write,
 };
