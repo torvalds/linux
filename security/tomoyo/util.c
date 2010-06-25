@@ -26,7 +26,7 @@ bool tomoyo_policy_loaded;
  * The @src is updated to point the first character after the value
  * on success.
  */
-u8 tomoyo_parse_ulong(unsigned long *result, char **str)
+static u8 tomoyo_parse_ulong(unsigned long *result, char **str)
 {
 	const char *cp = *str;
 	char *ep;

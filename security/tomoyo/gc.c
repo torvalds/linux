@@ -11,7 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/slab.h>
 
-struct tomoyo_gc_entry {
+struct tomoyo_gc {
 	struct list_head list;
 	int type;
 	struct list_head *element;
@@ -22,7 +22,7 @@ static DEFINE_MUTEX(tomoyo_gc_mutex);
 /* Caller holds tomoyo_policy_lock mutex. */
 static bool tomoyo_add_to_gc(const int type, struct list_head *element)
 {
-	struct tomoyo_gc_entry *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
+	struct tomoyo_gc *entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
 		return false;
 	entry->type = type;
@@ -34,21 +34,21 @@ static bool tomoyo_add_to_gc(const int type, struct list_head *element)
 
 static void tomoyo_del_allow_read(struct list_head *element)
 {
-	struct tomoyo_globally_readable_file_entry *ptr =
+	struct tomoyo_readable_file *ptr =
 		container_of(element, typeof(*ptr), head.list);
 	tomoyo_put_name(ptr->filename);
 }
 
 static void tomoyo_del_file_pattern(struct list_head *element)
 {
-	struct tomoyo_pattern_entry *ptr =
+	struct tomoyo_no_pattern *ptr =
 		container_of(element, typeof(*ptr), head.list);
 	tomoyo_put_name(ptr->pattern);
 }
 
 static void tomoyo_del_no_rewrite(struct list_head *element)
 {
-	struct tomoyo_no_rewrite_entry *ptr =
+	struct tomoyo_no_rewrite *ptr =
 		container_of(element, typeof(*ptr), head.list);
 	tomoyo_put_name(ptr->pattern);
 }
@@ -63,7 +63,7 @@ static void tomoyo_del_transition_control(struct list_head *element)
 
 static void tomoyo_del_aggregator(struct list_head *element)
 {
-	struct tomoyo_aggregator_entry *ptr =
+	struct tomoyo_aggregator *ptr =
 		container_of(element, typeof(*ptr), head.list);
 	tomoyo_put_name(ptr->original_name);
 	tomoyo_put_name(ptr->aggregated_name);
@@ -71,7 +71,7 @@ static void tomoyo_del_aggregator(struct list_head *element)
 
 static void tomoyo_del_manager(struct list_head *element)
 {
-	struct tomoyo_policy_manager_entry *ptr =
+	struct tomoyo_manager *ptr =
 		container_of(element, typeof(*ptr), head.list);
 	tomoyo_put_name(ptr->manager);
 }
@@ -168,7 +168,7 @@ static bool tomoyo_del_domain(struct list_head *element)
 
 static void tomoyo_del_name(struct list_head *element)
 {
-	const struct tomoyo_name_entry *ptr =
+	const struct tomoyo_name *ptr =
 		container_of(element, typeof(*ptr), list);
 }
 
@@ -242,7 +242,7 @@ static void tomoyo_collect_entry(void)
 		}
 	}
 	for (i = 0; i < TOMOYO_MAX_HASH; i++) {
-		struct tomoyo_name_entry *ptr;
+		struct tomoyo_name *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_name_list[i], list) {
 			if (atomic_read(&ptr->users))
 				continue;
@@ -278,8 +278,8 @@ static void tomoyo_collect_entry(void)
 
 static void tomoyo_kfree_entry(void)
 {
-	struct tomoyo_gc_entry *p;
-	struct tomoyo_gc_entry *tmp;
+	struct tomoyo_gc *p;
+	struct tomoyo_gc *tmp;
 
 	list_for_each_entry_safe(p, tmp, &tomoyo_gc_queue, list) {
 		struct list_head *element = p->element;

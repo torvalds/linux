@@ -134,26 +134,22 @@ struct list_head tomoyo_policy_list[TOMOYO_MAX_POLICY];
 struct list_head tomoyo_group_list[TOMOYO_MAX_GROUP];
 
 /**
- * tomoyo_get_last_name - Get last component of a domainname.
+ * tomoyo_last_word - Get last component of a domainname.
  *
- * @domain: Pointer to "struct tomoyo_domain_info".
+ * @domainname: Domainname to check.
  *
- * Returns the last component of the domainname.
+ * Returns the last word of @domainname.
  */
-const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain)
+static const char *tomoyo_last_word(const char *name)
 {
-	const char *cp0 = domain->domainname->name;
-	const char *cp1 = strrchr(cp0, ' ');
-
-	if (cp1)
-		return cp1 + 1;
-	return cp0;
+        const char *cp = strrchr(name, ' ');
+        if (cp)
+                return cp + 1;
+        return name;
 }
 
-static bool tomoyo_same_transition_control_entry(const struct tomoyo_acl_head *
-						 a,
-						 const struct tomoyo_acl_head *
-						 b)
+static bool tomoyo_same_transition_control(const struct tomoyo_acl_head *a,
+					   const struct tomoyo_acl_head *b)
 {
 	const struct tomoyo_transition_control *p1 = container_of(a,
 								  typeof(*p1),
@@ -203,7 +199,7 @@ static int tomoyo_update_transition_control_entry(const char *domainname,
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
 				     &tomoyo_policy_list
 				     [TOMOYO_ID_TRANSITION_CONTROL],
-				     tomoyo_same_transition_control_entry);
+				     tomoyo_same_transition_control);
  out:
 	tomoyo_put_name(e.domainname);
 	tomoyo_put_name(e.program);
@@ -292,19 +288,17 @@ static u8 tomoyo_transition_type(const struct tomoyo_path_info *domainname,
 	return type;
 }
 
-static bool tomoyo_same_aggregator_entry(const struct tomoyo_acl_head *a,
-					 const struct tomoyo_acl_head *b)
+static bool tomoyo_same_aggregator(const struct tomoyo_acl_head *a,
+				   const struct tomoyo_acl_head *b)
 {
-	const struct tomoyo_aggregator_entry *p1 = container_of(a, typeof(*p1),
-								head);
-	const struct tomoyo_aggregator_entry *p2 = container_of(b, typeof(*p2),
-								head);
+	const struct tomoyo_aggregator *p1 = container_of(a, typeof(*p1), head);
+	const struct tomoyo_aggregator *p2 = container_of(b, typeof(*p2), head);
 	return p1->original_name == p2->original_name &&
 		p1->aggregated_name == p2->aggregated_name;
 }
 
 /**
- * tomoyo_update_aggregator_entry - Update "struct tomoyo_aggregator_entry" list.
+ * tomoyo_update_aggregator_entry - Update "struct tomoyo_aggregator" list.
  *
  * @original_name:   The original program's name.
  * @aggregated_name: The program name to use.
@@ -318,7 +312,7 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 					  const char *aggregated_name,
 					  const bool is_delete)
 {
-	struct tomoyo_aggregator_entry e = { };
+	struct tomoyo_aggregator e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_correct_path(original_name) ||
@@ -331,7 +325,7 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 		goto out;
 	error = tomoyo_update_policy(&e.head, sizeof(e), is_delete,
 				     &tomoyo_policy_list[TOMOYO_ID_AGGREGATOR],
-				     tomoyo_same_aggregator_entry);
+				     tomoyo_same_aggregator);
  out:
 	tomoyo_put_name(e.original_name);
 	tomoyo_put_name(e.aggregated_name);
@@ -339,7 +333,7 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
 }
 
 /**
- * tomoyo_write_aggregator_policy - Write "struct tomoyo_aggregator_entry" list.
+ * tomoyo_write_aggregator - Write "struct tomoyo_aggregator" list.
  *
  * @data:      String to parse.
  * @is_delete: True if it is a delete request.
@@ -348,7 +342,7 @@ static int tomoyo_update_aggregator_entry(const char *original_name,
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
+int tomoyo_write_aggregator(char *data, const bool is_delete)
 {
 	char *cp = strchr(data, ' ');
 
@@ -359,7 +353,7 @@ int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
 }
 
 /**
- * tomoyo_find_or_assign_new_domain - Create a domain.
+ * tomoyo_assign_domain - Create a domain.
  *
  * @domainname: The name of domain.
  * @profile:    Profile number to assign if the domain was newly created.
@@ -368,9 +362,8 @@ int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
  *
  * Caller holds tomoyo_read_lock().
  */
-struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
-							    domainname,
-							    const u8 profile)
+struct tomoyo_domain_info *tomoyo_assign_domain(const char *domainname,
+						const u8 profile)
 {
 	struct tomoyo_domain_info *entry;
 	struct tomoyo_domain_info *domain = NULL;
@@ -430,10 +423,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	int retval = -ENOMEM;
 	bool need_kfree = false;
 	struct tomoyo_path_info rn = { }; /* real name */
-	struct tomoyo_path_info ln; /* last name */
 
-	ln.name = tomoyo_get_last_name(old_domain);
-	tomoyo_fill_path_info(&ln);
 	mode = tomoyo_init_request_info(&r, NULL, TOMOYO_MAC_FILE_EXECUTE);
 	is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
 	if (!tmp)
@@ -454,7 +444,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 
 	/* Check 'aggregator' directive. */
 	{
-		struct tomoyo_aggregator_entry *ptr;
+		struct tomoyo_aggregator *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_policy_list
 					[TOMOYO_ID_AGGREGATOR], head.list) {
 			if (ptr->head.is_deleted ||
@@ -517,7 +507,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		if (error < 0)
 			goto done;
 	}
-	domain = tomoyo_find_or_assign_new_domain(tmp, old_domain->profile);
+	domain = tomoyo_assign_domain(tmp, old_domain->profile);
  done:
 	if (domain)
 		goto out;

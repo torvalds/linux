@@ -150,7 +150,7 @@ struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
  */
 const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 {
-	struct tomoyo_name_entry *ptr;
+	struct tomoyo_name *ptr;
 	unsigned int hash;
 	int len;
 	int allocated_len;

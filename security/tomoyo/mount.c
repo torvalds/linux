@@ -55,8 +55,8 @@ static int tomoyo_audit_mount_log(struct tomoyo_request_info *r)
 				flags);
 	return tomoyo_supervisor(r,
 				 TOMOYO_KEYWORD_ALLOW_MOUNT "%s %s %s 0x%lX\n",
-				 tomoyo_file_pattern(r->param.mount.dev),
-				 tomoyo_file_pattern(r->param.mount.dir), type,
+				 tomoyo_pattern(r->param.mount.dev),
+				 tomoyo_pattern(r->param.mount.dir), type,
 				 flags);
 }
 
@@ -250,7 +250,7 @@ static bool tomoyo_same_mount_acl(const struct tomoyo_acl_info *a,
 }
 
 /**
- * tomoyo_write_mount_policy - Write "struct tomoyo_mount_acl" list.
+ * tomoyo_write_mount - Write "struct tomoyo_mount_acl" list.
  *
  * @data:      String to parse.
  * @domain:    Pointer to "struct tomoyo_domain_info".
@@ -260,8 +260,8 @@ static bool tomoyo_same_mount_acl(const struct tomoyo_acl_info *a,
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_mount_policy(char *data, struct tomoyo_domain_info *domain,
-			      const bool is_delete)
+int tomoyo_write_mount(char *data, struct tomoyo_domain_info *domain,
+		       const bool is_delete)
 {
 	struct tomoyo_mount_acl e = { .head.type = TOMOYO_TYPE_MOUNT_ACL };
 	int error = is_delete ? -ENOENT : -ENOMEM;

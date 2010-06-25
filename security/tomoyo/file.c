@@ -179,7 +179,7 @@ static int tomoyo_audit_path_log(struct tomoyo_request_info *r)
 		return 0;
 	tomoyo_warn_log(r, "%s %s", operation, filename->name);
 	return tomoyo_supervisor(r, "allow_%s %s\n", operation,
-				 tomoyo_file_pattern(filename));
+				 tomoyo_pattern(filename));
 }
 
 /**
@@ -199,8 +199,8 @@ static int tomoyo_audit_path2_log(struct tomoyo_request_info *r)
 	tomoyo_warn_log(r, "%s %s %s", operation, filename1->name,
 			filename2->name);
 	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
-				 tomoyo_file_pattern(filename1),
-				 tomoyo_file_pattern(filename2));
+				 tomoyo_pattern(filename1),
+				 tomoyo_pattern(filename2));
 }
 
 /**
@@ -222,8 +222,7 @@ static int tomoyo_audit_mkdev_log(struct tomoyo_request_info *r)
 	tomoyo_warn_log(r, "%s %s 0%o %u %u", operation, filename->name, mode,
 			major, minor);
 	return tomoyo_supervisor(r, "allow_%s %s 0%o %u %u\n", operation,
-				 tomoyo_file_pattern(filename), mode, major,
-				 minor);
+				 tomoyo_pattern(filename), mode, major, minor);
 }
 
 /**
@@ -262,20 +261,20 @@ static int tomoyo_audit_path_number_log(struct tomoyo_request_info *r)
 			   radix);
 	tomoyo_warn_log(r, "%s %s %s", operation, filename->name, buffer);
 	return tomoyo_supervisor(r, "allow_%s %s %s\n", operation,
-				 tomoyo_file_pattern(filename), buffer);
+				 tomoyo_pattern(filename), buffer);
 }
 
 static bool tomoyo_same_globally_readable(const struct tomoyo_acl_head *a,
 					  const struct tomoyo_acl_head *b)
 {
-	return container_of(a, struct tomoyo_globally_readable_file_entry,
+	return container_of(a, struct tomoyo_readable_file,
 			    head)->filename ==
-		container_of(b, struct tomoyo_globally_readable_file_entry,
+		container_of(b, struct tomoyo_readable_file,
 			     head)->filename;
 }
 
 /**
- * tomoyo_update_globally_readable_entry - Update "struct tomoyo_globally_readable_file_entry" list.
+ * tomoyo_update_globally_readable_entry - Update "struct tomoyo_readable_file" list.
  *
  * @filename:  Filename unconditionally permitted to open() for reading.
  * @is_delete: True if it is a delete request.
@@ -287,7 +286,7 @@ static bool tomoyo_same_globally_readable(const struct tomoyo_acl_head *a,
 static int tomoyo_update_globally_readable_entry(const char *filename,
 						 const bool is_delete)
 {
-	struct tomoyo_globally_readable_file_entry e = { };
+	struct tomoyo_readable_file e = { };
 	int error;
 
 	if (!tomoyo_correct_word(filename))
@@ -315,7 +314,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 static bool tomoyo_globally_readable_file(const struct tomoyo_path_info *
 					     filename)
 {
-	struct tomoyo_globally_readable_file_entry *ptr;
+	struct tomoyo_readable_file *ptr;
 	bool found = false;
 
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_list
@@ -330,7 +329,7 @@ static bool tomoyo_globally_readable_file(const struct tomoyo_path_info *
 }
 
 /**
- * tomoyo_write_globally_readable_policy - Write "struct tomoyo_globally_readable_file_entry" list.
+ * tomoyo_write_globally_readable - Write "struct tomoyo_readable_file" list.
  *
  * @data:      String to parse.
  * @is_delete: True if it is a delete request.
@@ -339,7 +338,7 @@ static bool tomoyo_globally_readable_file(const struct tomoyo_path_info *
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_globally_readable_policy(char *data, const bool is_delete)
+int tomoyo_write_globally_readable(char *data, const bool is_delete)
 {
 	return tomoyo_update_globally_readable_entry(data, is_delete);
 }
@@ -347,12 +346,12 @@ int tomoyo_write_globally_readable_policy(char *data, const bool is_delete)
 static bool tomoyo_same_pattern(const struct tomoyo_acl_head *a,
 				const struct tomoyo_acl_head *b)
 {
-	return container_of(a, struct tomoyo_pattern_entry, head)->pattern ==
-		container_of(b, struct tomoyo_pattern_entry, head)->pattern;
+	return container_of(a, struct tomoyo_no_pattern, head)->pattern ==
+		container_of(b, struct tomoyo_no_pattern, head)->pattern;
 }
 
 /**
- * tomoyo_update_file_pattern_entry - Update "struct tomoyo_pattern_entry" list.
+ * tomoyo_update_file_pattern_entry - Update "struct tomoyo_no_pattern" list.
  *
  * @pattern:   Pathname pattern.
  * @is_delete: True if it is a delete request.
@@ -364,7 +363,7 @@ static bool tomoyo_same_pattern(const struct tomoyo_acl_head *a,
 static int tomoyo_update_file_pattern_entry(const char *pattern,
 					    const bool is_delete)
 {
-	struct tomoyo_pattern_entry e = { };
+	struct tomoyo_no_pattern e = { };
 	int error;
 
 	if (!tomoyo_correct_word(pattern))
@@ -380,7 +379,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 }
 
 /**
- * tomoyo_file_pattern - Get patterned pathname.
+ * tomoyo_pattern - Get patterned pathname.
  *
  * @filename: The filename to find patterned pathname.
  *
@@ -388,9 +387,9 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
  *
  * Caller holds tomoyo_read_lock().
  */
-const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename)
+const char *tomoyo_pattern(const struct tomoyo_path_info *filename)
 {
-	struct tomoyo_pattern_entry *ptr;
+	struct tomoyo_no_pattern *ptr;
 	const struct tomoyo_path_info *pattern = NULL;
 
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_list[TOMOYO_ID_PATTERN],
@@ -413,7 +412,7 @@ const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename)
 }
 
 /**
- * tomoyo_write_pattern_policy - Write "struct tomoyo_pattern_entry" list.
+ * tomoyo_write_pattern - Write "struct tomoyo_no_pattern" list.
  *
  * @data:      String to parse.
  * @is_delete: True if it is a delete request.
@@ -422,7 +421,7 @@ const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename)
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_pattern_policy(char *data, const bool is_delete)
+int tomoyo_write_pattern(char *data, const bool is_delete)
 {
 	return tomoyo_update_file_pattern_entry(data, is_delete);
 }
@@ -430,13 +429,13 @@ int tomoyo_write_pattern_policy(char *data, const bool is_delete)
 static bool tomoyo_same_no_rewrite(const struct tomoyo_acl_head *a,
 				   const struct tomoyo_acl_head *b)
 {
-	return container_of(a, struct tomoyo_no_rewrite_entry, head)->pattern
-		== container_of(b, struct tomoyo_no_rewrite_entry, head)
+	return container_of(a, struct tomoyo_no_rewrite, head)->pattern
+		== container_of(b, struct tomoyo_no_rewrite, head)
 		->pattern;
 }
 
 /**
- * tomoyo_update_no_rewrite_entry - Update "struct tomoyo_no_rewrite_entry" list.
+ * tomoyo_update_no_rewrite_entry - Update "struct tomoyo_no_rewrite" list.
  *
  * @pattern:   Pathname pattern that are not rewritable by default.
  * @is_delete: True if it is a delete request.
@@ -448,7 +447,7 @@ static bool tomoyo_same_no_rewrite(const struct tomoyo_acl_head *a,
 static int tomoyo_update_no_rewrite_entry(const char *pattern,
 					  const bool is_delete)
 {
-	struct tomoyo_no_rewrite_entry e = { };
+	struct tomoyo_no_rewrite e = { };
 	int error;
 
 	if (!tomoyo_correct_word(pattern))
@@ -475,7 +474,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
  */
 static bool tomoyo_no_rewrite_file(const struct tomoyo_path_info *filename)
 {
-	struct tomoyo_no_rewrite_entry *ptr;
+	struct tomoyo_no_rewrite *ptr;
 	bool found = false;
 
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_list[TOMOYO_ID_NO_REWRITE],
@@ -491,7 +490,7 @@ static bool tomoyo_no_rewrite_file(const struct tomoyo_path_info *filename)
 }
 
 /**
- * tomoyo_write_no_rewrite_policy - Write "struct tomoyo_no_rewrite_entry" list.
+ * tomoyo_write_no_rewrite - Write "struct tomoyo_no_rewrite" list.
  *
  * @data:      String to parse.
  * @is_delete: True if it is a delete request.
@@ -500,7 +499,7 @@ static bool tomoyo_no_rewrite_file(const struct tomoyo_path_info *filename)
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete)
+int tomoyo_write_no_rewrite(char *data, const bool is_delete)
 {
 	return tomoyo_update_no_rewrite_entry(data, is_delete);
 }
@@ -1121,7 +1120,7 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 }
 
 /**
- * tomoyo_write_file_policy - Update file related list.
+ * tomoyo_write_file - Update file related list.
  *
  * @data:      String to parse.
  * @domain:    Pointer to "struct tomoyo_domain_info".
@@ -1131,8 +1130,8 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_write_file_policy(char *data, struct tomoyo_domain_info *domain,
-			     const bool is_delete)
+int tomoyo_write_file(char *data, struct tomoyo_domain_info *domain,
+		      const bool is_delete)
 {
 	char *w[5];
 	u8 type;
