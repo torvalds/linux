@@ -140,6 +140,8 @@ static void quick_stop (int minor)
 
   // TODO: scott was here
 #if 1
+  INT_CSR_R int_csr_r;
+
   int_csr_r.reg = readl(dt3155_lbase[minor] + INT_CSR);
   /* disable interrupts */
   int_csr_r.fld.FLD_END_EVE_EN = 0;
@@ -175,6 +177,10 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
   void __iomem *mmio;
   struct dt3155_status *dts;
   struct dt3155_fbuffer *fb;
+  INT_CSR_R int_csr_r;
+  CSR1_R csr1_r;
+  I2C_EVEN_CSR i2c_even_csr;
+  I2C_ODD_CSR i2c_odd_csr;
 
   /* find out who issued the interrupt */
   for (index = 0; index < ndevices; index++) {
@@ -411,35 +417,30 @@ static void dt3155_init_isr(int minor)
 {
   struct dt3155_status *dts = &dt3155_status[minor];
   struct dt3155_fbuffer *fb = &dts->fbuffer;
-  const u32 stride = dts->config.cols;
   void __iomem *mmio = dt3155_lbase[minor];
+  u32 dma_addr = fb->frame_info[fb->active_buf].addr;
+  const u32 stride = dts->config.cols;
+  CSR1_R csr1_r;
+  INT_CSR_R int_csr_r;
+  I2C_CSR2 i2c_csr2;
 
   switch (dts->state & DT3155_STATE_MODE)
     {
     case DT3155_STATE_FLD:
       {
-	even_dma_start_r  = fb->frame_info[fb->active_buf].addr;
-	even_dma_stride_r = 0;
-	odd_dma_stride_r  = 0;
-
-	writel(even_dma_start_r, mmio + EVEN_DMA_START);
-	writel(even_dma_stride_r, mmio + EVEN_DMA_STRIDE);
-	writel(odd_dma_stride_r, mmio + ODD_DMA_STRIDE);
+	writel(dma_addr, mmio + EVEN_DMA_START);
+	writel(0, mmio + EVEN_DMA_STRIDE);
+	writel(0, mmio + ODD_DMA_STRIDE);
 	break;
       }
 
     case DT3155_STATE_FRAME:
     default:
       {
-	even_dma_start_r  = fb->frame_info[fb->active_buf].addr;
-	odd_dma_start_r   =  even_dma_start_r + stride;
-	even_dma_stride_r =  stride;
-	odd_dma_stride_r  =  stride;
-
-	writel(even_dma_start_r, mmio + EVEN_DMA_START);
-	writel(odd_dma_start_r, mmio + ODD_DMA_START);
-	writel(even_dma_stride_r, mmio + EVEN_DMA_STRIDE);
-	writel(odd_dma_stride_r, mmio + ODD_DMA_STRIDE);
+	writel(dma_addr, mmio + EVEN_DMA_START);
+	writel(dma_addr + stride, mmio + ODD_DMA_START);
+	writel(stride, mmio + EVEN_DMA_STRIDE);
+	writel(stride, mmio + ODD_DMA_STRIDE);
 	break;
       }
     }
@@ -694,8 +695,7 @@ static int dt3155_open(struct inode* inode, struct file* filep)
   dt3155_flush(minor);
 
   /* Disable ALL interrupts */
-  int_csr_r.reg = 0;
-  writel(int_csr_r.reg, dt3155_lbase[minor] + INT_CSR);
+  writel(0, dt3155_lbase[minor] + INT_CSR);
 
   init_waitqueue_head(&(dt3155_read_wait_queue[minor]));
 
@@ -1027,12 +1027,11 @@ int init_module(void)
     }
 
   /* Disable ALL interrupts */
-  int_csr_r.reg = 0;
   for( index = 0;  index < ndevices;  index++)
     {
       dts = &dt3155_status[index];
 
-      writel(int_csr_r.reg, dt3155_lbase[index] + INT_CSR);
+      writel(0, dt3155_lbase[index] + INT_CSR);
       if(dts->device_installed)
 	{
 	  /*

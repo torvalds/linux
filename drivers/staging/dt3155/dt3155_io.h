@@ -206,22 +206,6 @@ typedef union dma_upper_lmt_tag   {
 } DMA_UPPER_LMT_R;
 
 
-/*
- * Global declarations of local copies of boards' 32 bit registers
- */
-extern u32 even_dma_start_r;		/*  bit 0 should always be 0 */
-extern u32 odd_dma_start_r;		/*               ..          */
-extern u32 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
-extern u32 odd_dma_stride_r;		/*               ..             */
-
-extern CSR1_R			csr1_r;
-extern INT_CSR_R		int_csr_r;
-
-extern IIC_CSR1_R		iic_csr1_r;
-extern IIC_CSR2_R		iic_csr2_r;
-
-
-
 /***************** 8 bit I2C register globals  ***********/
 #define CSR2		0x010	/* indices of 8-bit I2C mapped reg's*/
 #define EVEN_CSR	0x011
@@ -311,14 +295,6 @@ typedef union i2c_ad_cmd_tag {
 	} bt252_iout1;
 } I2C_AD_CMD;
 
-
-/***** Global declarations of local copies of boards' 8 bit I2C registers ***/
-
-extern I2C_CSR2			i2c_csr2;
-extern I2C_EVEN_CSR		i2c_even_csr;
-extern I2C_ODD_CSR		i2c_odd_csr;
-
-/* Functions for Global use */
 
 /* access 8-bit IIC registers */
 

@@ -28,25 +28,6 @@
 #include "dt3155_drv.h"
 
 
-/****** local copies of board's 32 bit registers ******/
-u32 even_dma_start_r;	/*  bit 0 should always be 0 */
-u32 odd_dma_start_r;	/*               .. */
-u32 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
-u32 odd_dma_stride_r;	/*               .. */
-
-CSR1_R			csr1_r;
-INT_CSR_R		int_csr_r;
-
-IIC_CSR1_R		iic_csr1_r;
-IIC_CSR2_R		iic_csr2_r;
-
-
-
-/******** local copies of board's 8 bit I2C registers ******/
-I2C_CSR2 i2c_csr2;
-I2C_EVEN_CSR i2c_even_csr;
-I2C_ODD_CSR i2c_odd_csr;
-
 /*
  * wait_ibsyclr()
  *
@@ -54,6 +35,8 @@ I2C_ODD_CSR i2c_odd_csr;
  */
 static int wait_ibsyclr(void __iomem *mmio)
 {
+	IIC_CSR2_R iic_csr2_r;
+
 	/* wait 100 microseconds */
 	udelay(100L);
 	/* __delay(loops_per_sec/10000); */
@@ -80,8 +63,9 @@ static int wait_ibsyclr(void __iomem *mmio)
  */
 int WriteI2C(void __iomem *mmio, u_short wIregIndex, u8 byVal)
 {
-	/* read 32 bit IIC_CSR2 register data into union */
+	IIC_CSR2_R iic_csr2_r;
 
+	/* read 32 bit IIC_CSR2 register data into union */
 	iic_csr2_r.reg = readl(mmio + IIC_CSR2);
 
 	/* for write operation */
@@ -111,6 +95,8 @@ int WriteI2C(void __iomem *mmio, u_short wIregIndex, u8 byVal)
  */
 int ReadI2C(void __iomem *mmio, u_short wIregIndex, u8 *byVal)
 {
+	IIC_CSR1_R iic_csr1_r;
+	IIC_CSR2_R iic_csr2_r;
 	int writestat;	/* status for return */
 
 	/*  read 32 bit IIC_CSR2 register data into union */
