@@ -20,12 +20,9 @@
 #ifndef _TILE_HV_H
 #define _TILE_HV_H
 
-#ifdef __tile__
 #include <arch/chip.h>
-#else
-/* HACK: Allow use by "tools/cpack/". */
-#include "install/include/arch/chip.h"
-#endif
+
+#include <hv/pagesize.h>
 
 /* Linux builds want unsigned long constants, but assembler wants numbers */
 #ifdef __ASSEMBLER__
@@ -39,7 +36,6 @@
 #define __HV_SIZE_ONE 1UL
 #endif
 
-
 /** The log2 of the span of a level-1 page table, in bytes.
  */
 #define HV_LOG2_L1_SPAN 32
@@ -48,20 +44,10 @@
  */
 #define HV_L1_SPAN (__HV_SIZE_ONE << HV_LOG2_L1_SPAN)
 
-/** The log2 of the size of small pages, in bytes. This value should
- * be verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
- */
-#define HV_LOG2_PAGE_SIZE_SMALL 16
-
 /** The size of small pages, in bytes. This value should be verified
  * at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
  */
 #define HV_PAGE_SIZE_SMALL (__HV_SIZE_ONE << HV_LOG2_PAGE_SIZE_SMALL)
-
-/** The log2 of the size of large pages, in bytes. This value should be
- * verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).
- */
-#define HV_LOG2_PAGE_SIZE_LARGE 24
 
 /** The size of large pages, in bytes. This value should be verified
  * at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).
@@ -93,7 +79,7 @@
 #define HV_DISPATCH_ENTRY_SIZE 32
 
 /** Version of the hypervisor interface defined by this file */
-#define _HV_VERSION 10
+#define _HV_VERSION 11
 
 /* Index into hypervisor interface dispatch code blocks.
  *
@@ -253,8 +239,10 @@
 /** hv_set_command_line */
 #define HV_DISPATCH_SET_COMMAND_LINE              47
 
-/** hv_dev_register_intr_state */
-#define HV_DISPATCH_DEV_REGISTER_INTR_STATE       48
+#if !CHIP_HAS_IPI()
+
+/** hv_clear_intr */
+#define HV_DISPATCH_CLEAR_INTR                    48
 
 /** hv_enable_intr */
 #define HV_DISPATCH_ENABLE_INTR                   49
@@ -262,20 +250,30 @@
 /** hv_disable_intr */
 #define HV_DISPATCH_DISABLE_INTR                  50
 
+/** hv_raise_intr */
+#define HV_DISPATCH_RAISE_INTR                    51
+
 /** hv_trigger_ipi */
-#define HV_DISPATCH_TRIGGER_IPI                   51
+#define HV_DISPATCH_TRIGGER_IPI                   52
+
+#endif /* !CHIP_HAS_IPI() */
 
 /** hv_store_mapping */
-#define HV_DISPATCH_STORE_MAPPING                 52
+#define HV_DISPATCH_STORE_MAPPING                 53
 
 /** hv_inquire_realpa */
-#define HV_DISPATCH_INQUIRE_REALPA                53
+#define HV_DISPATCH_INQUIRE_REALPA                54
 
 /** hv_flush_all */
-#define HV_DISPATCH_FLUSH_ALL                     54
+#define HV_DISPATCH_FLUSH_ALL                     55
+
+#if CHIP_HAS_IPI()
+/** hv_get_ipi_pte */
+#define HV_DISPATCH_GET_IPI_PTE                   56
+#endif
 
 /** One more than the largest dispatch value */
-#define _HV_DISPATCH_END                          55
+#define _HV_DISPATCH_END                          57
 
 
 #ifndef __ASSEMBLER__
@@ -484,21 +482,6 @@ typedef enum {
  */
 int hv_confstr(HV_ConfstrQuery query, HV_VirtAddr buf, int len);
 
-/** State object used to enable and disable one-shot and level-sensitive
- *  interrupts. */
-typedef struct
-{
-#if CHIP_VA_WIDTH() > 32
-  __hv64 opaque[2]; /**< No user-serviceable parts inside */
-#else
-  __hv32 opaque[2]; /**< No user-serviceable parts inside */
-#endif
-}
-HV_IntrState;
-
-/** A set of interrupts. */
-typedef __hv32 HV_IntrMask;
-
 /** Tile coordinate */
 typedef struct
 {
@@ -509,34 +492,51 @@ typedef struct
   int y;
 } HV_Coord;
 
+
+#if CHIP_HAS_IPI()
+
+/** Get the PTE for sending an IPI to a particular tile.
+ *
+ * @param tile Tile which will receive the IPI.
+ * @param pl Indicates which IPI registers: 0 = IPI_0, 1 = IPI_1.
+ * @param pte Filled with resulting PTE.
+ * @result Zero if no error, non-zero for invalid parameters.
+ */
+int hv_get_ipi_pte(HV_Coord tile, int pl, HV_PTE* pte);
+
+#else /* !CHIP_HAS_IPI() */
+
+/** A set of interrupts. */
+typedef __hv32 HV_IntrMask;
+
 /** The low interrupt numbers are reserved for use by the client in
  *  delivering IPIs.  Any interrupt numbers higher than this value are
  *  reserved for use by HV device drivers. */
 #define HV_MAX_IPI_INTERRUPT 7
 
-/** Register an interrupt state object.  This object is used to enable and
- *  disable one-shot and level-sensitive interrupts.  Once the state is
- *  registered, the client must not read or write the state object; doing
- *  so will cause undefined results.
+/** Enable a set of device interrupts.
  *
- * @param intr_state Pointer to interrupt state object.
- * @return HV_OK on success, or a hypervisor error code.
- */
-HV_Errno hv_dev_register_intr_state(HV_IntrState* intr_state);
-
-/** Enable a set of one-shot and level-sensitive interrupts.
- *
- * @param intr_state Pointer to interrupt state object.
  * @param enab_mask Bitmap of interrupts to enable.
  */
-void hv_enable_intr(HV_IntrState* intr_state, HV_IntrMask enab_mask);
+void hv_enable_intr(HV_IntrMask enab_mask);
 
-/** Disable a set of one-shot and level-sensitive interrupts.
+/** Disable a set of device interrupts.
  *
- * @param intr_state Pointer to interrupt state object.
  * @param disab_mask Bitmap of interrupts to disable.
  */
-void hv_disable_intr(HV_IntrState* intr_state, HV_IntrMask disab_mask);
+void hv_disable_intr(HV_IntrMask disab_mask);
+
+/** Clear a set of device interrupts.
+ *
+ * @param clear_mask Bitmap of interrupts to clear.
+ */
+void hv_clear_intr(HV_IntrMask clear_mask);
+
+/** Assert a set of device interrupts.
+ *
+ * @param assert_mask Bitmap of interrupts to clear.
+ */
+void hv_assert_intr(HV_IntrMask assert_mask);
 
 /** Trigger a one-shot interrupt on some tile
  *
@@ -546,6 +546,8 @@ void hv_disable_intr(HV_IntrState* intr_state, HV_IntrMask disab_mask);
  * @return HV_OK on success, or a hypervisor error code.
  */
 HV_Errno hv_trigger_ipi(HV_Coord tile, int interrupt);
+
+#endif // !CHIP_HAS_IPI()
 
 /** Store memory mapping in debug memory so that external debugger can read it.
  * A maximum of 16 entries can be stored.
@@ -1009,6 +1011,13 @@ int hv_console_write(HV_VirtAddr bytes, int len);
  *  registers in the client will be set so that when the client irets,
  *  it will return to the code which was interrupted by the INTCTRL_1
  *  interrupt.
+ *
+ *  Under some circumstances, the firing of INTCTRL_1 can race with
+ *  the lowering of a device interrupt.  In such a case, the
+ *  hv_downcall_dispatch service may issue an iret instruction instead
+ *  of entering one of the client's actual downcall-handling interrupt
+ *  vectors.  This will return execution to the location that was
+ *  interrupted by INTCTRL_1.
  *
  *  Any saving of registers should be done by the actual handling
  *  vectors; no registers should be changed by the INTCTRL_1 handler.

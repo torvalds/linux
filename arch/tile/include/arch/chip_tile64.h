@@ -248,5 +248,8 @@
 /** Does the chip support rev1 DMA packets? */
 #define CHIP_HAS_REV1_DMA_PACKETS() 0
 
+/** Does the chip have an IPI shim? */
+#define CHIP_HAS_IPI() 0
+
 #endif /* !__OPEN_SOURCE__ */
 #endif /* __ARCH_CHIP_H__ */

@@ -19,6 +19,11 @@
 #include <linux/kernel_stat.h>
 #include <linux/uaccess.h>
 #include <hv/drv_pcie_rc_intf.h>
+#include <arch/spr_def.h>
+#include <asm/traps.h>
+
+/* Bit-flag stored in irq_desc->chip_data to indicate HW-cleared irqs. */
+#define IS_HW_CLEARED 1
 
 /*
  * The set of interrupts we enable for raw_local_irq_enable().
@@ -31,30 +36,74 @@ DEFINE_PER_CPU(unsigned long long, interrupts_enabled_mask) =
   INITIAL_INTERRUPTS_ENABLED;
 EXPORT_PER_CPU_SYMBOL(interrupts_enabled_mask);
 
-/* Define per-tile device interrupt state */
-DEFINE_PER_CPU(HV_IntrState, dev_intr_state);
-
+/* Define per-tile device interrupt statistics state. */
 DEFINE_PER_CPU(irq_cpustat_t, irq_stat) ____cacheline_internodealigned_in_smp;
 EXPORT_PER_CPU_SYMBOL(irq_stat);
 
-
+/*
+ * Define per-tile irq disable mask; the hardware/HV only has a single
+ * mask that we use to implement both masking and disabling.
+ */
+static DEFINE_PER_CPU(unsigned long, irq_disable_mask)
+	____cacheline_internodealigned_in_smp;
 
 /*
- * Interrupt dispatcher, invoked upon a hypervisor device interrupt downcall
+ * Per-tile IRQ nesting depth.  Used to make sure we enable newly
+ * enabled IRQs before exiting the outermost interrupt.
+ */
+static DEFINE_PER_CPU(int, irq_depth);
+
+/* State for allocating IRQs on Gx. */
+#if CHIP_HAS_IPI()
+static unsigned long available_irqs = ~(1UL << IRQ_RESCHEDULE);
+static DEFINE_SPINLOCK(available_irqs_lock);
+#endif
+
+#if CHIP_HAS_IPI()
+/* Use SPRs to manipulate device interrupts. */
+#define mask_irqs(irq_mask) __insn_mtspr(SPR_IPI_MASK_SET_1, irq_mask)
+#define unmask_irqs(irq_mask) __insn_mtspr(SPR_IPI_MASK_RESET_1, irq_mask)
+#define clear_irqs(irq_mask) __insn_mtspr(SPR_IPI_EVENT_RESET_1, irq_mask)
+#else
+/* Use HV to manipulate device interrupts. */
+#define mask_irqs(irq_mask) hv_disable_intr(irq_mask)
+#define unmask_irqs(irq_mask) hv_enable_intr(irq_mask)
+#define clear_irqs(irq_mask) hv_clear_intr(irq_mask)
+#endif
+
+/*
+ * The interrupt handling path, implemented in terms of HV interrupt
+ * emulation on TILE64 and TILEPro, and IPI hardware on TILE-Gx.
  */
 void tile_dev_intr(struct pt_regs *regs, int intnum)
 {
-	int irq;
+	int depth = __get_cpu_var(irq_depth)++;
+	unsigned long original_irqs;
+	unsigned long remaining_irqs;
+	struct pt_regs *old_regs;
 
+#if CHIP_HAS_IPI()
 	/*
-	 * Get the device interrupt pending mask from where the hypervisor
-	 * has tucked it away for us.
+	 * Pending interrupts are listed in an SPR.  We might be
+	 * nested, so be sure to only handle irqs that weren't already
+	 * masked by a previous interrupt.  Then, mask out the ones
+	 * we're going to handle.
 	 */
-	unsigned long pending_dev_intr_mask = __insn_mfspr(SPR_SYSTEM_SAVE_1_3);
-
+	unsigned long masked = __insn_mfspr(SPR_IPI_MASK_1);
+	original_irqs = __insn_mfspr(SPR_IPI_EVENT_1) & ~masked;
+	__insn_mtspr(SPR_IPI_MASK_SET_1, original_irqs);
+#else
+	/*
+	 * Hypervisor performs the equivalent of the Gx code above and
+	 * then puts the pending interrupt mask into a system save reg
+	 * for us to find.
+	 */
+	original_irqs = __insn_mfspr(SPR_SYSTEM_SAVE_1_3);
+#endif
+	remaining_irqs = original_irqs;
 
 	/* Track time spent here in an interrupt context. */
-	struct pt_regs *old_regs = set_irq_regs(regs);
+	old_regs = set_irq_regs(regs);
 	irq_enter();
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
@@ -62,24 +111,33 @@ void tile_dev_intr(struct pt_regs *regs, int intnum)
 	{
 		long sp = stack_pointer - (long) current_thread_info();
 		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			printk(KERN_EMERG "tile_dev_intr: "
+			pr_emerg("tile_dev_intr: "
 			       "stack overflow: %ld\n",
 			       sp - sizeof(struct thread_info));
 			dump_stack();
 		}
 	}
 #endif
+	while (remaining_irqs) {
+		unsigned long irq = __ffs(remaining_irqs);
+		remaining_irqs &= ~(1UL << irq);
 
-	for (irq = 0; pending_dev_intr_mask; ++irq) {
-		if (pending_dev_intr_mask & 0x1) {
-			generic_handle_irq(irq);
+		/* Count device irqs; Linux IPIs are counted elsewhere. */
+		if (irq != IRQ_RESCHEDULE)
+			__get_cpu_var(irq_stat).irq_dev_intr_count++;
 
-			/* Count device irqs; IPIs are counted elsewhere. */
-			if (irq > HV_MAX_IPI_INTERRUPT)
-				__get_cpu_var(irq_stat).irq_dev_intr_count++;
-		}
-		pending_dev_intr_mask >>= 1;
+		generic_handle_irq(irq);
 	}
+
+	/*
+	 * If we weren't nested, turn on all enabled interrupts,
+	 * including any that were reenabled during interrupt
+	 * handling.
+	 */
+	if (depth == 0)
+		unmask_irqs(~__get_cpu_var(irq_disable_mask));
+
+	__get_cpu_var(irq_depth)--;
 
 	/*
 	 * Track time spent against the current process again and
@@ -90,97 +148,114 @@ void tile_dev_intr(struct pt_regs *regs, int intnum)
 }
 
 
-/* Mask an interrupt. */
-static void hv_dev_irq_mask(unsigned int irq)
+/*
+ * Remove an irq from the disabled mask.  If we're in an interrupt
+ * context, defer enabling the HW interrupt until we leave.
+ */
+void enable_percpu_irq(unsigned int irq)
 {
-	HV_IntrState *p_intr_state = &__get_cpu_var(dev_intr_state);
-	hv_disable_intr(p_intr_state, 1 << irq);
+	get_cpu_var(irq_disable_mask) &= ~(1UL << irq);
+	if (__get_cpu_var(irq_depth) == 0)
+		unmask_irqs(1UL << irq);
+	put_cpu_var(irq_disable_mask);
+}
+EXPORT_SYMBOL(enable_percpu_irq);
+
+/*
+ * Add an irq to the disabled mask.  We disable the HW interrupt
+ * immediately so that there's no possibility of it firing.  If we're
+ * in an interrupt context, the return path is careful to avoid
+ * unmasking a newly disabled interrupt.
+ */
+void disable_percpu_irq(unsigned int irq)
+{
+	get_cpu_var(irq_disable_mask) |= (1UL << irq);
+	mask_irqs(1UL << irq);
+	put_cpu_var(irq_disable_mask);
+}
+EXPORT_SYMBOL(disable_percpu_irq);
+
+/* Mask an interrupt. */
+static void tile_irq_chip_mask(unsigned int irq)
+{
+	mask_irqs(1UL << irq);
 }
 
 /* Unmask an interrupt. */
-static void hv_dev_irq_unmask(unsigned int irq)
+static void tile_irq_chip_unmask(unsigned int irq)
 {
-	/* Re-enable the hypervisor to generate interrupts. */
-	HV_IntrState *p_intr_state = &__get_cpu_var(dev_intr_state);
-	hv_enable_intr(p_intr_state, 1 << irq);
+	unmask_irqs(1UL << irq);
 }
 
 /*
- * The HV doesn't latch incoming interrupts while an interrupt is
- * disabled, so we need to reenable interrupts before running the
- * handler.
- *
- * ISSUE: Enabling the interrupt this early avoids any race conditions
- * but introduces the possibility of nested interrupt stack overflow.
- * An imminent change to the HV IRQ model will fix this.
+ * Clear an interrupt before processing it so that any new assertions
+ * will trigger another irq.
  */
-static void hv_dev_irq_ack(unsigned int irq)
+static void tile_irq_chip_ack(unsigned int irq)
 {
-	hv_dev_irq_unmask(irq);
+	if ((unsigned long)get_irq_chip_data(irq) != IS_HW_CLEARED)
+		clear_irqs(1UL << irq);
 }
 
 /*
- * Since ack() reenables interrupts, there's nothing to do at eoi().
+ * For per-cpu interrupts, we need to avoid unmasking any interrupts
+ * that we disabled via disable_percpu_irq().
  */
-static void hv_dev_irq_eoi(unsigned int irq)
+static void tile_irq_chip_eoi(unsigned int irq)
 {
+	if (!(__get_cpu_var(irq_disable_mask) & (1UL << irq)))
+		unmask_irqs(1UL << irq);
 }
 
-static struct irq_chip hv_dev_irq_chip = {
-	.typename = "hv_dev_irq_chip",
-	.ack = hv_dev_irq_ack,
-	.mask = hv_dev_irq_mask,
-	.unmask = hv_dev_irq_unmask,
-	.eoi = hv_dev_irq_eoi,
-};
-
-static struct irqaction resched_action = {
-	.handler = handle_reschedule_ipi,
-	.name = "resched",
-	.dev_id = handle_reschedule_ipi /* unique token */,
+static struct irq_chip tile_irq_chip = {
+	.typename = "tile_irq_chip",
+	.ack = tile_irq_chip_ack,
+	.eoi = tile_irq_chip_eoi,
+	.mask = tile_irq_chip_mask,
+	.unmask = tile_irq_chip_unmask,
 };
 
 void __init init_IRQ(void)
 {
-	/* Bind IPI irqs. Does this belong somewhere else in init? */
-	tile_irq_activate(IRQ_RESCHEDULE);
-	BUG_ON(setup_irq(IRQ_RESCHEDULE, &resched_action));
+	ipi_init();
 }
 
-void __cpuinit init_per_tile_IRQs(void)
+void __cpuinit setup_irq_regs(void)
 {
-	int rc;
-
-	/* Set the pointer to the per-tile device interrupt state. */
-	HV_IntrState *sv_ptr = &__get_cpu_var(dev_intr_state);
-	rc = hv_dev_register_intr_state(sv_ptr);
-	if (rc != HV_OK)
-		panic("hv_dev_register_intr_state: error %d", rc);
-
+	/* Enable interrupt delivery. */
+	unmask_irqs(~0UL);
+#if CHIP_HAS_IPI()
+	raw_local_irq_unmask(INT_IPI_1);
+#endif
 }
 
-void tile_irq_activate(unsigned int irq)
+void tile_irq_activate(unsigned int irq, int tile_irq_type)
 {
 	/*
-	 * Paravirtualized drivers can call up to the HV to find out
-	 * which irq they're associated with.  The HV interface
-	 * doesn't provide a generic call for discovering all valid
-	 * IRQs, so drivers must call this method to initialize newly
-	 * discovered IRQs.
-	 *
-	 * We could also just initialize all 32 IRQs at startup, but
-	 * doing so would lead to a kernel fault if an unexpected
-	 * interrupt fires and jumps to a NULL action.  By defering
-	 * the set_irq_chip_and_handler() call, unexpected IRQs are
-	 * handled properly by handle_bad_irq().
+	 * We use handle_level_irq() by default because the pending
+	 * interrupt vector (whether modeled by the HV on TILE64 and
+	 * TILEPro or implemented in hardware on TILE-Gx) has
+	 * level-style semantics for each bit.  An interrupt fires
+	 * whenever a bit is high, not just at edges.
 	 */
-	hv_dev_irq_mask(irq);
-	set_irq_chip_and_handler(irq, &hv_dev_irq_chip, handle_percpu_irq);
+	irq_flow_handler_t handle = handle_level_irq;
+	if (tile_irq_type == TILE_IRQ_PERCPU)
+		handle = handle_percpu_irq;
+	set_irq_chip_and_handler(irq, &tile_irq_chip, handle);
+
+	/*
+	 * Flag interrupts that are hardware-cleared so that ack()
+	 * won't clear them.
+	 */
+	if (tile_irq_type == TILE_IRQ_HW_CLEAR)
+		set_irq_chip_data(irq, (void *)IS_HW_CLEARED);
 }
+EXPORT_SYMBOL(tile_irq_activate);
+
 
 void ack_bad_irq(unsigned int irq)
 {
-	printk(KERN_ERR "unexpected IRQ trap at vector %02x\n", irq);
+	pr_err("unexpected IRQ trap at vector %02x\n", irq);
 }
 
 /*
@@ -225,3 +300,35 @@ skip:
 	}
 	return 0;
 }
+
+#if CHIP_HAS_IPI()
+int create_irq(void)
+{
+	unsigned long flags;
+	int result;
+
+	spin_lock_irqsave(&available_irqs_lock, flags);
+	if (available_irqs == 0)
+		result = -ENOMEM;
+	else {
+		result = __ffs(available_irqs);
+		available_irqs &= ~(1UL << result);
+		dynamic_irq_init(result);
+	}
+	spin_unlock_irqrestore(&available_irqs_lock, flags);
+
+	return result;
+}
+EXPORT_SYMBOL(create_irq);
+
+void destroy_irq(unsigned int irq)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&available_irqs_lock, flags);
+	available_irqs |= (1UL << irq);
+	dynamic_irq_cleanup(irq);
+	spin_unlock_irqrestore(&available_irqs_lock, flags);
+}
+EXPORT_SYMBOL(destroy_irq);
+#endif

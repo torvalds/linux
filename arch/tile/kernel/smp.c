@@ -15,10 +15,18 @@
  */
 
 #include <linux/smp.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/module.h>
 #include <asm/cacheflush.h>
 
 HV_Topology smp_topology __write_once;
+EXPORT_SYMBOL(smp_topology);
+
+#if CHIP_HAS_IPI()
+static unsigned long __iomem *ipi_mappings[NR_CPUS];
+#endif
 
 
 /*
@@ -100,7 +108,6 @@ void on_each_cpu_mask(const struct cpumask *mask, void (*func)(void *),
 /* Handler to start the current cpu. */
 static void smp_start_cpu_interrupt(void)
 {
-	extern unsigned long start_cpu_function_addr;
 	get_irq_regs()->pc = start_cpu_function_addr;
 }
 
@@ -174,12 +181,8 @@ void flush_icache_range(unsigned long start, unsigned long end)
 }
 
 
-/*
- * The smp_send_reschedule() path does not use the hv_message_intr()
- * path but instead the faster tile_dev_intr() path for interrupts.
- */
-
-irqreturn_t handle_reschedule_ipi(int irq, void *token)
+/* Called when smp_send_reschedule() triggers IRQ_RESCHEDULE. */
+static irqreturn_t handle_reschedule_ipi(int irq, void *token)
 {
 	/*
 	 * Nothing to do here; when we return from interrupt, the
@@ -191,12 +194,63 @@ irqreturn_t handle_reschedule_ipi(int irq, void *token)
 	return IRQ_HANDLED;
 }
 
+static struct irqaction resched_action = {
+	.handler = handle_reschedule_ipi,
+	.name = "resched",
+	.dev_id = handle_reschedule_ipi /* unique token */,
+};
+
+void __init ipi_init(void)
+{
+#if CHIP_HAS_IPI()
+	int cpu;
+	/* Map IPI trigger MMIO addresses. */
+	for_each_possible_cpu(cpu) {
+		HV_Coord tile;
+		HV_PTE pte;
+		unsigned long offset;
+
+		tile.x = cpu_x(cpu);
+		tile.y = cpu_y(cpu);
+		if (hv_get_ipi_pte(tile, 1, &pte) != 0)
+			panic("Failed to initialize IPI for cpu %d\n", cpu);
+
+		offset = hv_pte_get_pfn(pte) << PAGE_SHIFT;
+		ipi_mappings[cpu] = ioremap_prot(offset, PAGE_SIZE, pte);
+	}
+#endif
+
+	/* Bind handle_reschedule_ipi() to IRQ_RESCHEDULE. */
+	tile_irq_activate(IRQ_RESCHEDULE, TILE_IRQ_PERCPU);
+	BUG_ON(setup_irq(IRQ_RESCHEDULE, &resched_action));
+}
+
+#if CHIP_HAS_IPI()
+
+void smp_send_reschedule(int cpu)
+{
+	WARN_ON(cpu_is_offline(cpu));
+
+	/*
+	 * We just want to do an MMIO store.  The traditional writeq()
+	 * functions aren't really correct here, since they're always
+	 * directed at the PCI shim.  For now, just do a raw store,
+	 * casting away the __iomem attribute.
+	 */
+	((unsigned long __force *)ipi_mappings[cpu])[IRQ_RESCHEDULE] = 0;
+}
+
+#else
+
 void smp_send_reschedule(int cpu)
 {
 	HV_Coord coord;
 
 	WARN_ON(cpu_is_offline(cpu));
-	coord.y = cpu / smp_width;
-	coord.x = cpu % smp_width;
+
+	coord.y = cpu_y(cpu);
+	coord.x = cpu_x(cpu);
 	hv_trigger_ipi(coord, IRQ_RESCHEDULE);
 }
+
+#endif /* CHIP_HAS_IPI() */

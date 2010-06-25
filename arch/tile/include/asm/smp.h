@@ -20,6 +20,7 @@
 #include <asm/processor.h>
 #include <linux/cpumask.h>
 #include <linux/irqreturn.h>
+#include <hv/hypervisor.h>
 
 /* Set up this tile to support receiving hypervisor messages */
 void init_messaging(void);
@@ -39,9 +40,6 @@ void send_IPI_single(int dest, int tag);
 /* Process an IPI message */
 void evaluate_message(int tag);
 
-/* Process an IRQ_RESCHEDULE IPI. */
-irqreturn_t handle_reschedule_ipi(int irq, void *token);
-
 /* Boot a secondary cpu */
 void online_secondary(void);
 
@@ -55,6 +53,20 @@ extern HV_Topology smp_topology;
 /* Accessors for grid size */
 #define smp_height		(smp_topology.height)
 #define smp_width		(smp_topology.width)
+
+/* Convenience functions for converting cpu <-> coords. */
+static inline int cpu_x(int cpu)
+{
+	return cpu % smp_width;
+}
+static inline int cpu_y(int cpu)
+{
+	return cpu / smp_width;
+}
+static inline int xy_to_cpu(int x, int y)
+{
+	return y * smp_width + x;
+}
 
 /* Hypervisor message tags sent via the tile send_IPI*() routines. */
 #define MSG_TAG_START_CPU		1
@@ -85,6 +97,9 @@ void print_disabled_cpus(void);
 #define smp_master_cpu		0
 #define smp_height		1
 #define smp_width		1
+#define cpu_x(cpu)		0
+#define cpu_y(cpu)		0
+#define xy_to_cpu(x, y)		0
 
 #endif /* !CONFIG_SMP */
 
@@ -122,5 +137,11 @@ static inline int __cpulist_parse_crop(const char *buf, struct cpumask *dstp,
 {
 	return bitmap_parselist_crop(buf, cpumask_bits(dstp), nbits);
 }
+
+/* Initialize the IPI subsystem. */
+void ipi_init(void);
+
+/* Function for start-cpu message to cause us to jump to. */
+extern unsigned long start_cpu_function_addr;
 
 #endif /* _ASM_TILE_SMP_H */

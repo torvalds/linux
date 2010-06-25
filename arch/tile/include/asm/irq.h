@@ -23,15 +23,65 @@
 /* IRQ numbers used for linux IPIs. */
 #define IRQ_RESCHEDULE 1
 
-/* The HV interrupt state object. */
-DECLARE_PER_CPU(HV_IntrState, dev_intr_state);
-
 void ack_bad_irq(unsigned int irq);
 
 /*
- * Paravirtualized drivers should call this when their init calls
- * discover a valid HV IRQ.
+ * Different ways of handling interrupts.  Tile interrupts are always
+ * per-cpu; there is no global interrupt controller to implement
+ * enable/disable.  Most onboard devices can send their interrupts to
+ * many tiles at the same time, and Tile-specific drivers know how to
+ * deal with this.
+ *
+ * However, generic devices (usually PCIE based, sometimes GPIO)
+ * expect that interrupts will fire on a single core at a time and
+ * that the irq can be enabled or disabled from any core at any time.
+ * We implement this by directing such interrupts to a single core.
+ *
+ * One added wrinkle is that PCI interrupts can be either
+ * hardware-cleared (legacy interrupts) or software cleared (MSI).
+ * Other generic device systems (GPIO) are always software-cleared.
+ *
+ * The enums below are used by drivers for onboard devices, including
+ * the internals of PCI root complex and GPIO.  They allow the driver
+ * to tell the generic irq code what kind of interrupt is mapped to a
+ * particular IRQ number.
  */
-void tile_irq_activate(unsigned int irq);
+enum {
+	/* per-cpu interrupt; use enable/disable_percpu_irq() to mask */
+	TILE_IRQ_PERCPU,
+	/* global interrupt, hardware responsible for clearing. */
+	TILE_IRQ_HW_CLEAR,
+	/* global interrupt, software responsible for clearing. */
+	TILE_IRQ_SW_CLEAR,
+};
+
+
+/*
+ * Paravirtualized drivers should call this when they dynamically
+ * allocate a new IRQ or discover an IRQ that was pre-allocated by the
+ * hypervisor for use with their particular device.  This gives the
+ * IRQ subsystem an opportunity to do interrupt-type-specific
+ * initialization.
+ *
+ * ISSUE: We should modify this API so that registering anything
+ * except percpu interrupts also requires providing callback methods
+ * for enabling and disabling the interrupt.  This would allow the
+ * generic IRQ code to proxy enable/disable_irq() calls back into the
+ * PCI subsystem, which in turn could enable or disable the interrupt
+ * at the PCI shim.
+ */
+void tile_irq_activate(unsigned int irq, int tile_irq_type);
+
+/*
+ * For onboard, non-PCI (e.g. TILE_IRQ_PERCPU) devices, drivers know
+ * how to use enable/disable_percpu_irq() to manage interrupts on each
+ * core.  We can't use the generic enable/disable_irq() because they
+ * use a single reference count per irq, rather than per cpu per irq.
+ */
+void enable_percpu_irq(unsigned int irq);
+void disable_percpu_irq(unsigned int irq);
+
+
+void setup_irq_regs(void);
 
 #endif /* _ASM_TILE_IRQ_H */
