@@ -19,7 +19,7 @@
  *
  */
 
-#define VIS_TIMEOUT		200000
+#define VIS_TIMEOUT		200	/* timeout of vis packets in seconds */
 
 struct vis_info {
 	unsigned long       first_seen;

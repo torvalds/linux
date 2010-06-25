@@ -257,8 +257,7 @@ static void hna_local_purge(struct work_struct *work)
 	while (hash_iterate(hna_local_hash, &hashit)) {
 		hna_local_entry = hashit.bucket->data;
 
-		timeout = hna_local_entry->last_seen +
-			((LOCAL_HNA_TIMEOUT * HZ) / 1000);
+		timeout = hna_local_entry->last_seen + LOCAL_HNA_TIMEOUT * HZ;
 		if ((!hna_local_entry->never_purge) &&
 		    time_after(jiffies, timeout))
 			hna_local_del(hna_local_entry, "address timed out");

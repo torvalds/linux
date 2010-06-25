@@ -193,8 +193,7 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 		neigh_node = list_entry(list_pos, struct neigh_node, list);
 
 		if ((time_after(jiffies,
-			       (neigh_node->last_valid +
-				((PURGE_TIMEOUT * HZ) / 1000)))) ||
+			neigh_node->last_valid + PURGE_TIMEOUT * HZ)) ||
 		    (neigh_node->if_incoming->if_status ==
 						IF_TO_BE_REMOVED)) {
 
@@ -231,8 +230,7 @@ static bool purge_orig_node(struct orig_node *orig_node)
 	struct neigh_node *best_neigh_node;
 
 	if (time_after(jiffies,
-		       (orig_node->last_valid +
-			((2 * PURGE_TIMEOUT * HZ) / 1000)))) {
+		orig_node->last_valid + 2 * PURGE_TIMEOUT * HZ)) {
 
 		bat_dbg(DBG_BATMAN,
 			"Originator timeout: originator %pM, last_valid %lu\n",

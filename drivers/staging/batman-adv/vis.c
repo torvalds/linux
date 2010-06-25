@@ -597,7 +597,7 @@ static void purge_vis_packets(void)
 		if (info == my_vis_info)	/* never purge own data. */
 			continue;
 		if (time_after(jiffies,
-			       info->first_seen + (VIS_TIMEOUT*HZ)/1000)) {
+			       info->first_seen + VIS_TIMEOUT * HZ)) {
 			hash_remove_bucket(vis_hash, &hashit);
 			send_list_del(info);
 			kref_put(&info->refcount, free_info);
