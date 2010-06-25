@@ -77,6 +77,14 @@ static inline int read_current_timer(unsigned long *result)
 	return 0;
 }
 
+#ifdef __OCTEON__
+/*
+ * All gcc versions that have OCTEON support define __OCTEON__ and have the
+ *  __builtin_popcount support.
+ */
+#define ARCH_HAS_USABLE_BUILTIN_POPCOUNT 1
+#endif
+
 static inline int octeon_has_saa(void)
 {
 	int id;
