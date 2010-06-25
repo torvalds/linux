@@ -1257,7 +1257,7 @@ struct ipr_interrupt_offsets {
 	unsigned long dump_addr_reg;
 	unsigned long dump_data_reg;
 
-#define IPR_ENDIAN_SWAP_KEY		0x000C0C00
+#define IPR_ENDIAN_SWAP_KEY		0x00080800
 	unsigned long endian_swap_reg;
 };
 
