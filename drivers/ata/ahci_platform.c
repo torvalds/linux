@@ -171,7 +171,6 @@ static int __devexit ahci_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver ahci_driver = {
-	.probe = ahci_probe,
 	.remove = __devexit_p(ahci_remove),
 	.driver = {
 		.name = "ahci",
