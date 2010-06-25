@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_SOFT_INTERFACE_H_
+#define _NET_BATMAN_ADV_SOFT_INTERFACE_H_
+
 void set_main_if_addr(uint8_t *addr);
 void interface_setup(struct net_device *dev);
 int interface_tx(struct sk_buff *skb, struct net_device *dev);
@@ -26,3 +29,5 @@ void interface_rx(struct sk_buff *skb, int hdr_size);
 int my_skb_push(struct sk_buff *skb, unsigned int len);
 
 extern unsigned char main_if_addr[];
+
+#endif /* _NET_BATMAN_ADV_SOFT_INTERFACE_H_ */

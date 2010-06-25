@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_VIS_H_
+#define _NET_BATMAN_ADV_VIS_H_
+
 #define VIS_TIMEOUT		200	/* timeout of vis packets in seconds */
 
 struct vis_info {
@@ -53,3 +56,5 @@ void receive_client_update_packet(struct bat_priv *bat_priv,
 				  int vis_info_len);
 int vis_init(void);
 void vis_quit(void);
+
+#endif /* _NET_BATMAN_ADV_VIS_H_ */

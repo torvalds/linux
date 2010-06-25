@@ -19,6 +19,8 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_BITARRAY_H_
+#define _NET_BATMAN_ADV_BITARRAY_H_
 
 /* you should choose something big, if you don't want to waste cpu */
 #define TYPE_OF_WORD unsigned long
@@ -40,3 +42,5 @@ char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
 
 /* count the hamming weight, how many good packets did we receive? */
 int  bit_packet_count(TYPE_OF_WORD *seq_bits);
+
+#endif /* _NET_BATMAN_ADV_BITARRAY_H_ */

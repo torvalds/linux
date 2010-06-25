@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_ROUTING_H_
+#define _NET_BATMAN_ADV_ROUTING_H_
+
 #include "types.h"
 
 void slide_own_bcast_window(struct batman_if *batman_if);
@@ -39,3 +42,5 @@ struct neigh_node *find_router(struct orig_node *orig_node,
 		struct batman_if *recv_if);
 void update_bonding_candidates(struct bat_priv *bat_priv,
 			       struct orig_node *orig_node);
+
+#endif /* _NET_BATMAN_ADV_ROUTING_H_ */

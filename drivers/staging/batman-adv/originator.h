@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_ORIGINATOR_H_
+#define _NET_BATMAN_ADV_ORIGINATOR_H_
+
 int originator_init(void);
 void originator_free(void);
 void purge_orig(struct work_struct *work);
@@ -29,3 +32,5 @@ create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 int orig_seq_print_text(struct seq_file *seq, void *offset);
 int orig_hash_add_if(struct batman_if *batman_if, int max_if_num);
 int orig_hash_del_if(struct batman_if *batman_if, int max_if_num);
+
+#endif /* _NET_BATMAN_ADV_ORIGINATOR_H_ */

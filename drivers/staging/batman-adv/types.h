@@ -23,8 +23,8 @@
 
 
 
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef _NET_BATMAN_ADV_TYPES_H_
+#define _NET_BATMAN_ADV_TYPES_H_
 
 #include "packet.h"
 #include "bitarray.h"
@@ -172,4 +172,4 @@ struct if_list_entry {
 	struct hlist_node list;
 };
 
-#endif
+#endif /* _NET_BATMAN_ADV_TYPES_H_ */

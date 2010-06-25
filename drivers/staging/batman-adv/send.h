@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_SEND_H_
+#define _NET_BATMAN_ADV_SEND_H_
+
 #include "types.h"
 
 int send_skb_packet(struct sk_buff *skb,
@@ -35,3 +38,5 @@ void schedule_forward_packet(struct orig_node *orig_node,
 int  add_bcast_packet_to_list(struct sk_buff *skb);
 void send_outstanding_bat_packet(struct work_struct *work);
 void purge_outstanding_packets(struct batman_if *batman_if);
+
+#endif /* _NET_BATMAN_ADV_SEND_H_ */

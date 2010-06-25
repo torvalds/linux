@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_MAIN_H_
+#define _NET_BATMAN_ADV_MAIN_H_
+
 /* Kernel Programming */
 #define LINUX
 
@@ -162,3 +165,5 @@ int choose_orig(void *data, int32_t size);
 int is_my_mac(uint8_t *addr);
 int is_bcast(uint8_t *addr);
 int is_mcast(uint8_t *addr);
+
+#endif /* _NET_BATMAN_ADV_MAIN_H_ */

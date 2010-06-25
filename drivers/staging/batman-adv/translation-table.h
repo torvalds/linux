@@ -19,6 +19,9 @@
  *
  */
 
+#ifndef _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
+#define _NET_BATMAN_ADV_TRANSLATION_TABLE_H_
+
 #include "types.h"
 
 int hna_local_init(void);
@@ -38,3 +41,5 @@ struct orig_node *transtable_search(uint8_t *addr);
 extern spinlock_t hna_local_hash_lock;
 extern struct hashtable_t *hna_local_hash;
 extern atomic_t hna_local_changed;
+
+#endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */

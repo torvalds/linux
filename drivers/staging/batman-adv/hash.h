@@ -19,8 +19,9 @@
  *
  */
 
-#ifndef _BATMAN_HASH_H
-#define _BATMAN_HASH_H
+#ifndef _NET_BATMAN_ADV_HASH_H_
+#define _NET_BATMAN_ADV_HASH_H_
+
 #define HASHIT(name) struct hash_it_t name = { \
 		.index = -1, .bucket = NULL, \
 		.prev_bucket = NULL, \
@@ -95,4 +96,5 @@ struct hashtable_t *hash_resize(struct hashtable_t *hash, int size);
  * the returned iterator to access the elements until hash_it_t returns NULL. */
 struct hash_it_t *hash_iterate(struct hashtable_t *hash,
 			       struct hash_it_t *iter_in);
-#endif
+
+#endif /* _NET_BATMAN_ADV_HASH_H_ */
