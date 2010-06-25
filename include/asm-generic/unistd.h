@@ -638,8 +638,11 @@ __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
  */
 #define __NR_arch_specific_syscall 244
 
+#define __NR_wait4 260
+__SYSCALL(__NR_wait4, sys_wait4)
+
 #undef __NR_syscalls
-#define __NR_syscalls 260
+#define __NR_syscalls 261
 
 /*
  * All syscalls below here should go away really,
@@ -776,8 +779,8 @@ __SYSCALL(__NR_epoll_wait, sys_epoll_wait)
 __SYSCALL(__NR_ustat, sys_ustat)
 #define __NR_vfork 1071
 __SYSCALL(__NR_vfork, sys_vfork)
-#define __NR_wait4 1072
-__SYSCALL(__NR_wait4, sys_wait4)
+#define __NR_oldwait4 1072
+__SYSCALL(__NR_oldwait4, sys_wait4)
 #define __NR_recv 1073
 __SYSCALL(__NR_recv, sys_recv)
 #define __NR_send 1074
