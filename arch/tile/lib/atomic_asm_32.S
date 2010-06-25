@@ -89,11 +89,11 @@ STD_ENTRY_SECTION(__atomic\name, .text.atomic)
 	 lh     r22, r0
 	 .else
 	 lw     r22, r0
-	 addi   r23, r0, 4
+	 addi   r28, r0, 4
 	 .endif
 	}
 	.ifc \bitwidth,64
-	lw      r23, r23
+	lw      r23, r28
 	.endif
 	\body /* set r24, and r25 if 64-bit */
 	{
@@ -109,11 +109,10 @@ STD_ENTRY_SECTION(__atomic\name, .text.atomic)
 	 sh     r0, r24
 	 .else
 	 sw     r0, r24
-	 addi   r23, r0, 4
 	 .endif
 	}
 	.ifc \bitwidth,64
-	sw      r23, r25
+	sw      r28, r25
 	.endif
 	mf
 3:	{
