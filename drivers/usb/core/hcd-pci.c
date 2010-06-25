@@ -403,6 +403,43 @@ static int hcd_pci_suspend(struct device *dev)
 	return retval;
 }
 
+static int resume_common(struct device *dev, int event)
+{
+	struct pci_dev		*pci_dev = to_pci_dev(dev);
+	struct usb_hcd		*hcd = pci_get_drvdata(pci_dev);
+	int			retval;
+
+	if (hcd->state != HC_STATE_SUSPENDED) {
+		dev_dbg(dev, "can't resume, not suspended!\n");
+		return 0;
+	}
+
+	retval = pci_enable_device(pci_dev);
+	if (retval < 0) {
+		dev_err(dev, "can't re-enable after resume, %d!\n", retval);
+		return retval;
+	}
+
+	pci_set_master(pci_dev);
+
+	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+
+	if (hcd->driver->pci_resume) {
+		/* This call should be made only during system resume,
+		 * not during runtime resume.
+		 */
+		wait_for_companions(pci_dev, hcd);
+
+		retval = hcd->driver->pci_resume(hcd,
+				event == PM_EVENT_RESTORE);
+		if (retval) {
+			dev_err(dev, "PCI post-resume error %d!\n", retval);
+			usb_hc_died(hcd);
+		}
+	}
+	return retval;
+}
+
 static int hcd_pci_suspend_noirq(struct device *dev)
 {
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
@@ -452,50 +489,14 @@ static int hcd_pci_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static int resume_common(struct device *dev, bool hibernated)
-{
-	struct pci_dev		*pci_dev = to_pci_dev(dev);
-	struct usb_hcd		*hcd = pci_get_drvdata(pci_dev);
-	int			retval;
-
-	if (hcd->state != HC_STATE_SUSPENDED) {
-		dev_dbg(dev, "can't resume, not suspended!\n");
-		return 0;
-	}
-
-	retval = pci_enable_device(pci_dev);
-	if (retval < 0) {
-		dev_err(dev, "can't re-enable after resume, %d!\n", retval);
-		return retval;
-	}
-
-	pci_set_master(pci_dev);
-
-	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
-
-	if (hcd->driver->pci_resume) {
-		/* This call should be made only during system resume,
-		 * not during runtime resume.
-		 */
-		wait_for_companions(pci_dev, hcd);
-
-		retval = hcd->driver->pci_resume(hcd, hibernated);
-		if (retval) {
-			dev_err(dev, "PCI post-resume error %d!\n", retval);
-			usb_hc_died(hcd);
-		}
-	}
-	return retval;
-}
-
 static int hcd_pci_resume(struct device *dev)
 {
-	return resume_common(dev, false);
+	return resume_common(dev, PM_EVENT_RESUME);
 }
 
 static int hcd_pci_restore(struct device *dev)
 {
-	return resume_common(dev, true);
+	return resume_common(dev, PM_EVENT_RESTORE);
 }
 
 const struct dev_pm_ops usb_hcd_pci_pm_ops = {
