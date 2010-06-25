@@ -130,9 +130,14 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 							break;
 						}
 					}
-				} else
-					rdev->pm.requested_power_state_index =
-						rdev->pm.current_power_state_index - 1;
+				} else {
+					if (rdev->pm.current_power_state_index == 0)
+						rdev->pm.requested_power_state_index =
+							rdev->pm.num_power_states - 1;
+					else
+						rdev->pm.requested_power_state_index =
+							rdev->pm.current_power_state_index - 1;
+				}
 			}
 			rdev->pm.requested_clock_mode_index = 0;
 			/* don't use the power state if crtcs are active and no display flag is set */
