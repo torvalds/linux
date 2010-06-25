@@ -735,6 +735,7 @@ struct efx_nic {
 	unsigned n_tx_channels;
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
+	u8 rx_hash_key[40];
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;

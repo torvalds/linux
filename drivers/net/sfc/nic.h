@@ -142,7 +142,6 @@ struct siena_nic_data {
 	u32 fw_build;
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
-	u8 ipv6_rss_key[40];
 };
 
 extern void siena_print_fwver(struct efx_nic *efx, char *buf, size_t len);

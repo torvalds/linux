@@ -1134,6 +1134,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 	 * in MSI-X interrupts. */
 	efx_probe_interrupts(efx);
 
+	if (efx->n_channels > 1)
+		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
+
 	efx_set_channels(efx);
 	efx->net_dev->real_num_tx_queues = efx->n_tx_channels;
 
