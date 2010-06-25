@@ -1581,8 +1581,14 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_MAC_TH, data_xoff_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XON_TX_TH, ctrl_xon_thr);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_TX_TH, ctrl_xoff_thr);
-		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_HASH_INSRT_HDR, 1);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_INGR_EN, 1);
+
+		/* Enable hash insertion. This is broken for the
+		 * 'Falcon' hash so also select Toeplitz TCP/IPv4 and
+		 * IPv4 hashes. */
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_HASH_INSRT_HDR, 1);
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_HASH_ALG, 1);
+		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_IP_HASH, 1);
 	}
 	/* Always enable XOFF signal from RX FIFO.  We enable
 	 * or disable transmission of pause frames at the MAC. */
@@ -1656,8 +1662,12 @@ static int falcon_init_nic(struct efx_nic *efx)
 
 	falcon_init_rx_cfg(efx);
 
-	/* Set destination of both TX and RX Flush events */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
+		/* Set hash key for IPv4 */
+		memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+		efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
+
+		/* Set destination of both TX and RX Flush events */
 		EFX_POPULATE_OWORD_1(temp, FRF_BZ_FLS_EVQ_ID, 0);
 		efx_writeo(efx, &temp, FR_BZ_DP_CTRL);
 	}

@@ -327,9 +327,18 @@ static int siena_init_nic(struct efx_nic *efx)
 
 	efx_reado(efx, &temp, FR_AZ_RX_CFG);
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_DESC_PUSH_EN, 0);
-	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_HASH_INSRT_HDR, 1);
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_INGR_EN, 1);
+	/* Enable hash insertion. This is broken for the 'Falcon' hash
+	 * if IPv6 hashing is also enabled, so also select Toeplitz
+	 * TCP/IPv4 and IPv4 hashes. */
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_HASH_INSRT_HDR, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_HASH_ALG, 1);
+	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_IP_HASH, 1);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
+
+	/* Set hash key for IPv4 */
+	memcpy(&temp, efx->rx_hash_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_BZ_RX_RSS_TKEY);
 
 	/* Enable IPv6 RSS */
 	BUILD_BUG_ON(sizeof(efx->rx_hash_key) <
