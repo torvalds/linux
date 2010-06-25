@@ -67,6 +67,8 @@ struct adp5588_kpad {
 	struct delayed_work work;
 	unsigned long delay;
 	unsigned short keycode[ADP5588_KEYMAPSIZE];
+	const struct adp5588_gpi_map *gpimap;
+	unsigned short gpimapsize;
 };
 
 static int adp5588_read(struct i2c_client *client, u8 reg)
@@ -84,12 +86,37 @@ static int adp5588_write(struct i2c_client *client, u8 reg, u8 val)
 	return i2c_smbus_write_byte_data(client, reg, val);
 }
 
+static void adp5588_report_events(struct adp5588_kpad *kpad, int ev_cnt)
+{
+	int i, j;
+
+	for (i = 0; i < ev_cnt; i++) {
+		int key = adp5588_read(kpad->client, Key_EVENTA + i);
+		int key_val = key & KEY_EV_MASK;
+
+		if (key_val >= GPI_PIN_BASE && key_val <= GPI_PIN_END) {
+			for (j = 0; j < kpad->gpimapsize; j++) {
+				if (key_val == kpad->gpimap[j].pin) {
+					input_report_switch(kpad->input,
+							kpad->gpimap[j].sw_evt,
+							key & KEY_EV_PRESSED);
+					break;
+				}
+			}
+		} else {
+			input_report_key(kpad->input,
+					 kpad->keycode[key_val - 1],
+					 key & KEY_EV_PRESSED);
+		}
+	}
+}
+
 static void adp5588_work(struct work_struct *work)
 {
 	struct adp5588_kpad *kpad = container_of(work,
 						struct adp5588_kpad, work.work);
 	struct i2c_client *client = kpad->client;
-	int i, key, status, ev_cnt;
+	int status, ev_cnt;
 
 	status = adp5588_read(client, INT_STAT);
 
@@ -99,12 +126,7 @@ static void adp5588_work(struct work_struct *work)
 	if (status & KE_INT) {
 		ev_cnt = adp5588_read(client, KEY_LCK_EC_STAT) & KEC;
 		if (ev_cnt) {
-			for (i = 0; i < ev_cnt; i++) {
-				key = adp5588_read(client, Key_EVENTA + i);
-				input_report_key(kpad->input,
-					kpad->keycode[(key & KEY_EV_MASK) - 1],
-					key & KEY_EV_PRESSED);
-			}
+			adp5588_report_events(kpad, ev_cnt);
 			input_sync(kpad->input);
 		}
 	}
@@ -130,6 +152,7 @@ static int __devinit adp5588_setup(struct i2c_client *client)
 {
 	struct adp5588_kpad_platform_data *pdata = client->dev.platform_data;
 	int i, ret;
+	unsigned char evt_mode1 = 0, evt_mode2 = 0, evt_mode3 = 0;
 
 	ret = adp5588_write(client, KP_GPIO1, KP_SEL(pdata->rows));
 	ret |= adp5588_write(client, KP_GPIO2, KP_SEL(pdata->cols) & 0xFF);
@@ -144,6 +167,23 @@ static int __devinit adp5588_setup(struct i2c_client *client)
 	for (i = 0; i < KEYP_MAX_EVENT; i++)
 		ret |= adp5588_read(client, Key_EVENTA);
 
+	for (i = 0; i < pdata->gpimapsize; i++) {
+		unsigned short pin = pdata->gpimap[i].pin;
+
+		if (pin <= GPI_PIN_ROW_END) {
+			evt_mode1 |= (1 << (pin - GPI_PIN_ROW_BASE));
+		} else {
+			evt_mode2 |= ((1 << (pin - GPI_PIN_COL_BASE)) & 0xFF);
+			evt_mode3 |= ((1 << (pin - GPI_PIN_COL_BASE)) >> 8);
+		}
+	}
+
+	if (pdata->gpimapsize) {
+		ret |= adp5588_write(client, GPI_EM1, evt_mode1);
+		ret |= adp5588_write(client, GPI_EM2, evt_mode2);
+		ret |= adp5588_write(client, GPI_EM3, evt_mode3);
+	}
+
 	ret |= adp5588_write(client, INT_STAT, CMP2_INT | CMP1_INT |
 					OVR_FLOW_INT | K_LCK_INT |
 					GPI_INT | KE_INT); /* Status is W1C */
@@ -157,6 +197,44 @@ static int __devinit adp5588_setup(struct i2c_client *client)
 
 	return 0;
 }
+
+static void __devinit adp5588_report_switch_state(struct adp5588_kpad *kpad)
+{
+	int gpi_stat1 = adp5588_read(kpad->client, GPIO_DAT_STAT1);
+	int gpi_stat2 = adp5588_read(kpad->client, GPIO_DAT_STAT2);
+	int gpi_stat3 = adp5588_read(kpad->client, GPIO_DAT_STAT3);
+	int gpi_stat_tmp, pin_loc;
+	int i;
+
+	for (i = 0; i < kpad->gpimapsize; i++) {
+		unsigned short pin = kpad->gpimap[i].pin;
+
+		if (pin <= GPI_PIN_ROW_END) {
+			gpi_stat_tmp = gpi_stat1;
+			pin_loc = pin - GPI_PIN_ROW_BASE;
+		} else if ((pin - GPI_PIN_COL_BASE) < 8) {
+			gpi_stat_tmp = gpi_stat2;
+			pin_loc = pin - GPI_PIN_COL_BASE;
+		} else {
+			gpi_stat_tmp = gpi_stat3;
+			pin_loc = pin - GPI_PIN_COL_BASE - 8;
+		}
+
+		if (gpi_stat_tmp < 0) {
+			dev_err(&kpad->client->dev,
+				"Can't read GPIO_DAT_STAT switch %d default to OFF\n",
+				pin);
+			gpi_stat_tmp = 0;
+		}
+
+		input_report_switch(kpad->input,
+				    kpad->gpimap[i].sw_evt,
+				    !(gpi_stat_tmp & (1 << pin_loc)));
+	}
+
+	input_sync(kpad->input);
+}
+
 
 static int __devinit adp5588_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
@@ -187,6 +265,37 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	if (pdata->keymapsize != ADP5588_KEYMAPSIZE) {
 		dev_err(&client->dev, "invalid keymapsize\n");
 		return -EINVAL;
+	}
+
+	if (!pdata->gpimap && pdata->gpimapsize) {
+		dev_err(&client->dev, "invalid gpimap from pdata\n");
+		return -EINVAL;
+	}
+
+	if (pdata->gpimapsize > ADP5588_GPIMAPSIZE_MAX) {
+		dev_err(&client->dev, "invalid gpimapsize\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < pdata->gpimapsize; i++) {
+		unsigned short pin = pdata->gpimap[i].pin;
+
+		if (pin < GPI_PIN_BASE || pin > GPI_PIN_END) {
+			dev_err(&client->dev, "invalid gpi pin data\n");
+			return -EINVAL;
+		}
+
+		if (pin <= GPI_PIN_ROW_END) {
+			if (pin - GPI_PIN_ROW_BASE + 1 <= pdata->rows) {
+				dev_err(&client->dev, "invalid gpi row data\n");
+				return -EINVAL;
+			}
+		} else {
+			if (pin - GPI_PIN_COL_BASE + 1 <= pdata->cols) {
+				dev_err(&client->dev, "invalid gpi col data\n");
+				return -EINVAL;
+			}
+		}
 	}
 
 	if (!client->irq) {
@@ -233,6 +342,9 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	memcpy(kpad->keycode, pdata->keymap,
 		pdata->keymapsize * input->keycodesize);
 
+	kpad->gpimap = pdata->gpimap;
+	kpad->gpimapsize = pdata->gpimapsize;
+
 	/* setup input device */
 	__set_bit(EV_KEY, input->evbit);
 
@@ -242,6 +354,11 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	for (i = 0; i < input->keycodemax; i++)
 		__set_bit(kpad->keycode[i] & KEY_MAX, input->keybit);
 	__clear_bit(KEY_RESERVED, input->keybit);
+
+	if (kpad->gpimapsize)
+		__set_bit(EV_SW, input->evbit);
+	for (i = 0; i < kpad->gpimapsize; i++)
+		__set_bit(kpad->gpimap[i].sw_evt, input->swbit);
 
 	error = input_register_device(input);
 	if (error) {
@@ -260,6 +377,9 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	error = adp5588_setup(client);
 	if (error)
 		goto err_free_irq;
+
+	if (kpad->gpimapsize)
+		adp5588_report_switch_state(kpad);
 
 	device_init_wakeup(&client->dev, 1);
 	i2c_set_clientdata(client, kpad);
