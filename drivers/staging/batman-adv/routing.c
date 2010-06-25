@@ -120,7 +120,7 @@ void update_routes(struct orig_node *orig_node,
 		update_HNA(orig_node, hna_buff, hna_buff_len);
 }
 
-static int isBidirectionalNeigh(struct orig_node *orig_node,
+static int is_bidirectional_neigh(struct orig_node *orig_node,
 				struct orig_node *orig_neigh_node,
 				struct batman_packet *batman_packet,
 				struct batman_if *if_incoming)
@@ -564,7 +564,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				 batman_if->net_dev->dev_addr))
 			is_my_oldorig = 1;
 
-		if (compare_orig(ethhdr->h_source, broadcastAddr))
+		if (compare_orig(ethhdr->h_source, broadcast_addr))
 			is_broadcast = 1;
 	}
 
@@ -674,7 +674,7 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		return;
 	}
 
-	is_bidirectional = isBidirectionalNeigh(orig_node, orig_neigh_node,
+	is_bidirectional = is_bidirectional_neigh(orig_node, orig_neigh_node,
 						batman_packet, if_incoming);
 
 	/* update ranking if it is not a duplicate or has the same

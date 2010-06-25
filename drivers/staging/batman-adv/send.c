@@ -174,7 +174,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 
 	send_raw_packet(forw_packet->packet_buff,
 			forw_packet->packet_len,
-			batman_if, broadcastAddr);
+			batman_if, broadcast_addr);
 }
 
 /* send a batman packet */
@@ -211,7 +211,7 @@ static void send_packet(struct forw_packet *forw_packet)
 		send_raw_packet(forw_packet->packet_buff,
 				forw_packet->packet_len,
 				forw_packet->if_incoming,
-				broadcastAddr);
+				broadcast_addr);
 		return;
 	}
 
@@ -464,7 +464,7 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 		skb1 = skb_copy(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
 			send_skb_packet(skb1,
-				batman_if, broadcastAddr);
+				batman_if, broadcast_addr);
 	}
 	rcu_read_unlock();
 

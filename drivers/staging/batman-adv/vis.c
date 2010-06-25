@@ -390,7 +390,7 @@ static struct vis_info *add_packet(struct vis_packet *vis_packet,
 
 	/* Make it a broadcast packet, if required */
 	if (make_broadcast)
-		memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
+		memcpy(info->packet.target_orig, broadcast_addr, ETH_ALEN);
 
 	/* repair if entries is longer than packet. */
 	if (info->packet.entries * sizeof(struct vis_info_entry) > vis_info_len)
@@ -524,7 +524,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 	info->packet.vis_type = atomic_read(&bat_priv->vis_mode);
 
 	spin_lock_irqsave(&orig_hash_lock, flags);
-	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
+	memcpy(info->packet.target_orig, broadcast_addr, ETH_ALEN);
 	info->packet.ttl = TTL;
 	info->packet.seqno = htonl(ntohl(info->packet.seqno) + 1);
 	info->packet.entries = 0;
@@ -641,7 +641,7 @@ static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 
 	}
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
-	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
+	memcpy(info->packet.target_orig, broadcast_addr, ETH_ALEN);
 }
 
 static void unicast_vis_packet(struct vis_info *info, int packet_length)
@@ -682,7 +682,7 @@ static void send_vis_packet(struct vis_info *info)
 		return;
 	}
 
-	memcpy(info->packet.sender_orig, mainIfAddr, ETH_ALEN);
+	memcpy(info->packet.sender_orig, main_if_addr, ETH_ALEN);
 	info->packet.ttl--;
 
 	packet_length = sizeof(struct vis_packet) +
@@ -763,8 +763,8 @@ int vis_init(void)
 
 	INIT_LIST_HEAD(&send_list);
 
-	memcpy(my_vis_info->packet.vis_orig, mainIfAddr, ETH_ALEN);
-	memcpy(my_vis_info->packet.sender_orig, mainIfAddr, ETH_ALEN);
+	memcpy(my_vis_info->packet.vis_orig, main_if_addr, ETH_ALEN);
+	memcpy(my_vis_info->packet.sender_orig, main_if_addr, ETH_ALEN);
 
 	if (hash_add(vis_hash, my_vis_info) < 0) {
 		printk(KERN_ERR

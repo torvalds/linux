@@ -36,7 +36,7 @@ static uint32_t bcast_seqno = 1; /* give own bcast messages seq numbers to avoid
 static int32_t skb_packets;
 static int32_t skb_bad_packets;
 
-unsigned char mainIfAddr[ETH_ALEN];
+unsigned char main_if_addr[ETH_ALEN];
 static int bat_get_settings(struct net_device *dev, struct ethtool_cmd *cmd);
 static void bat_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info);
@@ -58,7 +58,7 @@ static const struct ethtool_ops bat_ethtool_ops = {
 
 void set_main_if_addr(uint8_t *addr)
 {
-	memcpy(mainIfAddr, addr, ETH_ALEN);
+	memcpy(main_if_addr, addr, ETH_ALEN);
 }
 
 int my_skb_push(struct sk_buff *skb, unsigned int len)
@@ -164,7 +164,7 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh */
-		memcpy(bcast_packet->orig, mainIfAddr, ETH_ALEN);
+		memcpy(bcast_packet->orig, main_if_addr, ETH_ALEN);
 
 		/* set broadcast sequence number */
 		bcast_packet->seqno = htonl(bcast_seqno);
