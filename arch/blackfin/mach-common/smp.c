@@ -244,12 +244,13 @@ int smp_call_function(void (*func)(void *info), void *info, int wait)
 {
 	cpumask_t callmap;
 
+	preempt_disable();
 	callmap = cpu_online_map;
 	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		return 0;
+	if (!cpus_empty(callmap))
+		smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
 
-	smp_send_message(callmap, BFIN_IPI_CALL_FUNC, func, info, wait);
+	preempt_enable();
 
 	return 0;
 }
@@ -286,12 +287,13 @@ void smp_send_stop(void)
 {
 	cpumask_t callmap;
 
+	preempt_disable();
 	callmap = cpu_online_map;
 	cpu_clear(smp_processor_id(), callmap);
-	if (cpus_empty(callmap))
-		return;
+	if (!cpus_empty(callmap))
+		smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
 
-	smp_send_message(callmap, BFIN_IPI_CPU_STOP, NULL, NULL, 0);
+	preempt_enable();
 
 	return;
 }
