@@ -148,6 +148,7 @@ void cleanup_module(void)
 {
 	deactivate_module();
 
+	debugfs_destroy();
 	unregister_netdevice_notifier(&hard_if_notifier);
 	hardif_remove_interfaces();
 
@@ -212,7 +213,6 @@ void deactivate_module(void)
 	hna_global_free();
 
 	synchronize_net();
-	debugfs_destroy();
 
 	synchronize_rcu();
 	atomic_set(&module_state, MODULE_INACTIVE);
