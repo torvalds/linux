@@ -310,6 +310,10 @@ config VMALLOC_RESERVE
 	hex
 	default 0x1000000
 
+config HARDWALL
+	bool "Hardwall support to allow access to user dynamic network"
+	default y
+
 endmenu  # Tilera-specific configuration
 
 menu "Bus options"

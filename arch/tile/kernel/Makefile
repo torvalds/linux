@@ -8,6 +8,7 @@ obj-y := backtrace.o entry.o init_task.o irq.o messaging.o \
 	setup.o signal.o single_step.o stack.o sys.o time.o traps.o \
 	intvec_$(BITS).o regs_$(BITS).o tile-desc_$(BITS).o
 
+obj-$(CONFIG_HARDWALL)		+= hardwall.o
 obj-$(CONFIG_TILEGX)		+= futex_64.o
 obj-$(CONFIG_COMPAT)		+= compat.o compat_signal.o
 obj-$(CONFIG_SMP)		+= smpboot.o smp.o tlb.o

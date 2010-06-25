@@ -222,7 +222,7 @@ struct compat_shmid64_ds {
 
 static inline void __user *compat_ptr(compat_uptr_t uptr)
 {
-	return (void __user *)(unsigned long)uptr;
+	return (void __user *)(long)(s32)uptr;
 }
 
 static inline compat_uptr_t ptr_to_compat(void __user *uptr)

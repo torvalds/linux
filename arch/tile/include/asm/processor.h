@@ -21,6 +21,7 @@
  * NOTE: we don't include <linux/ptrace.h> or <linux/percpu.h> as one
  * normally would, due to #include dependencies.
  */
+#include <linux/types.h>
 #include <asm/ptrace.h>
 #include <asm/percpu.h>
 
@@ -29,7 +30,6 @@
 
 struct task_struct;
 struct thread_struct;
-struct list_head;
 
 typedef struct {
 	unsigned long seg;
@@ -74,6 +74,9 @@ struct async_tlb {
 	unsigned long address;   /* what address faulted? */
 };
 
+#ifdef CONFIG_HARDWALL
+struct hardwall_info;
+#endif
 
 struct thread_struct {
 	/* kernel stack pointer */
@@ -99,6 +102,12 @@ struct thread_struct {
 #if CHIP_HAS_PROC_STATUS_SPR()
 	/* Any other miscellaneous processor state bits */
 	unsigned long proc_status;
+#endif
+#ifdef CONFIG_HARDWALL
+	/* Is this task tied to an activated hardwall? */
+	struct hardwall_info *hardwall;
+	/* Chains this task into the list at hardwall->list. */
+	struct list_head hardwall_list;
 #endif
 #if CHIP_HAS_TILE_DMA()
 	/* Async DMA TLB fault information */
@@ -194,8 +203,6 @@ static inline void release_thread(struct task_struct *dead_task)
 
 extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 
-/* Helper routines for setting home cache modes at exec() time. */
-
 
 /*
  * Return saved (kernel) PC of a blocked thread.
@@ -239,6 +246,10 @@ static inline void cpu_relax(void)
 struct siginfo;
 extern void arch_coredump_signal(struct siginfo *, struct pt_regs *);
 #define arch_coredump_signal arch_coredump_signal
+
+/* Info on this processor (see fs/proc/cpuinfo.c) */
+struct seq_operations;
+extern const struct seq_operations cpuinfo_op;
 
 /* Provide information about the chip model. */
 extern char chip_model[64];

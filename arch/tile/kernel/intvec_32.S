@@ -17,9 +17,9 @@
 #include <linux/linkage.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/unistd.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
-#include <asm/unistd.h>
 #include <asm/irqflags.h>
 #include <asm/atomic.h>
 #include <asm/asm-offsets.h>
@@ -32,7 +32,7 @@
 # error "No support for kernel preemption currently"
 #endif
 
-#if INT_INTCTRL_1 < 32 || INT_INTCTL_1 >= 48
+#if INT_INTCTRL_1 < 32 || INT_INTCTRL_1 >= 48
 # error INT_INTCTRL_1 coded to set high interrupt mask
 #endif
 
@@ -1941,7 +1941,9 @@ int_unalign:
 #define op_handle_perf_interrupt bad_intr
 #define op_handle_aux_perf_interrupt bad_intr
 
+#ifndef CONFIG_HARDWALL
 #define do_hardwall_trap bad_intr
+#endif
 
 	int_hand     INT_ITLB_MISS, ITLB_MISS, \
 		     do_page_fault, handle_interrupt_no_single_step
