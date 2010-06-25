@@ -50,6 +50,7 @@
 #include "clock.h"
 #include "gpio-names.h"
 #include "devices.h"
+#include "power.h"
 
 /* NVidia bootloader tags */
 #define ATAG_NVIDIA		0x41000801
@@ -696,11 +697,28 @@ static int __init stingray_revision_parse(char *options)
 }
 __setup("hw_rev=", stingray_revision_parse);
 
+static struct tegra_suspend_platform_data stingray_suspend = {
+	.cpu_timer = 5000,
+	.cpu_off_timer = 5000,
+	.core_timer = 0x7e7e,
+	.core_off_timer = 0xf,
+	.separate_req = true,
+        .corereq_high = true,
+	.sysclkreq_high = true,
+	.dram_suspend = true,
+	.core_off = false,
+	.wake_enb = 0,
+	.wake_low = 0,
+	.wake_high = 0,
+	.wake_any = 0,
+};
+
 static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;
 
 	tegra_common_init();
+	tegra_init_suspend(&stingray_suspend);
 
 	/* Stingray has a USB switch that disconnects the usb port from the AP20
 	   unless a factory cable is used, the factory jumper is set, or the
