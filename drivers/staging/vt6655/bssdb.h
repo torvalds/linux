@@ -309,17 +309,11 @@ BSSbUpdateToBSSList(
 
 
 BOOL
-BSSDBbIsSTAInNodeDB(
-    void *hDeviceContext,
-    unsigned char *abyDstAddr,
-    PUINT puNodeIndex
-    );
+BSSDBbIsSTAInNodeDB(void *hDeviceContext, unsigned char *abyDstAddr,
+		unsigned int *puNodeIndex);
 
 void
-BSSvCreateOneNode(
-    void *hDeviceContext,
-    PUINT puNodeIndex
-    );
+BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex);
 
 void
 BSSvUpdateAPNode(

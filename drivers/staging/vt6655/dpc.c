@@ -79,24 +79,14 @@ const unsigned char acbyRxRate[MAX_RATE] =
 static unsigned char s_byGetRateIdx(unsigned char byRate);
 
 
-static
-void
-s_vGetDASA(
-    unsigned char *pbyRxBufferAddr,
-    PUINT pcbHeaderSize,
-    PSEthernetHeader psEthHeader
-    );
+static void
+s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
+		PSEthernetHeader psEthHeader);
 
-static
-void
-s_vProcessRxMACHeader (
-    PSDevice pDevice,
-    unsigned char *pbyRxBufferAddr,
-    unsigned int cbPacketSize,
-    BOOL bIsWEP,
-    BOOL bExtIV,
-    PUINT pcbHeadSize
-    );
+static void
+s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
+		unsigned int cbPacketSize, BOOL bIsWEP, BOOL bExtIV,
+		unsigned int *pcbHeadSize);
 
 static BOOL s_bAPModeRxCtl(
     PSDevice pDevice,
@@ -162,16 +152,10 @@ static BOOL s_bHostWepRxEncryption(
  * Return Value: None
  *
 -*/
-static
-void
-s_vProcessRxMACHeader (
-    PSDevice pDevice,
-    unsigned char *pbyRxBufferAddr,
-    unsigned int cbPacketSize,
-    BOOL bIsWEP,
-    BOOL bExtIV,
-    PUINT pcbHeadSize
-    )
+static void
+s_vProcessRxMACHeader(PSDevice pDevice, unsigned char *pbyRxBufferAddr,
+		unsigned int cbPacketSize, BOOL bIsWEP, BOOL bExtIV,
+		unsigned int *pcbHeadSize)
 {
     unsigned char *pbyRxBuffer;
     unsigned int cbHeaderSize = 0;
@@ -261,13 +245,9 @@ static unsigned char s_byGetRateIdx (unsigned char byRate)
 }
 
 
-static
-void
-s_vGetDASA (
-    unsigned char *pbyRxBufferAddr,
-    PUINT pcbHeaderSize,
-    PSEthernetHeader psEthHeader
-    )
+static void
+s_vGetDASA(unsigned char *pbyRxBufferAddr, unsigned int *pcbHeaderSize,
+	PSEthernetHeader psEthHeader)
 {
     unsigned int cbHeaderSize = 0;
     PS802_11Header  pMACHeader;

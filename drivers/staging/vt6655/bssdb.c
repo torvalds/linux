@@ -762,11 +762,8 @@ BSSbUpdateToBSSList (
 -*/
 
 BOOL
-BSSDBbIsSTAInNodeDB(
-    void *pMgmtObject,
-    unsigned char *abyDstAddr,
-    PUINT puNodeIndex
-    )
+BSSDBbIsSTAInNodeDB(void *pMgmtObject, unsigned char *abyDstAddr,
+		unsigned int *puNodeIndex)
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
     unsigned int ii;
@@ -797,10 +794,7 @@ BSSDBbIsSTAInNodeDB(
  *
 -*/
 void
-BSSvCreateOneNode(
-    void *hDeviceContext,
-    PUINT puNodeIndex
-    )
+BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex)
 {
 
     PSDevice     pDevice = (PSDevice)hDeviceContext;

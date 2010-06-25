@@ -82,9 +82,6 @@ typedef UQuadWord       QWORD;          // 64-bit
 
 /****** Common pointer types ***********************************************/
 
-// boolean pointer
-typedef unsigned int *   PUINT;
-
 typedef QWORD *          PQWORD;
 
 #endif // __TTYPE_H__

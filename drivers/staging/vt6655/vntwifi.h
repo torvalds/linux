@@ -208,14 +208,8 @@ VNTWIFIbGetConfigPhyMode(
     );
 
 void
-VNTWIFIvQueryBSSList(
-    void *pMgmtHandle,
-    PUINT   puBSSCount,
-    void **pvFirstBSS
-    );
-
-
-
+VNTWIFIvQueryBSSList(void *pMgmtHandle, unsigned int *puBSSCount,
+		void **pvFirstBSS);
 
 void
 VNTWIFIvGetNextBSS (

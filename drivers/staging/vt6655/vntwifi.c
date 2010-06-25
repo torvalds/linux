@@ -425,11 +425,7 @@ VNTWIFIbGetConfigPhyMode (
 -*/
 
 void
-VNTWIFIvQueryBSSList (
-    void *pMgmtHandle,
-    PUINT   puBSSCount,
-    void **pvFirstBSS
-    )
+VNTWIFIvQueryBSSList(void *pMgmtHandle, unsigned int *puBSSCount, void **pvFirstBSS)
 {
     unsigned int ii = 0;
     PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;

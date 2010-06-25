@@ -170,22 +170,11 @@ static void s_vFillFragParameter(
     );
 
 
-static
-unsigned int
-s_cbFillTxBufHead (
-    PSDevice         pDevice,
-    unsigned char byPktType,
-    unsigned char *pbyTxBufferAddr,
-    unsigned int	cbFrameBodySize,
-    unsigned int	uDMAIdx,
-    PSTxDesc         pHeadTD,
-    PSEthernetHeader psEthHeader,
-    unsigned char *pPacket,
-    BOOL             bNeedEncrypt,
-    PSKeyItem        pTransmitKey,
-    unsigned int	uNodeIndex,
-    PUINT            puMACfragNum
-    );
+static unsigned int
+s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
+	unsigned int cbFrameBodySize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
+	PSEthernetHeader psEthHeader, unsigned char *pPacket, BOOL bNeedEncrypt,
+	PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum);
 
 
 static
@@ -1315,22 +1304,11 @@ s_vFillFragParameter(
     //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"s_vFillFragParameter END\n");
 }
 
-static
-unsigned int
-s_cbFillTxBufHead (
-    PSDevice         pDevice,
-    unsigned char byPktType,
-    unsigned char *pbyTxBufferAddr,
-    unsigned int cbFrameBodySize,
-    unsigned int uDMAIdx,
-    PSTxDesc         pHeadTD,
-    PSEthernetHeader psEthHeader,
-    unsigned char *pPacket,
-    BOOL             bNeedEncrypt,
-    PSKeyItem        pTransmitKey,
-    unsigned int uNodeIndex,
-    PUINT            puMACfragNum
-    )
+static unsigned int
+s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
+	unsigned int cbFrameBodySize, unsigned int uDMAIdx, PSTxDesc pHeadTD,
+	PSEthernetHeader psEthHeader, unsigned char *pPacket, BOOL bNeedEncrypt,
+	PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum)
 {
     unsigned int cbMACHdLen;
     unsigned int cbFrameSize;
@@ -2094,21 +2072,11 @@ s_cbFillTxBufHead (
 
 
 void
-vGenerateFIFOHeader (
-    PSDevice         pDevice,
-    unsigned char byPktType,
-    unsigned char *pbyTxBufferAddr,
-    BOOL             bNeedEncrypt,
-    unsigned int cbPayloadSize,
-    unsigned int uDMAIdx,
-    PSTxDesc         pHeadTD,
-    PSEthernetHeader psEthHeader,
-    unsigned char *pPacket,
-    PSKeyItem        pTransmitKey,
-    unsigned int uNodeIndex,
-    PUINT            puMACfragNum,
-    PUINT            pcbHeaderSize
-    )
+vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyTxBufferAddr,
+	BOOL bNeedEncrypt, unsigned int cbPayloadSize, unsigned int uDMAIdx,
+	PSTxDesc pHeadTD, PSEthernetHeader psEthHeader, unsigned char *pPacket,
+	PSKeyItem pTransmitKey, unsigned int uNodeIndex, unsigned int *puMACfragNum,
+	unsigned int *pcbHeaderSize)
 {
     unsigned int wTxBufSize;       // FFinfo size
     BOOL            bNeedACK;
