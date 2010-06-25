@@ -5753,7 +5753,8 @@ void intel_init_clock_gating(struct drm_device *dev)
 				   ILK_DPFC_DIS2 |
 				   ILK_CLK_FBC);
 		}
-		return;
+		if (IS_GEN6(dev))
+			return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
 		I915_WRITE(RENCLK_GATE_D1, 0);
@@ -5814,9 +5815,11 @@ void intel_init_clock_gating(struct drm_device *dev)
 				OUT_RING(MI_FLUSH);
 				ADVANCE_LP_RING();
 			}
-		} else
+		} else {
 			DRM_DEBUG_KMS("Failed to allocate render context."
-				       "Disable RC6\n");
+				      "Disable RC6\n");
+			return;
+		}
 	}
 
 	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {
