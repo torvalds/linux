@@ -60,7 +60,7 @@ static struct clk r_clk = {
  * If needed, reset this with clk_set_rate() from the platform code.
  */
 struct clk sh7372_extal1_clk = {
-	.rate		= 26666666,
+	.rate		= 26000000,
 };
 
 /*
