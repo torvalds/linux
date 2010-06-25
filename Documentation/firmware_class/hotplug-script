@@ -6,11 +6,12 @@
 
 HOTPLUG_FW_DIR=/usr/lib/hotplug/firmware/
 
-echo 1 > /sys/$DEVPATH/loading
-cat $HOTPLUG_FW_DIR/$FIRMWARE > /sys/$DEVPATH/data
-echo 0 > /sys/$DEVPATH/loading
-
-# To cancel the load in case of error:
-#
-#	echo -1 > /sys/$DEVPATH/loading
-#
+if [ "$SUBSYSTEM" == "firmware" -a "$ACTION" == "add" ]; then
+  if [ -f $HOTPLUG_FW_DIR/$FIRMWARE ]; then
+    echo 1 > /sys/$DEVPATH/loading
+    cat $HOTPLUG_FW_DIR/$FIRMWARE > /sys/$DEVPATH/data
+    echo 0 > /sys/$DEVPATH/loading
+  else
+    echo -1 > /sys/$DEVPATH/loading
+  fi
+fi
