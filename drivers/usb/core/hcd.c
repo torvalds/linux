@@ -1940,6 +1940,7 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 
 	dev_dbg(&rhdev->dev, "usb %s%s\n",
 			(msg.event & PM_EVENT_AUTO ? "auto-" : ""), "resume");
+	clear_bit(HCD_FLAG_WAKEUP_PENDING, &hcd->flags);
 	if (!hcd->driver->bus_resume)
 		return -ENOENT;
 	if (hcd->state == HC_STATE_RUNNING)
@@ -1993,8 +1994,10 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 	unsigned long flags;
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
-	if (hcd->rh_registered)
+	if (hcd->rh_registered) {
+		set_bit(HCD_FLAG_WAKEUP_PENDING, &hcd->flags);
 		queue_work(pm_wq, &hcd->wakeup_work);
+	}
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);

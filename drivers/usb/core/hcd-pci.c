@@ -388,8 +388,20 @@ static int hcd_pci_suspend(struct device *dev)
 	if (hcd->driver->pci_suspend) {
 		bool	do_wakeup = device_may_wakeup(dev);
 
+		/* Optimization: Don't suspend if a root-hub wakeup is
+		 * pending and it would cause the HCD to wake up anyway.
+		 */
+		if (do_wakeup && HCD_WAKEUP_PENDING(hcd))
+			return -EBUSY;
 		retval = hcd->driver->pci_suspend(hcd, do_wakeup);
 		suspend_report_result(hcd->driver->pci_suspend, retval);
+
+		/* Check again in case wakeup raced with pci_suspend */
+		if (retval == 0 && do_wakeup && HCD_WAKEUP_PENDING(hcd)) {
+			if (hcd->driver->pci_resume)
+				hcd->driver->pci_resume(hcd, false);
+			retval = -EBUSY;
+		}
 		if (retval)
 			return retval;
 	}
