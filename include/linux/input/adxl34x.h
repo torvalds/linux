@@ -288,6 +288,62 @@ struct adxl34x_platform_data {
 	u32 ev_code_ff;	/* EV_KEY */
 	u32 ev_code_act_inactivity;	/* EV_KEY */
 
+	/*
+	 * Use ADXL34x INT2 instead of INT1
+	 */
 	u8 use_int2;
+
+	/*
+	 * ADXL346 only ORIENTATION SENSING feature
+	 * The orientation function of the ADXL346 reports both 2-D and
+	 * 3-D orientation concurrently.
+	 */
+
+#define ADXL_EN_ORIENTATION_2D		1
+#define ADXL_EN_ORIENTATION_3D		2
+#define ADXL_EN_ORIENTATION_2D_3D	3
+
+	u8 orientation_enable;
+
+	/*
+	 * The width of the deadzone region between two or more
+	 * orientation positions is determined by setting the Deadzone
+	 * value. The deadzone region size can be specified with a
+	 * resolution of 3.6deg. The deadzone angle represents the total
+	 * angle where the orientation is considered invalid.
+	 */
+
+#define ADXL_DEADZONE_ANGLE_0p0		0	/* !!!0.0 [deg] */
+#define ADXL_DEADZONE_ANGLE_3p6		1	/* 3.6 [deg] */
+#define ADXL_DEADZONE_ANGLE_7p2		2	/* 7.2 [deg] */
+#define ADXL_DEADZONE_ANGLE_10p8	3	/* 10.8 [deg] */
+#define ADXL_DEADZONE_ANGLE_14p4	4	/* 14.4 [deg] */
+#define ADXL_DEADZONE_ANGLE_18p0	5	/* 18.0 [deg] */
+#define ADXL_DEADZONE_ANGLE_21p6	6	/* 21.6 [deg] */
+#define ADXL_DEADZONE_ANGLE_25p2	7	/* 25.2 [deg] */
+
+	u8 deadzone_angle;
+
+	/*
+	 * To eliminate most human motion such as walking or shaking,
+	 * a Divisor value should be selected to effectively limit the
+	 * orientation bandwidth. Set the depth of the filter used to
+	 * low-pass filter the measured acceleration for stable
+	 * orientation sensing
+	 */
+
+#define ADXL_LP_FILTER_DIVISOR_2	0
+#define ADXL_LP_FILTER_DIVISOR_4	1
+#define ADXL_LP_FILTER_DIVISOR_8	2
+#define ADXL_LP_FILTER_DIVISOR_16	3
+#define ADXL_LP_FILTER_DIVISOR_32	4
+#define ADXL_LP_FILTER_DIVISOR_64	5
+#define ADXL_LP_FILTER_DIVISOR_128	6
+#define ADXL_LP_FILTER_DIVISOR_256	7
+
+	u8 divisor_length;
+
+	u32 ev_codes_orient_2d[4];	/* EV_KEY {+X, -X, +Y, -Y} */
+	u32 ev_codes_orient_3d[6];	/* EV_KEY {+Z, +Y, +X, -X, -Y, -Z} */
 };
 #endif
