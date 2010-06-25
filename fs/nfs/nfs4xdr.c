@@ -202,14 +202,17 @@ static int nfs4_stat_to_errno(int);
 #define encode_link_maxsz	(op_encode_hdr_maxsz + \
 				nfs4_name_maxsz)
 #define decode_link_maxsz	(op_decode_hdr_maxsz + decode_change_info_maxsz)
+#define encode_lockowner_maxsz	(7)
 #define encode_lock_maxsz	(op_encode_hdr_maxsz + \
 				 7 + \
-				 1 + encode_stateid_maxsz + 8)
+				 1 + encode_stateid_maxsz + 1 + \
+				 encode_lockowner_maxsz)
 #define decode_lock_denied_maxsz \
 				(8 + decode_lockowner_maxsz)
 #define decode_lock_maxsz	(op_decode_hdr_maxsz + \
 				 decode_lock_denied_maxsz)
-#define encode_lockt_maxsz	(op_encode_hdr_maxsz + 12)
+#define encode_lockt_maxsz	(op_encode_hdr_maxsz + 5 + \
+				encode_lockowner_maxsz)
 #define decode_lockt_maxsz	(op_decode_hdr_maxsz + \
 				 decode_lock_denied_maxsz)
 #define encode_locku_maxsz	(op_encode_hdr_maxsz + 3 + \
@@ -1042,6 +1045,17 @@ static inline uint64_t nfs4_lock_length(struct file_lock *fl)
 	return fl->fl_end - fl->fl_start + 1;
 }
 
+static void encode_lockowner(struct xdr_stream *xdr, const struct nfs_lowner *lowner)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, 28);
+	p = xdr_encode_hyper(p, lowner->clientid);
+	*p++ = cpu_to_be32(16);
+	p = xdr_encode_opaque_fixed(p, "lock id:", 8);
+	xdr_encode_hyper(p, lowner->id);
+}
+
 /*
  * opcode,type,reclaim,offset,length,new_lock_owner = 32
  * open_seqid,open_stateid,lock_seqid,lock_owner.clientid, lock_owner.id = 40
@@ -1058,14 +1072,11 @@ static void encode_lock(struct xdr_stream *xdr, const struct nfs_lock_args *args
 	p = xdr_encode_hyper(p, nfs4_lock_length(args->fl));
 	*p = cpu_to_be32(args->new_lock_owner);
 	if (args->new_lock_owner){
-		p = reserve_space(xdr, 4+NFS4_STATEID_SIZE+32);
+		p = reserve_space(xdr, 4+NFS4_STATEID_SIZE+4);
 		*p++ = cpu_to_be32(args->open_seqid->sequence->counter);
 		p = xdr_encode_opaque_fixed(p, args->open_stateid->data, NFS4_STATEID_SIZE);
 		*p++ = cpu_to_be32(args->lock_seqid->sequence->counter);
-		p = xdr_encode_hyper(p, args->lock_owner.clientid);
-		*p++ = cpu_to_be32(16);
-		p = xdr_encode_opaque_fixed(p, "lock id:", 8);
-		xdr_encode_hyper(p, args->lock_owner.id);
+		encode_lockowner(xdr, &args->lock_owner);
 	}
 	else {
 		p = reserve_space(xdr, NFS4_STATEID_SIZE+4);
@@ -1080,15 +1091,12 @@ static void encode_lockt(struct xdr_stream *xdr, const struct nfs_lockt_args *ar
 {
 	__be32 *p;
 
-	p = reserve_space(xdr, 52);
+	p = reserve_space(xdr, 24);
 	*p++ = cpu_to_be32(OP_LOCKT);
 	*p++ = cpu_to_be32(nfs4_lock_type(args->fl, 0));
 	p = xdr_encode_hyper(p, args->fl->fl_start);
 	p = xdr_encode_hyper(p, nfs4_lock_length(args->fl));
-	p = xdr_encode_hyper(p, args->lock_owner.clientid);
-	*p++ = cpu_to_be32(16);
-	p = xdr_encode_opaque_fixed(p, "lock id:", 8);
-	xdr_encode_hyper(p, args->lock_owner.id);
+	encode_lockowner(xdr, &args->lock_owner);
 	hdr->nops++;
 	hdr->replen += decode_lockt_maxsz;
 }
