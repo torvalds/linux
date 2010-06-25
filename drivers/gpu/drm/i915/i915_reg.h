@@ -181,6 +181,12 @@
 #define MI_DISPLAY_FLIP		MI_INSTR(0x14, 2)
 #define MI_DISPLAY_FLIP_I915	MI_INSTR(0x14, 1)
 #define   MI_DISPLAY_FLIP_PLANE(n) ((n) << 20)
+#define MI_SET_CONTEXT		MI_INSTR(0x18, 0)
+#define   MI_MM_SPACE_GTT		(1<<8)
+#define   MI_MM_SPACE_PHYSICAL		(0<<8)
+#define   MI_SAVE_EXT_STATE_EN		(1<<3)
+#define   MI_RESTORE_EXT_STATE_EN	(1<<2)
+#define   MI_RESTORE_INHIBIT		(1<<0)
 #define MI_STORE_DWORD_IMM	MI_INSTR(0x20, 1)
 #define   MI_MEM_VIRTUAL	(1 << 22) /* 965+ only */
 #define MI_STORE_DWORD_INDEX	MI_INSTR(0x21, 1)
@@ -1100,6 +1106,11 @@
 #define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
+/*
+ * Logical Context regs
+ */
+#define CCID			0x2180
+#define   CCID_EN		(1<<0)
 /*
  * Overlay regs
  */

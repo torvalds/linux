@@ -5466,37 +5466,37 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 };
 
 static struct drm_gem_object *
-intel_alloc_power_context(struct drm_device *dev)
+intel_alloc_context_page(struct drm_device *dev)
 {
-	struct drm_gem_object *pwrctx;
+	struct drm_gem_object *ctx;
 	int ret;
 
-	pwrctx = i915_gem_alloc_object(dev, 4096);
-	if (!pwrctx) {
+	ctx = i915_gem_alloc_object(dev, 4096);
+	if (!ctx) {
 		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
 		return NULL;
 	}
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gem_object_pin(pwrctx, 4096);
+	ret = i915_gem_object_pin(ctx, 4096);
 	if (ret) {
 		DRM_ERROR("failed to pin power context: %d\n", ret);
 		goto err_unref;
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(pwrctx, 1);
+	ret = i915_gem_object_set_to_gtt_domain(ctx, 1);
 	if (ret) {
 		DRM_ERROR("failed to set-domain on power context: %d\n", ret);
 		goto err_unpin;
 	}
 	mutex_unlock(&dev->struct_mutex);
 
-	return pwrctx;
+	return ctx;
 
 err_unpin:
-	i915_gem_object_unpin(pwrctx);
+	i915_gem_object_unpin(ctx);
 err_unref:
-	drm_gem_object_unreference(pwrctx);
+	drm_gem_object_unreference(ctx);
 	mutex_unlock(&dev->struct_mutex);
 	return NULL;
 }
@@ -5796,6 +5796,29 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
+	if (IS_IRONLAKE_M(dev)) {
+		if (dev_priv->renderctx == NULL)
+			dev_priv->renderctx = intel_alloc_context_page(dev);
+		if (dev_priv->renderctx) {
+			struct drm_i915_gem_object *obj_priv;
+			obj_priv = to_intel_bo(dev_priv->renderctx);
+			if (obj_priv) {
+				BEGIN_LP_RING(4);
+				OUT_RING(MI_SET_CONTEXT);
+				OUT_RING(obj_priv->gtt_offset |
+						MI_MM_SPACE_GTT |
+						MI_SAVE_EXT_STATE_EN |
+						MI_RESTORE_EXT_STATE_EN |
+						MI_RESTORE_INHIBIT);
+				OUT_RING(MI_NOOP);
+				OUT_RING(MI_FLUSH);
+				ADVANCE_LP_RING();
+			}
+		} else
+			DRM_DEBUG_KMS("Failed to allocate render context."
+				       "Disable RC6\n");
+	}
+
 	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {
 		struct drm_i915_gem_object *obj_priv = NULL;
 
@@ -5804,7 +5827,7 @@ void intel_init_clock_gating(struct drm_device *dev)
 		} else {
 			struct drm_gem_object *pwrctx;
 
-			pwrctx = intel_alloc_power_context(dev);
+			pwrctx = intel_alloc_context_page(dev);
 			if (pwrctx) {
 				dev_priv->pwrctx = pwrctx;
 				obj_priv = to_intel_bo(pwrctx);
@@ -6061,6 +6084,16 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (dev_priv->display.disable_fbc)
 		dev_priv->display.disable_fbc(dev);
+
+	if (dev_priv->renderctx) {
+		struct drm_i915_gem_object *obj_priv;
+
+		obj_priv = to_intel_bo(dev_priv->renderctx);
+		I915_WRITE(CCID, obj_priv->gtt_offset &~ CCID_EN);
+		I915_READ(CCID);
+		i915_gem_object_unpin(dev_priv->renderctx);
+		drm_gem_object_unreference(dev_priv->renderctx);
+	}
 
 	if (dev_priv->pwrctx) {
 		struct drm_i915_gem_object *obj_priv;
