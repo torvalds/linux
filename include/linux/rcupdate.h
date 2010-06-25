@@ -215,7 +215,11 @@ static inline int rcu_read_lock_sched_held(void)
 
 extern int rcu_my_thread_group_empty(void);
 
-#define __do_rcu_dereference_check(c)					\
+/**
+ * rcu_lockdep_assert - emit lockdep splat if specified condition not met
+ * @c: condition to check
+ */
+#define rcu_lockdep_assert(c)						\
 	do {								\
 		static bool __warned;					\
 		if (debug_lockdep_rcu_enabled() && !__warned && !(c)) {	\
@@ -226,7 +230,7 @@ extern int rcu_my_thread_group_empty(void);
 
 #else /* #ifdef CONFIG_PROVE_RCU */
 
-#define __do_rcu_dereference_check(c) do { } while (0)
+#define rcu_lockdep_assert(c) do { } while (0)
 
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
 
@@ -247,14 +251,14 @@ extern int rcu_my_thread_group_empty(void);
 #define __rcu_dereference_check(p, c, space) \
 	({ \
 		typeof(*p) *_________p1 = (typeof(*p)*__force )ACCESS_ONCE(p); \
-		__do_rcu_dereference_check(c); \
+		rcu_lockdep_assert(c); \
 		(void) (((typeof (*p) space *)p) == p); \
 		smp_read_barrier_depends(); \
 		((typeof(*p) __force __kernel *)(_________p1)); \
 	})
 #define __rcu_dereference_protected(p, c, space) \
 	({ \
-		__do_rcu_dereference_check(c); \
+		rcu_lockdep_assert(c); \
 		(void) (((typeof (*p) space *)p) == p); \
 		((typeof(*p) __force __kernel *)(p)); \
 	})
@@ -262,7 +266,7 @@ extern int rcu_my_thread_group_empty(void);
 #define __rcu_dereference_index_check(p, c) \
 	({ \
 		typeof(p) _________p1 = ACCESS_ONCE(p); \
-		__do_rcu_dereference_check(c); \
+		rcu_lockdep_assert(c); \
 		smp_read_barrier_depends(); \
 		(_________p1); \
 	})
