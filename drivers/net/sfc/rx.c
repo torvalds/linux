@@ -104,9 +104,9 @@ static inline unsigned int efx_rx_buf_size(struct efx_nic *efx)
 static inline u32 efx_rx_buf_hash(struct efx_rx_buffer *buf)
 {
 #if defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) || NET_IP_ALIGN % 4 == 0
-	return __le32_to_cpup((const __le32 *)buf->data);
+	return __le32_to_cpup((const __le32 *)(buf->data - 4));
 #else
-	const u8 *data = (const u8 *)buf->data;
+	const u8 *data = (const u8 *)(buf->data - 4);
 	return ((u32)data[0]       |
 		(u32)data[1] << 8  |
 		(u32)data[2] << 16 |
@@ -469,8 +469,6 @@ static void efx_rx_packet_lro(struct efx_channel *channel,
 
 		if (efx->net_dev->features & NETIF_F_RXHASH)
 			skb->rxhash = efx_rx_buf_hash(rx_buf);
-		rx_buf->data += efx->type->rx_buffer_hash_size;
-		rx_buf->len -= efx->type->rx_buffer_hash_size;
 
 		skb_shinfo(skb)->frags[0].page = page;
 		skb_shinfo(skb)->frags[0].page_offset =
@@ -577,6 +575,9 @@ void __efx_rx_packet(struct efx_channel *channel,
 	struct efx_nic *efx = channel->efx;
 	struct sk_buff *skb;
 
+	rx_buf->data += efx->type->rx_buffer_hash_size;
+	rx_buf->len -= efx->type->rx_buffer_hash_size;
+
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
 	 */
@@ -589,11 +590,11 @@ void __efx_rx_packet(struct efx_channel *channel,
 	if (rx_buf->skb) {
 		prefetch(skb_shinfo(rx_buf->skb));
 
+		skb_reserve(rx_buf->skb, efx->type->rx_buffer_hash_size);
 		skb_put(rx_buf->skb, rx_buf->len);
 
 		if (efx->net_dev->features & NETIF_F_RXHASH)
 			rx_buf->skb->rxhash = efx_rx_buf_hash(rx_buf);
-		skb_pull(rx_buf->skb, efx->type->rx_buffer_hash_size);
 
 		/* Move past the ethernet header. rx_buf->data still points
 		 * at the ethernet header */
