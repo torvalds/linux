@@ -53,7 +53,7 @@
 
 /* Defination for AU0828 USB transfer */
 #define AU0828_MAX_ISO_BUFS    12  /* maybe resize this value in the future */
-#define AU0828_ISO_PACKETS_PER_URB      10
+#define AU0828_ISO_PACKETS_PER_URB      128
 
 #define AU0828_MIN_BUF 4
 #define AU0828_DEF_BUF 8
