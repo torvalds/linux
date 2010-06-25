@@ -267,8 +267,47 @@ struct ui_browser {
 	void		*first_visible_entry, *entries;
 	u16		top, left, width, height;
 	void		*priv;
+	unsigned int	(*refresh_entries)(struct ui_browser *self);
+	void		(*seek)(struct ui_browser *self,
+				off_t offset, int whence);
 	u32		nr_entries;
 };
+
+static void ui_browser__list_head_seek(struct ui_browser *self,
+				       off_t offset, int whence)
+{
+	struct list_head *head = self->entries;
+	struct list_head *pos;
+
+	switch (whence) {
+	case SEEK_SET:
+		pos = head->next;
+		break;
+	case SEEK_CUR:
+		pos = self->first_visible_entry;
+		break;
+	case SEEK_END:
+		pos = head->prev;
+		break;
+	default:
+		return;
+	}
+
+	if (offset > 0) {
+		while (offset-- != 0)
+			pos = pos->next;
+	} else {
+		while (offset++ != 0)
+			pos = pos->prev;
+	}
+
+	self->first_visible_entry = pos;
+}
+
+static bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row)
+{
+	return (self->first_visible_entry_idx + row) == self->index;
+}
 
 static void ui_browser__refresh_dimensions(struct ui_browser *self)
 {
@@ -286,8 +325,34 @@ static void ui_browser__refresh_dimensions(struct ui_browser *self)
 
 static void ui_browser__reset_index(struct ui_browser *self)
 {
-        self->index = self->first_visible_entry_idx = 0;
-        self->first_visible_entry = NULL;
+	self->index = self->first_visible_entry_idx = 0;
+	self->seek(self, 0, SEEK_SET);
+}
+
+static int ui_browser__show(struct ui_browser *self, const char *title)
+{
+	if (self->form != NULL)
+		return 0;
+	ui_browser__refresh_dimensions(self);
+	newtCenteredWindow(self->width + 2, self->height, title);
+	self->form = newt_form__new();
+	if (self->form == NULL)
+		return -1;
+
+	self->sb = newtVerticalScrollbar(self->width + 1, 0, self->height,
+					 HE_COLORSET_NORMAL,
+					 HE_COLORSET_SELECTED);
+	if (self->sb == NULL)
+		return -1;
+
+	newtFormAddHotKey(self->form, NEWT_KEY_UP);
+	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
+	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
+	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
+	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
+	newtFormAddHotKey(self->form, NEWT_KEY_END);
+	newtFormAddComponent(self->form, self->sb);
+	return 0;
 }
 
 static int objdump_line__show(struct objdump_line *self, struct list_head *head,
@@ -341,26 +406,10 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 
 static int ui_browser__refresh_entries(struct ui_browser *self)
 {
-	struct objdump_line *pos;
-	struct list_head *head = self->entries;
-	struct hist_entry *he = self->priv;
-	int row = 0;
-	int len = he->ms.sym->end - he->ms.sym->start;
+	int row;
 
-	if (self->first_visible_entry == NULL || self->first_visible_entry == self->entries)
-                self->first_visible_entry = head->next;
-
-	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
-
-	list_for_each_entry_from(pos, head, node) {
-		bool current_entry = (self->first_visible_entry_idx + row) == self->index;
-		SLsmg_gotorc(self->top + row, self->left);
-		objdump_line__show(pos, head, self->width,
-				   he, len, current_entry);
-		if (++row == self->height)
-			break;
-	}
-
+	newtScrollbarSet(self->sb, self->index, self->nr_entries - 1);
+	row = self->refresh_entries(self);
 	SLsmg_set_color(HE_COLORSET_NORMAL);
 	SLsmg_fill_region(self->top + row, self->left,
 			  self->height - row, self->width, ' ');
@@ -368,42 +417,13 @@ static int ui_browser__refresh_entries(struct ui_browser *self)
 	return 0;
 }
 
-static int ui_browser__run(struct ui_browser *self, const char *title,
-			   struct newtExitStruct *es)
+static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 {
-	if (self->form) {
-		newtFormDestroy(self->form);
-		newtPopWindow();
-	}
-
-	ui_browser__refresh_dimensions(self);
-	newtCenteredWindow(self->width + 2, self->height, title);
-	self->form = newt_form__new();
-	if (self->form == NULL)
-		return -1;
-
-	self->sb = newtVerticalScrollbar(self->width + 1, 0, self->height,
-					 HE_COLORSET_NORMAL,
-					 HE_COLORSET_SELECTED);
-	if (self->sb == NULL)
-		return -1;
-
-	newtFormAddHotKey(self->form, NEWT_KEY_UP);
-	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
-	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
-	newtFormAddHotKey(self->form, ' ');
-	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
-	newtFormAddHotKey(self->form, NEWT_KEY_END);
-	newtFormAddHotKey(self->form, NEWT_KEY_TAB);
-	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
-
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
-	newtFormAddComponent(self->form, self->sb);
 
 	while (1) {
-		unsigned int offset;
+		off_t offset;
 
 		newtFormRun(self->form, es);
 
@@ -417,9 +437,8 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 				break;
 			++self->index;
 			if (self->index == self->first_visible_entry_idx + self->height) {
-				struct list_head *pos = self->first_visible_entry;
 				++self->first_visible_entry_idx;
-				self->first_visible_entry = pos->next;
+				self->seek(self, +1, SEEK_CUR);
 			}
 			break;
 		case NEWT_KEY_UP:
@@ -427,9 +446,8 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 				break;
 			--self->index;
 			if (self->index < self->first_visible_entry_idx) {
-				struct list_head *pos = self->first_visible_entry;
 				--self->first_visible_entry_idx;
-				self->first_visible_entry = pos->prev;
+				self->seek(self, -1, SEEK_CUR);
 			}
 			break;
 		case NEWT_KEY_PGDN:
@@ -442,12 +460,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 				offset = self->nr_entries - 1 - self->index;
 			self->index += offset;
 			self->first_visible_entry_idx += offset;
-
-			while (offset--) {
-				struct list_head *pos = self->first_visible_entry;
-				self->first_visible_entry = pos->next;
-			}
-
+			self->seek(self, +offset, SEEK_CUR);
 			break;
 		case NEWT_KEY_PGUP:
 			if (self->first_visible_entry_idx == 0)
@@ -460,29 +473,19 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 
 			self->index -= offset;
 			self->first_visible_entry_idx -= offset;
-
-			while (offset--) {
-				struct list_head *pos = self->first_visible_entry;
-				self->first_visible_entry = pos->prev;
-			}
+			self->seek(self, -offset, SEEK_CUR);
 			break;
 		case NEWT_KEY_HOME:
 			ui_browser__reset_index(self);
 			break;
-		case NEWT_KEY_END: {
-			struct list_head *head = self->entries;
+		case NEWT_KEY_END:
 			offset = self->height - 1;
 
 			if (offset > self->nr_entries)
 				offset = self->nr_entries;
 
 			self->index = self->first_visible_entry_idx = self->nr_entries - 1 - offset;
-			self->first_visible_entry = head->prev;
-			while (offset-- != 0) {
-				struct list_head *pos = self->first_visible_entry;
-				self->first_visible_entry = pos->prev;
-			}
-		}
+			self->seek(self, -offset, SEEK_END);
 			break;
 		case NEWT_KEY_RIGHT:
 		case NEWT_KEY_LEFT:
@@ -537,6 +540,31 @@ static char *callchain_list__sym_name(struct callchain_list *self,
 
 	snprintf(bf, bfsize, "%#Lx", self->ip);
 	return bf;
+}
+
+static unsigned int hist_entry__annotate_browser_refresh(struct ui_browser *self)
+{
+	struct objdump_line *pos;
+	struct list_head *head = self->entries;
+	struct hist_entry *he = self->priv;
+	int row = 0;
+	int len = he->ms.sym->end - he->ms.sym->start;
+
+	if (self->first_visible_entry == NULL || self->first_visible_entry == self->entries)
+                self->first_visible_entry = head->next;
+
+	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
+
+	list_for_each_entry_from(pos, head, node) {
+		bool current_entry = ui_browser__is_current_entry(self, row);
+		SLsmg_gotorc(self->top + row, self->left);
+		objdump_line__show(pos, head, self->width,
+				   he, len, current_entry);
+		if (++row == self->height)
+			break;
+	}
+
+	return row;
 }
 
 static void __callchain__append_graph_browser(struct callchain_node *self,
@@ -701,7 +729,9 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	ui_helpline__push("Press <- or ESC to exit");
 
 	memset(&browser, 0, sizeof(browser));
-	browser.entries = &head;
+	browser.entries		= &head;
+	browser.refresh_entries = hist_entry__annotate_browser_refresh;
+	browser.seek		= ui_browser__list_head_seek;
 	browser.priv = self;
 	list_for_each_entry(pos, &head, node) {
 		size_t line_len = strlen(pos->line);
@@ -711,7 +741,8 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 	}
 
 	browser.width += 18; /* Percentage */
-	ret = ui_browser__run(&browser, self->ms.sym->name, &es);
+	ui_browser__show(&browser, self->ms.sym->name);
+	ui_browser__run(&browser, &es);
 	newtFormDestroy(browser.form);
 	newtPopWindow();
 	list_for_each_entry_safe(pos, n, &head, node) {
