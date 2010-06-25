@@ -67,6 +67,45 @@ enum {
 	SGE_MAX_WR_LEN = 512,     /* max WR size in bytes */
 	SGE_NTIMERS = 6,          /* # of interrupt holdoff timer values */
 	SGE_NCOUNTERS = 4,        /* # of interrupt packet counter values */
+
+	SGE_TIMER_RSTRT_CNTR = 6, /* restart RX packet threshold counter */
+	SGE_TIMER_UPD_CIDX = 7,   /* update cidx only */
+
+	SGE_EQ_IDXSIZE = 64,      /* egress queue pidx/cidx unit size */
+
+	SGE_INTRDST_PCI = 0,      /* interrupt destination is PCI-E */
+	SGE_INTRDST_IQ = 1,       /*   destination is an ingress queue */
+
+	SGE_UPDATEDEL_NONE = 0,   /* ingress queue pidx update delivery */
+	SGE_UPDATEDEL_INTR = 1,   /*   interrupt */
+	SGE_UPDATEDEL_STPG = 2,   /*   status page */
+	SGE_UPDATEDEL_BOTH = 3,   /*   interrupt and status page */
+
+	SGE_HOSTFCMODE_NONE = 0,  /* egress queue cidx updates */
+	SGE_HOSTFCMODE_IQ = 1,    /*   sent to ingress queue */
+	SGE_HOSTFCMODE_STPG = 2,  /*   sent to status page */
+	SGE_HOSTFCMODE_BOTH = 3,  /*   ingress queue and status page */
+
+	SGE_FETCHBURSTMIN_16B = 0,/* egress queue descriptor fetch minimum */
+	SGE_FETCHBURSTMIN_32B = 1,
+	SGE_FETCHBURSTMIN_64B = 2,
+	SGE_FETCHBURSTMIN_128B = 3,
+
+	SGE_FETCHBURSTMAX_64B = 0,/* egress queue descriptor fetch maximum */
+	SGE_FETCHBURSTMAX_128B = 1,
+	SGE_FETCHBURSTMAX_256B = 2,
+	SGE_FETCHBURSTMAX_512B = 3,
+
+	SGE_CIDXFLUSHTHRESH_1 = 0,/* egress queue cidx flush threshold */
+	SGE_CIDXFLUSHTHRESH_2 = 1,
+	SGE_CIDXFLUSHTHRESH_4 = 2,
+	SGE_CIDXFLUSHTHRESH_8 = 3,
+	SGE_CIDXFLUSHTHRESH_16 = 4,
+	SGE_CIDXFLUSHTHRESH_32 = 5,
+	SGE_CIDXFLUSHTHRESH_64 = 6,
+	SGE_CIDXFLUSHTHRESH_128 = 7,
+
+	SGE_INGPADBOUNDARY_SHIFT = 5,/* ingress queue pad boundary */
 };
 
 struct sge_qstat {                /* data written to SGE queue status entries */
