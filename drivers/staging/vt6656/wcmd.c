@@ -742,8 +742,6 @@ void vRunCommand(void *hDeviceContext)
                     netif_wake_queue(pDevice->dev);
                 }
 
-	//2007-0115-07<Add>by MikeLiu
-	     #ifdef TxInSleep
 		 if(pDevice->IsTxDataTrigger != FALSE)   {    //TxDataTimer is not triggered at the first time
                      // printk("Re-initial TxDataTimer****\n");
 		    del_timer(&pDevice->sTimerTxData);
@@ -759,7 +757,6 @@ void vRunCommand(void *hDeviceContext)
 		 }
 		pDevice->IsTxDataTrigger = TRUE;
                 add_timer(&pDevice->sTimerTxData);
-             #endif
 
             }
 	   else if(pMgmt->eCurrState < WMAC_STATE_ASSOCPENDING) {
@@ -1276,8 +1273,6 @@ void vResetCommandTimer(void *hDeviceContext)
     pDevice->bCmdClear = FALSE;
 }
 
-//2007-0115-08<Add>by MikeLiu
-#ifdef TxInSleep
 void BSSvSecondTxData(void *hDeviceContext)
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1313,5 +1308,3 @@ void BSSvSecondTxData(void *hDeviceContext)
   add_timer(&pDevice->sTimerTxData);
   return;
 }
-#endif
-

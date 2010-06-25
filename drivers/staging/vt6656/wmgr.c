@@ -373,8 +373,6 @@ void vMgrObjectInit(void *hDeviceContext)
     pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
     pDevice->sTimerCommand.expires = RUN_AT(HZ);
 
-//2007-0115-10<Add>by MikeLiu
-   #ifdef TxInSleep
     init_timer(&pDevice->sTimerTxData);
     pDevice->sTimerTxData.data = (unsigned long)pDevice;
     pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
@@ -382,7 +380,6 @@ void vMgrObjectInit(void *hDeviceContext)
     pDevice->fTxDataInSleep = FALSE;
     pDevice->IsTxDataTrigger = FALSE;
     pDevice->nTxDataTimeCout = 0;
-   #endif
 
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
     pDevice->uCmdDequeueIdx = 0;

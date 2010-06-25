@@ -794,13 +794,10 @@ typedef struct __device_info {
     // command timer
     struct timer_list       sTimerCommand;
 
-//2007-0115-01<Add>by MikeLiu
-#ifdef TxInSleep
      struct timer_list       sTimerTxData;
      unsigned long                       nTxDataTimeCout;
      BOOL  fTxDataInSleep;
      BOOL  IsTxDataTrigger;
-#endif
 
 #ifdef WPA_SM_Transtatus
     BOOL  fWPA_Authened;           //is WPA/WPA-PSK or WPA2/WPA2-PSK authen??

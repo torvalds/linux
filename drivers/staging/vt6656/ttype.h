@@ -31,13 +31,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-//2007-0115-05<Add>by MikeLiu
-#ifndef TxInSleep
-#define TxInSleep
-#endif
-
-//DavidWang
-
 //2007-0814-01<Add>by MikeLiu
 #ifndef Safe_Close
 #define Safe_Close

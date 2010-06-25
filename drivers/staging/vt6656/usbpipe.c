@@ -784,10 +784,7 @@ s_nsBulkOutIoCompleteWrite(
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Write %d bytes\n",(int)ulBufLen);
         pDevice->ulBulkOutBytesWrite += ulBufLen;
         pDevice->ulBulkOutContCRCError = 0;
-	//2007-0115-06<Add>by MikeLiu
-           #ifdef TxInSleep
-             pDevice->nTxDataTimeCout = 0;
-           #endif
+	pDevice->nTxDataTimeCout = 0;
 
     } else {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK Out failed %d\n", status);

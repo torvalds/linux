@@ -1239,10 +1239,7 @@ device_release_WPADEV(pDevice);
     del_timer(&pDevice->sTimerCommand);
     del_timer(&pMgmt->sTimerSecondCallback);
 
-//2007-0115-02<Add>by MikeLiu
-#ifdef TxInSleep
     del_timer(&pDevice->sTimerTxData);
-#endif
 
     if (pDevice->bDiversityRegCtlON) {
         del_timer(&pDevice->TimerSQ3Tmax1);
