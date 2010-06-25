@@ -1604,6 +1604,15 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	u32 temp, tries = 0;
 
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
@@ -1621,16 +1630,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 	I915_READ(fdi_rx_reg);
 	udelay(150);
 
-	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
-	   for train result */
-	temp = I915_READ(fdi_rx_imr_reg);
-	temp &= ~FDI_RX_SYMBOL_LOCK;
-	temp &= ~FDI_RX_BIT_LOCK;
-	I915_WRITE(fdi_rx_imr_reg, temp);
-	I915_READ(fdi_rx_imr_reg);
-	udelay(150);
-
-	for (;;) {
+	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(fdi_rx_iir_reg);
 		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
@@ -1640,14 +1640,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 				   temp | FDI_RX_BIT_LOCK);
 			break;
 		}
-
-		tries++;
-
-		if (tries > 5) {
-			DRM_DEBUG_KMS("FDI train 1 fail!\n");
-			break;
-		}
 	}
+	if (tries == 5)
+		DRM_DEBUG_KMS("FDI train 1 fail!\n");
 
 	/* Train 2 */
 	temp = I915_READ(fdi_tx_reg);
@@ -1663,7 +1658,7 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 
 	tries = 0;
 
-	for (;;) {
+	for (tries = 0; tries < 5; tries++) {
 		temp = I915_READ(fdi_rx_iir_reg);
 		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
 
@@ -1673,14 +1668,9 @@ static void ironlake_fdi_link_train(struct drm_crtc *crtc)
 			DRM_DEBUG_KMS("FDI train 2 done.\n");
 			break;
 		}
-
-		tries++;
-
-		if (tries > 5) {
-			DRM_DEBUG_KMS("FDI train 2 fail!\n");
-			break;
-		}
 	}
+	if (tries == 5)
+		DRM_DEBUG_KMS("FDI train 2 fail!\n");
 
 	DRM_DEBUG_KMS("FDI train done\n");
 }
@@ -1705,6 +1695,15 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	int fdi_rx_imr_reg = (pipe == 0) ? FDI_RXA_IMR : FDI_RXB_IMR;
 	u32 temp, i;
 
+	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
+	   for train result */
+	temp = I915_READ(fdi_rx_imr_reg);
+	temp &= ~FDI_RX_SYMBOL_LOCK;
+	temp &= ~FDI_RX_BIT_LOCK;
+	I915_WRITE(fdi_rx_imr_reg, temp);
+	I915_READ(fdi_rx_imr_reg);
+	udelay(150);
+
 	/* enable CPU FDI TX and PCH FDI RX */
 	temp = I915_READ(fdi_tx_reg);
 	temp |= FDI_TX_ENABLE;
@@ -1728,15 +1727,6 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	}
 	I915_WRITE(fdi_rx_reg, temp | FDI_RX_ENABLE);
 	I915_READ(fdi_rx_reg);
-	udelay(150);
-
-	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
-	   for train result */
-	temp = I915_READ(fdi_rx_imr_reg);
-	temp &= ~FDI_RX_SYMBOL_LOCK;
-	temp &= ~FDI_RX_BIT_LOCK;
-	I915_WRITE(fdi_rx_imr_reg, temp);
-	I915_READ(fdi_rx_imr_reg);
 	udelay(150);
 
 	for (i = 0; i < 4; i++ ) {
