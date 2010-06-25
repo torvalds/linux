@@ -302,6 +302,124 @@ struct tomoyo_profile *tomoyo_profile(const u8 profile)
 	return ptr;
 }
 
+static s8 tomoyo_find_yesno(const char *string, const char *find)
+{
+	const char *cp = strstr(string, find);
+	if (cp) {
+		cp += strlen(find);
+		if (!strncmp(cp, "=yes", 4))
+			return 1;
+		else if (!strncmp(cp, "=no", 3))
+			return 0;
+	}
+	return -1;
+}
+
+static void tomoyo_set_bool(bool *b, const char *string, const char *find)
+{
+	switch (tomoyo_find_yesno(string, find)) {
+	case 1:
+		*b = true;
+		break;
+	case 0:
+		*b = false;
+		break;
+	}
+}
+
+static void tomoyo_set_uint(unsigned int *i, const char *string,
+			    const char *find)
+{
+	const char *cp = strstr(string, find);
+	if (cp)
+		sscanf(cp + strlen(find), "=%u", i);
+}
+
+static void tomoyo_set_pref(const char *name, const char *value,
+			    const bool use_default,
+			    struct tomoyo_profile *profile)
+{
+	struct tomoyo_preference **pref;
+	bool *verbose;
+	if (!strcmp(name, "enforcing")) {
+		if (use_default) {
+			pref = &profile->enforcing;
+			goto set_default;
+		}
+		profile->enforcing = &profile->preference;
+		verbose = &profile->preference.enforcing_verbose;
+		goto set_verbose;
+	}
+	if (!strcmp(name, "permissive")) {
+		if (use_default) {
+			pref = &profile->permissive;
+			goto set_default;
+		}
+		profile->permissive = &profile->preference;
+		verbose = &profile->preference.permissive_verbose;
+		goto set_verbose;
+	}
+	if (!strcmp(name, "learning")) {
+		if (use_default) {
+			pref = &profile->learning;
+			goto set_default;
+		}
+		profile->learning = &profile->preference;
+		tomoyo_set_uint(&profile->preference.learning_max_entry, value,
+			     "max_entry");
+		verbose = &profile->preference.learning_verbose;
+		goto set_verbose;
+	}
+	return;
+ set_default:
+	*pref = &tomoyo_default_profile.preference;
+	return;
+ set_verbose:
+	tomoyo_set_bool(verbose, value, "verbose");
+}
+
+static int tomoyo_set_mode(char *name, const char *value,
+			   const bool use_default,
+			   struct tomoyo_profile *profile)
+{
+	u8 i;
+	u8 config;
+	if (!strcmp(name, "CONFIG")) {
+		i = TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX;
+		config = profile->default_config;
+	} else if (tomoyo_str_starts(&name, "CONFIG::")) {
+		config = 0;
+		for (i = 0; i < TOMOYO_MAX_MAC_INDEX
+			     + TOMOYO_MAX_MAC_CATEGORY_INDEX; i++) {
+			if (strcmp(name, tomoyo_mac_keywords[i]))
+				continue;
+			config = profile->config[i];
+			break;
+		}
+		if (i == TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX)
+			return -EINVAL;
+	} else {
+		return -EINVAL;
+	}
+	if (use_default) {
+		config = TOMOYO_CONFIG_USE_DEFAULT;
+	} else {
+		u8 mode;
+		for (mode = 0; mode < 4; mode++)
+			if (strstr(value, tomoyo_mode[mode]))
+				/*
+				 * Update lower 3 bits in order to distinguish
+				 * 'config' from 'TOMOYO_CONFIG_USE_DEAFULT'.
+				 */
+				config = (config & ~7) | mode;
+	}
+	if (i < TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX)
+		profile->config[i] = config;
+	else if (config != TOMOYO_CONFIG_USE_DEFAULT)
+		profile->default_config = config;
+	return 0;
+}
+
 /**
  * tomoyo_write_profile - Write profile table.
  *
@@ -313,9 +431,6 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
 	unsigned int i;
-	int value;
-	int mode;
-	u8 config;
 	bool use_default = false;
 	char *cp;
 	struct tomoyo_profile *profile;
@@ -338,45 +453,8 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 	*cp++ = '\0';
 	if (profile != &tomoyo_default_profile)
 		use_default = strstr(cp, "use_default") != NULL;
-	if (strstr(cp, "verbose=yes"))
-		value = 1;
-	else if (strstr(cp, "verbose=no"))
-		value = 0;
-	else
-		value = -1;
-	if (!strcmp(data, "PREFERENCE::enforcing")) {
-		if (use_default) {
-			profile->enforcing = &tomoyo_default_profile.preference;
-			return 0;
-		}
-		profile->enforcing = &profile->preference;
-		if (value >= 0)
-			profile->preference.enforcing_verbose = value;
-		return 0;
-	}
-	if (!strcmp(data, "PREFERENCE::permissive")) {
-		if (use_default) {
-			profile->permissive = &tomoyo_default_profile.preference;
-			return 0;
-		}
-		profile->permissive = &profile->preference;
-		if (value >= 0)
-			profile->preference.permissive_verbose = value;
-		return 0;
-	}
-	if (!strcmp(data, "PREFERENCE::learning")) {
-		char *cp2;
-		if (use_default) {
-			profile->learning = &tomoyo_default_profile.preference;
-			return 0;
-		}
-		profile->learning = &profile->preference;
-		if (value >= 0)
-			profile->preference.learning_verbose = value;
-		cp2 = strstr(cp, "max_entry=");
-		if (cp2)
-			sscanf(cp2 + 10, "%u",
-			       &profile->preference.learning_max_entry);
+	if (tomoyo_str_starts(&data, "PREFERENCE::")) {
+		tomoyo_set_pref(data, cp, use_default, profile);
 		return 0;
 	}
 	if (profile == &tomoyo_default_profile)
@@ -387,38 +465,7 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 		tomoyo_put_name(old_comment);
 		return 0;
 	}
-	if (!strcmp(data, "CONFIG")) {
-		i = TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX;
-		config = profile->default_config;
-	} else if (tomoyo_str_starts(&data, "CONFIG::")) {
-		config = 0;
-		for (i = 0; i < TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX; i++) {
-			if (strcmp(data, tomoyo_mac_keywords[i]))
-				continue;
-			config = profile->config[i];
-			break;
-		}
-		if (i == TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX)
-			return -EINVAL;
-	} else {
-		return -EINVAL;
-	}
-	if (use_default) {
-		config = TOMOYO_CONFIG_USE_DEFAULT;
-	} else {
-		for (mode = 3; mode >= 0; mode--)
-			if (strstr(cp, tomoyo_mode[mode]))
-				/*
-				 * Update lower 3 bits in order to distinguish
-				 * 'config' from 'TOMOYO_CONFIG_USE_DEAFULT'.
-				 */
-				config = (config & ~7) | mode;
-	}
-	if (i < TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX)
-		profile->config[i] = config;
-	else if (config != TOMOYO_CONFIG_USE_DEFAULT)
-		profile->default_config = config;
-	return 0;
+	return tomoyo_set_mode(data, cp, use_default, profile);
 }
 
 static void tomoyo_print_preference(struct tomoyo_io_buffer *head,
