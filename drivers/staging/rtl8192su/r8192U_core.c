@@ -134,7 +134,6 @@ static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x0E66, 0x0016)},
 	{USB_DEVICE(0x0b05, 0x1786)},
 	/* these are not in the official list */
-	{USB_DEVICE(0x050d, 0x815F)}, /* Belkin F5D8053 v6 */
 	{USB_DEVICE(0x0df6, 0x004b)}, /* WL-349 */
 	{}
 };
