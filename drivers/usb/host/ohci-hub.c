@@ -355,6 +355,11 @@ static void ohci_finish_controller_resume(struct usb_hcd *hcd)
 		ohci_readl(ohci, &ohci->regs->intrenable);
 		msleep(20);
 	}
+
+	/* Does the root hub have a port wakeup pending? */
+	if (ohci_readl(ohci, &ohci->regs->intrstatus) &
+			(OHCI_INTR_RD | OHCI_INTR_RHSC))
+		usb_hcd_resume_root_hub(hcd);
 }
 
 /* Carry out polling-, autostop-, and autoresume-related state changes */
@@ -364,7 +369,7 @@ static int ohci_root_hub_state_changes(struct ohci_hcd *ohci, int changed,
 	int	poll_rh = 1;
 	int	rhsc_enable;
 
-	/* Some broken controllers never turn off RHCS in the interrupt
+	/* Some broken controllers never turn off RHSC in the interrupt
 	 * status register.  For their sake we won't re-enable RHSC
 	 * interrupts if the interrupt bit is already active.
 	 */

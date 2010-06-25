@@ -862,10 +862,11 @@ static int uhci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 	/* If interrupts don't work and remote wakeup is enabled then
 	 * the suspended root hub needs to be polled.
 	 */
-	if (!uhci->RD_enable && hcd->self.root_hub->do_remote_wakeup) {
+	if (!uhci->RD_enable && hcd->self.root_hub->do_remote_wakeup)
 		set_bit(HCD_FLAG_POLL_RH, &hcd->flags);
-		usb_hcd_poll_rh_status(hcd);
-	}
+
+	/* Does the root hub have a port wakeup pending? */
+	usb_hcd_poll_rh_status(hcd);
 	return 0;
 }
 #endif

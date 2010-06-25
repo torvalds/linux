@@ -166,6 +166,10 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 			ehci_writel(ehci, temp | HOSTPC_PHCD, hostpc_reg);
 		}
 	}
+
+	/* Does the root hub have a port wakeup pending? */
+	if (!suspending && (ehci_readl(ehci, &ehci->regs->status) & STS_PCD))
+		usb_hcd_resume_root_hub(ehci_to_hcd(ehci));
 }
 
 static int ehci_bus_suspend (struct usb_hcd *hcd)
