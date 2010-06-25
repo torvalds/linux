@@ -36,8 +36,6 @@ MA 02111-1307 USA
 #ifndef DT3155_ISR_H
 #define DT3155_ISR_H
 
-extern struct dt3155_fbuffer *dt3155_fbuffer[MAXBOARDS];
-
 /* User functions for buffering */
 /* Initialize the buffering system.  This should */
 /* be called prior to enabling interrupts */
