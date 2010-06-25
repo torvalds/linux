@@ -42,15 +42,15 @@ static uint8_t hop_penalty(const uint8_t tq)
 /* when do we schedule our own packet to be sent */
 static unsigned long own_send_time(struct bat_priv *bat_priv)
 {
-	return jiffies +
-		(((atomic_read(&bat_priv->orig_interval) - JITTER +
-		   (random32() % 2*JITTER)) * HZ) / 1000);
+	return jiffies + msecs_to_jiffies(
+		   atomic_read(&bat_priv->orig_interval) -
+		   JITTER + (random32() % 2*JITTER));
 }
 
 /* when do we schedule a forwarded packet to be sent */
 static unsigned long forward_send_time(struct bat_priv *bat_priv)
 {
-	return jiffies + (((random32() % (JITTER/2)) * HZ) / 1000);
+	return jiffies + msecs_to_jiffies(random32() % (JITTER/2));
 }
 
 /* send out an already prepared packet to the given address via the
