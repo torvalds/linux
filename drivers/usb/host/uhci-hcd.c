@@ -788,7 +788,7 @@ static int uhci_rh_resume(struct usb_hcd *hcd)
 	return rc;
 }
 
-static int uhci_pci_suspend(struct usb_hcd *hcd)
+static int uhci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct uhci_hcd *uhci = hcd_to_uhci(hcd);
 	int rc = 0;

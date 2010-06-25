@@ -386,7 +386,9 @@ static int hcd_pci_suspend(struct device *dev)
 		return retval;
 
 	if (hcd->driver->pci_suspend) {
-		retval = hcd->driver->pci_suspend(hcd);
+		bool	do_wakeup = device_may_wakeup(dev);
+
+		retval = hcd->driver->pci_suspend(hcd, do_wakeup);
 		suspend_report_result(hcd->driver->pci_suspend, retval);
 		if (retval)
 			return retval;

@@ -107,7 +107,7 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 }
 
 static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
-		bool suspending)
+		bool suspending, bool do_wakeup)
 {
 	int		port;
 	u32		temp;
@@ -117,8 +117,7 @@ static void ehci_adjust_port_wakeup_flags(struct ehci_hcd *ehci,
 	 * when the controller is suspended or resumed.  In all other
 	 * cases they don't need to be changed.
 	 */
-	if (!ehci_to_hcd(ehci)->self.root_hub->do_remote_wakeup ||
-			device_may_wakeup(ehci_to_hcd(ehci)->self.controller))
+	if (!ehci_to_hcd(ehci)->self.root_hub->do_remote_wakeup || do_wakeup)
 		return;
 
 	/* clear phy low-power mode before changing wakeup flags */

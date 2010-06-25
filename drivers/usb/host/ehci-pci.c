@@ -277,7 +277,7 @@ done:
  * Also they depend on separate root hub suspend/resume.
  */
 
-static int ehci_pci_suspend(struct usb_hcd *hcd)
+static int ehci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	unsigned long		flags;
@@ -291,7 +291,7 @@ static int ehci_pci_suspend(struct usb_hcd *hcd)
 	 * the root hub is either suspended or stopped.
 	 */
 	spin_lock_irqsave (&ehci->lock, flags);
-	ehci_prepare_ports_for_controller_suspend(ehci);
+	ehci_prepare_ports_for_controller_suspend(ehci, do_wakeup);
 	ehci_writel(ehci, 0, &ehci->regs->intr_enable);
 	(void)ehci_readl(ehci, &ehci->regs->intr_enable);
 
