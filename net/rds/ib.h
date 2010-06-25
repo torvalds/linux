@@ -299,15 +299,7 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn,
 int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr);
 void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn);
-void __rds_ib_destroy_conns(struct list_head *list, spinlock_t *list_lock);
-static inline void rds_ib_destroy_nodev_conns(void)
-{
-	__rds_ib_destroy_conns(&ib_nodev_conns, &ib_nodev_conns_lock);
-}
-static inline void rds_ib_destroy_conns(struct rds_ib_device *rds_ibdev)
-{
-	__rds_ib_destroy_conns(&rds_ibdev->conn_list, &rds_ibdev->spinlock);
-}
+void rds_ib_destroy_nodev_conns(void);
 struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *);
 void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_connection *iinfo);
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *);

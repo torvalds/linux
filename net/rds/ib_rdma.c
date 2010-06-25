@@ -198,16 +198,15 @@ void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *
 	rds_ib_dev_put(rds_ibdev);
 }
 
-void __rds_ib_destroy_conns(struct list_head *list, spinlock_t *list_lock)
+void rds_ib_destroy_nodev_conns(void)
 {
 	struct rds_ib_connection *ic, *_ic;
 	LIST_HEAD(tmp_list);
 
 	/* avoid calling conn_destroy with irqs off */
-	spin_lock_irq(list_lock);
-	list_splice(list, &tmp_list);
-	INIT_LIST_HEAD(list);
-	spin_unlock_irq(list_lock);
+	spin_lock_irq(&ib_nodev_conns_lock);
+	list_splice(&ib_nodev_conns, &tmp_list);
+	spin_unlock_irq(&ib_nodev_conns_lock);
 
 	list_for_each_entry_safe(ic, _ic, &tmp_list, ib_node)
 		rds_conn_destroy(ic->conn);
