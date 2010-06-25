@@ -33,25 +33,12 @@ u32 even_dma_start_r;	/*  bit 0 should always be 0 */
 u32 odd_dma_start_r;	/*               .. */
 u32 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
 u32 odd_dma_stride_r;	/*               .. */
-u32 even_pixel_fmt_r;
-u32 odd_pixel_fmt_r;
 
-FIFO_TRIGGER_R		fifo_trigger_r;
-XFER_MODE_R		xfer_mode_r;
 CSR1_R			csr1_r;
-RETRY_WAIT_CNT_R	retry_wait_cnt_r;
 INT_CSR_R		int_csr_r;
 
-u32 even_fld_mask_r;
-u32 odd_fld_mask_r;
-
-MASK_LENGTH_R		mask_length_r;
-FIFO_FLAG_CNT_R		fifo_flag_cnt_r;
-IIC_CLK_DUR_R		iic_clk_dur_r;
 IIC_CSR1_R		iic_csr1_r;
 IIC_CSR2_R		iic_csr2_r;
-DMA_UPPER_LMT_R		even_dma_upper_lmt_r;
-DMA_UPPER_LMT_R		odd_dma_upper_lmt_r;
 
 
 
@@ -59,18 +46,6 @@ DMA_UPPER_LMT_R		odd_dma_upper_lmt_r;
 I2C_CSR2 i2c_csr2;
 I2C_EVEN_CSR i2c_even_csr;
 I2C_ODD_CSR i2c_odd_csr;
-I2C_CONFIG i2c_config;
-u8 i2c_dt_id;
-u8 i2c_x_clip_start;
-u8 i2c_y_clip_start;
-u8 i2c_x_clip_end;
-u8 i2c_y_clip_end;
-u8 i2c_ad_addr;
-u8 i2c_ad_lut;
-I2C_AD_CMD i2c_ad_cmd;
-u8 i2c_dig_out;
-u8 i2c_pm_lut_addr;
-u8 i2c_pm_lut_data;
 
 /*
  * wait_ibsyclr()
