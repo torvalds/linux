@@ -108,10 +108,15 @@ static int efx_check_lm87(struct efx_nic *efx, unsigned mask)
 	if (alarms1 || alarms2) {
 		netif_err(efx, hw, efx->net_dev,
 			  "LM87 detected a hardware failure (status %02x:%02x)"
-			  "%s%s\n",
+			  "%s%s%s\n",
 			  alarms1, alarms2,
-			  (alarms1 & LM87_ALARM_TEMP_INT) ? " INTERNAL" : "",
-			  (alarms1 & LM87_ALARM_TEMP_EXT1) ? " EXTERNAL" : "");
+			  (alarms1 & LM87_ALARM_TEMP_INT) ?
+			  "; board is overheating" : "",
+			  (alarms1 & LM87_ALARM_TEMP_EXT1) ?
+			  "; controller is overheating" : "",
+			  (alarms1 & ~(LM87_ALARM_TEMP_INT | LM87_ALARM_TEMP_EXT1)
+			   || alarms2) ?
+			  "; electrical fault" : "");
 		return -ERANGE;
 	}
 
