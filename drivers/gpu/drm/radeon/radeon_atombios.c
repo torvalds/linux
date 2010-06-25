@@ -1833,10 +1833,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						/* skip invalid modes */
 						if (rdev->pm.power_state[state_index].clock_info[mode_index].sclk == 0)
 							continue;
-						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
-							VOLTAGE_SW;
-						rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
-							clock_info->usVDDC;
+						/* voltage works differently on IGPs */
 						mode_index++;
 					} else if (ASIC_IS_DCE4(rdev)) {
 						struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO *clock_info =
@@ -1969,6 +1966,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 
 	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
 	rdev->pm.current_clock_mode_index = 0;
+	rdev->pm.current_vddc = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.voltage;
 }
 
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)
