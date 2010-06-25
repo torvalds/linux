@@ -20,6 +20,7 @@ struct machine_desc {
 	 * by assembler code in head.S, head-common.S
 	 */
 	unsigned int		nr;		/* architecture number	*/
+	unsigned int		nr_irqs;	/* number of IRQs */
 	unsigned int		phys_io;	/* start of physical io	*/
 	unsigned int		io_pg_offst;	/* byte offset for io 
 						 * page tabe entry	*/
