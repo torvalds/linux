@@ -27,11 +27,10 @@
 #include <linux/mempolicy.h>
 #include <linux/binfmts.h>
 #include <linux/fs.h>
-#include <linux/syscalls.h>
+#include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/signal.h>
 #include <asm/syscalls.h>
-
 #include <asm/pgtable.h>
 #include <asm/homecache.h>
 #include <arch/chip.h>
@@ -74,10 +73,7 @@ int sys32_fadvise64_64(int fd, u32 offset_lo, u32 offset_hi,
 
 #endif /* 32-bit syscall wrappers */
 
-/*
- * This API uses a 4KB-page-count offset into the file descriptor.
- * It is likely not the right API to use on a 64-bit platform.
- */
+/* Note: used by the compat code even in 64-bit Linux. */
 SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,
 		unsigned long, fd, unsigned long, off_4k)
@@ -89,10 +85,7 @@ SYSCALL_DEFINE6(mmap2, unsigned long, addr, unsigned long, len,
 			      off_4k >> PAGE_ADJUST);
 }
 
-/*
- * This API uses a byte offset into the file descriptor.
- * It is likely not the right API to use on a 32-bit platform.
- */
+#ifdef __tilegx__
 SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,
 		unsigned long, fd, off_t, offset)
@@ -102,6 +95,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 	return sys_mmap_pgoff(addr, len, prot, flags, fd,
 			      offset >> PAGE_SHIFT);
 }
+#endif
 
 
 /* Provide the actual syscall number to call mapping. */
@@ -116,6 +110,10 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, unsigned long, len,
 #define sys_sync_file_range sys_sync_file_range2
 #endif
 
+/*
+ * Note that we can't include <linux/unistd.h> here since the header
+ * guard will defeat us; <asm/unistd.h> checks for __SYSCALL as well.
+ */
 void *sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls-1] = sys_ni_syscall,
 #include <asm/unistd.h>

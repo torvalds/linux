@@ -56,13 +56,16 @@ static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
 	HV_PTE pte;
 	struct page *page;
 
+	if (l1_pgtable == NULL)
+		return 0;	/* can't read user space in other tasks */
+
 	pte = l1_pgtable[HV_L1_INDEX(address)];
 	if (!hv_pte_get_present(pte))
 		return 0;
 	pfn = hv_pte_get_pfn(pte);
 	if (pte_huge(pte)) {
 		if (!pfn_valid(pfn)) {
-			printk(KERN_ERR "huge page has bad pfn %#lx\n", pfn);
+			pr_err("huge page has bad pfn %#lx\n", pfn);
 			return 0;
 		}
 		return hv_pte_get_present(pte) && hv_pte_get_readable(pte);
@@ -70,7 +73,7 @@ static int valid_address(struct KBacktraceIterator *kbt, VirtualAddress address)
 
 	page = pfn_to_page(pfn);
 	if (PageHighMem(page)) {
-		printk(KERN_ERR "L2 page table not in LOWMEM (%#llx)\n",
+		pr_err("L2 page table not in LOWMEM (%#llx)\n",
 		       HV_PFN_TO_CPA(pfn));
 		return 0;
 	}
@@ -91,13 +94,12 @@ static bool read_memory_func(void *result, VirtualAddress address,
 		/* We only tolerate kernel-space reads of this task's stack */
 		if (!in_kernel_stack(kbt, address))
 			return 0;
-	} else if (kbt->pgtable == NULL) {
-		return 0;	/* can't read user space in other tasks */
 	} else if (!valid_address(kbt, address)) {
 		return 0;	/* invalid user-space address */
 	}
 	pagefault_disable();
-	retval = __copy_from_user_inatomic(result, (const void *)address,
+	retval = __copy_from_user_inatomic(result,
+					   (void __user __force *)address,
 					   size);
 	pagefault_enable();
 	return (retval == 0);
@@ -131,14 +133,14 @@ static struct pt_regs *valid_fault_handler(struct KBacktraceIterator* kbt)
 	    in_kernel_stack(kbt, p->sp) &&
 	    p->sp >= sp) {
 		if (kbt->verbose)
-			printk(KERN_ERR "  <%s while in kernel mode>\n", fault);
+			pr_err("  <%s while in kernel mode>\n", fault);
 	} else if (EX1_PL(p->ex1) == USER_PL &&
 	    p->pc < PAGE_OFFSET &&
 	    p->sp < PAGE_OFFSET) {
 		if (kbt->verbose)
-			printk(KERN_ERR "  <%s while in user mode>\n", fault);
+			pr_err("  <%s while in user mode>\n", fault);
 	} else if (kbt->verbose) {
-		printk(KERN_ERR "  (odd fault: pc %#lx, sp %#lx, ex1 %#lx?)\n",
+		pr_err("  (odd fault: pc %#lx, sp %#lx, ex1 %#lx?)\n",
 		       p->pc, p->sp, p->ex1);
 		p = NULL;
 	}
@@ -166,13 +168,13 @@ static struct pt_regs *valid_sigframe(struct KBacktraceIterator* kbt)
 		if (!valid_address(kbt, b->sp) ||
 		    !valid_address(kbt, sigframe_top)) {
 			if (kbt->verbose)
-				printk("  (odd signal: sp %#lx?)\n",
+				pr_err("  (odd signal: sp %#lx?)\n",
 				       (unsigned long)(b->sp));
 			return NULL;
 		}
 		frame = (struct rt_sigframe *)b->sp;
 		if (kbt->verbose) {
-			printk(KERN_ERR "  <received signal %d>\n",
+			pr_err("  <received signal %d>\n",
 			       frame->info.si_signo);
 		}
 		return &frame->uc.uc_mcontext.regs;
@@ -180,7 +182,7 @@ static struct pt_regs *valid_sigframe(struct KBacktraceIterator* kbt)
 	return NULL;
 }
 
-int KBacktraceIterator_is_sigreturn(struct KBacktraceIterator *kbt)
+static int KBacktraceIterator_is_sigreturn(struct KBacktraceIterator *kbt)
 {
 	return is_sigreturn(kbt->it.pc);
 }
@@ -231,13 +233,13 @@ static void validate_stack(struct pt_regs *regs)
 	unsigned long sp = stack_pointer;
 
 	if (EX1_PL(regs->ex1) == KERNEL_PL && regs->sp >= ksp0) {
-		printk("WARNING: cpu %d: kernel stack page %#lx underrun!\n"
+		pr_err("WARNING: cpu %d: kernel stack page %#lx underrun!\n"
 		       "  sp %#lx (%#lx in caller), caller pc %#lx, lr %#lx\n",
 		       cpu, ksp0_base, sp, regs->sp, regs->pc, regs->lr);
 	}
 
 	else if (sp < ksp0_base + sizeof(struct thread_info)) {
-		printk("WARNING: cpu %d: kernel stack page %#lx overrun!\n"
+		pr_err("WARNING: cpu %d: kernel stack page %#lx overrun!\n"
 		       "  sp %#lx (%#lx in caller), caller pc %#lx, lr %#lx\n",
 		       cpu, ksp0_base, sp, regs->sp, regs->pc, regs->lr);
 	}
@@ -280,7 +282,7 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 			if (!PageHighMem(page))
 				kbt->pgtable = __va(pgdir_pa);
 			else
-				printk(KERN_ERR "page table not in LOWMEM"
+				pr_err("page table not in LOWMEM"
 				       " (%#llx)\n", pgdir_pa);
 		}
 		local_flush_tlb_all();
@@ -288,13 +290,12 @@ void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 	}
 
 	if (regs == NULL) {
-		extern const void *get_switch_to_pc(void);
 		if (is_current || t->state == TASK_RUNNING) {
 			/* Can't do this; we need registers */
 			kbt->end = 1;
 			return;
 		}
-		pc = (ulong) get_switch_to_pc();
+		pc = get_switch_to_pc();
 		lr = t->thread.pc;
 		sp = t->thread.ksp;
 		r52 = 0;
@@ -344,8 +345,8 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 		 * then bust_spinlocks() spit out a space in front of us
 		 * and it will mess up our KERN_ERR.
 		 */
-		printk("\n");
-		printk(KERN_ERR "Starting stack dump of tid %d, pid %d (%s)"
+		pr_err("\n");
+		pr_err("Starting stack dump of tid %d, pid %d (%s)"
 		       " on cpu %d at cycle %lld\n",
 		       kbt->task->pid, kbt->task->tgid, kbt->task->comm,
 		       smp_processor_id(), get_cycles());
@@ -385,17 +386,17 @@ void tile_show_stack(struct KBacktraceIterator *kbt, int headers)
 			namebuf[sizeof(namebuf)-1] = '\0';
 		}
 
-		printk(KERN_ERR "  frame %d: 0x%lx %s(sp 0x%lx)\n",
+		pr_err("  frame %d: 0x%lx %s(sp 0x%lx)\n",
 		       i++, address, namebuf, (unsigned long)(kbt->it.sp));
 
 		if (i >= 100) {
-			printk(KERN_ERR "Stack dump truncated"
+			pr_err("Stack dump truncated"
 			       " (%d frames)\n", i);
 			break;
 		}
 	}
 	if (headers)
-		printk(KERN_ERR "Stack dump complete\n");
+		pr_err("Stack dump complete\n");
 }
 EXPORT_SYMBOL(tile_show_stack);
 

@@ -59,8 +59,7 @@ enum { ELF_ARCH = CHIP_ELF_TYPE() };
  */
 #define elf_check_arch(x)  \
 	((x)->e_ident[EI_CLASS] == ELF_CLASS && \
-	 ((x)->e_machine == CHIP_ELF_TYPE() || \
-	  (x)->e_machine == CHIP_COMPAT_ELF_TYPE()))
+	 (x)->e_machine == CHIP_ELF_TYPE())
 
 /* The module loader only handles a few relocation types. */
 #ifndef __tilegx__
@@ -139,8 +138,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
  */
 #define compat_elf_check_arch(x)  \
 	((x)->e_ident[EI_CLASS] == ELFCLASS32 && \
-	 ((x)->e_machine == CHIP_ELF_TYPE() || \
-	  (x)->e_machine == CHIP_COMPAT_ELF_TYPE()))
+	 (x)->e_machine == CHIP_ELF_TYPE())
 
 #define compat_start_thread(regs, ip, usp) do { \
 		regs->pc = ptr_to_compat_reg((void *)(ip)); \

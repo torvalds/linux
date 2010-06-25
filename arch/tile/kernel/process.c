@@ -24,9 +24,14 @@
 #include <linux/compat.h>
 #include <linux/hardirq.h>
 #include <linux/syscalls.h>
+#include <linux/kernel.h>
 #include <asm/system.h>
 #include <asm/stack.h>
 #include <asm/homecache.h>
+#include <asm/syscalls.h>
+#ifdef CONFIG_HARDWALL
+#include <asm/hardwall.h>
+#endif
 #include <arch/chip.h>
 #include <arch/abi.h>
 
@@ -43,7 +48,7 @@ static int __init idle_setup(char *str)
 		return -EINVAL;
 
 	if (!strcmp(str, "poll")) {
-		printk("using polling idle threads.\n");
+		pr_info("using polling idle threads.\n");
 		no_idle_nap = 1;
 	} else if (!strcmp(str, "halt"))
 		no_idle_nap = 0;
@@ -62,7 +67,6 @@ early_param("idle", idle_setup);
  */
 void cpu_idle(void)
 {
-	extern void _cpu_idle(void);
 	int cpu = smp_processor_id();
 
 
@@ -108,7 +112,7 @@ void cpu_idle(void)
 struct thread_info *alloc_thread_info(struct task_struct *task)
 {
 	struct page *page;
-	int flags = GFP_KERNEL;
+	gfp_t flags = GFP_KERNEL;
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	flags |= __GFP_ZERO;
@@ -116,7 +120,7 @@ struct thread_info *alloc_thread_info(struct task_struct *task)
 
 	page = alloc_pages(flags, THREAD_SIZE_ORDER);
 	if (!page)
-		return 0;
+		return NULL;
 
 	return (struct thread_info *)page_address(page);
 }
@@ -129,6 +133,18 @@ void free_thread_info(struct thread_info *info)
 {
 	struct single_step_state *step_state = info->step_state;
 
+#ifdef CONFIG_HARDWALL
+	/*
+	 * We free a thread_info from the context of the task that has
+	 * been scheduled next, so the original task is already dead.
+	 * Calling deactivate here just frees up the data structures.
+	 * If the task we're freeing held the last reference to a
+	 * hardwall fd, it would have been released prior to this point
+	 * anyway via exit_files(), and "hardwall" would be NULL by now.
+	 */
+	if (info->task->thread.hardwall)
+		hardwall_deactivate(info->task);
+#endif
 
 	if (step_state) {
 
@@ -153,8 +169,6 @@ void free_thread_info(struct thread_info *info)
 }
 
 static void save_arch_state(struct thread_struct *t);
-
-extern void ret_from_fork(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
 		unsigned long stack_size,
@@ -235,6 +249,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	p->thread.proc_status = 0;
 #endif
 
+#ifdef CONFIG_HARDWALL
+	/* New thread does not own any networks. */
+	p->thread.hardwall = NULL;
+#endif
 
 
 	/*
@@ -257,7 +275,7 @@ struct task_struct *validate_current(void)
 	if (unlikely((unsigned long)tsk < PAGE_OFFSET ||
 		     (void *)tsk > high_memory ||
 		     ((unsigned long)tsk & (__alignof__(*tsk) - 1)) != 0)) {
-		printk("Corrupt 'current' %p (sp %#lx)\n", tsk, stack_pointer);
+		pr_err("Corrupt 'current' %p (sp %#lx)\n", tsk, stack_pointer);
 		tsk = &corrupt;
 	}
 	return tsk;
@@ -447,10 +465,6 @@ void _prepare_arch_switch(struct task_struct *next)
 }
 
 
-extern struct task_struct *__switch_to(struct task_struct *prev,
-				       struct task_struct *next,
-				       unsigned long new_system_save_1_0);
-
 struct task_struct *__sched _switch_to(struct task_struct *prev,
 				       struct task_struct *next)
 {
@@ -486,6 +500,15 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	}
 #endif
 
+#ifdef CONFIG_HARDWALL
+	/* Enable or disable access to the network registers appropriately. */
+	if (prev->thread.hardwall != NULL) {
+		if (next->thread.hardwall == NULL)
+			restrict_network_mpls();
+	} else if (next->thread.hardwall != NULL) {
+		grant_network_mpls();
+	}
+#endif
 
 	/*
 	 * Switch kernel SP, PC, and callee-saved registers.
@@ -496,14 +519,14 @@ struct task_struct *__sched _switch_to(struct task_struct *prev,
 	return __switch_to(prev, next, next_current_ksp0(next));
 }
 
-int _sys_fork(struct pt_regs *regs)
+long _sys_fork(struct pt_regs *regs)
 {
 	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
 }
 
-int _sys_clone(unsigned long clone_flags, unsigned long newsp,
-	       void __user *parent_tidptr, void __user *child_tidptr,
-	       struct pt_regs *regs)
+long _sys_clone(unsigned long clone_flags, unsigned long newsp,
+		void __user *parent_tidptr, void __user *child_tidptr,
+		struct pt_regs *regs)
 {
 	if (!newsp)
 		newsp = regs->sp;
@@ -511,7 +534,7 @@ int _sys_clone(unsigned long clone_flags, unsigned long newsp,
 		       parent_tidptr, child_tidptr);
 }
 
-int _sys_vfork(struct pt_regs *regs)
+long _sys_vfork(struct pt_regs *regs)
 {
 	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp,
 		       regs, 0, NULL, NULL);
@@ -520,10 +543,10 @@ int _sys_vfork(struct pt_regs *regs)
 /*
  * sys_execve() executes a new program.
  */
-int _sys_execve(char __user *path, char __user *__user *argv,
-		char __user *__user *envp, struct pt_regs *regs)
+long _sys_execve(char __user *path, char __user *__user *argv,
+		 char __user *__user *envp, struct pt_regs *regs)
 {
-	int error;
+	long error;
 	char *filename;
 
 	filename = getname(path);
@@ -537,10 +560,10 @@ out:
 }
 
 #ifdef CONFIG_COMPAT
-int _compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
-		       compat_uptr_t __user *envp, struct pt_regs *regs)
+long _compat_sys_execve(char __user *path, compat_uptr_t __user *argv,
+			compat_uptr_t __user *envp, struct pt_regs *regs)
 {
-	int error;
+	long error;
 	char *filename;
 
 	filename = getname(path);
@@ -616,31 +639,32 @@ void exit_thread(void)
 	/* Nothing */
 }
 
-#ifdef __tilegx__
-# define LINECOUNT 3
-# define EXTRA_NL "\n"
-#else
-# define LINECOUNT 4
-# define EXTRA_NL ""
-#endif
-
 void show_regs(struct pt_regs *regs)
 {
 	struct task_struct *tsk = validate_current();
-	int i, linebreak;
-	printk("\n");
-	printk(" Pid: %d, comm: %20s, CPU: %d\n",
+	int i;
+
+	pr_err("\n");
+	pr_err(" Pid: %d, comm: %20s, CPU: %d\n",
 	       tsk->pid, tsk->comm, smp_processor_id());
-	for (i = linebreak = 0; i < 53; ++i) {
-		printk(" r%-2d: "REGFMT, i, regs->regs[i]);
-		if (++linebreak == LINECOUNT) {
-			linebreak = 0;
-			printk("\n");
-		}
-	}
-	printk(" tp : "REGFMT EXTRA_NL " sp : "REGFMT" lr : "REGFMT"\n",
-	       regs->tp, regs->sp, regs->lr);
-	printk(" pc : "REGFMT" ex1: %ld     faultnum: %ld\n",
+#ifdef __tilegx__
+	for (i = 0; i < 51; i += 3)
+		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
+		       i, regs->regs[i], i+1, regs->regs[i+1],
+		       i+2, regs->regs[i+2]);
+	pr_err(" r51: "REGFMT" r52: "REGFMT" tp : "REGFMT"\n",
+	       regs->regs[51], regs->regs[52], regs->tp);
+	pr_err(" sp : "REGFMT" lr : "REGFMT"\n", regs->sp, regs->lr);
+#else
+	for (i = 0; i < 52; i += 3)
+		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT
+		       " r%-2d: "REGFMT" r%-2d: "REGFMT"\n",
+		       i, regs->regs[i], i+1, regs->regs[i+1],
+		       i+2, regs->regs[i+2], i+3, regs->regs[i+3]);
+	pr_err(" r52: "REGFMT" tp : "REGFMT" sp : "REGFMT" lr : "REGFMT"\n",
+	       regs->regs[52], regs->tp, regs->sp, regs->lr);
+#endif
+	pr_err(" pc : "REGFMT" ex1: %ld     faultnum: %ld\n",
 	       regs->pc, regs->ex1, regs->faultnum);
 
 	dump_stack_regs(regs);

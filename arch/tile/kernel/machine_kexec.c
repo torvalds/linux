@@ -75,13 +75,13 @@ void machine_crash_shutdown(struct pt_regs *regs)
 int machine_kexec_prepare(struct kimage *image)
 {
 	if (num_online_cpus() > 1) {
-		printk(KERN_WARNING "%s: detected attempt to kexec "
+		pr_warning("%s: detected attempt to kexec "
 		       "with num_online_cpus() > 1\n",
 		       __func__);
 		return -ENOSYS;
 	}
 	if (image->type != KEXEC_TYPE_DEFAULT) {
-		printk(KERN_WARNING "%s: detected attempt to kexec "
+		pr_warning("%s: detected attempt to kexec "
 		       "with unsupported type: %d\n",
 		       __func__,
 		       image->type);
@@ -124,22 +124,13 @@ static unsigned char *kexec_bn2cl(void *pg)
 		return 0;
 
 	/*
-	 * If we get a checksum mismatch, it's possible that this is
-	 * just a false positive, but relatively unlikely.  We dump
-	 * out the contents of the section so we can diagnose better.
+	 * If we get a checksum mismatch, warn with the checksum
+	 * so we can diagnose better.
 	 */
 	csum = ip_compute_csum(pg, bhdrp->b_size);
 	if (csum != 0) {
-		int i;
-		unsigned char *p = pg;
-		int nbytes = min((Elf32_Word)1000, bhdrp->b_size);
-		printk(KERN_INFO "%s: bad checksum %#x\n", __func__, csum);
-		printk(KERN_INFO "bytes (%d):", bhdrp->b_size);
-		for (i = 0; i < nbytes; ++i)
-			printk(" %02x", p[i]);
-		if (bhdrp->b_size != nbytes)
-			printk(" ...");
-		printk("\n");
+		pr_warning("%s: bad checksum %#x (size %d)\n",
+			   __func__, csum, bhdrp->b_size);
 		return 0;
 	}
 
@@ -156,7 +147,7 @@ static unsigned char *kexec_bn2cl(void *pg)
 		if ((unsigned char *) (nhdrp + 1) >
 		    ((unsigned char *) pg) + bhdrp->b_size) {
 
-			printk(KERN_INFO "%s: out of bounds\n", __func__);
+			pr_info("%s: out of bounds\n", __func__);
 			return 0;
 		}
 	}
@@ -167,7 +158,7 @@ static unsigned char *kexec_bn2cl(void *pg)
 	while (*desc != '\0') {
 		desc++;
 		if (((unsigned long)desc & PAGE_MASK) != (unsigned long)pg) {
-			printk(KERN_INFO "%s: ran off end of page\n",
+			pr_info("%s: ran off end of page\n",
 			       __func__);
 			return 0;
 		}
@@ -202,23 +193,20 @@ static void kexec_find_and_set_command_line(struct kimage *image)
 	}
 
 	if (command_line != 0) {
-		printk(KERN_INFO "setting new command line to \"%s\"\n",
+		pr_info("setting new command line to \"%s\"\n",
 		       command_line);
 
 		hverr = hv_set_command_line(
 			(HV_VirtAddr) command_line, strlen(command_line));
 		kunmap_atomic(command_line, KM_USER0);
 	} else {
-		printk(KERN_INFO "%s: no command line found; making empty\n",
+		pr_info("%s: no command line found; making empty\n",
 		       __func__);
 		hverr = hv_set_command_line((HV_VirtAddr) command_line, 0);
 	}
-	if (hverr) {
-		printk(KERN_WARNING
-		      "%s: call to hv_set_command_line returned error: %d\n",
-		      __func__, hverr);
-
-	}
+	if (hverr)
+		pr_warning("%s: hv_set_command_line returned error: %d\n",
+			   __func__, hverr);
 }
 
 /*

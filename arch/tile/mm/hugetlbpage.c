@@ -332,7 +332,7 @@ static __init int setup_hugepagesz(char *opt)
 	} else if (ps == PUD_SIZE) {
 		hugetlb_add_hstate(PUD_SHIFT - PAGE_SHIFT);
 	} else {
-		printk(KERN_ERR "hugepagesz: Unsupported page size %lu M\n",
+		pr_err("hugepagesz: Unsupported page size %lu M\n",
 			ps >> 20);
 		return 0;
 	}

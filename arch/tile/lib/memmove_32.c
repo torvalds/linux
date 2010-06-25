@@ -42,7 +42,7 @@ void *memmove(void *dest, const void *src, size_t n)
 			in = (const uint8_t *)src;
 			out = (uint8_t *)dest;
 			stride = 1;
-                }
+		}
 
 		/* Manually software-pipeline this loop. */
 		x = *in;

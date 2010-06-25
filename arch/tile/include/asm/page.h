@@ -16,8 +16,6 @@
 #define _ASM_TILE_PAGE_H
 
 #include <linux/const.h>
-#include <hv/hypervisor.h>
-#include <arch/chip.h>
 
 /* PAGE_SHIFT and HPAGE_SHIFT determine the page sizes. */
 #define PAGE_SHIFT	16
@@ -28,6 +26,11 @@
 
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
+
+#ifdef __KERNEL__
+
+#include <hv/hypervisor.h>
+#include <arch/chip.h>
 
 /*
  * The {,H}PAGE_SHIFT values must match the HV_LOG2_PAGE_SIZE_xxx
@@ -330,5 +333,7 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+
+#endif /* __KERNEL__ */
 
 #endif /* _ASM_TILE_PAGE_H */

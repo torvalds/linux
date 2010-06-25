@@ -48,6 +48,10 @@ extern void KBacktraceIterator_init(struct KBacktraceIterator *kbt,
 /* Initialize iterator based on current stack. */
 extern void KBacktraceIterator_init_current(struct KBacktraceIterator *kbt);
 
+/* Helper method for above. */
+extern void _KBacktraceIterator_init_current(struct KBacktraceIterator *kbt,
+				ulong pc, ulong lr, ulong sp, ulong r52);
+
 /* No more frames? */
 extern int KBacktraceIterator_end(struct KBacktraceIterator *kbt);
 
@@ -64,5 +68,7 @@ extern void tile_show_stack(struct KBacktraceIterator *, int headers);
 /* Dump stack of current process, with registers to seed the backtrace. */
 extern void dump_stack_regs(struct pt_regs *);
 
+/* Helper method for assembly dump_stack(). */
+extern void _dump_stack(int dummy, ulong pc, ulong lr, ulong sp, ulong r52);
 
 #endif /* _ASM_TILE_STACK_H */

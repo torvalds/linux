@@ -60,8 +60,8 @@ typedef unsigned long (*memcpy_t)(void *, const void *, unsigned long);
 static void memcpy_multicache(void *dest, const void *source,
 			      pte_t dst_pte, pte_t src_pte, int len)
 {
-	int idx, i;
-	unsigned long flags, newsrc, newdst, endsrc;
+	int idx;
+	unsigned long flags, newsrc, newdst;
 	pmd_t *pmdp;
 	pte_t *ptep;
 	int cpu = get_cpu();
@@ -121,7 +121,7 @@ static void memcpy_multicache(void *dest, const void *source,
 	 */
 	sim_allow_multiple_caching(0);
 	local_irq_restore(flags);
-	put_cpu_no_resched();
+	put_cpu();
 }
 
 /*

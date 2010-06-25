@@ -134,9 +134,8 @@ static inline int arch_read_trylock(arch_rwlock_t *rwlock)
 {
 	int locked;
 	u32 val = __insn_tns((int *)&rwlock->lock);
-	if (unlikely(val & 1)) {
+	if (unlikely(val & 1))
 		return arch_read_trylock_slow(rwlock);
-	}
 	locked = (val << _RD_COUNT_WIDTH) == 0;
 	rwlock->lock = val + (locked << _RD_COUNT_SHIFT);
 	return locked;

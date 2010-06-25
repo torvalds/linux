@@ -26,6 +26,7 @@
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 int restore_sigcontext(struct pt_regs *, struct sigcontext __user *, long *);
 int setup_sigcontext(struct sigcontext __user *, struct pt_regs *);
+void do_signal(struct pt_regs *regs);
 #endif
 
 #endif /* _ASM_TILE_SIGNAL_H */

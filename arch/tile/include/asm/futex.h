@@ -29,14 +29,14 @@
 #include <linux/uaccess.h>
 #include <linux/errno.h>
 
-extern struct __get_user futex_set(int *v, int i);
-extern struct __get_user futex_add(int *v, int n);
-extern struct __get_user futex_or(int *v, int n);
-extern struct __get_user futex_andn(int *v, int n);
-extern struct __get_user futex_cmpxchg(int *v, int o, int n);
+extern struct __get_user futex_set(int __user *v, int i);
+extern struct __get_user futex_add(int __user *v, int n);
+extern struct __get_user futex_or(int __user *v, int n);
+extern struct __get_user futex_andn(int __user *v, int n);
+extern struct __get_user futex_cmpxchg(int __user *v, int o, int n);
 
 #ifndef __tilegx__
-extern struct __get_user futex_xor(int *v, int n);
+extern struct __get_user futex_xor(int __user *v, int n);
 #else
 static inline struct __get_user futex_xor(int __user *uaddr, int n)
 {
@@ -130,6 +130,11 @@ static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
 	asm_ret = futex_cmpxchg(uaddr, oldval, newval);
 	return asm_ret.err ? asm_ret.err : asm_ret.val;
 }
+
+#ifndef __tilegx__
+/* Return failure from the atomic wrappers. */
+struct __get_user __atomic_bad_address(int __user *addr);
+#endif
 
 #endif /* !__ASSEMBLY__ */
 

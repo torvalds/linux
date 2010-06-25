@@ -15,6 +15,7 @@
 #include <linux/cpumask.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
+#include <linux/smp.h>
 
 /*
  * Allow cropping out bits beyond the end of the array.

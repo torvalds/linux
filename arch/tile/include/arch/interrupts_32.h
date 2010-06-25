@@ -301,4 +301,4 @@
     INT_MASK(INT_DOUBLE_FAULT) | \
     INT_MASK(INT_AUX_PERF_COUNT) | \
     0)
-#endif // !__ARCH_INTERRUPTS_H__
+#endif /* !__ARCH_INTERRUPTS_H__ */

@@ -33,6 +33,7 @@
 #include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/sigframe.h>
+#include <asm/syscalls.h>
 #include <arch/interrupts.h>
 
 #define DEBUG_SIG 0
@@ -40,11 +41,8 @@
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 
-/* Caller before callee in this file; other callee is in assembler */
-void do_signal(struct pt_regs *regs);
-
 long _sys_sigaltstack(const stack_t __user *uss,
-                      stack_t __user *uoss, struct pt_regs *regs)
+		      stack_t __user *uoss, struct pt_regs *regs)
 {
 	return do_sigaltstack(uss, uoss, regs->sp);
 }
@@ -65,7 +63,7 @@ int restore_sigcontext(struct pt_regs *regs,
 
 	for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i)
 		err |= __get_user(((long *)regs)[i],
-				  &((long *)(&sc->regs))[i]);
+				  &((long __user *)(&sc->regs))[i]);
 
 	regs->faultnum = INT_SWINT_1_SIGRETURN;
 
@@ -73,7 +71,8 @@ int restore_sigcontext(struct pt_regs *regs,
 	return err;
 }
 
-int _sys_rt_sigreturn(struct pt_regs *regs)
+/* sigreturn() returns long since it restores r0 in the interrupted code. */
+long _sys_rt_sigreturn(struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame =
 		(struct rt_sigframe __user *)(regs->sp);
@@ -114,7 +113,7 @@ int setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs)
 
 	for (i = 0; i < sizeof(struct pt_regs)/sizeof(long); ++i)
 		err |= __put_user(((long *)regs)[i],
-				  &((long *)(&sc->regs))[i]);
+				  &((long __user *)(&sc->regs))[i]);
 
 	return err;
 }
@@ -137,7 +136,7 @@ static inline void __user *get_sigframe(struct k_sigaction *ka,
 	 * will die with SIGSEGV.
 	 */
 	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size)))
-		return (void __user *) -1L;
+		return (void __user __force *)-1UL;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {
@@ -185,8 +184,8 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __clear_user(&frame->save_area, sizeof(frame->save_area));
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)(current->sas_ss_sp),
+	err |= __put_user(NULL, &frame->uc.uc_link);
+	err |= __put_user((void __user *)(current->sas_ss_sp),
 			  &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->sp),
 			  &frame->uc.uc_stack.ss_flags);

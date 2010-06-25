@@ -36,8 +36,8 @@ SECTIONS
 
   /* Now the real code */
   . = ALIGN(0x20000);
-  HEAD_TEXT_SECTION :text =0
   .text : AT (ADDR(.text) - LOAD_OFFSET) {
+    HEAD_TEXT
     SCHED_TEXT
     LOCK_TEXT
     __fix_text_end = .;   /* tile-cpack won't rearrange before this */
@@ -46,7 +46,7 @@ SECTIONS
     *(.coldtext*)
     *(.fixup)
     *(.gnu.warning)
-  }
+  } :text =0
   _etext = .;
 
   /* "Init" is divided into two areas with very different virtual addresses. */

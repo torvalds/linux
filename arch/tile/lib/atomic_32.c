@@ -18,27 +18,10 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <asm/atomic.h>
+#include <asm/futex.h>
 #include <arch/chip.h>
 
-/* The routines in atomic_asm.S are private, so we only declare them here. */
-extern struct __get_user __atomic_cmpxchg(volatile int *p,
-					  int *lock, int o, int n);
-extern struct __get_user __atomic_xchg(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xchg_add(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
-						  int *lock, int o, int n);
-extern struct __get_user __atomic_or(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_andn(volatile int *p, int *lock, int n);
-extern struct __get_user __atomic_xor(volatile int *p, int *lock, int n);
-
-extern u64 __atomic64_cmpxchg(volatile u64 *p, int *lock, u64 o, u64 n);
-extern u64 __atomic64_xchg(volatile u64 *p, int *lock, u64 n);
-extern u64 __atomic64_xchg_add(volatile u64 *p, int *lock, u64 n);
-extern u64 __atomic64_xchg_add_unless(volatile u64 *p,
-				      int *lock, u64 o, u64 n);
-
-
-/* See <asm/atomic.h> */
+/* See <asm/atomic_32.h> */
 #if ATOMIC_LOCKS_FOUND_VIA_TABLE()
 
 /*
@@ -209,7 +192,7 @@ u64 _atomic64_cmpxchg(atomic64_t *v, u64 o, u64 n)
 EXPORT_SYMBOL(_atomic64_cmpxchg);
 
 
-static inline int *__futex_setup(__user int *v)
+static inline int *__futex_setup(int __user *v)
 {
 	/*
 	 * Issue a prefetch to the counter to bring it into cache.
@@ -217,37 +200,37 @@ static inline int *__futex_setup(__user int *v)
 	 * since it might fault; instead we do a prefetch into the L2.
 	 */
 	__insn_prefetch(v);
-	return __atomic_hashed_lock(v);
+	return __atomic_hashed_lock((int __force *)v);
 }
 
-struct __get_user futex_set(int *v, int i)
+struct __get_user futex_set(int __user *v, int i)
 {
-	return __atomic_xchg(v, __futex_setup(v), i);
+	return __atomic_xchg((int __force *)v, __futex_setup(v), i);
 }
 
-struct __get_user futex_add(int *v, int n)
+struct __get_user futex_add(int __user *v, int n)
 {
-	return __atomic_xchg_add(v, __futex_setup(v), n);
+	return __atomic_xchg_add((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_or(int *v, int n)
+struct __get_user futex_or(int __user *v, int n)
 {
-	return __atomic_or(v, __futex_setup(v), n);
+	return __atomic_or((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_andn(int *v, int n)
+struct __get_user futex_andn(int __user *v, int n)
 {
-	return __atomic_andn(v, __futex_setup(v), n);
+	return __atomic_andn((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_xor(int *v, int n)
+struct __get_user futex_xor(int __user *v, int n)
 {
-	return __atomic_xor(v, __futex_setup(v), n);
+	return __atomic_xor((int __force *)v, __futex_setup(v), n);
 }
 
-struct __get_user futex_cmpxchg(int *v, int o, int n)
+struct __get_user futex_cmpxchg(int __user *v, int o, int n)
 {
-	return __atomic_cmpxchg(v, __futex_setup(v), o, n);
+	return __atomic_cmpxchg((int __force *)v, __futex_setup(v), o, n);
 }
 
 /*
@@ -260,7 +243,7 @@ struct __get_user futex_cmpxchg(int *v, int o, int n)
  * invoked in is the context of the "_atomic_xxx()" routines called
  * by the functions in this file.
  */
-struct __get_user __atomic_bad_address(int *addr)
+struct __get_user __atomic_bad_address(int __user *addr)
 {
 	if (unlikely(!access_ok(VERIFY_WRITE, addr, sizeof(int))))
 		panic("Bad address used for kernel atomic op: %p\n", addr);
@@ -271,7 +254,7 @@ struct __get_user __atomic_bad_address(int *addr)
 #if CHIP_HAS_CBOX_HOME_MAP()
 static int __init noatomichash(char *str)
 {
-	printk("noatomichash is deprecated.\n");
+	pr_warning("noatomichash is deprecated.\n");
 	return 1;
 }
 __setup("noatomichash", noatomichash);

@@ -229,9 +229,9 @@ static inline void __pte_clear(pte_t *ptep)
 #define pte_donemigrate(x) hv_pte_set_present(hv_pte_clear_migrating(x))
 
 #define pte_ERROR(e) \
-	printk("%s:%d: bad pte 0x%016llx.\n", __FILE__, __LINE__, pte_val(e))
+	pr_err("%s:%d: bad pte 0x%016llx.\n", __FILE__, __LINE__, pte_val(e))
 #define pgd_ERROR(e) \
-	printk("%s:%d: bad pgd 0x%016llx.\n", __FILE__, __LINE__, pgd_val(e))
+	pr_err("%s:%d: bad pgd 0x%016llx.\n", __FILE__, __LINE__, pgd_val(e))
 
 /*
  * set_pte_order() sets the given PTE and also sanity-checks the
@@ -469,6 +469,11 @@ static inline int pmd_huge_page(pmd_t pmd)
 }
 
 #include <asm-generic/pgtable.h>
+
+/* Support /proc/NN/pgtable API. */
+struct seq_file;
+int arch_proc_pgtable_show(struct seq_file *m, struct mm_struct *mm,
+			   unsigned long vaddr, pte_t *ptep, void **datap);
 
 #endif /* !__ASSEMBLY__ */
 

@@ -15,6 +15,7 @@
 #include <linux/stddef.h>
 #include <linux/reboot.h>
 #include <linux/smp.h>
+#include <linux/pm.h>
 #include <asm/page.h>
 #include <asm/setup.h>
 #include <hv/hypervisor.h>
@@ -46,7 +47,5 @@ void machine_restart(char *cmd)
 	hv_restart((HV_VirtAddr) "vmlinux", (HV_VirtAddr) cmd);
 }
 
-/*
- * Power off function, if any
- */
-void (*pm_power_off)(void) = machine_power_off;
+/* No interesting distinction to be made here. */
+void (*pm_power_off)(void) = NULL;

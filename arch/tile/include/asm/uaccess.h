@@ -89,8 +89,10 @@ int __range_ok(unsigned long addr, unsigned long size);
  * checks that the pointer is in the user space range - after calling
  * this function, memory access functions may still return -EFAULT.
  */
-#define access_ok(type, addr, size) \
-	(likely(__range_ok((unsigned long)addr, size) == 0))
+#define access_ok(type, addr, size) ({ \
+	__chk_user_ptr(addr); \
+	likely(__range_ok((unsigned long)(addr), (size)) == 0);	\
+})
 
 /*
  * The exception table consists of pairs of addresses: the first is the
@@ -134,14 +136,14 @@ struct __get_user {
  * such extended assembler routines, though we will have to use a
  * different return code in that case (1, 2, or 4, rather than -EFAULT).
  */
-extern struct __get_user __get_user_1(const void *);
-extern struct __get_user __get_user_2(const void *);
-extern struct __get_user __get_user_4(const void *);
-extern struct __get_user __get_user_8(const void *);
-extern int __put_user_1(long, void *);
-extern int __put_user_2(long, void *);
-extern int __put_user_4(long, void *);
-extern int __put_user_8(long long, void *);
+extern struct __get_user __get_user_1(const void __user *);
+extern struct __get_user __get_user_2(const void __user *);
+extern struct __get_user __get_user_4(const void __user *);
+extern struct __get_user __get_user_8(const void __user *);
+extern int __put_user_1(long, void __user *);
+extern int __put_user_2(long, void __user *);
+extern int __put_user_4(long, void __user *);
+extern int __put_user_8(long long, void __user *);
 
 /* Unimplemented routines to cause linker failures */
 extern struct __get_user __get_user_bad(void);

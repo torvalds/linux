@@ -30,18 +30,18 @@
 
 
 /** A decoded bundle used for backtracer analysis. */
-typedef struct {
+struct BacktraceBundle {
 	tile_bundle_bits bits;
 	int num_insns;
 	struct tile_decoded_instruction
 	insns[TILE_MAX_INSTRUCTIONS_PER_BUNDLE];
-} BacktraceBundle;
+};
 
 
 /* This implementation only makes sense for native tools. */
 /** Default function to read memory. */
-static bool
-bt_read_memory(void *result, VirtualAddress addr, size_t size, void *extra)
+static bool bt_read_memory(void *result, VirtualAddress addr,
+			   size_t size, void *extra)
 {
 	/* FIXME: this should do some horrible signal stuff to catch
 	 * SEGV cleanly and fail.
@@ -58,11 +58,11 @@ bt_read_memory(void *result, VirtualAddress addr, size_t size, void *extra)
  * has the specified mnemonic, and whose first 'num_operands_to_match'
  * operands exactly match those in 'operand_values'.
  */
-static const struct tile_decoded_instruction*
-find_matching_insn(const BacktraceBundle *bundle,
-		   tile_mnemonic mnemonic,
-		   const int *operand_values,
-		   int num_operands_to_match)
+static const struct tile_decoded_instruction *find_matching_insn(
+	const struct BacktraceBundle *bundle,
+	tile_mnemonic mnemonic,
+	const int *operand_values,
+	int num_operands_to_match)
 {
 	int i, j;
 	bool match;
@@ -90,8 +90,7 @@ find_matching_insn(const BacktraceBundle *bundle,
 }
 
 /** Does this bundle contain an 'iret' instruction? */
-static inline bool
-bt_has_iret(const BacktraceBundle *bundle)
+static inline bool bt_has_iret(const struct BacktraceBundle *bundle)
 {
 	return find_matching_insn(bundle, TILE_OPC_IRET, NULL, 0) != NULL;
 }
@@ -99,8 +98,7 @@ bt_has_iret(const BacktraceBundle *bundle)
 /** Does this bundle contain an 'addi sp, sp, OFFSET' or
  * 'addli sp, sp, OFFSET' instruction, and if so, what is OFFSET?
  */
-static bool
-bt_has_addi_sp(const BacktraceBundle *bundle, int *adjust)
+static bool bt_has_addi_sp(const struct BacktraceBundle *bundle, int *adjust)
 {
 	static const int vals[2] = { TREG_SP, TREG_SP };
 
@@ -120,8 +118,7 @@ bt_has_addi_sp(const BacktraceBundle *bundle, int *adjust)
  * as an unsigned value by this code since that's what the caller wants.
  * Returns the number of info ops found.
  */
-static int
-bt_get_info_ops(const BacktraceBundle *bundle,
+static int bt_get_info_ops(const struct BacktraceBundle *bundle,
 		int operands[MAX_INFO_OPS_PER_BUNDLE])
 {
 	int num_ops = 0;
@@ -143,8 +140,7 @@ bt_get_info_ops(const BacktraceBundle *bundle,
 /** Does this bundle contain a jrp instruction, and if so, to which
  * register is it jumping?
  */
-static bool
-bt_has_jrp(const BacktraceBundle *bundle, int *target_reg)
+static bool bt_has_jrp(const struct BacktraceBundle *bundle, int *target_reg)
 {
 	const struct tile_decoded_instruction *insn =
 		find_matching_insn(bundle, TILE_OPC_JRP, NULL, 0);
@@ -156,8 +152,7 @@ bt_has_jrp(const BacktraceBundle *bundle, int *target_reg)
 }
 
 /** Does this bundle modify the specified register in any way? */
-static bool
-bt_modifies_reg(const BacktraceBundle *bundle, int reg)
+static bool bt_modifies_reg(const struct BacktraceBundle *bundle, int reg)
 {
 	int i, j;
 	for (i = 0; i < bundle->num_insns; i++) {
@@ -177,30 +172,26 @@ bt_modifies_reg(const BacktraceBundle *bundle, int reg)
 }
 
 /** Does this bundle modify sp? */
-static inline bool
-bt_modifies_sp(const BacktraceBundle *bundle)
+static inline bool bt_modifies_sp(const struct BacktraceBundle *bundle)
 {
 	return bt_modifies_reg(bundle, TREG_SP);
 }
 
 /** Does this bundle modify lr? */
-static inline bool
-bt_modifies_lr(const BacktraceBundle *bundle)
+static inline bool bt_modifies_lr(const struct BacktraceBundle *bundle)
 {
 	return bt_modifies_reg(bundle, TREG_LR);
 }
 
 /** Does this bundle contain the instruction 'move fp, sp'? */
-static inline bool
-bt_has_move_r52_sp(const BacktraceBundle *bundle)
+static inline bool bt_has_move_r52_sp(const struct BacktraceBundle *bundle)
 {
 	static const int vals[2] = { 52, TREG_SP };
 	return find_matching_insn(bundle, TILE_OPC_MOVE, vals, 2) != NULL;
 }
 
 /** Does this bundle contain the instruction 'sw sp, lr'? */
-static inline bool
-bt_has_sw_sp_lr(const BacktraceBundle *bundle)
+static inline bool bt_has_sw_sp_lr(const struct BacktraceBundle *bundle)
 {
 	static const int vals[2] = { TREG_SP, TREG_LR };
 	return find_matching_insn(bundle, TILE_OPC_SW, vals, 2) != NULL;
@@ -209,11 +200,10 @@ bt_has_sw_sp_lr(const BacktraceBundle *bundle)
 /** Locates the caller's PC and SP for a program starting at the
  * given address.
  */
-static void
-find_caller_pc_and_caller_sp(CallerLocation *location,
-			     const VirtualAddress start_pc,
-			     BacktraceMemoryReader read_memory_func,
-			     void *read_memory_func_extra)
+static void find_caller_pc_and_caller_sp(CallerLocation *location,
+					 const VirtualAddress start_pc,
+					 BacktraceMemoryReader read_memory_func,
+					 void *read_memory_func_extra)
 {
 	/* Have we explicitly decided what the sp is,
 	 * rather than just the default?
@@ -253,7 +243,7 @@ find_caller_pc_and_caller_sp(CallerLocation *location,
 
 	for (pc = start_pc;; pc += sizeof(tile_bundle_bits)) {
 
-		BacktraceBundle bundle;
+		struct BacktraceBundle bundle;
 		int num_info_ops, info_operands[MAX_INFO_OPS_PER_BUNDLE];
 		int one_ago, jrp_reg;
 		bool has_jrp;
@@ -475,12 +465,11 @@ find_caller_pc_and_caller_sp(CallerLocation *location,
 	}
 }
 
-void
-backtrace_init(BacktraceIterator *state,
-	       BacktraceMemoryReader read_memory_func,
-	       void *read_memory_func_extra,
-	       VirtualAddress pc, VirtualAddress lr,
-	       VirtualAddress sp, VirtualAddress r52)
+void backtrace_init(BacktraceIterator *state,
+		    BacktraceMemoryReader read_memory_func,
+		    void *read_memory_func_extra,
+		    VirtualAddress pc, VirtualAddress lr,
+		    VirtualAddress sp, VirtualAddress r52)
 {
 	CallerLocation location;
 	VirtualAddress fp, initial_frame_caller_pc;
@@ -558,8 +547,7 @@ backtrace_init(BacktraceIterator *state,
 	state->read_memory_func_extra = read_memory_func_extra;
 }
 
-bool
-backtrace_next(BacktraceIterator *state)
+bool backtrace_next(BacktraceIterator *state)
 {
 	VirtualAddress next_fp, next_pc, next_frame[2];
 
@@ -614,12 +602,11 @@ backtrace_next(BacktraceIterator *state)
 
 #else /* TILE_CHIP < 10 */
 
-void
-backtrace_init(BacktraceIterator *state,
-	       BacktraceMemoryReader read_memory_func,
-	       void *read_memory_func_extra,
-	       VirtualAddress pc, VirtualAddress lr,
-	       VirtualAddress sp, VirtualAddress r52)
+void backtrace_init(BacktraceIterator *state,
+		    BacktraceMemoryReader read_memory_func,
+		    void *read_memory_func_extra,
+		    VirtualAddress pc, VirtualAddress lr,
+		    VirtualAddress sp, VirtualAddress r52)
 {
 	state->pc = pc;
 	state->sp = sp;

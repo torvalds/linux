@@ -46,7 +46,7 @@ void show_mem(void)
 {
 	struct zone *zone;
 
-	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu unstable:%lu"
+	pr_err("Active:%lu inactive:%lu dirty:%lu writeback:%lu unstable:%lu"
 	       " free:%lu\n slab:%lu mapped:%lu pagetables:%lu bounce:%lu"
 	       " pagecache:%lu swap:%lu\n",
 	       (global_page_state(NR_ACTIVE_ANON) +
@@ -71,7 +71,6 @@ void show_mem(void)
 		if (!populated_zone(zone))
 			continue;
 
-		printk("Node %d %7s: ", zone_to_nid(zone), zone->name);
 		spin_lock_irqsave(&zone->lock, flags);
 		for (order = 0; order < MAX_ORDER; order++) {
 			int nr = zone->free_area[order].nr_free;
@@ -80,7 +79,8 @@ void show_mem(void)
 				largest_order = order;
 		}
 		spin_unlock_irqrestore(&zone->lock, flags);
-		printk("%lukB (largest %luKb)\n",
+		pr_err("Node %d %7s: %lukB (largest %luKb)\n",
+		       zone_to_nid(zone), zone->name,
 		       K(total), largest_order ? K(1UL) << largest_order : 0);
 	}
 }
@@ -121,42 +121,6 @@ static void set_pte_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
 	 * from __set_fixmap.
 	 */
 	local_flush_tlb_page(NULL, vaddr, PAGE_SIZE);
-}
-
-/*
- * Associate a huge virtual page frame with a given physical page frame
- * and protection flags for that frame. pfn is for the base of the page,
- * vaddr is what the page gets mapped to - both must be properly aligned.
- * The pmd must already be instantiated.
- */
-void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-
-	if (vaddr & (PMD_SIZE-1)) {		/* vaddr is misaligned */
-		printk(KERN_WARNING "set_pmd_pfn: vaddr misaligned\n");
-		return; /* BUG(); */
-	}
-	if (pfn & (PTRS_PER_PTE-1)) {		/* pfn is misaligned */
-		printk(KERN_WARNING "set_pmd_pfn: pfn misaligned\n");
-		return; /* BUG(); */
-	}
-	pgd = swapper_pg_dir + pgd_index(vaddr);
-	if (pgd_none(*pgd)) {
-		printk(KERN_WARNING "set_pmd_pfn: pgd_none\n");
-		return; /* BUG(); */
-	}
-	pud = pud_offset(pgd, vaddr);
-	pmd = pmd_offset(pud, vaddr);
-	set_pmd(pmd, ptfn_pmd(HV_PFN_TO_PTFN(pfn), flags));
-	/*
-	 * It's enough to flush this one mapping.
-	 * We flush both small and huge TSBs to be sure.
-	 */
-	local_flush_tlb_page(NULL, vaddr, HPAGE_SIZE);
-	local_flush_tlb_pages(NULL, vaddr, PAGE_SIZE, HPAGE_SIZE);
 }
 
 void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
@@ -257,7 +221,7 @@ void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 
 struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
-	int flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO|__GFP_COMP;
+	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO|__GFP_COMP;
 	struct page *p;
 
 #ifdef CONFIG_HIGHPTE
@@ -550,7 +514,7 @@ void iounmap(volatile void __iomem *addr_in)
 	read_unlock(&vmlist_lock);
 
 	if (!p) {
-		printk("iounmap: bad address %p\n", addr);
+		pr_err("iounmap: bad address %p\n", addr);
 		dump_stack();
 		return;
 	}

@@ -70,48 +70,7 @@ struct compat_timeval {
 	s32		tv_usec;
 };
 
-struct compat_stat {
-	unsigned int	st_dev;
-	unsigned int	st_ino;
-	unsigned int	st_mode;
-	unsigned int	st_nlink;
-	unsigned int	st_uid;
-	unsigned int	st_gid;
-	unsigned int	st_rdev;
-	unsigned int    __pad1;
-	int		st_size;
-	int		st_blksize;
-	int		__pad2;
-	int		st_blocks;
-	int		st_atime;
-	unsigned int	st_atime_nsec;
-	int		st_mtime;
-	unsigned int	st_mtime_nsec;
-	int		st_ctime;
-	unsigned int	st_ctime_nsec;
-	unsigned int	__unused[2];
-};
-
-struct compat_stat64 {
-	unsigned long	st_dev;
-	unsigned long	st_ino;
-	unsigned int	st_mode;
-	unsigned int	st_nlink;
-	unsigned int	st_uid;
-	unsigned int	st_gid;
-	unsigned long	st_rdev;
-	long		st_size;
-	unsigned int	st_blksize;
-	unsigned long	st_blocks __attribute__((packed));
-	unsigned int	st_atime;
-	unsigned int	st_atime_nsec;
-	unsigned int	st_mtime;
-	unsigned int	st_mtime_nsec;
-	unsigned int	st_ctime;
-	unsigned int	st_ctime_nsec;
-	unsigned int	__unused8;
-};
-
+#define compat_stat stat
 #define compat_statfs statfs
 
 struct compat_sysctl {
@@ -233,7 +192,7 @@ static inline compat_uptr_t ptr_to_compat(void __user *uptr)
 /* Sign-extend when storing a kernel pointer to a user's ptregs. */
 static inline unsigned long ptr_to_compat_reg(void __user *uptr)
 {
-	return (long)(int)(long)uptr;
+	return (long)(int)(long __force)uptr;
 }
 
 static inline void __user *compat_alloc_user_space(long len)
@@ -278,17 +237,8 @@ long compat_sys_sync_file_range2(int fd, unsigned int flags,
 long compat_sys_fallocate(int fd, int mode,
 			  u32 offset_lo, u32 offset_hi,
 			  u32 len_lo, u32 len_hi);
-long compat_sys_stat64(char __user *filename,
-		       struct compat_stat64 __user *statbuf);
-long compat_sys_lstat64(char __user *filename,
-			struct compat_stat64 __user *statbuf);
-long compat_sys_fstat64(unsigned int fd, struct compat_stat64 __user *statbuf);
-long compat_sys_fstatat64(int dfd, char __user *filename,
-			  struct compat_stat64 __user *statbuf, int flag);
 long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 				      struct compat_timespec __user *interval);
-ssize_t compat_sys_sendfile(int out_fd, int in_fd, compat_off_t __user *offset,
-			    size_t count);
 
 /* Versions of compat functions that differ from generic Linux. */
 struct compat_msgbuf;
@@ -302,7 +252,6 @@ long tile_compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 			    compat_long_t addr, compat_long_t data);
 
 /* Tilera Linux syscalls that don't have "compat" versions. */
-#define compat_sys_raise_fpe sys_raise_fpe
 #define compat_sys_flush_cache sys_flush_cache
 
 #endif /* _ASM_TILE_COMPAT_H */

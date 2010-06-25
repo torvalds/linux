@@ -348,6 +348,23 @@ void __init_atomic_per_cpu(void);
 /* Support releasing the atomic lock in do_page_fault_ics(). */
 void __atomic_fault_unlock(int *lock_ptr);
 #endif
+
+/* Private helper routines in lib/atomic_asm_32.S */
+extern struct __get_user __atomic_cmpxchg(volatile int *p,
+					  int *lock, int o, int n);
+extern struct __get_user __atomic_xchg(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic_xchg_add(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic_xchg_add_unless(volatile int *p,
+						  int *lock, int o, int n);
+extern struct __get_user __atomic_or(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic_andn(volatile int *p, int *lock, int n);
+extern struct __get_user __atomic_xor(volatile int *p, int *lock, int n);
+extern u64 __atomic64_cmpxchg(volatile u64 *p, int *lock, u64 o, u64 n);
+extern u64 __atomic64_xchg(volatile u64 *p, int *lock, u64 n);
+extern u64 __atomic64_xchg_add(volatile u64 *p, int *lock, u64 n);
+extern u64 __atomic64_xchg_add_unless(volatile u64 *p,
+				      int *lock, u64 o, u64 n);
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_TILE_ATOMIC_32_H */

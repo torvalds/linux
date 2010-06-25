@@ -23,6 +23,7 @@
 #include <linux/uaccess.h>
 #include <linux/mman.h>
 #include <linux/types.h>
+#include <linux/err.h>
 #include <asm/cacheflush.h>
 #include <asm/opcode-tile.h>
 #include <asm/opcode_constants.h>
@@ -39,8 +40,8 @@ static int __init setup_unaligned_printk(char *str)
 	if (strict_strtol(str, 0, &val) != 0)
 		return 0;
 	unaligned_printk = val;
-	printk("Printk for each unaligned data accesses is %s\n",
-	       unaligned_printk ? "enabled" : "disabled");
+	pr_info("Printk for each unaligned data accesses is %s\n",
+		unaligned_printk ? "enabled" : "disabled");
 	return 1;
 }
 __setup("unaligned_printk=", setup_unaligned_printk);
@@ -113,7 +114,7 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 	enum mem_op mem_op,
 	int size, int sign_ext)
 {
-	unsigned char *addr;
+	unsigned char __user *addr;
 	int val_reg, addr_reg, err, val;
 
 	/* Get address and value registers */
@@ -148,7 +149,7 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 		return bundle;
 
 	/* If it's aligned, don't handle it specially */
-	addr = (void *)regs->regs[addr_reg];
+	addr = (void __user *)regs->regs[addr_reg];
 	if (((unsigned long)addr % size) == 0)
 		return bundle;
 
@@ -183,7 +184,7 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 		siginfo_t info = {
 			.si_signo = SIGSEGV,
 			.si_code = SEGV_MAPERR,
-			.si_addr = (void __user *)addr
+			.si_addr = addr
 		};
 		force_sig_info(info.si_signo, &info, current);
 		return (tile_bundle_bits) 0;
@@ -193,30 +194,33 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 		siginfo_t info = {
 			.si_signo = SIGBUS,
 			.si_code = BUS_ADRALN,
-			.si_addr = (void __user *)addr
+			.si_addr = addr
 		};
 		force_sig_info(info.si_signo, &info, current);
 		return (tile_bundle_bits) 0;
 	}
 
 	if (unaligned_printk || unaligned_fixup_count == 0) {
-		printk("Process %d/%s: PC %#lx: Fixup of"
-		       " unaligned %s at %#lx.\n",
-		       current->pid, current->comm, regs->pc,
-		       (mem_op == MEMOP_LOAD || mem_op == MEMOP_LOAD_POSTINCR) ?
-			 "load" : "store",
-		       (unsigned long)addr);
+		pr_info("Process %d/%s: PC %#lx: Fixup of"
+			" unaligned %s at %#lx.\n",
+			current->pid, current->comm, regs->pc,
+			(mem_op == MEMOP_LOAD ||
+			 mem_op == MEMOP_LOAD_POSTINCR) ?
+			"load" : "store",
+			(unsigned long)addr);
 		if (!unaligned_printk) {
-			printk("\n"
-"Unaligned fixups in the kernel will slow your application considerably.\n"
-"You can find them by writing \"1\" to /proc/sys/tile/unaligned_fixup/printk,\n"
-"which requests the kernel show all unaligned fixups, or writing a \"0\"\n"
-"to /proc/sys/tile/unaligned_fixup/enabled, in which case each unaligned\n"
-"access will become a SIGBUS you can debug. No further warnings will be\n"
-"shown so as to avoid additional slowdown, but you can track the number\n"
-"of fixups performed via /proc/sys/tile/unaligned_fixup/count.\n"
-"Use the tile-addr2line command (see \"info addr2line\") to decode PCs.\n"
-				"\n");
+#define P pr_info
+P("\n");
+P("Unaligned fixups in the kernel will slow your application considerably.\n");
+P("To find them, write a \"1\" to /proc/sys/tile/unaligned_fixup/printk,\n");
+P("which requests the kernel show all unaligned fixups, or write a \"0\"\n");
+P("to /proc/sys/tile/unaligned_fixup/enabled, in which case each unaligned\n");
+P("access will become a SIGBUS you can debug. No further warnings will be\n");
+P("shown so as to avoid additional slowdown, but you can track the number\n");
+P("of fixups performed via /proc/sys/tile/unaligned_fixup/count.\n");
+P("Use the tile-addr2line command (see \"info addr2line\") to decode PCs.\n");
+P("\n");
+#undef P
 		}
 	}
 	++unaligned_fixup_count;
@@ -276,7 +280,7 @@ void single_step_once(struct pt_regs *regs)
 	struct thread_info *info = (void *)current_thread_info();
 	struct single_step_state *state = info->step_state;
 	int is_single_step = test_ti_thread_flag(info, TIF_SINGLESTEP);
-	tile_bundle_bits *buffer, *pc;
+	tile_bundle_bits __user *buffer, *pc;
 	tile_bundle_bits bundle;
 	int temp_reg;
 	int target_reg = TREG_LR;
@@ -306,21 +310,21 @@ void single_step_once(struct pt_regs *regs)
 		/* allocate a page of writable, executable memory */
 		state = kmalloc(sizeof(struct single_step_state), GFP_KERNEL);
 		if (state == NULL) {
-			printk("Out of kernel memory trying to single-step\n");
+			pr_err("Out of kernel memory trying to single-step\n");
 			return;
 		}
 
 		/* allocate a cache line of writable, executable memory */
 		down_write(&current->mm->mmap_sem);
-		buffer = (void *) do_mmap(0, 0, 64,
+		buffer = (void __user *) do_mmap(NULL, 0, 64,
 					  PROT_EXEC | PROT_READ | PROT_WRITE,
 					  MAP_PRIVATE | MAP_ANONYMOUS,
 					  0);
 		up_write(&current->mm->mmap_sem);
 
-		if ((int)buffer < 0 && (int)buffer > -PAGE_SIZE) {
+		if (IS_ERR((void __force *)buffer)) {
 			kfree(state);
-			printk("Out of kernel pages trying to single-step\n");
+			pr_err("Out of kernel pages trying to single-step\n");
 			return;
 		}
 
@@ -349,11 +353,14 @@ void single_step_once(struct pt_regs *regs)
 	if (regs->faultnum == INT_SWINT_1)
 		regs->pc -= 8;
 
-	pc = (tile_bundle_bits *)(regs->pc);
-	bundle = pc[0];
+	pc = (tile_bundle_bits __user *)(regs->pc);
+	if (get_user(bundle, pc) != 0) {
+		pr_err("Couldn't read instruction at %p trying to step\n", pc);
+		return;
+	}
 
 	/* We'll follow the instruction with 2 ill op bundles */
-	state->orig_pc = (unsigned long) pc;
+	state->orig_pc = (unsigned long)pc;
 	state->next_pc = (unsigned long)(pc + 1);
 	state->branch_next_pc = 0;
 	state->update = 0;
@@ -633,7 +640,7 @@ void single_step_once(struct pt_regs *regs)
 	}
 
 	if (err) {
-		printk("Fault when writing to single-step buffer\n");
+		pr_err("Fault when writing to single-step buffer\n");
 		return;
 	}
 
@@ -641,12 +648,12 @@ void single_step_once(struct pt_regs *regs)
 	 * Flush the buffer.
 	 * We do a local flush only, since this is a thread-specific buffer.
 	 */
-	__flush_icache_range((unsigned long) state->buffer,
-			     (unsigned long) buffer);
+	__flush_icache_range((unsigned long)state->buffer,
+			     (unsigned long)buffer);
 
 	/* Indicate enabled */
 	state->is_enabled = is_single_step;
-	regs->pc = (unsigned long) state->buffer;
+	regs->pc = (unsigned long)state->buffer;
 
 	/* Fault immediately if we are coming back from a syscall. */
 	if (regs->faultnum == INT_SWINT_1)

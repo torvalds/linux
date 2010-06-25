@@ -23,6 +23,7 @@
 #include <linux/smp.h>
 #include <linux/delay.h>
 #include <asm/irq_regs.h>
+#include <asm/traps.h>
 #include <hv/hypervisor.h>
 #include <arch/interrupts.h>
 #include <arch/spr_def.h>
@@ -45,13 +46,13 @@ static cycles_t cycles_per_sec __write_once;
  */
 #define TILE_MINSEC 5
 
-cycles_t get_clock_rate()
+cycles_t get_clock_rate(void)
 {
 	return cycles_per_sec;
 }
 
 #if CHIP_HAS_SPLIT_CYCLE()
-cycles_t get_cycles()
+cycles_t get_cycles(void)
 {
 	unsigned int high = __insn_mfspr(SPR_CYCLE_HIGH);
 	unsigned int low = __insn_mfspr(SPR_CYCLE_LOW);
@@ -67,7 +68,7 @@ cycles_t get_cycles()
 }
 #endif
 
-cycles_t clocksource_get_cycles(struct clocksource *cs)
+static cycles_t clocksource_get_cycles(struct clocksource *cs)
 {
 	return get_cycles();
 }

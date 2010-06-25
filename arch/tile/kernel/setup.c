@@ -20,6 +20,7 @@
 #include <linux/node.h>
 #include <linux/cpu.h>
 #include <linux/ioport.h>
+#include <linux/irq.h>
 #include <linux/kexec.h>
 #include <linux/pci.h>
 #include <linux/initrd.h>
@@ -109,7 +110,7 @@ static int __init setup_maxmem(char *str)
 
 	maxmem_pfn = (maxmem_mb >> (HPAGE_SHIFT - 20)) <<
 		(HPAGE_SHIFT - PAGE_SHIFT);
-	printk("Forcing RAM used to no more than %dMB\n",
+	pr_info("Forcing RAM used to no more than %dMB\n",
 	       maxmem_pfn >> (20 - PAGE_SHIFT));
 	return 0;
 }
@@ -127,7 +128,7 @@ static int __init setup_maxnodemem(char *str)
 
 	maxnodemem_pfn[node] = (maxnodemem_mb >> (HPAGE_SHIFT - 20)) <<
 		(HPAGE_SHIFT - PAGE_SHIFT);
-	printk("Forcing RAM used on node %ld to no more than %dMB\n",
+	pr_info("Forcing RAM used on node %ld to no more than %dMB\n",
 	       node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
 	return 0;
 }
@@ -140,7 +141,7 @@ static int __init setup_isolnodes(char *str)
 		return -EINVAL;
 
 	nodelist_scnprintf(buf, sizeof(buf), isolnodes);
-	printk("Set isolnodes value to '%s'\n", buf);
+	pr_info("Set isolnodes value to '%s'\n", buf);
 	return 0;
 }
 early_param("isolnodes", setup_isolnodes);
@@ -155,7 +156,7 @@ static int __init setup_pci_reserve(char* str)
 		return -EINVAL;
 
 	pci_reserve_mb = mb;
-	printk("Reserving %dMB for PCIE root complex mappings\n",
+	pr_info("Reserving %dMB for PCIE root complex mappings\n",
 	       pci_reserve_mb);
 	return 0;
 }
@@ -269,7 +270,7 @@ static void *__init setup_pa_va_mapping(void)
  * This is up to 4 mappings for lowmem, one mapping per memory
  * controller, plus one for our text segment.
  */
-void __cpuinit store_permanent_mappings(void)
+static void __cpuinit store_permanent_mappings(void)
 {
 	int i;
 
@@ -320,14 +321,14 @@ static void __init setup_memory(void)
 			break;
 #ifdef CONFIG_FLATMEM
 		if (i > 0) {
-			printk("Can't use discontiguous PAs: %#llx..%#llx\n",
+			pr_err("Can't use discontiguous PAs: %#llx..%#llx\n",
 			       range.size, range.start + range.size);
 			continue;
 		}
 #endif
 #ifndef __tilegx__
 		if ((unsigned long)range.start) {
-			printk("Range not at 4GB multiple: %#llx..%#llx\n",
+			pr_err("Range not at 4GB multiple: %#llx..%#llx\n",
 			       range.start, range.start + range.size);
 			continue;
 		}
@@ -335,51 +336,51 @@ static void __init setup_memory(void)
 		if ((range.start & (HPAGE_SIZE-1)) != 0 ||
 		    (range.size & (HPAGE_SIZE-1)) != 0) {
 			unsigned long long start_pa = range.start;
-			unsigned long long size = range.size;
+			unsigned long long orig_size = range.size;
 			range.start = (start_pa + HPAGE_SIZE - 1) & HPAGE_MASK;
 			range.size -= (range.start - start_pa);
 			range.size &= HPAGE_MASK;
-			printk("Range not hugepage-aligned: %#llx..%#llx:"
+			pr_err("Range not hugepage-aligned: %#llx..%#llx:"
 			       " now %#llx-%#llx\n",
-			       start_pa, start_pa + size,
+			       start_pa, start_pa + orig_size,
 			       range.start, range.start + range.size);
 		}
 		highbits = __pa_to_highbits(range.start);
 		if (highbits >= NR_PA_HIGHBIT_VALUES) {
-			printk("PA high bits too high: %#llx..%#llx\n",
+			pr_err("PA high bits too high: %#llx..%#llx\n",
 			       range.start, range.start + range.size);
 			continue;
 		}
 		if (highbits_seen[highbits]) {
-			printk("Range overlaps in high bits: %#llx..%#llx\n",
+			pr_err("Range overlaps in high bits: %#llx..%#llx\n",
 			       range.start, range.start + range.size);
 			continue;
 		}
 		highbits_seen[highbits] = 1;
 		if (PFN_DOWN(range.size) > maxnodemem_pfn[i]) {
-			int size = maxnodemem_pfn[i];
-			if (size > 0) {
-				printk("Maxnodemem reduced node %d to"
-				       " %d pages\n", i, size);
-				range.size = (HV_PhysAddr)size << PAGE_SHIFT;
+			int max_size = maxnodemem_pfn[i];
+			if (max_size > 0) {
+				pr_err("Maxnodemem reduced node %d to"
+				       " %d pages\n", i, max_size);
+				range.size = PFN_PHYS(max_size);
 			} else {
-				printk("Maxnodemem disabled node %d\n", i);
+				pr_err("Maxnodemem disabled node %d\n", i);
 				continue;
 			}
 		}
 		if (num_physpages + PFN_DOWN(range.size) > maxmem_pfn) {
-			int size = maxmem_pfn - num_physpages;
-			if (size > 0) {
-				printk("Maxmem reduced node %d to %d pages\n",
-				       i, size);
-				range.size = (HV_PhysAddr)size << PAGE_SHIFT;
+			int max_size = maxmem_pfn - num_physpages;
+			if (max_size > 0) {
+				pr_err("Maxmem reduced node %d to %d pages\n",
+				       i, max_size);
+				range.size = PFN_PHYS(max_size);
 			} else {
-				printk("Maxmem disabled node %d\n", i);
+				pr_err("Maxmem disabled node %d\n", i);
 				continue;
 			}
 		}
 		if (i >= MAX_NUMNODES) {
-			printk("Too many PA nodes (#%d): %#llx...%#llx\n",
+			pr_err("Too many PA nodes (#%d): %#llx...%#llx\n",
 			       i, range.size, range.size + range.start);
 			continue;
 		}
@@ -391,7 +392,7 @@ static void __init setup_memory(void)
 #ifndef __tilegx__
 		if (((HV_PhysAddr)end << PAGE_SHIFT) !=
 		    (range.start + range.size)) {
-			printk("PAs too high to represent: %#llx..%#llx\n",
+			pr_err("PAs too high to represent: %#llx..%#llx\n",
 			       range.start, range.start + range.size);
 			continue;
 		}
@@ -412,7 +413,7 @@ static void __init setup_memory(void)
 				NR_CPUS * (PFN_UP(per_cpu_size) >> PAGE_SHIFT);
 			if (end < pci_reserve_end_pfn + percpu_pages) {
 				end = pci_reserve_start_pfn;
-				printk("PCI mapping region reduced node %d to"
+				pr_err("PCI mapping region reduced node %d to"
 				       " %ld pages\n", i, end - start);
 			}
 		}
@@ -456,11 +457,11 @@ static void __init setup_memory(void)
 			}
 		}
 		num_physpages -= dropped_pages;
-		printk(KERN_WARNING "Only using %ldMB memory;"
+		pr_warning("Only using %ldMB memory;"
 		       " ignoring %ldMB.\n",
 		       num_physpages >> (20 - PAGE_SHIFT),
 		       dropped_pages >> (20 - PAGE_SHIFT));
-		printk(KERN_WARNING "Consider using a larger page size.\n");
+		pr_warning("Consider using a larger page size.\n");
 	}
 #endif
 
@@ -478,9 +479,9 @@ static void __init setup_memory(void)
 		MAXMEM_PFN : mappable_physpages;
 	highmem_pages = (long) (num_physpages - lowmem_pages);
 
-	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
+	pr_notice("%ldMB HIGHMEM available.\n",
 	       pages_to_mb(highmem_pages > 0 ? highmem_pages : 0));
-	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
+	pr_notice("%ldMB LOWMEM available.\n",
 			pages_to_mb(lowmem_pages));
 #else
 	/* Set max_low_pfn based on what node 0 can directly address. */
@@ -488,15 +489,15 @@ static void __init setup_memory(void)
 
 #ifndef __tilegx__
 	if (node_end_pfn[0] > MAXMEM_PFN) {
-		printk(KERN_WARNING "Only using %ldMB LOWMEM.\n",
+		pr_warning("Only using %ldMB LOWMEM.\n",
 		       MAXMEM>>20);
-		printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
+		pr_warning("Use a HIGHMEM enabled kernel.\n");
 		max_low_pfn = MAXMEM_PFN;
 		max_pfn = MAXMEM_PFN;
 		num_physpages = MAXMEM_PFN;
 		node_end_pfn[0] = MAXMEM_PFN;
 	} else {
-		printk(KERN_NOTICE "%ldMB memory available.\n",
+		pr_notice("%ldMB memory available.\n",
 		       pages_to_mb(node_end_pfn[0]));
 	}
 	for (i = 1; i < MAX_NUMNODES; ++i) {
@@ -512,7 +513,7 @@ static void __init setup_memory(void)
 		if (pages)
 			high_memory = pfn_to_kaddr(node_end_pfn[i]);
 	}
-	printk(KERN_NOTICE "%ldMB memory available.\n",
+	pr_notice("%ldMB memory available.\n",
 	       pages_to_mb(lowmem_pages));
 #endif
 #endif
@@ -744,7 +745,7 @@ static void __init setup_numa_mapping(void)
 	nodes_andnot(default_nodes, node_online_map, isolnodes);
 	if (nodes_empty(default_nodes)) {
 		BUG_ON(!node_isset(0, node_online_map));
-		printk("Forcing NUMA node zero available as a default node\n");
+		pr_err("Forcing NUMA node zero available as a default node\n");
 		node_set(0, default_nodes);
 	}
 
@@ -822,13 +823,13 @@ static void __init setup_numa_mapping(void)
 		printk(KERN_DEBUG "NUMA cpu-to-node row %d:", y);
 		for (x = 0; x < smp_width; ++x, ++cpu) {
 			if (cpu_to_node(cpu) < 0) {
-				printk(" -");
+				pr_cont(" -");
 				cpu_2_node[cpu] = first_node(default_nodes);
 			} else {
-				printk(" %d", cpu_to_node(cpu));
+				pr_cont(" %d", cpu_to_node(cpu));
 			}
 		}
-		printk("\n");
+		pr_cont("\n");
 	}
 }
 
@@ -856,12 +857,17 @@ subsys_initcall(topology_init);
 #endif /* CONFIG_NUMA */
 
 /**
- * setup_mpls() - Allow the user-space code to access various SPRs.
+ * setup_cpu() - Do all necessary per-cpu, tile-specific initialization.
+ * @boot: Is this the boot cpu?
  *
- * Also called from online_secondary().
+ * Called from setup_arch() on the boot cpu, or online_secondary().
  */
-void __cpuinit setup_mpls(void)
+void __cpuinit setup_cpu(int boot)
 {
+	/* The boot cpu sets up its permanent mappings much earlier. */
+	if (!boot)
+		store_permanent_mappings();
+
 	/* Allow asynchronous TLB interrupts. */
 #if CHIP_HAS_TILE_DMA()
 	raw_local_irq_unmask(INT_DMATLB_MISS);
@@ -892,6 +898,14 @@ void __cpuinit setup_mpls(void)
 	 * as well as the PL 0 interrupt mask.
 	 */
 	__insn_mtspr(SPR_MPL_INTCTRL_0_SET_0, 1);
+
+	/* Initialize IRQ support for this cpu. */
+	setup_irq_regs();
+
+#ifdef CONFIG_HARDWALL
+	/* Reset the network state on this cpu. */
+	reset_network_state();
+#endif
 }
 
 static int __initdata set_initramfs_file;
@@ -922,22 +936,22 @@ static void __init load_hv_initrd(void)
 	fd = hv_fs_findfile((HV_VirtAddr) initramfs_file);
 	if (fd == HV_ENOENT) {
 		if (set_initramfs_file)
-			printk("No such hvfs initramfs file '%s'\n",
-			       initramfs_file);
+			pr_warning("No such hvfs initramfs file '%s'\n",
+				   initramfs_file);
 		return;
 	}
 	BUG_ON(fd < 0);
 	stat = hv_fs_fstat(fd);
 	BUG_ON(stat.size < 0);
 	if (stat.flags & HV_FS_ISDIR) {
-		printk("Ignoring hvfs file '%s': it's a directory.\n",
-		       initramfs_file);
+		pr_warning("Ignoring hvfs file '%s': it's a directory.\n",
+			   initramfs_file);
 		return;
 	}
 	initrd = alloc_bootmem_pages(stat.size);
 	rc = hv_fs_pread(fd, (HV_VirtAddr) initrd, stat.size, 0);
 	if (rc != stat.size) {
-		printk("Error reading %d bytes from hvfs file '%s': %d\n",
+		pr_err("Error reading %d bytes from hvfs file '%s': %d\n",
 		       stat.size, initramfs_file, rc);
 		free_bootmem((unsigned long) initrd, stat.size);
 		return;
@@ -966,9 +980,9 @@ static void __init validate_hv(void)
 	HV_Topology topology = hv_inquire_topology();
 	BUG_ON(topology.coord.x != 0 || topology.coord.y != 0);
 	if (topology.width != 1 || topology.height != 1) {
-		printk("Warning: booting UP kernel on %dx%d grid;"
-		       " will ignore all but first tile.\n",
-		       topology.width, topology.height);
+		pr_warning("Warning: booting UP kernel on %dx%d grid;"
+			   " will ignore all but first tile.\n",
+			   topology.width, topology.height);
 	}
 #endif
 
@@ -1004,7 +1018,7 @@ static void __init validate_hv(void)
 
 	if (hv_confstr(HV_CONFSTR_CHIP_MODEL, (HV_VirtAddr)chip_model,
 		       sizeof(chip_model)) < 0) {
-		printk("Warning: HV_CONFSTR_CHIP_MODEL not available\n");
+		pr_err("Warning: HV_CONFSTR_CHIP_MODEL not available\n");
 		strlcpy(chip_model, "unknown", sizeof(chip_model));
 	}
 }
@@ -1096,7 +1110,7 @@ static int __init disabled_cpus(char *str)
 	if (str == NULL || cpulist_parse_crop(str, &disabled_map) != 0)
 		return -EINVAL;
 	if (cpumask_test_cpu(boot_cpu, &disabled_map)) {
-		printk("disabled_cpus: can't disable boot cpu %d\n", boot_cpu);
+		pr_err("disabled_cpus: can't disable boot cpu %d\n", boot_cpu);
 		cpumask_clear_cpu(boot_cpu, &disabled_map);
 	}
 	return 0;
@@ -1104,12 +1118,12 @@ static int __init disabled_cpus(char *str)
 
 early_param("disabled_cpus", disabled_cpus);
 
-void __init print_disabled_cpus()
+void __init print_disabled_cpus(void)
 {
 	if (!cpumask_empty(&disabled_map)) {
 		char buf[100];
 		cpulist_scnprintf(buf, sizeof(buf), &disabled_map);
-		printk(KERN_INFO "CPUs not available for Linux: %s\n", buf);
+		pr_info("CPUs not available for Linux: %s\n", buf);
 	}
 }
 
@@ -1162,7 +1176,7 @@ static void __init setup_cpu_maps(void)
 			      (HV_VirtAddr) cpumask_bits(&cpu_lotar_map),
 			      sizeof(cpu_lotar_map));
 	if (rc < 0) {
-		printk("warning: no HV_INQ_TILES_LOTAR; using AVAIL\n");
+		pr_err("warning: no HV_INQ_TILES_LOTAR; using AVAIL\n");
 		cpu_lotar_map = cpu_possible_map;
 	}
 
@@ -1182,7 +1196,7 @@ static void __init setup_cpu_maps(void)
 
 static int __init dataplane(char *str)
 {
-	printk("WARNING: dataplane support disabled in this kernel\n");
+	pr_warning("WARNING: dataplane support disabled in this kernel\n");
 	return 0;
 }
 
@@ -1200,8 +1214,8 @@ void __init setup_arch(char **cmdline_p)
 	len = hv_get_command_line((HV_VirtAddr) boot_command_line,
 				  COMMAND_LINE_SIZE);
 	if (boot_command_line[0])
-		printk("WARNING: ignoring dynamic command line \"%s\"\n",
-		       boot_command_line);
+		pr_warning("WARNING: ignoring dynamic command line \"%s\"\n",
+			   boot_command_line);
 	strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 #else
 	char *hv_cmdline;
@@ -1269,7 +1283,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_numa_mapping();
 	zone_sizes_init();
 	set_page_homes();
-	setup_mpls();
+	setup_cpu(1);
 	setup_clock();
 	load_hv_initrd();
 }

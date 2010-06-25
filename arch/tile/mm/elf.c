@@ -20,6 +20,7 @@
 #include <linux/elf.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/sections.h>
 
 /* Notify a running simulator, if any, that an exec just occurred. */
 static void sim_notify_exec(const char *binary_name)
@@ -77,9 +78,8 @@ static void *vdso_page;
 /* One-entry array used for install_special_mapping. */
 static struct page *vdso_pages[1];
 
-int __init vdso_setup(void)
+static int __init vdso_setup(void)
 {
-	extern char __rt_sigreturn[], __rt_sigreturn_end[];
 	vdso_page = (void *)get_zeroed_page(GFP_ATOMIC);
 	memcpy(vdso_page, __rt_sigreturn, __rt_sigreturn_end - __rt_sigreturn);
 	vdso_pages[0] = virt_to_page(vdso_page);

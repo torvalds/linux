@@ -55,7 +55,7 @@ struct thread_info {
 	.restart_block	= {			\
 		.fn = do_no_restart_syscall,	\
 	},					\
-	.step_state	= 0,			\
+	.step_state	= NULL,			\
 }
 
 #define init_thread_info	(init_thread_union.thread_info)
@@ -85,6 +85,12 @@ register unsigned long stack_pointer __asm__("sp");
 #define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 extern struct thread_info *alloc_thread_info(struct task_struct *task);
 extern void free_thread_info(struct thread_info *info);
+
+/* Sit on a nap instruction until interrupted. */
+extern void smp_nap(void);
+
+/* Enable interrupts racelessly and nap forever: helper for cpu_idle(). */
+extern void _cpu_idle(void);
 
 /* Switch boot idle thread to a freshly-allocated stack and free old stack. */
 extern void cpu_idle_on_new_stack(struct thread_info *old_ti,

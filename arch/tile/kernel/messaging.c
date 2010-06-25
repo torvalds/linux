@@ -18,13 +18,14 @@
 #include <linux/ptrace.h>
 #include <asm/hv_driver.h>
 #include <asm/irq_regs.h>
+#include <asm/traps.h>
 #include <hv/hypervisor.h>
 #include <arch/interrupts.h>
 
 /* All messages are stored here */
 static DEFINE_PER_CPU(HV_MsgState, msg_state);
 
-void __cpuinit init_messaging()
+void __cpuinit init_messaging(void)
 {
 	/* Allocate storage for messages in kernel space */
 	HV_MsgState *state = &__get_cpu_var(msg_state);
@@ -58,7 +59,7 @@ void hv_message_intr(struct pt_regs *regs, int intnum)
 	{
 		long sp = stack_pointer - (long) current_thread_info();
 		if (unlikely(sp < (sizeof(struct thread_info) + STACK_WARN))) {
-			printk(KERN_EMERG "hv_message_intr: "
+			pr_emerg("hv_message_intr: "
 			       "stack overflow: %ld\n",
 			       sp - sizeof(struct thread_info));
 			dump_stack();

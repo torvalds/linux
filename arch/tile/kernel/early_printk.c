@@ -32,7 +32,7 @@ static struct console early_hv_console = {
 };
 
 /* Direct interface for emergencies */
-struct console *early_console = &early_hv_console;
+static struct console *early_console = &early_hv_console;
 static int early_console_initialized;
 static int early_console_complete;
 

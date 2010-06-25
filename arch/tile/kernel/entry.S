@@ -13,9 +13,9 @@
  */
 
 #include <linux/linkage.h>
-#include <arch/abi.h>
-#include <asm/unistd.h>
+#include <linux/unistd.h>
 #include <asm/irqflags.h>
+#include <arch/abi.h>
 
 #ifdef __tilegx__
 #define bnzt bnezt

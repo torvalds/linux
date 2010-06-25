@@ -89,14 +89,26 @@ static inline int pgd_addr_invalid(unsigned long addr)
 /*
  * Provide versions of these routines that can be used safely when
  * the hypervisor may be asynchronously modifying dirty/accessed bits.
+ * ptep_get_and_clear() matches the generic one but we provide it to
+ * be parallel with the 64-bit code.
  */
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
 #define __HAVE_ARCH_PTEP_SET_WRPROTECT
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
 
 extern int ptep_test_and_clear_young(struct vm_area_struct *,
 				     unsigned long addr, pte_t *);
 extern void ptep_set_wrprotect(struct mm_struct *,
 			       unsigned long addr, pte_t *);
+
+#define __HAVE_ARCH_PTEP_GET_AND_CLEAR
+static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
+				       unsigned long addr, pte_t *ptep)
+{
+	pte_t pte = *ptep;
+	pte_clear(_mm, addr, ptep);
+	return pte;
+}
 
 /* Create a pmd from a PTFN. */
 static inline pmd_t ptfn_pmd(unsigned long ptfn, pgprot_t prot)

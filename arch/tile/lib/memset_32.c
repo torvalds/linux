@@ -245,7 +245,8 @@ void *memset(void *s, int c, size_t n)
 				wh += CACHE_LINE_SIZE_IN_WORDS;
 			} while (--i);
 
-			for (j = x * (CACHE_LINE_SIZE_IN_WORDS / 4); j != 0; j--) {
+			for (j = x * (CACHE_LINE_SIZE_IN_WORDS / 4);
+			     j != 0; j--) {
 				*out32++ = v32;
 				*out32++ = v32;
 				*out32++ = v32;

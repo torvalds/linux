@@ -32,13 +32,14 @@
 #include <asm/processor.h>
 #include <asm/ucontext.h>
 #include <asm/sigframe.h>
+#include <asm/syscalls.h>
 #include <arch/interrupts.h>
 
 struct compat_sigaction {
 	compat_uptr_t sa_handler;
 	compat_ulong_t sa_flags;
 	compat_uptr_t sa_restorer;
-	sigset_t sa_mask;		/* mask last for extensibility */
+	sigset_t sa_mask __packed;
 };
 
 struct compat_sigaltstack {
@@ -170,7 +171,7 @@ long compat_sys_rt_sigqueueinfo(int pid, int sig,
 	if (copy_siginfo_from_user32(&info, uinfo))
 		return -EFAULT;
 	set_fs(KERNEL_DS);
-	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __user *)&info);
+	ret = sys_rt_sigqueueinfo(pid, sig, (siginfo_t __force __user *)&info);
 	set_fs(old_fs);
 	return ret;
 }
@@ -274,7 +275,8 @@ long _compat_sys_sigaltstack(const struct compat_sigaltstack __user *uss_ptr,
 	}
 	seg = get_fs();
 	set_fs(KERNEL_DS);
-	ret = do_sigaltstack(uss_ptr ? &uss : NULL, &uoss,
+	ret = do_sigaltstack(uss_ptr ? (stack_t __user __force *)&uss : NULL,
+			     (stack_t __user __force *)&uoss,
 			     (unsigned long)compat_ptr(regs->sp));
 	set_fs(seg);
 	if (ret >= 0 && uoss_ptr)  {
@@ -336,7 +338,7 @@ static inline void __user *compat_get_sigframe(struct k_sigaction *ka,
 	 * will die with SIGSEGV.
 	 */
 	if (on_sig_stack(sp) && !likely(on_sig_stack(sp - frame_size)))
-		return (void __user *) -1L;
+		return (void __user __force *)-1UL;
 
 	/* This is the X/Open sanctioned signal stack switching.  */
 	if (ka->sa.sa_flags & SA_ONSTACK) {

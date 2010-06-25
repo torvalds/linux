@@ -39,31 +39,10 @@
 #include <asm/system.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
+#include <asm/traps.h>
+#include <asm/syscalls.h>
 
 #include <arch/interrupts.h>
-
-/*
- * Unlock any spinlocks which will prevent us from getting the
- * message out
- */
-void bust_spinlocks(int yes)
-{
-	int loglevel_save = console_loglevel;
-
-	if (yes) {
-		oops_in_progress = 1;
-		return;
-	}
-	oops_in_progress = 0;
-	/*
-	 * OK, the message is on the console.  Now we call printk()
-	 * without oops_in_progress set so that printk will give klogd
-	 * a poke.  Hold onto your hats...
-	 */
-	console_loglevel = 15;	/* NMI oopser may have shut the console up */
-	printk(" ");
-	console_loglevel = loglevel_save;
-}
 
 static noinline void force_sig_info_fault(int si_signo, int si_code,
 	unsigned long address, int fault_num, struct task_struct *tsk)
@@ -301,10 +280,10 @@ static int handle_page_fault(struct pt_regs *regs,
 	 */
 	stack_offset = stack_pointer & (THREAD_SIZE-1);
 	if (stack_offset < THREAD_SIZE / 8) {
-		printk(KERN_ALERT "Potential stack overrun: sp %#lx\n",
+		pr_alert("Potential stack overrun: sp %#lx\n",
 		       stack_pointer);
 		show_regs(regs);
-		printk(KERN_ALERT "Killing current process %d/%s\n",
+		pr_alert("Killing current process %d/%s\n",
 		       tsk->pid, tsk->comm);
 		do_group_exit(SIGKILL);
 	}
@@ -422,7 +401,7 @@ good_area:
 	} else if (write) {
 #ifdef TEST_VERIFY_AREA
 		if (!is_page_fault && regs->cs == KERNEL_CS)
-			printk("WP fault at "REGFMT"\n", regs->eip);
+			pr_err("WP fault at "REGFMT"\n", regs->eip);
 #endif
 		if (!(vma->vm_flags & VM_WRITE))
 			goto bad_area;
@@ -450,6 +429,7 @@ good_area:
 	else
 		tsk->min_flt++;
 
+#if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
 	/*
 	 * If this was an asynchronous fault,
 	 * restart the appropriate engine.
@@ -472,6 +452,7 @@ good_area:
 		break;
 #endif
 	}
+#endif
 
 	up_read(&mm->mmap_sem);
 	return 1;
@@ -514,17 +495,17 @@ no_context:
 		pte_t *pte = lookup_address(address);
 
 		if (pte && pte_present(*pte) && !pte_exec_kernel(*pte))
-			printk(KERN_CRIT "kernel tried to execute"
+			pr_crit("kernel tried to execute"
 			       " non-executable page - exploit attempt?"
 			       " (uid: %d)\n", current->uid);
 	}
 #endif
 	if (address < PAGE_SIZE)
-		printk(KERN_ALERT "Unable to handle kernel NULL pointer dereference\n");
+		pr_alert("Unable to handle kernel NULL pointer dereference\n");
 	else
-		printk(KERN_ALERT "Unable to handle kernel paging request\n");
-	printk(" at virtual address "REGFMT", pc "REGFMT"\n",
-	       address, regs->pc);
+		pr_alert("Unable to handle kernel paging request\n");
+	pr_alert(" at virtual address "REGFMT", pc "REGFMT"\n",
+		 address, regs->pc);
 
 	show_regs(regs);
 
@@ -555,7 +536,7 @@ out_of_memory:
 		down_read(&mm->mmap_sem);
 		goto survive;
 	}
-	printk("VM: killing process %s\n", tsk->comm);
+	pr_alert("VM: killing process %s\n", tsk->comm);
 	if (!is_kernel_mode)
 		do_group_exit(SIGKILL);
 	goto no_context;
@@ -573,30 +554,11 @@ do_sigbus:
 
 #ifndef __tilegx__
 
-extern char sys_cmpxchg[], __sys_cmpxchg_end[];
-extern char __sys_cmpxchg_grab_lock[];
-extern char __start_atomic_asm_code[], __end_atomic_asm_code[];
-
-/*
- * We return this structure in registers to avoid having to write
- * additional save/restore code in the intvec.S caller.
- */
-struct intvec_state {
-	void *handler;
-	unsigned long vecnum;
-	unsigned long fault_num;
-	unsigned long info;
-	unsigned long retval;
-};
-
 /* We must release ICS before panicking or we won't get anywhere. */
 #define ics_panic(fmt, ...) do { \
 	__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 0); \
 	panic(fmt, __VA_ARGS__); \
 } while (0)
-
-void do_page_fault(struct pt_regs *regs, int fault_num,
-		   unsigned long address, unsigned long write);
 
 /*
  * When we take an ITLB or DTLB fault or access violation in the

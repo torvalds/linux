@@ -160,6 +160,14 @@ struct task_struct;
 extern struct task_struct *_switch_to(struct task_struct *prev,
 				      struct task_struct *next);
 
+/* Helper function for _switch_to(). */
+extern struct task_struct *__switch_to(struct task_struct *prev,
+				       struct task_struct *next,
+				       unsigned long new_system_save_1_0);
+
+/* Address that switched-away from tasks are at. */
+extern unsigned long get_switch_to_pc(void);
+
 /*
  * On SMP systems, when the scheduler does migration-cost autodetection,
  * it needs a way to flush as much of the CPU's caches as possible:
@@ -187,10 +195,26 @@ extern int unaligned_printk;
 /* Number of unaligned fixups performed */
 extern unsigned int unaligned_fixup_count;
 
+/* Init-time routine to do tile-specific per-cpu setup. */
+void setup_cpu(int boot);
+
 /* User-level DMA management functions */
 void grant_dma_mpls(void);
 void restrict_dma_mpls(void);
 
+#ifdef CONFIG_HARDWALL
+/* User-level network management functions */
+void reset_network_state(void);
+void grant_network_mpls(void);
+void restrict_network_mpls(void);
+int hardwall_deactivate(struct task_struct *task);
+
+/* Hook hardwall code into changes in affinity. */
+#define arch_set_cpus_allowed(p, new_mask) do { \
+	if (p->thread.hardwall && !cpumask_equal(&p->cpus_allowed, new_mask)) \
+		hardwall_deactivate(p); \
+} while (0)
+#endif
 
 /* Invoke the simulator "syscall" mechanism (see arch/tile/kernel/entry.S). */
 extern int _sim_syscall(int syscall_num, ...);
@@ -214,6 +238,12 @@ extern int _sim_syscall(int syscall_num, ...);
 	    current_thread_info()->homecache_cpu != smp_processor_id())   \
 		homecache_migrate_kthread();                              \
 } while (0)
+
+/* Support function for forking a new task. */
+void ret_from_fork(void);
+
+/* Called from ret_from_fork() when a new process starts up. */
+struct task_struct *sim_notify_fork(struct task_struct *prev);
 
 #endif /* !__ASSEMBLY__ */
 

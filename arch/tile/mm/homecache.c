@@ -46,7 +46,7 @@
  * locally from a remote home.  There's no point in using it if we
  * don't have coherent local caching, though.
  */
-int __write_once noallocl2;
+static int __write_once noallocl2;
 static int __init set_noallocl2(char *str)
 {
 	noallocl2 = 1;
@@ -60,13 +60,9 @@ early_param("noallocl2", set_noallocl2);
 
 #endif
 
-
-
 /* Provide no-op versions of these routines to keep flush_remote() cleaner. */
 #define mark_caches_evicted_start() 0
 #define mark_caches_evicted_finish(mask, timestamp) do {} while (0)
-
-
 
 
 /*
@@ -171,20 +167,12 @@ void flush_remote(unsigned long cache_pfn, unsigned long cache_control,
 	cpumask_scnprintf(cache_buf, sizeof(cache_buf), &cache_cpumask_copy);
 	cpumask_scnprintf(tlb_buf, sizeof(tlb_buf), &tlb_cpumask_copy);
 
-	printk("hv_flush_remote(%#llx, %#lx, %p [%s],"
+	pr_err("hv_flush_remote(%#llx, %#lx, %p [%s],"
 	       " %#lx, %#lx, %#lx, %p [%s], %p, %d) = %d\n",
 	       cache_pa, cache_control, cache_cpumask, cache_buf,
 	       (unsigned long)tlb_va, tlb_length, tlb_pgsize,
 	       tlb_cpumask, tlb_buf,
 	       asids, asidcount, rc);
-	if (asidcount > 0) {
-		int i;
-		printk(" asids:");
-		for (i = 0; i < asidcount; ++i)
-			printk(" %d,%d,%d",
-			       asids[i].x, asids[i].y, asids[i].asid);
-		printk("\n");
-	}
 	panic("Unsafe to continue.");
 }
 
@@ -293,7 +281,7 @@ pte_t pte_set_home(pte_t pte, int home)
 	 */
 	if (hv_pte_get_nc(pte) && home != PAGE_HOME_IMMUTABLE) {
 		pte = hv_pte_clear_nc(pte);
-		printk("non-immutable page incoherently referenced: %#llx\n",
+		pr_err("non-immutable page incoherently referenced: %#llx\n",
 		       pte.val);
 	}
 

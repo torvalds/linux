@@ -88,33 +88,13 @@ long compat_sys_sched_rr_get_interval(compat_pid_t pid,
 	mm_segment_t old_fs = get_fs();
 
 	set_fs(KERNEL_DS);
-	ret = sys_sched_rr_get_interval(pid, (struct timespec __user *)&t);
+	ret = sys_sched_rr_get_interval(pid,
+					(struct timespec __force __user *)&t);
 	set_fs(old_fs);
 	if (put_compat_timespec(&t, interval))
 		return -EFAULT;
 	return ret;
 }
-
-ssize_t compat_sys_sendfile(int out_fd, int in_fd, compat_off_t __user *offset,
-			    size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL,
-			   count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-	return ret;
-}
-
 
 /*
  * The usual compat_sys_msgsnd() and _msgrcv() seem to be assuming
@@ -177,6 +157,10 @@ long tile_compat_sys_msgrcv(int msqid,
 /* Pass full 64-bit values through ptrace. */
 #define compat_sys_ptrace tile_compat_sys_ptrace
 
+/*
+ * Note that we can't include <linux/unistd.h> here since the header
+ * guard will defeat us; <asm/unistd.h> checks for __SYSCALL as well.
+ */
 void *compat_sys_call_table[__NR_syscalls] = {
 	[0 ... __NR_syscalls-1] = sys_ni_syscall,
 #include <asm/unistd.h>

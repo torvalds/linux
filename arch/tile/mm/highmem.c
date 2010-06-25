@@ -121,7 +121,7 @@ static struct list_head amp_list = LIST_HEAD_INIT(amp_list);
 struct kmap_amps {
 	struct atomic_mapped_page per_type[KM_TYPE_NR];
 };
-DEFINE_PER_CPU(struct kmap_amps, amps);
+static DEFINE_PER_CPU(struct kmap_amps, amps);
 
 /*
  * Add a page and va, on this cpu, to the list of kmap_atomic pages,

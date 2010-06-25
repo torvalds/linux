@@ -67,7 +67,9 @@
 
 #define clear_pgd(pmdptr) (*(pmdptr) = hv_pte(0))
 
+#ifndef __tilegx__
 unsigned long VMALLOC_RESERVE = CONFIG_VMALLOC_RESERVE;
+#endif
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
@@ -282,9 +284,9 @@ static pgprot_t __init init_pgprot(ulong address)
 	/*
 	 * Everything else that isn't data or bss is heap, so mark it
 	 * with the initial heap home (hash-for-home, or this cpu).  This
-	 * includes any addresses after the loaded image; any address before
-	 * _einittext (since we already captured the case of text before
-	 * _sinittext); and any init-data pages.
+	 * includes any addresses after the loaded image and any address before
+	 * _einitdata, since we already captured the case of text before
+	 * _sinittext, and __pa(einittext) is approximately __pa(sinitdata).
 	 *
 	 * All the LOWMEM pages that we mark this way will get their
 	 * struct page homecache properly marked later, in set_page_homes().
@@ -292,9 +294,7 @@ static pgprot_t __init init_pgprot(ulong address)
 	 * homes, but with a zero free_time we don't have to actually
 	 * do a flush action the first time we use them, either.
 	 */
-	if (address >= (ulong) _end || address < (ulong) _sdata ||
-	    (address >= (ulong) _sinitdata &&
-	     address < (ulong) _einitdata))
+	if (address >= (ulong) _end || address < (ulong) _einitdata)
 		return construct_pgprot(PAGE_KERNEL, initial_heap_home());
 
 #if CHIP_HAS_CBOX_HOME_MAP()
@@ -304,35 +304,38 @@ static pgprot_t __init init_pgprot(ulong address)
 #endif
 
 	/*
+	 * Make the w1data homed like heap to start with, to avoid
+	 * making it part of the page-striped data area when we're just
+	 * going to convert it to read-only soon anyway.
+	 */
+	if (address >= (ulong)__w1data_begin && address < (ulong)__w1data_end)
+		return construct_pgprot(PAGE_KERNEL, initial_heap_home());
+
+	/*
 	 * Otherwise we just hand out consecutive cpus.  To avoid
 	 * requiring this function to hold state, we just walk forward from
 	 * _sdata by PAGE_SIZE, skipping the readonly and init data, to reach
 	 * the requested address, while walking cpu home around kdata_mask.
 	 * This is typically no more than a dozen or so iterations.
 	 */
-	BUG_ON(_einitdata != __bss_start);
-	for (page = (ulong)_sdata, cpu = NR_CPUS; ; ) {
-		cpu = cpumask_next(cpu, &kdata_mask);
-		if (cpu == NR_CPUS)
-			cpu = cpumask_first(&kdata_mask);
-		if (page >= address)
-			break;
-		page += PAGE_SIZE;
-		if (page == (ulong)__start_rodata)
-			page = (ulong)__end_rodata;
-		if (page == (ulong)&init_thread_union)
-			page += THREAD_SIZE;
-		if (page == (ulong)_sinitdata)
-			page = (ulong)_einitdata;
+	page = (((ulong)__w1data_end) + PAGE_SIZE - 1) & PAGE_MASK;
+	BUG_ON(address < page || address >= (ulong)_end);
+	cpu = cpumask_first(&kdata_mask);
+	for (; page < address; page += PAGE_SIZE) {
+		if (page >= (ulong)&init_thread_union &&
+		    page < (ulong)&init_thread_union + THREAD_SIZE)
+			continue;
 		if (page == (ulong)empty_zero_page)
-			page += PAGE_SIZE;
+			continue;
 #ifndef __tilegx__
 #if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
 		if (page == (ulong)atomic_locks)
-			page += PAGE_SIZE;
+			continue;
 #endif
 #endif
-
+		cpu = cpumask_next(cpu, &kdata_mask);
+		if (cpu == NR_CPUS)
+			cpu = cpumask_first(&kdata_mask);
 	}
 	return construct_pgprot(PAGE_KERNEL, cpu);
 }
@@ -362,7 +365,7 @@ static int __init setup_ktext(char *str)
 	/* If you have a leading "nocache", turn off ktext caching */
 	if (strncmp(str, "nocache", 7) == 0) {
 		ktext_nocache = 1;
-		printk("ktext: disabling local caching of kernel text\n");
+		pr_info("ktext: disabling local caching of kernel text\n");
 		str += 7;
 		if (*str == ',')
 			++str;
@@ -374,20 +377,20 @@ static int __init setup_ktext(char *str)
 
 	/* Default setting on Tile64: use a huge page */
 	if (strcmp(str, "huge") == 0)
-		printk("ktext: using one huge locally cached page\n");
+		pr_info("ktext: using one huge locally cached page\n");
 
 	/* Pay TLB cost but get no cache benefit: cache small pages locally */
 	else if (strcmp(str, "local") == 0) {
 		ktext_small = 1;
 		ktext_local = 1;
-		printk("ktext: using small pages with local caching\n");
+		pr_info("ktext: using small pages with local caching\n");
 	}
 
 	/* Neighborhood cache ktext pages on all cpus. */
 	else if (strcmp(str, "all") == 0) {
 		ktext_small = 1;
 		ktext_all = 1;
-		printk("ktext: using maximal caching neighborhood\n");
+		pr_info("ktext: using maximal caching neighborhood\n");
 	}
 
 
@@ -397,10 +400,10 @@ static int __init setup_ktext(char *str)
 		cpulist_scnprintf(buf, sizeof(buf), &ktext_mask);
 		if (cpumask_weight(&ktext_mask) > 1) {
 			ktext_small = 1;
-			printk("ktext: using caching neighborhood %s "
+			pr_info("ktext: using caching neighborhood %s "
 			       "with small pages\n", buf);
 		} else {
-			printk("ktext: caching on cpu %s with one huge page\n",
+			pr_info("ktext: caching on cpu %s with one huge page\n",
 			       buf);
 		}
 	}
@@ -470,19 +473,19 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 
 #if CHIP_HAS_CBOX_HOME_MAP()
 	if (ktext_arg_seen && ktext_hash) {
-		printk("warning: \"ktext\" boot argument ignored"
-		       " if \"kcache_hash\" sets up text hash-for-home\n");
+		pr_warning("warning: \"ktext\" boot argument ignored"
+			   " if \"kcache_hash\" sets up text hash-for-home\n");
 		ktext_small = 0;
 	}
 
 	if (kdata_arg_seen && kdata_hash) {
-		printk("warning: \"kdata\" boot argument ignored"
-		       " if \"kcache_hash\" sets up data hash-for-home\n");
+		pr_warning("warning: \"kdata\" boot argument ignored"
+			   " if \"kcache_hash\" sets up data hash-for-home\n");
 	}
 
 	if (kdata_huge && !hash_default) {
-		printk("warning: disabling \"kdata=huge\"; requires"
-		       " kcache_hash=all or =allbutstack\n");
+		pr_warning("warning: disabling \"kdata=huge\"; requires"
+			  " kcache_hash=all or =allbutstack\n");
 		kdata_huge = 0;
 	}
 #endif
@@ -556,11 +559,11 @@ static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
 		if (!cpumask_empty(&bad)) {
 			char buf[NR_CPUS * 5];
 			cpulist_scnprintf(buf, sizeof(buf), &bad);
-			printk("ktext: not using unavailable cpus %s\n", buf);
+			pr_info("ktext: not using unavailable cpus %s\n", buf);
 		}
 		if (cpumask_empty(&ktext_mask)) {
-			printk("ktext: no valid cpus; caching on %d.\n",
-			       smp_processor_id());
+			pr_warning("ktext: no valid cpus; caching on %d.\n",
+				   smp_processor_id());
 			cpumask_copy(&ktext_mask,
 				     cpumask_of(smp_processor_id()));
 		}
@@ -737,17 +740,18 @@ static void __init set_non_bootmem_pages_init(void)
 	for_each_zone(z) {
 		unsigned long start, end;
 		int nid = z->zone_pgdat->node_id;
+		int idx = zone_idx(z);
 
 		start = z->zone_start_pfn;
 		if (start == 0)
 			continue;  /* bootmem */
 		end = start + z->spanned_pages;
-		if (zone_idx(z) == ZONE_NORMAL) {
+		if (idx == ZONE_NORMAL) {
 			BUG_ON(start != node_start_pfn[nid]);
 			start = node_free_pfn[nid];
 		}
 #ifdef CONFIG_HIGHMEM
-		if (zone_idx(z) == ZONE_HIGHMEM)
+		if (idx == ZONE_HIGHMEM)
 			totalhigh_pages += z->spanned_pages;
 #endif
 		if (kdata_huge) {
@@ -841,9 +845,9 @@ void __init mem_init(void)
 #ifdef CONFIG_HIGHMEM
 	/* check that fixmap and pkmap do not overlap */
 	if (PKMAP_ADDR(LAST_PKMAP-1) >= FIXADDR_START) {
-		printk(KERN_ERR "fixmap and kmap areas overlap"
+		pr_err("fixmap and kmap areas overlap"
 		       " - this will crash\n");
-		printk(KERN_ERR "pkstart: %lxh pkend: %lxh fixstart %lxh\n",
+		pr_err("pkstart: %lxh pkend: %lxh fixstart %lxh\n",
 		       PKMAP_BASE, PKMAP_ADDR(LAST_PKMAP-1),
 		       FIXADDR_START);
 		BUG();
@@ -863,7 +867,7 @@ void __init mem_init(void)
 	initsize =  (unsigned long)&_einittext - (unsigned long)&_sinittext;
 	initsize += (unsigned long)&_einitdata - (unsigned long)&_sinitdata;
 
-	printk(KERN_INFO "Memory: %luk/%luk available (%dk kernel code, %dk data, %dk init, %ldk highmem)\n",
+	pr_info("Memory: %luk/%luk available (%dk kernel code, %dk data, %dk init, %ldk highmem)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
 		num_physpages << (PAGE_SHIFT-10),
 		codesize >> 10,
@@ -968,7 +972,6 @@ static void mark_w1data_ro(void)
 	BUG_ON((addr & (PAGE_SIZE-1)) != 0);
 	for (; addr <= (unsigned long)__w1data_end - 1; addr += PAGE_SIZE) {
 		unsigned long pfn = kaddr_to_pfn((void *)addr);
-		struct page *page = pfn_to_page(pfn);
 		pte_t *ptep = virt_to_pte(NULL, addr);
 		BUG_ON(pte_huge(*ptep));   /* not relevant for kdata_huge */
 		set_pte_at(&init_mm, addr, ptep, pfn_pte(pfn, PAGE_KERNEL_RO));
@@ -986,7 +989,7 @@ static long __write_once initfree = 1;
 static int __init set_initfree(char *str)
 {
 	strict_strtol(str, 0, &initfree);
-	printk("initfree: %s free init pages\n", initfree ? "will" : "won't");
+	pr_info("initfree: %s free init pages\n", initfree ? "will" : "won't");
 	return 1;
 }
 __setup("initfree=", set_initfree);
@@ -996,8 +999,8 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	unsigned long addr = (unsigned long) begin;
 
 	if (kdata_huge && !initfree) {
-		printk("Warning: ignoring initfree=0:"
-		       " incompatible with kdata=huge\n");
+		pr_warning("Warning: ignoring initfree=0:"
+			   " incompatible with kdata=huge\n");
 		initfree = 1;
 	}
 	end = (end + PAGE_SIZE - 1) & PAGE_MASK;
@@ -1033,7 +1036,7 @@ static void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		free_page(addr);
 		totalram_pages++;
 	}
-	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
+	pr_info("Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
 }
 
 void free_initmem(void)

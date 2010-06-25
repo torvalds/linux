@@ -25,19 +25,13 @@
 #include <linux/percpu.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 
-/*
- * This assembly function is provided in entry.S.
- * When called, it loops on a nap instruction forever.
- * FIXME: should be in a header somewhere.
- */
-extern void smp_nap(void);
-
 /* State of each CPU. */
-DEFINE_PER_CPU(int, cpu_state) = { 0 };
+static DEFINE_PER_CPU(int, cpu_state) = { 0 };
 
 /* The messaging code jumps to this pointer during boot-up */
 unsigned long start_cpu_function_addr;
@@ -74,7 +68,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	rc = sched_setaffinity(current->pid, cpumask_of(boot_cpu));
 	if (rc != 0)
-		printk("Couldn't set init affinity to boot cpu (%ld)\n", rc);
+		pr_err("Couldn't set init affinity to boot cpu (%ld)\n", rc);
 
 	/* Print information about disabled and dataplane cpus. */
 	print_disabled_cpus();
@@ -134,13 +128,13 @@ static __init int reset_init_affinity(void)
 {
 	long rc = sched_setaffinity(current->pid, &init_affinity);
 	if (rc != 0)
-		printk(KERN_WARNING "couldn't reset init affinity (%ld)\n",
+		pr_warning("couldn't reset init affinity (%ld)\n",
 		       rc);
 	return 0;
 }
 late_initcall(reset_init_affinity);
 
-struct cpumask cpu_started __cpuinitdata;
+static struct cpumask cpu_started __cpuinitdata;
 
 /*
  * Activate a secondary processor.  Very minimal; don't add anything
@@ -172,9 +166,6 @@ static void __cpuinit start_secondary(void)
 		BUG();
 	enter_lazy_tlb(&init_mm, current);
 
-	/* Enable IRQs. */
-	init_per_tile_IRQs();
-
 	/* Allow hypervisor messages to be received */
 	init_messaging();
 	local_irq_enable();
@@ -182,7 +173,7 @@ static void __cpuinit start_secondary(void)
 	/* Indicate that we're ready to come up. */
 	/* Must not do this before we're ready to receive messages */
 	if (cpumask_test_and_set_cpu(cpuid, &cpu_started)) {
-		printk(KERN_WARNING "CPU#%d already started!\n", cpuid);
+		pr_warning("CPU#%d already started!\n", cpuid);
 		for (;;)
 			local_irq_enable();
 	}
@@ -190,13 +181,10 @@ static void __cpuinit start_secondary(void)
 	smp_nap();
 }
 
-void setup_mpls(void);  /* from kernel/setup.c */
-void store_permanent_mappings(void);
-
 /*
  * Bring a secondary processor online.
  */
-void __cpuinit online_secondary()
+void __cpuinit online_secondary(void)
 {
 	/*
 	 * low-memory mappings have been cleared, flush them from
@@ -222,16 +210,13 @@ void __cpuinit online_secondary()
 	ipi_call_unlock();
 	__get_cpu_var(cpu_state) = CPU_ONLINE;
 
-	/* Set up MPLs for this processor */
-	setup_mpls();
-
+	/* Set up tile-specific state for this cpu. */
+	setup_cpu(0);
 
 	/* Set up tile-timer clock-event device on this cpu */
 	setup_tile_timer();
 
 	preempt_enable();
-
-	store_permanent_mappings();
 
 	cpu_idle();
 }
@@ -242,7 +227,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	static int timeout;
 	for (; !cpumask_test_cpu(cpu, &cpu_started); timeout++) {
 		if (timeout >= 50000) {
-			printk(KERN_INFO "skipping unresponsive cpu%d\n", cpu);
+			pr_info("skipping unresponsive cpu%d\n", cpu);
 			local_irq_enable();
 			return -EIO;
 		}
@@ -289,5 +274,5 @@ void __init smp_cpus_done(unsigned int max_cpus)
 		;
 	rc = sched_setaffinity(current->pid, cpumask_of(cpu));
 	if (rc != 0)
-		printk("Couldn't set init affinity to cpu %d (%d)\n", cpu, rc);
+		pr_err("Couldn't set init affinity to cpu %d (%d)\n", cpu, rc);
 }

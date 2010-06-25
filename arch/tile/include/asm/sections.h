@@ -25,7 +25,14 @@ extern char _sinitdata[], _einitdata[];
 /* Write-once data is writable only till the end of initialization. */
 extern char __w1data_begin[], __w1data_end[];
 
-extern char __feedback_section_start[], __feedback_section_end[];
+
+/* Not exactly sections, but PC comparison points in the code. */
+extern char __rt_sigreturn[], __rt_sigreturn_end[];
+#ifndef __tilegx__
+extern char sys_cmpxchg[], __sys_cmpxchg_end[];
+extern char __sys_cmpxchg_grab_lock[];
+extern char __start_atomic_asm_code[], __end_atomic_asm_code[];
+#endif
 
 /* Handle the discontiguity between _sdata and _stext. */
 static inline int arch_is_kernel_data(unsigned long addr)

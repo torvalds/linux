@@ -35,7 +35,7 @@ relax(int iterations)
 }
 
 /* Perform bounded exponential backoff.*/
-void delay_backoff(int iterations)
+static void delay_backoff(int iterations)
 {
 	u32 exponent, loops;
 

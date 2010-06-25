@@ -107,7 +107,7 @@ int apply_relocate(Elf_Shdr *sechdrs,
 		   unsigned int relsec,
 		   struct module *me)
 {
-	printk(KERN_ERR "module %s: .rel relocation unsupported\n", me->name);
+	pr_err("module %s: .rel relocation unsupported\n", me->name);
 	return -ENOEXEC;
 }
 
@@ -119,8 +119,8 @@ int apply_relocate(Elf_Shdr *sechdrs,
 static int validate_hw2_last(long value, struct module *me)
 {
 	if (((value << 16) >> 16) != value) {
-		printk("module %s: Out of range HW2_LAST value %#lx\n",
-		       me->name, value);
+		pr_warning("module %s: Out of range HW2_LAST value %#lx\n",
+			   me->name, value);
 		return 0;
 	}
 	return 1;
@@ -223,10 +223,10 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 			value -= (unsigned long) location;  /* pc-relative */
 			value = (long) value >> 3;     /* count by instrs */
 			if (!validate_jumpoff(value)) {
-				printk("module %s: Out of range jump to"
-				       " %#llx at %#llx (%p)\n", me->name,
-				       sym->st_value + rel[i].r_addend,
-				       rel[i].r_offset, location);
+				pr_warning("module %s: Out of range jump to"
+					   " %#llx at %#llx (%p)\n", me->name,
+					   sym->st_value + rel[i].r_addend,
+					   rel[i].r_offset, location);
 				return -ENOEXEC;
 			}
 			MUNGE(create_JumpOff_X1);
@@ -236,7 +236,7 @@ int apply_relocate_add(Elf_Shdr *sechdrs,
 #undef MUNGE
 
 		default:
-			printk(KERN_ERR "module %s: Unknown relocation: %d\n",
+			pr_err("module %s: Unknown relocation: %d\n",
 			       me->name, (int) ELF_R_TYPE(rel[i].r_info));
 			return -ENOEXEC;
 		}

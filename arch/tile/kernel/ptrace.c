@@ -19,6 +19,7 @@
 #include <linux/kprobes.h>
 #include <linux/compat.h>
 #include <linux/uaccess.h>
+#include <asm/traps.h>
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -76,7 +77,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	if (task_thread_info(child)->status & TS_COMPAT)
 		addr = (u32)addr;
 #endif
-	datap = (unsigned long __user *)data;
+	datap = (unsigned long __user __force *)data;
 
 	switch (request) {
 
