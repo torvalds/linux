@@ -10,6 +10,8 @@ TODO:
 - kill ttype.h
 - switch to use LIB80211
 - switch to use MAC80211
+- verify unsigned long usage for x86-64 arch
+- reduce .data footprint
 - use kernel coding style
 - checkpatch.pl fixes
 - sparse fixes
