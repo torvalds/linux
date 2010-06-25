@@ -931,7 +931,7 @@ out_free:	dev_kfree_skb(skb);
 
 	ssi = skb_shinfo(skb);
 	if (ssi->gso_size) {
-		struct cpl_tx_pkt_lso *lso = (void *)wr;
+		struct cpl_tx_pkt_lso_core *lso = (void *)(wr + 1);
 		bool v6 = (ssi->gso_type & SKB_GSO_TCPV6) != 0;
 		int l3hdr_len = skb_network_header_len(skb);
 		int eth_xtra_len = skb_network_offset(skb) - ETH_HLEN;
@@ -1718,7 +1718,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 					free_rx_bufs(q->adap, &rxq->fl, 1);
 					q->offset = 0;
 				}
-				len &= RSPD_LEN;
+				len = RSPD_LEN(len);
 			}
 			si.tot_len = len;
 
