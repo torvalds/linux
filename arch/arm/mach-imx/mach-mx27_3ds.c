@@ -22,6 +22,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/input/matrix_keypad.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
@@ -67,12 +68,34 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mxc_fec_device,
 };
 
+/*
+ * Matrix keyboard
+ */
+
+static const uint32_t mx27_3ds_keymap[] = {
+	KEY(0, 0, KEY_UP),
+	KEY(0, 1, KEY_DOWN),
+	KEY(1, 0, KEY_RIGHT),
+	KEY(1, 1, KEY_LEFT),
+	KEY(1, 2, KEY_ENTER),
+	KEY(2, 0, KEY_F6),
+	KEY(2, 1, KEY_F8),
+	KEY(2, 2, KEY_F9),
+	KEY(2, 3, KEY_F10),
+};
+
+static struct matrix_keymap_data mx27_3ds_keymap_data = {
+	.keymap		= mx27_3ds_keymap,
+	.keymap_size	= ARRAY_SIZE(mx27_3ds_keymap),
+};
+
 static void __init mx27pdk_init(void)
 {
 	mxc_gpio_setup_multiple_pins(mx27pdk_pins, ARRAY_SIZE(mx27pdk_pins),
 		"mx27pdk");
 	imx27_add_imx_uart0(&uart_pdata);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	mxc_register_device(&imx_kpp_device, &mx27_3ds_keymap_data);
 }
 
 static void __init mx27pdk_timer_init(void)
