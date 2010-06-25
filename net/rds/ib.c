@@ -336,11 +336,18 @@ static int rds_ib_laddr_check(__be32 addr)
 	return ret;
 }
 
+static void rds_ib_unregister_client(void)
+{
+	ib_unregister_client(&rds_ib_client);
+	/* wait for rds_ib_dev_free() to complete */
+	flush_workqueue(rds_wq);
+}
+
 void rds_ib_exit(void)
 {
 	rds_info_deregister_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
 	rds_ib_destroy_nodev_conns();
-	ib_unregister_client(&rds_ib_client);
+	rds_ib_unregister_client();
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();
 	rds_trans_unregister(&rds_ib_transport);
@@ -404,7 +411,7 @@ out_recv:
 out_sysctl:
 	rds_ib_sysctl_exit();
 out_ibreg:
-	ib_unregister_client(&rds_ib_client);
+	rds_ib_unregister_client();
 out:
 	return ret;
 }
