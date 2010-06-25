@@ -535,7 +535,16 @@ render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 		intel_ring_advance(dev, ring);
 	}
 
+	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+		intel_ring_begin(dev, ring, 2);
+		intel_ring_emit(dev, ring, MI_FLUSH |
+				MI_NO_WRITE_FLUSH |
+				MI_INVALIDATE_ISP );
+		intel_ring_emit(dev, ring, MI_NOOP);
+		intel_ring_advance(dev, ring);
+	}
 	/* XXX breadcrumb */
+
 	return 0;
 }
 
