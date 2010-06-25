@@ -445,8 +445,6 @@ static void atexit_header(void)
 static void event__synthesize_guest_os(struct machine *machine, void *data)
 {
 	int err;
-	char *guest_kallsyms;
-	char path[PATH_MAX];
 	struct perf_session *psession = data;
 
 	if (machine__is_host(machine))
@@ -465,13 +463,6 @@ static void event__synthesize_guest_os(struct machine *machine, void *data)
 	if (err < 0)
 		pr_err("Couldn't record guest kernel [%d]'s reference"
 		       " relocation symbol.\n", machine->pid);
-
-	if (machine__is_default_guest(machine))
-		guest_kallsyms = (char *) symbol_conf.default_guest_kallsyms;
-	else {
-		sprintf(path, "%s/proc/kallsyms", machine->root_dir);
-		guest_kallsyms = path;
-	}
 
 	/*
 	 * We use _stext for guest kernel because guest kernel's /proc/kallsyms
