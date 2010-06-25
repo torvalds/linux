@@ -332,6 +332,27 @@ EXPORT_SYMBOL_GPL(usb_hcd_pci_shutdown);
 
 #ifdef	CONFIG_PM_SLEEP
 
+#ifdef	CONFIG_PPC_PMAC
+static void powermac_set_asic(struct pci_dev *pci_dev, int enable)
+{
+	/* Enanble or disable ASIC clocks for USB */
+	if (machine_is(powermac)) {
+		struct device_node	*of_node;
+
+		of_node = pci_device_to_OF_node(pci_dev);
+		if (of_node)
+			pmac_call_feature(PMAC_FTR_USB_ENABLE,
+					of_node, 0, enable);
+	}
+}
+
+#else
+
+static inline void powermac_set_asic(struct pci_dev *pci_dev, int enable)
+{}
+
+#endif	/* CONFIG_PPC_PMAC */
+
 static int check_root_hub_suspended(struct device *dev)
 {
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
@@ -416,16 +437,7 @@ static int hcd_pci_suspend_noirq(struct device *dev)
 		return retval;
 	}
 
-#ifdef CONFIG_PPC_PMAC
-	/* Disable ASIC clocks for USB */
-	if (machine_is(powermac)) {
-		struct device_node	*of_node;
-
-		of_node = pci_device_to_OF_node(pci_dev);
-		if (of_node)
-			pmac_call_feature(PMAC_FTR_USB_ENABLE, of_node, 0, 0);
-	}
-#endif
+	powermac_set_asic(pci_dev, 0);
 	return retval;
 }
 
@@ -433,17 +445,7 @@ static int hcd_pci_resume_noirq(struct device *dev)
 {
 	struct pci_dev		*pci_dev = to_pci_dev(dev);
 
-#ifdef CONFIG_PPC_PMAC
-	/* Reenable ASIC clocks for USB */
-	if (machine_is(powermac)) {
-		struct device_node *of_node;
-
-		of_node = pci_device_to_OF_node(pci_dev);
-		if (of_node)
-			pmac_call_feature(PMAC_FTR_USB_ENABLE,
-						of_node, 0, 1);
-	}
-#endif
+	powermac_set_asic(pci_dev, 1);
 
 	/* Go back to D0 and disable remote wakeup */
 	pci_back_from_sleep(pci_dev);
