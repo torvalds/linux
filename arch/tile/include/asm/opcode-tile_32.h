@@ -28,6 +28,7 @@ typedef enum
   TILE_OPC_MOVELI_SN,
   TILE_OPC_MOVELIS,
   TILE_OPC_PREFETCH,
+  TILE_OPC_RAISE,
   TILE_OPC_ADD,
   TILE_OPC_ADD_SN,
   TILE_OPC_ADDB,
@@ -418,43 +419,6 @@ typedef enum
 #define TILE_ELF_MACHINE_CODE EM_TILEPRO
 
 #define TILE_ELF_NAME "elf32-tilepro"
-
-enum
-{
-  TILE_SN_MAX_OPERANDS = 6 /* route */
-};
-
-typedef enum
-{
-  TILE_SN_OPC_BZ,
-  TILE_SN_OPC_BNZ,
-  TILE_SN_OPC_JRR,
-  TILE_SN_OPC_FNOP,
-  TILE_SN_OPC_BLZ,
-  TILE_SN_OPC_NOP,
-  TILE_SN_OPC_MOVEI,
-  TILE_SN_OPC_MOVE,
-  TILE_SN_OPC_BGEZ,
-  TILE_SN_OPC_JR,
-  TILE_SN_OPC_BLEZ,
-  TILE_SN_OPC_BBNS,
-  TILE_SN_OPC_JALRR,
-  TILE_SN_OPC_BPT,
-  TILE_SN_OPC_JALR,
-  TILE_SN_OPC_SHR1,
-  TILE_SN_OPC_BGZ,
-  TILE_SN_OPC_BBS,
-  TILE_SN_OPC_SHL8II,
-  TILE_SN_OPC_ADDI,
-  TILE_SN_OPC_HALT,
-  TILE_SN_OPC_ROUTE,
-  TILE_SN_OPC_NONE
-} tile_sn_mnemonic;
-
-extern const unsigned char tile_sn_route_encode[6 * 6 * 6];
-extern const signed char tile_sn_route_decode[256][3];
-extern const char tile_sn_direction_names[6][5];
-extern const signed char tile_sn_dest_map[6][6];
 
 
 static __inline unsigned int
@@ -1387,8 +1351,6 @@ create_UnShOpcodeExtension_Y1(int num)
 }
 
 
-typedef unsigned short tile_sn_instruction_bits;
-
 
 typedef enum
 {
@@ -1519,41 +1481,10 @@ struct tile_opcode
    * index into the tile_operands[] table. */
   unsigned char operands[TILE_NUM_PIPELINE_ENCODINGS][TILE_MAX_OPERANDS];
 
-  /* A mask of which bits have predefined values for each pipeline.
-   * This is useful for disassembly. */
-  tile_bundle_bits fixed_bit_masks[TILE_NUM_PIPELINE_ENCODINGS];
-
-  /* For each bit set in fixed_bit_masks, what the value is for this
-   * instruction. */
-  tile_bundle_bits fixed_bit_values[TILE_NUM_PIPELINE_ENCODINGS];
 };
 
 extern const struct tile_opcode tile_opcodes[];
 
-struct tile_sn_opcode
-{
-  /* The opcode mnemonic, e.g. "add" */
-  const char *name;
-
-  /* The enum value for this mnemonic. */
-  tile_sn_mnemonic mnemonic;
-
-  /* How many operands are there? */
-  unsigned char num_operands;
-
-  /* The description of the operands. Each of these is an
-   * index into the tile_operands[] table. */
-  unsigned char operands[TILE_SN_MAX_OPERANDS];
-
-  /* A mask of which bits have predefined values.
-   * This is useful for disassembly. */
-  tile_sn_instruction_bits fixed_bit_mask;
-
-  /* For each bit set in fixed_bit_masks, what its value is. */
-  tile_sn_instruction_bits fixed_bit_values;
-};
-
-extern const struct tile_sn_opcode tile_sn_opcodes[];
 
 /* Used for non-textual disassembly into structs. */
 struct tile_decoded_instruction
@@ -1571,27 +1502,5 @@ extern int parse_insn_tile(tile_bundle_bits bits,
                            decoded[TILE_MAX_INSTRUCTIONS_PER_BUNDLE]);
 
 
-/* Canonical names of all the registers. */
-/* ISSUE: This table lives in "tile-dis.c" */
-extern const char * const tile_register_names[];
-
-/* Descriptor for a special-purpose register. */
-struct tile_spr
-{
-  /* The number */
-  int number;
-
-  /* The name */
-  const char *name;
-};
-
-/* List of all the SPRs; ordered by increasing number. */
-extern const struct tile_spr tile_sprs[];
-
-/* Number of special-purpose registers. */
-extern const int tile_num_sprs;
-
-extern const char *
-get_tile_spr_name (int num);
 
 #endif /* opcode_tile_h */
