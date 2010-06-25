@@ -748,7 +748,6 @@ int __netpoll_setup(struct netpoll *np)
 
 	/* last thing to do is link it to the net device structure */
 	rcu_assign_pointer(ndev->npinfo, npinfo);
-	rtnl_unlock();
 
 	return 0;
 
