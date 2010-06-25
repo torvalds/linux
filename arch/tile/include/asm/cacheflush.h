@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/cache.h>
 #include <asm/system.h>
+#include <arch/icache.h>
 
 /* Caches are physically-indexed and so don't need special treatment */
 #define flush_cache_all()			do { } while (0)
@@ -37,14 +38,8 @@
 #define flush_icache_page(vma, pg)		do { } while (0)
 #define flush_icache_user_range(vma, pg, adr, len)	do { } while (0)
 
-/* See "arch/tile/lib/__invalidate_icache.S". */
-extern void __invalidate_icache(unsigned long start, unsigned long size);
-
 /* Flush the icache just on this cpu */
-static inline void __flush_icache_range(unsigned long start, unsigned long end)
-{
-	__invalidate_icache(start, end - start);
-}
+extern void __flush_icache_range(unsigned long start, unsigned long end);
 
 /* Flush the entire icache on this cpu. */
 #define __flush_icache() __flush_icache_range(0, CHIP_L1I_CACHE_SIZE())

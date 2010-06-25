@@ -2,7 +2,7 @@
 # Makefile for TILE-specific library files..
 #
 
-lib-y = checksum.o cpumask.o delay.o __invalidate_icache.o \
+lib-y = cacheflush.o checksum.o cpumask.o delay.o \
 	mb_incoherent.o uaccess.o \
 	memcpy_$(BITS).o memchr_$(BITS).o memmove_$(BITS).o memset_$(BITS).o \
 	strchr_$(BITS).o strlen_$(BITS).o
