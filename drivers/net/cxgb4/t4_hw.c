@@ -2518,7 +2518,7 @@ int t4_cfg_pfvf(struct adapter *adap, unsigned int mbox, unsigned int pf,
 	c.retval_len16 = htonl(FW_LEN16(c));
 	c.niqflint_niq = htonl(FW_PFVF_CMD_NIQFLINT(rxqi) |
 			       FW_PFVF_CMD_NIQ(rxq));
-	c.cmask_to_neq = htonl(FW_PFVF_CMD_CMASK(cmask) |
+	c.type_to_neq = htonl(FW_PFVF_CMD_CMASK(cmask) |
 			       FW_PFVF_CMD_PMASK(pmask) |
 			       FW_PFVF_CMD_NEQ(txq));
 	c.tc_to_nexactf = htonl(FW_PFVF_CMD_TC(tc) | FW_PFVF_CMD_NVI(vi) |
