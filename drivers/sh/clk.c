@@ -354,10 +354,10 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 			ret = clk_reparent(clk, parent);
 
 		if (ret == 0) {
-			pr_debug("clock: set parent of %s to %s (new rate %ld)\n",
-				 clk->name, clk->parent->name, clk->rate);
 			if (clk->ops->recalc)
 				clk->rate = clk->ops->recalc(clk);
+			pr_debug("clock: set parent of %s to %s (new rate %ld)\n",
+				 clk->name, clk->parent->name, clk->rate);
 			propagate_rate(clk);
 		}
 	} else
