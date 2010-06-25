@@ -1898,6 +1898,10 @@ void tcp_close(struct sock *sk, long timeout)
 
 	sk_mem_reclaim(sk);
 
+	/* If socket has been already reset (e.g. in tcp_reset()) - kill it. */
+	if (sk->sk_state == TCP_CLOSE)
+		goto adjudge_to_death;
+
 	/* As outlined in RFC 2525, section 2.17, we send a RST here because
 	 * data was lost. To witness the awful effects of the old behavior of
 	 * always doing a FIN, run an older 2.1.x kernel or 2.0.x, start a bulk
