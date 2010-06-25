@@ -27,7 +27,7 @@
 #define DRIVER_DESC   "B.A.T.M.A.N. advanced"
 #define DRIVER_DEVICE "batman-adv"
 
-#define SOURCE_VERSION "2010.0.0"
+#define SOURCE_VERSION "maint"
 
 
 /* B.A.T.M.A.N. parameters */
