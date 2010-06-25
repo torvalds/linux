@@ -304,7 +304,7 @@ static int do_transfer(struct spectra_nand_dev *tr, struct request *req)
 			return 0;
 	}
 
-	if (!blk_fs_request(req))
+	if (req->cmd_type != REQ_TYPE_FS)
 		return -EIO;
 
 	if (blk_rq_pos(req) + blk_rq_cur_sectors(req) > get_capacity(tr->gd)) {
