@@ -284,6 +284,14 @@ struct iio_const_attr {
 	    .mask = _mask,						\
 	    .listel = &_ev_list };
 
+#define IIO_EVENT_ATTR_NAMED_SH(_vname, _name, _ev_list, _show, _store, _mask) \
+	static struct iio_event_attr					\
+	iio_event_attr_##_vname						\
+	= { .dev_attr = __ATTR(_name, S_IRUGO | S_IWUSR,		\
+			       _show, _store),				\
+	    .mask = _mask,						\
+	    .listel = &_ev_list };
+
 /**
  * IIO_EVENT_ATTR - non-shared event attribute
  * @_name: event name
