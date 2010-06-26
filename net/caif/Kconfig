@@ -21,19 +21,18 @@ menuconfig CAIF
 	See Documentation/networking/caif for a further explanation on how to
 	use and configure CAIF.
 
-if CAIF
-
 config  CAIF_DEBUG
 	bool "Enable Debug"
+	depends on CAIF
 	default n
 	--- help ---
 	Enable the inclusion of debug code in the CAIF stack.
 	Be aware that doing this will impact performance.
 	If unsure say N.
 
-
 config CAIF_NETDEV
 	tristate "CAIF GPRS Network device"
+	depends on CAIF
 	default CAIF
 	---help---
 	Say Y if you will be using a CAIF based GPRS network device.
@@ -41,5 +40,3 @@ config CAIF_NETDEV
 	If you select to build it as a built-in then the main CAIF device must
 	also be a built-in.
 	If unsure say Y.
-
-endif
