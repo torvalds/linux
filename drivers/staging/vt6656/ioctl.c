@@ -676,7 +676,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 //DavidWang
 
 if(wpa_Result.authenticated==TRUE) {
-   #ifdef SndEvt_ToAPI
    {
      union iwreq_data      wrqu;
 
@@ -687,7 +686,6 @@ if(wpa_Result.authenticated==TRUE) {
      wrqu.data.length =pItemSSID->len;
      wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, pItemSSID->abySSID);
    }
-   #endif
          pDevice->fWPA_Authened = TRUE;           //is successful peer to wpa_Result.authenticated?
 }
 

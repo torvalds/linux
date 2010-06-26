@@ -71,9 +71,6 @@
 #define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #endif
 
-//2007-0920-01<Add>by MikeLiu
-#ifndef SndEvt_ToAPI
-#define SndEvt_ToAPI
 //please copy below macro to driver_event.c for API
 #define RT_INSMOD_EVENT_FLAG                             0x0101
 #define RT_UPDEV_EVENT_FLAG                               0x0102
@@ -81,7 +78,6 @@
 #define RT_WPACONNECTED_EVENT_FLAG             0x0104
 #define RT_DOWNDEV_EVENT_FLAG                        0x0105
 #define RT_RMMOD_EVENT_FLAG                              0x0106
-#endif
 
 //
 // device specific

@@ -1005,7 +1005,6 @@ if(pDevice->byReAssocCount > 0) {
    	pDevice->byReAssocCount = 0;
 }
 
-#ifdef SndEvt_ToAPI
 if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
      (pMgmt->eLastState==WMAC_STATE_ASSOC))
 {
@@ -1015,7 +1014,6 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
   wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
 }
  pMgmt->eLastState = pMgmt->eCurrState ;
-#endif
 
 #ifdef Calcu_LinkQual
    s_uCalculateLinkQual((void *)pDevice);

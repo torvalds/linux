@@ -813,7 +813,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
          usb_device_reset(pDevice);
 
-#ifdef SndEvt_ToAPI
 {
   union iwreq_data      wrqu;
   memset(&wrqu, 0, sizeof(wrqu));
@@ -821,7 +820,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
   wrqu.data.length =IFNAMSIZ;
   wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, pDevice->dev->name);
 }
-#endif
 
 	return 0;
 
@@ -1161,14 +1159,12 @@ static int  device_open(struct net_device *dev) {
     netif_stop_queue(pDevice->dev);
     pDevice->flags |= DEVICE_FLAGS_OPENED;
 
-#ifdef SndEvt_ToAPI
 {
   union iwreq_data      wrqu;
   memset(&wrqu, 0, sizeof(wrqu));
   wrqu.data.flags = RT_UPDEV_EVENT_FLAG;
   wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
 }
-#endif
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success.. \n");
     return 0;
@@ -1200,14 +1196,12 @@ static int  device_close(struct net_device *dev) {
     if (pDevice == NULL)
         return -ENODEV;
 
-#ifdef SndEvt_ToAPI
 {
   union iwreq_data      wrqu;
   memset(&wrqu, 0, sizeof(wrqu));
   wrqu.data.flags = RT_DOWNDEV_EVENT_FLAG;
   wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
 }
-#endif
 
 //2007-1121-02<Add>by EinsnLiu
     if (pDevice->bLinkPass) {
@@ -1283,14 +1277,12 @@ static void __devexit vt6656_disconnect(struct usb_interface *intf)
 	if (!device)
 		return;
 
-#ifdef SndEvt_ToAPI
 	{
 		union iwreq_data req;
 		memset(&req, 0, sizeof(req));
 		req.data.flags = RT_RMMOD_EVENT_FLAG;
 		wireless_send_event(device->dev, IWEVCUSTOM, &req, NULL);
 	}
-#endif
 
 	device_release_WPADEV(device);
 

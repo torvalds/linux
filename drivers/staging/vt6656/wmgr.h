@@ -259,9 +259,7 @@ typedef struct tagSMgmtObject
     // Operation state variables
     WMAC_CURRENT_MODE       eCurrMode;   // MAC current connection mode
     WMAC_BSS_STATE          eCurrState;  // MAC current BSS state
-    #ifdef SndEvt_ToAPI
     WMAC_BSS_STATE          eLastState;  // MAC last BSS state
-    #endif
 
     PKnownBSS               pCurrBSS;
     BYTE                    byCSSGK;
