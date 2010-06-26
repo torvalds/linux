@@ -1098,7 +1098,10 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 			err++;
 		}
 		break;
-		/*  TRIG_EXT doesn't care since it doesn't trigger off a numbered channel */
+		/*
+		 * TRIG_EXT doesn't care since it doesn't
+		 * trigger off a numbered channel
+		 */
 	default:
 		break;
 	}
@@ -1156,25 +1159,35 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/*  setup hardware conversion counter */
 	if (cmd->stop_src == TRIG_EXT) {
-		/*  load counter a1 with count of 3 (pc+ manual says this is minimum allowed) using mode 0 */
+		/*
+		 * load counter a1 with count of 3
+		 * (pc+ manual says this is minimum allowed) using mode 0
+		 */
 		ret = labpc_counter_load(dev, dev->iobase + COUNTER_A_BASE_REG,
 					 1, 3, 0);
 		if (ret < 0) {
 			comedi_error(dev, "error loading counter a1");
 			return -1;
 		}
-	} else			/*  otherwise, just put a1 in mode 0 with no count to set its output low */
+	} else			/*
+				 * otherwise, just put a1 in mode 0
+				 * with no count to set its output low
+				 */
 		devpriv->write_byte(INIT_A1_BITS,
 				    dev->iobase + COUNTER_A_CONTROL_REG);
 
 	/*  figure out what method we will use to transfer data */
 	if (devpriv->dma_chan &&	/*  need a dma channel allocated */
-	    /*  dma unsafe at RT priority, and too much setup time for TRIG_WAKE_EOS for */
+		/*
+		 * dma unsafe at RT priority,
+		 * and too much setup time for TRIG_WAKE_EOS for
+		 */
 	    (cmd->flags & (TRIG_WAKE_EOS | TRIG_RT)) == 0 &&
 	    /*  only available on the isa boards */
 	    thisboard->bustype == isa_bustype) {
 		xfer = isa_dma_transfer;
-	} else if (thisboard->register_layout == labpc_1200_layout &&	/*  pc-plus has no fifo-half full interrupt */
+		/* pc-plus has no fifo-half full interrupt */
+	} else if (thisboard->register_layout == labpc_1200_layout &&
 		   /*  wake-end-of-scan should interrupt on fifo not empty */
 		   (cmd->flags & TRIG_WAKE_EOS) == 0 &&
 		   /*  make sure we are taking more than just a few points */
@@ -1621,7 +1634,10 @@ static int labpc_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		devpriv->command4_bits |= ADC_DIFF_BIT;
 	devpriv->write_byte(devpriv->command4_bits, dev->iobase + COMMAND4_REG);
 
-	/* initialize pacer counter output to make sure it doesn't cause any problems */
+	/*
+	 * initialize pacer counter output to make sure it doesn't
+	 * cause any problems
+	 */
 	devpriv->write_byte(INIT_A0_BITS, dev->iobase + COUNTER_A_CONTROL_REG);
 
 	labpc_clear_adc_fifo(dev);
@@ -1846,7 +1862,10 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 		unsigned int scan_period;
 
 		scan_period = labpc_ai_scan_period(cmd);
-		/* calculate cascaded counter values that give desired scan timing */
+		/*
+		 * calculate cascaded counter values
+		 * that give desired scan timing
+		 */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
 					       &(devpriv->divisor_b1),
 					       &(devpriv->divisor_b0),
@@ -1857,7 +1876,10 @@ static void labpc_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
 		unsigned int convert_period;
 
 		convert_period = labpc_ai_convert_period(cmd);
-		/* calculate cascaded counter values that give desired conversion timing */
+		/*
+		 * calculate cascaded counter values
+		 * that give desired conversion timing
+		 */
 		i8253_cascade_ns_to_timer_2div(LABPC_TIMER_BASE,
 					       &(devpriv->divisor_a0),
 					       &(devpriv->divisor_b0),
