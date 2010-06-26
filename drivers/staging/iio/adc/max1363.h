@@ -32,14 +32,6 @@
 
 /* Specific to the max1363 */
 #define MAX1363_MON_RESET_CHAN(a) (1 << ((a) + 4))
-#define MAX1363_MON_CONV_RATE_133ksps		0
-#define MAX1363_MON_CONV_RATE_66_5ksps		0x02
-#define MAX1363_MON_CONV_RATE_33_3ksps		0x04
-#define MAX1363_MON_CONV_RATE_16_6ksps		0x06
-#define MAX1363_MON_CONV_RATE_8_3ksps		0x08
-#define MAX1363_MON_CONV_RATE_4_2ksps		0x0A
-#define MAX1363_MON_CONV_RATE_2_0ksps		0x0C
-#define MAX1363_MON_CONV_RATE_1_0ksps		0x0E
 #define MAX1363_MON_INT_ENABLE			0x01
 
 /* defined for readability reasons */
@@ -67,9 +59,8 @@
 
 /**
  * struct max1363_mode - scan mode information
- * @name:	Name used to identify the scan mode.
  * @conf:	The corresponding value of the configuration register
- * @numvals:	The number of values returned by a single scan
+ * @modemask:	Bit mask corresponding to channels enabled in this mode
  */
 struct max1363_mode {
 	int8_t		conf;
@@ -121,15 +112,6 @@ struct max1363_mode {
 			| MAX1363_CONFIG_SE,				\
 			.modemask = _mask				\
 }
-
-/* Not currently handled */
-#define MAX1363_MODE_MONITOR {					\
-		.name = "monitor",				\
-			.conf = MAX1363_CHANNEL_SEL(3)		\
-			| MAX1363_CONFIG_SCAN_MONITOR_MODE	\
-			| MAX1363_CONFIG_SE,			\
-			.numvals = 10,				\
-		}
 
 /* This may seem an overly long winded way to do this, but at least it makes
  * clear what all the various options actually do. Alternative suggestions
@@ -190,7 +172,6 @@ struct max1363_chip_info {
 	struct attribute_group		*scan_attrs;
 };
 
-
 /**
  * struct max1363_state - driver instance specific data
  * @indio_dev:		the industrial I/O device
@@ -203,12 +184,20 @@ struct max1363_chip_info {
  * @poll_work:		bottom half of polling interrupt handler
  * @protect_ring:	used to ensure only one polling bh running at a time
  * @reg:		supply regulator
+ * @monitor_on:		whether monitor mode is enabled
+ * @monitor_speed:	parameter corresponding to device monitor speed setting
+ * @mask_high:		bitmask for enabled high thresholds
+ * @mask_low:		bitmask for enabled low thresholds
+ * @thresh_high:	high threshold values
+ * @thresh_low:		low threshold values
+ * @last_timestamp:	timestamp of last event interrupt
+ * @thresh_work:	bh work structure for event handling
  */
 struct max1363_state {
 	struct iio_dev			*indio_dev;
 	struct i2c_client		*client;
-	char				setupbyte;
-	char				configbyte;
+	u8				setupbyte;
+	u8				configbyte;
 	const struct max1363_chip_info	*chip_info;
 	const struct max1363_mode	*current_mode;
 	u32				requestedmask;
@@ -216,6 +205,18 @@ struct max1363_state {
 	atomic_t			protect_ring;
 	struct iio_trigger		*trig;
 	struct regulator		*reg;
+
+	/* Using monitor modes and buffer at the same time is
+	   currently not supported */
+	bool				monitor_on;
+	unsigned int			monitor_speed:3;
+	u8				mask_high;
+	u8				mask_low;
+	/* 4x unipolar first then the fours bipolar ones */
+	s16				thresh_high[8];
+	s16				thresh_low[8];
+	s64				last_timestamp;
+	struct work_struct		thresh_work;
 };
 
 const struct max1363_mode
