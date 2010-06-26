@@ -89,7 +89,7 @@ static void hrtimer_get_softirq_time(struct hrtimer_cpu_base *base)
 
 	do {
 		seq = read_seqbegin(&xtime_lock);
-		xts = current_kernel_time();
+		xts = __current_kernel_time();
 		tom = wall_to_monotonic;
 	} while (read_seqretry(&xtime_lock, seq));
 

@@ -26,9 +26,14 @@
 
 /*
  * The max size that a non-root user is allowed to grow the pipe. Can
- * be set by root in /proc/sys/fs/pipe-max-pages
+ * be set by root in /proc/sys/fs/pipe-max-size
  */
-unsigned int pipe_max_pages = PIPE_DEF_BUFFERS * 16;
+unsigned int pipe_max_size = 1048576;
+
+/*
+ * Minimum pipe size, as required by POSIX
+ */
+unsigned int pipe_min_size = PAGE_SIZE;
 
 /*
  * We use a start+len construction, which provides full use of the 
@@ -230,6 +235,7 @@ void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
 
 	return kmap(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_map);
 
 /**
  * generic_pipe_buf_unmap - unmap a previously mapped pipe buffer
@@ -249,6 +255,7 @@ void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
 	} else
 		kunmap(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_unmap);
 
 /**
  * generic_pipe_buf_steal - attempt to take ownership of a &pipe_buffer
@@ -279,6 +286,7 @@ int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 
 	return 1;
 }
+EXPORT_SYMBOL(generic_pipe_buf_steal);
 
 /**
  * generic_pipe_buf_get - get a reference to a &struct pipe_buffer
@@ -294,6 +302,7 @@ void generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	page_cache_get(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_get);
 
 /**
  * generic_pipe_buf_confirm - verify contents of the pipe buffer
@@ -309,6 +318,7 @@ int generic_pipe_buf_confirm(struct pipe_inode_info *info,
 {
 	return 0;
 }
+EXPORT_SYMBOL(generic_pipe_buf_confirm);
 
 /**
  * generic_pipe_buf_release - put a reference to a &struct pipe_buffer
@@ -323,6 +333,7 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 {
 	page_cache_release(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_release);
 
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
@@ -1112,15 +1123,9 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
  * Allocate a new array of pipe buffers and copy the info over. Returns the
  * pipe size if successful, or return -ERROR on error.
  */
-static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long nr_pages)
 {
 	struct pipe_buffer *bufs;
-
-	/*
-	 * Must be a power-of-2 currently
-	 */
-	if (!is_power_of_2(arg))
-		return -EINVAL;
 
 	/*
 	 * We can shrink the pipe, if arg >= pipe->nrbufs. Since we don't
@@ -1128,10 +1133,10 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	 * again like we would do for growing. If the pipe currently
 	 * contains more buffers than arg, then return busy.
 	 */
-	if (arg < pipe->nrbufs)
+	if (nr_pages < pipe->nrbufs)
 		return -EBUSY;
 
-	bufs = kcalloc(arg, sizeof(struct pipe_buffer), GFP_KERNEL);
+	bufs = kcalloc(nr_pages, sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (unlikely(!bufs))
 		return -ENOMEM;
 
@@ -1140,20 +1145,56 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	 * and adjust the indexes.
 	 */
 	if (pipe->nrbufs) {
-		const unsigned int tail = pipe->nrbufs & (pipe->buffers - 1);
-		const unsigned int head = pipe->nrbufs - tail;
+		unsigned int tail;
+		unsigned int head;
 
+		tail = pipe->curbuf + pipe->nrbufs;
+		if (tail < pipe->buffers)
+			tail = 0;
+		else
+			tail &= (pipe->buffers - 1);
+
+		head = pipe->nrbufs - tail;
 		if (head)
 			memcpy(bufs, pipe->bufs + pipe->curbuf, head * sizeof(struct pipe_buffer));
 		if (tail)
-			memcpy(bufs + head, pipe->bufs + pipe->curbuf, tail * sizeof(struct pipe_buffer));
+			memcpy(bufs + head, pipe->bufs, tail * sizeof(struct pipe_buffer));
 	}
 
 	pipe->curbuf = 0;
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
-	pipe->buffers = arg;
-	return arg;
+	pipe->buffers = nr_pages;
+	return nr_pages * PAGE_SIZE;
+}
+
+/*
+ * Currently we rely on the pipe array holding a power-of-2 number
+ * of pages.
+ */
+static inline unsigned int round_pipe_size(unsigned int size)
+{
+	unsigned long nr_pages;
+
+	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	return roundup_pow_of_two(nr_pages) << PAGE_SHIFT;
+}
+
+/*
+ * This should work even if CONFIG_PROC_FS isn't set, as proc_dointvec_minmax
+ * will return an error.
+ */
+int pipe_proc_fn(struct ctl_table *table, int write, void __user *buf,
+		 size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buf, lenp, ppos);
+	if (ret < 0 || !write)
+		return ret;
+
+	pipe_max_size = round_pipe_size(pipe_max_size);
+	return ret;
 }
 
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1168,25 +1209,32 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	mutex_lock(&pipe->inode->i_mutex);
 
 	switch (cmd) {
-	case F_SETPIPE_SZ:
-		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages)
-			return -EINVAL;
-		/*
-		 * The pipe needs to be at least 2 pages large to
-		 * guarantee POSIX behaviour.
-		 */
-		if (arg < 2)
-			return -EINVAL;
-		ret = pipe_set_size(pipe, arg);
+	case F_SETPIPE_SZ: {
+		unsigned int size, nr_pages;
+
+		size = round_pipe_size(arg);
+		nr_pages = size >> PAGE_SHIFT;
+
+		ret = -EINVAL;
+		if (!nr_pages)
+			goto out;
+
+		if (!capable(CAP_SYS_RESOURCE) && size > pipe_max_size) {
+			ret = -EPERM;
+			goto out;
+		}
+		ret = pipe_set_size(pipe, nr_pages);
 		break;
+		}
 	case F_GETPIPE_SZ:
-		ret = pipe->buffers;
+		ret = pipe->buffers * PAGE_SIZE;
 		break;
 	default:
 		ret = -EINVAL;
 		break;
 	}
 
+out:
 	mutex_unlock(&pipe->inode->i_mutex);
 	return ret;
 }

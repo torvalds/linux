@@ -221,8 +221,6 @@ enum {
 extern struct kmem_cache *nilfs_transaction_cachep;
 
 /* segment.c */
-extern int nilfs_init_transaction_cache(void);
-extern void nilfs_destroy_transaction_cache(void);
 extern void nilfs_relax_pressure_in_lock(struct super_block *);
 
 extern int nilfs_construct_segment(struct super_block *);

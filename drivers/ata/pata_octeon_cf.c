@@ -750,20 +750,6 @@ static void octeon_cf_dev_config(struct ata_device *dev)
 }
 
 /*
- * Trap if driver tries to do standard bmdma commands.  They are not
- * supported.
- */
-static void unreachable_qc(struct ata_queued_cmd *qc)
-{
-	BUG();
-}
-
-static u8 unreachable_port(struct ata_port *ap)
-{
-	BUG();
-}
-
-/*
  * We don't do ATAPI DMA so return 0.
  */
 static int octeon_cf_check_atapi_dma(struct ata_queued_cmd *qc)
@@ -804,10 +790,6 @@ static struct ata_port_operations octeon_cf_ops = {
 	.sff_dev_select		= octeon_cf_dev_select,
 	.sff_irq_on		= octeon_cf_irq_on,
 	.sff_irq_clear		= octeon_cf_irq_clear,
-	.bmdma_setup		= unreachable_qc,
-	.bmdma_start		= unreachable_qc,
-	.bmdma_stop		= unreachable_qc,
-	.bmdma_status		= unreachable_port,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= octeon_cf_set_piomode,
 	.set_dmamode		= octeon_cf_set_dmamode,

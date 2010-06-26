@@ -38,7 +38,7 @@
 
 #define nr_syscalls ((syscall_table_size)/4)
 
-	.section	.text.entry
+	.section	.text..entry
 	.balign		4
 
 .macro LEDS val

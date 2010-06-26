@@ -69,7 +69,7 @@ struct inode *ceph_get_snapdir(struct inode *parent)
 
 	BUG_ON(!S_ISDIR(parent->i_mode));
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return inode;
 	inode->i_mode = parent->i_mode;
 	inode->i_uid = parent->i_uid;
 	inode->i_gid = parent->i_gid;
@@ -827,7 +827,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 
 	spin_lock(&dcache_lock);
 	spin_lock(&dn->d_lock);
-	list_move_tail(&dir->d_subdirs, &dn->d_u.d_child);
+	list_move(&dn->d_u.d_child, &dir->d_subdirs);
 	dout("set_dentry_offset %p %lld (%p %p)\n", dn, di->offset,
 	     dn->d_u.d_child.prev, dn->d_u.d_child.next);
 	spin_unlock(&dn->d_lock);

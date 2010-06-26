@@ -60,95 +60,95 @@ extern int intel_agp_enabled;
 	.subdevice = PCI_ANY_ID,		\
 	.driver_data = (unsigned long) info }
 
-const static struct intel_device_info intel_i830_info = {
+static const struct intel_device_info intel_i830_info = {
 	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
 };
 
-const static struct intel_device_info intel_845g_info = {
+static const struct intel_device_info intel_845g_info = {
 	.is_i8xx = 1,
 };
 
-const static struct intel_device_info intel_i85x_info = {
+static const struct intel_device_info intel_i85x_info = {
 	.is_i8xx = 1, .is_i85x = 1, .is_mobile = 1,
 	.cursor_needs_physical = 1,
 };
 
-const static struct intel_device_info intel_i865g_info = {
+static const struct intel_device_info intel_i865g_info = {
 	.is_i8xx = 1,
 };
 
-const static struct intel_device_info intel_i915g_info = {
+static const struct intel_device_info intel_i915g_info = {
 	.is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
 };
-const static struct intel_device_info intel_i915gm_info = {
+static const struct intel_device_info intel_i915gm_info = {
 	.is_i9xx = 1,  .is_mobile = 1,
 	.cursor_needs_physical = 1,
 };
-const static struct intel_device_info intel_i945g_info = {
+static const struct intel_device_info intel_i945g_info = {
 	.is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
 };
-const static struct intel_device_info intel_i945gm_info = {
+static const struct intel_device_info intel_i945gm_info = {
 	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 };
 
-const static struct intel_device_info intel_i965g_info = {
+static const struct intel_device_info intel_i965g_info = {
 	.is_i965g = 1, .is_i9xx = 1, .has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_i965gm_info = {
+static const struct intel_device_info intel_i965gm_info = {
 	.is_i965g = 1, .is_mobile = 1, .is_i965gm = 1, .is_i9xx = 1,
 	.is_mobile = 1, .has_fbc = 1, .has_rc6 = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_g33_info = {
+static const struct intel_device_info intel_g33_info = {
 	.is_g33 = 1, .is_i9xx = 1, .need_gfx_hws = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_g45_info = {
+static const struct intel_device_info intel_g45_info = {
 	.is_i965g = 1, .is_g4x = 1, .is_i9xx = 1, .need_gfx_hws = 1,
 	.has_pipe_cxsr = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_gm45_info = {
+static const struct intel_device_info intel_gm45_info = {
 	.is_i965g = 1, .is_mobile = 1, .is_g4x = 1, .is_i9xx = 1,
 	.is_mobile = 1, .need_gfx_hws = 1, .has_fbc = 1, .has_rc6 = 1,
 	.has_pipe_cxsr = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_pineview_info = {
+static const struct intel_device_info intel_pineview_info = {
 	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
 	.need_gfx_hws = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_ironlake_d_info = {
+static const struct intel_device_info intel_ironlake_d_info = {
 	.is_ironlake = 1, .is_i965g = 1, .is_i9xx = 1, .need_gfx_hws = 1,
 	.has_pipe_cxsr = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_ironlake_m_info = {
+static const struct intel_device_info intel_ironlake_m_info = {
 	.is_ironlake = 1, .is_mobile = 1, .is_i965g = 1, .is_i9xx = 1,
 	.need_gfx_hws = 1, .has_rc6 = 1,
 	.has_hotplug = 1,
 };
 
-const static struct intel_device_info intel_sandybridge_d_info = {
+static const struct intel_device_info intel_sandybridge_d_info = {
 	.is_i965g = 1, .is_i9xx = 1, .need_gfx_hws = 1,
 	.has_hotplug = 1, .is_gen6 = 1,
 };
 
-const static struct intel_device_info intel_sandybridge_m_info = {
+static const struct intel_device_info intel_sandybridge_m_info = {
 	.is_i965g = 1, .is_mobile = 1, .is_i9xx = 1, .need_gfx_hws = 1,
 	.has_hotplug = 1, .is_gen6 = 1,
 };
 
-const static struct pci_device_id pciidlist[] = {
+static const struct pci_device_id pciidlist[] = {
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
 	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),
@@ -340,7 +340,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	/*
 	 * Clear request list
 	 */
-	i915_gem_retire_requests(dev);
+	i915_gem_retire_requests(dev, &dev_priv->render_ring);
 
 	if (need_display)
 		i915_save_display(dev);
@@ -370,6 +370,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 		}
 	} else {
 		DRM_ERROR("Error occurred. Don't know how to reset this chip.\n");
+		mutex_unlock(&dev->struct_mutex);
 		return -ENODEV;
 	}
 
@@ -388,33 +389,10 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 * switched away).
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-	    !dev_priv->mm.suspended) {
-		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
-		struct drm_gem_object *obj = ring->ring_obj;
-		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+			!dev_priv->mm.suspended) {
+		struct intel_ring_buffer *ring = &dev_priv->render_ring;
 		dev_priv->mm.suspended = 0;
-
-		/* Stop the ring if it's running. */
-		I915_WRITE(PRB0_CTL, 0);
-		I915_WRITE(PRB0_TAIL, 0);
-		I915_WRITE(PRB0_HEAD, 0);
-
-		/* Initialize the ring. */
-		I915_WRITE(PRB0_START, obj_priv->gtt_offset);
-		I915_WRITE(PRB0_CTL,
-			   ((obj->size - 4096) & RING_NR_PAGES) |
-			   RING_NO_REPORT |
-			   RING_VALID);
-		if (!drm_core_check_feature(dev, DRIVER_MODESET))
-			i915_kernel_lost_context(dev);
-		else {
-			ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-			ring->tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
-			ring->space = ring->head - (ring->tail + 8);
-			if (ring->space < 0)
-				ring->space += ring->Size;
-		}
-
+		ring->init(dev, ring);
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);

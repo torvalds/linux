@@ -328,6 +328,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
 	int is_udp4;
+	bool slow;
 
 	if (addr_len)
 		*addr_len=sizeof(struct sockaddr_in6);
@@ -424,7 +425,7 @@ out:
 	return err;
 
 csum_copy_err:
-	lock_sock_bh(sk);
+	slow = lock_sock_fast(sk);
 	if (!skb_kill_datagram(sk, skb, flags)) {
 		if (is_udp4)
 			UDP_INC_STATS_USER(sock_net(sk),
@@ -433,7 +434,7 @@ csum_copy_err:
 			UDP6_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
 	}
-	unlock_sock_bh(sk);
+	unlock_sock_fast(sk, slow);
 
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;

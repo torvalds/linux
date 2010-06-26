@@ -485,6 +485,7 @@ struct perf_guest_info_callbacks {
 #include <linux/ftrace.h>
 #include <linux/cpu.h>
 #include <asm/atomic.h>
+#include <asm/local.h>
 
 #define PERF_MAX_STACK_DEPTH		255
 
@@ -584,24 +585,22 @@ enum perf_event_active_state {
 struct file;
 
 struct perf_mmap_data {
+	atomic_t			refcount;
 	struct rcu_head			rcu_head;
 #ifdef CONFIG_PERF_USE_VMALLOC
 	struct work_struct		work;
+	int				page_order;	/* allocation order  */
 #endif
-	int				data_order;
 	int				nr_pages;	/* nr of data pages  */
 	int				writable;	/* are we writable   */
-	int				nr_locked;	/* nr pages mlocked  */
 
 	atomic_t			poll;		/* POLL_ for wakeups */
-	atomic_t			events;		/* event_id limit       */
 
-	atomic_long_t			head;		/* write position    */
-	atomic_long_t			done_head;	/* completed head    */
-
-	atomic_t			lock;		/* concurrent writes */
-	atomic_t			wakeup;		/* needs a wakeup    */
-	atomic_t			lost;		/* nr records lost   */
+	local_t				head;		/* write position    */
+	local_t				nest;		/* nested writers    */
+	local_t				events;		/* event limit       */
+	local_t				wakeup;		/* wakeup stamp      */
+	local_t				lost;		/* nr records lost   */
 
 	long				watermark;	/* wakeup watermark  */
 
@@ -632,6 +631,9 @@ struct swevent_hlist {
 	struct rcu_head		rcu_head;
 };
 
+#define PERF_ATTACH_CONTEXT	0x01
+#define PERF_ATTACH_GROUP	0x02
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -644,10 +646,10 @@ struct perf_event {
 	int				nr_siblings;
 	int				group_flags;
 	struct perf_event		*group_leader;
-	struct perf_event		*output;
 	const struct pmu		*pmu;
 
 	enum perf_event_active_state	state;
+	unsigned int			attach_state;
 	atomic64_t			count;
 
 	/*
@@ -705,6 +707,8 @@ struct perf_event {
 	/* mmap bits */
 	struct mutex			mmap_mutex;
 	atomic_t			mmap_count;
+	int				mmap_locked;
+	struct user_struct		*mmap_user;
 	struct perf_mmap_data		*data;
 
 	/* poll related */
@@ -728,6 +732,7 @@ struct perf_event {
 	perf_overflow_handler_t		overflow_handler;
 
 #ifdef CONFIG_EVENT_TRACING
+	struct ftrace_event_call	*tp_event;
 	struct event_filter		*filter;
 #endif
 
@@ -803,11 +808,12 @@ struct perf_cpu_context {
 struct perf_output_handle {
 	struct perf_event		*event;
 	struct perf_mmap_data		*data;
-	unsigned long			head;
-	unsigned long			offset;
+	unsigned long			wakeup;
+	unsigned long			size;
+	void				*addr;
+	int				page;
 	int				nmi;
 	int				sample;
-	int				locked;
 };
 
 #ifdef CONFIG_PERF_EVENTS
@@ -993,8 +999,9 @@ static inline bool perf_paranoid_kernel(void)
 }
 
 extern void perf_event_init(void);
-extern void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
-			  int entry_size, struct pt_regs *regs);
+extern void perf_tp_event(u64 addr, u64 count, void *record,
+			  int entry_size, struct pt_regs *regs,
+			  struct hlist_head *head);
 extern void perf_bp_event(struct perf_event *event, void *data);
 
 #ifndef perf_misc_flags

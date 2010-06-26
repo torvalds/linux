@@ -295,6 +295,10 @@ This option defaults to enabled (set) */
 
 #define MULTICAST_CAM_TABLE_NUM 4
 
+/* TEMAC Synthesis features */
+#define TEMAC_FEATURE_RX_CSUM  (1 << 0)
+#define TEMAC_FEATURE_TX_CSUM  (1 << 1)
+
 /* TX/RX CURDESC_PTR points to first descriptor */
 /* TX/RX TAILDESC_PTR points to last descriptor in linked list */
 
@@ -353,6 +357,7 @@ struct temac_local {
 	struct mutex indirect_mutex;
 	u32 options;			/* Current options word */
 	int last_link;
+	unsigned int temac_features;
 
 	/* Buffer descriptors */
 	struct cdmac_bd *tx_bd_v;

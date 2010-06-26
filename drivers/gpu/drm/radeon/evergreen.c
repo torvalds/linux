@@ -41,7 +41,18 @@ void evergreen_fini(struct radeon_device *rdev);
 
 void evergreen_pm_misc(struct radeon_device *rdev)
 {
+	int req_ps_idx = rdev->pm.requested_power_state_index;
+	int req_cm_idx = rdev->pm.requested_clock_mode_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[req_ps_idx];
+	struct radeon_voltage *voltage = &ps->clock_info[req_cm_idx].voltage;
 
+	if ((voltage->type == VOLTAGE_SW) && voltage->voltage) {
+		if (voltage->voltage != rdev->pm.current_vddc) {
+			radeon_atom_set_voltage(rdev, voltage->voltage);
+			rdev->pm.current_vddc = voltage->voltage;
+			DRM_DEBUG("Setting: v: %d\n", voltage->voltage);
+		}
+	}
 }
 
 void evergreen_pm_prepare(struct radeon_device *rdev)
@@ -2148,7 +2159,7 @@ int evergreen_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	rdev->accel_working = false;
+	rdev->accel_working = true;
 	r = evergreen_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");

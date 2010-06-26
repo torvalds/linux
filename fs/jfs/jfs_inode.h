@@ -21,7 +21,7 @@
 struct fid;
 
 extern struct inode *ialloc(struct inode *, umode_t);
-extern int jfs_fsync(struct file *, struct dentry *, int);
+extern int jfs_fsync(struct file *, int);
 extern long jfs_ioctl(struct file *, unsigned int, unsigned long);
 extern long jfs_compat_ioctl(struct file *, unsigned int, unsigned long);
 extern struct inode *jfs_iget(struct super_block *, unsigned long);

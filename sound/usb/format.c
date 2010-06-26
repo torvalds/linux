@@ -29,6 +29,7 @@
 #include "quirks.h"
 #include "helper.h"
 #include "debug.h"
+#include "clock.h"
 
 /*
  * parse the audio format type I descriptor
@@ -215,15 +216,17 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 	struct usb_device *dev = chip->dev;
 	unsigned char tmp[2], *data;
 	int i, nr_rates, data_size, ret = 0;
+	int clock = snd_usb_clock_find_source(chip, chip->ctrl_intf, fp->clock);
 
 	/* get the number of sample rates first by only fetching 2 bytes */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
 			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			      UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8, clock << 8,
 			      tmp, sizeof(tmp), 1000);
 
 	if (ret < 0) {
-		snd_printk(KERN_ERR "unable to retrieve number of sample rates\n");
+		snd_printk(KERN_ERR "%s(): unable to retrieve number of sample rates (clock %d)\n",
+				__func__, clock);
 		goto err;
 	}
 
@@ -237,12 +240,13 @@ static int parse_audio_format_rates_v2(struct snd_usb_audio *chip,
 
 	/* now get the full information */
 	ret = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_RANGE,
-			       USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-			       UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
-			       data, data_size, 1000);
+			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8, clock << 8,
+			      data, data_size, 1000);
 
 	if (ret < 0) {
-		snd_printk(KERN_ERR "unable to retrieve sample rate range\n");
+		snd_printk(KERN_ERR "%s(): unable to retrieve sample rate range (clock %d)\n",
+				__func__, clock);
 		ret = -EINVAL;
 		goto err_free;
 	}
@@ -278,12 +282,11 @@ err:
  * parse the format type I and III descriptors
  */
 static int parse_audio_format_i(struct snd_usb_audio *chip,
-				struct audioformat *fp,
-				int format, void *_fmt,
+				struct audioformat *fp, int format,
+				struct uac_format_type_i_continuous_descriptor *fmt,
 				struct usb_host_interface *iface)
 {
 	struct usb_interface_descriptor *altsd = get_iface_desc(iface);
-	struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
 	int protocol = altsd->bInterfaceProtocol;
 	int pcm_format, ret;
 
@@ -320,7 +323,7 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 	switch (protocol) {
 	case UAC_VERSION_1:
 		fp->channels = fmt->bNrChannels;
-		ret = parse_audio_format_rates_v1(chip, fp, _fmt, 7);
+		ret = parse_audio_format_rates_v1(chip, fp, (unsigned char *) fmt, 7);
 		break;
 	case UAC_VERSION_2:
 		/* fp->channels is already set in this case */
@@ -392,12 +395,12 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 }
 
 int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp,
-		       int format, unsigned char *fmt, int stream,
-		       struct usb_host_interface *iface)
+			       int format, struct uac_format_type_i_continuous_descriptor *fmt,
+			       int stream, struct usb_host_interface *iface)
 {
 	int err;
 
-	switch (fmt[3]) {
+	switch (fmt->bFormatType) {
 	case UAC_FORMAT_TYPE_I:
 	case UAC_FORMAT_TYPE_III:
 		err = parse_audio_format_i(chip, fp, format, fmt, iface);
@@ -407,10 +410,11 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *f
 		break;
 	default:
 		snd_printd(KERN_INFO "%d:%u:%d : format type %d is not supported yet\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, fmt[3]);
-		return -1;
+			   chip->dev->devnum, fp->iface, fp->altsetting,
+			   fmt->bFormatType);
+		return -ENOTSUPP;
 	}
-	fp->fmt_type = fmt[3];
+	fp->fmt_type = fmt->bFormatType;
 	if (err < 0)
 		return err;
 #if 1
@@ -421,10 +425,10 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *f
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3020) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3061)) {
-		if (fmt[3] == UAC_FORMAT_TYPE_I &&
+		if (fmt->bFormatType == UAC_FORMAT_TYPE_I &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
-			return -1;
+			return -ENOTSUPP;
 	}
 #endif
 	return 0;

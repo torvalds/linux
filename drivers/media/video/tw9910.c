@@ -903,7 +903,7 @@ static struct v4l2_subdev_core_ops tw9910_subdev_core_ops = {
 #endif
 };
 
-static int tw9910_enum_fmt(struct v4l2_subdev *sd, int index,
+static int tw9910_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
 	if (index)
@@ -977,7 +977,6 @@ static int tw9910_probe(struct i2c_client *client,
 	ret = tw9910_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -990,7 +989,6 @@ static int tw9910_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

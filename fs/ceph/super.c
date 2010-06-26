@@ -89,7 +89,7 @@ static int ceph_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_files = le64_to_cpu(st.num_objects);
 	buf->f_ffree = -1;
-	buf->f_namelen = PATH_MAX;
+	buf->f_namelen = NAME_MAX;
 	buf->f_frsize = PAGE_CACHE_SIZE;
 
 	/* leave fsid little-endian, regardless of host endianness */
@@ -669,8 +669,16 @@ static void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_mdsc_stop(&client->mdsc);
-	ceph_monc_stop(&client->monc);
 	ceph_osdc_stop(&client->osdc);
+
+	/*
+	 * make sure mds and osd connections close out before destroying
+	 * the auth module, which is needed to free those connections'
+	 * ceph_authorizers.
+	 */
+	ceph_msgr_flush();
+
+	ceph_monc_stop(&client->monc);
 
 	ceph_adjust_min_caps(-client->min_caps);
 
@@ -738,7 +746,7 @@ static struct dentry *open_root_dentry(struct ceph_client *client,
 	dout("open_root_inode opening '%s'\n", path);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
 	if (IS_ERR(req))
-		return ERR_PTR(PTR_ERR(req));
+		return ERR_CAST(req);
 	req->r_path1 = kstrdup(path, GFP_NOFS);
 	req->r_ino1.ino = CEPH_INO_ROOT;
 	req->r_ino1.snap = CEPH_NOSNAP;
@@ -918,7 +926,7 @@ static int ceph_compare_super(struct super_block *sb, void *data)
 /*
  * construct our own bdi so we can control readahead, etc.
  */
-static atomic_long_t bdi_seq = ATOMIC_INIT(0);
+static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
 
 static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 {

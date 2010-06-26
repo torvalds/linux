@@ -482,6 +482,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 	int depth = ext_depth(orig_inode);
 	int ret;
 
+	start_ext.ee_block = end_ext.ee_block = 0;
 	o_start = o_end = oext = orig_path[depth].p_ext;
 	oext_alen = ext4_ext_get_actual_len(oext);
 	start_ext.ee_len = end_ext.ee_len = 0;
@@ -529,7 +530,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 	 * new_ext       |-------|
 	 */
 	if (le32_to_cpu(oext->ee_block) + oext_alen - 1 < new_ext_end) {
-		ext4_error(orig_inode->i_sb,
+		EXT4_ERROR_INODE(orig_inode,
 			"new_ext_end(%u) should be less than or equal to "
 			"oext->ee_block(%u) + oext_alen(%d) - 1",
 			new_ext_end, le32_to_cpu(oext->ee_block),
@@ -692,12 +693,12 @@ mext_replace_branches(handle_t *handle, struct inode *orig_inode,
 	while (1) {
 		/* The extent for donor must be found. */
 		if (!dext) {
-			ext4_error(donor_inode->i_sb,
+			EXT4_ERROR_INODE(donor_inode,
 				   "The extent for donor must be found");
 			*err = -EIO;
 			goto out;
 		} else if (donor_off != le32_to_cpu(tmp_dext.ee_block)) {
-			ext4_error(donor_inode->i_sb,
+			EXT4_ERROR_INODE(donor_inode,
 				"Donor offset(%u) and the first block of donor "
 				"extent(%u) should be equal",
 				donor_off,
@@ -959,6 +960,9 @@ mext_check_arguments(struct inode *orig_inode,
 		return -EINVAL;
 	}
 
+	if (IS_IMMUTABLE(donor_inode) || IS_APPEND(donor_inode))
+		return -EPERM;
+
 	/* Ext4 move extent does not support swapfile */
 	if (IS_SWAPFILE(orig_inode) || IS_SWAPFILE(donor_inode)) {
 		ext4_debug("ext4 move extent: The argument files should "
@@ -976,11 +980,11 @@ mext_check_arguments(struct inode *orig_inode,
 	}
 
 	/* Ext4 move extent supports only extent based file */
-	if (!(EXT4_I(orig_inode)->i_flags & EXT4_EXTENTS_FL)) {
+	if (!(ext4_test_inode_flag(orig_inode, EXT4_INODE_EXTENTS))) {
 		ext4_debug("ext4 move extent: orig file is not extents "
 			"based file [ino:orig %lu]\n", orig_inode->i_ino);
 		return -EOPNOTSUPP;
-	} else if (!(EXT4_I(donor_inode)->i_flags & EXT4_EXTENTS_FL)) {
+	} else if (!(ext4_test_inode_flag(donor_inode, EXT4_INODE_EXTENTS))) {
 		ext4_debug("ext4 move extent: donor file is not extents "
 			"based file [ino:donor %lu]\n", donor_inode->i_ino);
 		return -EOPNOTSUPP;
@@ -1354,7 +1358,7 @@ ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			if (ret1 < 0)
 				break;
 			if (*moved_len > len) {
-				ext4_error(orig_inode->i_sb,
+				EXT4_ERROR_INODE(orig_inode,
 					"We replaced blocks too much! "
 					"sum of replaced: %llu requested: %llu",
 					*moved_len, len);

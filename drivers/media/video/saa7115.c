@@ -1117,13 +1117,6 @@ static int saa711x_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int saa711x_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	return saa711x_g_sliced_fmt(sd, &fmt->fmt.sliced);
-}
-
 static int saa711x_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt)
 {
 	saa711x_set_lcr(sd, NULL);
@@ -1136,12 +1129,13 @@ static int saa711x_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int saa711x_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
+static int saa711x_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *fmt)
 {
-	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (fmt->code != V4L2_MBUS_FMT_FIXED)
 		return -EINVAL;
-
-	return saa711x_set_size(sd, fmt->fmt.pix.width, fmt->fmt.pix.height);
+	fmt->field = V4L2_FIELD_INTERLACED;
+	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
+	return saa711x_set_size(sd, fmt->width, fmt->height);
 }
 
 /* Decode the sliced VBI data stream as created by the saa7115.
@@ -1556,8 +1550,7 @@ static const struct v4l2_subdev_audio_ops saa711x_audio_ops = {
 static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.s_routing = saa711x_s_routing,
 	.s_crystal_freq = saa711x_s_crystal_freq,
-	.g_fmt = saa711x_g_fmt,
-	.s_fmt = saa711x_s_fmt,
+	.s_mbus_fmt = saa711x_s_mbus_fmt,
 	.s_stream = saa711x_s_stream,
 	.querystd = saa711x_querystd,
 	.g_input_status = saa711x_g_input_status,

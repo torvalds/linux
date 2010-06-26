@@ -80,9 +80,9 @@ All entries (except name) are optional, and should only be created in a
 given driver if the chip has the feature.
 
 
-********
-* Name *
-********
+*********************
+* Global attributes *
+*********************
 
 name		The chip name.
 		This should be a short, lowercase string, not containing
@@ -90,6 +90,13 @@ name		The chip name.
 		the only mandatory attribute.
 		I2C devices get this attribute created automatically.
 		RO
+
+update_rate	The rate at which the chip will update readings.
+		Unit: millisecond
+		RW
+		Some devices have a variable update rate. This attribute
+		can be used to change the update rate to the desired
+		frequency.
 
 
 ************

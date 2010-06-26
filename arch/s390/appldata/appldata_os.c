@@ -181,7 +181,7 @@ static int __init appldata_os_init(void)
 		goto out;
 	}
 
-	appldata_os_data = kzalloc(max_size, GFP_DMA);
+	appldata_os_data = kzalloc(max_size, GFP_KERNEL | GFP_DMA);
 	if (appldata_os_data == NULL) {
 		rc = -ENOMEM;
 		goto out;

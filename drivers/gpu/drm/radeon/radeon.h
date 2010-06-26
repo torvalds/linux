@@ -176,6 +176,7 @@ void radeon_pm_suspend(struct radeon_device *rdev);
 void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
 
 /*
  * Fences.
@@ -576,6 +577,7 @@ typedef int (*radeon_packet3_check_t)(struct radeon_cs_parser *p,
  */
 int radeon_agp_init(struct radeon_device *rdev);
 void radeon_agp_resume(struct radeon_device *rdev);
+void radeon_agp_suspend(struct radeon_device *rdev);
 void radeon_agp_fini(struct radeon_device *rdev);
 
 
@@ -646,15 +648,18 @@ enum radeon_pm_profile_type {
 	PM_PROFILE_DEFAULT,
 	PM_PROFILE_AUTO,
 	PM_PROFILE_LOW,
+	PM_PROFILE_MID,
 	PM_PROFILE_HIGH,
 };
 
 #define PM_PROFILE_DEFAULT_IDX 0
 #define PM_PROFILE_LOW_SH_IDX  1
-#define PM_PROFILE_HIGH_SH_IDX 2
-#define PM_PROFILE_LOW_MH_IDX  3
-#define PM_PROFILE_HIGH_MH_IDX 4
-#define PM_PROFILE_MAX         5
+#define PM_PROFILE_MID_SH_IDX  2
+#define PM_PROFILE_HIGH_SH_IDX 3
+#define PM_PROFILE_LOW_MH_IDX  4
+#define PM_PROFILE_MID_MH_IDX  5
+#define PM_PROFILE_HIGH_MH_IDX 6
+#define PM_PROFILE_MAX         7
 
 struct radeon_pm_profile {
 	int dpms_off_ps_idx;
@@ -743,6 +748,7 @@ struct radeon_pm {
 	int                     default_power_state_index;
 	u32                     current_sclk;
 	u32                     current_mclk;
+	u32                     current_vddc;
 	struct radeon_i2c_chan *i2c_bus;
 	/* selected pm method */
 	enum radeon_pm_method     pm_method;

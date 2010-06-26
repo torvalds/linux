@@ -370,7 +370,7 @@ extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
 
 extern int pm860x_device_init(struct pm860x_chip *chip,
-			      struct pm860x_platform_data *pdata);
-extern void pm860x_device_exit(struct pm860x_chip *chip);
+			      struct pm860x_platform_data *pdata) __devinit ;
+extern void pm860x_device_exit(struct pm860x_chip *chip) __devexit ;
 
 #endif /* __LINUX_MFD_88PM860X_H */

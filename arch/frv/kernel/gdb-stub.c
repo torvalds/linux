@@ -1789,6 +1789,12 @@ void gdbstub(int sigval)
 			flush_cache = 1;
 			break;
 
+			/* pNN: Read value of reg N and return it */
+		case 'p':
+			/* return no value, indicating that we don't support
+			 * this command and that gdb should use 'g' instead */
+			break;
+
 			/* PNN,=RRRRRRRR: Write value R to reg N return OK */
 		case 'P':
 			ptr = &input_buffer[1];

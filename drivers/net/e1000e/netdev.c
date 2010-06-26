@@ -2554,7 +2554,7 @@ static void e1000_init_manageability_pt(struct e1000_adapter *adapter)
 			mdef = er32(MDEF(i));
 
 			/* Ignore filters with anything other than IPMI ports */
-			if (mdef & !(E1000_MDEF_PORT_623 | E1000_MDEF_PORT_664))
+			if (mdef & ~(E1000_MDEF_PORT_623 | E1000_MDEF_PORT_664))
 				continue;
 
 			/* Enable this decision filter in MANC2H */

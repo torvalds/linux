@@ -79,7 +79,7 @@ enum {
 	EC_FLAGS_GPE_STORM,		/* GPE storm detected */
 	EC_FLAGS_HANDLERS_INSTALLED,	/* Handlers for GPE and
 					 * OpReg are installed */
-	EC_FLAGS_FROZEN,		/* Transactions are suspended */
+	EC_FLAGS_BLOCKED,		/* Transactions are blocked */
 };
 
 /* If we find an EC via the ECDT, we need to keep a ptr to its context */
@@ -293,7 +293,7 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	if (t->rdata)
 		memset(t->rdata, 0, t->rlen);
 	mutex_lock(&ec->lock);
-	if (test_bit(EC_FLAGS_FROZEN, &ec->flags)) {
+	if (test_bit(EC_FLAGS_BLOCKED, &ec->flags)) {
 		status = -EINVAL;
 		goto unlock;
 	}
@@ -459,7 +459,7 @@ int ec_transaction(u8 command,
 
 EXPORT_SYMBOL(ec_transaction);
 
-void acpi_ec_suspend_transactions(void)
+void acpi_ec_block_transactions(void)
 {
 	struct acpi_ec *ec = first_ec;
 
@@ -468,11 +468,11 @@ void acpi_ec_suspend_transactions(void)
 
 	mutex_lock(&ec->lock);
 	/* Prevent transactions from being carried out */
-	set_bit(EC_FLAGS_FROZEN, &ec->flags);
+	set_bit(EC_FLAGS_BLOCKED, &ec->flags);
 	mutex_unlock(&ec->lock);
 }
 
-void acpi_ec_resume_transactions(void)
+void acpi_ec_unblock_transactions(void)
 {
 	struct acpi_ec *ec = first_ec;
 
@@ -481,8 +481,18 @@ void acpi_ec_resume_transactions(void)
 
 	mutex_lock(&ec->lock);
 	/* Allow transactions to be carried out again */
-	clear_bit(EC_FLAGS_FROZEN, &ec->flags);
+	clear_bit(EC_FLAGS_BLOCKED, &ec->flags);
 	mutex_unlock(&ec->lock);
+}
+
+void acpi_ec_unblock_transactions_early(void)
+{
+	/*
+	 * Allow transactions to happen again (this function is called from
+	 * atomic context during wakeup, so we don't need to acquire the mutex).
+	 */
+	if (first_ec)
+		clear_bit(EC_FLAGS_BLOCKED, &first_ec->flags);
 }
 
 static int acpi_ec_query_unlocked(struct acpi_ec *ec, u8 * data)
@@ -1027,10 +1037,9 @@ int __init acpi_ec_ecdt_probe(void)
 		/* Don't trust ECDT, which comes from ASUSTek */
 		if (!EC_FLAGS_VALIDATE_ECDT)
 			goto install;
-		saved_ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+		saved_ec = kmemdup(boot_ec, sizeof(struct acpi_ec), GFP_KERNEL);
 		if (!saved_ec)
 			return -ENOMEM;
-		memcpy(saved_ec, boot_ec, sizeof(struct acpi_ec));
 	/* fall through */
 	}
 

@@ -410,5 +410,28 @@ error:
 	snd_card_free(card);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(tm6000_audio_init);
 
+static int tm6000_audio_fini(struct tm6000_core *dev)
+{
+	return 0;
+}
+
+struct tm6000_ops audio_ops = {
+	.id	= TM6000_AUDIO,
+	.name	= "TM6000 Audio Extension",
+	.init	= tm6000_audio_init,
+	.fini	= tm6000_audio_fini,
+};
+
+static int __init tm6000_alsa_register(void)
+{
+	return tm6000_register_extension(&audio_ops);
+}
+
+static void __exit tm6000_alsa_unregister(void)
+{
+	tm6000_unregister_extension(&audio_ops);
+}
+
+module_init(tm6000_alsa_register);
+module_exit(tm6000_alsa_unregister);

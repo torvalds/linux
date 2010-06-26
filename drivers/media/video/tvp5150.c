@@ -934,17 +934,6 @@ static int tvp5150_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	return 0;
 }
 
-static int tvp5150_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	switch (fmt->type) {
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return tvp5150_s_sliced_fmt(sd, &fmt->fmt.sliced);
-
-	default:
-		return -EINVAL;
-	}
-}
-
 static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *svbi)
 {
 	int i, mask = 0;
@@ -958,13 +947,6 @@ static int tvp5150_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_f
 	}
 	svbi->service_set = mask;
 	return 0;
-}
-
-static int tvp5150_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
-{
-	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
-		return -EINVAL;
-	return tvp5150_g_sliced_fmt(sd, &fmt->fmt.sliced);
 }
 
 static int tvp5150_g_chip_ident(struct v4l2_subdev *sd,
@@ -1054,8 +1036,6 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_routing = tvp5150_s_routing,
-	.g_fmt = tvp5150_g_fmt,
-	.s_fmt = tvp5150_s_fmt,
 };
 
 static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {

@@ -578,14 +578,9 @@ static int viafb_ioctl(struct fb_info *info, u_int cmd, u_long arg)
 		break;
 
 	case VIAFB_SET_GAMMA_LUT:
-		viafb_gamma_table = kmalloc(256 * sizeof(u32), GFP_KERNEL);
-		if (!viafb_gamma_table)
-			return -ENOMEM;
-		if (copy_from_user(viafb_gamma_table, argp,
-				256 * sizeof(u32))) {
-			kfree(viafb_gamma_table);
-			return -EFAULT;
-		}
+		viafb_gamma_table = memdup_user(argp, 256 * sizeof(u32));
+		if (IS_ERR(viafb_gamma_table))
+			return PTR_ERR(viafb_gamma_table);
 		viafb_set_gamma_table(viafb_bpp, viafb_gamma_table);
 		kfree(viafb_gamma_table);
 		break;

@@ -351,7 +351,7 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on PPC_BOOK3S && EXPERIMENTAL
+	depends on (PPC_BOOK3S || (FSL_BOOKE && !SMP)) && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -662,6 +662,9 @@ config ZONE_DMA
 
 config NEED_DMA_MAP_STATE
 	def_bool (PPC64 || NOT_COHERENT_CACHE)
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
 
 config GENERIC_ISA_DMA
 	bool

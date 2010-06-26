@@ -20,6 +20,7 @@ nv04_cursor_hide(struct nouveau_crtc *nv_crtc, bool update)
 static void
 nv04_cursor_set_pos(struct nouveau_crtc *nv_crtc, int x, int y)
 {
+	nv_crtc->cursor_saved_x = x; nv_crtc->cursor_saved_y = y;
 	NVWriteRAMDAC(nv_crtc->base.dev, nv_crtc->index,
 		      NV_PRAMDAC_CU_START_POS,
 		      XLATE(y, 0, NV_PRAMDAC_CU_START_POS_Y) |

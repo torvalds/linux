@@ -65,7 +65,7 @@ _TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
 	ltgr	%r3,%r3
 	jz	0f
 	basr	%r14,%r3
-	0:
+0:
 #endif
 	.endm
 

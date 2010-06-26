@@ -1333,6 +1333,21 @@ xfs_vm_writepage(
 	trace_xfs_writepage(inode, page, 0);
 
 	/*
+	 * Refuse to write the page out if we are called from reclaim context.
+	 *
+	 * This is primarily to avoid stack overflows when called from deep
+	 * used stacks in random callers for direct reclaim, but disabling
+	 * reclaim for kswap is a nice side-effect as kswapd causes rather
+	 * suboptimal I/O patters, too.
+	 *
+	 * This should really be done by the core VM, but until that happens
+	 * filesystems like XFS, btrfs and ext4 have to take care of this
+	 * by themselves.
+	 */
+	if (current->flags & PF_MEMALLOC)
+		goto out_fail;
+
+	/*
 	 * We need a transaction if:
 	 *  1. There are delalloc buffers on the page
 	 *  2. The page is uptodate and we have unmapped buffers
@@ -1365,14 +1380,6 @@ xfs_vm_writepage(
 	 */
 	if (!page_has_buffers(page))
 		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
-
-
-	/*
-	 *  VM calculation for nr_to_write seems off.  Bump it way
-	 *  up, this gets simple streaming writes zippy again.
-	 *  To be reviewed again after Jens' writeback changes.
-	 */
-	wbc->nr_to_write *= 4;
 
 	/*
 	 * Convert delayed allocate, unwritten or unmapped space

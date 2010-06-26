@@ -1453,9 +1453,7 @@ static const struct usb_device_id device_table[] __devinitconst = {
 	{USB_DEVICE(0x0c45, 0x6029), SB(PAS106, 102)},
 	{USB_DEVICE(0x0c45, 0x602c), SB(OV7630, 102)},
 	{USB_DEVICE(0x0c45, 0x602d), SB(HV7131R, 102)},
-#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x602e), SB(OV7630, 102)},
-#endif
 	{USB_DEVICE(0x0c45, 0x608f), SB(OV7630, 103)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x60af), SB(PAS202, 103)},

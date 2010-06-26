@@ -175,13 +175,12 @@ static int ocfs2_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ocfs2_sync_file(struct file *file,
-			   struct dentry *dentry,
-			   int datasync)
+static int ocfs2_sync_file(struct file *file, int datasync)
 {
 	int err = 0;
 	journal_t *journal;
-	struct inode *inode = dentry->d_inode;
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", file, dentry, datasync,
@@ -1053,7 +1052,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	/*
-	 * This will intentionally not wind up calling vmtruncate(),
+	 * This will intentionally not wind up calling simple_setsize(),
 	 * since all the work for a size change has been done above.
 	 * Otherwise, we could get into problems with truncate as
 	 * ip_alloc_sem is used there to protect against i_size
@@ -2119,9 +2118,13 @@ relock:
 			 * direct write may have instantiated a few
 			 * blocks outside i_size. Trim these off again.
 			 * Don't need i_size_read because we hold i_mutex.
+			 *
+			 * XXX(hch): this looks buggy because ocfs2 did not
+			 * actually implement ->truncate.  Take a look at
+			 * the new truncate sequence and update this accordingly
 			 */
 			if (*ppos + count > inode->i_size)
-				vmtruncate(inode, inode->i_size);
+				simple_setsize(inode, inode->i_size);
 			ret = written;
 			goto out_dio;
 		}

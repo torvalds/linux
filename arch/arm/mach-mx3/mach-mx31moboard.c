@@ -220,11 +220,54 @@ static struct mc13783_regulator_init_data moboard_regulators[] = {
 	},
 };
 
+static struct mc13783_led_platform_data moboard_led[] = {
+	{
+		.id = MC13783_LED_R1,
+		.name = "coreboard-led-4:red",
+		.max_current = 2,
+	},
+	{
+		.id = MC13783_LED_G1,
+		.name = "coreboard-led-4:green",
+		.max_current = 2,
+	},
+	{
+		.id = MC13783_LED_B1,
+		.name = "coreboard-led-4:blue",
+		.max_current = 2,
+	},
+	{
+		.id = MC13783_LED_R2,
+		.name = "coreboard-led-5:red",
+		.max_current = 3,
+	},
+	{
+		.id = MC13783_LED_G2,
+		.name = "coreboard-led-5:green",
+		.max_current = 3,
+	},
+	{
+		.id = MC13783_LED_B2,
+		.name = "coreboard-led-5:blue",
+		.max_current = 3,
+	},
+};
+
+static struct mc13783_leds_platform_data moboard_leds = {
+	.num_leds = ARRAY_SIZE(moboard_led),
+	.led = moboard_led,
+	.flags = MC13783_LED_SLEWLIMTC,
+	.abmode = MC13783_LED_AB_DISABLED,
+	.tc1_period = MC13783_LED_PERIOD_10MS,
+	.tc2_period = MC13783_LED_PERIOD_10MS,
+};
+
 static struct mc13783_platform_data moboard_pmic = {
 	.regulators = moboard_regulators,
 	.num_regulators = ARRAY_SIZE(moboard_regulators),
+	.leds = &moboard_leds,
 	.flags = MC13783_USE_REGULATOR | MC13783_USE_RTC |
-		MC13783_USE_ADC,
+		MC13783_USE_ADC | MC13783_USE_LED,
 };
 
 static struct spi_board_info moboard_spi_board_info[] __initdata = {

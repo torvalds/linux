@@ -28,6 +28,7 @@
 #include <media/tuner.h>
 
 #include "tuner-xc2028.h"
+#include "xc5000.h"
 
 static void inline print_err_status (struct tm6000_core *dev,
 				     int packet, int status)
@@ -100,7 +101,10 @@ int tm6000_start_stream(struct tm6000_core *dev)
 
 	printk(KERN_INFO "tm6000: got start stream request %s\n",__FUNCTION__);
 
-	tm6000_init_digital_mode(dev);
+	if (dev->mode != TM6000_MODE_DIGITAL) {
+		tm6000_init_digital_mode(dev);
+		dev->mode = TM6000_MODE_DIGITAL;
+	}
 
 	dvb->bulk_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if(dvb->bulk_urb == NULL) {
@@ -254,27 +258,55 @@ int tm6000_dvb_register(struct tm6000_core *dev)
 	dvb->adapter.priv = dev;
 
 	if (dvb->frontend) {
-		struct xc2028_config cfg = {
-			.i2c_adap = &dev->i2c_adap,
-			.i2c_addr = dev->tuner_addr,
-		};
+		switch (dev->tuner_type) {
+		case TUNER_XC2028: {
+			struct xc2028_config cfg = {
+				.i2c_adap = &dev->i2c_adap,
+				.i2c_addr = dev->tuner_addr,
+			};
 
-		dvb->frontend->callback = tm6000_tuner_callback;
-		ret = dvb_register_frontend(&dvb->adapter, dvb->frontend);
-		if (ret < 0) {
-			printk(KERN_ERR
-				"tm6000: couldn't register frontend\n");
-			goto adapter_err;
-		}
+			dvb->frontend->callback = tm6000_tuner_callback;
+			ret = dvb_register_frontend(&dvb->adapter, dvb->frontend);
+			if (ret < 0) {
+				printk(KERN_ERR
+					"tm6000: couldn't register frontend\n");
+				goto adapter_err;
+			}
 
-		if (!dvb_attach(xc2028_attach, dvb->frontend, &cfg)) {
-			printk(KERN_ERR "tm6000: couldn't register "
-					"frontend (xc3028)\n");
-			ret = -EINVAL;
-			goto frontend_err;
+			if (!dvb_attach(xc2028_attach, dvb->frontend, &cfg)) {
+				printk(KERN_ERR "tm6000: couldn't register "
+						"frontend (xc3028)\n");
+				ret = -EINVAL;
+				goto frontend_err;
+			}
+			printk(KERN_INFO "tm6000: XC2028/3028 asked to be "
+					 "attached to frontend!\n");
+			break;
+			}
+		case TUNER_XC5000: {
+			struct xc5000_config cfg = {
+				.i2c_address = dev->tuner_addr,
+			};
+
+			dvb->frontend->callback = tm6000_xc5000_callback;
+			ret = dvb_register_frontend(&dvb->adapter, dvb->frontend);
+			if (ret < 0) {
+				printk(KERN_ERR
+					"tm6000: couldn't register frontend\n");
+				goto adapter_err;
+			}
+
+			if (!dvb_attach(xc5000_attach, dvb->frontend, &dev->i2c_adap, &cfg)) {
+				printk(KERN_ERR "tm6000: couldn't register "
+						"frontend (xc5000)\n");
+				ret = -EINVAL;
+				goto frontend_err;
+			}
+			printk(KERN_INFO "tm6000: XC5000 asked to be "
+					 "attached to frontend!\n");
+			break;
+			}
 		}
-		printk(KERN_INFO "tm6000: XC2028/3028 asked to be "
-				 "attached to frontend!\n");
 	} else {
 		printk(KERN_ERR "tm6000: no frontend found\n");
 	}

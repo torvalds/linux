@@ -73,6 +73,7 @@ static int gyration_event(struct hid_device *hdev, struct hid_field *field,
 static const struct hid_device_id gyration_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE_2) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GYRATION, USB_DEVICE_ID_GYRATION_REMOTE_3) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, gyration_devices);

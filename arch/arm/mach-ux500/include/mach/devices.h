@@ -25,5 +25,8 @@ extern struct platform_device ux500_i2c3_device;
 
 extern struct platform_device u8500_i2c0_device;
 extern struct platform_device u8500_i2c4_device;
+extern struct platform_device u8500_dma40_device;
+
+void dma40_u8500ed_fixup(void);
 
 #endif

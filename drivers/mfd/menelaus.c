@@ -1238,7 +1238,6 @@ static int __exit menelaus_remove(struct i2c_client *client)
 
 	free_irq(client->irq, menelaus);
 	kfree(menelaus);
-	i2c_set_clientdata(client, NULL);
 	the_menelaus = NULL;
 	return 0;
 }

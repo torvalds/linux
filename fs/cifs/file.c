@@ -1676,7 +1676,7 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 	return rc;
 }
 
-int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int cifs_fsync(struct file *file, int datasync)
 {
 	int xid;
 	int rc = 0;
@@ -1688,7 +1688,7 @@ int cifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	xid = GetXid();
 
 	cFYI(1, "Sync file - name: %s datasync: 0x%x",
-		dentry->d_name.name, datasync);
+		file->f_path.dentry->d_name.name, datasync);
 
 	rc = filemap_write_and_wait(inode->i_mapping);
 	if (rc == 0) {
@@ -1952,6 +1952,7 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 			bytes_read -= PAGE_CACHE_SIZE;
 			continue;
 		}
+		page_cache_release(page);
 
 		target = kmap_atomic(page, KM_USER0);
 

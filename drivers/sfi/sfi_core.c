@@ -67,6 +67,7 @@
 #include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/sfi.h>
+#include <linux/slab.h>
 
 #include "sfi_core.h"
 
@@ -382,6 +383,104 @@ static __init int sfi_find_syst(void)
 	return -1;
 }
 
+static struct kobject *sfi_kobj;
+static struct kobject *tables_kobj;
+
+static ssize_t sfi_table_show(struct file *filp, struct kobject *kobj,
+			       struct bin_attribute *bin_attr, char *buf,
+			       loff_t offset, size_t count)
+{
+	struct sfi_table_attr *tbl_attr =
+	    container_of(bin_attr, struct sfi_table_attr, attr);
+	struct sfi_table_header *th = NULL;
+	struct sfi_table_key key;
+	ssize_t cnt;
+
+	key.sig = tbl_attr->name;
+	key.oem_id = NULL;
+	key.oem_table_id = NULL;
+
+	if (strncmp(SFI_SIG_SYST, tbl_attr->name, SFI_SIGNATURE_SIZE)) {
+		th = sfi_get_table(&key);
+		if (!th)
+			return 0;
+
+		cnt =  memory_read_from_buffer(buf, count, &offset,
+						th, th->len);
+		sfi_put_table(th);
+	} else
+		cnt =  memory_read_from_buffer(buf, count, &offset,
+					syst_va, syst_va->header.len);
+
+	return cnt;
+}
+
+struct sfi_table_attr __init *sfi_sysfs_install_table(u64 pa)
+{
+	struct sfi_table_attr *tbl_attr;
+	struct sfi_table_header *th;
+	int ret;
+
+	tbl_attr = kzalloc(sizeof(struct sfi_table_attr), GFP_KERNEL);
+	if (!tbl_attr)
+		return NULL;
+
+	th = sfi_map_table(pa);
+	if (!th || !th->sig[0]) {
+		kfree(tbl_attr);
+		return NULL;
+	}
+
+	sysfs_attr_init(&tbl_attr->attr.attr);
+	memcpy(tbl_attr->name, th->sig, SFI_SIGNATURE_SIZE);
+
+	tbl_attr->attr.size = 0;
+	tbl_attr->attr.read = sfi_table_show;
+	tbl_attr->attr.attr.name = tbl_attr->name;
+	tbl_attr->attr.attr.mode = 0400;
+
+	ret = sysfs_create_bin_file(tables_kobj,
+				  &tbl_attr->attr);
+	if (ret) {
+		kfree(tbl_attr);
+		tbl_attr = NULL;
+	}
+
+	sfi_unmap_table(th);
+	return tbl_attr;
+}
+
+static int __init sfi_sysfs_init(void)
+{
+	int tbl_cnt, i;
+
+	if (sfi_disabled)
+		return 0;
+
+	sfi_kobj = kobject_create_and_add("sfi", firmware_kobj);
+	if (!sfi_kobj)
+		return 0;
+
+	tables_kobj = kobject_create_and_add("tables", sfi_kobj);
+	if (!tables_kobj) {
+		kobject_put(sfi_kobj);
+		return 0;
+	}
+
+	sfi_sysfs_install_table(syst_pa);
+
+	tbl_cnt = SFI_GET_NUM_ENTRIES(syst_va, u64);
+
+	for (i = 0; i < tbl_cnt; i++)
+		sfi_sysfs_install_table(syst_va->pentry[i]);
+
+	sfi_acpi_sysfs_init();
+	kobject_uevent(sfi_kobj, KOBJ_ADD);
+	kobject_uevent(tables_kobj, KOBJ_ADD);
+	pr_info("SFI sysfs interfaces init success\n");
+	return 0;
+}
+
 void __init sfi_init(void)
 {
 	if (!acpi_disabled)
@@ -390,7 +489,7 @@ void __init sfi_init(void)
 	if (sfi_disabled)
 		return;
 
-	pr_info("Simple Firmware Interface v0.7 http://simplefirmware.org\n");
+	pr_info("Simple Firmware Interface v0.81 http://simplefirmware.org\n");
 
 	if (sfi_find_syst() || sfi_parse_syst() || sfi_platform_init())
 		disable_sfi();
@@ -414,3 +513,9 @@ void __init sfi_init_late(void)
 
 	sfi_acpi_init();
 }
+
+/*
+ * The reason we put it here becasue we need wait till the /sys/firmware
+ * is setup, then our interface can be registered in /sys/firmware/sfi
+ */
+core_initcall(sfi_sysfs_init);

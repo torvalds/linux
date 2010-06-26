@@ -89,15 +89,12 @@ static unsigned int altera_uart_tx_empty(struct uart_port *port)
 static unsigned int altera_uart_get_mctrl(struct uart_port *port)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
-	unsigned long flags;
 	unsigned int sigs;
 
-	spin_lock_irqsave(&port->lock, flags);
 	sigs =
 	    (readl(port->membase + ALTERA_UART_STATUS_REG) &
 	     ALTERA_UART_STATUS_CTS_MSK) ? TIOCM_CTS : 0;
 	sigs |= (pp->sigs & TIOCM_RTS);
-	spin_unlock_irqrestore(&port->lock, flags);
 
 	return sigs;
 }
@@ -105,49 +102,37 @@ static unsigned int altera_uart_get_mctrl(struct uart_port *port)
 static void altera_uart_set_mctrl(struct uart_port *port, unsigned int sigs)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->sigs = sigs;
 	if (sigs & TIOCM_RTS)
 		pp->imr |= ALTERA_UART_CONTROL_RTS_MSK;
 	else
 		pp->imr &= ~ALTERA_UART_CONTROL_RTS_MSK;
 	writel(pp->imr, port->membase + ALTERA_UART_CONTROL_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void altera_uart_start_tx(struct uart_port *port)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->imr |= ALTERA_UART_CONTROL_TRDY_MSK;
 	writel(pp->imr, port->membase + ALTERA_UART_CONTROL_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void altera_uart_stop_tx(struct uart_port *port)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->imr &= ~ALTERA_UART_CONTROL_TRDY_MSK;
 	writel(pp->imr, port->membase + ALTERA_UART_CONTROL_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void altera_uart_stop_rx(struct uart_port *port)
 {
 	struct altera_uart *pp = container_of(port, struct altera_uart, port);
-	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
 	pp->imr &= ~ALTERA_UART_CONTROL_RRDY_MSK;
 	writel(pp->imr, port->membase + ALTERA_UART_CONTROL_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void altera_uart_break_ctl(struct uart_port *port, int break_state)
@@ -272,10 +257,14 @@ static irqreturn_t altera_uart_interrupt(int irq, void *data)
 	unsigned int isr;
 
 	isr = readl(port->membase + ALTERA_UART_STATUS_REG) & pp->imr;
+
+	spin_lock(&port->lock);
 	if (isr & ALTERA_UART_STATUS_RRDY_MSK)
 		altera_uart_rx_chars(pp);
 	if (isr & ALTERA_UART_STATUS_TRDY_MSK)
 		altera_uart_tx_chars(pp);
+	spin_unlock(&port->lock);
+
 	return IRQ_RETVAL(isr);
 }
 
@@ -402,31 +391,24 @@ int __init early_altera_uart_setup(struct altera_uart_platform_uart *platp)
 	return 0;
 }
 
-static void altera_uart_console_putc(struct console *co, const char c)
+static void altera_uart_console_putc(struct uart_port *port, const char c)
 {
-	struct uart_port *port = &(altera_uart_ports + co->index)->port;
-	int i;
+	while (!(readl(port->membase + ALTERA_UART_STATUS_REG) &
+	         ALTERA_UART_STATUS_TRDY_MSK))
+		cpu_relax();
 
-	for (i = 0; i < 0x10000; i++) {
-		if (readl(port->membase + ALTERA_UART_STATUS_REG) &
-		    ALTERA_UART_STATUS_TRDY_MSK)
-			break;
-	}
 	writel(c, port->membase + ALTERA_UART_TXDATA_REG);
-	for (i = 0; i < 0x10000; i++) {
-		if (readl(port->membase + ALTERA_UART_STATUS_REG) &
-		    ALTERA_UART_STATUS_TRDY_MSK)
-			break;
-	}
 }
 
 static void altera_uart_console_write(struct console *co, const char *s,
 				      unsigned int count)
 {
+	struct uart_port *port = &(altera_uart_ports + co->index)->port;
+
 	for (; count; count--, s++) {
-		altera_uart_console_putc(co, *s);
+		altera_uart_console_putc(port, *s);
 		if (*s == '\n')
-			altera_uart_console_putc(co, '\r');
+			altera_uart_console_putc(port, '\r');
 	}
 }
 
@@ -516,7 +498,7 @@ static int __devinit altera_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int altera_uart_remove(struct platform_device *pdev)
+static int __devexit altera_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i;

@@ -1045,12 +1045,12 @@ static void pep_sock_unhash(struct sock *sk)
 	lock_sock(sk);
 	if ((1 << sk->sk_state) & ~(TCPF_CLOSE|TCPF_LISTEN)) {
 		skparent = pn->listener;
-		sk_del_node_init(sk);
 		release_sock(sk);
 
-		sk = skparent;
 		pn = pep_sk(skparent);
-		lock_sock(sk);
+		lock_sock(skparent);
+		sk_del_node_init(sk);
+		sk = skparent;
 	}
 	/* Unhash a listening sock only when it is closed
 	 * and all of its active connected pipes are closed. */

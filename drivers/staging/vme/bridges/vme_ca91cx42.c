@@ -523,7 +523,7 @@ static int ca91cx42_alloc_resource(struct vme_master_resource *image,
 	}
 
 	if (image->bus_resource.name == NULL) {
-		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_KERNEL);
+		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_ATOMIC);
 		if (image->bus_resource.name == NULL) {
 			dev_err(ca91cx42_bridge->parent, "Unable to allocate "
 				"memory for resource name\n");

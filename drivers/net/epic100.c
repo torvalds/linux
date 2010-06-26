@@ -87,6 +87,7 @@ static int rx_copybreak;
 #include <linux/bitops.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
+#include <asm/byteorder.h>
 
 /* These identify the driver base version and may not be removed. */
 static char version[] __devinitdata =
@@ -230,7 +231,7 @@ static const u16 media2miictl[16] = {
  * The EPIC100 Rx and Tx buffer descriptors.  Note that these
  * really ARE host-endian; it's not a misannotation.  We tell
  * the card to byteswap them internally on big-endian hosts -
- * look for #ifdef CONFIG_BIG_ENDIAN in epic_open().
+ * look for #ifdef __BIG_ENDIAN in epic_open().
  */
 
 struct epic_tx_desc {
@@ -690,7 +691,7 @@ static int epic_open(struct net_device *dev)
 		outl((inl(ioaddr + NVCTL) & ~0x003C) | 0x4800, ioaddr + NVCTL);
 
 	/* Tell the chip to byteswap descriptors on big-endian hosts */
-#ifdef CONFIG_BIG_ENDIAN
+#ifdef __BIG_ENDIAN
 	outl(0x4432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
 	inl(ioaddr + GENCTL);
 	outl(0x0432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
@@ -806,7 +807,7 @@ static void epic_restart(struct net_device *dev)
 	for (i = 16; i > 0; i--)
 		outl(0x0008, ioaddr + TEST1);
 
-#ifdef CONFIG_BIG_ENDIAN
+#ifdef __BIG_ENDIAN
 	outl(0x0432 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);
 #else
 	outl(0x0412 | (RX_FIFO_THRESH<<8), ioaddr + GENCTL);

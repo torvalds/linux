@@ -173,9 +173,6 @@ static int __devexit max8925_remove(struct i2c_client *client)
 	max8925_device_exit(chip);
 	i2c_unregister_device(chip->adc);
 	i2c_unregister_device(chip->rtc);
-	i2c_set_clientdata(chip->adc, NULL);
-	i2c_set_clientdata(chip->rtc, NULL);
-	i2c_set_clientdata(chip->i2c, NULL);
 	kfree(chip);
 	return 0;
 }

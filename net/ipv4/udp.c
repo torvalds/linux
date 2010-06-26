@@ -633,9 +633,9 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 	if (!inet->recverr) {
 		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
 			goto out;
-	} else {
+	} else
 		ip_icmp_error(sk, skb, err, uh->dest, info, (u8 *)(uh+1));
-	}
+
 	sk->sk_err = err;
 	sk->sk_error_report(sk);
 out:
@@ -1063,10 +1063,11 @@ static unsigned int first_packet_length(struct sock *sk)
 	spin_unlock_bh(&rcvq->lock);
 
 	if (!skb_queue_empty(&list_kill)) {
-		lock_sock_bh(sk);
+		bool slow = lock_sock_fast(sk);
+
 		__skb_queue_purge(&list_kill);
 		sk_mem_reclaim_partial(sk);
-		unlock_sock_bh(sk);
+		unlock_sock_fast(sk, slow);
 	}
 	return res;
 }
@@ -1123,6 +1124,7 @@ int udp_recvmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	int peeked;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
+	bool slow;
 
 	/*
 	 *	Check any passed addresses
@@ -1197,10 +1199,10 @@ out:
 	return err;
 
 csum_copy_err:
-	lock_sock_bh(sk);
+	slow = lock_sock_fast(sk);
 	if (!skb_kill_datagram(sk, skb, flags))
 		UDP_INC_STATS_USER(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
-	unlock_sock_bh(sk);
+	unlock_sock_fast(sk, slow);
 
 	if (noblock)
 		return -EAGAIN;
@@ -1625,9 +1627,9 @@ int udp_rcv(struct sk_buff *skb)
 
 void udp_destroy_sock(struct sock *sk)
 {
-	lock_sock_bh(sk);
+	bool slow = lock_sock_fast(sk);
 	udp_flush_pending_frames(sk);
-	unlock_sock_bh(sk);
+	unlock_sock_fast(sk, slow);
 }
 
 /*
