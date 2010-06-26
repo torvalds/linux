@@ -31,7 +31,6 @@
  * Any other suggestions?
  */
 
-
 static DEFINE_IDR(iio_trigger_idr);
 static DEFINE_SPINLOCK(iio_trigger_idr_lock);
 
@@ -284,7 +283,7 @@ error_ret:
 EXPORT_SYMBOL(iio_trigger_dettach_poll_func);
 
 /**
- * iio_trigger_read_currrent() trigger consumer sysfs query which trigger
+ * iio_trigger_read_currrent() - trigger consumer sysfs query which trigger
  *
  * For trigger consumers the current_trigger interface allows the trigger
  * used by the device to be queried.

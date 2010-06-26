@@ -16,9 +16,7 @@
 #include "chrdev.h"
 
 /* IIO TODO LIST */
-/* Static device specific elements (conversion factors etc)
- * should be exported via sysfs
- *
+/*
  * Provide means of adjusting timer accuracy.
  * Currently assumes nano seconds.
  */
@@ -385,7 +383,9 @@ void iio_put(void);
  **/
 void iio_get(void);
 
-/* Ring buffer related */
+/**
+ * iio_device_get_chrdev_minor() - get an unused minor number
+ **/
 int iio_device_get_chrdev_minor(void);
 void iio_device_free_chrdev_minor(int val);
 
