@@ -68,7 +68,7 @@ error_ret:
 }
 
 /**
- * max1363_ring_preenable() setup the parameters of the ring before enabling
+ * max1363_ring_preenable() - setup the parameters of the ring before enabling
  *
  * The complex nature of the setting of the nuber of bytes per datum is due
  * to this driver currently ensuring that the timestamp is stored at an 8
@@ -106,7 +106,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 }
 
 /**
- * max1363_ring_postenable() typical ring post enable
+ * max1363_ring_postenable() - typical ring post enable
  *
  * Only not moved into the core for the hardware ring buffer cases
  * that are more sophisticated.
@@ -120,7 +120,7 @@ static int max1363_ring_postenable(struct iio_dev *indio_dev)
 }
 
 /**
- * max1363_ring_predisable() runs just prior to ring buffer being disabled
+ * max1363_ring_predisable() - runs just prior to ring buffer being disabled
  *
  * Typical predisable function which ensures that no trigger events can
  * occur before we disable the ring buffer (and hence would have no idea
@@ -136,7 +136,7 @@ static int max1363_ring_predisable(struct iio_dev *indio_dev)
 }
 
 /**
- * max1363_poll_func_th() th of trigger launched polling to ring buffer
+ * max1363_poll_func_th() - th of trigger launched polling to ring buffer
  *
  * As sampling only occurs on i2c comms occuring, leave timestamping until
  * then.  Some triggers will generate their own time stamp.  Currently
@@ -151,7 +151,7 @@ static void max1363_poll_func_th(struct iio_dev *indio_dev)
 	return;
 }
 /**
- * max1363_poll_bh_to_ring() bh of trigger launched polling to ring buffer
+ * max1363_poll_bh_to_ring() - bh of trigger launched polling to ring buffer
  * @work_s:	the work struct through which this was scheduled
  *
  * Currently there is no option in this driver to disable the saving of

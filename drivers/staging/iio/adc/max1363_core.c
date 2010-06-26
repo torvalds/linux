@@ -23,16 +23,15 @@
   */
 
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
 #include <linux/i2c.h>
-#include <linux/rtc.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -48,7 +47,7 @@
 	IIO_SCAN_EL_C(in##number, number, IIO_UNSIGNED(16), 0, NULL);
 #define MAX1363_SCAN_EL_D(p, n, number)					\
 	IIO_SCAN_NAMED_EL_C(in##p##m##in##n, in##p-in##n,		\
-			number, IIO_SIGNED(16), 0 , NULL);
+			number, IIO_SIGNED(16), 0, NULL);
 
 static MAX1363_SCAN_EL(0);
 static MAX1363_SCAN_EL(1);
@@ -167,7 +166,7 @@ static int max1363_write_basic_config(struct i2c_client *client,
 				      unsigned char d2)
 {
 	int ret;
-	u8 *tx_buf = kmalloc(2 , GFP_KERNEL);
+	u8 *tx_buf = kmalloc(2, GFP_KERNEL);
 
 	if (!tx_buf)
 		return -ENOMEM;
