@@ -16,17 +16,11 @@
  *		heavily optimized ring buffer access function.
  */
 
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
-#include <linux/rtc.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/string.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
