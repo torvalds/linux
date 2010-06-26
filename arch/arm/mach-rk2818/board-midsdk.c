@@ -432,6 +432,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_DWC_OTG
 	&rk2818_device_dwc_otg,
 #endif
+#ifdef CONFIG_RK2818_HOST11
+	&rk2818_device_host11,
+#endif
 #ifdef CONFIG_USB_ANDROID
 	&android_usb_device,
 	&usb_mass_storage_device,

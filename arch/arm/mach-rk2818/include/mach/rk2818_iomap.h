@@ -107,7 +107,7 @@
 #define RK2818_ESRAM_PHYS               0x100BA000
 #define RK2818_ESRAM_SIZE               SZ_8K
 
-#define RK2818_USBHOST_PHYS             0x1010000
+#define RK2818_USBHOST_PHYS             0x10100000
 #define RK2818_USBHOST_SIZE             SZ_256K
 
 #define RK2818_UART0_BASE          	0xFF100000

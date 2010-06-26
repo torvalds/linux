@@ -42,6 +42,7 @@ extern struct platform_device rk2818_device_backlight;
 extern struct platform_device rk2818_device_dsp;
 extern struct platform_device rk2818_nand_device;
 extern struct platform_device rk2818_device_dwc_otg;
+extern struct platform_device rk2818_device_host11;
 extern struct platform_device android_usb_device;
 extern struct platform_device usb_mass_storage_device;
 

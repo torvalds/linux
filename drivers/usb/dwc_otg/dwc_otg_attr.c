@@ -270,7 +270,7 @@
 #define DWC_OTG_DEVICE_ATTR_BITFIELD_SHOW(_otg_attr_name_,_addr_,_mask_,_shift_,_string_) \
 static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
 { \
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);\
+        dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t val; \
 	val = dwc_read_reg32 (_addr_); \
 	val = (val & (_mask_)) >> _shift_; \
@@ -279,7 +279,7 @@ static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
 #define DWC_OTG_DEVICE_ATTR_BITFIELD_STORE(_otg_attr_name_,_addr_,_mask_,_shift_,_string_) \
 static ssize_t _otg_attr_name_##_store (struct device *_dev, const char *buf, size_t count) \
 { \
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);\
+        dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t set = simple_strtoul(buf, NULL, 16); \
 	uint32_t clear = set; \
 	clear = ((~clear) << _shift_) & _mask_; \
@@ -304,7 +304,7 @@ DEVICE_ATTR(_otg_attr_name_,0444,_otg_attr_name_##_show,NULL);
 #define DWC_OTG_DEVICE_ATTR_REG_SHOW(_otg_attr_name_,_addr_,_string_) \
 static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
 { \
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);\
+        dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t val; \
 	val = dwc_read_reg32 (_addr_); \
 	return sprintf (buf, "%s = 0x%08x\n", _string_, val); \
@@ -312,7 +312,7 @@ static ssize_t _otg_attr_name_##_show (struct device *_dev, char *buf) \
 #define DWC_OTG_DEVICE_ATTR_REG_STORE(_otg_attr_name_,_addr_,_string_) \
 static ssize_t _otg_attr_name_##_store (struct device *_dev, const char *buf, size_t count) \
 { \
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);\
+        dwc_otg_device_t *otg_dev = _dev->platform_data;\
 	uint32_t val = simple_strtoul(buf, NULL, 16); \
 	dev_dbg(_dev, "Storing Address=0x%08x Val=0x%08x\n", (uint32_t)_addr_, val); \
 	dwc_write_reg32(_addr_, val); \
@@ -337,7 +337,7 @@ DEVICE_ATTR(_otg_attr_name_,0444,_otg_attr_name_##_show,NULL);
  */
 static ssize_t regoffset_show( struct device *_dev, char *buf) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	return snprintf(buf, sizeof("0xFFFFFFFF\n")+1,"0x%08x\n", otg_dev->reg_offset);
 }
 
@@ -347,7 +347,7 @@ static ssize_t regoffset_show( struct device *_dev, char *buf)
 static ssize_t regoffset_store( struct device *_dev, const char *buf, 
                                 size_t count ) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t offset = simple_strtoul(buf, NULL, 16);
 	//dev_dbg(_dev, "Offset=0x%08x\n", offset);
 	if (offset < SZ_256K ) {
@@ -368,7 +368,7 @@ DEVICE_ATTR(regoffset, S_IRUGO|S_IWUSR, regoffset_show, regoffset_store);
  */
 static ssize_t regvalue_show( struct device *_dev, char *buf) 
 {
-	dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t val;
 	volatile uint32_t *addr;
         
@@ -398,7 +398,7 @@ static ssize_t regvalue_show( struct device *_dev, char *buf)
 static ssize_t regvalue_store( struct device *_dev, const char *buf, 
                                size_t count ) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	volatile uint32_t * addr;
 	uint32_t val = simple_strtoul(buf, NULL, 16);
 	//dev_dbg(_dev, "Offset=0x%08x Val=0x%08x\n", otg_dev->reg_offset, val);
@@ -451,7 +451,7 @@ DWC_OTG_DEVICE_ATTR_REG32_RW(hprt0,otg_dev->core_if->host_if->hprt0,"HPRT0");
  */
 static ssize_t hnp_show( struct device *_dev, char *buf) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	gotgctl_data_t val;
 	val.d32 = dwc_read_reg32 (&(otg_dev->core_if->core_global_regs->gotgctl));
 	return sprintf (buf, "HstNegScs = 0x%x\n", val.b.hstnegscs);
@@ -463,7 +463,7 @@ static ssize_t hnp_show( struct device *_dev, char *buf)
 static ssize_t hnp_store( struct device *_dev, const char *buf, 
 			  size_t count ) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
 	uint32_t *addr = (uint32_t *)&(otg_dev->core_if->core_global_regs->gotgctl);
 	gotgctl_data_t mem;
@@ -484,7 +484,7 @@ DEVICE_ATTR(hnp, 0644, hnp_show, hnp_store);
 static ssize_t srp_show( struct device *_dev, char *buf) 
 {
 #ifndef DWC_HOST_ONLY
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	gotgctl_data_t val;
 	val.d32 = dwc_read_reg32 (&(otg_dev->core_if->core_global_regs->gotgctl));
 	return sprintf (buf, "SesReqScs = 0x%x\n", val.b.sesreqscs);
@@ -502,7 +502,7 @@ static ssize_t srp_store( struct device *_dev, const char *buf,
 			  size_t count ) 
 {
 #ifndef DWC_HOST_ONLY
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_pcd_initiate_srp(otg_dev->pcd);
 #endif
 	return count;
@@ -517,7 +517,7 @@ DEVICE_ATTR(srp, 0644, srp_show, srp_store);
  */
 static ssize_t buspower_show( struct device *_dev, char *buf) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	hprt0_data_t val;
 	val.d32 = dwc_read_reg32 (otg_dev->core_if->host_if->hprt0);
 	return sprintf (buf, "Bus Power = 0x%x\n", val.b.prtpwr);
@@ -530,7 +530,7 @@ static ssize_t buspower_show( struct device *_dev, char *buf)
 static ssize_t buspower_store( struct device *_dev, const char *buf, 
                                size_t count ) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t on = simple_strtoul(buf, NULL, 16);
 	uint32_t *addr = (uint32_t *)otg_dev->core_if->host_if->hprt0;
 	hprt0_data_t mem;
@@ -553,7 +553,7 @@ DEVICE_ATTR(buspower, 0644, buspower_show, buspower_store);
  */
 static ssize_t bussuspend_show( struct device *_dev, char *buf) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	hprt0_data_t val;
 	val.d32 = dwc_read_reg32 (otg_dev->core_if->host_if->hprt0);
 	return sprintf (buf, "Bus Suspend = 0x%x\n", val.b.prtsusp);
@@ -565,7 +565,7 @@ static ssize_t bussuspend_show( struct device *_dev, char *buf)
 static ssize_t bussuspend_store( struct device *_dev, const char *buf, 
                                  size_t count ) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t in = simple_strtoul(buf, NULL, 16);
 	uint32_t *addr = (uint32_t *)otg_dev->core_if->host_if->hprt0;
 	hprt0_data_t mem;
@@ -583,7 +583,7 @@ DEVICE_ATTR(bussuspend, 0644, bussuspend_show, bussuspend_store);
 static ssize_t remote_wakeup_show( struct device *_dev, char *buf) 
 {
 #ifndef DWC_HOST_ONLY
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dctl_data_t val;
 	val.d32 = 
                 dwc_read_reg32( &otg_dev->core_if->dev_if->dev_global_regs->dctl);
@@ -604,7 +604,7 @@ static ssize_t remote_wakeup_store( struct device *_dev, const char *buf,
 {
 #ifndef DWC_HOST_ONLY
         uint32_t val = simple_strtoul(buf, NULL, 16);        
-	dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+	dwc_otg_device_t *otg_dev = _dev->platform_data;
 	if (val&1) {
 		dwc_otg_pcd_remote_wakeup(otg_dev->pcd, 1);
 	}
@@ -623,8 +623,7 @@ DEVICE_ATTR(remote_wakeup,  S_IRUGO|S_IWUSR, remote_wakeup_show,
  */
 static ssize_t regdump_show( struct device *_dev, char *buf) 
 {
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
-
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
         dwc_otg_dump_global_registers( otg_dev->core_if);
         if (dwc_otg_is_host_mode(otg_dev->core_if)) {
                 dwc_otg_dump_host_registers( otg_dev->core_if);
@@ -642,7 +641,7 @@ DEVICE_ATTR(regdump, S_IRUGO|S_IWUSR, regdump_show, 0);
 static ssize_t hcddump_show( struct device *_dev, char *buf) 
 {
 #ifndef DWC_DEVICE_ONLY
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_hcd_dump_state(otg_dev->hcd);
 #endif
    	return sprintf( buf, "HCD Dump\n" );
@@ -658,7 +657,7 @@ DEVICE_ATTR(hcddump, S_IRUGO|S_IWUSR, hcddump_show, 0);
 static ssize_t hcd_frrem_show( struct device *_dev, char *buf) 
 {
 #ifndef DWC_DEVICE_ONLY
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	dwc_otg_hcd_dump_frrem(otg_dev->hcd);
 #endif
    	return sprintf( buf, "HCD Dump Frame Remaining\n" );
@@ -677,7 +676,7 @@ static ssize_t rd_reg_test_show( struct device *_dev, char *buf)
 	int i;
 	int time;
 	int start_jiffies;
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 
 	printk("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",
 	       HZ, MSEC_PER_JIFFIE, loops_per_jiffy);
@@ -701,7 +700,7 @@ static ssize_t wr_reg_test_show( struct device *_dev, char *buf)
 	int i;
 	int time;
 	int start_jiffies;
-        dwc_otg_device_t *otg_dev = dev_get_drvdata(_dev);
+        dwc_otg_device_t *otg_dev = _dev->platform_data;
 	uint32_t reg_val;
 
 	printk("HZ %d, MSEC_PER_JIFFIE %d, loops_per_jiffy %lu\n",

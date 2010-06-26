@@ -1756,6 +1756,7 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 	dev_dbg(&rhdev->dev, "bus %s%s\n",
 			(msg.event & PM_EVENT_AUTO ? "auto-" : ""), "suspend");
 	if (!hcd->driver->bus_suspend) {
+		printk("%s,error,everest\n",__func__);
 		status = -ENOENT;
 	} else {
 		hcd->state = HC_STATE_QUIESCING;

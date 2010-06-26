@@ -2648,6 +2648,7 @@ static ssize_t store_file(struct device *dev, struct device_attribute *attr,
 	int		rc = 0;
 
 	DBG(fsg, "store_file: \"%s\"\n", buf);
+	printk("store_file: \"%s\"\n", buf);
 #if 0
 	/* disabled because we need to allow closing the backing file if the media was removed */
 	if (curlun->prevent_medium_removal && backing_file_is_open(curlun)) {

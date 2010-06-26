@@ -1,5 +1,11 @@
+config RK2818_HOST11
+	tristate "RockChip USB Host 1.1 support"
+	---help---
+	  This driver supports Rockchip USB HOST 1.1
+	  controller in RK281X.
+
 config DWC_OTG
-	tristate "RockChip DWC_OTG support"
+	tristate "RockChip USB OTG 2.0 support"
         ---help---
           This driver supports Rockchip DWC_OTG 
 

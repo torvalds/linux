@@ -55,6 +55,15 @@
 #include "dwc_otg_hcd.h"
 #include "dwc_otg_regs.h"
 
+static int dwc_otg_hcd_suspend(struct usb_hcd *hcd)
+{
+	return 0;
+}
+
+static int dwc_otg_hcd_resume(struct usb_hcd *hcd)
+{
+	return 0;
+}
 
 static const char dwc_otg_hcd_name [] = "dwc_otg_hcd";
 
@@ -70,8 +79,17 @@ static const struct hc_driver dwc_otg_hc_driver = {
 
 	//.reset =
 	.start =		dwc_otg_hcd_start,
-	//.suspend =		
-	//.resume =		
+	//.suspend =	
+	//.resume =	
+	
+	/* yk@rk 20100625
+	 * core/hcd.c call hcd->driver->bus_suspend
+	 * otherwise system can not be suspended
+	 */
+#ifdef CONFIG_PM
+	.bus_suspend =		dwc_otg_hcd_suspend,
+	.bus_resume =		dwc_otg_hcd_resume,
+#endif
 	.stop =			dwc_otg_hcd_stop,
 
 	.urb_enqueue =		dwc_otg_hcd_urb_enqueue,
@@ -86,7 +104,44 @@ static const struct hc_driver dwc_otg_hc_driver = {
 	//.hub_resume =		
 };
 
+#ifdef CONFIG_RK2818_HOST11
+static const struct hc_driver rk28_host11_hc_driver = {
 
+	.description =		"rk28_host11_hcd",
+	.product_desc = 	"DWC OTG Controller",
+	.hcd_priv_size = 	sizeof(dwc_otg_hcd_t),
+
+	.irq =			dwc_otg_hcd_irq,
+
+	.flags =		HCD_MEMORY | HCD_USB2,
+
+	//.reset =
+	.start =		dwc_otg_hcd_start,
+	//.suspend =	
+	//.resume =	
+	
+	/* yk@rk 20100625
+	 * core/hcd.c call hcd->driver->bus_suspend
+	 * otherwise system can not be suspended
+	 */
+#ifdef CONFIG_PM
+	.bus_suspend =		dwc_otg_hcd_suspend,
+	.bus_resume =		dwc_otg_hcd_resume,
+#endif
+	.stop =			dwc_otg_hcd_stop,
+
+	.urb_enqueue =		dwc_otg_hcd_urb_enqueue,
+	.urb_dequeue =		dwc_otg_hcd_urb_dequeue,
+	.endpoint_disable =	dwc_otg_hcd_endpoint_disable,
+
+	.get_frame_number =	dwc_otg_hcd_get_frame_number,
+
+	.hub_status_data =	dwc_otg_hcd_hub_status_data,
+	.hub_control =		dwc_otg_hcd_hub_control,
+	//.hub_suspend =	
+	//.hub_resume =		
+};
+#endif
 
 /**
  * Work queue function for starting the HCD when A-Cable is connected.
@@ -364,7 +419,6 @@ static dwc_otg_cil_callbacks_t hcd_cil_callbacks = {
         .p = 0,//hcd
 };
 
-
 /**
  * Reset tasklet function
  */
@@ -403,8 +457,6 @@ static struct tasklet_struct reset_tasklet = {
  * a negative error on failure.
  */
 extern uint32_t g_dbg_lvl;
-extern int register_root_hub(struct usb_hcd * hcd);
-
 int __devinit dwc_otg_hcd_init(struct device *dev)
 {
 	struct usb_hcd *hcd = NULL;
@@ -528,8 +580,8 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 	}
 
 	DWC_PRINT("%s end,everest\n",__func__);
-	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
-		    dev->bus_id, hcd->self.busnum);
+//	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
+//		    dev->bus_id, hcd->self.busnum);
         
 	return 0;
 
@@ -545,6 +597,163 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 	return retval;
 }
 
+#ifdef CONFIG_RK2818_HOST11
+static dwc_otg_cil_callbacks_t rk28_host11_cil_callbacks = {
+        .start = dwc_otg_hcd_start_cb,
+        .stop = dwc_otg_hcd_stop_cb,
+        .disconnect = dwc_otg_hcd_disconnect_cb,
+        .session_start = dwc_otg_hcd_session_start_cb,
+        .p = 0,//hcd
+};
+
+static struct tasklet_struct rk28_host11_reset_tasklet = { 
+	.next = NULL,
+	.state = 0,
+	.count = ATOMIC_INIT(0),
+	.func = reset_tasklet_func,
+	.data = 0,
+};
+
+int __devinit rk28_host11_hcd_init(struct device *dev)
+{
+	struct usb_hcd *hcd = NULL;
+	dwc_otg_hcd_t *dwc_otg_hcd = NULL;
+    dwc_otg_device_t *otg_dev = dev->platform_data;
+
+	int 		num_channels;
+	int 		i;
+	dwc_hc_t	*channel;
+
+	int retval = 0;
+	printk("%s everest\n",__func__);
+//	g_dbg_lvl = 0xff;
+	
+	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD INIT\n");
+#if 1  //kaiker .these code must execute before usb_create_hcd
+	/* Set device flags indicating whether the HCD supports DMA. */
+	static u64 usb_dmamask = 0xffffffffUL;
+	if (otg_dev->core_if->dma_enable) {
+//		DWC_PRINT("Using DMA mode\n");
+		dev->dma_mask = &usb_dmamask;
+		dev->coherent_dma_mask = ~0;
+	} else {
+//		DWC_PRINT("Using Slave mode\n");
+		dev->dma_mask = (void *)0;
+		dev->coherent_dma_mask = 0;
+	}
+#endif
+
+	/*
+	 * Allocate memory for the base HCD plus the DWC OTG HCD.
+	 * Initialize the base HCD.
+	 */
+	hcd = usb_create_hcd(&rk28_host11_hc_driver, dev, dev_name(dev));
+	if (hcd == NULL) {
+		retval = -ENOMEM;
+		goto error1;
+	}
+	hcd->regs = otg_dev->base;
+	hcd->self.otg_port = 1;	 
+
+	/* Initialize the DWC OTG HCD. */
+	dwc_otg_hcd = hcd_to_dwc_otg_hcd(hcd);
+	dwc_otg_hcd->core_if = otg_dev->core_if;
+	otg_dev->hcd = dwc_otg_hcd;
+
+        /* Register the HCD CIL Callbacks */
+        dwc_otg_cil_register_hcd_callbacks(otg_dev->core_if, 
+					   &rk28_host11_cil_callbacks, hcd);
+
+	/* Initialize the non-periodic schedule. */
+	INIT_LIST_HEAD(&dwc_otg_hcd->non_periodic_sched_inactive);
+	INIT_LIST_HEAD(&dwc_otg_hcd->non_periodic_sched_active);
+
+	/* Initialize the periodic schedule. */
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_inactive);
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
+	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
+
+	/*
+	 * Create a host channel descriptor for each host channel implemented
+	 * in the controller. Initialize the channel descriptor array.
+	 */
+	INIT_LIST_HEAD(&dwc_otg_hcd->free_hc_list);
+	num_channels = dwc_otg_hcd->core_if->core_params->host_channels;
+	for (i = 0; i < num_channels; i++) {
+		channel = kmalloc(sizeof(dwc_hc_t), GFP_KERNEL);
+		if (channel == NULL) {
+			retval = -ENOMEM;
+			DWC_ERROR("%s: host channel allocation failed\n", __func__);
+			goto error2;
+		}
+		memset(channel, 0, sizeof(dwc_hc_t));
+		channel->hc_num = i;
+		dwc_otg_hcd->hc_ptr_array[i] = channel;
+#ifdef DEBUG
+		init_timer(&dwc_otg_hcd->core_if->hc_xfer_timer[i]);
+#endif		
+
+		DWC_DEBUGPL(DBG_HCDV, "HCD Added channel #%d, hc=%p\n", i, channel);
+	}
+	
+        /* Initialize the Connection timeout timer. */
+        init_timer( &dwc_otg_hcd->conn_timer );
+
+	/* Initialize reset tasklet. */
+	rk28_host11_reset_tasklet.data = (unsigned long) dwc_otg_hcd;
+	dwc_otg_hcd->reset_tasklet = &rk28_host11_reset_tasklet;
+	/*
+	 * Finish generic HCD initialization and start the HCD. This function
+	 * allocates the DMA buffer pool, registers the USB bus, requests the
+	 * IRQ line, and calls dwc_otg_hcd_start method.
+	 */
+	retval = usb_add_hcd(hcd, platform_get_irq(to_platform_device(dev), 0), 
+					IRQF_SHARED);
+	if (retval < 0) {
+		DWC_ERROR("usb_add_hcd fail,everest\n");
+		goto error2;
+	}
+	/*
+	 * Allocate space for storing data on status transactions. Normally no
+	 * data is sent, but this space acts as a bit bucket. This must be
+	 * done after usb_add_hcd since that function allocates the DMA buffer
+	 * pool.
+	 */
+	if (otg_dev->core_if->dma_enable) {
+		dwc_otg_hcd->status_buf =
+			dma_alloc_coherent(dev,
+					   DWC_OTG_HCD_STATUS_BUF_SIZE,
+					   &dwc_otg_hcd->status_buf_dma,
+					   GFP_KERNEL | GFP_DMA);
+	} else {
+		dwc_otg_hcd->status_buf = kmalloc(DWC_OTG_HCD_STATUS_BUF_SIZE,
+						  GFP_KERNEL);
+	}
+	if (dwc_otg_hcd->status_buf == NULL) {
+		retval = -ENOMEM;
+		DWC_ERROR("%s: status_buf allocation failed\n", __func__);
+		goto error3;
+	}
+
+	DWC_PRINT("%s end,everest\n",__func__);
+//	DWC_DEBUGPL(DBG_HCD, "DWC OTG HCD Initialized HCD, bus=%s, usbbus=%d\n", 
+//		    dev->bus_id, hcd->self.busnum);
+        
+	return 0;
+
+	/* Error conditions */
+ error3:
+	usb_remove_hcd(hcd);
+ error2:
+	dwc_otg_hcd_free(hcd);
+	usb_put_hcd(hcd);
+
+ error1:
+ 	printk("dwc_otg_hcd_init error,everest\n");
+	return retval;
+}
+#endif
 /**
  * Removes the HCD.
  * Frees memory and resources associated with the HCD and deregisters the bus.

@@ -444,6 +444,7 @@ struct platform_device rk2818_nand_device = {
 	
 };
 
+#endif
 /*DWC_OTG*/
 static struct resource dwc_otg_resource[] = {
 	{
@@ -465,7 +466,28 @@ struct platform_device rk2818_device_dwc_otg = {
 	.num_resources	  = ARRAY_SIZE(dwc_otg_resource),
 	.resource	  = dwc_otg_resource,
 };
+#ifdef CONFIG_RK2818_HOST11
+static struct resource rk2818_host11_resource[] = {
+	{
+		.start = IRQ_NR_USB_HOST,
+		.end   = IRQ_NR_USB_HOST,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = RK2818_USBHOST_PHYS,
+		.end   = RK2818_USBHOST_PHYS + RK2818_USBHOST_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
 
+};
+
+struct platform_device rk2818_device_host11 = {
+	.name		  = "rk2818_host11",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(rk2818_host11_resource),
+	.resource	  = rk2818_host11_resource,
+};
+#endif
 static char *usb_functions_rockchip[] = {
 	"usb_mass_storage",
 };
@@ -577,5 +599,4 @@ struct platform_device usb_mass_storage_device = {
 	},
 };
 
-#endif
 

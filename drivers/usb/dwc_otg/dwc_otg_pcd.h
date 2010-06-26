@@ -198,7 +198,6 @@ typedef struct dwc_otg_pcd
 	 * every 500 ms. */
 	struct timer_list check_vbus_timer;
     struct delayed_work	reconnect;
-    int intmaskbak;
 } dwc_otg_pcd_t;
 
 

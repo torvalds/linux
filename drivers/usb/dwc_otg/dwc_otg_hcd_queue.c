@@ -114,7 +114,6 @@ void dwc_otg_hcd_qh_free (dwc_otg_qh_t *_qh)
 void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_urb)
 {
 	memset (_qh, 0, sizeof (dwc_otg_qh_t));
-
 	/* Initialize QH */
 	switch (usb_pipetype(_urb->pipe)) {
 	case PIPE_CONTROL:
@@ -141,18 +140,21 @@ void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_ur
 
 	/* FS/LS Enpoint on HS Hub 
 	 * NOT virtual root hub */
-#if 1
 	_qh->do_split = 0;
+
+	/* yk@rk 20100625
+	 * _urb->dev->tt->hub may be null
+	 */
 	if (((_urb->dev->speed == USB_SPEED_LOW) || 
 	     (_urb->dev->speed == USB_SPEED_FULL)) &&
-	    (_urb->dev->tt) && (_urb->dev->tt->hub->devnum != 1)) 
+	    (_urb->dev->tt) && (_urb->dev->tt->hub)&&
+	    (_urb->dev->tt->hub->devnum != 1)) 
 	{
 		DWC_DEBUGPL(DBG_HCD, "QH init: EP %d: TT found at hub addr %d, for port %d\n", 
 			   usb_pipeendpoint(_urb->pipe), _urb->dev->tt->hub->devnum, 
 			   _urb->dev->ttport);
 		_qh->do_split = 1;
 	}
-#endif
 
 	if (_qh->ep_type == USB_ENDPOINT_XFER_INT ||
 	    _qh->ep_type == USB_ENDPOINT_XFER_ISOC) {
