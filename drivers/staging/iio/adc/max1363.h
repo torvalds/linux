@@ -179,7 +179,6 @@ enum max1363_modes {
  * @default_mode:	the scan mode in which the chip starts up
  */
 struct max1363_chip_info {
-	const char			*name;
 	u8				num_inputs;
 	u8				bits;
 	u16				int_vref_mv;
