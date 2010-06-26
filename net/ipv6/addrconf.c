@@ -3495,8 +3495,12 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 				preferred -= tval;
 			else
 				preferred = 0;
-			if (valid != INFINITY_LIFE_TIME)
-				valid -= tval;
+			if (valid != INFINITY_LIFE_TIME) {
+				if (valid > tval)
+					valid -= tval;
+				else
+					valid = 0;
+			}
 		}
 	} else {
 		preferred = INFINITY_LIFE_TIME;
