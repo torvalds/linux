@@ -96,7 +96,7 @@ int lis3l02dq_spi_write_reg_8(struct device *dev,
 
 	spi_message_init(&msg);
 	spi_message_add_tail(&xfer, &msg);
-	ret =  spi_sync(st->us, &msg);
+	ret = spi_sync(st->us, &msg);
 	mutex_unlock(&st->buf_lock);
 
 	return ret;
@@ -524,8 +524,7 @@ static ssize_t lis3l02dq_read_interrupt_config(struct device *dev,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       (u8 *)&val);
 
-	return ret ? ret : sprintf(buf, "%d\n",
-				   (val & this_attr->mask) ? 1 : 0);;
+	return ret ? ret : sprintf(buf, "%d\n", !!(val & this_attr->mask));
 }
 
 static ssize_t lis3l02dq_write_interrupt_config(struct device *dev,
@@ -604,7 +603,7 @@ static int lis3l02dq_thresh_handler_th(struct iio_dev *dev_info,
 
 	/* Stash the timestamp somewhere convenient for the bh */
 	st->last_timestamp = timestamp;
-	schedule_work(&st->work_cont_thresh.ws);
+	schedule_work(&st->work_thresh);
 
 	return 0;
 }
@@ -615,9 +614,10 @@ static int lis3l02dq_thresh_handler_th(struct iio_dev *dev_info,
  */
 static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 {
-	struct iio_work_cont *wc
-		= container_of(work_s, struct iio_work_cont, ws);
-	struct lis3l02dq_state *st = wc->st;
+       struct lis3l02dq_state *st
+	       = container_of(work_s,
+		       struct lis3l02dq_state, work_thresh);
+
 	u8 t;
 
 	lis3l02dq_spi_read_reg_8(&st->indio_dev->dev,
@@ -750,6 +750,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 		ret =  -ENOMEM;
 		goto error_ret;
 	}
+	INIT_WORK(&st->work_thresh, lis3l02dq_thresh_handler_bh_no_check);
 	/* this is only used tor removal purposes */
 	spi_set_drvdata(spi, st);
 
@@ -797,16 +798,6 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	}
 
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
-		/* This is a little unusual, in that the device seems
-		   to need a full read of the interrupt source reg before
-		   the interrupt will reset.
-		   Hence the two handlers are the same */
-		iio_init_work_cont(&st->work_cont_thresh,
-				   lis3l02dq_thresh_handler_bh_no_check,
-				   lis3l02dq_thresh_handler_bh_no_check,
-				   LIS3L02DQ_REG_WAKE_UP_SRC_ADDR,
-				   0,
-				   st);
 		st->inter = 0;
 		ret = iio_register_interrupt_line(spi->irq,
 						  st->indio_dev,

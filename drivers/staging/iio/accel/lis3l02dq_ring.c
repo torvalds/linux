@@ -591,12 +591,4 @@ void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring)
 	iio_ring_buffer_unregister(ring);
 }
 
-int lis3l02dq_set_ring_length(struct iio_dev *indio_dev, int length)
-{
-	/* Set sensible defaults for the ring buffer */
-	if (indio_dev->ring->access.set_length)
-		return indio_dev->ring->access.set_length(indio_dev->ring, 500);
-	return 0;
-}
-
 
