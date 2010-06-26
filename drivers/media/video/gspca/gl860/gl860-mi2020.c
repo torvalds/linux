@@ -558,7 +558,7 @@ static int mi2020_configure_alt(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-int mi2020_camera_settings(struct gspca_dev *gspca_dev)
+static int mi2020_camera_settings(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	s32 reso = gspca_dev->cam.cam_mode[(s32) gspca_dev->curr_mode].priv;
