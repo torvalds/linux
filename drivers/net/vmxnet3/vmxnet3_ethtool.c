@@ -276,15 +276,20 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 }
 
 static u32
-vmxnet3_get_flags(struct net_device *netdev) {
+vmxnet3_get_flags(struct net_device *netdev)
+{
 	return netdev->features;
 }
 
 static int
-vmxnet3_set_flags(struct net_device *netdev, u32 data) {
+vmxnet3_set_flags(struct net_device *netdev, u32 data)
+{
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 	u8 lro_requested = (data & ETH_FLAG_LRO) == 0 ? 0 : 1;
 	u8 lro_present = (netdev->features & NETIF_F_LRO) == 0 ? 0 : 1;
+
+	if (data & ~ETH_FLAG_LRO)
+		return -EOPNOTSUPP;
 
 	if (lro_requested ^ lro_present) {
 		/* toggle the LRO feature*/
