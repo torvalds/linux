@@ -410,29 +410,15 @@ static void au8522_setup_svideo_mode(struct au8522_state *state)
 
 static void disable_audio_input(struct au8522_state *state)
 {
-	/* This can probably be optimized */
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x00);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x00);
 	au8522_writereg(state, AU8522_AUDIO_VOLUME_REG0F4H, 0x00);
-	au8522_writereg(state, AU8522_I2C_CONTROL_REG1_REG091H, 0x80);
-	au8522_writereg(state, AU8522_I2C_CONTROL_REG0_REG090H, 0x84);
-
-	au8522_writereg(state, AU8522_ENA_USB_REG101H, 0x00);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_L_REG0F2H, 0x7F);
-	au8522_writereg(state, AU8522_AUDIO_VOLUME_R_REG0F3H, 0x7F);
-	au8522_writereg(state, AU8522_REG0F9H, AU8522_REG0F9H_AUDIO);
-	au8522_writereg(state, AU8522_AUDIO_MODE_REG0F1H, 0x40);
-
-	au8522_writereg(state, AU8522_GPIO_DATA_REG0E2H, 0x11);
-	msleep(5);
-	au8522_writereg(state, AU8522_GPIO_DATA_REG0E2H, 0x00);
 
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_1_REG0A5H, 0x04);
-	au8522_writereg(state, AU8522_AUDIOFREQ_REG606H, 0x03);
 	au8522_writereg(state, AU8522_I2S_CTRL_2_REG112H, 0x02);
 
 	au8522_writereg(state, AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H,
-			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_CVBS);
+			AU8522_SYSTEM_MODULE_CONTROL_0_REG0A4H_SVIDEO);
 }
 
 /* 0=disable, 1=SIF */
