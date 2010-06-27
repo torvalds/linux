@@ -292,18 +292,15 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 
 	/* read the registers containing the IR status */
 	result = ir->get_key(ir, &poll_result);
-	if (result < 0) {
+	if (unlikely(result < 0)) {
 		dprintk("ir->get_key() failed %d\n", result);
 		return;
 	}
 
-	dprintk("ir->get_key result tb=%02x rc=%02x lr=%02x data=%02x%02x\n",
-		poll_result.toggle_bit, poll_result.read_count,
-		ir->last_readcount, poll_result.rc_address,
-		poll_result.rc_data[0]);
-
-	if (poll_result.read_count > 0 &&
-	    poll_result.read_count != ir->last_readcount) {
+	if (unlikely(poll_result.read_count != ir->last_readcount)) {
+		dprintk("%s: toggle: %d, count: %d, key 0x%02x%02x\n", __func__,
+			poll_result.toggle_bit, poll_result.read_count,
+			poll_result.rc_address, poll_result.rc_data[0]);
 		if (ir->full_code)
 			ir_keydown(ir->input,
 				   poll_result.rc_address << 8 |
@@ -313,17 +310,17 @@ static void em28xx_ir_handle_key(struct em28xx_IR *ir)
 			ir_keydown(ir->input,
 				   poll_result.rc_data[0],
 				   poll_result.toggle_bit);
-	}
 
-	if (ir->dev->chip_id == CHIP_ID_EM2874)
-		/* The em2874 clears the readcount field every time the
-		   register is read.  The em2860/2880 datasheet says that it
-		   is supposed to clear the readcount, but it doesn't.  So with
-		   the em2874, we are looking for a non-zero read count as
-		   opposed to a readcount that is incrementing */
-		ir->last_readcount = 0;
-	else
-		ir->last_readcount = poll_result.read_count;
+		if (ir->dev->chip_id == CHIP_ID_EM2874)
+			/* The em2874 clears the readcount field every time the
+			   register is read.  The em2860/2880 datasheet says that it
+			   is supposed to clear the readcount, but it doesn't.  So with
+			   the em2874, we are looking for a non-zero read count as
+			   opposed to a readcount that is incrementing */
+			ir->last_readcount = 0;
+		else
+			ir->last_readcount = poll_result.read_count;
+	}
 }
 
 static void em28xx_ir_work(struct work_struct *work)
