@@ -282,6 +282,9 @@ static void __maybe_unused pcpu_next_pop(struct pcpu_chunk *chunk,
  */
 static void *pcpu_mem_alloc(size_t size)
 {
+	if (WARN_ON_ONCE(!slab_is_available()))
+		return NULL;
+
 	if (size <= PAGE_SIZE)
 		return kzalloc(size, GFP_KERNEL);
 	else {
@@ -391,13 +394,6 @@ static int pcpu_extend_area_map(struct pcpu_chunk *chunk, int new_alloc)
 
 	old_size = chunk->map_alloc * sizeof(chunk->map[0]);
 	memcpy(new, chunk->map, old_size);
-
-	/*
-	 * map_alloc < PCPU_DFL_MAP_ALLOC indicates that the chunk is
-	 * one of the first chunks and still using static map.
-	 */
-	if (chunk->map_alloc >= PCPU_DFL_MAP_ALLOC)
-		old = chunk->map;
 
 	chunk->map_alloc = new_alloc;
 	chunk->map = new;
@@ -604,7 +600,7 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 {
 	struct pcpu_chunk *chunk;
 
-	chunk = kzalloc(pcpu_chunk_struct_size, GFP_KERNEL);
+	chunk = pcpu_mem_alloc(pcpu_chunk_struct_size);
 	if (!chunk)
 		return NULL;
 
@@ -1109,7 +1105,9 @@ static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	memset(group_map, 0, sizeof(group_map));
 	memset(group_cnt, 0, sizeof(group_cnt));
 
-	size_sum = PFN_ALIGN(static_size + reserved_size + dyn_size);
+	/* calculate size_sum and ensure dyn_size is enough for early alloc */
+	size_sum = PFN_ALIGN(static_size + reserved_size +
+			    max_t(size_t, dyn_size, PERCPU_DYNAMIC_EARLY_SIZE));
 	dyn_size = size_sum - static_size - reserved_size;
 
 	/*
@@ -1338,7 +1336,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 				  void *base_addr)
 {
 	static char cpus_buf[4096] __initdata;
-	static int smap[2], dmap[2];
+	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
+	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	size_t dyn_size = ai->dyn_size;
 	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
 	struct pcpu_chunk *schunk, *dchunk = NULL;
@@ -1361,14 +1360,13 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 } while (0)
 
 	/* sanity checks */
-	BUILD_BUG_ON(ARRAY_SIZE(smap) >= PCPU_DFL_MAP_ALLOC ||
-		     ARRAY_SIZE(dmap) >= PCPU_DFL_MAP_ALLOC);
 	PCPU_SETUP_BUG_ON(ai->nr_groups <= 0);
 	PCPU_SETUP_BUG_ON(!ai->static_size);
 	PCPU_SETUP_BUG_ON(!base_addr);
 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
 	PCPU_SETUP_BUG_ON(ai->unit_size & ~PAGE_MASK);
 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
+	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
 
 	/* process group information and build config tables accordingly */
@@ -1806,3 +1804,33 @@ void __init setup_per_cpu_areas(void)
 		__per_cpu_offset[cpu] = delta + pcpu_unit_offsets[cpu];
 }
 #endif /* CONFIG_HAVE_SETUP_PER_CPU_AREA */
+
+/*
+ * First and reserved chunks are initialized with temporary allocation
+ * map in initdata so that they can be used before slab is online.
+ * This function is called after slab is brought up and replaces those
+ * with properly allocated maps.
+ */
+void __init percpu_init_late(void)
+{
+	struct pcpu_chunk *target_chunks[] =
+		{ pcpu_first_chunk, pcpu_reserved_chunk, NULL };
+	struct pcpu_chunk *chunk;
+	unsigned long flags;
+	int i;
+
+	for (i = 0; (chunk = target_chunks[i]); i++) {
+		int *map;
+		const size_t size = PERCPU_DYNAMIC_EARLY_SLOTS * sizeof(map[0]);
+
+		BUILD_BUG_ON(size > PAGE_SIZE);
+
+		map = pcpu_mem_alloc(size);
+		BUG_ON(!map);
+
+		spin_lock_irqsave(&pcpu_lock, flags);
+		memcpy(map, chunk->map, size);
+		chunk->map = map;
+		spin_unlock_irqrestore(&pcpu_lock, flags);
+	}
+}
