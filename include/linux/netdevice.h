@@ -2314,20 +2314,26 @@ do {					  			\
 		netdev_printk(level, (dev), fmt, ##args);	\
 } while (0)
 
+#define netif_level(level, priv, type, dev, fmt, args...)	\
+do {								\
+	if (netif_msg_##type(priv))				\
+		netdev_##level(dev, fmt, ##args);		\
+} while (0)
+
 #define netif_emerg(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_EMERG, dev, fmt, ##args)
+	netif_level(emerg, priv, type, dev, fmt, ##args)
 #define netif_alert(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_ALERT, dev, fmt, ##args)
+	netif_level(alert, priv, type, dev, fmt, ##args)
 #define netif_crit(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_CRIT, dev, fmt, ##args)
+	netif_level(crit, priv, type, dev, fmt, ##args)
 #define netif_err(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_ERR, dev, fmt, ##args)
+	netif_level(err, priv, type, dev, fmt, ##args)
 #define netif_warn(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_WARNING, dev, fmt, ##args)
+	netif_level(warn, priv, type, dev, fmt, ##args)
 #define netif_notice(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_NOTICE, dev, fmt, ##args)
+	netif_level(notice, priv, type, dev, fmt, ##args)
 #define netif_info(priv, type, dev, fmt, args...)		\
-	netif_printk(priv, type, KERN_INFO, (dev), fmt, ##args)
+	netif_level(info, priv, type, dev, fmt, ##args)
 
 #if defined(DEBUG)
 #define netif_dbg(priv, type, dev, format, args...)		\
