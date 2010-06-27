@@ -884,7 +884,6 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		if (!(sbp->s_state & le16_to_cpu(NILFS_VALID_FS)) &&
 		    (nilfs->ns_mount_state & NILFS_VALID_FS))
 			sbp->s_state = cpu_to_le16(nilfs->ns_mount_state);
-		sbp->s_mtime = cpu_to_le64(get_seconds());
 		nilfs_commit_super(sbi, 1);
 		up_write(&nilfs->ns_sem);
 	} else {
