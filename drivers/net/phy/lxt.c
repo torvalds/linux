@@ -226,6 +226,7 @@ module_exit(lxt_exit);
 static struct mdio_device_id lxt_tbl[] = {
 	{ 0x78100000, 0xfffffff0 },
 	{ 0x001378e0, 0xfffffff0 },
+	{ 0x00137a10, 0xfffffff0 },
 	{ }
 };
 

@@ -709,7 +709,7 @@ int vnic_dev_init_prov(struct vnic_dev *vdev, u8 *buf, u32 len)
 {
 	u64 a0, a1 = len;
 	int wait = 1000;
-	u64 prov_pa;
+	dma_addr_t prov_pa;
 	void *prov_buf;
 	int ret;
 
