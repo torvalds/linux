@@ -2646,22 +2646,21 @@ static int slic_upr_request(struct adapter *adapter,
 		     u32 upr_data_h,
 		     u32 upr_buffer, u32 upr_buffer_h)
 {
-	int status;
+	int rc;
 
 	spin_lock_irqsave(&adapter->upr_lock.lock, adapter->upr_lock.flags);
-	status = slic_upr_queue_request(adapter,
+	rc = slic_upr_queue_request(adapter,
 					upr_request,
 					upr_data,
 					upr_data_h, upr_buffer, upr_buffer_h);
-	if (status != 0) {
-		spin_unlock_irqrestore(&adapter->upr_lock.lock,
-					adapter->upr_lock.flags);
-		return status;
-	}
+	if (rc)
+		goto err_unlock_irq;
+
 	slic_upr_start(adapter);
+err_unlock_irq:
 	spin_unlock_irqrestore(&adapter->upr_lock.lock,
 				adapter->upr_lock.flags);
-	return 0;
+	return rc;
 }
 
 static void slic_upr_request_complete(struct adapter *adapter, u32 isr)
