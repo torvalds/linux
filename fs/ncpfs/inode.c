@@ -728,8 +728,8 @@ out_fput:
 out_bdi:
 	/* 23/12/1998 Marcin Dalecki <dalecki@cs.net.pl>:
 	 * 
-	 * The previously used put_filp(ncp_filp); was bogous, since
-	 * it doesn't proper unlocking.
+	 * The previously used put_filp(ncp_filp); was bogus, since
+	 * it doesn't perform proper unlocking.
 	 */
 	fput(ncp_filp);
 out:
