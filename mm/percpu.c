@@ -1013,20 +1013,6 @@ phys_addr_t per_cpu_ptr_to_phys(void *addr)
 		return page_to_phys(pcpu_addr_to_page(addr));
 }
 
-static inline size_t pcpu_calc_fc_sizes(size_t static_size,
-					size_t reserved_size,
-					ssize_t *dyn_sizep)
-{
-	size_t size_sum;
-
-	size_sum = PFN_ALIGN(static_size + reserved_size +
-			     (*dyn_sizep >= 0 ? *dyn_sizep : 0));
-	if (*dyn_sizep != 0)
-		*dyn_sizep = size_sum - static_size - reserved_size;
-
-	return size_sum;
-}
-
 /**
  * pcpu_alloc_alloc_info - allocate percpu allocation info
  * @nr_groups: the number of groups
@@ -1085,7 +1071,7 @@ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
 /**
  * pcpu_build_alloc_info - build alloc_info considering distances between CPUs
  * @reserved_size: the size of reserved percpu area in bytes
- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @dyn_size: minimum free size for dynamic allocation in bytes
  * @atom_size: allocation atom size
  * @cpu_distance_fn: callback to determine distance between cpus, optional
  *
@@ -1103,8 +1089,8 @@ void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
  * On success, pointer to the new allocation_info is returned.  On
  * failure, ERR_PTR value is returned.
  */
-struct pcpu_alloc_info * __init pcpu_build_alloc_info(
-				size_t reserved_size, ssize_t dyn_size,
+static struct pcpu_alloc_info * __init pcpu_build_alloc_info(
+				size_t reserved_size, size_t dyn_size,
 				size_t atom_size,
 				pcpu_fc_cpu_distance_fn_t cpu_distance_fn)
 {
@@ -1123,13 +1109,15 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	memset(group_map, 0, sizeof(group_map));
 	memset(group_cnt, 0, sizeof(group_cnt));
 
+	size_sum = PFN_ALIGN(static_size + reserved_size + dyn_size);
+	dyn_size = size_sum - static_size - reserved_size;
+
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
 	 * alloc_size is multiple of atom_size and is the smallest
 	 * which can accomodate 4k aligned segments which are equal to
 	 * or larger than min_unit_size.
 	 */
-	size_sum = pcpu_calc_fc_sizes(static_size, reserved_size, &dyn_size);
 	min_unit_size = max_t(size_t, size_sum, PCPU_MIN_UNIT_SIZE);
 
 	alloc_size = roundup(min_unit_size, atom_size);
@@ -1532,7 +1520,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
 /**
  * pcpu_embed_first_chunk - embed the first percpu chunk into bootmem
  * @reserved_size: the size of reserved percpu area in bytes
- * @dyn_size: free size for dynamic allocation in bytes, -1 for auto
+ * @dyn_size: minimum free size for dynamic allocation in bytes
  * @atom_size: allocation atom size
  * @cpu_distance_fn: callback to determine distance between cpus, optional
  * @alloc_fn: function to allocate percpu page
@@ -1553,10 +1541,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * vmalloc space is not orders of magnitude larger than distances
  * between node memory addresses (ie. 32bit NUMA machines).
  *
- * When @dyn_size is positive, dynamic area might be larger than
- * specified to fill page alignment.  When @dyn_size is auto,
- * @dyn_size is just big enough to fill page alignment after static
- * and reserved areas.
+ * @dyn_size specifies the minimum dynamic area size.
  *
  * If the needed size is smaller than the minimum or specified unit
  * size, the leftover is returned using @free_fn.
@@ -1564,7 +1549,7 @@ early_param("percpu_alloc", percpu_alloc_setup);
  * RETURNS:
  * 0 on success, -errno on failure.
  */
-int __init pcpu_embed_first_chunk(size_t reserved_size, ssize_t dyn_size,
+int __init pcpu_embed_first_chunk(size_t reserved_size, size_t dyn_size,
 				  size_t atom_size,
 				  pcpu_fc_cpu_distance_fn_t cpu_distance_fn,
 				  pcpu_fc_alloc_fn_t alloc_fn,
@@ -1695,7 +1680,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size,
 
 	snprintf(psize_str, sizeof(psize_str), "%luK", PAGE_SIZE >> 10);
 
-	ai = pcpu_build_alloc_info(reserved_size, -1, PAGE_SIZE, NULL);
+	ai = pcpu_build_alloc_info(reserved_size, 0, PAGE_SIZE, NULL);
 	if (IS_ERR(ai))
 		return PTR_ERR(ai);
 	BUG_ON(ai->nr_groups != 1);
