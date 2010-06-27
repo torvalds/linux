@@ -106,7 +106,6 @@ extern struct cifsFileInfo *cifs_new_fileinfo(struct inode *newinode,
 				__u16 fileHandle, struct file *file,
 				struct vfsmount *mnt, unsigned int oflags);
 extern int cifs_posix_open(char *full_path, struct inode **pinode,
-				struct vfsmount *mnt,
 				struct super_block *sb,
 				int mode, int oflags,
 				__u32 *poplock, __u16 *pnetfid, int xid);
