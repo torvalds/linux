@@ -62,7 +62,7 @@ static inline unsigned int rc5_command(u32 rc5_baseband)
 
 static void cx23885_input_process_raw_rc5(struct cx23885_dev *dev)
 {
-	struct card_ir *ir_input = dev->ir_input;
+	struct cx23885_ir_input *ir_input = dev->ir_input;
 	unsigned int code, command;
 	u32 rc5;
 
@@ -110,7 +110,7 @@ static void cx23885_input_next_pulse_width_rc5(struct cx23885_dev *dev,
 					       u32 ns_pulse)
 {
 	const int rc5_quarterbit_ns = 444444; /* 32 cycles/36 kHz/2 = 444 us */
-	struct card_ir *ir_input = dev->ir_input;
+	struct cx23885_ir_input *ir_input = dev->ir_input;
 	int i, level, quarterbits, halfbits;
 
 	if (!ir_input->active) {
@@ -166,7 +166,7 @@ static void cx23885_input_next_pulse_width_rc5(struct cx23885_dev *dev,
 static void cx23885_input_process_pulse_widths_rc5(struct cx23885_dev *dev,
 						   bool add_eom)
 {
-	struct card_ir *ir_input = dev->ir_input;
+	struct cx23885_ir_input *ir_input = dev->ir_input;
 	struct ir_input_state *ir_input_state = &ir_input->ir;
 
 	u32 ns_pulse[RC5_HALF_BITS+1];
@@ -243,7 +243,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 
 static void cx23885_input_ir_start(struct cx23885_dev *dev)
 {
-	struct card_ir *ir_input = dev->ir_input;
+	struct cx23885_ir_input *ir_input = dev->ir_input;
 	struct ir_input_state *ir_input_state = &ir_input->ir;
 	struct v4l2_subdev_ir_parameters params;
 
@@ -303,7 +303,7 @@ static void cx23885_input_ir_start(struct cx23885_dev *dev)
 
 static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 {
-	struct card_ir *ir_input = dev->ir_input;
+	struct cx23885_ir_input *ir_input = dev->ir_input;
 	struct v4l2_subdev_ir_parameters params;
 
 	if (dev->sd_ir == NULL)
@@ -338,7 +338,7 @@ static void cx23885_input_ir_stop(struct cx23885_dev *dev)
 
 int cx23885_input_init(struct cx23885_dev *dev)
 {
-	struct card_ir *ir;
+	struct cx23885_ir_input *ir;
 	struct input_dev *input_dev;
 	char *ir_codes = NULL;
 	int ir_type, ir_addr, ir_start;
@@ -376,9 +376,9 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	ir->start = ir_start;
 
 	/* init input device */
-	snprintf(ir->name, sizeof(ir->name), "cx23885 IR (%s)",
-		 cx23885_boards[dev->board].name);
-	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(dev->pci));
+	ir->name = kasprintf(GFP_KERNEL, "cx23885 IR (%s)",
+			     cx23885_boards[dev->board].name);
+	ir->phys = kasprintf(GFP_KERNEL, "pci-%s/ir0", pci_name(dev->pci));
 
 	ret = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (ret < 0)
@@ -410,6 +410,8 @@ err_out_stop:
 	cx23885_input_ir_stop(dev);
 	dev->ir_input = NULL;
 err_out_free:
+	kfree(ir->phys);
+	kfree(ir->name);
 	kfree(ir);
 	return ret;
 }
@@ -422,6 +424,8 @@ void cx23885_input_fini(struct cx23885_dev *dev)
 	if (dev->ir_input == NULL)
 		return;
 	ir_input_unregister(dev->ir_input->dev);
+	kfree(dev->ir_input->phys);
+	kfree(dev->ir_input->name);
 	kfree(dev->ir_input);
 	dev->ir_input = NULL;
 }
