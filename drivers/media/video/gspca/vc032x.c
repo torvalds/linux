@@ -3726,17 +3726,16 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	/* The vc0321 sends some additional data after sending the complete
 	 * frame, we ignore this. */
 	if (sd->bridge == BRIDGE_VC0321) {
-		struct gspca_frame *frame;
-		int l;
+		int size, l;
 
-		frame = gspca_get_i_frame(gspca_dev);
-		if (frame == NULL) {
+		if (gspca_dev->image == NULL) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}
-		l = frame->data_end - frame->data;
-		if (len > frame->v4l2_buf.length - l)
-			len = frame->v4l2_buf.length - l;
+		l = gspca_dev->image_len;
+		size = gspca_dev->frsz;
+		if (len > size - l)
+			len = size - l;
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }

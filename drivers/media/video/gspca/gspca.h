@@ -147,7 +147,6 @@ enum gspca_packet_type {
 
 struct gspca_frame {
 	__u8 *data;			/* frame buffer */
-	__u8 *data_end;			/* end of frame while filling */
 	int vma_use_count;
 	struct v4l2_buffer v4l2_buf;
 };
@@ -176,8 +175,9 @@ struct gspca_dev {
 
 	__u8 *frbuf;				/* buffer for nframes */
 	struct gspca_frame frame[GSPCA_MAX_FRAMES];
-	struct gspca_frame *cur_frame;		/* frame beeing filled */
+	u8 *image;				/* image beeing filled */
 	__u32 frsz;				/* frame size */
+	u32 image_len;				/* current length of image */
 	char nframes;				/* number of frames */
 	char fr_i;				/* frame being filled */
 	char fr_q;				/* next frame to queue */
@@ -226,7 +226,6 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 			enum gspca_packet_type packet_type,
 			const u8 *data,
 			int len);
-struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev);
 #ifdef CONFIG_PM
 int gspca_suspend(struct usb_interface *intf, pm_message_t message);
 int gspca_resume(struct usb_interface *intf);

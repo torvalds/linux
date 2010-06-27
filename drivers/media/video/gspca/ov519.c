@@ -4162,7 +4162,6 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct gspca_frame *frame;
 
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 
@@ -4172,9 +4171,8 @@ static void ovfx2_pkt_scan(struct gspca_dev *gspca_dev,
 		   the sensor and bridge are still syncing, so drop it. */
 		if (sd->first_frame) {
 			sd->first_frame--;
-			frame = gspca_get_i_frame(gspca_dev);
-			if (!frame || (frame->data_end - frame->data) <
-				  (sd->gspca_dev.width * sd->gspca_dev.height))
+			if (gspca_dev->image_len <
+				  sd->gspca_dev.width * sd->gspca_dev.height)
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 		}
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);

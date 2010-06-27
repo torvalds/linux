@@ -294,19 +294,6 @@ static inline int gspca_input_connect(struct gspca_dev *dev)
 }
 #endif
 
-/* get the current input frame buffer */
-struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev)
-{
-	struct gspca_frame *frame;
-
-	frame = gspca_dev->cur_frame;
-	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-				!= V4L2_BUF_FLAG_QUEUED)
-		return NULL;
-	return frame;
-}
-EXPORT_SYMBOL(gspca_get_i_frame);
-
 /*
  * fill a video frame from an URB and resubmit
  */
@@ -328,6 +315,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		urb->status = 0;
 		goto resubmit;
 	}
+	if (gspca_dev->image == NULL)
+		gspca_dev->last_packet_type = DISCARD_PACKET;
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
 
@@ -440,19 +429,16 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	PDEBUG(D_PACK, "add t:%d l:%d",	packet_type, len);
 
 	/* check the availability of the frame buffer */
-	frame = gspca_dev->cur_frame;
-	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-					!= V4L2_BUF_FLAG_QUEUED) {
-		gspca_dev->last_packet_type = DISCARD_PACKET;
+	if (gspca_dev->image == NULL)
 		return;
-	}
 
-	/* when start of a new frame, if the current frame buffer
-	 * is not queued, discard the whole frame */
 	if (packet_type == FIRST_PACKET) {
-		frame->data_end = frame->data;
+		i = gspca_dev->fr_i;
+		j = gspca_dev->fr_queue[i];
+		frame = &gspca_dev->frame[j];
 		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
 		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
+		gspca_dev->image_len = 0;
 	} else if (gspca_dev->last_packet_type == DISCARD_PACKET) {
 		if (packet_type == LAST_PACKET)
 			gspca_dev->last_packet_type = packet_type;
@@ -461,26 +447,29 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 
 	/* append the packet to the frame buffer */
 	if (len > 0) {
-		if (frame->data_end - frame->data + len
-						 > frame->v4l2_buf.length) {
-			PDEBUG(D_ERR|D_PACK, "frame overflow %zd > %d",
-				frame->data_end - frame->data + len,
-				frame->v4l2_buf.length);
+		if (gspca_dev->image_len + len > gspca_dev->frsz) {
+			PDEBUG(D_ERR|D_PACK, "frame overflow %d > %d",
+				gspca_dev->image_len + len,
+				gspca_dev->frsz);
 			packet_type = DISCARD_PACKET;
 		} else {
-			memcpy(frame->data_end, data, len);
-			frame->data_end += len;
+			memcpy(gspca_dev->image + gspca_dev->image_len,
+				data, len);
+			gspca_dev->image_len += len;
 		}
 	}
 	gspca_dev->last_packet_type = packet_type;
 
 	/* if last packet, wake up the application and advance in the queue */
 	if (packet_type == LAST_PACKET) {
-		frame->v4l2_buf.bytesused = frame->data_end - frame->data;
+		i = gspca_dev->fr_i;
+		j = gspca_dev->fr_queue[i];
+		frame = &gspca_dev->frame[j];
+		frame->v4l2_buf.bytesused = gspca_dev->image_len;
 		frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 		frame->v4l2_buf.flags |= V4L2_BUF_FLAG_DONE;
 		wake_up_interruptible(&gspca_dev->wq);	/* event = new frame */
-		i = (gspca_dev->fr_i + 1) % gspca_dev->nframes;
+		i = (i + 1) % gspca_dev->nframes;
 		gspca_dev->fr_i = i;
 		PDEBUG(D_FRAM, "frame complete len:%d q:%d i:%d o:%d",
 			frame->v4l2_buf.bytesused,
@@ -488,7 +477,13 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 			i,
 			gspca_dev->fr_o);
 		j = gspca_dev->fr_queue[i];
-		gspca_dev->cur_frame = &gspca_dev->frame[j];
+		frame = &gspca_dev->frame[j];
+		if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
+					== V4L2_BUF_FLAG_QUEUED) {
+			gspca_dev->image = frame->data;
+		} else {
+			gspca_dev->image = NULL;
+		}
 	}
 }
 EXPORT_SYMBOL(gspca_frame_add);
@@ -535,12 +530,12 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		frame->v4l2_buf.length = frsz;
 		frame->v4l2_buf.memory = gspca_dev->memory;
 		frame->v4l2_buf.sequence = 0;
-		frame->data = frame->data_end =
-					gspca_dev->frbuf + i * frsz;
+		frame->data = gspca_dev->frbuf + i * frsz;
 		frame->v4l2_buf.m.offset = i * frsz;
 	}
 	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
-	gspca_dev->cur_frame = &gspca_dev->frame[0];
+	gspca_dev->image = NULL;
+	gspca_dev->image_len = 0;
 	gspca_dev->last_packet_type = DISCARD_PACKET;
 	gspca_dev->sequence = 0;
 	return 0;
@@ -1948,7 +1943,7 @@ static int vidioc_qbuf(struct file *file, void *priv,
 	i = gspca_dev->fr_q;
 	gspca_dev->fr_queue[i] = index;
 	if (gspca_dev->fr_i == i)
-		gspca_dev->cur_frame = frame;
+		gspca_dev->image = frame->data;
 	gspca_dev->fr_q = (i + 1) % gspca_dev->nframes;
 	PDEBUG(D_FRAM, "qbuf q:%d i:%d o:%d",
 		gspca_dev->fr_q,
