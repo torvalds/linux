@@ -1451,7 +1451,7 @@ static int slic_if_init(struct adapter *adapter)
 	struct net_device *dev = adapter->netdev;
 	__iomem struct slic_regs *slic_regs = adapter->slic_regs;
 	struct slic_shmem *pshmem;
-	int status = 0;
+	int rc;
 
 	ASSERT(card);
 
@@ -1459,7 +1459,8 @@ static int slic_if_init(struct adapter *adapter)
 	if (adapter->state != ADAPT_DOWN) {
 		dev_err(&dev->dev, "%s: adapter->state != ADAPT_DOWN\n",
 			__func__);
-		return -EIO;
+		rc = -EIO;
+		goto err;
 	}
 	ASSERT(adapter->linkstate == LINK_DOWN);
 
@@ -1475,22 +1476,22 @@ static int slic_if_init(struct adapter *adapter)
 		if (dev->flags & IFF_MULTICAST)
 			adapter->macopts |= MAC_MCAST;
 	}
-	status = slic_adapter_allocresources(adapter);
-	if (status != 0) {
+	rc = slic_adapter_allocresources(adapter);
+	if (rc) {
 		dev_err(&dev->dev,
 			"%s: slic_adapter_allocresources FAILED %x\n",
-			__func__, status);
+			__func__, rc);
 		slic_adapter_freeresources(adapter);
-		return status;
+		goto err;
 	}
 
 	if (!adapter->queues_initialized) {
-		if (slic_rspqueue_init(adapter))
-			return -ENOMEM;
-		if (slic_cmdq_init(adapter))
-			return -ENOMEM;
-		if (slic_rcvqueue_init(adapter))
-			return -ENOMEM;
+		if ((rc = slic_rspqueue_init(adapter)))
+			goto err;
+		if ((rc = slic_cmdq_init(adapter)))
+			goto err;
+		if ((rc = slic_rcvqueue_init(adapter)))
+			goto err;
 		adapter->queues_initialized = 1;
 	}
 
@@ -1553,7 +1554,8 @@ static int slic_if_init(struct adapter *adapter)
 	slic_link_config(adapter, LINK_AUTOSPEED, LINK_AUTOD);
 	slic_link_event_handler(adapter);
 
-	return 0;
+err:
+	return rc;
 }
 
 static void slic_unmap_mmio_space(struct adapter *adapter)
