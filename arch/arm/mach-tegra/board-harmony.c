@@ -35,8 +35,6 @@
 #include <mach/irqs.h>
 #include <mach/nand.h>
 
-#include <linux/usb/android_composite.h>
-
 #include "board.h"
 #include "board-harmony.h"
 #include "clock.h"
@@ -236,44 +234,6 @@ struct platform_device tegra_otg = {
 	.num_resources = ARRAY_SIZE(tegra_otg_resources),
 };
 
-static char *usb_functions[] = { "usb_mass_storage" };
-static char *usb_functions_adb[] = { "usb_mass_storage", "adb" };
-
-static struct android_usb_product usb_products[] = {
-	{
-		.product_id     = 0xDEAD,
-		.num_functions  = ARRAY_SIZE(usb_functions),
-		.functions      = usb_functions,
-	},
-	{
-		.product_id     = 0xBEEF,
-		.num_functions  = ARRAY_SIZE(usb_functions_adb),
-		.functions      = usb_functions_adb,
-	},
-};
-
-/* standard android USB platform data */
-static struct android_usb_platform_data andusb_plat = {
-	.vendor_id                      = 0x18d1,
-	.product_id                     = 0x0002,
-	.manufacturer_name      = "Google",
-	.product_name           = "Harmony!",
-	.serial_number          = "0000",
-	.num_products = ARRAY_SIZE(usb_products),
-	.products = usb_products,
-	.num_functions = ARRAY_SIZE(usb_functions_adb),
-	.functions = usb_functions_adb,
-};
-
-
-static struct platform_device androidusb_device = {
-	.name   = "android_usb",
-	.id     = -1,
-	.dev    = {
-		.platform_data  = &andusb_plat,
-	},
-};
-
 /* PDA power */
 static struct pda_power_pdata pda_power_pdata = {
 };
@@ -290,7 +250,6 @@ static struct platform_device *harmony_devices[] __initdata = {
 	&debug_uart,
 	&tegra_nand_device,
 	&tegra_otg,
-	&androidusb_device,
 	&pda_power_device,
 };
 
