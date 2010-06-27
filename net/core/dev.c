@@ -5802,6 +5802,68 @@ char *netdev_drivername(const struct net_device *dev, char *buffer, int len)
 	return buffer;
 }
 
+static int __netdev_printk(const char *level, const struct net_device *dev,
+			   struct va_format *vaf)
+{
+	int r;
+
+	if (dev && dev->dev.parent)
+		r = dev_printk(level, dev->dev.parent, "%s: %pV",
+			       netdev_name(dev), vaf);
+	else if (dev)
+		r = printk("%s%s: %pV", level, netdev_name(dev), vaf);
+	else
+		r = printk("%s(NULL net_device): %pV", level, vaf);
+
+	return r;
+}
+
+int netdev_printk(const char *level, const struct net_device *dev,
+		  const char *format, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	int r;
+
+	va_start(args, format);
+
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	r = __netdev_printk(level, dev, &vaf);
+	va_end(args);
+
+	return r;
+}
+EXPORT_SYMBOL(netdev_printk);
+
+#define define_netdev_printk_level(func, level)			\
+int func(const struct net_device *dev, const char *fmt, ...)	\
+{								\
+	int r;							\
+	struct va_format vaf;					\
+	va_list args;						\
+								\
+	va_start(args, fmt);					\
+								\
+	vaf.fmt = fmt;						\
+	vaf.va = &args;						\
+								\
+	r = __netdev_printk(level, dev, &vaf);			\
+	va_end(args);						\
+								\
+	return r;						\
+}								\
+EXPORT_SYMBOL(func);
+
+define_netdev_printk_level(netdev_emerg, KERN_EMERG);
+define_netdev_printk_level(netdev_alert, KERN_ALERT);
+define_netdev_printk_level(netdev_crit, KERN_CRIT);
+define_netdev_printk_level(netdev_err, KERN_ERR);
+define_netdev_printk_level(netdev_warn, KERN_WARNING);
+define_netdev_printk_level(netdev_notice, KERN_NOTICE);
+define_netdev_printk_level(netdev_info, KERN_INFO);
+
 static void __net_exit netdev_exit(struct net *net)
 {
 	kfree(net->dev_name_head);
