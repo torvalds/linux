@@ -347,9 +347,11 @@ static void au8522_setup_cvbs_mode(struct au8522_state *state)
 	au8522_writereg(state, AU8522_MODULE_CLOCK_CONTROL_REG0A3H,
 			AU8522_MODULE_CLOCK_CONTROL_REG0A3H_CVBS);
 
+	/* PGA in automatic mode */
 	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x00);
-	au8522_writereg(state, AU8522_CLAMPING_CONTROL_REG083H, 0x0e);
-	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x10);
+
+	/* Enable clamping control */
+	au8522_writereg(state, AU8522_CLAMPING_CONTROL_REG083H, 0x00);
 
 	au8522_writereg(state, AU8522_INPUT_CONTROL_REG081H,
 			AU8522_INPUT_CONTROL_REG081H_CVBS_CH1);
@@ -366,14 +368,14 @@ static void au8522_setup_cvbs_tuner_mode(struct au8522_state *state)
 	au8522_writereg(state, AU8522_MODULE_CLOCK_CONTROL_REG0A3H,
 			AU8522_MODULE_CLOCK_CONTROL_REG0A3H_CVBS);
 
-	/* It's not clear why they turn off the PGA before enabling the clamp
-	   control, but the Windows trace does it so we will too... */
+	/* It's not clear why we have to have the PGA in automatic mode while
+	   enabling clamp control, but it's what Windows does */
 	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x00);
 
 	/* Enable clamping control */
 	au8522_writereg(state, AU8522_CLAMPING_CONTROL_REG083H, 0x0e);
 
-	/* Turn on the PGA */
+	/* Disable automatic PGA (since the CVBS is coming from the tuner) */
 	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x10);
 
 	/* Set input mode to CVBS on channel 4 with SIF audio input enabled */
@@ -396,7 +398,10 @@ static void au8522_setup_svideo_mode(struct au8522_state *state)
 	au8522_writereg(state, AU8522_INPUT_CONTROL_REG081H,
 			AU8522_INPUT_CONTROL_REG081H_SVIDEO_CH13);
 
-	/* Disable clamping control (required for S-video) */
+	/* PGA in automatic mode */
+	au8522_writereg(state, AU8522_PGA_CONTROL_REG082H, 0x00);
+
+	/* Enable clamping control */
 	au8522_writereg(state, AU8522_CLAMPING_CONTROL_REG083H, 0x00);
 
 	setup_decoder_defaults(state,
