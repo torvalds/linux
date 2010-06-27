@@ -134,12 +134,16 @@
 			compatible = "fsl,mpc5200-gpio";
 			reg = <0xb00 0x40>;
 			interrupts = <1 7 0>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		gpio@c00 {
 			compatible = "fsl,mpc5200-gpio-wkup";
 			reg = <0xc00 0x40>;
 			interrupts = <1 8 0 0 3 0>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		spi@f00 {
@@ -230,8 +234,8 @@
 			reg = <0x3000 0x400>;	// fec range, since we need to setup fec interrupts
 			interrupts = <2 5 0>;	// these are for "mii command finished", not link changes & co.
 
-			phy0: ethernet-phy@1 {
-				reg = <1>;
+			phy0: ethernet-phy@0 {
+				reg = <0>;
 			};
 		};
 
@@ -255,7 +259,13 @@
 			compatible = "fsl,mpc5200-i2c","fsl-i2c";
 			reg = <0x3d40 0x40>;
 			interrupts = <2 16 0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
 		};
+
 		sram@8000 {
 			compatible = "fsl,mpc5200-sram";
 			reg = <0x8000 0x4000>;
@@ -280,5 +290,19 @@
 		ranges = <0x42000000 0 0x80000000 0x80000000 0 0x20000000
 			  0x02000000 0 0xa0000000 0xa0000000 0 0x10000000
 			  0x01000000 0 0x00000000 0xb0000000 0 0x01000000>;
+	};
+
+	localbus {
+		compatible = "fsl,mpc5200-lpb","simple-bus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		ranges = <0 0 0xff000000 0x01000000>;
+
+		flash@0,0 {
+			compatible = "amd,am29lv652d", "cfi-flash";
+			reg = <0 0 0x01000000>;
+			bank-width = <1>;
+		};
 	};
 };

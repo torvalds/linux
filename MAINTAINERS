@@ -4212,6 +4212,7 @@ OPEN FIRMWARE AND FLATTENED DEVICE TREE
 M:	Grant Likely <grant.likely@secretlab.ca>
 L:	devicetree-discuss@lists.ozlabs.org
 W:	http://fdt.secretlab.ca
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 F:	drivers/of
 F:	include/linux/of*.h
@@ -5384,6 +5385,7 @@ M:	David Brownell <dbrownell@users.sourceforge.net>
 M:	Grant Likely <grant.likely@secretlab.ca>
 L:	spi-devel-general@lists.sourceforge.net
 Q:	http://patchwork.kernel.org/project/spi-devel-general/list/
+T:	git git://git.secretlab.ca/git/linux-2.6.git
 S:	Maintained
 F:	Documentation/spi/
 F:	drivers/spi/

@@ -259,6 +259,11 @@
 			compatible = "fsl,mpc5200b-i2c","fsl,mpc5200-i2c","fsl-i2c";
 			reg = <0x3d40 0x40>;
 			interrupts = <2 16 0>;
+
+			eeprom@50 {
+				compatible = "atmel,24c02";
+				reg = <0x50>;
+			};
 		};
 
 		sram@8000 {
