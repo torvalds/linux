@@ -324,9 +324,8 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto failed_unload;
 
 	down_write(&nilfs->ns_sem);
-	nilfs->ns_mount_state |= NILFS_VALID_FS;
-	nilfs->ns_sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
-	err = nilfs_commit_super(sbi, 1);
+	nilfs->ns_mount_state |= NILFS_VALID_FS; /* set "clean" flag */
+	err = nilfs_cleanup_super(sbi);
 	up_write(&nilfs->ns_sem);
 
 	if (err) {

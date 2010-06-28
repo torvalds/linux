@@ -278,6 +278,24 @@ int nilfs_commit_super(struct nilfs_sb_info *sbi, int dupsb)
 	return nilfs_sync_super(sbi, dupsb);
 }
 
+/**
+ * nilfs_cleanup_super() - write filesystem state for cleanup
+ * @sbi: nilfs_sb_info to be unmounted or degraded to read-only
+ *
+ * This function restores state flags in the on-disk super block.
+ * This will set "clean" flag (i.e. NILFS_VALID_FS) unless the
+ * filesystem was not clean previously.
+ */
+int nilfs_cleanup_super(struct nilfs_sb_info *sbi)
+{
+	struct nilfs_super_block **sbp = sbi->s_nilfs->ns_sbp;
+	int ret;
+
+	sbp[0]->s_state = cpu_to_le16(sbi->s_nilfs->ns_mount_state);
+	ret = nilfs_commit_super(sbi, 1);
+	return ret;
+}
+
 static void nilfs_put_super(struct super_block *sb)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
@@ -289,8 +307,7 @@ static void nilfs_put_super(struct super_block *sb)
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		down_write(&nilfs->ns_sem);
-		nilfs->ns_sbp[0]->s_state = cpu_to_le16(nilfs->ns_mount_state);
-		nilfs_commit_super(sbi, 1);
+		nilfs_cleanup_super(sbi);
 		up_write(&nilfs->ns_sem);
 	}
 	down_write(&nilfs->ns_super_sem);
@@ -819,7 +836,6 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
-	struct nilfs_super_block *sbp;
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	unsigned long old_sb_flags;
 	struct nilfs_mount_options old_opts;
@@ -880,11 +896,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		 * the RDONLY flag and then mark the partition as valid again.
 		 */
 		down_write(&nilfs->ns_sem);
-		sbp = nilfs->ns_sbp[0];
-		if (!(sbp->s_state & le16_to_cpu(NILFS_VALID_FS)) &&
-		    (nilfs->ns_mount_state & NILFS_VALID_FS))
-			sbp->s_state = cpu_to_le16(nilfs->ns_mount_state);
-		nilfs_commit_super(sbi, 1);
+		nilfs_cleanup_super(sbi);
 		up_write(&nilfs->ns_sem);
 	} else {
 		/*
