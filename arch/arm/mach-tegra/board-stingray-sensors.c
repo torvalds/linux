@@ -300,9 +300,9 @@ struct l3g4200d_platform_data stingray_gyro_pdata = {
 	.int_th_z_l = 0x00,
 	.int_duration = 0x00,
 
-	.axis_map_x = 0,
+	.axis_map_x = 1,
 	.axis_map_y = 0,
-	.axis_map_z = 0,
+	.axis_map_z = 2,
 
 	.negate_x = 0,
 	.negate_y = 0,
