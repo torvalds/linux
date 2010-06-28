@@ -384,9 +384,19 @@ curr[1-*]_min	Current min value.
 		Unit: milliampere
 		RW
 
+curr[1-*]_lcrit	Current critical low value
+		Unit: milliampere
+		RW
+
+curr[1-*]_crit	Current critical high value.
+		Unit: milliampere
+		RW
+
 curr[1-*]_input	Current input value
 		Unit: milliampere
 		RO
+
+Also see the Alarms section for status flags associated with currents.
 
 *********
 * Power *
@@ -450,13 +460,6 @@ power[1-*]_accuracy		Accuracy of the power meter.
 				Unit: Percent
 				RO
 
-power[1-*]_alarm		1 if the system is drawing more power than the
-				cap allows; 0 otherwise.  A poll notification is
-				sent to this file when the power use exceeds the
-				cap.  This file only appears if the cap is known
-				to be enforced by hardware.
-				RO
-
 power[1-*]_cap			If power use rises above this limit, the
 				system should take action to reduce power use.
 				A poll notification is sent to this file if the
@@ -478,6 +481,20 @@ power[1-*]_cap_max		Maximum cap that can be set.
 power[1-*]_cap_min		Minimum cap that can be set.
 				Unit: microWatt
 				RO
+
+power[1-*]_max			Maximum power.
+				Unit: microWatt
+				RW
+
+power[1-*]_crit			Critical maximum power.
+				If power rises to or above this limit, the
+				system is expected take drastic action to reduce
+				power consumption, such as a system shutdown or
+				a forced powerdown of some devices.
+				Unit: microWatt
+				RW
+
+Also see the Alarms section for status flags associated with power readings.
 
 **********
 * Energy *
@@ -501,6 +518,7 @@ implementation.
 
 in[0-*]_alarm
 curr[1-*]_alarm
+power[1-*]_alarm
 fan[1-*]_alarm
 temp[1-*]_alarm
 		Channel alarm
@@ -512,12 +530,20 @@ OR
 
 in[0-*]_min_alarm
 in[0-*]_max_alarm
+in[0-*]_lcrit_alarm
+in[0-*]_crit_alarm
 curr[1-*]_min_alarm
 curr[1-*]_max_alarm
+curr[1-*]_lcrit_alarm
+curr[1-*]_crit_alarm
+power[1-*]_cap_alarm
+power[1-*]_max_alarm
+power[1-*]_crit_alarm
 fan[1-*]_min_alarm
 fan[1-*]_max_alarm
 temp[1-*]_min_alarm
 temp[1-*]_max_alarm
+temp[1-*]_lcrit_alarm
 temp[1-*]_crit_alarm
 temp[1-*]_emergency_alarm
 		Limit alarm
