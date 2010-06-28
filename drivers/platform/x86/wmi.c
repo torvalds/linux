@@ -518,8 +518,13 @@ static void wmi_notify_debug(u32 value, void *context)
 {
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO "wmi: bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
@@ -543,6 +548,7 @@ static void wmi_notify_debug(u32 value, void *context)
 	default:
 		printk("object type 0x%X\n", obj->type);
 	}
+	kfree(obj);
 }
 
 /**
