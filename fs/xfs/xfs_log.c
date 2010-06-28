@@ -1423,11 +1423,8 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
 	bp->b_flags |= XBF_LOG_BUFFER;
-	/*
-	 * Do an ordered write for the log block.
-	 * Its unnecessary to flush the first split block in the log wrap case.
-	 */
-	if (!split && (log->l_mp->m_flags & XFS_MOUNT_BARRIER))
+
+	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 		XFS_BUF_ORDERED(bp);
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
