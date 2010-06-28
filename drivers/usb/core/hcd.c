@@ -1218,6 +1218,11 @@ static int hcd_alloc_coherent(struct usb_bus *bus,
 {
 	unsigned char *vaddr;
 
+	if (*vaddr_handle == NULL) {
+		WARN_ON_ONCE(1);
+		return -EFAULT;
+	}
+
 	vaddr = hcd_buffer_alloc(bus, size + sizeof(vaddr),
 				 mem_flags, dma_handle);
 	if (!vaddr)
