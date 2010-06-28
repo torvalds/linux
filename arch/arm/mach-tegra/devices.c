@@ -261,7 +261,6 @@ static struct resource sdhci_resource4[] = {
 	},
 };
 
-
 /* board files should fill in platform_data register the devices themselvs.
  * See board-harmony.c for an example
  */
@@ -291,4 +290,24 @@ struct platform_device tegra_sdhci_device4 = {
 	.id		= 3,
 	.resource	= sdhci_resource4,
 	.num_resources	= ARRAY_SIZE(sdhci_resource4),
+};
+
+static struct resource w1_resources[] = {
+	[0] = {
+		.start = INT_OWR,
+		.end   = INT_OWR,
+		.flags = IORESOURCE_IRQ
+	},
+	[1] = {
+		.start = TEGRA_OWR_BASE,
+		.end = TEGRA_OWR_BASE + TEGRA_OWR_SIZE - 1,
+		.flags = IORESOURCE_MEM
+	}
+};
+
+struct platform_device tegra_w1_device = {
+	.name          = "tegra_w1",
+	.id            = -1,
+	.resource      = w1_resources,
+	.num_resources = ARRAY_SIZE(w1_resources),
 };

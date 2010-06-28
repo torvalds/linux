@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-tegra/devices.c
+ * arch/arm/mach-tegra/devices.h
  *
  * Copyright (C) 2010 Google, Inc.
  *
@@ -35,5 +35,6 @@ extern struct platform_device tegra_spi_device1;
 extern struct platform_device tegra_spi_device2;
 extern struct platform_device tegra_spi_device3;
 extern struct platform_device tegra_spi_device4;
+extern struct platform_device tegra_w1_device;
 
 #endif
