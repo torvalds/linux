@@ -1174,7 +1174,10 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		goto err_put_regulator;
 	}
 
-	if (request_irq(spi->irq, ads7846_irq, IRQF_TRIGGER_FALLING,
+	if (!pdata->irq_flags)
+		pdata->irq_flags = IRQF_TRIGGER_FALLING;
+
+	if (request_irq(spi->irq, ads7846_irq, pdata->irq_flags,
 			spi->dev.driver->name, ts)) {
 		dev_info(&spi->dev,
 			"trying pin change workaround on irq %d\n", spi->irq);

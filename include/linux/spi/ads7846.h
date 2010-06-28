@@ -54,5 +54,6 @@ struct ads7846_platform_data {
 	void	(*filter_cleanup)(void *filter_data);
 	void	(*wait_for_sync)(void);
 	bool	wakeup;
+	unsigned long irq_flags;
 };
 
