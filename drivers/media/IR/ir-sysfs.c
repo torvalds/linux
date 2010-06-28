@@ -38,9 +38,9 @@ static struct {
 	char	*name;
 } proto_names[] = {
 	{ IR_TYPE_UNKNOWN,	"unknown"	},
-	{ IR_TYPE_RC5,		"rc5"		},
+	{ IR_TYPE_RC5,		"rc-5"		},
 	{ IR_TYPE_NEC,		"nec"		},
-	{ IR_TYPE_RC6,		"rc6"		},
+	{ IR_TYPE_RC6,		"rc-6"		},
 	{ IR_TYPE_JVC,		"jvc"		},
 	{ IR_TYPE_SONY,		"sony"		},
 };
