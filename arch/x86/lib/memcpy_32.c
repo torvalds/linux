@@ -36,11 +36,9 @@ void *memmove(void *dest, const void *src, size_t n)
 				 "1" (src),
 				 "2" (dest)
 				:"memory");
-
 	} else {
-
-		if((src + count) < dest)
-			return memcpy(dest, src, count);
+		if((src + n) < dest)
+			return memcpy(dest, src, n);
 		else
 			__asm__ __volatile__(
 				"std\n\t"
