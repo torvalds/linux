@@ -3490,6 +3490,41 @@ struct iwl_missed_beacon_notif {
 #define HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX          (9)
 #define HD_OFDM_ENERGY_TH_IN_INDEX                  (10)
 
+/*
+ * Additional table entries in enhance SENSITIVITY_CMD
+ */
+#define HD_INA_NON_SQUARE_DET_OFDM_INDEX		(11)
+#define HD_INA_NON_SQUARE_DET_CCK_INDEX			(12)
+#define HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX		(13)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX		(14)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX	(15)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX		(16)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX		(17)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX		(18)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX	(19)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_INDEX		(20)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX		(21)
+#define HD_RESERVED					(22)
+
+/* number of entries for enhanced tbl */
+#define ENHANCE_HD_TABLE_SIZE  (23)
+
+/* number of additional entries for enhanced tbl */
+#define ENHANCE_HD_TABLE_ENTRIES  (ENHANCE_HD_TABLE_SIZE - HD_TABLE_SIZE)
+
+#define HD_INA_NON_SQUARE_DET_OFDM_DATA			cpu_to_le16(0)
+#define HD_INA_NON_SQUARE_DET_CCK_DATA			cpu_to_le16(0)
+#define HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA		cpu_to_le16(0)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA		cpu_to_le16(668)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA	cpu_to_le16(4)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_DATA		cpu_to_le16(486)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA		cpu_to_le16(37)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA		cpu_to_le16(853)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA	cpu_to_le16(4)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_DATA		cpu_to_le16(476)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA		cpu_to_le16(99)
+
+
 /* Control field in struct iwl_sensitivity_cmd */
 #define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	cpu_to_le16(0)
 #define SENSITIVITY_CMD_CONTROL_WORK_TABLE	cpu_to_le16(1)
@@ -3504,6 +3539,14 @@ struct iwl_missed_beacon_notif {
 struct iwl_sensitivity_cmd {
 	__le16 control;			/* always use "1" */
 	__le16 table[HD_TABLE_SIZE];	/* use HD_* as index */
+} __attribute__ ((packed));
+
+/*
+ *
+ */
+struct iwl_enhance_sensitivity_cmd {
+	__le16 control;			/* always use "1" */
+	__le16 enhance_table[ENHANCE_HD_TABLE_SIZE];	/* use HD_* as index */
 } __attribute__ ((packed));
 
 

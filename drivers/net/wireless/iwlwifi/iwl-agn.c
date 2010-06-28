@@ -1961,6 +1961,12 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 				pieces->inst_errlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
+		case IWL_UCODE_TLV_ENHANCE_SENS_TBL:
+			if (tlv_len)
+				ret = -EINVAL;
+			else
+				priv->enhance_sensitivity_table = true;
+			break;
 		default:
 			IWL_WARN(priv, "unknown TLV: %d\n", tlv_type);
 			break;
