@@ -33,6 +33,18 @@ static struct class ir_input_class = {
 	.devnode	= ir_devnode,
 };
 
+static struct {
+	u64	type;
+	char	*name;
+} proto_names[] = {
+	{ IR_TYPE_UNKNOWN,	"unknown"	},
+	{ IR_TYPE_RC5,		"rc5"		},
+	{ IR_TYPE_NEC,		"nec"		},
+	{ IR_TYPE_RC6,		"rc6"		},
+	{ IR_TYPE_JVC,		"jvc"		},
+	{ IR_TYPE_SONY,		"sony"		},
+};
+
 /**
  * show_protocols() - shows the current IR protocol(s)
  * @d:		the device descriptor
@@ -50,6 +62,7 @@ static ssize_t show_protocols(struct device *d,
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
 	u64 allowed, enabled;
 	char *tmp = buf;
+	int i;
 
 	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE) {
 		enabled = ir_dev->rc_tab.ir_type;
@@ -63,35 +76,12 @@ static ssize_t show_protocols(struct device *d,
 		   (long long)allowed,
 		   (long long)enabled);
 
-	if (allowed & enabled & IR_TYPE_UNKNOWN)
-		tmp += sprintf(tmp, "[unknown] ");
-	else if (allowed & IR_TYPE_UNKNOWN)
-		tmp += sprintf(tmp, "unknown ");
-
-	if (allowed & enabled & IR_TYPE_RC5)
-		tmp += sprintf(tmp, "[rc5] ");
-	else if (allowed & IR_TYPE_RC5)
-		tmp += sprintf(tmp, "rc5 ");
-
-	if (allowed & enabled & IR_TYPE_NEC)
-		tmp += sprintf(tmp, "[nec] ");
-	else if (allowed & IR_TYPE_NEC)
-		tmp += sprintf(tmp, "nec ");
-
-	if (allowed & enabled & IR_TYPE_RC6)
-		tmp += sprintf(tmp, "[rc6] ");
-	else if (allowed & IR_TYPE_RC6)
-		tmp += sprintf(tmp, "rc6 ");
-
-	if (allowed & enabled & IR_TYPE_JVC)
-		tmp += sprintf(tmp, "[jvc] ");
-	else if (allowed & IR_TYPE_JVC)
-		tmp += sprintf(tmp, "jvc ");
-
-	if (allowed & enabled & IR_TYPE_SONY)
-		tmp += sprintf(tmp, "[sony] ");
-	else if (allowed & IR_TYPE_SONY)
-		tmp += sprintf(tmp, "sony ");
+	for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
+		if (allowed & enabled & proto_names[i].type)
+			tmp += sprintf(tmp, "[%s] ", proto_names[i].name);
+		else if (allowed & proto_names[i].type)
+			tmp += sprintf(tmp, "%s ", proto_names[i].name);
+	}
 
 	if (tmp != buf)
 		tmp--;
@@ -124,12 +114,14 @@ static ssize_t store_protocols(struct device *d,
 	const char *tmp;
 	u64 type;
 	u64 mask;
-	int rc;
+	int rc, i;
 	unsigned long flags;
 
 	tmp = skip_spaces(data);
-
-	if (*tmp == '+') {
+	if (*tmp == '\0') {
+		IR_dprintk(1, "Protocol not specified\n");
+		return -EINVAL;
+	} else if (*tmp == '+') {
 		enable = true;
 		disable = false;
 		tmp++;
@@ -142,25 +134,14 @@ static ssize_t store_protocols(struct device *d,
 		disable = false;
 	}
 
-	if (!strncasecmp(tmp, "unknown", 7)) {
-		tmp += 7;
-		mask = IR_TYPE_UNKNOWN;
-	} else if (!strncasecmp(tmp, "rc5", 3)) {
-		tmp += 3;
-		mask = IR_TYPE_RC5;
-	} else if (!strncasecmp(tmp, "nec", 3)) {
-		tmp += 3;
-		mask = IR_TYPE_NEC;
-	} else if (!strncasecmp(tmp, "rc6", 3)) {
-		tmp += 3;
-		mask = IR_TYPE_RC6;
-	} else if (!strncasecmp(tmp, "jvc", 3)) {
-		tmp += 3;
-		mask = IR_TYPE_JVC;
-	} else if (!strncasecmp(tmp, "sony", 4)) {
-		tmp += 4;
-		mask = IR_TYPE_SONY;
-	} else {
+	for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
+		if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
+			tmp += strlen(proto_names[i].name);
+			mask = proto_names[i].type;
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(proto_names)) {
 		IR_dprintk(1, "Unknown protocol\n");
 		return -EINVAL;
 	}
