@@ -135,7 +135,7 @@ enum {
 	DEVTYPE_JASTEC,
 	DEVTYPE_E2I,
 	DEVTYPE_ZYTRONIC,
-	DEVTYPE_TC5UH,
+	DEVTYPE_TC45USB,
 	DEVTYPE_NEXIO,
 };
 
@@ -222,8 +222,11 @@ static const struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x14c8, 0x0003), .driver_info = DEVTYPE_ZYTRONIC},
 #endif
 
-#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC5UH
-	{USB_DEVICE(0x0664, 0x0309), .driver_info = DEVTYPE_TC5UH},
+#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC45USB
+	/* TC5UH */
+	{USB_DEVICE(0x0664, 0x0309), .driver_info = DEVTYPE_TC45USB},
+	/* TC4UM */
+	{USB_DEVICE(0x0664, 0x0306), .driver_info = DEVTYPE_TC45USB},
 #endif
 
 #ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
@@ -574,10 +577,10 @@ static int irtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #endif
 
 /*****************************************************************************
- * ET&T TC5UH part
+ * ET&T TC5UH/TC4UM part
  */
-#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC5UH
-static int tc5uh_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC45USB
+static int tc45usb_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	dev->x = ((pkt[2] & 0x0F) << 8) | pkt[1];
 	dev->y = ((pkt[4] & 0x0F) << 8) | pkt[3];
@@ -1106,14 +1109,14 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 	},
 #endif
 
-#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC5UH
-	[DEVTYPE_TC5UH] = {
+#ifdef CONFIG_TOUCHSCREEN_USB_ETT_TC45USB
+	[DEVTYPE_TC45USB] = {
 		.min_xc		= 0x0,
 		.max_xc		= 0x0fff,
 		.min_yc		= 0x0,
 		.max_yc		= 0x0fff,
 		.rept_size	= 5,
-		.read_data	= tc5uh_read_data,
+		.read_data	= tc45usb_read_data,
 	},
 #endif
 

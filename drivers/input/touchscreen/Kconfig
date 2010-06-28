@@ -540,9 +540,9 @@ config TOUCHSCREEN_USB_ZYTRONIC
 	bool "Zytronic controller" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
-config TOUCHSCREEN_USB_ETT_TC5UH
+config TOUCHSCREEN_USB_ETT_TC45USB
 	default y
-	bool "ET&T TC5UH touchscreen controler support" if EMBEDDED
+	bool "ET&T USB series TC4UM/TC5UH touchscreen controler support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
 config TOUCHSCREEN_USB_NEXIO
