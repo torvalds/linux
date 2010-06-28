@@ -115,11 +115,7 @@ pgtable_t pte_alloc_one(struct mm_struct *mm, unsigned long address)
 {
 	struct page *ptepage;
 
-#ifdef CONFIG_HIGHPTE
-	gfp_t flags = GFP_KERNEL | __GFP_HIGHMEM | __GFP_REPEAT | __GFP_ZERO;
-#else
 	gfp_t flags = GFP_KERNEL | __GFP_REPEAT | __GFP_ZERO;
-#endif
 
 	ptepage = alloc_pages(flags, 0);
 	if (!ptepage)

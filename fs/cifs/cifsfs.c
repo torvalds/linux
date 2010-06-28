@@ -473,14 +473,24 @@ static int cifs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+void cifs_drop_inode(struct inode *inode)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+		return generic_drop_inode(inode);
+
+	return generic_delete_inode(inode);
+}
+
 static const struct super_operations cifs_super_ops = {
 	.put_super = cifs_put_super,
 	.statfs = cifs_statfs,
 	.alloc_inode = cifs_alloc_inode,
 	.destroy_inode = cifs_destroy_inode,
-/*	.drop_inode	    = generic_delete_inode,
-	.delete_inode	= cifs_delete_inode,  */  /* Do not need above two
-	functions unless later we add lazy close of inodes or unless the
+	.drop_inode	= cifs_drop_inode,
+/*	.delete_inode	= cifs_delete_inode,  */  /* Do not need above
+	function unless later we add lazy close of inodes or unless the
 	kernel forgets to call us with the same number of releases (closes)
 	as opens */
 	.show_options = cifs_show_options,
