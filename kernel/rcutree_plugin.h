@@ -154,7 +154,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 	    (t->rcu_read_unlock_special & RCU_READ_UNLOCK_BLOCKED) == 0) {
 
 		/* Possibly blocking in an RCU read-side critical section. */
-		rdp = rcu_preempt_state.rda[cpu];
+		rdp = per_cpu_ptr(rcu_preempt_state.rda, cpu);
 		rnp = rdp->mynode;
 		raw_spin_lock_irqsave(&rnp->lock, flags);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
@@ -771,7 +771,7 @@ static void rcu_preempt_send_cbs_to_orphanage(void)
  */
 static void __init __rcu_init_preempt(void)
 {
-	RCU_INIT_FLAVOR(&rcu_preempt_state, rcu_preempt_data);
+	rcu_init_one(&rcu_preempt_state, &rcu_preempt_data);
 }
 
 /*
