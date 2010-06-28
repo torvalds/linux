@@ -25,7 +25,6 @@
 #include <mach/iomap.h>
 #include <mach/pinmux.h>
 #include <linux/qtouch_obp_ts.h>
-#include <linux/qtouch_obp_ts_firmware.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 
@@ -75,8 +74,7 @@ struct qtouch_ts_platform_data stingray_touch_data_m1 = {
 		.num_keys	= 0,
 	},
 	.touch_fw_cfg = {
-		.image = mxt1386_v8_e1,
-		.size = sizeof(mxt1386_v8_e1),
+		.fw_name = "mXT1386_08_E1.bin",
 		.family_id = 0xA0,
 		.variant_id = 0x00,
 		.fw_version = 0x08,
@@ -331,8 +329,7 @@ struct qtouch_ts_platform_data stingray_touch_data_p0 = {
 		.num_keys	= 0,
 	},
 	.touch_fw_cfg = {
-		.image = mxt1386_v8_aa,
-		.size = sizeof(mxt1386_v8_aa),
+		.fw_name = "mXT1386_08_AA.bin",
 		.family_id = 0xA0,
 		.variant_id = 0x00,
 		.fw_version = 0x08,
