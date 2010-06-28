@@ -475,6 +475,12 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	{ "3d",		"pll_m",	300000000,	true},
 	{ "epp",	"pll_m",	100000000,	true},
 	{ "vi",		"pll_m",	100000000,	true},
+	{ "pll_a",	NULL,		24000000,	false},
+	{ "pll_a_out0",	NULL,		24000000,	false},
+	{ "i2s1",	"pll_a_out0",	24000000,	false},
+	{ "i2s2",	"pll_a_out0",	24000000,	false},
+	{ "audio",	"pll_a_out0",	24000000,	false},
+	{ "audio_2x",	"audio",	48000000,	false},
 	{ NULL,		NULL,		0,		0},
 };
 
