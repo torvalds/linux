@@ -49,7 +49,6 @@ static inline int check_stack_overflow(void) { return 0; }
 static inline void print_stack_overflow(void) { }
 #endif
 
-#ifdef CONFIG_4KSTACKS
 /*
  * per-CPU IRQ handling contexts (thread information and stack)
  */
@@ -186,11 +185,6 @@ asmlinkage void do_softirq(void)
 
 	local_irq_restore(flags);
 }
-
-#else
-static inline int
-execute_on_irq_stack(int overflow, struct irq_desc *desc, int irq) { return 0; }
-#endif
 
 bool handle_irq(unsigned irq, struct pt_regs *regs)
 {
