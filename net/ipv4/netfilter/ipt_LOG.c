@@ -411,12 +411,12 @@ ipt_log_packet(u_int8_t pf,
 		    skb->mac_header != skb->network_header) {
 			int i;
 			const unsigned char *p = skb_mac_header(skb);
-			for (i = 0; i < skb->dev->hard_header_len; i++,p++)
-				printk("%02x%c", *p,
-				       i==skb->dev->hard_header_len - 1
-				       ? ' ':':');
-		} else
-			printk(" ");
+
+			printk("%02x", *p++);
+			for (i = 1; i < skb->dev->hard_header_len; i++, p++)
+				printk(":%02x", *p);
+		}
+		printk(" ");
 	}
 
 	dump_packet(loginfo, skb, 0);

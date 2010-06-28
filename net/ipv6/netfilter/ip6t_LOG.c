@@ -414,9 +414,9 @@ ip6t_log_packet(u_int8_t pf,
 				p = NULL;
 
 			if (p != NULL) {
-				for (i = 0; i < len; i++)
-					printk("%02x%s", p[i],
-					       i == len - 1 ? "" : ":");
+				printk("%02x", *p++);
+				for (i = 1; i < len; i++)
+					printk(":%02x", p[i]);
 			}
 			printk(" ");
 
