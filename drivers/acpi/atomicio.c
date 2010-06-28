@@ -31,6 +31,7 @@
 #include <linux/kref.h>
 #include <linux/rculist.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <acpi/atomicio.h>
 
 #define ACPI_PFX "ACPI: "
