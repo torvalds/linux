@@ -563,19 +563,18 @@ static int picolcd_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *i
 static int picolcd_set_par(struct fb_info *info)
 {
 	struct picolcd_data *data = info->par;
-	u8 *o_fb, *n_fb;
+	u8 *tmp_fb, *o_fb;
 	if (info->var.bits_per_pixel == data->fb_bpp)
 		return 0;
 	/* switch between 1/8 bit depths */
 	if (info->var.bits_per_pixel != 1 && info->var.bits_per_pixel != 8)
 		return -EINVAL;
 
-	o_fb = data->fb_bitmap;
-	n_fb = vmalloc(PICOLCDFB_SIZE*info->var.bits_per_pixel);
-	if (!n_fb)
+	o_fb   = data->fb_bitmap;
+	tmp_fb = kmalloc(PICOLCDFB_SIZE*info->var.bits_per_pixel, GFP_KERNEL);
+	if (!tmp_fb)
 		return -ENOMEM;
 
-	fb_deferred_io_cleanup(info);
 	/* translate FB content to new bits-per-pixel */
 	if (info->var.bits_per_pixel == 1) {
 		int i, b;
@@ -585,24 +584,22 @@ static int picolcd_set_par(struct fb_info *info)
 				p <<= 1;
 				p |= o_fb[i*8+b] ? 0x01 : 0x00;
 			}
+			tmp_fb[i] = p;
 		}
+		memcpy(o_fb, tmp_fb, PICOLCDFB_SIZE);
 		info->fix.visual = FB_VISUAL_MONO01;
 		info->fix.line_length = PICOLCDFB_WIDTH / 8;
 	} else {
 		int i;
+		memcpy(tmp_fb, o_fb, PICOLCDFB_SIZE);
 		for (i = 0; i < PICOLCDFB_SIZE * 8; i++)
-			n_fb[i] = o_fb[i/8] & (0x01 << (7 - i % 8)) ? 0xff : 0x00;
-		info->fix.visual = FB_VISUAL_TRUECOLOR;
+			o_fb[i] = tmp_fb[i/8] & (0x01 << (7 - i % 8)) ? 0xff : 0x00;
+		info->fix.visual = FB_VISUAL_DIRECTCOLOR;
 		info->fix.line_length = PICOLCDFB_WIDTH;
 	}
 
-	data->fb_bitmap   = n_fb;
+	kfree(tmp_fb);
 	data->fb_bpp      = info->var.bits_per_pixel;
-	info->screen_base = (char __force __iomem *)n_fb;
-	info->fix.smem_start = (unsigned long)n_fb;
-	info->fix.smem_len   = PICOLCDFB_SIZE*data->fb_bpp;
-	fb_deferred_io_init(info);
-	vfree(o_fb);
 	return 0;
 }
 
@@ -692,7 +689,7 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 	u8 *fb_bitmap  = NULL;
 	u32 *palette;
 
-	fb_bitmap = vmalloc(PICOLCDFB_SIZE*picolcdfb_var.bits_per_pixel);
+	fb_bitmap = vmalloc(PICOLCDFB_SIZE*8);
 	if (fb_bitmap == NULL) {
 		dev_err(dev, "can't get a free page for framebuffer\n");
 		goto err_nomem;
@@ -728,7 +725,7 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 	info->fbops = &picolcdfb_ops;
 	info->var = picolcdfb_var;
 	info->fix = picolcdfb_fix;
-	info->fix.smem_len   = PICOLCDFB_SIZE;
+	info->fix.smem_len   = PICOLCDFB_SIZE*8;
 	info->fix.smem_start = (unsigned long)fb_bitmap;
 	info->par = data;
 	info->flags = FBINFO_FLAG_DEFAULT;
