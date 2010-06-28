@@ -127,6 +127,26 @@ static const struct fb_var_screeninfo picolcdfb_var = {
 	.height         = 26,
 	.bits_per_pixel = 1,
 	.grayscale      = 1,
+	.red            = {
+		.offset = 0,
+		.length = 1,
+		.msb_right = 0,
+	},
+	.green          = {
+		.offset = 0,
+		.length = 1,
+		.msb_right = 0,
+	},
+	.blue           = {
+		.offset = 0,
+		.length = 1,
+		.msb_right = 0,
+	},
+	.transp         = {
+		.offset = 0,
+		.length = 0,
+		.msb_right = 0,
+	},
 };
 #endif /* CONFIG_HID_PICOLCD_FB */
 
@@ -188,6 +208,7 @@ struct picolcd_data {
 	/* Framebuffer stuff */
 	u8 fb_update_rate;
 	u8 fb_bpp;
+	u8 fb_force;
 	u8 *fb_vbitmap;		/* local copy of what was sent to PicoLCD */
 	u8 *fb_bitmap;		/* framebuffer */
 	struct fb_info *fb_info;
@@ -346,7 +367,7 @@ static int picolcd_fb_update_tile(u8 *vbitmap, const u8 *bitmap, int bpp,
 			const u8 *bdata = bitmap + tile * 256 + chip * 8 + b * 32;
 			for (i = 0; i < 64; i++) {
 				tdata[i] <<= 1;
-				tdata[i] |= (bdata[i/8] >> (7 - i % 8)) & 0x01;
+				tdata[i] |= (bdata[i/8] >> (i % 8)) & 0x01;
 			}
 		}
 	} else if (bpp == 8) {
@@ -399,13 +420,10 @@ static int picolcd_fb_reset(struct picolcd_data *data, int clear)
 
 	if (data->fb_bitmap) {
 		if (clear) {
-			memset(data->fb_vbitmap, 0xff, PICOLCDFB_SIZE);
+			memset(data->fb_vbitmap, 0, PICOLCDFB_SIZE);
 			memset(data->fb_bitmap, 0, PICOLCDFB_SIZE*data->fb_bpp);
-		} else {
-			/* invert 1 byte in each tile to force resend */
-			for (i = 0; i < PICOLCDFB_SIZE; i += 64)
-				data->fb_vbitmap[i] = ~data->fb_vbitmap[i];
 		}
+		data->fb_force = 1;
 	}
 
 	/* schedule first output of framebuffer */
@@ -440,7 +458,8 @@ static void picolcd_fb_update(struct picolcd_data *data)
 	for (chip = 0; chip < 4; chip++)
 		for (tile = 0; tile < 8; tile++)
 			if (picolcd_fb_update_tile(data->fb_vbitmap,
-					data->fb_bitmap, data->fb_bpp, chip, tile)) {
+					data->fb_bitmap, data->fb_bpp, chip, tile) ||
+				data->fb_force) {
 				n += 2;
 				if (n >= HID_OUTPUT_FIFO_SIZE / 2) {
 					usbhid_wait_io(data->hdev);
@@ -448,6 +467,7 @@ static void picolcd_fb_update(struct picolcd_data *data)
 				}
 				picolcd_fb_send_tile(data->hdev, chip, tile);
 			}
+	data->fb_force = false;
 	if (n)
 		usbhid_wait_io(data->hdev);
 }
@@ -526,10 +546,17 @@ static int picolcd_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *i
 	/* only allow 1/8 bit depth (8-bit is grayscale) */
 	*var = picolcdfb_var;
 	var->activate = activate;
-	if (bpp >= 8)
+	if (bpp >= 8) {
 		var->bits_per_pixel = 8;
-	else
+		var->red.length     = 8;
+		var->green.length   = 8;
+		var->blue.length    = 8;
+	} else {
 		var->bits_per_pixel = 1;
+		var->red.length     = 1;
+		var->green.length   = 1;
+		var->blue.length    = 1;
+	}
 	return 0;
 }
 
@@ -660,9 +687,10 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 {
 	struct device *dev = &data->hdev->dev;
 	struct fb_info *info = NULL;
-	int error = -ENOMEM;
+	int i, error = -ENOMEM;
 	u8 *fb_vbitmap = NULL;
 	u8 *fb_bitmap  = NULL;
+	u32 *palette;
 
 	fb_bitmap = vmalloc(PICOLCDFB_SIZE*picolcdfb_var.bits_per_pixel);
 	if (fb_bitmap == NULL) {
@@ -678,12 +706,23 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 
 	data->fb_update_rate = PICOLCDFB_UPDATE_RATE_DEFAULT;
 	data->fb_defio = picolcd_fb_defio;
-	info = framebuffer_alloc(0, dev);
+	/* The extra memory is:
+	 * - struct picolcd_fb_cleanup_item
+	 * - u32 for ref_count
+	 * - 256*u32 for pseudo_palette
+	 */
+	info = framebuffer_alloc(257 * sizeof(u32), dev);
 	if (info == NULL) {
 		dev_err(dev, "failed to allocate a framebuffer\n");
 		goto err_nomem;
 	}
 
+	palette  = info->par;
+	*palette = 1;
+	palette++;
+	for (i = 0; i < 256; i++)
+		palette[i] = i > 0 && i < 16 ? 0xff : 0;
+	info->pseudo_palette = palette;
 	info->fbdefio = &data->fb_defio;
 	info->screen_base = (char __force __iomem *)fb_bitmap;
 	info->fbops = &picolcdfb_ops;
@@ -715,6 +754,7 @@ static int picolcd_init_framebuffer(struct picolcd_data *data)
 		goto err_sysfs;
 	}
 	/* schedule first output of framebuffer */
+	data->fb_force = 1;
 	schedule_delayed_work(&info->deferred_work, 0);
 	return 0;
 
