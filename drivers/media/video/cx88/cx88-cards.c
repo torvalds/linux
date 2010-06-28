@@ -3498,6 +3498,7 @@ struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr)
 	}
 
 	cx88_card_setup(core);
+	cx88_i2c_init_ir(core);
 	cx88_ir_init(core, pci);
 
 	return core;
