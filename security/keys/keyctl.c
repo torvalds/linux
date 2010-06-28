@@ -505,13 +505,11 @@ okay:
 
 	ret = snprintf(tmpbuf, PAGE_SIZE - 1,
 		       "%s;%d;%d;%08x;%s",
-		       key_ref_to_ptr(key_ref)->type->name,
-		       key_ref_to_ptr(key_ref)->uid,
-		       key_ref_to_ptr(key_ref)->gid,
-		       key_ref_to_ptr(key_ref)->perm,
-		       key_ref_to_ptr(key_ref)->description ?
-		       key_ref_to_ptr(key_ref)->description : ""
-		       );
+		       key->type->name,
+		       key->uid,
+		       key->gid,
+		       key->perm,
+		       key->description ?: "");
 
 	/* include a NUL char at the end of the data */
 	if (ret > PAGE_SIZE - 1)
