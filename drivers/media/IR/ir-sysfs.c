@@ -45,6 +45,8 @@ static struct {
 	{ IR_TYPE_SONY,		"sony"		},
 };
 
+#define PROTO_NONE	"none"
+
 /**
  * show_protocols() - shows the current IR protocol(s)
  * @d:		the device descriptor
@@ -101,6 +103,7 @@ static ssize_t show_protocols(struct device *d,
  * Writing "+proto" will add a protocol to the list of enabled protocols.
  * Writing "-proto" will remove a protocol from the list of enabled protocols.
  * Writing "proto" will enable only "proto".
+ * Writing "none" will disable all protocols.
  * Returns -EINVAL if an invalid protocol combination or unknown protocol name
  * is used, otherwise @len.
  */
@@ -134,16 +137,22 @@ static ssize_t store_protocols(struct device *d,
 		disable = false;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
-		if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
-			tmp += strlen(proto_names[i].name);
-			mask = proto_names[i].type;
-			break;
+
+	if (!enable && !disable && !strncasecmp(tmp, PROTO_NONE, sizeof(PROTO_NONE))) {
+		mask = 0;
+		tmp += sizeof(PROTO_NONE);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(proto_names); i++) {
+			if (!strncasecmp(tmp, proto_names[i].name, strlen(proto_names[i].name))) {
+				tmp += strlen(proto_names[i].name);
+				mask = proto_names[i].type;
+				break;
+			}
 		}
-	}
-	if (i == ARRAY_SIZE(proto_names)) {
-		IR_dprintk(1, "Unknown protocol\n");
-		return -EINVAL;
+		if (i == ARRAY_SIZE(proto_names)) {
+			IR_dprintk(1, "Unknown protocol\n");
+			return -EINVAL;
+		}
 	}
 
 	tmp = skip_spaces(tmp);
