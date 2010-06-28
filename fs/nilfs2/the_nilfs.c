@@ -38,6 +38,8 @@
 static LIST_HEAD(nilfs_objects);
 static DEFINE_SPINLOCK(nilfs_lock);
 
+static int nilfs_valid_sb(struct nilfs_super_block *sbp);
+
 void nilfs_set_last_segment(struct the_nilfs *nilfs,
 			    sector_t start_blocknr, u64 seq, __u64 cno)
 {
@@ -316,8 +318,50 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 
 	err = nilfs_search_super_root(nilfs, &ri);
 	if (unlikely(err)) {
-		printk(KERN_ERR "NILFS: error searching super root.\n");
-		goto failed;
+		struct nilfs_super_block **sbp = nilfs->ns_sbp;
+		int blocksize;
+
+		if (err != -EINVAL)
+			goto scan_error;
+
+		if (!nilfs_valid_sb(sbp[1])) {
+			printk(KERN_WARNING
+			       "NILFS warning: unable to fall back to spare"
+			       "super block\n");
+			goto scan_error;
+		}
+		printk(KERN_INFO
+		       "NILFS: try rollback from an earlier position\n");
+
+		/*
+		 * restore super block with its spare and reconfigure
+		 * relevant states of the nilfs object.
+		 */
+		memcpy(sbp[0], sbp[1], nilfs->ns_sbsize);
+		nilfs->ns_crc_seed = le32_to_cpu(sbp[0]->s_crc_seed);
+		nilfs->ns_sbwtime = le64_to_cpu(sbp[0]->s_wtime);
+
+		/* verify consistency between two super blocks */
+		blocksize = BLOCK_SIZE << le32_to_cpu(sbp[0]->s_log_block_size);
+		if (blocksize != nilfs->ns_blocksize) {
+			printk(KERN_WARNING
+			       "NILFS warning: blocksize differs between "
+			       "two super blocks (%d != %d)\n",
+			       blocksize, nilfs->ns_blocksize);
+			goto scan_error;
+		}
+
+		err = nilfs_store_log_cursor(nilfs, sbp[0]);
+		if (err)
+			goto scan_error;
+
+		/* drop clean flag to allow roll-forward and recovery */
+		nilfs->ns_mount_state &= ~NILFS_VALID_FS;
+		valid_fs = 0;
+
+		err = nilfs_search_super_root(nilfs, &ri);
+		if (err)
+			goto scan_error;
 	}
 
 	err = nilfs_load_super_root(nilfs, ri.ri_super_root);
@@ -370,6 +414,10 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 	nilfs_clear_recovery_info(&ri);
 	sbi->s_super->s_flags = s_flags;
 	return 0;
+
+ scan_error:
+	printk(KERN_ERR "NILFS: error searching super root.\n");
+	goto failed;
 
  failed_unload:
 	nilfs_mdt_destroy(nilfs->ns_cpfile);
