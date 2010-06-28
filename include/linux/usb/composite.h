@@ -356,6 +356,7 @@ struct usb_composite_dev {
 	spinlock_t			lock;
 
 	struct switch_dev sdev;
+	struct work_struct switch_work;
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);
