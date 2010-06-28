@@ -1072,13 +1072,6 @@ xfs_vm_writepage(
 	if ((current->flags & PF_FSTRANS) && (delalloc || unwritten))
 		goto out_fail;
 
-	/*
-	 * Delay hooking up buffer heads until we have
-	 * made our go/no-go decision.
-	 */
-	if (!page_has_buffers(page))
-		create_empty_buffers(page, 1 << inode->i_blkbits, 0);
-
 	/* Is this page beyond the end of the file? */
 	offset = i_size_read(inode);
 	end_index = offset >> PAGE_CACHE_SHIFT;
