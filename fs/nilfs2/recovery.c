@@ -804,6 +804,8 @@ int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
  * %-EINVAL - No valid segment found
  *
  * %-EIO - I/O error
+ *
+ * %-ENOMEM - Insufficient memory available.
  */
 int nilfs_search_super_root(struct the_nilfs *nilfs,
 			    struct nilfs_recovery_info *ri)
