@@ -110,16 +110,6 @@ static struct usb_device_descriptor device_desc = {
 static struct list_head _functions = LIST_HEAD_INIT(_functions);
 static int _registered_function_count = 0;
 
-void android_usb_set_connected(int connected)
-{
-	if (_android_dev && _android_dev->cdev && _android_dev->cdev->gadget) {
-		if (connected)
-			usb_gadget_connect(_android_dev->cdev->gadget);
-		else
-			usb_gadget_disconnect(_android_dev->cdev->gadget);
-	}
-}
-
 static struct android_usb_function *get_function(const char *name)
 {
 	struct android_usb_function	*f;
