@@ -104,61 +104,10 @@ static struct tegra_nand_chip_parms nand_chip_parms[] = {
 	},
 };
 
-/* Current layout is:
- *
- * BCT @ 0 (0x300000)        -- boot config table
- * PT  @ 0x300000 (0x1000)   -- partition table
- * EBT @ 0x301000 (0x100000) -- bootloader
- * BMP @ 0x401000 (0x148c)   -- rgb565 bitmap
- * WAV @ 0x40248c (0x2a000)  -- wav audio clip
- * ARG @ 0x42c48c (0x800)    -- ??
- * DRM @ 0x42cc8c (0x19000)  -- bleh?
- * UIP @ 0x445c8c (0x800)    -- update information partition
- * USP @ 0x44648c (0x600000) -- update staging partition
- * USR @ 0xa4648c (THE REST) -- <available>
- *
- * What we will do is we will actually just skip the first 16MB, and just
- * mark it as vendor, and then layout our partitions.
- *
- * so:
- *
- *
- */
-static struct mtd_partition harmony_nand_partitions[] = {
-	[0] = {
-		.name		= "recovery",
-		.offset		= 0x1b80*0x800,
-		.size		= 0xa00*0x800,
-		.mask_flags	= MTD_WRITEABLE, /* r/o */
-	},
-	[1] = {
-		.name		= "boot",
-		.offset		= 0x2680*0x800,
-		.size		= 0x1000*0x800,
-	},
-	[2] = {
-		.name		= "system",
-		.offset		= 0x3780*0x800,
-		.size		= 0xef40*0x800,
-	},
-	[3] = {
-		.name		= "cache",
-		.offset		= 0x127c0*0x800,
-		.size		= 0x4000*0x800,
-	},
-	[4] = {
-		.name		= "userdata",
-		.offset		= 0x168c0*0x800,
-		.size		= 0x29640*0x800,
-	},
-};
-
 struct tegra_nand_platform harmony_nand_data = {
 	.max_chips	= 8,
 	.chip_parms	= nand_chip_parms,
 	.nr_chip_parms  = ARRAY_SIZE(nand_chip_parms),
-	.parts		= harmony_nand_partitions,
-	.nr_parts	= ARRAY_SIZE(harmony_nand_partitions),
 };
 
 static struct resource resources_nand[] = {
