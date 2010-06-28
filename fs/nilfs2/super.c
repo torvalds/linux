@@ -74,6 +74,19 @@ struct kmem_cache *nilfs_btree_path_cache;
 
 static int nilfs_remount(struct super_block *sb, int *flags, char *data);
 
+static void nilfs_set_error(struct nilfs_sb_info *sbi)
+{
+	struct the_nilfs *nilfs = sbi->s_nilfs;
+
+	down_write(&nilfs->ns_sem);
+	if (!(nilfs->ns_mount_state & NILFS_ERROR_FS)) {
+		nilfs->ns_mount_state |= NILFS_ERROR_FS;
+		nilfs->ns_sbp[0]->s_state |= cpu_to_le16(NILFS_ERROR_FS);
+		nilfs_commit_super(sbi, 1);
+	}
+	up_write(&nilfs->ns_sem);
+}
+
 /**
  * nilfs_error() - report failure condition on a filesystem
  *
@@ -99,16 +112,7 @@ void nilfs_error(struct super_block *sb, const char *function,
 	va_end(args);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
-		struct the_nilfs *nilfs = sbi->s_nilfs;
-
-		down_write(&nilfs->ns_sem);
-		if (!(nilfs->ns_mount_state & NILFS_ERROR_FS)) {
-			nilfs->ns_mount_state |= NILFS_ERROR_FS;
-			nilfs->ns_sbp[0]->s_state |=
-				cpu_to_le16(NILFS_ERROR_FS);
-			nilfs_commit_super(sbi, 1);
-		}
-		up_write(&nilfs->ns_sem);
+		nilfs_set_error(sbi);
 
 		if (nilfs_test_opt(sbi, ERRORS_RO)) {
 			printk(KERN_CRIT "Remounting filesystem read-only\n");
