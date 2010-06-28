@@ -150,7 +150,6 @@ static void r852_dma_done(struct r852_device *dev, int error)
 	if (dev->phys_dma_addr && dev->phys_dma_addr != dev->phys_bounce_buffer)
 		pci_unmap_single(dev->pci_dev, dev->phys_dma_addr, R852_DMA_LEN,
 			dev->dma_dir ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE);
-	complete(&dev->dma_done);
 }
 
 /*
@@ -182,6 +181,7 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 	/* Set dma direction */
 	dev->dma_dir = do_read;
 	dev->dma_stage = 1;
+	INIT_COMPLETION(dev->dma_done);
 
 	dbg_verbose("doing dma %s ", do_read ? "read" : "write");
 
@@ -494,6 +494,11 @@ int r852_ecc_correct(struct mtd_info *mtd, uint8_t *dat,
 	if (dev->card_unstable)
 		return 0;
 
+	if (dev->dma_error) {
+		dev->dma_error = 0;
+		return -1;
+	}
+
 	r852_write_reg(dev, R852_CTL, dev->ctlreg | R852_CTL_ECC_ACCESS);
 	ecc_reg = r852_read_reg_dword(dev, R852_DATALINE);
 	r852_write_reg(dev, R852_CTL, dev->ctlreg);
@@ -707,6 +712,7 @@ void r852_card_detect_work(struct work_struct *work)
 		container_of(work, struct r852_device, card_detect_work.work);
 
 	r852_card_update_present(dev);
+	r852_update_card_detect(dev);
 	dev->card_unstable = 0;
 
 	/* False alarm */
@@ -722,7 +728,6 @@ void r852_card_detect_work(struct work_struct *work)
 	else
 		r852_unregister_nand_device(dev);
 exit:
-	/* Update detection logic */
 	r852_update_card_detect(dev);
 }
 
@@ -796,6 +801,7 @@ static irqreturn_t r852_irq(int irq, void *data)
 		if (dma_status & R852_DMA_IRQ_ERROR) {
 			dbg("recieved dma error IRQ");
 			r852_dma_done(dev, -EIO);
+			complete(&dev->dma_done);
 			goto out;
 		}
 
@@ -825,8 +831,10 @@ static irqreturn_t r852_irq(int irq, void *data)
 			r852_dma_enable(dev);
 
 		/* Operation done */
-		if (dev->dma_stage == 3)
+		if (dev->dma_stage == 3) {
 			r852_dma_done(dev, 0);
+			complete(&dev->dma_done);
+		}
 		goto out;
 	}
 
@@ -940,18 +948,19 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	r852_dma_test(dev);
 
+	dev->irq = pci_dev->irq;
+	spin_lock_init(&dev->irqlock);
+
+	dev->card_detected = 0;
+	r852_card_update_present(dev);
+
 	/*register irq handler*/
 	error = -ENODEV;
 	if (request_irq(pci_dev->irq, &r852_irq, IRQF_SHARED,
 			  DRV_NAME, dev))
 		goto error10;
 
-	dev->irq = pci_dev->irq;
-	spin_lock_init(&dev->irqlock);
-
 	/* kick initial present test */
-	dev->card_detected = 0;
-	r852_card_update_present(dev);
 	queue_delayed_work(dev->card_workqueue,
 		&dev->card_detect_work, 0);
 
@@ -1081,7 +1090,7 @@ int r852_resume(struct device *device)
 			dev->card_detected ? "added" : "removed");
 
 		queue_delayed_work(dev->card_workqueue,
-		&dev->card_detect_work, 1000);
+		&dev->card_detect_work, msecs_to_jiffies(1000));
 		return 0;
 	}
 

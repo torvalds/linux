@@ -28,6 +28,7 @@
 #include <linux/ftrace_event.h>
 #include <linux/slab.h>
 
+#include <asm/tlbflush.h>
 #include <asm/desc.h>
 
 #include <asm/virtext.h>
@@ -55,6 +56,8 @@ MODULE_LICENSE("GPL");
 #define NESTED_EXIT_CONTINUE	2	/* Further checks needed      */
 
 #define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
+
+static bool erratum_383_found __read_mostly;
 
 static const u32 host_save_user_msrs[] = {
 #ifdef CONFIG_X86_64
@@ -374,6 +377,31 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	svm->vmcb->control.event_inj_err = error_code;
 }
 
+static void svm_init_erratum_383(void)
+{
+	u32 low, high;
+	int err;
+	u64 val;
+
+	/* Only Fam10h is affected */
+	if (boot_cpu_data.x86 != 0x10)
+		return;
+
+	/* Use _safe variants to not break nested virtualization */
+	val = native_read_msr_safe(MSR_AMD64_DC_CFG, &err);
+	if (err)
+		return;
+
+	val |= (1ULL << 47);
+
+	low  = lower_32_bits(val);
+	high = upper_32_bits(val);
+
+	native_write_msr_safe(MSR_AMD64_DC_CFG, low, high);
+
+	erratum_383_found = true;
+}
+
 static int has_svm(void)
 {
 	const char *msg;
@@ -428,6 +456,8 @@ static int svm_hardware_enable(void *garbage)
 	wrmsrl(MSR_EFER, efer | EFER_SVME);
 
 	wrmsrl(MSR_VM_HSAVE_PA, page_to_pfn(sd->save_area) << PAGE_SHIFT);
+
+	svm_init_erratum_383();
 
 	return 0;
 }
@@ -1410,8 +1440,59 @@ static int nm_interception(struct vcpu_svm *svm)
 	return 1;
 }
 
-static int mc_interception(struct vcpu_svm *svm)
+static bool is_erratum_383(void)
 {
+	int err, i;
+	u64 value;
+
+	if (!erratum_383_found)
+		return false;
+
+	value = native_read_msr_safe(MSR_IA32_MC0_STATUS, &err);
+	if (err)
+		return false;
+
+	/* Bit 62 may or may not be set for this mce */
+	value &= ~(1ULL << 62);
+
+	if (value != 0xb600000000010015ULL)
+		return false;
+
+	/* Clear MCi_STATUS registers */
+	for (i = 0; i < 6; ++i)
+		native_write_msr_safe(MSR_IA32_MCx_STATUS(i), 0, 0);
+
+	value = native_read_msr_safe(MSR_IA32_MCG_STATUS, &err);
+	if (!err) {
+		u32 low, high;
+
+		value &= ~(1ULL << 2);
+		low    = lower_32_bits(value);
+		high   = upper_32_bits(value);
+
+		native_write_msr_safe(MSR_IA32_MCG_STATUS, low, high);
+	}
+
+	/* Flush tlb to evict multi-match entries */
+	__flush_tlb_all();
+
+	return true;
+}
+
+static void svm_handle_mce(struct vcpu_svm *svm)
+{
+	if (is_erratum_383()) {
+		/*
+		 * Erratum 383 triggered. Guest state is corrupt so kill the
+		 * guest.
+		 */
+		pr_err("KVM: Guest triggered AMD Erratum 383\n");
+
+		set_bit(KVM_REQ_TRIPLE_FAULT, &svm->vcpu.requests);
+
+		return;
+	}
+
 	/*
 	 * On an #MC intercept the MCE handler is not called automatically in
 	 * the host. So do it by hand here.
@@ -1420,6 +1501,11 @@ static int mc_interception(struct vcpu_svm *svm)
 		"int $0x12\n");
 	/* not sure if we ever come back to this point */
 
+	return;
+}
+
+static int mc_interception(struct vcpu_svm *svm)
+{
 	return 1;
 }
 
@@ -3088,6 +3174,14 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);
 		vcpu->arch.regs_dirty &= ~(1 << VCPU_EXREG_PDPTR);
 	}
+
+	/*
+	 * We need to handle MC intercepts here before the vcpu has a chance to
+	 * change the physical cpu
+	 */
+	if (unlikely(svm->vmcb->control.exit_code ==
+		     SVM_EXIT_EXCP_BASE + MC_VECTOR))
+		svm_handle_mce(svm);
 }
 
 #undef R

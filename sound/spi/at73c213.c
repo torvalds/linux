@@ -69,7 +69,6 @@ struct snd_at73c213 {
 	int				irq;
 	int				period;
 	unsigned long			bitrate;
-	struct clk			*bitclk;
 	struct ssc_device		*ssc;
 	struct spi_device		*spi;
 	u8				spi_wbuffer[2];
