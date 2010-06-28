@@ -1049,16 +1049,15 @@ xfs_vm_writepage(
 	/*
 	 * Refuse to write the page out if we are called from reclaim context.
 	 *
-	 * This is primarily to avoid stack overflows when called from deep
-	 * used stacks in random callers for direct reclaim, but disabling
-	 * reclaim for kswap is a nice side-effect as kswapd causes rather
-	 * suboptimal I/O patters, too.
+	 * This avoids stack overflows when called from deeply used stacks in
+	 * random callers for direct reclaim or memcg reclaim.  We explicitly
+	 * allow reclaim from kswapd as the stack usage there is relatively low.
 	 *
 	 * This should really be done by the core VM, but until that happens
 	 * filesystems like XFS, btrfs and ext4 have to take care of this
 	 * by themselves.
 	 */
-	if (current->flags & PF_MEMALLOC)
+	if ((current->flags & (PF_MEMALLOC|PF_KSWAPD)) == PF_MEMALLOC)
 		goto out_fail;
 
 	/*
