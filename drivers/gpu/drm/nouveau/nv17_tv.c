@@ -744,8 +744,10 @@ static struct drm_encoder_funcs nv17_tv_funcs = {
 	.destroy = nv17_tv_destroy,
 };
 
-int nv17_tv_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv17_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
+	struct drm_device *dev = connector->dev;
 	struct drm_encoder *encoder;
 	struct nv17_tv_encoder *tv_enc = NULL;
 
@@ -774,5 +776,7 @@ int nv17_tv_create(struct drm_device *dev, struct dcb_entry *entry)
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
+	nv17_tv_create_resources(encoder, connector);
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }

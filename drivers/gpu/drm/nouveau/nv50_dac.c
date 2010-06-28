@@ -275,13 +275,10 @@ static const struct drm_encoder_funcs nv50_dac_encoder_funcs = {
 };
 
 int
-nv50_dac_create(struct drm_device *dev, struct dcb_entry *entry)
+nv50_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
-
-	NV_DEBUG_KMS(dev, "\n");
-	NV_INFO(dev, "Detected a DAC output\n");
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
@@ -293,12 +290,14 @@ nv50_dac_create(struct drm_device *dev, struct dcb_entry *entry)
 
 	nv_encoder->disconnect = nv50_dac_disconnect;
 
-	drm_encoder_init(dev, encoder, &nv50_dac_encoder_funcs,
+	drm_encoder_init(connector->dev, encoder, &nv50_dac_encoder_funcs,
 			 DRM_MODE_ENCODER_DAC);
 	drm_encoder_helper_add(encoder, &nv50_dac_helper_funcs);
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
+
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }
 

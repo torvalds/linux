@@ -729,66 +729,62 @@ nouveau_connector_funcs_lvds = {
 	.force = nouveau_connector_force
 };
 
-int
-nouveau_connector_create(struct drm_device *dev,
-			 struct dcb_connector_table_entry *dcb)
+struct drm_connector *
+nouveau_connector_create(struct drm_device *dev, int index)
 {
 	const struct drm_connector_funcs *funcs = &nouveau_connector_funcs;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = NULL;
+	struct dcb_connector_table_entry *dcb = NULL;
 	struct drm_connector *connector;
-	struct drm_encoder *encoder;
 	int type, ret = 0;
 
 	NV_DEBUG_KMS(dev, "\n");
 
+	if (index >= dev_priv->vbios.dcb.connector.entries)
+		return ERR_PTR(-EINVAL);
+
+	dcb = &dev_priv->vbios.dcb.connector.entry[index];
+	if (dcb->drm)
+		return dcb->drm;
+
 	switch (dcb->type) {
-	case DCB_CONNECTOR_NONE:
-		return 0;
 	case DCB_CONNECTOR_VGA:
-		NV_INFO(dev, "Detected a VGA connector\n");
 		type = DRM_MODE_CONNECTOR_VGA;
 		break;
 	case DCB_CONNECTOR_TV_0:
 	case DCB_CONNECTOR_TV_1:
 	case DCB_CONNECTOR_TV_3:
-		NV_INFO(dev, "Detected a TV connector\n");
 		type = DRM_MODE_CONNECTOR_TV;
 		break;
 	case DCB_CONNECTOR_DVI_I:
-		NV_INFO(dev, "Detected a DVI-I connector\n");
 		type = DRM_MODE_CONNECTOR_DVII;
 		break;
 	case DCB_CONNECTOR_DVI_D:
-		NV_INFO(dev, "Detected a DVI-D connector\n");
 		type = DRM_MODE_CONNECTOR_DVID;
 		break;
 	case DCB_CONNECTOR_HDMI_0:
 	case DCB_CONNECTOR_HDMI_1:
-		NV_INFO(dev, "Detected a HDMI connector\n");
 		type = DRM_MODE_CONNECTOR_HDMIA;
 		break;
 	case DCB_CONNECTOR_LVDS:
-		NV_INFO(dev, "Detected a LVDS connector\n");
 		type = DRM_MODE_CONNECTOR_LVDS;
 		funcs = &nouveau_connector_funcs_lvds;
 		break;
 	case DCB_CONNECTOR_DP:
-		NV_INFO(dev, "Detected a DisplayPort connector\n");
 		type = DRM_MODE_CONNECTOR_DisplayPort;
 		break;
 	case DCB_CONNECTOR_eDP:
-		NV_INFO(dev, "Detected an eDP connector\n");
 		type = DRM_MODE_CONNECTOR_eDP;
 		break;
 	default:
 		NV_ERROR(dev, "unknown connector type: 0x%02x!!\n", dcb->type);
-		return -EINVAL;
+		return ERR_PTR(-EINVAL);
 	}
 
 	nv_connector = kzalloc(sizeof(*nv_connector), GFP_KERNEL);
 	if (!nv_connector)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	nv_connector->dcb = dcb;
 	connector = &nv_connector->base;
 
@@ -798,24 +794,6 @@ nouveau_connector_create(struct drm_device *dev,
 
 	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
-
-	/* attach encoders */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (nv_encoder->dcb->connector != dcb->index)
-			continue;
-
-		if (get_slave_funcs(nv_encoder))
-			get_slave_funcs(nv_encoder)->create_resources(encoder, connector);
-
-		drm_mode_connector_attach_encoder(connector, encoder);
-	}
-
-	if (!connector->encoder_ids[0]) {
-		NV_WARN(dev, "  no encoders, ignoring\n");
-		goto fail;
-	}
 
 	/* Check if we need dithering enabled */
 	if (dcb->type == DCB_CONNECTOR_LVDS) {
@@ -877,11 +855,12 @@ nouveau_connector_create(struct drm_device *dev,
 	}
 
 	drm_sysfs_connector_add(connector);
-	return 0;
+	dcb->drm = connector;
+	return dcb->drm;
 
 fail:
 	drm_connector_cleanup(connector);
 	kfree(connector);
-	return ret;
+	return ERR_PTR(ret);
 
 }

@@ -584,11 +584,12 @@ static const struct drm_encoder_funcs nv04_dfp_funcs = {
 	.destroy = nv04_dfp_destroy,
 };
 
-int nv04_dfp_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv04_dfp_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder = NULL;
+	struct drm_encoder *encoder;
 	int type;
 
 	switch (entry->type) {
@@ -613,11 +614,12 @@ int nv04_dfp_create(struct drm_device *dev, struct dcb_entry *entry)
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
 
-	drm_encoder_init(dev, encoder, &nv04_dfp_funcs, type);
+	drm_encoder_init(connector->dev, encoder, &nv04_dfp_funcs, type);
 	drm_encoder_helper_add(encoder, helper);
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }

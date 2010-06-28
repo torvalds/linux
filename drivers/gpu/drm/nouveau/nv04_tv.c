@@ -223,10 +223,12 @@ static void nv04_tv_destroy(struct drm_encoder *encoder)
 	kfree(nv_encoder);
 }
 
-int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
+	struct drm_device *dev = connector->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct i2c_adapter *adap;
 	struct drm_encoder_funcs *funcs = NULL;
@@ -266,7 +268,7 @@ int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
 
 	was_locked = NVLockVgaCrtcs(dev, false);
 
-	ret = drm_i2c_encoder_init(encoder->dev, to_encoder_slave(encoder), adap,
+	ret = drm_i2c_encoder_init(dev, to_encoder_slave(encoder), adap,
 				   &nv04_tv_encoder_info[type].board_info);
 
 	NVLockVgaCrtcs(dev, was_locked);
@@ -294,7 +296,9 @@ int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
 
 	/* Set the slave encoder configuration */
 	sfuncs->set_config(encoder, nv04_tv_encoder_info[type].params);
+	sfuncs->create_resources(encoder, connector);
 
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 
 fail:

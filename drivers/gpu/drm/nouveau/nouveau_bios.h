@@ -81,6 +81,7 @@ struct dcb_connector_table_entry {
 	enum dcb_connector_type type;
 	uint8_t index2;
 	uint8_t gpio_tag;
+	void *drm;
 };
 
 struct dcb_connector_table {

@@ -1072,13 +1072,13 @@ extern long nouveau_compat_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long arg);
 
 /* nv04_dac.c */
-extern int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry);
+extern int nv04_dac_create(struct drm_connector *, struct dcb_entry *);
 extern uint32_t nv17_dac_sample_load(struct drm_encoder *encoder);
 extern int nv04_dac_output_offset(struct drm_encoder *encoder);
 extern void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable);
 
 /* nv04_dfp.c */
-extern int nv04_dfp_create(struct drm_device *dev, struct dcb_entry *entry);
+extern int nv04_dfp_create(struct drm_connector *, struct dcb_entry *);
 extern int nv04_dfp_get_bound_head(struct drm_device *dev, struct dcb_entry *dcbent);
 extern void nv04_dfp_bind_head(struct drm_device *dev, struct dcb_entry *dcbent,
 			       int head, bool dl);
@@ -1087,10 +1087,10 @@ extern void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode);
 
 /* nv04_tv.c */
 extern int nv04_tv_identify(struct drm_device *dev, int i2c_index);
-extern int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry);
+extern int nv04_tv_create(struct drm_connector *, struct dcb_entry *);
 
 /* nv17_tv.c */
-extern int nv17_tv_create(struct drm_device *dev, struct dcb_entry *entry);
+extern int nv17_tv_create(struct drm_connector *, struct dcb_entry *);
 
 /* nv04_display.c */
 extern int nv04_display_create(struct drm_device *);

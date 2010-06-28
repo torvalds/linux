@@ -94,6 +94,7 @@ nv04_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct drm_connector *connector, *ct;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 	int i, ret;
@@ -132,19 +133,23 @@ nv04_display_create(struct drm_device *dev)
 	for (i = 0; i < dcb->entries; i++) {
 		struct dcb_entry *dcbent = &dcb->entry[i];
 
+		connector = nouveau_connector_create(dev, dcbent->connector);
+		if (IS_ERR(connector))
+			continue;
+
 		switch (dcbent->type) {
 		case OUTPUT_ANALOG:
-			ret = nv04_dac_create(dev, dcbent);
+			ret = nv04_dac_create(connector, dcbent);
 			break;
 		case OUTPUT_LVDS:
 		case OUTPUT_TMDS:
-			ret = nv04_dfp_create(dev, dcbent);
+			ret = nv04_dfp_create(connector, dcbent);
 			break;
 		case OUTPUT_TV:
 			if (dcbent->location == DCB_LOC_ON_CHIP)
-				ret = nv17_tv_create(dev, dcbent);
+				ret = nv17_tv_create(connector, dcbent);
 			else
-				ret = nv04_tv_create(dev, dcbent);
+				ret = nv04_tv_create(connector, dcbent);
 			break;
 		default:
 			NV_WARN(dev, "DCB type %d not known\n", dcbent->type);
@@ -155,8 +160,14 @@ nv04_display_create(struct drm_device *dev)
 			continue;
 	}
 
-	for (i = 0; i < dcb->connector.entries; i++)
-		nouveau_connector_create(dev, &dcb->connector.entry[i]);
+	list_for_each_entry_safe(connector, ct,
+				 &dev->mode_config.connector_list, head) {
+		if (!connector->encoder_ids[0]) {
+			NV_WARN(dev, "%s has no encoders, removing\n",
+				drm_get_connector_name(connector));
+			connector->funcs->destroy(connector);
+		}
+	}
 
 	/* Save previous state */
 	NVLockVgaCrtcs(dev, false);

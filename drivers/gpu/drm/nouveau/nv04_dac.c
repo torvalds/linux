@@ -501,11 +501,13 @@ static const struct drm_encoder_funcs nv04_dac_funcs = {
 	.destroy = nv04_dac_destroy,
 };
 
-int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry)
+int
+nv04_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
 {
 	const struct drm_encoder_helper_funcs *helper;
-	struct drm_encoder *encoder;
 	struct nouveau_encoder *nv_encoder = NULL;
+	struct drm_device *dev = connector->dev;
+	struct drm_encoder *encoder;
 
 	nv_encoder = kzalloc(sizeof(*nv_encoder), GFP_KERNEL);
 	if (!nv_encoder)
@@ -527,5 +529,6 @@ int nv04_dac_create(struct drm_device *dev, struct dcb_entry *entry)
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
+	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
 }

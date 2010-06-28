@@ -465,6 +465,7 @@ int nv50_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
+	struct drm_connector *connector, *ct;
 	int ret, i;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -507,14 +508,18 @@ int nv50_display_create(struct drm_device *dev)
 			continue;
 		}
 
+		connector = nouveau_connector_create(dev, entry->connector);
+		if (IS_ERR(connector))
+			continue;
+
 		switch (entry->type) {
 		case OUTPUT_TMDS:
 		case OUTPUT_LVDS:
 		case OUTPUT_DP:
-			nv50_sor_create(dev, entry);
+			nv50_sor_create(connector, entry);
 			break;
 		case OUTPUT_ANALOG:
-			nv50_dac_create(dev, entry);
+			nv50_dac_create(connector, entry);
 			break;
 		default:
 			NV_WARN(dev, "DCB encoder %d unknown\n", entry->type);
@@ -522,11 +527,13 @@ int nv50_display_create(struct drm_device *dev)
 		}
 	}
 
-	for (i = 0 ; i < dcb->connector.entries; i++) {
-		if (i != 0 && dcb->connector.entry[i].index2 ==
-			      dcb->connector.entry[i - 1].index2)
-			continue;
-		nouveau_connector_create(dev, &dcb->connector.entry[i]);
+	list_for_each_entry_safe(connector, ct,
+				 &dev->mode_config.connector_list, head) {
+		if (!connector->encoder_ids[0]) {
+			NV_WARN(dev, "%s has no encoders, removing\n",
+				drm_get_connector_name(connector));
+			connector->funcs->destroy(connector);
+		}
 	}
 
 	ret = nv50_display_init(dev);
