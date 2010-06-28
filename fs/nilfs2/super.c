@@ -82,10 +82,12 @@ static void nilfs_set_error(struct nilfs_sb_info *sbi)
 	down_write(&nilfs->ns_sem);
 	if (!(nilfs->ns_mount_state & NILFS_ERROR_FS)) {
 		nilfs->ns_mount_state |= NILFS_ERROR_FS;
-		sbp = nilfs_prepare_super(sbi);
+		sbp = nilfs_prepare_super(sbi, 0);
 		if (likely(sbp)) {
 			sbp[0]->s_state |= cpu_to_le16(NILFS_ERROR_FS);
-			nilfs_commit_super(sbi, 1);
+			if (sbp[1])
+				sbp[1]->s_state |= cpu_to_le16(NILFS_ERROR_FS);
+			nilfs_commit_super(sbi, NILFS_SB_COMMIT_ALL);
 		}
 	}
 	up_write(&nilfs->ns_sem);
@@ -184,7 +186,7 @@ static void nilfs_clear_inode(struct inode *inode)
 	nilfs_btnode_cache_clear(&ii->i_btnode_cache);
 }
 
-static int nilfs_sync_super(struct nilfs_sb_info *sbi, int dupsb)
+static int nilfs_sync_super(struct nilfs_sb_info *sbi, int flag)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	int err;
@@ -210,11 +212,19 @@ static int nilfs_sync_super(struct nilfs_sb_info *sbi, int dupsb)
 		printk(KERN_ERR
 		       "NILFS: unable to write superblock (err=%d)\n", err);
 		if (err == -EIO && nilfs->ns_sbh[1]) {
+			/*
+			 * sbp[0] points to newer log than sbp[1],
+			 * so copy sbp[0] to sbp[1] to take over sbp[0].
+			 */
+			memcpy(nilfs->ns_sbp[1], nilfs->ns_sbp[0],
+			       nilfs->ns_sbsize);
 			nilfs_fall_back_super_block(nilfs);
 			goto retry;
 		}
 	} else {
 		struct nilfs_super_block *sbp = nilfs->ns_sbp[0];
+
+		nilfs->ns_sbwcount++;
 
 		/*
 		 * The latest segment becomes trailable from the position
@@ -224,20 +234,21 @@ static int nilfs_sync_super(struct nilfs_sb_info *sbi, int dupsb)
 
 		/* update GC protection for recent segments */
 		if (nilfs->ns_sbh[1]) {
-			sbp = NULL;
-			if (dupsb) {
+			if (flag == NILFS_SB_COMMIT_ALL) {
 				set_buffer_dirty(nilfs->ns_sbh[1]);
-				if (!sync_dirty_buffer(nilfs->ns_sbh[1]))
-					sbp = nilfs->ns_sbp[1];
+				if (sync_dirty_buffer(nilfs->ns_sbh[1]) < 0)
+					goto out;
 			}
+			if (le64_to_cpu(nilfs->ns_sbp[1]->s_last_cno) <
+			    le64_to_cpu(nilfs->ns_sbp[0]->s_last_cno))
+				sbp = nilfs->ns_sbp[1];
 		}
-		if (sbp) {
-			spin_lock(&nilfs->ns_last_segment_lock);
-			nilfs->ns_prot_seq = le64_to_cpu(sbp->s_last_seq);
-			spin_unlock(&nilfs->ns_last_segment_lock);
-		}
-	}
 
+		spin_lock(&nilfs->ns_last_segment_lock);
+		nilfs->ns_prot_seq = le64_to_cpu(sbp->s_last_seq);
+		spin_unlock(&nilfs->ns_last_segment_lock);
+	}
+ out:
 	return err;
 }
 
@@ -257,7 +268,8 @@ void nilfs_set_log_cursor(struct nilfs_super_block *sbp,
 	spin_unlock(&nilfs->ns_last_segment_lock);
 }
 
-struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *sbi)
+struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *sbi,
+					       int flip)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
@@ -266,38 +278,46 @@ struct nilfs_super_block **nilfs_prepare_super(struct nilfs_sb_info *sbi)
 	if (sbp[0]->s_magic != cpu_to_le16(NILFS_SUPER_MAGIC)) {
 		if (sbp[1] &&
 		    sbp[1]->s_magic == cpu_to_le16(NILFS_SUPER_MAGIC)) {
-			nilfs_swap_super_block(nilfs);
+			memcpy(sbp[0], sbp[1], nilfs->ns_sbsize);
 		} else {
 			printk(KERN_CRIT "NILFS: superblock broke on dev %s\n",
 			       sbi->s_super->s_id);
 			return NULL;
 		}
+	} else if (sbp[1] &&
+		   sbp[1]->s_magic != cpu_to_le16(NILFS_SUPER_MAGIC)) {
+			memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
 	}
+
+	if (flip && sbp[1])
+		nilfs_swap_super_block(nilfs);
+
 	return sbp;
 }
 
-int nilfs_commit_super(struct nilfs_sb_info *sbi, int dupsb)
+int nilfs_commit_super(struct nilfs_sb_info *sbi, int flag)
 {
 	struct the_nilfs *nilfs = sbi->s_nilfs;
 	struct nilfs_super_block **sbp = nilfs->ns_sbp;
 	time_t t;
 
 	/* nilfs->ns_sem must be locked by the caller. */
-	nilfs_set_log_cursor(sbp[0], nilfs);
-
 	t = get_seconds();
-	nilfs->ns_sbwtime[0] = t;
+	nilfs->ns_sbwtime = t;
 	sbp[0]->s_wtime = cpu_to_le64(t);
 	sbp[0]->s_sum = 0;
 	sbp[0]->s_sum = cpu_to_le32(crc32_le(nilfs->ns_crc_seed,
 					     (unsigned char *)sbp[0],
 					     nilfs->ns_sbsize));
-	if (dupsb && sbp[1]) {
-		memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
-		nilfs->ns_sbwtime[1] = t;
+	if (flag == NILFS_SB_COMMIT_ALL && sbp[1]) {
+		sbp[1]->s_wtime = sbp[0]->s_wtime;
+		sbp[1]->s_sum = 0;
+		sbp[1]->s_sum = cpu_to_le32(crc32_le(nilfs->ns_crc_seed,
+					    (unsigned char *)sbp[1],
+					    nilfs->ns_sbsize));
 	}
 	clear_nilfs_sb_dirty(nilfs);
-	return nilfs_sync_super(sbi, dupsb);
+	return nilfs_sync_super(sbi, flag);
 }
 
 /**
@@ -311,12 +331,23 @@ int nilfs_commit_super(struct nilfs_sb_info *sbi, int dupsb)
 int nilfs_cleanup_super(struct nilfs_sb_info *sbi)
 {
 	struct nilfs_super_block **sbp;
+	int flag = NILFS_SB_COMMIT;
 	int ret = -EIO;
 
-	sbp = nilfs_prepare_super(sbi);
+	sbp = nilfs_prepare_super(sbi, 0);
 	if (sbp) {
 		sbp[0]->s_state = cpu_to_le16(sbi->s_nilfs->ns_mount_state);
-		ret = nilfs_commit_super(sbi, 1);
+		nilfs_set_log_cursor(sbp[0], sbi->s_nilfs);
+		if (sbp[1] && sbp[0]->s_last_cno == sbp[1]->s_last_cno) {
+			/*
+			 * make the "clean" flag also to the opposite
+			 * super block if both super blocks point to
+			 * the same checkpoint.
+			 */
+			sbp[1]->s_state = sbp[0]->s_state;
+			flag = NILFS_SB_COMMIT_ALL;
+		}
+		ret = nilfs_commit_super(sbi, flag);
 	}
 	return ret;
 }
@@ -362,9 +393,11 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 
 	down_write(&nilfs->ns_sem);
 	if (nilfs_sb_dirty(nilfs)) {
-		sbp = nilfs_prepare_super(sbi);
-		if (likely(sbp))
-			nilfs_commit_super(sbi, 1);
+		sbp = nilfs_prepare_super(sbi, nilfs_sb_will_flip(nilfs));
+		if (likely(sbp)) {
+			nilfs_set_log_cursor(sbp[0], nilfs);
+			nilfs_commit_super(sbi, NILFS_SB_COMMIT);
+		}
 	}
 	up_write(&nilfs->ns_sem);
 
@@ -664,7 +697,7 @@ static int nilfs_setup_super(struct nilfs_sb_info *sbi)
 	int mnt_count;
 
 	/* nilfs->ns_sem must be locked by the caller. */
-	sbp = nilfs_prepare_super(sbi);
+	sbp = nilfs_prepare_super(sbi, 0);
 	if (!sbp)
 		return -EIO;
 
@@ -687,7 +720,9 @@ static int nilfs_setup_super(struct nilfs_sb_info *sbi)
 	sbp[0]->s_state =
 		cpu_to_le16(le16_to_cpu(sbp[0]->s_state) & ~NILFS_VALID_FS);
 	sbp[0]->s_mtime = cpu_to_le64(get_seconds());
-	return nilfs_commit_super(sbi, 1);
+	/* synchronize sbp[1] with sbp[0] */
+	memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
+	return nilfs_commit_super(sbi, NILFS_SB_COMMIT_ALL);
 }
 
 struct nilfs_super_block *nilfs_read_super_block(struct super_block *sb,

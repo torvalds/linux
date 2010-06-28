@@ -513,8 +513,8 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 		nilfs_swap_super_block(nilfs);
 	}
 
-	nilfs->ns_sbwtime[0] = le64_to_cpu(sbp[0]->s_wtime);
-	nilfs->ns_sbwtime[1] = valid[!swp] ? le64_to_cpu(sbp[1]->s_wtime) : 0;
+	nilfs->ns_sbwcount = 0;
+	nilfs->ns_sbwtime = le64_to_cpu(sbp[0]->s_wtime);
 	nilfs->ns_prot_seq = le64_to_cpu(sbp[valid[1] & !swp]->s_last_seq);
 	*sbpp = sbp[0];
 	return 0;

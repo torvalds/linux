@@ -57,7 +57,8 @@ enum {
  * @ns_current: back pointer to current mount
  * @ns_sbh: buffer heads of on-disk super blocks
  * @ns_sbp: pointers to super block data
- * @ns_sbwtime: previous write time of super blocks
+ * @ns_sbwtime: previous write time of super block
+ * @ns_sbwcount: write count of super block
  * @ns_sbsize: size of valid data in super block
  * @ns_supers: list of nilfs super block structs
  * @ns_seg_seq: segment sequence counter
@@ -119,7 +120,8 @@ struct the_nilfs {
 	 */
 	struct buffer_head     *ns_sbh[2];
 	struct nilfs_super_block *ns_sbp[2];
-	time_t			ns_sbwtime[2];
+	time_t			ns_sbwtime;
+	unsigned		ns_sbwcount;
 	unsigned		ns_sbsize;
 	unsigned		ns_mount_state;
 
@@ -203,20 +205,17 @@ THE_NILFS_FNS(SB_DIRTY, sb_dirty)
 
 /* Minimum interval of periodical update of superblocks (in seconds) */
 #define NILFS_SB_FREQ		10
-#define NILFS_ALTSB_FREQ	60  /* spare superblock */
 
 static inline int nilfs_sb_need_update(struct the_nilfs *nilfs)
 {
 	u64 t = get_seconds();
-	return t < nilfs->ns_sbwtime[0] ||
-		 t > nilfs->ns_sbwtime[0] + NILFS_SB_FREQ;
+	return t < nilfs->ns_sbwtime || t > nilfs->ns_sbwtime + NILFS_SB_FREQ;
 }
 
-static inline int nilfs_altsb_need_update(struct the_nilfs *nilfs)
+static inline int nilfs_sb_will_flip(struct the_nilfs *nilfs)
 {
-	u64 t = get_seconds();
-	struct nilfs_super_block **sbp = nilfs->ns_sbp;
-	return sbp[1] && t > nilfs->ns_sbwtime[1] + NILFS_ALTSB_FREQ;
+	int flip_bits = nilfs->ns_sbwcount & 0x0FL;
+	return (flip_bits != 0x08 && flip_bits != 0x0F);
 }
 
 void nilfs_set_last_segment(struct the_nilfs *, sector_t, u64, __u64);

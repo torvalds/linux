@@ -2425,10 +2425,12 @@ static int nilfs_segctor_construct(struct nilfs_sc_info *sci, int mode)
 		    nilfs_discontinued(nilfs)) {
 			down_write(&nilfs->ns_sem);
 			err = -EIO;
-			sbp = nilfs_prepare_super(sbi);
-			if (likely(sbp))
-				err = nilfs_commit_super(
-					sbi, nilfs_altsb_need_update(nilfs));
+			sbp = nilfs_prepare_super(sbi,
+						  nilfs_sb_will_flip(nilfs));
+			if (likely(sbp)) {
+				nilfs_set_log_cursor(sbp[0], nilfs);
+				err = nilfs_commit_super(sbi, NILFS_SB_COMMIT);
+			}
 			up_write(&nilfs->ns_sem);
 		}
 	}
