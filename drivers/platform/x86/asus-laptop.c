@@ -1397,8 +1397,10 @@ static int asus_laptop_get_info(struct asus_laptop *asus)
 		}
 	}
 	asus->name = kstrdup(string, GFP_KERNEL);
-	if (!asus->name)
+	if (!asus->name) {
+		kfree(buffer.pointer);
 		return -ENOMEM;
+	}
 
 	if (*string)
 		pr_notice("  %s model detected\n", string);
