@@ -52,8 +52,6 @@ extern void of_unregister_platform_driver(struct of_platform_driver *drv);
 extern struct of_device *of_device_alloc(struct device_node *np,
 					 const char *bus_id,
 					 struct device *parent);
-#include <asm/of_platform.h>
-
 extern struct of_device *of_find_device_by_node(struct device_node *np);
 
 extern int of_bus_type_init(struct bus_type *bus, const char *name);

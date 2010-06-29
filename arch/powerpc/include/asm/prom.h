@@ -117,5 +117,7 @@ extern const void *of_get_mac_address(struct device_node *np);
 struct pci_dev;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
 
+extern void of_instantiate_rtc(void);
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_PROM_H */
