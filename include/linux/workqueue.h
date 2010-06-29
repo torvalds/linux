@@ -232,12 +232,31 @@ enum {
 	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
 };
 
+/*
+ * System-wide workqueues which are always present.
+ *
+ * system_wq is the one used by schedule[_delayed]_work[_on]().
+ * Multi-CPU multi-threaded.  There are users which expect relatively
+ * short queue flush time.  Don't queue works which can run for too
+ * long.
+ *
+ * system_long_wq is similar to system_wq but may host long running
+ * works.  Queue flushing might take relatively long.
+ *
+ * system_nrt_wq is non-reentrant and guarantees that any given work
+ * item is never executed in parallel by multiple CPUs.  Queue
+ * flushing might take relatively long.
+ */
+extern struct workqueue_struct *system_wq;
+extern struct workqueue_struct *system_long_wq;
+extern struct workqueue_struct *system_nrt_wq;
+
 extern struct workqueue_struct *
-__create_workqueue_key(const char *name, unsigned int flags, int max_active,
-		       struct lock_class_key *key, const char *lock_name);
+__alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
+		      struct lock_class_key *key, const char *lock_name);
 
 #ifdef CONFIG_LOCKDEP
-#define __create_workqueue(name, flags, max_active)		\
+#define alloc_workqueue(name, flags, max_active)		\
 ({								\
 	static struct lock_class_key __key;			\
 	const char *__lock_name;				\
@@ -247,21 +266,20 @@ __create_workqueue_key(const char *name, unsigned int flags, int max_active,
 	else							\
 		__lock_name = #name;				\
 								\
-	__create_workqueue_key((name), (flags), (max_active),	\
-				&__key, __lock_name);		\
+	__alloc_workqueue_key((name), (flags), (max_active),	\
+			      &__key, __lock_name);		\
 })
 #else
-#define __create_workqueue(name, flags, max_active)		\
-	__create_workqueue_key((name), (flags), (max_active), NULL, NULL)
+#define alloc_workqueue(name, flags, max_active)		\
+	__alloc_workqueue_key((name), (flags), (max_active), NULL, NULL)
 #endif
 
 #define create_workqueue(name)					\
-	__create_workqueue((name), WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_RESCUER, 1)
 #define create_freezeable_workqueue(name)			\
-	__create_workqueue((name),				\
-			   WQ_FREEZEABLE | WQ_SINGLE_CPU | WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_CPU | WQ_RESCUER, 1)
 #define create_singlethread_workqueue(name)			\
-	__create_workqueue((name), WQ_SINGLE_CPU | WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_SINGLE_CPU | WQ_RESCUER, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
