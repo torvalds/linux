@@ -248,7 +248,7 @@ handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks)
 	journal = EXT4_SB(sb)->s_journal;
 	if (journal) {
 		if (is_journal_aborted(journal)) {
-			ext4_abort(sb, __func__, "Detected aborted journal");
+			ext4_abort(sb, "Detected aborted journal");
 			return ERR_PTR(-EROFS);
 		}
 		return jbd2_journal_start(journal, nblocks);
@@ -464,8 +464,8 @@ void __ext4_std_error(struct super_block *sb, const char *function, int errno)
  * case we take the easy way out and panic immediately.
  */
 
-void ext4_abort(struct super_block *sb, const char *function,
-		const char *fmt, ...)
+void __ext4_abort(struct super_block *sb, const char *function,
+		  const char *fmt, ...)
 {
 	va_list args;
 
@@ -660,8 +660,7 @@ static void ext4_put_super(struct super_block *sb)
 		err = jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
 		if (err < 0)
-			ext4_abort(sb, __func__,
-				   "Couldn't clean up the journal");
+			ext4_abort(sb, "Couldn't clean up the journal");
 	}
 
 	ext4_release_system_zone(sb);
@@ -3605,7 +3604,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	}
 
 	if (sbi->s_mount_flags & EXT4_MF_FS_ABORTED)
-		ext4_abort(sb, __func__, "Abort forced by user");
+		ext4_abort(sb, "Abort forced by user");
 
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
 		(test_opt(sb, POSIX_ACL) ? MS_POSIXACL : 0);

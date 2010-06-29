@@ -1629,8 +1629,10 @@ extern void ext4_error_inode(const char *, struct inode *, const char *, ...)
 extern void ext4_error_file(const char *, struct file *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 extern void __ext4_std_error(struct super_block *, const char *, int);
-extern void ext4_abort(struct super_block *, const char *, const char *, ...)
+extern void __ext4_abort(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
+#define ext4_abort(sb, message...)	__ext4_abort(sb, __func__, \
+						     ## message)
 extern void __ext4_warning(struct super_block *, const char *,
 			  const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
