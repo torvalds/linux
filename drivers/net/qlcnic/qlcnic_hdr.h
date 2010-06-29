@@ -778,12 +778,6 @@ enum {
 	QLCNIC_NON_PRIV_FUNC	= 2
 };
 
-/* FW HAL api version */
-enum {
-	QLCNIC_FW_BASE	= 1,
-	QLCNIC_FW_NPAR	= 2
-};
-
 #define QLC_DEV_DRV_DEFAULT 0x11111111
 
 #define LSB(x)	((uint8_t)(x))

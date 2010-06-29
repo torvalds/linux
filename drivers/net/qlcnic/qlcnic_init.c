@@ -548,16 +548,14 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	int timeo;
 	u32 val;
 
-	if (adapter->fw_hal_version == QLCNIC_FW_BASE) {
-		val = QLCRD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
-		val = QLC_DEV_GET_DRV(val, adapter->portnum);
-		if ((val & 0x3) != QLCNIC_TYPE_NIC) {
-			dev_err(&adapter->pdev->dev,
-				"Not an Ethernet NIC func=%u\n", val);
-			return -EIO;
-		}
-		adapter->physical_port = (val >> 2);
+	val = QLCRD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
+	val = QLC_DEV_GET_DRV(val, adapter->portnum);
+	if ((val & 0x3) != QLCNIC_TYPE_NIC) {
+		dev_err(&adapter->pdev->dev,
+			"Not an Ethernet NIC func=%u\n", val);
+		return -EIO;
 	}
+	adapter->physical_port = (val >> 2);
 	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DEV_INIT_TIMEOUT, &timeo))
 		timeo = 30;
 

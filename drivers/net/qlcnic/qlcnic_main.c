@@ -377,15 +377,6 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 };
 
 static struct qlcnic_nic_template qlcnic_ops = {
-	.get_mac_addr = qlcnic_get_mac_addr,
-	.config_bridged_mode = qlcnic_config_bridged_mode,
-	.config_led = qlcnic_config_led,
-	.set_ilb_mode = qlcnic_set_ilb_mode,
-	.clear_ilb_mode = qlcnic_clear_ilb_mode,
-	.start_firmware = qlcnic_start_firmware
-};
-
-static struct qlcnic_nic_template qlcnic_pf_ops = {
 	.get_mac_addr = qlcnic_get_mac_address,
 	.config_bridged_mode = qlcnic_config_bridged_mode,
 	.config_led = qlcnic_config_led,
@@ -534,15 +525,6 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 
 	/* Determine FW API version */
 	adapter->fw_hal_version = readl(adapter->ahw.pci_base0 + QLCNIC_FW_API);
-	if (adapter->fw_hal_version == ~0) {
-		adapter->nic_ops = &qlcnic_ops;
-		adapter->fw_hal_version = QLCNIC_FW_BASE;
-		adapter->ahw.pci_func = PCI_FUNC(adapter->pdev->devfn);
-		adapter->capabilities = QLCRD32(adapter, CRB_FW_CAPABILITIES_1);
-		dev_info(&adapter->pdev->dev,
-			"FW does not support nic partion\n");
-		return adapter->fw_hal_version;
-	}
 
 	/* Find PCI function number */
 	pci_read_config_dword(adapter->pdev, QLCNIC_MSIX_TABLE_OFFSET, &func);
@@ -569,7 +551,7 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 	switch (priv_level) {
 	case QLCNIC_MGMT_FUNC:
 		adapter->op_mode = QLCNIC_MGMT_FUNC;
-		adapter->nic_ops = &qlcnic_pf_ops;
+		adapter->nic_ops = &qlcnic_ops;
 		qlcnic_get_pci_info(adapter);
 		/* Set privilege level for other functions */
 		qlcnic_set_function_modes(adapter);
@@ -582,7 +564,7 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 		dev_info(&adapter->pdev->dev,
 			"HAL Version: %d, Privileged function\n",
 			adapter->fw_hal_version);
-		adapter->nic_ops = &qlcnic_pf_ops;
+		adapter->nic_ops = &qlcnic_ops;
 		break;
 	case QLCNIC_NON_PRIV_FUNC:
 		adapter->op_mode = QLCNIC_NON_PRIV_FUNC;

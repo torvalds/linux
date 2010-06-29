@@ -224,12 +224,7 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 		rds_ring = &recv_ctx->rds_rings[i];
 
 		reg = le32_to_cpu(prsp_rds[i].host_producer_crb);
-		if (adapter->fw_hal_version == QLCNIC_FW_BASE)
-			rds_ring->crb_rcv_producer = qlcnic_get_ioaddr(adapter,
-				QLCNIC_REG(reg - 0x200));
-		else
-			rds_ring->crb_rcv_producer = adapter->ahw.pci_base0 +
-				reg;
+		rds_ring->crb_rcv_producer = adapter->ahw.pci_base0 + reg;
 	}
 
 	prsp_sds = ((struct qlcnic_cardrsp_sds_ring *)
@@ -241,16 +236,8 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 		reg = le32_to_cpu(prsp_sds[i].host_consumer_crb);
 		reg2 = le32_to_cpu(prsp_sds[i].interrupt_crb);
 
-		if (adapter->fw_hal_version == QLCNIC_FW_BASE) {
-			sds_ring->crb_sts_consumer = qlcnic_get_ioaddr(adapter,
-				QLCNIC_REG(reg - 0x200));
-			sds_ring->crb_intr_mask = qlcnic_get_ioaddr(adapter,
-				QLCNIC_REG(reg2 - 0x200));
-		} else {
-			sds_ring->crb_sts_consumer = adapter->ahw.pci_base0 +
-				reg;
-			sds_ring->crb_intr_mask = adapter->ahw.pci_base0 + reg2;
-		}
+		sds_ring->crb_sts_consumer = adapter->ahw.pci_base0 + reg;
+		sds_ring->crb_intr_mask = adapter->ahw.pci_base0 + reg2;
 	}
 
 	recv_ctx->state = le32_to_cpu(prsp->host_ctx_state);
@@ -352,12 +339,7 @@ qlcnic_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter)
 
 	if (err == QLCNIC_RCODE_SUCCESS) {
 		temp = le32_to_cpu(prsp->cds_ring.host_producer_crb);
-		if (adapter->fw_hal_version == QLCNIC_FW_BASE)
-			tx_ring->crb_cmd_producer = qlcnic_get_ioaddr(adapter,
-				QLCNIC_REG(temp - 0x200));
-		else
-			tx_ring->crb_cmd_producer = adapter->ahw.pci_base0 +
-				temp;
+		tx_ring->crb_cmd_producer = adapter->ahw.pci_base0 + temp;
 
 		adapter->tx_context_id =
 			le16_to_cpu(prsp->context_id);
