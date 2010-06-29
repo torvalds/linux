@@ -2689,7 +2689,8 @@ static void drbd_set_defaults(struct drbd_conf *mdev)
 		/* .verify_alg = */	{}, 0,
 		/* .cpu_mask = */	{}, 0,
 		/* .csums_alg = */	{}, 0,
-		/* .use_rle = */	0
+		/* .use_rle = */	0,
+		/* .on_no_data = */	DRBD_ON_NO_DATA_DEF
 	};
 
 	/* Have to use that way, because the layout differs between
