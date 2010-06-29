@@ -514,8 +514,10 @@ void __ext4_warning(struct super_block *sb, const char *function,
 	va_end(args);
 }
 
-void ext4_grp_locked_error(struct super_block *sb, ext4_group_t grp,
-			   const char *function, const char *fmt, ...)
+void __ext4_grp_locked_error(const char *function, unsigned int line,
+			     struct super_block *sb, ext4_group_t grp,
+			     unsigned long ino, ext4_fsblk_t block,
+			     const char *fmt, ...)
 __releases(bitlock)
 __acquires(bitlock)
 {
@@ -523,7 +525,12 @@ __acquires(bitlock)
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
 	va_start(args, fmt);
-	printk(KERN_CRIT "EXT4-fs error (device %s): %s: ", sb->s_id, function);
+	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u",
+	       sb->s_id, function, line, grp);
+	if (ino)
+		printk("inode %lu: ", ino);
+	if (block)
+		printk("block %llu:", (unsigned long long) block);
 	vprintk(fmt, args);
 	printk("\n");
 	va_end(args);

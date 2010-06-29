@@ -1639,9 +1639,13 @@ extern void __ext4_warning(struct super_block *, const char *,
 #define ext4_warning(sb, message...)	__ext4_warning(sb, __func__, ## message)
 extern void ext4_msg(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
-extern void ext4_grp_locked_error(struct super_block *, ext4_group_t,
-				const char *, const char *, ...)
-	__attribute__ ((format (printf, 4, 5)));
+extern void __ext4_grp_locked_error(const char *, unsigned int, \
+				    struct super_block *, ext4_group_t, \
+				    unsigned long, ext4_fsblk_t, \
+				    const char *, ...)
+	__attribute__ ((format (printf, 7, 8)));
+#define ext4_grp_locked_error(sb, grp, message...) \
+	__ext4_grp_locked_error(__func__, __LINE__, (sb), (grp), ## message)
 extern void ext4_update_dynamic_rev(struct super_block *sb);
 extern int ext4_update_compat_feature(handle_t *handle, struct super_block *sb,
 					__u32 compat);

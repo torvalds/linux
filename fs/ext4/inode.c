@@ -1128,8 +1128,8 @@ void ext4_da_update_reserve_space(struct inode *inode,
 		ext4_discard_preallocations(inode);
 }
 
-static int check_block_validity(struct inode *inode, const char *func,
-				struct ext4_map_blocks *map)
+static int __check_block_validity(struct inode *inode, const char *func,
+				  struct ext4_map_blocks *map)
 {
 	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), map->m_pblk,
 				   map->m_len)) {
@@ -1141,6 +1141,9 @@ static int check_block_validity(struct inode *inode, const char *func,
 	}
 	return 0;
 }
+
+#define check_block_validity(inode, map)	\
+	__check_block_validity((inode), __func__, (map))
 
 /*
  * Return the number of contiguous dirty pages in a given inode
@@ -1244,7 +1247,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	up_read((&EXT4_I(inode)->i_data_sem));
 
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, __func__, map);
+		int ret = check_block_validity(inode, map);
 		if (ret != 0)
 			return ret;
 	}
@@ -1324,9 +1327,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode,
-					       "ext4_map_blocks_after_alloc",
-					       map);
+		int ret = check_block_validity(inode, map);
 		if (ret != 0)
 			return ret;
 	}
