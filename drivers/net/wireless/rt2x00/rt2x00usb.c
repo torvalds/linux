@@ -171,6 +171,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 {
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	struct txdone_entry_desc txdesc;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
@@ -181,6 +182,11 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * Remove the descriptor from the front of the skb.
 	 */
 	skb_pull(entry->skb, entry->queue->desc_size);
+
+	/*
+	 * Signal that the TX descriptor is no longer in the skb.
+	 */
+	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
 
 	/*
 	 * Obtain the status about this packet.
