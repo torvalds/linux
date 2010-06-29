@@ -261,40 +261,29 @@ static int tcf_nat_dump(struct sk_buff *skb, struct tc_action *a,
 {
 	unsigned char *b = skb_tail_pointer(skb);
 	struct tcf_nat *p = a->priv;
-	struct tc_nat *opt;
+	struct tc_nat opt;
 	struct tcf_t t;
-	int s;
 
-	s = sizeof(*opt);
+	opt.old_addr = p->old_addr;
+	opt.new_addr = p->new_addr;
+	opt.mask = p->mask;
+	opt.flags = p->flags;
 
-	/* netlink spinlocks held above us - must use ATOMIC */
-	opt = kzalloc(s, GFP_ATOMIC);
-	if (unlikely(!opt))
-		return -ENOBUFS;
+	opt.index = p->tcf_index;
+	opt.action = p->tcf_action;
+	opt.refcnt = p->tcf_refcnt - ref;
+	opt.bindcnt = p->tcf_bindcnt - bind;
 
-	opt->old_addr = p->old_addr;
-	opt->new_addr = p->new_addr;
-	opt->mask = p->mask;
-	opt->flags = p->flags;
-
-	opt->index = p->tcf_index;
-	opt->action = p->tcf_action;
-	opt->refcnt = p->tcf_refcnt - ref;
-	opt->bindcnt = p->tcf_bindcnt - bind;
-
-	NLA_PUT(skb, TCA_NAT_PARMS, s, opt);
+	NLA_PUT(skb, TCA_NAT_PARMS, sizeof(opt), &opt);
 	t.install = jiffies_to_clock_t(jiffies - p->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - p->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(p->tcf_tm.expires);
 	NLA_PUT(skb, TCA_NAT_TM, sizeof(t), &t);
 
-	kfree(opt);
-
 	return skb->len;
 
 nla_put_failure:
 	nlmsg_trim(skb, b);
-	kfree(opt);
 	return -1;
 }
 
