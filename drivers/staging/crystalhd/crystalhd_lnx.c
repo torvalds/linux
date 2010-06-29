@@ -271,7 +271,7 @@ static long chd_dec_ioctl(struct file *fd, unsigned int cmd, unsigned long ua)
 		return -EINVAL;
 	}
 
-	uc = (struct crystalhd_user *)fd->private_data;
+	uc = fd->private_data;
 	if (!uc) {
 		BCMLOG_ERR("Failed to get uc\n");
 		return -ENODATA;
@@ -332,7 +332,7 @@ static int chd_dec_close(struct inode *in, struct file *fd)
 		return -EINVAL;
 	}
 
-	uc = (struct crystalhd_user *)fd->private_data;
+	uc = fd->private_data;
 	if (!uc) {
 		BCMLOG_ERR("Failed to get uc\n");
 		return -ENODATA;
