@@ -1024,7 +1024,7 @@ static int ipmi_thread(void *data)
 		else if (smi_result == SI_SM_IDLE)
 			schedule_timeout_interruptible(100);
 		else
-			schedule_timeout_interruptible(0);
+			schedule_timeout_interruptible(1);
 	}
 	return 0;
 }
