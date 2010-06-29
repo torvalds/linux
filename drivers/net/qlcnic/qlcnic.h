@@ -959,8 +959,6 @@ struct qlcnic_adapter {
 	u16 switch_mode;
 	u16 max_tx_ques;
 	u16 max_rx_ques;
-	u16 min_tx_bw;
-	u16 max_tx_bw;
 	u16 max_mtu;
 
 	u32 fw_hal_version;
@@ -984,7 +982,7 @@ struct qlcnic_adapter {
 
 	u64 dev_rst_time;
 
-	struct qlcnic_pci_info *npars;
+	struct qlcnic_npar_info *npars;
 	struct qlcnic_eswitch *eswitch;
 	struct qlcnic_nic_template *nic_ops;
 
@@ -1042,6 +1040,18 @@ struct qlcnic_pci_info {
 	u8	reserved2[106];
 };
 
+struct qlcnic_npar_info {
+	u16	vlan_id;
+	u8	phy_port;
+	u8	type;
+	u8	active;
+	u8	enable_pm;
+	u8	dest_npar;
+	u8	host_vlan_tag;
+	u8	promisc_mode;
+	u8	discard_tagged;
+	u8	mac_learning;
+};
 struct qlcnic_eswitch {
 	u8	port;
 	u8	active_vports;
@@ -1055,6 +1065,63 @@ struct qlcnic_eswitch {
 #define QLCNIC_SWITCH_VLAN_FILTERING	BIT_2
 #define QLCNIC_SWITCH_PROMISC_MODE	BIT_3
 #define QLCNIC_SWITCH_PORT_MIRRORING	BIT_4
+};
+
+
+/* Return codes for Error handling */
+#define QL_STATUS_INVALID_PARAM	-1
+
+#define MAX_BW			10000
+#define MIN_BW			100
+#define MAX_VLAN_ID		4095
+#define MIN_VLAN_ID		2
+#define MAX_TX_QUEUES		1
+#define MAX_RX_QUEUES		4
+#define DEFAULT_MAC_LEARN	1
+
+#define IS_VALID_VLAN(vlan)	(vlan >= MIN_VLAN_ID && vlan <= MAX_VLAN_ID)
+#define IS_VALID_BW(bw)		(bw >= MIN_BW && bw <= MAX_BW \
+							&& (bw % 100) == 0)
+#define IS_VALID_TX_QUEUES(que)	(que > 0 && que <= MAX_TX_QUEUES)
+#define IS_VALID_RX_QUEUES(que)	(que > 0 && que <= MAX_RX_QUEUES)
+#define IS_VALID_MODE(mode)	(mode == 0 || mode == 1)
+
+struct qlcnic_pci_func_cfg {
+	u16	func_type;
+	u16	min_bw;
+	u16	max_bw;
+	u16	port_num;
+	u8	pci_func;
+	u8	func_state;
+	u8	def_mac_addr[6];
+};
+
+struct qlcnic_npar_func_cfg {
+	u32	fw_capab;
+	u16	port_num;
+	u16	min_bw;
+	u16	max_bw;
+	u16	max_tx_queues;
+	u16	max_rx_queues;
+	u8	pci_func;
+	u8	op_mode;
+};
+
+struct qlcnic_pm_func_cfg {
+	u8	pci_func;
+	u8	action;
+	u8	dest_npar;
+	u8	reserved[5];
+};
+
+struct qlcnic_esw_func_cfg {
+	u16	vlan_id;
+	u8	pci_func;
+	u8	host_vlan_tag;
+	u8	promisc_mode;
+	u8	discard_tagged;
+	u8	mac_learning;
+	u8	reserved;
 };
 
 int qlcnic_fw_cmd_query_phy(struct qlcnic_adapter *adapter, u32 reg, u32 *val);
@@ -1169,9 +1236,9 @@ void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 /* Management functions */
 int qlcnic_set_mac_address(struct qlcnic_adapter *, u8*);
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);
-int qlcnic_get_nic_info(struct qlcnic_adapter *, u8);
+int qlcnic_get_nic_info(struct qlcnic_adapter *, struct qlcnic_info *, u8);
 int qlcnic_set_nic_info(struct qlcnic_adapter *, struct qlcnic_info *);
-int qlcnic_get_pci_info(struct qlcnic_adapter *);
+int qlcnic_get_pci_info(struct qlcnic_adapter *, struct qlcnic_pci_info*);
 int qlcnic_reset_partition(struct qlcnic_adapter *, u8);
 
 /*  eSwitch management functions */
