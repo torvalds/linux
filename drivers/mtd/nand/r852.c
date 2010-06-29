@@ -64,8 +64,8 @@ static inline void r852_write_reg_dword(struct r852_device *dev,
 /* returns pointer to our private structure */
 static inline struct r852_device *r852_get_dev(struct mtd_info *mtd)
 {
-	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
-	return (struct r852_device *)chip->priv;
+	struct nand_chip *chip = mtd->priv;
+	return chip->priv;
 }
 
 
