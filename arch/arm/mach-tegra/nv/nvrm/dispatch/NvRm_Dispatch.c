@@ -84,12 +84,6 @@ NvError nvrm_xpc_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *O
 	return NvSuccess;
 }
 
-NvError nvrm_transport_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *OutBuffer, NvU32 OutSize, NvDispatchCtx* Ctx )
-{
-	printk("NVRM: %s %d\n", __func__, function);
-	return NvSuccess;
-}
-
 NvError nvrm_memctrl_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *OutBuffer, NvU32 OutSize, NvDispatchCtx* Ctx )
 {
 	printk("NVRM: %s %d\n", __func__, function);
@@ -175,12 +169,6 @@ NvError nvrm_power_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void 
 }
 
 NvError nvrm_gpio_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *OutBuffer, NvU32 OutSize, NvDispatchCtx* Ctx )
-{
-	printk("NVRM: %s %d\n", __func__, function);
-	return NvSuccess;
-}
-
-NvError nvrm_module_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *OutBuffer, NvU32 OutSize, NvDispatchCtx* Ctx )
 {
 	printk("NVRM: %s %d\n", __func__, function);
 	return NvSuccess;

@@ -8,5 +8,5 @@ ccflags-y += -DNV_DEBUG=0
 endif
 ccflags-y += -Iarch/arm/mach-tegra/nv/include
 
-#obj-y += ap15/
+obj-y += ap15/
 obj-y += common/

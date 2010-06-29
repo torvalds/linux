@@ -11,3 +11,5 @@ ccflags-y += -Iarch/arm/mach-tegra/nv/nvrm/core/common
 ccflags-y += -Iarch/arm/mach-tegra/nv/nvrm/core
 
 #obj-y += ap15rm_init.o
+obj-y += ap15rm_xpc.o
+obj-y += ap15rm_xpc_hw_private.o
