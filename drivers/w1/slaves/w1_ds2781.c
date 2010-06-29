@@ -73,7 +73,7 @@ int w1_ds2781_write(struct device *dev, char *buf, int addr, size_t count)
 	return w1_ds2781_io(dev, buf, addr, count, 1);
 }
 EXPORT_SYMBOL(w1_ds2781_write);
-static ssize_t w1_ds2781_read_bin(struct kobject *kobj,
+static ssize_t w1_ds2781_read_bin(struct file *file, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t off, size_t count)
 {
