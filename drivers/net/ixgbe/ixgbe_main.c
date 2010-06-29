@@ -5195,7 +5195,6 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		ixgbe_free_all_tx_resources(adapter);
 		ixgbe_free_all_rx_resources(adapter);
 	}
-	ixgbe_clear_interrupt_scheme(adapter);
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -5229,6 +5228,8 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		pci_wake_from_d3(pdev, false);
 
 	*enable_wake = !!wufc;
+
+	ixgbe_clear_interrupt_scheme(adapter);
 
 	ixgbe_release_hw_control(adapter);
 
