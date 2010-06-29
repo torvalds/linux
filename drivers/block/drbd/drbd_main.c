@@ -1236,8 +1236,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	/* Last part of the attaching process ... */
 	if (ns.conn >= C_CONNECTED &&
 	    os.disk == D_ATTACHING && ns.disk == D_NEGOTIATING) {
-		kfree(mdev->p_uuid); /* We expect to receive up-to-date UUIDs soon. */
-		mdev->p_uuid = NULL; /* ...to not use the old ones in the mean time */
 		drbd_send_sizes(mdev, 0, 0);  /* to start sync... */
 		drbd_send_uuids(mdev);
 		drbd_send_state(mdev);
