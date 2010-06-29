@@ -1520,8 +1520,16 @@ static void uart_dtr_rts(struct tty_port *port, int onoff)
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = state->uart_port;
 
-	if (onoff)
+	if (onoff) {
 		uart_set_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
+
+		/*
+		 * If this is the first open to succeed,
+		 * adjust things to suit.
+		 */
+		if (!test_and_set_bit(ASYNCB_NORMAL_ACTIVE, &port->flags))
+			uart_update_termios(port->tty, state);
+	}
 	else
 		uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
 }
@@ -1635,15 +1643,6 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	mutex_unlock(&port->mutex);
 	if (retval == 0)
 		retval = tty_port_block_til_ready(port, tty, filp);
-
-	/*
-	 * If this is the first open to succeed, adjust things to suit.
-	 */
-	if (retval == 0 && !(port->flags & ASYNC_NORMAL_ACTIVE)) {
-		set_bit(ASYNCB_NORMAL_ACTIVE, &port->flags);
-
-		uart_update_termios(tty, state);
-	}
 
 fail:
 	return retval;
