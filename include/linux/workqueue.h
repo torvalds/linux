@@ -225,11 +225,11 @@ enum {
 };
 
 extern struct workqueue_struct *
-__create_workqueue_key(const char *name, unsigned int flags,
+__create_workqueue_key(const char *name, unsigned int flags, int max_active,
 		       struct lock_class_key *key, const char *lock_name);
 
 #ifdef CONFIG_LOCKDEP
-#define __create_workqueue(name, flags)				\
+#define __create_workqueue(name, flags, max_active)		\
 ({								\
 	static struct lock_class_key __key;			\
 	const char *__lock_name;				\
@@ -239,20 +239,20 @@ __create_workqueue_key(const char *name, unsigned int flags,
 	else							\
 		__lock_name = #name;				\
 								\
-	__create_workqueue_key((name), (flags), &__key,		\
-			       __lock_name);			\
+	__create_workqueue_key((name), (flags), (max_active),	\
+				&__key, __lock_name);		\
 })
 #else
-#define __create_workqueue(name, flags)				\
-	__create_workqueue_key((name), (flags), NULL, NULL)
+#define __create_workqueue(name, flags, max_active)		\
+	__create_workqueue_key((name), (flags), (max_active), NULL, NULL)
 #endif
 
 #define create_workqueue(name)					\
-	__create_workqueue((name), 0)
+	__create_workqueue((name), 0, 1)
 #define create_freezeable_workqueue(name)			\
-	__create_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_THREAD)
+	__create_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_THREAD, 1)
 #define create_singlethread_workqueue(name)			\
-	__create_workqueue((name), WQ_SINGLE_THREAD)
+	__create_workqueue((name), WQ_SINGLE_THREAD, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 

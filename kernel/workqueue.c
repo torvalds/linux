@@ -77,6 +77,9 @@ struct cpu_workqueue_struct {
 	int			flush_color;	/* L: flushing color */
 	int			nr_in_flight[WORK_NR_COLORS];
 						/* L: nr of in_flight works */
+	int			nr_active;	/* L: nr of active works */
+	int			max_active;	/* I: max active works */
+	struct list_head	delayed_works;	/* L: delayed works */
 };
 
 /*
@@ -321,14 +324,24 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
 	struct cpu_workqueue_struct *cwq = target_cwq(cpu, wq);
+	struct list_head *worklist;
 	unsigned long flags;
 
 	debug_work_activate(work);
+
 	spin_lock_irqsave(&cwq->lock, flags);
 	BUG_ON(!list_empty(&work->entry));
+
 	cwq->nr_in_flight[cwq->work_color]++;
-	insert_work(cwq, work, &cwq->worklist,
-		    work_color_to_flags(cwq->work_color));
+
+	if (likely(cwq->nr_active < cwq->max_active)) {
+		cwq->nr_active++;
+		worklist = &cwq->worklist;
+	} else
+		worklist = &cwq->delayed_works;
+
+	insert_work(cwq, work, worklist, work_color_to_flags(cwq->work_color));
+
 	spin_unlock_irqrestore(&cwq->lock, flags);
 }
 
@@ -584,6 +597,15 @@ static void move_linked_works(struct work_struct *work, struct list_head *head,
 		*nextp = n;
 }
 
+static void cwq_activate_first_delayed(struct cpu_workqueue_struct *cwq)
+{
+	struct work_struct *work = list_first_entry(&cwq->delayed_works,
+						    struct work_struct, entry);
+
+	move_linked_works(work, &cwq->worklist, NULL);
+	cwq->nr_active++;
+}
+
 /**
  * cwq_dec_nr_in_flight - decrement cwq's nr_in_flight
  * @cwq: cwq of interest
@@ -602,6 +624,12 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color)
 		return;
 
 	cwq->nr_in_flight[color]--;
+	cwq->nr_active--;
+
+	/* one down, submit a delayed one */
+	if (!list_empty(&cwq->delayed_works) &&
+	    cwq->nr_active < cwq->max_active)
+		cwq_activate_first_delayed(cwq);
 
 	/* is flush in progress and are we at the flushing tip? */
 	if (likely(cwq->flush_color != color))
@@ -1505,6 +1533,7 @@ static void free_cwqs(struct cpu_workqueue_struct *cwqs)
 
 struct workqueue_struct *__create_workqueue_key(const char *name,
 						unsigned int flags,
+						int max_active,
 						struct lock_class_key *key,
 						const char *lock_name)
 {
@@ -1512,6 +1541,8 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 	struct workqueue_struct *wq;
 	bool failed = false;
 	unsigned int cpu;
+
+	max_active = clamp_val(max_active, 1, INT_MAX);
 
 	wq = kzalloc(sizeof(*wq), GFP_KERNEL);
 	if (!wq)
@@ -1544,8 +1575,10 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 		cwq->cpu = cpu;
 		cwq->wq = wq;
 		cwq->flush_color = -1;
+		cwq->max_active = max_active;
 		spin_lock_init(&cwq->lock);
 		INIT_LIST_HEAD(&cwq->worklist);
+		INIT_LIST_HEAD(&cwq->delayed_works);
 		init_waitqueue_head(&cwq->more_work);
 
 		if (failed)
@@ -1607,6 +1640,8 @@ void destroy_workqueue(struct workqueue_struct *wq)
 
 		for (i = 0; i < WORK_NR_COLORS; i++)
 			BUG_ON(cwq->nr_in_flight[i]);
+		BUG_ON(cwq->nr_active);
+		BUG_ON(!list_empty(&cwq->delayed_works));
 	}
 
 	free_cwqs(wq->cpu_wq);
