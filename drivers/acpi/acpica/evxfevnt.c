@@ -70,6 +70,7 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 acpi_status acpi_enable(void)
 {
 	acpi_status status;
+	int retry;
 
 	ACPI_FUNCTION_TRACE(acpi_enable);
 
@@ -98,16 +99,18 @@ acpi_status acpi_enable(void)
 
 	/* Sanity check that transition succeeded */
 
-	if (acpi_hw_get_mode() != ACPI_SYS_MODE_ACPI) {
-		ACPI_ERROR((AE_INFO,
-			    "Hardware did not enter ACPI mode"));
-		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+	for (retry = 0; retry < 30000; ++retry) {
+		if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
+			if (retry != 0)
+				ACPI_WARNING((AE_INFO,
+				"Platform took > %d00 usec to enter ACPI mode", retry));
+			return_ACPI_STATUS(AE_OK);
+		}
+		acpi_os_stall(100);	/* 100 usec */
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-			  "Transition to ACPI mode successful\n"));
-
-	return_ACPI_STATUS(AE_OK);
+	ACPI_ERROR((AE_INFO, "Hardware did not enter ACPI mode"));
+	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_enable)
