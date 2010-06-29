@@ -3382,7 +3382,7 @@ KPROBES
 M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>
 M:	"David S. Miller" <davem@davemloft.net>
-M:	Masami Hiramatsu <mhiramat@redhat.com>
+M:	Masami Hiramatsu <masami.hiramatsu.pt@hitachi.com>
 S:	Maintained
 F:	Documentation/kprobes.txt
 F:	include/linux/kprobes.h
