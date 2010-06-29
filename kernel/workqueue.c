@@ -412,6 +412,38 @@ static void wake_up_worker(struct global_cwq *gcwq)
 }
 
 /**
+ * worker_set_flags - set worker flags
+ * @worker: worker to set flags for
+ * @flags: flags to set
+ * @wakeup: wakeup an idle worker if necessary
+ *
+ * Set @flags in @worker->flags.
+ *
+ * LOCKING:
+ * spin_lock_irq(gcwq->lock).
+ */
+static inline void worker_set_flags(struct worker *worker, unsigned int flags,
+				    bool wakeup)
+{
+	worker->flags |= flags;
+}
+
+/**
+ * worker_clr_flags - clear worker flags
+ * @worker: worker to set flags for
+ * @flags: flags to clear
+ *
+ * Clear @flags in @worker->flags.
+ *
+ * LOCKING:
+ * spin_lock_irq(gcwq->lock).
+ */
+static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
+{
+	worker->flags &= ~flags;
+}
+
+/**
  * busy_worker_head - return the busy hash head for a work
  * @gcwq: gcwq of interest
  * @work: work to be hashed
@@ -776,7 +808,7 @@ static void worker_enter_idle(struct worker *worker)
 	BUG_ON(!list_empty(&worker->entry) &&
 	       (worker->hentry.next || worker->hentry.pprev));
 
-	worker->flags |= WORKER_IDLE;
+	worker_set_flags(worker, WORKER_IDLE, false);
 	gcwq->nr_idle++;
 
 	/* idle_list is LIFO */
@@ -800,7 +832,7 @@ static void worker_leave_idle(struct worker *worker)
 	struct global_cwq *gcwq = worker->gcwq;
 
 	BUG_ON(!(worker->flags & WORKER_IDLE));
-	worker->flags &= ~WORKER_IDLE;
+	worker_clr_flags(worker, WORKER_IDLE);
 	gcwq->nr_idle--;
 	list_del_init(&worker->entry);
 }
@@ -890,7 +922,7 @@ fail:
  */
 static void start_worker(struct worker *worker)
 {
-	worker->flags |= WORKER_STARTED;
+	worker_set_flags(worker, WORKER_STARTED, false);
 	worker->gcwq->nr_workers++;
 	worker_enter_idle(worker);
 	wake_up_process(worker->task);
@@ -920,7 +952,7 @@ static void destroy_worker(struct worker *worker)
 		gcwq->nr_idle--;
 
 	list_del_init(&worker->entry);
-	worker->flags |= WORKER_DIE;
+	worker_set_flags(worker, WORKER_DIE, false);
 
 	spin_unlock_irq(&gcwq->lock);
 
@@ -2214,10 +2246,10 @@ static int __cpuinit trustee_thread(void *__gcwq)
 	BUG_ON(gcwq->cpu != smp_processor_id());
 
 	list_for_each_entry(worker, &gcwq->idle_list, entry)
-		worker->flags |= WORKER_ROGUE;
+		worker_set_flags(worker, WORKER_ROGUE, false);
 
 	for_each_busy_worker(worker, i, pos, gcwq)
-		worker->flags |= WORKER_ROGUE;
+		worker_set_flags(worker, WORKER_ROGUE, false);
 
 	/*
 	 * We're now in charge.  Notify and proceed to drain.  We need
@@ -2324,10 +2356,10 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 
 		/* clear ROGUE from all workers */
 		list_for_each_entry(worker, &gcwq->idle_list, entry)
-			worker->flags &= ~WORKER_ROGUE;
+			worker_clr_flags(worker, WORKER_ROGUE);
 
 		for_each_busy_worker(worker, i, pos, gcwq)
-			worker->flags &= ~WORKER_ROGUE;
+			worker_clr_flags(worker, WORKER_ROGUE);
 		break;
 	}
 
