@@ -413,9 +413,6 @@ static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 
-	if (!local->ops->get_survey)
-		return -EOPNOTSUPP;
-
 	return drv_get_survey(local, idx, survey);
 }
 
