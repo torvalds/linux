@@ -391,17 +391,6 @@ config KMEMTRACE
 
 	  If unsure, say N.
 
-config WORKQUEUE_TRACER
-	bool "Trace workqueues"
-	select GENERIC_TRACER
-	help
-	  The workqueue tracer provides some statistical information
-          about each cpu workqueue thread such as the number of the
-          works inserted and executed since their creation. It can help
-          to evaluate the amount of work each of them has to perform.
-          For example it can help a developer to decide whether he should
-          choose a per-cpu workqueue instead of a singlethreaded one.
-
 config BLK_DEV_IO_TRACE
 	bool "Support for tracing block IO actions"
 	depends on SYSFS
