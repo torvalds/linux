@@ -89,6 +89,8 @@ static void be_rxq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 	u32 val = 0;
 	val |= qid & DB_RQ_RING_ID_MASK;
 	val |= posted << DB_RQ_NUM_POSTED_SHIFT;
+
+	wmb();
 	iowrite32(val, adapter->db + DB_RQ_OFFSET);
 }
 
@@ -97,6 +99,8 @@ static void be_txq_notify(struct be_adapter *adapter, u16 qid, u16 posted)
 	u32 val = 0;
 	val |= qid & DB_TXULP_RING_ID_MASK;
 	val |= (posted & DB_TXULP_NUM_POSTED_MASK) << DB_TXULP_NUM_POSTED_SHIFT;
+
+	wmb();
 	iowrite32(val, adapter->db + DB_TXULP1_OFFSET);
 }
 
@@ -973,6 +977,7 @@ static struct be_eth_rx_compl *be_rx_compl_get(struct be_adapter *adapter)
 	if (rxcp->dw[offsetof(struct amap_eth_rx_compl, valid) / 32] == 0)
 		return NULL;
 
+	rmb();
 	be_dws_le_to_cpu(rxcp, sizeof(*rxcp));
 
 	queue_tail_inc(&adapter->rx_obj.cq);
@@ -1066,6 +1071,7 @@ static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
 	if (txcp->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] == 0)
 		return NULL;
 
+	rmb();
 	be_dws_le_to_cpu(txcp, sizeof(*txcp));
 
 	txcp->dw[offsetof(struct amap_eth_tx_compl, valid) / 32] = 0;
@@ -1113,6 +1119,7 @@ static inline struct be_eq_entry *event_get(struct be_eq_obj *eq_obj)
 	if (!eqe->evt)
 		return NULL;
 
+	rmb();
 	eqe->evt = le32_to_cpu(eqe->evt);
 	queue_tail_inc(&eq_obj->q);
 	return eqe;

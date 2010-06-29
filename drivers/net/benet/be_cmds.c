@@ -25,6 +25,8 @@ static void be_mcc_notify(struct be_adapter *adapter)
 
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
 	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
+
+	wmb();
 	iowrite32(val, adapter->db + DB_MCCQ_OFFSET);
 }
 
