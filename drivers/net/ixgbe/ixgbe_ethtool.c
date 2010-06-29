@@ -234,6 +234,13 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		case ixgbe_sfp_type_not_present:
 			ecmd->port = PORT_NONE;
 			break;
+		case ixgbe_sfp_type_1g_cu_core0:
+		case ixgbe_sfp_type_1g_cu_core1:
+			ecmd->port = PORT_TP;
+			ecmd->supported = SUPPORTED_TP;
+			ecmd->advertising = (ADVERTISED_1000baseT_Full |
+			                     ADVERTISED_TP);
+			break;
 		case ixgbe_sfp_type_unknown:
 		default:
 			ecmd->port = PORT_OTHER;
