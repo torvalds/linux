@@ -2432,7 +2432,7 @@ int t4vf_sge_init(struct adapter *adapter)
 	STAT_LEN = ((sge_params->sge_control & EGRSTATUSPAGESIZE) ? 128 : 64);
 	PKTSHIFT = PKTSHIFT_GET(sge_params->sge_control);
 	FL_ALIGN = 1 << (INGPADBOUNDARY_GET(sge_params->sge_control) +
-			 INGPADBOUNDARY_SHIFT);
+			 SGE_INGPADBOUNDARY_SHIFT);
 
 	/*
 	 * Set up tasklet timers.
