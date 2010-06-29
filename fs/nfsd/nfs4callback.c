@@ -697,7 +697,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 	if (dp->dl_retries--) {
 		rpc_delay(task, 2*HZ);
 		task->tk_status = 0;
-		rpc_restart_call(task);
+		rpc_restart_call_prepare(task);
 		return;
 	} else {
 		atomic_set(&clp->cl_cb_set, 0);
