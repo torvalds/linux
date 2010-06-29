@@ -1737,17 +1737,6 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 }
 EXPORT_SYMBOL(ath9k_hw_set_keycache_entry);
 
-bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry)
-{
-	if (entry < ah->caps.keycache_size) {
-		u32 val = REG_READ(ah, AR_KEYTABLE_MAC1(entry));
-		if (val & AR_KEYTABLE_VALID)
-			return true;
-	}
-	return false;
-}
-EXPORT_SYMBOL(ath9k_hw_keyisvalid);
-
 /******************************/
 /* Power Management (Chipset) */
 /******************************/
