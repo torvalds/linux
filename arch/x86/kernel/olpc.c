@@ -188,7 +188,7 @@ static void __init platform_detect(void)
 {
 	size_t propsize;
 	__be32 rev;
-	void *args[] = { NULL, "board-revision-int", &rev, (void *)4 };
+	const void *args[] = { NULL, "board-revision-int", &rev, (void *)4 };
 	void *res[] = { &propsize };
 
 	if (olpc_ofw("getprop", args, res) || propsize != 4) {

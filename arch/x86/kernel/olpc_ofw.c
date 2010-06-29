@@ -40,7 +40,7 @@ void __init setup_olpc_ofw_pgd(void)
 	early_iounmap(base, sizeof(olpc_ofw_pgd) * PTRS_PER_PGD);
 }
 
-int __olpc_ofw(const char *name, int nr_args, void **args, int nr_res,
+int __olpc_ofw(const char *name, int nr_args, const void **args, int nr_res,
 		void **res)
 {
 	int ofw_args[MAXARGS + 3];
