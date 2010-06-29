@@ -122,41 +122,44 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode);
 /*
  * Wrapper functions with which ext4 calls into JBD.
  */
-void ext4_journal_abort_handle(const char *caller, const char *err_fn,
+void ext4_journal_abort_handle(const char *caller, unsigned int line,
+			       const char *err_fn,
 		struct buffer_head *bh, handle_t *handle, int err);
 
-int __ext4_journal_get_undo_access(const char *where, handle_t *handle,
-				struct buffer_head *bh);
+int __ext4_journal_get_undo_access(const char *where, unsigned int line,
+				   handle_t *handle, struct buffer_head *bh);
 
-int __ext4_journal_get_write_access(const char *where, handle_t *handle,
-				struct buffer_head *bh);
+int __ext4_journal_get_write_access(const char *where, unsigned int line,
+				    handle_t *handle, struct buffer_head *bh);
 
-int __ext4_forget(const char *where, handle_t *handle, int is_metadata,
-		  struct inode *inode, struct buffer_head *bh,
-		  ext4_fsblk_t blocknr);
+int __ext4_forget(const char *where, unsigned int line, handle_t *handle,
+		  int is_metadata, struct inode *inode,
+		  struct buffer_head *bh, ext4_fsblk_t blocknr);
 
-int __ext4_journal_get_create_access(const char *where,
+int __ext4_journal_get_create_access(const char *where, unsigned int line,
 				handle_t *handle, struct buffer_head *bh);
 
-int __ext4_handle_dirty_metadata(const char *where, handle_t *handle,
-				 struct inode *inode, struct buffer_head *bh);
+int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
+				 handle_t *handle, struct inode *inode,
+				 struct buffer_head *bh);
 
-int __ext4_handle_dirty_super(const char *where, handle_t *handle,
-			      struct super_block *sb);
+int __ext4_handle_dirty_super(const char *where, unsigned int line,
+			      handle_t *handle, struct super_block *sb);
 
 #define ext4_journal_get_undo_access(handle, bh) \
-	__ext4_journal_get_undo_access(__func__, (handle), (bh))
+	__ext4_journal_get_undo_access(__func__, __LINE__, (handle), (bh))
 #define ext4_journal_get_write_access(handle, bh) \
-	__ext4_journal_get_write_access(__func__, (handle), (bh))
+	__ext4_journal_get_write_access(__func__, __LINE__, (handle), (bh))
 #define ext4_forget(handle, is_metadata, inode, bh, block_nr) \
-	__ext4_forget(__func__, (handle), (is_metadata), (inode), (bh),\
-		      (block_nr))
+	__ext4_forget(__func__, __LINE__, (handle), (is_metadata), (inode), \
+		      (bh), (block_nr))
 #define ext4_journal_get_create_access(handle, bh) \
-	__ext4_journal_get_create_access(__func__, (handle), (bh))
+	__ext4_journal_get_create_access(__func__, __LINE__, (handle), (bh))
 #define ext4_handle_dirty_metadata(handle, inode, bh) \
-	__ext4_handle_dirty_metadata(__func__, (handle), (inode), (bh))
+	__ext4_handle_dirty_metadata(__func__, __LINE__, (handle), (inode), \
+				     (bh))
 #define ext4_handle_dirty_super(handle, sb) \
-	__ext4_handle_dirty_super(__func__, (handle), (sb))
+	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb))
 
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
 int __ext4_journal_stop(const char *where, handle_t *handle);
