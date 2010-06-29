@@ -260,7 +260,7 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
 		return -EEXIST;		
     }
     
-	rk2818_bl = backlight_device_register("rk2818_bl", &pdev->dev, NULL, &rk2818_bl_ops);
+	rk2818_bl = backlight_device_register("rk28_bl", &pdev->dev, NULL, &rk2818_bl_ops);
 	if (!rk2818_bl) {
         DBG(KERN_CRIT "%s: backlight device register error\n",
                __func__); 
