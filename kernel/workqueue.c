@@ -52,8 +52,10 @@ enum {
 	WORKER_PREP		= 1 << 3,	/* preparing to run works */
 	WORKER_ROGUE		= 1 << 4,	/* not bound to any cpu */
 	WORKER_REBIND		= 1 << 5,	/* mom is home, come back */
+	WORKER_CPU_INTENSIVE	= 1 << 6,	/* cpu intensive */
 
-	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_ROGUE | WORKER_REBIND,
+	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_ROGUE | WORKER_REBIND |
+				  WORKER_CPU_INTENSIVE,
 
 	/* gcwq->trustee_state */
 	TRUSTEE_START		= 0,		/* start */
@@ -1641,6 +1643,7 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	struct cpu_workqueue_struct *cwq = get_work_cwq(work);
 	struct global_cwq *gcwq = cwq->gcwq;
 	struct hlist_head *bwh = busy_worker_head(gcwq, work);
+	bool cpu_intensive = cwq->wq->flags & WQ_CPU_INTENSIVE;
 	work_func_t f = work->func;
 	int work_color;
 	struct worker *collision;
@@ -1692,6 +1695,13 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 			gcwq->flags &= ~GCWQ_HIGHPRI_PENDING;
 	}
 
+	/*
+	 * CPU intensive works don't participate in concurrency
+	 * management.  They're the scheduler's responsibility.
+	 */
+	if (unlikely(cpu_intensive))
+		worker_set_flags(worker, WORKER_CPU_INTENSIVE, true);
+
 	spin_unlock_irq(&gcwq->lock);
 
 	work_clear_pending(work);
@@ -1712,6 +1722,10 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	}
 
 	spin_lock_irq(&gcwq->lock);
+
+	/* clear cpu intensive status */
+	if (unlikely(cpu_intensive))
+		worker_clr_flags(worker, WORKER_CPU_INTENSIVE);
 
 	/* we're done with it, release */
 	hlist_del_init(&worker->hentry);
