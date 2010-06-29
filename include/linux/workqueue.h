@@ -26,10 +26,12 @@ enum {
 	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 	WORK_STRUCT_STATIC_BIT	= 1,	/* static initializer (debugobjects) */
-	WORK_STRUCT_FLAG_BITS	= 2,
+	WORK_STRUCT_COLOR_SHIFT	= 3,	/* color for workqueue flushing */
 #else
-	WORK_STRUCT_FLAG_BITS	= 1,
+	WORK_STRUCT_COLOR_SHIFT	= 2,	/* color for workqueue flushing */
 #endif
+
+	WORK_STRUCT_COLOR_BITS	= 4,
 
 	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
@@ -37,6 +39,21 @@ enum {
 #else
 	WORK_STRUCT_STATIC	= 0,
 #endif
+
+	/*
+	 * The last color is no color used for works which don't
+	 * participate in workqueue flushing.
+	 */
+	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS) - 1,
+	WORK_NO_COLOR		= WORK_NR_COLORS,
+
+	/*
+	 * Reserve 6 bits off of cwq pointer w/ debugobjects turned
+	 * off.  This makes cwqs aligned to 64 bytes which isn't too
+	 * excessive while allowing 15 workqueue flush colors.
+	 */
+	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
+				  WORK_STRUCT_COLOR_BITS,
 
 	WORK_STRUCT_FLAG_MASK	= (1UL << WORK_STRUCT_FLAG_BITS) - 1,
 	WORK_STRUCT_WQ_DATA_MASK = ~WORK_STRUCT_FLAG_MASK,
