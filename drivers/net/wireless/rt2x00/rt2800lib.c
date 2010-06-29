@@ -2185,6 +2185,8 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_NIC_WPS_PBC, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_BG, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_A, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_ANT_DIVERSITY, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_DAC_TEST, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC, word);
 		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
@@ -2192,6 +2194,10 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &word);
 	if ((word & 0x00ff) == 0x00ff) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_OFFSET, 0);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_FREQ, word);
+		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
+	}
+	if ((word & 0xff00) == 0xff00) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_LED_MODE,
 				   LED_MODE_TXRX_ACTIVITY);
 		rt2x00_set_field16(&word, EEPROM_FREQ_LED_POLARITY, 0);
@@ -2199,7 +2205,7 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED1, 0x5555);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED2, 0x2221);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED3, 0xa9f8);
-		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
+		EEPROM(rt2x00dev, "Led Mode: 0x%04x\n", word);
 	}
 
 	/*
