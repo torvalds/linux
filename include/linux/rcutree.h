@@ -95,6 +95,8 @@ static inline void synchronize_rcu_bh_expedited(void)
 	synchronize_sched_expedited();
 }
 
+extern void rcu_barrier(void);
+
 extern void rcu_check_callbacks(int cpu, int user);
 
 extern long rcu_batches_completed(void);

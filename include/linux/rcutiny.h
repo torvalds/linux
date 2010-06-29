@@ -29,66 +29,51 @@
 
 void rcu_sched_qs(int cpu);
 void rcu_bh_qs(int cpu);
-static inline void rcu_note_context_switch(int cpu)
-{
-	rcu_sched_qs(cpu);
-}
 
+#ifdef CONFIG_TINY_RCU
 #define __rcu_read_lock()	preempt_disable()
 #define __rcu_read_unlock()	preempt_enable()
+#else /* #ifdef CONFIG_TINY_RCU */
+void __rcu_read_lock(void);
+void __rcu_read_unlock(void);
+#endif /* #else #ifdef CONFIG_TINY_RCU */
 #define __rcu_read_lock_bh()	local_bh_disable()
 #define __rcu_read_unlock_bh()	local_bh_enable()
-#define call_rcu_sched		call_rcu
+extern void call_rcu_sched(struct rcu_head *head,
+			   void (*func)(struct rcu_head *rcu));
 
 #define rcu_init_sched()	do { } while (0)
-extern void rcu_check_callbacks(int cpu, int user);
-
-static inline int rcu_needs_cpu(int cpu)
-{
-	return 0;
-}
-
-/*
- * Return the number of grace periods.
- */
-static inline long rcu_batches_completed(void)
-{
-	return 0;
-}
-
-/*
- * Return the number of bottom-half grace periods.
- */
-static inline long rcu_batches_completed_bh(void)
-{
-	return 0;
-}
-
-static inline void rcu_force_quiescent_state(void)
-{
-}
-
-static inline void rcu_bh_force_quiescent_state(void)
-{
-}
-
-static inline void rcu_sched_force_quiescent_state(void)
-{
-}
 
 extern void synchronize_sched(void);
+
+#ifdef CONFIG_TINY_RCU
+
+#define call_rcu		call_rcu_sched
 
 static inline void synchronize_rcu(void)
 {
 	synchronize_sched();
 }
 
-static inline void synchronize_rcu_bh(void)
+static inline void synchronize_rcu_expedited(void)
 {
-	synchronize_sched();
+	synchronize_sched();	/* Only one CPU, so pretty fast anyway!!! */
 }
 
-static inline void synchronize_rcu_expedited(void)
+static inline void rcu_barrier(void)
+{
+	rcu_barrier_sched();  /* Only one CPU, so only one list of callbacks! */
+}
+
+#else /* #ifdef CONFIG_TINY_RCU */
+
+void synchronize_rcu(void);
+void rcu_barrier(void);
+void synchronize_rcu_expedited(void);
+
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
+static inline void synchronize_rcu_bh(void)
 {
 	synchronize_sched();
 }
@@ -117,13 +102,80 @@ static inline void rcu_exit_nohz(void)
 
 #endif /* #else #ifdef CONFIG_NO_HZ */
 
+#ifdef CONFIG_TINY_RCU
+
+static inline void rcu_preempt_note_context_switch(void)
+{
+}
+
 static inline void exit_rcu(void)
 {
+}
+
+static inline int rcu_needs_cpu(int cpu)
+{
+	return 0;
 }
 
 static inline int rcu_preempt_depth(void)
 {
 	return 0;
+}
+
+#else /* #ifdef CONFIG_TINY_RCU */
+
+void rcu_preempt_note_context_switch(void);
+extern void exit_rcu(void);
+int rcu_preempt_needs_cpu(void);
+
+static inline int rcu_needs_cpu(int cpu)
+{
+	return rcu_preempt_needs_cpu();
+}
+
+/*
+ * Defined as macro as it is a very low level header
+ * included from areas that don't even know about current
+ * FIXME: combine with include/linux/rcutree.h into rcupdate.h.
+ */
+#define rcu_preempt_depth() (current->rcu_read_lock_nesting)
+
+#endif /* #else #ifdef CONFIG_TINY_RCU */
+
+static inline void rcu_note_context_switch(int cpu)
+{
+	rcu_sched_qs(cpu);
+	rcu_preempt_note_context_switch();
+}
+
+extern void rcu_check_callbacks(int cpu, int user);
+
+/*
+ * Return the number of grace periods.
+ */
+static inline long rcu_batches_completed(void)
+{
+	return 0;
+}
+
+/*
+ * Return the number of bottom-half grace periods.
+ */
+static inline long rcu_batches_completed_bh(void)
+{
+	return 0;
+}
+
+static inline void rcu_force_quiescent_state(void)
+{
+}
+
+static inline void rcu_bh_force_quiescent_state(void)
+{
+}
+
+static inline void rcu_sched_force_quiescent_state(void)
+{
 }
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
