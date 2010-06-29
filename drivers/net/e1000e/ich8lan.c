@@ -731,6 +731,10 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 	    (adapter->hw.phy.type == e1000_phy_igp_3))
 		adapter->flags |= FLAG_LSC_GIG_SPEED_DROP;
 
+	/* Disable EEE by default until IEEE802.3az spec is finalized */
+	if (adapter->flags2 & FLAG2_HAS_EEE)
+		adapter->hw.dev_spec.ich8lan.eee_disable = true;
+
 	return 0;
 }
 
