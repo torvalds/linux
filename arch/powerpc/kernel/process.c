@@ -1270,7 +1270,7 @@ unsigned long randomize_et_dyn(unsigned long base)
 }
 
 #ifdef CONFIG_SMP
-int arch_sd_sibiling_asym_packing(void)
+int arch_sd_sibling_asym_packing(void)
 {
 	if (cpu_has_feature(CPU_FTR_ASYM_SMT)) {
 		printk_once(KERN_INFO "Enabling Asymmetric SMT scheduling\n");

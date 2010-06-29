@@ -2567,7 +2567,7 @@ static inline void update_sd_lb_stats(struct sched_domain *sd, int this_cpu,
 	} while (sg != sd->groups);
 }
 
-int __weak arch_sd_sibiling_asym_packing(void)
+int __weak arch_sd_sibling_asym_packing(void)
 {
        return 0*SD_ASYM_PACKING;
 }
