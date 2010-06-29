@@ -534,11 +534,37 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 
 	debug_work_activate(work);
 
-	/* determine gcwq to use */
+	/*
+	 * Determine gcwq to use.  SINGLE_CPU is inherently
+	 * NON_REENTRANT, so test it first.
+	 */
 	if (!(wq->flags & WQ_SINGLE_CPU)) {
-		/* just use the requested cpu for multicpu workqueues */
+		struct global_cwq *last_gcwq;
+
+		/*
+		 * It's multi cpu.  If @wq is non-reentrant and @work
+		 * was previously on a different cpu, it might still
+		 * be running there, in which case the work needs to
+		 * be queued on that cpu to guarantee non-reentrance.
+		 */
 		gcwq = get_gcwq(cpu);
-		spin_lock_irqsave(&gcwq->lock, flags);
+		if (wq->flags & WQ_NON_REENTRANT &&
+		    (last_gcwq = get_work_gcwq(work)) && last_gcwq != gcwq) {
+			struct worker *worker;
+
+			spin_lock_irqsave(&last_gcwq->lock, flags);
+
+			worker = find_worker_executing_work(last_gcwq, work);
+
+			if (worker && worker->current_cwq->wq == wq)
+				gcwq = last_gcwq;
+			else {
+				/* meh... not running there, queue here */
+				spin_unlock_irqrestore(&last_gcwq->lock, flags);
+				spin_lock_irqsave(&gcwq->lock, flags);
+			}
+		} else
+			spin_lock_irqsave(&gcwq->lock, flags);
 	} else {
 		unsigned int req_cpu = cpu;
 

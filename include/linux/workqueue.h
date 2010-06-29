@@ -225,6 +225,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 enum {
 	WQ_FREEZEABLE		= 1 << 0, /* freeze during suspend */
 	WQ_SINGLE_CPU		= 1 << 1, /* only single cpu at a time */
+	WQ_NON_REENTRANT	= 1 << 2, /* guarantee non-reentrance */
 };
 
 extern struct workqueue_struct *
