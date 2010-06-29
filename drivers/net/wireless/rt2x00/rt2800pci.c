@@ -905,7 +905,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		if (txdesc.retry)
 			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
-		rt2x00pci_txdone(entry, &txdesc);
+		rt2x00lib_txdone(entry, &txdesc);
 	}
 }
 

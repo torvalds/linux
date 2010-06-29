@@ -60,37 +60,6 @@ int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
 
-/*
- * TX/RX data handlers.
- */
-void rt2x00pci_txdone(struct queue_entry *entry,
-		      struct txdone_entry_desc *txdesc)
-{
-	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
-
-	/*
-	 * Unmap the skb.
-	 */
-	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
-
-	/*
-	 * Remove the extra tx headroom from the skb.
-	 */
-	skb_pull(entry->skb, rt2x00dev->ops->extra_tx_headroom);
-
-	/*
-	 * Signal that the TX descriptor is no longer in the skb.
-	 */
-	skbdesc->flags &= ~SKBDESC_DESC_IN_SKB;
-
-	/*
-	 * Pass on to rt2x00lib.
-	 */
-	rt2x00lib_txdone(entry, txdesc);
-}
-EXPORT_SYMBOL_GPL(rt2x00pci_txdone);
-
 void rt2x00pci_rxdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue = rt2x00dev->rx;

@@ -2108,7 +2108,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
 			txdesc.retry = 0;
 
-			rt2x00pci_txdone(entry_done, &txdesc);
+			rt2x00lib_txdone(entry_done, &txdesc);
 			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		}
 
@@ -2135,7 +2135,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		if (txdesc.retry)
 			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
-		rt2x00pci_txdone(entry, &txdesc);
+		rt2x00lib_txdone(entry, &txdesc);
 	}
 }
 
