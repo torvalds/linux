@@ -74,6 +74,7 @@ enum {
  * @ns_last_seq: sequence value of the latest segment
  * @ns_last_cno: checkpoint number of the latest segment
  * @ns_prot_seq: least sequence number of segments which must not be reclaimed
+ * @ns_prev_seq: base sequence number used to decide if advance log cursor
  * @ns_segctor_sem: segment constructor semaphore
  * @ns_dat: DAT file inode
  * @ns_cpfile: checkpoint file inode
@@ -151,6 +152,7 @@ struct the_nilfs {
 	u64			ns_last_seq;
 	__u64			ns_last_cno;
 	u64			ns_prot_seq;
+	u64			ns_prev_seq;
 
 	struct rw_semaphore	ns_segctor_sem;
 

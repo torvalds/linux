@@ -47,6 +47,16 @@ void nilfs_set_last_segment(struct the_nilfs *nilfs,
 	nilfs->ns_last_pseg = start_blocknr;
 	nilfs->ns_last_seq = seq;
 	nilfs->ns_last_cno = cno;
+
+	if (!nilfs_sb_dirty(nilfs)) {
+		if (nilfs->ns_prev_seq == nilfs->ns_last_seq)
+			goto stay_cursor;
+
+		set_nilfs_sb_dirty(nilfs);
+	}
+	nilfs->ns_prev_seq = nilfs->ns_last_seq;
+
+ stay_cursor:
 	spin_unlock(&nilfs->ns_last_segment_lock);
 }
 
@@ -267,6 +277,7 @@ static int nilfs_store_log_cursor(struct the_nilfs *nilfs,
 	nilfs->ns_last_cno = le64_to_cpu(sbp->s_last_cno);
 	nilfs->ns_last_seq = le64_to_cpu(sbp->s_last_seq);
 
+	nilfs->ns_prev_seq = nilfs->ns_last_seq;
 	nilfs->ns_seg_seq = nilfs->ns_last_seq;
 	nilfs->ns_segnum =
 		nilfs_get_segnum_of_block(nilfs, nilfs->ns_last_pseg);
