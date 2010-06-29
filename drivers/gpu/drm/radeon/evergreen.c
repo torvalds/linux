@@ -1260,6 +1260,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(VGT_GS_VERTEX_REUSE, 16);
 	WREG32(PA_SC_LINE_STIPPLE_STATE, 0);
 
+	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, 14);
+	WREG32(VGT_OUT_DEALLOC_CNTL, 16);
+
 	WREG32(CB_PERF_CTR0_SEL_0, 0);
 	WREG32(CB_PERF_CTR0_SEL_1, 0);
 	WREG32(CB_PERF_CTR1_SEL_0, 0);
@@ -1268,6 +1271,26 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(CB_PERF_CTR2_SEL_1, 0);
 	WREG32(CB_PERF_CTR3_SEL_0, 0);
 	WREG32(CB_PERF_CTR3_SEL_1, 0);
+
+	/* clear render buffer base addresses */
+	WREG32(CB_COLOR0_BASE, 0);
+	WREG32(CB_COLOR1_BASE, 0);
+	WREG32(CB_COLOR2_BASE, 0);
+	WREG32(CB_COLOR3_BASE, 0);
+	WREG32(CB_COLOR4_BASE, 0);
+	WREG32(CB_COLOR5_BASE, 0);
+	WREG32(CB_COLOR6_BASE, 0);
+	WREG32(CB_COLOR7_BASE, 0);
+	WREG32(CB_COLOR8_BASE, 0);
+	WREG32(CB_COLOR9_BASE, 0);
+	WREG32(CB_COLOR10_BASE, 0);
+	WREG32(CB_COLOR11_BASE, 0);
+
+	/* set the shader const cache sizes to 0 */
+	for (i = SQ_ALU_CONST_BUFFER_SIZE_PS_0; i < 0x28200; i += 4)
+		WREG32(i, 0);
+	for (i = SQ_ALU_CONST_BUFFER_SIZE_HS_0; i < 0x29000; i += 4)
+		WREG32(i, 0);
 
 	hdp_host_path_cntl = RREG32(HDP_HOST_PATH_CNTL);
 	WREG32(HDP_HOST_PATH_CNTL, hdp_host_path_cntl);
