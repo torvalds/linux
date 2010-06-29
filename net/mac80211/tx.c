@@ -1935,11 +1935,13 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		h_pos += encaps_len;
 	}
 
+#ifdef CONFIG_MAC80211_MESH
 	if (meshhdrlen > 0) {
 		memcpy(skb_push(skb, meshhdrlen), &mesh_hdr, meshhdrlen);
 		nh_pos += meshhdrlen;
 		h_pos += meshhdrlen;
 	}
+#endif
 
 	if (ieee80211_is_data_qos(fc)) {
 		__le16 *qos_control;
