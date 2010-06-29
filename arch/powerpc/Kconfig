@@ -174,9 +174,6 @@ config ARCH_MAY_HAVE_PC_FDC
 config PPC_OF
 	def_bool y
 
-config OF
-	bool
-
 config PPC_UDBG_16550
 	bool
 	default n

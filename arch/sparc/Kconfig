@@ -149,9 +149,6 @@ config GENERIC_GPIO
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
-config OF
-	bool
-
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y if SPARC64
 
