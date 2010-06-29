@@ -525,7 +525,8 @@ dhd_prot_init(dhd_pub_t *dhd)
 	strcpy(buf, "cur_etheraddr");
 	ret = dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
 	if (ret < 0) {
-		goto fail;
+		dhd_os_proto_unblock(dhd);
+		return ret;
 	}
 	memcpy(dhd->mac.octet, buf, ETHER_ADDR_LEN);
 
@@ -537,8 +538,6 @@ dhd_prot_init(dhd_pub_t *dhd)
 
 	/* Always assumes wl for now */
 	dhd->iswl = TRUE;
-
-fail:
 
 	return ret;
 }

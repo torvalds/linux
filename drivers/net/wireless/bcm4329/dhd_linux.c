@@ -1764,11 +1764,13 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	bcmerror = dhd_prot_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf, buflen);
 
-	if (bcmerror == -ETIMEDOUT) {
+done:
+	if ((bcmerror == -ETIMEDOUT) || ((dhd->pub.busstate == DHD_BUS_DOWN) &&
+			(!dhd->pub.dongle_reset))) {
 		DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
 		wl_iw_send_priv_event(net, "HANG");
 	}
-done:
+
 	if (!bcmerror && buf && ioc.buf) {
 		if (copy_to_user(ioc.buf, buf, buflen))
 			bcmerror = -EFAULT;
