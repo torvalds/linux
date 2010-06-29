@@ -2800,7 +2800,6 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.reset_tuner		= rt61pci_reset_tuner,
 	.link_tuner		= rt61pci_link_tuner,
 	.write_tx_desc		= rt61pci_write_tx_desc,
-	.write_tx_data		= rt2x00pci_write_tx_data,
 	.write_beacon		= rt61pci_write_beacon,
 	.kick_tx_queue		= rt61pci_kick_tx_queue,
 	.kill_tx_queue		= rt61pci_kill_tx_queue,

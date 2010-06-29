@@ -351,16 +351,6 @@ int rt2x00usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 void rt2x00usb_disable_radio(struct rt2x00_dev *rt2x00dev);
 
 /**
- * rt2x00usb_write_tx_data - Initialize URB for TX operation
- * @entry: The entry where the frame is located
- *
- * This function will initialize the URB and skb descriptor
- * to prepare the entry for the actual TX operation.
- */
-int rt2x00usb_write_tx_data(struct queue_entry *entry,
-			    struct txentry_desc *txdesc);
-
-/**
  * struct queue_entry_priv_usb: Per entry USB specific information
  *
  * @urb: Urb structure used for device communication.
