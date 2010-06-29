@@ -37,6 +37,7 @@ struct kthread_create_info
 
 struct kthread {
 	int should_stop;
+	void *data;
 	struct completion exited;
 };
 
@@ -56,6 +57,19 @@ int kthread_should_stop(void)
 }
 EXPORT_SYMBOL(kthread_should_stop);
 
+/**
+ * kthread_data - return data value specified on kthread creation
+ * @task: kthread task in question
+ *
+ * Return the data value specified when kthread @task was created.
+ * The caller is responsible for ensuring the validity of @task when
+ * calling this function.
+ */
+void *kthread_data(struct task_struct *task)
+{
+	return to_kthread(task)->data;
+}
+
 static int kthread(void *_create)
 {
 	/* Copy data: it's on kthread's stack */
@@ -66,6 +80,7 @@ static int kthread(void *_create)
 	int ret;
 
 	self.should_stop = 0;
+	self.data = data;
 	init_completion(&self.exited);
 	current->vfork_done = &self.exited;
 
