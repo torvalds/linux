@@ -1498,7 +1498,7 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
 }
 EXPORT_SYMBOL(ath9k_hw_keyreset);
 
-bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
+static bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 {
 	u32 macHi, macLo;
 	u32 unicast_flag = AR_KEYTABLE_VALID;
@@ -1536,7 +1536,6 @@ bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 
 	return true;
 }
-EXPORT_SYMBOL(ath9k_hw_keysetmac);
 
 bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
