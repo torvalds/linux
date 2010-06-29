@@ -262,6 +262,13 @@ struct spi_master {
 #define SPI_MASTER_NO_RX	BIT(1)		/* can't do buffer read */
 #define SPI_MASTER_NO_TX	BIT(2)		/* can't do buffer write */
 
+	/* lock and mutex for SPI bus locking */
+	spinlock_t		bus_lock_spinlock;
+	struct mutex		bus_lock_mutex;
+
+	/* flag indicating that the SPI bus is locked for exclusive use */
+	bool			bus_lock_flag;
+
 	/* Setup mode and clock, etc (spi driver may call many times).
 	 *
 	 * IMPORTANT:  this may be called when transfers to another
@@ -542,6 +549,8 @@ static inline void spi_message_free(struct spi_message *m)
 
 extern int spi_setup(struct spi_device *spi);
 extern int spi_async(struct spi_device *spi, struct spi_message *message);
+extern int spi_async_locked(struct spi_device *spi,
+			    struct spi_message *message);
 
 /*---------------------------------------------------------------------------*/
 
@@ -551,6 +560,9 @@ extern int spi_async(struct spi_device *spi, struct spi_message *message);
  */
 
 extern int spi_sync(struct spi_device *spi, struct spi_message *message);
+extern int spi_sync_locked(struct spi_device *spi, struct spi_message *message);
+extern int spi_bus_lock(struct spi_master *master);
+extern int spi_bus_unlock(struct spi_master *master);
 
 /**
  * spi_write - SPI synchronous write
