@@ -3429,8 +3429,7 @@ w9968cf_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	else
 		return -ENODEV;
 
-	cam = (struct w9968cf_device*)
-		  kzalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
+	cam = kzalloc(sizeof(struct w9968cf_device), GFP_KERNEL);
 	if (!cam)
 		return -ENOMEM;
 
