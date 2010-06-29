@@ -1150,7 +1150,7 @@ F:	drivers/mmc/host/atmel-mci.c
 F:	drivers/mmc/host/atmel-mci-regs.h
 
 ATMEL AT91 / AT32 SERIAL DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/serial/atmel_serial.c
 
@@ -1162,18 +1162,18 @@ F:	drivers/video/atmel_lcdfb.c
 F:	include/video/atmel_lcdc.h
 
 ATMEL MACB ETHERNET DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/net/macb.*
 
 ATMEL SPI DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/spi/atmel_spi.*
 
 ATMEL USBA UDC DRIVER
-M:	Haavard Skinnemoen <hskinnemoen@atmel.com>
-L:	kernel@avr32linux.org
+M:	Nicolas Ferre <nicolas.ferre@atmel.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://avr32linux.org/twiki/bin/view/Main/AtmelUsbDeviceDriver
 S:	Supported
 F:	drivers/usb/gadget/atmel_usba_udc.*
