@@ -282,7 +282,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
 	 */
-	rt2x00lib_config_intf(rt2x00dev, intf, vif->type, intf->mac, NULL);
+	rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
+			      intf->mac, intf->bssid);
 
 	/*
 	 * Some filters depend on the current working mode. We can force
