@@ -205,6 +205,18 @@ static inline void edma_parm_or(unsigned ctlr, int offset, int param_no,
 	edma_or(ctlr, EDMA_PARM + offset + (param_no << 5), or);
 }
 
+static inline void set_bits(int offset, int len, unsigned long *p)
+{
+	for (; len > 0; len--)
+		set_bit(offset + (len - 1), p);
+}
+
+static inline void clear_bits(int offset, int len, unsigned long *p)
+{
+	for (; len > 0; len--)
+		clear_bit(offset + (len - 1), p);
+}
+
 /*****************************************************************************/
 
 /* actual number of DMA channels and slots on this silicon */
@@ -1377,8 +1389,10 @@ static int __init edma_probe(struct platform_device *pdev)
 	struct edma_soc_info	**info = pdev->dev.platform_data;
 	const s8		(*queue_priority_mapping)[2];
 	const s8		(*queue_tc_mapping)[2];
-	int			i, j, found = 0;
+	int			i, j, off, ln, found = 0;
 	int			status = -1;
+	const s16		(*rsv_chans)[2];
+	const s16		(*rsv_slots)[2];
 	int			irq[EDMA_MAX_CC] = {0, 0};
 	int			err_irq[EDMA_MAX_CC] = {0, 0};
 	struct resource		*r[EDMA_MAX_CC] = {NULL};
@@ -1445,6 +1459,31 @@ static int __init edma_probe(struct platform_device *pdev)
 		/* Mark all channels as unused */
 		memset(edma_cc[j]->edma_unused, 0xff,
 			sizeof(edma_cc[j]->edma_unused));
+
+		if (info[j]->rsv) {
+
+			/* Clear the reserved channels in unused list */
+			rsv_chans = info[j]->rsv->rsv_chans;
+			if (rsv_chans) {
+				for (i = 0; rsv_chans[i][0] != -1; i++) {
+					off = rsv_chans[i][0];
+					ln = rsv_chans[i][1];
+					clear_bits(off, ln,
+						edma_cc[j]->edma_unused);
+				}
+			}
+
+			/* Set the reserved slots in inuse list */
+			rsv_slots = info[j]->rsv->rsv_slots;
+			if (rsv_slots) {
+				for (i = 0; rsv_slots[i][0] != -1; i++) {
+					off = rsv_slots[i][0];
+					ln = rsv_slots[i][1];
+					set_bits(off, ln,
+						edma_cc[j]->edma_inuse);
+				}
+			}
+		}
 
 		sprintf(irq_name, "edma%d", j);
 		irq[j] = platform_get_irq_byname(pdev, irq_name);
