@@ -43,6 +43,7 @@ enum {
 	GCWQ_MANAGING_WORKERS	= 1 << 1,	/* managing workers */
 	GCWQ_DISASSOCIATED	= 1 << 2,	/* cpu can't serve workers */
 	GCWQ_FREEZING		= 1 << 3,	/* freeze in progress */
+	GCWQ_HIGHPRI_PENDING	= 1 << 4,	/* highpri works on queue */
 
 	/* worker flags */
 	WORKER_STARTED		= 1 << 0,	/* started */
@@ -452,15 +453,19 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
  * assume that they're being called with gcwq->lock held.
  */
 
+static bool __need_more_worker(struct global_cwq *gcwq)
+{
+	return !atomic_read(get_gcwq_nr_running(gcwq->cpu)) ||
+		gcwq->flags & GCWQ_HIGHPRI_PENDING;
+}
+
 /*
  * Need to wake up a worker?  Called from anything but currently
  * running workers.
  */
 static bool need_more_worker(struct global_cwq *gcwq)
 {
-	atomic_t *nr_running = get_gcwq_nr_running(gcwq->cpu);
-
-	return !list_empty(&gcwq->worklist) && !atomic_read(nr_running);
+	return !list_empty(&gcwq->worklist) && __need_more_worker(gcwq);
 }
 
 /* Can I start working?  Called from busy but !running workers. */
@@ -734,6 +739,43 @@ static struct worker *find_worker_executing_work(struct global_cwq *gcwq,
 }
 
 /**
+ * gcwq_determine_ins_pos - find insertion position
+ * @gcwq: gcwq of interest
+ * @cwq: cwq a work is being queued for
+ *
+ * A work for @cwq is about to be queued on @gcwq, determine insertion
+ * position for the work.  If @cwq is for HIGHPRI wq, the work is
+ * queued at the head of the queue but in FIFO order with respect to
+ * other HIGHPRI works; otherwise, at the end of the queue.  This
+ * function also sets GCWQ_HIGHPRI_PENDING flag to hint @gcwq that
+ * there are HIGHPRI works pending.
+ *
+ * CONTEXT:
+ * spin_lock_irq(gcwq->lock).
+ *
+ * RETURNS:
+ * Pointer to inserstion position.
+ */
+static inline struct list_head *gcwq_determine_ins_pos(struct global_cwq *gcwq,
+					       struct cpu_workqueue_struct *cwq)
+{
+	struct work_struct *twork;
+
+	if (likely(!(cwq->wq->flags & WQ_HIGHPRI)))
+		return &gcwq->worklist;
+
+	list_for_each_entry(twork, &gcwq->worklist, entry) {
+		struct cpu_workqueue_struct *tcwq = get_work_cwq(twork);
+
+		if (!(tcwq->wq->flags & WQ_HIGHPRI))
+			break;
+	}
+
+	gcwq->flags |= GCWQ_HIGHPRI_PENDING;
+	return &twork->entry;
+}
+
+/**
  * insert_work - insert a work into gcwq
  * @cwq: cwq @work belongs to
  * @work: work to insert
@@ -770,7 +812,7 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 	 */
 	smp_mb();
 
-	if (!atomic_read(get_gcwq_nr_running(gcwq->cpu)))
+	if (__need_more_worker(gcwq))
 		wake_up_worker(gcwq);
 }
 
@@ -887,7 +929,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 
 	if (likely(cwq->nr_active < cwq->max_active)) {
 		cwq->nr_active++;
-		worklist = &gcwq->worklist;
+		worklist = gcwq_determine_ins_pos(gcwq, cwq);
 	} else
 		worklist = &cwq->delayed_works;
 
@@ -1526,8 +1568,9 @@ static void cwq_activate_first_delayed(struct cpu_workqueue_struct *cwq)
 {
 	struct work_struct *work = list_first_entry(&cwq->delayed_works,
 						    struct work_struct, entry);
+	struct list_head *pos = gcwq_determine_ins_pos(cwq->gcwq, cwq);
 
-	move_linked_works(work, &cwq->gcwq->worklist, NULL);
+	move_linked_works(work, pos, NULL);
 	cwq->nr_active++;
 }
 
@@ -1633,6 +1676,21 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	/* record the current cpu number in the work data and dequeue */
 	set_work_cpu(work, gcwq->cpu);
 	list_del_init(&work->entry);
+
+	/*
+	 * If HIGHPRI_PENDING, check the next work, and, if HIGHPRI,
+	 * wake up another worker; otherwise, clear HIGHPRI_PENDING.
+	 */
+	if (unlikely(gcwq->flags & GCWQ_HIGHPRI_PENDING)) {
+		struct work_struct *nwork = list_first_entry(&gcwq->worklist,
+						struct work_struct, entry);
+
+		if (!list_empty(&gcwq->worklist) &&
+		    get_work_cwq(nwork)->wq->flags & WQ_HIGHPRI)
+			wake_up_worker(gcwq);
+		else
+			gcwq->flags &= ~GCWQ_HIGHPRI_PENDING;
+	}
 
 	spin_unlock_irq(&gcwq->lock);
 

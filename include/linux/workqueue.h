@@ -231,6 +231,7 @@ enum {
 	WQ_SINGLE_CPU		= 1 << 1, /* only single cpu at a time */
 	WQ_NON_REENTRANT	= 1 << 2, /* guarantee non-reentrance */
 	WQ_RESCUER		= 1 << 3, /* has an rescue worker */
+	WQ_HIGHPRI		= 1 << 4, /* high priority */
 
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
 	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
