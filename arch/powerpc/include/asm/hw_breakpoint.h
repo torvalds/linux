@@ -37,10 +37,6 @@ struct arch_hw_breakpoint {
 #include <asm/reg.h>
 #include <asm/system.h>
 
-static inline int hw_breakpoint_slots(int type)
-{
-	return HBP_NUM;
-}
 struct perf_event;
 struct pmu;
 struct perf_sample_data;
@@ -49,6 +45,7 @@ struct perf_sample_data;
 /* Maximum permissible length of any HW Breakpoint */
 #define HW_BREAKPOINT_LEN 0x8
 
+extern int hw_breakpoint_slots(int type);
 extern int arch_bp_generic_fields(int type, int *gen_bp_type);
 extern int arch_check_bp_in_kernelspace(struct perf_event *bp);
 extern int arch_validate_hwbkpt_settings(struct perf_event *bp);

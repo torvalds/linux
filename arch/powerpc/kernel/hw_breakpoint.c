@@ -44,6 +44,16 @@
 static DEFINE_PER_CPU(struct perf_event *, bp_per_reg);
 
 /*
+ * Returns total number of data or instruction breakpoints available.
+ */
+int hw_breakpoint_slots(int type)
+{
+	if (type == TYPE_DATA)
+		return HBP_NUM;
+	return 0;		/* no instruction breakpoints available */
+}
+
+/*
  * Install a perf counter breakpoint.
  *
  * We seek a free debug address register and use it for this
