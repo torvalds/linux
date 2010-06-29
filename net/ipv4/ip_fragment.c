@@ -314,6 +314,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	qp->q.len = 0;
 	qp->q.meat = 0;
 	qp->q.fragments = NULL;
+	qp->q.fragments_tail = NULL;
 	qp->iif = 0;
 
 	return 0;
@@ -386,6 +387,11 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 	 * in the chain of fragments so far.  We must know where to put
 	 * this fragment, right?
 	 */
+	prev = qp->q.fragments_tail;
+	if (!prev || FRAG_CB(prev)->offset < offset) {
+		next = NULL;
+		goto found;
+	}
 	prev = NULL;
 	for (next = qp->q.fragments; next != NULL; next = next->next) {
 		if (FRAG_CB(next)->offset >= offset)
@@ -393,6 +399,7 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 		prev = next;
 	}
 
+found:
 	/* We found where to put this one.  Check for overlap with
 	 * preceding fragment, and, if needed, align things so that
 	 * any overlaps are eliminated.
@@ -451,6 +458,8 @@ static int ip_frag_queue(struct ipq *qp, struct sk_buff *skb)
 
 	/* Insert this fragment in the chain of fragments. */
 	skb->next = next;
+	if (!next)
+		qp->q.fragments_tail = skb;
 	if (prev)
 		prev->next = skb;
 	else
@@ -504,6 +513,8 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 			goto out_nomem;
 
 		fp->next = head->next;
+		if (!fp->next)
+			qp->q.fragments_tail = fp;
 		prev->next = fp;
 
 		skb_morph(head, qp->q.fragments);
@@ -574,6 +585,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	iph->tot_len = htons(len);
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;
+	qp->q.fragments_tail = NULL;
 	return 0;
 
 out_nomem:

@@ -333,6 +333,11 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 	 * in the chain of fragments so far.  We must know where to put
 	 * this fragment, right?
 	 */
+	prev = fq->q.fragments_tail;
+	if (!prev || FRAG6_CB(prev)->offset < offset) {
+		next = NULL;
+		goto found;
+	}
 	prev = NULL;
 	for(next = fq->q.fragments; next != NULL; next = next->next) {
 		if (FRAG6_CB(next)->offset >= offset)
@@ -340,6 +345,7 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 		prev = next;
 	}
 
+found:
 	/* We found where to put this one.  Check for overlap with
 	 * preceding fragment, and, if needed, align things so that
 	 * any overlaps are eliminated.
@@ -397,6 +403,8 @@ static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
 
 	/* Insert this fragment in the chain of fragments. */
 	skb->next = next;
+	if (!next)
+		fq->q.fragments_tail = skb;
 	if (prev)
 		prev->next = skb;
 	else
@@ -463,6 +471,8 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 			goto out_oom;
 
 		fp->next = head->next;
+		if (!fp->next)
+			fq->q.fragments_tail = fp;
 		prev->next = fp;
 
 		skb_morph(head, fq->q.fragments);
@@ -549,6 +559,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 	IP6_INC_STATS_BH(net, __in6_dev_get(dev), IPSTATS_MIB_REASMOKS);
 	rcu_read_unlock();
 	fq->q.fragments = NULL;
+	fq->q.fragments_tail = NULL;
 	return 1;
 
 out_oversize:
