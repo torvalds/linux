@@ -2499,7 +2499,8 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
+	    IEEE80211_HW_PS_NULLFUNC_STACK |
+	    IEEE80211_HW_AMPDU_AGGREGATION;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -2751,6 +2752,36 @@ static u64 rt2800_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
+static int rt2800_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       enum ieee80211_ampdu_mlme_action action,
+			       struct ieee80211_sta *sta,
+			       u16 tid, u16 *ssn)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	int ret = 0;
+
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		/* we don't support RX aggregation yet */
+		ret = -ENOTSUPP;
+		break;
+	case IEEE80211_AMPDU_TX_START:
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_STOP:
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		break;
+	default:
+		WARNING(rt2x00dev, "Unknown AMPDU action\n");
+	}
+
+	return ret;
+}
+
 const struct ieee80211_ops rt2800_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -2768,6 +2799,7 @@ const struct ieee80211_ops rt2800_mac80211_ops = {
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.ampdu_action		= rt2800_ampdu_action,
 };
 EXPORT_SYMBOL_GPL(rt2800_mac80211_ops);
 

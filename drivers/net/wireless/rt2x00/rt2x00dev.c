@@ -286,6 +286,21 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 			rt2x00dev->low_level_stats.dot11ACKFailureCount++;
 	}
 
+	/*
+	 * Every single frame has it's own tx status, hence report
+	 * every frame as ampdu of size 1.
+	 *
+	 * TODO: if we can find out how many frames were aggregated
+	 * by the hw we could provide the real ampdu_len to mac80211
+	 * which would allow the rc algorithm to better decide on
+	 * which rates are suitable.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
+		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
+		tx_info->status.ampdu_len = 1;
+		tx_info->status.ampdu_ack_len = success ? 1 : 0;
+	}
+
 	if (rate_flags & IEEE80211_TX_RC_USE_RTS_CTS) {
 		if (success)
 			rt2x00dev->low_level_stats.dot11RTSSuccessCount++;
