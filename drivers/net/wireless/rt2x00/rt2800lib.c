@@ -432,6 +432,20 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 }
 EXPORT_SYMBOL(rt2800_write_beacon);
 
+static void inline rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
+				       unsigned int beacon_base)
+{
+	int i;
+
+	/*
+	 * For the Beacon base registers we only need to clear
+	 * the whole TXWI which (when set to 0) will invalidate
+	 * the entire beacon.
+	 */
+	for (i = 0; i < TXWI_DESC_SIZE; i += sizeof(__le32))
+		rt2800_register_write(rt2x00dev, beacon_base + i, 0);
+}
+
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
@@ -733,19 +747,14 @@ EXPORT_SYMBOL_GPL(rt2800_config_filter);
 void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 			struct rt2x00intf_conf *conf, const unsigned int flags)
 {
-	unsigned int beacon_base;
 	u32 reg;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
 		/*
 		 * Clear current synchronisation setup.
-		 * For the Beacon base registers we only need to clear
-		 * the first byte since that byte contains the VALID and OWNER
-		 * bits which (when set to 0) will invalidate the entire beacon.
 		 */
-		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-		rt2800_register_write(rt2x00dev, beacon_base, 0);
-
+		rt2800_clear_beacon(rt2x00dev,
+				    HW_BEACON_OFFSET(intf->beacon->entry_idx));
 		/*
 		 * Enable synchronisation.
 		 */
@@ -1565,18 +1574,15 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Clear all beacons
-	 * For the Beacon base registers we only need to clear
-	 * the first byte since that byte contains the VALID and OWNER
-	 * bits which (when set to 0) will invalidate the entire beacon.
 	 */
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE0, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE1, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE2, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE4, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE5, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE6, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE7, 0);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE0);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE1);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE2);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE3);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE4);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE5);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE6);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE7);
 
 	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_read(rt2x00dev, US_CYC_CNT, &reg);
