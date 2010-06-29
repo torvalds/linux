@@ -26,6 +26,9 @@ enum {
 	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
 	WORK_STRUCT_STATIC_BIT	= 1,	/* static initializer (debugobjects) */
+	WORK_STRUCT_FLAG_BITS	= 2,
+#else
+	WORK_STRUCT_FLAG_BITS	= 1,
 #endif
 
 	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
@@ -35,7 +38,7 @@ enum {
 	WORK_STRUCT_STATIC	= 0,
 #endif
 
-	WORK_STRUCT_FLAG_MASK	= 3UL,
+	WORK_STRUCT_FLAG_MASK	= (1UL << WORK_STRUCT_FLAG_BITS) - 1,
 	WORK_STRUCT_WQ_DATA_MASK = ~WORK_STRUCT_FLAG_MASK,
 };
 

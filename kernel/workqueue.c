@@ -46,7 +46,9 @@
 
 /*
  * The per-CPU workqueue (if single thread, we always use the first
- * possible cpu).
+ * possible cpu).  The lower WORK_STRUCT_FLAG_BITS of
+ * work_struct->data are used for flags and thus cwqs need to be
+ * aligned at two's power of the number of flag bits.
  */
 struct cpu_workqueue_struct {
 
@@ -59,7 +61,7 @@ struct cpu_workqueue_struct {
 
 	struct workqueue_struct *wq;		/* I: the owning workqueue */
 	struct task_struct	*thread;
-} ____cacheline_aligned;
+};
 
 /*
  * The externally visible workqueue abstraction is an array of
@@ -967,6 +969,53 @@ int current_is_keventd(void)
 
 }
 
+static struct cpu_workqueue_struct *alloc_cwqs(void)
+{
+	/*
+	 * cwqs are forced aligned according to WORK_STRUCT_FLAG_BITS.
+	 * Make sure that the alignment isn't lower than that of
+	 * unsigned long long.
+	 */
+	const size_t size = sizeof(struct cpu_workqueue_struct);
+	const size_t align = max_t(size_t, 1 << WORK_STRUCT_FLAG_BITS,
+				   __alignof__(unsigned long long));
+	struct cpu_workqueue_struct *cwqs;
+#ifndef CONFIG_SMP
+	void *ptr;
+
+	/*
+	 * On UP, percpu allocator doesn't honor alignment parameter
+	 * and simply uses arch-dependent default.  Allocate enough
+	 * room to align cwq and put an extra pointer at the end
+	 * pointing back to the originally allocated pointer which
+	 * will be used for free.
+	 *
+	 * FIXME: This really belongs to UP percpu code.  Update UP
+	 * percpu code to honor alignment and remove this ugliness.
+	 */
+	ptr = __alloc_percpu(size + align + sizeof(void *), 1);
+	cwqs = PTR_ALIGN(ptr, align);
+	*(void **)per_cpu_ptr(cwqs + 1, 0) = ptr;
+#else
+	/* On SMP, percpu allocator can do it itself */
+	cwqs = __alloc_percpu(size, align);
+#endif
+	/* just in case, make sure it's actually aligned */
+	BUG_ON(!IS_ALIGNED((unsigned long)cwqs, align));
+	return cwqs;
+}
+
+static void free_cwqs(struct cpu_workqueue_struct *cwqs)
+{
+#ifndef CONFIG_SMP
+	/* on UP, the pointer to free is stored right after the cwq */
+	if (cwqs)
+		free_percpu(*(void **)per_cpu_ptr(cwqs + 1, 0));
+#else
+	free_percpu(cwqs);
+#endif
+}
+
 static int create_workqueue_thread(struct cpu_workqueue_struct *cwq, int cpu)
 {
 	struct workqueue_struct *wq = cwq->wq;
@@ -1012,7 +1061,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 	if (!wq)
 		goto err;
 
-	wq->cpu_wq = alloc_percpu(struct cpu_workqueue_struct);
+	wq->cpu_wq = alloc_cwqs();
 	if (!wq->cpu_wq)
 		goto err;
 
@@ -1031,6 +1080,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 	for_each_possible_cpu(cpu) {
 		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
 
+		BUG_ON((unsigned long)cwq & WORK_STRUCT_FLAG_MASK);
 		cwq->wq = wq;
 		cwq->cpu = cpu;
 		spin_lock_init(&cwq->lock);
@@ -1059,7 +1109,7 @@ struct workqueue_struct *__create_workqueue_key(const char *name,
 	return wq;
 err:
 	if (wq) {
-		free_percpu(wq->cpu_wq);
+		free_cwqs(wq->cpu_wq);
 		kfree(wq);
 	}
 	return NULL;
@@ -1112,7 +1162,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 	for_each_possible_cpu(cpu)
 		cleanup_workqueue_thread(get_cwq(cpu, wq));
 
-	free_percpu(wq->cpu_wq);
+	free_cwqs(wq->cpu_wq);
 	kfree(wq);
 }
 EXPORT_SYMBOL_GPL(destroy_workqueue);
