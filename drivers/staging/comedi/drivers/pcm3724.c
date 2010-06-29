@@ -195,7 +195,7 @@ static void enable_chan(struct comedi_device *dev, struct comedi_subdevice *s,
 	struct priv_pcm3724 *priv;
 
 	gatecfg = 0;
-	priv = (struct priv_pcm3724 *)(dev->private);
+	priv = dev->private;
 
 	mask = 1 << CR_CHAN(chanspec);
 	if (s == dev->subdevices)	/*  subdev 0 */
