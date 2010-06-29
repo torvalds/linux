@@ -139,8 +139,18 @@ static void rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
 	eeprom.data = rt2x00dev;
 	eeprom.register_read = rt2800pci_eepromregister_read;
 	eeprom.register_write = rt2800pci_eepromregister_write;
-	eeprom.width = !rt2x00_get_field32(reg, E2PROM_CSR_TYPE) ?
-	    PCI_EEPROM_WIDTH_93C46 : PCI_EEPROM_WIDTH_93C66;
+	switch (rt2x00_get_field32(reg, E2PROM_CSR_TYPE))
+	{
+	case 0:
+		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+		break;
+	case 1:
+		eeprom.width = PCI_EEPROM_WIDTH_93C66;
+		break;
+	default:
+		eeprom.width = PCI_EEPROM_WIDTH_93C86;
+		break;
+	}
 	eeprom.reg_data_in = 0;
 	eeprom.reg_data_out = 0;
 	eeprom.reg_data_clock = 0;
