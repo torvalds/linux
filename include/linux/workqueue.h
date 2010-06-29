@@ -226,6 +226,7 @@ enum {
 	WQ_FREEZEABLE		= 1 << 0, /* freeze during suspend */
 	WQ_SINGLE_CPU		= 1 << 1, /* only single cpu at a time */
 	WQ_NON_REENTRANT	= 1 << 2, /* guarantee non-reentrance */
+	WQ_RESCUER		= 1 << 3, /* has an rescue worker */
 };
 
 extern struct workqueue_struct *
@@ -252,11 +253,12 @@ __create_workqueue_key(const char *name, unsigned int flags, int max_active,
 #endif
 
 #define create_workqueue(name)					\
-	__create_workqueue((name), 0, 1)
+	__create_workqueue((name), WQ_RESCUER, 1)
 #define create_freezeable_workqueue(name)			\
-	__create_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_CPU, 1)
+	__create_workqueue((name),				\
+			   WQ_FREEZEABLE | WQ_SINGLE_CPU | WQ_RESCUER, 1)
 #define create_singlethread_workqueue(name)			\
-	__create_workqueue((name), WQ_SINGLE_CPU, 1)
+	__create_workqueue((name), WQ_SINGLE_CPU | WQ_RESCUER, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
