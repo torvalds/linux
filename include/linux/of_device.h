@@ -16,12 +16,12 @@
  */
 #define of_device platform_device
 #include <linux/platform_device.h>
+#include <linux/of_platform.h> /* temporary until merge */
 
 #ifdef CONFIG_OF_DEVICE
 #include <linux/device.h>
 #include <linux/of.h>
 #include <linux/mod_devicetable.h>
-#include <asm/of_device.h>
 
 #define	to_of_device(d) container_of(d, struct of_device, dev)
 
