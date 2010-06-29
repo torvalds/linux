@@ -380,7 +380,7 @@ void r852_cmdctl(struct mtd_info *mtd, int dat, unsigned int ctrl)
  */
 int r852_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
-	struct r852_device *dev = (struct r852_device *)chip->priv;
+	struct r852_device *dev = chip->priv;
 
 	unsigned long timeout;
 	int status;
