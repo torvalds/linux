@@ -128,7 +128,6 @@ unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
 		chunk = list_entry(_chunk, struct gen_pool_chunk, next_chunk);
 
 		end_bit = (chunk->end_addr - chunk->start_addr) >> order;
-		end_bit -= nbits + 1;
 
 		spin_lock_irqsave(&chunk->lock, flags);
 		start_bit = bitmap_find_next_zero_area(chunk->bits, end_bit, 0,
