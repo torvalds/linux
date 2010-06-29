@@ -82,6 +82,7 @@ struct worker {
 	};
 
 	struct work_struct	*current_work;	/* L: work being processed */
+	struct cpu_workqueue_struct *current_cwq; /* L: current_work's cwq */
 	struct list_head	scheduled;	/* L: scheduled works */
 	struct task_struct	*task;		/* I: worker task */
 	struct global_cwq	*gcwq;		/* I: the associated gcwq */
@@ -370,6 +371,59 @@ static struct hlist_head *busy_worker_head(struct global_cwq *gcwq,
 	v &= BUSY_WORKER_HASH_MASK;
 
 	return &gcwq->busy_hash[v];
+}
+
+/**
+ * __find_worker_executing_work - find worker which is executing a work
+ * @gcwq: gcwq of interest
+ * @bwh: hash head as returned by busy_worker_head()
+ * @work: work to find worker for
+ *
+ * Find a worker which is executing @work on @gcwq.  @bwh should be
+ * the hash head obtained by calling busy_worker_head() with the same
+ * work.
+ *
+ * CONTEXT:
+ * spin_lock_irq(gcwq->lock).
+ *
+ * RETURNS:
+ * Pointer to worker which is executing @work if found, NULL
+ * otherwise.
+ */
+static struct worker *__find_worker_executing_work(struct global_cwq *gcwq,
+						   struct hlist_head *bwh,
+						   struct work_struct *work)
+{
+	struct worker *worker;
+	struct hlist_node *tmp;
+
+	hlist_for_each_entry(worker, tmp, bwh, hentry)
+		if (worker->current_work == work)
+			return worker;
+	return NULL;
+}
+
+/**
+ * find_worker_executing_work - find worker which is executing a work
+ * @gcwq: gcwq of interest
+ * @work: work to find worker for
+ *
+ * Find a worker which is executing @work on @gcwq.  This function is
+ * identical to __find_worker_executing_work() except that this
+ * function calculates @bwh itself.
+ *
+ * CONTEXT:
+ * spin_lock_irq(gcwq->lock).
+ *
+ * RETURNS:
+ * Pointer to worker which is executing @work if found, NULL
+ * otherwise.
+ */
+static struct worker *find_worker_executing_work(struct global_cwq *gcwq,
+						 struct work_struct *work)
+{
+	return __find_worker_executing_work(gcwq, busy_worker_head(gcwq, work),
+					    work);
 }
 
 /**
@@ -914,6 +968,7 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	debug_work_deactivate(work);
 	hlist_add_head(&worker->hentry, bwh);
 	worker->current_work = work;
+	worker->current_cwq = cwq;
 	work_color = get_work_color(work);
 	list_del_init(&work->entry);
 
@@ -942,6 +997,7 @@ static void process_one_work(struct worker *worker, struct work_struct *work)
 	/* we're done with it, release */
 	hlist_del_init(&worker->hentry);
 	worker->current_work = NULL;
+	worker->current_cwq = NULL;
 	cwq_dec_nr_in_flight(cwq, work_color);
 }
 
