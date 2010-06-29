@@ -1703,9 +1703,6 @@ perf_do_callchain(struct pt_regs *regs, struct perf_callchain_entry *entry)
 
 	is_user = user_mode(regs);
 
-	if (is_user && current->state != TASK_RUNNING)
-		return;
-
 	if (!is_user)
 		perf_callchain_kernel(regs, entry);
 
