@@ -768,8 +768,8 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 
 	if (flags & CONFIG_UPDATE_BSSID) {
 		reg = le32_to_cpu(conf->bssid[1]);
-		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 0);
-		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 0);
+		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 3);
+		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 7);
 		conf->bssid[1] = cpu_to_le32(reg);
 
 		rt2800_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
