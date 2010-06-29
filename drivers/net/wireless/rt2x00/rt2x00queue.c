@@ -430,10 +430,10 @@ static int rt2x00queue_write_tx_data(struct queue_entry *entry,
 	memset(entry->skb->data, 0, rt2x00dev->ops->extra_tx_headroom);
 
 	/*
-	 * Call the driver's write_tx_datadesc function, if it exists.
+	 * Call the driver's write_tx_data function, if it exists.
 	 */
-	if (rt2x00dev->ops->lib->write_tx_datadesc)
-		rt2x00dev->ops->lib->write_tx_datadesc(entry, txdesc);
+	if (rt2x00dev->ops->lib->write_tx_data)
+		rt2x00dev->ops->lib->write_tx_data(entry, txdesc);
 
 	/*
 	 * Map the skb to DMA.
