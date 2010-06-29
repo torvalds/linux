@@ -69,16 +69,18 @@ static const s8 edma_priority_mapping[][2] = {
 	{	-1,		-1	}
 };
 
-static struct edma_soc_info edma_info[] = {
-	{
-		.n_channel		= EDMA_TNETV107X_NUM_DMACH,
-		.n_region		= EDMA_TNETV107X_NUM_REGIONS,
-		.n_slot			= EDMA_TNETV107X_NUM_PARAMENTRY,
-		.n_tc			= EDMA_TNETV107X_NUM_TC,
-		.n_cc			= 1,
-		.queue_tc_mapping	= edma_tc_mapping,
-		.queue_priority_mapping	= edma_priority_mapping,
-	},
+static struct edma_soc_info edma_cc0_info = {
+	.n_channel		= EDMA_TNETV107X_NUM_DMACH,
+	.n_region		= EDMA_TNETV107X_NUM_REGIONS,
+	.n_slot			= EDMA_TNETV107X_NUM_PARAMENTRY,
+	.n_tc			= EDMA_TNETV107X_NUM_TC,
+	.n_cc			= 1,
+	.queue_tc_mapping	= edma_tc_mapping,
+	.queue_priority_mapping	= edma_priority_mapping,
+};
+
+static struct edma_soc_info *tnetv107x_edma_info[EDMA_MAX_CC] = {
+	&edma_cc0_info,
 };
 
 static struct resource edma_resources[] = {
@@ -117,7 +119,7 @@ static struct platform_device edma_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(edma_resources),
 	.resource	= edma_resources,
-	.dev.platform_data = edma_info,
+	.dev.platform_data = tnetv107x_edma_info,
 };
 
 static struct plat_serial8250_port serial_data[] = {

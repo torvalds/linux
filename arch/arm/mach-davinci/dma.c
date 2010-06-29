@@ -99,8 +99,6 @@
 
 #define EDMA_MAX_DMACH           64
 #define EDMA_MAX_PARAMENTRY     512
-#define EDMA_MAX_CC               2
-
 
 /*****************************************************************************/
 
@@ -1376,7 +1374,7 @@ EXPORT_SYMBOL(edma_clear_event);
 
 static int __init edma_probe(struct platform_device *pdev)
 {
-	struct edma_soc_info	*info = pdev->dev.platform_data;
+	struct edma_soc_info	**info = pdev->dev.platform_data;
 	const s8		(*queue_priority_mapping)[2];
 	const s8		(*queue_tc_mapping)[2];
 	int			i, j, found = 0;
@@ -1395,7 +1393,7 @@ static int __init edma_probe(struct platform_device *pdev)
 		sprintf(res_name, "edma_cc%d", j);
 		r[j] = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						res_name);
-		if (!r[j]) {
+		if (!r[j] || !info[j]) {
 			if (found)
 				break;
 			else
@@ -1426,13 +1424,14 @@ static int __init edma_probe(struct platform_device *pdev)
 		}
 		memset(edma_cc[j], 0, sizeof(struct edma));
 
-		edma_cc[j]->num_channels = min_t(unsigned, info[j].n_channel,
+		edma_cc[j]->num_channels = min_t(unsigned, info[j]->n_channel,
 							EDMA_MAX_DMACH);
-		edma_cc[j]->num_slots = min_t(unsigned, info[j].n_slot,
+		edma_cc[j]->num_slots = min_t(unsigned, info[j]->n_slot,
 							EDMA_MAX_PARAMENTRY);
-		edma_cc[j]->num_cc = min_t(unsigned, info[j].n_cc, EDMA_MAX_CC);
+		edma_cc[j]->num_cc = min_t(unsigned, info[j]->n_cc,
+							EDMA_MAX_CC);
 
-		edma_cc[j]->default_queue = info[j].default_queue;
+		edma_cc[j]->default_queue = info[j]->default_queue;
 		if (!edma_cc[j]->default_queue)
 			edma_cc[j]->default_queue = EVENTQ_1;
 
@@ -1476,8 +1475,8 @@ static int __init edma_probe(struct platform_device *pdev)
 		for (i = 0; i < edma_cc[j]->num_channels; i++)
 			map_dmach_queue(j, i, EVENTQ_1);
 
-		queue_tc_mapping = info[j].queue_tc_mapping;
-		queue_priority_mapping = info[j].queue_priority_mapping;
+		queue_tc_mapping = info[j]->queue_tc_mapping;
+		queue_priority_mapping = info[j]->queue_priority_mapping;
 
 		/* Event queue to TC mapping */
 		for (i = 0; queue_tc_mapping[i][0] != -1; i++)
@@ -1496,7 +1495,7 @@ static int __init edma_probe(struct platform_device *pdev)
 		if (edma_read(j, EDMA_CCCFG) & CHMAP_EXIST)
 			map_dmach_param(j);
 
-		for (i = 0; i < info[j].n_region; i++) {
+		for (i = 0; i < info[j]->n_region; i++) {
 			edma_write_array2(j, EDMA_DRAE, i, 0, 0x0);
 			edma_write_array2(j, EDMA_DRAE, i, 1, 0x0);
 			edma_write_array(j, EDMA_QRAE, i, 0x0);

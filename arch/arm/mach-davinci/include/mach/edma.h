@@ -230,6 +230,8 @@ enum sync_dimension {
 #define EDMA_CONT_PARAMS_FIXED_EXACT	 1002
 #define EDMA_CONT_PARAMS_FIXED_NOT_EXACT 1003
 
+#define EDMA_MAX_CC               2
+
 /* alloc/free DMA channels and their dedicated parameter RAM slots */
 int edma_alloc_channel(int channel,
 	void (*callback)(unsigned channel, u16 ch_status, void *data),
