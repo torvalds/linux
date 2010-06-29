@@ -1649,7 +1649,7 @@ int tsi148_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	/* Fill out source part */
 	switch (src->type) {
 	case VME_DMA_PATTERN:
-		pattern_attr = (struct vme_dma_pattern *)src->private;
+		pattern_attr = src->private;
 
 		entry->descriptor.dsal = pattern_attr->pattern;
 		entry->descriptor.dsat = TSI148_LCSR_DSAT_TYP_PAT;
@@ -1663,7 +1663,7 @@ int tsi148_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 
 		break;
 	case VME_DMA_PCI:
-		pci_attr = (struct vme_dma_pci *)src->private;
+		pci_attr = src->private;
 
 		reg_split((unsigned long long)pci_attr->address, &address_high,
 			&address_low);
@@ -1672,7 +1672,7 @@ int tsi148_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		entry->descriptor.dsat = TSI148_LCSR_DSAT_TYP_PCI;
 		break;
 	case VME_DMA_VME:
-		vme_attr = (struct vme_dma_vme *)src->private;
+		vme_attr = src->private;
 
 		reg_split((unsigned long long)vme_attr->address, &address_high,
 			&address_low);
@@ -1701,7 +1701,7 @@ int tsi148_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 	/* Fill out destination part */
 	switch (dest->type) {
 	case VME_DMA_PCI:
-		pci_attr = (struct vme_dma_pci *)dest->private;
+		pci_attr = dest->private;
 
 		reg_split((unsigned long long)pci_attr->address, &address_high,
 			&address_low);
@@ -1710,7 +1710,7 @@ int tsi148_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 		entry->descriptor.ddat = TSI148_LCSR_DDAT_TYP_PCI;
 		break;
 	case VME_DMA_VME:
-		vme_attr = (struct vme_dma_vme *)dest->private;
+		vme_attr = dest->private;
 
 		reg_split((unsigned long long)vme_attr->address, &address_high,
 			&address_low);
