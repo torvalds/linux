@@ -1301,18 +1301,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * wait for acks to really free up the data the extra memory
 		 * is even less.  On the positive side we run the destructors
 		 * on the sending CPU rather than on a potentially different
-		 * completing CPU, usually a good thing.  We also run them
-		 * without holding our TX queue lock, unlike what
-		 * reclaim_completed_tx() would otherwise do.
-		 *
-		 * XXX Actually the above is somewhat incorrect since we don't
-		 * XXX yet have a periodic timer which reclaims TX Descriptors.
-		 * XXX What's our plan for this?
-		 * XXX
-		 * XXX Also, we don't currently have a TX Queue lock but
-		 * XXX that may be the result of not having any current
-		 * XXX asynchronous path for reclaiming completed TX
-		 * XXX Descriptors ...
+		 * completing CPU, usually a good thing.
 		 *
 		 * Run the destructor before telling the DMA engine about the
 		 * packet to make sure it doesn't complete and get freed
