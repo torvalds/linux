@@ -375,9 +375,14 @@ static inline int drv_get_survey(struct ieee80211_local *local, int idx,
 				struct survey_info *survey)
 {
 	int ret = -EOPNOTSUPP;
+
+	trace_drv_get_survey(local, idx, survey);
+
 	if (local->ops->get_survey)
 		ret = local->ops->get_survey(&local->hw, idx, survey);
-	/* trace_drv_get_survey(local, idx, survey, ret); */
+
+	trace_drv_return_int(local, ret);
+
 	return ret;
 }
 
