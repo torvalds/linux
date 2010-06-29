@@ -648,7 +648,9 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 static void rt2800pci_write_tx_data(struct queue_entry* entry,
 				    struct txentry_desc *txdesc)
 {
-	rt2800_write_txwi((__le32 *) entry->skb->data, txdesc);
+	__le32 *txwi = (__le32 *) entry->skb->data;
+
+	rt2800_write_txwi(txwi, txdesc);
 }
 
 
