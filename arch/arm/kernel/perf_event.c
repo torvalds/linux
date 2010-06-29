@@ -3001,13 +3001,6 @@ arch_initcall(init_hw_perf_events);
 /*
  * Callchain handling code.
  */
-static inline void
-callchain_store(struct perf_callchain_entry *entry,
-		u64 ip)
-{
-	if (entry->nr < PERF_MAX_STACK_DEPTH)
-		entry->ip[entry->nr++] = ip;
-}
 
 /*
  * The registers we're interested in are at the end of the variable
@@ -3039,7 +3032,7 @@ user_backtrace(struct frame_tail *tail,
 	if (__copy_from_user_inatomic(&buftail, tail, sizeof(buftail)))
 		return NULL;
 
-	callchain_store(entry, buftail.lr);
+	perf_callchain_store(entry, buftail.lr);
 
 	/*
 	 * Frame pointers should strictly progress back up the stack
@@ -3057,7 +3050,7 @@ perf_callchain_user(struct pt_regs *regs,
 {
 	struct frame_tail *tail;
 
-	callchain_store(entry, PERF_CONTEXT_USER);
+	perf_callchain_store(entry, PERF_CONTEXT_USER);
 
 	if (!user_mode(regs))
 		regs = task_pt_regs(current);
@@ -3078,7 +3071,7 @@ callchain_trace(struct stackframe *fr,
 		void *data)
 {
 	struct perf_callchain_entry *entry = data;
-	callchain_store(entry, fr->pc);
+	perf_callchain_store(entry, fr->pc);
 	return 0;
 }
 
@@ -3088,7 +3081,7 @@ perf_callchain_kernel(struct pt_regs *regs,
 {
 	struct stackframe fr;
 
-	callchain_store(entry, PERF_CONTEXT_KERNEL);
+	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 	fr.fp = regs->ARM_fp;
 	fr.sp = regs->ARM_sp;
 	fr.lr = regs->ARM_lr;

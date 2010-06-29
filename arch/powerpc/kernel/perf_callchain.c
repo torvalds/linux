@@ -23,18 +23,6 @@
 #include "ppc32.h"
 #endif
 
-/*
- * Store another value in a callchain_entry.
- */
-static inline void callchain_store(struct perf_callchain_entry *entry, u64 ip)
-{
-	unsigned int nr = entry->nr;
-
-	if (nr < PERF_MAX_STACK_DEPTH) {
-		entry->ip[nr] = ip;
-		entry->nr = nr + 1;
-	}
-}
 
 /*
  * Is sp valid as the address of the next kernel stack frame after prev_sp?
@@ -69,8 +57,8 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 
 	lr = regs->link;
 	sp = regs->gpr[1];
-	callchain_store(entry, PERF_CONTEXT_KERNEL);
-	callchain_store(entry, regs->nip);
+	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
+	perf_callchain_store(entry, regs->nip);
 
 	if (!validate_sp(sp, current, STACK_FRAME_OVERHEAD))
 		return;
@@ -89,7 +77,7 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			next_ip = regs->nip;
 			lr = regs->link;
 			level = 0;
-			callchain_store(entry, PERF_CONTEXT_KERNEL);
+			perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 
 		} else {
 			if (level == 0)
@@ -111,7 +99,7 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			++level;
 		}
 
-		callchain_store(entry, next_ip);
+		perf_callchain_store(entry, next_ip);
 		if (!valid_next_sp(next_sp, sp))
 			return;
 		sp = next_sp;
@@ -246,8 +234,8 @@ static void perf_callchain_user_64(struct pt_regs *regs,
 	next_ip = regs->nip;
 	lr = regs->link;
 	sp = regs->gpr[1];
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, next_ip);
+	perf_callchain_store(entry, PERF_CONTEXT_USER);
+	perf_callchain_store(entry, next_ip);
 
 	for (;;) {
 		fp = (unsigned long __user *) sp;
@@ -276,14 +264,14 @@ static void perf_callchain_user_64(struct pt_regs *regs,
 			    read_user_stack_64(&uregs[PT_R1], &sp))
 				return;
 			level = 0;
-			callchain_store(entry, PERF_CONTEXT_USER);
-			callchain_store(entry, next_ip);
+			perf_callchain_store(entry, PERF_CONTEXT_USER);
+			perf_callchain_store(entry, next_ip);
 			continue;
 		}
 
 		if (level == 0)
 			next_ip = lr;
-		callchain_store(entry, next_ip);
+		perf_callchain_store(entry, next_ip);
 		++level;
 		sp = next_sp;
 	}
@@ -447,8 +435,8 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 	next_ip = regs->nip;
 	lr = regs->link;
 	sp = regs->gpr[1];
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, next_ip);
+	perf_callchain_store(entry, PERF_CONTEXT_USER);
+	perf_callchain_store(entry, next_ip);
 
 	while (entry->nr < PERF_MAX_STACK_DEPTH) {
 		fp = (unsigned int __user *) (unsigned long) sp;
@@ -470,14 +458,14 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 			    read_user_stack_32(&uregs[PT_R1], &sp))
 				return;
 			level = 0;
-			callchain_store(entry, PERF_CONTEXT_USER);
-			callchain_store(entry, next_ip);
+			perf_callchain_store(entry, PERF_CONTEXT_USER);
+			perf_callchain_store(entry, next_ip);
 			continue;
 		}
 
 		if (level == 0)
 			next_ip = lr;
-		callchain_store(entry, next_ip);
+		perf_callchain_store(entry, next_ip);
 		++level;
 		sp = next_sp;
 	}

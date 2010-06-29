@@ -1571,12 +1571,6 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
  * callchain support
  */
 
-static inline
-void callchain_store(struct perf_callchain_entry *entry, u64 ip)
-{
-	if (entry->nr < PERF_MAX_STACK_DEPTH)
-		entry->ip[entry->nr++] = ip;
-}
 
 static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_irq_entry);
 static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_nmi_entry);
@@ -1602,7 +1596,7 @@ static void backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	struct perf_callchain_entry *entry = data;
 
-	callchain_store(entry, addr);
+	perf_callchain_store(entry, addr);
 }
 
 static const struct stacktrace_ops backtrace_ops = {
@@ -1616,8 +1610,8 @@ static const struct stacktrace_ops backtrace_ops = {
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
-	callchain_store(entry, PERF_CONTEXT_KERNEL);
-	callchain_store(entry, regs->ip);
+	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
+	perf_callchain_store(entry, regs->ip);
 
 	dump_trace(NULL, regs, NULL, regs->bp, &backtrace_ops, entry);
 }
@@ -1646,7 +1640,7 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		if (fp < compat_ptr(regs->sp))
 			break;
 
-		callchain_store(entry, frame.return_address);
+		perf_callchain_store(entry, frame.return_address);
 		fp = compat_ptr(frame.next_frame);
 	}
 	return 1;
@@ -1670,8 +1664,8 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 
 	fp = (void __user *)regs->bp;
 
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, regs->ip);
+	perf_callchain_store(entry, PERF_CONTEXT_USER);
+	perf_callchain_store(entry, regs->ip);
 
 	if (perf_callchain_user32(regs, entry))
 		return;
@@ -1688,7 +1682,7 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		if ((unsigned long)fp < regs->sp)
 			break;
 
-		callchain_store(entry, frame.return_address);
+		perf_callchain_store(entry, frame.return_address);
 		fp = frame.next_frame;
 	}
 }

@@ -1283,12 +1283,6 @@ void __init init_hw_perf_events(void)
 	register_die_notifier(&perf_event_nmi_notifier);
 }
 
-static inline void callchain_store(struct perf_callchain_entry *entry, u64 ip)
-{
-	if (entry->nr < PERF_MAX_STACK_DEPTH)
-		entry->ip[entry->nr++] = ip;
-}
-
 static void perf_callchain_kernel(struct pt_regs *regs,
 				  struct perf_callchain_entry *entry)
 {
@@ -1297,8 +1291,8 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 	int graph = 0;
 #endif
 
-	callchain_store(entry, PERF_CONTEXT_KERNEL);
-	callchain_store(entry, regs->tpc);
+	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
+	perf_callchain_store(entry, regs->tpc);
 
 	ksp = regs->u_regs[UREG_I6];
 	fp = ksp + STACK_BIAS;
@@ -1322,13 +1316,13 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			pc = sf->callers_pc;
 			fp = (unsigned long)sf->fp + STACK_BIAS;
 		}
-		callchain_store(entry, pc);
+		perf_callchain_store(entry, pc);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
 			int index = current->curr_ret_stack;
 			if (current->ret_stack && index >= graph) {
 				pc = current->ret_stack[index - graph].ret;
-				callchain_store(entry, pc);
+				perf_callchain_store(entry, pc);
 				graph++;
 			}
 		}
@@ -1341,8 +1335,8 @@ static void perf_callchain_user_64(struct pt_regs *regs,
 {
 	unsigned long ufp;
 
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, regs->tpc);
+	perf_callchain_store(entry, PERF_CONTEXT_USER);
+	perf_callchain_store(entry, regs->tpc);
 
 	ufp = regs->u_regs[UREG_I6] + STACK_BIAS;
 	do {
@@ -1355,7 +1349,7 @@ static void perf_callchain_user_64(struct pt_regs *regs,
 
 		pc = sf.callers_pc;
 		ufp = (unsigned long)sf.fp + STACK_BIAS;
-		callchain_store(entry, pc);
+		perf_callchain_store(entry, pc);
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
@@ -1364,8 +1358,8 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 {
 	unsigned long ufp;
 
-	callchain_store(entry, PERF_CONTEXT_USER);
-	callchain_store(entry, regs->tpc);
+	perf_callchain_store(entry, PERF_CONTEXT_USER);
+	perf_callchain_store(entry, regs->tpc);
 
 	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
@@ -1378,7 +1372,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 
 		pc = sf.callers_pc;
 		ufp = (unsigned long)sf.fp;
-		callchain_store(entry, pc);
+		perf_callchain_store(entry, pc);
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 

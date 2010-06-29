@@ -978,6 +978,13 @@ extern void perf_event_fork(struct task_struct *tsk);
 
 extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
 
+static inline void
+perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)
+{
+	if (entry->nr < PERF_MAX_STACK_DEPTH)
+		entry->ip[entry->nr++] = ip;
+}
+
 extern int sysctl_perf_event_paranoid;
 extern int sysctl_perf_event_mlock;
 extern int sysctl_perf_event_sample_rate;

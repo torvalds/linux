@@ -14,11 +14,6 @@
 #include <asm/unwinder.h>
 #include <asm/ptrace.h>
 
-static inline void callchain_store(struct perf_callchain_entry *entry, u64 ip)
-{
-	if (entry->nr < PERF_MAX_STACK_DEPTH)
-		entry->ip[entry->nr++] = ip;
-}
 
 static void callchain_warning(void *data, char *msg)
 {
@@ -39,7 +34,7 @@ static void callchain_address(void *data, unsigned long addr, int reliable)
 	struct perf_callchain_entry *entry = data;
 
 	if (reliable)
-		callchain_store(entry, addr);
+		perf_callchain_store(entry, addr);
 }
 
 static const struct stacktrace_ops callchain_ops = {
@@ -52,8 +47,8 @@ static const struct stacktrace_ops callchain_ops = {
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
-	callchain_store(entry, PERF_CONTEXT_KERNEL);
-	callchain_store(entry, regs->pc);
+	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
+	perf_callchain_store(entry, regs->pc);
 
 	unwind_stack(NULL, regs, NULL, &callchain_ops, entry);
 }
