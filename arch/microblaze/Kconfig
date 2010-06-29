@@ -17,6 +17,8 @@ config MICROBLAZE
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select TRACING_SUPPORT
+	select OF
+	select OF_FLATTREE
 
 config SWAP
 	def_bool n
@@ -125,8 +127,7 @@ config CMDLINE_FORCE
 	  override those passed by the boot loader.
 
 config OF
-	def_bool y
-	select OF_FLATTREE
+	bool
 
 config PROC_DEVICETREE
 	bool "Support for device tree in /proc"
