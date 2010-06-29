@@ -221,7 +221,7 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 
 enum {
 	WQ_FREEZEABLE		= 1 << 0, /* freeze during suspend */
-	WQ_SINGLE_THREAD	= 1 << 1, /* no per-cpu worker */
+	WQ_SINGLE_CPU		= 1 << 1, /* only single cpu at a time */
 };
 
 extern struct workqueue_struct *
@@ -250,9 +250,9 @@ __create_workqueue_key(const char *name, unsigned int flags, int max_active,
 #define create_workqueue(name)					\
 	__create_workqueue((name), 0, 1)
 #define create_freezeable_workqueue(name)			\
-	__create_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_THREAD, 1)
+	__create_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_CPU, 1)
 #define create_singlethread_workqueue(name)			\
-	__create_workqueue((name), WQ_SINGLE_THREAD, 1)
+	__create_workqueue((name), WQ_SINGLE_CPU, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
