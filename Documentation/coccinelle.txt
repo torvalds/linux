@@ -14,7 +14,7 @@ of many distributions, e.g. :
 
  - Debian (>=squeeze)
  - Fedora (>=13)
- - Ubuntu (>=10.04 Karmic Koala)
+ - Ubuntu (>=10.04 Lucid Lynx)
  - OpenSUSE
  - Arch Linux
  - NetBSD
