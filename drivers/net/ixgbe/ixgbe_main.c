@@ -6024,7 +6024,6 @@ static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
 static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 	              int queue, u32 tx_flags)
 {
-	/* Right now, we support IPv4 only */
 	struct ixgbe_atr_input atr_input;
 	struct tcphdr *th;
 	struct iphdr *iph = ip_hdr(skb);
@@ -6033,6 +6032,9 @@ static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 	u32 src_ipv4_addr, dst_ipv4_addr;
 	u8 l4type = 0;
 
+	/* Right now, we support IPv4 only */
+	if (skb->protocol != htons(ETH_P_IP))
+		return;
 	/* check if we're UDP or TCP */
 	if (iph->protocol == IPPROTO_TCP) {
 		th = tcp_hdr(skb);
