@@ -99,8 +99,7 @@ static void rt2800_bbp_write(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 0);
-		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
-			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
+		rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
 	}
@@ -128,8 +127,7 @@ static void rt2800_bbp_read(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 1);
-		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
-			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
+		rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
 
