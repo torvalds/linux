@@ -2769,6 +2769,7 @@ static int nl80211_get_mesh_params(struct sk_buff *skb,
 
  nla_put_failure:
 	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
 	err = -EMSGSIZE;
  out:
 	/* Cleanup */
@@ -2960,6 +2961,7 @@ static int nl80211_get_reg(struct sk_buff *skb, struct genl_info *info)
 
 nla_put_failure:
 	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
 	err = -EMSGSIZE;
 out:
 	mutex_unlock(&cfg80211_mutex);
