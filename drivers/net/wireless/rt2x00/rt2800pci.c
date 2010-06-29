@@ -953,6 +953,12 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
 		rt2800pci_txdone(rt2x00dev);
 
+	/*
+	 * Current beacon was sent out, fetch the next one
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT))
+		rt2x00lib_beacondone(rt2x00dev);
+
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
 		rt2800pci_wakeup(rt2x00dev);
 
