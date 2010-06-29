@@ -271,11 +271,11 @@ void rt2x00link_start_tuner(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Link tuning should only be performed when
-	 * an active sta or master interface exists.
-	 * Single monitor mode interfaces should never have
-	 * work with link tuners.
+	 * an active sta interface exists. AP interfaces
+	 * don't need link tuning and monitor mode interfaces
+	 * should never have to work with link tuners.
 	 */
-	if (!rt2x00dev->intf_ap_count && !rt2x00dev->intf_sta_count)
+	if (!rt2x00dev->intf_sta_count)
 		return;
 
 	rt2x00link_reset_tuner(rt2x00dev, false);
