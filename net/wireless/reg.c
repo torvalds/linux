@@ -1306,6 +1306,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 {
 	int r = 0;
 	struct wiphy *wiphy = NULL;
+	enum nl80211_reg_initiator initiator = reg_request->initiator;
 
 	BUG_ON(!reg_request->alpha2);
 
@@ -1325,7 +1326,7 @@ static void reg_process_hint(struct regulatory_request *reg_request)
 	/* This is required so that the orig_* parameters are saved */
 	if (r == -EALREADY && wiphy &&
 	    wiphy->flags & WIPHY_FLAG_STRICT_REGULATORY)
-		wiphy_update_regulatory(wiphy, reg_request->initiator);
+		wiphy_update_regulatory(wiphy, initiator);
 out:
 	mutex_unlock(&reg_mutex);
 	mutex_unlock(&cfg80211_mutex);
