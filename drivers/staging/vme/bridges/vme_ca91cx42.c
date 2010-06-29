@@ -963,11 +963,11 @@ int ca91cx42_dma_list_add(struct vme_dma_list *list, struct vme_dma_attr *src,
 
 	if (dest->type == VME_DMA_VME) {
 		entry->descriptor.dctl |= CA91CX42_DCTL_L2V;
-		vme_attr = (struct vme_dma_vme *)dest->private;
-		pci_attr = (struct vme_dma_pci *)src->private;
+		vme_attr = dest->private;
+		pci_attr = src->private;
 	} else {
-		vme_attr = (struct vme_dma_vme *)src->private;
-		pci_attr = (struct vme_dma_pci *)dest->private;
+		vme_attr = src->private;
+		pci_attr = dest->private;
 	}
 
 	/* Check we can do fullfill required attributes */
