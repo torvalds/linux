@@ -2660,9 +2660,24 @@ static void drbd_unplug_fn(struct request_queue *q)
 
 static void drbd_set_defaults(struct drbd_conf *mdev)
 {
-	mdev->sync_conf.after      = DRBD_AFTER_DEF;
-	mdev->sync_conf.rate       = DRBD_RATE_DEF;
-	mdev->sync_conf.al_extents = DRBD_AL_EXTENTS_DEF;
+	/* This way we get a compile error when sync_conf grows,
+	   and we forgot to initialize it here */
+	mdev->sync_conf = (struct syncer_conf) {
+		/* .rate = */		DRBD_RATE_DEF,
+		/* .after = */		DRBD_AFTER_DEF,
+		/* .al_extents = */	DRBD_AL_EXTENTS_DEF,
+		/* .dp_volume = */	DRBD_DP_VOLUME_DEF,
+		/* .dp_interval = */	DRBD_DP_INTERVAL_DEF,
+		/* .throttle_th = */	DRBD_RS_THROTTLE_TH_DEF,
+		/* .hold_off_th = */	DRBD_RS_HOLD_OFF_TH_DEF,
+		/* .verify_alg = */	{}, 0,
+		/* .cpu_mask = */	{}, 0,
+		/* .csums_alg = */	{}, 0,
+		/* .use_rle = */	0
+	};
+
+	/* Have to use that way, because the layout differs between
+	   big endian and little endian */
 	mdev->state = (union drbd_state) {
 		{ .role = R_SECONDARY,
 		  .peer = R_UNKNOWN,
