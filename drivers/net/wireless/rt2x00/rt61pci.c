@@ -2200,6 +2200,12 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	if (rt2x00_get_field32(reg_mcu, MCU_INT_SOURCE_CSR_TWAKEUP))
 		rt61pci_wakeup(rt2x00dev);
 
+	/*
+	 * 5 - Beacon done interrupt.
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_BEACON_DONE))
+		rt2x00lib_beacondone(rt2x00dev);
+
 	return IRQ_HANDLED;
 }
 
