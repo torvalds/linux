@@ -644,9 +644,15 @@ struct vortex_private {
 	u16 deferred;						/* Resend these interrupts when we
 										 * bale from the ISR */
 	u16 io_size;						/* Size of PCI region (for release_region) */
-	spinlock_t lock;					/* Serialise access to device & its vortex_private */
-	struct mii_if_info mii;				/* MII lib hooks/info */
-	int window;					/* Register window */
+
+	/* Serialises access to hardware other than MII and variables below.
+	 * The lock hierarchy is rtnl_lock > lock > mii_lock > window_lock. */
+	spinlock_t lock;
+
+	spinlock_t mii_lock;		/* Serialises access to MII */
+	struct mii_if_info mii;		/* MII lib hooks/info */
+	spinlock_t window_lock;		/* Serialises access to windowed regs */
+	int window;			/* Register window */
 };
 
 static void window_set(struct vortex_private *vp, int window)
@@ -661,15 +667,23 @@ static void window_set(struct vortex_private *vp, int window)
 static u ## size							\
 window_read ## size(struct vortex_private *vp, int window, int addr)	\
 {									\
+	unsigned long flags;						\
+	u ## size ret;							\
+	spin_lock_irqsave(&vp->window_lock, flags);			\
 	window_set(vp, window);						\
-	return ioread ## size(vp->ioaddr + addr);			\
+	ret = ioread ## size(vp->ioaddr + addr);			\
+	spin_unlock_irqrestore(&vp->window_lock, flags);		\
+	return ret;							\
 }									\
 static void								\
 window_write ## size(struct vortex_private *vp, u ## size value,	\
 		     int window, int addr)				\
 {									\
+	unsigned long flags;						\
+	spin_lock_irqsave(&vp->window_lock, flags);			\
 	window_set(vp, window);						\
 	iowrite ## size(value, vp->ioaddr + addr);			\
+	spin_unlock_irqrestore(&vp->window_lock, flags);		\
 }
 DEFINE_WINDOW_IO(8)
 DEFINE_WINDOW_IO(16)
@@ -1181,6 +1195,8 @@ static int __devinit vortex_probe1(struct device *gendev,
 	}
 
 	spin_lock_init(&vp->lock);
+	spin_lock_init(&vp->mii_lock);
+	spin_lock_init(&vp->window_lock);
 	vp->gendev = gendev;
 	vp->mii.dev = dev;
 	vp->mii.mdio_read = mdio_read;
@@ -1784,7 +1800,6 @@ vortex_timer(unsigned long data)
 		pr_debug("dev->watchdog_timeo=%d\n", dev->watchdog_timeo);
 	}
 
-	disable_irq_lockdep(dev->irq);
 	media_status = window_read16(vp, 4, Wn4_Media);
 	switch (dev->if_port) {
 	case XCVR_10baseT:  case XCVR_100baseTx:  case XCVR_100baseFx:
@@ -1805,10 +1820,7 @@ vortex_timer(unsigned long data)
 	case XCVR_MII: case XCVR_NWAY:
 		{
 			ok = 1;
-			/* Interrupts are already disabled */
-			spin_lock(&vp->lock);
 			vortex_check_media(dev, 0);
-			spin_unlock(&vp->lock);
 		}
 		break;
 	  default:					/* Other media types handled by Tx timeouts. */
@@ -1826,6 +1838,8 @@ vortex_timer(unsigned long data)
 
 	if (!ok) {
 		unsigned int config;
+
+		spin_lock_irq(&vp->lock);
 
 		do {
 			dev->if_port = media_tbl[dev->if_port].next;
@@ -1855,6 +1869,8 @@ vortex_timer(unsigned long data)
 		if (vortex_debug > 1)
 			pr_debug("wrote 0x%08x to Wn3_Config\n", config);
 		/* AKPM: FIXME: Should reset Rx & Tx here.  P60 of 3c90xc.pdf */
+
+		spin_unlock_irq(&vp->lock);
 	}
 
 leave_media_alone:
@@ -1862,7 +1878,6 @@ leave_media_alone:
 	  pr_debug("%s: Media selection timer finished, %s.\n",
 			 dev->name, media_tbl[dev->if_port].name);
 
-	enable_irq_lockdep(dev->irq);
 	mod_timer(&vp->timer, RUN_AT(next_tick));
 	if (vp->deferred)
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
@@ -2051,9 +2066,11 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		int len = (skb->len + 3) & ~3;
 		vp->tx_skb_dma = pci_map_single(VORTEX_PCI(vp), skb->data, len,
 						PCI_DMA_TODEVICE);
+		spin_lock_irq(&vp->window_lock);
 		window_set(vp, 7);
 		iowrite32(vp->tx_skb_dma, ioaddr + Wn7_MasterAddr);
 		iowrite16(len, ioaddr + Wn7_MasterLen);
+		spin_unlock_irq(&vp->window_lock);
 		vp->tx_skb = skb;
 		iowrite16(StartDMADown, ioaddr + EL3_CMD);
 		/* netif_wake_queue() will be called at the DMADone interrupt. */
@@ -2225,6 +2242,7 @@ vortex_interrupt(int irq, void *dev_id)
 		pr_debug("%s: interrupt, status %4.4x, latency %d ticks.\n",
 			   dev->name, status, ioread8(ioaddr + Timer));
 
+	spin_lock(&vp->window_lock);
 	window_set(vp, 7);
 
 	do {
@@ -2284,6 +2302,8 @@ vortex_interrupt(int irq, void *dev_id)
 		/* Acknowledge the IRQ. */
 		iowrite16(AckIntr | IntReq | IntLatch, ioaddr + EL3_CMD);
 	} while ((status = ioread16(ioaddr + EL3_STATUS)) & (IntLatch | RxComplete));
+
+	spin_unlock(&vp->window_lock);
 
 	if (vortex_debug > 4)
 		pr_debug("%s: exiting interrupt, status %4.4x.\n",
@@ -2806,37 +2826,22 @@ static void update_stats(void __iomem *ioaddr, struct net_device *dev)
 static int vortex_nway_reset(struct net_device *dev)
 {
 	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
-	int rc;
 
-	spin_lock_irqsave(&vp->lock, flags);
-	rc = mii_nway_restart(&vp->mii);
-	spin_unlock_irqrestore(&vp->lock, flags);
-	return rc;
+	return mii_nway_restart(&vp->mii);
 }
 
 static int vortex_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
-	int rc;
 
-	spin_lock_irqsave(&vp->lock, flags);
-	rc = mii_ethtool_gset(&vp->mii, cmd);
-	spin_unlock_irqrestore(&vp->lock, flags);
-	return rc;
+	return mii_ethtool_gset(&vp->mii, cmd);
 }
 
 static int vortex_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct vortex_private *vp = netdev_priv(dev);
-	unsigned long flags;
-	int rc;
 
-	spin_lock_irqsave(&vp->lock, flags);
-	rc = mii_ethtool_sset(&vp->mii, cmd);
-	spin_unlock_irqrestore(&vp->lock, flags);
-	return rc;
+	return mii_ethtool_sset(&vp->mii, cmd);
 }
 
 static u32 vortex_get_msglevel(struct net_device *dev)
@@ -3059,6 +3064,8 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 	int read_cmd = (0xf6 << 10) | (phy_id << 5) | location;
 	unsigned int retval = 0;
 
+	spin_lock_bh(&vp->mii_lock);
+
 	if (mii_preamble_required)
 		mdio_sync(vp, 32);
 
@@ -3082,6 +3089,9 @@ static int mdio_read(struct net_device *dev, int phy_id, int location)
 			       4, Wn4_PhysicalMgmt);
 		mdio_delay(vp);
 	}
+
+	spin_unlock_bh(&vp->mii_lock);
+
 	return retval & 0x20000 ? 0xffff : retval>>1 & 0xffff;
 }
 
@@ -3090,6 +3100,8 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 	struct vortex_private *vp = netdev_priv(dev);
 	int write_cmd = 0x50020000 | (phy_id << 23) | (location << 18) | value;
 	int i;
+
+	spin_lock_bh(&vp->mii_lock);
 
 	if (mii_preamble_required)
 		mdio_sync(vp, 32);
@@ -3111,6 +3123,8 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 			       4, Wn4_PhysicalMgmt);
 		mdio_delay(vp);
 	}
+
+	spin_unlock_bh(&vp->mii_lock);
 }
 
 /* ACPI: Advanced Configuration and Power Interface. */
