@@ -75,21 +75,3 @@ struct of_device *of_find_device_by_node(struct device_node *np)
 	return NULL;
 }
 EXPORT_SYMBOL(of_find_device_by_node);
-
-static int of_dev_phandle_match(struct device *dev, void *data)
-{
-	phandle *ph = data;
-	return to_of_device(dev)->dev.of_node->phandle == *ph;
-}
-
-struct of_device *of_find_device_by_phandle(phandle ph)
-{
-	struct device *dev;
-
-	dev = bus_find_device(&of_platform_bus_type,
-			      NULL, &ph, of_dev_phandle_match);
-	if (dev)
-		return to_of_device(dev);
-	return NULL;
-}
-EXPORT_SYMBOL(of_find_device_by_phandle);

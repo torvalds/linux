@@ -14,8 +14,6 @@
 /* This is just here during the transition */
 #include <linux/of_platform.h>
 
-extern struct of_device *of_find_device_by_phandle(phandle ph);
-
 extern void of_instantiate_rtc(void);
 
 #endif /* _ASM_MICROBLAZE_OF_PLATFORM_H */
