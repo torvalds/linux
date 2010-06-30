@@ -327,6 +327,16 @@ static struct ceph_cap *__get_cap_for_mds(struct ceph_inode_info *ci, int mds)
 	return NULL;
 }
 
+struct ceph_cap *ceph_get_cap_for_mds(struct ceph_inode_info *ci, int mds)
+{
+	struct ceph_cap *cap;
+
+	spin_lock(&ci->vfs_inode.i_lock);
+	cap = __get_cap_for_mds(ci, mds);
+	spin_unlock(&ci->vfs_inode.i_lock);
+	return cap;
+}
+
 /*
  * Return id of any MDS with a cap, preferably FILE_WR|BUFFER|EXCL, else -1.
  */
