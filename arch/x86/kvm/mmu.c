@@ -1810,11 +1810,14 @@ static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 	bool need_unsync = false;
 
 	for_each_gfn_indirect_valid_sp(vcpu->kvm, s, gfn, node) {
+		if (!can_unsync)
+			return 1;
+
 		if (s->role.level != PT_PAGE_TABLE_LEVEL)
 			return 1;
 
 		if (!need_unsync && !s->unsync) {
-			if (!can_unsync || !oos_shadow)
+			if (!oos_shadow)
 				return 1;
 			need_unsync = true;
 		}
