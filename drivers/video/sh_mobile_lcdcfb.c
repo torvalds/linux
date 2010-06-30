@@ -1020,13 +1020,15 @@ static int __devinit sh_mobile_lcdc_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	priv->base = ioremap_nocache(res->start, resource_size(res));
+	if (!priv->base)
+		goto err1;
+
 	error = sh_mobile_lcdc_setup_clocks(pdev, pdata->clock_source, priv);
 	if (error) {
 		dev_err(&pdev->dev, "unable to setup clocks\n");
 		goto err1;
 	}
-
-	priv->base = ioremap_nocache(res->start, (res->end - res->start) + 1);
 
 	for (i = 0; i < j; i++) {
 		cfg = &priv->ch[i].cfg;
