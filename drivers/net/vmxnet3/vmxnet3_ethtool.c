@@ -275,12 +275,6 @@ vmxnet3_get_strings(struct net_device *netdev, u32 stringset, u8 *buf)
 	}
 }
 
-static u32
-vmxnet3_get_flags(struct net_device *netdev)
-{
-	return netdev->features;
-}
-
 static int
 vmxnet3_set_flags(struct net_device *netdev, u32 data)
 {
@@ -559,7 +553,7 @@ static struct ethtool_ops vmxnet3_ethtool_ops = {
 	.get_tso           = ethtool_op_get_tso,
 	.set_tso           = ethtool_op_set_tso,
 	.get_strings       = vmxnet3_get_strings,
-	.get_flags	   = vmxnet3_get_flags,
+	.get_flags	   = ethtool_op_get_flags,
 	.set_flags	   = vmxnet3_set_flags,
 	.get_sset_count	   = vmxnet3_get_sset_count,
 	.get_ethtool_stats = vmxnet3_get_ethtool_stats,
