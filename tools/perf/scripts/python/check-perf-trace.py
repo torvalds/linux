@@ -51,8 +51,7 @@ def kmem__kmalloc(event_name, context, common_cpu,
 
 		flag_str("kmem__kmalloc", "gfp_flags", gfp_flags)),
 
-def trace_unhandled(event_name, context, common_cpu, common_secs, common_nsecs,
-		common_pid, common_comm):
+def trace_unhandled(event_name, context, event_fields_dict):
     try:
         unhandled[event_name] += 1
     except TypeError:

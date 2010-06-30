@@ -1429,7 +1429,7 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
 		status = -EBUSY;
-		goto err;
+		goto err_unlock;
 	}
 	req = cmd->va;
 	sge = nonembedded_sgl(wrb);
@@ -1457,7 +1457,10 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	else
 		status = adapter->flash_status;
 
-err:
+	return status;
+
+err_unlock:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
@@ -1497,7 +1500,7 @@ err:
 	return status;
 }
 
-extern int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
+int be_cmd_enable_magic_wol(struct be_adapter *adapter, u8 *mac,
 				struct be_dma_mem *nonemb_cmd)
 {
 	struct be_mcc_wrb *wrb;
@@ -1590,7 +1593,7 @@ int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_LOWLEVEL,
 			OPCODE_LOWLEVEL_LOOPBACK_TEST, sizeof(*req));
-	req->hdr.timeout = 4;
+	req->hdr.timeout = cpu_to_le32(4);
 
 	req->pattern = cpu_to_le64(pattern);
 	req->src_port = cpu_to_le32(port_num);
@@ -1662,7 +1665,7 @@ err:
 	return status;
 }
 
-extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
+int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 				struct be_dma_mem *nonemb_cmd)
 {
 	struct be_mcc_wrb *wrb;

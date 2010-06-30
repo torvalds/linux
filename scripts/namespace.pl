@@ -175,12 +175,11 @@ sub do_nm
 	}
 	if (! -e "$source.c" && ! -e "$source.S") {
 		# No obvious source, exclude the object if it is conglomerate
-		if (! open(OBJDUMPDATA, "$objdump $basename|")) {
-			printf STDERR "$objdump $fullname failed $!\n";
-			return;
-		}
+	        open(my $objdumpdata, "$objdump $basename|")
+		    or die "$objdump $fullname failed $!\n";
+
 		my $comment;
-		while (<OBJDUMPDATA>) {
+		while (<$objdumpdata>) {
 			chomp();
 			if (/^In archive/) {
 				# Archives are always conglomerate
@@ -190,18 +189,18 @@ sub do_nm
 			next if (! /^[ 0-9a-f]{5,} /);
 			$comment .= substr($_, 43);
 		}
-		close(OBJDUMPDATA);
+		close($objdumpdata);
+
 		if (!defined($comment) || $comment !~ /GCC\:.*GCC\:/m) {
 			printf STDERR "No source file found for $fullname\n";
 		}
 		return;
 	}
-	if (! open(NMDATA, "$nm $basename|")) {
-		printf STDERR "$nm $fullname failed $!\n";
-		return;
-	}
+	open (my $nmdata, "$nm $basename|")
+	    or die "$nm $fullname failed $!\n";
+
 	my @nmdata;
-	while (<NMDATA>) {
+	while (<$nmdata>) {
 		chop;
 		($type, $name) = (split(/ +/, $_, 3))[1..2];
 		# Expected types
@@ -268,7 +267,8 @@ sub do_nm
 			}
 		}
 	}
-	close(NMDATA);
+	close($nmdata);
+
 	if ($#nmdata < 0) {
 		if (
 			$fullname ne "lib/brlock.o"
@@ -316,8 +316,7 @@ sub drop_def
 
 sub list_multiply_defined
 {
-	my ($name, $module);
-	foreach $name (keys(%def)) {
+	foreach my $name (keys(%def)) {
 		if ($#{$def{$name}} > 0) {
 			# Special case for cond_syscall
 			if ($#{$def{$name}} == 1 && $name =~ /^sys_/ &&
@@ -333,8 +332,9 @@ sub list_multiply_defined
 				&drop_def("arch/x86/kernel/vsyscall-sysenter_32.o", $name);
 				next;
 			}
+
 			printf "$name is multiply defined in :-\n";
-			foreach $module (@{$def{$name}}) {
+			foreach my $module (@{$def{$name}}) {
 				printf "\t$module\n";
 			}
 		}
@@ -343,12 +343,13 @@ sub list_multiply_defined
 
 sub resolve_external_references
 {
-	my ($object, $type, $name, $i, $j, $kstrtab, $ksymtab, $export);
+	my ($kstrtab, $ksymtab, $export);
+
 	printf "\n";
-	foreach $object (keys(%nmdata)) {
+	foreach my $object (keys(%nmdata)) {
 		my $nmdata = $nmdata{$object};
-		for ($i = 0; $i <= $#{$nmdata}; ++$i) {
-			($type, $name) = split(' ', $nmdata->[$i], 2);
+		for (my $i = 0; $i <= $#{$nmdata}; ++$i) {
+			my ($type, $name) = split(' ', $nmdata->[$i], 2);
 			if ($type eq "U" || $type eq "w") {
 				if (exists($def{$name}) || exists($ksymtab{$name})) {
 					# add the owning object to the nmdata
@@ -357,7 +358,7 @@ sub resolve_external_references
 					$kstrtab = "R __kstrtab_$name";
 					$ksymtab = "R __ksymtab_$name";
 					$export = 0;
-					for ($j = 0; $j <= $#{$nmdata}; ++$j) {
+					for (my $j = 0; $j <= $#{$nmdata}; ++$j) {
 						if ($nmdata->[$j] eq $kstrtab ||
 						    $nmdata->[$j] eq $ksymtab) {
 							$export = 1;
@@ -424,11 +425,11 @@ sub resolve_external_references
 sub list_extra_externals
 {
 	my %noref = ();
-	my ($name, @module, $module, $export);
-	foreach $name (keys(%def)) {
+
+	foreach my $name (keys(%def)) {
 		if (! exists($ref{$name})) {
-			@module = @{$def{$name}};
-			foreach $module (@module) {
+			my @module = @{$def{$name}};
+			foreach my $module (@module) {
 				if (! exists($noref{$module})) {
 					$noref{$module} = [];
 				}
@@ -438,16 +439,16 @@ sub list_extra_externals
 	}
 	if (%noref) {
 		printf "\nExternally defined symbols with no external references\n";
-		foreach $module (sort(keys(%noref))) {
+		foreach my $module (sort(keys(%noref))) {
 			printf "  $module\n";
 			foreach (sort(@{$noref{$module}})) {
-				if (exists($export{$_})) {
-					$export = " (export only)";
-				}
-				else {
-					$export = "";
-				}
-				printf "    $_$export\n";
+			    my $export;
+			    if (exists($export{$_})) {
+				$export = " (export only)";
+			    } else {
+				$export = "";
+			    }
+			    printf "    $_$export\n";
 			}
 		}
 	}

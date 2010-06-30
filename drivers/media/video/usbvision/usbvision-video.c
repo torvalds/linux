@@ -1671,8 +1671,7 @@ static void __devexit usbvision_disconnect(struct usb_interface *intf)
 	PDEBUG(DBG_PROBE, "");
 
 	if (usbvision == NULL) {
-		dev_err(&usbvision->dev->dev,
-			"%s: usb_get_intfdata() failed\n", __func__);
+		pr_err("%s: usb_get_intfdata() failed\n", __func__);
 		return;
 	}
 

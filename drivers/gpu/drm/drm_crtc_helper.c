@@ -860,19 +860,24 @@ static void output_poll_execute(struct slow_work *work)
 	}
 }
 
-void drm_kms_helper_poll_init(struct drm_device *dev)
+void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
-	struct drm_connector *connector;
+	if (!dev->mode_config.poll_enabled)
+		return;
+	delayed_slow_work_cancel(&dev->mode_config.output_poll_slow_work);
+}
+EXPORT_SYMBOL(drm_kms_helper_poll_disable);
+
+void drm_kms_helper_poll_enable(struct drm_device *dev)
+{
 	bool poll = false;
+	struct drm_connector *connector;
 	int ret;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->polled)
 			poll = true;
 	}
-	slow_work_register_user(THIS_MODULE);
-	delayed_slow_work_init(&dev->mode_config.output_poll_slow_work,
-			       &output_poll_ops);
 
 	if (poll) {
 		ret = delayed_slow_work_enqueue(&dev->mode_config.output_poll_slow_work, DRM_OUTPUT_POLL_PERIOD);
@@ -880,11 +885,22 @@ void drm_kms_helper_poll_init(struct drm_device *dev)
 			DRM_ERROR("delayed enqueue failed %d\n", ret);
 	}
 }
+EXPORT_SYMBOL(drm_kms_helper_poll_enable);
+
+void drm_kms_helper_poll_init(struct drm_device *dev)
+{
+	slow_work_register_user(THIS_MODULE);
+	delayed_slow_work_init(&dev->mode_config.output_poll_slow_work,
+			       &output_poll_ops);
+	dev->mode_config.poll_enabled = true;
+
+	drm_kms_helper_poll_enable(dev);
+}
 EXPORT_SYMBOL(drm_kms_helper_poll_init);
 
 void drm_kms_helper_poll_fini(struct drm_device *dev)
 {
-	delayed_slow_work_cancel(&dev->mode_config.output_poll_slow_work);
+	drm_kms_helper_poll_disable(dev);
 	slow_work_unregister_user(THIS_MODULE);
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);

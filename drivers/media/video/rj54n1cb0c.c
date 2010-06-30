@@ -481,10 +481,10 @@ static int reg_write_multiple(struct i2c_client *client,
 	return 0;
 }
 
-static int rj54n1_enum_fmt(struct v4l2_subdev *sd, int index,
+static int rj54n1_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(rj54n1_colour_fmts))
+	if (index >= ARRAY_SIZE(rj54n1_colour_fmts))
 		return -EINVAL;
 
 	*code = rj54n1_colour_fmts[index].code;
@@ -1444,7 +1444,6 @@ static int rj54n1_probe(struct i2c_client *client,
 	ret = rj54n1_video_probe(icd, client, rj54n1_priv);
 	if (ret < 0) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(rj54n1);
 		return ret;
 	}
@@ -1461,7 +1460,6 @@ static int rj54n1_remove(struct i2c_client *client)
 	icd->ops = NULL;
 	if (icl->free_bus)
 		icl->free_bus(icl);
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(rj54n1);
 

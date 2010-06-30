@@ -363,13 +363,7 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 					0x02, arg);
 		msleep(10);
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 0);
-		if (rc < 0)
-			return rc;
-		msleep(10);
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 1);
+		rc = tm6000_i2c_reset(dev, 10);
 		break;
 	case XC2028_TUNER_RESET:
 		/* Reset codes during load firmware */
@@ -423,14 +417,7 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 			break;
 
 		case 2:
-			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 0);
-			if (rc < 0)
-				return rc;
-			msleep(100);
-			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 1);
-			msleep(100);
+			rc = tm6000_i2c_reset(dev, 100);
 			break;
 		}
 	}
@@ -563,7 +550,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 
 	switch (dev->tuner_type) {
 	case TUNER_XC2028:
-		tun_setup.tuner_callback = tm6000_tuner_callback;;
+		tun_setup.tuner_callback = tm6000_tuner_callback;
 		break;
 	case TUNER_XC5000:
 		tun_setup.tuner_callback = tm6000_xc5000_callback;
@@ -691,6 +678,10 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	rc = tm6000_v4l2_register(dev);
 	if (rc < 0)
 		goto err;
+
+	tm6000_add_into_devlist(dev);
+
+	tm6000_init_extension(dev);
 
 	if (dev->caps.has_dvb) {
 		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
@@ -921,6 +912,25 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	}
 #endif
 
+	if (dev->gpio.power_led) {
+		switch (dev->model) {
+		case TM6010_BOARD_HAUPPAUGE_900H:
+		case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+		case TM6010_BOARD_TWINHAN_TU501:
+			/* Power led off */
+			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+				dev->gpio.power_led, 0x01);
+			msleep(15);
+			break;
+		case TM6010_BOARD_BEHOLD_WANDER:
+		case TM6010_BOARD_BEHOLD_VOYAGER:
+			/* Power led off */
+			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+				dev->gpio.power_led, 0x00);
+			msleep(15);
+			break;
+		}
+	}
 	tm6000_v4l2_unregister(dev);
 
 	tm6000_i2c_unregister(dev);
@@ -930,6 +940,9 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	dev->state |= DEV_DISCONNECTED;
 
 	usb_put_dev(dev->udev);
+
+	tm6000_remove_from_devlist(dev);
+	tm6000_close_extension(dev);
 
 	mutex_unlock(&dev->lock);
 	kfree(dev);

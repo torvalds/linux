@@ -686,7 +686,7 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 static void __cpuinit announce_cpu(int cpu, int apicid)
 {
 	static int current_node = -1;
-	int node = cpu_to_node(cpu);
+	int node = early_cpu_to_node(cpu);
 
 	if (system_state == SYSTEM_BOOTING) {
 		if (node != current_node) {

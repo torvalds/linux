@@ -503,7 +503,6 @@ static int __cmd_record(int argc, const char **argv)
 {
 	int i, counter;
 	struct stat st;
-	pid_t pid = 0;
 	int flags;
 	int err;
 	unsigned long waking = 0;
@@ -572,7 +571,7 @@ static int __cmd_record(int argc, const char **argv)
 
 	if (forks) {
 		child_pid = fork();
-		if (pid < 0) {
+		if (child_pid < 0) {
 			perror("failed to fork");
 			exit(-1);
 		}

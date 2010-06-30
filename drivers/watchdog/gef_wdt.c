@@ -273,7 +273,7 @@ static int __devinit gef_wdt_probe(struct of_device *dev,
 		bus_clk = freq;
 
 	/* Map devices registers into memory */
-	gef_wdt_regs = of_iomap(dev->node, 0);
+	gef_wdt_regs = of_iomap(dev->dev.of_node, 0);
 	if (gef_wdt_regs == NULL)
 		return -ENOMEM;
 

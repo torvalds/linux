@@ -965,7 +965,7 @@ static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
 		 * Parse hexa addresses followed by ':'
 		 */
 		line_ip = strtoull(tmp, &tmp2, 16);
-		if (*tmp2 != ':')
+		if (*tmp2 != ':' || tmp == tmp2)
 			line_ip = -1;
 	}
 

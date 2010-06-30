@@ -643,7 +643,6 @@ static int __devexit at24_remove(struct i2c_client *client)
 
 	kfree(at24->writebuf);
 	kfree(at24);
-	i2c_set_clientdata(client, NULL);
 	return 0;
 }
 

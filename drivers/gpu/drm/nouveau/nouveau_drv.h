@@ -851,12 +851,17 @@ extern int  nouveau_dma_init(struct nouveau_channel *);
 extern int  nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 
 /* nouveau_acpi.c */
+#define ROM_BIOS_PAGE 4096
 #if defined(CONFIG_ACPI)
 void nouveau_register_dsm_handler(void);
 void nouveau_unregister_dsm_handler(void);
+int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len);
+bool nouveau_acpi_rom_supported(struct pci_dev *pdev);
 #else
 static inline void nouveau_register_dsm_handler(void) {}
 static inline void nouveau_unregister_dsm_handler(void) {}
+static inline bool nouveau_acpi_rom_supported(struct pci_dev *pdev) { return false; }
+static inline int nouveau_acpi_get_bios_chunk(uint8_t *bios, int offset, int len) { return -EINVAL; }
 #endif
 
 /* nouveau_backlight.c */

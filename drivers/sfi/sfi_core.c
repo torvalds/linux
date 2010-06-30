@@ -441,8 +441,10 @@ struct sfi_table_attr __init *sfi_sysfs_install_table(u64 pa)
 
 	ret = sysfs_create_bin_file(tables_kobj,
 				  &tbl_attr->attr);
-	if (ret)
+	if (ret) {
 		kfree(tbl_attr);
+		tbl_attr = NULL;
+	}
 
 	sfi_unmap_table(th);
 	return tbl_attr;

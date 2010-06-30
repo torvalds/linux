@@ -761,7 +761,7 @@ static int __init kvm_s390_init(void)
 	 * to hold the maximum amount of facilites. On the other hand, we
 	 * only set facilities that are known to work in KVM.
 	 */
-	facilities = (unsigned long long *) get_zeroed_page(GFP_DMA);
+	facilities = (unsigned long long *) get_zeroed_page(GFP_KERNEL|GFP_DMA);
 	if (!facilities) {
 		kvm_exit();
 		return -ENOMEM;

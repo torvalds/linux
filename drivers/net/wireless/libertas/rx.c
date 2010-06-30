@@ -329,9 +329,8 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	/* create the exported radio header */
 
 	/* radiotap header */
-	radiotap_hdr.hdr.it_version = 0;
-	/* XXX must check this value for pad */
-	radiotap_hdr.hdr.it_pad = 0;
+	memset(&radiotap_hdr, 0, sizeof(radiotap_hdr));
+	/* XXX must check radiotap_hdr.hdr.it_pad for pad */
 	radiotap_hdr.hdr.it_len = cpu_to_le16 (sizeof(struct rx_radiotap_hdr));
 	radiotap_hdr.hdr.it_present = cpu_to_le32 (RX_RADIOTAP_PRESENT);
 	radiotap_hdr.rate = convert_mv_rate_to_radiotap(prxpd->rx_rate);

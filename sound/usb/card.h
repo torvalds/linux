@@ -25,6 +25,7 @@ struct audioformat {
 	unsigned int rate_min, rate_max;	/* min/max rates */
 	unsigned int nr_rates;		/* number of rate table entries */
 	unsigned int *rate_table;	/* rate table */
+	unsigned char clock;		/* associated clock */
 };
 
 struct snd_usb_substream;

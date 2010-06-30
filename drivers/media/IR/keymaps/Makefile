@@ -6,7 +6,8 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-avermedia.o \
 			rc-avermedia-cardbus.o \
 			rc-avermedia-dvbt.o \
-			rc-avermedia-m135a-rm-jx.o \
+			rc-avermedia-m135a.o \
+			rc-avermedia-m733a-rm-k6.o \
 			rc-avertv-303.o \
 			rc-behold.o \
 			rc-behold-columbus.o \

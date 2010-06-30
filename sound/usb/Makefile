@@ -11,7 +11,8 @@ snd-usb-audio-objs := 	card.o \
 			endpoint.o \
 			urb.o \
 			pcm.o \
-			helper.o
+			helper.o \
+			clock.o
 
 snd-usbmidi-lib-objs := midi.o
 

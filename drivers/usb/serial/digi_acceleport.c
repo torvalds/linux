@@ -1239,8 +1239,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	/* port and serial sanity check */
 	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		dev_err(&port->dev,
-			"%s: port or port->private is NULL, status=%d\n",
+		pr_err("%s: port or port->private is NULL, status=%d\n",
 			__func__, status);
 		return;
 	}

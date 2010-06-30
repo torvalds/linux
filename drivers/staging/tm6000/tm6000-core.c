@@ -153,6 +153,22 @@ int tm6000_get_reg32 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 	return buf[3] | buf[2] << 8 | buf[1] << 16 | buf[0] << 24;
 }
 
+int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep)
+{
+	int rc;
+
+	rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_CLK, 0);
+	if (rc < 0)
+		return rc;
+
+	msleep(tsleep);
+
+	rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_CLK, 1);
+	msleep(tsleep);
+
+	return rc;
+}
+
 void tm6000_set_fourcc_format(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {
@@ -323,6 +339,12 @@ int tm6000_init_analog_mode (struct tm6000_core *dev)
 	tm6000_set_standard (dev, &dev->norm);
 	tm6000_set_audio_bitrate (dev,48000);
 
+	/* switch dvb led off */
+	if (dev->gpio.dvb_led) {
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+			dev->gpio.dvb_led, 0x01);
+	}
+
 	return 0;
 }
 
@@ -375,6 +397,13 @@ int tm6000_init_digital_mode (struct tm6000_core *dev)
 		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
 		msleep(100);
 	}
+
+	/* switch dvb led on */
+	if (dev->gpio.dvb_led) {
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+			dev->gpio.dvb_led, 0x00);
+	}
+
 	return 0;
 }
 
@@ -600,3 +629,95 @@ printk("Original value=%d\n",val);
 	return val;
 }
 EXPORT_SYMBOL_GPL(tm6000_set_audio_bitrate);
+
+static LIST_HEAD(tm6000_devlist);
+static DEFINE_MUTEX(tm6000_devlist_mutex);
+
+/*
+ * tm6000_realease_resource()
+ */
+
+void tm6000_remove_from_devlist(struct tm6000_core *dev)
+{
+	mutex_lock(&tm6000_devlist_mutex);
+	list_del(&dev->devlist);
+	mutex_unlock(&tm6000_devlist_mutex);
+};
+
+void tm6000_add_into_devlist(struct tm6000_core *dev)
+{
+	mutex_lock(&tm6000_devlist_mutex);
+	list_add_tail(&dev->devlist, &tm6000_devlist);
+	mutex_unlock(&tm6000_devlist_mutex);
+};
+
+/*
+ * Extension interface
+ */
+
+static LIST_HEAD(tm6000_extension_devlist);
+static DEFINE_MUTEX(tm6000_extension_devlist_lock);
+
+int tm6000_register_extension(struct tm6000_ops *ops)
+{
+	struct tm6000_core *dev = NULL;
+
+	mutex_lock(&tm6000_devlist_mutex);
+	mutex_lock(&tm6000_extension_devlist_lock);
+	list_add_tail(&ops->next, &tm6000_extension_devlist);
+	list_for_each_entry(dev, &tm6000_devlist, devlist) {
+		if (dev)
+			ops->init(dev);
+	}
+	printk(KERN_INFO "tm6000: Initialized (%s) extension\n", ops->name);
+	mutex_unlock(&tm6000_extension_devlist_lock);
+	mutex_unlock(&tm6000_devlist_mutex);
+	return 0;
+}
+EXPORT_SYMBOL(tm6000_register_extension);
+
+void tm6000_unregister_extension(struct tm6000_ops *ops)
+{
+	struct tm6000_core *dev = NULL;
+
+	mutex_lock(&tm6000_devlist_mutex);
+	list_for_each_entry(dev, &tm6000_devlist, devlist) {
+		if (dev)
+			ops->fini(dev);
+	}
+
+	mutex_lock(&tm6000_extension_devlist_lock);
+	printk(KERN_INFO "tm6000: Remove (%s) extension\n", ops->name);
+	list_del(&ops->next);
+	mutex_unlock(&tm6000_extension_devlist_lock);
+	mutex_unlock(&tm6000_devlist_mutex);
+}
+EXPORT_SYMBOL(tm6000_unregister_extension);
+
+void tm6000_init_extension(struct tm6000_core *dev)
+{
+	struct tm6000_ops *ops = NULL;
+
+	mutex_lock(&tm6000_extension_devlist_lock);
+	if (!list_empty(&tm6000_extension_devlist)) {
+		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
+			if (ops->init)
+				ops->init(dev);
+		}
+	}
+	mutex_unlock(&tm6000_extension_devlist_lock);
+}
+
+void tm6000_close_extension(struct tm6000_core *dev)
+{
+	struct tm6000_ops *ops = NULL;
+
+	mutex_lock(&tm6000_extension_devlist_lock);
+	if (!list_empty(&tm6000_extension_devlist)) {
+		list_for_each_entry(ops, &tm6000_extension_devlist, next) {
+			if (ops->fini)
+				ops->fini(dev);
+		}
+	}
+	mutex_unlock(&tm6000_extension_devlist_lock);
+}

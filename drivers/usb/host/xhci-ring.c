@@ -1071,12 +1071,32 @@ bandwidth_change:
 			xhci_warn(xhci, "Reset device command completion "
 					"for disabled slot %u\n", slot_id);
 		break;
+	case TRB_TYPE(TRB_NEC_GET_FW):
+		if (!(xhci->quirks & XHCI_NEC_HOST)) {
+			xhci->error_bitmask |= 1 << 6;
+			break;
+		}
+		xhci_dbg(xhci, "NEC firmware version %2x.%02x\n",
+				NEC_FW_MAJOR(event->status),
+				NEC_FW_MINOR(event->status));
+		break;
 	default:
 		/* Skip over unknown commands on the event ring */
 		xhci->error_bitmask |= 1 << 6;
 		break;
 	}
 	inc_deq(xhci, xhci->cmd_ring, false);
+}
+
+static void handle_vendor_event(struct xhci_hcd *xhci,
+		union xhci_trb *event)
+{
+	u32 trb_type;
+
+	trb_type = TRB_FIELD_TO_TYPE(event->generic.field[3]);
+	xhci_dbg(xhci, "Vendor specific event TRB type = %u\n", trb_type);
+	if (trb_type == TRB_NEC_CMD_COMP && (xhci->quirks & XHCI_NEC_HOST))
+		handle_cmd_completion(xhci, &event->event_cmd);
 }
 
 static void handle_port_status(struct xhci_hcd *xhci,
@@ -1659,7 +1679,10 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 			update_ptrs = 0;
 		break;
 	default:
-		xhci->error_bitmask |= 1 << 3;
+		if ((event->event_cmd.flags & TRB_TYPE_BITMASK) >= TRB_TYPE(48))
+			handle_vendor_event(xhci, event);
+		else
+			xhci->error_bitmask |= 1 << 3;
 	}
 	/* Any of the above functions may drop and re-acquire the lock, so check
 	 * to make sure a watchdog timer didn't mark the host as non-responsive.
@@ -2376,6 +2399,12 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
 			false);
+}
+
+int xhci_queue_vendor_command(struct xhci_hcd *xhci,
+		u32 field1, u32 field2, u32 field3, u32 field4)
+{
+	return queue_command(xhci, field1, field2, field3, field4, false);
 }
 
 /* Queue a reset device command TRB */

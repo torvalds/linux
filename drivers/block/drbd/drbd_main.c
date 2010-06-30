@@ -1215,18 +1215,17 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	     ns.pdsk == D_OUTDATED)) {
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
-			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE &&
-			    !atomic_read(&mdev->new_c_uuid))
-				atomic_set(&mdev->new_c_uuid, 2);
+			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
+				drbd_uuid_new_current(mdev);
+				drbd_send_uuids(mdev);
+			}
 			put_ldev(mdev);
 		}
 	}
 
 	if (ns.pdsk < D_INCONSISTENT && get_ldev(mdev)) {
-		/* Diskless peer becomes primary or got connected do diskless, primary peer. */
-		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0 &&
-		    !atomic_read(&mdev->new_c_uuid))
-			atomic_set(&mdev->new_c_uuid, 2);
+		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0)
+			drbd_uuid_new_current(mdev);
 
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
@@ -1350,24 +1349,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	drbd_md_sync(mdev);
 }
 
-static int w_new_current_uuid(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-{
-	if (get_ldev(mdev)) {
-		if (mdev->ldev->md.uuid[UI_BITMAP] == 0) {
-			drbd_uuid_new_current(mdev);
-			if (get_net_conf(mdev)) {
-				drbd_send_uuids(mdev);
-				put_net_conf(mdev);
-			}
-			drbd_md_sync(mdev);
-		}
-		put_ldev(mdev);
-	}
-	atomic_dec(&mdev->new_c_uuid);
-	wake_up(&mdev->misc_wait);
-
-	return 1;
-}
 
 static int drbd_thread_setup(void *arg)
 {
@@ -2291,9 +2272,9 @@ static int we_should_drop_the_connection(struct drbd_conf *mdev, struct socket *
  * with page_count == 0 or PageSlab.
  */
 static int _drbd_no_send_page(struct drbd_conf *mdev, struct page *page,
-		   int offset, size_t size)
+		   int offset, size_t size, unsigned msg_flags)
 {
-	int sent = drbd_send(mdev, mdev->data.socket, kmap(page) + offset, size, 0);
+	int sent = drbd_send(mdev, mdev->data.socket, kmap(page) + offset, size, msg_flags);
 	kunmap(page);
 	if (sent == size)
 		mdev->send_cnt += size>>9;
@@ -2301,7 +2282,7 @@ static int _drbd_no_send_page(struct drbd_conf *mdev, struct page *page,
 }
 
 static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
-		    int offset, size_t size)
+		    int offset, size_t size, unsigned msg_flags)
 {
 	mm_segment_t oldfs = get_fs();
 	int sent, ok;
@@ -2314,14 +2295,15 @@ static int _drbd_send_page(struct drbd_conf *mdev, struct page *page,
 	 * __page_cache_release a page that would actually still be referenced
 	 * by someone, leading to some obscure delayed Oops somewhere else. */
 	if (disable_sendpage || (page_count(page) < 1) || PageSlab(page))
-		return _drbd_no_send_page(mdev, page, offset, size);
+		return _drbd_no_send_page(mdev, page, offset, size, msg_flags);
 
+	msg_flags |= MSG_NOSIGNAL;
 	drbd_update_congested(mdev);
 	set_fs(KERNEL_DS);
 	do {
 		sent = mdev->data.socket->ops->sendpage(mdev->data.socket, page,
 							offset, len,
-							MSG_NOSIGNAL);
+							msg_flags);
 		if (sent == -EAGAIN) {
 			if (we_should_drop_the_connection(mdev,
 							  mdev->data.socket))
@@ -2350,9 +2332,11 @@ static int _drbd_send_bio(struct drbd_conf *mdev, struct bio *bio)
 {
 	struct bio_vec *bvec;
 	int i;
+	/* hint all but last page with MSG_MORE */
 	__bio_for_each_segment(bvec, bio, i, 0) {
 		if (!_drbd_no_send_page(mdev, bvec->bv_page,
-				     bvec->bv_offset, bvec->bv_len))
+				     bvec->bv_offset, bvec->bv_len,
+				     i == bio->bi_vcnt -1 ? 0 : MSG_MORE))
 			return 0;
 	}
 	return 1;
@@ -2362,12 +2346,13 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 {
 	struct bio_vec *bvec;
 	int i;
+	/* hint all but last page with MSG_MORE */
 	__bio_for_each_segment(bvec, bio, i, 0) {
 		if (!_drbd_send_page(mdev, bvec->bv_page,
-				     bvec->bv_offset, bvec->bv_len))
+				     bvec->bv_offset, bvec->bv_len,
+				     i == bio->bi_vcnt -1 ? 0 : MSG_MORE))
 			return 0;
 	}
-
 	return 1;
 }
 
@@ -2375,9 +2360,11 @@ static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 {
 	struct page *page = e->pages;
 	unsigned len = e->size;
+	/* hint all but last page with MSG_MORE */
 	page_chain_for_each(page) {
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
-		if (!_drbd_send_page(mdev, page, 0, l))
+		if (!_drbd_send_page(mdev, page, 0, l,
+				page_chain_next(page) ? MSG_MORE : 0))
 			return 0;
 		len -= l;
 	}
@@ -2457,11 +2444,11 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 	p.dp_flags = cpu_to_be32(dp_flags);
 	set_bit(UNPLUG_REMOTE, &mdev->flags);
 	ok = (sizeof(p) ==
-		drbd_send(mdev, mdev->data.socket, &p, sizeof(p), MSG_MORE));
+		drbd_send(mdev, mdev->data.socket, &p, sizeof(p), dgs ? MSG_MORE : 0));
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, dgb);
-		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, MSG_MORE);
+		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
 	}
 	if (ok) {
 		if (mdev->net_conf->wire_protocol == DRBD_PROT_A)
@@ -2510,11 +2497,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 		return 0;
 
 	ok = sizeof(p) == drbd_send(mdev, mdev->data.socket, &p,
-					sizeof(p), MSG_MORE);
+					sizeof(p), dgs ? MSG_MORE : 0);
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
 		drbd_csum_ee(mdev, mdev->integrity_w_tfm, e, dgb);
-		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, MSG_MORE);
+		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, 0);
 	}
 	if (ok)
 		ok = _drbd_send_zc_ee(mdev, e);
@@ -2708,7 +2695,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->net_cnt, 0);
 	atomic_set(&mdev->packet_seq, 0);
 	atomic_set(&mdev->pp_in_use, 0);
-	atomic_set(&mdev->new_c_uuid, 0);
 
 	mutex_init(&mdev->md_io_mutex);
 	mutex_init(&mdev->data.mutex);
@@ -2739,14 +2725,12 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&mdev->bm_io_work.w.list);
 	INIT_LIST_HEAD(&mdev->delay_probes);
 	INIT_LIST_HEAD(&mdev->delay_probe_work.list);
-	INIT_LIST_HEAD(&mdev->uuid_work.list);
 
 	mdev->resync_work.cb  = w_resync_inactive;
 	mdev->unplug_work.cb  = w_send_write_hint;
 	mdev->md_sync_work.cb = w_md_sync;
 	mdev->bm_io_work.w.cb = w_bitmap_io;
 	mdev->delay_probe_work.cb = w_delay_probes;
-	mdev->uuid_work.cb = w_new_current_uuid;
 	init_timer(&mdev->resync_timer);
 	init_timer(&mdev->md_sync_timer);
 	init_timer(&mdev->delay_probe_timer);
@@ -3799,7 +3783,7 @@ _drbd_insert_fault(struct drbd_conf *mdev, unsigned int type)
 	if (ret) {
 		fault_count++;
 
-		if (printk_ratelimit())
+		if (__ratelimit(&drbd_ratelimit_state))
 			dev_warn(DEV, "***Simulating %s failure\n",
 				_drbd_fault_str(type));
 	}

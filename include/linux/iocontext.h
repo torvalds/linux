@@ -7,7 +7,6 @@
 struct cfq_queue;
 struct cfq_io_context {
 	void *key;
-	unsigned long dead_key;
 
 	struct cfq_queue *cfqq[2];
 

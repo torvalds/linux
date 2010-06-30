@@ -71,7 +71,7 @@ static int soc_camera_platform_try_fmt(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_core_ops platform_subdev_core_ops;
 
-static int soc_camera_platform_enum_fmt(struct v4l2_subdev *sd, int index,
+static int soc_camera_platform_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 					enum v4l2_mbus_pixelcode *code)
 {
 	struct soc_camera_platform_info *p = v4l2_get_subdevdata(sd);

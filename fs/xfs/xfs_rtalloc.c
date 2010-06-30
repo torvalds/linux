@@ -2247,7 +2247,7 @@ xfs_rtmount_init(
 		cmn_err(CE_WARN, "XFS: realtime mount -- %llu != %llu",
 			(unsigned long long) XFS_BB_TO_FSB(mp, d),
 			(unsigned long long) mp->m_sb.sb_rblocks);
-		return XFS_ERROR(E2BIG);
+		return XFS_ERROR(EFBIG);
 	}
 	error = xfs_read_buf(mp, mp->m_rtdev_targp,
 				d - XFS_FSB_TO_BB(mp, 1),
@@ -2256,7 +2256,7 @@ xfs_rtmount_init(
 		cmn_err(CE_WARN,
 	"XFS: realtime mount -- xfs_read_buf failed, returned %d", error);
 		if (error == ENOSPC)
-			return XFS_ERROR(E2BIG);
+			return XFS_ERROR(EFBIG);
 		return error;
 	}
 	xfs_buf_relse(bp);

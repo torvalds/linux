@@ -1186,8 +1186,7 @@ int em28xx_register_extension(struct em28xx_ops *ops)
 	mutex_lock(&em28xx_devlist_mutex);
 	list_add_tail(&ops->next, &em28xx_extension_devlist);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
-		if (dev)
-			ops->init(dev);
+		ops->init(dev);
 	}
 	printk(KERN_INFO "Em28xx: Initialized (%s) extension\n", ops->name);
 	mutex_unlock(&em28xx_devlist_mutex);
@@ -1201,10 +1200,8 @@ void em28xx_unregister_extension(struct em28xx_ops *ops)
 
 	mutex_lock(&em28xx_devlist_mutex);
 	list_for_each_entry(dev, &em28xx_devlist, devlist) {
-		if (dev)
-			ops->fini(dev);
+		ops->fini(dev);
 	}
-
 	printk(KERN_INFO "Em28xx: Removed (%s) extension\n", ops->name);
 	list_del(&ops->next);
 	mutex_unlock(&em28xx_devlist_mutex);

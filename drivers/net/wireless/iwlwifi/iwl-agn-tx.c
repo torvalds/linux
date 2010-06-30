@@ -1125,6 +1125,7 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
 	struct ieee80211_sta *sta;
 	struct iwl_station_priv *sta_priv;
 
+	rcu_read_lock();
 	sta = ieee80211_find_sta(priv->vif, hdr->addr1);
 	if (sta) {
 		sta_priv = (void *)sta->drv_priv;
@@ -1133,6 +1134,7 @@ static void iwlagn_tx_status(struct iwl_priv *priv, struct sk_buff *skb)
 		    atomic_dec_return(&sta_priv->pending_frames) == 0)
 			ieee80211_sta_block_awake(priv->hw, sta, false);
 	}
+	rcu_read_unlock();
 
 	ieee80211_tx_status_irqsafe(priv->hw, skb);
 }

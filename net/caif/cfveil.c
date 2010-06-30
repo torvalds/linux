@@ -84,7 +84,7 @@ static int cfvei_transmit(struct cflayer *layr, struct cfpkt *pkt)
 		return ret;
 	caif_assert(layr->dn != NULL);
 	caif_assert(layr->dn->transmit != NULL);
-	if (!cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
+	if (cfpkt_getlen(pkt) > CAIF_MAX_PAYLOAD_SIZE) {
 		pr_warning("CAIF: %s(): Packet too large - size=%d\n",
 			   __func__, cfpkt_getlen(pkt));
 		return -EOVERFLOW;

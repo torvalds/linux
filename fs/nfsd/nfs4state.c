@@ -4122,8 +4122,8 @@ nfs4_state_shutdown(void)
 	nfs4_lock_state();
 	nfs4_release_reclaim();
 	__nfs4_state_shutdown();
-	nfsd4_destroy_callback_queue();
 	nfs4_unlock_state();
+	nfsd4_destroy_callback_queue();
 }
 
 /*

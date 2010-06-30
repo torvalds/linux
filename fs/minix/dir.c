@@ -75,10 +75,6 @@ static struct page * dir_get_page(struct inode *dir, unsigned long n)
 	if (!IS_ERR(page))
 		kmap(page);
 	return page;
-
-fail:
-	dir_put_page(page);
-	return ERR_PTR(-EIO);
 }
 
 static inline void *minix_next_entry(void *de, struct minix_sb_info *sbi)

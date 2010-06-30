@@ -21,12 +21,6 @@
 #include <asm/cpu.h>
 #include <asm/stackprotector.h>
 
-#ifdef CONFIG_DEBUG_PER_CPU_MAPS
-# define DBG(fmt, ...) pr_dbg(fmt, ##__VA_ARGS__)
-#else
-# define DBG(fmt, ...) do { if (0) pr_dbg(fmt, ##__VA_ARGS__); } while (0)
-#endif
-
 DEFINE_PER_CPU(int, cpu_number);
 EXPORT_PER_CPU_SYMBOL(cpu_number);
 
@@ -247,7 +241,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 #endif
 		/*
-		 * Up to this point, the boot CPU has been using .data.init
+		 * Up to this point, the boot CPU has been using .init.data
 		 * area.  Reload any changed state for the boot CPU.
 		 */
 		if (cpu == boot_cpu_id)

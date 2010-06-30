@@ -119,7 +119,6 @@ static int __devinit tosa_bl_probe(struct i2c_client *client,
 
 err_reg:
 	data->bl = NULL;
-	i2c_set_clientdata(client, NULL);
 err_gpio_dir:
 	gpio_free(TOSA_GPIO_BL_C20MA);
 err_gpio_bl:
@@ -133,7 +132,6 @@ static int __devexit tosa_bl_remove(struct i2c_client *client)
 
 	backlight_device_unregister(data->bl);
 	data->bl = NULL;
-	i2c_set_clientdata(client, NULL);
 
 	gpio_free(TOSA_GPIO_BL_C20MA);
 
