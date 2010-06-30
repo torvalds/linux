@@ -339,6 +339,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			direct = 1;
 			if (!is_dirty_gpte(gw->ptes[level - delta]))
 				access &= ~ACC_WRITE_MASK;
+			access &= gw->pte_access;
+
 			/*
 			 * It is a large guest pages backed by small host pages,
 			 * So we set @direct(@sp->role.direct)=1, and set
