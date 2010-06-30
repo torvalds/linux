@@ -431,7 +431,7 @@ static noinline void __init_refok rest_init(void)
 
 	rcu_scheduler_starting();
 	/*
-	 * We need to spawn init first so that it obtains pid-1, however
+	 * We need to spawn init first so that it obtains pid 1, however
 	 * the init task will end up wanting to create kthreads, which, if
 	 * we schedule it before we create kthreadd, will OOPS.
 	 */
