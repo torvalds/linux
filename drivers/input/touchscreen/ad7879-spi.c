@@ -134,11 +134,19 @@ static const struct ad7879_bus_ops ad7879_spi_bus_ops = {
 static int __devinit ad7879_spi_probe(struct spi_device *spi)
 {
 	struct ad7879 *ts;
+	int err;
 
 	/* don't exceed max specified SPI CLK frequency */
 	if (spi->max_speed_hz > MAX_SPI_FREQ_HZ) {
 		dev_err(&spi->dev, "SPI CLK %d Hz?\n", spi->max_speed_hz);
 		return -EINVAL;
+	}
+
+	spi->bits_per_word = 16;
+	err = spi_setup(spi);
+	if (err) {
+	        dev_dbg(&spi->dev, "spi master doesn't support 16 bits/word\n");
+	        return err;
 	}
 
 	ts = ad7879_probe(&spi->dev, AD7879_DEVID, spi->irq, &ad7879_spi_bus_ops);
