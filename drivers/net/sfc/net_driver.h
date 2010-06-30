@@ -648,6 +648,7 @@ union efx_multicast_hash {
  * @n_tx_channels: Number of channels used for TX
  * @rx_buffer_len: RX buffer length
  * @rx_buffer_order: Order (log2) of number of pages for each RX buffer
+ * @rx_indir_table: Indirection table for RSS
  * @int_error_count: Number of internal errors seen recently
  * @int_error_expire: Time at which error count will be expired
  * @irq_status: Interrupt status buffer
@@ -736,6 +737,7 @@ struct efx_nic {
 	unsigned int rx_buffer_len;
 	unsigned int rx_buffer_order;
 	u8 rx_hash_key[40];
+	u32 rx_indir_table[128];
 
 	unsigned int_error_count;
 	unsigned long int_error_expire;

@@ -1484,22 +1484,21 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 /* Setup RSS indirection table.
  * This maps from the hash value of the packet to RXQ
  */
-static void efx_setup_rss_indir_table(struct efx_nic *efx)
+void efx_nic_push_rx_indir_table(struct efx_nic *efx)
 {
-	int i = 0;
-	unsigned long offset;
+	size_t i = 0;
 	efx_dword_t dword;
 
 	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
 		return;
 
-	for (offset = FR_BZ_RX_INDIRECTION_TBL;
-	     offset < FR_BZ_RX_INDIRECTION_TBL + 0x800;
-	     offset += 0x10) {
+	BUILD_BUG_ON(ARRAY_SIZE(efx->rx_indir_table) !=
+		     FR_BZ_RX_INDIRECTION_TBL_ROWS);
+
+	for (i = 0; i < FR_BZ_RX_INDIRECTION_TBL_ROWS; i++) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
-				     i % efx->n_rx_channels);
-		efx_writed(efx, &dword, offset);
-		i++;
+				     efx->rx_indir_table[i]);
+		efx_writed_table(efx, &dword, FR_BZ_RX_INDIRECTION_TBL, i);
 	}
 }
 
@@ -1634,7 +1633,7 @@ void efx_nic_init_common(struct efx_nic *efx)
 	EFX_INVERT_OWORD(temp);
 	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
 
-	efx_setup_rss_indir_table(efx);
+	efx_nic_push_rx_indir_table(efx);
 
 	/* Disable the ugly timer-based TX DMA backoff and allow TX DMA to be
 	 * controlled by the RX FIFO fill level. Set arbitration to one pkt/Q.

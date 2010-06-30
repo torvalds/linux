@@ -868,6 +868,93 @@ extern int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)
 	return efx_reset(efx, method);
 }
 
+static int
+efx_ethtool_get_rxnfc(struct net_device *net_dev,
+		      struct ethtool_rxnfc *info, void *rules __always_unused)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = efx->n_rx_channels;
+		return 0;
+
+	case ETHTOOL_GRXFH: {
+		unsigned min_revision = 0;
+
+		info->data = 0;
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V4_FLOW:
+		case SCTP_V4_FLOW:
+		case AH_ESP_V4_FLOW:
+		case IPV4_FLOW:
+			info->data |= RXH_IP_SRC | RXH_IP_DST;
+			min_revision = EFX_REV_FALCON_B0;
+			break;
+		case TCP_V6_FLOW:
+			info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V6_FLOW:
+		case SCTP_V6_FLOW:
+		case AH_ESP_V6_FLOW:
+		case IPV6_FLOW:
+			info->data |= RXH_IP_SRC | RXH_IP_DST;
+			min_revision = EFX_REV_SIENA_A0;
+			break;
+		default:
+			break;
+		}
+		if (efx_nic_rev(efx) < min_revision)
+			info->data = 0;
+		return 0;
+	}
+
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int efx_ethtool_get_rxfh_indir(struct net_device *net_dev,
+				      struct ethtool_rxfh_indir *indir)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	size_t copy_size =
+		min_t(size_t, indir->size, ARRAY_SIZE(efx->rx_indir_table));
+
+	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
+		return -EOPNOTSUPP;
+
+	indir->size = ARRAY_SIZE(efx->rx_indir_table);
+	memcpy(indir->ring_index, efx->rx_indir_table,
+	       copy_size * sizeof(indir->ring_index[0]));
+	return 0;
+}
+
+static int efx_ethtool_set_rxfh_indir(struct net_device *net_dev,
+				      const struct ethtool_rxfh_indir *indir)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	size_t i;
+
+	if (efx_nic_rev(efx) < EFX_REV_FALCON_B0)
+		return -EOPNOTSUPP;
+
+	/* Validate size and indices */
+	if (indir->size != ARRAY_SIZE(efx->rx_indir_table))
+		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
+		if (indir->ring_index[i] >= efx->n_rx_channels)
+			return -EINVAL;
+
+	memcpy(efx->rx_indir_table, indir->ring_index,
+	       sizeof(efx->rx_indir_table));
+	efx_nic_push_rx_indir_table(efx);
+	return 0;
+}
+
 const struct ethtool_ops efx_ethtool_ops = {
 	.get_settings		= efx_ethtool_get_settings,
 	.set_settings		= efx_ethtool_set_settings,
@@ -905,4 +992,7 @@ const struct ethtool_ops efx_ethtool_ops = {
 	.get_wol                = efx_ethtool_get_wol,
 	.set_wol                = efx_ethtool_set_wol,
 	.reset			= efx_ethtool_reset,
+	.get_rxnfc		= efx_ethtool_get_rxnfc,
+	.get_rxfh_indir		= efx_ethtool_get_rxfh_indir,
+	.set_rxfh_indir		= efx_ethtool_set_rxfh_indir,
 };

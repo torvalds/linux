@@ -1121,6 +1121,7 @@ static void efx_set_channels(struct efx_nic *efx)
 
 static int efx_probe_nic(struct efx_nic *efx)
 {
+	size_t i;
 	int rc;
 
 	netif_dbg(efx, probe, efx->net_dev, "creating NIC\n");
@@ -1136,6 +1137,8 @@ static int efx_probe_nic(struct efx_nic *efx)
 
 	if (efx->n_channels > 1)
 		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
+	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
+		efx->rx_indir_table[i] = i % efx->n_rx_channels;
 
 	efx_set_channels(efx);
 	efx->net_dev->real_num_tx_queues = efx->n_tx_channels;
