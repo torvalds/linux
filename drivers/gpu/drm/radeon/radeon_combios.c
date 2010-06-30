@@ -1938,15 +1938,6 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 			return false;
 	}
 
-	/* Some RV100 cards with 2 VGA ports show up with DVI+VGA */
-	if (dev->pdev->device == 0x5159 &&
-	    dev->pdev->subsystem_vendor == 0x1002 &&
-	    dev->pdev->subsystem_device == 0x013a) {
-		if (*legacy_connector == CONNECTOR_DVI_I_LEGACY)
-			*legacy_connector = CONNECTOR_CRT_LEGACY;
-
-	}
-
 	/* X300 card with extra non-existent DVI port */
 	if (dev->pdev->device == 0x5B60 &&
 	    dev->pdev->subsystem_vendor == 0x17af &&
