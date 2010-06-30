@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 
 /* Clock rate in Hz */
 #define AB3100_RTC_CLOCK_RATE	32768
@@ -45,7 +45,6 @@
  */
 static int ab3100_rtc_set_mmss(struct device *dev, unsigned long secs)
 {
-	struct ab3100 *ab3100_data = dev_get_drvdata(dev);
 	u8 regs[] = {AB3100_TI0, AB3100_TI1, AB3100_TI2,
 		     AB3100_TI3, AB3100_TI4, AB3100_TI5};
 	unsigned char buf[6];
@@ -61,27 +60,26 @@ static int ab3100_rtc_set_mmss(struct device *dev, unsigned long secs)
 	buf[5] = (fat_time >> 40) & 0xFF;
 
 	for (i = 0; i < 6; i++) {
-		err = ab3100_set_register_interruptible(ab3100_data,
+		err = abx500_set_register_interruptible(dev, 0,
 							regs[i], buf[i]);
 		if (err)
 			return err;
 	}
 
 	/* Set the flag to mark that the clock is now set */
-	return ab3100_mask_and_set_register_interruptible(ab3100_data,
+	return abx500_mask_and_set_register_interruptible(dev, 0,
 							  AB3100_RTC,
-							  0xFE, 0x01);
+							  0x01, 0x01);
 
 }
 
 static int ab3100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct ab3100 *ab3100_data = dev_get_drvdata(dev);
 	unsigned long time;
 	u8 rtcval;
 	int err;
 
-	err = ab3100_get_register_interruptible(ab3100_data,
+	err = abx500_get_register_interruptible(dev, 0,
 						AB3100_RTC, &rtcval);
 	if (err)
 		return err;
@@ -94,7 +92,7 @@ static int ab3100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		u8 buf[6];
 
 		/* Read out time registers */
-		err = ab3100_get_register_page_interruptible(ab3100_data,
+		err = abx500_get_register_page_interruptible(dev, 0,
 							     AB3100_TI0,
 							     buf, 6);
 		if (err != 0)
@@ -114,7 +112,6 @@ static int ab3100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 static int ab3100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	struct ab3100 *ab3100_data = dev_get_drvdata(dev);
 	unsigned long time;
 	u64 fat_time;
 	u8 buf[6];
@@ -122,7 +119,7 @@ static int ab3100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	int err;
 
 	/* Figure out if alarm is enabled or not */
-	err = ab3100_get_register_interruptible(ab3100_data,
+	err = abx500_get_register_interruptible(dev, 0,
 						AB3100_RTC, &rtcval);
 	if (err)
 		return err;
@@ -133,7 +130,7 @@ static int ab3100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	/* No idea how this could be represented */
 	alarm->pending = 0;
 	/* Read out alarm registers, only 4 bytes */
-	err = ab3100_get_register_page_interruptible(ab3100_data,
+	err = abx500_get_register_page_interruptible(dev, 0,
 						     AB3100_AL0, buf, 4);
 	if (err)
 		return err;
@@ -148,7 +145,6 @@ static int ab3100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static int ab3100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
-	struct ab3100 *ab3100_data = dev_get_drvdata(dev);
 	u8 regs[] = {AB3100_AL0, AB3100_AL1, AB3100_AL2, AB3100_AL3};
 	unsigned char buf[4];
 	unsigned long secs;
@@ -165,21 +161,19 @@ static int ab3100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 	/* Set the alarm */
 	for (i = 0; i < 4; i++) {
-		err = ab3100_set_register_interruptible(ab3100_data,
+		err = abx500_set_register_interruptible(dev, 0,
 							regs[i], buf[i]);
 		if (err)
 			return err;
 	}
 	/* Then enable the alarm */
-	return ab3100_mask_and_set_register_interruptible(ab3100_data,
-							  AB3100_RTC, ~(1 << 2),
+	return abx500_mask_and_set_register_interruptible(dev, 0,
+							  AB3100_RTC, (1 << 2),
 							  alarm->enabled << 2);
 }
 
 static int ab3100_rtc_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct ab3100 *ab3100_data = dev_get_drvdata(dev);
-
 	/*
 	 * It's not possible to enable/disable the alarm IRQ for this RTC.
 	 * It does not actually trigger any IRQ: instead its only function is
@@ -188,12 +182,12 @@ static int ab3100_rtc_irq_enable(struct device *dev, unsigned int enabled)
 	 * and need to be handled there instead.
 	 */
 	if (enabled)
-		return ab3100_mask_and_set_register_interruptible(ab3100_data,
-						    AB3100_RTC, ~(1 << 2),
+		return abx500_mask_and_set_register_interruptible(dev, 0,
+						    AB3100_RTC, (1 << 2),
 						    1 << 2);
 	else
-		return ab3100_mask_and_set_register_interruptible(ab3100_data,
-						    AB3100_RTC, ~(1 << 2),
+		return abx500_mask_and_set_register_interruptible(dev, 0,
+						    AB3100_RTC, (1 << 2),
 						    0);
 }
 
@@ -210,10 +204,9 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 	int err;
 	u8 regval;
 	struct rtc_device *rtc;
-	struct ab3100 *ab3100_data = platform_get_drvdata(pdev);
 
 	/* The first RTC register needs special treatment */
-	err = ab3100_get_register_interruptible(ab3100_data,
+	err = abx500_get_register_interruptible(&pdev->dev, 0,
 						AB3100_RTC, &regval);
 	if (err) {
 		dev_err(&pdev->dev, "unable to read RTC register\n");
@@ -231,7 +224,7 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 		 * This bit remains until RTC power is lost.
 		 */
 		regval = 1 | RTC_SETTING;
-		err = ab3100_set_register_interruptible(ab3100_data,
+		err = abx500_set_register_interruptible(&pdev->dev, 0,
 							AB3100_RTC, regval);
 		/* Ignore any error on this write */
 	}

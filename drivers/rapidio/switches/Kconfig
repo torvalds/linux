@@ -1,0 +1,28 @@
+#
+# RapidIO switches configuration
+#
+config RAPIDIO_TSI57X
+	bool "IDT Tsi57x SRIO switches support"
+	depends on RAPIDIO
+	---help---
+	  Includes support for IDT Tsi57x family of serial RapidIO switches.
+
+config RAPIDIO_CPS_XX
+	bool "IDT CPS-xx SRIO switches support"
+	depends on RAPIDIO
+	---help---
+	  Includes support for IDT CPS-16/12/10/8 serial RapidIO switches.
+
+config RAPIDIO_TSI568
+	bool "Tsi568 SRIO switch support"
+	depends on RAPIDIO
+	default n
+	---help---
+	  Includes support for IDT Tsi568 serial RapidIO switch.
+
+config RAPIDIO_TSI500
+	bool "Tsi500 Parallel RapidIO switch support"
+	depends on RAPIDIO
+	default n
+	---help---
+	  Includes support for IDT Tsi500 parallel RapidIO switch.

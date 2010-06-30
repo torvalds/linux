@@ -133,7 +133,7 @@ static struct dentry *__cfh_to_dentry(struct super_block *sb,
 		req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_LOOKUPHASH,
 					       USE_ANY_MDS);
 		if (IS_ERR(req))
-			return ERR_PTR(PTR_ERR(req));
+			return ERR_CAST(req);
 
 		req->r_ino1 = vino;
 		req->r_ino2.ino = cfh->parent_ino;

@@ -1497,8 +1497,8 @@ static struct cpufreq_driver cpufreq_amd64_driver = {
  * simply keep the boost-disable flag in sync with the current global
  * state.
  */
-static int __cpuinit cpb_notify(struct notifier_block *nb, unsigned long action,
-				void *hcpu)
+static int cpb_notify(struct notifier_block *nb, unsigned long action,
+		      void *hcpu)
 {
 	unsigned cpu = (long)hcpu;
 	u32 lo, hi;
@@ -1528,7 +1528,7 @@ static int __cpuinit cpb_notify(struct notifier_block *nb, unsigned long action,
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata cpb_nb = {
+static struct notifier_block cpb_nb = {
 	.notifier_call		= cpb_notify,
 };
 

@@ -1027,10 +1027,9 @@ int __init acpi_ec_ecdt_probe(void)
 		/* Don't trust ECDT, which comes from ASUSTek */
 		if (!EC_FLAGS_VALIDATE_ECDT)
 			goto install;
-		saved_ec = kmalloc(sizeof(struct acpi_ec), GFP_KERNEL);
+		saved_ec = kmemdup(boot_ec, sizeof(struct acpi_ec), GFP_KERNEL);
 		if (!saved_ec)
 			return -ENOMEM;
-		memcpy(saved_ec, boot_ec, sizeof(struct acpi_ec));
 	/* fall through */
 	}
 

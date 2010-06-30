@@ -1849,8 +1849,7 @@ out:
 	return ret;
 }
 
-static int spufs_mfc_fsync(struct file *file, struct dentry *dentry,
-			   int datasync)
+static int spufs_mfc_fsync(struct file *file, int datasync)
 {
 	return spufs_mfc_flush(file, NULL);
 }

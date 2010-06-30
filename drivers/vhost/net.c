@@ -593,17 +593,17 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 	int r;
 	switch (ioctl) {
 	case VHOST_NET_SET_BACKEND:
-		r = copy_from_user(&backend, argp, sizeof backend);
-		if (r < 0)
-			return r;
+		if (copy_from_user(&backend, argp, sizeof backend))
+			return -EFAULT;
 		return vhost_net_set_backend(n, backend.index, backend.fd);
 	case VHOST_GET_FEATURES:
 		features = VHOST_FEATURES;
-		return copy_to_user(featurep, &features, sizeof features);
+		if (copy_to_user(featurep, &features, sizeof features))
+			return -EFAULT;
+		return 0;
 	case VHOST_SET_FEATURES:
-		r = copy_from_user(&features, featurep, sizeof features);
-		if (r < 0)
-			return r;
+		if (copy_from_user(&features, featurep, sizeof features))
+			return -EFAULT;
 		if (features & ~VHOST_FEATURES)
 			return -EOPNOTSUPP;
 		return vhost_net_set_features(n, features);

@@ -39,8 +39,6 @@ struct wm831x_irq_data {
 	int primary;
 	int reg;
 	int mask;
-	irq_handler_t handler;
-	void *handler_data;
 };
 
 static struct wm831x_irq_data wm831x_irqs[] = {
@@ -492,6 +490,14 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 
 	mutex_init(&wm831x->irq_lock);
 
+	/* Mask the individual interrupt sources */
+	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
+		wm831x->irq_masks_cur[i] = 0xffff;
+		wm831x->irq_masks_cache[i] = 0xffff;
+		wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1_MASK + i,
+				 0xffff);
+	}
+
 	if (!irq) {
 		dev_warn(wm831x->dev,
 			 "No interrupt specified - functionality limited\n");
@@ -506,14 +512,6 @@ int wm831x_irq_init(struct wm831x *wm831x, int irq)
 
 	wm831x->irq = irq;
 	wm831x->irq_base = pdata->irq_base;
-
-	/* Mask the individual interrupt sources */
-	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
-		wm831x->irq_masks_cur[i] = 0xffff;
-		wm831x->irq_masks_cache[i] = 0xffff;
-		wm831x_reg_write(wm831x, WM831X_INTERRUPT_STATUS_1_MASK + i,
-				 0xffff);
-	}
 
 	/* Register them with genirq */
 	for (cur_irq = wm831x->irq_base;

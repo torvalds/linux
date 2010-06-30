@@ -10,7 +10,6 @@
 #include <linux/fs.h>
 #include <linux/mempool.h>
 #include <linux/pagemap.h>
-#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
@@ -811,7 +810,7 @@ extern void ceph_put_cap(struct ceph_cap *cap);
 
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
-extern int ceph_fsync(struct file *file, struct dentry *dentry, int datasync);
+extern int ceph_fsync(struct file *file, int datasync);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern int ceph_get_cap_mds(struct inode *inode);

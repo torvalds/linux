@@ -144,10 +144,11 @@ static ssize_t dev_counters_read(struct file *file, char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	u64 *counters;
+	size_t avail;
 	struct qib_devdata *dd = private2dd(file);
 
-	return simple_read_from_buffer(buf, count, ppos, counters,
-		dd->f_read_cntrs(dd, *ppos, NULL, &counters));
+	avail = dd->f_read_cntrs(dd, *ppos, NULL, &counters);
+	return simple_read_from_buffer(buf, count, ppos, counters, avail);
 }
 
 /* read the per-device counters */
@@ -155,10 +156,11 @@ static ssize_t dev_names_read(struct file *file, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	char *names;
+	size_t avail;
 	struct qib_devdata *dd = private2dd(file);
 
-	return simple_read_from_buffer(buf, count, ppos, names,
-		dd->f_read_cntrs(dd, *ppos, &names, NULL));
+	avail = dd->f_read_cntrs(dd, *ppos, &names, NULL);
+	return simple_read_from_buffer(buf, count, ppos, names, avail);
 }
 
 static const struct file_operations cntr_ops[] = {
@@ -176,10 +178,11 @@ static ssize_t portnames_read(struct file *file, char __user *buf,
 			      size_t count, loff_t *ppos)
 {
 	char *names;
+	size_t avail;
 	struct qib_devdata *dd = private2dd(file);
 
-	return simple_read_from_buffer(buf, count, ppos, names,
-		dd->f_read_portcntrs(dd, *ppos, 0, &names, NULL));
+	avail = dd->f_read_portcntrs(dd, *ppos, 0, &names, NULL);
+	return simple_read_from_buffer(buf, count, ppos, names, avail);
 }
 
 /* read the per-port counters for port 1 (pidx 0) */
@@ -187,10 +190,11 @@ static ssize_t portcntrs_1_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	u64 *counters;
+	size_t avail;
 	struct qib_devdata *dd = private2dd(file);
 
-	return simple_read_from_buffer(buf, count, ppos, counters,
-		dd->f_read_portcntrs(dd, *ppos, 0, NULL, &counters));
+	avail = dd->f_read_portcntrs(dd, *ppos, 0, NULL, &counters);
+	return simple_read_from_buffer(buf, count, ppos, counters, avail);
 }
 
 /* read the per-port counters for port 2 (pidx 1) */
@@ -198,10 +202,11 @@ static ssize_t portcntrs_2_read(struct file *file, char __user *buf,
 				size_t count, loff_t *ppos)
 {
 	u64 *counters;
+	size_t avail;
 	struct qib_devdata *dd = private2dd(file);
 
-	return simple_read_from_buffer(buf, count, ppos, counters,
-		dd->f_read_portcntrs(dd, *ppos, 1, NULL, &counters));
+	avail = dd->f_read_portcntrs(dd, *ppos, 1, NULL, &counters);
+	return simple_read_from_buffer(buf, count, ppos, counters, avail);
 }
 
 static const struct file_operations portcntr_ops[] = {

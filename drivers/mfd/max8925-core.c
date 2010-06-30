@@ -508,7 +508,7 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 	max8925_reg_read(chip->i2c, MAX8925_ON_OFF_IRQ2);
 	max8925_reg_read(chip->rtc, MAX8925_RTC_IRQ);
 	max8925_reg_read(chip->adc, MAX8925_TSC_IRQ);
-	/* mask all interrupts */
+	/* mask all interrupts except for TSC */
 	max8925_reg_write(chip->rtc, MAX8925_ALARM0_CNTL, 0);
 	max8925_reg_write(chip->rtc, MAX8925_ALARM1_CNTL, 0);
 	max8925_reg_write(chip->i2c, MAX8925_CHG_IRQ1_MASK, 0xff);
@@ -516,7 +516,6 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 	max8925_reg_write(chip->i2c, MAX8925_ON_OFF_IRQ1_MASK, 0xff);
 	max8925_reg_write(chip->i2c, MAX8925_ON_OFF_IRQ2_MASK, 0xff);
 	max8925_reg_write(chip->rtc, MAX8925_RTC_IRQ_MASK, 0xff);
-	max8925_reg_write(chip->adc, MAX8925_TSC_IRQ_MASK, 0xff);
 
 	mutex_init(&chip->irq_lock);
 	chip->core_irq = irq;
@@ -547,7 +546,11 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 		dev_err(chip->dev, "Failed to request core IRQ: %d\n", ret);
 		chip->core_irq = 0;
 	}
+
 tsc_irq:
+	/* mask TSC interrupt */
+	max8925_reg_write(chip->adc, MAX8925_TSC_IRQ_MASK, 0x0f);
+
 	if (!pdata->tsc_irq) {
 		dev_warn(chip->dev, "No interrupt support on TSC IRQ\n");
 		return 0;

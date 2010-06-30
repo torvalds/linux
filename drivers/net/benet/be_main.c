@@ -1861,7 +1861,7 @@ static int be_setup(struct be_adapter *adapter)
 				goto if_destroy;
 			}
 			vf++;
-		} while (vf < num_vfs);
+		}
 	} else if (!be_physfn(adapter)) {
 		status = be_cmd_mac_addr_query(adapter, mac,
 			MAC_ADDRESS_TYPE_NETWORK, false, adapter->if_handle);

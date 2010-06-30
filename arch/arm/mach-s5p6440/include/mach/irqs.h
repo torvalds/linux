@@ -72,7 +72,14 @@
 #define S5P_IRQ_EINT_BASE	(S5P_IRQ_VIC1(31) + 6)
 
 #define S5P_EINT(x)		((x) + S5P_IRQ_EINT_BASE)
-#define IRQ_EINT(x)		S5P_EINT(x)
+
+#define S5P_EINT_BASE1		(S5P_IRQ_EINT_BASE)
+/*
+ * S5P6440 has 0-15 external interrupts in group 0. Only these can be used
+ * to wake up from sleep. If request is beyond this range, by mistake, a large
+ * return value for an irq number should be indication of something amiss.
+ */
+#define S5P_EINT_BASE2		(0xf0000000)
 
 /*
  * Next the external interrupt groups. These are similar to the IRQ_EINT(x)

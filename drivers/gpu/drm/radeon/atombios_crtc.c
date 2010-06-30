@@ -707,6 +707,7 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 		break;
 	case ATOM_DCPLL:
 	case ATOM_PPLL_INVALID:
+	default:
 		pll = &rdev->clock.dcpll;
 		break;
 	}

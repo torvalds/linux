@@ -37,18 +37,17 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
-#include <mach/i2c.h>
 #include <mach/mx25.h>
 #include <mach/mxc_nand.h>
 #include <mach/imxfb.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
-
-#include "devices.h"
 #include <mach/iomux-mx25.h>
 
-static struct imxuart_platform_data uart_pdata = {
+#include "devices-imx25.h"
+#include "devices.h"
+
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -72,13 +71,15 @@ static struct fec_platform_data mx25_fec_pdata = {
 	.phy	= PHY_INTERFACE_MODE_RMII,
 };
 
-static struct mxc_nand_platform_data eukrea_cpuimx25_nand_board_info = {
+static const struct mxc_nand_platform_data
+eukrea_cpuimx25_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 	.flash_bbt	= 1,
 };
 
-static struct imxi2c_platform_data eukrea_cpuimx25_i2c_1_data = {
+static const struct imxi2c_platform_data
+eukrea_cpuimx25_i2c0_data __initconst = {
 	.bitrate = 100000,
 };
 
@@ -125,14 +126,14 @@ static void __init eukrea_cpuimx25_init(void)
 			ARRAY_SIZE(eukrea_cpuimx25_pads)))
 		printk(KERN_ERR "error setting cpuimx25 pads !\n");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &eukrea_cpuimx25_nand_board_info);
+	imx25_add_imx_uart0(&uart_pdata);
+	imx25_add_mxc_nand(&eukrea_cpuimx25_nand_board_info);
 	mxc_register_device(&mx25_rtc_device, NULL);
 	mxc_register_device(&mx25_fec_device, &mx25_fec_pdata);
 
 	i2c_register_board_info(0, eukrea_cpuimx25_i2c_devices,
 				ARRAY_SIZE(eukrea_cpuimx25_i2c_devices));
-	mxc_register_device(&mxc_i2c_device0, &eukrea_cpuimx25_i2c_1_data);
+	imx25_add_imx_i2c0(&eukrea_cpuimx25_i2c0_data);
 
 #if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {

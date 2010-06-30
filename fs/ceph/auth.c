@@ -1,7 +1,6 @@
 #include "ceph_debug.h"
 
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
@@ -217,8 +216,8 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 		if (ac->protocol != protocol) {
 			ret = ceph_auth_init_protocol(ac, protocol);
 			if (ret) {
-				pr_err("error %d on auth method %s init\n",
-				       ret, ac->ops->name);
+				pr_err("error %d on auth protocol %d init\n",
+				       ret, protocol);
 				goto out;
 			}
 		}
@@ -247,7 +246,7 @@ int ceph_build_auth(struct ceph_auth_client *ac,
 	if (!ac->protocol)
 		return ceph_auth_build_hello(ac, msg_buf, msg_len);
 	BUG_ON(!ac->ops);
-	if (!ac->ops->is_authenticated(ac))
+	if (ac->ops->should_authenticate(ac))
 		return ceph_build_auth_request(ac, msg_buf, msg_len);
 	return 0;
 }

@@ -46,6 +46,7 @@
 #include <mach/audmux.h>
 #include <mach/ssi.h>
 
+#include "devices-imx35.h"
 #include "devices.h"
 
 static const struct fb_videomode fb_modedb[] = {
@@ -196,7 +197,7 @@ static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_mbimxsd_lcd_powerdev,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -238,7 +239,7 @@ void __init eukrea_mbimxsd_baseboard_init(void)
 	);
 #endif
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx35_add_imx_uart1(&uart_pdata);
 	mxc_register_device(&mx3_ipu, &mx3_ipu_data);
 	mxc_register_device(&mx3_fb, &mx3fb_pdata);
 

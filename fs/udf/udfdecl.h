@@ -131,7 +131,6 @@ extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
 
 /* file.c */
 extern long udf_ioctl(struct file *, unsigned int, unsigned long);
-extern int udf_setattr(struct dentry *dentry, struct iattr *iattr);
 /* inode.c */
 extern struct inode *udf_iget(struct super_block *, struct kernel_lb_addr *);
 extern int udf_sync_inode(struct inode *);

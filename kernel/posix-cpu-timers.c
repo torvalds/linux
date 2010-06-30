@@ -363,7 +363,7 @@ int posix_cpu_clock_get(const clockid_t which_clock, struct timespec *tp)
 				}
 			} else {
 				read_lock(&tasklist_lock);
-				if (thread_group_leader(p) && p->signal) {
+				if (thread_group_leader(p) && p->sighand) {
 					error =
 					    cpu_clock_sample_group(which_clock,
 							           p, &rtn);
@@ -439,7 +439,7 @@ int posix_cpu_timer_del(struct k_itimer *timer)
 
 	if (likely(p != NULL)) {
 		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
+		if (unlikely(p->sighand == NULL)) {
 			/*
 			 * We raced with the reaping of the task.
 			 * The deletion should have cleared us off the list.
@@ -691,10 +691,10 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	read_lock(&tasklist_lock);
 	/*
 	 * We need the tasklist_lock to protect against reaping that
-	 * clears p->signal.  If p has just been reaped, we can no
+	 * clears p->sighand.  If p has just been reaped, we can no
 	 * longer get any information about it at all.
 	 */
-	if (unlikely(p->signal == NULL)) {
+	if (unlikely(p->sighand == NULL)) {
 		read_unlock(&tasklist_lock);
 		put_task_struct(p);
 		timer->it.cpu.task = NULL;
@@ -863,7 +863,7 @@ void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 		clear_dead = p->exit_state;
 	} else {
 		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
+		if (unlikely(p->sighand == NULL)) {
 			/*
 			 * The process has been reaped.
 			 * We can't even collect a sample any more.
@@ -1199,7 +1199,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 		spin_lock(&p->sighand->siglock);
 	} else {
 		read_lock(&tasklist_lock);
-		if (unlikely(p->signal == NULL)) {
+		if (unlikely(p->sighand == NULL)) {
 			/*
 			 * The process has been reaped.
 			 * We can't even collect a sample any more.

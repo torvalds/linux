@@ -611,6 +611,13 @@ config RTC_DRV_AB3100
 	  Select this to enable the ST-Ericsson AB3100 Mixed Signal IC RTC
 	  support. This chip contains a battery- and capacitor-backed RTC.
 
+config RTC_DRV_AB8500
+	tristate "ST-Ericsson AB8500 RTC"
+	depends on AB8500_CORE
+	help
+	  Select this to enable the ST-Ericsson AB8500 power management IC RTC
+	  support. This chip contains a battery- and capacitor-backed RTC.
+
 config RTC_DRV_NUC900
 	tristate "NUC910/NUC920 RTC driver"
 	depends on RTC_CLASS && ARCH_W90X900

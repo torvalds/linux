@@ -164,7 +164,10 @@ extern int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 /* Encapsulate (negative) errno value (in particular, NOTIFY_BAD <=> EPERM). */
 static inline int notifier_from_errno(int err)
 {
-	return NOTIFY_STOP_MASK | (NOTIFY_OK - err);
+	if (err)
+		return NOTIFY_STOP_MASK | (NOTIFY_OK - err);
+
+	return NOTIFY_OK;
 }
 
 /* Restore (negative) errno value from notify return value. */

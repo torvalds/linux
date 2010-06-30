@@ -120,6 +120,12 @@ void ceph_msgr_exit(void)
 	destroy_workqueue(ceph_msgr_wq);
 }
 
+void ceph_msgr_flush()
+{
+	flush_workqueue(ceph_msgr_wq);
+}
+
+
 /*
  * socket callback functions
  */

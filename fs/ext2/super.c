@@ -119,6 +119,8 @@ static void ext2_put_super (struct super_block * sb)
 	int i;
 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	if (sb->s_dirt)
 		ext2_write_super(sb);
 
@@ -1063,6 +1065,12 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &ext2_sops;
 	sb->s_export_op = &ext2_export_ops;
 	sb->s_xattr = ext2_xattr_handlers;
+
+#ifdef CONFIG_QUOTA
+	sb->dq_op = &dquot_operations;
+	sb->s_qcop = &dquot_quotactl_ops;
+#endif
+
 	root = ext2_iget(sb, EXT2_ROOT_INO);
 	if (IS_ERR(root)) {
 		ret = PTR_ERR(root);
@@ -1241,6 +1249,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			spin_unlock(&sbi->s_lock);
 			return 0;
 		}
+
 		/*
 		 * OK, we are remounting a valid rw partition rdonly, so set
 		 * the rdonly flag and then mark the partition as valid again.
@@ -1248,6 +1257,13 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 		es->s_mtime = cpu_to_le32(get_seconds());
 		spin_unlock(&sbi->s_lock);
+
+		err = dquot_suspend(sb, -1);
+		if (err < 0) {
+			spin_lock(&sbi->s_lock);
+			goto restore_opts;
+		}
+
 		ext2_sync_super(sb, es, 1);
 	} else {
 		__le32 ret = EXT2_HAS_RO_COMPAT_FEATURE(sb,
@@ -1269,8 +1285,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		if (!ext2_setup_super (sb, es, 0))
 			sb->s_flags &= ~MS_RDONLY;
 		spin_unlock(&sbi->s_lock);
+
 		ext2_write_super(sb);
+
+		dquot_resume(sb, -1);
 	}
+
 	return 0;
 restore_opts:
 	sbi->s_mount_opt = old_opts.s_mount_opt;

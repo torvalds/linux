@@ -1237,7 +1237,13 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 	 */
 	switch (ent->device) {
 	case PCI_DEVICE_ID_QLOGIC_IB_6120:
+#ifdef CONFIG_PCI_MSI
 		dd = qib_init_iba6120_funcs(pdev, ent);
+#else
+		qib_early_err(&pdev->dev, "QLogic PCIE device 0x%x cannot "
+		      "work if CONFIG_PCI_MSI is not enabled\n",
+		      ent->device);
+#endif
 		break;
 
 	case PCI_DEVICE_ID_QLOGIC_IB_7220:

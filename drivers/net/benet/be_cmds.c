@@ -294,7 +294,7 @@ int be_cmd_POST(struct be_adapter *adapter)
 		} else {
 			return 0;
 		}
-	} while (timeout < 20);
+	} while (timeout < 40);
 
 	dev_err(&adapter->pdev->dev, "POST timeout; stage=0x%x\n", stage);
 	return -1;

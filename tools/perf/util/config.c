@@ -16,7 +16,7 @@ static const char *config_file_name;
 static int config_linenr;
 static int config_file_eof;
 
-const char *config_exclusive_filename = NULL;
+static const char *config_exclusive_filename;
 
 static int get_next_char(void)
 {
@@ -291,19 +291,6 @@ static int perf_parse_long(const char *value, long *ret)
 	return 0;
 }
 
-int perf_parse_ulong(const char *value, unsigned long *ret)
-{
-	if (value && *value) {
-		char *end;
-		unsigned long val = strtoul(value, &end, 0);
-		if (!parse_unit_factor(end, &val))
-			return 0;
-		*ret = val;
-		return 1;
-	}
-	return 0;
-}
-
 static void die_bad_config(const char *name)
 {
 	if (config_file_name)
@@ -319,15 +306,7 @@ int perf_config_int(const char *name, const char *value)
 	return ret;
 }
 
-unsigned long perf_config_ulong(const char *name, const char *value)
-{
-	unsigned long ret;
-	if (!perf_parse_ulong(value, &ret))
-		die_bad_config(name);
-	return ret;
-}
-
-int perf_config_bool_or_int(const char *name, const char *value, int *is_bool)
+static int perf_config_bool_or_int(const char *name, const char *value, int *is_bool)
 {
 	*is_bool = 1;
 	if (!value)
@@ -348,14 +327,6 @@ int perf_config_bool(const char *name, const char *value)
 	return !!perf_config_bool_or_int(name, value, &discard);
 }
 
-int perf_config_string(const char **dest, const char *var, const char *value)
-{
-	if (!value)
-		return config_error_nonbool(var);
-	*dest = strdup(value);
-	return 0;
-}
-
 static int perf_default_core_config(const char *var __used, const char *value __used)
 {
 	/* Add other config variables here and to Documentation/config.txt. */
@@ -371,7 +342,7 @@ int perf_default_config(const char *var, const char *value, void *dummy __used)
 	return 0;
 }
 
-int perf_config_from_file(config_fn_t fn, const char *filename, void *data)
+static int perf_config_from_file(config_fn_t fn, const char *filename, void *data)
 {
 	int ret;
 	FILE *f = fopen(filename, "r");
@@ -389,7 +360,7 @@ int perf_config_from_file(config_fn_t fn, const char *filename, void *data)
 	return ret;
 }
 
-const char *perf_etc_perfconfig(void)
+static const char *perf_etc_perfconfig(void)
 {
 	static const char *system_wide;
 	if (!system_wide)
@@ -403,12 +374,12 @@ static int perf_env_bool(const char *k, int def)
 	return v ? perf_config_bool(k, v) : def;
 }
 
-int perf_config_system(void)
+static int perf_config_system(void)
 {
 	return !perf_env_bool("PERF_CONFIG_NOSYSTEM", 0);
 }
 
-int perf_config_global(void)
+static int perf_config_global(void)
 {
 	return !perf_env_bool("PERF_CONFIG_NOGLOBAL", 0);
 }
@@ -447,426 +418,6 @@ int perf_config(config_fn_t fn, void *data)
 	if (found == 0)
 		return -1;
 	return ret;
-}
-
-/*
- * Find all the stuff for perf_config_set() below.
- */
-
-#define MAX_MATCHES 512
-
-static struct {
-	int baselen;
-	char* key;
-	int do_not_match;
-	regex_t* value_regex;
-	int multi_replace;
-	size_t offset[MAX_MATCHES];
-	enum { START, SECTION_SEEN, SECTION_END_SEEN, KEY_SEEN } state;
-	int seen;
-} store;
-
-static int matches(const char* key, const char* value)
-{
-	return !strcmp(key, store.key) &&
-		(store.value_regex == NULL ||
-		 (store.do_not_match ^
-		  !regexec(store.value_regex, value, 0, NULL, 0)));
-}
-
-static int store_aux(const char* key, const char* value, void *cb __used)
-{
-	int section_len;
-	const char *ep;
-
-	switch (store.state) {
-	case KEY_SEEN:
-		if (matches(key, value)) {
-			if (store.seen == 1 && store.multi_replace == 0) {
-				warning("%s has multiple values", key);
-			} else if (store.seen >= MAX_MATCHES) {
-				error("too many matches for %s", key);
-				return 1;
-			}
-
-			store.offset[store.seen] = ftell(config_file);
-			store.seen++;
-		}
-		break;
-	case SECTION_SEEN:
-		/*
-		 * What we are looking for is in store.key (both
-		 * section and var), and its section part is baselen
-		 * long.  We found key (again, both section and var).
-		 * We would want to know if this key is in the same
-		 * section as what we are looking for.  We already
-		 * know we are in the same section as what should
-		 * hold store.key.
-		 */
-		ep = strrchr(key, '.');
-		section_len = ep - key;
-
-		if ((section_len != store.baselen) ||
-		    memcmp(key, store.key, section_len+1)) {
-			store.state = SECTION_END_SEEN;
-			break;
-		}
-
-		/*
-		 * Do not increment matches: this is no match, but we
-		 * just made sure we are in the desired section.
-		 */
-		store.offset[store.seen] = ftell(config_file);
-		/* fallthru */
-	case SECTION_END_SEEN:
-	case START:
-		if (matches(key, value)) {
-			store.offset[store.seen] = ftell(config_file);
-			store.state = KEY_SEEN;
-			store.seen++;
-		} else {
-			if (strrchr(key, '.') - key == store.baselen &&
-			      !strncmp(key, store.key, store.baselen)) {
-					store.state = SECTION_SEEN;
-					store.offset[store.seen] = ftell(config_file);
-			}
-		}
-	default:
-		break;
-	}
-	return 0;
-}
-
-static int store_write_section(int fd, const char* key)
-{
-	const char *dot;
-	int i, success;
-	struct strbuf sb = STRBUF_INIT;
-
-	dot = memchr(key, '.', store.baselen);
-	if (dot) {
-		strbuf_addf(&sb, "[%.*s \"", (int)(dot - key), key);
-		for (i = dot - key + 1; i < store.baselen; i++) {
-			if (key[i] == '"' || key[i] == '\\')
-				strbuf_addch(&sb, '\\');
-			strbuf_addch(&sb, key[i]);
-		}
-		strbuf_addstr(&sb, "\"]\n");
-	} else {
-		strbuf_addf(&sb, "[%.*s]\n", store.baselen, key);
-	}
-
-	success = (write_in_full(fd, sb.buf, sb.len) == (ssize_t)sb.len);
-	strbuf_release(&sb);
-
-	return success;
-}
-
-static int store_write_pair(int fd, const char* key, const char* value)
-{
-	int i, success;
-	int length = strlen(key + store.baselen + 1);
-	const char *quote = "";
-	struct strbuf sb = STRBUF_INIT;
-
-	/*
-	 * Check to see if the value needs to be surrounded with a dq pair.
-	 * Note that problematic characters are always backslash-quoted; this
-	 * check is about not losing leading or trailing SP and strings that
-	 * follow beginning-of-comment characters (i.e. ';' and '#') by the
-	 * configuration parser.
-	 */
-	if (value[0] == ' ')
-		quote = "\"";
-	for (i = 0; value[i]; i++)
-		if (value[i] == ';' || value[i] == '#')
-			quote = "\"";
-	if (i && value[i - 1] == ' ')
-		quote = "\"";
-
-	strbuf_addf(&sb, "\t%.*s = %s",
-		    length, key + store.baselen + 1, quote);
-
-	for (i = 0; value[i]; i++)
-		switch (value[i]) {
-		case '\n':
-			strbuf_addstr(&sb, "\\n");
-			break;
-		case '\t':
-			strbuf_addstr(&sb, "\\t");
-			break;
-		case '"':
-		case '\\':
-			strbuf_addch(&sb, '\\');
-		default:
-			strbuf_addch(&sb, value[i]);
-			break;
-		}
-	strbuf_addf(&sb, "%s\n", quote);
-
-	success = (write_in_full(fd, sb.buf, sb.len) == (ssize_t)sb.len);
-	strbuf_release(&sb);
-
-	return success;
-}
-
-static ssize_t find_beginning_of_line(const char* contents, size_t size,
-	size_t offset_, int* found_bracket)
-{
-	size_t equal_offset = size, bracket_offset = size;
-	ssize_t offset;
-
-contline:
-	for (offset = offset_-2; offset > 0
-			&& contents[offset] != '\n'; offset--)
-		switch (contents[offset]) {
-			case '=': equal_offset = offset; break;
-			case ']': bracket_offset = offset; break;
-			default: break;
-		}
-	if (offset > 0 && contents[offset-1] == '\\') {
-		offset_ = offset;
-		goto contline;
-	}
-	if (bracket_offset < equal_offset) {
-		*found_bracket = 1;
-		offset = bracket_offset+1;
-	} else
-		offset++;
-
-	return offset;
-}
-
-int perf_config_set(const char* key, const char* value)
-{
-	return perf_config_set_multivar(key, value, NULL, 0);
-}
-
-/*
- * If value==NULL, unset in (remove from) config,
- * if value_regex!=NULL, disregard key/value pairs where value does not match.
- * if multi_replace==0, nothing, or only one matching key/value is replaced,
- *     else all matching key/values (regardless how many) are removed,
- *     before the new pair is written.
- *
- * Returns 0 on success.
- *
- * This function does this:
- *
- * - it locks the config file by creating ".perf/config.lock"
- *
- * - it then parses the config using store_aux() as validator to find
- *   the position on the key/value pair to replace. If it is to be unset,
- *   it must be found exactly once.
- *
- * - the config file is mmap()ed and the part before the match (if any) is
- *   written to the lock file, then the changed part and the rest.
- *
- * - the config file is removed and the lock file rename()d to it.
- *
- */
-int perf_config_set_multivar(const char* key, const char* value,
-	const char* value_regex, int multi_replace)
-{
-	int i, dot;
-	int fd = -1, in_fd;
-	int ret = 0;
-	char* config_filename;
-	const char* last_dot = strrchr(key, '.');
-
-	if (config_exclusive_filename)
-		config_filename = strdup(config_exclusive_filename);
-	else
-		config_filename = perf_pathdup("config");
-
-	/*
-	 * Since "key" actually contains the section name and the real
-	 * key name separated by a dot, we have to know where the dot is.
-	 */
-
-	if (last_dot == NULL) {
-		error("key does not contain a section: %s", key);
-		ret = 2;
-		goto out_free;
-	}
-	store.baselen = last_dot - key;
-
-	store.multi_replace = multi_replace;
-
-	/*
-	 * Validate the key and while at it, lower case it for matching.
-	 */
-	store.key = malloc(strlen(key) + 1);
-	dot = 0;
-	for (i = 0; key[i]; i++) {
-		unsigned char c = key[i];
-		if (c == '.')
-			dot = 1;
-		/* Leave the extended basename untouched.. */
-		if (!dot || i > store.baselen) {
-			if (!iskeychar(c) || (i == store.baselen+1 && !isalpha(c))) {
-				error("invalid key: %s", key);
-				free(store.key);
-				ret = 1;
-				goto out_free;
-			}
-			c = tolower(c);
-		} else if (c == '\n') {
-			error("invalid key (newline): %s", key);
-			free(store.key);
-			ret = 1;
-			goto out_free;
-		}
-		store.key[i] = c;
-	}
-	store.key[i] = 0;
-
-	/*
-	 * If .perf/config does not exist yet, write a minimal version.
-	 */
-	in_fd = open(config_filename, O_RDONLY);
-	if ( in_fd < 0 ) {
-		free(store.key);
-
-		if ( ENOENT != errno ) {
-			error("opening %s: %s", config_filename,
-			      strerror(errno));
-			ret = 3; /* same as "invalid config file" */
-			goto out_free;
-		}
-		/* if nothing to unset, error out */
-		if (value == NULL) {
-			ret = 5;
-			goto out_free;
-		}
-
-		store.key = (char*)key;
-		if (!store_write_section(fd, key) ||
-		    !store_write_pair(fd, key, value))
-			goto write_err_out;
-	} else {
-		struct stat st;
-		char *contents;
-		ssize_t contents_sz, copy_begin, copy_end;
-		int new_line = 0;
-
-		if (value_regex == NULL)
-			store.value_regex = NULL;
-		else {
-			if (value_regex[0] == '!') {
-				store.do_not_match = 1;
-				value_regex++;
-			} else
-				store.do_not_match = 0;
-
-			store.value_regex = (regex_t*)malloc(sizeof(regex_t));
-			if (regcomp(store.value_regex, value_regex,
-					REG_EXTENDED)) {
-				error("invalid pattern: %s", value_regex);
-				free(store.value_regex);
-				ret = 6;
-				goto out_free;
-			}
-		}
-
-		store.offset[0] = 0;
-		store.state = START;
-		store.seen = 0;
-
-		/*
-		 * After this, store.offset will contain the *end* offset
-		 * of the last match, or remain at 0 if no match was found.
-		 * As a side effect, we make sure to transform only a valid
-		 * existing config file.
-		 */
-		if (perf_config_from_file(store_aux, config_filename, NULL)) {
-			error("invalid config file %s", config_filename);
-			free(store.key);
-			if (store.value_regex != NULL) {
-				regfree(store.value_regex);
-				free(store.value_regex);
-			}
-			ret = 3;
-			goto out_free;
-		}
-
-		free(store.key);
-		if (store.value_regex != NULL) {
-			regfree(store.value_regex);
-			free(store.value_regex);
-		}
-
-		/* if nothing to unset, or too many matches, error out */
-		if ((store.seen == 0 && value == NULL) ||
-				(store.seen > 1 && multi_replace == 0)) {
-			ret = 5;
-			goto out_free;
-		}
-
-		fstat(in_fd, &st);
-		contents_sz = xsize_t(st.st_size);
-		contents = mmap(NULL, contents_sz, PROT_READ,
-			MAP_PRIVATE, in_fd, 0);
-		close(in_fd);
-
-		if (store.seen == 0)
-			store.seen = 1;
-
-		for (i = 0, copy_begin = 0; i < store.seen; i++) {
-			if (store.offset[i] == 0) {
-				store.offset[i] = copy_end = contents_sz;
-			} else if (store.state != KEY_SEEN) {
-				copy_end = store.offset[i];
-			} else
-				copy_end = find_beginning_of_line(
-					contents, contents_sz,
-					store.offset[i]-2, &new_line);
-
-			if (copy_end > 0 && contents[copy_end-1] != '\n')
-				new_line = 1;
-
-			/* write the first part of the config */
-			if (copy_end > copy_begin) {
-				if (write_in_full(fd, contents + copy_begin,
-						  copy_end - copy_begin) <
-				    copy_end - copy_begin)
-					goto write_err_out;
-				if (new_line &&
-				    write_in_full(fd, "\n", 1) != 1)
-					goto write_err_out;
-			}
-			copy_begin = store.offset[i];
-		}
-
-		/* write the pair (value == NULL means unset) */
-		if (value != NULL) {
-			if (store.state == START) {
-				if (!store_write_section(fd, key))
-					goto write_err_out;
-			}
-			if (!store_write_pair(fd, key, value))
-				goto write_err_out;
-		}
-
-		/* write the rest of the config */
-		if (copy_begin < contents_sz)
-			if (write_in_full(fd, contents + copy_begin,
-					  contents_sz - copy_begin) <
-			    contents_sz - copy_begin)
-				goto write_err_out;
-
-		munmap(contents, contents_sz);
-	}
-
-	ret = 0;
-
-out_free:
-	free(config_filename);
-	return ret;
-
-write_err_out:
-	goto out_free;
-
 }
 
 /*

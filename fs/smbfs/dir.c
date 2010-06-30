@@ -37,6 +37,7 @@ static int smb_link(struct dentry *, struct inode *, struct dentry *);
 
 const struct file_operations smb_dir_operations =
 {
+	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= smb_readdir,
 	.unlocked_ioctl	= smb_ioctl,

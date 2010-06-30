@@ -292,28 +292,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-#ifdef CONFIG_BINFMT_ELF_FDPIC
-	case PTRACE_GETFDPIC: {
-		unsigned long tmp = 0;
-
-		switch (addr) {
-		case_PTRACE_GETFDPIC_EXEC:
-		case PTRACE_GETFDPIC_EXEC:
-			tmp = child->mm->context.exec_fdpic_loadmap;
-			break;
-		case_PTRACE_GETFDPIC_INTERP:
-		case PTRACE_GETFDPIC_INTERP:
-			tmp = child->mm->context.interp_fdpic_loadmap;
-			break;
-		default:
-			break;
-		}
-
-		ret = put_user(tmp, datap);
-		break;
-	}
-#endif
-
 		/* when I and D space are separate, this will have to be fixed. */
 	case PTRACE_POKEDATA:
 		pr_debug("ptrace: PTRACE_PEEKDATA\n");
@@ -357,8 +335,14 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_PEEKUSR:
 		switch (addr) {
 #ifdef CONFIG_BINFMT_ELF_FDPIC	/* backwards compat */
-		case PT_FDPIC_EXEC:   goto case_PTRACE_GETFDPIC_EXEC;
-		case PT_FDPIC_INTERP: goto case_PTRACE_GETFDPIC_INTERP;
+		case PT_FDPIC_EXEC:
+			request = PTRACE_GETFDPIC;
+			addr = PTRACE_GETFDPIC_EXEC;
+			goto case_default;
+		case PT_FDPIC_INTERP:
+			request = PTRACE_GETFDPIC;
+			addr = PTRACE_GETFDPIC_INTERP;
+			goto case_default;
 #endif
 		default:
 			ret = get_reg(child, addr, datap);
@@ -385,6 +369,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     0, sizeof(struct pt_regs),
 					     (const void __user *)data);
 
+	case_default:
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

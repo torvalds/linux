@@ -954,6 +954,7 @@ extern spinlock_t files_lock;
 #define file_list_unlock() spin_unlock(&files_lock);
 
 #define get_file(x)	atomic_long_inc(&(x)->f_count)
+#define fput_atomic(x)	atomic_long_add_unless(&(x)->f_count, -1, 1)
 #define file_count(x)	atomic_long_read(&(x)->f_count)
 
 #ifdef CONFIG_DEBUG_WRITECOUNT
@@ -1497,7 +1498,7 @@ struct file_operations {
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *, fl_owner_t id);
 	int (*release) (struct inode *, struct file *);
-	int (*fsync) (struct file *, struct dentry *, int datasync);
+	int (*fsync) (struct file *, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
@@ -2212,7 +2213,7 @@ extern int generic_segment_checks(const struct iovec *iov,
 /* fs/block_dev.c */
 extern ssize_t blkdev_aio_write(struct kiocb *iocb, const struct iovec *iov,
 				unsigned long nr_segs, loff_t pos);
-extern int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync);
+extern int blkdev_fsync(struct file *filp, int datasync);
 
 /* fs/splice.c */
 extern ssize_t generic_file_splice_read(struct file *, loff_t *,
@@ -2228,6 +2229,7 @@ extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 
 extern void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping);
+extern loff_t noop_llseek(struct file *file, loff_t offset, int origin);
 extern loff_t no_llseek(struct file *file, loff_t offset, int origin);
 extern loff_t generic_file_llseek(struct file *file, loff_t offset, int origin);
 extern loff_t generic_file_llseek_unlocked(struct file *file, loff_t offset,
@@ -2250,10 +2252,19 @@ static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
 #endif
 
 #ifdef CONFIG_BLOCK
+struct bio;
+typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
+			    loff_t file_offset);
+void dio_end_io(struct bio *bio, int error);
+
+ssize_t __blockdev_direct_IO_newtrunc(int rw, struct kiocb *iocb, struct inode *inode,
+	struct block_device *bdev, const struct iovec *iov, loff_t offset,
+	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
+	dio_submit_t submit_io, int lock_type);
 ssize_t __blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
 	struct block_device *bdev, const struct iovec *iov, loff_t offset,
 	unsigned long nr_segs, get_block_t get_block, dio_iodone_t end_io,
-	int lock_type);
+	dio_submit_t submit_io,	int lock_type);
 
 enum {
 	/* need locking between buffered and direct access */
@@ -2263,13 +2274,31 @@ enum {
 	DIO_SKIP_HOLES	= 0x02,
 };
 
+static inline ssize_t blockdev_direct_IO_newtrunc(int rw, struct kiocb *iocb,
+	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
+	loff_t offset, unsigned long nr_segs, get_block_t get_block,
+	dio_iodone_t end_io)
+{
+	return __blockdev_direct_IO_newtrunc(rw, iocb, inode, bdev, iov, offset,
+				    nr_segs, get_block, end_io, NULL,
+				    DIO_LOCKING | DIO_SKIP_HOLES);
+}
+
+static inline ssize_t blockdev_direct_IO_no_locking_newtrunc(int rw, struct kiocb *iocb,
+	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
+	loff_t offset, unsigned long nr_segs, get_block_t get_block,
+	dio_iodone_t end_io)
+{
+	return __blockdev_direct_IO_newtrunc(rw, iocb, inode, bdev, iov, offset,
+				nr_segs, get_block, end_io, NULL, 0);
+}
 static inline ssize_t blockdev_direct_IO(int rw, struct kiocb *iocb,
 	struct inode *inode, struct block_device *bdev, const struct iovec *iov,
 	loff_t offset, unsigned long nr_segs, get_block_t get_block,
 	dio_iodone_t end_io)
 {
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				    nr_segs, get_block, end_io,
+				    nr_segs, get_block, end_io, NULL,
 				    DIO_LOCKING | DIO_SKIP_HOLES);
 }
 
@@ -2279,7 +2308,7 @@ static inline ssize_t blockdev_direct_IO_no_locking(int rw, struct kiocb *iocb,
 	dio_iodone_t end_io)
 {
 	return __blockdev_direct_IO(rw, iocb, inode, bdev, iov, offset,
-				nr_segs, get_block, end_io, 0);
+				    nr_segs, get_block, end_io, NULL, 0);
 }
 #endif
 
@@ -2335,13 +2364,15 @@ extern int dcache_dir_open(struct inode *, struct file *);
 extern int dcache_dir_close(struct inode *, struct file *);
 extern loff_t dcache_dir_lseek(struct file *, loff_t, int);
 extern int dcache_readdir(struct file *, void *, filldir_t);
+extern int simple_setattr(struct dentry *, struct iattr *);
 extern int simple_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int simple_statfs(struct dentry *, struct kstatfs *);
 extern int simple_link(struct dentry *, struct inode *, struct dentry *);
 extern int simple_unlink(struct inode *, struct dentry *);
 extern int simple_rmdir(struct inode *, struct dentry *);
 extern int simple_rename(struct inode *, struct dentry *, struct inode *, struct dentry *);
-extern int simple_sync_file(struct file *, struct dentry *, int);
+extern int simple_setsize(struct inode *, loff_t);
+extern int noop_fsync(struct file *, int);
 extern int simple_empty(struct dentry *);
 extern int simple_readpage(struct file *file, struct page *page);
 extern int simple_write_begin(struct file *file, struct address_space *mapping,
@@ -2366,7 +2397,7 @@ extern ssize_t simple_read_from_buffer(void __user *to, size_t count,
 extern ssize_t simple_write_to_buffer(void *to, size_t available, loff_t *ppos,
 		const void __user *from, size_t count);
 
-extern int simple_fsync(struct file *, struct dentry *, int);
+extern int generic_file_fsync(struct file *, int);
 
 #ifdef CONFIG_MIGRATION
 extern int buffer_migrate_page(struct address_space *,
@@ -2377,7 +2408,8 @@ extern int buffer_migrate_page(struct address_space *,
 
 extern int inode_change_ok(const struct inode *, struct iattr *);
 extern int inode_newsize_ok(const struct inode *, loff_t offset);
-extern int __must_check inode_setattr(struct inode *, struct iattr *);
+extern int __must_check inode_setattr(struct inode *, const struct iattr *);
+extern void generic_setattr(struct inode *inode, const struct iattr *attr);
 
 extern void file_update_time(struct file *file);
 

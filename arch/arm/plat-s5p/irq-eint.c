@@ -60,7 +60,7 @@ static void s5p_irq_eint_maskack(unsigned int irq)
 
 static int s5p_irq_eint_set_type(unsigned int irq, unsigned int type)
 {
-	int offs = eint_offset(irq);
+	int offs = EINT_OFFSET(irq);
 	int shift;
 	u32 ctrl, mask;
 	u32 newvalue = 0;
@@ -139,17 +139,16 @@ static struct irq_chip s5p_irq_eint = {
  */
 static inline void s5p_irq_demux_eint(unsigned int start)
 {
-	u32 status;
+	u32 status = __raw_readl(S5P_EINT_PEND(EINT_REG_NR(start)));
 	u32 mask = __raw_readl(S5P_EINT_MASK(EINT_REG_NR(start)));
 	unsigned int irq;
 
-	status = __raw_readl(S5P_EINT_PEND(EINT_REG_NR(start)));
 	status &= ~mask;
 	status &= 0xff;
 
 	while (status) {
-		irq = fls(status);
-		generic_handle_irq(irq - 1 + start);
+		irq = fls(status) - 1;
+		generic_handle_irq(irq + start);
 		status &= ~(1 << irq);
 	}
 }
@@ -162,12 +161,18 @@ static void s5p_irq_demux_eint16_31(unsigned int irq, struct irq_desc *desc)
 
 static inline void s5p_irq_vic_eint_mask(unsigned int irq)
 {
+	void __iomem *base = get_irq_chip_data(irq);
+
 	s5p_irq_eint_mask(irq);
+	writel(1 << EINT_OFFSET(irq), base + VIC_INT_ENABLE_CLEAR);
 }
 
 static void s5p_irq_vic_eint_unmask(unsigned int irq)
 {
+	void __iomem *base = get_irq_chip_data(irq);
+
 	s5p_irq_eint_unmask(irq);
+	writel(1 << EINT_OFFSET(irq), base + VIC_INT_ENABLE);
 }
 
 static inline void s5p_irq_vic_eint_ack(unsigned int irq)

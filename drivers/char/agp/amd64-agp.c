@@ -384,7 +384,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 {
 	u32 httfea,baseaddr,enuscr;
 	struct pci_dev *dev1;
-	int i;
+	int i, ret;
 	unsigned size = amd64_fetch_size();
 
 	dev_info(&pdev->dev, "setting up ULi AGP\n");
@@ -400,15 +400,18 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 
 	if (i == ARRAY_SIZE(uli_sizes)) {
 		dev_info(&pdev->dev, "no ULi size found for %d\n", size);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto put;
 	}
 
 	/* shadow x86-64 registers into ULi registers */
 	pci_read_config_dword (k8_northbridges[0], AMD64_GARTAPERTUREBASE, &httfea);
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
-	if ((httfea & 0x7fff) >> (32 - 25))
-		return -ENODEV;
+	if ((httfea & 0x7fff) >> (32 - 25)) {
+		ret = -ENODEV;
+		goto put;
+	}
 
 	httfea = (httfea& 0x7fff) << 25;
 
@@ -420,9 +423,10 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	enuscr= httfea+ (size * 1024 * 1024) - 1;
 	pci_write_config_dword(dev1, ULI_X86_64_HTT_FEA_REG, httfea);
 	pci_write_config_dword(dev1, ULI_X86_64_ENU_SCR_REG, enuscr);
-
+	ret = 0;
+put:
 	pci_dev_put(dev1);
-	return 0;
+	return ret;
 }
 
 
@@ -441,7 +445,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 {
 	u32 tmp, apbase, apbar, aplimit;
 	struct pci_dev *dev1;
-	int i;
+	int i, ret;
 	unsigned size = amd64_fetch_size();
 
 	dev_info(&pdev->dev, "setting up Nforce3 AGP\n");
@@ -458,7 +462,8 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 
 	if (i == ARRAY_SIZE(nforce3_sizes)) {
 		dev_info(&pdev->dev, "no NForce3 size found for %d\n", size);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto put;
 	}
 
 	pci_read_config_dword(dev1, NVIDIA_X86_64_1_APSIZE, &tmp);
@@ -472,7 +477,8 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	/* if x86-64 aperture base is beyond 4G, exit here */
 	if ( (apbase & 0x7fff) >> (32 - 25) ) {
 		dev_info(&pdev->dev, "aperture base > 4G\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto put;
 	}
 
 	apbase = (apbase & 0x7fff) << 25;
@@ -488,9 +494,11 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APBASE2, apbase);
 	pci_write_config_dword(dev1, NVIDIA_X86_64_1_APLIMIT2, aplimit);
 
+	ret = 0;
+put:
 	pci_dev_put(dev1);
 
-	return 0;
+	return ret;
 }
 
 static int __devinit agp_amd64_probe(struct pci_dev *pdev,

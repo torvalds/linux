@@ -149,6 +149,47 @@ int snd_usb_add_audio_endpoint(struct snd_usb_audio *chip, int stream, struct au
 	return 0;
 }
 
+static int parse_uac_endpoint_attributes(struct snd_usb_audio *chip,
+					 struct usb_host_interface *alts,
+					 int protocol, int iface_no)
+{
+	/* parsed with a v1 header here. that's ok as we only look at the
+	 * header first which is the same for both versions */
+	struct uac_iso_endpoint_descriptor *csep;
+	struct usb_interface_descriptor *altsd = get_iface_desc(alts);
+	int attributes = 0;
+
+	csep = snd_usb_find_desc(alts->endpoint[0].extra, alts->endpoint[0].extralen, NULL, USB_DT_CS_ENDPOINT);
+
+	/* Creamware Noah has this descriptor after the 2nd endpoint */
+	if (!csep && altsd->bNumEndpoints >= 2)
+		csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
+
+	if (!csep || csep->bLength < 7 ||
+	    csep->bDescriptorSubtype != UAC_EP_GENERAL) {
+		snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
+			   " class specific endpoint descriptor\n",
+			   chip->dev->devnum, iface_no,
+			   altsd->bAlternateSetting);
+		return 0;
+	}
+
+	if (protocol == UAC_VERSION_1) {
+		attributes = csep->bmAttributes;
+	} else {
+		struct uac2_iso_endpoint_descriptor *csep2 =
+			(struct uac2_iso_endpoint_descriptor *) csep;
+
+		attributes = csep->bmAttributes & UAC_EP_CS_ATTR_FILL_MAX;
+
+		/* emulate the endpoint attributes of a v1 device */
+		if (csep2->bmControls & UAC2_CONTROL_PITCH)
+			attributes |= UAC_EP_CS_ATTR_PITCH_CONTROL;
+	}
+
+	return attributes;
+}
+
 int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 {
 	struct usb_device *dev;
@@ -158,8 +199,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 	int i, altno, err, stream;
 	int format = 0, num_channels = 0;
 	struct audioformat *fp = NULL;
-	unsigned char *fmt, *csep;
 	int num, protocol;
+	struct uac_format_type_i_continuous_descriptor *fmt;
 
 	dev = chip->dev;
 
@@ -256,8 +297,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 				   dev->devnum, iface_no, altno);
 			continue;
 		}
-		if (((protocol == UAC_VERSION_1) && (fmt[0] < 8)) ||
-		    ((protocol == UAC_VERSION_2) && (fmt[0] != 6))) {
+		if (((protocol == UAC_VERSION_1) && (fmt->bLength < 8)) ||
+		    ((protocol == UAC_VERSION_2) && (fmt->bLength != 6))) {
 			snd_printk(KERN_ERR "%d:%u:%d : invalid UAC_FORMAT_TYPE desc\n",
 				   dev->devnum, iface_no, altno);
 			continue;
@@ -268,24 +309,15 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		 * with the previous one, except for a larger packet size, but
 		 * is actually a mislabeled two-channel setting; ignore it.
 		 */
-		if (fmt[4] == 1 && fmt[5] == 2 && altno == 2 && num == 3 &&
+		if (fmt->bNrChannels == 1 &&
+		    fmt->bSubframeSize == 2 &&
+		    altno == 2 && num == 3 &&
 		    fp && fp->altsetting == 1 && fp->channels == 1 &&
 		    fp->formats == SNDRV_PCM_FMTBIT_S16_LE &&
 		    protocol == UAC_VERSION_1 &&
 		    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) ==
 							fp->maxpacksize * 2)
 			continue;
-
-		csep = snd_usb_find_desc(alts->endpoint[0].extra, alts->endpoint[0].extralen, NULL, USB_DT_CS_ENDPOINT);
-		/* Creamware Noah has this descriptor after the 2nd endpoint */
-		if (!csep && altsd->bNumEndpoints >= 2)
-			csep = snd_usb_find_desc(alts->endpoint[1].extra, alts->endpoint[1].extralen, NULL, USB_DT_CS_ENDPOINT);
-		if (!csep || csep[0] < 7 || csep[2] != UAC_EP_GENERAL) {
-			snd_printk(KERN_WARNING "%d:%u:%d : no or invalid"
-				   " class specific endpoint descriptor\n",
-				   dev->devnum, iface_no, altno);
-			csep = NULL;
-		}
 
 		fp = kzalloc(sizeof(*fp), GFP_KERNEL);
 		if (! fp) {
@@ -305,7 +337,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_get_speed(dev) == USB_SPEED_HIGH)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
 					* (fp->maxpacksize & 0x7ff);
-		fp->attributes = csep ? csep[3] : 0;
+		fp->attributes = parse_uac_endpoint_attributes(chip, alts, protocol, iface_no);
 
 		/* some quirks for attributes here */
 

@@ -1,5 +1,7 @@
 if ARCH_MXC
 
+source "arch/arm/plat-mxc/devices/Kconfig"
+
 menu "Freescale MXC Implementations"
 
 choice
@@ -8,15 +10,12 @@ choice
 
 config ARCH_MX1
 	bool "MX1-based"
-	select CPU_ARM920T
-	select IMX_HAVE_IOMUX_V1
+	select SOC_IMX1
 	help
 	  This enables support for systems based on the Freescale i.MX1 family
 
 config ARCH_MX2
 	bool "MX2-based"
-	select CPU_ARM926T
-	select IMX_HAVE_IOMUX_V1
 	help
 	  This enables support for systems based on the Freescale i.MX2 family
 
@@ -49,8 +48,7 @@ config ARCH_MX5
 
 endchoice
 
-source "arch/arm/mach-mx1/Kconfig"
-source "arch/arm/mach-mx2/Kconfig"
+source "arch/arm/mach-imx/Kconfig"
 source "arch/arm/mach-mx3/Kconfig"
 source "arch/arm/mach-mx25/Kconfig"
 source "arch/arm/mach-mxc91231/Kconfig"

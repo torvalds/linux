@@ -231,16 +231,17 @@ int rbt_memtype_check_insert(struct memtype *new, unsigned long *ret_type)
 	return err;
 }
 
-int rbt_memtype_erase(u64 start, u64 end)
+struct memtype *rbt_memtype_erase(u64 start, u64 end)
 {
 	struct memtype *data;
 
 	data = memtype_rb_exact_match(&memtype_rbroot, start, end);
 	if (!data)
-		return -EINVAL;
+		goto out;
 
 	rb_erase(&data->rb, &memtype_rbroot);
-	return 0;
+out:
+	return data;
 }
 
 struct memtype *rbt_memtype_lookup(u64 addr)

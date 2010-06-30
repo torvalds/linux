@@ -141,7 +141,7 @@ static const struct dmi_system_id __initdata mbp_device_table[] = {
 		.callback	= mbp_dmi_match,
 		.ident		= "MacBook 1,1",
 		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
 		},
 		.driver_data	= (void *)&intel_chipset_data,
@@ -179,6 +179,42 @@ static const struct dmi_system_id __initdata mbp_device_table[] = {
 		.matches	= {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook4,2"),
+		},
+		.driver_data	= (void *)&intel_chipset_data,
+	},
+	{
+		.callback	= mbp_dmi_match,
+		.ident		= "MacBookPro 1,1",
+		.matches	= {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro1,1"),
+		},
+		.driver_data	= (void *)&intel_chipset_data,
+	},
+	{
+		.callback	= mbp_dmi_match,
+		.ident		= "MacBookPro 1,2",
+		.matches	= {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro1,2"),
+		},
+		.driver_data	= (void *)&intel_chipset_data,
+	},
+	{
+		.callback	= mbp_dmi_match,
+		.ident		= "MacBookPro 2,1",
+		.matches	= {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro2,1"),
+		},
+		.driver_data	= (void *)&intel_chipset_data,
+	},
+	{
+		.callback	= mbp_dmi_match,
+		.ident		= "MacBookPro 2,2",
+		.matches	= {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro2,2"),
 		},
 		.driver_data	= (void *)&intel_chipset_data,
 	},
@@ -233,6 +269,15 @@ static const struct dmi_system_id __initdata mbp_device_table[] = {
 		.matches	= {
 			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook5,2"),
+		},
+		.driver_data	= (void *)&nvidia_chipset_data,
+	},
+	{
+		.callback	= mbp_dmi_match,
+		.ident		= "MacBook 6,1",
+		.matches	= {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook6,1"),
 		},
 		.driver_data	= (void *)&nvidia_chipset_data,
 	},

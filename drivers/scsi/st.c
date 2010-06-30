@@ -3962,6 +3962,7 @@ static const struct file_operations st_fops =
 	.open =		st_open,
 	.flush =	st_flush,
 	.release =	st_release,
+	.llseek =	noop_llseek,
 };
 
 static int st_probe(struct device *dev)

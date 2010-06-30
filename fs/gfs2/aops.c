@@ -700,8 +700,14 @@ out:
 		return 0;
 
 	page_cache_release(page);
+
+	/*
+	 * XXX(hch): the call below should probably be replaced with
+	 * a call to the gfs2-specific truncate blocks helper to actually
+	 * release disk blocks..
+	 */
 	if (pos + len > ip->i_inode.i_size)
-		vmtruncate(&ip->i_inode, ip->i_inode.i_size);
+		simple_setsize(&ip->i_inode, ip->i_inode.i_size);
 out_endtrans:
 	gfs2_trans_end(sdp);
 out_trans_fail:

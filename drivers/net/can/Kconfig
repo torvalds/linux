@@ -63,6 +63,16 @@ config CAN_BFIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_can.
 
+config CAN_JANZ_ICAN3
+	tristate "Janz VMOD-ICAN3 Intelligent CAN controller"
+	depends on CAN_DEV && MFD_JANZ_CMODIO
+	---help---
+	  Driver for Janz VMOD-ICAN3 Intelligent CAN controller module, which
+	  connects to a MODULbus carrier board.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called janz-ican3.ko.
+
 source "drivers/net/can/mscan/Kconfig"
 
 source "drivers/net/can/sja1000/Kconfig"

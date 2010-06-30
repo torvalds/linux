@@ -109,6 +109,9 @@ config SBUS
 config NEED_DMA_MAP_STATE
        def_bool (X86_64 || DMAR || DMA_API_DEBUG)
 
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 config GENERIC_ISA_DMA
 	def_bool y
 
@@ -1700,6 +1703,10 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 	depends on MEMORY_HOTPLUG
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
+	def_bool X86_64
+	depends on NUMA
+
+config USE_PERCPU_NUMA_NODE_ID
 	def_bool X86_64
 	depends on NUMA
 

@@ -377,6 +377,7 @@ again:
 				if (!list_empty(&worker->pending) ||
 				    !list_empty(&worker->prio_pending)) {
 					spin_unlock_irq(&worker->lock);
+					set_current_state(TASK_RUNNING);
 					goto again;
 				}
 

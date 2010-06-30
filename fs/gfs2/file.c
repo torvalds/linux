@@ -554,9 +554,9 @@ static int gfs2_close(struct inode *inode, struct file *file)
  * Returns: errno
  */
 
-static int gfs2_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int gfs2_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int sync_state = inode->i_state & (I_DIRTY_SYNC|I_DIRTY_DATASYNC);
 	int ret = 0;
 

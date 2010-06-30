@@ -134,10 +134,9 @@ static void reiserfs_vfs_truncate_file(struct inode *inode)
  * be removed...
  */
 
-static int reiserfs_sync_file(struct file *filp,
-			      struct dentry *dentry, int datasync)
+static int reiserfs_sync_file(struct file *filp, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	int err;
 	int barrier_done;
 

@@ -306,11 +306,11 @@ extern long fat_generic_ioctl(struct file *filp, unsigned int cmd,
 extern const struct file_operations fat_file_operations;
 extern const struct inode_operations fat_file_inode_operations;
 extern int fat_setattr(struct dentry * dentry, struct iattr * attr);
-extern void fat_truncate(struct inode *inode);
+extern int fat_setsize(struct inode *inode, loff_t offset);
+extern void fat_truncate_blocks(struct inode *inode, loff_t offset);
 extern int fat_getattr(struct vfsmount *mnt, struct dentry *dentry,
 		       struct kstat *stat);
-extern int fat_file_fsync(struct file *file, struct dentry *dentry,
-			  int datasync);
+extern int fat_file_fsync(struct file *file, int datasync);
 
 /* fat/inode.c */
 extern void fat_attach(struct inode *inode, loff_t i_pos);

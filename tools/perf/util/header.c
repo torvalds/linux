@@ -221,29 +221,38 @@ static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
 	return 0;
 }
 
+static int machine__write_buildid_table(struct machine *self, int fd)
+{
+	int err;
+	u16 kmisc = PERF_RECORD_MISC_KERNEL,
+	    umisc = PERF_RECORD_MISC_USER;
+
+	if (!machine__is_host(self)) {
+		kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
+		umisc = PERF_RECORD_MISC_GUEST_USER;
+	}
+
+	err = __dsos__write_buildid_table(&self->kernel_dsos, self->pid,
+					  kmisc, fd);
+	if (err == 0)
+		err = __dsos__write_buildid_table(&self->user_dsos,
+						  self->pid, umisc, fd);
+	return err;
+}
+
 static int dsos__write_buildid_table(struct perf_header *header, int fd)
 {
 	struct perf_session *session = container_of(header,
 			struct perf_session, header);
 	struct rb_node *nd;
-	int err = 0;
-	u16 kmisc, umisc;
+	int err = machine__write_buildid_table(&session->host_machine, fd);
+
+	if (err)
+		return err;
 
 	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		if (machine__is_host(pos)) {
-			kmisc = PERF_RECORD_MISC_KERNEL;
-			umisc = PERF_RECORD_MISC_USER;
-		} else {
-			kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
-			umisc = PERF_RECORD_MISC_GUEST_USER;
-		}
-
-		err = __dsos__write_buildid_table(&pos->kernel_dsos, pos->pid,
-						  kmisc, fd);
-		if (err == 0)
-			err = __dsos__write_buildid_table(&pos->user_dsos,
-							  pos->pid, umisc, fd);
+		err = machine__write_buildid_table(pos, fd);
 		if (err)
 			break;
 	}
@@ -363,12 +372,17 @@ static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)
 	return err;
 }
 
-static int dsos__cache_build_ids(struct perf_header *self)
+static int machine__cache_build_ids(struct machine *self, const char *debugdir)
 {
-	struct perf_session *session = container_of(self,
-			struct perf_session, header);
+	int ret = __dsos__cache_build_ids(&self->kernel_dsos, debugdir);
+	ret |= __dsos__cache_build_ids(&self->user_dsos, debugdir);
+	return ret;
+}
+
+static int perf_session__cache_build_ids(struct perf_session *self)
+{
 	struct rb_node *nd;
-	int ret = 0;
+	int ret;
 	char debugdir[PATH_MAX];
 
 	snprintf(debugdir, sizeof(debugdir), "%s/%s", getenv("HOME"),
@@ -377,25 +391,30 @@ static int dsos__cache_build_ids(struct perf_header *self)
 	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+	ret = machine__cache_build_ids(&self->host_machine, debugdir);
+
+	for (nd = rb_first(&self->machines); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= __dsos__cache_build_ids(&pos->kernel_dsos, debugdir);
-		ret |= __dsos__cache_build_ids(&pos->user_dsos, debugdir);
+		ret |= machine__cache_build_ids(pos, debugdir);
 	}
 	return ret ? -1 : 0;
 }
 
-static bool dsos__read_build_ids(struct perf_header *self, bool with_hits)
+static bool machine__read_build_ids(struct machine *self, bool with_hits)
 {
-	bool ret = false;
-	struct perf_session *session = container_of(self,
-			struct perf_session, header);
-	struct rb_node *nd;
+	bool ret = __dsos__read_build_ids(&self->kernel_dsos, with_hits);
+	ret |= __dsos__read_build_ids(&self->user_dsos, with_hits);
+	return ret;
+}
 
-	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+static bool perf_session__read_build_ids(struct perf_session *self, bool with_hits)
+{
+	struct rb_node *nd;
+	bool ret = machine__read_build_ids(&self->host_machine, with_hits);
+
+	for (nd = rb_first(&self->machines); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret |= __dsos__read_build_ids(&pos->kernel_dsos, with_hits);
-		ret |= __dsos__read_build_ids(&pos->user_dsos, with_hits);
+		ret |= machine__read_build_ids(pos, with_hits);
 	}
 
 	return ret;
@@ -404,12 +423,14 @@ static bool dsos__read_build_ids(struct perf_header *self, bool with_hits)
 static int perf_header__adds_write(struct perf_header *self, int fd)
 {
 	int nr_sections;
+	struct perf_session *session;
 	struct perf_file_section *feat_sec;
 	int sec_size;
 	u64 sec_start;
 	int idx = 0, err;
 
-	if (dsos__read_build_ids(self, true))
+	session = container_of(self, struct perf_session, header);
+	if (perf_session__read_build_ids(session, true))
 		perf_header__set_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
@@ -450,7 +471,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		}
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) -
 					  buildid_sec->offset;
-		dsos__cache_build_ids(self);
+		perf_session__cache_build_ids(session);
 	}
 
 	lseek(fd, sec_start, SEEK_SET);
@@ -489,7 +510,6 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 	int i, err;
 
 	lseek(fd, sizeof(f_header), SEEK_SET);
-
 
 	for (i = 0; i < self->attrs; i++) {
 		attr = self->attr[i];

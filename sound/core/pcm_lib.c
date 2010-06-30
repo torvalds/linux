@@ -345,7 +345,9 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		new_hw_ptr = hw_base + pos;
 	}
       __delta:
-	delta = (new_hw_ptr - old_hw_ptr) % runtime->boundary;
+	delta = new_hw_ptr - old_hw_ptr;
+	if (delta < 0)
+		delta += runtime->boundary;
 	if (xrun_debug(substream, in_interrupt ?
 			XRUN_DEBUG_PERIODUPDATE : XRUN_DEBUG_HWPTRUPDATE)) {
 		char name[16];
@@ -439,8 +441,13 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		snd_pcm_playback_silence(substream, new_hw_ptr);
 
 	if (in_interrupt) {
-		runtime->hw_ptr_interrupt = new_hw_ptr -
-				(new_hw_ptr % runtime->period_size);
+		delta = new_hw_ptr - runtime->hw_ptr_interrupt;
+		if (delta < 0)
+			delta += runtime->boundary;
+		delta -= (snd_pcm_uframes_t)delta % runtime->period_size;
+		runtime->hw_ptr_interrupt += delta;
+		if (runtime->hw_ptr_interrupt >= runtime->boundary)
+			runtime->hw_ptr_interrupt -= runtime->boundary;
 	}
 	runtime->hw_ptr_base = hw_base;
 	runtime->status->hw_ptr = new_hw_ptr;

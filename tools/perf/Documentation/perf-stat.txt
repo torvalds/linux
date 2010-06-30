@@ -43,6 +43,9 @@ OPTIONS
 -c::
         scale counter values
 
+-B::
+        print large numbers with thousands' separators according to locale
+
 EXAMPLES
 --------
 

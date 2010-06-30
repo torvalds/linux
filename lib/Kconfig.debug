@@ -898,6 +898,18 @@ config LKDTM
 	Documentation on how to use the module can be found in
 	Documentation/fault-injection/provoke-crashes.txt
 
+config CPU_NOTIFIER_ERROR_INJECT
+	tristate "CPU notifier error injection module"
+	depends on HOTPLUG_CPU && DEBUG_KERNEL
+	help
+	  This option provides a kernel module that can be used to test
+	  the error handling of the cpu notifiers
+
+	  To compile this code as a module, choose M here: the module will
+	  be called cpu-notifier-error-inject.
+
+	  If unsure, say N.
+
 config FAULT_INJECTION
 	bool "Fault-injection framework"
 	depends on DEBUG_KERNEL

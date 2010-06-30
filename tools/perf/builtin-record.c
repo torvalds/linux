@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include <sched.h>
+#include <sys/mman.h>
 
 enum write_mode_t {
 	WRITE_FORCE,
@@ -60,13 +61,8 @@ static bool			call_graph			=  false;
 static bool			inherit_stat			=  false;
 static bool			no_samples			=  false;
 static bool			sample_address			=  false;
-static bool			multiplex			=  false;
-static int			multiplex_fd			=     -1;
 
 static long			samples				=      0;
-static struct timeval		last_read;
-static struct timeval		this_read;
-
 static u64			bytes_written			=      0;
 
 static struct pollfd		*event_array;
@@ -86,7 +82,7 @@ struct mmap_data {
 	unsigned int		prev;
 };
 
-static struct mmap_data		*mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+static struct mmap_data		mmap_array[MAX_NR_CPUS];
 
 static unsigned long mmap_read_head(struct mmap_data *md)
 {
@@ -146,8 +142,6 @@ static void mmap_read(struct mmap_data *md)
 	void *buf;
 	int diff;
 
-	gettimeofday(&this_read, NULL);
-
 	/*
 	 * If we're further behind than half the buffer, there's a chance
 	 * the writer will bite our tail and mess up the samples under us.
@@ -158,22 +152,12 @@ static void mmap_read(struct mmap_data *md)
 	 */
 	diff = head - old;
 	if (diff < 0) {
-		struct timeval iv;
-		unsigned long msecs;
-
-		timersub(&this_read, &last_read, &iv);
-		msecs = iv.tv_sec*1000 + iv.tv_usec/1000;
-
-		fprintf(stderr, "WARNING: failed to keep up with mmap data."
-				"  Last read %lu msecs ago.\n", msecs);
-
+		fprintf(stderr, "WARNING: failed to keep up with mmap data\n");
 		/*
 		 * head points to a known good entry, start there.
 		 */
 		old = head;
 	}
-
-	last_read = this_read;
 
 	if (old != head)
 		samples++;
@@ -380,27 +364,30 @@ try_again:
 		 */
 		if (group && group_fd == -1)
 			group_fd = fd[nr_cpu][counter][thread_index];
-		if (multiplex && multiplex_fd == -1)
-			multiplex_fd = fd[nr_cpu][counter][thread_index];
 
-		if (multiplex && fd[nr_cpu][counter][thread_index] != multiplex_fd) {
-
-			ret = ioctl(fd[nr_cpu][counter][thread_index], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
-			assert(ret != -1);
+		if (counter || thread_index) {
+			ret = ioctl(fd[nr_cpu][counter][thread_index],
+					PERF_EVENT_IOC_SET_OUTPUT,
+					fd[nr_cpu][0][0]);
+			if (ret) {
+				error("failed to set output: %d (%s)\n", errno,
+						strerror(errno));
+				exit(-1);
+			}
 		} else {
-			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
-			event_array[nr_poll].events = POLLIN;
-			nr_poll++;
-
-			mmap_array[nr_cpu][counter][thread_index].counter = counter;
-			mmap_array[nr_cpu][counter][thread_index].prev = 0;
-			mmap_array[nr_cpu][counter][thread_index].mask = mmap_pages*page_size - 1;
-			mmap_array[nr_cpu][counter][thread_index].base = mmap(NULL, (mmap_pages+1)*page_size,
+			mmap_array[nr_cpu].counter = counter;
+			mmap_array[nr_cpu].prev = 0;
+			mmap_array[nr_cpu].mask = mmap_pages*page_size - 1;
+			mmap_array[nr_cpu].base = mmap(NULL, (mmap_pages+1)*page_size,
 				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
-			if (mmap_array[nr_cpu][counter][thread_index].base == MAP_FAILED) {
+			if (mmap_array[nr_cpu].base == MAP_FAILED) {
 				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
 				exit(-1);
 			}
+
+			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
+			event_array[nr_poll].events = POLLIN;
+			nr_poll++;
 		}
 
 		if (filter != NULL) {
@@ -501,16 +488,11 @@ static struct perf_event_header finished_round_event = {
 
 static void mmap_read_all(void)
 {
-	int i, counter, thread;
+	int i;
 
 	for (i = 0; i < nr_cpu; i++) {
-		for (counter = 0; counter < nr_counters; counter++) {
-			for (thread = 0; thread < thread_num; thread++) {
-				if (mmap_array[i][counter][thread].base)
-					mmap_read(&mmap_array[i][counter][thread]);
-			}
-
-		}
+		if (mmap_array[i].base)
+			mmap_read(&mmap_array[i]);
 	}
 
 	if (perf_header__has_feat(&session->header, HEADER_TRACE_INFO))
@@ -834,8 +816,6 @@ static const struct option options[] = {
 		    "Sample addresses"),
 	OPT_BOOLEAN('n', "no-samples", &no_samples,
 		    "don't sample"),
-	OPT_BOOLEAN('M', "multiplex", &multiplex,
-		    "multiplex counter output in a single channel"),
 	OPT_END()
 };
 
@@ -887,9 +867,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	for (i = 0; i < MAX_NR_CPUS; i++) {
 		for (j = 0; j < MAX_COUNTERS; j++) {
 			fd[i][j] = malloc(sizeof(int)*thread_num);
-			mmap_array[i][j] = zalloc(
-				sizeof(struct mmap_data)*thread_num);
-			if (!fd[i][j] || !mmap_array[i][j])
+			if (!fd[i][j])
 				return -ENOMEM;
 		}
 	}

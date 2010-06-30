@@ -4645,7 +4645,7 @@ static int raid456_cpu_notify(struct notifier_block *nfb, unsigned long action,
 			kfree(percpu->scribble);
 			pr_err("%s: failed memory allocation for cpu%ld\n",
 			       __func__, cpu);
-			return NOTIFY_BAD;
+			return notifier_from_errno(-ENOMEM);
 		}
 		break;
 	case CPU_DEAD:

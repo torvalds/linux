@@ -934,6 +934,7 @@ int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 				kfree_skb(buff);
 				NEIGH_CACHE_STAT_INC(neigh->tbl, unres_discards);
 			}
+			skb_dst_force(skb);
 			__skb_queue_tail(&neigh->arp_queue, skb);
 		}
 		rc = 1;

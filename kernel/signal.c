@@ -642,7 +642,7 @@ static inline bool si_fromuser(const struct siginfo *info)
 static int check_kill_permission(int sig, struct siginfo *info,
 				 struct task_struct *t)
 {
-	const struct cred *cred = current_cred(), *tcred;
+	const struct cred *cred, *tcred;
 	struct pid *sid;
 	int error;
 
@@ -656,8 +656,10 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (error)
 		return error;
 
+	cred = current_cred();
 	tcred = __task_cred(t);
-	if ((cred->euid ^ tcred->suid) &&
+	if (!same_thread_group(current, t) &&
+	    (cred->euid ^ tcred->suid) &&
 	    (cred->euid ^ tcred->uid) &&
 	    (cred->uid  ^ tcred->suid) &&
 	    (cred->uid  ^ tcred->uid) &&
@@ -1083,23 +1085,24 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 /*
  * Nuke all other threads in the group.
  */
-void zap_other_threads(struct task_struct *p)
+int zap_other_threads(struct task_struct *p)
 {
-	struct task_struct *t;
+	struct task_struct *t = p;
+	int count = 0;
 
 	p->signal->group_stop_count = 0;
 
-	for (t = next_thread(p); t != p; t = next_thread(t)) {
-		/*
-		 * Don't bother with already dead threads
-		 */
+	while_each_thread(p, t) {
+		count++;
+
+		/* Don't bother with already dead threads */
 		if (t->exit_state)
 			continue;
-
-		/* SIGKILL will be handled before any pending SIGSTOP */
 		sigaddset(&t->pending.signal, SIGKILL);
 		signal_wake_up(t, 1);
 	}
+
+	return count;
 }
 
 struct sighand_struct *lock_task_sighand(struct task_struct *tsk, unsigned long *flags)

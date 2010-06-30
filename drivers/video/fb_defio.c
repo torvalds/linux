@@ -66,7 +66,7 @@ static int fb_deferred_io_fault(struct vm_area_struct *vma,
 	return 0;
 }
 
-int fb_deferred_io_fsync(struct file *file, struct dentry *dentry, int datasync)
+int fb_deferred_io_fsync(struct file *file, int datasync)
 {
 	struct fb_info *info = file->private_data;
 

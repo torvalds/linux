@@ -78,7 +78,7 @@ static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 const struct file_operations bfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= bfs_readdir,
-	.fsync		= simple_fsync,
+	.fsync		= generic_file_fsync,
 	.llseek		= generic_file_llseek,
 };
 

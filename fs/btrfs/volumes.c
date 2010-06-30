@@ -1097,7 +1097,7 @@ static int btrfs_rm_dev_item(struct btrfs_root *root,
 	if (!path)
 		return -ENOMEM;
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
 	key.objectid = BTRFS_DEV_ITEMS_OBJECTID;
 	key.type = BTRFS_DEV_ITEM_KEY;
 	key.offset = device->devid;
@@ -1486,7 +1486,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		goto error;
 	}
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
 	lock_chunks(root);
 
 	device->barriers = 1;
@@ -1751,9 +1751,10 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 
 	/* step one, relocate all the extents inside this chunk */
 	ret = btrfs_relocate_block_group(extent_root, chunk_offset);
-	BUG_ON(ret);
+	if (ret)
+		return ret;
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
 	BUG_ON(!trans);
 
 	lock_chunks(root);
@@ -1925,7 +1926,7 @@ int btrfs_balance(struct btrfs_root *dev_root)
 			break;
 		BUG_ON(ret);
 
-		trans = btrfs_start_transaction(dev_root, 1);
+		trans = btrfs_start_transaction(dev_root, 0);
 		BUG_ON(!trans);
 
 		ret = btrfs_grow_device(trans, device, old_size);
@@ -2094,11 +2095,7 @@ again:
 	}
 
 	/* Shrinking succeeded, else we would be at "done". */
-	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
-		ret = -ENOMEM;
-		goto done;
-	}
+	trans = btrfs_start_transaction(root, 0);
 	lock_chunks(root);
 
 	device->disk_total_bytes = new_size;

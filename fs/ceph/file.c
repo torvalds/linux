@@ -230,7 +230,7 @@ struct dentry *ceph_lookup_open(struct inode *dir, struct dentry *dentry,
 	/* do the open */
 	req = prepare_open_request(dir->i_sb, flags, mode);
 	if (IS_ERR(req))
-		return ERR_PTR(PTR_ERR(req));
+		return ERR_CAST(req);
 	req->r_dentry = dget(dentry);
 	req->r_num_caps = 2;
 	if (flags & O_CREAT) {

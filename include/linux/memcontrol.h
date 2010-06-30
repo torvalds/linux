@@ -90,7 +90,8 @@ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
 extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
 
 extern int
-mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
+mem_cgroup_prepare_migration(struct page *page,
+	struct page *newpage, struct mem_cgroup **ptr);
 extern void mem_cgroup_end_migration(struct mem_cgroup *mem,
 	struct page *oldpage, struct page *newpage);
 
@@ -227,7 +228,8 @@ static inline struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
 }
 
 static inline int
-mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
+mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
+	struct mem_cgroup **ptr)
 {
 	return 0;
 }

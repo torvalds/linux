@@ -24,6 +24,12 @@ struct ceph_auth_client_ops {
 	int (*is_authenticated)(struct ceph_auth_client *ac);
 
 	/*
+	 * true if we should (re)authenticate, e.g., when our tickets
+	 * are getting old and crusty.
+	 */
+	int (*should_authenticate)(struct ceph_auth_client *ac);
+
+	/*
 	 * build requests and process replies during monitor
 	 * handshake.  if handle_reply returns -EAGAIN, we build
 	 * another request.

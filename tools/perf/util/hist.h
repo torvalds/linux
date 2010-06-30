@@ -98,12 +98,32 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread);
 #ifdef NO_NEWT_SUPPORT
 static inline int hists__browse(struct hists *self __used,
 				const char *helpline __used,
-				const char *input_name __used)
+				const char *ev_name __used)
 {
 	return 0;
 }
+
+static inline int hists__tui_browse_tree(struct rb_root *self __used,
+					 const char *help __used)
+{
+	return 0;
+}
+
+static inline int hist_entry__tui_annotate(struct hist_entry *self __used)
+{
+	return 0;
+}
+#define KEY_LEFT -1
+#define KEY_RIGHT -2
 #else
+#include <newt.h>
 int hists__browse(struct hists *self, const char *helpline,
-		  const char *input_name);
+		  const char *ev_name);
+int hist_entry__tui_annotate(struct hist_entry *self);
+
+#define KEY_LEFT NEWT_KEY_LEFT
+#define KEY_RIGHT NEWT_KEY_RIGHT
+
+int hists__tui_browse_tree(struct rb_root *self, const char *help);
 #endif
 #endif	/* __PERF_HIST_H */

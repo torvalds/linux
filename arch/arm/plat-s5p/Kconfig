@@ -29,3 +29,4 @@ config S5P_EXT_INT
 	bool
 	help
 	  Use the external interrupts (other than GPIO interrupts.)
+	  Note: Do not choose this for S5P6440.

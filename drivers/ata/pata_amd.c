@@ -574,7 +574,7 @@ static int amd_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* And fire it up */
-	return ata_pci_sff_init_one(pdev, ppi, &amd_sht, hpriv, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &amd_sht, hpriv, 0);
 }
 
 #ifdef CONFIG_PM

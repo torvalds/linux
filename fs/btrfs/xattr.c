@@ -154,15 +154,10 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	if (trans)
 		return do_setxattr(trans, inode, name, value, size, flags);
 
-	ret = btrfs_reserve_metadata_space(root, 2);
-	if (ret)
-		return ret;
+	trans = btrfs_start_transaction(root, 2);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
-	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
-		ret = -ENOMEM;
-		goto out;
-	}
 	btrfs_set_trans_block_group(trans, inode);
 
 	ret = do_setxattr(trans, inode, name, value, size, flags);
@@ -174,7 +169,6 @@ int __btrfs_setxattr(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 out:
 	btrfs_end_transaction_throttle(trans, root);
-	btrfs_unreserve_metadata_space(root, 2);
 	return ret;
 }
 

@@ -57,11 +57,13 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/dcache.h>
+#include <linux/xattr.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "xattr.h"
 
 /*
  * Lookup name in the directory index, returning the location of the metadata
@@ -237,5 +239,7 @@ failed:
 
 
 const struct inode_operations squashfs_dir_inode_ops = {
-	.lookup = squashfs_lookup
+	.lookup = squashfs_lookup,
+	.getxattr = generic_getxattr,
+	.listxattr = squashfs_listxattr
 };

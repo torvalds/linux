@@ -60,12 +60,9 @@
 #define S5PC100EINT30PEND		(S5P_VA_GPIO + 0xF40)
 #define S5P_EINT_PEND(x)		(S5PC100EINT30PEND + ((x) * 0x4))
 
-#define eint_offset(irq) ((irq) < IRQ_EINT16_31 ? ((irq) - IRQ_EINT(0)) : \
-			  (((irq) - S5P_EINT_BASE2)))
+#define EINT_REG_NR(x)			(EINT_OFFSET(x) >> 3)
 
-#define EINT_REG_NR(x)			(eint_offset(x) >> 3)
-
-#define eint_irq_to_bit(irq)		(1 << (eint_offset(irq) & 0x7))
+#define eint_irq_to_bit(irq)		(1 << (EINT_OFFSET(irq) & 0x7))
 
 /* values for S5P_EXTINT0 */
 #define S5P_EXTINT_LOWLEV		(0x00)

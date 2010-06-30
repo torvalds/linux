@@ -273,7 +273,7 @@ static int it8213_init_one (struct pci_dev *pdev, const struct pci_device_id *en
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_sff_init_one(pdev, ppi, &it8213_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &it8213_sht, NULL, 0);
 }
 
 static const struct pci_device_id it8213_pci_tbl[] = {

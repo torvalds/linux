@@ -824,7 +824,7 @@ static int mmci_suspend(struct amba_device *dev, pm_message_t state)
 	if (mmc) {
 		struct mmci_host *host = mmc_priv(mmc);
 
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 		if (ret == 0)
 			writel(0, host->base + MMCIMASK0);
 	}

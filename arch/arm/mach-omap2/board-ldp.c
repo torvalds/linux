@@ -209,8 +209,7 @@ static void ads7846_dev_init(void)
 	}
 
 	gpio_direction_input(ts_gpio);
-	omap_set_gpio_debounce(ts_gpio, 1);
-	omap_set_gpio_debounce_time(ts_gpio, 0xa);
+	gpio_set_debounce(ts_gpio, 310);
 }
 
 static int ads7846_get_pendown_state(void)

@@ -588,7 +588,7 @@ static struct kcore_list kcore_text;
  */
 static void __init proc_kcore_text_init(void)
 {
-	kclist_add(&kcore_text, _stext, _end - _stext, KCORE_TEXT);
+	kclist_add(&kcore_text, _text, _end - _text, KCORE_TEXT);
 }
 #else
 static void __init proc_kcore_text_init(void)

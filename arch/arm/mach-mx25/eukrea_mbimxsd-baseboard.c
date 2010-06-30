@@ -38,6 +38,7 @@
 #include <mach/ssi.h>
 #include <mach/audmux.h>
 
+#include "devices-imx25.h"
 #include "devices.h"
 
 static struct pad_desc eukrea_mbimxsd_pads[] = {
@@ -195,7 +196,7 @@ static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_mbimxsd_lcd_powerdev,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -237,7 +238,7 @@ void __init eukrea_mbimxsd_baseboard_init(void)
 	);
 #endif
 
-	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+	imx25_add_imx_uart1(&uart_pdata);
 	mxc_register_device(&mx25_fb_device, &eukrea_mximxsd_fb_pdata);
 	mxc_register_device(&imx_ssi_device0, &eukrea_mbimxsd_ssi_pdata);
 

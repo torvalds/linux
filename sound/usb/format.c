@@ -278,12 +278,11 @@ err:
  * parse the format type I and III descriptors
  */
 static int parse_audio_format_i(struct snd_usb_audio *chip,
-				struct audioformat *fp,
-				int format, void *_fmt,
+				struct audioformat *fp, int format,
+				struct uac_format_type_i_continuous_descriptor *fmt,
 				struct usb_host_interface *iface)
 {
 	struct usb_interface_descriptor *altsd = get_iface_desc(iface);
-	struct uac_format_type_i_discrete_descriptor *fmt = _fmt;
 	int protocol = altsd->bInterfaceProtocol;
 	int pcm_format, ret;
 
@@ -320,7 +319,7 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 	switch (protocol) {
 	case UAC_VERSION_1:
 		fp->channels = fmt->bNrChannels;
-		ret = parse_audio_format_rates_v1(chip, fp, _fmt, 7);
+		ret = parse_audio_format_rates_v1(chip, fp, (unsigned char *) fmt, 7);
 		break;
 	case UAC_VERSION_2:
 		/* fp->channels is already set in this case */
@@ -392,12 +391,12 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 }
 
 int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp,
-		       int format, unsigned char *fmt, int stream,
-		       struct usb_host_interface *iface)
+			       int format, struct uac_format_type_i_continuous_descriptor *fmt,
+			       int stream, struct usb_host_interface *iface)
 {
 	int err;
 
-	switch (fmt[3]) {
+	switch (fmt->bFormatType) {
 	case UAC_FORMAT_TYPE_I:
 	case UAC_FORMAT_TYPE_III:
 		err = parse_audio_format_i(chip, fp, format, fmt, iface);
@@ -407,10 +406,11 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *f
 		break;
 	default:
 		snd_printd(KERN_INFO "%d:%u:%d : format type %d is not supported yet\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, fmt[3]);
-		return -1;
+			   chip->dev->devnum, fp->iface, fp->altsetting,
+			   fmt->bFormatType);
+		return -ENOTSUPP;
 	}
-	fp->fmt_type = fmt[3];
+	fp->fmt_type = fmt->bFormatType;
 	if (err < 0)
 		return err;
 #if 1
@@ -421,10 +421,10 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *f
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3020) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3061)) {
-		if (fmt[3] == UAC_FORMAT_TYPE_I &&
+		if (fmt->bFormatType == UAC_FORMAT_TYPE_I &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
-			return -1;
+			return -ENOTSUPP;
 	}
 #endif
 	return 0;

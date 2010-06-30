@@ -879,13 +879,15 @@ static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend)
 		if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 			continue;
 		if (unsuspend)
-			status = vfs_quota_enable(
-					sb_dqopt(sb)->files[type],
-					type, QFMT_OCFS2,
-					DQUOT_SUSPENDED);
-		else
-			status = vfs_quota_disable(sb, type,
-						   DQUOT_SUSPENDED);
+			status = dquot_resume(sb, type);
+		else {
+			struct ocfs2_mem_dqinfo *oinfo;
+
+			/* Cancel periodic syncing before suspending */
+			oinfo = sb_dqinfo(sb, type)->dqi_priv;
+			cancel_delayed_work_sync(&oinfo->dqi_sync_work);
+			status = dquot_suspend(sb, type);
+		}
 		if (status < 0)
 			break;
 	}
@@ -916,8 +918,8 @@ static int ocfs2_enable_quotas(struct ocfs2_super *osb)
 			status = -ENOENT;
 			goto out_quota_off;
 		}
-		status = vfs_quota_enable(inode[type], type, QFMT_OCFS2,
-						DQUOT_USAGE_ENABLED);
+		status = dquot_enable(inode[type], type, QFMT_OCFS2,
+				      DQUOT_USAGE_ENABLED);
 		if (status < 0)
 			goto out_quota_off;
 	}
@@ -952,8 +954,8 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 		/* Turn off quotas. This will remove all dquot structures from
 		 * memory and so they will be automatically synced to global
 		 * quota files */
-		vfs_quota_disable(sb, type, DQUOT_USAGE_ENABLED |
-					    DQUOT_LIMITS_ENABLED);
+		dquot_disable(sb, type, DQUOT_USAGE_ENABLED |
+					DQUOT_LIMITS_ENABLED);
 		if (!inode)
 			continue;
 		iput(inode);
@@ -962,7 +964,7 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 
 /* Handle quota on quotactl */
 static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
-			  char *path, int remount)
+			  char *path)
 {
 	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
 					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
@@ -970,30 +972,24 @@ static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
 	if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 		return -EINVAL;
 
-	if (remount)
-		return 0;	/* Just ignore it has been handled in
-				 * ocfs2_remount() */
-	return vfs_quota_enable(sb_dqopt(sb)->files[type], type,
-				    format_id, DQUOT_LIMITS_ENABLED);
+	return dquot_enable(sb_dqopt(sb)->files[type], type,
+			    format_id, DQUOT_LIMITS_ENABLED);
 }
 
 /* Handle quota off quotactl */
-static int ocfs2_quota_off(struct super_block *sb, int type, int remount)
+static int ocfs2_quota_off(struct super_block *sb, int type)
 {
-	if (remount)
-		return 0;	/* Ignore now and handle later in
-				 * ocfs2_remount() */
-	return vfs_quota_disable(sb, type, DQUOT_LIMITS_ENABLED);
+	return dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 }
 
 static const struct quotactl_ops ocfs2_quotactl_ops = {
 	.quota_on	= ocfs2_quota_on,
 	.quota_off	= ocfs2_quota_off,
-	.quota_sync	= vfs_quota_sync,
-	.get_info	= vfs_get_dqinfo,
-	.set_info	= vfs_set_dqinfo,
-	.get_dqblk	= vfs_get_dqblk,
-	.set_dqblk	= vfs_set_dqblk,
+	.quota_sync	= dquot_quota_sync,
+	.get_info	= dquot_get_dqinfo,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk,
 };
 
 static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)

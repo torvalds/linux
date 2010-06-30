@@ -1411,6 +1411,13 @@ static int __init atk0110_init(void)
 {
 	int ret;
 
+	/* Make sure it's safe to access the device through ACPI */
+	if (!acpi_resources_are_enforced()) {
+		pr_err("atk: Resources not safely usable due to "
+		       "acpi_enforce_resources kernel parameter\n");
+		return -EBUSY;
+	}
+
 	ret = acpi_bus_register_driver(&atk_driver);
 	if (ret)
 		pr_info("atk: acpi_bus_register_driver failed: %d\n", ret);

@@ -25,7 +25,7 @@
  */
 #define A3000_XFER_MASK		(0x00000003)
 
-typedef struct {
+struct a3000_scsiregs {
 		 unsigned char	pad1[2];
 	volatile unsigned short	DAWR;
 	volatile unsigned int	WTC;
@@ -46,7 +46,7 @@ typedef struct {
 	volatile unsigned char	SASR;
 		 unsigned char	pad9;
 	volatile unsigned char	SCMD;
-} a3000_scsiregs;
+};
 
 #define DAWR_A3000		(3)
 

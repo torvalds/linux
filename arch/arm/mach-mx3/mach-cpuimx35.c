@@ -40,20 +40,20 @@
 #include <mach/board-eukrea_cpuimx35.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
-#include <mach/imx-uart.h>
-#include <mach/i2c.h>
 #include <mach/iomux-mx35.h>
 #include <mach/mxc_nand.h>
 #include <mach/mxc_ehci.h>
 #include <mach/ulpi.h>
 
+#include "devices-imx35.h"
 #include "devices.h"
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
-static struct imxi2c_platform_data eukrea_cpuimx35_i2c_1_data = {
+static const struct imxi2c_platform_data
+eukrea_cpuimx35_i2c0_data __initconst = {
 	.bitrate = 50000,
 };
 
@@ -134,7 +134,8 @@ static struct pad_desc eukrea_cpuimx35_pads[] = {
 	MX35_PAD_ATA_DA2__GPIO3_2,
 };
 
-static struct mxc_nand_platform_data pcm037_nand_board_info = {
+static const struct mxc_nand_platform_data
+eukrea_cpuimx35_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 	.flash_bbt	= 1,
@@ -181,12 +182,12 @@ static void __init mxc_board_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &pcm037_nand_board_info);
+	imx35_add_imx_uart0(&uart_pdata);
+	imx35_add_mxc_nand(&eukrea_cpuimx35_nand_board_info);
 
 	i2c_register_board_info(0, eukrea_cpuimx35_i2c_devices,
 			ARRAY_SIZE(eukrea_cpuimx35_i2c_devices));
-	mxc_register_device(&mxc_i2c_device0, &eukrea_cpuimx35_i2c_1_data);
+	imx35_add_imx_i2c0(&eukrea_cpuimx35_i2c0_data);
 
 #if defined(CONFIG_USB_ULPI)
 	if (otg_mode_host) {

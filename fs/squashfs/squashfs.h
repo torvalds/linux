@@ -73,8 +73,11 @@ extern struct inode *squashfs_iget(struct super_block *, long long,
 				unsigned int);
 extern int squashfs_read_inode(struct inode *, long long);
 
+/* xattr.c */
+extern ssize_t squashfs_listxattr(struct dentry *, char *, size_t);
+
 /*
- * Inodes, files and decompressor operations
+ * Inodes, files,  decompressor and xattr operations
  */
 
 /* dir.c */
@@ -86,11 +89,18 @@ extern const struct export_operations squashfs_export_ops;
 /* file.c */
 extern const struct address_space_operations squashfs_aops;
 
+/* inode.c */
+extern const struct inode_operations squashfs_inode_ops;
+
 /* namei.c */
 extern const struct inode_operations squashfs_dir_inode_ops;
 
 /* symlink.c */
 extern const struct address_space_operations squashfs_symlink_aops;
+extern const struct inode_operations squashfs_symlink_inode_ops;
+
+/* xattr.c */
+extern const struct xattr_handler *squashfs_xattr_handlers[];
 
 /* zlib_wrapper.c */
 extern const struct squashfs_decompressor squashfs_zlib_comp_ops;

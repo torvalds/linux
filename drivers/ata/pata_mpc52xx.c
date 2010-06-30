@@ -659,7 +659,7 @@ mpc52xx_ata_init_one(struct device *dev, struct mpc52xx_ata_priv *priv,
 	ata_port_desc(ap, "ata_regs 0x%lx", raw_ata_regs);
 
 	/* activate host */
-	return ata_host_activate(host, priv->ata_irq, ata_sff_interrupt, 0,
+	return ata_host_activate(host, priv->ata_irq, ata_bmdma_interrupt, 0,
 				 &mpc52xx_ata_sht);
 }
 

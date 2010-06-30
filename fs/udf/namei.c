@@ -27,7 +27,6 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/quotaops.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/sched.h>
@@ -563,8 +562,6 @@ static int udf_create(struct inode *dir, struct dentry *dentry, int mode,
 	int err;
 	struct udf_inode_info *iinfo;
 
-	dquot_initialize(dir);
-
 	lock_kernel();
 	inode = udf_new_inode(dir, mode, &err);
 	if (!inode) {
@@ -617,8 +614,6 @@ static int udf_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
 
-	dquot_initialize(dir);
-
 	lock_kernel();
 	err = -EIO;
 	inode = udf_new_inode(dir, mode, &err);
@@ -663,8 +658,6 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	int err;
 	struct udf_inode_info *dinfo = UDF_I(dir);
 	struct udf_inode_info *iinfo;
-
-	dquot_initialize(dir);
 
 	lock_kernel();
 	err = -EMLINK;
@@ -800,8 +793,6 @@ static int udf_rmdir(struct inode *dir, struct dentry *dentry)
 	struct fileIdentDesc *fi, cfi;
 	struct kernel_lb_addr tloc;
 
-	dquot_initialize(dir);
-
 	retval = -ENOENT;
 	lock_kernel();
 	fi = udf_find_entry(dir, &dentry->d_name, &fibh, &cfi);
@@ -847,8 +838,6 @@ static int udf_unlink(struct inode *dir, struct dentry *dentry)
 	struct fileIdentDesc *fi;
 	struct fileIdentDesc cfi;
 	struct kernel_lb_addr tloc;
-
-	dquot_initialize(dir);
 
 	retval = -ENOENT;
 	lock_kernel();
@@ -903,8 +892,6 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	int namelen;
 	struct buffer_head *bh;
 	struct udf_inode_info *iinfo;
-
-	dquot_initialize(dir);
 
 	lock_kernel();
 	inode = udf_new_inode(dir, S_IFLNK | S_IRWXUGO, &err);
@@ -1075,8 +1062,6 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	int err;
 	struct buffer_head *bh;
 
-	dquot_initialize(dir);
-
 	lock_kernel();
 	if (inode->i_nlink >= (256 << sizeof(inode->i_nlink)) - 1) {
 		unlock_kernel();
@@ -1138,9 +1123,6 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int retval = -ENOENT;
 	struct kernel_lb_addr tloc;
 	struct udf_inode_info *old_iinfo = UDF_I(old_inode);
-
-	dquot_initialize(old_dir);
-	dquot_initialize(new_dir);
 
 	lock_kernel();
 	ofi = udf_find_entry(old_dir, &old_dentry->d_name, &ofibh, &ocfi);
@@ -1387,7 +1369,6 @@ const struct export_operations udf_export_ops = {
 const struct inode_operations udf_dir_inode_operations = {
 	.lookup				= udf_lookup,
 	.create				= udf_create,
-	.setattr			= udf_setattr,
 	.link				= udf_link,
 	.unlink				= udf_unlink,
 	.symlink			= udf_symlink,
@@ -1400,5 +1381,4 @@ const struct inode_operations udf_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
 	.put_link	= page_put_link,
-	.setattr	= udf_setattr,
 };

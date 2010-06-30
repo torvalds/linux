@@ -272,6 +272,7 @@ static int isofs_readdir(struct file *filp,
 
 const struct file_operations isofs_dir_operations =
 {
+	.llseek = generic_file_llseek,
 	.read = generic_read_dir,
 	.readdir = isofs_readdir,
 };

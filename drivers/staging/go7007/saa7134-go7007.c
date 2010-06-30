@@ -242,13 +242,13 @@ static void saa7134_go7007_irq_ts_done(struct saa7134_dev *dev,
 		printk(KERN_DEBUG "saa7134-go7007: irq: lost %ld\n",
 				(status >> 16) & 0x0f);
 	if (status & 0x100000) {
-		dma_sync_single(&dev->pci->dev,
-				saa->bottom_dma, PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(&dev->pci->dev,
+					saa->bottom_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 		go7007_parse_video_stream(go, saa->bottom, PAGE_SIZE);
 		saa_writel(SAA7134_RS_BA2(5), cpu_to_le32(saa->bottom_dma));
 	} else {
-		dma_sync_single(&dev->pci->dev,
-				saa->top_dma, PAGE_SIZE, DMA_FROM_DEVICE);
+		dma_sync_single_for_cpu(&dev->pci->dev,
+					saa->top_dma, PAGE_SIZE, DMA_FROM_DEVICE);
 		go7007_parse_video_stream(go, saa->top, PAGE_SIZE);
 		saa_writel(SAA7134_RS_BA1(5), cpu_to_le32(saa->top_dma));
 	}

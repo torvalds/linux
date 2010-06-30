@@ -794,7 +794,7 @@ printer_write(struct file *fd, const char __user *buf, size_t len, loff_t *ptr)
 }
 
 static int
-printer_fsync(struct file *fd, struct dentry *dentry, int datasync)
+printer_fsync(struct file *fd, int datasync)
 {
 	struct printer_dev	*dev = fd->private_data;
 	unsigned long		flags;

@@ -445,6 +445,7 @@ EXPORT_SYMBOL(idr_remove);
 void idr_remove_all(struct idr *idp)
 {
 	int n, id, max;
+	int bt_mask;
 	struct idr_layer *p;
 	struct idr_layer *pa[MAX_LEVEL];
 	struct idr_layer **paa = &pa[0];
@@ -462,8 +463,10 @@ void idr_remove_all(struct idr *idp)
 			p = p->ary[(id >> n) & IDR_MASK];
 		}
 
+		bt_mask = id;
 		id += 1 << n;
-		while (n < fls(id)) {
+		/* Get the highest bit that the above add changed from 0->1. */
+		while (n < fls(id ^ bt_mask)) {
 			if (p)
 				free_layer(p);
 			n += IDR_BITS;

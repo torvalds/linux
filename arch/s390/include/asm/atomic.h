@@ -15,6 +15,7 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <asm/system.h>
 
 #define ATOMIC_INIT(i)  { (i) }
 
@@ -274,6 +275,7 @@ static inline void atomic64_clear_mask(unsigned long long mask, atomic64_t *v)
 static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 {
 	long long c, old;
+
 	c = atomic64_read(v);
 	for (;;) {
 		if (unlikely(c == u))
@@ -284,6 +286,23 @@ static inline int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 		c = old;
 	}
 	return c != u;
+}
+
+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long long c, old, dec;
+
+	c = atomic64_read(v);
+	for (;;) {
+		dec = c - 1;
+		if (unlikely(dec < 0))
+			break;
+		old = atomic64_cmpxchg((v), c, dec);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+	return dec;
 }
 
 #define atomic64_add(_i, _v)		atomic64_add_return(_i, _v)

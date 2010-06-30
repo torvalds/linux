@@ -754,6 +754,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	/* evict remaining vram memory */
 	radeon_bo_evict_vram(rdev);
 
+	radeon_agp_suspend(rdev);
+
 	pci_save_state(dev->pdev);
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */

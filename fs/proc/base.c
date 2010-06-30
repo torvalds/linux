@@ -166,18 +166,6 @@ static int get_fs_path(struct task_struct *task, struct path *path, bool root)
 	return result;
 }
 
-static int get_nr_threads(struct task_struct *tsk)
-{
-	unsigned long flags;
-	int count = 0;
-
-	if (lock_task_sighand(tsk, &flags)) {
-		count = atomic_read(&tsk->signal->count);
-		unlock_task_sighand(tsk, &flags);
-	}
-	return count;
-}
-
 static int proc_cwd_link(struct inode *inode, struct path *path)
 {
 	struct task_struct *task = get_proc_task(inode);
@@ -2444,7 +2432,7 @@ static struct dentry *proc_base_instantiate(struct inode *dir,
 	const struct pid_entry *p = ptr;
 	struct inode *inode;
 	struct proc_inode *ei;
-	struct dentry *error = ERR_PTR(-EINVAL);
+	struct dentry *error;
 
 	/* Allocate the inode */
 	error = ERR_PTR(-ENOMEM);
@@ -2794,7 +2782,7 @@ out:
 
 struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, struct nameidata *nd)
 {
-	struct dentry *result = ERR_PTR(-ENOENT);
+	struct dentry *result;
 	struct task_struct *task;
 	unsigned tgid;
 	struct pid_namespace *ns;

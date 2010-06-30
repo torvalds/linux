@@ -39,7 +39,7 @@ extern int net_cls_subsys_id;
 static inline u32 task_cls_classid(struct task_struct *p)
 {
 	int id;
-	u32 classid;
+	u32 classid = 0;
 
 	if (in_interrupt())
 		return 0;

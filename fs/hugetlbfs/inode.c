@@ -688,7 +688,7 @@ static void init_once(void *foo)
 const struct file_operations hugetlbfs_file_operations = {
 	.read			= hugetlbfs_read,
 	.mmap			= hugetlbfs_file_mmap,
-	.fsync			= simple_sync_file,
+	.fsync			= noop_fsync,
 	.get_unmapped_area	= hugetlb_get_unmapped_area,
 };
 

@@ -130,12 +130,10 @@ void emergency_sync(void)
 
 /*
  * Generic function to fsync a file.
- *
- * filp may be NULL if called via the msync of a vma.
  */
-int file_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int file_fsync(struct file *filp, int datasync)
 {
-	struct inode * inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	struct super_block * sb;
 	int ret, err;
 
@@ -183,7 +181,7 @@ int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
-	err = file->f_op->fsync(file, file->f_path.dentry, datasync);
+	err = file->f_op->fsync(file, datasync);
 	if (!ret)
 		ret = err;
 	mutex_unlock(&mapping->host->i_mutex);

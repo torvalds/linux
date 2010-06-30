@@ -373,7 +373,7 @@ struct acpi_pci_root {
 	struct acpi_pci_id id;
 	struct pci_bus *bus;
 	u16 segment;
-	u8 bus_nr;
+	struct resource secondary;	/* downstream bus range */
 
 	u32 osc_support_set;	/* _OSC state of support bits */
 	u32 osc_control_set;	/* _OSC state of control bits */

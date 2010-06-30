@@ -118,21 +118,11 @@
 #define IRQ_MDNIE3		S5P_IRQ_VIC3(8)
 #define IRQ_VIC_END		S5P_IRQ_VIC3(31)
 
-#define S5P_EINT_16_31_BASE	(IRQ_VIC_END + 1)
-
-#define EINT_MODE		S3C_GPIO_SFN(0xf)
-
-#define IRQ_EINT(x)		((x) < 16 ? ((x) + S5P_IRQ_VIC0(0)) \
-					: ((x) + S5P_EINT_16_31_BASE))
+#define S5P_EINT_BASE1		(S5P_IRQ_VIC0(0))
+#define S5P_EINT_BASE2		(IRQ_VIC_END + 1)
 
 /* Set the default NR_IRQS */
-
 #define NR_IRQS			(IRQ_EINT(31) + 1)
-
-#define EINT_GPIO_0(x)		S5PV210_GPH0(x)
-#define EINT_GPIO_1(x)		S5PV210_GPH1(x)
-#define EINT_GPIO_2(x)		S5PV210_GPH2(x)
-#define EINT_GPIO_3(x)		S5PV210_GPH3(x)
 
 /* Compatibility */
 #define IRQ_LCD_FIFO		IRQ_LCD0

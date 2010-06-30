@@ -308,7 +308,7 @@ static void svia_noop_freeze(struct ata_port *ap)
 	 * certain way.  Leave it alone and just clear pending IRQ.
 	 */
 	ap->ops->sff_check_status(ap);
-	ata_sff_irq_clear(ap);
+	ata_bmdma_irq_clear(ap);
 }
 
 /**
@@ -463,7 +463,7 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
-	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
+	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	*r_host = host;
@@ -520,7 +520,7 @@ static int vt8251_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int i, rc;
 
-	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
+	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	*r_host = host;
@@ -628,7 +628,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	svia_configure(pdev);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				 IRQF_SHARED, &svia_sht);
 }
 

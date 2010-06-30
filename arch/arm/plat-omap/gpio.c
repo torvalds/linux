@@ -624,79 +624,58 @@ do {	\
 	__raw_writel(l, base + reg); \
 } while(0)
 
-void omap_set_gpio_debounce(int gpio, int enable)
+/**
+ * _set_gpio_debounce - low level gpio debounce time
+ * @bank: the gpio bank we're acting upon
+ * @gpio: the gpio number on this @gpio
+ * @debounce: debounce time to use
+ *
+ * OMAP's debounce time is in 31us steps so we need
+ * to convert and round up to the closest unit.
+ */
+static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
+		unsigned debounce)
 {
-	struct gpio_bank *bank;
-	void __iomem *reg;
-	unsigned long flags;
-	u32 val, l = 1 << get_gpio_index(gpio);
+	void __iomem		*reg = bank->base;
+	u32			val;
+	u32			l;
 
-	if (cpu_class_is_omap1())
-		return;
-
-	bank = get_gpio_bank(gpio);
-	reg = bank->base;
-
-	if (cpu_is_omap44xx())
-		reg += OMAP4_GPIO_DEBOUNCENABLE;
+	if (debounce < 32)
+		debounce = 0x01;
+	else if (debounce > 7936)
+		debounce = 0xff;
 	else
-		reg += OMAP24XX_GPIO_DEBOUNCE_EN;
+		debounce = (debounce / 0x1f) - 1;
 
-	if (!(bank->mod_usage & l)) {
-		printk(KERN_ERR "GPIO %d not requested\n", gpio);
-		return;
-	}
-
-	spin_lock_irqsave(&bank->lock, flags);
-	val = __raw_readl(reg);
-
-	if (enable && !(val & l))
-		val |= l;
-	else if (!enable && (val & l))
-		val &= ~l;
-	else
-		goto done;
-
-	if (cpu_is_omap34xx() || cpu_is_omap44xx()) {
-		bank->dbck_enable_mask = val;
-		if (enable)
-			clk_enable(bank->dbck);
-		else
-			clk_disable(bank->dbck);
-	}
-
-	__raw_writel(val, reg);
-done:
-	spin_unlock_irqrestore(&bank->lock, flags);
-}
-EXPORT_SYMBOL(omap_set_gpio_debounce);
-
-void omap_set_gpio_debounce_time(int gpio, int enc_time)
-{
-	struct gpio_bank *bank;
-	void __iomem *reg;
-
-	if (cpu_class_is_omap1())
-		return;
-
-	bank = get_gpio_bank(gpio);
-	reg = bank->base;
-
-	if (!bank->mod_usage) {
-		printk(KERN_ERR "GPIO not requested\n");
-		return;
-	}
-
-	enc_time &= 0xff;
+	l = 1 << get_gpio_index(gpio);
 
 	if (cpu_is_omap44xx())
 		reg += OMAP4_GPIO_DEBOUNCINGTIME;
 	else
 		reg += OMAP24XX_GPIO_DEBOUNCE_VAL;
 
-	__raw_writel(enc_time, reg);
+	__raw_writel(debounce, reg);
+
+	reg = bank->base;
+	if (cpu_is_omap44xx())
+		reg += OMAP4_GPIO_DEBOUNCENABLE;
+	else
+		reg += OMAP24XX_GPIO_DEBOUNCE_EN;
+
+	val = __raw_readl(reg);
+
+	if (debounce) {
+		val |= l;
+		if (cpu_is_omap34xx() || cpu_is_omap44xx())
+			clk_enable(bank->dbck);
+	} else {
+		val &= ~l;
+		if (cpu_is_omap34xx() || cpu_is_omap44xx())
+			clk_disable(bank->dbck);
+	}
+
+	__raw_writel(val, reg);
 }
-EXPORT_SYMBOL(omap_set_gpio_debounce_time);
 
 #ifdef CONFIG_ARCH_OMAP2PLUS
 static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
@@ -1656,6 +1635,20 @@ static int gpio_output(struct gpio_chip *chip, unsigned offset, int value)
 	return 0;
 }
 
+static int gpio_debounce(struct gpio_chip *chip, unsigned offset,
+		unsigned debounce)
+{
+	struct gpio_bank *bank;
+	unsigned long flags;
+
+	bank = container_of(chip, struct gpio_bank, chip);
+	spin_lock_irqsave(&bank->lock, flags);
+	_set_gpio_debounce(bank, offset, debounce);
+	spin_unlock_irqrestore(&bank->lock, flags);
+
+	return 0;
+}
+
 static void gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
 	struct gpio_bank *bank;
@@ -1909,6 +1902,7 @@ static int __init _omap_gpio_init(void)
 		bank->chip.direction_input = gpio_input;
 		bank->chip.get = gpio_get;
 		bank->chip.direction_output = gpio_output;
+		bank->chip.set_debounce = gpio_debounce;
 		bank->chip.set = gpio_set;
 		bank->chip.to_irq = gpio_2irq;
 		if (bank_is_mpuio(bank)) {

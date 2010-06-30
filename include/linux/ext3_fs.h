@@ -868,7 +868,7 @@ extern int ext3_htree_store_dirent(struct file *dir_file, __u32 hash,
 extern void ext3_htree_free_dir_info(struct dir_private_info *p);
 
 /* fsync.c */
-extern int ext3_sync_file (struct file *, struct dentry *, int);
+extern int ext3_sync_file(struct file *, int);
 
 /* hash.c */
 extern int ext3fs_dirhash(const char *name, int len, struct

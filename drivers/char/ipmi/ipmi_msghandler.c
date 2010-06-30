@@ -2505,12 +2505,11 @@ static int ipmi_bmc_register(ipmi_smi_t intf, int ifnum,
 			return rv;
 		}
 
-		printk(KERN_INFO
-		       "ipmi: Found new BMC (man_id: 0x%6.6x, "
-		       " prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
-		       bmc->id.manufacturer_id,
-		       bmc->id.product_id,
-		       bmc->id.device_id);
+		dev_info(intf->si_dev, "Found new BMC (man_id: 0x%6.6x, "
+			 "prod_id: 0x%4.4x, dev_id: 0x%2.2x)\n",
+			 bmc->id.manufacturer_id,
+			 bmc->id.product_id,
+			 bmc->id.device_id);
 	}
 
 	/*
@@ -4037,8 +4036,8 @@ static void ipmi_request_event(void)
 
 static struct timer_list ipmi_timer;
 
-/* Call every ~100 ms. */
-#define IPMI_TIMEOUT_TIME	100
+/* Call every ~1000 ms. */
+#define IPMI_TIMEOUT_TIME	1000
 
 /* How many jiffies does it take to get to the timeout time. */
 #define IPMI_TIMEOUT_JIFFIES	((IPMI_TIMEOUT_TIME * HZ) / 1000)

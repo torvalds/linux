@@ -186,6 +186,9 @@ config DMA_NONCOHERENT
 config NEED_DMA_MAP_STATE
 	def_bool DMA_NONCOHERENT
 
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

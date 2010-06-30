@@ -15,11 +15,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/mm.h>
@@ -88,7 +83,10 @@ void __init mxc91231_map_io(void)
 	iotable_init(mxc_io_desc, ARRAY_SIZE(mxc_io_desc));
 }
 
+int mxc91231_register_gpios(void);
+
 void __init mxc91231_init_irq(void)
 {
+	mxc91231_register_gpios();
 	mxc_init_irq(MXC91231_IO_ADDRESS(MXC91231_AVIC_BASE_ADDR));
 }

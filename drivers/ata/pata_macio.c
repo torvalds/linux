@@ -1110,7 +1110,7 @@ static int __devinit pata_macio_common_init(struct pata_macio_priv	*priv,
 
 	/* Start it up */
 	priv->irq = irq;
-	return ata_host_activate(priv->host, irq, ata_sff_interrupt, 0,
+	return ata_host_activate(priv->host, irq, ata_bmdma_interrupt, 0,
 				 &pata_macio_sht);
 }
 

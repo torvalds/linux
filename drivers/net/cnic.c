@@ -3367,12 +3367,8 @@ static int cnic_cm_shutdown(struct cnic_dev *dev)
 
 static void cnic_init_context(struct cnic_dev *dev, u32 cid)
 {
-	struct cnic_local *cp = dev->cnic_priv;
 	u32 cid_addr;
 	int i;
-
-	if (CHIP_NUM(cp) == CHIP_NUM_5709)
-		return;
 
 	cid_addr = GET_CID_ADDR(cid);
 
@@ -3530,14 +3526,11 @@ static void cnic_init_bnx2_tx_ring(struct cnic_dev *dev)
 
 	sb_id = cp->status_blk_num;
 	tx_cid = 20;
-	cnic_init_context(dev, tx_cid);
-	cnic_init_context(dev, tx_cid + 1);
 	cp->tx_cons_ptr = &s_blk->status_tx_quick_consumer_index2;
 	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX) {
 		struct status_block_msix *sblk = cp->status_blk.bnx2;
 
 		tx_cid = TX_TSS_CID + sb_id - 1;
-		cnic_init_context(dev, tx_cid);
 		CNIC_WR(dev, BNX2_TSCH_TSS_CFG, (sb_id << 24) |
 			(TX_TSS_CID << 7));
 		cp->tx_cons_ptr = &sblk->status_tx_quick_consumer_index;
@@ -3556,6 +3549,9 @@ static void cnic_init_bnx2_tx_ring(struct cnic_dev *dev)
 		offset2 = BNX2_L2CTX_TBDR_BHADDR_HI_XI;
 		offset3 = BNX2_L2CTX_TBDR_BHADDR_LO_XI;
 	} else {
+		cnic_init_context(dev, tx_cid);
+		cnic_init_context(dev, tx_cid + 1);
+
 		offset0 = BNX2_L2CTX_TYPE;
 		offset1 = BNX2_L2CTX_CMD_TYPE;
 		offset2 = BNX2_L2CTX_TBDR_BHADDR_HI;

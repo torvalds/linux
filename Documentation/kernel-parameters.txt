@@ -145,11 +145,10 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	acpi=		[HW,ACPI,X86]
 			Advanced Configuration and Power Interface
-			Format: { force | off | ht | strict | noirq | rsdt }
+			Format: { force | off | strict | noirq | rsdt }
 			force -- enable ACPI if default was off
 			off -- disable ACPI if default was on
 			noirq -- do not use ACPI for IRQ routing
-			ht -- run only enough ACPI to enable Hyper Threading
 			strict -- Be less tolerant of platforms that are not
 				strictly ACPI specification compliant.
 			rsdt -- prefer RSDT over (default) XSDT
@@ -758,6 +757,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			Default value is 0.
 			Value can be changed at runtime via /selinux/enforce.
 
+	erst_disable	[ACPI]
+			Disable Error Record Serialization Table (ERST)
+			support.
+
 	ether=		[HW,NET] Ethernet cards parameters
 			This option is obsoleted by the "netdev=" option, which
 			has equivalent usage. See its documentation for details.
@@ -851,6 +854,11 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	hd=		[EIDE] (E)IDE hard drive subsystem geometry
 			Format: <cyl>,<head>,<sect>
+
+	hest_disable	[ACPI]
+			Disable Hardware Error Source Table (HEST) support;
+			corresponding firmware-first mode error processing
+			logic will be disabled.
 
 	highmem=nn[KMG]	[KNL,BOOT] forces the highmem zone to have an exact
 			size of <nn>. This works even on boxes that have no
@@ -1251,6 +1259,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 			* nohrst, nosrst, norst: suppress hard, soft
                           and both resets.
+
+			* dump_id: dump IDENTIFY data.
 
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.

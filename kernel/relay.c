@@ -539,7 +539,7 @@ static int __cpuinit relay_hotcpu_callback(struct notifier_block *nb,
 					"relay_hotcpu_callback: cpu %d buffer "
 					"creation failed\n", hotcpu);
 				mutex_unlock(&relay_channels_mutex);
-				return NOTIFY_BAD;
+				return notifier_from_errno(-ENOMEM);
 			}
 		}
 		mutex_unlock(&relay_channels_mutex);

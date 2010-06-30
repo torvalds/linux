@@ -669,8 +669,16 @@ static void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_mdsc_stop(&client->mdsc);
-	ceph_monc_stop(&client->monc);
 	ceph_osdc_stop(&client->osdc);
+
+	/*
+	 * make sure mds and osd connections close out before destroying
+	 * the auth module, which is needed to free those connections'
+	 * ceph_authorizers.
+	 */
+	ceph_msgr_flush();
+
+	ceph_monc_stop(&client->monc);
 
 	ceph_adjust_min_caps(-client->min_caps);
 
@@ -738,7 +746,7 @@ static struct dentry *open_root_dentry(struct ceph_client *client,
 	dout("open_root_inode opening '%s'\n", path);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, USE_ANY_MDS);
 	if (IS_ERR(req))
-		return ERR_PTR(PTR_ERR(req));
+		return ERR_CAST(req);
 	req->r_path1 = kstrdup(path, GFP_NOFS);
 	req->r_ino1.ino = CEPH_INO_ROOT;
 	req->r_ino1.snap = CEPH_NOSNAP;

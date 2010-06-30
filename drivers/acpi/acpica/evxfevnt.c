@@ -69,7 +69,7 @@ acpi_ev_get_gpe_device(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 acpi_status acpi_enable(void)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_enable);
 
@@ -84,21 +84,30 @@ acpi_status acpi_enable(void)
 	if (acpi_hw_get_mode() == ACPI_SYS_MODE_ACPI) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 				  "System is already in ACPI mode\n"));
-	} else {
-		/* Transition to ACPI mode */
-
-		status = acpi_hw_set_mode(ACPI_SYS_MODE_ACPI);
-		if (ACPI_FAILURE(status)) {
-			ACPI_ERROR((AE_INFO,
-				    "Could not transition to ACPI mode"));
-			return_ACPI_STATUS(status);
-		}
-
-		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "Transition to ACPI mode successful\n"));
+		return_ACPI_STATUS(AE_OK);
 	}
 
-	return_ACPI_STATUS(status);
+	/* Transition to ACPI mode */
+
+	status = acpi_hw_set_mode(ACPI_SYS_MODE_ACPI);
+	if (ACPI_FAILURE(status)) {
+		ACPI_ERROR((AE_INFO,
+			    "Could not transition to ACPI mode"));
+		return_ACPI_STATUS(status);
+	}
+
+	/* Sanity check that transition succeeded */
+
+	if (acpi_hw_get_mode() != ACPI_SYS_MODE_ACPI) {
+		ACPI_ERROR((AE_INFO,
+			    "Hardware did not enter ACPI mode"));
+		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
+			  "Transition to ACPI mode successful\n"));
+
+	return_ACPI_STATUS(AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_enable)

@@ -1025,7 +1025,7 @@ print_graph_comment(struct trace_seq *s, struct trace_entry *ent,
 		if (!event)
 			return TRACE_TYPE_UNHANDLED;
 
-		ret = event->trace(iter, sym_flags);
+		ret = event->funcs->trace(iter, sym_flags, event);
 		if (ret != TRACE_TYPE_HANDLED)
 			return ret;
 	}
@@ -1112,7 +1112,8 @@ print_graph_function(struct trace_iterator *iter)
 }
 
 static enum print_line_t
-print_graph_function_event(struct trace_iterator *iter, int flags)
+print_graph_function_event(struct trace_iterator *iter, int flags,
+			   struct trace_event *event)
 {
 	return print_graph_function(iter);
 }
@@ -1225,14 +1226,18 @@ void graph_trace_close(struct trace_iterator *iter)
 	}
 }
 
+static struct trace_event_functions graph_functions = {
+	.trace		= print_graph_function_event,
+};
+
 static struct trace_event graph_trace_entry_event = {
 	.type		= TRACE_GRAPH_ENT,
-	.trace		= print_graph_function_event,
+	.funcs		= &graph_functions,
 };
 
 static struct trace_event graph_trace_ret_event = {
 	.type		= TRACE_GRAPH_RET,
-	.trace		= print_graph_function_event,
+	.funcs		= &graph_functions
 };
 
 static struct tracer graph_trace __read_mostly = {

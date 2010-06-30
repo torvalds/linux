@@ -27,7 +27,6 @@
 #include <linux/time.h>
 #include <linux/stat.h>
 #include <linux/string.h>
-#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/sched.h>
 #include <linux/bitops.h>
@@ -94,9 +93,6 @@ void ufs_free_inode (struct inode * inode)
 	ucg->cg_time = cpu_to_fs32(sb, get_seconds());
 
 	is_directory = S_ISDIR(inode->i_mode);
-
-	dquot_free_inode(inode);
-	dquot_drop(inode);
 
 	clear_inode (inode);
 
@@ -347,21 +343,12 @@ cg_found:
 
 	unlock_super (sb);
 
-	dquot_initialize(inode);
-	err = dquot_alloc_inode(inode);
-	if (err) {
-		dquot_drop(inode);
-		goto fail_without_unlock;
-	}
-
 	UFSD("allocating inode %lu\n", inode->i_ino);
 	UFSD("EXIT\n");
 	return inode;
 
 fail_remove_inode:
 	unlock_super(sb);
-fail_without_unlock:
-	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	iput(inode);
 	UFSD("EXIT (FAILED): err %d\n", err);

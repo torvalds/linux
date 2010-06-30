@@ -566,7 +566,7 @@ out:
 	return ret;
 }
 
-static void __devexit device_irq_exit(struct pm860x_chip *chip)
+static void device_irq_exit(struct pm860x_chip *chip)
 {
 	if (chip->core_irq)
 		free_irq(chip->core_irq, chip);
@@ -703,7 +703,7 @@ out:
 	return;
 }
 
-int pm860x_device_init(struct pm860x_chip *chip,
+int __devinit pm860x_device_init(struct pm860x_chip *chip,
 		       struct pm860x_platform_data *pdata)
 {
 	chip->core_irq = 0;
@@ -731,7 +731,7 @@ int pm860x_device_init(struct pm860x_chip *chip,
 	return 0;
 }
 
-void pm860x_device_exit(struct pm860x_chip *chip)
+void __devexit pm860x_device_exit(struct pm860x_chip *chip)
 {
 	device_irq_exit(chip);
 	mfd_remove_devices(chip->dev);

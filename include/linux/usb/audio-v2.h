@@ -105,6 +105,22 @@ struct uac_as_header_descriptor_v2 {
 	__u8 iChannelNames;
 } __attribute__((packed));
 
+/* 4.10.1.2 Class-Specific AS Isochronous Audio Data Endpoint Descriptor */
+
+struct uac2_iso_endpoint_descriptor {
+	__u8  bLength;			/* in bytes: 8 */
+	__u8  bDescriptorType;		/* USB_DT_CS_ENDPOINT */
+	__u8  bDescriptorSubtype;	/* EP_GENERAL */
+	__u8  bmAttributes;
+	__u8  bmControls;
+	__u8  bLockDelayUnits;
+	__le16 wLockDelay;
+} __attribute__((packed));
+
+#define UAC2_CONTROL_PITCH		(3 << 0)
+#define UAC2_CONTROL_DATA_OVERRUN	(3 << 2)
+#define UAC2_CONTROL_DATA_UNDERRUN	(3 << 4)
+
 /* 6.1 Interrupt Data Message */
 
 #define UAC2_INTERRUPT_DATA_MSG_VENDOR	(1 << 0)

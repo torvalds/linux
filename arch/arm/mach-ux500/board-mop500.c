@@ -50,7 +50,7 @@ struct pl022_config_chip ab4500_chip_info = {
 
 static struct spi_board_info u8500_spi_devices[] = {
 	{
-		.modalias = "ab4500",
+		.modalias = "ab8500",
 		.controller_data = &ab4500_chip_info,
 		.max_speed_hz = 12000000,
 		.bus_num = 0,

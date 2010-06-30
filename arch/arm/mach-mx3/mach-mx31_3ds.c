@@ -10,10 +10,6 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/delay.h>
@@ -37,19 +33,46 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/board-mx31_3ds.h>
-#include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/mxc_nand.h>
-#include <mach/spi.h>
+
+#include "devices-imx31.h"
 #include "devices.h"
 
-/*!
- * @file mx31_3ds.c
- *
- * @brief This file contains the board-specific initialization routines.
- *
- * @ingroup System
+/* Definitions for components on the Debug board */
+
+/* Base address of CPLD controller on the Debug board */
+#define DEBUG_BASE_ADDRESS		CS5_IO_ADDRESS(MX3x_CS5_BASE_ADDR)
+
+/* LAN9217 ethernet base address */
+#define LAN9217_BASE_ADDR		MX3x_CS5_BASE_ADDR
+
+/* CPLD config and interrupt base address */
+#define CPLD_ADDR			(DEBUG_BASE_ADDRESS + 0x20000)
+
+/* status, interrupt */
+#define CPLD_INT_STATUS_REG		(CPLD_ADDR + 0x10)
+#define CPLD_INT_MASK_REG		(CPLD_ADDR + 0x38)
+#define CPLD_INT_RESET_REG		(CPLD_ADDR + 0x20)
+/* magic word for debug CPLD */
+#define CPLD_MAGIC_NUMBER1_REG		(CPLD_ADDR + 0x40)
+#define CPLD_MAGIC_NUMBER2_REG		(CPLD_ADDR + 0x48)
+/* CPLD code version */
+#define CPLD_CODE_VER_REG		(CPLD_ADDR + 0x50)
+/* magic word for debug CPLD */
+#define CPLD_MAGIC_NUMBER3_REG		(CPLD_ADDR + 0x58)
+
+/* CPLD IRQ line for external uart, external ethernet etc */
+#define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_1)
+
+#define MXC_EXP_IO_BASE		(MXC_BOARD_IRQ_START)
+#define MXC_IRQ_TO_EXPIO(irq)	((irq) - MXC_EXP_IO_BASE)
+
+#define EXPIO_INT_ENET		(MXC_EXP_IO_BASE + 0)
+
+#define MXC_MAX_EXP_IO_LINES	16
+
+/*
+ * This file contains the board-specific initialization routines.
  */
 
 static int mx31_3ds_pins[] = {
@@ -145,7 +168,7 @@ static int spi1_internal_chipselect[] = {
 	MXC_SPI_CS(2),
 };
 
-static struct spi_imx_master spi1_pdata = {
+static const struct spi_imx_master spi1_pdata __initconst = {
 	.chipselect	= spi1_internal_chipselect,
 	.num_chipselect	= ARRAY_SIZE(spi1_internal_chipselect),
 };
@@ -165,7 +188,8 @@ static struct spi_board_info mx31_3ds_spi_devs[] __initdata = {
 /*
  * NAND Flash
  */
-static struct mxc_nand_platform_data imx31_3ds_nand_flash_pdata = {
+static const struct mxc_nand_platform_data
+mx31_3ds_nand_board_info __initconst = {
 	.width		= 1,
 	.hw_ecc		= 1,
 #ifdef MACH_MX31_3DS_MXC_NAND_USE_BBT
@@ -225,7 +249,7 @@ static struct fsl_usb2_platform_data usbotg_pdata = {
 	.phy_mode	= FSL_USB2_PHY_ULPI,
 };
 
-static struct imxuart_platform_data uart_pdata = {
+static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
 };
 
@@ -407,10 +431,10 @@ static void __init mxc_board_init(void)
 	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
 				      "mx31_3ds");
 
-	mxc_register_device(&mxc_uart_device0, &uart_pdata);
-	mxc_register_device(&mxc_nand_device, &imx31_3ds_nand_flash_pdata);
+	imx31_add_imx_uart0(&uart_pdata);
+	imx31_add_mxc_nand(&mx31_3ds_nand_board_info);
 
-	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
+	imx31_add_spi_imx0(&spi1_pdata);
 	spi_register_board_info(mx31_3ds_spi_devs,
 						ARRAY_SIZE(mx31_3ds_spi_devs));
 
