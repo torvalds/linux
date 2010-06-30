@@ -314,7 +314,7 @@ static void t4_l2e_free(struct l2t_entry *e)
 			struct sk_buff *skb = e->arpq_head;
 
 			e->arpq_head = skb->next;
-			kfree(skb);
+			kfree_skb(skb);
 		}
 		e->arpq_tail = NULL;
 	}
