@@ -1219,8 +1219,10 @@ int r600_mc_init(struct radeon_device *rdev)
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 
-	if (rdev->flags & RADEON_IS_IGP)
+	if (rdev->flags & RADEON_IS_IGP) {
+		rs690_pm_info(rdev);
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	}
 	radeon_update_bandwidth_info(rdev);
 	return 0;
 }
