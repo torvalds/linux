@@ -1947,21 +1947,26 @@ fail:
  *		0 for FOUND a device
  *		< 0 for error code
  */
+
+static int probed = 0;
+
 static int __devinit i7core_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
-	int dev_idx = id->driver_data;
 	int rc;
 	struct i7core_dev *i7core_dev;
+
+	/* get the pci devices we want to reserve for our use */
+	mutex_lock(&i7core_edac_lock);
 
 	/*
 	 * All memory controllers are allocated at the first pass.
 	 */
-	if (unlikely(dev_idx >= 1))
+	if (unlikely(probed >= 1)) {
+		mutex_unlock(&i7core_edac_lock);
 		return -EINVAL;
-
-	/* get the pci devices we want to reserve for our use */
-	mutex_lock(&i7core_edac_lock);
+	}
+	probed++;
 
 	rc = i7core_get_devices(pci_dev_table);
 	if (unlikely(rc < 0))
@@ -2033,6 +2038,8 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 				      i7core_dev->socket);
 		}
 	}
+	probed--;
+
 	mutex_unlock(&i7core_edac_lock);
 }
 
