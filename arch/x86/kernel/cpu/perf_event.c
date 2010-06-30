@@ -1571,9 +1571,7 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
  * callchain support
  */
 
-
-static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_irq_entry);
-static DEFINE_PER_CPU(struct perf_callchain_entry, pmc_nmi_entry);
+static DEFINE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry_nmi);
 
 
 static void
@@ -1607,8 +1605,8 @@ static const struct stacktrace_ops backtrace_ops = {
 	.walk_stack		= print_context_stack_bp,
 };
 
-static void
-perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
+void
+perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 	perf_callchain_store(entry, regs->ip);
@@ -1653,14 +1651,12 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 }
 #endif
 
-static void
-perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
+void
+perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	struct stack_frame frame;
 	const void __user *fp;
 
-	if (!user_mode(regs))
-		regs = task_pt_regs(current);
 
 	fp = (void __user *)regs->bp;
 
@@ -1687,42 +1683,17 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	}
 }
 
-static void
-perf_do_callchain(struct pt_regs *regs, struct perf_callchain_entry *entry)
+struct perf_callchain_entry *perf_callchain_buffer(void)
 {
-	int is_user;
-
-	if (!regs)
-		return;
-
-	is_user = user_mode(regs);
-
-	if (!is_user)
-		perf_callchain_kernel(regs, entry);
-
-	if (current->mm)
-		perf_callchain_user(regs, entry);
-}
-
-struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
-{
-	struct perf_callchain_entry *entry;
-
 	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
 		/* TODO: We don't support guest os callchain now */
 		return NULL;
 	}
 
 	if (in_nmi())
-		entry = &__get_cpu_var(pmc_nmi_entry);
-	else
-		entry = &__get_cpu_var(pmc_irq_entry);
+		return &__get_cpu_var(perf_callchain_entry_nmi);
 
-	entry->nr = 0;
-
-	perf_do_callchain(regs, entry);
-
-	return entry;
+	return &__get_cpu_var(perf_callchain_entry);
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)

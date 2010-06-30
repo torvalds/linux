@@ -46,8 +46,8 @@ static int valid_next_sp(unsigned long sp, unsigned long prev_sp)
 	return 0;
 }
 
-static void perf_callchain_kernel(struct pt_regs *regs,
-				  struct perf_callchain_entry *entry)
+void
+perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	unsigned long sp, next_sp;
 	unsigned long next_ip;
@@ -221,8 +221,8 @@ static int sane_signal_64_frame(unsigned long sp)
 		puc == (unsigned long) &sf->uc;
 }
 
-static void perf_callchain_user_64(struct pt_regs *regs,
-				   struct perf_callchain_entry *entry)
+static void perf_callchain_user_64(struct perf_callchain_entry *entry,
+				   struct pt_regs *regs)
 {
 	unsigned long sp, next_sp;
 	unsigned long next_ip;
@@ -303,8 +303,8 @@ static int read_user_stack_32(unsigned int __user *ptr, unsigned int *ret)
 	return __get_user_inatomic(*ret, ptr);
 }
 
-static inline void perf_callchain_user_64(struct pt_regs *regs,
-					  struct perf_callchain_entry *entry)
+static inline void perf_callchain_user_64(struct perf_callchain_entry *entry,
+					  struct pt_regs *regs)
 {
 }
 
@@ -423,8 +423,8 @@ static unsigned int __user *signal_frame_32_regs(unsigned int sp,
 	return mctx->mc_gregs;
 }
 
-static void perf_callchain_user_32(struct pt_regs *regs,
-				   struct perf_callchain_entry *entry)
+static void perf_callchain_user_32(struct perf_callchain_entry *entry,
+				   struct pt_regs *regs)
 {
 	unsigned int sp, next_sp;
 	unsigned int next_ip;
@@ -471,32 +471,11 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 	}
 }
 
-/*
- * Since we can't get PMU interrupts inside a PMU interrupt handler,
- * we don't need separate irq and nmi entries here.
- */
-static DEFINE_PER_CPU(struct perf_callchain_entry, cpu_perf_callchain);
-
-struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
+void
+perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
-	struct perf_callchain_entry *entry = &__get_cpu_var(cpu_perf_callchain);
-
-	entry->nr = 0;
-
-	if (!user_mode(regs)) {
-		perf_callchain_kernel(regs, entry);
-		if (current->mm)
-			regs = task_pt_regs(current);
-		else
-			regs = NULL;
-	}
-
-	if (regs) {
-		if (current_is_64bit())
-			perf_callchain_user_64(regs, entry);
-		else
-			perf_callchain_user_32(regs, entry);
-	}
-
-	return entry;
+	if (current_is_64bit())
+		perf_callchain_user_64(entry, regs);
+	else
+		perf_callchain_user_32(entry, regs);
 }

@@ -976,7 +976,15 @@ extern int perf_unregister_guest_info_callbacks(struct perf_guest_info_callbacks
 extern void perf_event_comm(struct task_struct *tsk);
 extern void perf_event_fork(struct task_struct *tsk);
 
-extern struct perf_callchain_entry *perf_callchain(struct pt_regs *regs);
+/* Callchains */
+DECLARE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry);
+
+extern void perf_callchain_user(struct perf_callchain_entry *entry,
+				struct pt_regs *regs);
+extern void perf_callchain_kernel(struct perf_callchain_entry *entry,
+				  struct pt_regs *regs);
+extern struct perf_callchain_entry *perf_callchain_buffer(void);
+
 
 static inline void
 perf_callchain_store(struct perf_callchain_entry *entry, u64 ip)

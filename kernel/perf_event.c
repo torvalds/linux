@@ -2937,13 +2937,49 @@ void perf_event_do_pending(void)
 	__perf_pending_run();
 }
 
+DEFINE_PER_CPU(struct perf_callchain_entry, perf_callchain_entry);
+
 /*
  * Callchain support -- arch specific
  */
 
-__weak struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
+__weak struct perf_callchain_entry *perf_callchain_buffer(void)
 {
-	return NULL;
+	return &__get_cpu_var(perf_callchain_entry);
+}
+
+__weak void perf_callchain_kernel(struct perf_callchain_entry *entry,
+				  struct pt_regs *regs)
+{
+}
+
+__weak void perf_callchain_user(struct perf_callchain_entry *entry,
+				struct pt_regs *regs)
+{
+}
+
+static struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
+{
+	struct perf_callchain_entry *entry;
+
+	entry = perf_callchain_buffer();
+	if (!entry)
+		return NULL;
+
+	entry->nr = 0;
+
+	if (!user_mode(regs)) {
+		perf_callchain_kernel(entry, regs);
+		if (current->mm)
+			regs = task_pt_regs(current);
+		else
+			regs = NULL;
+	}
+
+	if (regs)
+		perf_callchain_user(entry, regs);
+
+	return entry;
 }
 
 

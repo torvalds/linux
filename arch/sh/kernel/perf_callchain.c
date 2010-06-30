@@ -44,44 +44,11 @@ static const struct stacktrace_ops callchain_ops = {
 	.address	= callchain_address,
 };
 
-static void
-perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
+void
+perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 	perf_callchain_store(entry, regs->pc);
 
 	unwind_stack(NULL, regs, NULL, &callchain_ops, entry);
-}
-
-static void
-perf_do_callchain(struct pt_regs *regs, struct perf_callchain_entry *entry)
-{
-	int is_user;
-
-	if (!regs)
-		return;
-
-	is_user = user_mode(regs);
-
-	/*
-	 * Only the kernel side is implemented for now.
-	 */
-	if (!is_user)
-		perf_callchain_kernel(regs, entry);
-}
-
-/*
- * No need for separate IRQ and NMI entries.
- */
-static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
-
-struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
-{
-	struct perf_callchain_entry *entry = &__get_cpu_var(callchain);
-
-	entry->nr = 0;
-
-	perf_do_callchain(regs, entry);
-
-	return entry;
 }
