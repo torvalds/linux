@@ -842,7 +842,6 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	u32 iir, new_iir;
 	u32 pipea_stats, pipeb_stats;
 	u32 vblank_status;
-	u32 vblank_enable;
 	int vblank = 0;
 	unsigned long irqflags;
 	int irq_received;
@@ -856,13 +855,10 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 	iir = I915_READ(IIR);
 
-	if (IS_I965G(dev)) {
+	if (IS_I965G(dev))
 		vblank_status = I915_START_VBLANK_INTERRUPT_STATUS;
-		vblank_enable = PIPE_START_VBLANK_INTERRUPT_ENABLE;
-	} else {
+	else
 		vblank_status = I915_VBLANK_INTERRUPT_STATUS;
-		vblank_enable = I915_VBLANK_INTERRUPT_ENABLE;
-	}
 
 	for (;;) {
 		irq_received = iir != 0;
