@@ -384,6 +384,15 @@ struct ethtool_rxnfc {
 	__u32				rule_locs[0];
 };
 
+struct ethtool_rxfh_indir {
+	__u32	cmd;
+	/* On entry, this is the array size of the user buffer.  On
+	 * return from ETHTOOL_GRXFHINDIR, this is the array size of
+	 * the hardware indirection table. */
+	__u32	size;
+	__u32	ring_index[0];	/* ring/queue index for each hash value */
+};
+
 struct ethtool_rx_ntuple_flow_spec {
 	__u32		 flow_type;
 	union {
@@ -576,6 +585,10 @@ struct ethtool_ops {
 	int	(*set_rx_ntuple)(struct net_device *,
 				 struct ethtool_rx_ntuple *);
 	int	(*get_rx_ntuple)(struct net_device *, u32 stringset, void *);
+	int	(*get_rxfh_indir)(struct net_device *,
+				  struct ethtool_rxfh_indir *);
+	int	(*set_rxfh_indir)(struct net_device *,
+				  const struct ethtool_rxfh_indir *);
 };
 #endif /* __KERNEL__ */
 
@@ -637,6 +650,8 @@ struct ethtool_ops {
 #define ETHTOOL_SRXNTUPLE	0x00000035 /* Add an n-tuple filter to device */
 #define ETHTOOL_GRXNTUPLE	0x00000036 /* Get n-tuple filters from device */
 #define ETHTOOL_GSSET_INFO	0x00000037 /* Get string set info */
+#define ETHTOOL_GRXFHINDIR	0x00000038 /* Get RX flow hash indir'n table */
+#define ETHTOOL_SRXFHINDIR	0x00000039 /* Set RX flow hash indir'n table */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET

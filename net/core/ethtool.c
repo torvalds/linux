@@ -358,6 +358,80 @@ err_out:
 	return ret;
 }
 
+static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
+						     void __user *useraddr)
+{
+	struct ethtool_rxfh_indir *indir;
+	u32 table_size;
+	size_t full_size;
+	int ret;
+
+	if (!dev->ethtool_ops->get_rxfh_indir)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&table_size,
+			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			   sizeof(table_size)))
+		return -EFAULT;
+
+	if (table_size >
+	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
+		return -ENOMEM;
+	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
+	indir = kmalloc(full_size, GFP_USER);
+	if (!indir)
+		return -ENOMEM;
+
+	indir->cmd = ETHTOOL_GRXFHINDIR;
+	indir->size = table_size;
+	ret = dev->ethtool_ops->get_rxfh_indir(dev, indir);
+	if (ret)
+		goto out;
+
+	if (copy_to_user(useraddr, indir, full_size))
+		ret = -EFAULT;
+
+out:
+	kfree(indir);
+	return ret;
+}
+
+static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
+						     void __user *useraddr)
+{
+	struct ethtool_rxfh_indir *indir;
+	u32 table_size;
+	size_t full_size;
+	int ret;
+
+	if (!dev->ethtool_ops->set_rxfh_indir)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&table_size,
+			   useraddr + offsetof(struct ethtool_rxfh_indir, size),
+			   sizeof(table_size)))
+		return -EFAULT;
+
+	if (table_size >
+	    (KMALLOC_MAX_SIZE - sizeof(*indir)) / sizeof(*indir->ring_index))
+		return -ENOMEM;
+	full_size = sizeof(*indir) + sizeof(*indir->ring_index) * table_size;
+	indir = kmalloc(full_size, GFP_USER);
+	if (!indir)
+		return -ENOMEM;
+
+	if (copy_from_user(indir, useraddr, full_size)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = dev->ethtool_ops->set_rxfh_indir(dev, indir);
+
+out:
+	kfree(indir);
+	return ret;
+}
+
 static void __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
 			struct ethtool_rx_ntuple_flow_spec *spec,
 			struct ethtool_rx_ntuple_flow_spec_container *fsc)
@@ -1525,6 +1599,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GSSET_INFO:
 		rc = ethtool_get_sset_info(dev, useraddr);
+		break;
+	case ETHTOOL_GRXFHINDIR:
+		rc = ethtool_get_rxfh_indir(dev, useraddr);
+		break;
+	case ETHTOOL_SRXFHINDIR:
+		rc = ethtool_set_rxfh_indir(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
