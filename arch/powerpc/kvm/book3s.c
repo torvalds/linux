@@ -1384,12 +1384,22 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 
 static int kvmppc_book3s_init(void)
 {
-	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_book3s), 0,
-			THIS_MODULE);
+	int r;
+
+	r = kvm_init(NULL, sizeof(struct kvmppc_vcpu_book3s), 0,
+		     THIS_MODULE);
+
+	if (r)
+		return r;
+
+	r = kvmppc_mmu_hpte_sysinit();
+
+	return r;
 }
 
 static void kvmppc_book3s_exit(void)
 {
+	kvmppc_mmu_hpte_sysexit();
 	kvm_exit();
 }
 
