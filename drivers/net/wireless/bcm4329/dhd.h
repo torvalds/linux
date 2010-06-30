@@ -150,6 +150,9 @@ typedef struct dhd_pub {
 	/* Last error from dongle */
 	int dongle_error;
 
+	/* Suspend disable flag */
+	int suspend_disable_flag;
+
 	/* Pkt filter defination */
 	char * pktfilter[100];
 	int pktfilter_count;

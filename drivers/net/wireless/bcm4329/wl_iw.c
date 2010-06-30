@@ -822,6 +822,20 @@ wl_iw_set_btcoex_dhcp(
 	return error;
 }
 
+static int
+wl_iw_set_suspend(
+	struct net_device *dev,
+	struct iw_request_info *info,
+	union iwreq_data *wrqu,
+	char *extra
+)
+{
+	int suspend_flag;
+
+	suspend_flag = *(extra + strlen("SETSUSPEND") + 1) - '0';
+	return net_os_set_suspend_disable(dev, suspend_flag);
+}
+
 int
 wl_format_ssid(char* ssid_buf, uint8* ssid, int ssid_len)
 {
@@ -5909,6 +5923,8 @@ static int wl_iw_set_priv(
 #endif
 		else if (strnicmp(extra, "GETPOWER", strlen("GETPOWER")) == 0)
 			ret = wl_iw_get_power_mode(dev, info, (union iwreq_data *)dwrq, extra);
+		else if (strnicmp(extra, "SETSUSPEND", strlen("SETSUSPEND")) == 0)
+			ret = wl_iw_set_suspend(dev, info, (union iwreq_data *)dwrq, extra);
 #ifdef SOFTAP
 		else if (strnicmp(extra, "ASCII_CMD", strlen("ASCII_CMD")) == 0) {
 			wl_iw_process_private_ascii_cmd(dev, info, (union iwreq_data *)dwrq, extra);

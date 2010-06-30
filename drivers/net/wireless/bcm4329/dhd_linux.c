@@ -507,7 +507,7 @@ int dhd_set_suspend(int value, dhd_pub_t *dhd)
 
 #define htod32(i) i
 
-	if (dhd && dhd->up) {
+	if (dhd && (dhd->up && !dhd->suspend_disable_flag)) {
 		dhd_os_proto_block(dhd);
 		if (value) {
 
@@ -3022,4 +3022,13 @@ int net_os_wake_unlock(struct net_device *dev)
 	if (dhd)
 		ret = dhd_os_wake_unlock(&dhd->pub);
 	return ret;
+}
+
+int net_os_set_suspend_disable(struct net_device *dev, int val)
+{
+	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
+
+	if (dhd)
+		dhd->pub.suspend_disable_flag = val;
+	return 0;
 }
