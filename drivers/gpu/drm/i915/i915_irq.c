@@ -171,10 +171,10 @@ void intel_enable_asle (struct drm_device *dev)
 		ironlake_enable_display_irq(dev_priv, DE_GSE);
 	else {
 		i915_enable_pipestat(dev_priv, 1,
-				     I915_LEGACY_BLC_EVENT_ENABLE);
+				     PIPE_LEGACY_BLC_EVENT_ENABLE);
 		if (IS_I965G(dev))
 			i915_enable_pipestat(dev_priv, 0,
-					     I915_LEGACY_BLC_EVENT_ENABLE);
+					     PIPE_LEGACY_BLC_EVENT_ENABLE);
 	}
 }
 
@@ -856,9 +856,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	iir = I915_READ(IIR);
 
 	if (IS_I965G(dev))
-		vblank_status = I915_START_VBLANK_INTERRUPT_STATUS;
+		vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS;
 	else
-		vblank_status = I915_VBLANK_INTERRUPT_STATUS;
+		vblank_status = PIPE_VBLANK_INTERRUPT_STATUS;
 
 	for (;;) {
 		irq_received = iir != 0;
@@ -962,8 +962,8 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 				intel_finish_page_flip(dev, 1);
 		}
 
-		if ((pipea_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
-		    (pipeb_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
+		if ((pipea_stats & PIPE_LEGACY_BLC_EVENT_STATUS) ||
+		    (pipeb_stats & PIPE_LEGACY_BLC_EVENT_STATUS) ||
 		    (iir & I915_ASLE_INTERRUPT))
 			opregion_asle_intr(dev);
 
