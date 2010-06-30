@@ -1233,8 +1233,26 @@ static void __init i7core_xeon_pci_fixup(struct pci_id_table *table)
 			for (i = 0; i < MAX_SOCKET_BUSES; i++)
 				pcibios_scan_specific_bus(255-i);
 		}
+		pci_dev_put(pdev);
 		table++;
 	}
+}
+
+static unsigned i7core_pci_lastbus(void)
+{
+	int last_bus = 0, bus;
+	struct pci_bus *b = NULL;
+
+	while ((b = pci_find_next_bus(b)) != NULL) {
+		bus = b->number;
+		debugf0("Found bus %d\n", bus);
+		if (bus > last_bus)
+			last_bus = bus;
+	}
+
+	debugf0("Last bus %d\n", last_bus);
+
+	return last_bus;
 }
 
 /*
@@ -1244,7 +1262,8 @@ static void __init i7core_xeon_pci_fixup(struct pci_id_table *table)
  *			Need to 'get' device 16 func 1 and func 2
  */
 int i7core_get_onedevice(struct pci_dev **prev, int devno,
-			 struct pci_id_descr *dev_descr, unsigned n_devs)
+			 struct pci_id_descr *dev_descr, unsigned n_devs,
+			 unsigned last_bus)
 {
 	struct i7core_dev *i7core_dev;
 
@@ -1291,10 +1310,7 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno,
 	}
 	bus = pdev->bus->number;
 
-	if (bus == 0x3f)
-		socket = 0;
-	else
-		socket = 255 - bus;
+	socket = last_bus - bus;
 
 	i7core_dev = get_i7core_dev(socket);
 	if (!i7core_dev) {
@@ -1358,17 +1374,21 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno,
 
 static int i7core_get_devices(struct pci_id_table *table)
 {
-	int i, rc;
+	int i, rc, last_bus;
 	struct pci_dev *pdev = NULL;
 	struct pci_id_descr *dev_descr;
+
+	last_bus = i7core_pci_lastbus();
 
 	while (table && table->descr) {
 		dev_descr = table->descr;
 		for (i = 0; i < table->n_devs; i++) {
 			pdev = NULL;
 			do {
-				rc = i7core_get_onedevice(&pdev, i, &dev_descr[i],
-							  table->n_devs);
+				rc = i7core_get_onedevice(&pdev, i,
+							  &dev_descr[i],
+							  table->n_devs,
+							  last_bus);
 				if (rc < 0) {
 					if (i == 0) {
 						i = table->n_devs;
