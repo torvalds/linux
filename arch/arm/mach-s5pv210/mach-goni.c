@@ -74,6 +74,7 @@ static struct s3c2410_uartcfg goni_uartcfgs[] __initdata = {
 };
 
 static struct platform_device *goni_devices[] __initdata = {
+	&s5pc110_device_onenand,
 };
 
 static void __init goni_map_io(void)
