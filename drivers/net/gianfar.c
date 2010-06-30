@@ -85,6 +85,7 @@
 #include <linux/net_tstamp.h>
 
 #include <asm/io.h>
+#include <asm/reg.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -928,6 +929,24 @@ static void gfar_init_filer_table(struct gfar_private *priv)
 	}
 }
 
+static void gfar_detect_errata(struct gfar_private *priv)
+{
+	struct device *dev = &priv->ofdev->dev;
+	unsigned int pvr = mfspr(SPRN_PVR);
+	unsigned int svr = mfspr(SPRN_SVR);
+	unsigned int mod = (svr >> 16) & 0xfff6; /* w/o E suffix */
+	unsigned int rev = svr & 0xffff;
+
+	/* MPC8313 Rev 2.0 and higher; All MPC837x */
+	if ((pvr == 0x80850010 && mod == 0x80b0 && rev >= 0x0020) ||
+			(pvr == 0x80861010 && (mod & 0xfff9) == 0x80c0))
+		priv->errata |= GFAR_ERRATA_74;
+
+	if (priv->errata)
+		dev_info(dev, "enabled errata workarounds, flags: 0x%x\n",
+			 priv->errata);
+}
+
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
 static int gfar_probe(struct of_device *ofdev,
@@ -960,6 +979,8 @@ static int gfar_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, priv);
 	regs = priv->gfargrp[0].regs;
 
+	gfar_detect_errata(priv);
+
 	/* Stop the DMA engine now, in case it was running before */
 	/* (The firmware could have used it, and left it running). */
 	gfar_halt(dev);
@@ -974,7 +995,10 @@ static int gfar_probe(struct of_device *ofdev,
 	gfar_write(&regs->maccfg1, tempval);
 
 	/* Initialize MACCFG2. */
-	gfar_write(&regs->maccfg2, MACCFG2_INIT_SETTINGS);
+	tempval = MACCFG2_INIT_SETTINGS;
+	if (gfar_has_errata(priv, GFAR_ERRATA_74))
+		tempval |= MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK;
+	gfar_write(&regs->maccfg2, tempval);
 
 	/* Initialize ECNTRL */
 	gfar_write(&regs->ecntrl, ECNTRL_INIT_SETTINGS);
@@ -2300,7 +2324,8 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	 * to allow huge frames, and to check the length */
 	tempval = gfar_read(&regs->maccfg2);
 
-	if (priv->rx_buffer_size > DEFAULT_RX_BUFFER_SIZE)
+	if (priv->rx_buffer_size > DEFAULT_RX_BUFFER_SIZE ||
+			gfar_has_errata(priv, GFAR_ERRATA_74))
 		tempval |= (MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK);
 	else
 		tempval &= ~(MACCFG2_HUGEFRAME | MACCFG2_LENGTHCHECK);
