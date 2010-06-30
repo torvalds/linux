@@ -1027,6 +1027,7 @@ struct gfar_priv_grp {
 
 enum gfar_errata {
 	GFAR_ERRATA_74		= 0x01,
+	GFAR_ERRATA_76		= 0x02,
 };
 
 /* Struct stolen almost completely (and shamelessly) from the FCC enet source
