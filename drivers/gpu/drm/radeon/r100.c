@@ -2365,11 +2365,10 @@ void r100_mc_init(struct radeon_device *rdev)
  */
 void r100_pll_errata_after_index(struct radeon_device *rdev)
 {
-	if (!(rdev->pll_errata & CHIP_ERRATA_PLL_DUMMYREADS)) {
-		return;
+	if (rdev->pll_errata & CHIP_ERRATA_PLL_DUMMYREADS) {
+		(void)RREG32(RADEON_CLOCK_CNTL_DATA);
+		(void)RREG32(RADEON_CRTC_GEN_CNTL);
 	}
-	(void)RREG32(RADEON_CLOCK_CNTL_DATA);
-	(void)RREG32(RADEON_CRTC_GEN_CNTL);
 }
 
 static void r100_pll_errata_after_data(struct radeon_device *rdev)
