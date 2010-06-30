@@ -124,6 +124,7 @@ static struct s3c_fb_platdata aquila_lcd_pdata __initdata = {
 
 static struct platform_device *aquila_devices[] __initdata = {
 	&s3c_device_fb,
+	&s5pc110_device_onenand,
 };
 
 static void __init aquila_map_io(void)
