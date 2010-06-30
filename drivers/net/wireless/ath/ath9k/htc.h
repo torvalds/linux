@@ -287,6 +287,7 @@ struct ath9k_debug {
 #define ATH_LED_PIN_DEF             1
 #define ATH_LED_PIN_9287            8
 #define ATH_LED_PIN_9271            15
+#define ATH_LED_PIN_7010            12
 #define ATH_LED_ON_DURATION_IDLE    350	/* in msecs */
 #define ATH_LED_OFF_DURATION_IDLE   250	/* in msecs */
 

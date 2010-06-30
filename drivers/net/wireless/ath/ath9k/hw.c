@@ -2176,6 +2176,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9271(ah))
 		pCap->num_gpio_pins = AR9271_NUM_GPIO;
+	else if (AR_DEVID_7010(ah))
+		pCap->num_gpio_pins = AR7010_NUM_GPIO;
 	else if (AR_SREV_9285_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
 	else if (AR_SREV_9280_10_OR_LATER(ah))
@@ -2316,8 +2318,15 @@ void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio)
 
 	BUG_ON(gpio >= ah->caps.num_gpio_pins);
 
-	gpio_shift = gpio << 1;
+	if (AR_DEVID_7010(ah)) {
+		gpio_shift = gpio;
+		REG_RMW(ah, AR7010_GPIO_OE,
+			(AR7010_GPIO_OE_AS_INPUT << gpio_shift),
+			(AR7010_GPIO_OE_MASK << gpio_shift));
+		return;
+	}
 
+	gpio_shift = gpio << 1;
 	REG_RMW(ah,
 		AR_GPIO_OE_OUT,
 		(AR_GPIO_OE_OUT_DRV_NO << gpio_shift),
@@ -2333,7 +2342,11 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 	if (gpio >= ah->caps.num_gpio_pins)
 		return 0xffffffff;
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
+	if (AR_DEVID_7010(ah)) {
+		u32 val;
+		val = REG_READ(ah, AR7010_GPIO_IN);
+		return (MS(val, AR7010_GPIO_IN_VAL) & AR_GPIO_BIT(gpio)) == 0;
+	} else if (AR_SREV_9300_20_OR_LATER(ah))
 		return MS_REG_READ(AR9300, gpio) != 0;
 	else if (AR_SREV_9271(ah))
 		return MS_REG_READ(AR9271, gpio) != 0;
@@ -2353,10 +2366,16 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 {
 	u32 gpio_shift;
 
+	if (AR_DEVID_7010(ah)) {
+		gpio_shift = gpio;
+		REG_RMW(ah, AR7010_GPIO_OE,
+			(AR7010_GPIO_OE_AS_OUTPUT << gpio_shift),
+			(AR7010_GPIO_OE_MASK << gpio_shift));
+		return;
+	}
+
 	ath9k_hw_gpio_cfg_output_mux(ah, gpio, ah_signal_type);
-
 	gpio_shift = 2 * gpio;
-
 	REG_RMW(ah,
 		AR_GPIO_OE_OUT,
 		(AR_GPIO_OE_OUT_DRV_ALL << gpio_shift),
@@ -2366,6 +2385,13 @@ EXPORT_SYMBOL(ath9k_hw_cfg_output);
 
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 {
+	if (AR_DEVID_7010(ah)) {
+		val = val ? 0 : 1;
+		REG_RMW(ah, AR7010_GPIO_OUT, ((val&1) << gpio),
+			AR_GPIO_BIT(gpio));
+		return;
+	}
+
 	if (AR_SREV_9271(ah))
 		val = ~val;
 
