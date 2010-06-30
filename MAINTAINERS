@@ -4630,6 +4630,12 @@ M:	Robert Jarzmik <robert.jarzmik@free.fr>
 L:	rtc-linux@googlegroups.com
 S:	Maintained
 
+QLOGIC QLA1280 SCSI DRIVER
+M:	Michael Reed <mdr@sgi.com>
+L:	linux-scsi@vger.kernel.org
+S:	Maintained
+F:	drivers/scsi/qla1280.[ch]
+
 QLOGIC QLA2XXX FC-SCSI DRIVER
 M:	Andrew Vasquez <andrew.vasquez@qlogic.com>
 M:	linux-driver@qlogic.com
