@@ -200,7 +200,7 @@ static void set_quirks(void)
 static int dmi_matched(const struct dmi_system_id *dmi)
 {
 	quirks = dmi->driver_data;
-	return 0;
+	return 1;
 }
 
 static struct quirk_entry quirk_unknown = {
