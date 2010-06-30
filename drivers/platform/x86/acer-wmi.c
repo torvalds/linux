@@ -1084,8 +1084,7 @@ static ssize_t show_interface(struct device *dev, struct device_attribute *attr,
 	}
 }
 
-static DEVICE_ATTR(interface, S_IWUGO | S_IRUGO | S_IWUSR,
-	show_interface, NULL);
+static DEVICE_ATTR(interface, S_IRUGO, show_interface, NULL);
 
 /*
  * debugfs functions
