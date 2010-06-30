@@ -25,7 +25,7 @@ static int ad7879_spi_suspend(struct spi_device *spi, pm_message_t message)
 {
 	struct ad7879 *ts = spi_get_drvdata(spi);
 
-	ad7879_disable(ts);
+	ad7879_suspend(ts);
 
 	return 0;
 }
@@ -34,7 +34,7 @@ static int ad7879_spi_resume(struct spi_device *spi)
 {
 	struct ad7879 *ts = spi_get_drvdata(spi);
 
-	ad7879_enable(ts);
+	ad7879_resume(ts);
 
 	return 0;
 }

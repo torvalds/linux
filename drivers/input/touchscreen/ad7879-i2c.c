@@ -20,7 +20,7 @@ static int ad7879_i2c_suspend(struct i2c_client *client, pm_message_t message)
 {
 	struct ad7879 *ts = i2c_get_clientdata(client);
 
-	ad7879_disable(ts);
+	ad7879_suspend(ts);
 
 	return 0;
 }
@@ -29,7 +29,7 @@ static int ad7879_i2c_resume(struct i2c_client *client)
 {
 	struct ad7879 *ts = i2c_get_clientdata(client);
 
-	ad7879_enable(ts);
+	ad7879_resume(ts);
 
 	return 0;
 }

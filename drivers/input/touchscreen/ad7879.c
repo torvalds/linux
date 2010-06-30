@@ -112,10 +112,11 @@ struct ad7879 {
 	struct timer_list	timer;
 #ifdef CONFIG_GPIOLIB
 	struct gpio_chip	gc;
+	struct mutex		mutex;
 #endif
 	unsigned int		irq;
-	struct mutex		mutex;
-	bool			disabled;	/* P: mutex */
+	bool			disabled;	/* P: input->mutex */
+	bool			suspended;	/* P: input->mutex */
 	u16			conversion_data[AD7879_NR_SENSE];
 	char			phys[32];
 	u8			first_conversion_delay;
@@ -208,46 +209,91 @@ static irqreturn_t ad7879_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static void ad7879_setup(struct ad7879 *ts)
+static void __ad7879_enable(struct ad7879 *ts)
 {
 	ad7879_write(ts, AD7879_REG_CTRL2, ts->cmd_crtl2);
 	ad7879_write(ts, AD7879_REG_CTRL3, ts->cmd_crtl3);
 	ad7879_write(ts, AD7879_REG_CTRL1, ts->cmd_crtl1);
+
+	enable_irq(ts->irq);
 }
 
-void ad7879_disable(struct ad7879 *ts)
+static void __ad7879_disable(struct ad7879 *ts)
 {
-	mutex_lock(&ts->mutex);
+	disable_irq(ts->irq);
 
-	if (!ts->disabled) {
+	if (del_timer_sync(&ts->timer))
+		ad7879_ts_event_release(ts);
 
-		ts->disabled = true;
-		disable_irq(ts->irq);
+	ad7879_write(ts, AD7879_REG_CTRL2, AD7879_PM(AD7879_PM_SHUTDOWN));
+}
 
-		if (del_timer_sync(&ts->timer))
-			ad7879_ts_event_release(ts);
 
-		ad7879_write(ts, AD7879_REG_CTRL2,
-			     AD7879_PM(AD7879_PM_SHUTDOWN));
+static int ad7879_open(struct input_dev *input)
+{
+	struct ad7879 *ts = input_get_drvdata(input);
+
+	/* protected by input->mutex */
+	if (!ts->disabled && !ts->suspended)
+		__ad7879_enable(ts);
+
+	return 0;
+}
+
+static void ad7879_close(struct input_dev* input)
+{
+	struct ad7879 *ts = input_get_drvdata(input);
+
+	/* protected by input->mutex */
+	if (!ts->disabled && !ts->suspended)
+		__ad7879_disable(ts);
+}
+
+void ad7879_suspend(struct ad7879 *ts)
+{
+	mutex_lock(&ts->input->mutex);
+
+	if (!ts->suspended && !ts->disabled && ts->input->users)
+		__ad7879_disable(ts);
+
+	ts->suspended = true;
+
+	mutex_unlock(&ts->input->mutex);
+}
+EXPORT_SYMBOL(ad7879_suspend);
+
+void ad7879_resume(struct ad7879 *ts)
+{
+	mutex_lock(&ts->input->mutex);
+
+	if (ts->suspended && !ts->disabled && ts->input->users)
+		__ad7879_enable(ts);
+
+	ts->suspended = false;
+
+	mutex_unlock(&ts->input->mutex);
+}
+EXPORT_SYMBOL(ad7879_resume);
+
+static void ad7879_toggle(struct ad7879 *ts, bool disable)
+{
+	mutex_lock(&ts->input->mutex);
+
+	if (!ts->suspended && ts->input->users != 0) {
+
+		if (disable) {
+			if (ts->disabled)
+				__ad7879_enable(ts);
+		} else {
+			if (!ts->disabled)
+				__ad7879_disable(ts);
+		}
 	}
 
-	mutex_unlock(&ts->mutex);
+	ts->disabled = disable;
+
+	mutex_unlock(&ts->input->mutex);
 }
-EXPORT_SYMBOL(ad7879_disable);
-
-void ad7879_enable(struct ad7879 *ts)
-{
-	mutex_lock(&ts->mutex);
-
-	if (ts->disabled) {
-		ad7879_setup(ts);
-		ts->disabled = false;
-		enable_irq(ts->irq);
-	}
-
-	mutex_unlock(&ts->mutex);
-}
-EXPORT_SYMBOL(ad7879_enable);
 
 static ssize_t ad7879_disable_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
@@ -269,10 +315,7 @@ static ssize_t ad7879_disable_store(struct device *dev,
 	if (error)
 		return error;
 
-	if (val)
-		ad7879_disable(ts);
-	else
-		ad7879_enable(ts);
+	ad7879_toggle(ts, val);
 
 	return count;
 }
@@ -355,6 +398,8 @@ static int ad7879_gpio_add(struct ad7879 *ts,
 {
 	int ret = 0;
 
+	mutex_init(&ts->mutex);
+
 	if (pdata->gpio_export) {
 		ts->gc.direction_input = ad7879_gpio_direction_input;
 		ts->gc.direction_output = ad7879_gpio_direction_output;
@@ -431,11 +476,9 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	ts->bops = bops;
 	ts->dev = dev;
 	ts->input = input_dev;
+	ts->irq = irq;
 
 	setup_timer(&ts->timer, ad7879_timer, (unsigned long) ts);
-	mutex_init(&ts->mutex);
-
-	ts->irq = irq;
 
 	ts->x_plate_ohms = pdata->x_plate_ohms ? : 400;
 	ts->pressure_max = pdata->pressure_max ? : ~0;
@@ -452,6 +495,11 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 	input_dev->phys = ts->phys;
 	input_dev->dev.parent = dev;
 	input_dev->id.bustype = bops->bustype;
+
+	input_dev->open = ad7879_open;
+	input_dev->close = ad7879_close;
+
+	input_set_drvdata(input_dev, ts);
 
 	__set_bit(EV_ABS, input_dev->evbit);
 	__set_bit(ABS_X, input_dev->absbit);
@@ -502,8 +550,6 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 			AD7879_ACQ(ts->acquisition_time) |
 			AD7879_TMR(ts->pen_down_acc_interval);
 
-	ad7879_setup(ts);
-
 	err = request_threaded_irq(ts->irq, NULL, ad7879_irq,
 				   IRQF_TRIGGER_FALLING,
 				   dev_name(dev), ts);
@@ -511,6 +557,8 @@ struct ad7879 *ad7879_probe(struct device *dev, u8 devid, unsigned int irq,
 		dev_err(dev, "irq %d busy?\n", ts->irq);
 		goto err_free_mem;
 	}
+
+	__ad7879_disable(ts);
 
 	err = sysfs_create_group(&dev->kobj, &ad7879_attr_group);
 	if (err)
@@ -543,7 +591,6 @@ EXPORT_SYMBOL(ad7879_probe);
 void ad7879_remove(struct ad7879 *ts)
 {
 	ad7879_gpio_remove(ts);
-	ad7879_disable(ts);
 	sysfs_remove_group(&ts->dev->kobj, &ad7879_attr_group);
 	free_irq(ts->irq, ts);
 	input_unregister_device(ts->input);
