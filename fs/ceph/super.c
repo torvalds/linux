@@ -324,7 +324,6 @@ const char *ceph_msg_type_name(int type)
 enum {
 	Opt_fsidmajor,
 	Opt_fsidminor,
-	Opt_monport,
 	Opt_wsize,
 	Opt_rsize,
 	Opt_osdtimeout,
@@ -357,7 +356,6 @@ enum {
 static match_table_t arg_tokens = {
 	{Opt_fsidmajor, "fsidmajor=%ld"},
 	{Opt_fsidminor, "fsidminor=%ld"},
-	{Opt_monport, "monport=%d"},
 	{Opt_wsize, "wsize=%d"},
 	{Opt_rsize, "rsize=%d"},
 	{Opt_osdtimeout, "osdtimeout=%d"},
