@@ -416,8 +416,11 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 			/* A length of zero means transfer the whole sg list */
 			len = length;
 			if (len == 0) {
-				for_each_sg(sg, sg, nents, i)
-					len += sg->length;
+				struct scatterlist	*sg2;
+				int			j;
+
+				for_each_sg(sg, sg2, nents, j)
+					len += sg2->length;
 			}
 		} else {
 			/*
