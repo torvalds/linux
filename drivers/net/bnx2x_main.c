@@ -10983,7 +10983,7 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 	int rc = 0;
 
 	if (data & ~(ETH_FLAG_LRO | ETH_FLAG_RXHASH))
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	if (bp->recovery_state != BNX2X_RECOVERY_DONE) {
 		printk(KERN_ERR "Handling parity error recovery. Try again later\n");

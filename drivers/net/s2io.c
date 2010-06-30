@@ -6692,7 +6692,7 @@ static int s2io_ethtool_set_flags(struct net_device *dev, u32 data)
 	int changed = 0;
 
 	if (data & ~ETH_FLAG_LRO)
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	if (data & ETH_FLAG_LRO) {
 		if (lro_enable) {

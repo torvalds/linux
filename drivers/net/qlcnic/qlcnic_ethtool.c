@@ -984,7 +984,7 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 	int hw_lro;
 
 	if (data & ~ETH_FLAG_LRO)
-		return -EOPNOTSUPP;
+		return -EINVAL;
 
 	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_HW_LRO))
 		return -EINVAL;
