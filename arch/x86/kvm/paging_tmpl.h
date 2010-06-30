@@ -306,11 +306,17 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	gfn_t table_gfn;
 	int r;
 	int level;
+	bool dirty = is_dirty_gpte(gw->ptes[gw->level - 1]);
+	unsigned direct_access;
 	pt_element_t curr_pte;
 	struct kvm_shadow_walk_iterator iterator;
 
 	if (!is_present_gpte(gw->ptes[gw->level - 1]))
 		return NULL;
+
+	direct_access = gw->pt_access & gw->pte_access;
+	if (!dirty)
+		direct_access &= ~ACC_WRITE_MASK;
 
 	for_each_shadow_entry(vcpu, addr, iterator) {
 		level = iterator.level;
@@ -319,15 +325,13 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			mmu_set_spte(vcpu, sptep, access,
 				     gw->pte_access & access,
 				     user_fault, write_fault,
-				     is_dirty_gpte(gw->ptes[gw->level-1]),
-				     ptwrite, level,
+				     dirty, ptwrite, level,
 				     gw->gfn, pfn, false, true);
 			break;
 		}
 
 		if (is_shadow_present_pte(*sptep) && !is_large_pte(*sptep)) {
 			struct kvm_mmu_page *child;
-			unsigned direct_access;
 
 			if (level != gw->level)
 				continue;
@@ -339,10 +343,6 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 * so we should update the spte at this point to get
 			 * a new sp with the correct access.
 			 */
-			direct_access = gw->pt_access & gw->pte_access;
-			if (!is_dirty_gpte(gw->ptes[gw->level - 1]))
-				direct_access &= ~ACC_WRITE_MASK;
-
 			child = page_header(*sptep & PT64_BASE_ADDR_MASK);
 			if (child->role.access == direct_access)
 				continue;
@@ -359,11 +359,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		}
 
 		if (level <= gw->level) {
-			int delta = level - gw->level + 1;
 			direct = 1;
-			if (!is_dirty_gpte(gw->ptes[level - delta]))
-				access &= ~ACC_WRITE_MASK;
-			access &= gw->pte_access;
+			access = direct_access;
 
 			/*
 			 * It is a large guest pages backed by small host pages,
