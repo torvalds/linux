@@ -314,7 +314,7 @@ static int copy_streams(u8 *data, unsigned long len,
 				break;
 			}
 		}
-		if (cpysize < size) {
+		if (ptr + pktsize > endp) {
 			/* End of URB packet, but cmd processing is not
 			 * complete. Preserve the state for a next packet
 			 */
@@ -322,7 +322,7 @@ static int copy_streams(u8 *data, unsigned long len,
 			dev->isoc_ctl.size = size - cpysize;
 			dev->isoc_ctl.cmd = cmd;
 			dev->isoc_ctl.pktsize = pktsize - (endp - ptr);
-			ptr += cpysize;
+			ptr += endp - ptr;
 		} else {
 			dev->isoc_ctl.cmd = 0;
 			ptr += pktsize;
