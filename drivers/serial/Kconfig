@@ -542,6 +542,14 @@ config SERIAL_S5PV210
 	help
 	  Serial port support for Samsung's S5P Family of SoC's
 
+config SERIAL_MAX3107
+	tristate "MAX3107 support"
+	depends on SPI && GPIOLIB
+	select SERIAL_CORE
+	default y
+	help
+	  MAX3107 chip support
+
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
 	depends on SPI
