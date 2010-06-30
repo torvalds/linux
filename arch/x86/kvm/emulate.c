@@ -3138,8 +3138,11 @@ twobyte_insn:
 		emulate_clts(ctxt->vcpu);
 		c->dst.type = OP_NONE;
 		break;
-	case 0x08:		/* invd */
 	case 0x09:		/* wbinvd */
+		kvm_emulate_wbinvd(ctxt->vcpu);
+		c->dst.type = OP_NONE;
+		break;
+	case 0x08:		/* invd */
 	case 0x0d:		/* GrpP (prefetch) */
 	case 0x18:		/* Grp16 (prefetch/nop) */
 		c->dst.type = OP_NONE;

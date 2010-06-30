@@ -412,6 +412,12 @@ static inline bool cpu_has_virtual_nmis(void)
 	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_VIRTUAL_NMIS;
 }
 
+static inline bool cpu_has_vmx_wbinvd_exit(void)
+{
+	return vmcs_config.cpu_based_2nd_exec_ctrl &
+		SECONDARY_EXEC_WBINVD_EXITING;
+}
+
 static inline bool report_flexpriority(void)
 {
 	return flexpriority_enabled;
@@ -3397,7 +3403,7 @@ static int handle_invlpg(struct kvm_vcpu *vcpu)
 static int handle_wbinvd(struct kvm_vcpu *vcpu)
 {
 	skip_emulated_instruction(vcpu);
-	/* TODO: Add support for VT-d/pass-through device */
+	kvm_emulate_wbinvd(vcpu);
 	return 1;
 }
 
@@ -4347,6 +4353,8 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.rdtscp_supported = vmx_rdtscp_supported,
 
 	.set_supported_cpuid = vmx_set_supported_cpuid,
+
+	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 };
 
 static int __init vmx_init(void)

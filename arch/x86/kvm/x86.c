@@ -1783,8 +1783,28 @@ out:
 	return r;
 }
 
+static void wbinvd_ipi(void *garbage)
+{
+	wbinvd();
+}
+
+static bool need_emulate_wbinvd(struct kvm_vcpu *vcpu)
+{
+	return vcpu->kvm->arch.iommu_domain &&
+		!(vcpu->kvm->arch.iommu_flags & KVM_IOMMU_CACHE_COHERENCY);
+}
+
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
+	/* Address WBINVD may be executed by guest */
+	if (need_emulate_wbinvd(vcpu)) {
+		if (kvm_x86_ops->has_wbinvd_exit())
+			cpumask_set_cpu(cpu, vcpu->arch.wbinvd_dirty_mask);
+		else if (vcpu->cpu != -1 && vcpu->cpu != cpu)
+			smp_call_function_single(vcpu->cpu,
+					wbinvd_ipi, NULL, 1);
+	}
+
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
 	if (unlikely(per_cpu(cpu_tsc_khz, cpu) == 0)) {
 		unsigned long khz = cpufreq_quick_get(cpu);
@@ -3660,6 +3680,21 @@ int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address)
 	return X86EMUL_CONTINUE;
 }
 
+int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu)
+{
+	if (!need_emulate_wbinvd(vcpu))
+		return X86EMUL_CONTINUE;
+
+	if (kvm_x86_ops->has_wbinvd_exit()) {
+		smp_call_function_many(vcpu->arch.wbinvd_dirty_mask,
+				wbinvd_ipi, NULL, 1);
+		cpumask_clear(vcpu->arch.wbinvd_dirty_mask);
+	}
+	wbinvd();
+	return X86EMUL_CONTINUE;
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_wbinvd);
+
 int emulate_clts(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops->set_cr0(vcpu, kvm_read_cr0_bits(vcpu, ~X86_CR0_TS));
@@ -5263,6 +5298,7 @@ void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 		vcpu->arch.time_page = NULL;
 	}
 
+	free_cpumask_var(vcpu->arch.wbinvd_dirty_mask);
 	fx_free(vcpu);
 	kvm_x86_ops->vcpu_free(vcpu);
 }
@@ -5392,7 +5428,12 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.mcg_cap = KVM_MAX_MCE_BANKS;
 
+	if (!zalloc_cpumask_var(&vcpu->arch.wbinvd_dirty_mask, GFP_KERNEL))
+		goto fail_free_mce_banks;
+
 	return 0;
+fail_free_mce_banks:
+	kfree(vcpu->arch.mce_banks);
 fail_free_lapic:
 	kvm_free_lapic(vcpu);
 fail_mmu_destroy:

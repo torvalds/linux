@@ -3424,6 +3424,11 @@ static bool svm_rdtscp_supported(void)
 	return false;
 }
 
+static bool svm_has_wbinvd_exit(void)
+{
+	return true;
+}
+
 static void svm_fpu_deactivate(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -3508,6 +3513,8 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.rdtscp_supported = svm_rdtscp_supported,
 
 	.set_supported_cpuid = svm_set_supported_cpuid,
+
+	.has_wbinvd_exit = svm_has_wbinvd_exit,
 };
 
 static int __init svm_init(void)

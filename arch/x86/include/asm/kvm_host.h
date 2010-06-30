@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/mmu_notifier.h>
 #include <linux/tracepoint.h>
+#include <linux/cpumask.h>
 
 #include <linux/kvm.h>
 #include <linux/kvm_para.h>
@@ -358,6 +359,8 @@ struct kvm_vcpu_arch {
 
 	/* fields used by HYPER-V emulation */
 	u64 hv_vapic;
+
+	cpumask_var_t wbinvd_dirty_mask;
 };
 
 struct kvm_arch {
@@ -514,6 +517,8 @@ struct kvm_x86_ops {
 
 	void (*set_supported_cpuid)(u32 func, struct kvm_cpuid_entry2 *entry);
 
+	bool (*has_wbinvd_exit)(void);
+
 	const struct trace_print_flags *exit_reasons_str;
 };
 
@@ -571,6 +576,7 @@ void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
 int emulate_clts(struct kvm_vcpu *vcpu);
+int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
 
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);
