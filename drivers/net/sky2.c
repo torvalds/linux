@@ -4188,17 +4188,13 @@ static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 static int sky2_set_flags(struct net_device *dev, u32 data)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
+	u32 supported =
+		(sky2->hw->flags & SKY2_HW_RSS_BROKEN) ? 0 : ETH_FLAG_RXHASH;
+	int rc;
 
-	if (data & ~ETH_FLAG_RXHASH)
-		return -EOPNOTSUPP;
-
-	if (data & ETH_FLAG_RXHASH) {
-		if (sky2->hw->flags & SKY2_HW_RSS_BROKEN)
-			return -EINVAL;
-
-		dev->features |= NETIF_F_RXHASH;
-	} else
-		dev->features &= ~NETIF_F_RXHASH;
+	rc = ethtool_op_set_flags(dev, data, supported);
+	if (rc)
+		return rc;
 
 	rx_set_rss(dev);
 

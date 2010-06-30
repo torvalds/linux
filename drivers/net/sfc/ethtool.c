@@ -551,10 +551,7 @@ static int efx_ethtool_set_flags(struct net_device *net_dev, u32 data)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	u32 supported = efx->type->offload_features & ETH_FLAG_RXHASH;
 
-	if (data & ~supported)
-		return -EOPNOTSUPP;
-
-	return ethtool_op_set_flags(net_dev, data);
+	return ethtool_op_set_flags(net_dev, data, supported);
 }
 
 static void efx_ethtool_self_test(struct net_device *net_dev,

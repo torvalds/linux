@@ -1730,8 +1730,7 @@ static int myri10ge_set_rx_csum(struct net_device *netdev, u32 csum_enabled)
 	if (csum_enabled)
 		mgp->csum_flag = MXGEFW_FLAGS_CKSUM;
 	else {
-		u32 flags = ethtool_op_get_flags(netdev);
-		err = ethtool_op_set_flags(netdev, (flags & ~ETH_FLAG_LRO));
+		netdev->features &= ~NETIF_F_LRO;
 		mgp->csum_flag = 0;
 
 	}
@@ -1900,6 +1899,11 @@ static u32 myri10ge_get_msglevel(struct net_device *netdev)
 	return mgp->msg_enable;
 }
 
+static int myri10ge_set_flags(struct net_device *netdev, u32 value)
+{
+	return ethtool_op_set_flags(netdev, value, ETH_FLAG_LRO);
+}
+
 static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.get_settings = myri10ge_get_settings,
 	.get_drvinfo = myri10ge_get_drvinfo,
@@ -1920,7 +1924,7 @@ static const struct ethtool_ops myri10ge_ethtool_ops = {
 	.set_msglevel = myri10ge_set_msglevel,
 	.get_msglevel = myri10ge_get_msglevel,
 	.get_flags = ethtool_op_get_flags,
-	.set_flags = ethtool_op_set_flags
+	.set_flags = myri10ge_set_flags
 };
 
 static int myri10ge_allocate_rings(struct myri10ge_slice_state *ss)

@@ -1799,14 +1799,7 @@ static int set_tso(struct net_device *dev, u32 value)
 
 static int set_flags(struct net_device *dev, u32 flags)
 {
-	if (flags & ~ETH_FLAG_RXHASH)
-		return -EOPNOTSUPP;
-
-	if (flags & ETH_FLAG_RXHASH)
-		dev->features |= NETIF_F_RXHASH;
-	else
-		dev->features &= ~NETIF_F_RXHASH;
-	return 0;
+	return ethtool_op_set_flags(dev, flags, ETH_FLAG_RXHASH);
 }
 
 static struct ethtool_ops cxgb_ethtool_ops = {

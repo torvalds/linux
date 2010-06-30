@@ -144,31 +144,13 @@ u32 ethtool_op_get_flags(struct net_device *dev)
 }
 EXPORT_SYMBOL(ethtool_op_get_flags);
 
-int ethtool_op_set_flags(struct net_device *dev, u32 data)
+int ethtool_op_set_flags(struct net_device *dev, u32 data, u32 supported)
 {
-	const struct ethtool_ops *ops = dev->ethtool_ops;
-	unsigned long features = dev->features;
+	if (data & ~supported)
+		return -EINVAL;
 
-	if (data & ETH_FLAG_LRO)
-		features |= NETIF_F_LRO;
-	else
-		features &= ~NETIF_F_LRO;
-
-	if (data & ETH_FLAG_NTUPLE) {
-		if (!ops->set_rx_ntuple)
-			return -EOPNOTSUPP;
-		features |= NETIF_F_NTUPLE;
-	} else {
-		/* safe to clear regardless */
-		features &= ~NETIF_F_NTUPLE;
-	}
-
-	if (data & ETH_FLAG_RXHASH)
-		features |= NETIF_F_RXHASH;
-	else
-		features &= ~NETIF_F_RXHASH;
-
-	dev->features = features;
+	dev->features = ((dev->features & ~flags_dup_features) |
+			 (data & flags_dup_features));
 	return 0;
 }
 EXPORT_SYMBOL(ethtool_op_set_flags);
