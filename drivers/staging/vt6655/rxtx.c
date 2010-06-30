@@ -1372,13 +1372,10 @@ s_cbFillTxBufHead(PSDevice pDevice, unsigned char byPktType, unsigned char *pbyT
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
 
-        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-            is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
-            bNeedACK = FALSE;
-        }
-        else {
+	if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])))
+		bNeedACK = FALSE;
+        else
             bNeedACK = TRUE;
-        }
         bIsAdhoc = TRUE;
     }
     else {
@@ -2091,8 +2088,7 @@ vGenerateFIFOHeader(PSDevice pDevice, unsigned char byPktType, unsigned char *pb
 
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
-        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-            is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
+        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
             pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
         }
@@ -2392,10 +2388,8 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
 
-    if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
-        is_broadcast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])))
         bNeedACK = FALSE;
-    }
     else {
         bNeedACK = TRUE;
         pTxBufHead->wFIFOCtl |= FIFOCTL_NEEDACK;
@@ -2728,13 +2722,10 @@ cbGetFragCount (
 
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
-        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-            is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
+        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])))
             bNeedACK = FALSE;
-        }
-        else {
+        else
             bNeedACK = TRUE;
-        }
     }
     else {
         // MSDUs in Infra mode always need ACK
@@ -2906,8 +2897,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
 
-    if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0])) ||
-        is_broadcast_ether_addr(&(p80211Header->sA3.abyAddr1[0]))) {
+    if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;

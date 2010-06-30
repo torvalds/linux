@@ -443,7 +443,7 @@ device_receive_frame (
         return FALSE;
     }
 
-    if (!is_multicast_ether_addr(pbyFrame) && !is_broadcast_ether_addr(pbyFrame)) {
+    if (!is_multicast_ether_addr(pbyFrame)) {
         if (WCTLbIsDuplicate(&(pDevice->sDupRxCache), (PS802_11Header) (skb->data + 4))) {
             pDevice->s802_11Counter.FrameDuplicateCount++;
             return FALSE;
