@@ -948,6 +948,7 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);
+	/* We can walk d_parent because we hold the dir->i_mutex */
 	dfid = v9fs_fid_lookup(dentry->d_parent);
 	if (IS_ERR(dfid))
 		return ERR_CAST(dfid);
@@ -1055,27 +1056,33 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto clunk_olddir;
 	}
 
+	down_write(&v9ses->rename_sem);
 	if (v9fs_proto_dotl(v9ses)) {
 		retval = p9_client_rename(oldfid, newdirfid,
 					(char *) new_dentry->d_name.name);
 		if (retval != -ENOSYS)
 			goto clunk_newdir;
 	}
+	if (old_dentry->d_parent != new_dentry->d_parent) {
+		/*
+		 * 9P .u can only handle file rename in the same directory
+		 */
 
-	/* 9P can only handle file rename in the same directory */
-	if (memcmp(&olddirfid->qid, &newdirfid->qid, sizeof(newdirfid->qid))) {
 		P9_DPRINTK(P9_DEBUG_ERROR,
 				"old dir and new dir are different\n");
 		retval = -EXDEV;
 		goto clunk_newdir;
 	}
-
 	v9fs_blank_wstat(&wstat);
 	wstat.muid = v9ses->uname;
 	wstat.name = (char *) new_dentry->d_name.name;
 	retval = p9_client_wstat(oldfid, &wstat);
 
 clunk_newdir:
+	if (!retval)
+		/* successful rename */
+		d_move(old_dentry, new_dentry);
+	up_write(&v9ses->rename_sem);
 	p9_client_clunk(newdirfid);
 
 clunk_olddir:

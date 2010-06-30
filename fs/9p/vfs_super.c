@@ -287,4 +287,5 @@ struct file_system_type v9fs_fs_type = {
 	.get_sb = v9fs_get_sb,
 	.kill_sb = v9fs_kill_super,
 	.owner = THIS_MODULE,
+	.fs_flags = FS_RENAME_DOES_D_MOVE,
 };
