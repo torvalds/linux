@@ -408,7 +408,15 @@ struct cx23885_subid cx23885_subids[] = {
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1275,
 	}, {
 		.subvendor = 0x0070,
+		.subdevice = 0x221d,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1275,
+	}, {
+		.subvendor = 0x0070,
 		.subdevice = 0x2251,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1255,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x2259,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1255,
 	}, {
 		.subvendor = 0x0070,
@@ -418,6 +426,38 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x2295,
 		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x2299,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x229d,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210, /* HVR1215 */
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x22f0,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x22f1,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1255,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x22f2,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1275,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x22f3,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210, /* HVR1215 */
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x22f4,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x22f5,
+		.card      = CX23885_BOARD_HAUPPAUGE_HVR1210, /* HVR1215 */
 	}, {
 		.subvendor = 0x14f1,
 		.subdevice = 0x8651,
