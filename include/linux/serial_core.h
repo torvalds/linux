@@ -186,6 +186,10 @@
 #define PORT_ALTERA_JTAGUART	91
 #define PORT_ALTERA_UART	92
 
+/* MAX3107 */
+#define PORT_MAX3107	94
+
+
 #ifdef __KERNEL__
 
 #include <linux/compiler.h>

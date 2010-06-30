@@ -10,8 +10,8 @@
  * (at your option) any later version.
  */
 
-#ifndef _LINUX_SERIAL_MAX3107_H
-#define _LINUX_SERIAL_MAX3107_H
+#ifndef _MAX3107_H
+#define _MAX3107_H
 
 /* Serial error status definitions */
 #define MAX3107_PARITY_ERROR	1
@@ -354,5 +354,86 @@
 #define MAX3107_BRG13_IB230400	(0x000000 | 0x03)
 #define MAX3107_BRG13_IB460800	(0x000000 | 0x00)
 #define MAX3107_BRG13_IB921600	(0x000000 | 0x00)
+
+
+struct baud_table {
+	int baud;
+	u32 new_brg;
+};
+
+struct max3107_port {
+	/* UART port structure */
+	struct uart_port port;
+
+	/* SPI device structure */
+	struct spi_device *spi;
+
+	/* GPIO chip stucture */
+	struct gpio_chip chip;
+
+	/* Workqueue that does all the magic */
+	struct workqueue_struct *workqueue;
+	struct work_struct work;
+
+	/* Lock for shared data */
+	spinlock_t data_lock;
+
+	/* Device configuration */
+	int ext_clk;		/* 1 if external clock used */
+	int loopback;		/* Current loopback mode state */
+	int baud;			/* Current baud rate */
+
+	/* State flags */
+	int suspended;		/* Indicates suspend mode */
+	int tx_fifo_empty;	/* Flag for TX FIFO state */
+	int rx_enabled;		/* Flag for receiver state */
+	int tx_enabled;		/* Flag for transmitter state */
+
+	u16 irqen_reg;		/* Current IRQ enable register value */
+	/* Shared data */
+	u16 mode1_reg;		/* Current mode1 register value*/
+	int mode1_commit;	/* Flag for setting new mode1 register value */
+	u16 lcr_reg;		/* Current LCR register value */
+	int lcr_commit;		/* Flag for setting new LCR register value */
+	u32 brg_cfg;		/* Current Baud rate generator config  */
+	int brg_commit;		/* Flag for setting new baud rate generator
+				 * config
+				 */
+	struct baud_table *baud_tbl;
+	int handle_irq;		/* Indicates that IRQ should be handled */
+
+	/* Rx buffer and str*/
+	u16 *rxbuf;
+	u8  *rxstr;
+	/* Tx buffer*/
+	u16 *txbuf;
+
+	struct max3107_plat *pdata;	/* Platform data */
+};
+
+/* Platform data structure */
+struct max3107_plat {
+	/* Loopback mode enable */
+	int loopback;
+	/* External clock enable */
+	int ext_clk;
+	/* Called during the register initialisation */
+	void (*init)(struct max3107_port *s);
+	/* Called when the port is found and configured */
+	int (*configure)(struct max3107_port *s);
+	/* HW suspend function */
+	void (*hw_suspend) (struct max3107_port *s, int suspend);
+	/* Polling mode enable */
+	int polled_mode;
+	/* Polling period if polling mode enabled */
+	int poll_time;
+};
+
+extern int max3107_rw(struct max3107_port *s, u8 *tx, u8 *rx, int len);
+extern void max3107_hw_susp(struct max3107_port *s, int suspend);
+extern int max3107_probe(struct spi_device *spi, struct max3107_plat *pdata);
+extern int max3107_remove(struct spi_device *spi);
+extern int max3107_suspend(struct spi_device *spi, pm_message_t state);
+extern int max3107_resume(struct spi_device *spi);
 
 #endif /* _LINUX_SERIAL_MAX3107_H */
