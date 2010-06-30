@@ -1537,7 +1537,8 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 				if (net_ratelimit())
 					printk(KERN_CRIT "protocol %04x is "
 					       "buggy, dev %s\n",
-					       skb2->protocol, dev->name);
+					       ntohs(skb2->protocol),
+					       dev->name);
 				skb_reset_network_header(skb2);
 			}
 
