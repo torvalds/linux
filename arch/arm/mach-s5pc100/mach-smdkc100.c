@@ -43,6 +43,8 @@
 #include <plat/fb.h>
 #include <plat/iic.h>
 #include <plat/ata.h>
+#include <plat/adc.h>
+#include <plat/ts.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define S5PC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -155,16 +157,27 @@ static struct s3c_ide_platdata smdkc100_ide_pdata __initdata = {
 };
 
 static struct platform_device *smdkc100_devices[] __initdata = {
+<<<<<<< HEAD:arch/arm/mach-s5pc100/mach-smdkc100.c
 	&s3c_device_cfcon,
+=======
+	&s3c_device_adc,
+>>>>>>> c1b6d71... ARM: S5PC100: Add Touchscreen support.:arch/arm/mach-s5pc100/mach-smdkc100.c
 	&s3c_device_i2c0,
 	&s3c_device_i2c1,
 	&s3c_device_fb,
 	&s3c_device_hsmmc0,
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
+	&s3c_device_ts,
 	&smdkc100_lcd_powerdev,
 	&s5pc100_device_iis0,
 	&s5pc100_device_ac97,
+};
+
+static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
+	.delay			= 10000,
+	.presc			= 49,
+	.oversampling_shift	= 2,
 };
 
 static void __init smdkc100_map_io(void)
@@ -176,6 +189,8 @@ static void __init smdkc100_map_io(void)
 
 static void __init smdkc100_machine_init(void)
 {
+	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+
 	/* I2C */
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);

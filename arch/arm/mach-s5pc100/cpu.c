@@ -41,6 +41,7 @@
 #include <plat/ata-core.h>
 #include <plat/iic-core.h>
 #include <plat/sdhci.h>
+#include <plat/adc-core.h>
 #include <plat/onenand-core.h>
 
 #include <plat/s5pc100.h>
@@ -87,6 +88,8 @@ void __init s5pc100_map_io(void)
 	s5pc100_default_sdhci0();
 	s5pc100_default_sdhci1();
 	s5pc100_default_sdhci2();
+
+	s3c_adc_setname("s3c64xx-adc");
 
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
