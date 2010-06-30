@@ -143,6 +143,11 @@ module_param(blimit, int, 0);
 module_param(qhimark, int, 0);
 module_param(qlowmark, int, 0);
 
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+int rcu_cpu_stall_suppress __read_mostly;
+module_param(rcu_cpu_stall_suppress, int, 0);
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed);
 static int rcu_pending(int cpu);
 
@@ -450,7 +455,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 
-int rcu_cpu_stall_panicking __read_mostly;
+int rcu_cpu_stall_suppress __read_mostly;
 
 static void record_gp_stall_check_time(struct rcu_state *rsp)
 {
@@ -530,7 +535,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 	long delta;
 	struct rcu_node *rnp;
 
-	if (rcu_cpu_stall_panicking)
+	if (rcu_cpu_stall_suppress)
 		return;
 	delta = jiffies - rsp->jiffies_stall;
 	rnp = rdp->mynode;
@@ -548,7 +553,7 @@ static void check_cpu_stall(struct rcu_state *rsp, struct rcu_data *rdp)
 
 static int rcu_panic(struct notifier_block *this, unsigned long ev, void *ptr)
 {
-	rcu_cpu_stall_panicking = 1;
+	rcu_cpu_stall_suppress = 1;
 	return NOTIFY_DONE;
 }
 
