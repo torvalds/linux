@@ -11,6 +11,7 @@ obj-y                                   += powergate.o
 obj-y					+= suspend.o
 obj-y					+= fuse.o
 obj-$(CONFIG_FIQ)                       += fiq.o
+obj-y                                   += usb_phy.o
 
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += clock.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra2_clocks.o
