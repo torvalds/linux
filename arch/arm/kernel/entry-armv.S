@@ -745,6 +745,11 @@ ENTRY(__switch_to)
 	mov	r4, #0xffff0fff
 	str	r3, [r4, #-15]			@ TLS val at 0xffff0ff0
 #endif
+#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+	ldr	r7, [r2, #TI_TASK]
+	ldr	r8, =__stack_chk_guard
+	ldr	r7, [r7, #TSK_STACK_CANARY]
+#endif
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
@@ -753,6 +758,9 @@ ENTRY(__switch_to)
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
+#if defined(CONFIG_CC_STACKPROTECTOR) && !defined(CONFIG_SMP)
+	str	r7, [r8]
+#endif
  THUMB(	mov	ip, r4			   )
 	mov	r0, r5
  ARM(	ldmia	r4, {r4 - sl, fp, sp, pc}  )	@ Load all regs saved previously
