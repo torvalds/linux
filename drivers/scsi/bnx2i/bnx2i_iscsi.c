@@ -1500,6 +1500,26 @@ static int bnx2i_host_get_param(struct Scsi_Host *shost,
 	case ISCSI_HOST_PARAM_NETDEV_NAME:
 		len = sprintf(buf, "%s\n", hba->netdev->name);
 		break;
+	case ISCSI_HOST_PARAM_IPADDRESS: {
+		struct list_head *active_list = &hba->ep_active_list;
+
+		read_lock_bh(&hba->ep_rdwr_lock);
+		if (!list_empty(&hba->ep_active_list)) {
+			struct bnx2i_endpoint *bnx2i_ep;
+			struct cnic_sock *csk;
+
+			bnx2i_ep = list_first_entry(active_list,
+						    struct bnx2i_endpoint,
+						    link);
+			csk = bnx2i_ep->cm_sk;
+			if (test_bit(SK_F_IPV6, &csk->flags))
+				len = sprintf(buf, "%pI6\n", csk->src_ip);
+			else
+				len = sprintf(buf, "%pI4\n", csk->src_ip);
+		}
+		read_unlock_bh(&hba->ep_rdwr_lock);
+		break;
+	}
 	default:
 		return iscsi_host_get_param(shost, param, buf);
 	}
@@ -2131,7 +2151,8 @@ struct iscsi_transport bnx2i_iscsi_transport = {
 				  ISCSI_LU_RESET_TMO | ISCSI_TGT_RESET_TMO |
 				  ISCSI_PING_TMO | ISCSI_RECV_TMO |
 				  ISCSI_IFACE_NAME | ISCSI_INITIATOR_NAME,
-	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_NETDEV_NAME,
+	.host_param_mask	= ISCSI_HOST_HWADDRESS | ISCSI_HOST_IPADDRESS |
+				  ISCSI_HOST_NETDEV_NAME,
 	.create_session		= bnx2i_session_create,
 	.destroy_session	= bnx2i_session_destroy,
 	.create_conn		= bnx2i_conn_create,
