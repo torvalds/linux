@@ -2237,7 +2237,7 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 				break;
 			}
 		} else if (!adapter->rx_itr_setting) {
-			netdev->features &= ~ETH_FLAG_LRO;
+			netdev->features &= ~NETIF_F_LRO;
 			if (data & ETH_FLAG_LRO)
 				e_info("rx-usecs set to 0, "
 					"LRO/RSC cannot be enabled.\n");
