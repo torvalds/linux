@@ -1608,6 +1608,11 @@ static const struct stacktrace_ops backtrace_ops = {
 void
 perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
+	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+		/* TODO: We don't support guest os callchain now */
+		return NULL;
+	}
+
 	perf_callchain_store(entry, regs->ip);
 
 	dump_trace(NULL, regs, NULL, regs->bp, &backtrace_ops, entry);
@@ -1656,6 +1661,10 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 	struct stack_frame frame;
 	const void __user *fp;
 
+	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+		/* TODO: We don't support guest os callchain now */
+		return NULL;
+	}
 
 	fp = (void __user *)regs->bp;
 
@@ -1679,19 +1688,6 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 		perf_callchain_store(entry, frame.return_address);
 		fp = frame.next_frame;
 	}
-}
-
-struct perf_callchain_entry *perf_callchain_buffer(void)
-{
-	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
-		/* TODO: We don't support guest os callchain now */
-		return NULL;
-	}
-
-	if (in_nmi())
-		return &__get_cpu_var(perf_callchain_entry_nmi);
-
-	return &__get_cpu_var(perf_callchain_entry);
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)

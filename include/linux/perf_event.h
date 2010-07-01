@@ -983,7 +983,6 @@ extern void perf_callchain_user(struct perf_callchain_entry *entry,
 				struct pt_regs *regs);
 extern void perf_callchain_kernel(struct perf_callchain_entry *entry,
 				  struct pt_regs *regs);
-extern struct perf_callchain_entry *perf_callchain_buffer(void);
 
 
 static inline void
