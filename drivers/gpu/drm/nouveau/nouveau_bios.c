@@ -5841,6 +5841,31 @@ void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 	dcb->entries = newentries;
 }
 
+static bool
+apply_dcb_encoder_quirks(struct drm_device *dev, int idx, u32 *conn, u32 *conf)
+{
+	/* Dell Precision M6300
+	 *   DCB entry 2: 02025312 00000010
+	 *   DCB entry 3: 02026312 00000020
+	 *
+	 * Identical, except apparently a different connector on a
+	 * different SOR link.  Not a clue how we're supposed to know
+	 * which one is in use if it even shares an i2c line...
+	 *
+	 * Ignore the connector on the second SOR link to prevent
+	 * nasty problems until this is sorted (assuming it's not a
+	 * VBIOS bug).
+	 */
+	if ((dev->pdev->device == 0x040d) &&
+	    (dev->pdev->subsystem_vendor == 0x1028) &&
+	    (dev->pdev->subsystem_device == 0x019b)) {
+		if (*conn == 0x02026312 && *conf == 0x00000020)
+			return false;
+	}
+
+	return true;
+}
+
 static int
 parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 {
@@ -5972,6 +5997,9 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 			break;
 
 		if ((connection & 0x0000000f) == 0x0000000f)
+			continue;
+
+		if (!apply_dcb_encoder_quirks(dev, i, &connection, &config))
 			continue;
 
 		NV_TRACEWARN(dev, "Raw DCB entry %d: %08x %08x\n",
