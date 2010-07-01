@@ -63,6 +63,13 @@
 #define ATAG_NVIDIA_PRESERVED_MEM_N	2
 #define ATAG_NVIDIA_FORCE_32		0x7fffffff
 
+#define USB_MANUFACTURER_NAME           "Motorola"
+#define USB_PRODUCT_NAME                "MZ600"
+#define USB_PRODUCT_ID_BLAN             0x70A3
+#define USB_PRODUCT_ID_MTP              0x70A8
+#define USB_PRODUCT_ID_MTP_ADB          0x70A9
+#define USB_VENDOR_ID                   0x22b8
+
 struct tag_tegra {
 	__u32 bootarg_key;
 	__u32 bootarg_len;
@@ -213,12 +220,12 @@ static char *usb_functions_adb[] = { "mtp", "adb" };
 
 static struct android_usb_product usb_products[] = {
 	{
-		.product_id	= 0xDEAD,
+		.product_id	= USB_PRODUCT_ID_MTP,
 		.num_functions	= ARRAY_SIZE(usb_functions),
 		.functions	= usb_functions,
 	},
 	{
-		.product_id	= 0xBEEF,
+		.product_id	= USB_PRODUCT_ID_MTP_ADB,
 		.num_functions	= ARRAY_SIZE(usb_functions_adb),
 		.functions	= usb_functions_adb,
 	},
@@ -226,10 +233,10 @@ static struct android_usb_product usb_products[] = {
 
 /* standard android USB platform data */
 static struct android_usb_platform_data andusb_plat = {
-	.vendor_id		= 0x18d1,
-	.product_id		= 0xDEAD,
-	.manufacturer_name	= "Google",
-	.product_name		= "Stingray!",
+	.vendor_id		= USB_VENDOR_ID,
+	.product_id		= USB_PRODUCT_ID_MTP_ADB,
+	.manufacturer_name	= USB_MANUFACTURER_NAME,
+	.product_name		= USB_PRODUCT_NAME,
 	.serial_number		= "0000",
 	.num_products = ARRAY_SIZE(usb_products),
 	.products = usb_products,
@@ -252,7 +259,7 @@ static char *factory_usb_functions[] = {
 
 static struct android_usb_product factory_usb_products[] = {
 	{
-		.product_id	= 0x70ac,
+		.product_id	= USB_PRODUCT_ID_BLAN,
 		.num_functions	= ARRAY_SIZE(factory_usb_functions),
 		.functions	= factory_usb_functions,
 	},
@@ -260,10 +267,10 @@ static struct android_usb_product factory_usb_products[] = {
 
 /* android USB platform data for factory test mode*/
 static struct android_usb_platform_data andusb_plat_factory = {
-	.vendor_id		= 0x22b8,
-	.product_id		= 0x70ac,
-	.manufacturer_name	= "Motorola Inc.",
-	.product_name		= "Motorola Factory Support",
+	.vendor_id		= USB_VENDOR_ID,
+	.product_id		= USB_PRODUCT_ID_BLAN,
+	.manufacturer_name	= USB_MANUFACTURER_NAME,
+	.product_name		= USB_PRODUCT_NAME,
 	.serial_number		= "000000000",
 	.num_products = ARRAY_SIZE(factory_usb_products),
 	.products = factory_usb_products,
