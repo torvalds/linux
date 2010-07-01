@@ -185,7 +185,8 @@ int ixgbe_vf_configuration(struct pci_dev *pdev, unsigned int event_mask)
 
 	if (enable) {
 		random_ether_addr(vf_mac_addr);
-		e_info("IOV: VF %d is enabled MAC %pM\n", vfn, vf_mac_addr);
+		e_info(probe, "IOV: VF %d is enabled MAC %pM\n",
+		       vfn, vf_mac_addr);
 		/*
 		 * Store away the VF "permananet" MAC address, it will ask
 		 * for it later.
@@ -244,7 +245,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 	if (msgbuf[0] == IXGBE_VF_RESET) {
 		unsigned char *vf_mac = adapter->vfinfo[vf].vf_mac_addresses;
 		u8 *addr = (u8 *)(&msgbuf[1]);
-		e_info("VF Reset msg received from vf %d\n", vf);
+		e_info(probe, "VF Reset msg received from vf %d\n", vf);
 		adapter->vfinfo[vf].clear_to_send = false;
 		ixgbe_vf_reset_msg(adapter, vf);
 		adapter->vfinfo[vf].clear_to_send = true;
@@ -297,7 +298,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		retval = ixgbe_set_vf_vlan(adapter, add, vid, vf);
 		break;
 	default:
-		e_err("Unhandled Msg %8.8x\n", msgbuf[0]);
+		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
 		retval = IXGBE_ERR_MBX;
 		break;
 	}

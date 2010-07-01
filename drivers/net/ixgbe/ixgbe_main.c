@@ -696,7 +696,7 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 		/* detected Tx unit hang */
 		union ixgbe_adv_tx_desc *tx_desc;
 		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
-		e_err("Detected Tx Unit Hang\n"
+		e_err(drv, "Detected Tx Unit Hang\n"
 		      "  Tx Queue             <%d>\n"
 		      "  TDH, TDT             <%x>, <%x>\n"
 		      "  next_to_use          <%x>\n"
@@ -812,8 +812,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 	if (adapter->detect_tx_hung) {
 		if (ixgbe_check_tx_hang(adapter, tx_ring, i)) {
 			/* schedule immediate reset if we believe we hung */
-			e_info("tx hang %d detected, resetting adapter\n",
-			       adapter->tx_timeout_count + 1);
+			e_info(probe, "tx hang %d detected, resetting "
+			       "adapter\n", adapter->tx_timeout_count + 1);
 			ixgbe_tx_timeout(adapter->netdev);
 		}
 	}
@@ -1652,8 +1652,8 @@ static void ixgbe_check_overtemp_task(struct work_struct *work)
 				return;
 			break;
 		}
-		e_crit("Network adapter has been stopped because it "
-		       "has over heated. Restart the computer. If the problem "
+		e_crit(drv, "Network adapter has been stopped because it has "
+		       "over heated. Restart the computer. If the problem "
 		       "persists, power off the system and replace the "
 		       "adapter\n");
 		/* write to clear the interrupt */
@@ -1667,7 +1667,7 @@ static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
 
 	if ((adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) &&
 	    (eicr & IXGBE_EICR_GPI_SDP1)) {
-		e_crit("Fan has stopped, replace the adapter\n");
+		e_crit(probe, "Fan has stopped, replace the adapter\n");
 		/* write to clear the interrupt */
 		IXGBE_WRITE_REG(hw, IXGBE_EICR, IXGBE_EICR_GPI_SDP1);
 	}
@@ -2153,7 +2153,7 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 		                  handler, 0, adapter->name[vector],
 		                  adapter->q_vector[vector]);
 		if (err) {
-			e_err("request_irq failed for MSIX interrupt: "
+			e_err(probe, "request_irq failed for MSIX interrupt "
 			      "Error: %d\n", err);
 			goto free_queue_irqs;
 		}
@@ -2163,7 +2163,7 @@ static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 	err = request_irq(adapter->msix_entries[vector].vector,
 	                  ixgbe_msix_lsc, 0, adapter->name[vector], netdev);
 	if (err) {
-		e_err("request_irq for msix_lsc failed: %d\n", err);
+		e_err(probe, "request_irq for msix_lsc failed: %d\n", err);
 		goto free_queue_irqs;
 	}
 
@@ -2349,7 +2349,7 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 	}
 
 	if (err)
-		e_err("request_irq failed, Error %d\n", err);
+		e_err(probe, "request_irq failed, Error %d\n", err);
 
 	return err;
 }
@@ -2420,7 +2420,7 @@ static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 	map_vector_to_rxq(adapter, 0, 0);
 	map_vector_to_txq(adapter, 0, 0);
 
-	e_info("Legacy interrupt IVAR setup done\n");
+	e_info(hw, "Legacy interrupt IVAR setup done\n");
 }
 
 /**
@@ -3316,7 +3316,7 @@ static inline void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 			msleep(1);
 	}
 	if (k >= IXGBE_MAX_RX_DESC_POLL) {
-		e_err("RXDCTL.ENABLE on Rx queue %d not set within "
+		e_err(drv, "RXDCTL.ENABLE on Rx queue %d not set within "
 		      "the polling period\n", rxr);
 	}
 	ixgbe_release_rx_desc(&adapter->hw, adapter->rx_ring[rxr],
@@ -3446,7 +3446,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 			} while (--wait_loop &&
 			         !(txdctl & IXGBE_TXDCTL_ENABLE));
 			if (!wait_loop)
-				e_err("Could not enable Tx Queue %d\n", j);
+				e_err(drv, "Could not enable Tx Queue %d\n", j);
 		}
 	}
 
@@ -3494,7 +3494,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
 		if (esdp & IXGBE_ESDP_SDP1)
-			e_crit("Fan has stopped, replace the adapter\n");
+			e_crit(drv, "Fan has stopped, replace the adapter\n");
 	}
 
 	/*
@@ -3523,7 +3523,7 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	} else {
 		err = ixgbe_non_sfp_link_config(hw);
 		if (err)
-			e_err("link_config FAILED %d\n", err);
+			e_err(probe, "link_config FAILED %d\n", err);
 	}
 
 	for (i = 0; i < adapter->num_tx_queues; i++)
@@ -3977,12 +3977,12 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 		adapter->num_tx_queues = 1;
 #ifdef CONFIG_IXGBE_DCB
 		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-			e_info("FCoE enabled with DCB\n");
+			e_info(probe, "FCoE enabled with DCB\n");
 			ixgbe_set_dcb_queues(adapter);
 		}
 #endif
 		if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-			e_info("FCoE enabled with RSS\n");
+			e_info(probe, "FCoE enabled with RSS\n");
 			if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) ||
 			    (adapter->flags & IXGBE_FLAG_FDIR_PERFECT_CAPABLE))
 				ixgbe_set_fdir_queues(adapter);
@@ -4633,8 +4633,8 @@ int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter)
 	}
 
 	e_dev_info("Multiqueue %s: Rx Queue count = %u, Tx Queue count = %u\n",
-	       (adapter->num_rx_queues > 1) ? "Enabled" : "Disabled",
-	       adapter->num_rx_queues, adapter->num_tx_queues);
+		   (adapter->num_rx_queues > 1) ? "Enabled" : "Disabled",
+		   adapter->num_rx_queues, adapter->num_tx_queues);
 
 	set_bit(__IXGBE_DOWN, &adapter->state);
 
@@ -4711,7 +4711,7 @@ static void ixgbe_sfp_task(struct work_struct *work)
 				  "supported module.\n");
 			unregister_netdev(adapter->netdev);
 		} else {
-			e_info("detected SFP+: %d\n", hw->phy.sfp_type);
+			e_info(probe, "detected SFP+: %d\n", hw->phy.sfp_type);
 		}
 		/* don't need this routine any more */
 		clear_bit(__IXGBE_SFP_MODULE_NOT_FOUND, &adapter->state);
@@ -4891,7 +4891,7 @@ int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
 err:
 	vfree(tx_ring->tx_buffer_info);
 	tx_ring->tx_buffer_info = NULL;
-	e_err("Unable to allocate memory for the Tx descriptor ring\n");
+	e_err(probe, "Unable to allocate memory for the Tx descriptor ring\n");
 	return -ENOMEM;
 }
 
@@ -4913,7 +4913,7 @@ static int ixgbe_setup_all_tx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_tx_resources(adapter, adapter->tx_ring[i]);
 		if (!err)
 			continue;
-		e_err("Allocation for Tx Queue %u failed\n", i);
+		e_err(probe, "Allocation for Tx Queue %u failed\n", i);
 		break;
 	}
 
@@ -4938,7 +4938,8 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 	if (!rx_ring->rx_buffer_info)
 		rx_ring->rx_buffer_info = vmalloc(size);
 	if (!rx_ring->rx_buffer_info) {
-		e_err("vmalloc allocation failed for the Rx desc ring\n");
+		e_err(probe, "vmalloc allocation failed for the Rx "
+		      "descriptor ring\n");
 		goto alloc_failed;
 	}
 	memset(rx_ring->rx_buffer_info, 0, size);
@@ -4951,7 +4952,8 @@ int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc) {
-		e_err("Memory allocation failed for the Rx desc ring\n");
+		e_err(probe, "Memory allocation failed for the Rx "
+		      "descriptor ring\n");
 		vfree(rx_ring->rx_buffer_info);
 		goto alloc_failed;
 	}
@@ -4984,7 +4986,7 @@ static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 		err = ixgbe_setup_rx_resources(adapter, adapter->rx_ring[i]);
 		if (!err)
 			continue;
-		e_err("Allocation for Rx Queue %u failed\n", i);
+		e_err(probe, "Allocation for Rx Queue %u failed\n", i);
 		break;
 	}
 
@@ -5083,7 +5085,7 @@ static int ixgbe_change_mtu(struct net_device *netdev, int new_mtu)
 	if ((new_mtu < 68) || (max_frame > IXGBE_MAX_JUMBO_FRAME_SIZE))
 		return -EINVAL;
 
-	e_info("changing MTU from %d to %d\n", netdev->mtu, new_mtu);
+	e_info(probe, "changing MTU from %d to %d\n", netdev->mtu, new_mtu);
 	/* must set new MTU before calling down or up */
 	netdev->mtu = new_mtu;
 
@@ -5597,7 +5599,7 @@ static void ixgbe_fdir_reinit_task(struct work_struct *work)
 			set_bit(__IXGBE_FDIR_INIT_DONE,
 			        &(adapter->tx_ring[i]->reinit_state));
 	} else {
-		e_err("failed to finish FDIR re-initialization, "
+		e_err(probe, "failed to finish FDIR re-initialization, "
 		      "ignored adding FDIR ATR filters\n");
 	}
 	/* Done FDIR Re-initialization, enable transmits */
@@ -5669,7 +5671,7 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 				flow_tx = !!(rmcs & IXGBE_RMCS_TFCE_802_3X);
 			}
 
-			e_info("NIC Link is Up %s, Flow Control: %s\n",
+			e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
 			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
 			       "10 Gbps" :
 			       (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
@@ -5687,7 +5689,7 @@ static void ixgbe_watchdog_task(struct work_struct *work)
 		adapter->link_up = false;
 		adapter->link_speed = 0;
 		if (netif_carrier_ok(netdev)) {
-			e_info("NIC Link is Down\n");
+			e_info(drv, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
 		}
 	}
@@ -5863,8 +5865,9 @@ static bool ixgbe_tx_csum(struct ixgbe_adapter *adapter,
 				break;
 			default:
 				if (unlikely(net_ratelimit())) {
-					e_warn("partial checksum but "
-					       "proto=%x!\n", skb->protocol);
+					e_warn(probe, "partial checksum "
+					       "but proto=%x!\n",
+					       skb->protocol);
 				}
 				break;
 			}
@@ -6472,7 +6475,7 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 	adapter->flags |= IXGBE_FLAG_SRIOV_ENABLED;
 	err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
 	if (err) {
-		e_err("Failed to enable PCI sriov: %d\n", err);
+		e_err(probe, "Failed to enable PCI sriov: %d\n", err);
 		goto err_novfs;
 	}
 	/* If call to enable VFs succeeded then allocate memory
@@ -6496,8 +6499,8 @@ static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
 	}
 
 	/* Oh oh */
-	e_err("Unable to allocate memory for VF Data Storage - SRIOV "
-	      "disabled\n");
+	e_err(probe, "Unable to allocate memory for VF Data Storage - "
+	      "SRIOV disabled\n");
 	pci_disable_sriov(adapter->pdev);
 
 err_novfs:
@@ -6667,7 +6670,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (adapter->flags & IXGBE_FLAG_FAN_FAIL_CAPABLE) {
 		u32 esdp = IXGBE_READ_REG(hw, IXGBE_ESDP);
 		if (esdp & IXGBE_ESDP_SDP1)
-			e_crit("Fan has stopped, replace the adapter\n");
+			e_crit(probe, "Fan has stopped, replace the adapter\n");
 	}
 
 	/* reset_hw fills in the perm_addr as well */
@@ -6698,7 +6701,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	ixgbe_probe_vf(adapter, ii);
 
-	netdev->features =    NETIF_F_SG |
+	netdev->features = NETIF_F_SG |
 	                   NETIF_F_IP_CSUM |
 	                   NETIF_F_HW_VLAN_TX |
 	                   NETIF_F_HW_VLAN_RX |
@@ -6851,7 +6854,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 #endif
 	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
-		e_info("IOV is enabled with %d VFs\n", adapter->num_vfs);
+		e_info(probe, "IOV is enabled with %d VFs\n", adapter->num_vfs);
 		for (i = 0; i < adapter->num_vfs; i++)
 			ixgbe_vf_configuration(pdev, (i | 0x10000000));
 	}
@@ -6999,7 +7002,7 @@ static pci_ers_result_t ixgbe_io_slot_reset(struct pci_dev *pdev)
 	int err;
 
 	if (pci_enable_device_mem(pdev)) {
-		e_err("Cannot re-enable PCI device after reset.\n");
+		e_err(probe, "Cannot re-enable PCI device after reset.\n");
 		result = PCI_ERS_RESULT_DISCONNECT;
 	} else {
 		pci_set_master(pdev);
@@ -7037,7 +7040,7 @@ static void ixgbe_io_resume(struct pci_dev *pdev)
 
 	if (netif_running(netdev)) {
 		if (ixgbe_up(adapter)) {
-			e_info("ixgbe_up failed after reset\n");
+			e_info(probe, "ixgbe_up failed after reset\n");
 			return;
 		}
 	}

@@ -108,16 +108,6 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
 extern struct net_device *ixgbe_get_hw_dev(struct ixgbe_hw *hw);
 #define hw_dbg(hw, format, arg...) \
 	netdev_dbg(ixgbe_get_hw_dev(hw), format, ##arg)
-#define e_err(format, arg...) \
-	netdev_err(adapter->netdev, format, ## arg)
-#define e_info(format, arg...) \
-	netdev_info(adapter->netdev, format, ## arg)
-#define e_warn(format, arg...) \
-	netdev_warn(adapter->netdev, format, ## arg)
-#define e_notice(format, arg...) \
-	netdev_notice(adapter->netdev, format, ## arg)
-#define e_crit(format, arg...) \
-	netdev_crit(adapter->netdev, format, ## arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \
@@ -126,5 +116,12 @@ extern struct net_device *ixgbe_get_hw_dev(struct ixgbe_hw *hw);
 	dev_err(&adapter->pdev->dev, format, ## arg)
 #define e_dev_notice(format, arg...) \
 	dev_notice(&adapter->pdev->dev, format, ## arg)
-
+#define e_info(msglvl, format, arg...) \
+	netif_info(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_err(msglvl, format, arg...) \
+	netif_err(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_warn(msglvl, format, arg...) \
+	netif_warn(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_crit(msglvl, format, arg...) \
+	netif_crit(adapter, msglvl, adapter->netdev, format, ## arg)
 #endif /* IXGBE_COMMON */

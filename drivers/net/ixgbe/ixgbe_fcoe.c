@@ -164,20 +164,20 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 
 	adapter = netdev_priv(netdev);
 	if (xid >= IXGBE_FCOE_DDP_MAX) {
-		e_warn("xid=0x%x out-of-range\n", xid);
+		e_warn(drv, "xid=0x%x out-of-range\n", xid);
 		return 0;
 	}
 
 	fcoe = &adapter->fcoe;
 	if (!fcoe->pool) {
-		e_warn("xid=0x%x no ddp pool for fcoe\n", xid);
+		e_warn(drv, "xid=0x%x no ddp pool for fcoe\n", xid);
 		return 0;
 	}
 
 	ddp = &fcoe->ddp[xid];
 	if (ddp->sgl) {
-		e_err("xid 0x%x w/ non-null sgl=%p nents=%d\n",
-			  xid, ddp->sgl, ddp->sgc);
+		e_err(drv, "xid 0x%x w/ non-null sgl=%p nents=%d\n",
+		      xid, ddp->sgl, ddp->sgc);
 		return 0;
 	}
 	ixgbe_fcoe_clear_ddp(ddp);
@@ -185,14 +185,14 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	/* setup dma from scsi command sgl */
 	dmacount = pci_map_sg(adapter->pdev, sgl, sgc, DMA_FROM_DEVICE);
 	if (dmacount == 0) {
-		e_err("xid 0x%x DMA map error\n", xid);
+		e_err(drv, "xid 0x%x DMA map error\n", xid);
 		return 0;
 	}
 
 	/* alloc the udl from our ddp pool */
 	ddp->udl = pci_pool_alloc(fcoe->pool, GFP_KERNEL, &ddp->udp);
 	if (!ddp->udl) {
-		e_err("failed allocated ddp context\n");
+		e_err(drv, "failed allocated ddp context\n");
 		goto out_noddp_unmap;
 	}
 	ddp->sgl = sgl;
@@ -205,7 +205,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 		while (len) {
 			/* max number of buffers allowed in one DDP context */
 			if (j >= IXGBE_BUFFCNT_MAX) {
-				e_err("xid=%x:%d,%d,%d:addr=%llx "
+				e_err(drv, "xid=%x:%d,%d,%d:addr=%llx "
 				      "not enough descriptors\n",
 				      xid, i, j, dmacount, (u64)addr);
 				goto out_noddp_free;
@@ -385,7 +385,7 @@ int ixgbe_fso(struct ixgbe_adapter *adapter,
 	struct fc_frame_header *fh;
 
 	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_type != SKB_GSO_FCOE)) {
-		e_err("Wrong gso type %d:expecting SKB_GSO_FCOE\n",
+		e_err(drv, "Wrong gso type %d:expecting SKB_GSO_FCOE\n",
 		      skb_shinfo(skb)->gso_type);
 		return -EINVAL;
 	}
@@ -412,7 +412,7 @@ int ixgbe_fso(struct ixgbe_adapter *adapter,
 		fcoe_sof_eof |= IXGBE_ADVTXD_FCOEF_SOF;
 		break;
 	default:
-		e_warn("unknown sof = 0x%x\n", sof);
+		e_warn(drv, "unknown sof = 0x%x\n", sof);
 		return -EINVAL;
 	}
 
@@ -439,7 +439,7 @@ int ixgbe_fso(struct ixgbe_adapter *adapter,
 		fcoe_sof_eof |= IXGBE_ADVTXD_FCOEF_EOF_A;
 		break;
 	default:
-		e_warn("unknown eof = 0x%x\n", eof);
+		e_warn(drv, "unknown eof = 0x%x\n", eof);
 		return -EINVAL;
 	}
 
@@ -515,7 +515,7 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 					     adapter->pdev, IXGBE_FCPTR_MAX,
 					     IXGBE_FCPTR_ALIGN, PAGE_SIZE);
 		if (!fcoe->pool)
-			e_err("failed to allocated FCoE DDP pool\n");
+			e_err(drv, "failed to allocated FCoE DDP pool\n");
 
 		spin_lock_init(&fcoe->lock);
 	}
@@ -611,7 +611,7 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
 		goto out_enable;
 
-	e_info("Enabling FCoE offload features.\n");
+	e_info(drv, "Enabling FCoE offload features.\n");
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_stop(netdev);
 
@@ -657,7 +657,7 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		goto out_disable;
 
-	e_info("Disabling FCoE offload features.\n");
+	e_info(drv, "Disabling FCoE offload features.\n");
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_stop(netdev);
 
