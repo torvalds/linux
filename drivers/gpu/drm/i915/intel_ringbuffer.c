@@ -687,6 +687,7 @@ int intel_wrap_ring_buffer(struct drm_device *dev,
 		*virt++ = MI_NOOP;
 
 	ring->tail = 0;
+	ring->space = ring->head - 8;
 
 	return 0;
 }
