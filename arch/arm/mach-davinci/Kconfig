@@ -20,17 +20,17 @@ config ARCH_DAVINCI_DM644x
 	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DM355
-        bool "DaVinci 355 based system"
+	bool "DaVinci 355 based system"
 	select AINTC
 	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DM646x
-        bool "DaVinci 646x based system"
+	bool "DaVinci 646x based system"
 	select AINTC
 	select ARCH_DAVINCI_DMx
 
 config ARCH_DAVINCI_DA830
-        bool "DA830/OMAP-L137 based system"
+	bool "DA830/OMAP-L137 based system"
 	select CP_INTC
 	select ARCH_DAVINCI_DA8XX
 	select CPU_DCACHE_WRITETHROUGH # needed on silicon revs 1.0, 1.1
@@ -140,7 +140,7 @@ config DA830_UI_LCD
 config DA830_UI_NAND
 	bool "NAND flash"
 	help
-	  Say Y here to use the NAND flash.  Do not forget to setup
+	  Say Y here to use the NAND flash. Do not forget to setup
 	  the switch correctly.
 endchoice
 
@@ -195,20 +195,20 @@ config DAVINCI_MUX
 	  say Y.
 
 config DAVINCI_MUX_DEBUG
-        bool "Multiplexing debug output"
-        depends on DAVINCI_MUX
-        help
-          Makes the multiplexing functions print out a lot of debug info.
-          This is useful if you want to find out the correct values of the
-          multiplexing registers.
+	bool "Multiplexing debug output"
+	depends on DAVINCI_MUX
+	help
+	  Makes the multiplexing functions print out a lot of debug info.
+	  This is useful if you want to find out the correct values of the
+	  multiplexing registers.
 
 config DAVINCI_MUX_WARNINGS
-        bool "Warn about pins the bootloader didn't set up"
-        depends on DAVINCI_MUX
-        help
-          Choose Y here to warn whenever driver initialization logic needs
-          to change the pin multiplexing setup.  When there are no warnings
-          printed, it's safe to deselect DAVINCI_MUX for your product.
+	bool "Warn about pins the bootloader didn't set up"
+	depends on DAVINCI_MUX
+	help
+	  Choose Y here to warn whenever driver initialization logic needs
+	  to change the pin multiplexing setup. When there are no warnings
+	  printed, it's safe to deselect DAVINCI_MUX for your product.
 
 config DAVINCI_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
