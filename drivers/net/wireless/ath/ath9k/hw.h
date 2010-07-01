@@ -630,6 +630,12 @@ struct ath_hw_ops {
 	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
+struct ath_nf_limits {
+	s16 max;
+	s16 min;
+	s16 nominal;
+};
+
 struct ath_hw {
 	struct ieee80211_hw *hw;
 	struct ath_common common;
@@ -651,10 +657,9 @@ struct ath_hw {
 	bool is_pciexpress;
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
-	s16 nf_2g_max;
-	s16 nf_2g_min;
-	s16 nf_5g_max;
-	s16 nf_5g_min;
+
+	struct ath_nf_limits nf_2g;
+	struct ath_nf_limits nf_5g;
 	u16 rfsilent;
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
@@ -943,7 +948,6 @@ void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
  * Code specific to AR9003, we stuff these here to avoid callbacks
  * for older families
  */
-void ar9003_hw_set_nf_limits(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
