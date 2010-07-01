@@ -429,7 +429,6 @@ struct acpi_gpe_event_info {
 	u8 flags;		/* Misc info about this GPE */
 	u8 gpe_number;		/* This GPE */
 	u8 runtime_count;	/* References to a run GPE */
-	u8 wakeup_count;	/* References to a wake GPE */
 };
 
 /* Information about a GPE register pair, one per each status/enable pair in an array */

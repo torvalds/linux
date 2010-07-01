@@ -669,12 +669,6 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_DISABLE                1
 #define ACPI_GPE_COND_ENABLE            2
 
-/* gpe_types for acpi_enable_gpe and acpi_disable_gpe */
-
-#define ACPI_GPE_TYPE_WAKE              (u8) 0x01
-#define ACPI_GPE_TYPE_RUNTIME           (u8) 0x02
-#define ACPI_GPE_TYPE_WAKE_RUN          (u8) 0x03
-
 /*
  * GPE info flags - Per GPE
  * +-------+---+-+-+

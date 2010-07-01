@@ -482,8 +482,7 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 				gpe_device = NULL;
 			}
 
-			status = acpi_enable_gpe(gpe_device, gpe_number,
-						 ACPI_GPE_TYPE_RUNTIME);
+			status = acpi_enable_gpe(gpe_device, gpe_number);
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 						"Could not enable GPE 0x%02X",
