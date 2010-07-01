@@ -203,12 +203,13 @@ static void set_sock_callbacks(struct socket *sock,
  */
 static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 {
-	struct sockaddr *paddr = (struct sockaddr *)&con->peer_addr.in_addr;
+	struct sockaddr_storage *paddr = &con->peer_addr.in_addr;
 	struct socket *sock;
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
+			       IPPROTO_TCP, &sock);
 	if (ret)
 		return ERR_PTR(ret);
 	con->sock = sock;
@@ -222,7 +223,8 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 
 	dout("connect %s\n", pr_addr(&con->peer_addr.in_addr));
 
-	ret = sock->ops->connect(sock, paddr, sizeof(*paddr), O_NONBLOCK);
+	ret = sock->ops->connect(sock, (struct sockaddr *)paddr, sizeof(*paddr),
+				 O_NONBLOCK);
 	if (ret == -EINPROGRESS) {
 		dout("connect %s EINPROGRESS sk_state = %u\n",
 		     pr_addr(&con->peer_addr.in_addr),
