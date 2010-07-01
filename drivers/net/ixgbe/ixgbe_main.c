@@ -4001,7 +4001,7 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 
 done:
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
+	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
 }
 
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
