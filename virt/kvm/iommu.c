@@ -108,7 +108,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 			      get_order(page_size), flags);
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
-			       "iommu failed to map pfn=%lx\n", pfn);
+			       "iommu failed to map pfn=%llx\n", pfn);
 			goto unmap_pages;
 		}
 
