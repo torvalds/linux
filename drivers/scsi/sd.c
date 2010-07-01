@@ -425,6 +425,7 @@ static int scsi_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 	sector_t sector = bio->bi_sector;
 	unsigned int nr_sectors = bio_sectors(bio);
 	unsigned int len;
+	int ret;
 	struct page *page;
 
 	if (sdkp->device->sector_size == 4096) {
@@ -465,7 +466,15 @@ static int scsi_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 	}
 
 	blk_add_request_payload(rq, page, len);
-	return scsi_setup_blk_pc_cmnd(sdp, rq);
+	ret = scsi_setup_blk_pc_cmnd(sdp, rq);
+	rq->buffer = page_address(page);
+	return ret;
+}
+
+static void sd_unprep_fn(struct request_queue *q, struct request *rq)
+{
+	if (rq->cmd_flags & REQ_DISCARD)
+		__free_page(virt_to_page(rq->buffer));
 }
 
 /**
@@ -2242,6 +2251,7 @@ static void sd_probe_async(void *data, async_cookie_t cookie)
 	sd_revalidate_disk(gd);
 
 	blk_queue_prep_rq(sdp->request_queue, sd_prep_fn);
+	blk_queue_unprep_rq(sdp->request_queue, sd_unprep_fn);
 
 	gd->driverfs_dev = &sdp->sdev_gendev;
 	gd->flags = GENHD_FL_EXT_DEVT;
