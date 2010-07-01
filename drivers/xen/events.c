@@ -656,6 +656,28 @@ out:
 	return irq;
 }
 
+void xen_allocate_pirq_msi(char *name, int *irq, int *pirq)
+{
+	spin_lock(&irq_mapping_update_lock);
+
+	*irq = find_unbound_irq();
+	if (*irq == -1)
+		goto out;
+
+	*pirq = find_unbound_pirq();
+	if (*pirq == -1)
+		goto out;
+
+	set_irq_chip_and_handler_name(*irq, &xen_pirq_chip,
+				      handle_level_irq, name);
+
+	irq_info[*irq] = mk_pirq_info(0, *pirq, 0, 0);
+	pirq_to_irq[*pirq] = *irq;
+
+out:
+	spin_unlock(&irq_mapping_update_lock);
+}
+
 int xen_destroy_irq(int irq)
 {
 	struct irq_desc *desc;

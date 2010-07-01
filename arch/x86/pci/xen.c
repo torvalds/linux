@@ -64,9 +64,61 @@ static int acpi_register_gsi_xen_hvm(struct device *dev, u32 gsi,
 
 #if defined(CONFIG_PCI_MSI)
 #include <linux/msi.h>
+#include <asm/msidef.h>
 
 struct xen_pci_frontend_ops *xen_pci_frontend;
 EXPORT_SYMBOL_GPL(xen_pci_frontend);
+
+static void xen_msi_compose_msg(struct pci_dev *pdev, unsigned int pirq,
+		struct msi_msg *msg)
+{
+	/* We set vector == 0 to tell the hypervisor we don't care about it,
+	 * but we want a pirq setup instead.
+	 * We use the dest_id field to pass the pirq that we want. */
+	msg->address_hi = MSI_ADDR_BASE_HI | MSI_ADDR_EXT_DEST_ID(pirq);
+	msg->address_lo =
+		MSI_ADDR_BASE_LO |
+		MSI_ADDR_DEST_MODE_PHYSICAL |
+		MSI_ADDR_REDIRECTION_CPU |
+		MSI_ADDR_DEST_ID(pirq);
+
+	msg->data =
+		MSI_DATA_TRIGGER_EDGE |
+		MSI_DATA_LEVEL_ASSERT |
+		/* delivery mode reserved */
+		(3 << 8) |
+		MSI_DATA_VECTOR(0);
+}
+
+static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+	int irq, pirq, ret = 0;
+	struct msi_desc *msidesc;
+	struct msi_msg msg;
+
+	list_for_each_entry(msidesc, &dev->msi_list, list) {
+		xen_allocate_pirq_msi((type == PCI_CAP_ID_MSIX) ?
+				"msi-x" : "msi", &irq, &pirq);
+		if (irq < 0 || pirq < 0)
+			goto error;
+		printk(KERN_DEBUG "xen: msi --> irq=%d, pirq=%d\n", irq, pirq);
+		xen_msi_compose_msg(dev, pirq, &msg);
+		ret = set_irq_msi(irq, msidesc);
+		if (ret < 0)
+			goto error_while;
+		write_msi_msg(irq, &msg);
+	}
+	return 0;
+
+error_while:
+	unbind_from_irqhandler(irq, NULL);
+error:
+	if (ret == -ENODEV)
+		dev_err(&dev->dev, "Xen PCI frontend has not registered" \
+				" MSI/MSI-X support!\n");
+
+	return ret;
+}
 
 /*
  * For MSI interrupts we have to use drivers/xen/event.s functions to
@@ -197,6 +249,11 @@ int __init pci_xen_hvm_init(void)
 	 * just how GSIs get registered.
 	 */
 	__acpi_register_gsi = acpi_register_gsi_xen_hvm;
+#endif
+
+#ifdef CONFIG_PCI_MSI
+	x86_msi.setup_msi_irqs = xen_hvm_setup_msi_irqs;
+	x86_msi.teardown_msi_irq = xen_teardown_msi_irq;
 #endif
 	return 0;
 }

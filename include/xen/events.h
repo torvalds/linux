@@ -72,6 +72,8 @@ void xen_hvm_evtchn_do_upcall(void);
  * usual. */
 int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
 int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
+/* Allocate an irq and a pirq to be used with MSIs. */
+void xen_allocate_pirq_msi(char *name, int *irq, int *pirq);
 
 /* De-allocates the above mentioned physical interrupt. */
 int xen_destroy_irq(int irq);
