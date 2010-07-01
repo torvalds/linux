@@ -2,6 +2,7 @@
 #include "ceph_debug.h"
 
 #include <linux/backing-dev.h>
+#include <linux/ctype.h>
 #include <linux/fs.h>
 #include <linux/inet.h>
 #include <linux/in6.h>
@@ -150,9 +151,7 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 	struct ceph_mount_args *args = client->mount_args;
 
 	if (args->flags & CEPH_OPT_FSID)
-		seq_printf(m, ",fsidmajor=%llu,fsidminor%llu",
-			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[0]),
-			   le64_to_cpu(*(__le64 *)&args->fsid.fsid[8]));
+		seq_printf(m, ",fsid=" FSID_FORMAT, PR_FSID(&args->fsid));
 	if (args->flags & CEPH_OPT_NOSHARE)
 		seq_puts(m, ",noshare");
 	if (args->flags & CEPH_OPT_DIRSTAT)
@@ -322,8 +321,6 @@ const char *ceph_msg_type_name(int type)
  * mount options
  */
 enum {
-	Opt_fsidmajor,
-	Opt_fsidminor,
 	Opt_wsize,
 	Opt_rsize,
 	Opt_osdtimeout,
@@ -338,6 +335,7 @@ enum {
 	Opt_congestion_kb,
 	Opt_last_int,
 	/* int args above */
+	Opt_fsid,
 	Opt_snapdirname,
 	Opt_name,
 	Opt_secret,
@@ -354,8 +352,6 @@ enum {
 };
 
 static match_table_t arg_tokens = {
-	{Opt_fsidmajor, "fsidmajor=%ld"},
-	{Opt_fsidminor, "fsidminor=%ld"},
 	{Opt_wsize, "wsize=%d"},
 	{Opt_rsize, "rsize=%d"},
 	{Opt_osdtimeout, "osdtimeout=%d"},
@@ -369,6 +365,7 @@ static match_table_t arg_tokens = {
 	{Opt_readdir_max_bytes, "readdir_max_bytes=%d"},
 	{Opt_congestion_kb, "write_congestion_kb=%d"},
 	/* int args above */
+	{Opt_fsid, "fsid=%s"},
 	{Opt_snapdirname, "snapdirname=%s"},
 	{Opt_name, "name=%s"},
 	{Opt_secret, "secret=%s"},
@@ -384,6 +381,36 @@ static match_table_t arg_tokens = {
 	{-1, NULL}
 };
 
+static int parse_fsid(const char *str, struct ceph_fsid *fsid)
+{
+	int i = 0;
+	char tmp[3];
+	int err = -EINVAL;
+	int d;
+
+	dout("parse_fsid '%s'\n", str);
+	tmp[2] = 0;
+	while (*str && i < 16) {
+		if (ispunct(*str)) {
+			str++;
+			continue;
+		}
+		if (!isxdigit(str[0]) || !isxdigit(str[1]))
+			break;
+		tmp[0] = str[0];
+		tmp[1] = str[1];
+		if (sscanf(tmp, "%x", &d) < 1)
+			break;
+		fsid->fsid[i] = d & 0xff;
+		i++;
+		str += 2;
+	}
+
+	if (i == 16)
+		err = 0;
+	dout("parse_fsid ret %d got fsid " FSID_FORMAT, err, PR_FSID(fsid));
+	return err;
+}
 
 static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 						const char *dev_name,
@@ -467,12 +494,6 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 			dout("got token %d\n", token);
 		}
 		switch (token) {
-		case Opt_fsidmajor:
-			*(__le64 *)&args->fsid.fsid[0] = cpu_to_le64(intval);
-			break;
-		case Opt_fsidminor:
-			*(__le64 *)&args->fsid.fsid[8] = cpu_to_le64(intval);
-			break;
 		case Opt_ip:
 			err = ceph_parse_ips(argstr[0].from,
 					     argstr[0].to,
@@ -483,6 +504,11 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 			args->flags |= CEPH_OPT_MYIP;
 			break;
 
+		case Opt_fsid:
+			err = parse_fsid(argstr[0].from, &args->fsid);
+			if (err == 0)
+				args->flags |= CEPH_OPT_FSID;
+			break;
 		case Opt_snapdirname:
 			kfree(args->snapdir_name);
 			args->snapdir_name = kstrndup(argstr[0].from,
