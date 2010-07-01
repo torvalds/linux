@@ -11,22 +11,51 @@
 #define TRACE_INCLUDE_FILE drm_trace
 
 TRACE_EVENT(drm_vblank_event,
+	    TP_PROTO(int crtc, unsigned int seq),
+	    TP_ARGS(crtc, seq),
+	    TP_STRUCT__entry(
+		    __field(int, crtc)
+		    __field(unsigned int, seq)
+		    ),
+	    TP_fast_assign(
+		    __entry->crtc = crtc;
+		    __entry->seq = seq;
+		    ),
+	    TP_printk("crtc=%d, seq=%d", __entry->crtc, __entry->seq)
+);
 
-	TP_PROTO(int crtc, unsigned int seq),
+TRACE_EVENT(drm_vblank_event_queued,
+	    TP_PROTO(pid_t pid, int crtc, unsigned int seq),
+	    TP_ARGS(pid, crtc, seq),
+	    TP_STRUCT__entry(
+		    __field(pid_t, pid)
+		    __field(int, crtc)
+		    __field(unsigned int, seq)
+		    ),
+	    TP_fast_assign(
+		    __entry->pid = pid;
+		    __entry->crtc = crtc;
+		    __entry->seq = seq;
+		    ),
+	    TP_printk("pid=%d, crtc=%d, seq=%d", __entry->pid, __entry->crtc, \
+		      __entry->seq)
+);
 
-	TP_ARGS(crtc, seq),
-
-	TP_STRUCT__entry(
-		__field(int, crtc)
-		__field(unsigned int, seq)
-		),
-
-	TP_fast_assign(
-		__entry->crtc = crtc;
-		__entry->seq = seq;
-		),
-
-	TP_printk("crtc=%d, seq=%d", __entry->crtc, __entry->seq)
+TRACE_EVENT(drm_vblank_event_delivered,
+	    TP_PROTO(pid_t pid, int crtc, unsigned int seq),
+	    TP_ARGS(pid, crtc, seq),
+	    TP_STRUCT__entry(
+		    __field(pid_t, pid)
+		    __field(int, crtc)
+		    __field(unsigned int, seq)
+		    ),
+	    TP_fast_assign(
+		    __entry->pid = pid;
+		    __entry->crtc = crtc;
+		    __entry->seq = seq;
+		    ),
+	    TP_printk("pid=%d, crtc=%d, seq=%d", __entry->pid, __entry->crtc, \
+		      __entry->seq)
 );
 
 #endif /* _DRM_TRACE_H_ */

@@ -403,6 +403,8 @@ struct drm_pending_event {
 	struct drm_event *event;
 	struct list_head link;
 	struct drm_file *file_priv;
+	pid_t pid; /* pid of requester, no guarantee it's valid by the time
+		      we deliver the event, for tracing only */
 	void (*destroy)(struct drm_pending_event *event);
 };
 
