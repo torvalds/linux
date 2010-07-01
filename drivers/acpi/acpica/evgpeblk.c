@@ -508,10 +508,8 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 			 * increment its reference counter.
 			 */
 			if (gpe_event_info->runtime_count) {
-				acpi_set_gpe(gpe_device, gpe_number,
-						ACPI_GPE_ENABLE);
-				gpe_enabled_count++;
-				continue;
+				status = acpi_ev_enable_gpe(gpe_event_info);
+				goto enabled;
 			}
 
 			if (gpe_event_info->flags & ACPI_GPE_CAN_WAKE) {
@@ -530,6 +528,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 			/* Enable this GPE */
 
 			status = acpi_enable_gpe(gpe_device, gpe_number);
+		      enabled:
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 						"Could not enable GPE 0x%02X",
