@@ -640,10 +640,10 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 		return 0;
 
 	/* Set the IR mode */
-	i = dib0700_ctrl_wr(d, rc_setup, 3);
-	if (i<0) {
+	i = dib0700_ctrl_wr(d, rc_setup, sizeof(rc_setup));
+	if (i < 0) {
 		err("ir protocol setup failed");
-		return -1;
+		return i;
 	}
 
 	if (st->fw_version < 0x10200)
@@ -653,14 +653,14 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 	purb = usb_alloc_urb(0, GFP_KERNEL);
 	if (purb == NULL) {
 		err("rc usb alloc urb failed\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	purb->transfer_buffer = kzalloc(RC_MSG_SIZE_V1_20, GFP_KERNEL);
 	if (purb->transfer_buffer == NULL) {
 		err("rc kzalloc failed\n");
 		usb_free_urb(purb);
-		return -1;
+		return -ENOMEM;
 	}
 
 	purb->status = -EINPROGRESS;
@@ -669,12 +669,10 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 			  dib0700_rc_urb_completion, d);
 
 	ret = usb_submit_urb(purb, GFP_ATOMIC);
-	if (ret != 0) {
+	if (ret)
 		err("rc submit urb failed\n");
-		return -1;
-	}
 
-	return 0;
+	return ret;
 }
 
 static int dib0700_probe(struct usb_interface *intf,
