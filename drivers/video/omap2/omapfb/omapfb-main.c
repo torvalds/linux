@@ -2005,13 +2005,6 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 		}
 	}
 
-	DBG("create sysfs for fbs\n");
-	r = omapfb_create_sysfs(fbdev);
-	if (r) {
-		dev_err(fbdev->dev, "failed to create sysfs entries\n");
-		return r;
-	}
-
 	/* Enable fb0 */
 	if (fbdev->num_fbs > 0) {
 		struct omapfb_info *ofbi = FB2OFB(fbdev->fbs[0]);
@@ -2295,6 +2288,13 @@ static int omapfb_probe(struct platform_device *pdev)
 				dssdrv->set_update_mode(def_display,
 						OMAP_DSS_UPDATE_AUTO);
 		}
+	}
+
+	DBG("create sysfs for fbs\n");
+	r = omapfb_create_sysfs(fbdev);
+	if (r) {
+		dev_err(fbdev->dev, "failed to create sysfs entries\n");
+		goto cleanup;
 	}
 
 	return 0;
