@@ -785,7 +785,9 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 					if (connector == list_connector)
 						continue;
 					list_radeon_connector = to_radeon_connector(list_connector);
-					if (radeon_connector->devices == list_radeon_connector->devices) {
+					if (list_radeon_connector->shared_ddc &&
+					    (list_radeon_connector->ddc_bus->rec.i2c_id ==
+					     radeon_connector->ddc_bus->rec.i2c_id)) {
 						if (drm_detect_hdmi_monitor(radeon_connector->edid)) {
 							if (connector->connector_type == DRM_MODE_CONNECTOR_DVID) {
 								kfree(radeon_connector->edid);
