@@ -736,12 +736,12 @@ static int translate_desc(struct vhost_dev *dev, u64 addr, u32 len,
 	mem = rcu_dereference(dev->memory);
 	while ((u64)len > s) {
 		u64 size;
-		if (ret >= iov_size) {
+		if (unlikely(ret >= iov_size)) {
 			ret = -ENOBUFS;
 			break;
 		}
 		reg = find_region(mem, addr, len);
-		if (!reg) {
+		if (unlikely(!reg)) {
 			ret = -EFAULT;
 			break;
 		}
@@ -780,18 +780,18 @@ static unsigned next_desc(struct vring_desc *desc)
 	return next;
 }
 
-static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
-			     struct iovec iov[], unsigned int iov_size,
-			     unsigned int *out_num, unsigned int *in_num,
-			     struct vhost_log *log, unsigned int *log_num,
-			     struct vring_desc *indirect)
+static int get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
+			struct iovec iov[], unsigned int iov_size,
+			unsigned int *out_num, unsigned int *in_num,
+			struct vhost_log *log, unsigned int *log_num,
+			struct vring_desc *indirect)
 {
 	struct vring_desc desc;
 	unsigned int i = 0, count, found = 0;
 	int ret;
 
 	/* Sanity check */
-	if (indirect->len % sizeof desc) {
+	if (unlikely(indirect->len % sizeof desc)) {
 		vq_err(vq, "Invalid length in indirect descriptor: "
 		       "len 0x%llx not multiple of 0x%zx\n",
 		       (unsigned long long)indirect->len,
@@ -801,7 +801,7 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 
 	ret = translate_desc(dev, indirect->addr, indirect->len, vq->indirect,
 			     ARRAY_SIZE(vq->indirect));
-	if (ret < 0) {
+	if (unlikely(ret < 0)) {
 		vq_err(vq, "Translation failure %d in indirect.\n", ret);
 		return ret;
 	}
@@ -813,7 +813,7 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 	count = indirect->len / sizeof desc;
 	/* Buffers are chained via a 16 bit next field, so
 	 * we can have at most 2^16 of these. */
-	if (count > USHRT_MAX + 1) {
+	if (unlikely(count > USHRT_MAX + 1)) {
 		vq_err(vq, "Indirect buffer length too big: %d\n",
 		       indirect->len);
 		return -E2BIG;
@@ -821,19 +821,19 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 
 	do {
 		unsigned iov_count = *in_num + *out_num;
-		if (++found > count) {
+		if (unlikely(++found > count)) {
 			vq_err(vq, "Loop detected: last one at %u "
 			       "indirect size %u\n",
 			       i, count);
 			return -EINVAL;
 		}
-		if (memcpy_fromiovec((unsigned char *)&desc, vq->indirect,
-				     sizeof desc)) {
+		if (unlikely(memcpy_fromiovec((unsigned char *)&desc, vq->indirect,
+					      sizeof desc))) {
 			vq_err(vq, "Failed indirect descriptor: idx %d, %zx\n",
 			       i, (size_t)indirect->addr + i * sizeof desc);
 			return -EINVAL;
 		}
-		if (desc.flags & VRING_DESC_F_INDIRECT) {
+		if (unlikely(desc.flags & VRING_DESC_F_INDIRECT)) {
 			vq_err(vq, "Nested indirect descriptor: idx %d, %zx\n",
 			       i, (size_t)indirect->addr + i * sizeof desc);
 			return -EINVAL;
@@ -841,7 +841,7 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 
 		ret = translate_desc(dev, desc.addr, desc.len, iov + iov_count,
 				     iov_size - iov_count);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			vq_err(vq, "Translation failure %d indirect idx %d\n",
 			       ret, i);
 			return ret;
@@ -857,7 +857,7 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 		} else {
 			/* If it's an output descriptor, they're all supposed
 			 * to come before any input descriptors. */
-			if (*in_num) {
+			if (unlikely(*in_num)) {
 				vq_err(vq, "Indirect descriptor "
 				       "has out after in: idx %d\n", i);
 				return -EINVAL;
@@ -888,13 +888,13 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 
 	/* Check it isn't doing very strange things with descriptor numbers. */
 	last_avail_idx = vq->last_avail_idx;
-	if (get_user(vq->avail_idx, &vq->avail->idx)) {
+	if (unlikely(get_user(vq->avail_idx, &vq->avail->idx))) {
 		vq_err(vq, "Failed to access avail idx at %p\n",
 		       &vq->avail->idx);
 		return -EFAULT;
 	}
 
-	if ((u16)(vq->avail_idx - last_avail_idx) > vq->num) {
+	if (unlikely((u16)(vq->avail_idx - last_avail_idx) > vq->num)) {
 		vq_err(vq, "Guest moved used index from %u to %u",
 		       last_avail_idx, vq->avail_idx);
 		return -EFAULT;
@@ -909,7 +909,8 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 
 	/* Grab the next descriptor number they're advertising, and increment
 	 * the index we've seen. */
-	if (get_user(head, &vq->avail->ring[last_avail_idx % vq->num])) {
+	if (unlikely(get_user(head,
+			      &vq->avail->ring[last_avail_idx % vq->num]))) {
 		vq_err(vq, "Failed to read head: idx %d address %p\n",
 		       last_avail_idx,
 		       &vq->avail->ring[last_avail_idx % vq->num]);
@@ -917,7 +918,7 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 	}
 
 	/* If their number is silly, that's an error. */
-	if (head >= vq->num) {
+	if (unlikely(head >= vq->num)) {
 		vq_err(vq, "Guest says index %u > %u is available",
 		       head, vq->num);
 		return -EINVAL;
@@ -931,19 +932,19 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 	i = head;
 	do {
 		unsigned iov_count = *in_num + *out_num;
-		if (i >= vq->num) {
+		if (unlikely(i >= vq->num)) {
 			vq_err(vq, "Desc index is %u > %u, head = %u",
 			       i, vq->num, head);
 			return -EINVAL;
 		}
-		if (++found > vq->num) {
+		if (unlikely(++found > vq->num)) {
 			vq_err(vq, "Loop detected: last one at %u "
 			       "vq size %u head %u\n",
 			       i, vq->num, head);
 			return -EINVAL;
 		}
 		ret = copy_from_user(&desc, vq->desc + i, sizeof desc);
-		if (ret) {
+		if (unlikely(ret)) {
 			vq_err(vq, "Failed to get descriptor: idx %d addr %p\n",
 			       i, vq->desc + i);
 			return -EFAULT;
@@ -952,7 +953,7 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 			ret = get_indirect(dev, vq, iov, iov_size,
 					   out_num, in_num,
 					   log, log_num, &desc);
-			if (ret < 0) {
+			if (unlikely(ret < 0)) {
 				vq_err(vq, "Failure detected "
 				       "in indirect descriptor at idx %d\n", i);
 				return ret;
@@ -962,7 +963,7 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 
 		ret = translate_desc(dev, desc.addr, desc.len, iov + iov_count,
 				     iov_size - iov_count);
-		if (ret < 0) {
+		if (unlikely(ret < 0)) {
 			vq_err(vq, "Translation failure %d descriptor idx %d\n",
 			       ret, i);
 			return ret;
@@ -979,7 +980,7 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 		} else {
 			/* If it's an output descriptor, they're all supposed
 			 * to come before any input descriptors. */
-			if (*in_num) {
+			if (unlikely(*in_num)) {
 				vq_err(vq, "Descriptor has out after in: "
 				       "idx %d\n", i);
 				return -EINVAL;
