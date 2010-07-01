@@ -179,7 +179,7 @@ static void bdi_alloc_queue_work(struct backing_dev_info *bdi,
 
 /**
  * bdi_queue_work_onstack - start and wait for writeback
- * @sb: write inodes from this super_block
+ * @args: parameters to control the work queue writeback
  *
  * Description:
  *   This function initiates writeback and waits for the operation to
