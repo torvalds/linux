@@ -190,13 +190,11 @@ static void __init arm_bootmem_init(struct meminfo *mi,
 	}
 }
 
-static void __init arm_bootmem_free(struct meminfo *mi)
+static void __init arm_bootmem_free(struct meminfo *mi, unsigned long min,
+	unsigned long max_low, unsigned long max_high)
 {
 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
-	unsigned long min, max_low, max_high;
 	int i;
-
-	find_limits(mi, &min, &max_low, &max_high);
 
 	/*
 	 * initialise the zones.
@@ -330,7 +328,7 @@ void __init bootmem_init(void)
 	 * the sparse mem_map arrays initialized by sparse_init()
 	 * for memmap_init_zone(), otherwise all PFNs are invalid.
 	 */
-	arm_bootmem_free(mi);
+	arm_bootmem_free(mi, min, max_low, max_high);
 
 	high_memory = __va((max_low << PAGE_SHIFT) - 1) + 1;
 
