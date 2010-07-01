@@ -947,9 +947,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		}
 
 		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
+			intel_prepare_page_flip(dev, 1);
 			if (dev_priv->flip_pending_is_done)
 				intel_finish_page_flip_plane(dev, 1);
-			intel_prepare_page_flip(dev, 1);
 		}
 
 		if (pipea_stats & vblank_status) {
