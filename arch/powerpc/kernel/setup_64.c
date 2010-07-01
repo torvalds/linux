@@ -432,7 +432,6 @@ static u64 slb0_limit(void)
 	return 1UL << SID_SHIFT;
 }
 
-#ifdef CONFIG_IRQSTACKS
 static void __init irqstack_early_init(void)
 {
 	u64 limit = slb0_limit();
@@ -451,9 +450,6 @@ static void __init irqstack_early_init(void)
 					    THREAD_SIZE, limit));
 	}
 }
-#else
-#define irqstack_early_init()
-#endif
 
 #ifdef CONFIG_PPC_BOOK3E
 static void __init exc_lvl_early_init(void)

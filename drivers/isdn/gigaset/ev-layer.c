@@ -282,9 +282,7 @@ struct reply_t gigaset_tab_cid[] =
 /* dial */
 {EV_DIAL,	 -1,  -1, -1,			 -1, -1, {ACT_DIAL} },
 {RSP_INIT,	  0,   0, SEQ_DIAL,		601,  5, {ACT_CMD+AT_BC} },
-{RSP_OK,	601, 601, -1,			602,  5, {ACT_CMD+AT_HLC} },
-{RSP_NULL,	602, 602, -1,			603,  5, {ACT_CMD+AT_PROTO} },
-{RSP_OK,	602, 602, -1,			603,  5, {ACT_CMD+AT_PROTO} },
+{RSP_OK,	601, 601, -1,			603,  5, {ACT_CMD+AT_PROTO} },
 {RSP_OK,	603, 603, -1,			604,  5, {ACT_CMD+AT_TYPE} },
 {RSP_OK,	604, 604, -1,			605,  5, {ACT_CMD+AT_MSN} },
 {RSP_NULL,	605, 605, -1,			606,  5, {ACT_CMD+AT_CLIP} },

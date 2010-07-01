@@ -944,7 +944,7 @@ ifdef CONFIG_LOCALVERSION_AUTO
 	localver-extra = $(scm-identifier)
 else
 	ifneq ($(scm-identifier),)
-		ifeq ($(LOCALVERSION),)
+		ifeq ("$(origin LOCALVERSION)", "undefined")
 			localver-extra = +
 		endif
 	endif

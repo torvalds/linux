@@ -6,7 +6,10 @@
 #include "symbol.h"
 
 struct thread {
-	struct rb_node		rb_node;
+	union {
+		struct rb_node	 rb_node;
+		struct list_head node;
+	};
 	struct map_groups	mg;
 	pid_t			pid;
 	char			shortname[3];

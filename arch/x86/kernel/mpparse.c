@@ -123,7 +123,7 @@ static void __init MP_ioapic_info(struct mpc_ioapic *m)
 	printk(KERN_INFO "I/O APIC #%d Version %d at 0x%X.\n",
 	       m->apicid, m->apicver, m->apicaddr);
 
-	mp_register_ioapic(m->apicid, m->apicaddr, gsi_end + 1);
+	mp_register_ioapic(m->apicid, m->apicaddr, gsi_top);
 }
 
 static void print_MP_intsrc_info(struct mpc_intsrc *m)
