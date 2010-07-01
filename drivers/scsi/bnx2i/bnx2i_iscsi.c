@@ -1890,6 +1890,8 @@ static int bnx2i_ep_tcp_conn_active(struct bnx2i_endpoint *bnx2i_ep)
 	case EP_STATE_ULP_UPDATE_START:
 	case EP_STATE_ULP_UPDATE_COMPL:
 	case EP_STATE_TCP_FIN_RCVD:
+	case EP_STATE_LOGOUT_SENT:
+	case EP_STATE_LOGOUT_RESP_RCVD:
 	case EP_STATE_ULP_UPDATE_FAILED:
 		ret = 1;
 		break;
@@ -1923,6 +1925,8 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	struct iscsi_session *session = NULL;
 	struct iscsi_conn *conn = NULL;
 	int ret = 0;
+	int close = 0;
+	int close_ret = 0;
 
 	if (!hba)
 		return 0;
@@ -1939,32 +1943,43 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 		session = conn->session;
 	}
 
-	bnx2i_ep->state = EP_STATE_DISCONN_START;
-
 	init_timer(&bnx2i_ep->ofld_timer);
 	bnx2i_ep->ofld_timer.expires = hba->conn_teardown_tmo + jiffies;
 	bnx2i_ep->ofld_timer.function = bnx2i_ep_ofld_timer;
 	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
 	add_timer(&bnx2i_ep->ofld_timer);
 
-	if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
-		int close = 0;
-		int close_ret = 0;
-
-		if (session) {
-			spin_lock_bh(&session->lock);
-			if (session->state == ISCSI_STATE_LOGGING_OUT)
-				close = 1;
-			spin_unlock_bh(&session->lock);
-		}
-		if (close)
-			close_ret = cnic->cm_close(bnx2i_ep->cm_sk);
-		else
-			close_ret = cnic->cm_abort(bnx2i_ep->cm_sk);
-		if (close_ret)
-			bnx2i_ep->state = EP_STATE_DISCONN_COMPL;
-	} else
+	if (!test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic))
 		goto out;
+
+	if (session) {
+		spin_lock_bh(&session->lock);
+		if (bnx2i_ep->state != EP_STATE_TCP_FIN_RCVD) {
+			if (session->state == ISCSI_STATE_LOGGING_OUT) {
+				if (bnx2i_ep->state == EP_STATE_LOGOUT_SENT) {
+					/* Logout sent, but no resp */
+					printk(KERN_ALERT "bnx2i - WARNING "
+						"logout response was not "
+						"received!\n");
+				} else if (bnx2i_ep->state ==
+					   EP_STATE_LOGOUT_RESP_RCVD)
+					close = 1;
+			}
+		} else
+			close = 1;
+
+		spin_unlock_bh(&session->lock);
+	}
+
+	bnx2i_ep->state = EP_STATE_DISCONN_START;
+
+	if (close)
+		close_ret = cnic->cm_close(bnx2i_ep->cm_sk);
+	else
+		close_ret = cnic->cm_abort(bnx2i_ep->cm_sk);
+
+	if (close_ret)
+		bnx2i_ep->state = EP_STATE_DISCONN_COMPL;
 
 	/* wait for option-2 conn teardown */
 	wait_event_interruptible(bnx2i_ep->ofld_wait,
