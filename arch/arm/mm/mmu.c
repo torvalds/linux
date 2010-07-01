@@ -492,18 +492,21 @@ static void __init *early_alloc(unsigned long sz)
 	return alloc_bootmem_low_pages(sz);
 }
 
+static pte_t * __init early_pte_alloc(pmd_t *pmd, unsigned long addr, unsigned long prot)
+{
+	if (pmd_none(*pmd)) {
+		pte_t *pte = early_alloc(2 * PTRS_PER_PTE * sizeof(pte_t));
+		__pmd_populate(pmd, __pa(pte) | prot);
+	}
+	BUG_ON(pmd_bad(*pmd));
+	return pte_offset_kernel(pmd, addr);
+}
+
 static void __init alloc_init_pte(pmd_t *pmd, unsigned long addr,
 				  unsigned long end, unsigned long pfn,
 				  const struct mem_type *type)
 {
-	pte_t *pte;
-
-	if (pmd_none(*pmd)) {
-		pte = early_alloc(2 * PTRS_PER_PTE * sizeof(pte_t));
-		__pmd_populate(pmd, __pa(pte) | type->prot_l1);
-	}
-
-	pte = pte_offset_kernel(pmd, addr);
+	pte_t *pte = early_pte_alloc(pmd, addr, type->prot_l1);
 	do {
 		set_pte_ext(pte, pfn_pte(pfn, __pgprot(type->prot_pte)), 0);
 		pfn++;
@@ -949,11 +952,8 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 static void __init kmap_init(void)
 {
 #ifdef CONFIG_HIGHMEM
-	pmd_t *pmd = pmd_off_k(PKMAP_BASE);
-	pte_t *pte = early_alloc(2 * PTRS_PER_PTE * sizeof(pte_t));
-	BUG_ON(!pmd_none(*pmd) || !pte);
-	__pmd_populate(pmd, __pa(pte) | _PAGE_KERNEL_TABLE);
-	pkmap_page_table = pte + PTRS_PER_PTE;
+	pkmap_page_table = early_pte_alloc(pmd_off_k(PKMAP_BASE),
+		PKMAP_BASE, _PAGE_KERNEL_TABLE);
 #endif
 }
 
