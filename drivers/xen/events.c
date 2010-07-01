@@ -90,6 +90,7 @@ struct irq_info
 		unsigned short virq;
 		enum ipi_vector ipi;
 		struct {
+			unsigned short pirq;
 			unsigned short gsi;
 			unsigned char vector;
 			unsigned char flags;
@@ -100,6 +101,7 @@ struct irq_info
 #define PIRQ_SHAREABLE	(1 << 1)
 
 static struct irq_info *irq_info;
+static int *pirq_to_irq;
 
 static int *evtchn_to_irq;
 struct cpu_evtchn_s {
@@ -147,11 +149,12 @@ static struct irq_info mk_virq_info(unsigned short evtchn, unsigned short virq)
 			.cpu = 0, .u.virq = virq };
 }
 
-static struct irq_info mk_pirq_info(unsigned short evtchn,
+static struct irq_info mk_pirq_info(unsigned short evtchn, unsigned short pirq,
 				    unsigned short gsi, unsigned short vector)
 {
 	return (struct irq_info) { .type = IRQT_PIRQ, .evtchn = evtchn,
-			.cpu = 0, .u.pirq = { .gsi = gsi, .vector = vector } };
+			.cpu = 0,
+			.u.pirq = { .pirq = pirq, .gsi = gsi, .vector = vector } };
 }
 
 /*
@@ -191,6 +194,16 @@ static unsigned virq_from_irq(unsigned irq)
 	BUG_ON(info->type != IRQT_VIRQ);
 
 	return info->u.virq;
+}
+
+static unsigned pirq_from_irq(unsigned irq)
+{
+	struct irq_info *info = info_for_irq(irq);
+
+	BUG_ON(info == NULL);
+	BUG_ON(info->type != IRQT_PIRQ);
+
+	return info->u.pirq.pirq;
 }
 
 static unsigned gsi_from_irq(unsigned irq)
@@ -365,6 +378,16 @@ static int get_nr_hw_irqs(void)
 	return ret;
 }
 
+static int find_unbound_pirq(void)
+{
+	int i;
+	for (i = 0; i < nr_irqs; i++) {
+		if (pirq_to_irq[i] < 0)
+			return i;
+	}
+	return -1;
+}
+
 static int find_unbound_irq(void)
 {
 	struct irq_data *data;
@@ -410,7 +433,7 @@ static bool identity_mapped_irq(unsigned irq)
 
 static void pirq_unmask_notify(int irq)
 {
-	struct physdev_eoi eoi = { .irq = irq };
+	struct physdev_eoi eoi = { .irq = pirq_from_irq(irq) };
 
 	if (unlikely(pirq_needs_eoi(irq))) {
 		int rc = HYPERVISOR_physdev_op(PHYSDEVOP_eoi, &eoi);
@@ -425,7 +448,7 @@ static void pirq_query_unmask(int irq)
 
 	BUG_ON(info->type != IRQT_PIRQ);
 
-	irq_status.irq = irq;
+	irq_status.irq = pirq_from_irq(irq);
 	if (HYPERVISOR_physdev_op(PHYSDEVOP_irq_status_query, &irq_status))
 		irq_status.flags = 0;
 
@@ -453,7 +476,7 @@ static unsigned int startup_pirq(unsigned int irq)
 	if (VALID_EVTCHN(evtchn))
 		goto out;
 
-	bind_pirq.pirq = irq;
+	bind_pirq.pirq = pirq_from_irq(irq);
 	/* NB. We are happy to share unless we are probing. */
 	bind_pirq.flags = info->u.pirq.flags & PIRQ_SHAREABLE ?
 					BIND_PIRQ__WILL_SHARE : 0;
@@ -556,28 +579,32 @@ static int find_irq_by_gsi(unsigned gsi)
 	return -1;
 }
 
-/* xen_allocate_irq might allocate irqs from the top down, as a
+int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
+{
+	return xen_map_pirq_gsi(gsi, gsi, shareable, name);
+}
+
+/* xen_map_pirq_gsi might allocate irqs from the top down, as a
  * consequence don't assume that the irq number returned has a low value
  * or can be used as a pirq number unless you know otherwise.
  *
- * One notable exception is when xen_allocate_irq is called passing an
+ * One notable exception is when xen_map_pirq_gsi is called passing an
  * hardware gsi as argument, in that case the irq number returned
- * matches the gsi number passed as first argument.
-
- * Note: We don't assign an
- * event channel until the irq actually started up.  Return an
- * existing irq if we've already got one for the gsi.
+ * matches the gsi number passed as second argument.
+ *
+ * Note: We don't assign an event channel until the irq actually started
+ * up.  Return an existing irq if we've already got one for the gsi.
  */
-int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
+int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name)
 {
-	int irq;
+	int irq = 0;
 	struct physdev_irq irq_op;
 
 	spin_lock(&irq_mapping_update_lock);
 
 	irq = find_irq_by_gsi(gsi);
 	if (irq != -1) {
-		printk(KERN_INFO "xen_allocate_pirq: returning irq %d for gsi %u\n",
+		printk(KERN_INFO "xen_map_pirq_gsi: returning irq %d for gsi %u\n",
 		       irq, gsi);
 		goto out;	/* XXX need refcount? */
 	}
@@ -606,8 +633,9 @@ int xen_allocate_pirq(unsigned gsi, int shareable, char *name)
 		goto out;
 	}
 
-	irq_info[irq] = mk_pirq_info(0, gsi, irq_op.vector);
+	irq_info[irq] = mk_pirq_info(0, pirq, gsi, irq_op.vector);
 	irq_info[irq].u.pirq.flags |= shareable ? PIRQ_SHAREABLE : 0;
+	pirq_to_irq[pirq] = irq;
 
 out:
 	spin_unlock(&irq_mapping_update_lock);
@@ -1326,6 +1354,10 @@ void __init xen_init_IRQ(void)
 	cpu_evtchn_mask_p = kcalloc(nr_cpu_ids, sizeof(struct cpu_evtchn_s),
 				    GFP_KERNEL);
 	irq_info = kcalloc(nr_irqs, sizeof(*irq_info), GFP_KERNEL);
+
+	pirq_to_irq = kcalloc(nr_irqs, sizeof(*pirq_to_irq), GFP_KERNEL);
+	for (i = 0; i < nr_irqs; i++)
+		pirq_to_irq[i] = -1;
 
 	evtchn_to_irq = kcalloc(NR_EVENT_CHANNELS, sizeof(*evtchn_to_irq),
 				    GFP_KERNEL);

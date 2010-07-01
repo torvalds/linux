@@ -71,6 +71,7 @@ void xen_hvm_evtchn_do_upcall(void);
  * GSIs are identity mapped; others are dynamically allocated as
  * usual. */
 int xen_allocate_pirq(unsigned gsi, int shareable, char *name);
+int xen_map_pirq_gsi(unsigned pirq, unsigned gsi, int shareable, char *name);
 
 /* De-allocates the above mentioned physical interrupt. */
 int xen_destroy_irq(int irq);
