@@ -775,7 +775,7 @@ static int ocfs2_acquire_dquot(struct dquot *dquot)
 		 * locking allocators ranks above a transaction start
 		 */
 		WARN_ON(journal_current_handle());
-		status = ocfs2_extend_no_holes(gqinode,
+		status = ocfs2_extend_no_holes(gqinode, NULL,
 			gqinode->i_size + (need_alloc << sb->s_blocksize_bits),
 			gqinode->i_size);
 		if (status < 0)

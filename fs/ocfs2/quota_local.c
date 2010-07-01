@@ -971,7 +971,7 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 	u64 p_blkno;
 
 	/* We are protected by dqio_sem so no locking needed */
-	status = ocfs2_extend_no_holes(lqinode,
+	status = ocfs2_extend_no_holes(lqinode, NULL,
 				       lqinode->i_size + 2 * sb->s_blocksize,
 				       lqinode->i_size);
 	if (status < 0) {
@@ -1114,7 +1114,7 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 		return ocfs2_local_quota_add_chunk(sb, type, offset);
 
 	/* We are protected by dqio_sem so no locking needed */
-	status = ocfs2_extend_no_holes(lqinode,
+	status = ocfs2_extend_no_holes(lqinode, NULL,
 				       lqinode->i_size + sb->s_blocksize,
 				       lqinode->i_size);
 	if (status < 0) {

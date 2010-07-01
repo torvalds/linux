@@ -4166,6 +4166,12 @@ static int __ocfs2_reflink(struct dentry *old_dentry,
 	struct inode *inode = old_dentry->d_inode;
 	struct buffer_head *new_bh = NULL;
 
+	if (OCFS2_I(inode)->ip_flags & OCFS2_INODE_SYSTEM_FILE) {
+		ret = -EINVAL;
+		mlog_errno(ret);
+		goto out;
+	}
+
 	ret = filemap_fdatawrite(inode->i_mapping);
 	if (ret) {
 		mlog_errno(ret);
