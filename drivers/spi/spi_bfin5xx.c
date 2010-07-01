@@ -1466,7 +1466,7 @@ static int __init bfin_spi_init(void)
 {
 	return platform_driver_probe(&bfin_spi_driver, bfin_spi_probe);
 }
-module_init(bfin_spi_init);
+subsys_initcall(bfin_spi_init);
 
 static void __exit bfin_spi_exit(void)
 {
