@@ -423,8 +423,8 @@ static int *slot_largepage_idx(gfn_t gfn,
 {
 	unsigned long idx;
 
-	idx = (gfn / KVM_PAGES_PER_HPAGE(level)) -
-	      (slot->base_gfn / KVM_PAGES_PER_HPAGE(level));
+	idx = (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
+	      (slot->base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
 	return &slot->lpage_info[level - 2][idx].write_count;
 }
 
@@ -528,8 +528,8 @@ static unsigned long *gfn_to_rmap(struct kvm *kvm, gfn_t gfn, int level)
 	if (likely(level == PT_PAGE_TABLE_LEVEL))
 		return &slot->rmap[gfn - slot->base_gfn];
 
-	idx = (gfn / KVM_PAGES_PER_HPAGE(level)) -
-		(slot->base_gfn / KVM_PAGES_PER_HPAGE(level));
+	idx = (gfn >> KVM_HPAGE_GFN_SHIFT(level)) -
+		(slot->base_gfn >> KVM_HPAGE_GFN_SHIFT(level));
 
 	return &slot->lpage_info[level - 2][idx].rmap_pde;
 }

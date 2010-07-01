@@ -626,9 +626,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		if (new.lpage_info[i])
 			continue;
 
-		lpages = 1 + (base_gfn + npages - 1) /
-			     KVM_PAGES_PER_HPAGE(level);
-		lpages -= base_gfn / KVM_PAGES_PER_HPAGE(level);
+		lpages = 1 + ((base_gfn + npages - 1)
+			     >> KVM_HPAGE_GFN_SHIFT(level));
+		lpages -= base_gfn >> KVM_HPAGE_GFN_SHIFT(level);
 
 		new.lpage_info[i] = vmalloc(lpages * sizeof(*new.lpage_info[i]));
 
@@ -638,9 +638,9 @@ int __kvm_set_memory_region(struct kvm *kvm,
 		memset(new.lpage_info[i], 0,
 		       lpages * sizeof(*new.lpage_info[i]));
 
-		if (base_gfn % KVM_PAGES_PER_HPAGE(level))
+		if (base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
 			new.lpage_info[i][0].write_count = 1;
-		if ((base_gfn+npages) % KVM_PAGES_PER_HPAGE(level))
+		if ((base_gfn+npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
 			new.lpage_info[i][lpages - 1].write_count = 1;
 		ugfn = new.userspace_addr >> PAGE_SHIFT;
 		/*
