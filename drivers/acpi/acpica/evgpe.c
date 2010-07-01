@@ -78,7 +78,7 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info)
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
-	register_bit = acpi_hw_gpe_register_bit(gpe_event_info,
+	register_bit = acpi_hw_get_gpe_register_bit(gpe_event_info,
 						gpe_register_info);
 
 	/* Clear the wake/run bits up front */
