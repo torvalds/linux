@@ -34,6 +34,7 @@
  */
 
 #include "drmP.h"
+#include "drm_trace.h"
 
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/slab.h>
@@ -754,6 +755,8 @@ void drm_handle_vblank_events(struct drm_device *dev, int crtc)
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	trace_drm_vblank_event(crtc, seq);
 }
 
 /**
