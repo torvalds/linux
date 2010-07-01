@@ -276,6 +276,7 @@ struct tracer {
 	struct tracer		*next;
 	int			print_max;
 	struct tracer_flags	*flags;
+	int			use_max_tr;
 };
 
 
