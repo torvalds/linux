@@ -201,6 +201,17 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_helper_crtc_in_use);
 
+static void
+drm_encoder_disable(struct drm_encoder *encoder)
+{
+	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
+
+	if (encoder_funcs->disable)
+		(*encoder_funcs->disable)(encoder);
+	else
+		(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+}
+
 /**
  * drm_helper_disable_unused_functions - disable unused objects
  * @dev: DRM device
@@ -215,7 +226,6 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct drm_encoder_helper_funcs *encoder_funcs;
 	struct drm_crtc *crtc;
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -226,12 +236,8 @@ void drm_helper_disable_unused_functions(struct drm_device *dev)
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		encoder_funcs = encoder->helper_private;
 		if (!drm_helper_encoder_in_use(encoder)) {
-			if (encoder_funcs->disable)
-				(*encoder_funcs->disable)(encoder);
-			else
-				(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+			drm_encoder_disable(encoder);
 			/* disconnector encoder from any connector */
 			encoder->crtc = NULL;
 		}
@@ -295,11 +301,11 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
 		encoder_funcs = encoder->helper_private;
 		/* Disable unused encoders */
 		if (encoder->crtc == NULL)
-			(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+			drm_encoder_disable(encoder);
 		/* Disable encoders whose CRTC is about to change */
 		if (encoder_funcs->get_crtc &&
 		    encoder->crtc != (*encoder_funcs->get_crtc)(encoder))
-			(*encoder_funcs->dpms)(encoder, DRM_MODE_DPMS_OFF);
+			drm_encoder_disable(encoder);
 	}
 }
 
