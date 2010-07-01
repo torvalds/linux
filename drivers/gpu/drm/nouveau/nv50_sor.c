@@ -37,12 +37,16 @@
 #include "nv50_display.h"
 
 static void
-nv50_sor_disconnect(struct nouveau_encoder *nv_encoder)
+nv50_sor_disconnect(struct drm_encoder *encoder)
 {
-	struct drm_device *dev = to_drm_encoder(nv_encoder)->dev;
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *evo = dev_priv->evo;
 	int ret;
+
+	if (!nv_encoder->crtc)
+		return;
 
 	NV_DEBUG_KMS(dev, "Disconnecting SOR %d\n", nv_encoder->or);
 
@@ -53,6 +57,9 @@ nv50_sor_disconnect(struct nouveau_encoder *nv_encoder)
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
 	OUT_RING(evo, 0);
+
+	nv_encoder->crtc = NULL;
+	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 }
 
 static void
@@ -94,14 +101,16 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	uint32_t val;
 	int or = nv_encoder->or;
 
-	NV_DEBUG_KMS(dev, "or %d mode %d\n", or, mode);
+	NV_DEBUG_KMS(dev, "or %d type %d mode %d\n", or, nv_encoder->dcb->type, mode);
 
 	nv_encoder->last_dpms = mode;
 	list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
 		struct nouveau_encoder *nvenc = nouveau_encoder(enc);
 
 		if (nvenc == nv_encoder ||
-		    nvenc->disconnect != nv50_sor_disconnect ||
+		    (nvenc->dcb->type != OUTPUT_TMDS &&
+		     nvenc->dcb->type != OUTPUT_LVDS &&
+		     nvenc->dcb->type != OUTPUT_DP) ||
 		    nvenc->dcb->or != nv_encoder->dcb->or)
 			continue;
 
@@ -239,6 +248,14 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_SOR(nv_encoder->or, MODE_CTRL), 1);
 	OUT_RING(evo, mode_ctl);
+
+	nv_encoder->crtc = encoder->crtc;
+}
+
+static struct drm_crtc *
+nv50_sor_crtc_get(struct drm_encoder *encoder)
+{
+	return nouveau_encoder(encoder)->crtc;
 }
 
 static const struct drm_encoder_helper_funcs nv50_sor_helper_funcs = {
@@ -249,7 +266,9 @@ static const struct drm_encoder_helper_funcs nv50_sor_helper_funcs = {
 	.prepare = nv50_sor_prepare,
 	.commit = nv50_sor_commit,
 	.mode_set = nv50_sor_mode_set,
-	.detect = NULL
+	.get_crtc = nv50_sor_crtc_get,
+	.detect = NULL,
+	.disable = nv50_sor_disconnect
 };
 
 static void
@@ -300,8 +319,7 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_entry *entry)
 
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
-
-	nv_encoder->disconnect = nv50_sor_disconnect;
+	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 
 	drm_encoder_init(dev, encoder, &nv50_sor_encoder_funcs, type);
 	drm_encoder_helper_add(encoder, &nv50_sor_helper_funcs);

@@ -37,12 +37,16 @@
 #include "nv50_display.h"
 
 static void
-nv50_dac_disconnect(struct nouveau_encoder *nv_encoder)
+nv50_dac_disconnect(struct drm_encoder *encoder)
 {
-	struct drm_device *dev = to_drm_encoder(nv_encoder)->dev;
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *evo = dev_priv->evo;
 	int ret;
+
+	if (!nv_encoder->crtc)
+		return;
 
 	NV_DEBUG_KMS(dev, "Disconnecting DAC %d\n", nv_encoder->or);
 
@@ -53,6 +57,8 @@ nv50_dac_disconnect(struct nouveau_encoder *nv_encoder)
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_DAC(nv_encoder->or, MODE_CTRL), 1);
 	OUT_RING(evo, 0);
+
+	nv_encoder->crtc = NULL;
 }
 
 static enum drm_connector_status
@@ -243,6 +249,8 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	BEGIN_RING(evo, 0, NV50_EVO_DAC(nv_encoder->or, MODE_CTRL), 2);
 	OUT_RING(evo, mode_ctl);
 	OUT_RING(evo, mode_ctl2);
+
+	nv_encoder->crtc = encoder->crtc;
 }
 
 static const struct drm_encoder_helper_funcs nv50_dac_helper_funcs = {
@@ -253,7 +261,8 @@ static const struct drm_encoder_helper_funcs nv50_dac_helper_funcs = {
 	.prepare = nv50_dac_prepare,
 	.commit = nv50_dac_commit,
 	.mode_set = nv50_dac_mode_set,
-	.detect = nv50_dac_detect
+	.detect = nv50_dac_detect,
+	.disable = nv50_dac_disconnect
 };
 
 static void
@@ -287,8 +296,6 @@ nv50_dac_create(struct drm_connector *connector, struct dcb_entry *entry)
 
 	nv_encoder->dcb = entry;
 	nv_encoder->or = ffs(entry->or) - 1;
-
-	nv_encoder->disconnect = nv50_dac_disconnect;
 
 	drm_encoder_init(connector->dev, encoder, &nv50_dac_encoder_funcs,
 			 DRM_MODE_ENCODER_DAC);

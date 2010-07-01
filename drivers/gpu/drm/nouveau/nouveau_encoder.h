@@ -38,12 +38,14 @@ struct nouveau_encoder {
 	struct dcb_entry *dcb;
 	int or;
 
+	/* different to drm_encoder.crtc, this reflects what's
+	 * actually programmed on the hw, not the proposed crtc */
+	struct drm_crtc *crtc;
+
 	struct drm_display_mode mode;
 	int last_dpms;
 
 	struct nv04_output_reg restore;
-
-	void (*disconnect)(struct nouveau_encoder *encoder);
 
 	union {
 		struct {
