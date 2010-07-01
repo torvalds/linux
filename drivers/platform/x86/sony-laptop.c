@@ -561,8 +561,7 @@ static void sony_pf_remove(void)
 	if (!atomic_dec_and_test(&sony_pf_users))
 		return;
 
-	platform_device_del(sony_pf_device);
-	platform_device_put(sony_pf_device);
+	platform_device_unregister(sony_pf_device);
 	platform_driver_unregister(&sony_pf_driver);
 }
 
