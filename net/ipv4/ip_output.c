@@ -411,7 +411,7 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->priority = from->priority;
 	to->protocol = from->protocol;
 	skb_dst_drop(to);
-	skb_dst_set(to, dst_clone(skb_dst(from)));
+	skb_dst_copy(to, from);
 	to->dev = from->dev;
 	to->mark = from->mark;
 
