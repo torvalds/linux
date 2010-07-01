@@ -853,6 +853,12 @@ static inline struct ath_hw_ops *ath9k_hw_ops(struct ath_hw *ah)
 	return &ah->ops;
 }
 
+static inline int sign_extend(int val, const int nbits)
+{
+	int order = BIT(nbits-1);
+	return (val ^ order) - order;
+}
+
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
