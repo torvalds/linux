@@ -1866,9 +1866,82 @@ static int bnx2i_ep_tcp_conn_active(struct bnx2i_endpoint *bnx2i_ep)
 }
 
 
+/*
+ * bnx2i_hw_ep_disconnect - executes TCP connection teardown process in the hw
+ * @ep:		TCP connection (bnx2i endpoint) handle
+ *
+ * executes  TCP connection teardown process
+ */
+int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
+{
+	struct bnx2i_hba *hba = bnx2i_ep->hba;
+	struct cnic_dev *cnic;
+	struct iscsi_session *session = NULL;
+	struct iscsi_conn *conn = NULL;
+	int ret = 0;
+
+	if (!hba)
+		return 0;
+
+	cnic = hba->cnic;
+	if (!cnic)
+		return 0;
+
+	if (!bnx2i_ep_tcp_conn_active(bnx2i_ep))
+		goto destroy_conn;
+
+	if (bnx2i_ep->conn) {
+		conn = bnx2i_ep->conn->cls_conn->dd_data;
+		session = conn->session;
+	}
+
+	bnx2i_ep->state = EP_STATE_DISCONN_START;
+
+	init_timer(&bnx2i_ep->ofld_timer);
+	bnx2i_ep->ofld_timer.expires = 10*HZ + jiffies;
+	bnx2i_ep->ofld_timer.function = bnx2i_ep_ofld_timer;
+	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
+	add_timer(&bnx2i_ep->ofld_timer);
+
+	if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
+		int close = 0;
+		int close_ret = 0;
+
+		if (session) {
+			spin_lock_bh(&session->lock);
+			if (session->state == ISCSI_STATE_LOGGING_OUT)
+				close = 1;
+			spin_unlock_bh(&session->lock);
+		}
+		if (close)
+			close_ret = cnic->cm_close(bnx2i_ep->cm_sk);
+		else
+			close_ret = cnic->cm_abort(bnx2i_ep->cm_sk);
+		if (close_ret)
+			bnx2i_ep->state = EP_STATE_DISCONN_COMPL;
+	} else
+		goto out;
+
+	/* wait for option-2 conn teardown */
+	wait_event_interruptible(bnx2i_ep->ofld_wait,
+				 bnx2i_ep->state != EP_STATE_DISCONN_START);
+
+	if (signal_pending(current))
+		flush_signals(current);
+	del_timer_sync(&bnx2i_ep->ofld_timer);
+
+destroy_conn:
+	if (bnx2i_tear_down_conn(hba, bnx2i_ep))
+		ret = -EINVAL;
+out:
+	bnx2i_ep->state = EP_STATE_IDLE;
+	return ret;
+}
+
+
 /**
  * bnx2i_ep_disconnect - executes TCP connection teardown process
- * @ep:		TCP connection (endpoint) handle
+ * @ep:		TCP connection (iscsi endpoint) handle
  *
  * executes  TCP connection teardown process
  */
@@ -1876,9 +1949,7 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 {
 	struct bnx2i_endpoint *bnx2i_ep;
 	struct bnx2i_conn *bnx2i_conn = NULL;
-	struct iscsi_session *session = NULL;
-	struct iscsi_conn *conn;
-	struct cnic_dev *cnic;
+	struct iscsi_conn *conn = NULL;
 	struct bnx2i_hba *hba;
 
 	bnx2i_ep = ep->dd_data;
@@ -1894,72 +1965,34 @@ static void bnx2i_ep_disconnect(struct iscsi_endpoint *ep)
 	if (bnx2i_ep->conn) {
 		bnx2i_conn = bnx2i_ep->conn;
 		conn = bnx2i_conn->cls_conn->dd_data;
-		session = conn->session;
-
 		iscsi_suspend_queue(conn);
 	}
-
 	hba = bnx2i_ep->hba;
-	if (bnx2i_ep->state == EP_STATE_IDLE)
-		goto return_bnx2i_ep;
-	cnic = hba->cnic;
 
 	mutex_lock(&hba->net_dev_lock);
 
+	if (bnx2i_ep->state == EP_STATE_IDLE)
+		goto return_bnx2i_ep;
+
 	if (!test_bit(ADAPTER_STATE_UP, &hba->adapter_state))
 		goto free_resc;
+
 	if (bnx2i_ep->hba_age != hba->age)
 		goto free_resc;
 
-	if (!bnx2i_ep_tcp_conn_active(bnx2i_ep))
-		goto destory_conn;
-
-	bnx2i_ep->state = EP_STATE_DISCONN_START;
-
-	init_timer(&bnx2i_ep->ofld_timer);
-	bnx2i_ep->ofld_timer.expires = 10*HZ + jiffies;
-	bnx2i_ep->ofld_timer.function = bnx2i_ep_ofld_timer;
-	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
-	add_timer(&bnx2i_ep->ofld_timer);
-
-	if (test_bit(BNX2I_CNIC_REGISTERED, &hba->reg_with_cnic)) {
-		int close = 0;
-
-		if (session) {
-			spin_lock_bh(&session->lock);
-			if (session->state == ISCSI_STATE_LOGGING_OUT)
-				close = 1;
-			spin_unlock_bh(&session->lock);
-		}
-		if (close)
-			cnic->cm_close(bnx2i_ep->cm_sk);
-		else
-			cnic->cm_abort(bnx2i_ep->cm_sk);
-	} else
-		goto free_resc;
-
-	/* wait for option-2 conn teardown */
-	wait_event_interruptible(bnx2i_ep->ofld_wait,
-				 bnx2i_ep->state != EP_STATE_DISCONN_START);
-
-	if (signal_pending(current))
-		flush_signals(current);
-	del_timer_sync(&bnx2i_ep->ofld_timer);
-
-destory_conn:
-	if (bnx2i_tear_down_conn(hba, bnx2i_ep)) {
+	/* Do all chip cleanup here */
+	if (bnx2i_hw_ep_disconnect(bnx2i_ep)) {
 		mutex_unlock(&hba->net_dev_lock);
 		return;
 	}
 free_resc:
-	mutex_unlock(&hba->net_dev_lock);
 	bnx2i_free_qp_resc(hba, bnx2i_ep);
 return_bnx2i_ep:
 	if (bnx2i_conn)
 		bnx2i_conn->ep = NULL;
 
 	bnx2i_free_ep(ep);
-
+	mutex_unlock(&hba->net_dev_lock);
 	if (!hba->ofld_conns_active)
 		bnx2i_unreg_dev_all();
 
