@@ -257,17 +257,16 @@ int pfn_valid(unsigned long pfn)
 }
 EXPORT_SYMBOL(pfn_valid);
 
-static void arm_memory_present(struct meminfo *mi)
+static void arm_memory_present(void)
 {
 }
 #else
-static void arm_memory_present(struct meminfo *mi)
+static void arm_memory_present(void)
 {
 	int i;
-	for_each_bank(i, mi) {
-		struct membank *bank = &mi->bank[i];
-		memory_present(0, bank_pfn_start(bank), bank_pfn_end(bank));
-	}
+	for (i = 0; i < memblock.memory.cnt; i++)
+		memory_present(0, memblock_start_pfn(&memblock.memory, i),
+				  memblock_end_pfn(&memblock.memory, i));
 }
 #endif
 
@@ -320,7 +319,7 @@ void __init bootmem_init(void)
 	 * Sparsemem tries to allocate bootmem in memory_present(),
 	 * so must be done after the fixed reservations
 	 */
-	arm_memory_present(mi);
+	arm_memory_present();
 
 	/*
 	 * sparse_init() needs the bootmem allocator up and running.
