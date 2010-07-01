@@ -515,6 +515,25 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 		ath_tx_node_cleanup(sc, an);
 }
 
+void ath_hw_check(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc, hw_check_work);
+	int i;
+
+	ath9k_ps_wakeup(sc);
+
+	for (i = 0; i < 3; i++) {
+		if (ath9k_hw_check_alive(sc->sc_ah))
+			goto out;
+
+		msleep(1);
+	}
+	ath_reset(sc, false);
+
+out:
+	ath9k_ps_restore(sc);
+}
+
 void ath9k_tasklet(unsigned long data)
 {
 	struct ath_softc *sc = (struct ath_softc *)data;
@@ -526,12 +545,14 @@ void ath9k_tasklet(unsigned long data)
 
 	ath9k_ps_wakeup(sc);
 
-	if ((status & ATH9K_INT_FATAL) ||
-	    !ath9k_hw_check_alive(ah)) {
+	if (status & ATH9K_INT_FATAL) {
 		ath_reset(sc, false);
 		ath9k_ps_restore(sc);
 		return;
 	}
+
+	if (!ath9k_hw_check_alive(ah))
+		ieee80211_queue_work(sc->hw, &sc->hw_check_work);
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
 		rxmask = (ATH9K_INT_RXHP | ATH9K_INT_RXLP | ATH9K_INT_RXEOL |
@@ -1253,6 +1274,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_work_sync(&sc->paprd_work);
+	cancel_work_sync(&sc->hw_check_work);
 
 	if (!sc->num_sec_wiphy) {
 		cancel_delayed_work_sync(&sc->wiphy_work);
@@ -1976,6 +1998,7 @@ static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 	sc->sc_flags |= SC_OP_SCANNING;
 	del_timer_sync(&common->ani.timer);
 	cancel_work_sync(&sc->paprd_work);
+	cancel_work_sync(&sc->hw_check_work);
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	mutex_unlock(&sc->mutex);
 }
