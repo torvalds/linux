@@ -260,6 +260,23 @@ static inline int plist_node_empty(const struct plist_node *node)
 #endif
 
 /**
+ * plist_last_entry - get the struct for the last entry
+ * @head:	the &struct plist_head pointer
+ * @type:	the type of the struct this is embedded in
+ * @member:	the name of the list_struct within the struct
+ */
+#ifdef CONFIG_DEBUG_PI_LIST
+# define plist_last_entry(head, type, member)	\
+({ \
+	WARN_ON(plist_head_empty(head)); \
+	container_of(plist_last(head), type, member); \
+})
+#else
+# define plist_last_entry(head, type, member)	\
+	container_of(plist_last(head), type, member)
+#endif
+
+/**
  * plist_first - return the first node (and thus, highest priority)
  * @head:	the &struct plist_head pointer
  *
@@ -268,6 +285,18 @@ static inline int plist_node_empty(const struct plist_node *node)
 static inline struct plist_node *plist_first(const struct plist_head *head)
 {
 	return list_entry(head->node_list.next,
+			  struct plist_node, plist.node_list);
+}
+
+/**
+ * plist_last - return the last node (and thus, lowest priority)
+ * @head:	the &struct plist_head pointer
+ *
+ * Assumes the plist is _not_ empty.
+ */
+static inline struct plist_node *plist_last(const struct plist_head *head)
+{
+	return list_entry(head->node_list.prev,
 			  struct plist_node, plist.node_list);
 }
 
