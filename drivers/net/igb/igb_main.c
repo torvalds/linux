@@ -630,9 +630,6 @@ static void igb_cache_ring_register(struct igb_adapter *adapter)
 			for (; i < adapter->rss_queues; i++)
 				adapter->rx_ring[i]->reg_idx = rbase_offset +
 				                               Q_IDX_82576(i);
-			for (; j < adapter->rss_queues; j++)
-				adapter->tx_ring[j]->reg_idx = rbase_offset +
-				                               Q_IDX_82576(j);
 		}
 	case e1000_82575:
 	case e1000_82580:
@@ -996,7 +993,10 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 
 	/* Number of supported queues. */
 	adapter->num_rx_queues = adapter->rss_queues;
-	adapter->num_tx_queues = adapter->rss_queues;
+	if (adapter->vfs_allocated_count)
+		adapter->num_tx_queues = 1;
+	else
+		adapter->num_tx_queues = adapter->rss_queues;
 
 	/* start with one vector for every rx queue */
 	numvecs = adapter->num_rx_queues;
