@@ -105,6 +105,16 @@ static int acpi_pm_freeze(void)
 }
 
 /**
+ * acpi_pre_suspend - Enable wakeup devices, "freeze" EC and save NVS.
+ */
+static int acpi_pm_pre_suspend(void)
+{
+	acpi_pm_freeze();
+	suspend_nvs_save();
+	return 0;
+}
+
+/**
  *	__acpi_pm_prepare - Prepare the platform to enter the target state.
  *
  *	If necessary, set the firmware waking vector and do arch-specific
@@ -113,11 +123,9 @@ static int acpi_pm_freeze(void)
 static int __acpi_pm_prepare(void)
 {
 	int error = acpi_sleep_prepare(acpi_target_sleep_state);
-
-	suspend_nvs_save();
-
 	if (error)
 		acpi_target_sleep_state = ACPI_STATE_S0;
+
 	return error;
 }
 
@@ -128,9 +136,8 @@ static int __acpi_pm_prepare(void)
 static int acpi_pm_prepare(void)
 {
 	int error = __acpi_pm_prepare();
-
 	if (!error)
-		acpi_pm_freeze();
+		acpi_pm_pre_suspend();
 
 	return error;
 }
@@ -322,9 +329,9 @@ static struct platform_suspend_ops acpi_suspend_ops = {
 static int acpi_suspend_begin_old(suspend_state_t pm_state)
 {
 	int error = acpi_suspend_begin(pm_state);
-
 	if (!error)
 		error = __acpi_pm_prepare();
+
 	return error;
 }
 
@@ -335,7 +342,7 @@ static int acpi_suspend_begin_old(suspend_state_t pm_state)
 static struct platform_suspend_ops acpi_suspend_ops_old = {
 	.valid = acpi_suspend_state_valid,
 	.begin = acpi_suspend_begin_old,
-	.prepare_late = acpi_pm_freeze,
+	.prepare_late = acpi_pm_pre_suspend,
 	.enter = acpi_suspend_enter,
 	.wake = acpi_suspend_finish,
 	.end = acpi_pm_end,
@@ -423,16 +430,6 @@ static int acpi_hibernation_begin(void)
 	return error;
 }
 
-static int acpi_hibernation_pre_snapshot(void)
-{
-	int error = acpi_pm_prepare();
-
-	if (!error)
-		suspend_nvs_save();
-
-	return error;
-}
-
 static int acpi_hibernation_enter(void)
 {
 	acpi_status status = AE_OK;
@@ -480,7 +477,7 @@ static void acpi_pm_thaw(void)
 static struct platform_hibernation_ops acpi_hibernation_ops = {
 	.begin = acpi_hibernation_begin,
 	.end = acpi_pm_end,
-	.pre_snapshot = acpi_hibernation_pre_snapshot,
+	.pre_snapshot = acpi_pm_prepare,
 	.finish = acpi_pm_finish,
 	.prepare = acpi_pm_prepare,
 	.enter = acpi_hibernation_enter,
@@ -516,13 +513,6 @@ static int acpi_hibernation_begin_old(void)
 	return error;
 }
 
-static int acpi_hibernation_pre_snapshot_old(void)
-{
-	acpi_pm_freeze();
-	suspend_nvs_save();
-	return 0;
-}
-
 /*
  * The following callbacks are used if the pre-ACPI 2.0 suspend ordering has
  * been requested.
@@ -530,7 +520,7 @@ static int acpi_hibernation_pre_snapshot_old(void)
 static struct platform_hibernation_ops acpi_hibernation_ops_old = {
 	.begin = acpi_hibernation_begin_old,
 	.end = acpi_pm_end,
-	.pre_snapshot = acpi_hibernation_pre_snapshot_old,
+	.pre_snapshot = acpi_pm_pre_suspend,
 	.prepare = acpi_pm_freeze,
 	.finish = acpi_pm_finish,
 	.enter = acpi_hibernation_enter,
