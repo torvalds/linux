@@ -317,8 +317,16 @@ extern void tcf_destroy_chain(struct tcf_proto **fl);
 static inline void qdisc_reset_all_tx(struct net_device *dev)
 {
 	unsigned int i;
-	for (i = 0; i < dev->num_tx_queues; i++)
-		qdisc_reset(netdev_get_tx_queue(dev, i)->qdisc);
+	struct Qdisc *qdisc;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		qdisc = netdev_get_tx_queue(dev, i)->qdisc;
+		if (qdisc) {
+			spin_lock_bh(qdisc_lock(qdisc));
+			qdisc_reset(qdisc);
+			spin_unlock_bh(qdisc_lock(qdisc));
+		}
+	}
 }
 
 /* Are all TX queues of the device empty?  */
