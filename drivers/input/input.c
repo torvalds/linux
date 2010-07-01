@@ -528,12 +528,30 @@ void input_close_device(struct input_handle *handle)
 EXPORT_SYMBOL(input_close_device);
 
 /*
+ * Simulate keyup events for all keys that are marked as pressed.
+ * The function must be called with dev->event_lock held.
+ */
+static void input_dev_release_keys(struct input_dev *dev)
+{
+	int code;
+
+	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
+		for (code = 0; code <= KEY_MAX; code++) {
+			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
+			    __test_and_clear_bit(code, dev->key)) {
+				input_pass_event(dev, EV_KEY, code, 0);
+			}
+		}
+		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
+	}
+}
+
+/*
  * Prepare device for unregistering
  */
 static void input_disconnect_device(struct input_dev *dev)
 {
 	struct input_handle *handle;
-	int code;
 
 	/*
 	 * Mark device as going away. Note that we take dev->mutex here
@@ -552,15 +570,7 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * generate events even after we done here but they will not
 	 * reach any handlers.
 	 */
-	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
-		for (code = 0; code <= KEY_MAX; code++) {
-			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
-			    __test_and_clear_bit(code, dev->key)) {
-				input_pass_event(dev, EV_KEY, code, 0);
-			}
-		}
-		input_pass_event(dev, EV_SYN, SYN_REPORT, 1);
-	}
+	input_dev_release_keys(dev);
 
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		handle->open = 0;
@@ -1433,6 +1443,15 @@ static int input_dev_resume(struct device *dev)
 
 	mutex_lock(&input_dev->mutex);
 	input_dev_reset(input_dev, true);
+
+	/*
+	 * Keys that have been pressed at suspend time are unlikely
+	 * to be still pressed when we resume.
+	 */
+	spin_lock_irq(&input_dev->event_lock);
+	input_dev_release_keys(input_dev);
+	spin_unlock_irq(&input_dev->event_lock);
+
 	mutex_unlock(&input_dev->mutex);
 
 	return 0;
