@@ -1608,7 +1608,6 @@ static const struct stacktrace_ops backtrace_ops = {
 void
 perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
-	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 	perf_callchain_store(entry, regs->ip);
 
 	dump_trace(NULL, regs, NULL, regs->bp, &backtrace_ops, entry);
@@ -1660,7 +1659,6 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	fp = (void __user *)regs->bp;
 
-	perf_callchain_store(entry, PERF_CONTEXT_USER);
 	perf_callchain_store(entry, regs->ip);
 
 	if (perf_callchain_user32(regs, entry))

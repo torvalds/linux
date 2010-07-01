@@ -57,7 +57,6 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 	lr = regs->link;
 	sp = regs->gpr[1];
-	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 	perf_callchain_store(entry, regs->nip);
 
 	if (!validate_sp(sp, current, STACK_FRAME_OVERHEAD))
@@ -234,7 +233,6 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 	next_ip = regs->nip;
 	lr = regs->link;
 	sp = regs->gpr[1];
-	perf_callchain_store(entry, PERF_CONTEXT_USER);
 	perf_callchain_store(entry, next_ip);
 
 	for (;;) {
@@ -435,7 +433,6 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 	next_ip = regs->nip;
 	lr = regs->link;
 	sp = regs->gpr[1];
-	perf_callchain_store(entry, PERF_CONTEXT_USER);
 	perf_callchain_store(entry, next_ip);
 
 	while (entry->nr < PERF_MAX_STACK_DEPTH) {

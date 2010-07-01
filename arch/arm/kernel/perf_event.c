@@ -3049,7 +3049,6 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	struct frame_tail *tail;
 
-	perf_callchain_store(entry, PERF_CONTEXT_USER);
 
 	tail = (struct frame_tail *)regs->ARM_fp - 1;
 
@@ -3076,7 +3075,6 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	struct stackframe fr;
 
-	perf_callchain_store(entry, PERF_CONTEXT_KERNEL);
 	fr.fp = regs->ARM_fp;
 	fr.sp = regs->ARM_sp;
 	fr.lr = regs->ARM_lr;
