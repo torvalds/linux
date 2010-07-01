@@ -2091,9 +2091,6 @@ static void __devinit igb_probe_vfs(struct igb_adapter * adapter)
 #ifdef CONFIG_PCI_IOV
 	struct pci_dev *pdev = adapter->pdev;
 
-	if (adapter->vfs_allocated_count > 7)
-		adapter->vfs_allocated_count = 7;
-
 	if (adapter->vfs_allocated_count) {
 		adapter->vf_data = kcalloc(adapter->vfs_allocated_count,
 		                           sizeof(struct vf_data_storage),
@@ -2258,7 +2255,7 @@ static int __devinit igb_sw_init(struct igb_adapter *adapter)
 
 #ifdef CONFIG_PCI_IOV
 	if (hw->mac.type == e1000_82576)
-		adapter->vfs_allocated_count = max_vfs;
+		adapter->vfs_allocated_count = (max_vfs > 7) ? 7 : max_vfs;
 
 #endif /* CONFIG_PCI_IOV */
 	adapter->rss_queues = min_t(u32, IGB_MAX_RX_QUEUES, num_online_cpus());
