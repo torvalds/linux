@@ -4974,6 +4974,10 @@ static void igb_vf_reset_msg(struct igb_adapter *adapter, u32 vf)
 
 static int igb_set_vf_mac_addr(struct igb_adapter *adapter, u32 *msg, int vf)
 {
+	/*
+	 * The VF MAC Address is stored in a packed array of bytes
+	 * starting at the second 32 bit word of the msg array
+	 */
 	unsigned char *addr = (char *)&msg[1];
 	int err = -1;
 
