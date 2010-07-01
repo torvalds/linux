@@ -4611,8 +4611,7 @@ static void ql_timer(unsigned long data)
 		return;
 	}
 
-	qdev->timer.expires = jiffies + (5*HZ);
-	add_timer(&qdev->timer);
+	mod_timer(&qdev->timer, jiffies + (5*HZ));
 }
 
 static int __devinit qlge_probe(struct pci_dev *pdev,
@@ -4808,8 +4807,7 @@ static void qlge_io_resume(struct pci_dev *pdev)
 		netif_err(qdev, ifup, qdev->ndev,
 			  "Device was not running prior to EEH.\n");
 	}
-	qdev->timer.expires = jiffies + (5*HZ);
-	add_timer(&qdev->timer);
+	mod_timer(&qdev->timer, jiffies + (5*HZ));
 	netif_device_attach(ndev);
 }
 
@@ -4871,8 +4869,7 @@ static int qlge_resume(struct pci_dev *pdev)
 			return err;
 	}
 
-	qdev->timer.expires = jiffies + (5*HZ);
-	add_timer(&qdev->timer);
+	mod_timer(&qdev->timer, jiffies + (5*HZ));
 	netif_device_attach(ndev);
 
 	return 0;
