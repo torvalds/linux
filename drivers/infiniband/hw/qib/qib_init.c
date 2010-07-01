@@ -1289,8 +1289,18 @@ static int __devinit qib_init_one(struct pci_dev *pdev,
 
 	if (qib_mini_init || initfail || ret) {
 		qib_stop_timers(dd);
+		flush_scheduled_work();
 		for (pidx = 0; pidx < dd->num_pports; ++pidx)
 			dd->f_quiet_serdes(dd->pport + pidx);
+		if (qib_mini_init)
+			goto bail;
+		if (!j) {
+			(void) qibfs_remove(dd);
+			qib_device_remove(dd);
+		}
+		if (!ret)
+			qib_unregister_ib_device(dd);
+		qib_postinit_cleanup(dd);
 		if (initfail)
 			ret = initfail;
 		goto bail;
