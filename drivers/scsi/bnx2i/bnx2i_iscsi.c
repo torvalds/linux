@@ -708,7 +708,6 @@ bnx2i_find_ep_in_destroy_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 	return ep;
 }
 
-
 /**
  * bnx2i_ep_active_list_add - add an entry to ep active list
  * @hba:	pointer to adapter instance
@@ -856,9 +855,9 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	mutex_init(&hba->net_dev_lock);
 	init_waitqueue_head(&hba->eh_wait);
 	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type))
-		hba->hba_shutdown_tmo = 240 * HZ;
+		hba->hba_shutdown_tmo = 20 * HZ;
 	else	/* 5706/5708/5709 */
-		hba->hba_shutdown_tmo = 30 * HZ;
+		hba->hba_shutdown_tmo = 20 * HZ;
 
 	if (iscsi_host_add(shost, &hba->pcidev->dev))
 		goto free_dump_mem;
@@ -1700,10 +1699,11 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 
 	if (!hba || test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state)) {
 		rc = -EINVAL;
-		goto check_busy;
+		goto nohba;
 	}
 
 	cnic = hba->cnic;
+	mutex_lock(&hba->net_dev_lock);
 	ep = bnx2i_alloc_ep(hba);
 	if (!ep) {
 		rc = -ENOMEM;
@@ -1711,7 +1711,6 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 	}
 	bnx2i_ep = ep->dd_data;
 
-	mutex_lock(&hba->net_dev_lock);
 	if (bnx2i_adapter_ready(hba)) {
 		rc = -EPERM;
 		goto net_if_down;
@@ -1813,8 +1812,9 @@ iscsi_cid_err:
 	bnx2i_free_qp_resc(hba, bnx2i_ep);
 qp_resc_err:
 	bnx2i_free_ep(ep);
-	mutex_unlock(&hba->net_dev_lock);
 check_busy:
+	mutex_unlock(&hba->net_dev_lock);
+nohba:
 	bnx2i_unreg_dev_all();
 	return ERR_PTR(rc);
 }
