@@ -608,6 +608,7 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
+	q->unprep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
 	q->queue_flags		= QUEUE_FLAG_DEFAULT;
 	q->queue_lock		= lock;
@@ -2133,6 +2134,26 @@ static bool blk_update_bidi_request(struct request *rq, int error,
 	return false;
 }
 
+/**
+ * blk_unprep_request - unprepare a request
+ * @req:	the request
+ *
+ * This function makes a request ready for complete resubmission (or
+ * completion).  It happens only after all error handling is complete,
+ * so represents the appropriate moment to deallocate any resources
+ * that were allocated to the request in the prep_rq_fn.  The queue
+ * lock is held when calling this.
+ */
+void blk_unprep_request(struct request *req)
+{
+	struct request_queue *q = req->q;
+
+	req->cmd_flags &= ~REQ_DONTPREP;
+	if (q->unprep_rq_fn)
+		q->unprep_rq_fn(q, req);
+}
+EXPORT_SYMBOL_GPL(blk_unprep_request);
+
 /*
  * queue lock must be held
  */
@@ -2147,6 +2168,10 @@ static void blk_finish_request(struct request *req, int error)
 		laptop_io_completion(&req->q->backing_dev_info);
 
 	blk_delete_timer(req);
+
+	if (req->cmd_flags & REQ_DONTPREP)
+		blk_unprep_request(req);
+
 
 	blk_account_io_done(req);
 
