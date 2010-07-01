@@ -572,12 +572,11 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 	} else {
 		u8 *tmpbuf;
 
-		tmpbuf = kmalloc(len, GFP_KERNEL);
+		tmpbuf = kmemdup(buffer, len, GFP_KERNEL);
 		if (!tmpbuf) {
 			err("Out of memory");
 			return;
 		}
-		memcpy(tmpbuf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
 				0,
