@@ -17,8 +17,8 @@ static struct list_head adapter_list = LIST_HEAD_INIT(adapter_list);
 static u32 adapter_count;
 
 #define DRV_MODULE_NAME		"bnx2i"
-#define DRV_MODULE_VERSION	"2.1.1"
-#define DRV_MODULE_RELDATE	"Mar 24, 2010"
+#define DRV_MODULE_VERSION	"2.1.2"
+#define DRV_MODULE_RELDATE	"Jun 28, 2010"
 
 static char version[] __devinitdata =
 		"Broadcom NetXtreme II iSCSI Driver " DRV_MODULE_NAME \
