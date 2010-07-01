@@ -386,6 +386,7 @@ static struct iscsi_endpoint *bnx2i_alloc_ep(struct bnx2i_hba *hba)
 	}
 
 	bnx2i_ep = ep->dd_data;
+	bnx2i_ep->cls_ep = ep;
 	INIT_LIST_HEAD(&bnx2i_ep->link);
 	bnx2i_ep->state = EP_STATE_IDLE;
 	bnx2i_ep->ep_iscsi_cid = (u16) -1;
@@ -678,7 +679,6 @@ bnx2i_find_ep_in_ofld_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 	return ep;
 }
 
-
 /**
  * bnx2i_find_ep_in_destroy_list - find iscsi_cid in destroy list
  * @hba: 		pointer to adapter instance
@@ -707,6 +707,39 @@ bnx2i_find_ep_in_destroy_list(struct bnx2i_hba *hba, u32 iscsi_cid)
 
 	return ep;
 }
+
+
+/**
+ * bnx2i_ep_active_list_add - add an entry to ep active list
+ * @hba:	pointer to adapter instance
+ * @ep:		pointer to endpoint (transport indentifier) structure
+ *
+ * current active conn queue manager
+ */
+static void bnx2i_ep_active_list_add(struct bnx2i_hba *hba,
+				     struct bnx2i_endpoint *ep)
+{
+	write_lock_bh(&hba->ep_rdwr_lock);
+	list_add_tail(&ep->link, &hba->ep_active_list);
+	write_unlock_bh(&hba->ep_rdwr_lock);
+}
+
+
+/**
+ * bnx2i_ep_active_list_del - deletes an entry to ep active list
+ * @hba:	pointer to adapter instance
+ * @ep:		pointer to endpoint (transport indentifier) structure
+ *
+ * current active conn queue manager
+ */
+static void bnx2i_ep_active_list_del(struct bnx2i_hba *hba,
+				     struct bnx2i_endpoint *ep)
+{
+	write_lock_bh(&hba->ep_rdwr_lock);
+	list_del_init(&ep->link);
+	write_unlock_bh(&hba->ep_rdwr_lock);
+}
+
 
 /**
  * bnx2i_setup_host_queue_size - assigns shost->can_queue param
@@ -784,6 +817,7 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 		goto mp_bdt_mem_err;
 
 	INIT_LIST_HEAD(&hba->ep_ofld_list);
+	INIT_LIST_HEAD(&hba->ep_active_list);
 	INIT_LIST_HEAD(&hba->ep_destroy_list);
 	rwlock_init(&hba->ep_rdwr_lock);
 
@@ -857,6 +891,7 @@ void bnx2i_free_hba(struct bnx2i_hba *hba)
 
 	iscsi_host_remove(shost);
 	INIT_LIST_HEAD(&hba->ep_ofld_list);
+	INIT_LIST_HEAD(&hba->ep_active_list);
 	INIT_LIST_HEAD(&hba->ep_destroy_list);
 	pci_dev_put(hba->pcidev);
 
@@ -1754,15 +1789,19 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 		goto conn_failed;
 	} else
 		rc = cnic->cm_connect(bnx2i_ep->cm_sk, &saddr);
-
 	if (rc)
 		goto release_ep;
 
+	bnx2i_ep_active_list_add(hba, bnx2i_ep);
+
 	if (bnx2i_map_ep_dbell_regs(bnx2i_ep))
-		goto release_ep;
+		goto del_active_ep;
+
 	mutex_unlock(&hba->net_dev_lock);
 	return ep;
 
+del_active_ep:
+	bnx2i_ep_active_list_del(hba, bnx2i_ep);
 release_ep:
 	if (bnx2i_tear_down_conn(hba, bnx2i_ep)) {
 		mutex_unlock(&hba->net_dev_lock);
@@ -1931,6 +1970,7 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	del_timer_sync(&bnx2i_ep->ofld_timer);
 
 destroy_conn:
+	bnx2i_ep_active_list_del(hba, bnx2i_ep);
 	if (bnx2i_tear_down_conn(hba, bnx2i_ep))
 		ret = -EINVAL;
 out:

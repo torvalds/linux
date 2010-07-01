@@ -299,6 +299,7 @@ struct iscsi_cid_queue {
  * @cid_que:               iscsi cid queue
  * @ep_rdwr_lock:          read / write lock to synchronize various ep lists
  * @ep_ofld_list:          connection list for pending offload completion
+ * @ep_active_list:        connection list for active offload endpoints
  * @ep_destroy_list:       connection list for pending offload completion
  * @mp_bd_tbl:             BD table to be used with middle path requests
  * @mp_bd_dma:             DMA address of 'mp_bd_tbl' memory buffer
@@ -369,6 +370,7 @@ struct bnx2i_hba {
 
 	rwlock_t ep_rdwr_lock;
 	struct list_head ep_ofld_list;
+	struct list_head ep_active_list;
 	struct list_head ep_destroy_list;
 
 	/*
@@ -645,6 +647,7 @@ enum {
  * @link:               list head to link elements
  * @hba:                adapter to which this connection belongs
  * @conn:               iscsi connection this EP is linked to
+ * @cls_ep:             associated iSCSI endpoint pointer
  * @sess:               iscsi session this EP is linked to
  * @cm_sk:              cnic sock struct
  * @hba_age:            age to detect if 'iscsid' issues ep_disconnect()
@@ -664,6 +667,7 @@ struct bnx2i_endpoint {
 	struct list_head link;
 	struct bnx2i_hba *hba;
 	struct bnx2i_conn *conn;
+	struct iscsi_endpoint *cls_ep;
 	struct cnic_sock *cm_sk;
 	u32 hba_age;
 	u32 state;
