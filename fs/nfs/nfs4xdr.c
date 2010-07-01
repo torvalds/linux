@@ -220,6 +220,11 @@ static int nfs4_stat_to_errno(int);
 				 4)
 #define decode_locku_maxsz	(op_decode_hdr_maxsz + \
 				 decode_stateid_maxsz)
+#define encode_release_lockowner_maxsz \
+				(op_encode_hdr_maxsz + \
+				 encode_lockowner_maxsz)
+#define decode_release_lockowner_maxsz \
+				(op_decode_hdr_maxsz)
 #define encode_access_maxsz	(op_encode_hdr_maxsz + 1)
 #define decode_access_maxsz	(op_decode_hdr_maxsz + 2)
 #define encode_symlink_maxsz	(op_encode_hdr_maxsz + \
@@ -474,6 +479,12 @@ static int nfs4_stat_to_errno(int);
 				decode_sequence_maxsz + \
 				decode_putfh_maxsz + \
 				decode_locku_maxsz)
+#define NFS4_enc_release_lockowner_sz \
+				(compound_encode_hdr_maxsz + \
+				 encode_lockowner_maxsz)
+#define NFS4_dec_release_lockowner_sz \
+				(compound_decode_hdr_maxsz + \
+				 decode_lockowner_maxsz)
 #define NFS4_enc_access_sz	(compound_encode_hdr_maxsz + \
 				encode_sequence_maxsz + \
 				encode_putfh_maxsz + \
@@ -1114,6 +1125,17 @@ static void encode_locku(struct xdr_stream *xdr, const struct nfs_locku_args *ar
 	xdr_encode_hyper(p, nfs4_lock_length(args->fl));
 	hdr->nops++;
 	hdr->replen += decode_locku_maxsz;
+}
+
+static void encode_release_lockowner(struct xdr_stream *xdr, const struct nfs_lowner *lowner, struct compound_hdr *hdr)
+{
+	__be32 *p;
+
+	p = reserve_space(xdr, 4);
+	*p = cpu_to_be32(OP_RELEASE_LOCKOWNER);
+	encode_lockowner(xdr, lowner);
+	hdr->nops++;
+	hdr->replen += decode_release_lockowner_maxsz;
 }
 
 static void encode_lookup(struct xdr_stream *xdr, const struct qstr *name, struct compound_hdr *hdr)
@@ -2052,6 +2074,20 @@ static int nfs4_xdr_enc_locku(struct rpc_rqst *req, __be32 *p, struct nfs_locku_
 	encode_sequence(&xdr, &args->seq_args, &hdr);
 	encode_putfh(&xdr, args->fh, &hdr);
 	encode_locku(&xdr, args, &hdr);
+	encode_nops(&hdr);
+	return 0;
+}
+
+static int nfs4_xdr_enc_release_lockowner(struct rpc_rqst *req, __be32 *p, struct nfs_release_lockowner_args *args)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr = {
+		.minorversion = 0,
+	};
+
+	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
+	encode_compound_hdr(&xdr, req, &hdr);
+	encode_release_lockowner(&xdr, &args->lock_owner, &hdr);
 	encode_nops(&hdr);
 	return 0;
 }
@@ -3981,6 +4017,11 @@ static int decode_locku(struct xdr_stream *xdr, struct nfs_locku_res *res)
 	return status;
 }
 
+static int decode_release_lockowner(struct xdr_stream *xdr)
+{
+	return decode_op_hdr(xdr, OP_RELEASE_LOCKOWNER);
+}
+
 static int decode_lookup(struct xdr_stream *xdr)
 {
 	return decode_op_hdr(xdr, OP_LOOKUP);
@@ -5267,6 +5308,19 @@ out:
 	return status;
 }
 
+static int nfs4_xdr_dec_release_lockowner(struct rpc_rqst *rqstp, __be32 *p, void *dummy)
+{
+	struct xdr_stream xdr;
+	struct compound_hdr hdr;
+	int status;
+
+	xdr_init_decode(&xdr, &rqstp->rq_rcv_buf, p);
+	status = decode_compound_hdr(&xdr, &hdr);
+	if (!status)
+		status = decode_release_lockowner(&xdr);
+	return status;
+}
+
 /*
  * Decode READLINK response
  */
@@ -5874,6 +5928,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
   PROC(GETACL,		enc_getacl,	dec_getacl),
   PROC(SETACL,		enc_setacl,	dec_setacl),
   PROC(FS_LOCATIONS,	enc_fs_locations, dec_fs_locations),
+  PROC(RELEASE_LOCKOWNER, enc_release_lockowner, dec_release_lockowner),
 #if defined(CONFIG_NFS_V4_1)
   PROC(EXCHANGE_ID,	enc_exchange_id,	dec_exchange_id),
   PROC(CREATE_SESSION,	enc_create_session,	dec_create_session),

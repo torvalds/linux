@@ -701,6 +701,8 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 	if (list_empty(&state->lock_states))
 		clear_bit(LK_STATE_IN_USE, &state->flags);
 	spin_unlock(&state->state_lock);
+	if (lsp->ls_flags & NFS_LOCK_INITIALIZED)
+		nfs4_release_lockowner(lsp);
 	nfs4_free_lock_state(lsp);
 }
 

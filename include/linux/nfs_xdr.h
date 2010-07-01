@@ -315,6 +315,10 @@ struct nfs_lockt_res {
 	struct nfs4_sequence_res	seq_res;
 };
 
+struct nfs_release_lockowner_args {
+	struct nfs_lowner	lock_owner;
+};
+
 struct nfs4_delegreturnargs {
 	const struct nfs_fh *fhandle;
 	const nfs4_stateid *stateid;
