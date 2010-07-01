@@ -602,12 +602,21 @@ void nfs4_close_sync(struct path *path, struct nfs4_state *state, fmode_t fmode)
  * that is compatible with current->files
  */
 static struct nfs4_lock_state *
-__nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
+__nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner, pid_t fl_pid, unsigned int type)
 {
 	struct nfs4_lock_state *pos;
 	list_for_each_entry(pos, &state->lock_states, ls_locks) {
-		if (pos->ls_owner != fl_owner)
+		if (type != NFS4_ANY_LOCK_TYPE && pos->ls_owner.lo_type != type)
 			continue;
+		switch (pos->ls_owner.lo_type) {
+		case NFS4_POSIX_LOCK_TYPE:
+			if (pos->ls_owner.lo_u.posix_owner != fl_owner)
+				continue;
+			break;
+		case NFS4_FLOCK_LOCK_TYPE:
+			if (pos->ls_owner.lo_u.flock_owner != fl_pid)
+				continue;
+		}
 		atomic_inc(&pos->ls_count);
 		return pos;
 	}
@@ -619,7 +628,7 @@ __nfs4_find_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
  * exists, return an uninitialized one.
  *
  */
-static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, fl_owner_t fl_owner)
+static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, fl_owner_t fl_owner, pid_t fl_pid, unsigned int type)
 {
 	struct nfs4_lock_state *lsp;
 	struct nfs_client *clp = state->owner->so_server->nfs_client;
@@ -633,7 +642,18 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	lsp->ls_seqid.sequence = &lsp->ls_sequence;
 	atomic_set(&lsp->ls_count, 1);
 	lsp->ls_state = state;
-	lsp->ls_owner = fl_owner;
+	lsp->ls_owner.lo_type = type;
+	switch (lsp->ls_owner.lo_type) {
+	case NFS4_FLOCK_LOCK_TYPE:
+		lsp->ls_owner.lo_u.flock_owner = fl_pid;
+		break;
+	case NFS4_POSIX_LOCK_TYPE:
+		lsp->ls_owner.lo_u.posix_owner = fl_owner;
+		break;
+	default:
+		kfree(lsp);
+		return NULL;
+	}
 	spin_lock(&clp->cl_lock);
 	nfs_alloc_unique_id(&clp->cl_lockowner_id, &lsp->ls_id, 1, 64);
 	spin_unlock(&clp->cl_lock);
@@ -657,13 +677,13 @@ static void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
  * exists, return an uninitialized one.
  *
  */
-static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_owner_t owner)
+static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_owner_t owner, pid_t pid, unsigned int type)
 {
 	struct nfs4_lock_state *lsp, *new = NULL;
 	
 	for(;;) {
 		spin_lock(&state->state_lock);
-		lsp = __nfs4_find_lock_state(state, owner);
+		lsp = __nfs4_find_lock_state(state, owner, pid, type);
 		if (lsp != NULL)
 			break;
 		if (new != NULL) {
@@ -674,7 +694,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
 			break;
 		}
 		spin_unlock(&state->state_lock);
-		new = nfs4_alloc_lock_state(state, owner);
+		new = nfs4_alloc_lock_state(state, owner, pid, type);
 		if (new == NULL)
 			return NULL;
 	}
@@ -730,7 +750,12 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 
 	if (fl->fl_ops != NULL)
 		return 0;
-	lsp = nfs4_get_lock_state(state, fl->fl_owner);
+	if (fl->fl_flags & FL_POSIX)
+		lsp = nfs4_get_lock_state(state, fl->fl_owner, 0, NFS4_POSIX_LOCK_TYPE);
+	else if (fl->fl_flags & FL_FLOCK)
+		lsp = nfs4_get_lock_state(state, 0, fl->fl_pid, NFS4_FLOCK_LOCK_TYPE);
+	else
+		return -EINVAL;
 	if (lsp == NULL)
 		return -ENOMEM;
 	fl->fl_u.nfs4_fl.owner = lsp;
@@ -742,7 +767,7 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
  * Byte-range lock aware utility to initialize the stateid of read/write
  * requests.
  */
-void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t fl_owner)
+void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t fl_owner, pid_t fl_pid)
 {
 	struct nfs4_lock_state *lsp;
 	int seq;
@@ -755,7 +780,7 @@ void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t f
 		return;
 
 	spin_lock(&state->state_lock);
-	lsp = __nfs4_find_lock_state(state, fl_owner);
+	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
 	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0)
 		memcpy(dst, &lsp->ls_stateid, sizeof(*dst));
 	spin_unlock(&state->state_lock);

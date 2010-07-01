@@ -142,10 +142,20 @@ enum {
  * LOCK: one nfs4_state (LOCK) to hold the lock stateid nfs4_state(OPEN)
  */
 
+struct nfs4_lock_owner {
+	unsigned int lo_type;
+#define NFS4_ANY_LOCK_TYPE	(0U)
+#define NFS4_FLOCK_LOCK_TYPE	(1U << 0)
+#define NFS4_POSIX_LOCK_TYPE	(1U << 1)
+	union {
+		fl_owner_t posix_owner;
+		pid_t flock_owner;
+	} lo_u;
+};
+
 struct nfs4_lock_state {
 	struct list_head	ls_locks;	/* Other lock stateids */
 	struct nfs4_state *	ls_state;	/* Pointer to open state */
-	fl_owner_t		ls_owner;	/* POSIX lock owner */
 #define NFS_LOCK_INITIALIZED 1
 	int			ls_flags;
 	struct nfs_seqid_counter	ls_seqid;
@@ -153,6 +163,7 @@ struct nfs4_lock_state {
 	struct nfs_unique_id	ls_id;
 	nfs4_stateid		ls_stateid;
 	atomic_t		ls_count;
+	struct nfs4_lock_owner	ls_owner;
 };
 
 /* bits for nfs4_state->flags */
@@ -310,7 +321,7 @@ extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 extern void nfs41_handle_recall_slot(struct nfs_client *clp);
 extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);
 extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
-extern void nfs4_copy_stateid(nfs4_stateid *, struct nfs4_state *, fl_owner_t);
+extern void nfs4_copy_stateid(nfs4_stateid *, struct nfs4_state *, fl_owner_t, pid_t);
 
 extern struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask);
 extern int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task);
