@@ -4142,13 +4142,13 @@ static const u32 ar9287Common_9287_1_1[][2] = {
  * registers be programmed differently from the channel between 2412 and
  * 2472 MHz.
  */
-static const u32 ar9287Common_normal_cck_fir_coeff_92871_1[][2] = {
+static const u32 ar9287Common_normal_cck_fir_coeff_9287_1_1[][2] = {
     { 0x0000a1f4, 0x00fffeff },
     { 0x0000a1f8, 0x00f5f9ff },
     { 0x0000a1fc, 0xb79f6427 },
 };
 
-static const u32 ar9287Common_japan_2484_cck_fir_coeff_92871_1[][2] = {
+static const u32 ar9287Common_japan_2484_cck_fir_coeff_9287_1_1[][2] = {
     { 0x0000a1f4, 0x00000000 },
     { 0x0000a1f8, 0xefff0301 },
     { 0x0000a1fc, 0xca9228ee },
