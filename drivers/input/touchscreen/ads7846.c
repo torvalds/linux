@@ -878,14 +878,15 @@ static int __devinit setup_pendown(struct spi_device *spi, struct ads7846 *ts)
 
 static int __devinit ads7846_probe(struct spi_device *spi)
 {
-	struct ads7846			*ts;
-	struct ads7846_packet		*packet;
-	struct input_dev		*input_dev;
-	struct ads7846_platform_data	*pdata = spi->dev.platform_data;
-	struct spi_message		*m;
-	struct spi_transfer		*x;
-	int				vref;
-	int				err;
+	struct ads7846 *ts;
+	struct ads7846_packet *packet;
+	struct input_dev *input_dev;
+	const struct ads7846_platform_data *pdata = spi->dev.platform_data;
+	struct spi_message *m;
+	struct spi_transfer *x;
+	unsigned long irq_flags;
+	int vref;
+	int err;
 
 	if (!spi->irq) {
 		dev_dbg(&spi->dev, "no IRQ?\n");
@@ -1174,20 +1175,22 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 		goto err_put_regulator;
 	}
 
-	if (!pdata->irq_flags)
-		pdata->irq_flags = IRQF_TRIGGER_FALLING;
+	irq_flags = pdata->irq_flags ? : IRQF_TRIGGER_FALLING;
 
-	if (request_irq(spi->irq, ads7846_irq, pdata->irq_flags,
-			spi->dev.driver->name, ts)) {
+	err = request_irq(spi->irq, ads7846_irq, irq_flags,
+			  spi->dev.driver->name, ts);
+
+	if (err && !pdata->irq_flags) {
 		dev_info(&spi->dev,
 			"trying pin change workaround on irq %d\n", spi->irq);
 		err = request_irq(spi->irq, ads7846_irq,
 				  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				  spi->dev.driver->name, ts);
-		if (err) {
-			dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
-			goto err_disable_regulator;
-		}
+	}
+
+	if (err) {
+		dev_dbg(&spi->dev, "irq %d busy?\n", spi->irq);
+		goto err_disable_regulator;
 	}
 
 	err = ads784x_hwmon_register(spi, ts);
