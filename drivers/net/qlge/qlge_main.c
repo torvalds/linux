@@ -4712,6 +4712,8 @@ static void ql_eeh_close(struct net_device *ndev)
 		netif_stop_queue(ndev);
 	}
 
+	/* Disabling the timer */
+	del_timer_sync(&qdev->timer);
 	if (test_bit(QL_ADAPTER_UP, &qdev->flags))
 		cancel_delayed_work_sync(&qdev->asic_reset_work);
 	cancel_delayed_work_sync(&qdev->mpi_reset_work);
