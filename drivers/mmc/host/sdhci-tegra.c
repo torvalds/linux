@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/mmc/card.h>
 
 #include <mach/sdhci.h>
 
@@ -177,12 +178,30 @@ static int tegra_sdhci_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int tegra_sdhci_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	return -1;
+	struct tegra_sdhci_host *host = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = host->sdhci->mmc;
+	int ret = 0;
+
+	if (mmc->card && (mmc->card->type != MMC_TYPE_SDIO)) {
+		ret = sdhci_suspend_host(host->sdhci, state);
+		if (ret)
+			pr_err("%s: failed, error = %d\n", __func__, ret);
+	}
+	return ret;
 }
 
 static int tegra_sdhci_resume(struct platform_device *pdev)
 {
-	return -1;
+	struct tegra_sdhci_host *host = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = host->sdhci->mmc;
+	int ret = 0;
+
+	if (mmc->card && (mmc->card->type != MMC_TYPE_SDIO)) {
+		ret = sdhci_resume_host(host->sdhci);
+		if (ret)
+			pr_err("%s: failed, error = %d\n", __func__, ret);
+	}
+	return ret;
 }
 #else
 #define tegra_sdhci_suspend    NULL
