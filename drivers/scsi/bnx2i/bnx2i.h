@@ -308,6 +308,8 @@ struct iscsi_cid_queue {
  * @dummy_buf_dma:         DMA address of 'dummy_buffer' memory buffer
  * @lock:              	   lock to synchonize access to hba structure
  * @hba_shutdown_tmo:      Timeout value to shutdown each connection
+ * @conn_teardown_tmo:     Timeout value to tear down each connection
+ * @conn_ctx_destroy_tmo:  Timeout value to destroy context of each connection
  * @pci_did:               PCI device ID
  * @pci_vid:               PCI vendor ID
  * @pci_sdid:              PCI subsystem device ID
@@ -387,6 +389,8 @@ struct bnx2i_hba {
 	struct mutex net_dev_lock;/* sync net device access */
 
 	int hba_shutdown_tmo;
+	int conn_teardown_tmo;
+	int conn_ctx_destroy_tmo;
 	/*
 	 * PCI related info.
 	 */

@@ -854,10 +854,15 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	spin_lock_init(&hba->lock);
 	mutex_init(&hba->net_dev_lock);
 	init_waitqueue_head(&hba->eh_wait);
-	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type))
+	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type)) {
 		hba->hba_shutdown_tmo = 20 * HZ;
-	else	/* 5706/5708/5709 */
+		hba->conn_teardown_tmo = 20 * HZ;
+		hba->conn_ctx_destroy_tmo = 6 * HZ;
+	} else {	/* 5706/5708/5709 */
 		hba->hba_shutdown_tmo = 20 * HZ;
+		hba->conn_teardown_tmo = 10 * HZ;
+		hba->conn_ctx_destroy_tmo = 2 * HZ;
+	}
 
 	if (iscsi_host_add(shost, &hba->pcidev->dev))
 		goto free_dump_mem;
@@ -1633,7 +1638,7 @@ static int bnx2i_tear_down_conn(struct bnx2i_hba *hba,
 
 	ep->state = EP_STATE_CLEANUP_START;
 	init_timer(&ep->ofld_timer);
-	ep->ofld_timer.expires = 10*HZ + jiffies;
+	ep->ofld_timer.expires = hba->conn_ctx_destroy_tmo + jiffies;
 	ep->ofld_timer.function = bnx2i_ep_ofld_timer;
 	ep->ofld_timer.data = (unsigned long) ep;
 	add_timer(&ep->ofld_timer);
@@ -1937,7 +1942,7 @@ int bnx2i_hw_ep_disconnect(struct bnx2i_endpoint *bnx2i_ep)
 	bnx2i_ep->state = EP_STATE_DISCONN_START;
 
 	init_timer(&bnx2i_ep->ofld_timer);
-	bnx2i_ep->ofld_timer.expires = 10*HZ + jiffies;
+	bnx2i_ep->ofld_timer.expires = hba->conn_teardown_tmo + jiffies;
 	bnx2i_ep->ofld_timer.function = bnx2i_ep_ofld_timer;
 	bnx2i_ep->ofld_timer.data = (unsigned long) bnx2i_ep;
 	add_timer(&bnx2i_ep->ofld_timer);
