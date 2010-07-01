@@ -210,66 +210,6 @@ ACPI_EXPORT_SYMBOL(acpi_enable_event)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_set_gpe
- *
- * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
- *              gpe_number      - GPE level within the GPE block
- *              action          - ACPI_GPE_ENABLE or ACPI_GPE_DISABLE
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Enable or disable an individual GPE. This function bypasses
- *              the reference count mechanism used in the acpi_enable_gpe and
- *              acpi_disable_gpe interfaces -- and should be used with care.
- *
- * Note: Typically used to disable a runtime GPE for short period of time,
- * then re-enable it, without disturbing the existing reference counts. This
- * is useful, for example, in the Embedded Controller (EC) driver.
- *
- ******************************************************************************/
-acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action)
-{
-	struct acpi_gpe_event_info *gpe_event_info;
-	acpi_status status;
-	acpi_cpu_flags flags;
-
-	ACPI_FUNCTION_TRACE(acpi_set_gpe);
-
-	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
-
-	/* Ensure that we have a valid GPE number */
-
-	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
-	if (!gpe_event_info) {
-		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/* Perform the action */
-
-	switch (action) {
-	case ACPI_GPE_ENABLE:
-		status = acpi_ev_enable_gpe(gpe_event_info);
-		break;
-
-	case ACPI_GPE_DISABLE:
-		status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_DISABLE);
-		break;
-
-	default:
-		status = AE_BAD_PARAMETER;
-		break;
-	}
-
-      unlock_and_exit:
-	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
-	return_ACPI_STATUS(status);
-}
-
-ACPI_EXPORT_SYMBOL(acpi_set_gpe)
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_gpe_wakeup
  *
  * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
