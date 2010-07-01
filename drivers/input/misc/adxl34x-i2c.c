@@ -58,14 +58,14 @@ static int adxl34x_i2c_read_block(struct device *dev,
 	return 0;
 }
 
-static const struct adxl34x_bus_ops adx134x_smbus_bops = {
+static const struct adxl34x_bus_ops adxl34x_smbus_bops = {
 	.bustype	= BUS_I2C,
 	.write		= adxl34x_smbus_write,
 	.read		= adxl34x_smbus_read,
 	.read_block	= adxl34x_smbus_read_block,
 };
 
-static const struct adxl34x_bus_ops adx134x_i2c_bops = {
+static const struct adxl34x_bus_ops adxl34x_i2c_bops = {
 	.bustype	= BUS_I2C,
 	.write		= adxl34x_smbus_write,
 	.read		= adxl34x_smbus_read,
@@ -88,7 +88,7 @@ static int __devinit adxl34x_i2c_probe(struct i2c_client *client,
 	ac = adxl34x_probe(&client->dev, client->irq, false,
 			   i2c_check_functionality(client->adapter,
 						   I2C_FUNC_SMBUS_READ_I2C_BLOCK) ?
-				&adx134x_smbus_bops : &adx134x_i2c_bops);
+				&adxl34x_smbus_bops : &adxl34x_i2c_bops);
 	if (IS_ERR(ac))
 		return PTR_ERR(ac);
 
@@ -105,26 +105,26 @@ static int __devexit adxl34x_i2c_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM
-static int adxl34x_suspend(struct i2c_client *client, pm_message_t message)
+static int adxl34x_i2c_suspend(struct i2c_client *client, pm_message_t message)
 {
 	struct adxl34x *ac = i2c_get_clientdata(client);
 
-	adxl34x_disable(ac);
+	adxl34x_suspend(ac);
 
 	return 0;
 }
 
-static int adxl34x_resume(struct i2c_client *client)
+static int adxl34x_i2c_resume(struct i2c_client *client)
 {
 	struct adxl34x *ac = i2c_get_clientdata(client);
 
-	adxl34x_enable(ac);
+	adxl34x_resume(ac);
 
 	return 0;
 }
 #else
-# define adxl34x_suspend NULL
-# define adxl34x_resume  NULL
+# define adxl34x_i2c_suspend NULL
+# define adxl34x_i2c_resume  NULL
 #endif
 
 static const struct i2c_device_id adxl34x_id[] = {
@@ -141,8 +141,8 @@ static struct i2c_driver adxl34x_driver = {
 	},
 	.probe    = adxl34x_i2c_probe,
 	.remove   = __devexit_p(adxl34x_i2c_remove),
-	.suspend  = adxl34x_suspend,
-	.resume   = adxl34x_resume,
+	.suspend  = adxl34x_i2c_suspend,
+	.resume   = adxl34x_i2c_resume,
 	.id_table = adxl34x_id,
 };
 

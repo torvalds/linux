@@ -94,26 +94,26 @@ static int __devexit adxl34x_spi_remove(struct spi_device *spi)
 }
 
 #ifdef CONFIG_PM
-static int adxl34x_suspend(struct spi_device *spi, pm_message_t message)
+static int adxl34x_spi_suspend(struct spi_device *spi, pm_message_t message)
 {
 	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
 
-	adxl34x_disable(ac);
+	adxl34x_suspend(ac);
 
 	return 0;
 }
 
-static int adxl34x_resume(struct spi_device *spi)
+static int adxl34x_spi_resume(struct spi_device *spi)
 {
 	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
 
-	adxl34x_enable(ac);
+	adxl34x_resume(ac);
 
 	return 0;
 }
 #else
-# define adxl34x_suspend NULL
-# define adxl34x_resume  NULL
+# define adxl34x_spi_suspend NULL
+# define adxl34x_spi_resume  NULL
 #endif
 
 static struct spi_driver adxl34x_driver = {
@@ -124,8 +124,8 @@ static struct spi_driver adxl34x_driver = {
 	},
 	.probe   = adxl34x_spi_probe,
 	.remove  = __devexit_p(adxl34x_spi_remove),
-	.suspend = adxl34x_suspend,
-	.resume  = adxl34x_resume,
+	.suspend = adxl34x_spi_suspend,
+	.resume  = adxl34x_spi_resume,
 };
 
 static int __init adxl34x_spi_init(void)

@@ -200,6 +200,7 @@ struct adxl34x {
 	unsigned orient3d_saved;
 	bool disabled;	/* P: mutex */
 	bool opened;	/* P: mutex */
+	bool suspended;	/* P: mutex */
 	bool fifo_delay;
 	int irq;
 	unsigned model;
@@ -399,41 +400,44 @@ static irqreturn_t adxl34x_irq(int irq, void *handle)
 
 static void __adxl34x_disable(struct adxl34x *ac)
 {
-	if (!ac->disabled && ac->opened) {
-		/*
-		 * A '0' places the ADXL34x into standby mode
-		 * with minimum power consumption.
-		 */
-		AC_WRITE(ac, POWER_CTL, 0);
-
-		ac->disabled = true;
-	}
+	/*
+	 * A '0' places the ADXL34x into standby mode
+	 * with minimum power consumption.
+	 */
+	AC_WRITE(ac, POWER_CTL, 0);
 }
 
 static void __adxl34x_enable(struct adxl34x *ac)
 {
-	if (ac->disabled && ac->opened) {
-		AC_WRITE(ac, POWER_CTL, ac->pdata.power_mode | PCTL_MEASURE);
-		ac->disabled = false;
-	}
+	AC_WRITE(ac, POWER_CTL, ac->pdata.power_mode | PCTL_MEASURE);
 }
 
-void adxl34x_disable(struct adxl34x *ac)
+void adxl34x_suspend(struct adxl34x *ac)
 {
 	mutex_lock(&ac->mutex);
-	__adxl34x_disable(ac);
+
+	if (!ac->suspended && !ac->disabled && ac->opened)
+		__adxl34x_disable(ac);
+
+	ac->suspended = true;
+
 	mutex_unlock(&ac->mutex);
 }
-EXPORT_SYMBOL_GPL(adxl34x_disable);
+EXPORT_SYMBOL_GPL(adxl34x_suspend);
 
-void adxl34x_enable(struct adxl34x *ac)
+void adxl34x_resume(struct adxl34x *ac)
 {
 	mutex_lock(&ac->mutex);
-	__adxl34x_enable(ac);
+
+	if (ac->suspended && !ac->disabled && ac->opened)
+		__adxl34x_enable(ac);
+
+	ac->suspended= false;
+
 	mutex_unlock(&ac->mutex);
 }
 
-EXPORT_SYMBOL_GPL(adxl34x_enable);
+EXPORT_SYMBOL_GPL(adxl34x_resume);
 
 static ssize_t adxl34x_disable_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -455,10 +459,21 @@ static ssize_t adxl34x_disable_store(struct device *dev,
 	if (error)
 		return error;
 
-	if (val)
-		adxl34x_disable(ac);
-	else
-		adxl34x_enable(ac);
+	mutex_lock(&ac->mutex);
+
+	if (!ac->suspended && ac->opened) {
+		if (val) {
+			if (!ac->disabled)
+				__adxl34x_disable(ac);
+		} else {
+			if (ac->disabled)
+				__adxl34x_enable(ac);
+		}
+	}
+
+	ac->disabled = !!val;
+
+	mutex_unlock(&ac->mutex);
 
 	return count;
 }
@@ -575,7 +590,7 @@ static ssize_t adxl34x_autosleep_store(struct device *dev,
 	else
 		ac->pdata.power_mode &= ~(PCTL_AUTO_SLEEP | PCTL_LINK);
 
-	if (!ac->disabled && ac->opened)
+	if (!ac->disabled && !ac->suspended && ac->opened)
 		AC_WRITE(ac, POWER_CTL, ac->pdata.power_mode | PCTL_MEASURE);
 
 	mutex_unlock(&ac->mutex);
@@ -649,8 +664,12 @@ static int adxl34x_input_open(struct input_dev *input)
 	struct adxl34x *ac = input_get_drvdata(input);
 
 	mutex_lock(&ac->mutex);
+
+	if (!ac->suspended && !ac->disabled)
+		__adxl34x_enable(ac);
+
 	ac->opened = true;
-	__adxl34x_enable(ac);
+
 	mutex_unlock(&ac->mutex);
 
 	return 0;
@@ -661,8 +680,12 @@ static void adxl34x_input_close(struct input_dev *input)
 	struct adxl34x *ac = input_get_drvdata(input);
 
 	mutex_lock(&ac->mutex);
-	__adxl34x_disable(ac);
+
+	if (!ac->suspended && !ac->disabled)
+		__adxl34x_disable(ac);
+
 	ac->opened = false;
+
 	mutex_unlock(&ac->mutex);
 }
 
@@ -878,7 +901,6 @@ EXPORT_SYMBOL_GPL(adxl34x_probe);
 
 int adxl34x_remove(struct adxl34x *ac)
 {
-	adxl34x_disable(ac);
 	sysfs_remove_group(&ac->dev->kobj, &adxl34x_attr_group);
 	free_irq(ac->irq, ac);
 	input_unregister_device(ac->input);
