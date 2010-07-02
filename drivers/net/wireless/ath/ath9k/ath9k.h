@@ -226,6 +226,7 @@ struct ath_buf_state {
 	int bfs_retries;
 	u8 bf_type;
 	u8 bfs_paprd;
+	unsigned long bfs_paprd_timestamp;
 	u32 bfs_keyix;
 	enum ath9k_key_type bfs_keytype;
 };
@@ -425,6 +426,8 @@ int ath_beaconq_config(struct ath_softc *sc);
 #define ATH_LONG_CALINTERVAL      30000   /* 30 seconds */
 #define ATH_RESTART_CALINTERVAL   1200000 /* 20 minutes */
 
+#define ATH_PAPRD_TIMEOUT	100 /* msecs */
+
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 
@@ -516,6 +519,7 @@ void ath_deinit_leds(struct ath_softc *sc);
 #define SC_OP_TSF_RESET              BIT(11)
 #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
 #define SC_OP_BT_SCAN		     BIT(13)
+#define SC_OP_ANI_RUN		     BIT(14)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)
@@ -559,7 +563,6 @@ struct ath_softc {
 	struct mutex mutex;
 	struct work_struct paprd_work;
 	struct completion paprd_complete;
-	int paprd_txok;
 
 	u32 intrstatus;
 	u32 sc_flags; /* SC_OP_* */
@@ -628,6 +631,7 @@ static inline void ath_read_cachesize(struct ath_common *common, int *csz)
 
 extern struct ieee80211_ops ath9k_ops;
 extern int modparam_nohwcrypt;
+extern int led_blink;
 
 irqreturn_t ath_isr(int irq, void *dev);
 int ath9k_init_device(u16 devid, struct ath_softc *sc, u16 subsysid,

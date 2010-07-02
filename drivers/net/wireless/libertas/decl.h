@@ -1,3 +1,4 @@
+
 /**
   *  This file contains declaration referring to
   *  functions defined in other source files
@@ -12,6 +13,7 @@
 struct lbs_private;
 struct sk_buff;
 struct net_device;
+struct cmd_ds_command;
 
 
 /* ethtool.c */
@@ -34,6 +36,8 @@ int lbs_start_card(struct lbs_private *priv);
 void lbs_stop_card(struct lbs_private *priv);
 void lbs_host_to_card_done(struct lbs_private *priv);
 
+int lbs_rtap_supported(struct lbs_private *priv);
+
 int lbs_set_mac_address(struct net_device *dev, void *addr);
 void lbs_set_multicast_list(struct net_device *dev);
 
@@ -49,5 +53,9 @@ int lbs_exit_auto_deep_sleep(struct lbs_private *priv);
 u32 lbs_fw_index_to_data_rate(u8 index);
 u8 lbs_data_rate_to_fw_index(u32 rate);
 
+int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
+		struct cmd_ds_command *cmd, u16 cmdoption);
+
+int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp);
 
 #endif

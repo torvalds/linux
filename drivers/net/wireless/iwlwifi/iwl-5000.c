@@ -249,10 +249,11 @@ static int iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 	/* Set initial calibration set */
 	priv->hw_params.sens = &iwl5150_sensitivity;
 	priv->hw_params.calib_init_cfg =
-		BIT(IWL_CALIB_DC)		|
 		BIT(IWL_CALIB_LO)		|
 		BIT(IWL_CALIB_TX_IQ)		|
 		BIT(IWL_CALIB_BASE_BAND);
+	if (priv->cfg->need_dc_calib)
+		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
@@ -264,7 +265,7 @@ static void iwl5150_temperature(struct iwl_priv *priv)
 	u32 vt = 0;
 	s32 offset =  iwl_temp_calib_to_offset(priv);
 
-	vt = le32_to_cpu(priv->statistics.general.temperature);
+	vt = le32_to_cpu(priv->_agn.statistics.general.temperature);
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
 	/* now vt hold the temperature in Kelvin */
 	priv->temperature = KELVIN_TO_CELSIUS(vt);
@@ -392,6 +393,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -454,6 +456,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -660,6 +663,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.need_dc_calib = true,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -689,6 +693,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.ucode_tracing = true,
 	.sensitivity_calib_by_driver = true,
 	.chain_noise_calib_by_driver = true,
+	.need_dc_calib = true,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

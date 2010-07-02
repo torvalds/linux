@@ -894,7 +894,7 @@ out_fail_pernet:
 }
 subsys_initcall(cfg80211_init);
 
-static void cfg80211_exit(void)
+static void __exit cfg80211_exit(void)
 {
 	debugfs_remove(ieee80211_debugfs_dir);
 	nl80211_exit();

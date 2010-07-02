@@ -388,6 +388,7 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.ht_enable = 0;
 
 	ah->config.rx_intr_mitigation = true;
+	ah->config.pcieSerDesWrite = true;
 
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
@@ -571,24 +572,13 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	ath9k_hw_init_mode_regs(ah);
 
 	/*
-	 * Configire PCIE after Ini init. SERDES values now come from ini file
-	 * This enables PCIe low power mode.
+	 * Read back AR_WA into a permanent copy and set bits 14 and 17.
+	 * We need to do this to avoid RMW of this register. We cannot
+	 * read the reg when chip is asleep.
 	 */
-	if (AR_SREV_9300_20_OR_LATER(ah)) {
-		u32 regval;
-		unsigned int i;
-
-		/* Set Bits 16 and 17 in the AR_WA register. */
-		regval = REG_READ(ah, AR_WA);
-		regval |= 0x00030000;
-		REG_WRITE(ah, AR_WA, regval);
-
-		for (i = 0; i < ah->iniPcieSerdesLowPower.ia_rows; i++) {
-			REG_WRITE(ah,
-				  INI_RA(&ah->iniPcieSerdesLowPower, i, 0),
-				  INI_RA(&ah->iniPcieSerdesLowPower, i, 1));
-		}
-	}
+	ah->WARegVal = REG_READ(ah, AR_WA);
+	ah->WARegVal |= (AR_WA_D3_L1_DISABLE |
+			 AR_WA_ASPM_TIMER_BASED_DISABLE);
 
 	if (ah->is_pciexpress)
 		ath9k_hw_configpcipowersave(ah, 0, 0);
@@ -1009,6 +999,11 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_WRITE(ah, AR_WA, ah->WARegVal);
+		udelay(10);
+	}
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN |
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
@@ -1063,6 +1058,11 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 {
 	ENABLE_REGWRITE_BUFFER(ah);
 
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_WRITE(ah, AR_WA, ah->WARegVal);
+		udelay(10);
+	}
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE, AR_RTC_FORCE_WAKE_EN |
 		  AR_RTC_FORCE_WAKE_ON_INT);
 
@@ -1070,6 +1070,7 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 		REG_WRITE(ah, AR_RC, AR_RC_AHB);
 
 	REG_WRITE(ah, AR_RTC_RESET, 0);
+	udelay(2);
 
 	REGWRITE_BUFFER_FLUSH(ah);
 	DISABLE_REGWRITE_BUFFER(ah);
@@ -1099,6 +1100,11 @@ static bool ath9k_hw_set_reset_power_on(struct ath_hw *ah)
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 {
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_WRITE(ah, AR_WA, ah->WARegVal);
+		udelay(10);
+	}
+
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE,
 		  AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
 
@@ -1262,7 +1268,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
 	/* For chips on which RTC reset is done, save TSF before it gets cleared */
-	if (AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+	if (AR_SREV_9100(ah) ||
+	    (AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL)))
 		tsf = ath9k_hw_gettsf64(ah);
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
@@ -1294,7 +1301,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	/* Restore TSF */
-	if (tsf && AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+	if (tsf)
 		ath9k_hw_settsf64(ah, tsf);
 
 	if (AR_SREV_9280_10_OR_LATER(ah))
@@ -1306,6 +1313,17 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	r = ath9k_hw_process_ini(ah, chan);
 	if (r)
 		return r;
+
+	/*
+	 * Some AR91xx SoC devices frequently fail to accept TSF writes
+	 * right after the chip reset. When that happens, write a new
+	 * value after the initvals have been applied, with an offset
+	 * based on measured time difference
+	 */
+	if (AR_SREV_9100(ah) && (ath9k_hw_gettsf64(ah) < tsf)) {
+		tsf += 1500;
+		ath9k_hw_settsf64(ah, tsf);
+	}
 
 	/* Setup MFP options for CCMP */
 	if (AR_SREV_9280_20_OR_LATER(ah)) {
@@ -1492,7 +1510,7 @@ bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry)
 }
 EXPORT_SYMBOL(ath9k_hw_keyreset);
 
-bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
+static bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 {
 	u32 macHi, macLo;
 	u32 unicast_flag = AR_KEYTABLE_VALID;
@@ -1530,7 +1548,6 @@ bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac)
 
 	return true;
 }
-EXPORT_SYMBOL(ath9k_hw_keysetmac);
 
 bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
@@ -1731,17 +1748,6 @@ bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 }
 EXPORT_SYMBOL(ath9k_hw_set_keycache_entry);
 
-bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry)
-{
-	if (entry < ah->caps.keycache_size) {
-		u32 val = REG_READ(ah, AR_KEYTABLE_MAC1(entry));
-		if (val & AR_KEYTABLE_VALID)
-			return true;
-	}
-	return false;
-}
-EXPORT_SYMBOL(ath9k_hw_keyisvalid);
-
 /******************************/
 /* Power Management (Chipset) */
 /******************************/
@@ -1768,6 +1774,11 @@ static void ath9k_set_power_sleep(struct ath_hw *ah, int setChip)
 			REG_CLR_BIT(ah, (AR_RTC_RESET),
 				    AR_RTC_RESET_EN);
 	}
+
+	/* Clear Bit 14 of AR_WA after putting chip into Full Sleep mode. */
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		REG_WRITE(ah, AR_WA,
+			  ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
 }
 
 /*
@@ -1794,12 +1805,22 @@ static void ath9k_set_power_network_sleep(struct ath_hw *ah, int setChip)
 				    AR_RTC_FORCE_WAKE_EN);
 		}
 	}
+
+	/* Clear Bit 14 of AR_WA after putting chip into Net Sleep mode. */
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		REG_WRITE(ah, AR_WA, ah->WARegVal & ~AR_WA_D3_L1_DISABLE);
 }
 
 static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 {
 	u32 val;
 	int i;
+
+	/* Set Bits 14 and 17 of AR_WA before powering on the chip. */
+	if (AR_SREV_9300_20_OR_LATER(ah)) {
+		REG_WRITE(ah, AR_WA, ah->WARegVal);
+		udelay(10);
+	}
 
 	if (setChip) {
 		if ((REG_READ(ah, AR_RTC_STATUS) &
@@ -2155,6 +2176,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 
 	if (AR_SREV_9271(ah))
 		pCap->num_gpio_pins = AR9271_NUM_GPIO;
+	else if (AR_DEVID_7010(ah))
+		pCap->num_gpio_pins = AR7010_NUM_GPIO;
 	else if (AR_SREV_9285_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
 	else if (AR_SREV_9280_10_OR_LATER(ah))
@@ -2295,8 +2318,15 @@ void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio)
 
 	BUG_ON(gpio >= ah->caps.num_gpio_pins);
 
-	gpio_shift = gpio << 1;
+	if (AR_DEVID_7010(ah)) {
+		gpio_shift = gpio;
+		REG_RMW(ah, AR7010_GPIO_OE,
+			(AR7010_GPIO_OE_AS_INPUT << gpio_shift),
+			(AR7010_GPIO_OE_MASK << gpio_shift));
+		return;
+	}
 
+	gpio_shift = gpio << 1;
 	REG_RMW(ah,
 		AR_GPIO_OE_OUT,
 		(AR_GPIO_OE_OUT_DRV_NO << gpio_shift),
@@ -2312,7 +2342,11 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 	if (gpio >= ah->caps.num_gpio_pins)
 		return 0xffffffff;
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
+	if (AR_DEVID_7010(ah)) {
+		u32 val;
+		val = REG_READ(ah, AR7010_GPIO_IN);
+		return (MS(val, AR7010_GPIO_IN_VAL) & AR_GPIO_BIT(gpio)) == 0;
+	} else if (AR_SREV_9300_20_OR_LATER(ah))
 		return MS_REG_READ(AR9300, gpio) != 0;
 	else if (AR_SREV_9271(ah))
 		return MS_REG_READ(AR9271, gpio) != 0;
@@ -2332,10 +2366,16 @@ void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 {
 	u32 gpio_shift;
 
+	if (AR_DEVID_7010(ah)) {
+		gpio_shift = gpio;
+		REG_RMW(ah, AR7010_GPIO_OE,
+			(AR7010_GPIO_OE_AS_OUTPUT << gpio_shift),
+			(AR7010_GPIO_OE_MASK << gpio_shift));
+		return;
+	}
+
 	ath9k_hw_gpio_cfg_output_mux(ah, gpio, ah_signal_type);
-
 	gpio_shift = 2 * gpio;
-
 	REG_RMW(ah,
 		AR_GPIO_OE_OUT,
 		(AR_GPIO_OE_OUT_DRV_ALL << gpio_shift),
@@ -2345,6 +2385,13 @@ EXPORT_SYMBOL(ath9k_hw_cfg_output);
 
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 {
+	if (AR_DEVID_7010(ah)) {
+		val = val ? 0 : 1;
+		REG_RMW(ah, AR7010_GPIO_OUT, ((val&1) << gpio),
+			AR_GPIO_BIT(gpio));
+		return;
+	}
+
 	if (AR_SREV_9271(ah))
 		val = ~val;
 

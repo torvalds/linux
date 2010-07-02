@@ -295,6 +295,26 @@ static void ar9003_hw_configpcipowersave(struct ath_hw *ah,
 		/* Several PCIe massages to ensure proper behaviour */
 		if (ah->config.pcie_waen)
 			REG_WRITE(ah, AR_WA, ah->config.pcie_waen);
+		else
+			REG_WRITE(ah, AR_WA, ah->WARegVal);
+	}
+
+	/*
+	 * Configire PCIE after Ini init. SERDES values now come from ini file
+	 * This enables PCIe low power mode.
+	 */
+	if (ah->config.pcieSerDesWrite) {
+		unsigned int i;
+		struct ar5416IniArray *array;
+
+		array = power_off ? &ah->iniPcieSerdes :
+				    &ah->iniPcieSerdesLowPower;
+
+		for (i = 0; i < array->ia_rows; i++) {
+			REG_WRITE(ah,
+				  INI_RA(array, i, 0),
+				  INI_RA(array, i, 1));
+		}
 	}
 }
 

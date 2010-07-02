@@ -1430,10 +1430,10 @@ static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
 		return -EFAULT;
 	if (sscanf(buf, "%d", &plcp) != 1)
 		return -EINVAL;
-	if ((plcp <= IWL_MAX_PLCP_ERR_THRESHOLD_MIN) ||
+	if ((plcp < IWL_MAX_PLCP_ERR_THRESHOLD_MIN) ||
 		(plcp > IWL_MAX_PLCP_ERR_THRESHOLD_MAX))
 		priv->cfg->plcp_delta_threshold =
-			IWL_MAX_PLCP_ERR_THRESHOLD_DEF;
+			IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE;
 	else
 		priv->cfg->plcp_delta_threshold = plcp;
 	return count;

@@ -520,8 +520,9 @@ static int rndis_scan(struct wiphy *wiphy, struct net_device *dev,
 
 static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed);
 
-static int rndis_set_tx_power(struct wiphy *wiphy, enum tx_power_setting type,
-				int dbm);
+static int rndis_set_tx_power(struct wiphy *wiphy,
+			      enum nl80211_tx_power_setting type,
+			      int mbm);
 static int rndis_get_tx_power(struct wiphy *wiphy, int *dbm);
 
 static int rndis_connect(struct wiphy *wiphy, struct net_device *dev,
@@ -1856,20 +1857,25 @@ static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	return 0;
 }
 
-static int rndis_set_tx_power(struct wiphy *wiphy, enum tx_power_setting type,
-				int dbm)
+static int rndis_set_tx_power(struct wiphy *wiphy,
+			      enum nl80211_tx_power_setting type,
+			      int mbm)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;
 
-	netdev_dbg(usbdev->net, "%s(): type:0x%x dbm:%i\n",
-		   __func__, type, dbm);
+	netdev_dbg(usbdev->net, "%s(): type:0x%x mbm:%i\n",
+		   __func__, type, mbm);
+
+	if (mbm < 0 || (mbm % 100))
+		return -ENOTSUPP;
 
 	/* Device doesn't support changing txpower after initialization, only
 	 * turn off/on radio. Support 'auto' mode and setting same dBm that is
 	 * currently used.
 	 */
-	if (type == TX_POWER_AUTOMATIC || dbm == get_bcm4320_power_dbm(priv)) {
+	if (type == NL80211_TX_POWER_AUTOMATIC ||
+	    MBM_TO_DBM(mbm) == get_bcm4320_power_dbm(priv)) {
 		if (!priv->radio_on)
 			disassociate(usbdev, true); /* turn on radio */
 

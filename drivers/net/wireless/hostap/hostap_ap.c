@@ -688,7 +688,7 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 	struct ap_data *ap = data;
 	struct net_device *dev = ap->local->dev;
 	struct ieee80211_hdr *hdr;
-	u16 fc, status;
+	u16 status;
 	__le16 *pos;
 	struct sta_info *sta = NULL;
 	char *txt = NULL;
@@ -699,7 +699,6 @@ static void hostap_ap_tx_cb_assoc(struct sk_buff *skb, int ok, void *data)
 	}
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	fc = le16_to_cpu(hdr->frame_control);
 	if ((!ieee80211_is_assoc_resp(hdr->frame_control) &&
 	     !ieee80211_is_reassoc_resp(hdr->frame_control)) ||
 	    skb->len < IEEE80211_MGMT_HDR_LEN + 4) {

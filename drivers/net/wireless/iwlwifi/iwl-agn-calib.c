@@ -96,17 +96,16 @@ int iwl_send_calib_results(struct iwl_priv *priv)
 			hcmd.len = priv->calib_results[i].buf_len;
 			hcmd.data = priv->calib_results[i].buf;
 			ret = iwl_send_cmd_sync(priv, &hcmd);
-			if (ret)
-				goto err;
+			if (ret) {
+				IWL_ERR(priv, "Error %d iteration %d\n",
+					ret, i);
+				break;
+			}
 		}
 	}
 
-	return 0;
-err:
-	IWL_ERR(priv, "Error %d iteration %d\n", ret, i);
 	return ret;
 }
-EXPORT_SYMBOL(iwl_send_calib_results);
 
 int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
 {
@@ -121,7 +120,6 @@ int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
 	memcpy(res->buf, buf, len);
 	return 0;
 }
-EXPORT_SYMBOL(iwl_calib_set);
 
 void iwl_calib_free_results(struct iwl_priv *priv)
 {
@@ -133,7 +131,6 @@ void iwl_calib_free_results(struct iwl_priv *priv)
 		priv->calib_results[i].buf_len = 0;
 	}
 }
-EXPORT_SYMBOL(iwl_calib_free_results);
 
 /*****************************************************************************
  * RUNTIME calibrations framework
@@ -533,7 +530,6 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	ret |= iwl_sensitivity_write(priv);
 	IWL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
 }
-EXPORT_SYMBOL(iwl_init_sensitivity);
 
 void iwl_sensitivity_calibration(struct iwl_priv *priv,
 				    struct iwl_notif_statistics *resp)
@@ -639,7 +635,6 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	iwl_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
 	iwl_sensitivity_write(priv);
 }
-EXPORT_SYMBOL(iwl_sensitivity_calibration);
 
 static inline u8 find_first_chain(u8 mask)
 {
@@ -848,10 +843,10 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 
 	if (active_chains != priv->hw_params.valid_rx_ant &&
 	    active_chains != priv->chain_noise_data.active_chains)
-		IWL_WARN(priv,
-			 "Detected that not all antennas are connected! "
-			 "Connected: %#x, valid: %#x.\n",
-			 active_chains, priv->hw_params.valid_rx_ant);
+		IWL_DEBUG_CALIB(priv,
+				"Detected that not all antennas are connected! "
+				"Connected: %#x, valid: %#x.\n",
+				active_chains, priv->hw_params.valid_rx_ant);
 
 	/* Save for use within RXON, TX, SCAN commands, etc. */
 	priv->chain_noise_data.active_chains = active_chains;
@@ -897,8 +892,6 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	data->state = IWL_CHAIN_NOISE_DONE;
 	iwl_power_update_mode(priv, false);
 }
-EXPORT_SYMBOL(iwl_chain_noise_calibration);
-
 
 void iwl_reset_run_time_calib(struct iwl_priv *priv)
 {
@@ -915,5 +908,3 @@ void iwl_reset_run_time_calib(struct iwl_priv *priv)
 	 * periodically after association */
 	iwl_send_statistics_request(priv, CMD_ASYNC, true);
 }
-EXPORT_SYMBOL(iwl_reset_run_time_calib);
-

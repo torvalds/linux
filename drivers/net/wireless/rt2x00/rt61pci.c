@@ -2108,7 +2108,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
 			txdesc.retry = 0;
 
-			rt2x00pci_txdone(entry_done, &txdesc);
+			rt2x00lib_txdone(entry_done, &txdesc);
 			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 		}
 
@@ -2135,7 +2135,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 		if (txdesc.retry)
 			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
-		rt2x00pci_txdone(entry, &txdesc);
+		rt2x00lib_txdone(entry, &txdesc);
 	}
 }
 
@@ -2199,6 +2199,12 @@ static irqreturn_t rt61pci_interrupt(int irq, void *dev_instance)
 	 */
 	if (rt2x00_get_field32(reg_mcu, MCU_INT_SOURCE_CSR_TWAKEUP))
 		rt61pci_wakeup(rt2x00dev);
+
+	/*
+	 * 5 - Beacon done interrupt.
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_BEACON_DONE))
+		rt2x00lib_beacondone(rt2x00dev);
 
 	return IRQ_HANDLED;
 }
@@ -2800,7 +2806,6 @@ static const struct rt2x00lib_ops rt61pci_rt2x00_ops = {
 	.reset_tuner		= rt61pci_reset_tuner,
 	.link_tuner		= rt61pci_link_tuner,
 	.write_tx_desc		= rt61pci_write_tx_desc,
-	.write_tx_data		= rt2x00pci_write_tx_data,
 	.write_beacon		= rt61pci_write_beacon,
 	.kick_tx_queue		= rt61pci_kick_tx_queue,
 	.kill_tx_queue		= rt61pci_kill_tx_queue,

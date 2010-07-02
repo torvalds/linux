@@ -704,6 +704,11 @@
 #define AR_WA_BIT7			(1 << 7)
 #define AR_WA_BIT23			(1 << 23)
 #define AR_WA_D3_L1_DISABLE		(1 << 14)
+#define AR_WA_D3_TO_L1_DISABLE_REAL     (1 << 16)
+#define AR_WA_ASPM_TIMER_BASED_DISABLE  (1 << 17)
+#define AR_WA_RESET_EN                  (1 << 18) /* Sw Control to enable PCI-Reset to POR (bit 15) */
+#define AR_WA_ANALOG_SHIFT              (1 << 20)
+#define AR_WA_POR_SHORT                 (1 << 21) /* PCI-E Phy reset control */
 #define AR9285_WA_DEFAULT		0x004a050b
 #define AR9280_WA_DEFAULT           	0x0040073b
 #define AR_WA_DEFAULT               	0x0000073f
@@ -877,6 +882,7 @@
 #define AR_SREV_9271_11(_ah) \
     (AR_SREV_9271(_ah) && \
      ((_ah)->hw_version.macRev == AR_SREV_REVISION_9271_11))
+
 #define AR_SREV_9300(_ah) \
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9300))
 #define AR_SREV_9300_20(_ah) \
@@ -890,6 +896,10 @@
 #define AR_SREV_9285E_20(_ah) \
     (AR_SREV_9285_12_OR_LATER(_ah) && \
      ((REG_READ(_ah, AR_AN_SYNTH9) & 0x7) == 0x1))
+
+#define AR_DEVID_7010(_ah) \
+	(((_ah)->hw_version.devid == 0x7010) || \
+	 ((_ah)->hw_version.devid == 0x9018))
 
 #define AR_RADIO_SREV_MAJOR                   0xf0
 #define AR_RAD5133_SREV_MAJOR                 0xc0
@@ -988,6 +998,7 @@ enum {
 #define AR9287_NUM_GPIO                          11
 #define AR9271_NUM_GPIO                          16
 #define AR9300_NUM_GPIO                          17
+#define AR7010_NUM_GPIO                          16
 
 #define AR_GPIO_IN_OUT                           0x4048
 #define AR_GPIO_IN_VAL                           0x0FFFC000
@@ -1002,6 +1013,8 @@ enum {
 #define AR9271_GPIO_IN_VAL_S                     16
 #define AR9300_GPIO_IN_VAL                       0x0001FFFF
 #define AR9300_GPIO_IN_VAL_S                     0
+#define AR7010_GPIO_IN_VAL                       0x0000FFFF
+#define AR7010_GPIO_IN_VAL_S                     0
 
 #define AR_GPIO_OE_OUT                           (AR_SREV_9300_20_OR_LATER(ah) ? 0x4050 : 0x404c)
 #define AR_GPIO_OE_OUT_DRV                       0x3
@@ -1009,6 +1022,21 @@ enum {
 #define AR_GPIO_OE_OUT_DRV_LOW                   0x1
 #define AR_GPIO_OE_OUT_DRV_HI                    0x2
 #define AR_GPIO_OE_OUT_DRV_ALL                   0x3
+
+#define AR7010_GPIO_OE                           0x52000
+#define AR7010_GPIO_OE_MASK                      0x1
+#define AR7010_GPIO_OE_AS_OUTPUT                 0x0
+#define AR7010_GPIO_OE_AS_INPUT                  0x1
+#define AR7010_GPIO_IN                           0x52004
+#define AR7010_GPIO_OUT                          0x52008
+#define AR7010_GPIO_SET                          0x5200C
+#define AR7010_GPIO_CLEAR                        0x52010
+#define AR7010_GPIO_INT                          0x52014
+#define AR7010_GPIO_INT_TYPE                     0x52018
+#define AR7010_GPIO_INT_POLARITY                 0x5201C
+#define AR7010_GPIO_PENDING                      0x52020
+#define AR7010_GPIO_INT_MASK                     0x52024
+#define AR7010_GPIO_FUNCTION                     0x52028
 
 #define AR_GPIO_INTR_POL                         (AR_SREV_9300_20_OR_LATER(ah) ? 0x4058 : 0x4050)
 #define AR_GPIO_INTR_POL_VAL                     0x0001FFFF

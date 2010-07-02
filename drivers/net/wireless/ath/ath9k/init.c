@@ -33,6 +33,10 @@ int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
+int led_blink = 1;
+module_param_named(blink, led_blink, int, 0444);
+MODULE_PARM_DESC(blink, "Enable LED blink on activity");
+
 /* We use the hw_value as an index into our private channel structure */
 
 #define CHAN2G(_freq, _idx)  { \

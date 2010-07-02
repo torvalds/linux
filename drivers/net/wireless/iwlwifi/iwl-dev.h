@@ -1036,11 +1036,12 @@ struct iwl_event_log {
  * This is the threshold value of plcp error rate per 100mSecs.  It is
  * used to set and check for the validity of plcp_delta.
  */
-#define IWL_MAX_PLCP_ERR_THRESHOLD_MIN	(0)
+#define IWL_MAX_PLCP_ERR_THRESHOLD_MIN	(1)
 #define IWL_MAX_PLCP_ERR_THRESHOLD_DEF	(50)
 #define IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF	(100)
 #define IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF	(200)
 #define IWL_MAX_PLCP_ERR_THRESHOLD_MAX	(255)
+#define IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE	(0)
 
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
@@ -1224,13 +1225,6 @@ struct iwl_priv {
 	struct iwl_power_mgr power_data;
 	struct iwl_tt_mgmt thermal_throttle;
 
-	struct iwl_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct iwl_notif_statistics accum_statistics;
-	struct iwl_notif_statistics delta_statistics;
-	struct iwl_notif_statistics max_delta;
-#endif
-
 	/* context information */
 	u8 bssid[ETH_ALEN]; /* used only on 3945 but filled by core */
 
@@ -1323,6 +1317,13 @@ struct iwl_priv {
 
 			u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 			u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+
+			struct iwl_notif_statistics statistics;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+			struct iwl_notif_statistics accum_statistics;
+			struct iwl_notif_statistics delta_statistics;
+			struct iwl_notif_statistics max_delta;
+#endif
 		} _agn;
 #endif
 	};

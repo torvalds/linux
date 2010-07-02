@@ -157,6 +157,8 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 			BIT(IWL_CALIB_TX_IQ) 		|
 			BIT(IWL_CALIB_TX_IQ_PERD)	|
 			BIT(IWL_CALIB_BASE_BAND);
+	if (priv->cfg->need_dc_calib)
+		priv->hw_params.calib_init_cfg |= BIT(IWL_CALIB_DC);
 
 	priv->hw_params.beacon_time_tsf_bits = IWLAGN_EXT_BEACON_TIME_POS;
 
@@ -215,6 +217,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,

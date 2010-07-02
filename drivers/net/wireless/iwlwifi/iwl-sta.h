@@ -60,6 +60,7 @@ void iwl_restore_stations(struct iwl_priv *priv);
 void iwl_clear_ucode_stations(struct iwl_priv *priv);
 int iwl_alloc_bcast_station(struct iwl_priv *priv, bool init_lq);
 void iwl_dealloc_bcast_station(struct iwl_priv *priv);
+int iwl_update_bcast_station(struct iwl_priv *priv);
 int iwl_get_free_ucode_key_index(struct iwl_priv *priv);
 int iwl_send_add_sta(struct iwl_priv *priv,
 		     struct iwl_addsta_cmd *sta, u8 flags);
@@ -73,7 +74,7 @@ int iwl_remove_station(struct iwl_priv *priv, const u8 sta_id,
 		       const u8 *addr);
 int iwl_mac_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta);
-void iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
+int iwl_sta_tx_modify_enable_tid(struct iwl_priv *priv, int sta_id, int tid);
 int iwl_sta_rx_agg_start(struct iwl_priv *priv, struct ieee80211_sta *sta,
 			 int tid, u16 ssn);
 int iwl_sta_rx_agg_stop(struct iwl_priv *priv, struct ieee80211_sta *sta,

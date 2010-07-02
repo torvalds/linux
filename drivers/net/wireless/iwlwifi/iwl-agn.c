@@ -1461,13 +1461,13 @@ bool iwl_good_ack_health(struct iwl_priv *priv,
 
 	actual_ack_cnt_delta =
 		le32_to_cpu(pkt->u.stats.tx.actual_ack_cnt) -
-		le32_to_cpu(priv->statistics.tx.actual_ack_cnt);
+		le32_to_cpu(priv->_agn.statistics.tx.actual_ack_cnt);
 	expected_ack_cnt_delta =
 		le32_to_cpu(pkt->u.stats.tx.expected_ack_cnt) -
-		le32_to_cpu(priv->statistics.tx.expected_ack_cnt);
+		le32_to_cpu(priv->_agn.statistics.tx.expected_ack_cnt);
 	ba_timeout_delta =
 		le32_to_cpu(pkt->u.stats.tx.agg.ba_timeout) -
-		le32_to_cpu(priv->statistics.tx.agg.ba_timeout);
+		le32_to_cpu(priv->_agn.statistics.tx.agg.ba_timeout);
 	if ((priv->_agn.agg_tids_count > 0) &&
 	    (expected_ack_cnt_delta > 0) &&
 	    (((actual_ack_cnt_delta * 100) / expected_ack_cnt_delta)
@@ -1484,10 +1484,10 @@ bool iwl_good_ack_health(struct iwl_priv *priv,
 		 * DEBUG is not, these will just compile out.
 		 */
 		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta = %d\n",
-				priv->delta_statistics.tx.rx_detected_cnt);
+				priv->_agn.delta_statistics.tx.rx_detected_cnt);
 		IWL_DEBUG_RADIO(priv,
 				"ack_or_ba_timeout_collision delta = %d\n",
-				priv->delta_statistics.tx.
+				priv->_agn.delta_statistics.tx.
 				ack_or_ba_timeout_collision);
 #endif
 		IWL_DEBUG_RADIO(priv, "agg ba_timeout delta = %d\n",
@@ -2310,9 +2310,9 @@ void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	trace_iwlwifi_dev_ucode_error(priv, desc, time, data1, data2, line,
 				      blink1, blink2, ilink1, ilink2);
 
-	IWL_ERR(priv, "Desc                               Time       "
+	IWL_ERR(priv, "Desc                                  Time       "
 		"data1      data2      line\n");
-	IWL_ERR(priv, "%-28s (#%02d) %010u 0x%08X 0x%08X %u\n",
+	IWL_ERR(priv, "%-28s (0x%04X) %010u 0x%08X 0x%08X %u\n",
 		desc_lookup(desc), desc, time, data1, data2, line);
 	IWL_ERR(priv, "pc      blink1  blink2  ilink1  ilink2  hcmd\n");
 	IWL_ERR(priv, "0x%05X 0x%05X 0x%05X 0x%05X 0x%05X 0x%05X\n",
@@ -2935,9 +2935,9 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		iwl_chain_noise_calibration(priv, &priv->statistics);
+		iwl_chain_noise_calibration(priv, &priv->_agn.statistics);
 
-		iwl_sensitivity_calibration(priv, &priv->statistics);
+		iwl_sensitivity_calibration(priv, &priv->_agn.statistics);
 	}
 
 	mutex_unlock(&priv->mutex);
@@ -3368,13 +3368,32 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
+/*
+ * switch to RTS/CTS for TX
+ */
+static void iwl_enable_rts_cts(struct iwl_priv *priv)
+{
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	priv->staging_rxon.flags &= ~RXON_FLG_SELF_CTS_EN;
+	if (!test_bit(STATUS_SCANNING, &priv->status)) {
+		IWL_DEBUG_INFO(priv, "use RTS/CTS protection\n");
+		iwlcore_commit_rxon(priv);
+	} else {
+		/* scanning, defer the request until scan completed */
+		IWL_DEBUG_INFO(priv, "defer setting RTS/CTS protection\n");
+	}
+}
+
 static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				enum ieee80211_ampdu_mlme_action action,
 				struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_priv *priv = hw->priv;
-	int ret;
+	int ret = -EINVAL;
 
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
@@ -3382,17 +3401,19 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 	if (!(priv->cfg->sku & IWL_SKU_N))
 		return -EACCES;
 
+	mutex_lock(&priv->mutex);
+
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT(priv, "start Rx\n");
-		return iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
+		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
+		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT(priv, "stop Rx\n");
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return 0;
-		else
-			return ret;
+			ret = 0;
+		break;
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
@@ -3401,7 +3422,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
 				     priv->_agn.agg_tids_count);
 		}
-		return ret;
+		break;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
 		ret = iwlagn_tx_agg_stop(priv, vif, sta, tid);
@@ -3411,18 +3432,22 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 				     priv->_agn.agg_tids_count);
 		}
 		if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-			return 0;
-		else
-			return ret;
+			ret = 0;
+		break;
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
-		/* do nothing */
-		return -EOPNOTSUPP;
-	default:
-		IWL_DEBUG_HT(priv, "unknown\n");
-		return -EINVAL;
+		if (priv->cfg->use_rts_for_ht) {
+			/*
+			 * switch to RTS/CTS if it is the prefer protection
+			 * method for HT traffic
+			 */
+			iwl_enable_rts_cts(priv);
+		}
+		ret = 0;
 		break;
 	}
-	return 0;
+	mutex_unlock(&priv->mutex);
+
+	return ret;
 }
 
 static void iwl_mac_sta_notify(struct ieee80211_hw *hw,

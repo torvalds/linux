@@ -178,11 +178,6 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 		return;
 
 	/*
-	 * Remove the descriptor from the front of the skb.
-	 */
-	skb_pull(entry->skb, entry->queue->desc_size);
-
-	/*
 	 * Obtain the status about this packet.
 	 * Note that when the status is 0 it does not mean the
 	 * frame was send out correctly. It only means the frame
@@ -201,48 +196,28 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	rt2x00lib_txdone(entry, &txdesc);
 }
 
-int rt2x00usb_write_tx_data(struct queue_entry *entry,
-			    struct txentry_desc *txdesc)
+static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 	u32 length;
 
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(entry->skb, entry->queue->desc_size);
-	memset(entry->skb->data, 0, entry->queue->desc_size);
+	if (test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags)) {
+		/*
+		 * USB devices cannot blindly pass the skb->len as the
+		 * length of the data to usb_fill_bulk_urb. Pass the skb
+		 * to the driver to determine what the length should be.
+		 */
+		length = rt2x00dev->ops->lib->get_tx_data_len(entry);
 
-	/*
-	 * USB devices cannot blindly pass the skb->len as the
-	 * length of the data to usb_fill_bulk_urb. Pass the skb
-	 * to the driver to determine what the length should be.
-	 */
-	length = rt2x00dev->ops->lib->get_tx_data_len(entry);
+		usb_fill_bulk_urb(entry_priv->urb, usb_dev,
+				  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
+				  entry->skb->data, length,
+				  rt2x00usb_interrupt_txdone, entry);
 
-	usb_fill_bulk_urb(entry_priv->urb, usb_dev,
-			  usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint),
-			  entry->skb->data, length,
-			  rt2x00usb_interrupt_txdone, entry);
-
-	/*
-	 * Call the driver's write_tx_datadesc function, if it exists.
-	 */
-	if (rt2x00dev->ops->lib->write_tx_datadesc)
-		rt2x00dev->ops->lib->write_tx_datadesc(entry, txdesc);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(rt2x00usb_write_tx_data);
-
-static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
-{
-	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
-
-	if (test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
 		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
+	}
 }
 
 void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,

@@ -99,8 +99,7 @@ static void rt2800_bbp_write(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 0);
-		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
-			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
+		rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
 	}
@@ -128,8 +127,7 @@ static void rt2800_bbp_read(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 1);
-		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
-			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
+		rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
 
@@ -432,6 +430,20 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 }
 EXPORT_SYMBOL(rt2800_write_beacon);
 
+static void inline rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
+				       unsigned int beacon_base)
+{
+	int i;
+
+	/*
+	 * For the Beacon base registers we only need to clear
+	 * the whole TXWI which (when set to 0) will invalidate
+	 * the entire beacon.
+	 */
+	for (i = 0; i < TXWI_DESC_SIZE; i += sizeof(__le32))
+		rt2800_register_write(rt2x00dev, beacon_base + i, 0);
+}
+
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 const struct rt2x00debug rt2800_rt2x00debug = {
 	.owner	= THIS_MODULE,
@@ -733,19 +745,14 @@ EXPORT_SYMBOL_GPL(rt2800_config_filter);
 void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 			struct rt2x00intf_conf *conf, const unsigned int flags)
 {
-	unsigned int beacon_base;
 	u32 reg;
 
 	if (flags & CONFIG_UPDATE_TYPE) {
 		/*
 		 * Clear current synchronisation setup.
-		 * For the Beacon base registers we only need to clear
-		 * the first byte since that byte contains the VALID and OWNER
-		 * bits which (when set to 0) will invalidate the entire beacon.
 		 */
-		beacon_base = HW_BEACON_OFFSET(intf->beacon->entry_idx);
-		rt2800_register_write(rt2x00dev, beacon_base, 0);
-
+		rt2800_clear_beacon(rt2x00dev,
+				    HW_BEACON_OFFSET(intf->beacon->entry_idx));
 		/*
 		 * Enable synchronisation.
 		 */
@@ -768,8 +775,8 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 
 	if (flags & CONFIG_UPDATE_BSSID) {
 		reg = le32_to_cpu(conf->bssid[1]);
-		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 0);
-		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 0);
+		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_ID_MASK, 3);
+		rt2x00_set_field32(&reg, MAC_BSSID_DW1_BSS_BCN_NUM, 7);
 		conf->bssid[1] = cpu_to_le32(reg);
 
 		rt2800_register_multiwrite(rt2x00dev, MAC_BSSID_DW0,
@@ -827,14 +834,12 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 	switch ((int)ant->tx) {
 	case 1:
 		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 0);
-		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
-			rt2x00_set_field8(&r3, BBP3_RX_ANTENNA, 0);
 		break;
 	case 2:
 		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 2);
 		break;
 	case 3:
-		/* Do nothing */
+		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 0);
 		break;
 	}
 
@@ -1565,18 +1570,15 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	/*
 	 * Clear all beacons
-	 * For the Beacon base registers we only need to clear
-	 * the first byte since that byte contains the VALID and OWNER
-	 * bits which (when set to 0) will invalidate the entire beacon.
 	 */
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE0, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE1, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE2, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE3, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE4, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE5, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE6, 0);
-	rt2800_register_write(rt2x00dev, HW_BEACON_BASE7, 0);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE0);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE1);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE2);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE3);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE4);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE5);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE6);
+	rt2800_clear_beacon(rt2x00dev, HW_BEACON_BASE7);
 
 	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_read(rt2x00dev, US_CYC_CNT, &reg);
@@ -2185,6 +2187,8 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_NIC_WPS_PBC, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_BG, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_BW40M_A, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_ANT_DIVERSITY, 0);
+		rt2x00_set_field16(&word, EEPROM_NIC_DAC_TEST, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC, word);
 		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
@@ -2192,6 +2196,10 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_FREQ, &word);
 	if ((word & 0x00ff) == 0x00ff) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_OFFSET, 0);
+		rt2x00_eeprom_write(rt2x00dev, EEPROM_FREQ, word);
+		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
+	}
+	if ((word & 0xff00) == 0xff00) {
 		rt2x00_set_field16(&word, EEPROM_FREQ_LED_MODE,
 				   LED_MODE_TXRX_ACTIVITY);
 		rt2x00_set_field16(&word, EEPROM_FREQ_LED_POLARITY, 0);
@@ -2199,7 +2207,7 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED1, 0x5555);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED2, 0x2221);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_LED3, 0xa9f8);
-		EEPROM(rt2x00dev, "Freq: 0x%04x\n", word);
+		EEPROM(rt2x00dev, "Led Mode: 0x%04x\n", word);
 	}
 
 	/*
@@ -2499,7 +2507,8 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 	    IEEE80211_HW_SIGNAL_DBM |
 	    IEEE80211_HW_SUPPORTS_PS |
-	    IEEE80211_HW_PS_NULLFUNC_STACK;
+	    IEEE80211_HW_PS_NULLFUNC_STACK |
+	    IEEE80211_HW_AMPDU_AGGREGATION;
 
 	SET_IEEE80211_DEV(rt2x00dev->hw, rt2x00dev->dev);
 	SET_IEEE80211_PERM_ADDR(rt2x00dev->hw,
@@ -2559,11 +2568,14 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 	    IEEE80211_HT_CAP_GRN_FLD |
 	    IEEE80211_HT_CAP_SGI_20 |
-	    IEEE80211_HT_CAP_SGI_40 |
-	    IEEE80211_HT_CAP_RX_STBC;
+	    IEEE80211_HT_CAP_SGI_40;
 
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) >= 2)
 		spec->ht.cap |= IEEE80211_HT_CAP_TX_STBC;
+
+	spec->ht.cap |=
+	    rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RXPATH) <<
+		IEEE80211_HT_CAP_RX_STBC_SHIFT;
 
 	spec->ht.ampdu_factor = 3;
 	spec->ht.ampdu_density = 4;
@@ -2751,6 +2763,35 @@ static u64 rt2800_get_tsf(struct ieee80211_hw *hw)
 	return tsf;
 }
 
+static int rt2800_ampdu_action(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       enum ieee80211_ampdu_mlme_action action,
+			       struct ieee80211_sta *sta,
+			       u16 tid, u16 *ssn)
+{
+	int ret = 0;
+
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+	case IEEE80211_AMPDU_RX_STOP:
+		/* we don't support RX aggregation yet */
+		ret = -ENOTSUPP;
+		break;
+	case IEEE80211_AMPDU_TX_START:
+		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_STOP:
+		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
+		break;
+	case IEEE80211_AMPDU_TX_OPERATIONAL:
+		break;
+	default:
+		WARNING((struct rt2x00_dev *)hw->priv, "Unknown AMPDU action\n");
+	}
+
+	return ret;
+}
+
 const struct ieee80211_ops rt2800_mac80211_ops = {
 	.tx			= rt2x00mac_tx,
 	.start			= rt2x00mac_start,
@@ -2768,6 +2809,7 @@ const struct ieee80211_ops rt2800_mac80211_ops = {
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.ampdu_action		= rt2800_ampdu_action,
 };
 EXPORT_SYMBOL_GPL(rt2800_mac80211_ops);
 

@@ -7,8 +7,8 @@
 #define _LBS_DEV_H_
 
 #include "mesh.h"
-#include "scan.h"
-#include "assoc.h"
+#include "defs.h"
+#include "host.h"
 
 #include <linux/kfifo.h>
 
@@ -29,7 +29,6 @@ struct lbs_private {
 	/* Basic networking */
 	struct net_device *dev;
 	u32 connect_status;
-	int infra_open;
 	struct work_struct mcast_work;
 	u32 nr_of_multicastmacaddr;
 	u8 multicastlist[MRVDRV_MAX_MULTICAST_LIST_SIZE][ETH_ALEN];
@@ -37,6 +36,9 @@ struct lbs_private {
 	/* CFG80211 */
 	struct wireless_dev *wdev;
 	bool wiphy_registered;
+	struct cfg80211_scan_request *scan_req;
+	u8 assoc_bss[ETH_ALEN];
+	u8 disassoc_reason;
 
 	/* Mesh */
 	struct net_device *mesh_dev; /* Virtual device */
@@ -49,10 +51,6 @@ struct lbs_private {
 	u8 mesh_ssid_len;
 #endif
 
-	/* Monitor mode */
-	struct net_device *rtap_net_dev;
-	u32 monitormode;
-
 	/* Debugfs */
 	struct dentry *debugfs_dir;
 	struct dentry *debugfs_debug;
@@ -61,6 +59,9 @@ struct lbs_private {
 	struct dentry *debugfs_events_files[6];
 	struct dentry *regs_dir;
 	struct dentry *debugfs_regs_files[6];
+
+	/** 11D and domain regulatory data */
+	struct lbs_802_11d_domain_reg domain_reg;
 
 	/* Hardware debugging */
 	u32 mac_offset;
@@ -133,14 +134,10 @@ struct lbs_private {
 	struct workqueue_struct *work_thread;
 
 	/** Encryption stuff */
-	struct lbs_802_11_security secinfo;
-	struct enc_key wpa_mcast_key;
-	struct enc_key wpa_unicast_key;
-	u8 wpa_ie[MAX_WPA_IE_LEN];
-	u8 wpa_ie_len;
-	u16 wep_tx_keyidx;
-	struct enc_key wep_keys[4];
 	u8 authtype_auto;
+	u8 wep_tx_key;
+	u8 wep_key[4][WLAN_KEY_LEN_WEP104];
+	u8 wep_key_len[4];
 
 	/* Wake On LAN */
 	uint32_t wol_criteria;
@@ -161,6 +158,7 @@ struct lbs_private {
 	/* NIC/link operation characteristics */
 	u16 mac_control;
 	u8 radio_on;
+	u8 cur_rate;
 	u8 channel;
 	s16 txpower_cur;
 	s16 txpower_min;
@@ -169,42 +167,6 @@ struct lbs_private {
 	/** Scanning */
 	struct delayed_work scan_work;
 	int scan_channel;
-	/* remember which channel was scanned last, != 0 if currently scanning */
-	u8 scan_ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 scan_ssid_len;
-
-	/* Associating */
-	struct delayed_work assoc_work;
-	struct current_bss_params curbssparams;
-	u8 mode;
-	struct list_head network_list;
-	struct list_head network_free_list;
-	struct bss_descriptor *networks;
-	struct assoc_request * pending_assoc_req;
-	struct assoc_request * in_progress_assoc_req;
-	uint16_t enablehwauto;
-
-	/* ADHOC */
-	u16 beacon_period;
-	u8 beacon_enable;
-	u8 adhoccreate;
-
-	/* WEXT */
-	char name[DEV_NAME_LEN];
-	u8 nodename[16];
-	struct iw_statistics wstats;
-	u8 cur_rate;
-#define	MAX_REGION_CHANNEL_NUM	2
-	struct region_channel region_channel[MAX_REGION_CHANNEL_NUM];
-
-	/** Requested Signal Strength*/
-	u16 SNR[MAX_TYPE_B][MAX_TYPE_AVG];
-	u16 NF[MAX_TYPE_B][MAX_TYPE_AVG];
-	u8 RSSI[MAX_TYPE_B][MAX_TYPE_AVG];
-	u8 rawSNR[DEFAULT_DATA_AVG_FACTOR];
-	u8 rawNF[DEFAULT_DATA_AVG_FACTOR];
-	u16 nextSNRNF;
-	u16 numSNRNF;
 };
 
 extern struct cmd_confirm_sleep confirm_sleep;

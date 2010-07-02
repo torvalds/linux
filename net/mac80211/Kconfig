@@ -69,6 +69,7 @@ endchoice
 
 config MAC80211_RC_DEFAULT
 	string
+	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL && MAC80211_RC_MINSTREL_HT
 	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
 	default "pid" if MAC80211_RC_DEFAULT_PID
 	default ""

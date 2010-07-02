@@ -235,6 +235,7 @@ struct ath9k_ops_config {
 	int ack_6mb;
 	u32 cwm_ignore_extcca;
 	u8 pcie_powersave_enable;
+	bool pcieSerDesWrite;
 	u8 pcie_clock_req;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
@@ -819,6 +820,12 @@ struct ath_hw {
 
 	u32 paprd_gain_table_entries[PAPRD_GAIN_TABLE_ENTRIES];
 	u8 paprd_gain_table_index[PAPRD_GAIN_TABLE_ENTRIES];
+	/*
+	 * Store the permanent value of Reg 0x4004in WARegVal
+	 * so we dont have to R/M/W. We should not be reading
+	 * this register when in sleep states.
+	 */
+	u32 WARegVal;
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -852,11 +859,9 @@ u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
 /* Key Cache Management */
 bool ath9k_hw_keyreset(struct ath_hw *ah, u16 entry);
-bool ath9k_hw_keysetmac(struct ath_hw *ah, u16 entry, const u8 *mac);
 bool ath9k_hw_set_keycache_entry(struct ath_hw *ah, u16 entry,
 				 const struct ath9k_keyval *k,
 				 const u8 *mac);
-bool ath9k_hw_keyisvalid(struct ath_hw *ah, u16 entry);
 
 /* GPIO / RFKILL / Antennae */
 void ath9k_hw_cfg_gpio_input(struct ath_hw *ah, u32 gpio);

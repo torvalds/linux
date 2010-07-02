@@ -268,7 +268,6 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int time_left;
 	int i;
 
-	ath9k_ps_wakeup(sc);
 	skb = alloc_skb(len, GFP_KERNEL);
 	if (!skb)
 		return;
@@ -289,6 +288,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	qnum = sc->tx.hwq_map[WME_AC_BE];
 	txctl.txq = &sc->tx.txq[qnum];
 
+	ath9k_ps_wakeup(sc);
 	ar9003_paprd_init_table(ah);
 	for (chain = 0; chain < AR9300_MAX_CHAINS; chain++) {
 		if (!(ah->caps.tx_chainmask & BIT(chain)))
@@ -310,13 +310,13 @@ void ath_paprd_calibrate(struct work_struct *work)
 			break;
 
 		time_left = wait_for_completion_timeout(&sc->paprd_complete,
-							100);
+				msecs_to_jiffies(ATH_PAPRD_TIMEOUT));
 		if (!time_left) {
 			ath_print(ath9k_hw_common(ah), ATH_DBG_CALIBRATE,
 				  "Timeout waiting for paprd training on "
 				  "TX chain %d\n",
 				  chain);
-			break;
+			goto fail_paprd;
 		}
 
 		if (!ar9003_paprd_is_done(ah))
@@ -334,6 +334,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 		ath_paprd_activate(sc);
 	}
 
+fail_paprd:
 	ath9k_ps_restore(sc);
 }
 
@@ -451,6 +452,10 @@ static void ath_start_ani(struct ath_common *common)
 {
 	struct ath_hw *ah = common->ah;
 	unsigned long timestamp = jiffies_to_msecs(jiffies);
+	struct ath_softc *sc = (struct ath_softc *) common->priv;
+
+	if (!(sc->sc_flags & SC_OP_ANI_RUN))
+		return;
 
 	common->ani.longcal_timer = timestamp;
 	common->ani.shortcal_timer = timestamp;
@@ -766,11 +771,13 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 		/* Reset rssi stats */
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
+		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
 	} else {
 		ath_print(common, ATH_DBG_CONFIG, "Bss Info DISASSOC\n");
 		common->curaid = 0;
 		/* Stop ANI */
+		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
 	}
 }
@@ -1241,7 +1248,9 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 
 	aphy->state = ATH_WIPHY_INACTIVE;
 
-	cancel_delayed_work_sync(&sc->ath_led_blink_work);
+	if (led_blink)
+		cancel_delayed_work_sync(&sc->ath_led_blink_work);
+
 	cancel_delayed_work_sync(&sc->tx_complete_work);
 	cancel_work_sync(&sc->paprd_work);
 
@@ -1374,8 +1383,10 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 
 	if (vif->type == NL80211_IFTYPE_AP    ||
 	    vif->type == NL80211_IFTYPE_ADHOC ||
-	    vif->type == NL80211_IFTYPE_MONITOR)
+	    vif->type == NL80211_IFTYPE_MONITOR) {
+		sc->sc_flags |= SC_OP_ANI_RUN;
 		ath_start_ani(common);
+	}
 
 out:
 	mutex_unlock(&sc->mutex);
@@ -1396,6 +1407,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&sc->mutex);
 
 	/* Stop ANI */
+	sc->sc_flags &= ~SC_OP_ANI_RUN;
 	del_timer_sync(&common->ani.timer);
 
 	/* Reclaim beacon resources */

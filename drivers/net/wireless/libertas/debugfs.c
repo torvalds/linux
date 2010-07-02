@@ -1,18 +1,13 @@
-#include <linux/module.h>
 #include <linux/dcache.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <net/iw_handler.h>
-#include <net/lib80211.h>
 
-#include "dev.h"
 #include "decl.h"
-#include "host.h"
-#include "debugfs.h"
 #include "cmd.h"
+#include "debugfs.h"
 
 static struct dentry *lbs_dir;
 static char *szStates[] = {
@@ -53,51 +48,6 @@ static ssize_t lbs_dev_info(struct file *file, char __user *userbuf,
 				szStates[priv->connect_status]);
 	pos += snprintf(buf+pos, len-pos, "region_code = %02x\n",
 				(u32) priv->regioncode);
-
-	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
-
-	free_page(addr);
-	return res;
-}
-
-
-static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
-				  size_t count, loff_t *ppos)
-{
-	struct lbs_private *priv = file->private_data;
-	size_t pos = 0;
-	int numscansdone = 0, res;
-	unsigned long addr = get_zeroed_page(GFP_KERNEL);
-	char *buf = (char *)addr;
-	DECLARE_SSID_BUF(ssid);
-	struct bss_descriptor * iter_bss;
-	if (!buf)
-		return -ENOMEM;
-
-	pos += snprintf(buf+pos, len-pos,
-		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID\n");
-
-	mutex_lock(&priv->lock);
-	list_for_each_entry (iter_bss, &priv->network_list, list) {
-		u16 ibss = (iter_bss->capability & WLAN_CAPABILITY_IBSS);
-		u16 privacy = (iter_bss->capability & WLAN_CAPABILITY_PRIVACY);
-		u16 spectrum_mgmt = (iter_bss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT);
-
-		pos += snprintf(buf+pos, len-pos, "%02u| %03d | %04d | %pM |",
-			numscansdone, iter_bss->channel, iter_bss->rssi,
-			iter_bss->bssid);
-		pos += snprintf(buf+pos, len-pos, " %04x-", iter_bss->capability);
-		pos += snprintf(buf+pos, len-pos, "%c%c%c |",
-				ibss ? 'A' : 'I', privacy ? 'P' : ' ',
-				spectrum_mgmt ? 'S' : ' ');
-		pos += snprintf(buf+pos, len-pos, " %04d |", SCAN_RSSI(iter_bss->rssi));
-		pos += snprintf(buf+pos, len-pos, " %s\n",
-		                print_ssid(ssid, iter_bss->ssid,
-					   iter_bss->ssid_len));
-
-		numscansdone++;
-	}
-	mutex_unlock(&priv->lock);
 
 	res = simple_read_from_buffer(userbuf, count, ppos, buf, pos);
 
@@ -723,8 +673,6 @@ struct lbs_debugfs_files {
 
 static const struct lbs_debugfs_files debugfs_files[] = {
 	{ "info", 0444, FOPS(lbs_dev_info, write_file_dummy), },
-	{ "getscantable", 0444, FOPS(lbs_getscantable,
-					write_file_dummy), },
 	{ "sleepparams", 0644, FOPS(lbs_sleepparams_read,
 				lbs_sleepparams_write), },
 };

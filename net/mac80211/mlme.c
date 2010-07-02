@@ -478,6 +478,39 @@ static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION ||
+		!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS) ||
+		(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS));
+
+	local->disable_dynamic_ps = false;
+	conf->dynamic_ps_timeout = local->dynamic_ps_user_timeout;
+}
+EXPORT_SYMBOL(ieee80211_enable_dyn_ps);
+
+void ieee80211_disable_dyn_ps(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_conf *conf = &local->hw.conf;
+
+	WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION ||
+		!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS) ||
+		(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS));
+
+	local->disable_dynamic_ps = true;
+	conf->dynamic_ps_timeout = 0;
+	del_timer_sync(&local->dynamic_ps_timer);
+	ieee80211_queue_work(&local->hw,
+			     &local->dynamic_ps_enable_work);
+}
+EXPORT_SYMBOL(ieee80211_disable_dyn_ps);
+
 /* powersave */
 static void ieee80211_enable_ps(struct ieee80211_local *local,
 				struct ieee80211_sub_if_data *sdata)
@@ -553,6 +586,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 	    found->u.mgd.associated->beacon_ies &&
 	    !(found->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
 				    IEEE80211_STA_CONNECTION_POLL))) {
+		struct ieee80211_conf *conf = &local->hw.conf;
 		s32 beaconint_us;
 
 		if (latency < 0)
@@ -575,7 +609,10 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 			else
 				timeout = 100;
 		}
-		local->hw.conf.dynamic_ps_timeout = timeout;
+		local->dynamic_ps_user_timeout = timeout;
+		if (!local->disable_dynamic_ps)
+			conf->dynamic_ps_timeout =
+				local->dynamic_ps_user_timeout;
 
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;

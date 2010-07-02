@@ -139,8 +139,18 @@ static void rt2800pci_read_eeprom_pci(struct rt2x00_dev *rt2x00dev)
 	eeprom.data = rt2x00dev;
 	eeprom.register_read = rt2800pci_eepromregister_read;
 	eeprom.register_write = rt2800pci_eepromregister_write;
-	eeprom.width = !rt2x00_get_field32(reg, E2PROM_CSR_TYPE) ?
-	    PCI_EEPROM_WIDTH_93C46 : PCI_EEPROM_WIDTH_93C66;
+	switch (rt2x00_get_field32(reg, E2PROM_CSR_TYPE))
+	{
+	case 0:
+		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+		break;
+	case 1:
+		eeprom.width = PCI_EEPROM_WIDTH_93C66;
+		break;
+	default:
+		eeprom.width = PCI_EEPROM_WIDTH_93C86;
+		break;
+	}
 	eeprom.reg_data_in = 0;
 	eeprom.reg_data_out = 0;
 	eeprom.reg_data_clock = 0;
@@ -645,10 +655,12 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
-static void rt2800pci_write_tx_datadesc(struct queue_entry* entry,
-					 struct txentry_desc *txdesc)
+static void rt2800pci_write_tx_data(struct queue_entry* entry,
+				    struct txentry_desc *txdesc)
 {
-	rt2800_write_txwi((__le32 *) entry->skb->data, txdesc);
+	__le32 *txwi = (__le32 *) entry->skb->data;
+
+	rt2800_write_txwi(txwi, txdesc);
 }
 
 
@@ -905,7 +917,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		if (txdesc.retry)
 			__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
-		rt2x00pci_txdone(entry, &txdesc);
+		rt2x00lib_txdone(entry, &txdesc);
 	}
 }
 
@@ -940,6 +952,12 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
 		rt2800pci_txdone(rt2x00dev);
+
+	/*
+	 * Current beacon was sent out, fetch the next one
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT))
+		rt2x00lib_beacondone(rt2x00dev);
 
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
 		rt2800pci_wakeup(rt2x00dev);
@@ -1044,8 +1062,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
 	.write_tx_desc		= rt2800pci_write_tx_desc,
-	.write_tx_data		= rt2x00pci_write_tx_data,
-	.write_tx_datadesc	= rt2800pci_write_tx_datadesc,
+	.write_tx_data		= rt2800pci_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.kick_tx_queue		= rt2800pci_kick_tx_queue,
 	.kill_tx_queue		= rt2800pci_kill_tx_queue,

@@ -430,19 +430,22 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 /*
  * TX descriptor initialization
  */
+static void rt2800usb_write_tx_data(struct queue_entry* entry,
+				    struct txentry_desc *txdesc)
+{
+	__le32 *txwi = (__le32 *) (entry->skb->data + TXINFO_DESC_SIZE);
+
+	rt2800_write_txwi(txwi, txdesc);
+}
+
+
 static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct sk_buff *skb,
 				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	__le32 *txi = (__le32 *) skb->data;
-	__le32 *txwi = (__le32 *) (skb->data + TXINFO_DESC_SIZE);
 	u32 word;
-
-	/*
-	 * Initialize TXWI descriptor
-	 */
-	rt2800_write_txwi(txwi, txdesc);
 
 	/*
 	 * Initialize TXINFO descriptor
@@ -652,7 +655,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
-	.write_tx_data		= rt2x00usb_write_tx_data,
+	.write_tx_data		= rt2800usb_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
 	.get_tx_data_len	= rt2800usb_get_tx_data_len,
 	.kick_tx_queue		= rt2x00usb_kick_tx_queue,

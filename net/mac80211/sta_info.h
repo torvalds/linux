@@ -427,20 +427,20 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 {
 }
 
-#define for_each_sta_info(local, _addr, sta, nxt) 			\
+#define for_each_sta_info(local, _addr, _sta, nxt) 			\
 	for (	/* initialise loop */					\
-		sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
-		nxt = sta ? rcu_dereference(sta->hnext) : NULL;		\
+		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
+		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
 		/* typecheck */						\
-		for_each_sta_info_type_check(local, (_addr), sta, nxt),	\
+		for_each_sta_info_type_check(local, (_addr), _sta, nxt),\
 		/* continue condition */				\
-		sta;							\
+		_sta;							\
 		/* advance loop */					\
-		sta = nxt,						\
-		nxt = sta ? rcu_dereference(sta->hnext) : NULL		\
+		_sta = nxt,						\
+		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
 	     )								\
 	/* compare address and run code only if it matches */		\
-	if (memcmp(sta->sta.addr, (_addr), ETH_ALEN) == 0)
+	if (memcmp(_sta->sta.addr, (_addr), ETH_ALEN) == 0)
 
 /*
  * Get STA info by index, BROKEN!

@@ -14,8 +14,6 @@
 #include "rc80211_minstrel.h"
 #include "rc80211_minstrel_ht.h"
 
-extern const struct mcs_group minstrel_mcs_groups[];
-
 static int
 minstrel_ht_stats_open(struct inode *inode, struct file *file)
 {

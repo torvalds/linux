@@ -328,7 +328,8 @@ minstrel_next_sample_idx(struct minstrel_ht_sta *mi)
 }
 
 static void
-minstrel_downgrade_rate(struct minstrel_ht_sta *mi, int *idx, bool primary)
+minstrel_downgrade_rate(struct minstrel_ht_sta *mi, unsigned int *idx,
+			bool primary)
 {
 	int group, orig_group;
 

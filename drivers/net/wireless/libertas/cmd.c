@@ -7,13 +7,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include "host.h"
 #include "decl.h"
-#include "defs.h"
-#include "dev.h"
-#include "assoc.h"
-#include "wext.h"
-#include "scan.h"
+#include "cfg.h"
 #include "cmd.h"
 
 
@@ -176,11 +171,6 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 	memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
 	if (priv->mesh_dev)
 		memcpy(priv->mesh_dev->dev_addr, priv->current_addr, ETH_ALEN);
-
-	if (lbs_set_regiontable(priv, priv->regioncode, 0)) {
-		ret = -1;
-		goto out;
-	}
 
 out:
 	lbs_deb_leave(LBS_DEB_CMD);
@@ -909,6 +899,66 @@ void lbs_set_mac_control(struct lbs_private *priv)
 }
 
 /**
+ *  @brief This function implements command CMD_802_11D_DOMAIN_INFO
+ *  @param priv       pointer to struct lbs_private
+ *  @param cmd        pointer to cmd buffer
+ *  @param cmdno      cmd ID
+ *  @param cmdOption  cmd action
+ *  @return           0
+*/
+int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
+				 struct cmd_ds_command *cmd,
+				 u16 cmdoption)
+{
+	struct cmd_ds_802_11d_domain_info *pdomaininfo =
+	    &cmd->params.domaininfo;
+	struct mrvl_ie_domain_param_set *domain = &pdomaininfo->domain;
+	u8 nr_triplet = priv->domain_reg.no_triplet;
+
+	lbs_deb_enter(LBS_DEB_11D);
+
+	lbs_deb_11d("nr_triplet=%x\n", nr_triplet);
+
+	pdomaininfo->action = cpu_to_le16(cmdoption);
+	if (cmdoption == CMD_ACT_GET) {
+		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
+					sizeof(struct cmd_header));
+		lbs_deb_hex(LBS_DEB_11D, "802_11D_DOMAIN_INFO", (u8 *) cmd,
+			le16_to_cpu(cmd->size));
+		goto done;
+	}
+
+	domain->header.type = cpu_to_le16(TLV_TYPE_DOMAIN);
+	memcpy(domain->countrycode, priv->domain_reg.country_code,
+	       sizeof(domain->countrycode));
+
+	domain->header.len = cpu_to_le16(nr_triplet
+				* sizeof(struct ieee80211_country_ie_triplet)
+				+ sizeof(domain->countrycode));
+
+	if (nr_triplet) {
+		memcpy(domain->triplet, priv->domain_reg.triplet,
+				nr_triplet *
+				sizeof(struct ieee80211_country_ie_triplet));
+
+		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
+					     le16_to_cpu(domain->header.len) +
+					     sizeof(struct mrvl_ie_header) +
+					     sizeof(struct cmd_header));
+	} else {
+		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
+					sizeof(struct cmd_header));
+	}
+
+	lbs_deb_hex(LBS_DEB_11D, "802_11D_DOMAIN_INFO", (u8 *) cmd,
+			le16_to_cpu(cmd->size));
+
+done:
+	lbs_deb_enter(LBS_DEB_11D);
+	return 0;
+}
+
+/**
  *  @brief This function prepare the command before send to firmware.
  *
  *  @param priv		A pointer to struct lbs_private structure
@@ -1005,6 +1055,11 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 		ret = 0;
 		goto done;
+
+	case CMD_802_11D_DOMAIN_INFO:
+		cmdptr->command = cpu_to_le16(cmd_no);
+		ret = lbs_cmd_802_11d_domain_info(priv, cmdptr, cmd_action);
+		break;
 
 	case CMD_802_11_TPC_CFG:
 		cmdptr->command = cpu_to_le16(CMD_802_11_TPC_CFG);
@@ -1325,6 +1380,15 @@ int lbs_execute_next_command(struct lbs_private *priv)
 		 * check if in power save mode, if yes, put the device back
 		 * to PS mode
 		 */
+#ifdef TODO
+		/*
+		 * This was the old code for libertas+wext. Someone that
+		 * understands this beast should re-code it in a sane way.
+		 *
+		 * I actually don't understand why this is related to WPA
+		 * and to connection status, shouldn't powering should be
+		 * independ of such things?
+		 */
 		if ((priv->psmode != LBS802_11POWERMODECAM) &&
 		    (priv->psstate == PS_STATE_FULL_POWER) &&
 		    ((priv->connect_status == LBS_CONNECTED) ||
@@ -1346,6 +1410,7 @@ int lbs_execute_next_command(struct lbs_private *priv)
 				lbs_ps_sleep(priv, 0);
 			}
 		}
+#endif
 	}
 
 	ret = 0;

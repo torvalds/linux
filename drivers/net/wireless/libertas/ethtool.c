@@ -2,13 +2,8 @@
 #include <linux/ethtool.h>
 #include <linux/delay.h>
 
-#include "host.h"
 #include "decl.h"
-#include "defs.h"
-#include "dev.h"
-#include "wext.h"
 #include "cmd.h"
-#include "mesh.h"
 
 
 static void lbs_ethtool_get_drvinfo(struct net_device *dev,

@@ -1580,7 +1580,8 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	u32 R4;
 
 	if (test_bit(STATUS_TEMPERATURE, &priv->status) &&
-		(priv->statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
+	    (priv->_agn.statistics.flag &
+			STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
 		IWL_DEBUG_TEMP(priv, "Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
@@ -1604,8 +1605,8 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	if (!test_bit(STATUS_TEMPERATURE, &priv->status))
 		vt = sign_extend(R4, 23);
 	else
-		vt = sign_extend(
-			le32_to_cpu(priv->statistics.general.temperature), 23);
+		vt = sign_extend(le32_to_cpu(
+				priv->_agn.statistics.general.temperature), 23);
 
 	IWL_DEBUG_TEMP(priv, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
@@ -1785,6 +1786,7 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 {
 	unsigned long flags;
 	u16 ra_tid;
+	int ret;
 
 	if ((IWL49_FIRST_AMPDU_QUEUE > txq_id) ||
 	    (IWL49_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
@@ -1800,7 +1802,9 @@ static int iwl4965_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	ra_tid = BUILD_RAxTID(sta_id, tid);
 
 	/* Modify device's station table to Tx this TID */
-	iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
+	ret = iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
+	if (ret)
+		return ret;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -2276,6 +2280,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
 	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.update_bcast_station = iwl_update_bcast_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,

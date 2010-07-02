@@ -86,16 +86,6 @@ int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
 			   u32 *reg);
 
 /**
- * rt2x00pci_write_tx_data - Initialize data for TX operation
- * @entry: The entry where the frame is located
- *
- * This function will initialize the DMA and skb descriptor
- * to prepare the entry for the actual TX operation.
- */
-int rt2x00pci_write_tx_data(struct queue_entry *entry,
-			    struct txentry_desc *txdesc);
-
-/**
  * struct queue_entry_priv_pci: Per entry PCI specific information
  *
  * @desc: Pointer to device descriptor
@@ -107,14 +97,6 @@ struct queue_entry_priv_pci {
 	__le32 *desc;
 	dma_addr_t desc_dma;
 };
-
-/**
- * rt2x00pci_txdone - Handle TX done events.
- * @entry: The queue entry for which a TX done event was received.
- * @txdesc: The TX done descriptor for the entry.
- */
-void rt2x00pci_txdone(struct queue_entry *entry,
-		      struct txdone_entry_desc *txdesc);
 
 /**
  * rt2x00pci_rxdone - Handle RX done events

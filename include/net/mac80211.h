@@ -1271,6 +1271,15 @@ ieee80211_get_alt_retry_rate(const struct ieee80211_hw *hw,
  * dynamic PS feature in stack and will just keep %IEEE80211_CONF_PS
  * enabled whenever user has enabled powersave.
  *
+ * Some hardware need to toggle a single shared antenna between WLAN and
+ * Bluetooth to facilitate co-existence. These types of hardware set
+ * limitations on the use of host controlled dynamic powersave whenever there
+ * is simultaneous WLAN and Bluetooth traffic. For these types of hardware, the
+ * driver may request temporarily going into full power save, in order to
+ * enable toggling the antenna between BT and WLAN. If the driver requests
+ * disabling dynamic powersave, the @dynamic_ps_timeout value will be
+ * temporarily set to zero until the driver re-enables dynamic powersave.
+ *
  * Driver informs U-APSD client support by enabling
  * %IEEE80211_HW_SUPPORTS_UAPSD flag. The mode is configured through the
  * uapsd paramater in conf_tx() operation. Hardware needs to send the QoS
@@ -2445,6 +2454,36 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  * without connection recovery attempts.
  */
 void ieee80211_connection_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_disable_dyn_ps - force mac80211 to temporarily disable dynamic psm
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * Some hardware require full power save to manage simultaneous BT traffic
+ * on the WLAN frequency. Full PSM is required periodically, whenever there are
+ * burst of BT traffic. The hardware gets information of BT traffic via
+ * hardware co-existence lines, and consequentially requests mac80211 to
+ * (temporarily) enter full psm.
+ * This function will only temporarily disable dynamic PS, not enable PSM if
+ * it was not already enabled.
+ * The driver must make sure to re-enable dynamic PS using
+ * ieee80211_enable_dyn_ps() if the driver has disabled it.
+ *
+ */
+void ieee80211_disable_dyn_ps(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_enable_dyn_ps - restore dynamic psm after being disabled
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * This function restores dynamic PS after being temporarily disabled via
+ * ieee80211_disable_dyn_ps(). Each ieee80211_disable_dyn_ps() call must
+ * be coupled with an eventual call to this function.
+ *
+ */
+void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif);
 
 /**
  * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring

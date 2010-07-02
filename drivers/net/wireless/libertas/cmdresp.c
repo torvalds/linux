@@ -5,18 +5,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/if_arp.h>
-#include <linux/netdevice.h>
 #include <asm/unaligned.h>
-#include <net/iw_handler.h>
+#include <net/cfg80211.h>
 
-#include "host.h"
-#include "decl.h"
-#include "cmd.h"
-#include "defs.h"
-#include "dev.h"
-#include "assoc.h"
-#include "wext.h"
+#include "cfg.h"
 #include "cmd.h"
 
 /**
@@ -39,7 +31,9 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	 * It causes problem in the Supplicant
 	 */
 	msleep_interruptible(1000);
-	lbs_send_disconnect_notification(priv);
+
+	if (priv->wdev->iftype == NL80211_IFTYPE_STATION)
+		lbs_send_disconnect_notification(priv);
 
 	/* report disconnect to upper layer */
 	netif_stop_queue(priv->dev);
@@ -50,22 +44,7 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	priv->currenttxskb = NULL;
 	priv->tx_pending_len = 0;
 
-	/* reset SNR/NF/RSSI values */
-	memset(priv->SNR, 0x00, sizeof(priv->SNR));
-	memset(priv->NF, 0x00, sizeof(priv->NF));
-	memset(priv->RSSI, 0x00, sizeof(priv->RSSI));
-	memset(priv->rawSNR, 0x00, sizeof(priv->rawSNR));
-	memset(priv->rawNF, 0x00, sizeof(priv->rawNF));
-	priv->nextSNRNF = 0;
-	priv->numSNRNF = 0;
 	priv->connect_status = LBS_DISCONNECTED;
-
-	/* Clear out associated SSID and BSSID since connection is
-	 * no longer valid.
-	 */
-	memset(&priv->curbssparams.bssid, 0, ETH_ALEN);
-	memset(&priv->curbssparams.ssid, 0, IEEE80211_MAX_SSID_LEN);
-	priv->curbssparams.ssid_len = 0;
 
 	if (priv->psstate != PS_STATE_FULL_POWER) {
 		/* make firmware to exit PS mode */
@@ -118,6 +97,52 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 	return ret;
 }
 
+/**
+ *  @brief This function parses countryinfo from AP and download country info to FW
+ *  @param priv    pointer to struct lbs_private
+ *  @param resp    pointer to command response buffer
+ *  @return        0; -1
+ */
+static int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp)
+{
+	struct cmd_ds_802_11d_domain_info *domaininfo =
+			&resp->params.domaininforesp;
+	struct mrvl_ie_domain_param_set *domain = &domaininfo->domain;
+	u16 action = le16_to_cpu(domaininfo->action);
+	s16 ret = 0;
+	u8 nr_triplet = 0;
+
+	lbs_deb_enter(LBS_DEB_11D);
+
+	lbs_deb_hex(LBS_DEB_11D, "domain info resp", (u8 *) resp,
+			(int)le16_to_cpu(resp->size));
+
+	nr_triplet = (le16_to_cpu(domain->header.len) - COUNTRY_CODE_LEN) /
+		sizeof(struct ieee80211_country_ie_triplet);
+
+	lbs_deb_11d("domain info resp: nr_triplet %d\n", nr_triplet);
+
+	if (nr_triplet > MRVDRV_MAX_TRIPLET_802_11D) {
+		lbs_deb_11d("invalid number of triplets returned!!\n");
+		return -1;
+	}
+
+	switch (action) {
+	case CMD_ACT_SET:	/*Proc set action */
+		break;
+
+	case CMD_ACT_GET:
+		break;
+	default:
+		lbs_deb_11d("invalid action:%d\n", domaininfo->action);
+		ret = -1;
+		break;
+	}
+
+	lbs_deb_leave_args(LBS_DEB_11D, "ret %d", ret);
+	return ret;
+}
+
 static inline int handle_cmd_response(struct lbs_private *priv,
 				      struct cmd_header *cmd_response)
 {
@@ -149,6 +174,10 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_RSSI):
 		ret = lbs_ret_802_11_rssi(priv, resp);
+		break;
+
+	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
+		ret = lbs_ret_802_11d_domain_info(resp);
 		break;
 
 	case CMD_RET(CMD_802_11_TPC_CFG):
@@ -262,7 +291,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 			 * ad-hoc mode. It takes place in
 			 * lbs_execute_next_command().
 			 */
-			if (priv->mode == IW_MODE_ADHOC &&
+			if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR &&
 			    action == CMD_SUBCMD_ENTER_PS)
 				priv->psmode = LBS802_11POWERMODECAM;
 		} else if (action == CMD_SUBCMD_ENTER_PS) {

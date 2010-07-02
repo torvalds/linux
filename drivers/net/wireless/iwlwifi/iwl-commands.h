@@ -1399,18 +1399,27 @@ struct iwl_rx_mpdu_res_start {
 
 /* REPLY_TX Tx flags field */
 
-/* 1: Use RTS/CTS protocol or CTS-to-self if spec allows it
+/*
+ * 1: Use RTS/CTS protocol or CTS-to-self if spec allows it
  * before this frame. if CTS-to-self required check
- * RXON_FLG_SELF_CTS_EN status. */
-#define TX_CMD_FLG_RTS_CTS_MSK cpu_to_le32(1 << 0)
+ * RXON_FLG_SELF_CTS_EN status.
+ * unused in 3945/4965, used in 5000 series and after
+ */
+#define TX_CMD_FLG_PROT_REQUIRE_MSK cpu_to_le32(1 << 0)
 
-/* 1: Use Request-To-Send protocol before this frame.
- * Mutually exclusive vs. TX_CMD_FLG_CTS_MSK. */
+/*
+ * 1: Use Request-To-Send protocol before this frame.
+ * Mutually exclusive vs. TX_CMD_FLG_CTS_MSK.
+ * used in 3945/4965, unused in 5000 series and after
+ */
 #define TX_CMD_FLG_RTS_MSK cpu_to_le32(1 << 1)
 
-/* 1: Transmit Clear-To-Send to self before this frame.
+/*
+ * 1: Transmit Clear-To-Send to self before this frame.
  * Driver should set this for AUTH/DEAUTH/ASSOC-REQ/REASSOC mgmnt frames.
- * Mutually exclusive vs. TX_CMD_FLG_RTS_MSK. */
+ * Mutually exclusive vs. TX_CMD_FLG_RTS_MSK.
+ * used in 3945/4965, unused in 5000 series and after
+ */
 #define TX_CMD_FLG_CTS_MSK cpu_to_le32(1 << 2)
 
 /* 1: Expect ACK from receiving station
@@ -1430,8 +1439,11 @@ struct iwl_rx_mpdu_res_start {
  * Set when Txing a block-ack request frame.  Also set TX_CMD_FLG_ACK_MSK. */
 #define TX_CMD_FLG_IMM_BA_RSP_MASK  cpu_to_le32(1 << 6)
 
-/* 1: Frame requires full Tx-Op protection.
- * Set this if either RTS or CTS Tx Flag gets set. */
+/*
+ * 1: Frame requires full Tx-Op protection.
+ * Set this if either RTS or CTS Tx Flag gets set.
+ * used in 3945/4965, unused in 5000 series and after
+ */
 #define TX_CMD_FLG_FULL_TXOP_PROT_MSK cpu_to_le32(1 << 7)
 
 /* Tx antenna selection field; used only for 3945, reserved (0) for 4965.

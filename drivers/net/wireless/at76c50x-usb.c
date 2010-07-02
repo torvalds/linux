@@ -7,6 +7,7 @@
  * Copyright (c) 2004 Balint Seeber <n0_5p4m_p13453@hotmail.com>
  * Copyright (c) 2007 Guido Guenther <agx@sigxcpu.org>
  * Copyright (c) 2007 Kalle Valo <kalle.valo@iki.fi>
+ * Copyright (c) 2010 Sebastian Smolorz <sesmo@gmx.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -1649,6 +1650,58 @@ exit:
 		return NULL;
 }
 
+static int at76_join(struct at76_priv *priv)
+{
+	struct at76_req_join join;
+	int ret;
+
+	memset(&join, 0, sizeof(struct at76_req_join));
+	memcpy(join.essid, priv->essid, priv->essid_size);
+	join.essid_size = priv->essid_size;
+	memcpy(join.bssid, priv->bssid, ETH_ALEN);
+	join.bss_type = INFRASTRUCTURE_MODE;
+	join.channel = priv->channel;
+	join.timeout = cpu_to_le16(2000);
+
+	at76_dbg(DBG_MAC80211, "%s: sending CMD_JOIN", __func__);
+	ret = at76_set_card_command(priv->udev, CMD_JOIN, &join,
+				    sizeof(struct at76_req_join));
+
+	if (ret < 0) {
+		printk(KERN_ERR "%s: at76_set_card_command failed: %d\n",
+		       wiphy_name(priv->hw->wiphy), ret);
+		return 0;
+	}
+
+	ret = at76_wait_completion(priv, CMD_JOIN);
+	at76_dbg(DBG_MAC80211, "%s: CMD_JOIN returned: 0x%02x", __func__, ret);
+	if (ret != CMD_STATUS_COMPLETE) {
+		printk(KERN_ERR "%s: at76_wait_completion failed: %d\n",
+		       wiphy_name(priv->hw->wiphy), ret);
+		return 0;
+	}
+
+	at76_set_pm_mode(priv);
+
+	return 0;
+}
+
+static void at76_work_join_bssid(struct work_struct *work)
+{
+	struct at76_priv *priv = container_of(work, struct at76_priv,
+					      work_join_bssid);
+
+	if (priv->device_unplugged)
+		return;
+
+	mutex_lock(&priv->mtx);
+
+	if (is_valid_ether_addr(priv->bssid))
+		at76_join(priv);
+
+	mutex_unlock(&priv->mtx);
+}
+
 static void at76_mac80211_tx_callback(struct urb *urb)
 {
 	struct at76_priv *priv = urb->context;
@@ -1686,6 +1739,7 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct at76_priv *priv = hw->priv;
 	struct at76_tx_buffer *tx_buffer = priv->bulk_out_buffer;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	int padding, submit_len, ret;
 
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
@@ -1694,6 +1748,21 @@ static int at76_mac80211_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		printk(KERN_ERR "%s: %s called while tx urb is pending\n",
 		       wiphy_name(priv->hw->wiphy), __func__);
 		return NETDEV_TX_BUSY;
+	}
+
+	/* The following code lines are important when the device is going to
+	 * authenticate with a new bssid. The driver must send CMD_JOIN before
+	 * an authentication frame is transmitted. For this to succeed, the
+	 * correct bssid of the AP must be known. As mac80211 does not inform
+	 * drivers about the bssid prior to the authentication process the
+	 * following workaround is necessary. If the TX frame is an
+	 * authentication frame extract the bssid and send the CMD_JOIN. */
+	if (mgmt->frame_control & cpu_to_le16(IEEE80211_STYPE_AUTH)) {
+		if (compare_ether_addr(priv->bssid, mgmt->bssid)) {
+			memcpy(priv->bssid, mgmt->bssid, ETH_ALEN);
+			ieee80211_queue_work(hw, &priv->work_join_bssid);
+			return NETDEV_TX_BUSY;
+		}
 	}
 
 	ieee80211_stop_queues(hw);
@@ -1770,6 +1839,7 @@ static void at76_mac80211_stop(struct ieee80211_hw *hw)
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
 
 	cancel_delayed_work(&priv->dwork_hw_scan);
+	cancel_work_sync(&priv->work_join_bssid);
 	cancel_work_sync(&priv->work_set_promisc);
 
 	mutex_lock(&priv->mtx);
@@ -1816,42 +1886,6 @@ static void at76_remove_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif)
 {
 	at76_dbg(DBG_MAC80211, "%s()", __func__);
-}
-
-static int at76_join(struct at76_priv *priv)
-{
-	struct at76_req_join join;
-	int ret;
-
-	memset(&join, 0, sizeof(struct at76_req_join));
-	memcpy(join.essid, priv->essid, priv->essid_size);
-	join.essid_size = priv->essid_size;
-	memcpy(join.bssid, priv->bssid, ETH_ALEN);
-	join.bss_type = INFRASTRUCTURE_MODE;
-	join.channel = priv->channel;
-	join.timeout = cpu_to_le16(2000);
-
-	at76_dbg(DBG_MAC80211, "%s: sending CMD_JOIN", __func__);
-	ret = at76_set_card_command(priv->udev, CMD_JOIN, &join,
-				    sizeof(struct at76_req_join));
-
-	if (ret < 0) {
-		printk(KERN_ERR "%s: at76_set_card_command failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-		return 0;
-	}
-
-	ret = at76_wait_completion(priv, CMD_JOIN);
-	at76_dbg(DBG_MAC80211, "%s: CMD_JOIN returned: 0x%02x", __func__, ret);
-	if (ret != CMD_STATUS_COMPLETE) {
-		printk(KERN_ERR "%s: at76_wait_completion failed: %d\n",
-		       wiphy_name(priv->hw->wiphy), ret);
-		return 0;
-	}
-
-	at76_set_pm_mode(priv);
-
-	return 0;
 }
 
 static void at76_dwork_hw_scan(struct work_struct *work)
@@ -2107,6 +2141,7 @@ static struct at76_priv *at76_alloc_new_device(struct usb_device *udev)
 	mutex_init(&priv->mtx);
 	INIT_WORK(&priv->work_set_promisc, at76_work_set_promisc);
 	INIT_WORK(&priv->work_submit_rx, at76_work_submit_rx);
+	INIT_WORK(&priv->work_join_bssid, at76_work_join_bssid);
 	INIT_DELAYED_WORK(&priv->dwork_hw_scan, at76_dwork_hw_scan);
 
 	tasklet_init(&priv->rx_tasklet, at76_rx_tasklet, 0);
@@ -2508,5 +2543,6 @@ MODULE_AUTHOR("Balint Seeber <n0_5p4m_p13453@hotmail.com>");
 MODULE_AUTHOR("Pavel Roskin <proski@gnu.org>");
 MODULE_AUTHOR("Guido Guenther <agx@sigxcpu.org>");
 MODULE_AUTHOR("Kalle Valo <kalle.valo@iki.fi>");
+MODULE_AUTHOR("Sebastian Smolorz <sesmo@gmx.net>");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

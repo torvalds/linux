@@ -406,6 +406,11 @@ static bool iwl3945_good_plcp_health(struct iwl_priv *priv,
 	unsigned int plcp_msec;
 	unsigned long plcp_received_jiffies;
 
+	if (priv->cfg->plcp_delta_threshold ==
+	    IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
+		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
+		return rc;
+	}
 	memcpy(&current_stat, pkt->u.raw, sizeof(struct
 			iwl3945_notif_statistics));
 	/*

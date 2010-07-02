@@ -931,6 +931,8 @@ void ath9k_init_leds(struct ath9k_htc_priv *priv)
 		priv->ah->led_pin = ATH_LED_PIN_9287;
 	else if (AR_SREV_9271(priv->ah))
 		priv->ah->led_pin = ATH_LED_PIN_9271;
+	else if (AR_DEVID_7010(priv->ah))
+		priv->ah->led_pin = ATH_LED_PIN_7010;
 	else
 		priv->ah->led_pin = ATH_LED_PIN_DEF;
 
