@@ -785,8 +785,8 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int max_n;
 	bool found;
-	/* approximately equals target * 0.00488 */
-	int err_most = (target >> 8) + (target >> 10);
+	/* approximately equals target * 0.00585 */
+	int err_most = (target >> 8) + (target >> 9);
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
