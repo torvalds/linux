@@ -392,7 +392,7 @@ static int __init sh7786_pcie_init(void)
 {
 	int ret = 0, i;
 
-	printk(KERN_NOTICE "PCI: Starting intialization.\n");
+	printk(KERN_NOTICE "PCI: Starting initialization.\n");
 
 	sh7786_pcie_hwops = &sh7786_65nm_pcie_hwops;
 
