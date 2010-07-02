@@ -48,36 +48,6 @@
 
 #define MM_UNUSED_TARGET 4
 
-unsigned long drm_mm_tail_space(struct drm_mm *mm)
-{
-	struct list_head *tail_node;
-	struct drm_mm_node *entry;
-
-	tail_node = mm->ml_entry.prev;
-	entry = list_entry(tail_node, struct drm_mm_node, ml_entry);
-	if (!entry->free)
-		return 0;
-
-	return entry->size;
-}
-
-int drm_mm_remove_space_from_tail(struct drm_mm *mm, unsigned long size)
-{
-	struct list_head *tail_node;
-	struct drm_mm_node *entry;
-
-	tail_node = mm->ml_entry.prev;
-	entry = list_entry(tail_node, struct drm_mm_node, ml_entry);
-	if (!entry->free)
-		return -ENOMEM;
-
-	if (entry->size <= size)
-		return -ENOMEM;
-
-	entry->size -= size;
-	return 0;
-}
-
 static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 {
 	struct drm_mm_node *child;
@@ -149,21 +119,6 @@ static int drm_mm_create_tail_node(struct drm_mm *mm,
 	list_add_tail(&child->ml_entry, &mm->ml_entry);
 	list_add_tail(&child->fl_entry, &mm->fl_entry);
 
-	return 0;
-}
-
-int drm_mm_add_space_to_tail(struct drm_mm *mm, unsigned long size, int atomic)
-{
-	struct list_head *tail_node;
-	struct drm_mm_node *entry;
-
-	tail_node = mm->ml_entry.prev;
-	entry = list_entry(tail_node, struct drm_mm_node, ml_entry);
-	if (!entry->free) {
-		return drm_mm_create_tail_node(mm, entry->start + entry->size,
-					       size, atomic);
-	}
-	entry->size += size;
 	return 0;
 }
 
