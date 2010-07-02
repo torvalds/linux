@@ -2296,17 +2296,41 @@ static const char *desc_lookup_text[] = {
 	"DEBUG_1",
 	"DEBUG_2",
 	"DEBUG_3",
-	"ADVANCED SYSASSERT"
 };
 
-static const char *desc_lookup(int i)
+static struct { char *name; u8 num; } advanced_lookup[] = {
+	{ "NMI_INTERRUPT_WDG", 0x34 },
+	{ "SYSASSERT", 0x35 },
+	{ "UCODE_VERSION_MISMATCH", 0x37 },
+	{ "BAD_COMMAND", 0x38 },
+	{ "NMI_INTERRUPT_DATA_ACTION_PT", 0x3C },
+	{ "FATAL_ERROR", 0x3D },
+	{ "NMI_TRM_HW_ERR", 0x46 },
+	{ "NMI_INTERRUPT_TRM", 0x4C },
+	{ "NMI_INTERRUPT_BREAK_POINT", 0x54 },
+	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
+	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
+	{ "NMI_INTERRUPT_HOST", 0x66 },
+	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
+	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
+	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
+	{ "ADVANCED_SYSASSERT", 0 },
+};
+
+static const char *desc_lookup(u32 num)
 {
-	int max = ARRAY_SIZE(desc_lookup_text) - 1;
+	int i;
+	int max = ARRAY_SIZE(desc_lookup_text);
 
-	if (i < 0 || i > max)
-		i = max;
+	if (num < max)
+		return desc_lookup_text[num];
 
-	return desc_lookup_text[i];
+	max = ARRAY_SIZE(advanced_lookup) - 1;
+	for (i = 0; i < max; i++) {
+		if (advanced_lookup[i].num == num)
+			break;;
+	}
+	return advanced_lookup[i].name;
 }
 
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
