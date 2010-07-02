@@ -94,7 +94,7 @@ render_ring_flush(struct drm_device *dev,
 #if WATCH_EXEC
 		DRM_INFO("%s: queue flush %08x to ring\n", __func__, cmd);
 #endif
-		intel_ring_begin(dev, ring, 8);
+		intel_ring_begin(dev, ring, 2);
 		intel_ring_emit(dev, ring, cmd);
 		intel_ring_emit(dev, ring, MI_NOOP);
 		intel_ring_advance(dev, ring);
@@ -358,7 +358,7 @@ bsd_ring_flush(struct drm_device *dev,
 		u32     invalidate_domains,
 		u32     flush_domains)
 {
-	intel_ring_begin(dev, ring, 8);
+	intel_ring_begin(dev, ring, 2);
 	intel_ring_emit(dev, ring, MI_FLUSH);
 	intel_ring_emit(dev, ring, MI_NOOP);
 	intel_ring_advance(dev, ring);
@@ -687,6 +687,7 @@ int intel_wrap_ring_buffer(struct drm_device *dev,
 		*virt++ = MI_NOOP;
 
 	ring->tail = 0;
+	ring->space = ring->head - 8;
 
 	return 0;
 }
@@ -721,8 +722,9 @@ int intel_wait_ring_buffer(struct drm_device *dev,
 }
 
 void intel_ring_begin(struct drm_device *dev,
-		struct intel_ring_buffer *ring, int n)
+		struct intel_ring_buffer *ring, int num_dwords)
 {
+	int n = 4*num_dwords;
 	if (unlikely(ring->tail + n > ring->size))
 		intel_wrap_ring_buffer(dev, ring);
 	if (unlikely(ring->space < n))
@@ -752,7 +754,7 @@ void intel_fill_struct(struct drm_device *dev,
 {
 	unsigned int *virt = ring->virtual_start + ring->tail;
 	BUG_ON((len&~(4-1)) != 0);
-	intel_ring_begin(dev, ring, len);
+	intel_ring_begin(dev, ring, len/4);
 	memcpy(virt, data, len);
 	ring->tail += len;
 	ring->tail &= ring->size - 1;
