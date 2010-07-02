@@ -2633,10 +2633,8 @@ i915_gem_object_bind_to_gtt(struct drm_gem_object *obj, unsigned alignment)
 	if (free_space != NULL) {
 		obj_priv->gtt_space = drm_mm_get_block(free_space, obj->size,
 						       alignment);
-		if (obj_priv->gtt_space != NULL) {
-			obj_priv->gtt_space->private = obj;
+		if (obj_priv->gtt_space != NULL)
 			obj_priv->gtt_offset = obj_priv->gtt_space->start;
-		}
 	}
 	if (obj_priv->gtt_space == NULL) {
 		/* If the gtt is empty and we're still having trouble

@@ -48,7 +48,6 @@ struct drm_mm_node {
 	unsigned long start;
 	unsigned long size;
 	struct drm_mm *mm;
-	void *private;
 };
 
 struct drm_mm {
