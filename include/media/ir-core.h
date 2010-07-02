@@ -61,7 +61,7 @@ struct ir_dev_props {
 	void			(*close)(void *priv);
 	int			(*s_tx_mask)(void *priv, u32 mask);
 	int			(*s_tx_carrier)(void *priv, u32 carrier);
-	int			(*tx_ir)(void *priv, const char *buf, u32 n);
+	int			(*tx_ir)(void *priv, int *txbuf, u32 n);
 };
 
 struct ir_input_dev {
