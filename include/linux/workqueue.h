@@ -51,7 +51,8 @@ enum {
 	WORK_NO_COLOR		= WORK_NR_COLORS,
 
 	/* special cpu IDs */
-	WORK_CPU_NONE		= NR_CPUS,
+	WORK_CPU_UNBOUND	= NR_CPUS,
+	WORK_CPU_NONE		= NR_CPUS + 1,
 	WORK_CPU_LAST		= WORK_CPU_NONE,
 
 	/*
@@ -237,10 +238,16 @@ enum {
 	WQ_RESCUER		= 1 << 3, /* has an rescue worker */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
+	WQ_UNBOUND		= 1 << 6, /* not bound to any cpu */
 
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
+	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
 	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
 };
+
+/* unbound wq's aren't per-cpu, scale max_active according to #cpus */
+#define WQ_UNBOUND_MAX_ACTIVE	\
+	max_t(int, WQ_MAX_ACTIVE, num_possible_cpus() * WQ_MAX_UNBOUND_PER_CPU)
 
 /*
  * System-wide workqueues which are always present.
@@ -256,10 +263,16 @@ enum {
  * system_nrt_wq is non-reentrant and guarantees that any given work
  * item is never executed in parallel by multiple CPUs.  Queue
  * flushing might take relatively long.
+ *
+ * system_unbound_wq is unbound workqueue.  Workers are not bound to
+ * any specific CPU, not concurrency managed, and all queued works are
+ * executed immediately as long as max_active limit is not reached and
+ * resources are available.
  */
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_long_wq;
 extern struct workqueue_struct *system_nrt_wq;
+extern struct workqueue_struct *system_unbound_wq;
 
 extern struct workqueue_struct *
 __alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
