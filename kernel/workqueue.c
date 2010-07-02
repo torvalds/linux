@@ -2138,6 +2138,10 @@ void flush_workqueue(struct workqueue_struct *wq)
 
 	mutex_lock(&wq->flush_mutex);
 
+	/* we might have raced, check again with mutex held */
+	if (wq->first_flusher != &this_flusher)
+		goto out_unlock;
+
 	wq->first_flusher = NULL;
 
 	BUG_ON(!list_empty(&this_flusher.list));
