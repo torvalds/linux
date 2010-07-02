@@ -232,6 +232,21 @@ static unsigned int realview_mmc_status(struct device *dev)
 	struct amba_device *adev = container_of(dev, struct amba_device, dev);
 	u32 mask;
 
+	if (machine_is_realview_pb1176()) {
+		static bool inserted = false;
+
+		/*
+		 * The PB1176 does not have the status register,
+		 * assume it is inserted at startup, then invert
+		 * for each call so card insertion/removal will
+		 * be detected anyway. This will not be called if
+		 * GPIO on PL061 is active, which is the proper
+		 * way to do this on the PB1176.
+		 */
+		inserted = !inserted;
+		return inserted ? 0 : 1;
+	}
+
 	if (adev->res.start == REALVIEW_MMCI0_BASE)
 		mask = 1;
 	else
@@ -313,6 +328,12 @@ static struct clk_lookup lookups[] = {
 	}, {	/* UART3 */
 		.dev_id		= "fpga:uart3",
 		.clk		= &ref24_clk,
+	}, {	/* UART3 is on the dev chip in PB1176 */
+		.dev_id		= "dev:uart3",
+		.clk		= &ref24_clk,
+	}, {	/* UART4 only exists in PB1176 */
+		.dev_id		= "fpga:uart4",
+		.clk		= &ref24_clk,
 	}, {	/* KMI0 */
 		.dev_id		= "fpga:kmi0",
 		.clk		= &ref24_clk,
@@ -322,7 +343,7 @@ static struct clk_lookup lookups[] = {
 	}, {	/* MMC0 */
 		.dev_id		= "fpga:mmc0",
 		.clk		= &ref24_clk,
-	}, {	/* EB:CLCD */
+	}, {	/* CLCD is in the PB1176 and EB DevChip */
 		.dev_id		= "dev:clcd",
 		.clk		= &oscvco_clk,
 	}, {	/* PB:CLCD */
