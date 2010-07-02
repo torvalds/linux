@@ -2324,9 +2324,11 @@ retry_avoidcopy:
 	 * and just make the page writable */
 	avoidcopy = (page_mapcount(old_page) == 1);
 	if (avoidcopy) {
-		if (!trylock_page(old_page))
+		if (!trylock_page(old_page)) {
 			if (PageAnon(old_page))
 				page_move_anon_rmap(old_page, vma, address);
+		} else
+			unlock_page(old_page);
 		set_huge_ptep_writable(vma, address, ptep);
 		return 0;
 	}
