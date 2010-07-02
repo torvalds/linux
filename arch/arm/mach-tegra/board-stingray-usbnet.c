@@ -821,7 +821,7 @@ static struct android_usb_function usbnet_function = {
 	.bind_config = usbnet_bind_config,
 };
 
-static int __init usbnet_probe(struct platform_device *pdev)
+static int usbnet_probe(struct platform_device *pdev)
 {
 	pr_info("usbnet_probe\n");
 	/* do not register our function unless our platform device was registered */
