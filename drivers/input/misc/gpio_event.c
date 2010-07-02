@@ -119,7 +119,7 @@ void gpio_event_resume(struct early_suspend *h)
 }
 #endif
 
-static int __init gpio_event_probe(struct platform_device *pdev)
+static int gpio_event_probe(struct platform_device *pdev)
 {
 	int err;
 	struct gpio_event *ip;
