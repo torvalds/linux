@@ -2332,7 +2332,7 @@ do {								\
 #endif
 
 #if defined(VERBOSE_DEBUG)
-#define netif_vdbg	netdev_dbg
+#define netif_vdbg	netif_dbg
 #else
 #define netif_vdbg(priv, type, dev, format, args...)		\
 ({								\
