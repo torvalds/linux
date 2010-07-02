@@ -1832,10 +1832,10 @@ recheck:
 	} while (keep_working(gcwq));
 
 	worker_set_flags(worker, WORKER_PREP, false);
-
+sleep:
 	if (unlikely(need_to_manage_workers(gcwq)) && manage_workers(worker))
 		goto recheck;
-sleep:
+
 	/*
 	 * gcwq->lock is held and there's no work to process and no
 	 * need to manage, sleep.  Workers are woken up only while
