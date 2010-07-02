@@ -417,15 +417,24 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 			 */
 			cfi_fixup_major_minor(cfi, extp);
 
+			/*
+			 * Valid primary extension versions are: 1.0, 1.1, 1.2, 1.3
+			 * see: http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_r20.pdf, page 19 and on
+			 *      http://www.amd.com/us-en/assets/content_type/DownloadableAssets/cfi_100_20011201.pdf
+			 */
 			if (extp->MajorVersion != '1' ||
-			    (extp->MinorVersion < '0' || extp->MinorVersion > '4')) {
+			    (extp->MajorVersion == '1' && ( extp->MinorVersion < '0' || extp->MinorVersion > '3'))) {
 				printk(KERN_ERR "  Unknown Amd/Fujitsu Extended Query "
-				       "version %c.%c.\n",  extp->MajorVersion,
-				       extp->MinorVersion);
+				       "version %c.%c (%#02x/%#02x).\n",
+				       extp->MajorVersion, extp->MinorVersion,
+				       extp->MajorVersion, extp->MinorVersion);
 				kfree(extp);
 				kfree(mtd);
 				return NULL;
 			}
+
+			printk(KERN_INFO "  Amd/Fujitsu Extended Query version %c.%c.\n",
+			       extp->MajorVersion, extp->MinorVersion);
 
 			/* Install our own private info structure */
 			cfi->cmdset_priv = extp;
