@@ -119,3 +119,19 @@ void local_flush_tlb_mm(struct mm_struct *mm)
 		local_irq_restore(flags);
 	}
 }
+
+void __flush_tlb_global(void)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+
+	/*
+	 * This is the most destructive of the TLB flushing options,
+	 * and will tear down all of the UTLB/ITLB mappings, including
+	 * wired entries.
+	 */
+	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
+
+	local_irq_restore(flags);
+}
