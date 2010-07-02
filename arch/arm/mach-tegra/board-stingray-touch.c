@@ -584,8 +584,7 @@ struct qtouch_ts_platform_data stingray_touch_data_p1p2 = {
 		.num_keys	= 0,
 	},
 	.touch_fw_cfg = {
-		.image = mxt1386_v8_aa,
-		.size = sizeof(mxt1386_v8_aa),
+		.fw_name = "mXT1386_08_AA.bin",
 		.family_id = 0xA0,
 		.variant_id = 0x00,
 		.fw_version = 0x08,
