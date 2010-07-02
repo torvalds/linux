@@ -55,6 +55,9 @@ static int brnf_call_arptables __read_mostly = 1;
 static int brnf_filter_vlan_tagged __read_mostly = 0;
 static int brnf_filter_pppoe_tagged __read_mostly = 0;
 #else
+#define brnf_call_iptables 1
+#define brnf_call_ip6tables 1
+#define brnf_call_arptables 1
 #define brnf_filter_vlan_tagged 0
 #define brnf_filter_pppoe_tagged 0
 #endif
@@ -543,25 +546,30 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	struct iphdr *iph;
 	__u32 len = nf_bridge_encap_header_len(skb);
 
 	if (unlikely(!pskb_may_pull(skb, len)))
 		goto out;
 
+	p = rcu_dereference(in->br_port);
+	if (p == NULL)
+		goto out;
+	br = p->br;
+
 	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
 	    IS_PPPOE_IPV6(skb)) {
-#ifdef CONFIG_SYSCTL
-		if (!brnf_call_ip6tables)
+		if (!brnf_call_ip6tables && !br->nf_call_ip6tables)
 			return NF_ACCEPT;
-#endif
+
 		nf_bridge_pull_encap_header_rcsum(skb);
 		return br_nf_pre_routing_ipv6(hook, skb, in, out, okfn);
 	}
-#ifdef CONFIG_SYSCTL
-	if (!brnf_call_iptables)
+
+	if (!brnf_call_iptables && !br->nf_call_iptables)
 		return NF_ACCEPT;
-#endif
 
 	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP(skb) &&
 	    !IS_PPPOE_IP(skb))
@@ -714,12 +722,17 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 				      const struct net_device *out,
 				      int (*okfn)(struct sk_buff *))
 {
+	struct net_bridge_port *p;
+	struct net_bridge *br;
 	struct net_device **d = (struct net_device **)(skb->cb);
 
-#ifdef CONFIG_SYSCTL
-	if (!brnf_call_arptables)
+	p = rcu_dereference(out->br_port);
+	if (p == NULL)
 		return NF_ACCEPT;
-#endif
+	br = p->br;
+
+	if (!brnf_call_arptables && !br->nf_call_arptables)
+		return NF_ACCEPT;
 
 	if (skb->protocol != htons(ETH_P_ARP)) {
 		if (!IS_VLAN_ARP(skb))
