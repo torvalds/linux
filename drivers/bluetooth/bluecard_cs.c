@@ -37,7 +37,7 @@
 #include <linux/wait.h>
 
 #include <linux/skbuff.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
