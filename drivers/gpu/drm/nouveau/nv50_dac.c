@@ -219,7 +219,8 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	uint32_t mode_ctl = 0, mode_ctl2 = 0;
 	int ret;
 
-	NV_DEBUG_KMS(dev, "or %d\n", nv_encoder->or);
+	NV_DEBUG_KMS(dev, "or %d type %d crtc %d\n",
+		     nv_encoder->or, nv_encoder->dcb->type, crtc->index);
 
 	nv50_dac_dpms(encoder, DRM_MODE_DPMS_ON);
 
