@@ -233,12 +233,11 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 
 enum {
 	WQ_NON_REENTRANT	= 1 << 0, /* guarantee non-reentrance */
-	WQ_SINGLE_CPU		= 1 << 1, /* only single cpu at a time */
+	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
 	WQ_FREEZEABLE		= 1 << 2, /* freeze during suspend */
 	WQ_RESCUER		= 1 << 3, /* has an rescue worker */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
-	WQ_UNBOUND		= 1 << 6, /* not bound to any cpu */
 
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
 	WQ_MAX_UNBOUND_PER_CPU	= 4,	  /* 4 * #cpus for unbound wq */
@@ -300,9 +299,9 @@ __alloc_workqueue_key(const char *name, unsigned int flags, int max_active,
 #define create_workqueue(name)					\
 	alloc_workqueue((name), WQ_RESCUER, 1)
 #define create_freezeable_workqueue(name)			\
-	alloc_workqueue((name), WQ_FREEZEABLE | WQ_SINGLE_CPU | WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_FREEZEABLE | WQ_UNBOUND | WQ_RESCUER, 1)
 #define create_singlethread_workqueue(name)			\
-	alloc_workqueue((name), WQ_SINGLE_CPU | WQ_RESCUER, 1)
+	alloc_workqueue((name), WQ_UNBOUND | WQ_RESCUER, 1)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 

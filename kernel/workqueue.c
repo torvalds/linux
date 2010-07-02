@@ -206,8 +206,6 @@ struct workqueue_struct {
 	struct list_head	flusher_queue;	/* F: flush waiters */
 	struct list_head	flusher_overflow; /* F: flush overflow list */
 
-	unsigned long		single_cpu;	/* cpu for single cpu wq */
-
 	cpumask_var_t		mayday_mask;	/* cpus requesting rescue */
 	struct worker		*rescuer;	/* I: rescue worker */
 
@@ -889,34 +887,6 @@ static void insert_work(struct cpu_workqueue_struct *cwq,
 		wake_up_worker(gcwq);
 }
 
-/**
- * cwq_unbind_single_cpu - unbind cwq from single cpu workqueue processing
- * @cwq: cwq to unbind
- *
- * Try to unbind @cwq from single cpu workqueue processing.  If
- * @cwq->wq is frozen, unbind is delayed till the workqueue is thawed.
- *
- * CONTEXT:
- * spin_lock_irq(gcwq->lock).
- */
-static void cwq_unbind_single_cpu(struct cpu_workqueue_struct *cwq)
-{
-	struct workqueue_struct *wq = cwq->wq;
-	struct global_cwq *gcwq = cwq->gcwq;
-
-	BUG_ON(wq->single_cpu != gcwq->cpu);
-	/*
-	 * Unbind from workqueue if @cwq is not frozen.  If frozen,
-	 * thaw_workqueues() will either restart processing on this
-	 * cpu or unbind if empty.  This keeps works queued while
-	 * frozen fully ordered and flushable.
-	 */
-	if (likely(!(gcwq->flags & GCWQ_FREEZING))) {
-		smp_wmb();	/* paired with cmpxchg() in __queue_work() */
-		wq->single_cpu = WORK_CPU_NONE;
-	}
-}
-
 static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 			 struct work_struct *work)
 {
@@ -924,19 +894,15 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 	struct cpu_workqueue_struct *cwq;
 	struct list_head *worklist;
 	unsigned long flags;
-	bool arbitrate;
 
 	debug_work_activate(work);
 
-	if (unlikely(cpu == WORK_CPU_UNBOUND))
-		cpu = raw_smp_processor_id();
-
-	/*
-	 * Determine gcwq to use.  SINGLE_CPU is inherently
-	 * NON_REENTRANT, so test it first.
-	 */
-	if (!(wq->flags & (WQ_SINGLE_CPU | WQ_UNBOUND))) {
+	/* determine gcwq to use */
+	if (!(wq->flags & WQ_UNBOUND)) {
 		struct global_cwq *last_gcwq;
+
+		if (unlikely(cpu == WORK_CPU_UNBOUND))
+			cpu = raw_smp_processor_id();
 
 		/*
 		 * It's multi cpu.  If @wq is non-reentrant and @work
@@ -962,38 +928,6 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 			}
 		} else
 			spin_lock_irqsave(&gcwq->lock, flags);
-	} else if (!(wq->flags & WQ_UNBOUND)) {
-		unsigned int req_cpu = cpu;
-
-		/*
-		 * It's a bit more complex for single cpu workqueues.
-		 * We first need to determine which cpu is going to be
-		 * used.  If no cpu is currently serving this
-		 * workqueue, arbitrate using atomic accesses to
-		 * wq->single_cpu; otherwise, use the current one.
-		 */
-	retry:
-		cpu = wq->single_cpu;
-		arbitrate = cpu == WORK_CPU_NONE;
-		if (arbitrate)
-			cpu = req_cpu;
-
-		gcwq = get_gcwq(cpu);
-		spin_lock_irqsave(&gcwq->lock, flags);
-
-		/*
-		 * The following cmpxchg() is a full barrier paired
-		 * with smp_wmb() in cwq_unbind_single_cpu() and
-		 * guarantees that all changes to wq->st_* fields are
-		 * visible on the new cpu after this point.
-		 */
-		if (arbitrate)
-			cmpxchg(&wq->single_cpu, WORK_CPU_NONE, cpu);
-
-		if (unlikely(wq->single_cpu != cpu)) {
-			spin_unlock_irqrestore(&gcwq->lock, flags);
-			goto retry;
-		}
 	} else {
 		gcwq = get_gcwq(WORK_CPU_UNBOUND);
 		spin_lock_irqsave(&gcwq->lock, flags);
@@ -1105,19 +1039,30 @@ int queue_delayed_work_on(int cpu, struct workqueue_struct *wq,
 	struct work_struct *work = &dwork->work;
 
 	if (!test_and_set_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))) {
-		struct global_cwq *gcwq = get_work_gcwq(work);
-		unsigned int lcpu = gcwq ? gcwq->cpu : raw_smp_processor_id();
+		unsigned int lcpu;
 
 		BUG_ON(timer_pending(timer));
 		BUG_ON(!list_empty(&work->entry));
 
 		timer_stats_timer_set_start_info(&dwork->timer);
+
 		/*
 		 * This stores cwq for the moment, for the timer_fn.
 		 * Note that the work's gcwq is preserved to allow
 		 * reentrance detection for delayed works.
 		 */
+		if (!(wq->flags & WQ_UNBOUND)) {
+			struct global_cwq *gcwq = get_work_gcwq(work);
+
+			if (gcwq && gcwq->cpu != WORK_CPU_UNBOUND)
+				lcpu = gcwq->cpu;
+			else
+				lcpu = raw_smp_processor_id();
+		} else
+			lcpu = WORK_CPU_UNBOUND;
+
 		set_work_cwq(work, get_cwq(lcpu, wq), 0);
+
 		timer->expires = jiffies + delay;
 		timer->data = (unsigned long)dwork;
 		timer->function = delayed_work_timer_fn;
@@ -1696,9 +1641,6 @@ static void cwq_dec_nr_in_flight(struct cpu_workqueue_struct *cwq, int color)
 		/* one down, submit a delayed one */
 		if (cwq->nr_active < cwq->max_active)
 			cwq_activate_first_delayed(cwq);
-	} else if (!cwq->nr_active && cwq->wq->flags & WQ_SINGLE_CPU) {
-		/* this was the last work, unbind from single cpu */
-		cwq_unbind_single_cpu(cwq);
 	}
 
 	/* is flush in progress and are we at the flushing tip? */
@@ -2751,7 +2693,6 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 	atomic_set(&wq->nr_cwqs_to_flush, 0);
 	INIT_LIST_HEAD(&wq->flusher_queue);
 	INIT_LIST_HEAD(&wq->flusher_overflow);
-	wq->single_cpu = WORK_CPU_NONE;
 
 	wq->name = name;
 	lockdep_init_map(&wq->lockdep_map, lock_name, key, 0);
@@ -3513,11 +3454,6 @@ void thaw_workqueues(void)
 			while (!list_empty(&cwq->delayed_works) &&
 			       cwq->nr_active < cwq->max_active)
 				cwq_activate_first_delayed(cwq);
-
-			/* perform delayed unbind from single cpu if empty */
-			if (wq->single_cpu == gcwq->cpu &&
-			    !cwq->nr_active && list_empty(&cwq->delayed_works))
-				cwq_unbind_single_cpu(cwq);
 		}
 
 		wake_up_worker(gcwq);
