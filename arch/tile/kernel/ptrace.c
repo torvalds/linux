@@ -96,6 +96,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (addr < 0 || addr >= PTREGS_SIZE)
 			break;
 		putreg(child, addr, data);   /* Write register */
+		ret = 0;
 		break;
 
 	case PTRACE_GETREGS:  /* Get all registers from the child. */
