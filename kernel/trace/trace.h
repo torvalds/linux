@@ -591,6 +591,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_LATENCY_FMT		= 0x20000,
 	TRACE_ITER_SLEEP_TIME		= 0x40000,
 	TRACE_ITER_GRAPH_TIME		= 0x80000,
+	TRACE_ITER_RECORD_CMD		= 0x100000,
 };
 
 /*
@@ -722,6 +723,8 @@ filter_check_discard(struct ftrace_event_call *call, void *rec,
 
 	return 0;
 }
+
+extern void trace_event_enable_cmd_record(bool enable);
 
 extern struct mutex event_mutex;
 extern struct list_head ftrace_events;
