@@ -332,7 +332,6 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 				       unsigned long size,
 				       unsigned alignment, int best_match)
 {
-	struct list_head *list;
 	const struct list_head *free_stack = &mm->fl_entry;
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
@@ -342,8 +341,7 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	list_for_each(list, free_stack) {
-		entry = list_entry(list, struct drm_mm_node, fl_entry);
+	list_for_each_entry(entry, free_stack, fl_entry) {
 		wasted = 0;
 
 		if (entry->size < size)
@@ -376,7 +374,6 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 						unsigned long end,
 						int best_match)
 {
-	struct list_head *list;
 	const struct list_head *free_stack = &mm->fl_entry;
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
@@ -386,8 +383,7 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	list_for_each(list, free_stack) {
-		entry = list_entry(list, struct drm_mm_node, fl_entry);
+	list_for_each_entry(entry, free_stack, fl_entry) {
 		wasted = 0;
 
 		if (entry->size < size)
