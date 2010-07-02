@@ -330,7 +330,6 @@ static void imx2_wdt_shutdown(struct platform_device *pdev)
 }
 
 static struct platform_driver imx2_wdt_driver = {
-	.probe		= imx2_wdt_probe,
 	.remove		= __exit_p(imx2_wdt_remove),
 	.shutdown	= imx2_wdt_shutdown,
 	.driver		= {

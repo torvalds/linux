@@ -218,7 +218,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	if (cmd_buf_arr == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate cmd buffer ring\n",
 		       netdev->name);
-		return -ENOMEM;
+		goto err_out;
 	}
 	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
@@ -230,7 +230,7 @@ int netxen_alloc_sw_resources(struct netxen_adapter *adapter)
 	if (rds_ring == NULL) {
 		dev_err(&pdev->dev, "%s: failed to allocate rds ring struct\n",
 		       netdev->name);
-		return -ENOMEM;
+		goto err_out;
 	}
 	recv_ctx->rds_rings = rds_ring;
 
@@ -1805,9 +1805,10 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 	netxen_ctx_msg msg = 0;
 	struct list_head *head;
 
+	spin_lock(&rds_ring->lock);
+
 	producer = rds_ring->producer;
 
-	spin_lock(&rds_ring->lock);
 	head = &rds_ring->free_list;
 	while (!list_empty(head)) {
 
@@ -1829,7 +1830,6 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 
 		producer = get_next_index(producer, rds_ring->num_desc);
 	}
-	spin_unlock(&rds_ring->lock);
 
 	if (count) {
 		rds_ring->producer = producer;
@@ -1853,6 +1853,8 @@ netxen_post_rx_buffers(struct netxen_adapter *adapter, u32 ringid,
 					NETXEN_RCV_PRODUCER_OFFSET), msg);
 		}
 	}
+
+	spin_unlock(&rds_ring->lock);
 }
 
 static void
@@ -1864,9 +1866,10 @@ netxen_post_rx_buffers_nodb(struct netxen_adapter *adapter,
 	int producer, count = 0;
 	struct list_head *head;
 
-	producer = rds_ring->producer;
 	if (!spin_trylock(&rds_ring->lock))
 		return;
+
+	producer = rds_ring->producer;
 
 	head = &rds_ring->free_list;
 	while (!list_empty(head)) {

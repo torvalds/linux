@@ -2262,7 +2262,8 @@ start:
 		vxge_debug_init(VXGE_ERR,
 			"%s: memory allocation failed",
 			VXGE_DRIVER_NAME);
-		return  -ENOMEM;
+		ret = -ENOMEM;
+		goto alloc_entries_failed;
 	}
 
 	vdev->vxge_entries =
@@ -2271,8 +2272,8 @@ start:
 	if (!vdev->vxge_entries) {
 		vxge_debug_init(VXGE_ERR, "%s: memory allocation failed",
 			VXGE_DRIVER_NAME);
-		kfree(vdev->entries);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto alloc_vxge_entries_failed;
 	}
 
 	for (i = 0, j = 0; i < vdev->no_of_vpath; i++) {
@@ -2303,22 +2304,32 @@ start:
 		vxge_debug_init(VXGE_ERR,
 			"%s: MSI-X enable failed for %d vectors, ret: %d",
 			VXGE_DRIVER_NAME, vdev->intr_cnt, ret);
+		if ((max_config_vpath != VXGE_USE_DEFAULT) || (ret < 3)) {
+			ret = -ENODEV;
+			goto enable_msix_failed;
+		}
+
 		kfree(vdev->entries);
 		kfree(vdev->vxge_entries);
 		vdev->entries = NULL;
 		vdev->vxge_entries = NULL;
-
-		if ((max_config_vpath != VXGE_USE_DEFAULT) || (ret < 3))
-			return -ENODEV;
 		/* Try with less no of vector by reducing no of vpaths count */
 		temp = (ret - 1)/2;
 		vxge_close_vpaths(vdev, temp);
 		vdev->no_of_vpath = temp;
 		goto start;
-	} else if (ret < 0)
-		return -ENODEV;
-
+	} else if (ret < 0) {
+		ret = -ENODEV;
+		goto enable_msix_failed;
+	}
 	return 0;
+
+enable_msix_failed:
+	kfree(vdev->vxge_entries);
+alloc_vxge_entries_failed:
+	kfree(vdev->entries);
+alloc_entries_failed:
+	return ret;
 }
 
 static int vxge_enable_msix(struct vxgedev *vdev)

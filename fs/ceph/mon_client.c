@@ -400,6 +400,8 @@ static void release_generic_request(struct kref *kref)
 		ceph_msg_put(req->reply);
 	if (req->request)
 		ceph_msg_put(req->request);
+
+	kfree(req);
 }
 
 static void put_generic_request(struct ceph_mon_generic_request *req)

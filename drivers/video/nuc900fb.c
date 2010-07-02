@@ -596,8 +596,6 @@ static int __devinit nuc900fb_probe(struct platform_device *pdev)
 		goto release_regs;
 	}
 
-	nuc900_driver_clksrc_div(&pdev->dev, "ext", 0x2);
-
 	fbi->clk = clk_get(&pdev->dev, NULL);
 	if (!fbi->clk || IS_ERR(fbi->clk)) {
 		printk(KERN_ERR "nuc900-lcd:failed to get lcd clock source\n");

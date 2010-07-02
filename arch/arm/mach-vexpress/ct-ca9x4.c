@@ -2,6 +2,7 @@
  * Versatile Express Core Tile Cortex A9x4 Support
  */
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>

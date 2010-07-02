@@ -612,7 +612,6 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 								NUMDMA_MASK);
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_WFIFOCTL,
 				((dev->txnumevt * tx_ser) << 8), NUMEVT_MASK);
-		mcasp_set_bits(dev->base + DAVINCI_MCASP_WFIFOCTL, FIFO_ENABLE);
 	}
 
 	if (dev->rxnumevt && stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -623,7 +622,6 @@ static void davinci_hw_common_param(struct davinci_audio_dev *dev, int stream)
 								NUMDMA_MASK);
 		mcasp_mod_bits(dev->base + DAVINCI_MCASP_RFIFOCTL,
 				((dev->rxnumevt * rx_ser) << 8), NUMEVT_MASK);
-		mcasp_set_bits(dev->base + DAVINCI_MCASP_RFIFOCTL, FIFO_ENABLE);
 	}
 }
 

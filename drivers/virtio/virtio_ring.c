@@ -119,7 +119,7 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 
 	desc = kmalloc((out + in) * sizeof(struct vring_desc), gfp);
 	if (!desc)
-		return vq->vring.num;
+		return -ENOMEM;
 
 	/* Transfer entries from the sg list into the indirect page */
 	for (i = 0; i < out; i++) {

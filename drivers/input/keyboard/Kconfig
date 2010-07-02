@@ -69,7 +69,7 @@ config KEYBOARD_ATARI
 	  module will be called atakbd.
 
 config KEYBOARD_ATKBD
-	tristate "AT keyboard" if EMBEDDED || !X86
+	tristate "AT keyboard" if EMBEDDED || !X86 || X86_MRST
 	default y
 	select SERIO
 	select SERIO_LIBPS2

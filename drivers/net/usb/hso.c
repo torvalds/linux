@@ -1334,7 +1334,6 @@ static int hso_serial_open(struct tty_struct *tty, struct file *filp)
 	/* check for port already opened, if not set the termios */
 	serial->open_count++;
 	if (serial->open_count == 1) {
-		tty->low_latency = 1;
 		serial->rx_state = RX_IDLE;
 		/* Force default termio settings */
 		_hso_serial_set_termios(tty, NULL);

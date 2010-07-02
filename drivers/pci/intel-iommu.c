@@ -340,7 +340,7 @@ int dmar_disabled = 0;
 int dmar_disabled = 1;
 #endif /*CONFIG_DMAR_DEFAULT_ON*/
 
-static int __initdata dmar_map_gfx = 1;
+static int dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
 
@@ -1874,14 +1874,15 @@ static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 			}
 		}
 		if (found) {
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 			free_devinfo_mem(info);
 			domain_exit(domain);
 			domain = found;
 		} else {
 			list_add(&info->link, &domain->devices);
 			list_add(&info->global, &device_domain_list);
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 		}
-		spin_unlock_irqrestore(&device_domain_lock, flags);
 	}
 
 found_domain:
@@ -3603,7 +3604,8 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 		pte = dmar_domain->pgd;
 		if (dma_pte_present(pte)) {
 			free_pgtable_page(dmar_domain->pgd);
-			dmar_domain->pgd = (struct dma_pte *)dma_pte_addr(pte);
+			dmar_domain->pgd = (struct dma_pte *)
+				phys_to_virt(dma_pte_addr(pte));
 		}
 		dmar_domain->agaw--;
 	}
@@ -3719,6 +3721,12 @@ static void __devinit quirk_iommu_rwbf(struct pci_dev *dev)
 	 */
 	printk(KERN_INFO "DMAR: Forcing write-buffer flush capability\n");
 	rwbf_quirk = 1;
+
+	/* https://bugzilla.redhat.com/show_bug.cgi?id=538163 */
+	if (dev->revision == 0x07) {
+		printk(KERN_INFO "DMAR: Disabling IOMMU for graphics on this chipset\n");
+		dmar_map_gfx = 0;
+	}
 }
 
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x2a40, quirk_iommu_rwbf);

@@ -128,9 +128,11 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
+	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
 	if (HAS_BSD(dev))
 		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
 	if (I915_NEED_GFX_HWS(dev))
@@ -1229,7 +1231,7 @@ static void i915_warn_stolen(struct drm_device *dev)
 static void i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mm_node *compressed_fb, *compressed_llb;
+	struct drm_mm_node *compressed_fb, *uninitialized_var(compressed_llb);
 	unsigned long cfb_base;
 	unsigned long ll_base = 0;
 
@@ -1402,19 +1404,23 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	/* if we have > 1 VGA cards, then disable the radeon VGA resources */
 	ret = vga_client_register(dev->pdev, dev, NULL, i915_vga_set_decode);
 	if (ret)
-		goto destroy_ringbuffer;
+		goto cleanup_ringbuffer;
 
 	ret = vga_switcheroo_register_client(dev->pdev,
 					     i915_switcheroo_set_state,
 					     i915_switcheroo_can_switch);
 	if (ret)
-		goto destroy_ringbuffer;
+		goto cleanup_vga_client;
+
+	/* IIR "flip pending" bit means done if this bit is set */
+	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
+		dev_priv->flip_pending_is_done = true;
 
 	intel_modeset_init(dev);
 
 	ret = drm_irq_install(dev);
 	if (ret)
-		goto destroy_ringbuffer;
+		goto cleanup_vga_switcheroo;
 
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
@@ -1426,11 +1432,20 @@ static int i915_load_modeset_init(struct drm_device *dev,
 
 	I915_WRITE(INSTPM, (1 << 5) | (1 << 21));
 
-	intel_fbdev_init(dev);
+	ret = intel_fbdev_init(dev);
+	if (ret)
+		goto cleanup_irq;
+
 	drm_kms_helper_poll_init(dev);
 	return 0;
 
-destroy_ringbuffer:
+cleanup_irq:
+	drm_irq_uninstall(dev);
+cleanup_vga_switcheroo:
+	vga_switcheroo_unregister_client(dev->pdev);
+cleanup_vga_client:
+	vga_client_register(dev->pdev, NULL, NULL, NULL);
+cleanup_ringbuffer:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);

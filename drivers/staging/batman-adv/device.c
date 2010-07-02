@@ -196,7 +196,7 @@ ssize_t bat_device_read(struct file *file, char __user *buf, size_t count,
 	kfree(device_packet);
 
 	if (error)
-		return error;
+		return -EFAULT;
 
 	return sizeof(struct icmp_packet);
 }

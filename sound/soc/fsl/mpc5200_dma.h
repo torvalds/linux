@@ -73,7 +73,7 @@ struct psc_dma {
 };
 
 /* Utility for retrieving psc_dma_stream structure from a substream */
-inline struct psc_dma_stream *
+static inline struct psc_dma_stream *
 to_psc_dma_stream(struct snd_pcm_substream *substream, struct psc_dma *psc_dma)
 {
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)

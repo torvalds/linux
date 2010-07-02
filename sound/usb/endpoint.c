@@ -427,6 +427,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		if (snd_usb_parse_audio_format(chip, fp, format, fmt, stream, alts) < 0) {
 			kfree(fp->rate_table);
 			kfree(fp);
+			fp = NULL;
 			continue;
 		}
 

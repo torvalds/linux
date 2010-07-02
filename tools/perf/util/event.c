@@ -538,8 +538,10 @@ int event__process_task(event_t *self, struct perf_session *session)
 	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
 		    self->fork.ppid, self->fork.ptid);
 
-	if (self->header.type == PERF_RECORD_EXIT)
+	if (self->header.type == PERF_RECORD_EXIT) {
+		perf_session__remove_thread(session, thread);
 		return 0;
+	}
 
 	if (thread == NULL || parent == NULL ||
 	    thread__fork(thread, parent) < 0) {
