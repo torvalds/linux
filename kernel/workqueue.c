@@ -445,7 +445,7 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
 	if (cpu == NR_CPUS)
 		return NULL;
 
-	BUG_ON(cpu >= num_possible_cpus());
+	BUG_ON(cpu >= nr_cpu_ids);
 	return get_gcwq(cpu);
 }
 
