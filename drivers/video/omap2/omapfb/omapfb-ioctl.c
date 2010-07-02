@@ -610,6 +610,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 		struct omapfb_vram_info		vram_info;
 		struct omapfb_tearsync_info	tearsync_info;
 		struct omapfb_display_info	display_info;
+		u32				crt;
 	} p;
 
 	int r = 0;
@@ -767,6 +768,17 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 				 sizeof(p.color_key)))
 			r = -EFAULT;
 		break;
+
+	case FBIO_WAITFORVSYNC:
+		if (get_user(p.crt, (__u32 __user *)arg)) {
+			r = -EFAULT;
+			break;
+		}
+		if (p.crt != 0) {
+			r = -ENODEV;
+			break;
+		}
+		/* FALLTHROUGH */
 
 	case OMAPFB_WAITFORVSYNC:
 		DBG("ioctl WAITFORVSYNC\n");
