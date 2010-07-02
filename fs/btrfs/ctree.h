@@ -982,6 +982,7 @@ struct btrfs_fs_info {
 	struct btrfs_workers endio_meta_workers;
 	struct btrfs_workers endio_meta_write_workers;
 	struct btrfs_workers endio_write_workers;
+	struct btrfs_workers endio_freespace_worker;
 	struct btrfs_workers submit_workers;
 	/*
 	 * fixup workers take dirty pages that didn't properly go through
