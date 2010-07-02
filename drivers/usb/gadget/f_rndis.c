@@ -880,7 +880,7 @@ fail:
 #ifdef CONFIG_USB_ANDROID_RNDIS
 #include "rndis.c"
 
-static int __init rndis_probe(struct platform_device *pdev)
+static int rndis_probe(struct platform_device *pdev)
 {
 	rndis_pdata = pdev->dev.platform_data;
 	return 0;
