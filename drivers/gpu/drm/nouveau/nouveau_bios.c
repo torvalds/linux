@@ -1928,6 +1928,31 @@ init_condition_time(struct nvbios *bios, uint16_t offset,
 }
 
 static int
+init_ltime(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_LTIME   opcode: 0x57 ('V')
+	 *
+	 * offset      (8  bit): opcode
+	 * offset + 1  (16 bit): time
+	 *
+	 * Sleep for "time" miliseconds.
+	 */
+
+	unsigned time = ROM16(bios->data[offset + 1]);
+
+	if (!iexec->execute)
+		return 3;
+
+	BIOSLOG(bios, "0x%04X: Sleeping for 0x%04X miliseconds\n",
+		offset, time);
+
+	msleep(time);
+
+	return 3;
+}
+
+static int
 init_zm_reg_sequence(struct nvbios *bios, uint16_t offset,
 		     struct init_exec *iexec)
 {
@@ -3518,6 +3543,7 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_ZM_CR"                        , 0x53, init_zm_cr                      },
 	{ "INIT_ZM_CR_GROUP"                  , 0x54, init_zm_cr_group                },
 	{ "INIT_CONDITION_TIME"               , 0x56, init_condition_time             },
+	{ "INIT_LTIME"                        , 0x57, init_ltime                      },
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, init_zm_reg_sequence            },
 	/* INIT_INDIRECT_REG (0x5A, 7, 0, 0) removed due to no example of use */
 	{ "INIT_SUB_DIRECT"                   , 0x5B, init_sub_direct                 },
