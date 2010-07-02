@@ -190,7 +190,11 @@ struct wq_flusher {
  */
 struct workqueue_struct {
 	unsigned int		flags;		/* I: WQ_* flags */
-	struct cpu_workqueue_struct *cpu_wq;	/* I: cwq's */
+	union {
+		struct cpu_workqueue_struct __percpu	*pcpu;
+		struct cpu_workqueue_struct		*single;
+		unsigned long				v;
+	} cpu_wq;				/* I: cwq's */
 	struct list_head	list;		/* W: list of all workqueues */
 
 	struct mutex		flush_mutex;	/* protects wq flushing */
@@ -362,7 +366,11 @@ static atomic_t *get_gcwq_nr_running(unsigned int cpu)
 static struct cpu_workqueue_struct *get_cwq(unsigned int cpu,
 					    struct workqueue_struct *wq)
 {
-	return per_cpu_ptr(wq->cpu_wq, cpu);
+#ifndef CONFIG_SMP
+	return wq->cpu_wq.single;
+#else
+	return per_cpu_ptr(wq->cpu_wq.pcpu, cpu);
+#endif
 }
 
 static unsigned int work_color_to_flags(int color)
@@ -442,7 +450,7 @@ static struct global_cwq *get_work_gcwq(struct work_struct *work)
 		return ((struct cpu_workqueue_struct *)data)->gcwq;
 
 	cpu = data >> WORK_STRUCT_FLAG_BITS;
-	if (cpu == NR_CPUS)
+	if (cpu == WORK_CPU_NONE)
 		return NULL;
 
 	BUG_ON(cpu >= nr_cpu_ids);
@@ -846,7 +854,7 @@ static void cwq_unbind_single_cpu(struct cpu_workqueue_struct *cwq)
 	 */
 	if (likely(!(gcwq->flags & GCWQ_FREEZING))) {
 		smp_wmb();	/* paired with cmpxchg() in __queue_work() */
-		wq->single_cpu = NR_CPUS;
+		wq->single_cpu = WORK_CPU_NONE;
 	}
 }
 
@@ -904,7 +912,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 		 */
 	retry:
 		cpu = wq->single_cpu;
-		arbitrate = cpu == NR_CPUS;
+		arbitrate = cpu == WORK_CPU_NONE;
 		if (arbitrate)
 			cpu = req_cpu;
 
@@ -918,7 +926,7 @@ static void __queue_work(unsigned int cpu, struct workqueue_struct *wq,
 		 * visible on the new cpu after this point.
 		 */
 		if (arbitrate)
-			cmpxchg(&wq->single_cpu, NR_CPUS, cpu);
+			cmpxchg(&wq->single_cpu, WORK_CPU_NONE, cpu);
 
 		if (unlikely(wq->single_cpu != cpu)) {
 			spin_unlock_irqrestore(&gcwq->lock, flags);
@@ -2572,7 +2580,7 @@ int keventd_up(void)
 	return system_wq != NULL;
 }
 
-static struct cpu_workqueue_struct *alloc_cwqs(void)
+static int alloc_cwqs(struct workqueue_struct *wq)
 {
 	/*
 	 * cwqs are forced aligned according to WORK_STRUCT_FLAG_BITS.
@@ -2582,40 +2590,36 @@ static struct cpu_workqueue_struct *alloc_cwqs(void)
 	const size_t size = sizeof(struct cpu_workqueue_struct);
 	const size_t align = max_t(size_t, 1 << WORK_STRUCT_FLAG_BITS,
 				   __alignof__(unsigned long long));
-	struct cpu_workqueue_struct *cwqs;
 #ifndef CONFIG_SMP
 	void *ptr;
 
 	/*
-	 * On UP, percpu allocator doesn't honor alignment parameter
-	 * and simply uses arch-dependent default.  Allocate enough
-	 * room to align cwq and put an extra pointer at the end
-	 * pointing back to the originally allocated pointer which
-	 * will be used for free.
-	 *
-	 * FIXME: This really belongs to UP percpu code.  Update UP
-	 * percpu code to honor alignment and remove this ugliness.
+	 * Allocate enough room to align cwq and put an extra pointer
+	 * at the end pointing back to the originally allocated
+	 * pointer which will be used for free.
 	 */
-	ptr = __alloc_percpu(size + align + sizeof(void *), 1);
-	cwqs = PTR_ALIGN(ptr, align);
-	*(void **)per_cpu_ptr(cwqs + 1, 0) = ptr;
+	ptr = kzalloc(size + align + sizeof(void *), GFP_KERNEL);
+	if (ptr) {
+		wq->cpu_wq.single = PTR_ALIGN(ptr, align);
+		*(void **)(wq->cpu_wq.single + 1) = ptr;
+	}
 #else
-	/* On SMP, percpu allocator can do it itself */
-	cwqs = __alloc_percpu(size, align);
+	/* On SMP, percpu allocator can align itself */
+	wq->cpu_wq.pcpu = __alloc_percpu(size, align);
 #endif
 	/* just in case, make sure it's actually aligned */
-	BUG_ON(!IS_ALIGNED((unsigned long)cwqs, align));
-	return cwqs;
+	BUG_ON(!IS_ALIGNED(wq->cpu_wq.v, align));
+	return wq->cpu_wq.v ? 0 : -ENOMEM;
 }
 
-static void free_cwqs(struct cpu_workqueue_struct *cwqs)
+static void free_cwqs(struct workqueue_struct *wq)
 {
 #ifndef CONFIG_SMP
 	/* on UP, the pointer to free is stored right after the cwq */
-	if (cwqs)
-		free_percpu(*(void **)per_cpu_ptr(cwqs + 1, 0));
+	if (wq->cpu_wq.single)
+		kfree(*(void **)(wq->cpu_wq.single + 1));
 #else
-	free_percpu(cwqs);
+	free_percpu(wq->cpu_wq.pcpu);
 #endif
 }
 
@@ -2645,21 +2649,20 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 	if (!wq)
 		goto err;
 
-	wq->cpu_wq = alloc_cwqs();
-	if (!wq->cpu_wq)
-		goto err;
-
 	wq->flags = flags;
 	wq->saved_max_active = max_active;
 	mutex_init(&wq->flush_mutex);
 	atomic_set(&wq->nr_cwqs_to_flush, 0);
 	INIT_LIST_HEAD(&wq->flusher_queue);
 	INIT_LIST_HEAD(&wq->flusher_overflow);
-	wq->single_cpu = NR_CPUS;
+	wq->single_cpu = WORK_CPU_NONE;
 
 	wq->name = name;
 	lockdep_init_map(&wq->lockdep_map, lock_name, key, 0);
 	INIT_LIST_HEAD(&wq->list);
+
+	if (alloc_cwqs(wq) < 0)
+		goto err;
 
 	for_each_possible_cpu(cpu) {
 		struct cpu_workqueue_struct *cwq = get_cwq(cpu, wq);
@@ -2710,7 +2713,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 	return wq;
 err:
 	if (wq) {
-		free_cwqs(wq->cpu_wq);
+		free_cwqs(wq);
 		free_cpumask_var(wq->mayday_mask);
 		kfree(wq->rescuer);
 		kfree(wq);
@@ -2755,7 +2758,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 		free_cpumask_var(wq->mayday_mask);
 	}
 
-	free_cwqs(wq->cpu_wq);
+	free_cwqs(wq);
 	kfree(wq);
 }
 EXPORT_SYMBOL_GPL(destroy_workqueue);
@@ -2821,13 +2824,13 @@ EXPORT_SYMBOL_GPL(workqueue_congested);
  * @work: the work of interest
  *
  * RETURNS:
- * CPU number if @work was ever queued.  NR_CPUS otherwise.
+ * CPU number if @work was ever queued.  WORK_CPU_NONE otherwise.
  */
 unsigned int work_cpu(struct work_struct *work)
 {
 	struct global_cwq *gcwq = get_work_gcwq(work);
 
-	return gcwq ? gcwq->cpu : NR_CPUS;
+	return gcwq ? gcwq->cpu : WORK_CPU_NONE;
 }
 EXPORT_SYMBOL_GPL(work_cpu);
 
@@ -3300,7 +3303,6 @@ EXPORT_SYMBOL_GPL(work_on_cpu);
  */
 void freeze_workqueues_begin(void)
 {
-	struct workqueue_struct *wq;
 	unsigned int cpu;
 
 	spin_lock(&workqueue_lock);
@@ -3310,6 +3312,7 @@ void freeze_workqueues_begin(void)
 
 	for_each_possible_cpu(cpu) {
 		struct global_cwq *gcwq = get_gcwq(cpu);
+		struct workqueue_struct *wq;
 
 		spin_lock_irq(&gcwq->lock);
 
@@ -3344,7 +3347,6 @@ void freeze_workqueues_begin(void)
  */
 bool freeze_workqueues_busy(void)
 {
-	struct workqueue_struct *wq;
 	unsigned int cpu;
 	bool busy = false;
 
@@ -3353,6 +3355,7 @@ bool freeze_workqueues_busy(void)
 	BUG_ON(!workqueue_freezing);
 
 	for_each_possible_cpu(cpu) {
+		struct workqueue_struct *wq;
 		/*
 		 * nr_active is monotonically decreasing.  It's safe
 		 * to peek without lock.
@@ -3386,7 +3389,6 @@ out_unlock:
  */
 void thaw_workqueues(void)
 {
-	struct workqueue_struct *wq;
 	unsigned int cpu;
 
 	spin_lock(&workqueue_lock);
@@ -3396,6 +3398,7 @@ void thaw_workqueues(void)
 
 	for_each_possible_cpu(cpu) {
 		struct global_cwq *gcwq = get_gcwq(cpu);
+		struct workqueue_struct *wq;
 
 		spin_lock_irq(&gcwq->lock);
 
@@ -3443,7 +3446,7 @@ void __init init_workqueues(void)
 	 * sure cpu number won't overflow into kernel pointer area so
 	 * that they can be distinguished.
 	 */
-	BUILD_BUG_ON(NR_CPUS << WORK_STRUCT_FLAG_BITS >= PAGE_OFFSET);
+	BUILD_BUG_ON(WORK_CPU_LAST << WORK_STRUCT_FLAG_BITS >= PAGE_OFFSET);
 
 	hotcpu_notifier(workqueue_cpu_callback, CPU_PRI_WORKQUEUE);
 

@@ -50,6 +50,10 @@ enum {
 	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS) - 1,
 	WORK_NO_COLOR		= WORK_NR_COLORS,
 
+	/* special cpu IDs */
+	WORK_CPU_NONE		= NR_CPUS,
+	WORK_CPU_LAST		= WORK_CPU_NONE,
+
 	/*
 	 * Reserve 6 bits off of cwq pointer w/ debugobjects turned
 	 * off.  This makes cwqs aligned to 64 bytes which isn't too
@@ -60,7 +64,7 @@ enum {
 
 	WORK_STRUCT_FLAG_MASK	= (1UL << WORK_STRUCT_FLAG_BITS) - 1,
 	WORK_STRUCT_WQ_DATA_MASK = ~WORK_STRUCT_FLAG_MASK,
-	WORK_STRUCT_NO_CPU	= NR_CPUS << WORK_STRUCT_FLAG_BITS,
+	WORK_STRUCT_NO_CPU	= WORK_CPU_NONE << WORK_STRUCT_FLAG_BITS,
 
 	/* bit mask for work_busy() return values */
 	WORK_BUSY_PENDING	= 1 << 0,
@@ -227,9 +231,9 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
 	clear_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(work))
 
 enum {
-	WQ_FREEZEABLE		= 1 << 0, /* freeze during suspend */
+	WQ_NON_REENTRANT	= 1 << 0, /* guarantee non-reentrance */
 	WQ_SINGLE_CPU		= 1 << 1, /* only single cpu at a time */
-	WQ_NON_REENTRANT	= 1 << 2, /* guarantee non-reentrance */
+	WQ_FREEZEABLE		= 1 << 2, /* freeze during suspend */
 	WQ_RESCUER		= 1 << 3, /* has an rescue worker */
 	WQ_HIGHPRI		= 1 << 4, /* high priority */
 	WQ_CPU_INTENSIVE	= 1 << 5, /* cpu instensive workqueue */
