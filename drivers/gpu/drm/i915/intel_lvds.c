@@ -599,6 +599,26 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
+static int intel_no_modeset_on_lid_dmi_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG_KMS("Skipping forced modeset for %s\n", id->ident);
+	return 1;
+}
+
+/* The GPU hangs up on these systems if modeset is performed on LID open */
+static const struct dmi_system_id intel_no_modeset_on_lid[] = {
+	{
+		.callback = intel_no_modeset_on_lid_dmi_callback,
+		.ident = "Toshiba Tecra A11",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TECRA A11"),
+		},
+	},
+
+	{ }	/* terminating entry */
+};
+
 /*
  * Lid events. Note the use of 'modeset_on_lid':
  *  - we set it on lid close, and reset it on open
@@ -622,6 +642,9 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	 */
 	if (connector)
 		connector->status = connector->funcs->detect(connector);
+	/* Don't force modeset on machines where it causes a GPU lockup */
+	if (dmi_check_system(intel_no_modeset_on_lid))
+		return NOTIFY_OK;
 	if (!acpi_lid_open()) {
 		dev_priv->modeset_on_lid = 1;
 		return NOTIFY_OK;
