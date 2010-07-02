@@ -64,8 +64,8 @@ static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 		else {
 			child =
 			    list_entry(mm->unused_nodes.next,
-				       struct drm_mm_node, fl_entry);
-			list_del(&child->fl_entry);
+				       struct drm_mm_node, free_stack);
+			list_del(&child->free_stack);
 			--mm->num_unused;
 		}
 		spin_unlock(&mm->unused_lock);
@@ -94,7 +94,7 @@ int drm_mm_pre_get(struct drm_mm *mm)
 			return ret;
 		}
 		++mm->num_unused;
-		list_add_tail(&node->fl_entry, &mm->unused_nodes);
+		list_add_tail(&node->free_stack, &mm->unused_nodes);
 	}
 	spin_unlock(&mm->unused_lock);
 	return 0;
@@ -116,8 +116,8 @@ static int drm_mm_create_tail_node(struct drm_mm *mm,
 	child->start = start;
 	child->mm = mm;
 
-	list_add_tail(&child->ml_entry, &mm->ml_entry);
-	list_add_tail(&child->fl_entry, &mm->fl_entry);
+	list_add_tail(&child->node_list, &mm->node_list);
+	list_add_tail(&child->free_stack, &mm->free_stack);
 
 	return 0;
 }
@@ -132,15 +132,15 @@ static struct drm_mm_node *drm_mm_split_at_start(struct drm_mm_node *parent,
 	if (unlikely(child == NULL))
 		return NULL;
 
-	INIT_LIST_HEAD(&child->fl_entry);
+	INIT_LIST_HEAD(&child->free_stack);
 
 	child->free = 0;
 	child->size = size;
 	child->start = parent->start;
 	child->mm = parent->mm;
 
-	list_add_tail(&child->ml_entry, &parent->ml_entry);
-	INIT_LIST_HEAD(&child->fl_entry);
+	list_add_tail(&child->node_list, &parent->node_list);
+	INIT_LIST_HEAD(&child->free_stack);
 
 	parent->size -= size;
 	parent->start += size;
@@ -168,7 +168,7 @@ struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
 	}
 
 	if (node->size == size) {
-		list_del_init(&node->fl_entry);
+		list_del_init(&node->free_stack);
 		node->free = 0;
 	} else {
 		node = drm_mm_split_at_start(node, size, atomic);
@@ -206,7 +206,7 @@ struct drm_mm_node *drm_mm_get_block_range_generic(struct drm_mm_node *node,
 	}
 
 	if (node->size == size) {
-		list_del_init(&node->fl_entry);
+		list_del_init(&node->free_stack);
 		node->free = 0;
 	} else {
 		node = drm_mm_split_at_start(node, size, atomic);
@@ -228,8 +228,8 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 {
 
 	struct drm_mm *mm = cur->mm;
-	struct list_head *cur_head = &cur->ml_entry;
-	struct list_head *root_head = &mm->ml_entry;
+	struct list_head *cur_head = &cur->node_list;
+	struct list_head *root_head = &mm->node_list;
 	struct drm_mm_node *prev_node = NULL;
 	struct drm_mm_node *next_node;
 
@@ -237,7 +237,7 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 
 	if (cur_head->prev != root_head) {
 		prev_node =
-		    list_entry(cur_head->prev, struct drm_mm_node, ml_entry);
+		    list_entry(cur_head->prev, struct drm_mm_node, node_list);
 		if (prev_node->free) {
 			prev_node->size += cur->size;
 			merged = 1;
@@ -245,15 +245,15 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 	}
 	if (cur_head->next != root_head) {
 		next_node =
-		    list_entry(cur_head->next, struct drm_mm_node, ml_entry);
+		    list_entry(cur_head->next, struct drm_mm_node, node_list);
 		if (next_node->free) {
 			if (merged) {
 				prev_node->size += next_node->size;
-				list_del(&next_node->ml_entry);
-				list_del(&next_node->fl_entry);
+				list_del(&next_node->node_list);
+				list_del(&next_node->free_stack);
 				spin_lock(&mm->unused_lock);
 				if (mm->num_unused < MM_UNUSED_TARGET) {
-					list_add(&next_node->fl_entry,
+					list_add(&next_node->free_stack,
 						 &mm->unused_nodes);
 					++mm->num_unused;
 				} else
@@ -268,12 +268,12 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 	}
 	if (!merged) {
 		cur->free = 1;
-		list_add(&cur->fl_entry, &mm->fl_entry);
+		list_add(&cur->free_stack, &mm->free_stack);
 	} else {
-		list_del(&cur->ml_entry);
+		list_del(&cur->node_list);
 		spin_lock(&mm->unused_lock);
 		if (mm->num_unused < MM_UNUSED_TARGET) {
-			list_add(&cur->fl_entry, &mm->unused_nodes);
+			list_add(&cur->free_stack, &mm->unused_nodes);
 			++mm->num_unused;
 		} else
 			kfree(cur);
@@ -287,7 +287,6 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 				       unsigned long size,
 				       unsigned alignment, int best_match)
 {
-	const struct list_head *free_stack = &mm->fl_entry;
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
 	unsigned long best_size;
@@ -296,7 +295,7 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	list_for_each_entry(entry, free_stack, fl_entry) {
+	list_for_each_entry(entry, &mm->free_stack, free_stack) {
 		wasted = 0;
 
 		if (entry->size < size)
@@ -329,7 +328,6 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 						unsigned long end,
 						int best_match)
 {
-	const struct list_head *free_stack = &mm->fl_entry;
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
 	unsigned long best_size;
@@ -338,7 +336,7 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	list_for_each_entry(entry, free_stack, fl_entry) {
+	list_for_each_entry(entry, &mm->free_stack, free_stack) {
 		wasted = 0;
 
 		if (entry->size < size)
@@ -373,7 +371,7 @@ EXPORT_SYMBOL(drm_mm_search_free_in_range);
 
 int drm_mm_clean(struct drm_mm * mm)
 {
-	struct list_head *head = &mm->ml_entry;
+	struct list_head *head = &mm->node_list;
 
 	return (head->next->next == head);
 }
@@ -381,8 +379,8 @@ EXPORT_SYMBOL(drm_mm_clean);
 
 int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 {
-	INIT_LIST_HEAD(&mm->ml_entry);
-	INIT_LIST_HEAD(&mm->fl_entry);
+	INIT_LIST_HEAD(&mm->node_list);
+	INIT_LIST_HEAD(&mm->free_stack);
 	INIT_LIST_HEAD(&mm->unused_nodes);
 	mm->num_unused = 0;
 	spin_lock_init(&mm->unused_lock);
@@ -393,25 +391,25 @@ EXPORT_SYMBOL(drm_mm_init);
 
 void drm_mm_takedown(struct drm_mm * mm)
 {
-	struct list_head *bnode = mm->fl_entry.next;
+	struct list_head *bnode = mm->free_stack.next;
 	struct drm_mm_node *entry;
 	struct drm_mm_node *next;
 
-	entry = list_entry(bnode, struct drm_mm_node, fl_entry);
+	entry = list_entry(bnode, struct drm_mm_node, free_stack);
 
-	if (entry->ml_entry.next != &mm->ml_entry ||
-	    entry->fl_entry.next != &mm->fl_entry) {
+	if (entry->node_list.next != &mm->node_list ||
+	    entry->free_stack.next != &mm->free_stack) {
 		DRM_ERROR("Memory manager not clean. Delaying takedown\n");
 		return;
 	}
 
-	list_del(&entry->fl_entry);
-	list_del(&entry->ml_entry);
+	list_del(&entry->free_stack);
+	list_del(&entry->node_list);
 	kfree(entry);
 
 	spin_lock(&mm->unused_lock);
-	list_for_each_entry_safe(entry, next, &mm->unused_nodes, fl_entry) {
-		list_del(&entry->fl_entry);
+	list_for_each_entry_safe(entry, next, &mm->unused_nodes, free_stack) {
+		list_del(&entry->free_stack);
 		kfree(entry);
 		--mm->num_unused;
 	}
@@ -426,7 +424,7 @@ void drm_mm_debug_table(struct drm_mm *mm, const char *prefix)
 	struct drm_mm_node *entry;
 	int total_used = 0, total_free = 0, total = 0;
 
-	list_for_each_entry(entry, &mm->ml_entry, ml_entry) {
+	list_for_each_entry(entry, &mm->node_list, node_list) {
 		printk(KERN_DEBUG "%s 0x%08lx-0x%08lx: %8ld: %s\n",
 			prefix, entry->start, entry->start + entry->size,
 			entry->size, entry->free ? "free" : "used");
@@ -447,7 +445,7 @@ int drm_mm_dump_table(struct seq_file *m, struct drm_mm *mm)
 	struct drm_mm_node *entry;
 	int total_used = 0, total_free = 0, total = 0;
 
-	list_for_each_entry(entry, &mm->ml_entry, ml_entry) {
+	list_for_each_entry(entry, &mm->node_list, node_list) {
 		seq_printf(m, "0x%08lx-0x%08lx: 0x%08lx: %s\n", entry->start, entry->start + entry->size, entry->size, entry->free ? "free" : "used");
 		total += entry->size;
 		if (entry->free)

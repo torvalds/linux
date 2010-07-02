@@ -42,8 +42,8 @@
 #endif
 
 struct drm_mm_node {
-	struct list_head fl_entry;
-	struct list_head ml_entry;
+	struct list_head free_stack;
+	struct list_head node_list;
 	int free;
 	unsigned long start;
 	unsigned long size;
@@ -51,8 +51,11 @@ struct drm_mm_node {
 };
 
 struct drm_mm {
-	struct list_head fl_entry;
-	struct list_head ml_entry;
+	/* List of free memory blocks, most recently freed ordered. */
+	struct list_head free_stack;
+	/* List of all memory nodes, ordered according to the (increasing) start
+	 * address of the memory node. */
+	struct list_head node_list;
 	struct list_head unused_nodes;
 	int num_unused;
 	spinlock_t unused_lock;
