@@ -601,7 +601,7 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task,
 
 /**
  * worker_set_flags - set worker flags and adjust nr_running accordingly
- * @worker: worker to set flags for
+ * @worker: self
  * @flags: flags to set
  * @wakeup: wakeup an idle worker if necessary
  *
@@ -609,13 +609,15 @@ struct task_struct *wq_worker_sleeping(struct task_struct *task,
  * nr_running becomes zero and @wakeup is %true, an idle worker is
  * woken up.
  *
- * LOCKING:
- * spin_lock_irq(gcwq->lock).
+ * CONTEXT:
+ * spin_lock_irq(gcwq->lock)
  */
 static inline void worker_set_flags(struct worker *worker, unsigned int flags,
 				    bool wakeup)
 {
 	struct global_cwq *gcwq = worker->gcwq;
+
+	WARN_ON_ONCE(worker->task != current);
 
 	/*
 	 * If transitioning into NOT_RUNNING, adjust nr_running and
@@ -639,18 +641,20 @@ static inline void worker_set_flags(struct worker *worker, unsigned int flags,
 
 /**
  * worker_clr_flags - clear worker flags and adjust nr_running accordingly
- * @worker: worker to set flags for
+ * @worker: self
  * @flags: flags to clear
  *
  * Clear @flags in @worker->flags and adjust nr_running accordingly.
  *
- * LOCKING:
- * spin_lock_irq(gcwq->lock).
+ * CONTEXT:
+ * spin_lock_irq(gcwq->lock)
  */
 static inline void worker_clr_flags(struct worker *worker, unsigned int flags)
 {
 	struct global_cwq *gcwq = worker->gcwq;
 	unsigned int oflags = worker->flags;
+
+	WARN_ON_ONCE(worker->task != current);
 
 	worker->flags &= ~flags;
 
@@ -1073,7 +1077,8 @@ static void worker_enter_idle(struct worker *worker)
 	BUG_ON(!list_empty(&worker->entry) &&
 	       (worker->hentry.next || worker->hentry.pprev));
 
-	worker_set_flags(worker, WORKER_IDLE, false);
+	/* can't use worker_set_flags(), also called from start_worker() */
+	worker->flags |= WORKER_IDLE;
 	gcwq->nr_idle++;
 	worker->last_active = jiffies;
 
@@ -1086,6 +1091,10 @@ static void worker_enter_idle(struct worker *worker)
 				  jiffies + IDLE_WORKER_TIMEOUT);
 	} else
 		wake_up_all(&gcwq->trustee_wait);
+
+	/* sanity check nr_running */
+	WARN_ON_ONCE(gcwq->nr_workers == gcwq->nr_idle &&
+		     atomic_read(get_gcwq_nr_running(gcwq->cpu)));
 }
 
 /**
@@ -1270,7 +1279,7 @@ fail:
  */
 static void start_worker(struct worker *worker)
 {
-	worker_set_flags(worker, WORKER_STARTED, false);
+	worker->flags |= WORKER_STARTED;
 	worker->gcwq->nr_workers++;
 	worker_enter_idle(worker);
 	wake_up_process(worker->task);
@@ -1300,7 +1309,7 @@ static void destroy_worker(struct worker *worker)
 		gcwq->nr_idle--;
 
 	list_del_init(&worker->entry);
-	worker_set_flags(worker, WORKER_DIE, false);
+	worker->flags |= WORKER_DIE;
 
 	spin_unlock_irq(&gcwq->lock);
 
@@ -2979,10 +2988,10 @@ static int __cpuinit trustee_thread(void *__gcwq)
 	gcwq->flags |= GCWQ_MANAGING_WORKERS;
 
 	list_for_each_entry(worker, &gcwq->idle_list, entry)
-		worker_set_flags(worker, WORKER_ROGUE, false);
+		worker->flags |= WORKER_ROGUE;
 
 	for_each_busy_worker(worker, i, pos, gcwq)
-		worker_set_flags(worker, WORKER_ROGUE, false);
+		worker->flags |= WORKER_ROGUE;
 
 	/*
 	 * Call schedule() so that we cross rq->lock and thus can
@@ -2995,12 +3004,12 @@ static int __cpuinit trustee_thread(void *__gcwq)
 	spin_lock_irq(&gcwq->lock);
 
 	/*
-	 * Sched callbacks are disabled now.  gcwq->nr_running should
-	 * be zero and will stay that way, making need_more_worker()
-	 * and keep_working() always return true as long as the
-	 * worklist is not empty.
+	 * Sched callbacks are disabled now.  Zap nr_running.  After
+	 * this, nr_running stays zero and need_more_worker() and
+	 * keep_working() are always true as long as the worklist is
+	 * not empty.
 	 */
-	WARN_ON_ONCE(atomic_read(get_gcwq_nr_running(gcwq->cpu)) != 0);
+	atomic_set(get_gcwq_nr_running(gcwq->cpu), 0);
 
 	spin_unlock_irq(&gcwq->lock);
 	del_timer_sync(&gcwq->idle_timer);
@@ -3046,7 +3055,7 @@ static int __cpuinit trustee_thread(void *__gcwq)
 			worker = create_worker(gcwq, false);
 			spin_lock_irq(&gcwq->lock);
 			if (worker) {
-				worker_set_flags(worker, WORKER_ROGUE, false);
+				worker->flags |= WORKER_ROGUE;
 				start_worker(worker);
 			}
 		}
@@ -3085,8 +3094,8 @@ static int __cpuinit trustee_thread(void *__gcwq)
 		 * operations.  Use a separate flag to mark that
 		 * rebinding is scheduled.
 		 */
-		worker_set_flags(worker, WORKER_REBIND, false);
-		worker_clr_flags(worker, WORKER_ROGUE);
+		worker->flags |= WORKER_REBIND;
+		worker->flags &= ~WORKER_ROGUE;
 
 		/* queue rebind_work, wq doesn't matter, use the default one */
 		if (test_and_set_bit(WORK_STRUCT_PENDING_BIT,
