@@ -61,6 +61,7 @@ config DRM_RADEON
         select DRM_KMS_HELPER
         select DRM_TTM
 	select POWER_SUPPLY
+	select HWMON
 	help
 	  Choose this option if you have an ATI Radeon graphics card.  There
 	  are both PCI and AGP versions.  You don't need to choose this to

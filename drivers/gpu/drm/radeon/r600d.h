@@ -239,6 +239,11 @@
 #define	GRBM_SOFT_RESET					0x8020
 #define		SOFT_RESET_CP					(1<<0)
 
+#define	CG_THERMAL_STATUS				0x7F4
+#define		ASIC_T(x)			        ((x) << 0)
+#define		ASIC_T_MASK			        0x1FF
+#define		ASIC_T_SHIFT			        0
+
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
 #define	HDP_NONSURFACE_INFO				0x2C08

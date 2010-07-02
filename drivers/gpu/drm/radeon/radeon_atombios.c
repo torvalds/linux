@@ -1773,14 +1773,22 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 			}
 
 			/* add the i2c bus for thermal/fan chip */
-			/* no support for internal controller yet */
 			if (controller->ucType > 0) {
-				if ((controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
-				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) ||
-				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN)) {
+				if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) {
 					DRM_INFO("Internal thermal controller %s fan control\n",
 						 (controller->ucFanParameters &
 						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_RV6XX;
+				} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (controller->ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_RV770;
+				} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_EVERGREEN) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (controller->ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					rdev->pm.int_thermal_type = THERMAL_TYPE_EVERGREEN;
 				} else if ((controller->ucType ==
 					    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
 					   (controller->ucType ==

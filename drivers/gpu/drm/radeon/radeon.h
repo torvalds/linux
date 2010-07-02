@@ -178,6 +178,9 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
 void rs690_pm_info(struct radeon_device *rdev);
+extern u32 rv6xx_get_temp(struct radeon_device *rdev);
+extern u32 rv770_get_temp(struct radeon_device *rdev);
+extern u32 evergreen_get_temp(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -670,6 +673,13 @@ struct radeon_pm_profile {
 	int dpms_on_cm_idx;
 };
 
+enum radeon_int_thermal_type {
+	THERMAL_TYPE_NONE,
+	THERMAL_TYPE_RV6XX,
+	THERMAL_TYPE_RV770,
+	THERMAL_TYPE_EVERGREEN,
+};
+
 struct radeon_voltage {
 	enum radeon_voltage_type type;
 	/* gpio voltage */
@@ -765,6 +775,9 @@ struct radeon_pm {
 	enum radeon_pm_profile_type profile;
 	int                     profile_index;
 	struct radeon_pm_profile profiles[PM_PROFILE_MAX];
+	/* internal thermal controller on rv6xx+ */
+	enum radeon_int_thermal_type int_thermal_type;
+	struct device	        *int_hwmon_dev;
 };
 
 
