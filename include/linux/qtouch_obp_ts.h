@@ -425,8 +425,7 @@ struct qtouch_key_array {
 };
 
 struct touch_fw_entry {
-	uint8_t		*image;
-	uint32_t	size;
+	char		*fw_name;
 	uint8_t		family_id;
 	uint8_t		variant_id;
 	uint8_t		fw_version;
