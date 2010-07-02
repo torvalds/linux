@@ -136,8 +136,6 @@ mb_incoherent(void)
 #define set_mb(var, value) \
 	do { var = value; mb(); } while (0)
 
-#include <linux/irqflags.h>
-
 /*
  * Pause the DMA engine and static network before task switching.
  */

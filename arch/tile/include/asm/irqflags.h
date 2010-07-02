@@ -15,7 +15,6 @@
 #ifndef _ASM_TILE_IRQFLAGS_H
 #define _ASM_TILE_IRQFLAGS_H
 
-#include <asm/processor.h>
 #include <arch/interrupts.h>
 #include <arch/chip.h>
 

@@ -21,11 +21,6 @@
 #define L1_CACHE_SHIFT		CHIP_L1D_LOG_LINE_SIZE()
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
-/* bytes per L1 instruction cache line */
-#define L1I_CACHE_SHIFT		CHIP_L1I_LOG_LINE_SIZE()
-#define L1I_CACHE_BYTES		(1 << L1I_CACHE_SHIFT)
-#define L1I_CACHE_ALIGN(x)	(((x)+(L1I_CACHE_BYTES-1)) & -L1I_CACHE_BYTES)
-
 /* bytes per L2 cache line */
 #define L2_CACHE_SHIFT		CHIP_L2_LOG_LINE_SIZE()
 #define L2_CACHE_BYTES		(1 << L2_CACHE_SHIFT)

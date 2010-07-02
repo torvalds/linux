@@ -267,32 +267,20 @@ extern int hash_default;
 
 /* Should kernel stack pages be hash-for-home? */
 extern int kstack_hash;
+
+/* Does MAP_ANONYMOUS return hash-for-home pages by default? */
+#define uheap_hash hash_default
+
 #else
 #define hash_default 0
 #define kstack_hash 0
+#define uheap_hash 0
 #endif
 
 /* Are we using huge pages in the TLB for kernel data? */
 extern int kdata_huge;
 
-/*
- * Note that with OLOC the prefetch will return an unused read word to
- * the issuing tile, which will cause some MDN traffic.  Benchmarking
- * should be done to see whether this outweighs prefetching.
- */
-#define ARCH_HAS_PREFETCH
-#define ARCH_HAS_PREFETCHW
-#define ARCH_HAS_SPINLOCK_PREFETCH
-
-#define prefetch(ptr) __builtin_prefetch((ptr), 0, 3)
-#define prefetchw(ptr) __builtin_prefetch((ptr), 1, 3)
-
-#ifdef CONFIG_SMP
-#define spin_lock_prefetch(ptr) prefetchw(ptr)
-#else
-/* Nothing to prefetch. */
-#define spin_lock_prefetch(lock)	do { } while (0)
-#endif
+#define PREFETCH_STRIDE CHIP_L2_LINE_SIZE()
 
 #else /* __ASSEMBLY__ */
 

@@ -150,11 +150,6 @@ extern void cpu_idle_on_new_stack(struct thread_info *old_ti,
 #endif
 #define TS_POLLING		0x0004	/* in idle loop but not sleeping */
 #define TS_RESTORE_SIGMASK	0x0008	/* restore signal mask in do_signal */
-#define TS_EXEC_HASH_SET	0x0010	/* apply TS_EXEC_HASH_xxx flags */
-#define TS_EXEC_HASH_RO		0x0020	/* during exec, hash r/o segments */
-#define TS_EXEC_HASH_RW		0x0040	/* during exec, hash r/w segments */
-#define TS_EXEC_HASH_STACK	0x0080	/* during exec, hash the stack */
-#define TS_EXEC_HASH_FLAGS	0x00f0	/* mask for TS_EXEC_HASH_xxx flags */
 
 #define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 

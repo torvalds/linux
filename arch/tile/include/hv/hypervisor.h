@@ -547,7 +547,7 @@ void hv_assert_intr(HV_IntrMask assert_mask);
  */
 HV_Errno hv_trigger_ipi(HV_Coord tile, int interrupt);
 
-#endif // !CHIP_HAS_IPI()
+#endif /* !CHIP_HAS_IPI() */
 
 /** Store memory mapping in debug memory so that external debugger can read it.
  * A maximum of 16 entries can be stored.
