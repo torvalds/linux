@@ -26,6 +26,7 @@
 #include <linux/semaphore.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/delay.h>
 #include <linux/wait.h>
 #include <asm/io.h>
 #include <asm/atomic.h>
