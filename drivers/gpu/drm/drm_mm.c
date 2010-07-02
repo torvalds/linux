@@ -53,9 +53,9 @@ static struct drm_mm_node *drm_mm_kmalloc(struct drm_mm *mm, int atomic)
 	struct drm_mm_node *child;
 
 	if (atomic)
-		child = kmalloc(sizeof(*child), GFP_ATOMIC);
+		child = kzalloc(sizeof(*child), GFP_ATOMIC);
 	else
-		child = kmalloc(sizeof(*child), GFP_KERNEL);
+		child = kzalloc(sizeof(*child), GFP_KERNEL);
 
 	if (unlikely(child == NULL)) {
 		spin_lock(&mm->unused_lock);
@@ -85,7 +85,7 @@ int drm_mm_pre_get(struct drm_mm *mm)
 	spin_lock(&mm->unused_lock);
 	while (mm->num_unused < MM_UNUSED_TARGET) {
 		spin_unlock(&mm->unused_lock);
-		node = kmalloc(sizeof(*node), GFP_KERNEL);
+		node = kzalloc(sizeof(*node), GFP_KERNEL);
 		spin_lock(&mm->unused_lock);
 
 		if (unlikely(node == NULL)) {
@@ -134,7 +134,6 @@ static struct drm_mm_node *drm_mm_split_at_start(struct drm_mm_node *parent,
 
 	INIT_LIST_HEAD(&child->free_stack);
 
-	child->free = 0;
 	child->size = size;
 	child->start = parent->start;
 	child->mm = parent->mm;
@@ -235,6 +234,9 @@ void drm_mm_put_block(struct drm_mm_node *cur)
 
 	int merged = 0;
 
+	BUG_ON(cur->scanned_block || cur->scanned_prev_free
+				  || cur->scanned_next_free);
+
 	if (cur_head->prev != root_head) {
 		prev_node =
 		    list_entry(cur_head->prev, struct drm_mm_node, node_list);
@@ -312,6 +314,8 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 	struct drm_mm_node *best;
 	unsigned long best_size;
 
+	BUG_ON(mm->scanned_blocks);
+
 	best = NULL;
 	best_size = ~0UL;
 
@@ -343,6 +347,8 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 	struct drm_mm_node *best;
 	unsigned long best_size;
 
+	BUG_ON(mm->scanned_blocks);
+
 	best = NULL;
 	best_size = ~0UL;
 
@@ -366,6 +372,158 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 }
 EXPORT_SYMBOL(drm_mm_search_free_in_range);
 
+/**
+ * Initializa lru scanning.
+ *
+ * This simply sets up the scanning routines with the parameters for the desired
+ * hole.
+ *
+ * Warning: As long as the scan list is non-empty, no other operations than
+ * adding/removing nodes to/from the scan list are allowed.
+ */
+void drm_mm_init_scan(struct drm_mm *mm, unsigned long size,
+		      unsigned alignment)
+{
+	mm->scan_alignment = alignment;
+	mm->scan_size = size;
+	mm->scanned_blocks = 0;
+	mm->scan_hit_start = 0;
+	mm->scan_hit_size = 0;
+}
+EXPORT_SYMBOL(drm_mm_init_scan);
+
+/**
+ * Add a node to the scan list that might be freed to make space for the desired
+ * hole.
+ *
+ * Returns non-zero, if a hole has been found, zero otherwise.
+ */
+int drm_mm_scan_add_block(struct drm_mm_node *node)
+{
+	struct drm_mm *mm = node->mm;
+	struct list_head *prev_free, *next_free;
+	struct drm_mm_node *prev_node, *next_node;
+
+	mm->scanned_blocks++;
+
+	prev_free = next_free = NULL;
+
+	BUG_ON(node->free);
+	node->scanned_block = 1;
+	node->free = 1;
+
+	if (node->node_list.prev != &mm->node_list) {
+		prev_node = list_entry(node->node_list.prev, struct drm_mm_node,
+				       node_list);
+
+		if (prev_node->free) {
+			list_del(&prev_node->node_list);
+
+			node->start = prev_node->start;
+			node->size += prev_node->size;
+
+			prev_node->scanned_prev_free = 1;
+
+			prev_free = &prev_node->free_stack;
+		}
+	}
+
+	if (node->node_list.next != &mm->node_list) {
+		next_node = list_entry(node->node_list.next, struct drm_mm_node,
+				       node_list);
+
+		if (next_node->free) {
+			list_del(&next_node->node_list);
+
+			node->size += next_node->size;
+
+			next_node->scanned_next_free = 1;
+
+			next_free = &next_node->free_stack;
+		}
+	}
+
+	/* The free_stack list is not used for allocated objects, so these two
+	 * pointers can be abused (as long as no allocations in this memory
+	 * manager happens). */
+	node->free_stack.prev = prev_free;
+	node->free_stack.next = next_free;
+
+	if (check_free_mm_node(node, mm->scan_size, mm->scan_alignment)) {
+		mm->scan_hit_start = node->start;
+		mm->scan_hit_size = node->size;
+
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_scan_add_block);
+
+/**
+ * Remove a node from the scan list.
+ *
+ * Nodes _must_ be removed in the exact same order from the scan list as they
+ * have been added, otherwise the internal state of the memory manager will be
+ * corrupted.
+ *
+ * When the scan list is empty, the selected memory nodes can be freed. An
+ * immediatly following drm_mm_search_free with best_match = 0 will then return
+ * the just freed block (because its at the top of the free_stack list).
+ *
+ * Returns one if this block should be evicted, zero otherwise. Will always
+ * return zero when no hole has been found.
+ */
+int drm_mm_scan_remove_block(struct drm_mm_node *node)
+{
+	struct drm_mm *mm = node->mm;
+	struct drm_mm_node *prev_node, *next_node;
+
+	mm->scanned_blocks--;
+
+	BUG_ON(!node->scanned_block);
+	node->scanned_block = 0;
+	node->free = 0;
+
+	prev_node = list_entry(node->free_stack.prev, struct drm_mm_node,
+			       free_stack);
+	next_node = list_entry(node->free_stack.next, struct drm_mm_node,
+			       free_stack);
+
+	if (prev_node) {
+		BUG_ON(!prev_node->scanned_prev_free);
+		prev_node->scanned_prev_free = 0;
+
+		list_add_tail(&prev_node->node_list, &node->node_list);
+
+		node->start = prev_node->start + prev_node->size;
+		node->size -= prev_node->size;
+	}
+
+	if (next_node) {
+		BUG_ON(!next_node->scanned_next_free);
+		next_node->scanned_next_free = 0;
+
+		list_add(&next_node->node_list, &node->node_list);
+
+		node->size -= next_node->size;
+	}
+
+	INIT_LIST_HEAD(&node->free_stack);
+
+	/* Only need to check for containement because start&size for the
+	 * complete resulting free block (not just the desired part) is
+	 * stored. */
+	if (node->start >= mm->scan_hit_start &&
+	    node->start + node->size
+	    		<= mm->scan_hit_start + mm->scan_hit_size) {
+		return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_mm_scan_remove_block);
+
 int drm_mm_clean(struct drm_mm * mm)
 {
 	struct list_head *head = &mm->node_list;
@@ -380,6 +538,7 @@ int drm_mm_init(struct drm_mm * mm, unsigned long start, unsigned long size)
 	INIT_LIST_HEAD(&mm->free_stack);
 	INIT_LIST_HEAD(&mm->unused_nodes);
 	mm->num_unused = 0;
+	mm->scanned_blocks = 0;
 	spin_lock_init(&mm->unused_lock);
 
 	return drm_mm_create_tail_node(mm, start, size, 0);
