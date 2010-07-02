@@ -3176,7 +3176,7 @@ fsg_common_from_params(struct fsg_common *common,
 
 static struct fsg_config fsg_cfg;
 
-static int __init fsg_probe(struct platform_device *pdev)
+static int fsg_probe(struct platform_device *pdev)
 {
 	struct usb_mass_storage_platform_data *pdata = pdev->dev.platform_data;
 	int i, nluns;
