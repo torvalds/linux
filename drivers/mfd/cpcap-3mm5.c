@@ -204,7 +204,7 @@ static void mac13_handler(enum cpcap_irqs irq, void *data)
 	schedule_delayed_work(&data_3mm5->work, msecs_to_jiffies(200));
 }
 
-static int __init cpcap_3mm5_probe(struct platform_device *pdev)
+static int cpcap_3mm5_probe(struct platform_device *pdev)
 {
 	int retval = 0;
 	struct cpcap_3mm5_data *data;

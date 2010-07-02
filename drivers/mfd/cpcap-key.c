@@ -31,7 +31,7 @@ struct cpcap_key_data {
 	struct cpcap_device *cpcap;
 };
 
-static int __init cpcap_key_probe(struct platform_device *pdev)
+static int cpcap_key_probe(struct platform_device *pdev)
 {
 	int err;
 	struct cpcap_key_data *key;
