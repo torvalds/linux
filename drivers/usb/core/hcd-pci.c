@@ -66,10 +66,7 @@ static void companion_common(struct pci_dev *pdev, struct usb_hcd *hcd,
 	 * vice versa.
 	 */
 	companion = NULL;
-	for (;;) {
-		companion = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, companion);
-		if (!companion)
-			break;
+	for_each_pci_dev(companion) {
 		if (companion->bus != pdev->bus ||
 				PCI_SLOT(companion->devfn) != slot)
 			continue;
