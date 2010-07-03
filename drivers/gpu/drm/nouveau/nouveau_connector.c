@@ -698,6 +698,44 @@ nouveau_connector_best_encoder(struct drm_connector *connector)
 	return NULL;
 }
 
+void
+nouveau_connector_set_polling(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	bool spare_crtc = false;
+
+	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
+		spare_crtc |= !crtc->enabled;
+
+	connector->polled = 0;
+
+	switch (connector->connector_type) {
+	case DRM_MODE_CONNECTOR_VGA:
+	case DRM_MODE_CONNECTOR_TV:
+		if (dev_priv->card_type >= NV_50 ||
+		    (nv_gf4_disp_arch(dev) && spare_crtc))
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+		break;
+
+	case DRM_MODE_CONNECTOR_DVII:
+	case DRM_MODE_CONNECTOR_DVID:
+	case DRM_MODE_CONNECTOR_HDMIA:
+	case DRM_MODE_CONNECTOR_DisplayPort:
+	case DRM_MODE_CONNECTOR_eDP:
+		if (dev_priv->card_type >= NV_50)
+			connector->polled = DRM_CONNECTOR_POLL_HPD;
+		else if (connector->connector_type == DRM_MODE_CONNECTOR_DVID ||
+			 spare_crtc)
+			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+		break;
+
+	default:
+		break;
+	}
+}
+
 static const struct drm_connector_helper_funcs
 nouveau_connector_helper_funcs = {
 	.get_modes = nouveau_connector_get_modes,
@@ -818,7 +856,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	switch (dcb->type) {
 	case DCB_CONNECTOR_VGA:
-		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		if (dev_priv->card_type >= NV_50) {
 			drm_connector_attach_property(connector,
 					dev->mode_config.scaling_mode_property,
@@ -830,17 +867,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	case DCB_CONNECTOR_TV_3:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_NONE;
 		break;
-	case DCB_CONNECTOR_DP:
-	case DCB_CONNECTOR_eDP:
-	case DCB_CONNECTOR_HDMI_0:
-	case DCB_CONNECTOR_HDMI_1:
-	case DCB_CONNECTOR_DVI_I:
-	case DCB_CONNECTOR_DVI_D:
-		if (dev_priv->card_type >= NV_50)
-			connector->polled = DRM_CONNECTOR_POLL_HPD;
-		else
-			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
-		/* fall-through */
 	default:
 		nv_connector->scaling_mode = DRM_MODE_SCALE_FULLSCREEN;
 
@@ -853,6 +879,8 @@ nouveau_connector_create(struct drm_device *dev, int index)
 				DRM_MODE_DITHERING_ON : DRM_MODE_DITHERING_OFF);
 		break;
 	}
+
+	nouveau_connector_set_polling(connector);
 
 	drm_sysfs_connector_add(connector);
 	dcb->drm = connector;
