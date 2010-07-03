@@ -40,6 +40,8 @@
 				  0xFFFFFF0000000000ULL)
 
 #define INVALID_PAGE (~(hpa_t)0)
+#define VALID_PAGE(x) ((x) != INVALID_PAGE)
+
 #define UNMAPPED_GVA (~(gpa_t)0)
 
 /* KVM Hugepage definitions for x86 */
