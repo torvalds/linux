@@ -3655,7 +3655,7 @@ device_notify_reboot(struct notifier_block *nb, unsigned long event, void *p)
     case SYS_DOWN:
     case SYS_HALT:
     case SYS_POWER_OFF:
-        while ((pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) != NULL) {
+	for_each_pci_dev(pdev) {
             if(pci_dev_driver(pdev) == &device_driver) {
                 if (pci_get_drvdata(pdev))
                     viawget_suspend(pdev, PMSG_HIBERNATE);
