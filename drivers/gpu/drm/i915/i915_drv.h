@@ -524,8 +524,6 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head shrink_list;
 
-		spinlock_t active_list_lock;
-
 		/**
 		 * List of objects which are not in the ringbuffer but which
 		 * still have a write_domain which needs to be flushed before

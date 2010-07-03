@@ -212,14 +212,11 @@ i915_gem_evict_everything(struct drm_device *dev)
 	int ret;
 	bool lists_empty;
 
-	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->render_ring.active_list) &&
 		       (!HAS_BSD(dev)
 			|| list_empty(&dev_priv->bsd_ring.active_list)));
-	spin_unlock(&dev_priv->mm.active_list_lock);
-
 	if (lists_empty)
 		return -ENOSPC;
 
@@ -234,13 +231,11 @@ i915_gem_evict_everything(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->render_ring.active_list) &&
 		       (!HAS_BSD(dev)
 			|| list_empty(&dev_priv->bsd_ring.active_list)));
-	spin_unlock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!lists_empty);
 
 	return 0;

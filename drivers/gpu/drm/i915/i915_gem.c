@@ -1486,7 +1486,6 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj,
 			       struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = obj->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	uint32_t seqno = i915_gem_next_request_seqno(dev, ring);
 
@@ -1500,9 +1499,7 @@ i915_gem_object_move_to_active(struct drm_gem_object *obj,
 	}
 
 	/* Move from whatever list we were on to the tail of execution. */
-	spin_lock(&dev_priv->mm.active_list_lock);
 	list_move_tail(&obj_priv->list, &ring->active_list);
-	spin_unlock(&dev_priv->mm.active_list_lock);
 	obj_priv->last_rendering_seqno = seqno;
 }
 
@@ -1676,14 +1673,11 @@ static void
 i915_gem_retire_request(struct drm_device *dev,
 			struct drm_i915_gem_request *request)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
 	trace_i915_gem_request_retire(dev, request->seqno);
 
 	/* Move any buffers on the active list that are no longer referenced
 	 * by the ringbuffer to the flushing/inactive lists as appropriate.
 	 */
-	spin_lock(&dev_priv->mm.active_list_lock);
 	while (!list_empty(&request->ring->active_list)) {
 		struct drm_gem_object *obj;
 		struct drm_i915_gem_object *obj_priv;
@@ -1698,7 +1692,7 @@ i915_gem_retire_request(struct drm_device *dev,
 		 * this seqno.
 		 */
 		if (obj_priv->last_rendering_seqno != request->seqno)
-			goto out;
+			return;
 
 #if WATCH_LRU
 		DRM_INFO("%s: retire %d moves to inactive list %p\n",
@@ -1707,22 +1701,9 @@ i915_gem_retire_request(struct drm_device *dev,
 
 		if (obj->write_domain != 0)
 			i915_gem_object_move_to_flushing(obj);
-		else {
-			/* Take a reference on the object so it won't be
-			 * freed while the spinlock is held.  The list
-			 * protection for this spinlock is safe when breaking
-			 * the lock like this since the next thing we do
-			 * is just get the head of the list again.
-			 */
-			drm_gem_object_reference(obj);
+		else
 			i915_gem_object_move_to_inactive(obj);
-			spin_unlock(&dev_priv->mm.active_list_lock);
-			drm_gem_object_unreference(obj);
-			spin_lock(&dev_priv->mm.active_list_lock);
-		}
 	}
-out:
-	spin_unlock(&dev_priv->mm.active_list_lock);
 }
 
 /**
@@ -1972,7 +1953,6 @@ int
 i915_gem_object_unbind(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret = 0;
 
@@ -2027,10 +2007,8 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	}
 
 	/* Remove ourselves from the LRU list if present. */
-	spin_lock(&dev_priv->mm.active_list_lock);
 	if (!list_empty(&obj_priv->list))
 		list_del_init(&obj_priv->list);
-	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	if (i915_gem_object_is_purgeable(obj_priv))
 		i915_gem_object_truncate(obj);
@@ -2047,13 +2025,10 @@ i915_gpu_idle(struct drm_device *dev)
 	bool lists_empty;
 	int ret;
 
-	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
 		       list_empty(&dev_priv->render_ring.active_list) &&
 		       (!HAS_BSD(dev) ||
 			list_empty(&dev_priv->bsd_ring.active_list)));
-	spin_unlock(&dev_priv->mm.active_list_lock);
-
 	if (lists_empty)
 		return 0;
 
@@ -4550,11 +4525,8 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	spin_lock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!list_empty(&dev_priv->render_ring.active_list));
 	BUG_ON(HAS_BSD(dev) && !list_empty(&dev_priv->bsd_ring.active_list));
-	spin_unlock(&dev_priv->mm.active_list_lock);
-
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->render_ring.request_list));
@@ -4606,7 +4578,6 @@ i915_gem_load(struct drm_device *dev)
 	int i;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	spin_lock_init(&dev_priv->mm.active_list_lock);
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.gpu_write_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
@@ -4862,12 +4833,10 @@ i915_gpu_is_active(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int lists_empty;
 
-	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
 		      list_empty(&dev_priv->render_ring.active_list);
 	if (HAS_BSD(dev))
 		lists_empty &= list_empty(&dev_priv->bsd_ring.active_list);
-	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	return !lists_empty;
 }
