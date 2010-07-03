@@ -295,6 +295,9 @@ struct l2_fhdr {
 		#define L2_FHDR_ERRORS_TCP_XSUM		(1<<28)
 		#define L2_FHDR_ERRORS_UDP_XSUM		(1<<31)
 
+		#define L2_FHDR_STATUS_USE_RXHASH	\
+			(L2_FHDR_STATUS_TCP_SEGMENT | L2_FHDR_STATUS_RSS_HASH)
+
 	u32 l2_fhdr_hash;
 #if defined(__BIG_ENDIAN)
 	u16 l2_fhdr_pkt_len;
