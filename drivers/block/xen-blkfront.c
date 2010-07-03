@@ -373,8 +373,7 @@ static int xlvbd_barrier(struct blkfront_info *info)
 	int err;
 
 	err = blk_queue_ordered(info->rq,
-				info->feature_barrier ? QUEUE_ORDERED_DRAIN : QUEUE_ORDERED_NONE,
-				NULL);
+				info->feature_barrier ? QUEUE_ORDERED_DRAIN : QUEUE_ORDERED_NONE);
 
 	if (err)
 		return err;

@@ -13,7 +13,6 @@
  * blk_queue_ordered - does this queue support ordered writes
  * @q:        the request queue
  * @ordered:  one of QUEUE_ORDERED_*
- * @prepare_flush_fn: rq setup helper for cache flush ordered writes
  *
  * Description:
  *   For journalled file systems, doing ordered writes on a commit
@@ -22,8 +21,7 @@
  *   feature should call this function and indicate so.
  *
  **/
-int blk_queue_ordered(struct request_queue *q, unsigned ordered,
-		      prepare_flush_fn *prepare_flush_fn)
+int blk_queue_ordered(struct request_queue *q, unsigned ordered)
 {
 	if (ordered != QUEUE_ORDERED_NONE &&
 	    ordered != QUEUE_ORDERED_DRAIN &&
@@ -38,7 +36,6 @@ int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 
 	q->ordered = ordered;
 	q->next_ordered = ordered;
-	q->prepare_flush_fn = prepare_flush_fn;
 
 	return 0;
 }
@@ -140,8 +137,6 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	rq->cmd_flags = REQ_HARDBARRIER | REQ_FLUSH;
 	rq->rq_disk = q->bar_rq.rq_disk;
 	rq->end_io = end_io;
-	if (q->prepare_flush_fn)
-		q->prepare_flush_fn(q, rq);
 
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }

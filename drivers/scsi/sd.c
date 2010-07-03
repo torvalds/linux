@@ -2135,7 +2135,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	else
 		ordered = QUEUE_ORDERED_DRAIN;
 
-	blk_queue_ordered(sdkp->disk->queue, ordered, NULL);
+	blk_queue_ordered(sdkp->disk->queue, ordered);
 
 	set_capacity(disk, sdkp->capacity);
 	kfree(buffer);

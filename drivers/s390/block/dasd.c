@@ -2196,7 +2196,7 @@ static void dasd_setup_queue(struct dasd_block *block)
 	 */
 	blk_queue_max_segment_size(block->request_queue, PAGE_SIZE);
 	blk_queue_segment_boundary(block->request_queue, PAGE_SIZE - 1);
-	blk_queue_ordered(block->request_queue, QUEUE_ORDERED_DRAIN, NULL);
+	blk_queue_ordered(block->request_queue, QUEUE_ORDERED_DRAIN);
 }
 
 /*

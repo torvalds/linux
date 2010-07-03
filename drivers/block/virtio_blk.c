@@ -366,9 +366,9 @@ static int __devinit virtblk_probe(struct virtio_device *vdev)
 
 	/* If barriers are supported, tell block layer that queue is ordered */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_FLUSH))
-		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH, NULL);
+		blk_queue_ordered(q, QUEUE_ORDERED_DRAIN_FLUSH);
 	else if (virtio_has_feature(vdev, VIRTIO_BLK_F_BARRIER))
-		blk_queue_ordered(q, QUEUE_ORDERED_TAG, NULL);
+		blk_queue_ordered(q, QUEUE_ORDERED_TAG);
 
 	/* If disk is read-only in the host, the guest should obey */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_RO))

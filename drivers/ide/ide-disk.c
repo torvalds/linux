@@ -549,7 +549,7 @@ static void update_ordered(ide_drive_t *drive)
 	} else
 		ordered = QUEUE_ORDERED_DRAIN;
 
-	blk_queue_ordered(drive->queue, ordered, NULL);
+	blk_queue_ordered(drive->queue, ordered);
 }
 
 ide_devset_get_flag(wcache, IDE_DFLAG_WCACHE);

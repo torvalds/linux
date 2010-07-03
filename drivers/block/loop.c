@@ -831,7 +831,7 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 	lo->lo_queue->unplug_fn = loop_unplug;
 
 	if (!(lo_flags & LO_FLAGS_READ_ONLY) && file->f_op->fsync)
-		blk_queue_ordered(lo->lo_queue, QUEUE_ORDERED_DRAIN, NULL);
+		blk_queue_ordered(lo->lo_queue, QUEUE_ORDERED_DRAIN);
 
 	set_capacity(lo->lo_disk, size);
 	bd_set_size(bdev, size << 9);

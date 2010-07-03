@@ -1901,7 +1901,7 @@ static struct mapped_device *alloc_dev(int minor)
 	blk_queue_softirq_done(md->queue, dm_softirq_done);
 	blk_queue_prep_rq(md->queue, dm_prep_fn);
 	blk_queue_lld_busy(md->queue, dm_lld_busy);
-	blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN_FLUSH, NULL);
+	blk_queue_ordered(md->queue, QUEUE_ORDERED_DRAIN_FLUSH);
 
 	md->disk = alloc_disk(1);
 	if (!md->disk)
