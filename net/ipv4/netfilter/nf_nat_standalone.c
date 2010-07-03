@@ -131,13 +131,7 @@ nf_nat_fn(unsigned int hooknum,
 		if (!nf_nat_initialized(ct, maniptype)) {
 			unsigned int ret;
 
-			if (hooknum == NF_INET_LOCAL_IN)
-				/* LOCAL_IN hook doesn't have a chain!  */
-				ret = alloc_null_binding(ct, hooknum);
-			else
-				ret = nf_nat_rule_find(skb, hooknum, in, out,
-						       ct);
-
+			ret = nf_nat_rule_find(skb, hooknum, in, out, ct);
 			if (ret != NF_ACCEPT)
 				return ret;
 		} else

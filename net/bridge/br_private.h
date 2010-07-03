@@ -176,6 +176,9 @@ struct net_bridge
 	unsigned long			feature_mask;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct rtable 			fake_rtable;
+	bool				nf_call_iptables;
+	bool				nf_call_ip6tables;
+	bool				nf_call_arptables;
 #endif
 	unsigned long			flags;
 #define BR_SET_MAC_ADDR		0x00000001
