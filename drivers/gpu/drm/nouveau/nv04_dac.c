@@ -261,12 +261,11 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 
 	saved_routput = NVReadRAMDAC(dev, 0, NV_PRAMDAC_DACCLK + regoffset);
 	head = (saved_routput & 0x100) >> 8;
-#if 0
-	/* if there's a spare crtc, using it will minimise flicker for the case
-	 * where the in-use crtc is in use by an off-chip tmds encoder */
-	if (xf86_config->crtc[head]->enabled && !xf86_config->crtc[head ^ 1]->enabled)
+
+	/* if there's a spare crtc, using it will minimise flicker */
+	if (!(NVReadVgaCrtc(dev, head, NV_CIO_CRE_RPC1_INDEX) & 0xC0))
 		head ^= 1;
-#endif
+
 	/* nv driver and nv31 use 0xfffffeee, nv34 and 6600 use 0xfffffece */
 	routput = (saved_routput & 0xfffffece) | head << 8;
 
