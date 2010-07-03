@@ -73,6 +73,11 @@ struct ir_raw_event_ctrl {
 		bool first;
 		bool toggle;
 	} jvc;
+	struct lirc_codec {
+		struct ir_input_dev *ir_dev;
+		struct lirc_driver *drv;
+		int lircdata;
+	} lirc;
 };
 
 /* macros for IR decoders */
@@ -163,5 +168,13 @@ void ir_raw_init(void);
 #else
 #define load_sony_decode()	0
 #endif
+
+/* from ir-lirc-codec.c */
+#ifdef CONFIG_IR_LIRC_CODEC_MODULE
+#define load_lirc_codec()	request_module("ir-lirc-codec")
+#else
+#define load_lirc_codec()	0
+#endif
+
 
 #endif /* _IR_RAW_EVENT */
