@@ -989,7 +989,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	dev_info(&dev->dev, "%s PCI INT %c -> IRQ %d\n", msg, 'A' + pin - 1, irq);
 
 	/* Update IRQ for all devices with the same pirq value */
-	while ((dev2 = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev2)) != NULL) {
+	for_each_pci_dev(dev2) {
 		pci_read_config_byte(dev2, PCI_INTERRUPT_PIN, &pin);
 		if (!pin)
 			continue;
@@ -1028,7 +1028,7 @@ void __init pcibios_fixup_irqs(void)
 	u8 pin;
 
 	DBG(KERN_DEBUG "PCI: IRQ fixup\n");
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		/*
 		 * If the BIOS has set an out of range IRQ number, just
 		 * ignore it.  Also keep track of which IRQ's are
@@ -1052,7 +1052,7 @@ void __init pcibios_fixup_irqs(void)
 		return;
 
 	dev = NULL;
-	while ((dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, dev)) != NULL) {
+	for_each_pci_dev(dev) {
 		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
 		if (!pin)
 			continue;
