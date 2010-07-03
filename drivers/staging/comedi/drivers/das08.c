@@ -980,7 +980,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 #ifdef CONFIG_COMEDI_PCI
 	unsigned long pci_iobase = 0;
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = NULL;
 #endif
 
 	ret = alloc_private(dev, sizeof(struct das08_private_struct));
@@ -997,9 +997,7 @@ static int das08_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		printk("\n");
 		/*  find card */
-		for (pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		     pdev != NULL;
-		     pdev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pdev)) {
+		for_each_pci_dev(pdev) {
 			if (pdev->vendor == PCI_VENDOR_ID_COMPUTERBOARDS
 			    && pdev->device == PCI_DEVICE_ID_PCIDAS08) {
 				if (it->options[0] || it->options[1]) {

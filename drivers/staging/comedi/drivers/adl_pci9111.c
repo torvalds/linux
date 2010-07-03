@@ -1262,7 +1262,7 @@ static int pci9111_attach(struct comedi_device *dev,
 {
 	struct comedi_subdevice *subdevice;
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
-	struct pci_dev *pci_device;
+	struct pci_dev *pci_device = NULL;
 	int error, i;
 	const struct pci9111_board *board;
 
@@ -1272,9 +1272,7 @@ static int pci9111_attach(struct comedi_device *dev,
 
 	printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n", dev->minor);
 
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_device != NULL;
-	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_ADLINK) {
 			for (i = 0; i < pci9111_board_nbr; i++) {
 				if (pci9111_boards[i].device_id ==

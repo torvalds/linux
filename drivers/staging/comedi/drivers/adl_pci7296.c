@@ -77,7 +77,7 @@ static struct comedi_driver driver_adl_pci7296 = {
 static int adl_pci7296_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct comedi_subdevice *s;
 	int bus, slot;
 	int ret;
@@ -94,10 +94,7 @@ static int adl_pci7296_attach(struct comedi_device *dev,
 	if (alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		    pcidev->device == PCI_DEVICE_ID_PCI7296) {
 			if (bus || slot) {

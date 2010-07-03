@@ -188,7 +188,7 @@ static int cnt_rinsn(struct comedi_device *dev,
 static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *subdevice;
-	struct pci_dev *pci_device;
+	struct pci_dev *pci_device = NULL;
 	struct cnt_board_struct *board;
 	unsigned long io_base;
 	int error, i;
@@ -199,9 +199,7 @@ static int cnt_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return error;
 
 	/* Probe the device to determine what device in the series it is. */
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_device != NULL;
-	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_KOLTER) {
 			for (i = 0; i < cnt_board_nbr; i++) {
 				if (cnt_boards[i].device_id ==

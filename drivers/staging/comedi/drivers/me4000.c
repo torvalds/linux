@@ -389,7 +389,7 @@ static int me4000_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pci_device;
+	struct pci_dev *pci_device = NULL;
 	int result, i;
 	struct me4000_board *board;
 
@@ -402,9 +402,7 @@ static int me4000_probe(struct comedi_device *dev, struct comedi_devconfig *it)
 	/*
 	 * Probe the device to determine what device in the series it is.
 	 */
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_device != NULL;
-	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
 			for (i = 0; i < ME4000_BOARD_VERSIONS; i++) {
 				if (me4000_boards[i].device_id ==

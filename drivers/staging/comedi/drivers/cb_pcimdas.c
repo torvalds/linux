@@ -210,7 +210,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
 			     struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 	/* int i; */
 
@@ -227,9 +227,7 @@ static int cb_pcimdas_attach(struct comedi_device *dev,
  */
 	printk("\n");
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;

@@ -125,7 +125,7 @@ static int adl_pci8164_insn_write_buf1(struct comedi_device *dev,
 static int adl_pci8164_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct comedi_subdevice *s;
 	int bus, slot;
 
@@ -142,10 +142,7 @@ static int adl_pci8164_attach(struct comedi_device *dev,
 	if (alloc_subdevices(dev, 4) < 0)
 		return -ENOMEM;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 		    pcidev->device == PCI_DEVICE_ID_PCI8164) {
 			if (bus || slot) {

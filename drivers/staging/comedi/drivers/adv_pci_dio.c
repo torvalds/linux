@@ -1104,7 +1104,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret, subdev, n_subdevices, i, j;
 	unsigned long iobase;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 
 	printk("comedi%d: adv_pci_dio: ", dev->minor);
 
@@ -1114,9 +1114,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  loop through cards supported by this driver */
 		for (i = 0; i < n_boardtypes; ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)

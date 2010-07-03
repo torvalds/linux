@@ -764,7 +764,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	unsigned long iobase1, iobase2;
 	/* PCI230's I/O spaces 1 and 2 respectively. */
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = NULL;
 	int i = 0, irq_hdl, rc;
 
 	printk("comedi%d: amplc_pci230: attach %s %d,%d\n", dev->minor,
@@ -780,9 +780,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	spin_lock_init(&devpriv->ai_stop_spinlock);
 	spin_lock_init(&devpriv->ao_stop_spinlock);
 	/* Find card */
-	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	for_each_pci_dev(pci_dev) {
 		if (it->options[0] || it->options[1]) {
 			/* Match against bus/slot options. */
 			if (it->options[0] != pci_dev->bus->number ||

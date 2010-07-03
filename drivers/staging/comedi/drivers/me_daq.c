@@ -680,7 +680,7 @@ static int me_reset(struct comedi_device *dev)
  */
 static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pci_device;
+	struct pci_dev *pci_device = NULL;
 	struct comedi_subdevice *subdevice;
 	struct me_board *board;
 	resource_size_t plx_regbase_tmp;
@@ -697,9 +697,7 @@ static int me_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 
 	/* Probe the device to determine what device in the series it is. */
-	for (pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_device != NULL;
-	     pci_device = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_device)) {
+	for_each_pci_dev(pci_device) {
 		if (pci_device->vendor == PCI_VENDOR_ID_MEILHAUS) {
 			for (i = 0; i < me_board_nbr; i++) {
 				if (me_boards[i].device_id ==

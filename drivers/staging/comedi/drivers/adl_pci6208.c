@@ -351,12 +351,10 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 
 static int pci6208_find_device(struct comedi_device *dev, int bus, int slot)
 {
-	struct pci_dev *pci_dev;
+	struct pci_dev *pci_dev = NULL;
 	int i;
 
-	for (pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pci_dev != NULL;
-	     pci_dev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pci_dev)) {
+	for_each_pci_dev(pci_dev) {
 		if (pci_dev->vendor == PCI_VENDOR_ID_ADLINK) {
 			for (i = 0; i < ARRAY_SIZE(pci6208_boards); i++) {
 				if (pci6208_boards[i].dev_id ==

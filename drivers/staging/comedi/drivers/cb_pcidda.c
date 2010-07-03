@@ -281,7 +281,7 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 			    struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 
 	printk("comedi%d: cb_pcidda: ", dev->minor);
@@ -297,9 +297,7 @@ static int cb_pcidda_attach(struct comedi_device *dev,
  */
 	printk("\n");
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_CB) {
 			if (it->options[0] || it->options[1]) {
 				if (pcidev->bus->number != it->options[0] ||

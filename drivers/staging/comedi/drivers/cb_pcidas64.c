@@ -1754,7 +1754,7 @@ static inline void warn_external_queue(struct comedi_device *dev)
  */
 static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	int index;
 	uint32_t local_range, local_decode;
 	int retval;
@@ -1771,9 +1771,7 @@ static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * Probe the device to determine what device in the series it is.
  */
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
+	for_each_pci_dev(pcidev) {
 		/*  is it not a computer boards card? */
 		if (pcidev->vendor != PCI_VENDOR_ID_COMPUTERBOARDS)
 			continue;

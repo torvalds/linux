@@ -90,7 +90,7 @@ static int adl_pci7230_do_insn_bits(struct comedi_device *dev,
 static int adl_pci7230_attach(struct comedi_device *dev,
 	struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct comedi_subdevice *s;
 	int bus, slot;
 
@@ -106,10 +106,7 @@ static int adl_pci7230_attach(struct comedi_device *dev,
 	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-		pcidev != NULL;
-		pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_ADLINK &&
 			pcidev->device == PCI_DEVICE_ID_PCI7230) {
 			if (bus || slot) {

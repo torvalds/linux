@@ -103,7 +103,7 @@ static int contec_ns_to_timer(unsigned int *ns, int round);
 
 static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = NULL;
 	struct comedi_subdevice *s;
 
 	printk("comedi%d: contec: ", dev->minor);
@@ -116,10 +116,7 @@ static int contec_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (alloc_subdevices(dev, 2) < 0)
 		return -ENOMEM;
 
-	for (pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, NULL);
-	     pcidev != NULL;
-	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
-
+	for_each_pci_dev(pcidev) {
 		if (pcidev->vendor == PCI_VENDOR_ID_CONTEC &&
 		    pcidev->device == PCI_DEVICE_ID_PIO1616L) {
 			if (it->options[0] || it->options[1]) {
