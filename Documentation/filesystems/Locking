@@ -374,8 +374,6 @@ prototypes:
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	int (*readdir) (struct file *, void *, filldir_t);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
-	int (*ioctl) (struct inode *, struct file *, unsigned int,
-			unsigned long);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);
 	int (*mmap) (struct file *, struct vm_area_struct *);
@@ -409,8 +407,7 @@ write:			no
 aio_write:		no
 readdir: 		no
 poll:			no
-ioctl:			yes	(see below)
-unlocked_ioctl:		no	(see below)
+unlocked_ioctl:		no
 compat_ioctl:		no
 mmap:			no
 open:			no
@@ -452,9 +449,6 @@ move ->readdir() to inode_operations and use a separate method for directory
 ->ioctl() or kill the latter completely. One of the problems is that for
 anything that resembles union-mount we won't have a struct file for all
 components. And there are other reasons why the current interface is a mess...
-
-->ioctl() on regular files is superceded by the ->unlocked_ioctl() that
-doesn't take the BKL.
 
 ->read on directories probably must go away - we should just enforce -EISDIR
 in sys_read() and friends.
