@@ -8,6 +8,17 @@ config VIDEO_IR
 	depends on IR_CORE
 	default IR_CORE
 
+config LIRC
+	tristate
+	default y
+
+	---help---
+	   Enable this option to build the Linux Infrared Remote
+	   Control (LIRC) core device interface driver. The LIRC
+	   interface passes raw IR to and from userspace, where the
+	   LIRC daemon handles protocol decoding for IR reception ann
+	   encoding for IR transmitting (aka "blasting").
+
 source "drivers/media/IR/keymaps/Kconfig"
 
 config IR_NEC_DECODER
