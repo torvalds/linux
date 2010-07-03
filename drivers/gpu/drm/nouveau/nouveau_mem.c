@@ -371,7 +371,7 @@ nouveau_mem_detect(struct drm_device *dev)
 	} else {
 		dev_priv->vram_size = nv_rd32(dev, NV04_FIFO_DATA);
 		dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
-		dev_priv->vram_size &= 0xffffffff00;
+		dev_priv->vram_size &= 0xffffffff00ll;
 		if (dev_priv->chipset == 0xaa || dev_priv->chipset == 0xac) {
 			dev_priv->vram_sys_base = nv_rd32(dev, 0x100e10);
 			dev_priv->vram_sys_base <<= 12;

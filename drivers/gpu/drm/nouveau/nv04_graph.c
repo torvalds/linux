@@ -342,7 +342,7 @@ static uint32_t nv04_graph_ctx_regs[] = {
 };
 
 struct graph_state {
-	int nv04[ARRAY_SIZE(nv04_graph_ctx_regs)];
+	uint32_t nv04[ARRAY_SIZE(nv04_graph_ctx_regs)];
 };
 
 struct nouveau_channel *

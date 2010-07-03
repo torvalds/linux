@@ -112,6 +112,12 @@ nv04_fifo_channel_id(struct drm_device *dev)
 			NV03_PFIFO_CACHE1_PUSH1_CHID_MASK;
 }
 
+#ifdef __BIG_ENDIAN
+#define DMA_FETCH_ENDIANNESS NV_PFIFO_CACHE1_BIG_ENDIAN
+#else
+#define DMA_FETCH_ENDIANNESS 0
+#endif
+
 int
 nv04_fifo_create_context(struct nouveau_channel *chan)
 {
@@ -138,10 +144,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	RAMFC_WR(DMA_FETCH, (NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
-#ifdef __BIG_ENDIAN
-			     NV_PFIFO_CACHE1_BIG_ENDIAN |
-#endif
-			     0));
+			     DMA_FETCH_ENDIANNESS));
 	dev_priv->engine.instmem.finish_access(dev);
 
 	/* enable the fifo dma operation */

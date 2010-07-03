@@ -585,7 +585,6 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
-	struct drm_display_mode mode;
 	int ret = 0;
 
 	/* destroy the native mode, the attached monitor could have changed.
@@ -600,9 +599,9 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 	else
 	if (nv_encoder->dcb->type == OUTPUT_LVDS &&
 	    (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
-	     dev_priv->vbios.fp_no_ddc) &&
-	    nouveau_bios_fp_mode(dev, &mode)) {
-		nv_connector->native_mode = drm_mode_duplicate(dev, &mode);
+	     dev_priv->vbios.fp_no_ddc) && nouveau_bios_fp_mode(dev, NULL)) {
+		nv_connector->native_mode = drm_mode_create(dev);
+		nouveau_bios_fp_mode(dev, nv_connector->native_mode);
 	}
 
 	/* Find the native mode if this is a digital panel, if we didn't

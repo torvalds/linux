@@ -212,7 +212,7 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *ramin = chan->ramin->gpuobj;
-	struct nouveau_gpuobj *ctx;
+	struct nouveau_gpuobj *obj;
 	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	int hdr, ret;
 
@@ -223,7 +223,7 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 				     NVOBJ_FLAG_ZERO_FREE, &chan->ramin_grctx);
 	if (ret)
 		return ret;
-	ctx = chan->ramin_grctx->gpuobj;
+	obj = chan->ramin_grctx->gpuobj;
 
 	hdr = IS_G80 ? 0x200 : 0x20;
 	dev_priv->engine.instmem.prepare_access(dev, true);
@@ -241,12 +241,12 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 		struct nouveau_grctx ctx = {};
 		ctx.dev = chan->dev;
 		ctx.mode = NOUVEAU_GRCTX_VALS;
-		ctx.data = chan->ramin_grctx->gpuobj;
+		ctx.data = obj;
 		nv50_grctx_init(&ctx);
 	} else {
-		nouveau_grctx_vals_load(dev, ctx);
+		nouveau_grctx_vals_load(dev, obj);
 	}
-	nv_wo32(dev, ctx, 0x00000/4, chan->ramin->instance >> 12);
+	nv_wo32(dev, obj, 0x00000/4, chan->ramin->instance >> 12);
 	dev_priv->engine.instmem.finish_access(dev);
 
 	return 0;

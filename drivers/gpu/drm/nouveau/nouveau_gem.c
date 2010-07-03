@@ -577,7 +577,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	struct drm_nouveau_gem_pushbuf_bo *bo;
 	struct nouveau_channel *chan;
 	struct validate_op op;
-	struct nouveau_fence *fence = 0;
+	struct nouveau_fence *fence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
 	NOUVEAU_CHECK_INITIALISED_WITH_RETURN;

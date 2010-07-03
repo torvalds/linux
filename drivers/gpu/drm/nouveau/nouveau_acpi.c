@@ -42,7 +42,7 @@ static const char nouveau_dsm_muid[] = {
 	0xB3, 0x4D, 0x7E, 0x5F, 0xEA, 0x12, 0x9F, 0xD4,
 };
 
-static int nouveau_dsm(acpi_handle handle, int func, int arg, int *result)
+static int nouveau_dsm(acpi_handle handle, int func, int arg, uint32_t *result)
 {
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_object_list input;
