@@ -6185,7 +6185,7 @@ bnx2_setup_int_mode(struct bnx2 *bp, int dis_msi)
 	bp->irq_nvecs = 1;
 	bp->irq_tbl[0].vector = bp->pdev->irq;
 
-	if ((bp->flags & BNX2_FLAG_MSIX_CAP) && !dis_msi && cpus > 1)
+	if ((bp->flags & BNX2_FLAG_MSIX_CAP) && !dis_msi)
 		bnx2_enable_msix(bp, msix_vecs);
 
 	if ((bp->flags & BNX2_FLAG_MSI_CAP) && !dis_msi &&
