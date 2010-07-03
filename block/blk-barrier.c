@@ -25,12 +25,6 @@
 int blk_queue_ordered(struct request_queue *q, unsigned ordered,
 		      prepare_flush_fn *prepare_flush_fn)
 {
-	if (!prepare_flush_fn && (ordered & (QUEUE_ORDERED_DO_PREFLUSH |
-					     QUEUE_ORDERED_DO_POSTFLUSH))) {
-		printk(KERN_ERR "%s: prepare_flush_fn required\n", __func__);
-		return -EINVAL;
-	}
-
 	if (ordered != QUEUE_ORDERED_NONE &&
 	    ordered != QUEUE_ORDERED_DRAIN &&
 	    ordered != QUEUE_ORDERED_DRAIN_FLUSH &&
@@ -146,7 +140,8 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	rq->cmd_flags = REQ_HARDBARRIER | REQ_FLUSH;
 	rq->rq_disk = q->bar_rq.rq_disk;
 	rq->end_io = end_io;
-	q->prepare_flush_fn(q, rq);
+	if (q->prepare_flush_fn)
+		q->prepare_flush_fn(q, rq);
 
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
 }
