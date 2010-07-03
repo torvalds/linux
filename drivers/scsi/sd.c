@@ -471,6 +471,18 @@ static int scsi_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 	return ret;
 }
 
+static int scsi_setup_flush_cmnd(struct scsi_device *sdp, struct request *rq)
+{
+	/* for now, we use REQ_TYPE_BLOCK_PC. */
+	rq->cmd_type = REQ_TYPE_BLOCK_PC;
+	rq->timeout = SD_TIMEOUT;
+	rq->retries = SD_MAX_RETRIES;
+	rq->cmd[0] = SYNCHRONIZE_CACHE;
+	rq->cmd_len = 10;
+
+	return scsi_setup_blk_pc_cmnd(sdp, rq);
+}
+
 static void sd_unprep_fn(struct request_queue *q, struct request *rq)
 {
 	if (rq->cmd_flags & REQ_DISCARD)
@@ -503,6 +515,9 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	 */
 	if (rq->cmd_flags & REQ_DISCARD) {
 		ret = scsi_setup_discard_cmnd(sdp, rq);
+		goto out;
+	} else if (rq->cmd_flags & REQ_FLUSH) {
+		ret = scsi_setup_flush_cmnd(sdp, rq);
 		goto out;
 	} else if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		ret = scsi_setup_blk_pc_cmnd(sdp, rq);
@@ -1051,15 +1066,6 @@ static int sd_sync_cache(struct scsi_disk *sdkp)
 	if (res)
 		return -EIO;
 	return 0;
-}
-
-static void sd_prepare_flush(struct request_queue *q, struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_BLOCK_PC;
-	rq->timeout = SD_TIMEOUT;
-	rq->retries = SD_MAX_RETRIES;
-	rq->cmd[0] = SYNCHRONIZE_CACHE;
-	rq->cmd_len = 10;
 }
 
 static void sd_rescan(struct device *dev)
@@ -2129,7 +2135,7 @@ static int sd_revalidate_disk(struct gendisk *disk)
 	else
 		ordered = QUEUE_ORDERED_DRAIN;
 
-	blk_queue_ordered(sdkp->disk->queue, ordered, sd_prepare_flush);
+	blk_queue_ordered(sdkp->disk->queue, ordered, NULL);
 
 	set_capacity(disk, sdkp->capacity);
 	kfree(buffer);
