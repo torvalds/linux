@@ -232,6 +232,13 @@ static int nes_netdev_open(struct net_device *netdev)
 				NES_MAC_INT_TX_UNDERFLOW | NES_MAC_INT_TX_ERROR));
 		first_nesvnic = nesvnic;
 	}
+
+	if (nesvnic->of_device_registered) {
+		nesdev->iw_status = 1;
+		nesdev->nesadapter->send_term_ok = 1;
+		nes_port_ibevent(nesvnic);
+	}
+
 	if (first_nesvnic->linkup) {
 		/* Enable network packets */
 		nesvnic->linkup = 1;
@@ -309,9 +316,9 @@ static int nes_netdev_stop(struct net_device *netdev)
 
 
 	if (nesvnic->of_device_registered) {
-		nes_destroy_ofa_device(nesvnic->nesibdev);
-		nesvnic->nesibdev = NULL;
-		nesvnic->of_device_registered = 0;
+		nesdev->nesadapter->send_term_ok = 0;
+		nesdev->iw_status = 0;
+		nes_port_ibevent(nesvnic);
 	}
 	nes_destroy_nic_qp(nesvnic);
 

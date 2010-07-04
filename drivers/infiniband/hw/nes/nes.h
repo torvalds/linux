@@ -262,6 +262,7 @@ struct nes_device {
 	u16                    base_doorbell_index;
 	u16                    currcq_count;
 	u16                    deepcq_count;
+	u8                     iw_status;
 	u8                     msi_enabled;
 	u8                     netdev_count;
 	u8                     napi_isr_ran;
@@ -527,6 +528,7 @@ void nes_cm_disconn_worker(void *);
 int nes_hw_modify_qp(struct nes_device *, struct nes_qp *, u32, u32, u32);
 int nes_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
 struct nes_ib_device *nes_init_ofa_device(struct net_device *);
+void  nes_port_ibevent(struct nes_vnic *nesvnic);
 void nes_destroy_ofa_device(struct nes_ib_device *);
 int nes_register_ofa_device(struct nes_ib_device *);
 

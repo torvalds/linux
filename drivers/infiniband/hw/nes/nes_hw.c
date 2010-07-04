@@ -3283,9 +3283,15 @@ static void nes_terminate_connection(struct nes_device *nesdev, struct nes_qp *n
 	else
 		mod_qp_flags |= NES_CQP_QP_TERM_DONT_SEND_TERM_MSG;
 
-	nes_terminate_start_timer(nesqp);
-	nesqp->term_flags |= NES_TERM_SENT;
-	nes_hw_modify_qp(nesdev, nesqp, mod_qp_flags, termlen, 0);
+	if (!nesdev->iw_status)  {
+		nesqp->term_flags = NES_TERM_DONE;
+		nes_hw_modify_qp(nesdev, nesqp, NES_CQP_QP_IWARP_STATE_ERROR, 0, 0);
+		nes_cm_disconn(nesqp);
+	} else {
+		nes_terminate_start_timer(nesqp);
+		nesqp->term_flags |= NES_TERM_SENT;
+		nes_hw_modify_qp(nesdev, nesqp, mod_qp_flags, termlen, 0);
+	}
 }
 
 static void nes_terminate_send_fin(struct nes_device *nesdev,

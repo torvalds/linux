@@ -3058,6 +3058,7 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hte_added = 0;
 					}
 				if ((nesqp->hw_tcp_state > NES_AEQE_TCP_STATE_CLOSED) &&
+						(nesdev->iw_status) &&
 						(nesqp->hw_tcp_state != NES_AEQE_TCP_STATE_TIME_WAIT)) {
 					next_iwarp_state |= NES_CQP_QP_RESET;
 				} else {
@@ -3934,6 +3935,17 @@ struct nes_ib_device *nes_init_ofa_device(struct net_device *netdev)
 	nesibdev->ibdev.iwcm->destroy_listen = nes_destroy_listen;
 
 	return nesibdev;
+}
+
+void  nes_port_ibevent(struct nes_vnic *nesvnic)
+{
+	struct nes_ib_device *nesibdev = nesvnic->nesibdev;
+	struct nes_device *nesdev = nesvnic->nesdev;
+	struct ib_event event;
+	event.device = &nesibdev->ibdev;
+	event.element.port_num = nesvnic->logical_port + 1;
+	event.event = nesdev->iw_status ? IB_EVENT_PORT_ACTIVE : IB_EVENT_PORT_ERR;
+	ib_dispatch_event(&event);
 }
 
 
