@@ -52,8 +52,6 @@
 #include <dspbridge/io_sm.h>
 
 
-static void *dummy_va_addr;
-
 int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
 		struct dev_object *hdev_obj)
 {
@@ -154,6 +152,7 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 		.element_size = HW_ELEM_SIZE16BIT,
 		.mixed_size = HW_MMU_CPUES,
 	};
+	void *dummy_va_addr;
 
 	if (!deh_mgr)
 		return;
@@ -214,6 +213,9 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 				HW_MMU_TRANSLATION_FAULT);
 		dump_dsp_stack(dev_context);
 		dsp_clk_disable(DSP_CLK_GPT8);
+
+		hw_mmu_disable(resources->dw_dmmu_base);
+		free_page((unsigned long)dummy_va_addr);
 		break;
 #ifdef CONFIG_BRIDGE_NTFY_PWRERR
 	case DSP_PWRERROR:
@@ -276,6 +278,4 @@ int bridge_deh_get_info(struct deh_mgr *deh_mgr,
 
 void bridge_deh_release_dummy_mem(void)
 {
-	free_page((unsigned long)dummy_va_addr);
-	dummy_va_addr = NULL;
 }
