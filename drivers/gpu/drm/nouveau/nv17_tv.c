@@ -116,6 +116,20 @@ static uint32_t nv42_tv_sample_load(struct drm_encoder *encoder)
 	return sample;
 }
 
+static bool
+get_tv_detect_quirks(struct drm_device *dev, uint32_t *pin_mask)
+{
+	/* Zotac FX5200 */
+	if ((dev->pdev->device == 0x0322) &&
+	    (dev->pdev->subsystem_vendor == 0x19da) &&
+	    (dev->pdev->subsystem_device == 0x2035)) {
+		*pin_mask = 0xc;
+		return false;
+	}
+
+	return true;
+}
+
 static enum drm_connector_status
 nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
@@ -124,15 +138,20 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	struct drm_mode_config *conf = &dev->mode_config;
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct dcb_entry *dcb = tv_enc->base.dcb;
+	bool reliable = get_tv_detect_quirks(dev, &tv_enc->pin_mask);
 
 	if (nv04_dac_in_use(encoder))
 		return connector_status_disconnected;
 
-	if (dev_priv->chipset == 0x42 ||
-	    dev_priv->chipset == 0x43)
-		tv_enc->pin_mask = nv42_tv_sample_load(encoder) >> 28 & 0xe;
-	else
-		tv_enc->pin_mask = nv17_dac_sample_load(encoder) >> 28 & 0xe;
+	if (reliable) {
+		if (dev_priv->chipset == 0x42 ||
+		    dev_priv->chipset == 0x43)
+			tv_enc->pin_mask =
+				nv42_tv_sample_load(encoder) >> 28 & 0xe;
+		else
+			tv_enc->pin_mask =
+				nv17_dac_sample_load(encoder) >> 28 & 0xe;
+	}
 
 	switch (tv_enc->pin_mask) {
 	case 0x2:
@@ -157,7 +176,9 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 					 conf->tv_subconnector_property,
 					 tv_enc->subconnector);
 
-	if (tv_enc->subconnector) {
+	if (!reliable) {
+		return connector_status_unknown;
+	} else if (tv_enc->subconnector) {
 		NV_INFO(dev, "Load detected on output %c\n",
 			'@' + ffs(dcb->or));
 		return connector_status_connected;
