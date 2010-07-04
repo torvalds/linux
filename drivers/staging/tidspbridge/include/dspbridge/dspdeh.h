@@ -23,21 +23,20 @@
 #ifndef DSPDEH_
 #define DSPDEH_
 
-#include <dspbridge/devdefs.h>
+struct deh_mgr;
+struct dev_object;
+struct dsp_notification;
 
-#include <dspbridge/dehdefs.h>
-
-extern int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
+int bridge_deh_create(struct deh_mgr **ret_deh,
 		struct dev_object *hdev_obj);
 
-extern int bridge_deh_destroy(struct deh_mgr *deh_mgr);
+int bridge_deh_destroy(struct deh_mgr *deh);
 
-extern int bridge_deh_register_notify(struct deh_mgr *deh_mgr,
+int bridge_deh_register_notify(struct deh_mgr *deh,
 		u32 event_mask,
 		u32 notify_type,
 		struct dsp_notification *hnotification);
 
-extern void bridge_deh_notify(struct deh_mgr *deh_mgr,
-		u32 ulEventMask, u32 dwErrInfo);
+void bridge_deh_notify(struct deh_mgr *deh, int event, int info);
 
 #endif /* DSPDEH_ */

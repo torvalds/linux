@@ -16,78 +16,59 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-/*  ----------------------------------- Host OS */
-#include <dspbridge/host_os.h>
+#include <linux/kernel.h>
+#include <linux/interrupt.h>
+#include <plat/dmtimer.h>
 
-/*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
-
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
-/*  ----------------------------------- OS Adaptation Layer */
-#include <dspbridge/cfg.h>
-#include <dspbridge/clk.h>
-#include <dspbridge/ntfy.h>
-#include <dspbridge/drv.h>
-
-/*  ----------------------------------- Link Driver */
 #include <dspbridge/dspdeh.h>
-
-/*  ----------------------------------- Platform Manager */
 #include <dspbridge/dev.h>
-#include <dspbridge/dspapi.h>
-#include <dspbridge/wdt.h>
-
-/* ------------------------------------ Hardware Abstraction Layer */
-#include <hw_defs.h>
-#include <hw_mmu.h>
-
-/*  ----------------------------------- This */
 #include "_tiomap.h"
 #include "_deh.h"
-#include "_tiomap_pwr.h"
-#include <dspbridge/io_sm.h>
 
+#include <dspbridge/io_sm.h>
+#include <dspbridge/drv.h>
+#include <dspbridge/wdt.h>
+
+static u32 fault_addr;
 
 static void mmu_fault_dpc(unsigned long data)
 {
-	struct deh_mgr *hdeh_mgr = (void *)data;
+	struct deh_mgr *deh = (void *)data;
 
-	if (!hdeh_mgr)
+	if (!deh)
 		return;
 
-	bridge_deh_notify(hdeh_mgr, DSP_MMUFAULT, 0);
+	bridge_deh_notify(deh, DSP_MMUFAULT, 0);
 }
 
 static irqreturn_t mmu_fault_isr(int irq, void *data)
 {
-	struct deh_mgr *deh_mgr_obj = data;
+	struct deh_mgr *deh = data;
 	struct cfg_hostres *resources;
-	u32 dmmu_event_mask;
+	u32 event;
 
-	if (!deh_mgr_obj)
+	if (!deh)
 		return IRQ_HANDLED;
 
-	resources = deh_mgr_obj->hbridge_context->resources;
+	resources = deh->hbridge_context->resources;
 	if (!resources) {
 		dev_dbg(bridge, "%s: Failed to get Host Resources\n",
 				__func__);
 		return IRQ_HANDLED;
 	}
 
-	hw_mmu_event_status(resources->dw_dmmu_base, &dmmu_event_mask);
-	if (dmmu_event_mask == HW_MMU_TRANSLATION_FAULT) {
-		hw_mmu_fault_addr_read(resources->dw_dmmu_base, &deh_mgr_obj->fault_addr);
-		dev_info(bridge, "%s: status=0x%x, fault_addr=0x%x\n", __func__,
-				dmmu_event_mask, deh_mgr_obj->fault_addr);
+	hw_mmu_event_status(resources->dw_dmmu_base, &event);
+	if (event == HW_MMU_TRANSLATION_FAULT) {
+		hw_mmu_fault_addr_read(resources->dw_dmmu_base, &fault_addr);
+		dev_dbg(bridge, "%s: event=0x%x, fault_addr=0x%x\n", __func__,
+				event, fault_addr);
 		/*
 		 * Schedule a DPC directly. In the future, it may be
 		 * necessary to check if DSP MMU fault is intended for
 		 * Bridge.
 		 */
-		tasklet_schedule(&deh_mgr_obj->dpc_tasklet);
+		tasklet_schedule(&deh->dpc_tasklet);
 
 		/* Disable the MMU events, else once we clear it will
 		 * start to raise INTs again */
@@ -100,11 +81,11 @@ static irqreturn_t mmu_fault_isr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
+int bridge_deh_create(struct deh_mgr **ret_deh,
 		struct dev_object *hdev_obj)
 {
-	int status = 0;
-	struct deh_mgr *deh_mgr;
+	int status;
+	struct deh_mgr *deh;
 	struct bridge_dev_context *hbridge_context = NULL;
 
 	/*  Message manager will be created when a file is loaded, since
@@ -113,79 +94,78 @@ int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
 	/* Get Bridge context info. */
 	dev_get_bridge_context(hdev_obj, &hbridge_context);
 	/* Allocate IO manager object: */
-	deh_mgr = kzalloc(sizeof(struct deh_mgr), GFP_KERNEL);
-	if (!deh_mgr) {
+	deh = kzalloc(sizeof(*deh), GFP_KERNEL);
+	if (!deh) {
 		status = -ENOMEM;
 		goto err;
 	}
 
 	/* Create an NTFY object to manage notifications */
-	deh_mgr->ntfy_obj = kmalloc(sizeof(struct ntfy_object), GFP_KERNEL);
-	if (!deh_mgr->ntfy_obj) {
+	deh->ntfy_obj = kmalloc(sizeof(struct ntfy_object), GFP_KERNEL);
+	if (!deh->ntfy_obj) {
 		status = -ENOMEM;
 		goto err;
 	}
-	ntfy_init(deh_mgr->ntfy_obj);
+	ntfy_init(deh->ntfy_obj);
 
 	/* Create a MMUfault DPC */
-	tasklet_init(&deh_mgr->dpc_tasklet, mmu_fault_dpc, (u32) deh_mgr);
+	tasklet_init(&deh->dpc_tasklet, mmu_fault_dpc, (u32) deh);
 
 	/* Fill in context structure */
-	deh_mgr->hbridge_context = hbridge_context;
+	deh->hbridge_context = hbridge_context;
 
 	/* Install ISR function for DSP MMU fault */
 	status = request_irq(INT_DSP_MMU_IRQ, mmu_fault_isr, 0,
-			"DspBridge\tiommu fault", deh_mgr);
+			"DspBridge\tiommu fault", deh);
 	if (status < 0)
 		goto err;
 
-	*ret_deh_mgr = deh_mgr;
+	*ret_deh = deh;
 	return 0;
 
 err:
-	bridge_deh_destroy(deh_mgr);
-	*ret_deh_mgr = NULL;
+	bridge_deh_destroy(deh);
+	*ret_deh = NULL;
 	return status;
 }
 
-int bridge_deh_destroy(struct deh_mgr *deh_mgr)
+int bridge_deh_destroy(struct deh_mgr *deh)
 {
-	if (!deh_mgr)
+	if (!deh)
 		return -EFAULT;
 
 	/* If notification object exists, delete it */
-	if (deh_mgr->ntfy_obj) {
-		ntfy_delete(deh_mgr->ntfy_obj);
-		kfree(deh_mgr->ntfy_obj);
+	if (deh->ntfy_obj) {
+		ntfy_delete(deh->ntfy_obj);
+		kfree(deh->ntfy_obj);
 	}
 	/* Disable DSP MMU fault */
-	free_irq(INT_DSP_MMU_IRQ, deh_mgr);
+	free_irq(INT_DSP_MMU_IRQ, deh);
 
 	/* Free DPC object */
-	tasklet_kill(&deh_mgr->dpc_tasklet);
+	tasklet_kill(&deh->dpc_tasklet);
 
 	/* Deallocate the DEH manager object */
-	kfree(deh_mgr);
+	kfree(deh);
 
 	return 0;
 }
 
-int bridge_deh_register_notify(struct deh_mgr *deh_mgr, u32 event_mask,
+int bridge_deh_register_notify(struct deh_mgr *deh, u32 event_mask,
 		u32 notify_type,
 		struct dsp_notification *hnotification)
 {
-	if (!deh_mgr)
+	if (!deh)
 		return -EFAULT;
 
 	if (event_mask)
-		return ntfy_register(deh_mgr->ntfy_obj, hnotification,
+		return ntfy_register(deh->ntfy_obj, hnotification,
 				event_mask, notify_type);
 	else
-		return ntfy_unregister(deh_mgr->ntfy_obj, hnotification);
+		return ntfy_unregister(deh->ntfy_obj, hnotification);
 }
 
-static void mmu_fault_print_stack(struct bridge_dev_context *dev_context,
-		u32 fault_addr)
+static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 {
 	struct cfg_hostres *resources;
 	struct hw_mmu_map_attrs_t map_attrs = {
@@ -225,52 +205,50 @@ static void mmu_fault_print_stack(struct bridge_dev_context *dev_context,
 	free_page((unsigned long)dummy_va_addr);
 }
 
-void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
+static inline const char *event_to_string(int event)
+{
+	switch (event) {
+	case DSP_SYSERROR: return "DSP_SYSERROR"; break;
+	case DSP_MMUFAULT: return "DSP_MMUFAULT"; break;
+	case DSP_PWRERROR: return "DSP_PWRERROR"; break;
+	case DSP_WDTOVERFLOW: return "DSP_WDTOVERFLOW"; break;
+	default: return "unkown event"; break;
+	}
+}
+
+void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 {
 	struct bridge_dev_context *dev_context;
+	const char *str = event_to_string(event);
 
-	if (!deh_mgr)
+	if (!deh)
 		return;
 
-	dev_info(bridge, "%s: device exception\n", __func__);
-	dev_context = deh_mgr->hbridge_context;
+	dev_dbg(bridge, "%s: device exception", __func__);
+	dev_context = deh->hbridge_context;
 
-	switch (ulEventMask) {
+	switch (event) {
 	case DSP_SYSERROR:
-		dev_err(bridge, "%s: %s, err_info = 0x%x\n",
-				__func__, "DSP_SYSERROR", dwErrInfo);
+		dev_err(bridge, "%s: %s, info=0x%x", __func__,
+				str, info);
 		dump_dl_modules(dev_context);
 		dump_dsp_stack(dev_context);
 		break;
 	case DSP_MMUFAULT:
-		dev_err(bridge, "%s: %s, err_info = 0x%x\n",
-				__func__, "DSP_MMUFAULT", dwErrInfo);
-		dev_info(bridge, "%s: %s, fault=0x%x\n", __func__, "DSP_MMUFAULT",
-				deh_mgr->fault_addr);
-
+		dev_err(bridge, "%s: %s, addr=0x%x", __func__,
+				str, fault_addr);
 		print_dsp_trace_buffer(dev_context);
 		dump_dl_modules(dev_context);
-
-		mmu_fault_print_stack(dev_context, deh_mgr->fault_addr);
-		break;
-#ifdef CONFIG_BRIDGE_NTFY_PWRERR
-	case DSP_PWRERROR:
-		dev_err(bridge, "%s: %s, err_info = 0x%x\n",
-				__func__, "DSP_PWRERROR", dwErrInfo);
-		break;
-#endif /* CONFIG_BRIDGE_NTFY_PWRERR */
-	case DSP_WDTOVERFLOW:
-		dev_err(bridge, "%s: DSP_WDTOVERFLOW\n", __func__);
+		mmu_fault_print_stack(dev_context);
 		break;
 	default:
-		dev_dbg(bridge, "%s: Unknown Error, err_info = 0x%x\n",
-				__func__, dwErrInfo);
+		dev_err(bridge, "%s: %s", __func__, str);
 		break;
 	}
 
 	/* Filter subsequent notifications when an error occurs */
 	if (dev_context->dw_brd_state != BRD_ERROR) {
-		ntfy_notify(deh_mgr->ntfy_obj, ulEventMask);
+		ntfy_notify(deh->ntfy_obj, event);
 #ifdef CONFIG_BRIDGE_RECOVERY
 		bridge_recover_schedule();
 #endif
