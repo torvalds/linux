@@ -413,10 +413,6 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	struct dcb_entry *dcbe = nv_encoder->dcb;
 	int head = nouveau_crtc(encoder->crtc)->index;
 
-	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
-		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
-		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
-
 	if (dcbe->type == OUTPUT_TMDS)
 		run_tmds_table(dev, dcbe, head, nv_encoder->mode.clock);
 	else if (dcbe->type == OUTPUT_LVDS)
