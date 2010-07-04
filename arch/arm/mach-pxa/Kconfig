@@ -682,7 +682,6 @@ config SHARPSL_PM
 
 config SHARPSL_PM_MAX1111
 	bool
-	depends on !CORGI_SSP_DEPRECATED
 	select HWMON
 	select SENSORS_MAX1111
 
