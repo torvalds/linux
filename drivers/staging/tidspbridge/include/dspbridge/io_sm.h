@@ -302,7 +302,7 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context);
 
 void dump_dl_modules(struct bridge_dev_context *bridge_context);
 
-#ifndef DSP_TRACEBUF_DISABLED
+#ifdef CONFIG_TIDSPBRIDGE_DEBUG
 void print_dsp_debug_trace(struct io_mgr *hio_mgr);
 #endif
 
