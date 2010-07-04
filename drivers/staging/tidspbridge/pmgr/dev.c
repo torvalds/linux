@@ -1119,7 +1119,6 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 		STORE_FXN(fxn_deh_destroy, pfn_deh_destroy);
 		STORE_FXN(fxn_deh_notify, pfn_deh_notify);
 		STORE_FXN(fxn_deh_registernotify, pfn_deh_register_notify);
-		STORE_FXN(fxn_deh_getinfo, pfn_deh_get_info);
 		STORE_FXN(fxn_io_create, pfn_io_create);
 		STORE_FXN(fxn_io_destroy, pfn_io_destroy);
 		STORE_FXN(fxn_io_onloaded, pfn_io_on_loaded);
@@ -1160,7 +1159,6 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 	DBC_ENSURE(intf_fxns->pfn_deh_destroy != NULL);
 	DBC_ENSURE(intf_fxns->pfn_deh_notify != NULL);
 	DBC_ENSURE(intf_fxns->pfn_deh_register_notify != NULL);
-	DBC_ENSURE(intf_fxns->pfn_deh_get_info != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_create != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_destroy != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_on_loaded != NULL);

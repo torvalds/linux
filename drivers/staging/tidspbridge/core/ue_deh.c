@@ -262,18 +262,3 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 	 */
 	dsp_wdt_enable(false);
 }
-
-int bridge_deh_get_info(struct deh_mgr *deh_mgr,
-		struct dsp_errorinfo *pErrInfo)
-{
-	if (!deh_mgr)
-		return -EFAULT;
-
-	/* Copy DEH error info structure to PROC error info structure. */
-	pErrInfo->dw_err_mask = deh_mgr->err_info.dw_err_mask;
-	pErrInfo->dw_val1 = deh_mgr->err_info.dw_val1;
-	pErrInfo->dw_val2 = deh_mgr->err_info.dw_val2;
-	pErrInfo->dw_val3 = deh_mgr->err_info.dw_val3;
-
-	return 0;
-}

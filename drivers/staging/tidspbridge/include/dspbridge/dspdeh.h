@@ -32,9 +32,6 @@ extern int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
 
 extern int bridge_deh_destroy(struct deh_mgr *deh_mgr);
 
-extern int bridge_deh_get_info(struct deh_mgr *deh_mgr,
-		struct dsp_errorinfo *pErrInfo);
-
 extern int bridge_deh_register_notify(struct deh_mgr *deh_mgr,
 		u32 event_mask,
 		u32 notify_type,

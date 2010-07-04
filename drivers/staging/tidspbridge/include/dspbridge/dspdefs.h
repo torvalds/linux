@@ -775,24 +775,6 @@ typedef int(*fxn_deh_registernotify)
   u32 event_mask, u32 notify_type, struct dsp_notification *hnotification);
 
 /*
- *  ======== bridge_deh_get_info ========
- *  Purpose:
- *      Get DSP exception info.
- *  Parameters:
- *      phDehMgr:       Location to store DEH manager on output.
- *      pErrInfo:       Ptr to error info structure.
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Creation failed.
- *  Requires:
- *      phDehMgr != NULL;
- *      pErrorInfo != NULL;
- *  Ensures:
- */
-typedef int(*fxn_deh_getinfo) (struct deh_mgr *phDehMgr,
-				      struct dsp_errorinfo *pErrInfo);
-
-/*
  *  ======== bridge_io_create ========
  *  Purpose:
  *      Create an object that manages I/O between CHNL and msg_ctrl.
@@ -1082,7 +1064,6 @@ struct bridge_drv_interface {
 	fxn_deh_notify pfn_deh_notify;	/* Notify of DSP error */
 	/* register for deh notif. */
 	fxn_deh_registernotify pfn_deh_register_notify;
-	fxn_deh_getinfo pfn_deh_get_info;	/* register for deh notif. */
 	fxn_io_create pfn_io_create;	/* Create IO manager */
 	fxn_io_destroy pfn_io_destroy;	/* Destroy IO manager */
 	fxn_io_onloaded pfn_io_on_loaded;	/* Notify of program loaded */

@@ -970,7 +970,6 @@ int proc_get_state(void *hprocessor,
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
 	int brd_status;
-	struct deh_mgr *hdeh_mgr;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(proc_state_obj != NULL);
@@ -1003,11 +1002,6 @@ int proc_get_state(void *hprocessor,
 				break;
 			}
 		}
-		/* Next, retrieve error information, if any */
-		status = dev_get_deh_mgr(p_proc_object->hdev_obj, &hdeh_mgr);
-		if (DSP_SUCCEEDED(status) && hdeh_mgr)
-			status = (*p_proc_object->intf_fxns->pfn_deh_get_info)
-			    (hdeh_mgr, &(proc_state_obj->err_info));
 	} else {
 		status = -EFAULT;
 	}
