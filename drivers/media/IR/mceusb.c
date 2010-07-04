@@ -768,47 +768,18 @@ static void mceusb_gen1_init(struct mceusb_dev *ir)
 	int i, ret;
 	int partial = 0;
 	struct device *dev = ir->dev;
-	char *junk, *data;
-
-	junk = kmalloc(2 * USB_BUFLEN, GFP_KERNEL);
-	if (!junk) {
-		dev_err(dev, "%s: memory allocation failed!\n", __func__);
-		return;
-	}
+	char *data;
 
 	data = kzalloc(USB_CTRL_MSG_SZ, GFP_KERNEL);
 	if (!data) {
 		dev_err(dev, "%s: memory allocation failed!\n", __func__);
-		kfree(junk);
 		return;
 	}
 
 	/*
-	 * Clear off the first few messages. These look like calibration
-	 * or test data, I can't really tell. This also flushes in case
-	 * we have random ir data queued up.
-	 */
-	for (i = 0; i < MCE_G1_INIT_MSGS; i++)
-		usb_bulk_msg(ir->usbdev,
-			usb_rcvbulkpipe(ir->usbdev,
-				ir->usb_ep_in->bEndpointAddress),
-			junk, sizeof(junk), &partial, HZ * 10);
-
-	/* Get Status */
-	ret = usb_control_msg(ir->usbdev, usb_rcvctrlpipe(ir->usbdev, 0),
-			      USB_REQ_GET_STATUS, USB_DIR_IN,
-			      0, 0, data, USB_CTRL_MSG_SZ, HZ * 3);
-
-	/*    ret = usb_get_status( ir->usbdev, 0, 0, data ); */
-	dev_dbg(dev, "%s - ret = %d status = 0x%x 0x%x\n", __func__,
-		ret, data[0], data[1]);
-
-	/*
-	 * This is a strange one. They issue a set address to the device
+	 * This is a strange one. Windows issues a set address to the device
 	 * on the receive control pipe and expect a certain value pair back
 	 */
-	memset(data, 0, sizeof(data));
-
 	ret = usb_control_msg(ir->usbdev, usb_rcvctrlpipe(ir->usbdev, 0),
 			      USB_REQ_SET_ADDRESS, USB_TYPE_VENDOR, 0, 0,
 			      data, USB_CTRL_MSG_SZ, HZ * 3);
@@ -836,18 +807,11 @@ static void mceusb_gen1_init(struct mceusb_dev *ir)
 	dev_dbg(dev, "%s - retC = %d\n", __func__, ret);
 
 	kfree(data);
-	kfree(junk);
 };
 
 static void mceusb_gen2_init(struct mceusb_dev *ir)
 {
 	int maxp = ir->len_in;
-
-	mce_sync_in(ir, NULL, maxp);
-	mce_sync_in(ir, NULL, maxp);
-
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(msecs_to_jiffies(100));
 
 	/* device reset */
 	mce_async_out(ir, DEVICE_RESET, sizeof(DEVICE_RESET));
@@ -865,8 +829,6 @@ static void mceusb_gen2_init(struct mceusb_dev *ir)
 static void mceusb_gen3_init(struct mceusb_dev *ir)
 {
 	int maxp = ir->len_in;
-
-	mce_sync_in(ir, NULL, maxp);
 
 	/* device reset */
 	mce_async_out(ir, DEVICE_RESET, sizeof(DEVICE_RESET));
@@ -974,8 +936,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 
 	dev_dbg(&intf->dev, ": %s called\n", __func__);
 
-	usb_reset_device(dev);
-
 	config = dev->actconfig;
 	idesc  = intf->cur_altsetting;
 
@@ -1062,7 +1022,11 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	if (!ir->idev)
 		goto input_dev_fail;
 
-	/* inbound data */
+	/* flush buffers on the device */
+	mce_sync_in(ir, NULL, maxp);
+	mce_sync_in(ir, NULL, maxp);
+
+	/* wire up inbound data handler */
 	usb_fill_int_urb(ir->urb_in, dev, pipe, ir->buf_in,
 		maxp, (usb_complete_t) mceusb_dev_recv, ir, ep_in->bInterval);
 	ir->urb_in->transfer_dma = ir->dma_in;
