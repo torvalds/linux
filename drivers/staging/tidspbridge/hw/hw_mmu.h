@@ -97,6 +97,8 @@ extern hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 extern hw_status hw_mmu_pte_clear(const u32 pg_tbl_va,
 				  u32 page_size, u32 virtualAddr);
 
+void hw_mmu_tlb_flush_all(const void __iomem *base);
+
 static inline u32 hw_mmu_pte_addr_l1(u32 L1_base, u32 va)
 {
 	u32 pte_addr;

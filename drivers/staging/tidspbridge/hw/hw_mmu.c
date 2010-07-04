@@ -35,6 +35,7 @@
 #define MMU_SMALL_PAGE_MASK      0xFFFFF000
 
 #define MMU_LOAD_TLB	0x00000001
+#define MMU_GFLUSH	0x60
 
 /*
  * hw_mmu_page_size_t: Enumerated Type used to specify the MMU Page Size(SLSS)
@@ -584,4 +585,9 @@ static hw_status mmu_set_ram_entry(const void __iomem *baseAddress,
 
 	return status;
 
+}
+
+void hw_mmu_tlb_flush_all(const void __iomem *base)
+{
+	__raw_writeb(1, base + MMU_GFLUSH);
 }

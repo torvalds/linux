@@ -73,8 +73,6 @@
 #define PAGES_II_LVL_TABLE   512
 #define PHYS_TO_PAGE(phys)      pfn_to_page((phys) >> PAGE_SHIFT)
 
-#define MMU_GFLUSH 0x60
-
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_context);
 static int bridge_brd_read(struct bridge_dev_context *dev_context,
@@ -218,18 +216,13 @@ static struct bridge_drv_interface drv_interface_fxns = {
 	bridge_msg_set_queue_id,
 };
 
-static inline void tlb_flush_all(const void __iomem *base)
-{
-	__raw_writeb(__raw_readb(base + MMU_GFLUSH) | 1, base + MMU_GFLUSH);
-}
-
 static inline void flush_all(struct bridge_dev_context *dev_context)
 {
 	if (dev_context->dw_brd_state == BRD_DSP_HIBERNATION ||
 	    dev_context->dw_brd_state == BRD_HIBERNATION)
 		wake_dsp(dev_context, NULL);
 
-	tlb_flush_all(dev_context->dw_dsp_mmu_base);
+	hw_mmu_tlb_flush_all(dev_context->dw_dsp_mmu_base);
 }
 
 static void bad_page_dump(u32 pa, struct page *pg)
