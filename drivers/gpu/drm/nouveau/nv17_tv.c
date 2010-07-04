@@ -125,6 +125,9 @@ nv17_tv_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 	struct nv17_tv_encoder *tv_enc = to_tv_enc(encoder);
 	struct dcb_entry *dcb = tv_enc->base.dcb;
 
+	if (nv04_dac_in_use(encoder))
+		return connector_status_disconnected;
+
 	if (dev_priv->chipset == 0x42 ||
 	    dev_priv->chipset == 0x43)
 		tv_enc->pin_mask = nv42_tv_sample_load(encoder) >> 28 & 0xe;
@@ -295,6 +298,9 @@ static bool nv17_tv_mode_fixup(struct drm_encoder *encoder,
 			       struct drm_display_mode *adjusted_mode)
 {
 	struct nv17_tv_norm_params *tv_norm = get_tv_norm(encoder);
+
+	if (nv04_dac_in_use(encoder))
+		return false;
 
 	if (tv_norm->kind == CTV_ENC_MODE)
 		adjusted_mode->clock = tv_norm->ctv_enc_mode.mode.clock;

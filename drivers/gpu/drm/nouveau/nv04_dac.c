@@ -314,9 +314,12 @@ nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct drm_device *dev = encoder->dev;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
-	uint32_t sample = nv17_dac_sample_load(encoder);
 
-	if (sample & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
+	if (nv04_dac_in_use(encoder))
+		return connector_status_disconnected;
+
+	if (nv17_dac_sample_load(encoder) &
+	    NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
 		NV_INFO(dev, "Load detected on output %c\n",
 			'@' + ffs(dcb->or));
 		return connector_status_connected;
@@ -329,6 +332,9 @@ static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
 {
+	if (nv04_dac_in_use(encoder))
+		return false;
+
 	return true;
 }
 
@@ -425,6 +431,17 @@ void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable)
 					dacclk & ~NV_PRAMDAC_DACCLK_SEL_DACCLK);
 		}
 	}
+}
+
+/* Check if the DAC corresponding to 'encoder' is being used by
+ * someone else. */
+bool nv04_dac_in_use(struct drm_encoder *encoder)
+{
+	struct drm_nouveau_private *dev_priv = encoder->dev->dev_private;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+
+	return nv_gf4_disp_arch(encoder->dev) &&
+		(dev_priv->dac_users[ffs(dcb->or) - 1] & ~(1 << dcb->index));
 }
 
 static void nv04_dac_dpms(struct drm_encoder *encoder, int mode)

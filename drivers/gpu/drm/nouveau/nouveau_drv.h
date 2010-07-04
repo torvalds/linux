@@ -1076,6 +1076,7 @@ extern int nv04_dac_create(struct drm_connector *, struct dcb_entry *);
 extern uint32_t nv17_dac_sample_load(struct drm_encoder *encoder);
 extern int nv04_dac_output_offset(struct drm_encoder *encoder);
 extern void nv04_dac_update_dacclk(struct drm_encoder *encoder, bool enable);
+extern bool nv04_dac_in_use(struct drm_encoder *encoder);
 
 /* nv04_dfp.c */
 extern int nv04_dfp_create(struct drm_connector *, struct dcb_entry *);
