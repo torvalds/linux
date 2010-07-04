@@ -185,8 +185,6 @@ static struct scoop_pcmcia_config corgi_pcmcia_config = {
 	.num_devs     = 1,
 };
 
-EXPORT_SYMBOL(corgiscoop_device);
-
 static struct w100_mem_info corgi_fb_mem = {
 	.ext_cntl          = 0x00040003,
 	.sdram_mode_reg    = 0x00650021,
