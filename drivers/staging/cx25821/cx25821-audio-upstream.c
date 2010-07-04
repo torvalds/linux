@@ -106,7 +106,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 {
 	unsigned int line;
 	struct sram_channel *sram_ch =
-	    &dev->sram_channels[dev->_audio_upstream_channel_select];
+           dev->channels[dev->_audio_upstream_channel_select].sram_channels;
 	int offset = 0;
 
 	/* scan lines */
@@ -217,7 +217,7 @@ void cx25821_free_memory_audio(struct cx25821_dev *dev)
 void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 {
 	struct sram_channel *sram_ch =
-	    &dev->sram_channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B];
+           dev->channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B].sram_channels;
 	u32 tmp = 0;
 
 	if (!dev->_audio_is_running) {
@@ -353,8 +353,9 @@ static void cx25821_audioups_handler(struct work_struct *work)
 	}
 
 	cx25821_get_audio_data(dev,
-			       &dev->sram_channels[dev->
-						   _audio_upstream_channel_select]);
+                              dev->channels[dev->
+                                       _audio_upstream_channel_select].
+                                       sram_channels);
 }
 
 int cx25821_openfile_audio(struct cx25821_dev *dev,
@@ -505,7 +506,7 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 {
 	int i = 0;
 	u32 int_msk_tmp;
-	struct sram_channel *channel = &dev->sram_channels[chan_num];
+       struct sram_channel *channel = dev->channels[chan_num].sram_channels;
 	dma_addr_t risc_phys_jump_addr;
 	__le32 *rp;
 
@@ -607,7 +608,8 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 	if (!dev)
 		return -1;
 
-	sram_ch = &dev->sram_channels[dev->_audio_upstream_channel_select];
+       sram_ch = dev->channels[dev->_audio_upstream_channel_select].
+                                       sram_channels;
 
 	msk_stat = cx_read(sram_ch->int_mstat);
 	audio_status = cx_read(sram_ch->int_stat);
@@ -731,7 +733,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	}
 
 	dev->_audio_upstream_channel_select = channel_select;
-	sram_ch = &dev->sram_channels[channel_select];
+       sram_ch = dev->channels[channel_select].sram_channels;
 
 	/* Work queue */
 	INIT_WORK(&dev->_audio_work_entry, cx25821_audioups_handler);
