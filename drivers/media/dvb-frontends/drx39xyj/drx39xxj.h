@@ -1,7 +1,7 @@
 /*
  *  Driver for Micronas DRX39xx family (drx3933j)
  *
- *  Written by Devin Heitmueller <devin.heitmueller@gmail.com>
+ *  Written by Devin Heitmueller <devin.heitmueller@kernellabs.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
