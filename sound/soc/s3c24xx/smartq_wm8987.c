@@ -112,7 +112,6 @@ static struct snd_soc_jack_pin smartq_jack_pins[] = {
 	{
 		.pin	= "Internal Speaker",
 		.mask	= SND_JACK_HEADPHONE,
-		.invert	= true,
 	},
 };
 
