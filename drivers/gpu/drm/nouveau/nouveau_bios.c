@@ -2020,6 +2020,64 @@ init_sub_direct(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 }
 
 static int
+init_i2c_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_I2C_IF   opcode: 0x5E ('^')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (8 bit): I2C register
+	 * offset + 4  (8 bit): mask
+	 * offset + 5  (8 bit): data
+	 *
+	 * Read the register given by "I2C register" on the device addressed
+	 * by "I2C slave address" on the I2C bus given by "DCB I2C table
+	 * entry index". Compare the result AND "mask" to "data".
+	 * If they're not equal, skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
+	uint8_t reg = bios->data[offset + 3];
+	uint8_t mask = bios->data[offset + 4];
+	uint8_t data = bios->data[offset + 5];
+	struct nouveau_i2c_chan *chan;
+	union i2c_smbus_data val;
+	int ret;
+
+	/* no execute check by design */
+
+	BIOSLOG(bios, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X\n",
+		offset, i2c_index, i2c_address);
+
+	chan = init_i2c_device_find(bios->dev, i2c_index);
+	if (!chan)
+		return -ENODEV;
+
+	ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+			     I2C_SMBUS_READ, reg,
+			     I2C_SMBUS_BYTE_DATA, &val);
+	if (ret < 0) {
+		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: [no device], "
+			      "Mask: 0x%02X, Data: 0x%02X\n",
+			offset, reg, mask, data);
+		iexec->execute = 0;
+		return 6;
+	}
+
+	BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, "
+		      "Mask: 0x%02X, Data: 0x%02X\n",
+		offset, reg, val.byte, mask, data);
+
+	iexec->execute = ((val.byte & mask) == data);
+
+	return 6;
+}
+
+static int
 init_copy_nv_reg(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 {
 	/*
@@ -3517,6 +3575,69 @@ init_zm_auxch(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	return len;
 }
 
+static int
+init_i2c_long_if(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
+{
+	/*
+	 * INIT_I2C_LONG_IF   opcode: 0x9A ('')
+	 *
+	 * offset      (8 bit): opcode
+	 * offset + 1  (8 bit): DCB I2C table entry index
+	 * offset + 2  (8 bit): I2C slave address
+	 * offset + 3  (16 bit): I2C register
+	 * offset + 5  (8 bit): mask
+	 * offset + 6  (8 bit): data
+	 *
+	 * Read the register given by "I2C register" on the device addressed
+	 * by "I2C slave address" on the I2C bus given by "DCB I2C table
+	 * entry index". Compare the result AND "mask" to "data".
+	 * If they're not equal, skip subsequent opcodes until condition is
+	 * inverted (INIT_NOT), or we hit INIT_RESUME
+	 */
+
+	uint8_t i2c_index = bios->data[offset + 1];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
+	uint8_t reglo = bios->data[offset + 3];
+	uint8_t reghi = bios->data[offset + 4];
+	uint8_t mask = bios->data[offset + 5];
+	uint8_t data = bios->data[offset + 6];
+	struct nouveau_i2c_chan *chan;
+	uint8_t buf0[2] = { reghi, reglo };
+	uint8_t buf1[1];
+	struct i2c_msg msg[2] = {
+		{ i2c_address, 0, 1, buf0 },
+		{ i2c_address, I2C_M_RD, 1, buf1 },
+	};
+	int ret;
+
+	/* no execute check by design */
+
+	BIOSLOG(bios, "0x%04X: DCBI2CIndex: 0x%02X, I2CAddress: 0x%02X\n",
+		offset, i2c_index, i2c_address);
+
+	chan = init_i2c_device_find(bios->dev, i2c_index);
+	if (!chan)
+		return -ENODEV;
+
+
+	ret = i2c_transfer(&chan->adapter, msg, 2);
+	if (ret < 0) {
+		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X:0x%02X, Value: [no device], "
+			      "Mask: 0x%02X, Data: 0x%02X\n",
+			offset, reghi, reglo, mask, data);
+		iexec->execute = 0;
+		return 7;
+	}
+
+	BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X:0x%02X, Value: 0x%02X, "
+		      "Mask: 0x%02X, Data: 0x%02X\n",
+		offset, reghi, reglo, buf1[0], mask, data);
+
+	iexec->execute = ((buf1[0] & mask) == data);
+
+	return 7;
+}
+
 static struct init_tbl_entry itbl_entry[] = {
 	/* command name                       , id  , length  , offset  , mult    , command handler                 */
 	/* INIT_PROG (0x31, 15, 10, 4) removed due to no example of use */
@@ -3547,6 +3668,7 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_ZM_REG_SEQUENCE"              , 0x58, init_zm_reg_sequence            },
 	/* INIT_INDIRECT_REG (0x5A, 7, 0, 0) removed due to no example of use */
 	{ "INIT_SUB_DIRECT"                   , 0x5B, init_sub_direct                 },
+	{ "INIT_I2C_IF"                       , 0x5E, init_i2c_if                     },
 	{ "INIT_COPY_NV_REG"                  , 0x5F, init_copy_nv_reg                },
 	{ "INIT_ZM_INDEX_IO"                  , 0x62, init_zm_index_io                },
 	{ "INIT_COMPUTE_MEM"                  , 0x63, init_compute_mem                },
@@ -3580,6 +3702,7 @@ static struct init_tbl_entry itbl_entry[] = {
 	{ "INIT_97"                           , 0x97, init_97                         },
 	{ "INIT_AUXCH"                        , 0x98, init_auxch                      },
 	{ "INIT_ZM_AUXCH"                     , 0x99, init_zm_auxch                   },
+	{ "INIT_I2C_LONG_IF"                  , 0x9A, init_i2c_long_if                },
 	{ NULL                                , 0   , NULL                            }
 };
 
