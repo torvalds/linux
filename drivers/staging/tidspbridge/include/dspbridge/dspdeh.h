@@ -43,5 +43,4 @@ extern int bridge_deh_register_notify(struct deh_mgr *deh_mgr,
 extern void bridge_deh_notify(struct deh_mgr *deh_mgr,
 		u32 ulEventMask, u32 dwErrInfo);
 
-extern void bridge_deh_release_dummy_mem(void);
 #endif /* DSPDEH_ */

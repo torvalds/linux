@@ -339,11 +339,7 @@ struct bridge_dev_context {
 	 */
 	/* DMMU TLB entries */
 	struct bridge_ioctl_extproc atlb_entry[BRDIOCTL_NUMOFMMUTLB];
-	u32 dw_brd_state;	/* Last known board state. */
-	u32 ul_int_mask;	/* int mask */
-	u16 io_base;		/* Board I/O base */
-	u32 num_tlb_entries;	/* DSP MMU TLB entry counter */
-	u32 fixed_tlb_entries;	/* Fixed DSPMMU TLB entry count */
+	u32 dw_brd_state;       /* Last known board state. */
 
 	/* TC Settings */
 	bool tc_word_swap_on;	/* Traffic Controller Word Swap */

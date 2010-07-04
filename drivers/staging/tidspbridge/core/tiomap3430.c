@@ -837,7 +837,6 @@ static int bridge_dev_create(OUT struct bridge_dev_context
 		dev_context->atlb_entry[entry_ndx].ul_gpp_pa =
 		    dev_context->atlb_entry[entry_ndx].ul_dsp_va = 0;
 	}
-	dev_context->num_tlb_entries = 0;
 	dev_context->dw_dsp_base_addr = (u32) MEM_LINEAR_ADDRESS((void *)
 								 (pConfig->
 								  dw_mem_base
@@ -940,7 +939,6 @@ static int bridge_dev_create(OUT struct bridge_dev_context
 	}
 	if (DSP_SUCCEEDED(status)) {
 		dev_context->hdev_obj = hdev_obj;
-		dev_context->ul_int_mask = 0;
 		/* Store current board state. */
 		dev_context->dw_brd_state = BRD_STOPPED;
 		dev_context->resources = resources;

@@ -1632,11 +1632,6 @@ int proc_stop(void *hprocessor)
 		status = -EFAULT;
 		goto func_end;
 	}
-	if (DSP_SUCCEEDED((*p_proc_object->intf_fxns->pfn_brd_status)
-			  (p_proc_object->hbridge_context, &brd_state))) {
-		if (brd_state == BRD_ERROR)
-			bridge_deh_release_dummy_mem();
-	}
 	/* check if there are any running nodes */
 	status = dev_get_node_manager(p_proc_object->hdev_obj, &hnode_mgr);
 	if (DSP_SUCCEEDED(status) && hnode_mgr) {

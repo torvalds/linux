@@ -109,8 +109,6 @@ int bridge_deh_destroy(struct deh_mgr *deh_mgr)
 	if (!deh_mgr)
 		return -EFAULT;
 
-	/* Release dummy VA buffer */
-	bridge_deh_release_dummy_mem();
 	/* If notification object exists, delete it */
 	if (deh_mgr->ntfy_obj) {
 		ntfy_delete(deh_mgr->ntfy_obj);
@@ -145,7 +143,6 @@ int bridge_deh_register_notify(struct deh_mgr *deh_mgr, u32 event_mask,
 void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 {
 	struct bridge_dev_context *dev_context;
-	u32 hw_mmu_max_tlb_count = 31;
 	struct cfg_hostres *resources;
 	struct hw_mmu_map_attrs_t map_attrs = {
 		.endianism = HW_LITTLE_ENDIAN,
@@ -189,16 +186,6 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 		print_dsp_trace_buffer(dev_context);
 		dump_dl_modules(dev_context);
 
-		/*
-		 * Reset the dynamic mmu index to fixed count if it exceeds
-		 * 31. So that the dynmmuindex is always between the range of
-		 * standard/fixed entries and 31.
-		 */
-		if (dev_context->num_tlb_entries >
-				hw_mmu_max_tlb_count) {
-			dev_context->num_tlb_entries =
-				dev_context->fixed_tlb_entries;
-		}
 		hw_mmu_tlb_add(resources->dw_dmmu_base,
 				virt_to_phys(dummy_va_addr), fault_addr,
 				HW_PAGE_SIZE4KB, 1,
@@ -274,8 +261,4 @@ int bridge_deh_get_info(struct deh_mgr *deh_mgr,
 	pErrInfo->dw_val3 = deh_mgr->err_info.dw_val3;
 
 	return 0;
-}
-
-void bridge_deh_release_dummy_mem(void)
-{
 }
