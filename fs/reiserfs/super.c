@@ -525,6 +525,8 @@ static struct inode *reiserfs_alloc_inode(struct super_block *sb)
 	    kmem_cache_alloc(reiserfs_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
+	atomic_set(&ei->openers, 0);
+	mutex_init(&ei->tailpack);
 	return &ei->vfs_inode;
 }
 
