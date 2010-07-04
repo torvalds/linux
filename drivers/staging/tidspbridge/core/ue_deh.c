@@ -140,9 +140,8 @@ int bridge_deh_register_notify(struct deh_mgr *deh_mgr, u32 event_mask,
 		return ntfy_unregister(deh_mgr->ntfy_obj, hnotification);
 }
 
-void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
+static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 {
-	struct bridge_dev_context *dev_context;
 	struct cfg_hostres *resources;
 	struct hw_mmu_map_attrs_t map_attrs = {
 		.endianism = HW_LITTLE_ENDIAN,
@@ -151,12 +150,45 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 	};
 	void *dummy_va_addr;
 
+	resources = dev_context->resources;
+	dummy_va_addr = (void*)__get_free_page(GFP_ATOMIC);
+
+	/*
+	 * Before acking the MMU fault, let's make sure MMU can only
+	 * access entry #0. Then add a new entry so that the DSP OS
+	 * can continue in order to dump the stack.
+	 */
+	hw_mmu_twl_disable(resources->dw_dmmu_base);
+	hw_mmu_tlb_flush_all(resources->dw_dmmu_base);
+
+	hw_mmu_tlb_add(resources->dw_dmmu_base,
+			virt_to_phys(dummy_va_addr), fault_addr,
+			HW_PAGE_SIZE4KB, 1,
+			&map_attrs, HW_SET, HW_SET);
+
+	dsp_clk_enable(DSP_CLK_GPT8);
+
+	dsp_gpt_wait_overflow(DSP_CLK_GPT8, 0xfffffffe);
+
+	/* Clear MMU interrupt */
+	hw_mmu_event_ack(resources->dw_dmmu_base,
+			HW_MMU_TRANSLATION_FAULT);
+	dump_dsp_stack(dev_context);
+	dsp_clk_disable(DSP_CLK_GPT8);
+
+	hw_mmu_disable(resources->dw_dmmu_base);
+	free_page((unsigned long)dummy_va_addr);
+}
+
+void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
+{
+	struct bridge_dev_context *dev_context;
+
 	if (!deh_mgr)
 		return;
 
 	dev_info(bridge, "%s: device exception\n", __func__);
 	dev_context = deh_mgr->hbridge_context;
-	resources = dev_context->resources;
 
 	switch (ulEventMask) {
 	case DSP_SYSERROR:
@@ -181,36 +213,11 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 			(unsigned int) deh_mgr->err_info.dw_val1,
 			(unsigned int) deh_mgr->err_info.dw_val2,
 			(unsigned int) fault_addr);
-		dummy_va_addr = (void*)__get_free_page(GFP_ATOMIC);
 
 		print_dsp_trace_buffer(dev_context);
 		dump_dl_modules(dev_context);
 
-		/*
-		 * Before acking the MMU fault, let's make sure MMU can only
-		 * access entry #0. Then add a new entry so that the DSP OS
-		 * can continue in order to dump the stack.
-		 */
-		hw_mmu_twl_disable(resources->dw_dmmu_base);
-		hw_mmu_tlb_flush_all(resources->dw_dmmu_base);
-
-		hw_mmu_tlb_add(resources->dw_dmmu_base,
-				virt_to_phys(dummy_va_addr), fault_addr,
-				HW_PAGE_SIZE4KB, 1,
-				&map_attrs, HW_SET, HW_SET);
-
-		dsp_clk_enable(DSP_CLK_GPT8);
-
-		dsp_gpt_wait_overflow(DSP_CLK_GPT8, 0xfffffffe);
-
-		/* Clear MMU interrupt */
-		hw_mmu_event_ack(resources->dw_dmmu_base,
-				HW_MMU_TRANSLATION_FAULT);
-		dump_dsp_stack(dev_context);
-		dsp_clk_disable(DSP_CLK_GPT8);
-
-		hw_mmu_disable(resources->dw_dmmu_base);
-		free_page((unsigned long)dummy_va_addr);
+		mmu_fault_print_stack(dev_context);
 		break;
 #ifdef CONFIG_BRIDGE_NTFY_PWRERR
 	case DSP_PWRERROR:
