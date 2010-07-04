@@ -186,6 +186,14 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 		print_dsp_trace_buffer(dev_context);
 		dump_dl_modules(dev_context);
 
+		/*
+		 * Before acking the MMU fault, let's make sure MMU can only
+		 * access entry #0. Then add a new entry so that the DSP OS
+		 * can continue in order to dump the stack.
+		 */
+		hw_mmu_twl_disable(resources->dw_dmmu_base);
+		hw_mmu_tlb_flush_all(resources->dw_dmmu_base);
+
 		hw_mmu_tlb_add(resources->dw_dmmu_base,
 				virt_to_phys(dummy_va_addr), fault_addr,
 				HW_PAGE_SIZE4KB, 1,
