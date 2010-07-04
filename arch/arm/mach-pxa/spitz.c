@@ -242,9 +242,6 @@ static struct scoop_pcmcia_config spitz_pcmcia_config = {
 	.power_ctrl   = spitz_pcmcia_pwr,
 };
 
-EXPORT_SYMBOL(spitzscoop_device);
-EXPORT_SYMBOL(spitzscoop2_device);
-
 /*
  * Spitz Keyboard Device
  */

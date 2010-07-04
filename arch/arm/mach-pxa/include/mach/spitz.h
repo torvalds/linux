@@ -181,11 +181,3 @@
 #define SPITZ_IRQ_GPIO_CF2_IRQ        IRQ_GPIO(SPITZ_GPIO_CF2_IRQ)
 #define SPITZ_IRQ_GPIO_nSD_INT        IRQ_GPIO(SPITZ_GPIO_nSD_INT)
 #define SPITZ_IRQ_GPIO_nSD_DETECT     IRQ_GPIO(SPITZ_GPIO_nSD_DETECT)
-
-/*
- * Shared data structures
- */
-extern struct platform_device spitzscoop_device;
-extern struct platform_device spitzscoop2_device;
-extern struct platform_device spitzssp_device;
-extern struct sharpsl_charger_machinfo spitz_pm_machinfo;
