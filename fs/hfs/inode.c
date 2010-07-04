@@ -625,6 +625,30 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 	return 0;
 }
 
+static int hfs_file_fsync(struct file *filp, int datasync)
+{
+	struct inode *inode = filp->f_mapping->host;
+	struct super_block * sb;
+	int ret, err;
+
+	/* sync the inode to buffers */
+	ret = write_inode_now(inode, 0);
+
+	/* sync the superblock to buffers */
+	sb = inode->i_sb;
+	if (sb->s_dirt) {
+		lock_super(sb);
+		sb->s_dirt = 0;
+		if (!(sb->s_flags & MS_RDONLY))
+			hfs_mdb_commit(sb);
+		unlock_super(sb);
+	}
+	/* .. finally sync the buffers to disk */
+	err = sync_blockdev(sb->s_bdev);
+	if (!ret)
+		ret = err;
+	return ret;
+}
 
 static const struct file_operations hfs_file_operations = {
 	.llseek		= generic_file_llseek,
@@ -634,7 +658,7 @@ static const struct file_operations hfs_file_operations = {
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
 	.splice_read	= generic_file_splice_read,
-	.fsync		= file_fsync,
+	.fsync		= hfs_file_fsync,
 	.open		= hfs_file_open,
 	.release	= hfs_file_release,
 };

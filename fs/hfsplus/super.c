@@ -154,7 +154,7 @@ static void hfsplus_clear_inode(struct inode *inode)
 	}
 }
 
-static int hfsplus_sync_fs(struct super_block *sb, int wait)
+int hfsplus_sync_fs(struct super_block *sb, int wait)
 {
 	struct hfsplus_vh *vhdr = HFSPLUS_SB(sb).s_vhdr;
 

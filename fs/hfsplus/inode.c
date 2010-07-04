@@ -311,6 +311,31 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 	return 0;
 }
 
+static int hfsplus_file_fsync(struct file *filp, int datasync)
+{
+	struct inode *inode = filp->f_mapping->host;
+	struct super_block * sb;
+	int ret, err;
+
+	/* sync the inode to buffers */
+	ret = write_inode_now(inode, 0);
+
+	/* sync the superblock to buffers */
+	sb = inode->i_sb;
+	if (sb->s_dirt) {
+		if (!(sb->s_flags & MS_RDONLY))
+			hfsplus_sync_fs(sb, 1);
+		else
+			sb->s_dirt = 0;
+	}
+
+	/* .. finally sync the buffers to disk */
+	err = sync_blockdev(sb->s_bdev);
+	if (!ret)
+		ret = err;
+	return ret;
+}
+
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.lookup		= hfsplus_file_lookup,
 	.truncate	= hfsplus_file_truncate,
@@ -328,7 +353,7 @@ static const struct file_operations hfsplus_file_operations = {
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
 	.splice_read	= generic_file_splice_read,
-	.fsync		= file_fsync,
+	.fsync		= hfsplus_file_fsync,
 	.open		= hfsplus_file_open,
 	.release	= hfsplus_file_release,
 	.unlocked_ioctl = hfsplus_ioctl,
