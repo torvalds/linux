@@ -287,14 +287,14 @@ int cx25821_get_audio_data(struct cx25821_dev *dev,
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk("%s: File has no file operations registered!\n",
+			printk(KERN_ERR "%s: File has no file operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk("%s: File has no READ operations registered!\n",
+			printk(KERN_ERR "%s: File has no READ operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -379,14 +379,14 @@ int cx25821_openfile_audio(struct cx25821_dev *dev,
 		return PTR_ERR(myfile);
 	} else {
 		if (!(myfile->f_op)) {
-			printk("%s: File has no file operations registered!\n",
+			printk(KERN_ERR "%s: File has no file operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
 		}
 
 		if (!myfile->f_op->read) {
-			printk("%s: File has no READ operations registered!\n",
+			printk(KERN_ERR "%s: File has no READ operations registered!\n",
 			       __func__);
 			filp_close(myfile, NULL);
 			return -EIO;
@@ -570,15 +570,15 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 		spin_unlock(&dev->slock);
 	} else {
 		if (status & FLD_AUD_SRC_OF)
-			printk("%s: Audio Received Overflow Error Interrupt!\n",
+			printk(KERN_WARNING "%s: Audio Received Overflow Error Interrupt!\n",
 			       __func__);
 
 		if (status & FLD_AUD_SRC_SYNC)
-			printk("%s: Audio Received Sync Error Interrupt!\n",
+			printk(KERN_WARNING "%s: Audio Received Sync Error Interrupt!\n",
 			       __func__);
 
 		if (status & FLD_AUD_SRC_OPC_ERR)
-			printk("%s: Audio Received OpCode Error Interrupt!\n",
+			printk(KERN_WARNING "%s: Audio Received OpCode Error Interrupt!\n",
 			       __func__);
 
 		/* Read and write back the interrupt status register to clear
@@ -587,7 +587,7 @@ int cx25821_audio_upstream_irq(struct cx25821_dev *dev, int chan_num,
 	}
 
 	if (dev->_audiofile_status == END_OF_FILE) {
-		printk("cx25821: EOF Channel Audio Framecount = %d\n",
+		printk(KERN_WARNING "cx25821: EOF Channel Audio Framecount = %d\n",
 		       dev->_audioframe_count);
 		return -1;
 	}
@@ -646,8 +646,8 @@ static void cx25821_wait_fifo_enable(struct cx25821_dev *dev,
 
 		/* 10 millisecond timeout */
 		if (count++ > 1000) {
-			printk
-			    ("cx25821 ERROR: %s() fifo is NOT turned on. Timeout!\n",
+			printk(KERN_ERR
+			       "cx25821 ERROR: %s() fifo is NOT turned on. Timeout!\n",
 			     __func__);
 			return;
 		}
@@ -728,7 +728,7 @@ int cx25821_audio_upstream_init(struct cx25821_dev *dev, int channel_select)
 	int str_length = 0;
 
 	if (dev->_audio_is_running) {
-		printk("Audio Channel is still running so return!\n");
+		printk(KERN_WARNING "Audio Channel is still running so return!\n");
 		return 0;
 	}
 
