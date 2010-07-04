@@ -62,7 +62,7 @@
 #include <dspbridge/drvdefs.h>
 #include <dspbridge/drv.h>
 
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 #include <mach-omap2/omap3-opp.h>
 #endif
 
@@ -88,7 +88,7 @@ static char *base_img;
 char *iva_img;
 static s32 shm_size = 0x500000;	/* 5 MB */
 static int tc_wordswapon;	/* Default value is always false */
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 #define REC_TIMEOUT 5000	/*recovery timeout in msecs */
 static atomic_t bridge_cref;	/* number of bridge open handles */
 static struct workqueue_struct *bridge_rec_queue;
@@ -148,13 +148,13 @@ static const struct file_operations bridge_fops = {
 
 #ifdef CONFIG_PM
 static u32 time_out = 1000;
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 s32 dsp_max_opps = VDD1_OPP5;
 #endif
 
 /* Maximum Opps that can be requested by IVA */
 /*vdd1 rate table */
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 const struct omap_opp vdd1_rate_table_bridge[] = {
 	{0, 0, 0},
 	/*OPP1 */
@@ -187,7 +187,7 @@ u32 vdd1_dsp_freq[6][4] = {
 	{0, 430000, 355000, 430000},
 };
 
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 static void bridge_recover(struct work_struct *work)
 {
 	struct dev_object *dev;
@@ -214,7 +214,7 @@ void bridge_recover_schedule(void)
 	queue_work(bridge_rec_queue, &bridge_recovery_work);
 }
 #endif
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 static int dspbridge_scale_notification(struct notifier_block *op,
 		unsigned long val, void *ptr)
 {
@@ -247,7 +247,7 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 	u32 phys_membase, phys_memsize;
 	int err;
 
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	bridge_rec_queue = create_workqueue("bridge_rec_queue");
 	INIT_WORK(&bridge_recovery_work, bridge_recover);
 	INIT_COMPLETION(bridge_comp);
@@ -258,7 +258,7 @@ static int omap3_bridge_startup(struct platform_device *pdev)
 	bridge_suspend_data.suspended = 0;
 	init_waitqueue_head(&bridge_suspend_data.suspend_wq);
 
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	for (i = 0; i < 6; i++)
 		pdata->mpu_speed[i] = vdd1_rate_table_bridge[i].rate;
 
@@ -323,7 +323,7 @@ err3:
 err2:
 	kfree(drv_datap);
 err1:
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	cpufreq_unregister_notifier(&iva_clk_notifier,
 					CPUFREQ_TRANSITION_NOTIFIER);
 #endif
@@ -337,7 +337,7 @@ static int __devinit omap34_xx_bridge_probe(struct platform_device *pdev)
 {
 	int err;
 	dev_t dev = 0;
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	int i = 0;
 #endif
 
@@ -400,12 +400,12 @@ static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
 	if (DSP_FAILED(status))
 		goto func_cont;
 
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	if (cpufreq_unregister_notifier(&iva_clk_notifier,
 						CPUFREQ_TRANSITION_NOTIFIER))
 		pr_err("%s: cpufreq_unregister_notifier failed for iva2_ck\n",
 		       __func__);
-#endif /* #ifdef CONFIG_BRIDGE_DVFS */
+#endif /* #ifdef CONFIG_TIDSPBRIDGE_DVFS */
 
 	if (driver_context) {
 		/* Put the DSP in reset state */
@@ -497,7 +497,7 @@ static int bridge_open(struct inode *ip, struct file *filp)
 	 * process context list.
 	 */
 
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	if (recover) {
 		if (filp->f_flags & O_NONBLOCK ||
 			wait_for_completion_interruptible(&bridge_open_comp))
@@ -518,7 +518,7 @@ static int bridge_open(struct inode *ip, struct file *filp)
 	}
 
 	filp->private_data = pr_ctxt;
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	if (!status)
 		atomic_inc(&bridge_cref);
 #endif
@@ -548,7 +548,7 @@ static int bridge_release(struct inode *ip, struct file *filp)
 	filp->private_data = NULL;
 
 err:
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	if (!atomic_dec_return(&bridge_cref))
 		complete(&bridge_comp);
 #endif
@@ -564,7 +564,7 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 	union Trapped_Args buf_in;
 
 	DBC_REQUIRE(filp != NULL);
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 	if (recover) {
 		status = -EIO;
 		goto err;

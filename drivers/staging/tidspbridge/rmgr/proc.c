@@ -1081,7 +1081,7 @@ int proc_load(void *hprocessor, IN CONST s32 argc_index,
 	struct timeval tv2;
 #endif
 
-#if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
+#if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 	struct dspbridge_platform_data *pdata =
 	    omap_dspbridge_dev->dev.platform_data;
 #endif
@@ -1218,7 +1218,7 @@ int proc_load(void *hprocessor, IN CONST s32 argc_index,
 		/* Now, attempt to load an exec: */
 
 		/* Boost the OPP level to Maximum level supported by baseport */
-#if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
+#if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 		if (pdata->cpu_set_freq)
 			(*pdata->cpu_set_freq) (pdata->mpu_speed[VDD1_OPP5]);
 #endif
@@ -1236,7 +1236,7 @@ int proc_load(void *hprocessor, IN CONST s32 argc_index,
 			}
 		}
 		/* Requesting the lowest opp supported */
-#if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
+#if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 		if (pdata->cpu_set_freq)
 			(*pdata->cpu_set_freq) (pdata->mpu_speed[VDD1_OPP1]);
 #endif
@@ -1338,7 +1338,7 @@ int proc_map(void *hprocessor, void *pmpu_addr, u32 ul_size,
 	struct dmm_map_object *map_obj;
 	u32 tmp_addr = 0;
 
-#ifdef CONFIG_BRIDGE_CACHE_LINE_CHECK
+#ifdef CONFIG_TIDSPBRIDGE_CACHE_LINE_CHECK
 	if ((ul_map_attr & BUFMODE_MASK) != RBUF) {
 		if (!IS_ALIGNED((u32)pmpu_addr, DSP_CACHE_LINE) ||
 		    !IS_ALIGNED(ul_size, DSP_CACHE_LINE)) {

@@ -14,7 +14,7 @@ menuconfig TIDSPBRIDGE
 
 	  This driver depends on OMAP Mailbox (OMAP_MBOX_FWK).
 
-config BRIDGE_DVFS
+config TIDSPBRIDGE_DVFS
 	bool "Enable Bridge Dynamic Voltage and Frequency Scaling (DVFS)"
 	depends on TIDSPBRIDGE && OMAP_PM_SRF && CPU_FREQ
 	default n
@@ -24,7 +24,7 @@ config BRIDGE_DVFS
 	  performance and power consumption to the current processing
 	  requirements.
 
-config BRIDGE_MEMPOOL_SIZE
+config TIDSPBRIDGE_MEMPOOL_SIZE
 	hex "Physical memory pool size (Byte)"
 	depends on TIDSPBRIDGE
 	default 0x600000
@@ -32,20 +32,20 @@ config BRIDGE_MEMPOOL_SIZE
 	  Allocate specified size of memory at booting time to avoid allocation
 	  failure under heavy memory fragmentation after some use time.
 
-config BRIDGE_DEBUG
+config TIDSPBRIDGE_DEBUG
 	bool "DSP Bridge Debug Support"
 	depends on TIDSPBRIDGE
 	help
 	  Say Y to enable Bridge debugging capabilities
 
-config BRIDGE_RECOVERY
+config TIDSPBRIDGE_RECOVERY
 	bool "DSP Recovery Support"
 	depends on TIDSPBRIDGE
 	help
 	  In case of DSP fatal error, BRIDGE driver will try to
 	  recover itself.
 
-config BRIDGE_CACHE_LINE_CHECK
+config TIDSPBRIDGE_CACHE_LINE_CHECK
 	bool "Check buffers to be 128 byte aligned"
 	depends on TIDSPBRIDGE
 	default n
@@ -59,7 +59,7 @@ config BRIDGE_CACHE_LINE_CHECK
 	  This can lead to heap corruption. Say Y, to enforce the check for 128
 	  byte alignment, buffers failing this check will be rejected.
 
-config BRIDGE_WDT3
+config TIDSPBRIDGE_WDT3
 	bool "Enable WDT3 interruptions"
 	depends on TIDSPBRIDGE
 	default n
@@ -68,9 +68,9 @@ config BRIDGE_WDT3
 	  charge of refreshing the timer before overflow, if the DSP hangs MPU
 	  will caught the interrupt and try to recover DSP.
 
-config WDT_TIMEOUT
+config TIDSPBRIDGE_WDT_TIMEOUT
 	int "DSP watchdog timer timeout (in secs)"
-	depends on BRIDGE_WDT3
+	depends on TIDSPBRIDGE_WDT3
 	default 5
 	help
 	   Watchdog timer timeout value, after that time if the watchdog timer
@@ -79,7 +79,7 @@ config WDT_TIMEOUT
 comment "Bridge Notifications"
 	depends on TIDSPBRIDGE
 
-config BRIDGE_NTFY_PWRERR
+config TIDSPBRIDGE_NTFY_PWRERR
 	bool "Notify DSP Power Error"
 	depends on TIDSPBRIDGE
 	help

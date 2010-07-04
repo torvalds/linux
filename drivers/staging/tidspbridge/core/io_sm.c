@@ -1731,7 +1731,7 @@ void io_intr_dsp2(IN struct io_mgr *pio_mgr, IN u16 mb_val)
  */
 int io_sh_msetting(struct io_mgr *hio_mgr, u8 desc, void *pargs)
 {
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 i;
 	struct dspbridge_platform_data *pdata =
 	    omap_dspbridge_dev->dev.platform_data;

@@ -99,7 +99,7 @@ struct shm {
 	struct opp_rqst_struct opp_request;
 	/* load monitor information structure */
 	struct load_mon_struct load_mon_info;
-#ifdef CONFIG_BRIDGE_WDT3
+#ifdef CONFIG_TIDSPBRIDGE_WDT3
 	/* Flag for WDT enable/disable F/I clocks */
 	u32 wdt_setclocks;
 	u32 wdt_overflow;	/* WDT overflow time */

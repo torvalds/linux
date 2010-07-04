@@ -419,7 +419,7 @@ extern int drv_release_resources(IN u32 dw_context,
  */
 int drv_request_bridge_res_dsp(void **phost_resources);
 
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 void bridge_recover_schedule(void);
 #endif
 

@@ -1156,7 +1156,7 @@ int node_create(struct node_object *hnode)
 	u32 proc_id = 255;
 	struct dsp_processorstate proc_state;
 	struct proc_object *hprocessor;
-#if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
+#if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 	struct dspbridge_platform_data *pdata =
 	    omap_dspbridge_dev->dev.platform_data;
 #endif
@@ -1208,7 +1208,7 @@ int node_create(struct node_object *hnode)
 	if (DSP_SUCCEEDED(status)) {
 		/* If node's create function is not loaded, load it */
 		/* Boost the OPP level to max level that DSP can be requested */
-#if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
+#if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 		if (pdata->cpu_set_freq)
 			(*pdata->cpu_set_freq) (pdata->mpu_speed[VDD1_OPP3]);
 #endif
@@ -1226,7 +1226,7 @@ int node_create(struct node_object *hnode)
 			       __func__, status);
 		}
 		/* Request the lowest OPP level */
-#if defined(CONFIG_BRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
+#if defined(CONFIG_TIDSPBRIDGE_DVFS) && !defined(CONFIG_CPU_FREQ)
 		if (pdata->cpu_set_freq)
 			(*pdata->cpu_set_freq) (pdata->mpu_speed[VDD1_OPP1]);
 #endif

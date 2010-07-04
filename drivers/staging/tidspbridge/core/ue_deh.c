@@ -250,7 +250,7 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 	/* Filter subsequent notifications when an error occurs */
 	if (dev_context->dw_brd_state != BRD_ERROR) {
 		ntfy_notify(deh->ntfy_obj, event);
-#ifdef CONFIG_BRIDGE_RECOVERY
+#ifdef CONFIG_TIDSPBRIDGE_RECOVERY
 		bridge_recover_schedule();
 #endif
 	}

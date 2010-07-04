@@ -41,7 +41,7 @@
 #define IO_SET_LONG(pContext, type, base, field, value)  (base->field = value)
 #define IO_GET_LONG(pContext, type, base, field)         (base->field)
 
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 /* The maximum number of OPPs that are supported */
 extern s32 dsp_max_opps;
 /* The Vdd1 opp table information */

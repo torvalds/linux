@@ -388,7 +388,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 
 int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 {
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 opplevel = 0;
 #endif
 	struct dspbridge_platform_data *pdata =
@@ -405,7 +405,7 @@ int sm_interrupt_dsp(struct bridge_dev_context *dev_context, u16 mb_val)
 
 	if (dev_context->dw_brd_state == BRD_DSP_HIBERNATION ||
 	    dev_context->dw_brd_state == BRD_HIBERNATION) {
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 		if (pdata->dsp_get_opp)
 			opplevel = (*pdata->dsp_get_opp) ();
 		if (opplevel == VDD1_OPP1) {

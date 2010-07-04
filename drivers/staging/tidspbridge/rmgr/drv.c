@@ -517,7 +517,7 @@ int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
 			      struct dev_object **phDevObject)
 {
 	int status = 0;
-#ifdef CONFIG_BRIDGE_DEBUG
+#ifdef CONFIG_TIDSPBRIDGE_DEBUG
 	/* used only for Assertions and debug messages */
 	struct drv_object *pdrv_obj = (struct drv_object *)hdrv_obj;
 #endif

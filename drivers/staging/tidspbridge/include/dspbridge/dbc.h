@@ -26,7 +26,7 @@
 #define DBC_
 
 /* Assertion Macros: */
-#ifdef CONFIG_BRIDGE_DEBUG
+#ifdef CONFIG_TIDSPBRIDGE_DEBUG
 
 #define DBC_ASSERT(exp) \
     if (!(exp)) \

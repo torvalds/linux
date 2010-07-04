@@ -52,7 +52,7 @@
 int handle_constraints_set(struct bridge_dev_context *dev_context,
 				  IN void *pargs)
 {
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 *constraint_val;
 	struct dspbridge_platform_data *pdata =
 	    omap_dspbridge_dev->dev.platform_data;
@@ -65,7 +65,7 @@ int handle_constraints_set(struct bridge_dev_context *dev_context,
 	/* Set the new opp value */
 	if (pdata->dsp_set_min_opp)
 		(*pdata->dsp_set_min_opp) ((u32) *(constraint_val + 1));
-#endif /* #ifdef CONFIG_BRIDGE_DVFS */
+#endif /* #ifdef CONFIG_TIDSPBRIDGE_DVFS */
 	return 0;
 }
 
@@ -79,7 +79,7 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 #ifdef CONFIG_PM
 	u16 timeout = PWRSTST_TIMEOUT / 10;
 	u32 pwr_state;
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 opplevel;
 	struct io_mgr *hio_mgr;
 #endif
@@ -115,7 +115,7 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 		if (DSP_SUCCEEDED(status)) {
 			/* Update the Bridger Driver state */
 			dev_context->dw_brd_state = BRD_DSP_HIBERNATION;
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 			status =
 			    dev_get_io_mgr(dev_context->hdev_obj, &hio_mgr);
 			if (!hio_mgr) {
@@ -131,7 +131,7 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
 			if (pdata->dsp_set_min_opp)
 				(*pdata->dsp_set_min_opp) (VDD1_OPP1);
 			status = 0;
-#endif /* CONFIG_BRIDGE_DVFS */
+#endif /* CONFIG_TIDSPBRIDGE_DVFS */
 		}
 	}
 #endif
@@ -147,9 +147,9 @@ int sleep_dsp(struct bridge_dev_context *dev_context, IN u32 dw_cmd,
 {
 	int status = 0;
 #ifdef CONFIG_PM
-#ifdef CONFIG_BRIDGE_NTFY_PWRERR
+#ifdef CONFIG_TIDSPBRIDGE_NTFY_PWRERR
 	struct deh_mgr *hdeh_mgr;
-#endif /* CONFIG_BRIDGE_NTFY_PWRERR */
+#endif /* CONFIG_TIDSPBRIDGE_NTFY_PWRERR */
 	u16 timeout = PWRSTST_TIMEOUT / 10;
 	u32 pwr_state, target_pwr_state;
 	struct dspbridge_platform_data *pdata =
@@ -211,10 +211,10 @@ int sleep_dsp(struct bridge_dev_context *dev_context, IN u32 dw_cmd,
 	if (!timeout) {
 		pr_err("%s: Timed out waiting for DSP off mode, state %x\n",
 		       __func__, pwr_state);
-#ifdef CONFIG_BRIDGE_NTFY_PWRERR
+#ifdef CONFIG_TIDSPBRIDGE_NTFY_PWRERR
 		dev_get_deh_mgr(dev_context->hdev_obj, &hdeh_mgr);
 		bridge_deh_notify(hdeh_mgr, DSP_PWRERROR, 0);
-#endif /* CONFIG_BRIDGE_NTFY_PWRERR */
+#endif /* CONFIG_TIDSPBRIDGE_NTFY_PWRERR */
 		return -ETIMEDOUT;
 	} else {
 		/* Update the Bridger Driver state */
@@ -230,7 +230,7 @@ int sleep_dsp(struct bridge_dev_context *dev_context, IN u32 dw_cmd,
 		status = dsp_clock_disable_all(dev_context->dsp_per_clks);
 		if (DSP_FAILED(status))
 			return status;
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 		else if (target_pwr_state == PWRDM_POWER_OFF) {
 			/*
 			 * Set the OPP to low level before moving to OFF mode
@@ -238,7 +238,7 @@ int sleep_dsp(struct bridge_dev_context *dev_context, IN u32 dw_cmd,
 			if (pdata->dsp_set_min_opp)
 				(*pdata->dsp_set_min_opp) (VDD1_OPP1);
 		}
-#endif /* CONFIG_BRIDGE_DVFS */
+#endif /* CONFIG_TIDSPBRIDGE_DVFS */
 	}
 #endif /* CONFIG_PM */
 	return status;
@@ -338,7 +338,7 @@ int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
  */
 int pre_scale_dsp(struct bridge_dev_context *dev_context, IN void *pargs)
 {
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 level;
 	u32 voltage_domain;
 
@@ -360,7 +360,7 @@ int pre_scale_dsp(struct bridge_dev_context *dev_context, IN void *pargs)
 	} else {
 		return -EPERM;
 	}
-#endif /* #ifdef CONFIG_BRIDGE_DVFS */
+#endif /* #ifdef CONFIG_TIDSPBRIDGE_DVFS */
 	return 0;
 }
 
@@ -373,7 +373,7 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 							IN void *pargs)
 {
 	int status = 0;
-#ifdef CONFIG_BRIDGE_DVFS
+#ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 level;
 	u32 voltage_domain;
 	struct io_mgr *hio_mgr;
@@ -403,7 +403,7 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 	} else {
 		status = -EPERM;
 	}
-#endif /* #ifdef CONFIG_BRIDGE_DVFS */
+#endif /* #ifdef CONFIG_TIDSPBRIDGE_DVFS */
 	return status;
 }
 
