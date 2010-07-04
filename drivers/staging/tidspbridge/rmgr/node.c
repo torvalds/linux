@@ -3200,6 +3200,7 @@ static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
 	return ul_num_bytes;
 }
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /*
  *  ======== node_find_addr ========
  */
@@ -3229,4 +3230,4 @@ int node_find_addr(struct node_mgr *node_mgr, u32 sym_addr,
 
 	return status;
 }
-
+#endif

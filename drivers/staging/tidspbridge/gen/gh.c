@@ -188,6 +188,7 @@ static void myfree(void *ptr, s32 size)
 	gs_free(ptr);
 }
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /**
  * gh_iterate() - This function goes through all the elements in the hash table
  *		looking for the dsp symbols.
@@ -211,3 +212,4 @@ void gh_iterate(struct gh_t_hash_tab *hash_tab,
 			}
 		}
 }
+#endif

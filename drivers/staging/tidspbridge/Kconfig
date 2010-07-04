@@ -81,3 +81,10 @@ config TIDSPBRIDGE_NTFY_PWRERR
 	  Enable notifications to registered clients on the event of power errror
 	  trying to suspend bridge driver. Say Y, to signal this event as a fatal
 	  error, this will require a bridge restart to recover.
+
+config TIDSPBRIDGE_BACKTRACE
+	bool "Dump backtraces on fatal errors"
+	depends on TIDSPBRIDGE
+	help
+	  Enable useful information to backtrace fatal errors. Say Y if you
+	  want to dump information for testing purposes.

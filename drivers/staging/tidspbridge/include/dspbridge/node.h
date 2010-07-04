@@ -558,6 +558,7 @@ extern int node_get_uuid_props(void *hprocessor,
 				      OUT struct dsp_ndbprops
 				      *node_props);
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /**
  * node_find_addr() - Find the closest symbol to the given address.
  *
@@ -575,5 +576,6 @@ int node_find_addr(struct node_mgr *node_mgr, u32 sym_addr,
 				char *sym_name);
 
 enum node_state node_get_state(void *hnode);
+#endif
 
 #endif /* NODE_ */

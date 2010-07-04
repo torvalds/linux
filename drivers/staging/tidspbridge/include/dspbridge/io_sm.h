@@ -291,6 +291,7 @@ extern void io_intr_dsp2(IN struct io_mgr *pio_mgr, IN u16 mb_val);
 
 extern void io_sm_init(void);
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /*
  *  ========print_dsp_trace_buffer ========
  *      Print DSP tracebuffer.
@@ -302,7 +303,8 @@ int dump_dsp_stack(struct bridge_dev_context *bridge_context);
 
 void dump_dl_modules(struct bridge_dev_context *bridge_context);
 
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#endif
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 void print_dsp_debug_trace(struct io_mgr *hio_mgr);
 #endif
 

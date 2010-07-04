@@ -114,7 +114,7 @@ struct io_mgr {
 	struct mgr_processorextinfo ext_proc_info;
 	struct cmm_object *hcmm_mgr;	/* Shared Mem Mngr */
 	struct work_struct io_workq;	/* workqueue */
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 	u32 ul_trace_buffer_begin;	/* Trace message start address */
 	u32 ul_trace_buffer_end;	/* Trace message end address */
 	u32 ul_trace_buffer_current;	/* Trace message current address */
@@ -210,7 +210,7 @@ int bridge_io_create(OUT struct io_mgr **phIOMgr,
 	}
 
 	/* Initialize chnl_mgr object */
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 	pio_mgr->pmsg = NULL;
 #endif
 	pio_mgr->hchnl_mgr = hchnl_mgr;
@@ -265,7 +265,7 @@ int bridge_io_destroy(struct io_mgr *hio_mgr)
 		/* Free IO DPC object */
 		tasklet_kill(&hio_mgr->dpc_tasklet);
 
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 		kfree(hio_mgr->pmsg);
 #endif
 		dsp_wdt_exit();
@@ -407,7 +407,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		status = -EFAULT;
 	}
 	if (DSP_SUCCEEDED(status)) {
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 		status =
 		    cod_get_sym_value(cod_man, DSP_TRACESEC_END, &shm0_end);
 #else
@@ -752,7 +752,7 @@ int bridge_io_on_loaded(struct io_mgr *hio_mgr)
 		hmsg_mgr->max_msgs);
 	memset((void *)hio_mgr->shared_mem, 0, sizeof(struct shm));
 
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 	/* Get the start address of trace buffer */
 	status = cod_get_sym_value(cod_man, SYS_PUTCBEG,
 				   &hio_mgr->ul_trace_buffer_begin);
@@ -949,7 +949,7 @@ void io_dpc(IN OUT unsigned long pRefData)
 		    (pio_mgr->intr_val < DEH_LIMIT)) {
 			/* Notify DSP/BIOS exception */
 			if (hdeh_mgr) {
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 				print_dsp_debug_trace(pio_mgr);
 #endif
 				bridge_deh_notify(hdeh_mgr, DSP_SYSERROR,
@@ -1810,7 +1810,12 @@ int bridge_io_get_proc_load(IN struct io_mgr *hio_mgr,
 	return 0;
 }
 
-#ifdef CONFIG_TIDSPBRIDGE_DEBUG
+void io_sm_init(void)
+{
+	/* Do nothing */
+}
+
+#if defined(CONFIG_TIDSPBRIDGE_BACKTRACE) || defined(CONFIG_TIDSPBRIDGE_DEBUG)
 void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 {
 	u32 ul_new_message_length = 0, ul_gpp_cur_pointer;
@@ -1871,6 +1876,7 @@ void print_dsp_debug_trace(struct io_mgr *hio_mgr)
 }
 #endif
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /*
  *  ======== print_dsp_trace_buffer ========
  *      Prints the trace buffer returned from the DSP (if DBG_Trace is enabled).
@@ -2045,10 +2051,6 @@ func_end:
 	return status;
 }
 
-void io_sm_init(void)
-{
-	/* Do nothing */
-}
 /**
  * dump_dsp_stack() - This function dumps the data on the DSP stack.
  * @bridge_context:	Bridge driver's device context pointer.
@@ -2407,4 +2409,4 @@ void dump_dl_modules(struct bridge_dev_context *bridge_context)
 func_end:
 	kfree(module_struct);
 }
-
+#endif

@@ -166,6 +166,7 @@ int bridge_deh_register_notify(struct deh_mgr *deh, u32 event_mask,
 		return ntfy_unregister(deh->ntfy_obj, hnotification);
 }
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 {
 	struct cfg_hostres *resources;
@@ -205,6 +206,7 @@ static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 	hw_mmu_disable(resources->dw_dmmu_base);
 	free_page((unsigned long)dummy_va_addr);
 }
+#endif
 
 static inline const char *event_to_string(int event)
 {
@@ -232,15 +234,19 @@ void bridge_deh_notify(struct deh_mgr *deh, int event, int info)
 	case DSP_SYSERROR:
 		dev_err(bridge, "%s: %s, info=0x%x", __func__,
 				str, info);
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 		dump_dl_modules(dev_context);
 		dump_dsp_stack(dev_context);
+#endif
 		break;
 	case DSP_MMUFAULT:
 		dev_err(bridge, "%s: %s, addr=0x%x", __func__,
 				str, fault_addr);
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 		print_dsp_trace_buffer(dev_context);
 		dump_dl_modules(dev_context);
 		mmu_fault_print_stack(dev_context);
+#endif
 		break;
 	default:
 		dev_err(bridge, "%s: %s", __func__, str);

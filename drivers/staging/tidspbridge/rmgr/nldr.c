@@ -1919,6 +1919,7 @@ static u32 find_gcf(u32 a, u32 b)
 	return b;
 }
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /**
  * nldr_find_addr() - Find the closest symbol to the given address based on
  *		dynamic node object.
@@ -1997,3 +1998,4 @@ int nldr_find_addr(struct nldr_nodeobject *nldr_node, u32 sym_addr,
 
 	return status;
 }
+#endif

@@ -1500,6 +1500,7 @@ static void release(struct dynamic_loader_initialize *this)
 {
 }
 
+#ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 /**
  *  find_symbol_context - Basic symbol context structure
  * @address:		Symbol Adress
@@ -1583,3 +1584,4 @@ bool dbll_find_dsp_symbol(struct dbll_library_obj *zl_lib, u32 address,
 
 	return status;
 }
+#endif
