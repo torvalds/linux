@@ -104,7 +104,6 @@ struct ttm_pool_opts {
 struct ttm_pool_manager {
 	struct kobject		kobj;
 	struct shrinker		mm_shrink;
-	atomic_t		page_alloc_inited;
 	struct ttm_pool_opts	options;
 
 	union {
@@ -142,7 +141,7 @@ static void ttm_pool_kobj_release(struct kobject *kobj)
 {
 	struct ttm_pool_manager *m =
 		container_of(kobj, struct ttm_pool_manager, kobj);
-	(void)m;
+	kfree(m);
 }
 
 static ssize_t ttm_pool_store(struct kobject *kobj,
@@ -214,9 +213,7 @@ static struct kobj_type ttm_pool_kobj_type = {
 	.default_attrs = ttm_pool_attrs,
 };
 
-static struct ttm_pool_manager _manager = {
-	.page_alloc_inited	= ATOMIC_INIT(0)
-};
+static struct ttm_pool_manager *_manager;
 
 #ifndef CONFIG_X86
 static int set_pages_array_wb(struct page **pages, int addrinarray)
@@ -271,7 +268,7 @@ static struct ttm_page_pool *ttm_get_pool(int flags,
 	if (flags & TTM_PAGE_FLAG_DMA32)
 		pool_index |= 0x2;
 
-	return &_manager.pools[pool_index];
+	return &_manager->pools[pool_index];
 }
 
 /* set memory back to wb and free the pages. */
@@ -387,7 +384,7 @@ static int ttm_pool_get_num_unused_pages(void)
 	unsigned i;
 	int total = 0;
 	for (i = 0; i < NUM_POOLS; ++i)
-		total += _manager.pools[i].npages;
+		total += _manager->pools[i].npages;
 
 	return total;
 }
@@ -408,7 +405,7 @@ static int ttm_pool_mm_shrink(int shrink_pages, gfp_t gfp_mask)
 		unsigned nr_free = shrink_pages;
 		if (shrink_pages == 0)
 			break;
-		pool = &_manager.pools[(i + pool_offset)%NUM_POOLS];
+		pool = &_manager->pools[(i + pool_offset)%NUM_POOLS];
 		shrink_pages = ttm_page_pool_free(pool, nr_free);
 	}
 	/* return estimated number of unused pages in pool */
@@ -576,10 +573,10 @@ static void ttm_page_pool_fill_locked(struct ttm_page_pool *pool,
 
 	/* If allocation request is small and there is not enough
 	 * pages in pool we fill the pool first */
-	if (count < _manager.options.small
+	if (count < _manager->options.small
 		&& count > pool->npages) {
 		struct list_head new_pages;
-		unsigned alloc_size = _manager.options.alloc_size;
+		unsigned alloc_size = _manager->options.alloc_size;
 
 		/**
 		 * Can't change page caching if in irqsave context. We have to
@@ -759,8 +756,8 @@ void ttm_put_pages(struct list_head *pages, unsigned page_count, int flags,
 	pool->npages += page_count;
 	/* Check that we don't go over the pool limit */
 	page_count = 0;
-	if (pool->npages > _manager.options.max_size) {
-		page_count = pool->npages - _manager.options.max_size;
+	if (pool->npages > _manager->options.max_size) {
+		page_count = pool->npages - _manager->options.max_size;
 		/* free at least NUM_PAGES_TO_ALLOC number of pages
 		 * to reduce calls to set_memory_wb */
 		if (page_count < NUM_PAGES_TO_ALLOC)
@@ -785,33 +782,36 @@ static void ttm_page_pool_init_locked(struct ttm_page_pool *pool, int flags,
 int ttm_page_alloc_init(struct ttm_mem_global *glob, unsigned max_pages)
 {
 	int ret;
-	if (atomic_add_return(1, &_manager.page_alloc_inited) > 1)
-		return 0;
+
+	WARN_ON(_manager);
 
 	printk(KERN_INFO TTM_PFX "Initializing pool allocator.\n");
 
-	ttm_page_pool_init_locked(&_manager.wc_pool, GFP_HIGHUSER, "wc");
+	_manager = kzalloc(sizeof(*_manager), GFP_KERNEL);
 
-	ttm_page_pool_init_locked(&_manager.uc_pool, GFP_HIGHUSER, "uc");
+	ttm_page_pool_init_locked(&_manager->wc_pool, GFP_HIGHUSER, "wc");
 
-	ttm_page_pool_init_locked(&_manager.wc_pool_dma32, GFP_USER | GFP_DMA32,
-			"wc dma");
+	ttm_page_pool_init_locked(&_manager->uc_pool, GFP_HIGHUSER, "uc");
 
-	ttm_page_pool_init_locked(&_manager.uc_pool_dma32, GFP_USER | GFP_DMA32,
-			"uc dma");
+	ttm_page_pool_init_locked(&_manager->wc_pool_dma32,
+				  GFP_USER | GFP_DMA32, "wc dma");
 
-	_manager.options.max_size = max_pages;
-	_manager.options.small = SMALL_ALLOCATION;
-	_manager.options.alloc_size = NUM_PAGES_TO_ALLOC;
+	ttm_page_pool_init_locked(&_manager->uc_pool_dma32,
+				  GFP_USER | GFP_DMA32, "uc dma");
 
-	kobject_init(&_manager.kobj, &ttm_pool_kobj_type);
-	ret = kobject_add(&_manager.kobj, &glob->kobj, "pool");
+	_manager->options.max_size = max_pages;
+	_manager->options.small = SMALL_ALLOCATION;
+	_manager->options.alloc_size = NUM_PAGES_TO_ALLOC;
+
+	ret = kobject_init_and_add(&_manager->kobj, &ttm_pool_kobj_type,
+				   &glob->kobj, "pool");
 	if (unlikely(ret != 0)) {
-		kobject_put(&_manager.kobj);
+		kobject_put(&_manager->kobj);
+		_manager = NULL;
 		return ret;
 	}
 
-	ttm_pool_mm_shrink_init(&_manager);
+	ttm_pool_mm_shrink_init(_manager);
 
 	return 0;
 }
@@ -820,16 +820,14 @@ void ttm_page_alloc_fini()
 {
 	int i;
 
-	if (atomic_sub_return(1, &_manager.page_alloc_inited) > 0)
-		return;
-
 	printk(KERN_INFO TTM_PFX "Finalizing pool allocator.\n");
-	ttm_pool_mm_shrink_fini(&_manager);
+	ttm_pool_mm_shrink_fini(_manager);
 
 	for (i = 0; i < NUM_POOLS; ++i)
-		ttm_page_pool_free(&_manager.pools[i], FREE_ALL_PAGES);
+		ttm_page_pool_free(&_manager->pools[i], FREE_ALL_PAGES);
 
-	kobject_put(&_manager.kobj);
+	kobject_put(&_manager->kobj);
+	_manager = NULL;
 }
 
 int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
@@ -837,14 +835,14 @@ int ttm_page_alloc_debugfs(struct seq_file *m, void *data)
 	struct ttm_page_pool *p;
 	unsigned i;
 	char *h[] = {"pool", "refills", "pages freed", "size"};
-	if (atomic_read(&_manager.page_alloc_inited) == 0) {
+	if (!_manager) {
 		seq_printf(m, "No pool allocator running.\n");
 		return 0;
 	}
 	seq_printf(m, "%6s %12s %13s %8s\n",
 			h[0], h[1], h[2], h[3]);
 	for (i = 0; i < NUM_POOLS; ++i) {
-		p = &_manager.pools[i];
+		p = &_manager->pools[i];
 
 		seq_printf(m, "%6s %12ld %13ld %8d\n",
 				p->name, p->nrefills,
