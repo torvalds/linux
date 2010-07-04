@@ -50,14 +50,13 @@
 #include <mach/udc.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/corgi.h>
-#include <mach/sharpsl.h>
+#include <mach/sharpsl_pm.h>
 
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/scoop.h>
 
 #include "generic.h"
 #include "devices.h"
-#include "sharpsl.h"
 
 static unsigned long corgi_pin_config[] __initdata = {
 	/* Static Memory I/O */

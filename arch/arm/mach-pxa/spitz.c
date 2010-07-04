@@ -44,10 +44,10 @@
 #include <mach/pxafb.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/spitz.h>
+#include <mach/sharpsl_pm.h>
 
 #include "generic.h"
 #include "devices.h"
-#include "sharpsl.h"
 
 static unsigned long spitz_pin_config[] __initdata = {
 	/* Chip Selects */

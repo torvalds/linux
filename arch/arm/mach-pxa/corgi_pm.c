@@ -23,12 +23,11 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
-#include <mach/sharpsl.h>
 #include <mach/corgi.h>
 #include <mach/pxa2xx-regs.h>
+#include <mach/sharpsl_pm.h>
 
 #include "generic.h"
-#include "sharpsl.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
 #define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */

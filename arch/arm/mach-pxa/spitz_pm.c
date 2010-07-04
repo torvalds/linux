@@ -22,11 +22,10 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 
-#include <mach/sharpsl.h>
 #include <mach/spitz.h>
 #include <mach/pxa27x.h>
+#include <mach/sharpsl_pm.h>
 
-#include "sharpsl.h"
 #include "generic.h"
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */

@@ -43,7 +43,6 @@
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
-#include <mach/sharpsl.h>
 #include <mach/pxa2xx_spi.h>
 #include <plat/i2c.h>
 
@@ -53,7 +52,6 @@
 
 #include "generic.h"
 #include "devices.h"
-#include "sharpsl.h"
 
 static unsigned long poodle_pin_config[] __initdata = {
 	/* I/O */
