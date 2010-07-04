@@ -428,7 +428,6 @@ struct dsp_errorinfo {
 struct dsp_processorstate {
 	u32 cb_struct;
 	enum dsp_procstate proc_state;
-	struct dsp_errorinfo err_info;
 };
 
 /*

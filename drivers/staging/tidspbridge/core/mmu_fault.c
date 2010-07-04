@@ -40,8 +40,6 @@
 #include "_tiomap.h"
 #include "mmu_fault.h"
 
-u32 fault_addr;
-
 /*
  *  ======== mmu_fault_dpc ========
  *      Deferred procedure call to handle DSP MMU fault.
@@ -78,9 +76,9 @@ irqreturn_t mmu_fault_isr(int irq, IN void *pRefData)
 
 	hw_mmu_event_status(resources->dw_dmmu_base, &dmmu_event_mask);
 	if (dmmu_event_mask == HW_MMU_TRANSLATION_FAULT) {
-		hw_mmu_fault_addr_read(resources->dw_dmmu_base, &fault_addr);
+		hw_mmu_fault_addr_read(resources->dw_dmmu_base, &deh_mgr_obj->fault_addr);
 		dev_info(bridge, "%s: status=0x%x, fault_addr=0x%x\n", __func__,
-				dmmu_event_mask, fault_addr);
+				dmmu_event_mask, deh_mgr_obj->fault_addr);
 		/*
 		 * Schedule a DPC directly. In the future, it may be
 		 * necessary to check if DSP MMU fault is intended for
@@ -88,11 +86,6 @@ irqreturn_t mmu_fault_isr(int irq, IN void *pRefData)
 		 */
 		tasklet_schedule(&deh_mgr_obj->dpc_tasklet);
 
-		/* Reset err_info structure before use. */
-		deh_mgr_obj->err_info.dw_err_mask = DSP_MMUFAULT;
-		deh_mgr_obj->err_info.dw_val1 = fault_addr >> 16;
-		deh_mgr_obj->err_info.dw_val2 = fault_addr & 0xFFFF;
-		deh_mgr_obj->err_info.dw_val3 = 0L;
 		/* Disable the MMU events, else once we clear it will
 		 * start to raise INTs again */
 		hw_mmu_event_disable(resources->dw_dmmu_base,

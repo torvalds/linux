@@ -84,10 +84,6 @@ int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
 
 	/* Fill in context structure */
 	deh_mgr->hbridge_context = hbridge_context;
-	deh_mgr->err_info.dw_err_mask = 0L;
-	deh_mgr->err_info.dw_val1 = 0L;
-	deh_mgr->err_info.dw_val2 = 0L;
-	deh_mgr->err_info.dw_val3 = 0L;
 
 	/* Install ISR function for DSP MMU fault */
 	status = request_irq(INT_DSP_MMU_IRQ, mmu_fault_isr, 0,
@@ -140,7 +136,8 @@ int bridge_deh_register_notify(struct deh_mgr *deh_mgr, u32 event_mask,
 		return ntfy_unregister(deh_mgr->ntfy_obj, hnotification);
 }
 
-static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
+static void mmu_fault_print_stack(struct bridge_dev_context *dev_context,
+		u32 fault_addr)
 {
 	struct cfg_hostres *resources;
 	struct hw_mmu_map_attrs_t map_attrs = {
@@ -192,50 +189,29 @@ void bridge_deh_notify(struct deh_mgr *deh_mgr, u32 ulEventMask, u32 dwErrInfo)
 
 	switch (ulEventMask) {
 	case DSP_SYSERROR:
-		/* reset err_info structure before use */
-		deh_mgr->err_info.dw_err_mask = DSP_SYSERROR;
-		deh_mgr->err_info.dw_val1 = 0L;
-		deh_mgr->err_info.dw_val2 = 0L;
-		deh_mgr->err_info.dw_val3 = 0L;
-		deh_mgr->err_info.dw_val1 = dwErrInfo;
 		dev_err(bridge, "%s: %s, err_info = 0x%x\n",
 				__func__, "DSP_SYSERROR", dwErrInfo);
 		dump_dl_modules(dev_context);
 		dump_dsp_stack(dev_context);
 		break;
 	case DSP_MMUFAULT:
-		/* MMU fault routine should have set err info structure. */
-		deh_mgr->err_info.dw_err_mask = DSP_MMUFAULT;
 		dev_err(bridge, "%s: %s, err_info = 0x%x\n",
 				__func__, "DSP_MMUFAULT", dwErrInfo);
-		dev_info(bridge, "%s: %s, high=0x%x, low=0x%x, "
-			"fault=0x%x\n", __func__, "DSP_MMUFAULT",
-			(unsigned int) deh_mgr->err_info.dw_val1,
-			(unsigned int) deh_mgr->err_info.dw_val2,
-			(unsigned int) fault_addr);
+		dev_info(bridge, "%s: %s, fault=0x%x\n", __func__, "DSP_MMUFAULT",
+				deh_mgr->fault_addr);
 
 		print_dsp_trace_buffer(dev_context);
 		dump_dl_modules(dev_context);
 
-		mmu_fault_print_stack(dev_context);
+		mmu_fault_print_stack(dev_context, deh_mgr->fault_addr);
 		break;
 #ifdef CONFIG_BRIDGE_NTFY_PWRERR
 	case DSP_PWRERROR:
-		/* reset err_info structure before use */
-		deh_mgr->err_info.dw_err_mask = DSP_PWRERROR;
-		deh_mgr->err_info.dw_val1 = 0L;
-		deh_mgr->err_info.dw_val2 = 0L;
-		deh_mgr->err_info.dw_val3 = 0L;
-		deh_mgr->err_info.dw_val1 = dwErrInfo;
 		dev_err(bridge, "%s: %s, err_info = 0x%x\n",
 				__func__, "DSP_PWRERROR", dwErrInfo);
 		break;
 #endif /* CONFIG_BRIDGE_NTFY_PWRERR */
 	case DSP_WDTOVERFLOW:
-		deh_mgr->err_info.dw_err_mask = DSP_WDTOVERFLOW;
-		deh_mgr->err_info.dw_val1 = 0L;
-		deh_mgr->err_info.dw_val2 = 0L;
-		deh_mgr->err_info.dw_val3 = 0L;
 		dev_err(bridge, "%s: DSP_WDTOVERFLOW\n", __func__);
 		break;
 	default:

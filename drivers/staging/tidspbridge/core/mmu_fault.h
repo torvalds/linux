@@ -19,8 +19,6 @@
 #ifndef MMU_FAULT_
 #define MMU_FAULT_
 
-extern u32 fault_addr;
-
 /*
  *  ======== mmu_fault_dpc ========
  *      Deferred procedure call to handle DSP MMU fault.
