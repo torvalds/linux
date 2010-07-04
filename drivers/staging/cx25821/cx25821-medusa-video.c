@@ -830,8 +830,8 @@ int medusa_video_init(struct cx25821_dev *dev)
 	value = cx25821_i2c_read(&dev->i2c_bus[0], AFE_AB_DIAG_CTRL, &tmp);
 	value &= 0x83FFFFFF;
        ret_val =
-           cx25821_i2c_write(&dev->i2c_bus[0], AFE_AB_DIAG_CTRL,
-                             value | 0x10000000);
+	   cx25821_i2c_write(&dev->i2c_bus[0], AFE_AB_DIAG_CTRL,
+			     value | 0x10000000);
 
 	if (ret_val < 0)
 		goto error;

@@ -84,7 +84,7 @@ static __le32 *cx25821_risc_field_upstream_ch2(struct cx25821_dev *dev,
 {
 	unsigned int line, i;
 	struct sram_channel *sram_ch =
-           dev->channels[dev->_channel2_upstream_select].sram_channels;
+	   dev->channels[dev->_channel2_upstream_select].sram_channels;
 	int dist_betwn_starts = bpl * 2;
 
 	/* sync instruction */
@@ -110,11 +110,11 @@ static __le32 *cx25821_risc_field_upstream_ch2(struct cx25821_dev *dev,
 			offset += dist_betwn_starts;
 		}
 
-               /*
-                 check if we need to enable the FIFO after the first 4 lines
-                  For the upstream video channel, the risc engine will enable
-                  the FIFO.
-               */
+	       /*
+		 check if we need to enable the FIFO after the first 4 lines
+		  For the upstream video channel, the risc engine will enable
+		  the FIFO.
+	       */
 		if (fifo_enable && line == 3) {
 			*(rp++) = RISC_WRITECR;
 			*(rp++) = sram_ch->dma_ctl;
@@ -177,7 +177,7 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 
 		fifo_enable = FIFO_DISABLE;
 
-               /* Even field */
+	       /* Even field */
 		rp = cx25821_risc_field_upstream_ch2(dev, rp,
 						     dev->
 						     _data_buf_phys_addr_ch2 +
@@ -195,10 +195,10 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 			risc_phys_jump_addr = dev->_dma_phys_start_addr_ch2;
 		}
 
-               /*
-                  Loop to 2ndFrameRISC or to Start of
-                  Risc program & generate IRQ
-               */
+	       /*
+		  Loop to 2ndFrameRISC or to Start of
+		  Risc program & generate IRQ
+	       */
 		*(rp++) = cpu_to_le32(RISC_JUMP | RISC_IRQ1 | risc_flag);
 		*(rp++) = cpu_to_le32(risc_phys_jump_addr);
 		*(rp++) = cpu_to_le32(0);
@@ -210,7 +210,7 @@ int cx25821_risc_buffer_upstream_ch2(struct cx25821_dev *dev,
 void cx25821_stop_upstream_video_ch2(struct cx25821_dev *dev)
 {
 	struct sram_channel *sram_ch =
-           dev->channels[VID_UPSTREAM_SRAM_CHANNEL_J].sram_channels;
+	   dev->channels[VID_UPSTREAM_SRAM_CHANNEL_J].sram_channels;
 	u32 tmp = 0;
 
 	if (!dev->_is_running_ch2) {
@@ -377,8 +377,8 @@ static void cx25821_vidups_handler_ch2(struct work_struct *work)
 	}
 
 	cx25821_get_frame_ch2(dev,
-                             dev->channels[dev->
-                               _channel2_upstream_select].sram_channels);
+			     dev->channels[dev->
+			       _channel2_upstream_select].sram_channels);
 }
 
 int cx25821_openfile_ch2(struct cx25821_dev *dev, struct sram_channel *sram_ch)
@@ -550,13 +550,13 @@ int cx25821_video_upstream_irq_ch2(struct cx25821_dev *dev, int chan_num,
 	__le32 *rp;
 
 	if (status & FLD_VID_SRC_RISC1) {
-               /* We should only process one program per call */
+	       /* We should only process one program per call */
 		u32 prog_cnt = cx_read(channel->gpcnt);
 
-               /*
-                  Since we've identified our IRQ, clear our bits from the
-                  interrupt mask and interrupt status registers
-               */
+	       /*
+		  Since we've identified our IRQ, clear our bits from the
+		  interrupt mask and interrupt status registers
+	       */
 		int_msk_tmp = cx_read(channel->int_msk);
 		cx_write(channel->int_msk, int_msk_tmp & ~_intr_msk);
 		cx_write(channel->int_stat, _intr_msk);
@@ -597,7 +597,7 @@ int cx25821_video_upstream_irq_ch2(struct cx25821_dev *dev, int chan_num,
 								    FIFO_DISABLE,
 								    ODD_FIELD);
 
-                               /* Jump to Even Risc program of 1st Frame */
+			       /* Jump to Even Risc program of 1st Frame */
 				*(rp++) = cpu_to_le32(RISC_JUMP);
 				*(rp++) = cpu_to_le32(risc_phys_jump_addr);
 				*(rp++) = cpu_to_le32(0);
@@ -668,8 +668,8 @@ static void cx25821_set_pixelengine_ch2(struct cx25821_dev *dev,
 	cx_write(ch->vid_fmt_ctl, value);
 
        /*
-          set number of active pixels in each line. Default is 720
-          pixels in both NTSC and PAL format
+	  set number of active pixels in each line. Default is 720
+	  pixels in both NTSC and PAL format
        */
 	cx_write(ch->vid_active_ctl1, width);
 
@@ -695,15 +695,15 @@ int cx25821_start_video_dma_upstream_ch2(struct cx25821_dev *dev,
 	int err = 0;
 
        /*
-          656/VIP SRC Upstream Channel I & J and 7 - Host Bus Interface
-          for channel A-C
+	  656/VIP SRC Upstream Channel I & J and 7 - Host Bus Interface
+	  for channel A-C
        */
 	tmp = cx_read(VID_CH_MODE_SEL);
 	cx_write(VID_CH_MODE_SEL, tmp | 0x1B0001FF);
 
        /*
-          Set the physical start address of the RISC program in the initial
-          program counter(IPC) member of the cmds.
+	  Set the physical start address of the RISC program in the initial
+	  program counter(IPC) member of the cmds.
        */
 	cx_write(sram_ch->cmds_start + 0, dev->_dma_phys_addr_ch2);
        cx_write(sram_ch->cmds_start + 4, 0); /* Risc IPC High 64 bits 63-32 */
@@ -770,8 +770,8 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 		return -ENOMEM;
 	}
        /*
-          656/VIP SRC Upstream Channel I & J and 7 -
-          Host Bus Interface for channel A-C
+	  656/VIP SRC Upstream Channel I & J and 7 -
+	  Host Bus Interface for channel A-C
        */
 	tmp = cx_read(VID_CH_MODE_SEL);
 	cx_write(VID_CH_MODE_SEL, tmp | 0x1B0001FF);

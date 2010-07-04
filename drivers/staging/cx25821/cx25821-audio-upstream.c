@@ -106,7 +106,7 @@ static __le32 *cx25821_risc_field_upstream_audio(struct cx25821_dev *dev,
 {
 	unsigned int line;
 	struct sram_channel *sram_ch =
-           dev->channels[dev->_audio_upstream_channel_select].sram_channels;
+	   dev->channels[dev->_audio_upstream_channel_select].sram_channels;
 	int offset = 0;
 
 	/* scan lines */
@@ -217,7 +217,7 @@ void cx25821_free_memory_audio(struct cx25821_dev *dev)
 void cx25821_stop_upstream_audio(struct cx25821_dev *dev)
 {
 	struct sram_channel *sram_ch =
-           dev->channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B].sram_channels;
+	   dev->channels[AUDIO_UPSTREAM_SRAM_CHANNEL_B].sram_channels;
 	u32 tmp = 0;
 
 	if (!dev->_audio_is_running) {
@@ -353,9 +353,9 @@ static void cx25821_audioups_handler(struct work_struct *work)
 	}
 
 	cx25821_get_audio_data(dev,
-                              dev->channels[dev->
-                                       _audio_upstream_channel_select].
-                                       sram_channels);
+			      dev->channels[dev->
+				       _audio_upstream_channel_select].
+				       sram_channels);
 }
 
 int cx25821_openfile_audio(struct cx25821_dev *dev,
@@ -609,7 +609,7 @@ static irqreturn_t cx25821_upstream_irq_audio(int irq, void *dev_id)
 		return -1;
 
        sram_ch = dev->channels[dev->_audio_upstream_channel_select].
-                                       sram_channels;
+				       sram_channels;
 
 	msk_stat = cx_read(sram_ch->int_mstat);
 	audio_status = cx_read(sram_ch->int_stat);
