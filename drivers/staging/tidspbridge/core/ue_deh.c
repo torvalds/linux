@@ -6,6 +6,7 @@
  * Implements upper edge DSP exception handling (DEH) functions.
  *
  * Copyright (C) 2005-2006 Texas Instruments, Inc.
+ * Copyright (C) 2010 Felipe Contreras
  *
  * This package is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
