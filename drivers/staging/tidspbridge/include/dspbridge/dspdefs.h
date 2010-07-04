@@ -724,57 +724,6 @@ typedef int(*fxn_dev_ctrl) (struct bridge_dev_context *hDevContext,
 typedef int(*fxn_dev_destroy) (struct bridge_dev_context *hDevContext);
 
 /*
- *  ======== bridge_deh_create ========
- *  Purpose:
- *      Create an object that manages DSP exceptions from the GPP.
- *  Parameters:
- *      phDehMgr:       Location to store DEH manager on output.
- *      hdev_obj:     Handle to DEV object.
- *  Returns:
- *      0:        Success.
- *      -ENOMEM:    Memory allocation failure.
- *      -EPERM:      Creation failed.
- *  Requires:
- *      hdev_obj != NULL;
- *      phDehMgr != NULL;
- *  Ensures:
- */
-typedef int(*fxn_deh_create) (OUT struct deh_mgr
-				     **phDehMgr, struct dev_object *hdev_obj);
-
-/*
- *  ======== bridge_deh_destroy ========
- *  Purpose:
- *      Destroy the DEH object.
- *  Parameters:
- *      hdeh_mgr:        Handle to DEH manager object.
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Destroy failed.
- *  Requires:
- *      hdeh_mgr != NULL;
- *  Ensures:
- */
-typedef int(*fxn_deh_destroy) (struct deh_mgr *hdeh_mgr);
-
-/*
- *  ======== bridge_deh_register_notify ========
- *  Purpose:
- *      Register for DEH event notification.
- *  Parameters:
- *      hdeh_mgr:        Handle to DEH manager object.
- *  Returns:
- *      0:        Success.
- *      -EPERM:      Destroy failed.
- *  Requires:
- *      hdeh_mgr != NULL;
- *  Ensures:
- */
-typedef int(*fxn_deh_registernotify)
- (struct deh_mgr *hdeh_mgr,
-  u32 event_mask, u32 notify_type, struct dsp_notification *hnotification);
-
-/*
  *  ======== bridge_io_create ========
  *  Purpose:
  *      Create an object that manages I/O between CHNL and msg_ctrl.
@@ -1059,11 +1008,6 @@ struct bridge_drv_interface {
 	fxn_chnl_idle pfn_chnl_idle;	/* Idle the channel */
 	/* Register for notif. */
 	fxn_chnl_registernotify pfn_chnl_register_notify;
-	fxn_deh_create pfn_deh_create;	/* Create DEH manager */
-	fxn_deh_destroy pfn_deh_destroy;	/* Destroy DEH manager */
-	fxn_deh_notify pfn_deh_notify;	/* Notify of DSP error */
-	/* register for deh notif. */
-	fxn_deh_registernotify pfn_deh_register_notify;
 	fxn_io_create pfn_io_create;	/* Create IO manager */
 	fxn_io_destroy pfn_io_destroy;	/* Destroy IO manager */
 	fxn_io_onloaded pfn_io_on_loaded;	/* Notify of program loaded */

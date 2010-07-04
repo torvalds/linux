@@ -68,6 +68,8 @@
 #include <dspbridge/resourcecleanup.h>
 #include <_tiomap.h>
 
+#include <dspbridge/dspdeh.h>
+
 #define HOSTPREFIX	  "/host"
 #define PIPEPREFIX	  "/dbpipe"
 
@@ -2472,8 +2474,7 @@ int node_terminate(struct node_object *hnode, OUT int *pstatus)
 			if (!hdeh_mgr)
 				goto func_cont;
 
-			(*intf_fxns->pfn_deh_notify)(hdeh_mgr, DSP_SYSERROR,
-							DSP_EXCEPTIONABORT);
+			bridge_deh_notify(hdeh_mgr, DSP_SYSERROR, DSP_EXCEPTIONABORT);
 		}
 	}
 func_cont:

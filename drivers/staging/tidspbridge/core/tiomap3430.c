@@ -194,11 +194,6 @@ static struct bridge_drv_interface drv_interface_fxns = {
 	bridge_chnl_get_mgr_info,
 	bridge_chnl_idle,
 	bridge_chnl_register_notify,
-	/* The following DEH functions are provided by tihelen_ue_deh.c */
-	bridge_deh_create,
-	bridge_deh_destroy,
-	bridge_deh_notify,
-	bridge_deh_register_notify,
 	/* The following IO functions are provided by chnl_io.lib: */
 	bridge_io_create,
 	bridge_io_destroy,

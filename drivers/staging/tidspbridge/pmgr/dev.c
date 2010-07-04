@@ -48,6 +48,7 @@
 #include <dspbridge/io.h>
 #include <dspbridge/msg.h>
 #include <dspbridge/cmm.h>
+#include <dspbridge/dspdeh.h>
 
 /*  ----------------------------------- This */
 #include <dspbridge/dev.h>
@@ -237,8 +238,7 @@ int dev_create_device(OUT struct dev_object **phDevObject,
 		/* Only create DEH manager if we have an IO manager */
 		if (DSP_SUCCEEDED(status)) {
 			/* Instantiate the DEH module */
-			status = (*dev_obj->bridge_interface.pfn_deh_create)
-			    (&dev_obj->hdeh_mgr, dev_obj);
+			status = bridge_deh_create(&dev_obj->hdeh_mgr, dev_obj);
 		}
 		/* Create DMM mgr . */
 		status = dmm_create(&dev_obj->dmm_mgr,
@@ -373,8 +373,7 @@ int dev_destroy_device(struct dev_object *hdev_obj)
 
 		if (dev_obj->hdeh_mgr) {
 			/* Uninitialize DEH module. */
-			(*dev_obj->bridge_interface.pfn_deh_destroy)
-			    (dev_obj->hdeh_mgr);
+			bridge_deh_destroy(dev_obj->hdeh_mgr);
 			dev_obj->hdeh_mgr = NULL;
 		}
 		if (dev_obj->hcmm_mgr) {
@@ -1115,10 +1114,6 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 		STORE_FXN(fxn_chnl_getmgrinfo, pfn_chnl_get_mgr_info);
 		STORE_FXN(fxn_chnl_idle, pfn_chnl_idle);
 		STORE_FXN(fxn_chnl_registernotify, pfn_chnl_register_notify);
-		STORE_FXN(fxn_deh_create, pfn_deh_create);
-		STORE_FXN(fxn_deh_destroy, pfn_deh_destroy);
-		STORE_FXN(fxn_deh_notify, pfn_deh_notify);
-		STORE_FXN(fxn_deh_registernotify, pfn_deh_register_notify);
 		STORE_FXN(fxn_io_create, pfn_io_create);
 		STORE_FXN(fxn_io_destroy, pfn_io_destroy);
 		STORE_FXN(fxn_io_onloaded, pfn_io_on_loaded);
@@ -1155,10 +1150,6 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
 	DBC_ENSURE(intf_fxns->pfn_chnl_get_mgr_info != NULL);
 	DBC_ENSURE(intf_fxns->pfn_chnl_idle != NULL);
 	DBC_ENSURE(intf_fxns->pfn_chnl_register_notify != NULL);
-	DBC_ENSURE(intf_fxns->pfn_deh_create != NULL);
-	DBC_ENSURE(intf_fxns->pfn_deh_destroy != NULL);
-	DBC_ENSURE(intf_fxns->pfn_deh_notify != NULL);
-	DBC_ENSURE(intf_fxns->pfn_deh_register_notify != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_create != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_destroy != NULL);
 	DBC_ENSURE(intf_fxns->pfn_io_on_loaded != NULL);

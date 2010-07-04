@@ -1458,22 +1458,20 @@ int proc_register_notify(void *hprocessor, u32 event_mask,
 				status =
 				    dev_get_deh_mgr(p_proc_object->hdev_obj,
 						    &hdeh_mgr);
-				DBC_ASSERT(p_proc_object->
-					   intf_fxns->pfn_deh_register_notify);
 				status =
-				    (*p_proc_object->
-				     intf_fxns->pfn_deh_register_notify)
-				    (hdeh_mgr, event_mask, notify_type,
-				     hnotification);
+					bridge_deh_register_notify(hdeh_mgr,
+							event_mask,
+							notify_type,
+							hnotification);
 			}
 		} else {
 			status = dev_get_deh_mgr(p_proc_object->hdev_obj,
 						 &hdeh_mgr);
-			DBC_ASSERT(p_proc_object->
-				   intf_fxns->pfn_deh_register_notify);
 			status =
-			    (*p_proc_object->intf_fxns->pfn_deh_register_notify)
-			    (hdeh_mgr, event_mask, notify_type, hnotification);
+			    bridge_deh_register_notify(hdeh_mgr,
+					    event_mask,
+					    notify_type,
+					    hnotification);
 
 		}
 	}
