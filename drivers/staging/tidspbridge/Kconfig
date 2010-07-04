@@ -17,7 +17,6 @@ menuconfig TIDSPBRIDGE
 config TIDSPBRIDGE_DVFS
 	bool "Enable Bridge Dynamic Voltage and Frequency Scaling (DVFS)"
 	depends on TIDSPBRIDGE && OMAP_PM_SRF && CPU_FREQ
-	default n
 	help
 	  DVFS allows DSP Bridge to initiate the operating point change to
 	  scale the chip voltage and frequency in order to match the
@@ -33,14 +32,15 @@ config TIDSPBRIDGE_MEMPOOL_SIZE
 	  failure under heavy memory fragmentation after some use time.
 
 config TIDSPBRIDGE_DEBUG
-	bool "DSP Bridge Debug Support"
+	bool "Debug Support"
 	depends on TIDSPBRIDGE
 	help
 	  Say Y to enable Bridge debugging capabilities
 
 config TIDSPBRIDGE_RECOVERY
-	bool "DSP Recovery Support"
+	bool "Recovery Support"
 	depends on TIDSPBRIDGE
+	default y
 	help
 	  In case of DSP fatal error, BRIDGE driver will try to
 	  recover itself.
@@ -48,7 +48,6 @@ config TIDSPBRIDGE_RECOVERY
 config TIDSPBRIDGE_CACHE_LINE_CHECK
 	bool "Check buffers to be 128 byte aligned"
 	depends on TIDSPBRIDGE
-	default n
 	help
 	  When the DSP processes data, the DSP cache controller loads 128-Byte
 	  chunks (lines) from SDRAM and writes the data back in 128-Byte chunks.
@@ -60,27 +59,23 @@ config TIDSPBRIDGE_CACHE_LINE_CHECK
 	  byte alignment, buffers failing this check will be rejected.
 
 config TIDSPBRIDGE_WDT3
-	bool "Enable WDT3 interruptions"
+	bool "Enable watchdog timer"
 	depends on TIDSPBRIDGE
-	default n
 	help
 	  WTD3 is managed by DSP and once it is enabled, DSP side bridge is in
 	  charge of refreshing the timer before overflow, if the DSP hangs MPU
 	  will caught the interrupt and try to recover DSP.
 
 config TIDSPBRIDGE_WDT_TIMEOUT
-	int "DSP watchdog timer timeout (in secs)"
-	depends on TIDSPBRIDGE_WDT3
+	int "Watchdog timer timeout (in secs)"
+	depends on TIDSPBRIDGE && TIDSPBRIDGE_WDT3
 	default 5
 	help
 	   Watchdog timer timeout value, after that time if the watchdog timer
 	   counter is not reset the wdt overflow interrupt will be triggered
 
-comment "Bridge Notifications"
-	depends on TIDSPBRIDGE
-
 config TIDSPBRIDGE_NTFY_PWRERR
-	bool "Notify DSP Power Error"
+	bool "Notify power errors"
 	depends on TIDSPBRIDGE
 	help
 	  Enable notifications to registered clients on the event of power errror
