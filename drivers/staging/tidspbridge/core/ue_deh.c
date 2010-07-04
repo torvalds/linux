@@ -45,12 +45,60 @@
 #include <hw_mmu.h>
 
 /*  ----------------------------------- This */
-#include "mmu_fault.h"
 #include "_tiomap.h"
 #include "_deh.h"
 #include "_tiomap_pwr.h"
 #include <dspbridge/io_sm.h>
 
+
+static void mmu_fault_dpc(unsigned long data)
+{
+	struct deh_mgr *hdeh_mgr = (void *)data;
+
+	if (!hdeh_mgr)
+		return;
+
+	bridge_deh_notify(hdeh_mgr, DSP_MMUFAULT, 0);
+}
+
+static irqreturn_t mmu_fault_isr(int irq, void *data)
+{
+	struct deh_mgr *deh_mgr_obj = data;
+	struct cfg_hostres *resources;
+	u32 dmmu_event_mask;
+
+	if (!deh_mgr_obj)
+		return IRQ_HANDLED;
+
+	resources = deh_mgr_obj->hbridge_context->resources;
+	if (!resources) {
+		dev_dbg(bridge, "%s: Failed to get Host Resources\n",
+				__func__);
+		return IRQ_HANDLED;
+	}
+
+	hw_mmu_event_status(resources->dw_dmmu_base, &dmmu_event_mask);
+	if (dmmu_event_mask == HW_MMU_TRANSLATION_FAULT) {
+		hw_mmu_fault_addr_read(resources->dw_dmmu_base, &deh_mgr_obj->fault_addr);
+		dev_info(bridge, "%s: status=0x%x, fault_addr=0x%x\n", __func__,
+				dmmu_event_mask, deh_mgr_obj->fault_addr);
+		/*
+		 * Schedule a DPC directly. In the future, it may be
+		 * necessary to check if DSP MMU fault is intended for
+		 * Bridge.
+		 */
+		tasklet_schedule(&deh_mgr_obj->dpc_tasklet);
+
+		/* Disable the MMU events, else once we clear it will
+		 * start to raise INTs again */
+		hw_mmu_event_disable(resources->dw_dmmu_base,
+				HW_MMU_TRANSLATION_FAULT);
+	} else {
+		hw_mmu_event_disable(resources->dw_dmmu_base,
+				HW_MMU_ALL_INTERRUPTS);
+	}
+	return IRQ_HANDLED;
+}
 
 int bridge_deh_create(struct deh_mgr **ret_deh_mgr,
 		struct dev_object *hdev_obj)
