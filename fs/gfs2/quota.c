@@ -679,10 +679,8 @@ get_a_page:
 		if (!buffer_mapped(bh))
 			goto unlock_out;
 		/* If it's a newly allocated disk block for quota, zero it */
-		if (buffer_new(bh)) {
-			memset(bh->b_data, 0, bh->b_size);
-			set_buffer_uptodate(bh);
-		}
+		if (buffer_new(bh))
+			zero_user(page, pos - blocksize, bh->b_size);
 	}
 
 	if (PageUptodate(page))
@@ -708,7 +706,7 @@ get_a_page:
 
 	/* If quota straddles page boundary, we need to update the rest of the
 	 * quota at the beginning of the next page */
-	if (offset != 0) { /* first page, offset is closer to PAGE_CACHE_SIZE */
+	if ((offset + sizeof(struct gfs2_quota)) > PAGE_CACHE_SIZE) {
 		ptr = ptr + nbytes;
 		nbytes = sizeof(struct gfs2_quota) - nbytes;
 		offset = 0;
