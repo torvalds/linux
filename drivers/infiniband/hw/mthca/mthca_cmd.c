@@ -1817,7 +1817,7 @@ int mthca_CONF_SPECIAL_QP(struct mthca_dev *dev, int type, u32 qpn,
 	case IB_QPT_RAW_IPV6:
 		op_mod = 2;
 		break;
-	case IB_QPT_RAW_ETY:
+	case IB_QPT_RAW_ETHERTYPE:
 		op_mod = 3;
 		break;
 	default:
