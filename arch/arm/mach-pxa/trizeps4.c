@@ -530,13 +530,9 @@ static void __init trizeps4_init(void)
 	i2c_register_board_info(0, trizeps4_i2c_devices,
 					ARRAY_SIZE(trizeps4_i2c_devices));
 
-#ifdef CONFIG_IDE_PXA_CF
-	/* if boot direct from compact flash dont disable power */
-	trizeps_conxs_bcr = 0x0009;
-#else
 	/* this is the reset value */
 	trizeps_conxs_bcr = 0x00A0;
-#endif
+
 	BCR_writew(trizeps_conxs_bcr);
 	board_backlight_power(1);
 }
