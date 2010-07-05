@@ -24,6 +24,8 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 
 #include <asm/irq.h>
 
@@ -330,9 +332,16 @@ static u32 __init omap2_usb2_init(unsigned nwires, unsigned alt_pingroup)
 
 void __init omap2_usbfs_init(struct omap_usb_config *pdata)
 {
+	struct clk *ick;
+
 	if (!cpu_is_omap24xx())
 		return;
 
+	ick = clk_get(NULL, "usb_l4_ick");
+	if (IS_ERR(ick))
+		return;
+
+	clk_enable(ick);
 	pdata->usb0_init = omap2_usb0_init;
 	pdata->usb1_init = omap2_usb1_init;
 	pdata->usb2_init = omap2_usb2_init;
@@ -340,6 +349,8 @@ void __init omap2_usbfs_init(struct omap_usb_config *pdata)
 	ohci_device_init(pdata);
 	otg_device_init(pdata);
 	omap_otg_init(pdata);
+	clk_disable(ick);
+	clk_put(ick);
 }
 
 #endif
