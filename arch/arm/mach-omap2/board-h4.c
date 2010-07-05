@@ -356,10 +356,6 @@ static void __init omap_h4_init(void)
 	 * You have to mux them off in device drivers later on
 	 * if not needed.
 	 */
-#if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
-	omap_mux_init_signal("uart3_tx_irtx.uart3_tx_irtx", 0);
-	omap_mux_init_signal("uart3_rx_irrx.uart3_rx_irrx", 0);
-#endif
 
 #if defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
 	omap_mux_init_gpio(88, OMAP_PULL_ENA | OMAP_PULL_UP);
