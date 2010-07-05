@@ -487,6 +487,21 @@ static int wm8960_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static struct {
+	int rate;
+	unsigned int val;
+} alc_rates[] = {
+	{ 48000, 0 },
+	{ 44100, 0 },
+	{ 32000, 1 },
+	{ 22050, 2 },
+	{ 24000, 2 },
+	{ 16000, 3 },
+	{ 11250, 4 },
+	{ 12000, 4 },
+	{  8000, 5 },
+};
+
 static int wm8960_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
@@ -496,6 +511,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct wm8960_priv *wm8960 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8960_IFACE1) & 0xfff3;
+	int i;
 
 	/* bit size */
 	switch (params_format(params)) {
@@ -513,6 +529,12 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		wm8960->playback_fs = params_rate(params);
 		wm8960_set_deemph(codec);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(alc_rates); i++)
+			if (alc_rates[i].rate == params_rate(params))
+				snd_soc_update_bits(codec,
+						    WM8960_ADDCTL3, 0x7,
+						    alc_rates[i].val);
 	}
 
 	/* set iface */
