@@ -134,27 +134,27 @@ static int devkit8000_panel_enable_lcd(struct omap_dss_device *dssdev)
 	twl_i2c_write_u8(TWL4030_MODULE_GPIO, 0x80, REG_GPIODATADIR1);
 	twl_i2c_write_u8(TWL4030_MODULE_LED, 0x0, 0x0);
 
-	if (dssdev->reset_gpio != -EINVAL)
+	if (gpio_is_valid(dssdev->reset_gpio))
 		gpio_set_value(dssdev->reset_gpio, 1);
 	return 0;
 }
 
 static void devkit8000_panel_disable_lcd(struct omap_dss_device *dssdev)
 {
-	if (dssdev->reset_gpio != -EINVAL)
+	if (gpio_is_valid(dssdev->reset_gpio))
 		gpio_set_value(dssdev->reset_gpio, 0);
 }
 
 static int devkit8000_panel_enable_dvi(struct omap_dss_device *dssdev)
 {
-	if (dssdev->reset_gpio != -EINVAL)
+	if (gpio_is_valid(dssdev->reset_gpio))
 		gpio_set_value(dssdev->reset_gpio, 1);
 	return 0;
 }
 
 static void devkit8000_panel_disable_dvi(struct omap_dss_device *dssdev)
 {
-	if (dssdev->reset_gpio != -EINVAL)
+	if (gpio_is_valid(dssdev->reset_gpio))
 		gpio_set_value(dssdev->reset_gpio, 0);
 }
 
