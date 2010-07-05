@@ -193,42 +193,7 @@ static inline void omap_init_spi100k(void)
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_OMAP_STI)
-
-#define OMAP1_STI_BASE		0xfffea000
-#define OMAP1_STI_CHANNEL_BASE	(OMAP1_STI_BASE + 0x400)
-
-static struct resource sti_resources[] = {
-	{
-		.start		= OMAP1_STI_BASE,
-		.end		= OMAP1_STI_BASE + SZ_1K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= OMAP1_STI_CHANNEL_BASE,
-		.end		= OMAP1_STI_CHANNEL_BASE + SZ_1K - 1,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= INT_1610_STI,
-		.flags		= IORESOURCE_IRQ,
-	}
-};
-
-static struct platform_device sti_device = {
-	.name		= "sti",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(sti_resources),
-	.resource	= sti_resources,
-};
-
-static inline void omap_init_sti(void)
-{
-	platform_device_register(&sti_device);
-}
-#else
 static inline void omap_init_sti(void) {}
-#endif
 
 /*-------------------------------------------------------------------------*/
 
