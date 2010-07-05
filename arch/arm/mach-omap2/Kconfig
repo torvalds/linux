@@ -17,6 +17,12 @@ config ARCH_OMAP3430
 	depends on ARCH_OMAP3
 	select ARCH_OMAP_OTG
 
+config OMAP_PACKAGE_ZAF
+       bool
+
+config OMAP_PACKAGE_ZAC
+       bool
+
 config OMAP_PACKAGE_CBC
        bool
 

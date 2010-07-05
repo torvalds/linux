@@ -7,6 +7,7 @@
  * published by the Free Software Foundation.
  */
 
+#include "mux2420.h"
 #include "mux34xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
@@ -171,6 +172,13 @@ void omap_mux_write(u16 val, u16 mux_offset);
  * This should be only needed for dynamic remuxing of non-gpio signals.
  */
 void omap_mux_write_array(struct omap_board_mux *board_mux);
+
+/**
+ * omap2420_mux_init() - initialize mux system with board specific set
+ * @board_mux:		Board specific mux table
+ * @flags:		OMAP package type used for the board
+ */
+int omap2420_mux_init(struct omap_board_mux *board_mux, int flags);
 
 /**
  * omap3_mux_init() - initialize mux system with board specific set
