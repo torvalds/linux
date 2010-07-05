@@ -285,8 +285,8 @@ static int magicmouse_raw_event(struct hid_device *hdev,
 		 * to have the current touch information before
 		 * generating a click event.
 		 */
-		x = (signed char)data[1];
-		y = (signed char)data[2];
+		x = (int)(((data[3] & 0x0c) << 28) | (data[1] << 22)) >> 22;
+		y = (int)(((data[3] & 0x30) << 26) | (data[2] << 22)) >> 22;
 		clicks = data[3];
 		break;
 	case 0x20: /* Theoretically battery status (0-100), but I have
