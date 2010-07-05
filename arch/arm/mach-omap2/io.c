@@ -28,7 +28,6 @@
 
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
 #include <plat/sram.h>
 #include <plat/sdrc.h>
 #include <plat/gpmc.h>
@@ -324,7 +323,6 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		omap2430_hwmod_init();
 	else if (cpu_is_omap34xx())
 		omap3xxx_hwmod_init();
-	omap2_mux_init();
 	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 

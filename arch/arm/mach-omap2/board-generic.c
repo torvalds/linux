@@ -26,7 +26,6 @@
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>

@@ -18,7 +18,6 @@
 #include <plat/common.h>
 #include <plat/board.h>
 #include <plat/gpmc-smc91x.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 
 #include <mach/board-zoom.h>
