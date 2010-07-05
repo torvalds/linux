@@ -440,7 +440,7 @@ int __init_or_module omap1_cfg_reg(const struct pin_config *cfg)
 	}
 #endif
 
-#ifdef CONFIG_OMAP_MUX_ERRORS
+#ifdef CONFIG_OMAP_MUX_WARNINGS
 	return warn ? -ETXTBSY : 0;
 #else
 	return 0;
