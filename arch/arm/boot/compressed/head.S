@@ -170,9 +170,16 @@ not_angel:
 
 		.text
 		adr	r0, LC0
- ARM(		ldmia	r0, {r1, r2, r3, r4, r5, r6, r11, ip, sp})
- THUMB(		ldmia	r0, {r1, r2, r3, r4, r5, r6, r11, ip}	)
+ ARM(		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip, sp})
+ THUMB(		ldmia	r0, {r1, r2, r3, r5, r6, r11, ip}	)
  THUMB(		ldr	sp, [r0, #32]				)
+#ifdef CONFIG_AUTO_ZRELADDR
+		@ determine final kernel image address
+		and	r4, pc, #0xf8000000
+		add	r4, r4, #TEXT_OFFSET
+#else
+		ldr	r4, =CONFIG_ZRELADDR
+#endif
 		subs	r0, r0, r1		@ calculate the delta offset
 
 						@ if delta is zero, we are
@@ -310,7 +317,6 @@ wont_overwrite:	mov	r0, r4
 LC0:		.word	LC0			@ r1
 		.word	__bss_start		@ r2
 		.word	_end			@ r3
-		.word	zreladdr		@ r4
 		.word	_start			@ r5
 		.word	_image_size		@ r6
 		.word	_got_start		@ r11
