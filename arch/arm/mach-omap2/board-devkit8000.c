@@ -175,7 +175,7 @@ static struct regulator_consumer_supply devkit8000_vio_supplies[] = {
 
 static struct omap_dss_device devkit8000_lcd_device = {
 	.name                   = "lcd",
-	.driver_name            = "innolux_at_panel",
+	.driver_name            = "generic_panel",
 	.type                   = OMAP_DISPLAY_TYPE_DPI,
 	.phy.dpi.data_lines     = 24,
 	.platform_enable        = devkit8000_panel_enable_lcd,
