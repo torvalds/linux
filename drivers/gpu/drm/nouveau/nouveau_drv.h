@@ -610,6 +610,11 @@ struct drm_nouveau_private {
 	struct backlight_device *backlight;
 
 	struct nouveau_channel *evo;
+	struct {
+		struct dcb_entry *dcb;
+		u16 script;
+		u32 pclk;
+	} evo_irq;
 
 	struct {
 		struct dentry *channel_root;
