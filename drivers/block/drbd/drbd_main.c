@@ -2690,7 +2690,11 @@ static void drbd_set_defaults(struct drbd_conf *mdev)
 		/* .cpu_mask = */	{}, 0,
 		/* .csums_alg = */	{}, 0,
 		/* .use_rle = */	0,
-		/* .on_no_data = */	DRBD_ON_NO_DATA_DEF
+		/* .on_no_data = */	DRBD_ON_NO_DATA_DEF,
+		/* .c_plan_ahead = */	DRBD_C_PLAN_AHEAD_DEF,
+		/* .c_delay_target = */	DRBD_C_DELAY_TARGET_DEF,
+		/* .c_fill_target = */	DRBD_C_FILL_TARGET_DEF,
+		/* .c_max_rate = */	DRBD_C_MAX_RATE_DEF
 	};
 
 	/* Have to use that way, because the layout differs between

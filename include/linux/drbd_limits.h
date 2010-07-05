@@ -134,21 +134,21 @@
 #define DRBD_MAX_BIO_BVECS_MAX 128
 #define DRBD_MAX_BIO_BVECS_DEF 0
 
-#define DRBD_DP_VOLUME_MIN 4
-#define DRBD_DP_VOLUME_MAX 1048576
-#define DRBD_DP_VOLUME_DEF 16384
+#define DRBD_C_PLAN_AHEAD_MIN  0
+#define DRBD_C_PLAN_AHEAD_MAX  300
+#define DRBD_C_PLAN_AHEAD_DEF  0 /* RS rate controller disabled by default */
 
-#define DRBD_DP_INTERVAL_MIN 1
-#define DRBD_DP_INTERVAL_MAX 600
-#define DRBD_DP_INTERVAL_DEF 5
+#define DRBD_C_DELAY_TARGET_MIN 1
+#define DRBD_C_DELAY_TARGET_MAX 100
+#define DRBD_C_DELAY_TARGET_DEF 10
 
-#define DRBD_RS_THROTTLE_TH_MIN 1
-#define DRBD_RS_THROTTLE_TH_MAX 600
-#define DRBD_RS_THROTTLE_TH_DEF 20
+#define DRBD_C_FILL_TARGET_MIN 0
+#define DRBD_C_FILL_TARGET_MAX 100000
+#define DRBD_C_FILL_TARGET_DEF 0 /* By default disabled -> controlled by delay_target */
 
-#define DRBD_RS_HOLD_OFF_TH_MIN 1
-#define DRBD_RS_HOLD_OFF_TH_MAX 6000
-#define DRBD_RS_HOLD_OFF_TH_DEF 100
+#define DRBD_C_MAX_RATE_MIN     250 /* kByte/sec */
+#define DRBD_C_MAX_RATE_MAX     (4 << 20)
+#define DRBD_C_MAX_RATE_DEF     102400
 
 #undef RANGE
 #endif
