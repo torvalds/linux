@@ -158,16 +158,6 @@ static void devkit8000_panel_disable_dvi(struct omap_dss_device *dssdev)
 		gpio_set_value(dssdev->reset_gpio, 0);
 }
 
-static int devkit8000_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-
-	return 0;
-}
-
-static void devkit8000_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct regulator_consumer_supply devkit8000_vmmc1_supply = {
 	.supply			= "vmmc",
 };
@@ -201,8 +191,6 @@ static struct omap_dss_device devkit8000_tv_device = {
 	.driver_name            = "venc",
 	.type                   = OMAP_DISPLAY_TYPE_VENC,
 	.phy.venc.type          = OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable        = devkit8000_panel_enable_tv,
-	.platform_disable       = devkit8000_panel_disable_tv,
 };
 
 
