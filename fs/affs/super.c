@@ -26,7 +26,7 @@ static int affs_statfs(struct dentry *dentry, struct kstatfs *buf);
 static int affs_remount (struct super_block *sb, int *flags, char *data);
 
 static void
-affs_commit_super(struct super_block *sb, int clean)
+affs_commit_super(struct super_block *sb, int wait, int clean)
 {
 	struct affs_sb_info *sbi = AFFS_SB(sb);
 	struct buffer_head *bh = sbi->s_root_bh;
@@ -36,6 +36,8 @@ affs_commit_super(struct super_block *sb, int clean)
 	secs_to_datestamp(get_seconds(), &tail->disk_change);
 	affs_fix_checksum(sb, bh);
 	mark_buffer_dirty(bh);
+	if (wait)
+		sync_dirty_buffer(bh);
 }
 
 static void
@@ -46,8 +48,8 @@ affs_put_super(struct super_block *sb)
 
 	lock_kernel();
 
-	if (!(sb->s_flags & MS_RDONLY))
-		affs_commit_super(sb, 1);
+	if (!(sb->s_flags & MS_RDONLY) && sb->s_dirt)
+		affs_commit_super(sb, 1, 1);
 
 	kfree(sbi->s_prefix);
 	affs_free_bitmap(sb);
@@ -63,7 +65,7 @@ affs_write_super(struct super_block *sb)
 {
 	lock_super(sb);
 	if (!(sb->s_flags & MS_RDONLY))
-		affs_commit_super(sb, 2);
+		affs_commit_super(sb, 1, 2);
 	sb->s_dirt = 0;
 	unlock_super(sb);
 
@@ -74,7 +76,7 @@ static int
 affs_sync_fs(struct super_block *sb, int wait)
 {
 	lock_super(sb);
-	affs_commit_super(sb, 2);
+	affs_commit_super(sb, wait, 2);
 	sb->s_dirt = 0;
 	unlock_super(sb);
 	return 0;
