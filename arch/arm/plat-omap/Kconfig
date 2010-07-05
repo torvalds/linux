@@ -21,24 +21,6 @@ config ARCH_OMAP2PLUS
 	help
 	  "Systems based on omap24xx, omap34xx or omap44xx"
 
-config ARCH_OMAP2
-	bool "TI OMAP2"
-	depends on ARCH_OMAP2PLUS
-	select CPU_V6
-
-config ARCH_OMAP3
-	bool "TI OMAP3"
-	depends on ARCH_OMAP2PLUS
-	select CPU_V7
-	select USB_ARCH_HAS_EHCI
-	select ARM_L1_CACHE_SHIFT_6
-
-config ARCH_OMAP4
-	bool "TI OMAP4"
-	depends on ARCH_OMAP2PLUS
-	select CPU_V7
-	select ARM_GIC
-
 endchoice
 
 comment "OMAP Feature Selections"
