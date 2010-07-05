@@ -8,6 +8,7 @@
  */
 
 #include "mux2420.h"
+#include "mux2430.h"
 #include "mux34xx.h"
 
 #define OMAP_MUX_TERMINATOR	0xffff
@@ -179,6 +180,13 @@ void omap_mux_write_array(struct omap_board_mux *board_mux);
  * @flags:		OMAP package type used for the board
  */
 int omap2420_mux_init(struct omap_board_mux *board_mux, int flags);
+
+/**
+ * omap2430_mux_init() - initialize mux system with board specific set
+ * @board_mux:		Board specific mux table
+ * @flags:		OMAP package type used for the board
+ */
+int omap2430_mux_init(struct omap_board_mux *board_mux, int flags);
 
 /**
  * omap3_mux_init() - initialize mux system with board specific set
