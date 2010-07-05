@@ -1521,7 +1521,7 @@ static void ql_process_mac_rx_page(struct ql_adapter *qdev,
 
 	/* Frame error, so drop the packet. */
 	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_err(qdev, drv, qdev->ndev,
+		netif_info(qdev, drv, qdev->ndev,
 			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
 		rx_ring->rx_errors++;
 		goto err_out;
@@ -1618,7 +1618,7 @@ static void ql_process_mac_rx_skb(struct ql_adapter *qdev,
 
 	/* Frame error, so drop the packet. */
 	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_err(qdev, drv, qdev->ndev,
+		netif_info(qdev, drv, qdev->ndev,
 			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
 		dev_kfree_skb_any(skb);
 		rx_ring->rx_errors++;
@@ -1939,7 +1939,7 @@ static void ql_process_mac_split_rx_intr(struct ql_adapter *qdev,
 
 	/* Frame error, so drop the packet. */
 	if (ib_mac_rsp->flags2 & IB_MAC_IOCB_RSP_ERR_MASK) {
-		netif_err(qdev, drv, qdev->ndev,
+		netif_info(qdev, drv, qdev->ndev,
 			  "Receive error, flags2 = 0x%x\n", ib_mac_rsp->flags2);
 		dev_kfree_skb_any(skb);
 		rx_ring->rx_errors++;
