@@ -1188,24 +1188,6 @@ static void write_iso_tasklet(unsigned long data)
 					break;
 				}
 			}
-#ifdef CONFIG_GIGASET_DEBUG
-			/* check assumption on remaining frames */
-			for (; i < BAS_NUMFRAMES; i++) {
-				ifd = &urb->iso_frame_desc[i];
-				if (ifd->status != -EINPROGRESS
-				    || ifd->actual_length != 0) {
-					dev_warn(cs->dev,
-					     "isochronous write: frame %d: %s, "
-					     "%d of %d bytes sent\n",
-					     i, get_usb_statmsg(ifd->status),
-					     ifd->actual_length, ifd->length);
-					offset = (ifd->offset +
-						  ifd->actual_length)
-						 % BAS_OUTBUFSIZE;
-					break;
-				}
-			}
-#endif
 			break;
 		case -EPIPE:			/* stall - probably underrun */
 			dev_err(cs->dev, "isochronous write stalled\n");
