@@ -267,7 +267,7 @@ xfs_setattr(
 		if (code) {
 			ASSERT(tp == NULL);
 			lock_flags &= ~XFS_ILOCK_EXCL;
-			ASSERT(lock_flags == XFS_IOLOCK_EXCL);
+			ASSERT(lock_flags == XFS_IOLOCK_EXCL || !need_iolock);
 			goto error_return;
 		}
 		tp = xfs_trans_alloc(mp, XFS_TRANS_SETATTR_SIZE);
@@ -1269,7 +1269,7 @@ xfs_lookup(
 	if (error)
 		goto out;
 
-	error = xfs_iget(dp->i_mount, NULL, inum, 0, 0, ipp, 0);
+	error = xfs_iget(dp->i_mount, NULL, inum, 0, 0, ipp);
 	if (error)
 		goto out_free_name;
 

@@ -134,7 +134,7 @@ struct linux_xfrm_mib {
 #define SNMP_ADD_STATS_USER(mib, field, addend)	\
 			this_cpu_add(mib[1]->mibs[field], addend)
 #define SNMP_ADD_STATS(mib, field, addend)	\
-			this_cpu_add(mib[0]->mibs[field], addend)
+			this_cpu_add(mib[!in_softirq()]->mibs[field], addend)
 /*
  * Use "__typeof__(*mib[0]) *ptr" instead of "__typeof__(mib[0]) ptr"
  * to make @ptr a non-percpu pointer.

@@ -118,7 +118,7 @@ static unsigned int gsi_to_irq(unsigned int gsi)
 	if (gsi >= NR_IRQS_LEGACY)
 		irq = gsi;
 	else
-		irq = gsi_end + 1 + gsi;
+		irq = gsi_top + gsi;
 
 	return irq;
 }
@@ -129,10 +129,10 @@ static u32 irq_to_gsi(int irq)
 
 	if (irq < NR_IRQS_LEGACY)
 		gsi = isa_irq_to_gsi[irq];
-	else if (irq <= gsi_end)
+	else if (irq < gsi_top)
 		gsi = irq;
-	else if (irq <= (gsi_end + NR_IRQS_LEGACY))
-		gsi = irq - gsi_end;
+	else if (irq < (gsi_top + NR_IRQS_LEGACY))
+		gsi = irq - gsi_top;
 	else
 		gsi = 0xffffffff;
 

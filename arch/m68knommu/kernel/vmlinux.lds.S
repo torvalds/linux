@@ -57,7 +57,7 @@ SECTIONS {
 	.romvec : {
 		__rom_start = . ;
 		_romvec = .;
-		*(.data.initvect)
+		*(.data..initvect)
 	} > romvec
 #endif
 
@@ -68,7 +68,7 @@ SECTIONS {
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
-        	*(.text.lock)
+		*(.text..lock)
 
 		. = ALIGN(16);          /* Exception table              */
 		__start___ex_table = .;

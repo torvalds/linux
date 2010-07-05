@@ -193,6 +193,15 @@ acpi_status acpi_ns_initialize_devices(void)
 					acpi_ns_init_one_device, NULL, &info,
 					NULL);
 
+	/*
+	 * Any _OSI requests should be completed by now. If the BIOS has
+	 * requested any Windows OSI strings, we will always truncate
+	 * I/O addresses to 16 bits -- for Windows compatibility.
+	 */
+	if (acpi_gbl_osi_data >= ACPI_OSI_WIN_2000) {
+		acpi_gbl_truncate_io_addresses = TRUE;
+	}
+
 	ACPI_FREE(info.evaluate_info);
 	if (ACPI_FAILURE(status)) {
 		goto error_exit;

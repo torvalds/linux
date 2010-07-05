@@ -828,7 +828,7 @@ static int tsi148_alloc_resource(struct vme_master_resource *image,
 		return 0;
 
 	if (image->bus_resource.name == NULL) {
-		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_KERNEL);
+		image->bus_resource.name = kmalloc(VMENAMSIZ+3, GFP_ATOMIC);
 		if (image->bus_resource.name == NULL) {
 			dev_err(tsi148_bridge->parent, "Unable to allocate "
 				"memory for resource name\n");

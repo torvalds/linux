@@ -715,7 +715,7 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_work *wk;
-	enum work_action rma;
+	enum work_action rma = WORK_ACT_NONE;
 	u16 fc;
 
 	rx_status = (struct ieee80211_rx_status *) skb->cb;

@@ -322,6 +322,7 @@ static int smc91c92_probe(struct pcmcia_device *link)
 	return -ENOMEM;
     smc = netdev_priv(dev);
     smc->p_dev = link;
+    link->priv = dev;
 
     spin_lock_init(&smc->lock);
     link->io.NumPorts1 = 16;
@@ -1504,12 +1505,20 @@ irq_done:
 	writeb(cor & ~COR_IREQ_ENA, smc->base + MOT_LAN + CISREG_COR);
 	writeb(cor, smc->base + MOT_LAN + CISREG_COR);
     }
-#ifdef DOES_NOT_WORK
-    if (smc->base != NULL) { /* Megahertz MFC's */
-	readb(smc->base+MEGAHERTZ_ISR);
-	readb(smc->base+MEGAHERTZ_ISR);
+
+    if ((smc->base != NULL) &&  /* Megahertz MFC's */
+	(smc->manfid == MANFID_MEGAHERTZ) &&
+	(smc->cardid == PRODID_MEGAHERTZ_EM3288)) {
+
+	u_char tmp;
+	tmp = readb(smc->base+MEGAHERTZ_ISR);
+	tmp = readb(smc->base+MEGAHERTZ_ISR);
+
+	/* Retrigger interrupt if needed */
+	writeb(tmp, smc->base + MEGAHERTZ_ISR);
+	writeb(tmp, smc->base + MEGAHERTZ_ISR);
     }
-#endif
+
     spin_unlock(&smc->lock);
     return IRQ_RETVAL(handled);
 }

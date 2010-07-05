@@ -247,6 +247,7 @@ static const struct flash_spec flash_5709 = {
 MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
 
 static void bnx2_init_napi(struct bnx2 *bp);
+static void bnx2_del_napi(struct bnx2 *bp);
 
 static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 {
@@ -3072,7 +3073,6 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 	u16 hw_cons, sw_cons, sw_ring_cons, sw_prod, sw_ring_prod;
 	struct l2_fhdr *rx_hdr;
 	int rx_pkt = 0, pg_ring_used = 0;
-	struct pci_dev *pdev = bp->pdev;
 
 	hw_cons = bnx2_get_hw_rx_cons(bnapi);
 	sw_cons = rxr->rx_cons;
@@ -3098,12 +3098,10 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		skb = rx_buf->skb;
 		prefetchw(skb);
 
-		if (!get_dma_ops(&pdev->dev)->sync_single_for_cpu) {
-			next_rx_buf =
-				&rxr->rx_buf_ring[
-					RX_RING_IDX(NEXT_RX_BD(sw_cons))];
-			prefetch(next_rx_buf->desc);
-		}
+		next_rx_buf =
+			&rxr->rx_buf_ring[RX_RING_IDX(NEXT_RX_BD(sw_cons))];
+		prefetch(next_rx_buf->desc);
+
 		rx_buf->skb = NULL;
 
 		dma_addr = dma_unmap_addr(rx_buf, mapping);
@@ -6270,6 +6268,7 @@ open_err:
 	bnx2_free_skbs(bp);
 	bnx2_free_irq(bp);
 	bnx2_free_mem(bp);
+	bnx2_del_napi(bp);
 	return rc;
 }
 
@@ -6537,6 +6536,7 @@ bnx2_close(struct net_device *dev)
 	bnx2_free_irq(bp);
 	bnx2_free_skbs(bp);
 	bnx2_free_mem(bp);
+	bnx2_del_napi(bp);
 	bp->link_up = 0;
 	netif_carrier_off(bp->dev);
 	bnx2_set_power_state(bp, PCI_D3hot);
@@ -8227,7 +8227,16 @@ bnx2_bus_string(struct bnx2 *bp, char *str)
 	return str;
 }
 
-static void __devinit
+static void
+bnx2_del_napi(struct bnx2 *bp)
+{
+	int i;
+
+	for (i = 0; i < bp->irq_nvecs; i++)
+		netif_napi_del(&bp->bnx2_napi[i].napi);
+}
+
+static void
 bnx2_init_napi(struct bnx2 *bp)
 {
 	int i;

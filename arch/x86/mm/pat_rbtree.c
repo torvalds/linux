@@ -226,6 +226,7 @@ int rbt_memtype_check_insert(struct memtype *new, unsigned long *ret_type)
 		if (ret_type)
 			new->type = *ret_type;
 
+		new->subtree_max_end = new->end;
 		memtype_rb_insert(&memtype_rbroot, new);
 	}
 	return err;

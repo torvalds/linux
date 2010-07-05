@@ -618,11 +618,16 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	struct ivtv *itv = s->itv;
 	struct cx2341x_mpeg_params *p = &itv->params;
 	int datatype;
+	u16 width;
+	u16 height;
 
 	if (s->vdev == NULL)
 		return -EINVAL;
 
 	IVTV_DEBUG_INFO("Setting some initial decoder settings\n");
+
+	width = p->width;
+	height = p->height;
 
 	/* set audio mode to left/stereo  for dual/stereo mode. */
 	ivtv_vapi(itv, CX2341X_DEC_SET_AUDIO_MODE, 2, itv->audio_bilingual_mode, itv->audio_stereo_mode);
@@ -646,7 +651,14 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 	   2 = yuv_from_host */
 	switch (s->type) {
 	case IVTV_DEC_STREAM_TYPE_YUV:
-		datatype = itv->output_mode == OUT_PASSTHROUGH ? 1 : 2;
+		if (itv->output_mode == OUT_PASSTHROUGH) {
+			datatype = 1;
+		} else {
+			/* Fake size to avoid switching video standard */
+			datatype = 2;
+			width = 720;
+			height = itv->is_out_50hz ? 576 : 480;
+		}
 		IVTV_DEBUG_INFO("Setup DEC YUV Stream data[0] = %d\n", datatype);
 		break;
 	case IVTV_DEC_STREAM_TYPE_MPG:
@@ -655,9 +667,13 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 		break;
 	}
 	if (ivtv_vapi(itv, CX2341X_DEC_SET_DECODER_SOURCE, 4, datatype,
-			p->width, p->height, p->audio_properties)) {
+			width, height, p->audio_properties)) {
 		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
+
+	/* Decoder sometimes dies here, so wait a moment */
+	ivtv_msleep_timeout(10, 0);
+
 	return 0;
 }
 
@@ -696,6 +712,9 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	/* start playback */
 	ivtv_vapi(itv, CX2341X_DEC_START_PLAYBACK, 2, gop_offset, 0);
+
+	/* Let things settle before we actually start */
+	ivtv_msleep_timeout(10, 0);
 
 	/* Clear the following Interrupt mask bits for decoding */
 	ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_DECODE);

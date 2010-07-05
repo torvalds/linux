@@ -125,6 +125,11 @@ ibmasr:
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
+imx2_wdt:
+timeout: Watchdog timeout in seconds (default 60 s)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
 indydog:
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)

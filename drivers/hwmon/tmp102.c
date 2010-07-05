@@ -224,7 +224,6 @@ fail_remove_sysfs:
 fail_restore_config:
 	tmp102_write_reg(client, TMP102_CONF_REG, tmp102->config_orig);
 fail_free:
-	i2c_set_clientdata(client, NULL);
 	kfree(tmp102);
 
 	return status;
@@ -247,7 +246,6 @@ static int __devexit tmp102_remove(struct i2c_client *client)
 					 config | TMP102_CONF_SD);
 	}
 
-	i2c_set_clientdata(client, NULL);
 	kfree(tmp102);
 
 	return 0;

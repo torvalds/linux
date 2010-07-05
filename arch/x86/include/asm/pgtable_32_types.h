@@ -26,7 +26,7 @@
  */
 #define VMALLOC_OFFSET	(8 * 1024 * 1024)
 
-#ifndef __ASSEMBLER__
+#ifndef __ASSEMBLY__
 extern bool __vmalloc_start_set; /* set once high_memory is set */
 #endif
 

@@ -74,7 +74,14 @@ struct enic_msix_entry {
 	void *devid;
 };
 
+#define ENIC_SET_APPLIED		(1 << 0)
+#define ENIC_SET_REQUEST		(1 << 1)
+#define ENIC_SET_NAME			(1 << 2)
+#define ENIC_SET_INSTANCE		(1 << 3)
+#define ENIC_SET_HOST			(1 << 4)
+
 struct enic_port_profile {
+	u32 set;
 	u8 request;
 	char name[PORT_PROFILE_MAX];
 	u8 instance_uuid[PORT_UUID_MAX];

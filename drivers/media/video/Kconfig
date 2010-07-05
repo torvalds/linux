@@ -646,7 +646,7 @@ config VIDEO_PMS
 
 config VIDEO_BWQCAM
 	tristate "Quickcam BW Video For Linux"
-	depends on PARPORT && VIDEO_V4L1
+	depends on PARPORT && VIDEO_V4L2
 	help
 	  Say Y have if you the black and white version of the QuickCam
 	  camera. See the next option for the color version.
@@ -656,7 +656,7 @@ config VIDEO_BWQCAM
 
 config VIDEO_CQCAM
 	tristate "QuickCam Colour Video For Linux (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && PARPORT && VIDEO_V4L1
+	depends on EXPERIMENTAL && PARPORT && VIDEO_V4L2
 	help
 	  This is the video4linux driver for the colour version of the
 	  Connectix QuickCam.  If you have one of these cameras, say Y here,

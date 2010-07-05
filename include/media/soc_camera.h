@@ -66,7 +66,7 @@ struct soc_camera_host_ops {
 	 * .get_formats() fail, .put_formats() will not be called at all, the
 	 * failing .get_formats() must then clean up internally.
 	 */
-	int (*get_formats)(struct soc_camera_device *, int,
+	int (*get_formats)(struct soc_camera_device *, unsigned int,
 			   struct soc_camera_format_xlate *);
 	void (*put_formats)(struct soc_camera_device *);
 	int (*cropcap)(struct soc_camera_device *, struct v4l2_cropcap *);

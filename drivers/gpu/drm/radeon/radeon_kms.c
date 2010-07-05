@@ -118,7 +118,11 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value = rdev->num_z_pipes;
 		break;
 	case RADEON_INFO_ACCEL_WORKING:
-		value = rdev->accel_working;
+		/* xf86-video-ati 6.13.0 relies on this being false for evergreen */
+		if ((rdev->family >= CHIP_CEDAR) && (rdev->family <= CHIP_HEMLOCK))
+			value = false;
+		else
+			value = rdev->accel_working;
 		break;
 	case RADEON_INFO_CRTC_FROM_ID:
 		for (i = 0, found = 0; i < rdev->num_crtc; i++) {
@@ -133,6 +137,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG("unknown crtc id %d\n", value);
 			return -EINVAL;
 		}
+		break;
+	case RADEON_INFO_ACCEL_WORKING2:
+		value = rdev->accel_working;
 		break;
 	default:
 		DRM_DEBUG("Invalid request %d\n", info->request);

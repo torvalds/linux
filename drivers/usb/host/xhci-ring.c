@@ -182,8 +182,12 @@ static void inc_deq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
  * set, but other sections talk about dealing with the chain bit set.  This was
  * fixed in the 0.96 specification errata, but we have to assume that all 0.95
  * xHCI hardware can't handle the chain bit being cleared on a link TRB.
+ *
+ * @more_trbs_coming:	Will you enqueue more TRBs before calling
+ *			prepare_transfer()?
  */
-static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer)
+static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring,
+		bool consumer, bool more_trbs_coming)
 {
 	u32 chain;
 	union xhci_trb *next;
@@ -199,15 +203,28 @@ static void inc_enq(struct xhci_hcd *xhci, struct xhci_ring *ring, bool consumer
 	while (last_trb(xhci, ring, ring->enq_seg, next)) {
 		if (!consumer) {
 			if (ring != xhci->event_ring) {
-				if (chain) {
-					next->link.control |= TRB_CHAIN;
-
-					/* Give this link TRB to the hardware */
-					wmb();
-					next->link.control ^= TRB_CYCLE;
-				} else {
+				/*
+				 * If the caller doesn't plan on enqueueing more
+				 * TDs before ringing the doorbell, then we
+				 * don't want to give the link TRB to the
+				 * hardware just yet.  We'll give the link TRB
+				 * back in prepare_ring() just before we enqueue
+				 * the TD at the top of the ring.
+				 */
+				if (!chain && !more_trbs_coming)
 					break;
+
+				/* If we're not dealing with 0.95 hardware,
+				 * carry over the chain bit of the previous TRB
+				 * (which may mean the chain bit is cleared).
+				 */
+				if (!xhci_link_trb_quirk(xhci)) {
+					next->link.control &= ~TRB_CHAIN;
+					next->link.control |= chain;
 				}
+				/* Give this link TRB to the hardware */
+				wmb();
+				next->link.control ^= TRB_CYCLE;
 			}
 			/* Toggle the cycle bit after the last ring segment. */
 			if (last_trb_on_last_seg(xhci, ring, ring->enq_seg, next)) {
@@ -1071,12 +1088,32 @@ bandwidth_change:
 			xhci_warn(xhci, "Reset device command completion "
 					"for disabled slot %u\n", slot_id);
 		break;
+	case TRB_TYPE(TRB_NEC_GET_FW):
+		if (!(xhci->quirks & XHCI_NEC_HOST)) {
+			xhci->error_bitmask |= 1 << 6;
+			break;
+		}
+		xhci_dbg(xhci, "NEC firmware version %2x.%02x\n",
+				NEC_FW_MAJOR(event->status),
+				NEC_FW_MINOR(event->status));
+		break;
 	default:
 		/* Skip over unknown commands on the event ring */
 		xhci->error_bitmask |= 1 << 6;
 		break;
 	}
 	inc_deq(xhci, xhci->cmd_ring, false);
+}
+
+static void handle_vendor_event(struct xhci_hcd *xhci,
+		union xhci_trb *event)
+{
+	u32 trb_type;
+
+	trb_type = TRB_FIELD_TO_TYPE(event->generic.field[3]);
+	xhci_dbg(xhci, "Vendor specific event TRB type = %u\n", trb_type);
+	if (trb_type == TRB_NEC_CMD_COMP && (xhci->quirks & XHCI_NEC_HOST))
+		handle_cmd_completion(xhci, &event->event_cmd);
 }
 
 static void handle_port_status(struct xhci_hcd *xhci,
@@ -1659,7 +1696,10 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 			update_ptrs = 0;
 		break;
 	default:
-		xhci->error_bitmask |= 1 << 3;
+		if ((event->event_cmd.flags & TRB_TYPE_BITMASK) >= TRB_TYPE(48))
+			handle_vendor_event(xhci, event);
+		else
+			xhci->error_bitmask |= 1 << 3;
 	}
 	/* Any of the above functions may drop and re-acquire the lock, so check
 	 * to make sure a watchdog timer didn't mark the host as non-responsive.
@@ -1684,9 +1724,12 @@ void xhci_handle_event(struct xhci_hcd *xhci)
 /*
  * Generic function for queueing a TRB on a ring.
  * The caller must have checked to make sure there's room on the ring.
+ *
+ * @more_trbs_coming:	Will you enqueue more TRBs before calling
+ *			prepare_transfer()?
  */
 static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
-		bool consumer,
+		bool consumer, bool more_trbs_coming,
 		u32 field1, u32 field2, u32 field3, u32 field4)
 {
 	struct xhci_generic_trb *trb;
@@ -1696,7 +1739,7 @@ static void queue_trb(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	trb->field[1] = field2;
 	trb->field[2] = field3;
 	trb->field[3] = field4;
-	inc_enq(xhci, ring, consumer);
+	inc_enq(xhci, ring, consumer, more_trbs_coming);
 }
 
 /*
@@ -1965,6 +2008,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int trb_buff_len, this_sg_len, running_total;
 	bool first_trb;
 	u64 addr;
+	bool more_trbs_coming;
 
 	struct xhci_generic_trb *start_trb;
 	int start_cycle;
@@ -2050,7 +2094,11 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		length_field = TRB_LEN(trb_buff_len) |
 			remainder |
 			TRB_INTR_TARGET(0);
-		queue_trb(xhci, ep_ring, false,
+		if (num_trbs > 1)
+			more_trbs_coming = true;
+		else
+			more_trbs_coming = false;
+		queue_trb(xhci, ep_ring, false, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -2101,6 +2149,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	int num_trbs;
 	struct xhci_generic_trb *start_trb;
 	bool first_trb;
+	bool more_trbs_coming;
 	int start_cycle;
 	u32 field, length_field;
 
@@ -2189,7 +2238,11 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		length_field = TRB_LEN(trb_buff_len) |
 			remainder |
 			TRB_INTR_TARGET(0);
-		queue_trb(xhci, ep_ring, false,
+		if (num_trbs > 1)
+			more_trbs_coming = true;
+		else
+			more_trbs_coming = false;
+		queue_trb(xhci, ep_ring, false, more_trbs_coming,
 				lower_32_bits(addr),
 				upper_32_bits(addr),
 				length_field,
@@ -2268,7 +2321,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	/* Queue setup TRB - see section 6.4.1.2.1 */
 	/* FIXME better way to translate setup_packet into two u32 fields? */
 	setup = (struct usb_ctrlrequest *) urb->setup_packet;
-	queue_trb(xhci, ep_ring, false,
+	queue_trb(xhci, ep_ring, false, true,
 			/* FIXME endianness is probably going to bite my ass here. */
 			setup->bRequestType | setup->bRequest << 8 | setup->wValue << 16,
 			setup->wIndex | setup->wLength << 16,
@@ -2284,7 +2337,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	if (urb->transfer_buffer_length > 0) {
 		if (setup->bRequestType & USB_DIR_IN)
 			field |= TRB_DIR_IN;
-		queue_trb(xhci, ep_ring, false,
+		queue_trb(xhci, ep_ring, false, true,
 				lower_32_bits(urb->transfer_dma),
 				upper_32_bits(urb->transfer_dma),
 				length_field,
@@ -2301,7 +2354,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		field = 0;
 	else
 		field = TRB_DIR_IN;
-	queue_trb(xhci, ep_ring, false,
+	queue_trb(xhci, ep_ring, false, false,
 			0,
 			0,
 			TRB_INTR_TARGET(0),
@@ -2338,7 +2391,7 @@ static int queue_command(struct xhci_hcd *xhci, u32 field1, u32 field2,
 					"unfailable commands failed.\n");
 		return -ENOMEM;
 	}
-	queue_trb(xhci, xhci->cmd_ring, false, field1, field2, field3,
+	queue_trb(xhci, xhci->cmd_ring, false, false, field1, field2, field3,
 			field4 | xhci->cmd_ring->cycle_state);
 	return 0;
 }
@@ -2376,6 +2429,12 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
 			false);
+}
+
+int xhci_queue_vendor_command(struct xhci_hcd *xhci,
+		u32 field1, u32 field2, u32 field3, u32 field4)
+{
+	return queue_command(xhci, field1, field2, field3, field4, false);
 }
 
 /* Queue a reset device command TRB */

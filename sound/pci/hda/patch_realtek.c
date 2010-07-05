@@ -2619,16 +2619,18 @@ static int alc_build_controls(struct hda_codec *codec)
 	}
 
 	/* assign Capture Source enums to NID */
-	kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
-	if (!kctl)
-		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
-	for (i = 0; kctl && i < kctl->count; i++) {
-		hda_nid_t *nids = spec->capsrc_nids;
-		if (!nids)
-			nids = spec->adc_nids;
-		err = snd_hda_add_nid(codec, kctl, i, nids[i]);
-		if (err < 0)
-			return err;
+	if (spec->capsrc_nids || spec->adc_nids) {
+		kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
+		if (!kctl)
+			kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
+		for (i = 0; kctl && i < kctl->count; i++) {
+			hda_nid_t *nids = spec->capsrc_nids;
+			if (!nids)
+				nids = spec->adc_nids;
+			err = snd_hda_add_nid(codec, kctl, i, nids[i]);
+			if (err < 0)
+				return err;
+		}
 	}
 	if (spec->cap_mixer) {
 		const char *kname = kctl ? kctl->id.name : NULL;
@@ -6948,7 +6950,7 @@ static struct hda_input_mux mb5_capture_source = {
 	.num_items = 3,
 	.items = {
 		{ "Mic", 0x1 },
-		{ "Line", 0x2 },
+		{ "Line", 0x7 },
 		{ "CD", 0x4 },
 	},
 };
@@ -7469,8 +7471,8 @@ static struct snd_kcontrol_new alc885_mb5_mixer[] = {
 	HDA_BIND_MUTE   ("LFE Playback Switch", 0x0e, 0x02, HDA_INPUT),
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0f, 0x00, HDA_OUTPUT),
 	HDA_BIND_MUTE   ("Headphone Playback Switch", 0x0f, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE  ("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x07, HDA_INPUT),
+	HDA_CODEC_MUTE  ("Line Playback Switch", 0x0b, 0x07, HDA_INPUT),
 	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_MUTE  ("Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
 	HDA_CODEC_VOLUME("Line Boost", 0x15, 0x00, HDA_INPUT),
@@ -7853,10 +7855,9 @@ static struct hda_verb alc885_mb5_init_verbs[] = {
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
 
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
-	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0x1)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0x7)},
+	{0x24, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0x4)},
 	{ }
 };
 
@@ -9476,6 +9477,10 @@ static struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x1000, "iMac 24", ALC885_IMAC24),
 	SND_PCI_QUIRK(0x106b, 0x2800, "AppleTV", ALC885_IMAC24),
 	SND_PCI_QUIRK(0x106b, 0x2c00, "MacbookPro rev3", ALC885_MBP3),
+	SND_PCI_QUIRK(0x106b, 0x3000, "iMac", ALC889A_MB31),
+	SND_PCI_QUIRK(0x106b, 0x3200, "iMac 7,1 Aluminum", ALC882_ASUS_A7M),
+	SND_PCI_QUIRK(0x106b, 0x3400, "MacBookAir 1,1", ALC885_MBP3),
+	SND_PCI_QUIRK(0x106b, 0x3500, "MacBookAir 2,1", ALC885_MBA21),
 	SND_PCI_QUIRK(0x106b, 0x3600, "Macbook 3,1", ALC889A_MB31),
 	SND_PCI_QUIRK(0x106b, 0x3800, "MacbookPro 4,1", ALC885_MBP3),
 	SND_PCI_QUIRK(0x106b, 0x3e00, "iMac 24 Aluminum", ALC885_IMAC24),

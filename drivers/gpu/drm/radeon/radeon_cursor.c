@@ -194,7 +194,7 @@ unpin:
 fail:
 	drm_gem_object_unreference_unlocked(obj);
 
-	return 0;
+	return ret;
 }
 
 int radeon_crtc_cursor_move(struct drm_crtc *crtc,

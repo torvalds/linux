@@ -24,6 +24,8 @@ void *return_address(unsigned int depth)
 		struct dwarf_frame *tmp;
 
 		tmp = dwarf_unwind_stack(ra, frame);
+		if (!tmp)
+			return NULL;
 
 		if (frame)
 			dwarf_free_frame(frame);

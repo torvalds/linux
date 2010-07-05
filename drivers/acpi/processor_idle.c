@@ -80,7 +80,7 @@ module_param(nocst, uint, 0000);
 static unsigned int latency_factor __read_mostly = 2;
 module_param(latency_factor, uint, 0644);
 
-static s64 us_to_pm_timer_ticks(s64 t)
+static u64 us_to_pm_timer_ticks(s64 t)
 {
 	return div64_u64(t * PM_TIMER_FREQUENCY, 1000000);
 }
@@ -731,10 +731,10 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 
 		seq_puts(seq, "demotion[--] ");
 
-		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020llu]\n",
+		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020Lu]\n",
 			   pr->power.states[i].latency,
 			   pr->power.states[i].usage,
-			   (unsigned long long)pr->power.states[i].time);
+			   us_to_pm_timer_ticks(pr->power.states[i].time));
 	}
 
       end:
@@ -861,7 +861,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	ktime_t  kt1, kt2;
 	s64 idle_time_ns;
 	s64 idle_time;
-	s64 sleep_ticks = 0;
 
 	pr = __get_cpu_var(processors);
 
@@ -906,8 +905,6 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	idle_time = idle_time_ns;
 	do_div(idle_time, NSEC_PER_USEC);
 
-	sleep_ticks = us_to_pm_timer_ticks(idle_time);
-
 	/* Tell the scheduler how much we idled: */
 	sched_clock_idle_wakeup_event(idle_time_ns);
 
@@ -918,7 +915,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	cx->usage++;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
-	cx->time += sleep_ticks;
+	cx->time += idle_time;
 	return idle_time;
 }
 
@@ -940,7 +937,6 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	ktime_t  kt1, kt2;
 	s64 idle_time_ns;
 	s64 idle_time;
-	s64 sleep_ticks = 0;
 
 
 	pr = __get_cpu_var(processors);
@@ -1022,11 +1018,10 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		spin_unlock(&c3_lock);
 	}
 	kt2 = ktime_get_real();
-	idle_time_ns = ktime_to_us(ktime_sub(kt2, kt1));
+	idle_time_ns = ktime_to_ns(ktime_sub(kt2, kt1));
 	idle_time = idle_time_ns;
 	do_div(idle_time, NSEC_PER_USEC);
 
-	sleep_ticks = us_to_pm_timer_ticks(idle_time);
 	/* Tell the scheduler how much we idled: */
 	sched_clock_idle_wakeup_event(idle_time_ns);
 
@@ -1037,7 +1032,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	cx->usage++;
 
 	lapic_timer_state_broadcast(pr, cx, 0);
-	cx->time += sleep_ticks;
+	cx->time += idle_time;
 	return idle_time;
 }
 

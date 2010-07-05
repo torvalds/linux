@@ -2153,6 +2153,7 @@ int __xfrm_route_forward(struct sk_buff *skb, unsigned short family)
 		return 0;
 	}
 
+	skb_dst_force(skb);
 	dst = skb_dst(skb);
 
 	res = xfrm_lookup(net, &dst, &fl, NULL, 0) == 0;
@@ -2299,7 +2300,8 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 			return 0;
 		if (xdst->xfrm_genid != dst->xfrm->genid)
 			return 0;
-		if (xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
+		if (xdst->num_pols > 0 &&
+		    xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
 			return 0;
 
 		if (strict && fl &&

@@ -415,7 +415,6 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 	return 0;
 
 struct_err:
-	i2c_set_clientdata(i2c, NULL);
 	kfree(wm8400);
 err:
 	return ret;
@@ -426,7 +425,6 @@ static int wm8400_i2c_remove(struct i2c_client *i2c)
 	struct wm8400 *wm8400 = i2c_get_clientdata(i2c);
 
 	wm8400_release(wm8400);
-	i2c_set_clientdata(i2c, NULL);
 	kfree(wm8400);
 
 	return 0;

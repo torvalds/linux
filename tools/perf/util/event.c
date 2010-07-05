@@ -370,9 +370,9 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 
 int event__process_comm(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->comm.pid);
+	struct thread *thread = perf_session__findnew(session, self->comm.tid);
 
-	dump_printf(": %s:%d\n", self->comm.comm, self->comm.pid);
+	dump_printf(": %s:%d\n", self->comm.comm, self->comm.tid);
 
 	if (thread == NULL || thread__set_comm_adjust(thread, self->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
@@ -532,19 +532,16 @@ out_problem:
 
 int event__process_task(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->fork.pid);
-	struct thread *parent = perf_session__findnew(session, self->fork.ppid);
+	struct thread *thread = perf_session__findnew(session, self->fork.tid);
+	struct thread *parent = perf_session__findnew(session, self->fork.ptid);
 
 	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
 		    self->fork.ppid, self->fork.ptid);
-	/*
-	 * A thread clone will have the same PID for both parent and child.
-	 */
-	if (thread == parent)
-		return 0;
 
-	if (self->header.type == PERF_RECORD_EXIT)
+	if (self->header.type == PERF_RECORD_EXIT) {
+		perf_session__remove_thread(session, thread);
 		return 0;
+	}
 
 	if (thread == NULL || parent == NULL ||
 	    thread__fork(thread, parent) < 0) {

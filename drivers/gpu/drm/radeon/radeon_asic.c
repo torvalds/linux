@@ -724,8 +724,8 @@ static struct radeon_asic evergreen_asic = {
 	.irq_set = &evergreen_irq_set,
 	.irq_process = &evergreen_irq_process,
 	.get_vblank_counter = &evergreen_get_vblank_counter,
-	.fence_ring_emit = NULL,
-	.cs_parse = NULL,
+	.fence_ring_emit = &r600_fence_ring_emit,
+	.cs_parse = &evergreen_cs_parse,
 	.copy_blit = NULL,
 	.copy_dma = NULL,
 	.copy = NULL,
@@ -780,6 +780,13 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_R423:
 	case CHIP_RV410:
 		rdev->asic = &r420_asic;
+		/* handle macs */
+		if (rdev->bios == NULL) {
+			rdev->asic->get_engine_clock = &radeon_legacy_get_engine_clock;
+			rdev->asic->set_engine_clock = &radeon_legacy_set_engine_clock;
+			rdev->asic->get_memory_clock = &radeon_legacy_get_memory_clock;
+			rdev->asic->set_memory_clock = NULL;
+		}
 		break;
 	case CHIP_RS400:
 	case CHIP_RS480:

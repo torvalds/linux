@@ -1654,8 +1654,11 @@ MODULE_DEVICE_TABLE (of, bmac_match);
 
 static struct macio_driver bmac_driver =
 {
-	.name 		= "bmac",
-	.match_table	= bmac_match,
+	.driver = {
+		.name 		= "bmac",
+		.owner		= THIS_MODULE,
+		.of_match_table	= bmac_match,
+	},
 	.probe		= bmac_probe,
 	.remove		= bmac_remove,
 #ifdef CONFIG_PM

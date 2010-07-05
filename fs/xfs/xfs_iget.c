@@ -259,7 +259,6 @@ xfs_iget_cache_miss(
 	xfs_trans_t		*tp,
 	xfs_ino_t		ino,
 	struct xfs_inode	**ipp,
-	xfs_daddr_t		bno,
 	int			flags,
 	int			lock_flags)
 {
@@ -272,7 +271,7 @@ xfs_iget_cache_miss(
 	if (!ip)
 		return ENOMEM;
 
-	error = xfs_iread(mp, tp, ip, bno, flags);
+	error = xfs_iread(mp, tp, ip, flags);
 	if (error)
 		goto out_destroy;
 
@@ -358,8 +357,6 @@ out_destroy:
  *        within the file system for the inode being requested.
  * lock_flags -- flags indicating how to lock the inode.  See the comment
  *		 for xfs_ilock() for a list of valid values.
- * bno -- the block number starting the buffer containing the inode,
- *	  if known (as by bulkstat), else 0.
  */
 int
 xfs_iget(
@@ -368,8 +365,7 @@ xfs_iget(
 	xfs_ino_t	ino,
 	uint		flags,
 	uint		lock_flags,
-	xfs_inode_t	**ipp,
-	xfs_daddr_t	bno)
+	xfs_inode_t	**ipp)
 {
 	xfs_inode_t	*ip;
 	int		error;
@@ -382,9 +378,6 @@ xfs_iget(
 
 	/* get the perag structure and ensure that it's inode capable */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ino));
-	if (!pag->pagi_inodeok)
-		return EINVAL;
-	ASSERT(pag->pag_ici_init);
 	agino = XFS_INO_TO_AGINO(mp, ino);
 
 again:
@@ -400,7 +393,7 @@ again:
 		read_unlock(&pag->pag_ici_lock);
 		XFS_STATS_INC(xs_ig_missed);
 
-		error = xfs_iget_cache_miss(mp, pag, tp, ino, &ip, bno,
+		error = xfs_iget_cache_miss(mp, pag, tp, ino, &ip,
 							flags, lock_flags);
 		if (error)
 			goto out_error_or_again;
@@ -744,30 +737,24 @@ xfs_ilock_demote(
 }
 
 #ifdef DEBUG
-/*
- * Debug-only routine, without additional rw_semaphore APIs, we can
- * now only answer requests regarding whether we hold the lock for write
- * (reader state is outside our visibility, we only track writer state).
- *
- * Note: this means !xfs_isilocked would give false positives, so don't do that.
- */
 int
 xfs_isilocked(
 	xfs_inode_t		*ip,
 	uint			lock_flags)
 {
-	if ((lock_flags & (XFS_ILOCK_EXCL|XFS_ILOCK_SHARED)) ==
-			XFS_ILOCK_EXCL) {
-		if (!ip->i_lock.mr_writer)
-			return 0;
+	if (lock_flags & (XFS_ILOCK_EXCL|XFS_ILOCK_SHARED)) {
+		if (!(lock_flags & XFS_ILOCK_SHARED))
+			return !!ip->i_lock.mr_writer;
+		return rwsem_is_locked(&ip->i_lock.mr_lock);
 	}
 
-	if ((lock_flags & (XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED)) ==
-			XFS_IOLOCK_EXCL) {
-		if (!ip->i_iolock.mr_writer)
-			return 0;
+	if (lock_flags & (XFS_IOLOCK_EXCL|XFS_IOLOCK_SHARED)) {
+		if (!(lock_flags & XFS_IOLOCK_SHARED))
+			return !!ip->i_iolock.mr_writer;
+		return rwsem_is_locked(&ip->i_iolock.mr_lock);
 	}
 
-	return 1;
+	ASSERT(0);
+	return 0;
 }
 #endif
