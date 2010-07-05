@@ -372,7 +372,7 @@ int __init omap2_mux_init(void)
 
 /*----------------------------------------------------------------------------*/
 
-#ifdef CONFIG_ARCH_OMAP3
+#ifdef CONFIG_ARCH_OMAP2PLUS
 static LIST_HEAD(muxmodes);
 static DEFINE_MUTEX(muxmode_mutex);
 

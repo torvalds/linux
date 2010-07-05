@@ -104,7 +104,7 @@ struct omap_board_mux {
 	u16	value;
 };
 
-#if defined(CONFIG_OMAP_MUX) && defined(CONFIG_ARCH_OMAP3)
+#if defined(CONFIG_OMAP_MUX)
 
 /**
  * omap_mux_init_gpio - initialize a signal based on the GPIO number
