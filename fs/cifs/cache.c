@@ -106,3 +106,112 @@ const struct fscache_cookie_def cifs_fscache_server_index_def = {
 	.type = FSCACHE_COOKIE_TYPE_INDEX,
 	.get_key = cifs_server_get_key,
 };
+
+/*
+ * Auxiliary data attached to CIFS superblock within the cache
+ */
+struct cifs_fscache_super_auxdata {
+	u64	resource_id;		/* unique server resource id */
+};
+
+static char *extract_sharename(const char *treename)
+{
+	const char *src;
+	char *delim, *dst;
+	int len;
+
+	/* skip double chars at the beginning */
+	src = treename + 2;
+
+	/* share name is always preceded by '\\' now */
+	delim = strchr(src, '\\');
+	if (!delim)
+		return ERR_PTR(-EINVAL);
+	delim++;
+	len = strlen(delim);
+
+	/* caller has to free the memory */
+	dst = kstrndup(delim, len, GFP_KERNEL);
+	if (!dst)
+		return ERR_PTR(-ENOMEM);
+
+	return dst;
+}
+
+/*
+ * Superblock object currently keyed by share name
+ */
+static uint16_t cifs_super_get_key(const void *cookie_netfs_data, void *buffer,
+				   uint16_t maxbuf)
+{
+	const struct cifsTconInfo *tcon = cookie_netfs_data;
+	char *sharename;
+	uint16_t len;
+
+	sharename = extract_sharename(tcon->treeName);
+	if (IS_ERR(sharename)) {
+		cFYI(1, "CIFS: couldn't extract sharename\n");
+		sharename = NULL;
+		return 0;
+	}
+
+	len = strlen(sharename);
+	if (len > maxbuf)
+		return 0;
+
+	memcpy(buffer, sharename, len);
+
+	kfree(sharename);
+
+	return len;
+}
+
+static uint16_t
+cifs_fscache_super_get_aux(const void *cookie_netfs_data, void *buffer,
+			   uint16_t maxbuf)
+{
+	struct cifs_fscache_super_auxdata auxdata;
+	const struct cifsTconInfo *tcon = cookie_netfs_data;
+
+	memset(&auxdata, 0, sizeof(auxdata));
+	auxdata.resource_id = tcon->resource_id;
+
+	if (maxbuf > sizeof(auxdata))
+		maxbuf = sizeof(auxdata);
+
+	memcpy(buffer, &auxdata, maxbuf);
+
+	return maxbuf;
+}
+
+static enum
+fscache_checkaux cifs_fscache_super_check_aux(void *cookie_netfs_data,
+					      const void *data,
+					      uint16_t datalen)
+{
+	struct cifs_fscache_super_auxdata auxdata;
+	const struct cifsTconInfo *tcon = cookie_netfs_data;
+
+	if (datalen != sizeof(auxdata))
+		return FSCACHE_CHECKAUX_OBSOLETE;
+
+	memset(&auxdata, 0, sizeof(auxdata));
+	auxdata.resource_id = tcon->resource_id;
+
+	if (memcmp(data, &auxdata, datalen) != 0)
+		return FSCACHE_CHECKAUX_OBSOLETE;
+
+	return FSCACHE_CHECKAUX_OKAY;
+}
+
+/*
+ * Superblock object for FS-Cache
+ */
+const struct fscache_cookie_def cifs_fscache_super_index_def = {
+	.name = "CIFS.super",
+	.type = FSCACHE_COOKIE_TYPE_INDEX,
+	.get_key = cifs_super_get_key,
+	.get_aux = cifs_fscache_super_get_aux,
+	.check_aux = cifs_fscache_super_check_aux,
+};
+

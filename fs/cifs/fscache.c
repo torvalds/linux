@@ -39,3 +39,20 @@ void cifs_fscache_release_client_cookie(struct TCP_Server_Info *server)
 	server->fscache = NULL;
 }
 
+void cifs_fscache_get_super_cookie(struct cifsTconInfo *tcon)
+{
+	struct TCP_Server_Info *server = tcon->ses->server;
+
+	tcon->fscache =
+		fscache_acquire_cookie(server->fscache,
+				&cifs_fscache_super_index_def, tcon);
+	cFYI(1, "CIFS: get superblock cookie (0x%p/0x%p)",
+				server->fscache, tcon->fscache);
+}
+
+void cifs_fscache_release_super_cookie(struct cifsTconInfo *tcon)
+{
+	cFYI(1, "CIFS: releasing superblock cookie (0x%p)", tcon->fscache);
+	fscache_relinquish_cookie(tcon->fscache, 0);
+	tcon->fscache = NULL;
+}

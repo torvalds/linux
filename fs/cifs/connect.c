@@ -1837,6 +1837,7 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	_FreeXid(xid);
 
 	tconInfoFree(tcon);
+	cifs_fscache_release_super_cookie(tcon);
 	cifs_put_smb_ses(ses);
 }
 
@@ -1905,6 +1906,8 @@ cifs_get_tcon(struct cifsSesInfo *ses, struct smb_vol *volume_info)
 	write_lock(&cifs_tcp_ses_lock);
 	list_add(&tcon->tcon_list, &ses->tcon_list);
 	write_unlock(&cifs_tcp_ses_lock);
+
+	cifs_fscache_get_super_cookie(tcon);
 
 	return tcon;
 

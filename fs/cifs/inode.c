@@ -807,6 +807,9 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+	/* populate tcon->resource_id */
+	cifs_sb->tcon->resource_id = CIFS_I(inode)->uniqueid;
+
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, "ipc connection - fake read inode");
 		inode->i_mode |= S_IFDIR;
