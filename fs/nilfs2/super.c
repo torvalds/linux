@@ -521,20 +521,20 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 
 	if (!nilfs_test_opt(sbi, BARRIER))
-		seq_printf(seq, ",nobarrier");
+		seq_puts(seq, ",nobarrier");
 	if (nilfs_test_opt(sbi, SNAPSHOT))
 		seq_printf(seq, ",cp=%llu",
 			   (unsigned long long int)sbi->s_snapshot_cno);
 	if (nilfs_test_opt(sbi, ERRORS_PANIC))
-		seq_printf(seq, ",errors=panic");
+		seq_puts(seq, ",errors=panic");
 	if (nilfs_test_opt(sbi, ERRORS_CONT))
-		seq_printf(seq, ",errors=continue");
+		seq_puts(seq, ",errors=continue");
 	if (nilfs_test_opt(sbi, STRICT_ORDER))
-		seq_printf(seq, ",order=strict");
+		seq_puts(seq, ",order=strict");
 	if (nilfs_test_opt(sbi, NORECOVERY))
-		seq_printf(seq, ",norecovery");
+		seq_puts(seq, ",norecovery");
 	if (nilfs_test_opt(sbi, DISCARD))
-		seq_printf(seq, ",discard");
+		seq_puts(seq, ",discard");
 
 	return 0;
 }
