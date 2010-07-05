@@ -449,7 +449,6 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 static void
 nv50_crtc_commit(struct drm_crtc *crtc)
 {
-	struct drm_crtc *crtc2;
 	struct drm_device *dev = crtc->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *evo = dev_priv->evo;
@@ -460,20 +459,14 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 
 	nv50_crtc_blank(nv_crtc, false);
 
-	/* Explicitly blank all unused crtc's. */
-	list_for_each_entry(crtc2, &dev->mode_config.crtc_list, head) {
-		if (!drm_helper_crtc_in_use(crtc2))
-			nv50_crtc_blank(nouveau_crtc(crtc2), true);
-	}
-
 	ret = RING_SPACE(evo, 2);
 	if (ret) {
 		NV_ERROR(dev, "no space while committing crtc\n");
 		return;
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
-	OUT_RING(evo, 0);
-	FIRE_RING(evo);
+	OUT_RING  (evo, 0);
+	FIRE_RING (evo);
 }
 
 static bool

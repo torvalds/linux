@@ -47,16 +47,19 @@ nv50_dac_disconnect(struct drm_encoder *encoder)
 
 	if (!nv_encoder->crtc)
 		return;
+	nv50_crtc_blank(nouveau_crtc(nv_encoder->crtc), true);
 
 	NV_DEBUG_KMS(dev, "Disconnecting DAC %d\n", nv_encoder->or);
 
-	ret = RING_SPACE(evo, 2);
+	ret = RING_SPACE(evo, 4);
 	if (ret) {
 		NV_ERROR(dev, "no space while disconnecting DAC\n");
 		return;
 	}
 	BEGIN_RING(evo, 0, NV50_EVO_DAC(nv_encoder->or, MODE_CTRL), 1);
-	OUT_RING(evo, 0);
+	OUT_RING  (evo, 0);
+	BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+	OUT_RING  (evo, 0);
 
 	nv_encoder->crtc = NULL;
 }
