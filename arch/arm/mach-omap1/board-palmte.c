@@ -359,7 +359,7 @@ static void __init omap_palmte_init(void)
 	spi_register_board_info(palmte_spi_info, ARRAY_SIZE(palmte_spi_info));
 	palmte_misc_gpio_setup();
 	omap_serial_init();
-	omap_usb_init(&palmte_usb_config);
+	omap1_usb_init(&palmte_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
 }
 

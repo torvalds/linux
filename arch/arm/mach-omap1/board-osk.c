@@ -560,7 +560,7 @@ static void __init osk_init(void)
 	l |= (3 << 1);
 	omap_writel(l, USB_TRANSCEIVER_CTRL);
 
-	omap_usb_init(&osk_usb_config);
+	omap1_usb_init(&osk_usb_config);
 
 	/* irq for tps65010 chip */
 	/* bootloader effectively does:  omap_cfg_reg(U19_1610_MPUIO1); */

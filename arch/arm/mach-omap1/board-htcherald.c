@@ -287,7 +287,7 @@ static void __init htcherald_init(void)
 	htcherald_disable_watchdog();
 
 	htcherald_usb_enable();
-	omap_usb_init(&htcherald_usb_config);
+	omap1_usb_init(&htcherald_usb_config);
 }
 
 static void __init htcherald_init_irq(void)

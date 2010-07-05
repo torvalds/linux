@@ -386,7 +386,7 @@ static void __init omap_nokia770_init(void)
 	hwa742_dev_init();
 	ads7846_dev_init();
 	mipid_dev_init();
-	omap_usb_init(&nokia770_usb_config);
+	omap1_usb_init(&nokia770_usb_config);
 	nokia770_mmc_init();
 }
 
