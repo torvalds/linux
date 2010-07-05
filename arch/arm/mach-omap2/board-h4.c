@@ -42,6 +42,8 @@
 #include <plat/dma.h>
 #include <plat/gpmc.h>
 
+#include "mux.h"
+
 #define H4_FLASH_CS	0
 #define H4_SMC91X_CS	1
 
@@ -338,8 +340,18 @@ static struct i2c_board_info __initdata h4_i2c_board_info[] = {
 	},
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_h4_init(void)
 {
+	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAF);
+
 	/*
 	 * Make sure the serial ports are muxed on at this point.
 	 * You have to mux them off in device drivers later on
