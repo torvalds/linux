@@ -3919,6 +3919,11 @@ static int ql_adapter_up(struct ql_adapter *qdev)
 	if ((ql_read32(qdev, STS) & qdev->port_init) &&
 			(ql_read32(qdev, STS) & qdev->port_link_up))
 		ql_link_on(qdev);
+	/* Restore rx mode. */
+	clear_bit(QL_ALLMULTI, &qdev->flags);
+	clear_bit(QL_PROMISCUOUS, &qdev->flags);
+	qlge_set_multicast_list(qdev->ndev);
+
 	ql_enable_interrupts(qdev);
 	ql_enable_all_completion_interrupts(qdev);
 	netif_tx_start_all_queues(qdev->ndev);
@@ -4204,7 +4209,7 @@ static struct net_device_stats *qlge_get_stats(struct net_device
 	return &ndev->stats;
 }
 
-static void qlge_set_multicast_list(struct net_device *ndev)
+void qlge_set_multicast_list(struct net_device *ndev)
 {
 	struct ql_adapter *qdev = (struct ql_adapter *)netdev_priv(ndev);
 	struct netdev_hw_addr *ha;

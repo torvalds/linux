@@ -2246,6 +2246,7 @@ netdev_tx_t ql_lb_send(struct sk_buff *skb, struct net_device *ndev);
 void ql_check_lb_frame(struct ql_adapter *, struct sk_buff *);
 int ql_own_firmware(struct ql_adapter *qdev);
 int ql_clean_lb_rx_ring(struct rx_ring *rx_ring, int budget);
+void qlge_set_multicast_list(struct net_device *ndev);
 
 #if 1
 #define QL_ALL_DUMP
