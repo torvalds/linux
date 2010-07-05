@@ -17,8 +17,7 @@ menuconfig ISDN_DRV_GIGASET
 if ISDN_DRV_GIGASET
 
 config GIGASET_CAPI
-	bool "Gigaset CAPI support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	bool "Gigaset CAPI support"
 	depends on ISDN_CAPI='y'||(ISDN_CAPI='m'&&ISDN_DRV_GIGASET='m')
 	default ISDN_I4L='n'
 	help
@@ -27,6 +26,7 @@ config GIGASET_CAPI
 	  subsystem you'll have to enable the capidrv glue driver.
 	  (select ISDN_CAPI_CAPIDRV.)
 	  Say N to build the old native ISDN4Linux variant.
+	  If unsure, say Y.
 
 config GIGASET_I4L
 	bool
