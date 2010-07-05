@@ -30,7 +30,6 @@
 /*#define DEBUG*/
 
 #include <linux/pm_qos_params.h>
-#include <linux/plist.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -49,11 +48,6 @@
  * or pm_qos_object list and pm_qos_objects need to happen with pm_qos_lock
  * held, taken with _irqsave.  One lock to rule them all
  */
-struct pm_qos_request_list {
-	struct plist_node list;
-	int pm_qos_class;
-};
-
 enum pm_qos_type {
 	PM_QOS_MAX,		/* return the largest value */
 	PM_QOS_MIN		/* return the smallest value */
@@ -210,6 +204,12 @@ int pm_qos_request(int pm_qos_class)
 }
 EXPORT_SYMBOL_GPL(pm_qos_request);
 
+int pm_qos_request_active(struct pm_qos_request_list *req)
+{
+	return req->pm_qos_class != 0;
+}
+EXPORT_SYMBOL_GPL(pm_qos_request_active);
+
 /**
  * pm_qos_add_request - inserts new qos request into the list
  * @pm_qos_class: identifies which list of qos request to us
@@ -221,25 +221,23 @@ EXPORT_SYMBOL_GPL(pm_qos_request);
  * element as a handle for use in updating and removal.  Call needs to save
  * this handle for later use.
  */
-struct pm_qos_request_list *pm_qos_add_request(int pm_qos_class, s32 value)
+void pm_qos_add_request(struct pm_qos_request_list *dep,
+			int pm_qos_class, s32 value)
 {
-	struct pm_qos_request_list *dep;
+	struct pm_qos_object *o =  pm_qos_array[pm_qos_class];
+	int new_value;
 
-	dep = kzalloc(sizeof(struct pm_qos_request_list), GFP_KERNEL);
-	if (dep) {
-		struct pm_qos_object *o =  pm_qos_array[pm_qos_class];
-		int new_value;
-
-		if (value == PM_QOS_DEFAULT_VALUE)
-			new_value = o->default_value;
-		else
-			new_value = value;
-		plist_node_init(&dep->list, new_value);
-		dep->pm_qos_class = pm_qos_class;
-		update_target(o, &dep->list, 0, PM_QOS_DEFAULT_VALUE);
+	if (pm_qos_request_active(dep)) {
+		WARN(1, KERN_ERR "pm_qos_add_request() called for already added request\n");
+		return;
 	}
-
-	return dep;
+	if (value == PM_QOS_DEFAULT_VALUE)
+		new_value = o->default_value;
+	else
+		new_value = value;
+	plist_node_init(&dep->list, new_value);
+	dep->pm_qos_class = pm_qos_class;
+	update_target(o, &dep->list, 0, PM_QOS_DEFAULT_VALUE);
 }
 EXPORT_SYMBOL_GPL(pm_qos_add_request);
 
@@ -261,6 +259,11 @@ void pm_qos_update_request(struct pm_qos_request_list *pm_qos_req,
 
 	if (!pm_qos_req) /*guard against callers passing in null */
 		return;
+
+	if (!pm_qos_request_active(pm_qos_req)) {
+		WARN(1, KERN_ERR "pm_qos_update_request() called for unknown object\n");
+		return;
+	}
 
 	o = pm_qos_array[pm_qos_req->pm_qos_class];
 
@@ -290,9 +293,14 @@ void pm_qos_remove_request(struct pm_qos_request_list *pm_qos_req)
 		return;
 		/* silent return to keep pcm code cleaner */
 
+	if (!pm_qos_request_active(pm_qos_req)) {
+		WARN(1, KERN_ERR "pm_qos_remove_request() called for unknown object\n");
+		return;
+	}
+
 	o = pm_qos_array[pm_qos_req->pm_qos_class];
 	update_target(o, &pm_qos_req->list, 1, PM_QOS_DEFAULT_VALUE);
-	kfree(pm_qos_req);
+	memset(pm_qos_req, 0, sizeof(*pm_qos_req));
 }
 EXPORT_SYMBOL_GPL(pm_qos_remove_request);
 
@@ -340,8 +348,12 @@ static int pm_qos_power_open(struct inode *inode, struct file *filp)
 
 	pm_qos_class = find_pm_qos_object_by_minor(iminor(inode));
 	if (pm_qos_class >= 0) {
-		filp->private_data = (void *) pm_qos_add_request(pm_qos_class,
-				PM_QOS_DEFAULT_VALUE);
+		struct pm_qos_request_list *req = kzalloc(GFP_KERNEL, sizeof(*req));
+		if (!req)
+			return -ENOMEM;
+
+		pm_qos_add_request(req, pm_qos_class, PM_QOS_DEFAULT_VALUE);
+		filp->private_data = req;
 
 		if (filp->private_data)
 			return 0;
@@ -353,8 +365,9 @@ static int pm_qos_power_release(struct inode *inode, struct file *filp)
 {
 	struct pm_qos_request_list *req;
 
-	req = (struct pm_qos_request_list *)filp->private_data;
+	req = filp->private_data;
 	pm_qos_remove_request(req);
+	kfree(req);
 
 	return 0;
 }
