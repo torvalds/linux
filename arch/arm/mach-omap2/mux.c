@@ -43,6 +43,7 @@
 
 #define OMAP_MUX_BASE_OFFSET		0x30	/* Offset from CTRL_BASE */
 #define OMAP_MUX_BASE_SZ		0x5ca
+#define MUXABLE_GPIO_MODE3		BIT(0)
 
 struct omap_mux_entry {
 	struct omap_mux		mux;
@@ -51,6 +52,7 @@ struct omap_mux_entry {
 
 static unsigned long mux_phys;
 static void __iomem *mux_base;
+static u8 omap_mux_flags;
 
 u16 omap_mux_read(u16 reg)
 {
@@ -394,7 +396,10 @@ int __init omap_mux_init_gpio(int gpio, int val)
 
 			old_mode = omap_mux_read(m->reg_offset);
 			mux_mode = val & ~(OMAP_MUX_NR_MODES - 1);
-			mux_mode |= OMAP_MUX_MODE4;
+			if (omap_mux_flags & MUXABLE_GPIO_MODE3)
+				mux_mode |= OMAP_MUX_MODE3;
+			else
+				mux_mode |= OMAP_MUX_MODE4;
 			printk(KERN_DEBUG "mux: Setting signal "
 				"%s.gpio%i 0x%04x -> 0x%04x\n",
 				m->muxnames[0], gpio, old_mode, mux_mode);
@@ -1031,6 +1036,9 @@ int __init omap_mux_init(u32 mux_pbase, u32 mux_size,
 		printk(KERN_ERR "mux: Could not ioremap\n");
 		return -ENODEV;
 	}
+
+	if (cpu_is_omap24xx())
+		omap_mux_flags = MUXABLE_GPIO_MODE3;
 
 	omap_mux_init_package(superset, package_subset, package_balls);
 	omap_mux_init_list(superset);
