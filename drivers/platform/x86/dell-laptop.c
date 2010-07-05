@@ -473,7 +473,7 @@ static struct backlight_ops dell_ops = {
 	.update_status  = dell_send_intensity,
 };
 
-bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
+static bool dell_laptop_i8042_filter(unsigned char data, unsigned char str,
 			      struct serio *port)
 {
 	static bool extended;
