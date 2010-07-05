@@ -362,7 +362,7 @@ static void __init omap_h4_init(void)
 			ARRAY_SIZE(h4_i2c_board_info));
 
 	platform_add_devices(h4_devices, ARRAY_SIZE(h4_devices));
-	omap_usb_init(&h4_usb_config);
+	omap2_usbfs_init(&h4_usb_config);
 	omap_serial_init();
 }
 

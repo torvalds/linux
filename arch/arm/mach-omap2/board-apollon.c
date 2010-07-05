@@ -306,7 +306,7 @@ static void __init apollon_usb_init(void)
 	omap_cfg_reg(P21_242X_GPIO12);
 	gpio_request(12, "USB suspend");
 	gpio_direction_output(12, 0);
-	omap_usb_init(&apollon_usb_config);
+	omap2_usbfs_init(&apollon_usb_config);
 }
 
 static void __init omap_apollon_init(void)

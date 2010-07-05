@@ -81,7 +81,14 @@ extern void usb_ohci_init(const struct ohci_hcd_omap_platform_data *pdata);
 
 #endif
 
+void omap_otg_init(struct omap_usb_config *config);
 void omap_usb_init(struct omap_usb_config *pdata);
+void omap2_usbfs_init(struct omap_usb_config *pdata);
+#else
+static inline omap2_usbfs_init(struct omap_usb_config *pdata)
+{
+}
+#endif
 
 /*-------------------------------------------------------------------------*/
 
