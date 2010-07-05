@@ -25,7 +25,6 @@
 #include <plat/control.h>
 #include <plat/tc.h>
 #include <plat/board.h>
-#include <plat/mux.h>
 #include <mach/gpio.h>
 #include <plat/mmc.h>
 #include <plat/dma.h>
@@ -672,19 +671,19 @@ static inline void omap2_mmc_mux(struct omap_mmc_platform_data *mmc_controller,
 					OMAP_PIN_INPUT_PULLUP);
 
 	if (cpu_is_omap2420() && controller_nr == 0) {
-		omap_cfg_reg(H18_24XX_MMC_CMD);
-		omap_cfg_reg(H15_24XX_MMC_CLKI);
-		omap_cfg_reg(G19_24XX_MMC_CLKO);
-		omap_cfg_reg(F20_24XX_MMC_DAT0);
-		omap_cfg_reg(F19_24XX_MMC_DAT_DIR0);
-		omap_cfg_reg(G18_24XX_MMC_CMD_DIR);
+		omap_mux_init_signal("sdmmc_cmd", 0);
+		omap_mux_init_signal("sdmmc_clki", 0);
+		omap_mux_init_signal("sdmmc_clko", 0);
+		omap_mux_init_signal("sdmmc_dat0", 0);
+		omap_mux_init_signal("sdmmc_dat_dir0", 0);
+		omap_mux_init_signal("sdmmc_cmd_dir", 0);
 		if (mmc_controller->slots[0].wires == 4) {
-			omap_cfg_reg(H14_24XX_MMC_DAT1);
-			omap_cfg_reg(E19_24XX_MMC_DAT2);
-			omap_cfg_reg(D19_24XX_MMC_DAT3);
-			omap_cfg_reg(E20_24XX_MMC_DAT_DIR1);
-			omap_cfg_reg(F18_24XX_MMC_DAT_DIR2);
-			omap_cfg_reg(E18_24XX_MMC_DAT_DIR3);
+			omap_mux_init_signal("sdmmc_dat1", 0);
+			omap_mux_init_signal("sdmmc_dat2", 0);
+			omap_mux_init_signal("sdmmc_dat3", 0);
+			omap_mux_init_signal("sdmmc_dat_dir1", 0);
+			omap_mux_init_signal("sdmmc_dat_dir2", 0);
+			omap_mux_init_signal("sdmmc_dat_dir3", 0);
 		}
 
 		/*

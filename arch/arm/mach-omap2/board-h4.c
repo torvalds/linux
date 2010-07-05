@@ -33,7 +33,6 @@
 
 #include <plat/control.h>
 #include <mach/gpio.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
 #include <plat/common.h>
@@ -248,7 +247,7 @@ static inline void __init h4_init_debug(void)
 
 	udelay(100);
 
-	omap_cfg_reg(M15_24XX_GPIO92);
+	omap_mux_init_gpio(92, 0);
 	if (debug_card_init(cs_mem_base, H4_ETHR_GPIO_IRQ) < 0)
 		gpmc_cs_free(eth_cs);
 
@@ -358,8 +357,8 @@ static void __init omap_h4_init(void)
 	 * if not needed.
 	 */
 #if defined(CONFIG_OMAP_IR) || defined(CONFIG_OMAP_IR_MODULE)
-	omap_cfg_reg(K15_24XX_UART3_TX);
-	omap_cfg_reg(K14_24XX_UART3_RX);
+	omap_mux_init_signal("uart3_tx_irtx.uart3_tx_irtx", 0);
+	omap_mux_init_signal("uart3_rx_irrx.uart3_rx_irrx", 0);
 #endif
 
 #if defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
