@@ -11,13 +11,14 @@
  * (at your option) any later version.
  */
 
-#include <linux/kernel.h>
+#include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/slab.h>
+#include <linux/of_address.h>
 #include <linux/of_gpio.h>
-#include <asm/prom.h>
+#include <linux/slab.h>
 
 /**
  * of_get_gpio_flags - Get a GPIO number and flags to use with GPIO API
