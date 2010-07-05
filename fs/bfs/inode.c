@@ -31,7 +31,6 @@ MODULE_LICENSE("GPL");
 #define dprintf(x...)
 #endif
 
-static void bfs_write_super(struct super_block *s);
 void dump_imap(const char *prefix, struct super_block *s);
 
 struct inode *bfs_iget(struct super_block *sb, unsigned long ino)
@@ -204,31 +203,9 @@ static void bfs_evict_inode(struct inode *inode)
 	 * "last block of the last file" even if there is no
 	 * real file there, saves us 1 gap.
 	 */
-	if (info->si_lf_eblk == bi->i_eblock) {
+	if (info->si_lf_eblk == bi->i_eblock)
 		info->si_lf_eblk = bi->i_sblock - 1;
-		mark_buffer_dirty(info->si_sbh);
-	}
 	mutex_unlock(&info->bfs_lock);
-}
-
-static int bfs_sync_fs(struct super_block *sb, int wait)
-{
-	struct bfs_sb_info *info = BFS_SB(sb);
-
-	mutex_lock(&info->bfs_lock);
-	mark_buffer_dirty(info->si_sbh);
-	sb->s_dirt = 0;
-	mutex_unlock(&info->bfs_lock);
-
-	return 0;
-}
-
-static void bfs_write_super(struct super_block *sb)
-{
-	if (!(sb->s_flags & MS_RDONLY))
-		bfs_sync_fs(sb, 1);
-	else
-		sb->s_dirt = 0;
 }
 
 static void bfs_put_super(struct super_block *s)
@@ -240,10 +217,6 @@ static void bfs_put_super(struct super_block *s)
 
 	lock_kernel();
 
-	if (s->s_dirt)
-		bfs_write_super(s);
-
-	brelse(info->si_sbh);
 	mutex_destroy(&info->bfs_lock);
 	kfree(info->si_imap);
 	kfree(info);
@@ -315,8 +288,6 @@ static const struct super_operations bfs_sops = {
 	.write_inode	= bfs_write_inode,
 	.evict_inode	= bfs_evict_inode,
 	.put_super	= bfs_put_super,
-	.write_super	= bfs_write_super,
-	.sync_fs	= bfs_sync_fs,
 	.statfs		= bfs_statfs,
 };
 
@@ -343,7 +314,7 @@ void dump_imap(const char *prefix, struct super_block *s)
 
 static int bfs_fill_super(struct super_block *s, void *data, int silent)
 {
-	struct buffer_head *bh;
+	struct buffer_head *bh, *sbh;
 	struct bfs_super_block *bfs_sb;
 	struct inode *inode;
 	unsigned i, imap_len;
@@ -359,10 +330,10 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 
 	sb_set_blocksize(s, BFS_BSIZE);
 
-	info->si_sbh = sb_bread(s, 0);
-	if (!info->si_sbh)
+	sbh = sb_bread(s, 0);
+	if (!sbh)
 		goto out;
-	bfs_sb = (struct bfs_super_block *)info->si_sbh->b_data;
+	bfs_sb = (struct bfs_super_block *)sbh->b_data;
 	if (le32_to_cpu(bfs_sb->s_magic) != BFS_MAGIC) {
 		if (!silent)
 			printf("No BFS filesystem on %s (magic=%08x)\n", 
@@ -466,10 +437,7 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 			info->si_lf_eblk = eblock;
 	}
 	brelse(bh);
-	if (!(s->s_flags & MS_RDONLY)) {
-		mark_buffer_dirty(info->si_sbh);
-		s->s_dirt = 1;
-	} 
+	brelse(sbh);
 	dump_imap("read_super", s);
 	return 0;
 
@@ -479,7 +447,7 @@ out3:
 out2:
 	kfree(info->si_imap);
 out1:
-	brelse(info->si_sbh);
+	brelse(sbh);
 out:
 	mutex_destroy(&info->bfs_lock);
 	kfree(info);
