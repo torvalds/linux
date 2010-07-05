@@ -621,7 +621,7 @@ static match_table_t tokens = {
 	{Opt_err, NULL}
 };
 
-static int parse_options(char *options, struct super_block *sb)
+static int parse_options(char *options, struct super_block *sb, int is_remount)
 {
 	struct nilfs_sb_info *sbi = NILFS_SB(sb);
 	char *p;
@@ -666,8 +666,26 @@ static int parse_options(char *options, struct super_block *sb)
 		case Opt_snapshot:
 			if (match_int(&args[0], &option) || option <= 0)
 				return 0;
-			if (!(sb->s_flags & MS_RDONLY))
+			if (is_remount) {
+				if (!nilfs_test_opt(sbi, SNAPSHOT)) {
+					printk(KERN_ERR
+					       "NILFS: cannot change regular "
+					       "mount to snapshot.\n");
+					return 0;
+				} else if (option != sbi->s_snapshot_cno) {
+					printk(KERN_ERR
+					       "NILFS: cannot remount to a "
+					       "different snapshot.\n");
+					return 0;
+				}
+				break;
+			}
+			if (!(sb->s_flags & MS_RDONLY)) {
+				printk(KERN_ERR "NILFS: cannot mount snapshot "
+				       "read/write.  A read-only option is "
+				       "required.\n");
 				return 0;
+			}
 			sbi->s_snapshot_cno = option;
 			nilfs_set_opt(sbi, SNAPSHOT);
 			break;
@@ -767,7 +785,7 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 	sbi->s_interval = le32_to_cpu(sbp->s_c_interval);
 	sbi->s_watermark = le32_to_cpu(sbp->s_c_block_max);
 
-	return !parse_options(data, sb) ? -EINVAL : 0 ;
+	return !parse_options(data, sb, 0) ? -EINVAL : 0 ;
 }
 
 /**
@@ -929,32 +947,17 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	old_opts.snapshot_cno = sbi->s_snapshot_cno;
 	was_snapshot = nilfs_test_opt(sbi, SNAPSHOT);
 
-	if (!parse_options(data, sb)) {
+	if (!parse_options(data, sb, 1)) {
 		err = -EINVAL;
 		goto restore_opts;
 	}
 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL);
 
 	err = -EINVAL;
-	if (was_snapshot) {
-		if (!(*flags & MS_RDONLY)) {
-			printk(KERN_ERR "NILFS (device %s): cannot remount "
-			       "snapshot read/write.\n",
-			       sb->s_id);
-			goto restore_opts;
-		} else if (sbi->s_snapshot_cno != old_opts.snapshot_cno) {
-			printk(KERN_ERR "NILFS (device %s): cannot "
-			       "remount to a different snapshot.\n",
-			       sb->s_id);
-			goto restore_opts;
-		}
-	} else {
-		if (nilfs_test_opt(sbi, SNAPSHOT)) {
-			printk(KERN_ERR "NILFS (device %s): cannot change "
-			       "a regular mount to a snapshot.\n",
-			       sb->s_id);
-			goto restore_opts;
-		}
+	if (was_snapshot && !(*flags & MS_RDONLY)) {
+		printk(KERN_ERR "NILFS (device %s): cannot remount snapshot "
+		       "read/write.\n", sb->s_id);
+		goto restore_opts;
 	}
 
 	if (!nilfs_valid_fs(nilfs)) {
