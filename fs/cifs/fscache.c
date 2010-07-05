@@ -124,3 +124,29 @@ void cifs_fscache_reset_inode_cookie(struct inode *inode)
 				cifsi->fscache, old);
 	}
 }
+
+int cifs_fscache_release_page(struct page *page, gfp_t gfp)
+{
+	if (PageFsCache(page)) {
+		struct inode *inode = page->mapping->host;
+		struct cifsInodeInfo *cifsi = CIFS_I(inode);
+
+		cFYI(1, "CIFS: fscache release page (0x%p/0x%p)",
+				page, cifsi->fscache);
+		if (!fscache_maybe_release_page(cifsi->fscache, page, gfp))
+			return 0;
+	}
+
+	return 1;
+}
+
+void __cifs_fscache_invalidate_page(struct page *page, struct inode *inode)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct fscache_cookie *cookie = cifsi->fscache;
+
+	cFYI(1, "CIFS: fscache invalidatepage (0x%p/0x%p)", page, cookie);
+	fscache_wait_on_page_write(cookie, page);
+	fscache_uncache_page(cookie, page);
+}
+
