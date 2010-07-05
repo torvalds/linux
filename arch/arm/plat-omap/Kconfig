@@ -1,6 +1,6 @@
 if ARCH_OMAP
 
-menu "TI OMAP Implementations"
+menu "TI OMAP Common Features"
 
 config ARCH_OMAP_OTG
 	bool

@@ -1,3 +1,7 @@
+if ARCH_OMAP1
+
+menu "TI OMAP1 specific features"
+
 comment "OMAP Core Type"
 	depends on ARCH_OMAP1
 
@@ -237,3 +241,6 @@ config OMAP_ARM_30MHZ
 	help
           Enable 30MHz clock for OMAP CPU. If unsure, say N.
 
+endmenu
+
+endif

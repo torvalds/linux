@@ -1,3 +1,7 @@
+if ARCH_OMAP2PLUS
+
+menu "TI OMAP2/3/4 Specific Features"
+
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
@@ -186,3 +190,6 @@ config OMAP3_SDRC_AC_TIMING
 	  wish to say no.  Selecting yes without understanding what is
 	  going on could result in system crashes;
 
+endmenu
+
+endif
