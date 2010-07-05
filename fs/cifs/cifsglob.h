@@ -192,6 +192,9 @@ struct TCP_Server_Info {
 	bool	sec_mskerberos;		/* supports legacy MS Kerberos */
 	bool	sec_kerberosu2u;	/* supports U2U Kerberos */
 	bool	sec_ntlmssp;		/* supports NTLMSSP */
+#ifdef CONFIG_CIFS_FSCACHE
+	struct fscache_cookie   *fscache; /* client index cache cookie */
+#endif
 };
 
 /*

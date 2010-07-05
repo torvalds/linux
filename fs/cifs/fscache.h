@@ -23,16 +23,30 @@
 
 #include <linux/fscache.h>
 
+#include "cifsglob.h"
+
 #ifdef CONFIG_CIFS_FSCACHE
 
 extern struct fscache_netfs cifs_fscache_netfs;
+extern const struct fscache_cookie_def cifs_fscache_server_index_def;
 
 extern int cifs_fscache_register(void);
 extern void cifs_fscache_unregister(void);
 
+/*
+ * fscache.c
+ */
+extern void cifs_fscache_get_client_cookie(struct TCP_Server_Info *);
+extern void cifs_fscache_release_client_cookie(struct TCP_Server_Info *);
+
 #else /* CONFIG_CIFS_FSCACHE */
 static inline int cifs_fscache_register(void) { return 0; }
 static inline void cifs_fscache_unregister(void) {}
+
+static inline void
+cifs_fscache_get_client_cookie(struct TCP_Server_Info *server) {}
+static inline void
+cifs_fscache_get_client_cookie(struct TCP_Server_Info *server); {}
 
 #endif /* CONFIG_CIFS_FSCACHE */
 
