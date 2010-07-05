@@ -148,33 +148,33 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_hotplug = 1, .is_gen6 = 1,
 };
 
-static const struct pci_device_id pciidlist[] = {
-	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
-	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
-	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),
+static const struct pci_device_id pciidlist[] = {		/* aka */
+	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),		/* I830_M */
+	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),		/* 845_G */
+	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),		/* I855_GM */
 	INTEL_VGA_DEVICE(0x358e, &intel_i85x_info),
-	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),
-	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),
-	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),
-	INTEL_VGA_DEVICE(0x2592, &intel_i915gm_info),
-	INTEL_VGA_DEVICE(0x2772, &intel_i945g_info),
-	INTEL_VGA_DEVICE(0x27a2, &intel_i945gm_info),
-	INTEL_VGA_DEVICE(0x27ae, &intel_i945gm_info),
-	INTEL_VGA_DEVICE(0x2972, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x2982, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x2992, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x29a2, &intel_i965g_info),
-	INTEL_VGA_DEVICE(0x29b2, &intel_g33_info),
-	INTEL_VGA_DEVICE(0x29c2, &intel_g33_info),
-	INTEL_VGA_DEVICE(0x29d2, &intel_g33_info),
-	INTEL_VGA_DEVICE(0x2a02, &intel_i965gm_info),
-	INTEL_VGA_DEVICE(0x2a12, &intel_i965gm_info),
-	INTEL_VGA_DEVICE(0x2a42, &intel_gm45_info),
-	INTEL_VGA_DEVICE(0x2e02, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e12, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e22, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e32, &intel_g45_info),
-	INTEL_VGA_DEVICE(0x2e42, &intel_g45_info),
+	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),		/* I865_G */
+	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),		/* I915_G */
+	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),		/* E7221_G */
+	INTEL_VGA_DEVICE(0x2592, &intel_i915gm_info),		/* I915_GM */
+	INTEL_VGA_DEVICE(0x2772, &intel_i945g_info),		/* I945_G */
+	INTEL_VGA_DEVICE(0x27a2, &intel_i945gm_info),		/* I945_GM */
+	INTEL_VGA_DEVICE(0x27ae, &intel_i945gm_info),		/* I945_GME */
+	INTEL_VGA_DEVICE(0x2972, &intel_i965g_info),		/* I946_GZ */
+	INTEL_VGA_DEVICE(0x2982, &intel_i965g_info),		/* G35_G */
+	INTEL_VGA_DEVICE(0x2992, &intel_i965g_info),		/* I965_Q */
+	INTEL_VGA_DEVICE(0x29a2, &intel_i965g_info),		/* I965_G */
+	INTEL_VGA_DEVICE(0x29b2, &intel_g33_info),		/* Q35_G */
+	INTEL_VGA_DEVICE(0x29c2, &intel_g33_info),		/* G33_G */
+	INTEL_VGA_DEVICE(0x29d2, &intel_g33_info),		/* Q33_G */
+	INTEL_VGA_DEVICE(0x2a02, &intel_i965gm_info),		/* I965_GM */
+	INTEL_VGA_DEVICE(0x2a12, &intel_i965gm_info),		/* I965_GME */
+	INTEL_VGA_DEVICE(0x2a42, &intel_gm45_info),		/* GM45_G */
+	INTEL_VGA_DEVICE(0x2e02, &intel_g45_info),		/* IGD_E_G */
+	INTEL_VGA_DEVICE(0x2e12, &intel_g45_info),		/* Q45_G */
+	INTEL_VGA_DEVICE(0x2e22, &intel_g45_info),		/* G45_G */
+	INTEL_VGA_DEVICE(0x2e32, &intel_g45_info),		/* G41_G */
+	INTEL_VGA_DEVICE(0x2e42, &intel_g45_info),		/* B43_G */
 	INTEL_VGA_DEVICE(0xa001, &intel_pineview_info),
 	INTEL_VGA_DEVICE(0xa011, &intel_pineview_info),
 	INTEL_VGA_DEVICE(0x0042, &intel_ironlake_d_info),
