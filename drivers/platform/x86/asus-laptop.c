@@ -1124,7 +1124,7 @@ static int asus_input_init(struct asus_laptop *asus)
 	input = input_allocate_device();
 	if (!input) {
 		pr_info("Unable to allocate input device\n");
-		return 0;
+		return -ENOMEM;
 	}
 	input->name = "Asus Laptop extra buttons";
 	input->phys = ASUS_LAPTOP_FILE "/input0";
@@ -1135,20 +1135,20 @@ static int asus_input_init(struct asus_laptop *asus)
 	error = sparse_keymap_setup(input, asus_keymap, NULL);
 	if (error) {
 		pr_err("Unable to setup input device keymap\n");
-		goto err_keymap;
+		goto err_free_dev;
 	}
 	error = input_register_device(input);
 	if (error) {
 		pr_info("Unable to register input device\n");
-		goto err_device;
+		goto err_free_keymap;
 	}
 
 	asus->inputdev = input;
 	return 0;
 
-err_keymap:
+err_free_keymap:
 	sparse_keymap_free(input);
-err_device:
+err_free_dev:
 	input_free_device(input);
 	return error;
 }
