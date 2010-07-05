@@ -30,7 +30,6 @@
 #include <asm/irq.h>
 
 #include <plat/control.h>
-#include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
 
@@ -39,6 +38,8 @@
 #define INT_USB_IRQ_ISO		INT_24XX_USB_IRQ_ISO
 #define INT_USB_IRQ_HGEN	INT_24XX_USB_IRQ_HGEN
 #define INT_USB_IRQ_OTG		INT_24XX_USB_IRQ_OTG
+
+#include "mux.h"
 
 #if defined(CONFIG_ARCH_OMAP2)
 
@@ -209,13 +210,13 @@ static u32 __init omap2_usb0_init(unsigned nwires, unsigned is_device)
 		return 0;
 
 	if (is_device)
-		omap_cfg_reg(J20_24XX_USB0_PUEN);
+		omap_mux_init_signal("usb0_puen", 0);
 
-	omap_cfg_reg(K18_24XX_USB0_DAT);
-	omap_cfg_reg(K19_24XX_USB0_TXEN);
-	omap_cfg_reg(J14_24XX_USB0_SE0);
+	omap_mux_init_signal("usb0_dat", 0);
+	omap_mux_init_signal("usb0_txen", 0);
+	omap_mux_init_signal("usb0_se0", 0);
 	if (nwires != 3)
-		omap_cfg_reg(J18_24XX_USB0_RCV);
+		omap_mux_init_signal("usb0_rcv", 0);
 
 	switch (nwires) {
 	case 3:
@@ -228,8 +229,8 @@ static u32 __init omap2_usb0_init(unsigned nwires, unsigned is_device)
 		break;
 	case 6:
 		syscon1 = 3;
-		omap_cfg_reg(J19_24XX_USB0_VP);
-		omap_cfg_reg(K20_24XX_USB0_VM);
+		omap_mux_init_signal("usb0_vp", 0);
+		omap_mux_init_signal("usb0_vm", 0);
 		omap2_usb_devconf_set(0, USB_UNIDIR);
 		break;
 	default:
@@ -289,12 +290,12 @@ static u32 __init omap2_usb2_init(unsigned nwires, unsigned alt_pingroup)
 	if (alt_pingroup || nwires == 0)
 		return 0;
 
-	omap_cfg_reg(Y11_24XX_USB2_DAT);
-	omap_cfg_reg(AA10_24XX_USB2_SE0);
+	omap_mux_init_signal("usb2_dat", 0);
+	omap_mux_init_signal("usb2_se0", 0);
 	if (nwires > 2)
-		omap_cfg_reg(AA12_24XX_USB2_TXEN);
+		omap_mux_init_signal("usb2_txen", 0);
 	if (nwires > 3)
-		omap_cfg_reg(AA6_24XX_USB2_RCV);
+		omap_mux_init_signal("usb2_rcv", 0);
 
 	switch (nwires) {
 	case 2:
@@ -313,11 +314,13 @@ static u32 __init omap2_usb2_init(unsigned nwires, unsigned alt_pingroup)
 		omap2_usb_devconf_set(2, USB_BIDIR);
 		break;
 	case 5:
-		omap_cfg_reg(AA4_24XX_USB2_TLLSE0);
-		/* NOTE: board-specific code must override this setting if
-		 * this TLL link is not using DP/DM.  Something must also
+		/* NOTE: board-specific code must mux this setting depending
+		 * on TLL link using DP/DM.  Something must also
 		 * set up OTG_SYSCON2.HMC_TLL{ATTACH,SPEED}
+		 * 2420: hdq_sio.usb2_tllse0 or vlynq_rx0.usb2_tllse0
+		 * 2430: hdq_sio.usb2_tllse0 or sdmmc2_dat0.usb2_tllse0
 		 */
+
 		syscon1 = 3;
 		omap2_usb2_enable_5pinunitll();
 		break;
