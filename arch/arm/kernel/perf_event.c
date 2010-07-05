@@ -201,7 +201,7 @@ armpmu_event_update(struct perf_event *event,
 {
 	int shift = 64 - 32;
 	s64 prev_raw_count, new_raw_count;
-	s64 delta;
+	u64 delta;
 
 again:
 	prev_raw_count = atomic64_read(&hwc->prev_count);
