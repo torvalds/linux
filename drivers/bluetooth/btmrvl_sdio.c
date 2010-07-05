@@ -83,10 +83,10 @@ static int btmrvl_sdio_read_fw_status(struct btmrvl_sdio_card *card, u16 *dat)
 	*dat = 0;
 
 	fws0 = sdio_readb(card->func, CARD_FW_STATUS0_REG, &ret);
+	if (ret)
+		return -EIO;
 
-	if (!ret)
-		fws1 = sdio_readb(card->func, CARD_FW_STATUS1_REG, &ret);
-
+	fws1 = sdio_readb(card->func, CARD_FW_STATUS1_REG, &ret);
 	if (ret)
 		return -EIO;
 
