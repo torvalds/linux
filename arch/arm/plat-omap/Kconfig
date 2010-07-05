@@ -120,7 +120,7 @@ config OMAP_IOMMU_DEBUG
 
 choice
 	prompt "System timer"
-	default OMAP_MPU_TIMER
+	default OMAP_32K_TIMER if !ARCH_OMAP15XX
 
 config OMAP_MPU_TIMER
 	bool "Use mpu timer"
