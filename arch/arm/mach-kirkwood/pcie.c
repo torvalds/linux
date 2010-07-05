@@ -108,9 +108,10 @@ static struct pci_ops pcie_ops = {
 	.write = pcie_wr_conf,
 };
 
-static int __init pcie0_ioresources_setup(struct pci_sys_data *sys)
+static void __init pcie0_ioresources_init(struct pcie_port *pp)
 {
-	struct pcie_port *pp = (struct pcie_port *)sys->private_data;
+	pp->base = (void __iomem *)PCIE_VIRT_BASE;
+	pp->irq	= IRQ_KIRKWOOD_PCIE;
 
 	/*
 	 * IORESOURCE_IO
@@ -119,9 +120,6 @@ static int __init pcie0_ioresources_setup(struct pci_sys_data *sys)
 	pp->res[0].start = KIRKWOOD_PCIE_IO_PHYS_BASE;
 	pp->res[0].end = pp->res[0].start + KIRKWOOD_PCIE_IO_SIZE - 1;
 	pp->res[0].flags = IORESOURCE_IO;
-	if (request_resource(&ioport_resource, &pp->res[0]))
-		panic("Request PCIe 0 IO resource failed\n");
-	sys->resource[0] = &pp->res[0];
 
 	/*
 	 * IORESOURCE_MEM
@@ -130,19 +128,12 @@ static int __init pcie0_ioresources_setup(struct pci_sys_data *sys)
 	pp->res[1].start = KIRKWOOD_PCIE_MEM_PHYS_BASE;
 	pp->res[1].end = pp->res[1].start + KIRKWOOD_PCIE_MEM_SIZE - 1;
 	pp->res[1].flags = IORESOURCE_MEM;
-	if (request_resource(&iomem_resource, &pp->res[1]))
-		panic("Request PCIe 0 Memory resource failed\n");
-	sys->resource[1] = &pp->res[1];
-
-	sys->resource[2] = NULL;
-	sys->io_offset = 0;
-
-	return 1;
 }
 
-static int __init pcie1_ioresources_setup(struct pci_sys_data *sys)
+static void __init pcie1_ioresources_init(struct pcie_port *pp)
 {
-	struct pcie_port *pp = (struct pcie_port *)sys->private_data;
+	pp->base = (void __iomem *)PCIE1_VIRT_BASE;
+	pp->irq	= IRQ_KIRKWOOD_PCIE1;
 
 	/*
 	 * IORESOURCE_IO
@@ -151,9 +142,6 @@ static int __init pcie1_ioresources_setup(struct pci_sys_data *sys)
 	pp->res[0].start = KIRKWOOD_PCIE1_IO_PHYS_BASE;
 	pp->res[0].end = pp->res[0].start + KIRKWOOD_PCIE1_IO_SIZE - 1;
 	pp->res[0].flags = IORESOURCE_IO;
-	if (request_resource(&ioport_resource, &pp->res[0]))
-		panic("Request PCIe 1 IO resource failed\n");
-	sys->resource[0] = &pp->res[0];
 
 	/*
 	 * IORESOURCE_MEM
@@ -162,14 +150,6 @@ static int __init pcie1_ioresources_setup(struct pci_sys_data *sys)
 	pp->res[1].start = KIRKWOOD_PCIE1_MEM_PHYS_BASE;
 	pp->res[1].end = pp->res[1].start + KIRKWOOD_PCIE1_MEM_SIZE - 1;
 	pp->res[1].flags = IORESOURCE_MEM;
-	if (request_resource(&iomem_resource, &pp->res[1]))
-		panic("Request PCIe 1 Memory resource failed\n");
-	sys->resource[1] = &pp->res[1];
-
-	sys->resource[2] = NULL;
-	sys->io_offset = 0;
-
-	return 1;
 }
 
 static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
@@ -193,20 +173,26 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	switch (index) {
 	case 0:
-		pp->base = (void __iomem *)PCIE_VIRT_BASE;
-		pp->irq	= IRQ_KIRKWOOD_PCIE;
 		kirkwood_clk_ctrl |= CGC_PEX0;
-		pcie0_ioresources_setup(sys);
+		pcie0_ioresources_init(pp);
 		break;
 	case 1:
-		pp->base = (void __iomem *)PCIE1_VIRT_BASE;
-		pp->irq	= IRQ_KIRKWOOD_PCIE1;
 		kirkwood_clk_ctrl |= CGC_PEX1;
-		pcie1_ioresources_setup(sys);
+		pcie1_ioresources_init(pp);
 		break;
 	default:
-		panic("PCIe setup: invalid controller");
+		panic("PCIe setup: invalid controller %d", index);
 	}
+
+	if (request_resource(&ioport_resource, &pp->res[0]))
+		panic("Request PCIe%d IO resource failed\n", index);
+	if (request_resource(&iomem_resource, &pp->res[1]))
+		panic("Request PCIe%d Memory resource failed\n", index);
+
+	sys->resource[0] = &pp->res[0];
+	sys->resource[1] = &pp->res[1];
+	sys->resource[2] = NULL;
+	sys->io_offset = 0;
 
 	/*
 	 * Generic PCIe unit setup.
