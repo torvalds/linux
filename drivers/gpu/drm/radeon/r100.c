@@ -1628,6 +1628,7 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		case RADEON_TXFORMAT_RGB332:
 		case RADEON_TXFORMAT_Y8:
 			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case RADEON_TXFORMAT_AI88:
 		case RADEON_TXFORMAT_ARGB1555:
@@ -1639,12 +1640,14 @@ static int r100_packet0_check(struct radeon_cs_parser *p,
 		case RADEON_TXFORMAT_LDUDV655:
 		case RADEON_TXFORMAT_DUDV88:
 			track->textures[i].cpp = 2;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case RADEON_TXFORMAT_ARGB8888:
 		case RADEON_TXFORMAT_RGBA8888:
 		case RADEON_TXFORMAT_SHADOW32:
 		case RADEON_TXFORMAT_LDUDUV8888:
 			track->textures[i].cpp = 4;
+			track->textures[i].compress_format = R100_TRACK_COMP_NONE;
 			break;
 		case RADEON_TXFORMAT_DXT1:
 			track->textures[i].cpp = 1;
@@ -2604,12 +2607,6 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 	int surf_index = reg * 16;
 	int flags = 0;
 
-	/* r100/r200 divide by 16 */
-	if (rdev->family < CHIP_R300)
-		flags = pitch / 16;
-	else
-		flags = pitch / 8;
-
 	if (rdev->family <= CHIP_RS200) {
 		if ((tiling_flags & (RADEON_TILING_MACRO|RADEON_TILING_MICRO))
 				 == (RADEON_TILING_MACRO|RADEON_TILING_MICRO))
@@ -2632,6 +2629,20 @@ int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 		flags |= RADEON_SURF_AP0_SWP_16BPP | RADEON_SURF_AP1_SWP_16BPP;
 	if (tiling_flags & RADEON_TILING_SWAP_32BIT)
 		flags |= RADEON_SURF_AP0_SWP_32BPP | RADEON_SURF_AP1_SWP_32BPP;
+
+	/* when we aren't tiling the pitch seems to needs to be furtherdivided down. - tested on power5 + rn50 server */
+	if (tiling_flags & (RADEON_TILING_SWAP_16BIT | RADEON_TILING_SWAP_32BIT)) {
+		if (!(tiling_flags & (RADEON_TILING_MACRO | RADEON_TILING_MICRO)))
+			if (ASIC_IS_RN50(rdev))
+				pitch /= 16;
+	}
+
+	/* r100/r200 divide by 16 */
+	if (rdev->family < CHIP_R300)
+		flags |= pitch / 16;
+	else
+		flags |= pitch / 8;
+
 
 	DRM_DEBUG("writing surface %d %d %x %x\n", reg, flags, offset, offset+obj_size-1);
 	WREG32(RADEON_SURFACE0_INFO + surf_index, flags);
@@ -3147,33 +3158,6 @@ static inline void r100_cs_track_texture_print(struct r100_cs_track_texture *t)
 	DRM_ERROR("compress format            %d\n", t->compress_format);
 }
 
-static int r100_cs_track_cube(struct radeon_device *rdev,
-			      struct r100_cs_track *track, unsigned idx)
-{
-	unsigned face, w, h;
-	struct radeon_bo *cube_robj;
-	unsigned long size;
-
-	for (face = 0; face < 5; face++) {
-		cube_robj = track->textures[idx].cube_info[face].robj;
-		w = track->textures[idx].cube_info[face].width;
-		h = track->textures[idx].cube_info[face].height;
-
-		size = w * h;
-		size *= track->textures[idx].cpp;
-
-		size += track->textures[idx].cube_info[face].offset;
-
-		if (size > radeon_bo_size(cube_robj)) {
-			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
-				  size, radeon_bo_size(cube_robj));
-			r100_cs_track_texture_print(&track->textures[idx]);
-			return -1;
-		}
-	}
-	return 0;
-}
-
 static int r100_track_compress_size(int compress_format, int w, int h)
 {
 	int block_width, block_height, block_bytes;
@@ -3202,6 +3186,37 @@ static int r100_track_compress_size(int compress_format, int w, int h)
 		wblocks = min_wblocks;
 	sz = wblocks * hblocks * block_bytes;
 	return sz;
+}
+
+static int r100_cs_track_cube(struct radeon_device *rdev,
+			      struct r100_cs_track *track, unsigned idx)
+{
+	unsigned face, w, h;
+	struct radeon_bo *cube_robj;
+	unsigned long size;
+	unsigned compress_format = track->textures[idx].compress_format;
+
+	for (face = 0; face < 5; face++) {
+		cube_robj = track->textures[idx].cube_info[face].robj;
+		w = track->textures[idx].cube_info[face].width;
+		h = track->textures[idx].cube_info[face].height;
+
+		if (compress_format) {
+			size = r100_track_compress_size(compress_format, w, h);
+		} else
+			size = w * h;
+		size *= track->textures[idx].cpp;
+
+		size += track->textures[idx].cube_info[face].offset;
+
+		if (size > radeon_bo_size(cube_robj)) {
+			DRM_ERROR("Cube texture offset greater than object size %lu %lu\n",
+				  size, radeon_bo_size(cube_robj));
+			r100_cs_track_texture_print(&track->textures[idx]);
+			return -1;
+		}
+	}
+	return 0;
 }
 
 static int r100_cs_track_texture_check(struct radeon_device *rdev,

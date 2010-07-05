@@ -2062,6 +2062,12 @@ static void dynamic_debug_setup(struct _ddebug *debug, unsigned int num)
 #endif
 }
 
+static void dynamic_debug_remove(struct _ddebug *debug)
+{
+	if (debug)
+		ddebug_remove_module(debug->modname);
+}
+
 static void *module_alloc_update_bounds(unsigned long size)
 {
 	void *ret = module_alloc(size);
@@ -2124,6 +2130,8 @@ static noinline struct module *load_module(void __user *umod,
 	void *ptr = NULL; /* Stops spurious gcc warning */
 	unsigned long symoffs, stroffs, *strmap;
 	void __percpu *percpu;
+	struct _ddebug *debug = NULL;
+	unsigned int num_debug = 0;
 
 	mm_segment_t old_fs;
 
@@ -2476,15 +2484,9 @@ static noinline struct module *load_module(void __user *umod,
 	kfree(strmap);
 	strmap = NULL;
 
-	if (!mod->taints) {
-		struct _ddebug *debug;
-		unsigned int num_debug;
-
+	if (!mod->taints)
 		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
-		if (debug)
-			dynamic_debug_setup(debug, num_debug);
-	}
 
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
@@ -2526,10 +2528,13 @@ static noinline struct module *load_module(void __user *umod,
 		goto unlock;
 	}
 
+	if (debug)
+		dynamic_debug_setup(debug, num_debug);
+
 	/* Find duplicate symbols */
 	err = verify_export_symbols(mod);
 	if (err < 0)
-		goto unlock;
+		goto ddebug;
 
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
@@ -2557,6 +2562,8 @@ static noinline struct module *load_module(void __user *umod,
 	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
+ ddebug:
+	dynamic_debug_remove(debug);
  unlock:
 	mutex_unlock(&module_mutex);
 	synchronize_sched();

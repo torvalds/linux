@@ -146,7 +146,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_fb_helper_conn
 				cvt = 1;
 			break;
 		case 'R':
-			if (!cvt)
+			if (cvt)
 				rb = 1;
 			break;
 		case 'm':
@@ -1024,11 +1024,18 @@ static struct drm_display_mode *drm_pick_cmdline_mode(struct drm_fb_helper_conne
 	}
 
 create_mode:
-	mode = drm_cvt_mode(fb_helper_conn->connector->dev, cmdline_mode->xres,
-			    cmdline_mode->yres,
-			    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
-			    cmdline_mode->rb, cmdline_mode->interlace,
-			    cmdline_mode->margins);
+	if (cmdline_mode->cvt)
+		mode = drm_cvt_mode(fb_helper_conn->connector->dev,
+				    cmdline_mode->xres, cmdline_mode->yres,
+				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+				    cmdline_mode->rb, cmdline_mode->interlace,
+				    cmdline_mode->margins);
+	else
+		mode = drm_gtf_mode(fb_helper_conn->connector->dev,
+				    cmdline_mode->xres, cmdline_mode->yres,
+				    cmdline_mode->refresh_specified ? cmdline_mode->refresh : 60,
+				    cmdline_mode->interlace,
+				    cmdline_mode->margins);
 	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
 	list_add(&mode->head, &fb_helper_conn->connector->modes);
 	return mode;

@@ -302,6 +302,12 @@ struct smi_info {
 
 static int force_kipmid[SI_MAX_PARMS];
 static int num_force_kipmid;
+#ifdef CONFIG_PCI
+static int pci_registered;
+#endif
+#ifdef CONFIG_PPC_OF
+static int of_registered;
+#endif
 
 static unsigned int kipmid_max_busy_us[SI_MAX_PARMS];
 static int num_max_busy_us;
@@ -1018,7 +1024,7 @@ static int ipmi_thread(void *data)
 		else if (smi_result == SI_SM_IDLE)
 			schedule_timeout_interruptible(100);
 		else
-			schedule_timeout_interruptible(0);
+			schedule_timeout_interruptible(1);
 	}
 	return 0;
 }
@@ -3314,6 +3320,8 @@ static __devinit int init_ipmi_si(void)
 	rv = pci_register_driver(&ipmi_pci_driver);
 	if (rv)
 		printk(KERN_ERR PFX "Unable to register PCI driver: %d\n", rv);
+	else
+		pci_registered = 1;
 #endif
 
 #ifdef CONFIG_ACPI
@@ -3330,6 +3338,7 @@ static __devinit int init_ipmi_si(void)
 
 #ifdef CONFIG_PPC_OF
 	of_register_platform_driver(&ipmi_of_platform_driver);
+	of_registered = 1;
 #endif
 
 	/* We prefer devices with interrupts, but in the case of a machine
@@ -3383,11 +3392,13 @@ static __devinit int init_ipmi_si(void)
 	if (unload_when_empty && list_empty(&smi_infos)) {
 		mutex_unlock(&smi_infos_lock);
 #ifdef CONFIG_PCI
-		pci_unregister_driver(&ipmi_pci_driver);
+		if (pci_registered)
+			pci_unregister_driver(&ipmi_pci_driver);
 #endif
 
 #ifdef CONFIG_PPC_OF
-		of_unregister_platform_driver(&ipmi_of_platform_driver);
+		if (of_registered)
+			of_unregister_platform_driver(&ipmi_of_platform_driver);
 #endif
 		driver_unregister(&ipmi_driver.driver);
 		printk(KERN_WARNING PFX
@@ -3478,14 +3489,16 @@ static __exit void cleanup_ipmi_si(void)
 		return;
 
 #ifdef CONFIG_PCI
-	pci_unregister_driver(&ipmi_pci_driver);
+	if (pci_registered)
+		pci_unregister_driver(&ipmi_pci_driver);
 #endif
 #ifdef CONFIG_ACPI
 	pnp_unregister_driver(&ipmi_pnp_driver);
 #endif
 
 #ifdef CONFIG_PPC_OF
-	of_unregister_platform_driver(&ipmi_of_platform_driver);
+	if (of_registered)
+		of_unregister_platform_driver(&ipmi_of_platform_driver);
 #endif
 
 	mutex_lock(&smi_infos_lock);

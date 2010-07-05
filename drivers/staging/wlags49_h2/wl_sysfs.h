@@ -2,6 +2,6 @@
 extern void register_wlags_sysfs(struct net_device *);
 extern void unregister_wlags_sysfs(struct net_device *);
 #else
-static void register_wlags_sysfs(struct net_device *) { return; };
-static void unregister_wlags_sysfs(struct net_device *) { return; };
+static inline void register_wlags_sysfs(struct net_device *net) { }
+static inline void unregister_wlags_sysfs(struct net_device *net) { }
 #endif

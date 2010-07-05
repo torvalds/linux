@@ -177,6 +177,7 @@ void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
+void rs690_pm_info(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -619,7 +620,8 @@ enum radeon_dynpm_state {
 	DYNPM_STATE_DISABLED,
 	DYNPM_STATE_MINIMUM,
 	DYNPM_STATE_PAUSED,
-	DYNPM_STATE_ACTIVE
+	DYNPM_STATE_ACTIVE,
+	DYNPM_STATE_SUSPENDED,
 };
 enum radeon_dynpm_action {
 	DYNPM_ACTION_NONE,
