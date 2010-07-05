@@ -142,11 +142,14 @@ enum HPI_BUSES {
 /******************************************* CONTROL ATTRIBUTES ****/
 /* (in order of control type ID */
 
-	/* This allows for 255 control types, 256 unique attributes each */
+/* This allows for 255 control types, 256 unique attributes each */
 #define HPI_CTL_ATTR(ctl, ai) (HPI_CONTROL_##ctl * 0x100 + ai)
 
 /* Get the sub-index of the attribute for a control type */
 #define HPI_CTL_ATTR_INDEX(i) (i&0xff)
+
+/* Extract the control from the control attribute */
+#define HPI_CTL_ATTR_CONTROL(i) (i>>8)
 
 /* Generic control attributes.  */
 
@@ -311,8 +314,7 @@ Used for HPI_ChannelModeSet/Get()
 /* Microphone control attributes */
 #define HPI_MICROPHONE_PHANTOM_POWER HPI_CTL_ATTR(MICROPHONE, 1)
 
-/** Equalizer control attributes
-*/
+/** Equalizer control attributes */
 /** Used to get number of filters in an EQ. (Can't set) */
 #define HPI_EQUALIZER_NUM_FILTERS HPI_CTL_ATTR(EQUALIZER, 1)
 /** Set/get the filter by type, freq, Q, gain */
@@ -320,13 +322,15 @@ Used for HPI_ChannelModeSet/Get()
 /** Get the biquad coefficients */
 #define HPI_EQUALIZER_COEFFICIENTS HPI_CTL_ATTR(EQUALIZER, 3)
 
-#define HPI_COMPANDER_PARAMS HPI_CTL_ATTR(COMPANDER, 1)
+/* Note compander also uses HPI_GENERIC_ENABLE */
+#define HPI_COMPANDER_PARAMS     HPI_CTL_ATTR(COMPANDER, 1)
+#define HPI_COMPANDER_MAKEUPGAIN HPI_CTL_ATTR(COMPANDER, 2)
+#define HPI_COMPANDER_THRESHOLD  HPI_CTL_ATTR(COMPANDER, 3)
+#define HPI_COMPANDER_RATIO      HPI_CTL_ATTR(COMPANDER, 4)
+#define HPI_COMPANDER_ATTACK     HPI_CTL_ATTR(COMPANDER, 5)
+#define HPI_COMPANDER_DECAY      HPI_CTL_ATTR(COMPANDER, 6)
 
-/* Cobranet control attributes.
-   MUST be distinct from all other control attributes.
-   This is so that host side processing can easily identify a Cobranet control
-   and apply additional host side operations (like copying data) as required.
-*/
+/* Cobranet control attributes. */
 #define HPI_COBRANET_SET         HPI_CTL_ATTR(COBRANET, 1)
 #define HPI_COBRANET_GET         HPI_CTL_ATTR(COBRANET, 2)
 #define HPI_COBRANET_SET_DATA    HPI_CTL_ATTR(COBRANET, 3)
@@ -1512,11 +1516,11 @@ struct hpi_control_cache_single {
 	struct hpi_control_cache_info i;
 	union {
 		struct {	/* volume */
-			u16 an_log[2];
+			short an_log[2];
 		} v;
 		struct {	/* peak meter */
-			u16 an_log_peak[2];
-			u16 an_logRMS[2];
+			short an_log_peak[2];
+			short an_logRMS[2];
 		} p;
 		struct {	/* channel mode */
 			u16 mode;
@@ -1526,7 +1530,7 @@ struct hpi_control_cache_single {
 			u16 source_node_index;
 		} x;
 		struct {	/* level/trim */
-			u16 an_log[2];
+			short an_log[2];
 		} l;
 		struct {	/* tuner - partial caching.
 				   some attributes go to the DSP. */
