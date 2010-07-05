@@ -108,7 +108,7 @@ static unsigned short * const port_fer[] = {
 };
 #endif
 
-#define RESOURCE_LABEL_SIZE 	16
+#define RESOURCE_LABEL_SIZE	16
 
 static struct str_ident {
 	char name[RESOURCE_LABEL_SIZE];
@@ -659,7 +659,7 @@ EXPORT_SYMBOL(get_gpio_dir);
 
 /***********************************************************
 *
-* FUNCTIONS: 	Blackfin Peripheral Resource Allocation
+* FUNCTIONS:	Blackfin Peripheral Resource Allocation
 *		and PortMux Setup
 *
 * INPUTS/OUTPUTS:
