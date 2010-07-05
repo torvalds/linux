@@ -84,7 +84,6 @@ struct wm8960_priv {
 #define wm8960_reset(c)	snd_soc_write(c, WM8960_RESET, 0)
 
 /* enumerated controls */
-static const char *wm8960_deemph[] = {"None", "32Khz", "44.1Khz", "48Khz"};
 static const char *wm8960_polarity[] = {"No Inversion", "Left Inverted",
 	"Right Inverted", "Stereo Inversion"};
 static const char *wm8960_3d_upper_cutoff[] = {"High", "Low"};
@@ -93,7 +92,6 @@ static const char *wm8960_alcfunc[] = {"Off", "Right", "Left", "Stereo"};
 static const char *wm8960_alcmode[] = {"ALC", "Limiter"};
 
 static const struct soc_enum wm8960_enum[] = {
-	SOC_ENUM_SINGLE(WM8960_DACCTL1, 1, 4, wm8960_deemph),
 	SOC_ENUM_SINGLE(WM8960_DACCTL1, 5, 4, wm8960_polarity),
 	SOC_ENUM_SINGLE(WM8960_DACCTL2, 5, 4, wm8960_polarity),
 	SOC_ENUM_SINGLE(WM8960_3D, 6, 2, wm8960_3d_upper_cutoff),
@@ -131,23 +129,22 @@ SOC_SINGLE("Speaker DC Volume", WM8960_CLASSD3, 3, 5, 0),
 SOC_SINGLE("Speaker AC Volume", WM8960_CLASSD3, 0, 5, 0),
 
 SOC_SINGLE("PCM Playback -6dB Switch", WM8960_DACCTL1, 7, 1, 0),
-SOC_ENUM("ADC Polarity", wm8960_enum[1]),
-SOC_ENUM("Playback De-emphasis", wm8960_enum[0]),
+SOC_ENUM("ADC Polarity", wm8960_enum[0]),
 SOC_SINGLE("ADC High Pass Filter Switch", WM8960_DACCTL1, 0, 1, 0),
 
 SOC_ENUM("DAC Polarity", wm8960_enum[2]),
 
-SOC_ENUM("3D Filter Upper Cut-Off", wm8960_enum[3]),
-SOC_ENUM("3D Filter Lower Cut-Off", wm8960_enum[4]),
+SOC_ENUM("3D Filter Upper Cut-Off", wm8960_enum[2]),
+SOC_ENUM("3D Filter Lower Cut-Off", wm8960_enum[3]),
 SOC_SINGLE("3D Volume", WM8960_3D, 1, 15, 0),
 SOC_SINGLE("3D Switch", WM8960_3D, 0, 1, 0),
 
-SOC_ENUM("ALC Function", wm8960_enum[5]),
+SOC_ENUM("ALC Function", wm8960_enum[4]),
 SOC_SINGLE("ALC Max Gain", WM8960_ALC1, 4, 7, 0),
 SOC_SINGLE("ALC Target", WM8960_ALC1, 0, 15, 1),
 SOC_SINGLE("ALC Min Gain", WM8960_ALC2, 4, 7, 0),
 SOC_SINGLE("ALC Hold Time", WM8960_ALC2, 0, 15, 0),
-SOC_ENUM("ALC Mode", wm8960_enum[6]),
+SOC_ENUM("ALC Mode", wm8960_enum[5]),
 SOC_SINGLE("ALC Decay", WM8960_ALC3, 4, 15, 0),
 SOC_SINGLE("ALC Attack", WM8960_ALC3, 0, 15, 0),
 
