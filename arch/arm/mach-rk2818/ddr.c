@@ -20,19 +20,24 @@
 #include <linux/irqflags.h>
 #include <linux/string.h>
 #include <linux/version.h>
-#include <asm/uaccess.h>
+
 #include <asm/tcm.h>
-#include <asm/io.h>
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
 #include <mach/rk2818_iomap.h>
 #include <mach/memory.h>
+#include <linux/clk.h>
 #else
 #include <asm/arch/hardware.h>
 #include <asm/arch/rk28_debug.h>
 #include <asm/arch/rk28_scu.h>
 #endif
 #include <asm/delay.h>
+#include <asm/cacheflush.h>
+
+/* 20100615,HSL@RK,FOR pwm3 change vdd core.*/
+#include <asm/io.h>
+
 /*APB reg file*/
 typedef volatile struct tagGRF_REG
 {
@@ -72,6 +77,8 @@ typedef volatile struct tagSCU_REG
     unsigned int SCU_CPUPD;
 	unsigned int SCU_CLKSEL2_CON;
 }SCU_REG,*pSCU_REG;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
 /*intc*/
 typedef volatile struct tagINTC_REG
 {	/*offset 0x00~0x30*/
@@ -113,12 +120,24 @@ typedef volatile struct tagINTC_REG
 	unsigned int ICTL_COMP_TYPE;	   //Component Type Register
 }INTC_REG, *pINTC_REG;
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
 typedef u32 uint32;
 #define SCU_BASE_ADDR_VA	RK2818_SCU_BASE
 #define SDRAMC_BASE_ADDR_VA	RK2818_SDRAMC_BASE
 #define REG_FILE_BASE_ADDR_VA	RK2818_REGFILE_BASE
 #define INTC_BASE_ADDR_VA		RK2818_INTC_BASE
+
+static inline int rockchip_clk_get_ahb(void)
+{
+	struct clk *arm_hclk = clk_get(NULL, "arm_hclk");
+	int ahb = clk_get_rate(arm_hclk) / 1000;
+	clk_put(arm_hclk);
+	return ahb;
+}
+
+extern void clk_recalculate_root_clocks(void);
+
+#define S_INFO(msg...)
+
 #endif
 
 #define SDRAM_REG_BASE     (SDRAMC_BASE_ADDR_VA)
@@ -239,8 +258,11 @@ typedef volatile struct TagSDRAMC_REG
 #define pDDR_Reg       ((pDDRC_REG_T)DDR_REG_BASE)
 #define pSCU_Reg       ((pSCU_REG)SCU_BASE_ADDR_VA)
 #define pGRF_Reg       ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
+#define pUART_Reg       ((pUART_REG)UART0_BASE_ADDR_VA)
+
 
 #define DDR_MEM_TYPE()	(pGRF_Reg->CPU_APB_REG0 & MEMTYPEMASK)
+#define DDR_ENABLE_SLEEP()      // 20100521,NOT ENABLE SLEEP. do{pDDR_Reg->CTRL_REG_36 = 0x1F1F;}while(0)
 
 #define ODT_DIS          (0x0)
 #define ODT_75           (0x8)
@@ -673,37 +695,37 @@ typedef volatile struct tagUART_STRUCT
 #define  read32(address)           (*((uint32 volatile*)(address)))
 #define  write32(address, value)   (*((uint32 volatile*)(address)) = value)
 
+static volatile int __tcmdata rk28_debugs = 1;
+static uint32 __tcmdata save_sp;
 
- uint32 __tcmdata telement;
- uint32 __tcmdata capability;  //单个CS的容量
- uint32 __tcmdata SDRAMnewKHz = 150000;
- uint32 __tcmdata DDRnewKHz = 400000 ; //266000;
- uint32 __tcmdata SDRAMoldKHz = 66000;
- uint32 __tcmdata DDRoldKHz = 200000;
-
- volatile int __tcmdata rk28_debugs = 1;
- uint32 __tcmdata save_sp;
+static uint32 __tcmdata telement;
+static uint32 __tcmdata capability;  //单个CS的容量
+static uint32 __tcmdata SDRAMnewKHz = 150000;
+static uint32 __tcmdata DDRnewKHz = 400000 ; //266000;
+static uint32 __tcmdata SDRAMoldKHz = 66000;
+static uint32 __tcmdata DDRoldKHz = 200000;
+static unsigned int __tcmdata ddr_reg[8] ;
  
-__tcmdata uint32 bFreqRaise;
-__tcmdata uint32 elementCnt;
-__tcmdata uint32 ddrSREF;
-__tcmdata uint32 ddrRASMAX;
-__tcmdata uint32 ddrCTRL_REG_23;
-__tcmdata uint32 ddrCTRL_REG_24;
-__tcmdata uint32 ddrCTRL_REG_37;
-__tcmdata uint32 ddrCTRL_REG_34;
-__tcmdata uint32 ddrCTRL_REG_35;
-__tcmdata uint32 ddrCTRL_REG_38;
-__tcmdata uint32 ddrCTRL_REG_43;
-__tcmdata uint32 ddrCTRL_REG_66;
-__tcmdata uint32 ddrCTRL_REG_44;
-__tcmdata uint32 ddrCTRL_REG_67;
-__tcmdata uint32 ddrCTRL_REG_64;
-__tcmdata uint32 ddrCTRL_REG_68;
-__tcmdata uint32 ddrCTRL_REG_44;
-__tcmdata uint32 ddrCTRL_REG_67;
-__tcmdata uint32 ddrCTRL_REG_64;
-__tcmdata uint32 ddrCTRL_REG_68;
+static __tcmdata uint32 bFreqRaise;
+static __tcmdata uint32 elementCnt;
+static __tcmdata uint32 ddrSREF;
+static __tcmdata uint32 ddrRASMAX;
+static __tcmdata uint32 ddrCTRL_REG_23;
+static __tcmdata uint32 ddrCTRL_REG_24;
+static __tcmdata uint32 ddrCTRL_REG_37;
+static __tcmdata uint32 ddrCTRL_REG_34;
+static __tcmdata uint32 ddrCTRL_REG_35;
+static __tcmdata uint32 ddrCTRL_REG_38;
+static __tcmdata uint32 ddrCTRL_REG_43;
+static __tcmdata uint32 ddrCTRL_REG_66;
+static __tcmdata uint32 ddrCTRL_REG_44;
+static __tcmdata uint32 ddrCTRL_REG_67;
+static __tcmdata uint32 ddrCTRL_REG_64;
+static __tcmdata uint32 ddrCTRL_REG_68;
+static __tcmdata uint32 ddrCTRL_REG_44;
+static __tcmdata uint32 ddrCTRL_REG_67;
+static __tcmdata uint32 ddrCTRL_REG_64;
+static __tcmdata uint32 ddrCTRL_REG_68;
 
 
 static void __tcmfunc DLLBypass(uint32 KHz)
@@ -725,7 +747,7 @@ static void __tcmfunc DLLBypass(uint32 KHz)
     pDDR_Reg->CTRL_REG_77 = 0x00002104 | (elementCnt << 15);
 }
 
- void SDRAMUpdateRef(uint32 kHz)
+static void SDRAMUpdateRef(uint32 kHz)
 {
     if(capability <= 0x2000000) // <= SDRAM_2x32x4
     {
@@ -739,7 +761,7 @@ static void __tcmfunc DLLBypass(uint32 KHz)
     }
 }
 
- void SDRAMUpdateTiming(uint32 kHz)
+static void SDRAMUpdateTiming(uint32 kHz)
 {
     uint32 value =0;
     uint32 tmp = 0;
@@ -1123,13 +1145,19 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
     uint32 memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
     uint32 tmp;
 	volatile uint32 *p_ddr = (volatile uint32 *)0xc0080000;
-
-
+	//uint32 *ddr_reg = 0xff401c00;
+	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
+	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
+	
+	
+	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
+	
+	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
     switch(memType)
     {
         case Mobile_SDRAM:
         case SDRAM:
-//			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
+			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
 			#if 0
             KHz = PLLGetAHBFreq();
             if(KHz < SDRAMnewKHz)  //升频
@@ -1165,16 +1193,17 @@ static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKH
             }
             DDRPreUpdateRef(DDRnewKHz);
             DDRPreUpdateTiming(DDRnewKHz);
-	//     printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
-			//WAIT_ME();
+            
             while(pGRF_Reg->CPU_APB_REG1 & 0x100);
 			tmp = *p_ddr;  //read to wakeup
-			pDDR_Reg->CTRL_REG_36 &= ~(0x1F << 8);
+                pDDR_Reg->CTRL_REG_36 &= ~(0x1F << 8);
             while(pDDR_Reg->CTRL_REG_03 & 0x100)
             {         	
                 tmp = *p_ddr;  //read to wakeup
             }					
             while(pGRF_Reg->CPU_APB_REG1 & 0x100);
+            printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
+            //WAIT_ME();
             pDDR_Reg->CTRL_REG_09 |= (0x1 << 24);	// after this on,ddr enter refresh,no access valid!!
             //WAIT_ME();
             while(!(pDDR_Reg->CTRL_REG_03 & 0x100));
@@ -1214,11 +1243,12 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
     uint32 ddrKHz;
     //uint32 ahbKHz;
     uint32 memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
+	DDR_debug_string("21\n");
     switch(memType)
     {
         case Mobile_SDRAM:
         case SDRAM:
-		//	printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
+			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
 			#if 0
            // ahbKHz = PLLGetAHBFreq();
             if(ahbKHz > SDRAMoldKHz)  //升频
@@ -1260,10 +1290,10 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
             }
             pDDR_Reg->CTRL_REG_09 &= ~(0x1 << 24);
             while(pDDR_Reg->CTRL_REG_03 & 0x100); // exit 
-			//printk("exit ddr refresh,");
+                printk("exit ddr refresh,");
             //退出自刷新后，再算element的值
             ddrKHz = PLLGetDDRFreq();
-			//printk("new ddr kHz=%ld\n" , ddrKHz);
+			printk("new ddr kHz=%ld\n" , ddrKHz);
             if(110000 < ddrKHz)
             {
                 value = pDDR_Reg->CTRL_REG_78;
@@ -1273,13 +1303,32 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
                     telement = 1000000000/(ddrKHz*value);
                 }
             }
-            pDDR_Reg->CTRL_REG_36 |= (0x1F << 8);
+            pDDR_Reg->CTRL_REG_36 = (0x1F1F); // 20100608,YK@RK.
+            DDR_ENABLE_SLEEP();
             break;
     }
 }
 
+static void __tcmlocalfunc ddr_pll_delay( int loops ) 
+{
+        volatile int i;
+        for( i = loops ; i > 0 ; i-- ){
+                ;
+        }
+}
 
-
+static unsigned long ddr_save_sp( unsigned long new_sp );
+asm(	
+"	.section \".tcm.text\",\"ax\"\n"	
+"	.align\n"
+"	.type	ddr_save_sp, #function\n"
+"ddr_save_sp:\n"
+"	mov r1,sp\n"	
+"	mov sp,r0\n"	
+"	mov r0,r1\n"	
+"	mov pc,lr\n"
+"	.previous"
+);
 /*SCU PLL CON , 20100518,copy from rk28_scu_hw.c
 */
 #define PLL_TEST        (0x01u<<25)
@@ -1291,22 +1340,132 @@ static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz
 #define PLL_CLKOD(i)    (((i)&0x07)<<1)
 #define PLL_BYPASS      (0X01)
 
+#define DDR_CLK_NORMAL          300
+#define DDR_CLK_LOWPW            128
+/* 20100609,HSL@RK, dtcm --> sram,when dsp close,sram clk will be close,so 
+ *  we use itcm as tmp stack.
+*/
+#define DDR_SAVE_SP     do{save_sp = ddr_save_sp((DTCM_END&(~7)));}while(0)
+#define DDR_RESTORE_SP do{ ddr_save_sp(save_sp); }while(0)
 static void __tcmfunc  ddr_change_freq(int freq_MHZ)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
-	int ahb = 150;
-#else
-	int ahb = rockchip_clk_get_ahb()/1000;
-#endif
+	int arm_clk = rockchip_clk_get_ahb()/1000;
 	uint32 DDRnewKHz = freq_MHZ*1000;
-	SDRAM_BeforeUpdateFreq( ahb,  DDRnewKHz);
-	if(  freq_MHZ >= 200 )
-		pSCU_Reg->SCU_CPLL_CON = PLL_SAT|PLL_FAST|(PLL_CLKR(24-1))|(PLL_CLKF(freq_MHZ-1))|(PLL_CLKOD(1 - 1));
-	else
-		pSCU_Reg->SCU_CPLL_CON = PLL_SAT|PLL_FAST|(PLL_CLKR(12-1))|(PLL_CLKF(freq_MHZ-1))|(PLL_CLKOD(2 - 1));
-	SDRAM_AfterUpdateFreq( ahb,  DDRnewKHz);
+	//printk("%s::ahb clk=%d KHZ\n",__func__ , ahb );
+	
+	SDRAM_BeforeUpdateFreq( arm_clk,  DDRnewKHz);
+	pSCU_Reg->SCU_CLKSEL1_CON &= ~(0X03);
+        	if(  freq_MHZ >= 200 ) {
+        		pSCU_Reg->SCU_CPLL_CON = PLL_SAT|PLL_FAST
+        		|(PLL_CLKR(6-1))|(PLL_CLKF(freq_MHZ/4-1));
+        	 } else {
+        		pSCU_Reg->SCU_CPLL_CON = PLL_SAT|PLL_FAST
+        		|(PLL_CLKR(6-1))|(PLL_CLKF(freq_MHZ/2-1))
+        		|(PLL_CLKOD(2 - 1));
+        	}
+                ddr_pll_delay( arm_clk );
+	pSCU_Reg->SCU_CLKSEL1_CON |= 0X01;
+	SDRAM_AfterUpdateFreq( arm_clk,  DDRnewKHz);
 }
 
+
+/****************************************************************/
+//函数名:SDRAM_EnterSelfRefresh
+//描述:SDRAM进入自刷新模式
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
+//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
+/****************************************************************/
+static void __tcmfunc rk28_ddr_enter_self_refresh(void)
+{
+    uint32 memType = DDR_MEM_TYPE();
+    
+    switch(memType)
+    {
+        case DDRII:
+        case Mobile_DDR:
+    
+            pDDR_Reg->CTRL_REG_62 = (pDDR_Reg->CTRL_REG_62 &
+                (~(0xFFFF<<16))) | MODE5_CNT(0x1);
+            ddr_pll_delay( 100 );
+            pSCU_Reg->SCU_CLKGATE1_CON |= 0x00c00001;
+            ddr_pll_delay( 10 );
+            pSCU_Reg->SCU_CPLL_CON |= ((1<<22)|1);
+            ddr_pll_delay( 10 );
+            break;
+        default:
+                break;
+    }
+}
+
+/****************************************************************/
+//函数名:SDRAM_ExitSelfRefresh
+//描述:SDRAM退出自刷新模式
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
+//     (2)必须保证运行时这个函数的代码不在SDRAM上
+/****************************************************************/
+static void __tcmfunc rk28_ddr_exit_self_refresh(void)
+{
+    uint32 memType = DDR_MEM_TYPE();
+
+    switch(memType)
+    {
+        case DDRII:
+        case Mobile_DDR:
+                pSCU_Reg->SCU_CPLL_CON &= ~((1<<22)|1);
+            ddr_pll_delay( 3000 );
+                pSCU_Reg->SCU_CLKGATE1_CON &= ~0x00c00000;
+            ddr_pll_delay( 100 );
+            pDDR_Reg->CTRL_REG_62 = (pDDR_Reg->CTRL_REG_62 & (~(0xFFFF<<16))
+                )| MODE5_CNT(0xFFFF);
+            ddr_pll_delay( 1000 );
+            break;
+        default:
+                break;
+    }
+    
+}
+
+static uint32 scu_clk_gate[3];
+static uint32 scu_pmu_con;
+
+static void scu_reg_save(void)
+{
+    // bit 31: 1.1host phy. bit 2: 2.0host.
+    //pGRF_Reg->OTGPHY_CON1 = 0x80000004;
+    pGRF_Reg->OTGPHY_CON1 |= 0x80000000;
+    scu_clk_gate[0] = pSCU_Reg->SCU_CLKGATE0_CON;
+    scu_clk_gate[1] = pSCU_Reg->SCU_CLKGATE1_CON;
+    scu_clk_gate[2] = pSCU_Reg->SCU_CLKGATE2_CON;
+    // open uart0,1(bit 18,19,for debug), open gpio0,1(bit16,17) and arm,arm core.
+    // XXX:open pwm(bit24) for ctrl vdd core??.
+    // open timer (bit 25) for usb detect and mono timer.
+    pSCU_Reg->SCU_CLKGATE0_CON = 0xfdf0fff6; //0xfefcfff6 ;// arm core clock
+    // 
+    pSCU_Reg->SCU_CLKGATE1_CON = 0xff3f8001;    //sdram clock 0xe7fff
+    pSCU_Reg->SCU_CLKGATE2_CON = 0x24;       //ahb, apb clock
+
+    scu_pmu_con = pSCU_Reg->SCU_PMU_CON;
+    
+    // XXX:close LCDC power domain(bit 3) need to reset lcdc ctrl regs when wake up.
+    // about 1ma vdd core.
+    //pSCU_Reg->SCU_PMU_CON = 0x09;//power down lcdc & dsp power domain
+    pSCU_Reg->SCU_PMU_CON = 0x01;//power downdsp power domain
+}
+static void scu_reg_restore(void)
+{
+    pSCU_Reg->SCU_PMU_CON = scu_pmu_con;//power down lcdc & dsp power domain
+    
+    pSCU_Reg->SCU_CLKGATE0_CON = scu_clk_gate[0]; 
+    pSCU_Reg->SCU_CLKGATE1_CON = scu_clk_gate[1]; 
+    pSCU_Reg->SCU_CLKGATE2_CON = scu_clk_gate[2]; 
+    
+}
 /****************************************************************/
 //函数名:SDRAM_Init
 //描述:SDRAM初始化
@@ -1320,7 +1479,8 @@ static void  SDRAM_DDR_Init(void)
 	uint32 			value;
     uint32          KHz;
     uint32          memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
-	
+    unsigned long flags;
+    
     telement = 0;
     if(memType == DDRII)
     {
@@ -1333,6 +1493,9 @@ static void  SDRAM_DDR_Init(void)
         pDDR_Reg->CTRL_REG_11 = 0x101;
         pDDR_Reg->CTRL_REG_82 = 0x00640000; 
      }
+            /* 20100609,HSL@RK,disable ddr interrupt .*/
+            pDDR_Reg->CTRL_REG_45 = 0x07ff03ff; 
+            pDDR_Reg->CTRL_REG_63 &= 0x0000ffff; 
             //tPDEX=没找到，应该等于=tXP=25ns 
             pDDR_Reg->CTRL_REG_65 = TPDEX(0x2) | TDLL(200);
             //读操作时端口优先级是:VIDEO(port 7) > CEVA(port 6) > ARMI(port 5) > ARMD(port 4) > LCDC(port 2) > EXP(port3)
@@ -1359,7 +1522,7 @@ static void  SDRAM_DDR_Init(void)
                 }
             }
             KHz = PLLGetDDRFreq();
-	//		printk("PLLGetDDRFreq=%ld KHZ\n" , KHz);
+                printk("PLLGetDDRFreq=%ld KHZ\n" , KHz);
             if(110000 > KHz)
             {
                 DLLBypass(KHz);
@@ -1377,58 +1540,17 @@ static void  SDRAM_DDR_Init(void)
             DDRPreUpdateTiming(KHz);
             DDRUpdateRef();
             DDRUpdateTiming();
-            pDDR_Reg->CTRL_REG_36 = 0x1F1F;
+            DDR_ENABLE_SLEEP();
 			
-//	printk("..%s -->capability ==%ld telement==%ld -->%d\n",__FUNCTION__,capability,telement,__LINE__);
-	ddr_change_freq( 266 );
+	//printk("..%s -->capability ==%ld telement==%ld -->%d\n",__FUNCTION__,capability,telement,__LINE__);
+        local_irq_save(flags);
+        DDR_SAVE_SP;
+        ddr_change_freq( memType == DDRII ? 300 : 166 );  // DDR CLK!
+        DDR_RESTORE_SP;
+        local_irq_restore(flags);
 }
 
 
-unsigned long ddr_save_sp( unsigned long new_sp );
-asm(	
-"	.section \".tcm.text\",\"ax\"\n"	
-"	.align\n"
-"	.type	ddr_save_sp, #function\n"
-"ddr_save_sp:\n"
-"	mov r1,sp\n"	
-"	mov sp,r0\n"	
-"	mov r0,r1\n"	
-"	mov pc,lr\n"
-"	.previous"
-);
-
-
-
-extern void clk_recalculate_root_clocks(void);
-
-static int __init update_frq(void)
-{
-	unsigned long ps_sram = (DTCM_END&(~7));
-	//printk(">>>>>%s-->%d\n",__FUNCTION__,__LINE__);
-	int *reg = (int *)(SCU_BASE_ADDR_VA);
-	strcpy( (char*)(ps_sram-0x40) , "rk281x_ddr_sram-wqq\n" );
-//	printk( "sram data:%s\n" , (char*)(ps_sram-0x40) );
-	local_irq_disable();
-	//printk("wait for jtag...\n");
-	//WAIT_ME();
-	save_sp = ddr_save_sp(ps_sram);
-	SDRAM_DDR_Init();
-	ddr_save_sp(save_sp);
-	printk("after SDRAM_DDR_Init\n");
-	local_irq_enable();	
-
-	printk("scu after frq%s::\n0x%08x 0x%08x 0x%08x 0x%08x\n"
-                            "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n"
-                            "0x%08x 0x%08x 0x%08x 0x%08x\n"
-                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
-                            ,__func__,
-                            reg[0],reg[1],reg[2],reg[3],
-                            reg[4],reg[5],reg[6],reg[7], reg[8],
-                            reg[9], reg[10],reg[11], reg[12]);
-	clk_recalculate_root_clocks();
-	return 0;	
-}
-core_initcall_sync(update_frq);
 
 
 /****************************************************************
@@ -1438,7 +1560,7 @@ core_initcall_sync(update_frq);
 * 返回值:
 * 相关全局变量:
 ****************************************************************/
-static void __tcmfunc  disable_DDR_Sleep(void)
+static void __tcmlocalfunc  disable_DDR_Sleep(void)
 {
 	volatile uint32 *p_ddr = (volatile uint32 *)0xc0080000;
 	unsigned int tmp;
@@ -1452,7 +1574,7 @@ static void __tcmfunc  disable_DDR_Sleep(void)
         while(pGRF_Reg->CPU_APB_REG1 & 0x100);
 }
 
-static void __tcmfunc rk2818_reduce_armfrq(void)
+static void __tcmlocalfunc rk2818_reduce_armfrq(void)
 {
 #define pSCU_Reg	   ((pSCU_REG)SCU_BASE_ADDR_VA)
 #define ARM_FRQ_48MHz    0x018502F6
@@ -1466,17 +1588,17 @@ static void __tcmfunc rk2818_reduce_armfrq(void)
 	pSCU_Reg->SCU_APLL_CON |=ARM_PLL_PWD;
 	udelay(100);
 }
- void __tcmfunc rk281x_reboot( void )
+static void __tcmfunc rk281x_reboot( void )
 {
 #define pSCU_Reg	((pSCU_REG)SCU_BASE_ADDR_VA)
 #define g_intcReg 	((pINTC_REG)(INTC_BASE_ADDR_VA))
-
+#if 1
 		g_intcReg->FIQ_INTEN &= 0x0;
 		g_intcReg->IRQ_INTEN_H &= 0x0;
 		g_intcReg->IRQ_INTEN_L &= 0x0;
 		g_intcReg->IRQ_INTMASK_L &= 0x0;
 		g_intcReg->IRQ_INTMASK_H &= 0x0;	
-		
+#endif		
 		rk2818_reduce_armfrq();
 		disable_DDR_Sleep();
 		printk("start reboot!!!\n");
@@ -1536,6 +1658,7 @@ static void __tcmfunc rk2818_reduce_armfrq(void)
   				"bic r3,r3,#(1<<1)\n"
   				"str r3,[r2,#0x14]\n"
 
+                #if 1
 				"ldr r2,=0x18009000       @rk2818_reduce_corevoltage\n"
 				"ldr r3,[r2,#0x24]\n"
 				"bic r3,#(1<<6)\n"
@@ -1543,7 +1666,7 @@ static void __tcmfunc rk2818_reduce_armfrq(void)
 				"ldr r3,[r2,#0x28]\n"
 				"bic r3,#(1<<6)\n"
 				"str r3,[r2,#0x28]\n"
-
+                #endif
 				"mov r12,#0\n"
 				"mov pc ,r12\n"
 				);
@@ -1551,6 +1674,60 @@ static void __tcmfunc rk2818_reduce_armfrq(void)
 }
 
 void(*rk2818_reboot)(void )= (void(*)(void ))rk281x_reboot;
+
+static int __init update_frq(void)
+{
+	
+	//printk(">>>>>%s-->%d\n",__FUNCTION__,__LINE__);
+	int *reg = (int *)(SCU_BASE_ADDR_VA);
+	#if 0
+	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
+	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
+	ddr_reg[2] = pDDR_Reg->CTRL_REG_03;
+	ddr_reg[3] = pDDR_Reg->CTRL_REG_09;
+	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
+	ddr_reg[5] = pDDR_Reg->CTRL_REG_36;
+	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
+	printk(" before 0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x \n"
+                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
+                            ,ddr_reg[0],ddr_reg[1],ddr_reg[2],ddr_reg[3],
+                            ddr_reg[4],ddr_reg[5],ddr_reg[6]);
+                 #endif
+	//local_irq_disable();
+	//printk("wait for jtag...\n");
+	//WAIT_ME();
+	SDRAM_DDR_Init();
+	#if 0
+	printk("after SDRAM_DDR_Init\n");
+	//local_irq_enable();		
+	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
+	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
+	ddr_reg[2] = pDDR_Reg->CTRL_REG_03;
+	ddr_reg[3] = pDDR_Reg->CTRL_REG_09;
+	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
+	ddr_reg[5] = pDDR_Reg->CTRL_REG_36;
+	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
+	printk("after 0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x \n"
+                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
+                            ,ddr_reg[0],ddr_reg[1],ddr_reg[2],ddr_reg[3],
+                            ddr_reg[4],ddr_reg[5],ddr_reg[6]);
+                #endif
+	S_INFO("scu after frq%s::\n0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x 0x%08x\n"
+                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
+                            ,__func__,
+                            reg[0],reg[1],reg[2],reg[3],
+                            reg[4],reg[5],reg[6],reg[7], reg[8],
+                            reg[9], reg[10],reg[11], reg[12]);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
+	clk_recalculate_root_clocks();
+#endif
+	return 0;	
+}
+core_initcall_sync(update_frq);
 
 #endif //endi of #ifdef DRIVERS_SDRAM
 
