@@ -42,6 +42,8 @@
 #include <plat/gpmc.h>
 #include <plat/control.h>
 
+#include "mux.h"
+
 /* LED & Switch macros */
 #define LED0_GPIO13		13
 #define LED1_GPIO14		14
@@ -309,9 +311,19 @@ static void __init apollon_usb_init(void)
 	omap2_usbfs_init(&apollon_usb_config);
 }
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_apollon_init(void)
 {
 	u32 v;
+
+	omap2420_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 
 	apollon_led_init();
 	apollon_flash_init();
