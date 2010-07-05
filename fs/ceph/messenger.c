@@ -2015,20 +2015,20 @@ void ceph_con_revoke(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	mutex_lock(&con->mutex);
 	if (!list_empty(&msg->list_head)) {
-		dout("con_revoke %p msg %p\n", con, msg);
+		dout("con_revoke %p msg %p - was on queue\n", con, msg);
 		list_del_init(&msg->list_head);
 		ceph_msg_put(msg);
 		msg->hdr.seq = 0;
-		if (con->out_msg == msg) {
-			ceph_msg_put(con->out_msg);
-			con->out_msg = NULL;
-		}
+	}
+	if (con->out_msg == msg) {
+		dout("con_revoke %p msg %p - was sending\n", con, msg);
+		con->out_msg = NULL;
 		if (con->out_kvec_is_msg) {
 			con->out_skip = con->out_kvec_bytes;
 			con->out_kvec_is_msg = false;
 		}
-	} else {
-		dout("con_revoke %p msg %p - not queued (sent?)\n", con, msg);
+		ceph_msg_put(msg);
+		msg->hdr.seq = 0;
 	}
 	mutex_unlock(&con->mutex);
 }
