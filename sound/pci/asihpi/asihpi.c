@@ -1383,7 +1383,7 @@ static char *asihpi_src_names[] =
 
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_src_names) ==
-		(HPI_SOURCENODE_LAST_INDEX-HPI_SOURCENODE_BASE+1)),
+		(HPI_SOURCENODE_LAST_INDEX-HPI_SOURCENODE_NONE+1)),
 	assert_src_names_size);
 
 #if ASI_STYLE_NAMES
@@ -1414,7 +1414,7 @@ static char *asihpi_dst_names[] =
 
 compile_time_assert(
 	(ARRAY_SIZE(asihpi_dst_names) ==
-		(HPI_DESTNODE_LAST_INDEX-HPI_DESTNODE_BASE+1)),
+		(HPI_DESTNODE_LAST_INDEX-HPI_DESTNODE_NONE+1)),
 	assert_dst_names_size);
 
 static inline int ctl_add(struct snd_card *card, struct snd_kcontrol_new *ctl,
@@ -2171,7 +2171,7 @@ static int snd_asihpi_mux_info(struct snd_kcontrol *kcontrol,
 					&src_node_type, &src_node_index);
 
 	sprintf(uinfo->value.enumerated.name, "%s %d",
-		asihpi_src_names[src_node_type - HPI_SOURCENODE_BASE],
+		asihpi_src_names[src_node_type - HPI_SOURCENODE_NONE],
 		src_node_index);
 	return 0;
 }
@@ -2603,8 +2603,8 @@ static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 
 		}
 
-		hpi_ctl.src_node_type -= HPI_SOURCENODE_BASE;
-		hpi_ctl.dst_node_type -= HPI_DESTNODE_BASE;
+		hpi_ctl.src_node_type -= HPI_SOURCENODE_NONE;
+		hpi_ctl.dst_node_type -= HPI_DESTNODE_NONE;
 
 		/* ASI50xx in SSX mode has multiple meters on the same node.
 		   Use subindex to create distinct ALSA controls

@@ -356,7 +356,7 @@ compile_time_assert((HPI_CONTROL_LAST_INDEX + 1 == 27),
 	"HPI_SOURCENODE_ADAPTER" \
 }
 
-compile_time_assert((HPI_SOURCENODE_LAST_INDEX - HPI_SOURCENODE_BASE + 1) ==
+compile_time_assert((HPI_SOURCENODE_LAST_INDEX - HPI_SOURCENODE_NONE + 1) ==
 	(12), sourcenode_strings_match_defs);
 
 #define HPI_DESTNODE_STRINGS \
@@ -370,7 +370,7 @@ compile_time_assert((HPI_SOURCENODE_LAST_INDEX - HPI_SOURCENODE_BASE + 1) ==
 	"HPI_DESTNODE_COBRANET", \
 	"HPI_DESTNODE_ANALOG" \
 }
-compile_time_assert((HPI_DESTNODE_LAST_INDEX - HPI_DESTNODE_BASE + 1) == (8),
+compile_time_assert((HPI_DESTNODE_LAST_INDEX - HPI_DESTNODE_NONE + 1) == (8),
 	destnode_strings_match_defs);
 
 #define HPI_CONTROL_CHANNEL_MODE_STRINGS \
