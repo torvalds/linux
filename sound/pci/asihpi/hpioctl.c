@@ -464,9 +464,7 @@ void __init asihpi_init(void)
 
 	memset(adapters, 0, sizeof(adapters));
 
-	printk(KERN_INFO "ASIHPI driver %d.%02d.%02d\n",
-		HPI_VER_MAJOR(HPI_VER), HPI_VER_MINOR(HPI_VER),
-		HPI_VER_RELEASE(HPI_VER));
+	printk(KERN_INFO "ASIHPI driver " HPI_VER_STRING "\n");
 
 	hpi_init_message_response(&hm, &hr, HPI_OBJ_SUBSYSTEM,
 		HPI_SUBSYS_DRIVER_LOAD);
