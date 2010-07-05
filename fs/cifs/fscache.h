@@ -51,11 +51,20 @@ extern void cifs_fscache_reset_inode_cookie(struct inode *);
 extern void __cifs_fscache_invalidate_page(struct page *, struct inode *);
 extern int cifs_fscache_release_page(struct page *page, gfp_t gfp);
 
+extern void __cifs_readpage_to_fscache(struct inode *, struct page *);
+
 static inline void cifs_fscache_invalidate_page(struct page *page,
 					       struct inode *inode)
 {
 	if (PageFsCache(page))
 		__cifs_fscache_invalidate_page(page, inode);
+}
+
+static inline void cifs_readpage_to_fscache(struct inode *inode,
+					    struct page *page)
+{
+	if (PageFsCache(page))
+		__cifs_readpage_to_fscache(inode, page);
 }
 
 #else /* CONFIG_CIFS_FSCACHE */
@@ -81,6 +90,8 @@ static inline void cifs_fscache_release_page(struct page *page, gfp_t gfp)
 
 static inline int cifs_fscache_invalidate_page(struct page *page,
 			struct inode *) {}
+static inline void cifs_readpage_to_fscache(struct inode *inode,
+			struct page *page) {}
 
 #endif /* CONFIG_CIFS_FSCACHE */
 

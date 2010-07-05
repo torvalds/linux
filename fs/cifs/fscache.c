@@ -140,6 +140,17 @@ int cifs_fscache_release_page(struct page *page, gfp_t gfp)
 	return 1;
 }
 
+void __cifs_readpage_to_fscache(struct inode *inode, struct page *page)
+{
+	int ret;
+
+	cFYI(1, "CIFS: readpage_to_fscache(fsc: %p, p: %p, i: %p",
+			CIFS_I(inode)->fscache, page, inode);
+	ret = fscache_write_page(CIFS_I(inode)->fscache, page, GFP_KERNEL);
+	if (ret != 0)
+		fscache_uncache_page(CIFS_I(inode)->fscache, page);
+}
+
 void __cifs_fscache_invalidate_page(struct page *page, struct inode *inode)
 {
 	struct cifsInodeInfo *cifsi = CIFS_I(inode);

@@ -1944,6 +1944,9 @@ static void cifs_copy_cache_pages(struct address_space *mapping,
 		SetPageUptodate(page);
 		unlock_page(page);
 		data += PAGE_CACHE_SIZE;
+
+		/* add page to FS-Cache */
+		cifs_readpage_to_fscache(mapping->host, page);
 	}
 	return;
 }
@@ -2113,6 +2116,10 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 
 	flush_dcache_page(page);
 	SetPageUptodate(page);
+
+	/* send this page to the cache */
+	cifs_readpage_to_fscache(file->f_path.dentry->d_inode, page);
+
 	rc = 0;
 
 io_error:
