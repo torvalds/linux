@@ -4283,11 +4283,13 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
  *		?	matches any single character.
  *		*	matches any run of characters.
  *		[xyz]	matches a single character from the set: x, y, or z.
+ *		[a-d]	matches a single character from the range: a, b, c, or d.
+ *		[a-d0-9] matches a single character from either range.
  *
- *	Note: hyphenated ranges [0-9] are _not_ supported here.
- *	The special characters ?, [, or *, can be matched using a set, eg. [*]
+ *	The special characters ?, [, -, or *, can be matched using a set, eg. [*]
+ *	Behaviour with malformed patterns is undefined, though generally reasonable.
  *
- *	Example patterns:  "SD1?",  "SD1[012345]",  "*R0",  SD*1?[012]*xx"
+ *	Example patterns:  "SD1?",  "SD1[0-5]",  "*R0",  SD*1?[012]*xx"
  *
  *	This function uses one level of recursion per '*' in pattern.
  *	Since it calls _nothing_ else, and has _no_ explicit local variables,
@@ -4307,7 +4309,13 @@ static int glob_match (const char *text, const char *pattern)
 			/* Match single char against a '[' bracketed ']' pattern set */
 			if (!*text || *pattern != '[')
 				break;  /* Not a pattern set */
-			while (*++pattern && *pattern != ']' && *text != *pattern);
+			while (*++pattern && *pattern != ']' && *text != *pattern) {
+				if (*pattern == '-' && *(pattern - 1) != '[')
+					if (*text > *(pattern - 1) && *text < *(pattern + 1)) {
+						++pattern;
+						break;
+					}
+			}
 			if (!*pattern || *pattern == ']')
 				return 1;  /* No match */
 			while (*pattern && *pattern++ != ']');
