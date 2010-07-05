@@ -797,48 +797,27 @@ static void schedule_init(struct cardstate *cs, int state)
 static void send_command(struct cardstate *cs, const char *cmd, int cid,
 			 int dle, gfp_t kmallocflags)
 {
-	size_t cmdlen, buflen;
-	char *cmdpos, *cmdbuf, *cmdtail;
+	struct cmdbuf_t *cb;
+	size_t buflen;
 
-	cmdlen = strlen(cmd);
-	buflen = 11 + cmdlen;
-	if (unlikely(buflen <= cmdlen)) {
-		dev_err(cs->dev, "integer overflow in buflen\n");
+	buflen = strlen(cmd) + 12; /* DLE ( A T 1 2 3 4 5 <cmd> DLE ) \0 */
+	cb = kmalloc(sizeof(struct cmdbuf_t) + buflen, kmallocflags);
+	if (!cb) {
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		return;
 	}
-
-	cmdbuf = kmalloc(buflen, kmallocflags);
-	if (unlikely(!cmdbuf)) {
-		dev_err(cs->dev, "out of memory\n");
-		return;
-	}
-
-	cmdpos = cmdbuf + 9;
-	cmdtail = cmdpos + cmdlen;
-	memcpy(cmdpos, cmd, cmdlen);
-
-	if (cid > 0 && cid <= 65535) {
-		do {
-			*--cmdpos = '0' + cid % 10;
-			cid /= 10;
-			++cmdlen;
-		} while (cid);
-	}
-
-	cmdlen += 2;
-	*--cmdpos = 'T';
-	*--cmdpos = 'A';
-
-	if (dle) {
-		cmdlen += 4;
-		*--cmdpos = '(';
-		*--cmdpos = 0x10;
-		*cmdtail++ = 0x10;
-		*cmdtail++ = ')';
-	}
-
-	cs->ops->write_cmd(cs, cmdpos, cmdlen, NULL);
-	kfree(cmdbuf);
+	if (cid > 0 && cid <= 65535)
+		cb->len = snprintf(cb->buf, buflen,
+				  dle ? "\020(AT%d%s\020)" : "AT%d%s",
+				  cid, cmd);
+	else
+		cb->len = snprintf(cb->buf, buflen,
+				  dle ? "\020(AT%s\020)" : "AT%s",
+				  cmd);
+	cb->offset = 0;
+	cb->next = NULL;
+	cb->wake_tasklet = NULL;
+	cs->ops->write_cmd(cs, cb);
 }
 
 static struct at_state_t *at_state_from_cid(struct cardstate *cs, int cid)
@@ -1240,8 +1219,22 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUPMODEM:
 		/* send "+++" (hangup in unimodem mode) */
-		if (cs->connected)
-			cs->ops->write_cmd(cs, "+++", 3, NULL);
+		if (cs->connected) {
+			struct cmdbuf_t *cb;
+
+			cb = kmalloc(sizeof(struct cmdbuf_t) + 3, GFP_ATOMIC);
+			if (!cb) {
+				dev_err(cs->dev, "%s: out of memory\n",
+					__func__);
+				return;
+			}
+			memcpy(cb->buf, "+++", 3);
+			cb->len = 3;
+			cb->offset = 0;
+			cb->next = NULL;
+			cb->wake_tasklet = NULL;
+			cs->ops->write_cmd(cs, cb);
+		}
 		break;
 	case ACT_RING:
 		/* get fresh AT state structure for new CID */

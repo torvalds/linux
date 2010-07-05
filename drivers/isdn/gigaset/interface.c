@@ -339,7 +339,8 @@ static int if_tiocmset(struct tty_struct *tty, struct file *file,
 static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 {
 	struct cardstate *cs;
-	int retval = -ENODEV;
+	struct cmdbuf_t *cb;
+	int retval;
 
 	cs = (struct cardstate *) tty->driver_data;
 	if (!cs) {
@@ -355,18 +356,39 @@ static int if_write(struct tty_struct *tty, const unsigned char *buf, int count)
 	if (!cs->connected) {
 		gig_dbg(DEBUG_IF, "not connected");
 		retval = -ENODEV;
-	} else if (!cs->open_count)
+		goto done;
+	}
+	if (!cs->open_count) {
 		dev_warn(cs->dev, "%s: device not opened\n", __func__);
-	else if (cs->mstate != MS_LOCKED) {
+		retval = -ENODEV;
+		goto done;
+	}
+	if (cs->mstate != MS_LOCKED) {
 		dev_warn(cs->dev, "can't write to unlocked device\n");
 		retval = -EBUSY;
-	} else {
-		retval = cs->ops->write_cmd(cs, buf, count,
-					    &cs->if_wake_tasklet);
+		goto done;
+	}
+	if (count <= 0) {
+		/* nothing to do */
+		retval = 0;
+		goto done;
 	}
 
-	mutex_unlock(&cs->mutex);
+	cb = kmalloc(sizeof(struct cmdbuf_t) + count, GFP_KERNEL);
+	if (!cb) {
+		dev_err(cs->dev, "%s: out of memory\n", __func__);
+		retval = -ENOMEM;
+		goto done;
+	}
 
+	memcpy(cb->buf, buf, count);
+	cb->len = count;
+	cb->offset = 0;
+	cb->next = NULL;
+	cb->wake_tasklet = &cs->if_wake_tasklet;
+	retval = cs->ops->write_cmd(cs, cb);
+done:
+	mutex_unlock(&cs->mutex);
 	return retval;
 }
 

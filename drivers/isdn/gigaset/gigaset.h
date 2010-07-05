@@ -574,9 +574,7 @@ struct bas_bc_state {
 struct gigaset_ops {
 	/* Called from ev-layer.c/interface.c for sending AT commands to the
 	   device */
-	int (*write_cmd)(struct cardstate *cs,
-			 const unsigned char *buf, int len,
-			 struct tasklet_struct *wake_tasklet);
+	int (*write_cmd)(struct cardstate *cs, struct cmdbuf_t *cb);
 
 	/* Called from interface.c for additional device control */
 	int (*write_room)(struct cardstate *cs);
