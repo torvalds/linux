@@ -574,6 +574,22 @@ static int ql_set_routing_reg(struct ql_adapter *qdev, u32 index, u32 mask,
 			    (RT_IDX_ALL_ERR_SLOT << RT_IDX_IDX_SHIFT);/* index */
 			break;
 		}
+	case RT_IDX_IP_CSUM_ERR: /* Pass up IP CSUM error frames. */
+		{
+			value = RT_IDX_DST_DFLT_Q | /* dest */
+				RT_IDX_TYPE_NICQ | /* type */
+				(RT_IDX_IP_CSUM_ERR_SLOT <<
+				RT_IDX_IDX_SHIFT); /* index */
+			break;
+		}
+	case RT_IDX_TU_CSUM_ERR: /* Pass up TCP/UDP CSUM error frames. */
+		{
+			value = RT_IDX_DST_DFLT_Q | /* dest */
+				RT_IDX_TYPE_NICQ | /* type */
+				(RT_IDX_TCP_UDP_CSUM_ERR_SLOT <<
+				RT_IDX_IDX_SHIFT); /* index */
+			break;
+		}
 	case RT_IDX_BCAST:	/* Pass up Broadcast frames to default Q. */
 		{
 			value = RT_IDX_DST_DFLT_Q |	/* dest */
@@ -3587,10 +3603,20 @@ static int ql_route_initialize(struct ql_adapter *qdev)
 	if (status)
 		return status;
 
-	status = ql_set_routing_reg(qdev, RT_IDX_ALL_ERR_SLOT, RT_IDX_ERR, 1);
+	status = ql_set_routing_reg(qdev, RT_IDX_IP_CSUM_ERR_SLOT,
+						RT_IDX_IP_CSUM_ERR, 1);
 	if (status) {
 		netif_err(qdev, ifup, qdev->ndev,
-			  "Failed to init routing register for error packets.\n");
+			"Failed to init routing register "
+			"for IP CSUM error packets.\n");
+		goto exit;
+	}
+	status = ql_set_routing_reg(qdev, RT_IDX_TCP_UDP_CSUM_ERR_SLOT,
+						RT_IDX_TU_CSUM_ERR, 1);
+	if (status) {
+		netif_err(qdev, ifup, qdev->ndev,
+			"Failed to init routing register "
+			"for TCP/UDP CSUM error packets.\n");
 		goto exit;
 	}
 	status = ql_set_routing_reg(qdev, RT_IDX_BCAST_SLOT, RT_IDX_BCAST, 1);
