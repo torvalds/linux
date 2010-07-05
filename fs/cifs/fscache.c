@@ -140,6 +140,79 @@ int cifs_fscache_release_page(struct page *page, gfp_t gfp)
 	return 1;
 }
 
+static void cifs_readpage_from_fscache_complete(struct page *page, void *ctx,
+						int error)
+{
+	cFYI(1, "CFS: readpage_from_fscache_complete (0x%p/%d)",
+			page, error);
+	if (!error)
+		SetPageUptodate(page);
+	unlock_page(page);
+}
+
+/*
+ * Retrieve a page from FS-Cache
+ */
+int __cifs_readpage_from_fscache(struct inode *inode, struct page *page)
+{
+	int ret;
+
+	cFYI(1, "CIFS: readpage_from_fscache(fsc:%p, p:%p, i:0x%p",
+			CIFS_I(inode)->fscache, page, inode);
+	ret = fscache_read_or_alloc_page(CIFS_I(inode)->fscache, page,
+					 cifs_readpage_from_fscache_complete,
+					 NULL,
+					 GFP_KERNEL);
+	switch (ret) {
+
+	case 0: /* page found in fscache, read submitted */
+		cFYI(1, "CIFS: readpage_from_fscache: submitted");
+		return ret;
+	case -ENOBUFS:	/* page won't be cached */
+	case -ENODATA:	/* page not in cache */
+		cFYI(1, "CIFS: readpage_from_fscache %d", ret);
+		return 1;
+
+	default:
+		cERROR(1, "unknown error ret = %d", ret);
+	}
+	return ret;
+}
+
+/*
+ * Retrieve a set of pages from FS-Cache
+ */
+int __cifs_readpages_from_fscache(struct inode *inode,
+				struct address_space *mapping,
+				struct list_head *pages,
+				unsigned *nr_pages)
+{
+	int ret;
+
+	cFYI(1, "CIFS: __cifs_readpages_from_fscache (0x%p/%u/0x%p)",
+			CIFS_I(inode)->fscache, *nr_pages, inode);
+	ret = fscache_read_or_alloc_pages(CIFS_I(inode)->fscache, mapping,
+					  pages, nr_pages,
+					  cifs_readpage_from_fscache_complete,
+					  NULL,
+					  mapping_gfp_mask(mapping));
+	switch (ret) {
+	case 0:	/* read submitted to the cache for all pages */
+		cFYI(1, "CIFS: readpages_from_fscache: submitted");
+		return ret;
+
+	case -ENOBUFS:	/* some pages are not cached and can't be */
+	case -ENODATA:	/* some pages are not cached */
+		cFYI(1, "CIFS: readpages_from_fscache: no page");
+		return 1;
+
+	default:
+		cFYI(1, "unknown error ret = %d", ret);
+	}
+
+	return ret;
+}
+
 void __cifs_readpage_to_fscache(struct inode *inode, struct page *page)
 {
 	int ret;

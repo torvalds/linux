@@ -1977,6 +1977,15 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
+	/*
+	 * Reads as many pages as possible from fscache. Returns -ENOBUFS
+	 * immediately if the cookie is negative
+	 */
+	rc = cifs_readpages_from_fscache(mapping->host, mapping, page_list,
+					 &num_pages);
+	if (rc == 0)
+		goto read_complete;
+
 	cFYI(DBG2, "rpages: num pages %d", num_pages);
 	for (i = 0; i < num_pages; ) {
 		unsigned contig_pages;
@@ -2087,6 +2096,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		smb_read_data = NULL;
 	}
 
+read_complete:
 	FreeXid(xid);
 	return rc;
 }
@@ -2096,6 +2106,11 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 {
 	char *read_data;
 	int rc;
+
+	/* Is the page cached? */
+	rc = cifs_readpage_from_fscache(file->f_path.dentry->d_inode, page);
+	if (rc == 0)
+		goto read_complete;
 
 	page_cache_get(page);
 	read_data = kmap(page);
@@ -2125,6 +2140,8 @@ static int cifs_readpage_worker(struct file *file, struct page *page,
 io_error:
 	kunmap(page);
 	page_cache_release(page);
+
+read_complete:
 	return rc;
 }
 

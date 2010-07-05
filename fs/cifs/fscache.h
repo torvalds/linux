@@ -32,7 +32,6 @@ extern const struct fscache_cookie_def cifs_fscache_server_index_def;
 extern const struct fscache_cookie_def cifs_fscache_super_index_def;
 extern const struct fscache_cookie_def cifs_fscache_inode_object_def;
 
-
 extern int cifs_fscache_register(void);
 extern void cifs_fscache_unregister(void);
 
@@ -50,6 +49,11 @@ extern void cifs_fscache_reset_inode_cookie(struct inode *);
 
 extern void __cifs_fscache_invalidate_page(struct page *, struct inode *);
 extern int cifs_fscache_release_page(struct page *page, gfp_t gfp);
+extern int __cifs_readpage_from_fscache(struct inode *, struct page *);
+extern int __cifs_readpages_from_fscache(struct inode *,
+					 struct address_space *,
+					 struct list_head *,
+					 unsigned *);
 
 extern void __cifs_readpage_to_fscache(struct inode *, struct page *);
 
@@ -58,6 +62,26 @@ static inline void cifs_fscache_invalidate_page(struct page *page,
 {
 	if (PageFsCache(page))
 		__cifs_fscache_invalidate_page(page, inode);
+}
+
+static inline int cifs_readpage_from_fscache(struct inode *inode,
+					     struct page *page)
+{
+	if (CIFS_I(inode)->fscache)
+		return __cifs_readpage_from_fscache(inode, page);
+
+	return -ENOBUFS;
+}
+
+static inline int cifs_readpages_from_fscache(struct inode *inode,
+					      struct address_space *mapping,
+					      struct list_head *pages,
+					      unsigned *nr_pages)
+{
+	if (CIFS_I(inode)->fscache)
+		return __cifs_readpages_from_fscache(inode, mapping, pages,
+						     nr_pages);
+	return -ENOBUFS;
 }
 
 static inline void cifs_readpage_to_fscache(struct inode *inode,
@@ -90,6 +114,20 @@ static inline void cifs_fscache_release_page(struct page *page, gfp_t gfp)
 
 static inline int cifs_fscache_invalidate_page(struct page *page,
 			struct inode *) {}
+static inline int
+cifs_readpage_from_fscache(struct inode *inode, struct page *page)
+{
+	return -ENOBUFS;
+}
+
+static inline int cifs_readpages_from_fscache(struct inode *inode,
+					      struct address_space *mapping,
+					      struct list_head *pages,
+					      unsigned *nr_pages)
+{
+	return -ENOBUFS;
+}
+
 static inline void cifs_readpage_to_fscache(struct inode *inode,
 			struct page *page) {}
 
