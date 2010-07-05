@@ -217,6 +217,7 @@ static int xc_send_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 	return XC_RESULT_SUCCESS;
 }
 
+#if 0
 /* This routine is never used because the only time we read data from the
    i2c bus is when we read registers, and we want that to be an atomic i2c
    transaction in case we are on a multi-master bus */
@@ -231,6 +232,7 @@ static int xc_read_i2c_data(struct xc5000_priv *priv, u8 *buf, int len)
 	}
 	return 0;
 }
+#endif
 
 static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 {
@@ -295,7 +297,7 @@ static int xc_write_reg(struct xc5000_priv *priv, u16 regAddr, u16 i2cData)
 	if (result == XC_RESULT_SUCCESS) {
 		/* wait for busy flag to clear */
 		while ((WatchDogTimer > 0) && (result == XC_RESULT_SUCCESS)) {
-			result = xc5000_readreg(priv, XREG_BUSY, buf);
+			result = xc5000_readreg(priv, XREG_BUSY, (u16 *)buf);
 			if (result == XC_RESULT_SUCCESS) {
 				if ((buf[0] == 0) && (buf[1] == 0)) {
 					/* busy flag cleared */
