@@ -273,11 +273,6 @@ static struct omap_lcd_config h4_lcd_config __initdata = {
 };
 
 static struct omap_usb_config h4_usb_config __initdata = {
-#ifdef	CONFIG_MACH_OMAP2_H4_USB1
-	/* NOTE:  usb1 could also be used with 3 wire signaling */
-	.pins[1]	= 4,
-#endif
-
 	/* S1.10 OFF -- usb "download port"
 	 * usb0 switched to Mini-B port and isp1105 transceiver;
 	 * S2.POS3 = ON, S2.POS4 = OFF ... to enable battery charging
