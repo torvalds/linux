@@ -576,7 +576,7 @@ static inline int au0828_isoc_copy(struct au0828_dev *dev, struct urb *urb)
 			p += 4;
 			au0828_isocdbg("Video frame %s\n",
 				       (fbyte & 0x40) ? "odd" : "even");
-			if (!(fbyte & 0x40)) {
+			if (fbyte & 0x40) {
 				/* VBI */
 				if (vbi_buf != NULL)
 					vbi_buffer_filled(dev,
