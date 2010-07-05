@@ -95,10 +95,11 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 	}
 
 	tcph->rst	= 1;
-	tcph->check	= tcp_v4_check(sizeof(struct tcphdr),
-				       niph->saddr, niph->daddr,
-				       csum_partial(tcph,
-						    sizeof(struct tcphdr), 0));
+	tcph->check = ~tcp_v4_check(sizeof(struct tcphdr), niph->saddr,
+				    niph->daddr, 0);
+	nskb->ip_summed = CHECKSUM_PARTIAL;
+	nskb->csum_start = (unsigned char *)tcph - nskb->head;
+	nskb->csum_offset = offsetof(struct tcphdr, check);
 
 	addr_type = RTN_UNSPEC;
 	if (hook != NF_INET_FORWARD
@@ -115,7 +116,6 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 		goto free_nskb;
 
 	niph->ttl	= dst_metric(skb_dst(nskb), RTAX_HOPLIMIT);
-	nskb->ip_summed = CHECKSUM_NONE;
 
 	/* "Never happens" */
 	if (nskb->len > dst_mtu(skb_dst(nskb)))
