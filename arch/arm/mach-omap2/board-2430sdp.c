@@ -38,6 +38,7 @@
 #include <plat/usb.h>
 #include <plat/gpmc-smc91x.h>
 
+#include "mux.h"
 #include "hsmmc.h"
 
 #define SDP2430_CS0_BASE	0x04000000
@@ -217,9 +218,19 @@ static struct omap_usb_config sdp2430_usb_config __initdata = {
 	.pins[0]	= 3,
 };
 
+#ifdef CONFIG_OMAP_MUX
+static struct omap_board_mux board_mux[] __initdata = {
+	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+#else
+#define board_mux	NULL
+#endif
+
 static void __init omap_2430sdp_init(void)
 {
 	int ret;
+
+	omap2430_mux_init(board_mux, OMAP_PACKAGE_ZAC);
 
 	omap2430_i2c_init();
 
