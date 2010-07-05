@@ -269,6 +269,21 @@ static void __init cacheid_init(void)
 extern struct proc_info_list *lookup_processor_type(unsigned int);
 extern struct machine_desc *lookup_machine_type(unsigned int);
 
+static void __init feat_v6_fixup(void)
+{
+	int id = read_cpuid_id();
+
+	if ((id & 0xff0f0000) != 0x41070000)
+		return;
+
+	/*
+	 * HWCAP_TLS is available only on 1136 r1p0 and later,
+	 * see also kuser_get_tls_init.
+	 */
+	if ((((id >> 4) & 0xfff) == 0xb36) && (((id >> 20) & 3) == 0))
+		elf_hwcap &= ~HWCAP_TLS;
+}
+
 static void __init setup_processor(void)
 {
 	struct proc_info_list *list;
@@ -310,6 +325,8 @@ static void __init setup_processor(void)
 #ifndef CONFIG_ARM_THUMB
 	elf_hwcap &= ~HWCAP_THUMB;
 #endif
+
+	feat_v6_fixup();
 
 	cacheid_init();
 	cpu_proc_init();
