@@ -46,13 +46,6 @@
 
 #define RBUFSIZE 8192
 
-/* compile time options */
-#define GIG_MAJOR 0
-
-#define GIG_MAYINITONDIAL
-#define GIG_RETRYCID
-#define GIG_X75
-
 #define GIG_TICK 100		/* in milliseconds */
 
 /* timeout values (unit: 1 sec) */

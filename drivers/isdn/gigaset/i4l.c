@@ -643,9 +643,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->maxbufsize = MAX_BUF_SIZE;
 	iif->features = ISDN_FEATURE_L2_TRANS |
 		ISDN_FEATURE_L2_HDLC |
-#ifdef GIG_X75
 		ISDN_FEATURE_L2_X75I |
-#endif
 		ISDN_FEATURE_L3_TRANS |
 		ISDN_FEATURE_P_EURO;
 	iif->hl_hdrlen = HW_HDR_LEN;		/* Area for storing ack */

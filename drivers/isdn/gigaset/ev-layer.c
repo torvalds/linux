@@ -1809,19 +1809,13 @@ static void process_command_flags(struct cardstate *cs)
 				gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 				cs->commands_pending = 1;
 				return;
-#ifdef GIG_MAYINITONDIAL
 			case M_UNKNOWN:
 				schedule_init(cs, MS_INIT);
 				return;
-#endif
 			}
 			bcs->at_state.pending_commands &= ~PC_CID;
 			cs->curchannel = bcs->channel;
-#ifdef GIG_RETRYCID
 			cs->retry_count = 2;
-#else
-			cs->retry_count = 1;
-#endif
 			schedule_sequence(cs, &cs->at_state, SEQ_CID);
 			return;
 		}
