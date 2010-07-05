@@ -2938,7 +2938,6 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, dir);
 	BUG_ON(ret);
-	dir->i_sb->s_dirt = 1;
 
 	btrfs_free_path(path);
 	return 0;
