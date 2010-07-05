@@ -126,8 +126,6 @@ static struct omap2_hsmmc_info mmc[] = {
 	},
 	{}	/* Terminator */
 };
-static struct omap_board_config_kernel devkit8000_config[] __initdata = {
-};
 
 static int devkit8000_panel_enable_lcd(struct omap_dss_device *dssdev)
 {
@@ -464,8 +462,6 @@ static struct platform_device keys_gpio = {
 
 static void __init devkit8000_init_irq(void)
 {
-	omap_board_config = devkit8000_config;
-	omap_board_config_size = ARRAY_SIZE(devkit8000_config);
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
@@ -797,8 +793,6 @@ static void __init devkit8000_init(void)
 	devkit8000_i2c_init();
 	platform_add_devices(devkit8000_devices,
 			ARRAY_SIZE(devkit8000_devices));
-	omap_board_config = devkit8000_config;
-	omap_board_config_size = ARRAY_SIZE(devkit8000_config);
 
 	spi_register_board_info(devkit8000_spi_board_info,
 	ARRAY_SIZE(devkit8000_spi_board_info));
