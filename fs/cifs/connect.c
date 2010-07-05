@@ -98,6 +98,7 @@ struct smb_vol {
 	bool noblocksnd:1;
 	bool noautotune:1;
 	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
+	bool fsc:1;	/* enable fscache */
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
@@ -843,6 +844,9 @@ cifs_parse_mount_options(char *options, const char *devname,
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
 
+	/* XXX: default to fsc for testing until mount.cifs pieces are done */
+	vol->fsc = 1;
+
 	if (!options)
 		return 1;
 
@@ -1332,6 +1336,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
+		} else if (strnicmp(data, "fsc", 3) == 0) {
+			vol->fsc = true;
 		} else
 			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
 						data);
@@ -2463,6 +2469,8 @@ static void setup_cifs_sb(struct smb_vol *pvolume_info,
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_OVERR_GID;
 	if (pvolume_info->dynperm)
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DYNPERM;
+	if (pvolume_info->fsc)
+		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_FSCACHE;
 	if (pvolume_info->direct_io) {
 		cFYI(1, "mounting share using direct i/o");
 		cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_DIRECT_IO;
