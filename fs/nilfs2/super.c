@@ -603,7 +603,7 @@ static const struct export_operations nilfs_export_ops = {
 
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
+	Opt_barrier, Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
 	Opt_discard, Opt_err,
 };
 
@@ -611,6 +611,7 @@ static match_table_t tokens = {
 	{Opt_err_cont, "errors=continue"},
 	{Opt_err_panic, "errors=panic"},
 	{Opt_err_ro, "errors=remount-ro"},
+	{Opt_barrier, "barrier"},
 	{Opt_nobarrier, "nobarrier"},
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
@@ -636,6 +637,9 @@ static int parse_options(char *options, struct super_block *sb)
 
 		token = match_token(p, tokens, args);
 		switch (token) {
+		case Opt_barrier:
+			nilfs_set_opt(sbi, BARRIER);
+			break;
 		case Opt_nobarrier:
 			nilfs_clear_opt(sbi, BARRIER);
 			break;
