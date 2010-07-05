@@ -47,6 +47,7 @@
 #include <linux/key-type.h>
 #include "dns_resolve.h"
 #include "cifs_spnego.h"
+#include "fscache.h"
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
 int cifsFYI = 0;
@@ -902,6 +903,10 @@ init_cifs(void)
 		cFYI(1, "cifs_max_pending set to max of 256");
 	}
 
+	rc = cifs_fscache_register();
+	if (rc)
+		goto out;
+
 	rc = cifs_init_inodecache();
 	if (rc)
 		goto out_clean_proc;
@@ -951,6 +956,8 @@ init_cifs(void)
 	cifs_destroy_inodecache();
  out_clean_proc:
 	cifs_proc_clean();
+	cifs_fscache_unregister();
+ out:
 	return rc;
 }
 
@@ -959,6 +966,7 @@ exit_cifs(void)
 {
 	cFYI(DBG2, "exit_cifs");
 	cifs_proc_clean();
+	cifs_fscache_unregister();
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_dfs_release_automount_timer();
 	cifs_exit_dns_resolver();
