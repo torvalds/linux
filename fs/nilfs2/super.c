@@ -604,7 +604,7 @@ static const struct export_operations nilfs_export_ops = {
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
 	Opt_barrier, Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
-	Opt_discard, Opt_err,
+	Opt_discard, Opt_nodiscard, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -617,6 +617,7 @@ static match_table_t tokens = {
 	{Opt_order, "order=%s"},
 	{Opt_norecovery, "norecovery"},
 	{Opt_discard, "discard"},
+	{Opt_nodiscard, "nodiscard"},
 	{Opt_err, NULL}
 };
 
@@ -675,6 +676,9 @@ static int parse_options(char *options, struct super_block *sb)
 			break;
 		case Opt_discard:
 			nilfs_set_opt(sbi, DISCARD);
+			break;
+		case Opt_nodiscard:
+			nilfs_clear_opt(sbi, DISCARD);
 			break;
 		default:
 			printk(KERN_ERR
