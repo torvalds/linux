@@ -215,3 +215,86 @@ const struct fscache_cookie_def cifs_fscache_super_index_def = {
 	.check_aux = cifs_fscache_super_check_aux,
 };
 
+/*
+ * Auxiliary data attached to CIFS inode within the cache
+ */
+struct cifs_fscache_inode_auxdata {
+	struct timespec	last_write_time;
+	struct timespec	last_change_time;
+	u64		eof;
+};
+
+static uint16_t cifs_fscache_inode_get_key(const void *cookie_netfs_data,
+					   void *buffer, uint16_t maxbuf)
+{
+	const struct cifsInodeInfo *cifsi = cookie_netfs_data;
+	uint16_t keylen;
+
+	/* use the UniqueId as the key */
+	keylen = sizeof(cifsi->uniqueid);
+	if (keylen > maxbuf)
+		keylen = 0;
+	else
+		memcpy(buffer, &cifsi->uniqueid, keylen);
+
+	return keylen;
+}
+
+static void
+cifs_fscache_inode_get_attr(const void *cookie_netfs_data, uint64_t *size)
+{
+	const struct cifsInodeInfo *cifsi = cookie_netfs_data;
+
+	*size = cifsi->vfs_inode.i_size;
+}
+
+static uint16_t
+cifs_fscache_inode_get_aux(const void *cookie_netfs_data, void *buffer,
+			   uint16_t maxbuf)
+{
+	struct cifs_fscache_inode_auxdata auxdata;
+	const struct cifsInodeInfo *cifsi = cookie_netfs_data;
+
+	memset(&auxdata, 0, sizeof(auxdata));
+	auxdata.eof = cifsi->server_eof;
+	auxdata.last_write_time = cifsi->vfs_inode.i_mtime;
+	auxdata.last_change_time = cifsi->vfs_inode.i_ctime;
+
+	if (maxbuf > sizeof(auxdata))
+		maxbuf = sizeof(auxdata);
+
+	memcpy(buffer, &auxdata, maxbuf);
+
+	return maxbuf;
+}
+
+static enum
+fscache_checkaux cifs_fscache_inode_check_aux(void *cookie_netfs_data,
+					      const void *data,
+					      uint16_t datalen)
+{
+	struct cifs_fscache_inode_auxdata auxdata;
+	struct cifsInodeInfo *cifsi = cookie_netfs_data;
+
+	if (datalen != sizeof(auxdata))
+		return FSCACHE_CHECKAUX_OBSOLETE;
+
+	memset(&auxdata, 0, sizeof(auxdata));
+	auxdata.eof = cifsi->server_eof;
+	auxdata.last_write_time = cifsi->vfs_inode.i_mtime;
+	auxdata.last_change_time = cifsi->vfs_inode.i_ctime;
+
+	if (memcmp(data, &auxdata, datalen) != 0)
+		return FSCACHE_CHECKAUX_OBSOLETE;
+
+	return FSCACHE_CHECKAUX_OKAY;
+}
+
+const struct fscache_cookie_def cifs_fscache_inode_object_def = {
+	.name		= "CIFS.uniqueid",
+	.type		= FSCACHE_COOKIE_TYPE_DATAFILE,
+	.get_key	= cifs_fscache_inode_get_key,
+	.get_attr	= cifs_fscache_inode_get_attr,
+	.get_aux	= cifs_fscache_inode_get_aux,
+	.check_aux	= cifs_fscache_inode_check_aux,
+};

@@ -40,6 +40,7 @@
 #include "cifs_unicode.h"
 #include "cifs_debug.h"
 #include "cifs_fs_sb.h"
+#include "fscache.h"
 
 static inline int cifs_convert_flags(unsigned int flags)
 {
@@ -282,6 +283,9 @@ int cifs_open(struct inode *inode, struct file *file)
 				CIFSSMBClose(xid, tcon, netfid);
 				rc = -ENOMEM;
 			}
+
+			cifs_fscache_set_inode_cookie(inode, file);
+
 			goto out;
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
@@ -372,6 +376,8 @@ int cifs_open(struct inode *inode, struct file *file)
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	cifs_fscache_set_inode_cookie(inode, file);
 
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to

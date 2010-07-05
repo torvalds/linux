@@ -390,6 +390,9 @@ struct cifsInodeInfo {
 	bool invalid_mapping:1;		/* pagecache is invalid */
 	u64  server_eof;		/* current file size on server */
 	u64  uniqueid;			/* server inode number */
+#ifdef CONFIG_CIFS_FSCACHE
+	struct fscache_cookie *fscache;
+#endif
 	struct inode vfs_inode;
 };
 

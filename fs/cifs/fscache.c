@@ -21,6 +21,7 @@
 #include "fscache.h"
 #include "cifsglob.h"
 #include "cifs_debug.h"
+#include "cifs_fs_sb.h"
 
 void cifs_fscache_get_client_cookie(struct TCP_Server_Info *server)
 {
@@ -55,4 +56,71 @@ void cifs_fscache_release_super_cookie(struct cifsTconInfo *tcon)
 	cFYI(1, "CIFS: releasing superblock cookie (0x%p)", tcon->fscache);
 	fscache_relinquish_cookie(tcon->fscache, 0);
 	tcon->fscache = NULL;
+}
+
+static void cifs_fscache_enable_inode_cookie(struct inode *inode)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+
+	if (cifsi->fscache)
+		return;
+
+	cifsi->fscache = fscache_acquire_cookie(cifs_sb->tcon->fscache,
+				&cifs_fscache_inode_object_def,
+				cifsi);
+	cFYI(1, "CIFS: got FH cookie (0x%p/0x%p)",
+			cifs_sb->tcon->fscache, cifsi->fscache);
+}
+
+void cifs_fscache_release_inode_cookie(struct inode *inode)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+
+	if (cifsi->fscache) {
+		cFYI(1, "CIFS releasing inode cookie (0x%p)",
+				cifsi->fscache);
+		fscache_relinquish_cookie(cifsi->fscache, 0);
+		cifsi->fscache = NULL;
+	}
+}
+
+static void cifs_fscache_disable_inode_cookie(struct inode *inode)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+
+	if (cifsi->fscache) {
+		cFYI(1, "CIFS disabling inode cookie (0x%p)",
+				cifsi->fscache);
+		fscache_relinquish_cookie(cifsi->fscache, 1);
+		cifsi->fscache = NULL;
+	}
+}
+
+void cifs_fscache_set_inode_cookie(struct inode *inode, struct file *filp)
+{
+	if ((filp->f_flags & O_ACCMODE) != O_RDONLY)
+		cifs_fscache_disable_inode_cookie(inode);
+	else {
+		cifs_fscache_enable_inode_cookie(inode);
+		cFYI(1, "CIFS: fscache inode cookie set");
+	}
+}
+
+void cifs_fscache_reset_inode_cookie(struct inode *inode)
+{
+	struct cifsInodeInfo *cifsi = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct fscache_cookie *old = cifsi->fscache;
+
+	if (cifsi->fscache) {
+		/* retire the current fscache cache and get a new one */
+		fscache_relinquish_cookie(cifsi->fscache, 1);
+
+		cifsi->fscache = fscache_acquire_cookie(cifs_sb->tcon->fscache,
+					&cifs_fscache_inode_object_def,
+					cifsi);
+		cFYI(1, "CIFS: new cookie 0x%p oldcookie 0x%p",
+				cifsi->fscache, old);
+	}
 }

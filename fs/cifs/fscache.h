@@ -30,6 +30,8 @@
 extern struct fscache_netfs cifs_fscache_netfs;
 extern const struct fscache_cookie_def cifs_fscache_server_index_def;
 extern const struct fscache_cookie_def cifs_fscache_super_index_def;
+extern const struct fscache_cookie_def cifs_fscache_inode_object_def;
+
 
 extern int cifs_fscache_register(void);
 extern void cifs_fscache_unregister(void);
@@ -42,6 +44,10 @@ extern void cifs_fscache_release_client_cookie(struct TCP_Server_Info *);
 extern void cifs_fscache_get_super_cookie(struct cifsTconInfo *);
 extern void cifs_fscache_release_super_cookie(struct cifsTconInfo *);
 
+extern void cifs_fscache_release_inode_cookie(struct inode *);
+extern void cifs_fscache_set_inode_cookie(struct inode *, struct file *);
+extern void cifs_fscache_reset_inode_cookie(struct inode *);
+
 #else /* CONFIG_CIFS_FSCACHE */
 static inline int cifs_fscache_register(void) { return 0; }
 static inline void cifs_fscache_unregister(void) {}
@@ -53,6 +59,12 @@ cifs_fscache_get_client_cookie(struct TCP_Server_Info *server); {}
 static inline void cifs_fscache_get_super_cookie(struct cifsTconInfo *tcon) {}
 static inline void
 cifs_fscache_release_super_cookie(struct cifsTconInfo *tcon) {}
+
+static inline void cifs_fscache_release_inode_cookie(struct inode *inode) {}
+static inline void cifs_fscache_set_inode_cookie(struct inode *inode,
+						 struct file *filp) {}
+static inline void cifs_fscache_reset_inode_cookie(struct inode *inode) {}
+
 
 #endif /* CONFIG_CIFS_FSCACHE */
 
