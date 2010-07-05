@@ -460,7 +460,7 @@ static void watchdog_disable(int cpu)
 static void watchdog_enable_all_cpus(void)
 {
 	int cpu;
-	int result;
+	int result = 0;
 
 	for_each_online_cpu(cpu)
 		result += watchdog_enable(cpu);
