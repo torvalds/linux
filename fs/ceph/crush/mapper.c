@@ -264,7 +264,7 @@ static int crush_bucket_choose(struct crush_bucket *in, int x, int r)
  */
 static int is_out(struct crush_map *map, __u32 *weight, int item, int x)
 {
-	if (weight[item] >= 0x1000)
+	if (weight[item] >= 0x10000)
 		return 0;
 	if (weight[item] == 0)
 		return 1;
