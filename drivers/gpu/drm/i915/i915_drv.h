@@ -201,6 +201,8 @@ struct intel_device_info {
 	u8 need_gfx_hws : 1;
 	u8 is_g4x : 1;
 	u8 is_pineview : 1;
+	u8 is_broadwater : 1;
+	u8 is_crestline : 1;
 	u8 is_ironlake : 1;
 	u8 is_gen6 : 1;
 	u8 has_fbc : 1;
@@ -1134,6 +1136,8 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 #define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
 #define IS_I965G(dev)		(INTEL_INFO(dev)->is_i965g)
 #define IS_I965GM(dev)		(INTEL_INFO(dev)->is_i965gm)
+#define IS_BROADWATER(dev)	(INTEL_INFO(dev)->is_broadwater)
+#define IS_CRESTLINE(dev)	(INTEL_INFO(dev)->is_crestline)
 #define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
 #define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
 #define IS_PINEVIEW_G(dev)	((dev)->pci_device == 0xa001)

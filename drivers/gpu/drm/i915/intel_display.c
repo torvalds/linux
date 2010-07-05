@@ -1329,7 +1329,12 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 
 	switch (obj_priv->tiling_mode) {
 	case I915_TILING_NONE:
-		alignment = 64 * 1024;
+		if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
+			alignment = 128 * 1024;
+		else if (IS_I965G(dev))
+			alignment = 4 * 1024;
+		else
+			alignment = 64 * 1024;
 		break;
 	case I915_TILING_X:
 		/* pin() will align the object as required by fence */

@@ -93,11 +93,11 @@ static const struct intel_device_info intel_i945gm_info = {
 };
 
 static const struct intel_device_info intel_i965g_info = {
-	.is_i965g = 1, .is_i9xx = 1, .has_hotplug = 1,
+	.is_broadwater = 1, .is_i965g = 1, .is_i9xx = 1, .has_hotplug = 1,
 };
 
 static const struct intel_device_info intel_i965gm_info = {
-	.is_i965g = 1, .is_i965gm = 1, .is_i9xx = 1,
+	.is_crestline = 1, .is_i965g = 1, .is_i965gm = 1, .is_i9xx = 1,
 	.is_mobile = 1, .has_fbc = 1, .has_rc6 = 1,
 	.has_hotplug = 1,
 };
