@@ -27,69 +27,7 @@
 #include <mach/gpio.h>
 #include <plat/menelaus.h>
 #include <plat/mcbsp.h>
-#include <plat/dsp_common.h>
 #include <plat/omap44xx.h>
-
-#if	defined(CONFIG_OMAP_DSP) || defined(CONFIG_OMAP_DSP_MODULE)
-
-static struct dsp_platform_data dsp_pdata = {
-	.kdev_list = LIST_HEAD_INIT(dsp_pdata.kdev_list),
-};
-
-static struct resource omap_dsp_resources[] = {
-	{
-		.name	= "dsp_mmu",
-		.start	= -1,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device omap_dsp_device = {
-	.name		= "dsp",
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(omap_dsp_resources),
-	.resource	= omap_dsp_resources,
-	.dev = {
-		.platform_data = &dsp_pdata,
-	},
-};
-
-static inline void omap_init_dsp(void)
-{
-	struct resource *res;
-	int irq;
-
-	if (cpu_is_omap15xx())
-		irq = INT_1510_DSP_MMU;
-	else if (cpu_is_omap16xx())
-		irq = INT_1610_DSP_MMU;
-	else if (cpu_is_omap24xx())
-		irq = INT_24XX_DSP_MMU;
-
-	res = platform_get_resource_byname(&omap_dsp_device,
-					   IORESOURCE_IRQ, "dsp_mmu");
-	res->start = irq;
-
-	platform_device_register(&omap_dsp_device);
-}
-
-int dsp_kfunc_device_register(struct dsp_kfunc_device *kdev)
-{
-	static DEFINE_MUTEX(dsp_pdata_lock);
-
-	spin_lock_init(&kdev->lock);
-
-	mutex_lock(&dsp_pdata_lock);
-	list_add_tail(&kdev->entry, &dsp_pdata.kdev_list);
-	mutex_unlock(&dsp_pdata_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL(dsp_kfunc_device_register);
-
-#else
-static inline void omap_init_dsp(void) { }
-#endif	/* CONFIG_OMAP_DSP */
 
 /*-------------------------------------------------------------------------*/
 
@@ -359,7 +297,6 @@ static int __init omap_init_devices(void)
 	/* please keep these calls, and their implementations above,
 	 * in alphabetical order so they're easier to sort through.
 	 */
-	omap_init_dsp();
 	omap_init_rng();
 	omap_init_mcpdm();
 	omap_init_uwire();
