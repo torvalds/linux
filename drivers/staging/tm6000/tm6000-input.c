@@ -40,7 +40,7 @@ MODULE_PARM_DESC(enable_ir, "enable ir (default is enable");
 
 #undef dprintk
 
-#define dprintk(fmt, arg... ) \
+#define dprintk(fmt, arg...) \
 	if (ir_debug) { \
 		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
 	}
@@ -119,13 +119,13 @@ static void tm6000_ir_urb_received(struct urb *urb)
 	struct tm6000_core *dev = urb->context;
 	struct tm6000_IR *ir = dev->ir;
 	int rc;
-	
+
 	if (urb->status != 0)
 		printk(KERN_INFO "not ready\n");
 	else if (urb->actual_length > 0)
-		memcpy (ir->urb_data, urb->transfer_buffer, urb->actual_length);
+		memcpy(ir->urb_data, urb->transfer_buffer, urb->actual_length);
 
-	dprintk ("data %02x %02x %02x %02x\n", ir->urb_data[0],
+	dprintk("data %02x %02x %02x %02x\n", ir->urb_data[0],
 	ir->urb_data[1], ir->urb_data[2], ir->urb_data[3]);
 
 	ir->key = 1;
@@ -140,7 +140,7 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 	int rc;
 	u8 buf[2];
 
-	if(ir->wait && !&dev->int_in) {
+	if (ir->wait && !&dev->int_in) {
 		poll_result->rc_data[0] = 0xff;
 		return 0;
 	}
@@ -159,10 +159,10 @@ static int default_polling_getkey(struct tm6000_IR *ir,
 
 		msleep(10);
 
-		dprintk ("read data=%02x\n", buf[0]);
-		if (rc < 0) {
+		dprintk("read data=%02x\n", buf[0]);
+		if (rc < 0)
 			return rc;
-		}
+
 		poll_result->rc_data[0] = buf[0];
 	}
 	return 0;
