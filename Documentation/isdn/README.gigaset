@@ -263,7 +263,22 @@ GigaSet 307x Device Driver
      change its CID mode while the driver is loaded, eg.
         echo 0 > /sys/class/tty/ttyGU0/cidmode
 
-2.7. Unregistered Wireless Devices (M101/M105)
+2.7. Dialing Numbers
+     ---------------
+     The called party number provided by an application for dialing out must
+     be a public network number according to the local dialing plan, without
+     any dial prefix for getting an outside line.
+
+     Internal calls can be made by providing an internal extension number
+     prefixed with "**" (two asterisks) as the called party number. So to dial
+     eg. the first registered DECT handset, give "**11" as the called party
+     number. Dialing "***" (three asterisks) calls all extensions
+     simultaneously (global call).
+
+     This holds for both CAPI 2.0 and ISDN4Linux applications. Unimodem mode
+     does not support internal calls.
+
+2.8. Unregistered Wireless Devices (M101/M105)
      -----------------------------------------
      The main purpose of the ser_gigaset and usb_gigaset drivers is to allow
      the M101 and M105 wireless devices to be used as ISDN devices for ISDN
