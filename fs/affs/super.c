@@ -61,20 +61,13 @@ affs_put_super(struct super_block *sb)
 static void
 affs_write_super(struct super_block *sb)
 {
-	int clean = 2;
-
 	lock_super(sb);
-	if (!(sb->s_flags & MS_RDONLY)) {
-		//	if (sbi->s_bitmap[i].bm_bh) {
-		//		if (buffer_dirty(sbi->s_bitmap[i].bm_bh)) {
-		//			clean = 0;
-		affs_commit_super(sb, clean);
-		sb->s_dirt = !clean;	/* redo until bitmap synced */
-	} else
-		sb->s_dirt = 0;
+	if (!(sb->s_flags & MS_RDONLY))
+		affs_commit_super(sb, 2);
+	sb->s_dirt = 0;
 	unlock_super(sb);
 
-	pr_debug("AFFS: write_super() at %lu, clean=%d\n", get_seconds(), clean);
+	pr_debug("AFFS: write_super() at %lu, clean=2\n", get_seconds());
 }
 
 static int
@@ -553,9 +546,7 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 	}
 	if (*flags & MS_RDONLY) {
-		sb->s_dirt = 1;
-		while (sb->s_dirt)
-			affs_write_super(sb);
+		affs_write_super(sb);
 		affs_free_bitmap(sb);
 	} else
 		res = affs_init_bitmap(sb, flags);
