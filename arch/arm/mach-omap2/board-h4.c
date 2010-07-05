@@ -363,11 +363,28 @@ static void __init omap_h4_init(void)
 #endif
 
 #if defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
+	omap_mux_init_gpio(88, OMAP_PULL_ENA | OMAP_PULL_UP);
+	omap_mux_init_gpio(89, OMAP_PULL_ENA | OMAP_PULL_UP);
+	omap_mux_init_gpio(124, OMAP_PULL_ENA | OMAP_PULL_UP);
+	omap_mux_init_signal("mcbsp2_dr.gpio_11", OMAP_PULL_ENA | OMAP_PULL_UP);
 	if (omap_has_menelaus()) {
+		omap_mux_init_signal("sdrc_a14.gpio0",
+			OMAP_PULL_ENA | OMAP_PULL_UP);
+		omap_mux_init_signal("vlynq_rx0.gpio_15", 0);
+		omap_mux_init_signal("gpio_98", 0);
 		row_gpios[5] = 0;
 		col_gpios[2] = 15;
 		col_gpios[6] = 18;
+	} else {
+		omap_mux_init_signal("gpio_96", OMAP_PULL_ENA | OMAP_PULL_UP);
+		omap_mux_init_signal("gpio_100", 0);
+		omap_mux_init_signal("gpio_98", 0);
 	}
+	omap_mux_init_signal("gpio_90", 0);
+	omap_mux_init_signal("gpio_91", 0);
+	omap_mux_init_signal("gpio_36", 0);
+	omap_mux_init_signal("mcbsp2_clkx.gpio_12", 0);
+	omap_mux_init_signal("gpio_97", 0);
 #endif
 
 	i2c_register_board_info(1, h4_i2c_board_info,

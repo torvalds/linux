@@ -24,7 +24,6 @@
 #include <plat/control.h>
 #include <plat/board.h>
 #include <plat/mmc.h>
-#include <plat/mux.h>
 #include <mach/gpio.h>
 #include <plat/menelaus.h>
 #include <plat/mcbsp.h>
@@ -93,66 +92,7 @@ static inline void omap_init_dsp(void) { }
 #endif	/* CONFIG_OMAP_DSP */
 
 /*-------------------------------------------------------------------------*/
-#if	defined(CONFIG_KEYBOARD_OMAP) || defined(CONFIG_KEYBOARD_OMAP_MODULE)
 
-static void omap_init_kp(void)
-{
-	/* 2430 and 34xx keypad is on TWL4030 */
-	if (cpu_is_omap2430() || cpu_is_omap34xx())
-		return;
-
-	if (machine_is_omap_h2() || machine_is_omap_h3()) {
-		omap_cfg_reg(F18_1610_KBC0);
-		omap_cfg_reg(D20_1610_KBC1);
-		omap_cfg_reg(D19_1610_KBC2);
-		omap_cfg_reg(E18_1610_KBC3);
-		omap_cfg_reg(C21_1610_KBC4);
-
-		omap_cfg_reg(G18_1610_KBR0);
-		omap_cfg_reg(F19_1610_KBR1);
-		omap_cfg_reg(H14_1610_KBR2);
-		omap_cfg_reg(E20_1610_KBR3);
-		omap_cfg_reg(E19_1610_KBR4);
-		omap_cfg_reg(N19_1610_KBR5);
-	} else if (machine_is_omap_perseus2() || machine_is_omap_fsample()) {
-		omap_cfg_reg(E2_7XX_KBR0);
-		omap_cfg_reg(J7_7XX_KBR1);
-		omap_cfg_reg(E1_7XX_KBR2);
-		omap_cfg_reg(F3_7XX_KBR3);
-		omap_cfg_reg(D2_7XX_KBR4);
-
-		omap_cfg_reg(C2_7XX_KBC0);
-		omap_cfg_reg(D3_7XX_KBC1);
-		omap_cfg_reg(E4_7XX_KBC2);
-		omap_cfg_reg(F4_7XX_KBC3);
-		omap_cfg_reg(E3_7XX_KBC4);
-	} else if (machine_is_omap_h4()) {
-		omap_cfg_reg(T19_24XX_KBR0);
-		omap_cfg_reg(R19_24XX_KBR1);
-		omap_cfg_reg(V18_24XX_KBR2);
-		omap_cfg_reg(M21_24XX_KBR3);
-		omap_cfg_reg(E5__24XX_KBR4);
-		if (omap_has_menelaus()) {
-			omap_cfg_reg(B3__24XX_KBR5);
-			omap_cfg_reg(AA4_24XX_KBC2);
-			omap_cfg_reg(B13_24XX_KBC6);
-		} else {
-			omap_cfg_reg(M18_24XX_KBR5);
-			omap_cfg_reg(H19_24XX_KBC2);
-			omap_cfg_reg(N19_24XX_KBC6);
-		}
-		omap_cfg_reg(R20_24XX_KBC0);
-		omap_cfg_reg(M14_24XX_KBC1);
-		omap_cfg_reg(V17_24XX_KBC3);
-		omap_cfg_reg(P21_24XX_KBC4);
-		omap_cfg_reg(L14_24XX_KBC5);
-	}
-}
-#else
-static inline void omap_init_kp(void) {}
-#endif
-
-/*-------------------------------------------------------------------------*/
 #if defined(CONFIG_OMAP_MCBSP) || defined(CONFIG_OMAP_MCBSP_MODULE)
 
 static struct platform_device **omap_mcbsp_devices;
@@ -420,7 +360,6 @@ static int __init omap_init_devices(void)
 	 * in alphabetical order so they're easier to sort through.
 	 */
 	omap_init_dsp();
-	omap_init_kp();
 	omap_init_rng();
 	omap_init_mcpdm();
 	omap_init_uwire();
