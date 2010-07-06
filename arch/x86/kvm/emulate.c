@@ -169,7 +169,7 @@ static u32 opcode_table[256] = {
 	/* 0x88 - 0x8F */
 	ByteOp | DstMem | SrcReg | ModRM | Mov, DstMem | SrcReg | ModRM | Mov,
 	ByteOp | DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstMem | SrcReg | ModRM | Mov, ModRM | DstReg,
+	DstMem | SrcNone | ModRM | Mov, ModRM | DstReg,
 	ImplicitOps | SrcMem16 | ModRM, Group | Group1A,
 	/* 0x90 - 0x97 */
 	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
