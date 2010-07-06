@@ -60,7 +60,6 @@ enum rq_cmd_type_bits {
 	REQ_TYPE_PM_RESUME,		/* resume request */
 	REQ_TYPE_PM_SHUTDOWN,		/* shutdown request */
 	REQ_TYPE_SPECIAL,		/* driver defined type */
-	REQ_TYPE_LINUX_BLOCK,		/* generic block layer message */
 	/*
 	 * for ATA/ATAPI devices. this really doesn't belong here, ide should
 	 * use REQ_TYPE_SPECIAL and use rq->cmd[0] with the range of driver
@@ -68,20 +67,6 @@ enum rq_cmd_type_bits {
 	 */
 	REQ_TYPE_ATA_TASKFILE,
 	REQ_TYPE_ATA_PC,
-};
-
-/*
- * For request of type REQ_TYPE_LINUX_BLOCK, rq->cmd[0] is the opcode being
- * sent down (similar to how REQ_TYPE_BLOCK_PC means that ->cmd[] holds a
- * SCSI cdb.
- *
- * 0x00 -> 0x3f are driver private, to be used for whatever purpose they need,
- * typically to differentiate REQ_TYPE_SPECIAL requests.
- *
- */
-enum {
-	REQ_LB_OP_EJECT	= 0x40,		/* eject request */
-	REQ_LB_OP_FLUSH = 0x41,		/* flush request */
 };
 
 #define BLK_MAX_CDB	16
