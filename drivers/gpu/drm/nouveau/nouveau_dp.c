@@ -271,12 +271,26 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	uint8_t config[4];
-	uint8_t status[3];
+	struct bit_displayport_encoder_table *dpe;
+	int dpe_headerlen;
+	uint8_t config[4], status[3];
 	bool cr_done, cr_max_vs, eq_done;
 	int ret = 0, i, tries, voltage;
 
 	NV_DEBUG_KMS(dev, "link training!!\n");
+
+	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
+	if (!dpe) {
+		NV_ERROR(dev, "SOR-%d: no DP encoder table!\n", nv_encoder->or);
+		return false;
+	}
+
+	if (dpe->script0) {
+		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
+		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script0),
+					    nv_encoder->dcb);
+	}
+
 train:
 	cr_done = eq_done = false;
 
@@ -401,6 +415,12 @@ stop:
 			nv_encoder->dp.link_bw = DP_LINK_BW_1_62;
 			goto train;
 		}
+	}
+
+	if (dpe->script1) {
+		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 1\n", nv_encoder->or);
+		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script1),
+					    nv_encoder->dcb);
 	}
 
 	return eq_done;

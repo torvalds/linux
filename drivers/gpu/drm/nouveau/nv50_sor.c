@@ -66,36 +66,6 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 }
 
 static void
-nv50_sor_dp_link_train(struct drm_encoder *encoder)
-{
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct bit_displayport_encoder_table *dpe;
-	int dpe_headerlen;
-
-	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
-	if (!dpe) {
-		NV_ERROR(dev, "SOR-%d: no DP encoder table!\n", nv_encoder->or);
-		return;
-	}
-
-	if (dpe->script0) {
-		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
-		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script0),
-					    nv_encoder->dcb);
-	}
-
-	if (!nouveau_dp_link_train(encoder))
-		NV_ERROR(dev, "SOR-%d: link training failed\n", nv_encoder->or);
-
-	if (dpe->script1) {
-		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 1\n", nv_encoder->or);
-		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script1),
-					    nv_encoder->dcb);
-	}
-}
-
-static void
 nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
@@ -146,7 +116,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	if (nv_encoder->dcb->type == OUTPUT_DP && mode == DRM_MODE_DPMS_ON)
-		nv50_sor_dp_link_train(encoder);
+		nouveau_dp_link_train(encoder);
 }
 
 static void
