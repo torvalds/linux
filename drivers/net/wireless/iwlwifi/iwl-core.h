@@ -205,6 +205,9 @@ struct iwl_lib_ops {
 	/* check for ack health */
 	bool (*check_ack_health)(struct iwl_priv *priv,
 					struct iwl_rx_packet *pkt);
+	int (*txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
+	void (*dev_txfifo_flush)(struct iwl_priv *priv, u16 flush_control);
+
 	struct iwl_debugfs_ops debugfs_ops;
 };
 
@@ -525,7 +528,7 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct cfg80211_scan_request *req);
 void iwl_bg_start_internal_scan(struct work_struct *work);
 void iwl_internal_short_hw_scan(struct iwl_priv *priv);
-int iwl_force_reset(struct iwl_priv *priv, int mode);
+int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 		       const u8 *ta, const u8 *ie, int ie_len, int left);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);

@@ -147,6 +147,9 @@ const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
 void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_hw_nic_init(struct iwl_priv *priv);
+int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv);
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 
 /* rx */
 void iwlagn_rx_queue_restock(struct iwl_priv *priv);

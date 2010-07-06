@@ -570,6 +570,7 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_EVTLOG_PTR	= 11,
 	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
 	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
+	IWL_UCODE_TLV_ENHANCE_SENS_TBL	= 14,
 };
 
 struct iwl_ucode_tlv {
@@ -1193,7 +1194,9 @@ struct iwl_priv {
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
+	bool enhance_sensitivity_table;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
+	__le16 enhance_sensitivity_tbl[ENHANCE_HD_TABLE_ENTRIES];
 
 	struct iwl_ht_config current_ht_config;
 
@@ -1345,6 +1348,7 @@ struct iwl_priv {
 	struct work_struct ct_enter;
 	struct work_struct ct_exit;
 	struct work_struct start_internal_scan;
+	struct work_struct tx_flush;
 
 	struct tasklet_struct irq_tasklet;
 

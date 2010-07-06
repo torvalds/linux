@@ -205,7 +205,9 @@ void iwl_check_abort_status(struct iwl_priv *priv,
 			    u8 frame_count, u32 status)
 {
 	if (frame_count == 1 && status == TX_STATUS_FAIL_RFKILL_FLUSH) {
-		IWL_ERR(priv, "TODO: Implement Tx flush command!!!\n");
+		IWL_ERR(priv, "Tx flush command to flush out all frames\n");
+		if (!test_bit(STATUS_EXIT_PENDING, &priv->status))
+			queue_work(priv->workqueue, &priv->tx_flush);
 	}
 }
 
@@ -1434,4 +1436,82 @@ void iwl_free_tfds_in_queue(struct iwl_priv *priv,
 			freed);
 		priv->stations[sta_id].tid[tid].tfds_in_queue = 0;
 	}
+}
+
+#define IWL_FLUSH_WAIT_MS	2000
+
+int iwlagn_wait_tx_queue_empty(struct iwl_priv *priv)
+{
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	int cnt;
+	unsigned long now = jiffies;
+	int ret = 0;
+
+	/* waiting for all the tx frames complete might take a while */
+	for (cnt = 0; cnt < priv->hw_params.max_txq_num; cnt++) {
+		if (cnt == IWL_CMD_QUEUE_NUM)
+			continue;
+		txq = &priv->txq[cnt];
+		q = &txq->q;
+		while (q->read_ptr != q->write_ptr && !time_after(jiffies,
+		       now + msecs_to_jiffies(IWL_FLUSH_WAIT_MS)))
+				msleep(1);
+
+		if (q->read_ptr != q->write_ptr) {
+			IWL_ERR(priv, "fail to flush all tx fifo queues\n");
+			ret = -ETIMEDOUT;
+			break;
+		}
+	}
+	return ret;
+}
+
+#define IWL_TX_QUEUE_MSK	0xfffff
+
+/**
+ * iwlagn_txfifo_flush: send REPLY_TXFIFO_FLUSH command to uCode
+ *
+ * pre-requirements:
+ *  1. acquire mutex before calling
+ *  2. make sure rf is on and not in exit state
+ */
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+{
+	struct iwl_txfifo_flush_cmd flush_cmd;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_TXFIFO_FLUSH,
+		.len = sizeof(struct iwl_txfifo_flush_cmd),
+		.flags = CMD_SYNC,
+		.data = &flush_cmd,
+	};
+
+	might_sleep();
+
+	memset(&flush_cmd, 0, sizeof(flush_cmd));
+	flush_cmd.fifo_control = IWL_TX_FIFO_VO_MSK | IWL_TX_FIFO_VI_MSK |
+				 IWL_TX_FIFO_BE_MSK | IWL_TX_FIFO_BK_MSK;
+	if (priv->cfg->sku & IWL_SKU_N)
+		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
+
+	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
+		       flush_cmd.fifo_control);
+	flush_cmd.flush_control = cpu_to_le16(flush_control);
+
+	return iwl_send_cmd(priv, &cmd);
+}
+
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+{
+	mutex_lock(&priv->mutex);
+	ieee80211_stop_queues(priv->hw);
+	if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+		IWL_ERR(priv, "flush request fail\n");
+		goto done;
+	}
+	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
+	iwlagn_wait_tx_queue_empty(priv);
+done:
+	ieee80211_wake_queues(priv->hw);
+	mutex_unlock(&priv->mutex);
 }

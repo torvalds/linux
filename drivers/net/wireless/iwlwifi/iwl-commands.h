@@ -97,6 +97,7 @@ enum {
 	REPLY_ADD_STA = 0x18,
 	REPLY_REMOVE_STA = 0x19,
 	REPLY_REMOVE_ALL_STA = 0x1a,	/* not used */
+	REPLY_TXFIFO_FLUSH = 0x1e,
 
 	/* Security */
 	REPLY_WEPKEY = 0x20,
@@ -957,8 +958,8 @@ struct iwl_qosparam_cmd {
 #define IWL3945_STATION_COUNT	25
 #define IWL4965_BROADCAST_ID	31
 #define	IWL4965_STATION_COUNT	32
-#define IWL5000_BROADCAST_ID	15
-#define	IWL5000_STATION_COUNT	16
+#define IWLAGN_BROADCAST_ID	15
+#define	IWLAGN_STATION_COUNT	16
 
 #define	IWL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IWL_INVALID_STATION 	255
@@ -1207,6 +1208,43 @@ struct iwl_rem_sta_cmd {
 	u8 reserved[3];
 	u8 addr[ETH_ALEN]; /* MAC addr of the first station */
 	u8 reserved2[2];
+} __attribute__ ((packed));
+
+#define IWL_TX_FIFO_BK_MSK		cpu_to_le32(BIT(0))
+#define IWL_TX_FIFO_BE_MSK		cpu_to_le32(BIT(1))
+#define IWL_TX_FIFO_VI_MSK		cpu_to_le32(BIT(2))
+#define IWL_TX_FIFO_VO_MSK		cpu_to_le32(BIT(3))
+#define IWL_AGG_TX_QUEUE_MSK		cpu_to_le32(0xffc00)
+
+#define IWL_DROP_SINGLE		0
+#define IWL_DROP_SELECTED	1
+#define IWL_DROP_ALL		2
+
+/*
+ * REPLY_TXFIFO_FLUSH = 0x1e(command and response)
+ *
+ * When using full FIFO flush this command checks the scheduler HW block WR/RD
+ * pointers to check if all the frames were transferred by DMA into the
+ * relevant TX FIFO queue. Only when the DMA is finished and the queue is
+ * empty the command can finish.
+ * This command is used to flush the TXFIFO from transmit commands, it may
+ * operate on single or multiple queues, the command queue can't be flushed by
+ * this command. The command response is returned when all the queue flush
+ * operations are done. Each TX command flushed return response with the FLUSH
+ * status set in the TX response status. When FIFO flush operation is used,
+ * the flush operation ends when both the scheduler DMA done and TXFIFO empty
+ * are set.
+ *
+ * @fifo_control: bit mask for which queues to flush
+ * @flush_control: flush controls
+ *	0: Dump single MSDU
+ *	1: Dump multiple MSDU according to PS, INVALID STA, TTL, TID disable.
+ *	2: Dump all FIFO
+ */
+struct iwl_txfifo_flush_cmd {
+	__le32 fifo_control;
+	__le16 flush_control;
+	__le16 reserved;
 } __attribute__ ((packed));
 
 /*
@@ -3452,6 +3490,41 @@ struct iwl_missed_beacon_notif {
 #define HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX          (9)
 #define HD_OFDM_ENERGY_TH_IN_INDEX                  (10)
 
+/*
+ * Additional table entries in enhance SENSITIVITY_CMD
+ */
+#define HD_INA_NON_SQUARE_DET_OFDM_INDEX		(11)
+#define HD_INA_NON_SQUARE_DET_CCK_INDEX			(12)
+#define HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX		(13)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX		(14)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX	(15)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX		(16)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX		(17)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX		(18)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX	(19)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_INDEX		(20)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX		(21)
+#define HD_RESERVED					(22)
+
+/* number of entries for enhanced tbl */
+#define ENHANCE_HD_TABLE_SIZE  (23)
+
+/* number of additional entries for enhanced tbl */
+#define ENHANCE_HD_TABLE_ENTRIES  (ENHANCE_HD_TABLE_SIZE - HD_TABLE_SIZE)
+
+#define HD_INA_NON_SQUARE_DET_OFDM_DATA			cpu_to_le16(0)
+#define HD_INA_NON_SQUARE_DET_CCK_DATA			cpu_to_le16(0)
+#define HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA		cpu_to_le16(0)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA		cpu_to_le16(668)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA	cpu_to_le16(4)
+#define HD_OFDM_NON_SQUARE_DET_SLOPE_DATA		cpu_to_le16(486)
+#define HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA		cpu_to_le16(37)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA		cpu_to_le16(853)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA	cpu_to_le16(4)
+#define HD_CCK_NON_SQUARE_DET_SLOPE_DATA		cpu_to_le16(476)
+#define HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA		cpu_to_le16(99)
+
+
 /* Control field in struct iwl_sensitivity_cmd */
 #define SENSITIVITY_CMD_CONTROL_DEFAULT_TABLE	cpu_to_le16(0)
 #define SENSITIVITY_CMD_CONTROL_WORK_TABLE	cpu_to_le16(1)
@@ -3466,6 +3539,14 @@ struct iwl_missed_beacon_notif {
 struct iwl_sensitivity_cmd {
 	__le16 control;			/* always use "1" */
 	__le16 table[HD_TABLE_SIZE];	/* use HD_* as index */
+} __attribute__ ((packed));
+
+/*
+ *
+ */
+struct iwl_enhance_sensitivity_cmd {
+	__le16 control;			/* always use "1" */
+	__le16 enhance_table[ENHANCE_HD_TABLE_SIZE];	/* use HD_* as index */
 } __attribute__ ((packed));
 
 
