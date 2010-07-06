@@ -340,6 +340,44 @@ struct cx231xx_board cx231xx_boards[] = {
 			}
 		},
 	},
+	[CX231XX_BOARD_HAUPPAUGE_EXETER] = {
+		.name = "Hauppauge EXETER",
+		.tuner_type = TUNER_NXP_TDA18271,
+		.tuner_addr = 0x60,
+		.tuner_gpio = RDE250_XCV_TUNER,
+		.tuner_sif_gpio = 0x05,
+		.tuner_scl_gpio = 0x1a,
+		.tuner_sda_gpio = 0x1b,
+		.decoder = CX231XX_AVDECODER,
+		.demod_xfer_mode = 0,
+		.ctl_pin_status_mask = 0xFFFFFFC4,
+		.agc_analog_digital_select_gpio = 0x0c,
+		.gpio_pin_status_mask = 0x4001000,
+		.tuner_i2c_master = 1,
+		.demod_i2c_master = 2,
+		.has_dvb = 1,
+		.demod_addr = 0x0e,
+		.norm = V4L2_STD_NTSC,
+
+		.input = {{
+			.type = CX231XX_VMUX_TELEVISION,
+			.vmux = CX231XX_VIN_3_1,
+			.amux = CX231XX_AMUX_VIDEO,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_COMPOSITE1,
+			.vmux = CX231XX_VIN_2_1,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		}, {
+			.type = CX231XX_VMUX_SVIDEO,
+			.vmux = CX231XX_VIN_1_1 |
+				(CX231XX_VIN_1_2 << 8) |
+				CX25840_SVIDEO_ON,
+			.amux = CX231XX_AMUX_LINE_IN,
+			.gpio = 0,
+		} },
+	},
 
 
 
@@ -351,6 +389,8 @@ const unsigned int cx231xx_bcount = ARRAY_SIZE(cx231xx_boards);
 /* table of devices that work with this driver */
 struct usb_device_id cx231xx_id_table[] = {
 	{USB_DEVICE(0x0572, 0x5A3C),
+	 .driver_info = CX231XX_BOARD_UNKNOWN},
+	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000,0x4fff),
 	 .driver_info = CX231XX_BOARD_UNKNOWN},
 	{USB_DEVICE(0x0572, 0x58A2),
 	 .driver_info = CX231XX_BOARD_CNXT_CARRAERA},
@@ -366,8 +406,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
 	{USB_DEVICE(0x0572, 0x58A0),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
-	{USB_DEVICE_VER(USB_VID_PIXELVIEW, USB_PID_PIXELVIEW_SBTVD, 0x4000,0x4fff),
-	 .driver_info = CX231XX_BOARD_UNKNOWN},
+	{USB_DEVICE(0x2040, 0xb120),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{},
 };
 
@@ -515,6 +555,8 @@ void cx231xx_register_i2c_ir(struct cx231xx *dev)
 		break;
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
 		break;
+	case CX231XX_BOARD_HAUPPAUGE_EXETER:
+		break;
 	default:
 		break;
 	}
@@ -559,6 +601,7 @@ void cx231xx_card_setup(struct cx231xx *dev)
 	case CX231XX_BOARD_CNXT_RDE_253S:
 	case CX231XX_BOARD_CNXT_RDU_253S:
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
+	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 		if (dev->board.tuner_type != TUNER_ABSENT) {
 			dev->sd_tuner =	v4l2_i2c_new_subdev(&dev->v4l2_dev,
 					&dev->i2c_bus[1].i2c_adap,

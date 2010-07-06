@@ -352,6 +352,7 @@ int cx231xx_afe_update_power_control(struct cx231xx *dev,
 	case CX231XX_BOARD_CNXT_RDE_253S:
 	case CX231XX_BOARD_CNXT_RDU_253S:
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
+	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 		if (avmode == POLARIS_AVMODE_ANALOGT_TV) {
 			while (afe_power_status != (FLD_PWRDN_TUNING_BIAS |
 						FLD_PWRDN_ENABLE_PLL)) {
@@ -1187,6 +1188,7 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 			break;
 		case CX231XX_BOARD_CNXT_RDE_253S:
 		case CX231XX_BOARD_CNXT_RDU_253S:
+		case CX231XX_BOARD_HAUPPAUGE_EXETER:
 			status = cx231xx_read_modify_write_i2c_dword(dev,
 					VID_BLK_I2C_ADDRESS,
 					CHIP_CTRL,
@@ -1750,6 +1752,7 @@ int cx231xx_dif_set_standard(struct cx231xx *dev, u32 standard)
 	case CX231XX_BOARD_CNXT_SHELBY:
 	case CX231XX_BOARD_CNXT_RDU_250:
 	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
+	case CX231XX_BOARD_HAUPPAUGE_EXETER:
 		func_mode = 0x03;
 		break;
 	case CX231XX_BOARD_CNXT_RDE_253S:
@@ -2361,6 +2364,12 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
 			if (dev->cx231xx_reset_analog_tuner)
 				dev->cx231xx_reset_analog_tuner(dev);
+		} else if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER) {
+			/* tuner path to channel 1 from port 1 ?? */
+			cx231xx_enable_i2c_for_tuner(dev, I2C_1);
+
+			if (dev->cx231xx_reset_analog_tuner)
+				dev->cx231xx_reset_analog_tuner(dev);
 		}
 
 		break;
@@ -2434,6 +2443,12 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 		    (dev->model == CX231XX_BOARD_CNXT_RDU_253S)) {
 			/* tuner path to channel 1 from port 3 */
 			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
+			if (dev->cx231xx_reset_analog_tuner)
+				dev->cx231xx_reset_analog_tuner(dev);
+		} else if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER) {
+			/* tuner path to channel 1 from port 1 ?? */
+			cx231xx_enable_i2c_for_tuner(dev, I2C_1);
+
 			if (dev->cx231xx_reset_analog_tuner)
 				dev->cx231xx_reset_analog_tuner(dev);
 		}

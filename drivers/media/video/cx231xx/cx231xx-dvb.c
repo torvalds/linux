@@ -32,6 +32,7 @@
 #include "s5h1432.h"
 #include "tda18271.h"
 #include "s5h1411.h"
+#include "lgdt3305.h"
 
 MODULE_DESCRIPTION("driver for cx231xx based DVB cards");
 MODULE_AUTHOR("Srinivasa Deevi <srinivasa.deevi@conexant.com>");
@@ -110,6 +111,30 @@ static struct s5h1411_config xc5000_s5h1411_config = {
 	.status_mode   = S5H1411_DEMODLOCKING,
 	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
 };
+
+static struct lgdt3305_config hcw_lgdt3305_config = {
+	.i2c_addr           = 0x0e,
+	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
+	.tpclk_edge         = LGDT3305_TPCLK_FALLING_EDGE,
+	.tpvalid_polarity   = LGDT3305_TP_VALID_HIGH,
+	.deny_i2c_rptr      = 1,
+	.spectral_inversion = 1,
+	.qam_if_khz         = 4000,
+	.vsb_if_khz         = 3250,
+};
+
+static struct tda18271_std_map hauppauge_tda18271_std_map = {
+	.atsc_6   = { .if_freq = 3250, .agc_mode = 3, .std = 4,
+		      .if_lvl = 1, .rfagc_top = 0x58, },
+	.qam_6    = { .if_freq = 4000, .agc_mode = 3, .std = 5,
+		      .if_lvl = 1, .rfagc_top = 0x58, },
+};
+
+static struct tda18271_config hcw_tda18271_config = {
+	.std_map = &hauppauge_tda18271_std_map,
+	.gate    = TDA18271_GATE_DIGITAL,
+};
+
 static inline void print_err_status(struct cx231xx *dev, int packet, int status)
 {
 	char *errmsg = "Unknown";
@@ -639,6 +664,30 @@ static int dvb_init(struct cx231xx *dev)
 			goto out_free;
 		}
 		break;
+	case CX231XX_BOARD_HAUPPAUGE_EXETER:
+
+		printk(KERN_INFO "%s: looking for tuner / demod on i2c bus: %d\n",
+		       __func__, i2c_adapter_id(&dev->i2c_bus[1].i2c_adap));
+
+		dev->dvb->frontend = dvb_attach(lgdt3305_attach,
+						&hcw_lgdt3305_config,
+						&dev->i2c_bus[1].i2c_adap);
+
+		if (dev->dvb->frontend == NULL) {
+			printk(DRIVER_NAME
+			       ": Failed to attach LG3305 front end\n");
+			result = -EINVAL;
+			goto out_free;
+		}
+
+		/* define general-purpose callback pointer */
+		dvb->frontend->callback = cx231xx_tuner_callback;
+
+		dvb_attach(tda18271_attach, dev->dvb->frontend,
+			   0x60, &dev->i2c_bus[1].i2c_adap,
+			   &hcw_tda18271_config);
+		break;
+
 
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
