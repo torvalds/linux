@@ -466,8 +466,9 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
 		frame->v4l2_buf.bytesused = gspca_dev->image_len;
-		frame->v4l2_buf.flags &= ~V4L2_BUF_FLAG_QUEUED;
-		frame->v4l2_buf.flags |= V4L2_BUF_FLAG_DONE;
+		frame->v4l2_buf.flags = (frame->v4l2_buf.flags
+					 | V4L2_BUF_FLAG_DONE)
+					& ~V4L2_BUF_FLAG_QUEUED;
 		wake_up_interruptible(&gspca_dev->wq);	/* event = new frame */
 		i = (i + 1) % gspca_dev->nframes;
 		gspca_dev->fr_i = i;
