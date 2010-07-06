@@ -102,7 +102,7 @@ static inline int cx231xx_isoc_vbi_copy(struct cx231xx *dev, struct urb *urb)
 			return 0;
 	}
 
-	buf = dev->vbi_mode.isoc_ctl.buf;
+	buf = dev->vbi_mode.bulk_ctl.buf;
 
 	/* get buffer pointer and length */
 	p_buffer = urb->transfer_buffer;
@@ -209,8 +209,8 @@ static void free_buffer(struct videobuf_queue *vq, struct cx231xx_buffer *buf)
 	   VIDEOBUF_ACTIVE, it won't be, though.
 	 */
 	spin_lock_irqsave(&dev->vbi_mode.slock, flags);
-	if (dev->vbi_mode.isoc_ctl.buf == buf)
-		dev->vbi_mode.isoc_ctl.buf = NULL;
+	if (dev->vbi_mode.bulk_ctl.buf == buf)
+		dev->vbi_mode.bulk_ctl.buf = NULL;
 	spin_unlock_irqrestore(&dev->vbi_mode.slock, flags);
 
 	videobuf_vmalloc_free(&buf->vb);
@@ -246,7 +246,7 @@ vbi_buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			goto fail;
 	}
 
-	if (!dev->vbi_mode.isoc_ctl.num_bufs)
+	if (!dev->vbi_mode.bulk_ctl.num_bufs)
 		urb_init = 1;
 
 	if (urb_init) {
@@ -328,7 +328,7 @@ static void cx231xx_irq_vbi_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock(&dev->vbi_mode.slock);
-	rc = dev->vbi_mode.isoc_ctl.isoc_copy(dev, urb);
+	rc = dev->vbi_mode.bulk_ctl.bulk_copy(dev, urb);
 	spin_unlock(&dev->vbi_mode.slock);
 
 	/* Reset status */
@@ -351,34 +351,34 @@ void cx231xx_uninit_vbi_isoc(struct cx231xx *dev)
 
 	cx231xx_info(DRIVER_NAME "cx231xx: called cx231xx_uninit_vbi_isoc\n");
 
-	dev->vbi_mode.isoc_ctl.nfields = -1;
-	for (i = 0; i < dev->vbi_mode.isoc_ctl.num_bufs; i++) {
-		urb = dev->vbi_mode.isoc_ctl.urb[i];
+	dev->vbi_mode.bulk_ctl.nfields = -1;
+	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
+		urb = dev->vbi_mode.bulk_ctl.urb[i];
 		if (urb) {
 			if (!irqs_disabled())
 				usb_kill_urb(urb);
 			else
 				usb_unlink_urb(urb);
 
-			if (dev->vbi_mode.isoc_ctl.transfer_buffer[i]) {
+			if (dev->vbi_mode.bulk_ctl.transfer_buffer[i]) {
 
-				kfree(dev->vbi_mode.isoc_ctl.
+				kfree(dev->vbi_mode.bulk_ctl.
 				      transfer_buffer[i]);
-				dev->vbi_mode.isoc_ctl.transfer_buffer[i] =
+				dev->vbi_mode.bulk_ctl.transfer_buffer[i] =
 				    NULL;
 			}
 			usb_free_urb(urb);
-			dev->vbi_mode.isoc_ctl.urb[i] = NULL;
+			dev->vbi_mode.bulk_ctl.urb[i] = NULL;
 		}
-		dev->vbi_mode.isoc_ctl.transfer_buffer[i] = NULL;
+		dev->vbi_mode.bulk_ctl.transfer_buffer[i] = NULL;
 	}
 
-	kfree(dev->vbi_mode.isoc_ctl.urb);
-	kfree(dev->vbi_mode.isoc_ctl.transfer_buffer);
+	kfree(dev->vbi_mode.bulk_ctl.urb);
+	kfree(dev->vbi_mode.bulk_ctl.transfer_buffer);
 
-	dev->vbi_mode.isoc_ctl.urb = NULL;
-	dev->vbi_mode.isoc_ctl.transfer_buffer = NULL;
-	dev->vbi_mode.isoc_ctl.num_bufs = 0;
+	dev->vbi_mode.bulk_ctl.urb = NULL;
+	dev->vbi_mode.bulk_ctl.transfer_buffer = NULL;
+	dev->vbi_mode.bulk_ctl.num_bufs = 0;
 
 	cx231xx_capture_start(dev, 0, Vbi);
 }
@@ -389,7 +389,7 @@ EXPORT_SYMBOL_GPL(cx231xx_uninit_vbi_isoc);
  */
 int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 			  int num_bufs, int max_pkt_size,
-			  int (*isoc_copy) (struct cx231xx *dev,
+			  int (*bulk_copy) (struct cx231xx *dev,
 					    struct urb *urb))
 {
 	struct cx231xx_dmaqueue *dma_q = &dev->vbi_mode.vidq;
@@ -408,8 +408,8 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 		       usb_rcvbulkpipe(dev->udev,
 				       dev->vbi_mode.end_point_addr));
 
-	dev->vbi_mode.isoc_ctl.isoc_copy = isoc_copy;
-	dev->vbi_mode.isoc_ctl.num_bufs = num_bufs;
+	dev->vbi_mode.bulk_ctl.bulk_copy = bulk_copy;
+	dev->vbi_mode.bulk_ctl.num_bufs = num_bufs;
 	dma_q->pos = 0;
 	dma_q->is_partial_line = 0;
 	dma_q->last_sav = 0;
@@ -421,42 +421,42 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 	for (i = 0; i < 8; i++)
 		dma_q->partial_buf[i] = 0;
 
-	dev->vbi_mode.isoc_ctl.urb = kzalloc(sizeof(void *) * num_bufs,
+	dev->vbi_mode.bulk_ctl.urb = kzalloc(sizeof(void *) * num_bufs,
 					     GFP_KERNEL);
-	if (!dev->vbi_mode.isoc_ctl.urb) {
+	if (!dev->vbi_mode.bulk_ctl.urb) {
 		cx231xx_errdev("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
-	dev->vbi_mode.isoc_ctl.transfer_buffer =
+	dev->vbi_mode.bulk_ctl.transfer_buffer =
 	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
-	if (!dev->vbi_mode.isoc_ctl.transfer_buffer) {
+	if (!dev->vbi_mode.bulk_ctl.transfer_buffer) {
 		cx231xx_errdev("cannot allocate memory for usbtransfer\n");
-		kfree(dev->vbi_mode.isoc_ctl.urb);
+		kfree(dev->vbi_mode.bulk_ctl.urb);
 		return -ENOMEM;
 	}
 
-	dev->vbi_mode.isoc_ctl.max_pkt_size = max_pkt_size;
-	dev->vbi_mode.isoc_ctl.buf = NULL;
+	dev->vbi_mode.bulk_ctl.max_pkt_size = max_pkt_size;
+	dev->vbi_mode.bulk_ctl.buf = NULL;
 
-	sb_size = max_packets * dev->vbi_mode.isoc_ctl.max_pkt_size;
+	sb_size = max_packets * dev->vbi_mode.bulk_ctl.max_pkt_size;
 
 	/* allocate urbs and transfer buffers */
-	for (i = 0; i < dev->vbi_mode.isoc_ctl.num_bufs; i++) {
+	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
 			cx231xx_err(DRIVER_NAME
-				    ": cannot alloc isoc_ctl.urb %i\n", i);
+				    ": cannot alloc bulk_ctl.urb %i\n", i);
 			cx231xx_uninit_vbi_isoc(dev);
 			return -ENOMEM;
 		}
-		dev->vbi_mode.isoc_ctl.urb[i] = urb;
+		dev->vbi_mode.bulk_ctl.urb[i] = urb;
 		urb->transfer_flags = 0;
 
-		dev->vbi_mode.isoc_ctl.transfer_buffer[i] =
+		dev->vbi_mode.bulk_ctl.transfer_buffer[i] =
 		    kzalloc(sb_size, GFP_KERNEL);
-		if (!dev->vbi_mode.isoc_ctl.transfer_buffer[i]) {
+		if (!dev->vbi_mode.bulk_ctl.transfer_buffer[i]) {
 			cx231xx_err(DRIVER_NAME
 				    ": unable to allocate %i bytes for transfer"
 				    " buffer %i%s\n", sb_size, i,
@@ -467,15 +467,15 @@ int cx231xx_init_vbi_isoc(struct cx231xx *dev, int max_packets,
 
 		pipe = usb_rcvbulkpipe(dev->udev, dev->vbi_mode.end_point_addr);
 		usb_fill_bulk_urb(urb, dev->udev, pipe,
-				  dev->vbi_mode.isoc_ctl.transfer_buffer[i],
+				  dev->vbi_mode.bulk_ctl.transfer_buffer[i],
 				  sb_size, cx231xx_irq_vbi_callback, dma_q);
 	}
 
 	init_waitqueue_head(&dma_q->wq);
 
 	/* submit urbs and enables IRQ */
-	for (i = 0; i < dev->vbi_mode.isoc_ctl.num_bufs; i++) {
-		rc = usb_submit_urb(dev->vbi_mode.isoc_ctl.urb[i], GFP_ATOMIC);
+	for (i = 0; i < dev->vbi_mode.bulk_ctl.num_bufs; i++) {
+		rc = usb_submit_urb(dev->vbi_mode.bulk_ctl.urb[i], GFP_ATOMIC);
 		if (rc) {
 			cx231xx_err(DRIVER_NAME
 				    ": submit of urb %i failed (error=%i)\n", i,
@@ -536,7 +536,7 @@ static inline void vbi_buffer_filled(struct cx231xx *dev,
 	buf->vb.field_count++;
 	do_gettimeofday(&buf->vb.ts);
 
-	dev->vbi_mode.isoc_ctl.buf = NULL;
+	dev->vbi_mode.bulk_ctl.buf = NULL;
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
@@ -553,7 +553,7 @@ u32 cx231xx_copy_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 		cx231xx_reset_vbi_buffer(dev, dma_q);
 
 	/* get the buffer pointer */
-	buf = dev->vbi_mode.isoc_ctl.buf;
+	buf = dev->vbi_mode.bulk_ctl.buf;
 
 	/* Remember the field number for next time */
 	dma_q->current_field = field_number;
@@ -618,7 +618,7 @@ static inline void get_next_vbi_buf(struct cx231xx_dmaqueue *dma_q,
 
 	if (list_empty(&dma_q->active)) {
 		cx231xx_err(DRIVER_NAME ": No active queue to serve\n");
-		dev->vbi_mode.isoc_ctl.buf = NULL;
+		dev->vbi_mode.bulk_ctl.buf = NULL;
 		*buf = NULL;
 		return;
 	}
@@ -630,7 +630,7 @@ static inline void get_next_vbi_buf(struct cx231xx_dmaqueue *dma_q,
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0, (*buf)->vb.size);
 
-	dev->vbi_mode.isoc_ctl.buf = *buf;
+	dev->vbi_mode.bulk_ctl.buf = *buf;
 
 	return;
 }
@@ -640,7 +640,7 @@ void cx231xx_reset_vbi_buffer(struct cx231xx *dev,
 {
 	struct cx231xx_buffer *buf;
 
-	buf = dev->vbi_mode.isoc_ctl.buf;
+	buf = dev->vbi_mode.bulk_ctl.buf;
 
 	if (buf == NULL) {
 		/* first try to get the buffer */
@@ -664,7 +664,7 @@ int cx231xx_do_vbi_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 	void *startwrite;
 	int offset, lencopy;
 
-	buf = dev->vbi_mode.isoc_ctl.buf;
+	buf = dev->vbi_mode.bulk_ctl.buf;
 
 	if (buf == NULL)
 		return -EINVAL;

@@ -359,7 +359,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	if (num <= 0)
 		return 0;
-
+	mutex_lock(&dev->i2c_lock);
 	for (i = 0; i < num; i++) {
 
 		addr = msgs[i].addr >> 1;
@@ -372,6 +372,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			rc = cx231xx_i2c_check_for_device(i2c_adap, &msgs[i]);
 			if (rc < 0) {
 				dprintk2(2, " no device\n");
+				mutex_lock(&dev->i2c_lock);
 				return rc;
 			}
 
@@ -384,7 +385,7 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			}
 		} else if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
 			   msgs[i].addr == msgs[i + 1].addr
-			   && (msgs[i].len <= 2) && (bus->nr < 2)) {
+			   && (msgs[i].len <= 2) && (bus->nr < 3)) {
 			/* read bytes */
 			rc = cx231xx_i2c_recv_bytes_with_saddr(i2c_adap,
 							       &msgs[i],
@@ -407,10 +408,11 @@ static int cx231xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		if (i2c_debug >= 2)
 			printk("\n");
 	}
-
+	mutex_unlock(&dev->i2c_lock);
 	return num;
 err:
 	dprintk2(2, " ERROR: %i\n", rc);
+	mutex_unlock(&dev->i2c_lock);
 	return rc;
 }
 
