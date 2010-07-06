@@ -319,7 +319,6 @@ static u64 __init memblock_alloc_nid_unreserved(u64 start, u64 end,
 }
 
 static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
-				       u64 (*nid_range)(u64, u64, int *),
 				       u64 size, u64 align, int nid)
 {
 	u64 start, end;
@@ -332,7 +331,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
 		u64 this_end;
 		int this_nid;
 
-		this_end = nid_range(start, end, &this_nid);
+		this_end = memblock_nid_range(start, end, &this_nid);
 		if (this_nid == nid) {
 			u64 ret = memblock_alloc_nid_unreserved(start, this_end,
 							   size, align);
@@ -345,8 +344,7 @@ static u64 __init memblock_alloc_nid_region(struct memblock_region *mp,
 	return ~(u64)0;
 }
 
-u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
-			 u64 (*nid_range)(u64 start, u64 end, int *nid))
+u64 __init memblock_alloc_nid(u64 size, u64 align, int nid)
 {
 	struct memblock_type *mem = &memblock.memory;
 	int i;
@@ -357,7 +355,6 @@ u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
 
 	for (i = 0; i < mem->cnt; i++) {
 		u64 ret = memblock_alloc_nid_region(&mem->regions[i],
-					       nid_range,
 					       size, align, nid);
 		if (ret != ~(u64)0)
 			return ret;
@@ -531,3 +528,9 @@ int memblock_is_region_reserved(u64 base, u64 size)
 	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
 }
 
+u64 __weak memblock_nid_range(u64 start, u64 end, int *nid)
+{
+	*nid = 0;
+
+	return end;
+}

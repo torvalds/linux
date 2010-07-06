@@ -46,8 +46,7 @@ extern long memblock_add(u64 base, u64 size);
 extern long memblock_remove(u64 base, u64 size);
 extern long __init memblock_free(u64 base, u64 size);
 extern long __init memblock_reserve(u64 base, u64 size);
-extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid,
-				u64 (*nid_range)(u64, u64, int *));
+extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid);
 extern u64 __init memblock_alloc(u64 size, u64 align);
 extern u64 __init memblock_alloc_base(u64 size,
 		u64, u64 max_addr);
@@ -62,6 +61,10 @@ extern int __init memblock_is_reserved(u64 addr);
 extern int memblock_is_region_reserved(u64 base, u64 size);
 
 extern void memblock_dump_all(void);
+
+/* Provided by the architecture */
+extern u64 memblock_nid_range(u64 start, u64 end, int *nid);
+
 
 /*
  * pfn conversion functions
