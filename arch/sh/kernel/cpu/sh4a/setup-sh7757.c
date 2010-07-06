@@ -26,7 +26,7 @@ static struct plat_sci_port scif2_platform_data = {
 
 static struct platform_device scif2_device = {
 	.name		= "sh-sci",
-	.id		= 2,
+	.id		= 0,
 	.dev		= {
 		.platform_data	= &scif2_platform_data,
 	},
@@ -41,7 +41,7 @@ static struct plat_sci_port scif3_platform_data = {
 
 static struct platform_device scif3_device = {
 	.name		= "sh-sci",
-	.id		= 3,
+	.id		= 1,
 	.dev		= {
 		.platform_data	= &scif3_platform_data,
 	},
@@ -56,7 +56,7 @@ static struct plat_sci_port scif4_platform_data = {
 
 static struct platform_device scif4_device = {
 	.name		= "sh-sci",
-	.id		= 4,
+	.id		= 2,
 	.dev		= {
 		.platform_data	= &scif4_platform_data,
 	},
