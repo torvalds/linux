@@ -2979,17 +2979,19 @@ special_insn:
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfa: /* cli */
-		if (emulator_bad_iopl(ctxt, ops))
+		if (emulator_bad_iopl(ctxt, ops)) {
 			emulate_gp(ctxt, 0);
-		else {
+			goto done;
+		} else {
 			ctxt->eflags &= ~X86_EFLAGS_IF;
 			c->dst.type = OP_NONE;	/* Disable writeback. */
 		}
 		break;
 	case 0xfb: /* sti */
-		if (emulator_bad_iopl(ctxt, ops))
+		if (emulator_bad_iopl(ctxt, ops)) {
 			emulate_gp(ctxt, 0);
-		else {
+			goto done;
+		} else {
 			ctxt->interruptibility = KVM_X86_SHADOW_INT_STI;
 			ctxt->eflags |= X86_EFLAGS_IF;
 			c->dst.type = OP_NONE;	/* Disable writeback. */
