@@ -979,18 +979,22 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 		 * to get a recv completion _before_ the rdmacm ESTABLISHED
 		 * event is processed.
 		 */
-		if (rds_conn_up(conn) || rds_conn_connecting(conn)) {
+		if (wc.status == IB_WC_SUCCESS) {
+			rds_ib_process_recv(conn, recv, wc.byte_len, state);
+		} else {
 			/* We expect errors as the qp is drained during shutdown */
-			if (wc.status == IB_WC_SUCCESS) {
-				rds_ib_process_recv(conn, recv, wc.byte_len, state);
-			} else {
+			if (rds_conn_up(conn) || rds_conn_connecting(conn))
 				rds_ib_conn_error(conn, "recv completion on "
-				       "%pI4 had status %u, disconnecting and "
-				       "reconnecting\n", &conn->c_faddr,
-				       wc.status);
-			}
+						  "%pI4 had status %u, disconnecting and "
+						  "reconnecting\n", &conn->c_faddr,
+						  wc.status);
 		}
 
+		/*
+		 * It's very important that we only free this ring entry if we've truly
+		 * freed the resources allocated to the entry.  The refilling path can
+		 * leak if we don't.
+		 */
 		rds_ib_ring_free(&ic->i_recv_ring, 1);
 	}
 }
