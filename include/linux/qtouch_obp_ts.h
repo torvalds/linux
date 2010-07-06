@@ -441,6 +441,9 @@ struct touch_fw_entry {
 #define QTOUCH_USE_KEYARRAY	(1 << 4)
 #define QTOUCH_CFG_BACKUPNV	(1 << 5)
 #define QTOUCH_EEPROM_CHECKSUM  (1 << 6)
+#define QTOUCH_USE_MSG_CRC	(1 << 7)
+
+#define QTOUCH_USE_MSG_CRC_MASK	0x8000
 
 struct qtouch_ts_platform_data {
 	uint32_t		flags;

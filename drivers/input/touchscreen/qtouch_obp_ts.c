@@ -666,8 +666,6 @@ static int qtouch_hw_init(struct qtouch_ts_data *ts)
 
 			kfree(msg);
 		}
-
-		qtouch_set_addr(ts, ts->obj_tbl[QTM_OBJ_GEN_MSG_PROC].entry.addr);
 	}
 
 	/* reset the address pointer */
@@ -1179,8 +1177,14 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 		}
 
 		/* save the message_procesor msg_size for easy reference. */
-		if (entry.type == QTM_OBJ_GEN_MSG_PROC)
-			ts->msg_size = entry.size;
+		if (entry.type == QTM_OBJ_GEN_MSG_PROC) {
+			if (ts->pdata->flags & QTOUCH_USE_MSG_CRC) {
+				ts->msg_size = entry.size;
+				entry.addr |= QTOUCH_USE_MSG_CRC_MASK;
+			} else {
+				ts->msg_size = entry.size -1;
+			}
+		}
 
 		obj = create_obj(ts, &entry);
 		/* set the report_id range that the object is responsible for */
