@@ -50,6 +50,7 @@ struct perf_probe_point {
 struct perf_probe_arg_field {
 	struct perf_probe_arg_field	*next;	/* Next field */
 	char				*name;	/* Name of the field */
+	long				index;	/* Array index number */
 	bool				ref;	/* Referencing flag */
 };
 
