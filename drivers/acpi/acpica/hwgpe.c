@@ -143,31 +143,6 @@ acpi_hw_low_set_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 action)
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_hw_write_gpe_enable_reg
- *
- * PARAMETERS:  gpe_event_info      - Info block for the GPE to be enabled
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Write a GPE enable register.  Note: The bit for this GPE must
- *              already be cleared or set in the parent register
- *              enable_for_run mask.
- *
- ******************************************************************************/
-
-acpi_status
-acpi_hw_write_gpe_enable_reg(struct acpi_gpe_event_info * gpe_event_info)
-{
-	acpi_status status;
-
-	ACPI_FUNCTION_ENTRY();
-
-	status = acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_COND_ENABLE);
-	return (status);
-}
-
-/******************************************************************************
- *
  * FUNCTION:    acpi_hw_clear_gpe
  *
  * PARAMETERS:  gpe_event_info      - Info block for the GPE to be cleared

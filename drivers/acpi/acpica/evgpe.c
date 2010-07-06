@@ -452,8 +452,12 @@ static void acpi_ev_asynch_enable_gpe(void *context)
 		}
 	}
 
-	/* Enable this GPE */
-	(void)acpi_hw_write_gpe_enable_reg(gpe_event_info);
+	/*
+	 * Enable this GPE, conditionally. This means that the GPE will only be
+	 * physically enabled if the enable_for_run bit is set in the event_info
+	 */
+	(void)acpi_hw_low_set_gpe(gpe_event_info, ACPI_GPE_COND_ENABLE);
+
 	return_VOID;
 }
 
