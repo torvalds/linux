@@ -155,6 +155,7 @@ struct davinci_mcbsp_dev {
 	unsigned int fmt;
 	int clk_div;
 	int clk_input_pin;
+	bool i2s_accurate_sck;
 };
 
 static inline void davinci_mcbsp_write_reg(struct davinci_mcbsp_dev *dev,
@@ -447,11 +448,23 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		       DAVINCI_MCBSP_SRGR_CLKSM;
 		srgr |= DAVINCI_MCBSP_SRGR_FWID(mcbsp_word_length *
 						8 - 1);
-		/* symmetric waveforms */
-		clk_div = freq / (mcbsp_word_length * 16) /
-			  params->rate_num * params->rate_den;
-		srgr |= DAVINCI_MCBSP_SRGR_FPER(mcbsp_word_length *
-						16 - 1);
+		if (dev->i2s_accurate_sck) {
+			clk_div = 256;
+			do {
+				framesize = (freq / (--clk_div)) /
+				params->rate_num *
+					params->rate_den;
+			} while (((framesize < 33) || (framesize > 4095)) &&
+				 (clk_div));
+			clk_div--;
+			srgr |= DAVINCI_MCBSP_SRGR_FPER(framesize - 1);
+		} else {
+			/* symmetric waveforms */
+			clk_div = freq / (mcbsp_word_length * 16) /
+				  params->rate_num * params->rate_den;
+			srgr |= DAVINCI_MCBSP_SRGR_FPER(mcbsp_word_length *
+							16 - 1);
+		}
 		clk_div &= 0xFF;
 		srgr |= clk_div;
 		break;
@@ -662,6 +675,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].sram_size =
 			pdata->sram_size_capture;
 		dev->clk_input_pin = pdata->clk_input_pin;
+		dev->i2s_accurate_sck = pdata->i2s_accurate_sck;
 	}
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
