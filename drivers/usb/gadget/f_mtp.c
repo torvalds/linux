@@ -40,6 +40,7 @@
 #include <linux/usb/f_mtp.h>
 
 #define BULK_BUFFER_SIZE           16384
+#define INTR_BUFFER_SIZE           28
 
 /* String IDs */
 #define INTERFACE_STRING_INDEX	0
@@ -80,6 +81,7 @@ struct mtp_dev {
 	struct usb_composite_dev *cdev;
 	spinlock_t lock;
 
+	/* appear as MTP or PTP when enumerating */
 	int interface_mode;
 
 	struct usb_ep *ep_in;
@@ -88,14 +90,22 @@ struct mtp_dev {
 
 	int state;
 
+	/* synchronize access to our device file */
 	atomic_t open_excl;
 
 	struct list_head tx_idle;
 
 	wait_queue_head_t read_wq;
 	wait_queue_head_t write_wq;
+	wait_queue_head_t intr_wq;
 	struct usb_request *rx_req[RX_REQ_MAX];
+	struct usb_request *intr_req;
 	int rx_done;
+
+	/* synchronize access to interrupt endpoint */
+	struct mutex intr_mutex;
+	/* true if interrupt endpoint is busy */
+	int intr_busy;
 
 	/* for our file IO thread */
 	struct task_struct			*thread;
@@ -165,7 +175,7 @@ static struct usb_endpoint_descriptor mtp_intr_desc = {
 	.bDescriptorType        = USB_DT_ENDPOINT,
 	.bEndpointAddress       = USB_DIR_IN,
 	.bmAttributes           = USB_ENDPOINT_XFER_INT,
-	.wMaxPacketSize         = __constant_cpu_to_le16(8),
+	.wMaxPacketSize         = __constant_cpu_to_le16(INTR_BUFFER_SIZE),
 	.bInterval              = 6,
 };
 
@@ -368,6 +378,18 @@ static void mtp_complete_out(struct usb_ep *ep, struct usb_request *req)
 	wake_up(&dev->read_wq);
 }
 
+static void mtp_complete_intr(struct usb_ep *ep, struct usb_request *req)
+{
+	struct mtp_dev *dev = _mtp_dev;
+
+	DBG(dev->cdev, "mtp_complete_intr status: %d actual: %d\n", req->status, req->actual);
+	dev->intr_busy = 0;
+	if (req->status != 0)
+		dev->state = STATE_ERROR;
+
+	wake_up(&dev->intr_wq);
+}
+
 static int __init create_bulk_endpoints(struct mtp_dev *dev,
 				struct usb_endpoint_descriptor *in_desc,
 				struct usb_endpoint_descriptor *out_desc,
@@ -431,6 +453,11 @@ static int __init create_bulk_endpoints(struct mtp_dev *dev,
 		req->complete = mtp_complete_out;
 		dev->rx_req[i] = req;
 	}
+	req = mtp_request_new(dev->ep_intr, INTR_BUFFER_SIZE);
+	if (!req)
+		goto fail;
+	req->complete = mtp_complete_intr;
+	dev->intr_req = req;
 
 	return 0;
 
@@ -476,7 +503,7 @@ requeue_req:
 	req = dev->rx_req[0];
 	req->length = count;
 	dev->rx_done = 0;
-	ret = usb_ep_queue(dev->ep_out, req, GFP_ATOMIC);
+	ret = usb_ep_queue(dev->ep_out, req, GFP_KERNEL);
 	if (ret < 0) {
 		r = -EIO;
 		goto done;
@@ -567,7 +594,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 		}
 
 		req->length = xfer;
-		ret = usb_ep_queue(dev->ep_in, req, GFP_ATOMIC);
+		ret = usb_ep_queue(dev->ep_in, req, GFP_KERNEL);
 		if (ret < 0) {
 			DBG(cdev, "mtp_write: xfer error %d\n", ret);
 			r = -EIO;
@@ -627,7 +654,7 @@ static int mtp_send_file(struct mtp_dev *dev, struct file *filp,
 		xfer = ret;
 
 		req->length = xfer;
-		ret = usb_ep_queue(dev->ep_in, req, GFP_ATOMIC);
+		ret = usb_ep_queue(dev->ep_in, req, GFP_KERNEL);
 		if (ret < 0) {
 			DBG(cdev, "mtp_write: xfer error %d\n", ret);
 			dev->state = STATE_ERROR;
@@ -668,7 +695,7 @@ static int mtp_receive_file(struct mtp_dev *dev, struct file *filp,
 			read_req->length = (count > BULK_BUFFER_SIZE
 					? BULK_BUFFER_SIZE : count);
 			dev->rx_done = 0;
-			ret = usb_ep_queue(dev->ep_out, read_req, GFP_ATOMIC);
+			ret = usb_ep_queue(dev->ep_out, read_req, GFP_KERNEL);
 			if (ret < 0) {
 				r = -EIO;
 				dev->state = STATE_ERROR;
@@ -764,6 +791,43 @@ done:
 	complete_and_exit(&dev->thread_wait, 0);
 }
 
+static int mtp_send_event(struct mtp_dev *dev, struct mtp_event *event)
+{
+	struct usb_request *req;
+	int ret;
+	int length = event->length;
+
+	DBG(dev->cdev, "mtp_send_event(%d)\n", event->length);
+
+	if (length < 0 || length > INTR_BUFFER_SIZE)
+		return -EINVAL;
+
+	mutex_lock(&dev->intr_mutex);
+
+	/* wait for a request to complete */
+	ret = wait_event_interruptible(dev->intr_wq, !dev->intr_busy || dev->state == STATE_OFFLINE);
+	if (ret < 0)
+		goto done;
+	if (dev->state == STATE_OFFLINE) {
+		ret = -ENODEV;
+		goto done;
+	}
+	req = dev->intr_req;
+	if (copy_from_user(req->buf, (void __user *)event->data, length)) {
+		ret = -EFAULT;
+		goto done;
+	}
+	req->length = length;
+	dev->intr_busy = 1;
+	ret = usb_ep_queue(dev->ep_intr, req, GFP_KERNEL);
+	if (ret)
+		dev->intr_busy = 0;
+
+done:
+	mutex_unlock(&dev->intr_mutex);
+	return ret;
+}
+
 static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 {
 	struct mtp_dev *dev = fp->private_data;
@@ -833,6 +897,17 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 			ret = 0;
 		}
 		break;
+	case MTP_SEND_EVENT:
+	{
+		struct mtp_event	event;
+		/* return here so we don't change dev->state below,
+		 * which would interfere with bulk transfer state.
+		 */
+		if (copy_from_user(&event, (void __user *)value, sizeof(event)))
+			return -EFAULT;
+		else
+			return mtp_send_event(dev, &event);
+	}
 	}
 
 fail:
@@ -947,8 +1022,10 @@ mtp_function_unbind(struct usb_configuration *c, struct usb_function *f)
 		mtp_request_free(req, dev->ep_in);
 	for (i = 0; i < RX_REQ_MAX; i++)
 		mtp_request_free(dev->rx_req[i], dev->ep_out);
+	mtp_request_free(dev->intr_req, dev->ep_intr);
 	dev->state = STATE_OFFLINE;
 	spin_unlock_irq(&dev->lock);
+	wake_up(&dev->intr_wq);
 
 	misc_deregister(&mtp_device);
 	kfree(_mtp_dev);
@@ -1113,6 +1190,7 @@ static void mtp_function_disable(struct usb_function *f)
 
 	/* readers may be blocked waiting for us to go online */
 	wake_up(&dev->read_wq);
+	wake_up(&dev->intr_wq);
 
 	VDBG(cdev, "%s disabled\n", dev->function.name);
 }
@@ -1141,8 +1219,10 @@ static int mtp_bind_config(struct usb_configuration *c)
 	init_completion(&dev->thread_wait);
 	init_waitqueue_head(&dev->read_wq);
 	init_waitqueue_head(&dev->write_wq);
+	init_waitqueue_head(&dev->intr_wq);
 	atomic_set(&dev->open_excl, 0);
 	INIT_LIST_HEAD(&dev->tx_idle);
+	mutex_init(&dev->intr_mutex);
 
 	dev->cdev = c->cdev;
 	dev->function.name = "mtp";
