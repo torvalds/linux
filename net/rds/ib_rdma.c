@@ -691,6 +691,26 @@ out_nolock:
 	return ret;
 }
 
+struct workqueue_struct *rds_ib_fmr_wq;
+
+int __init rds_ib_fmr_init(void)
+{
+	rds_ib_fmr_wq = create_workqueue("rds_fmr_flushd");
+	if (!rds_ib_fmr_wq)
+		return -ENOMEM;
+	return 0;
+}
+
+/*
+ * By the time this is called all the IB devices should have been torn down and
+ * had their pools freed.  As each pool is freed its work struct is waited on,
+ * so the pool flushing work queue should be idle by the time we get here.
+ */
+void __exit rds_ib_fmr_exit(void)
+{
+	destroy_workqueue(rds_ib_fmr_wq);
+}
+
 static void rds_ib_mr_pool_flush_worker(struct work_struct *work)
 {
 	struct rds_ib_mr_pool *pool = container_of(work, struct rds_ib_mr_pool, flush_worker.work);
@@ -718,7 +738,7 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 	/* If we've pinned too many pages, request a flush */
 	if (atomic_read(&pool->free_pinned) >= pool->max_free_pinned ||
 	    atomic_read(&pool->dirty_count) >= pool->max_items / 10)
-		queue_delayed_work(rds_wq, &pool->flush_worker, 10);
+		queue_delayed_work(rds_ib_fmr_wq, &pool->flush_worker, 10);
 
 	if (invalidate) {
 		if (likely(!in_interrupt())) {
@@ -726,7 +746,8 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 		} else {
 			/* We get here if the user created a MR marked
 			 * as use_once and invalidate at the same time. */
-			queue_delayed_work(rds_wq, &pool->flush_worker, 10);
+			queue_delayed_work(rds_ib_fmr_wq,
+					   &pool->flush_worker, 10);
 		}
 	}
 
