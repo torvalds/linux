@@ -50,6 +50,7 @@ struct battery_status {
 	u16 temp_C;		/* units of 0.1 C */
 
 	u8 percentage;		/* battery percentage */
+	u8 age_scalar;		/* converted to percent */
 	u8 charge_source;
 	u8 status_reg;
 	u8 battery_full;	/* battery full (don't charge) */
@@ -142,6 +143,7 @@ static enum power_supply_property battery_properties[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_TEMP,
@@ -190,6 +192,10 @@ static void ds2781_parse_data(u8 *raw, struct battery_status *s)
 	/* RAAC is in units of 1.6mAh */
 	s->charge_uAh = ((raw[DS2781_REG_RAAC_MSB] << 8) |
 			  raw[DS2781_REG_RAAC_LSB]) * 1600;
+
+	/* Get Age: Unit=0.78125%, range is 49.2% to 100% */
+	n = raw[DS2781_REG_AGE_SCALAR];
+	s->age_scalar = (n * 78125) / 100000;
 }
 
 static int ds2781_battery_read_status(struct ds2781_device_info *di)
@@ -205,7 +211,7 @@ static int ds2781_battery_read_status(struct ds2781_device_info *di)
 		count = DS2781_DATA_SIZE - start;
 	} else {
 		start = DS2781_REG_STATUS;
-		count = DS2781_REG_CURR_LSB - start + 1;
+		count = DS2781_REG_AGE_SCALAR - start + 1;
 	}
 
 	ret = w1_ds2781_read(di->w1_dev, di->raw + start, start, count);
@@ -262,6 +268,9 @@ static int battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
+		break;
+	case POWER_SUPPLY_PROP_CYCLE_COUNT:
+		val->intval = di->status.age_scalar;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
 		if (di->status.battery_full)
