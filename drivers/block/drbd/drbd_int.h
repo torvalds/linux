@@ -451,6 +451,17 @@ struct p_rs_param_89 {
 	char csums_alg[SHARED_SECRET_MAX];
 } __packed;
 
+struct p_rs_param_95 {
+	struct p_header head;
+	u32 rate;
+	char verify_alg[SHARED_SECRET_MAX];
+	char csums_alg[SHARED_SECRET_MAX];
+	u32 c_plan_ahead;
+	u32 c_delay_target;
+	u32 c_fill_target;
+	u32 c_max_rate;
+} __packed;
+
 enum drbd_conn_flags {
 	CF_WANT_LOSE = 1,
 	CF_DRY_RUN = 2,
@@ -610,6 +621,7 @@ union p_polymorph {
         struct p_barrier         barrier;
         struct p_barrier_ack     barrier_ack;
         struct p_rs_param_89     rs_param_89;
+        struct p_rs_param_95     rs_param_95;
         struct p_protocol        protocol;
         struct p_sizes           sizes;
         struct p_uuids           uuids;
@@ -1267,6 +1279,8 @@ struct bm_extent {
  * Bit 0 ==> local node thinks this block is binary identical on both nodes
  * Bit 1 ==> local node thinks this block needs to be synced.
  */
+
+#define SLEEP_TIME (HZ/10)
 
 #define BM_BLOCK_SHIFT  12			 /* 4k per bit */
 #define BM_BLOCK_SIZE	 (1<<BM_BLOCK_SHIFT)

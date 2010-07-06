@@ -1713,7 +1713,7 @@ int drbd_send_cmd2(struct drbd_conf *mdev, enum drbd_packets cmd, char *data,
 
 int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 {
-	struct p_rs_param_89 *p;
+	struct p_rs_param_95 *p;
 	struct socket *sock;
 	int size, rv;
 	const int apv = mdev->agreed_pro_version;
@@ -1721,7 +1721,8 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 	size = apv <= 87 ? sizeof(struct p_rs_param)
 		: apv == 88 ? sizeof(struct p_rs_param)
 			+ strlen(mdev->sync_conf.verify_alg) + 1
-		: /* 89 */    sizeof(struct p_rs_param_89);
+		: apv <= 94 ? sizeof(struct p_rs_param_89)
+		: /* apv >= 95 */ sizeof(struct p_rs_param_95);
 
 	/* used from admin command context and receiver/worker context.
 	 * to avoid kmalloc, grab the socket right here,
@@ -1732,12 +1733,16 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 	if (likely(sock != NULL)) {
 		enum drbd_packets cmd = apv >= 89 ? P_SYNC_PARAM89 : P_SYNC_PARAM;
 
-		p = &mdev->data.sbuf.rs_param_89;
+		p = &mdev->data.sbuf.rs_param_95;
 
 		/* initialize verify_alg and csums_alg */
 		memset(p->verify_alg, 0, 2 * SHARED_SECRET_MAX);
 
 		p->rate = cpu_to_be32(sc->rate);
+		p->c_plan_ahead = cpu_to_be32(sc->c_plan_ahead);
+		p->c_delay_target = cpu_to_be32(sc->c_delay_target);
+		p->c_fill_target = cpu_to_be32(sc->c_fill_target);
+		p->c_max_rate = cpu_to_be32(sc->c_max_rate);
 
 		if (apv >= 88)
 			strcpy(p->verify_alg, mdev->sync_conf.verify_alg);

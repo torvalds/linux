@@ -39,8 +39,6 @@
 #include "drbd_int.h"
 #include "drbd_req.h"
 
-#define SLEEP_TIME (HZ/10)
-
 static int w_make_ov_request(struct drbd_conf *mdev, struct drbd_work *w, int cancel);
 
 

@@ -2805,7 +2805,7 @@ struct crypto_hash *drbd_crypto_alloc_digest_safe(const struct drbd_conf *mdev,
 static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 {
 	int ok = TRUE;
-	struct p_rs_param_89 *p = (struct p_rs_param_89 *)h;
+	struct p_rs_param_95 *p = (struct p_rs_param_95 *)h;
 	unsigned int header_size, data_size, exp_max_sz;
 	struct crypto_hash *verify_tfm = NULL;
 	struct crypto_hash *csums_tfm = NULL;
@@ -2814,7 +2814,8 @@ static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 	exp_max_sz  = apv <= 87 ? sizeof(struct p_rs_param)
 		    : apv == 88 ? sizeof(struct p_rs_param)
 					+ SHARED_SECRET_MAX
-		    : /* 89 */    sizeof(struct p_rs_param_89);
+		    : apv <= 94 ? sizeof(struct p_rs_param_89)
+		    : /* apv >= 95 */ sizeof(struct p_rs_param_95);
 
 	if (h->length > exp_max_sz) {
 		dev_err(DEV, "SyncParam packet too long: received %u, expected <= %u bytes\n",
@@ -2825,8 +2826,12 @@ static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 	if (apv <= 88) {
 		header_size = sizeof(struct p_rs_param) - sizeof(*h);
 		data_size   = h->length  - header_size;
-	} else /* apv >= 89 */ {
+	} else if (apv <= 94) {
 		header_size = sizeof(struct p_rs_param_89) - sizeof(*h);
+		data_size   = h->length  - header_size;
+		D_ASSERT(data_size == 0);
+	} else {
+		header_size = sizeof(struct p_rs_param_95) - sizeof(*h);
 		data_size   = h->length  - header_size;
 		D_ASSERT(data_size == 0);
 	}
@@ -2893,6 +2898,13 @@ static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 			}
 		}
 
+		if (apv > 94) {
+			mdev->sync_conf.rate	  = be32_to_cpu(p->rate);
+			mdev->sync_conf.c_plan_ahead = be32_to_cpu(p->c_plan_ahead);
+			mdev->sync_conf.c_delay_target = be32_to_cpu(p->c_delay_target);
+			mdev->sync_conf.c_fill_target = be32_to_cpu(p->c_fill_target);
+			mdev->sync_conf.c_max_rate = be32_to_cpu(p->c_max_rate);
+		}
 
 		spin_lock(&mdev->peer_seq_lock);
 		/* lock against drbd_nl_syncer_conf() */
