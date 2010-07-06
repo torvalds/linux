@@ -1640,6 +1640,8 @@ static int receive_RSDataReply(struct drbd_conf *mdev, struct p_header *h)
 		drbd_send_ack_dp(mdev, P_NEG_ACK, p);
 	}
 
+	atomic_add(data_size >> 9, &mdev->rs_sect_in);
+
 	return ok;
 }
 
@@ -2810,6 +2812,8 @@ static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 	struct crypto_hash *verify_tfm = NULL;
 	struct crypto_hash *csums_tfm = NULL;
 	const int apv = mdev->agreed_pro_version;
+	int *rs_plan_s = NULL;
+	int fifo_size = 0;
 
 	exp_max_sz  = apv <= 87 ? sizeof(struct p_rs_param)
 		    : apv == 88 ? sizeof(struct p_rs_param)
@@ -2904,6 +2908,15 @@ static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 			mdev->sync_conf.c_delay_target = be32_to_cpu(p->c_delay_target);
 			mdev->sync_conf.c_fill_target = be32_to_cpu(p->c_fill_target);
 			mdev->sync_conf.c_max_rate = be32_to_cpu(p->c_max_rate);
+
+			fifo_size = (mdev->sync_conf.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
+			if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
+				rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
+				if (!rs_plan_s) {
+					dev_err(DEV, "kmalloc of fifo_buffer failed");
+					goto disconnect;
+				}
+			}
 		}
 
 		spin_lock(&mdev->peer_seq_lock);
@@ -2921,6 +2934,12 @@ static int receive_SyncParam(struct drbd_conf *mdev, struct p_header *h)
 			crypto_free_hash(mdev->csums_tfm);
 			mdev->csums_tfm = csums_tfm;
 			dev_info(DEV, "using csums-alg: \"%s\"\n", p->csums_alg);
+		}
+		if (fifo_size != mdev->rs_plan_s.size) {
+			kfree(mdev->rs_plan_s.values);
+			mdev->rs_plan_s.values = rs_plan_s;
+			mdev->rs_plan_s.size   = fifo_size;
+			mdev->rs_planed = 0;
 		}
 		spin_unlock(&mdev->peer_seq_lock);
 	}
@@ -4202,6 +4221,7 @@ static int got_IsInSync(struct drbd_conf *mdev, struct p_header *h)
 	/* rs_same_csums is supposed to count in units of BM_BLOCK_SIZE */
 	mdev->rs_same_csum += (blksize >> BM_BLOCK_SHIFT);
 	dec_rs_pending(mdev);
+	atomic_add(blksize >> 9, &mdev->rs_sect_in);
 
 	return TRUE;
 }

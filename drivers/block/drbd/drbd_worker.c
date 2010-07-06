@@ -422,6 +422,89 @@ void resync_timer_fn(unsigned long data)
 		drbd_queue_work(&mdev->data.work, &mdev->resync_work);
 }
 
+static void fifo_set(struct fifo_buffer *fb, int value)
+{
+	int i;
+
+	for (i = 0; i < fb->size; i++)
+		fb->values[i] += value;
+}
+
+static int fifo_push(struct fifo_buffer *fb, int value)
+{
+	int ov;
+
+	ov = fb->values[fb->head_index];
+	fb->values[fb->head_index++] = value;
+
+	if (fb->head_index >= fb->size)
+		fb->head_index = 0;
+
+	return ov;
+}
+
+static void fifo_add_val(struct fifo_buffer *fb, int value)
+{
+	int i;
+
+	for (i = 0; i < fb->size; i++)
+		fb->values[i] += value;
+}
+
+int drbd_rs_controller(struct drbd_conf *mdev)
+{
+	unsigned int sect_in;  /* Number of sectors that came in since the last turn */
+	unsigned int want;     /* The number of sectors we want in the proxy */
+	int req_sect; /* Number of sectors to request in this turn */
+	int correction; /* Number of sectors more we need in the proxy*/
+	int cps; /* correction per invocation of drbd_rs_controller() */
+	int steps; /* Number of time steps to plan ahead */
+	int curr_corr;
+	int max_sect;
+
+	sect_in = atomic_xchg(&mdev->rs_sect_in, 0); /* Number of sectors that came in */
+	mdev->rs_in_flight -= sect_in;
+
+	spin_lock(&mdev->peer_seq_lock); /* get an atomic view on mdev->rs_plan_s */
+
+	steps = mdev->rs_plan_s.size; /* (mdev->sync_conf.c_plan_ahead * 10 * SLEEP_TIME) / HZ; */
+
+	if (mdev->rs_in_flight + sect_in == 0) { /* At start of resync */
+		want = ((mdev->sync_conf.rate * 2 * SLEEP_TIME) / HZ) * steps;
+	} else { /* normal path */
+		want = mdev->sync_conf.c_fill_target ? mdev->sync_conf.c_fill_target :
+			sect_in * mdev->sync_conf.c_delay_target * HZ / (SLEEP_TIME * 10);
+	}
+
+	correction = want - mdev->rs_in_flight - mdev->rs_planed;
+
+	/* Plan ahead */
+	cps = correction / steps;
+	fifo_add_val(&mdev->rs_plan_s, cps);
+	mdev->rs_planed += cps * steps;
+
+	/* What we do in this step */
+	curr_corr = fifo_push(&mdev->rs_plan_s, 0);
+	spin_unlock(&mdev->peer_seq_lock);
+	mdev->rs_planed -= curr_corr;
+
+	req_sect = sect_in + curr_corr;
+	if (req_sect < 0)
+		req_sect = 0;
+
+	max_sect = (mdev->sync_conf.c_max_rate * 2 * SLEEP_TIME) / HZ;
+	if (req_sect > max_sect)
+		req_sect = max_sect;
+
+	/*
+	dev_warn(DEV, "si=%u if=%d wa=%u co=%d st=%d cps=%d pl=%d cc=%d rs=%d\n",
+		 sect_in, mdev->rs_in_flight, want, correction,
+		 steps, cps, mdev->rs_planed, curr_corr, req_sect);
+	*/
+
+	return req_sect;
+}
+
 int w_make_resync_request(struct drbd_conf *mdev,
 		struct drbd_work *w, int cancel)
 {
@@ -459,7 +542,13 @@ int w_make_resync_request(struct drbd_conf *mdev,
 	max_segment_size = mdev->agreed_pro_version < 94 ?
 		queue_max_segment_size(mdev->rq_queue) : DRBD_MAX_SEGMENT_SIZE;
 
-	number = SLEEP_TIME * mdev->sync_conf.rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
+	if (mdev->rs_plan_s.size) { /* mdev->sync_conf.c_plan_ahead */
+		number = drbd_rs_controller(mdev) >> (BM_BLOCK_SHIFT - 9);
+		mdev->c_sync_rate = number * HZ * (BM_BLOCK_SIZE / 1024) / SLEEP_TIME;
+	} else {
+		mdev->c_sync_rate = mdev->sync_conf.rate;
+		number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
+	}
 	pe = atomic_read(&mdev->rs_pending_cnt);
 
 	mutex_lock(&mdev->data.mutex);
@@ -593,6 +682,7 @@ next_sector:
 	}
 
  requeue:
+	mdev->rs_in_flight += (i << (BM_BLOCK_SHIFT - 9));
 	mod_timer(&mdev->resync_timer, jiffies + SLEEP_TIME);
 	put_ldev(mdev);
 	return 1;
@@ -1419,6 +1509,12 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 			drbd_resync_finished(mdev);
 		}
 
+		atomic_set(&mdev->rs_sect_in, 0);
+		mdev->rs_in_flight = 0;
+		mdev->rs_planed = 0;
+		spin_lock(&mdev->peer_seq_lock);
+		fifo_set(&mdev->rs_plan_s, 0);
+		spin_unlock(&mdev->peer_seq_lock);
 		/* ns.conn may already be != mdev->state.conn,
 		 * we may have been paused in between, or become paused until
 		 * the timer triggers.

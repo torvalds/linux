@@ -2734,6 +2734,7 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->net_cnt, 0);
 	atomic_set(&mdev->packet_seq, 0);
 	atomic_set(&mdev->pp_in_use, 0);
+	atomic_set(&mdev->rs_sect_in, 0);
 
 	mutex_init(&mdev->md_io_mutex);
 	mutex_init(&mdev->data.mutex);

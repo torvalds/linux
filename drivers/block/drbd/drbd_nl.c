@@ -1587,6 +1587,8 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	struct crypto_hash *csums_tfm = NULL;
 	struct syncer_conf sc;
 	cpumask_var_t new_cpu_mask;
+	int *rs_plan_s = NULL;
+	int fifo_size;
 
 	if (!zalloc_cpumask_var(&new_cpu_mask, GFP_KERNEL)) {
 		retcode = ERR_NOMEM;
@@ -1687,6 +1689,16 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 	if (retcode != NO_ERROR)
 		goto fail;
 
+	fifo_size = (sc.c_plan_ahead * 10 * SLEEP_TIME) / HZ;
+	if (fifo_size != mdev->rs_plan_s.size && fifo_size > 0) {
+		rs_plan_s   = kzalloc(sizeof(int) * fifo_size, GFP_KERNEL);
+		if (!rs_plan_s) {
+			dev_err(DEV, "kmalloc of fifo_buffer failed");
+			retcode = ERR_NOMEM;
+			goto fail;
+		}
+	}
+
 	/* ok, assign the rest of it as well.
 	 * lock against receive_SyncParam() */
 	spin_lock(&mdev->peer_seq_lock);
@@ -1703,6 +1715,15 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		mdev->verify_tfm = verify_tfm;
 		verify_tfm = NULL;
 	}
+
+	if (fifo_size != mdev->rs_plan_s.size) {
+		kfree(mdev->rs_plan_s.values);
+		mdev->rs_plan_s.values = rs_plan_s;
+		mdev->rs_plan_s.size   = fifo_size;
+		mdev->rs_planed = 0;
+		rs_plan_s = NULL;
+	}
+
 	spin_unlock(&mdev->peer_seq_lock);
 
 	if (get_ldev(mdev)) {
@@ -1734,6 +1755,7 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 
 	kobject_uevent(&disk_to_dev(mdev->vdisk)->kobj, KOBJ_CHANGE);
 fail:
+	kfree(rs_plan_s);
 	free_cpumask_var(new_cpu_mask);
 	crypto_free_hash(csums_tfm);
 	crypto_free_hash(verify_tfm);

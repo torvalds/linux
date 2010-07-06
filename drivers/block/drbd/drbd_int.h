@@ -928,6 +928,12 @@ enum write_ordering_e {
 	WO_bio_barrier
 };
 
+struct fifo_buffer {
+	int *values;
+	unsigned int head_index;
+	unsigned int size;
+};
+
 struct drbd_conf {
 	/* things that are stored as / read from meta data on disk */
 	unsigned long flags;
@@ -1068,6 +1074,11 @@ struct drbd_conf {
 	u64 ed_uuid; /* UUID of the exposed data */
 	struct mutex state_mutex;
 	char congestion_reason;  /* Why we where congested... */
+	atomic_t rs_sect_in; /* counter to measure the incoming resync data rate */
+	int c_sync_rate; /* current resync rate after delay_probe magic */
+	struct fifo_buffer rs_plan_s; /* correction values of resync planer */
+	int rs_in_flight; /* resync sectors in flight (to proxy, in proxy and from proxy) */
+	int rs_planed;    /* resync sectors already planed */
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
