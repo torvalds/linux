@@ -299,24 +299,24 @@ static const struct i2c_write_cmd mi0360_start_4[] = {
 };
 
 static const struct i2c_write_cmd mt9v111_init_0[] = {
-	{0x01, 0x0001},
-	{0x06, 0x300c},
-	{0x08, 0xcc00},
-	{0x01, 0x0004},
+	{0x01, 0x0001},		/* select IFP/SOC registers */
+	{0x06, 0x300c},		/* operating mode control */
+	{0x08, 0xcc00},		/* output format control (RGB) */
+	{0x01, 0x0004},		/* select core registers */
 };
 static const struct i2c_write_cmd mt9v111_init_1[] = {
-	{0x03, 0x01e5},
-	{0x04, 0x0285},
+	{0x03, 0x01e5},		/* window height */
+	{0x04, 0x0285},		/* window width */
 };
 static const struct i2c_write_cmd mt9v111_init_2[] = {
 	{0x30, 0x7800},
 	{0x31, 0x0000},
-	{0x07, 0x3002},
-	{0x35, 0x0020},
-	{0x2b, 0x0020},
-	{0x2c, 0x0020},
-	{0x2d, 0x0020},
-	{0x2e, 0x0020},
+	{0x07, 0x3002},		/* output control */
+	{0x35, 0x0020},		/* global gain */
+	{0x2b, 0x0020},		/* green1 gain */
+	{0x2c, 0x0020},		/* blue gain */
+	{0x2d, 0x0020},		/* red gain */
+	{0x2e, 0x0020},		/* green2 gain */
 };
 static const struct ucbus_write_cmd mt9v111_start_1[] = {
 	{0xf5f0, 0x11}, {0xf5f1, 0x96}, {0xf5f2, 0x80}, {0xf5f3, 0x80},
@@ -330,7 +330,7 @@ static const struct i2c_write_cmd mt9v111_init_3[] = {
 	{0x62, 0x0405},
 };
 static const struct i2c_write_cmd mt9v111_init_4[] = {
-	{0x05, 0x00ce},
+	{0x05, 0x00ce},		/* horizontal blanking */
 };
 
 static const struct ucbus_write_cmd ov7660_start_0[] = {
