@@ -459,36 +459,6 @@ int walk_page_buffers(	handle_t *handle,
 	return ret;
 }
 
-handle_t *ocfs2_start_walk_page_trans(struct inode *inode,
-							 struct page *page,
-							 unsigned from,
-							 unsigned to)
-{
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	handle_t *handle;
-	int ret = 0;
-
-	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
-	if (IS_ERR(handle)) {
-		ret = -ENOMEM;
-		mlog_errno(ret);
-		goto out;
-	}
-
-	if (ocfs2_should_order_data(inode)) {
-		ret = ocfs2_jbd2_file_inode(handle, inode);
-		if (ret < 0)
-			mlog_errno(ret);
-	}
-out:
-	if (ret) {
-		if (!IS_ERR(handle))
-			ocfs2_commit_trans(osb, handle);
-		handle = ERR_PTR(ret);
-	}
-	return handle;
-}
-
 static sector_t ocfs2_bmap(struct address_space *mapping, sector_t block)
 {
 	sector_t status;

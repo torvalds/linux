@@ -724,28 +724,55 @@ leave:
 	return status;
 }
 
+/*
+ * While a write will already be ordering the data, a truncate will not.
+ * Thus, we need to explicitly order the zeroed pages.
+ */
+static handle_t *ocfs2_zero_start_ordered_transaction(struct inode *inode)
+{
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	handle_t *handle = NULL;
+	int ret = 0;
+
+	if (!ocfs2_should_order_data(inode))
+		goto out;
+
+	handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_jbd2_file_inode(handle, inode);
+	if (ret < 0)
+		mlog_errno(ret);
+
+out:
+	if (ret) {
+		if (!IS_ERR(handle))
+			ocfs2_commit_trans(osb, handle);
+		handle = ERR_PTR(ret);
+	}
+	return handle;
+}
+
 /* Some parts of this taken from generic_cont_expand, which turned out
  * to be too fragile to do exactly what we need without us having to
  * worry about recursive locking in ->write_begin() and ->write_end(). */
-static int ocfs2_write_zero_page(struct inode *inode,
-				 u64 size)
+static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
+				 u64 abs_to)
 {
 	struct address_space *mapping = inode->i_mapping;
 	struct page *page;
-	unsigned long index;
-	unsigned int offset;
+	unsigned long index = abs_from >> PAGE_CACHE_SHIFT;
 	handle_t *handle = NULL;
 	int ret;
+	unsigned zero_from, zero_to, block_start, block_end;
 
-	offset = (size & (PAGE_CACHE_SIZE-1)); /* Within page */
-	/* ugh.  in prepare/commit_write, if from==to==start of block, we
-	** skip the prepare.  make sure we never send an offset for the start
-	** of a block
-	*/
-	if ((offset & (inode->i_sb->s_blocksize - 1)) == 0) {
-		offset++;
-	}
-	index = size >> PAGE_CACHE_SHIFT;
+	BUG_ON(abs_from >= abs_to);
+	BUG_ON(abs_to > (((u64)index + 1) << PAGE_CACHE_SHIFT));
+	BUG_ON(abs_from & (inode->i_blkbits - 1));
 
 	page = grab_cache_page(mapping, index);
 	if (!page) {
@@ -754,31 +781,51 @@ static int ocfs2_write_zero_page(struct inode *inode,
 		goto out;
 	}
 
-	ret = ocfs2_prepare_write_nolock(inode, page, offset, offset);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_unlock;
-	}
+	/* Get the offsets within the page that we want to zero */
+	zero_from = abs_from & (PAGE_CACHE_SIZE - 1);
+	zero_to = abs_to & (PAGE_CACHE_SIZE - 1);
+	if (!zero_to)
+		zero_to = PAGE_CACHE_SIZE;
 
-	if (ocfs2_should_order_data(inode)) {
-		handle = ocfs2_start_walk_page_trans(inode, page, offset,
-						     offset);
-		if (IS_ERR(handle)) {
-			ret = PTR_ERR(handle);
-			handle = NULL;
+	/* We know that zero_from is block aligned */
+	for (block_start = zero_from; block_start < zero_to;
+	     block_start = block_end) {
+		block_end = block_start + (1 << inode->i_blkbits);
+
+		/*
+		 * block_start is block-aligned.  Bump it by one to
+		 * force ocfs2_{prepare,commit}_write() to zero the
+		 * whole block.
+		 */
+		ret = ocfs2_prepare_write_nolock(inode, page,
+						 block_start + 1,
+						 block_start + 1);
+		if (ret < 0) {
+			mlog_errno(ret);
 			goto out_unlock;
 		}
-	}
 
-	/* must not update i_size! */
-	ret = block_commit_write(page, offset, offset);
-	if (ret < 0)
-		mlog_errno(ret);
-	else
-		ret = 0;
+		if (!handle) {
+			handle = ocfs2_zero_start_ordered_transaction(inode);
+			if (IS_ERR(handle)) {
+				ret = PTR_ERR(handle);
+				handle = NULL;
+				break;
+			}
+		}
+
+		/* must not update i_size! */
+		ret = block_commit_write(page, block_start + 1,
+					 block_start + 1);
+		if (ret < 0)
+			mlog_errno(ret);
+		else
+			ret = 0;
+	}
 
 	if (handle)
 		ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+
 out_unlock:
 	unlock_page(page);
 	page_cache_release(page);
@@ -790,18 +837,21 @@ static int ocfs2_zero_extend(struct inode *inode,
 			     u64 zero_to_size)
 {
 	int ret = 0;
-	u64 start_off;
+	u64 start_off, next_off;
 	struct super_block *sb = inode->i_sb;
 
 	start_off = ocfs2_align_bytes_to_blocks(sb, i_size_read(inode));
 	while (start_off < zero_to_size) {
-		ret = ocfs2_write_zero_page(inode, start_off);
+		next_off = (start_off & PAGE_CACHE_MASK) + PAGE_CACHE_SIZE;
+		if (next_off > zero_to_size)
+			next_off = zero_to_size;
+		ret = ocfs2_write_zero_page(inode, start_off, next_off);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
 		}
 
-		start_off += sb->s_blocksize;
+		start_off = next_off;
 
 		/*
 		 * Very large extends have the potential to lock up
