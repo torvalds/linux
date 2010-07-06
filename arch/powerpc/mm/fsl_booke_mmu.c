@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/highmem.h>
+#include <linux/memblock.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -212,5 +213,5 @@ void __init adjust_total_lowmem(void)
 	pr_cont("%lu Mb, residual: %dMb\n", tlbcam_sz(tlbcam_index - 1) >> 20,
 	        (unsigned int)((total_lowmem - __max_low_memory) >> 20));
 
-	__initial_memory_limit_addr = memstart_addr + __max_low_memory;
+	memblock_set_current_limit(memstart_addr + __max_low_memory);
 }

@@ -34,6 +34,7 @@ struct memblock_type {
 struct memblock {
 	unsigned long debug;
 	u64 rmo_size;
+	u64 current_limit;
 	struct memblock_type memory;
 	struct memblock_type reserved;
 };
@@ -46,11 +47,16 @@ extern long memblock_add(u64 base, u64 size);
 extern long memblock_remove(u64 base, u64 size);
 extern long __init memblock_free(u64 base, u64 size);
 extern long __init memblock_reserve(u64 base, u64 size);
+
 extern u64 __init memblock_alloc_nid(u64 size, u64 align, int nid);
 extern u64 __init memblock_alloc(u64 size, u64 align);
+
+/* Flags for memblock_alloc_base() amd __memblock_alloc_base() */
+#define MEMBLOCK_ALLOC_ANYWHERE	(~(u64)0)
+#define MEMBLOCK_ALLOC_ACCESSIBLE	0
+
 extern u64 __init memblock_alloc_base(u64 size,
 		u64, u64 max_addr);
-#define MEMBLOCK_ALLOC_ANYWHERE	0
 extern u64 __init __memblock_alloc_base(u64 size,
 		u64 align, u64 max_addr);
 extern u64 __init memblock_phys_mem_size(void);
@@ -65,6 +71,14 @@ extern void memblock_dump_all(void);
 
 /* Provided by the architecture */
 extern u64 memblock_nid_range(u64 start, u64 end, int *nid);
+
+/**
+ * memblock_set_current_limit - Set the current allocation limit to allow
+ *                         limiting allocations to what is currently
+ *                         accessible during boot
+ * @limit: New limit value (physical address)
+ */
+extern void memblock_set_current_limit(u64 limit);
 
 
 /*

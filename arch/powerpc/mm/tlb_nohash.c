@@ -432,6 +432,8 @@ static void __early_init_mmu(int boot_cpu)
 	 * the MMU configuration
 	 */
 	mb();
+
+	memblock_set_current_limit(linear_map_top);
 }
 
 void __init early_init_mmu(void)

@@ -115,6 +115,8 @@ void __init memblock_init(void)
 	memblock.reserved.regions[0].base = 0;
 	memblock.reserved.regions[0].size = 0;
 	memblock.reserved.cnt = 1;
+
+	memblock.current_limit = MEMBLOCK_ALLOC_ANYWHERE;
 }
 
 void __init memblock_analyze(void)
@@ -373,7 +375,7 @@ u64 __init memblock_alloc_nid(u64 size, u64 align, int nid)
 
 u64 __init memblock_alloc(u64 size, u64 align)
 {
-	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ANYWHERE);
+	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
 }
 
 u64 __init memblock_alloc_base(u64 size, u64 align, u64 max_addr)
@@ -399,14 +401,9 @@ u64 __init __memblock_alloc_base(u64 size, u64 align, u64 max_addr)
 
 	size = memblock_align_up(size, align);
 
-	/* On some platforms, make sure we allocate lowmem */
-	/* Note that MEMBLOCK_REAL_LIMIT may be MEMBLOCK_ALLOC_ANYWHERE */
-	if (max_addr == MEMBLOCK_ALLOC_ANYWHERE)
-		max_addr = MEMBLOCK_REAL_LIMIT;
-
 	/* Pump up max_addr */
-	if (max_addr == MEMBLOCK_ALLOC_ANYWHERE)
-		max_addr = ~(u64)0;
+	if (max_addr == MEMBLOCK_ALLOC_ACCESSIBLE)
+		max_addr = memblock.current_limit;
 
 	/* We do a top-down search, this tends to limit memory
 	 * fragmentation by keeping early boot allocs near the
@@ -525,5 +522,11 @@ int memblock_is_region_memory(u64 base, u64 size)
 int memblock_is_region_reserved(u64 base, u64 size)
 {
 	return memblock_overlaps_region(&memblock.reserved, base, size) >= 0;
+}
+
+
+void __init memblock_set_current_limit(u64 limit)
+{
+	memblock.current_limit = limit;
 }
 

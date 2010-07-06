@@ -696,7 +696,8 @@ static void __init htab_initialize(void)
 #endif /* CONFIG_U3_DART */
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
 				prot, mmu_linear_psize, mmu_kernel_ssize));
-       }
+	}
+	memblock_set_current_limit(MEMBLOCK_ALLOC_ANYWHERE);
 
 	/*
 	 * If we have a memory_limit and we've allocated TCEs then we need to

@@ -98,7 +98,7 @@ static void __init move_device_tree(void)
 
 	if ((memory_limit && (start + size) > memory_limit) ||
 			overlaps_crashkernel(start, size)) {
-		p = __va(memblock_alloc_base(size, PAGE_SIZE, memblock.rmo_size));
+		p = __va(memblock_alloc(size, PAGE_SIZE));
 		memcpy(p, initial_boot_params, size);
 		initial_boot_params = (struct boot_param_header *)p;
 		DBG("Moved device tree to 0x%p\n", p);
@@ -655,6 +655,21 @@ static void __init phyp_dump_reserve_mem(void)
 static inline void __init phyp_dump_reserve_mem(void) {}
 #endif /* CONFIG_PHYP_DUMP  && CONFIG_PPC_RTAS */
 
+static void set_boot_memory_limit(void)
+{
+#ifdef CONFIG_PPC32
+	/* 601 can only access 16MB at the moment */
+	if (PVR_VER(mfspr(SPRN_PVR)) == 1)
+		memblock_set_current_limit(0x01000000);
+	/* 8xx can only access 8MB at the moment */
+	else if (PVR_VER(mfspr(SPRN_PVR)) == 0x50)
+		memblock_set_current_limit(0x00800000);
+	else
+		memblock_set_current_limit(0x10000000);
+#else
+	memblock_set_current_limit(memblock.rmo_size);
+#endif
+}
 
 void __init early_init_devtree(void *params)
 {
@@ -683,6 +698,7 @@ void __init early_init_devtree(void *params)
 
 	/* Scan memory nodes and rebuild MEMBLOCKs */
 	memblock_init();
+
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
 	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 
@@ -717,6 +733,8 @@ void __init early_init_devtree(void *params)
 	memblock_dump_all();
 
 	DBG("Phys. mem: %llx\n", memblock_phys_mem_size());
+
+	set_boot_memory_limit();
 
 	/* We may need to relocate the flat tree, do it now.
 	 * FIXME .. and the initrd too? */

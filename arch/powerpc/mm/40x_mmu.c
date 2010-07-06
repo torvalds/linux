@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/highmem.h>
+#include <linux/memblock.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -47,6 +48,7 @@
 #include <asm/bootx.h>
 #include <asm/machdep.h>
 #include <asm/setup.h>
+
 #include "mmu_decl.h"
 
 extern int __map_without_ltlbs;
@@ -139,8 +141,7 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	 * coverage with normal-sized pages (or other reasons) do not
 	 * attempt to allocate outside the allowed range.
 	 */
-
-	__initial_memory_limit_addr = memstart_addr + mapped;
+	memblock_set_current_limit(memstart_addr + mapped);
 
 	return mapped;
 }
