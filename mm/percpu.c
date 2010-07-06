@@ -229,8 +229,8 @@ static int __maybe_unused pcpu_page_idx(unsigned int cpu, int page_idx)
 	return pcpu_unit_map[cpu] * pcpu_unit_pages + page_idx;
 }
 
-static unsigned long __maybe_unused pcpu_chunk_addr(struct pcpu_chunk *chunk,
-						unsigned int cpu, int page_idx)
+static unsigned long pcpu_chunk_addr(struct pcpu_chunk *chunk,
+				     unsigned int cpu, int page_idx)
 {
 	return (unsigned long)chunk->base_addr + pcpu_unit_offsets[cpu] +
 		(page_idx << PAGE_SHIFT);
@@ -978,7 +978,32 @@ bool is_kernel_percpu_address(unsigned long addr)
  */
 phys_addr_t per_cpu_ptr_to_phys(void *addr)
 {
-	if (pcpu_addr_in_first_chunk(addr)) {
+	void __percpu *base = __addr_to_pcpu_ptr(pcpu_base_addr);
+	bool in_first_chunk = false;
+	unsigned long first_start, first_end;
+	unsigned int cpu;
+
+	/*
+	 * The following test on first_start/end isn't strictly
+	 * necessary but will speed up lookups of addresses which
+	 * aren't in the first chunk.
+	 */
+	first_start = pcpu_chunk_addr(pcpu_first_chunk, pcpu_first_unit_cpu, 0);
+	first_end = pcpu_chunk_addr(pcpu_first_chunk, pcpu_last_unit_cpu,
+				    pcpu_unit_pages);
+	if ((unsigned long)addr >= first_start &&
+	    (unsigned long)addr < first_end) {
+		for_each_possible_cpu(cpu) {
+			void *start = per_cpu_ptr(base, cpu);
+
+			if (addr >= start && addr < start + pcpu_unit_size) {
+				in_first_chunk = true;
+				break;
+			}
+		}
+	}
+
+	if (in_first_chunk) {
 		if ((unsigned long)addr < VMALLOC_START ||
 		    (unsigned long)addr >= VMALLOC_END)
 			return __pa(addr);
@@ -1086,7 +1111,7 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 	static int group_map[NR_CPUS] __initdata;
 	static int group_cnt[NR_CPUS] __initdata;
 	const size_t static_size = __per_cpu_end - __per_cpu_start;
-	int group_cnt_max = 0, nr_groups = 1, nr_units = 0;
+	int nr_groups = 1, nr_units = 0;
 	size_t size_sum, min_unit_size, alloc_size;
 	int upa, max_upa, uninitialized_var(best_upa);	/* units_per_alloc */
 	int last_allocs, group, unit;
@@ -1096,7 +1121,7 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 
 	/* this function may be called multiple times */
 	memset(group_map, 0, sizeof(group_map));
-	memset(group_cnt, 0, sizeof(group_map));
+	memset(group_cnt, 0, sizeof(group_cnt));
 
 	/*
 	 * Determine min_unit_size, alloc_size and max_upa such that
@@ -1130,7 +1155,6 @@ struct pcpu_alloc_info * __init pcpu_build_alloc_info(
 		}
 		group_map[cpu] = group;
 		group_cnt[group]++;
-		group_cnt_max = max(group_cnt_max, group_cnt[group]);
 	}
 
 	/*

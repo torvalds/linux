@@ -289,6 +289,7 @@ static int __devinit i5k_amb_hwmon_init(struct platform_device *pdev)
 			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
 			iattr->s_attr.dev_attr.show = show_label;
 			iattr->s_attr.index = k;
+			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
 			res = device_create_file(&pdev->dev,
 						 &iattr->s_attr.dev_attr);
 			if (res)
@@ -303,6 +304,7 @@ static int __devinit i5k_amb_hwmon_init(struct platform_device *pdev)
 			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
 			iattr->s_attr.dev_attr.show = show_amb_temp;
 			iattr->s_attr.index = k;
+			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
 			res = device_create_file(&pdev->dev,
 						 &iattr->s_attr.dev_attr);
 			if (res)
@@ -318,6 +320,7 @@ static int __devinit i5k_amb_hwmon_init(struct platform_device *pdev)
 			iattr->s_attr.dev_attr.show = show_amb_min;
 			iattr->s_attr.dev_attr.store = store_amb_min;
 			iattr->s_attr.index = k;
+			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
 			res = device_create_file(&pdev->dev,
 						 &iattr->s_attr.dev_attr);
 			if (res)
@@ -333,6 +336,7 @@ static int __devinit i5k_amb_hwmon_init(struct platform_device *pdev)
 			iattr->s_attr.dev_attr.show = show_amb_mid;
 			iattr->s_attr.dev_attr.store = store_amb_mid;
 			iattr->s_attr.index = k;
+			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
 			res = device_create_file(&pdev->dev,
 						 &iattr->s_attr.dev_attr);
 			if (res)
@@ -348,6 +352,7 @@ static int __devinit i5k_amb_hwmon_init(struct platform_device *pdev)
 			iattr->s_attr.dev_attr.show = show_amb_max;
 			iattr->s_attr.dev_attr.store = store_amb_max;
 			iattr->s_attr.index = k;
+			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
 			res = device_create_file(&pdev->dev,
 						 &iattr->s_attr.dev_attr);
 			if (res)
@@ -362,6 +367,7 @@ static int __devinit i5k_amb_hwmon_init(struct platform_device *pdev)
 			iattr->s_attr.dev_attr.attr.mode = S_IRUGO;
 			iattr->s_attr.dev_attr.show = show_amb_alarm;
 			iattr->s_attr.index = k;
+			sysfs_attr_init(&iattr->s_attr.dev_attr.attr);
 			res = device_create_file(&pdev->dev,
 						 &iattr->s_attr.dev_attr);
 			if (res)

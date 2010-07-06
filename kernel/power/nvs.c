@@ -15,7 +15,7 @@
 
 /*
  * Platforms, like ACPI, may want us to save some memory used by them during
- * hibernation and to restore the contents of this memory during the subsequent
+ * suspend and to restore the contents of this memory during the subsequent
  * resume.  The code below implements a mechanism allowing us to do that.
  */
 
@@ -30,7 +30,7 @@ struct nvs_page {
 static LIST_HEAD(nvs_list);
 
 /**
- *	hibernate_nvs_register - register platform NVS memory region to save
+ *	suspend_nvs_register - register platform NVS memory region to save
  *	@start - physical address of the region
  *	@size - size of the region
  *
@@ -38,7 +38,7 @@ static LIST_HEAD(nvs_list);
  *	things so that the data from page-aligned addresses in this region will
  *	be copied into separate RAM pages.
  */
-int hibernate_nvs_register(unsigned long start, unsigned long size)
+int suspend_nvs_register(unsigned long start, unsigned long size)
 {
 	struct nvs_page *entry, *next;
 
@@ -68,9 +68,9 @@ int hibernate_nvs_register(unsigned long start, unsigned long size)
 }
 
 /**
- *	hibernate_nvs_free - free data pages allocated for saving NVS regions
+ *	suspend_nvs_free - free data pages allocated for saving NVS regions
  */
-void hibernate_nvs_free(void)
+void suspend_nvs_free(void)
 {
 	struct nvs_page *entry;
 
@@ -86,16 +86,16 @@ void hibernate_nvs_free(void)
 }
 
 /**
- *	hibernate_nvs_alloc - allocate memory necessary for saving NVS regions
+ *	suspend_nvs_alloc - allocate memory necessary for saving NVS regions
  */
-int hibernate_nvs_alloc(void)
+int suspend_nvs_alloc(void)
 {
 	struct nvs_page *entry;
 
 	list_for_each_entry(entry, &nvs_list, node) {
 		entry->data = (void *)__get_free_page(GFP_KERNEL);
 		if (!entry->data) {
-			hibernate_nvs_free();
+			suspend_nvs_free();
 			return -ENOMEM;
 		}
 	}
@@ -103,9 +103,9 @@ int hibernate_nvs_alloc(void)
 }
 
 /**
- *	hibernate_nvs_save - save NVS memory regions
+ *	suspend_nvs_save - save NVS memory regions
  */
-void hibernate_nvs_save(void)
+void suspend_nvs_save(void)
 {
 	struct nvs_page *entry;
 
@@ -119,12 +119,12 @@ void hibernate_nvs_save(void)
 }
 
 /**
- *	hibernate_nvs_restore - restore NVS memory regions
+ *	suspend_nvs_restore - restore NVS memory regions
  *
  *	This function is going to be called with interrupts disabled, so it
  *	cannot iounmap the virtual addresses used to access the NVS region.
  */
-void hibernate_nvs_restore(void)
+void suspend_nvs_restore(void)
 {
 	struct nvs_page *entry;
 

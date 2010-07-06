@@ -983,8 +983,8 @@ void intel_lvds_init(struct drm_device *dev)
 
 	drm_connector_attach_property(&intel_connector->base,
 				      dev->mode_config.scaling_mode_property,
-				      DRM_MODE_SCALE_FULLSCREEN);
-	lvds_priv->fitting_mode = DRM_MODE_SCALE_FULLSCREEN;
+				      DRM_MODE_SCALE_ASPECT);
+	lvds_priv->fitting_mode = DRM_MODE_SCALE_ASPECT;
 	/*
 	 * LVDS discovery:
 	 * 1) check for EDID on DDC

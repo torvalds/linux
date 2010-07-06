@@ -581,6 +581,11 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		return 0;
 	}
 
+#ifdef CONFIG_SMP
+	if (pr->id >= setup_max_cpus && pr->id != 0)
+		return 0;
+#endif
+
 	BUG_ON((pr->id >= nr_cpu_ids) || (pr->id < 0));
 
 	/*

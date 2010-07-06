@@ -1411,6 +1411,11 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 			rdev->mode_info.connector_table = CT_IMAC_G5_ISIGHT;
 		} else
 #endif /* CONFIG_PPC_PMAC */
+#ifdef CONFIG_PPC64
+		if (ASIC_IS_RN50(rdev))
+			rdev->mode_info.connector_table = CT_RN50_POWER;
+		else
+#endif
 			rdev->mode_info.connector_table = CT_GENERIC;
 	}
 
@@ -1853,6 +1858,33 @@ bool radeon_get_legacy_connector_info_from_table(struct drm_device *dev)
 					    CONNECTOR_OBJECT_ID_SVIDEO,
 					    &hpd);
 		break;
+	case CT_RN50_POWER:
+		DRM_INFO("Connector Table: %d (rn50-power)\n",
+			 rdev->mode_info.connector_table);
+		/* VGA - primary dac */
+		ddc_i2c = combios_setup_i2c_bus(rdev, RADEON_GPIO_VGA_DDC);
+		hpd.hpd = RADEON_HPD_NONE;
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_id(dev,
+								ATOM_DEVICE_CRT1_SUPPORT,
+								1),
+					  ATOM_DEVICE_CRT1_SUPPORT);
+		radeon_add_legacy_connector(dev, 0, ATOM_DEVICE_CRT1_SUPPORT,
+					    DRM_MODE_CONNECTOR_VGA, &ddc_i2c,
+					    CONNECTOR_OBJECT_ID_VGA,
+					    &hpd);
+		ddc_i2c = combios_setup_i2c_bus(rdev, RADEON_GPIO_CRT2_DDC);
+		hpd.hpd = RADEON_HPD_NONE;
+		radeon_add_legacy_encoder(dev,
+					  radeon_get_encoder_id(dev,
+								ATOM_DEVICE_CRT2_SUPPORT,
+								2),
+					  ATOM_DEVICE_CRT2_SUPPORT);
+		radeon_add_legacy_connector(dev, 1, ATOM_DEVICE_CRT2_SUPPORT,
+					    DRM_MODE_CONNECTOR_VGA, &ddc_i2c,
+					    CONNECTOR_OBJECT_ID_VGA,
+					    &hpd);
+		break;
 	default:
 		DRM_INFO("Connector table: %d (invalid)\n",
 			 rdev->mode_info.connector_table);
@@ -1904,15 +1936,6 @@ static bool radeon_apply_legacy_quirks(struct drm_device *dev,
 		if (*legacy_connector == CONNECTOR_CRT_LEGACY &&
 		    ddc_i2c->mask_clk_reg == RADEON_GPIO_CRT2_DDC)
 			return false;
-	}
-
-	/* Some RV100 cards with 2 VGA ports show up with DVI+VGA */
-	if (dev->pdev->device == 0x5159 &&
-	    dev->pdev->subsystem_vendor == 0x1002 &&
-	    dev->pdev->subsystem_device == 0x013a) {
-		if (*legacy_connector == CONNECTOR_DVI_I_LEGACY)
-			*legacy_connector = CONNECTOR_CRT_LEGACY;
-
 	}
 
 	/* X300 card with extra non-existent DVI port */
@@ -3018,6 +3041,14 @@ void radeon_combios_asic_init(struct drm_device *dev)
 		/* write CONFIG_MEMSIZE */
 		combios_write_ram_size(dev);
 	}
+
+	/* quirk for rs4xx HP nx6125 laptop to make it resume
+	 * - it hangs on resume inside the dynclk 1 table.
+	 */
+	if (rdev->family == CHIP_RS480 &&
+	    rdev->pdev->subsystem_vendor == 0x103c &&
+	    rdev->pdev->subsystem_device == 0x308b)
+		return;
 
 	/* DYN CLK 1 */
 	table = combios_get_table_offset(dev, COMBIOS_DYN_CLK_1_TABLE);

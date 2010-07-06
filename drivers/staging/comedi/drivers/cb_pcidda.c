@@ -52,7 +52,6 @@ Please report success/failure with other different cards to
 #include "8255.h"
 
 #define PCI_VENDOR_ID_CB	0x1307	/*  PCI vendor number of ComputerBoards */
-#define N_BOARDS	10	/*  Number of boards in cb_pcidda_boards */
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
 #define MAX_AO_CHANNELS 8	/*  maximum number of ao channels for supported boards */
 
@@ -307,7 +306,7 @@ static int cb_pcidda_attach(struct comedi_device *dev,
 					continue;
 				}
 			}
-			for (index = 0; index < N_BOARDS; index++) {
+			for (index = 0; index < ARRAY_SIZE(cb_pcidda_boards); index++) {
 				if (cb_pcidda_boards[index].device_id ==
 				    pcidev->device) {
 					goto found;

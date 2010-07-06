@@ -38,11 +38,6 @@ struct r10_private_data_s {
 	int chunk_shift; /* shift from chunks to sectors */
 	sector_t chunk_mask;
 
-	int			scale_disks;  /* When starting array, multiply
-					       * each ->raid_disk by this.
-					       * Need for raid0->raid10 migration
-					       */
-
 	struct list_head	retry_list;
 	/* queue pending writes and submit them on unplug */
 	struct bio_list		pending_bio_list;

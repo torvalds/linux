@@ -225,9 +225,9 @@ static struct bat_attribute *mesh_attrs[] = {
 	NULL,
 };
 
-static ssize_t transtable_local_read(struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buff, loff_t off, size_t count)
+static ssize_t transtable_local_read(struct file *filp, struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buff, loff_t off, size_t count)
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
@@ -235,9 +235,9 @@ static ssize_t transtable_local_read(struct kobject *kobj,
 	return hna_local_fill_buffer_text(net_dev, buff, count, off);
 }
 
-static ssize_t transtable_global_read(struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buff, loff_t off, size_t count)
+static ssize_t transtable_global_read(struct file *filp, struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buff, loff_t off, size_t count)
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
@@ -245,9 +245,9 @@ static ssize_t transtable_global_read(struct kobject *kobj,
 	return hna_global_fill_buffer_text(net_dev, buff, count, off);
 }
 
-static ssize_t originators_read(struct kobject *kobj,
-			       struct bin_attribute *bin_attr,
-			       char *buff, loff_t off, size_t count)
+static ssize_t originators_read(struct file *filp, struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buff, loff_t off, size_t count)
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);
@@ -255,9 +255,9 @@ static ssize_t originators_read(struct kobject *kobj,
 	return orig_fill_buffer_text(net_dev, buff, count, off);
 }
 
-static ssize_t vis_data_read(struct kobject *kobj,
-			     struct bin_attribute *bin_attr,
-			     char *buff, loff_t off, size_t count)
+static ssize_t vis_data_read(struct file *filp, struct kobject *kobj,
+				  struct bin_attribute *bin_attr,
+				  char *buff, loff_t off, size_t count)
 {
 	struct device *dev = to_dev(kobj->parent);
 	struct net_device *net_dev = to_net_dev(dev);

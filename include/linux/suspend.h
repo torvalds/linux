@@ -256,22 +256,22 @@ static inline int hibernate(void) { return -ENOSYS; }
 static inline bool system_entering_hibernation(void) { return false; }
 #endif /* CONFIG_HIBERNATION */
 
-#ifdef CONFIG_HIBERNATION_NVS
-extern int hibernate_nvs_register(unsigned long start, unsigned long size);
-extern int hibernate_nvs_alloc(void);
-extern void hibernate_nvs_free(void);
-extern void hibernate_nvs_save(void);
-extern void hibernate_nvs_restore(void);
-#else /* CONFIG_HIBERNATION_NVS */
-static inline int hibernate_nvs_register(unsigned long a, unsigned long b)
+#ifdef CONFIG_SUSPEND_NVS
+extern int suspend_nvs_register(unsigned long start, unsigned long size);
+extern int suspend_nvs_alloc(void);
+extern void suspend_nvs_free(void);
+extern void suspend_nvs_save(void);
+extern void suspend_nvs_restore(void);
+#else /* CONFIG_SUSPEND_NVS */
+static inline int suspend_nvs_register(unsigned long a, unsigned long b)
 {
 	return 0;
 }
-static inline int hibernate_nvs_alloc(void) { return 0; }
-static inline void hibernate_nvs_free(void) {}
-static inline void hibernate_nvs_save(void) {}
-static inline void hibernate_nvs_restore(void) {}
-#endif /* CONFIG_HIBERNATION_NVS */
+static inline int suspend_nvs_alloc(void) { return 0; }
+static inline void suspend_nvs_free(void) {}
+static inline void suspend_nvs_save(void) {}
+static inline void suspend_nvs_restore(void) {}
+#endif /* CONFIG_SUSPEND_NVS */
 
 #ifdef CONFIG_PM_SLEEP
 void save_processor_state(void);

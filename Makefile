@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
 SUBLEVEL = 35
-EXTRAVERSION = -rc3
+EXTRAVERSION = -rc4
 NAME = Sheep on Meth
 
 # *DOCUMENTATION*
@@ -883,80 +883,10 @@ PHONY += $(vmlinux-dirs)
 $(vmlinux-dirs): prepare scripts
 	$(Q)$(MAKE) $(build)=$@
 
-# Build the kernel release string
-#
-# The KERNELRELEASE value built here is stored in the file
-# include/config/kernel.release, and is used when executing several
-# make targets, such as "make install" or "make modules_install."
-#
-# The eventual kernel release string consists of the following fields,
-# shown in a hierarchical format to show how smaller parts are concatenated
-# to form the larger and final value, with values coming from places like
-# the Makefile, kernel config options, make command line options and/or
-# SCM tag information.
-#
-#	$(KERNELVERSION)
-#	  $(VERSION)			eg, 2
-#	  $(PATCHLEVEL)			eg, 6
-#	  $(SUBLEVEL)			eg, 18
-#	  $(EXTRAVERSION)		eg, -rc6
-#	$(localver-full)
-#	  $(localver)
-#	    localversion*		(files without backups, containing '~')
-#	    $(CONFIG_LOCALVERSION)	(from kernel config setting)
-#	  $(LOCALVERSION)		(from make command line, if provided)
-#	  $(localver-extra)
-#	    $(scm-identifier)		(unique SCM tag, if one exists)
-#	      ./scripts/setlocalversion	(only with CONFIG_LOCALVERSION_AUTO)
-#	      .scmversion		(only with CONFIG_LOCALVERSION_AUTO)
-#	    +				(only without CONFIG_LOCALVERSION_AUTO
-#					 and without LOCALVERSION= and
-#					 repository is at non-tagged commit)
-#
-# For kernels without CONFIG_LOCALVERSION_AUTO compiled from an SCM that has
-# been revised beyond a tagged commit, `+' is appended to the version string
-# when not overridden by using "make LOCALVERSION=".  This indicates that the
-# kernel is not a vanilla release version and has been modified.
-
-pattern = ".*/localversion[^~]*"
-string  = $(shell cat /dev/null \
-	   `find $(objtree) $(srctree) -maxdepth 1 -regex $(pattern) | sort -u`)
-
-localver = $(subst $(space),, $(string) \
-			      $(patsubst "%",%,$(CONFIG_LOCALVERSION)))
-
-# scripts/setlocalversion is called to create a unique identifier if the source
-# is managed by a known SCM and the repository has been revised since the last
-# tagged (release) commit.  The format of the identifier is determined by the
-# SCM's implementation.
-#
-# .scmversion is used when generating rpm packages so we do not loose
-# the version information from the SCM when we do the build of the kernel
-# from the copied source
-ifeq ($(wildcard .scmversion),)
-        scm-identifier = $(shell $(CONFIG_SHELL) \
-                         $(srctree)/scripts/setlocalversion $(srctree))
-else
-        scm-identifier = $(shell cat .scmversion 2> /dev/null)
-endif
-
-ifdef CONFIG_LOCALVERSION_AUTO
-	localver-extra = $(scm-identifier)
-else
-	ifneq ($(scm-identifier),)
-		ifeq ($(LOCALVERSION),)
-			localver-extra = +
-		endif
-	endif
-endif
-
-localver-full = $(localver)$(LOCALVERSION)$(localver-extra)
-
 # Store (new) KERNELRELASE string in include/config/kernel.release
-kernelrelease = $(KERNELVERSION)$(localver-full)
 include/config/kernel.release: include/config/auto.conf FORCE
 	$(Q)rm -f $@
-	$(Q)echo $(kernelrelease) > $@
+	$(Q)echo "$(KERNELVERSION)$$($(CONFIG_SHELL) scripts/setlocalversion $(srctree))" > $@
 
 
 # Things we need to do before we recursively start building the kernel
