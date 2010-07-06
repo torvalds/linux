@@ -141,7 +141,19 @@ unsigned long __init mmu_mapin_ram(unsigned long top)
 	 * coverage with normal-sized pages (or other reasons) do not
 	 * attempt to allocate outside the allowed range.
 	 */
-	memblock_set_current_limit(memstart_addr + mapped);
+	memblock_set_current_limit(mapped);
 
 	return mapped;
+}
+
+void setup_initial_memory_limit(phys_addr_t first_memblock_base,
+				phys_addr_t first_memblock_size)
+{
+	/* We don't currently support the first MEMBLOCK not mapping 0
+	 * physical on those processors
+	 */
+	BUG_ON(first_memblock_base != 0);
+
+	/* 40x can only access 16MB at the moment (see head_40x.S) */
+	memblock_set_current_limit(min_t(u64, first_memblock_size, 0x00800000));
 }

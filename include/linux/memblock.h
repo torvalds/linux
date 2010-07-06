@@ -33,7 +33,6 @@ struct memblock_type {
 
 struct memblock {
 	unsigned long debug;
-	u64 rmo_size;
 	u64 current_limit;
 	struct memblock_type memory;
 	struct memblock_type reserved;

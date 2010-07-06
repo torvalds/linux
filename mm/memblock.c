@@ -49,7 +49,6 @@ void memblock_dump_all(void)
 		return;
 
 	pr_info("MEMBLOCK configuration:\n");
-	pr_info(" rmo_size    = 0x%llx\n", (unsigned long long)memblock.rmo_size);
 	pr_info(" memory.size = 0x%llx\n", (unsigned long long)memblock.memory.size);
 
 	memblock_dump(&memblock.memory, "memory");
@@ -195,10 +194,6 @@ static long memblock_add_region(struct memblock_type *type, u64 base, u64 size)
 
 long memblock_add(u64 base, u64 size)
 {
-	/* On pSeries LPAR systems, the first MEMBLOCK is our RMO region. */
-	if (base == 0)
-		memblock.rmo_size = size;
-
 	return memblock_add_region(&memblock.memory, base, size);
 
 }
@@ -458,9 +453,6 @@ void __init memblock_enforce_memory_limit(u64 memory_limit)
 		memblock.memory.cnt = i + 1;
 		break;
 	}
-
-	if (memblock.memory.regions[0].size < memblock.rmo_size)
-		memblock.rmo_size = memblock.memory.regions[0].size;
 
 	memory_limit = memblock_end_of_DRAM();
 
