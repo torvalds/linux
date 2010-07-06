@@ -121,6 +121,7 @@ static const struct file_operations name##_ops = {			\
 	.read = ieee80211_if_read_##name,				\
 	.write = (_write),						\
 	.open = mac80211_open_file_generic,				\
+	.llseek = generic_file_llseek,					\
 }
 
 #define __IEEE80211_IF_FILE_W(name)					\

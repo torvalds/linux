@@ -509,6 +509,7 @@ static const struct file_operations rt2x00debug_fop_##__name = {\
 	.write		= rt2x00debug_write_##__name,		\
 	.open		= rt2x00debug_file_open,		\
 	.release	= rt2x00debug_file_release,		\
+	.llseek		= generic_file_llseek,			\
 };
 
 RT2X00DEBUGFS_OPS(csr, "0x%.8x\n", u32);
