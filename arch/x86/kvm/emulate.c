@@ -2949,8 +2949,8 @@ special_insn:
 				     &c->dst.val))
 			goto done; /* IO is needed */
 		break;
-	case 0xee: /* out al,dx */
-	case 0xef: /* out (e/r)ax,dx */
+	case 0xee: /* out dx,al */
+	case 0xef: /* out dx,(e/r)ax */
 		c->src.val = c->regs[VCPU_REGS_RDX];
 	do_io_out:
 		c->dst.bytes = min(c->dst.bytes, 4u);
