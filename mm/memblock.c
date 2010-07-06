@@ -241,6 +241,12 @@ static int memblock_double_array(struct memblock_type *type)
 	return 0;
 }
 
+extern int __weak memblock_memory_can_coalesce(phys_addr_t addr1, phys_addr_t size1,
+					  phys_addr_t addr2, phys_addr_t size2)
+{
+	return 1;
+}
+
 static long memblock_add_region(struct memblock_type *type, phys_addr_t base, phys_addr_t size)
 {
 	unsigned long coalesced = 0;
@@ -262,6 +268,10 @@ static long memblock_add_region(struct memblock_type *type, phys_addr_t base, ph
 			return 0;
 
 		adjacent = memblock_addrs_adjacent(base, size, rgnbase, rgnsize);
+		/* Check if arch allows coalescing */
+		if (adjacent != 0 && type == &memblock.memory &&
+		    !memblock_memory_can_coalesce(base, size, rgnbase, rgnsize))
+			break;
 		if (adjacent > 0) {
 			type->regions[i].base -= size;
 			type->regions[i].size += size;
@@ -274,7 +284,14 @@ static long memblock_add_region(struct memblock_type *type, phys_addr_t base, ph
 		}
 	}
 
-	if ((i < type->cnt - 1) && memblock_regions_adjacent(type, i, i+1)) {
+	/* If we plugged a hole, we may want to also coalesce with the
+	 * next region
+	 */
+	if ((i < type->cnt - 1) && memblock_regions_adjacent(type, i, i+1) &&
+	    ((type != &memblock.memory || memblock_memory_can_coalesce(type->regions[i].base,
+							     type->regions[i].size,
+							     type->regions[i+1].base,
+							     type->regions[i+1].size)))) {
 		memblock_coalesce_regions(type, i, i+1);
 		coalesced++;
 	}
