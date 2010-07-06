@@ -393,6 +393,7 @@ static struct drm_driver driver = {
 #if defined(CONFIG_COMPAT)
 		.compat_ioctl = nouveau_compat_ioctl,
 #endif
+		.llseek = noop_llseek,
 	},
 	.pci_driver = {
 		.name = DRIVER_NAME,

@@ -745,6 +745,7 @@ static struct drm_driver driver = {
 #if defined(CONFIG_COMPAT)
 		 .compat_ioctl = drm_compat_ioctl,
 #endif
+		 .llseek = noop_llseek,
 		 },
 	.pci_driver = {
 		       .name = VMWGFX_DRIVER_NAME,
