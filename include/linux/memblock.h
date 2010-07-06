@@ -16,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 
+#include <asm/memblock.h>
+
 #define MAX_MEMBLOCK_REGIONS 128
 
 struct memblock_region {
@@ -81,8 +83,6 @@ memblock_end_pfn(struct memblock_type *type, unsigned long region_nr)
 	return memblock_start_pfn(type, region_nr) +
 	       memblock_size_pages(type, region_nr);
 }
-
-#include <asm/memblock.h>
 
 #endif /* __KERNEL__ */
 
