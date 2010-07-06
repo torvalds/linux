@@ -517,6 +517,12 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 			(unsigned long long) sbi->s_num_blocks);
 		goto out_brelse_bh2;
 	}
+	if (sbi->s_clustersize < 1 ||
+	    sbi->s_clustersize > OMFS_MAX_CLUSTER_SIZE) {
+		printk(KERN_ERR "omfs: cluster size out of range (%d)",
+			sbi->s_clustersize);
+		goto out_brelse_bh2;
+	}
 
 	ret = omfs_get_imap(sb);
 	if (ret)
