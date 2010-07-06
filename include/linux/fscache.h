@@ -85,7 +85,7 @@ struct fscache_cookie_def {
 
 	/* get an index key
 	 * - should store the key data in the buffer
-	 * - should return the amount of amount stored
+	 * - should return the amount of data stored
 	 * - not permitted to return an error
 	 * - the netfs data from the cookie being used as the source is
 	 *   presented
