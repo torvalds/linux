@@ -119,21 +119,25 @@ static int FNAME(walk_addr)(struct guest_walker *walker,
 {
 	pt_element_t pte;
 	gfn_t table_gfn;
-	unsigned index, pt_access, pte_access;
+	unsigned index, pt_access, uninitialized_var(pte_access);
 	gpa_t pte_gpa;
-	int rsvd_fault = 0;
+	bool eperm, present, rsvd_fault;
 
 	trace_kvm_mmu_pagetable_walk(addr, write_fault, user_fault,
 				     fetch_fault);
 walk:
+	present = true;
+	eperm = rsvd_fault = false;
 	walker->level = vcpu->arch.mmu.root_level;
 	pte = vcpu->arch.cr3;
 #if PTTYPE == 64
 	if (!is_long_mode(vcpu)) {
 		pte = kvm_pdptr_read(vcpu, (addr >> 30) & 3);
 		trace_kvm_mmu_paging_element(pte, walker->level);
-		if (!is_present_gpte(pte))
-			goto not_present;
+		if (!is_present_gpte(pte)) {
+			present = false;
+			goto error;
+		}
 		--walker->level;
 	}
 #endif
@@ -151,31 +155,36 @@ walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		if (kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte)))
-			goto not_present;
+		if (kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte))) {
+			present = false;
+			break;
+		}
 
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
-		if (!is_present_gpte(pte))
-			goto not_present;
+		if (!is_present_gpte(pte)) {
+			present = false;
+			break;
+		}
 
-		rsvd_fault = is_rsvd_bits_set(vcpu, pte, walker->level);
-		if (rsvd_fault)
-			goto access_error;
+		if (is_rsvd_bits_set(vcpu, pte, walker->level)) {
+			rsvd_fault = true;
+			break;
+		}
 
 		if (write_fault && !is_writable_pte(pte))
 			if (user_fault || is_write_protection(vcpu))
-				goto access_error;
+				eperm = true;
 
 		if (user_fault && !(pte & PT_USER_MASK))
-			goto access_error;
+			eperm = true;
 
 #if PTTYPE == 64
 		if (fetch_fault && (pte & PT64_NX_MASK))
-			goto access_error;
+			eperm = true;
 #endif
 
-		if (!(pte & PT_ACCESSED_MASK)) {
+		if (!eperm && !rsvd_fault && !(pte & PT_ACCESSED_MASK)) {
 			trace_kvm_mmu_set_accessed_bit(table_gfn, index,
 						       sizeof(pte));
 			if (FNAME(cmpxchg_gpte)(vcpu->kvm, table_gfn,
@@ -214,6 +223,9 @@ walk:
 		--walker->level;
 	}
 
+	if (!present || eperm || rsvd_fault)
+		goto error;
+
 	if (write_fault && !is_dirty_gpte(pte)) {
 		bool ret;
 
@@ -233,14 +245,10 @@ walk:
 		 __func__, (u64)pte, pte_access, pt_access);
 	return 1;
 
-not_present:
+error:
 	walker->error_code = 0;
-	goto err;
-
-access_error:
-	walker->error_code = PFERR_PRESENT_MASK;
-
-err:
+	if (present)
+		walker->error_code |= PFERR_PRESENT_MASK;
 	if (write_fault)
 		walker->error_code |= PFERR_WRITE_MASK;
 	if (user_fault)
