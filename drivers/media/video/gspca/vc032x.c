@@ -3728,10 +3728,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (sd->bridge == BRIDGE_VC0321) {
 		int size, l;
 
-		if (gspca_dev->image == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
 		l = gspca_dev->image_len;
 		size = gspca_dev->frsz;
 		if (len > size - l)

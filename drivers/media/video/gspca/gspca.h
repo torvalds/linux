@@ -178,11 +178,11 @@ struct gspca_dev {
 	u8 *image;				/* image beeing filled */
 	__u32 frsz;				/* frame size */
 	u32 image_len;				/* current length of image */
-	char nframes;				/* number of frames */
-	char fr_i;				/* frame being filled */
-	char fr_q;				/* next frame to queue */
-	char fr_o;				/* next frame to dequeue */
+	atomic_t fr_q;				/* next frame to queue */
+	atomic_t fr_i;				/* frame being filled */
 	signed char fr_queue[GSPCA_MAX_FRAMES];	/* frame queue */
+	char nframes;				/* number of frames */
+	u8 fr_o;				/* next frame to dequeue */
 	__u8 last_packet_type;
 	__s8 empty_packet;		/* if (-1) don't check empty packets */
 	__u8 streaming;

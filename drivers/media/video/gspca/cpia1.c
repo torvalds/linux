@@ -1765,14 +1765,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		atomic_set(&sd->cam_exposure, data[39] * 2);
 		atomic_set(&sd->fps, data[41]);
 
-		image = gspca_dev->image;
-		if (image == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
-
 		/* Check for proper EOF for last frame */
-		if (gspca_dev->image_len > 4 &&
+		image = gspca_dev->image;
+		if (image != NULL &&
+		    gspca_dev->image_len > 4 &&
 		    image[gspca_dev->image_len - 4] == 0xff &&
 		    image[gspca_dev->image_len - 3] == 0xff &&
 		    image[gspca_dev->image_len - 2] == 0xff &&

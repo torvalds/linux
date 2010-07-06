@@ -1254,10 +1254,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		int used;
 		int size = cam->cam_mode[gspca_dev->curr_mode].sizeimage;
 
-		if (gspca_dev->image == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
 		used = gspca_dev->image_len;
 		if (used + len > size)
 			len = size - used;

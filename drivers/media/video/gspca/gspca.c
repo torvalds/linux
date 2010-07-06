@@ -315,8 +315,6 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 		urb->status = 0;
 		goto resubmit;
 	}
-	if (gspca_dev->image == NULL)
-		gspca_dev->last_packet_type = DISCARD_PACKET;
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
 	for (i = 0; i < urb->number_of_packets; i++) {
 
@@ -428,16 +426,19 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 
 	PDEBUG(D_PACK, "add t:%d l:%d",	packet_type, len);
 
-	/* check the availability of the frame buffer */
-	if (gspca_dev->image == NULL)
-		return;
-
 	if (packet_type == FIRST_PACKET) {
-		i = gspca_dev->fr_i;
+		i = atomic_read(&gspca_dev->fr_i);
+
+		/* if there are no queued buffer, discard the whole frame */
+		if (i == atomic_read(&gspca_dev->fr_q)) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
 		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
 		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
+		gspca_dev->image = frame->data;
 		gspca_dev->image_len = 0;
 	} else if (gspca_dev->last_packet_type == DISCARD_PACKET) {
 		if (packet_type == LAST_PACKET)
@@ -460,31 +461,24 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	}
 	gspca_dev->last_packet_type = packet_type;
 
-	/* if last packet, wake up the application and advance in the queue */
+	/* if last packet, invalidate packet concatenation until
+	 * next first packet, wake up the application and advance
+	 * in the queue */
 	if (packet_type == LAST_PACKET) {
-		i = gspca_dev->fr_i;
+		i = atomic_read(&gspca_dev->fr_i);
 		j = gspca_dev->fr_queue[i];
 		frame = &gspca_dev->frame[j];
 		frame->v4l2_buf.bytesused = gspca_dev->image_len;
 		frame->v4l2_buf.flags = (frame->v4l2_buf.flags
 					 | V4L2_BUF_FLAG_DONE)
 					& ~V4L2_BUF_FLAG_QUEUED;
+		i = (i + 1) % GSPCA_MAX_FRAMES;
+		atomic_set(&gspca_dev->fr_i, i);
 		wake_up_interruptible(&gspca_dev->wq);	/* event = new frame */
-		i = (i + 1) % gspca_dev->nframes;
-		gspca_dev->fr_i = i;
-		PDEBUG(D_FRAM, "frame complete len:%d q:%d i:%d o:%d",
-			frame->v4l2_buf.bytesused,
-			gspca_dev->fr_q,
-			i,
-			gspca_dev->fr_o);
-		j = gspca_dev->fr_queue[i];
-		frame = &gspca_dev->frame[j];
-		if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-					== V4L2_BUF_FLAG_QUEUED) {
-			gspca_dev->image = frame->data;
-		} else {
-			gspca_dev->image = NULL;
-		}
+		PDEBUG(D_FRAM, "frame complete len:%d",
+			frame->v4l2_buf.bytesused);
+		gspca_dev->image = NULL;
+		gspca_dev->image_len = 0;
 	}
 }
 EXPORT_SYMBOL(gspca_frame_add);
@@ -514,8 +508,8 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 	PDEBUG(D_STREAM, "frame alloc frsz: %d", frsz);
 	frsz = PAGE_ALIGN(frsz);
 	gspca_dev->frsz = frsz;
-	if (count > GSPCA_MAX_FRAMES)
-		count = GSPCA_MAX_FRAMES;
+	if (count >= GSPCA_MAX_FRAMES)
+		count = GSPCA_MAX_FRAMES - 1;
 	gspca_dev->frbuf = vmalloc_32(frsz * count);
 	if (!gspca_dev->frbuf) {
 		err("frame alloc failed");
@@ -534,11 +528,9 @@ static int frame_alloc(struct gspca_dev *gspca_dev,
 		frame->data = gspca_dev->frbuf + i * frsz;
 		frame->v4l2_buf.m.offset = i * frsz;
 	}
-	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
-	gspca_dev->image = NULL;
-	gspca_dev->image_len = 0;
-	gspca_dev->last_packet_type = DISCARD_PACKET;
-	gspca_dev->sequence = 0;
+	atomic_set(&gspca_dev->fr_q, 0);
+	atomic_set(&gspca_dev->fr_i, 0);
+	gspca_dev->fr_o = 0;
 	return 0;
 }
 
@@ -775,6 +767,12 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		ret = -ENODEV;
 		goto out;
 	}
+
+	/* reset the streaming variables */
+	gspca_dev->image = NULL;
+	gspca_dev->image_len = 0;
+	gspca_dev->last_packet_type = DISCARD_PACKET;
+	gspca_dev->sequence = 0;
 
 	gspca_dev->usb_err = 0;
 
@@ -1591,7 +1589,7 @@ static int vidioc_streamoff(struct file *file, void *priv,
 				enum v4l2_buf_type buf_type)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i, ret;
+	int ret;
 
 	if (buf_type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
@@ -1615,12 +1613,10 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	gspca_stream_off(gspca_dev);
 	mutex_unlock(&gspca_dev->usb_lock);
 
-	/* empty the application queues */
-	for (i = 0; i < gspca_dev->nframes; i++)
-		gspca_dev->frame[i].v4l2_buf.flags &= ~BUF_ALL_FLAGS;
-	gspca_dev->fr_i = gspca_dev->fr_o = gspca_dev->fr_q = 0;
-	gspca_dev->last_packet_type = DISCARD_PACKET;
-	gspca_dev->sequence = 0;
+	/* empty the transfer queues */
+	atomic_set(&gspca_dev->fr_q, 0);
+	atomic_set(&gspca_dev->fr_i, 0);
+	gspca_dev->fr_o = 0;
 	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1697,7 +1693,7 @@ static int vidioc_s_parm(struct file *filp, void *priv,
 	int n;
 
 	n = parm->parm.capture.readbuffers;
-	if (n == 0 || n > GSPCA_MAX_FRAMES)
+	if (n == 0 || n >= GSPCA_MAX_FRAMES)
 		parm->parm.capture.readbuffers = gspca_dev->nbufread;
 	else
 		gspca_dev->nbufread = n;
@@ -1800,21 +1796,17 @@ out:
 static int frame_wait(struct gspca_dev *gspca_dev,
 			int nonblock_ing)
 {
-	struct gspca_frame *frame;
-	int i, j, ret;
+	int i, ret;
 
 	/* check if a frame is ready */
 	i = gspca_dev->fr_o;
-	j = gspca_dev->fr_queue[i];
-	frame = &gspca_dev->frame[j];
-
-	if (!(frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE)) {
+	if (i == atomic_read(&gspca_dev->fr_i)) {
 		if (nonblock_ing)
 			return -EAGAIN;
 
 		/* wait till a frame is ready */
 		ret = wait_event_interruptible_timeout(gspca_dev->wq,
-			(frame->v4l2_buf.flags & V4L2_BUF_FLAG_DONE) ||
+			i != atomic_read(&gspca_dev->fr_i) ||
 			!gspca_dev->streaming || !gspca_dev->present,
 			msecs_to_jiffies(3000));
 		if (ret < 0)
@@ -1823,11 +1815,7 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 			return -EIO;
 	}
 
-	gspca_dev->fr_o = (i + 1) % gspca_dev->nframes;
-	PDEBUG(D_FRAM, "frame wait q:%d i:%d o:%d",
-		gspca_dev->fr_q,
-		gspca_dev->fr_i,
-		gspca_dev->fr_o);
+	gspca_dev->fr_o = (i + 1) % GSPCA_MAX_FRAMES;
 
 	if (gspca_dev->sd_desc->dq_callback) {
 		mutex_lock(&gspca_dev->usb_lock);
@@ -1836,7 +1824,7 @@ static int frame_wait(struct gspca_dev *gspca_dev,
 			gspca_dev->sd_desc->dq_callback(gspca_dev);
 		mutex_unlock(&gspca_dev->usb_lock);
 	}
-	return j;
+	return gspca_dev->fr_queue[i];
 }
 
 /*
@@ -1941,15 +1929,9 @@ static int vidioc_qbuf(struct file *file, void *priv,
 	}
 
 	/* put the buffer in the 'queued' queue */
-	i = gspca_dev->fr_q;
+	i = atomic_read(&gspca_dev->fr_q);
 	gspca_dev->fr_queue[i] = index;
-	if (gspca_dev->fr_i == i)
-		gspca_dev->image = frame->data;
-	gspca_dev->fr_q = (i + 1) % gspca_dev->nframes;
-	PDEBUG(D_FRAM, "qbuf q:%d i:%d o:%d",
-		gspca_dev->fr_q,
-		gspca_dev->fr_i,
-		gspca_dev->fr_o);
+	atomic_set(&gspca_dev->fr_q, (i + 1) % GSPCA_MAX_FRAMES);
 
 	v4l2_buf->flags |= V4L2_BUF_FLAG_QUEUED;
 	v4l2_buf->flags &= ~V4L2_BUF_FLAG_DONE;
@@ -2005,7 +1987,7 @@ static int read_alloc(struct gspca_dev *gspca_dev,
 static unsigned int dev_poll(struct file *file, poll_table *wait)
 {
 	struct gspca_dev *gspca_dev = file->private_data;
-	int i, ret;
+	int ret;
 
 	PDEBUG(D_FRAM, "poll");
 
@@ -2023,11 +2005,9 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock) != 0)
 		return POLLERR;
 
-	/* check the next incoming buffer */
-	i = gspca_dev->fr_o;
-	i = gspca_dev->fr_queue[i];
-	if (gspca_dev->frame[i].v4l2_buf.flags & V4L2_BUF_FLAG_DONE)
-		ret = POLLIN | POLLRDNORM;	/* something to read */
+	/* check if an image has been received */
+	if (gspca_dev->fr_o != atomic_read(&gspca_dev->fr_i))
+		ret = POLLIN | POLLRDNORM;	/* yes */
 	else
 		ret = 0;
 	mutex_unlock(&gspca_dev->queue_lock);

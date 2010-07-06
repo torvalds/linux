@@ -835,12 +835,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (sof) {
 		int n, lum_offset, footer_length;
 
-		image = gspca_dev->image;
-		if (image == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
-
 		/* 6 bytes after the FF D9 EOF marker a number of lumination
 		   bytes are send corresponding to different parts of the
 		   image, the 14th and 15th byte after the EOF seem to
@@ -856,7 +850,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		} else {
 			gspca_frame_add(gspca_dev, INTER_PACKET, data, n);
 		}
-		if (gspca_dev->last_packet_type != DISCARD_PACKET
+
+		image = gspca_dev->image;
+		if (image != NULL
 		 && image[gspca_dev->image_len - 2] == 0xff
 		 && image[gspca_dev->image_len - 1] == 0xd9)
 			gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);

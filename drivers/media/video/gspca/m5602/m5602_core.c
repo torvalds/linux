@@ -307,11 +307,6 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 	} else {
 		int cur_frame_len;
 
-		if (gspca_dev->image == NULL) {
-			gspca_dev->last_packet_type = DISCARD_PACKET;
-			return;
-		}
-
 		cur_frame_len = gspca_dev->image_len;
 		/* Remove urb header */
 		data += 4;
