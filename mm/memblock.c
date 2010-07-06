@@ -18,6 +18,8 @@
 struct memblock memblock;
 
 static int memblock_debug;
+static struct memblock_region memblock_memory_init_regions[INIT_MEMBLOCK_REGIONS + 1];
+static struct memblock_region memblock_reserved_init_regions[INIT_MEMBLOCK_REGIONS + 1];
 
 static int __init early_memblock(char *p)
 {
@@ -104,6 +106,12 @@ static void memblock_coalesce_regions(struct memblock_type *type,
 
 void __init memblock_init(void)
 {
+	/* Hookup the initial arrays */
+	memblock.memory.regions	= memblock_memory_init_regions;
+	memblock.memory.max		= INIT_MEMBLOCK_REGIONS;
+	memblock.reserved.regions	= memblock_reserved_init_regions;
+	memblock.reserved.max	= INIT_MEMBLOCK_REGIONS;
+
 	/* Create a dummy zero size MEMBLOCK which will get coalesced away later.
 	 * This simplifies the memblock_add() code below...
 	 */
@@ -169,7 +177,7 @@ static long memblock_add_region(struct memblock_type *type, phys_addr_t base, ph
 
 	if (coalesced)
 		return coalesced;
-	if (type->cnt >= MAX_MEMBLOCK_REGIONS)
+	if (type->cnt >= type->max)
 		return -1;
 
 	/* Couldn't coalesce the MEMBLOCK, so add it to the sorted table. */
