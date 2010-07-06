@@ -214,7 +214,7 @@ void rds_threads_exit(void)
 
 int __init rds_threads_init(void)
 {
-	rds_wq = create_workqueue("krdsd");
+	rds_wq = create_singlethread_workqueue("krdsd");
 	if (!rds_wq)
 		return -ENOMEM;
 
