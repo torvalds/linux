@@ -59,17 +59,6 @@ static struct packet_type batman_adv_packet_type __read_mostly = {
 
 struct workqueue_struct *bat_event_workqueue;
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
-int debug;
-
-module_param(debug, int, 0644);
-
-int bat_debug_type(int type)
-{
-	return debug & type;
-}
-#endif
-
 int init_module(void)
 {
 	int retval;

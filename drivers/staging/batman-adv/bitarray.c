@@ -128,6 +128,9 @@ static void bit_reset_window(TYPE_OF_WORD *seq_bits)
 char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
 		    int8_t set_mark)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
+
 	/* sequence number is slightly older. We already got a sequence number
 	 * higher than this one, so we just mark it. */
 
@@ -152,7 +155,7 @@ char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
 
 	if ((seq_num_diff >= TQ_LOCAL_WINDOW_SIZE)
 		|| (seq_num_diff < EXPECTED_SEQNO_RANGE)) {
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"We missed a lot of packets (%i) !\n",
 			seq_num_diff - 1);
 		bit_reset_window(seq_bits);
@@ -169,7 +172,7 @@ char bit_get_packet(TYPE_OF_WORD *seq_bits, int32_t seq_num_diff,
 	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE)
 		|| (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
 
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"Other host probably restarted!\n");
 
 		bit_reset_window(seq_bits);

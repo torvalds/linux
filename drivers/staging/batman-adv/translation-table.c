@@ -60,6 +60,8 @@ int hna_local_init(void)
 
 void hna_local_add(uint8_t *addr)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct hna_local_entry *hna_local_entry;
 	struct hna_global_entry *hna_global_entry;
 	struct hashtable_t *swaphash;
@@ -80,15 +82,15 @@ void hna_local_add(uint8_t *addr)
 	   MAC-flooding. */
 	if ((num_hna + 1 > (ETH_DATA_LEN - BAT_PACKET_LEN) / ETH_ALEN) ||
 	    (num_hna + 1 > 255)) {
-		bat_dbg(DBG_ROUTES,
+		bat_dbg(DBG_ROUTES, bat_priv,
 			"Can't add new local hna entry (%pM): "
 			"number of local hna entries exceeds packet size\n",
 			addr);
 		return;
 	}
 
-	bat_dbg(DBG_ROUTES, "Creating new local hna entry: %pM\n",
-		addr);
+	bat_dbg(DBG_ROUTES, bat_priv,
+		"Creating new local hna entry: %pM\n", addr);
 
 	hna_local_entry = kmalloc(sizeof(struct hna_local_entry), GFP_ATOMIC);
 	if (!hna_local_entry)
@@ -223,7 +225,9 @@ static void _hna_local_del(void *data)
 static void hna_local_del(struct hna_local_entry *hna_local_entry,
 			  char *message)
 {
-	bat_dbg(DBG_ROUTES, "Deleting local hna entry (%pM): %s\n",
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	bat_dbg(DBG_ROUTES, bat_priv, "Deleting local hna entry (%pM): %s\n",
 		hna_local_entry->addr, message);
 
 	hash_remove(hna_local_hash, hna_local_entry->addr);
@@ -293,6 +297,8 @@ int hna_global_init(void)
 void hna_global_add_orig(struct orig_node *orig_node,
 			 unsigned char *hna_buff, int hna_buff_len)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct hna_global_entry *hna_global_entry;
 	struct hna_local_entry *hna_local_entry;
 	struct hashtable_t *swaphash;
@@ -319,7 +325,7 @@ void hna_global_add_orig(struct orig_node *orig_node,
 
 			memcpy(hna_global_entry->addr, hna_ptr, ETH_ALEN);
 
-			bat_dbg(DBG_ROUTES,
+			bat_dbg(DBG_ROUTES, bat_priv,
 				"Creating new global hna entry: "
 				"%pM (via %pM)\n",
 				hna_global_entry->addr, orig_node->orig);
@@ -428,7 +434,10 @@ int hna_global_seq_print_text(struct seq_file *seq, void *offset)
 static void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
 				 char *message)
 {
-	bat_dbg(DBG_ROUTES, "Deleting global hna entry %pM (via %pM): %s\n",
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
+	bat_dbg(DBG_ROUTES, bat_priv,
+		"Deleting global hna entry %pM (via %pM): %s\n",
 		hna_global_entry->addr, hna_global_entry->orig_node->orig,
 		message);
 

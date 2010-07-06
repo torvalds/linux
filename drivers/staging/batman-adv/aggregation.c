@@ -106,11 +106,14 @@ static void new_aggregated_packet(unsigned char *packet_buff,
 {
 	struct forw_packet *forw_packet_aggr;
 	unsigned long flags;
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	/* own packet should always be scheduled */
 	if (!own_packet) {
 		if (!atomic_dec_not_zero(&batman_queue_left)) {
-			bat_dbg(DBG_BATMAN, "batman packet queue full\n");
+			bat_dbg(DBG_BATMAN, bat_priv,
+				"batman packet queue full\n");
 			return;
 		}
 	}

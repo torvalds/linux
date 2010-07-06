@@ -60,9 +60,12 @@ struct neigh_node *
 create_neighbor(struct orig_node *orig_node, struct orig_node *orig_neigh_node,
 		uint8_t *neigh, struct batman_if *if_incoming)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct neigh_node *neigh_node;
 
-	bat_dbg(DBG_BATMAN, "Creating new last-hop neighbor of originator\n");
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Creating new last-hop neighbor of originator\n");
 
 	neigh_node = kzalloc(sizeof(struct neigh_node), GFP_ATOMIC);
 	if (!neigh_node)
@@ -129,7 +132,8 @@ struct orig_node *get_orig_node(uint8_t *addr)
 	if (orig_node != NULL)
 		return orig_node;
 
-	bat_dbg(DBG_BATMAN, "Creating new originator: %pM\n", addr);
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Creating new originator: %pM\n", addr);
 
 	orig_node = kzalloc(sizeof(struct orig_node), GFP_ATOMIC);
 	if (!orig_node)
@@ -182,6 +186,8 @@ free_orig_node:
 static bool purge_orig_neighbors(struct orig_node *orig_node,
 				 struct neigh_node **best_neigh_node)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct list_head *list_pos, *list_pos_tmp;
 	struct neigh_node *neigh_node;
 	bool neigh_purged = false;
@@ -199,13 +205,13 @@ static bool purge_orig_neighbors(struct orig_node *orig_node,
 
 			if (neigh_node->if_incoming->if_status ==
 							IF_TO_BE_REMOVED)
-				bat_dbg(DBG_BATMAN,
+				bat_dbg(DBG_BATMAN, bat_priv,
 					"neighbor purge: originator %pM, "
 					"neighbor: %pM, iface: %s\n",
 					orig_node->orig, neigh_node->addr,
 					neigh_node->if_incoming->dev);
 			else
-				bat_dbg(DBG_BATMAN,
+				bat_dbg(DBG_BATMAN, bat_priv,
 					"neighbor timeout: originator %pM, "
 					"neighbor: %pM, last_valid: %lu\n",
 					orig_node->orig, neigh_node->addr,
@@ -232,7 +238,7 @@ static bool purge_orig_node(struct orig_node *orig_node)
 	if (time_after(jiffies,
 		orig_node->last_valid + 2 * PURGE_TIMEOUT * HZ)) {
 
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"Originator timeout: originator %pM, last_valid %lu\n",
 			orig_node->orig, (orig_node->last_valid / HZ));
 		return true;

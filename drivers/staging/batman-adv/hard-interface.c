@@ -443,6 +443,8 @@ static int batman_skb_recv_finish(struct sk_buff *skb)
 int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	struct packet_type *ptype, struct net_device *orig_dev)
 {
+	/* FIXME: each orig_node->batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_packet *batman_packet;
 	struct batman_if *batman_if;
 	struct net_device_stats *stats;
@@ -490,7 +492,7 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	batman_packet = (struct batman_packet *)skb->data;
 
 	if (batman_packet->version != COMPAT_VERSION) {
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"Drop packet: incompatible batman version (%i)\n",
 			batman_packet->version);
 		goto err_free;

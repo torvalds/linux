@@ -126,6 +126,8 @@ void send_raw_packet(unsigned char *pack_buff, int pack_buff_len,
 static void send_packet_to_if(struct forw_packet *forw_packet,
 			      struct batman_if *batman_if)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	char *fwd_str;
 	uint8_t packet_num;
 	int16_t buff_pos;
@@ -155,7 +157,7 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
 							    "Sending own" :
 							    "Forwarding"));
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d,"
 			" IDF %s) on interface %s [%s]\n",
 			fwd_str, (packet_num > 0 ? "aggregated " : ""),
@@ -180,6 +182,8 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 /* send a batman packet */
 static void send_packet(struct forw_packet *forw_packet)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet =
 		(struct batman_packet *)(forw_packet->packet_buff);
@@ -200,7 +204,7 @@ static void send_packet(struct forw_packet *forw_packet)
 	    (forw_packet->own && (forw_packet->if_incoming->if_num > 0))) {
 
 		/* FIXME: what about aggregated packets ? */
-		bat_dbg(DBG_BATMAN,
+		bat_dbg(DBG_BATMAN, bat_priv,
 			"%s packet (originator %pM, seqno %d, TTL %d) "
 			"on interface %s [%s]\n",
 			(forw_packet->own ? "Sending own" : "Forwarding"),
@@ -313,7 +317,7 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	unsigned long send_time;
 
 	if (batman_packet->ttl <= 1) {
-		bat_dbg(DBG_BATMAN, "ttl exceeded\n");
+		bat_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
 		return;
 	}
 
@@ -342,7 +346,8 @@ void schedule_forward_packet(struct orig_node *orig_node,
 	/* apply hop penalty */
 	batman_packet->tq = hop_penalty(batman_packet->tq);
 
-	bat_dbg(DBG_BATMAN, "Forwarding packet: tq_orig: %i, tq_avg: %i, "
+	bat_dbg(DBG_BATMAN, bat_priv,
+		"Forwarding packet: tq_orig: %i, tq_avg: %i, "
 		"tq_forw: %i, ttl_orig: %i, ttl_forw: %i\n",
 		in_tq, tq_avg, batman_packet->tq, in_ttl - 1,
 		batman_packet->ttl);
@@ -402,9 +407,11 @@ int add_bcast_packet_to_list(struct sk_buff *skb)
 {
 	struct forw_packet *forw_packet;
 	struct bcast_packet *bcast_packet;
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 
 	if (!atomic_dec_not_zero(&bcast_queue_left)) {
-		bat_dbg(DBG_BATMAN, "bcast packet queue full\n");
+		bat_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
 		goto out;
 	}
 
@@ -516,15 +523,19 @@ out:
 
 void purge_outstanding_packets(struct batman_if *batman_if)
 {
+	/* FIXME: each batman_if will be attached to a softif */
+	struct bat_priv *bat_priv = netdev_priv(soft_device);
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
 	unsigned long flags;
 
 	if (batman_if)
-		bat_dbg(DBG_BATMAN, "purge_outstanding_packets(): %s\n",
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"purge_outstanding_packets(): %s\n",
 			batman_if->dev);
 	else
-		bat_dbg(DBG_BATMAN, "purge_outstanding_packets()\n");
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"purge_outstanding_packets()\n");
 
 	/* free bcast list */
 	spin_lock_irqsave(&forw_bcast_list_lock, flags);

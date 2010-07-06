@@ -21,8 +21,6 @@
 
 
 
-
-
 #ifndef _NET_BATMAN_ADV_TYPES_H_
 #define _NET_BATMAN_ADV_TYPES_H_
 
@@ -114,7 +112,9 @@ struct bat_priv {
 	atomic_t bonding_enabled;
 	atomic_t vis_mode;
 	atomic_t orig_interval;
+	atomic_t log_level;
 	char num_ifaces;
+	struct debug_log *debug_log;
 	struct batman_if *primary_if;
 	struct kobject *mesh_obj;
 	struct dentry *debug_dir;
@@ -170,6 +170,14 @@ struct if_list_entry {
 	uint8_t addr[ETH_ALEN];
 	bool primary;
 	struct hlist_node list;
+};
+
+struct debug_log {
+	char log_buff[LOG_BUF_LEN];
+	unsigned long log_start;
+	unsigned long log_end;
+	spinlock_t lock;
+	wait_queue_head_t queue_wait;
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */

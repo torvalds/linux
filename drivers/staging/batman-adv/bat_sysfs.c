@@ -229,18 +229,70 @@ static ssize_t store_orig_interval(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+static ssize_t show_log_level(struct kobject *kobj, struct attribute *attr,
+			     char *buff)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct bat_priv *bat_priv = netdev_priv(to_net_dev(dev));
+	int log_level = atomic_read(&bat_priv->log_level);
+
+	return sprintf(buff, "%d\n", log_level);
+}
+
+static ssize_t store_log_level(struct kobject *kobj, struct attribute *attr,
+			      char *buff, size_t count)
+{
+	struct device *dev = to_dev(kobj->parent);
+	struct net_device *net_dev = to_net_dev(dev);
+	struct bat_priv *bat_priv = netdev_priv(net_dev);
+	unsigned long log_level_tmp;
+	int ret;
+
+	ret = strict_strtoul(buff, 10, &log_level_tmp);
+	if (ret) {
+		printk(KERN_INFO "batman-adv:Invalid parameter for 'log_level' setting on mesh %s received: %s\n",
+		       net_dev->name, buff);
+		return -EINVAL;
+	}
+
+	if (log_level_tmp > 3) {
+		printk(KERN_INFO "batman-adv:New log level too big: %li (max: %i)\n",
+		       log_level_tmp, 3);
+		return -EINVAL;
+	}
+
+	if (atomic_read(&bat_priv->log_level) == log_level_tmp)
+		return count;
+
+	printk(KERN_INFO
+	       "batman-adv:Changing log level from: %i to: %li on mesh: %s\n",
+	       atomic_read(&bat_priv->log_level),
+	       log_level_tmp, net_dev->name);
+
+	atomic_set(&bat_priv->log_level, (unsigned)log_level_tmp);
+	return count;
+}
+#endif
+
 static BAT_ATTR(aggregated_ogms, S_IRUGO | S_IWUSR,
 		show_aggr_ogms, store_aggr_ogms);
 static BAT_ATTR(bonding, S_IRUGO | S_IWUSR, show_bond, store_bond);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
 static BAT_ATTR(orig_interval, S_IRUGO | S_IWUSR,
 		show_orig_interval, store_orig_interval);
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+static BAT_ATTR(log_level, S_IRUGO | S_IWUSR, show_log_level, store_log_level);
+#endif
 
 static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_aggregated_ogms,
 	&bat_attr_bonding,
 	&bat_attr_vis_mode,
 	&bat_attr_orig_interval,
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+	&bat_attr_log_level,
+#endif
 	NULL,
 };
 
@@ -257,6 +309,8 @@ int sysfs_add_meshif(struct net_device *dev)
 	atomic_set(&bat_priv->bonding_enabled, 0);
 	atomic_set(&bat_priv->vis_mode, VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&bat_priv->orig_interval, 1000);
+	atomic_set(&bat_priv->log_level, 0);
+
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
 

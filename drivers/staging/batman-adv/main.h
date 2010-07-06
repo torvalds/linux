@@ -91,20 +91,8 @@
 			 * broadcasting / etc */
 #define DBG_ROUTES 2	/* route or hna added / changed / deleted */
 
-#ifdef CONFIG_BATMAN_ADV_DEBUG
-extern int debug;
+#define LOG_BUF_LEN 8192          /* has to be a power of 2 */
 
-extern int bat_debug_type(int type);
-#define bat_dbg(type, fmt, arg...) do {					\
-		if (bat_debug_type(type))				\
-			printk(KERN_DEBUG "batman-adv:" fmt, ## arg);	\
-	}								\
-	while (0)
-#else /* !CONFIG_BATMAN_ADV_DEBUG */
-#define bat_dbg(type, fmt, arg...) do {		\
-	}					\
-	while (0)
-#endif
 
 /*
  *  Vis
@@ -165,5 +153,22 @@ int choose_orig(void *data, int32_t size);
 int is_my_mac(uint8_t *addr);
 int is_bcast(uint8_t *addr);
 int is_mcast(uint8_t *addr);
+
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+extern int debug_log(struct bat_priv *bat_priv, char *fmt, ...);
+
+#define bat_dbg(type, bat_priv, fmt, arg...)			\
+	do {							\
+		if (atomic_read(&bat_priv->log_level) & type)	\
+			debug_log(bat_priv, fmt, ## arg);	\
+	}							\
+	while (0)
+#else /* !CONFIG_BATMAN_ADV_DEBUG */
+static inline void bat_dbg(char type __attribute__((unused)),
+			   struct bat_priv *bat_priv __attribute__((unused)),
+			   char *fmt __attribute__((unused)), ...)
+{
+}
+#endif
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */
