@@ -623,7 +623,8 @@ nouveau_connector_get_modes(struct drm_connector *connector)
 		ret = get_slave_funcs(nv_encoder)->
 			get_modes(to_drm_encoder(nv_encoder), connector);
 
-	if (nv_encoder->dcb->type == OUTPUT_LVDS)
+	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS ||
+	    nv_connector->dcb->type == DCB_CONNECTOR_eDP)
 		ret += nouveau_connector_scaler_modes_add(connector);
 
 	return ret;
