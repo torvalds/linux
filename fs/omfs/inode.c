@@ -529,6 +529,8 @@ out_brelse_bh2:
 out_brelse_bh:
 	brelse(bh);
 end:
+	if (ret)
+		kfree(sbi);
 	return ret;
 }
 
