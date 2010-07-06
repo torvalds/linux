@@ -408,6 +408,8 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
 	{USB_DEVICE(0x2040, 0xb120),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
+	{USB_DEVICE(0x2040, 0xb140),
+	 .driver_info = CX231XX_BOARD_HAUPPAUGE_EXETER},
 	{},
 };
 
