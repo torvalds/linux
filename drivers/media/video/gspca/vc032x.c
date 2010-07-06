@@ -3068,7 +3068,7 @@ static const struct sensor_info vc0323_probe_data[] = {
 };
 
 /* read 'len' bytes in gspca_dev->usb_buf */
-static void reg_r(struct gspca_dev *gspca_dev,
+static void reg_r_i(struct gspca_dev *gspca_dev,
 		  u16 req,
 		  u16 index,
 		  u16 len)
@@ -3089,8 +3089,28 @@ static void reg_r(struct gspca_dev *gspca_dev,
 		gspca_dev->usb_err = ret;
 	}
 }
+static void reg_r(struct gspca_dev *gspca_dev,
+		  u16 req,
+		  u16 index,
+		  u16 len)
+{
+	reg_r_i(gspca_dev, req, index, len);
+#ifdef GSPCA_DEBUG
+	if (gspca_dev->usb_err < 0)
+		return;
+	if (len == 1)
+		PDEBUG(D_USBI, "GET %02x 0001 %04x %02x", req, index,
+				gspca_dev->usb_buf[0]);
+	else
+		PDEBUG(D_USBI, "GET %02x 0001 %04x %02x %02x %02x",
+				req, index,
+				gspca_dev->usb_buf[0],
+				gspca_dev->usb_buf[1],
+				gspca_dev->usb_buf[2]);
+#endif
+}
 
-static void reg_w(struct usb_device *dev,
+static void reg_w_i(struct gspca_dev *gspca_dev,
 			    u16 req,
 			    u16 value,
 			    u16 index)
@@ -3221,23 +3241,31 @@ static void i2c_write(struct gspca_dev *gspca_dev,
 {
 	int retry;
 
-	reg_r(gspca_dev, 0xa1, 0xb33f, 1);
+#ifdef GSPCA_DEBUG
+	if (gspca_dev->usb_err < 0)
+		return;
+	if (size == 1)
+		PDEBUG(D_USBO, "i2c_w %02x %02x", reg, *val);
+	else
+		PDEBUG(D_USBO, "i2c_w %02x %02x%02x", reg, *val, val[1]);
+#endif
+	reg_r_i(gspca_dev, 0xa1, 0xb33f, 1);
 /*fixme:should check if (!(gspca_dev->usb_buf[0] & 0x02)) error*/
-	reg_w(gspca_dev, 0xa0, size, 0xb334);
-	reg_w(gspca_dev, 0xa0, reg, 0xb33a);
-	reg_w(gspca_dev, 0xa0, val[0], 0xb336);
+	reg_w_i(gspca_dev, 0xa0, size, 0xb334);
+	reg_w_i(gspca_dev, 0xa0, reg, 0xb33a);
+	reg_w_i(gspca_dev, 0xa0, val[0], 0xb336);
 	if (size > 1)
-		reg_w(gspca_dev, 0xa0, val[1], 0xb337);
-	reg_w(gspca_dev, 0xa0, 0x01, 0xb339);
+		reg_w_i(gspca_dev, 0xa0, val[1], 0xb337);
+	reg_w_i(gspca_dev, 0xa0, 0x01, 0xb339);
 	retry = 4;
 	do {
-		reg_r(gspca_dev, 0xa1, 0xb33b, 1);
+		reg_r_i(gspca_dev, 0xa1, 0xb33b, 1);
 		if (gspca_dev->usb_buf[0] == 0)
 			break;
 		msleep(20);
 	} while (--retry > 0);
 	if (retry <= 0)
-		PDEBUG(D_ERR, "i2c_write failed");
+		PDEBUG(D_ERR, "i2c_write timeout");
 }
 
 static void put_tab_to_reg(struct gspca_dev *gspca_dev,
