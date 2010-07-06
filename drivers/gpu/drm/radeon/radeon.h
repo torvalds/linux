@@ -1414,6 +1414,13 @@ extern void r700_cp_fini(struct radeon_device *rdev);
 extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 extern int evergreen_irq_set(struct radeon_device *rdev);
 
+/* radeon_acpi.c */ 
+#if defined(CONFIG_ACPI) 
+extern int radeon_acpi_init(struct radeon_device *rdev); 
+#else 
+static inline int radeon_acpi_init(struct radeon_device *rdev) { return 0; } 
+#endif 
+
 /* evergreen */
 struct evergreen_mc_save {
 	u32 vga_control[6];
