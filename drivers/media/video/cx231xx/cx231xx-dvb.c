@@ -565,6 +565,7 @@ static int dvb_init(struct cx231xx *dev)
 	dev->cx231xx_set_analog_freq = cx231xx_set_analog_freq;
 	dev->cx231xx_reset_analog_tuner = cx231xx_reset_analog_tuner;
 
+	mutex_lock(&dev->lock);
 	cx231xx_set_mode(dev, CX231XX_DIGITAL_MODE);
 	cx231xx_demod_reset(dev);
 	/* init frontend */
@@ -707,15 +708,18 @@ static int dvb_init(struct cx231xx *dev)
 	if (result < 0)
 		goto out_free;
 
-	cx231xx_set_mode(dev, CX231XX_SUSPEND);
+
 	printk(KERN_INFO "Successfully loaded cx231xx-dvb\n");
-	return 0;
+
+ret:
+	cx231xx_set_mode(dev, CX231XX_SUSPEND);
+	mutex_unlock(&dev->lock);
+	return result;
 
 out_free:
-	cx231xx_set_mode(dev, CX231XX_SUSPEND);
 	kfree(dvb);
 	dev->dvb = NULL;
-	return result;
+	goto ret;
 }
 
 static int dvb_fini(struct cx231xx *dev)
