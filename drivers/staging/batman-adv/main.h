@@ -86,10 +86,13 @@
 /*
  * Debug Messages
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt /* Append 'batman-adv: ' before
+					     * kernel messages */
 
 #define DBG_BATMAN 1	/* all messages related to routing / flooding /
 			 * broadcasting / etc */
 #define DBG_ROUTES 2	/* route or hna added / changed / deleted */
+#define DBG_ALL 3
 
 #define LOG_BUF_LEN 8192          /* has to be a power of 2 */
 
@@ -170,5 +173,27 @@ static inline void bat_dbg(char type __attribute__((unused)),
 {
 }
 #endif
+
+#define bat_warning(net_dev, fmt, arg...)				\
+	do {								\
+		struct net_device *_netdev = (net_dev);                 \
+		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
+		bat_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
+		pr_warning("%s: " fmt, _netdev->name, ## arg);		\
+	} while (0)
+#define bat_info(net_dev, fmt, arg...)					\
+	do {								\
+		struct net_device *_netdev = (net_dev);                 \
+		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
+		bat_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
+		pr_info("%s: " fmt, _netdev->name, ## arg);		\
+	} while (0)
+#define bat_err(net_dev, fmt, arg...)					\
+	do {								\
+		struct net_device *_netdev = (net_dev);                 \
+		struct bat_priv *_batpriv = netdev_priv(_netdev);       \
+		bat_dbg(DBG_ALL, _batpriv, fmt, ## arg);		\
+		pr_err("%s: " fmt, _netdev->name, ## arg);		\
+	} while (0)
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

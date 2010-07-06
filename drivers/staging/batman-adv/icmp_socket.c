@@ -19,9 +19,9 @@
  *
  */
 
+#include "main.h"
 #include <linux/debugfs.h>
 #include <linux/slab.h>
-#include "main.h"
 #include "icmp_socket.h"
 #include "send.h"
 #include "types.h"
@@ -58,8 +58,7 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 	}
 
 	if (i == ARRAY_SIZE(socket_client_hash)) {
-		printk(KERN_ERR "batman-adv:"
-		       "Error - can't add another packet client: "
+		pr_err("Error - can't add another packet client: "
 		       "maximum number of clients reached\n");
 		kfree(socket_client);
 		return -EXFULL;

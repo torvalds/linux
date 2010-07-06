@@ -19,9 +19,10 @@
  *
  */
 
+#include "main.h"
+
 #include <linux/debugfs.h>
 
-#include "main.h"
 #include "bat_debugfs.h"
 #include "translation-table.h"
 #include "originator.h"
@@ -309,8 +310,8 @@ int debugfs_add_meshif(struct net_device *dev)
 					  bat_priv->debug_dir,
 					  dev, &(*bat_debug)->fops);
 		if (!file) {
-			printk(KERN_ERR "batman-adv:Can't add debugfs file: "
-			       "%s/%s\n", dev->name, ((*bat_debug)->attr).name);
+			bat_err(dev, "Can't add debugfs file: %s/%s\n",
+				dev->name, ((*bat_debug)->attr).name);
 			goto rem_attr;
 		}
 	}
