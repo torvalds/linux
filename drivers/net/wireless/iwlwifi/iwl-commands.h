@@ -3035,7 +3035,8 @@ struct iwl39_statistics_tx {
 struct statistics_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
-	__le32 reserved[4];
+	__le32 wait_for_silence_timeout_cnt;
+	__le32 reserved[3];
 } __attribute__ ((packed));
 
 struct iwl39_statistics_div {
