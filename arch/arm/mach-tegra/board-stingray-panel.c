@@ -57,13 +57,21 @@ static struct tegra_fb_lcd_data tegra_fb_lcd_platform_data = {
 	.bits_per_pixel	= 16,
 };
 
+static struct tegra_fb_lcd_data tegra_fb_lcd_platform_data_p1 = {
+	.lcd_xres	= 1280,
+	.lcd_yres	= 800,
+	.fb_xres	= 1280,
+	.fb_yres	= 800,
+	.bits_per_pixel	= 16,
+};
+
 static struct platform_device tegra_fb_device = {
 	.name = "tegrafb",
 	.id	= 0,
 	.resource = fb_resource,
 	.num_resources = ARRAY_SIZE(fb_resource),
 	.dev = {
-		.platform_data = &tegra_fb_lcd_platform_data,
+		.platform_data = NULL,
 	},
 };
 
@@ -137,9 +145,11 @@ int __init stingray_panel_init(void)
 		gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
 		gpio_direction_output(STINGRAY_AUO_DISP_BL, 1);
 		platform_device_register(&stingray_panel_bl_driver);
+		tegra_fb_device.dev.platform_data = &tegra_fb_lcd_platform_data;
 	} else {
 		i2c_register_board_info(0, stingray_i2c_bus1_led_info,
 			ARRAY_SIZE(stingray_i2c_bus1_led_info));
+        tegra_fb_device.dev.platform_data = &tegra_fb_lcd_platform_data_p1;
 	}
 
 	return platform_device_register(&tegra_fb_device);
