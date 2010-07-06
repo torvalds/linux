@@ -29,35 +29,39 @@ davinci_uart_phys:	.word	0
 davinci_uart_virt:	.word	0
 		.popsection
 
-		.macro addruart, rx, tmp
+		.macro addruart, rp, rv
 
 		/* Use davinci_uart_phys/virt if already configured */
-10:		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		ldreq	\rx, =__virt_to_phys(davinci_uart_phys)
-		ldrne	\rx, =davinci_uart_virt
-		ldr	\rx, [\rx]
-		cmp	\rx, #0			@ is port configured?
+10:		mrc	p15, 0, \rp, c1, c0
+		tst	\rp, #1			@ MMU enabled?
+		ldreq	\rp, =__virt_to_phys(davinci_uart_phys)
+		ldrne	\rp, =davinci_uart_phys
+		add	\rv, \rp, #4		@ davinci_uart_virt
+		ldr	\rp, [\rp, #0]
+		ldr	\rv, [\rv, #0]
+		cmp	\rp, #0			@ is port configured?
+		cmpne	\rv, #0
 		bne	99f			@ already configured
 
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
+		/* Check the debug UART address set in uncompress.h */
+		mrc	p15, 0, \rp, c1, c0
+		tst	\rp, #1			@ MMU enabled?
 
 		/* Copy uart phys address from decompressor uart info */
-		ldreq	\tmp, =__virt_to_phys(davinci_uart_phys)
-		ldrne	\tmp, =davinci_uart_phys
-		ldreq	\rx, =DAVINCI_UART_INFO
-		ldrne	\rx, =__phys_to_virt(DAVINCI_UART_INFO)
-		ldr	\rx, [\rx, #0]
-		str	\rx, [\tmp]
+		ldreq	\rv, =__virt_to_phys(davinci_uart_phys)
+		ldrne	\rv, =davinci_uart_phys
+		ldreq	\rp, =DAVINCI_UART_INFO
+		ldrne	\rp, =__phys_to_virt(DAVINCI_UART_INFO)
+		ldr	\rp, [\rp, #0]
+		str	\rp, [\rv]
 
 		/* Copy uart virt address from decompressor uart info */
-		ldreq	\tmp, =__virt_to_phys(davinci_uart_virt)
-		ldrne	\tmp, =davinci_uart_virt
-		ldreq	\rx, =DAVINCI_UART_INFO
-		ldrne	\rx, =__phys_to_virt(DAVINCI_UART_INFO)
-		ldr	\rx, [\rx, #4]
-		str	\rx, [\tmp]
+		ldreq	\rv, =__virt_to_phys(davinci_uart_virt)
+		ldrne	\rv, =davinci_uart_virt
+		ldreq	\rp, =DAVINCI_UART_INFO
+		ldrne	\rp, =__phys_to_virt(DAVINCI_UART_INFO)
+		ldr	\rp, [\rp, #4]
+		str	\rp, [\rv]
 
 		b	10b
 99:

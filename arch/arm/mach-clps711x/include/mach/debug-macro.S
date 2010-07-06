@@ -14,16 +14,14 @@
 #include <mach/hardware.h>
 #include <asm/hardware/clps7111.h>
 
-		.macro	addruart, rx, tmp
-		mrc	p15, 0, \rx, c1, c0
-		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #CLPS7111_PHYS_BASE
-		movne	\rx, #CLPS7111_VIRT_BASE
+		.macro	addruart, rp, rv
 #ifndef CONFIG_DEBUG_CLPS711X_UART2
-		add	\rx, \rx, #0x0000	@ UART1
+		mov	\rp, #0x0000	@ UART1
 #else
-		add	\rx, \rx, #0x1000	@ UART2
+		mov	\rp, #0x1000	@ UART2
 #endif
+		orr	\rv, \rp, #CLPS7111_VIRT_BASE
+		orr	\rp, \rp, #CLPS7111_PHYS_BASE
 		.endm
 
 		.macro	senduart,rd,rx
