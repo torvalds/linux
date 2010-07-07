@@ -44,7 +44,7 @@ is_ip(char *name)
 {
 	struct sockaddr_storage ss;
 
-	return cifs_convert_address(name, &ss);
+	return cifs_convert_address((struct sockaddr *)&ss, name);
 }
 
 static int

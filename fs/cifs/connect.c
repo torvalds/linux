@@ -1382,7 +1382,7 @@ cifs_parse_mount_options(char *options, const char *devname,
 }
 
 static struct TCP_Server_Info *
-cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
+cifs_find_tcp_session(struct sockaddr_storage *addr)
 {
 	struct list_head *tmp;
 	struct TCP_Server_Info *server;
@@ -1406,7 +1406,6 @@ cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
 		case AF_INET:
 			if (addr4->sin_addr.s_addr ==
 			    server->addr.sockAddr.sin_addr.s_addr) {
-				addr4->sin_port = htons(port);
 				/* user overrode default port? */
 				if (addr4->sin_port) {
 					if (addr4->sin_port !=
@@ -1422,7 +1421,6 @@ cifs_find_tcp_session(struct sockaddr_storage *addr, unsigned short int port)
 			    &server->addr.sockAddr6.sin6_addr) &&
 			    (addr6->sin6_scope_id ==
 			    server->addr.sockAddr6.sin6_scope_id)) {
-				addr6->sin6_port = htons(port);
 				/* user overrode default port? */
 				if (addr6->sin6_port) {
 					if (addr6->sin6_port !=
@@ -1482,7 +1480,9 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	cFYI(1, "UNC: %s ip: %s", volume_info->UNC, volume_info->UNCip);
 
 	if (volume_info->UNCip && volume_info->UNC) {
-		rc = cifs_convert_address(volume_info->UNCip, &addr);
+		rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
+					volume_info->UNCip,
+					volume_info->port);
 		if (!rc) {
 			/* we failed translating address */
 			rc = -EINVAL;
@@ -1502,7 +1502,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	}
 
 	/* see if we already have a matching tcp_ses */
-	tcp_ses = cifs_find_tcp_session(&addr, volume_info->port);
+	tcp_ses = cifs_find_tcp_session(&addr);
 	if (tcp_ses)
 		return tcp_ses;
 
@@ -1546,12 +1546,10 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 		cFYI(1, "attempting ipv6 connect");
 		/* BB should we allow ipv6 on port 139? */
 		/* other OS never observed in Wild doing 139 with v6 */
-		sin_server6->sin6_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr6, sin_server6,
 			sizeof(struct sockaddr_in6));
 		rc = ipv6_connect(tcp_ses);
 	} else {
-		sin_server->sin_port = htons(volume_info->port);
 		memcpy(&tcp_ses->addr.sockAddr, sin_server,
 			sizeof(struct sockaddr_in));
 		rc = ipv4_connect(tcp_ses);

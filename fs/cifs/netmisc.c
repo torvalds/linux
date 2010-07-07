@@ -164,7 +164,7 @@ cifs_inet_pton(const int address_family, const char *cp, void *dst)
  * Returns 0 on failure.
  */
 int
-cifs_convert_address(char *src, void *dst)
+cifs_convert_address(struct sockaddr *dst, char *src)
 {
 	int rc;
 	char *pct, *endp;
@@ -199,6 +199,27 @@ cifs_convert_address(char *src, void *dst)
 	}
 
 	return rc;
+}
+
+int
+cifs_fill_sockaddr(struct sockaddr *dst, char *src,
+		   const unsigned short int port)
+{
+	if (!cifs_convert_address(dst, src))
+		return 0;
+
+	switch (dst->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)dst)->sin_port = htons(port);
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)dst)->sin6_port = htons(port);
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
 }
 
 /*****************************************************************************
