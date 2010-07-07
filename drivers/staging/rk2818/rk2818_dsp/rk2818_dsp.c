@@ -50,10 +50,15 @@
 	#define dspprintk(msg...)
 #endif
 
+#define USE_PLL_REG		0		//是否直接控制PLL寄存器
+
+#define CLOSE_CLK_GATE	1		//释放DSP时是否连clock gate一起关掉
+
 struct rk28dsp_inf {
     struct miscdevice miscdev;
     struct device dev;
 
+	void *piu_base;
 	void *pmu_base;
 	void *l1_dbase;
 	void *l2_idbase;
@@ -82,11 +87,12 @@ struct rk28dsp_inf {
 	struct clk *clk;
 };
 
-#define USE_CLOCK_FUN		1
+#define SCU_BASE_ADDR_VA		RK2818_SCU_BASE
+#define REG_FILE_BASE_ADDR_VA 	RK2818_REGFILE_BASE
 
-#define SET_BOOT_VECTOR(v)  __raw_writel(v,RK2818_REGFILE_BASE + 0x18);
-#define DSP_BOOT_CTRL() __raw_writel(__raw_readl(RK2818_REGFILE_BASE + 0x14) | (1<<4),RK2818_REGFILE_BASE + 0x14);
-#define DSP_BOOT_CLR()  __raw_writel(__raw_readl(RK2818_REGFILE_BASE + 0x14) & (~(1<<4)),RK2818_REGFILE_BASE + 0x14);
+#define SET_BOOT_VECTOR(v)  __raw_writel(v,REG_FILE_BASE_ADDR_VA + 0x18);
+#define DSP_BOOT_CTRL() __raw_writel(__raw_readl(REG_FILE_BASE_ADDR_VA + 0x14) | (1<<4),REG_FILE_BASE_ADDR_VA + 0x14);
+#define DSP_BOOT_CLR()  __raw_writel(__raw_readl(REG_FILE_BASE_ADDR_VA + 0x14) & (~(1<<4)),REG_FILE_BASE_ADDR_VA + 0x14);
 
 
 #define CODEC_SECTION_NO 0x5
@@ -94,30 +100,37 @@ struct rk28dsp_inf {
 
 
 /* CEVA memory map base address for ARM */
+#define DSP_BASE_ADDR		RK2818_DSP_PHYS
 #define DSP_L2_IMEM_BASE   (RK2818_DSP_PHYS + 0x200000)
 #define DSP_L2_DMEM_BASE   (RK2818_DSP_PHYS + 0x400000)
-#define APB_SCU_BASE				0x18018000
+#define SDRAM_BASE_ADDR     RK2818_SDRAM_PHYS
+#define APB_SCU_BASE		0x18018000
 #define APB_REG_FILE_BASE   0x18019000
 
+#ifndef PIU_BASE_ADDR
 #define PIU_BASE_ADDR      (RK2818_DSP_PHYS + 0x132000)
+#endif
+
+#ifndef PMU_BASE_ADDR
 #define PMU_BASE_ADDR      (RK2818_DSP_PHYS + 0x130000)
+#endif
 
 
 
-#define PIU_PUT_IMASK(port,v) __raw_writel(v,inf->pmu_base+PIU_IMASK_OFFSET);
+#define PIU_PUT_IMASK(port,v) __raw_writel(v,inf->piu_base+PIU_IMASK_OFFSET);
 
 #define PIU_GET_STATUS_REPX(channel) \
-        (__raw_readl(inf->pmu_base + PIU_STATUS_OFFSET) & (1 << ((channel) + PIU_STATUS_R0WRS)))
+        (__raw_readl(inf->piu_base + PIU_STATUS_OFFSET) & (1 << ((channel) + PIU_STATUS_R0WRS)))
 
 #define PIU_READ_REPX_VAL(channel) \
-        __raw_readl(inf->pmu_base + PIU_REPLY0_OFFSET + ((channel) << 2))
+        __raw_readl(inf->piu_base + PIU_REPLY0_OFFSET + ((channel) << 2))
 
 #define PIU_CLR_STATUS_REPX(channel) \
-        __raw_writel(__raw_readl(inf->pmu_base + PIU_STATUS_OFFSET) | (1 << ((channel) + PIU_STATUS_R0WRS)), \
-        inf->pmu_base+PIU_STATUS_OFFSET)
+        __raw_writel(__raw_readl(inf->piu_base + PIU_STATUS_OFFSET) | (1 << ((channel) + PIU_STATUS_R0WRS)), \
+        inf->piu_base+PIU_STATUS_OFFSET)
 
 #define PIU_SEND_CMD(channel, cmd) \
-        __raw_writel(cmd,inf->pmu_base+PIU_CMD0_OFFSET + (channel << 2))
+        __raw_writel(cmd,inf->piu_base+PIU_CMD0_OFFSET + (channel << 2))
 
 
 typedef enum _DSP_STATUS {
@@ -144,35 +157,102 @@ static DECLARE_MUTEX(sem);
 
 static int rcv_quit = 0;
 
+static int video_type = 0;//h264:1 ,rv40:2 , other: 0.
 
+
+void dsp_powerctl(int ctl, int arg);
+//need reset reg value when finishing the video play
+static void resetRegValueForVideo()
+{
+	#ifdef CONFIG_CHIP_RK2818
+		void * r1 = (void *)ioremap(APB_SCU_BASE, 0x60);
+		void * r3 = (void *)ioremap(APB_REG_FILE_BASE, 0x60);
+
+		struct rk28dsp_inf *inf = g_inf;
+    if(!inf)      return;
+		//disable the AXI bus
+		//__raw_writel((__raw_readl(r1+0x20) & (~0x08000000)) , r1+0x20);
+		//
+		//__raw_writel((__raw_readl(r3+0x14) & (~0x20002000)) , r3+0x14);
+		if(video_type)
+		{
+				dsp_powerctl(DPC_SLEEP, 0);
+      	inf->dsp_status = DS_SLEEP;
+
+
+				__raw_writel((__raw_readl(r1+0x20) | (1<<25)) , r1+0x20);
+
+				if(video_type == 2)
+				{
+					//mdelay(10);
+					__raw_writel((__raw_readl(r1+0x1c) | (0x400)) , r1+0x1c);
+					printk("close rv40 hardware advice\n");
+				}
+				else
+				{
+					__raw_writel((__raw_readl(r1+0x20) | (1<<20)) , r1+0x20);
+					printk("close h264 hardware advice\n");
+				}
+				video_type = 0;
+		}
+
+		//mdelay(1);
+    iounmap((void __iomem *)(r1));
+    iounmap((void __iomem *)(r3));
+  #endif
+  return;
+}
 //add by Charles Chen for test 281x play RMVB
 static void setRegValueForVideo(unsigned long type)
 {
+#ifdef CONFIG_CHIP_RK2818
 	/*
 		0x18018020 或上 0x08000000
 		0x18018028  先或上 0x00000110
 		等待一些时间再与上     ～0x00000110
 		0x18019018 或上 0x00200000
 	*/
+	void * r1 = (void *)ioremap(APB_SCU_BASE, 0x60);
+	//void * r2 = (void *)ioremap(APB_SCU_BASE, 0x28);
+	void * r3 = (void *)ioremap(APB_REG_FILE_BASE, 0x60);
 
-	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x20) | (0x08000000)) , RK2818_SCU_BASE+0x20);	
-	printk("------->0x18018020 value 0x%08x\n",__raw_readl(RK2818_SCU_BASE+0x20));
-		if(!type)
-		{
-    	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | (0x00000100)) , RK2818_SCU_BASE+0x28);
-    
+	video_type = 1;
+	//axi bus
+	__raw_writel((__raw_readl(r1+0x20) | (0x08000000)) , r1+0x20);
+
+	//mc dma
+  __raw_writel((__raw_readl(r1+0x20) & ~(1<<25)) , r1+0x20);
+	//printk("------->0x18018020 value 0x%08x\n",__raw_readl(r1+0x20));
+	if(!type)
+	{
+		 video_type ++;
+		 	//rv deblocking clock
+	    __raw_writel((__raw_readl(r1+0x1c) & (~0x400)) , r1+0x1c);
+	    mdelay(1);
+
+			__raw_writel((__raw_readl(r1+0x28) | (0x00000100)) , r1+0x28);
+
 	    mdelay(5);
-    
-   	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x00000100)) , RK2818_SCU_BASE+0x28);
-    	__raw_writel((__raw_readl(RK2818_REGFILE_BASE+0x14) | (0x20002000)) , RK2818_REGFILE_BASE+0x14);
-    
-    	__raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x400)) , RK2818_SCU_BASE+0x1c);
-      printk("this is rm 9 video\n");
-		}
-		else
-		{
-			printk("this is h264 video\n");
-		}
+
+	    __raw_writel((__raw_readl(r1+0x28) & (~0x00000100)) , r1+0x28);
+
+			//rv deblocking bridge select
+	    __raw_writel((__raw_readl(r3+0x14) | (0x20002000)) , r3+0x14);
+
+
+    	printk("%s this is rm 9 video\n",__func__);
+	}
+	else
+	{
+		//h264 hardware
+	   __raw_writel((__raw_readl(r1+0x20) & ~(1<<20)) , r1+0x20);
+		 printk("%s this is h264 video\n",__func__);
+	}
+
+    iounmap((void __iomem *)(r1));
+    iounmap((void __iomem *)(r3));
+
+#endif
     return;
 }
 
@@ -197,26 +277,60 @@ static int CheckDSPLIBHead(char *buff)
 
 void dsp_set_clk(int clkrate)
 {
-#if USE_CLOCK_FUN
-	struct rk28dsp_inf *inf = g_inf;
-    if(!inf)      return;
-    if(clkrate > 24 && clkrate < 600) {
-		if(inf->clk)	clk_set_rate(inf->clk, clkrate*1000000);
-    } else {
-        if(inf->clk)	clk_set_rate(inf->clk, 500*1000000);
-    }
-#else
+#if USE_PLL_REG
+	//old: 0x01830310 300mhz  0x01820310 400mhz  0x01810290 500mhz  0x01982300 560mhz  0x01982580 600mhz
+	//0x00030310 300mhz  0x00020310 400mhz  0x00010290 500mhz  0x00182300 560mhz  0x00182580 600mhz
 	unsigned int freqreg = 0;
-    switch(clkrate) {
-    case 300:   freqreg = 0x01830310;   break;
-    case 400:   freqreg = 0x01820310;   break;
-    case 560:   freqreg = 0x01982300;   break;
-    case 600:   freqreg = 0x01982580;   break;
-    case 500:
-    default:    freqreg = 0x01810290;   break;
+	int cnt = 0;
+
+	if(24==clkrate || 0==clkrate) {
+		/* pll set 300M */
+		freqreg = ( __raw_readl(SCU_BASE_ADDR_VA+0x04)&(~0x003FFFFE) ) | 0x00030310;
+    	__raw_writel(freqreg, SCU_BASE_ADDR_VA+0x04);
+		udelay(10);
+
+        /* dsp pll disable */
+        __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x04) | (0x01u<<22)) , SCU_BASE_ADDR_VA+0x04);
+        udelay(10);
+		return;
+	}
+
+	/* dsp pll enable */
+	__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x04) & (~(0x01u<<22))) , SCU_BASE_ADDR_VA+0x04);
+	udelay(300);		//0.3ms
+
+	/* dsp set clk */
+	switch(clkrate) {
+	    case 300:   freqreg = 0x00030310;   break;
+	    case 400:   freqreg = 0x00020310;   break;
+	    case 560:   freqreg = 0x00182300;   break;
+	    case 600:   freqreg = 0x00182580;   break;
+	    case 500:
+	    default:    freqreg = 0x00010290;   break;
     }
-    __raw_writel(freqreg, RK2818_SCU_BASE+0x04); //0x01830310 300mhz  0x01820310 400mhz  0x01810290 500mhz  0x01982300 560mhz  0x01982580 600mhz
+	freqreg = ( __raw_readl(SCU_BASE_ADDR_VA+0x04)&(~0x003FFFFE) ) | freqreg;
+    __raw_writel(freqreg, SCU_BASE_ADDR_VA+0x04);
     mdelay(15);
+
+	/* wait dsp pll lock */
+	while(!(__raw_readl(REG_FILE_BASE_ADDR_VA) & 0x00000100)) {
+		if(cnt++>30) {
+			printk("wait dsp pll lock ... \n");
+			/* dsp pll disable */
+    		__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x04) | (0x01u<<22)) , SCU_BASE_ADDR_VA+0x04);
+			udelay(300);
+			/* dsp pll enable */
+    		__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x04) & (~(0x01u<<22))) , SCU_BASE_ADDR_VA+0x04);
+			udelay(300);
+			cnt = 0;
+		}
+		udelay(10);
+	}
+#else
+    struct rk28dsp_inf *inf = g_inf;
+    if(!inf)      return;
+	if(inf->clk)
+		clk_set_rate(inf->clk, clkrate*1000000);
 #endif
 }
 
@@ -230,81 +344,80 @@ void dsp_powerctl(int ctl, int arg)
     {
     case DPC_NORMAL:
         {
-#if USE_CLOCK_FUN
+            /* dsp clock enable 0x12*/
+            //__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x02)) , SCU_BASE_ADDR_VA+0x1c);
 			clk_enable(inf->clk);
 
             /* dsp subsys power on 0x21*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) & (~0x21)) , SCU_BASE_ADDR_VA+0x10);
             mdelay(15);
 
             /* dsp core & peripheral rst */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
-			udelay(300);		//0.3ms
-#else
-            /* dsp clock enable 0x12*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x02)) , RK2818_SCU_BASE+0x1c);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x28) | 0x02000030) , SCU_BASE_ADDR_VA+0x28);
 
-            /* dsp subsys power on 0x21*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
-            mdelay(15);
-
-            /* dsp core & peripheral rst */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
-
-			/* dsp pll enable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) & (~(0x01u<<22))) , RK2818_SCU_BASE+0x04);
-			udelay(300);		//0.3ms
-#endif
 			/* dsp set clk */
-			dsp_set_clk(arg);
-
-			/* wait dsp pll lock */
-			while(!(__raw_readl(RK2818_REGFILE_BASE) & 0x00000100)) {
-				udelay(10);
-				printk("wait dsp pll lock ... \n");
-			}
+            dsp_set_clk(arg);
 
             /* dsp peripheral urst */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x02000020)) , RK2818_SCU_BASE+0x28);
-            //mdelay(15);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x28) & (~0x02000020)) , SCU_BASE_ADDR_VA+0x28);
+            mdelay(1);
 
             /* dsp ahb bus clock enable*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x24) & (~0x04)) , RK2818_SCU_BASE+0x24);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) & (~0x04)) , SCU_BASE_ADDR_VA+0x24);
+
+#ifdef CONFIG_CHIP_RK2818
+            /* dsp master interface bridge clock enable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x20) & (~0x40000000)) , SCU_BASE_ADDR_VA+0x20);
+            /* dsp slave interface bridge clock enable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x20) & (~0x20000000)) , SCU_BASE_ADDR_VA+0x20);
+			/* dsp timer clock enable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x20) & (~0x10000000)) , SCU_BASE_ADDR_VA+0x20);
+#endif
+
             /* sram arm clock enable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x08)) , RK2818_SCU_BASE+0x1c);
+            //__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x08)) , SCU_BASE_ADDR_VA+0x1c);
             /* sram dsp clock enable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x10)) , RK2818_SCU_BASE+0x1c);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x10)) , SCU_BASE_ADDR_VA+0x1c);
+
+			/* set CXCLK, XHCLK, XPCLK */
+			__raw_writel(0, inf->pmu_base+0x08);	//CXCLK_DIV (clki:ceva)
+			__raw_writel(1, inf->pmu_base+0x0c);	//XHCLK_DIV (ceva:hclk)
+			__raw_writel(1, inf->pmu_base+0x10);	//XPCLK_DIV (hclk:pclk)
+
         }
         break;
     case DPC_SLEEP:
         {
             /* dsp work mode :slow mode*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x0c) & (~0x03)) , SCU_BASE_ADDR_VA+0x0c);
             /* dsp core/peripheral rest*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x28) | 0x02000030) , SCU_BASE_ADDR_VA+0x28);
 
             /* dsp ahb bus clock disable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x24) | (0x04)) , RK2818_SCU_BASE+0x24);
-            /* sram arm clock disable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x08)) , RK2818_SCU_BASE+0x1c);
-            /* sram dsp clock disable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x10)) , RK2818_SCU_BASE+0x1c);
-            udelay(10);
-
-#if USE_CLOCK_FUN
-			dsp_set_clk(300);
-			clk_disable(inf->clk);
-#else
-            /* dsp clock disable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x02)) , RK2818_SCU_BASE+0x1c);
-
-			dsp_set_clk(300);
-            /* dsp pll disable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) | (0x01u<<22)) , RK2818_SCU_BASE+0x04);
-            udelay(10);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) | (0x04)) , SCU_BASE_ADDR_VA+0x24);
+#ifdef CONFIG_CHIP_RK2818
+            /* dsp master interface bridge clock disable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x20) | (0x40000000)) , SCU_BASE_ADDR_VA+0x20);
+            /* dsp slave interface bridge clock disable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x20) | (0x20000000)) , SCU_BASE_ADDR_VA+0x20);
+			/* dsp timer clock disable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x20) | (0x10000000)) , SCU_BASE_ADDR_VA+0x20);
 #endif
+
+            /* sram arm clock disable */
+            //__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x08)) , SCU_BASE_ADDR_VA+0x1c);
+            /* sram dsp clock disable */
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x10)) , SCU_BASE_ADDR_VA+0x1c);
+            udelay(10);
+            /* dsp clock disable */
+            //__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x02)) , SCU_BASE_ADDR_VA+0x1c);
+            clk_disable(inf->clk);
+
+            /* dsp pll close */
+            dsp_set_clk(24);
+
             /* dsp subsys power off 0x21*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) | (0x21)) , RK2818_SCU_BASE+0x10);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) | (0x21)) , SCU_BASE_ADDR_VA+0x10);
         }
         break;
     default:
@@ -323,14 +436,24 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 	if((0==strcmp(lst_fwname, fwname)) && (DS_SLEEP!=inf->dsp_status)) {
 	    if(1==inf->cur_req) {
 	        dspprintk("%s already down, not redown! \n", fwname);
+
+#if CLOSE_CLK_GATE
+			/* sram dsp clock enable */
+			//__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x10)) , SCU_BASE_ADDR_VA+0x1c);
+			clk_enable(inf->clk);
+			/* dsp ahb bus clock enable*/
+			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) & (~0x04)) , SCU_BASE_ADDR_VA+0x24);
+			/* dsp clock enable 0x12*/
+			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x02)) , SCU_BASE_ADDR_VA+0x1c);
+#endif
 	        /* change dsp & arm to normal mode */
 	        inf->dsp_status = DS_NORMAL;
-	        __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
+	        __raw_writel(0x5, SCU_BASE_ADDR_VA+0x0c);
             return 0;
 	    }
     }
 
-    if(DS_SLEEP==inf->dsp_status)    printk("dsp : sleep -> normal \n");
+    if(DS_SLEEP==inf->dsp_status)    dspprintk("dsp : sleep -> normal \n");
     inf->dsp_status = DS_NORMAL;
 
     dspprintk("down firmware (%s) ... \n", fwname);
@@ -343,7 +466,7 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 		int address,length,indexNo,loadNo,i,j;
 		int *fpIndexFile,*fpDataFile;
 
-        __raw_writel((__raw_readl(RK2818_REGFILE_BASE + 0x10) | (0x6d8)), RK2818_REGFILE_BASE + 0x10);  // 0x6d8
+        __raw_writel((__raw_readl(REG_FILE_BASE_ADDR_VA + 0x10) | (0x6d8)), REG_FILE_BASE_ADDR_VA + 0x10);  // 0x6d8
         dsp_powerctl(DPC_NORMAL, inf->cur_freq);
 
 		/* down dsp boot */
@@ -364,7 +487,7 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 	    pfile = (int *)(buf+dataOffset);
 		memcpy((char *)(pboot+16),(char *)(pfile),2000); /*copy boot to *pboot point*/
 	    SET_BOOT_VECTOR(__pa(pboot+16));  /*set dsp boot program address*/
-	    dspprintk("%s [%d]--%x\n",__FUNCTION__,__LINE__,__raw_readl(RK2818_REGFILE_BASE + 0x18));
+	    dspprintk("%s [%d]--%x\n",__FUNCTION__,__LINE__,__raw_readl(REG_FILE_BASE_ADDR_VA + 0x18));
 	    release_firmware(fw);
 
 		/* down dsp codec */
@@ -415,7 +538,7 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
                             memcpy((char *)(pcodedatal1),(char *)(fpDataFile),length);
                         } else {
                             /* 如果为CEVA的内存区域，需要进行地址转换 */
-                            if (address < RK2818_SDRAM_PHYS) {
+                            if (address < SDRAM_BASE_ADDR) {
 #if 1
                                 int     k;
                                 int    *buffL2;
@@ -449,14 +572,14 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
     mdelay(10);
 
     /* dsp work mode :slow mode*/
-    __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
-    //mdelay(15);
+    __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x0c) & (~0x03)) , SCU_BASE_ADDR_VA+0x0c);
+    mdelay(1);
 
 	/* dsp core urst*/
-    __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x00000010)) , RK2818_SCU_BASE+0x28);
+    __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x28) & (~0x00000010)) , SCU_BASE_ADDR_VA+0x28);
 
     /* change dsp & arm to normal mode */
-    __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
+    __raw_writel(0x5, SCU_BASE_ADDR_VA+0x0c);
 
 	strcpy(lst_fwname, fwname);
 
@@ -476,7 +599,7 @@ void dsptimer_callback(unsigned long arg)
     case DS_TOSLEEP:
 		dsp_powerctl(DPC_SLEEP, 0);
       	inf->dsp_status = DS_SLEEP;
-     	printk("dsp : normal -> sleep \n");
+     	dspprintk("dsp : normal -> sleep \n");
         break;
     case DS_SLEEP:
         break;
@@ -500,7 +623,7 @@ static int dsp_mmap(struct file *file, struct vm_area_struct *vma)
 	switch(vma_size)
 	{
 	case 0x10000:	//l1_dbase
-	    offset += RK2818_DSP_PHYS;
+	    offset += DSP_BASE_ADDR;
 		pageFrameNo = (offset >> PAGE_SHIFT);
 		//dspprintk("dsp_mmap l1_dbase \n");
 		break;
@@ -510,7 +633,7 @@ static int dsp_mmap(struct file *file, struct vm_area_struct *vma)
 		//dspprintk("dsp_mmap l2_idbase \n");
 		break;
     case 0x600000:  //dsp_base
-        offset += RK2818_DSP_PHYS;
+        offset += DSP_BASE_ADDR;
         pageFrameNo = (offset >> PAGE_SHIFT);
 		//dspprintk("dsp_mmap dsp_base \n");
 		break;
@@ -541,7 +664,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if(!g_inf)   return -EAGAIN;
     inf = g_inf;
 
-	if(DSP_IOCTL_RES_REQUEST!=cmd && DSP_IOCTL_GET_TABLE_PHY!=cmd&&cmd !=DSP_IOCTL_SET_CODEC) {
+	if(DSP_IOCTL_RES_REQUEST!=cmd && DSP_IOCTL_GET_TABLE_PHY!=cmd && DSP_IOCTL_SET_CODEC != cmd) {
 		if(inf->cur_pid!=current->tgid) {
 		    dspprintk("res is obtain by pid %d, refuse this req(pid=%d cmd=0x%08x) \n",
 		        inf->cur_pid, current->tgid, cmd);
@@ -608,13 +731,28 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					_down_firmware(inf->req1fwname, inf);
 				}
 			}
+			if(inf->cur_req == 2)
+				resetRegValueForVideo();//when finishing the video ,must reset some reg value;
+
 			inf->cur_req = 0;
 			inf->cur_pid = 0;
 
 			/* dsp work mode :slow mode*/
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
-			inf->dsp_status = DS_TOSLEEP;
-            mod_timer(&inf->dsp_timer, jiffies + 5*HZ);
+            __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x0c) & (~0x03)) , SCU_BASE_ADDR_VA+0x0c);
+
+#if CLOSE_CLK_GATE
+			/* dsp clock disable */
+			//__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x02)) , SCU_BASE_ADDR_VA+0x1c);
+			clk_disable(inf->clk);
+			/* dsp ahb bus clock disable */
+			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) | (0x04)) , SCU_BASE_ADDR_VA+0x24);
+			/* sram dsp clock disable */
+			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x10)) , SCU_BASE_ADDR_VA+0x1c);
+#endif
+			if(DS_SLEEP!=inf->dsp_status) {
+			    inf->dsp_status = DS_TOSLEEP;
+                mod_timer(&inf->dsp_timer, jiffies + 5*HZ);
+    	    }
 		}
 
         /* force DSP_IOCTL_RECV_MSG return */
@@ -691,12 +829,14 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
             if(copy_to_user((void __user *)arg, (void*)&table_phy, 4))  ret = -EFAULT;
         }
         break;
-   case DSP_IOCTL_SET_CODEC:
-	{
-		dspprintk("------>firmware name ------------------------>");
-				setRegValueForVideo(arg);
-	}
-	break;
+
+	case DSP_IOCTL_SET_CODEC:
+		{
+			dspprintk("------>firmware name ------------------------>");
+			setRegValueForVideo(arg);
+		}
+		break;
+
 	default:
 		break;
 	}
@@ -849,8 +989,9 @@ static int __init dsp_drv_probe(struct platform_device *pdev)
 	inf->clk = clk_get(NULL, "dsp_pll");
 	if(inf->clk)	clk_enable(inf->clk);
 
+	inf->piu_base = (void*)ioremap(PIU_BASE_ADDR, 0x70);
 	inf->pmu_base = (void*)ioremap(PMU_BASE_ADDR, 0x3000);
-	inf->l1_dbase = (void*)ioremap(RK2818_DSP_PHYS, 0x10000);
+	inf->l1_dbase = (void*)ioremap(DSP_BASE_ADDR, 0x10000);
 	inf->l2_idbase = (void*)ioremap(DSP_L2_IMEM_BASE, 0x400000);
 
 	inf->irq0 = pdev->resource[1].start;
@@ -929,6 +1070,7 @@ static int dsp_drv_remove(struct platform_device *pdev)
 	if(inf->codedataaddress)    free_pages((unsigned int)inf->codedataaddress,4);
 	if(inf->codetableaddress)   free_pages((unsigned int)inf->codetableaddress,6);
 
+    iounmap((void __iomem *)(inf->piu_base));
 	iounmap((void __iomem *)(inf->pmu_base));
     iounmap((void __iomem *)(inf->l1_dbase));
     iounmap((void __iomem *)(inf->l2_idbase));
@@ -960,7 +1102,7 @@ static int dsp_drv_suspend(struct platform_device *pdev, pm_message_t state)
 	if(DS_SLEEP != inf->dsp_status ) {
 		inf->dsp_status = DS_SLEEP;
 	    dsp_powerctl(DPC_SLEEP, 0);
-	    printk("dsp : normal -> sleep \n");
+	    dspprintk("dsp : normal -> sleep \n");
 	}
     return 0;
 }
@@ -1004,11 +1146,11 @@ static void __exit rk2818_dsp_exit(void)
 	platform_driver_unregister(&dsp_driver);
 }
 
-
-//module_init(rk2818_dsp_init);
 subsys_initcall(rk2818_dsp_init);
 module_exit(rk2818_dsp_exit);
 
+
+/* Module information */
 MODULE_AUTHOR(" dukunming  dkm@rock-chips.com");
 MODULE_DESCRIPTION("Driver for rk2818 dsp device");
 MODULE_LICENSE("GPL");

@@ -17,10 +17,10 @@
 #define __DRIVERS_STAGING_RK2818_DSP_H
 
 
-#define PIU_CMD0_OFFSET         (0x2030)
-#define PIU_REPLY0_OFFSET       (0x203c)
-#define PIU_STATUS_OFFSET       (0x204c)
-#define PIU_IMASK_OFFSET        (0x2048)
+#define PIU_CMD0_OFFSET         (0x30)
+#define PIU_REPLY0_OFFSET       (0x3c)
+#define PIU_STATUS_OFFSET       (0x4c)
+#define PIU_IMASK_OFFSET        (0x48)
 #define PIU_STATUS_R0WRS        3
 
 
