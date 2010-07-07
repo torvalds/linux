@@ -565,15 +565,33 @@ static void __init tegra_stingray_init(void)
 
 	/* Enable charging */
 	tegra_gpio_enable(TEGRA_GPIO_PV5);
-	tegra_gpio_enable(TEGRA_GPIO_PV6);
+	gpio_request(TEGRA_GPIO_PV5, "chg_stat1");
+	gpio_export(TEGRA_GPIO_PV5, false);
 	if (stingray_revision() <= STINGRAY_REVISION_P0) {
 		bq24617_device.resource = bq24617_resources_m1_p0;
+
+		tegra_gpio_enable(TEGRA_GPIO_PV6);
+		gpio_request(TEGRA_GPIO_PV6, "chg_stat2");
+		gpio_export(TEGRA_GPIO_PV6, false);
 
 		tegra_gpio_enable(TEGRA_GPIO_PJ0);
 		gpio_request(TEGRA_GPIO_PJ0, "chg_disable");
 		gpio_direction_output(TEGRA_GPIO_PJ0, 0);
-	} else
+		gpio_export(TEGRA_GPIO_PJ0, false);
+	} else {
+		tegra_gpio_enable(TEGRA_GPIO_PV6);
+		gpio_request(TEGRA_GPIO_PV6, "chg_detect");
+		gpio_export(TEGRA_GPIO_PV6, false);
+
 		tegra_gpio_enable(TEGRA_GPIO_PD1);
+		gpio_request(TEGRA_GPIO_PD1, "chg_stat2");
+		gpio_export(TEGRA_GPIO_PD1, false);
+
+		tegra_gpio_enable(TEGRA_GPIO_PI4);
+		gpio_request(TEGRA_GPIO_PI4, "chg_disable");
+		gpio_direction_output(TEGRA_GPIO_PI4, 0);
+		gpio_export(TEGRA_GPIO_PI4, false);
+	}
 
 	stingray_pinmux_init();
 
