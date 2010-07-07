@@ -22,12 +22,15 @@ actually be done; it should be a multithreaded queue, naturally.
 
 There are functions for enabling and disabling the instance:
 
-    void padata_start(struct padata_instance *pinst);
+    int padata_start(struct padata_instance *pinst);
     void padata_stop(struct padata_instance *pinst);
 
-These functions literally do nothing beyond setting or clearing the
-"padata_start() was called" flag; if that flag is not set, other functions
-will refuse to work.
+These functions are setting or clearing the "PADATA_INIT" flag;
+if that flag is not set, other functions will refuse to work.
+padata_start returns zero on success (flag set) or -EINVAL if the
+padata cpumask contains no active cpu (flag not set).
+padata_stop clears the flag and blocks until the padata instance
+is unused.
 
 The list of CPUs to be used can be adjusted with these functions:
 
@@ -63,12 +66,10 @@ The submission of work is done with:
 The pinst and padata structures must be set up as described above; cb_cpu
 specifies which CPU will be used for the final callback when the work is
 done; it must be in the current instance's CPU mask.  The return value from
-padata_do_parallel() is a little strange; zero is an error return
-indicating that the caller forgot the padata_start() formalities.  -EBUSY
-means that somebody, somewhere else is messing with the instance's CPU
-mask, while -EINVAL is a complaint about cb_cpu not being in that CPU mask.
-If all goes well, this function will return -EINPROGRESS, indicating that
-the work is in progress.
+padata_do_parallel() is zero on success, indicating that the work is in
+progress. -EBUSY means that somebody, somewhere else is messing with the
+instance's CPU mask, while -EINVAL is a complaint about cb_cpu not being
+in that CPU mask or about a not running instance.
 
 Each task submitted to padata_do_parallel() will, in turn, be passed to
 exactly one call to the above-mentioned parallel() function, on one CPU, so
