@@ -2277,6 +2277,7 @@ int panel_init(void)
 		if (pprt) {
 			parport_release(pprt);
 			parport_unregister_device(pprt);
+			pprt = NULL;
 		}
 		parport_unregister_driver(&panel_driver);
 		printk(KERN_ERR "Panel driver version " PANEL_VERSION
@@ -2327,6 +2328,7 @@ static void __exit panel_cleanup_module(void)
 		/* TODO: free all input signals */
 		parport_release(pprt);
 		parport_unregister_device(pprt);
+		pprt = NULL;
 	}
 	parport_unregister_driver(&panel_driver);
 }
