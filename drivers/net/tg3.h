@@ -2772,8 +2772,8 @@ struct tg3 {
 
 
 	/* begin "everything else" cacheline(s) section */
-	struct net_device_stats		net_stats;
-	struct net_device_stats		net_stats_prev;
+	struct rtnl_link_stats64	net_stats;
+	struct rtnl_link_stats64	net_stats_prev;
 	struct tg3_ethtool_stats	estats;
 	struct tg3_ethtool_stats	estats_prev;
 
