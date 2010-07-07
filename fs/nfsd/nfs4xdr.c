@@ -1756,6 +1756,10 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	struct nfs4_acl *acl = NULL;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	u32 minorversion = resp->cstate.minorversion;
+	struct path path = {
+		.mnt	= exp->ex_path.mnt,
+		.dentry	= dentry,
+	};
 
 	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
 	BUG_ON(bmval0 & ~nfsd_suppattrs0(minorversion));
@@ -1776,7 +1780,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 			FATTR4_WORD0_MAXNAME)) ||
 	    (bmval1 & (FATTR4_WORD1_SPACE_AVAIL | FATTR4_WORD1_SPACE_FREE |
 		       FATTR4_WORD1_SPACE_TOTAL))) {
-		err = vfs_statfs(dentry, &statfs);
+		err = vfs_statfs(&path, &statfs);
 		if (err)
 			goto out_nfserr;
 	}

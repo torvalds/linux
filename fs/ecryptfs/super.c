@@ -118,7 +118,11 @@ void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
  */
 static int ecryptfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
-	return vfs_statfs(ecryptfs_dentry_to_lower(dentry), buf);
+	struct dentry *lower_dentry = ecryptfs_dentry_to_lower(dentry);
+
+	if (!lower_dentry->d_sb->s_op->statfs)
+		return -ENOSYS;
+	return lower_dentry->d_sb->s_op->statfs(lower_dentry, buf);
 }
 
 /**

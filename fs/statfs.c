@@ -7,33 +7,35 @@
 #include <linux/security.h>
 #include <linux/uaccess.h>
 
-int vfs_statfs(struct dentry *dentry, struct kstatfs *buf)
+int statfs_by_dentry(struct dentry *dentry, struct kstatfs *buf)
 {
-	int retval = -ENODEV;
+	int retval;
 
-	if (dentry) {
-		retval = -ENOSYS;
-		if (dentry->d_sb->s_op->statfs) {
-			memset(buf, 0, sizeof(*buf));
-			retval = security_sb_statfs(dentry);
-			if (retval)
-				return retval;
-			retval = dentry->d_sb->s_op->statfs(dentry, buf);
-			if (retval == 0 && buf->f_frsize == 0)
-				buf->f_frsize = buf->f_bsize;
-		}
-	}
+	if (!dentry->d_sb->s_op->statfs)
+		return -ENOSYS;
+
+	memset(buf, 0, sizeof(*buf));
+	retval = security_sb_statfs(dentry);
+	if (retval)
+		return retval;
+	retval = dentry->d_sb->s_op->statfs(dentry, buf);
+	if (retval == 0 && buf->f_frsize == 0)
+		buf->f_frsize = buf->f_bsize;
 	return retval;
 }
 
+int vfs_statfs(struct path *path, struct kstatfs *buf)
+{
+	return statfs_by_dentry(path->dentry, buf);
+}
 EXPORT_SYMBOL(vfs_statfs);
 
-static int vfs_statfs_native(struct dentry *dentry, struct statfs *buf)
+static int do_statfs_native(struct path *path, struct statfs *buf)
 {
 	struct kstatfs st;
 	int retval;
 
-	retval = vfs_statfs(dentry, &st);
+	retval = vfs_statfs(path, &st);
 	if (retval)
 		return retval;
 
@@ -72,12 +74,12 @@ static int vfs_statfs_native(struct dentry *dentry, struct statfs *buf)
 	return 0;
 }
 
-static int vfs_statfs64(struct dentry *dentry, struct statfs64 *buf)
+static int do_statfs64(struct path *path, struct statfs64 *buf)
 {
 	struct kstatfs st;
 	int retval;
 
-	retval = vfs_statfs(dentry, &st);
+	retval = vfs_statfs(path, &st);
 	if (retval)
 		return retval;
 
@@ -107,7 +109,7 @@ SYSCALL_DEFINE2(statfs, const char __user *, pathname, struct statfs __user *, b
 	error = user_path(pathname, &path);
 	if (!error) {
 		struct statfs tmp;
-		error = vfs_statfs_native(path.dentry, &tmp);
+		error = do_statfs_native(&path, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_put(&path);
@@ -125,7 +127,7 @@ SYSCALL_DEFINE3(statfs64, const char __user *, pathname, size_t, sz, struct stat
 	error = user_path(pathname, &path);
 	if (!error) {
 		struct statfs64 tmp;
-		error = vfs_statfs64(path.dentry, &tmp);
+		error = do_statfs64(&path, &tmp);
 		if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 			error = -EFAULT;
 		path_put(&path);
@@ -143,7 +145,7 @@ SYSCALL_DEFINE2(fstatfs, unsigned int, fd, struct statfs __user *, buf)
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs_native(file->f_path.dentry, &tmp);
+	error = do_statfs_native(&file->f_path, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -164,7 +166,7 @@ SYSCALL_DEFINE3(fstatfs64, unsigned int, fd, size_t, sz, struct statfs64 __user 
 	file = fget(fd);
 	if (!file)
 		goto out;
-	error = vfs_statfs64(file->f_path.dentry, &tmp);
+	error = do_statfs64(&file->f_path, &tmp);
 	if (!error && copy_to_user(buf, &tmp, sizeof(tmp)))
 		error = -EFAULT;
 	fput(file);
@@ -183,7 +185,7 @@ SYSCALL_DEFINE2(ustat, unsigned, dev, struct ustat __user *, ubuf)
 	if (!s)
 		return -EINVAL;
 
-	err = vfs_statfs(s->s_root, &sbuf);
+	err = statfs_by_dentry(s->s_root, &sbuf);
 	drop_super(s);
 	if (err)
 		return err;

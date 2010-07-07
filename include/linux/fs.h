@@ -1813,7 +1813,8 @@ extern struct vfsmount *collect_mounts(struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
 extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
 			  struct vfsmount *);
-extern int vfs_statfs(struct dentry *, struct kstatfs *);
+extern int vfs_statfs(struct path *, struct kstatfs *);
+extern int statfs_by_dentry(struct dentry *, struct kstatfs *);
 extern int freeze_super(struct super_block *super);
 extern int thaw_super(struct super_block *super);
 
