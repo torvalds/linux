@@ -490,6 +490,20 @@ static void __padata_start(struct padata_instance *pinst)
 	pinst->flags |= PADATA_INIT;
 }
 
+static void __padata_stop(struct padata_instance *pinst)
+{
+	if (!(pinst->flags & PADATA_INIT))
+		return;
+
+	pinst->flags &= ~PADATA_INIT;
+
+	synchronize_rcu();
+
+	get_online_cpus();
+	padata_flush_queues(pinst->pd);
+	put_online_cpus();
+}
+
 /* Replace the internal control stucture with a new one. */
 static void padata_replace(struct padata_instance *pinst,
 			   struct parallel_data *pd_new)
@@ -649,7 +663,7 @@ EXPORT_SYMBOL(padata_start);
 void padata_stop(struct padata_instance *pinst)
 {
 	mutex_lock(&pinst->lock);
-	pinst->flags &= ~PADATA_INIT;
+	__padata_stop(pinst);
 	mutex_unlock(&pinst->lock);
 }
 EXPORT_SYMBOL(padata_stop);
@@ -770,17 +784,11 @@ EXPORT_SYMBOL(padata_alloc);
  */
 void padata_free(struct padata_instance *pinst)
 {
-	padata_stop(pinst);
-
-	synchronize_rcu();
-
 #ifdef CONFIG_HOTPLUG_CPU
 	unregister_hotcpu_notifier(&pinst->cpu_notifier);
 #endif
-	get_online_cpus();
-	padata_flush_queues(pinst->pd);
-	put_online_cpus();
 
+	padata_stop(pinst);
 	padata_free_pd(pinst->pd);
 	free_cpumask_var(pinst->cpumask);
 	kfree(pinst);
