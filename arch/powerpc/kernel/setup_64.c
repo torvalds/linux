@@ -142,16 +142,6 @@ early_param("smt-enabled", early_smt_enabled);
 #define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
-/* Put the paca pointer into r13 and SPRG_PACA */
-static void __init setup_paca(struct paca_struct *new_paca)
-{
-	local_paca = new_paca;
-	mtspr(SPRN_SPRG_PACA, local_paca);
-#ifdef CONFIG_PPC_BOOK3E
-	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
-#endif
-}
-
 /*
  * Early initialization entry point. This is called by head.S
  * with MMU translation disabled. We rely on the "feature" of

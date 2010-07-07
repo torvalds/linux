@@ -260,6 +260,12 @@ static void kexec_prepare_cpus(void)
 static union thread_union kexec_stack __init_task_data =
 	{ };
 
+/*
+ * For similar reasons to the stack above, the kexecing CPU needs to be on a
+ * static PACA; we switch to kexec_paca.
+ */
+struct paca_struct kexec_paca;
+
 /* Our assembly helper, in kexec_stub.S */
 extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
 					void *image, void *control,
@@ -286,6 +292,20 @@ void default_machine_kexec(struct kimage *image)
 	 */
 	kexec_stack.thread_info.task = current_thread_info()->task;
 	kexec_stack.thread_info.flags = 0;
+
+	/* We need a static PACA, too; copy this CPU's PACA over and switch to
+	 * it.  Also poison per_cpu_offset to catch anyone using non-static
+	 * data.
+	 */
+	memcpy(&kexec_paca, get_paca(), sizeof(struct paca_struct));
+	kexec_paca.data_offset = 0xedeaddeadeeeeeeeUL;
+	paca = (struct paca_struct *)RELOC_HIDE(&kexec_paca, 0) -
+		kexec_paca.paca_index;
+	setup_paca(&kexec_paca);
+
+	/* XXX: If anyone does 'dynamic lppacas' this will also need to be
+	 * switched to a static version!
+	 */
 
 	/* Some things are best done in assembly.  Finding globals with
 	 * a toc is easier in C, so pass in what we can.
