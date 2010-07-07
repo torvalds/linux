@@ -657,7 +657,9 @@ ssize_t lirc_dev_fop_read(struct file *file,
 
 			if (mutex_lock_interruptible(&ir->irctl_lock)) {
 				ret = -ERESTARTSYS;
-				break;
+				remove_wait_queue(&ir->buf->wait_poll, &wait);
+				set_current_state(TASK_RUNNING);
+				goto out_unlocked;
 			}
 
 			if (!ir->attached) {
@@ -676,6 +678,7 @@ ssize_t lirc_dev_fop_read(struct file *file,
 	set_current_state(TASK_RUNNING);
 	mutex_unlock(&ir->irctl_lock);
 
+out_unlocked:
 	dev_dbg(ir->d.dev, LOGHEAD "read result = %s (%d)\n",
 		ir->d.name, ir->d.minor, ret ? "-EFAULT" : "OK", ret);
 
