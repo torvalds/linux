@@ -1356,7 +1356,7 @@ static int lcd_open(struct inode *inode, struct file *file)
 		lcd_must_clear = 0;
 	}
 	lcd_open_cnt++;
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int lcd_release(struct inode *inode, struct file *file)
@@ -1369,6 +1369,7 @@ static const struct file_operations lcd_fops = {
 	.write   = lcd_write,
 	.open    = lcd_open,
 	.release = lcd_release,
+	.llseek  = no_llseek,
 };
 
 static struct miscdevice lcd_dev = {
