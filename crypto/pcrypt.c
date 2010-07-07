@@ -385,6 +385,7 @@ static struct crypto_template pcrypt_tmpl = {
 
 static int __init pcrypt_init(void)
 {
+	int err = -ENOMEM;
 	encwq = create_workqueue("pencrypt");
 	if (!encwq)
 		goto err;
@@ -400,14 +401,22 @@ static int __init pcrypt_init(void)
 
 	pcrypt_dec_padata = padata_alloc(cpu_possible_mask, decwq);
 	if (!pcrypt_dec_padata)
-		goto err_free_padata;
+		goto err_free_enc_padata;
 
-	padata_start(pcrypt_enc_padata);
-	padata_start(pcrypt_dec_padata);
+	err = padata_start(pcrypt_enc_padata);
+	if (err)
+		goto err_free_dec_padata;
+
+	err = padata_start(pcrypt_dec_padata);
+	if (err)
+		goto err_free_dec_padata;
 
 	return crypto_register_template(&pcrypt_tmpl);
 
-err_free_padata:
+err_free_dec_padata:
+	padata_free(pcrypt_dec_padata);
+
+err_free_enc_padata:
 	padata_free(pcrypt_enc_padata);
 
 err_destroy_decwq:
@@ -417,7 +426,7 @@ err_destroy_encwq:
 	destroy_workqueue(encwq);
 
 err:
-	return -ENOMEM;
+	return err;
 }
 
 static void __exit pcrypt_exit(void)

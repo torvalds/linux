@@ -485,6 +485,11 @@ static void padata_flush_queues(struct parallel_data *pd)
 	BUG_ON(atomic_read(&pd->refcnt) != 0);
 }
 
+static void __padata_start(struct padata_instance *pinst)
+{
+	pinst->flags |= PADATA_INIT;
+}
+
 /* Replace the internal control stucture with a new one. */
 static void padata_replace(struct padata_instance *pinst,
 			   struct parallel_data *pd_new)
@@ -619,11 +624,20 @@ EXPORT_SYMBOL(padata_remove_cpu);
  *
  * @pinst: padata instance to start
  */
-void padata_start(struct padata_instance *pinst)
+int padata_start(struct padata_instance *pinst)
 {
+	int err = 0;
+
 	mutex_lock(&pinst->lock);
-	pinst->flags |= PADATA_INIT;
+
+	if (pinst->flags & PADATA_INVALID)
+		err =-EINVAL;
+
+	 __padata_start(pinst);
+
 	mutex_unlock(&pinst->lock);
+
+	return err;
 }
 EXPORT_SYMBOL(padata_start);
 

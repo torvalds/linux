@@ -126,6 +126,7 @@ struct padata_instance {
 	u8			flags;
 #define	PADATA_INIT		1
 #define	PADATA_RESET		2
+#define	PADATA_INVALID		4
 };
 
 extern struct padata_instance *padata_alloc(const struct cpumask *cpumask,
@@ -138,6 +139,6 @@ extern int padata_set_cpumask(struct padata_instance *pinst,
 			      cpumask_var_t cpumask);
 extern int padata_add_cpu(struct padata_instance *pinst, int cpu);
 extern int padata_remove_cpu(struct padata_instance *pinst, int cpu);
-extern void padata_start(struct padata_instance *pinst);
+extern int padata_start(struct padata_instance *pinst);
 extern void padata_stop(struct padata_instance *pinst);
 #endif
