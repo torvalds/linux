@@ -197,28 +197,12 @@ struct TCP_Server_Info {
 };
 
 /*
- * The following is our shortcut to user information.  We surface the uid,
- * and name. We always get the password on the fly in case it
- * has changed. We also hang a list of sessions owned by this user off here.
- */
-struct cifsUidInfo {
-	struct list_head userList;
-	struct list_head sessionList; /* SMB sessions for this user */
-	uid_t linux_uid;
-	char user[MAX_USERNAME_SIZE + 1];	/* ascii name of user */
-	/* BB may need ptr or callback for PAM or WinBind info */
-};
-
-/*
  * Session structure.  One of these for each uid session with a particular host
  */
 struct cifsSesInfo {
 	struct list_head smb_ses_list;
 	struct list_head tcon_list;
 	struct mutex session_mutex;
-#if 0
-	struct cifsUidInfo *uidInfo;	/* pointer to user info */
-#endif
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
 	enum statusEnum status;
