@@ -110,6 +110,38 @@ static ssize_t control_store(struct device * dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(control, 0644, control_show, control_store);
+
+static ssize_t rtpm_status_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	const char *p;
+
+	if (dev->power.runtime_error) {
+		p = "error\n";
+	} else if (dev->power.disable_depth) {
+		p = "unsupported\n";
+	} else {
+		switch (dev->power.runtime_status) {
+		case RPM_SUSPENDED:
+			p = "suspended\n";
+			break;
+		case RPM_SUSPENDING:
+			p = "suspending\n";
+			break;
+		case RPM_RESUMING:
+			p = "resuming\n";
+			break;
+		case RPM_ACTIVE:
+			p = "active\n";
+			break;
+		default:
+			return -EIO;
+		}
+	}
+	return sprintf(buf, p);
+}
+
+static DEVICE_ATTR(runtime_status, 0444, rtpm_status_show, NULL);
 #endif
 
 static ssize_t
@@ -184,27 +216,8 @@ static ssize_t rtpm_enabled_show(struct device *dev,
 	return sprintf(buf, "enabled\n");
 }
 
-static ssize_t rtpm_status_show(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	if (dev->power.runtime_error)
-		return sprintf(buf, "error\n");
-	switch (dev->power.runtime_status) {
-	case RPM_SUSPENDED:
-		return sprintf(buf, "suspended\n");
-	case RPM_SUSPENDING:
-		return sprintf(buf, "suspending\n");
-	case RPM_RESUMING:
-		return sprintf(buf, "resuming\n");
-	case RPM_ACTIVE:
-		return sprintf(buf, "active\n");
-	}
-	return -EIO;
-}
-
 static DEVICE_ATTR(runtime_usage, 0444, rtpm_usagecount_show, NULL);
 static DEVICE_ATTR(runtime_active_kids, 0444, rtpm_children_show, NULL);
-static DEVICE_ATTR(runtime_status, 0444, rtpm_status_show, NULL);
 static DEVICE_ATTR(runtime_enabled, 0444, rtpm_enabled_show, NULL);
 
 #endif
@@ -240,6 +253,7 @@ static DEVICE_ATTR(async, 0644, async_show, async_store);
 static struct attribute * power_attrs[] = {
 #ifdef CONFIG_PM_RUNTIME
 	&dev_attr_control.attr,
+	&dev_attr_runtime_status.attr,
 #endif
 	&dev_attr_wakeup.attr,
 #ifdef CONFIG_PM_SLEEP
@@ -250,7 +264,6 @@ static struct attribute * power_attrs[] = {
 #ifdef CONFIG_PM_RUNTIME
 	&dev_attr_runtime_usage.attr,
 	&dev_attr_runtime_active_kids.attr,
-	&dev_attr_runtime_status.attr,
 	&dev_attr_runtime_enabled.attr,
 #endif
 #endif
