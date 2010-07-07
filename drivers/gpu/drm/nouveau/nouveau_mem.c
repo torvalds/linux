@@ -471,8 +471,9 @@ void nouveau_mem_close(struct drm_device *dev)
 	}
 
 	if (dev_priv->fb_mtrr) {
-		drm_mtrr_del(dev_priv->fb_mtrr, drm_get_resource_start(dev, 1),
-			     drm_get_resource_len(dev, 1), DRM_MTRR_WC);
+		drm_mtrr_del(dev_priv->fb_mtrr,
+			     pci_resource_start(dev->pdev, 1),
+			     pci_resource_len(dev->pdev, 1), DRM_MTRR_WC);
 		dev_priv->fb_mtrr = 0;
 	}
 }
@@ -633,7 +634,7 @@ nouveau_mem_init(struct drm_device *dev)
 	struct ttm_bo_device *bdev = &dev_priv->ttm.bdev;
 	int ret, dma_bits = 32;
 
-	dev_priv->fb_phys = drm_get_resource_start(dev, 1);
+	dev_priv->fb_phys = pci_resource_start(dev->pdev, 1);
 	dev_priv->gart_info.type = NOUVEAU_GART_NONE;
 
 	if (dev_priv->card_type >= NV_50 &&
@@ -665,8 +666,9 @@ nouveau_mem_init(struct drm_device *dev)
 
 	dev_priv->fb_available_size = dev_priv->vram_size;
 	dev_priv->fb_mappable_pages = dev_priv->fb_available_size;
-	if (dev_priv->fb_mappable_pages > drm_get_resource_len(dev, 1))
-		dev_priv->fb_mappable_pages = drm_get_resource_len(dev, 1);
+	if (dev_priv->fb_mappable_pages > pci_resource_len(dev->pdev, 1))
+		dev_priv->fb_mappable_pages =
+			pci_resource_len(dev->pdev, 1);
 	dev_priv->fb_mappable_pages >>= PAGE_SHIFT;
 
 	/* remove reserved space at end of vram from available amount */
@@ -718,8 +720,8 @@ nouveau_mem_init(struct drm_device *dev)
 		return ret;
 	}
 
-	dev_priv->fb_mtrr = drm_mtrr_add(drm_get_resource_start(dev, 1),
-					 drm_get_resource_len(dev, 1),
+	dev_priv->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 1),
+					 pci_resource_len(dev->pdev, 1),
 					 DRM_MTRR_WC);
 
 	return 0;

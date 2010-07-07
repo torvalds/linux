@@ -241,7 +241,7 @@ nv50_instmem_init(struct drm_device *dev)
 		return ret;
 	BAR0_WI32(priv->fb_bar->gpuobj, 0x00, 0x7fc00000);
 	BAR0_WI32(priv->fb_bar->gpuobj, 0x04, 0x40000000 +
-					      drm_get_resource_len(dev, 1) - 1);
+					      pci_resource_len(dev->pdev, 1) - 1);
 	BAR0_WI32(priv->fb_bar->gpuobj, 0x08, 0x40000000);
 	BAR0_WI32(priv->fb_bar->gpuobj, 0x0c, 0x00000000);
 	BAR0_WI32(priv->fb_bar->gpuobj, 0x10, 0x00000000);

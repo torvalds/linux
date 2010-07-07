@@ -405,8 +405,8 @@ int mga_driver_load(struct drm_device * dev, unsigned long flags)
 	dev_priv->usec_timeout = MGA_DEFAULT_USEC_TIMEOUT;
 	dev_priv->chipset = flags;
 
-	dev_priv->mmio_base = drm_get_resource_start(dev, 1);
-	dev_priv->mmio_size = drm_get_resource_len(dev, 1);
+	dev_priv->mmio_base = pci_resource_start(dev->pdev, 1);
+	dev_priv->mmio_size = pci_resource_len(dev->pdev, 1);
 
 	dev->counters += 3;
 	dev->types[6] = _DRM_STAT_IRQ;

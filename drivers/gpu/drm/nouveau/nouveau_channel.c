@@ -62,7 +62,8 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 		 * VRAM.
 		 */
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
-					     drm_get_resource_start(dev, 1),
+					     pci_resource_start(dev->pdev,
+					     1),
 					     dev_priv->fb_available_size,
 					     NV_DMA_ACCESS_RO,
 					     NV_DMA_TARGET_PCI, &pushbuf);

@@ -34,6 +34,7 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
+#include <linux/pci.h>
 #include <linux/vgaarb.h>
 #include <linux/acpi.h>
 #include <linux/pnp.h>
@@ -1354,7 +1355,7 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	int fb_bar = IS_I9XX(dev) ? 2 : 0;
 	int ret = 0;
 
-	dev->mode_config.fb_base = drm_get_resource_start(dev, fb_bar) &
+	dev->mode_config.fb_base = pci_resource_start(dev->pdev, fb_bar) &
 		0xff000000;
 
 	/* Basic memrange allocator for stolen space (aka vram) */
@@ -2063,8 +2064,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Add register map (needed for suspend/resume) */
 	mmio_bar = IS_I9XX(dev) ? 0 : 1;
-	base = drm_get_resource_start(dev, mmio_bar);
-	size = drm_get_resource_len(dev, mmio_bar);
+	base = pci_resource_start(dev->pdev, mmio_bar);
+	size = pci_resource_len(dev->pdev, mmio_bar);
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;

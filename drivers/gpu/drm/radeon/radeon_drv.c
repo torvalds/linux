@@ -238,7 +238,7 @@ static struct drm_driver kms_driver;
 static int __devinit
 radeon_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_dev(pdev, ent, &kms_driver);
+	return drm_get_pci_dev(pdev, ent, &kms_driver);
 }
 
 static void

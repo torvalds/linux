@@ -650,8 +650,8 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */
-	rdev->rmmio_base = drm_get_resource_start(rdev->ddev, 2);
-	rdev->rmmio_size = drm_get_resource_len(rdev->ddev, 2);
+	rdev->rmmio_base = pci_resource_start(rdev->pdev, 2);
+	rdev->rmmio_size = pci_resource_len(rdev->pdev, 2);
 	rdev->rmmio = ioremap(rdev->rmmio_base, rdev->rmmio_size);
 	if (rdev->rmmio == NULL) {
 		return -ENOMEM;

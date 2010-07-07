@@ -367,7 +367,7 @@ nv40_graph_init(struct drm_device *dev)
 		nv40_graph_set_region_tiling(dev, i, 0, 0, 0);
 
 	/* begin RAM config */
-	vramsz = drm_get_resource_len(dev, 0) - 1;
+	vramsz = pci_resource_len(dev->pdev, 0) - 1;
 	switch (dev_priv->chipset) {
 	case 0x40:
 		nv_wr32(dev, 0x4009A4, nv_rd32(dev, NV04_PFB_CFG0));

@@ -6,7 +6,7 @@
 #
 menuconfig DRM
 	tristate "Direct Rendering Manager (XFree86 4.1.0 and higher DRI support)"
-	depends on (AGP || AGP=n) && PCI && !EMULATED_CMPXCHG && MMU
+	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
 	select I2C
 	select I2C_ALGOBIT
 	select SLOW_WORK
@@ -17,7 +17,7 @@ menuconfig DRM
 	  These modules provide support for synchronization, security, and
 	  DMA transfers. Please see <http://dri.sourceforge.net/> for more
 	  details.  You should also select and configure AGP
-	  (/dev/agpgart) support.
+	  (/dev/agpgart) support if it is available for your platform.
 
 config DRM_KMS_HELPER
 	tristate
