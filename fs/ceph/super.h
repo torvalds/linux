@@ -31,6 +31,12 @@
 #define CEPH_BLOCK         (1 << CEPH_BLOCK_SHIFT)
 
 /*
+ * Supported features
+ */
+#define CEPH_FEATURE_SUPPORTED CEPH_FEATURE_NOSRCADDR
+#define CEPH_FEATURE_REQUIRED  CEPH_FEATURE_NOSRCADDR
+
+/*
  * mount options
  */
 #define CEPH_OPT_FSID             (1<<0)
