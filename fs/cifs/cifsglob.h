@@ -83,8 +83,7 @@ enum statusEnum {
 };
 
 enum securityEnum {
-	PLAINTXT = 0, 		/* Legacy with Plaintext passwords */
-	LANMAN,			/* Legacy LANMAN auth */
+	LANMAN = 0,			/* Legacy LANMAN auth */
 	NTLM,			/* Legacy NTLM012 auth with NTLM hash */
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO, NTLMv2 hash */

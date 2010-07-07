@@ -1412,8 +1412,56 @@ match_address(struct TCP_Server_Info *server, struct sockaddr *addr)
 	return true;
 }
 
+static bool
+match_security(struct TCP_Server_Info *server, struct smb_vol *vol)
+{
+	unsigned int secFlags;
+
+	if (vol->secFlg & (~(CIFSSEC_MUST_SIGN | CIFSSEC_MUST_SEAL)))
+		secFlags = vol->secFlg;
+	else
+		secFlags = global_secflags | vol->secFlg;
+
+	switch (server->secType) {
+	case LANMAN:
+		if (!(secFlags & (CIFSSEC_MAY_LANMAN|CIFSSEC_MAY_PLNTXT)))
+			return false;
+		break;
+	case NTLMv2:
+		if (!(secFlags & CIFSSEC_MAY_NTLMV2))
+			return false;
+		break;
+	case NTLM:
+		if (!(secFlags & CIFSSEC_MAY_NTLM))
+			return false;
+		break;
+	case Kerberos:
+		if (!(secFlags & CIFSSEC_MAY_KRB5))
+			return false;
+		break;
+	case RawNTLMSSP:
+		if (!(secFlags & CIFSSEC_MAY_NTLMSSP))
+			return false;
+		break;
+	default:
+		/* shouldn't happen */
+		return false;
+	}
+
+	/* now check if signing mode is acceptible */
+	if ((secFlags & CIFSSEC_MAY_SIGN) == 0 &&
+	    (server->secMode & SECMODE_SIGN_REQUIRED))
+			return false;
+	else if (((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) &&
+		 (server->secMode &
+		  (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED)) == 0)
+			return false;
+
+	return true;
+}
+
 static struct TCP_Server_Info *
-cifs_find_tcp_session(struct sockaddr *addr)
+cifs_find_tcp_session(struct sockaddr *addr, struct smb_vol *vol)
 {
 	struct TCP_Server_Info *server;
 
@@ -1429,6 +1477,9 @@ cifs_find_tcp_session(struct sockaddr *addr)
 			continue;
 
 		if (!match_address(server, addr))
+			continue;
+
+		if (!match_security(server, vol))
 			continue;
 
 		++server->srv_count;
@@ -1501,7 +1552,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	}
 
 	/* see if we already have a matching tcp_ses */
-	tcp_ses = cifs_find_tcp_session((struct sockaddr *)&addr);
+	tcp_ses = cifs_find_tcp_session((struct sockaddr *)&addr, volume_info);
 	if (tcp_ses)
 		return tcp_ses;
 
