@@ -70,6 +70,7 @@
 #define SrcSI       (0xa<<4)	/* Source is in the DS:RSI */
 #define SrcImmFAddr (0xb<<4)	/* Source is immediate far address */
 #define SrcMemFAddr (0xc<<4)	/* Source is far address in memory */
+#define SrcAcc      (0xd<<4)	/* Source Accumulator */
 #define SrcMask     (0xf<<4)
 /* Generic ModRM decode. */
 #define ModRM       (1<<8)
@@ -177,8 +178,8 @@ static u32 opcode_table[256] = {
 	0, 0, SrcImmFAddr | No64, 0,
 	ImplicitOps | Stack, ImplicitOps | Stack, 0, 0,
 	/* 0xA0 - 0xA7 */
-	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
-	ByteOp | DstMem | SrcReg | Mov | MemAbs, DstMem | SrcReg | Mov | MemAbs,
+	ByteOp | DstAcc | SrcMem | Mov | MemAbs, DstAcc | SrcMem | Mov | MemAbs,
+	ByteOp | DstMem | SrcAcc | Mov | MemAbs, DstMem | SrcAcc | Mov | MemAbs,
 	ByteOp | SrcSI | DstDI | Mov | String, SrcSI | DstDI | Mov | String,
 	ByteOp | SrcSI | DstDI | String, SrcSI | DstDI | String,
 	/* 0xA8 - 0xAF */
@@ -1185,6 +1186,25 @@ done_prefixes:
 			c->src.val = insn_fetch(s8, 1, c->eip);
 		else
 			c->src.val = insn_fetch(u8, 1, c->eip);
+		break;
+	case SrcAcc:
+		c->src.type = OP_REG;
+		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->src.ptr = &c->regs[VCPU_REGS_RAX];
+		switch (c->src.bytes) {
+			case 1:
+				c->src.val = *(u8 *)c->src.ptr;
+				break;
+			case 2:
+				c->src.val = *(u16 *)c->src.ptr;
+				break;
+			case 4:
+				c->src.val = *(u32 *)c->src.ptr;
+				break;
+			case 8:
+				c->src.val = *(u64 *)c->src.ptr;
+				break;
+		}
 		break;
 	case SrcOne:
 		c->src.bytes = 1;
@@ -2854,13 +2874,7 @@ special_insn:
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
-	case 0xa0 ... 0xa1:	/* mov */
-		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
-		c->dst.val = c->src.val;
-		break;
-	case 0xa2 ... 0xa3:	/* mov */
-		c->dst.val = (unsigned long)c->regs[VCPU_REGS_RAX];
-		break;
+	case 0xa0 ... 0xa3:	/* mov */
 	case 0xa4 ... 0xa5:	/* movs */
 		goto mov;
 	case 0xa6 ... 0xa7:	/* cmps */
