@@ -7,6 +7,10 @@
  * the Free Software Foundation.
  */
 
+#ifdef CONFIG_X86
+#include <asm/x86_init.h>
+#endif
+
 /*
  * Names.
  */
@@ -839,6 +843,12 @@ static inline void i8042_pnp_exit(void) { }
 static int __init i8042_platform_init(void)
 {
 	int retval;
+
+#ifdef CONFIG_X86
+	/* Just return if pre-detection shows no i8042 controller exist */
+	if (!x86_platform.i8042_detect())
+		return -ENODEV;
+#endif
 
 /*
  * On ix86 platforms touching the i8042 data register region can do really
