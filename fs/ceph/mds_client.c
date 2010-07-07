@@ -2783,6 +2783,12 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
 	drop_leases(mdsc);
 	ceph_flush_dirty_caps(mdsc);
 	wait_requests(mdsc);
+
+	/*
+	 * wait for reply handlers to drop their request refs and
+	 * their inode/dcache refs
+	 */
+	ceph_msgr_flush();
 }
 
 /*

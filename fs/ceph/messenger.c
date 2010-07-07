@@ -657,7 +657,7 @@ static void prepare_write_connect(struct ceph_messenger *msgr,
 	dout("prepare_write_connect %p cseq=%d gseq=%d proto=%d\n", con,
 	     con->connect_seq, global_seq, proto);
 
-	con->out_connect.features = CEPH_FEATURE_SUPPORTED_CLIENT;
+	con->out_connect.features = cpu_to_le64(CEPH_FEATURE_SUPPORTED_CLIENT);
 	con->out_connect.host_type = cpu_to_le32(CEPH_ENTITY_TYPE_CLIENT);
 	con->out_connect.connect_seq = cpu_to_le32(con->connect_seq);
 	con->out_connect.global_seq = cpu_to_le32(global_seq);
@@ -1396,10 +1396,12 @@ static int read_partial_message(struct ceph_connection *con)
 	if (!con->in_msg) {
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
 		     con->in_hdr.front_len, con->in_hdr.data_len);
+		skip = 0;
 		con->in_msg = ceph_alloc_msg(con, &con->in_hdr, &skip);
 		if (skip) {
 			/* skip this message */
 			dout("alloc_msg said skip message\n");
+			BUG_ON(con->in_msg);
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
