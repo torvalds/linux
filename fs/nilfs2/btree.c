@@ -1920,6 +1920,18 @@ static void nilfs_btree_add_dirty_buffer(struct nilfs_btree *btree,
 	node = (struct nilfs_btree_node *)bh->b_data;
 	key = nilfs_btree_node_get_key(node, 0);
 	level = nilfs_btree_node_get_level(node);
+	if (level < NILFS_BTREE_LEVEL_NODE_MIN ||
+	    level >= NILFS_BTREE_LEVEL_MAX) {
+		dump_stack();
+		printk(KERN_WARNING
+		       "%s: invalid btree level: %d (key=%llu, ino=%lu, "
+		       "blocknr=%llu)\n",
+		       __func__, level, (unsigned long long)key,
+		       NILFS_BMAP_I(&btree->bt_bmap)->vfs_inode.i_ino,
+		       (unsigned long long)bh->b_blocknr);
+		return;
+	}
+
 	list_for_each(head, &lists[level]) {
 		cbh = list_entry(head, struct buffer_head, b_assoc_buffers);
 		cnode = (struct nilfs_btree_node *)cbh->b_data;
