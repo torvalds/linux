@@ -2601,12 +2601,12 @@ static int cxgb_close(struct net_device *dev)
 	return t4_enable_vi(adapter, 0, pi->viid, false, false);
 }
 
-static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev)
+static struct rtnl_link_stats64 *cxgb_get_stats(struct net_device *dev,
+						struct rtnl_link_stats64 *ns)
 {
 	struct port_stats stats;
 	struct port_info *p = netdev_priv(dev);
 	struct adapter *adapter = p->adapter;
-	struct rtnl_link_stats64 *ns = &dev->stats64;
 
 	spin_lock(&adapter->stats_lock);
 	t4_get_port_stats(adapter, p->tx_chan, &stats);
