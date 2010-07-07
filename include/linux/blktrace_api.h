@@ -5,6 +5,7 @@
 #ifdef __KERNEL__
 #include <linux/blkdev.h>
 #include <linux/relay.h>
+#include <linux/compat.h>
 #endif
 
 /*
@@ -202,6 +203,17 @@ extern void blk_trace_remove_sysfs(struct device *dev);
 extern int blk_trace_init_sysfs(struct device *dev);
 
 extern struct attribute_group blk_trace_attr_group;
+
+struct compat_blk_user_trace_setup {
+	char name[32];
+	u16 act_mask;
+	u32 buf_size;
+	u32 buf_nr;
+	compat_u64 start_lba;
+	compat_u64 end_lba;
+	u32 pid;
+};
+#define BLKTRACESETUP32 _IOWR(0x12, 115, struct compat_blk_user_trace_setup)
 
 #else /* !CONFIG_BLK_DEV_IO_TRACE */
 # define blk_trace_ioctl(bdev, cmd, arg)		(-ENOTTY)

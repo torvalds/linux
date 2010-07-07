@@ -552,6 +552,41 @@ int blk_trace_setup(struct request_queue *q, char *name, dev_t dev,
 }
 EXPORT_SYMBOL_GPL(blk_trace_setup);
 
+#if defined(CONFIG_COMPAT) && defined(CONFIG_X86_64)
+static int compat_blk_trace_setup(struct request_queue *q, char *name,
+				  dev_t dev, struct block_device *bdev,
+				  char __user *arg)
+{
+	struct blk_user_trace_setup buts;
+	struct compat_blk_user_trace_setup cbuts;
+	int ret;
+
+	if (copy_from_user(&cbuts, arg, sizeof(cbuts)))
+		return -EFAULT;
+
+	buts = (struct blk_user_trace_setup) {
+		.act_mask = cbuts.act_mask,
+		.buf_size = cbuts.buf_size,
+		.buf_nr = cbuts.buf_nr,
+		.start_lba = cbuts.start_lba,
+		.end_lba = cbuts.end_lba,
+		.pid = cbuts.pid,
+	};
+	memcpy(&buts.name, &cbuts.name, 32);
+
+	ret = do_blk_trace_setup(q, name, dev, bdev, &buts);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(arg, &buts.name, 32)) {
+		blk_trace_remove(q);
+		return -EFAULT;
+	}
+
+	return 0;
+}
+#endif
+
 int blk_trace_startstop(struct request_queue *q, int start)
 {
 	int ret;
@@ -604,6 +639,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 	if (!q)
 		return -ENXIO;
 
+	lock_kernel();
 	mutex_lock(&bdev->bd_mutex);
 
 	switch (cmd) {
@@ -611,6 +647,12 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 		bdevname(bdev, b);
 		ret = blk_trace_setup(q, b, bdev->bd_dev, bdev, arg);
 		break;
+#if defined(CONFIG_COMPAT) && defined(CONFIG_X86_64)
+	case BLKTRACESETUP32:
+		bdevname(bdev, b);
+		ret = compat_blk_trace_setup(q, b, bdev->bd_dev, bdev, arg);
+		break;
+#endif
 	case BLKTRACESTART:
 		start = 1;
 	case BLKTRACESTOP:
@@ -625,6 +667,7 @@ int blk_trace_ioctl(struct block_device *bdev, unsigned cmd, char __user *arg)
 	}
 
 	mutex_unlock(&bdev->bd_mutex);
+	unlock_kernel();
 	return ret;
 }
 
