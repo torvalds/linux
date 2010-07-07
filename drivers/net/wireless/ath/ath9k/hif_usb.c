@@ -730,13 +730,17 @@ static int ath9k_hif_usb_alloc_urbs(struct hif_device_usb *hif_dev)
 
 	/* RX */
 	if (ath9k_hif_usb_alloc_rx_urbs(hif_dev) < 0)
-		goto err;
+		goto err_rx;
 
 	/* Register Read */
 	if (ath9k_hif_usb_alloc_reg_in_urb(hif_dev) < 0)
-		goto err;
+		goto err_reg;
 
 	return 0;
+err_reg:
+	ath9k_hif_usb_dealloc_rx_urbs(hif_dev);
+err_rx:
+	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
 err:
 	return -ENOMEM;
 }
