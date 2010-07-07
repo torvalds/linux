@@ -272,7 +272,7 @@ static void deallocate_channel(struct fw_card *card, int irm_id,
 }
 
 /**
- * fw_iso_resource_manage - Allocate or deallocate a channel and/or bandwidth
+ * fw_iso_resource_manage() - Allocate or deallocate a channel and/or bandwidth
  *
  * In parameters: card, generation, channels_mask, bandwidth, allocate
  * Out parameters: channel, bandwidth

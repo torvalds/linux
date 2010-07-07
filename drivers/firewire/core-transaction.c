@@ -273,43 +273,49 @@ static int allocate_tlabel(struct fw_card *card)
 }
 
 /**
- * This function provides low-level access to the IEEE1394 transaction
- * logic.  Most C programs would use either fw_read(), fw_write() or
- * fw_lock() instead - those function are convenience wrappers for
- * this function.  The fw_send_request() function is primarily
- * provided as a flexible, one-stop entry point for languages bindings
- * and protocol bindings.
+ * fw_send_request() - submit a request packet for transmission
+ * @card:		interface to send the request at
+ * @t:			transaction instance to which the request belongs
+ * @tcode:		transaction code
+ * @destination_id:	destination node ID, consisting of bus_ID and phy_ID
+ * @generation:		bus generation in which request and response are valid
+ * @speed:		transmission speed
+ * @offset:		48bit wide offset into destination's address space
+ * @payload:		data payload for the request subaction
+ * @length:		length of the payload, in bytes
+ * @callback:		function to be called when the transaction is completed
+ * @callback_data:	data to be passed to the transaction completion callback
  *
- * FIXME: Document this function further, in particular the possible
- * values for rcode in the callback.  In short, we map ACK_COMPLETE to
- * RCODE_COMPLETE, internal errors set errno and set rcode to
- * RCODE_SEND_ERROR (which is out of range for standard ieee1394
- * rcodes).  All other rcodes are forwarded unchanged.  For all
- * errors, payload is NULL, length is 0.
+ * Submit a request packet into the asynchronous request transmission queue.
+ * Can be called from atomic context.  If you prefer a blocking API, use
+ * fw_run_transaction() in a context that can sleep.
  *
- * Can not expect the callback to be called before the function
- * returns, though this does happen in some cases (ACK_COMPLETE and
- * errors).
+ * In case of lock requests, specify one of the firewire-core specific %TCODE_
+ * constants instead of %TCODE_LOCK_REQUEST in @tcode.
  *
- * The payload is only used for write requests and must not be freed
- * until the callback has been called.
+ * Make sure that the value in @destination_id is not older than the one in
+ * @generation.  Otherwise the request is in danger to be sent to a wrong node.
  *
- * @param card the card from which to send the request
- * @param tcode the tcode for this transaction.  Do not use
- *   TCODE_LOCK_REQUEST directly, instead use TCODE_LOCK_MASK_SWAP
- *   etc. to specify tcode and ext_tcode.
- * @param node_id the destination node ID (bus ID and PHY ID concatenated)
- * @param generation the generation for which node_id is valid
- * @param speed the speed to use for sending the request
- * @param offset the 48 bit offset on the destination node
- * @param payload the data payload for the request subaction
- * @param length the length in bytes of the data to read
- * @param callback function to be called when the transaction is completed
- * @param callback_data pointer to arbitrary data, which will be
- *   passed to the callback
- *
- * In case of asynchronous stream packets i.e. TCODE_STREAM_DATA, the caller
+ * In case of asynchronous stream packets i.e. %TCODE_STREAM_DATA, the caller
  * needs to synthesize @destination_id with fw_stream_packet_destination_id().
+ * It will contain tag, channel, and sy data instead of a node ID then.
+ *
+ * The payload buffer at @data is going to be DMA-mapped except in case of
+ * quadlet-sized payload or of local (loopback) requests.  Hence make sure that
+ * the buffer complies with the restrictions for DMA-mapped memory.  The
+ * @payload must not be freed before the @callback is called.
+ *
+ * In case of request types without payload, @data is NULL and @length is 0.
+ *
+ * After the transaction is completed successfully or unsuccessfully, the
+ * @callback will be called.  Among its parameters is the response code which
+ * is either one of the rcodes per IEEE 1394 or, in case of internal errors,
+ * the firewire-core specific %RCODE_SEND_ERROR.
+ *
+ * Note some timing corner cases:  fw_send_request() may complete much earlier
+ * than when the request packet actually hits the wire.  On the other hand,
+ * transaction completion and hence execution of @callback may happen even
+ * before fw_send_request() returns.
  */
 void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 		     int destination_id, int generation, int speed,
@@ -375,9 +381,11 @@ static void transaction_callback(struct fw_card *card, int rcode,
 }
 
 /**
- * fw_run_transaction - send request and sleep until transaction is completed
+ * fw_run_transaction() - send request and sleep until transaction is completed
  *
- * Returns the RCODE.
+ * Returns the RCODE.  See fw_send_request() for parameter documentation.
+ * Unlike fw_send_request(), @data points to the payload of the request or/and
+ * to the payload of the response.
  */
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
@@ -495,9 +503,9 @@ static bool is_in_fcp_region(u64 offset, size_t length)
 }
 
 /**
- * fw_core_add_address_handler - register for incoming requests
- * @handler: callback
- * @region: region in the IEEE 1212 node space address range
+ * fw_core_add_address_handler() - register for incoming requests
+ * @handler:	callback
+ * @region:	region in the IEEE 1212 node space address range
  *
  * region->start, ->end, and handler->length have to be quadlet-aligned.
  *
@@ -552,7 +560,7 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 EXPORT_SYMBOL(fw_core_add_address_handler);
 
 /**
- * fw_core_remove_address_handler - unregister an address handler
+ * fw_core_remove_address_handler() - unregister an address handler
  */
 void fw_core_remove_address_handler(struct fw_address_handler *handler)
 {
