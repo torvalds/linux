@@ -143,10 +143,8 @@ static int pcrypt_aead_encrypt(struct aead_request *req)
 	aead_request_set_assoc(creq, req->assoc, req->assoclen);
 
 	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, pcrypt_enc_padata);
-	if (err)
-		return err;
-	else
-		err = crypto_aead_encrypt(creq);
+	if (!err)
+		return -EINPROGRESS;
 
 	return err;
 }
@@ -187,10 +185,8 @@ static int pcrypt_aead_decrypt(struct aead_request *req)
 	aead_request_set_assoc(creq, req->assoc, req->assoclen);
 
 	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, pcrypt_dec_padata);
-	if (err)
-		return err;
-	else
-		err = crypto_aead_decrypt(creq);
+	if (!err)
+		return -EINPROGRESS;
 
 	return err;
 }
@@ -233,10 +229,8 @@ static int pcrypt_aead_givencrypt(struct aead_givcrypt_request *req)
 	aead_givcrypt_set_giv(creq, req->giv, req->seq);
 
 	err = pcrypt_do_parallel(padata, &ctx->cb_cpu, pcrypt_enc_padata);
-	if (err)
-		return err;
-	else
-		err = crypto_aead_givencrypt(creq);
+	if (!err)
+		return -EINPROGRESS;
 
 	return err;
 }

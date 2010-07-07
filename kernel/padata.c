@@ -111,8 +111,11 @@ int padata_do_parallel(struct padata_instance *pinst,
 
 	pd = rcu_dereference(pinst->pd);
 
-	err = 0;
+	err = -EINVAL;
 	if (!(pinst->flags & PADATA_INIT))
+		goto out;
+
+	if (!cpumask_test_cpu(cb_cpu, pd->cpumask))
 		goto out;
 
 	err =  -EBUSY;
@@ -122,11 +125,7 @@ int padata_do_parallel(struct padata_instance *pinst,
 	if (atomic_read(&pd->refcnt) >= MAX_OBJ_NUM)
 		goto out;
 
-	err = -EINVAL;
-	if (!cpumask_test_cpu(cb_cpu, pd->cpumask))
-		goto out;
-
-	err = -EINPROGRESS;
+	err = 0;
 	atomic_inc(&pd->refcnt);
 	padata->pd = pd;
 	padata->cb_cpu = cb_cpu;
