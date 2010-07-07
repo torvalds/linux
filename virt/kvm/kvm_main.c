@@ -93,8 +93,8 @@ static bool kvm_rebooting;
 
 static bool largepages_enabled = true;
 
-struct page *hwpoison_page;
-pfn_t hwpoison_pfn;
+static struct page *hwpoison_page;
+static pfn_t hwpoison_pfn;
 
 inline int kvm_is_mmio_pfn(pfn_t pfn)
 {
