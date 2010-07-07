@@ -24,7 +24,7 @@
 #define AR7_GPIO_MAX 32
 #define NR_BUILTIN_GPIO AR7_GPIO_MAX
 
-#define gpio_to_irq(gpio)	NULL
+#define gpio_to_irq(gpio)	-1
 
 #define gpio_get_value __gpio_get_value
 #define gpio_set_value __gpio_set_value

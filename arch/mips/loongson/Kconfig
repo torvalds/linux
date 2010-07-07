@@ -23,6 +23,7 @@ config LEMOTE_FULOONG2E
 	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select CPU_HAS_WB
+	select LOONGSON_MC146818
 	help
 	  Lemote Fuloong(2e) mini-PC board based on the Chinese Loongson-2E CPU and
 	  an FPGA northbridge
@@ -51,6 +52,7 @@ config LEMOTE_MACH2F
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_HIGHMEM
 	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select LOONGSON_MC146818
 	help
 	  Lemote Loongson 2F family machines utilize the 2F revision of
 	  Loongson processor and the AMD CS5536 south bridge.
@@ -83,3 +85,7 @@ config LOONGSON_UART_BASE
 	bool
 	default y
 	depends on EARLY_PRINTK || SERIAL_8250
+
+config LOONGSON_MC146818
+	bool
+	default n
