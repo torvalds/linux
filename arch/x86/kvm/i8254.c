@@ -696,6 +696,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 
 	pit->wq = create_singlethread_workqueue("kvm-pit-wq");
 	if (!pit->wq) {
+		mutex_unlock(&pit->pit_state.lock);
 		kfree(pit);
 		return NULL;
 	}
