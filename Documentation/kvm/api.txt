@@ -126,6 +126,10 @@ user fills in the size of the indices array in nmsrs, and in return
 kvm adjusts nmsrs to reflect the actual number of msrs and fills in
 the indices array with their numbers.
 
+Note: if kvm indicates supports MCE (KVM_CAP_MCE), then the MCE bank MSRs are
+not returned in the MSR list, as different vcpus can have a different number
+of banks, as set via the KVM_X86_SETUP_MCE ioctl.
+
 4.4 KVM_CHECK_EXTENSION
 
 Capability: basic
