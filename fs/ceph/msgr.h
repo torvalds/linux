@@ -1,5 +1,5 @@
-#ifndef __MSGR_H
-#define __MSGR_H
+#ifndef CEPH_MSGR_H
+#define CEPH_MSGR_H
 
 /*
  * Data types for message passing layer used by Ceph.

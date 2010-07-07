@@ -1,5 +1,5 @@
-#ifndef __RADOS_H
-#define __RADOS_H
+#ifndef CEPH_RADOS_H
+#define CEPH_RADOS_H
 
 /*
  * Data types for the Ceph distributed object storage layer RADOS
