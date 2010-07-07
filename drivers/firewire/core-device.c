@@ -1136,6 +1136,7 @@ static void fw_device_refresh(struct work_struct *work)
 		goto give_up;
 	}
 
+	fw_device_cdev_update(device);
 	create_units(device);
 
 	/* Userspace may want to re-read attributes. */
