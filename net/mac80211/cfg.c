@@ -143,6 +143,11 @@ static int ieee80211_add_key(struct wiphy *wiphy, struct net_device *dev,
 		return -EINVAL;
 	}
 
+	/* reject WEP and TKIP keys if WEP failed to initialize */
+	if ((alg == ALG_WEP || alg == ALG_TKIP) &&
+	    IS_ERR(sdata->local->wep_tx_tfm))
+		return -EINVAL;
+
 	key = ieee80211_key_alloc(alg, key_idx, params->key_len, params->key,
 				  params->seq_len, params->seq);
 	if (!key)
