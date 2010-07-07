@@ -472,26 +472,21 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 			gpe_event_info = &gpe_block->event_info[gpe_index];
 			gpe_number = gpe_index + gpe_block->block_base_number;
 
-			/*
-			 * If the GPE has already been enabled for runtime
-			 * signaling, make sure it remains enabled, but do not
-			 * increment its reference counter.
-			 */
-			if (gpe_event_info->runtime_count) {
-				status = acpi_ev_enable_gpe(gpe_event_info);
-				goto enabled;
-			}
-
 			/* Ignore GPEs that have no corresponding _Lxx/_Exx method */
 
 			if (!(gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD)) {
 				continue;
 			}
 
-			/* Enable this GPE */
+			/*
+			 * If the GPE has already been enabled for runtime
+			 * signaling, make sure it remains enabled, but do not
+			 * increment its reference counter.
+			 */
+			status = gpe_event_info->runtime_count ?
+				acpi_ev_enable_gpe(gpe_event_info) :
+				acpi_enable_gpe(gpe_device, gpe_number);
 
-			status = acpi_enable_gpe(gpe_device, gpe_number);
-		      enabled:
 			if (ACPI_FAILURE(status)) {
 				ACPI_EXCEPTION((AE_INFO, status,
 						"Could not enable GPE 0x%02X",
