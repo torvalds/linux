@@ -2420,6 +2420,15 @@ static void gfar_timeout(struct net_device *dev)
 	schedule_work(&priv->reset_task);
 }
 
+static void gfar_align_skb(struct sk_buff *skb)
+{
+	/* We need the data buffer to be aligned properly.  We will reserve
+	 * as many bytes as needed to align the data properly
+	 */
+	skb_reserve(skb, RXBUF_ALIGNMENT -
+		(((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1)));
+}
+
 /* Interrupt Handler for Transmit complete */
 static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 {
@@ -2504,9 +2513,10 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 		 */
 		if (skb_queue_len(&priv->rx_recycle) < rx_queue->rx_ring_size &&
 				skb_recycle_check(skb, priv->rx_buffer_size +
-					RXBUF_ALIGNMENT))
+					RXBUF_ALIGNMENT)) {
+			gfar_align_skb(skb);
 			__skb_queue_head(&priv->rx_recycle, skb);
-		else
+		} else
 			dev_kfree_skb_any(skb);
 
 		tx_queue->tx_skbuff[skb_dirtytx] = NULL;
@@ -2569,29 +2579,28 @@ static void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 	gfar_init_rxbdp(rx_queue, bdp, buf);
 }
 
+static struct sk_buff * gfar_alloc_skb(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+	struct sk_buff *skb = NULL;
+
+	skb = netdev_alloc_skb(dev, priv->rx_buffer_size + RXBUF_ALIGNMENT);
+	if (!skb)
+		return NULL;
+
+	gfar_align_skb(skb);
+
+	return skb;
+}
 
 struct sk_buff * gfar_new_skb(struct net_device *dev)
 {
-	unsigned int alignamount;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct sk_buff *skb = NULL;
 
 	skb = __skb_dequeue(&priv->rx_recycle);
 	if (!skb)
-		skb = netdev_alloc_skb(dev,
-				priv->rx_buffer_size + RXBUF_ALIGNMENT);
-
-	if (!skb)
-		return NULL;
-
-	alignamount = RXBUF_ALIGNMENT -
-		(((unsigned long) skb->data) & (RXBUF_ALIGNMENT - 1));
-
-	/* We need the data buffer to be aligned properly.  We will reserve
-	 * as many bytes as needed to align the data properly
-	 */
-	skb_reserve(skb, alignamount);
-	GFAR_CB(skb)->alignamount = alignamount;
+		skb = gfar_alloc_skb(dev);
 
 	return skb;
 }
@@ -2744,17 +2753,8 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 
 			if (unlikely(!newskb))
 				newskb = skb;
-			else if (skb) {
-				/*
-				 * We need to un-reserve() the skb to what it
-				 * was before gfar_new_skb() re-aligned
-				 * it to an RXBUF_ALIGNMENT boundary
-				 * before we put the skb back on the
-				 * recycle list.
-				 */
-				skb_reserve(skb, -GFAR_CB(skb)->alignamount);
+			else if (skb)
 				__skb_queue_head(&priv->rx_recycle, skb);
-			}
 		} else {
 			/* Increment the number of packets */
 			rx_queue->stats.rx_packets++;
