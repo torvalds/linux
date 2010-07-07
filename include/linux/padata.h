@@ -67,7 +67,6 @@ struct padata_list {
  * @pwork: work struct for parallelization.
  * @swork: work struct for serialization.
  * @pd: Backpointer to the internal control structure.
- * @num_obj: Number of objects that are processed by this cpu.
  * @cpu_index: Index of the cpu.
  */
 struct padata_queue {
@@ -77,7 +76,6 @@ struct padata_queue {
 	struct work_struct	pwork;
 	struct work_struct	swork;
 	struct parallel_data    *pd;
-	atomic_t		num_obj;
 	int			cpu_index;
 };
 
@@ -93,6 +91,7 @@ struct padata_queue {
  * @max_seq_nr:  Maximal used sequence number.
  * @cpumask: cpumask in use.
  * @lock: Reorder lock.
+ * @processed: Number of already processed objects.
  * @timer: Reorder timer.
  */
 struct parallel_data {
@@ -103,7 +102,8 @@ struct parallel_data {
 	atomic_t                refcnt;
 	unsigned int		max_seq_nr;
 	cpumask_var_t		cpumask;
-	spinlock_t              lock;
+	spinlock_t              lock ____cacheline_aligned;
+	unsigned int            processed;
 	struct timer_list       timer;
 };
 

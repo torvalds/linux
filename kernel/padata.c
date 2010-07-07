@@ -170,59 +170,32 @@ EXPORT_SYMBOL(padata_do_parallel);
  */
 static struct padata_priv *padata_get_next(struct parallel_data *pd)
 {
-	int cpu, num_cpus, empty, calc_seq_nr;
-	int seq_nr, next_nr, overrun, next_overrun;
+	int cpu, num_cpus;
+	int next_nr, next_index;
 	struct padata_queue *queue, *next_queue;
 	struct padata_priv *padata;
 	struct padata_list *reorder;
 
-	empty = 0;
-	next_nr = -1;
-	next_overrun = 0;
-	next_queue = NULL;
-
 	num_cpus = cpumask_weight(pd->cpumask);
 
-	for_each_cpu(cpu, pd->cpumask) {
-		queue = per_cpu_ptr(pd->queue, cpu);
-		reorder = &queue->reorder;
+	/*
+	 * Calculate the percpu reorder queue and the sequence
+	 * number of the next object.
+	 */
+	next_nr = pd->processed;
+	next_index = next_nr % num_cpus;
+	cpu = padata_index_to_cpu(pd, next_index);
+	next_queue = per_cpu_ptr(pd->queue, cpu);
 
-		/*
-		 * Calculate the seq_nr of the object that should be
-		 * next in this reorder queue.
-		 */
-		overrun = 0;
-		calc_seq_nr = (atomic_read(&queue->num_obj) * num_cpus)
-			       + queue->cpu_index;
-
-		if (unlikely(calc_seq_nr > pd->max_seq_nr)) {
-			calc_seq_nr = calc_seq_nr - pd->max_seq_nr - 1;
-			overrun = 1;
-		}
-
-		if (!list_empty(&reorder->list)) {
-			padata = list_entry(reorder->list.next,
-					    struct padata_priv, list);
-
-			seq_nr  = padata->seq_nr;
-			BUG_ON(calc_seq_nr != seq_nr);
-		} else {
-			seq_nr = calc_seq_nr;
-			empty++;
-		}
-
-		if (next_nr < 0 || seq_nr < next_nr
-		    || (next_overrun && !overrun)) {
-			next_nr = seq_nr;
-			next_overrun = overrun;
-			next_queue = queue;
-		}
+	if (unlikely(next_nr > pd->max_seq_nr)) {
+		next_nr = next_nr - pd->max_seq_nr - 1;
+		next_index = next_nr % num_cpus;
+		cpu = padata_index_to_cpu(pd, next_index);
+		next_queue = per_cpu_ptr(pd->queue, cpu);
+		pd->processed = 0;
 	}
 
 	padata = NULL;
-
-	if (empty == num_cpus)
-		goto out;
 
 	reorder = &next_queue->reorder;
 
@@ -230,19 +203,14 @@ static struct padata_priv *padata_get_next(struct parallel_data *pd)
 		padata = list_entry(reorder->list.next,
 				    struct padata_priv, list);
 
-		if (unlikely(next_overrun)) {
-			for_each_cpu(cpu, pd->cpumask) {
-				queue = per_cpu_ptr(pd->queue, cpu);
-				atomic_set(&queue->num_obj, 0);
-			}
-		}
+		BUG_ON(next_nr != padata->seq_nr);
 
 		spin_lock(&reorder->lock);
 		list_del_init(&padata->list);
 		atomic_dec(&pd->reorder_objects);
 		spin_unlock(&reorder->lock);
 
-		atomic_inc(&next_queue->num_obj);
+		pd->processed++;
 
 		goto out;
 	}
@@ -430,7 +398,6 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 
 		INIT_WORK(&queue->pwork, padata_parallel_worker);
 		INIT_WORK(&queue->swork, padata_serial_worker);
-		atomic_set(&queue->num_obj, 0);
 	}
 
 	num_cpus = cpumask_weight(pd->cpumask);
