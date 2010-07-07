@@ -33,6 +33,7 @@
 #include "intel_drv.h"
 #include "i915_drm.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 #include "drm_dp_helper.h"
 
 #include "drm_crtc_helper.h"
@@ -4650,6 +4651,8 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	    atomic_dec_and_test(&obj_priv->pending_flip))
 		DRM_WAKEUP(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
+
+	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
 }
 
 void intel_finish_page_flip(struct drm_device *dev, int pipe)
@@ -4780,6 +4783,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	ADVANCE_LP_RING();
 
 	mutex_unlock(&dev->struct_mutex);
+
+	trace_i915_flip_request(intel_crtc->plane, obj);
 
 	return 0;
 }

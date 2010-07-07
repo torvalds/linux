@@ -34,6 +34,7 @@
  */
 
 #include "drmP.h"
+#include "drm_trace.h"
 
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/slab.h>
@@ -590,6 +591,7 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 		return -ENOMEM;
 
 	e->pipe = pipe;
+	e->base.pid = current->pid;
 	e->event.base.type = DRM_EVENT_VBLANK;
 	e->event.base.length = sizeof e->event;
 	e->event.user_data = vblwait->request.signal;
@@ -617,6 +619,9 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 	DRM_DEBUG("event on vblank count %d, current %d, crtc %d\n",
 		  vblwait->request.sequence, seq, pipe);
 
+	trace_drm_vblank_event_queued(current->pid, pipe,
+				      vblwait->request.sequence);
+
 	e->event.sequence = vblwait->request.sequence;
 	if ((seq - vblwait->request.sequence) <= (1 << 23)) {
 		e->event.tv_sec = now.tv_sec;
@@ -624,6 +629,8 @@ static int drm_queue_vblank_event(struct drm_device *dev, int pipe,
 		drm_vblank_put(dev, e->pipe);
 		list_add_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
+		trace_drm_vblank_event_delivered(current->pid, pipe,
+						 vblwait->request.sequence);
 	} else {
 		list_add_tail(&e->base.link, &dev->vblank_event_list);
 	}
@@ -754,9 +761,13 @@ void drm_handle_vblank_events(struct drm_device *dev, int crtc)
 		drm_vblank_put(dev, e->pipe);
 		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
+		trace_drm_vblank_event_delivered(e->base.pid, e->pipe,
+						 e->event.sequence);
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	trace_drm_vblank_event(crtc, seq);
 }
 
 /**
