@@ -2078,7 +2078,9 @@ static int kvm_handle_bad_page(struct kvm *kvm, gfn_t gfn, pfn_t pfn)
 	if (is_hwpoison_pfn(pfn)) {
 		kvm_send_hwpoison_signal(kvm, gfn);
 		return 0;
-	}
+	} else if (is_fault_pfn(pfn))
+		return -EFAULT;
+
 	return 1;
 }
 

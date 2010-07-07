@@ -96,6 +96,9 @@ static bool largepages_enabled = true;
 static struct page *hwpoison_page;
 static pfn_t hwpoison_pfn;
 
+static struct page *fault_page;
+static pfn_t fault_pfn;
+
 inline int kvm_is_mmio_pfn(pfn_t pfn)
 {
 	if (pfn_valid(pfn)) {
@@ -815,13 +818,13 @@ EXPORT_SYMBOL_GPL(kvm_disable_largepages);
 
 int is_error_page(struct page *page)
 {
-	return page == bad_page || page == hwpoison_page;
+	return page == bad_page || page == hwpoison_page || page == fault_page;
 }
 EXPORT_SYMBOL_GPL(is_error_page);
 
 int is_error_pfn(pfn_t pfn)
 {
-	return pfn == bad_pfn || pfn == hwpoison_pfn;
+	return pfn == bad_pfn || pfn == hwpoison_pfn || pfn == fault_pfn;
 }
 EXPORT_SYMBOL_GPL(is_error_pfn);
 
@@ -830,6 +833,12 @@ int is_hwpoison_pfn(pfn_t pfn)
 	return pfn == hwpoison_pfn;
 }
 EXPORT_SYMBOL_GPL(is_hwpoison_pfn);
+
+int is_fault_pfn(pfn_t pfn)
+{
+	return pfn == fault_pfn;
+}
+EXPORT_SYMBOL_GPL(is_fault_pfn);
 
 static inline unsigned long bad_hva(void)
 {
@@ -959,8 +968,8 @@ static pfn_t hva_to_pfn(struct kvm *kvm, unsigned long addr)
 		if (vma == NULL || addr < vma->vm_start ||
 		    !(vma->vm_flags & VM_PFNMAP)) {
 			up_read(&current->mm->mmap_sem);
-			get_page(bad_page);
-			return page_to_pfn(bad_page);
+			get_page(fault_page);
+			return page_to_pfn(fault_page);
 		}
 
 		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
@@ -2226,6 +2235,15 @@ int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 
 	hwpoison_pfn = page_to_pfn(hwpoison_page);
 
+	fault_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+
+	if (fault_page == NULL) {
+		r = -ENOMEM;
+		goto out_free_0;
+	}
+
+	fault_pfn = page_to_pfn(fault_page);
+
 	if (!zalloc_cpumask_var(&cpus_hardware_enabled, GFP_KERNEL)) {
 		r = -ENOMEM;
 		goto out_free_0;
@@ -2298,6 +2316,8 @@ out_free_1:
 out_free_0a:
 	free_cpumask_var(cpus_hardware_enabled);
 out_free_0:
+	if (fault_page)
+		__free_page(fault_page);
 	if (hwpoison_page)
 		__free_page(hwpoison_page);
 	__free_page(bad_page);
