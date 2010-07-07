@@ -108,6 +108,8 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	u8 *xprth = skb_network_header(skb) + iph->ihl * 4;
 
 	memset(fl, 0, sizeof(struct flowi));
+	fl->mark = skb->mark;
+
 	if (!(iph->frag_off & htons(IP_MF | IP_OFFSET))) {
 		switch (iph->protocol) {
 		case IPPROTO_UDP:
