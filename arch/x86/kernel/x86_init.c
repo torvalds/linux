@@ -5,6 +5,7 @@
  */
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/module.h>
 
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
@@ -94,3 +95,5 @@ struct x86_platform_ops x86_platform = {
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init
 };
+
+EXPORT_SYMBOL_GPL(x86_platform);
