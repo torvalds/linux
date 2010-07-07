@@ -209,8 +209,6 @@ static inline int dvb_isoc_copy(struct cx231xx *dev, struct urb *urb)
 
 static inline int dvb_bulk_copy(struct cx231xx *dev, struct urb *urb)
 {
-	int i;
-
 	if (!dev)
 		return 0;
 
