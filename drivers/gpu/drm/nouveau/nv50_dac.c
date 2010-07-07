@@ -257,6 +257,12 @@ nv50_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	nv_encoder->crtc = encoder->crtc;
 }
 
+static struct drm_crtc *
+nv50_dac_crtc_get(struct drm_encoder *encoder)
+{
+	return nouveau_encoder(encoder)->crtc;
+}
+
 static const struct drm_encoder_helper_funcs nv50_dac_helper_funcs = {
 	.dpms = nv50_dac_dpms,
 	.save = nv50_dac_save,
@@ -265,6 +271,7 @@ static const struct drm_encoder_helper_funcs nv50_dac_helper_funcs = {
 	.prepare = nv50_dac_prepare,
 	.commit = nv50_dac_commit,
 	.mode_set = nv50_dac_mode_set,
+	.get_crtc = nv50_dac_crtc_get,
 	.detect = nv50_dac_detect,
 	.disable = nv50_dac_disconnect
 };
