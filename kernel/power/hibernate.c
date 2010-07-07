@@ -330,7 +330,7 @@ int hibernation_snapshot(int platform_mode)
 
 	error = platform_begin(platform_mode);
 	if (error)
-		return error;
+		goto Close;
 
 	/* Preallocate image memory before shutting down devices. */
 	error = hibernate_preallocate_memory();
