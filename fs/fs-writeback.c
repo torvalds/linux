@@ -26,14 +26,8 @@
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>
 #include <linux/buffer_head.h>
+#include <linux/tracepoint.h>
 #include "internal.h"
-
-#define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
-
-/*
- * We don't actually have pdflush, but this one is exported though /proc...
- */
-int nr_pdflush_threads;
 
 /*
  * Passed into wb_writeback(), essentially a subset of writeback_control
@@ -50,6 +44,21 @@ struct wb_writeback_work {
 	struct completion *done;	/* set if the caller waits */
 };
 
+/*
+ * Include the creation of the trace points after defining the
+ * wb_writeback_work structure so that the definition remains local to this
+ * file.
+ */
+#define CREATE_TRACE_POINTS
+#include <trace/events/writeback.h>
+
+#define inode_to_bdi(inode)	((inode)->i_mapping->backing_dev_info)
+
+/*
+ * We don't actually have pdflush, but this one is exported though /proc...
+ */
+int nr_pdflush_threads;
+
 /**
  * writeback_in_progress - determine whether there is writeback in progress
  * @bdi: the device's backing_dev_info structure.
@@ -65,6 +74,8 @@ int writeback_in_progress(struct backing_dev_info *bdi)
 static void bdi_queue_work(struct backing_dev_info *bdi,
 		struct wb_writeback_work *work)
 {
+	trace_writeback_queue(bdi, work);
+
 	spin_lock(&bdi->wb_lock);
 	list_add_tail(&work->list, &bdi->work_list);
 	spin_unlock(&bdi->wb_lock);
@@ -74,6 +85,7 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
 	 * it gets created and wakes up, we'll run this work.
 	 */
 	if (unlikely(!bdi->wb.task)) {
+		trace_writeback_nothread(bdi, work);
 		wake_up_process(default_backing_dev_info.wb.task);
 	} else {
 		struct bdi_writeback *wb = &bdi->wb;
@@ -95,8 +107,10 @@ __bdi_start_writeback(struct backing_dev_info *bdi, long nr_pages,
 	 */
 	work = kzalloc(sizeof(*work), GFP_ATOMIC);
 	if (!work) {
-		if (bdi->wb.task)
+		if (bdi->wb.task) {
+			trace_writeback_nowork(bdi);
 			wake_up_process(bdi->wb.task);
+		}
 		return;
 	}
 
@@ -751,6 +765,8 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		if (force_wait)
 			work->sync_mode = WB_SYNC_ALL;
 
+		trace_writeback_exec(bdi, work);
+
 		wrote += wb_writeback(wb, work);
 
 		/*
@@ -805,8 +821,12 @@ int bdi_writeback_thread(void *data)
 	smp_mb__after_clear_bit();
 	wake_up_bit(&bdi->state, BDI_pending);
 
+	trace_writeback_thread_start(bdi);
+
 	while (!kthread_should_stop()) {
 		pages_written = wb_do_writeback(wb, 0);
+
+		trace_writeback_pages_written(pages_written);
 
 		if (pages_written)
 			last_active = jiffies;
@@ -845,6 +865,8 @@ int bdi_writeback_thread(void *data)
 	 */
 	if (!list_empty(&bdi->work_list))
 		wb_do_writeback(wb, 1);
+
+	trace_writeback_thread_stop(bdi);
 	return 0;
 }
 
