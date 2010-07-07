@@ -439,8 +439,6 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 {
 	acpi_status status;
 	struct acpi_gpe_event_info *gpe_event_info;
-	struct acpi_gpe_walk_info walk_info;
-	u32 wake_gpe_count;
 	u32 gpe_enabled_count;
 	u32 gpe_index;
 	u32 gpe_number;
@@ -456,37 +454,9 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 	}
 
 	/*
-	 * Runtime option: Should wake GPEs be enabled at runtime?  The default
-	 * is no, they should only be enabled just as the machine goes to sleep.
+	 * Enable all GPEs that have a corresponding method.  Any other GPEs
+	 * within this block must be enabled via the acpi_enable_gpe interface.
 	 */
-	if (acpi_gbl_leave_wake_gpes_disabled) {
-		/*
-		 * Differentiate runtime vs wake GPEs, via the _PRW control methods.
-		 * Each GPE that has one or more _PRWs that reference it is by
-		 * definition a wake GPE and will not be enabled while the machine
-		 * is running.
-		 */
-		walk_info.gpe_block = gpe_block;
-		walk_info.gpe_device = gpe_device;
-		walk_info.execute_by_owner_id = FALSE;
-
-		status =
-		    acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-					   ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
-					   acpi_ev_match_prw_and_gpe, NULL,
-					   &walk_info, NULL);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"While executing _PRW methods"));
-		}
-	}
-
-	/*
-	 * Enable all GPEs that have a corresponding method and are not
-	 * capable of generating wakeups. Any other GPEs within this block
-	 * must be enabled via the acpi_enable_gpe interface.
-	 */
-	wake_gpe_count = 0;
 	gpe_enabled_count = 0;
 
 	if (gpe_device == acpi_gbl_fadt_gpe_device) {
@@ -512,13 +482,6 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 				goto enabled;
 			}
 
-			if (gpe_event_info->flags & ACPI_GPE_CAN_WAKE) {
-				wake_gpe_count++;
-				if (acpi_gbl_leave_wake_gpes_disabled) {
-					continue;
-				}
-			}
-
 			/* Ignore GPEs that have no corresponding _Lxx/_Exx method */
 
 			if (!(gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD)) {
@@ -540,10 +503,10 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 		}
 	}
 
-	if (gpe_enabled_count || wake_gpe_count) {
+	if (gpe_enabled_count) {
 		ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-				  "Enabled %u Runtime GPEs, added %u Wake GPEs in this block\n",
-				  gpe_enabled_count, wake_gpe_count));
+				  "Enabled %u GPEs in this block\n",
+				  gpe_enabled_count));
 	}
 
 	return_ACPI_STATUS(AE_OK);

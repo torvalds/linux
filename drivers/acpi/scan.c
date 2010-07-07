@@ -740,6 +740,8 @@ acpi_bus_extract_wakeup_device_power_package(struct acpi_device *device,
 		device->wakeup.resources.handles[i] = element->reference.handle;
 	}
 
+	acpi_gpe_can_wake(device->wakeup.gpe_device, device->wakeup.gpe_number);
+
 	return AE_OK;
 }
 

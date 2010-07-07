@@ -389,6 +389,59 @@ ACPI_EXPORT_SYMBOL(acpi_disable_gpe)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_gpe_can_wake
+ *
+ * PARAMETERS:  gpe_device      - Parent GPE Device. NULL for GPE0/GPE1
+ *              gpe_number      - GPE level within the GPE block
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Set the ACPI_GPE_CAN_WAKE flag for the given GPE.  If the GPE
+ *              has a corresponding method and is currently enabled, disable it
+ *              (GPEs with corresponding methods are enabled unconditionally
+ *              during initialization, but GPEs that can wake up are expected
+ *              to be initially disabled).
+ *
+ ******************************************************************************/
+acpi_status acpi_gpe_can_wake(acpi_handle gpe_device, u32 gpe_number)
+{
+	acpi_status status = AE_OK;
+	struct acpi_gpe_event_info *gpe_event_info;
+	acpi_cpu_flags flags;
+	u8 disable = 0;
+
+	ACPI_FUNCTION_TRACE(acpi_gpe_can_wake);
+
+	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
+
+	/* Ensure that we have a valid GPE number */
+
+	gpe_event_info = acpi_ev_get_gpe_event_info(gpe_device, gpe_number);
+	if (!gpe_event_info) {
+		status = AE_BAD_PARAMETER;
+		goto unlock_and_exit;
+	}
+
+	if (gpe_event_info->flags & ACPI_GPE_CAN_WAKE) {
+		goto unlock_and_exit;
+	}
+
+	gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
+	disable = (gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD)
+		&& gpe_event_info->runtime_count;
+
+unlock_and_exit:
+	acpi_os_release_lock(acpi_gbl_gpe_lock, flags);
+
+	if (disable)
+		status = acpi_disable_gpe(gpe_device, gpe_number);
+
+	return_ACPI_STATUS(status);
+}
+ACPI_EXPORT_SYMBOL(acpi_gpe_can_wake)
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_disable_event
  *
  * PARAMETERS:  Event           - The fixed eventto be enabled
@@ -703,7 +756,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 	obj_desc->device.gpe_block = gpe_block;
 
-	/* Run the _PRW methods and enable the runtime GPEs in the new block */
+	/* Enable the runtime GPEs in the new block */
 
 	status = acpi_ev_initialize_gpe_block(node, gpe_block);
 
