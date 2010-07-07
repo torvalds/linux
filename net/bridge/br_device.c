@@ -98,10 +98,10 @@ static int br_dev_stop(struct net_device *dev)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev)
+static struct rtnl_link_stats64 *br_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *stats)
 {
 	struct net_bridge *br = netdev_priv(dev);
-	struct rtnl_link_stats64 *stats = &dev->stats64;
 	struct br_cpu_netstats tmp, sum = { 0 };
 	unsigned int cpu;
 

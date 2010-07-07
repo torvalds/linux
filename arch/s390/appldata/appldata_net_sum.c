@@ -85,7 +85,8 @@ static void appldata_get_net_sum_data(void *data)
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
-		const struct net_device_stats *stats = dev_get_stats(dev);
+		struct rtnl_link_stats64 temp;
+		const struct net_device_stats *stats = dev_get_stats(dev, &temp);
 
 		rx_packets += stats->rx_packets;
 		tx_packets += stats->tx_packets;

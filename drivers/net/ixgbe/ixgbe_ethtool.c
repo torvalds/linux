@@ -55,7 +55,7 @@ struct ixgbe_stats {
 				offsetof(struct ixgbe_adapter, m)
 #define IXGBE_NETDEV_STAT(m)	NETDEV_STATS, \
 				sizeof(((struct net_device *)0)->m), \
-				offsetof(struct net_device, m)
+				offsetof(struct net_device, m) - offsetof(struct net_device, stats)
 
 static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBE_NETDEV_STAT(stats.rx_packets)},
@@ -998,16 +998,18 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u64 *queue_stat;
 	int stat_count = sizeof(struct ixgbe_queue_stats) / sizeof(u64);
+	struct rtnl_link_stats64 temp;
+	const struct rtnl_link_stats64 *net_stats;
 	int j, k;
 	int i;
 	char *p = NULL;
 
 	ixgbe_update_stats(adapter);
-	dev_get_stats(netdev);
+	net_stats = dev_get_stats(netdev, &temp);
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
 		switch (ixgbe_gstrings_stats[i].type) {
 		case NETDEV_STATS:
-			p = (char *) netdev +
+			p = (char *) net_stats +
 					ixgbe_gstrings_stats[i].stat_offset;
 			break;
 		case IXGBE_STATS:

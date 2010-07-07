@@ -171,6 +171,7 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	int			i, count;
 	rndis_query_cmplt_type	*resp;
 	struct net_device	*net;
+	struct rtnl_link_stats64 temp;
 	const struct rtnl_link_stats64 *stats;
 
 	if (!r) return -ENOMEM;
@@ -194,7 +195,7 @@ gen_ndis_query_resp (int configNr, u32 OID, u8 *buf, unsigned buf_len,
 	resp->InformationBufferOffset = cpu_to_le32 (16);
 
 	net = rndis_per_dev_params[configNr].dev;
-	stats = dev_get_stats(net);
+	stats = dev_get_stats(net, &temp);
 
 	switch (OID) {
 
