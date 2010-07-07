@@ -253,6 +253,7 @@ extern const char *ceph_mds_state_name(int s);
 #define CEPH_LOCK_IDFT        512   /* dir frag tree */
 #define CEPH_LOCK_INEST       1024  /* mds internal */
 #define CEPH_LOCK_IXATTR      2048
+#define CEPH_LOCK_IFLOCK      4096  /* advisory file locks */
 #define CEPH_LOCK_INO         8192  /* immutable inode bits; not a lock */
 
 /* client_session ops */

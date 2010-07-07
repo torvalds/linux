@@ -28,6 +28,7 @@ const char *ceph_osd_op_name(int op)
 	case CEPH_OSD_OP_TRUNCATE: return "truncate";
 	case CEPH_OSD_OP_ZERO: return "zero";
 	case CEPH_OSD_OP_WRITEFULL: return "writefull";
+	case CEPH_OSD_OP_ROLLBACK: return "rollback";
 
 	case CEPH_OSD_OP_APPEND: return "append";
 	case CEPH_OSD_OP_STARTSYNC: return "startsync";
