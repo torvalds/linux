@@ -116,6 +116,9 @@ static void pseries_mach_cpu_die(void)
 
 	if (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
 		set_cpu_current_state(cpu, CPU_STATE_INACTIVE);
+		if (ppc_md.suspend_disable_cpu)
+			ppc_md.suspend_disable_cpu();
+
 		cede_latency_hint = 2;
 
 		get_lppaca()->idle = 1;
