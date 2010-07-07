@@ -210,6 +210,17 @@ config KERNEL_DEBUGGER_CORE
 	  Generic kernel debugging command processor used by low level
 	  (interrupt context) platform-specific debuggers.
 
+config MDM6600_CTRL
+       bool "Motorola Modem Controller"
+       default n
+       ---help---
+	  Enables the device driver to control and interface with
+	  the modem co-processor.  This module is needed to monitor
+	  modem panics, interact with the modem during factory resets,
+	  and allow modem power up/down support.
+
+	  If unsure, say N.
+
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
 	depends on NET
