@@ -197,10 +197,8 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
 
-		lock_kernel();
 		fsync_bdev(bdev);
 		invalidate_bdev(bdev);
-		unlock_kernel();
 		return 0;
 
 	case BLKROSET:
@@ -212,9 +210,7 @@ int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			return -EACCES;
 		if (get_user(n, (int __user *)(arg)))
 			return -EFAULT;
-		lock_kernel();
 		set_device_ro(bdev, n);
-		unlock_kernel();
 		return 0;
 
 	case BLKDISCARD: {
