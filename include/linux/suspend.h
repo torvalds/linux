@@ -61,14 +61,15 @@ typedef int __bitwise suspend_state_t;
  *	before device drivers' late suspend callbacks are executed.  It returns
  *	0 on success or a negative error code otherwise, in which case the
  *	system cannot enter the desired sleep state (@prepare_late(), @enter(),
- *	@wake(), and @finish() will not be called in that case).
+ *	and @wake() will not be called in that case).
  *
  * @prepare_late: Finish preparing the platform for entering the system sleep
  *	state indicated by @begin().
  *	@prepare_late is called before disabling nonboot CPUs and after
  *	device drivers' late suspend callbacks have been executed.  It returns
  *	0 on success or a negative error code otherwise, in which case the
- *	system cannot enter the desired sleep state (@enter() and @wake()).
+ *	system cannot enter the desired sleep state (@enter() will not be
+ *	executed).
  *
  * @enter: Enter the system sleep state indicated by @begin() or represented by
  *	the argument if @begin() is not implemented.
@@ -81,14 +82,15 @@ typedef int __bitwise suspend_state_t;
  *	resume callbacks are executed.
  *	This callback is optional, but should be implemented by the platforms
  *	that implement @prepare_late().  If implemented, it is always called
- *	after @enter(), even if @enter() fails.
+ *	after @prepare_late and @enter(), even if one of them fails.
  *
  * @finish: Finish wake-up of the platform.
  *	@finish is called right prior to calling device drivers' regular suspend
  *	callbacks.
  *	This callback is optional, but should be implemented by the platforms
  *	that implement @prepare().  If implemented, it is always called after
- *	@enter() and @wake(), if implemented, even if any of them fails.
+ *	@enter() and @wake(), even if any of them fails.  It is executed after
+ *	a failing @prepare.
  *
  * @end: Called by the PM core right after resuming devices, to indicate to
  *	the platform that the system has returned to the working state or
