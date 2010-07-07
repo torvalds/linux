@@ -516,10 +516,25 @@ static void padata_replace(struct padata_instance *pinst,
 
 	synchronize_rcu();
 
-	padata_flush_queues(pd_old);
-	padata_free_pd(pd_old);
+	if (pd_old) {
+		padata_flush_queues(pd_old);
+		padata_free_pd(pd_old);
+	}
 
 	pinst->flags &= ~PADATA_RESET;
+}
+
+/* If cpumask contains no active cpu, we mark the instance as invalid. */
+static bool padata_validate_cpumask(struct padata_instance *pinst,
+				    const struct cpumask *cpumask)
+{
+	if (!cpumask_intersects(cpumask, cpu_active_mask)) {
+		pinst->flags |= PADATA_INVALID;
+		return false;
+	}
+
+	pinst->flags &= ~PADATA_INVALID;
+	return true;
 }
 
 /**
@@ -531,10 +546,17 @@ static void padata_replace(struct padata_instance *pinst,
 int padata_set_cpumask(struct padata_instance *pinst,
 			cpumask_var_t cpumask)
 {
-	struct parallel_data *pd;
+	int valid;
 	int err = 0;
+	struct parallel_data *pd = NULL;
 
 	mutex_lock(&pinst->lock);
+
+	valid = padata_validate_cpumask(pinst, cpumask);
+	if (!valid) {
+		__padata_stop(pinst);
+		goto out_replace;
+	}
 
 	get_online_cpus();
 
@@ -544,9 +566,13 @@ int padata_set_cpumask(struct padata_instance *pinst,
 		goto out;
 	}
 
+out_replace:
 	cpumask_copy(pinst->cpumask, cpumask);
 
 	padata_replace(pinst, pd);
+
+	if (valid)
+		__padata_start(pinst);
 
 out:
 	put_online_cpus();
@@ -567,6 +593,9 @@ static int __padata_add_cpu(struct padata_instance *pinst, int cpu)
 			return -ENOMEM;
 
 		padata_replace(pinst, pd);
+
+		if (padata_validate_cpumask(pinst, pinst->cpumask))
+			__padata_start(pinst);
 	}
 
 	return 0;
@@ -597,9 +626,16 @@ EXPORT_SYMBOL(padata_add_cpu);
 
 static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 {
-	struct parallel_data *pd;
+	struct parallel_data *pd = NULL;
 
 	if (cpumask_test_cpu(cpu, cpu_online_mask)) {
+
+		if (!padata_validate_cpumask(pinst, pinst->cpumask)) {
+			__padata_stop(pinst);
+			padata_replace(pinst, pd);
+			goto out;
+		}
+
 		pd = padata_alloc_pd(pinst, pinst->cpumask);
 		if (!pd)
 			return -ENOMEM;
@@ -607,6 +643,7 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 		padata_replace(pinst, pd);
 	}
 
+out:
 	return 0;
 }
 
@@ -732,7 +769,7 @@ struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 				     struct workqueue_struct *wq)
 {
 	struct padata_instance *pinst;
-	struct parallel_data *pd;
+	struct parallel_data *pd = NULL;
 
 	pinst = kzalloc(sizeof(struct padata_instance), GFP_KERNEL);
 	if (!pinst)
@@ -740,12 +777,14 @@ struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 
 	get_online_cpus();
 
-	pd = padata_alloc_pd(pinst, cpumask);
-	if (!pd)
+	if (!alloc_cpumask_var(&pinst->cpumask, GFP_KERNEL))
 		goto err_free_inst;
 
-	if (!alloc_cpumask_var(&pinst->cpumask, GFP_KERNEL))
-		goto err_free_pd;
+	if (padata_validate_cpumask(pinst, cpumask)) {
+		pd = padata_alloc_pd(pinst, cpumask);
+		if (!pd)
+			goto err_free_mask;
+	}
 
 	rcu_assign_pointer(pinst->pd, pd);
 
@@ -767,8 +806,8 @@ struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 
 	return pinst;
 
-err_free_pd:
-	padata_free_pd(pd);
+err_free_mask:
+	free_cpumask_var(pinst->cpumask);
 err_free_inst:
 	kfree(pinst);
 	put_online_cpus();
