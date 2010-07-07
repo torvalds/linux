@@ -744,6 +744,8 @@ static unsigned num_msrs_to_save;
 
 static u32 emulated_msrs[] = {
 	MSR_IA32_MISC_ENABLE,
+	MSR_IA32_MCG_STATUS,
+	MSR_IA32_MCG_CTL,
 };
 
 static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
