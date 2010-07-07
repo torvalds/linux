@@ -563,6 +563,10 @@ static int init_request(struct client *client,
 	    (request->length > 4096 || request->length > 512 << speed))
 		return -EIO;
 
+	if (request->tcode == TCODE_WRITE_QUADLET_REQUEST &&
+	    request->length < 4)
+		return -EINVAL;
+
 	e = kmalloc(sizeof(*e) + request->length, GFP_KERNEL);
 	if (e == NULL)
 		return -ENOMEM;
