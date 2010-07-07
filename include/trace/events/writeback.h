@@ -85,6 +85,70 @@ DEFINE_WRITEBACK_EVENT(writeback_bdi_unregister);
 DEFINE_WRITEBACK_EVENT(writeback_thread_start);
 DEFINE_WRITEBACK_EVENT(writeback_thread_stop);
 
+DECLARE_EVENT_CLASS(wbc_class,
+	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi),
+	TP_ARGS(wbc, bdi),
+	TP_STRUCT__entry(
+		__array(char, name, 32)
+		__field(long, nr_to_write)
+		__field(long, pages_skipped)
+		__field(int, sync_mode)
+		__field(int, nonblocking)
+		__field(int, encountered_congestion)
+		__field(int, for_kupdate)
+		__field(int, for_background)
+		__field(int, for_reclaim)
+		__field(int, range_cyclic)
+		__field(int, more_io)
+		__field(unsigned long, older_than_this)
+		__field(long, range_start)
+		__field(long, range_end)
+	),
+
+	TP_fast_assign(
+		strncpy(__entry->name, dev_name(bdi->dev), 32);
+		__entry->nr_to_write	= wbc->nr_to_write;
+		__entry->pages_skipped	= wbc->pages_skipped;
+		__entry->sync_mode	= wbc->sync_mode;
+		__entry->for_kupdate	= wbc->for_kupdate;
+		__entry->for_background	= wbc->for_background;
+		__entry->for_reclaim	= wbc->for_reclaim;
+		__entry->range_cyclic	= wbc->range_cyclic;
+		__entry->more_io	= wbc->more_io;
+		__entry->older_than_this = wbc->older_than_this ?
+						*wbc->older_than_this : 0;
+		__entry->range_start	= (long)wbc->range_start;
+		__entry->range_end	= (long)wbc->range_end;
+	),
+
+	TP_printk("bdi %s: towrt=%ld skip=%ld mode=%d kupd=%d "
+		"bgrd=%d reclm=%d cyclic=%d more=%d older=0x%lx "
+		"start=0x%lx end=0x%lx",
+		__entry->name,
+		__entry->nr_to_write,
+		__entry->pages_skipped,
+		__entry->sync_mode,
+		__entry->for_kupdate,
+		__entry->for_background,
+		__entry->for_reclaim,
+		__entry->range_cyclic,
+		__entry->more_io,
+		__entry->older_than_this,
+		__entry->range_start,
+		__entry->range_end)
+)
+
+#define DEFINE_WBC_EVENT(name) \
+DEFINE_EVENT(wbc_class, name, \
+	TP_PROTO(struct writeback_control *wbc, struct backing_dev_info *bdi), \
+	TP_ARGS(wbc, bdi))
+DEFINE_WBC_EVENT(wbc_writeback_start);
+DEFINE_WBC_EVENT(wbc_writeback_written);
+DEFINE_WBC_EVENT(wbc_writeback_wait);
+DEFINE_WBC_EVENT(wbc_balance_dirty_start);
+DEFINE_WBC_EVENT(wbc_balance_dirty_written);
+DEFINE_WBC_EVENT(wbc_balance_dirty_wait);
+
 #endif /* _TRACE_WRITEBACK_H */
 
 /* This part must be outside protection */
