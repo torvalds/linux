@@ -54,6 +54,8 @@
 
 #define CLOSE_CLK_GATE	1		//释放DSP时是否连clock gate一起关掉
 
+#define CONFIG_CHIP_RK2818
+
 struct rk28dsp_inf {
     struct miscdevice miscdev;
     struct device dev;
@@ -85,6 +87,7 @@ struct rk28dsp_inf {
 	int dsp_status;
 
 	struct clk *clk;
+	int clk_enabled;
 };
 
 #define SCU_BASE_ADDR_VA		RK2818_SCU_BASE
@@ -132,6 +135,11 @@ struct rk28dsp_inf {
 #define PIU_SEND_CMD(channel, cmd) \
         __raw_writel(cmd,inf->piu_base+PIU_CMD0_OFFSET + (channel << 2))
 
+#define DSP_CLOCK_ENABLE()		if(!inf->clk_enabled) { clk_enable(inf->clk);  inf->clk_enabled = 1; }
+#define DSP_CLOCK_DISABLE()		if(inf->clk_enabled)  { clk_disable(inf->clk); inf->clk_enabled = 0; }
+//#define DSP_CLOCK_ENABLE()		__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x10)) , SCU_BASE_ADDR_VA+0x1c);
+//#define DSP_CLOCK_DISABLE()		__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x02)) , SCU_BASE_ADDR_VA+0x1c);
+
 
 typedef enum _DSP_STATUS {
     DS_NORMAL = 0,
@@ -164,43 +172,43 @@ void dsp_powerctl(int ctl, int arg);
 //need reset reg value when finishing the video play
 static void resetRegValueForVideo()
 {
-	#ifdef CONFIG_CHIP_RK2818
-		void * r1 = (void *)ioremap(APB_SCU_BASE, 0x60);
-		void * r3 = (void *)ioremap(APB_REG_FILE_BASE, 0x60);
+#ifdef CONFIG_CHIP_RK2818
+	void * r1 = (void *)ioremap(APB_SCU_BASE, 0x60);
+	void * r3 = (void *)ioremap(APB_REG_FILE_BASE, 0x60);
 
-		struct rk28dsp_inf *inf = g_inf;
-    if(!inf)      return;
-		//disable the AXI bus
-		//__raw_writel((__raw_readl(r1+0x20) & (~0x08000000)) , r1+0x20);
-		//
-		//__raw_writel((__raw_readl(r3+0x14) & (~0x20002000)) , r3+0x14);
-		if(video_type)
+	struct rk28dsp_inf *inf = g_inf;
+	if(!inf)      return;
+	//disable the AXI bus
+	//__raw_writel((__raw_readl(r1+0x20) & (~0x08000000)) , r1+0x20);
+	//
+	//__raw_writel((__raw_readl(r3+0x14) & (~0x20002000)) , r3+0x14);
+	if(video_type)
+	{
+		dsp_powerctl(DPC_SLEEP, 0);
+		inf->dsp_status = DS_SLEEP;
+
+
+		__raw_writel((__raw_readl(r1+0x20) | (1<<25)) , r1+0x20);
+
+		if(video_type == 2)
 		{
-				dsp_powerctl(DPC_SLEEP, 0);
-      	inf->dsp_status = DS_SLEEP;
-
-
-				__raw_writel((__raw_readl(r1+0x20) | (1<<25)) , r1+0x20);
-
-				if(video_type == 2)
-				{
-					//mdelay(10);
-					__raw_writel((__raw_readl(r1+0x1c) | (0x400)) , r1+0x1c);
-					printk("close rv40 hardware advice\n");
-				}
-				else
-				{
-					__raw_writel((__raw_readl(r1+0x20) | (1<<20)) , r1+0x20);
-					printk("close h264 hardware advice\n");
-				}
-				video_type = 0;
+			//mdelay(10);
+			__raw_writel((__raw_readl(r1+0x1c) | (0x400)) , r1+0x1c);
+			printk("close rv40 hardware advice\n");
 		}
+		else
+		{
+			__raw_writel((__raw_readl(r1+0x20) | (1<<20)) , r1+0x20);
+			printk("close h264 hardware advice\n");
+		}
+		video_type = 0;
+	}
 
-		//mdelay(1);
-    iounmap((void __iomem *)(r1));
-    iounmap((void __iomem *)(r3));
-  #endif
-  return;
+	//mdelay(1);
+	iounmap((void __iomem *)(r1));
+	iounmap((void __iomem *)(r3));
+#endif
+	return;
 }
 //add by Charles Chen for test 281x play RMVB
 static void setRegValueForVideo(unsigned long type)
@@ -221,26 +229,26 @@ static void setRegValueForVideo(unsigned long type)
 	__raw_writel((__raw_readl(r1+0x20) | (0x08000000)) , r1+0x20);
 
 	//mc dma
-  __raw_writel((__raw_readl(r1+0x20) & ~(1<<25)) , r1+0x20);
+		__raw_writel((__raw_readl(r1+0x20) & ~(1<<25)) , r1+0x20);
 	//printk("------->0x18018020 value 0x%08x\n",__raw_readl(r1+0x20));
 	if(!type)
 	{
-		 video_type ++;
-		 	//rv deblocking clock
-	    __raw_writel((__raw_readl(r1+0x1c) & (~0x400)) , r1+0x1c);
-	    mdelay(1);
+		video_type ++;
+		//rv deblocking clock
+		__raw_writel((__raw_readl(r1+0x1c) & (~0x400)) , r1+0x1c);
+		mdelay(1);
 
-			__raw_writel((__raw_readl(r1+0x28) | (0x00000100)) , r1+0x28);
+		__raw_writel((__raw_readl(r1+0x28) | (0x00000100)) , r1+0x28);
 
-	    mdelay(5);
+		mdelay(5);
 
-	    __raw_writel((__raw_readl(r1+0x28) & (~0x00000100)) , r1+0x28);
+		__raw_writel((__raw_readl(r1+0x28) & (~0x00000100)) , r1+0x28);
 
-			//rv deblocking bridge select
-	    __raw_writel((__raw_readl(r3+0x14) | (0x20002000)) , r3+0x14);
+		//rv deblocking bridge select
+		__raw_writel((__raw_readl(r3+0x14) | (0x20002000)) , r3+0x14);
 
 
-    	printk("%s this is rm 9 video\n",__func__);
+		printk("%s this is rm 9 video\n",__func__);
 	}
 	else
 	{
@@ -249,8 +257,8 @@ static void setRegValueForVideo(unsigned long type)
 		 printk("%s this is h264 video\n",__func__);
 	}
 
-    iounmap((void __iomem *)(r1));
-    iounmap((void __iomem *)(r3));
+	iounmap((void __iomem *)(r1));
+	iounmap((void __iomem *)(r3));
 
 #endif
     return;
@@ -328,9 +336,9 @@ void dsp_set_clk(int clkrate)
 	}
 #else
     struct rk28dsp_inf *inf = g_inf;
-    if(!inf)      return;
-	if(inf->clk)
-		clk_set_rate(inf->clk, clkrate*1000000);
+    if(inf) {
+		if(inf->clk)	clk_set_rate(inf->clk, clkrate*1000000);
+	}
 #endif
 }
 
@@ -345,8 +353,7 @@ void dsp_powerctl(int ctl, int arg)
     case DPC_NORMAL:
         {
             /* dsp clock enable 0x12*/
-            //__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x02)) , SCU_BASE_ADDR_VA+0x1c);
-			clk_enable(inf->clk);
+			DSP_CLOCK_ENABLE();
 
             /* dsp subsys power on 0x21*/
             __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) & (~0x21)) , SCU_BASE_ADDR_VA+0x10);
@@ -410,8 +417,7 @@ void dsp_powerctl(int ctl, int arg)
             __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x10)) , SCU_BASE_ADDR_VA+0x1c);
             udelay(10);
             /* dsp clock disable */
-            //__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x02)) , SCU_BASE_ADDR_VA+0x1c);
-            clk_disable(inf->clk);
+            DSP_CLOCK_DISABLE();
 
             /* dsp pll close */
             dsp_set_clk(24);
@@ -439,8 +445,7 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 
 #if CLOSE_CLK_GATE
 			/* sram dsp clock enable */
-			//__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x10)) , SCU_BASE_ADDR_VA+0x1c);
-			clk_enable(inf->clk);
+			DSP_CLOCK_ENABLE();
 			/* dsp ahb bus clock enable*/
 			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) & (~0x04)) , SCU_BASE_ADDR_VA+0x24);
 			/* dsp clock enable 0x12*/
@@ -742,8 +747,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 #if CLOSE_CLK_GATE
 			/* dsp clock disable */
-			//__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x02)) , SCU_BASE_ADDR_VA+0x1c);
-			clk_disable(inf->clk);
+			DSP_CLOCK_DISABLE();
 			/* dsp ahb bus clock disable */
 			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) | (0x04)) , SCU_BASE_ADDR_VA+0x24);
 			/* sram dsp clock disable */
@@ -987,7 +991,7 @@ static int __init dsp_drv_probe(struct platform_device *pdev)
 	memset(inf, 0, sizeof(struct rk28dsp_inf));
 
 	inf->clk = clk_get(NULL, "dsp_pll");
-	if(inf->clk)	clk_enable(inf->clk);
+	if(inf->clk) 	DSP_CLOCK_ENABLE();
 
 	inf->piu_base = (void*)ioremap(PIU_BASE_ADDR, 0x70);
 	inf->pmu_base = (void*)ioremap(PMU_BASE_ADDR, 0x3000);
@@ -1076,7 +1080,7 @@ static int dsp_drv_remove(struct platform_device *pdev)
     iounmap((void __iomem *)(inf->l2_idbase));
 
 	if(inf->clk) {
-		clk_disable(inf->clk);
+		DSP_CLOCK_DISABLE();
 		clk_put(inf->clk);
 	}
 
