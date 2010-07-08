@@ -95,6 +95,7 @@ static const struct file_operations tomoyo_operations = {
 	.poll    = tomoyo_poll,
 	.read    = tomoyo_read,
 	.write   = tomoyo_write,
+	.llseek  = noop_llseek,
 };
 
 /**
