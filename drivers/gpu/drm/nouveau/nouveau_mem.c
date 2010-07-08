@@ -253,7 +253,7 @@ nouveau_mem_close(struct drm_device *dev)
 		drm_mtrr_del(dev_priv->fb_mtrr,
 			     pci_resource_start(dev->pdev, 1),
 			     pci_resource_len(dev->pdev, 1), DRM_MTRR_WC);
-		dev_priv->fb_mtrr = 0;
+		dev_priv->fb_mtrr = -1;
 	}
 }
 
