@@ -340,9 +340,13 @@ rescan:
 		if (i < dd->piobcnt2k)
 			buf = (u32 __iomem *)(dd->pio2kbase +
 				i * dd->palign);
-		else
+		else if (i < dd->piobcnt2k + dd->piobcnt4k || !dd->piovl15base)
 			buf = (u32 __iomem *)(dd->pio4kbase +
 				(i - dd->piobcnt2k) * dd->align4k);
+		else
+			buf = (u32 __iomem *)(dd->piovl15base +
+				(i - (dd->piobcnt2k + dd->piobcnt4k)) *
+				dd->align4k);
 		if (pbufnum)
 			*pbufnum = i;
 		dd->upd_pio_shadow = 0;
