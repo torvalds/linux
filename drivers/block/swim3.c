@@ -25,6 +25,7 @@
 #include <linux/ioctl.h>
 #include <linux/blkdev.h>
 #include <linux/interrupt.h>
+#include <linux/smp_lock.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <asm/io.h>
@@ -839,7 +840,7 @@ static int fd_eject(struct floppy_state *fs)
 static struct floppy_struct floppy_type =
 	{ 2880,18,2,80,0,0x1B,0x00,0xCF,0x6C,NULL };	/*  7 1.44MB 3.5"   */
 
-static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
+static int floppy_locked_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long param)
 {
 	struct floppy_state *fs = bdev->bd_disk->private_data;
@@ -865,6 +866,18 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 		return 0;
 	}
 	return -ENOTTY;
+}
+
+static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
+				 unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	lock_kernel();
+	ret = floppy_locked_ioctl(bdev, mode, cmd, param);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int floppy_open(struct block_device *bdev, fmode_t mode)
@@ -997,7 +1010,7 @@ static int floppy_revalidate(struct gendisk *disk)
 static const struct block_device_operations floppy_fops = {
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.locked_ioctl	= floppy_ioctl,
+	.ioctl		= floppy_ioctl,
 	.media_changed	= floppy_check_change,
 	.revalidate_disk= floppy_revalidate,
 };

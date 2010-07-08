@@ -44,6 +44,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 
@@ -493,6 +494,8 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	void __user *argp = (void __user *)arg;
 	int ret;
 
+	lock_kernel();
+
 	/*
 	 * Send SCSI addressing ioctls directly to mid level, send other
 	 * ioctls to cdrom/block level.
@@ -500,12 +503,13 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	switch (cmd) {
 	case SCSI_IOCTL_GET_IDLUN:
 	case SCSI_IOCTL_GET_BUS_NUMBER:
-		return scsi_ioctl(sdev, cmd, argp);
+		ret = scsi_ioctl(sdev, cmd, argp);
+		goto out;
 	}
 
 	ret = cdrom_ioctl(&cd->cdi, bdev, mode, cmd, arg);
 	if (ret != -ENOSYS)
-		return ret;
+		goto out;
 
 	/*
 	 * ENODEV means that we didn't recognise the ioctl, or that we
@@ -516,8 +520,12 @@ static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 	ret = scsi_nonblockable_ioctl(sdev, cmd, argp,
 					(mode & FMODE_NDELAY) != 0);
 	if (ret != -ENODEV)
-		return ret;
-	return scsi_ioctl(sdev, cmd, argp);
+		goto out;
+	ret = scsi_ioctl(sdev, cmd, argp);
+
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int sr_block_media_changed(struct gendisk *disk)
@@ -531,7 +539,7 @@ static const struct block_device_operations sr_bdops =
 	.owner		= THIS_MODULE,
 	.open		= sr_block_open,
 	.release	= sr_block_release,
-	.locked_ioctl	= sr_block_ioctl,
+	.ioctl		= sr_block_ioctl,
 	.media_changed	= sr_block_media_changed,
 	/* 
 	 * No compat_ioctl for now because sr_block_ioctl never

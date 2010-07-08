@@ -15,6 +15,7 @@
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/highmem.h>
+#include <linux/smp_lock.h>
 #include <linux/radix-tree.h>
 #include <linux/buffer_head.h> /* invalidate_bh_lrus() */
 #include <linux/slab.h>
@@ -401,6 +402,7 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 	 * ram device BLKFLSBUF has special semantics, we want to actually
 	 * release and destroy the ramdisk data.
 	 */
+	lock_kernel();
 	mutex_lock(&bdev->bd_mutex);
 	error = -EBUSY;
 	if (bdev->bd_openers <= 1) {
@@ -417,13 +419,14 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
 		error = 0;
 	}
 	mutex_unlock(&bdev->bd_mutex);
+	unlock_kernel();
 
 	return error;
 }
 
 static const struct block_device_operations brd_fops = {
 	.owner =		THIS_MODULE,
-	.locked_ioctl =		brd_ioctl,
+	.ioctl =		brd_ioctl,
 #ifdef CONFIG_BLK_DEV_XIP
 	.direct_access =	brd_direct_access,
 #endif

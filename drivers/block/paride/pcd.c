@@ -138,6 +138,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/cdrom.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 static DEFINE_SPINLOCK(pcd_lock);
@@ -238,7 +239,13 @@ static int pcd_block_ioctl(struct block_device *bdev, fmode_t mode,
 				unsigned cmd, unsigned long arg)
 {
 	struct pcd_unit *cd = bdev->bd_disk->private_data;
-	return cdrom_ioctl(&cd->info, bdev, mode, cmd, arg);
+	int ret;
+
+	lock_kernel();
+	ret = cdrom_ioctl(&cd->info, bdev, mode, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 static int pcd_block_media_changed(struct gendisk *disk)
@@ -251,7 +258,7 @@ static const struct block_device_operations pcd_bdops = {
 	.owner		= THIS_MODULE,
 	.open		= pcd_block_open,
 	.release	= pcd_block_release,
-	.locked_ioctl	= pcd_block_ioctl,
+	.ioctl		= pcd_block_ioctl,
 	.media_changed	= pcd_block_media_changed,
 };
 

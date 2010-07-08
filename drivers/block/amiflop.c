@@ -60,6 +60,7 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <linux/amifdreg.h>
 #include <linux/amifd.h>
 #include <linux/buffer_head.h>
@@ -1423,7 +1424,7 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned int cmd, unsigned long param)
 {
 	struct amiga_floppy_struct *p = bdev->bd_disk->private_data;
@@ -1498,6 +1499,18 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 		return -ENOSYS;
 	}
 	return 0;
+}
+
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	lock_kernel();
+	ret = fd_locked_ioctl(bdev, mode, cmd, param);
+	unlock_kernel();
+
+	return ret;
 }
 
 static void fd_probe(int dev)
@@ -1638,7 +1651,7 @@ static const struct block_device_operations floppy_fops = {
 	.owner		= THIS_MODULE,
 	.open		= floppy_open,
 	.release	= floppy_release,
-	.locked_ioctl	= fd_ioctl,
+	.ioctl		= fd_ioctl,
 	.getgeo		= fd_getgeo,
 	.media_changed	= amiga_floppy_change,
 };

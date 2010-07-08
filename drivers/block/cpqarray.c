@@ -35,6 +35,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/hdreg.h>
+#include <linux/smp_lock.h>
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/genhd.h>
@@ -197,7 +198,7 @@ static const struct block_device_operations ida_fops  = {
 	.owner		= THIS_MODULE,
 	.open		= ida_open,
 	.release	= ida_release,
-	.locked_ioctl	= ida_ioctl,
+	.ioctl		= ida_ioctl,
 	.getgeo		= ida_getgeo,
 	.revalidate_disk= ida_revalidate,
 };
@@ -1128,7 +1129,7 @@ static int ida_getgeo(struct block_device *bdev, struct hd_geometry *geo)
  *  ida_ioctl does some miscellaneous stuff like reporting drive geometry,
  *  setting readahead and submitting commands from userspace to the controller.
  */
-static int ida_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
+static int ida_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
 	drv_info_t *drv = get_drv(bdev->bd_disk);
 	ctlr_info_t *host = get_host(bdev->bd_disk);
@@ -1192,6 +1193,19 @@ out_passthru:
 	}
 		
 }
+
+static int ida_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ida_locked_ioctl(bdev, mode, cmd, param);
+	unlock_kernel();
+
+	return ret;
+}
+
 /*
  * ida_ctlr_ioctl is for passing commands to the controller from userspace.
  * The command block (io) has already been copied to kernel space for us,

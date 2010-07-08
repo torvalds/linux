@@ -28,6 +28,7 @@
 #include <linux/timer.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/smp_lock.h>
 #include <scsi/scsi.h>
 
 #define DRV_NAME "ub"
@@ -1729,8 +1730,13 @@ static int ub_bd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	struct gendisk *disk = bdev->bd_disk;
 	void __user *usermem = (void __user *) arg;
+	int ret;
 
-	return scsi_cmd_ioctl(disk->queue, disk, mode, cmd, usermem);
+	lock_kernel();
+	ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, usermem);
+	unlock_kernel();
+
+	return ret;
 }
 
 /*
@@ -1794,7 +1800,7 @@ static const struct block_device_operations ub_bd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ub_bd_open,
 	.release	= ub_bd_release,
-	.locked_ioctl	= ub_bd_ioctl,
+	.ioctl		= ub_bd_ioctl,
 	.media_changed	= ub_bd_media_changed,
 	.revalidate_disk = ub_bd_revalidate,
 };

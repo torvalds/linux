@@ -1246,7 +1246,6 @@ static inline int blk_integrity_rq(struct request *rq)
 struct block_device_operations {
 	int (*open) (struct block_device *, fmode_t);
 	int (*release) (struct gendisk *, fmode_t);
-	int (*locked_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*direct_access) (struct block_device *, sector_t,

@@ -178,6 +178,7 @@ static int print_unex = 1;
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/bio.h>
+#include <linux/smp_lock.h>
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <linux/fcntl.h>
@@ -3371,7 +3372,7 @@ static int fd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
+static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		    unsigned long param)
 {
 	int drive = (long)bdev->bd_disk->private_data;
@@ -3545,6 +3546,18 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		return fd_copyout((void __user *)param, outparam, size);
 
 	return 0;
+}
+
+static int fd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long param)
+{
+	int ret;
+
+	lock_kernel();
+	ret = fd_locked_ioctl(bdev, mode, cmd, param);
+	unlock_kernel();
+
+	return ret;
 }
 
 static void __init config_types(void)
@@ -3848,7 +3861,7 @@ static const struct block_device_operations floppy_fops = {
 	.owner			= THIS_MODULE,
 	.open			= floppy_open,
 	.release		= floppy_release,
-	.locked_ioctl		= fd_ioctl,
+	.ioctl			= fd_ioctl,
 	.getgeo			= fd_getgeo,
 	.media_changed		= check_floppy_change,
 	.revalidate_disk	= floppy_revalidate,

@@ -31,6 +31,7 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/seq_file.h>
+#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
@@ -1654,7 +1655,7 @@ static int idecd_get_spindown(struct cdrom_device_info *cdi, unsigned long arg)
 	return 0;
 }
 
-static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
+static int idecd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned int cmd, unsigned long arg)
 {
 	struct cdrom_info *info = ide_drv_g(bdev->bd_disk, cdrom_info);
@@ -1676,6 +1677,19 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 	return err;
 }
 
+static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
+			     unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = idecd_locked_ioctl(bdev, mode, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 static int idecd_media_changed(struct gendisk *disk)
 {
 	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
@@ -1696,7 +1710,7 @@ static const struct block_device_operations idecd_ops = {
 	.owner			= THIS_MODULE,
 	.open			= idecd_open,
 	.release		= idecd_release,
-	.locked_ioctl		= idecd_ioctl,
+	.ioctl			= idecd_ioctl,
 	.media_changed		= idecd_media_changed,
 	.revalidate_disk	= idecd_revalidate_disk
 };

@@ -15,6 +15,7 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/spinlock.h>
+#include <linux/smp_lock.h>
 #include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
@@ -237,6 +238,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!dev)
 		return ret;
 
+	lock_kernel();
 	mutex_lock(&dev->lock);
 
 	if (!dev->mtd)
@@ -250,6 +252,7 @@ static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 unlock:
 	mutex_unlock(&dev->lock);
+	unlock_kernel();
 	blktrans_dev_put(dev);
 	return ret;
 }
@@ -258,7 +261,7 @@ static const struct block_device_operations mtd_blktrans_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,
-	.locked_ioctl	= blktrans_ioctl,
+	.ioctl		= blktrans_ioctl,
 	.getgeo		= blktrans_getgeo,
 };
 

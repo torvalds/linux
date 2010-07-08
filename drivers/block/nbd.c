@@ -24,6 +24,7 @@
 #include <linux/errno.h>
 #include <linux/file.h>
 #include <linux/ioctl.h>
+#include <linux/smp_lock.h>
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
@@ -716,9 +717,11 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 	dprintk(DBG_IOCTL, "%s: nbd_ioctl cmd=%s(0x%x) arg=%lu\n",
 			lo->disk->disk_name, ioctl_cmd_to_ascii(cmd), cmd, arg);
 
+	lock_kernel();
 	mutex_lock(&lo->tx_lock);
 	error = __nbd_ioctl(bdev, lo, cmd, arg);
 	mutex_unlock(&lo->tx_lock);
+	unlock_kernel();
 
 	return error;
 }
@@ -726,7 +729,7 @@ static int nbd_ioctl(struct block_device *bdev, fmode_t mode,
 static const struct block_device_operations nbd_fops =
 {
 	.owner =	THIS_MODULE,
-	.locked_ioctl =	nbd_ioctl,
+	.ioctl =	nbd_ioctl,
 };
 
 /*

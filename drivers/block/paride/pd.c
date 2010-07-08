@@ -153,6 +153,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_GEO, D_SBY, D_DLY, D_SLV};
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/kernel.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <linux/workqueue.h>
 
@@ -768,8 +769,10 @@ static int pd_ioctl(struct block_device *bdev, fmode_t mode,
 
 	switch (cmd) {
 	case CDROMEJECT:
+		lock_kernel();
 		if (disk->access == 1)
 			pd_special_command(disk, pd_eject);
+		unlock_kernel();
 		return 0;
 	default:
 		return -EINVAL;
@@ -812,7 +815,7 @@ static const struct block_device_operations pd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pd_open,
 	.release	= pd_release,
-	.locked_ioctl	= pd_ioctl,
+	.ioctl		= pd_ioctl,
 	.getgeo		= pd_getgeo,
 	.media_changed	= pd_check_media,
 	.revalidate_disk= pd_revalidate

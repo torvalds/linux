@@ -163,17 +163,9 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned cmd, unsigned long arg)
 {
 	struct gendisk *disk = bdev->bd_disk;
-	int ret;
 
 	if (disk->fops->ioctl)
 		return disk->fops->ioctl(bdev, mode, cmd, arg);
-
-	if (disk->fops->locked_ioctl) {
-		lock_kernel();
-		ret = disk->fops->locked_ioctl(bdev, mode, cmd, arg);
-		unlock_kernel();
-		return ret;
-	}
 
 	return -ENOTTY;
 }
@@ -185,8 +177,7 @@ int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
 
 /*
- * always keep this in sync with compat_blkdev_ioctl() and
- * compat_blkdev_locked_ioctl()
+ * always keep this in sync with compat_blkdev_ioctl()
  */
 int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			unsigned long arg)

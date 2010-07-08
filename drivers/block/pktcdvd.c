@@ -57,6 +57,7 @@
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>
 #include <linux/freezer.h>
+#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
@@ -2762,10 +2763,12 @@ out_mem:
 static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, unsigned long arg)
 {
 	struct pktcdvd_device *pd = bdev->bd_disk->private_data;
+	int ret;
 
 	VPRINTK("pkt_ioctl: cmd %x, dev %d:%d\n", cmd,
 		MAJOR(bdev->bd_dev), MINOR(bdev->bd_dev));
 
+	lock_kernel();
 	switch (cmd) {
 	case CDROMEJECT:
 		/*
@@ -2783,14 +2786,16 @@ static int pkt_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, 
 	case CDROM_LAST_WRITTEN:
 	case CDROM_SEND_PACKET:
 	case SCSI_IOCTL_SEND_COMMAND:
-		return __blkdev_driver_ioctl(pd->bdev, mode, cmd, arg);
+		ret = __blkdev_driver_ioctl(pd->bdev, mode, cmd, arg);
+		break;
 
 	default:
 		VPRINTK(DRIVER_NAME": Unknown ioctl for %s (%x)\n", pd->name, cmd);
-		return -ENOTTY;
+		ret = -ENOTTY;
 	}
+	unlock_kernel();
 
-	return 0;
+	return ret;
 }
 
 static int pkt_media_changed(struct gendisk *disk)
@@ -2812,7 +2817,7 @@ static const struct block_device_operations pktcdvd_ops = {
 	.owner =		THIS_MODULE,
 	.open =			pkt_open,
 	.release =		pkt_close,
-	.locked_ioctl =		pkt_ioctl,
+	.ioctl =		pkt_ioctl,
 	.media_changed =	pkt_media_changed,
 };
 

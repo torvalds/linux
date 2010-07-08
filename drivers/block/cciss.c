@@ -179,6 +179,8 @@ static irqreturn_t do_cciss_intx(int irq, void *dev_id);
 static irqreturn_t do_cciss_msix_intr(int irq, void *dev_id);
 static int cciss_open(struct block_device *bdev, fmode_t mode);
 static int cciss_release(struct gendisk *disk, fmode_t mode);
+static int do_ioctl(struct block_device *bdev, fmode_t mode,
+		    unsigned int cmd, unsigned long arg);
 static int cciss_ioctl(struct block_device *bdev, fmode_t mode,
 		       unsigned int cmd, unsigned long arg);
 static int cciss_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -237,7 +239,7 @@ static const struct block_device_operations cciss_fops = {
 	.owner = THIS_MODULE,
 	.open = cciss_open,
 	.release = cciss_release,
-	.locked_ioctl = cciss_ioctl,
+	.ioctl = do_ioctl,
 	.getgeo = cciss_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = cciss_compat_ioctl,
@@ -1057,8 +1059,6 @@ static int cciss_release(struct gendisk *disk, fmode_t mode)
 	return 0;
 }
 
-#ifdef CONFIG_COMPAT
-
 static int do_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned cmd, unsigned long arg)
 {
@@ -1068,6 +1068,8 @@ static int do_ioctl(struct block_device *bdev, fmode_t mode,
 	unlock_kernel();
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
 
 static int cciss_ioctl32_passthru(struct block_device *bdev, fmode_t mode,
 				  unsigned cmd, unsigned long arg);

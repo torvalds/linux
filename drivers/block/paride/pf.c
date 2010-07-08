@@ -152,6 +152,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_LUN, D_DLY};
 #include <linux/spinlock.h>
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 
 static DEFINE_SPINLOCK(pf_spin_lock);
@@ -266,7 +267,7 @@ static const struct block_device_operations pf_fops = {
 	.owner		= THIS_MODULE,
 	.open		= pf_open,
 	.release	= pf_release,
-	.locked_ioctl	= pf_ioctl,
+	.ioctl		= pf_ioctl,
 	.getgeo		= pf_getgeo,
 	.media_changed	= pf_check_media,
 };
@@ -342,7 +343,10 @@ static int pf_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd, u
 
 	if (pf->access != 1)
 		return -EBUSY;
+	lock_kernel();
 	pf_eject(pf);
+	unlock_kernel();
+
 	return 0;
 }
 

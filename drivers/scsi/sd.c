@@ -46,6 +46,7 @@
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/delay.h>
+#include <linux/smp_lock.h>
 #include <linux/mutex.h>
 #include <linux/string_helpers.h>
 #include <linux/async.h>
@@ -924,6 +925,7 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	SCSI_LOG_IOCTL(1, printk("sd_ioctl: disk=%s, cmd=0x%x\n",
 						disk->disk_name, cmd));
 
+	lock_kernel();
 	/*
 	 * If we are in the middle of error recovery, don't let anyone
 	 * else try and use this device.  Also, if error recovery fails, it
@@ -933,7 +935,7 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	error = scsi_nonblockable_ioctl(sdp, cmd, p,
 					(mode & FMODE_NDELAY) != 0);
 	if (!scsi_block_when_processing_errors(sdp) || !error)
-		return error;
+		goto out;
 
 	/*
 	 * Send SCSI addressing ioctls directly to mid level, send other
@@ -943,13 +945,18 @@ static int sd_ioctl(struct block_device *bdev, fmode_t mode,
 	switch (cmd) {
 		case SCSI_IOCTL_GET_IDLUN:
 		case SCSI_IOCTL_GET_BUS_NUMBER:
-			return scsi_ioctl(sdp, cmd, p);
+			error = scsi_ioctl(sdp, cmd, p);
+			break;
 		default:
 			error = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, p);
 			if (error != -ENOTTY)
-				return error;
+				break;
+			error = scsi_ioctl(sdp, cmd, p);
+			break;
 	}
-	return scsi_ioctl(sdp, cmd, p);
+out:
+	unlock_kernel();
+	return error;
 }
 
 static void set_media_not_present(struct scsi_disk *sdkp)
@@ -1123,7 +1130,7 @@ static const struct block_device_operations sd_fops = {
 	.owner			= THIS_MODULE,
 	.open			= sd_open,
 	.release		= sd_release,
-	.locked_ioctl		= sd_ioctl,
+	.ioctl			= sd_ioctl,
 	.getgeo			= sd_getgeo,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl		= sd_compat_ioctl,
