@@ -3130,7 +3130,6 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		pkt_cnt++;
 
 		/* Updating the statistics block */
-		nic->dev->stats.tx_bytes += skb->len;
 		swstats->mem_freed += skb->truesize;
 		dev_kfree_skb_irq(skb);
 
@@ -4901,48 +4900,81 @@ static void s2io_updt_stats(struct s2io_nic *sp)
  *  Return value:
  *  pointer to the updated net_device_stats structure.
  */
-
 static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	struct config_param *config = &sp->config;
 	struct mac_info *mac_control = &sp->mac_control;
 	struct stat_block *stats = mac_control->stats_info;
-	int i;
+	u64 delta;
 
 	/* Configure Stats for immediate updt */
 	s2io_updt_stats(sp);
 
-	/* Using sp->stats as a staging area, because reset (due to mtu
-	   change, for example) will clear some hardware counters */
-	dev->stats.tx_packets += le32_to_cpu(stats->tmac_frms) -
-		sp->stats.tx_packets;
-	sp->stats.tx_packets = le32_to_cpu(stats->tmac_frms);
+	/* A device reset will cause the on-adapter statistics to be zero'ed.
+	 * This can be done while running by changing the MTU.  To prevent the
+	 * system from having the stats zero'ed, the driver keeps a copy of the
+	 * last update to the system (which is also zero'ed on reset).  This
+	 * enables the driver to accurately know the delta between the last
+	 * update and the current update.
+	 */
+	delta = ((u64) le32_to_cpu(stats->rmac_vld_frms_oflow) << 32 |
+		le32_to_cpu(stats->rmac_vld_frms)) - sp->stats.rx_packets;
+	sp->stats.rx_packets += delta;
+	dev->stats.rx_packets += delta;
 
-	dev->stats.tx_errors += le32_to_cpu(stats->tmac_any_err_frms) -
-		sp->stats.tx_errors;
-	sp->stats.tx_errors = le32_to_cpu(stats->tmac_any_err_frms);
+	delta = ((u64) le32_to_cpu(stats->tmac_frms_oflow) << 32 |
+		le32_to_cpu(stats->tmac_frms)) - sp->stats.tx_packets;
+	sp->stats.tx_packets += delta;
+	dev->stats.tx_packets += delta;
 
-	dev->stats.rx_errors += le64_to_cpu(stats->rmac_drop_frms) -
-		sp->stats.rx_errors;
-	sp->stats.rx_errors = le64_to_cpu(stats->rmac_drop_frms);
+	delta = ((u64) le32_to_cpu(stats->rmac_data_octets_oflow) << 32 |
+		le32_to_cpu(stats->rmac_data_octets)) - sp->stats.rx_bytes;
+	sp->stats.rx_bytes += delta;
+	dev->stats.rx_bytes += delta;
 
-	dev->stats.multicast = le32_to_cpu(stats->rmac_vld_mcst_frms) -
-		sp->stats.multicast;
-	sp->stats.multicast = le32_to_cpu(stats->rmac_vld_mcst_frms);
+	delta = ((u64) le32_to_cpu(stats->tmac_data_octets_oflow) << 32 |
+		le32_to_cpu(stats->tmac_data_octets)) - sp->stats.tx_bytes;
+	sp->stats.tx_bytes += delta;
+	dev->stats.tx_bytes += delta;
 
-	dev->stats.rx_length_errors = le64_to_cpu(stats->rmac_long_frms) -
-		sp->stats.rx_length_errors;
-	sp->stats.rx_length_errors = le64_to_cpu(stats->rmac_long_frms);
+	delta = le64_to_cpu(stats->rmac_drop_frms) - sp->stats.rx_errors;
+	sp->stats.rx_errors += delta;
+	dev->stats.rx_errors += delta;
 
-	/* collect per-ring rx_packets and rx_bytes */
-	dev->stats.rx_packets = dev->stats.rx_bytes = 0;
-	for (i = 0; i < config->rx_ring_num; i++) {
-		struct ring_info *ring = &mac_control->rings[i];
+	delta = ((u64) le32_to_cpu(stats->tmac_any_err_frms_oflow) << 32 |
+		le32_to_cpu(stats->tmac_any_err_frms)) - sp->stats.tx_errors;
+	sp->stats.tx_errors += delta;
+	dev->stats.tx_errors += delta;
 
-		dev->stats.rx_packets += ring->rx_packets;
-		dev->stats.rx_bytes += ring->rx_bytes;
-	}
+	delta = le64_to_cpu(stats->rmac_drop_frms) - sp->stats.rx_dropped;
+	sp->stats.rx_dropped += delta;
+	dev->stats.rx_dropped += delta;
+
+	delta = le64_to_cpu(stats->tmac_drop_frms) - sp->stats.tx_dropped;
+	sp->stats.tx_dropped += delta;
+	dev->stats.tx_dropped += delta;
+
+	/* The adapter MAC interprets pause frames as multicast packets, but
+	 * does not pass them up.  This erroneously increases the multicast
+	 * packet count and needs to be deducted when the multicast frame count
+	 * is queried.
+	 */
+	delta = (u64) le32_to_cpu(stats->rmac_vld_mcst_frms_oflow) << 32 |
+		le32_to_cpu(stats->rmac_vld_mcst_frms);
+	delta -= le64_to_cpu(stats->rmac_pause_ctrl_frms);
+	delta -= sp->stats.multicast;
+	sp->stats.multicast += delta;
+	dev->stats.multicast += delta;
+
+	delta = ((u64) le32_to_cpu(stats->rmac_usized_frms_oflow) << 32 |
+		le32_to_cpu(stats->rmac_usized_frms)) +
+		le64_to_cpu(stats->rmac_long_frms) - sp->stats.rx_length_errors;
+	sp->stats.rx_length_errors += delta;
+	dev->stats.rx_length_errors += delta;
+
+	delta = le64_to_cpu(stats->rmac_fcs_err_frms) - sp->stats.rx_crc_errors;
+	sp->stats.rx_crc_errors += delta;
+	dev->stats.rx_crc_errors += delta;
 
 	return &dev->stats;
 }
@@ -7455,15 +7487,11 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		}
 	}
 
-	/* Updating statistics */
-	ring_data->rx_packets++;
 	rxdp->Host_Control = 0;
 	if (sp->rxd_mode == RXD_MODE_1) {
 		int len = RXD_GET_BUFFER0_SIZE_1(rxdp->Control_2);
 
-		ring_data->rx_bytes += len;
 		skb_put(skb, len);
-
 	} else if (sp->rxd_mode == RXD_MODE_3B) {
 		int get_block = ring_data->rx_curr_get_info.block_index;
 		int get_off = ring_data->rx_curr_get_info.offset;
@@ -7472,7 +7500,6 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 		unsigned char *buff = skb_push(skb, buf0_len);
 
 		struct buffAdd *ba = &ring_data->ba[get_block][get_off];
-		ring_data->rx_bytes += buf0_len + buf2_len;
 		memcpy(buff, ba->ba_0, buf0_len);
 		skb_put(skb, buf2_len);
 	}

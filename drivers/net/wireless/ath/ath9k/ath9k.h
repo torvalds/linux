@@ -445,6 +445,7 @@ void ath_deinit_leds(struct ath_softc *sc);
 #define SC_OP_TSF_RESET              BIT(11)
 #define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
 #define SC_OP_BT_SCAN		     BIT(13)
+#define SC_OP_ANI_RUN		     BIT(14)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)

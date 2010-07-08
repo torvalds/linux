@@ -129,10 +129,9 @@ struct socket_wq {
  *  @type: socket type (%SOCK_STREAM, etc)
  *  @flags: socket flags (%SOCK_ASYNC_NOSPACE, etc)
  *  @ops: protocol specific socket operations
- *  @fasync_list: Asynchronous wake up list
  *  @file: File back pointer for gc
  *  @sk: internal networking protocol agnostic socket representation
- *  @wait: wait queue for several uses
+ *  @wq: wait queue for several uses
  */
 struct socket {
 	socket_state		state;
