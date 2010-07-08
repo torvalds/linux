@@ -18,7 +18,9 @@ http://git.omapzoom.org/?pÿatform/hardware/ti/omap3.git;aÿob;fÿ_st/uim/uim.c;ha
 4. Re-structure to make the ldisc driver more generic for chipsets which mux
 multiple connectivity (BT, FM, GPS) upon 1 TTY port.
 
-5. Step up and maintain this driver to ensure that it continues
+5. Remove global references by providing a context which can be moved around the driver like the other ldisc drivers. (ldiscs tend to use tty's disc_data and platform devices use the device's driver data)
+
+6. Step up and maintain this driver to ensure that it continues
 to work.  Having the hardware for this is pretty much a
 requirement.  If this does not happen, the will be removed in
 the 2.6.35 kernel release.
