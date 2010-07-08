@@ -137,7 +137,6 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	/* Setup initial state */
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	RAMFC_WR(DMA_PUT, chan->pushbuf_base);
 	RAMFC_WR(DMA_GET, chan->pushbuf_base);
 	RAMFC_WR(DMA_INSTANCE, chan->pushbuf->instance >> 4);
@@ -145,7 +144,6 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 			     NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
 			     NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8 |
 			     DMA_FETCH_ENDIANNESS));
-	dev_priv->engine.instmem.finish_access(dev);
 
 	/* enable the fifo dma operation */
 	nv_wr32(dev, NV04_PFIFO_MODE,
@@ -172,8 +170,6 @@ nv04_fifo_do_load_context(struct drm_device *dev, int chid)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t fc = NV04_RAMFC(chid), tmp;
 
-	dev_priv->engine.instmem.prepare_access(dev, false);
-
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_PUT, nv_ri32(dev, fc + 0));
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_GET, nv_ri32(dev, fc + 4));
 	tmp = nv_ri32(dev, fc + 8);
@@ -183,8 +179,6 @@ nv04_fifo_do_load_context(struct drm_device *dev, int chid)
 	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_FETCH, nv_ri32(dev, fc + 16));
 	nv_wr32(dev, NV04_PFIFO_CACHE1_ENGINE, nv_ri32(dev, fc + 20));
 	nv_wr32(dev, NV04_PFIFO_CACHE1_PULL1, nv_ri32(dev, fc + 24));
-
-	dev_priv->engine.instmem.finish_access(dev);
 
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUT, 0);
@@ -226,7 +220,6 @@ nv04_fifo_unload_context(struct drm_device *dev)
 		return -EINVAL;
 	}
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	RAMFC_WR(DMA_PUT, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUT));
 	RAMFC_WR(DMA_GET, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_GET));
 	tmp  = nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_DCOUNT) << 16;
@@ -236,7 +229,6 @@ nv04_fifo_unload_context(struct drm_device *dev)
 	RAMFC_WR(DMA_FETCH, nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_FETCH));
 	RAMFC_WR(ENGINE, nv_rd32(dev, NV04_PFIFO_CACHE1_ENGINE));
 	RAMFC_WR(PULL1_ENGINE, nv_rd32(dev, NV04_PFIFO_CACHE1_PULL1));
-	dev_priv->engine.instmem.finish_access(dev);
 
 	nv04_fifo_do_load_context(dev, pfifo->channels - 1);
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, pfifo->channels - 1);

@@ -49,10 +49,8 @@ nv04_instmem_determine_amount(struct drm_device *dev)
 	NV_DEBUG(dev, "RAMIN size: %dKiB\n", dev_priv->ramin_rsvd_vram >> 10);
 
 	/* Clear all of it, except the BIOS image that's in the first 64KiB */
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	for (i = 64 * 1024; i < dev_priv->ramin_rsvd_vram; i += 4)
 		nv_wi32(dev, i, 0x00000000);
-	dev_priv->engine.instmem.finish_access(dev);
 }
 
 static void
@@ -186,12 +184,7 @@ nv04_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 }
 
 void
-nv04_instmem_prepare_access(struct drm_device *dev, bool write)
-{
-}
-
-void
-nv04_instmem_finish_access(struct drm_device *dev)
+nv04_instmem_flush(struct drm_device *dev)
 {
 }
 

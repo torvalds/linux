@@ -49,12 +49,11 @@ nv50_fifo_init_thingo(struct drm_device *dev)
 	priv->cur_thingo = !priv->cur_thingo;
 
 	/* We never schedule channel 0 or 127 */
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	for (i = 1, nr = 0; i < 127; i++) {
 		if (dev_priv->fifos[i] && dev_priv->fifos[i]->ramfc)
 			nv_wo32(dev, cur->gpuobj, nr++, i);
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	nv_wr32(dev, 0x32f4, cur->instance >> 12);
 	nv_wr32(dev, 0x32ec, nr);
@@ -281,8 +280,6 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
-
 	nv_wo32(dev, ramfc, 0x48/4, chan->pushbuf->instance >> 4);
 	nv_wo32(dev, ramfc, 0x80/4, (0xc << 24) | (chan->ramht->instance >> 4));
 	nv_wo32(dev, ramfc, 0x44/4, 0x2101ffff);
@@ -304,7 +301,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 		nv_wo32(dev, ramfc, 0x98/4, chan->ramin->instance >> 12);
 	}
 
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	ret = nv50_fifo_channel_enable(dev, chan->id, false);
 	if (ret) {
@@ -348,8 +345,6 @@ nv50_fifo_load_context(struct nouveau_channel *chan)
 	int ptr, cnt;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	dev_priv->engine.instmem.prepare_access(dev, false);
 
 	nv_wr32(dev, 0x3330, nv_ro32(dev, ramfc, 0x00/4));
 	nv_wr32(dev, 0x3334, nv_ro32(dev, ramfc, 0x04/4));
@@ -404,8 +399,6 @@ nv50_fifo_load_context(struct nouveau_channel *chan)
 		nv_wr32(dev, 0x3410, nv_ro32(dev, ramfc, 0x98/4));
 	}
 
-	dev_priv->engine.instmem.finish_access(dev);
-
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, chan->id | (1<<16));
 	return 0;
 }
@@ -433,8 +426,6 @@ nv50_fifo_unload_context(struct drm_device *dev)
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 	ramfc = chan->ramfc->gpuobj;
 	cache = chan->cache->gpuobj;
-
-	dev_priv->engine.instmem.prepare_access(dev, true);
 
 	nv_wo32(dev, ramfc, 0x00/4, nv_rd32(dev, 0x3330));
 	nv_wo32(dev, ramfc, 0x04/4, nv_rd32(dev, 0x3334));
@@ -491,7 +482,7 @@ nv50_fifo_unload_context(struct drm_device *dev)
 		nv_wo32(dev, ramfc, 0x98/4, nv_rd32(dev, 0x3410));
 	}
 
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	/*XXX: probably reload ch127 (NULL) state back too */
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, 127);

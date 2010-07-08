@@ -35,8 +35,6 @@ struct nv50_instmem_priv {
 	struct nouveau_gpuobj_ref *pramin_pt;
 	struct nouveau_gpuobj_ref *pramin_bar;
 	struct nouveau_gpuobj_ref *fb_bar;
-
-	bool last_access_wr;
 };
 
 #define NV50_INSTMEM_PAGE_SHIFT 12
@@ -262,16 +260,13 @@ nv50_instmem_init(struct drm_device *dev)
 
 	/* Assume that praying isn't enough, check that we can re-read the
 	 * entire fake channel back from the PRAMIN BAR */
-	dev_priv->engine.instmem.prepare_access(dev, false);
 	for (i = 0; i < c_size; i += 4) {
 		if (nv_rd32(dev, NV_RAMIN + i) != nv_ri32(dev, i)) {
 			NV_ERROR(dev, "Error reading back PRAMIN at 0x%08x\n",
 									i);
-			dev_priv->engine.instmem.finish_access(dev);
 			return -EINVAL;
 		}
 	}
-	dev_priv->engine.instmem.finish_access(dev);
 
 	nv_wr32(dev, NV50_PUNK_BAR0_PRAMIN, save_nv001700);
 
@@ -451,13 +446,12 @@ nv50_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 		vram |= 0x30;
 	}
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	while (pte < pte_end) {
 		nv_wo32(dev, pramin_pt, pte++, lower_32_bits(vram));
 		nv_wo32(dev, pramin_pt, pte++, upper_32_bits(vram));
 		vram += NV50_INSTMEM_PAGE_SIZE;
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	nv_wr32(dev, 0x100c80, 0x00040001);
 	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
@@ -490,36 +484,21 @@ nv50_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 	pte     = (gpuobj->im_pramin->start >> 12) << 1;
 	pte_end = ((gpuobj->im_pramin->size >> 12) << 1) + pte;
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	while (pte < pte_end) {
 		nv_wo32(dev, priv->pramin_pt->gpuobj, pte++, 0x00000000);
 		nv_wo32(dev, priv->pramin_pt->gpuobj, pte++, 0x00000000);
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	gpuobj->im_bound = 0;
 	return 0;
 }
 
 void
-nv50_instmem_prepare_access(struct drm_device *dev, bool write)
+nv50_instmem_flush(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv50_instmem_priv *priv = dev_priv->engine.instmem.priv;
-
-	priv->last_access_wr = write;
-}
-
-void
-nv50_instmem_finish_access(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv50_instmem_priv *priv = dev_priv->engine.instmem.priv;
-
-	if (priv->last_access_wr) {
-		nv_wr32(dev, 0x070000, 0x00000001);
-		if (!nv_wait(0x070000, 0x00000001, 0x00000000))
-			NV_ERROR(dev, "PRAMIN flush timeout\n");
-	}
+	nv_wr32(dev, 0x070000, 0x00000001);
+	if (!nv_wait(0x070000, 0x00000001, 0x00000000))
+		NV_ERROR(dev, "PRAMIN flush timeout\n");
 }
 

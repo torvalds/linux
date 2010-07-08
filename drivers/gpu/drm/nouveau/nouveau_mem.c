@@ -143,7 +143,6 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 		phys |= 0x30;
 	}
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	while (size) {
 		unsigned offset_h = upper_32_bits(phys);
 		unsigned offset_l = lower_32_bits(phys);
@@ -175,7 +174,7 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			}
 		}
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	nv_wr32(dev, 0x100c80, 0x00050001);
 	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
@@ -218,7 +217,6 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 	virt -= dev_priv->vm_vram_base;
 	pages = (size >> 16) << 1;
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	while (pages) {
 		pgt = dev_priv->vm_vram_pt[virt >> 29];
 		pte = (virt & 0x1ffe0000ULL) >> 15;
@@ -232,7 +230,7 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 		while (pte < end)
 			nv_wo32(dev, pgt, pte++, 0);
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	nv_wr32(dev, 0x100c80, 0x00050001);
 	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {

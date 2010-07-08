@@ -71,14 +71,13 @@ nv50_evo_dmaobj_new(struct nouveau_channel *evo, uint32_t class, uint32_t name,
 		return ret;
 	}
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	nv_wo32(dev, obj, 0, (tile_flags << 22) | (magic_flags << 16) | class);
 	nv_wo32(dev, obj, 1, limit);
 	nv_wo32(dev, obj, 2, offset);
 	nv_wo32(dev, obj, 3, 0x00000000);
 	nv_wo32(dev, obj, 4, 0x00000000);
 	nv_wo32(dev, obj, 5, 0x00010000);
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	return 0;
 }

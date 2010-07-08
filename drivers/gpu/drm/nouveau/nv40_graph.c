@@ -67,7 +67,6 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 		return ret;
 
 	/* Initialise default context values */
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	if (!pgraph->ctxprog) {
 		struct nouveau_grctx ctx = {};
 
@@ -80,7 +79,6 @@ nv40_graph_create_context(struct nouveau_channel *chan)
 	}
 	nv_wo32(dev, chan->ramin_grctx->gpuobj, 0,
 		     chan->ramin_grctx->gpuobj->im_pramin->start);
-	dev_priv->engine.instmem.finish_access(dev);
 	return 0;
 }
 

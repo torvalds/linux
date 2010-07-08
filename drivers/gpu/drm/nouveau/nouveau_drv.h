@@ -269,8 +269,7 @@ struct nouveau_instmem_engine {
 	void	(*clear)(struct drm_device *, struct nouveau_gpuobj *);
 	int	(*bind)(struct drm_device *, struct nouveau_gpuobj *);
 	int	(*unbind)(struct drm_device *, struct nouveau_gpuobj *);
-	void	(*prepare_access)(struct drm_device *, bool write);
-	void	(*finish_access)(struct drm_device *);
+	void	(*flush)(struct drm_device *);
 };
 
 struct nouveau_mc_engine {
@@ -1027,8 +1026,7 @@ extern int  nv04_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
 extern void nv04_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv04_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv04_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
-extern void nv04_instmem_prepare_access(struct drm_device *, bool write);
-extern void nv04_instmem_finish_access(struct drm_device *);
+extern void nv04_instmem_flush(struct drm_device *);
 
 /* nv50_instmem.c */
 extern int  nv50_instmem_init(struct drm_device *);
@@ -1040,8 +1038,7 @@ extern int  nv50_instmem_populate(struct drm_device *, struct nouveau_gpuobj *,
 extern void nv50_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv50_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv50_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
-extern void nv50_instmem_prepare_access(struct drm_device *, bool write);
-extern void nv50_instmem_finish_access(struct drm_device *);
+extern void nv50_instmem_flush(struct drm_device *);
 
 /* nv04_mc.c */
 extern int  nv04_mc_init(struct drm_device *);

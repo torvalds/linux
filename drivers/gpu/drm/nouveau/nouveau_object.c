@@ -132,7 +132,6 @@ nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 		}
 	}
 
-	instmem->prepare_access(dev, true);
 	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
 	do {
 		if (!nouveau_ramht_entry_valid(dev, ramht, co)) {
@@ -143,7 +142,7 @@ nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 			nv_wo32(dev, ramht, (co + 4)/4, ctx);
 
 			list_add_tail(&ref->list, &chan->ramht_refs);
-			instmem->finish_access(dev);
+			instmem->flush(dev);
 			return 0;
 		}
 		NV_DEBUG(dev, "collision ch%d 0x%08x: h=0x%08x\n",
@@ -153,7 +152,6 @@ nouveau_ramht_insert(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 		if (co >= dev_priv->ramht_size)
 			co = 0;
 	} while (co != ho);
-	instmem->finish_access(dev);
 
 	NV_ERROR(dev, "RAMHT space exhausted. ch=%d\n", chan->id);
 	return -ENOMEM;
@@ -173,7 +171,6 @@ nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 		return;
 	}
 
-	instmem->prepare_access(dev, true);
 	co = ho = nouveau_ramht_hash_handle(dev, chan->id, ref->handle);
 	do {
 		if (nouveau_ramht_entry_valid(dev, ramht, co) &&
@@ -186,7 +183,7 @@ nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 			nv_wo32(dev, ramht, (co + 4)/4, 0x00000000);
 
 			list_del(&ref->list);
-			instmem->finish_access(dev);
+			instmem->flush(dev);
 			return;
 		}
 
@@ -195,7 +192,6 @@ nouveau_ramht_remove(struct drm_device *dev, struct nouveau_gpuobj_ref *ref)
 			co = 0;
 	} while (co != ho);
 	list_del(&ref->list);
-	instmem->finish_access(dev);
 
 	NV_ERROR(dev, "RAMHT entry not found. ch=%d, handle=0x%08x\n",
 		 chan->id, ref->handle);
@@ -280,10 +276,9 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
 		int i;
 
-		engine->instmem.prepare_access(dev, true);
 		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
 			nv_wo32(dev, gpuobj, i/4, 0);
-		engine->instmem.finish_access(dev);
+		engine->instmem.flush(dev);
 	}
 
 	*gpuobj_ret = gpuobj;
@@ -371,10 +366,9 @@ nouveau_gpuobj_del(struct drm_device *dev, struct nouveau_gpuobj **pgpuobj)
 	}
 
 	if (gpuobj->im_pramin && (gpuobj->flags & NVOBJ_FLAG_ZERO_FREE)) {
-		engine->instmem.prepare_access(dev, true);
 		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
 			nv_wo32(dev, gpuobj, i/4, 0);
-		engine->instmem.finish_access(dev);
+		engine->instmem.flush(dev);
 	}
 
 	if (gpuobj->dtor)
@@ -606,10 +600,9 @@ nouveau_gpuobj_new_fake(struct drm_device *dev, uint32_t p_offset,
 	}
 
 	if (gpuobj->flags & NVOBJ_FLAG_ZERO_ALLOC) {
-		dev_priv->engine.instmem.prepare_access(dev, true);
 		for (i = 0; i < gpuobj->im_pramin->size; i += 4)
 			nv_wo32(dev, gpuobj, i/4, 0);
-		dev_priv->engine.instmem.finish_access(dev);
+		dev_priv->engine.instmem.flush(dev);
 	}
 
 	if (pref) {
@@ -697,8 +690,6 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class,
 		return ret;
 	}
 
-	instmem->prepare_access(dev, true);
-
 	if (dev_priv->card_type < NV_50) {
 		uint32_t frame, adjust, pte_flags = 0;
 
@@ -735,7 +726,7 @@ nouveau_gpuobj_dma_new(struct nouveau_channel *chan, int class,
 		nv_wo32(dev, *gpuobj, 5, flags5);
 	}
 
-	instmem->finish_access(dev);
+	instmem->flush(dev);
 
 	(*gpuobj)->engine = NVOBJ_ENGINE_SW;
 	(*gpuobj)->class  = class;
@@ -850,7 +841,6 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 		return ret;
 	}
 
-	dev_priv->engine.instmem.prepare_access(dev, true);
 	if (dev_priv->card_type >= NV_50) {
 		nv_wo32(dev, *gpuobj, 0, class);
 		nv_wo32(dev, *gpuobj, 5, 0x00010000);
@@ -875,7 +865,7 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, int class,
 			}
 		}
 	}
-	dev_priv->engine.instmem.finish_access(dev);
+	dev_priv->engine.instmem.flush(dev);
 
 	(*gpuobj)->engine = NVOBJ_ENGINE_GR;
 	(*gpuobj)->class  = class;
@@ -988,17 +978,13 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	if (dev_priv->card_type >= NV_50) {
 		uint32_t vm_offset, pde;
 
-		instmem->prepare_access(dev, true);
-
 		vm_offset = (dev_priv->chipset & 0xf0) == 0x50 ? 0x1400 : 0x200;
 		vm_offset += chan->ramin->gpuobj->im_pramin->start;
 
 		ret = nouveau_gpuobj_new_fake(dev, vm_offset, ~0, 0x4000,
 							0, &chan->vm_pd, NULL);
-		if (ret) {
-			instmem->finish_access(dev);
+		if (ret)
 			return ret;
-		}
 		for (i = 0; i < 0x4000; i += 8) {
 			nv_wo32(dev, chan->vm_pd, (i+0)/4, 0x00000000);
 			nv_wo32(dev, chan->vm_pd, (i+4)/4, 0xdeadcafe);
@@ -1008,10 +994,8 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		ret = nouveau_gpuobj_ref_add(dev, NULL, 0,
 					     dev_priv->gart_info.sg_ctxdma,
 					     &chan->vm_gart_pt);
-		if (ret) {
-			instmem->finish_access(dev);
+		if (ret)
 			return ret;
-		}
 		nv_wo32(dev, chan->vm_pd, pde++,
 			    chan->vm_gart_pt->instance | 0x03);
 		nv_wo32(dev, chan->vm_pd, pde++, 0x00000000);
@@ -1021,17 +1005,15 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 			ret = nouveau_gpuobj_ref_add(dev, NULL, 0,
 						     dev_priv->vm_vram_pt[i],
 						     &chan->vm_vram_pt[i]);
-			if (ret) {
-				instmem->finish_access(dev);
+			if (ret)
 				return ret;
-			}
 
 			nv_wo32(dev, chan->vm_pd, pde++,
 				    chan->vm_vram_pt[i]->instance | 0x61);
 			nv_wo32(dev, chan->vm_pd, pde++, 0x00000000);
 		}
 
-		instmem->finish_access(dev);
+		instmem->flush(dev);
 	}
 
 	/* RAMHT */
@@ -1164,10 +1146,8 @@ nouveau_gpuobj_suspend(struct drm_device *dev)
 			return -ENOMEM;
 		}
 
-		dev_priv->engine.instmem.prepare_access(dev, false);
 		for (i = 0; i < gpuobj->im_pramin->size / 4; i++)
 			gpuobj->im_backing_suspend[i] = nv_ro32(dev, gpuobj, i);
-		dev_priv->engine.instmem.finish_access(dev);
 	}
 
 	return 0;
@@ -1212,10 +1192,9 @@ nouveau_gpuobj_resume(struct drm_device *dev)
 		if (!gpuobj->im_backing_suspend)
 			continue;
 
-		dev_priv->engine.instmem.prepare_access(dev, true);
 		for (i = 0; i < gpuobj->im_pramin->size / 4; i++)
 			nv_wo32(dev, gpuobj, i, gpuobj->im_backing_suspend[i]);
-		dev_priv->engine.instmem.finish_access(dev);
+		dev_priv->engine.instmem.flush(dev);
 	}
 
 	nouveau_gpuobj_suspend_cleanup(dev);

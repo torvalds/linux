@@ -54,8 +54,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv04_instmem_clear;
 		engine->instmem.bind		= nv04_instmem_bind;
 		engine->instmem.unbind		= nv04_instmem_unbind;
-		engine->instmem.prepare_access	= nv04_instmem_prepare_access;
-		engine->instmem.finish_access	= nv04_instmem_finish_access;
+		engine->instmem.flush		= nv04_instmem_flush;
 		engine->mc.init			= nv04_mc_init;
 		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
@@ -95,8 +94,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv04_instmem_clear;
 		engine->instmem.bind		= nv04_instmem_bind;
 		engine->instmem.unbind		= nv04_instmem_unbind;
-		engine->instmem.prepare_access	= nv04_instmem_prepare_access;
-		engine->instmem.finish_access	= nv04_instmem_finish_access;
+		engine->instmem.flush		= nv04_instmem_flush;
 		engine->mc.init			= nv04_mc_init;
 		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
@@ -138,8 +136,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv04_instmem_clear;
 		engine->instmem.bind		= nv04_instmem_bind;
 		engine->instmem.unbind		= nv04_instmem_unbind;
-		engine->instmem.prepare_access	= nv04_instmem_prepare_access;
-		engine->instmem.finish_access	= nv04_instmem_finish_access;
+		engine->instmem.flush		= nv04_instmem_flush;
 		engine->mc.init			= nv04_mc_init;
 		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
@@ -181,8 +178,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv04_instmem_clear;
 		engine->instmem.bind		= nv04_instmem_bind;
 		engine->instmem.unbind		= nv04_instmem_unbind;
-		engine->instmem.prepare_access	= nv04_instmem_prepare_access;
-		engine->instmem.finish_access	= nv04_instmem_finish_access;
+		engine->instmem.flush		= nv04_instmem_flush;
 		engine->mc.init			= nv04_mc_init;
 		engine->mc.takedown		= nv04_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
@@ -225,8 +221,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv04_instmem_clear;
 		engine->instmem.bind		= nv04_instmem_bind;
 		engine->instmem.unbind		= nv04_instmem_unbind;
-		engine->instmem.prepare_access	= nv04_instmem_prepare_access;
-		engine->instmem.finish_access	= nv04_instmem_finish_access;
+		engine->instmem.flush		= nv04_instmem_flush;
 		engine->mc.init			= nv40_mc_init;
 		engine->mc.takedown		= nv40_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
@@ -271,8 +266,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv50_instmem_clear;
 		engine->instmem.bind		= nv50_instmem_bind;
 		engine->instmem.unbind		= nv50_instmem_unbind;
-		engine->instmem.prepare_access	= nv50_instmem_prepare_access;
-		engine->instmem.finish_access	= nv50_instmem_finish_access;
+		engine->instmem.flush		= nv50_instmem_flush;
 		engine->mc.init			= nv50_mc_init;
 		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;
