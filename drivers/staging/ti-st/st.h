@@ -84,7 +84,8 @@ struct st_proto_s {
 	long (*write) (struct sk_buff *skb);
 };
 
-extern long st_register(struct st_proto_s *new_proto);
-extern long st_unregister(enum proto_type type);
+extern long st_register(struct st_proto_s *);
+extern long st_unregister(enum proto_type);
 
+extern struct platform_device *st_get_plat_device(void);
 #endif /* ST_H */

@@ -69,6 +69,8 @@ struct st_data_s {
 	spinlock_t lock;	/* ST LL state lock  */
 	unsigned char	protos_registered;
 	unsigned long ll_state;	/* ST LL power state */
+/* device reference to kim data */
+	void *kim_data;
 };
 
 /* point this to tty->driver->write or tty->ops->write

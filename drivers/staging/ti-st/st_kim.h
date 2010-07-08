@@ -79,8 +79,8 @@ struct kim_data_s {
 	struct chip_version version;
 };
 
-long st_kim_start(void);
-long st_kim_stop(void);
+long st_kim_start(void *);
+long st_kim_stop(void *);
 /*
  * called from st_tty_receive to authenticate fw_download
  */
@@ -88,7 +88,7 @@ void st_kim_recv(void *, const unsigned char *, long count);
 
 void st_kim_chip_toggle(enum proto_type, enum kim_gpio_state);
 
-void st_kim_complete(void);
+void st_kim_complete(void *);
 
 /* function called from ST KIM to ST Core, to
  * list out the protocols registered

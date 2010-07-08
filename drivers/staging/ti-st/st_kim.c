@@ -100,7 +100,6 @@ const unsigned char *protocol_names[] = {
 	PROTO_ENTRY(ST_GPS, "GPS"),
 };
 
-struct kim_data_s	*kim_gdata;
 
 /**********************************************************************/
 /* internal functions */
@@ -110,8 +109,9 @@ struct kim_data_s	*kim_gdata;
  * in case of error don't complete so that waiting for proper
  * response times out
  */
-void validate_firmware_response(struct sk_buff *skb)
+void validate_firmware_response(struct kim_data_s *kim_gdata)
 {
+	struct sk_buff *skb = kim_gdata->rx_skb;
 	if (unlikely(skb->data[5] != 0)) {
 		pr_err("no proper response during fw download");
 		pr_err("data6 %x", skb->data[5]);
@@ -125,14 +125,14 @@ void validate_firmware_response(struct sk_buff *skb)
 /* check for data len received inside kim_int_recv
  * most often hit the last case to update state to waiting for data
  */
-static inline int kim_check_data_len(int len)
+static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 {
 	register int room = skb_tailroom(kim_gdata->rx_skb);
 
 	pr_info("len %d room %d", len, room);
 
 	if (!len) {
-		validate_firmware_response(kim_gdata->rx_skb);
+		validate_firmware_response(kim_gdata);
 	} else if (len > room) {
 		/* Received packet's payload length is larger.
 		 * We can't accommodate it in created skb.
@@ -163,7 +163,8 @@ static inline int kim_check_data_len(int len)
  *   have been observed to come in bursts of different
  *   tty_receive and hence the logic
  */
-void kim_int_recv(const unsigned char *data, long count)
+void kim_int_recv(struct kim_data_s *kim_gdata,
+	const unsigned char *data, long count)
 {
 	register char *ptr;
 	struct hci_event_hdr *eh;
@@ -192,7 +193,7 @@ void kim_int_recv(const unsigned char *data, long count)
 				/* Waiting for complete packet ? */
 			case ST_BT_W4_DATA:
 				pr_info("Complete pkt received");
-				validate_firmware_response(kim_gdata->rx_skb);
+				validate_firmware_response(kim_gdata);
 				kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 				kim_gdata->rx_skb = NULL;
 				continue;
@@ -202,7 +203,7 @@ void kim_int_recv(const unsigned char *data, long count)
 				    rx_skb->data;
 				pr_info("Event header: evt 0x%2.2x"
 					   "plen %d", eh->evt, eh->plen);
-				kim_check_data_len(eh->plen);
+				kim_check_data_len(kim_gdata, eh->plen);
 				continue;
 			}	/* end of switch */
 		}		/* end of if rx_state */
@@ -236,7 +237,7 @@ void kim_int_recv(const unsigned char *data, long count)
 	return;
 }
 
-static long read_local_version(char *bts_scr_name)
+static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 {
 	unsigned short version = 0, chip = 0, min_ver = 0, maj_ver = 0;
 	char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
@@ -280,7 +281,7 @@ static long read_local_version(char *bts_scr_name)
 /* internal function which parses through the .bts firmware script file
  * intreprets SEND, DELAY actions only as of now
  */
-static long download_firmware(void)
+static long download_firmware(struct kim_data_s *kim_gdata)
 {
 	long err = ST_SUCCESS;
 	long len = 0;
@@ -290,7 +291,7 @@ static long download_firmware(void)
 
 	pr_info("%s", __func__);
 
-	err = read_local_version(bts_scr_name);
+	err = read_local_version(kim_gdata, bts_scr_name);
 	if (err != ST_SUCCESS) {
 		pr_err("kim: failed to read local ver");
 		return err;
@@ -369,13 +370,17 @@ static long download_firmware(void)
 
 /**********************************************************************/
 /* functions called from ST core */
-
 /* function to toggle the GPIO
  * needs to know whether the GPIO is active high or active low
  */
 void st_kim_chip_toggle(enum proto_type type, enum kim_gpio_state state)
 {
+	struct platform_device	*kim_pdev;
+	struct kim_data_s	*kim_gdata;
 	pr_info(" %s ", __func__);
+
+	kim_pdev = st_get_plat_device();
+	kim_gdata = dev_get_drvdata(&kim_pdev->dev);
 
 	if (kim_gdata->gpios[type] == -1) {
 		pr_info(" gpio not requested for protocol %s",
@@ -416,6 +421,9 @@ void st_kim_chip_toggle(enum proto_type type, enum kim_gpio_state state)
  */
 void st_kim_recv(void *disc_data, const unsigned char *data, long count)
 {
+	struct st_data_s	*st_gdata = (struct st_data_s *)disc_data;
+	struct kim_data_s	*kim_gdata = st_gdata->kim_data;
+
 	pr_info(" %s ", __func__);
 	/* copy to local buffer */
 	if (unlikely(data[4] == 0x01 && data[5] == 0x10 && data[0] == 0x04)) {
@@ -424,7 +432,7 @@ void st_kim_recv(void *disc_data, const unsigned char *data, long count)
 		complete_all(&kim_gdata->kim_rcvd);
 		return;
 	} else {
-		kim_int_recv(data, count);
+		kim_int_recv(kim_gdata, data, count);
 		/* either completes or times out */
 	}
 	return;
@@ -433,17 +441,20 @@ void st_kim_recv(void *disc_data, const unsigned char *data, long count)
 /* to signal completion of line discipline installation
  * called from ST Core, upon tty_open
  */
-void st_kim_complete(void)
+void st_kim_complete(void *kim_data)
 {
+	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 	complete(&kim_gdata->ldisc_installed);
 }
 
 /* called from ST Core upon 1st registration
 */
-long st_kim_start(void)
+long st_kim_start(void *kim_data)
 {
 	long err = ST_SUCCESS;
 	long retry = POR_RETRY_COUNT;
+	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
+
 	pr_info(" %s", __func__);
 
 	do {
@@ -480,7 +491,7 @@ long st_kim_start(void)
 		} else {
 			/* ldisc installed now */
 			pr_info(" line discipline installed ");
-			err = download_firmware();
+			err = download_firmware(kim_gdata);
 			if (err != ST_SUCCESS) {
 				pr_err("download firmware failed");
 				continue;
@@ -494,9 +505,10 @@ long st_kim_start(void)
 
 /* called from ST Core, on the last un-registration
 */
-long st_kim_stop(void)
+long st_kim_stop(void *kim_data)
 {
 	long err = ST_SUCCESS;
+	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 
 	INIT_COMPLETION(kim_gdata->ldisc_installed);
 #if 0 /* older way of signalling user-space UIM */
@@ -534,6 +546,7 @@ long st_kim_stop(void)
 static ssize_t show_version(struct device *dev, struct device_attribute
 		*attr, char *buf)
 {
+	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
 	sprintf(buf, "%04X %d.%d.%d", kim_gdata->version.full,
 			kim_gdata->version.chip, kim_gdata->version.maj_ver,
 			kim_gdata->version.min_ver);
@@ -544,6 +557,7 @@ static ssize_t show_version(struct device *dev, struct device_attribute
 static ssize_t store_pid(struct device *dev, struct device_attribute
 			 *devattr, char *buf, size_t count)
 {
+	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
 	pr_info("%s: pid %s ", __func__, buf);
 	sscanf(buf, "%ld", &kim_gdata->uim_pid);
 	/* to be made use by kim_start to signal SIGUSR2
@@ -555,6 +569,7 @@ static ssize_t store_pid(struct device *dev, struct device_attribute
 static ssize_t show_pid(struct device *dev, struct device_attribute
 			*attr, char *buf)
 {
+	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
 	sprintf(buf, "%ld", kim_gdata->uim_pid);
 	return strlen(buf);
 }
@@ -563,6 +578,7 @@ static ssize_t show_pid(struct device *dev, struct device_attribute
 static ssize_t show_list(struct device *dev, struct device_attribute
 			 *attr, char *buf)
 {
+	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
 	kim_st_list_protocols(kim_gdata->core_data, buf);
 	return strlen(buf);
 }
@@ -596,6 +612,11 @@ static int kim_toggle_radio(void *data, bool blocked)
 
 void st_kim_ref(struct st_data_s **core_data)
 {
+	struct platform_device	*pdev;
+	struct kim_data_s	*kim_gdata;
+	/* get kim_gdata reference from platform device */
+	pdev = st_get_plat_device();
+	kim_gdata = dev_get_drvdata(&pdev->dev);
 	*core_data = kim_gdata->core_data;
 }
 
@@ -610,12 +631,22 @@ static int kim_probe(struct platform_device *pdev)
 	long status;
 	long proto;
 	long *gpios = pdev->dev.platform_data;
+	struct kim_data_s	*kim_gdata;
+
+	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_ATOMIC);
+	if (!kim_gdata) {
+		pr_err("no mem to allocate");
+		return -ENOMEM;
+	}
+	dev_set_drvdata(&pdev->dev, kim_gdata);
 
 	status = st_core_init(&kim_gdata->core_data);
 	if (status != 0) {
 		pr_err(" ST core init failed");
 		return ST_ERR_FAILURE;
 	}
+	/* refer to itself */
+	kim_gdata->core_data->kim_data = kim_gdata;
 
 	for (proto = 0; proto < ST_MAX; proto++) {
 		kim_gdata->gpios[proto] = gpios[proto];
@@ -694,6 +725,9 @@ static int kim_remove(struct platform_device *pdev)
 	 */
 	long *gpios = pdev->dev.platform_data;
 	long proto;
+	struct kim_data_s	*kim_gdata;
+
+	kim_gdata = dev_get_drvdata(&pdev->dev);
 
 	for (proto = 0; (proto < ST_MAX) && (gpios[proto] != -1); proto++) {
 		/* Claim the Bluetooth/FM/GPIO
@@ -708,6 +742,9 @@ static int kim_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &uim_attr_grp);
 	kim_gdata->kim_pdev = NULL;
 	st_core_exit(kim_gdata->core_data);
+
+	kfree(kim_gdata);
+	kim_gdata = NULL;
 	return ST_SUCCESS;
 }
 
@@ -717,12 +754,6 @@ static int kim_remove(struct platform_device *pdev)
 static int __init st_kim_init(void)
 {
 	long ret = ST_SUCCESS;
-	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_ATOMIC);
-	if (!kim_gdata) {
-		pr_err("no mem to allocate");
-		return -ENOMEM;
-	}
-
 	ret = platform_driver_register(&kim_platform_driver);
 	if (ret != 0) {
 		pr_err("platform drv registration failed");
@@ -735,8 +766,6 @@ static void __exit st_kim_deinit(void)
 {
 	/* the following returns void */
 	platform_driver_unregister(&kim_platform_driver);
-	kfree(kim_gdata);
-	kim_gdata = NULL;
 }
 
 

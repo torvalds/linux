@@ -650,7 +650,7 @@ long st_register(struct st_proto_s *new_proto)
 		/* this may take a while to complete
 		 * since it involves BT fw download
 		 */
-		err = st_kim_start();
+		err = st_kim_start(st_gdata->kim_data);
 		if (err != ST_SUCCESS) {
 			clear_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 			if ((st_gdata->protos_registered != ST_EMPTY) &&
@@ -771,7 +771,7 @@ long st_unregister(enum proto_type type)
 		}
 
 		/* all protocols now unregistered */
-		st_kim_stop();
+		st_kim_stop(st_gdata->kim_data);
 		/* disable ST LL */
 		st_ll_disable(st_gdata);
 	}
@@ -858,7 +858,7 @@ static int st_tty_open(struct tty_struct *tty)
 	 * signal to UIM via KIM that -
 	 * installation of N_TI_WL ldisc is complete
 	 */
-	st_kim_complete();
+	st_kim_complete(st_gdata->kim_data);
 	pr_info("done %s", __func__);
 	return err;
 }
@@ -886,7 +886,7 @@ static void st_tty_close(struct tty_struct *tty)
 	 * signal to UIM via KIM that -
 	 * N_TI_WL ldisc is un-installed
 	 */
-	st_kim_complete();
+	st_kim_complete(st_gdata->kim_data);
 	st_gdata->tty = NULL;
 	/* Flush any pending characters in the driver and discipline. */
 	tty_ldisc_flush(tty);
