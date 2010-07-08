@@ -1075,13 +1075,12 @@ out:
 	return ret;
 }
 
-int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
-			     u8 version)
+int wl1271_acx_arp_ip_filter(struct wl1271 *wl, u8 mode, u8 *address)
 {
 	struct wl1271_acx_arp_filter *acx;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx arp ip filter, enable: %d", enable);
+	wl1271_debug(DEBUG_ACX, "acx arp ip filter, mode: %d", mode);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -1089,17 +1088,11 @@ int wl1271_acx_arp_ip_filter(struct wl1271 *wl, bool enable, u8 *address,
 		goto out;
 	}
 
-	acx->version = version;
-	acx->enable = enable;
+	acx->version = ACX_IPV4_VERSION;
+	acx->enable = mode;
 
-	if (enable == true) {
-		if (version == ACX_IPV4_VERSION)
-			memcpy(acx->address, address, ACX_IPV4_ADDR_SIZE);
-		else if (version == ACX_IPV6_VERSION)
-			memcpy(acx->address, address, sizeof(acx->address));
-		else
-			wl1271_error("Invalid IP version");
-	}
+	if (mode != ACX_ARP_DISABLE)
+		memcpy(acx->address, address, ACX_IPV4_ADDR_SIZE);
 
 	ret = wl1271_cmd_configure(wl, ACX_ARP_IP_FILTER,
 				   acx, sizeof(*acx));

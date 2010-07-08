@@ -28,7 +28,6 @@
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
-#include <linux/inetdevice.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -818,93 +817,6 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	return NETDEV_TX_OK;
 }
 
-static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
-			     void *arg)
-{
-	struct net_device *dev;
-	struct wireless_dev *wdev;
-	struct wiphy *wiphy;
-	struct ieee80211_hw *hw;
-	struct wl1271 *wl;
-	struct wl1271 *wl_temp;
-	struct in_device *idev;
-	struct in_ifaddr *ifa = arg;
-	int ret = 0;
-
-	/* FIXME: this ugly function should probably be implemented in the
-	 * mac80211, and here should only be a simple callback handling actual
-	 * setting of the filters. Now we need to dig up references to
-	 * various structures to gain access to what we need.
-	 * Also, because of this, there is no "initial" setting of the filter
-	 * in "op_start", because we don't want to dig up struct net_device
-	 * there - the filter will be set upon first change of the interface
-	 * IP address. */
-
-	dev = ifa->ifa_dev->dev;
-
-	wdev = dev->ieee80211_ptr;
-	if (wdev == NULL)
-		return NOTIFY_DONE;
-
-	wiphy = wdev->wiphy;
-	if (wiphy == NULL)
-		return NOTIFY_DONE;
-
-	hw = wiphy_priv(wiphy);
-	if (hw == NULL)
-		return NOTIFY_DONE;
-
-	/* Check that the interface is one supported by this driver. */
-	wl_temp = hw->priv;
-	list_for_each_entry(wl, &wl_list, list) {
-		if (wl == wl_temp)
-			break;
-	}
-	if (wl != wl_temp)
-		return NOTIFY_DONE;
-
-	/* Get the interface IP address for the device. "ifa" will become
-	   NULL if:
-	     - there is no IPV4 protocol address configured
-	     - there are multiple (virtual) IPV4 addresses configured
-	   When "ifa" is NULL, filtering will be disabled.
-	*/
-	ifa = NULL;
-	idev = dev->ip_ptr;
-	if (idev)
-		ifa = idev->ifa_list;
-
-	if (ifa && ifa->ifa_next)
-		ifa = NULL;
-
-	mutex_lock(&wl->mutex);
-
-	if (wl->state == WL1271_STATE_OFF)
-		goto out;
-
-	ret = wl1271_ps_elp_wakeup(wl, false);
-	if (ret < 0)
-		goto out;
-	if (ifa)
-		ret = wl1271_acx_arp_ip_filter(wl, true,
-					       (u8 *)&ifa->ifa_address,
-					       ACX_IPV4_VERSION);
-	else
-		ret = wl1271_acx_arp_ip_filter(wl, false, NULL,
-					       ACX_IPV4_VERSION);
-	wl1271_ps_elp_sleep(wl);
-
-out:
-	mutex_unlock(&wl->mutex);
-
-	return NOTIFY_OK;
-}
-
-static struct notifier_block wl1271_dev_notifier = {
-	.notifier_call = wl1271_dev_notify,
-};
-
-
 static int wl1271_op_start(struct ieee80211_hw *hw)
 {
 	wl1271_debug(DEBUG_MAC80211, "mac80211 start");
@@ -1008,10 +920,8 @@ power_off:
 out:
 	mutex_unlock(&wl->mutex);
 
-	if (!ret) {
+	if (!ret)
 		list_add(&wl->list, &wl_list);
-		register_inetaddr_notifier(&wl1271_dev_notifier);
-	}
 
 	return ret;
 }
@@ -1021,8 +931,6 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 {
 	struct wl1271 *wl = hw->priv;
 	int i;
-
-	unregister_inetaddr_notifier(&wl1271_dev_notifier);
 
 	mutex_lock(&wl->mutex);
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
@@ -1399,6 +1307,53 @@ struct wl1271_filter_params {
 	int mc_list_length;
 	u8 mc_list[ACX_MC_ADDRESS_GROUP_MAX][ETH_ALEN];
 };
+
+static int wl1271_op_configure_arp_filter(struct ieee80211_hw *hw,
+					  struct ieee80211_vif *vif,
+					  struct in_ifaddr *ifa_list)
+{
+	struct wl1271 *wl = hw->priv;
+	int ret = 0;
+
+	WARN_ON(vif != wl->vif);
+
+	/* disable filtering if there are multiple addresses */
+	if (ifa_list && ifa_list->ifa_next)
+		ifa_list = NULL;
+
+	mutex_lock(&wl->mutex);
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
+	if (ifa_list) {
+		ret = wl1271_cmd_build_arp_reply(wl, &ifa_list->ifa_address);
+		if (ret < 0)
+			goto out_sleep;
+		ret = wl1271_acx_arp_ip_filter(wl, ACX_ARP_FILTER_AND_REPLY,
+					       (u8 *)&ifa_list->ifa_address);
+		if (ret < 0)
+			goto out_sleep;
+	} else {
+		ret = wl1271_acx_arp_ip_filter(wl, ACX_ARP_DISABLE, NULL);
+		if (ret < 0)
+			goto out_sleep;
+	}
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+
+	return ret;
+}
 
 static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 				       struct netdev_hw_addr_list *mc_list)
@@ -2213,6 +2168,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
 	.config = wl1271_op_config,
+	.configure_arp_filter = wl1271_op_configure_arp_filter,
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
