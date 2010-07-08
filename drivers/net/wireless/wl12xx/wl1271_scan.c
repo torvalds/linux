@@ -65,7 +65,7 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 			channels[j].max_duration =
 				cpu_to_le32(WL1271_SCAN_CHAN_MAX_DURATION);
 			channels[j].early_termination = 0;
-			channels[j].tx_power_att = WL1271_SCAN_CURRENT_TX_PWR;
+			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;
 
 			memset(&channels[j].bssid_lsb, 0xff, 4);
