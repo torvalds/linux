@@ -997,18 +997,31 @@ int ceph_parse_ips(const char *c, const char *end,
 		struct sockaddr_in *in4 = (void *)ss;
 		struct sockaddr_in6 *in6 = (void *)ss;
 		int port;
+		char delim = ',';
+
+		if (*p == '[') {
+			delim = ']';
+			p++;
+		}
 
 		memset(ss, 0, sizeof(*ss));
 		if (in4_pton(p, end - p, (u8 *)&in4->sin_addr.s_addr,
-			     ',', &ipend)) {
+			     delim, &ipend))
 			ss->ss_family = AF_INET;
-		} else if (in6_pton(p, end - p, (u8 *)&in6->sin6_addr.s6_addr,
-				    ',', &ipend)) {
+		else if (in6_pton(p, end - p, (u8 *)&in6->sin6_addr.s6_addr,
+				  delim, &ipend))
 			ss->ss_family = AF_INET6;
-		} else {
+		else
 			goto bad;
-		}
 		p = ipend;
+
+		if (delim == ']') {
+			if (*p != ']') {
+				dout("missing matching ']'\n");
+				goto bad;
+			}
+			p++;
+		}
 
 		/* port? */
 		if (p < end && *p == ':') {
@@ -1043,7 +1056,7 @@ int ceph_parse_ips(const char *c, const char *end,
 	return 0;
 
 bad:
-	pr_err("parse_ips bad ip '%s'\n", c);
+	pr_err("parse_ips bad ip '%.*s'\n", (int)(end - c), c);
 	return -EINVAL;
 }
 
