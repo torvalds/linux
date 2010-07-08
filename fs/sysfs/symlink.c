@@ -28,6 +28,7 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 	struct sysfs_dirent *target_sd = NULL;
 	struct sysfs_dirent *sd = NULL;
 	struct sysfs_addrm_cxt acxt;
+	enum kobj_ns_type ns_type;
 	int error;
 
 	BUG_ON(!name);
@@ -58,16 +59,28 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 	if (!sd)
 		goto out_put;
 
-	if (sysfs_ns_type(parent_sd))
+	ns_type = sysfs_ns_type(parent_sd);
+	if (ns_type)
 		sd->s_ns = target->ktype->namespace(target);
 	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
 	sysfs_addrm_start(&acxt, parent_sd);
-	if (warn)
-		error = sysfs_add_one(&acxt, sd);
-	else
-		error = __sysfs_add_one(&acxt, sd);
+	/* Symlinks must be between directories with the same ns_type */
+	if (ns_type == sysfs_ns_type(sd->s_symlink.target_sd->s_parent)) {
+		if (warn)
+			error = sysfs_add_one(&acxt, sd);
+		else
+			error = __sysfs_add_one(&acxt, sd);
+	} else {
+		error = -EINVAL;
+		WARN(1, KERN_WARNING
+			"sysfs: symlink across ns_types %s/%s -> %s/%s\n",
+			parent_sd->s_name,
+			sd->s_name,
+			sd->s_symlink.target_sd->s_parent->s_name,
+			sd->s_symlink.target_sd->s_name);
+	}
 	sysfs_addrm_finish(&acxt);
 
 	if (error)
