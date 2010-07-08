@@ -141,8 +141,12 @@ static int zfcp_erp_required_act(int want, struct zfcp_adapter *adapter,
 		if (!(p_status & ZFCP_STATUS_COMMON_UNBLOCKED))
 			need = ZFCP_ERP_ACTION_REOPEN_PORT;
 		/* fall through */
-	case ZFCP_ERP_ACTION_REOPEN_PORT:
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
+		p_status = atomic_read(&port->status);
+		if (!(p_status & ZFCP_STATUS_COMMON_OPEN))
+			need = ZFCP_ERP_ACTION_REOPEN_PORT;
+		/* fall through */
+	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		p_status = atomic_read(&port->status);
 		if (p_status & ZFCP_STATUS_COMMON_ERP_INUSE)
 			return 0;
