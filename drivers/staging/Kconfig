@@ -155,5 +155,7 @@ source "drivers/staging/solo6x10/Kconfig"
 
 source "drivers/staging/tidspbridge/Kconfig"
 
+source "drivers/staging/quickstart/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
