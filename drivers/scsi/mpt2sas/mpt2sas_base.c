@@ -1311,6 +1311,9 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	printk(MPT2SAS_INFO_FMT "ioport(0x%016llx), size(%d)\n",
 	    ioc->name, (unsigned long long)pio_chip, pio_sz);
 
+	/* Save PCI configuration state for recovery from PCI AER/EEH errors */
+	pci_save_state(pdev);
+
 	return 0;
 
  out_fail:
@@ -3407,6 +3410,9 @@ _base_make_ioc_ready(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	dinitprintk(ioc, printk(MPT2SAS_INFO_FMT "%s\n", ioc->name,
 	    __func__));
 
+	if (ioc->pci_error_recovery)
+		return 0;
+
 	ioc_state = mpt2sas_base_get_iocstate(ioc, 0);
 	dhsprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: ioc_state(0x%08x)\n",
 	    ioc->name, __func__, ioc_state));
@@ -3868,6 +3874,13 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter\n", ioc->name,
 	    __func__));
+
+	if (ioc->pci_error_recovery) {
+		printk(MPT2SAS_ERR_FMT "%s: pci error recovery reset\n",
+		    ioc->name, __func__);
+		r = 0;
+		goto out;
+	}
 
 	if (mpt2sas_fwfault_debug)
 		mpt2sas_halt_firmware(ioc);

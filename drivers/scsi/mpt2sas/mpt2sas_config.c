@@ -401,7 +401,7 @@ _config_request(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		if (ioc->config_cmds.smid == smid)
 			mpt2sas_base_free_smid(ioc, smid);
 		if ((ioc->shost_recovery) || (ioc->config_cmds.status &
-		    MPT2_CMD_RESET))
+		    MPT2_CMD_RESET) || ioc->pci_error_recovery)
 			goto retry_config;
 		issue_host_reset = 1;
 		r = -EFAULT;

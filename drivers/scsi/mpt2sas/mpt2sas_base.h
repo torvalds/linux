@@ -477,6 +477,7 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @ioc_link_reset_in_progress: phy/hard reset in progress
  * @ignore_loginfos: ignore loginfos during task managment
  * @remove_host: flag for when driver unloads, to avoid sending dev resets
+ * @pci_error_recovery: flag to prevent ioc access until slot reset completes
  * @wait_for_port_enable_to_complete:
  * @msix_enable: flag indicating msix is enabled
  * @msix_vector_count: number msix vectors
@@ -617,6 +618,7 @@ struct MPT2SAS_ADAPTER {
 
 	u8		ignore_loginfos;
 	u8		remove_host;
+	u8		pci_error_recovery;
 	u8		wait_for_port_enable_to_complete;
 
 	u8		msix_enable;

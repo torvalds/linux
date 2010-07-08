@@ -140,7 +140,7 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
 	u32 device_info;
 	u32 ioc_status;
 
-	if (ioc->shost_recovery) {
+	if (ioc->shost_recovery || ioc->pci_error_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return -EFAULT;
@@ -302,7 +302,7 @@ _transport_expander_report_manufacture(struct MPT2SAS_ADAPTER *ioc,
 	u64 *sas_address_le;
 	u16 wait_state_count;
 
-	if (ioc->shost_recovery) {
+	if (ioc->shost_recovery || ioc->pci_error_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return -EFAULT;
@@ -894,7 +894,7 @@ mpt2sas_transport_update_links(struct MPT2SAS_ADAPTER *ioc,
 	struct _sas_node *sas_node;
 	struct _sas_phy *mpt2sas_phy;
 
-	if (ioc->shost_recovery)
+	if (ioc->shost_recovery || ioc->pci_error_recovery)
 		return;
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
@@ -997,7 +997,7 @@ _transport_get_expander_phy_error_log(struct MPT2SAS_ADAPTER *ioc,
 	u64 *sas_address_le;
 	u16 wait_state_count;
 
-	if (ioc->shost_recovery) {
+	if (ioc->shost_recovery || ioc->pci_error_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return -EFAULT;

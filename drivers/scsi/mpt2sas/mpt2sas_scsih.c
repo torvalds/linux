@@ -1997,7 +1997,8 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
 		goto err_out;
 	}
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		rc = FAILED;
@@ -2644,7 +2645,8 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	unsigned long flags;
 	struct _tr_list *delayed_tr;
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
 		   "progress!\n", __func__, ioc->name));
 		return;
@@ -2742,7 +2744,8 @@ _scsih_tm_tr_volume_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	u16 smid;
 	struct _tr_list *delayed_tr;
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
 		   "progress!\n", __func__, ioc->name));
 		return;
@@ -2793,7 +2796,8 @@ _scsih_tm_volume_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid,
 	Mpi2SCSITaskManagementReply_t *mpi_reply =
 	    mpt2sas_base_get_reply_virt_addr(ioc, reply);
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
 		   "progress!\n", __func__, ioc->name));
 		return 1;
@@ -2845,7 +2849,8 @@ _scsih_tm_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	Mpi2SasIoUnitControlRequest_t *mpi_request;
 	u16 smid_sas_ctrl;
 
-	if (ioc->shost_recovery || ioc->remove_host) {
+	if (ioc->shost_recovery || ioc->remove_host ||
+	    ioc->pci_error_recovery) {
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
 		   "progress!\n", __func__, ioc->name));
 		return 1;
@@ -3187,7 +3192,10 @@ _scsih_flush_running_cmds(struct MPT2SAS_ADAPTER *ioc)
 		count++;
 		mpt2sas_base_free_smid(ioc, smid);
 		scsi_dma_unmap(scmd);
-		scmd->result = DID_RESET << 16;
+		if (ioc->pci_error_recovery)
+			scmd->result = DID_NO_CONNECT << 16;
+		else
+			scmd->result = DID_RESET << 16;
 		scmd->scsi_done(scmd);
 	}
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "completing %d cmds\n",
@@ -3319,6 +3327,12 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 	scmd->scsi_done = done;
 	sas_device_priv_data = scmd->device->hostdata;
 	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
+		scmd->result = DID_NO_CONNECT << 16;
+		scmd->scsi_done(scmd);
+		return 0;
+	}
+
+	if (ioc->pci_error_recovery) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
@@ -4156,7 +4170,7 @@ _scsih_expander_add(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	if (!handle)
 		return -1;
 
-	if (ioc->shost_recovery)
+	if (ioc->shost_recovery || ioc->pci_error_recovery)
 		return -1;
 
 	if ((mpt2sas_config_get_expander_pg0(ioc, &mpi_reply, &expander_pg0,
@@ -4734,7 +4748,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		_scsih_sas_topology_change_event_debug(ioc, event_data);
 #endif
 
-	if (ioc->shost_recovery || ioc->remove_host)
+	if (ioc->shost_recovery || ioc->remove_host || ioc->pci_error_recovery)
 		return;
 
 	if (!ioc->sas_hba.num_phys)
@@ -4773,7 +4787,8 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 			    "expander event\n", ioc->name));
 			return;
 		}
-		if (ioc->shost_recovery || ioc->remove_host)
+		if (ioc->shost_recovery || ioc->remove_host ||
+		    ioc->pci_error_recovery)
 			return;
 		phy_number = event_data->StartPhyNum + i;
 		reason_code = event_data->PHY[i].PhyStatus &
@@ -6273,7 +6288,8 @@ _firmware_event_work(struct work_struct *work)
 	struct MPT2SAS_ADAPTER *ioc = fw_event->ioc;
 
 	/* the queue is being flushed so ignore this event */
-	if (ioc->remove_host || fw_event->cancel_pending_work) {
+	if (ioc->remove_host || fw_event->cancel_pending_work ||
+	    ioc->pci_error_recovery) {
 		_scsih_fw_event_free(ioc, fw_event);
 		return;
 	}
@@ -6355,7 +6371,7 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	u16 sz;
 
 	/* events turned off due to host reset or driver unloading */
-	if (ioc->remove_host)
+	if (ioc->remove_host || ioc->pci_error_recovery)
 		return 1;
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
@@ -7058,12 +7074,17 @@ _scsih_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 	case pci_channel_io_normal:
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
+		/* Fatal error, prepare for slot reset */
+		ioc->pci_error_recovery = 1;
 		scsi_block_requests(ioc->shost);
 		mpt2sas_base_stop_watchdog(ioc);
 		mpt2sas_base_free_resources(ioc);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
-		_scsih_remove(pdev);
+		/* Permanent error, prepare for device removal */
+		ioc->pci_error_recovery = 1;
+		mpt2sas_base_stop_watchdog(ioc);
+		_scsih_flush_running_cmds(ioc);
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 	return PCI_ERS_RESULT_NEED_RESET;
@@ -7087,7 +7108,9 @@ _scsih_pci_slot_reset(struct pci_dev *pdev)
 	printk(MPT2SAS_INFO_FMT "PCI error: slot reset callback!!\n",
 		ioc->name);
 
+	ioc->pci_error_recovery = 0;
 	ioc->pdev = pdev;
+	pci_restore_state(pdev);
 	rc = mpt2sas_base_map_resources(ioc);
 	if (rc)
 		return PCI_ERS_RESULT_DISCONNECT;
