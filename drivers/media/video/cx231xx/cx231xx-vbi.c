@@ -180,7 +180,7 @@ vbi_buffer_setup(struct videobuf_queue *vq, unsigned int *count,
 	height = ((dev->norm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
 
-	*size = (dev->width * height * 2);
+	*size = (dev->width * height * 2 * 2);
 	if (0 == *count)
 		*count = CX231XX_DEF_VBI_BUF;
 
@@ -230,7 +230,7 @@ vbi_buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 
 	height = ((dev->norm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
-	buf->vb.size = ((dev->width << 1) * height);
+	buf->vb.size = ((dev->width << 1) * height * 2);
 
 	if (0 != buf->vb.baddr && buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
@@ -549,8 +549,13 @@ u32 cx231xx_copy_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 	struct cx231xx_buffer *buf;
 	u32 _line_size = dev->width * 2;
 
-	if (dma_q->current_field != field_number)
+	if (dma_q->current_field == -1) {
+		/* Just starting up */
 		cx231xx_reset_vbi_buffer(dev, dma_q);
+	}
+
+	if (dma_q->current_field != field_number)
+		dma_q->lines_completed = 0;
 
 	/* get the buffer pointer */
 	buf = dev->vbi_mode.bulk_ctl.buf;
@@ -597,8 +602,8 @@ u32 cx231xx_copy_vbi_line(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 			vbi_buffer_filled(dev, dma_q, buf);
 
 			dma_q->pos = 0;
-			buf = NULL;
 			dma_q->lines_completed = 0;
+			cx231xx_reset_vbi_buffer(dev, dma_q);
 		}
 	}
 
@@ -679,6 +684,11 @@ int cx231xx_do_vbi_copy(struct cx231xx *dev, struct cx231xx_dmaqueue *dma_q,
 	offset = (dma_q->lines_completed * _line_size) +
 		 current_line_bytes_copied;
 
+	if (dma_q->current_field == 2) {
+		/* Populate the second half of the frame */
+		offset += (dev->width * 2 * dma_q->lines_per_field);
+	}
+
 	/* prepare destination address */
 	startwrite = p_out_buffer + offset;
 
@@ -697,5 +707,8 @@ u8 cx231xx_is_vbi_buffer_done(struct cx231xx *dev,
 
 	height = ((dev->norm & V4L2_STD_625_50) ?
 		  PAL_VBI_LINES : NTSC_VBI_LINES);
-	return (dma_q->lines_completed == height) ? 1 : 0;
+	if (dma_q->lines_completed == height && dma_q->current_field == 2)
+		return 1;
+	else
+		return 0;
 }
