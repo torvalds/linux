@@ -746,13 +746,6 @@ extern struct kmem_cache *ceph_file_cachep;
 extern const char *ceph_msg_type_name(int type);
 extern int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid);
 
-#define FSID_FORMAT "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-" \
-	"%02x%02x%02x%02x%02x%02x"
-#define PR_FSID(f) (f)->fsid[0], (f)->fsid[1], (f)->fsid[2], (f)->fsid[3], \
-		(f)->fsid[4], (f)->fsid[5], (f)->fsid[6], (f)->fsid[7],    \
-		(f)->fsid[8], (f)->fsid[9], (f)->fsid[10], (f)->fsid[11],  \
-		(f)->fsid[12], (f)->fsid[13], (f)->fsid[14], (f)->fsid[15]
-
 /* inode.c */
 extern const struct inode_operations ceph_file_iops;
 

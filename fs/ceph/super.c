@@ -151,7 +151,7 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 	struct ceph_mount_args *args = client->mount_args;
 
 	if (args->flags & CEPH_OPT_FSID)
-		seq_printf(m, ",fsid=" FSID_FORMAT, PR_FSID(&args->fsid));
+		seq_printf(m, ",fsid=%pU", &args->fsid);
 	if (args->flags & CEPH_OPT_NOSHARE)
 		seq_puts(m, ",noshare");
 	if (args->flags & CEPH_OPT_DIRSTAT)
@@ -408,7 +408,7 @@ static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 
 	if (i == 16)
 		err = 0;
-	dout("parse_fsid ret %d got fsid " FSID_FORMAT, err, PR_FSID(fsid));
+	dout("parse_fsid ret %d got fsid %pU", err, fsid);
 	return err;
 }
 
@@ -727,13 +727,13 @@ int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid)
 {
 	if (client->have_fsid) {
 		if (ceph_fsid_compare(&client->fsid, fsid)) {
-			pr_err("bad fsid, had " FSID_FORMAT " got " FSID_FORMAT,
-			       PR_FSID(&client->fsid), PR_FSID(fsid));
+			pr_err("bad fsid, had %pU got %pU",
+			       &client->fsid, fsid);
 			return -1;
 		}
 	} else {
-		pr_info("client%lld fsid " FSID_FORMAT "\n",
-			client->monc.auth->global_id, PR_FSID(fsid));
+		pr_info("client%lld fsid %pU\n", client->monc.auth->global_id,
+			fsid);
 		memcpy(&client->fsid, fsid, sizeof(*fsid));
 		ceph_debugfs_client_init(client);
 		client->have_fsid = true;
