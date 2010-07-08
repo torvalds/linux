@@ -1772,6 +1772,9 @@ static int napi_rx_handler(struct napi_struct *napi, int budget)
 	} else
 		intr_params = QINTR_TIMER_IDX(SGE_TIMER_UPD_CIDX);
 
+	if (unlikely(work_done == 0))
+		rspq->unhandled_irqs++;
+
 	t4_write_reg(rspq->adapter,
 		     T4VF_SGE_BASE_ADDR + SGE_VF_GTS,
 		     CIDXINC(work_done) |

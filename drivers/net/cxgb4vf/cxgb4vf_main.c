@@ -1790,7 +1790,7 @@ static int sge_qstats_show(struct seq_file *seq, void *v)
 		  (rxq[qs].rspq.netdev
 		   ? rxq[qs].rspq.netdev->name
 		   : "N/A"));
-		R3("u", "RspQNullInts", rspq.unhandled_irqs);
+		R3("u", "RspQNullInts:", rspq.unhandled_irqs);
 		R("RxPackets:", stats.pkts);
 		R("RxCSO:", stats.rx_cso);
 		R("VLANxtract:", stats.vlan_ex);
@@ -1814,14 +1814,16 @@ static int sge_qstats_show(struct seq_file *seq, void *v)
 		const struct sge_rspq *evtq = &adapter->sge.fw_evtq;
 
 		seq_printf(seq, "%-8s %16s\n", "QType:", "FW event queue");
-		/* no real response queue statistics available to display */
+		seq_printf(seq, "%-16s %8u\n", "RspQNullInts:",
+			   evtq->unhandled_irqs);
 		seq_printf(seq, "%-16s %8u\n", "RspQ CIdx:", evtq->cidx);
 		seq_printf(seq, "%-16s %8u\n", "RspQ Gen:", evtq->gen);
 	} else if (r == 1) {
 		const struct sge_rspq *intrq = &adapter->sge.intrq;
 
 		seq_printf(seq, "%-8s %16s\n", "QType:", "Interrupt Queue");
-		/* no real response queue statistics available to display */
+		seq_printf(seq, "%-16s %8u\n", "RspQNullInts:",
+			   intrq->unhandled_irqs);
 		seq_printf(seq, "%-16s %8u\n", "RspQ CIdx:", intrq->cidx);
 		seq_printf(seq, "%-16s %8u\n", "RspQ Gen:", intrq->gen);
 	}
