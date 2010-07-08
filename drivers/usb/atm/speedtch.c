@@ -525,7 +525,7 @@ static void speedtch_check_status(struct work_struct *work)
 
 		switch (status) {
 		case 0:
-			atm_dev->signal = ATM_PHY_SIG_LOST;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 			if (instance->last_status)
 				atm_info(usbatm, "ADSL line is down\n");
 			/* It may never resync again unless we ask it to... */
@@ -533,12 +533,12 @@ static void speedtch_check_status(struct work_struct *work)
 			break;
 
 		case 0x08:
-			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
 			atm_info(usbatm, "ADSL line is blocked?\n");
 			break;
 
 		case 0x10:
-			atm_dev->signal = ATM_PHY_SIG_LOST;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_LOST);
 			atm_info(usbatm, "ADSL line is synchronising\n");
 			break;
 
@@ -554,7 +554,7 @@ static void speedtch_check_status(struct work_struct *work)
 			}
 
 			atm_dev->link_rate = down_speed * 1000 / 424;
-			atm_dev->signal = ATM_PHY_SIG_FOUND;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_FOUND);
 
 			atm_info(usbatm,
 				 "ADSL line is up (%d kb/s down | %d kb/s up)\n",
@@ -562,7 +562,7 @@ static void speedtch_check_status(struct work_struct *work)
 			break;
 
 		default:
-			atm_dev->signal = ATM_PHY_SIG_UNKNOWN;
+			atm_dev_signal_change(atm_dev, ATM_PHY_SIG_UNKNOWN);
 			atm_info(usbatm, "unknown line state %02x\n", status);
 			break;
 		}
