@@ -333,6 +333,9 @@ struct nouveau_pgraph_engine {
 	bool accel_blocked;
 	int grctx_size;
 
+	/* NV2x/NV3x context table (0x400780) */
+	struct nouveau_gpuobj_ref *ctx_table;
+
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *);
 
@@ -579,10 +582,6 @@ struct drm_nouveau_private {
 	int vm_vram_pt_nr;
 
 	struct drm_mm ramin_heap;
-
-	/* context table pointed to be NV_PGRAPH_CHANNEL_CTX_TABLE (0x400780) */
-	uint32_t ctx_table_size;
-	struct nouveau_gpuobj_ref *ctx_table;
 
 	struct list_head gpuobj_list;
 
