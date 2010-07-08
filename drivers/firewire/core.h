@@ -51,6 +51,7 @@ struct fw_card_driver {
 	int (*enable)(struct fw_card *card,
 		      const __be32 *config_rom, size_t length);
 
+	int (*read_phy_reg)(struct fw_card *card, int address);
 	int (*update_phy_reg)(struct fw_card *card, int address,
 			      int clear_bits, int set_bits);
 
@@ -102,8 +103,8 @@ void fw_card_initialize(struct fw_card *card,
 int fw_card_add(struct fw_card *card,
 		u32 max_receive, u32 link_speed, u64 guid);
 void fw_core_remove_card(struct fw_card *card);
-int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset);
 int fw_compute_block_crc(__be32 *block);
+void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset);
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay);
 
 static inline struct fw_card *fw_card_get(struct fw_card *card)
@@ -225,6 +226,9 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
 int fw_get_response_length(struct fw_request *request);
 void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		      int rcode, void *payload, size_t length);
+
+#define FW_PHY_CONFIG_NO_NODE_ID	-1
+#define FW_PHY_CONFIG_CURRENT_GAP_COUNT	-1
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
 

@@ -204,6 +204,45 @@ void fw_core_remove_descriptor(struct fw_descriptor *desc)
 }
 EXPORT_SYMBOL(fw_core_remove_descriptor);
 
+static int reset_bus(struct fw_card *card, bool short_reset)
+{
+	int reg = short_reset ? 5 : 1;
+	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;
+
+	return card->driver->update_phy_reg(card, reg, 0, bit);
+}
+
+void fw_schedule_bus_reset(struct fw_card *card, bool delayed, bool short_reset)
+{
+	/* We don't try hard to sort out requests of long vs. short resets. */
+	card->br_short = short_reset;
+
+	/* Use an arbitrary short delay to combine multiple reset requests. */
+	fw_card_get(card);
+	if (!schedule_delayed_work(&card->br_work,
+				   delayed ? DIV_ROUND_UP(HZ, 100) : 0))
+		fw_card_put(card);
+}
+EXPORT_SYMBOL(fw_schedule_bus_reset);
+
+static void br_work(struct work_struct *work)
+{
+	struct fw_card *card = container_of(work, struct fw_card, br_work.work);
+
+	/* Delay for 2s after last reset per IEEE 1394 clause 8.2.1. */
+	if (card->reset_jiffies != 0 &&
+	    time_is_after_jiffies(card->reset_jiffies + 2 * HZ)) {
+		if (!schedule_delayed_work(&card->br_work, 2 * HZ))
+			fw_card_put(card);
+		return;
+	}
+
+	fw_send_phy_config(card, FW_PHY_CONFIG_NO_NODE_ID, card->generation,
+			   FW_PHY_CONFIG_CURRENT_GAP_COUNT);
+	reset_bus(card, card->br_short);
+	fw_card_put(card);
+}
+
 static void allocate_broadcast_channel(struct fw_card *card, int generation)
 {
 	int channel, bandwidth = 0;
@@ -230,13 +269,13 @@ static const char gap_count_table[] = {
 void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 {
 	fw_card_get(card);
-	if (!schedule_delayed_work(&card->work, delay))
+	if (!schedule_delayed_work(&card->bm_work, delay))
 		fw_card_put(card);
 }
 
-static void fw_card_bm_work(struct work_struct *work)
+static void bm_work(struct work_struct *work)
 {
-	struct fw_card *card = container_of(work, struct fw_card, work.work);
+	struct fw_card *card = container_of(work, struct fw_card, bm_work.work);
 	struct fw_device *root_device;
 	struct fw_node *root_node;
 	int root_id, new_root_id, irm_id, bm_id, local_id;
@@ -413,7 +452,7 @@ static void fw_card_bm_work(struct work_struct *work)
 		fw_notify("phy config: card %d, new root=%x, gap_count=%d\n",
 			  card->index, new_root_id, gap_count);
 		fw_send_phy_config(card, new_root_id, generation, gap_count);
-		fw_core_initiate_bus_reset(card, 1);
+		reset_bus(card, true);
 		/* Will allocate broadcast channel after the reset. */
 		goto out;
 	}
@@ -465,7 +504,8 @@ void fw_card_initialize(struct fw_card *card,
 
 	card->local_node = NULL;
 
-	INIT_DELAYED_WORK(&card->work, fw_card_bm_work);
+	INIT_DELAYED_WORK(&card->br_work, br_work);
+	INIT_DELAYED_WORK(&card->bm_work, bm_work);
 }
 EXPORT_SYMBOL(fw_card_initialize);
 
@@ -491,7 +531,6 @@ int fw_card_add(struct fw_card *card,
 }
 EXPORT_SYMBOL(fw_card_add);
 
-
 /*
  * The next few functions implement a dummy driver that is used once a card
  * driver shuts down an fw_card.  This allows the driver to cleanly unload,
@@ -505,6 +544,11 @@ static int dummy_enable(struct fw_card *card,
 {
 	BUG();
 	return -1;
+}
+
+static int dummy_read_phy_reg(struct fw_card *card, int address)
+{
+	return -ENODEV;
 }
 
 static int dummy_update_phy_reg(struct fw_card *card, int address,
@@ -547,6 +591,7 @@ static int dummy_enable_phys_dma(struct fw_card *card,
 
 static const struct fw_card_driver dummy_driver_template = {
 	.enable          = dummy_enable,
+	.read_phy_reg    = dummy_read_phy_reg,
 	.update_phy_reg  = dummy_update_phy_reg,
 	.set_config_rom  = dummy_set_config_rom,
 	.send_request    = dummy_send_request,
@@ -568,7 +613,7 @@ void fw_core_remove_card(struct fw_card *card)
 
 	card->driver->update_phy_reg(card, 4,
 				     PHY_LINK_ACTIVE | PHY_CONTENDER, 0);
-	fw_core_initiate_bus_reset(card, 1);
+	fw_schedule_bus_reset(card, false, true);
 
 	mutex_lock(&card_mutex);
 	list_del_init(&card->link);
@@ -588,12 +633,3 @@ void fw_core_remove_card(struct fw_card *card)
 	WARN_ON(!list_empty(&card->transaction_list));
 }
 EXPORT_SYMBOL(fw_core_remove_card);
-
-int fw_core_initiate_bus_reset(struct fw_card *card, int short_reset)
-{
-	int reg = short_reset ? 5 : 1;
-	int bit = short_reset ? PHY_BUS_SHORT_RESET : PHY_BUS_RESET;
-
-	return card->driver->update_phy_reg(card, reg, 0, bit);
-}
-EXPORT_SYMBOL(fw_core_initiate_bus_reset);

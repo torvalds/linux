@@ -114,8 +114,10 @@ struct fw_card {
 
 	struct list_head link;
 
-	/* Work struct for BM duties. */
-	struct delayed_work work;
+	struct delayed_work br_work; /* bus reset job */
+	bool br_short;
+
+	struct delayed_work bm_work; /* bus manager job */
 	int bm_retries;
 	int bm_generation;
 	__be32 bm_transaction_data[2];

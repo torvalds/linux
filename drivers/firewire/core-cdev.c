@@ -820,8 +820,9 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 
 static int ioctl_initiate_bus_reset(struct client *client, union ioctl_arg *arg)
 {
-	return fw_core_initiate_bus_reset(client->device->card,
+	fw_schedule_bus_reset(client->device->card, true,
 			arg->initiate_bus_reset.type == FW_CDEV_SHORT_RESET);
+	return 0;
 }
 
 static void release_descriptor(struct client *client,

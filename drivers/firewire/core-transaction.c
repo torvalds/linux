@@ -426,9 +426,21 @@ void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count)
 {
 	long timeout = DIV_ROUND_UP(HZ, 10);
-	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG) |
-		   PHY_CONFIG_ROOT_ID(node_id) |
-		   PHY_CONFIG_GAP_COUNT(gap_count);
+	u32 data = PHY_IDENTIFIER(PHY_PACKET_CONFIG);
+
+	if (node_id != FW_PHY_CONFIG_NO_NODE_ID)
+		data |= PHY_CONFIG_ROOT_ID(node_id);
+
+	if (gap_count == FW_PHY_CONFIG_CURRENT_GAP_COUNT) {
+		gap_count = card->driver->read_phy_reg(card, 1);
+		if (gap_count < 0)
+			return;
+
+		gap_count &= 63;
+		if (gap_count == 63)
+			return;
+	}
+	data |= PHY_CONFIG_GAP_COUNT(gap_count);
 
 	mutex_lock(&phy_config_mutex);
 

@@ -34,6 +34,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/spinlock.h>
@@ -181,6 +182,8 @@ struct fw_ohci {
 	 * this driver with this lock held.
 	 */
 	spinlock_t lock;
+
+	struct mutex phy_reg_mutex;
 
 	struct ar_context ar_request_ctx;
 	struct ar_context ar_response_ctx;
@@ -517,13 +520,10 @@ static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
 	return -EBUSY;
 }
 
-static int ohci_update_phy_reg(struct fw_card *card, int addr,
-			       int clear_bits, int set_bits)
+static int update_phy_reg(struct fw_ohci *ohci, int addr,
+			  int clear_bits, int set_bits)
 {
-	struct fw_ohci *ohci = fw_ohci(card);
-	int ret;
-
-	ret = read_phy_reg(ohci, addr);
+	int ret = read_phy_reg(ohci, addr);
 	if (ret < 0)
 		return ret;
 
@@ -541,11 +541,36 @@ static int read_paged_phy_reg(struct fw_ohci *ohci, int page, int addr)
 {
 	int ret;
 
-	ret = ohci_update_phy_reg(&ohci->card, 7, PHY_PAGE_SELECT, page << 5);
+	ret = update_phy_reg(ohci, 7, PHY_PAGE_SELECT, page << 5);
 	if (ret < 0)
 		return ret;
 
 	return read_phy_reg(ohci, addr);
+}
+
+static int ohci_read_phy_reg(struct fw_card *card, int addr)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	int ret;
+
+	mutex_lock(&ohci->phy_reg_mutex);
+	ret = read_phy_reg(ohci, addr);
+	mutex_unlock(&ohci->phy_reg_mutex);
+
+	return ret;
+}
+
+static int ohci_update_phy_reg(struct fw_card *card, int addr,
+			       int clear_bits, int set_bits)
+{
+	struct fw_ohci *ohci = fw_ohci(card);
+	int ret;
+
+	mutex_lock(&ohci->phy_reg_mutex);
+	ret = update_phy_reg(ohci, addr, clear_bits, set_bits);
+	mutex_unlock(&ohci->phy_reg_mutex);
+
+	return ret;
 }
 
 static int ar_context_add_page(struct ar_context *ctx)
@@ -1676,7 +1701,7 @@ static int configure_1394a_enhancements(struct fw_ohci *ohci)
 		clear = PHY_ENABLE_ACCEL | PHY_ENABLE_MULTI;
 		set = 0;
 	}
-	ret = ohci_update_phy_reg(&ohci->card, 5, clear, set);
+	ret = update_phy_reg(ohci, 5, clear, set);
 	if (ret < 0)
 		return ret;
 
@@ -1856,12 +1881,8 @@ static int ohci_enable(struct fw_card *card,
 		  OHCI1394_HCControl_BIBimageValid);
 	flush_writes(ohci);
 
-	/*
-	 * We are ready to go, initiate bus reset to finish the
-	 * initialization.
-	 */
-
-	fw_core_initiate_bus_reset(&ohci->card, 1);
+	/* We are ready to go, reset bus to finish initialization. */
+	fw_schedule_bus_reset(&ohci->card, false, true);
 
 	return 0;
 }
@@ -1936,7 +1957,7 @@ static int ohci_set_config_rom(struct fw_card *card,
 	 * takes effect.
 	 */
 	if (ret == 0)
-		fw_core_initiate_bus_reset(&ohci->card, 1);
+		fw_schedule_bus_reset(&ohci->card, true, true);
 	else
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
 				  next_config_rom, next_config_rom_bus);
@@ -2570,6 +2591,7 @@ static int ohci_queue_iso(struct fw_iso_context *base,
 
 static const struct fw_card_driver ohci_driver = {
 	.enable			= ohci_enable,
+	.read_phy_reg		= ohci_read_phy_reg,
 	.update_phy_reg		= ohci_update_phy_reg,
 	.set_config_rom		= ohci_set_config_rom,
 	.send_request		= ohci_send_request,
@@ -2645,6 +2667,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	pci_set_drvdata(dev, ohci);
 
 	spin_lock_init(&ohci->lock);
+	mutex_init(&ohci->phy_reg_mutex);
 
 	tasklet_init(&ohci->bus_reset_tasklet,
 		     bus_reset_tasklet, (unsigned long)ohci);
