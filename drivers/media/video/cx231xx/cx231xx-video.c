@@ -2020,12 +2020,10 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
-
-	f->fmt.vbi.sampling_rate = (dev->norm & V4L2_STD_625_50) ?
-	    35468950 : 28636363;
+	f->fmt.vbi.sampling_rate = 6750000 * 4;
 	f->fmt.vbi.samples_per_line = VBI_LINE_LENGTH;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-	f->fmt.vbi.offset = 64 * 4;
+	f->fmt.vbi.offset = 0;
 	f->fmt.vbi.start[0] = (dev->norm & V4L2_STD_625_50) ?
 	    PAL_VBI_START_LINE : NTSC_VBI_START_LINE;
 	f->fmt.vbi.count[0] = (dev->norm & V4L2_STD_625_50) ?
@@ -2050,11 +2048,10 @@ static int vidioc_try_fmt_vbi_cap(struct file *file, void *priv,
 	}
 
 	f->type = V4L2_BUF_TYPE_VBI_CAPTURE;
-	f->fmt.vbi.sampling_rate = (dev->norm & V4L2_STD_625_50) ?
-	    35468950 : 28636363;
+	f->fmt.vbi.sampling_rate = 6750000 * 4;
 	f->fmt.vbi.samples_per_line = VBI_LINE_LENGTH;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-	f->fmt.vbi.offset = 244;
+	f->fmt.vbi.offset = 0;
 	f->fmt.vbi.flags = 0;
 	f->fmt.vbi.start[0] = (dev->norm & V4L2_STD_625_50) ?
 	    PAL_VBI_START_LINE : NTSC_VBI_START_LINE;
