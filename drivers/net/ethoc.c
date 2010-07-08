@@ -286,7 +286,7 @@ static inline void ethoc_disable_rx_and_tx(struct ethoc *dev)
 	ethoc_write(dev, MODER, mode);
 }
 
-static int ethoc_init_ring(struct ethoc *dev, void* mem_start)
+static int ethoc_init_ring(struct ethoc *dev, unsigned long mem_start)
 {
 	struct ethoc_bd bd;
 	int i;
@@ -670,7 +670,7 @@ static int ethoc_open(struct net_device *dev)
 	if (ret)
 		return ret;
 
-	ethoc_init_ring(priv, (void*)dev->mem_start);
+	ethoc_init_ring(priv, dev->mem_start);
 	ethoc_reset(priv);
 
 	if (netif_queue_stopped(dev)) {
