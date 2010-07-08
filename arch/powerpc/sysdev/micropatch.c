@@ -16,6 +16,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/8xx_immap.h>
+#include <asm/cpm.h>
 #include <asm/cpm1.h>
 
 /*
@@ -626,7 +627,7 @@ cpm_load_patch(cpm8xx_t	*cp)
 	volatile uint		*dp;		/* Dual-ported RAM. */
 	volatile cpm8xx_t	*commproc;
 	volatile iic_t		*iip;
-	volatile spi_t		*spp;
+	volatile struct spi_pram *spp;
 	volatile smc_uart_t	*smp;
 	int	i;
 
@@ -668,8 +669,8 @@ cpm_load_patch(cpm8xx_t	*cp)
 	/* Put SPI above the IIC, also 32-byte aligned.
 	*/
 	i = (RPBASE + sizeof(iic_t) + 31) & ~31;
-	spp = (spi_t *)&commproc->cp_dparam[PROFF_SPI];
-	spp->spi_rpbase = i;
+	spp = (struct spi_pram *)&commproc->cp_dparam[PROFF_SPI];
+	spp->rpbase = i;
 
 # if defined(CONFIG_I2C_SPI_UCODE_PATCH)
 	commproc->cp_cpmcr1 = 0x802a;
