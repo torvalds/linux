@@ -233,7 +233,8 @@ static struct conf_drv_settings default_conf = {
 		.beacon_rx_timeout           = 10000,
 		.broadcast_timeout           = 20000,
 		.rx_broadcast_in_ps          = 1,
-		.ps_poll_threshold           = 20,
+		.ps_poll_threshold           = 10,
+		.ps_poll_recovery_period     = 700,
 		.bet_enable                  = CONF_BET_MODE_ENABLE,
 		.bet_max_consecutive         = 10,
 		.psm_entry_retries           = 3,
@@ -955,6 +956,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	cancel_work_sync(&wl->irq_work);
 	cancel_work_sync(&wl->tx_work);
+	cancel_delayed_work_sync(&wl->pspoll_work);
 
 	mutex_lock(&wl->mutex);
 
@@ -1259,6 +1261,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		if (ret < 0)
 			wl1271_warning("idle mode change failed %d", ret);
 	}
+
+	/*
+	 * if mac80211 changes the PSM mode, make sure the mode is not
+	 * incorrectly changed after the pspoll failure active window.
+	 */
+	if (changed & IEEE80211_CONF_CHANGE_PS)
+		clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
 
 	if (conf->flags & IEEE80211_CONF_PS &&
 	    !test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
@@ -1765,6 +1774,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			u32 rates;
 			wl->aid = bss_conf->aid;
 			set_assoc = true;
+
+			wl->ps_poll_failures = 0;
 
 			/*
 			 * use basic rates from AP, and determine lowest rate
@@ -2390,6 +2401,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	skb_queue_head_init(&wl->tx_queue);
 
 	INIT_DELAYED_WORK(&wl->elp_work, wl1271_elp_work);
+	INIT_DELAYED_WORK(&wl->pspoll_work, wl1271_pspoll_work);
 	wl->channel = WL1271_DEFAULT_CHANNEL;
 	wl->beacon_int = WL1271_DEFAULT_BEACON_INT;
 	wl->default_key = 0;

@@ -121,5 +121,6 @@ struct event_mailbox {
 int wl1271_event_unmask(struct wl1271 *wl);
 void wl1271_event_mbox_config(struct wl1271 *wl);
 int wl1271_event_handle(struct wl1271 *wl, u8 mbox);
+void wl1271_pspoll_work(struct work_struct *work);
 
 #endif

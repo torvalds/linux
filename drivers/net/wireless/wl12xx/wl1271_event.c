@@ -28,6 +28,63 @@
 #include "wl1271_ps.h"
 #include "wl12xx_80211.h"
 
+void wl1271_pspoll_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, pspoll_work);
+
+	wl1271_debug(DEBUG_EVENT, "pspoll work");
+
+	mutex_lock(&wl->mutex);
+
+	if (!test_and_clear_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags))
+		goto out;
+
+	if (!test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags))
+		goto out;
+
+	/*
+	 * if we end up here, then we were in powersave when the pspoll
+	 * delivery failure occurred, and no-one changed state since, so
+	 * we should go back to powersave.
+	 */
+	wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE, true);
+
+out:
+	mutex_unlock(&wl->mutex);
+};
+
+static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
+{
+	int delay = wl->conf.conn.ps_poll_recovery_period;
+	int ret;
+
+	wl->ps_poll_failures++;
+	if (wl->ps_poll_failures == 1)
+		wl1271_info("AP with dysfunctional ps-poll, "
+			    "trying to work around it.");
+
+	/* force active mode receive data from the AP */
+	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE, true);
+		if (ret < 0)
+			return;
+		set_bit(WL1271_FLAG_PSPOLL_FAILURE, &wl->flags);
+		ieee80211_queue_delayed_work(wl->hw, &wl->pspoll_work,
+					     msecs_to_jiffies(delay));
+	}
+
+	/*
+	 * If already in active mode, lets we should be getting data from
+	 * the AP right away. If we enter PSM too fast after this, and data
+	 * remains on the AP, we will get another event like this, and we'll
+	 * go into active once more.
+	 */
+}
+
 static int wl1271_event_scan_complete(struct wl1271 *wl,
 				      struct event_mailbox *mbox)
 {
@@ -190,6 +247,9 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 		if (ret < 0)
 			return ret;
 	}
+
+	if (vector & PSPOLL_DELIVERY_FAILURE_EVENT_ID)
+		wl1271_event_pspoll_delivery_fail(wl);
 
 	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
 		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");

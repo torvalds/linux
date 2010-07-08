@@ -874,6 +874,13 @@ struct conf_conn_settings {
 	u8 ps_poll_threshold;
 
 	/*
+	 * PS Poll failure recovery ACTIVE period length
+	 *
+	 * Range: u32 (ms)
+	 */
+	u32 ps_poll_recovery_period;
+
+	/*
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;

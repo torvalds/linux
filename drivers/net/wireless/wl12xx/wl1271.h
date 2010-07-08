@@ -351,6 +351,7 @@ struct wl1271 {
 #define WL1271_FLAG_IRQ_RUNNING       (10)
 #define WL1271_FLAG_IDLE              (11)
 #define WL1271_FLAG_IDLE_REQUESTED    (12)
+#define WL1271_FLAG_PSPOLL_FAILURE    (13)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -445,6 +446,10 @@ struct wl1271 {
 
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
+	struct delayed_work pspoll_work;
+
+	/* counter for ps-poll delivery failures */
+	int ps_poll_failures;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
