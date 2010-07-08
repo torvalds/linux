@@ -1039,6 +1039,7 @@ extern void nv50_instmem_clear(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv50_instmem_bind(struct drm_device *, struct nouveau_gpuobj *);
 extern int  nv50_instmem_unbind(struct drm_device *, struct nouveau_gpuobj *);
 extern void nv50_instmem_flush(struct drm_device *);
+extern void nv50_vm_flush(struct drm_device *, int engine);
 
 /* nv04_mc.c */
 extern int  nv04_mc_init(struct drm_device *);

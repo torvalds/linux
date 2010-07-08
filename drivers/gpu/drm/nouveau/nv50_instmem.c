@@ -453,19 +453,8 @@ nv50_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	nv_wr32(dev, 0x100c80, 0x00040001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (1)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return -EBUSY;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00060001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return -EBUSY;
-	}
+	nv50_vm_flush(dev, 4);
+	nv50_vm_flush(dev, 6);
 
 	gpuobj->im_bound = 1;
 	return 0;
@@ -500,5 +489,13 @@ nv50_instmem_flush(struct drm_device *dev)
 	nv_wr32(dev, 0x070000, 0x00000001);
 	if (!nv_wait(0x070000, 0x00000001, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
+}
+
+void
+nv50_vm_flush(struct drm_device *dev, int engine)
+{
+	nv_wr32(dev, 0x100c80, (engine << 16) | 1);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000))
+		NV_ERROR(dev, "vm flush timeout: engine %d\n", engine);
 }
 

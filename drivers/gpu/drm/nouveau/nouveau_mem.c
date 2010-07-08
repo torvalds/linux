@@ -176,34 +176,10 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	nv_wr32(dev, 0x100c80, 0x00050001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return -EBUSY;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00000001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return -EBUSY;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00040001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return -EBUSY;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00060001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return -EBUSY;
-	}
-
+	nv50_vm_flush(dev, 5);
+	nv50_vm_flush(dev, 0);
+	nv50_vm_flush(dev, 4);
+	nv50_vm_flush(dev, 6);
 	return 0;
 }
 
@@ -232,32 +208,10 @@ nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 	}
 	dev_priv->engine.instmem.flush(dev);
 
-	nv_wr32(dev, 0x100c80, 0x00050001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00000001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00040001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-		return;
-	}
-
-	nv_wr32(dev, 0x100c80, 0x00060001);
-	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
-		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
-		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
-	}
+	nv50_vm_flush(dev, 5);
+	nv50_vm_flush(dev, 0);
+	nv50_vm_flush(dev, 4);
+	nv50_vm_flush(dev, 6);
 }
 
 /*
