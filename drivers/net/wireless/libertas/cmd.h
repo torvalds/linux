@@ -127,4 +127,6 @@ int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
 
 int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep);
 
+int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep);
+
 #endif /* _LBS_CMD_H */
