@@ -440,7 +440,7 @@ static inline int atomic64_add_unless(atomic64_t *v, u64 a, u64 u)
 "	teq	%2, #0\n"
 "	bne	1b\n"
 "2:"
-	: "=&r" (val), "=&r" (ret), "=&r" (tmp)
+	: "=&r" (val), "+r" (ret), "=&r" (tmp)
 	: "r" (&v->counter), "r" (u), "r" (a)
 	: "cc");
 
