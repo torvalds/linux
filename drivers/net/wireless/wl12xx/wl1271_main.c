@@ -938,7 +938,8 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	WARN_ON(wl->state != WL1271_STATE_ON);
 
 	/* enable dyn ps just in case (if left on due to fw crash etc) */
-	ieee80211_disable_dyn_ps(wl->vif, false);
+	if (wl->bss_type == BSS_TYPE_STA_BSS)
+		ieee80211_disable_dyn_ps(wl->vif, false);
 
 	if (test_and_clear_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		mutex_unlock(&wl->mutex);
