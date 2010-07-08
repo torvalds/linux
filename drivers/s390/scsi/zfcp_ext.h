@@ -159,7 +159,8 @@ extern void zfcp_scsi_rport_work(struct work_struct *);
 extern void zfcp_scsi_schedule_rport_register(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rport_block(struct zfcp_port *);
 extern void zfcp_scsi_schedule_rports_block(struct zfcp_adapter *);
-extern void zfcp_scsi_scan(struct work_struct *);
+extern void zfcp_scsi_scan(struct zfcp_unit *);
+extern void zfcp_scsi_scan_work(struct work_struct *);
 
 /* zfcp_sysfs.c */
 extern struct attribute_group zfcp_sysfs_unit_attrs;

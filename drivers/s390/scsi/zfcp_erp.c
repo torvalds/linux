@@ -1192,12 +1192,6 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
-			get_device(&unit->dev);
-			if (scsi_queue_work(unit->port->adapter->scsi_host,
-					    &unit->scsi_work) <= 0)
-				put_device(&unit->dev);
-		}
 		put_device(&unit->dev);
 		break;
 
