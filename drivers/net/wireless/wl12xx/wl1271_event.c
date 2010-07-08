@@ -26,6 +26,7 @@
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 #include "wl1271_ps.h"
+#include "wl1271_scan.h"
 #include "wl12xx_80211.h"
 
 void wl1271_pspoll_work(struct work_struct *work)
@@ -83,36 +84,6 @@ static void wl1271_event_pspoll_delivery_fail(struct wl1271 *wl)
 	 * remains on the AP, we will get another event like this, and we'll
 	 * go into active once more.
 	 */
-}
-
-static int wl1271_event_scan_complete(struct wl1271 *wl,
-				      struct event_mailbox *mbox)
-{
-	wl1271_debug(DEBUG_EVENT, "status: 0x%x",
-		     mbox->scheduled_scan_status);
-
-	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
-		if (wl->scan.state == WL1271_SCAN_BAND_DUAL) {
-			/* 2.4 GHz band scanned, scan 5 GHz band, pretend
-			 * to the wl1271_cmd_scan function that we are not
-			 * scanning as it checks that.
-			 */
-			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
-			/* FIXME: ie missing! */
-			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
-					wl->scan.req,
-					wl->scan.active,
-					wl->scan.high_prio,
-					WL1271_SCAN_BAND_5_GHZ,
-					wl->scan.probe_requests);
-		} else {
-			mutex_unlock(&wl->mutex);
-			ieee80211_scan_completed(wl->hw, false);
-			mutex_lock(&wl->mutex);
-			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
-		}
-	}
-	return 0;
 }
 
 static int wl1271_event_ps_report(struct wl1271 *wl,
@@ -220,7 +191,10 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	wl1271_debug(DEBUG_EVENT, "vector: 0x%x", vector);
 
 	if (vector & SCAN_COMPLETE_EVENT_ID) {
-		ret = wl1271_event_scan_complete(wl, mbox);
+		wl1271_debug(DEBUG_EVENT, "status: 0x%x",
+			     mbox->scheduled_scan_status);
+
+		ret = wl1271_scan_complete(wl);
 		if (ret < 0)
 			return ret;
 	}

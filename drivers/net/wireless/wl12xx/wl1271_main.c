@@ -44,6 +44,7 @@
 #include "wl1271_cmd.h"
 #include "wl1271_boot.h"
 #include "wl1271_testmode.h"
+#include "wl1271_scan.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -1550,11 +1551,11 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 
 	if (wl1271_11a_enabled())
-		ret = wl1271_cmd_scan(hw->priv, ssid, len, req,
-				      1, 0, WL1271_SCAN_BAND_DUAL, 3);
+		ret = wl1271_scan(hw->priv, ssid, len, req,
+				  1, 0, WL1271_SCAN_BAND_DUAL, 3);
 	else
-		ret = wl1271_cmd_scan(hw->priv, ssid, len, req,
-				      1, 0, WL1271_SCAN_BAND_2_4_GHZ, 3);
+		ret = wl1271_scan(hw->priv, ssid, len, req,
+				  1, 0, WL1271_SCAN_BAND_2_4_GHZ, 3);
 
 	wl1271_ps_elp_sleep(wl);
 
