@@ -791,8 +791,11 @@ static void power_pmu_disable(struct perf_event *event)
 	cpuhw = &__get_cpu_var(cpu_hw_events);
 	for (i = 0; i < cpuhw->n_events; ++i) {
 		if (event == cpuhw->event[i]) {
-			while (++i < cpuhw->n_events)
+			while (++i < cpuhw->n_events) {
 				cpuhw->event[i-1] = cpuhw->event[i];
+				cpuhw->events[i-1] = cpuhw->events[i];
+				cpuhw->flags[i-1] = cpuhw->flags[i];
+			}
 			--cpuhw->n_events;
 			ppmu->disable_pmc(event->hw.idx - 1, cpuhw->mmcr);
 			if (event->hw.idx) {

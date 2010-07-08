@@ -24,11 +24,7 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifdef __KERNEL__
 #include <linux/types.h>
-#else
-#include <stdint.h>
-#endif
 
 #ifndef __ASSEMBLY__
 
@@ -364,13 +360,13 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 #ifndef __ASSEMBLY__
 
 struct ppc_debug_info {
-	uint32_t version;		/* Only version 1 exists to date */
-	uint32_t num_instruction_bps;
-	uint32_t num_data_bps;
-	uint32_t num_condition_regs;
-	uint32_t data_bp_alignment;
-	uint32_t sizeof_condition;	/* size of the DVC register */
-	uint64_t features;
+	__u32 version;			/* Only version 1 exists to date */
+	__u32 num_instruction_bps;
+	__u32 num_data_bps;
+	__u32 num_condition_regs;
+	__u32 data_bp_alignment;
+	__u32 sizeof_condition;		/* size of the DVC register */
+	__u64 features;
 };
 
 #endif /* __ASSEMBLY__ */
@@ -386,13 +382,13 @@ struct ppc_debug_info {
 #ifndef __ASSEMBLY__
 
 struct ppc_hw_breakpoint {
-	uint32_t version;		/* currently, version must be 1 */
-	uint32_t trigger_type;		/* only some combinations allowed */
-	uint32_t addr_mode;		/* address match mode */
-	uint32_t condition_mode;	/* break/watchpoint condition flags */
-	uint64_t addr;			/* break/watchpoint address */
-	uint64_t addr2;			/* range end or mask */
-	uint64_t condition_value;	/* contents of the DVC register */
+	__u32 version;		/* currently, version must be 1 */
+	__u32 trigger_type;	/* only some combinations allowed */
+	__u32 addr_mode;	/* address match mode */
+	__u32 condition_mode;	/* break/watchpoint condition flags */
+	__u64 addr;		/* break/watchpoint address */
+	__u64 addr2;		/* range end or mask */
+	__u64 condition_value;	/* contents of the DVC register */
 };
 
 #endif /* __ASSEMBLY__ */
