@@ -43,7 +43,8 @@ static void ceph_fault(struct ceph_connection *con);
  * nicely render a sockaddr as a string.
  */
 #define MAX_ADDR_STR 20
-static char addr_str[MAX_ADDR_STR][40];
+#define MAX_ADDR_STR_LEN 60
+static char addr_str[MAX_ADDR_STR][MAX_ADDR_STR_LEN];
 static DEFINE_SPINLOCK(addr_str_lock);
 static int last_addr_str;
 
@@ -52,7 +53,6 @@ const char *pr_addr(const struct sockaddr_storage *ss)
 	int i;
 	char *s;
 	struct sockaddr_in *in4 = (void *)ss;
-	unsigned char *quad = (void *)&in4->sin_addr.s_addr;
 	struct sockaddr_in6 *in6 = (void *)ss;
 
 	spin_lock(&addr_str_lock);
@@ -64,25 +64,13 @@ const char *pr_addr(const struct sockaddr_storage *ss)
 
 	switch (ss->ss_family) {
 	case AF_INET:
-		sprintf(s, "%u.%u.%u.%u:%u",
-			(unsigned int)quad[0],
-			(unsigned int)quad[1],
-			(unsigned int)quad[2],
-			(unsigned int)quad[3],
-			(unsigned int)ntohs(in4->sin_port));
+		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%u", &in4->sin_addr,
+			 (unsigned int)ntohs(in4->sin_port));
 		break;
 
 	case AF_INET6:
-		sprintf(s, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%u",
-			in6->sin6_addr.s6_addr16[0],
-			in6->sin6_addr.s6_addr16[1],
-			in6->sin6_addr.s6_addr16[2],
-			in6->sin6_addr.s6_addr16[3],
-			in6->sin6_addr.s6_addr16[4],
-			in6->sin6_addr.s6_addr16[5],
-			in6->sin6_addr.s6_addr16[6],
-			in6->sin6_addr.s6_addr16[7],
-			(unsigned int)ntohs(in6->sin6_port));
+		snprintf(s, MAX_ADDR_STR_LEN, "[%pI6c]:%u", &in6->sin6_addr,
+			 (unsigned int)ntohs(in6->sin6_port));
 		break;
 
 	default:
