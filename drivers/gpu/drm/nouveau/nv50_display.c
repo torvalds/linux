@@ -809,7 +809,8 @@ nv50_display_unk20_dp_set_tmds(struct drm_device *dev, struct dcb_entry *dcb)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
-		if (nv_encoder->dcb->type == OUTPUT_DP) {
+		if (nv_encoder->dcb->type == OUTPUT_DP &&
+		    nv_encoder->dcb->or & (1 << or)) {
 			tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
 			tmp &= ~NV50_SOR_DP_CTRL_ENABLED;
 			nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp);
