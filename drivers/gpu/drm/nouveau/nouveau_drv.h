@@ -330,8 +330,6 @@ struct nouveau_pgraph_object_class {
 struct nouveau_pgraph_engine {
 	struct nouveau_pgraph_object_class *grclass;
 	bool accel_blocked;
-	void *ctxprog;
-	void *ctxvals;
 	int grctx_size;
 
 	int  (*init)(struct drm_device *);
@@ -665,7 +663,6 @@ extern int nouveau_tv_disable;
 extern char *nouveau_tv_norm;
 extern int nouveau_reg_debug;
 extern char *nouveau_vbios;
-extern int nouveau_ctxfw;
 extern int nouveau_ignorelid;
 extern int nouveau_nofbaccel;
 extern int nouveau_noaccel;
@@ -1009,12 +1006,6 @@ extern int  nv50_graph_load_context(struct nouveau_channel *);
 extern int  nv50_graph_unload_context(struct drm_device *);
 extern void nv50_graph_context_switch(struct drm_device *);
 extern int  nv50_grctx_init(struct nouveau_grctx *);
-
-/* nouveau_grctx.c */
-extern int  nouveau_grctx_prog_load(struct drm_device *);
-extern void nouveau_grctx_vals_load(struct drm_device *,
-				    struct nouveau_gpuobj *);
-extern void nouveau_grctx_fini(struct drm_device *);
 
 /* nv04_instmem.c */
 extern int  nv04_instmem_init(struct drm_device *);
