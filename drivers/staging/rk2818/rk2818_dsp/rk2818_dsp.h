@@ -36,7 +36,6 @@
 #define DSP_IOCTL_RECV_MSG              (0x00800003)
 #define DSP_IOCTL_SET_FREQ              (0x00800004)
 #define DSP_IOCTL_GET_TABLE_PHY         (0x00800005)
-#define DSP_IOCTL_SET_CODEC				(0x00800006)
 
 struct rk28dsp_req {
 	int reqno;
@@ -47,7 +46,7 @@ struct rk28dsp_req {
 struct rk28dsp_msg {
 	int channel;
 	unsigned int cmd;
-	int rcv_timeout;    // 0:no block   -1:block   >0:block with timeout
+	int rcv_timeout;    // 0:no block   -1:block   >0:block with timeout(ms)
 };
 
 extern void rockchip_add_device_dsp(void);
