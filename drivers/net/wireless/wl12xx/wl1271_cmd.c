@@ -703,7 +703,7 @@ int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
 		goto out;
 
 	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, skb->data,
-				      skb->len, 0, wl->basic_rate);
+				      skb->len, 0, wl->basic_rate_set);
 
 out:
 	dev_kfree_skb(skb);
