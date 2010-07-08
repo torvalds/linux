@@ -204,11 +204,8 @@ static int set_sample_rate_v1(struct snd_usb_audio *chip, int iface,
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
 	/* if endpoint doesn't have sampling rate control, bail out */
-	if (!(fmt->attributes & UAC_EP_CS_ATTR_SAMPLE_RATE)) {
-		snd_printk(KERN_WARNING "%d:%d:%d: endpoint lacks sample rate attribute bit, cannot set.\n",
-				   dev->devnum, iface, fmt->altsetting);
+	if (!(fmt->attributes & UAC_EP_CS_ATTR_SAMPLE_RATE))
 		return 0;
-	}
 
 	data[0] = rate;
 	data[1] = rate >> 8;
