@@ -15,13 +15,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
  * 02111-1307, USA
  */
-
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/leds-ld-cpcap.h>
+#include <linux/mdm6600_ctrl.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -33,6 +33,7 @@
 #include <linux/spi/cpcap-regbits.h>
 #include <linux/spi/spi.h>
 
+#include <mach/gpio.h>
 #include <mach/irqs.h>
 
 #include "board-stingray.h"
@@ -634,6 +635,35 @@ static struct i2c_board_info __initdata stingray_i2c_bus4_power_info[] = {
 	},
 };
 
+static struct mdm_ctrl_platform_data mdm_ctrl_platform_data = {
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_0] = {
+		TEGRA_GPIO_PC1, MDM_GPIO_DIRECTION_OUT, 0, 0},
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_1] = { TEGRA_GPIO_PC6,
+		MDM_GPIO_DIRECTION_OUT, 0, 0},
+	.gpios[MDM_CTRL_GPIO_AP_STATUS_2] = {
+		TEGRA_GPIO_PQ3, MDM_GPIO_DIRECTION_OUT, 0, 0},
+	.gpios[MDM_CTRL_GPIO_BP_STATUS_0] = {
+		TEGRA_GPIO_PK3, MDM_GPIO_DIRECTION_IN, 0, 0},
+	.gpios[MDM_CTRL_GPIO_BP_STATUS_1] = {
+		TEGRA_GPIO_PK4, MDM_GPIO_DIRECTION_IN, 0, 0},
+	.gpios[MDM_CTRL_GPIO_BP_STATUS_2] = {
+		TEGRA_GPIO_PK2, MDM_GPIO_DIRECTION_IN, 0, 0},
+	.gpios[MDM_CTRL_GPIO_BP_RESOUT]   = {
+		TEGRA_GPIO_PS4, MDM_GPIO_DIRECTION_IN, 0, 0},
+	.gpios[MDM_CTRL_GPIO_BP_RESIN]    = {
+		TEGRA_GPIO_PZ1, MDM_GPIO_DIRECTION_OUT_NO_DEFAULT, 0, 0},
+	.gpios[MDM_CTRL_GPIO_BP_PWRON]    = {
+		TEGRA_GPIO_PS6, MDM_GPIO_DIRECTION_OUT_NO_DEFAULT, 0, 0},
+};
+
+static struct platform_device mdm_ctrl_platform_device = {
+	.name = MDM_CTRL_MODULE_NAME,
+	.id = -1,
+	.dev = {
+		.platform_data = &mdm_ctrl_platform_data,
+	},
+};
+
 int __init stingray_power_init(void)
 {
 	int i;
@@ -660,6 +690,11 @@ int __init stingray_power_init(void)
 
 	i2c_register_board_info(3, stingray_i2c_bus4_power_info,
 		ARRAY_SIZE(stingray_i2c_bus4_power_info));
+
+	for (i = 0; i < MDM_CTRL_NUM_GPIOS; i++)
+		tegra_gpio_enable(mdm_ctrl_platform_data.gpios[i].number);
+
+	platform_device_register(&mdm_ctrl_platform_device);
 
 	return 0;
 }
