@@ -130,7 +130,7 @@ endchoice
 
 config DRM_MGA
 	tristate "Matrox g200/g400"
-	depends on DRM
+	depends on DRM && PCI
 	select FW_LOADER
 	help
 	  Choose this option if you have a Matrox G200, G400 or G450 graphics
@@ -148,14 +148,14 @@ config DRM_SIS
 
 config DRM_VIA
 	tristate "Via unichrome video cards"
-	depends on DRM
+	depends on DRM && PCI
 	help
 	  Choose this option if you have a Via unichrome or compatible video
 	  chipset. If M is selected the module will be called via.
 
 config DRM_SAVAGE
 	tristate "Savage video cards"
-	depends on DRM
+	depends on DRM && PCI
 	help
 	  Choose this option if you have a Savage3D/4/SuperSavage/Pro/Twister
 	  chipset. If M is selected the module will be called savage.
