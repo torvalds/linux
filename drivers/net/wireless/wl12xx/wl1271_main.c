@@ -942,10 +942,13 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	if (wl->bss_type == BSS_TYPE_STA_BSS)
 		ieee80211_enable_dyn_ps(wl->vif);
 
-	if (test_and_clear_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
+	if (wl->scan.state != WL1271_SCAN_STATE_IDLE) {
 		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, true);
 		mutex_lock(&wl->mutex);
+		wl->scan.state = WL1271_SCAN_STATE_IDLE;
+		kfree(wl->scan.scanned_ch);
+		wl->scan.scanned_ch = NULL;
 	}
 
 	wl->state = WL1271_STATE_OFF;
@@ -1551,11 +1554,9 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 
 	if (wl1271_11a_enabled())
-		ret = wl1271_scan(hw->priv, ssid, len, req,
-				  1, 0, WL1271_SCAN_BAND_DUAL, 3);
+		ret = wl1271_scan(hw->priv, ssid, len, req);
 	else
-		ret = wl1271_scan(hw->priv, ssid, len, req,
-				  1, 0, WL1271_SCAN_BAND_2_4_GHZ, 3);
+		ret = wl1271_scan(hw->priv, ssid, len, req);
 
 	wl1271_ps_elp_sleep(wl);
 

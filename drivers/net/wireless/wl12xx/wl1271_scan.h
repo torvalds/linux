@@ -27,12 +27,11 @@
 #include "wl1271.h"
 
 int wl1271_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
-		struct cfg80211_scan_request *req, u8 active_scan,
-		u8 high_prio, u8 band, u8 probe_requests);
+		struct cfg80211_scan_request *req);
 int wl1271_scan_build_probe_req(struct wl1271 *wl,
 				const u8 *ssid, size_t ssid_len,
 				const u8 *ie, size_t ie_len, u8 band);
-int wl1271_scan_complete(struct wl1271 *wl);
+void wl1271_scan_stm(struct wl1271 *wl);
 
 #define WL1271_SCAN_MAX_CHANNELS       24
 #define WL1271_SCAN_DEFAULT_TAG        1
@@ -44,7 +43,16 @@ int wl1271_scan_complete(struct wl1271 *wl);
 #define WL1271_SCAN_CHAN_MAX_DURATION  60000  /* TU */
 #define WL1271_SCAN_BAND_2_4_GHZ 0
 #define WL1271_SCAN_BAND_5_GHZ 1
-#define WL1271_SCAN_BAND_DUAL 2
+#define WL1271_SCAN_PROBE_REQS 3
+
+enum {
+	WL1271_SCAN_STATE_IDLE,
+	WL1271_SCAN_STATE_2GHZ_ACTIVE,
+	WL1271_SCAN_STATE_2GHZ_PASSIVE,
+	WL1271_SCAN_STATE_5GHZ_ACTIVE,
+	WL1271_SCAN_STATE_5GHZ_PASSIVE,
+	WL1271_SCAN_STATE_DONE
+};
 
 struct basic_scan_params {
 	__le32 rx_config_options;
@@ -52,10 +60,10 @@ struct basic_scan_params {
 	/* Scan option flags (WL1271_SCAN_OPT_*) */
 	__le16 scan_options;
 	/* Number of scan channels in the list (maximum 30) */
-	u8 num_channels;
+	u8 n_ch;
 	/* This field indicates the number of probe requests to send
 	   per channel for an active scan */
-	u8 num_probe_requests;
+	u8 n_probe_reqs;
 	/* Rate bit field for sending the probes */
 	__le32 tx_rate;
 	u8 tid_trigger;
