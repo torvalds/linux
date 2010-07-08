@@ -506,8 +506,10 @@ static void zfcp_set_rport_dev_loss_tmo(struct fc_rport *rport, u32 timeout)
  * @rport: The FC rport where to teminate I/O
  *
  * Abort all pending SCSI commands for a port by closing the
- * port. Using a reopen avoiding a conflict with a shutdown
- * overwriting a reopen.
+ * port. Using a reopen avoids a conflict with a shutdown
+ * overwriting a reopen. The "forced" ensures that a disappeared port
+ * is not opened again as valid due to the cached plogi data in
+ * non-NPIV mode.
  */
 static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 {
@@ -519,7 +521,7 @@ static void zfcp_scsi_terminate_rport_io(struct fc_rport *rport)
 	port = zfcp_get_port_by_wwpn(adapter, rport->port_name);
 
 	if (port) {
-		zfcp_erp_port_reopen(port, 0, "sctrpi1", NULL);
+		zfcp_erp_port_forced_reopen(port, 0, "sctrpi1", NULL);
 		put_device(&port->dev);
 	}
 }
