@@ -760,7 +760,6 @@ EXPORT_SYMBOL(imx_dma_free);
  * @name: the driver/caller own non-%NULL identification
  *
  * This function tries to find a free channel in the specified priority group
- * This function tries to find a free channel in the specified priority group
  * if the priority cannot be achieved it tries to look for free channel
  * in the higher and then even lower priority groups.
  *
