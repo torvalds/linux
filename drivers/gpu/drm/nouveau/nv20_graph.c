@@ -370,53 +370,42 @@ nv20_graph_create_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	void (*ctx_init)(struct drm_device *, struct nouveau_gpuobj *);
-	unsigned int ctx_size;
 	unsigned int idoffs = 0x28/4;
 	int ret;
 
 	switch (dev_priv->chipset) {
 	case 0x20:
-		ctx_size = NV20_GRCTX_SIZE;
 		ctx_init = nv20_graph_context_init;
 		idoffs = 0;
 		break;
 	case 0x25:
 	case 0x28:
-		ctx_size = NV25_GRCTX_SIZE;
 		ctx_init = nv25_graph_context_init;
 		break;
 	case 0x2a:
-		ctx_size = NV2A_GRCTX_SIZE;
 		ctx_init = nv2a_graph_context_init;
 		idoffs = 0;
 		break;
 	case 0x30:
 	case 0x31:
-		ctx_size = NV30_31_GRCTX_SIZE;
 		ctx_init = nv30_31_graph_context_init;
 		break;
 	case 0x34:
-		ctx_size = NV34_GRCTX_SIZE;
 		ctx_init = nv34_graph_context_init;
 		break;
 	case 0x35:
 	case 0x36:
-		ctx_size = NV35_36_GRCTX_SIZE;
 		ctx_init = nv35_36_graph_context_init;
 		break;
 	default:
-		ctx_size = 0;
-		ctx_init = nv35_36_graph_context_init;
-		NV_ERROR(dev, "Please contact the devs if you want your NV%x"
-			      " card to work\n", dev_priv->chipset);
-		return -ENOSYS;
-		break;
+		BUG_ON(1);
 	}
 
-	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, ctx_size, 16,
-					  NVOBJ_FLAG_ZERO_ALLOC,
-					  &chan->ramin_grctx);
+	ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, pgraph->grctx_size,
+				     16, NVOBJ_FLAG_ZERO_ALLOC,
+				     &chan->ramin_grctx);
 	if (ret)
 		return ret;
 
@@ -535,8 +524,26 @@ nv20_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv =
 		(struct drm_nouveau_private *)dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	uint32_t tmp, vramsz;
 	int ret, i;
+
+	switch (dev_priv->chipset) {
+	case 0x20:
+		pgraph->grctx_size = NV20_GRCTX_SIZE;
+		break;
+	case 0x25:
+	case 0x28:
+		pgraph->grctx_size = NV25_GRCTX_SIZE;
+		break;
+	case 0x2a:
+		pgraph->grctx_size = NV2A_GRCTX_SIZE;
+		break;
+	default:
+		NV_ERROR(dev, "unknown chipset, disabling acceleration\n");
+		pgraph->accel_blocked = true;
+		return 0;
+	}
 
 	nv_wr32(dev, NV03_PMC_ENABLE,
 		nv_rd32(dev, NV03_PMC_ENABLE) & ~NV_PMC_ENABLE_PGRAPH);
@@ -647,7 +654,26 @@ int
 nv30_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_pgraph_engine *pgraph = &dev_priv->engine.graph;
 	int ret, i;
+
+	switch (dev_priv->chipset) {
+	case 0x30:
+	case 0x31:
+		pgraph->grctx_size = NV30_31_GRCTX_SIZE;
+		break;
+	case 0x34:
+		pgraph->grctx_size = NV34_GRCTX_SIZE;
+		break;
+	case 0x35:
+	case 0x36:
+		pgraph->grctx_size = NV35_36_GRCTX_SIZE;
+		break;
+	default:
+		NV_ERROR(dev, "unknown chipset, disabling acceleration\n");
+		pgraph->accel_blocked = true;
+		return 0;
+	}
 
 	nv_wr32(dev, NV03_PMC_ENABLE,
 		nv_rd32(dev, NV03_PMC_ENABLE) & ~NV_PMC_ENABLE_PGRAPH);

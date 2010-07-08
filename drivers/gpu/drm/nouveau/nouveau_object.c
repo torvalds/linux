@@ -229,25 +229,12 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	 * available.
 	 */
 	if (chan) {
-		if (chan->ramin_heap.ml_entry.next) {
-			NV_DEBUG(dev, "private heap\n");
-			pramin = &chan->ramin_heap;
-		} else
-		if (dev_priv->card_type < NV_50) {
-			NV_DEBUG(dev, "global heap fallback\n");
-			pramin = &dev_priv->ramin_heap;
-		}
+		NV_DEBUG(dev, "channel heap\n");
+		pramin = &chan->ramin_heap;
 	} else {
 		NV_DEBUG(dev, "global heap\n");
 		pramin = &dev_priv->ramin_heap;
-	}
 
-	if (!pramin) {
-		NV_ERROR(dev, "No PRAMIN heap!\n");
-		return -EINVAL;
-	}
-
-	if (!chan) {
 		ret = engine->instmem.populate(dev, gpuobj, &size);
 		if (ret) {
 			nouveau_gpuobj_del(dev, &gpuobj);
@@ -911,6 +898,7 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 	base = 0;
 
 	/* PGRAPH context */
+	size += dev_priv->engine.graph.grctx_size;
 
 	if (dev_priv->card_type == NV_50) {
 		/* Various fixed table thingos */
@@ -921,12 +909,8 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 		size += 0x8000;
 		/* RAMFC */
 		size += 0x1000;
-		/* PGRAPH context */
-		size += 0x70000;
 	}
 
-	NV_DEBUG(dev, "ch%d PRAMIN size: 0x%08x bytes, base alloc=0x%08x\n",
-		 chan->id, size, base);
 	ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, size, 0x1000, 0,
 				     &chan->ramin);
 	if (ret) {
@@ -959,15 +943,11 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 
-	/* Reserve a block of PRAMIN for the channel
-	 *XXX: maybe on <NV50 too at some point
-	 */
-	if (0 || dev_priv->card_type == NV_50) {
-		ret = nouveau_gpuobj_channel_init_pramin(chan);
-		if (ret) {
-			NV_ERROR(dev, "init pramin\n");
-			return ret;
-		}
+	/* Allocate a chunk of memory for per-channel object storage */
+	ret = nouveau_gpuobj_channel_init_pramin(chan);
+	if (ret) {
+		NV_ERROR(dev, "init pramin\n");
+		return ret;
 	}
 
 	/* NV50 VM
