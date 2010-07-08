@@ -2492,6 +2492,7 @@ static const struct snd_kcontrol_new aif3adc_mux =
 static const struct snd_soc_dapm_widget wm8994_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("DMIC1DAT"),
 SND_SOC_DAPM_INPUT("DMIC2DAT"),
+SND_SOC_DAPM_INPUT("Clock"),
 
 SND_SOC_DAPM_SUPPLY("CLK_SYS", SND_SOC_NOPM, 0, 0, clk_sys_event,
 		    SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -2966,11 +2967,14 @@ static int wm8994_set_fll(struct snd_soc_dai *dai, int id, int src,
 	return 0;
 }
 
+static int opclk_divs[] = { 10, 20, 30, 40, 55, 60, 80, 120, 160 };
+
 static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+	int i;
 
 	switch (dai->id) {
 	case 1:
@@ -3007,6 +3011,25 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *dai,
 		wm8994->sysclk[dai->id - 1] = WM8994_SYSCLK_FLL2;
 		dev_dbg(dai->dev, "AIF%d using FLL2\n", dai->id);
 		break;
+
+	case WM8994_SYSCLK_OPCLK:
+		/* Special case - a division (times 10) is given and
+		 * no effect on main clocking. 
+		 */
+		if (freq) {
+			for (i = 0; i < ARRAY_SIZE(opclk_divs); i++)
+				if (opclk_divs[i] == freq)
+					break;
+			if (i == ARRAY_SIZE(opclk_divs))
+				return -EINVAL;
+			snd_soc_update_bits(codec, WM8994_CLOCKING_2,
+					    WM8994_OPCLK_DIV_MASK, i);
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_2,
+					    WM8994_OPCLK_ENA, WM8994_OPCLK_ENA);
+		} else {
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_2,
+					    WM8994_OPCLK_ENA, 0);
+		}
 
 	default:
 		return -EINVAL;
