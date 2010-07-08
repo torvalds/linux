@@ -294,9 +294,10 @@ struct nouveau_fb_engine {
 };
 
 struct nouveau_fifo_engine {
-	void *priv;
-
 	int  channels;
+
+	struct nouveau_gpuobj_ref *playlist[2];
+	int cur_playlist;
 
 	int  (*init)(struct drm_device *);
 	void (*takedown)(struct drm_device *);

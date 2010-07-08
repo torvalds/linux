@@ -30,8 +30,6 @@
 
 #include "nouveau_grctx.h"
 
-#define IS_G80 ((dev_priv->chipset & 0xf0) == 0x50)
-
 static void
 nv50_graph_init_reset(struct drm_device *dev)
 {
@@ -221,7 +219,7 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 		return ret;
 	obj = chan->ramin_grctx->gpuobj;
 
-	hdr = IS_G80 ? 0x200 : 0x20;
+	hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 	nv_wo32(dev, ramin, (hdr + 0x00)/4, 0x00190002);
 	nv_wo32(dev, ramin, (hdr + 0x04)/4, chan->ramin_grctx->instance +
 					   pgraph->grctx_size - 1);
@@ -246,7 +244,7 @@ nv50_graph_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int i, hdr = IS_G80 ? 0x200 : 0x20;
+	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 

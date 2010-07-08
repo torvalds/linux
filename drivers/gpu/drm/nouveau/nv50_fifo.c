@@ -28,25 +28,18 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 
-struct nv50_fifo_priv {
-	struct nouveau_gpuobj_ref *thingo[2];
-	int cur_thingo;
-};
-
-#define IS_G80 ((dev_priv->chipset & 0xf0) == 0x50)
-
 static void
-nv50_fifo_init_thingo(struct drm_device *dev)
+nv50_fifo_playlist_update(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv50_fifo_priv *priv = dev_priv->engine.fifo.priv;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_gpuobj_ref *cur;
 	int i, nr;
 
 	NV_DEBUG(dev, "\n");
 
-	cur = priv->thingo[priv->cur_thingo];
-	priv->cur_thingo = !priv->cur_thingo;
+	cur = pfifo->playlist[pfifo->cur_playlist];
+	pfifo->cur_playlist = !pfifo->cur_playlist;
 
 	/* We never schedule channel 0 or 127 */
 	for (i = 1, nr = 0; i < 127; i++) {
@@ -60,8 +53,8 @@ nv50_fifo_init_thingo(struct drm_device *dev)
 	nv_wr32(dev, 0x2500, 0x101);
 }
 
-static int
-nv50_fifo_channel_enable(struct drm_device *dev, int channel, bool nt)
+static void
+nv50_fifo_channel_enable(struct drm_device *dev, int channel)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->fifos[channel];
@@ -69,37 +62,28 @@ nv50_fifo_channel_enable(struct drm_device *dev, int channel, bool nt)
 
 	NV_DEBUG(dev, "ch%d\n", channel);
 
-	if (!chan->ramfc)
-		return -EINVAL;
-
-	if (IS_G80)
+	if (dev_priv->chipset == 0x50)
 		inst = chan->ramfc->instance >> 12;
 	else
 		inst = chan->ramfc->instance >> 8;
-	nv_wr32(dev, NV50_PFIFO_CTX_TABLE(channel),
-		 inst | NV50_PFIFO_CTX_TABLE_CHANNEL_ENABLED);
 
-	if (!nt)
-		nv50_fifo_init_thingo(dev);
-	return 0;
+	nv_wr32(dev, NV50_PFIFO_CTX_TABLE(channel), inst |
+		     NV50_PFIFO_CTX_TABLE_CHANNEL_ENABLED);
 }
 
 static void
-nv50_fifo_channel_disable(struct drm_device *dev, int channel, bool nt)
+nv50_fifo_channel_disable(struct drm_device *dev, int channel)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t inst;
 
-	NV_DEBUG(dev, "ch%d, nt=%d\n", channel, nt);
+	NV_DEBUG(dev, "ch%d\n", channel);
 
-	if (IS_G80)
+	if (dev_priv->chipset == 0x50)
 		inst = NV50_PFIFO_CTX_TABLE_INSTANCE_MASK_G80;
 	else
 		inst = NV50_PFIFO_CTX_TABLE_INSTANCE_MASK_G84;
 	nv_wr32(dev, NV50_PFIFO_CTX_TABLE(channel), inst);
-
-	if (!nt)
-		nv50_fifo_init_thingo(dev);
 }
 
 static void
@@ -132,12 +116,12 @@ nv50_fifo_init_context_table(struct drm_device *dev)
 
 	for (i = 0; i < NV50_PFIFO_CTX_TABLE__SIZE; i++) {
 		if (dev_priv->fifos[i])
-			nv50_fifo_channel_enable(dev, i, true);
+			nv50_fifo_channel_enable(dev, i);
 		else
-			nv50_fifo_channel_disable(dev, i, true);
+			nv50_fifo_channel_disable(dev, i);
 	}
 
-	nv50_fifo_init_thingo(dev);
+	nv50_fifo_playlist_update(dev);
 }
 
 static void
@@ -161,41 +145,38 @@ nv50_fifo_init_regs(struct drm_device *dev)
 	nv_wr32(dev, 0x3270, 0);
 
 	/* Enable dummy channels setup by nv50_instmem.c */
-	nv50_fifo_channel_enable(dev, 0, true);
-	nv50_fifo_channel_enable(dev, 127, true);
+	nv50_fifo_channel_enable(dev, 0);
+	nv50_fifo_channel_enable(dev, 127);
 }
 
 int
 nv50_fifo_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv50_fifo_priv *priv;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	int ret;
 
 	NV_DEBUG(dev, "\n");
 
-	priv = dev_priv->engine.fifo.priv;
-	if (priv) {
-		priv->cur_thingo = !priv->cur_thingo;
+	if (pfifo->playlist[0]) {
+		pfifo->cur_playlist = !pfifo->cur_playlist;
 		goto just_reset;
 	}
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	dev_priv->engine.fifo.priv = priv;
-
 	ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, 128*4, 0x1000,
-				     NVOBJ_FLAG_ZERO_ALLOC, &priv->thingo[0]);
+				     NVOBJ_FLAG_ZERO_ALLOC,
+				     &pfifo->playlist[0]);
 	if (ret) {
-		NV_ERROR(dev, "error creating thingo0: %d\n", ret);
+		NV_ERROR(dev, "error creating playlist 0: %d\n", ret);
 		return ret;
 	}
 
 	ret = nouveau_gpuobj_new_ref(dev, NULL, NULL, 0, 128*4, 0x1000,
-				     NVOBJ_FLAG_ZERO_ALLOC, &priv->thingo[1]);
+				     NVOBJ_FLAG_ZERO_ALLOC,
+				     &pfifo->playlist[1]);
 	if (ret) {
-		NV_ERROR(dev, "error creating thingo1: %d\n", ret);
+		nouveau_gpuobj_ref_del(dev, &pfifo->playlist[0]);
+		NV_ERROR(dev, "error creating playlist 1: %d\n", ret);
 		return ret;
 	}
 
@@ -215,18 +196,15 @@ void
 nv50_fifo_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv50_fifo_priv *priv = dev_priv->engine.fifo.priv;
+	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 
 	NV_DEBUG(dev, "\n");
 
-	if (!priv)
+	if (!pfifo->playlist[0])
 		return;
 
-	nouveau_gpuobj_ref_del(dev, &priv->thingo[0]);
-	nouveau_gpuobj_ref_del(dev, &priv->thingo[1]);
-
-	dev_priv->engine.fifo.priv = NULL;
-	kfree(priv);
+	nouveau_gpuobj_ref_del(dev, &pfifo->playlist[0]);
+	nouveau_gpuobj_ref_del(dev, &pfifo->playlist[1]);
 }
 
 int
@@ -247,7 +225,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	if (IS_G80) {
+	if (dev_priv->chipset == 0x50) {
 		uint32_t ramin_poffset = chan->ramin->gpuobj->im_pramin->start;
 		uint32_t ramin_voffset = chan->ramin->gpuobj->im_backing_start;
 
@@ -292,7 +270,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 				    chan->dma.ib_base * 4);
 	nv_wo32(dev, ramfc, 0x54/4, drm_order(chan->dma.ib_max + 1) << 16);
 
-	if (!IS_G80) {
+	if (dev_priv->chipset != 0x50) {
 		nv_wo32(dev, chan->ramin->gpuobj, 0, chan->id);
 		nv_wo32(dev, chan->ramin->gpuobj, 1,
 						chan->ramfc->instance >> 8);
@@ -303,14 +281,8 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 
 	dev_priv->engine.instmem.flush(dev);
 
-	ret = nv50_fifo_channel_enable(dev, chan->id, false);
-	if (ret) {
-		NV_ERROR(dev, "error enabling ch%d: %d\n", chan->id, ret);
-		spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-		nouveau_gpuobj_ref_del(dev, &chan->ramfc);
-		return ret;
-	}
-
+	nv50_fifo_channel_enable(dev, chan->id);
+	nv50_fifo_playlist_update(dev);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
@@ -325,11 +297,12 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 
 	/* This will ensure the channel is seen as disabled. */
 	chan->ramfc = NULL;
-	nv50_fifo_channel_disable(dev, chan->id, false);
+	nv50_fifo_channel_disable(dev, chan->id);
 
 	/* Dummy channel, also used on ch 127 */
 	if (chan->id == 0)
-		nv50_fifo_channel_disable(dev, 127, false);
+		nv50_fifo_channel_disable(dev, 127);
+	nv50_fifo_playlist_update(dev);
 
 	nouveau_gpuobj_ref_del(dev, &ramfc);
 	nouveau_gpuobj_ref_del(dev, &chan->cache);
@@ -391,7 +364,7 @@ nv50_fifo_load_context(struct nouveau_channel *chan)
 	nv_wr32(dev, NV03_PFIFO_CACHE1_GET, 0);
 
 	/* guessing that all the 0x34xx regs aren't on NV50 */
-	if (!IS_G80) {
+	if (dev_priv->chipset != 0x50) {
 		nv_wr32(dev, 0x340c, nv_ro32(dev, ramfc, 0x88/4));
 		nv_wr32(dev, 0x3400, nv_ro32(dev, ramfc, 0x8c/4));
 		nv_wr32(dev, 0x3404, nv_ro32(dev, ramfc, 0x90/4));
@@ -473,7 +446,7 @@ nv50_fifo_unload_context(struct drm_device *dev)
 	}
 
 	/* guessing that all the 0x34xx regs aren't on NV50 */
-	if (!IS_G80) {
+	if (dev_priv->chipset != 0x50) {
 		nv_wo32(dev, ramfc, 0x84/4, ptr >> 1);
 		nv_wo32(dev, ramfc, 0x88/4, nv_rd32(dev, 0x340c));
 		nv_wo32(dev, ramfc, 0x8c/4, nv_rd32(dev, 0x3400));
