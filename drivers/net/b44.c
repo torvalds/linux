@@ -135,7 +135,6 @@ static void b44_init_rings(struct b44 *);
 
 static void b44_init_hw(struct b44 *, int);
 
-static int dma_desc_align_mask;
 static int dma_desc_sync_size;
 static int instance;
 
@@ -2340,7 +2339,6 @@ static int __init b44_init(void)
 	int err;
 
 	/* Setup paramaters for syncing RX/TX DMA descriptors */
-	dma_desc_align_mask = ~(dma_desc_align_size - 1);
 	dma_desc_sync_size = max_t(unsigned int, dma_desc_align_size, sizeof(struct dma_desc));
 
 	err = b44_pci_init();
