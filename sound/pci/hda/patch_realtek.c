@@ -1268,8 +1268,10 @@ static int alc_auto_parse_customize_define(struct hda_codec *codec)
 	struct alc_spec *spec = codec->spec;
 
 	ass = codec->subsystem_id & 0xffff;
-	if (ass != codec->bus->pci->subsystem_device && (ass & 1))
+	if (ass != codec->bus->pci->subsystem_device && (ass & 1)) {
+		spec->cdefine.enable_pcbeep = 1; /* assume always enabled */
 		goto do_sku;
+	}
 
 	nid = 0x1d;
 	if (codec->vendor_id == 0x10ec0260)
@@ -2547,7 +2549,7 @@ static struct snd_kcontrol_new alc_beep_mixer[] = {
 static int alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	struct snd_kcontrol *kctl;
+	struct snd_kcontrol *kctl = NULL;
 	struct snd_kcontrol_new *knew;
 	int i, j, err;
 	unsigned int u;
@@ -9486,6 +9488,7 @@ static struct snd_pci_quirk alc882_ssid_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x3e00, "iMac 24 Aluminum", ALC885_IMAC24),
 	SND_PCI_QUIRK(0x106b, 0x4900, "iMac 9,1 Aluminum", ALC885_IMAC91),
 	SND_PCI_QUIRK(0x106b, 0x3f00, "Macbook 5,1", ALC885_MB5),
+	SND_PCI_QUIRK(0x106b, 0x4a00, "Macbook 5,2", ALC885_MB5),
 	/* FIXME: HP jack sense seems not working for MBP 5,1 or 5,2,
 	 * so apparently no perfect solution yet
 	 */
