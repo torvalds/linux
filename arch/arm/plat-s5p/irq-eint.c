@@ -71,7 +71,7 @@ static int s5p_irq_eint_set_type(unsigned int irq, unsigned int type)
 		break;
 
 	case IRQ_TYPE_EDGE_FALLING:
-		newvalue = S5P_EXTINT_RISEEDGE;
+		newvalue = S5P_EXTINT_FALLEDGE;
 		break;
 
 	case IRQ_TYPE_EDGE_BOTH:
