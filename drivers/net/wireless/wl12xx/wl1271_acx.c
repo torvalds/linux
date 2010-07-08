@@ -1266,3 +1266,29 @@ out:
 	kfree(acx);
 	return ret;
 }
+
+int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime)
+{
+	struct wl1271_acx_fw_tsf_information *tsf_info;
+	int ret;
+
+	tsf_info = kzalloc(sizeof(*tsf_info), GFP_KERNEL);
+	if (!tsf_info) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = wl1271_cmd_interrogate(wl, ACX_TSF_INFO,
+				     tsf_info, sizeof(*tsf_info));
+	if (ret < 0) {
+		wl1271_warning("acx tsf info interrogate failed");
+		goto out;
+	}
+
+	*mactime = le32_to_cpu(tsf_info->current_tsf_low) |
+		((u64) le32_to_cpu(tsf_info->current_tsf_high) << 32);
+
+out:
+	kfree(tsf_info);
+	return ret;
+}

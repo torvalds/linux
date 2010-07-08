@@ -993,6 +993,17 @@ struct wl1271_acx_rssi_snr_avg_weights {
 	u8 snr_data;
 };
 
+struct wl1271_acx_fw_tsf_information {
+	struct acx_header header;
+
+	__le32 current_tsf_high;
+	__le32 current_tsf_low;
+	__le32 last_bttt_high;
+	__le32 last_tbtt_low;
+	u8 last_dtim_count;
+	u8 padding[3];
+} __attribute__ ((packed));
+
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
 	ACX_MEM_CFG                 = 0x0003,
@@ -1114,5 +1125,6 @@ int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid);
 int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
 				s16 thold, u8 hyst);
 int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl);
+int wl1271_acx_tsf_info(struct wl1271 *wl, u64 *mactime);
 
 #endif /* __WL1271_ACX_H__ */

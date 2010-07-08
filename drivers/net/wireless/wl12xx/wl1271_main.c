@@ -1966,6 +1966,32 @@ out:
 	return ret;
 }
 
+static u64 wl1271_op_get_tsf(struct ieee80211_hw *hw)
+{
+
+	struct wl1271 *wl = hw->priv;
+	u64 mactime = ULLONG_MAX;
+	int ret;
+
+	wl1271_debug(DEBUG_MAC80211, "mac80211 get tsf");
+
+	mutex_lock(&wl->mutex);
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
+	ret = wl1271_acx_tsf_info(wl, &mactime);
+	if (ret < 0)
+		goto out_sleep;
+
+out_sleep:
+	wl1271_ps_elp_sleep(wl);
+
+out:
+	mutex_unlock(&wl->mutex);
+	return mactime;
+}
 
 /* can't be const, mac80211 writes to this */
 static struct ieee80211_rate wl1271_rates[] = {
@@ -2195,6 +2221,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.bss_info_changed = wl1271_op_bss_info_changed,
 	.set_rts_threshold = wl1271_op_set_rts_threshold,
 	.conf_tx = wl1271_op_conf_tx,
+	.get_tsf = wl1271_op_get_tsf,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
