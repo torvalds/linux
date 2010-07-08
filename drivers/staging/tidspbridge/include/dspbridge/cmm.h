@@ -95,7 +95,7 @@ extern int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
  *      Destroy the communication memory manager object.
  *  Parameters:
  *      hcmm_mgr:   Cmm Mgr handle.
- *      bForce:    Force deallocation of all cmm memory immediately if set TRUE.
+ *      force:     Force deallocation of all cmm memory immediately if set TRUE.
  *                 If FALSE, and outstanding allocations will return -EPERM
  *                 status.
  *  Returns:
@@ -108,7 +108,7 @@ extern int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
  *  Ensures:
  *      Memory resources used by Cmm Mgr are freed.
  */
-extern int cmm_destroy(struct cmm_object *hcmm_mgr, bool bForce);
+extern int cmm_destroy(struct cmm_object *hcmm_mgr, bool force);
 
 /*
  *  ======== cmm_exit ========
@@ -305,7 +305,7 @@ extern int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
  *      Delete translator resources
  *  Parameters:
  *      xlator:    handle to translator.
- *      bForce:     bForce = TRUE will free XLators SM buffers/dscriptrs.
+ *      force:     force = TRUE will free XLators SM buffers/dscriptrs.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Bad translator handle.
@@ -316,7 +316,7 @@ extern int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
  *
  */
 extern int cmm_xlator_delete(struct cmm_xlatorobject *xlator,
-				    bool bForce);
+				    bool force);
 
 /*
  *  ======== cmm_xlator_free_buf ========

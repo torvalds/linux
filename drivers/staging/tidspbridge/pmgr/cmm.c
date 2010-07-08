@@ -304,7 +304,7 @@ int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
  *  Purpose:
  *      Release the communication memory manager resources.
  */
-int cmm_destroy(struct cmm_object *hcmm_mgr, bool bForce)
+int cmm_destroy(struct cmm_object *hcmm_mgr, bool force)
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	struct cmm_info temp_info;
@@ -319,7 +319,7 @@ int cmm_destroy(struct cmm_object *hcmm_mgr, bool bForce)
 	}
 	mutex_lock(&cmm_mgr_obj->cmm_lock);
 	/* If not force then fail if outstanding allocations exist */
-	if (!bForce) {
+	if (!force) {
 		/* Check for outstanding memory allocations */
 		status = cmm_get_info(hcmm_mgr, &temp_info);
 		if (DSP_SUCCEEDED(status)) {
@@ -989,7 +989,7 @@ int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
  *      Free the Xlator resources.
  *      VM gets freed later.
  */
-int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool bForce)
+int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool force)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
 	int status = 0;

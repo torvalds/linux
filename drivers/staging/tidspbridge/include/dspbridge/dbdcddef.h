@@ -61,7 +61,7 @@ struct dcd_nodeprops {
 
 /* DCD Generic Object Type */
 struct dcd_genericobj {
-	union dcdObjUnion {
+	union dcd_obj {
 		struct dcd_nodeprops node_obj;	/* node object. */
 		/* processor object. */
 		struct dsp_processorinfo proc_info;

@@ -80,6 +80,6 @@ int handle_constraints_set(struct bridge_dev_context *dev_context,
  *     This function sets the group selction bits for while
  *     enabling/disabling.
  */
-void dsp_clk_wakeup_event_ctrl(u32 ClkId, bool enable);
+void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable);
 
 #endif /* _TIOMAP_PWR_ */

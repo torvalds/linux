@@ -116,7 +116,7 @@ func_cont:
  *  ======== dsp_deinit ========
  *  	Frees the resources allocated for bridge.
  */
-bool dsp_deinit(u32 deviceContext)
+bool dsp_deinit(u32 device_ctxt)
 {
 	bool ret = true;
 	u32 device_node;
@@ -126,10 +126,10 @@ bool dsp_deinit(u32 deviceContext)
 		(void)dev_remove_device((struct cfg_devnode *)device_node);
 
 		(void)drv_release_resources((u32) device_node,
-					    (struct drv_object *)deviceContext);
+					    (struct drv_object *)device_ctxt);
 	}
 
-	(void)drv_destroy((struct drv_object *)deviceContext);
+	(void)drv_destroy((struct drv_object *)device_ctxt);
 
 	/* Get the Manager Object from Registry
 	 * MGR Destroy will unload the DCD dll */

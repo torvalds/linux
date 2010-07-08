@@ -113,7 +113,7 @@ extern int dcd_destroy_manager(IN struct dcd_manager *hdcd_mgr);
  *      This function enumerates currently visible DSP/BIOS Bridge objects
  *      and returns the UUID and type of each enumerated object.
  *  Parameters:
- *      cIndex:             The object enumeration index.
+ *      index:              The object enumeration index.
  *      obj_type:            Type of object to enumerate.
  *      uuid_obj:              Pointer to a dsp_uuid object.
  *  Returns:
@@ -128,7 +128,7 @@ extern int dcd_destroy_manager(IN struct dcd_manager *hdcd_mgr);
  *      This function can be used in conjunction with dcd_get_object_def to
  *      retrieve object properties.
  */
-extern int dcd_enumerate_object(IN s32 cIndex,
+extern int dcd_enumerate_object(IN s32 index,
 				       IN enum dsp_dcdobjtype obj_type,
 				       OUT struct dsp_uuid *uuid_obj);
 

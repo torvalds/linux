@@ -42,44 +42,44 @@ struct hw_mmu_map_attrs_t {
 	bool donotlockmpupage;
 };
 
-extern hw_status hw_mmu_enable(const void __iomem *baseAddress);
+extern hw_status hw_mmu_enable(const void __iomem *base_address);
 
-extern hw_status hw_mmu_disable(const void __iomem *baseAddress);
+extern hw_status hw_mmu_disable(const void __iomem *base_address);
 
-extern hw_status hw_mmu_num_locked_set(const void __iomem *baseAddress,
+extern hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
 				       u32 numLockedEntries);
 
-extern hw_status hw_mmu_victim_num_set(const void __iomem *baseAddress,
+extern hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
 				       u32 victimEntryNum);
 
 /* For MMU faults */
-extern hw_status hw_mmu_event_ack(const void __iomem *baseAddress,
+extern hw_status hw_mmu_event_ack(const void __iomem *base_address,
 				  u32 irqMask);
 
-extern hw_status hw_mmu_event_disable(const void __iomem *baseAddress,
+extern hw_status hw_mmu_event_disable(const void __iomem *base_address,
 				      u32 irqMask);
 
-extern hw_status hw_mmu_event_enable(const void __iomem *baseAddress,
+extern hw_status hw_mmu_event_enable(const void __iomem *base_address,
 				     u32 irqMask);
 
-extern hw_status hw_mmu_event_status(const void __iomem *baseAddress,
+extern hw_status hw_mmu_event_status(const void __iomem *base_address,
 				     u32 *irqMask);
 
-extern hw_status hw_mmu_fault_addr_read(const void __iomem *baseAddress,
+extern hw_status hw_mmu_fault_addr_read(const void __iomem *base_address,
 					u32 *addr);
 
 /* Set the TT base address */
-extern hw_status hw_mmu_ttb_set(const void __iomem *baseAddress,
+extern hw_status hw_mmu_ttb_set(const void __iomem *base_address,
 				u32 TTBPhysAddr);
 
-extern hw_status hw_mmu_twl_enable(const void __iomem *baseAddress);
+extern hw_status hw_mmu_twl_enable(const void __iomem *base_address);
 
-extern hw_status hw_mmu_twl_disable(const void __iomem *baseAddress);
+extern hw_status hw_mmu_twl_disable(const void __iomem *base_address);
 
-extern hw_status hw_mmu_tlb_flush(const void __iomem *baseAddress,
+extern hw_status hw_mmu_tlb_flush(const void __iomem *base_address,
 				  u32 virtualAddr, u32 pageSize);
 
-extern hw_status hw_mmu_tlb_add(const void __iomem *baseAddress,
+extern hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 				u32 physicalAddr,
 				u32 virtualAddr,
 				u32 pageSize,

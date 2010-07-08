@@ -67,7 +67,7 @@ extern int write_dsp_data(struct bridge_dev_context *dev_context,
 extern int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 				     IN u8 *pbHostBuf, u32 dwDSPAddr,
 				     u32 ul_num_bytes, u32 ulMemType,
-				     bool bDynamicLoad);
+				     bool dynamic_load);
 
 /*
  * ======== write_ext32_bit_dsp_data ========

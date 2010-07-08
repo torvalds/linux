@@ -227,7 +227,7 @@ int write_dsp_data(struct bridge_dev_context *hDevContext,
 int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			      IN u8 *pbHostBuf, u32 dwDSPAddr,
 			      u32 ul_num_bytes, u32 ulMemType,
-			      bool bDynamicLoad)
+			      bool dynamic_load)
 {
 	u32 dw_base_addr = dev_context->dw_dsp_ext_base_addr;
 	u32 dw_offset = 0;
@@ -259,7 +259,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 	}
 
 	/* If dynamic, force remap/unmap */
-	if ((bDynamicLoad || trace_load) && dw_base_addr) {
+	if ((dynamic_load || trace_load) && dw_base_addr) {
 		dw_base_addr = 0;
 		MEM_UNMAP_LINEAR_ADDRESS((void *)
 					 dev_context->dw_dsp_ext_base_addr);
@@ -271,7 +271,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			ret = dev_get_symbol(dev_context->hdev_obj,
 					     SHMBASENAME, &ul_shm_base_virt);
 		DBC_ASSERT(ul_shm_base_virt != 0);
-		if (bDynamicLoad) {
+		if (dynamic_load) {
 			if (DSP_SUCCEEDED(ret)) {
 				if (symbols_reloaded)
 					ret =
@@ -377,7 +377,7 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			*((u32 *) pbHostBuf) = dw_base_addr + dw_offset;
 	}
 	/* Unmap here to force remap for other Ext loads */
-	if ((bDynamicLoad || trace_load) && dev_context->dw_dsp_ext_base_addr) {
+	if ((dynamic_load || trace_load) && dev_context->dw_dsp_ext_base_addr) {
 		MEM_UNMAP_LINEAR_ADDRESS((void *)
 					 dev_context->dw_dsp_ext_base_addr);
 		dev_context->dw_dsp_ext_base_addr = 0x0;

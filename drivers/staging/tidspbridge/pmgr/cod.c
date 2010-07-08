@@ -128,21 +128,21 @@ static struct file *cod_f_open(CONST char *psz_file_name, CONST char *pszMode)
 	return filp;
 }
 
-static s32 cod_f_read(void __user *pbuffer, s32 size, s32 cCount,
+static s32 cod_f_read(void __user *pbuffer, s32 size, s32 count,
 		      struct file *filp)
 {
 	/* check for valid file handle */
 	if (!filp)
 		return -EFAULT;
 
-	if ((size > 0) && (cCount > 0) && pbuffer) {
+	if ((size > 0) && (count > 0) && pbuffer) {
 		u32 dw_bytes_read;
 		mm_segment_t fs;
 
 		/* read from file */
 		fs = get_fs();
 		set_fs(get_ds());
-		dw_bytes_read = filp->f_op->read(filp, pbuffer, size * cCount,
+		dw_bytes_read = filp->f_op->read(filp, pbuffer, size * count,
 						 &(filp->f_pos));
 		set_fs(fs);
 
@@ -155,7 +155,7 @@ static s32 cod_f_read(void __user *pbuffer, s32 size, s32 cCount,
 	return -EINVAL;
 }
 
-static s32 cod_f_seek(struct file *filp, s32 lOffset, s32 cOrigin)
+static s32 cod_f_seek(struct file *filp, s32 lOffset, s32 origin)
 {
 	loff_t dw_cur_pos;
 
@@ -164,7 +164,7 @@ static s32 cod_f_seek(struct file *filp, s32 lOffset, s32 cOrigin)
 		return -EFAULT;
 
 	/* based on the origin flag, move the internal pointer */
-	dw_cur_pos = filp->f_op->llseek(filp, lOffset, cOrigin);
+	dw_cur_pos = filp->f_op->llseek(filp, lOffset, origin);
 
 	if ((s32) dw_cur_pos < 0)
 		return -EPERM;
@@ -487,12 +487,12 @@ bool cod_init(void)
  *      loaded must be the first element of the args array and must be a fully
  *      qualified pathname.
  *  Details:
- *      if nArgc doesn't match the number of arguments in the aArgs array, the
- *      aArgs array is searched for a NULL terminating entry, and argc is
+ *      if nArgc doesn't match the number of arguments in the args array, the
+ *      args array is searched for a NULL terminating entry, and argc is
  *      recalculated to reflect this.  In this way, we can support NULL
- *      terminating aArgs arrays, if nArgc is very large.
+ *      terminating args arrays, if nArgc is very large.
  */
-int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *aArgs[],
+int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *args[],
 			 cod_writefxn pfn_write, void *pArb, char *envp[])
 {
 	dbll_flags flags;
@@ -504,8 +504,8 @@ int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *aArgs[],
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(hmgr));
 	DBC_REQUIRE(nArgc > 0);
-	DBC_REQUIRE(aArgs != NULL);
-	DBC_REQUIRE(aArgs[0] != NULL);
+	DBC_REQUIRE(args != NULL);
+	DBC_REQUIRE(args[0] != NULL);
 	DBC_REQUIRE(pfn_write != NULL);
 	DBC_REQUIRE(hmgr->base_lib != NULL);
 
@@ -514,7 +514,7 @@ int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *aArgs[],
 	 *  reflect true number in NULL terminated argv array.
 	 */
 	for (i = 0; i < nArgc; i++) {
-		if (aArgs[i] == NULL) {
+		if (args[i] == NULL) {
 			nArgc = i;
 			break;
 		}
@@ -626,7 +626,7 @@ int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *      Retrieve the content of a code section given the section name.
  */
 int cod_read_section(struct cod_libraryobj *lib, IN char *pstrSect,
-			    OUT char *pstrContent, IN u32 cContentSize)
+			    OUT char *pstrContent, IN u32 content_size)
 {
 	int status = 0;
 
@@ -639,7 +639,7 @@ int cod_read_section(struct cod_libraryobj *lib, IN char *pstrSect,
 	if (lib != NULL)
 		status =
 		    lib->cod_mgr->fxns.read_sect_fxn(lib->dbll_lib, pstrSect,
-						     pstrContent, cContentSize);
+						     pstrContent, content_size);
 	else
 		status = -ESPIPE;
 

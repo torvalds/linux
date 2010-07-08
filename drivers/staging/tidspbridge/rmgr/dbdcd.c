@@ -65,8 +65,8 @@ static s32 atoi(char *psz_buf);
 static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 				     enum dsp_dcdobjtype obj_type,
 				     struct dcd_genericobj *pGenObj);
-static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 cCharSize);
-static char dsp_char2_gpp_char(char *pWord, s32 cDspCharSize);
+static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size);
+static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size);
 static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
 				   IN OUT u16 *pNumLibs,
@@ -193,7 +193,7 @@ int dcd_destroy_manager(IN struct dcd_manager *hdcd_mgr)
  *  Purpose:
  *      Enumerates objects in the DCD.
  */
-int dcd_enumerate_object(IN s32 cIndex, IN enum dsp_dcdobjtype obj_type,
+int dcd_enumerate_object(IN s32 index, IN enum dsp_dcdobjtype obj_type,
 				OUT struct dsp_uuid *uuid_obj)
 {
 	int status = 0;
@@ -206,10 +206,10 @@ int dcd_enumerate_object(IN s32 cIndex, IN enum dsp_dcdobjtype obj_type,
 	int len;
 
 	DBC_REQUIRE(refs >= 0);
-	DBC_REQUIRE(cIndex >= 0);
+	DBC_REQUIRE(index >= 0);
 	DBC_REQUIRE(uuid_obj != NULL);
 
-	if ((cIndex != 0) && (enum_refs == 0)) {
+	if ((index != 0) && (enum_refs == 0)) {
 		/*
 		 * If an enumeration is being performed on an index greater
 		 * than zero, then the current enum_refs must have been
@@ -257,7 +257,7 @@ int dcd_enumerate_object(IN s32 cIndex, IN enum dsp_dcdobjtype obj_type,
 			spin_lock(&dbdcd_lock);
 			list_for_each_entry(dcd_key, &reg_key_list, link) {
 				if (!strncmp(dcd_key->name, sz_reg_key, len)
-						&& !cIndex--) {
+						&& !index--) {
 					strncpy(sz_value, &dcd_key->name[len],
 					       strlen(&dcd_key->name[len]) + 1);
 						break;
@@ -1321,7 +1321,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
  *  Purpose:
  *      Compress the DSP buffer, if necessary, to conform to PC format.
  */
-static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 cCharSize)
+static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size)
 {
 	char *p;
 	char ch;
@@ -1332,10 +1332,10 @@ static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 cCharSize)
 		return;
 
 	for (q = psz_buf; q < (psz_buf + ul_buf_size);) {
-		ch = dsp_char2_gpp_char(q, cCharSize);
+		ch = dsp_char2_gpp_char(q, char_size);
 		if (ch == '\\') {
-			q += cCharSize;
-			ch = dsp_char2_gpp_char(q, cCharSize);
+			q += char_size;
+			ch = dsp_char2_gpp_char(q, char_size);
 			switch (ch) {
 			case 't':
 				*p = '\t';
@@ -1361,7 +1361,7 @@ static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 cCharSize)
 			*p = ch;
 		}
 		p++;
-		q += cCharSize;
+		q += char_size;
 	}
 
 	/* NULL out remainder of buffer. */
@@ -1374,13 +1374,13 @@ static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 cCharSize)
  *  Purpose:
  *      Convert DSP char to host GPP char in a portable manner
  */
-static char dsp_char2_gpp_char(char *pWord, s32 cDspCharSize)
+static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size)
 {
 	char ch = '\0';
 	char *ch_src;
 	s32 i;
 
-	for (ch_src = pWord, i = cDspCharSize; i > 0; i--)
+	for (ch_src = pWord, i = dsp_char_size; i > 0; i--)
 		ch |= *ch_src++;
 
 	return ch;

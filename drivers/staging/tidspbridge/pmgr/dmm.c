@@ -72,8 +72,8 @@ static u32 table_size;		/* The size of virt and phys pages tables */
 
 /*  ----------------------------------- Function Prototypes */
 static struct map_page *get_region(u32 addr);
-static struct map_page *get_free_region(u32 aSize);
-static struct map_page *get_mapped_region(u32 aAddr);
+static struct map_page *get_free_region(u32 len);
+static struct map_page *get_mapped_region(u32 addrs);
 
 /*  ======== dmm_create_tables ========
  *  Purpose:
@@ -405,14 +405,14 @@ int dmm_un_reserve_memory(struct dmm_object *dmm_mgr, u32 rsv_addr)
  *  Purpose:
  *      Returns a region containing the specified memory region
  */
-static struct map_page *get_region(u32 aAddr)
+static struct map_page *get_region(u32 addrs)
 {
 	struct map_page *curr_region = NULL;
 	u32 i = 0;
 
 	if (virtual_mapping_table != NULL) {
 		/* find page mapped by this address */
-		i = DMM_ADDR_TO_INDEX(aAddr);
+		i = DMM_ADDR_TO_INDEX(addrs);
 		if (i < table_size)
 			curr_region = virtual_mapping_table + i;
 	}
@@ -427,7 +427,7 @@ static struct map_page *get_region(u32 aAddr)
  *  Purpose:
  *  Returns the requested free region
  */
-static struct map_page *get_free_region(u32 aSize)
+static struct map_page *get_free_region(u32 len)
 {
 	struct map_page *curr_region = NULL;
 	u32 i = 0;
@@ -436,7 +436,7 @@ static struct map_page *get_free_region(u32 aSize)
 
 	if (virtual_mapping_table == NULL)
 		return curr_region;
-	if (aSize > free_size) {
+	if (len > free_size) {
 		/* Find the largest free region
 		 * (coalesce during the traversal) */
 		while (i < table_size) {
@@ -461,10 +461,10 @@ static struct map_page *get_free_region(u32 aSize)
 			i = next_i;
 		}
 	}
-	if (aSize <= free_size) {
+	if (len <= free_size) {
 		curr_region = virtual_mapping_table + free_region;
-		free_region += (aSize / PG_SIZE4K);
-		free_size -= aSize;
+		free_region += (len / PG_SIZE4K);
+		free_size -= len;
 	}
 	return curr_region;
 }
@@ -474,7 +474,7 @@ static struct map_page *get_free_region(u32 aSize)
  *  Purpose:
  *  Returns the requestedmapped region
  */
-static struct map_page *get_mapped_region(u32 aAddr)
+static struct map_page *get_mapped_region(u32 addrs)
 {
 	u32 i = 0;
 	struct map_page *curr_region = NULL;
@@ -482,7 +482,7 @@ static struct map_page *get_mapped_region(u32 aAddr)
 	if (virtual_mapping_table == NULL)
 		return curr_region;
 
-	i = DMM_ADDR_TO_INDEX(aAddr);
+	i = DMM_ADDR_TO_INDEX(addrs);
 	if (i < table_size && (virtual_mapping_table[i].mapped ||
 			       virtual_mapping_table[i].reserved))
 		curr_region = virtual_mapping_table + i;

@@ -288,13 +288,13 @@ extern bool cod_init(void);
  *      COD module initialized.
  *      hmgr is valid.
  *      nArgc > 0.
- *      aArgs != NULL.
- *      aArgs[0] != NULL.
+ *      args != NULL.
+ *      args[0] != NULL.
  *      pfn_write != NULL.
  *  Ensures:
  */
 extern int cod_load_base(struct cod_manager *cod_mgr_obj,
-				u32 nArgc, char *aArgs[],
+				u32 nArgc, char *args[],
 				cod_writefxn pfn_write, void *pArb,
 				char *envp[]);
 
@@ -364,6 +364,6 @@ extern int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  */
 extern int cod_read_section(struct cod_libraryobj *lib,
 				   IN char *pstrSect,
-				   OUT char *pstrContent, IN u32 cContentSize);
+				   OUT char *pstrContent, IN u32 content_size);
 
 #endif /* COD_ */

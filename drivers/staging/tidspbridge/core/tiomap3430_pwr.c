@@ -407,7 +407,7 @@ int post_scale_dsp(struct bridge_dev_context *dev_context,
 	return status;
 }
 
-void dsp_clk_wakeup_event_ctrl(u32 ClkId, bool enable)
+void dsp_clk_wakeup_event_ctrl(u32 clock_id, bool enable)
 {
 	struct cfg_hostres *resources;
 	int status = 0;
@@ -428,7 +428,7 @@ void dsp_clk_wakeup_event_ctrl(u32 ClkId, bool enable)
 	if (!resources)
 		return;
 
-	switch (ClkId) {
+	switch (clock_id) {
 	case BPWR_GP_TIMER5:
 		iva2_grpsel = (u32) *((reg_uword32 *)
 				       ((u32) (resources->dw_per_pm_base) +
