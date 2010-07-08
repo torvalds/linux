@@ -897,8 +897,7 @@ static int zfcp_erp_port_strategy_open_common(struct zfcp_erp_action *act)
 		}
 		if (port->d_id && !(p_status & ZFCP_STATUS_COMMON_NOESC)) {
 			port->d_id = 0;
-			_zfcp_erp_port_reopen(port, 0, "erpsoc1", NULL);
-			return ZFCP_ERP_EXIT;
+			return ZFCP_ERP_FAILED;
 		}
 		/* fall through otherwise */
 	}
