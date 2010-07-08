@@ -1312,53 +1312,6 @@ struct wl1271_filter_params {
 	u8 mc_list[ACX_MC_ADDRESS_GROUP_MAX][ETH_ALEN];
 };
 
-static int wl1271_op_configure_arp_filter(struct ieee80211_hw *hw,
-					  struct ieee80211_vif *vif,
-					  struct in_ifaddr *ifa_list)
-{
-	struct wl1271 *wl = hw->priv;
-	int ret = 0;
-
-	WARN_ON(vif != wl->vif);
-
-	/* disable filtering if there are multiple addresses */
-	if (ifa_list && ifa_list->ifa_next)
-		ifa_list = NULL;
-
-	mutex_lock(&wl->mutex);
-
-	if (wl->state == WL1271_STATE_OFF)
-		goto out;
-
-	WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
-
-	ret = wl1271_ps_elp_wakeup(wl, false);
-	if (ret < 0)
-		goto out;
-
-	if (ifa_list) {
-		ret = wl1271_cmd_build_arp_reply(wl, &ifa_list->ifa_address);
-		if (ret < 0)
-			goto out_sleep;
-		ret = wl1271_acx_arp_ip_filter(wl, ACX_ARP_FILTER_AND_REPLY,
-					       (u8 *)&ifa_list->ifa_address);
-		if (ret < 0)
-			goto out_sleep;
-	} else {
-		ret = wl1271_acx_arp_ip_filter(wl, ACX_ARP_DISABLE, NULL);
-		if (ret < 0)
-			goto out_sleep;
-	}
-
-out_sleep:
-	wl1271_ps_elp_sleep(wl);
-
-out:
-	mutex_unlock(&wl->mutex);
-
-	return ret;
-}
-
 static u64 wl1271_op_prepare_multicast(struct ieee80211_hw *hw,
 				       struct netdev_hw_addr_list *mc_list)
 {
@@ -1869,6 +1822,19 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
+	if (changed & BSS_CHANGED_ARP_FILTER) {
+		__be32 addr = bss_conf->arp_addr_list[0];
+		WARN_ON(wl->bss_type != BSS_TYPE_STA_BSS);
+
+		if (bss_conf->arp_addr_cnt == 1 && bss_conf->arp_filter_enabled)
+			ret = wl1271_acx_arp_ip_filter(wl, true, addr);
+		else
+			ret = wl1271_acx_arp_ip_filter(wl, false, addr);
+
+		if (ret < 0)
+			goto out_sleep;
+	}
+
 	if (do_join) {
 		ret = wl1271_join(wl, set_assoc);
 		if (ret < 0) {
@@ -2174,7 +2140,6 @@ static const struct ieee80211_ops wl1271_ops = {
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
 	.config = wl1271_op_config,
-	.configure_arp_filter = wl1271_op_configure_arp_filter,
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
