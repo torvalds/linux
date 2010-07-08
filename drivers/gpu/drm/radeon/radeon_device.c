@@ -737,7 +737,8 @@ void radeon_device_fini(struct radeon_device *rdev)
 	destroy_workqueue(rdev->wq);
 	vga_switcheroo_unregister_client(rdev->pdev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
-	pci_iounmap(rdev->pdev, rdev->rio_mem);
+	if (rdev->rio_mem)
+		pci_iounmap(rdev->pdev, rdev->rio_mem);
 	rdev->rio_mem = NULL;
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
