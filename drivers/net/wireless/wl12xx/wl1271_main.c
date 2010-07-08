@@ -939,7 +939,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	/* enable dyn ps just in case (if left on due to fw crash etc) */
 	if (wl->bss_type == BSS_TYPE_STA_BSS)
-		ieee80211_disable_dyn_ps(wl->vif, false);
+		ieee80211_enable_dyn_ps(wl->vif);
 
 	if (test_and_clear_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		mutex_unlock(&wl->mutex);
@@ -1779,7 +1779,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			wl->aid = 0;
 
 			/* re-enable dynamic ps - just in case */
-			ieee80211_disable_dyn_ps(wl->vif, false);
+			ieee80211_enable_dyn_ps(wl->vif);
 
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl);

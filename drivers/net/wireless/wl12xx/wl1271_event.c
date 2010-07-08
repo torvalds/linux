@@ -229,9 +229,9 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
 	    wl->bss_type == BSS_TYPE_STA_BSS) {
 		if (mbox->soft_gemini_sense_info)
-			ieee80211_disable_dyn_ps(wl->vif, true);
+			ieee80211_disable_dyn_ps(wl->vif);
 		else
-			ieee80211_disable_dyn_ps(wl->vif, false);
+			ieee80211_enable_dyn_ps(wl->vif);
 	}
 
 	/*
