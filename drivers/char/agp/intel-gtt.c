@@ -25,6 +25,10 @@
 #define USE_PCI_DMA_API 1
 #endif
 
+/* Max amount of stolen space, anything above will be returned to Linux */
+int intel_max_stolen = 32 * 1024 * 1024;
+EXPORT_SYMBOL(intel_max_stolen);
+
 static const struct aper_size_info_fixed intel_i810_sizes[] =
 {
 	{64, 16384, 4},
@@ -713,7 +717,12 @@ static void intel_i830_init_gtt_entries(void)
 			break;
 		}
 	}
-	if (gtt_entries > 0) {
+	if (!local && gtt_entries > intel_max_stolen) {
+		dev_info(&agp_bridge->dev->dev,
+			 "detected %dK stolen memory, trimming to %dK\n",
+			 gtt_entries / KB(1), intel_max_stolen / KB(1));
+		gtt_entries = intel_max_stolen / KB(4);
+	} else if (gtt_entries > 0) {
 		dev_info(&agp_bridge->dev->dev, "detected %dK %s memory\n",
 		       gtt_entries / KB(1), local ? "local" : "stolen");
 		gtt_entries /= KB(4);

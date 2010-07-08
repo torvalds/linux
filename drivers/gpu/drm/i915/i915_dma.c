@@ -41,6 +41,8 @@
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
 
+extern int intel_max_stolen; /* from AGP driver */
+
 /**
  * Sets up the hardware status page for devices that need a physical address
  * in the register.
@@ -2105,6 +2107,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = i915_probe_agp(dev, &agp_size, &prealloc_size, &prealloc_start);
 	if (ret)
 		goto out_iomapfree;
+
+	if (prealloc_size > intel_max_stolen) {
+		DRM_INFO("detected %dM stolen memory, trimming to %dM\n",
+			 prealloc_size >> 20, intel_max_stolen >> 20);
+		prealloc_size = intel_max_stolen;
+	}
 
 	dev_priv->wq = create_singlethread_workqueue("i915");
 	if (dev_priv->wq == NULL) {
