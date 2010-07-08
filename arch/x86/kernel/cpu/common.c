@@ -551,6 +551,16 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_capability[4] = excap;
 	}
 
+	/* Additional Intel-defined flags: level 0x00000007 */
+	if (c->cpuid_level >= 0x00000007) {
+		u32 eax, ebx, ecx, edx;
+
+		cpuid_count(0x00000007, 0, &eax, &ebx, &ecx, &edx);
+
+		if (eax > 0)
+			c->x86_capability[9] = ebx;
+	}
+
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
 	c->extended_cpuid_level = xlvl;
