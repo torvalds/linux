@@ -528,7 +528,7 @@ int cx231xx_set_video_alternate(struct cx231xx *dev)
 	if (dev->USE_ISO == 0)
 		dev->video_mode.alt = 0;
 
-	cx231xx_info("dev->video_mode.alt= %d\n", dev->video_mode.alt);
+	cx231xx_coredbg("dev->video_mode.alt= %d\n", dev->video_mode.alt);
 
 	/* Get the correct video interface Index */
 	usb_interface_index =
@@ -545,10 +545,6 @@ int cx231xx_set_video_alternate(struct cx231xx *dev)
 		cx231xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
 				dev->video_mode.alt,
 				dev->video_mode.max_pkt_size);
-		cx231xx_info
-		    (" setting alt %d with wMaxPktSize=%u , Interface = %d\n",
-		     dev->video_mode.alt, dev->video_mode.max_pkt_size,
-		     usb_interface_index);
 		errCode =
 		    usb_set_interface(dev->udev, usb_interface_index,
 				      dev->video_mode.alt);
@@ -636,9 +632,9 @@ int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt)
 			return -1;
 	}
 
-	cx231xx_info
-	    (" setting alternate %d with wMaxPacketSize=%u , Interface = %d\n",
-	     alt, max_pkt_size, usb_interface_index);
+	cx231xx_coredbg("setting alternate %d with wMaxPacketSize=%u,"
+			"Interface = %d\n", alt, max_pkt_size,
+			usb_interface_index);
 
 	if (usb_interface_index > 0) {
 		status = usb_set_interface(dev->udev, usb_interface_index, alt);
@@ -683,10 +679,12 @@ int cx231xx_demod_reset(struct cx231xx *dev)
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN,
 				 value, 4);
-	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", PWR_CTL_EN, value[0],
-				 value[1], value[2], value[3]);
 
-	cx231xx_info("Enter cx231xx_demod_reset()\n");
+	cx231xx_coredbg("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", PWR_CTL_EN,
+			value[0], value[1], value[2], value[3]);
+
+	cx231xx_coredbg("Enter cx231xx_demod_reset()\n");
+
 		value[1] = (u8) 0x3;
 		status = cx231xx_write_ctrl_reg(dev, VRT_SET_REGISTER,
 						PWR_CTL_EN, value, 4);
@@ -706,8 +704,9 @@ int cx231xx_demod_reset(struct cx231xx *dev)
 
 	status = cx231xx_read_ctrl_reg(dev, VRT_GET_REGISTER, PWR_CTL_EN,
 				 value, 4);
-	cx231xx_info("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", PWR_CTL_EN, value[0],
-				 value[1], value[2], value[3]);
+
+	cx231xx_coredbg("reg0x%x=0x%x 0x%x 0x%x 0x%x\n", PWR_CTL_EN,
+			value[0], value[1], value[2], value[3]);
 
 	return status;
 }
@@ -1005,7 +1004,8 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 
 	dev->video_input = dev->video_input > 2 ? 2 : dev->video_input;
 
-	cx231xx_info("Setting Video mux to %d\n", dev->video_input);
+	cx231xx_coredbg("Setting Video mux to %d\n", dev->video_input);
+
 	video_mux(dev, dev->video_input);
 
 	/* De-allocates all pending stuff */
@@ -1146,7 +1146,8 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 
 	dev->video_input = dev->video_input > 2 ? 2 : dev->video_input;
 
-	cx231xx_info("Setting Video mux to %d\n", dev->video_input);
+	cx231xx_coredbg("Setting Video mux to %d\n", dev->video_input);
+
 	video_mux(dev, dev->video_input);
 
 	/* De-allocates all pending stuff */
