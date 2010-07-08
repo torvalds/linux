@@ -241,11 +241,6 @@ static struct conf_drv_settings default_conf = {
 		.keep_alive_interval         = 55000,
 		.max_listen_interval         = 20,
 	},
-	.init = {
-		.radioparam = {
-			.fem                 = 1,
-		}
-	},
 	.itrim = {
 		.enable = false,
 		.timeout = 50000,

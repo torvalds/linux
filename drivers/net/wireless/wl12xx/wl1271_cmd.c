@@ -132,7 +132,7 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 int wl1271_cmd_radio_parms(struct wl1271 *wl)
 {
 	struct wl1271_radio_parms_cmd *radio_parms;
-	struct conf_radio_parms *rparam = &wl->conf.init.radioparam;
+	struct wl1271_ini_general_params *gp = &wl->nvs->general_params;
 	int ret;
 
 	if (!wl->nvs)
@@ -148,7 +148,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	memcpy(&radio_parms->static_params_2, &wl->nvs->stat_radio_params_2,
 	       sizeof(struct wl1271_ini_band_params_2));
 	memcpy(&radio_parms->dyn_params_2,
-	       &wl->nvs->dyn_radio_params_2[rparam->fem].params,
+	       &wl->nvs->dyn_radio_params_2[gp->tx_bip_fem_manufacturer].params,
 	       sizeof(struct wl1271_ini_fem_params_2));
 
 	/* 5GHz parameters */
@@ -156,7 +156,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	       &wl->nvs->stat_radio_params_5,
 	       sizeof(struct wl1271_ini_band_params_5));
 	memcpy(&radio_parms->dyn_params_5,
-	       &wl->nvs->dyn_radio_params_5[rparam->fem].params,
+	       &wl->nvs->dyn_radio_params_5[gp->tx_bip_fem_manufacturer].params,
 	       sizeof(struct wl1271_ini_fem_params_5));
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
