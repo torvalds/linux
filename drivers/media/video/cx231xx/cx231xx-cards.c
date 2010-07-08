@@ -584,42 +584,17 @@ void cx231xx_card_setup(struct cx231xx *dev)
 
 	}
 
-	switch (dev->model) {
-	case CX231XX_BOARD_CNXT_CARRAERA:
-	case CX231XX_BOARD_CNXT_RDE_250:
-	case CX231XX_BOARD_CNXT_SHELBY:
-	case CX231XX_BOARD_CNXT_RDU_250:
-		if (dev->board.tuner_type != TUNER_ABSENT) {
-			dev->sd_tuner =	v4l2_i2c_new_subdev(&dev->v4l2_dev,
-					&dev->i2c_bus[1].i2c_adap,
-					"tuner", "tuner", 0xc2 >> 1, NULL);
-			if (dev->sd_tuner == NULL)
-				cx231xx_info(
-				"tuner subdev registration failure\n");
-
+	/* Initialize the tuner */
+	if (dev->board.tuner_type != TUNER_ABSENT) {
+		dev->sd_tuner = v4l2_i2c_new_subdev(&dev->v4l2_dev,
+						    &dev->i2c_bus[1].i2c_adap,
+						    "tuner", "tuner",
+						    dev->tuner_addr, NULL);
+		if (dev->sd_tuner == NULL)
+			cx231xx_info("tuner subdev registration failure\n");
+		else
 			cx231xx_config_tuner(dev);
-		}
-		break;
-	case CX231XX_BOARD_CNXT_RDE_253S:
-	case CX231XX_BOARD_CNXT_RDU_253S:
-	case CX231XX_BOARD_CNXT_VIDEO_GRABBER:
-	case CX231XX_BOARD_HAUPPAUGE_EXETER:
-		if (dev->board.tuner_type != TUNER_ABSENT) {
-			dev->sd_tuner =	v4l2_i2c_new_subdev(&dev->v4l2_dev,
-					&dev->i2c_bus[1].i2c_adap,
-					"tuner", "tuner", 0xc0 >> 1, NULL);
-			if (dev->sd_tuner == NULL)
-				cx231xx_info(
-				"tuner subdev registration failure\n");
-
-			cx231xx_config_tuner(dev);
-		}
-		break;
-	default:
-		break;
 	}
-
-	cx231xx_config_tuner(dev);
 
 #if 0
 	/* TBD  IR will be added later */
