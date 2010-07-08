@@ -12789,6 +12789,13 @@ done:
 
 static struct pci_dev * __devinit tg3_find_peer(struct tg3 *);
 
+static void inline vlan_features_add(struct net_device *dev, unsigned long flags)
+{
+#if TG3_VLAN_TAG_USED
+	dev->vlan_features |= flags;
+#endif
+}
+
 static int __devinit tg3_get_invariants(struct tg3 *tp)
 {
 	static struct pci_device_id write_reorder_chipsets[] = {
@@ -13021,11 +13028,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5700_B0)
 		tp->tg3_flags |= TG3_FLAG_BROKEN_CHECKSUMS;
 	else {
+		unsigned long features = NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_GRO;
+
 		tp->tg3_flags |= TG3_FLAG_RX_CHECKSUMS;
-		tp->dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		if (tp->tg3_flags3 & TG3_FLG3_5755_PLUS)
-			tp->dev->features |= NETIF_F_IPV6_CSUM;
-		tp->dev->features |= NETIF_F_GRO;
+			features |= NETIF_F_IPV6_CSUM;
+		tp->dev->features |= features;
+		vlan_features_add(tp->dev, features);
 	}
 
 	/* Determine TSO capabilities */
@@ -14514,20 +14523,25 @@ static int __devinit tg3_init_one(struct pci_dev *pdev,
 	 * is off by default, but can be enabled using ethtool.
 	 */
 	if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO) &&
-	    (dev->features & NETIF_F_IP_CSUM))
+	    (dev->features & NETIF_F_IP_CSUM)) {
 		dev->features |= NETIF_F_TSO;
-
+		vlan_features_add(dev, NETIF_F_TSO);
+	}
 	if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_2) ||
 	    (tp->tg3_flags2 & TG3_FLG2_HW_TSO_3)) {
-		if (dev->features & NETIF_F_IPV6_CSUM)
+		if (dev->features & NETIF_F_IPV6_CSUM) {
 			dev->features |= NETIF_F_TSO6;
+			vlan_features_add(dev, NETIF_F_TSO6);
+		}
 		if ((tp->tg3_flags2 & TG3_FLG2_HW_TSO_3) ||
 		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761 ||
 		    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5784 &&
 		     GET_CHIP_REV(tp->pci_chip_rev_id) != CHIPREV_5784_AX) ||
 			GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5785 ||
-		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780)
+		    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_57780) {
 			dev->features |= NETIF_F_TSO_ECN;
+			vlan_features_add(dev, NETIF_F_TSO_ECN);
+		}
 	}
 
 	if (tp->pci_chip_rev_id == CHIPREV_ID_5705_A1 &&
