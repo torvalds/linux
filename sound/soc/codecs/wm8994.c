@@ -1677,6 +1677,26 @@ static struct {
 
 static int wm8994_readable(unsigned int reg)
 {
+	switch (reg) {
+	case WM8994_GPIO_1:
+	case WM8994_GPIO_2:
+	case WM8994_GPIO_3:
+	case WM8994_GPIO_4:
+	case WM8994_GPIO_5:
+	case WM8994_GPIO_6:
+	case WM8994_GPIO_7:
+	case WM8994_GPIO_8:
+	case WM8994_GPIO_9:
+	case WM8994_GPIO_10:
+	case WM8994_GPIO_11:
+	case WM8994_INTERRUPT_STATUS_1:
+	case WM8994_INTERRUPT_STATUS_2:
+	case WM8994_INTERRUPT_RAW_STATUS_2:
+		return 1;
+	default:
+		break;
+	}
+
 	if (reg >= ARRAY_SIZE(access_masks))
 		return 0;
 	return access_masks[reg].readable != 0;
