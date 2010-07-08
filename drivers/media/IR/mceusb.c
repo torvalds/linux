@@ -254,8 +254,7 @@ struct mceusb_dev {
 		u32 connected:1;
 		u32 tx_mask_inverted:1;
 		u32 microsoft_gen1:1;
-		u32 gen3:1;
-		u32 reserved:28;
+		u32 reserved:29;
 	} flags;
 
 	/* transmit support */
@@ -292,6 +291,7 @@ struct mceusb_dev {
 static char DEVICE_RESET[]	= {0x00, 0xff, 0xaa};
 static char GET_REVISION[]	= {0xff, 0x0b};
 static char GET_UNKNOWN[]	= {0xff, 0x18};
+static char GET_UNKNOWN2[]	= {0x9f, 0x05};
 static char GET_CARRIER_FREQ[]	= {0x9f, 0x07};
 static char GET_RX_TIMEOUT[]	= {0x9f, 0x0d};
 static char GET_TX_BITMASK[]	= {0x9f, 0x13};
@@ -766,6 +766,7 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 static void mceusb_gen1_init(struct mceusb_dev *ir)
 {
 	int ret;
+	int maxp = ir->len_in;
 	struct device *dev = ir->dev;
 	char *data;
 
@@ -805,6 +806,14 @@ static void mceusb_gen1_init(struct mceusb_dev *ir)
 			      0x0000, 0x0100, NULL, 0, HZ * 3);
 	dev_dbg(dev, "%s - retC = %d\n", __func__, ret);
 
+	/* device reset */
+	mce_async_out(ir, DEVICE_RESET, sizeof(DEVICE_RESET));
+	mce_sync_in(ir, NULL, maxp);
+
+	/* get hw/sw revision? */
+	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
+	mce_sync_in(ir, NULL, maxp);
+
 	kfree(data);
 };
 
@@ -820,18 +829,16 @@ static void mceusb_gen2_init(struct mceusb_dev *ir)
 	mce_async_out(ir, GET_REVISION, sizeof(GET_REVISION));
 	mce_sync_in(ir, NULL, maxp);
 
-	/* unknown what this actually returns... */
+	/* unknown what the next two actually return... */
 	mce_async_out(ir, GET_UNKNOWN, sizeof(GET_UNKNOWN));
+	mce_sync_in(ir, NULL, maxp);
+	mce_async_out(ir, GET_UNKNOWN2, sizeof(GET_UNKNOWN2));
 	mce_sync_in(ir, NULL, maxp);
 }
 
-static void mceusb_gen3_init(struct mceusb_dev *ir)
+static void mceusb_get_parameters(struct mceusb_dev *ir)
 {
 	int maxp = ir->len_in;
-
-	/* device reset */
-	mce_async_out(ir, DEVICE_RESET, sizeof(DEVICE_RESET));
-	mce_sync_in(ir, NULL, maxp);
 
 	/* get the carrier and frequency */
 	mce_async_out(ir, GET_CARRIER_FREQ, sizeof(GET_CARRIER_FREQ));
@@ -999,7 +1006,6 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->usbdev = dev;
 	ir->dev = &intf->dev;
 	ir->len_in = maxp;
-	ir->flags.gen3 = is_gen3;
 	ir->flags.microsoft_gen1 = is_microsoft_gen1;
 	ir->flags.tx_mask_inverted = tx_mask_inverted;
 
@@ -1032,16 +1038,12 @@ static int __devinit mceusb_dev_probe(struct usb_interface *intf,
 	ir->urb_in->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* initialize device */
-	if (ir->flags.gen3)
-		mceusb_gen3_init(ir);
-
-	else if (ir->flags.microsoft_gen1)
+	if (ir->flags.microsoft_gen1)
 		mceusb_gen1_init(ir);
-
-	else
+	else if (!is_gen3)
 		mceusb_gen2_init(ir);
 
-	mce_sync_in(ir, NULL, maxp);
+	mceusb_get_parameters(ir);
 
 	mceusb_set_tx_mask(ir, MCE_DEFAULT_TX_MASK);
 
