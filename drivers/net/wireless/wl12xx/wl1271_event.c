@@ -225,6 +225,15 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
+	/* disable dynamic PS when requested by the firmware */
+	if (vector & SOFT_GEMINI_SENSE_EVENT_ID &&
+	    wl->bss_type == BSS_TYPE_STA_BSS) {
+		if (mbox->soft_gemini_sense_info)
+			ieee80211_disable_dyn_ps(wl->vif, true);
+		else
+			ieee80211_disable_dyn_ps(wl->vif, false);
+	}
+
 	/*
 	 * The BSS_LOSE_EVENT_ID is only needed while psm (and hence beacon
 	 * filtering) is enabled. Without PSM, the stack will receive all

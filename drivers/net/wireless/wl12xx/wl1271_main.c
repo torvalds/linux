@@ -54,7 +54,7 @@ static struct conf_drv_settings default_conf = {
 			[CONF_SG_HV3_MAX_OVERRIDE]                  = 0,
 			[CONF_SG_BT_NFS_SAMPLE_INTERVAL]            = 400,
 			[CONF_SG_BT_LOAD_RATIO]                     = 50,
-			[CONF_SG_AUTO_PS_MODE]                      = 0,
+			[CONF_SG_AUTO_PS_MODE]                      = 1,
 			[CONF_SG_AUTO_SCAN_PROBE_REQ]               = 170,
 			[CONF_SG_ACTIVE_SCAN_DURATION_FACTOR_HV3]   = 50,
 			[CONF_SG_ANTENNA_CONFIGURATION]             = 0,
@@ -937,6 +937,9 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 
 	WARN_ON(wl->state != WL1271_STATE_ON);
 
+	/* enable dyn ps just in case (if left on due to fw crash etc) */
+	ieee80211_disable_dyn_ps(wl->vif, false);
+
 	if (test_and_clear_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		mutex_unlock(&wl->mutex);
 		ieee80211_scan_completed(wl->hw, true);
@@ -1773,6 +1776,9 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 			/* use defaults when not associated */
 			clear_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags);
 			wl->aid = 0;
+
+			/* re-enable dynamic ps - just in case */
+			ieee80211_disable_dyn_ps(wl->vif, false);
 
 			/* revert back to minimum rates for the current band */
 			wl1271_set_band_rate(wl);
