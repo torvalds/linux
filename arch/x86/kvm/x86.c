@@ -3930,6 +3930,29 @@ static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 	return EMULATE_FAIL;
 }
 
+static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
+{
+	gpa_t gpa;
+
+	/*
+	 * if emulation was due to access to shadowed page table
+	 * and it failed try to unshadow page and re-entetr the
+	 * guest to let CPU execute the instruction.
+	 */
+	if (kvm_mmu_unprotect_page_virt(vcpu, gva))
+		return true;
+
+	gpa = kvm_mmu_gva_to_gpa_system(vcpu, gva, NULL);
+
+	if (gpa == UNMAPPED_GVA)
+		return true; /* let cpu generate fault */
+
+	if (!kvm_is_error_hva(gfn_to_hva(vcpu->kvm, gpa >> PAGE_SHIFT)))
+		return true;
+
+	return false;
+}
+
 int emulate_instruction(struct kvm_vcpu *vcpu,
 			unsigned long cr2,
 			u16 error_code,
@@ -3998,7 +4021,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 		++vcpu->stat.insn_emulation;
 		if (r)  {
-			if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
+			if (reexecute_instruction(vcpu, cr2))
 				return EMULATE_DONE;
 			if (emulation_type & EMULTYPE_SKIP)
 				return EMULATE_FAIL;
@@ -4019,12 +4042,7 @@ restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 
 	if (r) { /* emulation failed */
-		/*
-		 * if emulation was due to access to shadowed page table
-		 * and it failed try to unshadow page and re-entetr the
-		 * guest to let CPU execute the instruction.
-		 */
-		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
+		if (reexecute_instruction(vcpu, cr2))
 			return EMULATE_DONE;
 
 		return handle_emulation_failure(vcpu);
