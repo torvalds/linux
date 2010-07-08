@@ -468,6 +468,10 @@ static int scsi_setup_discard_cmnd(struct scsi_device *sdp, struct request *rq)
 	blk_add_request_payload(rq, page, len);
 	ret = scsi_setup_blk_pc_cmnd(sdp, rq);
 	rq->buffer = page_address(page);
+	if (ret != BLKPREP_OK) {
+		__free_page(page);
+		rq->buffer = NULL;
+	}
 	return ret;
 }
 
@@ -485,8 +489,10 @@ static int scsi_setup_flush_cmnd(struct scsi_device *sdp, struct request *rq)
 
 static void sd_unprep_fn(struct request_queue *q, struct request *rq)
 {
-	if (rq->cmd_flags & REQ_DISCARD)
-		__free_page(virt_to_page(rq->buffer));
+	if (rq->cmd_flags & REQ_DISCARD) {
+		free_page((unsigned long)rq->buffer);
+		rq->buffer = NULL;
+	}
 }
 
 /**

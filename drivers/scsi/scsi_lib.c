@@ -1011,11 +1011,8 @@ int scsi_init_io(struct scsi_cmnd *cmd, gfp_t gfp_mask)
 
 err_exit:
 	scsi_release_buffers(cmd);
-	if (error == BLKPREP_KILL)
-		scsi_put_command(cmd);
-	else /* BLKPREP_DEFER */
-		scsi_unprep_request(cmd->request);
-
+	scsi_put_command(cmd);
+	cmd->request->special = NULL;
 	return error;
 }
 EXPORT_SYMBOL(scsi_init_io);
