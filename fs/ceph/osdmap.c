@@ -1026,8 +1026,9 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	ruleno = crush_find_rule(osdmap->crush, pool->v.crush_ruleset,
 				 pool->v.type, pool->v.size);
 	if (ruleno < 0) {
-		pr_err("no crush rule pool %d type %d size %d\n",
-		       poolid, pool->v.type, pool->v.size);
+		pr_err("no crush rule pool %d ruleset %d type %d size %d\n",
+		       poolid, pool->v.crush_ruleset, pool->v.type,
+		       pool->v.size);
 		return NULL;
 	}
 
