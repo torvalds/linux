@@ -422,7 +422,7 @@ bfa_fcs_itnim_send_prli(void *itnim_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	bfa_fcxp_send(fcxp, rport->bfa_rport, port->fabric->vf_id, port->lp_tag,
 		      BFA_FALSE, FC_CLASS_3, len, &fchs,
 		      bfa_fcs_itnim_prli_response, (void *)itnim, FC_MAX_PDUSZ,
-		      FC_RA_TOV);
+		      FC_ELS_TOV);
 
 	itnim->stats.prli_sent++;
 	bfa_sm_send_event(itnim, BFA_FCS_ITNIM_SM_FRMSENT);

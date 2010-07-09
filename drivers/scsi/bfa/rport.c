@@ -1378,7 +1378,7 @@ bfa_fcs_rport_send_plogi(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_rport_plogi_response,
-		      (void *)rport, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)rport, FC_MAX_PDUSZ, FC_ELS_TOV);
 
 	rport->stats.plogis++;
 	bfa_sm_send_event(rport, RPSM_EVENT_FCXP_SENT);
@@ -1519,7 +1519,7 @@ bfa_fcs_rport_send_adisc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_rport_adisc_response,
-		      rport, FC_MAX_PDUSZ, FC_RA_TOV);
+		      rport, FC_MAX_PDUSZ, FC_ELS_TOV);
 
 	rport->stats.adisc_sent++;
 	bfa_sm_send_event(rport, RPSM_EVENT_FCXP_SENT);
@@ -1580,7 +1580,7 @@ bfa_fcs_rport_send_gidpn(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_rport_gidpn_response,
-		      (void *)rport, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)rport, FC_MAX_PDUSZ, FC_FCCT_TOV);
 
 	bfa_sm_send_event(rport, RPSM_EVENT_FCXP_SENT);
 }
@@ -1692,7 +1692,7 @@ bfa_fcs_rport_send_logo(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, NULL, rport, FC_MAX_PDUSZ,
-		      FC_ED_TOV);
+		      FC_ELS_TOV);
 
 	rport->stats.logos++;
 	bfa_fcxp_discard(rport->fcxp);

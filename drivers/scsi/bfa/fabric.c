@@ -1027,6 +1027,32 @@ bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric)
 	return fabric->num_vports;
 }
 
+/*
+ *  Get OUI of the attached switch.
+ *
+ *  Note : Use of this function should be avoided as much as possible.
+ *         This function should be used only if there is any requirement
+ *         to check for FOS version below 6.3.
+ *         To check if the attached fabric is a brocade fabric, use
+ *         bfa_lps_is_brcd_fabric() which works for FOS versions 6.3
+ *         or above only.
+ */
+
+u16
+bfa_fcs_fabric_get_switch_oui(struct bfa_fcs_fabric_s *fabric)
+{
+	wwn_t fab_nwwn;
+	u8 *tmp;
+	u16 oui;
+
+	fab_nwwn = bfa_lps_get_peer_nwwn(fabric->lps);
+
+	tmp = (uint8_t *)&fab_nwwn;
+	oui = (tmp[3] << 8) | tmp[4];
+
+	return oui;
+}
+
 /**
  * 		Unsolicited frame receive handling.
  */

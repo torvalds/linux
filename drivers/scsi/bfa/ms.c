@@ -361,7 +361,7 @@ bfa_fcs_port_ms_send_gmal(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ms_gmal_response,
-		      (void *)ms, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ms, FC_MAX_PDUSZ, FC_FCCT_TOV);
 
 	bfa_sm_send_event(ms, MSSM_EVENT_FCXP_SENT);
 }
@@ -560,7 +560,7 @@ bfa_fcs_port_ms_send_gfn(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ms_gfn_response,
-		      (void *)ms, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ms, FC_MAX_PDUSZ, FC_FCCT_TOV);
 
 	bfa_sm_send_event(ms, MSSM_EVENT_FCXP_SENT);
 }
@@ -640,7 +640,7 @@ bfa_fcs_port_ms_send_plogi(void *ms_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ms_plogi_response,
-		      (void *)ms, FC_MAX_PDUSZ, FC_RA_TOV);
+		      (void *)ms, FC_MAX_PDUSZ, FC_ELS_TOV);
 
 	port->stats.ms_plogi_sent++;
 	bfa_sm_send_event(ms, MSSM_EVENT_FCXP_SENT);
