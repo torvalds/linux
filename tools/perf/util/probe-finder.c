@@ -144,6 +144,15 @@ static const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
 	return src;
 }
 
+/* Get DW_AT_comp_dir (should be NULL with older gcc) */
+static const char *cu_get_comp_dir(Dwarf_Die *cu_die)
+{
+	Dwarf_Attribute attr;
+	if (dwarf_attr(cu_die, DW_AT_comp_dir, &attr) == NULL)
+		return NULL;
+	return dwarf_formstring(&attr);
+}
+
 /* Compare diename and tname */
 static bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 {
@@ -1374,6 +1383,7 @@ int find_line_range(int fd, struct line_range *lr)
 	size_t cuhl;
 	Dwarf_Die *diep;
 	Dwarf *dbg;
+	const char *comp_dir;
 
 	dbg = dwarf_begin(fd, DWARF_C_READ);
 	if (!dbg) {
@@ -1409,6 +1419,17 @@ int find_line_range(int fd, struct line_range *lr)
 		}
 		off = noff;
 	}
+
+	/* Store comp_dir */
+	if (lf.found) {
+		comp_dir = cu_get_comp_dir(&lf.cu_die);
+		if (comp_dir) {
+			lr->comp_dir = strdup(comp_dir);
+			if (!lr->comp_dir)
+				ret = -ENOMEM;
+		}
+	}
+
 	pr_debug("path: %s\n", lr->path);
 	dwarf_end(dbg);
 

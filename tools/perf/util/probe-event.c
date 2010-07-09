@@ -201,27 +201,37 @@ static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
  * a newly allocated path on success.
  * Return 0 if file was found and readable, -errno otherwise.
  */
-static int get_real_path(const char *raw_path, char **new_path)
+static int get_real_path(const char *raw_path, const char *comp_dir,
+			 char **new_path)
 {
-	if (!symbol_conf.source_prefix) {
-		if (access(raw_path, R_OK) == 0) {
-			*new_path = strdup(raw_path);
-			return 0;
-		} else
-			return -errno;
+	const char *prefix = symbol_conf.source_prefix;
+
+	if (!prefix) {
+		if (raw_path[0] != '/' && comp_dir)
+			/* If not an absolute path, try to use comp_dir */
+			prefix = comp_dir;
+		else {
+			if (access(raw_path, R_OK) == 0) {
+				*new_path = strdup(raw_path);
+				return 0;
+			} else
+				return -errno;
+		}
 	}
 
-	*new_path = malloc((strlen(symbol_conf.source_prefix) +
-			    strlen(raw_path) + 2));
+	*new_path = malloc((strlen(prefix) + strlen(raw_path) + 2));
 	if (!*new_path)
 		return -ENOMEM;
 
 	for (;;) {
-		sprintf(*new_path, "%s/%s", symbol_conf.source_prefix,
-			raw_path);
+		sprintf(*new_path, "%s/%s", prefix, raw_path);
 
 		if (access(*new_path, R_OK) == 0)
 			return 0;
+
+		if (!symbol_conf.source_prefix)
+			/* In case of searching comp_dir, don't retry */
+			return -errno;
 
 		switch (errno) {
 		case ENAMETOOLONG:
@@ -318,7 +328,7 @@ int show_line_range(struct line_range *lr)
 
 	/* Convert source file path */
 	tmp = lr->path;
-	ret = get_real_path(tmp, &lr->path);
+	ret = get_real_path(tmp, lr->comp_dir, &lr->path);
 	free(tmp);	/* Free old path */
 	if (ret < 0) {
 		pr_warning("Failed to find source file. (%d)\n", ret);
