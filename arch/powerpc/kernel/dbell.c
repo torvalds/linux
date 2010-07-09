@@ -13,45 +13,66 @@
 #include <linux/kernel.h>
 #include <linux/smp.h>
 #include <linux/threads.h>
+#include <linux/percpu.h>
 
 #include <asm/dbell.h>
 
 #ifdef CONFIG_SMP
-unsigned long dbell_smp_message[NR_CPUS];
+struct doorbell_cpu_info {
+	unsigned long	messages;	/* current messages bits */
+	unsigned int	tag;		/* tag value */
+};
 
-void smp_dbell_message_pass(int target, int msg)
+static DEFINE_PER_CPU(struct doorbell_cpu_info, doorbell_cpu_info);
+
+void doorbell_setup_this_cpu(void)
 {
+	struct doorbell_cpu_info *info = &__get_cpu_var(doorbell_cpu_info);
+
+	info->messages = 0;
+	info->tag = mfspr(SPRN_PIR) & 0x3fff;
+}
+
+void doorbell_message_pass(int target, int msg)
+{
+	struct doorbell_cpu_info *info;
 	int i;
 
-	if(target < NR_CPUS) {
-		set_bit(msg, &dbell_smp_message[target]);
-		ppc_msgsnd(PPC_DBELL, 0, target);
+	if (target < NR_CPUS) {
+		info = &per_cpu(doorbell_cpu_info, target);
+		set_bit(msg, &info->messages);
+		ppc_msgsnd(PPC_DBELL, 0, info->tag);
 	}
-	else if(target == MSG_ALL_BUT_SELF) {
+	else if (target == MSG_ALL_BUT_SELF) {
 		for_each_online_cpu(i) {
 			if (i == smp_processor_id())
 				continue;
-			set_bit(msg, &dbell_smp_message[i]);
-			ppc_msgsnd(PPC_DBELL, 0, i);
+			info = &per_cpu(doorbell_cpu_info, i);
+			set_bit(msg, &info->messages);
+			ppc_msgsnd(PPC_DBELL, 0, info->tag);
 		}
 	}
 	else { /* target == MSG_ALL */
-		for_each_online_cpu(i)
-			set_bit(msg, &dbell_smp_message[i]);
+		for_each_online_cpu(i) {
+			info = &per_cpu(doorbell_cpu_info, i);
+			set_bit(msg, &info->messages);
+		}
 		ppc_msgsnd(PPC_DBELL, PPC_DBELL_MSG_BRDCAST, 0);
 	}
 }
 
 void doorbell_exception(struct pt_regs *regs)
 {
-	int cpu = smp_processor_id();
+	struct doorbell_cpu_info *info = &__get_cpu_var(doorbell_cpu_info);
 	int msg;
 
-	if (num_online_cpus() < 2)
+	/* Warning: regs can be NULL when called from irq enable */
+
+	if (!info->messages || (num_online_cpus() < 2))
 		return;
 
 	for (msg = 0; msg < 4; msg++)
-		if (test_and_clear_bit(msg, &dbell_smp_message[cpu]))
+		if (test_and_clear_bit(msg, &info->messages))
 			smp_message_recv(msg);
 }
 
