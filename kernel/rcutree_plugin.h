@@ -546,9 +546,11 @@ EXPORT_SYMBOL_GPL(call_rcu);
  *
  * Control will return to the caller some time after a full grace
  * period has elapsed, in other words after all currently executing RCU
- * read-side critical sections have completed.  RCU read-side critical
- * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
- * and may be nested.
+ * read-side critical sections have completed.  Note, however, that
+ * upon return from synchronize_rcu(), the caller might well be executing
+ * concurrently with new RCU read-side critical sections that began while
+ * synchronize_rcu() was waiting.  RCU read-side critical sections are
+ * delimited by rcu_read_lock() and rcu_read_unlock(), and may be nested.
  */
 void synchronize_rcu(void)
 {

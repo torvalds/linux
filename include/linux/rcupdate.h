@@ -450,7 +450,7 @@ extern int rcu_my_thread_group_empty(void);
  * until after the all the other CPUs exit their critical sections.
  *
  * Note, however, that RCU callbacks are permitted to run concurrently
- * with RCU read-side critical sections.  One way that this can happen
+ * with new RCU read-side critical sections.  One way that this can happen
  * is via the following sequence of events: (1) CPU 0 enters an RCU
  * read-side critical section, (2) CPU 1 invokes call_rcu() to register
  * an RCU callback, (3) CPU 0 exits the RCU read-side critical section,
@@ -608,11 +608,13 @@ extern void wakeme_after_rcu(struct rcu_head  *head);
 /**
  * call_rcu() - Queue an RCU callback for invocation after a grace period.
  * @head: structure to be used for queueing the RCU updates.
- * @func: actual update function to be invoked after the grace period
+ * @func: actual callback function to be invoked after the grace period
  *
- * The update function will be invoked some time after a full grace
- * period elapses, in other words after all currently executing RCU
- * read-side critical sections have completed.  RCU read-side critical
+ * The callback function will be invoked some time after a full grace
+ * period elapses, in other words after all pre-existing RCU read-side
+ * critical sections have completed.  However, the callback function
+ * might well execute concurrently with RCU read-side critical sections
+ * that started after call_rcu() was invoked.  RCU read-side critical
  * sections are delimited by rcu_read_lock() and rcu_read_unlock(),
  * and may be nested.
  */
@@ -622,9 +624,9 @@ extern void call_rcu(struct rcu_head *head,
 /**
  * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
  * @head: structure to be used for queueing the RCU updates.
- * @func: actual update function to be invoked after the grace period
+ * @func: actual callback function to be invoked after the grace period
  *
- * The update function will be invoked some time after a full grace
+ * The callback function will be invoked some time after a full grace
  * period elapses, in other words after all currently executing RCU
  * read-side critical sections have completed. call_rcu_bh() assumes
  * that the read-side critical sections end on completion of a softirq
