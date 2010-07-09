@@ -418,6 +418,14 @@ config USB_HWA_HCD
 	  To compile this driver a module, choose M here: the module
 	  will be called "hwa-hc".
 
+config USB_TEGRA_HCD
+       boolean "NVIDIA Tegra HCD support"
+       depends on USB && ARCH_TEGRA && USB_EHCI_HCD
+       select USB_EHCI_ROOT_HUB_TT
+       help
+         This driver enables support for the internal USB Host Controller
+         found in NVIDIA Tegra SoCs. The Tegra controller is EHCI compliant.
+
 config USB_IMX21_HCD
        tristate "iMX21 HCD support"
        depends on USB && ARM && MACH_MX21
