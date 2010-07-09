@@ -1073,7 +1073,7 @@ static inline struct page *alloc_slab_page(gfp_t flags, int node,
 
 	flags |= __GFP_NOTRACK;
 
-	if (node == -1)
+	if (node == NUMA_NO_NODE)
 		return alloc_pages(flags, order);
 	else
 		return alloc_pages_exact_node(node, flags, order);
@@ -1387,7 +1387,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 static struct page *get_partial(struct kmem_cache *s, gfp_t flags, int node)
 {
 	struct page *page;
-	int searchnode = (node == -1) ? numa_node_id() : node;
+	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
 
 	page = get_partial_node(get_node(s, searchnode));
 	if (page || (flags & __GFP_THISNODE))
@@ -1515,7 +1515,7 @@ static void flush_all(struct kmem_cache *s)
 static inline int node_match(struct kmem_cache_cpu *c, int node)
 {
 #ifdef CONFIG_NUMA
-	if (node != -1 && c->node != node)
+	if (node != NUMA_NO_NODE && c->node != node)
 		return 0;
 #endif
 	return 1;
@@ -1727,7 +1727,7 @@ static __always_inline void *slab_alloc(struct kmem_cache *s,
 
 void *kmem_cache_alloc(struct kmem_cache *s, gfp_t gfpflags)
 {
-	void *ret = slab_alloc(s, gfpflags, -1, _RET_IP_);
+	void *ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
 
 	trace_kmem_cache_alloc(_RET_IP_, ret, s->objsize, s->size, gfpflags);
 
@@ -1738,7 +1738,7 @@ EXPORT_SYMBOL(kmem_cache_alloc);
 #ifdef CONFIG_TRACING
 void *kmem_cache_alloc_notrace(struct kmem_cache *s, gfp_t gfpflags)
 {
-	return slab_alloc(s, gfpflags, -1, _RET_IP_);
+	return slab_alloc(s, gfpflags, NUMA_NO_NODE, _RET_IP_);
 }
 EXPORT_SYMBOL(kmem_cache_alloc_notrace);
 #endif
@@ -2728,7 +2728,7 @@ void *__kmalloc(size_t size, gfp_t flags)
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
-	ret = slab_alloc(s, flags, -1, _RET_IP_);
+	ret = slab_alloc(s, flags, NUMA_NO_NODE, _RET_IP_);
 
 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
 
@@ -3312,7 +3312,7 @@ void *__kmalloc_track_caller(size_t size, gfp_t gfpflags, unsigned long caller)
 	if (unlikely(ZERO_OR_NULL_PTR(s)))
 		return s;
 
-	ret = slab_alloc(s, gfpflags, -1, caller);
+	ret = slab_alloc(s, gfpflags, NUMA_NO_NODE, caller);
 
 	/* Honor the call site pointer we recieved. */
 	trace_kmalloc(caller, ret, size, s->size, gfpflags);
