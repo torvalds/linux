@@ -820,6 +820,9 @@ static u32 qlcnic_get_tso(struct net_device *dev)
 
 static int qlcnic_set_tso(struct net_device *dev, u32 data)
 {
+	struct qlcnic_adapter *adapter = netdev_priv(dev);
+	if (!(adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO))
+		return -EOPNOTSUPP;
 	if (data)
 		dev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
 	else

@@ -821,9 +821,10 @@ struct qlcnic_nic_intr_coalesce {
 #define QLCNIC_LRO_REQUEST_CLEANUP	4
 
 /* Capabilites received */
-#define QLCNIC_FW_CAPABILITY_BDG		(1 << 8)
-#define QLCNIC_FW_CAPABILITY_FVLANTX		(1 << 9)
-#define QLCNIC_FW_CAPABILITY_HW_LRO		(1 << 10)
+#define QLCNIC_FW_CAPABILITY_TSO		BIT_1
+#define QLCNIC_FW_CAPABILITY_BDG		BIT_8
+#define QLCNIC_FW_CAPABILITY_FVLANTX		BIT_9
+#define QLCNIC_FW_CAPABILITY_HW_LRO		BIT_10
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1

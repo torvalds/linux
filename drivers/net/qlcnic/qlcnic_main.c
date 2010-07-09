@@ -1226,10 +1226,14 @@ qlcnic_setup_netdev(struct qlcnic_adapter *adapter,
 	SET_ETHTOOL_OPS(netdev, &qlcnic_ethtool_ops);
 
 	netdev->features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_GRO | NETIF_F_TSO | NETIF_F_TSO6);
-
+		NETIF_F_IPV6_CSUM | NETIF_F_GRO);
 	netdev->vlan_features |= (NETIF_F_SG | NETIF_F_IP_CSUM |
-		NETIF_F_IPV6_CSUM | NETIF_F_TSO | NETIF_F_TSO6);
+		NETIF_F_IPV6_CSUM);
+
+	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_TSO) {
+		netdev->features |= (NETIF_F_TSO | NETIF_F_TSO6);
+		netdev->vlan_features |= (NETIF_F_TSO | NETIF_F_TSO6);
+	}
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
