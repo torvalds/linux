@@ -407,7 +407,7 @@ bfa_port_hbfail(void *arg)
 	 */
 	if (port->stats_busy) {
 		if (port->stats_cbfn)
-			port->stats_cbfn(port->dev, BFA_STATUS_FAILED);
+			port->stats_cbfn(port->stats_cbarg, BFA_STATUS_FAILED);
 		port->stats_cbfn = NULL;
 		port->stats_busy = BFA_FALSE;
 	}
@@ -417,7 +417,7 @@ bfa_port_hbfail(void *arg)
 	 */
 	if (port->endis_pending) {
 		if (port->endis_cbfn)
-			port->endis_cbfn(port->dev, BFA_STATUS_FAILED);
+			port->endis_cbfn(port->endis_cbarg, BFA_STATUS_FAILED);
 		port->endis_cbfn = NULL;
 		port->endis_pending = BFA_FALSE;
 	}
