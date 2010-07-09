@@ -41,4 +41,24 @@ void smp_dbell_message_pass(int target, int msg)
 		ppc_msgsnd(PPC_DBELL, PPC_DBELL_MSG_BRDCAST, 0);
 	}
 }
-#endif
+
+void doorbell_exception(struct pt_regs *regs)
+{
+	int cpu = smp_processor_id();
+	int msg;
+
+	if (num_online_cpus() < 2)
+		return;
+
+	for (msg = 0; msg < 4; msg++)
+		if (test_and_clear_bit(msg, &dbell_smp_message[cpu]))
+			smp_message_recv(msg);
+}
+
+#else /* CONFIG_SMP */
+void doorbell_exception(struct pt_regs *regs)
+{
+	printk(KERN_WARNING "Received doorbell on non-smp system\n");
+}
+#endif /* CONFIG_SMP */
+
