@@ -136,7 +136,7 @@ static void queue_flush(struct request_queue *q, unsigned which)
 	blk_rq_init(q, rq);
 	rq->cmd_type = REQ_TYPE_FS;
 	rq->cmd_flags = REQ_HARDBARRIER | REQ_FLUSH;
-	rq->rq_disk = q->bar_rq.rq_disk;
+	rq->rq_disk = q->orig_bar_rq->rq_disk;
 	rq->end_io = end_io;
 
 	elv_insert(q, rq, ELEVATOR_INSERT_FRONT);
