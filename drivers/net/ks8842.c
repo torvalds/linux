@@ -199,7 +199,6 @@ static void ks8842_reset(struct ks8842_adapter *adapter)
 	msleep(10);
 	iowrite16(0, adapter->hw_addr + REG_GRR);
 	*/
-	iowrite16(32, adapter->hw_addr + REG_SELECT_BANK);
 	iowrite32(0x1, adapter->hw_addr + REG_TIMB_RST);
 	msleep(20);
 }
