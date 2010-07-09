@@ -315,7 +315,6 @@ struct tcp_splice_state {
  * is strict, actions are advisory and have some latency.
  */
 int tcp_memory_pressure __read_mostly;
-
 EXPORT_SYMBOL(tcp_memory_pressure);
 
 void tcp_enter_memory_pressure(struct sock *sk)
@@ -325,7 +324,6 @@ void tcp_enter_memory_pressure(struct sock *sk)
 		tcp_memory_pressure = 1;
 	}
 }
-
 EXPORT_SYMBOL(tcp_enter_memory_pressure);
 
 /* Convert seconds to retransmits based on initial and max timeout */
@@ -460,6 +458,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	}
 	return mask;
 }
+EXPORT_SYMBOL(tcp_poll);
 
 int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 {
@@ -508,6 +507,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 
 	return put_user(answ, (int __user *)arg);
 }
+EXPORT_SYMBOL(tcp_ioctl);
 
 static inline void tcp_mark_push(struct tcp_sock *tp, struct sk_buff *skb)
 {
@@ -675,6 +675,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 
 	return ret;
 }
+EXPORT_SYMBOL(tcp_splice_read);
 
 struct sk_buff *sk_stream_alloc_skb(struct sock *sk, int size, gfp_t gfp)
 {
@@ -873,6 +874,7 @@ ssize_t tcp_sendpage(struct socket *sock, struct page *page, int offset,
 	release_sock(sk);
 	return res;
 }
+EXPORT_SYMBOL(tcp_sendpage);
 
 #define TCP_PAGE(sk)	(sk->sk_sndmsg_page)
 #define TCP_OFF(sk)	(sk->sk_sndmsg_off)
@@ -1121,6 +1123,7 @@ out_err:
 	release_sock(sk);
 	return err;
 }
+EXPORT_SYMBOL(tcp_sendmsg);
 
 /*
  *	Handle reading urgent data. BSD has very simple semantics for
@@ -1380,6 +1383,7 @@ int tcp_read_sock(struct sock *sk, read_descriptor_t *desc,
 		tcp_cleanup_rbuf(sk, copied);
 	return copied;
 }
+EXPORT_SYMBOL(tcp_read_sock);
 
 /*
  *	This routine copies from a sock struct into the user buffer.
@@ -1774,6 +1778,7 @@ recv_urg:
 	err = tcp_recv_urg(sk, msg, len, flags);
 	goto out;
 }
+EXPORT_SYMBOL(tcp_recvmsg);
 
 void tcp_set_state(struct sock *sk, int state)
 {
@@ -1866,6 +1871,7 @@ void tcp_shutdown(struct sock *sk, int how)
 			tcp_send_fin(sk);
 	}
 }
+EXPORT_SYMBOL(tcp_shutdown);
 
 void tcp_close(struct sock *sk, long timeout)
 {
@@ -2029,6 +2035,7 @@ out:
 	local_bh_enable();
 	sock_put(sk);
 }
+EXPORT_SYMBOL(tcp_close);
 
 /* These states need RST on ABORT according to RFC793 */
 
@@ -2102,6 +2109,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	sk->sk_error_report(sk);
 	return err;
 }
+EXPORT_SYMBOL(tcp_disconnect);
 
 /*
  *	Socket option code for TCP.
@@ -2400,6 +2408,7 @@ int tcp_setsockopt(struct sock *sk, int level, int optname, char __user *optval,
 						     optval, optlen);
 	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
 }
+EXPORT_SYMBOL(tcp_setsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
@@ -2410,7 +2419,6 @@ int compat_tcp_setsockopt(struct sock *sk, int level, int optname,
 						  optval, optlen);
 	return do_tcp_setsockopt(sk, level, optname, optval, optlen);
 }
-
 EXPORT_SYMBOL(compat_tcp_setsockopt);
 #endif
 
@@ -2476,7 +2484,6 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 
 	info->tcpi_total_retrans = tp->total_retrans;
 }
-
 EXPORT_SYMBOL_GPL(tcp_get_info);
 
 static int do_tcp_getsockopt(struct sock *sk, int level,
@@ -2615,6 +2622,7 @@ int tcp_getsockopt(struct sock *sk, int level, int optname, char __user *optval,
 						     optval, optlen);
 	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
 }
+EXPORT_SYMBOL(tcp_getsockopt);
 
 #ifdef CONFIG_COMPAT
 int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
@@ -2625,7 +2633,6 @@ int compat_tcp_getsockopt(struct sock *sk, int level, int optname,
 						  optval, optlen);
 	return do_tcp_getsockopt(sk, level, optname, optval, optlen);
 }
-
 EXPORT_SYMBOL(compat_tcp_getsockopt);
 #endif
 
@@ -2862,7 +2869,6 @@ void tcp_free_md5sig_pool(void)
 	if (pool)
 		__tcp_free_md5sig_pool(pool);
 }
-
 EXPORT_SYMBOL(tcp_free_md5sig_pool);
 
 static struct tcp_md5sig_pool * __percpu *
@@ -2938,7 +2944,6 @@ retry:
 	}
 	return pool;
 }
-
 EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
 
 
@@ -2990,7 +2995,6 @@ int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 	th->check = old_checksum;
 	return err;
 }
-
 EXPORT_SYMBOL(tcp_md5_hash_header);
 
 int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
@@ -3024,7 +3028,6 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 
 	return 0;
 }
-
 EXPORT_SYMBOL(tcp_md5_hash_skb_data);
 
 int tcp_md5_hash_key(struct tcp_md5sig_pool *hp, struct tcp_md5sig_key *key)
@@ -3034,7 +3037,6 @@ int tcp_md5_hash_key(struct tcp_md5sig_pool *hp, struct tcp_md5sig_key *key)
 	sg_init_one(&sg, key->key, key->keylen);
 	return crypto_hash_update(&hp->md5_desc, &sg, key->keylen);
 }
-
 EXPORT_SYMBOL(tcp_md5_hash_key);
 
 #endif
@@ -3306,16 +3308,3 @@ void __init tcp_init(void)
 	tcp_secret_retiring = &tcp_secret_two;
 	tcp_secret_secondary = &tcp_secret_two;
 }
-
-EXPORT_SYMBOL(tcp_close);
-EXPORT_SYMBOL(tcp_disconnect);
-EXPORT_SYMBOL(tcp_getsockopt);
-EXPORT_SYMBOL(tcp_ioctl);
-EXPORT_SYMBOL(tcp_poll);
-EXPORT_SYMBOL(tcp_read_sock);
-EXPORT_SYMBOL(tcp_recvmsg);
-EXPORT_SYMBOL(tcp_sendmsg);
-EXPORT_SYMBOL(tcp_splice_read);
-EXPORT_SYMBOL(tcp_sendpage);
-EXPORT_SYMBOL(tcp_setsockopt);
-EXPORT_SYMBOL(tcp_shutdown);

@@ -109,7 +109,7 @@ static void send_reset(struct sk_buff *oldskb, int hook)
 		addr_type = RTN_LOCAL;
 
 	/* ip_route_me_harder expects skb->dst to be set */
-	skb_dst_set(nskb, dst_clone(skb_dst(oldskb)));
+	skb_dst_set_noref(nskb, skb_dst(oldskb));
 
 	if (ip_route_me_harder(nskb, addr_type))
 		goto free_nskb;

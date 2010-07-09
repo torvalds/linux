@@ -84,6 +84,7 @@
 
 int sysctl_tcp_tw_reuse __read_mostly;
 int sysctl_tcp_low_latency __read_mostly;
+EXPORT_SYMBOL(sysctl_tcp_low_latency);
 
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -100,6 +101,7 @@ struct tcp_md5sig_key *tcp_v4_md5_do_lookup(struct sock *sk, __be32 addr)
 #endif
 
 struct inet_hashinfo tcp_hashinfo;
+EXPORT_SYMBOL(tcp_hashinfo);
 
 static inline __u32 tcp_v4_init_sequence(struct sk_buff *skb)
 {
@@ -139,7 +141,6 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 
 	return 0;
 }
-
 EXPORT_SYMBOL_GPL(tcp_twsk_unique);
 
 /* This will initiate an outgoing connection. */
@@ -267,6 +268,7 @@ failure:
 	inet->inet_dport = 0;
 	return err;
 }
+EXPORT_SYMBOL(tcp_v4_connect);
 
 /*
  * This routine does path mtu discovery as defined in RFC1191.
@@ -545,6 +547,7 @@ void tcp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 
 	__tcp_v4_send_check(skb, inet->inet_saddr, inet->inet_daddr);
 }
+EXPORT_SYMBOL(tcp_v4_send_check);
 
 int tcp_v4_gso_send_check(struct sk_buff *skb)
 {
@@ -860,7 +863,6 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(struct sock *sk,
 {
 	return tcp_v4_md5_do_lookup(sk, inet_sk(addr_sk)->inet_daddr);
 }
-
 EXPORT_SYMBOL(tcp_v4_md5_lookup);
 
 static struct tcp_md5sig_key *tcp_v4_reqsk_md5_lookup(struct sock *sk,
@@ -927,7 +929,6 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 	}
 	return 0;
 }
-
 EXPORT_SYMBOL(tcp_v4_md5_do_add);
 
 static int tcp_v4_md5_add_func(struct sock *sk, struct sock *addr_sk,
@@ -965,7 +966,6 @@ int tcp_v4_md5_do_del(struct sock *sk, __be32 addr)
 	}
 	return -ENOENT;
 }
-
 EXPORT_SYMBOL(tcp_v4_md5_do_del);
 
 static void tcp_v4_clear_md5_list(struct sock *sk)
@@ -1138,7 +1138,6 @@ clear_hash_noput:
 	memset(md5_hash, 0, 16);
 	return 1;
 }
-
 EXPORT_SYMBOL(tcp_v4_md5_hash_skb);
 
 static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
@@ -1396,6 +1395,7 @@ drop_and_free:
 drop:
 	return 0;
 }
+EXPORT_SYMBOL(tcp_v4_conn_request);
 
 
 /*
@@ -1481,6 +1481,7 @@ exit:
 	dst_release(dst);
 	return NULL;
 }
+EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
 
 static struct sock *tcp_v4_hnd_req(struct sock *sk, struct sk_buff *skb)
 {
@@ -1610,6 +1611,7 @@ csum_err:
 	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 }
+EXPORT_SYMBOL(tcp_v4_do_rcv);
 
 /*
  *	From tcp_input.c
@@ -1796,6 +1798,7 @@ int tcp_v4_remember_stamp(struct sock *sk)
 
 	return 0;
 }
+EXPORT_SYMBOL(tcp_v4_remember_stamp);
 
 int tcp_v4_tw_remember_stamp(struct inet_timewait_sock *tw)
 {
@@ -1835,6 +1838,7 @@ const struct inet_connection_sock_af_ops ipv4_specific = {
 	.compat_getsockopt = compat_ip_getsockopt,
 #endif
 };
+EXPORT_SYMBOL(ipv4_specific);
 
 #ifdef CONFIG_TCP_MD5SIG
 static const struct tcp_sock_af_ops tcp_sock_ipv4_specific = {
@@ -1963,7 +1967,6 @@ void tcp_v4_destroy_sock(struct sock *sk)
 
 	percpu_counter_dec(&tcp_sockets_allocated);
 }
-
 EXPORT_SYMBOL(tcp_v4_destroy_sock);
 
 #ifdef CONFIG_PROC_FS
@@ -2367,11 +2370,13 @@ int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo)
 		rc = -ENOMEM;
 	return rc;
 }
+EXPORT_SYMBOL(tcp_proc_register);
 
 void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo)
 {
 	proc_net_remove(net, afinfo->name);
 }
+EXPORT_SYMBOL(tcp_proc_unregister);
 
 static void get_openreq4(struct sock *sk, struct request_sock *req,
 			 struct seq_file *f, int i, int uid, int *len)
@@ -2618,6 +2623,7 @@ struct proto tcp_prot = {
 	.compat_getsockopt	= compat_tcp_getsockopt,
 #endif
 };
+EXPORT_SYMBOL(tcp_prot);
 
 
 static int __net_init tcp_sk_init(struct net *net)
@@ -2648,20 +2654,3 @@ void __init tcp_v4_init(void)
 	if (register_pernet_subsys(&tcp_sk_ops))
 		panic("Failed to create the TCP control socket.\n");
 }
-
-EXPORT_SYMBOL(ipv4_specific);
-EXPORT_SYMBOL(tcp_hashinfo);
-EXPORT_SYMBOL(tcp_prot);
-EXPORT_SYMBOL(tcp_v4_conn_request);
-EXPORT_SYMBOL(tcp_v4_connect);
-EXPORT_SYMBOL(tcp_v4_do_rcv);
-EXPORT_SYMBOL(tcp_v4_remember_stamp);
-EXPORT_SYMBOL(tcp_v4_send_check);
-EXPORT_SYMBOL(tcp_v4_syn_recv_sock);
-
-#ifdef CONFIG_PROC_FS
-EXPORT_SYMBOL(tcp_proc_register);
-EXPORT_SYMBOL(tcp_proc_unregister);
-#endif
-EXPORT_SYMBOL(sysctl_tcp_low_latency);
-

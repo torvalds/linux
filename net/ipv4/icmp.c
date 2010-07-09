@@ -181,6 +181,7 @@ const struct icmp_err icmp_err_convert[] = {
 		.fatal = 1,
 	},
 };
+EXPORT_SYMBOL(icmp_err_convert);
 
 /*
  *	ICMP control array. This specifies what to do with each ICMP.
@@ -267,6 +268,7 @@ int xrlim_allow(struct dst_entry *dst, int timeout)
 	dst->rate_tokens = token;
 	return rc;
 }
+EXPORT_SYMBOL(xrlim_allow);
 
 static inline int icmpv4_xrlim_allow(struct net *net, struct rtable *rt,
 		int type, int code)
@@ -647,6 +649,7 @@ out_unlock:
 	icmp_xmit_unlock(sk);
 out:;
 }
+EXPORT_SYMBOL(icmp_send);
 
 
 /*
@@ -1214,7 +1217,3 @@ int __init icmp_init(void)
 {
 	return register_pernet_subsys(&icmp_sk_ops);
 }
-
-EXPORT_SYMBOL(icmp_err_convert);
-EXPORT_SYMBOL(icmp_send);
-EXPORT_SYMBOL(xrlim_allow);

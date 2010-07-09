@@ -632,6 +632,7 @@ int ip_defrag(struct sk_buff *skb, u32 user)
 	kfree_skb(skb);
 	return -ENOMEM;
 }
+EXPORT_SYMBOL(ip_defrag);
 
 #ifdef CONFIG_SYSCTL
 static int zero;
@@ -785,5 +786,3 @@ void __init ipfrag_init(void)
 	ip4_frags.secret_interval = 10 * 60 * HZ;
 	inet_frags_init(&ip4_frags);
 }
-
-EXPORT_SYMBOL(ip_defrag);

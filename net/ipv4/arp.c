@@ -116,6 +116,7 @@
 #if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
 #include <net/atmclip.h>
 struct neigh_table *clip_tbl_hook;
+EXPORT_SYMBOL(clip_tbl_hook);
 #endif
 
 #include <asm/system.h>
@@ -169,6 +170,7 @@ const struct neigh_ops arp_broken_ops = {
 	.hh_output =		dev_queue_xmit,
 	.queue_xmit =		dev_queue_xmit,
 };
+EXPORT_SYMBOL(arp_broken_ops);
 
 struct neigh_table arp_tbl = {
 	.family =	AF_INET,
@@ -198,6 +200,7 @@ struct neigh_table arp_tbl = {
 	.gc_thresh2 =	512,
 	.gc_thresh3 =	1024,
 };
+EXPORT_SYMBOL(arp_tbl);
 
 int arp_mc_map(__be32 addr, u8 *haddr, struct net_device *dev, int dir)
 {
@@ -499,6 +502,7 @@ int arp_find(unsigned char *haddr, struct sk_buff *skb)
 		kfree_skb(skb);
 	return 1;
 }
+EXPORT_SYMBOL(arp_find);
 
 /* END OF OBSOLETE FUNCTIONS */
 
@@ -700,6 +704,7 @@ out:
 	kfree_skb(skb);
 	return NULL;
 }
+EXPORT_SYMBOL(arp_create);
 
 /*
  *	Send an arp packet.
@@ -709,6 +714,7 @@ void arp_xmit(struct sk_buff *skb)
 	/* Send it off, maybe filter it using firewalling first.  */
 	NF_HOOK(NFPROTO_ARP, NF_ARP_OUT, skb, NULL, skb->dev, dev_queue_xmit);
 }
+EXPORT_SYMBOL(arp_xmit);
 
 /*
  *	Create and send an arp packet.
@@ -735,6 +741,7 @@ void arp_send(int type, int ptype, __be32 dest_ip,
 
 	arp_xmit(skb);
 }
+EXPORT_SYMBOL(arp_send);
 
 /*
  *	Process an arp request.
@@ -1452,14 +1459,3 @@ static int __init arp_proc_init(void)
 }
 
 #endif /* CONFIG_PROC_FS */
-
-EXPORT_SYMBOL(arp_broken_ops);
-EXPORT_SYMBOL(arp_find);
-EXPORT_SYMBOL(arp_create);
-EXPORT_SYMBOL(arp_xmit);
-EXPORT_SYMBOL(arp_send);
-EXPORT_SYMBOL(arp_tbl);
-
-#if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
-EXPORT_SYMBOL(clip_tbl_hook);
-#endif
