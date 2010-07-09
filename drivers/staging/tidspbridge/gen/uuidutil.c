@@ -58,6 +58,7 @@ static s32 uuid_hex_to_bin(char *buf, s32 len)
 {
 	s32 i;
 	s32 result = 0;
+	int value;
 
 	for (i = 0; i < len; i++) {
 		value = hex_to_bin(*buf++);
