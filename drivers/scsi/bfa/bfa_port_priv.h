@@ -87,5 +87,7 @@ struct bfa_fcport_s {
 /*
  * public functions
  */
-void	bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+void bfa_fcport_init(struct bfa_s *bfa);
+void bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+
 #endif /* __BFA_PORT_PRIV_H__ */

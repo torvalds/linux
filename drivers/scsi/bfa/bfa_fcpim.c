@@ -80,11 +80,6 @@ bfa_fcpim_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_fcpim_initdone(struct bfa_s *bfa)
-{
-}
-
-static void
 bfa_fcpim_detach(struct bfa_s *bfa)
 {
 	struct bfa_fcpim_mod_s *fcpim = BFA_FCPIM_MOD(bfa);

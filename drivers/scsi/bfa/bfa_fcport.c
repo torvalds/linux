@@ -912,25 +912,6 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_fcport_initdone(struct bfa_s *bfa)
-{
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
-
-	/**
-	 * Initialize port attributes from IOC hardware data.
-	 */
-	bfa_fcport_set_wwns(fcport);
-	if (fcport->cfg.maxfrsize == 0)
-		fcport->cfg.maxfrsize = bfa_ioc_maxfrsize(&bfa->ioc);
-	fcport->cfg.rx_bbcredit = bfa_ioc_rx_bbcredit(&bfa->ioc);
-	fcport->speed_sup = bfa_ioc_speed_sup(&bfa->ioc);
-
-	bfa_assert(fcport->cfg.maxfrsize);
-	bfa_assert(fcport->cfg.rx_bbcredit);
-	bfa_assert(fcport->speed_sup);
-}
-
-static void
 bfa_fcport_detach(struct bfa_s *bfa)
 {
 }
@@ -1261,6 +1242,29 @@ bfa_fcport_send_stats_clear(void *cbarg)
 /**
  *  bfa_pport_public
  */
+
+/**
+ * Called to initialize port attributes
+ */
+void
+bfa_fcport_init(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	/**
+	 * Initialize port attributes from IOC hardware data.
+	 */
+	bfa_fcport_set_wwns(fcport);
+	if (fcport->cfg.maxfrsize == 0)
+		fcport->cfg.maxfrsize = bfa_ioc_maxfrsize(&bfa->ioc);
+	fcport->cfg.rx_bbcredit = bfa_ioc_rx_bbcredit(&bfa->ioc);
+	fcport->speed_sup = bfa_ioc_speed_sup(&bfa->ioc);
+
+	bfa_assert(fcport->cfg.maxfrsize);
+	bfa_assert(fcport->cfg.rx_bbcredit);
+	bfa_assert(fcport->speed_sup);
+}
+
 
 /**
  * Firmware message handler.

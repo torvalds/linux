@@ -1608,6 +1608,13 @@ bfa_ioc_error_isr(struct bfa_ioc_s *ioc)
 	bfa_fsm_send_event(ioc, IOC_E_HWERROR);
 }
 
+void
+bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc)
+{
+	ioc->fcmode  = BFA_TRUE;
+	ioc->port_id = bfa_ioc_pcifn(ioc);
+}
+
 #ifndef BFA_BIOS_BUILD
 
 /**
@@ -1696,6 +1703,9 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	bfa_ioc_get_adapter_model(ioc, ad_attr->model);
 	/* For now, model descr uses same model string */
 	bfa_ioc_get_adapter_model(ioc, ad_attr->model_descr);
+
+	ad_attr->card_type = ioc_attr->card_type;
+	ad_attr->is_mezz = bfa_mfg_is_mezz(ioc_attr->card_type);
 
 	if (BFI_ADAPTER_IS_SPECIAL(ioc_attr->adapter_prop))
 		ad_attr->prototype = 1;
@@ -1866,30 +1876,6 @@ bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc)
 	return w.wwn;
 }
 
-wwn_t
-bfa_ioc_get_wwn_naa5(struct bfa_ioc_s *ioc, u16 inst)
-{
-	union {
-		wwn_t           wwn;
-		u8         byte[sizeof(wwn_t)];
-	}
-	w              , w5;
-
-	bfa_trc(ioc, inst);
-
-	w.wwn = ioc->attr->mfg_wwn;
-	w5.byte[0] = 0x50 | w.byte[2] >> 4;
-	w5.byte[1] = w.byte[2] << 4 | w.byte[3] >> 4;
-	w5.byte[2] = w.byte[3] << 4 | w.byte[4] >> 4;
-	w5.byte[3] = w.byte[4] << 4 | w.byte[5] >> 4;
-	w5.byte[4] = w.byte[5] << 4 | w.byte[6] >> 4;
-	w5.byte[5] = w.byte[6] << 4 | w.byte[7] >> 4;
-	w5.byte[6] = w.byte[7] << 4 | (inst & 0x0f00) >> 8;
-	w5.byte[7] = (inst & 0xff);
-
-	return w5.wwn;
-}
-
 u64
 bfa_ioc_get_adid(struct bfa_ioc_s *ioc)
 {
@@ -1905,13 +1891,6 @@ bfa_ioc_get_mac(struct bfa_ioc_s *ioc)
 	mac.mac[MAC_ADDRLEN - 1] += bfa_ioc_pcifn(ioc);
 
 	return mac;
-}
-
-void
-bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc)
-{
-	ioc->fcmode = BFA_TRUE;
-	ioc->port_id = bfa_ioc_pcifn(ioc);
 }
 
 bfa_boolean_t

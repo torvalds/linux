@@ -116,7 +116,8 @@ struct bfa_iocfc_s {
 #define bfa_isr_mode_set(__bfa, __msix)	\
 	((__bfa)->iocfc.hwif.hw_isr_mode_set(__bfa, __msix))
 #define bfa_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)	\
-	(__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)
+	((__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap,	\
+		 __nvecs, __maxvec))
 
 /*
  * FC specific IOC functions.
@@ -166,6 +167,8 @@ void bfa_com_meminfo(bfa_boolean_t mincfg, u32 *dm_len);
 void bfa_com_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi,
 		bfa_boolean_t mincfg);
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns);
+void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
+		struct bfa_boot_pbc_s *pbcfg);
 
 #endif /* __BFA_IOCFC_H__ */
 

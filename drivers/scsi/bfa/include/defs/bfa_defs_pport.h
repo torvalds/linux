@@ -38,6 +38,7 @@ enum bfa_pport_states {
 	BFA_PPORT_ST_IOCDOWN 		= 10,
 	BFA_PPORT_ST_IOCDIS 		= 11,
 	BFA_PPORT_ST_FWMISMATCH		= 12,
+	BFA_PPORT_ST_PREBOOT_DISABLED   = 13,
 	BFA_PPORT_ST_MAX_STATE,
 };
 
@@ -203,6 +204,8 @@ struct bfa_pport_attr_s {
 	 */
 	wwn_t           nwwn;		/*  node wwn */
 	wwn_t           pwwn;		/*  port wwn */
+	wwn_t           factorynwwn;    /*  factory node wwn */
+	wwn_t           factorypwwn;    /*  factory port wwn */
 	enum fc_cos     cos_supported;	/*  supported class of services */
 	u32        rsvd;
 	struct fc_symname_s    port_symname;	/*  port symbolic name */

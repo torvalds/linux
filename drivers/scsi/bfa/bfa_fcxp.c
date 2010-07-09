@@ -149,11 +149,6 @@ bfa_fcxp_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 }
 
 static void
-bfa_fcxp_initdone(struct bfa_s *bfa)
-{
-}
-
-static void
 bfa_fcxp_detach(struct bfa_s *bfa)
 {
 }
@@ -225,7 +220,7 @@ bfa_fcxp_null_comp(void *bfad_fcxp, struct bfa_fcxp_s *fcxp, void *cbarg,
 		       bfa_status_t req_status, u32 rsp_len,
 		       u32 resid_len, struct fchs_s *rsp_fchs)
 {
-	/**discarded fcxp completion */
+	/* discarded fcxp completion */
 }
 
 static void
@@ -527,11 +522,8 @@ bfa_fcxp_alloc(void *caller, struct bfa_s *bfa, int nreq_sgles,
 		if (nreq_sgles > BFI_SGE_INLINE) {
 			nreq_sgpg = BFA_SGPG_NPAGE(nreq_sgles);
 
-			if (bfa_sgpg_malloc
-			    (bfa, &fcxp->req_sgpg_q, nreq_sgpg)
+			if (bfa_sgpg_malloc(bfa, &fcxp->req_sgpg_q, nreq_sgpg)
 			    != BFA_STATUS_OK) {
-				/* bfa_sgpg_wait(bfa, &fcxp->req_sgpg_wqe,
-				nreq_sgpg); */
 				/*
 				 * TODO
 				 */
@@ -685,7 +677,7 @@ bfa_fcxp_send(struct bfa_fcxp_s *fcxp, struct bfa_rport_s *rport,
 	fcxp->send_cbarg = cbarg;
 
 	/**
-	 * If no room in CPE queue, wait for
+	 * If no room in CPE queue, wait for space in request queue
 	 */
 	send_req = bfa_reqq_next(bfa, BFA_REQQ_FCXP);
 	if (!send_req) {

@@ -291,18 +291,6 @@ bfa_iocfc_mem_claim(struct bfa_s *bfa, struct bfa_iocfc_cfg_s *cfg,
 }
 
 /**
- * BFA submodules initialization completion notification.
- */
-static void
-bfa_iocfc_initdone_submod(struct bfa_s *bfa)
-{
-	int             i;
-
-	for (i = 0; hal_mods[i]; i++)
-		hal_mods[i]->initdone(bfa);
-}
-
-/**
  * Start BFA submodules.
  */
 static void
@@ -394,6 +382,8 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	/**
 	 * Configuration is complete - initialize/start submodules
 	 */
+	bfa_fcport_init(bfa);
+
 	if (iocfc->action == BFA_IOCFC_ACT_INIT)
 		bfa_cb_queue(bfa, &iocfc->init_hcb_qe, bfa_iocfc_init_cb, bfa);
 	else
@@ -531,7 +521,6 @@ bfa_iocfc_enable_cbfn(void *bfa_arg, enum bfa_status status)
 		return;
 	}
 
-	bfa_iocfc_initdone_submod(bfa);
 	bfa_iocfc_send_cfg(bfa);
 }
 
@@ -879,6 +868,18 @@ bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns)
 
 	*nwwns = cfgrsp->bootwwns.nwwns;
 	*wwns = cfgrsp->bootwwns.wwn;
+}
+
+void
+bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa, struct bfa_boot_pbc_s *pbcfg)
+{
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	pbcfg->enable = cfgrsp->pbc_cfg.boot_enabled;
+	pbcfg->nbluns = cfgrsp->pbc_cfg.nbluns;
+	pbcfg->speed = cfgrsp->pbc_cfg.port_speed;
+	memcpy(pbcfg->pblun, cfgrsp->pbc_cfg.blun, sizeof(pbcfg->pblun));
 }
 
 #endif
