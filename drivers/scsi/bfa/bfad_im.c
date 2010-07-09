@@ -702,6 +702,15 @@ bfad_im_probe_undo(struct bfad_s *bfad)
 	}
 }
 
+/**
+ * Call back function to handle IO redirection state change
+ */
+void
+bfa_cb_ioredirect_state_change(void *hcb_bfad, bfa_boolean_t ioredirect)
+{
+	/* Do nothing */
+}
+
 struct Scsi_Host *
 bfad_os_scsi_host_alloc(struct bfad_im_port_s *im_port, struct bfad_s *bfad)
 {

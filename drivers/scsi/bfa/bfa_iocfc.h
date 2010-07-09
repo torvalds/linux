@@ -63,6 +63,8 @@ struct bfa_hwif_s {
 	void (*hw_isr_mode_set)(struct bfa_s *bfa, bfa_boolean_t msix);
 	void (*hw_msix_getvecs)(struct bfa_s *bfa, u32 *vecmap,
 			u32 *nvecs, u32 *maxvec);
+	void (*hw_msix_get_rme_range) (struct bfa_s *bfa, u32 *start,
+			u32 *end);
 };
 typedef void (*bfa_cb_iocfc_t) (void *cbarg, enum bfa_status status);
 
@@ -104,7 +106,8 @@ struct bfa_iocfc_s {
 	struct bfa_hwif_s	hwif;
 
 	bfa_cb_iocfc_t		updateq_cbfn; /*  bios callback function */
-	void				*updateq_cbarg;	/*  bios callback arg */
+	void			*updateq_cbarg;	/*  bios callback arg */
+	u32			intr_mask;
 };
 
 #define bfa_lpuid(__bfa)		bfa_ioc_portid(&(__bfa)->ioc)
@@ -119,6 +122,8 @@ struct bfa_iocfc_s {
 #define bfa_msix_getvecs(__bfa, __vecmap, __nvecs, __maxvec)	\
 	((__bfa)->iocfc.hwif.hw_msix_getvecs(__bfa, __vecmap,	\
 		 __nvecs, __maxvec))
+#define bfa_msix_get_rme_range(__bfa, __start, __end)   \
+	((__bfa)->iocfc.hwif.hw_msix_get_rme_range(__bfa, __start, __end))
 
 /*
  * FC specific IOC functions.
@@ -154,6 +159,7 @@ void bfa_hwcb_msix_uninstall(struct bfa_s *bfa);
 void bfa_hwcb_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix);
 void bfa_hwcb_msix_getvecs(struct bfa_s *bfa, u32 *vecmap,
 			u32 *nvecs, u32 *maxvec);
+void bfa_hwcb_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end);
 void bfa_hwct_reginit(struct bfa_s *bfa);
 void bfa_hwct_reqq_ack(struct bfa_s *bfa, int rspq);
 void bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq);
@@ -163,6 +169,7 @@ void bfa_hwct_msix_uninstall(struct bfa_s *bfa);
 void bfa_hwct_isr_mode_set(struct bfa_s *bfa, bfa_boolean_t msix);
 void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap,
 			u32 *nvecs, u32 *maxvec);
+void bfa_hwct_msix_get_rme_range(struct bfa_s *bfa, u32 *start, u32 *end);
 
 void bfa_com_meminfo(bfa_boolean_t mincfg, u32 *dm_len);
 void bfa_com_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi,

@@ -1857,8 +1857,13 @@ bfa_fcport_cfg_qos(struct bfa_s *bfa, bfa_boolean_t on_off)
 
 	bfa_trc(bfa, ioc_type);
 
-	if (ioc_type == BFA_IOC_TYPE_FC)
+	if (ioc_type == BFA_IOC_TYPE_FC) {
 		fcport->cfg.qos_enabled = on_off;
+		/**
+		 * Notify fcpim of the change in QoS state
+		 */
+		bfa_fcpim_update_ioredirect(bfa);
+	}
 }
 
 void
@@ -1942,4 +1947,10 @@ bfa_fcport_is_linkup(struct bfa_s *bfa)
 	return bfa_sm_cmp_state(BFA_FCPORT_MOD(bfa), bfa_fcport_sm_linkup);
 }
 
+bfa_boolean_t
+bfa_fcport_is_qos_enabled(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 
+	return fcport->cfg.qos_enabled;
+}
