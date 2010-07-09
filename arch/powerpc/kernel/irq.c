@@ -64,6 +64,8 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/udbg.h>
+#include <asm/dbell.h>
+
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #include <asm/firmware.h>
@@ -152,6 +154,11 @@ notrace void raw_local_irq_restore(unsigned long en)
 	 */
 	if (get_hard_enabled())
 		return;
+
+#if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
+	/* Check for pending doorbell interrupts on SMP */
+	doorbell_exception(NULL);
+#endif
 
 	/*
 	 * Need to hard-enable interrupts here.  Since currently disabled,

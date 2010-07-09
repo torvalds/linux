@@ -246,11 +246,9 @@ interrupt_base_book3e:					/* fake trap */
 	EXCEPTION_STUB(0x1a0, watchdog)			/* 0x09f0 */
 	EXCEPTION_STUB(0x1c0, data_tlb_miss)
 	EXCEPTION_STUB(0x1e0, instruction_tlb_miss)
+	EXCEPTION_STUB(0x280, doorbell)
+	EXCEPTION_STUB(0x2a0, doorbell_crit)
 
-#if 0
-	EXCEPTION_STUB(0x280, processor_doorbell)
-	EXCEPTION_STUB(0x220, processor_doorbell_crit)
-#endif
 	.globl interrupt_end_book3e
 interrupt_end_book3e:
 
@@ -428,6 +426,19 @@ interrupt_end_book3e:
 kernel_dbg_exc:
 	b	.	/* NYI */
 
+/* Doorbell interrupt */
+	MASKABLE_EXCEPTION(0x2070, doorbell, .doorbell_exception, ACK_NONE)
+
+/* Doorbell critical Interrupt */
+	START_EXCEPTION(doorbell_crit);
+	CRIT_EXCEPTION_PROLOG(0x2080, PROLOG_ADDITION_NONE)
+//	EXCEPTION_COMMON(0x2080, PACA_EXCRIT, INTS_DISABLE_ALL)
+//	bl	special_reg_save_crit
+//	addi	r3,r1,STACK_FRAME_OVERHEAD
+//	bl	.doorbell_critical_exception
+//	b	ret_from_crit_except
+	b	.
+
 
 /*
  * An interrupt came in while soft-disabled; clear EE in SRR1,
@@ -563,6 +574,8 @@ BAD_STACK_TRAMPOLINE(0xd00)
 BAD_STACK_TRAMPOLINE(0xe00)
 BAD_STACK_TRAMPOLINE(0xf00)
 BAD_STACK_TRAMPOLINE(0xf20)
+BAD_STACK_TRAMPOLINE(0x2070)
+BAD_STACK_TRAMPOLINE(0x2080)
 
 	.globl	bad_stack_book3e
 bad_stack_book3e:
