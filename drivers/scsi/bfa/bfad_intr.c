@@ -26,7 +26,11 @@ BFA_TRC_FILE(LDRV, INTR);
 static int msix_disable_cb;
 static int msix_disable_ct;
 module_param(msix_disable_cb, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(msix_disable_cb, "Disable MSIX for Brocade-415/425/815/825"
+		" cards, default=0, Range[false:0|true:1]");
 module_param(msix_disable_ct, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(msix_disable_ct, "Disable MSIX for Brocade-1010/1020/804"
+		" cards, default=0, Range[false:0|true:1]");
 /**
  * Line based interrupt handler.
  */

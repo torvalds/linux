@@ -54,31 +54,58 @@ static int      bfa_io_max_sge = BFAD_IO_MAX_SGE;
 static int      log_level = BFA_LOG_WARNING;
 static int      ioc_auto_recover = BFA_TRUE;
 static int      ipfc_enable = BFA_FALSE;
-static int      ipfc_mtu = -1;
 static int	fdmi_enable = BFA_TRUE;
 int 		bfa_lun_queue_depth = BFAD_LUN_QUEUE_DEPTH;
 int      	bfa_linkup_delay = -1;
 
 module_param(os_name, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(os_name, "OS name of the hba host machine");
 module_param(os_patch, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(os_patch, "OS patch level of the hba host machine");
 module_param(host_name, charp, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(host_name, "Hostname of the hba host machine");
 module_param(num_rports, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_rports, "Max number of rports supported per port"
+		" (physical/logical), default=1024");
 module_param(num_ios, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_ios, "Max number of ioim requests, default=2000");
 module_param(num_tms, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_tms, "Max number of task im requests, default=128");
 module_param(num_fcxps, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_fcxps, "Max number of fcxp requests, default=64");
 module_param(num_ufbufs, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_ufbufs, "Max number of unsolicited frame buffers,"
+		" default=64");
 module_param(reqq_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(reqq_size, "Max number of request queue elements,"
+		" default=256");
 module_param(rspq_size, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rspq_size, "Max number of response queue elements,"
+		" default=64");
 module_param(num_sgpgs, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(num_sgpgs, "Number of scatter/gather pages, default=2048");
 module_param(rport_del_timeout, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(rport_del_timeout, "Rport delete timeout, default=90 secs,"
+		" Range[>0]");
 module_param(bfa_lun_queue_depth, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_lun_queue_depth, "Lun queue depth, default=32,"
+		" Range[>0]");
 module_param(bfa_io_max_sge, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_io_max_sge, "Max io scatter/gather elements, default=255");
 module_param(log_level, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(log_level, "Driver log level, default=3,"
+		" Range[Critical:1|Error:2|Warning:3|Info:4]");
 module_param(ioc_auto_recover, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ioc_auto_recover, "IOC auto recovery, default=1,"
+		" Range[off:0|on:1]");
 module_param(ipfc_enable, int, S_IRUGO | S_IWUSR);
-module_param(ipfc_mtu, int, S_IRUGO | S_IWUSR);
-module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ipfc_enable, "Enable IPoFC, default=0, Range[off:0|on:1]");
 module_param(bfa_linkup_delay, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_linkup_delay, "Link up delay, default=30 secs for boot"
+		" port. Otherwise Range[>0]");
+module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1,"
+		" Range[false:0|true:1]");
 
 /*
  * Stores the module parm num_sgpgs value;
