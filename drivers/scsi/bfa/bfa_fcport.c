@@ -1569,6 +1569,9 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr)
 	attr->nwwn = fcport->nwwn;
 	attr->pwwn = fcport->pwwn;
 
+	attr->factorypwwn =  bfa_ioc_get_mfg_pwwn(&bfa->ioc);
+	attr->factorynwwn =  bfa_ioc_get_mfg_nwwn(&bfa->ioc);
+
 	bfa_os_memcpy(&attr->pport_cfg, &fcport->cfg,
 		      sizeof(struct bfa_pport_cfg_s));
 	/*

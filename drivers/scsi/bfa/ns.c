@@ -1228,10 +1228,10 @@ bfa_fcs_port_ns_boot_target_disc(struct bfa_fcs_port_s *port)
 
 	struct bfa_fcs_rport_s *rport;
 	u8         nwwns;
-	wwn_t          *wwns;
+	wwn_t  wwns[BFA_PREBOOT_BOOTLUN_MAX];
 	int             ii;
 
-	bfa_iocfc_get_bootwwns(port->fcs->bfa, &nwwns, &wwns);
+	bfa_iocfc_get_bootwwns(port->fcs->bfa, &nwwns, wwns);
 
 	for (ii = 0; ii < nwwns; ++ii) {
 		rport = bfa_fcs_rport_create_by_wwn(port, wwns[ii]);

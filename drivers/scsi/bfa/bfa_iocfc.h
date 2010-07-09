@@ -167,7 +167,7 @@ void bfa_hwct_msix_getvecs(struct bfa_s *bfa, u32 *vecmap,
 void bfa_com_meminfo(bfa_boolean_t mincfg, u32 *dm_len);
 void bfa_com_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi,
 		bfa_boolean_t mincfg);
-void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns);
+void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns);
 void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
 		struct bfa_boot_pbc_s *pbcfg);
 int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,

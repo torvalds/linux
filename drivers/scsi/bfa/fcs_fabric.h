@@ -60,4 +60,6 @@ void bfa_fcs_auth_finished(struct bfa_fcs_fabric_s *fabric,
 
 void bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 			wwn_t fabric_name);
+void bfa_fcs_get_sym_name(const struct bfa_fcs_s *fcs, char *node_symname);
+
 #endif /* __FCS_FABRIC_H__ */

@@ -1205,9 +1205,9 @@ int
 bfad_os_get_linkup_delay(struct bfad_s *bfad)
 {
 
-	u8         nwwns = 0;
-	wwn_t           *wwns;
-	int             ldelay;
+	u8      nwwns = 0;
+	wwn_t	wwns[BFA_PREBOOT_BOOTLUN_MAX];
+	int     ldelay;
 
 	/*
 	 * Querying for the boot target port wwns
@@ -1216,7 +1216,7 @@ bfad_os_get_linkup_delay(struct bfad_s *bfad)
 	 * else => local boot machine set bfa_linkup_delay = 10
 	 */
 
-	bfa_iocfc_get_bootwwns(&bfad->bfa, &nwwns, &wwns);
+	bfa_iocfc_get_bootwwns(&bfad->bfa, &nwwns, wwns);
 
 	if (nwwns > 0) {
 		/* If boot over SAN; linkup_delay = 30sec */

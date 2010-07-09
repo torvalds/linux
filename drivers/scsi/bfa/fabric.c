@@ -1271,6 +1271,22 @@ bfa_fcs_fabric_set_fabric_name(struct bfa_fcs_fabric_s *fabric,
 }
 
 /**
+ *
+ * @param[in] fabric - fabric
+ * @param[in] node_symname -
+ *              Caller allocated buffer to receive the symbolic name
+ *
+ * @return - none
+ */
+void
+bfa_fcs_get_sym_name(const struct bfa_fcs_s *fcs, char *node_symname)
+{
+	bfa_os_memcpy(node_symname,
+			fcs->fabric.bport.port_cfg.sym_name.symname,
+			BFA_SYMNAME_MAXLEN);
+}
+
+/**
  * Not used by FCS.
  */
 void

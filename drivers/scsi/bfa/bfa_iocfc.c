@@ -861,13 +861,23 @@ bfa_iocfc_is_operational(struct bfa_s *bfa)
  * Return boot target port wwns -- read from boot information in flash.
  */
 void
-bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns)
+bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t *wwns)
 {
-	struct bfa_iocfc_s		*iocfc	 = &bfa->iocfc;
-	struct bfi_iocfc_cfgrsp_s	*cfgrsp  = iocfc->cfgrsp;
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+	int i;
+
+	if (cfgrsp->pbc_cfg.boot_enabled && cfgrsp->pbc_cfg.nbluns) {
+		bfa_trc(bfa, cfgrsp->pbc_cfg.nbluns);
+		*nwwns = cfgrsp->pbc_cfg.nbluns;
+		for (i = 0; i < cfgrsp->pbc_cfg.nbluns; i++)
+			wwns[i] = cfgrsp->pbc_cfg.blun[i].tgt_pwwn;
+
+		return;
+	}
 
 	*nwwns = cfgrsp->bootwwns.nwwns;
-	*wwns = cfgrsp->bootwwns.wwn;
+	memcpy(wwns, cfgrsp->bootwwns.wwn, sizeof(cfgrsp->bootwwns.wwn));
 }
 
 void

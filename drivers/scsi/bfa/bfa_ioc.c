@@ -1838,54 +1838,54 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 }
 
 /**
- *  hal_wwn_public
+ *  bfa_wwn_public
  */
 wwn_t
 bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc)
 {
-	union {
-		wwn_t           wwn;
-		u8         byte[sizeof(wwn_t)];
-	}
-	w;
-
-	w.wwn = ioc->attr->mfg_wwn;
-
-	if (bfa_ioc_portid(ioc) == 1)
-		w.byte[7]++;
-
-	return w.wwn;
+	return ioc->attr->pwwn;
 }
 
 wwn_t
 bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc)
 {
-	union {
-		wwn_t           wwn;
-		u8         byte[sizeof(wwn_t)];
-	}
-	w;
-
-	w.wwn = ioc->attr->mfg_wwn;
-
-	if (bfa_ioc_portid(ioc) == 1)
-		w.byte[7]++;
-
-	w.byte[0] = 0x20;
-
-	return w.wwn;
+	return ioc->attr->nwwn;
 }
 
 u64
 bfa_ioc_get_adid(struct bfa_ioc_s *ioc)
 {
-	return ioc->attr->mfg_wwn;
+	return ioc->attr->mfg_pwwn;
 }
 
 mac_t
 bfa_ioc_get_mac(struct bfa_ioc_s *ioc)
 {
-	mac_t           mac;
+	/*
+	 * Currently mfg mac is used as FCoE enode mac (not configured by PBC)
+	 */
+	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_FCoE)
+		return bfa_ioc_get_mfg_mac(ioc);
+	else
+		return ioc->attr->mac;
+}
+
+wwn_t
+bfa_ioc_get_mfg_pwwn(struct bfa_ioc_s *ioc)
+{
+	return ioc->attr->mfg_pwwn;
+}
+
+wwn_t
+bfa_ioc_get_mfg_nwwn(struct bfa_ioc_s *ioc)
+{
+	return ioc->attr->mfg_nwwn;
+}
+
+mac_t
+bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc)
+{
+	mac_t   mac;
 
 	mac = ioc->attr->mfg_mac;
 	mac.mac[MAC_ADDRLEN - 1] += bfa_ioc_pcifn(ioc);

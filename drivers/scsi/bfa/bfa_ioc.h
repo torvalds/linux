@@ -304,6 +304,9 @@ bfa_boolean_t bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc,
 wwn_t bfa_ioc_get_pwwn(struct bfa_ioc_s *ioc);
 wwn_t bfa_ioc_get_nwwn(struct bfa_ioc_s *ioc);
 mac_t bfa_ioc_get_mac(struct bfa_ioc_s *ioc);
+wwn_t bfa_ioc_get_mfg_pwwn(struct bfa_ioc_s *ioc);
+wwn_t bfa_ioc_get_mfg_nwwn(struct bfa_ioc_s *ioc);
+mac_t bfa_ioc_get_mfg_mac(struct bfa_ioc_s *ioc);
 u64 bfa_ioc_get_adid(struct bfa_ioc_s *ioc);
 
 #endif /* __BFA_IOC_H__ */
