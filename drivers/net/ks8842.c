@@ -119,6 +119,8 @@ struct ks8842_adapter {
 	int		irq;
 	struct tasklet_struct	tasklet;
 	spinlock_t	lock; /* spinlock to be interrupt safe */
+	struct work_struct timeout_work;
+	struct net_device *netdev;
 };
 
 static inline void ks8842_select_bank(struct ks8842_adapter *adapter, u16 bank)
@@ -553,6 +555,8 @@ static int ks8842_close(struct net_device *netdev)
 
 	netdev_dbg(netdev, "%s - entry\n", __func__);
 
+	cancel_work_sync(&adapter->timeout_work);
+
 	/* free the irq */
 	free_irq(adapter->irq, netdev);
 
@@ -595,9 +599,11 @@ static int ks8842_set_mac(struct net_device *netdev, void *p)
 	return 0;
 }
 
-static void ks8842_tx_timeout(struct net_device *netdev)
+static void ks8842_tx_timeout_work(struct work_struct *work)
 {
-	struct ks8842_adapter *adapter = netdev_priv(netdev);
+	struct ks8842_adapter *adapter =
+		container_of(work, struct ks8842_adapter, timeout_work);
+	struct net_device *netdev = adapter->netdev;
 	unsigned long flags;
 
 	netdev_dbg(netdev, "%s: entry\n", __func__);
@@ -606,6 +612,9 @@ static void ks8842_tx_timeout(struct net_device *netdev)
 	/* disable interrupts */
 	ks8842_write16(adapter, 18, 0, REG_IER);
 	ks8842_write16(adapter, 18, 0xFFFF, REG_ISR);
+
+	netif_stop_queue(netdev);
+
 	spin_unlock_irqrestore(&adapter->lock, flags);
 
 	ks8842_reset_hw(adapter);
@@ -613,6 +622,15 @@ static void ks8842_tx_timeout(struct net_device *netdev)
 	ks8842_write_mac_addr(adapter, netdev->dev_addr);
 
 	ks8842_update_link_status(netdev, adapter);
+}
+
+static void ks8842_tx_timeout(struct net_device *netdev)
+{
+	struct ks8842_adapter *adapter = netdev_priv(netdev);
+
+	netdev_dbg(netdev, "%s: entry\n", __func__);
+
+	schedule_work(&adapter->timeout_work);
 }
 
 static const struct net_device_ops ks8842_netdev_ops = {
@@ -649,6 +667,8 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 
 	adapter = netdev_priv(netdev);
+	adapter->netdev = netdev;
+	INIT_WORK(&adapter->timeout_work, ks8842_tx_timeout_work);
 	adapter->hw_addr = ioremap(iomem->start, resource_size(iomem));
 	if (!adapter->hw_addr)
 		goto err_ioremap;
