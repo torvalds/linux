@@ -30,8 +30,6 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 
-#define IGNORE_CHECKSUM_MISMATCH
-
 struct qtm_object {
 	struct qtm_obj_entry		entry;
 	uint8_t				report_id_min;
@@ -68,7 +66,7 @@ struct qtouch_ts_data {
 	unsigned long			obj_map[_BITMAP_LEN];
 
 	uint32_t			last_keystate;
-	uint16_t			eeprom_checksum;
+	uint32_t			eeprom_checksum;
 	uint8_t				checksum_cnt;
 	int				x_delta;
 	int				y_delta;
@@ -231,22 +229,39 @@ static int qtouch_write_addr(struct qtouch_ts_data *ts, uint16_t addr,
 
 	return 0;
 }
+static uint32_t crc24(uint32_t crc, uint8_t first_byte, uint8_t sec_byte)
+{
+	static const uint32_t crcpoly = 0x80001b;
+	uint32_t result = 0;
+	uint16_t data_word = 0;
 
-static uint16_t calc_csum(uint16_t curr_sum, void *_buf, int buf_sz)
+	data_word = (uint16_t)((uint16_t)(sec_byte << 8u) | first_byte);
+	result = ((crc<<1u) ^ (uint32_t)data_word);
+	/* If bit 25 is set, XOR result with crcpoly */
+	if (result & 0x1000000)
+		result ^= crcpoly;
+
+	return result;
+}
+
+static uint32_t calc_csum(uint32_t curr_sum, void *_buf, int buf_sz)
 {
 	uint8_t *buf = _buf;
-	uint32_t new_sum;
-	int i;
+	int i = 0;
+	int odd = 0;
 
-	while (buf_sz-- > 0) {
-		new_sum = (((uint32_t) curr_sum) << 8) | *(buf++);
-		for (i = 0; i < 8; ++i) {
-			if (new_sum & 0x800000)
-				new_sum ^= 0x800500;
-			new_sum <<= 1;
-		}
-		curr_sum = ((uint32_t) new_sum >> 8) & 0xffff;
+	if (buf_sz % 2) {
+		buf_sz -= 1;
+		odd = 1;
 	}
+	while (i < buf_sz) {
+		curr_sum = crc24(curr_sum, *(buf + i), *(buf + i + 1));
+		i += 2;
+	}
+	if (odd)
+		curr_sum = crc24(curr_sum, *(buf + i), 0);
+	/* Final Result */
+	curr_sum = (curr_sum & 0x00FFFFFF);
 
 	return curr_sum;
 }
@@ -686,20 +701,22 @@ static int do_cmd_proc_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	struct qtm_cmd_proc_msg *msg = _msg;
 	int ret = 0;
 	int hw_reset = 0;
+	uint32_t checksum = (msg->checksum[2] << 16)
+				| (msg->checksum[1] << 8) | msg->checksum[0];
 
 	if (msg->status & QTM_CMD_PROC_STATUS_RESET) {
 		if (qtouch_tsdebug)
 			pr_info("%s:EEPROM checksum is 0x%X cnt %i\n",
-				__func__, msg->checksum, ts->checksum_cnt);
-		if (msg->checksum != ts->eeprom_checksum) {
+				__func__, checksum, ts->checksum_cnt);
+		if (checksum != ts->eeprom_checksum) {
 			if (ts->checksum_cnt > 2) {
 				/* Assume the checksum is what it is, cannot
 				disable the touch screen so set the checksum*/
-				ts->eeprom_checksum = msg->checksum;
+				ts->eeprom_checksum = checksum;
 				ts->checksum_cnt = 0;
 			} else {
 				pr_info("%s:EEPROM checksum doesn't match 0x%x\n",
-					__func__, msg->checksum);
+					__func__, checksum);
 				ret = qtouch_hw_init(ts);
 				if (ret != 0)
 					pr_err("%s:Cannot init the touch IC\n",
@@ -732,15 +749,15 @@ static int do_cmd_proc_msg(struct qtouch_ts_data *ts, struct qtm_object *obj,
 	the checksum to change during operation so we need to
 	reprogram the EEPROM and reset the IC */
 	if (ts->pdata->flags & QTOUCH_EEPROM_CHECKSUM) {
-		if (msg->checksum != ts->eeprom_checksum) {
+		if (checksum != ts->eeprom_checksum) {
 			if (qtouch_tsdebug)
 				pr_info("%s:EEPROM checksum is 0x%X cnt %i\n",
-					__func__, msg->checksum,
+					__func__, checksum,
 					ts->checksum_cnt);
 			if (ts->checksum_cnt > 2) {
 				/* Assume the checksum is what it is, cannot
 				disable the touch screen so set the checksum*/
-				ts->eeprom_checksum = msg->checksum;
+				ts->eeprom_checksum = checksum;
 				ts->checksum_cnt = 0;
 			} else {
 				if (!hw_reset) {
@@ -961,7 +978,7 @@ int qtouch_input_open(struct input_dev *input)
 	err = request_firmware(&fw_entry, ts->pdata->touch_fw_cfg.fw_name,
 				 &ts->client->dev);
 
-	if ( err == 0) {
+	if (err == 0) {
 		ts->touch_fw = (uint8_t *)fw_entry->data;
 		ts->touch_fw_size = fw_entry->size;
 		pr_info("firmware name: %s size: %d\n", ts->touch_fw_image,
@@ -1093,24 +1110,16 @@ err_input_register_dev:
 static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 {
 	struct qtm_id_info qtm_info;
-	uint16_t our_csum = 0x0;
-	uint16_t their_csum;
+	uint32_t our_csum = 0x0;
+	uint32_t their_csum;
 	uint8_t report_id;
 	uint16_t addr;
 	int err;
 	int i;
-	unsigned char powerconfig[5];
+	uint8_t *info_blk_buf, *info_blk_start;
+	uint16_t info_blk_size;
+	struct qtm_obj_entry entry;
 
-	/*  HACK!!: This is a hack
-	Once we have a new load of firmware we MUST remove this */
-	powerconfig[0] = 0x35;
-	powerconfig[1] = 0x01;
-	powerconfig[2] = 0x0a;
-	powerconfig[3] = 0x0a;
-	powerconfig[4] = 0x01;
-
-	err = qtouch_write(ts, powerconfig, 5);
-	/* End Hack */
 	/* query the device and get the info block. */
 	err = qtouch_read_addr(ts, QTM_OBP_ID_INFO_ADDR, &qtm_info,
 			       sizeof(qtm_info));
@@ -1118,9 +1127,7 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 		pr_err("%s: Cannot read info object block\n", __func__);
 		goto err_read_info_block;
 	}
-	our_csum = calc_csum(our_csum, &qtm_info, sizeof(qtm_info));
 
-	/* TODO: Add a version/family/variant check? */
 	pr_info("%s: Build version is 0x%x\n", __func__, qtm_info.version);
 
 	if (qtm_info.num_objs == 0) {
@@ -1131,6 +1138,17 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 		goto err_no_objects;
 	}
 
+	info_blk_size = sizeof(qtm_info) + qtm_info.num_objs * sizeof(entry);
+	info_blk_buf = kzalloc(info_blk_size, GFP_KERNEL);
+	if (info_blk_buf == NULL) {
+		pr_err("%s: Can't allocate write buffer (%d)\n",
+			 __func__, info_blk_size);
+		err = -ENOMEM;
+		goto err_no_objects;
+	}
+	info_blk_start = info_blk_buf;
+	memcpy(info_blk_buf, (void *)&qtm_info, sizeof(qtm_info));
+	info_blk_buf += sizeof(qtm_info);
 	addr = QTM_OBP_ID_INFO_ADDR + sizeof(qtm_info);
 	report_id = 1;
 
@@ -1149,7 +1167,6 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 	/* read out the object entries table */
 	for (i = 0; i < qtm_info.num_objs; ++i) {
 		struct qtm_object *obj;
-		struct qtm_obj_entry entry;
 
 		pr_info("%s: Reading addr: %i\n", __func__,  addr);
 		err = qtouch_read_addr(ts, addr, &entry, sizeof(entry));
@@ -1159,7 +1176,9 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 			err = -EIO;
 			goto err_read_entry;
 		}
-		our_csum = calc_csum(our_csum, &entry, sizeof(entry));
+
+		memcpy(info_blk_buf, (void *)&entry, sizeof(entry));
+		info_blk_buf += sizeof(entry);
 		addr += sizeof(entry);
 
 		entry.size++;
@@ -1182,7 +1201,7 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 				ts->msg_size = entry.size;
 				entry.addr |= QTOUCH_USE_MSG_CRC_MASK;
 			} else {
-				ts->msg_size = entry.size -1;
+				ts->msg_size = entry.size - 1;
 			}
 		}
 
@@ -1221,11 +1240,10 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 		goto err_no_checksum;
 	}
 
-	/* FIXME: The algorithm described in the datasheet doesn't seem to
-	 * match what the touch firmware is doing on the other side. We
-	 * always get mismatches! */
+	our_csum = calc_csum(our_csum, info_blk_start, info_blk_size);
+
 	if (our_csum != their_csum) {
-		pr_warning("%s: Checksum mismatch (0x%04x != 0x%04x)\n",
+		pr_warning("%s: Checksum mismatch (0x%08x != 0x%08x)\n",
 			   __func__, our_csum, their_csum);
 #ifndef IGNORE_CHECKSUM_MISMATCH
 		err = -ENODEV;
@@ -1233,8 +1251,8 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 #endif
 	}
 
-	pr_info("%s: %s found. family 0x%x, variant 0x%x, ver 0x%x, "
-		"build 0x%x, matrix %dx%d, %d objects.\n", __func__,
+	pr_info("%s: %s found.\n  family 0x%x, variant 0x%x, ver 0x%x\n"
+		"  build 0x%x, matrix %dx%d, %d objects.\n", __func__,
 		QTOUCH_TS_NAME, qtm_info.family_id, qtm_info.variant_id,
 		qtm_info.version, qtm_info.build, qtm_info.matrix_x_size,
 		qtm_info.matrix_y_size, qtm_info.num_objs);
@@ -1244,13 +1262,16 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 	ts->variant_id = qtm_info.variant_id;
 	ts->fw_version = qtm_info.version;
 	ts->build_version = qtm_info.build;
+	kfree(info_blk_start);
 
 	return 0;
 
+err_bad_checksum:
 err_no_checksum:
 err_missing_objs:
 err_no_msg_proc:
 err_read_entry:
+	kfree(info_blk_start);
 err_no_objects:
 err_read_info_block:
 	return err;
@@ -1831,11 +1852,9 @@ static int qtouch_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 		enable_irq(ts->client->irq);
 	}
 
-	/* HACK!! Don't put the touch to sleep.  This
-	must be removed after we get new firmware
 	ret = qtouch_power_config(ts, 0);
 	if (ret < 0)
-		pr_err("%s: Cannot write power config\n", __func__);*/
+		pr_err("%s: Cannot write power config\n", __func__);
 
 	return 0;
 }

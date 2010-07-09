@@ -124,7 +124,7 @@ struct qtm_obj_message {
 struct qtm_cmd_proc_msg {
 	uint8_t			report_id;
 	uint8_t			status;
-	uint16_t		checksum;
+	uint8_t			checksum[3];
 } __attribute__ ((packed));
 
 /* status message sent by the mutlitouch touch object - T9*/
@@ -461,7 +461,7 @@ struct qtouch_ts_platform_data {
 	uint32_t		x_delta;
 	uint32_t		y_delta;
 
-	uint16_t		nv_checksum;
+	uint32_t		nv_checksum;
 
 	uint32_t		fuzz_x;
 	uint32_t		fuzz_y;
