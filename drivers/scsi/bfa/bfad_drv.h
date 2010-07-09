@@ -111,6 +111,9 @@ struct bfad_port_s {
 	struct bfad_im_port_s *im_port;	/* IM specific data */
 	struct bfad_tm_port_s *tm_port;	/* TM specific data */
 	struct bfad_ipfc_port_s *ipfc_port;	/* IPFC specific data */
+
+	/* port debugfs specific data */
+	struct dentry *port_debugfs_root;
 };
 
 /*
@@ -186,6 +189,10 @@ struct bfad_s {
 	struct fc_host_statistics link_stats;
 	struct list_head pbc_pcfg_list;
 	atomic_t wq_reqcnt;
+	/* debugfs specific data */
+	char *regdata;
+	u32 reglen;
+	struct dentry *bfad_dentry_files[5];
 };
 
 struct bfad_pcfg_s {
@@ -276,7 +283,9 @@ void		bfad_drv_uninit(struct bfad_s *bfad);
 void		bfad_drv_log_level_set(struct bfad_s *bfad);
 bfa_status_t	bfad_fc4_module_init(void);
 void		bfad_fc4_module_exit(void);
-int		bfad_worker (void *ptr);
+int		bfad_worker(void *ptr);
+void		bfad_debugfs_init(struct bfad_port_s *port);
+void		bfad_debugfs_exit(struct bfad_port_s *port);
 
 void bfad_pci_remove(struct pci_dev *pdev);
 int bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid);
@@ -289,6 +298,7 @@ extern struct list_head bfad_list;
 extern int bfa_lun_queue_depth;
 extern int bfad_supported_fc4s;
 extern int bfa_linkup_delay;
+extern int bfa_debugfs_enable;
 extern struct mutex bfad_mutex;
 
 #endif /* __BFAD_DRV_H__ */

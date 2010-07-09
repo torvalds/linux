@@ -57,6 +57,7 @@ static int      ipfc_enable = BFA_FALSE;
 static int	fdmi_enable = BFA_TRUE;
 int 		bfa_lun_queue_depth = BFAD_LUN_QUEUE_DEPTH;
 int      	bfa_linkup_delay = -1;
+int		bfa_debugfs_enable = 1;
 
 module_param(os_name, charp, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(os_name, "OS name of the hba host machine");
@@ -105,6 +106,9 @@ MODULE_PARM_DESC(bfa_linkup_delay, "Link up delay, default=30 secs for boot"
 		" port. Otherwise Range[>0]");
 module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(fdmi_enable, "Enables fdmi registration, default=1,"
+		" Range[false:0|true:1]");
+module_param(bfa_debugfs_enable, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(bfa_debugfs_enable, "Enables debugfs feature, default=1,"
 		" Range[false:0|true:1]");
 
 /*
@@ -903,6 +907,10 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role)
 		bfad->pport.roles |= BFA_PORT_ROLE_FCP_IM;
 	}
 
+	/* Setup the debugfs node for this scsi_host */
+	if (bfa_debugfs_enable)
+		bfad_debugfs_init(&bfad->pport);
+
 	bfad->bfad_flags |= BFAD_CFG_PPORT_DONE;
 
 out:
@@ -912,6 +920,10 @@ out:
 void
 bfad_uncfg_pport(struct bfad_s *bfad)
 {
+	 /* Remove the debugfs node for this scsi_host */
+	kfree(bfad->regdata);
+	bfad_debugfs_exit(&bfad->pport);
+
 	if ((bfad->pport.roles & BFA_PORT_ROLE_FCP_IPFC) && ipfc_enable) {
 		bfad_ipfc_port_delete(bfad, &bfad->pport);
 		bfad->pport.roles &= ~BFA_PORT_ROLE_FCP_IPFC;
