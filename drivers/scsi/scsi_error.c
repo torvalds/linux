@@ -307,20 +307,7 @@ static int scsi_check_sense(struct scsi_cmnd *scmd)
 		    (sshdr.asc == 0x04) && (sshdr.ascq == 0x02))
 			return FAILED;
 
-		if (scmd->request->cmd_flags & REQ_HARDBARRIER)
-			/*
-			 * barrier requests should always retry on UA
-			 * otherwise block will get a spurious error
-			 */
-			return NEEDS_RETRY;
-		else
-			/*
-			 * for normal (non barrier) commands, pass the
-			 * UA upwards for a determination in the
-			 * completion functions
-			 */
-			return SUCCESS;
-
+		return NEEDS_RETRY;
 		/* these three are not supported */
 	case COPY_ABORTED:
 	case VOLUME_OVERFLOW:
@@ -1336,7 +1323,9 @@ int scsi_noretry_cmd(struct scsi_cmnd *scmd)
 		 * assume caller has checked sense and determinted
 		 * the check condition was retryable.
 		 */
-		return (scmd->request->cmd_flags & REQ_FAILFAST_DEV);
+		if (scmd->request->cmd_flags & REQ_FAILFAST_DEV ||
+		    scmd->request->cmd_type == REQ_TYPE_BLOCK_PC)
+			return 1;
 	}
 
 	return 0;
