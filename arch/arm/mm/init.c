@@ -17,6 +17,7 @@
 #include <linux/initrd.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
+#include <linux/memblock.h>
 
 #include <asm/mach-types.h>
 #include <asm/sections.h>
@@ -146,95 +147,21 @@ static void __init find_limits(struct meminfo *mi,
 	}
 }
 
-/*
- * FIXME: We really want to avoid allocating the bootmap bitmap
- * over the top of the initrd.  Hopefully, this is located towards
- * the start of a bank, so if we allocate the bootmap bitmap at
- * the end, we won't clash.
- */
-static unsigned int __init
-find_bootmap_pfn(struct meminfo *mi, unsigned int bootmap_pages)
-{
-	unsigned int start_pfn, i, bootmap_pfn;
-
-	start_pfn   = PAGE_ALIGN(__pa(_end)) >> PAGE_SHIFT;
-	bootmap_pfn = 0;
-
-	for_each_bank(i, mi) {
-		struct membank *bank = &mi->bank[i];
-		unsigned int start, end;
-
-		start = bank_pfn_start(bank);
-		end   = bank_pfn_end(bank);
-
-		if (end < start_pfn)
-			continue;
-
-		if (start < start_pfn)
-			start = start_pfn;
-
-		if (end <= start)
-			continue;
-
-		if (end - start >= bootmap_pages) {
-			bootmap_pfn = start;
-			break;
-		}
-	}
-
-	if (bootmap_pfn == 0)
-		BUG();
-
-	return bootmap_pfn;
-}
-
-static int __init check_initrd(struct meminfo *mi)
-{
-	int initrd = -2;
-#ifdef CONFIG_BLK_DEV_INITRD
-	unsigned long end = phys_initrd_start + phys_initrd_size;
-
-	/*
-	 * Make sure that the initrd is within a valid area of
-	 * memory.
-	 */
-	if (phys_initrd_size) {
-		unsigned int i;
-
-		initrd = -1;
-
-		for (i = 0; i < mi->nr_banks; i++) {
-			struct membank *bank = &mi->bank[i];
-			if (bank_phys_start(bank) <= phys_initrd_start &&
-			    end <= bank_phys_end(bank))
-				initrd = 0;
-		}
-	}
-
-	if (initrd == -1) {
-		printk(KERN_ERR "INITRD: 0x%08lx+0x%08lx extends beyond "
-		       "physical memory - disabling initrd\n",
-		       phys_initrd_start, phys_initrd_size);
-		phys_initrd_start = phys_initrd_size = 0;
-	}
-#endif
-
-	return initrd;
-}
-
 static void __init arm_bootmem_init(struct meminfo *mi,
 	unsigned long start_pfn, unsigned long end_pfn)
 {
-	unsigned long boot_pfn;
 	unsigned int boot_pages;
+	phys_addr_t bitmap;
 	pg_data_t *pgdat;
 	int i;
 
 	/*
-	 * Allocate the bootmem bitmap page.
+	 * Allocate the bootmem bitmap page.  This must be in a region
+	 * of memory which has already been mapped.
 	 */
 	boot_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
-	boot_pfn = find_bootmap_pfn(mi, boot_pages);
+	bitmap = memblock_alloc_base(boot_pages << PAGE_SHIFT, L1_CACHE_BYTES,
+				__pfn_to_phys(end_pfn));
 
 	/*
 	 * Initialise the bootmem allocator, handing the
@@ -242,7 +169,7 @@ static void __init arm_bootmem_init(struct meminfo *mi,
 	 */
 	node_set_online(0);
 	pgdat = NODE_DATA(0);
-	init_bootmem_node(pgdat, boot_pfn, start_pfn, end_pfn);
+	init_bootmem_node(pgdat, __phys_to_pfn(bitmap), start_pfn, end_pfn);
 
 	for_each_bank(i, mi) {
 		struct membank *bank = &mi->bank[i];
@@ -251,30 +178,16 @@ static void __init arm_bootmem_init(struct meminfo *mi,
 	}
 
 	/*
-	 * Reserve the bootmem bitmap.
+	 * Reserve the memblock reserved regions in bootmem.
 	 */
-	reserve_bootmem(boot_pfn << PAGE_SHIFT,
-			boot_pages << PAGE_SHIFT, BOOTMEM_DEFAULT);
-}
-
-static void __init bootmem_reserve_initrd(void)
-{
-#ifdef CONFIG_BLK_DEV_INITRD
-	int res;
-
-	res = reserve_bootmem(phys_initrd_start,
-			      phys_initrd_size, BOOTMEM_EXCLUSIVE);
-
-	if (res == 0) {
-		initrd_start = __phys_to_virt(phys_initrd_start);
-		initrd_end = initrd_start + phys_initrd_size;
-	} else {
-		printk(KERN_ERR
-			"INITRD: 0x%08lx+0x%08lx overlaps in-use "
-			"memory region - disabling initrd\n",
-			phys_initrd_start, phys_initrd_size);
+	for (i = 0; i < memblock.reserved.cnt; i++) {
+		phys_addr_t start = memblock_start_pfn(&memblock.reserved, i);
+		if (start >= start_pfn &&
+		    memblock_end_pfn(&memblock.reserved, i) <= end_pfn)
+			reserve_bootmem_node(pgdat, __pfn_to_phys(start),
+				memblock_size_bytes(&memblock.reserved, i),
+				BOOTMEM_DEFAULT);
 	}
-#endif
 }
 
 static void __init arm_bootmem_free(struct meminfo *mi)
@@ -358,16 +271,40 @@ static void arm_memory_present(struct meminfo *mi)
 }
 #endif
 
+void __init arm_memblock_init(struct meminfo *mi)
+{
+	int i;
+
+	memblock_init();
+	for (i = 0; i < mi->nr_banks; i++)
+		memblock_add(mi->bank[i].start, mi->bank[i].size);
+
+	/* Register the kernel text, kernel data and initrd with memblock. */
+#ifdef CONFIG_XIP_KERNEL
+	memblock_reserve(__pa(_data), _end - _data);
+#else
+	memblock_reserve(__pa(_stext), _end - _stext);
+#endif
+#ifdef CONFIG_BLK_DEV_INITRD
+	if (phys_initrd_size) {
+		memblock_reserve(phys_initrd_start, phys_initrd_size);
+
+		/* Now convert initrd to virtual addresses */
+		initrd_start = __phys_to_virt(phys_initrd_start);
+		initrd_end = initrd_start + phys_initrd_size;
+	}
+#endif
+
+	arm_mm_memblock_reserve();
+
+	memblock_analyze();
+	memblock_dump_all();
+}
+
 void __init bootmem_init(struct machine_desc *mdesc)
 {
 	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
-	int initrd;
-
-	/*
-	 * Locate the ramdisk image, if any.
-	 */
-	initrd = check_initrd(mi);
 
 	max_low = max_high = 0;
 
@@ -375,19 +312,8 @@ void __init bootmem_init(struct machine_desc *mdesc)
 
 	arm_bootmem_init(mi, min, max_low);
 
-	/*
-	 * Reserve any special regions.
-	 */
-	reserve_special_regions();
-
 	if (mdesc->reserve)
 		mdesc->reserve();
-
-	/*
-	 * If the initrd is present, reserve its memory.
-	 */
-	if (initrd == 0)
-		bootmem_reserve_initrd();
 
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),
