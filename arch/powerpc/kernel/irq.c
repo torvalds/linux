@@ -159,8 +159,17 @@ notrace void raw_local_irq_restore(unsigned long en)
 	 * use local_paca instead of get_paca() to avoid preemption checking.
 	 */
 	local_paca->hard_enabled = en;
+
+#ifndef CONFIG_BOOKE
+	/* On server, re-trigger the decrementer if it went negative since
+	 * some processors only trigger on edge transitions of the sign bit.
+	 *
+	 * BookE has a level sensitive decrementer (latches in TSR) so we
+	 * don't need that
+	 */
 	if ((int)mfspr(SPRN_DEC) < 0)
 		mtspr(SPRN_DEC, 1);
+#endif /* CONFIG_BOOKE */
 
 	/*
 	 * Force the delivery of pending soft-disabled interrupts on PS3.
