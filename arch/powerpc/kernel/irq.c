@@ -156,8 +156,8 @@ notrace void raw_local_irq_restore(unsigned long en)
 		return;
 
 #if defined(CONFIG_BOOKE) && defined(CONFIG_SMP)
-	/* Check for pending doorbell interrupts on SMP */
-	doorbell_exception(NULL);
+	/* Check for pending doorbell interrupts and resend to ourself */
+	doorbell_check_self();
 #endif
 
 	/*

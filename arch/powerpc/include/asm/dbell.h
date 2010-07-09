@@ -29,6 +29,7 @@ enum ppc_dbell {
 
 extern void doorbell_message_pass(int target, int msg);
 extern void doorbell_exception(struct pt_regs *regs);
+extern void doorbell_check_self(void);
 extern void doorbell_setup_this_cpu(void);
 
 static inline void ppc_msgsnd(enum ppc_dbell type, u32 flags, u32 tag)

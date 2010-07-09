@@ -81,6 +81,16 @@ out:
 	set_irq_regs(old_regs);
 }
 
+void doorbell_check_self(void)
+{
+	struct doorbell_cpu_info *info = &__get_cpu_var(doorbell_cpu_info);
+
+	if (!info->messages)
+		return;
+
+	ppc_msgsnd(PPC_DBELL, 0, info->tag);
+}
+
 #else /* CONFIG_SMP */
 void doorbell_exception(struct pt_regs *regs)
 {
