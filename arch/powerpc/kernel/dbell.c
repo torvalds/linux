@@ -16,6 +16,7 @@
 #include <linux/percpu.h>
 
 #include <asm/dbell.h>
+#include <asm/irq_regs.h>
 
 #ifdef CONFIG_SMP
 struct doorbell_cpu_info {
@@ -63,17 +64,21 @@ void doorbell_message_pass(int target, int msg)
 
 void doorbell_exception(struct pt_regs *regs)
 {
+	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct doorbell_cpu_info *info = &__get_cpu_var(doorbell_cpu_info);
 	int msg;
 
 	/* Warning: regs can be NULL when called from irq enable */
 
 	if (!info->messages || (num_online_cpus() < 2))
-		return;
+		goto out;
 
 	for (msg = 0; msg < 4; msg++)
 		if (test_and_clear_bit(msg, &info->messages))
 			smp_message_recv(msg);
+
+out:
+	set_irq_regs(old_regs);
 }
 
 #else /* CONFIG_SMP */
