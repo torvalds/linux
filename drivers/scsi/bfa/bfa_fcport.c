@@ -311,10 +311,12 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 
 		if (!bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
 
-			bfa_trc(fcport->bfa, pevent->link_state.fcf.fipenabled);
-			bfa_trc(fcport->bfa, pevent->link_state.fcf.fipfailed);
+			bfa_trc(fcport->bfa,
+				pevent->link_state.vc_fcf.fcf.fipenabled);
+			bfa_trc(fcport->bfa,
+				pevent->link_state.vc_fcf.fcf.fipfailed);
 
-			if (pevent->link_state.fcf.fipfailed)
+			if (pevent->link_state.vc_fcf.fcf.fipfailed)
 				bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
 					BFA_PL_EID_FIP_FCF_DISC, 0,
 					"FIP FCF Discovery Failed");
@@ -960,14 +962,15 @@ bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 	fcport->topology = pevent->link_state.topology;
 
 	if (fcport->topology == BFA_PPORT_TOPOLOGY_LOOP)
-		fcport->myalpa =
-			pevent->link_state.tl.loop_info.myalpa;
+		fcport->myalpa = 0;
 
 	/*
 	 * QoS Details
 	 */
 	bfa_os_assign(fcport->qos_attr, pevent->link_state.qos_attr);
-	bfa_os_assign(fcport->qos_vc_attr, pevent->link_state.qos_vc_attr);
+	bfa_os_assign(fcport->qos_vc_attr,
+		pevent->link_state.vc_fcf.qos_vc_attr);
+
 
 	bfa_trc(fcport->bfa, fcport->speed);
 	bfa_trc(fcport->bfa, fcport->topology);
