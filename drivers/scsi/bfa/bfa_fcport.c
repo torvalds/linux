@@ -18,6 +18,7 @@
 #include <bfa.h>
 #include <bfa_svc.h>
 #include <bfi/bfi_pport.h>
+#include <bfi/bfi_pbc.h>
 #include <cs/bfa_debug.h>
 #include <aen/bfa_aen.h>
 #include <cs/bfa_plog.h>
@@ -1380,6 +1381,14 @@ bfa_status_t
 bfa_fcport_enable(struct bfa_s *bfa)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	/* if port is PBC disabled, return error */
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED) {
+		bfa_trc(bfa, fcport->pwwn);
+		return BFA_STATUS_PBC;
+	}
 
 	if (fcport->diag_busy)
 		return BFA_STATUS_DIAG_BUSY;
@@ -1394,6 +1403,16 @@ bfa_fcport_enable(struct bfa_s *bfa)
 bfa_status_t
 bfa_fcport_disable(struct bfa_s *bfa)
 {
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
+
+	/* if port is PBC disabled, return error */
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED) {
+		bfa_trc(bfa, fcport->pwwn);
+		return BFA_STATUS_PBC;
+	}
+
 	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DISABLE);
 	return BFA_STATUS_OK;
 }
@@ -1584,6 +1603,8 @@ void
 bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	struct bfa_iocfc_s *iocfc = &bfa->iocfc;
+	struct bfi_iocfc_cfgrsp_s *cfgrsp = iocfc->cfgrsp;
 
 	bfa_os_memset(attr, 0, sizeof(struct bfa_pport_attr_s));
 
@@ -1618,11 +1639,18 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr)
 
 	attr->pport_cfg.path_tov = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth = bfa_fcpim_qdepth_get(bfa);
-	attr->port_state = bfa_sm_to_state(hal_pport_sm_table, fcport->sm);
-	if (bfa_ioc_is_disabled(&fcport->bfa->ioc))
-		attr->port_state = BFA_PPORT_ST_IOCDIS;
-	else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
-		attr->port_state = BFA_PPORT_ST_FWMISMATCH;
+
+	/* PBC Disabled State */
+	if (cfgrsp->pbc_cfg.port_enabled == BFI_PBC_PORT_DISABLED)
+		attr->port_state = BFA_PPORT_ST_PREBOOT_DISABLED;
+	else {
+		attr->port_state = bfa_sm_to_state(
+				hal_pport_sm_table, fcport->sm);
+		if (bfa_ioc_is_disabled(&fcport->bfa->ioc))
+			attr->port_state = BFA_PPORT_ST_IOCDIS;
+		else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
+			attr->port_state = BFA_PPORT_ST_FWMISMATCH;
+	}
 }
 
 #define BFA_FCPORT_STATS_TOV	1000
