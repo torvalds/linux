@@ -173,7 +173,7 @@ sctp_dnat_handler(struct sk_buff *skb,
 			return 0;
 
 		/* Call application helper if needed */
-		if (!ip_vs_app_pkt_out(cp, skb))
+		if (!ip_vs_app_pkt_in(cp, skb))
 			return 0;
 	}
 
