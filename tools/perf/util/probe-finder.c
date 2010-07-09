@@ -158,7 +158,7 @@ static bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
 {
 	const char *name;
 	name = dwarf_diename(dw_die);
-	return name ? strcmp(tname, name) : -1;
+	return name ? (strcmp(tname, name) == 0) : false;
 }
 
 /* Get type die, but skip qualifiers and typedef */
@@ -329,7 +329,7 @@ static int __die_find_variable_cb(Dwarf_Die *die_mem, void *data)
 	tag = dwarf_tag(die_mem);
 	if ((tag == DW_TAG_formal_parameter ||
 	     tag == DW_TAG_variable) &&
-	    (die_compare_name(die_mem, name) == 0))
+	    die_compare_name(die_mem, name))
 		return DIE_FIND_CB_FOUND;
 
 	return DIE_FIND_CB_CONTINUE;
@@ -348,7 +348,7 @@ static int __die_find_member_cb(Dwarf_Die *die_mem, void *data)
 	const char *name = data;
 
 	if ((dwarf_tag(die_mem) == DW_TAG_member) &&
-	    (die_compare_name(die_mem, name) == 0))
+	    die_compare_name(die_mem, name))
 		return DIE_FIND_CB_FOUND;
 
 	return DIE_FIND_CB_SIBLING;
@@ -506,8 +506,8 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 				return -ENOMEM;
 			}
 		}
-		if (die_compare_name(&type, "char") != 0 &&
-		    die_compare_name(&type, "unsigned char") != 0) {
+		if (!die_compare_name(&type, "char") &&
+		    !die_compare_name(&type, "unsigned char")) {
 			pr_warning("Failed to cast into string: "
 				   "%s is not (unsigned) char *.",
 				   dwarf_diename(vr_die));
@@ -1017,7 +1017,7 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 
 	/* Check tag and diename */
 	if (dwarf_tag(sp_die) != DW_TAG_subprogram ||
-	    die_compare_name(sp_die, pp->function) != 0)
+	    !die_compare_name(sp_die, pp->function))
 		return DWARF_CB_OK;
 
 	pf->fname = dwarf_decl_file(sp_die);
@@ -1340,7 +1340,7 @@ static int line_range_search_cb(Dwarf_Die *sp_die, void *data)
 	struct line_range *lr = lf->lr;
 
 	if (dwarf_tag(sp_die) == DW_TAG_subprogram &&
-	    die_compare_name(sp_die, lr->function) == 0) {
+	    die_compare_name(sp_die, lr->function)) {
 		lf->fname = dwarf_decl_file(sp_die);
 		dwarf_decl_line(sp_die, &lr->offset);
 		pr_debug("fname: %s, lineno:%d\n", lf->fname, lr->offset);
