@@ -554,7 +554,7 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 		im_port->shost->transportt =
 				bfad_im_scsi_vport_transport_template;
 
-	error = scsi_add_host(im_port->shost, dev);
+	error = scsi_add_host_with_dma(im_port->shost, dev, &bfad->pcidev->dev);
 	if (error) {
 		printk(KERN_WARNING "scsi_add_host failure %d\n", error);
 		goto out_fc_rel;
@@ -598,10 +598,12 @@ bfad_im_port_delete_handler(struct work_struct *work)
 {
 	struct bfad_im_port_s *im_port =
 		container_of(work, struct bfad_im_port_s, port_delete_work);
+	struct bfad_s *bfad = im_port->bfad;
 
 	if (im_port->port->pvb_type != BFAD_PORT_PHYS_BASE) {
 		im_port->flags |= BFAD_PORT_DELETE;
 		fc_vport_terminate(im_port->fc_vport);
+		atomic_dec(&bfad->wq_reqcnt);
 	}
 
 }
@@ -634,8 +636,11 @@ bfad_im_port_delete(struct bfad_s *bfad, struct bfad_port_s *port)
 {
 	struct bfad_im_port_s *im_port = port->im_port;
 
-	queue_work(bfad->im->drv_workq,
+	if (im_port->port->pvb_type != BFAD_PORT_PHYS_BASE) {
+		atomic_inc(&bfad->wq_reqcnt);
+		queue_work(bfad->im->drv_workq,
 				&im_port->port_delete_work);
+	}
 }
 
 void
@@ -696,6 +701,12 @@ void
 bfad_im_probe_undo(struct bfad_s *bfad)
 {
 	if (bfad->im) {
+		while (atomic_read(&bfad->wq_reqcnt)) {
+			printk(KERN_INFO "bfa %s: waiting workq processing,"
+				" wq_reqcnt:%x\n", bfad->pci_name,
+				atomic_read(&bfad->wq_reqcnt));
+			schedule_timeout_uninterruptible(HZ);
+		}
 		bfad_os_destroy_workq(bfad->im);
 		kfree(bfad->im);
 		bfad->im = NULL;

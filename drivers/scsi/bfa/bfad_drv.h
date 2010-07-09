@@ -185,6 +185,7 @@ struct bfad_s {
 	bfa_boolean_t	ipfc_enabled;
 	struct fc_host_statistics link_stats;
 	struct list_head pbc_pcfg_list;
+	atomic_t wq_reqcnt;
 };
 
 struct bfad_pcfg_s {

@@ -473,8 +473,11 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	rc = bfa_fcs_vport_delete(&vport->fcs_vport);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	if (rc == BFA_STATUS_PBC)
+	if (rc == BFA_STATUS_PBC) {
+		vport->drv_port.flags &= ~BFAD_PORT_DELETE;
+		vport->comp_del = NULL;
 		return -1;
+	}
 
 	wait_for_completion(vport->comp_del);
 
