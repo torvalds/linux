@@ -835,6 +835,27 @@ fail:
 	return 0;
 }
 
+void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
+		struct usb_device *udev)
+{
+	struct xhci_virt_device *virt_dev;
+	struct xhci_ep_ctx	*ep0_ctx;
+	struct xhci_ring	*ep_ring;
+
+	virt_dev = xhci->devs[udev->slot_id];
+	ep0_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, 0);
+	ep_ring = virt_dev->eps[0].ring;
+	/*
+	 * FIXME we don't keep track of the dequeue pointer very well after a
+	 * Set TR dequeue pointer, so we're setting the dequeue pointer of the
+	 * host to our enqueue pointer.  This should only be called after a
+	 * configured device has reset, so all control transfers should have
+	 * been completed or cancelled before the reset.
+	 */
+	ep0_ctx->deq = xhci_trb_virt_to_dma(ep_ring->enq_seg, ep_ring->enqueue);
+	ep0_ctx->deq |= ep_ring->cycle_state;
+}
+
 /* Setup an xHCI virtual device for a Set Address command */
 int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *udev)
 {
