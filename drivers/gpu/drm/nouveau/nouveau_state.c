@@ -471,12 +471,19 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_graph;
 	}
 
+	if (dev_priv->card_type >= NV_50)
+		ret = nv50_display_create(dev);
+	else
+		ret = nv04_display_create(dev);
+	if (ret)
+		goto out_fifo;
+
 	/* this call irq_preinstall, register irq handler and
 	 * call irq_postinstall
 	 */
 	ret = drm_irq_install(dev);
 	if (ret)
-		goto out_fifo;
+		goto out_display;
 
 	ret = drm_vblank_init(dev, 0);
 	if (ret)
@@ -490,13 +497,6 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_irq;
 	}
 
-	if (dev_priv->card_type >= NV_50)
-		ret = nv50_display_create(dev);
-	else
-		ret = nv04_display_create(dev);
-	if (ret)
-		goto out_channel;
-
 	ret = nouveau_backlight_init(dev);
 	if (ret)
 		NV_ERROR(dev, "Error %d registering backlight\n", ret);
@@ -505,13 +505,13 @@ nouveau_card_init(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	return 0;
 
-out_channel:
-	if (dev_priv->channel) {
-		nouveau_channel_free(dev_priv->channel);
-		dev_priv->channel = NULL;
-	}
 out_irq:
 	drm_irq_uninstall(dev);
+out_display:
+	if (dev_priv->card_type >= NV_50)
+		nv50_display_destroy(dev);
+	else
+		nv04_display_destroy(dev);
 out_fifo:
 	if (!nouveau_noaccel)
 		engine->fifo.takedown(dev);
