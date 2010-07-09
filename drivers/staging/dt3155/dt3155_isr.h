@@ -36,40 +36,48 @@ MA 02111-1307 USA
 #ifndef DT3155_ISR_H
 #define DT3155_ISR_H
 
-/* User functions for buffering */
-/* Initialize the buffering system.  This should */
-/* be called prior to enabling interrupts */
+/**********************************
+ * User functions for buffering
+ **********************************/
 
+/*
+ * Initialize the buffering system.
+ * This should be called prior to enabling interrupts
+ */
 u32 dt3155_setup_buffers(u32 *allocatorAddr);
 
-/* Get the next frame of data if it is ready.  Returns */
-/* zero if no data is ready.  If there is data but */
-/* the user has a locked buffer, it will unlock that */
-/* buffer and return it to the free list. */
+/*
+ * Get the next frame of data if it is ready.
+ * Returns zero if no data is ready.  If there is data but the user has a
+ * locked buffer, it will unlock that buffer and return it to the free list.
+ */
+int dt3155_get_ready_buffer(struct dt3155_fbuffer *fb);
 
-int dt3155_get_ready_buffer(int minor);
+/*
+ * Return a locked buffer to the free list.
+ */
+void dt3155_release_locked_buffer(struct dt3155_fbuffer *fb);
 
-/* Return a locked buffer to the free list */
-
-void dt3155_release_locked_buffer(int minor);
-
-/* Flush the buffer system */
-int dt3155_flush(int minor);
+/*
+ * Flush the buffer system.
+ */
+int dt3155_flush(struct dt3155_fbuffer *fb);
 
 /**********************************
  * Simple array based que struct
  **********************************/
 
-bool are_empty_buffers(int minor);
-void push_empty(int index, int minor);
+bool are_empty_buffers(struct dt3155_fbuffer *fb);
+void push_empty(struct dt3155_fbuffer *fb, int index);
 
-int  pop_empty(int minor);
+int pop_empty(struct dt3155_fbuffer *fb);
 
-bool is_ready_buf_empty(int minor);
-bool is_ready_buf_full(int minor);
+bool is_ready_buf_empty(struct dt3155_fbuffer *fb);
+bool is_ready_buf_full(struct dt3155_fbuffer *fb);
 
-void push_ready(int minor, int index);
-int  pop_ready(int minor);
+void push_ready(struct dt3155_fbuffer *fb, int index);
+int  pop_ready(struct dt3155_fbuffer *fb);
 
+void printques(struct dt3155_fbuffer *fb);
 
 #endif

@@ -55,8 +55,6 @@ MA 02111-1307 USA
 
 */
 
-extern void printques(int);
-
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
@@ -329,25 +327,25 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 	  local_irq_disable();
 
 #ifdef DEBUG_QUES_B
-	  printques(minor);
+	  printques(fb);
 #endif
 	  if (fb->nbuffers > 2)
 	    {
-	      if (!are_empty_buffers(minor))
+	      if (!are_empty_buffers(fb))
 		{
 		  /* The number of active + locked buffers is
 		   * at most 2, and since there are none empty, there
 		   * must be at least nbuffers-2 ready buffers.
 		   * This is where we 'drop frames', oldest first. */
-		  push_empty(pop_ready(minor),  minor);
+		  push_empty(fb, pop_ready(fb));
 		}
 
 	      /* The ready_que can't be full, since we know
 	       * there is one active buffer right now, so it's safe
 	       * to push the active buf on the ready_que. */
-	      push_ready(minor, fb->active_buf);
+	      push_ready(fb, fb->active_buf);
 	      /* There's at least 1 empty -- make it active */
-	      fb->active_buf = pop_empty(minor);
+	      fb->active_buf = pop_empty(fb);
 	      fb->frame_info[fb->active_buf].tag = ++unique_tag;
 	    }
 	  else /* nbuffers == 2, special case */
@@ -357,20 +355,20 @@ static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 	       */
 	      if (fb->locked_buf < 0)
 		{
-		  push_ready(minor, fb->active_buf);
-		  if (are_empty_buffers(minor))
+		  push_ready(fb, fb->active_buf);
+		  if (are_empty_buffers(fb))
 		    {
-		      fb->active_buf = pop_empty(minor);
+		      fb->active_buf = pop_empty(fb);
 		    }
 		  else
 		    { /* no empty or locked buffers, so use a readybuf */
-		      fb->active_buf = pop_ready(minor);
+		      fb->active_buf = pop_ready(fb);
 		    }
 		}
 	    }
 
 #ifdef DEBUG_QUES_B
-	  printques(minor);
+	  printques(fb);
 #endif
 
 	  fb->even_happened = 0;
@@ -559,7 +557,7 @@ static int dt3155_ioctl(struct inode *inode,
       {
 	if (dts->state != DT3155_STATE_IDLE)
 	  return -EBUSY;
-	return dt3155_flush(minor);
+	return dt3155_flush(fb);
       }
     case DT3155_STOP:
       {
@@ -669,6 +667,7 @@ static int dt3155_open(struct inode* inode, struct file* filep)
 {
   int minor = MINOR(inode->i_rdev); /* what device are we opening? */
   struct dt3155_status *dts = &dt3155_status[minor];
+  struct dt3155_fbuffer *fb = &dts->fbuffer;
 
   if (dt3155_dev_open[minor]) {
     printk ("DT3155:  Already opened by another process.\n");
@@ -692,7 +691,7 @@ static int dt3155_open(struct inode* inode, struct file* filep)
 
   dt3155_dev_open[minor] = 1 ;
 
-  dt3155_flush(minor);
+  dt3155_flush(fb);
 
   /* Disable ALL interrupts */
   writel(0, dt3155_lbase[minor] + INT_CSR);
@@ -767,9 +766,9 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
   /* non-blocking reads should return if no data */
   if (filep->f_flags & O_NDELAY)
     {
-      if ((frame_index = dt3155_get_ready_buffer(minor)) < 0) {
-	/*printk("dt3155:  no buffers available (?)\n");*/
-	/* 		printques(minor); */
+      if ((frame_index = dt3155_get_ready_buffer(fb)) < 0) {
+	/* printk("dt3155:  no buffers available (?)\n"); */
+	/* printques(fb); */
 	return -EAGAIN;
       }
     }
@@ -780,15 +779,14 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
        * Note that wait_event_interruptible() does not actually
        * sleep/wait if it's condition evaluates to true upon entry.
        */
-      wait_event_interruptible(dt3155_read_wait_queue[minor],
-			       (frame_index = dt3155_get_ready_buffer(minor))
-			       >= 0);
+      frame_index = dt3155_get_ready_buffer(fb);
+      wait_event_interruptible(dt3155_read_wait_queue[minor], frame_index >= 0);
 
       if (frame_index < 0)
 	{
 	  printk ("DT3155: read: interrupted\n");
 	  quick_stop (minor);
-	  printques(minor);
+	  printques(fb);
 	  return -EINTR;
 	}
     }
@@ -813,8 +811,10 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
 static unsigned int dt3155_poll (struct file * filp, poll_table *wait)
 {
   int minor = MINOR(filp->f_dentry->d_inode->i_rdev);
+  struct dt3155_status *dts = &dt3155_status[minor];
+  struct dt3155_fbuffer *fb = &dts->fbuffer;
 
-  if (!is_ready_buf_empty(minor))
+  if (!is_ready_buf_empty(fb))
     return POLLIN | POLLRDNORM;
 
   poll_wait (filp, &dt3155_read_wait_queue[minor], wait);

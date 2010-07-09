@@ -68,10 +68,8 @@ Purpose: Buffer management routines, and other routines for the ISR
 /***************************
  * are_empty_buffers
  ***************************/
-bool are_empty_buffers(int minor)
+bool are_empty_buffers(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	return fb->empty_len;
 }
 
@@ -84,10 +82,8 @@ bool are_empty_buffers(int minor)
  * given by fb->empty_buffers[0].
  * empty_buffers should never fill up, though this is not checked.
  **************************/
-void push_empty(int index, int minor)
+void push_empty(struct dt3155_fbuffer *fb, int index)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	fb->empty_buffers[fb->empty_len] = index;
 	fb->empty_len++;
 }
@@ -95,10 +91,8 @@ void push_empty(int index, int minor)
 /**************************
  * pop_empty
  **************************/
-int pop_empty(int minor)
+int pop_empty(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	fb->empty_len--;
 	return fb->empty_buffers[fb->empty_len];
 }
@@ -106,10 +100,8 @@ int pop_empty(int minor)
 /*************************
  * is_ready_buf_empty
  *************************/
-bool is_ready_buf_empty(int minor)
+bool is_ready_buf_empty(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	return fb->ready_len == 0;
 }
 
@@ -120,19 +112,16 @@ bool is_ready_buf_empty(int minor)
  * buffers, since it corresponds to nbuffers ready buffers!!
  * 7/31/02: total rewrite. --NJC
  *************************/
-bool is_ready_buf_full(int minor)
+bool is_ready_buf_full(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	return fb->ready_len == fb->nbuffers;
 }
 
 /*****************************************************
  * push_ready
  *****************************************************/
-void push_ready(int minor, int index)
+void push_ready(struct dt3155_fbuffer *fb, int index)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
 	int head = fb->ready_head;
 
 	fb->ready_que[head] = index;
@@ -145,10 +134,8 @@ void push_ready(int minor, int index)
  *
  * Simply comptutes the tail given the head and the length.
  *****************************************************/
-static int get_tail(int minor)
+static int get_tail(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	return (fb->ready_head - fb->ready_len + fb->nbuffers) % fb->nbuffers;
 }
 
@@ -158,10 +145,9 @@ static int get_tail(int minor)
  * This assumes that there is a ready buffer ready... should
  * be checked (e.g. with is_ready_buf_empty()  prior to call.
  *****************************************************/
-int pop_ready(int minor)
+int pop_ready(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-	int tail = get_tail(minor);
+	int tail = get_tail(fb);
 
 	fb->ready_len--;
 	return fb->ready_que[tail];
@@ -170,13 +156,12 @@ int pop_ready(int minor)
 /*****************************************************
  * printques
  *****************************************************/
-void printques(int minor)
+void printques(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
 	int i;
 
 	printk(KERN_INFO "\n R:");
-	for (i = get_tail(minor); i != fb->ready_head; i++, i %= fb->nbuffers)
+	for (i = get_tail(fb); i != fb->ready_head; i++, i %= fb->nbuffers)
 		printk(" %d ", fb->ready_que[i]);
 
 	printk(KERN_INFO "\n E:");
@@ -349,14 +334,14 @@ u32 dt3155_setup_buffers(u32 *allocatorAddr)
 		}
 
 		fb->frame_info[index].addr = rambuff_acm;
-		push_empty(index, minor);
+		push_empty(fb, index);
 		/* printk("  - Buffer : %lx\n", fb->frame_info[index].addr); */
 		fb->nbuffers += 1;
 		rambuff_acm += bufsize;
 	}
 
 	/* Make sure there is an active buffer there. */
-	fb->active_buf    = pop_empty(minor);
+	fb->active_buf    = pop_empty(fb);
 	fb->even_happened = 0;
 	fb->even_stopped  = 0;
 
@@ -382,12 +367,10 @@ u32 dt3155_setup_buffers(u32 *allocatorAddr)
  * The internal function for releasing a locked buffer.
  * It assumes interrupts are turned off.
  *****************************************************/
-static void internal_release_locked_buffer(int minor)
+static void internal_release_locked_buffer(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
-
 	if (fb->locked_buf >= 0) {
-		push_empty(fb->locked_buf, minor);
+		push_empty(fb, fb->locked_buf);
 		fb->locked_buf = -1;
 	}
 }
@@ -397,36 +380,35 @@ static void internal_release_locked_buffer(int minor)
  *
  * The user function of the above.
  *****************************************************/
-void dt3155_release_locked_buffer(int minor)
+void dt3155_release_locked_buffer(struct dt3155_fbuffer *fb)
 {
 	unsigned long int flags;
 
 	local_save_flags(flags);
 	local_irq_disable();
-	internal_release_locked_buffer(minor);
+	internal_release_locked_buffer(fb);
 	local_irq_restore(flags);
 }
 
 /*****************************************************
  * dt3155_flush
  *****************************************************/
-int dt3155_flush(int minor)
+int dt3155_flush(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
 	unsigned long int flags;
 	int index;
 
 	local_save_flags(flags);
 	local_irq_disable();
 
-	internal_release_locked_buffer(minor);
+	internal_release_locked_buffer(fb);
 	fb->empty_len = 0;
 
 	for (index = 0; index < fb->nbuffers; index++)
-		push_empty(index, minor);
+		push_empty(fb, index);
 
 	/* Make sure there is an active buffer there. */
-	fb->active_buf = pop_empty(minor);
+	fb->active_buf = pop_empty(fb);
 
 	fb->even_happened = 0;
 	fb->even_stopped  = 0;
@@ -448,9 +430,8 @@ int dt3155_flush(int minor)
  * If the user has a buffer locked it will unlock
  * that buffer before returning the new one.
  *****************************************************/
-int dt3155_get_ready_buffer(int minor)
+int dt3155_get_ready_buffer(struct dt3155_fbuffer *fb)
 {
-	struct dt3155_fbuffer *fb = &dt3155_status[minor].fbuffer;
 	unsigned long int flags;
 	int frame_index;
 
@@ -458,20 +439,20 @@ int dt3155_get_ready_buffer(int minor)
 	local_irq_disable();
 
 #ifdef DEBUG_QUES_A
-	printques(minor);
+	printques(fb);
 #endif
 
-	internal_release_locked_buffer(minor);
+	internal_release_locked_buffer(fb);
 
-	if (is_ready_buf_empty(minor)) {
+	if (is_ready_buf_empty(fb)) {
 		frame_index = -1;
 	} else {
-		frame_index = pop_ready(minor);
+		frame_index = pop_ready(fb);
 		fb->locked_buf = frame_index;
-    }
+	}
 
 #ifdef DEBUG_QUES_B
-	printques(minor);
+	printques(fb);
 #endif
 
 	local_irq_restore(flags);
