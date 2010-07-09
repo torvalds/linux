@@ -693,7 +693,7 @@ out_nolock:
 
 struct workqueue_struct *rds_ib_fmr_wq;
 
-int __init rds_ib_fmr_init(void)
+int rds_ib_fmr_init(void)
 {
 	rds_ib_fmr_wq = create_workqueue("rds_fmr_flushd");
 	if (!rds_ib_fmr_wq)
@@ -706,7 +706,7 @@ int __init rds_ib_fmr_init(void)
  * had their pools freed.  As each pool is freed its work struct is waited on,
  * so the pool flushing work queue should be idle by the time we get here.
  */
-void __exit rds_ib_fmr_exit(void)
+void rds_ib_fmr_exit(void)
 {
 	destroy_workqueue(rds_ib_fmr_wq);
 }

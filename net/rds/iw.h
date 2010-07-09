@@ -284,7 +284,7 @@ void rds_iw_conn_free(void *arg);
 int rds_iw_conn_connect(struct rds_connection *conn);
 void rds_iw_conn_shutdown(struct rds_connection *conn);
 void rds_iw_state_change(struct sock *sk);
-int __init rds_iw_listen_init(void);
+int rds_iw_listen_init(void);
 void rds_iw_listen_stop(void);
 void __rds_iw_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_iw_cm_handle_connect(struct rdma_cm_id *cm_id,
@@ -321,7 +321,7 @@ void rds_iw_flush_mrs(void);
 void rds_iw_remove_cm_id(struct rds_iw_device *rds_iwdev, struct rdma_cm_id *cm_id);
 
 /* ib_recv.c */
-int __init rds_iw_recv_init(void);
+int rds_iw_recv_init(void);
 void rds_iw_recv_exit(void);
 int rds_iw_recv(struct rds_connection *conn);
 int rds_iw_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
@@ -370,7 +370,7 @@ unsigned int rds_iw_stats_info_copy(struct rds_info_iterator *iter,
 				    unsigned int avail);
 
 /* ib_sysctl.c */
-int __init rds_iw_sysctl_init(void);
+int rds_iw_sysctl_init(void);
 void rds_iw_sysctl_exit(void);
 extern unsigned long rds_iw_sysctl_max_send_wr;
 extern unsigned long rds_iw_sysctl_max_recv_wr;

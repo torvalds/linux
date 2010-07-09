@@ -488,7 +488,7 @@ static void rds_conn_info(struct socket *sock, unsigned int len,
 				sizeof(struct rds_info_connection));
 }
 
-int __init rds_conn_init(void)
+int rds_conn_init(void)
 {
 	rds_conn_slab = kmem_cache_create("rds_connection",
 					  sizeof(struct rds_connection),

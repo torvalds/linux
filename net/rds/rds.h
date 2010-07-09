@@ -606,7 +606,7 @@ void rds_cong_exit(void);
 struct rds_message *rds_cong_update_alloc(struct rds_connection *conn);
 
 /* conn.c */
-int __init rds_conn_init(void);
+int rds_conn_init(void);
 void rds_conn_exit(void);
 struct rds_connection *rds_conn_create(__be32 laddr, __be32 faddr,
 				       struct rds_transport *trans, gfp_t gfp);
@@ -769,14 +769,14 @@ DECLARE_PER_CPU_SHARED_ALIGNED(struct rds_statistics, rds_stats);
 	put_cpu();					\
 } while (0)
 #define rds_stats_add(member, count) rds_stats_add_which(rds_stats, member, count)
-int __init rds_stats_init(void);
+int rds_stats_init(void);
 void rds_stats_exit(void);
 void rds_stats_info_copy(struct rds_info_iterator *iter,
 			 uint64_t *values, const char *const *names,
 			 size_t nr);
 
 /* sysctl.c */
-int __init rds_sysctl_init(void);
+int rds_sysctl_init(void);
 void rds_sysctl_exit(void);
 extern unsigned long rds_sysctl_sndbuf_min;
 extern unsigned long rds_sysctl_sndbuf_default;
@@ -790,7 +790,7 @@ extern unsigned long rds_sysctl_trace_flags;
 extern unsigned int  rds_sysctl_trace_level;
 
 /* threads.c */
-int __init rds_threads_init(void);
+int rds_threads_init(void);
 void rds_threads_exit(void);
 extern struct workqueue_struct *rds_wq;
 void rds_queue_reconnect(struct rds_connection *conn);
@@ -806,7 +806,7 @@ void rds_trans_unregister(struct rds_transport *trans);
 struct rds_transport *rds_trans_get_preferred(__be32 addr);
 unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 				       unsigned int avail);
-int __init rds_trans_init(void);
+int rds_trans_init(void);
 void rds_trans_exit(void);
 
 #endif

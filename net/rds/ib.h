@@ -282,7 +282,7 @@ void rds_ib_conn_free(void *arg);
 int rds_ib_conn_connect(struct rds_connection *conn);
 void rds_ib_conn_shutdown(struct rds_connection *conn);
 void rds_ib_state_change(struct sock *sk);
-int __init rds_ib_listen_init(void);
+int rds_ib_listen_init(void);
 void rds_ib_listen_stop(void);
 void __rds_ib_conn_error(struct rds_connection *conn, const char *, ...);
 int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
@@ -308,11 +308,11 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 void rds_ib_sync_mr(void *trans_private, int dir);
 void rds_ib_free_mr(void *trans_private, int invalidate);
 void rds_ib_flush_mrs(void);
-int __init rds_ib_fmr_init(void);
-void __exit rds_ib_fmr_exit(void);
+int rds_ib_fmr_init(void);
+void rds_ib_fmr_exit(void);
 
 /* ib_recv.c */
-int __init rds_ib_recv_init(void);
+int rds_ib_recv_init(void);
 void rds_ib_recv_exit(void);
 int rds_ib_recv(struct rds_connection *conn);
 int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
@@ -363,7 +363,7 @@ unsigned int rds_ib_stats_info_copy(struct rds_info_iterator *iter,
 				    unsigned int avail);
 
 /* ib_sysctl.c */
-int __init rds_ib_sysctl_init(void);
+int rds_ib_sysctl_init(void);
 void rds_ib_sysctl_exit(void);
 extern unsigned long rds_ib_sysctl_max_send_wr;
 extern unsigned long rds_ib_sysctl_max_recv_wr;

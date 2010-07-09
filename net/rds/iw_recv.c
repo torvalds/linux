@@ -887,7 +887,7 @@ int rds_iw_recv(struct rds_connection *conn)
 	return ret;
 }
 
-int __init rds_iw_recv_init(void)
+int rds_iw_recv_init(void)
 {
 	struct sysinfo si;
 	int ret = -ENOMEM;

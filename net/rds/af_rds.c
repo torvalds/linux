@@ -521,7 +521,7 @@ out:
 	spin_unlock_irqrestore(&rds_sock_lock, flags);
 }
 
-static void __exit rds_exit(void)
+static void rds_exit(void)
 {
 	sock_unregister(rds_family_ops.family);
 	proto_unregister(&rds_proto);
@@ -536,7 +536,7 @@ static void __exit rds_exit(void)
 }
 module_exit(rds_exit);
 
-static int __init rds_init(void)
+static int rds_init(void)
 {
 	int ret;
 

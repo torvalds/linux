@@ -342,7 +342,7 @@ out:
 	ready(sk, bytes);
 }
 
-int __init rds_tcp_recv_init(void)
+int rds_tcp_recv_init(void)
 {
 	rds_tcp_incoming_slab = kmem_cache_create("rds_tcp_incoming",
 					sizeof(struct rds_tcp_incoming),

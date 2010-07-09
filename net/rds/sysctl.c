@@ -105,7 +105,7 @@ void rds_sysctl_exit(void)
 		unregister_sysctl_table(rds_sysctl_reg_table);
 }
 
-int __init rds_sysctl_init(void)
+int rds_sysctl_init(void)
 {
 	rds_sysctl_reconnect_min = msecs_to_jiffies(1);
 	rds_sysctl_reconnect_min_jiffies = rds_sysctl_reconnect_min;

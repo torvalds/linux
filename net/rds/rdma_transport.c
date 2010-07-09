@@ -122,7 +122,7 @@ out:
 	return ret;
 }
 
-static int __init rds_rdma_listen_init(void)
+static int rds_rdma_listen_init(void)
 {
 	struct sockaddr_in sin;
 	struct rdma_cm_id *cm_id;
@@ -177,7 +177,7 @@ static void rds_rdma_listen_stop(void)
 	}
 }
 
-int __init rds_rdma_init(void)
+int rds_rdma_init(void)
 {
 	int ret;
 

@@ -119,7 +119,7 @@ void rds_ib_sysctl_exit(void)
 		unregister_sysctl_table(rds_ib_sysctl_hdr);
 }
 
-int __init rds_ib_sysctl_init(void)
+int rds_ib_sysctl_init(void)
 {
 	rds_ib_sysctl_hdr = register_sysctl_paths(rds_ib_sysctl_path, rds_ib_sysctl_table);
 	if (!rds_ib_sysctl_hdr)

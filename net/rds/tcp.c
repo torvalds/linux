@@ -274,7 +274,7 @@ struct rds_transport rds_tcp_transport = {
 	.t_prefer_loopback	= 1,
 };
 
-int __init rds_tcp_init(void)
+int rds_tcp_init(void)
 {
 	int ret;
 

@@ -135,7 +135,7 @@ out:
 	ready(sk, bytes);
 }
 
-int __init rds_tcp_listen_init(void)
+int rds_tcp_listen_init(void)
 {
 	struct sockaddr_in sin;
 	struct socket *sock = NULL;

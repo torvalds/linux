@@ -381,7 +381,7 @@ struct rds_transport rds_ib_transport = {
 	.t_type			= RDS_TRANS_IB
 };
 
-int __init rds_ib_init(void)
+int rds_ib_init(void)
 {
 	int ret;
 

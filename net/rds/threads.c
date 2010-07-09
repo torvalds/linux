@@ -212,7 +212,7 @@ void rds_threads_exit(void)
 	destroy_workqueue(rds_wq);
 }
 
-int __init rds_threads_init(void)
+int rds_threads_init(void)
 {
 	rds_wq = create_singlethread_workqueue("krdsd");
 	if (!rds_wq)

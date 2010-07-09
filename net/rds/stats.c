@@ -143,7 +143,7 @@ void rds_stats_exit(void)
 	rds_info_deregister_func(RDS_INFO_COUNTERS, rds_stats_info);
 }
 
-int __init rds_stats_init(void)
+int rds_stats_init(void)
 {
 	rds_info_register_func(RDS_INFO_COUNTERS, rds_stats_info);
 	return 0;

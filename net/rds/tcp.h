@@ -43,7 +43,7 @@ struct rds_tcp_statistics {
 };
 
 /* tcp.c */
-int __init rds_tcp_init(void);
+int rds_tcp_init(void);
 void rds_tcp_exit(void);
 void rds_tcp_tune(struct socket *sock);
 void rds_tcp_nonagle(struct socket *sock);
@@ -61,12 +61,12 @@ void rds_tcp_conn_shutdown(struct rds_connection *conn);
 void rds_tcp_state_change(struct sock *sk);
 
 /* tcp_listen.c */
-int __init rds_tcp_listen_init(void);
+int rds_tcp_listen_init(void);
 void rds_tcp_listen_stop(void);
 void rds_tcp_listen_data_ready(struct sock *sk, int bytes);
 
 /* tcp_recv.c */
-int __init rds_tcp_recv_init(void);
+int rds_tcp_recv_init(void);
 void rds_tcp_recv_exit(void);
 void rds_tcp_data_ready(struct sock *sk, int bytes);
 int rds_tcp_recv(struct rds_connection *conn);
