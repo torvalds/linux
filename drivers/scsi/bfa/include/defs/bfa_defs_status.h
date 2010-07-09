@@ -254,6 +254,9 @@ enum bfa_status {
 						* Teaming mode */
 	BFA_STATUS_PBC = 154, /* Operation not allowed for pre-boot
 			       * configuration */
+	BFA_STATUS_DEVID_MISSING = 155, /* Boot image is not for the adapter(s)
+					 * installed */
+        BFA_STATUS_BAD_FWCFG = 156, /* Bad firmware configuration */
 	BFA_STATUS_MAX_VAL		/*  Unknown error code */
 };
 #define bfa_status_t enum bfa_status

@@ -71,8 +71,6 @@ bfa_boolean_t   bfa_auto_recover = BFA_TRUE;
 /*
  * forward declarations
  */
-static void     bfa_ioc_aen_post(struct bfa_ioc_s *bfa,
-				 enum bfa_ioc_aen_event event);
 static void     bfa_ioc_hw_sem_get(struct bfa_ioc_s *ioc);
 static void     bfa_ioc_hw_sem_get_cancel(struct bfa_ioc_s *ioc);
 static void     bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force);
@@ -1902,7 +1900,7 @@ bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc)
 /**
  * Send AEN notification
  */
-static void
+void
 bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 {
 	union bfa_aen_data_u aen_data;
@@ -2052,7 +2050,7 @@ bfa_ioc_recover(struct bfa_ioc_s *ioc)
 
 #else
 
-static void
+void
 bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 {
 }
