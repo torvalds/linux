@@ -788,37 +788,6 @@ nv50_display_unk20_dp_hack(struct drm_device *dev, struct dcb_entry *dcb)
 	}
 }
 
-/* If programming a TMDS output on a SOR that can also be configured for
- * DisplayPort, make sure NV50_SOR_DP_CTRL_ENABLE is forced off.
- *
- * It looks like the VBIOS TMDS scripts make an attempt at this, however,
- * the VBIOS scripts on at least one board I have only switch it off on
- * link 0, causing a blank display if the output has previously been
- * programmed for DisplayPort.
- */
-static void
-nv50_display_unk20_dp_set_tmds(struct drm_device *dev, struct dcb_entry *dcb)
-{
-	int or = ffs(dcb->or) - 1, link = !(dcb->dpconf.sor.link & 1);
-	struct drm_encoder *encoder;
-	u32 tmp;
-
-	if (dcb->type != OUTPUT_TMDS)
-		return;
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (nv_encoder->dcb->type == OUTPUT_DP &&
-		    nv_encoder->dcb->or & (1 << or)) {
-			tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
-			tmp &= ~NV50_SOR_DP_CTRL_ENABLED;
-			nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp);
-			break;
-		}
-	}
-}
-
 static void
 nv50_display_unk20_handler(struct drm_device *dev)
 {
@@ -917,7 +886,6 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	nouveau_bios_run_display_table(dev, dcb, script, pclk);
 
 	nv50_display_unk20_dp_hack(dev, dcb);
-	nv50_display_unk20_dp_set_tmds(dev, dcb);
 
 	if (dcb->type != OUTPUT_ANALOG) {
 		tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_CLK_CTRL2(or));
@@ -938,6 +906,37 @@ ack:
 	nv_wr32(dev, 0x610030, 0x80000000);
 }
 
+/* If programming a TMDS output on a SOR that can also be configured for
+ * DisplayPort, make sure NV50_SOR_DP_CTRL_ENABLE is forced off.
+ *
+ * It looks like the VBIOS TMDS scripts make an attempt at this, however,
+ * the VBIOS scripts on at least one board I have only switch it off on
+ * link 0, causing a blank display if the output has previously been
+ * programmed for DisplayPort.
+ */
+static void
+nv50_display_unk40_dp_set_tmds(struct drm_device *dev, struct dcb_entry *dcb)
+{
+	int or = ffs(dcb->or) - 1, link = !(dcb->dpconf.sor.link & 1);
+	struct drm_encoder *encoder;
+	u32 tmp;
+
+	if (dcb->type != OUTPUT_TMDS)
+		return;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+		if (nv_encoder->dcb->type == OUTPUT_DP &&
+		    nv_encoder->dcb->or & (1 << or)) {
+			tmp  = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
+			tmp &= ~NV50_SOR_DP_CTRL_ENABLED;
+			nv_wr32(dev, NV50_SOR_DP_CTRL(or, link), tmp);
+			break;
+		}
+	}
+}
+
 static void
 nv50_display_unk40_handler(struct drm_device *dev)
 {
@@ -952,6 +951,8 @@ nv50_display_unk40_handler(struct drm_device *dev)
 		goto ack;
 
 	nouveau_bios_run_display_table(dev, dcb, script, -pclk);
+	nv50_display_unk40_dp_set_tmds(dev, dcb);
+
 ack:
 	nv_wr32(dev, NV50_PDISPLAY_INTR_1, NV50_PDISPLAY_INTR_1_CLK_UNK40);
 	nv_wr32(dev, 0x610030, 0x80000000);
