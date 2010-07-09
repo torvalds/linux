@@ -226,6 +226,7 @@ static int  option_resume(struct usb_serial *serial);
 #define AMOI_PRODUCT_H01			0x0800
 #define AMOI_PRODUCT_H01A			0x7002
 #define AMOI_PRODUCT_H02			0x0802
+#define AMOI_PRODUCT_SKYPEPHONE_S2		0x0407
 
 #define DELL_VENDOR_ID				0x413C
 
@@ -504,6 +505,7 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_H01) },
 	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_H01A) },
 	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_H02) },
+	{ USB_DEVICE(AMOI_VENDOR_ID, AMOI_PRODUCT_SKYPEPHONE_S2) },
 
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5700_MINICARD) },		/* Dell Wireless 5700 Mobile Broadband CDMA/EVDO Mini-Card == Novatel Expedite EV620 CDMA/EV-DO */
 	{ USB_DEVICE(DELL_VENDOR_ID, DELL_PRODUCT_5500_MINICARD) },		/* Dell Wireless 5500 Mobile Broadband HSDPA Mini-Card == Novatel Expedite EU740 HSDPA/3G */
