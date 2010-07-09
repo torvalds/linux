@@ -50,7 +50,7 @@ struct bfi_ioc_getattr_req_s {
 struct bfi_ioc_attr_s {
 	wwn_t           mfg_pwwn;       /* Mfg port wwn */
 	wwn_t           mfg_nwwn;       /* Mfg node wwn */
-	mac_t		mfg_mac;
+	mac_t		mfg_mac;	/* Mfg mac      */
 	u16		rsvd_a;
 	wwn_t           pwwn;
 	wwn_t           nwwn;

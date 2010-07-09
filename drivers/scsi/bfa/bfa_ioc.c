@@ -84,6 +84,7 @@ static void     bfa_ioc_reset(struct bfa_ioc_s *ioc, bfa_boolean_t force);
 static void     bfa_ioc_mbox_poll(struct bfa_ioc_s *ioc);
 static void     bfa_ioc_mbox_hbfail(struct bfa_ioc_s *ioc);
 static void     bfa_ioc_recover(struct bfa_ioc_s *ioc);
+static void	bfa_ioc_check_attr_wwns(struct bfa_ioc_s *ioc);
 static void     bfa_ioc_disable_comp(struct bfa_ioc_s *ioc);
 static void     bfa_ioc_lpu_stop(struct bfa_ioc_s *ioc);
 
@@ -429,6 +430,7 @@ bfa_ioc_sm_getattr(struct bfa_ioc_s *ioc, enum ioc_event event)
 	switch (event) {
 	case IOC_E_FWRSP_GETATTR:
 		bfa_ioc_timer_stop(ioc);
+		bfa_ioc_check_attr_wwns(ioc);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_op);
 		break;
 
@@ -977,8 +979,13 @@ bfa_ioc_hwinit(struct bfa_ioc_s *ioc, bfa_boolean_t force)
 	/**
 	 * If IOC function is disabled and firmware version is same,
 	 * just re-enable IOC.
+	 *
+	 * If option rom, IOC must not be in operational state. With
+	 * convergence, IOC will be in operational state when 2nd driver
+	 * is loaded.
 	 */
-	if (ioc_fwstate == BFI_IOC_DISABLED || ioc_fwstate == BFI_IOC_OP) {
+	if (ioc_fwstate == BFI_IOC_DISABLED ||
+		(!bfa_ioc_is_optrom(ioc) && ioc_fwstate == BFI_IOC_OP)) {
 		bfa_trc(ioc, ioc_fwstate);
 
 		/**
@@ -1281,6 +1288,7 @@ bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_param)
 		bfa_reg_write((rb + BFA_IOC1_STATE_REG), BFI_IOC_INITING);
 	}
 
+	bfa_ioc_msgflush(ioc);
 	bfa_ioc_download_fw(ioc, boot_type, boot_param);
 
 	/**
@@ -1788,28 +1796,17 @@ void
 bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
 {
 	struct bfi_ioc_attr_s   *ioc_attr;
-	u8              nports;
-	u8              max_speed;
 
 	bfa_assert(model);
 	bfa_os_memset((void *)model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
 
 	ioc_attr = ioc->attr;
 
-	nports = bfa_ioc_get_nports(ioc);
-	max_speed = bfa_ioc_speed_sup(ioc);
-
 	/**
 	 * model name
 	 */
-	if (max_speed == 10) {
-		strcpy(model, "BR-10?0");
-		model[5] = '0' + nports;
-	} else {
-		strcpy(model, "Brocade-??5");
-		model[8] = '0' + max_speed;
-		model[9] = '0' + nports;
-	}
+	snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
+			BFA_MFG_NAME, ioc_attr->card_type);
 }
 
 enum bfa_ioc_state
@@ -2048,19 +2045,16 @@ bfa_ioc_recover(struct bfa_ioc_s *ioc)
 	bfa_fsm_send_event(ioc, IOC_E_HBFAIL);
 }
 
-#else
-
-void
-bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
-{
-}
-
 static void
-bfa_ioc_recover(struct bfa_ioc_s *ioc)
+bfa_ioc_check_attr_wwns(struct bfa_ioc_s *ioc)
 {
-	bfa_assert(0);
+	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_LL)
+		return;
+
+	if (ioc->attr->nwwn == 0)
+		bfa_ioc_aen_post(ioc, BFA_IOC_AEN_INVALID_NWWN);
+	if (ioc->attr->pwwn == 0)
+		bfa_ioc_aen_post(ioc, BFA_IOC_AEN_INVALID_PWWN);
 }
 
 #endif
-
-

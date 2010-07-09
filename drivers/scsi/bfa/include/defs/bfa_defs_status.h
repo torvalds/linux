@@ -256,8 +256,20 @@ enum bfa_status {
 			       * configuration */
 	BFA_STATUS_DEVID_MISSING = 155, /* Boot image is not for the adapter(s)
 					 * installed */
-        BFA_STATUS_BAD_FWCFG = 156, /* Bad firmware configuration */
-	BFA_STATUS_MAX_VAL		/*  Unknown error code */
+	BFA_STATUS_BAD_FWCFG = 156, /* Bad firmware configuration */
+	BFA_STATUS_CREATE_FILE = 157, /* Failed to create temporary file */
+	BFA_STATUS_INVALID_VENDOR = 158, /* Invalid switch vendor */
+	BFA_STATUS_SFP_NOT_READY = 159, /* SFP info is not ready. Retry */
+	BFA_STATUS_NO_TOPOLOGY_FOR_CNA = 160, /* Topology command not
+					       * applicable to CNA */
+	BFA_STATUS_BOOT_CODE_UPDATED = 161, /* reboot -- -r is needed after
+					     * boot code updated */
+	BFA_STATUS_BOOT_VERSION = 162, /* Boot code version not compatible with
+					* the driver installed */
+	BFA_STATUS_CARDTYPE_MISSING = 163, /* Boot image is not for the
+					    * adapter(s) installed */
+	BFA_STATUS_INVALID_CARDTYPE = 164, /* Invalid card type provided */
+	BFA_STATUS_MAX_VAL              /* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
 
