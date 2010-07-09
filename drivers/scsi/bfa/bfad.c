@@ -1172,6 +1172,14 @@ static struct pci_device_id bfad_id_table[] = {
 	 .class = (PCI_CLASS_SERIAL_FIBER << 8),
 	 .class_mask = ~0,
 	 },
+	{
+	 .vendor = BFA_PCI_VENDOR_ID_BROCADE,
+	 .device = BFA_PCI_DEVICE_ID_CT_FC,
+	 .subvendor = PCI_ANY_ID,
+	 .subdevice = PCI_ANY_ID,
+	 .class = (PCI_CLASS_SERIAL_FIBER << 8),
+	 .class_mask = ~0,
+	},
 
 	{0, 0},
 };

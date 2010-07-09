@@ -151,8 +151,8 @@ bfad_setup_intr(struct bfad_s *bfad)
 	/* Set up the msix entry table */
 	bfad_init_msix_entry(bfad, msix_entries, mask, max_bit);
 
-	if ((pdev->device == BFA_PCI_DEVICE_ID_CT && !msix_disable_ct) ||
-	    (pdev->device != BFA_PCI_DEVICE_ID_CT && !msix_disable_cb)) {
+	if ((bfa_asic_id_ct(pdev->device) && !msix_disable_ct) ||
+		(!bfa_asic_id_ct(pdev->device) && !msix_disable_cb)) {
 
 		error = pci_enable_msix(bfad->pcidev, msix_entries, bfad->nvec);
 		if (error) {

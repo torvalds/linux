@@ -170,7 +170,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	/**
 	 * Initialize chip specific handlers.
 	 */
-	if (bfa_ioc_devid(&bfa->ioc) == BFA_PCI_DEVICE_ID_CT) {
+	if (bfa_asic_id_ct(bfa_ioc_devid(&bfa->ioc))) {
 		iocfc->hwif.hw_reginit = bfa_hwct_reginit;
 		iocfc->hwif.hw_reqq_ack = bfa_hwct_reqq_ack;
 		iocfc->hwif.hw_rspq_ack = bfa_hwct_rspq_ack;
@@ -625,9 +625,9 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		bfa->trcmod, bfa->aen, bfa->logm);
 
 	/**
-	 * Choose FC (ssid: 0x1C) v/s FCoE (ssid: 0x14) mode.
+	 * Set FC mode for BFA_PCI_DEVICE_ID_CT_FC.
 	 */
-	if (0)
+	if (pcidev->device_id == BFA_PCI_DEVICE_ID_CT_FC)
 		bfa_ioc_set_fcmode(&bfa->ioc);
 
 	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_MC_IOCFC);

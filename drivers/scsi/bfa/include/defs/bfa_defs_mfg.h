@@ -86,6 +86,9 @@ enum {
 	BFA_MFG_TYPE_FC4P1   = 415,      /*  4G 1port FC card		*/
 	BFA_MFG_TYPE_CNA10P2 = 1020,     /*  10G 2port CNA card	*/
 	BFA_MFG_TYPE_CNA10P1 = 1010,     /*  10G 1port CNA card	*/
+	BFA_MFG_TYPE_JAYHAWK = 804,      /*  Jayhawk mezz card */
+	BFA_MFG_TYPE_WANCHESE = 1007,    /*  Wanchese mezz card */
+	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type */
 };
 
 #pragma pack(1)

@@ -59,14 +59,12 @@ BFA_TRC_FILE(CNA, IOC);
 			((__ioc)->ioc_hwif->ioc_firmware_lock(__ioc))
 #define bfa_ioc_firmware_unlock(__ioc)                  \
 			((__ioc)->ioc_hwif->ioc_firmware_unlock(__ioc))
-#define bfa_ioc_fwimg_get_chunk(__ioc, __off)           \
-			((__ioc)->ioc_hwif->ioc_fwimg_get_chunk(__ioc, __off))
-#define bfa_ioc_fwimg_get_size(__ioc)                   \
-			((__ioc)->ioc_hwif->ioc_fwimg_get_size(__ioc))
 #define bfa_ioc_reg_init(__ioc) ((__ioc)->ioc_hwif->ioc_reg_init(__ioc))
 #define bfa_ioc_map_port(__ioc) ((__ioc)->ioc_hwif->ioc_map_port(__ioc))
 #define bfa_ioc_notify_hbfail(__ioc)                    \
 			((__ioc)->ioc_hwif->ioc_notify_hbfail(__ioc))
+#define bfa_ioc_is_optrom(__ioc)        \
+	(bfi_image_get_size(BFA_IOC_FWIMG_TYPE(__ioc)) < BFA_IOC_FWIMG_MINSZ)
 
 bfa_boolean_t   bfa_auto_recover = BFA_TRUE;
 
@@ -879,8 +877,8 @@ bfa_ioc_fwver_cmp(struct bfa_ioc_s *ioc, struct bfi_ioc_image_hdr_s *fwhdr)
 	struct bfi_ioc_image_hdr_s *drv_fwhdr;
 	int             i;
 
-	drv_fwhdr =
-		(struct bfi_ioc_image_hdr_s *)bfa_ioc_fwimg_get_chunk(ioc, 0);
+	drv_fwhdr = (struct bfi_ioc_image_hdr_s *)
+			bfi_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), 0);
 
 	for (i = 0; i < BFI_IOC_MD5SUM_SZ; i++) {
 		if (fwhdr->md5sum[i] != drv_fwhdr->md5sum[i]) {
@@ -907,12 +905,13 @@ bfa_ioc_fwver_valid(struct bfa_ioc_s *ioc)
 	/**
 	 * If bios/efi boot (flash based) -- return true
 	 */
-	if (bfa_ioc_fwimg_get_size(ioc) < BFA_IOC_FWIMG_MINSZ)
+	if (bfa_ioc_is_optrom(ioc))
 		return BFA_TRUE;
 
 	bfa_ioc_fwver_get(ioc, &fwhdr);
-	drv_fwhdr =
-		(struct bfi_ioc_image_hdr_s *)bfa_ioc_fwimg_get_chunk(ioc, 0);
+	drv_fwhdr = (struct bfi_ioc_image_hdr_s *)
+			bfi_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), 0);
+
 
 	if (fwhdr.signature != drv_fwhdr->signature) {
 		bfa_trc(ioc, fwhdr.signature);
@@ -1125,21 +1124,22 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	/**
 	 * Flash based firmware boot
 	 */
-	bfa_trc(ioc, bfa_ioc_fwimg_get_size(ioc));
-	if (bfa_ioc_fwimg_get_size(ioc) < BFA_IOC_FWIMG_MINSZ)
+	bfa_trc(ioc, bfi_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)));
+	if (bfa_ioc_is_optrom(ioc))
 		boot_type = BFI_BOOT_TYPE_FLASH;
-	fwimg = bfa_ioc_fwimg_get_chunk(ioc, chunkno);
+	fwimg = bfi_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc), chunkno);
+
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
 	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
 
 	bfa_reg_write(ioc->ioc_regs.host_page_num_fn, pgnum);
 
-	for (i = 0; i < bfa_ioc_fwimg_get_size(ioc); i++) {
+	for (i = 0; i < bfi_image_get_size(BFA_IOC_FWIMG_TYPE(ioc)); i++) {
 
 		if (BFA_IOC_FLASH_CHUNK_NO(i) != chunkno) {
 			chunkno = BFA_IOC_FLASH_CHUNK_NO(i);
-			fwimg = bfa_ioc_fwimg_get_chunk(ioc,
+			fwimg = bfi_image_get_chunk(BFA_IOC_FWIMG_TYPE(ioc),
 					BFA_IOC_FLASH_CHUNK_ADDR(chunkno));
 		}
 
@@ -1188,6 +1188,7 @@ bfa_ioc_getattr_reply(struct bfa_ioc_s *ioc)
 	struct bfi_ioc_attr_s *attr = ioc->attr;
 
 	attr->adapter_prop = bfa_os_ntohl(attr->adapter_prop);
+	attr->card_type     = bfa_os_ntohl(attr->card_type);
 	attr->maxfrsize = bfa_os_ntohs(attr->maxfrsize);
 
 	bfa_fsm_send_event(ioc, IOC_E_FWRSP_GETATTR);
@@ -1416,7 +1417,7 @@ bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 {
 	ioc->ioc_mc = mc;
 	ioc->pcidev = *pcidev;
-	ioc->ctdev = (ioc->pcidev.device_id == BFA_PCI_DEVICE_ID_CT);
+	ioc->ctdev  = bfa_asic_id_ct(ioc->pcidev.device_id);
 	ioc->cna = ioc->ctdev && !ioc->fcmode;
 
 	/**
@@ -1916,7 +1917,7 @@ bfa_ioc_set_fcmode(struct bfa_ioc_s *ioc)
 bfa_boolean_t
 bfa_ioc_get_fcmode(struct bfa_ioc_s *ioc)
 {
-	return ioc->fcmode || (ioc->pcidev.device_id != BFA_PCI_DEVICE_ID_CT);
+	return ioc->fcmode || !bfa_asic_id_ct(ioc->pcidev.device_id);
 }
 
 /**

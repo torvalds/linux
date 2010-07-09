@@ -63,6 +63,7 @@ struct bfi_ioc_attr_s {
 	char            fw_version[BFA_VERSION_LEN];
 	char            optrom_version[BFA_VERSION_LEN];
 	struct bfa_mfg_vpd_s	vpd;
+	uint32_t        card_type;	/* card type */
 };
 
 /**
