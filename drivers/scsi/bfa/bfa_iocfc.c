@@ -113,7 +113,6 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 	bfa_assert(cfg->fwcfg.num_cqs <= BFI_IOC_MAX_CQS);
 	bfa_trc(bfa, cfg->fwcfg.num_cqs);
 
-	iocfc->cfgdone = BFA_FALSE;
 	bfa_iocfc_reset_queues(bfa);
 
 	/**
@@ -143,6 +142,15 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 		cfg_info->rsp_cq_elems[i] =
 			bfa_os_htons(cfg->drvcfg.num_rspq_elems);
 	}
+
+	/**
+	 * Enable interrupt coalescing if it is driver init path
+	 * and not ioc disable/enable path.
+	 */
+	if (!iocfc->cfgdone)
+		cfg_info->intr_attr.coalesce = BFA_TRUE;
+
+	iocfc->cfgdone = BFA_FALSE;
 
 	/**
 	 * dma map IOC configuration itself
@@ -364,7 +372,6 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	struct bfa_iocfc_s		*iocfc	 = &bfa->iocfc;
 	struct bfi_iocfc_cfgrsp_s	*cfgrsp  = iocfc->cfgrsp;
 	struct bfa_iocfc_fwcfg_s	*fwcfg   = &cfgrsp->fwcfg;
-	struct bfi_iocfc_cfg_s 		*cfginfo = iocfc->cfginfo;
 
 	fwcfg->num_cqs        = fwcfg->num_cqs;
 	fwcfg->num_ioim_reqs  = bfa_os_ntohs(fwcfg->num_ioim_reqs);
@@ -372,10 +379,6 @@ bfa_iocfc_cfgrsp(struct bfa_s *bfa)
 	fwcfg->num_fcxp_reqs  = bfa_os_ntohs(fwcfg->num_fcxp_reqs);
 	fwcfg->num_uf_bufs    = bfa_os_ntohs(fwcfg->num_uf_bufs);
 	fwcfg->num_rports     = bfa_os_ntohs(fwcfg->num_rports);
-
-	cfginfo->intr_attr.coalesce = cfgrsp->intr_attr.coalesce;
-	cfginfo->intr_attr.delay    = bfa_os_ntohs(cfgrsp->intr_attr.delay);
-	cfginfo->intr_attr.latency  = bfa_os_ntohs(cfgrsp->intr_attr.latency);
 
 	iocfc->cfgdone = BFA_TRUE;
 
@@ -737,10 +740,20 @@ bfa_adapter_get_id(struct bfa_s *bfa)
 void
 bfa_iocfc_get_attr(struct bfa_s *bfa, struct bfa_iocfc_attr_s *attr)
 {
-	struct bfa_iocfc_s	*iocfc = &bfa->iocfc;
+	struct bfa_iocfc_s      *iocfc = &bfa->iocfc;
 
-	attr->intr_attr = iocfc->cfginfo->intr_attr;
-	attr->config	= iocfc->cfg;
+	attr->intr_attr.coalesce = iocfc->cfginfo->intr_attr.coalesce;
+
+	attr->intr_attr.delay = iocfc->cfginfo->intr_attr.delay ?
+			bfa_os_ntohs(iocfc->cfginfo->intr_attr.delay) :
+			bfa_os_ntohs(iocfc->cfgrsp->intr_attr.delay);
+
+	attr->intr_attr.latency = iocfc->cfginfo->intr_attr.latency ?
+			bfa_os_ntohs(iocfc->cfginfo->intr_attr.latency) :
+			bfa_os_ntohs(iocfc->cfgrsp->intr_attr.latency);
+
+	attr->config    = iocfc->cfg;
+
 }
 
 bfa_status_t
@@ -749,7 +762,10 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 	struct bfa_iocfc_s		*iocfc = &bfa->iocfc;
 	struct bfi_iocfc_set_intr_req_s *m;
 
-	iocfc->cfginfo->intr_attr = *attr;
+	iocfc->cfginfo->intr_attr.coalesce = attr->coalesce;
+	iocfc->cfginfo->intr_attr.delay = bfa_os_htons(attr->delay);
+	iocfc->cfginfo->intr_attr.latency = bfa_os_htons(attr->latency);
+
 	if (!bfa_iocfc_is_operational(bfa))
 		return BFA_STATUS_OK;
 
@@ -759,9 +775,10 @@ bfa_iocfc_israttr_set(struct bfa_s *bfa, struct bfa_iocfc_intr_attr_s *attr)
 
 	bfi_h2i_set(m->mh, BFI_MC_IOCFC, BFI_IOCFC_H2I_SET_INTR_REQ,
 			bfa_lpuid(bfa));
-	m->coalesce = attr->coalesce;
-	m->delay    = bfa_os_htons(attr->delay);
-	m->latency  = bfa_os_htons(attr->latency);
+	m->coalesce = iocfc->cfginfo->intr_attr.coalesce;
+	m->delay    = iocfc->cfginfo->intr_attr.delay;
+	m->latency  = iocfc->cfginfo->intr_attr.latency;
+
 
 	bfa_trc(bfa, attr->delay);
 	bfa_trc(bfa, attr->latency);
