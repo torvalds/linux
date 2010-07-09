@@ -567,6 +567,7 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 
 out_fc_rel:
 	scsi_host_put(im_port->shost);
+	im_port->shost = NULL;
 out_free_idr:
 	mutex_lock(&bfad_mutex);
 	idr_remove(&bfad_im_port_index, im_port->idr_id);

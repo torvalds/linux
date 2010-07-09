@@ -40,7 +40,8 @@ struct bfad_vport_s;
  *
  * @return None
  */
-void            bfa_fcb_vport_delete(struct bfad_vport_s *vport_drv);
+void bfa_fcb_vport_delete(struct bfad_vport_s *vport_drv);
+void bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s);
 
 
 

@@ -21,6 +21,7 @@
 #include <bfa_ioc.h>
 #include <bfa.h>
 #include <bfi/bfi_iocfc.h>
+#include <bfi/bfi_pbc.h>
 #include <bfa_callback_priv.h>
 
 #define BFA_REQQ_NELEMS_MIN	(4)
@@ -169,6 +170,8 @@ void bfa_com_attach(struct bfa_s *bfa, struct bfa_meminfo_s *mi,
 void bfa_iocfc_get_bootwwns(struct bfa_s *bfa, u8 *nwwns, wwn_t **wwns);
 void bfa_iocfc_get_pbc_boot_cfg(struct bfa_s *bfa,
 		struct bfa_boot_pbc_s *pbcfg);
+int bfa_iocfc_get_pbc_vports(struct bfa_s *bfa,
+		struct bfi_pbc_vport_s *pbc_vport);
 
 #endif /* __BFA_IOCFC_H__ */
 

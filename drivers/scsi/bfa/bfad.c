@@ -322,7 +322,31 @@ ext:
 	return rc;
 }
 
+/**
+ * @brief
+ * FCS PBC VPORT Create
+ */
+void
+bfa_fcb_pbc_vport_create(struct bfad_s *bfad, struct bfi_pbc_vport_s pbc_vport)
+{
 
+	struct bfad_pcfg_s *pcfg;
+
+	pcfg = kzalloc(sizeof(struct bfad_pcfg_s), GFP_ATOMIC);
+	if (!pcfg) {
+		bfa_trc(bfad, 0);
+		return;
+	}
+
+	pcfg->port_cfg.roles = BFA_PORT_ROLE_FCP_IM;
+	pcfg->port_cfg.pwwn = pbc_vport.vp_pwwn;
+	pcfg->port_cfg.nwwn = pbc_vport.vp_nwwn;
+	pcfg->port_cfg.preboot_vp  = BFA_TRUE;
+
+	list_add_tail(&pcfg->list_entry, &bfad->pbc_pcfg_list);
+
+	return;
+}
 
 void
 bfad_hal_mem_release(struct bfad_s *bfad)
@@ -481,10 +505,10 @@ ext:
  */
 bfa_status_t
 bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-		  struct bfa_port_cfg_s *port_cfg, struct device *dev)
+			struct bfa_port_cfg_s *port_cfg, struct device *dev)
 {
 	struct bfad_vport_s *vport;
-	int             rc = BFA_STATUS_OK;
+	int rc = BFA_STATUS_OK;
 	unsigned long   flags;
 	struct completion fcomp;
 
@@ -496,8 +520,12 @@ bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 
 	vport->drv_port.bfad = bfad;
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_fcs_vport_create(&vport->fcs_vport, &bfad->bfa_fcs, vf_id,
-				  port_cfg, vport);
+	if (port_cfg->preboot_vp == BFA_TRUE)
+		rc = bfa_fcs_pbc_vport_create(&vport->fcs_vport,
+				&bfad->bfa_fcs, vf_id, port_cfg, vport);
+	else
+		rc = bfa_fcs_vport_create(&vport->fcs_vport,
+				&bfad->bfa_fcs, vf_id, port_cfg, vport);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	if (rc != BFA_STATUS_OK)
@@ -884,6 +912,7 @@ bfa_status_t
 bfad_start_ops(struct bfad_s *bfad)
 {
 	int retval;
+	struct bfad_pcfg_s *pcfg, *pcfg_new;
 
 	/* PPORT FCS config */
 	bfad_fcs_port_cfg(bfad);
@@ -900,6 +929,27 @@ bfad_start_ops(struct bfad_s *bfad)
 	}
 
 	bfad_drv_start(bfad);
+
+	/* pbc vport creation */
+	list_for_each_entry_safe(pcfg, pcfg_new,  &bfad->pbc_pcfg_list,
+					list_entry) {
+		struct fc_vport_identifiers vid;
+		struct fc_vport *fc_vport;
+
+		memset(&vid, 0, sizeof(vid));
+		vid.roles = FC_PORT_ROLE_FCP_INITIATOR;
+		vid.vport_type = FC_PORTTYPE_NPIV;
+		vid.disable = false;
+		vid.node_name = wwn_to_u64((u8 *)&pcfg->port_cfg.nwwn);
+		vid.port_name = wwn_to_u64((u8 *)&pcfg->port_cfg.pwwn);
+		fc_vport = fc_vport_create(bfad->pport.im_port->shost, 0, &vid);
+		if (!fc_vport)
+			printk(KERN_WARNING "bfad%d: failed to create pbc vport"
+				" %llx\n", bfad->inst_no, vid.port_name);
+		list_del(&pcfg->list_entry);
+		kfree(pcfg);
+
+	}
 
 	/*
 	 * If bfa_linkup_delay is set to -1 default; try to retrive the
@@ -928,7 +978,7 @@ out_cfg_pport_failure:
 }
 
 int
-bfad_worker (void *ptr)
+bfad_worker(void *ptr)
 {
 	struct bfad_s *bfad;
 	unsigned long   flags;
@@ -1031,6 +1081,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	bfad->ref_count = 0;
 	bfad->pport.bfad = bfad;
+	INIT_LIST_HEAD(&bfad->pbc_pcfg_list);
 
 	bfad->bfad_tsk = kthread_create(bfad_worker, (void *) bfad, "%s",
 					"bfad_worker");

@@ -213,7 +213,8 @@ enum bfa_status {
 					     * loaded */
 	BFA_STATUS_CARD_TYPE_MISMATCH = 131, /*  Card type mismatch */
 	BFA_STATUS_BAD_ASICBLK = 132, /*  Bad ASIC block */
-	BFA_STATUS_NO_DRIVER = 133, /*  Brocade adapter/driver not installed or loaded */
+	BFA_STATUS_NO_DRIVER = 133, /*  Brocade adapter/driver not installed
+				     *  or loaded */
 	BFA_STATUS_INVALID_MAC = 134, /*  Invalid mac address */
 	BFA_STATUS_IM_NO_VLAN = 135, /*  No VLANs configured on the adapter */
 	BFA_STATUS_IM_ETH_LB_FAILED = 136, /*  Ethernet loopback test failed */
@@ -249,6 +250,8 @@ enum bfa_status {
 	BFA_STATUS_IM_TEAM_CFG_NOT_ALLOWED = 153, /*  Given settings are not
 						* allowed for the current
 						* Teaming mode */
+	BFA_STATUS_PBC = 154, /* Operation not allowed for pre-boot
+			       * configuration */
 	BFA_STATUS_MAX_VAL		/*  Unknown error code */
 };
 #define bfa_status_t enum bfa_status

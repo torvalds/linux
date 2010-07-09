@@ -120,6 +120,8 @@ struct bfad_vport_s {
 	struct bfad_port_s     drv_port;
 	struct bfa_fcs_vport_s fcs_vport;
 	struct completion *comp_del;
+	struct list_head list_entry;
+	struct bfa_port_cfg_s port_cfg;
 };
 
 /*
@@ -195,6 +197,12 @@ struct bfad_s {
 	bfa_boolean_t	ipfc_enabled;
 	union bfad_tmp_buf tmp_buf;
 	struct fc_host_statistics link_stats;
+	struct list_head pbc_pcfg_list;
+};
+
+struct bfad_pcfg_s {
+	struct list_head list_entry;
+	struct bfa_port_cfg_s port_cfg;
 };
 
 /*

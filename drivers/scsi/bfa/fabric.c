@@ -789,7 +789,7 @@ bfa_fcs_fabric_delete(struct bfa_fcs_fabric_s *fabric)
 
 	list_for_each_safe(qe, qen, &fabric->vport_q) {
 		vport = (struct bfa_fcs_vport_s *)qe;
-		bfa_fcs_vport_delete(vport);
+		bfa_fcs_vport_fcs_delete(vport);
 	}
 
 	bfa_fcs_port_delete(&fabric->bport);
