@@ -5274,10 +5274,10 @@ void netdev_run_todo(void)
 /**
  *	dev_txq_stats_fold - fold tx_queues stats
  *	@dev: device to get statistics from
- *	@stats: struct net_device_stats to hold results
+ *	@stats: struct rtnl_link_stats64 to hold results
  */
 void dev_txq_stats_fold(const struct net_device *dev,
-			struct net_device_stats *stats)
+			struct rtnl_link_stats64 *stats)
 {
 	unsigned long tx_bytes = 0, tx_packets = 0, tx_dropped = 0;
 	unsigned int i;
@@ -5296,6 +5296,27 @@ void dev_txq_stats_fold(const struct net_device *dev,
 	}
 }
 EXPORT_SYMBOL(dev_txq_stats_fold);
+
+/* Convert net_device_stats to rtnl_link_stats64.  They have the same
+ * fields in the same order, with only the type differing.
+ */
+static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
+				    const struct net_device_stats *netdev_stats)
+{
+#if BITS_PER_LONG == 64
+        BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
+        memcpy(stats64, netdev_stats, sizeof(*stats64));
+#else
+	size_t i, n = sizeof(*stats64) / sizeof(u64);
+	const unsigned long *src = (const unsigned long *)netdev_stats;
+	u64 *dst = (u64 *)stats64;
+
+	BUILD_BUG_ON(sizeof(*netdev_stats) / sizeof(unsigned long) !=
+		     sizeof(*stats64) / sizeof(u64));
+	for (i = 0; i < n; i++)
+		dst[i] = src[i];
+#endif
+}
 
 /**
  *	dev_get_stats	- get network device statistics
@@ -5317,11 +5338,11 @@ const struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 		return ops->ndo_get_stats64(dev, storage);
 	}
 	if (ops->ndo_get_stats) {
-		memcpy(storage, ops->ndo_get_stats(dev), sizeof(*storage));
+		netdev_stats_to_stats64(storage, ops->ndo_get_stats(dev));
 		return storage;
 	}
-	memcpy(storage, &dev->stats, sizeof(*storage));
-	dev_txq_stats_fold(dev, (struct net_device_stats *)storage);
+	netdev_stats_to_stats64(storage, &dev->stats);
+	dev_txq_stats_fold(dev, storage);
 	return storage;
 }
 EXPORT_SYMBOL(dev_get_stats);

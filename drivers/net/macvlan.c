@@ -436,7 +436,7 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 
-	dev_txq_stats_fold(dev, (struct net_device_stats *)stats);
+	dev_txq_stats_fold(dev, stats);
 
 	if (vlan->rx_stats) {
 		struct macvlan_rx_stats *p, accum = {0};

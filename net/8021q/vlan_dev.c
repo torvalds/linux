@@ -805,7 +805,7 @@ static u32 vlan_ethtool_get_flags(struct net_device *dev)
 
 static struct rtnl_link_stats64 *vlan_dev_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	dev_txq_stats_fold(dev, (struct net_device_stats *)stats);
+	dev_txq_stats_fold(dev, stats);
 
 	if (vlan_dev_info(dev)->vlan_rx_stats) {
 		struct vlan_rx_stats *p, accum = {0};

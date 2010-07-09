@@ -162,42 +162,32 @@ static inline bool dev_xmit_complete(int rc)
 /*
  *	Old network device statistics. Fields are native words
  *	(unsigned long) so they can be read and written atomically.
- *	Each field is padded to 64 bits for compatibility with
- *	rtnl_link_stats64.
  */
 
-#if BITS_PER_LONG == 64
-#define NET_DEVICE_STATS_DEFINE(name)	unsigned long name
-#elif defined(__LITTLE_ENDIAN)
-#define NET_DEVICE_STATS_DEFINE(name)	unsigned long name, pad_ ## name
-#else
-#define NET_DEVICE_STATS_DEFINE(name)	unsigned long pad_ ## name, name
-#endif
-
 struct net_device_stats {
-	NET_DEVICE_STATS_DEFINE(rx_packets);
-	NET_DEVICE_STATS_DEFINE(tx_packets);
-	NET_DEVICE_STATS_DEFINE(rx_bytes);
-	NET_DEVICE_STATS_DEFINE(tx_bytes);
-	NET_DEVICE_STATS_DEFINE(rx_errors);
-	NET_DEVICE_STATS_DEFINE(tx_errors);
-	NET_DEVICE_STATS_DEFINE(rx_dropped);
-	NET_DEVICE_STATS_DEFINE(tx_dropped);
-	NET_DEVICE_STATS_DEFINE(multicast);
-	NET_DEVICE_STATS_DEFINE(collisions);
-	NET_DEVICE_STATS_DEFINE(rx_length_errors);
-	NET_DEVICE_STATS_DEFINE(rx_over_errors);
-	NET_DEVICE_STATS_DEFINE(rx_crc_errors);
-	NET_DEVICE_STATS_DEFINE(rx_frame_errors);
-	NET_DEVICE_STATS_DEFINE(rx_fifo_errors);
-	NET_DEVICE_STATS_DEFINE(rx_missed_errors);
-	NET_DEVICE_STATS_DEFINE(tx_aborted_errors);
-	NET_DEVICE_STATS_DEFINE(tx_carrier_errors);
-	NET_DEVICE_STATS_DEFINE(tx_fifo_errors);
-	NET_DEVICE_STATS_DEFINE(tx_heartbeat_errors);
-	NET_DEVICE_STATS_DEFINE(tx_window_errors);
-	NET_DEVICE_STATS_DEFINE(rx_compressed);
-	NET_DEVICE_STATS_DEFINE(tx_compressed);
+	unsigned long	rx_packets;
+	unsigned long	tx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_bytes;
+	unsigned long	rx_errors;
+	unsigned long	tx_errors;
+	unsigned long	rx_dropped;
+	unsigned long	tx_dropped;
+	unsigned long	multicast;
+	unsigned long	collisions;
+	unsigned long	rx_length_errors;
+	unsigned long	rx_over_errors;
+	unsigned long	rx_crc_errors;
+	unsigned long	rx_frame_errors;
+	unsigned long	rx_fifo_errors;
+	unsigned long	rx_missed_errors;
+	unsigned long	tx_aborted_errors;
+	unsigned long	tx_carrier_errors;
+	unsigned long	tx_fifo_errors;
+	unsigned long	tx_heartbeat_errors;
+	unsigned long	tx_window_errors;
+	unsigned long	rx_compressed;
+	unsigned long	tx_compressed;
 };
 
 #endif  /*  __KERNEL__  */
@@ -666,14 +656,13 @@ struct netdev_rx_queue {
  *	Callback uses when the transmitter has not made any progress
  *	for dev->watchdog ticks.
  *
- * struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev
+ * struct rtnl_link_stats64* (*ndo_get_stats64)(struct net_device *dev,
  *                      struct rtnl_link_stats64 *storage);
  * struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
  *	Called when a user wants to get the network device usage
  *	statistics. Drivers must do one of the following:
- *	1. Define @ndo_get_stats64 to update a rtnl_link_stats64 structure
- *	   (which should normally be dev->stats64) and return a ponter to
- *	   it. The structure must not be changed asynchronously.
+ *	1. Define @ndo_get_stats64 to fill in a zero-initialised
+ *	   rtnl_link_stats64 structure passed by the caller.
  *	2. Define @ndo_get_stats to update a net_device_stats structure
  *	   (which should normally be dev->stats) and return a pointer to
  *	   it. The structure may be changed asynchronously only if each
@@ -888,10 +877,7 @@ struct net_device {
 	int			ifindex;
 	int			iflink;
 
-	union {
-		struct rtnl_link_stats64 stats64;
-		struct net_device_stats stats;
-	};
+	struct net_device_stats	stats;
 
 #ifdef CONFIG_WIRELESS_EXT
 	/* List of functions to handle Wireless Extensions (instead of ioctl).
@@ -2147,7 +2133,7 @@ extern void		dev_mcast_init(void);
 extern const struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
 						     struct rtnl_link_stats64 *storage);
 extern void		dev_txq_stats_fold(const struct net_device *dev,
-					   struct net_device_stats *stats);
+					   struct rtnl_link_stats64 *stats);
 
 extern int		netdev_max_backlog;
 extern int		netdev_tstamp_prequeue;
