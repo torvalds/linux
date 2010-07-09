@@ -195,6 +195,55 @@ static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
 	return ntevs;
 }
 
+/*
+ * Find a src file from a DWARF tag path. Prepend optional source path prefix
+ * and chop off leading directories that do not exist. Result is passed back as
+ * a newly allocated path on success.
+ * Return 0 if file was found and readable, -errno otherwise.
+ */
+static int get_real_path(const char *raw_path, char **new_path)
+{
+	if (!symbol_conf.source_prefix) {
+		if (access(raw_path, R_OK) == 0) {
+			*new_path = strdup(raw_path);
+			return 0;
+		} else
+			return -errno;
+	}
+
+	*new_path = malloc((strlen(symbol_conf.source_prefix) +
+			    strlen(raw_path) + 2));
+	if (!*new_path)
+		return -ENOMEM;
+
+	for (;;) {
+		sprintf(*new_path, "%s/%s", symbol_conf.source_prefix,
+			raw_path);
+
+		if (access(*new_path, R_OK) == 0)
+			return 0;
+
+		switch (errno) {
+		case ENAMETOOLONG:
+		case ENOENT:
+		case EROFS:
+		case EFAULT:
+			raw_path = strchr(++raw_path, '/');
+			if (!raw_path) {
+				free(*new_path);
+				*new_path = NULL;
+				return -ENOENT;
+			}
+			continue;
+
+		default:
+			free(*new_path);
+			*new_path = NULL;
+			return -errno;
+		}
+	}
+}
+
 #define LINEBUF_SIZE 256
 #define NR_ADDITIONAL_LINES 2
 
@@ -244,6 +293,7 @@ int show_line_range(struct line_range *lr)
 	struct line_node *ln;
 	FILE *fp;
 	int fd, ret;
+	char *tmp;
 
 	/* Search a line range */
 	ret = init_vmlinux();
@@ -263,6 +313,15 @@ int show_line_range(struct line_range *lr)
 		return -ENOENT;
 	} else if (ret < 0) {
 		pr_warning("Debuginfo analysis failed. (%d)\n", ret);
+		return ret;
+	}
+
+	/* Convert source file path */
+	tmp = lr->path;
+	ret = get_real_path(tmp, &lr->path);
+	free(tmp);	/* Free old path */
+	if (ret < 0) {
+		pr_warning("Failed to find source file. (%d)\n", ret);
 		return ret;
 	}
 
