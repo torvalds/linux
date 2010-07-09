@@ -12,10 +12,17 @@
  */
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <plat/gpmc.h>
+
+#define PDC_NOR		1
+#define PDC_NAND	2
+#define PDC_ONENAND	3
+#define DBG_MPDB	4
 
 struct flash_partitions {
 	struct mtd_partition *parts;
 	int nr_parts;
 };
 
-extern void sdp_flash_init(struct flash_partitions []);
+extern void board_flash_init(struct flash_partitions [],
+				char chip_sel[][GPMC_CS_NUM]);
