@@ -2483,7 +2483,6 @@ unsigned char *skb_pull_rcsum(struct sk_buff *skb, unsigned int len)
 	skb_postpull_rcsum(skb, skb->data, len);
 	return skb->data += len;
 }
-
 EXPORT_SYMBOL_GPL(skb_pull_rcsum);
 
 /**

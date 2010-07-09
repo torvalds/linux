@@ -686,7 +686,7 @@ static size_t rtnl_port_size(const struct net_device *dev)
 		return port_self_size;
 }
 
-static inline size_t if_nlmsg_size(const struct net_device *dev)
+static noinline size_t if_nlmsg_size(const struct net_device *dev)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
 	       + nla_total_size(IFNAMSIZ) /* IFLA_IFNAME */
