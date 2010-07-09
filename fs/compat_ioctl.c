@@ -601,8 +601,9 @@ static int ioc_settimeout(unsigned int fd, unsigned int cmd,
 }
 
 /* Bluetooth ioctls */
-#define HCIUARTSETPROTO	_IOW('U', 200, int)
-#define HCIUARTGETPROTO	_IOR('U', 201, int)
+#define HCIUARTSETPROTO		_IOW('U', 200, int)
+#define HCIUARTGETPROTO		_IOR('U', 201, int)
+#define HCIUARTGETDEVICE	_IOR('U', 202, int)
 
 #define BNEPCONNADD	_IOW('B', 200, int)
 #define BNEPCONNDEL	_IOW('B', 201, int)
