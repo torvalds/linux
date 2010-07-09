@@ -5323,13 +5323,13 @@ static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
  *	@dev: device to get statistics from
  *	@storage: place to store stats
  *
- *	Get network statistics from device. The device driver may provide
- *	its own method by setting dev->netdev_ops->get_stats64 or
- *	dev->netdev_ops->get_stats; otherwise the internal statistics
- *	structure is used.
+ *	Get network statistics from device. Return @storage.
+ *	The device driver may provide its own method by setting
+ *	dev->netdev_ops->get_stats64 or dev->netdev_ops->get_stats;
+ *	otherwise the internal statistics structure is used.
  */
-const struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
-					      struct rtnl_link_stats64 *storage)
+struct rtnl_link_stats64 *dev_get_stats(struct net_device *dev,
+					struct rtnl_link_stats64 *storage)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 
