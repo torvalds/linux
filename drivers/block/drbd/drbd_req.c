@@ -917,31 +917,8 @@ allocate_barrier:
 	/* check this request on the collision detection hash tables.
 	 * if we have a conflict, just complete it here.
 	 * THINK do we want to check reads, too? (I don't think so...) */
-	if (rw == WRITE && _req_conflicts(req)) {
-		/* this is a conflicting request.
-		 * even though it may have been only _partially_
-		 * overlapping with one of the currently pending requests,
-		 * without even submitting or sending it, we will
-		 * pretend that it was successfully served right now.
-		 */
-		if (local) {
-			bio_put(req->private_bio);
-			req->private_bio = NULL;
-			drbd_al_complete_io(mdev, req->sector);
-			put_ldev(mdev);
-			local = 0;
-		}
-		if (remote)
-			dec_ap_pending(mdev);
-		_drbd_end_io_acct(mdev, req);
-		/* THINK: do we want to fail it (-EIO), or pretend success? */
-		bio_endio(req->master_bio, 0);
-		req->master_bio = NULL;
-		dec_ap_bio(mdev);
-		drbd_req_free(req);
-		remote = 0;
-	}
-
+	if (rw == WRITE && _req_conflicts(req))
+		goto fail_conflicting;
 
 	list_add_tail(&req->tl_requests, &mdev->newest_tle->requests);
 
@@ -975,6 +952,21 @@ allocate_barrier:
 	drbd_plug_device(mdev);
 
 	return 0;
+
+fail_conflicting:
+	/* this is a conflicting request.
+	 * even though it may have been only _partially_
+	 * overlapping with one of the currently pending requests,
+	 * without even submitting or sending it, we will
+	 * pretend that it was successfully served right now.
+	 */
+	_drbd_end_io_acct(mdev, req);
+	spin_unlock_irq(&mdev->req_lock);
+	if (remote)
+		dec_ap_pending(mdev);
+	/* THINK: do we want to fail it (-EIO), or pretend success?
+	 * this pretends success. */
+	err = 0;
 
 fail_free_complete:
 	if (rw == WRITE && local)
