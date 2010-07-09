@@ -376,10 +376,35 @@ bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
 	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
 		__APP_PLL_425_ENABLE);
 
+	/**
+	 * PSS memory reset is asserted at power-on-reset. Need to clear
+	 * this before running EDRAM BISTR
+	 */
+	if (ioc->cna) {
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), __PMM_1T_RESET_P);
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), __PMM_1T_RESET_P);
+	}
+
+	r32 = bfa_reg_read((rb + PSS_CTL_REG));
+	r32 &= ~__PSS_LMEM_RESET;
+	bfa_reg_write((rb + PSS_CTL_REG), r32);
+	bfa_os_udelay(1000);
+
+	if (ioc->cna) {
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P0), 0);
+		bfa_reg_write((rb + PMM_1T_RESET_REG_P1), 0);
+	}
+
 	bfa_reg_write((rb + MBIST_CTL_REG), __EDRAM_BISTR_START);
 	bfa_os_udelay(1000);
 	r32 = bfa_reg_read((rb + MBIST_STAT_REG));
 	bfa_trc(ioc, r32);
+
+	/**
+	 * Clear BISTR
+	 */
+	bfa_reg_write((rb + MBIST_CTL_REG), 0);
+
 	/*
 	 *  release semaphore.
 	 */
