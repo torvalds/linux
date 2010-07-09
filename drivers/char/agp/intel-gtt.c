@@ -176,7 +176,7 @@ static void intel_agp_insert_sg_entries(struct agp_memory *mem,
 	if (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB ||
 	    agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
 	{
-		cache_bits = I830_PTE_SYSTEM_CACHED;
+		cache_bits = GEN6_PTE_LLC_MLC;
 	}
 
 	for (i = 0, j = pg_start; i < mem->page_count; i++, j++) {
