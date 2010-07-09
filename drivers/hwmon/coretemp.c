@@ -405,6 +405,10 @@ struct pdev_entry {
 	struct list_head list;
 	struct platform_device *pdev;
 	unsigned int cpu;
+#ifdef CONFIG_SMP
+	u16 phys_proc_id;
+	u16 cpu_core_id;
+#endif
 };
 
 static LIST_HEAD(pdev_list);
@@ -415,6 +419,22 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 	int err;
 	struct platform_device *pdev;
 	struct pdev_entry *pdev_entry;
+#ifdef CONFIG_SMP
+	struct cpuinfo_x86 *c = &cpu_data(cpu);
+#endif
+
+	mutex_lock(&pdev_list_mutex);
+
+#ifdef CONFIG_SMP
+	/* Skip second HT entry of each core */
+	list_for_each_entry(pdev_entry, &pdev_list, list) {
+		if (c->phys_proc_id == pdev_entry->phys_proc_id &&
+		    c->cpu_core_id == pdev_entry->cpu_core_id) {
+			err = 0;	/* Not an error */
+			goto exit;
+		}
+	}
+#endif
 
 	pdev = platform_device_alloc(DRVNAME, cpu);
 	if (!pdev) {
@@ -438,7 +458,10 @@ static int __cpuinit coretemp_device_add(unsigned int cpu)
 
 	pdev_entry->pdev = pdev;
 	pdev_entry->cpu = cpu;
-	mutex_lock(&pdev_list_mutex);
+#ifdef CONFIG_SMP
+	pdev_entry->phys_proc_id = c->phys_proc_id;
+	pdev_entry->cpu_core_id = c->cpu_core_id;
+#endif
 	list_add_tail(&pdev_entry->list, &pdev_list);
 	mutex_unlock(&pdev_list_mutex);
 
@@ -449,6 +472,7 @@ exit_device_free:
 exit_device_put:
 	platform_device_put(pdev);
 exit:
+	mutex_unlock(&pdev_list_mutex);
 	return err;
 }
 
