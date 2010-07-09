@@ -530,7 +530,7 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 						conn->feat_mask)
 						&& l2cap_pi(sk)->conf_state &
 						L2CAP_CONF_STATE2_DEVICE) {
-					tmp1 = kzalloc(sizeof(struct srej_list),
+					tmp1 = kzalloc(sizeof(struct sock_del_list),
 							GFP_ATOMIC);
 					tmp1->sk = sk;
 					list_add_tail(&tmp1->list, &del.list);
