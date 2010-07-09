@@ -218,9 +218,9 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_logo);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
 		bfa_lps_discard(vport->lps);
-		bfa_fcs_vport_do_logo(vport);
+		bfa_fcs_port_delete(&vport->lport);
 		break;
 
 	case BFA_FCS_VPORT_SM_OFFLINE:
@@ -357,8 +357,9 @@ bfa_fcs_vport_sm_error(struct bfa_fcs_vport_s *vport,
 
 	switch (event) {
 	case BFA_FCS_VPORT_SM_DELETE:
-		bfa_sm_set_state(vport, bfa_fcs_vport_sm_uninit);
-		bfa_fcs_vport_free(vport);
+		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
+		bfa_fcs_port_delete(&vport->lport);
+
 		break;
 
 	default:
