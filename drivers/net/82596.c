@@ -1015,23 +1015,34 @@ static int i596_open(struct net_device *dev)
 	}
 #ifdef ENABLE_MVME16x_NET
 	if (MACH_IS_MVME16x) {
-		if (request_irq(0x56, i596_error, 0, "i82596_error", dev))
-			return -EAGAIN;
+		if (request_irq(0x56, i596_error, 0, "i82596_error", dev)) {
+			res = -EAGAIN;
+			goto err_irq_dev;
+		}
 	}
 #endif
 	res = init_rx_bufs(dev);
-	if (res) {
-		free_irq(dev->irq, dev);
-		return res;
-	}
+	if (res)
+		goto err_irq_56;
 
 	netif_start_queue(dev);
 
-	/* Initialize the 82596 memory */
 	if (init_i596_mem(dev)) {
 		res = -EAGAIN;
-		free_irq(dev->irq, dev);
+		goto err_queue;
 	}
+
+	return 0;
+
+err_queue:
+	netif_stop_queue(dev);
+	remove_rx_bufs(dev);
+err_irq_56:
+#ifdef ENABLE_MVME16x_NET
+	free_irq(0x56, dev);
+#endif
+err_irq_dev:
+	free_irq(dev->irq, dev);
 
 	return res;
 }
@@ -1498,6 +1509,9 @@ static int i596_close(struct net_device *dev)
 	}
 #endif
 
+#ifdef ENABLE_MVME16x_NET
+	free_irq(0x56, dev);
+#endif
 	free_irq(dev->irq, dev);
 	remove_rx_bufs(dev);
 
