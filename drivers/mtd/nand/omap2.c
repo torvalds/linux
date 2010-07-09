@@ -319,7 +319,7 @@ static void omap_read_buf_pref(struct mtd_info *mtd, u_char *buf, int len)
 		} while (len);
 
 		/* disable and stop the PFPW engine */
-		gpmc_prefetch_reset();
+		gpmc_prefetch_reset(info->gpmc_cs);
 	}
 }
 
@@ -363,7 +363,7 @@ static void omap_write_buf_pref(struct mtd_info *mtd,
 		}
 
 		/* disable and stop the PFPW engine */
-		gpmc_prefetch_reset();
+		gpmc_prefetch_reset(info->gpmc_cs);
 	}
 }
 
