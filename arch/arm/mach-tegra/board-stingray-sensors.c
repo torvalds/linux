@@ -149,17 +149,17 @@ struct kxtf9_platform_data stingray_kxtf9_pdata = {
 
 	.g_range	= KXTF9_G_8G,
 
-	.axis_map_x	= 1,
-	.axis_map_y	= 0,
+	.axis_map_x	= 0,
+	.axis_map_y	= 1,
 	.axis_map_z	= 2,
 
 	.negate_x	= 0,
 	.negate_y	= 0,
-	.negate_z	= 1,
+	.negate_z	= 0,
 
 
 	.data_odr_init		= ODR12_5,
-	.ctrl_reg1_init		= RES_12BIT | KXTF9_G_2G | TPE | WUFE | TDTE,
+	.ctrl_reg1_init		= RES_12BIT | KXTF9_G_2G | WUFE,
 	.int_ctrl_init		= IEA | IEN,
 	.tilt_timer_init	= 0x03,
 	.engine_odr_init	= OTP12_5 | OWUF50 | OTDT400,
