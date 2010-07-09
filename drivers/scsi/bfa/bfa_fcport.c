@@ -1393,6 +1393,9 @@ bfa_fcport_enable(struct bfa_s *bfa)
 		return BFA_STATUS_PBC;
 	}
 
+	if (bfa_ioc_is_disabled(&bfa->ioc))
+		return BFA_STATUS_IOC_DISABLED;
+
 	if (fcport->diag_busy)
 		return BFA_STATUS_DIAG_BUSY;
 	else if (bfa_sm_cmp_state
