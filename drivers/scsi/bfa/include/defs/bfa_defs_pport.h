@@ -246,7 +246,7 @@ struct bfa_pport_fc_stats_s {
 	u64    secs_reset; /* Seconds since stats is reset     */
 	u64    tx_frames;  /* Tx frames                */
 	u64    tx_words;   /* Tx words                 */
-	u64    tx_lip;     /* TX LIP               */
+	u64    tx_lip;     /* Tx LIP               */
 	u64    tx_nos;     /* Tx NOS               */
 	u64    tx_ols;     /* Tx OLS               */
 	u64    tx_lr;      /* Tx LR                */
@@ -312,7 +312,7 @@ struct bfa_pport_eth_stats_s {
 	u64    rx_zero_pause;    /* Rx zero pause              */
 	u64    tx_pause;     /* Tx pause               */
 	u64    tx_zero_pause;    /* Tx zero pause              */
-	u64    rx_fcoe_pause;    /* Rx fcoe pause              */
+	u64    rx_fcoe_pause;    /* Rx FCoE pause              */
 	u64    rx_fcoe_zero_pause; /* Rx FCoE zero pause       */
 	u64    tx_fcoe_pause;    /* Tx FCoE pause              */
 	u64    tx_fcoe_zero_pause; /* Tx FCoE zero pause       */

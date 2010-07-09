@@ -159,7 +159,7 @@ struct bfa_port_stats_s {
 	u32        ms_plogi_rsp_err;
 	u32        ms_plogi_acc_err;
 	u32        ms_plogi_accepts;
-	u32        ms_rejects;	/* NS command rejects */
+	u32        ms_rejects;	/* MS command rejects */
 	u32        ms_plogi_unknown_rsp;
 	u32        ms_plogi_alloc_wait;
 

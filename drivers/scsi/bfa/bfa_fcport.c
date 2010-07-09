@@ -888,6 +888,7 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
 	struct bfa_pport_cfg_s *port_cfg = &fcport->cfg;
 	struct bfa_fcport_ln_s *ln = &fcport->ln;
+	struct bfa_timeval_s tv;
 
 	bfa_os_memset(fcport, 0, sizeof(struct bfa_fcport_s));
 	fcport->bfa = bfa;
@@ -897,6 +898,12 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa_sm_set_state(fcport, bfa_fcport_sm_uninit);
 	bfa_sm_set_state(ln, bfa_fcport_ln_sm_dn);
+
+	/**
+	 * initialize time stamp for stats reset
+	 */
+	bfa_os_gettimeofday(&tv);
+	fcport->stats_reset_time = tv.tv_sec;
 
 	/**
 	 * initialize and set default configuration
@@ -1126,16 +1133,22 @@ __bfa_cb_fcport_stats_get(void *cbarg, bfa_boolean_t complete)
 
 	if (complete) {
 		if (fcport->stats_status == BFA_STATUS_OK) {
+			struct bfa_timeval_s tv;
 
 			/* Swap FC QoS or FCoE stats */
-			if (bfa_ioc_get_fcmode(&fcport->bfa->ioc))
+			if (bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
 				bfa_fcport_qos_stats_swap(
 					&fcport->stats_ret->fcqos,
 					&fcport->stats->fcqos);
-			else
+			} else {
 				bfa_fcport_fcoe_stats_swap(
 					&fcport->stats_ret->fcoe,
 					&fcport->stats->fcoe);
+
+				bfa_os_gettimeofday(&tv);
+				fcport->stats_ret->fcoe.secs_reset =
+					tv.tv_sec - fcport->stats_reset_time;
+			}
 		}
 		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
 	} else {
@@ -1191,6 +1204,14 @@ __bfa_cb_fcport_stats_clr(void *cbarg, bfa_boolean_t complete)
 	struct bfa_fcport_s *fcport = cbarg;
 
 	if (complete) {
+		struct bfa_timeval_s tv;
+
+		/**
+		 * re-initialize time stamp for stats reset
+		 */
+		bfa_os_gettimeofday(&tv);
+		fcport->stats_reset_time = tv.tv_sec;
+
 		fcport->stats_cbfn(fcport->stats_cbarg, fcport->stats_status);
 	} else {
 		fcport->stats_busy = BFA_FALSE;

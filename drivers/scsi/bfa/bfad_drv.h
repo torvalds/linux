@@ -141,18 +141,6 @@ struct bfad_cfg_param_s {
 	u32        binding_method;
 };
 
-union bfad_tmp_buf {
-	/* From struct bfa_adapter_attr_s */
-	char            manufacturer[BFA_ADAPTER_MFG_NAME_LEN];
-	char            serial_num[BFA_ADAPTER_SERIAL_NUM_LEN];
-	char            model[BFA_ADAPTER_MODEL_NAME_LEN];
-	char            fw_ver[BFA_VERSION_LEN];
-	char            optrom_ver[BFA_VERSION_LEN];
-
-	/* From struct bfa_ioc_pci_attr_s */
-	u8         chip_rev[BFA_IOC_CHIP_REV_LEN];  /*  chip revision */
-};
-
 /*
  * BFAD (PCI function) data structure
  */
@@ -195,7 +183,6 @@ struct bfad_s {
 	struct bfa_plog_s      plog_buf;
 	int             ref_count;
 	bfa_boolean_t	ipfc_enabled;
-	union bfad_tmp_buf tmp_buf;
 	struct fc_host_statistics link_stats;
 	struct list_head pbc_pcfg_list;
 };

@@ -157,6 +157,7 @@ bfa_fcs_port_ms_sm_plogi(struct bfa_fcs_port_ms_s *ms, enum port_ms_event event)
 		 * Start timer for a delayed retry
 		 */
 		bfa_sm_set_state(ms, bfa_fcs_port_ms_sm_plogi_retry);
+		ms->port->stats.ms_retries++;
 		bfa_timer_start(BFA_FCS_GET_HAL_FROM_PORT(ms->port), &ms->timer,
 				bfa_fcs_port_ms_timeout, ms,
 				BFA_FCS_RETRY_TIMEOUT);
@@ -279,6 +280,7 @@ bfa_fcs_port_ms_sm_gmal(struct bfa_fcs_port_ms_s *ms, enum port_ms_event event)
 		 */
 		if (ms->retry_cnt++ < BFA_FCS_MS_CMD_MAX_RETRIES) {
 			bfa_sm_set_state(ms, bfa_fcs_port_ms_sm_gmal_retry);
+			ms->port->stats.ms_retries++;
 			bfa_timer_start(BFA_FCS_GET_HAL_FROM_PORT(ms->port),
 					&ms->timer, bfa_fcs_port_ms_timeout, ms,
 					BFA_FCS_RETRY_TIMEOUT);
@@ -479,6 +481,7 @@ bfa_fcs_port_ms_sm_gfn(struct bfa_fcs_port_ms_s *ms, enum port_ms_event event)
 		 */
 		if (ms->retry_cnt++ < BFA_FCS_MS_CMD_MAX_RETRIES) {
 			bfa_sm_set_state(ms, bfa_fcs_port_ms_sm_gfn_retry);
+			ms->port->stats.ms_retries++;
 			bfa_timer_start(BFA_FCS_GET_HAL_FROM_PORT(ms->port),
 					&ms->timer, bfa_fcs_port_ms_timeout, ms,
 					BFA_FCS_RETRY_TIMEOUT);

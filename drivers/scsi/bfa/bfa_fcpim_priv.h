@@ -141,6 +141,7 @@ struct bfa_itnim_s {
 	struct bfa_reqq_wait_s reqq_wait; /*  to wait for room in reqq */
 	struct bfa_fcpim_mod_s *fcpim;	/*  fcpim module                */
 	struct bfa_itnim_hal_stats_s	stats;
+	struct bfa_itnim_latency_s  io_latency;
 };
 
 #define bfa_itnim_is_online(_itnim) ((_itnim)->is_online)

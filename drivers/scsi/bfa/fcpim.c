@@ -738,6 +738,7 @@ bfa_fcs_itnim_attr_get(struct bfa_fcs_port_s *port, wwn_t rpwwn,
 	attr->rec_support = itnim->rec_support;
 	attr->conf_comp = itnim->conf_comp;
 	attr->task_retry_id = itnim->task_retry_id;
+	bfa_os_memset(&attr->io_latency, 0, sizeof(struct bfa_itnim_latency_s));
 
 	return BFA_STATUS_OK;
 }
