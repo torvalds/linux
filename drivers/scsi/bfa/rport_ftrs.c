@@ -274,6 +274,7 @@ void  bfa_fcs_rpf_rport_offline(struct bfa_fcs_rport_s *rport)
 	if (__fcs_min_cfg(rport->port->fcs))
 		return;
 
+	rport->rpf.rpsc_speed = 0;
 	bfa_sm_send_event(&rport->rpf, RPFSM_EVENT_RPORT_OFFLINE);
 }
 
