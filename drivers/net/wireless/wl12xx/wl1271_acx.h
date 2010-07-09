@@ -1002,7 +1002,7 @@ struct wl1271_acx_fw_tsf_information {
 	__le32 last_tbtt_low;
 	u8 last_dtim_count;
 	u8 padding[3];
-} __attribute__ ((packed));
+} __packed;
 
 enum {
 	ACX_WAKE_UP_CONDITIONS      = 0x0002,
