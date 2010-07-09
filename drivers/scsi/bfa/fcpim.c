@@ -110,6 +110,7 @@ bfa_fcs_itnim_sm_offline(struct bfa_fcs_itnim_s *itnim,
 	switch (event) {
 	case BFA_FCS_ITNIM_SM_ONLINE:
 		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_prli_send);
+		itnim->prli_retries = 0;
 		bfa_fcs_itnim_send_prli(itnim, NULL);
 		break;
 
@@ -218,8 +219,16 @@ bfa_fcs_itnim_sm_prli_retry(struct bfa_fcs_itnim_s *itnim,
 
 	switch (event) {
 	case BFA_FCS_ITNIM_SM_TIMEOUT:
-		bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_prli_send);
-		bfa_fcs_itnim_send_prli(itnim, NULL);
+		if (itnim->prli_retries < BFA_FCS_RPORT_MAX_RETRIES) {
+			itnim->prli_retries++;
+			bfa_trc(itnim->fcs, itnim->prli_retries);
+			bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_prli_send);
+			bfa_fcs_itnim_send_prli(itnim, NULL);
+		} else {
+			/* invoke target offline */
+			bfa_sm_set_state(itnim, bfa_fcs_itnim_sm_offline);
+			bfa_fcs_rport_logo_imp(itnim->rport);
+		}
 		break;
 
 	case BFA_FCS_ITNIM_SM_OFFLINE:

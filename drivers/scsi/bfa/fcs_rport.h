@@ -24,6 +24,8 @@
 
 #include <fcs/bfa_fcs_rport.h>
 
+#define BFA_FCS_RPORT_MAX_RETRIES               (5)
+
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs,
 			u16 len);
 void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);

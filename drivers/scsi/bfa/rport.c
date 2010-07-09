@@ -36,8 +36,6 @@
 
 BFA_TRC_FILE(FCS, RPORT);
 
-#define BFA_FCS_RPORT_MAX_RETRIES		(5)
-
 /* In millisecs */
 static u32 bfa_fcs_rport_del_timeout =
 			BFA_FCS_RPORT_DEF_DEL_TIMEOUT * 1000;
@@ -356,8 +354,8 @@ bfa_fcs_rport_sm_plogi_retry(struct bfa_fcs_rport_s *rport,
 		 */
 
 	case RPSM_EVENT_TIMEOUT:
-		rport->plogi_retries++;
 		if (rport->plogi_retries < BFA_FCS_RPORT_MAX_RETRIES) {
+			rport->plogi_retries++;
 			bfa_sm_set_state(rport, bfa_fcs_rport_sm_plogi_sending);
 			bfa_fcs_rport_send_plogi(rport, NULL);
 		} else {
