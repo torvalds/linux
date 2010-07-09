@@ -1009,22 +1009,6 @@ static int check_dev(struct cx231xx *dev)
 	return 0;
 }
 
-static void get_scale(struct cx231xx *dev,
-		      unsigned int width, unsigned int height,
-		      unsigned int *hscale, unsigned int *vscale)
-{
-	unsigned int maxw = norm_maxw(dev);
-	unsigned int maxh = norm_maxh(dev);
-
-	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
-	if (*hscale >= 0x4000)
-		*hscale = 0x3fff;
-
-	*vscale = (((unsigned long)maxh) << 12) / height - 4096L;
-	if (*vscale >= 0x4000)
-		*vscale = 0x3fff;
-}
-
 /* ------------------------------------------------------------------
 	IOCTL vidioc handling
    ------------------------------------------------------------------*/
@@ -1071,7 +1055,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	unsigned int height = f->fmt.pix.height;
 	unsigned int maxw = norm_maxw(dev);
 	unsigned int maxh = norm_maxh(dev);
-	unsigned int hscale, vscale;
 	struct cx231xx_fmt *fmt;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
@@ -1084,11 +1067,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	/* width must even because of the YUYV format
 	   height must be even because of interlacing */
 	v4l_bound_align_image(&width, 48, maxw, 1, &height, 32, maxh, 1, 0);
-
-	get_scale(dev, width, height, &hscale, &vscale);
-
-	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
-	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
 
 	f->fmt.pix.width = width;
 	f->fmt.pix.height = height;
@@ -1140,14 +1118,10 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	dev->width = f->fmt.pix.width;
 	dev->height = f->fmt.pix.height;
 	dev->format = fmt;
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
 	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
 	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
-
-	/* Set the correct alternate setting for this resolution */
-	cx231xx_resolution_set(dev);
 
 out:
 	mutex_unlock(&dev->lock);
@@ -1167,6 +1141,7 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	struct v4l2_format f;
 	int rc;
 
@@ -1184,16 +1159,20 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
 	f.fmt.pix.height = dev->height;
 	vidioc_try_fmt_vid_cap(file, priv, &f);
 
+	call_all(dev, core, s_std, dev->norm);
+
+	/* We need to reset basic properties in the decoder related to
+	   resolution (since a standard change effects things like the number
+	   of lines in VACT, etc) */
+	v4l2_fill_mbus_format(&mbus_fmt, &f.fmt.pix, V4L2_MBUS_FMT_FIXED);
+	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f.fmt.pix, &mbus_fmt);
+
 	/* set new image size */
 	dev->width = f.fmt.pix.width;
 	dev->height = f.fmt.pix.height;
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
-
-	call_all(dev, core, s_std, dev->norm);
 
 	mutex_unlock(&dev->lock);
-
-	cx231xx_resolution_set(dev);
 
 	/* do mode control overrides */
 	cx231xx_do_mode_ctrl_overrides(dev);
@@ -2279,8 +2258,6 @@ static int cx231xx_v4l2_open(struct file *filp)
 	if (fh->type == V4L2_BUF_TYPE_VIDEO_CAPTURE && dev->users == 0) {
 		dev->width = norm_maxw(dev);
 		dev->height = norm_maxh(dev);
-		dev->hscale = 0;
-		dev->vscale = 0;
 
 		/* Power up in Analog TV mode */
 		if (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER)
@@ -2292,7 +2269,6 @@ static int cx231xx_v4l2_open(struct file *filp)
 #if 0
 		cx231xx_set_mode(dev, CX231XX_ANALOG_MODE);
 #endif
-		cx231xx_resolution_set(dev);
 
 		/* set video alternate setting */
 		cx231xx_set_video_alternate(dev);
@@ -2688,8 +2664,6 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 	dev->width = norm_maxw(dev);
 	dev->height = norm_maxh(dev);
 	dev->interlaced = 0;
-	dev->hscale = 0;
-	dev->vscale = 0;
 
 	/* Analog specific initialization */
 	dev->format = &format[0];

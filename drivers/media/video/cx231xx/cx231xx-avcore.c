@@ -992,7 +992,7 @@ int cx231xx_do_mode_ctrl_overrides(struct cx231xx *dev)
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
 							FLD_VACTIVE_CNT,
-							0x1E6000);
+							0x1E7000);
 		status = cx231xx_read_modify_write_i2c_dword(dev,
 							VID_BLK_I2C_ADDRESS,
 							VERT_TIM_CTRL,
@@ -1216,20 +1216,6 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 	status = vid_blk_read_byte(dev, GENERAL_CTL, &gen_ctrl);
 	gen_ctrl &= ~1;
 	status = vid_blk_write_byte(dev, GENERAL_CTL, gen_ctrl);
-
-	return status;
-}
-
-/* Set resolution of the video */
-int cx231xx_resolution_set(struct cx231xx *dev)
-{
-	/* set horzontal scale */
-	int status = vid_blk_write_word(dev, HSCALE_CTRL, dev->hscale);
-	if (status)
-		return status;
-
-	/* set vertical scale */
-	status = vid_blk_write_word(dev, VSCALE_CTRL, dev->vscale);
 
 	return status;
 }

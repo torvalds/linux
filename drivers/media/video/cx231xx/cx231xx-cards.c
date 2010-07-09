@@ -726,8 +726,6 @@ static int cx231xx_init_dev(struct cx231xx **devhandle, struct usb_device *udev,
 	dev->width = maxw;
 	dev->height = maxh;
 	dev->interlaced = 0;
-	dev->hscale = 0;
-	dev->vscale = 0;
 	dev->video_input = 0;
 
 	errCode = cx231xx_config(dev);

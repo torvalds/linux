@@ -645,8 +645,6 @@ struct cx231xx {
 	/* frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
-	unsigned hscale;	/* horizontal scale factor (see datasheet) */
-	unsigned vscale;	/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 
 	struct cx231xx_audio adev;
@@ -876,7 +874,6 @@ int cx231xx_set_audio_decoder_input(struct cx231xx *dev,
 				    enum AUDIO_INPUT audio_input);
 
 int cx231xx_capture_start(struct cx231xx *dev, int start, u8 media_type);
-int cx231xx_resolution_set(struct cx231xx *dev);
 int cx231xx_set_video_alternate(struct cx231xx *dev);
 int cx231xx_set_alt_setting(struct cx231xx *dev, u8 index, u8 alt);
 int is_fw_load(struct cx231xx *dev);
