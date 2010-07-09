@@ -3272,6 +3272,8 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+		return;
 	if (device_create_file(dev, &dev_attr_diag_mode))
 		dev_info(dev, "failed to create diag_mode sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_crb))
@@ -3292,12 +3294,13 @@ qlcnic_create_diag_entries(struct qlcnic_adapter *adapter)
 
 }
 
-
 static void
 qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 {
 	struct device *dev = &adapter->pdev->dev;
 
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+		return;
 	device_remove_file(dev, &dev_attr_diag_mode);
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
