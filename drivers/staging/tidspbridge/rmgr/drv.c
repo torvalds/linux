@@ -969,7 +969,7 @@ void mem_ext_phys_pool_release(void)
  *     Allocate physically contiguous, uncached memory from external memory pool
  */
 
-static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * pPhysAddr)
+static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * phys_addr)
 {
 	u32 new_alloc_ptr;
 	u32 offset;
@@ -980,7 +980,7 @@ static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * pPhysAddr)
 
 	if (bytes > ((ext_mem_pool.phys_mem_base + ext_mem_pool.phys_mem_size)
 		     - ext_mem_pool.next_phys_alloc_ptr)) {
-		pPhysAddr = NULL;
+		phys_addr = NULL;
 		return NULL;
 	} else {
 		offset = (ext_mem_pool.next_phys_alloc_ptr & (align - 1));
@@ -992,7 +992,7 @@ static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * pPhysAddr)
 		if ((new_alloc_ptr + bytes) <=
 		    (ext_mem_pool.phys_mem_base + ext_mem_pool.phys_mem_size)) {
 			/* we can allocate */
-			*pPhysAddr = new_alloc_ptr;
+			*phys_addr = new_alloc_ptr;
 			ext_mem_pool.next_phys_alloc_ptr =
 			    new_alloc_ptr + bytes;
 			virt_addr =
@@ -1001,7 +1001,7 @@ static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * pPhysAddr)
 							  phys_mem_base);
 			return (void *)virt_addr;
 		} else {
-			*pPhysAddr = 0;
+			*phys_addr = 0;
 			return NULL;
 		}
 	}
@@ -1012,7 +1012,7 @@ static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * pPhysAddr)
  *  Purpose:
  *      Allocate physically contiguous, uncached memory
  */
-void *mem_alloc_phys_mem(u32 byte_size, u32 ulAlign, OUT u32 * pPhysicalAddress)
+void *mem_alloc_phys_mem(u32 byte_size, u32 ulAlign, OUT u32 * physical_address)
 {
 	void *va_mem = NULL;
 	dma_addr_t pa_mem;
@@ -1025,9 +1025,9 @@ void *mem_alloc_phys_mem(u32 byte_size, u32 ulAlign, OUT u32 * pPhysicalAddress)
 			va_mem = dma_alloc_coherent(NULL, byte_size, &pa_mem,
 								GFP_KERNEL);
 		if (va_mem == NULL)
-			*pPhysicalAddress = 0;
+			*physical_address = 0;
 		else
-			*pPhysicalAddress = pa_mem;
+			*physical_address = pa_mem;
 	}
 	return va_mem;
 }
@@ -1037,12 +1037,12 @@ void *mem_alloc_phys_mem(u32 byte_size, u32 ulAlign, OUT u32 * pPhysicalAddress)
  *  Purpose:
  *      Free the given block of physically contiguous memory.
  */
-void mem_free_phys_mem(void *pVirtualAddress, u32 pPhysicalAddress,
+void mem_free_phys_mem(void *pVirtualAddress, u32 physical_address,
 		       u32 byte_size)
 {
 	DBC_REQUIRE(pVirtualAddress != NULL);
 
 	if (!ext_phys_mem_pool_enabled)
 		dma_free_coherent(NULL, byte_size, pVirtualAddress,
-				  pPhysicalAddress);
+				  physical_address);
 }

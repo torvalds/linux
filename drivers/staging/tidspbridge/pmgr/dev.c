@@ -585,26 +585,26 @@ struct dev_object *dev_get_first(void)
  *  ======== dev_get_intf_fxns ========
  *  Purpose:
  *      Retrieve the Bridge interface function structure for the loaded driver.
- *      ppIntfFxns != NULL.
+ *      if_fxns != NULL.
  */
 int dev_get_intf_fxns(struct dev_object *hdev_obj,
-			     OUT struct bridge_drv_interface **ppIntfFxns)
+			     OUT struct bridge_drv_interface **if_fxns)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(ppIntfFxns != NULL);
+	DBC_REQUIRE(if_fxns != NULL);
 
 	if (hdev_obj) {
-		*ppIntfFxns = &dev_obj->bridge_interface;
+		*if_fxns = &dev_obj->bridge_interface;
 	} else {
-		*ppIntfFxns = NULL;
+		*if_fxns = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((ppIntfFxns != NULL) &&
-					     (*ppIntfFxns == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((if_fxns != NULL) &&
+					     (*if_fxns == NULL)));
 	return status;
 }
 

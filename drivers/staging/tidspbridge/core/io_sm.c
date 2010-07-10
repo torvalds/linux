@@ -148,9 +148,9 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
 			     struct chnl_object *pchnl, u32 mask);
 static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		     void *pSrc, u32 usize);
+		     void *src, u32 usize);
 static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		      void *pSrc, u32 usize);
+		      void *src, u32 usize);
 
 /* Bus Addr (cached kernel) */
 static int register_shm_segs(struct io_mgr *hio_mgr,
@@ -919,9 +919,9 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
  *      out the dispatch of I/O as a non-preemptible event.It can only be
  *      pre-empted      by an ISR.
  */
-void io_dpc(IN OUT unsigned long pRefData)
+void io_dpc(IN OUT unsigned long ref_data)
 {
-	struct io_mgr *pio_mgr = (struct io_mgr *)pRefData;
+	struct io_mgr *pio_mgr = (struct io_mgr *)ref_data;
 	struct chnl_mgr *chnl_mgr_obj;
 	struct msg_mgr *msg_mgr_obj;
 	struct deh_mgr *hdeh_mgr;
@@ -1702,9 +1702,9 @@ func_end:
  *      Copies buffers from the shared memory to the host buffer.
  */
 static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		     void *pSrc, u32 usize)
+		     void *src, u32 usize)
 {
-	memcpy(dest, pSrc, usize);
+	memcpy(dest, src, usize);
 	return usize;
 }
 
@@ -1713,9 +1713,9 @@ static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
  *      Copies buffers from the host side buffer to the shared memory.
  */
 static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		      void *pSrc, u32 usize)
+		      void *src, u32 usize)
 {
-	memcpy(dest, pSrc, usize);
+	memcpy(dest, src, usize);
 	return usize;
 }
 
@@ -1793,20 +1793,21 @@ int io_sh_msetting(struct io_mgr *hio_mgr, u8 desc, void *pargs)
  *      Gets the Processor's Load information
  */
 int bridge_io_get_proc_load(IN struct io_mgr *hio_mgr,
-				OUT struct dsp_procloadstat *pProcStat)
+				OUT struct dsp_procloadstat *proc_lstat)
 {
-	pProcStat->curr_load = hio_mgr->shared_mem->load_mon_info.curr_dsp_load;
-	pProcStat->predicted_load =
+	proc_lstat->curr_load =
+			hio_mgr->shared_mem->load_mon_info.curr_dsp_load;
+	proc_lstat->predicted_load =
 	    hio_mgr->shared_mem->load_mon_info.pred_dsp_load;
-	pProcStat->curr_dsp_freq =
+	proc_lstat->curr_dsp_freq =
 	    hio_mgr->shared_mem->load_mon_info.curr_dsp_freq;
-	pProcStat->predicted_freq =
+	proc_lstat->predicted_freq =
 	    hio_mgr->shared_mem->load_mon_info.pred_dsp_freq;
 
 	dev_dbg(bridge, "Curr Load = %d, Pred Load = %d, Curr Freq = %d, "
-		"Pred Freq = %d\n", pProcStat->curr_load,
-		pProcStat->predicted_load, pProcStat->curr_dsp_freq,
-		pProcStat->predicted_freq);
+		"Pred Freq = %d\n", proc_lstat->curr_load,
+		proc_lstat->predicted_load, proc_lstat->curr_dsp_freq,
+		proc_lstat->predicted_freq);
 	return 0;
 }
 

@@ -1921,13 +1921,13 @@ func_end:
  *  Purpose:
  *      Retrieves the processor ID.
  */
-int proc_get_processor_id(void *proc, u32 * procID)
+int proc_get_processor_id(void *proc, u32 * proc_id)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
 	if (p_proc_object)
-		*procID = p_proc_object->processor_id;
+		*proc_id = p_proc_object->processor_id;
 	else
 		status = -EFAULT;
 

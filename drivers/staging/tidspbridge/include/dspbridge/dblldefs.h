@@ -239,7 +239,7 @@ typedef void (*dbll_exit_fxn) (void);
  *  Parameters:
  *      lib             - Handle returned from dbll_open().
  *      name            - Name of symbol
- *      ppSym           - Location to store symbol address on output.
+ *      sym_val         - Location to store symbol address on output.
  *  Returns:
  *      TRUE:           Success.
  *      FALSE:          Symbol not found.
@@ -247,11 +247,11 @@ typedef void (*dbll_exit_fxn) (void);
  *      DBL initialized.
  *      Valid library.
  *      name != NULL.
- *      ppSym != NULL.
+ *      sym_val != NULL.
  *  Ensures:
  */
 typedef bool(*dbll_get_addr_fxn) (struct dbll_library_obj *lib, char *name,
-				  struct dbll_sym_val **ppSym);
+				  struct dbll_sym_val **sym_val);
 
 /*
  *  ======== dbll_get_attrs ========
@@ -275,7 +275,7 @@ typedef void (*dbll_get_attrs_fxn) (struct dbll_tar_obj *target,
  *  Parameters:
  *      lib             - Handle returned from dbll_open().
  *      name            - Name of symbol
- *      ppSym           - Location to store symbol address on output.
+ *      sym_val         - Location to store symbol address on output.
  *  Returns:
  *      TRUE:           Success.
  *      FALSE:          Symbol not found.
@@ -283,11 +283,11 @@ typedef void (*dbll_get_attrs_fxn) (struct dbll_tar_obj *target,
  *      DBL initialized.
  *      Valid target.
  *      name != NULL.
- *      ppSym != NULL.
+ *      sym_val != NULL.
  *  Ensures:
  */
 typedef bool(*dbll_get_c_addr_fxn) (struct dbll_library_obj *lib, char *name,
-				    struct dbll_sym_val **ppSym);
+				    struct dbll_sym_val **sym_val);
 
 /*
  *  ======== dbll_get_sect ========

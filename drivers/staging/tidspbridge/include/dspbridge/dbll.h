@@ -31,11 +31,11 @@ extern int dbll_create(struct dbll_tar_obj **target_obj,
 extern void dbll_delete(struct dbll_tar_obj *target);
 extern void dbll_exit(void);
 extern bool dbll_get_addr(struct dbll_library_obj *lib, char *name,
-			  struct dbll_sym_val **ppSym);
+			  struct dbll_sym_val **sym_val);
 extern void dbll_get_attrs(struct dbll_tar_obj *target,
 			   struct dbll_attrs *pattrs);
 extern bool dbll_get_c_addr(struct dbll_library_obj *lib, char *name,
-			    struct dbll_sym_val **ppSym);
+			    struct dbll_sym_val **sym_val);
 extern int dbll_get_sect(struct dbll_library_obj *lib, char *name,
 				u32 *paddr, u32 *psize);
 extern bool dbll_init(void);

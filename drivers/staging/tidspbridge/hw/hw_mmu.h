@@ -85,7 +85,7 @@ extern hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 				u32 page_sz,
 				u32 entry_num,
 				struct hw_mmu_map_attrs_t *map_attrs,
-				s8 preservedBit, s8 validBit);
+				s8 preserved_bit, s8 validBit);
 
 /* For PTEs */
 extern hw_status hw_mmu_pte_set(const u32 pg_tbl_va,

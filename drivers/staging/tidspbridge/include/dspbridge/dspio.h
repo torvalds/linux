@@ -36,6 +36,6 @@ extern int bridge_io_on_loaded(struct io_mgr *hio_mgr);
 
 extern int iva_io_on_loaded(struct io_mgr *hio_mgr);
 extern int bridge_io_get_proc_load(IN struct io_mgr *hio_mgr,
-				       OUT struct dsp_procloadstat *pProcStat);
+				       OUT struct dsp_procloadstat *proc_lstat);
 
 #endif /* DSPIO_ */

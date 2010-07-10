@@ -112,7 +112,7 @@ int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
  *      Retreive the default executable, if any, for this board.
  */
 int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 ul_buf_size,
-			     OUT char *pstrExecFile)
+			     OUT char *str_exec_file)
 {
 	int status = 0;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
@@ -120,19 +120,19 @@ int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 ul_buf_size,
 	if (!dev_node_obj)
 		status = -EFAULT;
 
-	else if (!pstrExecFile || !drv_datap)
+	else if (!str_exec_file || !drv_datap)
 		status = -EFAULT;
 
 	if (strlen(drv_datap->base_img) > ul_buf_size)
 		status = -EINVAL;
 
 	if (DSP_SUCCEEDED(status) && drv_datap->base_img)
-		strcpy(pstrExecFile, drv_datap->base_img);
+		strcpy(str_exec_file, drv_datap->base_img);
 
 	if (DSP_FAILED(status))
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	DBC_ENSURE(((status == 0) &&
-		    (strlen(pstrExecFile) <= ul_buf_size))
+		    (strlen(str_exec_file) <= ul_buf_size))
 		   || (status != 0));
 	return status;
 }

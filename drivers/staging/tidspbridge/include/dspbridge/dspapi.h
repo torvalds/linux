@@ -42,7 +42,7 @@
  *  Parameters:
  *      cmd:        IOCTL id, base 0.
  *      args:       Argument structure.
- *      pResult:
+ *      result:
  *  Returns:
  *      0 if command called; -EINVAL if command not in IOCTL
  *      table.
@@ -51,7 +51,7 @@
  */
 extern int api_call_dev_ioctl(unsigned int cmd,
 				      union Trapped_Args *args,
-				      u32 *pResult, void *pr_ctxt);
+				      u32 *result, void *pr_ctxt);
 
 /*
  *  ======== api_init ========

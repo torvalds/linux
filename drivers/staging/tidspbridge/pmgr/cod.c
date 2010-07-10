@@ -215,7 +215,7 @@ void cod_close(struct cod_libraryobj *lib)
  *      dynamically loaded object files.
  *
  */
-int cod_create(OUT struct cod_manager **mgr, char *pstrDummyFile,
+int cod_create(OUT struct cod_manager **mgr, char *str_dummy_file,
 		      IN OPTIONAL CONST struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
@@ -626,7 +626,7 @@ int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *      Retrieve the content of a code section given the section name.
  */
 int cod_read_section(struct cod_libraryobj *lib, IN char *pstrSect,
-			    OUT char *pstrContent, IN u32 content_size)
+			    OUT char *str_content, IN u32 content_size)
 {
 	int status = 0;
 
@@ -634,12 +634,12 @@ int cod_read_section(struct cod_libraryobj *lib, IN char *pstrSect,
 	DBC_REQUIRE(lib != NULL);
 	DBC_REQUIRE(IS_VALID(lib->cod_mgr));
 	DBC_REQUIRE(pstrSect != NULL);
-	DBC_REQUIRE(pstrContent != NULL);
+	DBC_REQUIRE(str_content != NULL);
 
 	if (lib != NULL)
 		status =
 		    lib->cod_mgr->fxns.read_sect_fxn(lib->dbll_lib, pstrSect,
-						     pstrContent, content_size);
+						     str_content, content_size);
 	else
 		status = -ESPIPE;
 

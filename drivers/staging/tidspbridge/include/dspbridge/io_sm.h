@@ -68,7 +68,7 @@ extern void io_cancel_chnl(struct io_mgr *hio_mgr, u32 ulChnl);
  *      Deferred procedure call for shared memory channel driver ISR.  Carries
  *      out the dispatch of I/O.
  *  Parameters:
- *      pRefData:   Pointer to reference data registered via a call to
+ *      ref_data:   Pointer to reference data registered via a call to
  *                  DPC_Create().
  *  Returns:
  *  Requires:
@@ -78,7 +78,7 @@ extern void io_cancel_chnl(struct io_mgr *hio_mgr, u32 ulChnl);
  *  Ensures:
  *      Non-preemptible (but interruptible).
  */
-extern void io_dpc(IN OUT unsigned long pRefData);
+extern void io_dpc(IN OUT unsigned long ref_data);
 
 /*
  *  ======== io_mbox_msg ========
@@ -87,7 +87,7 @@ extern void io_dpc(IN OUT unsigned long pRefData);
  *      Calls the Bridge's chnlsm_isr to determine if this interrupt is ours,
  *      then schedules a DPC to dispatch I/O.
  *  Parameters:
- *      pRefData:   Pointer to the channel manager object for this board.
+ *      ref_data:   Pointer to the channel manager object for this board.
  *                  Set in an initial call to ISR_Install().
  *  Returns:
  *      TRUE if interrupt handled; FALSE otherwise.

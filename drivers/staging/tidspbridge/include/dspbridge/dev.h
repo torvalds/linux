@@ -367,20 +367,20 @@ extern struct dev_object *dev_get_first(void);
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      *ppIntfFxns:    Ptr to location to store fxn interface.
+ *      *if_fxns:       Ptr to location to store fxn interface.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      ppIntfFxns != NULL.
+ *      if_fxns != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *ppIntfFxns contains a pointer to the Bridge
+ *      0:        *if_fxns contains a pointer to the Bridge
  *                      driver interface;
- *      else:           *ppIntfFxns is NULL.
+ *      else:           *if_fxns is NULL.
  */
 extern int dev_get_intf_fxns(struct dev_object *hdev_obj,
-			    OUT struct bridge_drv_interface **ppIntfFxns);
+			    OUT struct bridge_drv_interface **if_fxns);
 
 /*
  *  ======== dev_get_io_mgr ========

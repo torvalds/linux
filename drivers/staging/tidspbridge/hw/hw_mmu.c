@@ -85,7 +85,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  *       TypE		: const u32
  *       Description     : It indicates the page size
  *
- *       Identifier      : preservedBit
+ *       Identifier      : preserved_bit
  *       Type		: const u32
  *       Description     : It indicates the TLB entry is preserved entry
  *							or not
@@ -114,7 +114,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  */
 static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 				   const u32 page_sz,
-				   const u32 preservedBit,
+				   const u32 preserved_bit,
 				   const u32 validBit,
 				   const u32 virtual_addr_tag);
 
@@ -337,7 +337,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 			 u32 page_sz,
 			 u32 entry_num,
 			 struct hw_mmu_map_attrs_t *map_attrs,
-			 s8 preservedBit, s8 validBit)
+			 s8 preserved_bit, s8 validBit)
 {
 	hw_status status = RET_OK;
 	u32 lock_reg;
@@ -380,7 +380,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 	virtual_addr_tag = ((virtualAddr & MMU_ADDR_MASK) >> 12);
 
 	/* Write the fields in the CAM Entry Register */
-	mmu_set_cam_entry(base_address, mmu_pg_size, preservedBit, validBit,
+	mmu_set_cam_entry(base_address, mmu_pg_size, preserved_bit, validBit,
 			  virtual_addr_tag);
 
 	/* Write the different fields of the RAM Entry Register */
@@ -538,7 +538,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address)
 /* mmu_set_cam_entry */
 static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 				   const u32 page_sz,
-				   const u32 preservedBit,
+				   const u32 preserved_bit,
 				   const u32 validBit,
 				   const u32 virtual_addr_tag)
 {
@@ -551,7 +551,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 
 	mmu_cam_reg = (virtual_addr_tag << 12);
 	mmu_cam_reg = (mmu_cam_reg) | (page_sz) | (validBit << 2) |
-	    (preservedBit << 3);
+	    (preserved_bit << 3);
 
 	/* write values to register */
 	MMUMMU_CAM_WRITE_REGISTER32(base_address, mmu_cam_reg);

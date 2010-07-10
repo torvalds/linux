@@ -100,20 +100,20 @@ extern int cfg_get_dev_object(IN struct cfg_devnode *dev_node_obj,
  *  Parameters:
  *      dev_node_obj: Handle to the dev_node who's driver we are querying.
  *      buf_size:       Size of buffer.
- *      pstrExecFile:   Ptr to character buf to hold ExecFile.
+ *      str_exec_file:  Ptr to character buf to hold ExecFile.
  *  Returns:
  *      0:                Success.
- *      -EFAULT:  dev_node_obj is invalid or pstrExecFile is invalid.
+ *      -EFAULT:  dev_node_obj is invalid or str_exec_file is invalid.
  *      -ENODATA: The resource is not available.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      0:    Not more than buf_size bytes were copied into pstrExecFile,
- *                  and *pstrExecFile contains default executable for this
+ *      0:    Not more than buf_size bytes were copied into str_exec_file,
+ *                  and *str_exec_file contains default executable for this
  *                  devnode.
  */
 extern int cfg_get_exec_file(IN struct cfg_devnode *dev_node_obj,
-				    IN u32 buf_size, OUT char *pstrExecFile);
+				    IN u32 buf_size, OUT char *str_exec_file);
 
 /*
  *  ======== cfg_get_object ========

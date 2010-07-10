@@ -265,7 +265,7 @@ extern int proc_get_state(void *hprocessor, OUT struct dsp_processorstate
  *      Report the state of the specified DSP processor.
  *  Parameters:
  *      hprocessor  :   The processor handle.
- *      procID      :   Processor ID
+ *      proc_id      :   Processor ID
  *
  *  Returns:
  *      0     :   Success.
@@ -278,7 +278,7 @@ extern int proc_get_state(void *hprocessor, OUT struct dsp_processorstate
  *  Ensures:
  *  Details:
  */
-extern int proc_get_processor_id(void *hprocessor, u32 * procID);
+extern int proc_get_processor_id(void *hprocessor, u32 * proc_id);
 
 /*
  *  ======== proc_get_trace ========

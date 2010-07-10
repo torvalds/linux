@@ -350,7 +350,7 @@ extern int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *  Parameters:
  *      cod_mgr_obj    - manager in which to search for the symbol
  *      pstrSect    - name of the section, with or without leading "."
- *      pstrContent - buffer to store content of the section.
+ *      str_content - buffer to store content of the section.
  *  Returns:
  *      0: on success, error code on failure
  *      -ESPIPE:  Symbols have not been loaded onto the board.
@@ -358,12 +358,12 @@ extern int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *      COD module initialized.
  *      valid cod_mgr_obj.
  *      pstrSect != NULL;
- *      pstrContent != NULL;
+ *      str_content != NULL;
  *  Ensures:
- *      0:  *pstrContent stores the content of the named section.
+ *      0:  *str_content stores the content of the named section.
  */
 extern int cod_read_section(struct cod_libraryobj *lib,
 				   IN char *pstrSect,
-				   OUT char *pstrContent, IN u32 content_size);
+				   OUT char *str_content, IN u32 content_size);
 
 #endif /* COD_ */

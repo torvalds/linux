@@ -300,7 +300,7 @@ void dbll_exit(void)
  *  Get address of name in the specified library.
  */
 bool dbll_get_addr(struct dbll_library_obj *zl_lib, char *name,
-		   struct dbll_sym_val **ppSym)
+		   struct dbll_sym_val **sym_val)
 {
 	struct dbll_symbol *sym;
 	bool status = false;
@@ -308,17 +308,17 @@ bool dbll_get_addr(struct dbll_library_obj *zl_lib, char *name,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_lib);
 	DBC_REQUIRE(name != NULL);
-	DBC_REQUIRE(ppSym != NULL);
+	DBC_REQUIRE(sym_val != NULL);
 	DBC_REQUIRE(zl_lib->sym_tab != NULL);
 
 	sym = (struct dbll_symbol *)gh_find(zl_lib->sym_tab, name);
 	if (sym != NULL) {
-		*ppSym = &sym->value;
+		*sym_val = &sym->value;
 		status = true;
 	}
 
 	dev_dbg(bridge, "%s: lib: %p name: %s paddr: %p, status 0x%x\n",
-		__func__, zl_lib, name, ppSym, status);
+		__func__, zl_lib, name, sym_val, status);
 	return status;
 }
 
@@ -344,7 +344,7 @@ void dbll_get_attrs(struct dbll_tar_obj *target, struct dbll_attrs *pattrs)
  *  Get address of a "C" name in the specified library.
  */
 bool dbll_get_c_addr(struct dbll_library_obj *zl_lib, char *name,
-		     struct dbll_sym_val **ppSym)
+		     struct dbll_sym_val **sym_val)
 {
 	struct dbll_symbol *sym;
 	char cname[MAXEXPR + 1];
@@ -352,7 +352,7 @@ bool dbll_get_c_addr(struct dbll_library_obj *zl_lib, char *name,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_lib);
-	DBC_REQUIRE(ppSym != NULL);
+	DBC_REQUIRE(sym_val != NULL);
 	DBC_REQUIRE(zl_lib->sym_tab != NULL);
 	DBC_REQUIRE(name != NULL);
 
@@ -365,7 +365,7 @@ bool dbll_get_c_addr(struct dbll_library_obj *zl_lib, char *name,
 	sym = (struct dbll_symbol *)gh_find(zl_lib->sym_tab, cname);
 
 	if (sym != NULL) {
-		*ppSym = &sym->value;
+		*sym_val = &sym->value;
 		status = true;
 	}
 

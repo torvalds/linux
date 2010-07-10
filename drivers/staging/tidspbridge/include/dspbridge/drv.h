@@ -451,7 +451,7 @@ extern void mem_ext_phys_pool_release(void);
  *  Parameters:
  *      byte_size:     Number of bytes to allocate.
  *      ulAlign:    Alignment Mask.
- *      pPhysicalAddress: Physical address of allocated memory.
+ *      physical_address: Physical address of allocated memory.
  *  Returns:
  *      Pointer to a block of memory;
  *      NULL if memory couldn't be allocated, or if byte_size == 0.
@@ -463,7 +463,7 @@ extern void mem_ext_phys_pool_release(void);
  *      location of memory.
  */
 extern void *mem_alloc_phys_mem(IN u32 byte_size,
-				IN u32 ulAlign, OUT u32 *pPhysicalAddress);
+				IN u32 ulAlign, OUT u32 *physical_address);
 
 /*
  *  ======== mem_free_phys_mem ========
@@ -472,7 +472,7 @@ extern void *mem_alloc_phys_mem(IN u32 byte_size,
  *  Parameters:
  *      pVirtualAddress:  Pointer to virtual memory region allocated
  *      by mem_alloc_phys_mem().
- *      pPhysicalAddress:  Pointer to physical memory region  allocated
+ *      physical_address:  Pointer to physical memory region  allocated
  *      by mem_alloc_phys_mem().
  *      byte_size:  Size of the memory region allocated by mem_alloc_phys_mem().
  *  Returns:
@@ -484,14 +484,14 @@ extern void *mem_alloc_phys_mem(IN u32 byte_size,
  *      pVirtualAddress is no longer a valid pointer to memory.
  */
 extern void mem_free_phys_mem(void *pVirtualAddress,
-			      u32 pPhysicalAddress, u32 byte_size);
+			      u32 physical_address, u32 byte_size);
 
 /*
  *  ======== MEM_LINEAR_ADDRESS ========
  *  Purpose:
  *      Get the linear address corresponding to the given physical address.
  *  Parameters:
- *      pPhysAddr:  Physical address to be mapped.
+ *      phys_addr:  Physical address to be mapped.
  *      byte_size:     Number of bytes in physical range to map.
  *  Returns:
  *      The corresponding linear address, or NULL if unsuccessful.

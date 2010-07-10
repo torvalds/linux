@@ -787,7 +787,7 @@ typedef int(*fxn_io_onloaded) (struct io_mgr *hio_mgr);
  *      Called to get the Processor's current and predicted load
  *  Parameters:
  *      hio_mgr:     IO Manager.
- *      pProcLoadStat   Processor Load statistics
+ *      proc_load_stat   Processor Load statistics
  *  Returns:
  *      0:    Success.
  *      -EPERM:  Internal failure occurred.
@@ -797,7 +797,7 @@ typedef int(*fxn_io_onloaded) (struct io_mgr *hio_mgr);
  */
 typedef int(*fxn_io_getprocload) (struct io_mgr *hio_mgr,
 					 struct dsp_procloadstat *
-					 pProcLoadStat);
+					 proc_load_stat);
 
 /*
  *  ======== bridge_msg_create ========
