@@ -127,7 +127,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  *       Type	    	: const u32
  *       Description     : Base Address of instance of MMU module
  *
- *       Identifier      : physicalAddr
+ *       Identifier      : physical_addr
  *       Type	    	: const u32
  *       Description     : Physical Address to which the corresponding
  *			 virtual   Address shouldpoint
@@ -158,7 +158,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  * METHOD:	       : Check the Input parameters and set the RAM entry.
  */
 static hw_status mmu_set_ram_entry(const void __iomem *base_address,
-				   const u32 physicalAddr,
+				   const u32 physical_addr,
 				   enum hw_endianism_t endianism,
 				   enum hw_element_size_t element_size,
 				   enum hw_mmu_mixed_size_t mixed_size);
@@ -332,7 +332,7 @@ hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtualAddr,
 }
 
 hw_status hw_mmu_tlb_add(const void __iomem *base_address,
-			 u32 physicalAddr,
+			 u32 physical_addr,
 			 u32 virtualAddr,
 			 u32 page_sz,
 			 u32 entry_num,
@@ -385,7 +385,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 
 	/* Write the different fields of the RAM Entry Register */
 	/* endianism of the page,Element Size of the page (8, 16, 32, 64 bit) */
-	mmu_set_ram_entry(base_address, physicalAddr, map_attrs->endianism,
+	mmu_set_ram_entry(base_address, physical_addr, map_attrs->endianism,
 			  map_attrs->element_size, map_attrs->mixed_size);
 
 	/* Update the MMU Lock Register */
@@ -402,7 +402,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 }
 
 hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
-			 u32 physicalAddr,
+			 u32 physical_addr,
 			 u32 virtualAddr,
 			 u32 page_sz, struct hw_mmu_map_attrs_t *map_attrs)
 {
@@ -416,7 +416,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 					      virtualAddr &
 					      MMU_SMALL_PAGE_MASK);
 		pte_val =
-		    ((physicalAddr & MMU_SMALL_PAGE_MASK) |
+		    ((physical_addr & MMU_SMALL_PAGE_MASK) |
 		     (map_attrs->endianism << 9) | (map_attrs->
 						    element_size << 4) |
 		     (map_attrs->mixed_size << 11) | 2);
@@ -428,7 +428,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 					      virtualAddr &
 					      MMU_LARGE_PAGE_MASK);
 		pte_val =
-		    ((physicalAddr & MMU_LARGE_PAGE_MASK) |
+		    ((physical_addr & MMU_LARGE_PAGE_MASK) |
 		     (map_attrs->endianism << 9) | (map_attrs->
 						    element_size << 4) |
 		     (map_attrs->mixed_size << 11) | 1);
@@ -439,7 +439,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 					      virtualAddr &
 					      MMU_SECTION_ADDR_MASK);
 		pte_val =
-		    ((((physicalAddr & MMU_SECTION_ADDR_MASK) |
+		    ((((physical_addr & MMU_SECTION_ADDR_MASK) |
 		       (map_attrs->endianism << 15) | (map_attrs->
 						       element_size << 10) |
 		       (map_attrs->mixed_size << 17)) & ~0x40000) | 0x2);
@@ -451,7 +451,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 					      virtualAddr &
 					      MMU_SSECTION_ADDR_MASK);
 		pte_val =
-		    (((physicalAddr & MMU_SSECTION_ADDR_MASK) |
+		    (((physical_addr & MMU_SSECTION_ADDR_MASK) |
 		      (map_attrs->endianism << 15) | (map_attrs->
 						      element_size << 10) |
 		      (map_attrs->mixed_size << 17)
@@ -462,7 +462,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 		pte_addr = hw_mmu_pte_addr_l1(pg_tbl_va,
 					      virtualAddr &
 					      MMU_SECTION_ADDR_MASK);
-		pte_val = (physicalAddr & MMU_PAGE_TABLE_MASK) | 1;
+		pte_val = (physical_addr & MMU_PAGE_TABLE_MASK) | 1;
 		break;
 
 	default:
@@ -561,7 +561,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 
 /* mmu_set_ram_entry */
 static hw_status mmu_set_ram_entry(const void __iomem *base_address,
-				   const u32 physicalAddr,
+				   const u32 physical_addr,
 				   enum hw_endianism_t endianism,
 				   enum hw_element_size_t element_size,
 				   enum hw_mmu_mixed_size_t mixed_size)
@@ -576,7 +576,7 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 			       RET_PARAM_OUT_OF_RANGE, RES_MMU_BASE +
 			       RES_INVALID_INPUT_PARAM);
 
-	mmu_ram_reg = (physicalAddr & MMU_ADDR_MASK);
+	mmu_ram_reg = (physical_addr & MMU_ADDR_MASK);
 	mmu_ram_reg = (mmu_ram_reg) | ((endianism << 9) | (element_size << 7) |
 				       (mixed_size << 6));
 

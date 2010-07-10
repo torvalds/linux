@@ -281,7 +281,7 @@ extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
  *     address translation. Node messaging and streams use this to perform
  *     inter-processor(GPP<->DSP) zero-copy data transfer.
  *  Parameters:
- *     phXlator:       Address to place handle to a new Xlator handle.
+ *     xlator:         Address to place handle to a new Xlator handle.
  *     hcmm_mgr:        Handle to Cmm Mgr associated with this translator.
  *     pXlatorAttrs:   Translator attributes used for the client NODE or STREAM.
  *  Returns:
@@ -289,13 +289,13 @@ extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
  *     -EINVAL:    Bad input Attrs.
  *     -ENOMEM:   Insufficient memory(local) for requested resources.
  *  Requires:
- *     phXlator != NULL
+ *     xlator != NULL
  *     hcmm_mgr != NULL
  *     pXlatorAttrs != NULL
  *  Ensures:
  *
  */
-extern int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
+extern int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
 				    struct cmm_object *hcmm_mgr,
 				    struct cmm_xlatorattrs *pXlatorAttrs);
 

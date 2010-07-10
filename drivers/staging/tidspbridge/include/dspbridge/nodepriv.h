@@ -110,16 +110,16 @@ extern int node_get_channel_id(struct node_object *hnode,
  *      Get the STRM manager for a node.
  *  Parameters:
  *      hnode:          Node allocated with node_allocate().
- *      phStrmMgr:      Location to store STRM manager on output.
+ *      strm_man:       Location to store STRM manager on output.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hnode.
  *  Requires:
- *      phStrmMgr != NULL.
+ *      strm_man != NULL.
  *  Ensures:
  */
 extern int node_get_strm_mgr(struct node_object *hnode,
-				    struct strm_mgr **phStrmMgr);
+				    struct strm_mgr **strm_man);
 
 /*
  *  ======== node_get_timeout ========

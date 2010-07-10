@@ -307,7 +307,7 @@ extern int cod_load_base(struct cod_manager *cod_mgr_obj,
  *      pszCoffPath:    Coff file to open.
  *      flags:          COD_NOLOAD (don't load symbols) or COD_SYMB (load
  *                      symbols).
- *      pLib:           Handle returned that can be used in calls to cod_close
+ *      lib_obj:        Handle returned that can be used in calls to cod_close
  *                      and cod_get_section.
  *  Returns:
  *      S_OK:                   Success.
@@ -321,7 +321,7 @@ extern int cod_load_base(struct cod_manager *cod_mgr_obj,
  */
 extern int cod_open(struct cod_manager *hmgr,
 			   IN char *pszCoffPath,
-			   u32 flags, OUT struct cod_libraryobj **pLib);
+			   u32 flags, OUT struct cod_libraryobj **lib_obj);
 
 /*
  *  ======== cod_open_base ========

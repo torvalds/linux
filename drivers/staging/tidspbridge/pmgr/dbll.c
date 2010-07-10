@@ -585,7 +585,7 @@ int dbll_load_sect(struct dbll_library_obj *zl_lib, char *sectName,
  *  ======== dbll_open ========
  */
 int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
-		     struct dbll_library_obj **pLib)
+		     struct dbll_library_obj **lib_obj)
 {
 	struct dbll_tar_obj *zl_target = (struct dbll_tar_obj *)target;
 	struct dbll_library_obj *zl_lib = NULL;
@@ -596,7 +596,7 @@ int dbll_open(struct dbll_tar_obj *target, char *file, dbll_flags flags,
 	DBC_REQUIRE(zl_target);
 	DBC_REQUIRE(zl_target->attrs.fopen != NULL);
 	DBC_REQUIRE(file != NULL);
-	DBC_REQUIRE(pLib != NULL);
+	DBC_REQUIRE(lib_obj != NULL);
 
 	zl_lib = zl_target->head;
 	while (zl_lib != NULL) {
@@ -707,18 +707,18 @@ func_cont:
 			zl_lib->next = zl_target->head;
 			zl_target->head = zl_lib;
 		}
-		*pLib = (struct dbll_library_obj *)zl_lib;
+		*lib_obj = (struct dbll_library_obj *)zl_lib;
 	} else {
-		*pLib = NULL;
+		*lib_obj = NULL;
 		if (zl_lib != NULL)
 			dbll_close((struct dbll_library_obj *)zl_lib);
 
 	}
-	DBC_ENSURE((DSP_SUCCEEDED(status) && (zl_lib->open_ref > 0) && *pLib)
-				|| (DSP_FAILED(status) && *pLib == NULL));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && (zl_lib->open_ref > 0) && *lib_obj)
+				|| (DSP_FAILED(status) && *lib_obj == NULL));
 
-	dev_dbg(bridge, "%s: target: %p file: %s pLib: %p, status 0x%x\n",
-		__func__, target, file, pLib, status);
+	dev_dbg(bridge, "%s: target: %p file: %s lib_obj: %p, status 0x%x\n",
+		__func__, target, file, lib_obj, status);
 
 	return status;
 }

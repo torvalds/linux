@@ -217,7 +217,7 @@ extern int node_create(struct node_object *hnode);
  *      Each DEV object should have exactly one NODE Manager object.
  *
  *  Parameters:
- *      phNodeMgr:      Location to store node manager handle on output.
+ *      node_man:       Location to store node manager handle on output.
  *      hdev_obj:     Device for this processor.
  *  Returns:
  *      0:        Success;
@@ -225,13 +225,13 @@ extern int node_create(struct node_object *hnode);
  *      -EPERM:      General failure.
  *  Requires:
  *      node_init(void) called.
- *      phNodeMgr != NULL.
+ *      node_man != NULL.
  *      hdev_obj != NULL.
  *  Ensures:
- *      0:        Valide *phNodeMgr.
- *      error:          *phNodeMgr == NULL.
+ *      0:        Valide *node_man.
+ *      error:          *node_man == NULL.
  */
-extern int node_create_mgr(OUT struct node_mgr **phNodeMgr,
+extern int node_create_mgr(OUT struct node_mgr **node_man,
 				  struct dev_object *hdev_obj);
 
 /*
@@ -392,14 +392,14 @@ extern int node_get_message(struct node_object *hnode,
  *      Retrieve the Nldr manager
  *  Parameters:
  *      hnode_mgr:       Node Manager
- *      phNldrObj:      Pointer to a Nldr manager handle
+ *      nldr_ovlyobj:   Pointer to a Nldr manager handle
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hnode.
  *  Ensures:
  */
 extern int node_get_nldr_obj(struct node_mgr *hnode_mgr,
-				    OUT struct nldr_object **phNldrObj);
+				    OUT struct nldr_object **nldr_ovlyobj);
 
 /*
  *  ======== node_init ========

@@ -35,18 +35,18 @@ struct lst_list {
  *      Returns a pointer to the first element of the list, or NULL if the list
  *      is empty.
  *  Parameters:
- *      pList:  Pointer to list control structure.
+ *      lst:  Pointer to list control structure.
  *  Returns:
  *      Pointer to first list element, or NULL.
  *  Requires:
  *      - LST initialized.
- *      - pList != NULL.
+ *      - lst != NULL.
  *  Ensures:
  */
-static inline struct list_head *lst_first(struct lst_list *pList)
+static inline struct list_head *lst_first(struct lst_list *lst)
 {
-	if (pList && !list_empty(&pList->head))
-		return pList->head.next;
+	if (lst && !list_empty(&lst->head))
+		return lst->head.next;
 	return NULL;
 }
 
@@ -64,30 +64,30 @@ static inline struct list_head *lst_first(struct lst_list *pList)
  *      element.  So the next element after the head becomes the new head of
  *      the list.
  *  Parameters:
- *      pList:  Pointer to list control structure of list whose head
+ *      lst:    Pointer to list control structure of list whose head
  *              element is to be removed
  *  Returns:
  *      Pointer to element that was at the head of the list (success)
  *      NULL          No elements in list
  *  Requires:
  *      - LST initialized.
- *      - pList != NULL.
+ *      - lst != NULL.
  *  Ensures:
  *  Notes:
  *      Because the tail of the list points forward (its "next" pointer) to
  *      the head of the list, and the head of the list points backward (its
  *      "prev" pointer) to the tail of the list, this list is circular.
  */
-static inline struct list_head *lst_get_head(struct lst_list *pList)
+static inline struct list_head *lst_get_head(struct lst_list *lst)
 {
 	struct list_head *elem_list;
 
-	if (!pList || list_empty(&pList->head))
+	if (!lst || list_empty(&lst->head))
 		return NULL;
 
-	elem_list = pList->head.next;
-	pList->head.next = elem_list->next;
-	elem_list->next->prev = &pList->head;
+	elem_list = lst->head.next;
+	lst->head.next = elem_list->next;
+	elem_list->next->prev = &lst->head;
 
 	return elem_list;
 }
@@ -121,22 +121,22 @@ static inline void lst_init_elem(struct list_head *elem_list)
  *  Purpose:
  *     Insert the element before the existing element.
  *  Parameters:
- *      pList:          Pointer to list control structure.
+ *      lst:            Pointer to list control structure.
  *      elem_list:          Pointer to element in list to insert.
  *      elem_existing:  Pointer to existing list element.
  *  Returns:
  *  Requires:
  *      - LST initialized.
- *      - pList != NULL.
+ *      - lst != NULL.
  *      - elem_list != NULL.
  *      - elem_existing != NULL.
  *  Ensures:
  */
-static inline void lst_insert_before(struct lst_list *pList,
+static inline void lst_insert_before(struct lst_list *lst,
 				     struct list_head *elem_list,
 				     struct list_head *elem_existing)
 {
-	if (pList && elem_list && elem_existing)
+	if (lst && elem_list && elem_existing)
 		list_add_tail(elem_list, elem_existing);
 }
 
@@ -146,21 +146,21 @@ static inline void lst_insert_before(struct lst_list *pList,
  *      Returns a pointer to the next element of the list, or NULL if the next
  *      element is the head of the list or the list is empty.
  *  Parameters:
- *      pList:      Pointer to list control structure.
+ *      lst:        Pointer to list control structure.
  *      cur_elem:   Pointer to element in list to remove.
  *  Returns:
  *      Pointer to list element, or NULL.
  *  Requires:
  *      - LST initialized.
- *      - pList != NULL.
+ *      - lst != NULL.
  *      - cur_elem != NULL.
  *  Ensures:
  */
-static inline struct list_head *lst_next(struct lst_list *pList,
+static inline struct list_head *lst_next(struct lst_list *lst,
 					 struct list_head *cur_elem)
 {
-	if (pList && !list_empty(&pList->head) && cur_elem &&
-	    (cur_elem->next != &pList->head))
+	if (lst && !list_empty(&lst->head) && cur_elem &&
+	    (cur_elem->next != &lst->head))
 		return cur_elem->next;
 	return NULL;
 }
@@ -179,13 +179,13 @@ static inline struct list_head *lst_next(struct lst_list *pList,
  *      Sets new element's next pointer to the address of the head element.
  *      Sets head's prev pointer to the address of the new element.
  *  Parameters:
- *      pList:  Pointer to list control structure to which *elem_list will be
+ *      lst:    Pointer to list control structure to which *elem_list will be
  *              added
  *      elem_list:  Pointer to list element to be added
  *  Returns:
  *      Void
  *  Requires:
- *      *elem_list and *pList must both exist.
+ *      *elem_list and *lst must both exist.
  *      LST initialized.
  *  Ensures:
  *  Notes:
@@ -193,11 +193,11 @@ static inline struct list_head *lst_next(struct lst_list *pList,
  *      tail's "next" pointer points at the head of the list, and the head's
  *      "prev" pointer points at the tail of the list), the list is circular.
  */
-static inline void lst_put_tail(struct lst_list *pList,
+static inline void lst_put_tail(struct lst_list *lst,
 				struct list_head *elem_list)
 {
-	if (pList && elem_list)
-		list_add_tail(elem_list, &pList->head);
+	if (lst && elem_list)
+		list_add_tail(elem_list, &lst->head);
 }
 
 /*
@@ -206,19 +206,19 @@ static inline void lst_put_tail(struct lst_list *pList,
  *      Removes (unlinks) the given element from the list, if the list is not
  *      empty.  Does not free the list element.
  *  Parameters:
- *      pList:      Pointer to list control structure.
+ *      lst:        Pointer to list control structure.
  *      cur_elem:   Pointer to element in list to remove.
  *  Returns:
  *  Requires:
  *      - LST initialized.
- *      - pList != NULL.
+ *      - lst != NULL.
  *      - cur_elem != NULL.
  *  Ensures:
  */
-static inline void lst_remove_elem(struct lst_list *pList,
+static inline void lst_remove_elem(struct lst_list *lst,
 				   struct list_head *cur_elem)
 {
-	if (pList && !list_empty(&pList->head) && cur_elem)
+	if (lst && !list_empty(&lst->head) && cur_elem)
 		list_del_init(cur_elem);
 }
 

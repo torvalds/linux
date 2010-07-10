@@ -200,17 +200,17 @@ func_end:
  *  Purpose:
  *      Create a STRM manager object.
  */
-int strm_create(OUT struct strm_mgr **phStrmMgr,
+int strm_create(OUT struct strm_mgr **strm_man,
 		       struct dev_object *dev_obj)
 {
 	struct strm_mgr *strm_mgr_obj;
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phStrmMgr != NULL);
+	DBC_REQUIRE(strm_man != NULL);
 	DBC_REQUIRE(dev_obj != NULL);
 
-	*phStrmMgr = NULL;
+	*strm_man = NULL;
 	/* Allocate STRM manager object */
 	strm_mgr_obj = kzalloc(sizeof(struct strm_mgr), GFP_KERNEL);
 	if (strm_mgr_obj == NULL)
@@ -229,12 +229,12 @@ int strm_create(OUT struct strm_mgr **phStrmMgr,
 	}
 
 	if (DSP_SUCCEEDED(status))
-		*phStrmMgr = strm_mgr_obj;
+		*strm_man = strm_mgr_obj;
 	else
 		delete_strm_mgr(strm_mgr_obj);
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phStrmMgr) ||
-				(DSP_FAILED(status) && *phStrmMgr == NULL));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *strm_man) ||
+				(DSP_FAILED(status) && *strm_man == NULL));
 
 	return status;
 }
@@ -468,7 +468,7 @@ int strm_issue(struct strm_object *stream_obj, IN u8 *pbuf, u32 ul_bytes,
  */
 int strm_open(struct node_object *hnode, u32 dir, u32 index,
 		     IN struct strm_attr *pattr,
-		     OUT struct strm_object **phStrm,
+		     OUT struct strm_object **strm_objct,
 		     struct process_context *pr_ctxt)
 {
 	struct strm_mgr *strm_mgr_obj;
@@ -483,9 +483,9 @@ int strm_open(struct node_object *hnode, u32 dir, u32 index,
 	void *hstrm_res;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phStrm != NULL);
+	DBC_REQUIRE(strm_objct != NULL);
 	DBC_REQUIRE(pattr != NULL);
-	*phStrm = NULL;
+	*strm_objct = NULL;
 	if (dir != DSP_TONODE && dir != DSP_FROMNODE) {
 		status = -EPERM;
 	} else {
@@ -595,21 +595,22 @@ func_cont:
 		}
 	}
 	if (DSP_SUCCEEDED(status)) {
-		*phStrm = strm_obj;
-		drv_proc_insert_strm_res_element(*phStrm, &hstrm_res, pr_ctxt);
+		*strm_objct = strm_obj;
+		drv_proc_insert_strm_res_element(*strm_objct, &hstrm_res,
+						  pr_ctxt);
 	} else {
 		(void)delete_strm(strm_obj);
 	}
 
 	/* ensure we return a documented error code */
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phStrm) ||
-		   (*phStrm == NULL && (status == -EFAULT ||
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *strm_objct) ||
+		   (*strm_objct == NULL && (status == -EFAULT ||
 					status == -EPERM
 					|| status == -EINVAL)));
 
 	dev_dbg(bridge, "%s: hnode: %p dir: 0x%x index: 0x%x pattr: %p "
-		"phStrm: %p status: 0x%x\n", __func__,
-		hnode, dir, index, pattr, phStrm, status);
+		"strm_objct: %p status: 0x%x\n", __func__,
+		hnode, dir, index, pattr, strm_objct, status);
 	return status;
 }
 

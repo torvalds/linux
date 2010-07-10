@@ -41,12 +41,12 @@ extern int bridge_chnl_open(OUT struct chnl_object **chnl,
 extern int bridge_chnl_close(struct chnl_object *chnl_obj);
 
 extern int bridge_chnl_add_io_req(struct chnl_object *chnl_obj,
-				      void *pHostBuf,
+				      void *host_buf,
 				      u32 byte_size, u32 buf_size,
 				      OPTIONAL u32 dw_dsp_addr, u32 dw_arg);
 
 extern int bridge_chnl_get_ioc(struct chnl_object *chnl_obj,
-				   u32 timeout, OUT struct chnl_ioc *pIOC);
+				   u32 timeout, OUT struct chnl_ioc *chan_ioc);
 
 extern int bridge_chnl_cancel_io(struct chnl_object *chnl_obj);
 
@@ -54,7 +54,7 @@ extern int bridge_chnl_flush_io(struct chnl_object *chnl_obj,
 				    u32 timeout);
 
 extern int bridge_chnl_get_info(struct chnl_object *chnl_obj,
-				    OUT struct chnl_info *pInfo);
+				    OUT struct chnl_info *channel_info);
 
 extern int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr,
 					u32 uChnlID, OUT struct chnl_mgrinfo

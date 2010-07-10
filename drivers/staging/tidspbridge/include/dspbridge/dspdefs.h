@@ -143,7 +143,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
- *      pHostBuf:       Pointer to host buffer (Source).
+ *      host_buf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP to which to transfer.
  *  Returns:
@@ -152,12 +152,12 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
- *      pHostBuf != NULL.
+ *      host_buf != NULL.
  *  Ensures:
  */
 typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
 				       * dev_ctxt,
-				       IN u8 *pHostBuf,
+				       IN u8 *host_buf,
 				       u32 dsp_addr, u32 ul_num_bytes,
 				       u32 ulMemType);
 
@@ -248,7 +248,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
  *      buffer.
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device info.
- *      pHostBuf:       Pointer to host buffer (Destination).
+ *      host_buf:       Pointer to host buffer (Destination).
  *      dsp_addr:       Address on DSP board (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP from which to transfer.
@@ -258,12 +258,12 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
- *      pHostBuf != NULL.
+ *      host_buf != NULL.
  *  Ensures:
- *  Will not write more than ul_num_bytes bytes into pHostBuf.
+ *  Will not write more than ul_num_bytes bytes into host_buf.
  */
 typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
-				   OUT u8 *pHostBuf,
+				   OUT u8 *host_buf,
 				   u32 dsp_addr,
 				   u32 ul_num_bytes, u32 ulMemType);
 
@@ -275,7 +275,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
- *      pHostBuf:       Pointer to host buffer (Source).
+ *      host_buf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP to which to transfer.
  *  Returns:
@@ -284,11 +284,11 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
- *      pHostBuf != NULL.
+ *      host_buf != NULL.
  *  Ensures:
  */
 typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
-				    IN u8 *pHostBuf,
+				    IN u8 *host_buf,
 				    u32 dsp_addr,
 				    u32 ul_num_bytes, u32 ulMemType);
 
@@ -442,7 +442,7 @@ typedef int(*fxn_chnl_close) (struct chnl_object *chnl_obj);
  *      address is specified for channels opened in direct I/O mode.
  *  Parameters:
  *      chnl_obj:          Channel object handle.
- *      pHostBuf:       Host buffer address source.
+ *      host_buf:       Host buffer address source.
  *      byte_size:	Number of PC bytes to transfer. A zero value indicates
  *                      that this buffer is the last in the output channel.
  *                      A zero value is invalid for an input channel.
@@ -451,7 +451,7 @@ typedef int(*fxn_chnl_close) (struct chnl_object *chnl_obj);
  *      dw_arg:          A user argument that travels with the buffer.
  *  Returns:
  *      0:        Success;
- *      -EFAULT: Invalid chnl_obj or pHostBuf.
+ *      -EFAULT: Invalid chnl_obj or host_buf.
  *      -EPERM:   User cannot mark EOS on an input channel.
  *      -ECANCELED: I/O has been cancelled on this channel.  No further
  *                      I/O is allowed.
@@ -472,7 +472,7 @@ typedef int(*fxn_chnl_close) (struct chnl_object *chnl_obj);
  */
 typedef int(*fxn_chnl_addioreq) (struct chnl_object
 					* chnl_obj,
-					void *pHostBuf,
+					void *host_buf,
 					u32 byte_size,
 					u32 buf_size,
 					OPTIONAL u32 dw_dsp_addr, u32 dw_arg);
@@ -486,12 +486,12 @@ typedef int(*fxn_chnl_addioreq) (struct chnl_object
  *      chnl_obj:          Channel object handle.
  *      timeout:        A value of CHNL_IOCNOWAIT will simply dequeue the
  *                      first available IOC.
- *      pIOC:           On output, contains host buffer address, bytes
+ *      chan_ioc:       On output, contains host buffer address, bytes
  *                      transferred, and status of I/O completion.
- *      pIOC->status:   See chnldefs.h.
+ *      chan_ioc->status:   See chnldefs.h.
  *  Returns:
  *      0:        Success.
- *      -EFAULT: Invalid chnl_obj or pIOC.
+ *      -EFAULT: Invalid chnl_obj or chan_ioc.
  *      -EREMOTEIO:   CHNL_IOCNOWAIT was specified as the timeout parameter
  *                      yet no I/O completions were queued.
  *  Requires:
@@ -503,7 +503,7 @@ typedef int(*fxn_chnl_addioreq) (struct chnl_object
  */
 typedef int(*fxn_chnl_getioc) (struct chnl_object *chnl_obj,
 				      u32 timeout,
-				      OUT struct chnl_ioc *pIOC);
+				      OUT struct chnl_ioc *chan_ioc);
 
 /*
  *  ======== bridge_chnl_cancel_io ========
@@ -551,14 +551,14 @@ typedef int(*fxn_chnl_flushio) (struct chnl_object *chnl_obj,
  *      Retrieve information related to a channel.
  *  Parameters:
  *      chnl_obj:          Handle to a valid channel object, or NULL.
- *      pInfo:          Location to store channel info.
+ *      channel_info:   Location to store channel info.
  *  Returns:
  *      0:        Success;
- *      -EFAULT: Invalid chnl_obj or pInfo.
+ *      -EFAULT: Invalid chnl_obj or channel_info.
  *  Requires:
  *  Ensures:
- *      0:        pInfo points to a filled in chnl_info struct,
- *                      if (pInfo != NULL).
+ *      0:        channel_info points to a filled in chnl_info struct,
+ *                      if (channel_info != NULL).
  */
 typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
 				       OUT struct chnl_info *channel_info);

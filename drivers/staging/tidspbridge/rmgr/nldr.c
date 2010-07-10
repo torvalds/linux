@@ -288,7 +288,7 @@ static int add_ovly_info(void *handle, struct dbll_sect_info *sect_info,
 static int add_ovly_node(struct dsp_uuid *uuid_obj,
 				enum dsp_dcdobjtype obj_type, IN void *handle);
 static int add_ovly_sect(struct nldr_object *nldr_obj,
-				struct ovly_sect **pList,
+				struct ovly_sect **lst,
 				struct dbll_sect_info *pSectInfo,
 				bool *exists, u32 addr, u32 bytes);
 static s32 fake_ovly_write(void *handle, u32 dsp_address, void *buf, u32 bytes,
@@ -424,7 +424,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 /*
  *  ======== nldr_create ========
  */
-int nldr_create(OUT struct nldr_object **phNldr,
+int nldr_create(OUT struct nldr_object **nldr,
 		       struct dev_object *hdev_obj,
 		       IN CONST struct nldr_attrs *pattrs)
 {
@@ -444,7 +444,7 @@ int nldr_create(OUT struct nldr_object **phNldr,
 	u16 i;
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phNldr != NULL);
+	DBC_REQUIRE(nldr != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 	DBC_REQUIRE(pattrs != NULL);
 	DBC_REQUIRE(pattrs->pfn_ovly != NULL);
@@ -593,16 +593,16 @@ int nldr_create(OUT struct nldr_object **phNldr,
 						     &save_attrs, &ul_entry);
 	}
 	if (DSP_SUCCEEDED(status)) {
-		*phNldr = (struct nldr_object *)nldr_obj;
+		*nldr = (struct nldr_object *)nldr_obj;
 	} else {
 		if (nldr_obj)
 			nldr_delete((struct nldr_object *)nldr_obj);
 
-		*phNldr = NULL;
+		*nldr = NULL;
 	}
 	/* FIXME:Temp. Fix. Must be removed */
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phNldr)
-		   || (DSP_FAILED(status) && (*phNldr == NULL)));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *nldr)
+		   || (DSP_FAILED(status) && (*nldr == NULL)));
 	return status;
 }
 
@@ -775,21 +775,21 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
  *  Given a NLDR object, retrieve RMM Manager Handle
  */
 int nldr_get_rmm_manager(struct nldr_object *nldr,
-				OUT struct rmm_target_obj **phRmmMgr)
+				OUT struct rmm_target_obj **rmm_mgr)
 {
 	int status = 0;
 	struct nldr_object *nldr_obj = nldr;
-	DBC_REQUIRE(phRmmMgr != NULL);
+	DBC_REQUIRE(rmm_mgr != NULL);
 
 	if (nldr) {
-		*phRmmMgr = nldr_obj->rmm;
+		*rmm_mgr = nldr_obj->rmm;
 	} else {
-		*phRmmMgr = NULL;
+		*rmm_mgr = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phRmmMgr != NULL) &&
-					     (*phRmmMgr == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((rmm_mgr != NULL) &&
+					     (*rmm_mgr == NULL)));
 
 	return status;
 }
@@ -1071,7 +1071,7 @@ func_end:
  *  ======== add_ovly_sect ========
  */
 static int add_ovly_sect(struct nldr_object *nldr_obj,
-				struct ovly_sect **pList,
+				struct ovly_sect **lst,
 				struct dbll_sect_info *pSectInfo,
 				bool *exists, u32 addr, u32 bytes)
 {
@@ -1080,7 +1080,7 @@ static int add_ovly_sect(struct nldr_object *nldr_obj,
 	struct ovly_sect *ovly_section;
 	int status = 0;
 
-	ovly_section = last_sect = *pList;
+	ovly_section = last_sect = *lst;
 	*exists = false;
 	while (ovly_section) {
 		/*
@@ -1111,9 +1111,9 @@ static int add_ovly_sect(struct nldr_object *nldr_obj,
 
 		/* Add to the list */
 		if (DSP_SUCCEEDED(status)) {
-			if (*pList == NULL) {
+			if (*lst == NULL) {
 				/* First in the list */
-				*pList = new_sect;
+				*lst = new_sect;
 			} else {
 				last_sect->next_sect = new_sect;
 			}

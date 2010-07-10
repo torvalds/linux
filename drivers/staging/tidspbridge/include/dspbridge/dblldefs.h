@@ -379,7 +379,7 @@ typedef int(*dbll_load_sect_fxn) (struct dbll_library_obj *lib,
  *      target          - Handle returned from dbll_create().
  *      file            - Name of file to open.
  *      flags           - If flags & DBLL_SYMB, load symbols.
- *      pLib            - Location to store library handle on output.
+ *      lib_obj         - Location to store library handle on output.
  *  Returns:
  *      0:            Success.
  *      -ENOMEM:        Memory allocation failure.
@@ -389,15 +389,15 @@ typedef int(*dbll_load_sect_fxn) (struct dbll_library_obj *lib,
  *      DBL initialized.
  *      Valid target.
  *      file != NULL.
- *      pLib != NULL.
+ *      lib_obj != NULL.
  *      dbll_attrs fopen function non-NULL.
  *  Ensures:
- *      Success:        Valid *pLib.
- *      Failure:        *pLib == NULL.
+ *      Success:        Valid *lib_obj.
+ *      Failure:        *lib_obj == NULL.
  */
 typedef int(*dbll_open_fxn) (struct dbll_tar_obj *target, char *file,
 				    dbll_flags flags,
-				    struct dbll_library_obj **pLib);
+				    struct dbll_library_obj **lib_obj);
 
 /*
  *  ======== dbll_read_sect ========

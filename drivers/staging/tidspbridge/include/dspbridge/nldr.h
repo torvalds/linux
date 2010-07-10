@@ -31,7 +31,7 @@ extern int nldr_allocate(struct nldr_object *nldr_obj,
 				OUT struct nldr_nodeobject **nldr_nodeobj,
 				IN bool *pf_phase_split);
 
-extern int nldr_create(OUT struct nldr_object **phNldr,
+extern int nldr_create(OUT struct nldr_object **nldr,
 			      struct dev_object *hdev_obj,
 			      IN CONST struct nldr_attrs *pattrs);
 
@@ -42,7 +42,7 @@ extern int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 				    char *pstrFxn, u32 * pulAddr);
 
 extern int nldr_get_rmm_manager(struct nldr_object *nldr,
-				       OUT struct rmm_target_obj **phRmmMgr);
+				       OUT struct rmm_target_obj **rmm_mgr);
 
 extern bool nldr_init(void);
 extern int nldr_load(struct nldr_nodeobject *nldr_node_obj,

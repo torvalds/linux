@@ -100,7 +100,7 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
  *      is passed a handle to a DEV_hObject, then calls the
  *      device's bridge_brd_write() function.
  */
-u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *pHostBuf,
+u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *host_buf,
 		      u32 ul_num_bytes, u32 mem_space)
 {
 	struct dev_object *dev_obj = (struct dev_object *)arb;
@@ -108,12 +108,12 @@ u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *pHostBuf,
 	int status;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pHostBuf != NULL);	/* Required of BrdWrite(). */
+	DBC_REQUIRE(host_buf != NULL);	/* Required of BrdWrite(). */
 	if (dev_obj) {
 		/* Require of BrdWrite() */
 		DBC_ASSERT(dev_obj->hbridge_context != NULL);
 		status = (*dev_obj->bridge_interface.pfn_brd_write) (
-					dev_obj->hbridge_context, pHostBuf,
+					dev_obj->hbridge_context, host_buf,
 					ulDspAddr, ul_num_bytes, mem_space);
 		/* Special case of getting the address only */
 		if (ul_num_bytes == 0)
@@ -667,23 +667,23 @@ void dev_get_msg_mgr(struct dev_object *hdev_obj, OUT struct msg_mgr **msg_man)
  *      Retrieve the Node Manager Handle
  */
 int dev_get_node_manager(struct dev_object *hdev_obj,
-				OUT struct node_mgr **phNodeMgr)
+				OUT struct node_mgr **node_man)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phNodeMgr != NULL);
+	DBC_REQUIRE(node_man != NULL);
 
 	if (hdev_obj) {
-		*phNodeMgr = dev_obj->hnode_mgr;
+		*node_man = dev_obj->hnode_mgr;
 	} else {
-		*phNodeMgr = NULL;
+		*node_man = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phNodeMgr != NULL) &&
-					     (*phNodeMgr == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((node_man != NULL) &&
+					     (*node_man == NULL)));
 	return status;
 }
 

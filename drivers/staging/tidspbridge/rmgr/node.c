@@ -1302,7 +1302,7 @@ func_end:
  *  Purpose:
  *      Create a NODE Manager object.
  */
-int node_create_mgr(OUT struct node_mgr **phNodeMgr,
+int node_create_mgr(OUT struct node_mgr **node_man,
 			   struct dev_object *hdev_obj)
 {
 	u32 i;
@@ -1313,10 +1313,10 @@ int node_create_mgr(OUT struct node_mgr **phNodeMgr,
 	int status = 0;
 	u8 dev_type;
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phNodeMgr != NULL);
+	DBC_REQUIRE(node_man != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 
-	*phNodeMgr = NULL;
+	*node_man = NULL;
 	/* Allocate Node manager object */
 	node_mgr_obj = kzalloc(sizeof(struct node_mgr), GFP_KERNEL);
 	if (node_mgr_obj) {
@@ -1419,12 +1419,12 @@ int node_create_mgr(OUT struct node_mgr **phNodeMgr,
 						       &nldr_attrs_obj);
 	}
 	if (DSP_SUCCEEDED(status))
-		*phNodeMgr = node_mgr_obj;
+		*node_man = node_mgr_obj;
 	else
 		delete_node_mgr(node_mgr_obj);
 
-	DBC_ENSURE((DSP_FAILED(status) && (*phNodeMgr == NULL)) ||
-			(DSP_SUCCEEDED(status) && *phNodeMgr));
+	DBC_ENSURE((DSP_FAILED(status) && (*node_man == NULL)) ||
+			(DSP_SUCCEEDED(status) && *node_man));
 
 	return status;
 }
@@ -1880,19 +1880,19 @@ func_end:
  *   ======== node_get_nldr_obj ========
  */
 int node_get_nldr_obj(struct node_mgr *hnode_mgr,
-			     struct nldr_object **phNldrObj)
+			     struct nldr_object **nldr_ovlyobj)
 {
 	int status = 0;
 	struct node_mgr *node_mgr_obj = hnode_mgr;
-	DBC_REQUIRE(phNldrObj != NULL);
+	DBC_REQUIRE(nldr_ovlyobj != NULL);
 
 	if (!hnode_mgr)
 		status = -EFAULT;
 	else
-		*phNldrObj = node_mgr_obj->nldr_obj;
+		*nldr_ovlyobj = node_mgr_obj->nldr_obj;
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phNldrObj != NULL) &&
-					     (*phNldrObj == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((nldr_ovlyobj != NULL) &&
+					     (*nldr_ovlyobj == NULL)));
 	return status;
 }
 
@@ -1902,7 +1902,7 @@ int node_get_nldr_obj(struct node_mgr *hnode_mgr,
  *      Returns the Stream manager.
  */
 int node_get_strm_mgr(struct node_object *hnode,
-			     struct strm_mgr **phStrmMgr)
+			     struct strm_mgr **strm_man)
 {
 	int status = 0;
 
@@ -1911,7 +1911,7 @@ int node_get_strm_mgr(struct node_object *hnode,
 	if (!hnode)
 		status = -EFAULT;
 	else
-		*phStrmMgr = hnode->hnode_mgr->strm_mgr_obj;
+		*strm_man = hnode->hnode_mgr->strm_mgr_obj;
 
 	return status;
 }

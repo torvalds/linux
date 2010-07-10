@@ -551,7 +551,7 @@ int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
  *      Open library for reading sections.
  */
 int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
-		    u32 flags, struct cod_libraryobj **pLib)
+		    u32 flags, struct cod_libraryobj **lib_obj)
 {
 	int status = 0;
 	struct cod_libraryobj *lib = NULL;
@@ -560,9 +560,9 @@ int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
 	DBC_REQUIRE(IS_VALID(hmgr));
 	DBC_REQUIRE(pszCoffPath != NULL);
 	DBC_REQUIRE(flags == COD_NOLOAD || flags == COD_SYMB);
-	DBC_REQUIRE(pLib != NULL);
+	DBC_REQUIRE(lib_obj != NULL);
 
-	*pLib = NULL;
+	*lib_obj = NULL;
 
 	lib = kzalloc(sizeof(struct cod_libraryobj), GFP_KERNEL);
 	if (lib == NULL)
@@ -573,7 +573,7 @@ int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
 		status = hmgr->fxns.open_fxn(hmgr->target, pszCoffPath, flags,
 					     &lib->dbll_lib);
 		if (DSP_SUCCEEDED(status))
-			*pLib = lib;
+			*lib_obj = lib;
 	}
 
 	if (DSP_FAILED(status))

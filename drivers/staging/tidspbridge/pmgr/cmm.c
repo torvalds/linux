@@ -954,7 +954,7 @@ static struct cmm_allocator *get_allocator(struct cmm_object *cmm_mgr_obj,
  *  Purpose:
  *      Create an address translator object.
  */
-int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
+int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
 			     struct cmm_object *hcmm_mgr,
 			     struct cmm_xlatorattrs *pXlatorAttrs)
 {
@@ -962,10 +962,10 @@ int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phXlator != NULL);
+	DBC_REQUIRE(xlator != NULL);
 	DBC_REQUIRE(hcmm_mgr != NULL);
 
-	*phXlator = NULL;
+	*xlator = NULL;
 	if (pXlatorAttrs == NULL)
 		pXlatorAttrs = &cmm_dfltxlatorattrs;	/* set defaults */
 
@@ -978,7 +978,7 @@ int cmm_xlator_create(OUT struct cmm_xlatorobject **phXlator,
 		status = -ENOMEM;
 	}
 	if (DSP_SUCCEEDED(status))
-		*phXlator = (struct cmm_xlatorobject *)xlator_object;
+		*xlator = (struct cmm_xlatorobject *)xlator_object;
 
 	return status;
 }

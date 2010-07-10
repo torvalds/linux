@@ -75,7 +75,7 @@ extern int strm_close(struct strm_object *stream_obj,
  *      Create a STRM manager object. This object holds information about the
  *      device needed to open streams.
  *  Parameters:
- *      phStrmMgr:      Location to store handle to STRM manager object on
+ *      strm_man:       Location to store handle to STRM manager object on
  *                      output.
  *      dev_obj:           Device for this processor.
  *  Returns:
@@ -84,13 +84,13 @@ extern int strm_close(struct strm_object *stream_obj,
  *      -EPERM:      General failure.
  *  Requires:
  *      strm_init(void) called.
- *      phStrmMgr != NULL.
+ *      strm_man != NULL.
  *      dev_obj != NULL.
  *  Ensures:
- *      0:        Valid *phStrmMgr.
- *      error:          *phStrmMgr == NULL.
+ *      0:        Valid *strm_man.
+ *      error:          *strm_man == NULL.
  */
-extern int strm_create(OUT struct strm_mgr **phStrmMgr,
+extern int strm_create(OUT struct strm_mgr **strm_man,
 			      struct dev_object *dev_obj);
 
 /*
@@ -254,7 +254,7 @@ extern int strm_issue(struct strm_object *stream_obj, IN u8 * pbuf,
  *      index:         Stream index.
  *      pattr:          Pointer to structure containing attributes to be
  *                      applied to stream. Cannot be NULL.
- *      phStrm:         Location to store stream handle on output.
+ *      strm_objct:     Location to store stream handle on output.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hnode.
@@ -264,15 +264,15 @@ extern int strm_issue(struct strm_object *stream_obj, IN u8 * pbuf,
  *      -EINVAL:     Invalid index.
  *  Requires:
  *      strm_init(void) called.
- *      phStrm != NULL.
+ *      strm_objct != NULL.
  *      pattr != NULL.
  *  Ensures:
- *      0:        *phStrm is valid.
- *      error:          *phStrm == NULL.
+ *      0:        *strm_objct is valid.
+ *      error:          *strm_objct == NULL.
  */
 extern int strm_open(struct node_object *hnode, u32 dir,
 			    u32 index, IN struct strm_attr *pattr,
-			    OUT struct strm_object **phStrm,
+			    OUT struct strm_object **strm_objct,
 			    struct process_context *pr_ctxt);
 
 /*

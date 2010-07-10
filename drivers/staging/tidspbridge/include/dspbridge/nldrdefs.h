@@ -141,7 +141,7 @@ typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
  *  create, delete, and execute phase functions of nodes on the DSP target.
  *
  *  Parameters:
- *      phNldr:         Location to store loader handle on output.
+ *      nldr:           Location to store loader handle on output.
  *      hdev_obj:     Device for this processor.
  *      pattrs:         Loader attributes.
  *  Returns:
@@ -149,14 +149,14 @@ typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
  *      -ENOMEM:    Insufficient memory for requested resources.
  *  Requires:
  *      nldr_init(void) called.
- *      phNldr != NULL.
+ *      nldr != NULL.
  *      hdev_obj != NULL.
  *	pattrs != NULL.
  *  Ensures:
- *      0:        Valid *phNldr.
- *      error:          *phNldr == NULL.
+ *      0:        Valid *nldr.
+ *      error:          *nldr == NULL.
  */
-typedef int(*nldr_createfxn) (OUT struct nldr_object **phNldr,
+typedef int(*nldr_createfxn) (OUT struct nldr_object **nldr,
 				     struct dev_object *hdev_obj,
 				     IN CONST struct nldr_attrs *pattrs);
 

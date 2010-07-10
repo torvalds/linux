@@ -80,7 +80,7 @@ extern hw_status hw_mmu_tlb_flush(const void __iomem *base_address,
 				  u32 virtualAddr, u32 page_sz);
 
 extern hw_status hw_mmu_tlb_add(const void __iomem *base_address,
-				u32 physicalAddr,
+				u32 physical_addr,
 				u32 virtualAddr,
 				u32 page_sz,
 				u32 entry_num,
@@ -89,7 +89,7 @@ extern hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 
 /* For PTEs */
 extern hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
-				u32 physicalAddr,
+				u32 physical_addr,
 				u32 virtualAddr,
 				u32 page_sz,
 				struct hw_mmu_map_attrs_t *map_attrs);

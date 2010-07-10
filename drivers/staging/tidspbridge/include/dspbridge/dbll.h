@@ -45,7 +45,8 @@ extern int dbll_load(struct dbll_library_obj *lib,
 extern int dbll_load_sect(struct dbll_library_obj *lib,
 				 char *sectName, struct dbll_attrs *attrs);
 extern int dbll_open(struct dbll_tar_obj *target, char *file,
-			    dbll_flags flags, struct dbll_library_obj **pLib);
+			    dbll_flags flags,
+		       struct dbll_library_obj **lib_obj);
 extern int dbll_read_sect(struct dbll_library_obj *lib,
 				 char *name, char *pbuf, u32 size);
 extern void dbll_set_attrs(struct dbll_tar_obj *target,

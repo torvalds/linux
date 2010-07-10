@@ -75,7 +75,7 @@
 /*  ----------------------------------- Function Prototypes */
 static struct lst_list *create_chirp_list(u32 uChirps);
 
-static void free_chirp_list(struct lst_list *pList);
+static void free_chirp_list(struct lst_list *lst);
 
 static struct chnl_irp *make_new_chirp(void);
 
@@ -88,7 +88,7 @@ static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
  *      The direction (mode) is specified in the channel object. Note the DSP
  *      address is specified for channels opened in direct I/O mode.
  */
-int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *pHostBuf,
+int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *host_buf,
 			       u32 byte_size, u32 buf_size,
 			       OPTIONAL u32 dw_dsp_addr, u32 dw_arg)
 {
@@ -107,7 +107,7 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *pHostBuf,
 	is_eos = (byte_size == 0);
 
 	/* Validate args */
-	if (!pHostBuf || !pchnl) {
+	if (!host_buf || !pchnl) {
 		status = -EFAULT;
 	} else if (is_eos && CHNL_IS_INPUT(pchnl->chnl_mode)) {
 		status = -EPERM;
@@ -137,9 +137,9 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *pHostBuf,
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	if (pchnl->chnl_type == CHNL_PCPY && pchnl->chnl_id > 1 && pHostBuf) {
-		if (!(pHostBuf < (void *)USERMODE_ADDR)) {
-			host_sys_buf = pHostBuf;
+	if (pchnl->chnl_type == CHNL_PCPY && pchnl->chnl_id > 1 && host_buf) {
+		if (!(host_buf < (void *)USERMODE_ADDR)) {
+			host_sys_buf = host_buf;
 			goto func_cont;
 		}
 		/* if addr in user mode, then copy to kernel space */
@@ -149,7 +149,7 @@ int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *pHostBuf,
 			goto func_end;
 		}
 		if (CHNL_IS_OUTPUT(pchnl->chnl_mode)) {
-			status = copy_from_user(host_sys_buf, pHostBuf,
+			status = copy_from_user(host_sys_buf, host_buf,
 						buf_size);
 			if (status) {
 				kfree(host_sys_buf);
@@ -188,7 +188,7 @@ func_cont:
 	if (DSP_SUCCEEDED(status)) {
 		/* Enqueue the chirp on the chnl's IORequest queue: */
 		chnl_packet_obj->host_user_buf = chnl_packet_obj->host_sys_buf =
-		    pHostBuf;
+		    host_buf;
 		if (pchnl->chnl_type == CHNL_PCPY && pchnl->chnl_id > 1)
 			chnl_packet_obj->host_sys_buf = host_sys_buf;
 
@@ -533,23 +533,23 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
  *      Retrieve information related to a channel.
  */
 int bridge_chnl_get_info(struct chnl_object *chnl_obj,
-			     OUT struct chnl_info *pInfo)
+			     OUT struct chnl_info *channel_info)
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
-	if (pInfo != NULL) {
+	if (channel_info != NULL) {
 		if (pchnl) {
 			/* Return the requested information: */
-			pInfo->hchnl_mgr = pchnl->chnl_mgr_obj;
-			pInfo->event_obj = pchnl->user_event;
-			pInfo->cnhl_id = pchnl->chnl_id;
-			pInfo->dw_mode = pchnl->chnl_mode;
-			pInfo->bytes_tx = pchnl->bytes_moved;
-			pInfo->process = pchnl->process;
-			pInfo->sync_event = pchnl->sync_event;
-			pInfo->cio_cs = pchnl->cio_cs;
-			pInfo->cio_reqs = pchnl->cio_reqs;
-			pInfo->dw_state = pchnl->dw_state;
+			channel_info->hchnl_mgr = pchnl->chnl_mgr_obj;
+			channel_info->event_obj = pchnl->user_event;
+			channel_info->cnhl_id = pchnl->chnl_id;
+			channel_info->dw_mode = pchnl->chnl_mode;
+			channel_info->bytes_tx = pchnl->bytes_moved;
+			channel_info->process = pchnl->process;
+			channel_info->sync_event = pchnl->sync_event;
+			channel_info->cio_cs = pchnl->cio_cs;
+			channel_info->cio_reqs = pchnl->cio_reqs;
+			channel_info->dw_state = pchnl->dw_state;
 		} else {
 			status = -EFAULT;
 		}
@@ -567,7 +567,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
  *      Note: Ensures Channel Invariant (see notes above).
  */
 int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
-			    OUT struct chnl_ioc *pIOC)
+			    OUT struct chnl_ioc *chan_ioc)
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
@@ -580,7 +580,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	struct dev_object *dev_obj;
 
 	/* Check args: */
-	if (!pIOC || !pchnl) {
+	if (!chan_ioc || !pchnl) {
 		status = -EFAULT;
 	} else if (timeout == CHNL_IOCNOWAIT) {
 		if (LST_IS_EMPTY(pchnl->pio_completions))
@@ -623,11 +623,11 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 	spin_lock_bh(&pchnl->chnl_mgr_obj->chnl_mgr_lock);
 	omap_mbox_disable_irq(dev_ctxt->mbox, IRQ_RX);
 	if (dequeue_ioc) {
-		/* Dequeue IOC and set pIOC; */
+		/* Dequeue IOC and set chan_ioc; */
 		DBC_ASSERT(!LST_IS_EMPTY(pchnl->pio_completions));
 		chnl_packet_obj =
 		    (struct chnl_irp *)lst_get_head(pchnl->pio_completions);
-		/* Update pIOC from channel state and chirp: */
+		/* Update chan_ioc from channel state and chirp: */
 		if (chnl_packet_obj) {
 			pchnl->cio_cs--;
 			/*  If this is a zero-copy channel, then set IOC's pbuf
@@ -700,7 +700,7 @@ func_cont1:
 	}
 func_cont:
 	/* Update User's IOC block: */
-	*pIOC = ioc;
+	*chan_ioc = ioc;
 func_end:
 	return status;
 }

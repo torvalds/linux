@@ -43,7 +43,7 @@
  *      arb:           Handle to a Device Object.
  *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
- *      pHostBuf:       Pointer to host buffer (Source).
+ *      host_buf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP to which to transfer.
  *  Returns:
@@ -51,12 +51,12 @@
  *      arb is invalid.
  *  Requires:
  *      DEV Initialized.
- *      pHostBuf != NULL
+ *      host_buf != NULL
  *  Ensures:
  */
 extern u32 dev_brd_write_fxn(void *arb,
 			     u32 ulDspAddr,
-			     void *pHostBuf, u32 ul_num_bytes, u32 mem_space);
+			     void *host_buf, u32 ul_num_bytes, u32 mem_space);
 
 /*
  *  ======== dev_create_device ========
@@ -68,7 +68,7 @@ extern u32 dev_brd_write_fxn(void *arb,
  *      driver_file_name: Name of Bridge driver PE DLL file to load.  If the
  *                      absolute path is not provided, the file is loaded
  *                      through 'Bridge's module search path.
- *      pHostConfig:    Host configuration information, to be passed down
+ *      host_config:    Host configuration information, to be passed down
  *                      to the Bridge driver when bridge_dev_create() is called.
  *      pDspConfig:     DSP resources, to be passed down to the Bridge driver
  *                      when bridge_dev_create() is called.
@@ -82,7 +82,7 @@ extern u32 dev_brd_write_fxn(void *arb,
  *      DEV Initialized.
  *      device_obj != NULL.
  *      driver_file_name != NULL.
- *      pHostConfig != NULL.
+ *      host_config != NULL.
  *      pDspConfig != NULL.
  *  Ensures:
  *      0:  *device_obj will contain handle to the new device object.
@@ -103,7 +103,7 @@ extern int dev_create_device(OUT struct dev_object
  *      driver_file_name: Name of Bridge driver PE DLL file to load.  If the
  *                      absolute path is not provided, the file is loaded
  *                      through 'Bridge's module search path.
- *      pHostConfig:    Host configuration information, to be passed down
+ *      host_config:    Host configuration information, to be passed down
  *                      to the Bridge driver when bridge_dev_create() is called.
  *      pDspConfig:     DSP resources, to be passed down to the Bridge driver
  *                      when bridge_dev_create() is called.
@@ -117,7 +117,7 @@ extern int dev_create_device(OUT struct dev_object
  *      DEV Initialized.
  *      device_obj != NULL.
  *      driver_file_name != NULL.
- *      pHostConfig != NULL.
+ *      host_config != NULL.
  *      pDspConfig != NULL.
  *  Ensures:
  *      0:  *device_obj will contain handle to the new device object.
@@ -128,7 +128,7 @@ extern int dev_create_iva_device(OUT struct dev_object
 					**device_obj,
 					IN CONST char *driver_file_name,
 					IN CONST struct cfg_hostres
-					*pHostConfig,
+					*host_config,
 					struct cfg_devnode *dev_node_obj);
 
 /*
@@ -439,7 +439,7 @@ extern struct dev_object *dev_get_next(struct dev_object
  *  Requires:
  *      DEV Initialized.
  *      Valid hdev_obj.
- *      phNodeMgr != NULL.
+ *      node_man != NULL.
  *  Ensures:
  */
 extern void dev_get_msg_mgr(struct dev_object *hdev_obj,
@@ -452,21 +452,21 @@ extern void dev_get_msg_mgr(struct dev_object *hdev_obj,
  *      accessor function
  *  Parameters:
  *      hdev_obj:     Handle to the Dev Object
- *      phNodeMgr:      Location where Handle to the Node Manager will be
+ *      node_man:       Location where Handle to the Node Manager will be
  *                      returned..
  *  Returns:
  *      0:        Success
  *      -EFAULT:    Invalid Dev Object handle.
  *  Requires:
  *      DEV Initialized.
- *      phNodeMgr is not null
+ *      node_man is not null
  *  Ensures:
- *      0:        *phNodeMgr contains a handle to a Node manager object.
- *      else:           *phNodeMgr is NULL.
+ *      0:        *node_man contains a handle to a Node manager object.
+ *      else:           *node_man is NULL.
  */
 extern int dev_get_node_manager(struct dev_object
 				       *hdev_obj,
-				       OUT struct node_mgr **phNodeMgr);
+				       OUT struct node_mgr **node_man);
 
 /*
  *  ======== dev_get_symbol ========
