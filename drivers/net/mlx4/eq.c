@@ -475,10 +475,10 @@ static void mlx4_free_eq(struct mlx4_dev *dev,
 		mlx4_dbg(dev, "Dumping EQ context %02x:\n", eq->eqn);
 		for (i = 0; i < sizeof (struct mlx4_eq_context) / 4; ++i) {
 			if (i % 4 == 0)
-				printk("[%02x] ", i * 4);
-			printk(" %08x", be32_to_cpup(mailbox->buf + i * 4));
+				pr_cont("[%02x] ", i * 4);
+			pr_cont(" %08x", be32_to_cpup(mailbox->buf + i * 4));
 			if ((i + 1) % 4 == 0)
-				printk("\n");
+				pr_cont("\n");
 		}
 	}
 
