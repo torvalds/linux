@@ -748,7 +748,7 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 		struct v4l2_tuner *tuner)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	int retval = -EINVAL;
+	int retval = 0;
 
 	/* safety checks */
 	retval = si470x_disconnect_check(radio);
