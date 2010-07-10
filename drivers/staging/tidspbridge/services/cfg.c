@@ -50,22 +50,22 @@ void cfg_exit(void)
  *      Retreive the autostart mask, if any, for this board.
  */
 int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
-			      OUT u32 *pdwAutoStart)
+			      OUT u32 *auto_start)
 {
 	int status = 0;
 	u32 dw_buf_size;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	dw_buf_size = sizeof(*pdwAutoStart);
+	dw_buf_size = sizeof(*auto_start);
 	if (!dev_node_obj)
 		status = -EFAULT;
-	if (!pdwAutoStart || !drv_datap)
+	if (!auto_start || !drv_datap)
 		status = -EFAULT;
 	if (DSP_SUCCEEDED(status))
-		*pdwAutoStart = (drv_datap->base_img) ? 1 : 0;
+		*auto_start = (drv_datap->base_img) ? 1 : 0;
 
 	DBC_ENSURE((status == 0 &&
-		    (*pdwAutoStart == 0 || *pdwAutoStart == 1))
+		    (*auto_start == 0 || *auto_start == 1))
 		   || status != 0);
 	return status;
 }

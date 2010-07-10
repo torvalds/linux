@@ -325,7 +325,7 @@ extern int cmm_xlator_delete(struct cmm_xlatorobject *xlator,
  *      Does not free client process VM.
  *  Parameters:
  *      xlator:    handle to translator.
- *      pBufVa      Virtual address of PA to free.
+ *      buf_va      Virtual address of PA to free.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Bad translator handle.
@@ -334,7 +334,7 @@ extern int cmm_xlator_delete(struct cmm_xlatorobject *xlator,
  *
  */
 extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
-				      void *pBufVa);
+				      void *buf_va);
 
 /*
  *  ======== cmm_xlator_info ========

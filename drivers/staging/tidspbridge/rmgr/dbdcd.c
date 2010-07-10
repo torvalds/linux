@@ -71,7 +71,7 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
 				   IN OUT u16 *pNumLibs,
 				   OPTIONAL OUT u16 *pNumPersLibs,
-				   OPTIONAL OUT struct dsp_uuid *pDepLibUuids,
+				   OPTIONAL OUT struct dsp_uuid *dep_lib_uuids,
 				   OPTIONAL OUT bool *pPersistentDepLibs,
 				   IN enum nldr_phase phase);
 
@@ -327,7 +327,7 @@ void dcd_exit(void)
  */
 int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 			    IN struct dsp_uuid *uuid_obj,
-			    u16 num_libs, OUT struct dsp_uuid *pDepLibUuids,
+			    u16 num_libs, OUT struct dsp_uuid *dep_lib_uuids,
 			    OUT bool *pPersistentDepLibs,
 			    IN enum nldr_phase phase)
 {
@@ -336,11 +336,11 @@ int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hdcd_mgr);
 	DBC_REQUIRE(uuid_obj != NULL);
-	DBC_REQUIRE(pDepLibUuids != NULL);
+	DBC_REQUIRE(dep_lib_uuids != NULL);
 	DBC_REQUIRE(pPersistentDepLibs != NULL);
 
 	status =
-	    get_dep_lib_info(hdcd_mgr, uuid_obj, &num_libs, NULL, pDepLibUuids,
+	    get_dep_lib_info(hdcd_mgr, uuid_obj, &num_libs, NULL, dep_lib_uuids,
 			     pPersistentDepLibs, phase);
 
 	return status;
@@ -1393,7 +1393,7 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
 				   IN OUT u16 *pNumLibs,
 				   OPTIONAL OUT u16 *pNumPersLibs,
-				   OPTIONAL OUT struct dsp_uuid *pDepLibUuids,
+				   OPTIONAL OUT struct dsp_uuid *dep_lib_uuids,
 				   OPTIONAL OUT bool *pPersistentDepLibs,
 				   enum nldr_phase phase)
 {
@@ -1407,7 +1407,7 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 	u32 dw_data_size = COD_MAXPATHLENGTH;
 	char seps[] = ", ";
 	char *token = NULL;
-	bool get_uuids = (pDepLibUuids != NULL);
+	bool get_uuids = (dep_lib_uuids != NULL);
 	u16 dep_libs = 0;
 	int status = 0;
 
@@ -1476,7 +1476,7 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 			} else {
 				/* Retrieve UUID string. */
 				uuid_uuid_from_string(token,
-						      &(pDepLibUuids
+						      &(dep_lib_uuids
 							[dep_libs]));
 				/* Is this library persistent? */
 				token = strsep(&psz_cur, seps);

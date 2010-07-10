@@ -730,14 +730,14 @@ int drv_remove_dev_object(struct drv_object *driver_obj,
  *  Purpose:
  *      Requests  resources from the OS.
  */
-int drv_request_resources(u32 dw_context, u32 *pDevNodeString)
+int drv_request_resources(u32 dw_context, u32 *dev_node_strg)
 {
 	int status = 0;
 	struct drv_object *pdrv_object;
 	struct drv_ext *pszdev_node;
 
 	DBC_REQUIRE(dw_context != 0);
-	DBC_REQUIRE(pDevNodeString != NULL);
+	DBC_REQUIRE(dev_node_strg != NULL);
 
 	/*
 	 *  Allocate memory to hold the string. This will live untill
@@ -754,22 +754,22 @@ int drv_request_resources(u32 dw_context, u32 *pDevNodeString)
 				(char *)dw_context, MAXREGPATHLENGTH - 1);
 			pszdev_node->sz_string[MAXREGPATHLENGTH - 1] = '\0';
 			/* Update the Driver Object List */
-			*pDevNodeString = (u32) pszdev_node->sz_string;
+			*dev_node_strg = (u32) pszdev_node->sz_string;
 			lst_put_tail(pdrv_object->dev_node_string,
 				     (struct list_head *)pszdev_node);
 		} else {
 			status = -ENOMEM;
-			*pDevNodeString = 0;
+			*dev_node_strg = 0;
 		}
 	} else {
 		dev_dbg(bridge, "%s: Failed to get Driver Object from Registry",
 			__func__);
-		*pDevNodeString = 0;
+		*dev_node_strg = 0;
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && pDevNodeString != NULL &&
+	DBC_ENSURE((DSP_SUCCEEDED(status) && dev_node_strg != NULL &&
 		    !LST_IS_EMPTY(pdrv_object->dev_node_string)) ||
-		   (DSP_FAILED(status) && *pDevNodeString == 0));
+		   (DSP_FAILED(status) && *dev_node_strg == 0));
 
 	return status;
 }

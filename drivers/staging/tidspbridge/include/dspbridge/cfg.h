@@ -40,7 +40,7 @@ extern void cfg_exit(void);
  *      Retreive the autostart mask, if any, for this board.
  *  Parameters:
  *      dev_node_obj:  Handle to the dev_node who's driver we are querying.
- *      pdwAutoStart:   Ptr to location for 32 bit autostart mask.
+ *      auto_start:   Ptr to location for 32 bit autostart mask.
  *  Returns:
  *      0:                Success.
  *      -EFAULT:  dev_node_obj is invalid.
@@ -48,10 +48,10 @@ extern void cfg_exit(void);
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      0:        *pdwAutoStart contains autostart mask for this devnode.
+ *      0:        *auto_start contains autostart mask for this devnode.
  */
 extern int cfg_get_auto_start(IN struct cfg_devnode *dev_node_obj,
-				     OUT u32 *pdwAutoStart);
+				     OUT u32 *auto_start);
 
 /*
  *  ======== cfg_get_cd_version ========

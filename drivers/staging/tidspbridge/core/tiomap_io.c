@@ -51,7 +51,7 @@ bool symbols_reloaded = true;
  *      Copies DSP external memory buffers to the host side buffers.
  */
 int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
-			     OUT u8 *pbHostBuf, u32 dsp_addr,
+			     OUT u8 *host_buff, u32 dsp_addr,
 			     u32 ul_num_bytes, u32 ulMemType)
 {
 	int status = 0;
@@ -168,7 +168,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 	offset = dsp_addr - ul_ext_base;
 
 	if (DSP_SUCCEEDED(status))
-		memcpy(pbHostBuf, (u8 *) dw_base_addr + offset, ul_num_bytes);
+		memcpy(host_buff, (u8 *) dw_base_addr + offset, ul_num_bytes);
 
 	return status;
 }
@@ -179,7 +179,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
  *      Copies buffers to the DSP internal/external memory.
  */
 int write_dsp_data(struct bridge_dev_context *dev_ctxt,
-			  IN u8 *pbHostBuf, u32 dsp_addr, u32 ul_num_bytes,
+			  IN u8 *host_buff, u32 dsp_addr, u32 ul_num_bytes,
 			  u32 ulMemType)
 {
 	u32 offset;
@@ -211,9 +211,9 @@ int write_dsp_data(struct bridge_dev_context *dev_ctxt,
 		return -EPERM;
 	}
 	if (ul_num_bytes)
-		memcpy((u8 *) (dw_base_addr + offset), pbHostBuf, ul_num_bytes);
+		memcpy((u8 *) (dw_base_addr + offset), host_buff, ul_num_bytes);
 	else
-		*((u32 *) pbHostBuf) = dw_base_addr + offset;
+		*((u32 *) host_buff) = dw_base_addr + offset;
 
 	return status;
 }
@@ -225,7 +225,7 @@ int write_dsp_data(struct bridge_dev_context *dev_ctxt,
  *
  */
 int write_ext_dsp_data(struct bridge_dev_context *dev_context,
-			      IN u8 *pbHostBuf, u32 dsp_addr,
+			      IN u8 *host_buff, u32 dsp_addr,
 			      u32 ul_num_bytes, u32 ulMemType,
 			      bool dynamic_load)
 {
@@ -371,10 +371,10 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 	}
 	if (DSP_SUCCEEDED(ret)) {
 		if (ul_num_bytes)
-			memcpy((u8 *) dw_base_addr + dw_offset, pbHostBuf,
+			memcpy((u8 *) dw_base_addr + dw_offset, host_buff,
 			       ul_num_bytes);
 		else
-			*((u32 *) pbHostBuf) = dw_base_addr + dw_offset;
+			*((u32 *) host_buff) = dw_base_addr + dw_offset;
 	}
 	/* Unmap here to force remap for other Ext loads */
 	if ((dynamic_load || trace_load) && dev_context->dw_dsp_ext_base_addr) {

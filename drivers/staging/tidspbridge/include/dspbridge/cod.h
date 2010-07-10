@@ -279,7 +279,7 @@ extern bool cod_init(void);
  *      num_argc:   number of arguments in the args array
  *      args:       array of strings for arguments to DSP program
  *      write_fxn:   board-specific function to write data to DSP system
- *      pArb:       arbitrary pointer to be passed as first arg to write_fxn
+ *      arb:       arbitrary pointer to be passed as first arg to write_fxn
  *      envp:       array of environment strings for DSP exec.
  *  Returns:
  *      0:                   Success.
@@ -295,7 +295,7 @@ extern bool cod_init(void);
  */
 extern int cod_load_base(struct cod_manager *cod_mgr_obj,
 				u32 num_argc, char *args[],
-				cod_writefxn pfn_write, void *pArb,
+				cod_writefxn pfn_write, void *arb,
 				char *envp[]);
 
 /*

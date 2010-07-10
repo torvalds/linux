@@ -37,10 +37,10 @@
  *  ======== dev_brd_write_fxn ========
  *  Purpose:
  *      Exported function to be used as the COD write function.  This function
- *      is passed a handle to a DEV_hObject by ZL in pArb, then calls the
+ *      is passed a handle to a DEV_hObject by ZL in arb, then calls the
  *      device's bridge_brd_write() function.
  *  Parameters:
- *      pArb:           Handle to a Device Object.
+ *      arb:           Handle to a Device Object.
  *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
@@ -48,13 +48,13 @@
  *      ulMemType:      Memory space on DSP to which to transfer.
  *  Returns:
  *      Number of bytes written.  Returns 0 if the DEV_hObject passed in via
- *      pArb is invalid.
+ *      arb is invalid.
  *  Requires:
  *      DEV Initialized.
  *      pHostBuf != NULL
  *  Ensures:
  */
-extern u32 dev_brd_write_fxn(void *pArb,
+extern u32 dev_brd_write_fxn(void *arb,
 			     u32 ulDspAddr,
 			     void *pHostBuf, u32 ul_num_bytes, u32 mem_space);
 
@@ -585,7 +585,7 @@ extern int dev_is_locked(IN struct dev_object *hdev_obj);
 extern int dev_insert_proc_object(IN struct dev_object
 					 *hdev_obj,
 					 IN u32 proc_obj,
-					 OUT bool *pbAlreadyAttached);
+					 OUT bool *already_attached);
 
 /*
  *  ======== dev_remove_proc_object ========
@@ -595,7 +595,7 @@ extern int dev_insert_proc_object(IN struct dev_object
  *  Parameters:
  *      p_proc_object:        Ptr to ProcObject to insert.
  *      dev_obj:         Ptr to Dev Object where the list is.
- *      pbAlreadyAttached:  Ptr to return the bool
+ *      already_attached:  Ptr to return the bool
  *  Returns:
  *      0:            If successful.
  *      -EPERM           Failure to Remove the PROC Object from the list
@@ -604,7 +604,7 @@ extern int dev_insert_proc_object(IN struct dev_object
  *      proc_obj != 0
  *      dev_obj->proc_list != NULL
  *      !LST_IS_EMPTY(dev_obj->proc_list)
- *      pbAlreadyAttached !=NULL
+ *      already_attached !=NULL
  *  Ensures:
  *  Details:
  *      List will be deleted when the DEV is destroyed.

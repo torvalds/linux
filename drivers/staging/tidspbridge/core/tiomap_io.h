@@ -48,14 +48,14 @@
  * is configured by the combination of DSP MMU and shm Memory manager in the CDB
  */
 extern int read_ext_dsp_data(struct bridge_dev_context *dev_context,
-				    OUT u8 *pbHostBuf, u32 dsp_addr,
+				    OUT u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 ulMemType);
 
 /*
  *  ======== write_dsp_data ========
  */
 extern int write_dsp_data(struct bridge_dev_context *dev_context,
-				 OUT u8 *pbHostBuf, u32 dsp_addr,
+				 OUT u8 *host_buff, u32 dsp_addr,
 				 u32 ul_num_bytes, u32 ulMemType);
 
 /*
@@ -65,7 +65,7 @@ extern int write_dsp_data(struct bridge_dev_context *dev_context,
  *  shm Memory manager in the CDB
  */
 extern int write_ext_dsp_data(struct bridge_dev_context *dev_context,
-				     IN u8 *pbHostBuf, u32 dsp_addr,
+				     IN u8 *host_buff, u32 dsp_addr,
 				     u32 ul_num_bytes, u32 ulMemType,
 				     bool dynamic_load);
 

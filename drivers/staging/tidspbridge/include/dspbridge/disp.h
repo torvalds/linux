@@ -34,14 +34,14 @@
  *  Parameters:
  *      phDispObject:   Location to store node dispatcher object on output.
  *      hdev_obj:     Device for this processor.
- *      pDispAttrs:     Node dispatcher attributes.
+ *      disp_attrs:     Node dispatcher attributes.
  *  Returns:
  *      0:                Success;
  *      -ENOMEM:            Insufficient memory for requested resources.
  *      -EPERM:              Unable to create dispatcher.
  *  Requires:
  *      disp_init(void) called.
- *      pDispAttrs != NULL.
+ *      disp_attrs != NULL.
  *      hdev_obj != NULL.
  *      phDispObject != NULL.
  *  Ensures:
@@ -50,7 +50,7 @@
  */
 extern int disp_create(OUT struct disp_object **phDispObject,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct disp_attr *pDispAttrs);
+			      IN CONST struct disp_attr *disp_attrs);
 
 /*
  *  ======== disp_delete ========

@@ -80,7 +80,7 @@ static void free_chirp_list(struct lst_list *pList);
 static struct chnl_irp *make_new_chirp(void);
 
 static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
-				      OUT u32 *pdwChnl);
+				      OUT u32 *chnl);
 
 /*
  *  ======== bridge_chnl_add_io_req ========
@@ -996,7 +996,7 @@ static struct chnl_irp *make_new_chirp(void)
  *      Search for a free channel slot in the array of channel pointers.
  */
 static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
-				      OUT u32 *pdwChnl)
+				      OUT u32 *chnl)
 {
 	int status = -ENOSR;
 	u32 i;
@@ -1006,7 +1006,7 @@ static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
 	for (i = 0; i < chnl_mgr_obj->max_channels; i++) {
 		if (chnl_mgr_obj->ap_channel[i] == NULL) {
 			status = 0;
-			*pdwChnl = i;
+			*chnl = i;
 			break;
 		}
 	}

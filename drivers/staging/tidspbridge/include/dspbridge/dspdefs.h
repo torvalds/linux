@@ -560,7 +560,7 @@ typedef int(*fxn_chnl_flushio) (struct chnl_object *chnl_obj,
  *                      if (pInfo != NULL).
  */
 typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
-				       OUT struct chnl_info *pChnlInfo);
+				       OUT struct chnl_info *channel_info);
 
 /*
  *  ======== bridge_chnl_get_mgr_info ========
@@ -649,7 +649,7 @@ typedef int(*fxn_chnl_registernotify)
  *  Parameters:
  *      phDevContext:   Ptr to location to store a Bridge device context.
  *      hdev_obj:     Handle to a Device Object, created and managed by DSP API.
- *      pConfig:        Ptr to configuration parameters provided by the
+ *      config_param:        Ptr to configuration parameters provided by the
  *                      Configuration Manager during device loading.
  *      pDspConfig:     DSP resources, as specified in the registry key for this
  *                      device.
@@ -659,9 +659,9 @@ typedef int(*fxn_chnl_registernotify)
  *  Requires:
  *      phDevContext != NULL;
  *      hdev_obj != NULL;
- *      pConfig != NULL;
+ *      config_param != NULL;
  *      pDspConfig != NULL;
- *      Fields in pConfig and pDspConfig contain valid values.
+ *      Fields in config_param and pDspConfig contain valid values.
  *  Ensures:
  *      0:        All Bridge driver specific DSP resource and other
  *                      board context has been allocated.
@@ -683,7 +683,7 @@ typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
 				     struct dev_object
 				     * hdev_obj,
 				     IN struct cfg_hostres
-				     * pConfig);
+				     * config_param);
 
 /*
  *  ======== bridge_dev_ctrl ========

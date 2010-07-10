@@ -382,7 +382,7 @@ extern int drv_remove_dev_object(struct drv_object *hdrv_obj,
  *      Assigns the Resources or Releases them.
  *  Parameters:
  *      dw_context:          Path to the driver Registry Key.
- *      pDevNodeString:     Ptr to dev_node String stored in the Device Ext.
+ *      dev_node_strg:     Ptr to dev_node String stored in the Device Ext.
  *  Returns:
  *      TRUE if success; FALSE otherwise.
  *  Requires:
@@ -394,7 +394,7 @@ extern int drv_remove_dev_object(struct drv_object *hdrv_obj,
  *      later used by the CFG module.
  */
 extern int drv_request_resources(IN u32 dw_context,
-					OUT u32 *pDevNodeString);
+					OUT u32 *dev_node_strg);
 
 /*
  *  ======== drv_release_resources ========
@@ -509,14 +509,14 @@ extern void mem_free_phys_mem(void *pVirtualAddress,
  *  Purpose:
  *      Unmap the linear address mapped in MEM_LINEAR_ADDRESS.
  *  Parameters:
- *      pBaseAddr: Ptr to mapped memory (as returned by MEM_LINEAR_ADDRESS()).
+ *      base_addr: Ptr to mapped memory (as returned by MEM_LINEAR_ADDRESS()).
  *  Returns:
  *  Requires:
  *      - MEM initialized.
- *      - pBaseAddr is a valid linear address mapped in MEM_LINEAR_ADDRESS.
+ *      - base_addr is a valid linear address mapped in MEM_LINEAR_ADDRESS.
  *  Ensures:
- *      - pBaseAddr no longer points to a valid linear address.
+ *      - base_addr no longer points to a valid linear address.
  */
-#define MEM_UNMAP_LINEAR_ADDRESS(pBaseAddr) {}
+#define MEM_UNMAP_LINEAR_ADDRESS(base_addr) {}
 
 #endif /* DRV_ */

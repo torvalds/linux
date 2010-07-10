@@ -1044,19 +1044,19 @@ void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *pVaBuf,
  *      Free the given SM buffer and descriptor.
  *      Does not free virtual memory.
  */
-int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *pBufVa)
+int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
 	int status = -EPERM;
 	void *buf_pa = NULL;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pBufVa != NULL);
+	DBC_REQUIRE(buf_va != NULL);
 	DBC_REQUIRE(xlator_obj->ul_seg_id > 0);
 
 	if (xlator_obj) {
 		/* convert Va to Pa so we can free it. */
-		buf_pa = cmm_xlator_translate(xlator, pBufVa, CMM_VA2PA);
+		buf_pa = cmm_xlator_translate(xlator, buf_va, CMM_VA2PA);
 		if (buf_pa) {
 			status = cmm_free_buf(xlator_obj->hcmm_mgr, buf_pa,
 					      xlator_obj->ul_seg_id);

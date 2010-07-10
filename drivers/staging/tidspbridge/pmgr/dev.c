@@ -100,10 +100,10 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
  *      is passed a handle to a DEV_hObject, then calls the
  *      device's bridge_brd_write() function.
  */
-u32 dev_brd_write_fxn(void *pArb, u32 ulDspAddr, void *pHostBuf,
+u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *pHostBuf,
 		      u32 ul_num_bytes, u32 mem_space)
 {
-	struct dev_object *dev_obj = (struct dev_object *)pArb;
+	struct dev_object *dev_obj = (struct dev_object *)arb;
 	u32 ul_written = 0;
 	int status;
 
@@ -961,20 +961,20 @@ static int init_cod_mgr(struct dev_object *dev_obj)
  *  Parameters:
  *      p_proc_object:        Ptr to ProcObject to insert.
  *      dev_obj:         Ptr to Dev Object where the list is.
-  *     pbAlreadyAttached:  Ptr to return the bool
+  *     already_attached:  Ptr to return the bool
  *  Returns:
  *      0:           If successful.
  *  Requires:
  *      List Exists
  *      hdev_obj is Valid handle
  *      DEV Initialized
- *      pbAlreadyAttached != NULL
+ *      already_attached != NULL
  *      proc_obj != 0
  *  Ensures:
  *      0 and List is not Empty.
  */
 int dev_insert_proc_object(struct dev_object *hdev_obj,
-				  u32 proc_obj, OUT bool *pbAlreadyAttached)
+				  u32 proc_obj, OUT bool *already_attached)
 {
 	int status = 0;
 	struct dev_object *dev_obj = (struct dev_object *)hdev_obj;
@@ -983,9 +983,9 @@ int dev_insert_proc_object(struct dev_object *hdev_obj,
 	DBC_REQUIRE(dev_obj);
 	DBC_REQUIRE(proc_obj != 0);
 	DBC_REQUIRE(dev_obj->proc_list != NULL);
-	DBC_REQUIRE(pbAlreadyAttached != NULL);
+	DBC_REQUIRE(already_attached != NULL);
 	if (!LST_IS_EMPTY(dev_obj->proc_list))
-		*pbAlreadyAttached = true;
+		*already_attached = true;
 
 	/* Add DevObject to tail. */
 	lst_put_tail(dev_obj->proc_list, (struct list_head *)proc_obj);

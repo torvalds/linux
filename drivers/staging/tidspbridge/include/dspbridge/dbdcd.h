@@ -154,7 +154,7 @@ extern void dcd_exit(void);
  *      hdcd_mgr: A DCD manager handle.
  *      uuid_obj: Pointer to a dsp_uuid for a library.
  *      num_libs: Size of uuid array (number of library uuids).
- *      pDepLibUuids: Array of dependent library uuids to be filled in.
+ *      dep_lib_uuids: Array of dependent library uuids to be filled in.
  *      pPersistentDepLibs: Array indicating if corresponding lib is persistent.
  *      phase: phase to obtain correct input library
  *  Returns:
@@ -166,13 +166,13 @@ extern void dcd_exit(void);
  *      DCD initialized.
  *      Valid hdcd_mgr.
  *      uuid_obj != NULL
- *      pDepLibUuids != NULL.
+ *      dep_lib_uuids != NULL.
  *  Ensures:
  */
 extern int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
 				   u16 num_libs,
-				   OUT struct dsp_uuid *pDepLibUuids,
+				   OUT struct dsp_uuid *dep_lib_uuids,
 				   OUT bool *pPersistentDepLibs,
 				   IN enum nldr_phase phase);
 

@@ -728,7 +728,7 @@ func_cont:
  *  Get the content of a COFF section.
  */
 int dbll_read_sect(struct dbll_library_obj *lib, char *name,
-			  char *pContent, u32 size)
+			  char *content, u32 size)
 {
 	struct dbll_library_obj *zl_lib = (struct dbll_library_obj *)lib;
 	bool opened_doff = false;
@@ -740,7 +740,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_lib);
 	DBC_REQUIRE(name != NULL);
-	DBC_REQUIRE(pContent != NULL);
+	DBC_REQUIRE(content != NULL);
 	DBC_REQUIRE(size != 0);
 
 	/* If DOFF file is not open, we open it. */
@@ -780,7 +780,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	if (ul_sect_size > size) {
 		status = -EPERM;
 	} else {
-		if (!dload_get_section(zl_lib->desc, sect, pContent))
+		if (!dload_get_section(zl_lib->desc, sect, content))
 			status = -EBADF;
 
 	}
@@ -790,8 +790,8 @@ func_cont:
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s pContent: %p size: 0x%x, "
-		"status 0x%x\n", __func__, lib, name, pContent, size, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s content: %p size: 0x%x, "
+		"status 0x%x\n", __func__, lib, name, content, size, status);
 	return status;
 }
 

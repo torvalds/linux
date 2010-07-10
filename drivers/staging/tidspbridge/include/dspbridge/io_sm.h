@@ -34,12 +34,12 @@
     ((((s32)&(((type *)0)->field)) / wordsize) + (u32)base)
 
 /* Access can be different SM access word size (e.g. 16/32 bit words) */
-#define IO_SET_VALUE(pContext, type, base, field, value) (base->field = value)
-#define IO_GET_VALUE(pContext, type, base, field)	(base->field)
-#define IO_OR_VALUE(pContext, type, base, field, value)  (base->field |= value)
-#define IO_AND_VALUE(pContext, type, base, field, value) (base->field &= value)
-#define IO_SET_LONG(pContext, type, base, field, value)  (base->field = value)
-#define IO_GET_LONG(pContext, type, base, field)         (base->field)
+#define IO_SET_VALUE(context, type, base, field, value) (base->field = value)
+#define IO_GET_VALUE(context, type, base, field)	(base->field)
+#define IO_OR_VALUE(context, type, base, field, value)  (base->field |= value)
+#define IO_AND_VALUE(context, type, base, field, value) (base->field &= value)
+#define IO_SET_LONG(context, type, base, field, value)  (base->field = value)
+#define IO_GET_LONG(context, type, base, field)         (base->field)
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 /* The maximum number of OPPs that are supported */
@@ -144,7 +144,7 @@ extern void iosm_schedule(struct io_mgr *hio_mgr);
  *      uDDMAChnlId:    DDMA channel identifier.
  *      uNumDesc:       Number of buffer descriptors(equals # of IOReqs &
  *                      Chirps)
- *      pDsp:           Dsp address;
+ *      dsp:           Dsp address;
  *  Returns:
  *  Requires:
  *     uDDMAChnlId < DDMA_MAXDDMACHNLS
@@ -155,7 +155,7 @@ extern void iosm_schedule(struct io_mgr *hio_mgr);
  *  Ensures:
  */
 extern void io_ddma_init_chnl_desc(struct io_mgr *hio_mgr, u32 uDDMAChnlId,
-				   u32 uNumDesc, void *pDsp);
+				   u32 uNumDesc, void *dsp);
 
 /*
  *  ======== io_ddma_clear_chnl_desc ========

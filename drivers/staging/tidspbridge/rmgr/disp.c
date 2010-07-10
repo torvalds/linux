@@ -89,7 +89,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
  */
 int disp_create(OUT struct disp_object **phDispObject,
 		       struct dev_object *hdev_obj,
-		       IN CONST struct disp_attr *pDispAttrs)
+		       IN CONST struct disp_attr *disp_attrs)
 {
 	struct disp_object *disp_obj;
 	struct bridge_drv_interface *intf_fxns;
@@ -100,7 +100,7 @@ int disp_create(OUT struct disp_object **phDispObject,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(phDispObject != NULL);
-	DBC_REQUIRE(pDispAttrs != NULL);
+	DBC_REQUIRE(disp_attrs != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 
 	*phDispObject = NULL;
@@ -142,14 +142,14 @@ int disp_create(OUT struct disp_object **phDispObject,
 	/* Open channels for communicating with the RMS */
 	chnl_attr_obj.uio_reqs = CHNLIOREQS;
 	chnl_attr_obj.event_obj = NULL;
-	ul_chnl_id = pDispAttrs->ul_chnl_offset + CHNLTORMSOFFSET;
+	ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLTORMSOFFSET;
 	status = (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_to_dsp),
 					      disp_obj->hchnl_mgr,
 					      CHNL_MODETODSP, ul_chnl_id,
 					      &chnl_attr_obj);
 
 	if (DSP_SUCCEEDED(status)) {
-		ul_chnl_id = pDispAttrs->ul_chnl_offset + CHNLFROMRMSOFFSET;
+		ul_chnl_id = disp_attrs->ul_chnl_offset + CHNLFROMRMSOFFSET;
 		status =
 		    (*intf_fxns->pfn_chnl_open) (&(disp_obj->chnl_from_dsp),
 						 disp_obj->hchnl_mgr,
@@ -158,7 +158,7 @@ int disp_create(OUT struct disp_object **phDispObject,
 	}
 	if (DSP_SUCCEEDED(status)) {
 		/* Allocate buffer for commands, replies */
-		disp_obj->ul_bufsize = pDispAttrs->ul_chnl_buf_size;
+		disp_obj->ul_bufsize = disp_attrs->ul_chnl_buf_size;
 		disp_obj->ul_bufsize_rms = RMS_COMMANDBUFSIZE;
 		disp_obj->pbuf = kzalloc(disp_obj->ul_bufsize, GFP_KERNEL);
 		if (disp_obj->pbuf == NULL)

@@ -76,7 +76,7 @@
 /* Forward Declarations: */
 static int bridge_brd_monitor(struct bridge_dev_context *dev_context);
 static int bridge_brd_read(struct bridge_dev_context *dev_context,
-				  OUT u8 *pbHostBuf,
+				  OUT u8 *host_buff,
 				  u32 dsp_addr, u32 ul_num_bytes,
 				  u32 ulMemType);
 static int bridge_brd_start(struct bridge_dev_context *dev_context,
@@ -85,7 +85,7 @@ static int bridge_brd_status(struct bridge_dev_context *dev_context,
 				    int *pdwState);
 static int bridge_brd_stop(struct bridge_dev_context *dev_context);
 static int bridge_brd_write(struct bridge_dev_context *dev_context,
-				   IN u8 *pbHostBuf,
+				   IN u8 *host_buff,
 				   u32 dsp_addr, u32 ul_num_bytes,
 				   u32 ulMemType);
 static int bridge_brd_set_state(struct bridge_dev_context *dev_ctxt,
@@ -94,7 +94,7 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 				   u32 ulDspDestAddr, u32 ulDspSrcAddr,
 				   u32 ul_num_bytes, u32 ulMemType);
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_context,
-				    IN u8 *pbHostBuf, u32 dsp_addr,
+				    IN u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 ulMemType);
 static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 				  u32 ul_mpu_addr, u32 ulVirtAddr,
@@ -105,7 +105,7 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 static int bridge_dev_create(OUT struct bridge_dev_context
 					**ppDevContext,
 					struct dev_object *hdev_obj,
-					IN struct cfg_hostres *pConfig);
+					IN struct cfg_hostres *config_param);
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
 				  u32 dw_cmd, IN OUT void *pargs);
 static int bridge_dev_destroy(struct bridge_dev_context *dev_context);
@@ -304,7 +304,7 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
  *      Reads buffers for DSP memory.
  */
 static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
-				  OUT u8 *pbHostBuf, u32 dsp_addr,
+				  OUT u8 *host_buff, u32 dsp_addr,
 				  u32 ul_num_bytes, u32 ulMemType)
 {
 	int status = 0;
@@ -321,12 +321,12 @@ static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 	    dev_context->dw_internal_size) {
 		offset = dsp_addr - dev_context->dw_dsp_start_add;
 	} else {
-		status = read_ext_dsp_data(dev_context, pbHostBuf, dsp_addr,
+		status = read_ext_dsp_data(dev_context, host_buff, dsp_addr,
 					   ul_num_bytes, ulMemType);
 		return status;
 	}
 	/* copy the data from  DSP memory, */
-	memcpy(pbHostBuf, (void *)(dsp_base_addr + offset), ul_num_bytes);
+	memcpy(host_buff, (void *)(dsp_base_addr + offset), ul_num_bytes);
 	return status;
 }
 
@@ -765,7 +765,7 @@ static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
  *      Copies the buffers to DSP internal or external memory.
  */
 static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
-				   IN u8 *pbHostBuf, u32 dsp_addr,
+				   IN u8 *host_buff, u32 dsp_addr,
 				   u32 ul_num_bytes, u32 ulMemType)
 {
 	int status = 0;
@@ -777,10 +777,10 @@ static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 	}
 	if ((dsp_addr - dev_context->dw_dsp_start_add) <
 	    dev_context->dw_internal_size) {
-		status = write_dsp_data(dev_ctxt, pbHostBuf, dsp_addr,
+		status = write_dsp_data(dev_ctxt, host_buff, dsp_addr,
 					ul_num_bytes, ulMemType);
 	} else {
-		status = write_ext_dsp_data(dev_context, pbHostBuf, dsp_addr,
+		status = write_ext_dsp_data(dev_context, host_buff, dsp_addr,
 					    ul_num_bytes, ulMemType, false);
 	}
 
@@ -794,12 +794,12 @@ static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 static int bridge_dev_create(OUT struct bridge_dev_context
 					**ppDevContext,
 					struct dev_object *hdev_obj,
-					IN struct cfg_hostres *pConfig)
+					IN struct cfg_hostres *config_param)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = NULL;
 	s32 entry_ndx;
-	struct cfg_hostres *resources = pConfig;
+	struct cfg_hostres *resources = config_param;
 	struct pg_table_attrs *pt_attrs;
 	u32 pg_tbl_pa;
 	u32 pg_tbl_va;
@@ -825,10 +825,10 @@ static int bridge_dev_create(OUT struct bridge_dev_context
 		    dev_context->atlb_entry[entry_ndx].ul_dsp_va = 0;
 	}
 	dev_context->dw_dsp_base_addr = (u32) MEM_LINEAR_ADDRESS((void *)
-								 (pConfig->
+								 (config_param->
 								  dw_mem_base
 								  [3]),
-								 pConfig->
+								 config_param->
 								 dw_mem_length
 								 [3]);
 	if (!dev_context->dw_dsp_base_addr)
@@ -1147,7 +1147,7 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 
 /* Mem Write does not halt the DSP to write unlike bridge_brd_write */
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
-				    IN u8 *pbHostBuf, u32 dsp_addr,
+				    IN u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 ulMemType)
 {
 	int status = 0;
@@ -1161,16 +1161,16 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 		if (dsp_addr < (dev_context->dw_dsp_start_add +
 				 dev_context->dw_internal_size)) {
 			status =
-			    write_dsp_data(dev_ctxt, pbHostBuf, dsp_addr,
+			    write_dsp_data(dev_ctxt, host_buff, dsp_addr,
 					   ul_bytes, ulMemType);
 		} else {
-			status = write_ext_dsp_data(dev_ctxt, pbHostBuf,
+			status = write_ext_dsp_data(dev_ctxt, host_buff,
 						    dsp_addr, ul_bytes,
 						    ulMemType, true);
 		}
 		ul_remain_bytes -= ul_bytes;
 		dsp_addr += ul_bytes;
-		pbHostBuf = pbHostBuf + ul_bytes;
+		host_buff = host_buff + ul_bytes;
 	}
 	return status;
 }

@@ -253,7 +253,7 @@ static int get_fxn_address(struct node_object *hnode, u32 * pulFxnAddr,
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
 				 CONST struct dsp_uuid *pNodeId,
-				 struct dcd_genericobj *pdcdProps);
+				 struct dcd_genericobj *dcd_prop);
 static int get_proc_props(struct node_mgr *hnode_mgr,
 				 struct dev_object *hdev_obj);
 static int get_rms_fxns(struct node_mgr *hnode_mgr);
@@ -2891,19 +2891,19 @@ void get_node_info(struct node_object *hnode, struct dsp_nodeinfo *pNodeInfo)
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
 				 CONST struct dsp_uuid *pNodeId,
-				 struct dcd_genericobj *pdcdProps)
+				 struct dcd_genericobj *dcd_prop)
 {
 	u32 len;
 	struct node_msgargs *pmsg_args;
 	struct node_taskargs *task_arg_obj;
 	enum node_type node_type = NODE_TASK;
 	struct dsp_ndbprops *pndb_props =
-	    &(pdcdProps->obj_data.node_obj.ndb_props);
+	    &(dcd_prop->obj_data.node_obj.ndb_props);
 	int status = 0;
 	char sz_uuid[MAXUUIDLEN];
 
 	status = dcd_get_object_def(hdcd_mgr, (struct dsp_uuid *)pNodeId,
-				    DSP_DCDNODETYPE, pdcdProps);
+				    DSP_DCDNODETYPE, dcd_prop);
 
 	if (DSP_SUCCEEDED(status)) {
 		hnode->ntype = node_type = pndb_props->ntype;
@@ -2917,9 +2917,9 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 		if (node_type != NODE_DEVICE) {
 			pmsg_args = &(hnode->create_args.asa.node_msg_args);
 			pmsg_args->seg_id =
-			    pdcdProps->obj_data.node_obj.msg_segid;
+			    dcd_prop->obj_data.node_obj.msg_segid;
 			pmsg_args->notify_type =
-			    pdcdProps->obj_data.node_obj.msg_notify_type;
+			    dcd_prop->obj_data.node_obj.msg_notify_type;
 			pmsg_args->max_msgs = pndb_props->message_depth;
 			dev_dbg(bridge, "(node) Max Number of Messages: 0x%x\n",
 				pmsg_args->max_msgs);

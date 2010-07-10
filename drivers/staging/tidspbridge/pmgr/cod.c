@@ -493,7 +493,7 @@ bool cod_init(void)
  *      terminating args arrays, if num_argc is very large.
  */
 int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
-			 cod_writefxn pfn_write, void *pArb, char *envp[])
+			 cod_writefxn pfn_write, void *arb, char *envp[])
 {
 	dbll_flags flags;
 	struct dbll_attrs save_attrs;
@@ -525,7 +525,7 @@ int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
 
 	new_attrs = save_attrs;
 	new_attrs.write = (dbll_write_fxn) pfn_write;
-	new_attrs.input_params = pArb;
+	new_attrs.input_params = arb;
 	new_attrs.alloc = (dbll_alloc_fxn) no_op;
 	new_attrs.free = (dbll_free_fxn) no_op;
 	new_attrs.log_write = NULL;
