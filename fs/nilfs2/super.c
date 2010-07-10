@@ -55,6 +55,8 @@
 #include "nilfs.h"
 #include "mdt.h"
 #include "alloc.h"
+#include "btree.h"
+#include "btnode.h"
 #include "page.h"
 #include "cpfile.h"
 #include "ifile.h"
@@ -1213,7 +1215,7 @@ static void nilfs_inode_init_once(void *obj)
 	init_rwsem(&ii->xattr_sem);
 #endif
 	nilfs_btnode_cache_init_once(&ii->i_btnode_cache);
-	ii->i_bmap = (struct nilfs_bmap *)&ii->i_bmap_union;
+	ii->i_bmap = &ii->i_bmap_data;
 	inode_init_once(&ii->vfs_inode);
 }
 

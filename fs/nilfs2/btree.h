@@ -31,14 +31,6 @@
 #include "bmap.h"
 
 /**
- * struct nilfs_btree - B-tree structure
- * @bt_bmap: bmap base structure
- */
-struct nilfs_btree {
-	struct nilfs_bmap bt_bmap;
-};
-
-/**
  * struct nilfs_btree_path - A path on which B-tree operations are executed
  * @bp_bh: buffer head of node block
  * @bp_sib_bh: buffer head of sibling node block

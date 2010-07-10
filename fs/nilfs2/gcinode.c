@@ -48,6 +48,8 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include "nilfs.h"
+#include "btree.h"
+#include "btnode.h"
 #include "page.h"
 #include "mdt.h"
 #include "dat.h"
