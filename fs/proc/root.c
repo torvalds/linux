@@ -100,7 +100,6 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 	int err;
 	struct super_block *sb;
 	struct pid_namespace *ns;
-	struct proc_inode *ei;
 	char *options;
 
 	if (flags & MS_KERNMOUNT) {
@@ -128,13 +127,6 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		}
 
 		sb->s_flags |= MS_ACTIVE;
-	}
-
-	ei = PROC_I(sb->s_root->d_inode);
-	if (!ei->pid) {
-		rcu_read_lock();
-		ei->pid = get_pid(find_pid_ns(1, ns));
-		rcu_read_unlock();
 	}
 
 	return dget(sb->s_root);
