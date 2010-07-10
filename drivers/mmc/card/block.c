@@ -235,9 +235,11 @@ static u32 get_card_status(struct mmc_card *card, struct request *req)
 		cmd.arg = card->rca << 16;
 	cmd.flags = MMC_RSP_SPI_R2 | MMC_RSP_R1 | MMC_CMD_AC;
 	err = mmc_wait_for_cmd(card->host, &cmd, 0);
+	#if 0 //[xjh] not printk,save time
 	if (err)
 		printk(KERN_ERR "%s: error %d sending status comand",
 		       req->rq_disk->disk_name, err);
+	#endif
 	return cmd.resp[0];
 }
 
@@ -376,7 +378,9 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		 * until later as we need to wait for the card to leave
 		 * programming mode even when things go wrong.
 		 */
+		#if 1/*[xjh] do not retry with cmd17*/
 		if (brq.cmd.error || brq.data.error || brq.stop.error) {
+			
 			if (brq.data.blocks > 1 && rq_data_dir(req) == READ) {
 				/* Redo read one sector at a time */
 				printk(KERN_WARNING "%s: retrying using single "
@@ -384,11 +388,14 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				disable_multi = 1;
 				continue;
 			}
+			
 			status = get_card_status(card, req);
 		} else if (disable_multi == 1) {
 			disable_multi = 0;
 		}
+		#endif
 
+		#if 0 //[xjh] not printk,save time
 		if (brq.cmd.error) {
 			printk(KERN_ERR "%s: error %d sending read/write "
 			       "command, response %#x, card status %#x\n",
@@ -413,6 +420,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			       req->rq_disk->disk_name, brq.stop.error,
 			       brq.stop.resp[0], status);
 		}
+		#endif 
 
 		if (!mmc_host_is_spi(card->host) && rq_data_dir(req) != READ) {
 			do {
@@ -445,6 +453,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		}
 
 		if (brq.cmd.error || brq.stop.error || brq.data.error) {
+			#if 1/*[xjh] do not retry with cmd17*/
 			if (rq_data_dir(req) == READ) {
 				/*
 				 * After an error, we redo I/O one sector at a
@@ -456,6 +465,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 				spin_unlock_irq(&md->lock);
 				continue;
 			}
+			#endif
 			goto cmd_err;
 		}
 

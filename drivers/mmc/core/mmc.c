@@ -660,6 +660,9 @@ static void mmc_attach_bus_ops(struct mmc_host *host)
 int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 {
 	int err;
+	
+	unsigned long flags;
+	extern int sdmmc0_disable_Irq_ForRemoval;
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
@@ -708,6 +711,10 @@ int mmc_attach_mmc(struct mmc_host *host, u32 ocr)
 	err = mmc_add_card(host->card);
 	if (err)
 		goto remove_card;
+	
+	local_irq_save(flags);
+	sdmmc0_disable_Irq_ForRemoval = 0; //close the IRQ for insertion or removal  
+	local_irq_restore(flags);
 
 	return 0;
 

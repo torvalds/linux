@@ -1059,7 +1059,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 
 EXPORT_SYMBOL(mmc_detect_change);
 
-
+#if 0
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
@@ -1154,6 +1154,102 @@ out:
 	if (host->caps & MMC_CAP_NEEDS_POLL)
 		mmc_schedule_delayed_work(&host->detect, HZ);
 }
+#else
+void mmc_rescan(struct work_struct *work)
+{
+	struct mmc_host *host =
+		container_of(work, struct mmc_host, detect.work);
+	u32 ocr;
+	int err;
+	int extend_wakelock = 0;
+
+	mmc_bus_get(host);
+	if(host->bus_ops == NULL)
+	{
+		/* detect a newly inserted card */
+
+		/*
+		 * Only we can add a new handler, so it's safe to
+		 * release the lock here.
+		 */
+		mmc_bus_put(host);
+
+		if (host->ops->get_cd && host->ops->get_cd(host) == 0)
+			goto out;
+
+		mmc_claim_host(host);
+
+		mmc_power_up(host);
+		mmc_go_idle(host);
+
+		mmc_send_if_cond(host, host->ocr_avail);
+
+		/*
+		 * First we search for SDIO...
+		 */
+		err = mmc_send_io_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_sdio(host, ocr))
+				mmc_power_off(host);
+			extend_wakelock = 1;
+			goto out;
+		}
+
+		/*
+		 * ...then normal SD...
+		 */
+		err = mmc_send_app_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_sd(host, ocr))
+				mmc_power_off(host);
+			extend_wakelock = 1;
+			goto out;
+		}
+
+		/*
+		 * ...and finally MMC.
+		 */
+		err = mmc_send_op_cond(host, 0, &ocr);
+		if (!err) {
+			if (mmc_attach_mmc(host, ocr))
+				mmc_power_off(host);
+			extend_wakelock = 1;
+			goto out;
+		}
+
+		mmc_release_host(host);
+		mmc_power_off(host);
+		
+	}
+	else
+	{
+		/* if there is a card registered, check whether it is still present */
+		if ((host->bus_ops != NULL) && host->bus_ops->detect && !host->bus_dead)
+			host->bus_ops->detect(host);
+
+		/* If the card was removed the bus will be marked
+		 * as dead - extend the wakelock so userspace
+		 * can respond */
+		if (host->bus_dead)
+			extend_wakelock = 1;
+
+		mmc_bus_put(host);
+		
+	}
+	
+
+
+out:
+	if (extend_wakelock)
+		wake_lock_timeout(&mmc_delayed_work_wake_lock, HZ / 2);
+	else
+		wake_unlock(&mmc_delayed_work_wake_lock);
+
+	if (host->caps & MMC_CAP_NEEDS_POLL)
+		mmc_schedule_delayed_work(&host->detect, HZ);
+}
+
+#endif
 
 void mmc_start_host(struct mmc_host *host)
 {

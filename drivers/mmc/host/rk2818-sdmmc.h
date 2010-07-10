@@ -106,9 +106,27 @@
 #define SDMMC_CMD_RESP_EXP      RK2818_BIT(6)
 #define SDMMC_CMD_INDX(n)       ((n) & 0x1F)
 /* Status register defines */
+#define SDMMC_STAUTS_RESP_INDEX	RK2818_BIT(11)
+#define SDMMC_STAUTS_MC_BUSY	RK2818_BIT(10)
+#define SDMMC_STAUTS_DATA_BUSY	RK2818_BIT(9)
+#define SDMMC_STAUTS_CARD_PRESENT	RK2818_BIT(8)
+#define SDMMC_STAUTS_FIFO_FULL	RK2818_BIT(3)
+#define SDMMC_STAUTS_FIFO_EMPTY	RK2818_BIT(2)
+#define SDMMC_STAUTS_FIFO_TX_WATERMARK	RK2818_BIT(1)
+#define SDMMC_STAUTS_FIFO_RX_WATERMARK	RK2818_BIT(0)
+
+
+
+
 #define SDMMC_GET_FCNT(x)       (((x)>>17) & 0x1FF)
 #define SDMMC_FIFO_SZ           32
 
 #define SDMMC_WRITE_PROTECT		RK2818_BIT(0)
 #define SDMMC_CARD_DETECT_N		RK2818_BIT(0)
+
+/* Specifies how often in millisecs to poll for card removal-insertion changes
+ * when the timer switch is open */
+#define RK28_SDMMC0_SWITCH_POLL_DELAY 3500
+
+
 #endif
