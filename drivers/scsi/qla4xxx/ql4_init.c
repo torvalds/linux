@@ -399,6 +399,7 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 		DEBUG2(printk("scsi%ld: %s: FW initialized, but "
 			      "auto-discovery still in process\n",
 			       ha->host_no, __func__));
+		ready = 1;
 	}
 
 	return ready;
