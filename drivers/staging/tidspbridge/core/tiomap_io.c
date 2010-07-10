@@ -52,7 +52,7 @@ bool symbols_reloaded = true;
  */
 int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 			     OUT u8 *host_buff, u32 dsp_addr,
-			     u32 ul_num_bytes, u32 ulMemType)
+			     u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
@@ -180,7 +180,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
  */
 int write_dsp_data(struct bridge_dev_context *dev_ctxt,
 			  IN u8 *host_buff, u32 dsp_addr, u32 ul_num_bytes,
-			  u32 ulMemType)
+			  u32 mem_type)
 {
 	u32 offset;
 	u32 dw_base_addr = dev_ctxt->dw_dsp_base_addr;
@@ -226,7 +226,7 @@ int write_dsp_data(struct bridge_dev_context *dev_ctxt,
  */
 int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 			      IN u8 *host_buff, u32 dsp_addr,
-			      u32 ul_num_bytes, u32 ulMemType,
+			      u32 ul_num_bytes, u32 mem_type,
 			      bool dynamic_load)
 {
 	u32 dw_base_addr = dev_context->dw_dsp_ext_base_addr;

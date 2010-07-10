@@ -262,17 +262,17 @@ extern int cmm_un_register_gppsm_seg(struct cmm_object *hcmm_mgr,
  *  Parameters:
  *      xlator:    Handle to a Xlator object.
  *      va_buf:     Virtual address ptr(client context)
- *      uPaSize:    Size of SM memory to allocate.
+ *      pa_size:    Size of SM memory to allocate.
  *  Returns:
- *      Ptr to valid physical address(Pa) of uPaSize bytes, NULL if failed.
+ *      Ptr to valid physical address(Pa) of pa_size bytes, NULL if failed.
  *  Requires:
  *      va_buf != 0.
- *      uPaSize != 0.
+ *      pa_size != 0.
  *  Ensures:
  *
  */
 extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
-				  void *va_buf, u32 uPaSize);
+				  void *va_buf, u32 pa_size);
 
 /*
  *  ======== cmm_xlator_create ========
@@ -346,7 +346,7 @@ extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
  *     xlator:     handle to translator.
  *     paddr:       Virtual base address of segment.
  *     ul_size:      Size in bytes.
- *     uSegId:      Segment identifier of SM segment(s)
+ *     segm_id:     Segment identifier of SM segment(s)
  *     set_info     Set xlator fields if TRUE, else return base addr
  *  Returns:
  *      0:        Success.
@@ -360,7 +360,7 @@ extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
  */
 extern int cmm_xlator_info(struct cmm_xlatorobject *xlator,
 				  IN OUT u8 **paddr,
-				  u32 ul_size, u32 uSegId, bool set_info);
+				  u32 ul_size, u32 segm_id, bool set_info);
 
 /*
  *  ======== cmm_xlator_translate ========

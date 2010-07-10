@@ -147,11 +147,11 @@ extern int node_close_orphans(struct node_mgr *hnode_mgr,
  *                      if this is a connection from DSP node to GPP, or a
  *                      node handle returned from a successful call to
  *                      node_allocate().
- *      uStream1:       Output stream index on first node, to be connected
+ *      stream1:        Output stream index on first node, to be connected
  *                      to second node's input stream. Value must range from
- *                      0 <= uStream1 < number of output streams.
- *      uStream2:       Input stream index on second node. Value must range
- *                      from 0 <= uStream2 < number of input streams.
+ *                      0 <= stream1 < number of output streams.
+ *      stream2:        Input stream index on second node. Value must range
+ *                      from 0 <= stream2 < number of input streams.
  *      pattrs:         Stream attributes (NULL ==> use defaults).
  *      conn_param:     A pointer to a dsp_cbdata structure that defines
  *                      connection parameter for device nodes to pass to DSP
@@ -167,7 +167,7 @@ extern int node_close_orphans(struct node_mgr *hnode_mgr,
  *      -ENOMEM:            Insufficient host memory.
  *      -EINVAL:             A stream index parameter is invalid.
  *      -EISCONN:  A connection already exists for one of the
- *                              indices uStream1 or uStream2.
+ *                              indices stream1 or stream2.
  *      -EBADR:        Either node1 or node2 is not in the
  *                              NODE_ALLOCATED state.
  *      -ECONNREFUSED: No more connections available.
@@ -179,9 +179,9 @@ extern int node_close_orphans(struct node_mgr *hnode_mgr,
  *  Ensures:
  */
 extern int node_connect(struct node_object *node1,
-			       u32 uStream1,
+			       u32 stream1,
 			       struct node_object *node2,
-			       u32 uStream2,
+			       u32 stream2,
 			       OPTIONAL IN struct dsp_strmattr *pattrs,
 			       OPTIONAL IN struct dsp_cbdata
 			       *conn_param);

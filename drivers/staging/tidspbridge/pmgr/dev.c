@@ -100,7 +100,7 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
  *      is passed a handle to a DEV_hObject, then calls the
  *      device's bridge_brd_write() function.
  */
-u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *host_buf,
+u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
 		      u32 ul_num_bytes, u32 mem_space)
 {
 	struct dev_object *dev_obj = (struct dev_object *)arb;
@@ -114,7 +114,7 @@ u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *host_buf,
 		DBC_ASSERT(dev_obj->hbridge_context != NULL);
 		status = (*dev_obj->bridge_interface.pfn_brd_write) (
 					dev_obj->hbridge_context, host_buf,
-					ulDspAddr, ul_num_bytes, mem_space);
+					dsp_add, ul_num_bytes, mem_space);
 		/* Special case of getting the address only */
 		if (ul_num_bytes == 0)
 			ul_num_bytes = 1;
@@ -798,7 +798,7 @@ bool dev_init(void)
  *  Purpose:
  *      Notify all clients of this device of a change in device status.
  */
-int dev_notify_clients(struct dev_object *hdev_obj, u32 ulStatus)
+int dev_notify_clients(struct dev_object *hdev_obj, u32 ret)
 {
 	int status = 0;
 
@@ -809,7 +809,7 @@ int dev_notify_clients(struct dev_object *hdev_obj, u32 ulStatus)
 	     proc_obj != NULL;
 	     proc_obj = (void *)lst_next(dev_obj->proc_list,
 					 (struct list_head *)proc_obj))
-		proc_notify_clients(proc_obj, (u32) ulStatus);
+		proc_notify_clients(proc_obj, (u32) ret);
 
 	return status;
 }

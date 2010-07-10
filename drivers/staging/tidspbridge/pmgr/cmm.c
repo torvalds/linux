@@ -1008,7 +1008,7 @@ int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool force)
  *  ======== cmm_xlator_alloc_buf ========
  */
 void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,
-			   u32 uPaSize)
+			   u32 pa_size)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
 	void *pbuf = NULL;
@@ -1018,7 +1018,7 @@ void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,
 	DBC_REQUIRE(xlator != NULL);
 	DBC_REQUIRE(xlator_obj->hcmm_mgr != NULL);
 	DBC_REQUIRE(va_buf != NULL);
-	DBC_REQUIRE(uPaSize > 0);
+	DBC_REQUIRE(pa_size > 0);
 	DBC_REQUIRE(xlator_obj->ul_seg_id > 0);
 
 	if (xlator_obj) {
@@ -1026,7 +1026,7 @@ void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,
 		*(volatile u32 *)va_buf = 0;
 		/* Alloc SM */
 		pbuf =
-		    cmm_calloc_buf(xlator_obj->hcmm_mgr, uPaSize, &attrs, NULL);
+		    cmm_calloc_buf(xlator_obj->hcmm_mgr, pa_size, &attrs, NULL);
 		if (pbuf) {
 			/* convert to translator(node/strm) process Virtual
 			 * address */
@@ -1076,14 +1076,14 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
  *      Set/Get translator info.
  */
 int cmm_xlator_info(struct cmm_xlatorobject *xlator, IN OUT u8 ** paddr,
-			   u32 ul_size, u32 uSegId, bool set_info)
+			   u32 ul_size, u32 segm_id, bool set_info)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(paddr != NULL);
-	DBC_REQUIRE((uSegId > 0) && (uSegId <= CMM_MAXGPPSEGS));
+	DBC_REQUIRE((segm_id > 0) && (segm_id <= CMM_MAXGPPSEGS));
 
 	if (xlator_obj) {
 		if (set_info) {

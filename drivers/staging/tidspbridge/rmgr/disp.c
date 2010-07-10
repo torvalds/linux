@@ -223,7 +223,7 @@ bool disp_init(void)
  */
 int disp_node_change_priority(struct disp_object *disp_obj,
 				     struct node_object *hnode,
-				     u32 ulRMSFxn, nodeenv node_env, s32 prio)
+				     u32 rms_fxn, nodeenv node_env, s32 prio)
 {
 	u32 dw_arg;
 	struct rms_command *rms_cmd;
@@ -235,7 +235,7 @@ int disp_node_change_priority(struct disp_object *disp_obj,
 
 	/* Send message to RMS to change priority */
 	rms_cmd = (struct rms_command *)(disp_obj->pbuf);
-	rms_cmd->fxn = (rms_word) (ulRMSFxn);
+	rms_cmd->fxn = (rms_word) (rms_fxn);
 	rms_cmd->arg1 = (rms_word) node_env;
 	rms_cmd->arg2 = prio;
 	status = send_message(disp_obj, node_get_timeout(hnode),
@@ -249,7 +249,7 @@ int disp_node_change_priority(struct disp_object *disp_obj,
  *  Create a node on the DSP by remotely calling the node's create function.
  */
 int disp_node_create(struct disp_object *disp_obj,
-			    struct node_object *hnode, u32 ulRMSFxn,
+			    struct node_object *hnode, u32 rms_fxn,
 			    u32 ul_create_fxn,
 			    IN CONST struct node_createargs *pargs,
 			    OUT nodeenv *node_env)
@@ -351,7 +351,7 @@ int disp_node_create(struct disp_object *disp_obj,
 		total = 0;	/* Total number of words in buffer so far */
 		pdw_buf = (rms_word *) disp_obj->pbuf;
 		rms_cmd = (struct rms_command *)pdw_buf;
-		rms_cmd->fxn = (rms_word) (ulRMSFxn);
+		rms_cmd->fxn = (rms_word) (rms_fxn);
 		rms_cmd->arg1 = (rms_word) (ul_create_fxn);
 		if (node_get_load_type(hnode) == NLDR_DYNAMICLOAD) {
 			/* Flush ICACHE on Load */
@@ -485,7 +485,7 @@ func_end:
  *
  */
 int disp_node_delete(struct disp_object *disp_obj,
-			    struct node_object *hnode, u32 ulRMSFxn,
+			    struct node_object *hnode, u32 rms_fxn,
 			    u32 ul_delete_fxn, nodeenv node_env)
 {
 	u32 dw_arg;
@@ -507,7 +507,7 @@ int disp_node_delete(struct disp_object *disp_obj,
 			 *  Fill in buffer to send to RMS
 			 */
 			rms_cmd = (struct rms_command *)disp_obj->pbuf;
-			rms_cmd->fxn = (rms_word) (ulRMSFxn);
+			rms_cmd->fxn = (rms_word) (rms_fxn);
 			rms_cmd->arg1 = (rms_word) node_env;
 			rms_cmd->arg2 = (rms_word) (ul_delete_fxn);
 			rms_cmd->data = node_get_type(hnode);
@@ -539,7 +539,7 @@ int disp_node_delete(struct disp_object *disp_obj,
  *      that has been suspended (via DISP_NodePause()) on the DSP.
  */
 int disp_node_run(struct disp_object *disp_obj,
-			 struct node_object *hnode, u32 ulRMSFxn,
+			 struct node_object *hnode, u32 rms_fxn,
 			 u32 ul_execute_fxn, nodeenv node_env)
 {
 	u32 dw_arg;
@@ -560,7 +560,7 @@ int disp_node_run(struct disp_object *disp_obj,
 			 *  Fill in buffer to send to RMS.
 			 */
 			rms_cmd = (struct rms_command *)disp_obj->pbuf;
-			rms_cmd->fxn = (rms_word) (ulRMSFxn);
+			rms_cmd->fxn = (rms_word) (rms_fxn);
 			rms_cmd->arg1 = (rms_word) node_env;
 			rms_cmd->arg2 = (rms_word) (ul_execute_fxn);
 			rms_cmd->data = node_get_type(hnode);

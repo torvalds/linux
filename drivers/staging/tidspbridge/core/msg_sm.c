@@ -40,7 +40,7 @@
 /*  ----------------------------------- Function Prototypes */
 static int add_new_msg(struct lst_list *msg_list);
 static void delete_msg_mgr(struct msg_mgr *hmsg_mgr);
-static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 uNumToDSP);
+static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 num_to_dsp);
 static void free_msg_list(struct lst_list *msg_list);
 
 /*
@@ -602,7 +602,7 @@ func_end:
 /*
  *  ======== delete_msg_queue ========
  */
-static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 uNumToDSP)
+static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 num_to_dsp)
 {
 	struct msg_mgr *hmsg_mgr;
 	struct msg_frame *pmsg;
@@ -614,8 +614,8 @@ static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 uNumToDSP)
 
 	hmsg_mgr = msg_queue_obj->hmsg_mgr;
 
-	/* Pull off uNumToDSP message frames from Msg manager and free */
-	for (i = 0; i < uNumToDSP; i++) {
+	/* Pull off num_to_dsp message frames from Msg manager and free */
+	for (i = 0; i < num_to_dsp; i++) {
 
 		if (!LST_IS_EMPTY(hmsg_mgr->msg_free_list)) {
 			pmsg = (struct msg_frame *)

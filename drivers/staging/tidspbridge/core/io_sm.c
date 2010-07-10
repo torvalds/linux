@@ -816,7 +816,7 @@ u32 io_buf_size(struct io_mgr *hio_mgr)
  *  ======== io_cancel_chnl ========
  *      Cancel IO on a given PCPY channel.
  */
-void io_cancel_chnl(struct io_mgr *hio_mgr, u32 ulChnl)
+void io_cancel_chnl(struct io_mgr *hio_mgr, u32 chnl)
 {
 	struct io_mgr *pio_mgr = (struct io_mgr *)hio_mgr;
 	struct shm *sm;
@@ -827,7 +827,7 @@ void io_cancel_chnl(struct io_mgr *hio_mgr, u32 ulChnl)
 
 	/* Inform DSP that we have no more buffers on this channel */
 	IO_AND_VALUE(pio_mgr->hbridge_context, struct shm, sm, host_free_mask,
-		     (~(1 << ulChnl)));
+		     (~(1 << chnl)));
 
 	sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 func_end:

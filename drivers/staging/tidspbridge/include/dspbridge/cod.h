@@ -49,7 +49,7 @@ struct cod_attrs {
  *  Function prototypes for writing memory to a DSP system, allocating
  *  and freeing DSP memory.
  */
-typedef u32(*cod_writefxn) (void *priv_ref, u32 ulDspAddr,
+typedef u32(*cod_writefxn) (void *priv_ref, u32 dsp_add,
 			    void *pbuf, u32 ul_num_bytes, u32 mem_space);
 
 /*

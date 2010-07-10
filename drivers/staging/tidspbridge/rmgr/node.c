@@ -242,14 +242,14 @@ static void delete_node(struct node_object *hnode,
 			struct process_context *pr_ctxt);
 static void delete_node_mgr(struct node_mgr *hnode_mgr);
 static void fill_stream_connect(struct node_object *node1,
-				struct node_object *node2, u32 uStream1,
-				u32 uStream2);
+				struct node_object *node2, u32 stream1,
+				u32 stream2);
 static void fill_stream_def(struct node_object *hnode,
 			    struct node_strmdef *pstrm_def,
 			    struct dsp_strmattr *pattrs);
 static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream);
 static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
-				  u32 uPhase);
+				  u32 phase);
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
 				 CONST struct dsp_uuid *node_uuid,
@@ -257,9 +257,9 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 static int get_proc_props(struct node_mgr *hnode_mgr,
 				 struct dev_object *hdev_obj);
 static int get_rms_fxns(struct node_mgr *hnode_mgr);
-static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
+static u32 ovly(void *priv_ref, u32 dsp_run_addr, u32 dsp_load_addr,
 		u32 ul_num_bytes, u32 mem_space);
-static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
+static u32 mem_write(void *priv_ref, u32 dsp_add, void *pbuf,
 		     u32 ul_num_bytes, u32 mem_space);
 
 static u32 refs;		/* module reference count */
@@ -833,9 +833,9 @@ func_end:
  *  Purpose:
  *      Connect two nodes on the DSP, or a node on the DSP to the GPP.
  */
-int node_connect(struct node_object *node1, u32 uStream1,
+int node_connect(struct node_object *node1, u32 stream1,
 			struct node_object *node2,
-			u32 uStream2, OPTIONAL IN struct dsp_strmattr *pattrs,
+			u32 stream2, OPTIONAL IN struct dsp_strmattr *pattrs,
 			OPTIONAL IN struct dsp_cbdata *conn_param)
 {
 	struct node_mgr *hnode_mgr;
@@ -877,10 +877,10 @@ int node_connect(struct node_object *node1, u32 uStream1,
 		node2_type = node_get_type(node2);
 		/* Check stream indices ranges */
 		if ((node1_type != NODE_GPP && node1_type != NODE_DEVICE &&
-		     uStream1 >= MAX_OUTPUTS(node1)) || (node2_type != NODE_GPP
+		     stream1 >= MAX_OUTPUTS(node1)) || (node2_type != NODE_GPP
 							  && node2_type !=
 							  NODE_DEVICE
-							  && uStream2 >=
+							  && stream2 >=
 							  MAX_INPUTS(node2)))
 			status = -EINVAL;
 	}
@@ -932,7 +932,7 @@ int node_connect(struct node_object *node1, u32 uStream1,
 		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
 			output =
 			    &(node1->create_args.asa.
-			      task_arg_obj.strm_out_def[uStream1]);
+			      task_arg_obj.strm_out_def[stream1]);
 			if (output->sz_device != NULL)
 				status = -EISCONN;
 
@@ -940,7 +940,7 @@ int node_connect(struct node_object *node1, u32 uStream1,
 		if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
 			input =
 			    &(node2->create_args.asa.
-			      task_arg_obj.strm_in_def[uStream2]);
+			      task_arg_obj.strm_in_def[stream2]);
 			if (input->sz_device != NULL)
 				status = -EISCONN;
 
@@ -956,10 +956,10 @@ int node_connect(struct node_object *node1, u32 uStream1,
 		if (pipe_id == GB_NOBITS) {
 			status = -ECONNREFUSED;
 		} else {
-			node1->outputs[uStream1].type = NODECONNECT;
-			node2->inputs[uStream2].type = NODECONNECT;
-			node1->outputs[uStream1].dev_id = pipe_id;
-			node2->inputs[uStream2].dev_id = pipe_id;
+			node1->outputs[stream1].type = NODECONNECT;
+			node2->inputs[stream2].type = NODECONNECT;
+			node1->outputs[stream1].dev_id = pipe_id;
+			node2->inputs[stream2].dev_id = pipe_id;
 			output->sz_device = kzalloc(PIPENAMELEN + 1,
 							GFP_KERNEL);
 			input->sz_device = kzalloc(PIPENAMELEN + 1, GFP_KERNEL);
@@ -1051,12 +1051,12 @@ int node_connect(struct node_object *node1, u32 uStream1,
 func_cont2:
 		if (DSP_SUCCEEDED(status)) {
 			if (node1 == (struct node_object *)DSP_HGPPNODE) {
-				node2->inputs[uStream2].type = HOSTCONNECT;
-				node2->inputs[uStream2].dev_id = chnl_id;
+				node2->inputs[stream2].type = HOSTCONNECT;
+				node2->inputs[stream2].dev_id = chnl_id;
 				input->sz_device = pstr_dev_name;
 			} else {
-				node1->outputs[uStream1].type = HOSTCONNECT;
-				node1->outputs[uStream1].dev_id = chnl_id;
+				node1->outputs[stream1].type = HOSTCONNECT;
+				node1->outputs[stream1].dev_id = chnl_id;
 				output->sz_device = pstr_dev_name;
 			}
 			sprintf(pstr_dev_name, "%s%d", HOSTPREFIX, chnl_id);
@@ -1069,13 +1069,13 @@ func_cont2:
 			/* node1 == > device */
 			dev_node_obj = node2;
 			hnode = node1;
-			pstream = &(node1->outputs[uStream1]);
+			pstream = &(node1->outputs[stream1]);
 			pstrm_def = output;
 		} else {
 			/* device == > node2 */
 			dev_node_obj = node1;
 			hnode = node2;
-			pstream = &(node2->inputs[uStream2]);
+			pstream = &(node2->inputs[stream2]);
 			pstrm_def = input;
 		}
 		/* Set up create args */
@@ -1116,25 +1116,25 @@ func_cont2:
 		/* Update node1 and node2 stream_connect */
 		if (node1_type != NODE_GPP && node1_type != NODE_DEVICE) {
 			node1->num_outputs++;
-			if (uStream1 > node1->max_output_index)
-				node1->max_output_index = uStream1;
+			if (stream1 > node1->max_output_index)
+				node1->max_output_index = stream1;
 
 		}
 		if (node2_type != NODE_GPP && node2_type != NODE_DEVICE) {
 			node2->num_inputs++;
-			if (uStream2 > node2->max_input_index)
-				node2->max_input_index = uStream2;
+			if (stream2 > node2->max_input_index)
+				node2->max_input_index = stream2;
 
 		}
-		fill_stream_connect(node1, node2, uStream1, uStream2);
+		fill_stream_connect(node1, node2, stream1, stream2);
 	}
 	/* end of sync_enter_cs */
 	/* Exit critical section */
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
 func_end:
-	dev_dbg(bridge, "%s: node1: %p uStream1: %d node2: %p uStream2: %d"
+	dev_dbg(bridge, "%s: node1: %p stream1: %d node2: %p stream2: %d"
 		"pattrs: %p status: 0x%x\n", __func__, node1,
-		uStream1, node2, uStream2, pattrs, status);
+		stream1, node2, stream2, pattrs, status);
 	return status;
 }
 
@@ -2701,7 +2701,7 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
  */
 static void fill_stream_connect(struct node_object *node1,
 				struct node_object *node2,
-				u32 uStream1, u32 uStream2)
+				u32 stream1, u32 stream2)
 {
 	u32 strm_index;
 	struct dsp_streamconnect *strm1 = NULL;
@@ -2718,7 +2718,7 @@ static void fill_stream_connect(struct node_object *node1,
 			    node1->num_outputs - 1;
 			strm1 = &(node1->stream_connect[strm_index]);
 			strm1->cb_struct = sizeof(struct dsp_streamconnect);
-			strm1->this_node_stream_index = uStream1;
+			strm1->this_node_stream_index = stream1;
 		}
 
 		if (node2 != (struct node_object *)DSP_HGPPNODE) {
@@ -2726,7 +2726,7 @@ static void fill_stream_connect(struct node_object *node1,
 			if (node1_type != NODE_DEVICE) {
 				strm1->connected_node = node2;
 				strm1->ui_connected_node_id = node2->node_uuid;
-				strm1->connected_node_stream_index = uStream2;
+				strm1->connected_node_stream_index = stream2;
 				strm1->connect_type = CONNECTTYPE_NODEOUTPUT;
 			}
 			if (node2_type != NODE_DEVICE) {
@@ -2735,10 +2735,10 @@ static void fill_stream_connect(struct node_object *node1,
 				strm2 = &(node2->stream_connect[strm_index]);
 				strm2->cb_struct =
 				    sizeof(struct dsp_streamconnect);
-				strm2->this_node_stream_index = uStream2;
+				strm2->this_node_stream_index = stream2;
 				strm2->connected_node = node1;
 				strm2->ui_connected_node_id = node1->node_uuid;
-				strm2->connected_node_stream_index = uStream1;
+				strm2->connected_node_stream_index = stream1;
 				strm2->connect_type = CONNECTTYPE_NODEINPUT;
 			}
 		} else if (node1_type != NODE_DEVICE)
@@ -2749,7 +2749,7 @@ static void fill_stream_connect(struct node_object *node1,
 		strm_index = node2->num_inputs + node2->num_outputs - 1;
 		strm2 = &(node2->stream_connect[strm_index]);
 		strm2->cb_struct = sizeof(struct dsp_streamconnect);
-		strm2->this_node_stream_index = uStream2;
+		strm2->this_node_stream_index = stream2;
 		strm2->connect_type = CONNECTTYPE_GPPINPUT;
 	}
 }
@@ -2820,7 +2820,7 @@ static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream)
  *      Retrieves the address for create, execute or delete phase for a node.
  */
 static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
-				  u32 uPhase)
+				  u32 phase)
 {
 	char *pstr_fxn_name = NULL;
 	struct node_mgr *hnode_mgr = hnode->hnode_mgr;
@@ -2829,7 +2829,7 @@ static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 		    node_get_type(hnode) == NODE_DAISSOCKET ||
 		    node_get_type(hnode) == NODE_MESSAGE);
 
-	switch (uPhase) {
+	switch (phase) {
 	case CREATEPHASE:
 		pstr_fxn_name =
 		    hnode->dcd_props.obj_data.node_obj.pstr_create_phase_fxn;
@@ -3127,7 +3127,7 @@ static int get_rms_fxns(struct node_mgr *hnode_mgr)
  *  Purpose:
  *      Called during overlay.Sends command to RMS to copy a block of data.
  */
-static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
+static u32 ovly(void *priv_ref, u32 dsp_run_addr, u32 dsp_load_addr,
 		u32 ul_num_bytes, u32 mem_space)
 {
 	struct node_object *hnode = (struct node_object *)priv_ref;
@@ -3153,7 +3153,7 @@ static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
 	if (DSP_SUCCEEDED(status)) {
 		status =
 		    (*intf_fxns->pfn_brd_mem_copy) (hbridge_context,
-						ulDspRunAddr, ulDspLoadAddr,
+						dsp_run_addr, dsp_load_addr,
 						ul_num_bytes, (u32) mem_space);
 		if (DSP_SUCCEEDED(status))
 			ul_bytes = ul_num_bytes;
@@ -3171,7 +3171,7 @@ static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
 /*
  *  ======== mem_write ========
  */
-static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
+static u32 mem_write(void *priv_ref, u32 dsp_add, void *pbuf,
 		     u32 ul_num_bytes, u32 mem_space)
 {
 	struct node_object *hnode = (struct node_object *)priv_ref;
@@ -3195,7 +3195,7 @@ static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
 	intf_fxns = hnode_mgr->intf_fxns;
 	status = dev_get_bridge_context(hnode_mgr->hdev_obj, &hbridge_context);
 	status = (*intf_fxns->pfn_brd_mem_write) (hbridge_context, pbuf,
-					ulDspAddr, ul_num_bytes, mem_sect_type);
+					dsp_add, ul_num_bytes, mem_sect_type);
 
 	return ul_num_bytes;
 }

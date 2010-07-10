@@ -45,7 +45,7 @@
  *      dsp_addr:       Address on DSP board (Destination).
  *      host_buf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
- *      ulMemType:      Memory space on DSP to which to transfer.
+ *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      Number of bytes written.  Returns 0 if the DEV_hObject passed in via
  *      arb is invalid.
@@ -55,7 +55,7 @@
  *  Ensures:
  */
 extern u32 dev_brd_write_fxn(void *arb,
-			     u32 ulDspAddr,
+			     u32 dsp_add,
 			     void *host_buf, u32 ul_num_bytes, u32 mem_space);
 
 /*
@@ -622,7 +622,7 @@ extern int dev_remove_proc_object(struct dev_object
  *      set up by a watchdog timer.
  *  Parameters:
  *      hdev_obj:  Handle to device object created with dev_create_device().
- *      ulStatus:    A status word, most likely a BRD_STATUS.
+ *      ret:         A status word, most likely a BRD_STATUS.
  *  Returns:
  *      0:     All registered clients were asynchronously notified.
  *      -EINVAL:   Invalid hdev_obj.
@@ -633,7 +633,7 @@ extern int dev_remove_proc_object(struct dev_object
  *      delivered to clients.  This function does not ensure that
  *      the notifications will ever be delivered.
  */
-extern int dev_notify_clients(struct dev_object *hdev_obj, u32 ulStatus);
+extern int dev_notify_clients(struct dev_object *hdev_obj, u32 ret);
 
 /*
  *  ======== dev_remove_device ========

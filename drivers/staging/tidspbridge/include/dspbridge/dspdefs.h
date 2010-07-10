@@ -74,19 +74,19 @@ typedef int(*fxn_brd_monitor) (struct bridge_dev_context *dev_ctxt);
  *      Sets the Bridge driver state
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device info.
- *      ulBrdState:     Board state
+ *      brd_state:      Board state
  *  Returns:
  *      0:        Success.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
  *      dev_ctxt != NULL;
- *      ulBrdState  <= BRD_LASTSTATE.
+ *      brd_state  <= BRD_LASTSTATE.
  *  Ensures:
- *      ulBrdState  <= BRD_LASTSTATE.
+ *      brd_state  <= BRD_LASTSTATE.
  *  Update the Board state to the specified state.
  */
 typedef int(*fxn_brd_setstate) (struct bridge_dev_context
-				       * dev_ctxt, u32 ulBrdState);
+				       * dev_ctxt, u32 brd_state);
 
 /*
  *  ======== bridge_brd_start ========
@@ -116,10 +116,10 @@ typedef int(*fxn_brd_start) (struct bridge_dev_context
  *  Copy memory from one DSP address to another
  *  Parameters:
  *      dev_context:    Pointer to context handle
- *  ulDspDestAddr:  DSP address to copy to
- *  ulDspSrcAddr:   DSP address to copy from
+ *  dsp_dest_addr:  DSP address to copy to
+ *  dsp_src_addr:   DSP address to copy from
  *  ul_num_bytes: Number of bytes to copy
- *  ulMemType:  What section of memory to copy to
+ *  mem_type:   What section of memory to copy to
  *  Returns:
  *      0:        Success.
  *      -EPERM:      Other, unspecified error.
@@ -132,9 +132,9 @@ typedef int(*fxn_brd_start) (struct bridge_dev_context
  */
 typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
 				      * dev_ctxt,
-				      u32 ulDspDestAddr,
-				      u32 ulDspSrcAddr,
-				      u32 ul_num_bytes, u32 ulMemType);
+				      u32 dsp_dest_addr,
+				      u32 dsp_src_addr,
+				      u32 ul_num_bytes, u32 mem_type);
 /*
  *  ======== bridge_brd_mem_write ========
  *  Purpose:
@@ -145,7 +145,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      dsp_addr:       Address on DSP board (Destination).
  *      host_buf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
- *      ulMemType:      Memory space on DSP to which to transfer.
+ *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
@@ -159,7 +159,7 @@ typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
 				       * dev_ctxt,
 				       IN u8 *host_buf,
 				       u32 dsp_addr, u32 ul_num_bytes,
-				       u32 ulMemType);
+				       u32 mem_type);
 
 /*
  *  ======== bridge_brd_mem_map ========
@@ -168,7 +168,7 @@ typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      ul_mpu_addr:      MPU memory region start address.
- *      ulVirtAddr:     DSP/IVA memory region u8 address.
+ *      virt_addr:      DSP/IVA memory region u8 address.
  *      ul_num_bytes:     Number of bytes to map.
  *      map_attrs:       Mapping attributes (e.g. endianness).
  *  Returns:
@@ -180,8 +180,8 @@ typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
  */
 typedef int(*fxn_brd_memmap) (struct bridge_dev_context
 				     * dev_ctxt, u32 ul_mpu_addr,
-				     u32 ulVirtAddr, u32 ul_num_bytes,
-				     u32 ulMapAttrs,
+				     u32 virt_addr, u32 ul_num_bytes,
+				     u32 map_attr,
 				     struct page **mapped_pages);
 
 /*
@@ -190,7 +190,7 @@ typedef int(*fxn_brd_memmap) (struct bridge_dev_context
  *      UnMap an MPU memory region from DSP/IVA memory space
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device info.
- *      ulVirtAddr:     DSP/IVA memory region u8 address.
+ *      virt_addr:      DSP/IVA memory region u8 address.
  *      ul_num_bytes:     Number of bytes to unmap.
  *  Returns:
  *      0:        Success.
@@ -201,7 +201,7 @@ typedef int(*fxn_brd_memmap) (struct bridge_dev_context
  */
 typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
 				       * dev_ctxt,
-				       u32 ulVirtAddr, u32 ul_num_bytes);
+				       u32 virt_addr, u32 ul_num_bytes);
 
 /*
  *  ======== bridge_brd_stop ========
@@ -251,7 +251,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
  *      host_buf:       Pointer to host buffer (Destination).
  *      dsp_addr:       Address on DSP board (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
- *      ulMemType:      Memory space on DSP from which to transfer.
+ *      mem_type:       Memory space on DSP from which to transfer.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
@@ -265,7 +265,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
 typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
 				   OUT u8 *host_buf,
 				   u32 dsp_addr,
-				   u32 ul_num_bytes, u32 ulMemType);
+				   u32 ul_num_bytes, u32 mem_type);
 
 /*
  *  ======== bridge_brd_write ========
@@ -277,7 +277,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
  *      dsp_addr:       Address on DSP board (Destination).
  *      host_buf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
- *      ulMemType:      Memory space on DSP to which to transfer.
+ *      mem_type:       Memory space on DSP to which to transfer.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
@@ -290,7 +290,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
 typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
 				    IN u8 *host_buf,
 				    u32 dsp_addr,
-				    u32 ul_num_bytes, u32 ulMemType);
+				    u32 ul_num_bytes, u32 mem_type);
 
 /*
  *  ======== bridge_chnl_create ========
@@ -351,17 +351,17 @@ typedef int(*fxn_chnl_destroy) (struct chnl_mgr *hchnl_mgr);
  *      When notified of DSP error, take appropriate action.
  *  Parameters:
  *      hdeh_mgr:        Handle to DEH manager object.
- *      ulEventMask:  Indicate the type of exception
+ *      evnt_mask:    Indicate the type of exception
  *      error_info:    Error information
  *  Returns:
  *
  *  Requires:
  *      hdeh_mgr != NULL;
- *     ulEventMask with a valid exception
+ *     evnt_mask with a valid exception
  *  Ensures:
  */
 typedef void (*fxn_deh_notify) (struct deh_mgr *hdeh_mgr,
-				u32 ulEventMask, u32 error_info);
+				u32 evnt_mask, u32 error_info);
 
 /*
  *  ======== bridge_chnl_open ========

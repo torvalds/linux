@@ -45,8 +45,8 @@ enum nldr_loadtype {
  *
  *  Parameters:
  *      priv_ref:       Handle to identify the node.
- *      ulDspRunAddr:   Run address of code or data.
- *      ulDspLoadAddr:  Load address of code or data.
+ *      dsp_run_addr:   Run address of code or data.
+ *      dsp_load_addr:  Load address of code or data.
  *      ul_num_bytes:     Number of (GPP) bytes to copy.
  *      mem_space:      RMS_CODE or RMS_DATA.
  *  Returns:
@@ -55,15 +55,15 @@ enum nldr_loadtype {
  *  Requires:
  *  Ensures:
  */
-typedef u32(*nldr_ovlyfxn) (void *priv_ref, u32 ulDspRunAddr,
-			    u32 ulDspLoadAddr, u32 ul_num_bytes, u32 mem_space);
+typedef u32(*nldr_ovlyfxn) (void *priv_ref, u32 dsp_run_addr,
+			    u32 dsp_load_addr, u32 ul_num_bytes, u32 mem_space);
 
 /*
  *  ======== nldr_writefxn ========
  *  Write memory function. Used for dynamic load writes.
  *  Parameters:
  *      priv_ref:       Handle to identify the node.
- *      ulDspAddr:      Address of code or data.
+ *      dsp_add:        Address of code or data.
  *      pbuf:           Code or data to be written
  *      ul_num_bytes:     Number of (GPP) bytes to write.
  *      mem_space:      DBLL_DATA or DBLL_CODE.
@@ -74,7 +74,7 @@ typedef u32(*nldr_ovlyfxn) (void *priv_ref, u32 ulDspRunAddr,
  *  Ensures:
  */
 typedef u32(*nldr_writefxn) (void *priv_ref,
-			     u32 ulDspAddr, void *pbuf,
+			     u32 dsp_add, void *pbuf,
 			     u32 ul_num_bytes, u32 mem_space);
 
 /*

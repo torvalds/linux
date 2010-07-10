@@ -78,7 +78,7 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_context);
 static int bridge_brd_read(struct bridge_dev_context *dev_context,
 				  OUT u8 *host_buff,
 				  u32 dsp_addr, u32 ul_num_bytes,
-				  u32 ulMemType);
+				  u32 mem_type);
 static int bridge_brd_start(struct bridge_dev_context *dev_context,
 				   u32 dsp_addr);
 static int bridge_brd_status(struct bridge_dev_context *dev_context,
@@ -87,21 +87,21 @@ static int bridge_brd_stop(struct bridge_dev_context *dev_context);
 static int bridge_brd_write(struct bridge_dev_context *dev_context,
 				   IN u8 *host_buff,
 				   u32 dsp_addr, u32 ul_num_bytes,
-				   u32 ulMemType);
+				   u32 mem_type);
 static int bridge_brd_set_state(struct bridge_dev_context *dev_ctxt,
-				    u32 ulBrdState);
+				    u32 brd_state);
 static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
-				   u32 ulDspDestAddr, u32 ulDspSrcAddr,
-				   u32 ul_num_bytes, u32 ulMemType);
+				   u32 dsp_dest_addr, u32 dsp_src_addr,
+				   u32 ul_num_bytes, u32 mem_type);
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_context,
 				    IN u8 *host_buff, u32 dsp_addr,
-				    u32 ul_num_bytes, u32 ulMemType);
+				    u32 ul_num_bytes, u32 mem_type);
 static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
-				  u32 ul_mpu_addr, u32 ulVirtAddr,
+				  u32 ul_mpu_addr, u32 virt_addr,
 				  u32 ul_num_bytes, u32 ul_map_attr,
 				  struct page **mapped_pages);
 static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
-				     u32 ulVirtAddr, u32 ul_num_bytes);
+				     u32 virt_addr, u32 ul_num_bytes);
 static int bridge_dev_create(OUT struct bridge_dev_context
 					**dev_cntxt,
 					struct dev_object *hdev_obj,
@@ -116,7 +116,7 @@ static int pte_update(struct bridge_dev_context *dev_ctxt, u32 pa,
 static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 			  u32 size, struct hw_mmu_map_attrs_t *attrs);
 static int mem_map_vmalloc(struct bridge_dev_context *dev_ctxt,
-				  u32 ul_mpu_addr, u32 ulVirtAddr,
+				  u32 ul_mpu_addr, u32 virt_addr,
 				  u32 ul_num_bytes,
 				  struct hw_mmu_map_attrs_t *hw_attrs);
 
@@ -305,7 +305,7 @@ static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt)
  */
 static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 				  OUT u8 *host_buff, u32 dsp_addr,
-				  u32 ul_num_bytes, u32 ulMemType)
+				  u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
@@ -322,7 +322,7 @@ static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 		offset = dsp_addr - dev_context->dw_dsp_start_add;
 	} else {
 		status = read_ext_dsp_data(dev_context, host_buff, dsp_addr,
-					   ul_num_bytes, ulMemType);
+					   ul_num_bytes, mem_type);
 		return status;
 	}
 	/* copy the data from  DSP memory, */
@@ -336,12 +336,12 @@ static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
  *      This routine updates the Board status.
  */
 static int bridge_brd_set_state(struct bridge_dev_context *dev_ctxt,
-				    u32 ulBrdState)
+				    u32 brd_state)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
 
-	dev_context->dw_brd_state = ulBrdState;
+	dev_context->dw_brd_state = brd_state;
 	return status;
 }
 
@@ -766,7 +766,7 @@ static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
  */
 static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 				   IN u8 *host_buff, u32 dsp_addr,
-				   u32 ul_num_bytes, u32 ulMemType)
+				   u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
@@ -778,10 +778,10 @@ static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 	if ((dsp_addr - dev_context->dw_dsp_start_add) <
 	    dev_context->dw_internal_size) {
 		status = write_dsp_data(dev_ctxt, host_buff, dsp_addr,
-					ul_num_bytes, ulMemType);
+					ul_num_bytes, mem_type);
 	} else {
 		status = write_ext_dsp_data(dev_context, host_buff, dsp_addr,
-					    ul_num_bytes, ulMemType, false);
+					    ul_num_bytes, mem_type, false);
 	}
 
 	return status;
@@ -1107,12 +1107,12 @@ static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt)
 }
 
 static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
-				   u32 ulDspDestAddr, u32 ulDspSrcAddr,
-				   u32 ul_num_bytes, u32 ulMemType)
+				   u32 dsp_dest_addr, u32 dsp_src_addr,
+				   u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;
-	u32 src_addr = ulDspSrcAddr;
-	u32 dest_addr = ulDspDestAddr;
+	u32 src_addr = dsp_src_addr;
+	u32 dest_addr = dsp_dest_addr;
 	u32 copy_bytes = 0;
 	u32 total_bytes = ul_num_bytes;
 	u8 host_buf[BUFFERSIZE];
@@ -1122,20 +1122,20 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 		    total_bytes > BUFFERSIZE ? BUFFERSIZE : total_bytes;
 		/* Read from External memory */
 		status = read_ext_dsp_data(dev_ctxt, host_buf, src_addr,
-					   copy_bytes, ulMemType);
+					   copy_bytes, mem_type);
 		if (DSP_SUCCEEDED(status)) {
 			if (dest_addr < (dev_context->dw_dsp_start_add +
 					 dev_context->dw_internal_size)) {
 				/* Write to Internal memory */
 				status = write_dsp_data(dev_ctxt, host_buf,
 							dest_addr, copy_bytes,
-							ulMemType);
+							mem_type);
 			} else {
 				/* Write to External memory */
 				status =
 				    write_ext_dsp_data(dev_ctxt, host_buf,
 						       dest_addr, copy_bytes,
-						       ulMemType, false);
+						       mem_type, false);
 			}
 		}
 		total_bytes -= copy_bytes;
@@ -1148,7 +1148,7 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 /* Mem Write does not halt the DSP to write unlike bridge_brd_write */
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 				    IN u8 *host_buff, u32 dsp_addr,
-				    u32 ul_num_bytes, u32 ulMemType)
+				    u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = dev_ctxt;
@@ -1162,11 +1162,11 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 				 dev_context->dw_internal_size)) {
 			status =
 			    write_dsp_data(dev_ctxt, host_buff, dsp_addr,
-					   ul_bytes, ulMemType);
+					   ul_bytes, mem_type);
 		} else {
 			status = write_ext_dsp_data(dev_ctxt, host_buff,
 						    dsp_addr, ul_bytes,
-						    ulMemType, true);
+						    mem_type, true);
 		}
 		ul_remain_bytes -= ul_bytes;
 		dsp_addr += ul_bytes;
@@ -1185,7 +1185,7 @@ static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
  *  TODO: Disable MMU while updating the page tables (but that'll stall DSP)
  */
 static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
-				  u32 ul_mpu_addr, u32 ulVirtAddr,
+				  u32 ul_mpu_addr, u32 virt_addr,
 				  u32 ul_num_bytes, u32 ul_map_attr,
 				  struct page **mapped_pages)
 {
@@ -1199,14 +1199,14 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 	u32 num_usr_pgs = 0;
 	struct page *mapped_page, *pg;
 	s32 pg_num;
-	u32 va = ulVirtAddr;
+	u32 va = virt_addr;
 	struct task_struct *curr_task = current;
 	u32 pg_i = 0;
 	u32 mpu_addr, pa;
 
 	dev_dbg(bridge,
 		"%s hDevCtxt %p, pa %x, va %x, size %x, ul_map_attr %x\n",
-		__func__, dev_ctxt, ul_mpu_addr, ulVirtAddr, ul_num_bytes,
+		__func__, dev_ctxt, ul_mpu_addr, virt_addr, ul_num_bytes,
 		ul_map_attr);
 	if (ul_num_bytes == 0)
 		return -EINVAL;
@@ -1253,7 +1253,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 		hw_attrs.donotlockmpupage = 0;
 
 	if (attrs & DSP_MAPVMALLOCADDR) {
-		return mem_map_vmalloc(dev_ctxt, ul_mpu_addr, ulVirtAddr,
+		return mem_map_vmalloc(dev_ctxt, ul_mpu_addr, virt_addr,
 				       ul_num_bytes, &hw_attrs);
 	}
 	/*
@@ -1262,7 +1262,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 	 * Pass the translated pa to pte_update.
 	 */
 	if ((attrs & DSP_MAPPHYSICALADDR)) {
-		status = pte_update(dev_context, ul_mpu_addr, ulVirtAddr,
+		status = pte_update(dev_context, ul_mpu_addr, virt_addr,
 				    ul_num_bytes, &hw_attrs);
 		goto func_cont;
 	}
@@ -1383,7 +1383,7 @@ func_cont:
 		 * mapping
 		 */
 		if (pg_i) {
-			bridge_brd_mem_un_map(dev_context, ulVirtAddr,
+			bridge_brd_mem_un_map(dev_context, virt_addr,
 					   (pg_i * PG_SIZE4K));
 		}
 		status = -EPERM;
@@ -1408,7 +1408,7 @@ func_cont:
  *      we clear consecutive PTEs until we unmap all the bytes
  */
 static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
-				     u32 ulVirtAddr, u32 ul_num_bytes)
+				     u32 virt_addr, u32 ul_num_bytes)
 {
 	u32 l1_base_va;
 	u32 l2_base_va;
@@ -1430,13 +1430,13 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 	u32 paddr;
 	u32 numof4k_pages = 0;
 
-	va_curr = ulVirtAddr;
+	va_curr = virt_addr;
 	rem_bytes = ul_num_bytes;
 	rem_bytes_l2 = 0;
 	l1_base_va = pt->l1_base_va;
 	pte_addr_l1 = hw_mmu_pte_addr_l1(l1_base_va, va_curr);
 	dev_dbg(bridge, "%s dev_ctxt %p, va %x, NumBytes %x l1_base_va %x, "
-		"pte_addr_l1 %x\n", __func__, dev_ctxt, ulVirtAddr,
+		"pte_addr_l1 %x\n", __func__, dev_ctxt, virt_addr,
 		ul_num_bytes, l1_base_va, pte_addr_l1);
 
 	while (rem_bytes && (DSP_SUCCEEDED(status))) {
@@ -1771,7 +1771,7 @@ static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 
 /* Memory map kernel VA -- memory allocated with vmalloc */
 static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
-				  u32 ul_mpu_addr, u32 ulVirtAddr,
+				  u32 ul_mpu_addr, u32 virt_addr,
 				  u32 ul_num_bytes,
 				  struct hw_mmu_map_attrs_t *hw_attrs)
 {
@@ -1830,7 +1830,7 @@ static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
 			get_page(PHYS_TO_PAGE(pa));
 			pa += HW_PAGE_SIZE4KB;
 		}
-		status = pte_update(dev_context, pa_curr, ulVirtAddr +
+		status = pte_update(dev_context, pa_curr, virt_addr +
 				    (va_curr - ul_mpu_addr), size_curr,
 				    hw_attrs);
 		va_curr += size_curr;

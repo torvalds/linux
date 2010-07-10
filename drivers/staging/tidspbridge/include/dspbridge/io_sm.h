@@ -54,13 +54,13 @@ extern u32 vdd1_dsp_freq[6][4];
  *      Cancel IO on a given channel.
  *  Parameters:
  *      hio_mgr:     IO Manager.
- *      ulChnl:     Index of channel to cancel IO on.
+ *      chnl:       Index of channel to cancel IO on.
  *  Returns:
  *  Requires:
  *      Valid hio_mgr.
  *  Ensures:
  */
-extern void io_cancel_chnl(struct io_mgr *hio_mgr, u32 ulChnl);
+extern void io_cancel_chnl(struct io_mgr *hio_mgr, u32 chnl);
 
 /*
  *  ======== io_dpc ========
@@ -142,20 +142,20 @@ extern void iosm_schedule(struct io_mgr *hio_mgr);
  *  Parameters:
  *      hio_mgr:         Handle to a I/O manager.
  *      ddma_chnl_id:    DDMA channel identifier.
- *      uNumDesc:       Number of buffer descriptors(equals # of IOReqs &
+ *      num_desc:       Number of buffer descriptors(equals # of IOReqs &
  *                      Chirps)
  *      dsp:           Dsp address;
  *  Returns:
  *  Requires:
  *     ddma_chnl_id < DDMA_MAXDDMACHNLS
- *     uNumDesc > 0
+ *     num_desc > 0
  *     pVa != NULL
  *     pDspPa != NULL
  *
  *  Ensures:
  */
 extern void io_ddma_init_chnl_desc(struct io_mgr *hio_mgr, u32 ddma_chnl_id,
-				   u32 uNumDesc, void *dsp);
+				   u32 num_desc, void *dsp);
 
 /*
  *  ======== io_ddma_clear_chnl_desc ========
@@ -202,14 +202,14 @@ extern void io_ddma_request_chnl(struct io_mgr *hio_mgr,
  *      Initialize ZCPY channel descriptor.
  *  Parameters:
  *      hio_mgr:     Handle to a I/O manager.
- *      uZId:       zero-copy channel identifier.
+ *      zid:        zero-copy channel identifier.
  *  Returns:
  *  Requires:
  *     ddma_chnl_id < DDMA_MAXZCPYCHNLS
  *     hio_mgr != Null
  *  Ensures:
  */
-extern void io_ddzc_init_chnl_desc(struct io_mgr *hio_mgr, u32 uZId);
+extern void io_ddzc_init_chnl_desc(struct io_mgr *hio_mgr, u32 zid);
 
 /*
  *  ======== io_ddzc_clear_chnl_desc ========
