@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.35-rc3
-# Mon Jun 28 17:26:01 2010
+# Fri Jul  9 19:49:16 2010
 #
 CONFIG_ARM=y
 CONFIG_SYS_SUPPORTS_APM_EMULATION=y
@@ -1268,6 +1268,7 @@ CONFIG_FB_TEGRA=y
 # CONFIG_FB_METRONOME is not set
 # CONFIG_FB_MB862XX is not set
 # CONFIG_FB_BROADSHEET is not set
+CONFIG_TEGRA_GRHOST=y
 # CONFIG_BACKLIGHT_LCD_SUPPORT is not set
 
 #
