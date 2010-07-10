@@ -36,13 +36,13 @@ static inline __le64 *nilfs_direct_dptrs(const struct nilfs_direct *direct)
 static inline __u64
 nilfs_direct_get_ptr(const struct nilfs_direct *direct, __u64 key)
 {
-	return nilfs_bmap_dptr_to_ptr(*(nilfs_direct_dptrs(direct) + key));
+	return le64_to_cpu(*(nilfs_direct_dptrs(direct) + key));
 }
 
 static inline void nilfs_direct_set_ptr(struct nilfs_direct *direct,
 					__u64 key, __u64 ptr)
 {
-	*(nilfs_direct_dptrs(direct) + key) = nilfs_bmap_ptr_to_dptr(ptr);
+	*(nilfs_direct_dptrs(direct) + key) = cpu_to_le64(ptr);
 }
 
 static int nilfs_direct_lookup(const struct nilfs_bmap *bmap,
@@ -258,7 +258,7 @@ int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
 	for (i = 0, j = 0; i < NILFS_DIRECT_NBLOCKS; i++) {
 		if ((j < n) && (i == keys[j])) {
 			dptrs[i] = (i != key) ?
-				nilfs_bmap_ptr_to_dptr(ptrs[j]) :
+				cpu_to_le64(ptrs[j]) :
 				NILFS_BMAP_INVALID_PTR;
 			j++;
 		} else
@@ -315,8 +315,8 @@ static int nilfs_direct_assign_v(struct nilfs_direct *direct,
 	ret = nilfs_dat_prepare_start(dat, &req.bpr_req);
 	if (!ret) {
 		nilfs_dat_commit_start(dat, &req.bpr_req, blocknr);
-		binfo->bi_v.bi_vblocknr = nilfs_bmap_ptr_to_dptr(ptr);
-		binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);
+		binfo->bi_v.bi_vblocknr = cpu_to_le64(ptr);
+		binfo->bi_v.bi_blkoff = cpu_to_le64(key);
 	}
 	return ret;
 }
@@ -329,7 +329,7 @@ static int nilfs_direct_assign_p(struct nilfs_direct *direct,
 {
 	nilfs_direct_set_ptr(direct, key, blocknr);
 
-	binfo->bi_dat.bi_blkoff = nilfs_bmap_key_to_dkey(key);
+	binfo->bi_dat.bi_blkoff = cpu_to_le64(key);
 	binfo->bi_dat.bi_level = 0;
 
 	return 0;

@@ -191,29 +191,27 @@ nilfs_btree_node_dptrs(const struct nilfs_btree_node *node,
 static inline __u64
 nilfs_btree_node_get_key(const struct nilfs_btree_node *node, int index)
 {
-	return nilfs_bmap_dkey_to_key(*(nilfs_btree_node_dkeys(node) + index));
+	return le64_to_cpu(*(nilfs_btree_node_dkeys(node) + index));
 }
 
 static inline void
 nilfs_btree_node_set_key(struct nilfs_btree_node *node, int index, __u64 key)
 {
-	*(nilfs_btree_node_dkeys(node) + index) = nilfs_bmap_key_to_dkey(key);
+	*(nilfs_btree_node_dkeys(node) + index) = cpu_to_le64(key);
 }
 
 static inline __u64
 nilfs_btree_node_get_ptr(const struct nilfs_btree *btree,
 			 const struct nilfs_btree_node *node, int index)
 {
-	return nilfs_bmap_dptr_to_ptr(*(nilfs_btree_node_dptrs(node, btree) +
-					index));
+	return le64_to_cpu(*(nilfs_btree_node_dptrs(node, btree) + index));
 }
 
 static inline void
 nilfs_btree_node_set_ptr(struct nilfs_btree *btree,
 			 struct nilfs_btree_node *node, int index, __u64 ptr)
 {
-	*(nilfs_btree_node_dptrs(node, btree) + index) =
-		nilfs_bmap_ptr_to_dptr(ptr);
+	*(nilfs_btree_node_dptrs(node, btree) + index) = cpu_to_le64(ptr);
 }
 
 static void nilfs_btree_node_init(struct nilfs_btree *btree,
@@ -232,8 +230,8 @@ static void nilfs_btree_node_init(struct nilfs_btree *btree,
 	dkeys = nilfs_btree_node_dkeys(node);
 	dptrs = nilfs_btree_node_dptrs(node, btree);
 	for (i = 0; i < nchildren; i++) {
-		dkeys[i] = nilfs_bmap_key_to_dkey(keys[i]);
-		dptrs[i] = nilfs_bmap_ptr_to_dptr(ptrs[i]);
+		dkeys[i] = cpu_to_le64(keys[i]);
+		dptrs[i] = cpu_to_le64(ptrs[i]);
 	}
 }
 
@@ -313,8 +311,8 @@ static void nilfs_btree_node_insert(struct nilfs_btree *btree,
 		memmove(dptrs + index + 1, dptrs + index,
 			(nchildren - index) * sizeof(*dptrs));
 	}
-	dkeys[index] = nilfs_bmap_key_to_dkey(key);
-	dptrs[index] = nilfs_bmap_ptr_to_dptr(ptr);
+	dkeys[index] = cpu_to_le64(key);
+	dptrs[index] = cpu_to_le64(ptr);
 	nchildren++;
 	nilfs_btree_node_set_nchildren(node, nchildren);
 }
@@ -332,8 +330,8 @@ static void nilfs_btree_node_delete(struct nilfs_btree *btree,
 
 	dkeys = nilfs_btree_node_dkeys(node);
 	dptrs = nilfs_btree_node_dptrs(node, btree);
-	key = nilfs_bmap_dkey_to_key(dkeys[index]);
-	ptr = nilfs_bmap_dptr_to_ptr(dptrs[index]);
+	key = le64_to_cpu(dkeys[index]);
+	ptr = le64_to_cpu(dptrs[index]);
 	nchildren = nilfs_btree_node_get_nchildren(node);
 	if (keyp != NULL)
 		*keyp = key;
@@ -1569,8 +1567,8 @@ static int nilfs_btree_gather_data(struct nilfs_bmap *bmap,
 	dkeys = nilfs_btree_node_dkeys(node);
 	dptrs = nilfs_btree_node_dptrs(node, btree);
 	for (i = 0; i < nitems; i++) {
-		keys[i] = nilfs_bmap_dkey_to_key(dkeys[i]);
-		ptrs[i] = nilfs_bmap_dptr_to_ptr(dptrs[i]);
+		keys[i] = le64_to_cpu(dkeys[i]);
+		ptrs[i] = le64_to_cpu(dptrs[i]);
 	}
 
 	if (bh != NULL)
@@ -2059,7 +2057,7 @@ static int nilfs_btree_assign_p(struct nilfs_btree *btree,
 
 	key = nilfs_btree_node_get_key(parent, path[level + 1].bp_index);
 	/* on-disk format */
-	binfo->bi_dat.bi_blkoff = nilfs_bmap_key_to_dkey(key);
+	binfo->bi_dat.bi_blkoff = cpu_to_le64(key);
 	binfo->bi_dat.bi_level = level;
 
 	return 0;
@@ -2090,8 +2088,8 @@ static int nilfs_btree_assign_v(struct nilfs_btree *btree,
 
 	key = nilfs_btree_node_get_key(parent, path[level + 1].bp_index);
 	/* on-disk format */
-	binfo->bi_v.bi_vblocknr = nilfs_bmap_ptr_to_dptr(ptr);
-	binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);
+	binfo->bi_v.bi_vblocknr = cpu_to_le64(ptr);
+	binfo->bi_v.bi_blkoff = cpu_to_le64(key);
 
 	return 0;
 }
@@ -2159,7 +2157,7 @@ static int nilfs_btree_assign_gc(struct nilfs_bmap *bmap,
 
 	/* on-disk format */
 	binfo->bi_v.bi_vblocknr = cpu_to_le64((*bh)->b_blocknr);
-	binfo->bi_v.bi_blkoff = nilfs_bmap_key_to_dkey(key);
+	binfo->bi_v.bi_blkoff = cpu_to_le64(key);
 
 	return 0;
 }

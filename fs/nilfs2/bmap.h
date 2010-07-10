@@ -32,11 +32,6 @@
 
 #define NILFS_BMAP_INVALID_PTR	0
 
-#define nilfs_bmap_dkey_to_key(dkey)	le64_to_cpu(dkey)
-#define nilfs_bmap_key_to_dkey(key)	cpu_to_le64(key)
-#define nilfs_bmap_dptr_to_ptr(dptr)	le64_to_cpu(dptr)
-#define nilfs_bmap_ptr_to_dptr(ptr)	cpu_to_le64(ptr)
-
 #define nilfs_bmap_keydiff_abs(diff)	((diff) < 0 ? -(diff) : (diff))
 
 
