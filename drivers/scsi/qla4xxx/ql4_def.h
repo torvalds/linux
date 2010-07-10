@@ -118,7 +118,7 @@
 #define DRIVER_NAME			"qla4xxx"
 
 #define MAX_LINKED_CMDS_PER_LUN		3
-#define MAX_REQS_SERVICED_PER_INTR	16
+#define MAX_REQS_SERVICED_PER_INTR	1
 
 #define ISCSI_IPADDR_SIZE		4	/* IP address size */
 #define ISCSI_ALIAS_SIZE		32	/* ISCSI Alias name size */
