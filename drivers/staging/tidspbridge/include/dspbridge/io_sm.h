@@ -141,20 +141,20 @@ extern void iosm_schedule(struct io_mgr *hio_mgr);
  *      Initialize DSP DMA channel descriptor.
  *  Parameters:
  *      hio_mgr:         Handle to a I/O manager.
- *      uDDMAChnlId:    DDMA channel identifier.
+ *      ddma_chnl_id:    DDMA channel identifier.
  *      uNumDesc:       Number of buffer descriptors(equals # of IOReqs &
  *                      Chirps)
  *      dsp:           Dsp address;
  *  Returns:
  *  Requires:
- *     uDDMAChnlId < DDMA_MAXDDMACHNLS
+ *     ddma_chnl_id < DDMA_MAXDDMACHNLS
  *     uNumDesc > 0
  *     pVa != NULL
  *     pDspPa != NULL
  *
  *  Ensures:
  */
-extern void io_ddma_init_chnl_desc(struct io_mgr *hio_mgr, u32 uDDMAChnlId,
+extern void io_ddma_init_chnl_desc(struct io_mgr *hio_mgr, u32 ddma_chnl_id,
 				   u32 uNumDesc, void *dsp);
 
 /*
@@ -163,13 +163,13 @@ extern void io_ddma_init_chnl_desc(struct io_mgr *hio_mgr, u32 uDDMAChnlId,
  *      Clear DSP DMA channel descriptor.
  *  Parameters:
  *      hio_mgr:         Handle to a I/O manager.
- *      uDDMAChnlId:    DDMA channel identifier.
+ *      ddma_chnl_id:    DDMA channel identifier.
  *  Returns:
  *  Requires:
- *     uDDMAChnlId < DDMA_MAXDDMACHNLS
+ *     ddma_chnl_id < DDMA_MAXDDMACHNLS
  *  Ensures:
  */
-extern void io_ddma_clear_chnl_desc(struct io_mgr *hio_mgr, u32 uDDMAChnlId);
+extern void io_ddma_clear_chnl_desc(struct io_mgr *hio_mgr, u32 ddma_chnl_id);
 
 /*
  *  ======== io_ddma_request_chnl ========
@@ -205,7 +205,7 @@ extern void io_ddma_request_chnl(struct io_mgr *hio_mgr,
  *      uZId:       zero-copy channel identifier.
  *  Returns:
  *  Requires:
- *     uDDMAChnlId < DDMA_MAXZCPYCHNLS
+ *     ddma_chnl_id < DDMA_MAXZCPYCHNLS
  *     hio_mgr != Null
  *  Ensures:
  */
@@ -217,14 +217,14 @@ extern void io_ddzc_init_chnl_desc(struct io_mgr *hio_mgr, u32 uZId);
  *      Clear DSP ZC channel descriptor.
  *  Parameters:
  *      hio_mgr:         Handle to a I/O manager.
- *      uChnlId:        ZC channel identifier.
+ *      ch_id:        ZC channel identifier.
  *  Returns:
  *  Requires:
  *      hio_mgr is valid
- *      uChnlId < DDMA_MAXZCPYCHNLS
+ *      ch_id < DDMA_MAXZCPYCHNLS
  *  Ensures:
  */
-extern void io_ddzc_clear_chnl_desc(struct io_mgr *hio_mgr, u32 uChnlId);
+extern void io_ddzc_clear_chnl_desc(struct io_mgr *hio_mgr, u32 ch_id);
 
 /*
  *  ======== io_ddzc_request_chnl ========

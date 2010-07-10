@@ -94,8 +94,8 @@
 #define DSPWORDSIZE     sizeof(DSPWORD)
 
 /* Success & Failure macros */
-#define DSP_SUCCEEDED(Status)      likely((s32)(Status) >= 0)
-#define DSP_FAILED(Status)         unlikely((s32)(Status) < 0)
+#define DSP_SUCCEEDED(status)      likely((s32)(status) >= 0)
+#define DSP_FAILED(status)         unlikely((s32)(status) < 0)
 
 /* Power control enumerations */
 #define PROC_PWRCONTROL             0x8070

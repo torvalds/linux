@@ -1507,7 +1507,7 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 						"0x%x\n", paddr, ul_num_bytes);
 					bad_page_dump(paddr, pg);
 				} else {
-					SetPageDirty(pg);
+					set_page_dirty(pg);
 					page_cache_release(pg);
 				}
 				paddr += HW_PAGE_SIZE4KB;
@@ -1571,7 +1571,7 @@ skip_coarse_page:
 						"0x%x\n", paddr, ul_num_bytes);
 					bad_page_dump(paddr, pg);
 				} else {
-					SetPageDirty(pg);
+					set_page_dirty(pg);
 					page_cache_release(pg);
 				}
 			}

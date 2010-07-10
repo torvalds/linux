@@ -420,7 +420,7 @@ typedef int(*dbll_open_fxn) (struct dbll_tar_obj *target, char *file,
  */
 typedef int(*dbll_read_sect_fxn) (struct dbll_library_obj *lib,
 					 char *name, char *content,
-					 u32 uContentSize);
+					 u32 cont_size);
 
 /*
  *  ======== dbll_set_attrs ========

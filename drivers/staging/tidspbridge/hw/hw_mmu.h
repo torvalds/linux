@@ -70,7 +70,7 @@ extern hw_status hw_mmu_fault_addr_read(const void __iomem *base_address,
 
 /* Set the TT base address */
 extern hw_status hw_mmu_ttb_set(const void __iomem *base_address,
-				u32 TTBPhysAddr);
+				u32 ttb_phys_addr);
 
 extern hw_status hw_mmu_twl_enable(const void __iomem *base_address);
 

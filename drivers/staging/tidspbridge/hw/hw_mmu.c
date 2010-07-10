@@ -259,7 +259,7 @@ hw_status hw_mmu_fault_addr_read(const void __iomem *base_address, u32 *addr)
 	return status;
 }
 
-hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 TTBPhysAddr)
+hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 ttb_phys_addr)
 {
 	hw_status status = RET_OK;
 	u32 load_ttb;
@@ -268,7 +268,7 @@ hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 TTBPhysAddr)
 	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
 			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
 
-	load_ttb = TTBPhysAddr & ~0x7FUL;
+	load_ttb = ttb_phys_addr & ~0x7FUL;
 	/* write values to register */
 	MMUMMU_TTB_WRITE_REGISTER32(base_address, load_ttb);
 

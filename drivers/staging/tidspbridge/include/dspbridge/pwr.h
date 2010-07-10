@@ -25,7 +25,7 @@
  *      Signal the DSP to go to sleep.
  *
  *  Parameters:
- *      sleepCode:          New sleep state for DSP.  (Initially, valid codes
+ *      sleep_code:          New sleep state for DSP.  (Initially, valid codes
  *                          are PWR_DEEPSLEEP or PWR_EMERGENCYDEEPSLEEP; both of
  *                          these codes will simply put the DSP in deep sleep.)
  *
@@ -39,13 +39,13 @@
  *  Returns:
  *      0:            Success.
  *      0: Success, but the DSP was already asleep.
- *      -EINVAL:    The specified sleepCode is not supported.
+ *      -EINVAL:    The specified sleep_code is not supported.
  *      -ETIME:       A timeout occured while waiting for DSP sleep
  *                          confirmation.
  *      -EPERM:          General failure, unable to send sleep command to
  *                          the DSP.
  */
-extern int pwr_sleep_dsp(IN CONST u32 sleepCode, IN CONST u32 timeout);
+extern int pwr_sleep_dsp(IN CONST u32 sleep_code, IN CONST u32 timeout);
 
 /*
  *  ======== pwr_wake_dsp ========

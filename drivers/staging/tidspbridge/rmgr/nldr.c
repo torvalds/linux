@@ -296,7 +296,7 @@ static s32 fake_ovly_write(void *handle, u32 dsp_address, void *buf, u32 bytes,
 static void free_sects(struct nldr_object *nldr_obj,
 		       struct ovly_sect *phase_sects, u16 alloc_num);
 static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
-			     char *symName, struct dbll_sym_val **sym);
+			     char *sym_name, struct dbll_sym_val **sym);
 static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			   struct lib_node *root, struct dsp_uuid uuid,
 			   bool root_prstnt,
@@ -306,7 +306,7 @@ static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
 			    enum nldr_phase phase);
 static int remote_alloc(void **ref, u16 mem_sect_type, u32 size,
 			       u32 align, u32 *dsp_address,
-			       OPTIONAL s32 segmentId,
+			       OPTIONAL s32 segmnt_id,
 			       OPTIONAL s32 req, bool reserve);
 static int remote_free(void **ref, u16 space, u32 dsp_address, u32 size,
 			      bool reserve);
@@ -1625,7 +1625,7 @@ func_end:
  */
 static int remote_alloc(void **ref, u16 space, u32 size,
 			       u32 align, u32 *dsp_address,
-			       OPTIONAL s32 segmentId, OPTIONAL s32 req,
+			       OPTIONAL s32 segmnt_id, OPTIONAL s32 req,
 			       bool reserve)
 {
 	struct nldr_nodeobject *hnode = (struct nldr_nodeobject *)ref;
@@ -1651,9 +1651,9 @@ static int remote_alloc(void **ref, u16 space, u32 size,
 	/* Modify memory 'align' to account for DSP cache line size */
 	align = find_lcm(GEM_CACHE_LINE_SIZE, align);
 	dev_dbg(bridge, "%s: memory align to 0x%x\n", __func__, align);
-	if (segmentId != -1) {
-		rmm_addr_obj->segid = segmentId;
-		segid = segmentId;
+	if (segmnt_id != -1) {
+		rmm_addr_obj->segid = segmnt_id;
+		segid = segmnt_id;
 		mem_load_req = req;
 	} else {
 		switch (hnode->phase) {

@@ -34,7 +34,7 @@ extern int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr);
 extern int bridge_chnl_open(OUT struct chnl_object **chnl,
 				   struct chnl_mgr *hchnl_mgr,
 				   s8 chnl_mode,
-				   u32 uChnlId,
+				   u32 ch_id,
 				   CONST IN OPTIONAL struct chnl_attr
 				   *pattrs);
 
@@ -57,7 +57,7 @@ extern int bridge_chnl_get_info(struct chnl_object *chnl_obj,
 				    OUT struct chnl_info *channel_info);
 
 extern int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr,
-					u32 uChnlID, OUT struct chnl_mgrinfo
+					u32 ch_id, OUT struct chnl_mgrinfo
 					*mgr_info);
 
 extern int bridge_chnl_idle(struct chnl_object *chnl_obj,

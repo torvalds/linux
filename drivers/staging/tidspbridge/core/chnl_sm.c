@@ -73,7 +73,7 @@
 #define MAILBOX_IRQ INT_MAIL_MPU_IRQ
 
 /*  ----------------------------------- Function Prototypes */
-static struct lst_list *create_chirp_list(u32 uChirps);
+static struct lst_list *create_chirp_list(u32 chirps);
 
 static void free_chirp_list(struct lst_list *lst);
 
@@ -709,18 +709,18 @@ func_end:
  *  ======== bridge_chnl_get_mgr_info ========
  *      Retrieve information related to the channel manager.
  */
-int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr, u32 uChnlID,
+int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr, u32 ch_id,
 				 OUT struct chnl_mgrinfo *mgr_info)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = (struct chnl_mgr *)hchnl_mgr;
 
 	if (mgr_info != NULL) {
-		if (uChnlID <= CHNL_MAXCHANNELS) {
+		if (ch_id <= CHNL_MAXCHANNELS) {
 			if (hchnl_mgr) {
 				/* Return the requested information: */
 				mgr_info->chnl_obj =
-				    chnl_mgr_obj->ap_channel[uChnlID];
+				    chnl_mgr_obj->ap_channel[ch_id];
 				mgr_info->open_channels =
 				    chnl_mgr_obj->open_channels;
 				mgr_info->dw_type = chnl_mgr_obj->dw_type;
@@ -776,7 +776,7 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
  */
 int bridge_chnl_open(OUT struct chnl_object **chnl,
 			    struct chnl_mgr *hchnl_mgr, s8 chnl_mode,
-			    u32 uChnlId, CONST IN struct chnl_attr *pattrs)
+			    u32 ch_id, CONST IN struct chnl_attr *pattrs)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = hchnl_mgr;
@@ -794,23 +794,23 @@ int bridge_chnl_open(OUT struct chnl_object **chnl,
 		if (!hchnl_mgr) {
 			status = -EFAULT;
 		} else {
-			if (uChnlId != CHNL_PICKFREE) {
-				if (uChnlId >= chnl_mgr_obj->max_channels)
+			if (ch_id != CHNL_PICKFREE) {
+				if (ch_id >= chnl_mgr_obj->max_channels)
 					status = -ECHRNG;
-				else if (chnl_mgr_obj->ap_channel[uChnlId] !=
+				else if (chnl_mgr_obj->ap_channel[ch_id] !=
 					 NULL)
 					status = -EALREADY;
 			} else {
 				/* Check for free channel */
 				status =
-				    search_free_channel(chnl_mgr_obj, &uChnlId);
+				    search_free_channel(chnl_mgr_obj, &ch_id);
 			}
 		}
 	}
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	DBC_ASSERT(uChnlId < chnl_mgr_obj->max_channels);
+	DBC_ASSERT(ch_id < chnl_mgr_obj->max_channels);
 	/* Create channel object: */
 	pchnl = kzalloc(sizeof(struct chnl_object), GFP_KERNEL);
 	if (!pchnl) {
@@ -846,7 +846,7 @@ int bridge_chnl_open(OUT struct chnl_object **chnl,
 		    pchnl->free_packets_list) {
 			/* Initialize CHNL object fields: */
 			pchnl->chnl_mgr_obj = chnl_mgr_obj;
-			pchnl->chnl_id = uChnlId;
+			pchnl->chnl_id = ch_id;
 			pchnl->chnl_mode = chnl_mode;
 			pchnl->user_event = sync_event;
 			pchnl->sync_event = sync_event;
@@ -926,13 +926,13 @@ int bridge_chnl_register_notify(struct chnl_object *chnl_obj,
  *  Purpose:
  *      Initialize a queue of channel I/O Request/Completion packets.
  *  Parameters:
- *      uChirps:    Number of Chirps to allocate.
+ *      chirps:     Number of Chirps to allocate.
  *  Returns:
  *      Pointer to queue of IRPs, or NULL.
  *  Requires:
  *  Ensures:
  */
-static struct lst_list *create_chirp_list(u32 uChirps)
+static struct lst_list *create_chirp_list(u32 chirps)
 {
 	struct lst_list *chirp_list;
 	struct chnl_irp *chnl_packet_obj;
@@ -943,14 +943,14 @@ static struct lst_list *create_chirp_list(u32 uChirps)
 	if (chirp_list) {
 		INIT_LIST_HEAD(&chirp_list->head);
 		/* Make N chirps and place on queue. */
-		for (i = 0; (i < uChirps)
+		for (i = 0; (i < chirps)
 		     && ((chnl_packet_obj = make_new_chirp()) != NULL); i++) {
 			lst_put_tail(chirp_list,
 				     (struct list_head *)chnl_packet_obj);
 		}
 
 		/* If we couldn't allocate all chirps, free those allocated: */
-		if (i != uChirps) {
+		if (i != chirps) {
 			free_chirp_list(chirp_list);
 			chirp_list = NULL;
 		}

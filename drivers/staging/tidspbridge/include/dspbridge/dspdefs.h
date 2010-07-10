@@ -373,7 +373,7 @@ typedef void (*fxn_deh_notify) (struct deh_mgr *hdeh_mgr,
  *      		CHNL_GetMgr().
  *      chnl_mode:          One of {CHNL_MODETODSP, CHNL_MODEFROMDSP} specifies
  *                      direction of data transfer.
- *      uChnlId:        If CHNL_PICKFREE is specified, the channel manager will
+ *      ch_id:        If CHNL_PICKFREE is specified, the channel manager will
  *                      select a free channel id (default);
  *                      otherwise this field specifies the id of the channel.
  *      pattrs:         Channel attributes.  Attribute fields are as follows:
@@ -411,7 +411,7 @@ typedef int(*fxn_chnl_open) (OUT struct chnl_object
 				    **chnl,
 				    struct chnl_mgr *hchnl_mgr,
 				    s8 chnl_mode,
-				    u32 uChnlId,
+				    u32 ch_id,
 				    CONST IN OPTIONAL struct
 				    chnl_attr * pattrs);
 
@@ -569,7 +569,7 @@ typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
  *      Retrieve information related to the channel manager.
  *  Parameters:
  *      hchnl_mgr:           Handle to a valid channel manager, or NULL.
- *      uChnlID:            Channel ID.
+ *      ch_id:            Channel ID.
  *      mgr_info:           Location to store channel manager info.
  *  Returns:
  *      0:            Success;
@@ -582,7 +582,7 @@ typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
  */
 typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
 					  * hchnl_mgr,
-					  u32 uChnlID,
+					  u32 ch_id,
 					  OUT struct chnl_mgrinfo *mgr_info);
 
 /*

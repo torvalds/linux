@@ -36,7 +36,7 @@
  *  ======== pwr_sleep_dsp ========
  *    Send command to DSP to enter sleep state.
  */
-int pwr_sleep_dsp(IN CONST u32 sleepCode, IN CONST u32 timeout)
+int pwr_sleep_dsp(IN CONST u32 sleep_code, IN CONST u32 timeout)
 {
 	struct bridge_drv_interface *intf_fxns;
 	struct bridge_dev_context *dw_context;
@@ -59,9 +59,9 @@ int pwr_sleep_dsp(IN CONST u32 sleepCode, IN CONST u32 timeout)
 						&intf_fxns))) {
 			continue;
 		}
-		if (sleepCode == PWR_DEEPSLEEP)
+		if (sleep_code == PWR_DEEPSLEEP)
 			ioctlcode = BRDIOCTL_DEEPSLEEP;
-		else if (sleepCode == PWR_EMERGENCYDEEPSLEEP)
+		else if (sleep_code == PWR_EMERGENCYDEEPSLEEP)
 			ioctlcode = BRDIOCTL_EMERGENCYSLEEP;
 		else
 			status = -EINVAL;

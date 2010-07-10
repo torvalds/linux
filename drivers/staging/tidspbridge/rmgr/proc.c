@@ -111,7 +111,7 @@ DEFINE_MUTEX(proc_lock);	/* For critical sections */
 static int proc_monitor(struct proc_object *hprocessor);
 static s32 get_envp_count(char **envp);
 static char **prepend_envp(char **new_envp, char **envp, s32 envp_elems,
-			   s32 cnew_envp, char *szVar);
+			   s32 cnew_envp, char *sz_var);
 
 /* remember mapping information */
 static struct dmm_map_object *add_mapping_info(struct process_context *pr_ctxt,
@@ -1848,14 +1848,14 @@ static s32 get_envp_count(char **envp)
  *      copy in the existing var=value pairs in the old envp array.
  */
 static char **prepend_envp(char **new_envp, char **envp, s32 envp_elems,
-			   s32 cnew_envp, char *szVar)
+			   s32 cnew_envp, char *sz_var)
 {
 	char **pp_envp = new_envp;
 
 	DBC_REQUIRE(new_envp);
 
 	/* Prepend new environ var=value string */
-	*new_envp++ = szVar;
+	*new_envp++ = sz_var;
 
 	/* Copy user's environment into our own. */
 	while (envp_elems--)
@@ -1873,20 +1873,20 @@ static char **prepend_envp(char **new_envp, char **envp, s32 envp_elems,
  *  Purpose:
  *      Notify the processor the events.
  */
-int proc_notify_clients(void *proc, u32 uEvents)
+int proc_notify_clients(void *proc, u32 events)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
 	DBC_REQUIRE(p_proc_object);
-	DBC_REQUIRE(IS_VALID_PROC_EVENT(uEvents));
+	DBC_REQUIRE(IS_VALID_PROC_EVENT(events));
 	DBC_REQUIRE(refs > 0);
 	if (!p_proc_object) {
 		status = -EFAULT;
 		goto func_end;
 	}
 
-	ntfy_notify(p_proc_object->ntfy_obj, uEvents);
+	ntfy_notify(p_proc_object->ntfy_obj, events);
 func_end:
 	return status;
 }
@@ -1897,12 +1897,12 @@ func_end:
  *      Notify the processor the events. This includes notifying all clients
  *      attached to a particulat DSP.
  */
-int proc_notify_all_clients(void *proc, u32 uEvents)
+int proc_notify_all_clients(void *proc, u32 events)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
-	DBC_REQUIRE(IS_VALID_PROC_EVENT(uEvents));
+	DBC_REQUIRE(IS_VALID_PROC_EVENT(events));
 	DBC_REQUIRE(refs > 0);
 
 	if (!p_proc_object) {
@@ -1910,7 +1910,7 @@ int proc_notify_all_clients(void *proc, u32 uEvents)
 		goto func_end;
 	}
 
-	dev_notify_clients(p_proc_object->hdev_obj, uEvents);
+	dev_notify_clients(p_proc_object->hdev_obj, events);
 
 func_end:
 	return status;

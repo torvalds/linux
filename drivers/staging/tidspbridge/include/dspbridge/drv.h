@@ -450,7 +450,7 @@ extern void mem_ext_phys_pool_release(void);
  *      Allocate physically contiguous, uncached memory
  *  Parameters:
  *      byte_size:     Number of bytes to allocate.
- *      ulAlign:    Alignment Mask.
+ *      align_mask:    Alignment Mask.
  *      physical_address: Physical address of allocated memory.
  *  Returns:
  *      Pointer to a block of memory;
@@ -463,7 +463,7 @@ extern void mem_ext_phys_pool_release(void);
  *      location of memory.
  */
 extern void *mem_alloc_phys_mem(IN u32 byte_size,
-				IN u32 ulAlign, OUT u32 *physical_address);
+				IN u32 align_mask, OUT u32 *physical_address);
 
 /*
  *  ======== mem_free_phys_mem ========

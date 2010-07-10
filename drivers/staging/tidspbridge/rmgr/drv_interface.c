@@ -561,7 +561,7 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 {
 	int status;
 	u32 retval = 0;
-	union Trapped_Args buf_in;
+	union trapped_args buf_in;
 
 	DBC_REQUIRE(filp != NULL);
 #ifdef CONFIG_TIDSPBRIDGE_RECOVERY
@@ -581,8 +581,8 @@ static long bridge_ioctl(struct file *filp, unsigned int code,
 		goto err;
 	}
 
-	status = copy_from_user(&buf_in, (union Trapped_Args *)args,
-				sizeof(union Trapped_Args));
+	status = copy_from_user(&buf_in, (union trapped_args *)args,
+				sizeof(union trapped_args));
 
 	if (!status) {
 		status = api_call_dev_ioctl(code, &buf_in, &retval,

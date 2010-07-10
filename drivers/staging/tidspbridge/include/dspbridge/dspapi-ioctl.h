@@ -24,7 +24,7 @@
 #include <dspbridge/strmdefs.h>
 #include <dspbridge/dbdcd.h>
 
-union Trapped_Args {
+union trapped_args {
 
 	/* MGR Module */
 	struct {

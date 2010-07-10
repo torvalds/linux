@@ -365,18 +365,18 @@ extern int proc_register_notify(void *hprocessor,
  *      Notify the Processor Clients
  *  Parameters:
  *      proc       :   The processor handle.
- *      uEvents     :   Event to be notified about.
+ *      events     :   Event to be notified about.
  *  Returns:
  *      0     :   Success.
  *      -EFAULT :   Invalid processor handle.
  *      -EPERM   :   Failure to Set or Reset the Event
  *  Requires:
- *      uEvents is Supported or Valid type of Event
+ *      events is Supported or Valid type of Event
  *      proc is a valid handle
  *      PROC Initialized.
  *  Ensures:
  */
-extern int proc_notify_clients(void *proc, u32 uEvents);
+extern int proc_notify_clients(void *proc, u32 events);
 
 /*
  *  ======== proc_notify_all_clients ========
@@ -384,13 +384,13 @@ extern int proc_notify_clients(void *proc, u32 uEvents);
  *      Notify the Processor Clients
  *  Parameters:
  *      proc       :   The processor handle.
- *      uEvents     :   Event to be notified about.
+ *      events     :   Event to be notified about.
  *  Returns:
  *      0     :   Success.
  *      -EFAULT :   Invalid processor handle.
  *      -EPERM   :   Failure to Set or Reset the Event
  *  Requires:
- *      uEvents is Supported or Valid type of Event
+ *      events is Supported or Valid type of Event
  *      proc is a valid handle
  *      PROC Initialized.
  *  Ensures:
@@ -398,7 +398,7 @@ extern int proc_notify_clients(void *proc, u32 uEvents);
  *      NODE And STRM would use this function to notify their clients
  *      about the state changes in NODE or STRM.
  */
-extern int proc_notify_all_clients(void *proc, u32 uEvents);
+extern int proc_notify_all_clients(void *proc, u32 events);
 
 /*
  *  ======== proc_start ========

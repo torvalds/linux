@@ -1012,14 +1012,15 @@ static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * phys_addr)
  *  Purpose:
  *      Allocate physically contiguous, uncached memory
  */
-void *mem_alloc_phys_mem(u32 byte_size, u32 ulAlign, OUT u32 * physical_address)
+void *mem_alloc_phys_mem(u32 byte_size, u32 align_mask,
+				OUT u32 *physical_address)
 {
 	void *va_mem = NULL;
 	dma_addr_t pa_mem;
 
 	if (byte_size > 0) {
 		if (ext_phys_mem_pool_enabled) {
-			va_mem = mem_ext_phys_mem_alloc(byte_size, ulAlign,
+			va_mem = mem_ext_phys_mem_alloc(byte_size, align_mask,
 							(u32 *) &pa_mem);
 		} else
 			va_mem = dma_alloc_coherent(NULL, byte_size, &pa_mem,
