@@ -79,6 +79,7 @@ struct rk28dsp_inf {
 	int cur_req;
 	pid_t cur_pid;
 	int cur_freq;
+	struct file *cur_file;
 	int req_waited;
 
 	char req1fwname[20];
@@ -462,6 +463,16 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
     inf->dsp_status = DS_NORMAL;
 
     dspprintk("down firmware (%s) ... \n", fwname);
+  {
+  	if(0==strcmp(fwname,"rk28_rv40.rkl"))
+		{
+			setRegValueForVideo(0);
+		}
+		else if((0 == strcmp(fwname,"rk28_h264.rkl"))||(0 == strcmp(fwname,"rk28_h264_db.rkl")))
+		{
+			setRegValueForVideo(1);
+		}
+  }
 	{
 		const struct firmware *fw;
 		char *buf,*code_buf;
@@ -669,12 +680,15 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	if(!g_inf)   return -EAGAIN;
     inf = g_inf;
 
-	if(DSP_IOCTL_RES_REQUEST!=cmd && DSP_IOCTL_GET_TABLE_PHY!=cmd && DSP_IOCTL_SET_CODEC != cmd) {
-		if(inf->cur_pid!=current->tgid) {
-		    dspprintk("res is obtain by pid %d, refuse this req(pid=%d cmd=0x%08x) \n",
-		        inf->cur_pid, current->tgid, cmd);
+	if(DSP_IOCTL_RES_REQUEST!=cmd && DSP_IOCTL_GET_TABLE_PHY!=cmd ) {
+		down(&sem);
+		if(inf->cur_pid!=current->tgid || inf->cur_file!=file) {
+		    dspprintk("res is obtain by pid %d(cur_file=0x%08x), refuse this req(pid=%d file=0x%08x cmd=0x%08x) \n",
+		        inf->cur_pid, inf->cur_file, current->tgid, file, cmd);
+			up(&sem);
 		    return -EBUSY;
 		}
+		up(&sem);
 	}
 
 	switch(cmd)
@@ -694,6 +708,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			inf->cur_req = req.reqno;
 			inf->cur_pid = current->tgid;
 			inf->cur_freq = req.freq;
+			inf->cur_file = file;
 			if(inf->cur_freq<24 || inf->cur_freq>600)	inf->cur_freq = 500;
 			if(1==req.reqno)	strcpy(inf->req1fwname, req.fwname);
 		}
@@ -709,6 +724,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			inf->cur_req = req.reqno;
 			inf->cur_pid = current->tgid;
 			inf->cur_freq = req.freq;
+			inf->cur_file = file;
 			if(inf->cur_freq<24 || inf->cur_freq>600)	inf->cur_freq = 500;
 		} else {
 		    ret = -EBUSY;
@@ -741,6 +757,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			inf->cur_req = 0;
 			inf->cur_pid = 0;
+			inf->cur_file = NULL;
 
 			/* dsp work mode :slow mode*/
             __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x0c) & (~0x03)) , SCU_BASE_ADDR_VA+0x0c);
@@ -803,7 +820,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
                     if(rcv_quit)    return -EAGAIN;
                 } else {
                     if(rcv_quit)    return -EAGAIN;
-                    if(!wait_event_timeout(wq2, wq2_condition, msg.rcv_timeout))   { wq2_condition = 0; return -EAGAIN; }
+                    if(!wait_event_timeout(wq2, wq2_condition, msecs_to_jiffies(msg.rcv_timeout)))   { wq2_condition = 0; return -EAGAIN; }
                     wq2_condition = 0;
                     if(rcv_quit)    return -EAGAIN;
                 }
@@ -834,13 +851,6 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
         }
         break;
 
-	case DSP_IOCTL_SET_CODEC:
-		{
-			dspprintk("------>firmware name ------------------------>");
-			setRegValueForVideo(arg);
-		}
-		break;
-
 	default:
 		break;
 	}
@@ -857,8 +867,8 @@ static int dsp_open(struct inode *inode, struct file *file)
 
 static int dsp_release(struct inode *inode, struct file *file)
 {
+	dsp_ioctl(file, DSP_IOCTL_RES_RELEASE, 1);
     return 0;
-    //return dsp_ioctl(file, DSP_IOCTL_RES_RELEASE, 1);
 }
 
 static irqreturn_t rk28_dsp_irq(int irq, void *dev_id)
