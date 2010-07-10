@@ -147,9 +147,9 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
 			     struct chnl_object *pchnl, u32 mask);
-static u32 read_data(struct bridge_dev_context *hDevContext, void *dest,
+static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
 		     void *pSrc, u32 usize);
-static u32 write_data(struct bridge_dev_context *hDevContext, void *dest,
+static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
 		      void *pSrc, u32 usize);
 
 /* Bus Addr (cached kernel) */
@@ -1701,7 +1701,7 @@ func_end:
  *  ======== read_data ========
  *      Copies buffers from the shared memory to the host buffer.
  */
-static u32 read_data(struct bridge_dev_context *hDevContext, void *dest,
+static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
 		     void *pSrc, u32 usize)
 {
 	memcpy(dest, pSrc, usize);
@@ -1712,7 +1712,7 @@ static u32 read_data(struct bridge_dev_context *hDevContext, void *dest,
  *  ======== write_data ========
  *      Copies buffers from the host side buffer to the shared memory.
  */
-static u32 write_data(struct bridge_dev_context *hDevContext, void *dest,
+static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
 		      void *pSrc, u32 usize)
 {
 	memcpy(dest, pSrc, usize);

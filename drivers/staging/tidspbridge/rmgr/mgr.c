@@ -303,11 +303,11 @@ void mgr_exit(void)
  *  ======== mgr_get_dcd_handle ========
  *      Retrieves the MGR handle. Accessor Function.
  */
-int mgr_get_dcd_handle(struct mgr_object *hMGRHandle,
+int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 			      OUT u32 *phDCDHandle)
 {
 	int status = -EPERM;
-	struct mgr_object *pmgr_obj = (struct mgr_object *)hMGRHandle;
+	struct mgr_object *pmgr_obj = (struct mgr_object *)mgr_handle;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(phDCDHandle != NULL);

@@ -41,7 +41,7 @@ extern void nldr_exit(void);
 extern int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 				    char *pstrFxn, u32 * pulAddr);
 
-extern int nldr_get_rmm_manager(struct nldr_object *hNldrObject,
+extern int nldr_get_rmm_manager(struct nldr_object *nldr,
 				       OUT struct rmm_target_obj **phRmmMgr);
 
 extern bool nldr_init(void);

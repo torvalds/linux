@@ -241,8 +241,8 @@ static struct dsp_bufferattr node_dfltbufattrs = {
 static void delete_node(struct node_object *hnode,
 			struct process_context *pr_ctxt);
 static void delete_node_mgr(struct node_mgr *hnode_mgr);
-static void fill_stream_connect(struct node_object *hNode1,
-				struct node_object *hNode2, u32 uStream1,
+static void fill_stream_connect(struct node_object *node1,
+				struct node_object *node2, u32 uStream1,
 				u32 uStream2);
 static void fill_stream_def(struct node_object *hnode,
 			    struct node_strmdef *pstrm_def,
@@ -833,8 +833,8 @@ func_end:
  *  Purpose:
  *      Connect two nodes on the DSP, or a node on the DSP to the GPP.
  */
-int node_connect(struct node_object *hNode1, u32 uStream1,
-			struct node_object *hNode2,
+int node_connect(struct node_object *node1, u32 uStream1,
+			struct node_object *node2,
 			u32 uStream2, OPTIONAL IN struct dsp_strmattr *pattrs,
 			OPTIONAL IN struct dsp_cbdata *conn_param)
 {
@@ -855,33 +855,33 @@ int node_connect(struct node_object *hNode1, u32 uStream1,
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
 
-	if ((hNode1 != (struct node_object *)DSP_HGPPNODE && !hNode1) ||
-	    (hNode2 != (struct node_object *)DSP_HGPPNODE && !hNode2))
+	if ((node1 != (struct node_object *)DSP_HGPPNODE && !node1) ||
+	    (node2 != (struct node_object *)DSP_HGPPNODE && !node2))
 		status = -EFAULT;
 
 	if (DSP_SUCCEEDED(status)) {
 		/* The two nodes must be on the same processor */
-		if (hNode1 != (struct node_object *)DSP_HGPPNODE &&
-		    hNode2 != (struct node_object *)DSP_HGPPNODE &&
-		    hNode1->hnode_mgr != hNode2->hnode_mgr)
+		if (node1 != (struct node_object *)DSP_HGPPNODE &&
+		    node2 != (struct node_object *)DSP_HGPPNODE &&
+		    node1->hnode_mgr != node2->hnode_mgr)
 			status = -EPERM;
 		/* Cannot connect a node to itself */
-		if (hNode1 == hNode2)
+		if (node1 == node2)
 			status = -EPERM;
 
 	}
 	if (DSP_SUCCEEDED(status)) {
 		/* node_get_type() will return NODE_GPP if hnode =
 		 * DSP_HGPPNODE. */
-		node1_type = node_get_type(hNode1);
-		node2_type = node_get_type(hNode2);
+		node1_type = node_get_type(node1);
+		node2_type = node_get_type(node2);
 		/* Check stream indices ranges */
 		if ((node1_type != NODE_GPP && node1_type != NODE_DEVICE &&
-		     uStream1 >= MAX_OUTPUTS(hNode1)) || (node2_type != NODE_GPP
+		     uStream1 >= MAX_OUTPUTS(node1)) || (node2_type != NODE_GPP
 							  && node2_type !=
 							  NODE_DEVICE
 							  && uStream2 >=
-							  MAX_INPUTS(hNode2)))
+							  MAX_INPUTS(node2)))
 			status = -EINVAL;
 	}
 	if (DSP_SUCCEEDED(status)) {
@@ -911,19 +911,19 @@ int node_connect(struct node_object *hNode1, u32 uStream1,
 		goto func_end;
 
 	if (node1_type != NODE_GPP) {
-		hnode_mgr = hNode1->hnode_mgr;
+		hnode_mgr = node1->hnode_mgr;
 	} else {
-		DBC_ASSERT(hNode2 != (struct node_object *)DSP_HGPPNODE);
-		hnode_mgr = hNode2->hnode_mgr;
+		DBC_ASSERT(node2 != (struct node_object *)DSP_HGPPNODE);
+		hnode_mgr = node2->hnode_mgr;
 	}
 	/* Enter critical section */
 	mutex_lock(&hnode_mgr->node_mgr_lock);
 
 	/* Nodes must be in the allocated state */
-	if (node1_type != NODE_GPP && node_get_state(hNode1) != NODE_ALLOCATED)
+	if (node1_type != NODE_GPP && node_get_state(node1) != NODE_ALLOCATED)
 		status = -EBADR;
 
-	if (node2_type != NODE_GPP && node_get_state(hNode2) != NODE_ALLOCATED)
+	if (node2_type != NODE_GPP && node_get_state(node2) != NODE_ALLOCATED)
 		status = -EBADR;
 
 	if (DSP_SUCCEEDED(status)) {
@@ -931,7 +931,7 @@ int node_connect(struct node_object *hNode1, u32 uStream1,
 		 *  are not already be used. (Device nodes checked later) */
 		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
 			output =
-			    &(hNode1->create_args.asa.
+			    &(node1->create_args.asa.
 			      task_arg_obj.strm_out_def[uStream1]);
 			if (output->sz_device != NULL)
 				status = -EISCONN;
@@ -939,7 +939,7 @@ int node_connect(struct node_object *hNode1, u32 uStream1,
 		}
 		if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
 			input =
-			    &(hNode2->create_args.asa.
+			    &(node2->create_args.asa.
 			      task_arg_obj.strm_in_def[uStream2]);
 			if (input->sz_device != NULL)
 				status = -EISCONN;
@@ -956,10 +956,10 @@ int node_connect(struct node_object *hNode1, u32 uStream1,
 		if (pipe_id == GB_NOBITS) {
 			status = -ECONNREFUSED;
 		} else {
-			hNode1->outputs[uStream1].type = NODECONNECT;
-			hNode2->inputs[uStream2].type = NODECONNECT;
-			hNode1->outputs[uStream1].dev_id = pipe_id;
-			hNode2->inputs[uStream2].dev_id = pipe_id;
+			node1->outputs[uStream1].type = NODECONNECT;
+			node2->inputs[uStream2].type = NODECONNECT;
+			node1->outputs[uStream1].dev_id = pipe_id;
+			node2->inputs[uStream2].dev_id = pipe_id;
 			output->sz_device = kzalloc(PIPENAMELEN + 1,
 							GFP_KERNEL);
 			input->sz_device = kzalloc(PIPENAMELEN + 1, GFP_KERNEL);
@@ -1050,13 +1050,13 @@ int node_connect(struct node_object *hNode1, u32 uStream1,
 		status = -ENOMEM;
 func_cont2:
 		if (DSP_SUCCEEDED(status)) {
-			if (hNode1 == (struct node_object *)DSP_HGPPNODE) {
-				hNode2->inputs[uStream2].type = HOSTCONNECT;
-				hNode2->inputs[uStream2].dev_id = chnl_id;
+			if (node1 == (struct node_object *)DSP_HGPPNODE) {
+				node2->inputs[uStream2].type = HOSTCONNECT;
+				node2->inputs[uStream2].dev_id = chnl_id;
 				input->sz_device = pstr_dev_name;
 			} else {
-				hNode1->outputs[uStream1].type = HOSTCONNECT;
-				hNode1->outputs[uStream1].dev_id = chnl_id;
+				node1->outputs[uStream1].type = HOSTCONNECT;
+				node1->outputs[uStream1].dev_id = chnl_id;
 				output->sz_device = pstr_dev_name;
 			}
 			sprintf(pstr_dev_name, "%s%d", HOSTPREFIX, chnl_id);
@@ -1067,15 +1067,15 @@ func_cont2:
 				      (node2_type == NODE_DEVICE))) {
 		if (node2_type == NODE_DEVICE) {
 			/* node1 == > device */
-			dev_node_obj = hNode2;
-			hnode = hNode1;
-			pstream = &(hNode1->outputs[uStream1]);
+			dev_node_obj = node2;
+			hnode = node1;
+			pstream = &(node1->outputs[uStream1]);
 			pstrm_def = output;
 		} else {
 			/* device == > node2 */
-			dev_node_obj = hNode1;
-			hnode = hNode2;
-			pstream = &(hNode2->inputs[uStream2]);
+			dev_node_obj = node1;
+			hnode = node2;
+			pstream = &(node2->inputs[uStream2]);
 			pstrm_def = input;
 		}
 		/* Set up create args */
@@ -1106,35 +1106,35 @@ func_cont2:
 	if (DSP_SUCCEEDED(status)) {
 		/* Fill in create args */
 		if (node1_type == NODE_TASK || node1_type == NODE_DAISSOCKET) {
-			hNode1->create_args.asa.task_arg_obj.num_outputs++;
-			fill_stream_def(hNode1, output, pattrs);
+			node1->create_args.asa.task_arg_obj.num_outputs++;
+			fill_stream_def(node1, output, pattrs);
 		}
 		if (node2_type == NODE_TASK || node2_type == NODE_DAISSOCKET) {
-			hNode2->create_args.asa.task_arg_obj.num_inputs++;
-			fill_stream_def(hNode2, input, pattrs);
+			node2->create_args.asa.task_arg_obj.num_inputs++;
+			fill_stream_def(node2, input, pattrs);
 		}
-		/* Update hNode1 and hNode2 stream_connect */
+		/* Update node1 and node2 stream_connect */
 		if (node1_type != NODE_GPP && node1_type != NODE_DEVICE) {
-			hNode1->num_outputs++;
-			if (uStream1 > hNode1->max_output_index)
-				hNode1->max_output_index = uStream1;
+			node1->num_outputs++;
+			if (uStream1 > node1->max_output_index)
+				node1->max_output_index = uStream1;
 
 		}
 		if (node2_type != NODE_GPP && node2_type != NODE_DEVICE) {
-			hNode2->num_inputs++;
-			if (uStream2 > hNode2->max_input_index)
-				hNode2->max_input_index = uStream2;
+			node2->num_inputs++;
+			if (uStream2 > node2->max_input_index)
+				node2->max_input_index = uStream2;
 
 		}
-		fill_stream_connect(hNode1, hNode2, uStream1, uStream2);
+		fill_stream_connect(node1, node2, uStream1, uStream2);
 	}
 	/* end of sync_enter_cs */
 	/* Exit critical section */
 	mutex_unlock(&hnode_mgr->node_mgr_lock);
 func_end:
-	dev_dbg(bridge, "%s: hNode1: %p uStream1: %d hNode2: %p uStream2: %d"
-		"pattrs: %p status: 0x%x\n", __func__, hNode1,
-		uStream1, hNode2, uStream2, pattrs, status);
+	dev_dbg(bridge, "%s: node1: %p uStream1: %d node2: %p uStream2: %d"
+		"pattrs: %p status: 0x%x\n", __func__, node1,
+		uStream1, node2, uStream2, pattrs, status);
 	return status;
 }
 
@@ -2699,8 +2699,8 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
  *  Purpose:
  *      Fills stream information.
  */
-static void fill_stream_connect(struct node_object *hNode1,
-				struct node_object *hNode2,
+static void fill_stream_connect(struct node_object *node1,
+				struct node_object *node2,
 				u32 uStream1, u32 uStream2)
 {
 	u32 strm_index;
@@ -2709,35 +2709,35 @@ static void fill_stream_connect(struct node_object *hNode1,
 	enum node_type node1_type = NODE_TASK;
 	enum node_type node2_type = NODE_TASK;
 
-	node1_type = node_get_type(hNode1);
-	node2_type = node_get_type(hNode2);
-	if (hNode1 != (struct node_object *)DSP_HGPPNODE) {
+	node1_type = node_get_type(node1);
+	node2_type = node_get_type(node2);
+	if (node1 != (struct node_object *)DSP_HGPPNODE) {
 
 		if (node1_type != NODE_DEVICE) {
-			strm_index = hNode1->num_inputs +
-			    hNode1->num_outputs - 1;
-			strm1 = &(hNode1->stream_connect[strm_index]);
+			strm_index = node1->num_inputs +
+			    node1->num_outputs - 1;
+			strm1 = &(node1->stream_connect[strm_index]);
 			strm1->cb_struct = sizeof(struct dsp_streamconnect);
 			strm1->this_node_stream_index = uStream1;
 		}
 
-		if (hNode2 != (struct node_object *)DSP_HGPPNODE) {
+		if (node2 != (struct node_object *)DSP_HGPPNODE) {
 			/* NODE == > NODE */
 			if (node1_type != NODE_DEVICE) {
-				strm1->connected_node = hNode2;
-				strm1->ui_connected_node_id = hNode2->node_uuid;
+				strm1->connected_node = node2;
+				strm1->ui_connected_node_id = node2->node_uuid;
 				strm1->connected_node_stream_index = uStream2;
 				strm1->connect_type = CONNECTTYPE_NODEOUTPUT;
 			}
 			if (node2_type != NODE_DEVICE) {
-				strm_index = hNode2->num_inputs +
-				    hNode2->num_outputs - 1;
-				strm2 = &(hNode2->stream_connect[strm_index]);
+				strm_index = node2->num_inputs +
+				    node2->num_outputs - 1;
+				strm2 = &(node2->stream_connect[strm_index]);
 				strm2->cb_struct =
 				    sizeof(struct dsp_streamconnect);
 				strm2->this_node_stream_index = uStream2;
-				strm2->connected_node = hNode1;
-				strm2->ui_connected_node_id = hNode1->node_uuid;
+				strm2->connected_node = node1;
+				strm2->ui_connected_node_id = node1->node_uuid;
 				strm2->connected_node_stream_index = uStream1;
 				strm2->connect_type = CONNECTTYPE_NODEINPUT;
 			}
@@ -2745,9 +2745,9 @@ static void fill_stream_connect(struct node_object *hNode1,
 			strm1->connect_type = CONNECTTYPE_GPPOUTPUT;
 	} else {
 		/* GPP == > NODE */
-		DBC_ASSERT(hNode2 != (struct node_object *)DSP_HGPPNODE);
-		strm_index = hNode2->num_inputs + hNode2->num_outputs - 1;
-		strm2 = &(hNode2->stream_connect[strm_index]);
+		DBC_ASSERT(node2 != (struct node_object *)DSP_HGPPNODE);
+		strm_index = node2->num_inputs + node2->num_outputs - 1;
+		strm2 = &(node2->stream_connect[strm_index]);
 		strm2->cb_struct = sizeof(struct dsp_streamconnect);
 		strm2->this_node_stream_index = uStream2;
 		strm2->connect_type = CONNECTTYPE_GPPINPUT;

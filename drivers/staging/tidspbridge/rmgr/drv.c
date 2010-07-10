@@ -73,16 +73,16 @@ static int request_bridge_resources(struct cfg_hostres *res);
 
 /* GPP PROCESS CLEANUP CODE */
 
-static int drv_proc_free_node_res(void *hPCtxt);
+static int drv_proc_free_node_res(void *process_ctxt);
 
 /* Allocate and add a node resource element
 * This function is called from .Node_Allocate. */
-int drv_insert_node_res_element(void *hnode, void *hNodeRes,
-				       void *hPCtxt)
+int drv_insert_node_res_element(void *hnode, void *node_resource,
+				       void *process_ctxt)
 {
 	struct node_res_object **node_res_obj =
-	    (struct node_res_object **)hNodeRes;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	    (struct node_res_object **)node_resource;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct node_res_object *temp_node_res = NULL;
 
@@ -113,11 +113,11 @@ int drv_insert_node_res_element(void *hnode, void *hNodeRes,
 
 /* Release all Node resources and its context
 * This is called from .Node_Delete. */
-int drv_remove_node_res_element(void *hNodeRes, void *hPCtxt)
+int drv_remove_node_res_element(void *node_resource, void *process_ctxt)
 {
 	struct node_res_object *node_res_obj =
-	    (struct node_res_object *)hNodeRes;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	    (struct node_res_object *)node_resource;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	struct node_res_object *temp_node;
 	int status = 0;
 
@@ -140,9 +140,9 @@ int drv_remove_node_res_element(void *hNodeRes, void *hPCtxt)
 }
 
 /* Actual Node De-Allocation */
-static int drv_proc_free_node_res(void *hPCtxt)
+static int drv_proc_free_node_res(void *process_ctxt)
 {
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct node_res_object *node_list = NULL;
 	struct node_res_object *node_res_obj = NULL;
@@ -169,9 +169,9 @@ static int drv_proc_free_node_res(void *hPCtxt)
 }
 
 /* Release all Mapped and Reserved DMM resources */
-int drv_remove_all_dmm_res_elements(void *hPCtxt)
+int drv_remove_all_dmm_res_elements(void *process_ctxt)
 {
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct dmm_map_object *temp_map, *map_obj;
 	struct dmm_rsv_object *temp_rsv, *rsv_obj;
@@ -198,29 +198,29 @@ int drv_remove_all_dmm_res_elements(void *hPCtxt)
 }
 
 /* Update Node allocation status */
-void drv_proc_node_update_status(void *hNodeRes, s32 status)
+void drv_proc_node_update_status(void *node_resource, s32 status)
 {
 	struct node_res_object *node_res_obj =
-	    (struct node_res_object *)hNodeRes;
-	DBC_ASSERT(hNodeRes != NULL);
+	    (struct node_res_object *)node_resource;
+	DBC_ASSERT(node_resource != NULL);
 	node_res_obj->node_allocated = status;
 }
 
 /* Update Node Heap status */
-void drv_proc_node_update_heap_status(void *hNodeRes, s32 status)
+void drv_proc_node_update_heap_status(void *node_resource, s32 status)
 {
 	struct node_res_object *node_res_obj =
-	    (struct node_res_object *)hNodeRes;
-	DBC_ASSERT(hNodeRes != NULL);
+	    (struct node_res_object *)node_resource;
+	DBC_ASSERT(node_resource != NULL);
 	node_res_obj->heap_allocated = status;
 }
 
 /* Release all Node resources and its context
 * This is called from .bridge_release.
  */
-int drv_remove_all_node_res_elements(void *hPCtxt)
+int drv_remove_all_node_res_elements(void *process_ctxt)
 {
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct node_res_object *temp_node2 = NULL;
 	struct node_res_object *temp_node = NULL;
@@ -237,11 +237,12 @@ int drv_remove_all_node_res_elements(void *hPCtxt)
 }
 
 /* Getting the node resource element */
-int drv_get_node_res_element(void *hnode, void *hNodeRes,
-				    void *hPCtxt)
+int drv_get_node_res_element(void *hnode, void *node_resource,
+				    void *process_ctxt)
 {
-	struct node_res_object **node_res = (struct node_res_object **)hNodeRes;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct node_res_object **node_res =
+				     (struct node_res_object **)node_resource;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct node_res_object *temp_node2 = NULL;
 	struct node_res_object *temp_node = NULL;
@@ -268,12 +269,12 @@ int drv_get_node_res_element(void *hnode, void *hNodeRes,
 /* Allocate the STRM resource element
 * This is called after the actual resource is allocated
  */
-int drv_proc_insert_strm_res_element(void *hStreamHandle,
-					    void *hstrm_res, void *hPCtxt)
+int drv_proc_insert_strm_res_element(void *stream_handle,
+					    void *hstrm_res, void *process_ctxt)
 {
 	struct strm_res_object **pstrm_res =
 	    (struct strm_res_object **)hstrm_res;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct strm_res_object *temp_strm_res = NULL;
 
@@ -286,7 +287,7 @@ int drv_proc_insert_strm_res_element(void *hStreamHandle,
 			kfree(*pstrm_res);
 			return -EPERM;
 		}
-		(*pstrm_res)->hstream = hStreamHandle;
+		(*pstrm_res)->hstream = stream_handle;
 		if (ctxt->pstrm_list != NULL) {
 			temp_strm_res = ctxt->pstrm_list;
 			while (temp_strm_res->next != NULL)
@@ -304,10 +305,10 @@ int drv_proc_insert_strm_res_element(void *hStreamHandle,
 /* Release Stream resource element context
 * This function called after the actual resource is freed
  */
-int drv_proc_remove_strm_res_element(void *hstrm_res, void *hPCtxt)
+int drv_proc_remove_strm_res_element(void *hstrm_res, void *process_ctxt)
 {
 	struct strm_res_object *pstrm_res = (struct strm_res_object *)hstrm_res;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	struct strm_res_object *temp_strm_res;
 	int status = 0;
 
@@ -333,9 +334,9 @@ int drv_proc_remove_strm_res_element(void *hstrm_res, void *hPCtxt)
 /* Release all Stream resources and its context
 * This is called from .bridge_release.
  */
-int drv_remove_all_strm_res_elements(void *hPCtxt)
+int drv_remove_all_strm_res_elements(void *process_ctxt)
 {
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct strm_res_object *strm_res = NULL;
 	struct strm_res_object *strm_tmp = NULL;
@@ -375,11 +376,11 @@ int drv_remove_all_strm_res_elements(void *hPCtxt)
 
 /* Getting the stream resource element */
 int drv_get_strm_res_element(void *hStrm, void *hstrm_res,
-				    void *hPCtxt)
+				    void *process_ctxt)
 {
 	struct strm_res_object **strm_res =
 	    (struct strm_res_object **)hstrm_res;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct strm_res_object *temp_strm2 = NULL;
 	struct strm_res_object *temp_strm;
@@ -486,10 +487,10 @@ void drv_exit(void)
  *  purpose:
  *      Invoked during bridge de-initialization
  */
-int drv_destroy(struct drv_object *hDRVObject)
+int drv_destroy(struct drv_object *driver_obj)
 {
 	int status = 0;
-	struct drv_object *pdrv_object = (struct drv_object *)hDRVObject;
+	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pdrv_object);
@@ -621,19 +622,19 @@ u32 drv_get_next_dev_object(u32 hdev_obj)
  *      called drv_get_first_dev_extension() and zero or more
  *      drv_get_next_dev_extension().
  */
-u32 drv_get_next_dev_extension(u32 hDevExtension)
+u32 drv_get_next_dev_extension(u32 dev_extension)
 {
 	u32 dw_dev_extension = 0;
 	struct drv_object *pdrv_obj;
 
-	DBC_REQUIRE(hDevExtension != 0);
+	DBC_REQUIRE(dev_extension != 0);
 
 	if (DSP_SUCCEEDED(cfg_get_object((u32 *) &pdrv_obj, REG_DRV_OBJECT))) {
 		if ((pdrv_obj->dev_node_string != NULL) &&
 		    !LST_IS_EMPTY(pdrv_obj->dev_node_string)) {
 			dw_dev_extension =
 			    (u32) lst_next(pdrv_obj->dev_node_string,
-					   (struct list_head *)hDevExtension);
+					   (struct list_head *)dev_extension);
 		}
 	}
 
@@ -664,11 +665,11 @@ int drv_init(void)
  *  Purpose:
  *      Insert a DevObject into the list of Manager object.
  */
-int drv_insert_dev_object(struct drv_object *hDRVObject,
+int drv_insert_dev_object(struct drv_object *driver_obj,
 				 struct dev_object *hdev_obj)
 {
 	int status = 0;
-	struct drv_object *pdrv_object = (struct drv_object *)hDRVObject;
+	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hdev_obj != NULL);
@@ -689,11 +690,11 @@ int drv_insert_dev_object(struct drv_object *hDRVObject,
  *      Search for and remove a DeviceObject from the given list of DRV
  *      objects.
  */
-int drv_remove_dev_object(struct drv_object *hDRVObject,
+int drv_remove_dev_object(struct drv_object *driver_obj,
 				 struct dev_object *hdev_obj)
 {
 	int status = -EPERM;
-	struct drv_object *pdrv_object = (struct drv_object *)hDRVObject;
+	struct drv_object *pdrv_object = (struct drv_object *)driver_obj;
 	struct list_head *cur_elem;
 
 	DBC_REQUIRE(refs > 0);

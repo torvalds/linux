@@ -774,14 +774,14 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
  *  ======== nldr_get_rmm_manager ========
  *  Given a NLDR object, retrieve RMM Manager Handle
  */
-int nldr_get_rmm_manager(struct nldr_object *hNldrObject,
+int nldr_get_rmm_manager(struct nldr_object *nldr,
 				OUT struct rmm_target_obj **phRmmMgr)
 {
 	int status = 0;
-	struct nldr_object *nldr_obj = hNldrObject;
+	struct nldr_object *nldr_obj = nldr;
 	DBC_REQUIRE(phRmmMgr != NULL);
 
-	if (hNldrObject) {
+	if (nldr) {
 		*phRmmMgr = nldr_obj->rmm;
 	} else {
 		*phRmmMgr = NULL;

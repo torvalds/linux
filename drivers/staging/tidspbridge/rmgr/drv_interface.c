@@ -628,10 +628,10 @@ static int bridge_mmap(struct file *filp, struct vm_area_struct *vma)
 
 /* To remove all process resources before removing the process from the
  * process context list */
-int drv_remove_all_resources(void *hPCtxt)
+int drv_remove_all_resources(void *process_ctxt)
 {
 	int status = 0;
-	struct process_context *ctxt = (struct process_context *)hPCtxt;
+	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	drv_remove_all_strm_res_elements(ctxt);
 	drv_remove_all_node_res_elements(ctxt);
 	drv_remove_all_dmm_res_elements(ctxt);

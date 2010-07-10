@@ -270,21 +270,21 @@ extern int io_sh_msetting(struct io_mgr *hio_mgr, u8 desc, void *pargs);
 /* Maximum channel bufsize that can be used. */
 extern u32 io_buf_size(struct io_mgr *hio_mgr);
 
-extern u32 io_read_value(struct bridge_dev_context *hDevContext, u32 dsp_addr);
+extern u32 io_read_value(struct bridge_dev_context *dev_ctxt, u32 dsp_addr);
 
-extern void io_write_value(struct bridge_dev_context *hDevContext,
+extern void io_write_value(struct bridge_dev_context *dev_ctxt,
 			   u32 dsp_addr, u32 value);
 
-extern u32 io_read_value_long(struct bridge_dev_context *hDevContext,
+extern u32 io_read_value_long(struct bridge_dev_context *dev_ctxt,
 			      u32 dsp_addr);
 
-extern void io_write_value_long(struct bridge_dev_context *hDevContext,
+extern void io_write_value_long(struct bridge_dev_context *dev_ctxt,
 				u32 dsp_addr, u32 value);
 
-extern void io_or_set_value(struct bridge_dev_context *hDevContext,
+extern void io_or_set_value(struct bridge_dev_context *dev_ctxt,
 			    u32 dsp_addr, u32 value);
 
-extern void io_and_set_value(struct bridge_dev_context *hDevContext,
+extern void io_and_set_value(struct bridge_dev_context *dev_ctxt,
 			     u32 dsp_addr, u32 value);
 
 extern void io_intr_dsp2(IN struct io_mgr *pio_mgr, IN u16 mb_val);

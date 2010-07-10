@@ -1873,10 +1873,10 @@ static char **prepend_envp(char **new_envp, char **envp, s32 envp_elems,
  *  Purpose:
  *      Notify the processor the events.
  */
-int proc_notify_clients(void *hProc, u32 uEvents)
+int proc_notify_clients(void *proc, u32 uEvents)
 {
 	int status = 0;
-	struct proc_object *p_proc_object = (struct proc_object *)hProc;
+	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
 	DBC_REQUIRE(p_proc_object);
 	DBC_REQUIRE(IS_VALID_PROC_EVENT(uEvents));
@@ -1897,10 +1897,10 @@ func_end:
  *      Notify the processor the events. This includes notifying all clients
  *      attached to a particulat DSP.
  */
-int proc_notify_all_clients(void *hProc, u32 uEvents)
+int proc_notify_all_clients(void *proc, u32 uEvents)
 {
 	int status = 0;
-	struct proc_object *p_proc_object = (struct proc_object *)hProc;
+	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
 	DBC_REQUIRE(IS_VALID_PROC_EVENT(uEvents));
 	DBC_REQUIRE(refs > 0);
@@ -1921,10 +1921,10 @@ func_end:
  *  Purpose:
  *      Retrieves the processor ID.
  */
-int proc_get_processor_id(void *hProc, u32 * procID)
+int proc_get_processor_id(void *proc, u32 * procID)
 {
 	int status = 0;
-	struct proc_object *p_proc_object = (struct proc_object *)hProc;
+	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
 	if (p_proc_object)
 		*procID = p_proc_object->processor_id;

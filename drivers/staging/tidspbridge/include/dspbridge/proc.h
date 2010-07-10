@@ -364,7 +364,7 @@ extern int proc_register_notify(void *hprocessor,
  *  Purpose:
  *      Notify the Processor Clients
  *  Parameters:
- *      hProc       :   The processor handle.
+ *      proc       :   The processor handle.
  *      uEvents     :   Event to be notified about.
  *  Returns:
  *      0     :   Success.
@@ -372,18 +372,18 @@ extern int proc_register_notify(void *hprocessor,
  *      -EPERM   :   Failure to Set or Reset the Event
  *  Requires:
  *      uEvents is Supported or Valid type of Event
- *      hProc is a valid handle
+ *      proc is a valid handle
  *      PROC Initialized.
  *  Ensures:
  */
-extern int proc_notify_clients(void *hProc, u32 uEvents);
+extern int proc_notify_clients(void *proc, u32 uEvents);
 
 /*
  *  ======== proc_notify_all_clients ========
  *  Purpose:
  *      Notify the Processor Clients
  *  Parameters:
- *      hProc       :   The processor handle.
+ *      proc       :   The processor handle.
  *      uEvents     :   Event to be notified about.
  *  Returns:
  *      0     :   Success.
@@ -391,14 +391,14 @@ extern int proc_notify_clients(void *hProc, u32 uEvents);
  *      -EPERM   :   Failure to Set or Reset the Event
  *  Requires:
  *      uEvents is Supported or Valid type of Event
- *      hProc is a valid handle
+ *      proc is a valid handle
  *      PROC Initialized.
  *  Ensures:
  *  Details:
  *      NODE And STRM would use this function to notify their clients
  *      about the state changes in NODE or STRM.
  */
-extern int proc_notify_all_clients(void *hProc, u32 uEvents);
+extern int proc_notify_all_clients(void *proc, u32 uEvents);
 
 /*
  *  ======== proc_start ========

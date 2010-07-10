@@ -173,7 +173,7 @@ extern void mgr_exit(void);
  *  Purpose:
  *      Retrieves the MGR handle. Accessor Function
  *  Parameters:
- *      hMGRHandle:     Handle to the Manager Object
+ *      mgr_handle:     Handle to the Manager Object
  *      phDCDHandle:    Ptr to receive the DCD Handle.
  *  Returns:
  *      0:        Sucess
@@ -186,7 +186,7 @@ extern void mgr_exit(void);
  *      -EPERM and *phDCDHandle == NULL
  */
 extern int mgr_get_dcd_handle(IN struct mgr_object
-				     *hMGRHandle, OUT u32 *phDCDHandle);
+				     *mgr_handle, OUT u32 *phDCDHandle);
 
 /*
  *  ======== mgr_init ========

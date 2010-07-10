@@ -50,12 +50,12 @@ bool symbols_reloaded = true;
  *  ======== read_ext_dsp_data ========
  *      Copies DSP external memory buffers to the host side buffers.
  */
-int read_ext_dsp_data(struct bridge_dev_context *hDevContext,
+int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 			     OUT u8 *pbHostBuf, u32 dsp_addr,
 			     u32 ul_num_bytes, u32 ulMemType)
 {
 	int status = 0;
-	struct bridge_dev_context *dev_context = hDevContext;
+	struct bridge_dev_context *dev_context = dev_ctxt;
 	u32 offset;
 	u32 ul_tlb_base_virt = 0;
 	u32 ul_shm_offset_virt = 0;
@@ -178,13 +178,13 @@ int read_ext_dsp_data(struct bridge_dev_context *hDevContext,
  *  purpose:
  *      Copies buffers to the DSP internal/external memory.
  */
-int write_dsp_data(struct bridge_dev_context *hDevContext,
+int write_dsp_data(struct bridge_dev_context *dev_ctxt,
 			  IN u8 *pbHostBuf, u32 dsp_addr, u32 ul_num_bytes,
 			  u32 ulMemType)
 {
 	u32 offset;
-	u32 dw_base_addr = hDevContext->dw_dsp_base_addr;
-	struct cfg_hostres *resources = hDevContext->resources;
+	u32 dw_base_addr = dev_ctxt->dw_dsp_base_addr;
+	struct cfg_hostres *resources = dev_ctxt->resources;
 	int status = 0;
 	u32 base1, base2, base3;
 	base1 = OMAP_DSP_MEM1_SIZE;
@@ -194,7 +194,7 @@ int write_dsp_data(struct bridge_dev_context *hDevContext,
 	if (!resources)
 		return -EPERM;
 
-	offset = dsp_addr - hDevContext->dw_dsp_start_add;
+	offset = dsp_addr - dev_ctxt->dw_dsp_start_add;
 	if (offset < base1) {
 		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[2],
 						  resources->dw_mem_length[2]);

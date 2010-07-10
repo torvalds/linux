@@ -41,7 +41,7 @@
  *      device's bridge_brd_write() function.
  *  Parameters:
  *      pArb:           Handle to a Device Object.
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
@@ -336,7 +336,7 @@ extern int dev_get_dev_node(struct dev_object *hdev_obj,
  *      0:        *phDevNode contains a platform specific device ID;
  *      else:           *phDevNode is NULL.
  */
-extern int dev_get_dev_type(struct dev_object *hdevObject,
+extern int dev_get_dev_type(struct dev_object *device_obj,
 					u8 *dev_type);
 
 /*

@@ -55,52 +55,52 @@ struct bridge_dev_context;
  *  Purpose:
  *      Bring the board to the BRD_IDLE (monitor) state.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device context.
+ *      dev_ctxt:    Handle to Bridge driver defined device context.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL
+ *      dev_ctxt != NULL
  *  Ensures:
  *      0:        Board is in BRD_IDLE state;
  *      else:           Board state is indeterminate.
  */
-typedef int(*fxn_brd_monitor) (struct bridge_dev_context *hDevContext);
+typedef int(*fxn_brd_monitor) (struct bridge_dev_context *dev_ctxt);
 
 /*
  *  ======== fxn_brd_setstate ========
  *  Purpose:
  *      Sets the Bridge driver state
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      ulBrdState:     Board state
  *  Returns:
  *      0:        Success.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *      ulBrdState  <= BRD_LASTSTATE.
  *  Ensures:
  *      ulBrdState  <= BRD_LASTSTATE.
  *  Update the Board state to the specified state.
  */
 typedef int(*fxn_brd_setstate) (struct bridge_dev_context
-				       * hDevContext, u32 ulBrdState);
+				       * dev_ctxt, u32 ulBrdState);
 
 /*
  *  ======== bridge_brd_start ========
  *  Purpose:
  *      Bring board to the BRD_RUNNING (start) state.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device context.
+ *      dev_ctxt:    Handle to Bridge driver defined device context.
  *      dsp_addr:       DSP address at which to start execution.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL
+ *      dev_ctxt != NULL
  *      Board is in monitor (BRD_IDLE) state.
  *  Ensures:
  *      0:        Board is in BRD_RUNNING state.
@@ -108,7 +108,7 @@ typedef int(*fxn_brd_setstate) (struct bridge_dev_context
  *      else:           Board state is indeterminate.
  */
 typedef int(*fxn_brd_start) (struct bridge_dev_context
-				    * hDevContext, u32 dsp_addr);
+				    * dev_ctxt, u32 dsp_addr);
 
 /*
  *  ======== bridge_brd_mem_copy ========
@@ -131,7 +131,7 @@ typedef int(*fxn_brd_start) (struct bridge_dev_context
  *      else:           Board state is indeterminate.
  */
 typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
-				      * hDevContext,
+				      * dev_ctxt,
 				      u32 ulDspDestAddr,
 				      u32 ulDspSrcAddr,
 				      u32 ul_num_bytes, u32 ulMemType);
@@ -141,7 +141,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      Write a block of host memory into a DSP address, into a given memory
  *      space.  Unlike bridge_brd_write, this API does reset the DSP
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
@@ -151,12 +151,12 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *      pHostBuf != NULL.
  *  Ensures:
  */
 typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
-				       * hDevContext,
+				       * dev_ctxt,
 				       IN u8 *pHostBuf,
 				       u32 dsp_addr, u32 ul_num_bytes,
 				       u32 ulMemType);
@@ -166,7 +166,7 @@ typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
  *  Purpose:
  *      Map a MPU memory region to a DSP/IVA memory space
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      ul_mpu_addr:      MPU memory region start address.
  *      ulVirtAddr:     DSP/IVA memory region u8 address.
  *      ul_num_bytes:     Number of bytes to map.
@@ -175,11 +175,11 @@ typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
  *      0:        Success.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *  Ensures:
  */
 typedef int(*fxn_brd_memmap) (struct bridge_dev_context
-				     * hDevContext, u32 ul_mpu_addr,
+				     * dev_ctxt, u32 ul_mpu_addr,
 				     u32 ulVirtAddr, u32 ul_num_bytes,
 				     u32 ulMapAttrs,
 				     struct page **mapped_pages);
@@ -189,18 +189,18 @@ typedef int(*fxn_brd_memmap) (struct bridge_dev_context
  *  Purpose:
  *      UnMap an MPU memory region from DSP/IVA memory space
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      ulVirtAddr:     DSP/IVA memory region u8 address.
  *      ul_num_bytes:     Number of bytes to unmap.
  *  Returns:
  *      0:        Success.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *  Ensures:
  */
 typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
-				       * hDevContext,
+				       * dev_ctxt,
 				       u32 ulVirtAddr, u32 ul_num_bytes);
 
 /*
@@ -208,36 +208,36 @@ typedef int(*fxn_brd_memunmap) (struct bridge_dev_context
  *  Purpose:
  *      Bring board to the BRD_STOPPED state.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device context.
+ *      dev_ctxt:    Handle to Bridge driver defined device context.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL
+ *      dev_ctxt != NULL
  *  Ensures:
  *      0:        Board is in BRD_STOPPED (stop) state;
  *                      Interrupts to the PC are disabled.
  *      else:           Board state is indeterminate.
  */
-typedef int(*fxn_brd_stop) (struct bridge_dev_context *hDevContext);
+typedef int(*fxn_brd_stop) (struct bridge_dev_context *dev_ctxt);
 
 /*
  *  ======== bridge_brd_status ========
  *  Purpose:
  *      Report the current state of the board.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device context.
+ *      dev_ctxt:    Handle to Bridge driver defined device context.
  *      pdwState:       Ptr to BRD status variable.
  *  Returns:
  *      0:
  *  Requires:
  *      pdwState != NULL;
- *      hDevContext != NULL
+ *      dev_ctxt != NULL
  *  Ensures:
  *      *pdwState is one of {BRD_STOPPED, BRD_IDLE, BRD_RUNNING, BRD_UNKNOWN};
  */
-typedef int(*fxn_brd_status) (struct bridge_dev_context *hDevContext,
+typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
 				     int *pdwState);
 
 /*
@@ -246,7 +246,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *hDevContext,
  *      Read a block of DSP memory, from a given memory space, into a host
  *      buffer.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      pHostBuf:       Pointer to host buffer (Destination).
  *      dsp_addr:       Address on DSP board (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
@@ -256,12 +256,12 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *hDevContext,
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *      pHostBuf != NULL.
  *  Ensures:
  *  Will not write more than ul_num_bytes bytes into pHostBuf.
  */
-typedef int(*fxn_brd_read) (struct bridge_dev_context *hDevContext,
+typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
 				   OUT u8 *pHostBuf,
 				   u32 dsp_addr,
 				   u32 ul_num_bytes, u32 ulMemType);
@@ -272,7 +272,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *hDevContext,
  *      Write a block of host memory into a DSP address, into a given memory
  *      space.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
@@ -282,11 +282,11 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *hDevContext,
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
  *      -EPERM:      Other, unspecified error.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *      pHostBuf != NULL.
  *  Ensures:
  */
-typedef int(*fxn_brd_write) (struct bridge_dev_context *hDevContext,
+typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
 				    IN u8 *pHostBuf,
 				    u32 dsp_addr,
 				    u32 ul_num_bytes, u32 ulMemType);
@@ -690,7 +690,7 @@ typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
  *  Purpose:
  *      Bridge driver specific interface.
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device info.
+ *      dev_ctxt:    Handle to Bridge driver defined device info.
  *      dw_cmd:          Bridge driver defined command code.
  *      pargs:          Pointer to an arbitrary argument structure.
  *  Returns:
@@ -701,7 +701,7 @@ typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
  *      IOCTL completion routines provided.
  *  Ensures:
  */
-typedef int(*fxn_dev_ctrl) (struct bridge_dev_context *hDevContext,
+typedef int(*fxn_dev_ctrl) (struct bridge_dev_context *dev_ctxt,
 				   u32 dw_cmd, IN OUT void *pargs);
 
 /*
@@ -712,16 +712,16 @@ typedef int(*fxn_dev_ctrl) (struct bridge_dev_context *hDevContext,
  *      No calls to other Bridge driver functions may subsequently
  *      occur, except for bridge_dev_create().
  *  Parameters:
- *      hDevContext:    Handle to Bridge driver defined device information.
+ *      dev_ctxt:    Handle to Bridge driver defined device information.
  *  Returns:
  *      0:        Success.
  *      -EPERM:      Failed to release a resource previously acquired.
  *  Requires:
- *      hDevContext != NULL;
+ *      dev_ctxt != NULL;
  *  Ensures:
  *      0: Device context is freed.
  */
-typedef int(*fxn_dev_destroy) (struct bridge_dev_context *hDevContext);
+typedef int(*fxn_dev_destroy) (struct bridge_dev_context *dev_ctxt);
 
 /*
  *  ======== bridge_io_create ========

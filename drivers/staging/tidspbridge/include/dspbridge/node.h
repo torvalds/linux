@@ -118,32 +118,32 @@ extern int node_change_priority(struct node_object *hnode, s32 prio);
  *      Delete all nodes whose owning processor is being destroyed.
  *  Parameters:
  *      hnode_mgr:       Node manager object.
- *      hProc:          Handle to processor object being destroyed.
+ *      proc:          Handle to processor object being destroyed.
  *  Returns:
  *      0:        Success.
- *      -EPERM:      Unable to delete all nodes belonging to hProc.
+ *      -EPERM:      Unable to delete all nodes belonging to proc.
  *  Requires:
  *      Valid hnode_mgr.
- *      hProc != NULL.
+ *      proc != NULL.
  *  Ensures:
  */
 extern int node_close_orphans(struct node_mgr *hnode_mgr,
-				     struct proc_object *hProc);
+				     struct proc_object *proc);
 
 /*
  *  ======== node_connect ========
  *  Purpose:
  *      Connect two nodes on the DSP, or a node on the DSP to the GPP. In the
  *      case that the connnection is being made between a node on the DSP and
- *      the GPP, one of the node handles (either hNode1 or hNode2) must be
+ *      the GPP, one of the node handles (either node1 or node2) must be
  *      the constant NODE_HGPPNODE.
  *  Parameters:
- *      hNode1:         Handle of first node to connect to second node. If
- *                      this is a connection from the GPP to hNode2, hNode1
- *                      must be the constant NODE_HGPPNODE. Otherwise, hNode1
+ *      node1:         Handle of first node to connect to second node. If
+ *                      this is a connection from the GPP to node2, node1
+ *                      must be the constant NODE_HGPPNODE. Otherwise, node1
  *                      must be a node handle returned from a successful call
  *                      to Node_Allocate().
- *      hNode2:         Handle of second node. Must be either NODE_HGPPNODE
+ *      node2:         Handle of second node. Must be either NODE_HGPPNODE
  *                      if this is a connection from DSP node to GPP, or a
  *                      node handle returned from a successful call to
  *                      node_allocate().
@@ -163,12 +163,12 @@ extern int node_close_orphans(struct node_mgr *hnode_mgr,
  *                      pass binary data.
  *  Returns:
  *      0:                Success.
- *      -EFAULT:            Invalid hNode1 or hNode2.
+ *      -EFAULT:            Invalid node1 or node2.
  *      -ENOMEM:            Insufficient host memory.
  *      -EINVAL:             A stream index parameter is invalid.
  *      -EISCONN:  A connection already exists for one of the
  *                              indices uStream1 or uStream2.
- *      -EBADR:        Either hNode1 or hNode2 is not in the
+ *      -EBADR:        Either node1 or node2 is not in the
  *                              NODE_ALLOCATED state.
  *      -ECONNREFUSED: No more connections available.
  *      -EPERM:              Attempt to make an illegal connection (eg,
@@ -178,9 +178,9 @@ extern int node_close_orphans(struct node_mgr *hnode_mgr,
  *      node_init(void) called.
  *  Ensures:
  */
-extern int node_connect(struct node_object *hNode1,
+extern int node_connect(struct node_object *node1,
 			       u32 uStream1,
-			       struct node_object *hNode2,
+			       struct node_object *node2,
 			       u32 uStream2,
 			       OPTIONAL IN struct dsp_strmattr *pattrs,
 			       OPTIONAL IN struct dsp_cbdata

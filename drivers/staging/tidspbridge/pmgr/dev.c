@@ -1038,10 +1038,10 @@ int dev_remove_proc_object(struct dev_object *hdev_obj, u32 proc_obj)
 	return status;
 }
 
-int dev_get_dev_type(struct dev_object *hdevObject, u8 *dev_type)
+int dev_get_dev_type(struct dev_object *device_obj, u8 *dev_type)
 {
 	int status = 0;
-	struct dev_object *dev_obj = (struct dev_object *)hdevObject;
+	struct dev_object *dev_obj = (struct dev_object *)device_obj;
 
 	*dev_type = dev_obj->dev_type;
 

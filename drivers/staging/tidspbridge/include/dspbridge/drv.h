@@ -313,16 +313,16 @@ extern u32 drv_get_next_dev_object(u32 hdev_obj);
  *  Purpose:
  *      Returns the Ptr to the Next Device Extension from the the List
  *  Parameters:
- *      hDevExtension:      Handle to the Device Extension
+ *      dev_extension:      Handle to the Device Extension
  *  Requires:
  *      DRV Initialized
- *      hDevExtension != 0.
+ *      dev_extension != 0.
  *  Returns:
  *      dw_dev_extension:     Ptr to the Next Dev Extension
  *      0:                  If it fail to Get the next Dev Extension
  *  Ensures:
  */
-extern u32 drv_get_next_dev_extension(u32 hDevExtension);
+extern u32 drv_get_next_dev_extension(u32 dev_extension);
 
 /*
  *  ======== drv_init ========

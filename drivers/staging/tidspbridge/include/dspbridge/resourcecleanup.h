@@ -20,8 +20,8 @@
 extern int drv_get_proc_ctxt_list(struct process_context **pPctxt,
 					 struct drv_object *hdrv_obj);
 
-extern int drv_insert_proc_context(struct drv_object *hDrVObject,
-					  void *hPCtxt);
+extern int drv_insert_proc_context(struct drv_object *driver_obj,
+					  void *process_ctxt);
 
 extern int drv_remove_all_dmm_res_elements(void *ctxt);
 
@@ -31,7 +31,7 @@ extern int drv_proc_set_pid(void *ctxt, s32 process);
 
 extern int drv_remove_all_resources(void *pPctxt);
 
-extern int drv_remove_proc_context(struct drv_object *hDRVObject,
+extern int drv_remove_proc_context(struct drv_object *driver_obj,
 					  void *pr_ctxt);
 
 extern int drv_get_node_res_element(void *hnode, void *node_res,
@@ -40,11 +40,11 @@ extern int drv_get_node_res_element(void *hnode, void *node_res,
 extern int drv_insert_node_res_element(void *hnode, void *node_res,
 					      void *ctxt);
 
-extern void drv_proc_node_update_heap_status(void *hNodeRes, s32 status);
+extern void drv_proc_node_update_heap_status(void *node_resource, s32 status);
 
 extern int drv_remove_node_res_element(void *node_res, void *status);
 
-extern void drv_proc_node_update_status(void *hNodeRes, s32 status);
+extern void drv_proc_node_update_status(void *node_resource, s32 status);
 
 extern int drv_proc_update_strm_res(u32 num_bufs, void *strm_res);
 
