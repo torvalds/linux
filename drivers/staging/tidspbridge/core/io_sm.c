@@ -161,7 +161,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
  *  ======== bridge_io_create ========
  *      Create an IO manager object.
  */
-int bridge_io_create(OUT struct io_mgr **phIOMgr,
+int bridge_io_create(OUT struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
 			    IN CONST struct io_attrs *pMgrAttrs)
 {
@@ -174,7 +174,7 @@ int bridge_io_create(OUT struct io_mgr **phIOMgr,
 	u8 dev_type;
 
 	/* Check requirements */
-	if (!phIOMgr || !pMgrAttrs || pMgrAttrs->word_size == 0) {
+	if (!io_man || !pMgrAttrs || pMgrAttrs->word_size == 0) {
 		status = -EFAULT;
 		goto func_end;
 	}
@@ -243,12 +243,12 @@ func_end:
 	if (DSP_FAILED(status)) {
 		/* Cleanup */
 		bridge_io_destroy(pio_mgr);
-		if (phIOMgr)
-			*phIOMgr = NULL;
+		if (io_man)
+			*io_man = NULL;
 	} else {
 		/* Return IO manager object to caller... */
 		hchnl_mgr->hio_mgr = pio_mgr;
-		*phIOMgr = pio_mgr;
+		*io_man = pio_mgr;
 	}
 	return status;
 }

@@ -208,19 +208,19 @@ extern void proc_exit(void);
  *      Returns the DEV Hanlde for a given Processor handle
  *  Parameters:
  *      hprocessor  :   Processor Handle
- *      phDevObject :   Location to store the DEV Handle.
+ *      device_obj :    Location to store the DEV Handle.
  *  Returns:
- *      0     :   Success; *phDevObject has Dev handle
- *      -EPERM   :   Failure; *phDevObject is zero.
+ *      0     :   Success; *device_obj has Dev handle
+ *      -EPERM   :   Failure; *device_obj is zero.
  *  Requires:
- *      phDevObject is not NULL
+ *      device_obj is not NULL
  *      PROC Initialized.
  *  Ensures:
- *      0     :   *phDevObject is not NULL
- *      -EPERM   :   *phDevObject is NULL.
+ *      0     :   *device_obj is not NULL
+ *      -EPERM   :   *device_obj is NULL.
  */
 extern int proc_get_dev_object(void *hprocessor,
-				      struct dev_object **phDevObject);
+				      struct dev_object **device_obj);
 
 /*
  *  ======== proc_init ========

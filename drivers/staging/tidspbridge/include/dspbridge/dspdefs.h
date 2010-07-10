@@ -648,7 +648,7 @@ typedef int(*fxn_chnl_registernotify)
  *  Purpose:
  *      Complete creation of the device object for this board.
  *  Parameters:
- *      phDevContext:   Ptr to location to store a Bridge device context.
+ *      device_ctx:     Ptr to location to store a Bridge device context.
  *      hdev_obj:     Handle to a Device Object, created and managed by DSP API.
  *      config_param:        Ptr to configuration parameters provided by the
  *                      Configuration Manager during device loading.
@@ -658,7 +658,7 @@ typedef int(*fxn_chnl_registernotify)
  *      0:            Success.
  *      -ENOMEM:        Unable to allocate memory for device context.
  *  Requires:
- *      phDevContext != NULL;
+ *      device_ctx != NULL;
  *      hdev_obj != NULL;
  *      config_param != NULL;
  *      pDspConfig != NULL;
@@ -680,7 +680,7 @@ typedef int(*fxn_chnl_registernotify)
  *      structure.
  */
 typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
-				     **phDevContext,
+				     **device_ctx,
 				     struct dev_object
 				     * hdev_obj,
 				     IN struct cfg_hostres
@@ -729,7 +729,7 @@ typedef int(*fxn_dev_destroy) (struct bridge_dev_context *dev_ctxt);
  *  Purpose:
  *      Create an object that manages I/O between CHNL and msg_ctrl.
  *  Parameters:
- *      phIOMgr:        Location to store IO manager on output.
+ *      io_man:         Location to store IO manager on output.
  *      hchnl_mgr:       Handle to channel manager.
  *      hmsg_mgr:        Handle to message manager.
  *  Returns:
@@ -741,10 +741,10 @@ typedef int(*fxn_dev_destroy) (struct bridge_dev_context *dev_ctxt);
  *      Channel manager already created;
  *      Message manager already created;
  *      pMgrAttrs != NULL;
- *      phIOMgr != NULL;
+ *      io_man != NULL;
  *  Ensures:
  */
-typedef int(*fxn_io_create) (OUT struct io_mgr **phIOMgr,
+typedef int(*fxn_io_create) (OUT struct io_mgr **io_man,
 				    struct dev_object *hdev_obj,
 				    IN CONST struct io_attrs *pMgrAttrs);
 
@@ -805,20 +805,20 @@ typedef int(*fxn_io_getprocload) (struct io_mgr *hio_mgr,
  *      Create an object to manage message queues. Only one of these objects
  *      can exist per device object.
  *  Parameters:
- *      phMsgMgr:           Location to store msg_ctrl manager on output.
+ *      msg_man:            Location to store msg_ctrl manager on output.
  *      hdev_obj:         Handle to a device object.
  *      msg_callback:        Called whenever an RMS_EXIT message is received.
  *  Returns:
  *      0:            Success.
  *      -ENOMEM:        Insufficient memory.
  *  Requires:
- *      phMsgMgr != NULL.
+ *      msg_man != NULL.
  *      msg_callback != NULL.
  *      hdev_obj != NULL.
  *  Ensures:
  */
 typedef int(*fxn_msg_create)
- (OUT struct msg_mgr **phMsgMgr,
+ (OUT struct msg_mgr **msg_man,
   struct dev_object *hdev_obj, msg_onexit msg_callback);
 
 /*
@@ -829,7 +829,7 @@ typedef int(*fxn_msg_create)
  *  Parameters:
  *      hmsg_mgr:            msg_ctrl queue manager handle returned from
  *                          bridge_msg_create.
- *      phMsgQueue:         Location to store msg_ctrl queue on output.
+ *      msgq:               Location to store msg_ctrl queue on output.
  *      msgq_id:	    Identifier for messages (node environment pointer).
  *      max_msgs:           Max number of simultaneous messages for the node.
  *      h:                  Handle passed to hmsg_mgr->msg_callback().
@@ -837,15 +837,15 @@ typedef int(*fxn_msg_create)
  *      0:            Success.
  *      -ENOMEM:        Insufficient memory.
  *  Requires:
- *      phMsgQueue != NULL.
+ *      msgq != NULL.
  *      h != NULL.
  *      max_msgs > 0.
  *  Ensures:
- *      phMsgQueue !=NULL <==> 0.
+ *      msgq !=NULL <==> 0.
  */
 typedef int(*fxn_msg_createqueue)
  (struct msg_mgr *hmsg_mgr,
-  OUT struct msg_queue **phMsgQueue, u32 msgq_id, u32 max_msgs, void *h);
+  OUT struct msg_queue **msgq, u32 msgq_id, u32 max_msgs, void *h);
 
 /*
  *  ======== bridge_msg_delete ========

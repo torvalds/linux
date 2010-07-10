@@ -52,13 +52,13 @@ static u32 refs;
  *  Purpose:
  *      MGR Object gets created only once during driver Loading.
  */
-int mgr_create(OUT struct mgr_object **phMgrObject,
+int mgr_create(OUT struct mgr_object **mgr_obj,
 		      struct cfg_devnode *dev_node_obj)
 {
 	int status = 0;
 	struct mgr_object *pmgr_obj = NULL;
 
-	DBC_REQUIRE(phMgrObject != NULL);
+	DBC_REQUIRE(mgr_obj != NULL);
 	DBC_REQUIRE(refs > 0);
 
 	pmgr_obj = kzalloc(sizeof(struct mgr_object), GFP_KERNEL);
@@ -68,7 +68,7 @@ int mgr_create(OUT struct mgr_object **phMgrObject,
 			/* If succeeded store the handle in the MGR Object */
 			status = cfg_set_object((u32) pmgr_obj, REG_MGR_OBJECT);
 			if (DSP_SUCCEEDED(status)) {
-				*phMgrObject = pmgr_obj;
+				*mgr_obj = pmgr_obj;
 			} else {
 				dcd_destroy_manager(pmgr_obj->hdcd_mgr);
 				kfree(pmgr_obj);

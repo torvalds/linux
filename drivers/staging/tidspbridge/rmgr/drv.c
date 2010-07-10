@@ -422,12 +422,12 @@ int drv_proc_update_strm_res(u32 num_bufs, void *hstrm_res)
  *  Purpose:
  *      DRV Object gets created only once during Driver Loading.
  */
-int drv_create(OUT struct drv_object **phDRVObject)
+int drv_create(OUT struct drv_object **drv_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = NULL;
 
-	DBC_REQUIRE(phDRVObject != NULL);
+	DBC_REQUIRE(drv_obj != NULL);
 	DBC_REQUIRE(refs > 0);
 
 	pdrv_object = kzalloc(sizeof(struct drv_object), GFP_KERNEL);
@@ -456,7 +456,7 @@ int drv_create(OUT struct drv_object **phDRVObject)
 	if (DSP_SUCCEEDED(status))
 		status = cfg_set_object((u32) pdrv_object, REG_DRV_OBJECT);
 	if (DSP_SUCCEEDED(status)) {
-		*phDRVObject = pdrv_object;
+		*drv_obj = pdrv_object;
 	} else {
 		kfree(pdrv_object->dev_list);
 		kfree(pdrv_object->dev_node_string);
@@ -515,7 +515,7 @@ int drv_destroy(struct drv_object *driver_obj)
  *      Given a index, returns a handle to DevObject from the list.
  */
 int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
-			      struct dev_object **phDevObject)
+			      struct dev_object **device_obj)
 {
 	int status = 0;
 #ifdef CONFIG_TIDSPBRIDGE_DEBUG
@@ -525,7 +525,7 @@ int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
 	struct dev_object *dev_obj;
 	u32 i;
 	DBC_REQUIRE(pdrv_obj);
-	DBC_REQUIRE(phDevObject != NULL);
+	DBC_REQUIRE(device_obj != NULL);
 	DBC_REQUIRE(index >= 0);
 	DBC_REQUIRE(refs > 0);
 	DBC_ASSERT(!(LST_IS_EMPTY(pdrv_obj->dev_list)));
@@ -536,9 +536,9 @@ int drv_get_dev_object(u32 index, struct drv_object *hdrv_obj,
 		    (struct dev_object *)drv_get_next_dev_object((u32) dev_obj);
 	}
 	if (dev_obj) {
-		*phDevObject = (struct dev_object *)dev_obj;
+		*device_obj = (struct dev_object *)dev_obj;
 	} else {
-		*phDevObject = NULL;
+		*device_obj = NULL;
 		status = -EPERM;
 	}
 

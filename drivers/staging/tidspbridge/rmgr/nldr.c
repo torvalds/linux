@@ -325,7 +325,7 @@ static u32 find_gcf(u32 a, u32 b);
  */
 int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 			 IN CONST struct dcd_nodeprops *node_props,
-			 OUT struct nldr_nodeobject **phNldrNode,
+			 OUT struct nldr_nodeobject **nldr_nodeobj,
 			 IN bool *pf_phase_split)
 {
 	struct nldr_nodeobject *nldr_node_obj = NULL;
@@ -333,11 +333,11 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(node_props != NULL);
-	DBC_REQUIRE(phNldrNode != NULL);
+	DBC_REQUIRE(nldr_nodeobj != NULL);
 	DBC_REQUIRE(nldr_obj);
 
 	/* Initialize handle in case of failure */
-	*phNldrNode = NULL;
+	*nldr_nodeobj = NULL;
 	/* Allocate node object */
 	nldr_node_obj = kzalloc(sizeof(struct nldr_nodeobject), GFP_KERNEL);
 
@@ -410,14 +410,14 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 				nldr_node_obj->overlay = true;
 
 		}
-		*phNldrNode = (struct nldr_nodeobject *)nldr_node_obj;
+		*nldr_nodeobj = (struct nldr_nodeobject *)nldr_node_obj;
 	}
 	/* Cleanup on failure */
 	if (DSP_FAILED(status) && nldr_node_obj)
 		kfree(nldr_node_obj);
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phNldrNode)
-		   || (DSP_FAILED(status) && *phNldrNode == NULL));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *nldr_nodeobj)
+		   || (DSP_FAILED(status) && *nldr_nodeobj == NULL));
 	return status;
 }
 

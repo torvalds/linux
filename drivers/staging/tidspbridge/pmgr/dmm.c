@@ -117,21 +117,21 @@ int dmm_create_tables(struct dmm_object *dmm_mgr, u32 addr, u32 size)
  *  Purpose:
  *      Create a dynamic memory manager object.
  */
-int dmm_create(OUT struct dmm_object **phDmmMgr,
+int dmm_create(OUT struct dmm_object **dmm_manager,
 		      struct dev_object *hdev_obj,
 		      IN CONST struct dmm_mgrattrs *pMgrAttrs)
 {
 	struct dmm_object *dmm_obj = NULL;
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDmmMgr != NULL);
+	DBC_REQUIRE(dmm_manager != NULL);
 
-	*phDmmMgr = NULL;
+	*dmm_manager = NULL;
 	/* create, zero, and tag a cmm mgr object */
 	dmm_obj = kzalloc(sizeof(struct dmm_object), GFP_KERNEL);
 	if (dmm_obj != NULL) {
 		spin_lock_init(&dmm_obj->dmm_lock);
-		*phDmmMgr = dmm_obj;
+		*dmm_manager = dmm_obj;
 	} else {
 		status = -ENOMEM;
 	}
@@ -197,20 +197,20 @@ void dmm_exit(void)
  *      Return the dynamic memory manager object for this device.
  *      This is typically called from the client process.
  */
-int dmm_get_handle(void *hprocessor, OUT struct dmm_object **phDmmMgr)
+int dmm_get_handle(void *hprocessor, OUT struct dmm_object **dmm_manager)
 {
 	int status = 0;
 	struct dev_object *hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDmmMgr != NULL);
+	DBC_REQUIRE(dmm_manager != NULL);
 	if (hprocessor != NULL)
 		status = proc_get_dev_object(hprocessor, &hdev_obj);
 	else
 		hdev_obj = dev_get_first();	/* default */
 
 	if (DSP_SUCCEEDED(status))
-		status = dev_get_dmm_mgr(hdev_obj, phDmmMgr);
+		status = dev_get_dmm_mgr(hdev_obj, dmm_manager);
 
 	return status;
 }

@@ -82,7 +82,7 @@ extern int cfg_get_cd_version(OUT u32 *version);
  *      value:          Ptr to location to store the value.
  *  Returns:
  *      0:                Success.
- *      -EFAULT: dev_node_obj is invalid or phDevObject is invalid.
+ *      -EFAULT: dev_node_obj is invalid or device_obj is invalid.
  *      -ENODATA: The resource is not available.
  *  Requires:
  *      CFG initialized.

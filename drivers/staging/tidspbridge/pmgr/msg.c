@@ -45,7 +45,7 @@ static u32 refs;		/* module reference count */
  *      Create an object to manage message queues. Only one of these objects
  *      can exist per device object.
  */
-int msg_create(OUT struct msg_mgr **phMsgMgr,
+int msg_create(OUT struct msg_mgr **msg_man,
 		      struct dev_object *hdev_obj, msg_onexit msg_callback)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -54,11 +54,11 @@ int msg_create(OUT struct msg_mgr **phMsgMgr,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phMsgMgr != NULL);
+	DBC_REQUIRE(msg_man != NULL);
 	DBC_REQUIRE(msg_callback != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 
-	*phMsgMgr = NULL;
+	*msg_man = NULL;
 
 	dev_get_intf_fxns(hdev_obj, &intf_fxns);
 
@@ -73,7 +73,7 @@ int msg_create(OUT struct msg_mgr **phMsgMgr,
 		msg_mgr_obj->intf_fxns = intf_fxns;
 
 		/* Finally, return the new message manager handle: */
-		*phMsgMgr = hmsg_mgr;
+		*msg_man = hmsg_mgr;
 	} else {
 		status = -EPERM;
 	}

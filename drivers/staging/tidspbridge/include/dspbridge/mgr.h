@@ -49,7 +49,7 @@ int mgr_wait_for_bridge_events(struct dsp_notification
  *      Creates the Manager Object. This is done during the driver loading.
  *      There is only one Manager Object in the DSP/BIOS Bridge.
  *  Parameters:
- *      phMgrObject:    Location to store created MGR Object handle.
+ *      mgr_obj:        Location to store created MGR Object handle.
  *      dev_node_obj:       Device object as known to the system.
  *  Returns:
  *      0:        Success
@@ -57,9 +57,9 @@ int mgr_wait_for_bridge_events(struct dsp_notification
  *      -EPERM:      General Failure
  *  Requires:
  *      MGR Initialized (refs > 0 )
- *      phMgrObject != NULL.
+ *      mgr_obj != NULL.
  *  Ensures:
- *      0:        *phMgrObject is a valid MGR interface to the device.
+ *      0:        *mgr_obj is a valid MGR interface to the device.
  *                      MGR Object stores the DCD Manager Handle.
  *                      MGR Object stored in the Regsitry.
  *      !0:       MGR Object not created

@@ -45,11 +45,11 @@
  *               Invalid base address for DSP communications.
  *  Requires:
  *      io_init(void) called.
- *      phIOMgr != NULL.
+ *      io_man != NULL.
  *      pMgrAttrs != NULL.
  *  Ensures:
  */
-extern int io_create(OUT struct io_mgr **phIOMgr,
+extern int io_create(OUT struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
 			    IN CONST struct io_attrs *pMgrAttrs);
 

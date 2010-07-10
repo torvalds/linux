@@ -29,18 +29,18 @@
  *      can exist per device object. The msg_ctrl manager must be created before
  *      the IO Manager.
  *  Parameters:
- *      phMsgMgr:           Location to store msg_ctrl manager handle on output.
+ *      msg_man:            Location to store msg_ctrl manager handle on output.
  *      hdev_obj:         The device object.
  *      msg_callback:        Called whenever an RMS_EXIT message is received.
  *  Returns:
  *  Requires:
  *      msg_mod_init(void) called.
- *      phMsgMgr != NULL.
+ *      msg_man != NULL.
  *      hdev_obj != NULL.
  *      msg_callback != NULL.
  *  Ensures:
  */
-extern int msg_create(OUT struct msg_mgr **phMsgMgr,
+extern int msg_create(OUT struct msg_mgr **msg_man,
 			     struct dev_object *hdev_obj,
 			     msg_onexit msg_callback);
 

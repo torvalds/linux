@@ -215,7 +215,7 @@ void cod_close(struct cod_libraryobj *lib)
  *      dynamically loaded object files.
  *
  */
-int cod_create(OUT struct cod_manager **phMgr, char *pstrDummyFile,
+int cod_create(OUT struct cod_manager **mgr, char *pstrDummyFile,
 		      IN OPTIONAL CONST struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
@@ -223,10 +223,10 @@ int cod_create(OUT struct cod_manager **phMgr, char *pstrDummyFile,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phMgr != NULL);
+	DBC_REQUIRE(mgr != NULL);
 
 	/* assume failure */
-	*phMgr = NULL;
+	*mgr = NULL;
 
 	/* we don't support non-default attrs yet */
 	if (attrs != NULL)
@@ -271,7 +271,7 @@ int cod_create(OUT struct cod_manager **phMgr, char *pstrDummyFile,
 	}
 
 	/* return the new manager */
-	*phMgr = mgr_new;
+	*mgr = mgr_new;
 
 	return 0;
 }
@@ -377,15 +377,15 @@ int cod_get_entry(struct cod_manager *cod_mgr_obj, u32 *pulEntry)
  *      Get handle to the DBLL loader.
  */
 int cod_get_loader(struct cod_manager *cod_mgr_obj,
-			  struct dbll_tar_obj **phLoader)
+			  struct dbll_tar_obj **loader)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
-	DBC_REQUIRE(phLoader != NULL);
+	DBC_REQUIRE(loader != NULL);
 
-	*phLoader = (struct dbll_tar_obj *)cod_mgr_obj->target;
+	*loader = (struct dbll_tar_obj *)cod_mgr_obj->target;
 
 	return status;
 }

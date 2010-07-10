@@ -77,7 +77,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *      Symbol table information is managed by this object and can be retrieved
  *      using the cod_get_sym_value() function.
  *  Parameters:
- *      phManager:      created manager object
+ *      manager:        created manager object
  *      pstrZLFile:     ZL DLL filename, of length < COD_MAXPATHLENGTH.
  *      attrs:          attributes to be used by this object. A NULL value
  *                      will cause default attrs to be used.
@@ -91,7 +91,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *      pstrZLFile != NULL
  *  Ensures:
  */
-extern int cod_create(OUT struct cod_manager **phManager,
+extern int cod_create(OUT struct cod_manager **manager,
 			     char *pstrZLFile,
 			     IN OPTIONAL CONST struct cod_attrs *attrs);
 
@@ -187,17 +187,17 @@ extern int cod_get_entry(struct cod_manager *cod_mgr_obj,
  *      Get handle to the DBL loader.
  *  Parameters:
  *      cod_mgr_obj:   handle of manager to be deleted
- *      phLoader:   location to store loader handle on output.
+ *      loader:     location to store loader handle on output.
  *  Returns:
  *      0:    Success.
  *  Requires:
  *      COD module initialized.
  *      valid cod_mgr_obj.
- *      phLoader != NULL.
+ *      loader != NULL.
  *  Ensures:
  */
 extern int cod_get_loader(struct cod_manager *cod_mgr_obj,
-				 struct dbll_tar_obj **phLoader);
+				 struct dbll_tar_obj **loader);
 
 /*
  *  ======== cod_get_section ========

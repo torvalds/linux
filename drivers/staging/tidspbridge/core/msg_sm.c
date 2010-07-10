@@ -48,7 +48,7 @@ static void free_msg_list(struct lst_list *msg_list);
  *      Create an object to manage message queues. Only one of these objects
  *      can exist per device object.
  */
-int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
+int bridge_msg_create(OUT struct msg_mgr **msg_man,
 			     struct dev_object *hdev_obj,
 			     msg_onexit msg_callback)
 {
@@ -56,7 +56,7 @@ int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
 	struct io_mgr *hio_mgr;
 	int status = 0;
 
-	if (!phMsgMgr || !msg_callback || !hdev_obj) {
+	if (!msg_man || !msg_callback || !hdev_obj) {
 		status = -EFAULT;
 		goto func_end;
 	}
@@ -65,7 +65,7 @@ int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
 		status = -EFAULT;
 		goto func_end;
 	}
-	*phMsgMgr = NULL;
+	*msg_man = NULL;
 	/* Allocate msg_ctrl manager object */
 	msg_mgr_obj = kzalloc(sizeof(struct msg_mgr), GFP_KERNEL);
 
@@ -103,7 +103,7 @@ int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
 			sync_init_event(msg_mgr_obj->sync_event);
 
 		if (DSP_SUCCEEDED(status))
-			*phMsgMgr = msg_mgr_obj;
+			*msg_man = msg_mgr_obj;
 		else
 			delete_msg_mgr(msg_mgr_obj);
 
@@ -120,7 +120,7 @@ func_end:
  *      on the DSP.
  */
 int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
-				OUT struct msg_queue **phMsgQueue,
+				OUT struct msg_queue **msgq,
 				u32 msgq_id, u32 max_msgs, void *arg)
 {
 	u32 i;
@@ -128,12 +128,12 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 	struct msg_queue *msg_q;
 	int status = 0;
 
-	if (!hmsg_mgr || phMsgQueue == NULL || !hmsg_mgr->msg_free_list) {
+	if (!hmsg_mgr || msgq == NULL || !hmsg_mgr->msg_free_list) {
 		status = -EFAULT;
 		goto func_end;
 	}
 
-	*phMsgQueue = NULL;
+	*msgq = NULL;
 	/* Allocate msg_queue object */
 	msg_q = kzalloc(sizeof(struct msg_queue), GFP_KERNEL);
 	if (!msg_q) {
@@ -217,7 +217,7 @@ int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 		} else {
 			lst_put_tail(hmsg_mgr->queue_list,
 				     (struct list_head *)msg_q);
-			*phMsgQueue = msg_q;
+			*msgq = msg_q;
 			/* Signal that free frames are now available */
 			if (!LST_IS_EMPTY(hmsg_mgr->msg_free_list))
 				sync_set_event(hmsg_mgr->sync_event);

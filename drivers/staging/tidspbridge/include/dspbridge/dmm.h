@@ -39,7 +39,7 @@ struct dmm_mgrattrs {
  */
 
 extern int dmm_get_handle(void *hprocessor,
-				 OUT struct dmm_object **phDmmMgr);
+				 OUT struct dmm_object **dmm_manager);
 
 extern int dmm_reserve_memory(struct dmm_object *dmm_mgr,
 				     u32 size, u32 *prsv_addr);
@@ -57,7 +57,7 @@ extern int dmm_destroy(struct dmm_object *dmm_mgr);
 
 extern int dmm_delete_tables(struct dmm_object *dmm_mgr);
 
-extern int dmm_create(OUT struct dmm_object **phDmmMgr,
+extern int dmm_create(OUT struct dmm_object **dmm_manager,
 			     struct dev_object *hdev_obj,
 			     IN CONST struct dmm_mgrattrs *pMgrAttrs);
 

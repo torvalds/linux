@@ -46,7 +46,7 @@ static u32 refs;
  *      Create an IO manager object, responsible for managing IO between
  *      CHNL and msg_ctrl
  */
-int io_create(OUT struct io_mgr **phIOMgr, struct dev_object *hdev_obj,
+int io_create(OUT struct io_mgr **io_man, struct dev_object *hdev_obj,
 		     IN CONST struct io_attrs *pMgrAttrs)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -55,10 +55,10 @@ int io_create(OUT struct io_mgr **phIOMgr, struct dev_object *hdev_obj,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phIOMgr != NULL);
+	DBC_REQUIRE(io_man != NULL);
 	DBC_REQUIRE(pMgrAttrs != NULL);
 
-	*phIOMgr = NULL;
+	*io_man = NULL;
 
 	/* A memory base of 0 implies no memory base: */
 	if ((pMgrAttrs->shm_base != 0) && (pMgrAttrs->usm_length == 0))
@@ -80,7 +80,7 @@ int io_create(OUT struct io_mgr **phIOMgr, struct dev_object *hdev_obj,
 			pio_mgr->hdev_obj = hdev_obj;
 
 			/* Return the new channel manager handle: */
-			*phIOMgr = hio_mgr;
+			*io_man = hio_mgr;
 		}
 	}
 

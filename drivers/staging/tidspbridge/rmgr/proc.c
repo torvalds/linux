@@ -936,24 +936,24 @@ void proc_exit(void)
  *
  */
 int proc_get_dev_object(void *hprocessor,
-			       struct dev_object **phDevObject)
+			       struct dev_object **device_obj)
 {
 	int status = -EPERM;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDevObject != NULL);
+	DBC_REQUIRE(device_obj != NULL);
 
 	if (p_proc_object) {
-		*phDevObject = p_proc_object->hdev_obj;
+		*device_obj = p_proc_object->hdev_obj;
 		status = 0;
 	} else {
-		*phDevObject = NULL;
+		*device_obj = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phDevObject != NULL) ||
-		   (DSP_FAILED(status) && *phDevObject == NULL));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *device_obj != NULL) ||
+		   (DSP_FAILED(status) && *device_obj == NULL));
 
 	return status;
 }

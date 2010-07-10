@@ -112,7 +112,7 @@ enum nldr_phase {
  *      nldr_obj:          Handle of loader that will load the node.
  *      priv_ref:       Handle to identify the node.
  *      node_props:     Pointer to a dcd_nodeprops for the node.
- *      phNldrNode:     Location to store node handle on output. This handle
+ *      nldr_nodeobj:   Location to store node handle on output. This handle
  *                      will be passed to nldr_load/nldr_unload.
  *      pf_phase_split:   pointer to int variable referenced in node.c
  *  Returns:
@@ -122,17 +122,17 @@ enum nldr_phase {
  *      nldr_init(void) called.
  *      Valid nldr_obj.
  *      node_props != NULL.
- *      phNldrNode != NULL.
+ *      nldr_nodeobj != NULL.
  *  Ensures:
- *      0:        IsValidNode(*phNldrNode).
- *      error:          *phNldrNode == NULL.
+ *      0:        IsValidNode(*nldr_nodeobj).
+ *      error:          *nldr_nodeobj == NULL.
  */
 typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
 				       void *priv_ref,
 				       IN CONST struct dcd_nodeprops
 				       * node_props,
 				       OUT struct nldr_nodeobject
-				       **phNldrNode,
+				       **nldr_nodeobj,
 				       OUT bool *pf_phase_split);
 
 /*

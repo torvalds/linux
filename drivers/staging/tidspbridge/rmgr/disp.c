@@ -87,7 +87,7 @@ static int send_message(struct disp_object *disp_obj, u32 timeout,
  *  ======== disp_create ========
  *  Create a NODE Dispatcher object.
  */
-int disp_create(OUT struct disp_object **phDispObject,
+int disp_create(OUT struct disp_object **dispatch_obj,
 		       struct dev_object *hdev_obj,
 		       IN CONST struct disp_attr *disp_attrs)
 {
@@ -99,11 +99,11 @@ int disp_create(OUT struct disp_object **phDispObject,
 	u8 dev_type;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDispObject != NULL);
+	DBC_REQUIRE(dispatch_obj != NULL);
 	DBC_REQUIRE(disp_attrs != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 
-	*phDispObject = NULL;
+	*dispatch_obj = NULL;
 
 	/* Allocate Node Dispatcher object */
 	disp_obj = kzalloc(sizeof(struct disp_object), GFP_KERNEL);
@@ -166,12 +166,12 @@ int disp_create(OUT struct disp_object **phDispObject,
 	}
 func_cont:
 	if (DSP_SUCCEEDED(status))
-		*phDispObject = disp_obj;
+		*dispatch_obj = disp_obj;
 	else
 		delete_disp(disp_obj);
 
-	DBC_ENSURE(((DSP_FAILED(status)) && ((*phDispObject == NULL))) ||
-				((DSP_SUCCEEDED(status)) && *phDispObject));
+	DBC_ENSURE(((DSP_FAILED(status)) && ((*dispatch_obj == NULL))) ||
+				((DSP_SUCCEEDED(status)) && *dispatch_obj));
 	return status;
 }
 

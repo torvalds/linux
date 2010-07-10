@@ -64,7 +64,7 @@ extern u32 dev_brd_write_fxn(void *arb,
  *      Called by the operating system to load the Bridge Driver for a
  *      'Bridge device.
  *  Parameters:
- *      phDevObject:    Ptr to location to receive the device object handle.
+ *      device_obj:     Ptr to location to receive the device object handle.
  *      driver_file_name: Name of Bridge driver PE DLL file to load.  If the
  *                      absolute path is not provided, the file is loaded
  *                      through 'Bridge's module search path.
@@ -80,17 +80,17 @@ extern u32 dev_brd_write_fxn(void *arb,
  *      -ESPIPE:   Unable to load ZL DLL.
  *  Requires:
  *      DEV Initialized.
- *      phDevObject != NULL.
+ *      device_obj != NULL.
  *      driver_file_name != NULL.
  *      pHostConfig != NULL.
  *      pDspConfig != NULL.
  *  Ensures:
- *      0:  *phDevObject will contain handle to the new device object.
+ *      0:  *device_obj will contain handle to the new device object.
  *      Otherwise, does not create the device object, ensures the Bridge driver
- *      module is unloaded, and sets *phDevObject to NULL.
+ *      module is unloaded, and sets *device_obj to NULL.
  */
 extern int dev_create_device(OUT struct dev_object
-				    **phDevObject,
+				    **device_obj,
 				    IN CONST char *driver_file_name,
 				    struct cfg_devnode *dev_node_obj);
 
@@ -99,7 +99,7 @@ extern int dev_create_device(OUT struct dev_object
  *  Purpose:
  *      Called by the operating system to load the Bridge Driver for IVA.
  *  Parameters:
- *      phDevObject:    Ptr to location to receive the device object handle.
+ *      device_obj:     Ptr to location to receive the device object handle.
  *      driver_file_name: Name of Bridge driver PE DLL file to load.  If the
  *                      absolute path is not provided, the file is loaded
  *                      through 'Bridge's module search path.
@@ -115,17 +115,17 @@ extern int dev_create_device(OUT struct dev_object
  *      -ESPIPE:   Unable to load ZL DLL.
  *  Requires:
  *      DEV Initialized.
- *      phDevObject != NULL.
+ *      device_obj != NULL.
  *      driver_file_name != NULL.
  *      pHostConfig != NULL.
  *      pDspConfig != NULL.
  *  Ensures:
- *      0:  *phDevObject will contain handle to the new device object.
+ *      0:  *device_obj will contain handle to the new device object.
  *      Otherwise, does not create the device object, ensures the Bridge driver
- *      module is unloaded, and sets *phDevObject to NULL.
+ *      module is unloaded, and sets *device_obj to NULL.
  */
 extern int dev_create_iva_device(OUT struct dev_object
-					**phDevObject,
+					**device_obj,
 					IN CONST char *driver_file_name,
 					IN CONST struct cfg_hostres
 					*pHostConfig,
@@ -195,20 +195,20 @@ extern int dev_destroy_device(struct dev_object
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      *phMgr:         Ptr to location to store handle.
+ *      *mgr:           Ptr to location to store handle.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phMgr != NULL.
+ *      mgr != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phMgr contains a handle to a channel manager object,
+ *      0:        *mgr contains a handle to a channel manager object,
  *                      or NULL.
- *      else:           *phMgr is NULL.
+ *      else:           *mgr is NULL.
  */
 extern int dev_get_chnl_mgr(struct dev_object *hdev_obj,
-				   OUT struct chnl_mgr **phMgr);
+				   OUT struct chnl_mgr **mgr);
 
 /*
  *  ======== dev_get_cmm_mgr ========
@@ -218,20 +218,20 @@ extern int dev_get_chnl_mgr(struct dev_object *hdev_obj,
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      *phMgr:         Ptr to location to store handle.
+ *      *mgr:           Ptr to location to store handle.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phMgr != NULL.
+ *      mgr != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phMgr contains a handle to a channel manager object,
+ *      0:        *mgr contains a handle to a channel manager object,
  *                      or NULL.
- *      else:           *phMgr is NULL.
+ *      else:           *mgr is NULL.
  */
 extern int dev_get_cmm_mgr(struct dev_object *hdev_obj,
-				  OUT struct cmm_object **phMgr);
+				  OUT struct cmm_object **mgr);
 
 /*
  *  ======== dev_get_dmm_mgr ========
@@ -241,20 +241,20 @@ extern int dev_get_cmm_mgr(struct dev_object *hdev_obj,
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      *phMgr:         Ptr to location to store handle.
+ *      *mgr:           Ptr to location to store handle.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phMgr != NULL.
+ *      mgr != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phMgr contains a handle to a channel manager object,
+ *      0:        *mgr contains a handle to a channel manager object,
  *                      or NULL.
- *      else:           *phMgr is NULL.
+ *      else:           *mgr is NULL.
  */
 extern int dev_get_dmm_mgr(struct dev_object *hdev_obj,
-				  OUT struct dmm_object **phMgr);
+				  OUT struct dmm_object **mgr);
 
 /*
  *  ======== dev_get_cod_mgr ========
@@ -304,19 +304,19 @@ extern int dev_get_deh_mgr(struct dev_object *hdev_obj,
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      phDevNode:      Ptr to location to get the device node handle.
+ *      dev_nde:        Ptr to location to get the device node handle.
  *  Returns:
  *      0:        Returns a DEVNODE in *dev_node_obj.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phDevNode != NULL.
+ *      dev_nde != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phDevNode contains a platform specific device ID;
- *      else:           *phDevNode is NULL.
+ *      0:        *dev_nde contains a platform specific device ID;
+ *      else:           *dev_nde is NULL.
  */
 extern int dev_get_dev_node(struct dev_object *hdev_obj,
-				   OUT struct cfg_devnode **phDevNode);
+				   OUT struct cfg_devnode **dev_nde);
 
 /*
  *  ======== dev_get_dev_type ========
@@ -325,16 +325,16 @@ extern int dev_get_dev_node(struct dev_object *hdev_obj,
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      phDevNode:      Ptr to location to get the device node handle.
+ *      dev_nde:        Ptr to location to get the device node handle.
  *  Returns:
  *      0:        Success
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phDevNode != NULL.
+ *      dev_nde != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phDevNode contains a platform specific device ID;
- *      else:           *phDevNode is NULL.
+ *      0:        *dev_nde contains a platform specific device ID;
+ *      else:           *dev_nde is NULL.
  */
 extern int dev_get_dev_type(struct dev_object *device_obj,
 					u8 *dev_type);
@@ -389,19 +389,19 @@ extern int dev_get_intf_fxns(struct dev_object *hdev_obj,
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      *phMgr:         Ptr to location to store handle.
+ *      *mgr:           Ptr to location to store handle.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phMgr != NULL.
+ *      mgr != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phMgr contains a handle to an IO manager object.
- *      else:           *phMgr is NULL.
+ *      0:        *mgr contains a handle to an IO manager object.
+ *      else:           *mgr is NULL.
  */
 extern int dev_get_io_mgr(struct dev_object *hdev_obj,
-				 OUT struct io_mgr **phMgr);
+				 OUT struct io_mgr **mgr);
 
 /*
  *  ======== dev_get_next ========
@@ -434,7 +434,7 @@ extern struct dev_object *dev_get_next(struct dev_object
  *      Retrieve the msg_ctrl Manager Handle from the DevObject.
  *  Parameters:
  *      hdev_obj: Handle to the Dev Object
- *      phMsgMgr:   Location where msg_ctrl Manager handle will be returned.
+ *      msg_man:    Location where msg_ctrl Manager handle will be returned.
  *  Returns:
  *  Requires:
  *      DEV Initialized.
@@ -443,7 +443,7 @@ extern struct dev_object *dev_get_next(struct dev_object
  *  Ensures:
  */
 extern void dev_get_msg_mgr(struct dev_object *hdev_obj,
-			    OUT struct msg_mgr **phMsgMgr);
+			    OUT struct msg_mgr **msg_man);
 
 /*
  *  ========= dev_get_node_manager ========

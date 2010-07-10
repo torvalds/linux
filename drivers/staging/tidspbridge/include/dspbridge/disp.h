@@ -32,7 +32,7 @@
  *  Manager object should have exactly one NODE Dispatcher.
  *
  *  Parameters:
- *      phDispObject:   Location to store node dispatcher object on output.
+ *      dispatch_obj:   Location to store node dispatcher object on output.
  *      hdev_obj:     Device for this processor.
  *      disp_attrs:     Node dispatcher attributes.
  *  Returns:
@@ -43,12 +43,12 @@
  *      disp_init(void) called.
  *      disp_attrs != NULL.
  *      hdev_obj != NULL.
- *      phDispObject != NULL.
+ *      dispatch_obj != NULL.
  *  Ensures:
- *      0:        IS_VALID(*phDispObject).
- *      error:          *phDispObject == NULL.
+ *      0:        IS_VALID(*dispatch_obj).
+ *      error:          *dispatch_obj == NULL.
  */
-extern int disp_create(OUT struct disp_object **phDispObject,
+extern int disp_create(OUT struct disp_object **dispatch_obj,
 			      struct dev_object *hdev_obj,
 			      IN CONST struct disp_attr *disp_attrs);
 

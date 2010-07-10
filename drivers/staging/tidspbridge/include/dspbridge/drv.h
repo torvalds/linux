@@ -183,16 +183,16 @@ struct process_context {
  *      Creates the Driver Object. This is done during the driver loading.
  *      There is only one Driver Object in the DSP/BIOS Bridge.
  *  Parameters:
- *      phDrvObject:    Location to store created DRV Object handle.
+ *      drv_obj:        Location to store created DRV Object handle.
  *  Returns:
  *      0:        Sucess
  *      -ENOMEM:    Failed in Memory allocation
  *      -EPERM:      General Failure
  *  Requires:
  *      DRV Initialized (refs > 0 )
- *      phDrvObject != NULL.
+ *      drv_obj != NULL.
  *  Ensures:
- *      0:        - *phDrvObject is a valid DRV interface to the device.
+ *      0:        - *drv_obj is a valid DRV interface to the device.
  *                      - List of DevObject Created and Initialized.
  *                      - List of dev_node String created and intialized.
  *                      - Registry is updated with the DRV Object.
@@ -204,7 +204,7 @@ struct process_context {
  *      Also it can hold other neccessary
  *      information in its storage area.
  */
-extern int drv_create(struct drv_object **phDrvObject);
+extern int drv_create(struct drv_object **drv_obj);
 
 /*
  *  ======== drv_destroy ========
@@ -274,23 +274,23 @@ extern u32 drv_get_first_dev_extension(void);
  *      Given a index, returns a handle to DevObject from the list
  *  Parameters:
  *      hdrv_obj:     Handle to the Manager
- *      phDevObject:    Location to store the Dev Handle
+ *      device_obj:     Location to store the Dev Handle
  *  Requires:
  *      DRV Initialized
  *      index >= 0
  *      hdrv_obj is not NULL and Valid DRV Object
- *      phDevObject is not NULL
+ *      device_obj is not NULL
  *      Device Object List not Empty
  *  Returns:
  *      0:        Success
  *      -EPERM:      Failed to Get the Dev Object
  *  Ensures:
- *      0:        *phDevObject != NULL
- *      -EPERM:      *phDevObject = NULL
+ *      0:        *device_obj != NULL
+ *      -EPERM:      *device_obj = NULL
  */
 extern int drv_get_dev_object(u32 index,
 				     struct drv_object *hdrv_obj,
-				     struct dev_object **phDevObject);
+				     struct dev_object **device_obj);
 
 /*
  *  ======== drv_get_next_dev_object ========

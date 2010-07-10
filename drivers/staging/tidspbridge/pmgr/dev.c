@@ -131,7 +131,7 @@ u32 dev_brd_write_fxn(void *arb, u32 ulDspAddr, void *pHostBuf,
  *      Called by the operating system to load the PM Bridge Driver for a
  *      PM board (device).
  */
-int dev_create_device(OUT struct dev_object **phDevObject,
+int dev_create_device(OUT struct dev_object **device_obj,
 			     IN CONST char *driver_file_name,
 			     struct cfg_devnode *dev_node_obj)
 {
@@ -145,7 +145,7 @@ int dev_create_device(OUT struct dev_object **phDevObject,
 	struct drv_object *hdrv_obj = NULL;
 	int status = 0;
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDevObject != NULL);
+	DBC_REQUIRE(device_obj != NULL);
 	DBC_REQUIRE(driver_file_name != NULL);
 
 	status = drv_request_bridge_res_dsp((void *)&host_res);
@@ -262,7 +262,7 @@ leave:
 	/*  If all went well, return a handle to the dev object;
 	 *  else, cleanup and return NULL in the OUT parameter. */
 	if (DSP_SUCCEEDED(status)) {
-		*phDevObject = dev_obj;
+		*device_obj = dev_obj;
 	} else {
 		if (dev_obj) {
 			kfree(dev_obj->proc_list);
@@ -273,11 +273,11 @@ leave:
 			kfree(dev_obj);
 		}
 
-		*phDevObject = NULL;
+		*device_obj = NULL;
 	}
 
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phDevObject) ||
-		   (DSP_FAILED(status) && !*phDevObject));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *device_obj) ||
+		   (DSP_FAILED(status) && !*device_obj));
 	return status;
 }
 
@@ -420,23 +420,23 @@ int dev_destroy_device(struct dev_object *hdev_obj)
  *      device.
  */
 int dev_get_chnl_mgr(struct dev_object *hdev_obj,
-			    OUT struct chnl_mgr **phMgr)
+			    OUT struct chnl_mgr **mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phMgr != NULL);
+	DBC_REQUIRE(mgr != NULL);
 
 	if (hdev_obj) {
-		*phMgr = dev_obj->hchnl_mgr;
+		*mgr = dev_obj->hchnl_mgr;
 	} else {
-		*phMgr = NULL;
+		*mgr = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phMgr != NULL) &&
-					     (*phMgr == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((mgr != NULL) &&
+					     (*mgr == NULL)));
 	return status;
 }
 
@@ -447,23 +447,23 @@ int dev_get_chnl_mgr(struct dev_object *hdev_obj,
  *      device.
  */
 int dev_get_cmm_mgr(struct dev_object *hdev_obj,
-			   OUT struct cmm_object **phMgr)
+			   OUT struct cmm_object **mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phMgr != NULL);
+	DBC_REQUIRE(mgr != NULL);
 
 	if (hdev_obj) {
-		*phMgr = dev_obj->hcmm_mgr;
+		*mgr = dev_obj->hcmm_mgr;
 	} else {
-		*phMgr = NULL;
+		*mgr = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phMgr != NULL) &&
-					     (*phMgr == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((mgr != NULL) &&
+					     (*mgr == NULL)));
 	return status;
 }
 
@@ -474,23 +474,23 @@ int dev_get_cmm_mgr(struct dev_object *hdev_obj,
  *      device.
  */
 int dev_get_dmm_mgr(struct dev_object *hdev_obj,
-			   OUT struct dmm_object **phMgr)
+			   OUT struct dmm_object **mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phMgr != NULL);
+	DBC_REQUIRE(mgr != NULL);
 
 	if (hdev_obj) {
-		*phMgr = dev_obj->dmm_mgr;
+		*mgr = dev_obj->dmm_mgr;
 	} else {
-		*phMgr = NULL;
+		*mgr = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phMgr != NULL) &&
-					     (*phMgr == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((mgr != NULL) &&
+					     (*mgr == NULL)));
 	return status;
 }
 
@@ -546,23 +546,23 @@ int dev_get_deh_mgr(struct dev_object *hdev_obj,
  *      Retrieve the platform specific device ID for this device.
  */
 int dev_get_dev_node(struct dev_object *hdev_obj,
-			    OUT struct cfg_devnode **phDevNode)
+			    OUT struct cfg_devnode **dev_nde)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDevNode != NULL);
+	DBC_REQUIRE(dev_nde != NULL);
 
 	if (hdev_obj) {
-		*phDevNode = dev_obj->dev_node_obj;
+		*dev_nde = dev_obj->dev_node_obj;
 	} else {
-		*phDevNode = NULL;
+		*dev_nde = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phDevNode != NULL) &&
-					     (*phDevNode == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((dev_nde != NULL) &&
+					     (*dev_nde == NULL)));
 	return status;
 }
 
@@ -612,18 +612,18 @@ int dev_get_intf_fxns(struct dev_object *hdev_obj,
  *  ========= dev_get_io_mgr ========
  */
 int dev_get_io_mgr(struct dev_object *hdev_obj,
-			  OUT struct io_mgr **phIOMgr)
+			  OUT struct io_mgr **io_man)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phIOMgr != NULL);
+	DBC_REQUIRE(io_man != NULL);
 	DBC_REQUIRE(hdev_obj);
 
 	if (hdev_obj) {
-		*phIOMgr = hdev_obj->hio_mgr;
+		*io_man = hdev_obj->hio_mgr;
 	} else {
-		*phIOMgr = NULL;
+		*io_man = NULL;
 		status = -EFAULT;
 	}
 
@@ -652,13 +652,13 @@ struct dev_object *dev_get_next(struct dev_object *hdev_obj)
 /*
  *  ========= dev_get_msg_mgr ========
  */
-void dev_get_msg_mgr(struct dev_object *hdev_obj, OUT struct msg_mgr **phMsgMgr)
+void dev_get_msg_mgr(struct dev_object *hdev_obj, OUT struct msg_mgr **msg_man)
 {
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phMsgMgr != NULL);
+	DBC_REQUIRE(msg_man != NULL);
 	DBC_REQUIRE(hdev_obj);
 
-	*phMsgMgr = hdev_obj->hmsg_mgr;
+	*msg_man = hdev_obj->hmsg_mgr;
 }
 
 /*
