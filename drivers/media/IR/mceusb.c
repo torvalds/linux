@@ -765,8 +765,7 @@ static void mceusb_dev_recv(struct urb *urb, struct pt_regs *regs)
 
 static void mceusb_gen1_init(struct mceusb_dev *ir)
 {
-	int i, ret;
-	int partial = 0;
+	int ret;
 	struct device *dev = ir->dev;
 	char *data;
 
