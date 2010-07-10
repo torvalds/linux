@@ -50,7 +50,7 @@ extern hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
 				       u32 num_locked_entries);
 
 extern hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
-				       u32 victimEntryNum);
+				       u32 victim_entry_num);
 
 /* For MMU faults */
 extern hw_status hw_mmu_event_ack(const void __iomem *base_address,
@@ -77,45 +77,45 @@ extern hw_status hw_mmu_twl_enable(const void __iomem *base_address);
 extern hw_status hw_mmu_twl_disable(const void __iomem *base_address);
 
 extern hw_status hw_mmu_tlb_flush(const void __iomem *base_address,
-				  u32 virtualAddr, u32 page_sz);
+				  u32 virtual_addr, u32 page_sz);
 
 extern hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 				u32 physical_addr,
-				u32 virtualAddr,
+				u32 virtual_addr,
 				u32 page_sz,
 				u32 entry_num,
 				struct hw_mmu_map_attrs_t *map_attrs,
-				s8 preserved_bit, s8 validBit);
+				s8 preserved_bit, s8 valid_bit);
 
 /* For PTEs */
 extern hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 				u32 physical_addr,
-				u32 virtualAddr,
+				u32 virtual_addr,
 				u32 page_sz,
 				struct hw_mmu_map_attrs_t *map_attrs);
 
 extern hw_status hw_mmu_pte_clear(const u32 pg_tbl_va,
-				  u32 page_size, u32 virtualAddr);
+				  u32 page_size, u32 virtual_addr);
 
 void hw_mmu_tlb_flush_all(const void __iomem *base);
 
-static inline u32 hw_mmu_pte_addr_l1(u32 L1_base, u32 va)
+static inline u32 hw_mmu_pte_addr_l1(u32 l1_base, u32 va)
 {
 	u32 pte_addr;
 	u32 va31_to20;
 
 	va31_to20 = va >> (20 - 2);	/* Left-shift by 2 here itself */
 	va31_to20 &= 0xFFFFFFFCUL;
-	pte_addr = L1_base + va31_to20;
+	pte_addr = l1_base + va31_to20;
 
 	return pte_addr;
 }
 
-static inline u32 hw_mmu_pte_addr_l2(u32 L2_base, u32 va)
+static inline u32 hw_mmu_pte_addr_l2(u32 l2_base, u32 va)
 {
 	u32 pte_addr;
 
-	pte_addr = (L2_base & 0xFFFFFC00) | ((va >> 10) & 0x3FC);
+	pte_addr = (l2_base & 0xFFFFFC00) | ((va >> 10) & 0x3FC);
 
 	return pte_addr;
 }

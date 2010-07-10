@@ -1103,7 +1103,7 @@ int cmm_xlator_info(struct cmm_xlatorobject *xlator, IN OUT u8 ** paddr,
  *  ======== cmm_xlator_translate ========
  */
 void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
-			   enum cmm_xlatetype xType)
+			   enum cmm_xlatetype xtype)
 {
 	u32 dw_addr_xlate = 0;
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
@@ -1113,7 +1113,7 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(paddr != NULL);
-	DBC_REQUIRE((xType >= CMM_VA2PA) && (xType <= CMM_DSPPA2PA));
+	DBC_REQUIRE((xtype >= CMM_VA2PA) && (xtype <= CMM_DSPPA2PA));
 
 	if (!xlator_obj)
 		goto loop_cont;
@@ -1125,9 +1125,9 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 	if (!allocator)
 		goto loop_cont;
 
-	if ((xType == CMM_VA2DSPPA) || (xType == CMM_VA2PA) ||
-	    (xType == CMM_PA2VA)) {
-		if (xType == CMM_PA2VA) {
+	if ((xtype == CMM_VA2DSPPA) || (xtype == CMM_VA2PA) ||
+	    (xtype == CMM_PA2VA)) {
+		if (xtype == CMM_PA2VA) {
 			/* Gpp Va = Va Base + offset */
 			dw_offset = (u8 *) paddr - (u8 *) (allocator->shm_base -
 							   allocator->
@@ -1152,14 +1152,14 @@ void *cmm_xlator_translate(struct cmm_xlatorobject *xlator, void *paddr,
 		dw_addr_xlate = (u32) paddr;
 	}
 	/*Now convert address to proper target physical address if needed */
-	if ((xType == CMM_VA2DSPPA) || (xType == CMM_PA2DSPPA)) {
+	if ((xtype == CMM_VA2DSPPA) || (xtype == CMM_PA2DSPPA)) {
 		/* Got Gpp Pa now, convert to DSP Pa */
 		dw_addr_xlate =
 		    GPPPA2DSPPA((allocator->shm_base - allocator->ul_dsp_size),
 				dw_addr_xlate,
 				allocator->dw_dsp_phys_addr_offset *
 				allocator->c_factor);
-	} else if (xType == CMM_DSPPA2PA) {
+	} else if (xtype == CMM_DSPPA2PA) {
 		/* Got DSP Pa, convert to GPP Pa */
 		dw_addr_xlate =
 		    DSPPA2GPPPA(allocator->shm_base - allocator->ul_dsp_size,

@@ -94,39 +94,39 @@
 #define LOWER8BIT_MASK	   0x000000FF
 
 /*
- * Definition: RETURN32BITS_FROM16LOWER_AND16UPPER(lower16Bits, upper16Bits)
+ * Definition: RETURN32BITS_FROM16LOWER_AND16UPPER(lower16_bits, upper16_bits)
  *
  * DESCRIPTION: Returns a 32 bit value given a 16 bit lower value and a 16
  *		bit upper value
  */
-#define RETURN32BITS_FROM16LOWER_AND16UPPER(lower16Bits, upper16Bits)\
-    (((((u32)lower16Bits)  & LOWER16BIT_MASK)) | \
-     (((((u32)upper16Bits) & LOWER16BIT_MASK) << UPPER16BIT_SHIFT)))
+#define RETURN32BITS_FROM16LOWER_AND16UPPER(lower16_bits, upper16_bits)\
+    (((((u32)lower16_bits)  & LOWER16BIT_MASK)) | \
+     (((((u32)upper16_bits) & LOWER16BIT_MASK) << UPPER16BIT_SHIFT)))
 
 /*
- * Definition: RETURN16BITS_FROM8LOWER_AND8UPPER(lower16Bits, upper16Bits)
+ * Definition: RETURN16BITS_FROM8LOWER_AND8UPPER(lower16_bits, upper16_bits)
  *
  * DESCRIPTION:  Returns a 16 bit value given a 8 bit lower value and a 8
  *	       bit upper value
  */
-#define RETURN16BITS_FROM8LOWER_AND8UPPER(lower8Bits, upper8Bits)\
-    (((((u32)lower8Bits)  & LOWER8BIT_MASK)) | \
-     (((((u32)upper8Bits) & LOWER8BIT_MASK) << UPPER8BIT_OF16_SHIFT)))
+#define RETURN16BITS_FROM8LOWER_AND8UPPER(lower8_bits, upper8_bits)\
+    (((((u32)lower8_bits)  & LOWER8BIT_MASK)) | \
+     (((((u32)upper8_bits) & LOWER8BIT_MASK) << UPPER8BIT_OF16_SHIFT)))
 
 /*
- * Definition: RETURN32BITS_FROM48BIT_VALUES(lower8Bits, lowerMiddle8Bits,
- * 					lowerUpper8Bits, upper8Bits)
+ * Definition: RETURN32BITS_FROM48BIT_VALUES(lower8_bits, lower_middle8_bits,
+ *					lower_upper8_bits, upper8_bits)
  *
  * DESCRIPTION:  Returns a 32 bit value given four 8 bit values
  */
-#define RETURN32BITS_FROM48BIT_VALUES(lower8Bits, lowerMiddle8Bits,\
-	lowerUpper8Bits, upper8Bits)\
-	(((((u32)lower8Bits) & LOWER8BIT_MASK)) | \
-	(((((u32)lowerMiddle8Bits) & LOWER8BIT_MASK) <<\
+#define RETURN32BITS_FROM48BIT_VALUES(lower8_bits, lower_middle8_bits,\
+	lower_upper8_bits, upper8_bits)\
+	(((((u32)lower8_bits) & LOWER8BIT_MASK)) | \
+	(((((u32)lower_middle8_bits) & LOWER8BIT_MASK) <<\
 		LOWER_MIDDLE8BIT_SHIFT)) | \
-	(((((u32)lowerUpper8Bits) & LOWER8BIT_MASK) <<\
+	(((((u32)lower_upper8_bits) & LOWER8BIT_MASK) <<\
 		UPPER_MIDDLE8BIT_SHIFT)) | \
-	(((((u32)upper8Bits) & LOWER8BIT_MASK) <<\
+	(((((u32)upper8_bits) & LOWER8BIT_MASK) <<\
 		UPPER8BIT_SHIFT)))
 
 /*
@@ -285,24 +285,26 @@ enum return_code_label {
 
 /* Not sure if this all belongs here */
 
-#define CHECK_RETURN_VALUE(actualValue, expectedValue,  returnCodeIfMismatch,\
-	spyCodeIfMisMatch)
-#define CHECK_RETURN_VALUE_RET(actualValue, expectedValue, returnCodeIfMismatch)
-#define CHECK_RETURN_VALUE_RES(actualValue, expectedValue, spyCodeIfMisMatch)
-#define CHECK_RETURN_VALUE_RET_VOID(actualValue, expectedValue,\
-	spyCodeIfMisMatch)
+#define CHECK_RETURN_VALUE(actual_value, expected_value,\
+	return_code_if_mismatch, spy_code_if_mis_match)
+#define CHECK_RETURN_VALUE_RET(actual_value, expected_value,\
+	return_code_if_mismatch)
+#define CHECK_RETURN_VALUE_RES(actual_value, expected_value,\
+	spy_code_if_mis_match)
+#define CHECK_RETURN_VALUE_RET_VOID(actual_value, expected_value,\
+	spy_code_if_mis_match)
 
-#define CHECK_INPUT_PARAM(actualValue, invalidValue, returnCodeIfMismatch,\
-	spyCodeIfMisMatch)
-#define CHECK_INPUT_PARAM_NO_SPY(actualValue, invalidValue,\
-	returnCodeIfMismatch)
-#define CHECK_INPUT_RANGE(actualValue, minValidValue, maxValidValue,\
-	returnCodeIfMismatch, spyCodeIfMisMatch)
-#define CHECK_INPUT_RANGE_NO_SPY(actualValue, minValidValue, maxValidValue,\
-	returnCodeIfMismatch)
-#define CHECK_INPUT_RANGE_MIN0(actualValue, maxValidValue,\
-	returnCodeIfMismatch, spyCodeIfMisMatch)
-#define CHECK_INPUT_RANGE_NO_SPY_MIN0(actualValue, maxValidValue,\
-	returnCodeIfMismatch)
+#define CHECK_INPUT_PARAM(actual_value, invalid_value,\
+	return_code_if_mismatch, spy_code_if_mis_match)
+#define CHECK_INPUT_PARAM_NO_SPY(actual_value, invalid_value,\
+	return_code_if_mismatch)
+#define CHECK_INPUT_RANGE(actual_value, min_valid_value, max_valid_value,\
+	return_code_if_mismatch, spy_code_if_mis_match)
+#define CHECK_INPUT_RANGE_NO_SPY(actual_value, min_valid_value,\
+	max_valid_value, return_code_if_mismatch)
+#define CHECK_INPUT_RANGE_MIN0(actual_value, max_valid_value,\
+	return_code_if_mismatch, spy_code_if_mis_match)
+#define CHECK_INPUT_RANGE_NO_SPY_MIN0(actual_value, max_valid_value,\
+	return_code_if_mismatch)
 
 #endif /* _GLOBALTYPES_H */

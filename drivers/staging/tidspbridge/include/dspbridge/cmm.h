@@ -370,17 +370,17 @@ extern int cmm_xlator_info(struct cmm_xlatorobject *xlator,
  *  Parameters:
  *     xlator: handle to translator.
  *     paddr    address of buffer to translate.
- *     xType    Type of address xlation. CMM_PA2VA or CMM_VA2PA.
+ *     xtype    Type of address xlation. CMM_PA2VA or CMM_VA2PA.
  *  Returns:
  *     Valid address on success, else NULL.
  *  Requires:
  *      refs > 0
  *      paddr != NULL
- *      xType >= CMM_VA2PA) && (xType <= CMM_DSPPA2PA)
+ *      xtype >= CMM_VA2PA) && (xtype <= CMM_DSPPA2PA)
  *  Ensures:
  *
  */
 extern void *cmm_xlator_translate(struct cmm_xlatorobject *xlator,
-				  void *paddr, enum cmm_xlatetype xType);
+				  void *paddr, enum cmm_xlatetype xtype);
 
 #endif /* CMM_ */

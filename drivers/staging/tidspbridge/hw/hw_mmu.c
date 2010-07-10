@@ -90,7 +90,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  *       Description     : It indicates the TLB entry is preserved entry
  *							or not
  *
- *       Identifier      : validBit
+ *       Identifier      : valid_bit
  *       Type		: const u32
  *       Description     : It indicates the TLB entry is valid entry or not
  *
@@ -115,7 +115,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
 static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 				   const u32 page_sz,
 				   const u32 preserved_bit,
-				   const u32 validBit,
+				   const u32 valid_bit,
 				   const u32 virtual_addr_tag);
 
 /*
@@ -194,11 +194,11 @@ hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
 }
 
 hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
-				u32 victimEntryNum)
+				u32 victim_entry_num)
 {
 	hw_status status = RET_OK;
 
-	MMUMMU_LOCK_CURRENT_VICTIM_WRITE32(base_address, victimEntryNum);
+	MMUMMU_LOCK_CURRENT_VICTIM_WRITE32(base_address, victim_entry_num);
 
 	return status;
 }
@@ -293,7 +293,7 @@ hw_status hw_mmu_twl_disable(const void __iomem *base_address)
 	return status;
 }
 
-hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtualAddr,
+hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtual_addr,
 			   u32 page_sz)
 {
 	hw_status status = RET_OK;
@@ -322,7 +322,7 @@ hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtualAddr,
 	}
 
 	/* Generate the 20-bit tag from virtual address */
-	virtual_addr_tag = ((virtualAddr & MMU_ADDR_MASK) >> 12);
+	virtual_addr_tag = ((virtual_addr & MMU_ADDR_MASK) >> 12);
 
 	mmu_set_cam_entry(base_address, pg_size_bits, 0, 0, virtual_addr_tag);
 
@@ -333,11 +333,11 @@ hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtualAddr,
 
 hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 			 u32 physical_addr,
-			 u32 virtualAddr,
+			 u32 virtual_addr,
 			 u32 page_sz,
 			 u32 entry_num,
 			 struct hw_mmu_map_attrs_t *map_attrs,
-			 s8 preserved_bit, s8 validBit)
+			 s8 preserved_bit, s8 valid_bit)
 {
 	hw_status status = RET_OK;
 	u32 lock_reg;
@@ -377,10 +377,10 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 	lock_reg = MMUMMU_LOCK_READ_REGISTER32(base_address);
 
 	/* Generate the 20-bit tag from virtual address */
-	virtual_addr_tag = ((virtualAddr & MMU_ADDR_MASK) >> 12);
+	virtual_addr_tag = ((virtual_addr & MMU_ADDR_MASK) >> 12);
 
 	/* Write the fields in the CAM Entry Register */
-	mmu_set_cam_entry(base_address, mmu_pg_size, preserved_bit, validBit,
+	mmu_set_cam_entry(base_address, mmu_pg_size, preserved_bit, valid_bit,
 			  virtual_addr_tag);
 
 	/* Write the different fields of the RAM Entry Register */
@@ -403,7 +403,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 
 hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 			 u32 physical_addr,
-			 u32 virtualAddr,
+			 u32 virtual_addr,
 			 u32 page_sz, struct hw_mmu_map_attrs_t *map_attrs)
 {
 	hw_status status = RET_OK;
@@ -413,7 +413,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 	switch (page_sz) {
 	case HW_PAGE_SIZE4KB:
 		pte_addr = hw_mmu_pte_addr_l2(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SMALL_PAGE_MASK);
 		pte_val =
 		    ((physical_addr & MMU_SMALL_PAGE_MASK) |
@@ -425,7 +425,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 	case HW_PAGE_SIZE64KB:
 		num_entries = 16;
 		pte_addr = hw_mmu_pte_addr_l2(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_LARGE_PAGE_MASK);
 		pte_val =
 		    ((physical_addr & MMU_LARGE_PAGE_MASK) |
@@ -436,7 +436,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 
 	case HW_PAGE_SIZE1MB:
 		pte_addr = hw_mmu_pte_addr_l1(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SECTION_ADDR_MASK);
 		pte_val =
 		    ((((physical_addr & MMU_SECTION_ADDR_MASK) |
@@ -448,7 +448,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 	case HW_PAGE_SIZE16MB:
 		num_entries = 16;
 		pte_addr = hw_mmu_pte_addr_l1(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SSECTION_ADDR_MASK);
 		pte_val =
 		    (((physical_addr & MMU_SSECTION_ADDR_MASK) |
@@ -460,7 +460,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 
 	case HW_MMU_COARSE_PAGE_SIZE:
 		pte_addr = hw_mmu_pte_addr_l1(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SECTION_ADDR_MASK);
 		pte_val = (physical_addr & MMU_PAGE_TABLE_MASK) | 1;
 		break;
@@ -475,7 +475,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 	return status;
 }
 
-hw_status hw_mmu_pte_clear(const u32 pg_tbl_va, u32 virtualAddr, u32 page_size)
+hw_status hw_mmu_pte_clear(const u32 pg_tbl_va, u32 virtual_addr, u32 page_size)
 {
 	hw_status status = RET_OK;
 	u32 pte_addr;
@@ -484,28 +484,28 @@ hw_status hw_mmu_pte_clear(const u32 pg_tbl_va, u32 virtualAddr, u32 page_size)
 	switch (page_size) {
 	case HW_PAGE_SIZE4KB:
 		pte_addr = hw_mmu_pte_addr_l2(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SMALL_PAGE_MASK);
 		break;
 
 	case HW_PAGE_SIZE64KB:
 		num_entries = 16;
 		pte_addr = hw_mmu_pte_addr_l2(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_LARGE_PAGE_MASK);
 		break;
 
 	case HW_PAGE_SIZE1MB:
 	case HW_MMU_COARSE_PAGE_SIZE:
 		pte_addr = hw_mmu_pte_addr_l1(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SECTION_ADDR_MASK);
 		break;
 
 	case HW_PAGE_SIZE16MB:
 		num_entries = 16;
 		pte_addr = hw_mmu_pte_addr_l1(pg_tbl_va,
-					      virtualAddr &
+					      virtual_addr &
 					      MMU_SSECTION_ADDR_MASK);
 		break;
 
@@ -539,7 +539,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address)
 static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 				   const u32 page_sz,
 				   const u32 preserved_bit,
-				   const u32 validBit,
+				   const u32 valid_bit,
 				   const u32 virtual_addr_tag)
 {
 	hw_status status = RET_OK;
@@ -550,7 +550,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
 
 	mmu_cam_reg = (virtual_addr_tag << 12);
-	mmu_cam_reg = (mmu_cam_reg) | (page_sz) | (validBit << 2) |
+	mmu_cam_reg = (mmu_cam_reg) | (page_sz) | (valid_bit << 2) |
 	    (preserved_bit << 3);
 
 	/* write values to register */

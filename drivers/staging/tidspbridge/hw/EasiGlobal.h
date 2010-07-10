@@ -36,6 +36,6 @@
  *
  * NOTE:         We currently dont use this functionality.
  */
-#define _DEBUG_LEVEL1_EASI(easiNum)     ((void)0)
+#define _DEBUG_LEVEL1_EASI(easi_num)     ((void)0)
 
 #endif /* _EASIGLOBAL_H */
