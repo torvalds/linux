@@ -317,7 +317,7 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 	if (init_fw_cb == NULL) {
 		DEBUG2(printk("scsi%ld: %s: Unable to alloc init_cb\n",
 			      ha->host_no, __func__));
-		return 10;
+		goto exit_init_fw_cb_no_free;
 	}
 	memset(init_fw_cb, 0, sizeof(struct addr_ctrl_blk));
 
@@ -373,7 +373,7 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 exit_init_fw_cb:
 	dma_free_coherent(&ha->pdev->dev, sizeof(struct addr_ctrl_blk),
 				init_fw_cb, init_fw_cb_dma);
-
+exit_init_fw_cb_no_free:
 	return status;
 }
 
@@ -394,7 +394,7 @@ int qla4xxx_get_dhcp_ip_address(struct scsi_qla_host * ha)
 	if (init_fw_cb == NULL) {
 		printk("scsi%ld: %s: Unable to alloc init_cb\n", ha->host_no,
 		       __func__);
-		return 10;
+		return QLA_ERROR;
 	}
 
 	/* Get Initialize Firmware Control Block. */
@@ -1019,16 +1019,16 @@ int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port)
 		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
 			      ha->host_no, __func__));
 		ret_val = QLA_ERROR;
-		goto qla4xxx_send_tgts_exit;
+		goto exit_send_tgts_no_free;
 	}
 
 	ret_val = qla4xxx_get_default_ddb(ha, fw_ddb_entry_dma);
 	if (ret_val != QLA_SUCCESS)
-		goto qla4xxx_send_tgts_exit;
+		goto exit_send_tgts;
 
 	ret_val = qla4xxx_req_ddb_entry(ha, &ddb_index);
 	if (ret_val != QLA_SUCCESS)
-		goto qla4xxx_send_tgts_exit;
+		goto exit_send_tgts;
 
 	memset(fw_ddb_entry->iscsi_alias, 0,
 	       sizeof(fw_ddb_entry->iscsi_alias));
@@ -1050,9 +1050,10 @@ int qla4xxx_send_tgts(struct scsi_qla_host *ha, char *ip, uint16_t port)
 
 	ret_val = qla4xxx_set_ddb_entry(ha, ddb_index, fw_ddb_entry_dma);
 
-qla4xxx_send_tgts_exit:
+exit_send_tgts:
 	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 			  fw_ddb_entry, fw_ddb_entry_dma);
+exit_send_tgts_no_free:
 	return ret_val;
 }
 

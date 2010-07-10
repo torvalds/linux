@@ -444,17 +444,17 @@ static struct ddb_entry* qla4xxx_get_ddb_entry(struct scsi_qla_host *ha,
 	if (fw_ddb_entry == NULL) {
 		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
 			      ha->host_no, __func__));
-		return NULL;
+		goto exit_get_ddb_entry_no_free;
 	}
 
 	if (qla4xxx_get_fwddb_entry(ha, fw_ddb_index, fw_ddb_entry,
 				    fw_ddb_entry_dma, NULL, NULL,
 				    &device_state, NULL, NULL, NULL) ==
-	    QLA_ERROR) {
+				    QLA_ERROR) {
 		DEBUG2(printk("scsi%ld: %s: failed get_ddb_entry for "
 			      "fw_ddb_index %d\n", ha->host_no, __func__,
 			      fw_ddb_index));
-		return NULL;
+		goto exit_get_ddb_entry;
 	}
 
 	/* Allocate DDB if not already allocated. */
@@ -472,6 +472,7 @@ static struct ddb_entry* qla4xxx_get_ddb_entry(struct scsi_qla_host *ha,
 		}
 	}
 
+	/* if not found allocate new ddb */
 	if (!found) {
 		DEBUG2(printk("scsi%ld: %s: ddb[%d] not found - allocating "
 			      "new ddb\n", ha->host_no, __func__,
@@ -480,10 +481,11 @@ static struct ddb_entry* qla4xxx_get_ddb_entry(struct scsi_qla_host *ha,
 		ddb_entry = qla4xxx_alloc_ddb(ha, fw_ddb_index);
 	}
 
-	/* if not found allocate new ddb */
+exit_get_ddb_entry:
 	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry), fw_ddb_entry,
 			  fw_ddb_entry_dma);
 
+exit_get_ddb_entry_no_free:
 	return ddb_entry;
 }
 
@@ -511,7 +513,8 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 	if (ddb_entry == NULL) {
 		DEBUG2(printk("scsi%ld: %s: ddb_entry is NULL\n", ha->host_no,
 			      __func__));
-		goto exit_update_ddb;
+
+		goto exit_update_ddb_no_free;
 	}
 
 	/* Make sure the dma buffer is valid */
@@ -522,7 +525,7 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
 			      ha->host_no, __func__));
 
-		goto exit_update_ddb;
+		goto exit_update_ddb_no_free;
 	}
 
 	if (qla4xxx_get_fwddb_entry(ha, fw_ddb_index, fw_ddb_entry,
@@ -530,7 +533,7 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 				    &ddb_entry->fw_ddb_device_state, &conn_err,
 				    &ddb_entry->tcp_source_port_num,
 				    &ddb_entry->connection_id) ==
-	    QLA_ERROR) {
+				    QLA_ERROR) {
 		DEBUG2(printk("scsi%ld: %s: failed get_ddb_entry for "
 			      "fw_ddb_index %d\n", ha->host_no, __func__,
 			      fw_ddb_index));
@@ -605,6 +608,7 @@ exit_update_ddb:
 		dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 				  fw_ddb_entry, fw_ddb_entry_dma);
 
+exit_update_ddb_no_free:
 	return status;
 }
 
@@ -689,7 +693,7 @@ int qla4_is_relogin_allowed(struct scsi_qla_host *ha, uint32_t conn_err)
  **/
 static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 {
-	int status = QLA_SUCCESS;
+	int status = QLA_ERROR;
 	uint32_t fw_ddb_index = 0;
 	uint32_t next_fw_ddb_index = 0;
 	uint32_t ddb_state;
@@ -705,7 +709,8 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 	if (fw_ddb_entry == NULL) {
 		DEBUG2(dev_info(&ha->pdev->dev, "%s: DMA alloc failed\n",
 				__func__));
-		return QLA_ERROR;
+
+		goto exit_build_ddb_list_no_free;
 	}
 
 	dev_info(&ha->pdev->dev, "Initializing DDBs ...\n");
@@ -720,7 +725,7 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 			DEBUG2(printk("scsi%ld: %s: get_ddb_entry, "
 				      "fw_ddb_index %d failed", ha->host_no,
 				      __func__, fw_ddb_index));
-			return QLA_ERROR;
+			goto exit_build_ddb_list;
 		}
 
 		DEBUG2(printk("scsi%ld: %s: Getting DDB[%d] ddbstate=0x%x, "
@@ -750,7 +755,7 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 						"get_ddb_entry %d failed\n",
 						ha->host_no,
 						__func__, fw_ddb_index));
-					return QLA_ERROR;
+					goto exit_build_ddb_list;
 				}
 			}
 		}
@@ -770,7 +775,7 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 			DEBUG2(printk("scsi%ld: %s: Unable to allocate memory "
 				      "for device at fw_ddb_index %d\n",
 				      ha->host_no, __func__, fw_ddb_index));
-			return QLA_ERROR;
+			goto exit_build_ddb_list;
 		}
 		/* Fill in the device structure */
 		if (qla4xxx_update_ddb_entry(ha, ddb_entry, fw_ddb_index) ==
@@ -778,11 +783,10 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 			ha->fw_ddb_index_map[fw_ddb_index] =
 				(struct ddb_entry *)INVALID_ENTRY;
 
-
 			DEBUG2(printk("scsi%ld: %s: update_ddb_entry failed "
 				      "for fw_ddb_index %d.\n",
 				      ha->host_no, __func__, fw_ddb_index));
-			return QLA_ERROR;
+			goto exit_build_ddb_list;
 		}
 
 next_one:
@@ -792,8 +796,14 @@ next_one:
 			break;
 	}
 
+	status = QLA_SUCCESS;
 	dev_info(&ha->pdev->dev, "DDB list done..\n");
 
+exit_build_ddb_list:
+	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry), fw_ddb_entry,
+		fw_ddb_entry_dma);
+
+exit_build_ddb_list_no_free:
 	return status;
 }
 
