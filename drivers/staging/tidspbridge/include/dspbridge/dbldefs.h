@@ -59,11 +59,12 @@ struct dbl_symbol {
  *  ======== dbl_alloc_fxn ========
  *  Allocate memory function.  Allocate or reserve (if reserved == TRUE)
  *  "size" bytes of memory from segment "space" and return the address in
- *  *dspAddr (or starting at *dspAddr if reserve == TRUE). Returns 0 on
+ *  *dsp_address (or starting at *dsp_address if reserve == TRUE). Returns 0 on
  *  success, or an error code on failure.
  */
 typedef s32(*dbl_alloc_fxn) (void *hdl, s32 space, u32 size, u32 align,
-			     u32 *dspAddr, s32 seg_id, s32 req, bool reserved);
+			     u32 *dsp_address, s32 seg_id, s32 req,
+			     bool reserved);
 
 /*
  *  ======== dbl_free_fxn ========
@@ -102,10 +103,10 @@ typedef bool(*dbl_sym_lookup) (void *handle, void *parg, void *rmm_handle,
 /*
  *  ======== dbl_write_fxn ========
  *  Write memory function.  Write "n" HOST bytes of memory to segment "mtype"
- *  starting at address "dspAddr" from the buffer "buf".  The buffer is
+ *  starting at address "dsp_address" from the buffer "buf".  The buffer is
  *  formatted as an array of words appropriate for the DSP.
  */
-typedef s32(*dbl_write_fxn) (void *hdl, u32 dspAddr, void *buf,
+typedef s32(*dbl_write_fxn) (void *hdl, u32 dsp_address, void *buf,
 			     u32 n, s32 mtype);
 
 /*

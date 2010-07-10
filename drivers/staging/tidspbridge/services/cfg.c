@@ -197,7 +197,7 @@ bool cfg_init(void)
  *  Purpose:
  *      Store the Device Object handle and dev_node pointer for a given devnode.
  */
-int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 dwValue)
+int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 value)
 {
 	int status = 0;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
@@ -214,7 +214,7 @@ int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 dwValue)
 		/* Store the Bridge device object in the Registry */
 
 		if (!(strcmp((char *)dev_node_obj, "TIOMAP1510")))
-			drv_datap->dev_object = (void *) dwValue;
+			drv_datap->dev_object = (void *) value;
 	}
 	if (DSP_FAILED(status))
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
@@ -227,7 +227,7 @@ int cfg_set_dev_object(struct cfg_devnode *dev_node_obj, u32 dwValue)
  *  Purpose:
  *      Store the Driver Object handle
  */
-int cfg_set_object(u32 dwValue, u8 dw_type)
+int cfg_set_object(u32 value, u8 dw_type)
 {
 	int status = -EINVAL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
@@ -237,11 +237,11 @@ int cfg_set_object(u32 dwValue, u8 dw_type)
 
 	switch (dw_type) {
 	case (REG_DRV_OBJECT):
-		drv_datap->drv_object = (void *)dwValue;
+		drv_datap->drv_object = (void *)value;
 		status = 0;
 		break;
 	case (REG_MGR_OBJECT):
-		drv_datap->mgr_object = (void *)dwValue;
+		drv_datap->mgr_object = (void *)value;
 		status = 0;
 		break;
 	default:

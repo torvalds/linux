@@ -42,7 +42,7 @@
  *  Parameters:
  *      pArb:           Handle to a Device Object.
  *      hDevContext:    Handle to Bridge driver defined device info.
- *      dwDSPAddr:      Address on DSP board (Destination).
+ *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP to which to transfer.

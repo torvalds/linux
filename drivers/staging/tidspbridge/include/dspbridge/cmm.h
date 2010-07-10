@@ -205,7 +205,7 @@ extern bool cmm_init(void);
  *      hcmm_mgr:         Handle to a Cmm Mgr.
  *      lpGPPBasePA:     GPP Base Physical address.
  *      ul_size:          Size in GPP bytes.
- *      dwDSPAddrOffset  GPP PA to DSP PA Offset.
+ *      dsp_addr_offset  GPP PA to DSP PA Offset.
  *      c_factor:         Add offset if CMM_ADDTODSPPA, sub if CMM_SUBFROMDSPPA.
  *      dw_dsp_base:       DSP virtual base byte address.
  *      ul_dsp_size:       Size of DSP segment in bytes.
@@ -228,11 +228,11 @@ extern bool cmm_init(void);
 extern int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 					 unsigned int dw_gpp_base_pa,
 					 u32 ul_size,
-					 u32 dwDSPAddrOffset,
+					 u32 dsp_addr_offset,
 					 s8 c_factor,
 					 unsigned int dw_dsp_base,
 					 u32 ul_dsp_size,
-					 u32 *pulSegId, u32 dwGPPBaseBA);
+					 u32 *pulSegId, u32 gpp_base_ba);
 
 /*
  *  ======== cmm_un_register_gppsm_seg ========

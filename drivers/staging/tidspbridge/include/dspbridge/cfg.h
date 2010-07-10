@@ -189,7 +189,7 @@ extern bool cfg_init(void);
  *      Store the Device Object handle for a given devnode.
  *  Parameters:
  *      dev_node_obj:   Platform's dev_node handle we are storing value with.
- *      dwValue:    Arbitrary value to store.
+ *      value:    Arbitrary value to store.
  *  Returns:
  *      0:                Success.
  *      -EFAULT:  dev_node_obj is invalid.
@@ -200,14 +200,14 @@ extern bool cfg_init(void);
  *      0:    The Private u32 was successfully set.
  */
 extern int cfg_set_dev_object(IN struct cfg_devnode *dev_node_obj,
-				     IN u32 dwValue);
+				     IN u32 value);
 
 /*
  *  ======== CFG_SetDrvObject ========
  *  Purpose:
  *      Store the Driver Object handle.
  *  Parameters:
- *      dwValue:        Arbitrary value to store.
+ *      value:          Arbitrary value to store.
  *      dw_type          Type of Object to Store
  *  Returns:
  *      0:        Success.
@@ -217,6 +217,6 @@ extern int cfg_set_dev_object(IN struct cfg_devnode *dev_node_obj,
  *  Ensures:
  *      0:        The Private u32 was successfully set.
  */
-extern int cfg_set_object(IN u32 dwValue, u8 dw_type);
+extern int cfg_set_object(IN u32 value, u8 dw_type);
 
 #endif /* CFG_ */

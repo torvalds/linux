@@ -373,7 +373,7 @@ func_end:
  *  Purpose:
  *      Idles a particular stream.
  */
-int strm_idle(struct strm_object *hStrm, bool fFlush)
+int strm_idle(struct strm_object *hStrm, bool flush_data)
 {
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
@@ -386,11 +386,12 @@ int strm_idle(struct strm_object *hStrm, bool fFlush)
 		intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
 
 		status = (*intf_fxns->pfn_chnl_idle) (hStrm->chnl_obj,
-						      hStrm->utimeout, fFlush);
+						      hStrm->utimeout,
+						      flush_data);
 	}
 
-	dev_dbg(bridge, "%s: hStrm: %p fFlush: 0x%x status: 0x%x\n",
-		__func__, hStrm, fFlush, status);
+	dev_dbg(bridge, "%s: hStrm: %p flush_data: 0x%x status: 0x%x\n",
+		__func__, hStrm, flush_data, status);
 	return status;
 }
 

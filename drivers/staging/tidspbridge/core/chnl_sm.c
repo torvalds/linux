@@ -479,7 +479,7 @@ int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr)
  *  purpose:
  *      Flushes all the outstanding data requests on a channel.
  */
-int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 dwTimeOut)
+int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
@@ -488,7 +488,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 dwTimeOut)
 	struct chnl_ioc chnl_ioc_obj;
 	/* Check args: */
 	if (pchnl) {
-		if ((dwTimeOut == CHNL_IOCNOWAIT)
+		if ((timeout == CHNL_IOCNOWAIT)
 		    && CHNL_IS_OUTPUT(pchnl->chnl_mode)) {
 			status = -EINVAL;
 		} else {
@@ -509,7 +509,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 dwTimeOut)
 			while (!LST_IS_EMPTY(pchnl->pio_requests) &&
 			       DSP_SUCCEEDED(status)) {
 				status = bridge_chnl_get_ioc(chnl_obj,
-						dwTimeOut, &chnl_ioc_obj);
+						timeout, &chnl_ioc_obj);
 				if (DSP_FAILED(status))
 					continue;
 
@@ -566,7 +566,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
  *      I/O request.
  *      Note: Ensures Channel Invariant (see notes above).
  */
-int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 dwTimeOut,
+int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
 			    OUT struct chnl_ioc *pIOC)
 {
 	int status = 0;
@@ -582,7 +582,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 dwTimeOut,
 	/* Check args: */
 	if (!pIOC || !pchnl) {
 		status = -EFAULT;
-	} else if (dwTimeOut == CHNL_IOCNOWAIT) {
+	} else if (timeout == CHNL_IOCNOWAIT) {
 		if (LST_IS_EMPTY(pchnl->pio_completions))
 			status = -EREMOTEIO;
 
@@ -597,12 +597,12 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 dwTimeOut,
 		goto func_end;
 
 	ioc.status = CHNL_IOCSTATCOMPLETE;
-	if (dwTimeOut !=
+	if (timeout !=
 	    CHNL_IOCNOWAIT && LST_IS_EMPTY(pchnl->pio_completions)) {
-		if (dwTimeOut == CHNL_IOCINFINITE)
-			dwTimeOut = SYNC_INFINITE;
+		if (timeout == CHNL_IOCINFINITE)
+			timeout = SYNC_INFINITE;
 
-		stat_sync = sync_wait_on_event(pchnl->sync_event, dwTimeOut);
+		stat_sync = sync_wait_on_event(pchnl->sync_event, timeout);
 		if (stat_sync == -ETIME) {
 			/* No response from DSP */
 			ioc.status |= CHNL_IOCSTATTIMEOUT;
@@ -663,7 +663,7 @@ int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 dwTimeOut,
 		 *  value may be non-zero, we still have to set the event.
 		 *  Therefore, this optimization is taken out.
 		 *
-		 *  if (dwTimeOut == CHNL_IOCNOWAIT) {
+		 *  if (timeout == CHNL_IOCNOWAIT) {
 		 *    ... ensure event is set..
 		 *      sync_set_event(pchnl->sync_event);
 		 *  } */
@@ -744,8 +744,8 @@ int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr, u32 uChnlID,
  *  ======== bridge_chnl_idle ========
  *      Idles a particular channel.
  */
-int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 dwTimeOut,
-			    bool fFlush)
+int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
+			    bool flush_data)
 {
 	s8 chnl_mode;
 	struct chnl_mgr *chnl_mgr_obj;
@@ -756,9 +756,9 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 dwTimeOut,
 	chnl_mode = chnl_obj->chnl_mode;
 	chnl_mgr_obj = chnl_obj->chnl_mgr_obj;
 
-	if (CHNL_IS_OUTPUT(chnl_mode) && !fFlush) {
+	if (CHNL_IS_OUTPUT(chnl_mode) && !flush_data) {
 		/* Wait for IO completions, up to the specified timeout: */
-		status = bridge_chnl_flush_io(chnl_obj, dwTimeOut);
+		status = bridge_chnl_flush_io(chnl_obj, timeout);
 	} else {
 		status = bridge_chnl_cancel_io(chnl_obj);
 

@@ -84,7 +84,7 @@ struct rmm_target_obj {
 static u32 refs;		/* module reference count */
 
 static bool alloc_block(struct rmm_target_obj *target, u32 segid, u32 size,
-			u32 align, u32 *dspAddr);
+			u32 align, u32 *dsp_address);
 static bool free_block(struct rmm_target_obj *target, u32 segid, u32 addr,
 		       u32 size);
 
@@ -92,7 +92,7 @@ static bool free_block(struct rmm_target_obj *target, u32 segid, u32 addr,
  *  ======== rmm_alloc ========
  */
 int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
-		     u32 align, u32 *dspAddr, bool reserve)
+		     u32 align, u32 *dsp_address, bool reserve)
 {
 	struct rmm_ovly_sect *sect;
 	struct rmm_ovly_sect *prev_sect = NULL;
@@ -101,13 +101,13 @@ int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
 	int status = 0;
 
 	DBC_REQUIRE(target);
-	DBC_REQUIRE(dspAddr != NULL);
+	DBC_REQUIRE(dsp_address != NULL);
 	DBC_REQUIRE(size > 0);
 	DBC_REQUIRE(reserve || (target->num_segs > 0));
 	DBC_REQUIRE(refs > 0);
 
 	if (!reserve) {
-		if (!alloc_block(target, segid, size, align, dspAddr)) {
+		if (!alloc_block(target, segid, size, align, dsp_address)) {
 			status = -ENOMEM;
 		} else {
 			/* Increment the number of allocated blocks in this
@@ -118,7 +118,7 @@ int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
 	}
 	/* An overlay section - See if block is already in use. If not,
 	 * insert into the list in ascending address size. */
-	addr = *dspAddr;
+	addr = *dsp_address;
 	sect = (struct rmm_ovly_sect *)lst_first(target->ovly_list);
 	/*  Find place to insert new list element. List is sorted from
 	 *  smallest to largest address. */
@@ -419,7 +419,7 @@ bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
  *  first.
  */
 static bool alloc_block(struct rmm_target_obj *target, u32 segid, u32 size,
-			u32 align, u32 *dspAddr)
+			u32 align, u32 *dsp_address)
 {
 	struct rmm_header *head;
 	struct rmm_header *prevhead = NULL;
@@ -460,7 +460,7 @@ static bool alloc_block(struct rmm_target_obj *target, u32 segid, u32 size,
 			if (tmpalign)
 				free_block(target, segid, addr, tmpalign);
 
-			*dspAddr = addr + tmpalign;
+			*dsp_address = addr + tmpalign;
 			return true;
 		}
 

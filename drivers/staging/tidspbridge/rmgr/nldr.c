@@ -291,7 +291,7 @@ static int add_ovly_sect(struct nldr_object *nldr_obj,
 				struct ovly_sect **pList,
 				struct dbll_sect_info *pSectInfo,
 				bool *pExists, u32 addr, u32 bytes);
-static s32 fake_ovly_write(void *handle, u32 dspAddr, void *buf, u32 bytes,
+static s32 fake_ovly_write(void *handle, u32 dsp_address, void *buf, u32 bytes,
 			   s32 mtype);
 static void free_sects(struct nldr_object *nldr_obj,
 		       struct ovly_sect *phase_sects, u16 alloc_num);
@@ -305,9 +305,10 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
 			    enum nldr_phase phase);
 static int remote_alloc(void **pRef, u16 mem_sect_type, u32 size,
-			       u32 align, u32 *dspAddr, OPTIONAL s32 segmentId,
+			       u32 align, u32 *dsp_address,
+			       OPTIONAL s32 segmentId,
 			       OPTIONAL s32 req, bool reserve);
-static int remote_free(void **pRef, u16 space, u32 dspAddr, u32 size,
+static int remote_free(void **pRef, u16 space, u32 dsp_address, u32 size,
 			      bool reserve);
 
 static void unload_lib(struct nldr_nodeobject *nldr_node_obj,
@@ -1125,7 +1126,7 @@ static int add_ovly_sect(struct nldr_object *nldr_obj,
 /*
  *  ======== fake_ovly_write ========
  */
-static s32 fake_ovly_write(void *handle, u32 dspAddr, void *buf, u32 bytes,
+static s32 fake_ovly_write(void *handle, u32 dsp_address, void *buf, u32 bytes,
 			   s32 mtype)
 {
 	return (s32) bytes;
@@ -1623,7 +1624,7 @@ func_end:
  *  ======== remote_alloc ========
  */
 static int remote_alloc(void **pRef, u16 space, u32 size,
-			       u32 align, u32 *dspAddr,
+			       u32 align, u32 *dsp_address,
 			       OPTIONAL s32 segmentId, OPTIONAL s32 req,
 			       bool reserve)
 {
@@ -1635,7 +1636,7 @@ static int remote_alloc(void **pRef, u16 space, u32 size,
 	u16 i;
 	u16 mem_sect_type;
 	u32 word_size;
-	struct rmm_addr *rmm_addr_obj = (struct rmm_addr *)dspAddr;
+	struct rmm_addr *rmm_addr_obj = (struct rmm_addr *)dsp_address;
 	bool mem_load_req = false;
 	int status = -ENOMEM;	/* Set to fail */
 	DBC_REQUIRE(hnode);
@@ -1693,7 +1694,7 @@ static int remote_alloc(void **pRef, u16 space, u32 size,
 		/* Attempt to allocate from segid first. */
 		rmm_addr_obj->segid = segid;
 		status =
-		    rmm_alloc(rmm, segid, word_size, align, dspAddr, false);
+		    rmm_alloc(rmm, segid, word_size, align, dsp_address, false);
 		if (DSP_FAILED(status)) {
 			dev_dbg(bridge, "%s: Unable allocate from segment %d\n",
 				__func__, segid);
@@ -1710,8 +1711,8 @@ static int remote_alloc(void **pRef, u16 space, u32 size,
 			    mem_sect_type)
 				continue;
 
-			status = rmm_alloc(rmm, i, word_size, align, dspAddr,
-					   false);
+			status = rmm_alloc(rmm, i, word_size, align,
+					   dsp_address, false);
 			if (DSP_SUCCEEDED(status)) {
 				/* Save segid for freeing later */
 				rmm_addr_obj->segid = i;
@@ -1730,8 +1731,8 @@ func_cont:
 			    mem_sect_type)
 				continue;
 
-			status = rmm_alloc(rmm, i, word_size, align, dspAddr,
-					   false);
+			status = rmm_alloc(rmm, i, word_size, align,
+					   dsp_address, false);
 			if (DSP_SUCCEEDED(status)) {
 				/* Save segid */
 				rmm_addr_obj->segid = i;
@@ -1743,7 +1744,7 @@ func_cont:
 	return status;
 }
 
-static int remote_free(void **pRef, u16 space, u32 dspAddr,
+static int remote_free(void **pRef, u16 space, u32 dsp_address,
 			      u32 size, bool reserve)
 {
 	struct nldr_object *nldr_obj = (struct nldr_object *)pRef;
@@ -1760,7 +1761,7 @@ static int remote_free(void **pRef, u16 space, u32 dspAddr,
 	    (size + nldr_obj->us_dsp_word_size -
 	     1) / nldr_obj->us_dsp_word_size;
 
-	if (rmm_free(rmm, space, dspAddr, word_size, reserve))
+	if (rmm_free(rmm, space, dsp_address, word_size, reserve))
 		status = 0;
 
 	return status;

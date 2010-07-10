@@ -146,7 +146,7 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
-			     struct chnl_object *pchnl, u32 dwMask);
+			     struct chnl_object *pchnl, u32 mask);
 static u32 read_data(struct bridge_dev_context *hDevContext, void *dest,
 		     void *pSrc, u32 usize);
 static u32 write_data(struct bridge_dev_context *hDevContext, void *dest,
@@ -1081,7 +1081,7 @@ void iosm_schedule(struct io_mgr *pio_mgr)
  *      IO_Dispatch()), so just start searching from the current channel id.
  */
 static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
-			     struct chnl_object *pchnl, u32 dwMask)
+			     struct chnl_object *pchnl, u32 mask)
 {
 	u32 ret = OUTPUTNOTREADY;
 	u32 id, start_id;
@@ -1092,11 +1092,11 @@ static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
 	id = ((id == CHNL_MAXCHANNELS) ? 0 : id);
 	if (id >= CHNL_MAXCHANNELS)
 		goto func_end;
-	if (dwMask) {
+	if (mask) {
 		shift = (1 << id);
 		start_id = id;
 		do {
-			if (dwMask & shift) {
+			if (mask & shift) {
 				ret = id;
 				if (pchnl == NULL)
 					chnl_mgr_obj->dw_last_output = id;

@@ -187,16 +187,16 @@ extern int strm_get_info(struct strm_object *hStrm,
  *  ======== strm_idle ========
  *  Purpose:
  *      Idle a stream and optionally flush output data buffers.
- *      If this is an output stream and fFlush is TRUE, all data currently
+ *      If this is an output stream and flush_data is TRUE, all data currently
  *      enqueued will be discarded.
- *      If this is an output stream and fFlush is FALSE, this function
+ *      If this is an output stream and flush_data is FALSE, this function
  *      will block until all currently buffered data is output, or the timeout
  *      specified has been reached.
  *      After a successful call to strm_idle(), all buffers can immediately
  *      be reclaimed.
  *  Parameters:
  *      hStrm:          Stream handle returned from strm_open().
- *      fFlush:         If TRUE, discard output buffers.
+ *      flush_data:     If TRUE, discard output buffers.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hStrm.
@@ -206,7 +206,7 @@ extern int strm_get_info(struct strm_object *hStrm,
  *      strm_init(void) called.
  *  Ensures:
  */
-extern int strm_idle(struct strm_object *hStrm, bool fFlush);
+extern int strm_idle(struct strm_object *hStrm, bool flush_data);
 
 /*
  *  ======== strm_init ========

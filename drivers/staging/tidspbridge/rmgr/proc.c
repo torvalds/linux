@@ -389,18 +389,18 @@ func_end:
 
 static int get_exec_file(struct cfg_devnode *dev_node_obj,
 				struct dev_object *hdev_obj,
-				u32 size, char *execFile)
+				u32 size, char *exec_file)
 {
 	u8 dev_type;
 	s32 len;
 
 	dev_get_dev_type(hdev_obj, (u8 *) &dev_type);
 	if (dev_type == DSP_UNIT) {
-		return cfg_get_exec_file(dev_node_obj, size, execFile);
+		return cfg_get_exec_file(dev_node_obj, size, exec_file);
 	} else if (dev_type == IVA_UNIT) {
 		if (iva_img) {
 			len = strlen(iva_img);
-			strncpy(execFile, iva_img, len + 1);
+			strncpy(exec_file, iva_img, len + 1);
 			return 0;
 		}
 	}

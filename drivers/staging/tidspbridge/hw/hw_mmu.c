@@ -335,7 +335,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 			 u32 physicalAddr,
 			 u32 virtualAddr,
 			 u32 pageSize,
-			 u32 entryNum,
+			 u32 entry_num,
 			 struct hw_mmu_map_attrs_t *map_attrs,
 			 s8 preservedBit, s8 validBit)
 {
@@ -390,7 +390,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 
 	/* Update the MMU Lock Register */
 	/* currentVictim between lockedBaseValue and (MMU_Entries_Number - 1) */
-	MMUMMU_LOCK_CURRENT_VICTIM_WRITE32(base_address, entryNum);
+	MMUMMU_LOCK_CURRENT_VICTIM_WRITE32(base_address, entry_num);
 
 	/* Enable loading of an entry in TLB by writing 1
 	   into LD_TLB_REG register */

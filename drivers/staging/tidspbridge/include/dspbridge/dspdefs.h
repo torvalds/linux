@@ -94,7 +94,7 @@ typedef int(*fxn_brd_setstate) (struct bridge_dev_context
  *      Bring board to the BRD_RUNNING (start) state.
  *  Parameters:
  *      hDevContext:    Handle to Bridge driver defined device context.
- *      dwDSPAddr:      DSP address at which to start execution.
+ *      dsp_addr:       DSP address at which to start execution.
  *  Returns:
  *      0:        Success.
  *      -ETIMEDOUT:  Timeout occured waiting for a response from hardware.
@@ -108,7 +108,7 @@ typedef int(*fxn_brd_setstate) (struct bridge_dev_context
  *      else:           Board state is indeterminate.
  */
 typedef int(*fxn_brd_start) (struct bridge_dev_context
-				    * hDevContext, u32 dwDSPAddr);
+				    * hDevContext, u32 dsp_addr);
 
 /*
  *  ======== bridge_brd_mem_copy ========
@@ -142,7 +142,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  *      space.  Unlike bridge_brd_write, this API does reset the DSP
  *  Parameters:
  *      hDevContext:    Handle to Bridge driver defined device info.
- *      dwDSPAddr:      Address on DSP board (Destination).
+ *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP to which to transfer.
@@ -158,7 +158,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
 typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
 				       * hDevContext,
 				       IN u8 *pHostBuf,
-				       u32 dwDSPAddr, u32 ul_num_bytes,
+				       u32 dsp_addr, u32 ul_num_bytes,
 				       u32 ulMemType);
 
 /*
@@ -248,7 +248,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *hDevContext,
  *  Parameters:
  *      hDevContext:    Handle to Bridge driver defined device info.
  *      pHostBuf:       Pointer to host buffer (Destination).
- *      dwDSPAddr:      Address on DSP board (Source).
+ *      dsp_addr:       Address on DSP board (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP from which to transfer.
  *  Returns:
@@ -263,7 +263,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *hDevContext,
  */
 typedef int(*fxn_brd_read) (struct bridge_dev_context *hDevContext,
 				   OUT u8 *pHostBuf,
-				   u32 dwDSPAddr,
+				   u32 dsp_addr,
 				   u32 ul_num_bytes, u32 ulMemType);
 
 /*
@@ -273,7 +273,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *hDevContext,
  *      space.
  *  Parameters:
  *      hDevContext:    Handle to Bridge driver defined device info.
- *      dwDSPAddr:      Address on DSP board (Destination).
+ *      dsp_addr:       Address on DSP board (Destination).
  *      pHostBuf:       Pointer to host buffer (Source).
  *      ul_num_bytes:     Number of bytes to transfer.
  *      ulMemType:      Memory space on DSP to which to transfer.
@@ -288,7 +288,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *hDevContext,
  */
 typedef int(*fxn_brd_write) (struct bridge_dev_context *hDevContext,
 				    IN u8 *pHostBuf,
-				    u32 dwDSPAddr,
+				    u32 dsp_addr,
 				    u32 ul_num_bytes, u32 ulMemType);
 
 /*
@@ -351,7 +351,7 @@ typedef int(*fxn_chnl_destroy) (struct chnl_mgr *hchnl_mgr);
  *  Parameters:
  *      hdeh_mgr:        Handle to DEH manager object.
  *      ulEventMask:  Indicate the type of exception
- *      dwErrInfo:     Error information
+ *      error_info:    Error information
  *  Returns:
  *
  *  Requires:
@@ -360,7 +360,7 @@ typedef int(*fxn_chnl_destroy) (struct chnl_mgr *hchnl_mgr);
  *  Ensures:
  */
 typedef void (*fxn_deh_notify) (struct deh_mgr *hdeh_mgr,
-				u32 ulEventMask, u32 dwErrInfo);
+				u32 ulEventMask, u32 error_info);
 
 /*
  *  ======== bridge_chnl_open ========
@@ -483,7 +483,7 @@ typedef int(*fxn_chnl_addioreq) (struct chnl_object
  *      completed I/O request.
  *  Parameters:
  *      chnl_obj:          Channel object handle.
- *      dwTimeOut:      A value of CHNL_IOCNOWAIT will simply dequeue the
+ *      timeout:        A value of CHNL_IOCNOWAIT will simply dequeue the
  *                      first available IOC.
  *      pIOC:           On output, contains host buffer address, bytes
  *                      transferred, and status of I/O completion.
@@ -491,17 +491,17 @@ typedef int(*fxn_chnl_addioreq) (struct chnl_object
  *  Returns:
  *      0:        Success.
  *      -EFAULT: Invalid chnl_obj or pIOC.
- *      -EREMOTEIO:   CHNL_IOCNOWAIT was specified as the dwTimeOut parameter
+ *      -EREMOTEIO:   CHNL_IOCNOWAIT was specified as the timeout parameter
  *                      yet no I/O completions were queued.
  *  Requires:
- *      dwTimeOut == CHNL_IOCNOWAIT.
+ *      timeout == CHNL_IOCNOWAIT.
  *  Ensures:
  *      0: if there are any remaining IOC's queued before this call
  *          returns, the channel event object will be left in a signalled
  *          state.
  */
 typedef int(*fxn_chnl_getioc) (struct chnl_object *chnl_obj,
-				      u32 dwTimeOut,
+				      u32 timeout,
 				      OUT struct chnl_ioc *pIOC);
 
 /*
@@ -532,7 +532,7 @@ typedef int(*fxn_chnl_cancelio) (struct chnl_object *chnl_obj);
  *      cancel all pending IO requests.
  *  Parameters:
  *      chnl_obj:              Channel object handle.
- *      dwTimeOut:          Timeout value for flush operation.
+ *      timeout:            Timeout value for flush operation.
  *  Returns:
  *      0:            Success;
  *      S_CHNLIOREQUEST:    Returned if any IORequests are in the output queue.
@@ -542,7 +542,7 @@ typedef int(*fxn_chnl_cancelio) (struct chnl_object *chnl_obj);
  *      0:            No I/O requests will be pending on this channel.
  */
 typedef int(*fxn_chnl_flushio) (struct chnl_object *chnl_obj,
-				       u32 dwTimeOut);
+				       u32 timeout);
 
 /*
  *  ======== bridge_chnl_get_info ========
@@ -588,21 +588,21 @@ typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
  *  ======== bridge_chnl_idle ========
  *  Purpose:
  *      Idle a channel. If this is an input channel, or if this is an output
- *      channel and fFlush is TRUE, all currently enqueued buffers will be
+ *      channel and flush_data is TRUE, all currently enqueued buffers will be
  *      dequeued (data discarded for output channel).
- *      If this is an output channel and fFlush is FALSE, this function
+ *      If this is an output channel and flush_data is FALSE, this function
  *      will block until all currently buffered data is output, or the timeout
  *      specified has been reached.
  *
  *  Parameters:
  *      chnl_obj:          Channel object handle.
- *      dwTimeOut:      If output channel and fFlush is FALSE, timeout value
+ *      timeout:        If output channel and flush_data is FALSE, timeout value
  *                      to wait for buffers to be output. (Not used for
  *                      input channel).
- *      fFlush:         If output channel and fFlush is TRUE, discard any
+ *      flush_data:     If output channel and flush_data is TRUE, discard any
  *                      currently buffered data. If FALSE, wait for currently
  *                      buffered data to be output, or timeout, whichever
- *                      occurs first. fFlush is ignored for input channel.
+ *                      occurs first. flush_data is ignored for input channel.
  *  Returns:
  *      0:            Success;
  *      -EFAULT:        Invalid chnl_obj.
@@ -611,7 +611,7 @@ typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
  *  Ensures:
  */
 typedef int(*fxn_chnl_idle) (struct chnl_object *chnl_obj,
-				    u32 dwTimeOut, bool fFlush);
+				    u32 timeout, bool flush_data);
 
 /*
  *  ======== bridge_chnl_register_notify ========

@@ -28,17 +28,17 @@
  *      This function is called by Device Manager to de-initialize a device.
  *      This function is not called by applications.
  *  Parameters:
- *      dwDeviceContext:Handle to the device context. The XXX_Init function
+ *      device_context:Handle to the device context. The XXX_Init function
  *      creates and returns this identifier.
  *  Returns:
  *      TRUE indicates the device successfully de-initialized. Otherwise it
  *      returns FALSE.
  *  Requires:
- *      dwDeviceContext!= NULL. For a built in device this should never
+ *      device_context!= NULL. For a built in device this should never
  *      get called.
  *  Ensures:
  */
-extern bool dsp_deinit(u32 dwDeviceContext);
+extern bool dsp_deinit(u32 device_context);
 
 /*
  *  ======== dsp_init ========

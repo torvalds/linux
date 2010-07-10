@@ -538,7 +538,7 @@ bool cmm_init(void)
  */
 int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 				  u32 dw_gpp_base_pa, u32 ul_size,
-				  u32 dwDSPAddrOffset, s8 c_factor,
+				  u32 dsp_addr_offset, s8 c_factor,
 				  u32 dw_dsp_base, u32 ul_dsp_size,
 				  u32 *pulSegId, u32 dw_gpp_base_va)
 {
@@ -554,9 +554,9 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	DBC_REQUIRE(dw_gpp_base_va != 0);
 	DBC_REQUIRE((c_factor <= CMM_ADDTODSPPA) &&
 		    (c_factor >= CMM_SUBFROMDSPPA));
-	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dwDSPAddrOffset %x "
+	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x "
 		"dw_dsp_base %x ul_dsp_size %x dw_gpp_base_va %x\n", __func__,
-		dw_gpp_base_pa, ul_size, dwDSPAddrOffset, dw_dsp_base,
+		dw_gpp_base_pa, ul_size, dsp_addr_offset, dw_dsp_base,
 		ul_dsp_size, dw_gpp_base_va);
 	if (!hcmm_mgr) {
 		status = -EFAULT;
@@ -586,7 +586,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 		psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
 		psma->ul_sm_size = ul_size;	/* SM segment size in bytes */
 		psma->dw_vm_base = dw_gpp_base_va;
-		psma->dw_dsp_phys_addr_offset = dwDSPAddrOffset;
+		psma->dw_dsp_phys_addr_offset = dsp_addr_offset;
 		psma->c_factor = c_factor;
 		psma->dw_dsp_base = dw_dsp_base;
 		psma->ul_dsp_size = ul_dsp_size;

@@ -56,10 +56,10 @@ struct rmm_target_obj;
  *      segid           - Memory segment to allocate from.
  *      size            - Size (target MAUS) to allocate.
  *      align           - alignment.
- *      dspAddr         - If reserve is FALSE, the location to store allocated
+ *      dsp_address     - If reserve is FALSE, the location to store allocated
  *                        address on output, otherwise, the DSP address to
  *                        reserve.
- *      reserve         - If TRUE, reserve the memory specified by dspAddr.
+ *      reserve         - If TRUE, reserve the memory specified by dsp_address.
  *  Returns:
  *      0:                Success.
  *      -ENOMEM:            Memory allocation on GPP failed.
@@ -68,13 +68,13 @@ struct rmm_target_obj;
  *  Requires:
  *      RMM initialized.
  *      Valid target.
- *      dspAddr != NULL.
+ *      dsp_address != NULL.
  *      size > 0
  *      reserve || target->num_segs > 0.
  *  Ensures:
  */
 extern int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
-			    u32 align, u32 *dspAdr, bool reserve);
+			    u32 align, u32 *dsp_adr, bool reserve);
 
 /*
  *  ======== rmm_create ========
@@ -133,7 +133,7 @@ extern void rmm_exit(void);
  *  Parameters:
  *      target:         - Target returned from rmm_create().
  *      segid:          - Segment of memory to free.
- *      dspAddr:        - Address to free or unreserve.
+ *      dsp_address:    - Address to free or unreserve.
  *      size:           - Size of memory to free or unreserve.
  *      reserved:       - TRUE if memory was reserved only, otherwise FALSE.
  *  Returns:
@@ -141,10 +141,10 @@ extern void rmm_exit(void);
  *      RMM initialized.
  *      Valid target.
  *      reserved || segid < target->num_segs.
- *      reserve || [dspAddr, dspAddr + size] is a valid memory range.
+ *      reserve || [dsp_address, dsp_address + size] is a valid memory range.
  *  Ensures:
  */
-extern bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dspAddr,
+extern bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_address,
 		     u32 size, bool reserved);
 
 /*

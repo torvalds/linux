@@ -80,7 +80,7 @@ static void delete_disp(struct disp_object *disp_obj);
 static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 				  struct node_strmdef strm_def, u32 max,
 				  u32 chars_in_rms_word);
-static int send_message(struct disp_object *disp_obj, u32 dwTimeout,
+static int send_message(struct disp_object *disp_obj, u32 timeout,
 			       u32 ul_bytes, OUT u32 *pdw_arg);
 
 /*
@@ -686,7 +686,7 @@ static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
  *  ======== send_message ======
  *  Send command message to RMS, get reply from RMS.
  */
-static int send_message(struct disp_object *disp_obj, u32 dwTimeout,
+static int send_message(struct disp_object *disp_obj, u32 timeout,
 			       u32 ul_bytes, u32 *pdw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -710,7 +710,7 @@ static int send_message(struct disp_object *disp_obj, u32 dwTimeout,
 		goto func_end;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, dwTimeout, &chnl_ioc_obj);
+	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
 	if (DSP_SUCCEEDED(status)) {
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
 			if (CHNL_IS_TIMED_OUT(chnl_ioc_obj))
@@ -731,7 +731,7 @@ static int send_message(struct disp_object *disp_obj, u32 dwTimeout,
 		goto func_end;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, dwTimeout, &chnl_ioc_obj);
+	    (*intf_fxns->pfn_chnl_get_ioc) (chnl_obj, timeout, &chnl_ioc_obj);
 	if (DSP_SUCCEEDED(status)) {
 		if (CHNL_IS_TIMED_OUT(chnl_ioc_obj)) {
 			status = -ETIME;

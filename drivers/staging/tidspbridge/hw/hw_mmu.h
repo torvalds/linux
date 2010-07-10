@@ -83,7 +83,7 @@ extern hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 				u32 physicalAddr,
 				u32 virtualAddr,
 				u32 pageSize,
-				u32 entryNum,
+				u32 entry_num,
 				struct hw_mmu_map_attrs_t *map_attrs,
 				s8 preservedBit, s8 validBit);
 

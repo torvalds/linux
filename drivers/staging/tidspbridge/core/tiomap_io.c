@@ -51,7 +51,7 @@ bool symbols_reloaded = true;
  *      Copies DSP external memory buffers to the host side buffers.
  */
 int read_ext_dsp_data(struct bridge_dev_context *hDevContext,
-			     OUT u8 *pbHostBuf, u32 dwDSPAddr,
+			     OUT u8 *pbHostBuf, u32 dsp_addr,
 			     u32 ul_num_bytes, u32 ulMemType)
 {
 	int status = 0;
@@ -83,8 +83,8 @@ int read_ext_dsp_data(struct bridge_dev_context *hDevContext,
 	DBC_ASSERT(ul_trace_sec_end != 0);
 
 	if (DSP_SUCCEEDED(status)) {
-		if ((dwDSPAddr <= ul_trace_sec_end) &&
-		    (dwDSPAddr >= ul_trace_sec_beg))
+		if ((dsp_addr <= ul_trace_sec_end) &&
+		    (dsp_addr >= ul_trace_sec_beg))
 			trace_read = true;
 	}
 
@@ -165,7 +165,7 @@ int read_ext_dsp_data(struct bridge_dev_context *hDevContext,
 	if (!dw_base_addr || !ul_ext_base || !ul_ext_end)
 		status = -EPERM;
 
-	offset = dwDSPAddr - ul_ext_base;
+	offset = dsp_addr - ul_ext_base;
 
 	if (DSP_SUCCEEDED(status))
 		memcpy(pbHostBuf, (u8 *) dw_base_addr + offset, ul_num_bytes);
@@ -179,7 +179,7 @@ int read_ext_dsp_data(struct bridge_dev_context *hDevContext,
  *      Copies buffers to the DSP internal/external memory.
  */
 int write_dsp_data(struct bridge_dev_context *hDevContext,
-			  IN u8 *pbHostBuf, u32 dwDSPAddr, u32 ul_num_bytes,
+			  IN u8 *pbHostBuf, u32 dsp_addr, u32 ul_num_bytes,
 			  u32 ulMemType)
 {
 	u32 offset;
@@ -194,7 +194,7 @@ int write_dsp_data(struct bridge_dev_context *hDevContext,
 	if (!resources)
 		return -EPERM;
 
-	offset = dwDSPAddr - hDevContext->dw_dsp_start_add;
+	offset = dsp_addr - hDevContext->dw_dsp_start_add;
 	if (offset < base1) {
 		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[2],
 						  resources->dw_mem_length[2]);
@@ -225,7 +225,7 @@ int write_dsp_data(struct bridge_dev_context *hDevContext,
  *
  */
 int write_ext_dsp_data(struct bridge_dev_context *dev_context,
-			      IN u8 *pbHostBuf, u32 dwDSPAddr,
+			      IN u8 *pbHostBuf, u32 dsp_addr,
 			      u32 ul_num_bytes, u32 ulMemType,
 			      bool dynamic_load)
 {
@@ -253,8 +253,8 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 					     &ul_trace_sec_end);
 	}
 	if (DSP_SUCCEEDED(ret)) {
-		if ((dwDSPAddr <= ul_trace_sec_end) &&
-		    (dwDSPAddr >= ul_trace_sec_beg))
+		if ((dsp_addr <= ul_trace_sec_end) &&
+		    (dsp_addr >= ul_trace_sec_beg))
 			trace_load = true;
 	}
 
@@ -364,9 +364,9 @@ int write_ext_dsp_data(struct bridge_dev_context *dev_context,
 		for (i = 0; i < 4; i++)
 			remain_byte[i] = 0x0;
 
-		dw_offset = dwDSPAddr - ul_ext_base;
-		/* Also make sure the dwDSPAddr is < ul_ext_end */
-		if (dwDSPAddr > ul_ext_end || dw_offset > dwDSPAddr)
+		dw_offset = dsp_addr - ul_ext_base;
+		/* Also make sure the dsp_addr is < ul_ext_end */
+		if (dsp_addr > ul_ext_end || dw_offset > dsp_addr)
 			ret = -EPERM;
 	}
 	if (DSP_SUCCEEDED(ret)) {
