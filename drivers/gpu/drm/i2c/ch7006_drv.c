@@ -428,6 +428,22 @@ static int ch7006_remove(struct i2c_client *client)
 	return 0;
 }
 
+static int ch7006_suspend(struct i2c_client *client, pm_message_t mesg)
+{
+	ch7006_dbg(client, "\n");
+
+	return 0;
+}
+
+static int ch7006_resume(struct i2c_client *client)
+{
+	ch7006_dbg(client, "\n");
+
+	ch7006_write(client, 0x3d, 0x0);
+
+	return 0;
+}
+
 static int ch7006_encoder_init(struct i2c_client *client,
 			       struct drm_device *dev,
 			       struct drm_encoder_slave *encoder)
@@ -487,6 +503,8 @@ static struct drm_i2c_encoder_driver ch7006_driver = {
 	.i2c_driver = {
 		.probe = ch7006_probe,
 		.remove = ch7006_remove,
+		.suspend = ch7006_suspend,
+		.resume = ch7006_resume,
 
 		.driver = {
 			.name = "ch7006",
