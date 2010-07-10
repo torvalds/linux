@@ -76,17 +76,52 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 #define vc_translate(vc, c) ((vc)->vc_translate[(c) |			\
 					((vc)->vc_toggle_meta ? 0x80 : 0)])
 #else
-#define con_set_trans_old(arg) (0)
-#define con_get_trans_old(arg) (-EINVAL)
-#define con_set_trans_new(arg) (0)
-#define con_get_trans_new(arg) (-EINVAL)
-#define con_clear_unimap(vc, ui) (0)
-#define con_set_unimap(vc, ct, list) (0)
-#define con_set_default_unimap(vc) (0)
-#define con_copy_unimap(d, s) (0)
-#define con_get_unimap(vc, ct, uct, list) (-EINVAL)
-#define con_free_unimap(vc) do { ; } while (0)
-#define con_protect_unimap(vc, rdonly) do { ; } while (0)
+static inline int con_set_trans_old(unsigned char __user *table)
+{
+	return 0;
+}
+static inline int con_get_trans_old(unsigned char __user *table)
+{
+	return -EINVAL;
+}
+static inline int con_set_trans_new(unsigned short __user *table)
+{
+	return 0;
+}
+static inline int con_get_trans_new(unsigned short __user *table)
+{
+	return -EINVAL;
+}
+static inline int con_clear_unimap(struct vc_data *vc, struct unimapinit *ui)
+{
+	return 0;
+}
+static inline
+int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
+{
+	return 0;
+}
+static inline
+int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
+		   struct unipair __user *list)
+{
+	return -EINVAL;
+}
+static inline int con_set_default_unimap(struct vc_data *vc)
+{
+	return 0;
+}
+static inline void con_free_unimap(struct vc_data *vc)
+{
+}
+static inline void con_protect_unimap(struct vc_data *vc, int rdonly)
+{
+}
+static inline
+int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
+{
+	return 0;
+}
 
 #define vc_translate(vc, c) (c)
 #endif
