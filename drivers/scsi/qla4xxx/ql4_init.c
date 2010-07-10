@@ -991,6 +991,9 @@ static int qla4xxx_initialize_ddb_list(struct scsi_qla_host *ha)
 
 	qla4xxx_flush_AENS(ha);
 
+	/* Wait for an AEN */
+	qla4xxx_devices_ready(ha);
+
 	/*
 	 * First perform device discovery for active
 	 * fw ddb indexes and build
@@ -998,9 +1001,6 @@ static int qla4xxx_initialize_ddb_list(struct scsi_qla_host *ha)
 	 */
 	if ((status = qla4xxx_build_ddb_list(ha)) == QLA_ERROR)
 		return status;
-
-	/* Wait for an AEN */
-	qla4xxx_devices_ready(ha);
 
 	/*
 	 * Targets can come online after the inital discovery, so processing
