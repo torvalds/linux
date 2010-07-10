@@ -594,6 +594,9 @@ static int qla4xxx_update_ddb_entry(struct scsi_qla_host *ha,
 	memcpy(&ddb_entry->iscsi_name[0], &fw_ddb_entry->iscsi_name[0],
 	       min(sizeof(ddb_entry->iscsi_name),
 		   sizeof(fw_ddb_entry->iscsi_name)));
+	memcpy(&ddb_entry->iscsi_alias[0], &fw_ddb_entry->iscsi_alias[0],
+	       min(sizeof(ddb_entry->iscsi_alias),
+		   sizeof(fw_ddb_entry->iscsi_alias)));
 	memcpy(&ddb_entry->ip_addr[0], &fw_ddb_entry->ip_addr[0],
 	       min(sizeof(ddb_entry->ip_addr), sizeof(fw_ddb_entry->ip_addr)));
 

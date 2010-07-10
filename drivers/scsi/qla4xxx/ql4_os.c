@@ -126,7 +126,8 @@ static struct iscsi_transport qla4xxx_iscsi_transport = {
 	.caps			= CAP_FW_DB | CAP_SENDTARGETS_OFFLOAD |
 				  CAP_DATA_PATH_OFFLOAD,
 	.param_mask		= ISCSI_CONN_PORT | ISCSI_CONN_ADDRESS |
-				  ISCSI_TARGET_NAME | ISCSI_TPGT,
+				  ISCSI_TARGET_NAME | ISCSI_TPGT |
+				  ISCSI_TARGET_ALIAS,
 	.host_param_mask	= ISCSI_HOST_HWADDRESS |
 				  ISCSI_HOST_IPADDRESS |
 				  ISCSI_HOST_INITIATOR_NAME,
@@ -209,6 +210,10 @@ static int qla4xxx_sess_get_param(struct iscsi_cls_session *sess,
 		break;
 	case ISCSI_PARAM_TPGT:
 		len = sprintf(buf, "%u\n", ddb_entry->tpgt);
+		break;
+	case ISCSI_PARAM_TARGET_ALIAS:
+		len = snprintf(buf, PAGE_SIZE - 1, "%s\n",
+		    ddb_entry->iscsi_alias);
 		break;
 	default:
 		return -ENOSYS;
