@@ -269,7 +269,7 @@ int nilfs_direct_delete_and_convert(struct nilfs_bmap *bmap,
 	return 0;
 }
 
-static int nilfs_direct_propagate(const struct nilfs_bmap *bmap,
+static int nilfs_direct_propagate(struct nilfs_bmap *bmap,
 				  struct buffer_head *bh)
 {
 	struct nilfs_direct *direct = (struct nilfs_direct *)bmap;

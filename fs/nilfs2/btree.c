@@ -1899,7 +1899,7 @@ static int nilfs_btree_propagate_v(struct nilfs_btree *btree,
 	return ret;
 }
 
-static int nilfs_btree_propagate(const struct nilfs_bmap *bmap,
+static int nilfs_btree_propagate(struct nilfs_bmap *bmap,
 				 struct buffer_head *bh)
 {
 	struct nilfs_btree *btree;
@@ -1942,7 +1942,7 @@ static int nilfs_btree_propagate(const struct nilfs_bmap *bmap,
 	return ret;
 }
 
-static int nilfs_btree_propagate_gc(const struct nilfs_bmap *bmap,
+static int nilfs_btree_propagate_gc(struct nilfs_bmap *bmap,
 				    struct buffer_head *bh)
 {
 	return nilfs_dat_mark_dirty(nilfs_bmap_get_dat(bmap), bh->b_blocknr);

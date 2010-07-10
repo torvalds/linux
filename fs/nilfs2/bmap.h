@@ -66,7 +66,7 @@ struct nilfs_bmap_operations {
 	int (*bop_delete)(struct nilfs_bmap *, __u64);
 	void (*bop_clear)(struct nilfs_bmap *);
 
-	int (*bop_propagate)(const struct nilfs_bmap *, struct buffer_head *);
+	int (*bop_propagate)(struct nilfs_bmap *, struct buffer_head *);
 	void (*bop_lookup_dirty_buffers)(struct nilfs_bmap *,
 					 struct list_head *);
 
