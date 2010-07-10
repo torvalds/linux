@@ -116,13 +116,6 @@ nilfs_direct_find_target_v(const struct nilfs_bmap *direct, __u64 key)
 		return nilfs_bmap_find_target_in_group(direct);
 }
 
-static void nilfs_direct_set_target_v(struct nilfs_bmap *direct,
-				      __u64 key, __u64 ptr)
-{
-	direct->b_last_allocated_key = key;
-	direct->b_last_allocated_ptr = ptr;
-}
-
 static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 {
 	union nilfs_bmap_ptr_req req;
@@ -152,7 +145,7 @@ static int nilfs_direct_insert(struct nilfs_bmap *bmap, __u64 key, __u64 ptr)
 			nilfs_bmap_set_dirty(bmap);
 
 		if (NILFS_BMAP_USE_VBN(bmap))
-			nilfs_direct_set_target_v(bmap, key, req.bpr_ptr);
+			nilfs_bmap_set_target_v(bmap, key, req.bpr_ptr);
 
 		nilfs_bmap_add_blocks(bmap, 1);
 	}

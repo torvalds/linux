@@ -219,6 +219,13 @@ static inline void nilfs_bmap_abort_end_ptr(struct nilfs_bmap *bmap,
 		nilfs_dat_abort_end(dat, &req->bpr_req);
 }
 
+static inline void nilfs_bmap_set_target_v(struct nilfs_bmap *bmap, __u64 key,
+					   __u64 ptr)
+{
+	bmap->b_last_allocated_key = key;
+	bmap->b_last_allocated_ptr = ptr;
+}
+
 __u64 nilfs_bmap_data_get_key(const struct nilfs_bmap *,
 			      const struct buffer_head *);
 

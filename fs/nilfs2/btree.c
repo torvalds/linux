@@ -917,13 +917,6 @@ static __u64 nilfs_btree_find_target_v(const struct nilfs_bmap *btree,
 	return nilfs_bmap_find_target_in_group(btree);
 }
 
-static void nilfs_btree_set_target_v(struct nilfs_bmap *btree, __u64 key,
-				     __u64 ptr)
-{
-	btree->b_last_allocated_key = key;
-	btree->b_last_allocated_ptr = ptr;
-}
-
 static int nilfs_btree_prepare_insert(struct nilfs_bmap *btree,
 				      struct nilfs_btree_path *path,
 				      int *levelp, __u64 key, __u64 ptr,
@@ -1084,7 +1077,7 @@ static void nilfs_btree_commit_insert(struct nilfs_bmap *btree,
 	set_buffer_nilfs_volatile((struct buffer_head *)((unsigned long)ptr));
 	ptr = path[NILFS_BTREE_LEVEL_DATA].bp_newreq.bpr_ptr;
 	if (NILFS_BMAP_USE_VBN(btree)) {
-		nilfs_btree_set_target_v(btree, key, ptr);
+		nilfs_bmap_set_target_v(btree, key, ptr);
 		dat = nilfs_bmap_get_dat(btree);
 	}
 
@@ -1662,7 +1655,7 @@ nilfs_btree_commit_convert_and_insert(struct nilfs_bmap *btree,
 	}
 
 	if (NILFS_BMAP_USE_VBN(btree))
-		nilfs_btree_set_target_v(btree, key, dreq->bpr_ptr);
+		nilfs_bmap_set_target_v(btree, key, dreq->bpr_ptr);
 }
 
 /**
