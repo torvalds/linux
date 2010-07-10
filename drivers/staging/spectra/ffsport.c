@@ -272,13 +272,6 @@ static int get_res_blk_num_os(void)
 	return res_blks;
 }
 
-static void SBD_prepare_flush(struct request_queue *q, struct request *rq)
-{
-	rq->cmd_type = REQ_TYPE_LINUX_BLOCK;
-	/* rq->timeout = 5 * HZ; */
-	rq->cmd[0] = REQ_LB_OP_FLUSH;
-}
-
 /* Transfer a full request. */
 static int do_transfer(struct spectra_nand_dev *tr, struct request *req)
 {
@@ -650,8 +643,7 @@ static int SBD_setup_device(struct spectra_nand_dev *dev, int which)
 	/* Here we force report 512 byte hardware sector size to Kernel */
 	blk_queue_logical_block_size(dev->queue, 512);
 
-	blk_queue_ordered(dev->queue, QUEUE_ORDERED_DRAIN_FLUSH,
-					SBD_prepare_flush);
+	blk_queue_ordered(dev->queue, QUEUE_ORDERED_DRAIN_FLUSH);
 
 	dev->thread = kthread_run(spectra_trans_thread, dev, "nand_thd");
 	if (IS_ERR(dev->thread)) {
