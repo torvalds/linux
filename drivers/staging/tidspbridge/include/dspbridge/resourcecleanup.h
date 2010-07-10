@@ -17,7 +17,7 @@
 #include <dspbridge/nodepriv.h>
 #include <dspbridge/drv.h>
 
-extern int drv_get_proc_ctxt_list(struct process_context **pPctxt,
+extern int drv_get_proc_ctxt_list(struct process_context **pctxt,
 					 struct drv_object *hdrv_obj);
 
 extern int drv_insert_proc_context(struct drv_object *driver_obj,
@@ -29,7 +29,7 @@ extern int drv_remove_all_node_res_elements(void *ctxt);
 
 extern int drv_proc_set_pid(void *ctxt, s32 process);
 
-extern int drv_remove_all_resources(void *pPctxt);
+extern int drv_remove_all_resources(void *pctxt);
 
 extern int drv_remove_proc_context(struct drv_object *driver_obj,
 					  void *pr_ctxt);
@@ -50,7 +50,7 @@ extern int drv_proc_update_strm_res(u32 num_bufs, void *strm_res);
 
 extern int drv_proc_insert_strm_res_element(void *stream_obj,
 						   void *strm_res,
-						   void *pPctxt);
+						   void *pctxt);
 
 extern int drv_get_strm_res_element(void *stream_obj, void *strm_res,
 					   void *ctxt);

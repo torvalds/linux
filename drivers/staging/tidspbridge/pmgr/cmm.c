@@ -242,7 +242,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
  */
 int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 		      struct dev_object *hdev_obj,
-		      IN CONST struct cmm_mgrattrs *pMgrAttrs)
+		      IN CONST struct cmm_mgrattrs *mgr_attrts)
 {
 	struct cmm_object *cmm_obj = NULL;
 	int status = 0;
@@ -255,13 +255,13 @@ int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 	/* create, zero, and tag a cmm mgr object */
 	cmm_obj = kzalloc(sizeof(struct cmm_object), GFP_KERNEL);
 	if (cmm_obj != NULL) {
-		if (pMgrAttrs == NULL)
-			pMgrAttrs = &cmm_dfltmgrattrs;	/* set defaults */
+		if (mgr_attrts == NULL)
+			mgr_attrts = &cmm_dfltmgrattrs;	/* set defaults */
 
 		/* 4 bytes minimum */
-		DBC_ASSERT(pMgrAttrs->ul_min_block_size >= 4);
+		DBC_ASSERT(mgr_attrts->ul_min_block_size >= 4);
 		/* save away smallest block allocation for this cmm mgr */
-		cmm_obj->ul_min_block_size = pMgrAttrs->ul_min_block_size;
+		cmm_obj->ul_min_block_size = mgr_attrts->ul_min_block_size;
 		/* save away the systems memory page size */
 		sys_info.dw_page_size = PAGE_SIZE;
 		sys_info.dw_allocation_granularity = PAGE_SIZE;

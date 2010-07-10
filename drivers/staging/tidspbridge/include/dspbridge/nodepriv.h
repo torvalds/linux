@@ -163,7 +163,7 @@ extern enum node_type node_get_type(struct node_object *hnode);
  *  Ensures:
  */
 extern void get_node_info(struct node_object *hnode,
-			  struct dsp_nodeinfo *pNodeInfo);
+			  struct dsp_nodeinfo *node_info);
 
 /*
  *  ======== node_get_load_type ========

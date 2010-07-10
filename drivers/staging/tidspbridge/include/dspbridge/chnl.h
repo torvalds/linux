@@ -53,11 +53,11 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  *  Parameters:
  *      channel_mgr:    Location to store a channel manager object on output.
  *      hdev_obj:     Handle to a device object.
- *      pMgrAttrs:      Channel manager attributes.
- *      pMgrAttrs->max_channels:   Max channels
- *      pMgrAttrs->birq:        Channel's I/O IRQ number.
- *      pMgrAttrs->irq_shared:     TRUE if the IRQ is shareable.
- *      pMgrAttrs->word_size:   DSP Word size in equivalent PC bytes..
+ *      mgr_attrts:      Channel manager attributes.
+ *      mgr_attrts->max_channels:   Max channels
+ *      mgr_attrts->birq:        Channel's I/O IRQ number.
+ *      mgr_attrts->irq_shared:     TRUE if the IRQ is shareable.
+ *      mgr_attrts->word_size:   DSP Word size in equivalent PC bytes..
  *  Returns:
  *      0:                Success;
  *      -EFAULT:            hdev_obj is invalid.
@@ -71,7 +71,7 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  *  Requires:
  *      chnl_init(void) called.
  *      channel_mgr != NULL.
- *      pMgrAttrs != NULL.
+ *      mgr_attrts != NULL.
  *  Ensures:
  *      0:                Subsequent calls to chnl_create() for the same
  *                              board without an intervening call to
@@ -79,7 +79,7 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  */
 extern int chnl_create(OUT struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct chnl_mgrattrs *pMgrAttrs);
+			      IN CONST struct chnl_mgrattrs *mgr_attrts);
 
 /*
  *  ======== chnl_destroy ========

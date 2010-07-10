@@ -53,7 +53,7 @@ static u32 refs;
  */
 int chnl_create(OUT struct chnl_mgr **channel_mgr,
 		       struct dev_object *hdev_obj,
-		       IN CONST struct chnl_mgrattrs *pMgrAttrs)
+		       IN CONST struct chnl_mgrattrs *mgr_attrts)
 {
 	int status;
 	struct chnl_mgr *hchnl_mgr;
@@ -61,20 +61,20 @@ int chnl_create(OUT struct chnl_mgr **channel_mgr,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(channel_mgr != NULL);
-	DBC_REQUIRE(pMgrAttrs != NULL);
+	DBC_REQUIRE(mgr_attrts != NULL);
 
 	*channel_mgr = NULL;
 
 	/* Validate args: */
-	if ((0 < pMgrAttrs->max_channels) &&
-	    (pMgrAttrs->max_channels <= CHNL_MAXCHANNELS))
+	if ((0 < mgr_attrts->max_channels) &&
+	    (mgr_attrts->max_channels <= CHNL_MAXCHANNELS))
 		status = 0;
-	else if (pMgrAttrs->max_channels == 0)
+	else if (mgr_attrts->max_channels == 0)
 		status = -EINVAL;
 	else
 		status = -ECHRNG;
 
-	if (pMgrAttrs->word_size == 0)
+	if (mgr_attrts->word_size == 0)
 		status = -EINVAL;
 
 	if (DSP_SUCCEEDED(status)) {
@@ -89,7 +89,7 @@ int chnl_create(OUT struct chnl_mgr **channel_mgr,
 		dev_get_intf_fxns(hdev_obj, &intf_fxns);
 		/* Let Bridge channel module finish the create: */
 		status = (*intf_fxns->pfn_chnl_create) (&hchnl_mgr, hdev_obj,
-							pMgrAttrs);
+							mgr_attrts);
 		if (DSP_SUCCEEDED(status)) {
 			/* Fill in DSP API channel module's fields of the
 			 * chnl_mgr structure */

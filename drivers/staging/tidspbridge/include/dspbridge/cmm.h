@@ -72,7 +72,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *      ph_cmm_mgr:	Location to store a communication manager handle on
  *      		output.
  *      hdev_obj: Handle to a device object.
- *      pMgrAttrs:  Comm mem manager attributes.
+ *      mgr_attrts: Comm mem manager attributes.
  *  Returns:
  *      0:        Success;
  *      -ENOMEM:    Insufficient memory for requested resources.
@@ -81,13 +81,13 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *  Requires:
  *      cmm_init(void) called.
  *      ph_cmm_mgr != NULL.
- *      pMgrAttrs->ul_min_block_size >= 4 bytes.
+ *      mgr_attrts->ul_min_block_size >= 4 bytes.
  *  Ensures:
  *
  */
 extern int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 			     struct dev_object *hdev_obj,
-			     IN CONST struct cmm_mgrattrs *pMgrAttrs);
+			     IN CONST struct cmm_mgrattrs *mgr_attrts);
 
 /*
  *  ======== cmm_destroy ========

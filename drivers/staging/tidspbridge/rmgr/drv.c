@@ -936,21 +936,21 @@ int drv_request_bridge_res_dsp(void **phost_resources)
 	return status;
 }
 
-void mem_ext_phys_pool_init(u32 poolPhysBase, u32 poolSize)
+void mem_ext_phys_pool_init(u32 pool_phys_base, u32 pool_size)
 {
 	u32 pool_virt_base;
 
 	/* get the virtual address for the physical memory pool passed */
-	pool_virt_base = (u32) ioremap(poolPhysBase, poolSize);
+	pool_virt_base = (u32) ioremap(pool_phys_base, pool_size);
 
 	if ((void **)pool_virt_base == NULL) {
 		pr_err("%s: external physical memory map failed\n", __func__);
 		ext_phys_mem_pool_enabled = false;
 	} else {
-		ext_mem_pool.phys_mem_base = poolPhysBase;
-		ext_mem_pool.phys_mem_size = poolSize;
+		ext_mem_pool.phys_mem_base = pool_phys_base;
+		ext_mem_pool.phys_mem_size = pool_size;
 		ext_mem_pool.virt_mem_base = pool_virt_base;
-		ext_mem_pool.next_phys_alloc_ptr = poolPhysBase;
+		ext_mem_pool.next_phys_alloc_ptr = pool_phys_base;
 		ext_phys_mem_pool_enabled = true;
 	}
 }

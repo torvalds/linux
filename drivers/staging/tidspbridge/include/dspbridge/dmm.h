@@ -59,7 +59,7 @@ extern int dmm_delete_tables(struct dmm_object *dmm_mgr);
 
 extern int dmm_create(OUT struct dmm_object **dmm_manager,
 			     struct dev_object *hdev_obj,
-			     IN CONST struct dmm_mgrattrs *pMgrAttrs);
+			     IN CONST struct dmm_mgrattrs *mgr_attrts);
 
 extern bool dmm_init(void);
 

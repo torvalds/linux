@@ -32,7 +32,7 @@
  *      Allocate GPP resources to manage a node on the DSP.
  *  Parameters:
  *      hprocessor:         Handle of processor that is allocating the node.
- *      pNodeId:            Pointer to a dsp_uuid for the node.
+ *      node_uuid:          Pointer to a dsp_uuid for the node.
  *      pargs:              Optional arguments to be passed to the node.
  *      attr_in:            Optional pointer to node attributes (priority,
  *                          timeout...)
@@ -49,14 +49,14 @@
  *  Requires:
  *      node_init(void) called.
  *      hprocessor != NULL.
- *      pNodeId != NULL.
+ *      node_uuid != NULL.
  *      ph_node != NULL.
  *  Ensures:
  *      0:            IsValidNode(*ph_node).
  *      error:              *ph_node == NULL.
  */
 extern int node_allocate(struct proc_object *hprocessor,
-				IN CONST struct dsp_uuid *pNodeId,
+				IN CONST struct dsp_uuid *node_uuid,
 				OPTIONAL IN CONST struct dsp_cbdata
 				*pargs, OPTIONAL IN CONST struct dsp_nodeattrin
 				*attr_in,
@@ -554,7 +554,7 @@ extern int node_terminate(struct node_object *hnode,
  *
  */
 extern int node_get_uuid_props(void *hprocessor,
-				      IN CONST struct dsp_uuid *pNodeId,
+				      IN CONST struct dsp_uuid *node_uuid,
 				      OUT struct dsp_ndbprops
 				      *node_props);
 

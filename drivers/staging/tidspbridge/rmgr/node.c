@@ -252,7 +252,7 @@ static int get_fxn_address(struct node_object *hnode, u32 * pulFxnAddr,
 				  u32 uPhase);
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
-				 CONST struct dsp_uuid *pNodeId,
+				 CONST struct dsp_uuid *node_uuid,
 				 struct dcd_genericobj *dcd_prop);
 static int get_proc_props(struct node_mgr *hnode_mgr,
 				 struct dev_object *hdev_obj);
@@ -291,7 +291,7 @@ enum node_state node_get_state(void *hnode)
  *      Allocate GPP resources to manage a node on the DSP.
  */
 int node_allocate(struct proc_object *hprocessor,
-			 IN CONST struct dsp_uuid *pNodeId,
+			 IN CONST struct dsp_uuid *node_uuid,
 			 OPTIONAL IN CONST struct dsp_cbdata *pargs,
 			 OPTIONAL IN CONST struct dsp_nodeattrin *attr_in,
 			 OUT struct node_object **ph_node,
@@ -328,7 +328,7 @@ int node_allocate(struct proc_object *hprocessor,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hprocessor != NULL);
 	DBC_REQUIRE(ph_node != NULL);
-	DBC_REQUIRE(pNodeId != NULL);
+	DBC_REQUIRE(node_uuid != NULL);
 
 	*ph_node = NULL;
 
@@ -393,12 +393,12 @@ int node_allocate(struct proc_object *hprocessor,
 	mutex_lock(&hnode_mgr->node_mgr_lock);
 
 	/* Get dsp_ndbprops from node database */
-	status = get_node_props(hnode_mgr->hdcd_mgr, pnode, pNodeId,
+	status = get_node_props(hnode_mgr->hdcd_mgr, pnode, node_uuid,
 				&(pnode->dcd_props));
 	if (DSP_FAILED(status))
 		goto func_cont;
 
-	pnode->node_uuid = *pNodeId;
+	pnode->node_uuid = *node_uuid;
 	pnode->hprocessor = hprocessor;
 	pnode->ntype = pnode->dcd_props.obj_data.node_obj.ndb_props.ntype;
 	pnode->utimeout = pnode->dcd_props.obj_data.node_obj.ndb_props.utimeout;
@@ -675,9 +675,9 @@ func_cont:
 	DBC_ENSURE((DSP_FAILED(status) && (*ph_node == NULL)) ||
 			(DSP_SUCCEEDED(status) && *ph_node));
 func_end:
-	dev_dbg(bridge, "%s: hprocessor: %p pNodeId: %p pargs: %p attr_in: %p "
-		"ph_node: %p status: 0x%x\n", __func__, hprocessor,
-		pNodeId, pargs, attr_in, ph_node, status);
+	dev_dbg(bridge, "%s: hprocessor: %p node_uuid: %p pargs: %p attr_in:"
+		" %p ph_node: %p status: 0x%x\n", __func__, hprocessor,
+		node_uuid, pargs, attr_in, ph_node, status);
 	return status;
 }
 
@@ -2860,26 +2860,26 @@ static int get_fxn_address(struct node_object *hnode, u32 * pulFxnAddr,
  *  Purpose:
  *      Retrieves the node information.
  */
-void get_node_info(struct node_object *hnode, struct dsp_nodeinfo *pNodeInfo)
+void get_node_info(struct node_object *hnode, struct dsp_nodeinfo *node_info)
 {
 	u32 i;
 
 	DBC_REQUIRE(hnode);
-	DBC_REQUIRE(pNodeInfo != NULL);
+	DBC_REQUIRE(node_info != NULL);
 
-	pNodeInfo->cb_struct = sizeof(struct dsp_nodeinfo);
-	pNodeInfo->nb_node_database_props =
+	node_info->cb_struct = sizeof(struct dsp_nodeinfo);
+	node_info->nb_node_database_props =
 	    hnode->dcd_props.obj_data.node_obj.ndb_props;
-	pNodeInfo->execution_priority = hnode->prio;
-	pNodeInfo->device_owner = hnode->device_owner;
-	pNodeInfo->number_streams = hnode->num_inputs + hnode->num_outputs;
-	pNodeInfo->node_env = hnode->node_env;
+	node_info->execution_priority = hnode->prio;
+	node_info->device_owner = hnode->device_owner;
+	node_info->number_streams = hnode->num_inputs + hnode->num_outputs;
+	node_info->node_env = hnode->node_env;
 
-	pNodeInfo->ns_execution_state = node_get_state(hnode);
+	node_info->ns_execution_state = node_get_state(hnode);
 
 	/* Copy stream connect data */
 	for (i = 0; i < hnode->num_inputs + hnode->num_outputs; i++)
-		pNodeInfo->sc_stream_connection[i] = hnode->stream_connect[i];
+		node_info->sc_stream_connection[i] = hnode->stream_connect[i];
 
 }
 
@@ -2890,7 +2890,7 @@ void get_node_info(struct node_object *hnode, struct dsp_nodeinfo *pNodeInfo)
  */
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
-				 CONST struct dsp_uuid *pNodeId,
+				 CONST struct dsp_uuid *node_uuid,
 				 struct dcd_genericobj *dcd_prop)
 {
 	u32 len;
@@ -2902,14 +2902,14 @@ static int get_node_props(struct dcd_manager *hdcd_mgr,
 	int status = 0;
 	char sz_uuid[MAXUUIDLEN];
 
-	status = dcd_get_object_def(hdcd_mgr, (struct dsp_uuid *)pNodeId,
+	status = dcd_get_object_def(hdcd_mgr, (struct dsp_uuid *)node_uuid,
 				    DSP_DCDNODETYPE, dcd_prop);
 
 	if (DSP_SUCCEEDED(status)) {
 		hnode->ntype = node_type = pndb_props->ntype;
 
 		/* Create UUID value to set in registry. */
-		uuid_uuid_to_string((struct dsp_uuid *)pNodeId, sz_uuid,
+		uuid_uuid_to_string((struct dsp_uuid *)node_uuid, sz_uuid,
 				    MAXUUIDLEN);
 		dev_dbg(bridge, "(node) UUID: %s\n", sz_uuid);
 
@@ -3006,7 +3006,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
  *      Fetch Node UUID properties from DCD/DOF file.
  */
 int node_get_uuid_props(void *hprocessor,
-			       IN CONST struct dsp_uuid *pNodeId,
+			       IN CONST struct dsp_uuid *node_uuid,
 			       OUT struct dsp_ndbprops *node_props)
 {
 	struct node_mgr *hnode_mgr = NULL;
@@ -3017,9 +3017,9 @@ int node_get_uuid_props(void *hprocessor,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hprocessor != NULL);
-	DBC_REQUIRE(pNodeId != NULL);
+	DBC_REQUIRE(node_uuid != NULL);
 
-	if (hprocessor == NULL || pNodeId == NULL) {
+	if (hprocessor == NULL || node_uuid == NULL) {
 		status = -EFAULT;
 		goto func_end;
 	}
@@ -3057,7 +3057,7 @@ int node_get_uuid_props(void *hprocessor,
 	dcd_node_props.pstr_i_alg_name = NULL;
 
 	status = dcd_get_object_def(hnode_mgr->hdcd_mgr,
-		(struct dsp_uuid *)pNodeId, DSP_DCDNODETYPE,
+		(struct dsp_uuid *)node_uuid, DSP_DCDNODETYPE,
 		(struct dcd_genericobj *)&dcd_node_props);
 
 	if (DSP_SUCCEEDED(status)) {

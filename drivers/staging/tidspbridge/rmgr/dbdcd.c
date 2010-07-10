@@ -69,10 +69,10 @@ static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size);
 static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size);
 static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
-				   IN OUT u16 *pNumLibs,
-				   OPTIONAL OUT u16 *pNumPersLibs,
+				   IN OUT u16 *num_libs,
+				   OPTIONAL OUT u16 *num_pers_libs,
 				   OPTIONAL OUT struct dsp_uuid *dep_lib_uuids,
-				   OPTIONAL OUT bool *pPersistentDepLibs,
+				   OPTIONAL OUT bool *prstnt_dep_libs,
 				   IN enum nldr_phase phase);
 
 /*
@@ -328,7 +328,7 @@ void dcd_exit(void)
 int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 			    IN struct dsp_uuid *uuid_obj,
 			    u16 num_libs, OUT struct dsp_uuid *dep_lib_uuids,
-			    OUT bool *pPersistentDepLibs,
+			    OUT bool *prstnt_dep_libs,
 			    IN enum nldr_phase phase)
 {
 	int status = 0;
@@ -337,11 +337,11 @@ int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 	DBC_REQUIRE(hdcd_mgr);
 	DBC_REQUIRE(uuid_obj != NULL);
 	DBC_REQUIRE(dep_lib_uuids != NULL);
-	DBC_REQUIRE(pPersistentDepLibs != NULL);
+	DBC_REQUIRE(prstnt_dep_libs != NULL);
 
 	status =
 	    get_dep_lib_info(hdcd_mgr, uuid_obj, &num_libs, NULL, dep_lib_uuids,
-			     pPersistentDepLibs, phase);
+			     prstnt_dep_libs, phase);
 
 	return status;
 }
@@ -351,18 +351,18 @@ int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
  */
 int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
 				IN struct dsp_uuid *uuid_obj,
-				OUT u16 *pNumLibs, OUT u16 *pNumPersLibs,
+				OUT u16 *num_libs, OUT u16 *num_pers_libs,
 				IN enum nldr_phase phase)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hdcd_mgr);
-	DBC_REQUIRE(pNumLibs != NULL);
-	DBC_REQUIRE(pNumPersLibs != NULL);
+	DBC_REQUIRE(num_libs != NULL);
+	DBC_REQUIRE(num_pers_libs != NULL);
 	DBC_REQUIRE(uuid_obj != NULL);
 
-	status = get_dep_lib_info(hdcd_mgr, uuid_obj, pNumLibs, pNumPersLibs,
+	status = get_dep_lib_info(hdcd_mgr, uuid_obj, num_libs, num_pers_libs,
 				  NULL, NULL, phase);
 
 	return status;
@@ -375,9 +375,9 @@ int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *      object type.
  */
 int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
-			      IN struct dsp_uuid *pObjUuid,
+			      IN struct dsp_uuid *obj_uuid,
 			      IN enum dsp_dcdobjtype obj_type,
-			      OUT struct dcd_genericobj *pObjDef)
+			      OUT struct dcd_genericobj *obj_def)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;	/* ptr to DCD mgr */
 	struct cod_libraryobj *lib = NULL;
@@ -394,8 +394,8 @@ int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
 	char sz_obj_type[MAX_INT2CHAR_LENGTH];	/* str. rep. of obj_type. */
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pObjDef != NULL);
-	DBC_REQUIRE(pObjUuid != NULL);
+	DBC_REQUIRE(obj_def != NULL);
+	DBC_REQUIRE(obj_uuid != NULL);
 
 	sz_uuid = kzalloc(MAXUUIDLEN, GFP_KERNEL);
 	if (!sz_uuid) {
@@ -436,7 +436,7 @@ int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
 		}
 
 		/* Create UUID value to set in registry. */
-		uuid_uuid_to_string(pObjUuid, sz_uuid, MAXUUIDLEN);
+		uuid_uuid_to_string(obj_uuid, sz_uuid, MAXUUIDLEN);
 
 		if ((strlen(sz_reg_key) + MAXUUIDLEN) < DCD_MAXPATHLENGTH)
 			strncat(sz_reg_key, sz_uuid, MAXUUIDLEN);
@@ -512,7 +512,7 @@ int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
 
 		/* Parse the content of the COFF buffer. */
 		status =
-		    get_attrs_from_buf(psz_coff_buf, ul_len, obj_type, pObjDef);
+		    get_attrs_from_buf(psz_coff_buf, ul_len, obj_type, obj_def);
 		if (DSP_FAILED(status))
 			status = -EACCES;
 	} else {
@@ -1393,10 +1393,10 @@ static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size)
  */
 static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
-				   IN OUT u16 *pNumLibs,
-				   OPTIONAL OUT u16 *pNumPersLibs,
+				   IN OUT u16 *num_libs,
+				   OPTIONAL OUT u16 *num_pers_libs,
 				   OPTIONAL OUT struct dsp_uuid *dep_lib_uuids,
-				   OPTIONAL OUT bool *pPersistentDepLibs,
+				   OPTIONAL OUT bool *prstnt_dep_libs,
 				   enum nldr_phase phase)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;
@@ -1416,14 +1416,14 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 	DBC_REQUIRE(refs > 0);
 
 	DBC_REQUIRE(hdcd_mgr);
-	DBC_REQUIRE(pNumLibs != NULL);
+	DBC_REQUIRE(num_libs != NULL);
 	DBC_REQUIRE(uuid_obj != NULL);
 
 	/*  Initialize to 0 dependent libraries, if only counting number of
 	 *  dependent libraries */
 	if (!get_uuids) {
-		*pNumLibs = 0;
-		*pNumPersLibs = 0;
+		*num_libs = 0;
+		*num_pers_libs = 0;
 	}
 
 	/* Allocate a buffer for file name */
@@ -1472,7 +1472,7 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 	psz_cur = psz_coff_buf;
 	while ((token = strsep(&psz_cur, seps)) && *token != '\0') {
 		if (get_uuids) {
-			if (dep_libs >= *pNumLibs) {
+			if (dep_libs >= *num_libs) {
 				/* Gone beyond the limit */
 				break;
 			} else {
@@ -1482,17 +1482,17 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 							[dep_libs]));
 				/* Is this library persistent? */
 				token = strsep(&psz_cur, seps);
-				pPersistentDepLibs[dep_libs] = atoi(token);
+				prstnt_dep_libs[dep_libs] = atoi(token);
 				dep_libs++;
 			}
 		} else {
 			/* Advanc to next token */
 			token = strsep(&psz_cur, seps);
 			if (atoi(token))
-				(*pNumPersLibs)++;
+				(*num_pers_libs)++;
 
 			/* Just counting number of dependent libraries */
-			(*pNumLibs)++;
+			(*num_libs)++;
 		}
 	}
 func_cont:

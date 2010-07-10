@@ -103,7 +103,7 @@ static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 				     u32 ulVirtAddr, u32 ul_num_bytes);
 static int bridge_dev_create(OUT struct bridge_dev_context
-					**ppDevContext,
+					**dev_cntxt,
 					struct dev_object *hdev_obj,
 					IN struct cfg_hostres *config_param);
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
@@ -236,7 +236,7 @@ static void bad_page_dump(u32 pa, struct page *pg)
  *  purpose:
  *      Bridge Driver entry point.
  */
-void bridge_drv_entry(OUT struct bridge_drv_interface **ppDrvInterface,
+void bridge_drv_entry(OUT struct bridge_drv_interface **drv_intf,
 		   IN CONST char *driver_file_name)
 {
 
@@ -245,7 +245,7 @@ void bridge_drv_entry(OUT struct bridge_drv_interface **ppDrvInterface,
 	io_sm_init();		/* Initialization of io_sm module */
 
 	if (strcmp(driver_file_name, "UMA") == 0)
-		*ppDrvInterface = &drv_interface_fxns;
+		*drv_intf = &drv_interface_fxns;
 	else
 		dev_dbg(bridge, "%s Unknown Bridge file name", __func__);
 
@@ -792,7 +792,7 @@ static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
  *      Creates a driver object. Puts DSP in self loop.
  */
 static int bridge_dev_create(OUT struct bridge_dev_context
-					**ppDevContext,
+					**dev_cntxt,
 					struct dev_object *hdev_obj,
 					IN struct cfg_hostres *config_param)
 {
@@ -930,7 +930,7 @@ static int bridge_dev_create(OUT struct bridge_dev_context
 		dev_context->dw_brd_state = BRD_STOPPED;
 		dev_context->resources = resources;
 		/* Return ptr to our device state to the DSP API for storage */
-		*ppDevContext = dev_context;
+		*dev_cntxt = dev_context;
 	} else {
 		if (pt_attrs != NULL) {
 			kfree(pt_attrs->pg_info);

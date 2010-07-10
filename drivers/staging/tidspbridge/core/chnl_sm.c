@@ -382,7 +382,7 @@ func_cont:
  */
 int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct chnl_mgrattrs *pMgrAttrs)
+			      IN CONST struct chnl_mgrattrs *mgr_attrts)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = NULL;
@@ -390,10 +390,10 @@ int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 
 	/* Check DBC requirements: */
 	DBC_REQUIRE(channel_mgr != NULL);
-	DBC_REQUIRE(pMgrAttrs != NULL);
-	DBC_REQUIRE(pMgrAttrs->max_channels > 0);
-	DBC_REQUIRE(pMgrAttrs->max_channels <= CHNL_MAXCHANNELS);
-	DBC_REQUIRE(pMgrAttrs->word_size != 0);
+	DBC_REQUIRE(mgr_attrts != NULL);
+	DBC_REQUIRE(mgr_attrts->max_channels > 0);
+	DBC_REQUIRE(mgr_attrts->max_channels <= CHNL_MAXCHANNELS);
+	DBC_REQUIRE(mgr_attrts->word_size != 0);
 
 	/* Allocate channel manager object */
 	chnl_mgr_obj = kzalloc(sizeof(struct chnl_mgr), GFP_KERNEL);
@@ -401,10 +401,10 @@ int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 		/*
 		 * The max_channels attr must equal the # of supported chnls for
 		 * each transport(# chnls for PCPY = DDMA = ZCPY): i.e.
-		 *      pMgrAttrs->max_channels = CHNL_MAXCHANNELS =
+		 *      mgr_attrts->max_channels = CHNL_MAXCHANNELS =
 		 *                       DDMA_MAXDDMACHNLS = DDMA_MAXZCPYCHNLS.
 		 */
-		DBC_ASSERT(pMgrAttrs->max_channels == CHNL_MAXCHANNELS);
+		DBC_ASSERT(mgr_attrts->max_channels == CHNL_MAXCHANNELS);
 		max_channels = CHNL_MAXCHANNELS + CHNL_MAXCHANNELS * CHNL_PCPY;
 		/* Create array of channels */
 		chnl_mgr_obj->ap_channel = kzalloc(sizeof(struct chnl_object *)
@@ -412,7 +412,7 @@ int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 		if (chnl_mgr_obj->ap_channel) {
 			/* Initialize chnl_mgr object */
 			chnl_mgr_obj->dw_type = CHNL_TYPESM;
-			chnl_mgr_obj->word_size = pMgrAttrs->word_size;
+			chnl_mgr_obj->word_size = mgr_attrts->word_size;
 			/* Total # chnls supported */
 			chnl_mgr_obj->max_channels = max_channels;
 			chnl_mgr_obj->open_channels = 0;
@@ -710,22 +710,22 @@ func_end:
  *      Retrieve information related to the channel manager.
  */
 int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr, u32 uChnlID,
-				 OUT struct chnl_mgrinfo *pMgrInfo)
+				 OUT struct chnl_mgrinfo *mgr_info)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = (struct chnl_mgr *)hchnl_mgr;
 
-	if (pMgrInfo != NULL) {
+	if (mgr_info != NULL) {
 		if (uChnlID <= CHNL_MAXCHANNELS) {
 			if (hchnl_mgr) {
 				/* Return the requested information: */
-				pMgrInfo->chnl_obj =
+				mgr_info->chnl_obj =
 				    chnl_mgr_obj->ap_channel[uChnlID];
-				pMgrInfo->open_channels =
+				mgr_info->open_channels =
 				    chnl_mgr_obj->open_channels;
-				pMgrInfo->dw_type = chnl_mgr_obj->dw_type;
+				mgr_info->dw_type = chnl_mgr_obj->dw_type;
 				/* total # of chnls */
-				pMgrInfo->max_channels =
+				mgr_info->max_channels =
 				    chnl_mgr_obj->max_channels;
 			} else {
 				status = -EFAULT;

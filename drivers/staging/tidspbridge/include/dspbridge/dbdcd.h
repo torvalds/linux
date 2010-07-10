@@ -155,7 +155,7 @@ extern void dcd_exit(void);
  *      uuid_obj: Pointer to a dsp_uuid for a library.
  *      num_libs: Size of uuid array (number of library uuids).
  *      dep_lib_uuids: Array of dependent library uuids to be filled in.
- *      pPersistentDepLibs: Array indicating if corresponding lib is persistent.
+ *      prstnt_dep_libs:    Array indicating if corresponding lib is persistent.
  *      phase: phase to obtain correct input library
  *  Returns:
  *      0: Success.
@@ -173,7 +173,7 @@ extern int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
 				   u16 num_libs,
 				   OUT struct dsp_uuid *dep_lib_uuids,
-				   OUT bool *pPersistentDepLibs,
+				   OUT bool *prstnt_dep_libs,
 				   IN enum nldr_phase phase);
 
 /*
@@ -184,8 +184,8 @@ extern int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *  Parameters:
  *      hdcd_mgr:        A DCD manager handle.
  *      uuid_obj:          Pointer to a dsp_uuid for a library.
- *      pNumLibs:       Size of uuid array (number of library uuids).
- *      pNumPersLibs:   number of persistent dependent library.
+ *      num_libs:       Size of uuid array (number of library uuids).
+ *      num_pers_libs:  number of persistent dependent library.
  *      phase:          Phase to obtain correct input library
  *  Returns:
  *      0: Success.
@@ -196,13 +196,13 @@ extern int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *      DCD initialized.
  *      Valid hdcd_mgr.
  *      uuid_obj != NULL
- *      pNumLibs != NULL.
+ *      num_libs != NULL.
  *  Ensures:
  */
 extern int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
 				       IN struct dsp_uuid *uuid_obj,
-				       OUT u16 *pNumLibs,
-				       OUT u16 *pNumPersLibs,
+				       OUT u16 *num_libs,
+				       OUT u16 *num_pers_libs,
 				       IN enum nldr_phase phase);
 
 /*
@@ -247,7 +247,7 @@ extern int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
  *                          DSP/BIOS Bridge object.
  *      obj_type:            The type of DSP/BIOS Bridge object to be
  *                          referenced (node, processor, etc).
- *      pObjDef:            Pointer to an object definition structure. A
+ *      obj_def:            Pointer to an object definition structure. A
  *                          union of various possible DCD object types.
  *  Returns:
  *      0: Success.
@@ -257,14 +257,14 @@ extern int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
  *      -EFAULT:        Invalid DCD_HMANAGER handle.
  *  Requires:
  *      DCD initialized.
- *      pObjUuid is non-NULL.
- *      pObjDef is non-NULL.
+ *      obj_uuid is non-NULL.
+ *      obj_def is non-NULL.
  *  Ensures:
  */
 extern int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
-				     IN struct dsp_uuid *pObjUuid,
+				     IN struct dsp_uuid *obj_uuid,
 				     IN enum dsp_dcdobjtype obj_type,
-				     OUT struct dcd_genericobj *pObjDef);
+				     OUT struct dcd_genericobj *obj_def);
 
 /*
  *  ======== dcd_get_objects ========

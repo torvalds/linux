@@ -430,15 +430,15 @@ void bridge_recover_schedule(void);
  *      allocations.
  *      physical address based on the page frame address.
  *  Parameters:
- *      poolPhysBase  starting address of the physical memory pool.
- *      poolSize      size of the physical memory pool.
+ *      pool_phys_base  starting address of the physical memory pool.
+ *      pool_size      size of the physical memory pool.
  *  Returns:
  *      none.
  *  Requires:
  *      - MEM initialized.
  *      - valid physical address for the base and size > 0
  */
-extern void mem_ext_phys_pool_init(IN u32 poolPhysBase, IN u32 poolSize);
+extern void mem_ext_phys_pool_init(IN u32 pool_phys_base, IN u32 pool_size);
 
 /*
  *  ======== mem_ext_phys_pool_release ========
@@ -502,7 +502,7 @@ extern void mem_free_phys_mem(void *pVirtualAddress,
  *      If valid linear address is returned, be sure to call
  *      MEM_UNMAP_LINEAR_ADDRESS().
  */
-#define MEM_LINEAR_ADDRESS(pPhyAddr, byte_size) pPhyAddr
+#define MEM_LINEAR_ADDRESS(phy_addr, byte_size) phy_addr
 
 /*
  *  ======== MEM_UNMAP_LINEAR_ADDRESS ========

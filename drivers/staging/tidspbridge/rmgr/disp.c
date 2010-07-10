@@ -252,7 +252,7 @@ int disp_node_create(struct disp_object *disp_obj,
 			    struct node_object *hnode, u32 ulRMSFxn,
 			    u32 ul_create_fxn,
 			    IN CONST struct node_createargs *pargs,
-			    OUT nodeenv *pNodeEnv)
+			    OUT nodeenv *node_env)
 {
 	struct node_msgargs node_msg_args;
 	struct node_taskargs task_arg_obj;
@@ -282,7 +282,7 @@ int disp_node_create(struct disp_object *disp_obj,
 	DBC_REQUIRE(disp_obj);
 	DBC_REQUIRE(hnode != NULL);
 	DBC_REQUIRE(node_get_type(hnode) != NODE_DEVICE);
-	DBC_REQUIRE(pNodeEnv != NULL);
+	DBC_REQUIRE(node_env != NULL);
 
 	status = dev_get_dev_type(disp_obj->hdev_obj, &dev_type);
 
@@ -461,7 +461,7 @@ int disp_node_create(struct disp_object *disp_obj,
 		ul_bytes = total * sizeof(rms_word);
 		DBC_ASSERT(ul_bytes < (RMS_COMMANDBUFSIZE * sizeof(rms_word)));
 		status = send_message(disp_obj, node_get_timeout(hnode),
-				      ul_bytes, pNodeEnv);
+				      ul_bytes, node_env);
 		if (DSP_SUCCEEDED(status)) {
 			/*
 			 * Message successfully received from RMS.

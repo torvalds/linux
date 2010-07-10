@@ -128,7 +128,7 @@ extern int disp_node_change_priority(struct disp_object
  *      ul_fxn_addr:      Address or RMS create node function.
  *      ul_create_fxn:    Address of node's create function.
  *      pargs:          Arguments to pass to RMS node create function.
- *      pNodeEnv:       Location to store node environment pointer on
+ *      node_env:       Location to store node environment pointer on
  *                      output.
  *  Returns:
  *      0:        Success.
@@ -139,7 +139,7 @@ extern int disp_node_change_priority(struct disp_object
  *      Valid disp_obj.
  *      pargs != NULL.
  *      hnode != NULL.
- *      pNodeEnv != NULL.
+ *      node_env != NULL.
  *      node_get_type(hnode) != NODE_DEVICE.
  *  Ensures:
  */
@@ -148,7 +148,7 @@ extern int disp_node_create(struct disp_object *disp_obj,
 				   u32 ul_fxn_addr,
 				   u32 ul_create_fxn,
 				   IN CONST struct node_createargs
-				   *pargs, OUT nodeenv *pNodeEnv);
+				   *pargs, OUT nodeenv *node_env);
 
 /*
  *  ======== disp_node_delete ========

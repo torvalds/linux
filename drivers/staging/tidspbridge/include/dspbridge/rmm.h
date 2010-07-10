@@ -166,7 +166,7 @@ extern bool rmm_init(void);
  *
  *  Parameters:
  *      segid:       Segment ID of the dynamic loading segment.
- *      pMemStatBuf: Pointer to allocated buffer into which memory stats are
+ *      mem_stat_buf: Pointer to allocated buffer into which memory stats are
  *                   placed.
  *  Returns:
  *      TRUE:   Success.
@@ -176,6 +176,6 @@ extern bool rmm_init(void);
  *  Ensures:
  */
 extern bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
-		     struct dsp_memstat *pMemStatBuf);
+		     struct dsp_memstat *mem_stat_buf);
 
 #endif /* RMM_ */

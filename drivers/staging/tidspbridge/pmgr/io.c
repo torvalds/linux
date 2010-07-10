@@ -47,7 +47,7 @@ static u32 refs;
  *      CHNL and msg_ctrl
  */
 int io_create(OUT struct io_mgr **io_man, struct dev_object *hdev_obj,
-		     IN CONST struct io_attrs *pMgrAttrs)
+		     IN CONST struct io_attrs *mgr_attrts)
 {
 	struct bridge_drv_interface *intf_fxns;
 	struct io_mgr *hio_mgr = NULL;
@@ -56,15 +56,15 @@ int io_create(OUT struct io_mgr **io_man, struct dev_object *hdev_obj,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(io_man != NULL);
-	DBC_REQUIRE(pMgrAttrs != NULL);
+	DBC_REQUIRE(mgr_attrts != NULL);
 
 	*io_man = NULL;
 
 	/* A memory base of 0 implies no memory base: */
-	if ((pMgrAttrs->shm_base != 0) && (pMgrAttrs->usm_length == 0))
+	if ((mgr_attrts->shm_base != 0) && (mgr_attrts->usm_length == 0))
 		status = -EINVAL;
 
-	if (pMgrAttrs->word_size == 0)
+	if (mgr_attrts->word_size == 0)
 		status = -EINVAL;
 
 	if (DSP_SUCCEEDED(status)) {
@@ -72,7 +72,7 @@ int io_create(OUT struct io_mgr **io_man, struct dev_object *hdev_obj,
 
 		/* Let Bridge channel module finish the create: */
 		status = (*intf_fxns->pfn_io_create) (&hio_mgr, hdev_obj,
-						      pMgrAttrs);
+						      mgr_attrts);
 
 		if (DSP_SUCCEEDED(status)) {
 			pio_mgr = (struct io_mgr_ *)hio_mgr;

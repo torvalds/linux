@@ -163,7 +163,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
  */
 int bridge_io_create(OUT struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
-			    IN CONST struct io_attrs *pMgrAttrs)
+			    IN CONST struct io_attrs *mgr_attrts)
 {
 	int status = 0;
 	struct io_mgr *pio_mgr = NULL;
@@ -174,7 +174,7 @@ int bridge_io_create(OUT struct io_mgr **io_man,
 	u8 dev_type;
 
 	/* Check requirements */
-	if (!io_man || !pMgrAttrs || pMgrAttrs->word_size == 0) {
+	if (!io_man || !mgr_attrts || mgr_attrts->word_size == 0) {
 		status = -EFAULT;
 		goto func_end;
 	}
@@ -214,7 +214,7 @@ int bridge_io_create(OUT struct io_mgr **io_man,
 	pio_mgr->pmsg = NULL;
 #endif
 	pio_mgr->hchnl_mgr = hchnl_mgr;
-	pio_mgr->word_size = pMgrAttrs->word_size;
+	pio_mgr->word_size = mgr_attrts->word_size;
 	pio_mgr->shared_mem = shared_mem;
 
 	if (dev_type == DSP_UNIT) {
@@ -233,7 +233,7 @@ int bridge_io_create(OUT struct io_mgr **io_man,
 
 	if (DSP_SUCCEEDED(status)) {
 		pio_mgr->hbridge_context = hbridge_context;
-		pio_mgr->shared_irq = pMgrAttrs->irq_shared;
+		pio_mgr->shared_irq = mgr_attrts->irq_shared;
 		if (dsp_wdt_init())
 			status = -EPERM;
 	} else {

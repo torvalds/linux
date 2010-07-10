@@ -369,7 +369,7 @@ bool rmm_init(void)
  *  ======== rmm_stat ========
  */
 bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
-	      struct dsp_memstat *pMemStatBuf)
+	      struct dsp_memstat *mem_stat_buf)
 {
 	struct rmm_header *head;
 	bool ret = false;
@@ -377,7 +377,7 @@ bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
 	u32 total_free_size = 0;
 	u32 free_blocks = 0;
 
-	DBC_REQUIRE(pMemStatBuf != NULL);
+	DBC_REQUIRE(mem_stat_buf != NULL);
 	DBC_ASSERT(target != NULL);
 
 	if ((u32) segid < target->num_segs) {
@@ -392,19 +392,19 @@ bool rmm_stat(struct rmm_target_obj *target, enum dsp_memtype segid,
 		}
 
 		/* ul_size */
-		pMemStatBuf->ul_size = target->seg_tab[segid].length;
+		mem_stat_buf->ul_size = target->seg_tab[segid].length;
 
 		/* ul_num_free_blocks */
-		pMemStatBuf->ul_num_free_blocks = free_blocks;
+		mem_stat_buf->ul_num_free_blocks = free_blocks;
 
 		/* ul_total_free_size */
-		pMemStatBuf->ul_total_free_size = total_free_size;
+		mem_stat_buf->ul_total_free_size = total_free_size;
 
 		/* ul_len_max_free_block */
-		pMemStatBuf->ul_len_max_free_block = max_free_size;
+		mem_stat_buf->ul_len_max_free_block = max_free_size;
 
 		/* ul_num_alloc_blocks */
-		pMemStatBuf->ul_num_alloc_blocks =
+		mem_stat_buf->ul_num_alloc_blocks =
 		    target->seg_tab[segid].number;
 
 		ret = true;

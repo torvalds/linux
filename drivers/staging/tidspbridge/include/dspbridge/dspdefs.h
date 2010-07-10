@@ -300,13 +300,13 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *  Parameters:
  *      channel_mgr:    Location to store a channel manager object on output.
  *      hdev_obj:     Handle to a device object.
- *      pMgrAttrs:      Channel manager attributes.
- *      pMgrAttrs->max_channels: Max channels
- *      pMgrAttrs->birq:      Channel's I/O IRQ number.
- *      pMgrAttrs->irq_shared:   TRUE if the IRQ is shareable.
- *      pMgrAttrs->word_size: DSP Word size in equivalent PC bytes..
- *      pMgrAttrs->shm_base:  Base physical address of shared memory, if any.
- *      pMgrAttrs->usm_length: Bytes of shared memory block.
+ *      mgr_attrts:      Channel manager attributes.
+ *      mgr_attrts->max_channels: Max channels
+ *      mgr_attrts->birq:      Channel's I/O IRQ number.
+ *      mgr_attrts->irq_shared:   TRUE if the IRQ is shareable.
+ *      mgr_attrts->word_size: DSP Word size in equivalent PC bytes..
+ *      mgr_attrts->shm_base:  Base physical address of shared memory, if any.
+ *      mgr_attrts->usm_length: Bytes of shared memory block.
  *  Returns:
  *      0:            Success;
  *      -ENOMEM:        Insufficient memory for requested resources.
@@ -314,8 +314,8 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *      -EFAULT:    Couldn't map physical address to a virtual one.
  *  Requires:
  *      channel_mgr != NULL.
- *      pMgrAttrs != NULL
- *      pMgrAttrs field are all valid:
+ *      mgr_attrts != NULL
+ *      mgr_attrts field are all valid:
  *          0 < max_channels <= CHNL_MAXCHANNELS.
  *          birq <= 15.
  *          word_size > 0.
@@ -328,7 +328,7 @@ typedef int(*fxn_chnl_create) (OUT struct chnl_mgr
 				      struct dev_object
 				      * hdev_obj,
 				      IN CONST struct
-				      chnl_mgrattrs * pMgrAttrs);
+				      chnl_mgrattrs * mgr_attrts);
 
 /*
  *  ======== bridge_chnl_destroy ========
@@ -570,20 +570,20 @@ typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
  *  Parameters:
  *      hchnl_mgr:           Handle to a valid channel manager, or NULL.
  *      uChnlID:            Channel ID.
- *      pMgrInfo:           Location to store channel manager info.
+ *      mgr_info:           Location to store channel manager info.
  *  Returns:
  *      0:            Success;
- *      -EFAULT: Invalid hchnl_mgr or pMgrInfo.
+ *      -EFAULT: Invalid hchnl_mgr or mgr_info.
  *      -ECHRNG:   Invalid channel ID.
  *  Requires:
  *  Ensures:
- *      0:            pMgrInfo points to a filled in chnl_mgrinfo
- *                          struct, if (pMgrInfo != NULL).
+ *      0:            mgr_info points to a filled in chnl_mgrinfo
+ *                          struct, if (mgr_info != NULL).
  */
 typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
 					  * hchnl_mgr,
 					  u32 uChnlID,
-					  OUT struct chnl_mgrinfo *pMgrInfo);
+					  OUT struct chnl_mgrinfo *mgr_info);
 
 /*
  *  ======== bridge_chnl_idle ========
@@ -740,13 +740,13 @@ typedef int(*fxn_dev_destroy) (struct bridge_dev_context *dev_ctxt);
  *      hdev_obj != NULL;
  *      Channel manager already created;
  *      Message manager already created;
- *      pMgrAttrs != NULL;
+ *      mgr_attrts != NULL;
  *      io_man != NULL;
  *  Ensures:
  */
 typedef int(*fxn_io_create) (OUT struct io_mgr **io_man,
 				    struct dev_object *hdev_obj,
-				    IN CONST struct io_attrs *pMgrAttrs);
+				    IN CONST struct io_attrs *mgr_attrts);
 
 /*
  *  ======== bridge_io_destroy ========
@@ -1036,19 +1036,19 @@ struct bridge_drv_interface {
  *      compatibility, and then copy the interface functions into its own
  *      memory space.
  *  Parameters:
- *      ppDrvInterface  Pointer to a location to receive a pointer to the
+ *      drv_intf  Pointer to a location to receive a pointer to the
  *                      Bridge driver interface.
  *  Returns:
  *  Requires:
  *      The code segment this function resides in must expect to be discarded
  *      after completion.
  *  Ensures:
- *      ppDrvInterface pointer initialized to Bridge driver's function
+ *      drv_intf pointer initialized to Bridge driver's function
  *      interface. No system resources are acquired by this function.
  *  Details:
  *      Called during the Device_Init phase.
  */
-void bridge_drv_entry(OUT struct bridge_drv_interface **ppDrvInterface,
+void bridge_drv_entry(OUT struct bridge_drv_interface **drv_intf,
 		   IN CONST char *driver_file_name);
 
 #endif /* DSPDEFS_ */

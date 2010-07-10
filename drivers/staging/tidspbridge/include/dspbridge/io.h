@@ -33,10 +33,10 @@
  *      channel_mgr:            Location to store a channel manager object on
  *                              output.
  *      hdev_obj:             Handle to a device object.
- *      pMgrAttrs:              IO manager attributes.
- *      pMgrAttrs->birq:        I/O IRQ number.
- *      pMgrAttrs->irq_shared:     TRUE if the IRQ is shareable.
- *      pMgrAttrs->word_size:   DSP Word size in equivalent PC bytes..
+ *      mgr_attrts:              IO manager attributes.
+ *      mgr_attrts->birq:        I/O IRQ number.
+ *      mgr_attrts->irq_shared:     TRUE if the IRQ is shareable.
+ *      mgr_attrts->word_size:   DSP Word size in equivalent PC bytes..
  *  Returns:
  *      0:                Success;
  *      -ENOMEM:            Insufficient memory for requested resources.
@@ -46,12 +46,12 @@
  *  Requires:
  *      io_init(void) called.
  *      io_man != NULL.
- *      pMgrAttrs != NULL.
+ *      mgr_attrts != NULL.
  *  Ensures:
  */
 extern int io_create(OUT struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
-			    IN CONST struct io_attrs *pMgrAttrs);
+			    IN CONST struct io_attrs *mgr_attrts);
 
 /*
  *  ======== io_destroy ========

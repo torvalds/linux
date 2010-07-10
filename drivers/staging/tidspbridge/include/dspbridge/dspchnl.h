@@ -27,7 +27,7 @@
 extern int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 				     struct dev_object *hdev_obj,
 				     IN CONST struct chnl_mgrattrs
-				     *pMgrAttrs);
+				     *mgr_attrts);
 
 extern int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr);
 
@@ -58,7 +58,7 @@ extern int bridge_chnl_get_info(struct chnl_object *chnl_obj,
 
 extern int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr,
 					u32 uChnlID, OUT struct chnl_mgrinfo
-					*pMgrInfo);
+					*mgr_info);
 
 extern int bridge_chnl_idle(struct chnl_object *chnl_obj,
 				   u32 timeout, bool flush_data);
