@@ -289,8 +289,7 @@ static int do_transfer(struct spectra_nand_dev *tr, struct request *req)
 			IdentifyDeviceData.PagesPerBlock *
 			res_blks_os;
 
-	if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&
-			req->cmd[0] == REQ_LB_OP_FLUSH) {
+	if (req->cmd_type & REQ_FLUSH) {
 		if (force_flush_cache()) /* Fail to flush cache */
 			return -EIO;
 		else
