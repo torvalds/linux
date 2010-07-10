@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/log2.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 
 /**** Helper functions used for Div, Remainder operation on u64 ****/
 
@@ -589,11 +590,23 @@ int GLOB_SBD_ioctl(struct block_device *bdev, fmode_t mode,
 	return -ENOTTY;
 }
 
+int GLOB_SBD_unlocked_ioctl(struct block_device *bdev, fmode_t mode,
+		unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = GLOB_SBD_ioctl(bdev, mode, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 static struct block_device_operations GLOB_SBD_ops = {
 	.owner = THIS_MODULE,
 	.open = GLOB_SBD_open,
 	.release = GLOB_SBD_release,
-	.locked_ioctl = GLOB_SBD_ioctl,
+	.ioctl = GLOB_SBD_unlocked_ioctl,
 	.getgeo = GLOB_SBD_getgeo,
 };
 
