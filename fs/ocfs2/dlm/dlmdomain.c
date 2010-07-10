@@ -1671,7 +1671,7 @@ struct dlm_ctxt * dlm_register_domain(const char *domain,
 	struct dlm_ctxt *dlm = NULL;
 	struct dlm_ctxt *new_ctxt = NULL;
 
-	if (strlen(domain) > O2NM_MAX_NAME_LEN) {
+	if (strlen(domain) >= O2NM_MAX_NAME_LEN) {
 		ret = -ENAMETOOLONG;
 		mlog(ML_ERROR, "domain name length too long\n");
 		goto leave;
