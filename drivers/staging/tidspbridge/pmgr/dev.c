@@ -691,18 +691,18 @@ int dev_get_node_manager(struct dev_object *hdev_obj,
  *  ======== dev_get_symbol ========
  */
 int dev_get_symbol(struct dev_object *hdev_obj,
-			  IN CONST char *pstrSym, OUT u32 * pul_value)
+			  IN CONST char *str_sym, OUT u32 * pul_value)
 {
 	int status = 0;
 	struct cod_manager *cod_mgr;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pstrSym != NULL && pul_value != NULL);
+	DBC_REQUIRE(str_sym != NULL && pul_value != NULL);
 
 	if (hdev_obj) {
 		status = dev_get_cod_mgr(hdev_obj, &cod_mgr);
 		if (cod_mgr)
-			status = cod_get_sym_value(cod_mgr, (char *)pstrSym,
+			status = cod_get_sym_value(cod_mgr, (char *)str_sym,
 						   pul_value);
 		else
 			status = -EFAULT;

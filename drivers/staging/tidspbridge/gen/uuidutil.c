@@ -36,14 +36,14 @@
  *      Note: snprintf format specifier is:
  *      %[flags] [width] [.precision] [{h | l | I64 | L}]type
  */
-void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *pszUuid,
+void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
 			 IN s32 size)
 {
 	s32 i;			/* return result from snprintf. */
 
-	DBC_REQUIRE(uuid_obj && pszUuid);
+	DBC_REQUIRE(uuid_obj && sz_uuid);
 
-	i = snprintf(pszUuid, size,
+	i = snprintf(sz_uuid, size,
 		     "%.8X_%.4X_%.4X_%.2X%.2X_%.2X%.2X%.2X%.2X%.2X%.2X",
 		     uuid_obj->ul_data1, uuid_obj->us_data2, uuid_obj->us_data3,
 		     uuid_obj->uc_data4, uuid_obj->uc_data5,
@@ -75,39 +75,39 @@ static s32 uuid_hex_to_bin(char *buf, s32 len)
  *  Purpose:
  *      Converts a string to a struct dsp_uuid.
  */
-void uuid_uuid_from_string(IN char *pszUuid, OUT struct dsp_uuid *uuid_obj)
+void uuid_uuid_from_string(IN char *sz_uuid, OUT struct dsp_uuid *uuid_obj)
 {
 	s32 j;
 
-	uuid_obj->ul_data1 = uuid_hex_to_bin(pszUuid, 8);
-	pszUuid += 8;
+	uuid_obj->ul_data1 = uuid_hex_to_bin(sz_uuid, 8);
+	sz_uuid += 8;
 
 	/* Step over underscore */
-	pszUuid++;
+	sz_uuid++;
 
-	uuid_obj->us_data2 = (u16) uuid_hex_to_bin(pszUuid, 4);
-	pszUuid += 4;
-
-	/* Step over underscore */
-	pszUuid++;
-
-	uuid_obj->us_data3 = (u16) uuid_hex_to_bin(pszUuid, 4);
-	pszUuid += 4;
+	uuid_obj->us_data2 = (u16) uuid_hex_to_bin(sz_uuid, 4);
+	sz_uuid += 4;
 
 	/* Step over underscore */
-	pszUuid++;
+	sz_uuid++;
 
-	uuid_obj->uc_data4 = (u8) uuid_hex_to_bin(pszUuid, 2);
-	pszUuid += 2;
-
-	uuid_obj->uc_data5 = (u8) uuid_hex_to_bin(pszUuid, 2);
-	pszUuid += 2;
+	uuid_obj->us_data3 = (u16) uuid_hex_to_bin(sz_uuid, 4);
+	sz_uuid += 4;
 
 	/* Step over underscore */
-	pszUuid++;
+	sz_uuid++;
+
+	uuid_obj->uc_data4 = (u8) uuid_hex_to_bin(sz_uuid, 2);
+	sz_uuid += 2;
+
+	uuid_obj->uc_data5 = (u8) uuid_hex_to_bin(sz_uuid, 2);
+	sz_uuid += 2;
+
+	/* Step over underscore */
+	sz_uuid++;
 
 	for (j = 0; j < 6; j++) {
-		uuid_obj->uc_data6[j] = (u8) uuid_hex_to_bin(pszUuid, 2);
-		pszUuid += 2;
+		uuid_obj->uc_data6[j] = (u8) uuid_hex_to_bin(sz_uuid, 2);
+		sz_uuid += 2;
 	}
 }

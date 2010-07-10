@@ -109,7 +109,7 @@ static s32 cod_f_close(struct file *filp)
 	return 0;
 }
 
-static struct file *cod_f_open(CONST char *psz_file_name, CONST char *pszMode)
+static struct file *cod_f_open(CONST char *psz_file_name, CONST char *sz_mode)
 {
 	mm_segment_t fs;
 	struct file *filp;
@@ -337,17 +337,17 @@ int cod_get_base_lib(struct cod_manager *cod_mgr_obj,
 /*
  *  ======== cod_get_base_name ========
  */
-int cod_get_base_name(struct cod_manager *cod_mgr_obj, char *pszName,
+int cod_get_base_name(struct cod_manager *cod_mgr_obj, char *sz_name,
 			     u32 usize)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
-	DBC_REQUIRE(pszName != NULL);
+	DBC_REQUIRE(sz_name != NULL);
 
 	if (usize <= COD_MAXPATHLENGTH)
-		strncpy(pszName, cod_mgr_obj->sz_zl_file, usize);
+		strncpy(sz_name, cod_mgr_obj->sz_zl_file, usize);
 	else
 		status = -EPERM;
 
@@ -396,8 +396,8 @@ int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      Retrieve the starting address and length of a section in the COFF file
  *      given the section name.
  */
-int cod_get_section(struct cod_libraryobj *lib, IN char *pstrSect,
-			   OUT u32 *puAddr, OUT u32 *puLen)
+int cod_get_section(struct cod_libraryobj *lib, IN char *str_sect,
+			   OUT u32 *addr, OUT u32 *puLen)
 {
 	struct cod_manager *cod_mgr_obj;
 	int status = 0;
@@ -405,21 +405,21 @@ int cod_get_section(struct cod_libraryobj *lib, IN char *pstrSect,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(lib != NULL);
 	DBC_REQUIRE(IS_VALID(lib->cod_mgr));
-	DBC_REQUIRE(pstrSect != NULL);
-	DBC_REQUIRE(puAddr != NULL);
+	DBC_REQUIRE(str_sect != NULL);
+	DBC_REQUIRE(addr != NULL);
 	DBC_REQUIRE(puLen != NULL);
 
-	*puAddr = 0;
+	*addr = 0;
 	*puLen = 0;
 	if (lib != NULL) {
 		cod_mgr_obj = lib->cod_mgr;
-		status = cod_mgr_obj->fxns.get_sect_fxn(lib->dbll_lib, pstrSect,
-							puAddr, puLen);
+		status = cod_mgr_obj->fxns.get_sect_fxn(lib->dbll_lib, str_sect,
+							addr, puLen);
 	} else {
 		status = -ESPIPE;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((*puAddr == 0) && (*puLen == 0)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((*addr == 0) && (*puLen == 0)));
 
 	return status;
 }
@@ -432,23 +432,23 @@ int cod_get_section(struct cod_libraryobj *lib, IN char *pstrSect,
  *      C symbol.
  *
  */
-int cod_get_sym_value(struct cod_manager *hmgr, char *pstrSym,
+int cod_get_sym_value(struct cod_manager *hmgr, char *str_sym,
 			     u32 *pul_value)
 {
 	struct dbll_sym_val *dbll_sym;
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(hmgr));
-	DBC_REQUIRE(pstrSym != NULL);
+	DBC_REQUIRE(str_sym != NULL);
 	DBC_REQUIRE(pul_value != NULL);
 
-	dev_dbg(bridge, "%s: hmgr: %p pstrSym: %s pul_value: %p\n",
-		__func__, hmgr, pstrSym, pul_value);
+	dev_dbg(bridge, "%s: hmgr: %p str_sym: %s pul_value: %p\n",
+		__func__, hmgr, str_sym, pul_value);
 	if (hmgr->base_lib) {
 		if (!hmgr->fxns.
-		    get_addr_fxn(hmgr->base_lib, pstrSym, &dbll_sym)) {
+		    get_addr_fxn(hmgr->base_lib, str_sym, &dbll_sym)) {
 			if (!hmgr->fxns.
-			    get_c_addr_fxn(hmgr->base_lib, pstrSym, &dbll_sym))
+			    get_c_addr_fxn(hmgr->base_lib, str_sym, &dbll_sym))
 				return -ESPIPE;
 		}
 	} else {
@@ -550,7 +550,7 @@ int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
  *  ======== cod_open ========
  *      Open library for reading sections.
  */
-int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
+int cod_open(struct cod_manager *hmgr, IN char *sz_coff_path,
 		    u32 flags, struct cod_libraryobj **lib_obj)
 {
 	int status = 0;
@@ -558,7 +558,7 @@ int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(hmgr));
-	DBC_REQUIRE(pszCoffPath != NULL);
+	DBC_REQUIRE(sz_coff_path != NULL);
 	DBC_REQUIRE(flags == COD_NOLOAD || flags == COD_SYMB);
 	DBC_REQUIRE(lib_obj != NULL);
 
@@ -570,15 +570,15 @@ int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
 
 	if (DSP_SUCCEEDED(status)) {
 		lib->cod_mgr = hmgr;
-		status = hmgr->fxns.open_fxn(hmgr->target, pszCoffPath, flags,
+		status = hmgr->fxns.open_fxn(hmgr->target, sz_coff_path, flags,
 					     &lib->dbll_lib);
 		if (DSP_SUCCEEDED(status))
 			*lib_obj = lib;
 	}
 
 	if (DSP_FAILED(status))
-		pr_err("%s: error status 0x%x, pszCoffPath: %s flags: 0x%x\n",
-		       __func__, status, pszCoffPath, flags);
+		pr_err("%s: error status 0x%x, sz_coff_path: %s flags: 0x%x\n",
+		       __func__, status, sz_coff_path, flags);
 	return status;
 }
 
@@ -587,7 +587,7 @@ int cod_open(struct cod_manager *hmgr, IN char *pszCoffPath,
  *  Purpose:
  *      Open base image for reading sections.
  */
-int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
+int cod_open_base(struct cod_manager *hmgr, IN char *sz_coff_path,
 			 dbll_flags flags)
 {
 	int status = 0;
@@ -595,7 +595,7 @@ int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(hmgr));
-	DBC_REQUIRE(pszCoffPath != NULL);
+	DBC_REQUIRE(sz_coff_path != NULL);
 
 	/* if we previously opened a base image, close it now */
 	if (hmgr->base_lib) {
@@ -606,17 +606,17 @@ int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
 		hmgr->fxns.close_fxn(hmgr->base_lib);
 		hmgr->base_lib = NULL;
 	}
-	status = hmgr->fxns.open_fxn(hmgr->target, pszCoffPath, flags, &lib);
+	status = hmgr->fxns.open_fxn(hmgr->target, sz_coff_path, flags, &lib);
 	if (DSP_SUCCEEDED(status)) {
 		/* hang onto the library for subsequent sym table usage */
 		hmgr->base_lib = lib;
-		strncpy(hmgr->sz_zl_file, pszCoffPath, COD_MAXPATHLENGTH - 1);
+		strncpy(hmgr->sz_zl_file, sz_coff_path, COD_MAXPATHLENGTH - 1);
 		hmgr->sz_zl_file[COD_MAXPATHLENGTH - 1] = '\0';
 	}
 
 	if (DSP_FAILED(status))
-		pr_err("%s: error status 0x%x pszCoffPath: %s\n", __func__,
-		       status, pszCoffPath);
+		pr_err("%s: error status 0x%x sz_coff_path: %s\n", __func__,
+		       status, sz_coff_path);
 	return status;
 }
 
@@ -625,7 +625,7 @@ int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *  Purpose:
  *      Retrieve the content of a code section given the section name.
  */
-int cod_read_section(struct cod_libraryobj *lib, IN char *pstrSect,
+int cod_read_section(struct cod_libraryobj *lib, IN char *str_sect,
 			    OUT char *str_content, IN u32 content_size)
 {
 	int status = 0;
@@ -633,12 +633,12 @@ int cod_read_section(struct cod_libraryobj *lib, IN char *pstrSect,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(lib != NULL);
 	DBC_REQUIRE(IS_VALID(lib->cod_mgr));
-	DBC_REQUIRE(pstrSect != NULL);
+	DBC_REQUIRE(str_sect != NULL);
 	DBC_REQUIRE(str_content != NULL);
 
 	if (lib != NULL)
 		status =
-		    lib->cod_mgr->fxns.read_sect_fxn(lib->dbll_lib, pstrSect,
+		    lib->cod_mgr->fxns.read_sect_fxn(lib->dbll_lib, str_sect,
 						     str_content, content_size);
 	else
 		status = -ESPIPE;

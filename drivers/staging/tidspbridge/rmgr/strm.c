@@ -620,7 +620,7 @@ func_cont:
  *      Relcaims a buffer from a stream.
  */
 int strm_reclaim(struct strm_object *stream_obj, OUT u8 ** buf_ptr,
-			u32 *pulBytes, u32 *pulBufSize, u32 *pdw_arg)
+			u32 *nbytes, u32 *buff_size, u32 *pdw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
 	struct chnl_ioc chnl_ioc_obj;
@@ -629,7 +629,7 @@ int strm_reclaim(struct strm_object *stream_obj, OUT u8 ** buf_ptr,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(buf_ptr != NULL);
-	DBC_REQUIRE(pulBytes != NULL);
+	DBC_REQUIRE(nbytes != NULL);
 	DBC_REQUIRE(pdw_arg != NULL);
 
 	if (!stream_obj) {
@@ -643,9 +643,9 @@ int strm_reclaim(struct strm_object *stream_obj, OUT u8 ** buf_ptr,
 					    stream_obj->utimeout,
 					    &chnl_ioc_obj);
 	if (DSP_SUCCEEDED(status)) {
-		*pulBytes = chnl_ioc_obj.byte_size;
-		if (pulBufSize)
-			*pulBufSize = chnl_ioc_obj.buf_size;
+		*nbytes = chnl_ioc_obj.byte_size;
+		if (buff_size)
+			*buff_size = chnl_ioc_obj.buf_size;
 
 		*pdw_arg = chnl_ioc_obj.dw_arg;
 		if (!CHNL_IS_IO_COMPLETE(chnl_ioc_obj)) {
@@ -692,9 +692,9 @@ func_end:
 		   status == -ETIME || status == -ESRCH ||
 		   status == -EPERM);
 
-	dev_dbg(bridge, "%s: stream_obj: %p buf_ptr: %p pulBytes: %p "
+	dev_dbg(bridge, "%s: stream_obj: %p buf_ptr: %p nbytes: %p "
 		"pdw_arg: %p status 0x%x\n", __func__, stream_obj,
-		buf_ptr, pulBytes, pdw_arg, status);
+		buf_ptr, nbytes, pdw_arg, status);
 	return status;
 }
 

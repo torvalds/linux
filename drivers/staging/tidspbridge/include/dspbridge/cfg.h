@@ -155,20 +155,20 @@ extern void cfg_get_perf_value(OUT bool *enable_perf);
  *  Parameters:
  *      dev_node_obj: Handle to the dev_node who's driver we are querying.
  *      buf_size:       Size of buffer.
- *      pstrZLFileName: Ptr to character buf to hold ZLFileName.
+ *      str_zl_file_name: Ptr to character buf to hold ZLFileName.
  *  Returns:
  *      0:                Success.
- *      -EFAULT: pstrZLFileName is invalid or dev_node_obj is invalid.
+ *      -EFAULT: str_zl_file_name is invalid or dev_node_obj is invalid.
  *      -ENODATA: couldn't find the ZLFileName.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
  *      0:    Not more than buf_size bytes were copied into
- *                  pstrZLFileName, and *pstrZLFileName contains ZLFileName
+ *                  str_zl_file_name, and *str_zl_file_name contains ZLFileName
  *                  for this devnode.
  */
 extern int cfg_get_zl_file(IN struct cfg_devnode *dev_node_obj,
-				  IN u32 buf_size, OUT char *pstrZLFileName);
+				  IN u32 buf_size, OUT char *str_zl_file_name);
 
 /*
  *  ======== cfg_init ========

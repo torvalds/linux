@@ -303,9 +303,9 @@ extern int strm_prepare_buffer(struct strm_object *stream_obj,
  *  Parameters:
  *      stream_obj:          Stream handle returned from strm_open().
  *      buf_ptr:        Location to store pointer to reclaimed buffer.
- *      pulBytes:       Location where number of bytes of data in the
+ *      nbytes:         Location where number of bytes of data in the
  *                      buffer will be written.
- *      pulBufSize:     Location where actual buffer size will be written.
+ *      buff_size:      Location where actual buffer size will be written.
  *      pdw_arg:         Location where user argument that travels with
  *                      the buffer will be written.
  *  Returns:
@@ -317,13 +317,13 @@ extern int strm_prepare_buffer(struct strm_object *stream_obj,
  *  Requires:
  *      strm_init(void) called.
  *      buf_ptr != NULL.
- *      pulBytes != NULL.
+ *      nbytes != NULL.
  *      pdw_arg != NULL.
  *  Ensures:
  */
 extern int strm_reclaim(struct strm_object *stream_obj,
-			       OUT u8 **buf_ptr, u32 * pulBytes,
-			       u32 *pulBufSize, u32 *pdw_arg);
+			       OUT u8 **buf_ptr, u32 * nbytes,
+			       u32 *buff_size, u32 *pdw_arg);
 
 /*
  *  ======== strm_register_notify ========

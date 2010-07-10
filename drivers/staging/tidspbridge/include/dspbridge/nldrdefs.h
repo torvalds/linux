@@ -210,21 +210,21 @@ typedef void (*nldr_freefxn) (struct nldr_nodeobject *nldr_node_obj);
  *
  *  Parameters:
  *      nldr_node_obj:      Handle returned from nldr_allocate().
- *      pstrFxn:        Name of function.
- *      pulAddr:        Location to store function address.
+ *      str_fxn:        Name of function.
+ *      addr:           Location to store function address.
  *  Returns:
  *      0:        Success.
  *      -ESPIPE:    Address of function not found.
  *  Requires:
  *      nldr_init(void) called.
  *      Valid nldr_node_obj.
- *      pulAddr != NULL;
- *      pstrFxn != NULL;
+ *      addr != NULL;
+ *      str_fxn != NULL;
  *  Ensures:
  */
 typedef int(*nldr_getfxnaddrfxn) (struct nldr_nodeobject
 					 * nldr_node_obj,
-					 char *pstrFxn, u32 * pulAddr);
+					 char *str_fxn, u32 * addr);
 
 /*
  *  ======== nldr_init ========

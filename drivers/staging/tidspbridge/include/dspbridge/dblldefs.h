@@ -368,7 +368,7 @@ typedef int(*dbll_load_fxn) (struct dbll_library_obj *lib,
  *  Ensures:
  */
 typedef int(*dbll_load_sect_fxn) (struct dbll_library_obj *lib,
-					 char *pszSectName,
+					 char *sz_sect_name,
 					 struct dbll_attrs *attrs);
 
 /*
@@ -471,7 +471,7 @@ typedef void (*dbll_unload_fxn) (struct dbll_library_obj *library,
  *  Ensures:
  */
 typedef int(*dbll_unload_sect_fxn) (struct dbll_library_obj *lib,
-					   char *pszSectName,
+					   char *sz_sect_name,
 					   struct dbll_attrs *attrs);
 
 struct dbll_fxns {

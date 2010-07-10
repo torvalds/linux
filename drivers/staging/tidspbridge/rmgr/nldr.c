@@ -682,7 +682,7 @@ void nldr_exit(void)
  *  ======== nldr_get_fxn_addr ========
  */
 int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
-			     char *pstrFxn, u32 * pulAddr)
+			     char *str_fxn, u32 * addr)
 {
 	struct dbll_sym_val *dbll_sym;
 	struct nldr_object *nldr_obj;
@@ -692,8 +692,8 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 	struct lib_node root = { NULL, 0, NULL };
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(nldr_node_obj);
-	DBC_REQUIRE(pulAddr != NULL);
-	DBC_REQUIRE(pstrFxn != NULL);
+	DBC_REQUIRE(addr != NULL);
+	DBC_REQUIRE(str_fxn != NULL);
 
 	nldr_obj = nldr_node_obj->nldr_obj;
 	/* Called from node_create(), node_delete(), or node_run(). */
@@ -717,10 +717,10 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 		root = nldr_node_obj->root;
 	}
 	status1 =
-	    nldr_obj->ldr_fxns.get_c_addr_fxn(root.lib, pstrFxn, &dbll_sym);
+	    nldr_obj->ldr_fxns.get_c_addr_fxn(root.lib, str_fxn, &dbll_sym);
 	if (!status1)
 		status1 =
-		    nldr_obj->ldr_fxns.get_addr_fxn(root.lib, pstrFxn,
+		    nldr_obj->ldr_fxns.get_addr_fxn(root.lib, str_fxn,
 						    &dbll_sym);
 
 	/* If symbol not found, check dependent libraries */
@@ -728,13 +728,13 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 		for (i = 0; i < root.dep_libs; i++) {
 			status1 =
 			    nldr_obj->ldr_fxns.get_addr_fxn(root.dep_libs_tree
-							    [i].lib, pstrFxn,
+							    [i].lib, str_fxn,
 							    &dbll_sym);
 			if (!status1) {
 				status1 =
 				    nldr_obj->ldr_fxns.
 				    get_c_addr_fxn(root.dep_libs_tree[i].lib,
-						   pstrFxn, &dbll_sym);
+						   str_fxn, &dbll_sym);
 			}
 			if (status1) {
 				/* Symbol found */
@@ -748,12 +748,12 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 			status1 =
 			    nldr_obj->ldr_fxns.
 			    get_addr_fxn(nldr_node_obj->pers_lib_table[i].lib,
-					 pstrFxn, &dbll_sym);
+					 str_fxn, &dbll_sym);
 			if (!status1) {
 				status1 =
 				    nldr_obj->ldr_fxns.
 				    get_c_addr_fxn(nldr_node_obj->pers_lib_table
-						   [i].lib, pstrFxn, &dbll_sym);
+						   [i].lib, str_fxn, &dbll_sym);
 			}
 			if (status1) {
 				/* Symbol found */
@@ -763,7 +763,7 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
 	}
 
 	if (status1)
-		*pulAddr = dbll_sym->value;
+		*addr = dbll_sym->value;
 	else
 		status = -ESPIPE;
 

@@ -27,18 +27,18 @@
  *      Converts a dsp_uuid to an ANSI string.
  *  Parameters:
  *      uuid_obj:      Pointer to a dsp_uuid object.
- *      pszUuid:    Pointer to a buffer to receive a NULL-terminated UUID
+ *      sz_uuid:    Pointer to a buffer to receive a NULL-terminated UUID
  *                  string.
- *      size:	    Maximum size of the pszUuid string.
+ *      size:	    Maximum size of the sz_uuid string.
  *  Returns:
  *  Requires:
- *      uuid_obj & pszUuid are non-NULL values.
+ *      uuid_obj & sz_uuid are non-NULL values.
  *  Ensures:
- *      Lenghth of pszUuid is less than MAXUUIDLEN.
+ *      Lenghth of sz_uuid is less than MAXUUIDLEN.
  *  Details:
  *      UUID string limit currently set at MAXUUIDLEN.
  */
-void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *pszUuid,
+void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
 			 s32 size);
 
 /*
@@ -46,17 +46,17 @@ void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *pszUuid,
  *  Purpose:
  *      Converts an ANSI string to a dsp_uuid.
  *  Parameters:
- *      pszUuid:    Pointer to a string that represents a dsp_uuid object.
+ *      sz_uuid:    Pointer to a string that represents a dsp_uuid object.
  *      uuid_obj:      Pointer to a dsp_uuid object.
  *  Returns:
  *  Requires:
- *      uuid_obj & pszUuid are non-NULL values.
+ *      uuid_obj & sz_uuid are non-NULL values.
  *  Ensures:
  *  Details:
  *      We assume the string representation of a UUID has the following format:
  *      "12345678_1234_1234_1234_123456789abc".
  */
-extern void uuid_uuid_from_string(IN char *pszUuid,
+extern void uuid_uuid_from_string(IN char *sz_uuid,
 				  OUT struct dsp_uuid *uuid_obj);
 
 #endif /* UUIDUTIL_ */

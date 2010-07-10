@@ -30,7 +30,7 @@
  *      special COFF section called ".dcd_register"
  *  Parameters:
  *      hdcd_mgr:                A DCD manager handle.
- *      pszCoffPath:            Pointer to name of COFF file containing DCD
+ *      sz_coff_path:           Pointer to name of COFF file containing DCD
  *                              objects to be registered.
  *  Returns:
  *      0:                Success.
@@ -45,7 +45,7 @@
  *      ".dcd_register", which is used for auto registration.
  */
 extern int dcd_auto_register(IN struct dcd_manager *hdcd_mgr,
-				    IN char *pszCoffPath);
+				    IN char *sz_coff_path);
 
 /*
  *  ======== dcd_auto_unregister ========
@@ -54,7 +54,7 @@ extern int dcd_auto_register(IN struct dcd_manager *hdcd_mgr,
  *      special COFF section called ".dcd_register"
  *  Parameters:
  *      hdcd_mgr:                A DCD manager handle.
- *      pszCoffPath:            Pointer to name of COFF file containing
+ *      sz_coff_path:           Pointer to name of COFF file containing
  *                              DCD objects to be unregistered.
  *  Returns:
  *      0:                Success.
@@ -69,14 +69,14 @@ extern int dcd_auto_register(IN struct dcd_manager *hdcd_mgr,
  *      ".dcd_register", which is used for auto unregistration.
  */
 extern int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
-				      IN char *pszCoffPath);
+				      IN char *sz_coff_path);
 
 /*
  *  ======== dcd_create_manager ========
  *  Purpose:
  *      This function creates a DCD module manager.
  *  Parameters:
- *      pszZlDllName:   Pointer to a DLL name string.
+ *      sz_zl_dll_name: Pointer to a DLL name string.
  *      dcd_mgr:        A pointer to a DCD manager handle.
  *  Returns:
  *      0:        Success.
@@ -84,12 +84,12 @@ extern int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
  *      -EPERM:      General failure.
  *  Requires:
  *      DCD initialized.
- *      pszZlDllName is non-NULL.
+ *      sz_zl_dll_name is non-NULL.
  *      dcd_mgr is non-NULL.
  *  Ensures:
  *      A DCD manager handle is created.
  */
-extern int dcd_create_manager(IN char *pszZlDllName,
+extern int dcd_create_manager(IN char *sz_zl_dll_name,
 				     OUT struct dcd_manager **dcd_mgr);
 
 /*
@@ -214,7 +214,7 @@ extern int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *      hdcd_mgr: A DCD manager handle.
  *      uuid_obj:	Pointer to a dsp_uuid that represents a unique DSP/BIOS
  *                      Bridge object.
- *      pstrLibName: Buffer to hold library name.
+ *      str_lib_name: Buffer to hold library name.
  *      buff_size: Contains buffer size. Set to string size on output.
  *      phase:          Which phase to load
  *      phase_split:    Are phases in multiple libraries
@@ -224,14 +224,14 @@ extern int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *  Requires:
  *      DCD initialized.
  *      Valid hdcd_mgr.
- *      pstrLibName != NULL.
+ *      str_lib_name != NULL.
  *      uuid_obj != NULL
  *      buff_size != NULL.
  *  Ensures:
  */
 extern int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 				       IN struct dsp_uuid *uuid_obj,
-				       IN OUT char *pstrLibName,
+				       IN OUT char *str_lib_name,
 				       IN OUT u32 *buff_size,
 				       IN enum nldr_phase phase,
 				       OUT bool *phase_split);
@@ -276,7 +276,7 @@ extern int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
  *      unregister nodes from the node database, and 3) add overlay nodes.
  *  Parameters:
  *      hdcd_mgr:                A DCD manager handle.
- *      pszCoffPath:            Pointer to name of COFF file containing DCD
+ *      sz_coff_path:           Pointer to name of COFF file containing DCD
  *                              objects.
  *      registerFxn:            Callback fxn to be applied on each located
  *                              DCD object.
@@ -295,7 +295,7 @@ extern int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
  *      ".dcd_register", which is used for auto registration.
  */
 extern int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
-				  IN char *pszCoffPath,
+				  IN char *sz_coff_path,
 				  dcd_registerfxn registerFxn, void *handle);
 
 /*

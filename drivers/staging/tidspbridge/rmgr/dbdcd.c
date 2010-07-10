@@ -81,16 +81,16 @@ static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
  *      Parses the supplied image and resigsters with DCD.
  */
 int dcd_auto_register(IN struct dcd_manager *hdcd_mgr,
-			     IN char *pszCoffPath)
+			     IN char *sz_coff_path)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 
 	if (hdcd_mgr)
-		status = dcd_get_objects(hdcd_mgr, pszCoffPath,
+		status = dcd_get_objects(hdcd_mgr, sz_coff_path,
 					 (dcd_registerfxn) dcd_register_object,
-					 (void *)pszCoffPath);
+					 (void *)sz_coff_path);
 	else
 		status = -EFAULT;
 
@@ -103,14 +103,14 @@ int dcd_auto_register(IN struct dcd_manager *hdcd_mgr,
  *      Parses the supplied DSP image and unresiters from DCD.
  */
 int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
-			       IN char *pszCoffPath)
+			       IN char *sz_coff_path)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 
 	if (hdcd_mgr)
-		status = dcd_get_objects(hdcd_mgr, pszCoffPath,
+		status = dcd_get_objects(hdcd_mgr, sz_coff_path,
 					 (dcd_registerfxn) dcd_register_object,
 					 NULL);
 	else
@@ -124,7 +124,7 @@ int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
  *  Purpose:
  *      Creates DCD manager.
  */
-int dcd_create_manager(IN char *pszZlDllName,
+int dcd_create_manager(IN char *sz_zl_dll_name,
 			      OUT struct dcd_manager **dcd_mgr)
 {
 	struct cod_manager *cod_mgr;	/* COD manager handle */
@@ -134,7 +134,7 @@ int dcd_create_manager(IN char *pszZlDllName,
 	DBC_REQUIRE(refs >= 0);
 	DBC_REQUIRE(dcd_mgr);
 
-	status = cod_create(&cod_mgr, pszZlDllName, NULL);
+	status = cod_create(&cod_mgr, sz_zl_dll_name, NULL);
 	if (DSP_FAILED(status))
 		goto func_end;
 
@@ -534,7 +534,7 @@ func_end:
  *  ======== dcd_get_objects ========
  */
 int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
-			   IN char *pszCoffPath, dcd_registerfxn registerFxn,
+			   IN char *sz_coff_path, dcd_registerfxn registerFxn,
 			   void *handle)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;
@@ -556,7 +556,7 @@ int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
 	}
 
 	/* Open DSP coff file, don't load symbols. */
-	status = cod_open(dcd_mgr_obj->cod_mgr, pszCoffPath, COD_NOLOAD, &lib);
+	status = cod_open(dcd_mgr_obj->cod_mgr, sz_coff_path, COD_NOLOAD, &lib);
 	if (DSP_FAILED(status)) {
 		status = -EACCES;
 		goto func_cont;
@@ -572,7 +572,7 @@ int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
 	/* Allocate zeroed buffer. */
 	psz_coff_buf = kzalloc(ul_len + 4, GFP_KERNEL);
 #ifdef _DB_TIOMAP
-	if (strstr(pszCoffPath, "iva") == NULL) {
+	if (strstr(sz_coff_path, "iva") == NULL) {
 		/* Locate section by objectID and read its content. */
 		status = cod_read_section(lib, DCD_REGISTER_SECTION,
 					  psz_coff_buf, ul_len);
@@ -587,7 +587,7 @@ int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
 #endif
 	if (DSP_SUCCEEDED(status)) {
 		/* Compress DSP buffer to conform to PC format. */
-		if (strstr(pszCoffPath, "iva") == NULL) {
+		if (strstr(sz_coff_path, "iva") == NULL) {
 			compress_buf(psz_coff_buf, ul_len, DSPWORDSIZE);
 		} else {
 			compress_buf(psz_coff_buf, ul_len, 1);
@@ -644,7 +644,7 @@ func_end:
  */
 int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 				IN struct dsp_uuid *uuid_obj,
-				IN OUT char *pstrLibName,
+				IN OUT char *str_lib_name,
 				IN OUT u32 *buff_size,
 				enum nldr_phase phase, OUT bool *phase_split)
 {
@@ -656,12 +656,12 @@ int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 	struct dcd_key_elem *dcd_key = NULL;
 
 	DBC_REQUIRE(uuid_obj != NULL);
-	DBC_REQUIRE(pstrLibName != NULL);
+	DBC_REQUIRE(str_lib_name != NULL);
 	DBC_REQUIRE(buff_size != NULL);
 	DBC_REQUIRE(hdcd_mgr);
 
-	dev_dbg(bridge, "%s: hdcd_mgr %p, uuid_obj %p, pstrLibName %p,"
-		" buff_size %p\n", __func__, hdcd_mgr, uuid_obj, pstrLibName,
+	dev_dbg(bridge, "%s: hdcd_mgr %p, uuid_obj %p, str_lib_name %p,"
+		" buff_size %p\n", __func__, hdcd_mgr, uuid_obj, str_lib_name,
 		buff_size);
 
 	/*
@@ -768,7 +768,7 @@ int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 	}
 
 	if (DSP_SUCCEEDED(status))
-		memcpy(pstrLibName, dcd_key->path, strlen(dcd_key->path) + 1);
+		memcpy(str_lib_name, dcd_key->path, strlen(dcd_key->path) + 1);
 	return status;
 }
 

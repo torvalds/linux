@@ -78,7 +78,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *      using the cod_get_sym_value() function.
  *  Parameters:
  *      manager:        created manager object
- *      pstrZLFile:     ZL DLL filename, of length < COD_MAXPATHLENGTH.
+ *      str_zl_file:    ZL DLL filename, of length < COD_MAXPATHLENGTH.
  *      attrs:          attributes to be used by this object. A NULL value
  *                      will cause default attrs to be used.
  *  Returns:
@@ -88,11 +88,11 @@ extern void cod_close(struct cod_libraryobj *lib);
  *                              non default values of attrs.
  *  Requires:
  *      COD module initialized.
- *      pstrZLFile != NULL
+ *      str_zl_file != NULL
  *  Ensures:
  */
 extern int cod_create(OUT struct cod_manager **manager,
-			     char *pstrZLFile,
+			     char *str_zl_file,
 			     IN OPTIONAL CONST struct cod_attrs *attrs);
 
 /*
@@ -149,7 +149,7 @@ extern int cod_get_base_lib(struct cod_manager *cod_mgr_obj,
  *      Get the name of the base image DBL library.
  *  Parameters:
  *      cod_mgr_obj:   handle of manager to be deleted
- *      pszName:    location to store library name on output.
+ *      sz_name:    location to store library name on output.
  *      usize:       size of name buffer.
  *  Returns:
  *      0:    Success.
@@ -157,11 +157,11 @@ extern int cod_get_base_lib(struct cod_manager *cod_mgr_obj,
  *  Requires:
  *      COD module initialized.
  *      valid cod_mgr_obj.
- *      pszName != NULL.
+ *      sz_name != NULL.
  *  Ensures:
  */
 extern int cod_get_base_name(struct cod_manager *cod_mgr_obj,
-				    char *pszName, u32 usize);
+				    char *sz_name, u32 usize);
 
 /*
  *  ======== cod_get_entry ========
@@ -206,8 +206,8 @@ extern int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      given the section name.
  *  Parameters:
  *      lib         Library handle returned from cod_open().
- *      pstrSect:   name of the section, with or without leading "."
- *      puAddr:     Location to store address.
+ *      str_sect:   name of the section, with or without leading "."
+ *      addr:       Location to store address.
  *      puLen:      Location to store length.
  *  Returns:
  *      0:                Success
@@ -216,18 +216,18 @@ extern int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *  Requires:
  *      COD module initialized.
  *      valid cod_mgr_obj.
- *      pstrSect != NULL;
- *      puAddr != NULL;
+ *      str_sect != NULL;
+ *      addr != NULL;
  *      puLen != NULL;
  *  Ensures:
- *      0:  *puAddr and *puLen contain the address and length of the
+ *      0:  *addr and *puLen contain the address and length of the
  *                 section.
- *      else:  *puAddr == 0 and *puLen == 0;
+ *      else:  *addr == 0 and *puLen == 0;
  *
  */
 extern int cod_get_section(struct cod_libraryobj *lib,
-				  IN char *pstrSect,
-				  OUT u32 *puAddr, OUT u32 *puLen);
+				  IN char *str_sect,
+				  OUT u32 *addr, OUT u32 *puLen);
 
 /*
  *  ======== cod_get_sym_value ========
@@ -246,12 +246,12 @@ extern int cod_get_section(struct cod_libraryobj *lib,
  *  Requires:
  *      COD module initialized.
  *      Valid cod_mgr_obj.
- *      pstrSym != NULL.
+ *      str_sym != NULL.
  *      pul_value != NULL.
  *  Ensures:
  */
 extern int cod_get_sym_value(struct cod_manager *cod_mgr_obj,
-				    IN char *pstrSym, OUT u32 * pul_value);
+				    IN char *str_sym, OUT u32 * pul_value);
 
 /*
  *  ======== cod_init ========
@@ -304,7 +304,7 @@ extern int cod_load_base(struct cod_manager *cod_mgr_obj,
  *      Open a library for reading sections. Does not load or set the base.
  *  Parameters:
  *      hmgr:           manager to load the code with
- *      pszCoffPath:    Coff file to open.
+ *      sz_coff_path:   Coff file to open.
  *      flags:          COD_NOLOAD (don't load symbols) or COD_SYMB (load
  *                      symbols).
  *      lib_obj:        Handle returned that can be used in calls to cod_close
@@ -316,11 +316,11 @@ extern int cod_load_base(struct cod_manager *cod_mgr_obj,
  *      COD module initialized.
  *      hmgr is valid.
  *      flags == COD_NOLOAD || flags == COD_SYMB.
- *      pszCoffPath != NULL.
+ *      sz_coff_path != NULL.
  *  Ensures:
  */
 extern int cod_open(struct cod_manager *hmgr,
-			   IN char *pszCoffPath,
+			   IN char *sz_coff_path,
 			   u32 flags, OUT struct cod_libraryobj **lib_obj);
 
 /*
@@ -329,7 +329,7 @@ extern int cod_open(struct cod_manager *hmgr,
  *      Open base image for reading sections. Does not load the base.
  *  Parameters:
  *      hmgr:           manager to load the code with
- *      pszCoffPath:    Coff file to open.
+ *      sz_coff_path:   Coff file to open.
  *      flags:          Specifies whether to load symbols.
  *  Returns:
  *      0:            Success.
@@ -337,10 +337,10 @@ extern int cod_open(struct cod_manager *hmgr,
  *  Requires:
  *      COD module initialized.
  *      hmgr is valid.
- *      pszCoffPath != NULL.
+ *      sz_coff_path != NULL.
  *  Ensures:
  */
-extern int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
+extern int cod_open_base(struct cod_manager *hmgr, IN char *sz_coff_path,
 				dbll_flags flags);
 
 /*
@@ -349,7 +349,7 @@ extern int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *      Retrieve the content of a code section given the section name.
  *  Parameters:
  *      cod_mgr_obj    - manager in which to search for the symbol
- *      pstrSect    - name of the section, with or without leading "."
+ *      str_sect    - name of the section, with or without leading "."
  *      str_content - buffer to store content of the section.
  *  Returns:
  *      0: on success, error code on failure
@@ -357,13 +357,13 @@ extern int cod_open_base(struct cod_manager *hmgr, IN char *pszCoffPath,
  *  Requires:
  *      COD module initialized.
  *      valid cod_mgr_obj.
- *      pstrSect != NULL;
+ *      str_sect != NULL;
  *      str_content != NULL;
  *  Ensures:
  *      0:  *str_content stores the content of the named section.
  */
 extern int cod_read_section(struct cod_libraryobj *lib,
-				   IN char *pstrSect,
+				   IN char *str_sect,
 				   OUT char *str_content, IN u32 content_size);
 
 #endif /* COD_ */

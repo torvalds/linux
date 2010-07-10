@@ -475,7 +475,7 @@ extern int dev_get_node_manager(struct dev_object
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      pstrSym:        Name of symbol to look up.
+ *      str_sym:        Name of symbol to look up.
  *      pul_value:       Ptr to symbol value.
  *  Returns:
  *      0:        Success.
@@ -483,14 +483,14 @@ extern int dev_get_node_manager(struct dev_object
  *      -ESPIPE: Symbols couldn not be found or have not been loaded onto
  *               the board.
  *  Requires:
- *      pstrSym != NULL.
+ *      str_sym != NULL.
  *      pul_value != NULL.
  *      DEV Initialized.
  *  Ensures:
  *      0:        *pul_value contains the symbol value;
  */
 extern int dev_get_symbol(struct dev_object *hdev_obj,
-				 IN CONST char *pstrSym, OUT u32 * pul_value);
+				 IN CONST char *str_sym, OUT u32 * pul_value);
 
 /*
  *  ======== dev_get_bridge_context ========
