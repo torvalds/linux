@@ -156,14 +156,14 @@ static struct dynload_symbol *dbll_find_symbol(struct dynamic_loader_sym *this,
 					       const char *name);
 static struct dynload_symbol *dbll_add_to_symbol_table(struct dynamic_loader_sym
 						       *this, const char *name,
-						       unsigned moduleId);
+						       unsigned module_id);
 static struct dynload_symbol *find_in_symbol_table(struct dynamic_loader_sym
 						   *this, const char *name,
 						   unsigned moduleid);
 static void dbll_purge_symbol_table(struct dynamic_loader_sym *this,
-				    unsigned moduleId);
+				    unsigned module_id);
 static void *allocate(struct dynamic_loader_sym *this, unsigned memsize);
-static void deallocate(struct dynamic_loader_sym *this, void *memPtr);
+static void deallocate(struct dynamic_loader_sym *this, void *mem_ptr);
 static void dbll_err_report(struct dynamic_loader_sym *this, const char *errstr,
 			    va_list args);
 /* dynamic_loader_allocate */
@@ -1094,7 +1094,7 @@ static struct dynload_symbol *find_in_symbol_table(struct dynamic_loader_sym
  */
 static struct dynload_symbol *dbll_add_to_symbol_table(struct dynamic_loader_sym
 						       *this, const char *name,
-						       unsigned moduleId)
+						       unsigned module_id)
 {
 	struct dbll_symbol *sym_ptr = NULL;
 	struct dbll_symbol symbol;
@@ -1150,7 +1150,7 @@ static struct dynload_symbol *dbll_add_to_symbol_table(struct dynamic_loader_sym
  *  ======== dbll_purge_symbol_table ========
  */
 static void dbll_purge_symbol_table(struct dynamic_loader_sym *this,
-				    unsigned moduleId)
+				    unsigned module_id)
 {
 	struct ldr_symbol *ldr_sym = (struct ldr_symbol *)this;
 	struct dbll_library_obj *lib;
@@ -1183,7 +1183,7 @@ static void *allocate(struct dynamic_loader_sym *this, unsigned memsize)
 /*
  *  ======== deallocate ========
  */
-static void deallocate(struct dynamic_loader_sym *this, void *memPtr)
+static void deallocate(struct dynamic_loader_sym *this, void *mem_ptr)
 {
 	struct ldr_symbol *ldr_sym = (struct ldr_symbol *)this;
 	struct dbll_library_obj *lib;
@@ -1192,7 +1192,7 @@ static void deallocate(struct dynamic_loader_sym *this, void *memPtr)
 	lib = ldr_sym->lib;
 	DBC_REQUIRE(lib);
 
-	kfree(memPtr);
+	kfree(mem_ptr);
 }
 
 /*

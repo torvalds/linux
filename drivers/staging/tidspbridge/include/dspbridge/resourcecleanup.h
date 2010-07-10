@@ -48,11 +48,11 @@ extern void drv_proc_node_update_status(void *node_resource, s32 status);
 
 extern int drv_proc_update_strm_res(u32 num_bufs, void *strm_res);
 
-extern int drv_proc_insert_strm_res_element(void *hStrm,
+extern int drv_proc_insert_strm_res_element(void *stream_obj,
 						   void *strm_res,
 						   void *pPctxt);
 
-extern int drv_get_strm_res_element(void *hStrm, void *strm_res,
+extern int drv_get_strm_res_element(void *stream_obj, void *strm_res,
 					   void *ctxt);
 
 extern int drv_proc_remove_strm_res_element(void *strm_res,

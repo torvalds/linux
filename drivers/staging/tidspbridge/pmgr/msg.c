@@ -46,7 +46,7 @@ static u32 refs;		/* module reference count */
  *      can exist per device object.
  */
 int msg_create(OUT struct msg_mgr **phMsgMgr,
-		      struct dev_object *hdev_obj, msg_onexit msgCallback)
+		      struct dev_object *hdev_obj, msg_onexit msg_callback)
 {
 	struct bridge_drv_interface *intf_fxns;
 	struct msg_mgr_ *msg_mgr_obj;
@@ -55,7 +55,7 @@ int msg_create(OUT struct msg_mgr **phMsgMgr,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(phMsgMgr != NULL);
-	DBC_REQUIRE(msgCallback != NULL);
+	DBC_REQUIRE(msg_callback != NULL);
 	DBC_REQUIRE(hdev_obj != NULL);
 
 	*phMsgMgr = NULL;
@@ -64,7 +64,7 @@ int msg_create(OUT struct msg_mgr **phMsgMgr,
 
 	/* Let Bridge message module finish the create: */
 	status =
-	    (*intf_fxns->pfn_msg_create) (&hmsg_mgr, hdev_obj, msgCallback);
+	    (*intf_fxns->pfn_msg_create) (&hmsg_mgr, hdev_obj, msg_callback);
 
 	if (DSP_SUCCEEDED(status)) {
 		/* Fill in DSP API message module's fields of the msg_mgr

@@ -101,7 +101,7 @@ static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
  *      device's bridge_brd_write() function.
  */
 u32 dev_brd_write_fxn(void *pArb, u32 ulDspAddr, void *pHostBuf,
-		      u32 ul_num_bytes, u32 nMemSpace)
+		      u32 ul_num_bytes, u32 mem_space)
 {
 	struct dev_object *dev_obj = (struct dev_object *)pArb;
 	u32 ul_written = 0;
@@ -114,7 +114,7 @@ u32 dev_brd_write_fxn(void *pArb, u32 ulDspAddr, void *pHostBuf,
 		DBC_ASSERT(dev_obj->hbridge_context != NULL);
 		status = (*dev_obj->bridge_interface.pfn_brd_write) (
 					dev_obj->hbridge_context, pHostBuf,
-					ulDspAddr, ul_num_bytes, nMemSpace);
+					ulDspAddr, ul_num_bytes, mem_space);
 		/* Special case of getting the address only */
 		if (ul_num_bytes == 0)
 			ul_num_bytes = 1;

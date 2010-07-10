@@ -81,7 +81,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  *       TypE		: const u32
  *       Description     : Base Address of instance of MMU module
  *
- *       Identifier      : pageSize
+ *       Identifier      : page_sz
  *       TypE		: const u32
  *       Description     : It indicates the page size
  *
@@ -113,7 +113,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  * METHOD:	       	: Check the Input parameters and set the CAM entry.
  */
 static hw_status mmu_set_cam_entry(const void __iomem *base_address,
-				   const u32 pageSize,
+				   const u32 page_sz,
 				   const u32 preservedBit,
 				   const u32 validBit,
 				   const u32 virtual_addr_tag);
@@ -184,11 +184,11 @@ hw_status hw_mmu_disable(const void __iomem *base_address)
 }
 
 hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
-				u32 numLockedEntries)
+				u32 num_locked_entries)
 {
 	hw_status status = RET_OK;
 
-	MMUMMU_LOCK_BASE_VALUE_WRITE32(base_address, numLockedEntries);
+	MMUMMU_LOCK_BASE_VALUE_WRITE32(base_address, num_locked_entries);
 
 	return status;
 }
@@ -203,44 +203,44 @@ hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
 	return status;
 }
 
-hw_status hw_mmu_event_ack(const void __iomem *base_address, u32 irqMask)
+hw_status hw_mmu_event_ack(const void __iomem *base_address, u32 irq_mask)
 {
 	hw_status status = RET_OK;
 
-	MMUMMU_IRQSTATUS_WRITE_REGISTER32(base_address, irqMask);
+	MMUMMU_IRQSTATUS_WRITE_REGISTER32(base_address, irq_mask);
 
 	return status;
 }
 
-hw_status hw_mmu_event_disable(const void __iomem *base_address, u32 irqMask)
+hw_status hw_mmu_event_disable(const void __iomem *base_address, u32 irq_mask)
 {
 	hw_status status = RET_OK;
 	u32 irq_reg;
 
 	irq_reg = MMUMMU_IRQENABLE_READ_REGISTER32(base_address);
 
-	MMUMMU_IRQENABLE_WRITE_REGISTER32(base_address, irq_reg & ~irqMask);
+	MMUMMU_IRQENABLE_WRITE_REGISTER32(base_address, irq_reg & ~irq_mask);
 
 	return status;
 }
 
-hw_status hw_mmu_event_enable(const void __iomem *base_address, u32 irqMask)
+hw_status hw_mmu_event_enable(const void __iomem *base_address, u32 irq_mask)
 {
 	hw_status status = RET_OK;
 	u32 irq_reg;
 
 	irq_reg = MMUMMU_IRQENABLE_READ_REGISTER32(base_address);
 
-	MMUMMU_IRQENABLE_WRITE_REGISTER32(base_address, irq_reg | irqMask);
+	MMUMMU_IRQENABLE_WRITE_REGISTER32(base_address, irq_reg | irq_mask);
 
 	return status;
 }
 
-hw_status hw_mmu_event_status(const void __iomem *base_address, u32 *irqMask)
+hw_status hw_mmu_event_status(const void __iomem *base_address, u32 *irq_mask)
 {
 	hw_status status = RET_OK;
 
-	*irqMask = MMUMMU_IRQSTATUS_READ_REGISTER32(base_address);
+	*irq_mask = MMUMMU_IRQSTATUS_READ_REGISTER32(base_address);
 
 	return status;
 }
@@ -294,13 +294,13 @@ hw_status hw_mmu_twl_disable(const void __iomem *base_address)
 }
 
 hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtualAddr,
-			   u32 pageSize)
+			   u32 page_sz)
 {
 	hw_status status = RET_OK;
 	u32 virtual_addr_tag;
 	enum hw_mmu_page_size_t pg_size_bits;
 
-	switch (pageSize) {
+	switch (page_sz) {
 	case HW_PAGE_SIZE4KB:
 		pg_size_bits = HW_MMU_SMALL_PAGE;
 		break;
@@ -334,7 +334,7 @@ hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtualAddr,
 hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 			 u32 physicalAddr,
 			 u32 virtualAddr,
-			 u32 pageSize,
+			 u32 page_sz,
 			 u32 entry_num,
 			 struct hw_mmu_map_attrs_t *map_attrs,
 			 s8 preservedBit, s8 validBit)
@@ -347,13 +347,13 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 	/*Check the input Parameters */
 	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
 			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
-	CHECK_INPUT_RANGE_MIN0(pageSize, MMU_PAGE_MAX, RET_PARAM_OUT_OF_RANGE,
+	CHECK_INPUT_RANGE_MIN0(page_sz, MMU_PAGE_MAX, RET_PARAM_OUT_OF_RANGE,
 			       RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
 	CHECK_INPUT_RANGE_MIN0(map_attrs->element_size, MMU_ELEMENTSIZE_MAX,
 			       RET_PARAM_OUT_OF_RANGE, RES_MMU_BASE +
 			       RES_INVALID_INPUT_PARAM);
 
-	switch (pageSize) {
+	switch (page_sz) {
 	case HW_PAGE_SIZE4KB:
 		mmu_pg_size = HW_MMU_SMALL_PAGE;
 		break;
@@ -404,13 +404,13 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 			 u32 physicalAddr,
 			 u32 virtualAddr,
-			 u32 pageSize, struct hw_mmu_map_attrs_t *map_attrs)
+			 u32 page_sz, struct hw_mmu_map_attrs_t *map_attrs)
 {
 	hw_status status = RET_OK;
 	u32 pte_addr, pte_val;
 	s32 num_entries = 1;
 
-	switch (pageSize) {
+	switch (page_sz) {
 	case HW_PAGE_SIZE4KB:
 		pte_addr = hw_mmu_pte_addr_l2(pg_tbl_va,
 					      virtualAddr &
@@ -537,7 +537,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address)
 
 /* mmu_set_cam_entry */
 static hw_status mmu_set_cam_entry(const void __iomem *base_address,
-				   const u32 pageSize,
+				   const u32 page_sz,
 				   const u32 preservedBit,
 				   const u32 validBit,
 				   const u32 virtual_addr_tag)
@@ -550,7 +550,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
 
 	mmu_cam_reg = (virtual_addr_tag << 12);
-	mmu_cam_reg = (mmu_cam_reg) | (pageSize) | (validBit << 2) |
+	mmu_cam_reg = (mmu_cam_reg) | (page_sz) | (validBit << 2) |
 	    (preservedBit << 3);
 
 	/* write values to register */

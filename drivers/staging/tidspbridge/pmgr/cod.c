@@ -155,7 +155,7 @@ static s32 cod_f_read(void __user *pbuffer, s32 size, s32 count,
 	return -EINVAL;
 }
 
-static s32 cod_f_seek(struct file *filp, s32 lOffset, s32 origin)
+static s32 cod_f_seek(struct file *filp, s32 offset, s32 origin)
 {
 	loff_t dw_cur_pos;
 
@@ -164,7 +164,7 @@ static s32 cod_f_seek(struct file *filp, s32 lOffset, s32 origin)
 		return -EFAULT;
 
 	/* based on the origin flag, move the internal pointer */
-	dw_cur_pos = filp->f_op->llseek(filp, lOffset, origin);
+	dw_cur_pos = filp->f_op->llseek(filp, offset, origin);
 
 	if ((s32) dw_cur_pos < 0)
 		return -EPERM;
@@ -487,12 +487,12 @@ bool cod_init(void)
  *      loaded must be the first element of the args array and must be a fully
  *      qualified pathname.
  *  Details:
- *      if nArgc doesn't match the number of arguments in the args array, the
+ *      if num_argc doesn't match the number of arguments in the args array, the
  *      args array is searched for a NULL terminating entry, and argc is
  *      recalculated to reflect this.  In this way, we can support NULL
- *      terminating args arrays, if nArgc is very large.
+ *      terminating args arrays, if num_argc is very large.
  */
-int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *args[],
+int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
 			 cod_writefxn pfn_write, void *pArb, char *envp[])
 {
 	dbll_flags flags;
@@ -503,7 +503,7 @@ int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *args[],
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(hmgr));
-	DBC_REQUIRE(nArgc > 0);
+	DBC_REQUIRE(num_argc > 0);
 	DBC_REQUIRE(args != NULL);
 	DBC_REQUIRE(args[0] != NULL);
 	DBC_REQUIRE(pfn_write != NULL);
@@ -513,9 +513,9 @@ int cod_load_base(struct cod_manager *hmgr, u32 nArgc, char *args[],
 	 *  Make sure every argv[] stated in argc has a value, or change argc to
 	 *  reflect true number in NULL terminated argv array.
 	 */
-	for (i = 0; i < nArgc; i++) {
+	for (i = 0; i < num_argc; i++) {
 		if (args[i] == NULL) {
-			nArgc = i;
+			num_argc = i;
 			break;
 		}
 	}

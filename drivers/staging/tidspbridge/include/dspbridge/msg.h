@@ -31,18 +31,18 @@
  *  Parameters:
  *      phMsgMgr:           Location to store msg_ctrl manager handle on output.
  *      hdev_obj:         The device object.
- *      msgCallback:        Called whenever an RMS_EXIT message is received.
+ *      msg_callback:        Called whenever an RMS_EXIT message is received.
  *  Returns:
  *  Requires:
  *      msg_mod_init(void) called.
  *      phMsgMgr != NULL.
  *      hdev_obj != NULL.
- *      msgCallback != NULL.
+ *      msg_callback != NULL.
  *  Ensures:
  */
 extern int msg_create(OUT struct msg_mgr **phMsgMgr,
 			     struct dev_object *hdev_obj,
-			     msg_onexit msgCallback);
+			     msg_onexit msg_callback);
 
 /*
  *  ======== msg_delete ========

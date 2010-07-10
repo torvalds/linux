@@ -48,7 +48,7 @@ enum nldr_loadtype {
  *      ulDspRunAddr:   Run address of code or data.
  *      ulDspLoadAddr:  Load address of code or data.
  *      ul_num_bytes:     Number of (GPP) bytes to copy.
- *      nMemSpace:      RMS_CODE or RMS_DATA.
+ *      mem_space:      RMS_CODE or RMS_DATA.
  *  Returns:
  *      ul_num_bytes:     Success.
  *      0:              Failure.
@@ -56,7 +56,7 @@ enum nldr_loadtype {
  *  Ensures:
  */
 typedef u32(*nldr_ovlyfxn) (void *priv_ref, u32 ulDspRunAddr,
-			    u32 ulDspLoadAddr, u32 ul_num_bytes, u32 nMemSpace);
+			    u32 ulDspLoadAddr, u32 ul_num_bytes, u32 mem_space);
 
 /*
  *  ======== nldr_writefxn ========
@@ -66,7 +66,7 @@ typedef u32(*nldr_ovlyfxn) (void *priv_ref, u32 ulDspRunAddr,
  *      ulDspAddr:      Address of code or data.
  *      pbuf:           Code or data to be written
  *      ul_num_bytes:     Number of (GPP) bytes to write.
- *      nMemSpace:      DBLL_DATA or DBLL_CODE.
+ *      mem_space:      DBLL_DATA or DBLL_CODE.
  *  Returns:
  *      ul_num_bytes:     Success.
  *      0:              Failure.
@@ -75,7 +75,7 @@ typedef u32(*nldr_ovlyfxn) (void *priv_ref, u32 ulDspRunAddr,
  */
 typedef u32(*nldr_writefxn) (void *priv_ref,
 			     u32 ulDspAddr, void *pbuf,
-			     u32 ul_num_bytes, u32 nMemSpace);
+			     u32 ul_num_bytes, u32 mem_space);
 
 /*
  *  ======== nldr_attrs ========

@@ -806,19 +806,19 @@ typedef int(*fxn_io_getprocload) (struct io_mgr *hio_mgr,
  *  Parameters:
  *      phMsgMgr:           Location to store msg_ctrl manager on output.
  *      hdev_obj:         Handle to a device object.
- *      msgCallback:        Called whenever an RMS_EXIT message is received.
+ *      msg_callback:        Called whenever an RMS_EXIT message is received.
  *  Returns:
  *      0:            Success.
  *      -ENOMEM:        Insufficient memory.
  *  Requires:
  *      phMsgMgr != NULL.
- *      msgCallback != NULL.
+ *      msg_callback != NULL.
  *      hdev_obj != NULL.
  *  Ensures:
  */
 typedef int(*fxn_msg_create)
  (OUT struct msg_mgr **phMsgMgr,
-  struct dev_object *hdev_obj, msg_onexit msgCallback);
+  struct dev_object *hdev_obj, msg_onexit msg_callback);
 
 /*
  *  ======== bridge_msg_create_queue ========
@@ -831,7 +831,7 @@ typedef int(*fxn_msg_create)
  *      phMsgQueue:         Location to store msg_ctrl queue on output.
  *      msgq_id:	    Identifier for messages (node environment pointer).
  *      max_msgs:           Max number of simultaneous messages for the node.
- *      h:                  Handle passed to hmsg_mgr->msgCallback().
+ *      h:                  Handle passed to hmsg_mgr->msg_callback().
  *  Returns:
  *      0:            Success.
  *      -ENOMEM:        Insufficient memory.

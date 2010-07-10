@@ -24,6 +24,6 @@ struct msg_mgr;
 struct msg_queue;
 
 /* Function prototype for callback to be called on RMS_EXIT message received */
-typedef void (*msg_onexit) (void *h, s32 nStatus);
+typedef void (*msg_onexit) (void *h, s32 node_status);
 
 #endif /* MSGDEFS_ */

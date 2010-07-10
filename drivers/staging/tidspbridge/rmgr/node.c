@@ -258,9 +258,9 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
 				 struct dev_object *hdev_obj);
 static int get_rms_fxns(struct node_mgr *hnode_mgr);
 static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
-		u32 ul_num_bytes, u32 nMemSpace);
+		u32 ul_num_bytes, u32 mem_space);
 static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
-		     u32 ul_num_bytes, u32 nMemSpace);
+		     u32 ul_num_bytes, u32 mem_space);
 
 static u32 refs;		/* module reference count */
 
@@ -1987,14 +1987,14 @@ bool node_init(void)
  *  Purpose:
  *      Gets called when RMS_EXIT is received for a node.
  */
-void node_on_exit(struct node_object *hnode, s32 nStatus)
+void node_on_exit(struct node_object *hnode, s32 node_status)
 {
 	if (!hnode)
 		return;
 
 	/* Set node state to done */
 	NODE_SET_STATE(hnode, NODE_DONE);
-	hnode->exit_status = nStatus;
+	hnode->exit_status = node_status;
 	if (hnode->loaded && hnode->phase_split) {
 		(void)hnode->hnode_mgr->nldr_fxns.pfn_unload(hnode->
 							     nldr_node_obj,
@@ -3128,7 +3128,7 @@ static int get_rms_fxns(struct node_mgr *hnode_mgr)
  *      Called during overlay.Sends command to RMS to copy a block of data.
  */
 static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
-		u32 ul_num_bytes, u32 nMemSpace)
+		u32 ul_num_bytes, u32 mem_space)
 {
 	struct node_object *hnode = (struct node_object *)priv_ref;
 	struct node_mgr *hnode_mgr;
@@ -3154,7 +3154,7 @@ static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
 		status =
 		    (*intf_fxns->pfn_brd_mem_copy) (hbridge_context,
 						ulDspRunAddr, ulDspLoadAddr,
-						ul_num_bytes, (u32) nMemSpace);
+						ul_num_bytes, (u32) mem_space);
 		if (DSP_SUCCEEDED(status))
 			ul_bytes = ul_num_bytes;
 		else
@@ -3172,7 +3172,7 @@ static u32 ovly(void *priv_ref, u32 ulDspRunAddr, u32 ulDspLoadAddr,
  *  ======== mem_write ========
  */
 static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
-		     u32 ul_num_bytes, u32 nMemSpace)
+		     u32 ul_num_bytes, u32 mem_space)
 {
 	struct node_object *hnode = (struct node_object *)priv_ref;
 	struct node_mgr *hnode_mgr;
@@ -3184,12 +3184,12 @@ static u32 mem_write(void *priv_ref, u32 ulDspAddr, void *pbuf,
 	struct bridge_drv_interface *intf_fxns;
 
 	DBC_REQUIRE(hnode);
-	DBC_REQUIRE(nMemSpace & DBLL_CODE || nMemSpace & DBLL_DATA);
+	DBC_REQUIRE(mem_space & DBLL_CODE || mem_space & DBLL_DATA);
 
 	hnode_mgr = hnode->hnode_mgr;
 
 	ul_timeout = hnode->utimeout;
-	mem_sect_type = (nMemSpace & DBLL_CODE) ? RMS_CODE : RMS_DATA;
+	mem_sect_type = (mem_space & DBLL_CODE) ? RMS_CODE : RMS_DATA;
 
 	/* Call new MemWrite function */
 	intf_fxns = hnode_mgr->intf_fxns;

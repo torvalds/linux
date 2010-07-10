@@ -327,7 +327,7 @@ void dcd_exit(void)
  */
 int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 			    IN struct dsp_uuid *uuid_obj,
-			    u16 numLibs, OUT struct dsp_uuid *pDepLibUuids,
+			    u16 num_libs, OUT struct dsp_uuid *pDepLibUuids,
 			    OUT bool *pPersistentDepLibs,
 			    IN enum nldr_phase phase)
 {
@@ -340,7 +340,7 @@ int dcd_get_dep_libs(IN struct dcd_manager *hdcd_mgr,
 	DBC_REQUIRE(pPersistentDepLibs != NULL);
 
 	status =
-	    get_dep_lib_info(hdcd_mgr, uuid_obj, &numLibs, NULL, pDepLibUuids,
+	    get_dep_lib_info(hdcd_mgr, uuid_obj, &num_libs, NULL, pDepLibUuids,
 			     pPersistentDepLibs, phase);
 
 	return status;

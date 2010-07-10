@@ -420,11 +420,11 @@ extern bool node_init(void);
  *      called by the Bridge driver when an exit message for a node is received.
  *  Parameters:
  *      hnode:      Handle of the node that the exit message is for.
- *      nStatus:    Return status of the node's execute phase.
+ *      node_status:    Return status of the node's execute phase.
  *  Returns:
  *  Ensures:
  */
-void node_on_exit(struct node_object *hnode, s32 nStatus);
+void node_on_exit(struct node_object *hnode, s32 node_status);
 
 /*
  *  ======== node_pause ========

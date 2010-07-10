@@ -108,7 +108,7 @@ void io_mbox_msg(u32 msg);
  *  Parameters:
  *      hio_mgr:     IO manager handle.
  *      pchnl:      Ptr to the channel requesting I/O.
- *      iMode:      Mode of channel: {IO_INPUT | IO_OUTPUT}.
+ *      io_mode:      Mode of channel: {IO_INPUT | IO_OUTPUT}.
  *  Returns:
  *  Requires:
  *      pchnl != NULL
@@ -116,7 +116,7 @@ void io_mbox_msg(u32 msg);
  */
 extern void io_request_chnl(struct io_mgr *hio_mgr,
 			    struct chnl_object *pchnl,
-			    u8 iMode, OUT u16 *pwMbVal);
+			    u8 io_mode, OUT u16 *pwMbVal);
 
 /*
  *  ======== iosm_schedule ========

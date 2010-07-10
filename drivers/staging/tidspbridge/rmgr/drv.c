@@ -375,7 +375,7 @@ int drv_remove_all_strm_res_elements(void *process_ctxt)
 }
 
 /* Getting the stream resource element */
-int drv_get_strm_res_element(void *hStrm, void *hstrm_res,
+int drv_get_strm_res_element(void *stream_obj, void *hstrm_res,
 				    void *process_ctxt)
 {
 	struct strm_res_object **strm_res =
@@ -389,7 +389,7 @@ int drv_get_strm_res_element(void *hStrm, void *hstrm_res,
 		return -EPERM;
 
 	temp_strm = ctxt->pstrm_list;
-	while ((temp_strm != NULL) && (temp_strm->hstream != hStrm)) {
+	while ((temp_strm != NULL) && (temp_strm->hstream != stream_obj)) {
 		temp_strm2 = temp_strm;
 		temp_strm = temp_strm->next;
 	}

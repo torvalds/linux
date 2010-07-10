@@ -88,7 +88,7 @@ struct strm_object {
 static u32 refs;		/* module reference count */
 
 /*  ----------------------------------- Function Prototypes */
-static int delete_strm(struct strm_object *hStrm);
+static int delete_strm(struct strm_object *stream_obj);
 static void delete_strm_mgr(struct strm_mgr *strm_mgr_obj);
 
 /*
@@ -96,7 +96,7 @@ static void delete_strm_mgr(struct strm_mgr *strm_mgr_obj);
  *  Purpose:
  *      Allocates buffers for a stream.
  */
-int strm_allocate_buffer(struct strm_object *hStrm, u32 usize,
+int strm_allocate_buffer(struct strm_object *stream_obj, u32 usize,
 				OUT u8 **ap_buffer, u32 num_bufs,
 				struct process_context *pr_ctxt)
 {
@@ -109,7 +109,7 @@ int strm_allocate_buffer(struct strm_object *hStrm, u32 usize,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ap_buffer != NULL);
 
-	if (hStrm) {
+	if (stream_obj) {
 		/*
 		 * Allocate from segment specified at time of stream open.
 		 */
@@ -124,8 +124,9 @@ int strm_allocate_buffer(struct strm_object *hStrm, u32 usize,
 		goto func_end;
 
 	for (i = 0; i < num_bufs; i++) {
-		DBC_ASSERT(hStrm->xlator != NULL);
-		(void)cmm_xlator_alloc_buf(hStrm->xlator, &ap_buffer[i], usize);
+		DBC_ASSERT(stream_obj->xlator != NULL);
+		(void)cmm_xlator_alloc_buf(stream_obj->xlator, &ap_buffer[i],
+					   usize);
 		if (ap_buffer[i] == NULL) {
 			status = -ENOMEM;
 			alloc_cnt = i;
@@ -133,12 +134,12 @@ int strm_allocate_buffer(struct strm_object *hStrm, u32 usize,
 		}
 	}
 	if (DSP_FAILED(status))
-		strm_free_buffer(hStrm, ap_buffer, alloc_cnt, pr_ctxt);
+		strm_free_buffer(stream_obj, ap_buffer, alloc_cnt, pr_ctxt);
 
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	if (drv_get_strm_res_element(hStrm, &hstrm_res, pr_ctxt) !=
+	if (drv_get_strm_res_element(stream_obj, &hstrm_res, pr_ctxt) !=
 	    -ENOENT)
 		drv_proc_update_strm_res(num_bufs, hstrm_res);
 
@@ -151,7 +152,7 @@ func_end:
  *  Purpose:
  *      Close a stream opened with strm_open().
  */
-int strm_close(struct strm_object *hStrm,
+int strm_close(struct strm_object *stream_obj,
 		      struct process_context *pr_ctxt)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -162,35 +163,35 @@ int strm_close(struct strm_object *hStrm,
 
 	DBC_REQUIRE(refs > 0);
 
-	if (!hStrm) {
+	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
 		/* Have all buffers been reclaimed? If not, return
 		 * -EPIPE */
-		intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 		status =
-		    (*intf_fxns->pfn_chnl_get_info) (hStrm->chnl_obj,
+		    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
 						     &chnl_info_obj);
 		DBC_ASSERT(DSP_SUCCEEDED(status));
 
 		if (chnl_info_obj.cio_cs > 0 || chnl_info_obj.cio_reqs > 0)
 			status = -EPIPE;
 		else
-			status = delete_strm(hStrm);
+			status = delete_strm(stream_obj);
 	}
 
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	if (drv_get_strm_res_element(hStrm, &hstrm_res, pr_ctxt) !=
+	if (drv_get_strm_res_element(stream_obj, &hstrm_res, pr_ctxt) !=
 	    -ENOENT)
 		drv_proc_remove_strm_res_element(hstrm_res, pr_ctxt);
 func_end:
 	DBC_ENSURE(status == 0 || status == -EFAULT ||
 		   status == -EPIPE || status == -EPERM);
 
-	dev_dbg(bridge, "%s: hStrm: %p, status 0x%x\n", __func__,
-		hStrm, status);
+	dev_dbg(bridge, "%s: stream_obj: %p, status 0x%x\n", __func__,
+		stream_obj, status);
 	return status;
 }
 
@@ -270,7 +271,7 @@ void strm_exit(void)
  *  Purpose:
  *      Frees the buffers allocated for a stream.
  */
-int strm_free_buffer(struct strm_object *hStrm, u8 ** ap_buffer,
+int strm_free_buffer(struct strm_object *stream_obj, u8 ** ap_buffer,
 			    u32 num_bufs, struct process_context *pr_ctxt)
 {
 	int status = 0;
@@ -281,20 +282,21 @@ int strm_free_buffer(struct strm_object *hStrm, u8 ** ap_buffer,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(ap_buffer != NULL);
 
-	if (!hStrm)
+	if (!stream_obj)
 		status = -EFAULT;
 
 	if (DSP_SUCCEEDED(status)) {
 		for (i = 0; i < num_bufs; i++) {
-			DBC_ASSERT(hStrm->xlator != NULL);
+			DBC_ASSERT(stream_obj->xlator != NULL);
 			status =
-			    cmm_xlator_free_buf(hStrm->xlator, ap_buffer[i]);
+			    cmm_xlator_free_buf(stream_obj->xlator,
+						ap_buffer[i]);
 			if (DSP_FAILED(status))
 				break;
 			ap_buffer[i] = NULL;
 		}
 	}
-	if (drv_get_strm_res_element(hStrm, hstrm_res, pr_ctxt) !=
+	if (drv_get_strm_res_element(stream_obj, hstrm_res, pr_ctxt) !=
 	    -ENOENT)
 		drv_proc_update_strm_res(num_bufs - i, hstrm_res);
 
@@ -306,7 +308,7 @@ int strm_free_buffer(struct strm_object *hStrm, u8 ** ap_buffer,
  *  Purpose:
  *      Retrieves information about a stream.
  */
-int strm_get_info(struct strm_object *hStrm,
+int strm_get_info(struct strm_object *stream_obj,
 			 OUT struct stream_info *stream_info,
 			 u32 stream_info_size)
 {
@@ -319,7 +321,7 @@ int strm_get_info(struct strm_object *hStrm,
 	DBC_REQUIRE(stream_info != NULL);
 	DBC_REQUIRE(stream_info_size >= sizeof(struct stream_info));
 
-	if (!hStrm) {
+	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
 		if (stream_info_size < sizeof(struct stream_info)) {
@@ -330,22 +332,23 @@ int strm_get_info(struct strm_object *hStrm,
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 	status =
-	    (*intf_fxns->pfn_chnl_get_info) (hStrm->chnl_obj, &chnl_info_obj);
+	    (*intf_fxns->pfn_chnl_get_info) (stream_obj->chnl_obj,
+						  &chnl_info_obj);
 	if (DSP_FAILED(status))
 		goto func_end;
 
-	if (hStrm->xlator) {
+	if (stream_obj->xlator) {
 		/* We have a translator */
-		DBC_ASSERT(hStrm->segment_id > 0);
-		cmm_xlator_info(hStrm->xlator, (u8 **) &virt_base, 0,
-				hStrm->segment_id, false);
+		DBC_ASSERT(stream_obj->segment_id > 0);
+		cmm_xlator_info(stream_obj->xlator, (u8 **) &virt_base, 0,
+				stream_obj->segment_id, false);
 	}
-	stream_info->segment_id = hStrm->segment_id;
-	stream_info->strm_mode = hStrm->strm_mode;
+	stream_info->segment_id = stream_obj->segment_id;
+	stream_info->strm_mode = stream_obj->strm_mode;
 	stream_info->virt_base = virt_base;
-	stream_info->user_strm->number_bufs_allowed = hStrm->num_bufs;
+	stream_info->user_strm->number_bufs_allowed = stream_obj->num_bufs;
 	stream_info->user_strm->number_bufs_in_stream = chnl_info_obj.cio_cs +
 	    chnl_info_obj.cio_reqs;
 	/* # of bytes transferred since last call to DSPStream_Idle() */
@@ -373,25 +376,25 @@ func_end:
  *  Purpose:
  *      Idles a particular stream.
  */
-int strm_idle(struct strm_object *hStrm, bool flush_data)
+int strm_idle(struct strm_object *stream_obj, bool flush_data)
 {
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
 
-	if (!hStrm) {
+	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
-		intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
-		status = (*intf_fxns->pfn_chnl_idle) (hStrm->chnl_obj,
-						      hStrm->utimeout,
+		status = (*intf_fxns->pfn_chnl_idle) (stream_obj->chnl_obj,
+						      stream_obj->utimeout,
 						      flush_data);
 	}
 
-	dev_dbg(bridge, "%s: hStrm: %p flush_data: 0x%x status: 0x%x\n",
-		__func__, hStrm, flush_data, status);
+	dev_dbg(bridge, "%s: stream_obj: %p flush_data: 0x%x status: 0x%x\n",
+		__func__, stream_obj, flush_data, status);
 	return status;
 }
 
@@ -419,7 +422,7 @@ bool strm_init(void)
  *  Purpose:
  *      Issues a buffer on a stream
  */
-int strm_issue(struct strm_object *hStrm, IN u8 *pbuf, u32 ul_bytes,
+int strm_issue(struct strm_object *stream_obj, IN u8 *pbuf, u32 ul_bytes,
 		      u32 ul_buf_size, u32 dw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -429,13 +432,13 @@ int strm_issue(struct strm_object *hStrm, IN u8 *pbuf, u32 ul_bytes,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(pbuf != NULL);
 
-	if (!hStrm) {
+	if (!stream_obj) {
 		status = -EFAULT;
 	} else {
-		intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
-		if (hStrm->segment_id != 0) {
-			tmp_buf = cmm_xlator_translate(hStrm->xlator,
+		if (stream_obj->segment_id != 0) {
+			tmp_buf = cmm_xlator_translate(stream_obj->xlator,
 						       (void *)pbuf,
 						       CMM_VA2DSPPA);
 			if (tmp_buf == NULL)
@@ -444,15 +447,15 @@ int strm_issue(struct strm_object *hStrm, IN u8 *pbuf, u32 ul_bytes,
 		}
 		if (DSP_SUCCEEDED(status)) {
 			status = (*intf_fxns->pfn_chnl_add_io_req)
-			    (hStrm->chnl_obj, pbuf, ul_bytes, ul_buf_size,
+			    (stream_obj->chnl_obj, pbuf, ul_bytes, ul_buf_size,
 			     (u32) tmp_buf, dw_arg);
 		}
 		if (status == -EIO)
 			status = -ENOSR;
 	}
 
-	dev_dbg(bridge, "%s: hStrm: %p pbuf: %p ul_bytes: 0x%x dw_arg: 0x%x "
-		"status: 0x%x\n", __func__, hStrm, pbuf,
+	dev_dbg(bridge, "%s: stream_obj: %p pbuf: %p ul_bytes: 0x%x dw_arg:"
+		" 0x%x status: 0x%x\n", __func__, stream_obj, pbuf,
 		ul_bytes, dw_arg, status);
 	return status;
 }
@@ -615,7 +618,7 @@ func_cont:
  *  Purpose:
  *      Relcaims a buffer from a stream.
  */
-int strm_reclaim(struct strm_object *hStrm, OUT u8 ** buf_ptr,
+int strm_reclaim(struct strm_object *stream_obj, OUT u8 ** buf_ptr,
 			u32 *pulBytes, u32 *pulBufSize, u32 *pdw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -628,14 +631,15 @@ int strm_reclaim(struct strm_object *hStrm, OUT u8 ** buf_ptr,
 	DBC_REQUIRE(pulBytes != NULL);
 	DBC_REQUIRE(pdw_arg != NULL);
 
-	if (!hStrm) {
+	if (!stream_obj) {
 		status = -EFAULT;
 		goto func_end;
 	}
-	intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+	intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 	status =
-	    (*intf_fxns->pfn_chnl_get_ioc) (hStrm->chnl_obj, hStrm->utimeout,
+	    (*intf_fxns->pfn_chnl_get_ioc) (stream_obj->chnl_obj,
+					    stream_obj->utimeout,
 					    &chnl_ioc_obj);
 	if (DSP_SUCCEEDED(status)) {
 		*pulBytes = chnl_ioc_obj.byte_size;
@@ -656,7 +660,7 @@ int strm_reclaim(struct strm_object *hStrm, OUT u8 ** buf_ptr,
 		/* Translate zerocopy buffer if channel not canceled. */
 		if (DSP_SUCCEEDED(status)
 		    && (!CHNL_IS_IO_CANCELLED(chnl_ioc_obj))
-		    && (hStrm->strm_mode == STRMMODE_ZEROCOPY)) {
+		    && (stream_obj->strm_mode == STRMMODE_ZEROCOPY)) {
 			/*
 			 *  This is a zero-copy channel so chnl_ioc_obj.pbuf
 			 *  contains the DSP address of SM. We need to
@@ -664,12 +668,13 @@ int strm_reclaim(struct strm_object *hStrm, OUT u8 ** buf_ptr,
 			 *  thread to access.
 			 *  Note: Could add CMM_DSPPA2VA to CMM in the future.
 			 */
-			tmp_buf = cmm_xlator_translate(hStrm->xlator,
+			tmp_buf = cmm_xlator_translate(stream_obj->xlator,
 						       chnl_ioc_obj.pbuf,
 						       CMM_DSPPA2PA);
 			if (tmp_buf != NULL) {
 				/* now convert this GPP Pa to Va */
-				tmp_buf = cmm_xlator_translate(hStrm->xlator,
+				tmp_buf = cmm_xlator_translate(stream_obj->
+							       xlator,
 							       tmp_buf,
 							       CMM_PA2VA);
 			}
@@ -686,8 +691,8 @@ func_end:
 		   status == -ETIME || status == -ESRCH ||
 		   status == -EPERM);
 
-	dev_dbg(bridge, "%s: hStrm: %p buf_ptr: %p pulBytes: %p pdw_arg: %p "
-		"status 0x%x\n", __func__, hStrm,
+	dev_dbg(bridge, "%s: stream_obj: %p buf_ptr: %p pulBytes: %p "
+		"pdw_arg: %p status 0x%x\n", __func__, stream_obj,
 		buf_ptr, pulBytes, pdw_arg, status);
 	return status;
 }
@@ -697,7 +702,7 @@ func_end:
  *  Purpose:
  *      Register to be notified on specific events for this stream.
  */
-int strm_register_notify(struct strm_object *hStrm, u32 event_mask,
+int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
 				u32 notify_type, struct dsp_notification
 				* hnotification)
 {
@@ -707,7 +712,7 @@ int strm_register_notify(struct strm_object *hStrm, u32 event_mask,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(hnotification != NULL);
 
-	if (!hStrm) {
+	if (!stream_obj) {
 		status = -EFAULT;
 	} else if ((event_mask & ~((DSP_STREAMIOCOMPLETION) |
 				   DSP_STREAMDONE)) != 0) {
@@ -718,10 +723,11 @@ int strm_register_notify(struct strm_object *hStrm, u32 event_mask,
 
 	}
 	if (DSP_SUCCEEDED(status)) {
-		intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+		intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 
 		status =
-		    (*intf_fxns->pfn_chnl_register_notify) (hStrm->chnl_obj,
+		    (*intf_fxns->pfn_chnl_register_notify) (stream_obj->
+							    chnl_obj,
 							    event_mask,
 							    notify_type,
 							    hnotification);
@@ -738,7 +744,7 @@ int strm_register_notify(struct strm_object *hStrm, u32 event_mask,
  *  Purpose:
  *      Selects a ready stream.
  */
-int strm_select(IN struct strm_object **strm_tab, u32 nStrms,
+int strm_select(IN struct strm_object **strm_tab, u32 strms,
 		       OUT u32 *pmask, u32 utimeout)
 {
 	u32 index;
@@ -751,10 +757,10 @@ int strm_select(IN struct strm_object **strm_tab, u32 nStrms,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(strm_tab != NULL);
 	DBC_REQUIRE(pmask != NULL);
-	DBC_REQUIRE(nStrms > 0);
+	DBC_REQUIRE(strms > 0);
 
 	*pmask = 0;
-	for (i = 0; i < nStrms; i++) {
+	for (i = 0; i < strms; i++) {
 		if (!strm_tab[i]) {
 			status = -EFAULT;
 			break;
@@ -764,7 +770,7 @@ int strm_select(IN struct strm_object **strm_tab, u32 nStrms,
 		goto func_end;
 
 	/* Determine which channels have IO ready */
-	for (i = 0; i < nStrms; i++) {
+	for (i = 0; i < strms; i++) {
 		intf_fxns = strm_tab[i]->strm_mgr_obj->intf_fxns;
 		status = (*intf_fxns->pfn_chnl_get_info) (strm_tab[i]->chnl_obj,
 							  &chnl_info_obj);
@@ -778,13 +784,13 @@ int strm_select(IN struct strm_object **strm_tab, u32 nStrms,
 	}
 	if (DSP_SUCCEEDED(status) && utimeout > 0 && *pmask == 0) {
 		/* Non-zero timeout */
-		sync_events = kmalloc(nStrms * sizeof(struct sync_object *),
+		sync_events = kmalloc(strms * sizeof(struct sync_object *),
 								GFP_KERNEL);
 
 		if (sync_events == NULL) {
 			status = -ENOMEM;
 		} else {
-			for (i = 0; i < nStrms; i++) {
+			for (i = 0; i < strms; i++) {
 				intf_fxns =
 				    strm_tab[i]->strm_mgr_obj->intf_fxns;
 				status = (*intf_fxns->pfn_chnl_get_info)
@@ -799,7 +805,7 @@ int strm_select(IN struct strm_object **strm_tab, u32 nStrms,
 		}
 		if (DSP_SUCCEEDED(status)) {
 			status =
-			    sync_wait_on_multiple_events(sync_events, nStrms,
+			    sync_wait_on_multiple_events(sync_events, strms,
 							 utimeout, &index);
 			if (DSP_SUCCEEDED(status)) {
 				/* Since we waited on the event, we have to
@@ -823,27 +829,29 @@ func_end:
  *  Purpose:
  *      Frees the resources allocated for a stream.
  */
-static int delete_strm(struct strm_object *hStrm)
+static int delete_strm(struct strm_object *stream_obj)
 {
 	struct bridge_drv_interface *intf_fxns;
 	int status = 0;
 
-	if (hStrm) {
-		if (hStrm->chnl_obj) {
-			intf_fxns = hStrm->strm_mgr_obj->intf_fxns;
+	if (stream_obj) {
+		if (stream_obj->chnl_obj) {
+			intf_fxns = stream_obj->strm_mgr_obj->intf_fxns;
 			/* Channel close can fail only if the channel handle
 			 * is invalid. */
-			status = (*intf_fxns->pfn_chnl_close) (hStrm->chnl_obj);
+			status = (*intf_fxns->pfn_chnl_close)
+					(stream_obj->chnl_obj);
 			/* Free all SM address translator resources */
 			if (DSP_SUCCEEDED(status)) {
-				if (hStrm->xlator) {
+				if (stream_obj->xlator) {
 					/* force free */
-					(void)cmm_xlator_delete(hStrm->xlator,
+					(void)cmm_xlator_delete(stream_obj->
+								xlator,
 								true);
 				}
 			}
 		}
-		kfree(hStrm);
+		kfree(stream_obj);
 	} else {
 		status = -EFAULT;
 	}

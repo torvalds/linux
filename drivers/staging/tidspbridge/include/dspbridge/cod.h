@@ -50,7 +50,7 @@ struct cod_attrs {
  *  and freeing DSP memory.
  */
 typedef u32(*cod_writefxn) (void *priv_ref, u32 ulDspAddr,
-			    void *pbuf, u32 ul_num_bytes, u32 nMemSpace);
+			    void *pbuf, u32 ul_num_bytes, u32 mem_space);
 
 /*
  *  ======== cod_close ========
@@ -276,7 +276,7 @@ extern bool cod_init(void);
  *      qualified pathname.
  *  Parameters:
  *      hmgr:       manager to load the code with
- *      nArgc:      number of arguments in the args array
+ *      num_argc:   number of arguments in the args array
  *      args:       array of strings for arguments to DSP program
  *      write_fxn:   board-specific function to write data to DSP system
  *      pArb:       arbitrary pointer to be passed as first arg to write_fxn
@@ -287,14 +287,14 @@ extern bool cod_init(void);
  *  Requires:
  *      COD module initialized.
  *      hmgr is valid.
- *      nArgc > 0.
+ *      num_argc > 0.
  *      args != NULL.
  *      args[0] != NULL.
  *      pfn_write != NULL.
  *  Ensures:
  */
 extern int cod_load_base(struct cod_manager *cod_mgr_obj,
-				u32 nArgc, char *args[],
+				u32 num_argc, char *args[],
 				cod_writefxn pfn_write, void *pArb,
 				char *envp[]);
 

@@ -38,10 +38,10 @@
 #include <dspbridge/dspmsg.h>
 
 /*  ----------------------------------- Function Prototypes */
-static int add_new_msg(struct lst_list *msgList);
+static int add_new_msg(struct lst_list *msg_list);
 static void delete_msg_mgr(struct msg_mgr *hmsg_mgr);
 static void delete_msg_queue(struct msg_queue *msg_queue_obj, u32 uNumToDSP);
-static void free_msg_list(struct lst_list *msgList);
+static void free_msg_list(struct lst_list *msg_list);
 
 /*
  *  ======== bridge_msg_create ========
@@ -50,13 +50,13 @@ static void free_msg_list(struct lst_list *msgList);
  */
 int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
 			     struct dev_object *hdev_obj,
-			     msg_onexit msgCallback)
+			     msg_onexit msg_callback)
 {
 	struct msg_mgr *msg_mgr_obj;
 	struct io_mgr *hio_mgr;
 	int status = 0;
 
-	if (!phMsgMgr || !msgCallback || !hdev_obj) {
+	if (!phMsgMgr || !msg_callback || !hdev_obj) {
 		status = -EFAULT;
 		goto func_end;
 	}
@@ -70,7 +70,7 @@ int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
 	msg_mgr_obj = kzalloc(sizeof(struct msg_mgr), GFP_KERNEL);
 
 	if (msg_mgr_obj) {
-		msg_mgr_obj->on_exit = msgCallback;
+		msg_mgr_obj->on_exit = msg_callback;
 		msg_mgr_obj->hio_mgr = hio_mgr;
 		/* List of MSG_QUEUEs */
 		msg_mgr_obj->queue_list = kzalloc(sizeof(struct lst_list),
@@ -551,7 +551,7 @@ void bridge_msg_set_queue_id(struct msg_queue *msg_queue_obj, u32 msgq_id)
  *  ======== add_new_msg ========
  *      Must be called in message manager critical section.
  */
-static int add_new_msg(struct lst_list *msgList)
+static int add_new_msg(struct lst_list *msg_list)
 {
 	struct msg_frame *pmsg;
 	int status = 0;
@@ -559,7 +559,7 @@ static int add_new_msg(struct lst_list *msgList)
 	pmsg = kzalloc(sizeof(struct msg_frame), GFP_ATOMIC);
 	if (pmsg != NULL) {
 		lst_init_elem((struct list_head *)pmsg);
-		lst_put_tail(msgList, (struct list_head *)pmsg);
+		lst_put_tail(msg_list, (struct list_head *)pmsg);
 	} else {
 		status = -ENOMEM;
 	}
@@ -655,19 +655,19 @@ func_end:
 /*
  *  ======== free_msg_list ========
  */
-static void free_msg_list(struct lst_list *msgList)
+static void free_msg_list(struct lst_list *msg_list)
 {
 	struct msg_frame *pmsg;
 
-	if (!msgList)
+	if (!msg_list)
 		goto func_end;
 
-	while ((pmsg = (struct msg_frame *)lst_get_head(msgList)) != NULL)
+	while ((pmsg = (struct msg_frame *)lst_get_head(msg_list)) != NULL)
 		kfree(pmsg);
 
-	DBC_ASSERT(LST_IS_EMPTY(msgList));
+	DBC_ASSERT(LST_IS_EMPTY(msg_list));
 
-	kfree(msgList);
+	kfree(msg_list);
 func_end:
 	return;
 }

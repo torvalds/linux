@@ -133,16 +133,16 @@ struct io_mgr {
 
 /* Function Prototypes */
 static void io_dispatch_chnl(IN struct io_mgr *pio_mgr,
-				IN OUT struct chnl_object *pchnl, u8 iMode);
+				IN OUT struct chnl_object *pchnl, u8 io_mode);
 static void io_dispatch_msg(IN struct io_mgr *pio_mgr,
 			    struct msg_mgr *hmsg_mgr);
 static void io_dispatch_pm(struct io_mgr *pio_mgr);
 static void notify_chnl_complete(struct chnl_object *pchnl,
 				 struct chnl_irp *chnl_packet_obj);
 static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
-			u8 iMode);
+			u8 io_mode);
 static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
-			u8 iMode);
+			u8 io_mode);
 static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
@@ -839,18 +839,18 @@ func_end:
  *      Proc-copy chanl dispatch.
  */
 static void io_dispatch_chnl(IN struct io_mgr *pio_mgr,
-				IN OUT struct chnl_object *pchnl, u8 iMode)
+				IN OUT struct chnl_object *pchnl, u8 io_mode)
 {
 	if (!pio_mgr)
 		goto func_end;
 
 	/* See if there is any data available for transfer */
-	if (iMode != IO_SERVICE)
+	if (io_mode != IO_SERVICE)
 		goto func_end;
 
 	/* Any channel will do for this mode */
-	input_chnl(pio_mgr, pchnl, iMode);
-	output_chnl(pio_mgr, pchnl, iMode);
+	input_chnl(pio_mgr, pchnl, io_mode);
+	output_chnl(pio_mgr, pchnl, io_mode);
 func_end:
 	return;
 }
@@ -1014,7 +1014,7 @@ void io_mbox_msg(u32 msg)
  *      interrupts the DSP.
  */
 void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
-			u8 iMode, OUT u16 *pwMbVal)
+			u8 io_mode, OUT u16 *pwMbVal)
 {
 	struct chnl_mgr *chnl_mgr_obj;
 	struct shm *sm;
@@ -1023,7 +1023,7 @@ void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		goto func_end;
 	chnl_mgr_obj = pio_mgr->hchnl_mgr;
 	sm = pio_mgr->shared_mem;
-	if (iMode == IO_INPUT) {
+	if (io_mode == IO_INPUT) {
 		/*
 		 * Assertion fires if CHNL_AddIOReq() called on a stream
 		 * which was cancelled, or attached to a dead board.
@@ -1034,7 +1034,7 @@ void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		IO_OR_VALUE(pio_mgr->hbridge_context, struct shm, sm,
 			    host_free_mask, (1 << pchnl->chnl_id));
 		*pwMbVal = MBX_PCPY_CLASS;
-	} else if (iMode == IO_OUTPUT) {
+	} else if (io_mode == IO_OUTPUT) {
 		/*
 		 * This assertion fails if CHNL_AddIOReq() was called on a
 		 * stream which was cancelled, or attached to a dead board.
@@ -1047,7 +1047,7 @@ void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		 */
 		chnl_mgr_obj->dw_output_mask |= (1 << pchnl->chnl_id);
 	} else {
-		DBC_ASSERT(iMode);	/* Shouldn't get here. */
+		DBC_ASSERT(io_mode);	/* Shouldn't get here. */
 	}
 func_end:
 	return;
@@ -1116,7 +1116,7 @@ func_end:
  *      Dispatch a buffer on an input channel.
  */
 static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
-			u8 iMode)
+			u8 io_mode)
 {
 	struct chnl_mgr *chnl_mgr_obj;
 	struct shm *sm;
@@ -1403,7 +1403,7 @@ func_end:
  *      Dispatch a buffer on an output channel.
  */
 static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
-			u8 iMode)
+			u8 io_mode)
 {
 	struct chnl_mgr *chnl_mgr_obj;
 	struct shm *sm;

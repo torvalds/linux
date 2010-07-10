@@ -28,7 +28,7 @@
 
 extern int bridge_msg_create(OUT struct msg_mgr **phMsgMgr,
 				    struct dev_object *hdev_obj,
-				    msg_onexit msgCallback);
+				    msg_onexit msg_callback);
 
 extern int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 				       OUT struct msg_queue **phMsgQueue,

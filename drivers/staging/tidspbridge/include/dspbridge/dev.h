@@ -56,7 +56,7 @@
  */
 extern u32 dev_brd_write_fxn(void *pArb,
 			     u32 ulDspAddr,
-			     void *pHostBuf, u32 ul_num_bytes, u32 nMemSpace);
+			     void *pHostBuf, u32 ul_num_bytes, u32 mem_space);
 
 /*
  *  ======== dev_create_device ========

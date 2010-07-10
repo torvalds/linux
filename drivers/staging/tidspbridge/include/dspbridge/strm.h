@@ -29,13 +29,13 @@
  *  Purpose:
  *      Allocate data buffer(s) for use with a stream.
  *  Parameter:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:     Stream handle returned from strm_open().
  *      usize:          Size (GPP bytes) of the buffer(s).
  *      num_bufs:       Number of buffers to allocate.
  *      ap_buffer:       Array to hold buffer addresses.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -ENOMEM:    Insufficient memory.
  *      -EPERM:      Failure occurred, unable to allocate buffers.
  *      -EINVAL:      usize must be > 0 bytes.
@@ -44,7 +44,7 @@
  *      ap_buffer != NULL.
  *  Ensures:
  */
-extern int strm_allocate_buffer(struct strm_object *hStrm,
+extern int strm_allocate_buffer(struct strm_object *stream_obj,
 				       u32 usize,
 				       OUT u8 **ap_buffer,
 				       u32 num_bufs,
@@ -55,10 +55,10 @@ extern int strm_allocate_buffer(struct strm_object *hStrm,
  *  Purpose:
  *      Close a stream opened with strm_open().
  *  Parameter:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:          Stream handle returned from strm_open().
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -EPIPE:   Some data buffers issued to the stream have not
  *                      been reclaimed.
  *      -EPERM:      Failure to close stream.
@@ -66,7 +66,7 @@ extern int strm_allocate_buffer(struct strm_object *hStrm,
  *      strm_init(void) called.
  *  Ensures:
  */
-extern int strm_close(struct strm_object *hStrm,
+extern int strm_close(struct strm_object *stream_obj,
 			     struct process_context *pr_ctxt);
 
 /*
@@ -125,7 +125,7 @@ extern void strm_exit(void);
  *  Purpose:
  *      Free buffer(s) allocated with strm_allocate_buffer.
  *  Parameter:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:     Stream handle returned from strm_open().
  *      ap_buffer:       Array containing buffer addresses.
  *      num_bufs:       Number of buffers to be freed.
  *  Returns:
@@ -137,7 +137,7 @@ extern void strm_exit(void);
  *      ap_buffer != NULL.
  *  Ensures:
  */
-extern int strm_free_buffer(struct strm_object *hStrm,
+extern int strm_free_buffer(struct strm_object *stream_obj,
 				   u8 **ap_buffer, u32 num_bufs,
 				   struct process_context *pr_ctxt);
 
@@ -147,17 +147,17 @@ extern int strm_free_buffer(struct strm_object *hStrm,
  *      Get stream's user event handle. This function is used when closing
  *      a stream, so the event can be closed.
  *  Parameter:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:      Stream handle returned from strm_open().
  *      ph_event:        Location to store event handle on output.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *  Requires:
  *      strm_init(void) called.
  *      ph_event != NULL.
  *  Ensures:
  */
-extern int strm_get_event_handle(struct strm_object *hStrm,
+extern int strm_get_event_handle(struct strm_object *stream_obj,
 					OUT void **ph_event);
 
 /*
@@ -166,12 +166,12 @@ extern int strm_get_event_handle(struct strm_object *hStrm,
  *      Get information about a stream. User's dsp_streaminfo is contained
  *      in stream_info struct. stream_info also contains Bridge private info.
  *  Parameters:
- *      hStrm:              Stream handle returned from strm_open().
+ *      stream_obj:         Stream handle returned from strm_open().
  *      stream_info:        Location to store stream info on output.
  *      uSteamInfoSize:     Size of user's dsp_streaminfo structure.
  *  Returns:
  *      0:            Success.
- *      -EFAULT:        Invalid hStrm.
+ *      -EFAULT:        Invalid stream_obj.
  *      -EINVAL:          stream_info_size < sizeof(dsp_streaminfo).
  *      -EPERM:          Unable to get stream info.
  *  Requires:
@@ -179,7 +179,7 @@ extern int strm_get_event_handle(struct strm_object *hStrm,
  *      stream_info != NULL.
  *  Ensures:
  */
-extern int strm_get_info(struct strm_object *hStrm,
+extern int strm_get_info(struct strm_object *stream_obj,
 				OUT struct stream_info *stream_info,
 				u32 stream_info_size);
 
@@ -195,18 +195,18 @@ extern int strm_get_info(struct strm_object *hStrm,
  *      After a successful call to strm_idle(), all buffers can immediately
  *      be reclaimed.
  *  Parameters:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:     Stream handle returned from strm_open().
  *      flush_data:     If TRUE, discard output buffers.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -ETIME:   A timeout occurred before the stream could be idled.
  *      -EPERM:      Unable to idle stream.
  *  Requires:
  *      strm_init(void) called.
  *  Ensures:
  */
-extern int strm_idle(struct strm_object *hStrm, bool flush_data);
+extern int strm_idle(struct strm_object *stream_obj, bool flush_data);
 
 /*
  *  ======== strm_init ========
@@ -225,14 +225,14 @@ extern bool strm_init(void);
  *  Purpose:
  *      Send a buffer of data to a stream.
  *  Parameters:
- *      hStrm:              Stream handle returned from strm_open().
+ *      stream_obj:         Stream handle returned from strm_open().
  *      pbuf:               Pointer to buffer of data to be sent to the stream.
  *      ul_bytes:            Number of bytes of data in the buffer.
  *      ul_buf_size:          Actual buffer size in bytes.
  *      dw_arg:              A user argument that travels with the buffer.
  *  Returns:
  *      0:            Success.
- *      -EFAULT:        Invalid hStrm.
+ *      -EFAULT:        Invalid stream_obj.
  *      -ENOSR:    The stream is full.
  *      -EPERM:          Failure occurred, unable to issue buffer.
  *  Requires:
@@ -240,7 +240,7 @@ extern bool strm_init(void);
  *      pbuf != NULL.
  *  Ensures:
  */
-extern int strm_issue(struct strm_object *hStrm, IN u8 * pbuf,
+extern int strm_issue(struct strm_object *stream_obj, IN u8 * pbuf,
 			     u32 ul_bytes, u32 ul_buf_size, IN u32 dw_arg);
 
 /*
@@ -281,19 +281,19 @@ extern int strm_open(struct node_object *hnode, u32 dir,
  *      Prepare a data buffer not allocated by DSPStream_AllocateBuffers()
  *      for use with a stream.
  *  Parameter:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:     Stream handle returned from strm_open().
  *      usize:          Size (GPP bytes) of the buffer.
  *      pbuffer:        Buffer address.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -EPERM:      Failure occurred, unable to prepare buffer.
  *  Requires:
  *      strm_init(void) called.
  *      pbuffer != NULL.
  *  Ensures:
  */
-extern int strm_prepare_buffer(struct strm_object *hStrm,
+extern int strm_prepare_buffer(struct strm_object *stream_obj,
 				      u32 usize, u8 *pbuffer);
 
 /*
@@ -301,7 +301,7 @@ extern int strm_prepare_buffer(struct strm_object *hStrm,
  *  Purpose:
  *      Request a buffer back from a stream.
  *  Parameters:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:          Stream handle returned from strm_open().
  *      buf_ptr:        Location to store pointer to reclaimed buffer.
  *      pulBytes:       Location where number of bytes of data in the
  *                      buffer will be written.
@@ -310,7 +310,7 @@ extern int strm_prepare_buffer(struct strm_object *hStrm,
  *                      the buffer will be written.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -ETIME:   A timeout occurred before a buffer could be
  *                      retrieved.
  *      -EPERM:      Failure occurred, unable to reclaim buffer.
@@ -321,7 +321,7 @@ extern int strm_prepare_buffer(struct strm_object *hStrm,
  *      pdw_arg != NULL.
  *  Ensures:
  */
-extern int strm_reclaim(struct strm_object *hStrm,
+extern int strm_reclaim(struct strm_object *stream_obj,
 			       OUT u8 **buf_ptr, u32 * pulBytes,
 			       u32 *pulBufSize, u32 *pdw_arg);
 
@@ -330,13 +330,13 @@ extern int strm_reclaim(struct strm_object *hStrm,
  *  Purpose:
  *      Register to be notified on specific events for this stream.
  *  Parameters:
- *      hStrm:          Stream handle returned by strm_open().
+ *      stream_obj:     Stream handle returned by strm_open().
  *      event_mask:     Mask of types of events to be notified about.
  *      notify_type:    Type of notification to be sent.
  *      hnotification:  Handle to be used for notification.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -ENOMEM:    Insufficient memory on GPP.
  *      -EINVAL:     event_mask is invalid.
  *      -ENOSYS:   Notification type specified by notify_type is not
@@ -346,7 +346,7 @@ extern int strm_reclaim(struct strm_object *hStrm,
  *      hnotification != NULL.
  *  Ensures:
  */
-extern int strm_register_notify(struct strm_object *hStrm,
+extern int strm_register_notify(struct strm_object *stream_obj,
 				       u32 event_mask, u32 notify_type,
 				       struct dsp_notification
 				       *hnotification);
@@ -357,12 +357,12 @@ extern int strm_register_notify(struct strm_object *hStrm,
  *      Select a ready stream.
  *  Parameters:
  *      strm_tab:       Array of stream handles returned from strm_open().
- *      nStrms:         Number of stream handles in array.
+ *      strms:          Number of stream handles in array.
  *      pmask:          Location to store mask of ready streams on output.
  *      utimeout:       Timeout value (milliseconds).
  *  Returns:
  *      0:        Success.
- *      -EDOM:     nStrms out of range.
+ *      -EDOM:     strms out of range.
 
  *      -EFAULT:    Invalid stream handle in array.
  *      -ETIME:   A timeout occurred before a stream became ready.
@@ -370,14 +370,14 @@ extern int strm_register_notify(struct strm_object *hStrm,
  *  Requires:
  *      strm_init(void) called.
  *      strm_tab != NULL.
- *      nStrms > 0.
+ *      strms > 0.
  *      pmask != NULL.
  *  Ensures:
  *      0:        *pmask != 0 || utimeout == 0.
  *      Error:          *pmask == 0.
  */
 extern int strm_select(IN struct strm_object **strm_tab,
-			      u32 nStrms, OUT u32 *pmask, u32 utimeout);
+			      u32 strms, OUT u32 *pmask, u32 utimeout);
 
 /*
  *  ======== strm_unprepare_buffer ========
@@ -386,19 +386,19 @@ extern int strm_select(IN struct strm_object **strm_tab,
  *      with DSPStream_PrepareBuffer(), and that will no longer be used with
  *      the stream.
  *  Parameter:
- *      hStrm:          Stream handle returned from strm_open().
+ *      stream_obj:     Stream handle returned from strm_open().
  *      usize:          Size (GPP bytes) of the buffer.
  *      pbuffer:        Buffer address.
  *  Returns:
  *      0:        Success.
- *      -EFAULT:    Invalid hStrm.
+ *      -EFAULT:    Invalid stream_obj.
  *      -EPERM:      Failure occurred, unable to unprepare buffer.
  *  Requires:
  *      strm_init(void) called.
  *      pbuffer != NULL.
  *  Ensures:
  */
-extern int strm_unprepare_buffer(struct strm_object *hStrm,
+extern int strm_unprepare_buffer(struct strm_object *stream_obj,
 					u32 usize, u8 *pbuffer);
 
 #endif /* STRM_ */
