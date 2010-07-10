@@ -993,6 +993,7 @@ int qla4xxx_reinitialize_ddb_list(struct scsi_qla_host *ha)
 			DEBUG2(printk ("scsi%ld: %s: ddb index [%d] marked "
 				       "ONLINE\n", ha->host_no, __func__,
 				       ddb_entry->fw_ddb_index));
+			iscsi_unblock_session(ddb_entry->sess);
 		} else if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE)
 			qla4xxx_mark_device_missing(ha, ddb_entry);
 	}
