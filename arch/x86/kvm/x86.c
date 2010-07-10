@@ -5523,12 +5523,12 @@ static void kvm_free_vcpus(struct kvm *kvm)
 void kvm_arch_sync_events(struct kvm *kvm)
 {
 	kvm_free_all_assigned_devices(kvm);
+	kvm_free_pit(kvm);
 }
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_iommu_unmap_guest(kvm);
-	kvm_free_pit(kvm);
 	kfree(kvm->arch.vpic);
 	kfree(kvm->arch.vioapic);
 	kvm_free_vcpus(kvm);
