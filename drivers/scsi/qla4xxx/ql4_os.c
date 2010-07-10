@@ -588,8 +588,8 @@ static int qla4xxx_mem_alloc(struct scsi_qla_host *ha)
 	ha->queues = dma_alloc_coherent(&ha->pdev->dev, ha->queues_len,
 					&ha->queues_dma, GFP_KERNEL);
 	if (ha->queues == NULL) {
-		dev_warn(&ha->pdev->dev,
-			"Memory Allocation failed - queues.\n");
+		ql4_printk(KERN_WARNING, ha,
+		    "Memory Allocation failed - queues.\n");
 
 		goto mem_alloc_error_exit;
 	}
@@ -625,8 +625,8 @@ static int qla4xxx_mem_alloc(struct scsi_qla_host *ha)
 	ha->srb_mempool = mempool_create(SRB_MIN_REQ, mempool_alloc_slab,
 					 mempool_free_slab, srb_cachep);
 	if (ha->srb_mempool == NULL) {
-		dev_warn(&ha->pdev->dev,
-			"Memory Allocation failed - SRB Pool.\n");
+		ql4_printk(KERN_WARNING, ha,
+		    "Memory Allocation failed - SRB Pool.\n");
 
 		goto mem_alloc_error_exit;
 	}
@@ -1301,7 +1301,7 @@ dpc_post_reset_ha:
 					    DDB_DS_SESSION_ACTIVE) {
 						atomic_set(&ddb_entry->state,
 							   DDB_STATE_ONLINE);
-						dev_info(&ha->pdev->dev,
+						ql4_printk(KERN_INFO, ha,
 						    "scsi%ld: %s: ddb[%d]"
 						    " marked ONLINE\n",
 						    ha->host_no, __func__,
@@ -1465,12 +1465,12 @@ int qla4xxx_iospace_config(struct scsi_qla_host *ha)
 	pio_flags = pci_resource_flags(ha->pdev, 0);
 	if (pio_flags & IORESOURCE_IO) {
 		if (pio_len < MIN_IOBASE_LEN) {
-			dev_warn(&ha->pdev->dev,
+			ql4_printk(KERN_WARNING, ha,
 				"Invalid PCI I/O region size\n");
 			pio = 0;
 		}
 	} else {
-		dev_warn(&ha->pdev->dev, "region #0 not a PIO resource\n");
+		ql4_printk(KERN_WARNING, ha, "region #0 not a PIO resource\n");
 		pio = 0;
 	}
 
@@ -1480,20 +1480,21 @@ int qla4xxx_iospace_config(struct scsi_qla_host *ha)
 	mmio_flags = pci_resource_flags(ha->pdev, 1);
 
 	if (!(mmio_flags & IORESOURCE_MEM)) {
-		dev_err(&ha->pdev->dev,
-			"region #0 not an MMIO resource, aborting\n");
+		ql4_printk(KERN_ERR, ha,
+		    "region #0 not an MMIO resource, aborting\n");
 
 		goto iospace_error_exit;
 	}
+
 	if (mmio_len < MIN_IOBASE_LEN) {
-		dev_err(&ha->pdev->dev,
-			"Invalid PCI mem region size, aborting\n");
+		ql4_printk(KERN_ERR, ha,
+		    "Invalid PCI mem region size, aborting\n");
 		goto iospace_error_exit;
 	}
 
 	if (pci_request_regions(ha->pdev, DRIVER_NAME)) {
-		dev_warn(&ha->pdev->dev,
-			"Failed to reserve PIO/MMIO regions\n");
+		ql4_printk(KERN_WARNING, ha,
+		    "Failed to reserve PIO/MMIO regions\n");
 
 		goto iospace_error_exit;
 	}
@@ -1502,8 +1503,8 @@ int qla4xxx_iospace_config(struct scsi_qla_host *ha)
 	ha->pio_length = pio_len;
 	ha->reg = ioremap(mmio, MIN_IOBASE_LEN);
 	if (!ha->reg) {
-		dev_err(&ha->pdev->dev,
-			"cannot remap MMIO, aborting\n");
+		ql4_printk(KERN_ERR, ha,
+		    "cannot remap MMIO, aborting\n");
 
 		goto iospace_error_exit;
 	}
@@ -1629,7 +1630,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	if (ret)
 		goto probe_failed_ioconfig;
 
-	dev_info(&ha->pdev->dev, "Found an ISP%04x, irq %d, iobase 0x%p\n",
+	ql4_printk(KERN_INFO, ha, "Found an ISP%04x, irq %d, iobase 0x%p\n",
 		   pdev->device, pdev->irq, ha->reg);
 
 	qla4xxx_config_dma_addressing(ha);
@@ -1645,8 +1646,8 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
 	/* Allocate dma buffers */
 	if (qla4xxx_mem_alloc(ha)) {
-		dev_warn(&ha->pdev->dev,
-			   "[ERROR] Failed to allocate memory for adapter\n");
+		ql4_printk(KERN_WARNING, ha,
+		    "[ERROR] Failed to allocate memory for adapter\n");
 
 		ret = -ENOMEM;
 		goto probe_failed;
@@ -1673,7 +1674,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	}
 
 	if (!test_bit(AF_ONLINE, &ha->flags)) {
-		dev_warn(&ha->pdev->dev, "Failed to initialize adapter\n");
+		ql4_printk(KERN_WARNING, ha, "Failed to initialize adapter\n");
 
 		ret = -ENODEV;
 		goto probe_failed;
@@ -1689,8 +1690,9 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 
         ret = scsi_init_shared_tag_map(host, MAX_SRBS);
         if (ret) {
-                dev_warn(&ha->pdev->dev, "scsi_init_shared_tag_map failed\n");
-                goto probe_failed;
+		ql4_printk(KERN_WARNING, ha,
+		    "scsi_init_shared_tag_map failed\n");
+		goto probe_failed;
         }
 
 	/* Startup the kernel thread for this host adapter. */
@@ -1699,7 +1701,7 @@ static int __devinit qla4xxx_probe_adapter(struct pci_dev *pdev,
 	sprintf(buf, "qla4xxx_%lu_dpc", ha->host_no);
 	ha->dpc_thread = create_singlethread_workqueue(buf);
 	if (!ha->dpc_thread) {
-		dev_warn(&ha->pdev->dev, "Unable to start DPC thread!\n");
+		ql4_printk(KERN_WARNING, ha, "Unable to start DPC thread!\n");
 		ret = -ENODEV;
 		goto probe_failed;
 	}
@@ -1958,7 +1960,7 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 	int ret = SUCCESS;
 	int wait = 0;
 
-	dev_info(&ha->pdev->dev,
+	ql4_printk(KERN_INFO, ha,
 	    "scsi%ld:%d:%d: Abort command issued cmd=%p, pid=%ld\n",
 	    ha->host_no, id, lun, cmd, serial);
 
@@ -1990,7 +1992,7 @@ static int qla4xxx_eh_abort(struct scsi_cmnd *cmd)
 		}
 	}
 
-	dev_info(&ha->pdev->dev,
+	ql4_printk(KERN_INFO, ha,
 	    "scsi%ld:%d:%d: Abort command - %s\n",
 	    ha->host_no, id, lun, (ret == SUCCESS) ? "succeded" : "failed");
 
@@ -2013,7 +2015,7 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	if (!ddb_entry)
 		return ret;
 
-	dev_info(&ha->pdev->dev,
+	ql4_printk(KERN_INFO, ha,
 		   "scsi%ld:%d:%d:%d: DEVICE RESET ISSUED.\n", ha->host_no,
 		   cmd->device->channel, cmd->device->id, cmd->device->lun);
 
@@ -2026,13 +2028,13 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	/* FIXME: wait for hba to go online */
 	stat = qla4xxx_reset_lun(ha, ddb_entry, cmd->device->lun);
 	if (stat != QLA_SUCCESS) {
-		dev_info(&ha->pdev->dev, "DEVICE RESET FAILED. %d\n", stat);
+		ql4_printk(KERN_INFO, ha, "DEVICE RESET FAILED. %d\n", stat);
 		goto eh_dev_reset_done;
 	}
 
 	if (qla4xxx_eh_wait_for_commands(ha, scsi_target(cmd->device),
 					 cmd->device)) {
-		dev_info(&ha->pdev->dev,
+		ql4_printk(KERN_INFO, ha,
 			   "DEVICE RESET FAILED - waiting for "
 			   "commands.\n");
 		goto eh_dev_reset_done;
@@ -2043,7 +2045,7 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		MM_LUN_RESET) != QLA_SUCCESS)
 		goto eh_dev_reset_done;
 
-	dev_info(&ha->pdev->dev,
+	ql4_printk(KERN_INFO, ha,
 		   "scsi(%ld:%d:%d:%d): DEVICE RESET SUCCEEDED.\n",
 		   ha->host_no, cmd->device->channel, cmd->device->id,
 		   cmd->device->lun);
@@ -2128,7 +2130,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 		return FAILED;
 	}
 
-	dev_info(&ha->pdev->dev,
+	ql4_printk(KERN_INFO, ha,
 		   "scsi(%ld:%d:%d:%d): HOST RESET ISSUED.\n", ha->host_no,
 		   cmd->device->channel, cmd->device->id, cmd->device->lun);
 
@@ -2150,7 +2152,7 @@ static int qla4xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	if (qla4xxx_recover_adapter(ha) == QLA_SUCCESS)
 		return_status = SUCCESS;
 
-	dev_info(&ha->pdev->dev, "HOST RESET %s.\n",
+	ql4_printk(KERN_INFO, ha, "HOST RESET %s.\n",
 		   return_status == FAILED ? "FAILED" : "SUCCEDED");
 
 	return return_status;

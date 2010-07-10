@@ -122,8 +122,8 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			      "handle 0x%x, sp=%p. This cmd may have already "
 			      "been completed.\n", ha->host_no, __func__,
 			      le32_to_cpu(sts_entry->handle), srb));
-		dev_warn(&ha->pdev->dev, "%s invalid status entry:"
-			" handle=0x%0x\n", __func__, sts_entry->handle);
+		ql4_printk(KERN_WARNING, ha, "%s invalid status entry:"
+		    " handle=0x%0x\n", __func__, sts_entry->handle);
 		set_bit(DPC_RESET_HA, &ha->dpc_flags);
 		return;
 	}
@@ -134,8 +134,8 @@ static void qla4xxx_status_entry(struct scsi_qla_host *ha,
 			      "OS pkt->handle=%d srb=%p srb->state:%d\n",
 			      ha->host_no, __func__, sts_entry->handle,
 			      srb, srb->state));
-		dev_warn(&ha->pdev->dev, "Command is NULL:"
-			" already returned to OS (srb=%p)\n", srb);
+		ql4_printk(KERN_WARNING, ha, "Command is NULL:"
+		    " already returned to OS (srb=%p)\n", srb);
 		return;
 	}
 

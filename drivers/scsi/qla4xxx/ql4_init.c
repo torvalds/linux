@@ -297,7 +297,7 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 	uint32_t timeout_count;
 	int ready = 0;
 
-	DEBUG2(dev_info(&ha->pdev->dev, "Waiting for Firmware Ready..\n"));
+	DEBUG2(ql4_printk(KERN_INFO, ha, "Waiting for Firmware Ready..\n"));
 	for (timeout_count = ADAPTER_INIT_TOV; timeout_count > 0;
 	     timeout_count--) {
 		if (test_and_clear_bit(DPC_GET_DHCP_IP_ADDR, &ha->dpc_flags))
@@ -370,29 +370,29 @@ static int qla4xxx_fw_ready(struct scsi_qla_host *ha)
 
 			if (!qla4xxx_wait_for_ip_config(ha) ||
 							timeout_count == 1) {
-				DEBUG2(dev_info(&ha->pdev->dev,
-						"Firmware Ready..\n"));
+				DEBUG2(ql4_printk(KERN_INFO, ha,
+				    "Firmware Ready..\n"));
 				/* The firmware is ready to process SCSI
 				   commands. */
-				DEBUG2(dev_info(&ha->pdev->dev,
+				DEBUG2(ql4_printk(KERN_INFO, ha,
 					"scsi%ld: %s: MEDIA TYPE"
 					" - %s\n", ha->host_no,
 					__func__, (ha->addl_fw_state &
 					FW_ADDSTATE_OPTICAL_MEDIA)
 					!= 0 ? "OPTICAL" : "COPPER"));
-				DEBUG2(dev_info(&ha->pdev->dev,
+				DEBUG2(ql4_printk(KERN_INFO, ha,
 					"scsi%ld: %s: DHCPv4 STATE"
 					" Enabled %s\n", ha->host_no,
 					 __func__, (ha->addl_fw_state &
 					 FW_ADDSTATE_DHCPv4_ENABLED) != 0 ?
 					"YES" : "NO"));
-				DEBUG2(dev_info(&ha->pdev->dev,
+				DEBUG2(ql4_printk(KERN_INFO, ha,
 					"scsi%ld: %s: LINK %s\n",
 					ha->host_no, __func__,
 					(ha->addl_fw_state &
 					 FW_ADDSTATE_LINK_UP) != 0 ?
 					"UP" : "DOWN"));
-				DEBUG2(dev_info(&ha->pdev->dev,
+				DEBUG2(ql4_printk(KERN_INFO, ha,
 					"scsi%ld: %s: iSNS Service "
 					"Started %s\n",
 					ha->host_no, __func__,
@@ -445,7 +445,7 @@ static int qla4xxx_init_firmware(struct scsi_qla_host *ha)
 {
 	int status = QLA_ERROR;
 
-	dev_info(&ha->pdev->dev, "Initializing firmware..\n");
+	ql4_printk(KERN_INFO, ha, "Initializing firmware..\n");
 	if (qla4xxx_initialize_fw_cb(ha) == QLA_ERROR) {
 		DEBUG2(printk("scsi%ld: %s: Failed to initialize firmware "
 			      "control block\n", ha->host_no, __func__));
@@ -694,18 +694,18 @@ int qla4_is_relogin_allowed(struct scsi_qla_host *ha, uint32_t conn_err)
 	err_code = ((conn_err & 0x00ff0000) >> 16);
 	login_rsp_sts_class = ((conn_err & 0x0000ff00) >> 8);
 	if (err_code == 0x1c || err_code == 0x06) {
-		DEBUG2(dev_info(&ha->pdev->dev,
-				": conn_err=0x%08x, send target completed"
-				" or access denied failure\n", conn_err));
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+		    ": conn_err=0x%08x, send target completed"
+		    " or access denied failure\n", conn_err));
 		relogin = 0;
 	}
 	if ((err_code == 0x08) && (login_rsp_sts_class == 0x02)) {
 		/* Login Response PDU returned an error.
 		   Login Response Status in Error Code Detail
 		   indicates login should not be retried.*/
-		DEBUG2(dev_info(&ha->pdev->dev,
-				": conn_err=0x%08x, do not retry relogin\n",
-				conn_err));
+		DEBUG2(ql4_printk(KERN_INFO, ha,
+		    ": conn_err=0x%08x, do not retry relogin\n",
+		    conn_err));
 		relogin = 0;
 	}
 
@@ -736,13 +736,13 @@ static int qla4xxx_build_ddb_list(struct scsi_qla_host *ha)
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 			&fw_ddb_entry_dma, GFP_KERNEL);
 	if (fw_ddb_entry == NULL) {
-		DEBUG2(dev_info(&ha->pdev->dev, "%s: DMA alloc failed\n",
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: DMA alloc failed\n",
 				__func__));
 
 		goto exit_build_ddb_list_no_free;
 	}
 
-	dev_info(&ha->pdev->dev, "Initializing DDBs ...\n");
+	ql4_printk(KERN_INFO, ha, "Initializing DDBs ...\n");
 	for (fw_ddb_index = 0; fw_ddb_index < MAX_DDB_ENTRIES;
 	     fw_ddb_index = next_fw_ddb_index) {
 		/* First, let's see if a device exists here */
@@ -826,7 +826,7 @@ next_one:
 	}
 
 	status = QLA_SUCCESS;
-	dev_info(&ha->pdev->dev, "DDB list done..\n");
+	ql4_printk(KERN_INFO, ha, "DDB list done..\n");
 
 exit_build_ddb_list:
 	dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry), fw_ddb_entry,
@@ -1080,17 +1080,17 @@ static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 	}
 
 	/* Get EEPRom Parameters from NVRAM and validate */
-	dev_info(&ha->pdev->dev, "Configuring NVRAM ...\n");
+	ql4_printk(KERN_INFO, ha, "Configuring NVRAM ...\n");
 	if (qla4xxx_is_nvram_configuration_valid(ha) == QLA_SUCCESS) {
 		spin_lock_irqsave(&ha->hardware_lock, flags);
 		extHwConfig.Asuint32_t =
 			rd_nvram_word(ha, eeprom_ext_hw_conf_offset(ha));
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	} else {
-		dev_warn(&ha->pdev->dev,
-			   "scsi%ld: %s: EEProm checksum invalid.  "
-			   "Please update your EEPROM\n", ha->host_no,
-			   __func__);
+		ql4_printk(KERN_WARNING, ha,
+		    "scsi%ld: %s: EEProm checksum invalid.  "
+		    "Please update your EEPROM\n", ha->host_no,
+		    __func__);
 
 		/* Attempt to set defaults */
 		if (is_qla4010(ha))
@@ -1128,7 +1128,7 @@ void qla4xxx_pci_config(struct scsi_qla_host *ha)
 	uint16_t w;
 	int status;
 
-	dev_info(&ha->pdev->dev, "Configuring PCI space...\n");
+	ql4_printk(KERN_INFO, ha, "Configuring PCI space...\n");
 
 	pci_set_master(ha->pdev);
 	status = pci_set_mwi(ha->pdev);
@@ -1150,7 +1150,7 @@ static int qla4xxx_start_firmware_from_flash(struct scsi_qla_host *ha)
 	unsigned long flags;
 	uint32_t mbox_status;
 
-	dev_info(&ha->pdev->dev, "Starting firmware ...\n");
+	ql4_printk(KERN_INFO, ha, "Starting firmware ...\n");
 
 	/*
 	 * Start firmware from flash ROM
@@ -1569,7 +1569,7 @@ int qla4xxx_process_ddb_changed(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 	} else {
 		/* Device went away, mark device missing */
 		if (atomic_read(&ddb_entry->state) == DDB_STATE_ONLINE) {
-			DEBUG2(dev_info(&ha->pdev->dev, "%s mark missing "
+			DEBUG2(ql4_printk(KERN_INFO, ha, "%s mark missing "
 					"ddb_entry 0x%p sess 0x%p conn 0x%p\n",
 					__func__, ddb_entry,
 					ddb_entry->sess, ddb_entry->conn));

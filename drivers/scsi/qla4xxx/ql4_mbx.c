@@ -607,7 +607,7 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 	if (fw_ddb_entry) {
 		options = le16_to_cpu(fw_ddb_entry->options);
 		if (options & DDB_OPT_IPV6_DEVICE) {
-			dev_info(&ha->pdev->dev, "%s: DDB[%d] MB0 %04x Tot %d "
+			ql4_printk(KERN_INFO, ha, "%s: DDB[%d] MB0 %04x Tot %d "
 				"Next %d State %04x ConnErr %08x %pI6 "
 				":%04d \"%s\"\n", __func__, fw_ddb_index,
 				mbox_sts[0], mbox_sts[2], mbox_sts[3],
@@ -616,7 +616,7 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 				le16_to_cpu(fw_ddb_entry->port),
 				fw_ddb_entry->iscsi_name);
 		} else {
-			dev_info(&ha->pdev->dev, "%s: DDB[%d] MB0 %04x Tot %d "
+			ql4_printk(KERN_INFO, ha, "%s: DDB[%d] MB0 %04x Tot %d "
 				"Next %d State %04x ConnErr %08x %pI4 "
 				":%04d \"%s\"\n", __func__, fw_ddb_index,
 				mbox_sts[0], mbox_sts[2], mbox_sts[3],
