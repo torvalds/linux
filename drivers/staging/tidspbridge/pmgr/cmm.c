@@ -540,7 +540,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 				  u32 dw_gpp_base_pa, u32 ul_size,
 				  u32 dsp_addr_offset, s8 c_factor,
 				  u32 dw_dsp_base, u32 ul_dsp_size,
-				  u32 *pulSegId, u32 dw_gpp_base_va)
+				  u32 *sgmt_id, u32 dw_gpp_base_va)
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	struct cmm_allocator *psma = NULL;
@@ -549,7 +549,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	s32 slot_seg;
 
 	DBC_REQUIRE(ul_size > 0);
-	DBC_REQUIRE(pulSegId != NULL);
+	DBC_REQUIRE(sgmt_id != NULL);
 	DBC_REQUIRE(dw_gpp_base_pa != 0);
 	DBC_REQUIRE(dw_gpp_base_va != 0);
 	DBC_REQUIRE((c_factor <= CMM_ADDTODSPPA) &&
@@ -596,7 +596,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 		}
 		if (DSP_SUCCEEDED(status)) {
 			/* return the actual segment identifier */
-			*pulSegId = (u32) slot_seg + 1;
+			*sgmt_id = (u32) slot_seg + 1;
 			/* create memory free list */
 			psma->free_list_head = kzalloc(sizeof(struct lst_list),
 								GFP_KERNEL);
@@ -956,7 +956,7 @@ static struct cmm_allocator *get_allocator(struct cmm_object *cmm_mgr_obj,
  */
 int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
 			     struct cmm_object *hcmm_mgr,
-			     struct cmm_xlatorattrs *pXlatorAttrs)
+			     struct cmm_xlatorattrs *xlator_attrs)
 {
 	struct cmm_xlator *xlator_object = NULL;
 	int status = 0;
@@ -966,14 +966,14 @@ int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
 	DBC_REQUIRE(hcmm_mgr != NULL);
 
 	*xlator = NULL;
-	if (pXlatorAttrs == NULL)
-		pXlatorAttrs = &cmm_dfltxlatorattrs;	/* set defaults */
+	if (xlator_attrs == NULL)
+		xlator_attrs = &cmm_dfltxlatorattrs;	/* set defaults */
 
 	xlator_object = kzalloc(sizeof(struct cmm_xlator), GFP_KERNEL);
 	if (xlator_object != NULL) {
 		xlator_object->hcmm_mgr = hcmm_mgr;	/* ref back to CMM */
 		/* SM seg_id */
-		xlator_object->ul_seg_id = pXlatorAttrs->ul_seg_id;
+		xlator_object->ul_seg_id = xlator_attrs->ul_seg_id;
 	} else {
 		status = -ENOMEM;
 	}
@@ -1007,7 +1007,7 @@ int cmm_xlator_delete(struct cmm_xlatorobject *xlator, bool force)
 /*
  *  ======== cmm_xlator_alloc_buf ========
  */
-void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *pVaBuf,
+void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *va_buf,
 			   u32 uPaSize)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;
@@ -1017,20 +1017,20 @@ void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator, void *pVaBuf,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(xlator != NULL);
 	DBC_REQUIRE(xlator_obj->hcmm_mgr != NULL);
-	DBC_REQUIRE(pVaBuf != NULL);
+	DBC_REQUIRE(va_buf != NULL);
 	DBC_REQUIRE(uPaSize > 0);
 	DBC_REQUIRE(xlator_obj->ul_seg_id > 0);
 
 	if (xlator_obj) {
 		attrs.ul_seg_id = xlator_obj->ul_seg_id;
-		*(volatile u32 *)pVaBuf = 0;
+		*(volatile u32 *)va_buf = 0;
 		/* Alloc SM */
 		pbuf =
 		    cmm_calloc_buf(xlator_obj->hcmm_mgr, uPaSize, &attrs, NULL);
 		if (pbuf) {
 			/* convert to translator(node/strm) process Virtual
 			 * address */
-			*(volatile u32 **)pVaBuf =
+			*(volatile u32 **)va_buf =
 			    (u32 *) cmm_xlator_translate(xlator,
 							 pbuf, CMM_PA2VA);
 		}

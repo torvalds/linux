@@ -88,7 +88,7 @@ struct node_createargs {
  *      hnode:          Node object allocated from node_allocate().
  *      dir:           Input (DSP_TONODE) or output (DSP_FROMNODE).
  *      index:         Stream index.
- *      pulId:          Location to store channel index.
+ *      chan_id:        Location to store channel index.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hnode.
@@ -98,11 +98,11 @@ struct node_createargs {
  *  Requires:
  *      node_init(void) called.
  *      Valid dir.
- *      pulId != NULL.
+ *      chan_id != NULL.
  *  Ensures:
  */
 extern int node_get_channel_id(struct node_object *hnode,
-				      u32 dir, u32 index, OUT u32 *pulId);
+				      u32 dir, u32 index, OUT u32 *chan_id);
 
 /*
  *  ======== node_get_strm_mgr ========

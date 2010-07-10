@@ -54,8 +54,8 @@ extern void *dload_module_open(struct dynamic_loader_stream
  *
  * Parameters:
  *  minfo       Handle from dload_module_open for this module
- *  sectionName Pointer to the string name of the section desired
- *  sectionInfo Address of a section info structure pointer to be initialized
+ *  section_name Pointer to the string name of the section desired
+ *  section_info Address of a section info structure pointer to be initialized
  *
  * Effect:
  *  Finds the specified section in the module information, and fills in
@@ -65,17 +65,17 @@ extern void *dload_module_open(struct dynamic_loader_stream
  *  TRUE for success, FALSE for section not found
  */
 extern int dload_get_section_info(void *minfo,
-				  const char *sectionName,
+				  const char *section_name,
 				  const struct ldr_section_info
-				  **const sectionInfo);
+				  **const section_info);
 
 /*
  * Procedure dload_get_section
  *
  * Parameters:
  *  minfo       Handle from dload_module_open for this module
- *  sectionInfo Pointer to a section info structure for the desired section
- *  sectionData Buffer to contain the section initialized data
+ *  section_info Pointer to a section info structure for the desired section
+ *  section_data Buffer to contain the section initialized data
  *
  * Effect:
  *  Copies the initialized data for the specified section into the
@@ -85,8 +85,8 @@ extern int dload_get_section_info(void *minfo,
  *  TRUE for success, FALSE for section not found
  */
 extern int dload_get_section(void *minfo,
-			     const struct ldr_section_info *sectionInfo,
-			     void *sectionData);
+			     const struct ldr_section_info *section_info,
+			     void *section_data);
 
 /*
  * Procedure dload_module_close

@@ -470,7 +470,7 @@ extern void *mem_alloc_phys_mem(IN u32 byte_size,
  *  Purpose:
  *      Free the given block of physically contiguous memory.
  *  Parameters:
- *      pVirtualAddress:  Pointer to virtual memory region allocated
+ *      virtual_address:  Pointer to virtual memory region allocated
  *      by mem_alloc_phys_mem().
  *      physical_address:  Pointer to physical memory region  allocated
  *      by mem_alloc_phys_mem().
@@ -478,12 +478,12 @@ extern void *mem_alloc_phys_mem(IN u32 byte_size,
  *  Returns:
  *  Requires:
  *      MEM initialized.
- *      pVirtualAddress is a valid memory address returned by
+ *      virtual_address is a valid memory address returned by
  *          mem_alloc_phys_mem()
  *  Ensures:
- *      pVirtualAddress is no longer a valid pointer to memory.
+ *      virtual_address is no longer a valid pointer to memory.
  */
-extern void mem_free_phys_mem(void *pVirtualAddress,
+extern void mem_free_phys_mem(void *virtual_address,
 			      u32 physical_address, u32 byte_size);
 
 /*

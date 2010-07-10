@@ -116,7 +116,7 @@ void io_mbox_msg(u32 msg);
  */
 extern void io_request_chnl(struct io_mgr *hio_mgr,
 			    struct chnl_object *pchnl,
-			    u8 io_mode, OUT u16 *pwMbVal);
+			    u8 io_mode, OUT u16 *mbx_val);
 
 /*
  *  ======== iosm_schedule ========
@@ -190,7 +190,7 @@ extern void io_ddma_clear_chnl_desc(struct io_mgr *hio_mgr, u32 uDDMAChnlId);
 extern void io_ddma_request_chnl(struct io_mgr *hio_mgr,
 				 struct chnl_object *pchnl,
 				 struct chnl_irp *chnl_packet_obj,
-				 OUT u16 *pwMbVal);
+				 OUT u16 *mbx_val);
 
 /*
  * Zero-copy IO functions
@@ -245,7 +245,7 @@ extern void io_ddzc_clear_chnl_desc(struct io_mgr *hio_mgr, u32 uChnlId);
 extern void io_ddzc_request_chnl(struct io_mgr *hio_mgr,
 				 struct chnl_object *pchnl,
 				 struct chnl_irp *chnl_packet_obj,
-				 OUT u16 *pwMbVal);
+				 OUT u16 *mbx_val);
 
 /*
  *  ======== io_sh_msetting ========

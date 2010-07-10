@@ -248,7 +248,7 @@ static void fill_stream_def(struct node_object *hnode,
 			    struct node_strmdef *pstrm_def,
 			    struct dsp_strmattr *pattrs);
 static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream);
-static int get_fxn_address(struct node_object *hnode, u32 * pulFxnAddr,
+static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 				  u32 uPhase);
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
@@ -1762,13 +1762,13 @@ int node_get_attr(struct node_object *hnode,
  *      host and a node.
  */
 int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
-			       OUT u32 *pulId)
+			       OUT u32 *chan_id)
 {
 	enum node_type node_type;
 	int status = -EINVAL;
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(dir == DSP_TONODE || dir == DSP_FROMNODE);
-	DBC_REQUIRE(pulId != NULL);
+	DBC_REQUIRE(chan_id != NULL);
 
 	if (!hnode) {
 		status = -EFAULT;
@@ -1782,7 +1782,7 @@ int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
 	if (dir == DSP_TONODE) {
 		if (index < MAX_INPUTS(hnode)) {
 			if (hnode->inputs[index].type == HOSTCONNECT) {
-				*pulId = hnode->inputs[index].dev_id;
+				*chan_id = hnode->inputs[index].dev_id;
 				status = 0;
 			}
 		}
@@ -1790,7 +1790,7 @@ int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
 		DBC_ASSERT(dir == DSP_FROMNODE);
 		if (index < MAX_OUTPUTS(hnode)) {
 			if (hnode->outputs[index].type == HOSTCONNECT) {
-				*pulId = hnode->outputs[index].dev_id;
+				*chan_id = hnode->outputs[index].dev_id;
 				status = 0;
 			}
 		}
@@ -2819,7 +2819,7 @@ static void free_stream(struct node_mgr *hnode_mgr, struct stream_chnl stream)
  *  Purpose:
  *      Retrieves the address for create, execute or delete phase for a node.
  */
-static int get_fxn_address(struct node_object *hnode, u32 * pulFxnAddr,
+static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 				  u32 uPhase)
 {
 	char *pstr_fxn_name = NULL;
@@ -2850,7 +2850,7 @@ static int get_fxn_address(struct node_object *hnode, u32 * pulFxnAddr,
 
 	status =
 	    hnode_mgr->nldr_fxns.pfn_get_fxn_addr(hnode->nldr_node_obj,
-						  pstr_fxn_name, pulFxnAddr);
+						  pstr_fxn_name, fxn_addr);
 
 	return status;
 }

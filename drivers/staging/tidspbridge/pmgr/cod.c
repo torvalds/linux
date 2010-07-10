@@ -360,13 +360,13 @@ int cod_get_base_name(struct cod_manager *cod_mgr_obj, char *sz_name,
  *      Retrieve the entry point of a loaded DSP program image
  *
  */
-int cod_get_entry(struct cod_manager *cod_mgr_obj, u32 *pulEntry)
+int cod_get_entry(struct cod_manager *cod_mgr_obj, u32 *entry_pt)
 {
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
-	DBC_REQUIRE(pulEntry != NULL);
+	DBC_REQUIRE(entry_pt != NULL);
 
-	*pulEntry = cod_mgr_obj->ul_entry;
+	*entry_pt = cod_mgr_obj->ul_entry;
 
 	return 0;
 }
@@ -397,7 +397,7 @@ int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      given the section name.
  */
 int cod_get_section(struct cod_libraryobj *lib, IN char *str_sect,
-			   OUT u32 *addr, OUT u32 *puLen)
+			   OUT u32 *addr, OUT u32 *len)
 {
 	struct cod_manager *cod_mgr_obj;
 	int status = 0;
@@ -407,19 +407,19 @@ int cod_get_section(struct cod_libraryobj *lib, IN char *str_sect,
 	DBC_REQUIRE(IS_VALID(lib->cod_mgr));
 	DBC_REQUIRE(str_sect != NULL);
 	DBC_REQUIRE(addr != NULL);
-	DBC_REQUIRE(puLen != NULL);
+	DBC_REQUIRE(len != NULL);
 
 	*addr = 0;
-	*puLen = 0;
+	*len = 0;
 	if (lib != NULL) {
 		cod_mgr_obj = lib->cod_mgr;
 		status = cod_mgr_obj->fxns.get_sect_fxn(lib->dbll_lib, str_sect,
-							addr, puLen);
+							addr, len);
 	} else {
 		status = -ESPIPE;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((*addr == 0) && (*puLen == 0)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((*addr == 0) && (*len == 0)));
 
 	return status;
 }

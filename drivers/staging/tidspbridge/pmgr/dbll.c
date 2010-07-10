@@ -573,7 +573,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
  *  ======== dbll_load_sect ========
  *  Not supported for COFF.
  */
-int dbll_load_sect(struct dbll_library_obj *zl_lib, char *sectName,
+int dbll_load_sect(struct dbll_library_obj *zl_lib, char *sec_name,
 			  struct dbll_attrs *attrs)
 {
 	DBC_REQUIRE(zl_lib);
@@ -853,11 +853,11 @@ func_end:
  *  ======== dbll_unload_sect ========
  *  Not supported for COFF.
  */
-int dbll_unload_sect(struct dbll_library_obj *lib, char *sectName,
+int dbll_unload_sect(struct dbll_library_obj *lib, char *sec_name,
 			    struct dbll_attrs *attrs)
 {
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(sectName != NULL);
+	DBC_REQUIRE(sec_name != NULL);
 
 	return -ENOSYS;
 }

@@ -334,7 +334,7 @@ typedef bool(*dbll_init_fxn) (void);
  *      lib             - Library handle returned from dbll_open().
  *      flags           - Load code, data and/or symbols.
  *      attrs           - May contain alloc, free, and write function.
- *      pulEntry        - Location to store program entry on output.
+ *      entry_pt        - Location to store program entry on output.
  *  Returns:
  *      0:        Success.
  *      -EBADF:     File read failed.
@@ -354,7 +354,7 @@ typedef int(*dbll_load_fxn) (struct dbll_library_obj *lib,
  *  Load a named section from an library (for overlay support).
  *  Parameters:
  *      lib             - Handle returned from dbll_open().
- *      sectName        - Name of section to load.
+ *      sec_name        - Name of section to load.
  *      attrs           - Contains write function and handle to pass to it.
  *  Returns:
  *      0:        Success.
@@ -362,7 +362,7 @@ typedef int(*dbll_load_fxn) (struct dbll_library_obj *lib,
  *      -ENOSYS:   Function not implemented.
  *  Requires:
  *      Valid lib.
- *      sectName != NULL.
+ *      sec_name != NULL.
  *      attrs != NULL.
  *      attrs->write != NULL.
  *  Ensures:
@@ -458,7 +458,7 @@ typedef void (*dbll_unload_fxn) (struct dbll_library_obj *library,
  *  Unload a named section from an library (for overlay support).
  *  Parameters:
  *      lib             - Handle returned from dbll_open().
- *      sectName        - Name of section to load.
+ *      sec_name        - Name of section to load.
  *      attrs           - Contains free() function and handle to pass to it.
  *  Returns:
  *      0:        Success.
@@ -467,7 +467,7 @@ typedef void (*dbll_unload_fxn) (struct dbll_library_obj *library,
  *  Requires:
  *      DBL initialized.
  *      Valid lib.
- *      sectName != NULL.
+ *      sec_name != NULL.
  *  Ensures:
  */
 typedef int(*dbll_unload_sect_fxn) (struct dbll_library_obj *lib,

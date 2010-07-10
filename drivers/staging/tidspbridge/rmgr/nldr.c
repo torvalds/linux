@@ -299,7 +299,7 @@ static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
 			     char *symName, struct dbll_sym_val **sym);
 static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			   struct lib_node *root, struct dsp_uuid uuid,
-			   bool rootPersistent,
+			   bool root_prstnt,
 			   struct dbll_library_obj **lib_path,
 			   enum nldr_phase phase, u16 depth);
 static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
@@ -1243,7 +1243,7 @@ static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
  */
 static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			   struct lib_node *root, struct dsp_uuid uuid,
-			   bool rootPersistent,
+			   bool root_prstnt,
 			   struct dbll_library_obj **lib_path,
 			   enum nldr_phase phase, u16 depth)
 {
@@ -1300,7 +1300,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 	kfree(psz_file_name);
 
 	/* Check to see if library not already loaded */
-	if (DSP_SUCCEEDED(status) && rootPersistent) {
+	if (DSP_SUCCEEDED(status) && root_prstnt) {
 		lib_status =
 		    find_in_persistent_lib_array(nldr_node_obj, root->lib);
 		/* Close library */
@@ -1374,7 +1374,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			/* If root library is NOT persistent, and dep library
 			 * is, then record it.  If root library IS persistent,
 			 * the deplib is already included */
-			if (!rootPersistent && persistent_dep_libs[i] &&
+			if (!root_prstnt && persistent_dep_libs[i] &&
 			    *nldr_node_obj->pf_phase_split) {
 				if ((nldr_node_obj->pers_libs) >= MAXLIBS) {
 					status = -EILSEQ;
@@ -1386,7 +1386,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 				    &nldr_node_obj->pers_lib_table
 				    [nldr_node_obj->pers_libs];
 			} else {
-				if (rootPersistent)
+				if (root_prstnt)
 					persistent_dep_libs[i] = true;
 
 				/* Allocate library within phase */
@@ -1400,7 +1400,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 
 			if (DSP_SUCCEEDED(status)) {
 				if ((status != 0) &&
-				    !rootPersistent && persistent_dep_libs[i] &&
+				    !root_prstnt && persistent_dep_libs[i] &&
 				    *nldr_node_obj->pf_phase_split) {
 					(nldr_node_obj->pers_libs)++;
 				} else {

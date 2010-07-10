@@ -1037,12 +1037,12 @@ void *mem_alloc_phys_mem(u32 byte_size, u32 ulAlign, OUT u32 * physical_address)
  *  Purpose:
  *      Free the given block of physically contiguous memory.
  */
-void mem_free_phys_mem(void *pVirtualAddress, u32 physical_address,
+void mem_free_phys_mem(void *virtual_address, u32 physical_address,
 		       u32 byte_size)
 {
-	DBC_REQUIRE(pVirtualAddress != NULL);
+	DBC_REQUIRE(virtual_address != NULL);
 
 	if (!ext_phys_mem_pool_enabled)
-		dma_free_coherent(NULL, byte_size, pVirtualAddress,
+		dma_free_coherent(NULL, byte_size, virtual_address,
 				  physical_address);
 }

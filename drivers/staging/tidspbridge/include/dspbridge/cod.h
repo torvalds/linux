@@ -169,17 +169,17 @@ extern int cod_get_base_name(struct cod_manager *cod_mgr_obj,
  *      Retrieve the entry point of a loaded DSP program image
  *  Parameters:
  *      cod_mgr_obj:   handle of manager to be deleted
- *      pulEntry:   pointer to location for entry point
+ *      entry_pt:   pointer to location for entry point
  *  Returns:
  *      0:       Success.
  *  Requires:
  *      COD module initialized.
  *      valid cod_mgr_obj.
- *      pulEntry != NULL.
+ *      entry_pt != NULL.
  *  Ensures:
  */
 extern int cod_get_entry(struct cod_manager *cod_mgr_obj,
-				u32 *pulEntry);
+				u32 *entry_pt);
 
 /*
  *  ======== cod_get_loader ========
@@ -208,7 +208,7 @@ extern int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      lib         Library handle returned from cod_open().
  *      str_sect:   name of the section, with or without leading "."
  *      addr:       Location to store address.
- *      puLen:      Location to store length.
+ *      len:        Location to store length.
  *  Returns:
  *      0:                Success
  *      -ESPIPE:  Symbols could not be found or have not been loaded onto
@@ -218,16 +218,16 @@ extern int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      valid cod_mgr_obj.
  *      str_sect != NULL;
  *      addr != NULL;
- *      puLen != NULL;
+ *      len != NULL;
  *  Ensures:
- *      0:  *addr and *puLen contain the address and length of the
+ *      0:  *addr and *len contain the address and length of the
  *                 section.
- *      else:  *addr == 0 and *puLen == 0;
+ *      else:  *addr == 0 and *len == 0;
  *
  */
 extern int cod_get_section(struct cod_libraryobj *lib,
 				  IN char *str_sect,
-				  OUT u32 *addr, OUT u32 *puLen);
+				  OUT u32 *addr, OUT u32 *len);
 
 /*
  *  ======== cod_get_sym_value ========

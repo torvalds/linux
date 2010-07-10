@@ -43,7 +43,7 @@ extern int dbll_load(struct dbll_library_obj *lib,
 			    dbll_flags flags,
 			    struct dbll_attrs *attrs, u32 * entry);
 extern int dbll_load_sect(struct dbll_library_obj *lib,
-				 char *sectName, struct dbll_attrs *attrs);
+				 char *sec_name, struct dbll_attrs *attrs);
 extern int dbll_open(struct dbll_tar_obj *target, char *file,
 			    dbll_flags flags,
 		       struct dbll_library_obj **lib_obj);
@@ -53,7 +53,7 @@ extern void dbll_set_attrs(struct dbll_tar_obj *target,
 			   struct dbll_attrs *pattrs);
 extern void dbll_unload(struct dbll_library_obj *lib, struct dbll_attrs *attrs);
 extern int dbll_unload_sect(struct dbll_library_obj *lib,
-				   char *sectName, struct dbll_attrs *attrs);
+				   char *sect_name, struct dbll_attrs *attrs);
 #ifdef CONFIG_TIDSPBRIDGE_BACKTRACE
 bool dbll_find_dsp_symbol(struct dbll_library_obj *zl_lib, u32 address,
 		u32 offset_range, u32 *sym_addr_output, char *name_output);

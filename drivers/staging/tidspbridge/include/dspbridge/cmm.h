@@ -209,17 +209,17 @@ extern bool cmm_init(void);
  *      c_factor:         Add offset if CMM_ADDTODSPPA, sub if CMM_SUBFROMDSPPA.
  *      dw_dsp_base:       DSP virtual base byte address.
  *      ul_dsp_size:       Size of DSP segment in bytes.
- *      pulSegId:        Address to store segment Id.
+ *      sgmt_id:         Address to store segment Id.
  *
  *  Returns:
  *      0:         Success.
  *      -EFAULT:     Invalid hcmm_mgr handle.
  *      -EINVAL: Invalid input argument.
  *      -EPERM:       Unable to register.
- *      - On success *pulSegId is a valid SM segment ID.
+ *      - On success *sgmt_id is a valid SM segment ID.
  *  Requires:
  *      ul_size > 0
- *      pulSegId != NULL
+ *      sgmt_id != NULL
  *      dw_gpp_base_pa != 0
  *      c_factor = CMM_ADDTODSPPA || c_factor = CMM_SUBFROMDSPPA
  *  Ensures:
@@ -232,7 +232,7 @@ extern int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 					 s8 c_factor,
 					 unsigned int dw_dsp_base,
 					 u32 ul_dsp_size,
-					 u32 *pulSegId, u32 gpp_base_ba);
+					 u32 *sgmt_id, u32 gpp_base_ba);
 
 /*
  *  ======== cmm_un_register_gppsm_seg ========
@@ -261,18 +261,18 @@ extern int cmm_un_register_gppsm_seg(struct cmm_object *hcmm_mgr,
  *      Place on the descriptor on the translator's HaQ (Host Alloc'd Queue).
  *  Parameters:
  *      xlator:    Handle to a Xlator object.
- *      pVaBuf:     Virtual address ptr(client context)
+ *      va_buf:     Virtual address ptr(client context)
  *      uPaSize:    Size of SM memory to allocate.
  *  Returns:
  *      Ptr to valid physical address(Pa) of uPaSize bytes, NULL if failed.
  *  Requires:
- *      pVaBuf != 0.
+ *      va_buf != 0.
  *      uPaSize != 0.
  *  Ensures:
  *
  */
 extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
-				  void *pVaBuf, u32 uPaSize);
+				  void *va_buf, u32 uPaSize);
 
 /*
  *  ======== cmm_xlator_create ========
@@ -283,7 +283,7 @@ extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
  *  Parameters:
  *     xlator:         Address to place handle to a new Xlator handle.
  *     hcmm_mgr:        Handle to Cmm Mgr associated with this translator.
- *     pXlatorAttrs:   Translator attributes used for the client NODE or STREAM.
+ *     xlator_attrs:   Translator attributes used for the client NODE or STREAM.
  *  Returns:
  *     0:            Success.
  *     -EINVAL:    Bad input Attrs.
@@ -291,13 +291,13 @@ extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
  *  Requires:
  *     xlator != NULL
  *     hcmm_mgr != NULL
- *     pXlatorAttrs != NULL
+ *     xlator_attrs != NULL
  *  Ensures:
  *
  */
 extern int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
 				    struct cmm_object *hcmm_mgr,
-				    struct cmm_xlatorattrs *pXlatorAttrs);
+				    struct cmm_xlatorattrs *xlator_attrs);
 
 /*
  *  ======== cmm_xlator_delete ========

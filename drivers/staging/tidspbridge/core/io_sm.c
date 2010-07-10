@@ -1014,12 +1014,12 @@ void io_mbox_msg(u32 msg)
  *      interrupts the DSP.
  */
 void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
-			u8 io_mode, OUT u16 *pwMbVal)
+			u8 io_mode, OUT u16 *mbx_val)
 {
 	struct chnl_mgr *chnl_mgr_obj;
 	struct shm *sm;
 
-	if (!pchnl || !pwMbVal)
+	if (!pchnl || !mbx_val)
 		goto func_end;
 	chnl_mgr_obj = pio_mgr->hchnl_mgr;
 	sm = pio_mgr->shared_mem;
@@ -1033,7 +1033,7 @@ void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		/* Indicate to the DSP we have a buffer available for input */
 		IO_OR_VALUE(pio_mgr->hbridge_context, struct shm, sm,
 			    host_free_mask, (1 << pchnl->chnl_id));
-		*pwMbVal = MBX_PCPY_CLASS;
+		*mbx_val = MBX_PCPY_CLASS;
 	} else if (io_mode == IO_OUTPUT) {
 		/*
 		 * This assertion fails if CHNL_AddIOReq() was called on a

@@ -226,8 +226,8 @@ void *dload_module_open(struct dynamic_loader_stream *module,
  *
  * Parameters:
  *  minfo		Handle from dload_module_open for this module
- *	sectionName	Pointer to the string name of the section desired
- *	sectionInfo	Address of a section info structure pointer to be
+ *	section_name	Pointer to the string name of the section desired
+ *	section_info	Address of a section info structure pointer to be
  *			initialized
  *
  * Effect:
@@ -237,8 +237,8 @@ void *dload_module_open(struct dynamic_loader_stream *module,
  * Returns:
  *	true for success, false for section not found
  ************************************************************************* */
-int dload_get_section_info(void *minfo, const char *sectionName,
-			   const struct ldr_section_info **const sectionInfo)
+int dload_get_section_info(void *minfo, const char *section_name,
+			   const struct ldr_section_info **const section_info)
 {
 	struct dload_state *dlthis;
 	struct ldr_section_info *shp;
@@ -250,8 +250,8 @@ int dload_get_section_info(void *minfo, const char *sectionName,
 
 	for (sec = 0; sec < dlthis->dfile_hdr.df_no_scns; sec++) {
 		shp = DOFFSEC_IS_LDRSEC(&dlthis->sect_hdrs[sec]);
-		if (strcmp(sectionName, shp->name) == 0) {
-			*sectionInfo = shp;
+		if (strcmp(section_name, shp->name) == 0) {
+			*section_info = shp;
 			return true;
 		}
 	}
@@ -267,9 +267,9 @@ int dload_get_section_info(void *minfo, const char *sectionName,
  *
  * Parameters:
  *  minfo		Handle from dload_module_open for this module
- *	sectionInfo	Pointer to a section info structure for the desired
+ *	section_info	Pointer to a section info structure for the desired
  *			section
- *	sectionData	Buffer to contain the section initialized data
+ *	section_data	Buffer to contain the section initialized data
  *
  * Effect:
  *	Copies the initialized data for the specified section into the
@@ -279,8 +279,8 @@ int dload_get_section_info(void *minfo, const char *sectionName,
  *	true for success, false for section not found
  ************************************************************************* */
 int dload_get_section(void *minfo,
-		      const struct ldr_section_info *sectionInfo,
-		      void *sectionData)
+		      const struct ldr_section_info *section_info,
+		      void *section_data)
 {
 	struct dload_state *dlthis;
 	u32 pos;
@@ -289,12 +289,12 @@ int dload_get_section(void *minfo,
 	struct image_packet_t ipacket;
 	s32 ipsize;
 	u32 checks;
-	s8 *dest = (s8 *) sectionData;
+	s8 *dest = (s8 *) section_data;
 
 	dlthis = (struct dload_state *)minfo;
 	if (!dlthis)
 		return false;
-	sptr = LDRSEC_IS_DOFFSEC(sectionInfo);
+	sptr = LDRSEC_IS_DOFFSEC(section_info);
 	if (sptr == NULL)
 		return false;
 

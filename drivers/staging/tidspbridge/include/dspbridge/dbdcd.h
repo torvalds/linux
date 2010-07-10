@@ -278,7 +278,7 @@ extern int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
  *      hdcd_mgr:                A DCD manager handle.
  *      sz_coff_path:           Pointer to name of COFF file containing DCD
  *                              objects.
- *      registerFxn:            Callback fxn to be applied on each located
+ *      register_fxn:           Callback fxn to be applied on each located
  *                              DCD object.
  *      handle:                 Handle to pass to callback.
  *  Returns:
@@ -296,7 +296,7 @@ extern int dcd_get_object_def(IN struct dcd_manager *hdcd_mgr,
  */
 extern int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
 				  IN char *sz_coff_path,
-				  dcd_registerfxn registerFxn, void *handle);
+				  dcd_registerfxn register_fxn, void *handle);
 
 /*
  *  ======== dcd_init ========

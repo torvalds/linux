@@ -66,7 +66,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 				     enum dsp_dcdobjtype obj_type,
 				     struct dcd_genericobj *gen_obj);
 static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size);
-static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size);
+static char dsp_char2_gpp_char(char *word, s32 dsp_char_size);
 static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
 				   IN struct dsp_uuid *uuid_obj,
 				   IN OUT u16 *num_libs,
@@ -534,7 +534,7 @@ func_end:
  *  ======== dcd_get_objects ========
  */
 int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
-			   IN char *sz_coff_path, dcd_registerfxn registerFxn,
+			   IN char *sz_coff_path, dcd_registerfxn register_fxn,
 			   void *handle)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;
@@ -608,7 +608,7 @@ int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
 			object_type = atoi(token);
 
 			/*
-			 *  Apply registerFxn to the found DCD object.
+			 *  Apply register_fxn to the found DCD object.
 			 *  Possible actions include:
 			 *
 			 *  1) Register found DCD object.
@@ -616,7 +616,7 @@ int dcd_get_objects(IN struct dcd_manager *hdcd_mgr,
 			 *  3) Add overlay node.
 			 */
 			status =
-			    registerFxn(&dsp_uuid_obj, object_type, handle);
+			    register_fxn(&dsp_uuid_obj, object_type, handle);
 			if (DSP_FAILED(status)) {
 				/* if error occurs, break from while loop. */
 				break;
@@ -1376,13 +1376,13 @@ static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size)
  *  Purpose:
  *      Convert DSP char to host GPP char in a portable manner
  */
-static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size)
+static char dsp_char2_gpp_char(char *word, s32 dsp_char_size)
 {
 	char ch = '\0';
 	char *ch_src;
 	s32 i;
 
-	for (ch_src = pWord, i = dsp_char_size; i > 0; i--)
+	for (ch_src = word, i = dsp_char_size; i > 0; i--)
 		ch |= *ch_src++;
 
 	return ch;
