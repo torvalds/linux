@@ -1013,7 +1013,7 @@ void io_mbox_msg(u32 msg)
  *      Request chanenel I/O from the DSP. Sets flags in shared memory, then
  *      interrupts the DSP.
  */
-void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
+void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 			u8 io_mode, OUT u16 *mbx_val)
 {
 	struct chnl_mgr *chnl_mgr_obj;
@@ -1021,8 +1021,8 @@ void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 
 	if (!pchnl || !mbx_val)
 		goto func_end;
-	chnl_mgr_obj = pio_mgr->hchnl_mgr;
-	sm = pio_mgr->shared_mem;
+	chnl_mgr_obj = io_manager->hchnl_mgr;
+	sm = io_manager->shared_mem;
 	if (io_mode == IO_INPUT) {
 		/*
 		 * Assertion fires if CHNL_AddIOReq() called on a stream
@@ -1031,7 +1031,7 @@ void io_request_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		DBC_ASSERT((pchnl->dw_state == CHNL_STATEREADY) ||
 			   (pchnl->dw_state == CHNL_STATEEOS));
 		/* Indicate to the DSP we have a buffer available for input */
-		IO_OR_VALUE(pio_mgr->hbridge_context, struct shm, sm,
+		IO_OR_VALUE(io_manager->hbridge_context, struct shm, sm,
 			    host_free_mask, (1 << pchnl->chnl_id));
 		*mbx_val = MBX_PCPY_CLASS;
 	} else if (io_mode == IO_OUTPUT) {
@@ -1057,20 +1057,20 @@ func_end:
  *  ======== iosm_schedule ========
  *      Schedule DPC for IO.
  */
-void iosm_schedule(struct io_mgr *pio_mgr)
+void iosm_schedule(struct io_mgr *io_manager)
 {
 	unsigned long flags;
 
-	if (!pio_mgr)
+	if (!io_manager)
 		return;
 
 	/* Increment count of DPC's pending. */
-	spin_lock_irqsave(&pio_mgr->dpc_lock, flags);
-	pio_mgr->dpc_req++;
-	spin_unlock_irqrestore(&pio_mgr->dpc_lock, flags);
+	spin_lock_irqsave(&io_manager->dpc_lock, flags);
+	io_manager->dpc_req++;
+	spin_unlock_irqrestore(&io_manager->dpc_lock, flags);
 
 	/* Schedule DPC */
-	tasklet_schedule(&pio_mgr->dpc_tasklet);
+	tasklet_schedule(&io_manager->dpc_tasklet);
 }
 
 /*

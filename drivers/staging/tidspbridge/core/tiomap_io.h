@@ -47,7 +47,7 @@
  *  Reads it from DSP External memory. The external memory for the DSP
  * is configured by the combination of DSP MMU and shm Memory manager in the CDB
  */
-extern int read_ext_dsp_data(struct bridge_dev_context *dev_context,
+extern int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
 				    OUT u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 mem_type);
 

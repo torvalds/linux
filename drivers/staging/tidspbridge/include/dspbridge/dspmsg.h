@@ -32,7 +32,7 @@ extern int bridge_msg_create(OUT struct msg_mgr **msg_man,
 
 extern int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
 				       OUT struct msg_queue **msgq,
-				       u32 msgq_id, u32 max_msgs, void *h);
+				       u32 msgq_id, u32 max_msgs, void *arg);
 
 extern void bridge_msg_delete(struct msg_mgr *hmsg_mgr);
 

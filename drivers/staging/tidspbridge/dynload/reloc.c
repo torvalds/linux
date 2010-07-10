@@ -162,7 +162,7 @@ static const u8 c60_scale[SCALE_MASK + 1] = {
  *	Performs the specified relocation operation
  ************************************************************************* */
 void dload_relocate(struct dload_state *dlthis, tgt_au_t * data,
-		    struct reloc_record_t *rp, bool * tramps_genereted,
+		    struct reloc_record_t *rp, bool *tramps_generated,
 		    bool second_pass)
 {
 	rvalue val, reloc_amt, orig_val = 0;
@@ -470,7 +470,7 @@ void dload_relocate(struct dload_state *dlthis, tgt_au_t * data,
 						    dlthis->image_offset +
 						    rp->vaddr);
 				} else
-					*tramps_genereted = true;
+					*tramps_generated = true;
 			} else {
 				dload_error(dlthis, "Relocation value "
 					    FMT_UI32 " overflows %d bits in %s"

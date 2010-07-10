@@ -114,7 +114,7 @@ void io_mbox_msg(u32 msg);
  *      pchnl != NULL
  *  Ensures:
  */
-extern void io_request_chnl(struct io_mgr *hio_mgr,
+extern void io_request_chnl(struct io_mgr *io_manager,
 			    struct chnl_object *pchnl,
 			    u8 io_mode, OUT u16 *mbx_val);
 
@@ -129,7 +129,7 @@ extern void io_request_chnl(struct io_mgr *hio_mgr,
  *      pchnl != NULL
  *  Ensures:
  */
-extern void iosm_schedule(struct io_mgr *hio_mgr);
+extern void iosm_schedule(struct io_mgr *io_manager);
 
 /*
  * DSP-DMA IO functions

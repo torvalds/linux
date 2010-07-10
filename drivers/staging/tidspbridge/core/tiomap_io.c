@@ -178,13 +178,13 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
  *  purpose:
  *      Copies buffers to the DSP internal/external memory.
  */
-int write_dsp_data(struct bridge_dev_context *dev_ctxt,
+int write_dsp_data(struct bridge_dev_context *dev_context,
 			  IN u8 *host_buff, u32 dsp_addr, u32 ul_num_bytes,
 			  u32 mem_type)
 {
 	u32 offset;
-	u32 dw_base_addr = dev_ctxt->dw_dsp_base_addr;
-	struct cfg_hostres *resources = dev_ctxt->resources;
+	u32 dw_base_addr = dev_context->dw_dsp_base_addr;
+	struct cfg_hostres *resources = dev_context->resources;
 	int status = 0;
 	u32 base1, base2, base3;
 	base1 = OMAP_DSP_MEM1_SIZE;
@@ -194,7 +194,7 @@ int write_dsp_data(struct bridge_dev_context *dev_ctxt,
 	if (!resources)
 		return -EPERM;
 
-	offset = dsp_addr - dev_ctxt->dw_dsp_start_add;
+	offset = dsp_addr - dev_context->dw_dsp_start_add;
 	if (offset < base1) {
 		dw_base_addr = MEM_LINEAR_ADDRESS(resources->dw_mem_base[2],
 						  resources->dw_mem_length[2]);

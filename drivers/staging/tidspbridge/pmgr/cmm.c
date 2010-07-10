@@ -149,7 +149,7 @@ static struct cmm_mnode *get_free_block(struct cmm_allocator *allocator,
 static struct cmm_mnode *get_node(struct cmm_object *cmm_mgr_obj, u32 dw_pa,
 				  u32 dw_va, u32 ul_size);
 /* get available slot for new allocator */
-static s32 get_slot(struct cmm_object *hcmm_mgr);
+static s32 get_slot(struct cmm_object *cmm_mgr_obj);
 static void un_register_gppsm_seg(struct cmm_allocator *psma);
 
 /*
@@ -540,7 +540,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 				  u32 dw_gpp_base_pa, u32 ul_size,
 				  u32 dsp_addr_offset, s8 c_factor,
 				  u32 dw_dsp_base, u32 ul_dsp_size,
-				  u32 *sgmt_id, u32 dw_gpp_base_va)
+				  u32 *sgmt_id, u32 gpp_base_va)
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	struct cmm_allocator *psma = NULL;
@@ -551,13 +551,13 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 	DBC_REQUIRE(ul_size > 0);
 	DBC_REQUIRE(sgmt_id != NULL);
 	DBC_REQUIRE(dw_gpp_base_pa != 0);
-	DBC_REQUIRE(dw_gpp_base_va != 0);
+	DBC_REQUIRE(gpp_base_va != 0);
 	DBC_REQUIRE((c_factor <= CMM_ADDTODSPPA) &&
 		    (c_factor >= CMM_SUBFROMDSPPA));
 	dev_dbg(bridge, "%s: dw_gpp_base_pa %x ul_size %x dsp_addr_offset %x "
-		"dw_dsp_base %x ul_dsp_size %x dw_gpp_base_va %x\n", __func__,
+		"dw_dsp_base %x ul_dsp_size %x gpp_base_va %x\n", __func__,
 		dw_gpp_base_pa, ul_size, dsp_addr_offset, dw_dsp_base,
-		ul_dsp_size, dw_gpp_base_va);
+		ul_dsp_size, gpp_base_va);
 	if (!hcmm_mgr) {
 		status = -EFAULT;
 		return status;
@@ -585,7 +585,7 @@ int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 		psma->hcmm_mgr = hcmm_mgr;	/* ref to parent */
 		psma->shm_base = dw_gpp_base_pa;	/* SM Base phys */
 		psma->ul_sm_size = ul_size;	/* SM segment size in bytes */
-		psma->dw_vm_base = dw_gpp_base_va;
+		psma->dw_vm_base = gpp_base_va;
 		psma->dw_dsp_phys_addr_offset = dsp_addr_offset;
 		psma->c_factor = c_factor;
 		psma->dw_dsp_base = dw_dsp_base;

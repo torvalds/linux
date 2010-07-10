@@ -307,7 +307,7 @@ void rmm_exit(void)
 /*
  *  ======== rmm_free ========
  */
-bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 addr, u32 size,
+bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_addr, u32 size,
 	      bool reserved)
 {
 	struct rmm_ovly_sect *sect;
@@ -316,8 +316,9 @@ bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 addr, u32 size,
 	DBC_REQUIRE(target);
 
 	DBC_REQUIRE(reserved || segid < target->num_segs);
-	DBC_REQUIRE(reserved || (addr >= target->seg_tab[segid].base &&
-				 (addr + size) <= (target->seg_tab[segid].base +
+	DBC_REQUIRE(reserved || (dsp_addr >= target->seg_tab[segid].base &&
+				 (dsp_addr + size) <= (target->seg_tab[segid].
+						   base +
 						   target->seg_tab[segid].
 						   length)));
 
@@ -325,7 +326,7 @@ bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 addr, u32 size,
 	 *  Free or unreserve memory.
 	 */
 	if (!reserved) {
-		ret = free_block(target, segid, addr, size);
+		ret = free_block(target, segid, dsp_addr, size);
 		if (ret)
 			target->seg_tab[segid].number--;
 
@@ -333,7 +334,7 @@ bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 addr, u32 size,
 		/* Unreserve memory */
 		sect = (struct rmm_ovly_sect *)lst_first(target->ovly_list);
 		while (sect != NULL) {
-			if (addr == sect->addr) {
+			if (dsp_addr == sect->addr) {
 				DBC_ASSERT(size == sect->size);
 				/* Remove from list */
 				lst_remove_elem(target->ovly_list,

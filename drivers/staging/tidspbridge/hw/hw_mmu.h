@@ -95,7 +95,7 @@ extern hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 				struct hw_mmu_map_attrs_t *map_attrs);
 
 extern hw_status hw_mmu_pte_clear(const u32 pg_tbl_va,
-				  u32 page_size, u32 virtual_addr);
+				  u32 virtual_addr, u32 page_size);
 
 void hw_mmu_tlb_flush_all(const void __iomem *base);
 

@@ -108,7 +108,7 @@ static u32 refs;
 DEFINE_MUTEX(proc_lock);	/* For critical sections */
 
 /*  ----------------------------------- Function Prototypes */
-static int proc_monitor(struct proc_object *hprocessor);
+static int proc_monitor(struct proc_object *proc_obj);
 static s32 get_envp_count(char **envp);
 static char **prepend_envp(char **new_envp, char **envp, s32 envp_elems,
 			   s32 cnew_envp, char *sz_var);
@@ -1788,32 +1788,32 @@ func_end:
  *  Ensures:
  *      Success:	ProcObject state is PROC_IDLE
  */
-static int proc_monitor(struct proc_object *p_proc_object)
+static int proc_monitor(struct proc_object *proc_obj)
 {
 	int status = -EPERM;
 	struct msg_mgr *hmsg_mgr;
 	int brd_state;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(p_proc_object);
+	DBC_REQUIRE(proc_obj);
 
 	/* This is needed only when Device is loaded when it is
 	 * already 'ACTIVE' */
 	/* Destory the Node Manager, msg_ctrl Manager */
-	if (DSP_SUCCEEDED(dev_destroy2(p_proc_object->hdev_obj))) {
+	if (DSP_SUCCEEDED(dev_destroy2(proc_obj->hdev_obj))) {
 		/* Destroy the msg_ctrl by calling msg_delete */
-		dev_get_msg_mgr(p_proc_object->hdev_obj, &hmsg_mgr);
+		dev_get_msg_mgr(proc_obj->hdev_obj, &hmsg_mgr);
 		if (hmsg_mgr) {
 			msg_delete(hmsg_mgr);
-			dev_set_msg_mgr(p_proc_object->hdev_obj, NULL);
+			dev_set_msg_mgr(proc_obj->hdev_obj, NULL);
 		}
 	}
 	/* Place the Board in the Monitor State */
-	if (DSP_SUCCEEDED((*p_proc_object->intf_fxns->pfn_brd_monitor)
-			  (p_proc_object->hbridge_context))) {
+	if (DSP_SUCCEEDED((*proc_obj->intf_fxns->pfn_brd_monitor)
+			  (proc_obj->hbridge_context))) {
 		status = 0;
-		if (DSP_SUCCEEDED((*p_proc_object->intf_fxns->pfn_brd_status)
-				  (p_proc_object->hbridge_context, &brd_state)))
+		if (DSP_SUCCEEDED((*proc_obj->intf_fxns->pfn_brd_status)
+				  (proc_obj->hbridge_context, &brd_state)))
 			DBC_ASSERT(brd_state == BRD_IDLE);
 	}
 

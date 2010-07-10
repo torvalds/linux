@@ -1804,7 +1804,7 @@ int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
  *      Retrieve a message from a node on the DSP.
  */
 int node_get_message(struct node_object *hnode,
-			    OUT struct dsp_msg *pmsg, u32 utimeout)
+			    OUT struct dsp_msg *message, u32 utimeout)
 {
 	struct node_mgr *hnode_mgr;
 	enum node_type node_type;
@@ -1815,7 +1815,7 @@ int node_get_message(struct node_object *hnode,
 	struct proc_object *hprocessor;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(pmsg != NULL);
+	DBC_REQUIRE(message != NULL);
 
 	if (!hnode) {
 		status = -EFAULT;
@@ -1846,14 +1846,14 @@ int node_get_message(struct node_object *hnode,
 	 *  available. */
 	intf_fxns = hnode_mgr->intf_fxns;
 	status =
-	    (*intf_fxns->pfn_msg_get) (hnode->msg_queue_obj, pmsg, utimeout);
+	    (*intf_fxns->pfn_msg_get) (hnode->msg_queue_obj, message, utimeout);
 	/* Check if message contains SM descriptor */
-	if (DSP_FAILED(status) || !(pmsg->dw_cmd & DSP_RMSBUFDESC))
+	if (DSP_FAILED(status) || !(message->dw_cmd & DSP_RMSBUFDESC))
 		goto func_end;
 
 	/* Translate DSP byte addr to GPP Va. */
 	tmp_buf = cmm_xlator_translate(hnode->xlator,
-				       (void *)(pmsg->dw_arg1 *
+				       (void *)(message->dw_arg1 *
 						hnode->hnode_mgr->
 						udsp_word_size), CMM_DSPPA2PA);
 	if (tmp_buf != NULL) {
@@ -1862,8 +1862,8 @@ int node_get_message(struct node_object *hnode,
 					       CMM_PA2VA);
 		if (tmp_buf != NULL) {
 			/* Adjust SM size in msg */
-			pmsg->dw_arg1 = (u32) tmp_buf;
-			pmsg->dw_arg2 *= hnode->hnode_mgr->udsp_word_size;
+			message->dw_arg1 = (u32) tmp_buf;
+			message->dw_arg2 *= hnode->hnode_mgr->udsp_word_size;
 		} else {
 			status = -ESRCH;
 		}
@@ -1871,8 +1871,8 @@ int node_get_message(struct node_object *hnode,
 		status = -ESRCH;
 	}
 func_end:
-	dev_dbg(bridge, "%s: hnode: %p pmsg: %p utimeout: 0x%x\n", __func__,
-		hnode, pmsg, utimeout);
+	dev_dbg(bridge, "%s: hnode: %p message: %p utimeout: 0x%x\n", __func__,
+		hnode, message, utimeout);
 	return status;
 }
 

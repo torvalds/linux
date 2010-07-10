@@ -91,7 +91,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *      str_zl_file != NULL
  *  Ensures:
  */
-extern int cod_create(OUT struct cod_manager **manager,
+extern int cod_create(OUT struct cod_manager **mgr,
 			     char *str_zl_file,
 			     IN OPTIONAL CONST struct cod_attrs *attrs);
 

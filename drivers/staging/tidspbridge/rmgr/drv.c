@@ -269,11 +269,11 @@ int drv_get_node_res_element(void *hnode, void *node_resource,
 /* Allocate the STRM resource element
 * This is called after the actual resource is allocated
  */
-int drv_proc_insert_strm_res_element(void *stream_handle,
-					    void *hstrm_res, void *process_ctxt)
+int drv_proc_insert_strm_res_element(void *stream_obj,
+					    void *strm_res, void *process_ctxt)
 {
 	struct strm_res_object **pstrm_res =
-	    (struct strm_res_object **)hstrm_res;
+	    (struct strm_res_object **)strm_res;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct strm_res_object *temp_strm_res = NULL;
@@ -287,7 +287,7 @@ int drv_proc_insert_strm_res_element(void *stream_handle,
 			kfree(*pstrm_res);
 			return -EPERM;
 		}
-		(*pstrm_res)->hstream = stream_handle;
+		(*pstrm_res)->hstream = stream_obj;
 		if (ctxt->pstrm_list != NULL) {
 			temp_strm_res = ctxt->pstrm_list;
 			while (temp_strm_res->next != NULL)
@@ -305,9 +305,9 @@ int drv_proc_insert_strm_res_element(void *stream_handle,
 /* Release Stream resource element context
 * This function called after the actual resource is freed
  */
-int drv_proc_remove_strm_res_element(void *hstrm_res, void *process_ctxt)
+int drv_proc_remove_strm_res_element(void *strm_res, void *process_ctxt)
 {
-	struct strm_res_object *pstrm_res = (struct strm_res_object *)hstrm_res;
+	struct strm_res_object *pstrm_res = (struct strm_res_object *)strm_res;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	struct strm_res_object *temp_strm_res;
 	int status = 0;
@@ -375,11 +375,11 @@ int drv_remove_all_strm_res_elements(void *process_ctxt)
 }
 
 /* Getting the stream resource element */
-int drv_get_strm_res_element(void *stream_obj, void *hstrm_res,
+int drv_get_strm_res_element(void *stream_obj, void *strm_resources,
 				    void *process_ctxt)
 {
 	struct strm_res_object **strm_res =
-	    (struct strm_res_object **)hstrm_res;
+	    (struct strm_res_object **)strm_resources;
 	struct process_context *ctxt = (struct process_context *)process_ctxt;
 	int status = 0;
 	struct strm_res_object *temp_strm2 = NULL;
@@ -405,11 +405,11 @@ int drv_get_strm_res_element(void *stream_obj, void *hstrm_res,
 }
 
 /* Updating the stream resource element */
-int drv_proc_update_strm_res(u32 num_bufs, void *hstrm_res)
+int drv_proc_update_strm_res(u32 num_bufs, void *strm_resources)
 {
 	int status = 0;
 	struct strm_res_object **strm_res =
-	    (struct strm_res_object **)hstrm_res;
+	    (struct strm_res_object **)strm_resources;
 
 	(*strm_res)->num_bufs = num_bufs;
 	return status;

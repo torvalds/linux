@@ -99,7 +99,7 @@ extern int proc_auto_start(struct cfg_devnode *dev_node_obj,
  *      This function Calls bridge_dev_ctrl.
  */
 extern int proc_ctrl(void *hprocessor,
-			    u32 dw_cmd, IN struct dsp_cbdata *pargs);
+			    u32 dw_cmd, IN struct dsp_cbdata *arg);
 
 /*
  *  ======== proc_detach ========
@@ -278,7 +278,7 @@ extern int proc_get_state(void *hprocessor, OUT struct dsp_processorstate
  *  Ensures:
  *  Details:
  */
-extern int proc_get_processor_id(void *hprocessor, u32 * proc_id);
+extern int proc_get_processor_id(void *proc, u32 * proc_id);
 
 /*
  *  ======== proc_get_trace ========

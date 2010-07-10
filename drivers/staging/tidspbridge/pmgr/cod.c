@@ -215,7 +215,7 @@ void cod_close(struct cod_libraryobj *lib)
  *      dynamically loaded object files.
  *
  */
-int cod_create(OUT struct cod_manager **mgr, char *str_dummy_file,
+int cod_create(OUT struct cod_manager **mgr, char *str_zl_file,
 		      IN OPTIONAL CONST struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
@@ -281,23 +281,24 @@ int cod_create(OUT struct cod_manager **mgr, char *str_dummy_file,
  *  Purpose:
  *      Delete a code manager object.
  */
-void cod_delete(struct cod_manager *hmgr)
+void cod_delete(struct cod_manager *cod_mgr_obj)
 {
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(hmgr));
+	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
 
-	if (hmgr->base_lib) {
-		if (hmgr->loaded)
-			hmgr->fxns.unload_fxn(hmgr->base_lib, &hmgr->attrs);
+	if (cod_mgr_obj->base_lib) {
+		if (cod_mgr_obj->loaded)
+			cod_mgr_obj->fxns.unload_fxn(cod_mgr_obj->base_lib,
+							&cod_mgr_obj->attrs);
 
-		hmgr->fxns.close_fxn(hmgr->base_lib);
+		cod_mgr_obj->fxns.close_fxn(cod_mgr_obj->base_lib);
 	}
-	if (hmgr->target) {
-		hmgr->fxns.delete_fxn(hmgr->target);
-		hmgr->fxns.exit_fxn();
+	if (cod_mgr_obj->target) {
+		cod_mgr_obj->fxns.delete_fxn(cod_mgr_obj->target);
+		cod_mgr_obj->fxns.exit_fxn();
 	}
-	hmgr->ul_magic = ~MAGIC;
-	kfree(hmgr);
+	cod_mgr_obj->ul_magic = ~MAGIC;
+	kfree(cod_mgr_obj);
 }
 
 /*
@@ -432,23 +433,24 @@ int cod_get_section(struct cod_libraryobj *lib, IN char *str_sect,
  *      C symbol.
  *
  */
-int cod_get_sym_value(struct cod_manager *hmgr, char *str_sym,
+int cod_get_sym_value(struct cod_manager *cod_mgr_obj, char *str_sym,
 			     u32 *pul_value)
 {
 	struct dbll_sym_val *dbll_sym;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(hmgr));
+	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
 	DBC_REQUIRE(str_sym != NULL);
 	DBC_REQUIRE(pul_value != NULL);
 
-	dev_dbg(bridge, "%s: hmgr: %p str_sym: %s pul_value: %p\n",
-		__func__, hmgr, str_sym, pul_value);
-	if (hmgr->base_lib) {
-		if (!hmgr->fxns.
-		    get_addr_fxn(hmgr->base_lib, str_sym, &dbll_sym)) {
-			if (!hmgr->fxns.
-			    get_c_addr_fxn(hmgr->base_lib, str_sym, &dbll_sym))
+	dev_dbg(bridge, "%s: cod_mgr_obj: %p str_sym: %s pul_value: %p\n",
+		__func__, cod_mgr_obj, str_sym, pul_value);
+	if (cod_mgr_obj->base_lib) {
+		if (!cod_mgr_obj->fxns.
+		    get_addr_fxn(cod_mgr_obj->base_lib, str_sym, &dbll_sym)) {
+			if (!cod_mgr_obj->fxns.
+			    get_c_addr_fxn(cod_mgr_obj->base_lib, str_sym,
+						&dbll_sym))
 				return -ESPIPE;
 		}
 	} else {
@@ -492,7 +494,7 @@ bool cod_init(void)
  *      recalculated to reflect this.  In this way, we can support NULL
  *      terminating args arrays, if num_argc is very large.
  */
-int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
+int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
 			 cod_writefxn pfn_write, void *arb, char *envp[])
 {
 	dbll_flags flags;
@@ -502,12 +504,12 @@ int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
 	u32 i;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(hmgr));
+	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
 	DBC_REQUIRE(num_argc > 0);
 	DBC_REQUIRE(args != NULL);
 	DBC_REQUIRE(args[0] != NULL);
 	DBC_REQUIRE(pfn_write != NULL);
-	DBC_REQUIRE(hmgr->base_lib != NULL);
+	DBC_REQUIRE(cod_mgr_obj->base_lib != NULL);
 
 	/*
 	 *  Make sure every argv[] stated in argc has a value, or change argc to
@@ -521,7 +523,7 @@ int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
 	}
 
 	/* set the write function for this operation */
-	hmgr->fxns.get_attrs_fxn(hmgr->target, &save_attrs);
+	cod_mgr_obj->fxns.get_attrs_fxn(cod_mgr_obj->target, &save_attrs);
 
 	new_attrs = save_attrs;
 	new_attrs.write = (dbll_write_fxn) pfn_write;
@@ -533,15 +535,16 @@ int cod_load_base(struct cod_manager *hmgr, u32 num_argc, char *args[],
 
 	/* Load the image */
 	flags = DBLL_CODE | DBLL_DATA | DBLL_SYMB;
-	status = hmgr->fxns.load_fxn(hmgr->base_lib, flags, &new_attrs,
-				     &hmgr->ul_entry);
+	status = cod_mgr_obj->fxns.load_fxn(cod_mgr_obj->base_lib, flags,
+					    &new_attrs,
+					    &cod_mgr_obj->ul_entry);
 	if (DSP_FAILED(status))
-		hmgr->fxns.close_fxn(hmgr->base_lib);
+		cod_mgr_obj->fxns.close_fxn(cod_mgr_obj->base_lib);
 
 	if (DSP_SUCCEEDED(status))
-		hmgr->loaded = true;
+		cod_mgr_obj->loaded = true;
 	else
-		hmgr->base_lib = NULL;
+		cod_mgr_obj->base_lib = NULL;
 
 	return status;
 }

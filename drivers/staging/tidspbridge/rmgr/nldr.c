@@ -304,7 +304,7 @@ static int load_lib(struct nldr_nodeobject *nldr_node_obj,
 			   enum nldr_phase phase, u16 depth);
 static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
 			    enum nldr_phase phase);
-static int remote_alloc(void **ref, u16 mem_sect_type, u32 size,
+static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 			       u32 align, u32 *dsp_address,
 			       OPTIONAL s32 segmnt_id,
 			       OPTIONAL s32 req, bool reserve);
@@ -1161,7 +1161,7 @@ static void free_sects(struct nldr_object *nldr_obj,
  *  libraries.
  */
 static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
-			     char *name, struct dbll_sym_val **sym)
+			     char *sym_name, struct dbll_sym_val **sym)
 {
 	struct nldr_object *nldr_obj = (struct nldr_object *)handle;
 	struct nldr_nodeobject *nldr_node_obj =
@@ -1171,11 +1171,12 @@ static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
 	bool status = false;
 
 	/* check the base image */
-	status = nldr_obj->ldr_fxns.get_addr_fxn(nldr_obj->base_lib, name, sym);
+	status = nldr_obj->ldr_fxns.get_addr_fxn(nldr_obj->base_lib,
+						 sym_name, sym);
 	if (!status)
 		status =
-		    nldr_obj->ldr_fxns.get_c_addr_fxn(nldr_obj->base_lib, name,
-						      sym);
+		    nldr_obj->ldr_fxns.get_c_addr_fxn(nldr_obj->base_lib,
+							sym_name, sym);
 
 	/*
 	 *  Check in root lib itself. If the library consists of
@@ -1183,11 +1184,12 @@ static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
 	 *  library may need to be resolved.
 	 */
 	if (!status) {
-		status = nldr_obj->ldr_fxns.get_addr_fxn(root->lib, name, sym);
+		status = nldr_obj->ldr_fxns.get_addr_fxn(root->lib, sym_name,
+							 sym);
 		if (!status) {
 			status =
-			    nldr_obj->ldr_fxns.get_c_addr_fxn(root->lib, name,
-							      sym);
+			    nldr_obj->ldr_fxns.get_c_addr_fxn(root->lib,
+							      sym_name, sym);
 		}
 	}
 
@@ -1198,13 +1200,15 @@ static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
 	if (!status) {
 		for (i = 0; i < root->dep_libs; i++) {
 			status =
-			    nldr_obj->ldr_fxns.get_addr_fxn(root->dep_libs_tree
-							    [i].lib, name, sym);
+			    nldr_obj->ldr_fxns.get_addr_fxn(root->
+							    dep_libs_tree
+							    [i].lib,
+							    sym_name, sym);
 			if (!status) {
 				status =
 				    nldr_obj->ldr_fxns.
 				    get_c_addr_fxn(root->dep_libs_tree[i].lib,
-						   name, sym);
+						   sym_name, sym);
 			}
 			if (status) {
 				/* Symbol found */
@@ -1220,11 +1224,11 @@ static bool get_symbol_value(void *handle, void *parg, void *rmm_handle,
 			status =
 			    nldr_obj->ldr_fxns.
 			    get_addr_fxn(nldr_node_obj->pers_lib_table[i].lib,
-					 name, sym);
+					 sym_name, sym);
 			if (!status) {
 				status = nldr_obj->ldr_fxns.get_c_addr_fxn
-				    (nldr_node_obj->pers_lib_table[i].lib, name,
-				     sym);
+				    (nldr_node_obj->pers_lib_table[i].lib,
+				     sym_name, sym);
 			}
 			if (status) {
 				/* Symbol found */
@@ -1623,7 +1627,7 @@ func_end:
 /*
  *  ======== remote_alloc ========
  */
-static int remote_alloc(void **ref, u16 space, u32 size,
+static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 			       u32 align, u32 *dsp_address,
 			       OPTIONAL s32 segmnt_id, OPTIONAL s32 req,
 			       bool reserve)
@@ -1640,8 +1644,8 @@ static int remote_alloc(void **ref, u16 space, u32 size,
 	bool mem_load_req = false;
 	int status = -ENOMEM;	/* Set to fail */
 	DBC_REQUIRE(hnode);
-	DBC_REQUIRE(space == DBLL_CODE || space == DBLL_DATA ||
-		    space == DBLL_BSS);
+	DBC_REQUIRE(mem_sect == DBLL_CODE || mem_sect == DBLL_DATA ||
+		    mem_sect == DBLL_BSS);
 	nldr_obj = hnode->nldr_obj;
 	rmm = nldr_obj->rmm;
 	/* Convert size to DSP words */
@@ -1670,7 +1674,7 @@ static int remote_alloc(void **ref, u16 space, u32 size,
 			DBC_ASSERT(false);
 			break;
 		}
-		if (space == DBLL_CODE)
+		if (mem_sect == DBLL_CODE)
 			mem_phase_bit++;
 
 		if (mem_phase_bit < MAXFLAGS)
@@ -1681,9 +1685,9 @@ static int remote_alloc(void **ref, u16 space, u32 size,
 			mem_load_req = true;
 
 	}
-	mem_sect_type = (space == DBLL_CODE) ? DYNM_CODE : DYNM_DATA;
+	mem_sect_type = (mem_sect == DBLL_CODE) ? DYNM_CODE : DYNM_DATA;
 
-	/* Find an appropriate segment based on space */
+	/* Find an appropriate segment based on mem_sect */
 	if (segid == NULLID) {
 		/* No memory requirements of preferences */
 		DBC_ASSERT(!mem_load_req);

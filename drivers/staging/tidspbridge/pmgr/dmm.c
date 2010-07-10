@@ -405,14 +405,14 @@ int dmm_un_reserve_memory(struct dmm_object *dmm_mgr, u32 rsv_addr)
  *  Purpose:
  *      Returns a region containing the specified memory region
  */
-static struct map_page *get_region(u32 addrs)
+static struct map_page *get_region(u32 addr)
 {
 	struct map_page *curr_region = NULL;
 	u32 i = 0;
 
 	if (virtual_mapping_table != NULL) {
 		/* find page mapped by this address */
-		i = DMM_ADDR_TO_INDEX(addrs);
+		i = DMM_ADDR_TO_INDEX(addr);
 		if (i < table_size)
 			curr_region = virtual_mapping_table + i;
 	}

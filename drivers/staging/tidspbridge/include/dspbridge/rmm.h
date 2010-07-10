@@ -74,7 +74,7 @@ struct rmm_target_obj;
  *  Ensures:
  */
 extern int rmm_alloc(struct rmm_target_obj *target, u32 segid, u32 size,
-			    u32 align, u32 *dsp_adr, bool reserve);
+			u32 align, u32 *dsp_address, bool reserve);
 
 /*
  *  ======== rmm_create ========
@@ -144,7 +144,7 @@ extern void rmm_exit(void);
  *      reserve || [dsp_address, dsp_address + size] is a valid memory range.
  *  Ensures:
  */
-extern bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_address,
+extern bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_addr,
 		     u32 size, bool reserved);
 
 /*

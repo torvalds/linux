@@ -213,7 +213,7 @@ extern int drv_create(struct drv_object **drv_obj);
  *      and destroy the DRV object
  *      Called upon driver unLoading.or unsuccesful loading of the driver.
  *  Parameters:
- *      hdrv_obj:     Handle to Driver object .
+ *      driver_obj:     Handle to Driver object .
  *  Returns:
  *      0:        Success.
  *      -EPERM:      Failed to destroy DRV Object
@@ -227,7 +227,7 @@ extern int drv_create(struct drv_object **drv_obj);
  *                        DRV handle.
  *                      - Registry is updated with "0" as the DRV Object.
  */
-extern int drv_destroy(struct drv_object *hdrv_obj);
+extern int drv_destroy(struct drv_object *driver_obj);
 
 /*
  *  ======== drv_exit ========
@@ -341,7 +341,7 @@ extern int drv_init(void);
  *  Purpose:
  *      Insert a DeviceObject into the list of Driver object.
  *  Parameters:
- *      hdrv_obj:     Handle to DrvObject
+ *      driver_obj:     Handle to DrvObject
  *      hdev_obj:     Handle to DeviceObject to insert.
  *  Returns:
  *      0:        If successful.
@@ -352,7 +352,7 @@ extern int drv_init(void);
  *  Ensures:
  *      0:        Device Object is inserted and the List is not empty.
  */
-extern int drv_insert_dev_object(struct drv_object *hdrv_obj,
+extern int drv_insert_dev_object(struct drv_object *driver_obj,
 					struct dev_object *hdev_obj);
 
 /*
@@ -361,7 +361,7 @@ extern int drv_insert_dev_object(struct drv_object *hdrv_obj,
  *      Search for and remove a Device object from the given list of Device Obj
  *      objects.
  *  Parameters:
- *      hdrv_obj:     Handle to DrvObject
+ *      driver_obj:     Handle to DrvObject
  *      hdev_obj:     Handle to DevObject to Remove
  *  Returns:
  *      0:        Success.
@@ -373,7 +373,7 @@ extern int drv_insert_dev_object(struct drv_object *hdrv_obj,
  *  Ensures:
  *      List either does not exist (NULL), or is not empty if it does exist.
  */
-extern int drv_remove_dev_object(struct drv_object *hdrv_obj,
+extern int drv_remove_dev_object(struct drv_object *driver_obj,
 					struct dev_object *hdev_obj);
 
 /*

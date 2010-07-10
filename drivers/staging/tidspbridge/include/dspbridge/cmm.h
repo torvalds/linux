@@ -232,7 +232,7 @@ extern int cmm_register_gppsm_seg(struct cmm_object *hcmm_mgr,
 					 s8 c_factor,
 					 unsigned int dw_dsp_base,
 					 u32 ul_dsp_size,
-					 u32 *sgmt_id, u32 gpp_base_ba);
+					 u32 *sgmt_id, u32 gpp_base_va);
 
 /*
  *  ======== cmm_un_register_gppsm_seg ========

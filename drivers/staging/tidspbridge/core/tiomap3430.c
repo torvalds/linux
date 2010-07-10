@@ -74,17 +74,17 @@
 #define PHYS_TO_PAGE(phys)      pfn_to_page((phys) >> PAGE_SHIFT)
 
 /* Forward Declarations: */
-static int bridge_brd_monitor(struct bridge_dev_context *dev_context);
-static int bridge_brd_read(struct bridge_dev_context *dev_context,
+static int bridge_brd_monitor(struct bridge_dev_context *dev_ctxt);
+static int bridge_brd_read(struct bridge_dev_context *dev_ctxt,
 				  OUT u8 *host_buff,
 				  u32 dsp_addr, u32 ul_num_bytes,
 				  u32 mem_type);
-static int bridge_brd_start(struct bridge_dev_context *dev_context,
+static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 				   u32 dsp_addr);
-static int bridge_brd_status(struct bridge_dev_context *dev_context,
+static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
 				    int *board_state);
-static int bridge_brd_stop(struct bridge_dev_context *dev_context);
-static int bridge_brd_write(struct bridge_dev_context *dev_context,
+static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt);
+static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 				   IN u8 *host_buff,
 				   u32 dsp_addr, u32 ul_num_bytes,
 				   u32 mem_type);
@@ -93,7 +93,7 @@ static int bridge_brd_set_state(struct bridge_dev_context *dev_ctxt,
 static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 				   u32 dsp_dest_addr, u32 dsp_src_addr,
 				   u32 ul_num_bytes, u32 mem_type);
-static int bridge_brd_mem_write(struct bridge_dev_context *dev_context,
+static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
 				    IN u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 mem_type);
 static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
@@ -108,14 +108,14 @@ static int bridge_dev_create(OUT struct bridge_dev_context
 					IN struct cfg_hostres *config_param);
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
 				  u32 dw_cmd, IN OUT void *pargs);
-static int bridge_dev_destroy(struct bridge_dev_context *dev_context);
+static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt);
 static u32 user_va2_pa(struct mm_struct *mm, u32 address);
 static int pte_update(struct bridge_dev_context *dev_ctxt, u32 pa,
 			     u32 va, u32 size,
 			     struct hw_mmu_map_attrs_t *map_attrs);
 static int pte_set(struct pg_table_attrs *pt, u32 pa, u32 va,
 			  u32 size, struct hw_mmu_map_attrs_t *attrs);
-static int mem_map_vmalloc(struct bridge_dev_context *dev_ctxt,
+static int mem_map_vmalloc(struct bridge_dev_context *dev_context,
 				  u32 ul_mpu_addr, u32 virt_addr,
 				  u32 ul_num_bytes,
 				  struct hw_mmu_map_attrs_t *hw_attrs);

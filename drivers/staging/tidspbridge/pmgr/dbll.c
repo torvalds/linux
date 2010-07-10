@@ -140,7 +140,8 @@ struct dbll_symbol {
 static void dof_close(struct dbll_library_obj *zl_lib);
 static int dof_open(struct dbll_library_obj *zl_lib);
 static s32 no_op(struct dynamic_loader_initialize *thisptr, void *bufr,
-		 ldr_addr locn, struct ldr_section_info *info, unsigned bytsiz);
+		 ldr_addr locn, struct ldr_section_info *info,
+		 unsigned bytsize);
 
 /*
  *  Functions called by dynamic loader
@@ -176,20 +177,20 @@ static void rmm_dealloc(struct dynamic_loader_allocate *this,
 static int connect(struct dynamic_loader_initialize *this);
 static int read_mem(struct dynamic_loader_initialize *this, void *buf,
 		    ldr_addr addr, struct ldr_section_info *info,
-		    unsigned nbytes);
+		    unsigned bytes);
 static int write_mem(struct dynamic_loader_initialize *this, void *buf,
 		     ldr_addr addr, struct ldr_section_info *info,
 		     unsigned nbytes);
 static int fill_mem(struct dynamic_loader_initialize *this, ldr_addr addr,
-		    struct ldr_section_info *info, unsigned nbytes,
+		    struct ldr_section_info *info, unsigned bytes,
 		    unsigned val);
 static int execute(struct dynamic_loader_initialize *this, ldr_addr start);
 static void release(struct dynamic_loader_initialize *this);
 
 /* symbol table hash functions */
-static u16 name_hash(void *name, u16 max_bucket);
-static bool name_match(void *name, void *sp);
-static void sym_delete(void *sp);
+static u16 name_hash(void *key, u16 max_bucket);
+static bool name_match(void *key, void *sp);
+static void sym_delete(void *value);
 
 static u32 refs;		/* module reference count */
 
@@ -728,7 +729,7 @@ func_cont:
  *  Get the content of a COFF section.
  */
 int dbll_read_sect(struct dbll_library_obj *lib, char *name,
-			  char *content, u32 size)
+			  char *buf, u32 size)
 {
 	struct dbll_library_obj *zl_lib = (struct dbll_library_obj *)lib;
 	bool opened_doff = false;
@@ -740,7 +741,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_lib);
 	DBC_REQUIRE(name != NULL);
-	DBC_REQUIRE(content != NULL);
+	DBC_REQUIRE(buf != NULL);
 	DBC_REQUIRE(size != 0);
 
 	/* If DOFF file is not open, we open it. */
@@ -768,7 +769,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	}
 	/*
 	 * Ensure the supplied buffer size is sufficient to store
-	 * the section content to be read.
+	 * the section buf to be read.
 	 */
 	ul_sect_size = sect->size * byte_size;
 	/* Make sure size is even for good swap */
@@ -780,7 +781,7 @@ int dbll_read_sect(struct dbll_library_obj *lib, char *name,
 	if (ul_sect_size > size) {
 		status = -EPERM;
 	} else {
-		if (!dload_get_section(zl_lib->desc, sect, content))
+		if (!dload_get_section(zl_lib->desc, sect, buf))
 			status = -EBADF;
 
 	}
@@ -790,8 +791,8 @@ func_cont:
 		opened_doff = false;
 	}
 
-	dev_dbg(bridge, "%s: lib: %p name: %s content: %p size: 0x%x, "
-		"status 0x%x\n", __func__, lib, name, content, size, status);
+	dev_dbg(bridge, "%s: lib: %p name: %s buf: %p size: 0x%x, "
+		"status 0x%x\n", __func__, lib, name, buf, size, status);
 	return status;
 }
 
@@ -935,13 +936,13 @@ static u16 name_hash(void *key, u16 max_bucket)
 /*
  *  ======== name_match ========
  */
-static bool name_match(void *key, void *value)
+static bool name_match(void *key, void *sp)
 {
 	DBC_REQUIRE(key != NULL);
-	DBC_REQUIRE(value != NULL);
+	DBC_REQUIRE(sp != NULL);
 
-	if ((key != NULL) && (value != NULL)) {
-		if (strcmp((char *)key, ((struct dbll_symbol *)value)->name) ==
+	if ((key != NULL) && (sp != NULL)) {
+		if (strcmp((char *)key, ((struct dbll_symbol *)sp)->name) ==
 		    0)
 			return true;
 	}

@@ -75,7 +75,7 @@
 /*  ----------------------------------- Function Prototypes */
 static struct lst_list *create_chirp_list(u32 chirps);
 
-static void free_chirp_list(struct lst_list *lst);
+static void free_chirp_list(struct lst_list *chirp_list);
 
 static struct chnl_irp *make_new_chirp(void);
 

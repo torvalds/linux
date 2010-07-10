@@ -66,7 +66,7 @@ int mgr_wait_for_bridge_events(struct dsp_notification
  *  Details:
  *      DCD Dll is loaded and MGR Object stores the handle of the DLL.
  */
-extern int mgr_create(OUT struct mgr_object **hmgr_obj,
+extern int mgr_create(OUT struct mgr_object **mgr_obj,
 			     struct cfg_devnode *dev_node_obj);
 
 /*
