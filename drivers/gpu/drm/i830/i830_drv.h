@@ -122,6 +122,7 @@ typedef struct drm_i830_private {
 
 } drm_i830_private_t;
 
+long i830_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern struct drm_ioctl_desc i830_ioctls[];
 extern int i830_max_ioctl;
 

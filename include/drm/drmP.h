@@ -52,7 +52,6 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/jiffies.h>
-#include <linux/smp_lock.h>	/* For (un)lock_kernel */
 #include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/cdev.h>
@@ -1152,6 +1151,7 @@ extern long drm_compat_ioctl(struct file *filp,
 extern int drm_lastclose(struct drm_device *dev);
 
 				/* Device support (drm_fops.h) */
+extern struct mutex drm_global_mutex;
 extern int drm_open(struct inode *inode, struct file *filp);
 extern int drm_stub_open(struct inode *inode, struct file *filp);
 extern int drm_fasync(int fd, struct file *filp, int on);

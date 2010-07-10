@@ -36,6 +36,7 @@
 #include "i830_drm.h"
 #include "i830_drv.h"
 #include <linux/interrupt.h>	/* For task queue support */
+#include <linux/smp_lock.h>
 #include <linux/pagemap.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -1509,21 +1510,34 @@ int i830_driver_dma_quiescent(struct drm_device *dev)
 	return 0;
 }
 
+/*
+ * call the drm_ioctl under the big kernel lock because
+ * to lock against the i830_mmap_buffers function.
+ */
+long i830_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+	lock_kernel();
+	ret = drm_ioctl(file, cmd, arg);
+	unlock_kernel();
+	return ret;
+}
+
 struct drm_ioctl_desc i830_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_I830_INIT, i830_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF(DRM_I830_VERTEX, i830_dma_vertex, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_CLEAR, i830_clear_bufs, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_FLUSH, i830_flush_ioctl, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_GETAGE, i830_getage, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_GETBUF, i830_getbuf, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_SWAP, i830_swap_bufs, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_COPY, i830_copybuf, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_DOCOPY, i830_docopy, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_FLIP, i830_flip_bufs, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_IRQ_EMIT, i830_irq_emit, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_IRQ_WAIT, i830_irq_wait, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_GETPARAM, i830_getparam, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_I830_SETPARAM, i830_setparam, DRM_AUTH)
+	DRM_IOCTL_DEF(DRM_I830_INIT, i830_dma_init, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_VERTEX, i830_dma_vertex, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_CLEAR, i830_clear_bufs, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_FLUSH, i830_flush_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_GETAGE, i830_getage, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_GETBUF, i830_getbuf, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_SWAP, i830_swap_bufs, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_COPY, i830_copybuf, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_DOCOPY, i830_docopy, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_FLIP, i830_flip_bufs, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_IRQ_EMIT, i830_irq_emit, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_IRQ_WAIT, i830_irq_wait, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_GETPARAM, i830_getparam, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_I830_SETPARAM, i830_setparam, DRM_AUTH|DRM_UNLOCKED),
 };
 
 int i830_max_ioctl = DRM_ARRAY_SIZE(i830_ioctls);

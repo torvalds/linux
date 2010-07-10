@@ -481,9 +481,9 @@ long drm_ioctl(struct file *filp,
 		if (ioctl->flags & DRM_UNLOCKED)
 			retcode = func(dev, kdata, file_priv);
 		else {
-			lock_kernel();
+			mutex_lock(&drm_global_mutex);
 			retcode = func(dev, kdata, file_priv);
-			unlock_kernel();
+			mutex_unlock(&drm_global_mutex);
 		}
 
 		if (cmd & IOC_OUT) {

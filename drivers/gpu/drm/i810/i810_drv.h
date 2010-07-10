@@ -126,6 +126,7 @@ extern void i810_driver_reclaim_buffers_locked(struct drm_device *dev,
 					       struct drm_file *file_priv);
 extern int i810_driver_device_is_agp(struct drm_device *dev);
 
+extern long i810_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 extern struct drm_ioctl_desc i810_ioctls[];
 extern int i810_max_ioctl;
 
