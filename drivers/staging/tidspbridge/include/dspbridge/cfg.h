@@ -58,9 +58,9 @@ extern int cfg_get_auto_start(IN struct cfg_devnode *dev_node_obj,
  *  Purpose:
  *      Retrieves the version of the PM Class Driver.
  *  Parameters:
- *      pdwVersion: Ptr to u32 to contain version number upon return.
+ *      version:    Ptr to u32 to contain version number upon return.
  *  Returns:
- *      0:    Success.  pdwVersion contains Class Driver version in
+ *      0:    Success.  version contains Class Driver version in
  *                  the form: 0xAABBCCDD where AABB is Major version and
  *                  CCDD is Minor.
  *      -EPERM:  Failure.
@@ -68,9 +68,9 @@ extern int cfg_get_auto_start(IN struct cfg_devnode *dev_node_obj,
  *      CFG initialized.
  *  Ensures:
  *      0:    Success.
- *      else:       *pdwVersion is NULL.
+ *      else:       *version is NULL.
  */
-extern int cfg_get_cd_version(OUT u32 *pdwVersion);
+extern int cfg_get_cd_version(OUT u32 *version);
 
 /*
  *  ======== cfg_get_dev_object ========
@@ -79,7 +79,7 @@ extern int cfg_get_cd_version(OUT u32 *pdwVersion);
  *  Parameters:
  *      dev_node_obj:	Platform's dev_node handle from which to retrieve
  *      		value.
- *      pdwValue:       Ptr to location to store the value.
+ *      value:          Ptr to location to store the value.
  *  Returns:
  *      0:                Success.
  *      -EFAULT: dev_node_obj is invalid or phDevObject is invalid.
@@ -87,11 +87,11 @@ extern int cfg_get_cd_version(OUT u32 *pdwVersion);
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      0:    *pdwValue is set to the retrieved u32.
- *      else:       *pdwValue is set to 0L.
+ *      0:    *value is set to the retrieved u32.
+ *      else:       *value is set to 0L.
  */
 extern int cfg_get_dev_object(IN struct cfg_devnode *dev_node_obj,
-				     OUT u32 *pdwValue);
+				     OUT u32 *value);
 
 /*
  *  ======== cfg_get_exec_file ========
@@ -120,17 +120,17 @@ extern int cfg_get_exec_file(IN struct cfg_devnode *dev_node_obj,
  *  Purpose:
  *      Retrieve the Driver Object handle From the Registry
  *  Parameters:
- *      pdwValue:   Ptr to location to store the value.
+ *      value:      Ptr to location to store the value.
  *      dw_type      Type of Object to Get
  *  Returns:
  *      0:    Success.
  *  Requires:
  *      CFG initialized.
  *  Ensures:
- *      0:    *pdwValue is set to the retrieved u32(non-Zero).
- *      else:       *pdwValue is set to 0L.
+ *      0:    *value is set to the retrieved u32(non-Zero).
+ *      else:       *value is set to 0L.
  */
-extern int cfg_get_object(OUT u32 *pdwValue, u8 dw_type);
+extern int cfg_get_object(OUT u32 *value, u8 dw_type);
 
 /*
  *  ======== cfg_get_perf_value ========
@@ -138,15 +138,15 @@ extern int cfg_get_object(OUT u32 *pdwValue, u8 dw_type);
  *      Retrieve a flag indicating whether PERF should log statistics for the
  *      PM class driver.
  *  Parameters:
- *      pfEnablePerf:   Location to store flag.  0 indicates the key was
+ *      enable_perf:    Location to store flag.  0 indicates the key was
  *                      not found, or had a zero value.  A nonzero value
  *                      means the key was found and had a nonzero value.
  *  Returns:
  *  Requires:
- *      pfEnablePerf != NULL;
+ *      enable_perf != NULL;
  *  Ensures:
  */
-extern void cfg_get_perf_value(OUT bool *pfEnablePerf);
+extern void cfg_get_perf_value(OUT bool *enable_perf);
 
 /*
  *  ======== cfg_get_zl_file ========

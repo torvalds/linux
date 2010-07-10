@@ -451,7 +451,7 @@ bool dbll_init(void)
  *  ======== dbll_load ========
  */
 int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
-		     struct dbll_attrs *attrs, u32 *pEntry)
+		     struct dbll_attrs *attrs, u32 *entry)
 {
 	struct dbll_library_obj *zl_lib = (struct dbll_library_obj *)lib;
 	struct dbll_tar_obj *dbzl;
@@ -461,7 +461,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 	bool opened_doff = false;
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(zl_lib);
-	DBC_REQUIRE(pEntry != NULL);
+	DBC_REQUIRE(entry != NULL);
 	DBC_REQUIRE(attrs != NULL);
 
 	/*
@@ -550,7 +550,7 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 				redefined_symbol = false;
 				status = -EILSEQ;
 			} else {
-				*pEntry = zl_lib->entry;
+				*entry = zl_lib->entry;
 			}
 		}
 	}
@@ -563,8 +563,8 @@ int dbll_load(struct dbll_library_obj *lib, dbll_flags flags,
 
 	DBC_ENSURE(DSP_FAILED(status) || zl_lib->load_ref > 0);
 
-	dev_dbg(bridge, "%s: lib: %p flags: 0x%x pEntry: %p, status 0x%x\n",
-		__func__, lib, flags, pEntry, status);
+	dev_dbg(bridge, "%s: lib: %p flags: 0x%x entry: %p, status 0x%x\n",
+		__func__, lib, flags, entry, status);
 
 	return status;
 }

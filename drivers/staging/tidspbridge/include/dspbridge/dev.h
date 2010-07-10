@@ -263,19 +263,19 @@ extern int dev_get_dmm_mgr(struct dev_object *hdev_obj,
  *  Parameters:
  *      hdev_obj:     Handle to device object created with
  *                      dev_create_device().
- *      *phCodMgr:      Ptr to location to store handle.
+ *      *cod_mgr:       Ptr to location to store handle.
  *  Returns:
  *      0:        Success.
  *      -EFAULT:    Invalid hdev_obj.
  *  Requires:
- *      phCodMgr != NULL.
+ *      cod_mgr != NULL.
  *      DEV Initialized.
  *  Ensures:
- *      0:        *phCodMgr contains a handle to a COD manager object.
- *      else:           *phCodMgr is NULL.
+ *      0:        *cod_mgr contains a handle to a COD manager object.
+ *      else:           *cod_mgr is NULL.
  */
 extern int dev_get_cod_mgr(struct dev_object *hdev_obj,
-				  OUT struct cod_manager **phCodMgr);
+				  OUT struct cod_manager **cod_mgr);
 
 /*
  *  ======== dev_get_deh_mgr ========
@@ -283,19 +283,19 @@ extern int dev_get_cod_mgr(struct dev_object *hdev_obj,
  *      Retrieve the DEH manager created for this device.
  *  Parameters:
  *      hdev_obj: Handle to device object created with dev_create_device().
- *      *phDehMgr:  Ptr to location to store handle.
+ *      *deh_manager:  Ptr to location to store handle.
  *  Returns:
  *      0:    Success.
  *      -EFAULT:   Invalid hdev_obj.
  *  Requires:
- *      phDehMgr != NULL.
+ *      deh_manager != NULL.
  *      DEH Initialized.
  *  Ensures:
- *      0:    *phDehMgr contains a handle to a DEH manager object.
- *      else:       *phDehMgr is NULL.
+ *      0:    *deh_manager contains a handle to a DEH manager object.
+ *      else:       *deh_manager is NULL.
  */
 extern int dev_get_deh_mgr(struct dev_object *hdev_obj,
-				  OUT struct deh_mgr **phDehMgr);
+				  OUT struct deh_mgr **deh_manager);
 
 /*
  *  ======== dev_get_dev_node ========

@@ -77,7 +77,7 @@ extern int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
  *      This function creates a DCD module manager.
  *  Parameters:
  *      pszZlDllName:   Pointer to a DLL name string.
- *      phDcdMgr:       A pointer to a DCD manager handle.
+ *      dcd_mgr:        A pointer to a DCD manager handle.
  *  Returns:
  *      0:        Success.
  *      -ENOMEM:    Unable to allocate memory for DCD manager handle.
@@ -85,12 +85,12 @@ extern int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
  *  Requires:
  *      DCD initialized.
  *      pszZlDllName is non-NULL.
- *      phDcdMgr is non-NULL.
+ *      dcd_mgr is non-NULL.
  *  Ensures:
  *      A DCD manager handle is created.
  */
 extern int dcd_create_manager(IN char *pszZlDllName,
-				     OUT struct dcd_manager **phDcdMgr);
+				     OUT struct dcd_manager **dcd_mgr);
 
 /*
  *  ======== dcd_destroy_manager ========
@@ -215,7 +215,7 @@ extern int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *      uuid_obj:	Pointer to a dsp_uuid that represents a unique DSP/BIOS
  *                      Bridge object.
  *      pstrLibName: Buffer to hold library name.
- *      pdwSize: Contains buffer size. Set to string size on output.
+ *      buff_size: Contains buffer size. Set to string size on output.
  *      phase:          Which phase to load
  *      phase_split:    Are phases in multiple libraries
  *  Returns:
@@ -226,13 +226,13 @@ extern int dcd_get_num_dep_libs(IN struct dcd_manager *hdcd_mgr,
  *      Valid hdcd_mgr.
  *      pstrLibName != NULL.
  *      uuid_obj != NULL
- *      pdwSize != NULL.
+ *      buff_size != NULL.
  *  Ensures:
  */
 extern int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 				       IN struct dsp_uuid *uuid_obj,
 				       IN OUT char *pstrLibName,
-				       IN OUT u32 *pdwSize,
+				       IN OUT u32 *buff_size,
 				       IN enum nldr_phase phase,
 				       OUT bool *phase_split);
 

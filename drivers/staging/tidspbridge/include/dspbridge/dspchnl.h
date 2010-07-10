@@ -24,14 +24,14 @@
 #ifndef DSPCHNL_
 #define DSPCHNL_
 
-extern int bridge_chnl_create(OUT struct chnl_mgr **phChnlMgr,
+extern int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 				     struct dev_object *hdev_obj,
 				     IN CONST struct chnl_mgrattrs
 				     *pMgrAttrs);
 
 extern int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr);
 
-extern int bridge_chnl_open(OUT struct chnl_object **phChnl,
+extern int bridge_chnl_open(OUT struct chnl_object **chnl,
 				   struct chnl_mgr *hchnl_mgr,
 				   s8 chnl_mode,
 				   u32 uChnlId,

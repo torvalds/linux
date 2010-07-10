@@ -228,17 +228,18 @@ typedef int(*fxn_brd_stop) (struct bridge_dev_context *dev_ctxt);
  *      Report the current state of the board.
  *  Parameters:
  *      dev_ctxt:    Handle to Bridge driver defined device context.
- *      pdwState:       Ptr to BRD status variable.
+ *      board_state:    Ptr to BRD status variable.
  *  Returns:
  *      0:
  *  Requires:
- *      pdwState != NULL;
+ *      board_state != NULL;
  *      dev_ctxt != NULL
  *  Ensures:
- *      *pdwState is one of {BRD_STOPPED, BRD_IDLE, BRD_RUNNING, BRD_UNKNOWN};
+ *      *board_state is one of
+ *       {BRD_STOPPED, BRD_IDLE, BRD_RUNNING, BRD_UNKNOWN};
  */
 typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
-				     int *pdwState);
+				     int *board_state);
 
 /*
  *  ======== bridge_brd_read ========
@@ -297,7 +298,7 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *      Create a channel manager object, responsible for opening new channels
  *      and closing old ones for a given 'Bridge board.
  *  Parameters:
- *      phChnlMgr:      Location to store a channel manager object on output.
+ *      channel_mgr:    Location to store a channel manager object on output.
  *      hdev_obj:     Handle to a device object.
  *      pMgrAttrs:      Channel manager attributes.
  *      pMgrAttrs->max_channels: Max channels
@@ -312,7 +313,7 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *      -EIO:         Unable to plug ISR for given IRQ.
  *      -EFAULT:    Couldn't map physical address to a virtual one.
  *  Requires:
- *      phChnlMgr != NULL.
+ *      channel_mgr != NULL.
  *      pMgrAttrs != NULL
  *      pMgrAttrs field are all valid:
  *          0 < max_channels <= CHNL_MAXCHANNELS.
@@ -323,7 +324,7 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *  Ensures:
  */
 typedef int(*fxn_chnl_create) (OUT struct chnl_mgr
-				      **phChnlMgr,
+				      **channel_mgr,
 				      struct dev_object
 				      * hdev_obj,
 				      IN CONST struct
@@ -367,7 +368,7 @@ typedef void (*fxn_deh_notify) (struct deh_mgr *hdeh_mgr,
  *  Purpose:
  *      Open a new half-duplex channel to the DSP board.
  *  Parameters:
- *      phChnl:         Location to store a channel object handle.
+ *      chnl:           Location to store a channel object handle.
  *      hchnl_mgr:	Handle to channel manager, as returned by
  *      		CHNL_GetMgr().
  *      chnl_mode:          One of {CHNL_MODETODSP, CHNL_MODEFROMDSP} specifies
@@ -398,16 +399,16 @@ typedef void (*fxn_deh_notify) (struct deh_mgr *hdeh_mgr,
  *      -EIO:         No free IO request packets available for
  *                              queuing.
  *  Requires:
- *      phChnl != NULL.
+ *      chnl != NULL.
  *      pattrs != NULL.
  *      pattrs->event_obj is a valid event handle.
  *      pattrs->hReserved is the kernel mode handle for pattrs->event_obj.
  *  Ensures:
- *      0:                *phChnl is a valid channel.
- *      else:                   *phChnl is set to NULL if (phChnl != NULL);
+ *      0:                *chnl is a valid channel.
+ *      else:                   *chnl is set to NULL if (chnl != NULL);
  */
 typedef int(*fxn_chnl_open) (OUT struct chnl_object
-				    **phChnl,
+				    **chnl,
 				    struct chnl_mgr *hchnl_mgr,
 				    s8 chnl_mode,
 				    u32 uChnlId,

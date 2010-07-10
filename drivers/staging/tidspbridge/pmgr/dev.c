@@ -500,23 +500,23 @@ int dev_get_dmm_mgr(struct dev_object *hdev_obj,
  *      Retrieve the COD manager create for this device.
  */
 int dev_get_cod_mgr(struct dev_object *hdev_obj,
-			   OUT struct cod_manager **phCodMgr)
+			   OUT struct cod_manager **cod_mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phCodMgr != NULL);
+	DBC_REQUIRE(cod_mgr != NULL);
 
 	if (hdev_obj) {
-		*phCodMgr = dev_obj->cod_mgr;
+		*cod_mgr = dev_obj->cod_mgr;
 	} else {
-		*phCodMgr = NULL;
+		*cod_mgr = NULL;
 		status = -EFAULT;
 	}
 
-	DBC_ENSURE(DSP_SUCCEEDED(status) || ((phCodMgr != NULL) &&
-					     (*phCodMgr == NULL)));
+	DBC_ENSURE(DSP_SUCCEEDED(status) || ((cod_mgr != NULL) &&
+					     (*cod_mgr == NULL)));
 	return status;
 }
 
@@ -524,17 +524,17 @@ int dev_get_cod_mgr(struct dev_object *hdev_obj,
  *  ========= dev_get_deh_mgr ========
  */
 int dev_get_deh_mgr(struct dev_object *hdev_obj,
-			   OUT struct deh_mgr **phDehMgr)
+			   OUT struct deh_mgr **deh_manager)
 {
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDehMgr != NULL);
+	DBC_REQUIRE(deh_manager != NULL);
 	DBC_REQUIRE(hdev_obj);
 	if (hdev_obj) {
-		*phDehMgr = hdev_obj->hdeh_mgr;
+		*deh_manager = hdev_obj->hdeh_mgr;
 	} else {
-		*phDehMgr = NULL;
+		*deh_manager = NULL;
 		status = -EFAULT;
 	}
 	return status;

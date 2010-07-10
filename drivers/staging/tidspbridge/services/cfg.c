@@ -76,7 +76,7 @@ int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
  *      Retrieve the Device Object handle for a given devnode.
  */
 int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
-			      OUT u32 *pdwValue)
+			      OUT u32 *value)
 {
 	int status = 0;
 	u32 dw_buf_size;
@@ -88,10 +88,10 @@ int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
 	if (!dev_node_obj)
 		status = -EFAULT;
 
-	if (!pdwValue)
+	if (!value)
 		status = -EFAULT;
 
-	dw_buf_size = sizeof(pdwValue);
+	dw_buf_size = sizeof(value);
 	if (DSP_SUCCEEDED(status)) {
 
 		/* check the device string and then store dev object */
@@ -99,7 +99,7 @@ int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
 		    (strcmp
 		     ((char *)((struct drv_ext *)dev_node_obj)->sz_string,
 		      "TIOMAP1510")))
-			*pdwValue = (u32)drv_datap->dev_object;
+			*value = (u32)drv_datap->dev_object;
 	}
 	if (DSP_FAILED(status))
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
@@ -142,12 +142,12 @@ int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 ul_buf_size,
  *  Purpose:
  *      Retrieve the Object handle from the Registry
  */
-int cfg_get_object(OUT u32 *pdwValue, u8 dw_type)
+int cfg_get_object(OUT u32 *value, u8 dw_type)
 {
 	int status = -EINVAL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
 
-	DBC_REQUIRE(pdwValue != NULL);
+	DBC_REQUIRE(value != NULL);
 
 	if (!drv_datap)
 		return -EPERM;
@@ -155,7 +155,7 @@ int cfg_get_object(OUT u32 *pdwValue, u8 dw_type)
 	switch (dw_type) {
 	case (REG_DRV_OBJECT):
 		if (drv_datap->drv_object) {
-			*pdwValue = (u32)drv_datap->drv_object;
+			*value = (u32)drv_datap->drv_object;
 			status = 0;
 		} else {
 			status = -ENODATA;
@@ -163,7 +163,7 @@ int cfg_get_object(OUT u32 *pdwValue, u8 dw_type)
 		break;
 	case (REG_MGR_OBJECT):
 		if (drv_datap->mgr_object) {
-			*pdwValue = (u32)drv_datap->mgr_object;
+			*value = (u32)drv_datap->mgr_object;
 			status = 0;
 		} else {
 			status = -ENODATA;
@@ -174,11 +174,11 @@ int cfg_get_object(OUT u32 *pdwValue, u8 dw_type)
 		break;
 	}
 	if (DSP_FAILED(status)) {
-		*pdwValue = 0;
+		*value = 0;
 		pr_err("%s: Failed, status 0x%x\n", __func__, status);
 	}
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *pdwValue != 0) ||
-		   (DSP_FAILED(status) && *pdwValue == 0));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *value != 0) ||
+		   (DSP_FAILED(status) && *value == 0));
 	return status;
 }
 

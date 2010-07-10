@@ -380,7 +380,7 @@ func_cont:
  *      Create a channel manager object, responsible for opening new channels
  *      and closing old ones for a given board.
  */
-int bridge_chnl_create(OUT struct chnl_mgr **phChnlMgr,
+int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
 			      IN CONST struct chnl_mgrattrs *pMgrAttrs)
 {
@@ -389,7 +389,7 @@ int bridge_chnl_create(OUT struct chnl_mgr **phChnlMgr,
 	u8 max_channels;
 
 	/* Check DBC requirements: */
-	DBC_REQUIRE(phChnlMgr != NULL);
+	DBC_REQUIRE(channel_mgr != NULL);
 	DBC_REQUIRE(pMgrAttrs != NULL);
 	DBC_REQUIRE(pMgrAttrs->max_channels > 0);
 	DBC_REQUIRE(pMgrAttrs->max_channels <= CHNL_MAXCHANNELS);
@@ -430,10 +430,10 @@ int bridge_chnl_create(OUT struct chnl_mgr **phChnlMgr,
 
 	if (DSP_FAILED(status)) {
 		bridge_chnl_destroy(chnl_mgr_obj);
-		*phChnlMgr = NULL;
+		*channel_mgr = NULL;
 	} else {
 		/* Return channel manager object to caller... */
-		*phChnlMgr = chnl_mgr_obj;
+		*channel_mgr = chnl_mgr_obj;
 	}
 	return status;
 }
@@ -774,7 +774,7 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
  *  ======== bridge_chnl_open ========
  *      Open a new half-duplex channel to the DSP board.
  */
-int bridge_chnl_open(OUT struct chnl_object **phChnl,
+int bridge_chnl_open(OUT struct chnl_object **chnl,
 			    struct chnl_mgr *hchnl_mgr, s8 chnl_mode,
 			    u32 uChnlId, CONST IN struct chnl_attr *pattrs)
 {
@@ -783,10 +783,10 @@ int bridge_chnl_open(OUT struct chnl_object **phChnl,
 	struct chnl_object *pchnl = NULL;
 	struct sync_object *sync_event = NULL;
 	/* Ensure DBC requirements: */
-	DBC_REQUIRE(phChnl != NULL);
+	DBC_REQUIRE(chnl != NULL);
 	DBC_REQUIRE(pattrs != NULL);
 	DBC_REQUIRE(hchnl_mgr != NULL);
-	*phChnl = NULL;
+	*chnl = NULL;
 	/* Validate Args: */
 	if (pattrs->uio_reqs == 0) {
 		status = -EINVAL;
@@ -893,10 +893,10 @@ int bridge_chnl_open(OUT struct chnl_object **phChnl,
 		spin_unlock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 		/* Return result... */
 		pchnl->dw_state = CHNL_STATEREADY;
-		*phChnl = pchnl;
+		*chnl = pchnl;
 	}
 func_end:
-	DBC_ENSURE((DSP_SUCCEEDED(status) && pchnl) || (*phChnl == NULL));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && pchnl) || (*chnl == NULL));
 	return status;
 }
 

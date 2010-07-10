@@ -51,7 +51,7 @@ static u32 refs;
  *      Create a channel manager object, responsible for opening new channels
  *      and closing old ones for a given 'Bridge board.
  */
-int chnl_create(OUT struct chnl_mgr **phChnlMgr,
+int chnl_create(OUT struct chnl_mgr **channel_mgr,
 		       struct dev_object *hdev_obj,
 		       IN CONST struct chnl_mgrattrs *pMgrAttrs)
 {
@@ -60,10 +60,10 @@ int chnl_create(OUT struct chnl_mgr **phChnlMgr,
 	struct chnl_mgr_ *chnl_mgr_obj = NULL;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phChnlMgr != NULL);
+	DBC_REQUIRE(channel_mgr != NULL);
 	DBC_REQUIRE(pMgrAttrs != NULL);
 
-	*phChnlMgr = NULL;
+	*channel_mgr = NULL;
 
 	/* Validate args: */
 	if ((0 < pMgrAttrs->max_channels) &&
@@ -96,7 +96,7 @@ int chnl_create(OUT struct chnl_mgr **phChnlMgr,
 			chnl_mgr_obj = (struct chnl_mgr_ *)hchnl_mgr;
 			chnl_mgr_obj->intf_fxns = intf_fxns;
 			/* Finally, return the new channel manager handle: */
-			*phChnlMgr = hchnl_mgr;
+			*channel_mgr = hchnl_mgr;
 		}
 	}
 

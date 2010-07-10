@@ -82,7 +82,7 @@ static int bridge_brd_read(struct bridge_dev_context *dev_context,
 static int bridge_brd_start(struct bridge_dev_context *dev_context,
 				   u32 dsp_addr);
 static int bridge_brd_status(struct bridge_dev_context *dev_context,
-				    int *pdwState);
+				    int *board_state);
 static int bridge_brd_stop(struct bridge_dev_context *dev_context);
 static int bridge_brd_write(struct bridge_dev_context *dev_context,
 				   IN u8 *host_buff,
@@ -753,10 +753,10 @@ static int bridge_brd_delete(struct bridge_dev_context *dev_ctxt)
  *      Returns the board status.
  */
 static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
-				    int *pdwState)
+				    int *board_state)
 {
 	struct bridge_dev_context *dev_context = dev_ctxt;
-	*pdwState = dev_context->dw_brd_state;
+	*board_state = dev_context->dw_brd_state;
 	return 0;
 }
 

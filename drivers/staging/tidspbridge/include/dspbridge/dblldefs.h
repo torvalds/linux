@@ -342,7 +342,7 @@ typedef bool(*dbll_init_fxn) (void);
  *  Requires:
  *      DBL initialized.
  *      Valid lib.
- *      pEntry != NULL.
+ *      entry != NULL.
  *  Ensures:
  */
 typedef int(*dbll_load_fxn) (struct dbll_library_obj *lib,

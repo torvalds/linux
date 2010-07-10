@@ -30,7 +30,7 @@
  *      Create an IO manager object, responsible for managing IO between
  *      CHNL and msg_ctrl.
  *  Parameters:
- *      phChnlMgr:              Location to store a channel manager object on
+ *      channel_mgr:            Location to store a channel manager object on
  *                              output.
  *      hdev_obj:             Handle to a device object.
  *      pMgrAttrs:              IO manager attributes.

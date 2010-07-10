@@ -304,21 +304,21 @@ void mgr_exit(void)
  *      Retrieves the MGR handle. Accessor Function.
  */
 int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
-			      OUT u32 *phDCDHandle)
+			      OUT u32 *dcd_handle)
 {
 	int status = -EPERM;
 	struct mgr_object *pmgr_obj = (struct mgr_object *)mgr_handle;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(phDCDHandle != NULL);
+	DBC_REQUIRE(dcd_handle != NULL);
 
-	*phDCDHandle = (u32) NULL;
+	*dcd_handle = (u32) NULL;
 	if (pmgr_obj) {
-		*phDCDHandle = (u32) pmgr_obj->hdcd_mgr;
+		*dcd_handle = (u32) pmgr_obj->hdcd_mgr;
 		status = 0;
 	}
-	DBC_ENSURE((DSP_SUCCEEDED(status) && *phDCDHandle != (u32) NULL) ||
-		   (DSP_FAILED(status) && *phDCDHandle == (u32) NULL));
+	DBC_ENSURE((DSP_SUCCEEDED(status) && *dcd_handle != (u32) NULL) ||
+		   (DSP_FAILED(status) && *dcd_handle == (u32) NULL));
 
 	return status;
 }

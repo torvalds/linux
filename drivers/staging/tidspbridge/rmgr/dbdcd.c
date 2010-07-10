@@ -64,7 +64,7 @@ static u32 enum_refs;
 static s32 atoi(char *psz_buf);
 static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 				     enum dsp_dcdobjtype obj_type,
-				     struct dcd_genericobj *pGenObj);
+				     struct dcd_genericobj *gen_obj);
 static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size);
 static char dsp_char2_gpp_char(char *pWord, s32 dsp_char_size);
 static int get_dep_lib_info(IN struct dcd_manager *hdcd_mgr,
@@ -125,14 +125,14 @@ int dcd_auto_unregister(IN struct dcd_manager *hdcd_mgr,
  *      Creates DCD manager.
  */
 int dcd_create_manager(IN char *pszZlDllName,
-			      OUT struct dcd_manager **phDcdMgr)
+			      OUT struct dcd_manager **dcd_mgr)
 {
 	struct cod_manager *cod_mgr;	/* COD manager handle */
 	struct dcd_manager *dcd_mgr_obj = NULL;	/* DCD Manager pointer */
 	int status = 0;
 
 	DBC_REQUIRE(refs >= 0);
-	DBC_REQUIRE(phDcdMgr);
+	DBC_REQUIRE(dcd_mgr);
 
 	status = cod_create(&cod_mgr, pszZlDllName, NULL);
 	if (DSP_FAILED(status))
@@ -145,7 +145,7 @@ int dcd_create_manager(IN char *pszZlDllName,
 		dcd_mgr_obj->cod_mgr = cod_mgr;
 
 		/* Return handle to this DCD interface. */
-		*phDcdMgr = dcd_mgr_obj;
+		*dcd_mgr = dcd_mgr_obj;
 	} else {
 		status = -ENOMEM;
 
@@ -644,7 +644,8 @@ func_end:
  */
 int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 				IN struct dsp_uuid *uuid_obj,
-				IN OUT char *pstrLibName, IN OUT u32 * pdwSize,
+				IN OUT char *pstrLibName,
+				IN OUT u32 *buff_size,
 				enum nldr_phase phase, OUT bool *phase_split)
 {
 	char sz_reg_key[DCD_MAXPATHLENGTH];
@@ -656,11 +657,12 @@ int dcd_get_library_name(IN struct dcd_manager *hdcd_mgr,
 
 	DBC_REQUIRE(uuid_obj != NULL);
 	DBC_REQUIRE(pstrLibName != NULL);
-	DBC_REQUIRE(pdwSize != NULL);
+	DBC_REQUIRE(buff_size != NULL);
 	DBC_REQUIRE(hdcd_mgr);
 
-	dev_dbg(bridge, "%s: hdcd_mgr %p, uuid_obj %p, pstrLibName %p, pdwSize "
-		"%p\n", __func__, hdcd_mgr, uuid_obj, pstrLibName, pdwSize);
+	dev_dbg(bridge, "%s: hdcd_mgr %p, uuid_obj %p, pstrLibName %p,"
+		" buff_size %p\n", __func__, hdcd_mgr, uuid_obj, pstrLibName,
+		buff_size);
 
 	/*
 	 *  Pre-determine final key length. It's length of DCD_REGKEY +
@@ -1033,7 +1035,7 @@ static s32 atoi(char *psz_buf)
  */
 static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 				     enum dsp_dcdobjtype obj_type,
-				     struct dcd_genericobj *pGenObj)
+				     struct dcd_genericobj *gen_obj)
 {
 	int status = 0;
 	char seps[] = ", ";
@@ -1049,7 +1051,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 	DBC_REQUIRE(ul_buf_size != 0);
 	DBC_REQUIRE((obj_type == DSP_DCDNODETYPE)
 		    || (obj_type == DSP_DCDPROCESSORTYPE));
-	DBC_REQUIRE(pGenObj != NULL);
+	DBC_REQUIRE(gen_obj != NULL);
 
 	switch (obj_type) {
 	case DSP_DCDNODETYPE:
@@ -1061,13 +1063,13 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		token = strsep(&psz_cur, seps);
 
 		/* u32 cb_struct */
-		pGenObj->obj_data.node_obj.ndb_props.cb_struct =
+		gen_obj->obj_data.node_obj.ndb_props.cb_struct =
 		    (u32) atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* dsp_uuid ui_node_id */
 		uuid_uuid_from_string(token,
-				      &pGenObj->obj_data.node_obj.ndb_props.
+				      &gen_obj->obj_data.node_obj.ndb_props.
 				      ui_node_id);
 		token = strsep(&psz_cur, seps);
 
@@ -1077,154 +1079,154 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		if (token_len > DSP_MAXNAMELEN - 1)
 			token_len = DSP_MAXNAMELEN - 1;
 
-		strncpy(pGenObj->obj_data.node_obj.ndb_props.ac_name,
+		strncpy(gen_obj->obj_data.node_obj.ndb_props.ac_name,
 			token, token_len);
-		pGenObj->obj_data.node_obj.ndb_props.ac_name[token_len] = '\0';
+		gen_obj->obj_data.node_obj.ndb_props.ac_name[token_len] = '\0';
 		token = strsep(&psz_cur, seps);
 		/* u32 ntype */
-		pGenObj->obj_data.node_obj.ndb_props.ntype = atoi(token);
+		gen_obj->obj_data.node_obj.ndb_props.ntype = atoi(token);
 		token = strsep(&psz_cur, seps);
 		/* u32 cache_on_gpp */
-		pGenObj->obj_data.node_obj.ndb_props.cache_on_gpp = atoi(token);
+		gen_obj->obj_data.node_obj.ndb_props.cache_on_gpp = atoi(token);
 		token = strsep(&psz_cur, seps);
 		/* dsp_resourcereqmts dsp_resource_reqmts */
-		pGenObj->obj_data.node_obj.ndb_props.dsp_resource_reqmts.
+		gen_obj->obj_data.node_obj.ndb_props.dsp_resource_reqmts.
 		    cb_struct = (u32) atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.static_data_size = atoi(token);
 		token = strsep(&psz_cur, seps);
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.global_data_size = atoi(token);
 		token = strsep(&psz_cur, seps);
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.program_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.uwc_execution_time = atoi(token);
 		token = strsep(&psz_cur, seps);
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.uwc_period = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.uwc_deadline = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.avg_exection_time = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.node_obj.ndb_props.
+		gen_obj->obj_data.node_obj.ndb_props.
 		    dsp_resource_reqmts.minimum_period = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* s32 prio */
-		pGenObj->obj_data.node_obj.ndb_props.prio = atoi(token);
+		gen_obj->obj_data.node_obj.ndb_props.prio = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 stack_size */
-		pGenObj->obj_data.node_obj.ndb_props.stack_size = atoi(token);
+		gen_obj->obj_data.node_obj.ndb_props.stack_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 sys_stack_size */
-		pGenObj->obj_data.node_obj.ndb_props.sys_stack_size =
+		gen_obj->obj_data.node_obj.ndb_props.sys_stack_size =
 		    atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 stack_seg */
-		pGenObj->obj_data.node_obj.ndb_props.stack_seg = atoi(token);
+		gen_obj->obj_data.node_obj.ndb_props.stack_seg = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 message_depth */
-		pGenObj->obj_data.node_obj.ndb_props.message_depth =
+		gen_obj->obj_data.node_obj.ndb_props.message_depth =
 		    atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 num_input_streams */
-		pGenObj->obj_data.node_obj.ndb_props.num_input_streams =
+		gen_obj->obj_data.node_obj.ndb_props.num_input_streams =
 		    atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 num_output_streams */
-		pGenObj->obj_data.node_obj.ndb_props.num_output_streams =
+		gen_obj->obj_data.node_obj.ndb_props.num_output_streams =
 		    atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* u32 utimeout */
-		pGenObj->obj_data.node_obj.ndb_props.utimeout = atoi(token);
+		gen_obj->obj_data.node_obj.ndb_props.utimeout = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* char *pstr_create_phase_fxn */
 		DBC_REQUIRE(token);
 		token_len = strlen(token);
-		pGenObj->obj_data.node_obj.pstr_create_phase_fxn =
+		gen_obj->obj_data.node_obj.pstr_create_phase_fxn =
 					kzalloc(token_len + 1, GFP_KERNEL);
-		strncpy(pGenObj->obj_data.node_obj.pstr_create_phase_fxn,
+		strncpy(gen_obj->obj_data.node_obj.pstr_create_phase_fxn,
 			token, token_len);
-		pGenObj->obj_data.node_obj.pstr_create_phase_fxn[token_len] =
+		gen_obj->obj_data.node_obj.pstr_create_phase_fxn[token_len] =
 		    '\0';
 		token = strsep(&psz_cur, seps);
 
 		/* char *pstr_execute_phase_fxn */
 		DBC_REQUIRE(token);
 		token_len = strlen(token);
-		pGenObj->obj_data.node_obj.pstr_execute_phase_fxn =
+		gen_obj->obj_data.node_obj.pstr_execute_phase_fxn =
 					kzalloc(token_len + 1, GFP_KERNEL);
-		strncpy(pGenObj->obj_data.node_obj.pstr_execute_phase_fxn,
+		strncpy(gen_obj->obj_data.node_obj.pstr_execute_phase_fxn,
 			token, token_len);
-		pGenObj->obj_data.node_obj.pstr_execute_phase_fxn[token_len] =
+		gen_obj->obj_data.node_obj.pstr_execute_phase_fxn[token_len] =
 		    '\0';
 		token = strsep(&psz_cur, seps);
 
 		/* char *pstr_delete_phase_fxn */
 		DBC_REQUIRE(token);
 		token_len = strlen(token);
-		pGenObj->obj_data.node_obj.pstr_delete_phase_fxn =
+		gen_obj->obj_data.node_obj.pstr_delete_phase_fxn =
 					kzalloc(token_len + 1, GFP_KERNEL);
-		strncpy(pGenObj->obj_data.node_obj.pstr_delete_phase_fxn,
+		strncpy(gen_obj->obj_data.node_obj.pstr_delete_phase_fxn,
 			token, token_len);
-		pGenObj->obj_data.node_obj.pstr_delete_phase_fxn[token_len] =
+		gen_obj->obj_data.node_obj.pstr_delete_phase_fxn[token_len] =
 		    '\0';
 		token = strsep(&psz_cur, seps);
 
 		/* Segment id for message buffers */
-		pGenObj->obj_data.node_obj.msg_segid = atoi(token);
+		gen_obj->obj_data.node_obj.msg_segid = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* Message notification type */
-		pGenObj->obj_data.node_obj.msg_notify_type = atoi(token);
+		gen_obj->obj_data.node_obj.msg_notify_type = atoi(token);
 		token = strsep(&psz_cur, seps);
 
 		/* char *pstr_i_alg_name */
 		if (token) {
 			token_len = strlen(token);
-			pGenObj->obj_data.node_obj.pstr_i_alg_name =
+			gen_obj->obj_data.node_obj.pstr_i_alg_name =
 					kzalloc(token_len + 1, GFP_KERNEL);
-			strncpy(pGenObj->obj_data.node_obj.pstr_i_alg_name,
+			strncpy(gen_obj->obj_data.node_obj.pstr_i_alg_name,
 				token, token_len);
-			pGenObj->obj_data.node_obj.pstr_i_alg_name[token_len] =
+			gen_obj->obj_data.node_obj.pstr_i_alg_name[token_len] =
 			    '\0';
 			token = strsep(&psz_cur, seps);
 		}
 
 		/* Load type (static, dynamic, or overlay) */
 		if (token) {
-			pGenObj->obj_data.node_obj.us_load_type = atoi(token);
+			gen_obj->obj_data.node_obj.us_load_type = atoi(token);
 			token = strsep(&psz_cur, seps);
 		}
 
 		/* Dynamic load data requirements */
 		if (token) {
-			pGenObj->obj_data.node_obj.ul_data_mem_seg_mask =
+			gen_obj->obj_data.node_obj.ul_data_mem_seg_mask =
 			    atoi(token);
 			token = strsep(&psz_cur, seps);
 		}
 
 		/* Dynamic load code requirements */
 		if (token) {
-			pGenObj->obj_data.node_obj.ul_code_mem_seg_mask =
+			gen_obj->obj_data.node_obj.ul_code_mem_seg_mask =
 			    atoi(token);
 			token = strsep(&psz_cur, seps);
 		}
@@ -1232,16 +1234,16 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		/* Extract node profiles into node properties */
 		if (token) {
 
-			pGenObj->obj_data.node_obj.ndb_props.count_profiles =
+			gen_obj->obj_data.node_obj.ndb_props.count_profiles =
 			    atoi(token);
 			for (i = 0;
 			     i <
-			     pGenObj->obj_data.node_obj.
+			     gen_obj->obj_data.node_obj.
 			     ndb_props.count_profiles; i++) {
 				token = strsep(&psz_cur, seps);
 				if (token) {
 					/* Heap Size for the node */
-					pGenObj->obj_data.node_obj.
+					gen_obj->obj_data.node_obj.
 					    ndb_props.node_profiles[i].
 					    ul_heap_size = atoi(token);
 				}
@@ -1249,7 +1251,7 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		}
 		token = strsep(&psz_cur, seps);
 		if (token) {
-			pGenObj->obj_data.node_obj.ndb_props.stack_seg_name =
+			gen_obj->obj_data.node_obj.ndb_props.stack_seg_name =
 			    (u32) (token);
 		}
 
@@ -1263,45 +1265,45 @@ static int get_attrs_from_buf(char *psz_buf, u32 ul_buf_size,
 		psz_cur = psz_buf;
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.cb_struct = atoi(token);
+		gen_obj->obj_data.proc_info.cb_struct = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.processor_family = atoi(token);
+		gen_obj->obj_data.proc_info.processor_family = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.processor_type = atoi(token);
+		gen_obj->obj_data.proc_info.processor_type = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.clock_rate = atoi(token);
+		gen_obj->obj_data.proc_info.clock_rate = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.ul_internal_mem_size = atoi(token);
+		gen_obj->obj_data.proc_info.ul_internal_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.ul_external_mem_size = atoi(token);
+		gen_obj->obj_data.proc_info.ul_external_mem_size = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.processor_id = atoi(token);
+		gen_obj->obj_data.proc_info.processor_id = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.ty_running_rtos = atoi(token);
+		gen_obj->obj_data.proc_info.ty_running_rtos = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.node_min_priority = atoi(token);
+		gen_obj->obj_data.proc_info.node_min_priority = atoi(token);
 		token = strsep(&psz_cur, seps);
 
-		pGenObj->obj_data.proc_info.node_max_priority = atoi(token);
+		gen_obj->obj_data.proc_info.node_max_priority = atoi(token);
 
 #ifdef _DB_TIOMAP
 		/* Proc object may contain additional(extended) attributes. */
 		/* attr must match proc.hxx */
 		for (entry_id = 0; entry_id < 7; entry_id++) {
 			token = strsep(&psz_cur, seps);
-			pGenObj->obj_data.ext_proc_obj.ty_tlb[entry_id].
+			gen_obj->obj_data.ext_proc_obj.ty_tlb[entry_id].
 			    ul_gpp_phys = atoi(token);
 
 			token = strsep(&psz_cur, seps);
-			pGenObj->obj_data.ext_proc_obj.ty_tlb[entry_id].
+			gen_obj->obj_data.ext_proc_obj.ty_tlb[entry_id].
 			    ul_dsp_virt = atoi(token);
 		}
 #endif

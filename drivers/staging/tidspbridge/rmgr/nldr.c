@@ -290,7 +290,7 @@ static int add_ovly_node(struct dsp_uuid *uuid_obj,
 static int add_ovly_sect(struct nldr_object *nldr_obj,
 				struct ovly_sect **pList,
 				struct dbll_sect_info *pSectInfo,
-				bool *pExists, u32 addr, u32 bytes);
+				bool *exists, u32 addr, u32 bytes);
 static s32 fake_ovly_write(void *handle, u32 dsp_address, void *buf, u32 bytes,
 			   s32 mtype);
 static void free_sects(struct nldr_object *nldr_obj,
@@ -1073,7 +1073,7 @@ func_end:
 static int add_ovly_sect(struct nldr_object *nldr_obj,
 				struct ovly_sect **pList,
 				struct dbll_sect_info *pSectInfo,
-				bool *pExists, u32 addr, u32 bytes)
+				bool *exists, u32 addr, u32 bytes)
 {
 	struct ovly_sect *new_sect = NULL;
 	struct ovly_sect *last_sect;
@@ -1081,7 +1081,7 @@ static int add_ovly_sect(struct nldr_object *nldr_obj,
 	int status = 0;
 
 	ovly_section = last_sect = *pList;
-	*pExists = false;
+	*exists = false;
 	while (ovly_section) {
 		/*
 		 *  Make sure section has not already been added. Multiple
@@ -1089,7 +1089,7 @@ static int add_ovly_sect(struct nldr_object *nldr_obj,
 		 */
 		if (ovly_section->sect_load_addr == addr) {
 			/* Already added */
-			*pExists = true;
+			*exists = true;
 			break;
 		}
 		last_sect = ovly_section;

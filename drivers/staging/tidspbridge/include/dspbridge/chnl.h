@@ -51,7 +51,7 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  *      Create a channel manager object, responsible for opening new channels
  *      and closing old ones for a given board.
  *  Parameters:
- *      phChnlMgr:      Location to store a channel manager object on output.
+ *      channel_mgr:    Location to store a channel manager object on output.
  *      hdev_obj:     Handle to a device object.
  *      pMgrAttrs:      Channel manager attributes.
  *      pMgrAttrs->max_channels:   Max channels
@@ -70,14 +70,14 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  *      -EEXIST:       Channel manager already exists for this device.
  *  Requires:
  *      chnl_init(void) called.
- *      phChnlMgr != NULL.
+ *      channel_mgr != NULL.
  *      pMgrAttrs != NULL.
  *  Ensures:
  *      0:                Subsequent calls to chnl_create() for the same
  *                              board without an intervening call to
  *                              chnl_destroy() will fail.
  */
-extern int chnl_create(OUT struct chnl_mgr **phChnlMgr,
+extern int chnl_create(OUT struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
 			      IN CONST struct chnl_mgrattrs *pMgrAttrs);
 

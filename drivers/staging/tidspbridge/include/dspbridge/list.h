@@ -123,21 +123,21 @@ static inline void lst_init_elem(struct list_head *elem_list)
  *  Parameters:
  *      pList:          Pointer to list control structure.
  *      elem_list:          Pointer to element in list to insert.
- *      pElemExisting:  Pointer to existing list element.
+ *      elem_existing:  Pointer to existing list element.
  *  Returns:
  *  Requires:
  *      - LST initialized.
  *      - pList != NULL.
  *      - elem_list != NULL.
- *      - pElemExisting != NULL.
+ *      - elem_existing != NULL.
  *  Ensures:
  */
 static inline void lst_insert_before(struct lst_list *pList,
 				     struct list_head *elem_list,
-				     struct list_head *pElemExisting)
+				     struct list_head *elem_existing)
 {
-	if (pList && elem_list && pElemExisting)
-		list_add_tail(elem_list, pElemExisting);
+	if (pList && elem_list && elem_existing)
+		list_add_tail(elem_list, elem_existing);
 }
 
 /*
