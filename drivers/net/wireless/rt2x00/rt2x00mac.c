@@ -347,9 +347,11 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	/*
 	 * Some configuration parameters (e.g. channel and antenna values) can
 	 * only be set when the radio is enabled, but do require the RX to
-	 * be off.
+	 * be off. During this period we should keep link tuning enabled,
+	 * if for any reason the link tuner must be reset, this will be
+	 * handled by rt2x00lib_config().
 	 */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF);
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
 
 	/*
 	 * When we've just turned on the radio, we want to reprogram
@@ -367,7 +369,7 @@ int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed)
 	rt2x00lib_config_antenna(rt2x00dev, rt2x00dev->default_ant);
 
 	/* Turn RX back on */
-	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
+	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
 
 	return 0;
 }
@@ -539,6 +541,22 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_set_key);
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+
+void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	__set_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
+	rt2x00link_stop_tuner(rt2x00dev);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_start);
+
+void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	__clear_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags);
+	rt2x00link_start_tuner(rt2x00dev);
+}
+EXPORT_SYMBOL_GPL(rt2x00mac_sw_scan_complete);
 
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats)

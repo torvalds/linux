@@ -628,6 +628,7 @@ enum rt2x00_flags {
 	DEVICE_STATE_INITIALIZED,
 	DEVICE_STATE_STARTED,
 	DEVICE_STATE_ENABLED_RADIO,
+	DEVICE_STATE_SCANNING,
 
 	/*
 	 * Driver requirements
@@ -1081,6 +1082,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #else
 #define rt2x00mac_set_key	NULL
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw);
+void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
