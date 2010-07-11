@@ -215,7 +215,7 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
  * @_label:	indentification variable used by drivers.  Often a reg address.
  * @_controlfunc: function used to notify hardware of whether state changes
  **/
-#define IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
+#define __IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_name##_en,		\
 				   S_IRUGO | S_IWUSR,			\
@@ -227,7 +227,10 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.set_state = _controlfunc,				\
 	}
 
-#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
+#define IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)	\
+	__IIO_SCAN_EL_C(_name, _number, _bits, _label, _controlfunc)
+
+#define __IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
 	struct iio_scan_el iio_scan_el_##_name = {			\
 		.dev_attr = __ATTR(_number##_##_string##_en,		\
 				   S_IRUGO | S_IWUSR,			\
@@ -238,7 +241,8 @@ ssize_t iio_scan_el_ts_show(struct device *dev, struct device_attribute *attr,
 		.label = _label,					\
 		.set_state = _cf,					\
 	}
-
+#define IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf) \
+	__IIO_SCAN_NAMED_EL_C(_name, _string, _number, _bits, _label, _cf)
 /**
  * IIO_SCAN_EL_TIMESTAMP - declare a special scan element for timestamps
  *

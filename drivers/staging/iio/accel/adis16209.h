@@ -126,16 +126,15 @@ struct adis16209_state {
 int adis16209_set_irq(struct device *dev, bool enable);
 
 #ifdef CONFIG_IIO_RING_BUFFER
-enum adis16209_scan {
-	ADIS16209_SCAN_SUPPLY,
-	ADIS16209_SCAN_ACC_X,
-	ADIS16209_SCAN_ACC_Y,
-	ADIS16209_SCAN_AUX_ADC,
-	ADIS16209_SCAN_TEMP,
-	ADIS16209_SCAN_INCLI_X,
-	ADIS16209_SCAN_INCLI_Y,
-	ADIS16209_SCAN_ROT,
-};
+
+#define ADIS16209_SCAN_SUPPLY	0
+#define ADIS16209_SCAN_ACC_X	1
+#define ADIS16209_SCAN_ACC_Y	2
+#define ADIS16209_SCAN_AUX_ADC	3
+#define ADIS16209_SCAN_TEMP	4
+#define ADIS16209_SCAN_INCLI_X	5
+#define ADIS16209_SCAN_INCLI_Y	6
+#define ADIS16209_SCAN_ROT	7
 
 void adis16209_remove_trigger(struct iio_dev *indio_dev);
 int adis16209_probe_trigger(struct iio_dev *indio_dev);

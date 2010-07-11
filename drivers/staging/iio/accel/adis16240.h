@@ -153,14 +153,12 @@ int adis16240_set_irq(struct device *dev, bool enable);
  * filling. This may change!
  */
 
-enum adis16240_scan {
-	ADIS16240_SCAN_SUPPLY,
-	ADIS16240_SCAN_ACC_X,
-	ADIS16240_SCAN_ACC_Y,
-	ADIS16240_SCAN_ACC_Z,
-	ADIS16240_SCAN_AUX_ADC,
-	ADIS16240_SCAN_TEMP,
-};
+#define ADIS16240_SCAN_SUPPLY	0
+#define ADIS16240_SCAN_ACC_X	1
+#define ADIS16240_SCAN_ACC_Y	2
+#define ADIS16240_SCAN_ACC_Z	3
+#define ADIS16240_SCAN_AUX_ADC	4
+#define ADIS16240_SCAN_TEMP	5
 
 void adis16240_remove_trigger(struct iio_dev *indio_dev);
 int adis16240_probe_trigger(struct iio_dev *indio_dev);
