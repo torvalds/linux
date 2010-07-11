@@ -153,6 +153,15 @@ static int kirkwood_i2s_hw_params(struct snd_pcm_substream *substream,
 	default:
 		return -EINVAL;
 	}
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		value &= ~KIRKWOOD_PLAYCTL_MONO_MASK;
+		if (params_channels(params) == 1)
+			value |= KIRKWOOD_PLAYCTL_MONO_BOTH;
+		else
+			value |= KIRKWOOD_PLAYCTL_MONO_OFF;
+	}
+
 	writel(i2s_value, priv->io+i2s_reg);
 	writel(value, priv->io+reg);
 
