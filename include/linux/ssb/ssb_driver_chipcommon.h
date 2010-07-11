@@ -46,6 +46,7 @@
 #define   SSB_PLLTYPE_7			0x00038000	/* 25Mhz, 4 dividers */
 #define  SSB_CHIPCO_CAP_PCTL		0x00040000	/* Power Control */
 #define  SSB_CHIPCO_CAP_OTPS		0x00380000	/* OTP size */
+#define  SSB_CHIPCO_CAP_SPROM		0x40000000	/* SPROM present */
 #define  SSB_CHIPCO_CAP_OTPS_SHIFT	19
 #define  SSB_CHIPCO_CAP_OTPS_BASE	5
 #define  SSB_CHIPCO_CAP_JTAGM		0x00400000	/* JTAG master present */
@@ -564,6 +565,7 @@ struct ssb_chipcommon_pmu {
 struct ssb_chipcommon {
 	struct ssb_device *dev;
 	u32 capabilities;
+	u32 status;
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
 	struct ssb_chipcommon_pmu pmu;
