@@ -597,30 +597,47 @@ static void free_msix_queue_irqs(struct adapter *adap)
 }
 
 /**
+ *	write_rss - write the RSS table for a given port
+ *	@pi: the port
+ *	@queues: array of queue indices for RSS
+ *
+ *	Sets up the portion of the HW RSS table for the port's VI to distribute
+ *	packets to the Rx queues in @queues.
+ */
+static int write_rss(const struct port_info *pi, const u16 *queues)
+{
+	u16 *rss;
+	int i, err;
+	const struct sge_eth_rxq *q = &pi->adapter->sge.ethrxq[pi->first_qset];
+
+	rss = kmalloc(pi->rss_size * sizeof(u16), GFP_KERNEL);
+	if (!rss)
+		return -ENOMEM;
+
+	/* map the queue indices to queue ids */
+	for (i = 0; i < pi->rss_size; i++, queues++)
+		rss[i] = q[*queues].rspq.abs_id;
+
+	err = t4_config_rss_range(pi->adapter, 0, pi->viid, 0, pi->rss_size,
+				  rss, pi->rss_size);
+	kfree(rss);
+	return err;
+}
+
+/**
  *	setup_rss - configure RSS
  *	@adap: the adapter
  *
- *	Sets up RSS to distribute packets to multiple receive queues.  We
- *	configure the RSS CPU lookup table to distribute to the number of HW
- *	receive queues, and the response queue lookup table to narrow that
- *	down to the response queues actually configured for each port.
- *	We always configure the RSS mapping for all ports since the mapping
- *	table has plenty of entries.
+ *	Sets up RSS for each port.
  */
 static int setup_rss(struct adapter *adap)
 {
-	int i, j, err;
-	u16 rss[MAX_ETH_QSETS];
+	int i, err;
 
 	for_each_port(adap, i) {
 		const struct port_info *pi = adap2pinfo(adap, i);
-		const struct sge_eth_rxq *q = &adap->sge.ethrxq[pi->first_qset];
 
-		for (j = 0; j < pi->nqsets; j++)
-			rss[j] = q[j].rspq.abs_id;
-
-		err = t4_config_rss_range(adap, 0, pi->viid, 0, pi->rss_size,
-					  rss, pi->nqsets);
+		err = write_rss(pi, pi->rss);
 		if (err)
 			return err;
 	}
@@ -1802,6 +1819,46 @@ static int set_flags(struct net_device *dev, u32 flags)
 	return ethtool_op_set_flags(dev, flags, ETH_FLAG_RXHASH);
 }
 
+static int get_rss_table(struct net_device *dev, struct ethtool_rxfh_indir *p)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	unsigned int n = min_t(unsigned int, p->size, pi->rss_size);
+
+	p->size = pi->rss_size;
+	while (n--)
+		p->ring_index[n] = pi->rss[n];
+	return 0;
+}
+
+static int set_rss_table(struct net_device *dev,
+			 const struct ethtool_rxfh_indir *p)
+{
+	unsigned int i;
+	struct port_info *pi = netdev_priv(dev);
+
+	if (p->size != pi->rss_size)
+		return -EINVAL;
+	for (i = 0; i < p->size; i++)
+		if (p->ring_index[i] >= pi->nqsets)
+			return -EINVAL;
+	for (i = 0; i < p->size; i++)
+		pi->rss[i] = p->ring_index[i];
+	if (pi->adapter->flags & FULL_INIT_DONE)
+		return write_rss(pi, pi->rss);
+	return 0;
+}
+
+static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
+		     void *rules)
+{
+	switch (info->cmd) {
+	case ETHTOOL_GRXRINGS:
+		info->data = netdev2pinfo(dev)->nqsets;
+		return 0;
+	}
+	return -EOPNOTSUPP;
+}
+
 static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings      = get_settings,
 	.set_settings      = set_settings,
@@ -1833,6 +1890,9 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.set_wol           = set_wol,
 	.set_tso           = set_tso,
 	.set_flags         = set_flags,
+	.get_rxnfc         = get_rxnfc,
+	.get_rxfh_indir    = get_rss_table,
+	.set_rxfh_indir    = set_rss_table,
 	.flash_device      = set_flash,
 };
 
@@ -3318,6 +3378,22 @@ static int __devinit enable_msix(struct adapter *adap)
 
 #undef EXTRA_VECS
 
+static int __devinit init_rss(struct adapter *adap)
+{
+	unsigned int i, j;
+
+	for_each_port(adap, i) {
+		struct port_info *pi = adap2pinfo(adap, i);
+
+		pi->rss = kcalloc(pi->rss_size, sizeof(u16), GFP_KERNEL);
+		if (!pi->rss)
+			return -ENOMEM;
+		for (j = 0; j < pi->rss_size; j++)
+			pi->rss[j] = j % pi->nqsets;
+	}
+	return 0;
+}
+
 static void __devinit print_port_info(struct adapter *adap)
 {
 	static const char *base[] = {
@@ -3380,9 +3456,10 @@ static void free_some_resources(struct adapter *adapter)
 	disable_msi(adapter);
 
 	for_each_port(adapter, i)
-		if (adapter->port[i])
+		if (adapter->port[i]) {
+			kfree(adap2pinfo(adapter, i)->rss);
 			free_netdev(adapter->port[i]);
-
+		}
 	if (adapter->flags & FW_OK)
 		t4_fw_bye(adapter, 0);
 }
@@ -3535,6 +3612,10 @@ static int __devinit init_one(struct pci_dev *pdev,
 		adapter->flags |= USING_MSIX;
 	else if (msi > 0 && pci_enable_msi(pdev) == 0)
 		adapter->flags |= USING_MSI;
+
+	err = init_rss(adapter);
+	if (err)
+		goto out_free_dev;
 
 	/*
 	 * The card is now ready to go.  If any errors occur during device
