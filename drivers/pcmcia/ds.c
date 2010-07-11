@@ -213,7 +213,7 @@ EXPORT_SYMBOL(pcmcia_unregister_driver);
 
 /* pcmcia_device handling */
 
-struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev)
+static struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev)
 {
 	struct device *tmp_dev;
 	tmp_dev = get_device(&p_dev->dev);
@@ -222,7 +222,7 @@ struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev)
 	return to_pcmcia_dev(tmp_dev);
 }
 
-void pcmcia_put_dev(struct pcmcia_device *p_dev)
+static void pcmcia_put_dev(struct pcmcia_device *p_dev)
 {
 	if (p_dev)
 		put_device(&p_dev->dev);
@@ -477,7 +477,8 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 }
 
 
-struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
+static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
+					       unsigned int function)
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
 	int i;
@@ -885,14 +886,6 @@ static int pcmcia_bus_match(struct device *dev, struct device_driver *drv)
 	}
 	mutex_unlock(&p_drv->dynids.lock);
 
-#ifdef CONFIG_PCMCIA_IOCTL
-	/* matching by cardmgr */
-	if (p_dev->cardmgr == p_drv) {
-		dev_dbg(dev, "cardmgr matched to %s\n", drv->name);
-		return 1;
-	}
-#endif
-
 	while (did && did->match_flags) {
 		dev_dbg(dev, "trying to match to %s\n", drv->name);
 		if (pcmcia_devmatch(p_dev, did)) {
@@ -1245,7 +1238,6 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 	case CS_EVENT_CARD_REMOVAL:
 		atomic_set(&skt->present, 0);
 		pcmcia_card_remove(skt, NULL);
-		handle_event(skt, event);
 		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s);
 		pcmcia_cleanup_irq(s);
@@ -1259,7 +1251,6 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		destroy_cis_cache(s); /* to be on the safe side... */
 		mutex_unlock(&s->ops_mutex);
 		pcmcia_card_add(skt);
-		handle_event(skt, event);
 		break;
 
 	case CS_EVENT_EJECTION_REQUEST:
@@ -1280,14 +1271,12 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 			ds_event(skt, CS_EVENT_CARD_INSERTION,
 				 CS_EVENT_PRI_LOW);
 		}
-		handle_event(skt, event);
 		break;
 
 	case CS_EVENT_PM_SUSPEND:
 	case CS_EVENT_RESET_PHYSICAL:
 	case CS_EVENT_CARD_RESET:
 	default:
-		handle_event(skt, event);
 		break;
     }
 
@@ -1350,9 +1339,6 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 		return ret;
 	}
 
-#ifdef CONFIG_PCMCIA_IOCTL
-	init_waitqueue_head(&socket->queue);
-#endif
 	INIT_LIST_HEAD(&socket->devices_list);
 	memset(&socket->pcmcia_state, 0, sizeof(u8));
 	socket->device_count = 0;
@@ -1429,8 +1415,6 @@ static int __init init_pcmcia_bus(void)
 		return ret;
 	}
 
-	pcmcia_setup_ioctl();
-
 	return 0;
 }
 fs_initcall(init_pcmcia_bus); /* one level after subsys_initcall so that
@@ -1439,8 +1423,6 @@ fs_initcall(init_pcmcia_bus); /* one level after subsys_initcall so that
 
 static void __exit exit_pcmcia_bus(void)
 {
-	pcmcia_cleanup_ioctl();
-
 	class_interface_unregister(&pcmcia_bus_interface);
 
 	bus_unregister(&pcmcia_bus_type);

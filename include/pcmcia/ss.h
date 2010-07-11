@@ -220,12 +220,10 @@ struct pcmcia_socket {
 
 	/* 16-bit state: */
 	struct {
-		/* "master" ioctl is used */
-		u8			busy:1;
 		/* the PCMCIA card consists of two pseudo devices */
 		u8			has_pfc:1;
 
-		u8			reserved:6;
+		u8			reserved:7;
 	} pcmcia_state;
 
 	/* non-zero if PCMCIA card is present */
@@ -234,10 +232,6 @@ struct pcmcia_socket {
 	/* IRQ to be used by PCMCIA devices. May not be IRQ 0. */
 	unsigned int			pcmcia_irq;
 
-#ifdef CONFIG_PCMCIA_IOCTL
-	struct user_info_t		*user;
-	wait_queue_head_t		queue;
-#endif /* CONFIG_PCMCIA_IOCTL */
 #endif /* CONFIG_PCMCIA */
 
 	/* socket device */

@@ -164,8 +164,6 @@ struct pccard_resource_ops pccard_iodyn_ops = {
 	.validate_mem = NULL,
 	.find_io = iodyn_find_io,
 	.find_mem = NULL,
-	.add_io = NULL,
-	.add_mem = NULL,
 	.init = static_init,
 	.exit = NULL,
 };

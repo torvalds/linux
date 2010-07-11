@@ -62,8 +62,6 @@ struct pccard_resource_ops pccard_static_ops = {
 	.validate_mem = NULL,
 	.find_io = static_find_io,
 	.find_mem = NULL,
-	.add_io = NULL,
-	.add_mem = NULL,
 	.init = static_init,
 	.exit = NULL,
 };
