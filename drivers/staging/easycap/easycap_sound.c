@@ -327,7 +327,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 							"more is negative\n");
 					return;
 				}
-				if (audio_buffer_page_many <= \
+				if (peasycap->audio_buffer_page_many <= \
 							peasycap->audio_fill) {
 					SAY("ERROR: bad " \
 						"peasycap->audio_fill\n");
@@ -352,7 +352,8 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 					paudio_buffer->pto = \
 							paudio_buffer->pgo;
 					(peasycap->audio_fill)++;
-					if (audio_buffer_page_many <= \
+					if (peasycap->\
+						audio_buffer_page_many <= \
 							peasycap->audio_fill)
 						peasycap->audio_fill = 0;
 
@@ -367,13 +368,16 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 							paudio_buffer->pgo;
 
 					if (!(peasycap->audio_fill % \
+						peasycap->\
 						audio_pages_per_fragment)) {
 						JOT(12, "wakeup call on wq_" \
 						"audio, %i=frag reading  %i" \
 						"=fragment fill\n", \
 						(peasycap->audio_read / \
+						peasycap->\
 						audio_pages_per_fragment), \
 						(peasycap->audio_fill / \
+						peasycap->\
 						audio_pages_per_fragment));
 						wake_up_interruptible\
 						(&(peasycap->wq_audio));
@@ -611,7 +615,7 @@ if (NULL == peasycap) {
 }
 /*---------------------------------------------------------------------------*/
 if ((0 > peasycap->audio_read) || \
-			(audio_buffer_page_many <= peasycap->audio_read)) {
+		(peasycap->audio_buffer_page_many <= peasycap->audio_read)) {
 	SAY("ERROR: peasycap->audio_read out of range\n");
 	return -EFAULT;
 }
@@ -621,10 +625,11 @@ if ((struct data_buffer *)NULL == pdata_buffer) {
 	return -EFAULT;
 }
 JOT(12, "before wait, %i=frag read  %i=frag fill\n", \
-		(peasycap->audio_read / audio_pages_per_fragment), \
-		(peasycap->audio_fill / audio_pages_per_fragment));
-fragment = (peasycap->audio_read / audio_pages_per_fragment);
-while ((fragment == (peasycap->audio_fill / audio_pages_per_fragment)) || \
+		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
+		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
+fragment = (peasycap->audio_read / peasycap->audio_pages_per_fragment);
+while ((fragment == (peasycap->audio_fill / \
+				peasycap->audio_pages_per_fragment)) || \
 		(0 == (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo)))) {
 	if (file->f_flags & O_NONBLOCK) {
 		JOT(16, "returning -EAGAIN as instructed\n");
@@ -633,7 +638,7 @@ while ((fragment == (peasycap->audio_fill / audio_pages_per_fragment)) || \
 	rc = wait_event_interruptible(peasycap->wq_audio, \
 		(peasycap->audio_idle  || peasycap->audio_eof   || \
 		((fragment != (peasycap->audio_fill / \
-					audio_pages_per_fragment)) && \
+				peasycap->audio_pages_per_fragment)) && \
 		(0 < (PAGE_SIZE - (pdata_buffer->pto - pdata_buffer->pgo))))));
 	if (0 != rc) {
 		SAY("aborted by signal\n");
@@ -657,10 +662,11 @@ while ((fragment == (peasycap->audio_fill / audio_pages_per_fragment)) || \
 	}
 }
 JOT(12, "after  wait, %i=frag read  %i=frag fill\n", \
-			(peasycap->audio_read / audio_pages_per_fragment), \
-			(peasycap->audio_fill / audio_pages_per_fragment));
+		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
+		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 szret = (size_t)0;
-while (fragment == (peasycap->audio_read / audio_pages_per_fragment)) {
+while (fragment == (peasycap->audio_read / \
+				peasycap->audio_pages_per_fragment)) {
 	if (NULL == pdata_buffer->pgo) {
 		SAY("ERROR: pdata_buffer->pgo is NULL\n");
 		return -EFAULT;
@@ -676,17 +682,18 @@ while (fragment == (peasycap->audio_read / audio_pages_per_fragment)) {
 	}
 	if (!kount1) {
 		(peasycap->audio_read)++;
-		if (audio_buffer_page_many <= peasycap->audio_read)
+		if (peasycap->audio_buffer_page_many <= peasycap->audio_read)
 			peasycap->audio_read = 0;
 		JOT(12, "bumped peasycap->audio_read to %i\n", \
 						peasycap->audio_read);
 
 		if (fragment != (peasycap->audio_read / \
-						audio_pages_per_fragment))
+					peasycap->audio_pages_per_fragment))
 			break;
 
 		if ((0 > peasycap->audio_read) || \
-			(audio_buffer_page_many <= peasycap->audio_read)) {
+			(peasycap->audio_buffer_page_many <= \
+					peasycap->audio_read)) {
 			SAY("ERROR: peasycap->audio_read out of range\n");
 			return -EFAULT;
 		}
@@ -738,8 +745,8 @@ while (fragment == (peasycap->audio_read / audio_pages_per_fragment)) {
 	kount -= (size_t)more;
 }
 JOT(12, "after  read, %i=frag read  %i=frag fill\n", \
-			(peasycap->audio_read / audio_pages_per_fragment), \
-			(peasycap->audio_fill / audio_pages_per_fragment));
+		(peasycap->audio_read / peasycap->audio_pages_per_fragment), \
+		(peasycap->audio_fill / peasycap->audio_pages_per_fragment));
 if (kount < 0) {
 	SAY("MISTAKE:  %li=kount  %li=szret\n", \
 					(long int)kount, (long int)szret);

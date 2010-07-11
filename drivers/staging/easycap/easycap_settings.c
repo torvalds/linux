@@ -35,7 +35,7 @@
  *                         1 => 30 fps
  */
 /*---------------------------------------------------------------------------*/
-struct easycap_standard easycap_standard[] = {
+const struct easycap_standard easycap_standard[] = {
 {
 .mask = 0x000F & PAL_BGHIN ,
 .v4l2_standard = {

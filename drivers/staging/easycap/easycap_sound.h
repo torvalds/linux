@@ -26,5 +26,3 @@
 /*****************************************************************************/
 extern struct easycap *peasycap;
 extern struct usb_driver easycap_usb_driver;
-extern unsigned int audio_buffer_page_many;
-extern unsigned int audio_pages_per_fragment;

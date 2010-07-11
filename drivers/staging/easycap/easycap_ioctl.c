@@ -42,7 +42,7 @@
 /*---------------------------------------------------------------------------*/
 int adjust_standard(struct easycap *peasycap, v4l2_std_id std_id)
 {
-struct easycap_standard *peasycap_standard;
+struct easycap_standard const *peasycap_standard;
 __u16 reg, set;
 int ir, rc, need;
 unsigned int itwas, isnow;
@@ -1447,7 +1447,7 @@ case VIDIOC_ENUMSTD: {
 	static int last0 = -1, last1 = -1, last2 = -1, last3 = -1;
 	static struct v4l2_standard v4l2_standard;
 	static __u32 index;
-	static struct easycap_standard *peasycap_standard;
+	static struct easycap_standard const *peasycap_standard;
 
 	JOT(8, "VIDIOC_ENUMSTD\n");
 
@@ -1479,11 +1479,12 @@ case VIDIOC_ENUMSTD: {
 	}
 	JOT(8, "%i=index: %s\n", index, \
 				&(peasycap_standard->v4l2_standard.name[0]));
-	peasycap_standard->v4l2_standard.index = index;
+	memcpy(&v4l2_standard, &(peasycap_standard->v4l2_standard), \
+					sizeof(struct v4l2_standard));
+
 	v4l2_standard.index = index;
 
-	if (0 != copy_to_user((void __user *)arg, \
-					&(peasycap_standard->v4l2_standard), \
+	if (0 != copy_to_user((void __user *)arg, &v4l2_standard, \
 					sizeof(struct v4l2_standard))) {
 		POUT;
 		return -EFAULT;
@@ -1493,7 +1494,7 @@ case VIDIOC_ENUMSTD: {
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 case VIDIOC_G_STD: {
 	static v4l2_std_id std_id;
-	static struct easycap_standard *peasycap_standard;
+	static struct easycap_standard const *peasycap_standard;
 
 	JOT(8, "VIDIOC_G_STD\n");
 
@@ -2094,7 +2095,7 @@ case SNDCTL_DSP_GETBLKSIZE: {
 	if (0 != copy_from_user(&incoming, (void __user *)arg, sizeof(int)))
 		return -EFAULT;
 	JOT(8, "........... %i=incoming\n", incoming);
-	incoming = audio_bytes_per_fragment;
+	incoming = peasycap->audio_bytes_per_fragment;
 	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int)))
 		return -EFAULT;
 	break;
@@ -2104,7 +2105,7 @@ case SNDCTL_DSP_GETISPACE: {
 
 	JOT(8, "SNDCTL_DSP_GETISPACE\n");
 
-	audio_buf_info.bytes      = audio_bytes_per_fragment;
+	audio_buf_info.bytes      = peasycap->audio_bytes_per_fragment;
 	audio_buf_info.fragments  = 1;
 	audio_buf_info.fragsize   = 0;
 	audio_buf_info.fragstotal = 0;

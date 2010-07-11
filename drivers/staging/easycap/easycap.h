@@ -135,7 +135,7 @@
 #define USB_EASYCAP_VENDOR_ID	0x05e1
 #define USB_EASYCAP_PRODUCT_ID	0x0408
 
-#define EASYCAP_DRIVER_VERSION "0.8"
+#define EASYCAP_DRIVER_VERSION "0.8.2"
 #define EASYCAP_DRIVER_DESCRIPTION "easycapdc60"
 
 #define USB_SKEL_MINOR_BASE     192
@@ -189,6 +189,65 @@
 #define AUDIO_FRAGMENT_MANY 32
 /*---------------------------------------------------------------------------*/
 /*
+ *  IT IS ESSENTIAL THAT EVEN-NUMBERED STANDARDS ARE 25 FRAMES PER SECOND,
+ *                        ODD-NUMBERED STANDARDS ARE 30 FRAMES PER SECOND.
+ *  THE NUMBERING OF STANDARDS MUST NOT BE CHANGED WITHOUT DUE CARE.  NOT
+ *  ONLY MUST THE PARAMETER
+ *                             STANDARD_MANY
+ *  BE CHANGED TO CORRESPOND TO THE NEW NUMBER OF STANDARDS, BUT ALSO THE
+ *  NUMBERING MUST REMAIN AN UNBROKEN ASCENDING SEQUENCE:  DUMMY STANDARDS
+ *  MAY NEED TO BE ADDED.   APPROPRIATE CHANGES WILL ALWAYS BE REQUIRED IN
+ *  ROUTINE fillin_formats() AND POSSIBLY ELSEWHERE.  BEWARE.
+ */
+/*---------------------------------------------------------------------------*/
+#define  PAL_BGHIN      0
+#define  PAL_Nc         2
+#define  SECAM          4
+#define  NTSC_N         6
+#define  NTSC_N_443     8
+#define  NTSC_M         1
+#define  NTSC_443       3
+#define  NTSC_M_JP      5
+#define  PAL_60         7
+#define  PAL_M          9
+#define  STANDARD_MANY 10
+/*---------------------------------------------------------------------------*/
+/*
+ *  ENUMS
+ */
+/*---------------------------------------------------------------------------*/
+enum {
+AT_720x576,
+AT_704x576,
+AT_640x480,
+AT_720x480,
+AT_360x288,
+AT_320x240,
+AT_360x240,
+RESOLUTION_MANY
+};
+enum {
+FMT_UYVY,
+FMT_YUY2,
+FMT_RGB24,
+FMT_RGB32,
+FMT_BGR24,
+FMT_BGR32,
+PIXELFORMAT_MANY
+};
+enum {
+FIELD_NONE,
+FIELD_INTERLACED,
+FIELD_ALTERNATE,
+INTERLACE_MANY
+};
+#define SETTINGS_MANY	(STANDARD_MANY * \
+			RESOLUTION_MANY * \
+			2 * \
+			PIXELFORMAT_MANY * \
+			INTERLACE_MANY)
+/*---------------------------------------------------------------------------*/
+/*
  *  STRUCTURE DEFINITIONS
  */
 /*---------------------------------------------------------------------------*/
@@ -206,6 +265,16 @@ int isbuf;
 int length;
 };
 /*---------------------------------------------------------------------------*/
+struct easycap_standard {
+__u16 mask;
+struct v4l2_standard v4l2_standard;
+};
+struct easycap_format {
+__u16 mask;
+char name[128];
+struct v4l2_format v4l2_format;
+};
+/*---------------------------------------------------------------------------*/
 /*
  *   easycap.ilk == 0   =>  CVBS+S-VIDEO HARDWARE, AUDIO wMaxPacketSize=256
  *   easycap.ilk == 2   =>  CVBS+S-VIDEO HARDWARE, AUDIO wMaxPacketSize=9
@@ -213,6 +282,16 @@ int length;
  */
 /*---------------------------------------------------------------------------*/
 struct easycap {
+unsigned int audio_pages_per_fragment;
+unsigned int audio_bytes_per_fragment;
+unsigned int audio_buffer_page_many;
+
+#define UPSAMPLE
+#if defined(UPSAMPLE)
+__s16 oldaudio;
+#endif /*UPSAMPLE*/
+
+struct easycap_format easycap_format[1 + SETTINGS_MANY];
 
 int ilk;
 bool microphone;
@@ -377,16 +456,6 @@ long long int audio_square;
 struct data_buffer audio_buffer[];
 };
 /*---------------------------------------------------------------------------*/
-struct easycap_standard {
-__u16 mask;
-struct v4l2_standard v4l2_standard;
-};
-struct easycap_format {
-__u16 mask;
-char name[128];
-struct v4l2_format v4l2_format;
-};
-/*---------------------------------------------------------------------------*/
 /*
  *  VIDEO FUNCTION PROTOTYPES
  */
@@ -500,65 +569,6 @@ struct signed_div_result {
 long long int quotient;
 unsigned long long int remainder;
 } signed_div(long long int, long long int);
-/*---------------------------------------------------------------------------*/
-/*
- *  IT IS ESSENTIAL THAT EVEN-NUMBERED STANDARDS ARE 25 FRAMES PER SECOND,
- *                        ODD-NUMBERED STANDARDS ARE 30 FRAMES PER SECOND.
- *  THE NUMBERING OF STANDARDS MUST NOT BE CHANGED WITHOUT DUE CARE.  NOT
- *  ONLY MUST THE PARAMETER
- *                             STANDARD_MANY
- *  BE CHANGED TO CORRESPOND TO THE NEW NUMBER OF STANDARDS, BUT ALSO THE
- *  NUMBERING MUST REMAIN AN UNBROKEN ASCENDING SEQUENCE:  DUMMY STANDARDS
- *  MAY NEED TO BE ADDED.   APPROPRIATE CHANGES WILL ALWAYS BE REQUIRED IN
- *  ROUTINE fillin_formats() AND POSSIBLY ELSEWHERE.  BEWARE.
- */
-/*---------------------------------------------------------------------------*/
-#define  PAL_BGHIN      0
-#define  PAL_Nc         2
-#define  SECAM          4
-#define  NTSC_N         6
-#define  NTSC_N_443     8
-#define  NTSC_M         1
-#define  NTSC_443       3
-#define  NTSC_M_JP      5
-#define  PAL_60         7
-#define  PAL_M          9
-#define  STANDARD_MANY 10
-/*---------------------------------------------------------------------------*/
-/*
- *  ENUMS
- */
-/*---------------------------------------------------------------------------*/
-enum {
-AT_720x576,
-AT_704x576,
-AT_640x480,
-AT_720x480,
-AT_360x288,
-AT_320x240,
-AT_360x240,
-RESOLUTION_MANY
-};
-enum {
-FMT_UYVY,
-FMT_YUY2,
-FMT_RGB24,
-FMT_RGB32,
-FMT_BGR24,
-FMT_BGR32,
-PIXELFORMAT_MANY
-};
-enum {
-FIELD_NONE,
-FIELD_INTERLACED,
-FIELD_ALTERNATE,
-INTERLACE_MANY
-};
-#define SETTINGS_MANY	(STANDARD_MANY * \
-			RESOLUTION_MANY * \
-			2 * \
-			PIXELFORMAT_MANY * \
-			INTERLACE_MANY)
 /*---------------------------------------------------------------------------*/
 /*
  *  MACROS

@@ -34,10 +34,6 @@
 int easycap_debug;
 module_param(easycap_debug, int, S_IRUGO | S_IWUSR);
 
-unsigned int audio_pages_per_fragment;
-unsigned int audio_bytes_per_fragment;
-unsigned int audio_buffer_page_many;
-
 /*---------------------------------------------------------------------------*/
 /*
  *  PARAMETERS APPLICABLE TO ENTIRE DRIVER, I.E. BOTH VIDEO AND AUDIO
@@ -86,7 +82,7 @@ struct usb_class_driver easycap_class = {
 /*vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv*/
 #if defined(EASYCAP_IS_VIDEODEV_CLIENT)
 #if defined(EASYCAP_NEEDS_V4L2_FOPS)
-struct v4l2_file_operations v4l2_fops = {
+const struct v4l2_file_operations v4l2_fops = {
 .owner =   THIS_MODULE,
 .open =    easycap_open_noinode,
 .release = easycap_release_noinode,
@@ -770,7 +766,7 @@ JOT(4, "easysnd_delete(): isoc audio buffers freed: %i pages\n", \
 /*---------------------------------------------------------------------------*/
 JOT(4, "freeing audio buffers.\n");
 lost = 0;
-for (k = 0;  k < audio_buffer_page_many;  k++) {
+for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
 	if ((void *)NULL != peasycap->audio_buffer[k].pgo) {
 		free_page((unsigned long)(peasycap->audio_buffer[k].pgo));
 		peasycap->audio_buffer[k].pgo = (void *)NULL;
@@ -3865,12 +3861,12 @@ case 2: {
 			peasycap->ilk |= 0x02;
 			SAY("hardware is FOUR-CVBS\n");
 			peasycap->microphone = true;
-			audio_pages_per_fragment = 2;
+			peasycap->audio_pages_per_fragment = 2;
 		} else if (256 == peasycap->audio_isoc_maxframesize) {
 			peasycap->ilk &= ~0x02;
 			SAY("hardware is CVBS+S-VIDEO\n");
 			peasycap->microphone = false;
-			audio_pages_per_fragment = 4;
+			peasycap->audio_pages_per_fragment = 4;
 		} else {
 			SAY("hardware is unidentified:\n");
 			SAY("%i=audio_isoc_maxframesize\n", \
@@ -3878,17 +3874,19 @@ case 2: {
 			return -ENOENT;
 		}
 
-		audio_bytes_per_fragment = audio_pages_per_fragment * \
+		peasycap->audio_bytes_per_fragment = \
+					peasycap->audio_pages_per_fragment * \
 								PAGE_SIZE ;
-		audio_buffer_page_many = (AUDIO_FRAGMENT_MANY * \
-						audio_pages_per_fragment);
+		peasycap->audio_buffer_page_many = (AUDIO_FRAGMENT_MANY * \
+					peasycap->audio_pages_per_fragment);
 
 		JOT(4, "%6i=AUDIO_FRAGMENT_MANY\n", AUDIO_FRAGMENT_MANY);
 		JOT(4, "%6i=audio_pages_per_fragment\n", \
-						audio_pages_per_fragment);
+					peasycap->audio_pages_per_fragment);
 		JOT(4, "%6i=audio_bytes_per_fragment\n", \
-						audio_bytes_per_fragment);
-		JOT(4, "%6i=audio_buffer_page_many\n", audio_buffer_page_many);
+					peasycap->audio_bytes_per_fragment);
+		JOT(4, "%6i=audio_buffer_page_many\n", \
+					peasycap->audio_buffer_page_many);
 
 		peasycap->audio_isoc_framesperdesc = 128;
 
@@ -3946,9 +3944,10 @@ case 2: {
 	peasycap->purb_audio_head = &(peasycap->urb_audio_head);
 
 	JOT(4, "allocating an audio buffer\n");
-	JOT(4, ".... scattered over %i pages\n", audio_buffer_page_many);
+	JOT(4, ".... scattered over %i pages\n", \
+					peasycap->audio_buffer_page_many);
 
-	for (k = 0;  k < audio_buffer_page_many;  k++) {
+	for (k = 0;  k < peasycap->audio_buffer_page_many;  k++) {
 		if ((void *)NULL != peasycap->audio_buffer[k].pgo) {
 			SAY("ERROR: attempting to reallocate audio buffers\n");
 		} else {

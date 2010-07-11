@@ -26,4 +26,3 @@
 /*****************************************************************************/
 extern struct easycap_format easycap_format[];
 extern struct v4l2_queryctrl easycap_control[];
-extern unsigned int audio_bytes_per_fragment;
