@@ -1232,9 +1232,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (!ah->chip_fullsleep) {
 		ath9k_hw_abortpcurecv(ah);
-		if (!ath9k_hw_stopdmarecv(ah))
+		if (!ath9k_hw_stopdmarecv(ah)) {
 			ath_print(common, ATH_DBG_XMIT,
 				"Failed to stop receive dma\n");
+			bChannelChange = false;
+		}
 	}
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
