@@ -431,5 +431,30 @@ void iio_sw_rb_free(struct iio_ring_buffer *r)
 		iio_put_ring_buffer(r);
 }
 EXPORT_SYMBOL(iio_sw_rb_free);
+
+int iio_sw_ring_preenable(struct iio_dev *indio_dev)
+{
+	size_t size;
+	dev_dbg(&indio_dev->dev, "%s\n", __func__);
+	/* Check if there are any scan elements enabled, if not fail*/
+	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
+		return -EINVAL;
+	if (indio_dev->scan_timestamp)
+		if (indio_dev->scan_count)
+			/* Timestamp (aligned to s64) and data */
+			size = (((indio_dev->scan_count * indio_dev->ring->bpe)
+					+ sizeof(s64) - 1)
+				& ~(sizeof(s64) - 1))
+				+ sizeof(s64);
+		else /* Timestamp only  */
+			size = sizeof(s64);
+	else /* Data only */
+		size = indio_dev->scan_count * indio_dev->ring->bpe;
+	indio_dev->ring->access.set_bpd(indio_dev->ring, size);
+
+	return 0;
+}
+EXPORT_SYMBOL(iio_sw_ring_preenable);
+
 MODULE_DESCRIPTION("Industrialio I/O software ring buffer");
 MODULE_LICENSE("GPL");

@@ -100,6 +100,7 @@ struct iio_ring_access_funcs {
  * @access_id:		device id number
  * @length:		[DEVICE] number of datums in ring
  * @bpd:		[DEVICE] size of individual datum including timestamp
+ * @bpe:		[DEVICE] size of individual channel value
  * @loopcount:		[INTERN] number of times the ring has looped
  * @access_handler:	[INTERN] chrdev access handling
  * @ev_int:		[INTERN] chrdev interface for the event chrdev
@@ -121,6 +122,7 @@ struct iio_ring_buffer {
 	int				access_id;
 	int				length;
 	int				bpd;
+	int				bpe;
 	int				loopcount;
 	struct iio_handler		access_handler;
 	struct iio_event_interface	ev_int;
