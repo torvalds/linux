@@ -8551,7 +8551,7 @@ static void tg3_timer(unsigned long __opaque)
 				tg3_setup_phy(tp, 0);
 			}
 		} else if ((tp->tg3_flags2 & TG3_FLG2_MII_SERDES) &&
-			   !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
+			   (tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
 			tg3_serdes_parallel_detect(tp);
 		}
 
@@ -13427,8 +13427,7 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		return err;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
-	    (tp->pci_chip_rev_id != CHIPREV_ID_5717_A0 ||
-		 (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)))
+	    tp->pci_chip_rev_id != CHIPREV_ID_5717_A0)
 		return -ENOTSUPP;
 
 	/* Initialize data/descriptor byte/word swapping. */
