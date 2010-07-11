@@ -1086,66 +1086,115 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 }
 
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
-				  const int txpower)
+				  const int max_txpower)
 {
+	u8 txpower;
+	u8 max_value = (u8)max_txpower;
+	u16 eeprom;
+	int i;
 	u32 reg;
-	u32 value = TXPOWER_G_TO_DEV(txpower);
 	u8 r1;
+	u32 offset;
 
+	/*
+	 * set to normal tx power mode: +/- 0dBm
+	 */
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
 	rt2x00_set_field8(&r1, BBP1_TX_POWER, 0);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
 
-	rt2800_register_read(rt2x00dev, TX_PWR_CFG_0, &reg);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_1MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_2MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_55MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_11MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_6MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_9MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_12MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_0_18MBS, value);
-	rt2800_register_write(rt2x00dev, TX_PWR_CFG_0, reg);
+	/*
+	 * The eeprom contains the tx power values for each rate. These
+	 * values map to 100% tx power. Each 16bit word contains four tx
+	 * power values and the order is the same as used in the TX_PWR_CFG
+	 * registers.
+	 */
+	offset = TX_PWR_CFG_0;
 
-	rt2800_register_read(rt2x00dev, TX_PWR_CFG_1, &reg);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_24MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_36MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_48MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_54MBS, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_MCS0, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_MCS1, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_MCS2, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_1_MCS3, value);
-	rt2800_register_write(rt2x00dev, TX_PWR_CFG_1, reg);
+	for (i = 0; i < EEPROM_TXPOWER_BYRATE_SIZE; i += 2) {
+		/* just to be safe */
+		if (offset > TX_PWR_CFG_4)
+			break;
 
-	rt2800_register_read(rt2x00dev, TX_PWR_CFG_2, &reg);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS4, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS5, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS6, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS7, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS8, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS9, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS10, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_2_MCS11, value);
-	rt2800_register_write(rt2x00dev, TX_PWR_CFG_2, reg);
+		rt2800_register_read(rt2x00dev, offset, &reg);
 
-	rt2800_register_read(rt2x00dev, TX_PWR_CFG_3, &reg);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_MCS12, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_MCS13, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_MCS14, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_MCS15, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_UKNOWN1, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_UKNOWN2, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_UKNOWN3, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_3_UKNOWN4, value);
-	rt2800_register_write(rt2x00dev, TX_PWR_CFG_3, reg);
+		/* read the next four txpower values */
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + i,
+				   &eeprom);
 
-	rt2800_register_read(rt2x00dev, TX_PWR_CFG_4, &reg);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_4_UKNOWN5, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_4_UKNOWN6, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_4_UKNOWN7, value);
-	rt2x00_set_field32(&reg, TX_PWR_CFG_4_UKNOWN8, value);
-	rt2800_register_write(rt2x00dev, TX_PWR_CFG_4, reg);
+		/* TX_PWR_CFG_0: 1MBS, TX_PWR_CFG_1: 24MBS,
+		 * TX_PWR_CFG_2: MCS4, TX_PWR_CFG_3: MCS12,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE0);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE0,
+				   min(txpower, max_value));
+
+		/* TX_PWR_CFG_0: 2MBS, TX_PWR_CFG_1: 36MBS,
+		 * TX_PWR_CFG_2: MCS5, TX_PWR_CFG_3: MCS13,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE1);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE1,
+				   min(txpower, max_value));
+
+		/* TX_PWR_CFG_0: 55MBS, TX_PWR_CFG_1: 48MBS,
+		 * TX_PWR_CFG_2: MCS6,  TX_PWR_CFG_3: MCS14,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE2);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE2,
+				   min(txpower, max_value));
+
+		/* TX_PWR_CFG_0: 11MBS, TX_PWR_CFG_1: 54MBS,
+		 * TX_PWR_CFG_2: MCS7,  TX_PWR_CFG_3: MCS15,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE3);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE3,
+				   min(txpower, max_value));
+
+		/* read the next four txpower values */
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + i + 1,
+				   &eeprom);
+
+		/* TX_PWR_CFG_0: 6MBS, TX_PWR_CFG_1: MCS0,
+		 * TX_PWR_CFG_2: MCS8, TX_PWR_CFG_3: unknown,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE0);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE4,
+				   min(txpower, max_value));
+
+		/* TX_PWR_CFG_0: 9MBS, TX_PWR_CFG_1: MCS1,
+		 * TX_PWR_CFG_2: MCS9, TX_PWR_CFG_3: unknown,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE1);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE5,
+				   min(txpower, max_value));
+
+		/* TX_PWR_CFG_0: 12MBS, TX_PWR_CFG_1: MCS2,
+		 * TX_PWR_CFG_2: MCS10, TX_PWR_CFG_3: unknown,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE2);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE6,
+				   min(txpower, max_value));
+
+		/* TX_PWR_CFG_0: 18MBS, TX_PWR_CFG_1: MCS3,
+		 * TX_PWR_CFG_2: MCS11, TX_PWR_CFG_3: unknown,
+		 * TX_PWR_CFG_4: unknown */
+		txpower = rt2x00_get_field16(eeprom,
+					     EEPROM_TXPOWER_BYRATE_RATE3);
+		rt2x00_set_field32(&reg, TX_PWR_CFG_RATE7,
+				   min(txpower, max_value));
+
+		rt2800_register_write(rt2x00dev, offset, reg);
+
+		/* next TX_PWR_CFG register */
+		offset += 4;
+	}
 }
 
 static void rt2800_config_retry_limit(struct rt2x00_dev *rt2x00dev,
