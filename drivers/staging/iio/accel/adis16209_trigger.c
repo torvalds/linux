@@ -23,8 +23,7 @@ static int adis16209_data_rdy_trig_poll(struct iio_dev *dev_info,
 	struct adis16209_state *st = iio_dev_get_devdata(dev_info);
 	struct iio_trigger *trig = st->trig;
 
-	trig->timestamp = timestamp;
-	iio_trigger_poll(trig);
+	iio_trigger_poll(trig, timestamp);
 
 	return IRQ_HANDLED;
 }

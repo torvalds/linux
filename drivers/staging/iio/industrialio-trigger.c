@@ -172,7 +172,7 @@ struct iio_trigger *iio_trigger_find_by_name(const char *name, size_t len)
 }
 EXPORT_SYMBOL(iio_trigger_find_by_name);
 
-void iio_trigger_poll(struct iio_trigger *trig)
+void iio_trigger_poll(struct iio_trigger *trig, s64 time)
 {
 	struct iio_poll_func *pf_cursor;
 
@@ -184,7 +184,8 @@ void iio_trigger_poll(struct iio_trigger *trig)
 	}
 	list_for_each_entry(pf_cursor, &trig->pollfunc_list, list) {
 		if (pf_cursor->poll_func_main) {
-			pf_cursor->poll_func_main(pf_cursor->private_data);
+			pf_cursor->poll_func_main(pf_cursor->private_data,
+						  time);
 			trig->use_count++;
 		}
 	}
@@ -197,8 +198,7 @@ void iio_trigger_notify_done(struct iio_trigger *trig)
 	if (trig->use_count == 0 && trig->try_reenable)
 		if (trig->try_reenable(trig)) {
 			/* Missed and interrupt so launch new poll now */
-			trig->timestamp = 0;
-			iio_trigger_poll(trig);
+			iio_trigger_poll(trig, 0);
 		}
 }
 EXPORT_SYMBOL(iio_trigger_notify_done);
@@ -400,7 +400,7 @@ EXPORT_SYMBOL(iio_device_unregister_trigger_consumer);
 
 int iio_alloc_pollfunc(struct iio_dev *indio_dev,
 		       void (*immediate)(struct iio_dev *indio_dev),
-		       void (*main)(struct iio_dev  *private_data))
+		       void (*main)(struct iio_dev *private_data, s64 time))
 {
 	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
 	if (indio_dev->pollfunc == NULL)

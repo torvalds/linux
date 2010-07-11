@@ -42,7 +42,8 @@ struct iio_gpio_trigger_info {
 
 static irqreturn_t iio_gpio_trigger_poll(int irq, void *private)
 {
-	iio_trigger_poll(private);
+	/* Timestamp not currently provided */
+	iio_trigger_poll(private, 0);
 	return IRQ_HANDLED;
 }
 

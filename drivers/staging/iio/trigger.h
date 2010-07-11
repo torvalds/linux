@@ -21,7 +21,6 @@
  * @pollfunc_list_lock:	[INTERN] protection of the polling function list
  * @pollfunc_list:	[INTERN] list of functions to run on trigger.
  * @control_attrs:	[DRIVER] sysfs attributes relevant to trigger type
- * @timestamp:		[INTERN] timestamp usesd by some trigs (e.g. datardy)
  * @owner:		[DRIVER] used to monitor usage count of the trigger.
  * @use_count:		use count for the trigger
  * @set_trigger_state:	[DRIVER] switch on/off the trigger on demand
@@ -39,7 +38,6 @@ struct iio_trigger {
 	spinlock_t			pollfunc_list_lock;
 	struct list_head		pollfunc_list;
 	const struct attribute_group	*control_attrs;
-	s64				timestamp;
 	struct module			*owner;
 	int use_count;
 
@@ -120,7 +118,7 @@ int iio_trigger_dettach_poll_func(struct iio_trigger *trig,
  *
  * Typically called in relevant hardware interrupt handler.
  **/
-void iio_trigger_poll(struct iio_trigger *trig);
+void iio_trigger_poll(struct iio_trigger *trig, s64 time);
 void iio_trigger_notify_done(struct iio_trigger *trig);
 
 /**
@@ -144,13 +142,13 @@ struct iio_poll_func {
 	struct				list_head list;
 	void				*private_data;
 	void (*poll_func_immediate)(struct iio_dev *indio_dev);
-	void (*poll_func_main)(struct iio_dev  *private_data);
+	void (*poll_func_main)(struct iio_dev *private_data, s64 time);
 
 };
 
 int iio_alloc_pollfunc(struct iio_dev *indio_dev,
 		       void (*immediate)(struct iio_dev *indio_dev),
-		       void (*main)(struct iio_dev  *private_data));
+		       void (*main)(struct iio_dev *private_data, s64 time));
 
 /*
  * Two functions for common case where all that happens is a pollfunc
@@ -163,4 +161,8 @@ struct iio_trigger *iio_allocate_trigger(void);
 
 void iio_free_trigger(struct iio_trigger *trig);
 
+
+struct iio_simple_trigger {
+	struct iio_trigger trig;
+};
 #endif /* _IIO_TRIGGER_H_ */

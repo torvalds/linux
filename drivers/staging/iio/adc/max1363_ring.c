@@ -113,7 +113,7 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
  * then.  Some triggers will generate their own time stamp.  Currently
  * there is no way of notifying them when no one cares.
  **/
-static void max1363_poll_func_th(struct iio_dev *indio_dev)
+static void max1363_poll_func_th(struct iio_dev *indio_dev, s64 time)
 {
 	struct max1363_state *st = indio_dev->dev_data;
 

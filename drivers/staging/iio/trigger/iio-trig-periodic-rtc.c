@@ -98,7 +98,8 @@ static const struct attribute_group iio_trig_prtc_attr_group = {
 
 static void iio_prtc_trigger_poll(void *private_data)
 {
-	iio_trigger_poll(private_data);
+	/* Timestamp is not provided currently */
+	iio_trigger_poll(private_data, 0);
 }
 
 static int iio_trig_periodic_rtc_probe(struct platform_device *dev)

@@ -103,10 +103,10 @@ static struct attribute_group lis3l02dq_scan_el_group = {
  * lis3l02dq_poll_func_th() top half interrupt handler called by trigger
  * @private_data:	iio_dev
  **/
-static void lis3l02dq_poll_func_th(struct iio_dev *indio_dev)
+static void lis3l02dq_poll_func_th(struct iio_dev *indio_dev, s64 time)
 {
-  struct lis3l02dq_state *st = iio_dev_get_devdata(indio_dev);
-	st->last_timestamp = indio_dev->trig->timestamp;
+	struct lis3l02dq_state *st = iio_dev_get_devdata(indio_dev);
+	st->last_timestamp = time;
 	schedule_work(&st->work_trigger_to_ring);
 	/* Indicate that this interrupt is being handled */
 
@@ -128,8 +128,7 @@ static int lis3l02dq_data_rdy_trig_poll(struct iio_dev *dev_info,
 	struct lis3l02dq_state *st = iio_dev_get_devdata(dev_info);
 	struct iio_trigger *trig = st->trig;
 
-	trig->timestamp = timestamp;
-	iio_trigger_poll(trig);
+	iio_trigger_poll(trig, timestamp);
 
 	return IRQ_HANDLED;
 }
