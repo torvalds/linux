@@ -264,8 +264,6 @@ EXPORT_SYMBOL(pcmcia_get_socket_by_nr);
 
 static int send_event(struct pcmcia_socket *s, event_t event, int priority)
 {
-	int ret;
-
 	if ((s->state & SOCKET_CARDBUS) && (event != CS_EVENT_CARD_REMOVAL))
 		return 0;
 
@@ -274,14 +272,8 @@ static int send_event(struct pcmcia_socket *s, event_t event, int priority)
 
 	if (!s->callback)
 		return 0;
-	if (!try_module_get(s->callback->owner))
-		return 0;
 
-	ret = s->callback->event(s, event, priority);
-
-	module_put(s->callback->owner);
-
-	return ret;
+	return s->callback->event(s, event, priority);
 }
 
 static int socket_reset(struct pcmcia_socket *skt)
@@ -494,7 +486,6 @@ static int socket_suspend(struct pcmcia_socket *skt)
 	mutex_lock(&skt->ops_mutex);
 	skt->suspended_state = skt->state;
 
-	send_event(skt, CS_EVENT_PM_SUSPEND, CS_EVENT_PRI_LOW);
 	skt->socket = dead_socket;
 	skt->ops->set_socket(skt, &skt->socket);
 	if (skt->ops->suspend)
@@ -654,16 +645,8 @@ static int pccardd(void *__skt)
 		spin_unlock_irqrestore(&skt->thread_lock, flags);
 
 		mutex_lock(&skt->skt_mutex);
-		if (events) {
-			if (events & SS_DETECT)
-				socket_detect_change(skt);
-			if (events & SS_BATDEAD)
-				send_event(skt, CS_EVENT_BATTERY_DEAD, CS_EVENT_PRI_LOW);
-			if (events & SS_BATWARN)
-				send_event(skt, CS_EVENT_BATTERY_LOW, CS_EVENT_PRI_LOW);
-			if (events & SS_READY)
-				send_event(skt, CS_EVENT_READY_CHANGE, CS_EVENT_PRI_LOW);
-		}
+		if (events & SS_DETECT)
+			socket_detect_change(skt);
 
 		if (sysfs_events) {
 			if (sysfs_events & PCMCIA_UEVENT_EJECT)
@@ -823,20 +806,13 @@ int pcmcia_reset_card(struct pcmcia_socket *skt)
 			break;
 		}
 
-		ret = send_event(skt, CS_EVENT_RESET_REQUEST, CS_EVENT_PRI_LOW);
-		if (ret == 0) {
-			send_event(skt, CS_EVENT_RESET_PHYSICAL, CS_EVENT_PRI_LOW);
-			if (skt->callback)
-				skt->callback->suspend(skt);
-			mutex_lock(&skt->ops_mutex);
-			ret = socket_reset(skt);
-			mutex_unlock(&skt->ops_mutex);
-			if (ret == 0) {
-				send_event(skt, CS_EVENT_CARD_RESET, CS_EVENT_PRI_LOW);
-				if (skt->callback)
-					skt->callback->resume(skt);
-			}
-		}
+		if (skt->callback)
+			skt->callback->suspend(skt);
+		mutex_lock(&skt->ops_mutex);
+		ret = socket_reset(skt);
+		mutex_unlock(&skt->ops_mutex);
+		if ((ret == 0) && (skt->callback))
+			skt->callback->resume(skt);
 
 		ret = 0;
 	} while (0);
