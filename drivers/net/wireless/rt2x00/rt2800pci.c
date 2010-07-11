@@ -938,20 +938,32 @@ static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
 	u32 reg = rt2x00dev->irqvalue[0];
 
 	/*
-	 * 1 - Rx ring done interrupt.
+	 * 1 - Pre TBTT interrupt.
 	 */
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_RX_DONE))
-		rt2x00pci_rxdone(rt2x00dev);
-
-	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
-		rt2800pci_txdone(rt2x00dev);
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_PRE_TBTT))
+		rt2x00lib_pretbtt(rt2x00dev);
 
 	/*
-	 * Current beacon was sent out, fetch the next one
+	 * 2 - Beacondone interrupt.
 	 */
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TBTT))
 		rt2x00lib_beacondone(rt2x00dev);
 
+	/*
+	 * 3 - Rx ring done interrupt.
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_RX_DONE))
+		rt2x00pci_rxdone(rt2x00dev);
+
+	/*
+	 * 4 - Tx done interrupt.
+	 */
+	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_TX_FIFO_STATUS))
+		rt2800pci_txdone(rt2x00dev);
+
+	/*
+	 * 5 - Auto wakeup interrupt.
+	 */
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
 		rt2800pci_wakeup(rt2x00dev);
 
@@ -1050,6 +1062,12 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_SUPPORT_CONTROL_FILTERS, &rt2x00dev->flags);
 	__set_bit(DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL, &rt2x00dev->flags);
+
+	/*
+	 * This device has a pre tbtt interrupt and thus fetches
+	 * a new beacon directly prior to transmission.
+	 */
+	__set_bit(DRIVER_SUPPORT_PRE_TBTT_INTERRUPT, &rt2x00dev->flags);
 
 	/*
 	 * This device requires firmware.

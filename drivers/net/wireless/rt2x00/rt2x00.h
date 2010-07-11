@@ -658,6 +658,7 @@ enum rt2x00_flags {
 	CONFIG_SUPPORT_HW_CRYPTO,
 	DRIVER_SUPPORT_CONTROL_FILTERS,
 	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
+	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,
 	DRIVER_SUPPORT_LINK_TUNING,
 	DRIVER_SUPPORT_WATCHDOG,
 
@@ -1071,6 +1072,7 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
  * Interrupt context handlers.
  */
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
+void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
 void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,

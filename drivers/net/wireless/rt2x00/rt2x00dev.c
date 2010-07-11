@@ -200,8 +200,8 @@ static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
 	}
 }
 
-static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
-				      struct ieee80211_vif *vif)
+static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
+					struct ieee80211_vif *vif)
 {
 	struct rt2x00_dev *rt2x00dev = data;
 
@@ -223,14 +223,32 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
 					    rt2x00lib_bc_buffer_iter,
 					    rt2x00dev);
+	/*
+	 * Devices with pre tbtt interrupt don't need to update the beacon
+	 * here as they will fetch the next beacon directly prior to
+	 * transmission.
+	 */
+	if (test_bit(DRIVER_SUPPORT_PRE_TBTT_INTERRUPT, &rt2x00dev->flags))
+		return;
 
 	/* fetch next beacon */
 	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
-					    rt2x00lib_beacondone_iter,
+					    rt2x00lib_beaconupdate_iter,
 					    rt2x00dev);
-
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
+
+void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
+{
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
+	/* fetch next beacon */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_beaconupdate_iter,
+					    rt2x00dev);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)

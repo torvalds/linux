@@ -719,14 +719,20 @@
 #define TBTT_TIMER			0x1124
 
 /*
- * INT_TIMER_CFG:
+ * INT_TIMER_CFG: timer configuration
+ * PRE_TBTT_TIMER: leadtime to tbtt for pretbtt interrupt in units of 1/16 TU
+ * GP_TIMER: period of general purpose timer in units of 1/16 TU
  */
 #define INT_TIMER_CFG			0x1128
+#define INT_TIMER_CFG_PRE_TBTT_TIMER	FIELD32(0x0000ffff)
+#define INT_TIMER_CFG_GP_TIMER		FIELD32(0xffff0000)
 
 /*
  * INT_TIMER_EN: GP-timer and pre-tbtt Int enable
  */
 #define INT_TIMER_EN			0x112c
+#define INT_TIMER_EN_PRE_TBTT_TIMER	FIELD32(0x00000001)
+#define INT_TIMER_EN_GP_TIMER		FIELD32(0x00000002)
 
 /*
  * CH_IDLE_STA: channel idle time

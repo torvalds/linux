@@ -807,6 +807,15 @@ void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
 		rt2x00_set_field32(&reg, BCN_TIME_CFG_TBTT_ENABLE,
 				   (conf->sync == TSF_SYNC_BEACON));
 		rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+
+		/*
+		 * Enable pre tbtt interrupt for beaconing modes
+		 */
+		rt2800_register_read(rt2x00dev, INT_TIMER_EN, &reg);
+		rt2x00_set_field32(&reg, INT_TIMER_EN_PRE_TBTT_TIMER,
+				   (conf->sync == TSF_SYNC_BEACON));
+		rt2800_register_write(rt2x00dev, INT_TIMER_EN, reg);
+
 	}
 
 	if (flags & CONFIG_UPDATE_MAC) {
@@ -1731,6 +1740,13 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_read(rt2x00dev, TX_STA_CNT0, &reg);
 	rt2800_register_read(rt2x00dev, TX_STA_CNT1, &reg);
 	rt2800_register_read(rt2x00dev, TX_STA_CNT2, &reg);
+
+	/*
+	 * Setup leadtime for pre tbtt interrupt to 6ms
+	 */
+	rt2800_register_read(rt2x00dev, INT_TIMER_CFG, &reg);
+	rt2x00_set_field32(&reg, INT_TIMER_CFG_PRE_TBTT_TIMER, 6 << 4);
+	rt2800_register_write(rt2x00dev, INT_TIMER_CFG, reg);
 
 	return 0;
 }
