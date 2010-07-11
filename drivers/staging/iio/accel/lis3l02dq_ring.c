@@ -339,23 +339,6 @@ static int lis3l02dq_data_rdy_ring_preenable(struct iio_dev *indio_dev)
 	return 0;
 }
 
-static int lis3l02dq_data_rdy_ring_postenable(struct iio_dev *indio_dev)
-{
-	return indio_dev->trig
-		? iio_trigger_attach_poll_func(indio_dev->trig,
-					       indio_dev->pollfunc)
-		: 0;
-}
-
-static int lis3l02dq_data_rdy_ring_predisable(struct iio_dev *indio_dev)
-{
-	return indio_dev->trig
-		? iio_trigger_dettach_poll_func(indio_dev->trig,
-						indio_dev->pollfunc)
-		: 0;
-}
-
-
 /* Caller responsible for locking as necessary. */
 static int
 __lis3l02dq_write_data_ready_config(struct device *dev,
@@ -562,8 +545,8 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
 	ring->preenable = &lis3l02dq_data_rdy_ring_preenable;
-	ring->postenable = &lis3l02dq_data_rdy_ring_postenable;
-	ring->predisable = &lis3l02dq_data_rdy_ring_predisable;
+	ring->postenable = &iio_triggered_ring_postenable;
+	ring->predisable = &iio_triggered_ring_predisable;
 	ring->owner = THIS_MODULE;
 
 	ret = iio_alloc_pollfunc(indio_dev, NULL, &lis3l02dq_poll_func_th);

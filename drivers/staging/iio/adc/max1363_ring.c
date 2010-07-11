@@ -105,35 +105,6 @@ static int max1363_ring_preenable(struct iio_dev *indio_dev)
 	return 0;
 }
 
-/**
- * max1363_ring_postenable() - typical ring post enable
- *
- * Only not moved into the core for the hardware ring buffer cases
- * that are more sophisticated.
- **/
-static int max1363_ring_postenable(struct iio_dev *indio_dev)
-{
-	if (indio_dev->trig == NULL)
-		return 0;
-	return iio_trigger_attach_poll_func(indio_dev->trig,
-					    indio_dev->pollfunc);
-}
-
-/**
- * max1363_ring_predisable() - runs just prior to ring buffer being disabled
- *
- * Typical predisable function which ensures that no trigger events can
- * occur before we disable the ring buffer (and hence would have no idea
- * what to do with them)
- **/
-static int max1363_ring_predisable(struct iio_dev *indio_dev)
-{
-	if (indio_dev->trig)
-		return iio_trigger_dettach_poll_func(indio_dev->trig,
-						     indio_dev->pollfunc);
-	else
-		return 0;
-}
 
 /**
  * max1363_poll_func_th() - th of trigger launched polling to ring buffer
@@ -228,9 +199,9 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		goto error_deallocate_sw_rb;
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->ring->postenable = &max1363_ring_postenable;
+	indio_dev->ring->postenable = &iio_triggered_ring_postenable;
 	indio_dev->ring->preenable = &max1363_ring_preenable;
-	indio_dev->ring->predisable = &max1363_ring_predisable;
+	indio_dev->ring->predisable = &iio_triggered_ring_predisable;
 	INIT_WORK(&st->poll_work, &max1363_poll_bh_to_ring);
 
 	/* Flag that polled ring buffering is possible */

@@ -411,3 +411,21 @@ int iio_alloc_pollfunc(struct iio_dev *indio_dev,
 	return 0;
 }
 EXPORT_SYMBOL(iio_alloc_pollfunc);
+
+int iio_triggered_ring_postenable(struct iio_dev *indio_dev)
+{
+	return indio_dev->trig
+		? iio_trigger_attach_poll_func(indio_dev->trig,
+					       indio_dev->pollfunc)
+		: 0;
+}
+EXPORT_SYMBOL(iio_triggered_ring_postenable);
+
+int iio_triggered_ring_predisable(struct iio_dev *indio_dev)
+{
+	return indio_dev->trig
+		? iio_trigger_dettach_poll_func(indio_dev->trig,
+						indio_dev->pollfunc)
+		: 0;
+}
+EXPORT_SYMBOL(iio_triggered_ring_predisable);
