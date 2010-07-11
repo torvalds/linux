@@ -15,13 +15,14 @@
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include "hysdn_defs.h"
 
 /* the proc subdir for the interface is defined in the procconf module */
 extern struct proc_dir_entry *hysdn_proc_entry;
 
+static DEFINE_MUTEX(hysdn_log_mutex);
 static void put_log_buffer(hysdn_card * card, char *cp);
 
 /*************************************************/
@@ -251,7 +252,7 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 	struct procdata *pd = NULL;
 	unsigned long flags;
 
-	lock_kernel();
+	mutex_lock(&hysdn_log_mutex);
 	card = card_root;
 	while (card) {
 		pd = card->proclog;
@@ -260,7 +261,7 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 		card = card->next;	/* search next entry */
 	}
 	if (!card) {
-		unlock_kernel();
+		mutex_unlock(&hysdn_log_mutex);
 		return (-ENODEV);	/* device is unknown/invalid */
 	}
 	filep->private_data = card;	/* remember our own card */
@@ -278,10 +279,10 @@ hysdn_log_open(struct inode *ino, struct file *filep)
 			filep->private_data = &pd->log_head;
 		spin_unlock_irqrestore(&card->hysdn_lock, flags);
 	} else {		/* simultaneous read/write access forbidden ! */
-		unlock_kernel();
+		mutex_unlock(&hysdn_log_mutex);
 		return (-EPERM);	/* no permission this time */
 	}
-	unlock_kernel();
+	mutex_unlock(&hysdn_log_mutex);
 	return nonseekable_open(ino, filep);
 }				/* hysdn_log_open */
 
@@ -300,7 +301,7 @@ hysdn_log_close(struct inode *ino, struct file *filep)
 	hysdn_card *card;
 	int retval = 0;
 
-	lock_kernel();
+	mutex_lock(&hysdn_log_mutex);
 	if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_WRITE) {
 		/* write only access -> write debug level written */
 		retval = 0;	/* success */
@@ -339,7 +340,7 @@ hysdn_log_close(struct inode *ino, struct file *filep)
 					kfree(inf);
 				}
 	}			/* read access */
-	unlock_kernel();
+	mutex_unlock(&hysdn_log_mutex);
 
 	return (retval);
 }				/* hysdn_log_close */

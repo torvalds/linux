@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/isdnif.h>
 #include <net/net_namespace.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include "isdn_divert.h"
 
 
@@ -28,6 +28,7 @@
 /* Variables for interface queue */
 /*********************************/
 ulong if_used = 0;		/* number of interface users */
+static DEFINE_MUTEX(isdn_divert_mutex);
 static struct divert_info *divert_info_head = NULL;	/* head of queue */
 static struct divert_info *divert_info_tail = NULL;	/* pointer to last entry */
 static DEFINE_SPINLOCK(divert_info_lock);/* lock for queue */
@@ -261,9 +262,9 @@ static long isdn_divert_ioctl(struct file *file, uint cmd, ulong arg)
 {
 	long ret;
 
-	lock_kernel();
+	mutex_lock(&isdn_divert_mutex);
 	ret = isdn_divert_ioctl_unlocked(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&isdn_divert_mutex);
 
 	return ret;
 }

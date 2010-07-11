@@ -20,7 +20,6 @@
 #include <linux/signal.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
-#include <linux/smp_lock.h>
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/tty.h>
@@ -50,6 +49,7 @@ MODULE_LICENSE("GPL");
 
 /* -------- driver information -------------------------------------- */
 
+static DEFINE_MUTEX(capi_mutex);
 static struct class *capi_class;
 static int capi_major = 68;		/* allocated */
 
@@ -985,9 +985,9 @@ capi_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&capi_mutex);
 	ret = capi_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&capi_mutex);
 
 	return ret;
 }
