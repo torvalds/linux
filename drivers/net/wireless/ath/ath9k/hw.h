@@ -510,7 +510,6 @@ struct ath_gen_timer_table {
  *	AR_RTC_PLL_CONTROL for a given channel
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
- * @loadnf: load noise floor read from each chain on the CCA registers
  *
  * @ani_reset: reset ANI parameters to default values
  * @ani_lower_immunity: lower the noise immunity level. The level controls
@@ -564,7 +563,6 @@ struct ath_hw_private_ops {
 	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
 			    int param);
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
-	void (*loadnf)(struct ath_hw *ah, struct ath9k_channel *chan);
 
 	/* ANI */
 	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
@@ -658,6 +656,7 @@ struct ath_hw {
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
 
+	u32 nf_regs[6];
 	struct ath_nf_limits nf_2g;
 	struct ath_nf_limits nf_5g;
 	u16 rfsilent;

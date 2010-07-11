@@ -1516,77 +1516,6 @@ static void ar5008_hw_do_getnf(struct ath_hw *ah,
 	nfarray[5] = sign_extend(nf, 9);
 }
 
-static void ar5008_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	struct ath9k_nfcal_hist *h;
-	int i, j;
-	int32_t val;
-	const u32 ar5416_cca_regs[6] = {
-		AR_PHY_CCA,
-		AR_PHY_CH1_CCA,
-		AR_PHY_CH2_CCA,
-		AR_PHY_EXT_CCA,
-		AR_PHY_CH1_EXT_CCA,
-		AR_PHY_CH2_EXT_CCA
-	};
-	u8 chainmask, rx_chain_status;
-
-	rx_chain_status = REG_READ(ah, AR_PHY_RX_CHAINMASK);
-	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
-		chainmask = 0x9;
-	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
-		if ((rx_chain_status & 0x2) || (rx_chain_status & 0x4))
-			chainmask = 0x1B;
-		else
-			chainmask = 0x09;
-	} else {
-		if (rx_chain_status & 0x4)
-			chainmask = 0x3F;
-		else if (rx_chain_status & 0x2)
-			chainmask = 0x1B;
-		else
-			chainmask = 0x09;
-	}
-
-	h = ah->nfCalHist;
-
-	for (i = 0; i < NUM_NF_READINGS; i++) {
-		if (chainmask & (1 << i)) {
-			val = REG_READ(ah, ar5416_cca_regs[i]);
-			val &= 0xFFFFFE00;
-			val |= (((u32) (h[i].privNF) << 1) & 0x1ff);
-			REG_WRITE(ah, ar5416_cca_regs[i], val);
-		}
-	}
-
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_ENABLE_NF);
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
-	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-
-	for (j = 0; j < 5; j++) {
-		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
-		     AR_PHY_AGC_CONTROL_NF) == 0)
-			break;
-		udelay(50);
-	}
-
-	ENABLE_REGWRITE_BUFFER(ah);
-
-	for (i = 0; i < NUM_NF_READINGS; i++) {
-		if (chainmask & (1 << i)) {
-			val = REG_READ(ah, ar5416_cca_regs[i]);
-			val &= 0xFFFFFE00;
-			val |= (((u32) (-50) << 1) & 0x1ff);
-			REG_WRITE(ah, ar5416_cca_regs[i], val);
-		}
-	}
-
-	REGWRITE_BUFFER_FLUSH(ah);
-	DISABLE_REGWRITE_BUFFER(ah);
-}
-
 /*
  * Initialize the ANI register values with default (ini) values.
  * This routine is called during a (full) hardware reset after
@@ -1664,6 +1593,14 @@ static void ar5008_hw_set_nf_limits(struct ath_hw *ah)
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	const u32 ar5416_cca_regs[6] = {
+		AR_PHY_CCA,
+		AR_PHY_CH1_CCA,
+		AR_PHY_CH2_CCA,
+		AR_PHY_EXT_CCA,
+		AR_PHY_CH1_EXT_CCA,
+		AR_PHY_CH2_EXT_CCA
+	};
 
 	priv_ops->rf_set_freq = ar5008_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar5008_hw_spur_mitigate;
@@ -1683,7 +1620,6 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->restore_chainmask = ar5008_restore_chainmask;
 	priv_ops->set_diversity = ar5008_set_diversity;
 	priv_ops->do_getnf = ar5008_hw_do_getnf;
-	priv_ops->loadnf = ar5008_hw_loadnf;
 
 	if (modparam_force_new_ani) {
 		priv_ops->ani_control = ar5008_hw_ani_control_new;
@@ -1699,4 +1635,5 @@ void ar5008_hw_attach_phy_ops(struct ath_hw *ah)
 		priv_ops->compute_pll_control = ar5008_hw_compute_pll_control;
 
 	ar5008_hw_set_nf_limits(ah);
+	memcpy(ah->nf_regs, ar5416_cca_regs, sizeof(ah->nf_regs));
 }

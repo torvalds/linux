@@ -167,6 +167,100 @@ void ath9k_hw_start_nfcal(struct ath_hw *ah)
 	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
 }
 
+void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath9k_nfcal_hist *h;
+	unsigned i, j;
+	int32_t val;
+	u8 chainmask;
+	struct ath_common *common = ath9k_hw_common(ah);
+
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		chainmask = 0x3F;
+	else if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
+		chainmask = 0x9;
+	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
+		if ((ah->rxchainmask & 0x2) || (ah->rxchainmask & 0x4))
+			chainmask = 0x1B;
+		else
+			chainmask = 0x09;
+	} else {
+		if (ah->rxchainmask & 0x4)
+			chainmask = 0x3F;
+		else if (ah->rxchainmask & 0x2)
+			chainmask = 0x1B;
+		else
+			chainmask = 0x09;
+	}
+	h = ah->nfCalHist;
+
+	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (chainmask & (1 << i)) {
+			val = REG_READ(ah, ah->nf_regs[i]);
+			val &= 0xFFFFFE00;
+			val |= (((u32) (h[i].privNF) << 1) & 0x1ff);
+			REG_WRITE(ah, ah->nf_regs[i], val);
+		}
+	}
+
+	/*
+	 * Load software filtered NF value into baseband internal minCCApwr
+	 * variable.
+	 */
+	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_ENABLE_NF);
+	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
+		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
+	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
+
+	/*
+	 * Wait for load to complete, should be fast, a few 10s of us.
+	 * The max delay was changed from an original 250us to 10000us
+	 * since 250us often results in NF load timeout and causes deaf
+	 * condition during stress testing 12/12/2009
+	 */
+	for (j = 0; j < 1000; j++) {
+		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
+		     AR_PHY_AGC_CONTROL_NF) == 0)
+			break;
+		udelay(10);
+	}
+
+	/*
+	 * We timed out waiting for the noisefloor to load, probably due to an
+	 * in-progress rx. Simply return here and allow the load plenty of time
+	 * to complete before the next calibration interval.  We need to avoid
+	 * trying to load -50 (which happens below) while the previous load is
+	 * still in progress as this can cause rx deafness. Instead by returning
+	 * here, the baseband nf cal will just be capped by our present
+	 * noisefloor until the next calibration timer.
+	 */
+	if (j == 1000) {
+		ath_print(common, ATH_DBG_ANY, "Timeout while waiting for nf "
+			  "to load: AR_PHY_AGC_CONTROL=0x%x\n",
+			  REG_READ(ah, AR_PHY_AGC_CONTROL));
+		return;
+	}
+
+	/*
+	 * Restore maxCCAPower register parameter again so that we're not capped
+	 * by the median we just loaded.  This will be initial (and max) value
+	 * of next noise floor calibration the baseband does.
+	 */
+	ENABLE_REGWRITE_BUFFER(ah);
+	for (i = 0; i < NUM_NF_READINGS; i++) {
+		if (chainmask & (1 << i)) {
+			val = REG_READ(ah, ah->nf_regs[i]);
+			val &= 0xFFFFFE00;
+			val |= (((u32) (-50) << 1) & 0x1ff);
+			REG_WRITE(ah, ah->nf_regs[i], val);
+		}
+	}
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
+}
+
+
 static void ath9k_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
