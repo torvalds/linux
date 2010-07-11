@@ -130,6 +130,9 @@ void main(void)
 	/* First, copy the boot header into the "zeropage" */
 	copy_boot_params();
 
+	/* Initialize the early-boot console */
+	console_init();
+
 	/* End of heap check */
 	init_heap();
 

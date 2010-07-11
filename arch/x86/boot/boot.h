@@ -37,6 +37,8 @@
 extern struct setup_header hdr;
 extern struct boot_params boot_params;
 
+#define cpu_relax()	asm volatile("rep; nop")
+
 /* Basic port I/O */
 static inline void outb(u8 v, u16 port)
 {
@@ -203,6 +205,17 @@ static inline int isdigit(int ch)
 	return (ch >= '0') && (ch <= '9');
 }
 
+static inline int isxdigit(int ch)
+{
+	if (isdigit(ch))
+		return true;
+
+	if ((ch >= 'a') && (ch <= 'f'))
+		return true;
+
+	return (ch >= 'A') && (ch <= 'F');
+}
+
 /* Heap -- available for dynamic lists. */
 extern char _end[];
 extern char *HEAP;
@@ -329,10 +342,13 @@ void initregs(struct biosregs *regs);
 
 /* string.c */
 int strcmp(const char *str1, const char *str2);
+int strncmp(const char *cs, const char *ct, size_t count);
 size_t strnlen(const char *s, size_t maxlen);
 unsigned int atou(const char *s);
+unsigned long long simple_strtoull(const char *cp, char **endp, unsigned int base);
 
 /* tty.c */
+void console_init(void);
 void puts(const char *);
 void putchar(int);
 int getchar(void);
