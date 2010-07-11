@@ -655,7 +655,7 @@ static void __devinit dmi_check_onboard_device(u8 type, const char *name,
 		/* & ~0x80, ignore enabled/disabled bit */
 		if ((type & ~0x80) != dmi_devices[i].type)
 			continue;
-		if (strcmp(name, dmi_devices[i].name))
+		if (strcasecmp(name, dmi_devices[i].name))
 			continue;
 
 		memset(&info, 0, sizeof(struct i2c_board_info));
@@ -704,9 +704,6 @@ static int __devinit i801_probe(struct pci_dev *dev,
 {
 	unsigned char temp;
 	int err, i;
-#if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
-	const char *vendor;
-#endif
 
 	I801_dev = dev;
 	i801_features = 0;
@@ -808,8 +805,7 @@ static int __devinit i801_probe(struct pci_dev *dev,
 	}
 #endif
 #if defined CONFIG_SENSORS_FSCHMD || defined CONFIG_SENSORS_FSCHMD_MODULE
-	vendor = dmi_get_system_info(DMI_BOARD_VENDOR);
-	if (vendor && !strcmp(vendor, "FUJITSU SIEMENS"))
+	if (dmi_name_in_vendors("FUJITSU"))
 		dmi_walk(dmi_check_onboard_devices, &i801_adapter);
 #endif
 
