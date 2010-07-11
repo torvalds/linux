@@ -148,29 +148,28 @@ Form of high byte dependant on justification set in ctrl reg */
 #define LIS3L02DQ_MAX_RX 12
 /**
  * struct lis3l02dq_state - device instance specific data
+ * @helper:		data and func pointer allowing generic functions
  * @us:			actual spi_device
- * @work_trigger_to_ring: bh for triggered event handling
  * @work_thresh:	bh for threshold events
  * @inter:		used to check if new interrupt has been triggered
- * @last_timestamp:	passing timestamp from th to bh of interrupt handler
- * @indio_dev:		industrial I/O device structure
  * @trig:		data ready trigger registered with iio
  * @tx:			transmit buffer
  * @rx:			recieve buffer
  * @buf_lock:		mutex to protect tx and rx
  **/
 struct lis3l02dq_state {
+	struct iio_sw_ring_helper_state	help;
 	struct spi_device		*us;
-	struct work_struct		work_trigger_to_ring;
 	struct work_struct		work_thresh;
 	bool				inter;
-	s64				last_timestamp;
-	struct iio_dev			*indio_dev;
 	struct iio_trigger		*trig;
 	u8				*tx;
 	u8				*rx;
 	struct mutex			buf_lock;
 };
+
+#define lis3l02dq_h_to_s(_h)				\
+	container_of(_h, struct lis3l02dq_state, help)
 
 int lis3l02dq_spi_read_reg_8(struct device *dev,
 			     u8 reg_address,
