@@ -10,7 +10,7 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * (C) 1999		David A. Hinds
- * (C) 2003 - 2006	Dominik Brodowski
+ * (C) 2003 - 2010	Dominik Brodowski
  */
 
 #include <linux/kernel.h>
@@ -1208,76 +1208,57 @@ static int pcmcia_bus_suspend(struct pcmcia_socket *skt)
 	return 0;
 }
 
-
-/*======================================================================
-
-    The card status event handler.
-
-======================================================================*/
-
-/* Normally, the event is passed to individual drivers after
- * informing userspace. Only for CS_EVENT_CARD_REMOVAL this
- * is inversed to maintain historic compatibility.
- */
-
-static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
+static int pcmcia_bus_remove(struct pcmcia_socket *skt)
 {
-	struct pcmcia_socket *s = pcmcia_get_socket(skt);
+	atomic_set(&skt->present, 0);
+	pcmcia_card_remove(skt, NULL);
 
-	if (!s) {
-		dev_printk(KERN_ERR, &skt->dev,
-			   "PCMCIA obtaining reference to socket "	\
-			   "failed, event 0x%x lost!\n", event);
-		return -ENODEV;
+	mutex_lock(&skt->ops_mutex);
+	destroy_cis_cache(skt);
+	pcmcia_cleanup_irq(skt);
+	mutex_unlock(&skt->ops_mutex);
+
+	return 0;
+}
+
+static int pcmcia_bus_add(struct pcmcia_socket *skt)
+{
+	atomic_set(&skt->present, 1);
+
+	mutex_lock(&skt->ops_mutex);
+	skt->pcmcia_state.has_pfc = 0;
+	destroy_cis_cache(skt); /* to be on the safe side... */
+	mutex_unlock(&skt->ops_mutex);
+
+	pcmcia_card_add(skt);
+
+	return 0;
+}
+
+static int pcmcia_bus_early_resume(struct pcmcia_socket *skt)
+{
+	if (!verify_cis_cache(skt)) {
+		pcmcia_put_socket(skt);
+		return 0;
 	}
 
-	dev_dbg(&skt->dev, "ds_event(0x%06x, %d, 0x%p)\n",
-		   event, priority, skt);
+	dev_dbg(&skt->dev, "cis mismatch - different card\n");
 
-	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		atomic_set(&skt->present, 0);
-		pcmcia_card_remove(skt, NULL);
-		mutex_lock(&s->ops_mutex);
-		destroy_cis_cache(s);
-		pcmcia_cleanup_irq(s);
-		mutex_unlock(&s->ops_mutex);
-		break;
+	/* first, remove the card */
+	pcmcia_bus_remove(skt);
 
-	case CS_EVENT_CARD_INSERTION:
-		atomic_set(&skt->present, 1);
-		mutex_lock(&s->ops_mutex);
-		s->pcmcia_state.has_pfc = 0;
-		destroy_cis_cache(s); /* to be on the safe side... */
-		mutex_unlock(&s->ops_mutex);
-		pcmcia_card_add(skt);
-		break;
+	mutex_lock(&skt->ops_mutex);
+	destroy_cis_cache(skt);
+	kfree(skt->fake_cis);
+	skt->fake_cis = NULL;
+	skt->functions = 0;
+	mutex_unlock(&skt->ops_mutex);
 
-	case CS_EVENT_PM_RESUME:
-		if (verify_cis_cache(skt) != 0) {
-			dev_dbg(&skt->dev, "cis mismatch - different card\n");
-			/* first, remove the card */
-			ds_event(skt, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
-			mutex_lock(&s->ops_mutex);
-			destroy_cis_cache(skt);
-			kfree(skt->fake_cis);
-			skt->fake_cis = NULL;
-			s->functions = 0;
-			mutex_unlock(&s->ops_mutex);
-			/* now, add the new card */
-			ds_event(skt, CS_EVENT_CARD_INSERTION,
-				 CS_EVENT_PRI_LOW);
-		}
-		break;
+	/* now, add the new card */
+	pcmcia_bus_add(skt);
+	return 0;
+}
 
-	default:
-		break;
-    }
-
-    pcmcia_put_socket(s);
-
-    return 0;
-} /* ds_event */
 
 /*
  * NOTE: This is racy. There's no guarantee the card will still be
@@ -1306,10 +1287,12 @@ EXPORT_SYMBOL(pcmcia_dev_present);
 
 static struct pcmcia_callback pcmcia_bus_callback = {
 	.owner = THIS_MODULE,
-	.event = ds_event,
+	.add = pcmcia_bus_add,
+	.remove = pcmcia_bus_remove,
 	.requery = pcmcia_requery,
 	.validate = pccard_validate_cis,
 	.suspend = pcmcia_bus_suspend,
+	.early_resume = pcmcia_bus_early_resume,
 	.resume = pcmcia_bus_resume,
 };
 

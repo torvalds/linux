@@ -10,7 +10,7 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * (C) 1999		David A. Hinds
- * (C) 2003 - 2008	Dominik Brodowski
+ * (C) 2003 - 2010	Dominik Brodowski
  *
  *
  * This file contains definitions _only_ needed by the PCMCIA core modules.
@@ -106,11 +106,12 @@ void cb_free(struct pcmcia_socket *s);
 
 struct pcmcia_callback{
 	struct module	*owner;
-	int		(*event) (struct pcmcia_socket *s,
-				  event_t event, int priority);
+	int		(*add) (struct pcmcia_socket *s);
+	int		(*remove) (struct pcmcia_socket *s);
 	void		(*requery) (struct pcmcia_socket *s);
 	int		(*validate) (struct pcmcia_socket *s, unsigned int *i);
 	int		(*suspend) (struct pcmcia_socket *s);
+	int		(*early_resume) (struct pcmcia_socket *s);
 	int		(*resume) (struct pcmcia_socket *s);
 };
 

@@ -252,30 +252,6 @@ struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr)
 }
 EXPORT_SYMBOL(pcmcia_get_socket_by_nr);
 
-/*
- * The central event handler.  Send_event() sends an event to the
- * 16-bit subsystem, which then calls the relevant device drivers.
- * Parse_events() interprets the event bits from
- * a card status change report.  Do_shutdown() handles the high
- * priority stuff associated with a card removal.
- */
-
-/* NOTE: send_event needs to be called with skt->sem held. */
-
-static int send_event(struct pcmcia_socket *s, event_t event, int priority)
-{
-	if ((s->state & SOCKET_CARDBUS) && (event != CS_EVENT_CARD_REMOVAL))
-		return 0;
-
-	dev_dbg(&s->dev, "send_event(event %d, pri %d, callback 0x%p)\n",
-	   event, priority, s->callback);
-
-	if (!s->callback)
-		return 0;
-
-	return s->callback->event(s, event, priority);
-}
-
 static int socket_reset(struct pcmcia_socket *skt)
 {
 	int status, i;
@@ -318,7 +294,8 @@ static void socket_shutdown(struct pcmcia_socket *s)
 
 	dev_dbg(&s->dev, "shutdown\n");
 
-	send_event(s, CS_EVENT_CARD_REMOVAL, CS_EVENT_PRI_HIGH);
+	if (s->callback)
+		s->callback->remove(s);
 
 	mutex_lock(&s->ops_mutex);
 	s->state &= SOCKET_INUSE | SOCKET_PRESENT;
@@ -469,7 +446,8 @@ static int socket_insert(struct pcmcia_socket *skt)
 		dev_dbg(&skt->dev, "insert done\n");
 		mutex_unlock(&skt->ops_mutex);
 
-		send_event(skt, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
+		if (!(skt->state & SOCKET_CARDBUS) && (skt->callback))
+			skt->callback->add(skt);
 	} else {
 		mutex_unlock(&skt->ops_mutex);
 		socket_shutdown(skt);
@@ -546,8 +524,8 @@ static int socket_late_resume(struct pcmcia_socket *skt)
 		return 0;
 	}
 #endif
-
-	send_event(skt, CS_EVENT_PM_RESUME, CS_EVENT_PRI_LOW);
+	if (!(skt->state & SOCKET_CARDBUS) && (skt->callback))
+		skt->callback->early_resume(skt);
 	return 0;
 }
 
@@ -766,7 +744,7 @@ int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c)
 		s->callback = c;
 
 		if ((s->state & (SOCKET_PRESENT|SOCKET_CARDBUS)) == SOCKET_PRESENT)
-			send_event(s, CS_EVENT_CARD_INSERTION, CS_EVENT_PRI_LOW);
+			s->callback->add(s);
 	} else
 		s->callback = NULL;
  err:
