@@ -292,6 +292,7 @@ nv04_fifo_init(struct drm_device *dev)
 
 	nv04_fifo_init_intr(dev);
 	pfifo->enable(dev);
+	pfifo->reassign(dev, true);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
 		if (dev_priv->fifos[i]) {
