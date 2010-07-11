@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/stringify.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/compiler.h>
@@ -67,7 +68,10 @@
 #include "tg3.h"
 
 #define DRV_MODULE_NAME		"tg3"
-#define DRV_MODULE_VERSION	"3.111"
+#define TG3_MAJ_NUM			3
+#define TG3_MIN_NUM			111
+#define DRV_MODULE_VERSION	\
+	__stringify(TG3_MAJ_NUM) "." __stringify(TG3_MIN_NUM)
 #define DRV_MODULE_RELDATE	"June 5, 2010"
 
 #define TG3_DEF_MAC_MODE	0
@@ -6629,7 +6633,7 @@ static void tg3_ape_driver_state_change(struct tg3 *tp, int kind)
 		apedata = tg3_ape_read32(tp, TG3_APE_HOST_INIT_COUNT);
 		tg3_ape_write32(tp, TG3_APE_HOST_INIT_COUNT, ++apedata);
 		tg3_ape_write32(tp, TG3_APE_HOST_DRIVER_ID,
-				APE_HOST_DRIVER_ID_MAGIC);
+			APE_HOST_DRIVER_ID_MAGIC(TG3_MAJ_NUM, TG3_MIN_NUM));
 		tg3_ape_write32(tp, TG3_APE_HOST_BEHAVIOR,
 				APE_HOST_BEHAV_NO_PHYLOCK);
 
