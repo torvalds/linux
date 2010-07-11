@@ -292,6 +292,56 @@ void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_kill_tx_queue);
 
+static void rt2x00usb_watchdog_reset_tx(struct data_queue *queue)
+{
+	struct queue_entry_priv_usb *entry_priv;
+	unsigned short threshold = queue->threshold;
+
+	WARNING(queue->rt2x00dev, "TX queue %d timed out, invoke reset", queue->qid);
+
+	/*
+	 * Temporarily disable the TX queue, this will force mac80211
+	 * to use the other queues until this queue has been restored.
+	 *
+	 * Set the queue threshold to the queue limit. This prevents the
+	 * queue from being enabled during the txdone handler.
+	 */
+	queue->threshold = queue->limit;
+	ieee80211_stop_queue(queue->rt2x00dev->hw, queue->qid);
+
+	/*
+	 * Reset all currently uploaded TX frames.
+	 */
+	while (!rt2x00queue_empty(queue)) {
+		entry_priv = rt2x00queue_get_entry(queue, Q_INDEX_DONE)->priv_data;
+		usb_kill_urb(entry_priv->urb);
+
+		/*
+		 * We need a short delay here to wait for
+		 * the URB to be canceled and invoked the tx_done handler.
+		 */
+		udelay(200);
+	}
+
+	/*
+	 * The queue has been reset, and mac80211 is allowed to use the
+	 * queue again.
+	 */
+	queue->threshold = threshold;
+	ieee80211_wake_queue(queue->rt2x00dev->hw, queue->qid);
+}
+
+void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		if (rt2x00queue_timeout(queue))
+			rt2x00usb_watchdog_reset_tx(queue);
+	}
+}
+EXPORT_SYMBOL_GPL(rt2x00usb_watchdog);
+
 /*
  * RX data handlers.
  */

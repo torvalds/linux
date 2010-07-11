@@ -70,6 +70,11 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
 
 	/*
+	 * Start watchdog monitoring.
+	 */
+	rt2x00link_start_watchdog(rt2x00dev);
+
+	/*
 	 * Start the TX queues.
 	 */
 	ieee80211_wake_queues(rt2x00dev->hw);
@@ -87,6 +92,11 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	ieee80211_stop_queues(rt2x00dev->hw);
 	rt2x00queue_stop_queues(rt2x00dev);
+
+	/*
+	 * Stop watchdog monitoring.
+	 */
+	rt2x00link_stop_watchdog(rt2x00dev);
 
 	/*
 	 * Disable RX.

@@ -446,6 +446,8 @@ struct data_queue {
 	enum data_queue_qid qid;
 
 	spinlock_t lock;
+	unsigned long last_index;
+	unsigned long last_index_done;
 	unsigned int count;
 	unsigned short limit;
 	unsigned short threshold;
@@ -596,6 +598,15 @@ static inline int rt2x00queue_available(struct data_queue *queue)
 static inline int rt2x00queue_threshold(struct data_queue *queue)
 {
 	return rt2x00queue_available(queue) < queue->threshold;
+}
+
+/**
+ * rt2x00queue_timeout - Check if a timeout occured for this queue
+ * @queue: Queue to check.
+ */
+static inline int rt2x00queue_timeout(struct data_queue *queue)
+{
+	return time_after(queue->last_index, queue->last_index_done + (HZ / 10));
 }
 
 /**

@@ -332,6 +332,11 @@ struct link {
 	 * Work structure for scheduling periodic link tuning.
 	 */
 	struct delayed_work work;
+
+	/*
+	 * Work structure for scheduling periodic watchdog monitoring.
+	 */
+	struct delayed_work watchdog_work;
 };
 
 /*
@@ -543,6 +548,7 @@ struct rt2x00lib_ops {
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual, const u32 count);
+	void (*watchdog) (struct rt2x00_dev *rt2x00dev);
 
 	/*
 	 * TX control handlers
@@ -648,6 +654,7 @@ enum rt2x00_flags {
 	DRIVER_SUPPORT_CONTROL_FILTERS,
 	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
 	DRIVER_SUPPORT_LINK_TUNING,
+	DRIVER_SUPPORT_WATCHDOG,
 
 	/*
 	 * Driver configuration
