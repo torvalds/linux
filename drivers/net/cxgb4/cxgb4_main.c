@@ -3364,6 +3364,29 @@ static void __devinit print_port_info(struct adapter *adap)
 	}
 }
 
+/*
+ * Free the following resources:
+ * - memory used for tables
+ * - MSI/MSI-X
+ * - net devices
+ * - resources FW is holding for us
+ */
+static void free_some_resources(struct adapter *adapter)
+{
+	unsigned int i;
+
+	t4_free_mem(adapter->l2t);
+	t4_free_mem(adapter->tids.tid_tab);
+	disable_msi(adapter);
+
+	for_each_port(adapter, i)
+		if (adapter->port[i])
+			free_netdev(adapter->port[i]);
+
+	if (adapter->flags & FW_OK)
+		t4_fw_bye(adapter, 0);
+}
+
 #define VLAN_FEAT (NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO | NETIF_F_TSO6 |\
 		   NETIF_F_IPV6_CSUM | NETIF_F_HIGHDMA)
 
@@ -3564,14 +3587,7 @@ sriov:
 	return 0;
 
  out_free_dev:
-	t4_free_mem(adapter->tids.tid_tab);
-	t4_free_mem(adapter->l2t);
-	for_each_port(adapter, i)
-		if (adapter->port[i])
-			free_netdev(adapter->port[i]);
-	if (adapter->flags & FW_OK)
-		t4_fw_bye(adapter, 0);
-	disable_msi(adapter);
+	free_some_resources(adapter);
  out_unmap_bar:
 	iounmap(adapter->regs);
  out_free_adapter:
@@ -3606,16 +3622,8 @@ static void __devexit remove_one(struct pci_dev *pdev)
 
 		if (adapter->flags & FULL_INIT_DONE)
 			cxgb_down(adapter);
-		t4_free_mem(adapter->l2t);
-		t4_free_mem(adapter->tids.tid_tab);
-		disable_msi(adapter);
 
-		for_each_port(adapter, i)
-			if (adapter->port[i])
-				free_netdev(adapter->port[i]);
-
-		if (adapter->flags & FW_OK)
-			t4_fw_bye(adapter, 0);
+		free_some_resources(adapter);
 		iounmap(adapter->regs);
 		kfree(adapter);
 		pci_disable_pcie_error_reporting(pdev);
