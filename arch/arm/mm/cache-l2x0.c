@@ -125,6 +125,18 @@ static void l2x0_flush_all(void)
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
 
+static void l2x0_clean_all(void)
+{
+	unsigned long flags;
+
+	/* clean all ways */
+	spin_lock_irqsave(&l2x0_lock, flags);
+	writel_relaxed(l2x0_way_mask, l2x0_base + L2X0_CLEAN_WAY);
+	cache_wait_way(l2x0_base + L2X0_CLEAN_WAY, l2x0_way_mask);
+	cache_sync();
+	spin_unlock_irqrestore(&l2x0_lock, flags);
+}
+
 static void l2x0_inv_all(void)
 {
 	unsigned long flags;
@@ -183,6 +195,11 @@ static void l2x0_clean_range(unsigned long start, unsigned long end)
 	void __iomem *base = l2x0_base;
 	unsigned long flags;
 
+	if ((end - start) >= l2x0_size) {
+		l2x0_clean_all();
+		return;
+	}
+
 	spin_lock_irqsave(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
 	while (start < end) {
@@ -207,6 +224,11 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 {
 	void __iomem *base = l2x0_base;
 	unsigned long flags;
+
+	if ((end - start) >= l2x0_size) {
+		l2x0_flush_all();
+		return;
+	}
 
 	spin_lock_irqsave(&l2x0_lock, flags);
 	start &= ~(CACHE_LINE_SIZE - 1);
