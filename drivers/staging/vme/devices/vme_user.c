@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/syscalls.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 
 #include <linux/io.h>
@@ -40,6 +40,7 @@
 #include "../vme.h"
 #include "vme_user.h"
 
+static DEFINE_MUTEX(vme_user_mutex);
 static char driver_name[] = "vme_user";
 
 static int bus[USER_BUS_MAX];
@@ -559,9 +560,9 @@ vme_user_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&vme_user_mutex);
 	ret = vme_user_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&vme_user_mutex);
 
 	return ret;
 }

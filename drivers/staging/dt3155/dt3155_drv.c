@@ -57,6 +57,7 @@ MA 02111-1307 USA
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/mutex.h>
 #include <linux/pci.h>
 #include <linux/types.h>
 #include <linux/poll.h>
@@ -76,6 +77,7 @@ MA 02111-1307 USA
 MODULE_LICENSE("GPL");
 
 /* Error variable.  Zero means no error. */
+static DEFINE_MUTEX(dt3155_mutex);
 int dt3155_errno = 0;
 
 #ifndef PCI_DEVICE_ID_INTEL_7116
@@ -827,9 +829,9 @@ dt3155_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&dt3155_mutex);
 	ret = dt3155_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&dt3155_mutex);
 
 	return ret;
 }
