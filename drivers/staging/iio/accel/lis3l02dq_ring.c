@@ -315,28 +315,6 @@ static void lis3l02dq_trigger_bh_to_ring(struct work_struct *work_s)
 
 	return;
 }
-/* in these circumstances is it better to go with unaligned packing and
- * deal with the cost?*/
-static int lis3l02dq_data_rdy_ring_preenable(struct iio_dev *indio_dev)
-{
-	size_t size;
-	/* Check if there are any scan elements enabled, if not fail*/
-	if (!(indio_dev->scan_count || indio_dev->scan_timestamp))
-		return -EINVAL;
-
-	if (indio_dev->ring->access.set_bpd) {
-		if (indio_dev->scan_timestamp)
-			if (indio_dev->scan_count) /* Timestamp and data */
-				size = 2*sizeof(s64);
-			else /* Timestamp only  */
-				size = sizeof(s64);
-		else /* Data only */
-			size = indio_dev->scan_count*sizeof(s16);
-		indio_dev->ring->access.set_bpd(indio_dev->ring, size);
-	}
-
-	return 0;
-}
 
 /* Caller responsible for locking as necessary. */
 static int
@@ -543,7 +521,8 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	indio_dev->ring = ring;
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&ring->access);
-	ring->preenable = &lis3l02dq_data_rdy_ring_preenable;
+	ring->bpe = 2;
+	ring->preenable = &iio_sw_ring_preenable;
 	ring->postenable = &iio_triggered_ring_postenable;
 	ring->predisable = &iio_triggered_ring_predisable;
 	ring->owner = THIS_MODULE;
