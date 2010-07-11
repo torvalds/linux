@@ -31,7 +31,6 @@
 	Supported chipsets: RT2800E & RT2800ED.
  */
 
-#include <linux/crc-ccitt.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
@@ -192,80 +191,12 @@ static char *rt2800pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return FIRMWARE_RT2860;
 }
 
-static int rt2800pci_check_firmware(struct rt2x00_dev *rt2x00dev,
+static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 				    const u8 *data, const size_t len)
 {
-	u16 fw_crc;
-	u16 crc;
-
-	/*
-	 * Only support 8kb firmware files.
-	 */
-	if (len != 8192)
-		return FW_BAD_LENGTH;
-
-	/*
-	 * The last 2 bytes in the firmware array are the crc checksum itself,
-	 * this means that we should never pass those 2 bytes to the crc
-	 * algorithm.
-	 */
-	fw_crc = (data[len - 2] << 8 | data[len - 1]);
-
-	/*
-	 * Use the crc ccitt algorithm.
-	 * This will return the same value as the legacy driver which
-	 * used bit ordering reversion on the both the firmware bytes
-	 * before input input as well as on the final output.
-	 * Obviously using crc ccitt directly is much more efficient.
-	 */
-	crc = crc_ccitt(~0, data, len - 2);
-
-	/*
-	 * There is a small difference between the crc-itu-t + bitrev and
-	 * the crc-ccitt crc calculation. In the latter method the 2 bytes
-	 * will be swapped, use swab16 to convert the crc to the correct
-	 * value.
-	 */
-	crc = swab16(crc);
-
-	return (fw_crc == crc) ? FW_OK : FW_BAD_CRC;
-}
-
-static int rt2800pci_load_firmware(struct rt2x00_dev *rt2x00dev,
-				   const u8 *data, const size_t len)
-{
-	unsigned int i;
 	u32 reg;
 
-	/*
-	 * Wait for stable hardware.
-	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
-		return -EBUSY;
-	}
-
-	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
 	rt2800_register_write(rt2x00dev, AUTOWAKEUP_CFG, 0x00000000);
-
-	/*
-	 * Disable DMA, will be reenabled later when enabling
-	 * the radio.
-	 */
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
 
 	/*
 	 * enable Host program ram write selection
@@ -278,34 +209,11 @@ static int rt2800pci_load_firmware(struct rt2x00_dev *rt2x00dev,
 	 * Write firmware to device.
 	 */
 	rt2800_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
-				      data, len);
+				   data, len);
 
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000);
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00001);
 
-	/*
-	 * Wait for device to stabilize.
-	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
-		if (rt2x00_get_field32(reg, PBF_SYS_CTRL_READY))
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "PBF system register not ready.\n");
-		return -EBUSY;
-	}
-
-	/*
-	 * Disable interrupts
-	 */
-	rt2x00dev->ops->lib->set_device_state(rt2x00dev, STATE_RADIO_IRQ_OFF);
-
-	/*
-	 * Initialize BBP R/W access agent
-	 */
 	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
 
@@ -1029,6 +937,7 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 
 	.regbusy_read		= rt2x00pci_regbusy_read,
 
+	.drv_write_firmware	= rt2800pci_write_firmware,
 	.drv_init_registers	= rt2800pci_init_registers,
 };
 
@@ -1114,8 +1023,8 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.irq_handler_thread	= rt2800pci_interrupt_thread,
 	.probe_hw		= rt2800pci_probe_hw,
 	.get_firmware_name	= rt2800pci_get_firmware_name,
-	.check_firmware		= rt2800pci_check_firmware,
-	.load_firmware		= rt2800pci_load_firmware,
+	.check_firmware		= rt2800_check_firmware,
+	.load_firmware		= rt2800_load_firmware,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
 	.get_entry_state	= rt2800pci_get_entry_state,

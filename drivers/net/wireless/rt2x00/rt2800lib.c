@@ -33,6 +33,7 @@
 	Abstract: rt2800 generic device routines.
  */
 
+#include <linux/crc-ccitt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -271,6 +272,160 @@ int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 	return -EACCES;
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
+
+static bool rt2800_check_firmware_crc(const u8 *data, const size_t len)
+{
+	u16 fw_crc;
+	u16 crc;
+
+	/*
+	 * The last 2 bytes in the firmware array are the crc checksum itself,
+	 * this means that we should never pass those 2 bytes to the crc
+	 * algorithm.
+	 */
+	fw_crc = (data[len - 2] << 8 | data[len - 1]);
+
+	/*
+	 * Use the crc ccitt algorithm.
+	 * This will return the same value as the legacy driver which
+	 * used bit ordering reversion on the both the firmware bytes
+	 * before input input as well as on the final output.
+	 * Obviously using crc ccitt directly is much more efficient.
+	 */
+	crc = crc_ccitt(~0, data, len - 2);
+
+	/*
+	 * There is a small difference between the crc-itu-t + bitrev and
+	 * the crc-ccitt crc calculation. In the latter method the 2 bytes
+	 * will be swapped, use swab16 to convert the crc to the correct
+	 * value.
+	 */
+	crc = swab16(crc);
+
+	return fw_crc == crc;
+}
+
+int rt2800_check_firmware(struct rt2x00_dev *rt2x00dev,
+			  const u8 *data, const size_t len)
+{
+	size_t offset = 0;
+	size_t fw_len;
+	bool multiple;
+
+	/*
+	 * PCI(e) & SOC devices require firmware with a length
+	 * of 8kb. USB devices require firmware files with a length
+	 * of 4kb. Certain USB chipsets however require different firmware,
+	 * which Ralink only provides attached to the original firmware
+	 * file. Thus for USB devices, firmware files have a length
+	 * which is a multiple of 4kb.
+	 */
+	if (rt2x00_is_usb(rt2x00dev)) {
+		fw_len = 4096;
+		multiple = true;
+	} else {
+		fw_len = 8192;
+		multiple = true;
+	}
+
+	/*
+	 * Validate the firmware length
+	 */
+	if (len != fw_len && (!multiple || (len % fw_len) != 0))
+		return FW_BAD_LENGTH;
+
+	/*
+	 * Check if the chipset requires one of the upper parts
+	 * of the firmware.
+	 */
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    !rt2x00_rt(rt2x00dev, RT2860) &&
+	    !rt2x00_rt(rt2x00dev, RT2872) &&
+	    !rt2x00_rt(rt2x00dev, RT3070) &&
+	    ((len / fw_len) == 1))
+		return FW_BAD_VERSION;
+
+	/*
+	 * 8kb firmware files must be checked as if it were
+	 * 2 separate firmware files.
+	 */
+	while (offset < len) {
+		if (!rt2800_check_firmware_crc(data + offset, fw_len))
+			return FW_BAD_CRC;
+
+		offset += fw_len;
+	}
+
+	return FW_OK;
+}
+EXPORT_SYMBOL_GPL(rt2800_check_firmware);
+
+int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
+			 const u8 *data, const size_t len)
+{
+	unsigned int i;
+	u32 reg;
+
+	/*
+	 * Wait for stable hardware.
+	 */
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
+		if (reg && reg != ~0)
+			break;
+		msleep(1);
+	}
+
+	if (i == REGISTER_BUSY_COUNT) {
+		ERROR(rt2x00dev, "Unstable hardware.\n");
+		return -EBUSY;
+	}
+
+	if (rt2x00_is_pci(rt2x00dev))
+		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
+
+	/*
+	 * Disable DMA, will be reenabled later when enabling
+	 * the radio.
+	 */
+	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
+	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+
+	/*
+	 * Write firmware to the device.
+	 */
+	rt2800_drv_write_firmware(rt2x00dev, data, len);
+
+	/*
+	 * Wait for device to stabilize.
+	 */
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+		if (rt2x00_get_field32(reg, PBF_SYS_CTRL_READY))
+			break;
+		msleep(1);
+	}
+
+	if (i == REGISTER_BUSY_COUNT) {
+		ERROR(rt2x00dev, "PBF system register not ready.\n");
+		return -EBUSY;
+	}
+
+	/*
+	 * Initialize firmware.
+	 */
+	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
+	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
+	msleep(1);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rt2800_load_firmware);
 
 void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 {

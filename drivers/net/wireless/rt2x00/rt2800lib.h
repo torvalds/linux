@@ -41,6 +41,8 @@ struct rt2800_ops {
 			    const unsigned int offset,
 			    const struct rt2x00_field32 field, u32 *reg);
 
+	int (*drv_write_firmware)(struct rt2x00_dev *rt2x00dev,
+				  const u8 *data, const size_t len);
 	int (*drv_init_registers)(struct rt2x00_dev *rt2x00dev);
 };
 
@@ -109,6 +111,14 @@ static inline int rt2800_regbusy_read(struct rt2x00_dev *rt2x00dev,
 	return rt2800ops->regbusy_read(rt2x00dev, offset, field, reg);
 }
 
+static inline int rt2800_drv_write_firmware(struct rt2x00_dev *rt2x00dev,
+					    const u8 *data, const size_t len)
+{
+	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
+
+	return rt2800ops->drv_write_firmware(rt2x00dev, data, len);
+}
+
 static inline int rt2800_drv_init_registers(struct rt2x00_dev *rt2x00dev)
 {
 	const struct rt2800_ops *rt2800ops = rt2x00dev->priv;
@@ -119,6 +129,11 @@ static inline int rt2800_drv_init_registers(struct rt2x00_dev *rt2x00dev)
 void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 			const u8 command, const u8 token,
 			const u8 arg0, const u8 arg1);
+
+int rt2800_check_firmware(struct rt2x00_dev *rt2x00dev,
+			  const u8 *data, const size_t len);
+int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
+			 const u8 *data, const size_t len);
 
 void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc);
 void rt2800_process_rxwi(struct queue_entry *entry, struct rxdone_entry_desc *txdesc);
