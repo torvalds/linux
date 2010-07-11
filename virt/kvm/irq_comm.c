@@ -279,15 +279,19 @@ void kvm_unregister_irq_mask_notifier(struct kvm *kvm, int irq,
 	synchronize_rcu();
 }
 
-void kvm_fire_mask_notifiers(struct kvm *kvm, int irq, bool mask)
+void kvm_fire_mask_notifiers(struct kvm *kvm, unsigned irqchip, unsigned pin,
+			     bool mask)
 {
 	struct kvm_irq_mask_notifier *kimn;
 	struct hlist_node *n;
+	int gsi;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(kimn, n, &kvm->mask_notifier_list, link)
-		if (kimn->irq == irq)
-			kimn->func(kimn, mask);
+	gsi = rcu_dereference(kvm->irq_routing)->chip[irqchip][pin];
+	if (gsi != -1)
+		hlist_for_each_entry_rcu(kimn, n, &kvm->mask_notifier_list, link)
+			if (kimn->irq == gsi)
+				kimn->func(kimn, mask);
 	rcu_read_unlock();
 }
 
