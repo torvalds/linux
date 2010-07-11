@@ -621,6 +621,7 @@ struct rt2x00_ops {
 	const struct data_queue_desc *bcn;
 	const struct data_queue_desc *atim;
 	const struct rt2x00lib_ops *lib;
+	const void *drv;
 	const struct ieee80211_ops *hw;
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 	const struct rt2x00debug *debugfs;
@@ -881,11 +882,6 @@ struct rt2x00_dev {
 	 * and interrupt thread routine.
 	 */
 	u32 irqvalue[2];
-
-	/*
-	 * Driver specific data.
-	 */
-	void *priv;
 };
 
 /*

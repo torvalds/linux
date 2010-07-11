@@ -926,26 +926,9 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	return rt2800_validate_eeprom(rt2x00dev);
 }
 
-static const struct rt2800_ops rt2800pci_rt2800_ops = {
-	.register_read		= rt2x00pci_register_read,
-	.register_read_lock	= rt2x00pci_register_read, /* same for PCI */
-	.register_write		= rt2x00pci_register_write,
-	.register_write_lock	= rt2x00pci_register_write, /* same for PCI */
-
-	.register_multiread	= rt2x00pci_register_multiread,
-	.register_multiwrite	= rt2x00pci_register_multiwrite,
-
-	.regbusy_read		= rt2x00pci_regbusy_read,
-
-	.drv_write_firmware	= rt2800pci_write_firmware,
-	.drv_init_registers	= rt2800pci_init_registers,
-};
-
 static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
-
-	rt2x00dev->priv = (void *)&rt2800pci_rt2800_ops;
 
 	/*
 	 * Allocate eeprom data.
@@ -1018,6 +1001,18 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.ampdu_action		= rt2800_ampdu_action,
 };
 
+static const struct rt2800_ops rt2800pci_rt2800_ops = {
+	.register_read		= rt2x00pci_register_read,
+	.register_read_lock	= rt2x00pci_register_read, /* same for PCI */
+	.register_write		= rt2x00pci_register_write,
+	.register_write_lock	= rt2x00pci_register_write, /* same for PCI */
+	.register_multiread	= rt2x00pci_register_multiread,
+	.register_multiwrite	= rt2x00pci_register_multiwrite,
+	.regbusy_read		= rt2x00pci_regbusy_read,
+	.drv_write_firmware	= rt2800pci_write_firmware,
+	.drv_init_registers	= rt2800pci_init_registers,
+};
+
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.irq_handler		= rt2800pci_interrupt,
 	.irq_handler_thread	= rt2800pci_interrupt_thread,
@@ -1082,6 +1077,7 @@ static const struct rt2x00_ops rt2800pci_ops = {
 	.tx			= &rt2800pci_queue_tx,
 	.bcn			= &rt2800pci_queue_bcn,
 	.lib			= &rt2800pci_rt2x00_ops,
+	.drv			= &rt2800pci_rt2800_ops,
 	.hw			= &rt2800pci_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2800_rt2x00debug,

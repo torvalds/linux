@@ -470,26 +470,9 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	return rt2800_validate_eeprom(rt2x00dev);
 }
 
-static const struct rt2800_ops rt2800usb_rt2800_ops = {
-	.register_read		= rt2x00usb_register_read,
-	.register_read_lock	= rt2x00usb_register_read_lock,
-	.register_write		= rt2x00usb_register_write,
-	.register_write_lock	= rt2x00usb_register_write_lock,
-
-	.register_multiread	= rt2x00usb_register_multiread,
-	.register_multiwrite	= rt2x00usb_register_multiwrite,
-
-	.regbusy_read		= rt2x00usb_regbusy_read,
-
-	.drv_write_firmware	= rt2800usb_write_firmware,
-	.drv_init_registers	= rt2800usb_init_registers,
-};
-
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
-
-	rt2x00dev->priv = (void *)&rt2800usb_rt2800_ops;
 
 	/*
 	 * Allocate eeprom data.
@@ -556,6 +539,18 @@ static const struct ieee80211_ops rt2800usb_mac80211_ops = {
 	.ampdu_action		= rt2800_ampdu_action,
 };
 
+static const struct rt2800_ops rt2800usb_rt2800_ops = {
+	.register_read		= rt2x00usb_register_read,
+	.register_read_lock	= rt2x00usb_register_read_lock,
+	.register_write		= rt2x00usb_register_write,
+	.register_write_lock	= rt2x00usb_register_write_lock,
+	.register_multiread	= rt2x00usb_register_multiread,
+	.register_multiwrite	= rt2x00usb_register_multiwrite,
+	.regbusy_read		= rt2x00usb_regbusy_read,
+	.drv_write_firmware	= rt2800usb_write_firmware,
+	.drv_init_registers	= rt2800usb_init_registers,
+};
+
 static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.probe_hw		= rt2800usb_probe_hw,
 	.get_firmware_name	= rt2800usb_get_firmware_name,
@@ -619,6 +614,7 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.tx			= &rt2800usb_queue_tx,
 	.bcn			= &rt2800usb_queue_bcn,
 	.lib			= &rt2800usb_rt2x00_ops,
+	.drv			= &rt2800usb_rt2800_ops,
 	.hw			= &rt2800usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2800_rt2x00debug,
