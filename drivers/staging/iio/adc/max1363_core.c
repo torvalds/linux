@@ -1653,7 +1653,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_cleanup_ring;
 	regdone = 1;
-	ret = max1363_initialize_ring(st->indio_dev->ring);
+	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
 	if (ret)
 		goto error_cleanup_ring;
 
@@ -1671,7 +1671,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 
 	return 0;
 error_uninit_ring:
-	max1363_uninitialize_ring(st->indio_dev->ring);
+	iio_ring_buffer_unregister(st->indio_dev->ring);
 error_cleanup_ring:
 	max1363_ring_cleanup(st->indio_dev);
 error_free_available_scan_masks:
@@ -1700,7 +1700,7 @@ static int max1363_remove(struct i2c_client *client)
 
 	if (st->chip_info->monitor_mode && client->irq)
 		iio_unregister_interrupt_line(st->indio_dev, 0);
-	max1363_uninitialize_ring(indio_dev->ring);
+	iio_ring_buffer_unregister(indio_dev->ring);
 	max1363_ring_cleanup(indio_dev);
 	kfree(st->indio_dev->available_scan_masks);
 	iio_device_unregister(indio_dev);

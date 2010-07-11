@@ -147,8 +147,6 @@ ssize_t adis16209_read_data_from_ring(struct device *dev,
 int adis16209_configure_ring(struct iio_dev *indio_dev);
 void adis16209_unconfigure_ring(struct iio_dev *indio_dev);
 
-int adis16209_initialize_ring(struct iio_ring_buffer *ring);
-void adis16209_uninitialize_ring(struct iio_ring_buffer *ring);
 #else /* CONFIG_IIO_RING_BUFFER */
 
 static inline void adis16209_remove_trigger(struct iio_dev *indio_dev)
@@ -174,15 +172,6 @@ static int adis16209_configure_ring(struct iio_dev *indio_dev)
 }
 
 static inline void adis16209_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16209_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
-
-static inline void adis16209_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 }
 

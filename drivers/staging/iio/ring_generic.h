@@ -11,6 +11,8 @@
 #define _IIO_RING_GENERIC_H_
 #include "iio.h"
 
+#ifdef CONFIG_IIO_RING_BUFFER
+
 struct iio_handler;
 struct iio_ring_buffer;
 struct iio_dev;
@@ -287,5 +289,14 @@ ssize_t iio_show_ring_enable(struct device *dev,
 #define IIO_RING_ENABLE_ATTR DEVICE_ATTR(ring_enable, S_IRUGO | S_IWUSR, \
 					 iio_show_ring_enable,		\
 					 iio_store_ring_enable)
+#else /* CONFIG_IIO_RING_BUFFER */
+static inline int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
+{
+	return 0;
+};
+static inline void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
+{};
+
+#endif /* CONFIG_IIO_RING_BUFFER */
 
 #endif /* _IIO_RING_GENERIC_H_ */

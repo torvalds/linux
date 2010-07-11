@@ -559,15 +559,5 @@ error_iio_sw_rb_free:
 	return ret;
 }
 
-int lis3l02dq_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return iio_ring_buffer_register(ring, 0);
-}
-
-void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-	iio_ring_buffer_unregister(ring);
-}
-
 
 

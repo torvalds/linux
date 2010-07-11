@@ -230,25 +230,12 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st);
 int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev);
 void max1363_ring_cleanup(struct iio_dev *indio_dev);
 
-int max1363_initialize_ring(struct iio_ring_buffer *ring);
-void max1363_uninitialize_ring(struct iio_ring_buffer *ring);
-
 #else /* CONFIG_MAX1363_RING_BUFFER */
-
-static inline void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
-{
-}
-
-static inline int max1363_initialize_ring(struct iio_ring_buffer *ring)
-{
-	return 0;
-}
 
 int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
 	return -EINVAL;
 }
-
 
 static inline int
 max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
