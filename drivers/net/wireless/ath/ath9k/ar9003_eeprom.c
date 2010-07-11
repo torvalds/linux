@@ -951,7 +951,7 @@ static u8 ath9k_hw_ar9300_get_num_ant_config(struct ath_hw *ah,
 	return 1;
 }
 
-static u16 ath9k_hw_ar9300_get_eeprom_antenna_cfg(struct ath_hw *ah,
+static u32 ath9k_hw_ar9300_get_eeprom_antenna_cfg(struct ath_hw *ah,
 						  struct ath9k_channel *chan)
 {
 	return -EINVAL;
