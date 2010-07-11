@@ -295,10 +295,9 @@ static ssize_t iio_trigger_read_current(struct device *dev,
 	struct iio_dev *dev_info = dev_get_drvdata(dev);
 	int len = 0;
 	if (dev_info->trig)
-		len = snprintf(buf,
-			       IIO_TRIGGER_NAME_LENGTH,
-			       "%s\n",
-			       dev_info->trig->name);
+		len = sprintf(buf,
+			      "%s\n",
+			      dev_info->trig->name);
 	return len;
 }
 
@@ -322,8 +321,6 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 		return -EBUSY;
 	}
 	mutex_unlock(&dev_info->mlock);
-
-	len = len < IIO_TRIGGER_NAME_LENGTH ? len : IIO_TRIGGER_NAME_LENGTH;
 
 	dev_info->trig = iio_trigger_find_by_name(buf, len);
 	if (oldtrig && dev_info->trig != oldtrig)

@@ -8,10 +8,6 @@
  */
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_
-#define IIO_TRIGGER_NAME_LENGTH 20
-#define IIO_TRIGGER_ID_PREFIX "iio:trigger"
-#define IIO_TRIGGER_ID_FORMAT IIO_TRIGGER_ID_PREFIX "%d"
-
 
 /**
  * struct iio_trigger - industrial I/O trigger device

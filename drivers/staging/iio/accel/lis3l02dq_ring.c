@@ -495,14 +495,14 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	if (!state->trig)
 		return -ENOMEM;
 
-	state->trig->name = kmalloc(IIO_TRIGGER_NAME_LENGTH, GFP_KERNEL);
+	state->trig->name = kasprintf(GFP_KERNEL,
+				      "lis3l02dq-dev%d",
+				      indio_dev->id);
 	if (!state->trig->name) {
 		ret = -ENOMEM;
 		goto error_free_trig;
 	}
-	snprintf((char *)state->trig->name,
-		 IIO_TRIGGER_NAME_LENGTH,
-		 "lis3l02dq-dev%d", indio_dev->id);
+
 	state->trig->dev.parent = &state->us->dev;
 	state->trig->owner = THIS_MODULE;
 	state->trig->private_data = state;
