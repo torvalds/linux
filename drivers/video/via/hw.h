@@ -700,12 +700,18 @@ struct _lcd_scaling_factor {
 	struct _lcd_ver_scaling_factor lcd_ver_scaling_factor;
 };
 
+struct pll_config {
+	u16 multiplier;
+	u8 divisor;
+	u8 rshift;
+};
+
 struct pll_map {
 	u32 clk;
-	u32 cle266_pll;
-	u32 k800_pll;
-	u32 cx700_pll;
-	u32 vx855_pll;
+	struct pll_config cle266_pll;
+	struct pll_config k800_pll;
+	struct pll_config cx700_pll;
+	struct pll_config vx855_pll;
 };
 
 struct rgbLUT {
