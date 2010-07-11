@@ -3133,8 +3133,10 @@ int __devinit t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 	u8 addr[6];
 	int ret, i, j = 0;
 	struct fw_port_cmd c;
+	struct fw_rss_vi_config_cmd rvc;
 
 	memset(&c, 0, sizeof(c));
+	memset(&rvc, 0, sizeof(rvc));
 
 	for_each_port(adap, i) {
 		unsigned int rss_size;
@@ -3170,6 +3172,15 @@ int __devinit t4_port_init(struct adapter *adap, int mbox, int pf, int vf)
 			FW_PORT_CMD_MDIOADDR_GET(ret) : -1;
 		p->port_type = FW_PORT_CMD_PTYPE_GET(ret);
 		p->mod_type = FW_PORT_MOD_TYPE_NA;
+
+		rvc.op_to_viid = htonl(FW_CMD_OP(FW_RSS_VI_CONFIG_CMD) |
+				       FW_CMD_REQUEST | FW_CMD_READ |
+				       FW_RSS_VI_CONFIG_CMD_VIID(p->viid));
+		rvc.retval_len16 = htonl(FW_LEN16(rvc));
+		ret = t4_wr_mbox(adap, mbox, &rvc, sizeof(rvc), &rvc);
+		if (ret)
+			return ret;
+		p->rss_mode = ntohl(rvc.u.basicvirtual.defaultq_to_udpen);
 
 		init_link_config(&p->link_cfg, ntohs(c.u.info.pcap));
 		j++;

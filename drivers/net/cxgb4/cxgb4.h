@@ -294,6 +294,7 @@ struct port_info {
 	u8     rx_offload;            /* CSO, etc */
 	u8     nqsets;                /* # of qsets */
 	u8     first_qset;            /* index of first qset */
+	u8     rss_mode;
 	struct link_config link_cfg;
 	u16   *rss;
 };
