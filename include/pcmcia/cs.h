@@ -36,12 +36,6 @@ typedef struct conf_reg_t {
 #define REMOVE_MANAGED_RESOURCE		1
 #define ADD_MANAGED_RESOURCE		2
 
-
-typedef struct event_callback_args_t {
-	struct pcmcia_device	*client_handle;
-	void			*client_data;
-} event_callback_args_t;
-
 /* For CardValues field */
 #define CV_OPTION_VALUE		0x01
 #define CV_STATUS_VALUE		0x02
@@ -124,13 +118,6 @@ typedef struct io_req_t {
 #define IRQ_PULSE_ID		0x40
 #define IRQ_SHARE_ID		0x80
 
-typedef struct eventmask_t {
-    u_int	Attributes;
-    u_int	EventMask;
-} eventmask_t;
-
-#define CONF_EVENT_MASK_VALID	0x01
-
 /* Configuration registers present */
 #define PRESENT_OPTION		0x001
 #define PRESENT_STATUS		0x002
@@ -186,39 +173,7 @@ typedef struct win_req_t {
 #define WIN_BAR_MASK		0xe000
 #define WIN_BAR_SHIFT		13
 
-typedef struct error_info_t {
-    int		func;
-    int		retcode;
-} error_info_t;
-
 /* Flag to bind to all functions */
 #define BIND_FN_ALL	0xff
-
-/* Events */
-#define CS_EVENT_PRI_LOW		0
-#define CS_EVENT_PRI_HIGH		1
-
-#define CS_EVENT_WRITE_PROTECT		0x000001
-#define CS_EVENT_CARD_LOCK		0x000002
-#define CS_EVENT_CARD_INSERTION		0x000004
-#define CS_EVENT_CARD_REMOVAL		0x000008
-#define CS_EVENT_BATTERY_DEAD		0x000010
-#define CS_EVENT_BATTERY_LOW		0x000020
-#define CS_EVENT_READY_CHANGE		0x000040
-#define CS_EVENT_CARD_DETECT		0x000080
-#define CS_EVENT_RESET_REQUEST		0x000100
-#define CS_EVENT_RESET_PHYSICAL		0x000200
-#define CS_EVENT_CARD_RESET		0x000400
-#define CS_EVENT_REGISTRATION_COMPLETE	0x000800
-#define CS_EVENT_PM_SUSPEND		0x002000
-#define CS_EVENT_PM_RESUME		0x004000
-#define CS_EVENT_INSERTION_REQUEST	0x008000
-#define CS_EVENT_EJECTION_REQUEST	0x010000
-#define CS_EVENT_MTD_REQUEST		0x020000
-#define CS_EVENT_ERASE_COMPLETE		0x040000
-#define CS_EVENT_REQUEST_ATTENTION	0x080000
-#define CS_EVENT_CB_DETECT		0x100000
-#define CS_EVENT_3VCARD			0x200000
-#define CS_EVENT_XVCARD			0x400000
 
 #endif /* _LINUX_CS_H */
