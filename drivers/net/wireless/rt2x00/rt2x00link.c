@@ -302,6 +302,7 @@ void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev)
 void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 {
 	struct link_qual *qual = &rt2x00dev->link.qual;
+	u8 vgc_level = qual->vgc_level_reg;
 
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
@@ -316,6 +317,13 @@ void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna)
 	 */
 	rt2x00dev->link.count = 0;
 	memset(qual, 0, sizeof(*qual));
+
+	/*
+	 * Restore the VGC level as stored in the registers,
+	 * the driver can use this to determine if the register
+	 * must be updated during reset or not.
+	 */
+	qual->vgc_level_reg = vgc_level;
 
 	/*
 	 * Reset the link tuner.

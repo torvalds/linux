@@ -586,9 +586,11 @@ static void rt2400pci_link_stats(struct rt2x00_dev *rt2x00dev,
 static inline void rt2400pci_set_vgc(struct rt2x00_dev *rt2x00dev,
 				     struct link_qual *qual, u8 vgc_level)
 {
-	rt2400pci_bbp_write(rt2x00dev, 13, vgc_level);
-	qual->vgc_level = vgc_level;
-	qual->vgc_level_reg = vgc_level;
+	if (qual->vgc_level_reg != vgc_level) {
+		rt2400pci_bbp_write(rt2x00dev, 13, vgc_level);
+		qual->vgc_level = vgc_level;
+		qual->vgc_level_reg = vgc_level;
+	}
 }
 
 static void rt2400pci_reset_tuner(struct rt2x00_dev *rt2x00dev,

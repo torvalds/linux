@@ -626,6 +626,7 @@ static inline void rt2500pci_set_vgc(struct rt2x00_dev *rt2x00dev,
 {
 	if (qual->vgc_level_reg != vgc_level) {
 		rt2500pci_bbp_write(rt2x00dev, 17, vgc_level);
+		qual->vgc_level = vgc_level;
 		qual->vgc_level_reg = vgc_level;
 	}
 }
@@ -700,13 +701,10 @@ dynamic_cca_tune:
 	 * R17 is inside the dynamic tuning range,
 	 * start tuning the link based on the false cca counter.
 	 */
-	if (qual->false_cca > 512 && qual->vgc_level_reg < 0x40) {
+	if (qual->false_cca > 512 && qual->vgc_level_reg < 0x40)
 		rt2500pci_set_vgc(rt2x00dev, qual, ++qual->vgc_level_reg);
-		qual->vgc_level = qual->vgc_level_reg;
-	} else if (qual->false_cca < 100 && qual->vgc_level_reg > 0x32) {
+	else if (qual->false_cca < 100 && qual->vgc_level_reg > 0x32)
 		rt2500pci_set_vgc(rt2x00dev, qual, --qual->vgc_level_reg);
-		qual->vgc_level = qual->vgc_level_reg;
-	}
 }
 
 /*
