@@ -108,14 +108,10 @@ void __init board_setup(void)
 int
 mtx1_pci_idsel(unsigned int devsel, int assert)
 {
-#define MTX_IDSEL_ONLY_0_AND_3 0
-#if MTX_IDSEL_ONLY_0_AND_3
-	if (devsel != 0 && devsel != 3) {
-		printk(KERN_ERR "*** not 0 or 3\n");
-		return 0;
-	}
-#endif
-
+	/* This function is only necessary to support a proprietary Cardbus
+	 * adapter on the mtx-1 "singleboard" variant. It triggers a custom
+	 * logic chip connected to EXT_IO3 (GPIO1) to suppress IDSEL signals.
+	 */
 	if (assert && devsel != 0)
 		/* Suppress signal to Cardbus */
 		alchemy_gpio_set_value(1, 0);	/* set EXT_IO3 OFF */
