@@ -433,12 +433,36 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_configure_filter);
 
+static void rt2x00mac_set_tim_iter(void *data, u8 *mac,
+				   struct ieee80211_vif *vif)
+{
+	struct rt2x00_intf *intf = vif_to_intf(vif);
+
+	if (vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_ADHOC &&
+	    vif->type != NL80211_IFTYPE_MESH_POINT &&
+	    vif->type != NL80211_IFTYPE_WDS)
+		return;
+
+	spin_lock(&intf->lock);
+	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
+	spin_unlock(&intf->lock);
+}
+
 int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 		      bool set)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 
-	rt2x00lib_beacondone(rt2x00dev);
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		return 0;
+
+	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
+						   rt2x00mac_set_tim_iter,
+						   rt2x00dev);
+
+	/* queue work to upodate the beacon template */
+	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->intf_work);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_set_tim);

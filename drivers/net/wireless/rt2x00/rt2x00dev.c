@@ -181,7 +181,7 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
-	struct rt2x00_intf *intf = vif_to_intf(vif);
+	struct rt2x00_dev *rt2x00dev = data;
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC &&
@@ -189,9 +189,7 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
 
-	spin_lock(&intf->lock);
-	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
-	spin_unlock(&intf->lock);
+	rt2x00queue_update_beacon(rt2x00dev, vif, true);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
@@ -199,11 +197,10 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beacondone_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					   rt2x00lib_beacondone_iter,
+					   rt2x00dev);
 
-	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->intf_work);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
