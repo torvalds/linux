@@ -74,7 +74,7 @@
  * Signal information.
  * Default offset is required for RSSI <-> dBm conversion.
  */
-#define DEFAULT_RSSI_OFFSET		120 /* FIXME */
+#define DEFAULT_RSSI_OFFSET		120
 
 /*
  * Register layout information.

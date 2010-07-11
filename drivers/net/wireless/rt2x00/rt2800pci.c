@@ -805,7 +805,7 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * Process the RXWI structure that is at the start of the buffer.
 	 */
-	rt2800_process_rxwi(entry->skb, rxdesc);
+	rt2800_process_rxwi(entry, rxdesc);
 
 	/*
 	 * Set RX IDX in register to inform hardware that we have handled

@@ -563,7 +563,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * Process the RXWI structure.
 	 */
-	rt2800_process_rxwi(entry->skb, rxdesc);
+	rt2800_process_rxwi(entry, rxdesc);
 }
 
 /*

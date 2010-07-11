@@ -325,9 +325,53 @@ void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 }
 EXPORT_SYMBOL_GPL(rt2800_write_txwi);
 
-void rt2800_process_rxwi(struct sk_buff *skb, struct rxdone_entry_desc *rxdesc)
+static int rt2800_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxwi_w2)
 {
-	__le32 *rxwi = (__le32 *) skb->data;
+	int rssi0 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI0);
+	int rssi1 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI1);
+	int rssi2 = rt2x00_get_field32(rxwi_w2, RXWI_W2_RSSI2);
+	u16 eeprom;
+	u8 offset0;
+	u8 offset1;
+	u8 offset2;
+
+	if (rt2x00dev->rx_status.band == IEEE80211_BAND_2GHZ) {
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_BG, &eeprom);
+		offset0 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET0);
+		offset1 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG_OFFSET1);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_BG2, &eeprom);
+		offset2 = rt2x00_get_field16(eeprom, EEPROM_RSSI_BG2_OFFSET2);
+	} else {
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_A, &eeprom);
+		offset0 = rt2x00_get_field16(eeprom, EEPROM_RSSI_A_OFFSET0);
+		offset1 = rt2x00_get_field16(eeprom, EEPROM_RSSI_A_OFFSET1);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_A2, &eeprom);
+		offset2 = rt2x00_get_field16(eeprom, EEPROM_RSSI_A2_OFFSET2);
+	}
+
+	/*
+	 * Convert the value from the descriptor into the RSSI value
+	 * If the value in the descriptor is 0, it is considered invalid
+	 * and the default (extremely low) rssi value is assumed
+	 */
+	rssi0 = (rssi0) ? (-12 - offset0 - rt2x00dev->lna_gain - rssi0) : -128;
+	rssi1 = (rssi1) ? (-12 - offset1 - rt2x00dev->lna_gain - rssi1) : -128;
+	rssi2 = (rssi2) ? (-12 - offset2 - rt2x00dev->lna_gain - rssi2) : -128;
+
+	/*
+	 * mac80211 only accepts a single RSSI value. Calculating the
+	 * average doesn't deliver a fair answer either since -60:-60 would
+	 * be considered equally good as -50:-70 while the second is the one
+	 * which gives less energy...
+	 */
+	rssi0 = max(rssi0, rssi1);
+	return max(rssi0, rssi2);
+}
+
+void rt2800_process_rxwi(struct queue_entry *entry,
+			 struct rxdone_entry_desc *rxdesc)
+{
+	__le32 *rxwi = (__le32 *) entry->skb->data;
 	u32 word;
 
 	rt2x00_desc_read(rxwi, 0, &word);
@@ -358,14 +402,15 @@ void rt2800_process_rxwi(struct sk_buff *skb, struct rxdone_entry_desc *rxdesc)
 
 	rt2x00_desc_read(rxwi, 2, &word);
 
-	rxdesc->rssi =
-	    (rt2x00_get_field32(word, RXWI_W2_RSSI0) +
-	     rt2x00_get_field32(word, RXWI_W2_RSSI1)) / 2;
+	/*
+	 * Convert descriptor AGC value to RSSI value.
+	 */
+	rxdesc->rssi = rt2800_agc_to_rssi(entry->queue->rt2x00dev, word);
 
 	/*
 	 * Remove RXWI descriptor from start of buffer.
 	 */
-	skb_pull(skb, RXWI_DESC_SIZE);
+	skb_pull(entry->skb, RXWI_DESC_SIZE);
 }
 EXPORT_SYMBOL_GPL(rt2800_process_rxwi);
 
