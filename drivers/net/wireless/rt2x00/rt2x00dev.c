@@ -178,6 +178,28 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 /*
  * Interrupt context handlers.
  */
+static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
+{
+	struct rt2x00_dev *rt2x00dev = data;
+	struct sk_buff *skb;
+
+	/*
+	 * Only AP mode interfaces do broad- and multicast buffering
+	 */
+	if (vif->type != NL80211_IFTYPE_AP)
+		return;
+
+	/*
+	 * Send out buffered broad- and multicast frames
+	 */
+	skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
+	while (skb) {
+		rt2x00mac_tx(rt2x00dev->hw, skb);
+		skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
+	}
+}
+
 static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 				      struct ieee80211_vif *vif)
 {
@@ -197,9 +219,15 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
+	/* send buffered bc/mc frames out for every bssid */
 	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
-					   rt2x00lib_beacondone_iter,
-					   rt2x00dev);
+					    rt2x00lib_bc_buffer_iter,
+					    rt2x00dev);
+
+	/* fetch next beacon */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_beacondone_iter,
+					    rt2x00dev);
 
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
