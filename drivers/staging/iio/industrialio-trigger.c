@@ -398,3 +398,16 @@ int iio_device_unregister_trigger_consumer(struct iio_dev *dev_info)
 }
 EXPORT_SYMBOL(iio_device_unregister_trigger_consumer);
 
+int iio_alloc_pollfunc(struct iio_dev *indio_dev,
+		       void (*immediate)(struct iio_dev *indio_dev),
+		       void (*main)(struct iio_dev  *private_data))
+{
+	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
+	if (indio_dev->pollfunc == NULL)
+		return -ENOMEM;
+	indio_dev->pollfunc->poll_func_immediate = immediate;
+	indio_dev->pollfunc->poll_func_main = main;
+	indio_dev->pollfunc->private_data = indio_dev;
+	return 0;
+}
+EXPORT_SYMBOL(iio_alloc_pollfunc);

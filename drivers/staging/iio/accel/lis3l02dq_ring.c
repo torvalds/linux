@@ -566,13 +566,9 @@ int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 	ring->predisable = &lis3l02dq_data_rdy_ring_predisable;
 	ring->owner = THIS_MODULE;
 
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &lis3l02dq_poll_func_th);
+	if (ret)
 		goto error_iio_sw_rb_free;;
-	}
-	indio_dev->pollfunc->poll_func_main = &lis3l02dq_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
 
@@ -590,5 +586,6 @@ void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 	iio_ring_buffer_unregister(ring);
 }
+
 
 

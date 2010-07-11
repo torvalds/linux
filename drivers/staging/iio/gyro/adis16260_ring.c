@@ -231,13 +231,10 @@ int adis16260_configure_ring(struct iio_dev *indio_dev)
 	ring->predisable = &adis16260_data_rdy_ring_predisable;
 	ring->owner = THIS_MODULE;
 
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;;
-	}
-	indio_dev->pollfunc->poll_func_main = &adis16260_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &adis16260_poll_func_th);
+	if (ret)
+		goto error_iio_sw_rb_free;
+
 	indio_dev->modes |= INDIO_RING_TRIGGERED;
 	return 0;
 

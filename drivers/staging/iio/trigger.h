@@ -148,9 +148,12 @@ struct iio_poll_func {
 
 };
 
+int iio_alloc_pollfunc(struct iio_dev *indio_dev,
+		       void (*immediate)(struct iio_dev *indio_dev),
+		       void (*main)(struct iio_dev  *private_data));
+
 struct iio_trigger *iio_allocate_trigger(void);
 
 void iio_free_trigger(struct iio_trigger *trig);
-
 
 #endif /* _IIO_TRIGGER_H_ */

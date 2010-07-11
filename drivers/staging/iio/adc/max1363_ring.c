@@ -223,14 +223,9 @@ int max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 	/* Effectively select the ring buffer implementation */
 	iio_ring_sw_register_funcs(&st->indio_dev->ring->access);
-	indio_dev->pollfunc = kzalloc(sizeof(*indio_dev->pollfunc), GFP_KERNEL);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
+	ret = iio_alloc_pollfunc(indio_dev, NULL, &max1363_poll_func_th);
+	if (ret)
 		goto error_deallocate_sw_rb;
-	}
-	/* Configure the polling function called on trigger interrupts */
-	indio_dev->pollfunc->poll_func_main = &max1363_poll_func_th;
-	indio_dev->pollfunc->private_data = indio_dev;
 
 	/* Ring buffer functions - here trigger setup related */
 	indio_dev->ring->postenable = &max1363_ring_postenable;
