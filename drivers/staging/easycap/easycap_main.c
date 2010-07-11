@@ -2490,6 +2490,10 @@ if (peasycap->video_idle) {
 				SAY("EMSGSIZE\n");
 				break;
 			}
+			case -ENOSPC: {
+				SAY("ENOSPC\n");
+				break;
+			}
 			default: {
 				SAY("0x%08X\n", rc);
 				break;
@@ -2571,6 +2575,9 @@ if (purb->status) {
 	case -ECONNRESET: {
 		SAY("-ECONNRESET\n"); break;
 	}
+	case -ENOSPC: {
+		SAY("ENOSPC\n"); break;
+	}
 	default: {
 		SAY("unknown error code 0x%08X\n", purb->status); break;
 	}
@@ -2629,6 +2636,9 @@ if (purb->status) {
 			}
 			case -ECONNRESET: {
 				strcpy(&errbuf[0], "-ECONNRESET"); break;
+			}
+			case -ENOSPC: {
+				SAY("ENOSPC\n"); break;
 			}
 			case -ESHUTDOWN: {
 				strcpy(&errbuf[0], "-ESHUTDOWN"); break;
@@ -2948,6 +2958,9 @@ if (peasycap->video_isoc_streaming) {
 		}
 		case -EMSGSIZE: {
 			SAY("EMSGSIZE\n");  break;
+		}
+		case -ENOSPC: {
+			SAY("ENOSPC\n"); break;
 		}
 		default: {
 			SAY("0x%08X\n", rc); break;
@@ -3861,7 +3874,7 @@ case 2: {
 			peasycap->ilk |= 0x02;
 			SAY("hardware is FOUR-CVBS\n");
 			peasycap->microphone = true;
-			peasycap->audio_pages_per_fragment = 2;
+			peasycap->audio_pages_per_fragment = 4;
 		} else if (256 == peasycap->audio_isoc_maxframesize) {
 			peasycap->ilk &= ~0x02;
 			SAY("hardware is CVBS+S-VIDEO\n");

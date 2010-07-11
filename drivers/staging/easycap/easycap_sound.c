@@ -50,6 +50,10 @@ char errbuf[16];
 __u8 *p1, *p2;
 __s16 s16;
 int i, j, more, much, leap, rc;
+#if defined(UPSAMPLE)
+int k;
+__s16 oldaudio, newaudio, delta;
+#endif /*UPSAMPLE*/
 
 JOT(16, "\n");
 
@@ -98,6 +102,9 @@ if (peasycap->audio_idle) {
 			}
 			case -EMSGSIZE: {
 				SAY("EMSGSIZE\n");  break;
+			}
+			case -ENOSPC: {
+				SAY("ENOSPC\n");  break;
 			}
 			default: {
 				SAY("0x%08X\n", rc); break;
@@ -172,6 +179,9 @@ if (purb->status) {
 	case -ECONNRESET: {
 		SAY("-ECONNRESET\n"); break;
 	}
+	case -ENOSPC: {
+		SAY("ENOSPC\n");  break;
+	}
 	default: {
 		SAY("unknown error code 0x%08X\n", purb->status); break;
 	}
@@ -226,6 +236,10 @@ if (purb->status) {
  *  PROCEED HERE WHEN NO ERROR
  */
 /*---------------------------------------------------------------------------*/
+#if defined(UPSAMPLE)
+oldaudio = peasycap->oldaudio;
+#endif /*UPSAMPLE*/
+
 for (i = 0;  i < purb->number_of_packets; i++) {
 	switch (purb->iso_frame_desc[i].status) {
 	case  0: {
@@ -276,6 +290,9 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 	case -ECONNRESET: {
 		strcpy(&errbuf[0], "-ECONNRESET"); break;
 	}
+	case -ENOSPC: {
+		strcpy(&errbuf[0], "-ENOSPC"); break;
+	}
 	case -ESHUTDOWN: {
 		strcpy(&errbuf[0], "-ESHUTDOWN"); break;
 	}
@@ -318,7 +335,7 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 /*---------------------------------------------------------------------------*/
 /*
  *  COPY more BYTES FROM ISOC BUFFER TO AUDIO BUFFER,
- *  CONVERTING 8-BIT SAMPLES TO 16-BIT SIGNED LITTLE-ENDED SAMPLES IF NECESSARY
+ *  CONVERTING 8-BIT MONO TO 16-BIT SIGNED LITTLE-ENDIAN SAMPLES IF NECESSARY
  */
 /*---------------------------------------------------------------------------*/
 			while (more) {
@@ -386,8 +403,6 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 
 				much = PAGE_SIZE - (int)(paudio_buffer->pto -\
 							 paudio_buffer->pgo);
-				if (much % 2)
-					JOT(8, "MISTAKE?  much is odd\n");
 
 				if (false == peasycap->microphone) {
 					if (much > more)
@@ -397,17 +412,57 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 					p1 += much;
 					more -= much;
 				} else {
+#if defined(UPSAMPLE)
+					if (much % 16)
+						JOT(8, "MISTAKE? much" \
+						" is not divisible by 16\n");
+					if (much > (16 * \
+							more))
+						much = 16 * \
+							more;
+					p2 = (__u8 *)paudio_buffer->pto;
+
+					for (j = 0;  j < (much/16);  j++) {
+						newaudio =  ((int) *p1) - 128;
+						newaudio = 128 * \
+								newaudio;
+
+						delta = (newaudio - oldaudio) \
+									/ 4;
+						s16 = oldaudio + delta;
+
+						for (k = 0;  k < 4;  k++) {
+							*p2 = (0x00FF & s16);
+							*(p2 + 1) = (0xFF00 & \
+								s16) >> 8;
+							p2 += 2;
+							*p2 = (0x00FF & s16);
+							*(p2 + 1) = (0xFF00 & \
+								s16) >> 8;
+							p2 += 2;
+
+							s16 += delta;
+						}
+						p1++;
+						more--;
+						oldaudio = s16;
+					}
+#else
 					if (much > (2 * more))
 						much = 2 * more;
 					p2 = (__u8 *)paudio_buffer->pto;
 
 					for (j = 0;  j < (much / 2);  j++) {
 						s16 =  ((int) *p1) - 128;
-						*p2      = (0xFF00 & s16) >> 8;
-						*(p2 + 1) = (0x00FF & s16);
+						s16 = 128 * \
+								s16;
+						*p2 = (0x00FF & s16);
+						*(p2 + 1) = (0xFF00 & s16) >> \
+									8;
 						p1++;  p2 += 2;
 						more--;
 					}
+#endif /*UPSAMPLE*/
 				}
 				(paudio_buffer->pto) += much;
 			}
@@ -417,6 +472,11 @@ for (i = 0;  i < purb->number_of_packets; i++) {
 			"%i=purb->iso_frame_desc[i].status\n", \
 				purb->iso_frame_desc[i].status);
 	}
+
+#if defined(UPSAMPLE)
+peasycap->oldaudio = oldaudio;
+#endif /*UPSAMPLE*/
+
 }
 /*---------------------------------------------------------------------------*/
 /*
@@ -452,6 +512,9 @@ if (peasycap->audio_isoc_streaming) {
 		}
 		case -EMSGSIZE: {
 			SAY("EMSGSIZE\n");  break;
+		}
+		case -ENOSPC: {
+			SAY("ENOSPC\n");  break;
 		}
 		default: {
 			SAY("0x%08X\n", rc); break;
@@ -764,7 +827,7 @@ if (peasycap->audio_sample) {
 	mean = peasycap->audio_niveau;
 	sdr = signed_div(mean, peasycap->audio_sample);
 
-	JOT(12, "%8lli=mean  %8lli=meansquare after %lli samples, =>\n", \
+	JOT(8, "%8lli=mean  %8lli=meansquare after %lli samples, =>\n", \
 				sdr.quotient, above, peasycap->audio_sample);
 
 	sdr = signed_div(above, 32768);
@@ -901,6 +964,9 @@ if (!peasycap->audio_isoc_streaming) {
 					}
 					case -EMSGSIZE: {
 						SAY("EMSGSIZE\n"); break;
+					}
+					case -ENOSPC: {
+						SAY("ENOSPC\n"); break;
 					}
 					default: {
 						SAY("unknown error code %i\n",\

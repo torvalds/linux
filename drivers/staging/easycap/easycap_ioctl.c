@@ -1985,10 +1985,17 @@ case SNDCTL_DSP_GETCAPS: {
 	int caps;
 	JOT(8, "SNDCTL_DSP_GETCAPS\n");
 
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		caps = 0x04400000;
+	else
+		caps = 0x04400000;
+#else
 	if (true == peasycap->microphone)
 		caps = 0x02400000;
 	else
 		caps = 0x04400000;
+#endif /*UPSAMPLE*/
 
 	if (0 != copy_to_user((void __user *)arg, &caps, sizeof(int)))
 		return -EFAULT;
@@ -1998,10 +2005,17 @@ case SNDCTL_DSP_GETFMTS: {
 	int incoming;
 	JOT(8, "SNDCTL_DSP_GETFMTS\n");
 
+#if defined(UPSAMPLE)
 	if (true == peasycap->microphone)
 		incoming = AFMT_S16_LE;
 	else
 		incoming = AFMT_S16_LE;
+#else
+	if (true == peasycap->microphone)
+		incoming = AFMT_S16_LE;
+	else
+		incoming = AFMT_S16_LE;
+#endif /*UPSAMPLE*/
 
 	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int)))
 		return -EFAULT;
@@ -2014,10 +2028,17 @@ case SNDCTL_DSP_SETFMT: {
 		return -EFAULT;
 	JOT(8, "........... %i=incoming\n", incoming);
 
+#if defined(UPSAMPLE)
 	if (true == peasycap->microphone)
 		outgoing = AFMT_S16_LE;
 	else
 		outgoing = AFMT_S16_LE;
+#else
+	if (true == peasycap->microphone)
+		outgoing = AFMT_S16_LE;
+	else
+		outgoing = AFMT_S16_LE;
+#endif /*UPSAMPLE*/
 
 	if (incoming != outgoing) {
 		JOT(8, "........... %i=outgoing\n", outgoing);
@@ -2037,10 +2058,17 @@ case SNDCTL_DSP_STEREO: {
 		return -EFAULT;
 	JOT(8, "........... %i=incoming\n", incoming);
 
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		incoming = 1;
+	else
+		incoming = 1;
+#else
 	if (true == peasycap->microphone)
 		incoming = 0;
 	else
 		incoming = 1;
+#endif /*UPSAMPLE*/
 
 	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int)))
 		return -EFAULT;
@@ -2053,10 +2081,17 @@ case SNDCTL_DSP_SPEED: {
 		return -EFAULT;
 	JOT(8, "........... %i=incoming\n", incoming);
 
+#if defined(UPSAMPLE)
+	if (true == peasycap->microphone)
+		incoming = 32000;
+	else
+		incoming = 48000;
+#else
 	if (true == peasycap->microphone)
 		incoming = 8000;
 	else
 		incoming = 48000;
+#endif /*UPSAMPLE*/
 
 	if (0 != copy_to_user((void __user *)arg, &incoming, sizeof(int)))
 		return -EFAULT;

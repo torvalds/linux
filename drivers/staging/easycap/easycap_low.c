@@ -827,7 +827,7 @@ static __u16 index = 0x0301;
 
 static unsigned char buffer[1];
 static __u16 length = 1;
-int rc;
+int rc, id1, id2;
 
 if (NULL == peasycap)
 	return -EFAULT;
@@ -883,46 +883,30 @@ SET(pusb_device, 0x0500, 0x008C);
 SET(pusb_device, 0x0506, 0x0001);
 SET(pusb_device, 0x0507, 0x0000);
 
-if (false == peasycap->microphone) {
-	/*-------------------------------------------------------------------*/
-	/*
-	*   SELECT AUDIO SOURCE "LINE IN" AND SET DEFAULT GAIN TO 0dB.
-	*/
-	/*-------------------------------------------------------------------*/
-	write_vt(pusb_device, 0x0002, 0x8000);
-	write_vt(pusb_device, 0x001C, 0x8000);
+id1 = read_vt(pusb_device, 0x007C);
+id2 = read_vt(pusb_device, 0x007E);
+SAY("0x%04X:0x%04X is audio vendor id\n", id1, id2);
 
-	write_vt(pusb_device, 0x000E, 0x0000);
-	write_vt(pusb_device, 0x0010, 0x0000);
-	write_vt(pusb_device, 0x0012, 0x8000);
-	write_vt(pusb_device, 0x0016, 0x0000);
+/*---------------------------------------------------------------------------*/
+/*
+*   SELECT AUDIO SOURCE "LINE IN" AND SET DEFAULT GAIN TO 0 dB.
+*
+*   THESE COMMANDS SEEM TO BE ACCEPTED (THOUGH POSSIBLY IGNORED) EVEN WHEN
+*   THERE IS NO SEPARATE AUDIO CHIP PRESENT.
+*/
+/*---------------------------------------------------------------------------*/
 
-	write_vt(pusb_device, 0x001A, 0x0404);
-	write_vt(pusb_device, 0x0002, 0x0000);
-	write_vt(pusb_device, 0x001C, 0x0000);
-} else {
-	/*-------------------------------------------------------------------*/
-	/*
-	*   SELECT AUDIO SOURCE "MIC" AND SET DEFAULT GAIN TO 0 dB.
-	*
-	*   REGISTER 0x000E CAN BE SET TO PROVIDE UP TO 34.5 dB ATTENTUATION,
-	*   BUT THIS HAS NOT PROVED NECESSARY FOR THE FEW SIGNAL SOURCES
-	*   TESTED HITHERTO.
-	*/
-	/*-------------------------------------------------------------------*/
-	write_vt(pusb_device, 0x0006, 0x8000);
-	write_vt(pusb_device, 0x001C, 0x8000);
+write_vt(pusb_device, 0x0002, 0x8000);
+write_vt(pusb_device, 0x001C, 0x8000);
 
-	write_vt(pusb_device, 0x000E, 0x0008);
+write_vt(pusb_device, 0x000E, 0x0000);
+write_vt(pusb_device, 0x0010, 0x0000);
+write_vt(pusb_device, 0x0012, 0x8000);
+write_vt(pusb_device, 0x0016, 0x0000);
 
-	write_vt(pusb_device, 0x0010, 0x0000);
-	write_vt(pusb_device, 0x0012, 0x8000);
-	write_vt(pusb_device, 0x0016, 0x0000);
-
-	write_vt(pusb_device, 0x001A, 0x0000);
-	write_vt(pusb_device, 0x0006, 0x0000);
-	write_vt(pusb_device, 0x001C, 0x0000);
-}
+write_vt(pusb_device, 0x001A, 0x0404);
+write_vt(pusb_device, 0x0002, 0x0000);
+write_vt(pusb_device, 0x001C, 0x0000);
 
 check_vt(pusb_device);
 
