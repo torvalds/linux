@@ -17,16 +17,6 @@
 #include "../trigger.h"
 #include "adis16260.h"
 
-/**
- * combine_8_to_16() utility function to munge to u8s into u16
- **/
-static inline u16 combine_8_to_16(u8 lower, u8 upper)
-{
-	u16 _lower = lower;
-	u16 _upper = upper;
-	return _lower | (_upper << 8);
-}
-
 static IIO_SCAN_EL_C(supply, ADIS16260_SCAN_SUPPLY, IIO_UNSIGNED(12),
 		ADIS16260_SUPPLY_OUT, NULL);
 static IIO_SCAN_EL_C(gyro, ADIS16260_SCAN_GYRO, IIO_SIGNED(14),
@@ -134,10 +124,9 @@ static void adis16260_trigger_bh_to_ring(struct work_struct *work_s)
 
 	if (st->indio_dev->scan_count)
 		if (adis16260_read_ring_data(&st->indio_dev->dev, st->rx) >= 0)
-			for (; i < st->indio_dev->scan_count; i++) {
-				data[i] = combine_8_to_16(st->rx[i*2+1],
-						st->rx[i*2]);
-			}
+			for (; i < st->indio_dev->scan_count; i++)
+				data[i] = be16_to_cpup(
+					(__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
 	if (st->indio_dev->scan_timestamp)
