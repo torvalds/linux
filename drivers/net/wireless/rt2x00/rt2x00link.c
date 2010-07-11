@@ -359,10 +359,11 @@ static void rt2x00link_tuner(struct work_struct *work)
 		qual->rssi = link->avg_rssi.avg;
 
 	/*
-	 * Only perform the link tuning when Link tuning
-	 * has been enabled (This could have been disabled from the EEPROM).
+	 * Check if link tuning is supported by the hardware, some hardware
+	 * do not support link tuning at all, while other devices can disable
+	 * the feature from the EEPROM.
 	 */
-	if (!test_bit(CONFIG_DISABLE_LINK_TUNING, &rt2x00dev->flags))
+	if (test_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags))
 		rt2x00dev->ops->lib->link_tuner(rt2x00dev, qual, link->count);
 
 	/*
