@@ -193,7 +193,8 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 		/* configure audio & enable i2s playback */
 		value = readl(priv->io + KIRKWOOD_PLAYCTL);
 		value &= ~KIRKWOOD_PLAYCTL_BURST_MASK;
-		value &= ~(KIRKWOOD_PLAYCTL_PAUSE|KIRKWOOD_PLAYCTL_SPDIF_EN);
+		value &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE
+				| KIRKWOOD_PLAYCTL_SPDIF_EN);
 
 		if (priv->burst == 32)
 			value |= KIRKWOOD_PLAYCTL_BURST_32;
@@ -206,7 +207,7 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 		/* stop audio, disable interrupts */
 		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value |= KIRKWOOD_PLAYCTL_PAUSE;
+		value |= KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE;
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 
 		value = readl(priv->io + KIRKWOOD_INT_MASK);
@@ -222,14 +223,14 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value |= KIRKWOOD_PLAYCTL_PAUSE;
+		value |= KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE;
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value &= ~KIRKWOOD_PLAYCTL_PAUSE;
+		value &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE);
 		writel(value, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
@@ -262,7 +263,8 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 		value = readl(priv->io + KIRKWOOD_RECCTL);
 		value &= ~KIRKWOOD_RECCTL_BURST_MASK;
 		value &= ~KIRKWOOD_RECCTL_MONO;
-		value &= ~(KIRKWOOD_RECCTL_PAUSE | KIRKWOOD_RECCTL_SPDIF_EN);
+		value &= ~(KIRKWOOD_RECCTL_PAUSE | KIRKWOOD_RECCTL_MUTE
+			| KIRKWOOD_RECCTL_SPDIF_EN);
 
 		if (priv->burst == 32)
 			value |= KIRKWOOD_RECCTL_BURST_32;
@@ -276,7 +278,7 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 		/* stop audio, disable interrupts */
 		value = readl(priv->io + KIRKWOOD_RECCTL);
-		value |= KIRKWOOD_RECCTL_PAUSE;
+		value |= KIRKWOOD_RECCTL_PAUSE | KIRKWOOD_RECCTL_MUTE;
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 
 		value = readl(priv->io + KIRKWOOD_INT_MASK);
@@ -292,14 +294,14 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		value = readl(priv->io + KIRKWOOD_RECCTL);
-		value |= KIRKWOOD_RECCTL_PAUSE;
+		value |= KIRKWOOD_RECCTL_PAUSE | KIRKWOOD_RECCTL_MUTE;
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 		break;
 
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		value = readl(priv->io + KIRKWOOD_RECCTL);
-		value &= ~KIRKWOOD_RECCTL_PAUSE;
+		value &= ~(KIRKWOOD_RECCTL_PAUSE | KIRKWOOD_RECCTL_MUTE);
 		writel(value, priv->io + KIRKWOOD_RECCTL);
 		break;
 
