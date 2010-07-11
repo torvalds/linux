@@ -473,7 +473,7 @@ void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc)
 	dev_kfree_skb_any(entry->skb);
 	entry->skb = NULL;
 }
-EXPORT_SYMBOL(rt2800_write_beacon);
+EXPORT_SYMBOL_GPL(rt2800_write_beacon);
 
 static void inline rt2800_clear_beacon(struct rt2x00_dev *rt2x00dev,
 				       unsigned int beacon_base)
