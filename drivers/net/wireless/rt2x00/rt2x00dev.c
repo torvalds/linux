@@ -340,9 +340,17 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * send the status report back.
 	 */
 	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211))
-		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
+		/*
+		 * Only PCI and SOC devices process the tx status in process
+		 * context. Hence use ieee80211_tx_status for PCI and SOC
+		 * devices and stick to ieee80211_tx_status_irqsafe for USB.
+		 */
+		if (rt2x00_is_usb(rt2x00dev))
+			ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
+		else
+			ieee80211_tx_status(rt2x00dev->hw, entry->skb);
 	else
-		dev_kfree_skb_irq(entry->skb);
+		dev_kfree_skb_any(entry->skb);
 
 	/*
 	 * Make this entry available for reuse.
@@ -489,7 +497,16 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
 	memcpy(IEEE80211_SKB_RXCB(entry->skb), rx_status, sizeof(*rx_status));
-	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb);
+
+	/*
+	 * Currently only PCI and SOC devices handle rx interrupts in process
+	 * context. Hence, use ieee80211_rx_irqsafe for USB and ieee80211_rx_ni
+	 * for PCI and SOC devices.
+	 */
+	if (rt2x00_is_usb(rt2x00dev))
+		ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb);
+	else
+		ieee80211_rx_ni(rt2x00dev->hw, entry->skb);
 
 	/*
 	 * Replace the skb with the freshly allocated one.

@@ -515,6 +515,11 @@ struct rt2x00lib_ops {
 	irq_handler_t irq_handler;
 
 	/*
+	 * Threaded Interrupt handlers.
+	 */
+	irq_handler_t irq_handler_thread;
+
+	/*
 	 * Device init handlers.
 	 */
 	int (*probe_hw) (struct rt2x00_dev *rt2x00dev);
@@ -869,6 +874,12 @@ struct rt2x00_dev {
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
+
+	/*
+	 * Interrupt values, stored between interrupt service routine
+	 * and interrupt thread routine.
+	 */
+	u32 irqvalue[2];
 
 	/*
 	 * Driver specific data.

@@ -422,7 +422,8 @@ static void rt2800pci_toggle_rx(struct rt2x00_dev *rt2x00dev,
 static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 				 enum dev_state state)
 {
-	int mask = (state == STATE_RADIO_IRQ_ON);
+	int mask = (state == STATE_RADIO_IRQ_ON) ||
+		   (state == STATE_RADIO_IRQ_ON_ISR);
 	u32 reg;
 
 	/*
@@ -631,7 +632,9 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800pci_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
+	case STATE_RADIO_IRQ_OFF_ISR:
 		rt2800pci_toggle_irq(rt2x00dev, state);
 		break;
 	case STATE_DEEP_SLEEP:
@@ -929,20 +932,10 @@ static void rt2800pci_wakeup(struct rt2x00_dev *rt2x00dev)
 	rt2800_config(rt2x00dev, &libconf, IEEE80211_CONF_CHANGE_PS);
 }
 
-static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
+static irqreturn_t rt2800pci_interrupt_thread(int irq, void *dev_instance)
 {
 	struct rt2x00_dev *rt2x00dev = dev_instance;
-	u32 reg;
-
-	/* Read status and ACK all interrupts */
-	rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
-	rt2800_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
-
-	if (!reg)
-		return IRQ_NONE;
-
-	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
-		return IRQ_HANDLED;
+	u32 reg = rt2x00dev->irqvalue[0];
 
 	/*
 	 * 1 - Rx ring done interrupt.
@@ -962,7 +955,37 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
 	if (rt2x00_get_field32(reg, INT_SOURCE_CSR_AUTO_WAKEUP))
 		rt2800pci_wakeup(rt2x00dev);
 
+	/* Enable interrupts again. */
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
+					      STATE_RADIO_IRQ_ON_ISR);
+
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
+{
+	struct rt2x00_dev *rt2x00dev = dev_instance;
+	u32 reg;
+
+	/* Read status and ACK all interrupts */
+	rt2800_register_read(rt2x00dev, INT_SOURCE_CSR, &reg);
+	rt2800_register_write(rt2x00dev, INT_SOURCE_CSR, reg);
+
+	if (!reg)
+		return IRQ_NONE;
+
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		return IRQ_HANDLED;
+
+	/* Store irqvalue for use in the interrupt thread. */
+	rt2x00dev->irqvalue[0] = reg;
+
+	/* Disable interrupts, will be enabled again in the interrupt thread. */
+	rt2x00dev->ops->lib->set_device_state(rt2x00dev,
+					      STATE_RADIO_IRQ_OFF_ISR);
+
+
+	return IRQ_WAKE_THREAD;
 }
 
 /*
@@ -1049,6 +1072,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 
 static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.irq_handler		= rt2800pci_interrupt,
+	.irq_handler_thread	= rt2800pci_interrupt_thread,
 	.probe_hw		= rt2800pci_probe_hw,
 	.get_firmware_name	= rt2800pci_get_firmware_name,
 	.check_firmware		= rt2800pci_check_firmware,
