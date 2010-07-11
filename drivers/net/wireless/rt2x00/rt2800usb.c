@@ -645,6 +645,28 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static const struct ieee80211_ops rt2800usb_mac80211_ops = {
+	.tx			= rt2x00mac_tx,
+	.start			= rt2x00mac_start,
+	.stop			= rt2x00mac_stop,
+	.add_interface		= rt2x00mac_add_interface,
+	.remove_interface	= rt2x00mac_remove_interface,
+	.config			= rt2x00mac_config,
+	.configure_filter	= rt2x00mac_configure_filter,
+	.set_tim		= rt2x00mac_set_tim,
+	.set_key		= rt2x00mac_set_key,
+	.sw_scan_start		= rt2x00mac_sw_scan_start,
+	.sw_scan_complete	= rt2x00mac_sw_scan_complete,
+	.get_stats		= rt2x00mac_get_stats,
+	.get_tkip_seq		= rt2800_get_tkip_seq,
+	.set_rts_threshold	= rt2800_set_rts_threshold,
+	.bss_info_changed	= rt2x00mac_bss_info_changed,
+	.conf_tx		= rt2800_conf_tx,
+	.get_tsf		= rt2800_get_tsf,
+	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.ampdu_action		= rt2800_ampdu_action,
+};
+
 static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.probe_hw		= rt2800usb_probe_hw,
 	.get_firmware_name	= rt2800usb_get_firmware_name,
@@ -708,7 +730,7 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.tx			= &rt2800usb_queue_tx,
 	.bcn			= &rt2800usb_queue_bcn,
 	.lib			= &rt2800usb_rt2x00_ops,
-	.hw			= &rt2800_mac80211_ops,
+	.hw			= &rt2800usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2800_rt2x00debug,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */

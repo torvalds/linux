@@ -159,6 +159,14 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev);
 int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev);
 
-extern const struct ieee80211_ops rt2800_mac80211_ops;
+void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx, u32 *iv32,
+			 u16 *iv16);
+int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value);
+int rt2800_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
+		   const struct ieee80211_tx_queue_params *params);
+u64 rt2800_get_tsf(struct ieee80211_hw *hw);
+int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			enum ieee80211_ampdu_mlme_action action,
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 
 #endif /* RT2800LIB_H */

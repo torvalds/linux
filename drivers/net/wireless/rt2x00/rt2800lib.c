@@ -2740,8 +2740,8 @@ EXPORT_SYMBOL_GPL(rt2800_probe_hw_mode);
 /*
  * IEEE80211 stack callback functions.
  */
-static void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx,
-				u32 *iv32, u16 *iv16)
+void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx, u32 *iv32,
+			 u16 *iv16)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct mac_iveiv_entry iveiv_entry;
@@ -2754,8 +2754,9 @@ static void rt2800_get_tkip_seq(struct ieee80211_hw *hw, u8 hw_key_idx,
 	memcpy(iv16, &iveiv_entry.iv[0], sizeof(*iv16));
 	memcpy(iv32, &iveiv_entry.iv[4], sizeof(*iv32));
 }
+EXPORT_SYMBOL_GPL(rt2800_get_tkip_seq);
 
-static int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	u32 reg;
@@ -2791,9 +2792,10 @@ static int rt2800_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rt2800_set_rts_threshold);
 
-static int rt2800_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
-			  const struct ieee80211_tx_queue_params *params)
+int rt2800_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
+		   const struct ieee80211_tx_queue_params *params)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	struct data_queue *queue;
@@ -2858,8 +2860,9 @@ static int rt2800_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(rt2800_conf_tx);
 
-static u64 rt2800_get_tsf(struct ieee80211_hw *hw)
+u64 rt2800_get_tsf(struct ieee80211_hw *hw)
 {
 	struct rt2x00_dev *rt2x00dev = hw->priv;
 	u64 tsf;
@@ -2872,12 +2875,11 @@ static u64 rt2800_get_tsf(struct ieee80211_hw *hw)
 
 	return tsf;
 }
+EXPORT_SYMBOL_GPL(rt2800_get_tsf);
 
-static int rt2800_ampdu_action(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       enum ieee80211_ampdu_mlme_action action,
-			       struct ieee80211_sta *sta,
-			       u16 tid, u16 *ssn)
+int rt2800_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			enum ieee80211_ampdu_mlme_action action,
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	int ret = 0;
 
@@ -2901,29 +2903,7 @@ static int rt2800_ampdu_action(struct ieee80211_hw *hw,
 
 	return ret;
 }
-
-const struct ieee80211_ops rt2800_mac80211_ops = {
-	.tx			= rt2x00mac_tx,
-	.start			= rt2x00mac_start,
-	.stop			= rt2x00mac_stop,
-	.add_interface		= rt2x00mac_add_interface,
-	.remove_interface	= rt2x00mac_remove_interface,
-	.config			= rt2x00mac_config,
-	.configure_filter	= rt2x00mac_configure_filter,
-	.set_tim		= rt2x00mac_set_tim,
-	.set_key		= rt2x00mac_set_key,
-	.sw_scan_start		= rt2x00mac_sw_scan_start,
-	.sw_scan_complete	= rt2x00mac_sw_scan_complete,
-	.get_stats		= rt2x00mac_get_stats,
-	.get_tkip_seq		= rt2800_get_tkip_seq,
-	.set_rts_threshold	= rt2800_set_rts_threshold,
-	.bss_info_changed	= rt2x00mac_bss_info_changed,
-	.conf_tx		= rt2800_conf_tx,
-	.get_tsf		= rt2800_get_tsf,
-	.rfkill_poll		= rt2x00mac_rfkill_poll,
-	.ampdu_action		= rt2800_ampdu_action,
-};
-EXPORT_SYMBOL_GPL(rt2800_mac80211_ops);
+EXPORT_SYMBOL_GPL(rt2800_ampdu_action);
 
 MODULE_AUTHOR(DRV_PROJECT ", Bartlomiej Zolnierkiewicz");
 MODULE_VERSION(DRV_VERSION);
