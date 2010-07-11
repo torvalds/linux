@@ -43,6 +43,7 @@
 #include <linux/sound.h>
 #include <linux/slab.h>
 #include <linux/soundcard.h>
+#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -807,7 +808,9 @@ au1550_llseek(struct file *file, loff_t offset, int origin)
 static int
 au1550_open_mixdev(struct inode *inode, struct file *file)
 {
+	lock_kernel();
 	file->private_data = &au1550_state;
+	unlock_kernel();
 	return 0;
 }
 
@@ -1797,21 +1800,22 @@ au1550_open(struct inode *inode, struct file *file)
 #endif
 
 	file->private_data = s;
+	lock_kernel();
 	/* wait for device to become free */
 	mutex_lock(&s->open_mutex);
 	while (s->open_mode & file->f_mode) {
-		if (file->f_flags & O_NONBLOCK) {
-			mutex_unlock(&s->open_mutex);
-			return -EBUSY;
-		}
+		ret = -EBUSY;
+		if (file->f_flags & O_NONBLOCK)
+			goto out;
 		add_wait_queue(&s->open_wait, &wait);
 		__set_current_state(TASK_INTERRUPTIBLE);
 		mutex_unlock(&s->open_mutex);
 		schedule();
 		remove_wait_queue(&s->open_wait, &wait);
 		set_current_state(TASK_RUNNING);
+		ret = -ERESTARTSYS;
 		if (signal_pending(current))
-			return -ERESTARTSYS;
+			goto out2;
 		mutex_lock(&s->open_mutex);
 	}
 
@@ -1840,17 +1844,21 @@ au1550_open(struct inode *inode, struct file *file)
 
 	if (file->f_mode & FMODE_READ) {
 		if ((ret = prog_dmabuf_adc(s)))
-			return ret;
+			goto out;
 	}
 	if (file->f_mode & FMODE_WRITE) {
 		if ((ret = prog_dmabuf_dac(s)))
-			return ret;
+			goto out;
 	}
 
 	s->open_mode |= file->f_mode & (FMODE_READ | FMODE_WRITE);
-	mutex_unlock(&s->open_mutex);
 	mutex_init(&s->sem);
-	return 0;
+	ret = 0;
+out:
+	mutex_unlock(&s->open_mutex);
+out2:
+	unlock_kernel();
+	return ret;
 }
 
 static int

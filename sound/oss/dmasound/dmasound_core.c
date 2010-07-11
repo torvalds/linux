@@ -323,9 +323,13 @@ static struct {
 
 static int mixer_open(struct inode *inode, struct file *file)
 {
-	if (!try_module_get(dmasound.mach.owner))
+	lock_kernel();
+	if (!try_module_get(dmasound.mach.owner)) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 	mixer.busy = 1;
+	unlock_kernel();
 	return 0;
 }
 
@@ -737,8 +741,11 @@ static int sq_open(struct inode *inode, struct file *file)
 {
 	int rc;
 
-	if (!try_module_get(dmasound.mach.owner))
+	lock_kernel();
+	if (!try_module_get(dmasound.mach.owner)) {
+		unlock_kernel();
 		return -ENODEV;
+	}
 
 	rc = write_sq_open(file); /* checks the f_mode */
 	if (rc)
@@ -781,10 +788,11 @@ static int sq_open(struct inode *inode, struct file *file)
 		sound_set_format(AFMT_MU_LAW);
 	}
 #endif
-
+	unlock_kernel();
 	return 0;
  out:
 	module_put(dmasound.mach.owner);
+	unlock_kernel();
 	return rc;
 }
 
@@ -1226,12 +1234,17 @@ static int state_open(struct inode *inode, struct file *file)
 {
 	char *buffer = state.buf;
 	int len = 0;
+	int ret;
 
+	lock_kernel();
+	ret = -EBUSY;
 	if (state.busy)
-		return -EBUSY;
+		goto out;
 
+	ret = -ENODEV;
 	if (!try_module_get(dmasound.mach.owner))
-		return -ENODEV;
+		goto out;
+
 	state.ptr = 0;
 	state.busy = 1;
 
@@ -1293,7 +1306,10 @@ printk("dmasound: stat buffer used %d bytes\n", len) ;
 		printk(KERN_ERR "dmasound_core: stat buffer overflowed!\n");
 
 	state.len = len;
-	return 0;
+	ret = 0;
+out:
+	unlock_kernel();
+	return ret;
 }
 
 static int state_release(struct inode *inode, struct file *file)

@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/sound.h>
+#include <linux/smp_lock.h>
 #include <linux/soundcard.h>
 #include <linux/interrupt.h>
 #include <linux/hrtimer.h>
@@ -216,13 +217,17 @@ static int dac_audio_open(struct inode *inode, struct file *file)
 {
 	if (file->f_mode & FMODE_READ)
 		return -ENODEV;
-	if (in_use)
+
+	lock_kernel();
+	if (in_use) {
+		unlock_kernel();
 		return -EBUSY;
+	}
 
 	in_use = 1;
 
 	dac_audio_start();
-
+	unlock_kernel();
 	return 0;
 }
 

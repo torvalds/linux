@@ -629,12 +629,8 @@ static int soundcore_open(struct inode *inode, struct file *file)
 		file->f_op = new_fops;
 		spin_unlock(&sound_loader_lock);
 
-		if (file->f_op->open) {
-			/* TODO: push down BKL into indivial open functions */
-			lock_kernel();
+		if (file->f_op->open)
 			err = file->f_op->open(inode,file);
-			unlock_kernel();
-		}
 
 		if (err) {
 			fops_put(file->f_op);
