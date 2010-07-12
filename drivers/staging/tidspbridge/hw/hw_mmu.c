@@ -22,6 +22,7 @@
 #include <hw_defs.h>
 #include <hw_mmu.h>
 #include <linux/types.h>
+#include <linux/err.h>
 
 #define MMU_BASE_VAL_MASK	0xFC00
 #define MMU_PAGE_MAX	     3
@@ -59,7 +60,7 @@ enum hw_mmu_page_size_t {
  * RETURNS:
  *
  *       Type		: hw_status
- *       Description     : RET_OK		 -- No errors occured
+ *       Description     : 0		 -- No errors occured
  *			 RET_BAD_NULL_PARAM     -- A Pointer
  *						Paramater was set to NULL
  *
@@ -102,7 +103,7 @@ static hw_status mmu_flush_entry(const void __iomem *base_address);
  * RETURNS:
  *
  *       Type	    	: hw_status
- *       Description     : RET_OK		 -- No errors occured
+ *       Description     : 0		 -- No errors occured
  *			 RET_BAD_NULL_PARAM     -- A Pointer Paramater
  *						   was set to NULL
  *			 RET_PARAM_OUT_OF_RANGE -- Input Parameter out
@@ -147,7 +148,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
  * RETURNS:
  *
  *       Type	    	: hw_status
- *       Description     : RET_OK		 -- No errors occured
+ *       Description     : 0		 -- No errors occured
  *			 RET_BAD_NULL_PARAM     -- A Pointer Paramater
  *							was set to NULL
  *			 RET_PARAM_OUT_OF_RANGE -- Input Parameter
@@ -167,7 +168,7 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 
 hw_status hw_mmu_enable(const void __iomem *base_address)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_CNTLMMU_ENABLE_WRITE32(base_address, HW_SET);
 
@@ -176,7 +177,7 @@ hw_status hw_mmu_enable(const void __iomem *base_address)
 
 hw_status hw_mmu_disable(const void __iomem *base_address)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_CNTLMMU_ENABLE_WRITE32(base_address, HW_CLEAR);
 
@@ -186,7 +187,7 @@ hw_status hw_mmu_disable(const void __iomem *base_address)
 hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
 				u32 num_locked_entries)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_LOCK_BASE_VALUE_WRITE32(base_address, num_locked_entries);
 
@@ -196,7 +197,7 @@ hw_status hw_mmu_num_locked_set(const void __iomem *base_address,
 hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
 				u32 victim_entry_num)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_LOCK_CURRENT_VICTIM_WRITE32(base_address, victim_entry_num);
 
@@ -205,7 +206,7 @@ hw_status hw_mmu_victim_num_set(const void __iomem *base_address,
 
 hw_status hw_mmu_event_ack(const void __iomem *base_address, u32 irq_mask)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_IRQSTATUS_WRITE_REGISTER32(base_address, irq_mask);
 
@@ -214,7 +215,7 @@ hw_status hw_mmu_event_ack(const void __iomem *base_address, u32 irq_mask)
 
 hw_status hw_mmu_event_disable(const void __iomem *base_address, u32 irq_mask)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 irq_reg;
 
 	irq_reg = MMUMMU_IRQENABLE_READ_REGISTER32(base_address);
@@ -226,7 +227,7 @@ hw_status hw_mmu_event_disable(const void __iomem *base_address, u32 irq_mask)
 
 hw_status hw_mmu_event_enable(const void __iomem *base_address, u32 irq_mask)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 irq_reg;
 
 	irq_reg = MMUMMU_IRQENABLE_READ_REGISTER32(base_address);
@@ -238,7 +239,7 @@ hw_status hw_mmu_event_enable(const void __iomem *base_address, u32 irq_mask)
 
 hw_status hw_mmu_event_status(const void __iomem *base_address, u32 *irq_mask)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	*irq_mask = MMUMMU_IRQSTATUS_READ_REGISTER32(base_address);
 
@@ -247,7 +248,7 @@ hw_status hw_mmu_event_status(const void __iomem *base_address, u32 *irq_mask)
 
 hw_status hw_mmu_fault_addr_read(const void __iomem *base_address, u32 *addr)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	/*Check the input Parameters */
 	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
@@ -261,7 +262,7 @@ hw_status hw_mmu_fault_addr_read(const void __iomem *base_address, u32 *addr)
 
 hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 ttb_phys_addr)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 load_ttb;
 
 	/*Check the input Parameters */
@@ -277,7 +278,7 @@ hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 ttb_phys_addr)
 
 hw_status hw_mmu_twl_enable(const void __iomem *base_address)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_CNTLTWL_ENABLE_WRITE32(base_address, HW_SET);
 
@@ -286,7 +287,7 @@ hw_status hw_mmu_twl_enable(const void __iomem *base_address)
 
 hw_status hw_mmu_twl_disable(const void __iomem *base_address)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 
 	MMUMMU_CNTLTWL_ENABLE_WRITE32(base_address, HW_CLEAR);
 
@@ -296,7 +297,7 @@ hw_status hw_mmu_twl_disable(const void __iomem *base_address)
 hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtual_addr,
 			   u32 page_sz)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 virtual_addr_tag;
 	enum hw_mmu_page_size_t pg_size_bits;
 
@@ -318,7 +319,7 @@ hw_status hw_mmu_tlb_flush(const void __iomem *base_address, u32 virtual_addr,
 		break;
 
 	default:
-		return RET_FAIL;
+		return -EINVAL;
 	}
 
 	/* Generate the 20-bit tag from virtual address */
@@ -339,7 +340,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 			 struct hw_mmu_map_attrs_t *map_attrs,
 			 s8 preserved_bit, s8 valid_bit)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 lock_reg;
 	u32 virtual_addr_tag;
 	enum hw_mmu_page_size_t mmu_pg_size;
@@ -371,7 +372,7 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 		break;
 
 	default:
-		return RET_FAIL;
+		return -EINVAL;
 	}
 
 	lock_reg = MMUMMU_LOCK_READ_REGISTER32(base_address);
@@ -406,7 +407,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 			 u32 virtual_addr,
 			 u32 page_sz, struct hw_mmu_map_attrs_t *map_attrs)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 pte_addr, pte_val;
 	s32 num_entries = 1;
 
@@ -466,7 +467,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 		break;
 
 	default:
-		return RET_FAIL;
+		return -EINVAL;
 	}
 
 	while (--num_entries >= 0)
@@ -477,7 +478,7 @@ hw_status hw_mmu_pte_set(const u32 pg_tbl_va,
 
 hw_status hw_mmu_pte_clear(const u32 pg_tbl_va, u32 virtual_addr, u32 page_size)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 pte_addr;
 	s32 num_entries = 1;
 
@@ -510,7 +511,7 @@ hw_status hw_mmu_pte_clear(const u32 pg_tbl_va, u32 virtual_addr, u32 page_size)
 		break;
 
 	default:
-		return RET_FAIL;
+		return -EINVAL;
 	}
 
 	while (--num_entries >= 0)
@@ -522,7 +523,7 @@ hw_status hw_mmu_pte_clear(const u32 pg_tbl_va, u32 virtual_addr, u32 page_size)
 /* mmu_flush_entry */
 static hw_status mmu_flush_entry(const void __iomem *base_address)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 flush_entry_data = 0x1;
 
 	/*Check the input Parameters */
@@ -542,7 +543,7 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 				   const u32 valid_bit,
 				   const u32 virtual_addr_tag)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 mmu_cam_reg;
 
 	/*Check the input Parameters */
@@ -566,7 +567,7 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 				   enum hw_element_size_t element_size,
 				   enum hw_mmu_mixed_size_t mixed_size)
 {
-	hw_status status = RET_OK;
+	hw_status status = 0;
 	u32 mmu_ram_reg;
 
 	/*Check the input Parameters */

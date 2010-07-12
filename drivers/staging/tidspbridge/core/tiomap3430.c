@@ -1506,8 +1506,7 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 				}
 				paddr += HW_PAGE_SIZE4KB;
 			}
-			if (hw_mmu_pte_clear(pte_addr_l2, va_curr, pte_size)
-			    == RET_FAIL) {
+			if (hw_mmu_pte_clear(pte_addr_l2, va_curr, pte_size)) {
 				status = -EPERM;
 				goto EXIT_LOOP;
 			}
@@ -1524,9 +1523,8 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 				/*
 				 * Clear the L1 PTE pointing to the L2 PT
 				 */
-				if (hw_mmu_pte_clear(l1_base_va, va_curr_orig,
-						     HW_MMU_COARSE_PAGE_SIZE) ==
-				    RET_OK)
+				if (!hw_mmu_pte_clear(l1_base_va, va_curr_orig,
+						     HW_MMU_COARSE_PAGE_SIZE))
 					status = 0;
 				else {
 					status = -EPERM;
@@ -1571,7 +1569,7 @@ skip_coarse_page:
 			}
 			paddr += HW_PAGE_SIZE4KB;
 		}
-		if (hw_mmu_pte_clear(l1_base_va, va_curr, pte_size) == RET_OK) {
+		if (!hw_mmu_pte_clear(l1_base_va, va_curr, pte_size)) {
 			status = 0;
 			rem_bytes -= pte_size;
 			va_curr += pte_size;
