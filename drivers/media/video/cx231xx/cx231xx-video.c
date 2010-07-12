@@ -1246,6 +1246,14 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 
 	video_mux(dev, i);
 
+	if (INPUT(i)->type == CX231XX_VMUX_TELEVISION ||
+	    INPUT(i)->type == CX231XX_VMUX_CABLE) {
+		/* There's a tuner, so reset the standard and put it on the
+		   last known frequency (since it was probably powered down
+		   until now */
+		call_all(dev, core, s_std, dev->norm);
+	}
+
 	mutex_unlock(&dev->lock);
 	return 0;
 }
