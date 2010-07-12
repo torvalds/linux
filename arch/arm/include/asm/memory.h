@@ -124,6 +124,15 @@
 #endif /* !CONFIG_MMU */
 
 /*
+ * We fix the TCM memories max 32 KiB ITCM resp DTCM at these
+ * locations
+ */
+#ifdef CONFIG_HAVE_TCM
+#define ITCM_OFFSET	UL(0xfffe0000)
+#define DTCM_OFFSET	UL(0xfffe8000)
+#endif
+
+/*
  * Physical vs virtual RAM address space conversion.  These are
  * private definitions which should NOT be used outside memory.h
  * files.  Use virt_to_phys/phys_to_virt/__pa/__va instead.

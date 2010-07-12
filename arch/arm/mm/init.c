@@ -529,6 +529,11 @@ void __init mem_init(void)
 {
 	unsigned long reserved_pages, free_pages;
 	int i, node;
+#ifdef CONFIG_HAVE_TCM
+	/* These pointers are filled in on TCM detection */
+	extern u32 dtcm_end;
+	extern u32 itcm_end;
+#endif
 
 #ifndef CONFIG_DISCONTIGMEM
 	max_mapnr   = pfn_to_page(max_pfn + PHYS_PFN_OFFSET) - mem_map;
@@ -612,12 +617,8 @@ void __init mem_init(void)
 	printk(KERN_NOTICE "Virtual kernel memory layout:\n"
 			"    vector  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #ifdef CONFIG_HAVE_TCM
-#ifdef DTCM_OFFSET
 			"    DTCM    : 0x%08lx - 0x%08lx   (%4ld kB)\n"
-#endif
-#ifdef ITCM_OFFSET
 			"    ITCM    : 0x%08lx - 0x%08lx   (%4ld kB)\n"
-#endif
 #endif
 			"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
 #ifdef CONFIG_MMU
@@ -636,12 +637,8 @@ void __init mem_init(void)
 			MLK(UL(CONFIG_VECTORS_BASE), UL(CONFIG_VECTORS_BASE) +
 				(PAGE_SIZE)),
 #ifdef CONFIG_HAVE_TCM
-#ifdef DTCM_OFFSET
-			MLK(UL(DTCM_OFFSET), UL(DTCM_END + 1)),
-#endif
-#ifdef ITCM_OFFSET
-			MLK(UL(ITCM_OFFSET), UL(ITCM_END + 1)),
-#endif
+			MLK(DTCM_OFFSET, (unsigned long) dtcm_end),
+			MLK(ITCM_OFFSET, (unsigned long) itcm_end),
 #endif
 			MLK(FIXADDR_START, FIXADDR_TOP),
 #ifdef CONFIG_MMU
