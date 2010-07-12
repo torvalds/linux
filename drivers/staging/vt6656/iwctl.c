@@ -84,24 +84,6 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 
 	pDevice->wstats.status = pDevice->eOPMode;
 	#ifdef Calcu_LinkQual
-	 #if 0
-	  if(pDevice->byBBType == BB_TYPE_11B) {
-	     if(pDevice->byCurrSQ > 120)
-                  pDevice->scStatistic.LinkQuality = 100;
-	     else
-		 pDevice->scStatistic.LinkQuality = pDevice->byCurrSQ*100/120;
-	    }
-	  else if(pDevice->byBBType == BB_TYPE_11G) {
-                if(pDevice->byCurrSQ < 20)
-		   pDevice->scStatistic.LinkQuality = 100;
-	       else if(pDevice->byCurrSQ >96)
-		   pDevice->scStatistic.LinkQuality  = 0;
-	       else
-		   pDevice->scStatistic.LinkQuality = (96-pDevice->byCurrSQ)*100/76;
-	   }
-	   if(pDevice->bLinkPass !=TRUE)
-	       pDevice->scStatistic.LinkQuality = 0;
-	  #endif
 	   if(pDevice->scStatistic.LinkQuality > 100)
    	       pDevice->scStatistic.LinkQuality = 100;
                pDevice->wstats.qual.qual =(BYTE) pDevice->scStatistic.LinkQuality;

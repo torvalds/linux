@@ -1548,7 +1548,6 @@ static int Read_config_file(PSDevice pDevice) {
  }
 }
 
-#if 1
 //get other parameter
   {
 	memset(tmpbuffer,0,sizeof(tmpbuffer));
@@ -1561,7 +1560,6 @@ static int Read_config_file(PSDevice pDevice) {
 	 pDevice->config_file.eEncryptionStatus= (int) simple_strtol(tmpbuffer, NULL, 10);
        }
   }
-#endif
 
   kfree(buffer);
   return result;

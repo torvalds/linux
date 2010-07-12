@@ -1053,7 +1053,6 @@ s_vMgrRxAssocResponse(
 
     }
 
-#if 1
 #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //need clear flags related to Networkmanager
               pDevice->bwextstep0 = FALSE;
@@ -1061,7 +1060,6 @@ s_vMgrRxAssocResponse(
               pDevice->bwextstep2 = FALSE;
               pDevice->bwextstep3 = FALSE;
               pDevice->bWPASuppWextEnabled = FALSE;
-#endif
 #endif
 
 if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
