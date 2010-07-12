@@ -503,7 +503,7 @@ u32 dmm_mem_map_dump(struct dmm_object *dmm_mgr)
 		for (i = 0; i < table_size; i +=
 		     virtual_mapping_table[i].region_size) {
 			curr_node = virtual_mapping_table + i;
-			if (curr_node->reserved == TRUE) {
+			if (curr_node->reserved) {
 				/*printk("RESERVED size = 0x%x, "
 				   "Map size = 0x%x\n",
 				   (curr_node->region_size * PG_SIZE4K),

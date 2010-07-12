@@ -1863,10 +1863,10 @@ bool wait_for_start(struct bridge_dev_context *dev_context, u32 dw_sync_addr)
 	while (*((volatile u16 *)dw_sync_addr) && --timeout)
 		udelay(10);
 
-	/*  If timed out: return FALSE */
+	/*  If timed out: return false */
 	if (!timeout) {
 		pr_err("%s: Timed out waiting DSP to Start\n", __func__);
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }

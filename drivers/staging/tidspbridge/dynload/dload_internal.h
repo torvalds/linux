@@ -23,9 +23,6 @@
  * Internal state definitions for the dynamic loader
  */
 
-#define TRUE 1
-#define FALSE 0
-
 /* type used for relocation intermediate results */
 typedef s32 rvalue;
 

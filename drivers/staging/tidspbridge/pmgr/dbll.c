@@ -1226,7 +1226,7 @@ static int dbll_rmm_alloc(struct dynamic_loader_allocate *this,
 	int status = 0;
 	u32 mem_sect_type;
 	struct rmm_addr rmm_addr_obj;
-	s32 ret = TRUE;
+	s32 ret = true;
 	unsigned stype = DLOAD_SECTION_TYPE(info->type);
 	char *token = NULL;
 	char *sz_sec_last_token = NULL;
@@ -1315,7 +1315,7 @@ func_cont:
 						    rmm_handle, mem_sect_type,
 						    alloc_size, align,
 						    (u32 *) &rmm_addr_obj,
-						    seg_id, req, FALSE);
+						    seg_id, req, false);
 	}
 	if (DSP_FAILED(status)) {
 		ret = false;

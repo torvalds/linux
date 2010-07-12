@@ -20,16 +20,6 @@
 #define _GLOBALTYPES_H
 
 /*
- * Definition: TRUE, FALSE
- *
- * DESCRIPTION:  Boolean Definitions
- */
-#ifndef TRUE
-#define FALSE	0
-#define TRUE	(!(FALSE))
-#endif
-
-/*
  * Definition: NULL
  *
  * DESCRIPTION:  Invalid pointer

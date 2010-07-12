@@ -2620,7 +2620,7 @@ static void delete_node(struct node_object *hnode,
 
 	/* Free all SM address translator resources */
 	if (xlator) {
-		(void)cmm_xlator_delete(xlator, TRUE);	/* force free */
+		(void)cmm_xlator_delete(xlator, true);	/* force free */
 		xlator = NULL;
 	}
 

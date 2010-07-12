@@ -161,7 +161,7 @@ bool gb_test(struct gb_t_map *map, u32 bitn)
 
 	mask = 1L << (bitn % BITS_PER_LONG);
 	word = map->words[bitn / BITS_PER_LONG];
-	state = word & mask ? TRUE : FALSE;
+	state = word & mask ? true : false;
 
 	return state;
 }
