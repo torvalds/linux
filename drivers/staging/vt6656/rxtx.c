@@ -3235,7 +3235,8 @@ bRelayPacketSend (
     if (pDevice->wCurrentRate <= RATE_11M)
         byPktType = PK_TYPE_11B;
 
-    BytesToWrite = uDataLen + U_CRC_LEN;
+    BytesToWrite = uDataLen + ETH_FCS_LEN;
+
     // Convert the packet to an usb frame and copy into our buffer
     // and send the irp.
 

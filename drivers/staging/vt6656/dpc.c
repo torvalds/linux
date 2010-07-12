@@ -563,8 +563,8 @@ RXbBulkInProcessData (
     //
     // RX OK
     //
-    //remove the CRC length
-    FrameSize -= U_CRC_LEN;
+    /* remove the FCS/CRC length */
+    FrameSize -= ETH_FCS_LEN;
 
     if ( !(*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI)) && // unicast address
         (IS_FRAGMENT_PKT((pbyFrame)))
