@@ -134,7 +134,7 @@ static ssize_t dbgfs_state(struct file *file, char __user *user_buf,
 	char *buf;
 	int len = 0;
 	ssize_t size;
-	struct cfspi *cfspi = (struct cfspi *)file->private_data;
+	struct cfspi *cfspi = file->private_data;
 
 	buf = kzalloc(DEBUGFS_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -205,7 +205,7 @@ static ssize_t dbgfs_frame(struct file *file, char __user *user_buf,
 	ssize_t size;
 	struct cfspi *cfspi;
 
-	cfspi = (struct cfspi *)file->private_data;
+	cfspi = file->private_data;
 	buf = kzalloc(DEBUGFS_BUF_SIZE, GFP_KERNEL);
 	if (!buf)
 		return 0;
