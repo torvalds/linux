@@ -309,8 +309,8 @@ static phys_addr_t memblock_align_up(phys_addr_t addr, phys_addr_t size)
 	return (addr + (size - 1)) & ~(size - 1);
 }
 
-static phys_addr_t __init memblock_alloc_region(phys_addr_t start, phys_addr_t end,
-					   phys_addr_t size, phys_addr_t align)
+static phys_addr_t __init memblock_find_region(phys_addr_t start, phys_addr_t end,
+					  phys_addr_t size, phys_addr_t align)
 {
 	phys_addr_t base, res_base;
 	long j;
@@ -318,12 +318,8 @@ static phys_addr_t __init memblock_alloc_region(phys_addr_t start, phys_addr_t e
 	base = memblock_align_down((end - size), align);
 	while (start <= base) {
 		j = memblock_overlaps_region(&memblock.reserved, base, size);
-		if (j < 0) {
-			/* this area isn't reserved, take it */
-			if (memblock_add_region(&memblock.reserved, base, size) < 0)
-				base = ~(phys_addr_t)0;
+		if (j < 0)
 			return base;
-		}
 		res_base = memblock.reserved.regions[j].base;
 		if (res_base < size)
 			break;
@@ -356,8 +352,9 @@ static phys_addr_t __init memblock_alloc_nid_region(struct memblock_region *mp,
 
 		this_end = memblock_nid_range(start, end, &this_nid);
 		if (this_nid == nid) {
-			phys_addr_t ret = memblock_alloc_region(start, this_end, size, align);
-			if (ret != ~(phys_addr_t)0)
+			phys_addr_t ret = memblock_find_region(start, this_end, size, align);
+			if (ret != ~(phys_addr_t)0 &&
+			    memblock_add_region(&memblock.reserved, ret, size) >= 0)
 				return ret;
 		}
 		start = this_end;
@@ -432,8 +429,9 @@ phys_addr_t __init __memblock_alloc_base(phys_addr_t size, phys_addr_t align, ph
 		if (memblocksize < size)
 			continue;
 		base = min(memblockbase + memblocksize, max_addr);
-		res_base = memblock_alloc_region(memblockbase, base, size, align);
-		if (res_base != ~(phys_addr_t)0)
+		res_base = memblock_find_region(memblockbase, base, size, align);
+		if (res_base != ~(phys_addr_t)0 &&
+		    memblock_add_region(&memblock.reserved, res_base, size) >= 0)
 			return res_base;
 	}
 	return 0;
