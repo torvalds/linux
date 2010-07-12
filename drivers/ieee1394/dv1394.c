@@ -172,7 +172,7 @@ static DEFINE_SPINLOCK(dv1394_cards_lock);
 
 static inline struct video_card* file_to_video_card(struct file *file)
 {
-	return (struct video_card*) file->private_data;
+	return file->private_data;
 }
 
 /*** FRAME METHODS *********************************************************/
@@ -1783,7 +1783,7 @@ static int dv1394_open(struct inode *inode, struct file *file)
 	struct video_card *video = NULL;
 
 	if (file->private_data) {
-		video = (struct video_card*) file->private_data;
+		video = file->private_data;
 
 	} else {
 		/* look up the card by ID */

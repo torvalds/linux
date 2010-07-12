@@ -440,7 +440,7 @@ static struct pending_request *next_complete_req(struct file_info *fi)
 static ssize_t raw1394_read(struct file *file, char __user * buffer,
 			    size_t count, loff_t * offset_is_ignored)
 {
-	struct file_info *fi = (struct file_info *)file->private_data;
+	struct file_info *fi = file->private_data;
 	struct pending_request *req;
 	ssize_t ret;
 
@@ -2244,7 +2244,7 @@ static int state_connected(struct file_info *fi, struct pending_request *req)
 static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 			     size_t count, loff_t * offset_is_ignored)
 {
-	struct file_info *fi = (struct file_info *)file->private_data;
+	struct file_info *fi = file->private_data;
 	struct pending_request *req;
 	ssize_t retval = -EBADFD;
 
