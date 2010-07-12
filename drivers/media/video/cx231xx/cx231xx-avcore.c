@@ -2392,6 +2392,7 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 			msleep(PWR_SLEEP_INTERVAL);
 		}
 
+		tmp &= (~PWR_AV_MODE);
 		tmp |= POLARIS_AVMODE_DIGITAL | I2C_DEMOD_EN;
 		value[0] = (u8) tmp;
 		value[1] = (u8) (tmp >> 8);
