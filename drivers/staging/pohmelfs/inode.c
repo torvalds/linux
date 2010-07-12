@@ -815,7 +815,7 @@ static int pohmelfs_readpages(struct file *file, struct address_space *mapping,
 }
 
 /*
- * Small addres space operations for POHMELFS.
+ * Small address space operations for POHMELFS.
  */
 const struct address_space_operations pohmelfs_aops = {
 	.readpage		= pohmelfs_readpage,

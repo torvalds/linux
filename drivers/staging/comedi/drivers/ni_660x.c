@@ -382,7 +382,7 @@ enum global_interrupt_config_register_bits {
 	Global_Int_Enable_Bit = 0x80000000
 };
 
-/* Offset of the GPCT chips from the base-adress of the card */
+/* Offset of the GPCT chips from the base-address of the card */
 /* First chip is at base-address + 0x00, etc. */
 static const unsigned GPCT_OFFSET[2] = { 0x0, 0x800 };
 

@@ -635,7 +635,7 @@ void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromComman
 
 | Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
 
-|		      unsigned short    w_offset : Offset of the adress to read             |
+|		      unsigned short    w_offset : Offset of the address to read             |
 
 |		      unsigned short *   pw_Value : PCI eeprom 16 bit read value.            |
 
