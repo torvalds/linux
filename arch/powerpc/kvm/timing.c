@@ -182,7 +182,7 @@ static ssize_t kvmppc_exit_timing_write(struct file *file,
 	}
 
 	if (c == 'c') {
-		struct seq_file *seqf = (struct seq_file *)file->private_data;
+		struct seq_file *seqf = file->private_data;
 		struct kvm_vcpu *vcpu = seqf->private;
 		/* Write does not affect our buffers previously generated with
 		 * show. seq_file is locked here to prevent races of init with
