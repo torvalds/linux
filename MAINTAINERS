@@ -320,11 +320,9 @@ S:	Maintained
 F:	drivers/hwmon/adm1029.c
 
 ADM8211 WIRELESS DRIVER
-M:	Michael Wu <flamingice@sourmilk.net>
 L:	linux-wireless@vger.kernel.org
 W:	http://linuxwireless.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mwu/mac80211-drivers.git
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/adm8211.*
 
 ADT746X FAN DRIVER
