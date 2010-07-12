@@ -1232,18 +1232,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	struct cx231xx *dev = fh->dev;
 	int rc;
 
-	if (i == 10) {
-		dev->USE_ISO = 0;
-		cx231xx_info("trans-mode=BULK. USE_ISO = %d\n", dev->USE_ISO);
-		return 0;
-	}
-
-	if (i == 11) {
-		dev->USE_ISO = 1;
-		cx231xx_info("trans-mode=ISOC. USE_ISO = %d\n", dev->USE_ISO);
-		return 0;
-	}
-
 	dev->mode_tv = 0;
 	rc = check_dev(dev);
 	if (rc < 0)
