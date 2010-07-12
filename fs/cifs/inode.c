@@ -288,7 +288,7 @@ int cifs_get_file_info_unix(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
+	struct cifsFileInfo *cfile = filp->private_data;
 
 	xid = GetXid();
 	rc = CIFSSMBUnixQFileInfo(xid, tcon, cfile->netfid, &find_data);
@@ -515,7 +515,7 @@ int cifs_get_file_info(struct file *filp)
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	struct cifsFileInfo *cfile = (struct cifsFileInfo *) filp->private_data;
+	struct cifsFileInfo *cfile = filp->private_data;
 
 	xid = GetXid();
 	rc = CIFSSMBQFileInfo(xid, tcon, cfile->netfid, &find_data);

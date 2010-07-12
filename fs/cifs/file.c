@@ -427,7 +427,7 @@ static int cifs_reopen_file(struct file *file, bool can_flush)
 	__u16 netfid;
 
 	if (file->private_data)
-		pCifsFile = (struct cifsFileInfo *)file->private_data;
+		pCifsFile = file->private_data;
 	else
 		return -EBADF;
 
@@ -565,8 +565,7 @@ int cifs_close(struct inode *inode, struct file *file)
 	int xid, timeout;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *pTcon;
-	struct cifsFileInfo *pSMBFile =
-		(struct cifsFileInfo *)file->private_data;
+	struct cifsFileInfo *pSMBFile = file->private_data;
 
 	xid = GetXid();
 
@@ -641,8 +640,7 @@ int cifs_closedir(struct inode *inode, struct file *file)
 {
 	int rc = 0;
 	int xid;
-	struct cifsFileInfo *pCFileStruct =
-	    (struct cifsFileInfo *)file->private_data;
+	struct cifsFileInfo *pCFileStruct = file->private_data;
 	char *ptmp;
 
 	cFYI(1, "Closedir inode = 0x%p", inode);
@@ -863,8 +861,7 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *pfLock)
 				      length, pfLock,
 				      posix_lock_type, wait_flag);
 	} else {
-		struct cifsFileInfo *fid =
-			(struct cifsFileInfo *)file->private_data;
+		struct cifsFileInfo *fid = file->private_data;
 
 		if (numLock) {
 			rc = CIFSSMBLock(xid, tcon, netfid, length,
@@ -965,7 +962,7 @@ ssize_t cifs_user_write(struct file *file, const char __user *write_data,
 
 	if (file->private_data == NULL)
 		return -EBADF;
-	open_file = (struct cifsFileInfo *) file->private_data;
+	open_file = file->private_data;
 
 	rc = generic_write_checks(file, poffset, &write_size, 0);
 	if (rc)
@@ -1067,7 +1064,7 @@ static ssize_t cifs_write(struct file *file, const char *write_data,
 
 	if (file->private_data == NULL)
 		return -EBADF;
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 
 	xid = GetXid();
 
@@ -1651,8 +1648,7 @@ int cifs_fsync(struct file *file, int datasync)
 	int xid;
 	int rc = 0;
 	struct cifsTconInfo *tcon;
-	struct cifsFileInfo *smbfile =
-		(struct cifsFileInfo *)file->private_data;
+	struct cifsFileInfo *smbfile = file->private_data;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
 	xid = GetXid();
@@ -1756,7 +1752,7 @@ ssize_t cifs_user_read(struct file *file, char __user *read_data,
 		FreeXid(xid);
 		return rc;
 	}
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1837,7 +1833,7 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 		FreeXid(xid);
 		return rc;
 	}
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 
 	if ((file->f_flags & O_ACCMODE) == O_WRONLY)
 		cFYI(1, "attempting read on write only file instance");
@@ -1968,7 +1964,7 @@ static int cifs_readpages(struct file *file, struct address_space *mapping,
 		FreeXid(xid);
 		return rc;
 	}
-	open_file = (struct cifsFileInfo *)file->private_data;
+	open_file = file->private_data;
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	pTcon = cifs_sb->tcon;
 
