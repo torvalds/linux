@@ -358,6 +358,7 @@ config HID_ROCCAT
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
+	select HID_ROCCAT
 	---help---
 	Support for Roccat Kone mouse.
 
