@@ -800,7 +800,7 @@ static void davinci_pcm_free(struct snd_pcm *pcm)
 		dma_free_writecombine(pcm->card->dev, buf->bytes,
 				      buf->area, buf->addr);
 		buf->area = NULL;
-		iram_dma = (struct snd_dma_buffer *)buf->private_data;
+		iram_dma = buf->private_data;
 		if (iram_dma) {
 			sram_free(iram_dma->area, iram_dma->bytes);
 			kfree(iram_dma);
