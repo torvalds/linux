@@ -182,10 +182,9 @@ static struct platform_device hs_uarte = {
 };
 
 /* OTG gadget device */
-static u64 tegra_otg_dmamask = DMA_BIT_MASK(32);
+static u64 tegra_gadget_dmamask = DMA_BIT_MASK(32);
 
-
-static struct resource tegra_otg_resources[] = {
+static struct resource tegra_gadget_resources[] = {
 	[0] = {
 		.start	= TEGRA_USB_BASE,
 		.end	= TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
@@ -198,21 +197,117 @@ static struct resource tegra_otg_resources[] = {
 	},
 };
 
-static struct fsl_usb2_platform_data tegra_otg_pdata = {
+static struct fsl_usb2_platform_data tegra_gadget_pdata = {
 	.operating_mode	= FSL_USB2_DR_DEVICE,
 	.phy_mode	= FSL_USB2_PHY_UTMI,
 };
 
-static struct platform_device tegra_otg = {
+static struct platform_device tegra_gadget = {
 	.name = "fsl-tegra-udc",
 	.id   = -1,
 	.dev  = {
-		.dma_mask		= &tegra_otg_dmamask,
+		.dma_mask		= &tegra_gadget_dmamask,
 		.coherent_dma_mask	= 0xffffffff,
-		.platform_data = &tegra_otg_pdata,
+		.platform_data = &tegra_gadget_pdata,
 	},
-	.resource = tegra_otg_resources,
-	.num_resources = ARRAY_SIZE(tegra_otg_resources),
+	.resource = tegra_gadget_resources,
+	.num_resources = ARRAY_SIZE(tegra_gadget_resources),
+};
+
+/* OTG transceiver */
+static struct resource cpcap_otg_resources[] = {
+	[0] = {
+		.start  = TEGRA_USB_BASE,
+		.end    = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = INT_USB,
+		.end    = INT_USB,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device cpcap_otg = {
+	.name = "cpcap-otg",
+	.id   = -1,
+	.resource = cpcap_otg_resources,
+	.num_resources = ARRAY_SIZE(cpcap_otg_resources),
+};
+
+/* USB host devices */
+static u64 tegra_hcd_dmamask = DMA_BIT_MASK(32);
+
+static struct resource tegra_hcd_resources[][2] = {
+	[0] = {
+		[0] = {
+			.flags = IORESOURCE_MEM,
+			.start = TEGRA_USB_BASE,
+			.end = TEGRA_USB_BASE + TEGRA_USB_SIZE - 1,
+		},
+		[1] = {
+			.flags = IORESOURCE_IRQ,
+			.start = INT_USB,
+			.end = INT_USB,
+		},
+	},
+	[1] = {
+		[0] = {
+			.flags = IORESOURCE_MEM,
+			.start = TEGRA_USB2_BASE,
+			.end = TEGRA_USB2_BASE + TEGRA_USB2_SIZE - 1,
+		},
+		[1] = {
+			.flags = IORESOURCE_IRQ,
+			.start = INT_USB2,
+			.end = INT_USB2,
+		},
+	},
+	[2] = {
+		[0] = {
+			.flags = IORESOURCE_MEM,
+			.start = TEGRA_USB3_BASE,
+			.end = TEGRA_USB3_BASE + TEGRA_USB3_SIZE - 1,
+		},
+		[1] = {
+			.flags = IORESOURCE_IRQ,
+			.start = INT_USB3,
+			.end = INT_USB3,
+		},
+	},
+};
+
+static struct platform_device tegra_hcd[] = {
+	[0] = {
+		.name = "tegra-ehci",
+		.id = 0,
+		.dev = {
+			.coherent_dma_mask = DMA_BIT_MASK(32),
+			.dma_mask = &tegra_hcd_dmamask,
+		},
+		.resource = tegra_hcd_resources[0],
+		.num_resources = ARRAY_SIZE(tegra_hcd_resources[0]),
+	},
+	[1] = {
+		.name = "tegra-ehci",
+		.id = 1,
+		.dev = {
+			.coherent_dma_mask = DMA_BIT_MASK(32),
+			.dma_mask = &tegra_hcd_dmamask,
+		},
+		.resource = tegra_hcd_resources[1],
+		.num_resources = ARRAY_SIZE(tegra_hcd_resources[1]),
+	},
+	[2] = {
+		.name = "tegra-ehci",
+		.id = 2,
+		.dev = {
+			.coherent_dma_mask = DMA_BIT_MASK(32),
+			.dma_mask = &tegra_hcd_dmamask,
+		},
+		.resource = tegra_hcd_resources[2],
+		.num_resources = ARRAY_SIZE(tegra_hcd_resources[2]),
+	},
 };
 
 static char *usb_functions[] = { "mtp" };
@@ -378,7 +473,10 @@ static struct tegra_w1_platform_data tegra_w1_pdata = {
 
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
-	&tegra_otg,
+	&cpcap_otg,
+	&tegra_gadget,
+	&tegra_hcd[0],
+	&tegra_hcd[2],
 	&bq24617_device,
 	&bcm4329_rfkill,
 	&hs_uarta,
