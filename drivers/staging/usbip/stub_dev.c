@@ -438,6 +438,8 @@ static int stub_probe(struct usb_interface *interface,
 	if (err) {
 		dev_err(&interface->dev, "create sysfs files for %s\n",
 			udev_busid);
+		usb_set_intfdata(interface, 0);
+		stub_device_free(sdev);
 		return err;
 	}
 
