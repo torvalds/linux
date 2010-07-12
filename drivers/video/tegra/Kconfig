@@ -1,0 +1,15 @@
+config TEGRA_DC
+	tristate "Tegra Display Contoller"
+	depends on ARCH_TEGRA
+	help
+	  Tegra display controller support.
+
+config FB_TEGRA
+	tristate "Tegra Framebuffer driver"
+	depends on TEGRA_DC && FB = y
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	default FB
+	help
+	  Framebuffer device support for the Tegra display controller.
