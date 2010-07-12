@@ -757,80 +757,74 @@ static const struct net_device_ops device_netdev_ops = {
     .ndo_set_multicast_list = device_set_multi,
 };
 
-
 static int __devinit
 vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	u8 fake_mac[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
 	struct usb_device *udev = interface_to_usbdev(intf);
-    int         rc = 0;
-    struct net_device *netdev = NULL;
-    PSDevice    pDevice = NULL;
+	int rc = 0;
+	struct net_device *netdev = NULL;
+	PSDevice pDevice = NULL;
 
+	printk(KERN_NOTICE "%s Ver. %s\n", DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
+	printk(KERN_NOTICE "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
 
-    printk(KERN_NOTICE "%s Ver. %s\n",DEVICE_FULL_DRV_NAM, DEVICE_VERSION);
-    printk(KERN_NOTICE "Copyright (c) 2004 VIA Networking Technologies, Inc.\n");
+	udev = usb_get_dev(udev);
+	netdev = alloc_etherdev(sizeof(DEVICE_INFO));
 
-  udev = usb_get_dev(udev);
+	if (!netdev) {
+		printk(KERN_ERR DEVICE_NAME ": allocate net device failed\n");
+		kfree(pDevice);
+		goto err_nomem;
+	}
 
-    netdev = alloc_etherdev(sizeof(DEVICE_INFO));
+	pDevice = netdev_priv(netdev);
+	memset(pDevice, 0, sizeof(DEVICE_INFO));
 
-    if (netdev == NULL) {
-        printk(KERN_ERR DEVICE_NAME ": allocate net device failed \n");
-        kfree(pDevice);
-	    goto err_nomem;
-    }
+	pDevice->dev = netdev;
+	pDevice->usb = udev;
 
-    pDevice = netdev_priv(netdev);
-    memset(pDevice, 0, sizeof(DEVICE_INFO));
+	device_set_options(pDevice);
+	spin_lock_init(&pDevice->lock);
 
-    pDevice->dev = netdev;
-    pDevice->usb = udev;
+	pDevice->tx_80211 = device_dma0_tx_80211;
+	pDevice->sMgmtObj.pAdapter = (void *) pDevice;
 
-    // Set initial settings
-    device_set_options(pDevice);
-    spin_lock_init(&pDevice->lock);
+	netdev->netdev_ops = &device_netdev_ops;
+	netdev->wireless_handlers =
+		(struct iw_handler_def *) &iwctl_handler_def;
 
-    pDevice->tx_80211 = device_dma0_tx_80211;
-    pDevice->sMgmtObj.pAdapter = (void *)pDevice;
-
-    netdev->netdev_ops         = &device_netdev_ops;
-
-	netdev->wireless_handlers = (struct iw_handler_def *)&iwctl_handler_def;
-
-   //2008-0623-01<Remark>by MikeLiu
-  //2007-0821-01<Add>by MikeLiu
-         usb_set_intfdata(intf, pDevice);
+	usb_set_intfdata(intf, pDevice);
 	SET_NETDEV_DEV(netdev, &intf->dev);
-    memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
-    rc = register_netdev(netdev);
-    if (rc != 0) {
-        printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
+	memcpy(pDevice->dev->dev_addr, fake_mac, ETH_ALEN);
+	rc = register_netdev(netdev);
+	if (rc) {
+		printk(KERN_ERR DEVICE_NAME " Failed to register netdev\n");
 		free_netdev(netdev);
-        kfree(pDevice);
-        return -ENODEV;
-    }
+		kfree(pDevice);
+		return -ENODEV;
+	}
 
-         usb_device_reset(pDevice);
+	usb_device_reset(pDevice);
 
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_INSMOD_EVENT_FLAG;
-  wrqu.data.length =IFNAMSIZ;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, pDevice->dev->name);
-}
+	{
+		union iwreq_data wrqu;
+		memset(&wrqu, 0, sizeof(wrqu));
+		wrqu.data.flags = RT_INSMOD_EVENT_FLAG;
+		wrqu.data.length = IFNAMSIZ;
+		wireless_send_event(pDevice->dev,
+				    IWEVCUSTOM,
+				    &wrqu,
+				    pDevice->dev->name);
+	}
 
 	return 0;
 
-
 err_nomem:
- //2008-0922-01<Add>by MikeLiu, decrease usb counter.
-    usb_put_dev(udev);
+	usb_put_dev(udev);
 
-    return -ENOMEM;
+	return -ENOMEM;
 }
-
 
 static void device_free_tx_bufs(PSDevice pDevice)
 {
