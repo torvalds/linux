@@ -74,10 +74,6 @@
 
 typedef s32(*fxn) (void);	/* generic function type */
 
-#ifndef NULL
-#define NULL 0
-#endif
-
 /*
  * These macros are used to cast 'Arg' types to 's32' or 'Ptr'.
  * These macros were added for the 55x since Arg is not the same

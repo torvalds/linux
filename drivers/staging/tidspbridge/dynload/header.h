@@ -14,10 +14,6 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef NULL
-#define NULL 0
-#endif
-
 #include <linux/string.h>
 #define DL_STRCMP  strcmp
 

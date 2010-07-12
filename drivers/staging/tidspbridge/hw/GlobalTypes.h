@@ -20,15 +20,6 @@
 #define _GLOBALTYPES_H
 
 /*
- * Definition: NULL
- *
- * DESCRIPTION:  Invalid pointer
- */
-#ifndef NULL
-#define NULL	(void *)0
-#endif
-
-/*
  * Definition: RET_CODE_BASE
  *
  * DESCRIPTION:  Base value for return code offsets
