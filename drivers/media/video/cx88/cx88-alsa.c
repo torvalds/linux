@@ -739,7 +739,7 @@ static int __devinit snd_cx88_create(struct snd_card *card,
 
 	pci_set_master(pci);
 
-	chip = (snd_cx88_card_t *) card->private_data;
+	chip = card->private_data;
 
 	core = cx88_core_get(pci);
 	if (NULL == core) {

@@ -516,7 +516,7 @@ static int uvc_v4l2_open(struct file *file)
 
 static int uvc_v4l2_release(struct file *file)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_release\n");
@@ -547,7 +547,7 @@ static int uvc_v4l2_release(struct file *file)
 static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *vdev = video_devdata(file);
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_streaming *stream = handle->stream;
 	long ret = 0;
@@ -1116,7 +1116,7 @@ static const struct vm_operations_struct uvc_vm_ops = {
 
 static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 	struct uvc_video_queue *queue = &stream->queue;
 	struct uvc_buffer *uninitialized_var(buffer);
@@ -1171,7 +1171,7 @@ done:
 
 static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 {
-	struct uvc_fh *handle = (struct uvc_fh *)file->private_data;
+	struct uvc_fh *handle = file->private_data;
 	struct uvc_streaming *stream = handle->stream;
 
 	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_poll\n");

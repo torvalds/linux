@@ -407,7 +407,7 @@ static int display_close(struct inode *inode, struct file *file)
 	struct imon_context *ictx = NULL;
 	int retval = 0;
 
-	ictx = (struct imon_context *)file->private_data;
+	ictx = file->private_data;
 
 	if (!ictx) {
 		err("%s: no context for device", __func__);
@@ -812,7 +812,7 @@ static ssize_t vfd_write(struct file *file, const char *buf,
 	const unsigned char vfd_packet6[] = {
 		0x01, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 
-	ictx = (struct imon_context *)file->private_data;
+	ictx = file->private_data;
 	if (!ictx) {
 		err("%s: no context for device", __func__);
 		return -ENODEV;
@@ -896,7 +896,7 @@ static ssize_t lcd_write(struct file *file, const char *buf,
 	int retval = 0;
 	struct imon_context *ictx;
 
-	ictx = (struct imon_context *)file->private_data;
+	ictx = file->private_data;
 	if (!ictx) {
 		err("%s: no context for device", __func__);
 		return -ENODEV;

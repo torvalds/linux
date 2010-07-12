@@ -1080,7 +1080,7 @@ static int alsa_card_saa7134_create(struct saa7134_dev *dev, int devnum)
 	/* Card "creation" */
 
 	card->private_free = snd_saa7134_free;
-	chip = (snd_card_saa7134_t *) card->private_data;
+	chip = card->private_data;
 
 	spin_lock_init(&chip->lock);
 	spin_lock_init(&chip->mixer_lock);
