@@ -133,6 +133,8 @@ enum p9_msg_t {
 	P9_RSTATFS,
 	P9_TRENAME = 20,
 	P9_RRENAME,
+	P9_TGETATTR = 24,
+	P9_RGETATTR,
 	P9_TREADDIR = 40,
 	P9_RREADDIR,
 	P9_TVERSION = 100,
@@ -361,6 +363,48 @@ struct p9_wstat {
 	u32 n_gid;		/* 9p2000.u extensions */
 	u32 n_muid;		/* 9p2000.u extensions */
 };
+
+struct p9_stat_dotl {
+	u64 st_result_mask;
+	struct p9_qid qid;
+	u32 st_mode;
+	u32 st_uid;
+	u32 st_gid;
+	u64 st_nlink;
+	u64 st_rdev;
+	u64 st_size;
+	u64 st_blksize;
+	u64 st_blocks;
+	u64 st_atime_sec;
+	u64 st_atime_nsec;
+	u64 st_mtime_sec;
+	u64 st_mtime_nsec;
+	u64 st_ctime_sec;
+	u64 st_ctime_nsec;
+	u64 st_btime_sec;
+	u64 st_btime_nsec;
+	u64 st_gen;
+	u64 st_data_version;
+};
+
+#define P9_STATS_MODE		0x00000001ULL
+#define P9_STATS_NLINK		0x00000002ULL
+#define P9_STATS_UID		0x00000004ULL
+#define P9_STATS_GID		0x00000008ULL
+#define P9_STATS_RDEV		0x00000010ULL
+#define P9_STATS_ATIME		0x00000020ULL
+#define P9_STATS_MTIME		0x00000040ULL
+#define P9_STATS_CTIME		0x00000080ULL
+#define P9_STATS_INO		0x00000100ULL
+#define P9_STATS_SIZE		0x00000200ULL
+#define P9_STATS_BLOCKS		0x00000400ULL
+
+#define P9_STATS_BTIME		0x00000800ULL
+#define P9_STATS_GEN		0x00001000ULL
+#define P9_STATS_DATA_VERSION	0x00002000ULL
+
+#define P9_STATS_BASIC		0x000007ffULL /* Mask for fields up to BLOCKS */
+#define P9_STATS_ALL		0x00003fffULL /* Mask for All fields above */
 
 /* Structures for Protocol Operations */
 struct p9_tstatfs {

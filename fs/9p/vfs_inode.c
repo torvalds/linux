@@ -396,23 +396,14 @@ void v9fs_clear_inode(struct inode *inode)
 #endif
 }
 
-/**
- * v9fs_inode_from_fid - populate an inode by issuing a attribute request
- * @v9ses: session information
- * @fid: fid to issue attribute request for
- * @sb: superblock on which to create inode
- *
- */
-
 static struct inode *
-v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+v9fs_inode(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 	struct super_block *sb)
 {
 	int err, umode;
-	struct inode *ret;
+	struct inode *ret = NULL;
 	struct p9_wstat *st;
 
-	ret = NULL;
 	st = p9_client_stat(fid);
 	if (IS_ERR(st))
 		return ERR_CAST(st);
@@ -433,13 +424,60 @@ v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
 #endif
 	p9stat_free(st);
 	kfree(st);
-
 	return ret;
-
 error:
 	p9stat_free(st);
 	kfree(st);
 	return ERR_PTR(err);
+}
+
+static struct inode *
+v9fs_inode_dotl(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+	struct super_block *sb)
+{
+	struct inode *ret = NULL;
+	int err;
+	struct p9_stat_dotl *st;
+
+	st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
+	if (IS_ERR(st))
+		return ERR_CAST(st);
+
+	ret = v9fs_get_inode(sb, st->st_mode);
+	if (IS_ERR(ret)) {
+		err = PTR_ERR(ret);
+		goto error;
+	}
+
+	v9fs_stat2inode_dotl(st, ret);
+	ret->i_ino = v9fs_qid2ino(&st->qid);
+#ifdef CONFIG_9P_FSCACHE
+	v9fs_vcookie_set_qid(ret, &st->qid);
+	v9fs_cache_inode_get_cookie(ret);
+#endif
+	kfree(st);
+	return ret;
+error:
+	kfree(st);
+	return ERR_PTR(err);
+}
+
+/**
+ * v9fs_inode_from_fid - Helper routine to populate an inode by
+ * issuing a attribute request
+ * @v9ses: session information
+ * @fid: fid to issue attribute request for
+ * @sb: superblock on which to create inode
+ *
+ */
+static inline struct inode *
+v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
+			struct super_block *sb)
+{
+	if (v9fs_proto_dotl(v9ses))
+		return v9fs_inode_dotl(v9ses, fid, sb);
+	else
+		return v9fs_inode(v9ses, fid, sb);
 }
 
 /**
@@ -853,6 +891,42 @@ v9fs_vfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
 	return 0;
 }
 
+static int
+v9fs_vfs_getattr_dotl(struct vfsmount *mnt, struct dentry *dentry,
+		 struct kstat *stat)
+{
+	int err;
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid;
+	struct p9_stat_dotl *st;
+
+	P9_DPRINTK(P9_DEBUG_VFS, "dentry: %p\n", dentry);
+	err = -EPERM;
+	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+		return simple_getattr(mnt, dentry, stat);
+
+	fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid))
+		return PTR_ERR(fid);
+
+	/* Ask for all the fields in stat structure. Server will return
+	 * whatever it supports
+	 */
+
+	st = p9_client_getattr_dotl(fid, P9_STATS_ALL);
+	if (IS_ERR(st))
+		return PTR_ERR(st);
+
+	v9fs_stat2inode_dotl(st, dentry->d_inode);
+	generic_fillattr(dentry->d_inode, stat);
+	/* Change block size to what the server returned */
+	stat->blksize = st->st_blksize;
+
+	kfree(st);
+	return 0;
+}
+
 /**
  * v9fs_vfs_setattr - set file metadata
  * @dentry: file whose metadata to set
@@ -977,6 +1051,77 @@ v9fs_stat2inode(struct p9_wstat *stat, struct inode *inode,
 
 	/* not real number of blocks, but 512 byte ones ... */
 	inode->i_blocks = (i_size_read(inode) + 512 - 1) >> 9;
+}
+
+/**
+ * v9fs_stat2inode_dotl - populate an inode structure with stat info
+ * @stat: stat structure
+ * @inode: inode to populate
+ * @sb: superblock of filesystem
+ *
+ */
+
+void
+v9fs_stat2inode_dotl(struct p9_stat_dotl *stat, struct inode *inode)
+{
+
+	if ((stat->st_result_mask & P9_STATS_BASIC) == P9_STATS_BASIC) {
+		inode->i_atime.tv_sec = stat->st_atime_sec;
+		inode->i_atime.tv_nsec = stat->st_atime_nsec;
+		inode->i_mtime.tv_sec = stat->st_mtime_sec;
+		inode->i_mtime.tv_nsec = stat->st_mtime_nsec;
+		inode->i_ctime.tv_sec = stat->st_ctime_sec;
+		inode->i_ctime.tv_nsec = stat->st_ctime_nsec;
+		inode->i_uid = stat->st_uid;
+		inode->i_gid = stat->st_gid;
+		inode->i_nlink = stat->st_nlink;
+		inode->i_mode = stat->st_mode;
+		inode->i_rdev = new_decode_dev(stat->st_rdev);
+
+		if ((S_ISBLK(inode->i_mode)) || (S_ISCHR(inode->i_mode)))
+			init_special_inode(inode, inode->i_mode, inode->i_rdev);
+
+		i_size_write(inode, stat->st_size);
+		inode->i_blocks = stat->st_blocks;
+	} else {
+		if (stat->st_result_mask & P9_STATS_ATIME) {
+			inode->i_atime.tv_sec = stat->st_atime_sec;
+			inode->i_atime.tv_nsec = stat->st_atime_nsec;
+		}
+		if (stat->st_result_mask & P9_STATS_MTIME) {
+			inode->i_mtime.tv_sec = stat->st_mtime_sec;
+			inode->i_mtime.tv_nsec = stat->st_mtime_nsec;
+		}
+		if (stat->st_result_mask & P9_STATS_CTIME) {
+			inode->i_ctime.tv_sec = stat->st_ctime_sec;
+			inode->i_ctime.tv_nsec = stat->st_ctime_nsec;
+		}
+		if (stat->st_result_mask & P9_STATS_UID)
+			inode->i_uid = stat->st_uid;
+		if (stat->st_result_mask & P9_STATS_GID)
+			inode->i_gid = stat->st_gid;
+		if (stat->st_result_mask & P9_STATS_NLINK)
+			inode->i_nlink = stat->st_nlink;
+		if (stat->st_result_mask & P9_STATS_MODE) {
+			inode->i_mode = stat->st_mode;
+			if ((S_ISBLK(inode->i_mode)) ||
+						(S_ISCHR(inode->i_mode)))
+				init_special_inode(inode, inode->i_mode,
+								inode->i_rdev);
+		}
+		if (stat->st_result_mask & P9_STATS_RDEV)
+			inode->i_rdev = new_decode_dev(stat->st_rdev);
+		if (stat->st_result_mask & P9_STATS_SIZE)
+			i_size_write(inode, stat->st_size);
+		if (stat->st_result_mask & P9_STATS_BLOCKS)
+			inode->i_blocks = stat->st_blocks;
+	}
+	if (stat->st_result_mask & P9_STATS_GEN)
+			inode->i_generation = stat->st_gen;
+
+	/* Currently we don't support P9_STATS_BTIME and P9_STATS_DATA_VERSION
+	 * because the inode structure does not have fields for them.
+	 */
 }
 
 /**
@@ -1254,7 +1399,7 @@ static const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.rmdir = v9fs_vfs_rmdir,
 	.mknod = v9fs_vfs_mknod,
 	.rename = v9fs_vfs_rename,
-	.getattr = v9fs_vfs_getattr,
+	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr,
 };
 
@@ -1276,7 +1421,7 @@ static const struct inode_operations v9fs_file_inode_operations = {
 };
 
 static const struct inode_operations v9fs_file_inode_operations_dotl = {
-	.getattr = v9fs_vfs_getattr,
+	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr,
 };
 
@@ -1292,6 +1437,6 @@ static const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.readlink = generic_readlink,
 	.follow_link = v9fs_vfs_follow_link,
 	.put_link = v9fs_vfs_put_link,
-	.getattr = v9fs_vfs_getattr,
+	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr,
 };

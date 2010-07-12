@@ -141,6 +141,7 @@ pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 	D - data blob (int32_t size followed by void *, results are not freed)
 	T - array of strings (int16_t count, followed by strings)
 	R - array of qids (int16_t count, followed by qids)
+	A - stat for 9p2000.L (p9_stat_dotl)
 	? - if optional = 1, continue parsing
 */
 
@@ -338,6 +339,33 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 					kfree(*wqids);
 					*wqids = NULL;
 				}
+			}
+			break;
+		case 'A': {
+				struct p9_stat_dotl *stbuf =
+				    va_arg(ap, struct p9_stat_dotl *);
+
+				memset(stbuf, 0, sizeof(struct p9_stat_dotl));
+				errcode =
+				    p9pdu_readf(pdu, proto_version,
+					"qQdddqqqqqqqqqqqqqqq",
+					&stbuf->st_result_mask,
+					&stbuf->qid,
+					&stbuf->st_mode,
+					&stbuf->st_uid, &stbuf->st_gid,
+					&stbuf->st_nlink,
+					&stbuf->st_rdev, &stbuf->st_size,
+					&stbuf->st_blksize, &stbuf->st_blocks,
+					&stbuf->st_atime_sec,
+					&stbuf->st_atime_nsec,
+					&stbuf->st_mtime_sec,
+					&stbuf->st_mtime_nsec,
+					&stbuf->st_ctime_sec,
+					&stbuf->st_ctime_nsec,
+					&stbuf->st_btime_sec,
+					&stbuf->st_btime_nsec,
+					&stbuf->st_gen,
+					&stbuf->st_data_version);
 			}
 			break;
 		case '?':
