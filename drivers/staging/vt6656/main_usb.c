@@ -1306,38 +1306,36 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
 	return NETDEV_TX_OK;
 }
 
-static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
-    PSDevice    pDevice=netdev_priv(dev);
-    struct net_device_stats* pStats = &pDevice->stats;
+static int device_xmit(struct sk_buff *skb, struct net_device *dev)
+{
+	PSDevice pDevice = netdev_priv(dev);
+	struct net_device_stats *stats = &pDevice->stats;
 
+	spin_lock_irq(&pDevice->lock);
 
-    spin_lock_irq(&pDevice->lock);
+	netif_stop_queue(dev);
 
-    netif_stop_queue(pDevice->dev);
+	if (!pDevice->bLinkPass) {
+		dev_kfree_skb_irq(skb);
+		goto out;
+	}
 
-    if (pDevice->bLinkPass == FALSE) {
-        dev_kfree_skb_irq(skb);
-        spin_unlock_irq(&pDevice->lock);
-        return 0;
-    }
-    if (pDevice->bStopDataPkt == TRUE) {
-        dev_kfree_skb_irq(skb);
-        pStats->tx_dropped++;
-        spin_unlock_irq(&pDevice->lock);
-        return 0;
-    }
+	if (pDevice->bStopDataPkt) {
+		dev_kfree_skb_irq(skb);
+		stats->tx_dropped++;
+		goto out;
+	}
 
-    if(nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb) !=0) {  //mike add:xmit fail!
-         if (netif_queue_stopped(pDevice->dev))
-              netif_wake_queue(pDevice->dev);
-    }
+	if (nsDMA_tx_packet(pDevice, TYPE_AC0DMA, skb)) {
+		if (netif_queue_stopped(dev))
+			netif_wake_queue(dev);
+	}
 
-    spin_unlock_irq(&pDevice->lock);
+out:
+	spin_unlock_irq(&pDevice->lock);
 
-    return 0;
+	return NETDEV_TX_OK;
 }
-
-
 
 static unsigned const ethernet_polynomial = 0x04c11db7U;
 static inline u32 ether_crc(int length, unsigned char *data)
