@@ -795,9 +795,7 @@ typedef struct __device_info {
      BOOL  fTxDataInSleep;
      BOOL  IsTxDataTrigger;
 
-#ifdef WPA_SM_Transtatus
     BOOL  fWPA_Authened;           //is WPA/WPA-PSK or WPA2/WPA2-PSK authen??
-#endif
     BYTE            byReAssocCount;   //mike add:re-association retry times!
     BYTE            byLinkWaitCount;
 

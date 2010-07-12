@@ -61,10 +61,7 @@
 #include "rf.h"
 #include "datarate.h"
 #include "usbpipe.h"
-
-#ifdef WPA_SM_Transtatus
 #include "iocmd.h"
-#endif
 
 /*---------------------  Static Definitions -------------------------*/
 
@@ -2766,9 +2763,6 @@ nsDMA_tx_packet(
     unsigned int            status;
     WORD            wKeepRate = pDevice->wCurrentRate;
     struct net_device_stats* pStats = &pDevice->stats;
-//#ifdef WPA_SM_Transtatus
-  //  extern SWPAResult wpa_Result;
-//#endif
      BOOL            bTxeapol_key = FALSE;
 
 

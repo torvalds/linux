@@ -48,9 +48,7 @@
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 static int          msglevel                =MSG_LEVEL_INFO;
 
-#ifdef WPA_SM_Transtatus
     SWPAResult wpa_Result;
-#endif
 
 /*---------------------  Static Functions  --------------------------*/
 
@@ -656,7 +654,6 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         pReq->wResult = 0;
         break;
 
-#ifdef WPA_SM_Transtatus
     case 0xFF:
         memset(wpa_Result.ifname,0,sizeof(wpa_Result.ifname));
 	    wpa_Result.proto = 0;
@@ -698,7 +695,6 @@ if(wpa_Result.authenticated==TRUE) {
 
 	pReq->wResult = 0;
         break;
-#endif
 
     default:
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Private command not support..\n");

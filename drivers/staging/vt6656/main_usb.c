@@ -1046,7 +1046,6 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 static int  device_open(struct net_device *dev) {
     PSDevice    pDevice=(PSDevice) netdev_priv(dev);
 
-#ifdef WPA_SM_Transtatus
      extern SWPAResult wpa_Result;
      memset(wpa_Result.ifname,0,sizeof(wpa_Result.ifname));
      wpa_Result.proto = 0;
@@ -1054,7 +1053,6 @@ static int  device_open(struct net_device *dev) {
      wpa_Result.eap_type = 0;
      wpa_Result.authenticated = FALSE;
      pDevice->fWPA_Authened = FALSE;
-#endif
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
 

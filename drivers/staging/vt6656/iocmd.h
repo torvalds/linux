@@ -143,7 +143,6 @@ typedef struct tagSCmdZoneTypeSet {
 
 } SCmdZoneTypeSet, *PSCmdZoneTypeSet;
 
-#ifdef WPA_SM_Transtatus
 typedef struct tagSWPAResult {
          char	ifname[100];
 	u8 proto;
@@ -151,7 +150,6 @@ typedef struct tagSWPAResult {
 	u8 eap_type;
          BOOL authenticated;
 } SWPAResult, *PSWPAResult;
-#endif
 
 typedef struct tagSCmdStartAP {
 

@@ -40,10 +40,6 @@ typedef int             BOOL;
 #define FALSE           0
 #endif
 
-#ifndef WPA_SM_Transtatus
-#define WPA_SM_Transtatus
-#endif
-
 #ifndef Calcu_LinkQual
 #define Calcu_LinkQual
 #endif
