@@ -132,7 +132,7 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_led_info[] = {
 
 int __init stingray_panel_init(void)
 {
-	if (stingray_revision() <= STINGRAY_REVISION_P1) {
+	if (stingray_revision() < STINGRAY_REVISION_P1) {
 		tegra_gpio_enable(STINGRAY_AUO_DISP_BL);
 		gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
 		gpio_direction_output(STINGRAY_AUO_DISP_BL, 1);
