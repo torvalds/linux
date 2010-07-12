@@ -342,9 +342,7 @@ RXbBulkInProcessData (
     PBYTE           pbyRxSts;
     PBYTE           pbyRxRate;
     PBYTE           pbySQ;
-#ifdef Calcu_LinkQual
     PBYTE           pby3SQ;
-#endif
     unsigned int            cbHeaderSize;
     PSKeyItem       pKey = NULL;
     WORD            wRxTSC15_0 = 0;
@@ -415,7 +413,6 @@ RXbBulkInProcessData (
     wPLCPwithPadding = ( (*pwPLCP_Length / 4) + ( (*pwPLCP_Length % 4) ? 1:0 ) ) *4;
 
     pqwTSFTime = (PQWORD) (pbyDAddress + 8 + wPLCPwithPadding);
-#ifdef Calcu_LinkQual
   if(pDevice->byBBType == BB_TYPE_11G)  {
       pby3SQ = pbyDAddress + 8 + wPLCPwithPadding + 12;
       pbySQ = pby3SQ;
@@ -424,9 +421,6 @@ RXbBulkInProcessData (
    pbySQ = pbyDAddress + 8 + wPLCPwithPadding + 8;
    pby3SQ = pbySQ;
   }
-#else
-    pbySQ = pbyDAddress + 8 + wPLCPwithPadding + 8;
-#endif
     pbyNewRsr = pbyDAddress + 8 + wPLCPwithPadding + 9;
     pbyRSSI = pbyDAddress + 8 + wPLCPwithPadding + 10;
     pbyRsr = pbyDAddress + 8 + wPLCPwithPadding + 11;

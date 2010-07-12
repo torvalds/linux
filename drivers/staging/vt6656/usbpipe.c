@@ -591,9 +591,7 @@ s_nsBulkInUsbIoCompleteRead(
         pDevice->ulBulkInError++;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BULK In failed %d\n", status);
 
-     	#ifdef Calcu_LinkQual
            pDevice->scStatistic.RxFcsErrCnt ++;
-	#endif
 //todo...xxxxxx
 //        if (status == USBD_STATUS_CRC) {
 //            pDevice->ulBulkInContCRCError++;
@@ -607,9 +605,7 @@ s_nsBulkInUsbIoCompleteRead(
         pDevice->ulBulkInContCRCError = 0;
         pDevice->ulBulkInBytesRead += bytesRead;
 
-	#ifdef Calcu_LinkQual
            pDevice->scStatistic.RxOkCnt ++;
-	#endif
     }
 
 

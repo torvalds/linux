@@ -40,10 +40,6 @@ typedef int             BOOL;
 #define FALSE           0
 #endif
 
-#ifndef Calcu_LinkQual
-#define Calcu_LinkQual
-#endif
-
 /****** Simple typedefs  ***************************************************/
 
 typedef unsigned char   BYTE;           //  8-bit

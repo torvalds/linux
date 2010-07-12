@@ -83,13 +83,9 @@ struct iw_statistics *iwctl_get_wireless_stats(struct net_device *dev)
 	long ldBm;
 
 	pDevice->wstats.status = pDevice->eOPMode;
-	#ifdef Calcu_LinkQual
 	   if(pDevice->scStatistic.LinkQuality > 100)
    	       pDevice->scStatistic.LinkQuality = 100;
                pDevice->wstats.qual.qual =(BYTE) pDevice->scStatistic.LinkQuality;
-	#else
-	pDevice->wstats.qual.qual = pDevice->byCurrSQ;
-	#endif
 	RFvRSSITodBm(pDevice, (BYTE)(pDevice->uCurrRSSI), &ldBm);
 	pDevice->wstats.qual.level = ldBm;
 	//pDevice->wstats.qual.level = 0x100 - pDevice->uCurrRSSI;
@@ -583,11 +579,7 @@ int iwctl_giwrange(struct net_device *dev,
 		}
 		range->num_frequency = k;
 		// Hum... Should put the right values there
-	     #ifdef Calcu_LinkQual
                  range->max_qual.qual = 100;
-	     #else
-		range->max_qual.qual = 255;
-	     #endif
 		range->max_qual.level = 0;
 		range->max_qual.noise = 0;
 		range->sensitivity = 255;

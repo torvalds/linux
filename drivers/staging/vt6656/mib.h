@@ -356,7 +356,6 @@ typedef struct tagSStatCounter {
 
     SCustomCounters CustomStat;
 
-   #ifdef Calcu_LinkQual
        //Tx count:
   unsigned long TxNoRetryOkCount;         /* success tx no retry ! */
   unsigned long TxRetryOkCount;           /* success tx but retry ! */
@@ -367,7 +366,6 @@ typedef struct tagSStatCounter {
       //statistic
     unsigned long SignalStren;
     unsigned long LinkQuality;
-   #endif
 
 } SStatCounter, *PSStatCounter;
 

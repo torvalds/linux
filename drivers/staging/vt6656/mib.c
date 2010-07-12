@@ -467,12 +467,10 @@ STAvUpdateTDStatCounter (
     }
     if ( !(byTSR & (TSR_TMO | TSR_RETRYTMO))) {
 
-#ifdef Calcu_LinkQual
    if (byRetyCnt < 2)
         pStatistic->TxNoRetryOkCount ++;
    else
         pStatistic->TxRetryOkCount ++;
-#endif
 
         pStatistic->ullTsrOK++;
         pStatistic->CustomStat.ullTsrAllOK++;
@@ -493,9 +491,7 @@ STAvUpdateTDStatCounter (
     }
     else {
 
-#ifdef Calcu_LinkQual
         pStatistic->TxFailCount ++;
-#endif
 
         pStatistic->dwTsrErr++;
         if (byTSR & TSR_RETRYTMO)

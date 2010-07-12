@@ -93,10 +93,7 @@ const WORD             awHWRetry1[5][5] = {
 
 void s_vCheckSensitivity(void *hDeviceContext);
 void s_vCheckPreEDThreshold(void *hDeviceContext);
-
-#ifdef Calcu_LinkQual
 void s_uCalculateLinkQual(void *hDeviceContext);
-#endif
 
 /*---------------------  Export Variables  --------------------------*/
 
@@ -1015,9 +1012,7 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
 }
  pMgmt->eLastState = pMgmt->eCurrState ;
 
-#ifdef Calcu_LinkQual
    s_uCalculateLinkQual((void *)pDevice);
-#endif
 
     for (ii = 0; ii < (MAX_NODE_NUM + 1); ii++) {
 
@@ -1573,7 +1568,6 @@ void s_vCheckSensitivity(void *hDeviceContext)
     }
 }
 
-#ifdef Calcu_LinkQual
 void s_uCalculateLinkQual(void *hDeviceContext)
 {
    PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1618,7 +1612,6 @@ else
    pDevice->scStatistic.TxRetryOkCount = 0;
    return;
 }
-#endif
 
 void BSSvClearAnyBSSJoinRecord(void *hDeviceContext)
 {
