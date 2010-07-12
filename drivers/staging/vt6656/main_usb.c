@@ -1292,33 +1292,21 @@ static void __devexit vt6656_disconnect(struct usb_interface *intf)
 	}
 }
 
-static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
-    PSDevice        pDevice=netdev_priv(dev);
-    PBYTE           pbMPDU;
-    unsigned int            cbMPDULen = 0;
+static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
+{
+	PSDevice pDevice = netdev_priv(dev);
 
+	spin_lock_irq(&pDevice->lock);
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_dma0_tx_80211\n");
-    spin_lock_irq(&pDevice->lock);
+	if (unlikely(pDevice->bStopTx0Pkt))
+		dev_kfree_skb_irq(skb);
+	else
+		vDMA0_tx_80211(pDevice, skb);
 
-    if (pDevice->bStopTx0Pkt == TRUE) {
-        dev_kfree_skb_irq(skb);
-        spin_unlock_irq(&pDevice->lock);
-        return 0;
-    };
+	spin_unlock_irq(&pDevice->lock);
 
-
-    cbMPDULen = skb->len;
-    pbMPDU = skb->data;
-
-    vDMA0_tx_80211(pDevice, skb);
-
-    spin_unlock_irq(&pDevice->lock);
-
-    return 0;
-
+	return NETDEV_TX_OK;
 }
-
 
 static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     PSDevice    pDevice=netdev_priv(dev);
