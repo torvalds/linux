@@ -283,7 +283,7 @@ static ssize_t iowarrior_read(struct file *file, char __user *buffer,
 	int read_idx;
 	int offset;
 
-	dev = (struct iowarrior *)file->private_data;
+	dev = file->private_data;
 
 	/* verify that the device wasn't unplugged */
 	if (dev == NULL || !dev->present)
@@ -349,7 +349,7 @@ static ssize_t iowarrior_write(struct file *file,
 	char *buf = NULL;	/* for IOW24 and IOW56 we need a buffer */
 	struct urb *int_out_urb = NULL;
 
-	dev = (struct iowarrior *)file->private_data;
+	dev = file->private_data;
 
 	mutex_lock(&dev->mutex);
 	/* verify that the device wasn't unplugged */
@@ -484,7 +484,7 @@ static long iowarrior_ioctl(struct file *file, unsigned int cmd,
 	int retval;
 	int io_res;		/* checks for bytes read/written and copy_to/from_user results */
 
-	dev = (struct iowarrior *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL) {
 		return -ENODEV;
 	}
@@ -657,7 +657,7 @@ static int iowarrior_release(struct inode *inode, struct file *file)
 	struct iowarrior *dev;
 	int retval = 0;
 
-	dev = (struct iowarrior *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL) {
 		return -ENODEV;
 	}

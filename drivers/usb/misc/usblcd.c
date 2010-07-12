@@ -116,7 +116,7 @@ static int lcd_release(struct inode *inode, struct file *file)
 {
 	struct usb_lcd *dev;
 
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 
@@ -132,7 +132,7 @@ static ssize_t lcd_read(struct file *file, char __user * buffer, size_t count, l
 	int retval = 0;
 	int bytes_read;
 
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 
 	/* do a blocking bulk read to get data from the device */
 	retval = usb_bulk_msg(dev->udev, 
@@ -158,7 +158,7 @@ static long lcd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	u16 bcdDevice;
 	char buf[30];
 
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 	if (dev == NULL)
 		return -ENODEV;
 	
@@ -217,7 +217,7 @@ static ssize_t lcd_write(struct file *file, const char __user * user_buffer, siz
 	struct urb *urb = NULL;
 	char *buf = NULL;
 	
-	dev = (struct usb_lcd *)file->private_data;
+	dev = file->private_data;
 	
 	/* verify that we actually have some data to write */
 	if (count == 0)
