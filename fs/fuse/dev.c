@@ -239,7 +239,6 @@ static u64 fuse_get_unique(struct fuse_conn *fc)
 
 static void queue_request(struct fuse_conn *fc, struct fuse_req *req)
 {
-	req->in.h.unique = fuse_get_unique(fc);
 	req->in.h.len = sizeof(struct fuse_in_header) +
 		len_args(req->in.numargs, (struct fuse_arg *) req->in.args);
 	list_add_tail(&req->list, &fc->pending);
@@ -261,6 +260,7 @@ static void flush_bg_queue(struct fuse_conn *fc)
 		req = list_entry(fc->bg_queue.next, struct fuse_req, list);
 		list_del(&req->list);
 		fc->active_background++;
+		req->in.h.unique = fuse_get_unique(fc);
 		queue_request(fc, req);
 	}
 }
@@ -398,6 +398,7 @@ void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 	else if (fc->conn_error)
 		req->out.h.error = -ECONNREFUSED;
 	else {
+		req->in.h.unique = fuse_get_unique(fc);
 		queue_request(fc, req);
 		/* acquire extra reference, since request is still needed
 		   after request_end() */
@@ -449,6 +450,23 @@ void fuse_request_send_background(struct fuse_conn *fc, struct fuse_req *req)
 	fuse_request_send_nowait(fc, req);
 }
 EXPORT_SYMBOL_GPL(fuse_request_send_background);
+
+static int fuse_request_send_notify_reply(struct fuse_conn *fc,
+					  struct fuse_req *req, u64 unique)
+{
+	int err = -ENODEV;
+
+	req->isreply = 0;
+	req->in.h.unique = unique;
+	spin_lock(&fc->lock);
+	if (fc->connected) {
+		queue_request(fc, req);
+		err = 0;
+	}
+	spin_unlock(&fc->lock);
+
+	return err;
+}
 
 /*
  * Called under fc->lock
@@ -1316,6 +1334,114 @@ out_finish:
 	return err;
 }
 
+static void fuse_retrieve_end(struct fuse_conn *fc, struct fuse_req *req)
+{
+	int i;
+
+	for (i = 0; i < req->num_pages; i++) {
+		struct page *page = req->pages[i];
+		page_cache_release(page);
+	}
+}
+
+static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
+			 struct fuse_notify_retrieve_out *outarg)
+{
+	int err;
+	struct address_space *mapping = inode->i_mapping;
+	struct fuse_req *req;
+	pgoff_t index;
+	loff_t file_size;
+	unsigned int num;
+	unsigned int offset;
+	size_t total_len;
+
+	req = fuse_get_req(fc);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	offset = outarg->offset & ~PAGE_CACHE_MASK;
+
+	req->in.h.opcode = FUSE_NOTIFY_REPLY;
+	req->in.h.nodeid = outarg->nodeid;
+	req->in.numargs = 2;
+	req->in.argpages = 1;
+	req->page_offset = offset;
+	req->end = fuse_retrieve_end;
+
+	index = outarg->offset >> PAGE_CACHE_SHIFT;
+	file_size = i_size_read(inode);
+	num = outarg->size;
+	if (outarg->offset > file_size)
+		num = 0;
+	else if (outarg->offset + num > file_size)
+		num = file_size - outarg->offset;
+
+	while (num) {
+		struct page *page;
+		unsigned int this_num;
+
+		page = find_get_page(mapping, index);
+		if (!page)
+			break;
+
+		this_num = min_t(unsigned, num, PAGE_CACHE_SIZE - offset);
+		req->pages[req->num_pages] = page;
+		req->num_pages++;
+
+		num -= this_num;
+		total_len += this_num;
+	}
+	req->misc.retrieve_in.offset = outarg->offset;
+	req->misc.retrieve_in.size = total_len;
+	req->in.args[0].size = sizeof(req->misc.retrieve_in);
+	req->in.args[0].value = &req->misc.retrieve_in;
+	req->in.args[1].size = total_len;
+
+	err = fuse_request_send_notify_reply(fc, req, outarg->notify_unique);
+	if (err)
+		fuse_retrieve_end(fc, req);
+
+	return err;
+}
+
+static int fuse_notify_retrieve(struct fuse_conn *fc, unsigned int size,
+				struct fuse_copy_state *cs)
+{
+	struct fuse_notify_retrieve_out outarg;
+	struct inode *inode;
+	int err;
+
+	err = -EINVAL;
+	if (size != sizeof(outarg))
+		goto copy_finish;
+
+	err = fuse_copy_one(cs, &outarg, sizeof(outarg));
+	if (err)
+		goto copy_finish;
+
+	fuse_copy_finish(cs);
+
+	down_read(&fc->killsb);
+	err = -ENOENT;
+	if (fc->sb) {
+		u64 nodeid = outarg.nodeid;
+
+		inode = ilookup5(fc->sb, nodeid, fuse_inode_eq, &nodeid);
+		if (inode) {
+			err = fuse_retrieve(fc, inode, &outarg);
+			iput(inode);
+		}
+	}
+	up_read(&fc->killsb);
+
+	return err;
+
+copy_finish:
+	fuse_copy_finish(cs);
+	return err;
+}
+
 static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 		       unsigned int size, struct fuse_copy_state *cs)
 {
@@ -1331,6 +1457,9 @@ static int fuse_notify(struct fuse_conn *fc, enum fuse_notify_code code,
 
 	case FUSE_NOTIFY_STORE:
 		return fuse_notify_store(fc, size, cs);
+
+	case FUSE_NOTIFY_RETRIEVE:
+		return fuse_notify_retrieve(fc, size, cs);
 
 	default:
 		fuse_copy_finish(cs);
