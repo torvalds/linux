@@ -118,6 +118,7 @@ struct dcb_entry {
 		struct {
 			struct sor_conf sor;
 			bool use_straps_for_mode;
+			bool use_acpi_for_edid;
 			bool use_power_scripts;
 		} lvdsconf;
 		struct {

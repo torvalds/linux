@@ -327,10 +327,27 @@ nouveau_connector_detect_lvds(struct drm_connector *connector)
 	if (!nv_encoder)
 		return connector_status_disconnected;
 
+	/* Try retrieving EDID via DDC */
 	if (!dev_priv->vbios.fp_no_ddc) {
 		status = nouveau_connector_detect(connector);
 		if (status == connector_status_connected)
 			goto out;
+	}
+
+	/* On some laptops (Sony, i'm looking at you) there appears to
+	 * be no direct way of accessing the panel's EDID.  The only
+	 * option available to us appears to be to ask ACPI for help..
+	 *
+	 * It's important this check's before trying straps, one of the
+	 * said manufacturer's laptops are configured in such a way
+	 * the nouveau decides an entry in the VBIOS FP mode table is
+	 * valid - it's not (rh#613284)
+	 */
+	if (nv_encoder->dcb->lvdsconf.use_acpi_for_edid) {
+		if (!nouveau_acpi_edid(dev, connector)) {
+			status = connector_status_connected;
+			goto out;
+		}
 	}
 
 	/* If no EDID found above, and the VBIOS indicates a hardcoded

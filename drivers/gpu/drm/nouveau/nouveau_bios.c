@@ -5622,7 +5622,9 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 			if (conf & 0x4 || conf & 0x8)
 				entry->lvdsconf.use_power_scripts = true;
 		} else {
-			mask = ~0x5;
+			mask = ~0x7;
+			if (conf & 0x2)
+				entry->lvdsconf.use_acpi_for_edid = true;
 			if (conf & 0x4)
 				entry->lvdsconf.use_power_scripts = true;
 		}
