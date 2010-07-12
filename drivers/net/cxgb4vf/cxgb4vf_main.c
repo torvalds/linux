@@ -423,12 +423,13 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 
 	case CPL_SGE_EGR_UPDATE: {
 		/*
-		 * We've received an Egress Queue status update message.
-		 * We get these, as the SGE is currently configured, when
-		 * the firmware passes certain points in processing our
-		 * TX Ethernet Queue.  We use these updates to determine
-		 * when we may need to restart a TX Ethernet Queue which
-		 * was stopped for lack of free slots ...
+		 * We've received an Egress Queue Status Update message.  We
+		 * get these, if the SGE is configured to send these when the
+		 * firmware passes certain points in processing our TX
+		 * Ethernet Queue or if we make an explicit request for one.
+		 * We use these updates to determine when we may need to
+		 * restart a TX Ethernet Queue which was stopped for lack of
+		 * free TX Queue Descriptors ...
 		 */
 		const struct cpl_sge_egr_update *p = (void *)cpl;
 		unsigned int qid = EGR_QID(be32_to_cpu(p->opcode_qid));
@@ -436,7 +437,6 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		struct sge_txq *tq;
 		struct sge_eth_txq *txq;
 		unsigned int eq_idx;
-		int hw_cidx, reclaimable, in_use;
 
 		/*
 		 * Perform sanity checking on the Queue ID to make sure it
@@ -464,24 +464,6 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 				qid, tq->abs_id);
 			break;
 		}
-
-		/*
-		 * Skip TX Queues which aren't stopped.
-		 */
-		if (likely(!netif_tx_queue_stopped(txq->txq)))
-			break;
-
-		/*
-		 * Skip stopped TX Queues which have more than half of their
-		 * DMA rings occupied with unacknowledged writes.
-		 */
-		hw_cidx = be16_to_cpu(txq->q.stat->cidx);
-		reclaimable = hw_cidx - txq->q.cidx;
-		if (reclaimable < 0)
-			reclaimable += txq->q.size;
-		in_use = txq->q.in_use - reclaimable;
-		if (in_use >= txq->q.size/2)
-			break;
 
 		/*
 		 * Restart a stopped TX Queue which has less than half of its

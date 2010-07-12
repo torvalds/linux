@@ -1070,6 +1070,7 @@ static inline void txq_advance(struct sge_txq *tq, unsigned int n)
  */
 int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 {
+	u32 wr_mid;
 	u64 cntrl, *end;
 	int qidx, credits;
 	unsigned int flits, ndesc;
@@ -1143,14 +1144,19 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto out_free;
 	}
 
+	wr_mid = FW_WR_LEN16(DIV_ROUND_UP(flits, 2));
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		/*
 		 * After we're done injecting the Work Request for this
 		 * packet, we'll be below our "stop threshhold" so stop the TX
-		 * Queue now.  The queue will get started later on when the
-		 * firmware informs us that space has opened up.
+		 * Queue now and schedule a request for an SGE Egress Queue
+		 * Update message.  The queue will get started later on when
+		 * the firmware processes this Work Request and sends us an
+		 * Egress Queue Status Update message indicating that space
+		 * has opened up.
 		 */
 		txq_stop(txq);
+		wr_mid |= FW_WR_EQUEQ | FW_WR_EQUIQ;
 	}
 
 	/*
@@ -1161,7 +1167,7 @@ int t4vf_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	BUG_ON(DIV_ROUND_UP(ETHTXQ_MAX_HDR, TXD_PER_EQ_UNIT) > 1);
 	wr = (void *)&txq->q.desc[txq->q.pidx];
-	wr->equiq_to_len16 = cpu_to_be32(FW_WR_LEN16(DIV_ROUND_UP(flits, 2)));
+	wr->equiq_to_len16 = cpu_to_be32(wr_mid);
 	wr->r3[0] = cpu_to_be64(0);
 	wr->r3[1] = cpu_to_be64(0);
 	skb_copy_from_linear_data(skb, (void *)wr->ethmacdst, fw_hdr_copy_len);
