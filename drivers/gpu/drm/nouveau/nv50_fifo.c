@@ -259,7 +259,9 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	nv_wo32(dev, ramfc, 0x48/4, chan->pushbuf->instance >> 4);
-	nv_wo32(dev, ramfc, 0x80/4, (0xc << 24) | (chan->ramht->instance >> 4));
+	nv_wo32(dev, ramfc, 0x80/4, (0 << 27) /* 4KiB */ |
+				    (4 << 24) /* SEARCH_FULL */ |
+				    (chan->ramht->instance >> 4));
 	nv_wo32(dev, ramfc, 0x44/4, 0x2101ffff);
 	nv_wo32(dev, ramfc, 0x60/4, 0x7fffffff);
 	nv_wo32(dev, ramfc, 0x40/4, 0x00000000);
