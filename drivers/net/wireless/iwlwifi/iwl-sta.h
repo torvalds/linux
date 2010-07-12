@@ -97,6 +97,17 @@ static inline void iwl_clear_driver_stations(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->sta_lock, flags);
 	memset(priv->stations, 0, sizeof(priv->stations));
 	priv->num_stations = 0;
+
+	/*
+	 * Remove all key information that is not stored as part of station
+	 * information since mac80211 may not have had a
+	 * chance to remove all the keys. When device is reconfigured by
+	 * mac80211 after an error all keys will be reconfigured.
+	 */
+	priv->ucode_key_table = 0;
+	priv->key_mapping_key = 0;
+	memset(priv->wep_keys, 0, sizeof(priv->wep_keys));
+
 	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }
 
