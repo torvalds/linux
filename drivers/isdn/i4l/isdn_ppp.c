@@ -477,7 +477,7 @@ isdn_ppp_ioctl(int min, struct file *file, unsigned int cmd, unsigned long arg)
 	struct isdn_ppp_comp_data data;
 	void __user *argp = (void __user *)arg;
 
-	is = (struct ippp_struct *) file->private_data;
+	is = file->private_data;
 	lp = is->lp;
 
 	if (is->debug & 0x1)

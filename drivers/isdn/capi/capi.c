@@ -691,7 +691,7 @@ unlock_out:
 static ssize_t
 capi_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 	struct sk_buff *skb;
 	size_t copied;
 	int err;
@@ -726,7 +726,7 @@ capi_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 static ssize_t
 capi_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 	struct sk_buff *skb;
 	u16 mlen;
 
@@ -773,7 +773,7 @@ capi_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos
 static unsigned int
 capi_poll(struct file *file, poll_table * wait)
 {
-	struct capidev *cdev = (struct capidev *)file->private_data;
+	struct capidev *cdev = file->private_data;
 	unsigned int mask = 0;
 
 	if (!cdev->ap.applid)

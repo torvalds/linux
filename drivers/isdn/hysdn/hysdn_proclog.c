@@ -158,7 +158,7 @@ hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t 
 	int found = 0;
 	unsigned char *cp, valbuf[128];
 	long base = 10;
-	hysdn_card *card = (hysdn_card *) file->private_data;
+	hysdn_card *card = file->private_data;
 
 	if (count > (sizeof(valbuf) - 1))
 		count = sizeof(valbuf) - 1;	/* limit length */
