@@ -1466,7 +1466,7 @@ s_bPacketToWirelessUsb(
     memset(pTxBufHead, 0, sizeof(TX_BUFFER));
 
     // Get pkt type
-    if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
+    if (ntohs(psEthHeader->wType) > ETH_DATA_LEN) {
         if (pDevice->dwDiagRefCount == 0) {
             cb802_1_H_len = 8;
         } else {
@@ -1701,7 +1701,7 @@ s_bPacketToWirelessUsb(
     }
 
     // 802.1H
-    if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
+    if (ntohs(psEthHeader->wType) > ETH_DATA_LEN) {
         if (pDevice->dwDiagRefCount == 0) {
             if ( (psEthHeader->wType == TYPE_PKT_IPX) ||
                  (psEthHeader->wType == cpu_to_le16(0xF380))) {
