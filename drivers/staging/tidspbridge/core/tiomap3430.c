@@ -555,24 +555,18 @@ static int bridge_brd_start(struct bridge_dev_context *dev_ctxt,
 		dev_context->mbox->rxq->callback = (int (*)(void *))io_mbox_msg;
 
 /*PM_IVA2GRPSEL_PER = 0xC0;*/
-		temp = (u32) *((reg_uword32 *)
-				((u32) (resources->dw_per_pm_base) + 0xA8));
+		temp = readl(resources->dw_per_pm_base + 0xA8);
 		temp = (temp & 0xFFFFFF30) | 0xC0;
-		*((reg_uword32 *) ((u32) (resources->dw_per_pm_base) + 0xA8)) =
-		    (u32) temp;
+		writel(temp, resources->dw_per_pm_base + 0xA8);
 
 /*PM_MPUGRPSEL_PER &= 0xFFFFFF3F; */
-		temp = (u32) *((reg_uword32 *)
-				((u32) (resources->dw_per_pm_base) + 0xA4));
+		temp = readl(resources->dw_per_pm_base + 0xA4);
 		temp = (temp & 0xFFFFFF3F);
-		*((reg_uword32 *) ((u32) (resources->dw_per_pm_base) + 0xA4)) =
-		    (u32) temp;
+		writel(temp, resources->dw_per_pm_base + 0xA4);
 /*CM_SLEEPDEP_PER |= 0x04; */
-		temp = (u32) *((reg_uword32 *)
-				((u32) (resources->dw_per_base) + 0x44));
+		temp = readl(resources->dw_per_base + 0x44);
 		temp = (temp & 0xFFFFFFFB) | 0x04;
-		*((reg_uword32 *) ((u32) (resources->dw_per_base) + 0x44)) =
-		    (u32) temp;
+		writel(temp, resources->dw_per_base + 0x44);
 
 /*CM_CLKSTCTRL_IVA2 = 0x00000003 -To Allow automatic transitions */
 		(*pdata->dsp_cm_write)(OMAP34XX_CLKSTCTRL_ENABLE_AUTO,

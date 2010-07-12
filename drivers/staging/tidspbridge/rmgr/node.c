@@ -623,9 +623,7 @@ func_cont:
 			ul_gpp_mem_base = (u32) host_res->dw_mem_base[1];
 			off_set = pul_value - dynext_base;
 			ul_stack_seg_addr = ul_gpp_mem_base + off_set;
-			ul_stack_seg_val = (u32) *((reg_uword32 *)
-						    ((u32)
-						     (ul_stack_seg_addr)));
+			ul_stack_seg_val = readl(ul_stack_seg_addr);
 
 			dev_dbg(bridge, "%s: StackSegVal = 0x%x, StackSegAddr ="
 				" 0x%x\n", __func__, ul_stack_seg_val,
