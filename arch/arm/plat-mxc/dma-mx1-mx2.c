@@ -310,7 +310,7 @@ imx_dma_setup_sg(int channel,
 	imxdma->resbytes = dma_length;
 
 	if (!sg || !sgcount) {
-		printk(KERN_ERR "imxdma%d: imx_dma_setup_sg epty sg list\n",
+		printk(KERN_ERR "imxdma%d: imx_dma_setup_sg empty sg list\n",
 		       channel);
 		return -EINVAL;
 	}
