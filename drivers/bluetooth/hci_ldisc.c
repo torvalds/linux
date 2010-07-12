@@ -395,6 +395,9 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 	if (!reset)
 		set_bit(HCI_QUIRK_NO_RESET, &hdev->quirks);
 
+	if (test_bit(HCI_UART_RAW_DEVICE, &hu->hdev_flags))
+		set_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks);
+
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
 		hci_free_dev(hdev);
@@ -474,6 +477,15 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
 			return hu->hdev->id;
 		return -EUNATCH;
+
+	case HCIUARTSETFLAGS:
+		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
+			return -EBUSY;
+		hu->hdev_flags = arg;
+		break;
+
+	case HCIUARTGETFLAGS:
+		return hu->hdev_flags;
 
 	default:
 		err = n_tty_ioctl_helper(tty, file, cmd, arg);
