@@ -42,11 +42,12 @@
  *          !LST_Empty(pchnl->pio_completions) ==> pchnl->sync_event is set.
  */
 
+#include <linux/types.h>
+
 /*  ----------------------------------- OS */
 #include <dspbridge/host_os.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 /*  ----------------------------------- Trace & Debug */

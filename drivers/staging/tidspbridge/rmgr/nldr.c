@@ -16,9 +16,10 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <linux/types.h>
+
 #include <dspbridge/host_os.h>
 
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 #include <dspbridge/dbc.h>

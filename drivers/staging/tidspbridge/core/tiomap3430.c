@@ -16,6 +16,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <linux/types.h>
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 #include <linux/mm.h>
@@ -23,7 +24,6 @@
 #include <plat/control.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 /*  ----------------------------------- Trace & Debug */

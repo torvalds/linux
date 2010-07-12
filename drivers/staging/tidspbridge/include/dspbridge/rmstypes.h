@@ -19,10 +19,6 @@
 #ifndef RMSTYPES_
 #define RMSTYPES_
 #include <linux/types.h>
-/*
- *  DSP-side definitions.
- */
-#include <dspbridge/std.h>
 typedef u32 rms_word;
 
 #endif /* RMSTYPES_ */

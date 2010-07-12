@@ -16,10 +16,11 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
+#include <linux/types.h>
+
 #include <dspbridge/host_os.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 /*  ----------------------------------- Trace & Debug */

@@ -37,8 +37,9 @@
  *  been allocated, and not yet freed.
  */
 
+#include <linux/types.h>
+
 /*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 /*  ----------------------------------- Trace & Debug */

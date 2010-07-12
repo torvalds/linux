@@ -17,10 +17,10 @@
  */
 
 /*  ----------------------------------- Host OS */
+#include <linux/types.h>
 #include <dspbridge/host_os.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 /*  ----------------------------------- Trace & Debug */

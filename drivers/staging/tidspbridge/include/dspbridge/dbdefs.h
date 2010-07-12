@@ -22,7 +22,6 @@
 #include <linux/types.h>
 
 #include <dspbridge/dbtype.h>	/* GPP side type definitions */
-#include <dspbridge/std.h>	/* DSP/BIOS type definitions */
 #include <dspbridge/rms_sh.h>	/* Types shared between GPP and DSP */
 
 #define PG_SIZE4K 4096

@@ -15,8 +15,8 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+#include <linux/types.h>
 
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 #include <dspbridge/dspdeh.h>
 #include <dspbridge/dev.h>

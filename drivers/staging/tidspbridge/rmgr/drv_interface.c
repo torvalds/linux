@@ -19,6 +19,7 @@
 /*  ----------------------------------- Host OS */
 
 #include <dspbridge/host_os.h>
+#include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 
@@ -32,7 +33,6 @@
 #include <linux/cdev.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
-#include <dspbridge/std.h>
 #include <dspbridge/dbdefs.h>
 
 /*  ----------------------------------- Trace & Debug */
