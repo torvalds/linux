@@ -827,22 +827,26 @@ mixdev_ioctl(struct ac97_codec *codec, unsigned int cmd,
 	return codec->mixer_ioctl(codec, cmd, arg);
 }
 
-static int
-au1550_ioctl_mixdev(struct inode *inode, struct file *file,
-			       unsigned int cmd, unsigned long arg)
+static long
+au1550_ioctl_mixdev(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct au1550_state *s = (struct au1550_state *)file->private_data;
 	struct ac97_codec *codec = s->codec;
+	int ret;
 
-	return mixdev_ioctl(codec, cmd, arg);
+	lock_kernel();
+	ret = mixdev_ioctl(codec, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 static /*const */ struct file_operations au1550_mixer_fops = {
-	owner:THIS_MODULE,
-	llseek:au1550_llseek,
-	ioctl:au1550_ioctl_mixdev,
-	open:au1550_open_mixdev,
-	release:au1550_release_mixdev,
+	.owner		= THIS_MODULE,
+	.llseek		= au1550_llseek,
+	.unlocked_ioctl	= au1550_ioctl_mixdev,
+	.open		= au1550_open_mixdev,
+	.release	= au1550_release_mixdev,
 };
 
 static int
@@ -1346,8 +1350,7 @@ dma_count_done(struct dmabuf *db)
 
 
 static int
-au1550_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-							unsigned long arg)
+au1550_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct au1550_state *s = (struct au1550_state *)file->private_data;
 	unsigned long   flags;
@@ -1783,6 +1786,17 @@ au1550_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	return mixdev_ioctl(s->codec, cmd, arg);
 }
 
+static long
+au1550_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = au1550_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
 
 static int
 au1550_open(struct inode *inode, struct file *file)
@@ -1893,15 +1907,15 @@ au1550_release(struct inode *inode, struct file *file)
 }
 
 static /*const */ struct file_operations au1550_audio_fops = {
-	owner:		THIS_MODULE,
-	llseek:		au1550_llseek,
-	read:		au1550_read,
-	write:		au1550_write,
-	poll:		au1550_poll,
-	ioctl:		au1550_ioctl,
-	mmap:		au1550_mmap,
-	open:		au1550_open,
-	release:	au1550_release,
+	.owner		= THIS_MODULE,
+	.llseek		= au1550_llseek,
+	.read		= au1550_read,
+	.write		= au1550_write,
+	.poll		= au1550_poll,
+	.unlocked_ioctl	= au1550_unlocked_ioctl,
+	.mmap		= au1550_mmap,
+	.open		= au1550_open,
+	.release	= au1550_release,
 };
 
 MODULE_AUTHOR("Advanced Micro Devices (AMD), dan@embeddededge.com");

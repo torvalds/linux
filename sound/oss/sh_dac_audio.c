@@ -15,6 +15,7 @@
 #include <linux/linkage.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
+#include <linux/smp_lock.h>
 #include <linux/sound.h>
 #include <linux/smp_lock.h>
 #include <linux/soundcard.h>
@@ -93,7 +94,7 @@ static void dac_audio_set_rate(void)
 	wakeups_per_second = ktime_set(0, 1000000000 / rate);
 }
 
-static int dac_audio_ioctl(struct inode *inode, struct file *file,
+static int dac_audio_ioctl(struct file *file,
 			   unsigned int cmd, unsigned long arg)
 {
 	int val;
@@ -157,6 +158,17 @@ static int dac_audio_ioctl(struct inode *inode, struct file *file,
 		return -EINVAL;
 	}
 	return -EINVAL;
+}
+
+static long dac_audio_unlocked_ioctl(struct file *file, u_int cmd, u_long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = dac_audio_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 static ssize_t dac_audio_write(struct file *file, const char *buf, size_t count,
@@ -242,8 +254,8 @@ static int dac_audio_release(struct inode *inode, struct file *file)
 
 const struct file_operations dac_audio_fops = {
       .read =		dac_audio_read,
-      .write =	dac_audio_write,
-      .ioctl =	dac_audio_ioctl,
+      .write =		dac_audio_write,
+      .unlocked_ioctl =	dac_audio_unlocked_ioctl,
       .open =		dac_audio_open,
       .release =	dac_audio_release,
 };
