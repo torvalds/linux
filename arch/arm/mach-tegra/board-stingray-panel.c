@@ -20,58 +20,110 @@
 #include <linux/resource.h>
 #include <linux/leds-lp8550.h>
 #include <linux/platform_device.h>
+#include <linux/nvhost.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
-#include <mach/tegra_fb.h>
+#include <mach/dc.h>
+#include <mach/fb.h>
 
 #include "board-stingray.h"
 #include "gpio-names.h"
 
 #define STINGRAY_AUO_DISP_BL	TEGRA_GPIO_PD0
 
-/* Framebuffer */
-static struct resource fb_resource[] = {
-	[0] = {
-		.start  = INT_DISPLAY_GENERAL,
-		.end    = INT_DISPLAY_GENERAL,
-		.flags  = IORESOURCE_IRQ,
+/* Display Controller */
+static struct resource stingray_disp1_resources[] = {
+	{
+		.name	= "irq",
+		.start	= INT_DISPLAY_GENERAL,
+		.end	= INT_DISPLAY_GENERAL,
+		.flags	= IORESOURCE_IRQ,
 	},
-	[1] = {
+	{
+		.name	= "regs",
 		.start	= TEGRA_DISPLAY_BASE,
 		.end	= TEGRA_DISPLAY_BASE + TEGRA_DISPLAY_SIZE-1,
 		.flags	= IORESOURCE_MEM,
 	},
-	[2] = {
-		.start	= 0x1c03a000,
-		.end	= 0x1c03a000 + 0x500000 - 1,
+	{
+		.name	= "fbmem",
+		.start	= 0x1c038000,
+		.end	= 0x1c038000 + 0x500000 - 1,
 		.flags	= IORESOURCE_MEM,
+	},
+
+};
+
+static struct tegra_dc_mode stingray_panel_modes_p0[] = {
+	{
+		.pclk = 62200000,
+		.h_ref_to_sync = 11,
+		.v_ref_to_sync = 1,
+		.h_sync_width = 42,
+		.v_sync_width = 6,
+		.h_back_porch = 43,
+		.v_back_porch = 5,
+		.h_active = 1280,
+		.v_active = 720,
+		.h_front_porch = 43,
+		.v_front_porch = 5,
 	},
 };
 
-static struct tegra_fb_lcd_data tegra_fb_lcd_platform_data = {
-	.lcd_xres	= 1280,
-	.lcd_yres	= 720,
-	.fb_xres	= 1280,
-	.fb_yres	= 720,
-	.bits_per_pixel	= 16,
+static struct tegra_dc_mode stingray_panel_modes[] = {
+	{
+		.pclk = 62200000,
+		.h_ref_to_sync = 11,
+		.v_ref_to_sync = 1,
+		.h_sync_width = 42,
+		.v_sync_width = 6,
+		.h_back_porch = 43,
+		.v_back_porch = 5,
+		.h_active = 1280,
+		.v_active = 800,
+		.h_front_porch = 43,
+		.v_front_porch = 5,
+	},
 };
 
-static struct tegra_fb_lcd_data tegra_fb_lcd_platform_data_p1 = {
-	.lcd_xres	= 1280,
-	.lcd_yres	= 800,
-	.fb_xres	= 1280,
-	.fb_yres	= 800,
-	.bits_per_pixel	= 16,
+static struct tegra_fb_data stingray_fb_data_p0 = {
+	.win		= 0,
+	.xres		= 1280,
+	.yres		= 720,
+	.bits_per_pixel	= 32,
 };
 
-static struct platform_device tegra_fb_device = {
-	.name = "tegrafb",
-	.id	= 0,
-	.resource = fb_resource,
-	.num_resources = ARRAY_SIZE(fb_resource),
+static struct tegra_fb_data stingray_fb_data = {
+	.win		= 0,
+	.xres		= 1280,
+	.yres		= 800,
+	.bits_per_pixel	= 32,
+};
+
+static struct tegra_dc_out stingray_disp1_out = {
+	.type = TEGRA_DC_OUT_RGB,
+
+	.align = TEGRA_DC_ALIGN_MSB,
+	.order = TEGRA_DC_ORDER_RED_BLUE,
+
+	.modes = stingray_panel_modes,
+	.n_modes = ARRAY_SIZE(stingray_panel_modes),
+};
+
+static struct tegra_dc_platform_data stingray_disp1_pdata = {
+	.flags		= TEGRA_DC_FLAG_ENABLED,
+	.default_out	= &stingray_disp1_out,
+	.fb		= &stingray_fb_data,
+};
+
+static struct nvhost_device stingray_disp1_device = {
+	.name		= "tegradc",
+	.id		= 0,
+	.resource	= stingray_disp1_resources,
+	.num_resources	= ARRAY_SIZE(stingray_disp1_resources),
 	.dev = {
-		.platform_data = NULL,
+		.platform_data = &stingray_disp1_pdata,
 	},
 };
 
@@ -99,6 +151,7 @@ static struct platform_device stingray_panel_bl_driver = {
 		.platform_data = &stingray_auo_backlight_data,
 		},
 };
+
 struct lp8550_eeprom_data stingray_lp8550_eeprom_data[] = {
 	/* Set the backlight current to 15mA each step is .12mA */
 	{0x7f},
@@ -145,13 +198,13 @@ int __init stingray_panel_init(void)
 		gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
 		gpio_direction_output(STINGRAY_AUO_DISP_BL, 1);
 		platform_device_register(&stingray_panel_bl_driver);
-		tegra_fb_device.dev.platform_data = &tegra_fb_lcd_platform_data;
+		stingray_disp1_pdata.fb = &stingray_fb_data_p0;
+		stingray_disp1_out.modes = stingray_panel_modes_p0;
 	} else {
 		i2c_register_board_info(0, stingray_i2c_bus1_led_info,
 			ARRAY_SIZE(stingray_i2c_bus1_led_info));
-        tegra_fb_device.dev.platform_data = &tegra_fb_lcd_platform_data_p1;
 	}
 
-	return platform_device_register(&tegra_fb_device);
+	return  nvhost_device_register(&stingray_disp1_device);
 }
 
