@@ -2667,7 +2667,9 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 
 	/* Analog specific initialization */
 	dev->format = &format[0];
-	/* video_mux(dev, dev->video_input); */
+
+	/* Set the initial input */
+	video_mux(dev, dev->video_input);
 
 	/* Audio defaults */
 	dev->mute = 1;

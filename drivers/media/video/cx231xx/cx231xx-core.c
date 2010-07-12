@@ -1002,12 +1002,6 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	int j, k;
 	int rc;
 
-	dev->video_input = dev->video_input > 2 ? 2 : dev->video_input;
-
-	cx231xx_coredbg("Setting Video mux to %d\n", dev->video_input);
-
-	video_mux(dev, dev->video_input);
-
 	/* De-allocates all pending stuff */
 	cx231xx_uninit_isoc(dev);
 
