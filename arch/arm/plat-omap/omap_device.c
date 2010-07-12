@@ -407,7 +407,9 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	od->pdev.num_resources = res_count;
 	od->pdev.resource = res;
 
-	platform_device_add_data(&od->pdev, pdata, pdata_len);
+	ret = platform_device_add_data(&od->pdev, pdata, pdata_len);
+	if (ret)
+		goto odbs_exit4;
 
 	od->pm_lats = pm_lats;
 	od->pm_lats_cnt = pm_lats_cnt;
