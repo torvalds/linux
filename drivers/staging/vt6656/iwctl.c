@@ -182,9 +182,7 @@ if(pDevice->byReAssocCount > 0) {   //reject scan when re-associating!
 
 	spin_lock_irq(&pDevice->lock);
 
-#ifdef update_BssList
 	BSSvClearBSSList((void *) pDevice, pDevice->bLinkPass);
-#endif
 
 //mike add: active scan OR passive scan OR desire_ssid scan
  if(wrq->length == sizeof(struct iw_scan_req)) {
