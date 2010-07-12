@@ -2294,21 +2294,17 @@ void pci_msi_off(struct pci_dev *dev)
 }
 EXPORT_SYMBOL_GPL(pci_msi_off);
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
 	return dma_set_max_seg_size(&dev->dev, size);
 }
 EXPORT_SYMBOL(pci_set_dma_max_seg_size);
-#endif
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_SEGMENT_BOUNDARY
 int pci_set_dma_seg_boundary(struct pci_dev *dev, unsigned long mask)
 {
 	return dma_set_seg_boundary(&dev->dev, mask);
 }
 EXPORT_SYMBOL(pci_set_dma_seg_boundary);
-#endif
 
 static int pcie_flr(struct pci_dev *dev, int probe)
 {
