@@ -514,6 +514,14 @@ config MFD_JANZ_CMODIO
 	  host many different types of MODULbus daughterboards, including
 	  CAN and GPIO controllers.
 
+config MFD_JZ4740_ADC
+	tristate "Support for the JZ4740 SoC ADC core"
+	select MFD_CORE
+	depends on MACH_JZ4740
+	help
+	  Say yes here if you want support for the ADC unit in the JZ4740 SoC.
+	  This driver is necessary for jz4740-battery and jz4740-hwmon driver.
+
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
