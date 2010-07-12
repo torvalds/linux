@@ -791,7 +791,7 @@ static struct easycap *peasycap;
 static struct usb_device *p;
 static __u32 isequence;
 
-peasycap = (struct easycap *)file->private_data;
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	return -1;
@@ -1973,7 +1973,7 @@ int easysnd_ioctl(struct inode *inode, struct file *file, \
 struct easycap *peasycap;
 struct usb_device *p;
 
-peasycap = (struct easycap *)file->private_data;
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
 	return -1;

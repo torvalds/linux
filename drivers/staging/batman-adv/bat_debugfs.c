@@ -104,7 +104,7 @@ static int log_release(struct inode *inode, struct file *file)
 static ssize_t log_read(struct file *file, char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	struct bat_priv *bat_priv = (struct bat_priv *)file->private_data;
+	struct bat_priv *bat_priv = file->private_data;
 	struct debug_log *debug_log = bat_priv->debug_log;
 	int error, i = 0;
 	char c;
@@ -158,7 +158,7 @@ static ssize_t log_read(struct file *file, char __user *buf,
 
 static unsigned int log_poll(struct file *file, poll_table *wait)
 {
-	struct bat_priv *bat_priv = (struct bat_priv *)file->private_data;
+	struct bat_priv *bat_priv = file->private_data;
 	struct debug_log *debug_log = bat_priv->debug_log;
 
 	poll_wait(file, &debug_log->queue_wait, wait);

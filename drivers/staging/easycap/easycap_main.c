@@ -527,7 +527,7 @@ struct easycap *peasycap;
 
 JOT(4, "\n");
 
-peasycap = (struct easycap *)file->private_data;
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
 	SAY("ending unsuccessfully\n");
@@ -819,7 +819,7 @@ if (NULL == ((struct file *)file)) {
 	SAY("ERROR:  file pointer is NULL\n");
 	return -EFAULT;
 }
-peasycap = (struct easycap *)file->private_data;
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL\n");
 	return -EFAULT;

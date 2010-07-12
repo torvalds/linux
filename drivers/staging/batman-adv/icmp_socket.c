@@ -78,8 +78,7 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 
 static int bat_socket_release(struct inode *inode, struct file *file)
 {
-	struct socket_client *socket_client =
-		(struct socket_client *)file->private_data;
+	struct socket_client *socket_client = file->private_data;
 	struct socket_packet *socket_packet;
 	struct list_head *list_pos, *list_pos_tmp;
 	unsigned long flags;
@@ -107,8 +106,7 @@ static int bat_socket_release(struct inode *inode, struct file *file)
 static ssize_t bat_socket_read(struct file *file, char __user *buf,
 			       size_t count, loff_t *ppos)
 {
-	struct socket_client *socket_client =
-		(struct socket_client *)file->private_data;
+	struct socket_client *socket_client = file->private_data;
 	struct socket_packet *socket_packet;
 	size_t packet_len;
 	int error;
@@ -155,8 +153,7 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 {
 	/* FIXME: each orig_node->batman_if will be attached to a softif */
 	struct bat_priv *bat_priv = netdev_priv(soft_device);
-	struct socket_client *socket_client =
-		(struct socket_client *)file->private_data;
+	struct socket_client *socket_client = file->private_data;
 	struct icmp_packet_rr icmp_packet;
 	struct orig_node *orig_node;
 	struct batman_if *batman_if;
@@ -247,8 +244,7 @@ out:
 
 static unsigned int bat_socket_poll(struct file *file, poll_table *wait)
 {
-	struct socket_client *socket_client =
-		(struct socket_client *)file->private_data;
+	struct socket_client *socket_client = file->private_data;
 
 	poll_wait(file, &socket_client->queue_wait, wait);
 

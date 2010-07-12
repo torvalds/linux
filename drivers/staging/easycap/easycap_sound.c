@@ -630,7 +630,7 @@ struct easycap *peasycap;
 
 JOT(4, "begins\n");
 
-peasycap = (struct easycap *)file->private_data;
+peasycap = file->private_data;
 if (NULL == peasycap) {
 	SAY("ERROR:  peasycap is NULL.\n");
 	return -EFAULT;
