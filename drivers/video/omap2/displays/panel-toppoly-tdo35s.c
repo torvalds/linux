@@ -73,8 +73,12 @@ static void toppoly_tdo_panel_power_off(struct omap_dss_device *dssdev)
 
 static int toppoly_tdo_panel_probe(struct omap_dss_device *dssdev)
 {
-	dssdev->panel.config = OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
-		OMAP_DSS_LCD_IHS;
+	dssdev->panel.config = OMAP_DSS_LCD_TFT |
+			       OMAP_DSS_LCD_IVS |
+			       OMAP_DSS_LCD_IHS |
+			       OMAP_DSS_LCD_IPC |
+			       OMAP_DSS_LCD_ONOFF;
+
 	dssdev->panel.timings = toppoly_tdo_panel_timings;
 
 	return 0;
