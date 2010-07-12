@@ -39,11 +39,6 @@
 #define U_ETHER_ADDR_STR_LEN (ETH_ALEN * 2 + 1)
                                         // Ethernet address string length
 
-#define MIN_DATA_LEN        46          // min data length
-
-#define MIN_PACKET_LEN      (MIN_DATA_LEN + ETH_HLEN)
-                                        // 60
-                                        // min total packet length (tx)
 #define MAX_PACKET_LEN      (ETH_DATA_LEN + ETH_HLEN)
                                         // 1514
                                         // max total packet length (tx)
