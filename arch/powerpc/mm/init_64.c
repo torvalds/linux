@@ -40,7 +40,7 @@
 #include <linux/nodemask.h>
 #include <linux/module.h>
 #include <linux/poison.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
 

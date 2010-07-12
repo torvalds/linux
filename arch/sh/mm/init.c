@@ -16,7 +16,7 @@
 #include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/dma-mapping.h>
 #include <asm/mmu_context.h>
 #include <asm/mmzone.h>
@@ -33,7 +33,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 void __init generic_mem_init(void)
 {
-	lmb_add(__MEMORY_START, __MEMORY_SIZE);
+	memblock_add(__MEMORY_START, __MEMORY_SIZE);
 }
 
 void __init __weak plat_mem_setup(void)
@@ -176,12 +176,12 @@ void __init allocate_pgdat(unsigned int nid)
 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
-	phys = __lmb_alloc_base(sizeof(struct pglist_data),
+	phys = __memblock_alloc_base(sizeof(struct pglist_data),
 				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
 	/* Retry with all of system memory */
 	if (!phys)
-		phys = __lmb_alloc_base(sizeof(struct pglist_data),
-					SMP_CACHE_BYTES, lmb_end_of_DRAM());
+		phys = __memblock_alloc_base(sizeof(struct pglist_data),
+					SMP_CACHE_BYTES, memblock_end_of_DRAM());
 	if (!phys)
 		panic("Can't allocate pgdat for node %d\n", nid);
 
@@ -212,7 +212,7 @@ static void __init bootmem_init_one_node(unsigned int nid)
 
 	total_pages = bootmem_bootmap_pages(p->node_spanned_pages);
 
-	paddr = lmb_alloc(total_pages << PAGE_SHIFT, PAGE_SIZE);
+	paddr = memblock_alloc(total_pages << PAGE_SHIFT, PAGE_SIZE);
 	if (!paddr)
 		panic("Can't allocate bootmap for nid[%d]\n", nid);
 
@@ -227,9 +227,9 @@ static void __init bootmem_init_one_node(unsigned int nid)
 	 */
 	if (nid == 0) {
 		/* Reserve the sections we're already using. */
-		for (i = 0; i < lmb.reserved.cnt; i++)
-			reserve_bootmem(lmb.reserved.region[i].base,
-					lmb_size_bytes(&lmb.reserved, i),
+		for (i = 0; i < memblock.reserved.cnt; i++)
+			reserve_bootmem(memblock.reserved.region[i].base,
+					memblock_size_bytes(&memblock.reserved, i),
 					BOOTMEM_DEFAULT);
 	}
 
@@ -241,10 +241,10 @@ static void __init do_init_bootmem(void)
 	int i;
 
 	/* Add active regions with valid PFNs. */
-	for (i = 0; i < lmb.memory.cnt; i++) {
+	for (i = 0; i < memblock.memory.cnt; i++) {
 		unsigned long start_pfn, end_pfn;
-		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
-		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+		start_pfn = memblock.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + memblock_size_pages(&memblock.memory, i);
 		__add_active_range(0, start_pfn, end_pfn);
 	}
 
@@ -276,7 +276,7 @@ static void __init early_reserve_mem(void)
 	 * this catches the (definitely buggy) case of us accidentally
 	 * initializing the bootmem allocator with an invalid RAM area.
 	 */
-	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+	memblock_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
 		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
 		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
 
@@ -284,7 +284,7 @@ static void __init early_reserve_mem(void)
 	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
 	 */
 	if (CONFIG_ZERO_PAGE_OFFSET != 0)
-		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
+		memblock_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
 
 	/*
 	 * Handle additional early reservations
@@ -299,27 +299,27 @@ void __init paging_init(void)
 	unsigned long vaddr, end;
 	int nid;
 
-	lmb_init();
+	memblock_init();
 
 	sh_mv.mv_mem_init();
 
 	early_reserve_mem();
 
-	lmb_enforce_memory_limit(memory_limit);
-	lmb_analyze();
+	memblock_enforce_memory_limit(memory_limit);
+	memblock_analyze();
 
-	lmb_dump_all();
+	memblock_dump_all();
 
 	/*
 	 * Determine low and high memory ranges:
 	 */
-	max_low_pfn = max_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	max_low_pfn = max_pfn = memblock_end_of_DRAM() >> PAGE_SHIFT;
 	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
 
 	nodes_clear(node_online_map);
 
 	memory_start = (unsigned long)__va(__MEMORY_START);
-	memory_end = memory_start + (memory_limit ?: lmb_phys_mem_size());
+	memory_end = memory_start + (memory_limit ?: memblock_phys_mem_size());
 
 	uncached_init();
 	pmb_init();
