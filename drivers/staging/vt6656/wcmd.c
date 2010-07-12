@@ -565,11 +565,9 @@ void vRunCommand(void *hDeviceContext)
                 return;
             }
 
-//20080131-03,<Add> by Mike Liu
-	#ifdef Adhoc_STA
             memcpy(pMgmt->abyAdHocSSID,pMgmt->abyDesireSSID,
                               ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len + WLAN_IEHDR_LEN);
-	#endif
+
             pItemSSID = (PWLAN_IE_SSID)pMgmt->abyDesireSSID;
             pItemSSIDCurr = (PWLAN_IE_SSID)pMgmt->abyCurrSSID;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" cmd: desire ssid = %s\n", pItemSSID->abySSID);

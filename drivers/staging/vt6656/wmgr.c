@@ -2467,11 +2467,8 @@ void vMgrCreateOwnIBSS(void *hDeviceContext,
     pDevice->uCurrRSSI = 0;
     pDevice->byCurrSQ = 0;
 
-//20080131-04,<Add> by Mike Liu
-#ifdef Adhoc_STA
     memcpy(pMgmt->abyDesireSSID,pMgmt->abyAdHocSSID,
                       ((PWLAN_IE_SSID)pMgmt->abyAdHocSSID)->len + WLAN_IEHDR_LEN);
-#endif
 
     memset(pMgmt->abyCurrSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
     memcpy(pMgmt->abyCurrSSID,

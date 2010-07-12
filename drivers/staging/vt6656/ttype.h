@@ -31,11 +31,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-//2008-0131-02<Add>by MikeLiu
-#ifndef Adhoc_STA
-#define Adhoc_STA
-#endif
-
 typedef int             BOOL;
 
 #if !defined(TRUE)

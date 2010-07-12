@@ -291,10 +291,7 @@ typedef struct tagSMgmtObject
     BYTE                    abyDesireBSSID[WLAN_BSSID_LEN];
 
 //restore BSS info for Ad-Hoc mode
-//20080131-05,<Add> by Mike Liu
-#ifdef Adhoc_STA
      BYTE                    abyAdHocSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-#endif
 
     // Adhoc or AP configuration vars
     WORD                    wIBSSBeaconPeriod;
