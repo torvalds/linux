@@ -38,15 +38,7 @@
 //
 #define U_ETHER_ADDR_STR_LEN (ETH_ALEN * 2 + 1)
                                         // Ethernet address string length
-
-#define MAX_PACKET_LEN      (ETH_DATA_LEN + ETH_HLEN)
-                                        // 1514
-                                        // max total packet length (tx)
-
-#define MAX_LOOKAHEAD_SIZE  MAX_PACKET_LEN
-
 #define U_MULTI_ADDR_LEN    8           // multicast address length
-
 
 #ifdef __BIG_ENDIAN
 

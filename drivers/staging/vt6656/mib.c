@@ -363,16 +363,13 @@ void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
     }
     else if ((512 <= cbFrameLength) && (cbFrameLength <= 1023)) {
         pStatistic->dwRsrRxFrmLen512_1023++;
-    }
-    else if ((1024 <= cbFrameLength) && (cbFrameLength <= MAX_PACKET_LEN + 4)) {
+    } else if ((1024 <= cbFrameLength) &&
+	       (cbFrameLength <= ETH_FRAME_LEN + 4)) {
         pStatistic->dwRsrRxFrmLen1024_1518++;
-    } else if (cbFrameLength > MAX_PACKET_LEN + 4) {
+    } else if (cbFrameLength > ETH_FRAME_LEN + 4) {
         pStatistic->dwRsrLong++;
     }
-
 }
-
-
 
 /*
  * Description: Update Rx Statistic Counter and copy Rx buffer
