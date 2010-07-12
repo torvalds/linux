@@ -115,18 +115,9 @@ static int iwctl_commit(struct net_device *dev,
 			      void *wrq,
 			      char *extra)
 {
-//2008-0409-02, <Mark> by Einsn Liu
-/*
-#ifdef Safe_Close
-  PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-  if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
-        return -EINVAL;
-#endif
-*/
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWCOMMIT \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWCOMMIT\n");
 
 	return 0;
-
 }
 
 /*
@@ -255,14 +246,7 @@ int iwctl_giwscan(struct net_device *dev,
 	long ldBm;
 	char buf[MAX_WPA_IE_LEN * 2 + 30];
 
-//2008-0409-02, <Mark> by Einsn Liu
-/*
-#ifdef Safe_Close
-  if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
-        return -EINVAL;
-#endif
-*/
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSCAN \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSCAN\n");
 
     if (pMgmt->eScanState ==  WMAC_IS_SCANNING) {
         // In scanning..
@@ -583,16 +567,8 @@ int iwctl_giwrange(struct net_device *dev,
 	struct iw_range *range = (struct iw_range *) extra;
 	int		i,k;
     BYTE abySupportedRates[13]= {0x02, 0x04, 0x0B, 0x16, 0x0c, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C, 0x90};
-//2008-0409-02, <Mark> by Einsn Liu
-/*
- #ifdef Safe_Close
-  PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-  if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
-        return -EINVAL;
-#endif
- */
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWRANGE \n");
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWRANGE\n");
 	if (wrq->pointer) {
 		wrq->length = sizeof(struct iw_range);
 		memset(range, 0, sizeof(struct iw_range));

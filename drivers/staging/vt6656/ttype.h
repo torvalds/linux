@@ -31,11 +31,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-//2007-0814-01<Add>by MikeLiu
-#ifndef Safe_Close
-#define Safe_Close
-#endif
-
 //2008-0131-02<Add>by MikeLiu
 #ifndef Adhoc_STA
 #define Adhoc_STA
