@@ -2344,16 +2344,11 @@ int cx231xx_set_power_mode(struct cx231xx *dev, enum AV_MODE mode)
 			if (dev->cx231xx_reset_analog_tuner)
 				dev->cx231xx_reset_analog_tuner(dev);
 		} else if ((dev->model == CX231XX_BOARD_CNXT_RDE_253S) ||
-		    (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) ||
-		    (dev->model == CX231XX_BOARD_CNXT_RDU_253S)) {
+			   (dev->model == CX231XX_BOARD_CNXT_VIDEO_GRABBER) ||
+			   (dev->model == CX231XX_BOARD_CNXT_RDU_253S) ||
+			   (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER)) {
 			/* tuner path to channel 1 from port 3 */
 			cx231xx_enable_i2c_for_tuner(dev, I2C_3);
-			if (dev->cx231xx_reset_analog_tuner)
-				dev->cx231xx_reset_analog_tuner(dev);
-		} else if (dev->model == CX231XX_BOARD_HAUPPAUGE_EXETER) {
-			/* tuner path to channel 1 from port 1 ?? */
-			cx231xx_enable_i2c_for_tuner(dev, I2C_1);
-
 			if (dev->cx231xx_reset_analog_tuner)
 				dev->cx231xx_reset_analog_tuner(dev);
 		}
