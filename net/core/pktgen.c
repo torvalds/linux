@@ -846,7 +846,7 @@ static ssize_t pktgen_if_write(struct file *file,
 			       const char __user * user_buffer, size_t count,
 			       loff_t * offset)
 {
-	struct seq_file *seq = (struct seq_file *)file->private_data;
+	struct seq_file *seq = file->private_data;
 	struct pktgen_dev *pkt_dev = seq->private;
 	int i = 0, max, len;
 	char name[16], valstr[32];
@@ -1776,7 +1776,7 @@ static ssize_t pktgen_thread_write(struct file *file,
 				   const char __user * user_buffer,
 				   size_t count, loff_t * offset)
 {
-	struct seq_file *seq = (struct seq_file *)file->private_data;
+	struct seq_file *seq = file->private_data;
 	struct pktgen_thread *t = seq->private;
 	int i = 0, max, len, ret;
 	char name[40];
