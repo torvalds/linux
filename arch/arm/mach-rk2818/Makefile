@@ -1,4 +1,4 @@
-obj-y += io.o irq.o timer.o iomux.o gpio.o
+obj-y += irq.o timer.o iomux.o gpio.o
 obj-y += devices.o
 obj-y += clock.o
 obj-$(CONFIG_CPU_FREQ) += cpufreq.o
