@@ -1995,8 +1995,10 @@ static struct logical_input *panel_bind_key(char *name, char *press,
 		return NULL;
 	}
 	if (!input_name2mask(name, &key->mask, &key->value, &scan_mask_i,
-			     &scan_mask_o))
+			     &scan_mask_o)) {
+		kfree(key);
 		return NULL;
+	}
 
 	key->type = INPUT_TYPE_KBD;
 	key->state = INPUT_ST_LOW;
