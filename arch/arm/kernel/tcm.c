@@ -13,7 +13,6 @@
 #include <linux/ioport.h>
 #include <linux/genalloc.h>
 #include <linux/string.h> /* memcpy */
-#include <asm/page.h> /* PAGE_SHIFT */
 #include <asm/cputype.h>
 #include <asm/mach/map.h>
 #include <mach/memory.h>
@@ -53,7 +52,7 @@ static struct map_desc dtcm_iomap[] __initdata = {
 		.virtual	= DTCM_OFFSET,
 		.pfn		= __phys_to_pfn(DTCM_OFFSET),
 		.length		= (DTCM_END - DTCM_OFFSET + 1),
-		.type		= MT_UNCACHED
+		.type		= MT_MEMORY_DTCM
 	}
 };
 
@@ -62,7 +61,7 @@ static struct map_desc itcm_iomap[] __initdata = {
 		.virtual	= ITCM_OFFSET,
 		.pfn		= __phys_to_pfn(ITCM_OFFSET),
 		.length		= (ITCM_END - ITCM_OFFSET + 1),
-		.type		= MT_UNCACHED
+		.type		= MT_MEMORY_ITCM
 	}
 };
 
