@@ -48,13 +48,12 @@
 
 /* DO_FMT */
 /* DI_FMT */
-#define CR_FMT(param) ((param) << 4)
-# define CR_MONO	0x0
-# define CR_MONO_D	0x1
-# define CR_PCM		0x2
-# define CR_I2S		0x3
-# define CR_TDM		0x4
-# define CR_TDM_D	0x5
+#define CR_MONO		(0x0 << 4)
+#define CR_MONO_D	(0x1 << 4)
+#define CR_PCM		(0x2 << 4)
+#define CR_I2S		(0x3 << 4)
+#define CR_TDM		(0x4 << 4)
+#define CR_TDM_D	(0x5 << 4)
 
 /* DOFF_CTL */
 /* DIFF_CTL */
@@ -690,30 +689,30 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	fmt = is_play ? SH_FSI_GET_OFMT(flags) : SH_FSI_GET_IFMT(flags);
 	switch (fmt) {
 	case SH_FSI_FMT_MONO:
-		data = CR_FMT(CR_MONO);
+		data = CR_MONO;
 		fsi->chan = 1;
 		break;
 	case SH_FSI_FMT_MONO_DELAY:
-		data = CR_FMT(CR_MONO_D);
+		data = CR_MONO_D;
 		fsi->chan = 1;
 		break;
 	case SH_FSI_FMT_PCM:
-		data = CR_FMT(CR_PCM);
+		data = CR_PCM;
 		fsi->chan = 2;
 		break;
 	case SH_FSI_FMT_I2S:
-		data = CR_FMT(CR_I2S);
+		data = CR_I2S;
 		fsi->chan = 2;
 		break;
 	case SH_FSI_FMT_TDM:
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
-		data = CR_FMT(CR_TDM) | (fsi->chan - 1);
+		data = CR_TDM | (fsi->chan - 1);
 		break;
 	case SH_FSI_FMT_TDM_DELAY:
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
-		data = CR_FMT(CR_TDM_D) | (fsi->chan - 1);
+		data = CR_TDM_D | (fsi->chan - 1);
 		break;
 	default:
 		dev_err(dai->dev, "unknown format.\n");
