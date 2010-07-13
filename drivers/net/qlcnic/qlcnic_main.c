@@ -2581,7 +2581,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		if (adapter->need_fw_reset)
 			goto detach;
 
-		if (adapter->reset_context) {
+		if (adapter->reset_context &&
+		    auto_fw_reset == AUTO_FW_RESET_ENABLED) {
 			qlcnic_reset_hw_context(adapter);
 			adapter->netdev->trans_start = jiffies;
 		}
@@ -2594,7 +2595,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 
 	qlcnic_dev_request_reset(adapter);
 
-	clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state);
+	if ((auto_fw_reset == AUTO_FW_RESET_ENABLED))
+		clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state);
 
 	dev_info(&netdev->dev, "firmware hang detected\n");
 
