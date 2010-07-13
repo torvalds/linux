@@ -854,7 +854,7 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 
 	rc = register_netdev(dev);
 	if (rc)
-		goto err_out_iounmap;
+		goto err_out;
 
 	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	printk(KERN_INFO "%s: %s at 0x%lx, %pM, IRQ %d\n",
@@ -872,8 +872,6 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 
 err_out_unregister:
 	unregister_netdev(dev);
-err_out_iounmap:
-	pcim_iounmap_regions(pdev, 1 << 1);
 err_out:
 	free_netdev(dev);
 	return rc;
