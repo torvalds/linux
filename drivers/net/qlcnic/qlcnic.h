@@ -911,6 +911,7 @@ struct qlcnic_mac_req {
 #define __QLCNIC_DEV_UP 		1
 #define __QLCNIC_RESETTING		2
 #define __QLCNIC_START_FW 		4
+#define __QLCNIC_AER			5
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
