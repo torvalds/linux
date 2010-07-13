@@ -251,8 +251,6 @@ struct nvbios {
 
 	struct {
 		int crtchead;
-		/* these need remembering across suspend */
-		uint32_t saved_nv_pfb_cfg0;
 	} state;
 
 	struct {

@@ -28,6 +28,8 @@
 #include "nouveau_hw.h"
 #include "nouveau_encoder.h"
 
+#include <linux/io-mapping.h>
+
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
 #define NV_CIO_CRE_44_HEADB 0x3
@@ -2067,6 +2069,323 @@ init_zm_index_io(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	return 5;
 }
 
+static inline void
+bios_md32(struct nvbios *bios, uint32_t reg,
+	  uint32_t mask, uint32_t val)
+{
+	bios_wr32(bios, reg, (bios_rd32(bios, reg) & ~mask) | val);
+}
+
+static uint32_t
+peek_fb(struct drm_device *dev, struct io_mapping *fb,
+	uint32_t off)
+{
+	uint32_t val = 0;
+
+	if (off < pci_resource_len(dev->pdev, 1)) {
+		uint32_t __iomem *p = io_mapping_map_atomic_wc(fb, off);
+
+		val = ioread32(p);
+
+		io_mapping_unmap_atomic(p);
+	}
+
+	return val;
+}
+
+static void
+poke_fb(struct drm_device *dev, struct io_mapping *fb,
+	uint32_t off, uint32_t val)
+{
+	if (off < pci_resource_len(dev->pdev, 1)) {
+		uint32_t __iomem *p = io_mapping_map_atomic_wc(fb, off);
+
+		iowrite32(val, p);
+		wmb();
+
+		io_mapping_unmap_atomic(p);
+	}
+}
+
+static inline bool
+read_back_fb(struct drm_device *dev, struct io_mapping *fb,
+	     uint32_t off, uint32_t val)
+{
+	poke_fb(dev, fb, off, val);
+	return val == peek_fb(dev, fb, off);
+}
+
+static int
+nv04_init_compute_mem(struct nvbios *bios)
+{
+	struct drm_device *dev = bios->dev;
+	uint32_t patt = 0xdeadbeef;
+	struct io_mapping *fb;
+	int i;
+
+	/* Map the framebuffer aperture */
+	fb = io_mapping_create_wc(pci_resource_start(dev->pdev, 1),
+				  pci_resource_len(dev->pdev, 1));
+	if (!fb)
+		return -ENOMEM;
+
+	/* Sequencer and refresh off */
+	NVWriteVgaSeq(dev, 0, 1, NVReadVgaSeq(dev, 0, 1) | 0x20);
+	bios_md32(bios, NV04_PFB_DEBUG_0, 0, NV04_PFB_DEBUG_0_REFRESH_OFF);
+
+	bios_md32(bios, NV04_PFB_BOOT_0, ~0,
+		  NV04_PFB_BOOT_0_RAM_AMOUNT_16MB |
+		  NV04_PFB_BOOT_0_RAM_WIDTH_128 |
+		  NV04_PFB_BOOT_0_RAM_TYPE_SGRAM_16MBIT);
+
+	for (i = 0; i < 4; i++)
+		poke_fb(dev, fb, 4 * i, patt);
+
+	poke_fb(dev, fb, 0x400000, patt + 1);
+
+	if (peek_fb(dev, fb, 0) == patt + 1) {
+		bios_md32(bios, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_TYPE,
+			  NV04_PFB_BOOT_0_RAM_TYPE_SDRAM_16MBIT);
+		bios_md32(bios, NV04_PFB_DEBUG_0,
+			  NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+
+		for (i = 0; i < 4; i++)
+			poke_fb(dev, fb, 4 * i, patt);
+
+		if ((peek_fb(dev, fb, 0xc) & 0xffff) != (patt & 0xffff))
+			bios_md32(bios, NV04_PFB_BOOT_0,
+				  NV04_PFB_BOOT_0_RAM_WIDTH_128 |
+				  NV04_PFB_BOOT_0_RAM_AMOUNT,
+				  NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
+
+	} else if ((peek_fb(dev, fb, 0xc) & 0xffff0000) !=
+		   (patt & 0xffff0000)) {
+		bios_md32(bios, NV04_PFB_BOOT_0,
+			  NV04_PFB_BOOT_0_RAM_WIDTH_128 |
+			  NV04_PFB_BOOT_0_RAM_AMOUNT,
+			  NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
+
+	} else if (peek_fb(dev, fb, 0) == patt) {
+		if (read_back_fb(dev, fb, 0x800000, patt))
+			bios_md32(bios, NV04_PFB_BOOT_0,
+				  NV04_PFB_BOOT_0_RAM_AMOUNT,
+				  NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
+		else
+			bios_md32(bios, NV04_PFB_BOOT_0,
+				  NV04_PFB_BOOT_0_RAM_AMOUNT,
+				  NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
+
+		bios_md32(bios, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_TYPE,
+			  NV04_PFB_BOOT_0_RAM_TYPE_SGRAM_8MBIT);
+
+	} else if (!read_back_fb(dev, fb, 0x800000, patt)) {
+		bios_md32(bios, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
+			  NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
+
+	}
+
+	/* Refresh on, sequencer on */
+	bios_md32(bios, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+	NVWriteVgaSeq(dev, 0, 1, NVReadVgaSeq(dev, 0, 1) & ~0x20);
+
+	io_mapping_free(fb);
+	return 0;
+}
+
+static const uint8_t *
+nv05_memory_config(struct nvbios *bios)
+{
+	/* Defaults for BIOSes lacking a memory config table */
+	static const uint8_t default_config_tab[][2] = {
+		{ 0x24, 0x00 },
+		{ 0x28, 0x00 },
+		{ 0x24, 0x01 },
+		{ 0x1f, 0x00 },
+		{ 0x0f, 0x00 },
+		{ 0x17, 0x00 },
+		{ 0x06, 0x00 },
+		{ 0x00, 0x00 }
+	};
+	int i = (bios_rd32(bios, NV_PEXTDEV_BOOT_0) &
+		 NV_PEXTDEV_BOOT_0_RAMCFG) >> 2;
+
+	if (bios->legacy.mem_init_tbl_ptr)
+		return &bios->data[bios->legacy.mem_init_tbl_ptr + 2 * i];
+	else
+		return default_config_tab[i];
+}
+
+static int
+nv05_init_compute_mem(struct nvbios *bios)
+{
+	struct drm_device *dev = bios->dev;
+	const uint8_t *ramcfg = nv05_memory_config(bios);
+	uint32_t patt = 0xdeadbeef;
+	struct io_mapping *fb;
+	int i, v;
+
+	/* Map the framebuffer aperture */
+	fb = io_mapping_create_wc(pci_resource_start(dev->pdev, 1),
+				  pci_resource_len(dev->pdev, 1));
+	if (!fb)
+		return -ENOMEM;
+
+	/* Sequencer off */
+	NVWriteVgaSeq(dev, 0, 1, NVReadVgaSeq(dev, 0, 1) | 0x20);
+
+	if (bios_rd32(bios, NV04_PFB_BOOT_0) & NV04_PFB_BOOT_0_UMA_ENABLE)
+		goto out;
+
+	bios_md32(bios, NV04_PFB_DEBUG_0, NV04_PFB_DEBUG_0_REFRESH_OFF, 0);
+
+	/* If present load the hardcoded scrambling table */
+	if (bios->legacy.mem_init_tbl_ptr) {
+		uint32_t *scramble_tab = (uint32_t *)&bios->data[
+			bios->legacy.mem_init_tbl_ptr + 0x10];
+
+		for (i = 0; i < 8; i++)
+			bios_wr32(bios, NV04_PFB_SCRAMBLE(i),
+				  ROM32(scramble_tab[i]));
+	}
+
+	/* Set memory type/width/length defaults depending on the straps */
+	bios_md32(bios, NV04_PFB_BOOT_0, 0x3f, ramcfg[0]);
+
+	if (ramcfg[1] & 0x80)
+		bios_md32(bios, NV04_PFB_CFG0, 0, NV04_PFB_CFG0_SCRAMBLE);
+
+	bios_md32(bios, NV04_PFB_CFG1, 0x700001, (ramcfg[1] & 1) << 20);
+	bios_md32(bios, NV04_PFB_CFG1, 0, 1);
+
+	/* Probe memory bus width */
+	for (i = 0; i < 4; i++)
+		poke_fb(dev, fb, 4 * i, patt);
+
+	if (peek_fb(dev, fb, 0xc) != patt)
+		bios_md32(bios, NV04_PFB_BOOT_0,
+			  NV04_PFB_BOOT_0_RAM_WIDTH_128, 0);
+
+	/* Probe memory length */
+	v = bios_rd32(bios, NV04_PFB_BOOT_0) & NV04_PFB_BOOT_0_RAM_AMOUNT;
+
+	if (v == NV04_PFB_BOOT_0_RAM_AMOUNT_32MB &&
+	    (!read_back_fb(dev, fb, 0x1000000, ++patt) ||
+	     !read_back_fb(dev, fb, 0, ++patt)))
+		bios_md32(bios, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
+			  NV04_PFB_BOOT_0_RAM_AMOUNT_16MB);
+
+	if (v == NV04_PFB_BOOT_0_RAM_AMOUNT_16MB &&
+	    !read_back_fb(dev, fb, 0x800000, ++patt))
+		bios_md32(bios, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
+			  NV04_PFB_BOOT_0_RAM_AMOUNT_8MB);
+
+	if (!read_back_fb(dev, fb, 0x400000, ++patt))
+		bios_md32(bios, NV04_PFB_BOOT_0, NV04_PFB_BOOT_0_RAM_AMOUNT,
+			  NV04_PFB_BOOT_0_RAM_AMOUNT_4MB);
+
+out:
+	/* Sequencer on */
+	NVWriteVgaSeq(dev, 0, 1, NVReadVgaSeq(dev, 0, 1) & ~0x20);
+
+	io_mapping_free(fb);
+	return 0;
+}
+
+static int
+nv10_init_compute_mem(struct nvbios *bios)
+{
+	struct drm_device *dev = bios->dev;
+	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
+	const int mem_width[] = { 0x10, 0x00, 0x20 };
+	const int mem_width_count = (dev_priv->chipset >= 0x17 ? 3 : 2);
+	uint32_t patt = 0xdeadbeef;
+	struct io_mapping *fb;
+	int i, j, k;
+
+	/* Map the framebuffer aperture */
+	fb = io_mapping_create_wc(pci_resource_start(dev->pdev, 1),
+				  pci_resource_len(dev->pdev, 1));
+	if (!fb)
+		return -ENOMEM;
+
+	bios_wr32(bios, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
+
+	/* Probe memory bus width */
+	for (i = 0; i < mem_width_count; i++) {
+		bios_md32(bios, NV04_PFB_CFG0, 0x30, mem_width[i]);
+
+		for (j = 0; j < 4; j++) {
+			for (k = 0; k < 4; k++)
+				poke_fb(dev, fb, 0x1c, 0);
+
+			poke_fb(dev, fb, 0x1c, patt);
+			poke_fb(dev, fb, 0x3c, 0);
+
+			if (peek_fb(dev, fb, 0x1c) == patt)
+				goto mem_width_found;
+		}
+	}
+
+mem_width_found:
+	patt <<= 1;
+
+	/* Probe amount of installed memory */
+	for (i = 0; i < 4; i++) {
+		int off = bios_rd32(bios, NV04_PFB_FIFO_DATA) - 0x100000;
+
+		poke_fb(dev, fb, off, patt);
+		poke_fb(dev, fb, 0, 0);
+
+		peek_fb(dev, fb, 0);
+		peek_fb(dev, fb, 0);
+		peek_fb(dev, fb, 0);
+		peek_fb(dev, fb, 0);
+
+		if (peek_fb(dev, fb, off) == patt)
+			goto amount_found;
+	}
+
+	/* IC missing - disable the upper half memory space. */
+	bios_md32(bios, NV04_PFB_CFG0, 0x1000, 0);
+
+amount_found:
+	io_mapping_free(fb);
+	return 0;
+}
+
+static int
+nv20_init_compute_mem(struct nvbios *bios)
+{
+	struct drm_device *dev = bios->dev;
+	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
+	uint32_t mask = (dev_priv->chipset >= 0x25 ? 0x300 : 0x900);
+	uint32_t amount, off;
+	struct io_mapping *fb;
+
+	/* Map the framebuffer aperture */
+	fb = io_mapping_create_wc(pci_resource_start(dev->pdev, 1),
+				  pci_resource_len(dev->pdev, 1));
+	if (!fb)
+		return -ENOMEM;
+
+	bios_wr32(bios, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
+
+	/* Allow full addressing */
+	bios_md32(bios, NV04_PFB_CFG0, 0, mask);
+
+	amount = bios_rd32(bios, NV04_PFB_FIFO_DATA);
+	for (off = amount; off > 0x2000000; off -= 0x2000000)
+		poke_fb(dev, fb, off - 4, off);
+
+	amount = bios_rd32(bios, NV04_PFB_FIFO_DATA);
+	if (amount != peek_fb(dev, fb, amount - 4))
+		/* IC missing - disable the upper half memory space. */
+		bios_md32(bios, NV04_PFB_CFG0, mask, 0);
+
+	io_mapping_free(fb);
+	return 0;
+}
+
 static int
 init_compute_mem(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 {
@@ -2075,64 +2394,57 @@ init_compute_mem(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 *
 	 * offset      (8 bit): opcode
 	 *
-	 * This opcode is meant to set NV_PFB_CFG0 (0x100200) appropriately so
-	 * that the hardware can correctly calculate how much VRAM it has
-	 * (and subsequently report that value in NV_PFB_CSTATUS (0x10020C))
+	 * This opcode is meant to set the PFB memory config registers
+	 * appropriately so that we can correctly calculate how much VRAM it
+	 * has (on nv10 and better chipsets the amount of installed VRAM is
+	 * subsequently reported in NV_PFB_CSTATUS (0x10020C)).
 	 *
-	 * The implementation of this opcode in general consists of two parts:
-	 * 1) determination of the memory bus width
-	 * 2) determination of how many of the card's RAM pads have ICs attached
+	 * The implementation of this opcode in general consists of several
+	 * parts:
 	 *
-	 * 1) is done by a cunning combination of writes to offsets 0x1c and
-	 * 0x3c in the framebuffer, and seeing whether the written values are
-	 * read back correctly. This then affects bits 4-7 of NV_PFB_CFG0
+	 * 1) Determination of memory type and density. Only necessary for
+	 *    really old chipsets, the memory type reported by the strap bits
+	 *    (0x101000) is assumed to be accurate on nv05 and newer.
 	 *
-	 * 2) is done by a cunning combination of writes to an offset slightly
-	 * less than the maximum memory reported by NV_PFB_CSTATUS, then seeing
-	 * if the test pattern can be read back. This then affects bits 12-15 of
-	 * NV_PFB_CFG0
+	 * 2) Determination of the memory bus width. Usually done by a cunning
+	 *    combination of writes to offsets 0x1c and 0x3c in the fb, and
+	 *    seeing whether the written values are read back correctly.
 	 *
-	 * In this context a "cunning combination" may include multiple reads
-	 * and writes to varying locations, often alternating the test pattern
-	 * and 0, doubtless to make sure buffers are filled, residual charges
-	 * on tracks are removed etc.
+	 *    Only necessary on nv0x-nv1x and nv34, on the other cards we can
+	 *    trust the straps.
 	 *
-	 * Unfortunately, the "cunning combination"s mentioned above, and the
-	 * changes to the bits in NV_PFB_CFG0 differ with nearly every bios
-	 * trace I have.
+	 * 3) Determination of how many of the card's RAM pads have ICs
+	 *    attached, usually done by a cunning combination of writes to an
+	 *    offset slightly less than the maximum memory reported by
+	 *    NV_PFB_CSTATUS, then seeing if the test pattern can be read back.
 	 *
-	 * Therefore, we cheat and assume the value of NV_PFB_CFG0 with which
-	 * we started was correct, and use that instead
+	 * This appears to be a NOP on IGPs and NV4x or newer chipsets, both io
+	 * logs of the VBIOS and kmmio traces of the binary driver POSTing the
+	 * card show nothing being done for this opcode. Why is it still listed
+	 * in the table?!
 	 */
 
 	/* no iexec->execute check by design */
 
-	/*
-	 * This appears to be a NOP on G8x chipsets, both io logs of the VBIOS
-	 * and kmmio traces of the binary driver POSTing the card show nothing
-	 * being done for this opcode.  why is it still listed in the table?!
-	 */
-
 	struct drm_nouveau_private *dev_priv = bios->dev->dev_private;
+	int ret;
 
-	if (dev_priv->card_type >= NV_40)
-		return 1;
+	if (dev_priv->chipset >= 0x40 ||
+	    dev_priv->chipset == 0x1a ||
+	    dev_priv->chipset == 0x1f)
+		ret = 0;
+	else if (dev_priv->chipset >= 0x20 &&
+		 dev_priv->chipset != 0x34)
+		ret = nv20_init_compute_mem(bios);
+	else if (dev_priv->chipset >= 0x10)
+		ret = nv10_init_compute_mem(bios);
+	else if (dev_priv->chipset >= 0x5)
+		ret = nv05_init_compute_mem(bios);
+	else
+		ret = nv04_init_compute_mem(bios);
 
-	/*
-	 * On every card I've seen, this step gets done for us earlier in
-	 * the init scripts
-	uint8_t crdata = bios_idxprt_rd(dev, NV_VIO_SRX, 0x01);
-	bios_idxprt_wr(dev, NV_VIO_SRX, 0x01, crdata | 0x20);
-	 */
-
-	/*
-	 * This also has probably been done in the scripts, but an mmio trace of
-	 * s3 resume shows nvidia doing it anyway (unlike the NV_VIO_SRX write)
-	 */
-	bios_wr32(bios, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
-
-	/* write back the saved configuration value */
-	bios_wr32(bios, NV04_PFB_CFG0, bios->state.saved_nv_pfb_cfg0);
+	if (ret)
+		return ret;
 
 	return 1;
 }
@@ -6320,7 +6632,6 @@ nouveau_bios_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
-	uint32_t saved_nv_pextdev_boot_0;
 	bool was_locked;
 	int ret;
 
@@ -6341,26 +6652,15 @@ nouveau_bios_init(struct drm_device *dev)
 	if (!bios->major_version)	/* we don't run version 0 bios */
 		return 0;
 
-	/* these will need remembering across a suspend */
-	saved_nv_pextdev_boot_0 = bios_rd32(bios, NV_PEXTDEV_BOOT_0);
-	bios->state.saved_nv_pfb_cfg0 = bios_rd32(bios, NV04_PFB_CFG0);
-
 	/* init script execution disabled */
 	bios->execute = false;
 
 	/* ... unless card isn't POSTed already */
 	if (!nouveau_bios_posted(dev)) {
-		NV_INFO(dev, "Adaptor not initialised\n");
-		if (dev_priv->card_type < NV_40) {
-			NV_ERROR(dev, "Unable to POST this chipset\n");
-			return -ENODEV;
-		}
-
-		NV_INFO(dev, "Running VBIOS init tables\n");
+		NV_INFO(dev, "Adaptor not initialised, "
+			"running VBIOS init tables.\n");
 		bios->execute = true;
 	}
-
-	bios_wr32(bios, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)
