@@ -1460,8 +1460,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	/* Supply for the digital part (APLL) */
 	{"Digital Voice Playback Mixer", NULL, "APLL Enable"},
 
-	{"Digital R1 Playback Mixer", NULL, "AIF Enable"},
-	{"Digital L1 Playback Mixer", NULL, "AIF Enable"},
+	{"DAC Left1", NULL, "AIF Enable"},
+	{"DAC Right1", NULL, "AIF Enable"},
+	{"DAC Left2", NULL, "AIF Enable"},
+	{"DAC Right1", NULL, "AIF Enable"},
+
 	{"Digital R2 Playback Mixer", NULL, "AIF Enable"},
 	{"Digital L2 Playback Mixer", NULL, "AIF Enable"},
 
@@ -1532,10 +1535,10 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	/* outputs */
 	/* Must be always connected (for AIF and APLL) */
-	{"Virtual HiFi OUT", NULL, "Digital L1 Playback Mixer"},
-	{"Virtual HiFi OUT", NULL, "Digital R1 Playback Mixer"},
-	{"Virtual HiFi OUT", NULL, "Digital L2 Playback Mixer"},
-	{"Virtual HiFi OUT", NULL, "Digital R2 Playback Mixer"},
+	{"Virtual HiFi OUT", NULL, "DAC Left1"},
+	{"Virtual HiFi OUT", NULL, "DAC Right1"},
+	{"Virtual HiFi OUT", NULL, "DAC Left2"},
+	{"Virtual HiFi OUT", NULL, "DAC Right2"},
 	/* Must be always connected (for APLL) */
 	{"Virtual Voice OUT", NULL, "Digital Voice Playback Mixer"},
 	/* Physical outputs */
