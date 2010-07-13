@@ -721,15 +721,15 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		break;
 	case SH_FSI_FMT_TDM:
 		msg = "TDM";
-		data = CR_FMT(CR_TDM) | (fsi->chan - 1);
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
+		data = CR_FMT(CR_TDM) | (fsi->chan - 1);
 		break;
 	case SH_FSI_FMT_TDM_DELAY:
 		msg = "TDM Delay";
-		data = CR_FMT(CR_TDM_D) | (fsi->chan - 1);
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
+		data = CR_FMT(CR_TDM_D) | (fsi->chan - 1);
 		break;
 	default:
 		dev_err(dai->dev, "unknown format.\n");
