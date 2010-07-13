@@ -75,6 +75,7 @@ obj-$(CONFIG_PXA_EZX)           += ezx.o
 obj-$(CONFIG_MACH_MP900C)	+= mp900.o
 obj-$(CONFIG_MACH_PALMTE2)	+= palmte2.o
 obj-$(CONFIG_MACH_PALMTC)	+= palmtc.o
+obj-$(CONFIG_MACH_PALM27X)	+= palm27x.o
 obj-$(CONFIG_MACH_PALMT5)	+= palmt5.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
 obj-$(CONFIG_MACH_PALMZ72)	+= palmz72.o

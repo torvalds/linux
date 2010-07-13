@@ -347,6 +347,9 @@ config ARCH_PXA_PALM
 	bool "PXA based Palm PDAs"
 	select HAVE_PWM
 
+config MACH_PALM27X
+	bool
+
 config MACH_PALMTE2
 	bool "Palm Tungsten|E2"
 	default y
