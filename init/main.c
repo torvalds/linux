@@ -810,7 +810,6 @@ static int __ref kernel_init(void *unused)
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
 
-	current->signal->flags |= SIGNAL_UNKILLABLE;
 	flush_delayed_fput();
 
 	if (ramdisk_execute_command) {
