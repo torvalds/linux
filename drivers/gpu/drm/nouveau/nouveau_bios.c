@@ -209,20 +209,20 @@ static struct methods shadow_methods[] = {
 	{ "PCIROM", load_vbios_pci, true },
 	{ "ACPI", load_vbios_acpi, true },
 };
+#define NUM_SHADOW_METHODS ARRAY_SIZE(shadow_methods)
 
 static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 {
-	const int nr_methods = ARRAY_SIZE(shadow_methods);
 	struct methods *methods = shadow_methods;
 	int testscore = 3;
-	int scores[nr_methods], i;
+	int scores[NUM_SHADOW_METHODS], i;
 
 	if (nouveau_vbios) {
-		for (i = 0; i < nr_methods; i++)
+		for (i = 0; i < NUM_SHADOW_METHODS; i++)
 			if (!strcasecmp(nouveau_vbios, methods[i].desc))
 				break;
 
-		if (i < nr_methods) {
+		if (i < NUM_SHADOW_METHODS) {
 			NV_INFO(dev, "Attempting to use BIOS image from %s\n",
 				methods[i].desc);
 
@@ -234,7 +234,7 @@ static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 		NV_ERROR(dev, "VBIOS source \'%s\' invalid\n", nouveau_vbios);
 	}
 
-	for (i = 0; i < nr_methods; i++) {
+	for (i = 0; i < NUM_SHADOW_METHODS; i++) {
 		NV_TRACE(dev, "Attempting to load BIOS image from %s\n",
 			 methods[i].desc);
 		data[0] = data[1] = 0;	/* avoid reuse of previous image */
@@ -245,7 +245,7 @@ static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
 	}
 
 	while (--testscore > 0) {
-		for (i = 0; i < nr_methods; i++) {
+		for (i = 0; i < NUM_SHADOW_METHODS; i++) {
 			if (scores[i] == testscore) {
 				NV_TRACE(dev, "Using BIOS image from %s\n",
 					 methods[i].desc);
