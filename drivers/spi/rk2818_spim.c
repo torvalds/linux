@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/cpufreq.h>
 #include <mach/gpio.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
@@ -868,6 +869,42 @@ static void spi_hw_init(struct rk2818_spi *dws)
 	}
 }
 
+/* cpufreq driver support */
+#ifdef CONFIG_CPU_FREQ
+
+static int rk2818_spim_cpufreq_transition(struct notifier_block *nb, unsigned long val, void *data)
+{
+        struct rk2818_spi *info;
+        unsigned long newclk;
+
+        info = container_of(nb, struct rk2818_spi, freq_transition);
+        newclk = clk_get_rate(info->clock_spim);
+
+        return 0;
+}
+
+static inline int rk2818_spim_cpufreq_register(struct rk2818_spi *info)
+{
+        info->freq_transition.notifier_call = rk2818_spim_cpufreq_transition;
+
+        return cpufreq_register_notifier(&info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+static inline void rk2818_spim_cpufreq_deregister(struct rk2818_spi *info)
+{
+        cpufreq_unregister_notifier(&info->freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
+}
+
+#else
+static inline int rk2818_spim_cpufreq_register(struct rk2818_spi *info)
+{
+        return 0;
+}
+
+static inline void rk2818_spim_cpufreq_deregister(struct rk2818_spi *info)
+{
+}
+#endif
 static int __init rk2818_spim_probe(struct platform_device *pdev)
 {
 	struct resource		*regs;
@@ -940,6 +977,12 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 		dev_err(&master->dev, "problem registering spi master\n");
 		goto err_queue_alloc;
 	}
+
+        ret =rk2818_spim_cpufreq_register(dws);
+        if (ret < 0) {
+                printk(KERN_ERR"rk2818 spim failed to init cpufreq support\n");
+                goto err_queue_alloc;
+        }
 	printk(KERN_INFO "rk2818_spim: driver initialized\n");
 	mrst_spi_debugfs_init(dws);
 	return 0;
@@ -964,6 +1007,7 @@ static void __exit rk2818_spim_remove(struct platform_device *pdev)
 
 	if (!dws)
 		return;
+	rk2818_spim_cpufreq_deregister(dws);
 	mrst_spi_debugfs_remove(dws);
 
 	/* Remove the queue */

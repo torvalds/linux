@@ -100,7 +100,7 @@ struct rk2818_spi {
 	u32			iolen;
 	int			irq;
 	u32			fifo_len;	/* depth of the FIFO buffer */
-	struct clk	*clock_spim;	/* clk apb */
+	struct clk		*clock_spim;	/* clk apb */
 	struct platform_device	*pdev;
 	
 	/* Driver message queue */
@@ -153,6 +153,9 @@ struct rk2818_spi {
 	void			*priv;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
+#endif
+#ifdef CONFIG_CPU_FREQ
+        struct notifier_block   freq_transition;
 #endif
 };
 
