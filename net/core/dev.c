@@ -1911,8 +1911,16 @@ static int dev_gso_segment(struct sk_buff *skb)
  */
 static inline void skb_orphan_try(struct sk_buff *skb)
 {
-	if (!skb_tx(skb)->flags)
+	struct sock *sk = skb->sk;
+
+	if (sk && !skb_tx(skb)->flags) {
+		/* skb_tx_hash() wont be able to get sk.
+		 * We copy sk_hash into skb->rxhash
+		 */
+		if (!skb->rxhash)
+			skb->rxhash = sk->sk_hash;
 		skb_orphan(skb);
+	}
 }
 
 int dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
@@ -1998,8 +2006,7 @@ u16 skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb)
 	if (skb->sk && skb->sk->sk_hash)
 		hash = skb->sk->sk_hash;
 	else
-		hash = (__force u16) skb->protocol;
-
+		hash = (__force u16) skb->protocol ^ skb->rxhash;
 	hash = jhash_1word(hash, hashrnd);
 
 	return (u16) (((u64) hash * dev->real_num_tx_queues) >> 32);
