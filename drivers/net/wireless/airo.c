@@ -2931,8 +2931,8 @@ err_out_res:
 	        release_region( dev->base_addr, 64 );
 err_out_nets:
 	airo_networks_free(ai);
-	del_airo_dev(ai);
 err_out_free:
+	del_airo_dev(ai);
 	free_netdev(dev);
 	return NULL;
 }
