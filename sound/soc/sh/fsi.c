@@ -653,7 +653,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
-	const char *msg;
 	u32 flags = fsi_get_info_flags(fsi);
 	u32 fmt;
 	u32 reg;
@@ -691,33 +690,27 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	fmt = is_play ? SH_FSI_GET_OFMT(flags) : SH_FSI_GET_IFMT(flags);
 	switch (fmt) {
 	case SH_FSI_FMT_MONO:
-		msg = "MONO";
 		data = CR_FMT(CR_MONO);
 		fsi->chan = 1;
 		break;
 	case SH_FSI_FMT_MONO_DELAY:
-		msg = "MONO Delay";
 		data = CR_FMT(CR_MONO_D);
 		fsi->chan = 1;
 		break;
 	case SH_FSI_FMT_PCM:
-		msg = "PCM";
 		data = CR_FMT(CR_PCM);
 		fsi->chan = 2;
 		break;
 	case SH_FSI_FMT_I2S:
-		msg = "I2S";
 		data = CR_FMT(CR_I2S);
 		fsi->chan = 2;
 		break;
 	case SH_FSI_FMT_TDM:
-		msg = "TDM";
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
 		data = CR_FMT(CR_TDM) | (fsi->chan - 1);
 		break;
 	case SH_FSI_FMT_TDM_DELAY:
-		msg = "TDM Delay";
 		fsi->chan = is_play ?
 			SH_FSI_GET_CH_O(flags) : SH_FSI_GET_CH_I(flags);
 		data = CR_FMT(CR_TDM_D) | (fsi->chan - 1);
