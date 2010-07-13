@@ -65,6 +65,10 @@
 #define ERR_UNDER	0x00000001
 #define ST_ERR		(ERR_OVER | ERR_UNDER)
 
+/* CKG1 */
+#define ACKMD_MASK	0x00007000
+#define BPFMD_MASK	0x00000700
+
 /* CLK_RST */
 #define B_CLK		0x00000010
 #define A_CLK		0x00000001
@@ -734,12 +738,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	}
 	fsi_reg_write(fsi, reg, data);
 
-	/*
-	 * clear clk reset if master mode
-	 */
-	if (is_master)
-		fsi_clk_ctrl(fsi, 1);
-
 	/* irq clear */
 	fsi_irq_disable(fsi, is_play);
 	fsi_irq_clear_status(fsi);
@@ -786,10 +784,98 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return ret;
 }
 
+static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
+			     struct snd_pcm_hw_params *params,
+			     struct snd_soc_dai *dai)
+{
+	struct fsi_priv *fsi = fsi_get_priv(substream);
+	struct fsi_master *master = fsi_get_master(fsi);
+	int (*set_rate)(int is_porta, int rate) = master->info->set_rate;
+	int fsi_ver = master->core->ver;
+	int is_play = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK);
+	int ret;
+
+	/* if slave mode, set_rate is not needed */
+	if (!fsi_is_master_mode(fsi, is_play))
+		return 0;
+
+	/* it is error if no set_rate */
+	if (!set_rate)
+		return -EIO;
+
+	/* clock stop */
+	pm_runtime_put_sync(dai->dev);
+	fsi_clk_ctrl(fsi, 0);
+
+	ret = set_rate(fsi_is_port_a(fsi), params_rate(params));
+	if (ret > 0) {
+		u32 data = 0;
+
+		switch (ret & SH_FSI_ACKMD_MASK) {
+		default:
+			/* FALL THROUGH */
+		case SH_FSI_ACKMD_512:
+			data |= (0x0 << 12);
+			break;
+		case SH_FSI_ACKMD_256:
+			data |= (0x1 << 12);
+			break;
+		case SH_FSI_ACKMD_128:
+			data |= (0x2 << 12);
+			break;
+		case SH_FSI_ACKMD_64:
+			data |= (0x3 << 12);
+			break;
+		case SH_FSI_ACKMD_32:
+			if (fsi_ver < 2)
+				dev_err(dai->dev, "unsupported ACKMD\n");
+			else
+				data |= (0x4 << 12);
+			break;
+		}
+
+		switch (ret & SH_FSI_BPFMD_MASK) {
+		default:
+			/* FALL THROUGH */
+		case SH_FSI_BPFMD_32:
+			data |= (0x0 << 8);
+			break;
+		case SH_FSI_BPFMD_64:
+			data |= (0x1 << 8);
+			break;
+		case SH_FSI_BPFMD_128:
+			data |= (0x2 << 8);
+			break;
+		case SH_FSI_BPFMD_256:
+			data |= (0x3 << 8);
+			break;
+		case SH_FSI_BPFMD_512:
+			data |= (0x4 << 8);
+			break;
+		case SH_FSI_BPFMD_16:
+			if (fsi_ver < 2)
+				dev_err(dai->dev, "unsupported ACKMD\n");
+			else
+				data |= (0x7 << 8);
+			break;
+		}
+
+		fsi_reg_mask_set(fsi, CKG1, (ACKMD_MASK | BPFMD_MASK) , data);
+		udelay(10);
+		fsi_clk_ctrl(fsi, 1);
+		ret = 0;
+	}
+	pm_runtime_get_sync(dai->dev);
+
+	return ret;
+
+}
+
 static struct snd_soc_dai_ops fsi_dai_ops = {
 	.startup	= fsi_dai_startup,
 	.shutdown	= fsi_dai_shutdown,
 	.trigger	= fsi_dai_trigger,
+	.hw_params	= fsi_dai_hw_params,
 };
 
 /************************************************************************
