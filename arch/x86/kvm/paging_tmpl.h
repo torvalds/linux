@@ -299,6 +299,17 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		     gpte_to_gfn(gpte), pfn, true, true);
 }
 
+static bool FNAME(gpte_changed)(struct kvm_vcpu *vcpu,
+				struct guest_walker *gw, int level)
+{
+	int r;
+	pt_element_t curr_pte;
+
+	r = kvm_read_guest_atomic(vcpu->kvm, gw->pte_gpa[level - 1],
+				  &curr_pte, sizeof(curr_pte));
+	return r || curr_pte != gw->ptes[level - 1];
+}
+
 /*
  * Fetch a shadow pte for a specific level in the paging hierarchy.
  */
@@ -312,11 +323,9 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	u64 *sptep = NULL;
 	int direct;
 	gfn_t table_gfn;
-	int r;
 	int level;
 	bool dirty = is_dirty_gpte(gw->ptes[gw->level - 1]);
 	unsigned direct_access;
-	pt_element_t curr_pte;
 	struct kvm_shadow_walk_iterator iterator;
 
 	if (!is_present_gpte(gw->ptes[gw->level - 1]))
@@ -365,17 +374,17 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		}
 		sp = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
 					       direct, access, sptep);
-		if (!direct) {
-			r = kvm_read_guest_atomic(vcpu->kvm,
-						  gw->pte_gpa[level - 2],
-						  &curr_pte, sizeof(curr_pte));
-			if (r || curr_pte != gw->ptes[level - 2]) {
+		if (!direct)
+			/*
+			 * Verify that the gpte in the page we've just write
+			 * protected is still there.
+			 */
+			if (FNAME(gpte_changed)(vcpu, gw, level - 1)) {
 				kvm_mmu_put_page(sp, sptep);
 				kvm_release_pfn_clean(pfn);
 				sptep = NULL;
 				break;
 			}
-		}
 
 		link_shadow_page(sptep, sp);
 	}
