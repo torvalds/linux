@@ -55,12 +55,12 @@
 #define SH_FSI_GET_IFMT(x)	((x >> 8) & SH_FSI_FMT_MASK)
 #define SH_FSI_GET_OFMT(x)	((x >> 0) & SH_FSI_FMT_MASK)
 
-#define SH_FSI_FMT_MONO		(1 << 0)
-#define SH_FSI_FMT_MONO_DELAY	(1 << 1)
-#define SH_FSI_FMT_PCM		(1 << 2)
-#define SH_FSI_FMT_I2S		(1 << 3)
-#define SH_FSI_FMT_TDM		(1 << 4)
-#define SH_FSI_FMT_TDM_DELAY	(1 << 5)
+#define SH_FSI_FMT_MONO		0
+#define SH_FSI_FMT_MONO_DELAY	1
+#define SH_FSI_FMT_PCM		2
+#define SH_FSI_FMT_I2S		3
+#define SH_FSI_FMT_TDM		4
+#define SH_FSI_FMT_TDM_DELAY	5
 
 #define SH_FSI_IFMT_TDM_CH(x) \
 	(SH_FSI_IFMT(TDM)	| SH_FSI_SET_CH_I(x))
