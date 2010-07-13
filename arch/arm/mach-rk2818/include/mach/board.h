@@ -37,6 +37,9 @@ struct rk2818_i2c_platform_data {
 	unsigned int    flags;     
 	unsigned int    slave_addr; 
 	unsigned long   scl_rate;   
+#define I2C_MODE_IRQ    0
+#define I2C_MODE_POLL   1
+	unsigned int    mode:1;
 	void    (*cfg_gpio)(struct platform_device *dev);
 };
 
