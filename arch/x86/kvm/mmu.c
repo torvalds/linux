@@ -1492,6 +1492,14 @@ static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
 	__set_spte(sptep, spte);
 }
 
+static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
+{
+	if (is_large_pte(*sptep)) {
+		drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
+		kvm_flush_remote_tlbs(vcpu->kvm);
+	}
+}
+
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 					 struct kvm_mmu_page *sp)
 {

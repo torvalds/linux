@@ -360,10 +360,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
-		if (is_large_pte(*sptep)) {
-			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
-			kvm_flush_remote_tlbs(vcpu->kvm);
-		}
+		drop_large_spte(vcpu, sptep);
 
 		if (level <= gw->level) {
 			direct = 1;
