@@ -21,6 +21,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -62,8 +64,7 @@ static acpi_status acpi_atlas_button_handler(u32 function,
 
 		status = AE_OK;
 	} else {
-		printk(KERN_WARNING "atlas: shrugged on unexpected function"
-			":function=%x,address=%lx,value=%x\n",
+		pr_warn("shrugged on unexpected function: function=%x,address=%lx,value=%x\n",
 			function, (unsigned long)address, (u32)*value);
 		status = AE_BAD_PARAMETER;
 	}
@@ -79,7 +80,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 
 	input_dev = input_allocate_device();
 	if (!input_dev) {
-		printk(KERN_ERR "atlas: unable to allocate input device\n");
+		pr_err("unable to allocate input device\n");
 		return -ENOMEM;
 	}
 
@@ -102,7 +103,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 
 	err = input_register_device(input_dev);
 	if (err) {
-		printk(KERN_ERR "atlas: couldn't register input device\n");
+		pr_err("couldn't register input device\n");
 		input_free_device(input_dev);
 		return err;
 	}
@@ -112,7 +113,7 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 				0x81, &acpi_atlas_button_handler,
 				&acpi_atlas_button_setup, device);
 	if (ACPI_FAILURE(status)) {
-		printk(KERN_ERR "Atlas: Error installing addr spc handler\n");
+		pr_err("error installing addr spc handler\n");
 		input_unregister_device(input_dev);
 		err = -EINVAL;
 	}
@@ -127,7 +128,7 @@ static int atlas_acpi_button_remove(struct acpi_device *device, int type)
 	status = acpi_remove_address_space_handler(device->handle,
 				0x81, &acpi_atlas_button_handler);
 	if (ACPI_FAILURE(status))
-		printk(KERN_ERR "Atlas: Error removing addr spc handler\n");
+		pr_err("error removing addr spc handler\n");
 
 	input_unregister_device(input_dev);
 
@@ -153,18 +154,10 @@ static struct acpi_driver atlas_acpi_driver = {
 
 static int __init atlas_acpi_init(void)
 {
-	int result;
-
 	if (acpi_disabled)
 		return -ENODEV;
 
-	result = acpi_bus_register_driver(&atlas_acpi_driver);
-	if (result < 0) {
-		printk(KERN_ERR "Atlas ACPI: Unable to register driver\n");
-		return -ENODEV;
-	}
-
-	return 0;
+	return acpi_bus_register_driver(&atlas_acpi_driver);
 }
 
 static void __exit atlas_acpi_exit(void)
