@@ -159,6 +159,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG_KMS("tiling config is r6xx+ only!\n");
 			return -EINVAL;
 		}
+	case RADEON_INFO_WANT_HYPERZ:
+		mutex_lock(&dev->struct_mutex);
+		if (rdev->hyperz_filp)
+			value = 0;
+		else {
+			rdev->hyperz_filp = filp;
+			value = 1;
+		}
+		mutex_unlock(&dev->struct_mutex);
 		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
@@ -199,8 +208,10 @@ void radeon_driver_postclose_kms(struct drm_device *dev,
 void radeon_driver_preclose_kms(struct drm_device *dev,
 				struct drm_file *file_priv)
 {
+	struct radeon_device *rdev = dev->dev_private;
+	if (rdev->hyperz_filp == file_priv)
+		rdev->hyperz_filp = NULL;
 }
-
 
 /*
  * VBlank related functions.

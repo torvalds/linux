@@ -1803,6 +1803,11 @@ static int r100_packet3_check(struct radeon_cs_parser *p,
 			return r;
 		break;
 		/* triggers drawing using indices to vertex buffer */
+	case PACKET3_3D_CLEAR_HIZ:
+	case PACKET3_3D_CLEAR_ZMASK:
+		if (p->rdev->hyperz_filp != p->filp)
+			return -EINVAL;
+		break;
 	case PACKET3_NOP:
 		break;
 	default:

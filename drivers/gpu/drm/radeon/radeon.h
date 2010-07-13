@@ -1098,6 +1098,8 @@ struct radeon_device {
 
 	bool powered_down;
 	struct notifier_block acpi_nb;
+	/* only one userspace can use Hyperz features at a time */
+	struct drm_file *hyperz_filp;
 };
 
 int radeon_device_init(struct radeon_device *rdev,
