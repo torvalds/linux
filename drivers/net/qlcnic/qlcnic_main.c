@@ -3451,6 +3451,7 @@ static struct pci_driver qlcnic_driver = {
 
 static int __init qlcnic_init_module(void)
 {
+	int ret;
 
 	printk(KERN_INFO "%s\n", qlcnic_driver_string);
 
@@ -3459,8 +3460,15 @@ static int __init qlcnic_init_module(void)
 	register_inetaddr_notifier(&qlcnic_inetaddr_cb);
 #endif
 
+	ret = pci_register_driver(&qlcnic_driver);
+	if (ret) {
+#ifdef CONFIG_INET
+		unregister_inetaddr_notifier(&qlcnic_inetaddr_cb);
+		unregister_netdevice_notifier(&qlcnic_netdev_cb);
+#endif
+	}
 
-	return pci_register_driver(&qlcnic_driver);
+	return ret;
 }
 
 module_init(qlcnic_init_module);
