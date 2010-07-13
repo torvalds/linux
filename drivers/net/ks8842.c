@@ -18,6 +18,7 @@
 
 /* Supports:
  * The Micrel KS8842 behind the timberdale FPGA
+ * The genuine Micrel KS8841/42 device with ISA 16/32bit bus interface
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -114,9 +115,14 @@
 #define REG_P1CR4		0x02
 #define REG_P1SR		0x04
 
+/* flags passed by platform_device for configuration */
+#define	MICREL_KS884X		0x01	/* 0=Timeberdale(FPGA), 1=Micrel */
+#define	KS884X_16BIT		0x02	/*  1=16bit, 0=32bit */
+
 struct ks8842_adapter {
 	void __iomem	*hw_addr;
 	int		irq;
+	unsigned long	conf_flags;	/* copy of platform_device config */
 	struct tasklet_struct	tasklet;
 	spinlock_t	lock; /* spinlock to be interrupt safe */
 	struct work_struct timeout_work;
@@ -192,15 +198,21 @@ static inline u32 ks8842_read32(struct ks8842_adapter *adapter, u16 bank,
 
 static void ks8842_reset(struct ks8842_adapter *adapter)
 {
-	/* The KS8842 goes haywire when doing softare reset
-	 * a work around in the timberdale IP is implemented to
-	 * do a hardware reset instead
-	ks8842_write16(adapter, 3, 1, REG_GRR);
-	msleep(10);
-	iowrite16(0, adapter->hw_addr + REG_GRR);
-	*/
-	iowrite32(0x1, adapter->hw_addr + REG_TIMB_RST);
-	msleep(20);
+	if (adapter->conf_flags & MICREL_KS884X) {
+		ks8842_write16(adapter, 3, 1, REG_GRR);
+		msleep(10);
+		iowrite16(0, adapter->hw_addr + REG_GRR);
+	} else {
+		/* The KS8842 goes haywire when doing softare reset
+		* a work around in the timberdale IP is implemented to
+		* do a hardware reset instead
+		ks8842_write16(adapter, 3, 1, REG_GRR);
+		msleep(10);
+		iowrite16(0, adapter->hw_addr + REG_GRR);
+		*/
+		iowrite32(0x1, adapter->hw_addr + REG_TIMB_RST);
+		msleep(20);
+	}
 }
 
 static void ks8842_update_link_status(struct net_device *netdev,
@@ -269,8 +281,10 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 
 	/* restart port auto-negotiation */
 	ks8842_enable_bits(adapter, 49, 1 << 13, REG_P1CR4);
-	/* only advertise 10Mbps */
-	ks8842_clear_bits(adapter, 49, 3 << 2, REG_P1CR4);
+
+	if (!(adapter->conf_flags & MICREL_KS884X))
+		/* only advertise 10Mbps */
+		ks8842_clear_bits(adapter, 49, 3 << 2, REG_P1CR4);
 
 	/* Enable the transmitter */
 	ks8842_enable_tx(adapter);
@@ -296,13 +310,28 @@ static void ks8842_read_mac_addr(struct ks8842_adapter *adapter, u8 *dest)
 	for (i = 0; i < ETH_ALEN; i++)
 		dest[ETH_ALEN - i - 1] = ks8842_read8(adapter, 2, REG_MARL + i);
 
-	/* make sure the switch port uses the same MAC as the QMU */
-	mac = ks8842_read16(adapter, 2, REG_MARL);
-	ks8842_write16(adapter, 39, mac, REG_MACAR1);
-	mac = ks8842_read16(adapter, 2, REG_MARM);
-	ks8842_write16(adapter, 39, mac, REG_MACAR2);
-	mac = ks8842_read16(adapter, 2, REG_MARH);
-	ks8842_write16(adapter, 39, mac, REG_MACAR3);
+	if (adapter->conf_flags & MICREL_KS884X) {
+		/*
+		the sequence of saving mac addr between MAC and Switch is
+		different.
+		*/
+
+		mac = ks8842_read16(adapter, 2, REG_MARL);
+		ks8842_write16(adapter, 39, mac, REG_MACAR3);
+		mac = ks8842_read16(adapter, 2, REG_MARM);
+		ks8842_write16(adapter, 39, mac, REG_MACAR2);
+		mac = ks8842_read16(adapter, 2, REG_MARH);
+		ks8842_write16(adapter, 39, mac, REG_MACAR1);
+	} else {
+
+		/* make sure the switch port uses the same MAC as the QMU */
+		mac = ks8842_read16(adapter, 2, REG_MARL);
+		ks8842_write16(adapter, 39, mac, REG_MACAR1);
+		mac = ks8842_read16(adapter, 2, REG_MARM);
+		ks8842_write16(adapter, 39, mac, REG_MACAR2);
+		mac = ks8842_read16(adapter, 2, REG_MARH);
+		ks8842_write16(adapter, 39, mac, REG_MACAR3);
+	}
 }
 
 static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, u8 *mac)
@@ -313,8 +342,25 @@ static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, u8 *mac)
 	spin_lock_irqsave(&adapter->lock, flags);
 	for (i = 0; i < ETH_ALEN; i++) {
 		ks8842_write8(adapter, 2, mac[ETH_ALEN - i - 1], REG_MARL + i);
-		ks8842_write8(adapter, 39, mac[ETH_ALEN - i - 1],
-			REG_MACAR1 + i);
+		if (!(adapter->conf_flags & MICREL_KS884X))
+			ks8842_write8(adapter, 39, mac[ETH_ALEN - i - 1],
+				REG_MACAR1 + i);
+	}
+
+	if (adapter->conf_flags & MICREL_KS884X) {
+		/*
+		the sequence of saving mac addr between MAC and Switch is
+		different.
+		*/
+
+		u16 mac;
+
+		mac = ks8842_read16(adapter, 2, REG_MARL);
+		ks8842_write16(adapter, 39, mac, REG_MACAR3);
+		mac = ks8842_read16(adapter, 2, REG_MARM);
+		ks8842_write16(adapter, 39, mac, REG_MACAR2);
+		mac = ks8842_read16(adapter, 2, REG_MARH);
+		ks8842_write16(adapter, 39, mac, REG_MACAR1);
 	}
 	spin_unlock_irqrestore(&adapter->lock, flags);
 }
@@ -328,8 +374,6 @@ static int ks8842_tx_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
 	int len = skb->len;
-	u32 *ptr = (u32 *)skb->data;
-	u32 ctrl;
 
 	netdev_dbg(netdev, "%s: len %u head %p data %p tail %p end %p\n",
 		__func__, skb->len, skb->head, skb->data,
@@ -339,17 +383,34 @@ static int ks8842_tx_frame(struct sk_buff *skb, struct net_device *netdev)
 	if (ks8842_tx_fifo_space(adapter) < len + 8)
 		return NETDEV_TX_BUSY;
 
-	/* the control word, enable IRQ, port 1 and the length */
-	ctrl = 0x8000 | 0x100 | (len << 16);
-	ks8842_write32(adapter, 17, ctrl, REG_QMU_DATA_LO);
+	if (adapter->conf_flags & KS884X_16BIT) {
+		u16 *ptr16 = (u16 *)skb->data;
+		ks8842_write16(adapter, 17, 0x8000 | 0x100, REG_QMU_DATA_LO);
+		ks8842_write16(adapter, 17, (u16)len, REG_QMU_DATA_HI);
+		netdev->stats.tx_bytes += len;
 
-	netdev->stats.tx_bytes += len;
+		/* copy buffer */
+		while (len > 0) {
+			iowrite16(*ptr16++, adapter->hw_addr + REG_QMU_DATA_LO);
+			iowrite16(*ptr16++, adapter->hw_addr + REG_QMU_DATA_HI);
+			len -= sizeof(u32);
+		}
+	} else {
 
-	/* copy buffer */
-	while (len > 0) {
-		iowrite32(*ptr, adapter->hw_addr + REG_QMU_DATA_LO);
-		len -= sizeof(u32);
-		ptr++;
+		u32 *ptr = (u32 *)skb->data;
+		u32 ctrl;
+		/* the control word, enable IRQ, port 1 and the length */
+		ctrl = 0x8000 | 0x100 | (len << 16);
+		ks8842_write32(adapter, 17, ctrl, REG_QMU_DATA_LO);
+
+		netdev->stats.tx_bytes += len;
+
+		/* copy buffer */
+		while (len > 0) {
+			iowrite32(*ptr, adapter->hw_addr + REG_QMU_DATA_LO);
+			len -= sizeof(u32);
+			ptr++;
+		}
 	}
 
 	/* enqueue packet */
@@ -363,12 +424,23 @@ static int ks8842_tx_frame(struct sk_buff *skb, struct net_device *netdev)
 static void ks8842_rx_frame(struct net_device *netdev,
 	struct ks8842_adapter *adapter)
 {
-	u32 status = ks8842_read32(adapter, 17, REG_QMU_DATA_LO);
-	int len = (status >> 16) & 0x7ff;
+	u16 status16;
+	u32 status;
+	int len;
 
-	status &= 0xffff;
-
-	netdev_dbg(netdev, "%s - rx_data: status: %x\n", __func__, status);
+	if (adapter->conf_flags & KS884X_16BIT) {
+		status16 = ks8842_read16(adapter, 17, REG_QMU_DATA_LO);
+		len  = (int)ks8842_read16(adapter, 17, REG_QMU_DATA_HI);
+		len &= 0xffff;
+		netdev_dbg(netdev, "%s - rx_data: status: %x\n",
+			   __func__, status16);
+	} else {
+		status = ks8842_read32(adapter, 17, REG_QMU_DATA_LO);
+		len = (status >> 16) & 0x7ff;
+		status &= 0xffff;
+		netdev_dbg(netdev, "%s - rx_data: status: %x\n",
+			   __func__, status);
+	}
 
 	/* check the status */
 	if ((status & RXSR_VALID) && !(status & RXSR_ERROR)) {
@@ -376,22 +448,32 @@ static void ks8842_rx_frame(struct net_device *netdev,
 
 		netdev_dbg(netdev, "%s, got package, len: %d\n", __func__, len);
 		if (skb) {
-			u32 *data;
 
 			netdev->stats.rx_packets++;
 			netdev->stats.rx_bytes += len;
 			if (status & RXSR_MULTICAST)
 				netdev->stats.multicast++;
 
-			data = (u32 *)skb_put(skb, len);
+			if (adapter->conf_flags & KS884X_16BIT) {
+				u16 *data16 = (u16 *)skb_put(skb, len);
+				ks8842_select_bank(adapter, 17);
+				while (len > 0) {
+					*data16++ = ioread16(adapter->hw_addr +
+						REG_QMU_DATA_LO);
+					*data16++ = ioread16(adapter->hw_addr +
+						REG_QMU_DATA_HI);
+					len -= sizeof(u32);
+				}
+			} else {
+				u32 *data = (u32 *)skb_put(skb, len);
 
-			ks8842_select_bank(adapter, 17);
-			while (len > 0) {
-				*data++ = ioread32(adapter->hw_addr +
-					REG_QMU_DATA_LO);
-				len -= sizeof(u32);
+				ks8842_select_bank(adapter, 17);
+				while (len > 0) {
+					*data++ = ioread32(adapter->hw_addr +
+						REG_QMU_DATA_LO);
+					len -= sizeof(u32);
+				}
 			}
-
 			skb->protocol = eth_type_trans(skb, netdev);
 			netif_rx(skb);
 		} else
@@ -669,6 +751,8 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 	adapter->netdev = netdev;
 	INIT_WORK(&adapter->timeout_work, ks8842_tx_timeout_work);
 	adapter->hw_addr = ioremap(iomem->start, resource_size(iomem));
+	adapter->conf_flags = iomem->flags;
+
 	if (!adapter->hw_addr)
 		goto err_ioremap;
 

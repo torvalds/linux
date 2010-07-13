@@ -1750,11 +1750,12 @@ config TLAN
 	  Please email feedback to <torben.mathiasen@compaq.com>.
 
 config KS8842
-	tristate "Micrel KSZ8842"
+	tristate "Micrel KSZ8841/42 with generic bus interface"
 	depends on HAS_IOMEM
 	help
-	  This platform driver is for Micrel KSZ8842 / KS8842
-	  2-port ethernet switch chip (managed, VLAN, QoS).
+	 This platform driver is for KSZ8841(1-port) / KS8842(2-port)
+	 ethernet switch chip (managed, VLAN, QoS) from Micrel or
+	 Timberdale(FPGA).
 
 config KS8851
        tristate "Micrel KS8851 SPI"
