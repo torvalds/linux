@@ -85,21 +85,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			ar9287PciePhy_clkreq_always_on_L1_9287_1_1,
 			ARRAY_SIZE(ar9287PciePhy_clkreq_always_on_L1_9287_1_1),
 					2);
-	} else if (AR_SREV_9287_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9287Modes_9287_1_0,
-				ARRAY_SIZE(ar9287Modes_9287_1_0), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9287Common_9287_1_0,
-				ARRAY_SIZE(ar9287Common_9287_1_0), 2);
-
-		if (ah->config.pcie_clock_req)
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9287PciePhy_clkreq_off_L1_9287_1_0,
-			ARRAY_SIZE(ar9287PciePhy_clkreq_off_L1_9287_1_0), 2);
-		else
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9287PciePhy_clkreq_always_on_L1_9287_1_0,
-			ARRAY_SIZE(ar9287PciePhy_clkreq_always_on_L1_9287_1_0),
-				  2);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
 
 
@@ -117,21 +102,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			ar9285PciePhy_clkreq_always_on_L1_9285_1_2,
 			ARRAY_SIZE(ar9285PciePhy_clkreq_always_on_L1_9285_1_2),
 				  2);
-		}
-	} else if (AR_SREV_9285_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9285Modes_9285,
-			       ARRAY_SIZE(ar9285Modes_9285), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9285Common_9285,
-			       ARRAY_SIZE(ar9285Common_9285), 2);
-
-		if (ah->config.pcie_clock_req) {
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9285PciePhy_clkreq_off_L1_9285,
-			ARRAY_SIZE(ar9285PciePhy_clkreq_off_L1_9285), 2);
-		} else {
-			INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			ar9285PciePhy_clkreq_always_on_L1_9285,
-			ARRAY_SIZE(ar9285PciePhy_clkreq_always_on_L1_9285), 2);
 		}
 	} else if (AR_SREV_9280_20_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280_2,
@@ -151,11 +121,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesAdditional,
 			       ar9280Modes_fast_clock_9280_2,
 			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
-	} else if (AR_SREV_9280_10_OR_LATER(ah)) {
-		INIT_INI_ARRAY(&ah->iniModes, ar9280Modes_9280,
-			       ARRAY_SIZE(ar9280Modes_9280), 6);
-		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280,
-			       ARRAY_SIZE(ar9280Common_9280), 2);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModes, ar5416Modes_9160,
 			       ARRAY_SIZE(ar5416Modes_9160), 6);
@@ -305,10 +270,6 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 		ar9287Modes_rx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_1), 6);
-	else if (AR_SREV_9287_10(ah))
-		INIT_INI_ARRAY(&ah->iniModesRxGain,
-		ar9287Modes_rx_gain_9287_1_0,
-		ARRAY_SIZE(ar9287Modes_rx_gain_9287_1_0), 6);
 	else if (AR_SREV_9280_20(ah))
 		ar9280_20_hw_init_rxgain_ini(ah);
 
@@ -316,10 +277,6 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9287Modes_tx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 6);
-	} else if (AR_SREV_9287_10(ah)) {
-		INIT_INI_ARRAY(&ah->iniModesTxGain,
-		ar9287Modes_tx_gain_9287_1_0,
-		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_0), 6);
 	} else if (AR_SREV_9280_20(ah)) {
 		ar9280_20_hw_init_txgain_ini(ah);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
@@ -389,29 +346,6 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 				REG_WRITE(ah, INI_RA(&ah->iniPcieSerdes, i, 0),
 					  INI_RA(&ah->iniPcieSerdes, i, 1));
 			}
-		} else if (AR_SREV_9280(ah) &&
-			   (ah->hw_version.macRev == AR_SREV_REVISION_9280_10)) {
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fd00);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
-
-			/* RX shut off when elecidle is asserted */
-			REG_WRITE(ah, AR_PCIE_SERDES, 0xa8000019);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x13160820);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0xe5980560);
-
-			/* Shut off CLKREQ active in L1 */
-			if (ah->config.pcie_clock_req)
-				REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffc);
-			else
-				REG_WRITE(ah, AR_PCIE_SERDES, 0x401deffd);
-
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x1aaabe40);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0xbe105554);
-			REG_WRITE(ah, AR_PCIE_SERDES, 0x00043007);
-
-			/* Load the new settings */
-			REG_WRITE(ah, AR_PCIE_SERDES2, 0x00000000);
-
 		} else {
 			ENABLE_REGWRITE_BUFFER(ah);
 
