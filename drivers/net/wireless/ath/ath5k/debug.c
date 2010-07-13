@@ -279,7 +279,7 @@ static ssize_t write_file_reset(struct file *file,
 {
 	struct ath5k_softc *sc = file->private_data;
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "debug file triggered reset\n");
-	tasklet_schedule(&sc->restq);
+	ieee80211_queue_work(sc->hw, &sc->reset_work);
 	return count;
 }
 
