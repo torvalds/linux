@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 6
-#define QLCNIC_LINUX_VERSIONID  "5.0.6"
+#define _QLCNIC_LINUX_SUBVERSION 7
+#define QLCNIC_LINUX_VERSIONID  "5.0.7"
 #define QLCNIC_DRV_IDC_VER  0x01
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
@@ -949,7 +949,6 @@ struct qlcnic_adapter {
 	u8 has_link_events;
 	u8 fw_type;
 	u16 tx_context_id;
-	u16 mtu;
 	u16 is_up;
 
 	u16 link_speed;
@@ -1044,6 +1043,8 @@ struct qlcnic_pci_info {
 
 struct qlcnic_npar_info {
 	u16	vlan_id;
+	u16	min_bw;
+	u16	max_bw;
 	u8	phy_port;
 	u8	type;
 	u8	active;

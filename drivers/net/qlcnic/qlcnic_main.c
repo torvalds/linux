@@ -507,6 +507,8 @@ qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 			adapter->npars[pfn].type = pci_info[i].type;
 			adapter->npars[pfn].phy_port = pci_info[i].default_port;
 			adapter->npars[pfn].mac_learning = DEFAULT_MAC_LEARN;
+			adapter->npars[pfn].min_bw = pci_info[i].tx_min_bw;
+			adapter->npars[pfn].max_bw = pci_info[i].tx_max_bw;
 		}
 
 		for (i = 0; i < QLCNIC_NIU_MAX_XG_PORTS; i++)
@@ -771,6 +773,50 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 }
 
 static int
+qlcnic_reset_npar_config(struct qlcnic_adapter *adapter)
+{
+	int i, err = 0;
+	struct qlcnic_npar_info *npar;
+	struct qlcnic_info nic_info;
+
+	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
+	    !adapter->need_fw_reset)
+		return 0;
+
+	if (adapter->op_mode == QLCNIC_MGMT_FUNC) {
+		/* Set the NPAR config data after FW reset */
+		for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
+			npar = &adapter->npars[i];
+			if (npar->type != QLCNIC_TYPE_NIC)
+				continue;
+			err = qlcnic_get_nic_info(adapter, &nic_info, i);
+			if (err)
+				goto err_out;
+			nic_info.min_tx_bw = npar->min_bw;
+			nic_info.max_tx_bw = npar->max_bw;
+			err = qlcnic_set_nic_info(adapter, &nic_info);
+			if (err)
+				goto err_out;
+
+			if (npar->enable_pm) {
+				err = qlcnic_config_port_mirroring(adapter,
+						npar->dest_npar, 1, i);
+				if (err)
+					goto err_out;
+
+			}
+			npar->mac_learning = DEFAULT_MAC_LEARN;
+			npar->host_vlan_tag = 0;
+			npar->promisc_mode = 0;
+			npar->discard_tagged = 0;
+			npar->vlan_id = 0;
+		}
+	}
+err_out:
+	return err;
+}
+
+static int
 qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 {
 	int val, err, first_boot;
@@ -834,10 +880,9 @@ wait_init:
 	qlcnic_idc_debug_info(adapter, 1);
 
 	qlcnic_check_options(adapter);
-
-	if (adapter->flags & QLCNIC_ESWITCH_ENABLED &&
-		adapter->op_mode != QLCNIC_NON_PRIV_FUNC)
-		qlcnic_dev_set_npar_ready(adapter);
+	if (qlcnic_reset_npar_config(adapter))
+		goto err_out;
+	qlcnic_dev_set_npar_ready(adapter);
 
 	adapter->need_fw_reset = 0;
 
@@ -2486,6 +2531,7 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 {
 	u32 state;
 
+	adapter->need_fw_reset = 1;
 	if (qlcnic_api_lock(adapter))
 		return;
 
@@ -2506,6 +2552,9 @@ qlcnic_dev_set_npar_ready(struct qlcnic_adapter *adapter)
 {
 	u32 state;
 
+	if (!(adapter->flags & QLCNIC_ESWITCH_ENABLED) ||
+		adapter->op_mode == QLCNIC_NON_PRIV_FUNC)
+		return;
 	if (qlcnic_api_lock(adapter))
 		return;
 
@@ -3019,7 +3068,7 @@ static struct bin_attribute bin_attr_mem = {
 	.write = qlcnic_sysfs_write_mem,
 };
 
-int
+static int
 validate_pm_config(struct qlcnic_adapter *adapter,
 			struct qlcnic_pm_func_cfg *pm_cfg, int count)
 {
@@ -3118,7 +3167,7 @@ qlcnic_sysfs_read_pm_config(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-int
+static int
 validate_esw_config(struct qlcnic_adapter *adapter,
 			struct qlcnic_esw_func_cfg *esw_cfg, int count)
 {
@@ -3154,9 +3203,8 @@ qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	struct qlcnic_esw_func_cfg *esw_cfg;
-	u8 id, discard_tagged, promsc_mode, mac_learn;
-	u8 vlan_tagging, pci_func, vlan_id;
 	int count, rem, i, ret;
+	u8 id, pci_func;
 
 	count	= size / sizeof(struct qlcnic_esw_func_cfg);
 	rem	= size % sizeof(struct qlcnic_esw_func_cfg);
@@ -3171,17 +3219,13 @@ qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
 	for (i = 0; i < count; i++) {
 		pci_func = esw_cfg[i].pci_func;
 		id = adapter->npars[pci_func].phy_port;
-		vlan_tagging = esw_cfg[i].host_vlan_tag;
-		promsc_mode = esw_cfg[i].promisc_mode;
-		mac_learn = esw_cfg[i].mac_learning;
-		vlan_id	= esw_cfg[i].vlan_id;
-		discard_tagged = esw_cfg[i].discard_tagged;
-		ret = qlcnic_config_switch_port(adapter, id, vlan_tagging,
-						discard_tagged,
-						promsc_mode,
-						mac_learn,
-						pci_func,
-						vlan_id);
+		ret = qlcnic_config_switch_port(adapter, id,
+						esw_cfg[i].host_vlan_tag,
+						esw_cfg[i].discard_tagged,
+						esw_cfg[i].promisc_mode,
+						esw_cfg[i].mac_learning,
+						esw_cfg[i].pci_func,
+						esw_cfg[i].vlan_id);
 		if (ret)
 			return ret;
 	}
@@ -3227,7 +3271,7 @@ qlcnic_sysfs_read_esw_config(struct file *file, struct kobject *kobj,
 	return size;
 }
 
-int
+static int
 validate_npar_config(struct qlcnic_adapter *adapter,
 				struct qlcnic_npar_func_cfg *np_cfg, int count)
 {
@@ -3282,6 +3326,8 @@ qlcnic_sysfs_write_npar_config(struct file *file, struct kobject *kobj,
 		ret = qlcnic_set_nic_info(adapter, &nic_info);
 		if (ret)
 			return ret;
+		adapter->npars[i].min_bw = nic_info.min_tx_bw;
+		adapter->npars[i].max_bw = nic_info.max_tx_bw;
 	}
 
 	return size;

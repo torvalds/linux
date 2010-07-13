@@ -636,6 +636,8 @@ int qlcnic_get_nic_info(struct qlcnic_adapter *adapter,
 			QLCNIC_CDRP_CMD_GET_NIC_INFO);
 
 	if (err == QLCNIC_RCODE_SUCCESS) {
+		npar_info->pci_func = le16_to_cpu(nic_info->pci_func);
+		npar_info->op_mode = le16_to_cpu(nic_info->op_mode);
 		npar_info->phys_port = le16_to_cpu(nic_info->phys_port);
 		npar_info->switch_mode = le16_to_cpu(nic_info->switch_mode);
 		npar_info->max_tx_ques = le16_to_cpu(nic_info->max_tx_ques);
