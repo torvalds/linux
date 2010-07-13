@@ -1525,10 +1525,6 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 	parse_lcd_port();
 	parse_dvi_port();
 
-	/* for dual-fb must viafb_SAMM_ON=1 and viafb_dual_fb=1 */
-	if (!viafb_SAMM_ON)
-		viafb_dual_fb = 0;
-
 	viafb_init_chip_info(vdev->chip_type);
 	/*
 	 * The framebuffer will have been successfully mapped by
@@ -1572,30 +1568,13 @@ int __devinit via_fb_pci_probe(struct viafb_dev *vdev)
 		parse_mode(viafb_mode1, &viafb_second_xres,
 			&viafb_second_yres);
 
-		if (0 == viafb_second_virtual_xres) {
-			switch (viafb_second_xres) {
-			case 1400:
-				viafb_second_virtual_xres = 1408;
-				break;
-			default:
-				viafb_second_virtual_xres = viafb_second_xres;
-				break;
-			}
-		}
-		if (0 == viafb_second_virtual_yres)
-			viafb_second_virtual_yres = viafb_second_yres;
+		viafb_second_virtual_xres = viafb_second_xres;
+		viafb_second_virtual_yres = viafb_second_yres;
 	}
 
 	default_var.xres = default_xres;
 	default_var.yres = default_yres;
-	switch (default_xres) {
-	case 1400:
-		default_var.xres_virtual = 1408;
-		break;
-	default:
-		default_var.xres_virtual = default_xres;
-		break;
-	}
+	default_var.xres_virtual = default_xres;
 	default_var.yres_virtual = default_yres;
 	default_var.bits_per_pixel = viafb_bpp;
 	default_var.pixclock =
