@@ -53,12 +53,6 @@ static void wl1271_rx_status(struct wl1271 *wl,
 	status->band = wl->band;
 	status->rate_idx = wl1271_rate_to_idx(wl, desc->rate);
 
-	/*
-	 * FIXME: Add mactime handling.  For IBSS (ad-hoc) we need to get the
-	 * timestamp from the beacon (acx_tsf_info).  In BSS mode (infra) we
-	 * only need the mactime for monitor mode.  For now the mactime is
-	 * not valid, so RX_FLAG_TSFT should not be set
-	 */
 	status->signal = desc->rssi;
 
 	status->freq = ieee80211_channel_to_frequency(desc->channel);

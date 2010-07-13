@@ -1903,7 +1903,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	if (err) {
 		printk(KERN_ERR "%s (adm8211): Cannot register device\n",
 		       pci_name(pdev));
-		goto err_free_desc;
+		goto err_free_eeprom;
 	}
 
 	printk(KERN_INFO "%s: hwaddr %pM, Rev 0x%02x\n",
@@ -1911,6 +1911,9 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	       pdev->revision);
 
 	return 0;
+
+ err_free_eeprom:
+	kfree(priv->eeprom);
 
  err_free_desc:
 	pci_free_consistent(pdev,

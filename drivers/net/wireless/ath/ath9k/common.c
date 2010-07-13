@@ -319,6 +319,10 @@ int ath9k_cmn_key_config(struct ath_common *common,
 			idx = ath_reserve_key_cache_slot(common, key->alg);
 			break;
 		case NL80211_IFTYPE_ADHOC:
+			if (!sta) {
+				idx = key->keyidx;
+				break;
+			}
 			memcpy(gmac, sta->addr, ETH_ALEN);
 			gmac[0] |= 0x01;
 			mac = gmac;

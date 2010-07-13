@@ -240,6 +240,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 			     MINSTREL_FRAC(3, 4)) || mr->probability > cur_prob) {
 				mg->max_prob_rate = index;
 				cur_prob = mr->probability;
+				cur_prob_tp = mr->cur_tp;
 			}
 
 			if (mr->cur_tp > cur_tp) {
@@ -275,6 +276,7 @@ minstrel_ht_update_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 		    minstrel_mcs_groups[group].streams == 1) {
 			mi->max_prob_rate = mg->max_prob_rate;
 			cur_prob = mr->cur_prob;
+			cur_prob_tp = mr->cur_tp;
 		}
 
 		mr = minstrel_get_ratestats(mi, mg->max_tp_rate);
@@ -441,8 +443,8 @@ minstrel_ht_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		minstrel_downgrade_rate(mi, &mi->max_tp_rate, true);
 
 	rate2 = minstrel_get_ratestats(mi, mi->max_tp_rate2);
-	if (rate->attempts > 30 &&
-	    MINSTREL_FRAC(rate->success, rate->attempts) <
+	if (rate2->attempts > 30 &&
+	    MINSTREL_FRAC(rate2->success, rate2->attempts) <
 	    MINSTREL_FRAC(20, 100))
 		minstrel_downgrade_rate(mi, &mi->max_tp_rate2, false);
 

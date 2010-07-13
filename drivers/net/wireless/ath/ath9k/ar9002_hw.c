@@ -179,8 +179,8 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar5416Bank7_9160), 2);
 		if (AR_SREV_9160_11(ah)) {
 			INIT_INI_ARRAY(&ah->iniAddac,
-				       ar5416Addac_91601_1,
-				       ARRAY_SIZE(ar5416Addac_91601_1), 2);
+				       ar5416Addac_9160_1_1,
+				       ARRAY_SIZE(ar5416Addac_9160_1_1), 2);
 		} else {
 			INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac_9160,
 				       ARRAY_SIZE(ar5416Addac_9160), 2);
@@ -239,12 +239,12 @@ void ar9002_hw_cck_chan14_spread(struct ath_hw *ah)
 {
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniCckfirNormal,
-		       ar9287Common_normal_cck_fir_coeff_92871_1,
-		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_92871_1),
+		       ar9287Common_normal_cck_fir_coeff_9287_1_1,
+		       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_9287_1_1),
 		       2);
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
-		       ar9287Common_japan_2484_cck_fir_coeff_92871_1,
-		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_92871_1),
+		       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1,
+		       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_9287_1_1),
 		       2);
 	}
 }

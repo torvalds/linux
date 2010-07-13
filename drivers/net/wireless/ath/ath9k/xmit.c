@@ -329,6 +329,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int isaggr, txfail, txpending, sendbar = 0, needreset = 0, nbad = 0;
 	bool rc_update = true;
 	struct ieee80211_tx_rate rates[4];
+	unsigned long flags;
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -344,11 +345,23 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	sta = ieee80211_find_sta_by_hw(hw, hdr->addr1);
 	if (!sta) {
 		rcu_read_unlock();
+
+		spin_lock_irqsave(&sc->tx.txbuflock, flags);
+		list_splice_tail_init(bf_q, &sc->tx.txbuf);
+		spin_unlock_irqrestore(&sc->tx.txbuflock, flags);
 		return;
 	}
 
 	an = (struct ath_node *)sta->drv_priv;
 	tid = ATH_AN_2_TID(an, bf->bf_tidno);
+
+	/*
+	 * The hardware occasionally sends a tx status for the wrong TID.
+	 * In this case, the BA status cannot be considered valid and all
+	 * subframes need to be retransmitted
+	 */
+	if (bf->bf_tidno != ts->tid)
+		txok = false;
 
 	isaggr = bf_isaggr(bf);
 	memset(ba, 0, WME_BA_BMP_SIZE >> 3);
@@ -2430,37 +2443,37 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 
 void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
-	int i;
-	struct ath_atx_ac *ac, *ac_tmp;
-	struct ath_atx_tid *tid, *tid_tmp;
+	struct ath_atx_ac *ac;
+	struct ath_atx_tid *tid;
 	struct ath_txq *txq;
+	int i, tidno;
 
-	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i)) {
-			txq = &sc->tx.txq[i];
+	for (tidno = 0, tid = &an->tid[tidno];
+	     tidno < WME_NUM_TID; tidno++, tid++) {
+		i = tid->ac->qnum;
 
-			spin_lock_bh(&txq->axq_lock);
+		if (!ATH_TXQ_SETUP(sc, i))
+			continue;
 
-			list_for_each_entry_safe(ac,
-					ac_tmp, &txq->axq_acq, list) {
-				tid = list_first_entry(&ac->tid_q,
-						struct ath_atx_tid, list);
-				if (tid && tid->an != an)
-					continue;
-				list_del(&ac->list);
-				ac->sched = false;
+		txq = &sc->tx.txq[i];
+		ac = tid->ac;
 
-				list_for_each_entry_safe(tid,
-						tid_tmp, &ac->tid_q, list) {
-					list_del(&tid->list);
-					tid->sched = false;
-					ath_tid_drain(sc, txq, tid);
-					tid->state &= ~AGGR_ADDBA_COMPLETE;
-					tid->state &= ~AGGR_CLEANUP;
-				}
-			}
+		spin_lock_bh(&txq->axq_lock);
 
-			spin_unlock_bh(&txq->axq_lock);
+		if (tid->sched) {
+			list_del(&tid->list);
+			tid->sched = false;
 		}
+
+		if (ac->sched) {
+			list_del(&ac->list);
+			tid->ac->sched = false;
+		}
+
+		ath_tid_drain(sc, txq, tid);
+		tid->state &= ~AGGR_ADDBA_COMPLETE;
+		tid->state &= ~AGGR_CLEANUP;
+
+		spin_unlock_bh(&txq->axq_lock);
 	}
 }

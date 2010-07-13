@@ -183,9 +183,8 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	skb_put(skb, TKIP_ICV_LEN);
 
 	hdr = (struct ieee80211_hdr *) skb->data;
-	ieee80211_tkip_encrypt_data(tx->local->wep_tx_tfm,
-				    key, pos, len, hdr->addr2);
-	return 0;
+	return ieee80211_tkip_encrypt_data(tx->local->wep_tx_tfm,
+					   key, pos, len, hdr->addr2);
 }
 
 

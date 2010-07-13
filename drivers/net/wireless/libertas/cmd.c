@@ -181,7 +181,7 @@ static int lbs_ret_host_sleep_cfg(struct lbs_private *priv, unsigned long dummy,
 			struct cmd_header *resp)
 {
 	lbs_deb_enter(LBS_DEB_CMD);
-	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
+	if (priv->is_host_sleep_activated) {
 		priv->is_host_sleep_configured = 0;
 		if (priv->psstate == PS_STATE_FULL_POWER) {
 			priv->is_host_sleep_activated = 0;
@@ -358,6 +358,65 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep)
 	}
 
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+static int lbs_ret_host_sleep_activate(struct lbs_private *priv,
+		unsigned long dummy,
+		struct cmd_header *cmd)
+{
+	lbs_deb_enter(LBS_DEB_FW);
+	priv->is_host_sleep_activated = 1;
+	wake_up_interruptible(&priv->host_sleep_q);
+	lbs_deb_leave(LBS_DEB_FW);
+	return 0;
+}
+
+int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep)
+{
+	struct cmd_header cmd;
+	int ret = 0;
+	uint32_t criteria = EHS_REMOVE_WAKEUP;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	if (host_sleep) {
+		if (priv->is_host_sleep_activated != 1) {
+			memset(&cmd, 0, sizeof(cmd));
+			ret = lbs_host_sleep_cfg(priv, priv->wol_criteria,
+					(struct wol_config *)NULL);
+			if (ret) {
+				lbs_pr_info("Host sleep configuration failed: "
+						"%d\n", ret);
+				return ret;
+			}
+			if (priv->psstate == PS_STATE_FULL_POWER) {
+				ret = __lbs_cmd(priv,
+						CMD_802_11_HOST_SLEEP_ACTIVATE,
+						&cmd,
+						sizeof(cmd),
+						lbs_ret_host_sleep_activate, 0);
+				if (ret)
+					lbs_pr_info("HOST_SLEEP_ACTIVATE "
+							"failed: %d\n", ret);
+			}
+
+			if (!wait_event_interruptible_timeout(
+						priv->host_sleep_q,
+						priv->is_host_sleep_activated,
+						(10 * HZ))) {
+				lbs_pr_err("host_sleep_q: timer expired\n");
+				ret = -1;
+			}
+		} else {
+			lbs_pr_err("host sleep: already enabled\n");
+		}
+	} else {
+		if (priv->is_host_sleep_activated)
+			ret = lbs_host_sleep_cfg(priv, criteria,
+					(struct wol_config *)NULL);
+	}
+
 	return ret;
 }
 

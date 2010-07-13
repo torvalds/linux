@@ -30,6 +30,7 @@
 /*
  * Interval defines
  */
+#define WATCHDOG_INTERVAL	round_jiffies_relative(HZ)
 #define LINK_TUNE_INTERVAL	round_jiffies_relative(HZ)
 
 /*
@@ -257,11 +258,30 @@ void rt2x00link_stop_tuner(struct rt2x00_dev *rt2x00dev);
 void rt2x00link_reset_tuner(struct rt2x00_dev *rt2x00dev, bool antenna);
 
 /**
- * rt2x00link_register - Initialize link tuning functionality
+ * rt2x00link_start_watchdog - Start periodic watchdog monitoring
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  *
- * Initialize work structure and all link tuning related
- * parameters. This will not start the link tuning process itself.
+ * This start the watchdog periodic work, this work will
+ *be executed periodically until &rt2x00link_stop_watchdog has
+ * been called.
+ */
+void rt2x00link_start_watchdog(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_stop_watchdog - Stop periodic watchdog monitoring
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * After this function completed the watchdog monitoring will not
+ * be running until &rt2x00link_start_watchdog is called.
+ */
+void rt2x00link_stop_watchdog(struct rt2x00_dev *rt2x00dev);
+
+/**
+ * rt2x00link_register - Initialize link tuning & watchdog functionality
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ *
+ * Initialize work structure and all link tuning and watchdog related
+ * parameters. This will not start the periodic work itself.
  */
 void rt2x00link_register(struct rt2x00_dev *rt2x00dev);
 

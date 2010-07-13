@@ -238,7 +238,7 @@ void iwl_recover_from_statistics(struct iwl_priv *priv,
 				 */
 				IWL_ERR(priv, "low ack count detected, "
 					"restart firmware\n");
-				if (!iwl_force_reset(priv, IWL_FW_RESET))
+				if (!iwl_force_reset(priv, IWL_FW_RESET, false))
 					return;
 			}
 		}
@@ -249,7 +249,7 @@ void iwl_recover_from_statistics(struct iwl_priv *priv,
 				 * high plcp error detected
 				 * reset Radio
 				 */
-				iwl_force_reset(priv, IWL_RF_RESET);
+				iwl_force_reset(priv, IWL_RF_RESET, false);
 			}
 		}
 	}

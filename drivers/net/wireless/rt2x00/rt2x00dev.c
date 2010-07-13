@@ -70,6 +70,11 @@ int rt2x00lib_enable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON);
 
 	/*
+	 * Start watchdog monitoring.
+	 */
+	rt2x00link_start_watchdog(rt2x00dev);
+
+	/*
 	 * Start the TX queues.
 	 */
 	ieee80211_wake_queues(rt2x00dev->hw);
@@ -87,6 +92,11 @@ void rt2x00lib_disable_radio(struct rt2x00_dev *rt2x00dev)
 	 */
 	ieee80211_stop_queues(rt2x00dev->hw);
 	rt2x00queue_stop_queues(rt2x00dev);
+
+	/*
+	 * Stop watchdog monitoring.
+	 */
+	rt2x00link_stop_watchdog(rt2x00dev);
 
 	/*
 	 * Disable RX.
@@ -168,10 +178,32 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 /*
  * Interrupt context handlers.
  */
-static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
-				      struct ieee80211_vif *vif)
+static void rt2x00lib_bc_buffer_iter(void *data, u8 *mac,
+				     struct ieee80211_vif *vif)
 {
-	struct rt2x00_intf *intf = vif_to_intf(vif);
+	struct rt2x00_dev *rt2x00dev = data;
+	struct sk_buff *skb;
+
+	/*
+	 * Only AP mode interfaces do broad- and multicast buffering
+	 */
+	if (vif->type != NL80211_IFTYPE_AP)
+		return;
+
+	/*
+	 * Send out buffered broad- and multicast frames
+	 */
+	skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
+	while (skb) {
+		rt2x00mac_tx(rt2x00dev->hw, skb);
+		skb = ieee80211_get_buffered_bc(rt2x00dev->hw, vif);
+	}
+}
+
+static void rt2x00lib_beaconupdate_iter(void *data, u8 *mac,
+					struct ieee80211_vif *vif)
+{
+	struct rt2x00_dev *rt2x00dev = data;
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_ADHOC &&
@@ -179,9 +211,7 @@ static void rt2x00lib_beacondone_iter(void *data, u8 *mac,
 	    vif->type != NL80211_IFTYPE_WDS)
 		return;
 
-	spin_lock(&intf->lock);
-	intf->delayed_flags |= DELAYED_UPDATE_BEACON;
-	spin_unlock(&intf->lock);
+	rt2x00queue_update_beacon(rt2x00dev, vif, true);
 }
 
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
@@ -189,13 +219,36 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return;
 
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beacondone_iter,
-						   rt2x00dev);
+	/* send buffered bc/mc frames out for every bssid */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_bc_buffer_iter,
+					    rt2x00dev);
+	/*
+	 * Devices with pre tbtt interrupt don't need to update the beacon
+	 * here as they will fetch the next beacon directly prior to
+	 * transmission.
+	 */
+	if (test_bit(DRIVER_SUPPORT_PRE_TBTT_INTERRUPT, &rt2x00dev->flags))
+		return;
 
-	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->intf_work);
+	/* fetch next beacon */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_beaconupdate_iter,
+					    rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
+
+void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
+{
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
+		return;
+
+	/* fetch next beacon */
+	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    rt2x00lib_beaconupdate_iter,
+					    rt2x00dev);
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc)
@@ -330,9 +383,17 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	 * send the status report back.
 	 */
 	if (!(skbdesc_flags & SKBDESC_NOT_MAC80211))
-		ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
+		/*
+		 * Only PCI and SOC devices process the tx status in process
+		 * context. Hence use ieee80211_tx_status for PCI and SOC
+		 * devices and stick to ieee80211_tx_status_irqsafe for USB.
+		 */
+		if (rt2x00_is_usb(rt2x00dev))
+			ieee80211_tx_status_irqsafe(rt2x00dev->hw, entry->skb);
+		else
+			ieee80211_tx_status(rt2x00dev->hw, entry->skb);
 	else
-		dev_kfree_skb_irq(entry->skb);
+		dev_kfree_skb_any(entry->skb);
 
 	/*
 	 * Make this entry available for reuse.
@@ -479,7 +540,16 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_RXDONE, entry->skb);
 	memcpy(IEEE80211_SKB_RXCB(entry->skb), rx_status, sizeof(*rx_status));
-	ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb);
+
+	/*
+	 * Currently only PCI and SOC devices handle rx interrupts in process
+	 * context. Hence, use ieee80211_rx_irqsafe for USB and ieee80211_rx_ni
+	 * for PCI and SOC devices.
+	 */
+	if (rt2x00_is_usb(rt2x00dev))
+		ieee80211_rx_irqsafe(rt2x00dev->hw, entry->skb);
+	else
+		ieee80211_rx_ni(rt2x00dev->hw, entry->skb);
 
 	/*
 	 * Replace the skb with the freshly allocated one.

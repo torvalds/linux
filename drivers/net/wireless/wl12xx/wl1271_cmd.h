@@ -41,9 +41,6 @@ int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send);
 int wl1271_cmd_read_memory(struct wl1271 *wl, u32 addr, void *answer,
 			   size_t len);
-int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
-		    struct cfg80211_scan_request *req, u8 active_scan,
-		    u8 high_prio, u8 band, u8 probe_requests);
 int wl1271_cmd_template_set(struct wl1271 *wl, u16 template_id,
 			    void *buf, size_t buf_len, int index, u32 rates);
 int wl1271_cmd_build_null_data(struct wl1271 *wl);
@@ -348,71 +345,6 @@ struct wl1271_cmd_set_keys {
 	u8 key[MAX_KEY_SIZE];
 	__le16 ac_seq_num16[NUM_ACCESS_CATEGORIES_COPY];
 	__le32 ac_seq_num32[NUM_ACCESS_CATEGORIES_COPY];
-} __packed;
-
-
-#define WL1271_SCAN_MAX_CHANNELS       24
-#define WL1271_SCAN_DEFAULT_TAG        1
-#define WL1271_SCAN_CURRENT_TX_PWR     0
-#define WL1271_SCAN_OPT_ACTIVE         0
-#define WL1271_SCAN_OPT_PASSIVE	       1
-#define WL1271_SCAN_OPT_PRIORITY_HIGH  4
-#define WL1271_SCAN_CHAN_MIN_DURATION  30000  /* TU */
-#define WL1271_SCAN_CHAN_MAX_DURATION  60000  /* TU */
-#define WL1271_SCAN_BAND_2_4_GHZ 0
-#define WL1271_SCAN_BAND_5_GHZ 1
-#define WL1271_SCAN_BAND_DUAL 2
-
-struct basic_scan_params {
-	__le32 rx_config_options;
-	__le32 rx_filter_options;
-	/* Scan option flags (WL1271_SCAN_OPT_*) */
-	__le16 scan_options;
-	/* Number of scan channels in the list (maximum 30) */
-	u8 num_channels;
-	/* This field indicates the number of probe requests to send
-	   per channel for an active scan */
-	u8 num_probe_requests;
-	/* Rate bit field for sending the probes */
-	__le32 tx_rate;
-	u8 tid_trigger;
-	u8 ssid_len;
-	/* in order to align */
-	u8 padding1[2];
-	u8 ssid[IW_ESSID_MAX_SIZE];
-	/* Band to scan */
-	u8 band;
-	u8 use_ssid_list;
-	u8 scan_tag;
-	u8 padding2;
-} __packed;
-
-struct basic_scan_channel_params {
-	/* Duration in TU to wait for frames on a channel for active scan */
-	__le32 min_duration;
-	__le32 max_duration;
-	__le32 bssid_lsb;
-	__le16 bssid_msb;
-	u8 early_termination;
-	u8 tx_power_att;
-	u8 channel;
-	/* FW internal use only! */
-	u8 dfs_candidate;
-	u8 activity_detected;
-	u8 pad;
-} __packed;
-
-struct wl1271_cmd_scan {
-	struct wl1271_cmd_header header;
-
-	struct basic_scan_params params;
-	struct basic_scan_channel_params channels[WL1271_SCAN_MAX_CHANNELS];
-} __packed;
-
-struct wl1271_cmd_trigger_scan_to {
-	struct wl1271_cmd_header header;
-
-	__le32 timeout;
 } __packed;
 
 struct wl1271_cmd_test_header {

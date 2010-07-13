@@ -510,7 +510,6 @@ struct ath_gen_timer_table {
  *	AR_RTC_PLL_CONTROL for a given channel
  * @setup_calibration: set up calibration
  * @iscal_supported: used to query if a type of calibration is supported
- * @loadnf: load noise floor read from each chain on the CCA registers
  *
  * @ani_reset: reset ANI parameters to default values
  * @ani_lower_immunity: lower the noise immunity level. The level controls
@@ -564,7 +563,6 @@ struct ath_hw_private_ops {
 	bool (*ani_control)(struct ath_hw *ah, enum ath9k_ani_cmd cmd,
 			    int param);
 	void (*do_getnf)(struct ath_hw *ah, int16_t nfarray[NUM_NF_READINGS]);
-	void (*loadnf)(struct ath_hw *ah, struct ath9k_channel *chan);
 
 	/* ANI */
 	void (*ani_reset)(struct ath_hw *ah, bool is_scanning);
@@ -630,6 +628,12 @@ struct ath_hw_ops {
 	void (*ani_monitor)(struct ath_hw *ah, struct ath9k_channel *chan);
 };
 
+struct ath_nf_limits {
+	s16 max;
+	s16 min;
+	s16 nominal;
+};
+
 struct ath_hw {
 	struct ieee80211_hw *hw;
 	struct ath_common common;
@@ -651,10 +655,10 @@ struct ath_hw {
 	bool is_pciexpress;
 	bool need_an_top2_fixup;
 	u16 tx_trig_level;
-	s16 nf_2g_max;
-	s16 nf_2g_min;
-	s16 nf_5g_max;
-	s16 nf_5g_min;
+
+	u32 nf_regs[6];
+	struct ath_nf_limits nf_2g;
+	struct ath_nf_limits nf_5g;
 	u16 rfsilent;
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
@@ -848,6 +852,12 @@ static inline struct ath_hw_ops *ath9k_hw_ops(struct ath_hw *ah)
 	return &ah->ops;
 }
 
+static inline int sign_extend(int val, const int nbits)
+{
+	int order = BIT(nbits-1);
+	return (val ^ order) - order;
+}
+
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
@@ -943,7 +953,6 @@ void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
  * Code specific to AR9003, we stuff these here to avoid callbacks
  * for older families
  */
-void ar9003_hw_set_nf_limits(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
 void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);

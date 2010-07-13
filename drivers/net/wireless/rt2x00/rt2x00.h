@@ -332,6 +332,11 @@ struct link {
 	 * Work structure for scheduling periodic link tuning.
 	 */
 	struct delayed_work work;
+
+	/*
+	 * Work structure for scheduling periodic watchdog monitoring.
+	 */
+	struct delayed_work watchdog_work;
 };
 
 /*
@@ -510,6 +515,11 @@ struct rt2x00lib_ops {
 	irq_handler_t irq_handler;
 
 	/*
+	 * Threaded Interrupt handlers.
+	 */
+	irq_handler_t irq_handler_thread;
+
+	/*
 	 * Device init handlers.
 	 */
 	int (*probe_hw) (struct rt2x00_dev *rt2x00dev);
@@ -543,6 +553,7 @@ struct rt2x00lib_ops {
 			     struct link_qual *qual);
 	void (*link_tuner) (struct rt2x00_dev *rt2x00dev,
 			    struct link_qual *qual, const u32 count);
+	void (*watchdog) (struct rt2x00_dev *rt2x00dev);
 
 	/*
 	 * TX control handlers
@@ -610,6 +621,7 @@ struct rt2x00_ops {
 	const struct data_queue_desc *bcn;
 	const struct data_queue_desc *atim;
 	const struct rt2x00lib_ops *lib;
+	const void *drv;
 	const struct ieee80211_ops *hw;
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 	const struct rt2x00debug *debugfs;
@@ -628,6 +640,7 @@ enum rt2x00_flags {
 	DEVICE_STATE_INITIALIZED,
 	DEVICE_STATE_STARTED,
 	DEVICE_STATE_ENABLED_RADIO,
+	DEVICE_STATE_SCANNING,
 
 	/*
 	 * Driver requirements
@@ -646,6 +659,9 @@ enum rt2x00_flags {
 	CONFIG_SUPPORT_HW_CRYPTO,
 	DRIVER_SUPPORT_CONTROL_FILTERS,
 	DRIVER_SUPPORT_CONTROL_FILTER_PSPOLL,
+	DRIVER_SUPPORT_PRE_TBTT_INTERRUPT,
+	DRIVER_SUPPORT_LINK_TUNING,
+	DRIVER_SUPPORT_WATCHDOG,
 
 	/*
 	 * Driver configuration
@@ -655,7 +671,6 @@ enum rt2x00_flags {
 	CONFIG_EXTERNAL_LNA_A,
 	CONFIG_EXTERNAL_LNA_BG,
 	CONFIG_DOUBLE_ANTENNA,
-	CONFIG_DISABLE_LINK_TUNING,
 	CONFIG_CHANNEL_HT40,
 };
 
@@ -863,9 +878,10 @@ struct rt2x00_dev {
 	const struct firmware *fw;
 
 	/*
-	 * Driver specific data.
+	 * Interrupt values, stored between interrupt service routine
+	 * and interrupt thread routine.
 	 */
-	void *priv;
+	u32 irqvalue[2];
 };
 
 /*
@@ -1052,6 +1068,7 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
  * Interrupt context handlers.
  */
 void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev);
+void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
 void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
@@ -1081,6 +1098,8 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #else
 #define rt2x00mac_set_key	NULL
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
+void rt2x00mac_sw_scan_start(struct ieee80211_hw *hw);
+void rt2x00mac_sw_scan_complete(struct ieee80211_hw *hw);
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,

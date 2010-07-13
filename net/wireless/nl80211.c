@@ -877,7 +877,7 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		int idx, mbm = 0;
 
 		if (!rdev->ops->set_tx_power) {
-			return -EOPNOTSUPP;
+			result = -EOPNOTSUPP;
 			goto bad_res;
 		}
 
