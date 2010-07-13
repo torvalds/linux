@@ -345,10 +345,10 @@ static u32 group_table[] = {
 	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
 	0, 0, 0, 0,
 	[Group4*8] =
-	ByteOp | DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
+	ByteOp | DstMem | SrcNone | ModRM | Lock, ByteOp | DstMem | SrcNone | ModRM | Lock,
 	0, 0, 0, 0, 0, 0,
 	[Group5*8] =
-	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
+	DstMem | SrcNone | ModRM | Lock, DstMem | SrcNone | ModRM | Lock,
 	SrcMem | ModRM | Stack, 0,
 	SrcMem | ModRM | Stack, SrcMemFAddr | ModRM | ImplicitOps,
 	SrcMem | ModRM | Stack, 0,
