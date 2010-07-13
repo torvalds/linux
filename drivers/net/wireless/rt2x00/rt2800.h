@@ -74,7 +74,7 @@
  * Signal information.
  * Default offset is required for RSSI <-> dBm conversion.
  */
-#define DEFAULT_RSSI_OFFSET		120 /* FIXME */
+#define DEFAULT_RSSI_OFFSET		120
 
 /*
  * Register layout information.
@@ -719,14 +719,20 @@
 #define TBTT_TIMER			0x1124
 
 /*
- * INT_TIMER_CFG:
+ * INT_TIMER_CFG: timer configuration
+ * PRE_TBTT_TIMER: leadtime to tbtt for pretbtt interrupt in units of 1/16 TU
+ * GP_TIMER: period of general purpose timer in units of 1/16 TU
  */
 #define INT_TIMER_CFG			0x1128
+#define INT_TIMER_CFG_PRE_TBTT_TIMER	FIELD32(0x0000ffff)
+#define INT_TIMER_CFG_GP_TIMER		FIELD32(0xffff0000)
 
 /*
  * INT_TIMER_EN: GP-timer and pre-tbtt Int enable
  */
 #define INT_TIMER_EN			0x112c
+#define INT_TIMER_EN_PRE_TBTT_TIMER	FIELD32(0x00000001)
+#define INT_TIMER_EN_GP_TIMER		FIELD32(0x00000002)
 
 /*
  * CH_IDLE_STA: channel idle time
@@ -801,6 +807,18 @@
  * EDCA_TID_AC_MAP:
  */
 #define EDCA_TID_AC_MAP			0x1310
+
+/*
+ * TX_PWR_CFG:
+ */
+#define TX_PWR_CFG_RATE0		FIELD32(0x0000000f)
+#define TX_PWR_CFG_RATE1		FIELD32(0x000000f0)
+#define TX_PWR_CFG_RATE2		FIELD32(0x00000f00)
+#define TX_PWR_CFG_RATE3		FIELD32(0x0000f000)
+#define TX_PWR_CFG_RATE4		FIELD32(0x000f0000)
+#define TX_PWR_CFG_RATE5		FIELD32(0x00f00000)
+#define TX_PWR_CFG_RATE6		FIELD32(0x0f000000)
+#define TX_PWR_CFG_RATE7		FIELD32(0xf0000000)
 
 /*
  * TX_PWR_CFG_0:
@@ -1853,9 +1871,15 @@ struct mac_iveiv_entry {
 #define EEPROM_TXPOWER_A_2		FIELD16(0xff00)
 
 /*
- * EEPROM TXpower byrate: 20MHZ power
+ * EEPROM TXPOWER by rate: tx power per tx rate for HT20 mode
  */
 #define EEPROM_TXPOWER_BYRATE		0x006f
+#define EEPROM_TXPOWER_BYRATE_SIZE	9
+
+#define EEPROM_TXPOWER_BYRATE_RATE0	FIELD16(0x000f)
+#define EEPROM_TXPOWER_BYRATE_RATE1	FIELD16(0x00f0)
+#define EEPROM_TXPOWER_BYRATE_RATE2	FIELD16(0x0f00)
+#define EEPROM_TXPOWER_BYRATE_RATE3	FIELD16(0xf000)
 
 /*
  * EEPROM BBP.

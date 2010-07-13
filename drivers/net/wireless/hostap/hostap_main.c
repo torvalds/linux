@@ -186,7 +186,7 @@ int prism2_wds_add(local_info_t *local, u8 *remote_addr,
 		return -ENOBUFS;
 
 	/* verify that there is room for wds# postfix in the interface name */
-	if (strlen(local->dev->name) > IFNAMSIZ - 5) {
+	if (strlen(local->dev->name) >= IFNAMSIZ - 5) {
 		printk(KERN_DEBUG "'%s' too long base device name\n",
 		       local->dev->name);
 		return -EINVAL;

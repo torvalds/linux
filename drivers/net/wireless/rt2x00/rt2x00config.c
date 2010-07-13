@@ -41,10 +41,12 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 
 	switch (type) {
 	case NL80211_IFTYPE_ADHOC:
+		conf.sync = TSF_SYNC_ADHOC;
+		break;
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_WDS:
-		conf.sync = TSF_SYNC_BEACON;
+		conf.sync = TSF_SYNC_AP_NONE;
 		break;
 	case NL80211_IFTYPE_STATION:
 		conf.sync = TSF_SYNC_INFRA;

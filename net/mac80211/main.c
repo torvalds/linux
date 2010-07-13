@@ -637,11 +637,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		goto fail_sta_info;
 
 	result = ieee80211_wep_init(local);
-	if (result < 0) {
+	if (result < 0)
 		printk(KERN_DEBUG "%s: Failed to initialize wep: %d\n",
 		       wiphy_name(local->hw.wiphy), result);
-		goto fail_wep;
-	}
 
 	rtnl_lock();
 
@@ -694,7 +692,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
  fail_rate:
 	rtnl_unlock();
 	ieee80211_wep_free(local);
- fail_wep:
 	sta_info_stop(local);
  fail_sta_info:
 	destroy_workqueue(local->workqueue);

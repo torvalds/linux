@@ -409,10 +409,50 @@ static int iwl_sens_auto_corr_ofdm(struct iwl_priv *priv,
 	return 0;
 }
 
+static void iwl_prepare_legacy_sensitivity_tbl(struct iwl_priv *priv,
+				struct iwl_sensitivity_data *data,
+				__le16 *tbl)
+{
+	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm);
+	tbl[HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm_mrc);
+	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm_x1);
+	tbl[HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_ofdm_mrc_x1);
+
+	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_cck);
+	tbl[HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16((u16)data->auto_corr_cck_mrc);
+
+	tbl[HD_MIN_ENERGY_CCK_DET_INDEX] =
+				cpu_to_le16((u16)data->nrg_th_cck);
+	tbl[HD_MIN_ENERGY_OFDM_DET_INDEX] =
+				cpu_to_le16((u16)data->nrg_th_ofdm);
+
+	tbl[HD_BARKER_CORR_TH_ADD_MIN_INDEX] =
+				cpu_to_le16(data->barker_corr_th_min);
+	tbl[HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX] =
+				cpu_to_le16(data->barker_corr_th_min_mrc);
+	tbl[HD_OFDM_ENERGY_TH_IN_INDEX] =
+				cpu_to_le16(data->nrg_th_cca);
+
+	IWL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
+			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
+			data->auto_corr_ofdm_x1, data->auto_corr_ofdm_mrc_x1,
+			data->nrg_th_ofdm);
+
+	IWL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
+			data->auto_corr_cck, data->auto_corr_cck_mrc,
+			data->nrg_th_cck);
+}
+
 /* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
 static int iwl_sensitivity_write(struct iwl_priv *priv)
 {
-	struct iwl_sensitivity_cmd cmd ;
+	struct iwl_sensitivity_cmd cmd;
 	struct iwl_sensitivity_data *data = NULL;
 	struct iwl_host_cmd cmd_out = {
 		.id = SENSITIVITY_CMD,
@@ -425,40 +465,7 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 
 	memset(&cmd, 0, sizeof(cmd));
 
-	cmd.table[HD_AUTO_CORR32_X4_TH_ADD_MIN_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm);
-	cmd.table[HD_AUTO_CORR32_X4_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm_mrc);
-	cmd.table[HD_AUTO_CORR32_X1_TH_ADD_MIN_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm_x1);
-	cmd.table[HD_AUTO_CORR32_X1_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_ofdm_mrc_x1);
-
-	cmd.table[HD_AUTO_CORR40_X4_TH_ADD_MIN_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_cck);
-	cmd.table[HD_AUTO_CORR40_X4_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16((u16)data->auto_corr_cck_mrc);
-
-	cmd.table[HD_MIN_ENERGY_CCK_DET_INDEX] =
-				cpu_to_le16((u16)data->nrg_th_cck);
-	cmd.table[HD_MIN_ENERGY_OFDM_DET_INDEX] =
-				cpu_to_le16((u16)data->nrg_th_ofdm);
-
-	cmd.table[HD_BARKER_CORR_TH_ADD_MIN_INDEX] =
-				cpu_to_le16(data->barker_corr_th_min);
-	cmd.table[HD_BARKER_CORR_TH_ADD_MIN_MRC_INDEX] =
-				cpu_to_le16(data->barker_corr_th_min_mrc);
-	cmd.table[HD_OFDM_ENERGY_TH_IN_INDEX] =
-				cpu_to_le16(data->nrg_th_cca);
-
-	IWL_DEBUG_CALIB(priv, "ofdm: ac %u mrc %u x1 %u mrc_x1 %u thresh %u\n",
-			data->auto_corr_ofdm, data->auto_corr_ofdm_mrc,
-			data->auto_corr_ofdm_x1, data->auto_corr_ofdm_mrc_x1,
-			data->nrg_th_ofdm);
-
-	IWL_DEBUG_CALIB(priv, "cck: ac %u mrc %u thresh %u\n",
-			data->auto_corr_cck, data->auto_corr_cck_mrc,
-			data->nrg_th_cck);
+	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.table[0]);
 
 	/* Update uCode's "work" table, and copy it to DSP */
 	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
@@ -473,6 +480,70 @@ static int iwl_sensitivity_write(struct iwl_priv *priv)
 	/* Copy table for comparison next time */
 	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.table[0]),
 	       sizeof(u16)*HD_TABLE_SIZE);
+
+	return iwl_send_cmd(priv, &cmd_out);
+}
+
+/* Prepare a SENSITIVITY_CMD, send to uCode if values have changed */
+static int iwl_enhance_sensitivity_write(struct iwl_priv *priv)
+{
+	struct iwl_enhance_sensitivity_cmd cmd;
+	struct iwl_sensitivity_data *data = NULL;
+	struct iwl_host_cmd cmd_out = {
+		.id = SENSITIVITY_CMD,
+		.len = sizeof(struct iwl_enhance_sensitivity_cmd),
+		.flags = CMD_ASYNC,
+		.data = &cmd,
+	};
+
+	data = &(priv->sensitivity_data);
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	iwl_prepare_legacy_sensitivity_tbl(priv, data, &cmd.enhance_table[0]);
+
+	cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX] =
+		HD_INA_NON_SQUARE_DET_OFDM_DATA;
+	cmd.enhance_table[HD_INA_NON_SQUARE_DET_CCK_INDEX] =
+		HD_INA_NON_SQUARE_DET_CCK_DATA;
+	cmd.enhance_table[HD_CORR_11_INSTEAD_OF_CORR_9_EN_INDEX] =
+		HD_CORR_11_INSTEAD_OF_CORR_9_EN_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_SLOPE_MRC_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_INTERCEPT_MRC_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_SLOPE_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_SLOPE_DATA;
+	cmd.enhance_table[HD_OFDM_NON_SQUARE_DET_INTERCEPT_INDEX] =
+		HD_OFDM_NON_SQUARE_DET_INTERCEPT_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_MRC_INDEX] =
+		HD_CCK_NON_SQUARE_DET_SLOPE_MRC_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_INDEX] =
+		HD_CCK_NON_SQUARE_DET_INTERCEPT_MRC_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_SLOPE_INDEX] =
+		HD_CCK_NON_SQUARE_DET_SLOPE_DATA;
+	cmd.enhance_table[HD_CCK_NON_SQUARE_DET_INTERCEPT_INDEX] =
+		HD_CCK_NON_SQUARE_DET_INTERCEPT_DATA;
+
+	/* Update uCode's "work" table, and copy it to DSP */
+	cmd.control = SENSITIVITY_CMD_CONTROL_WORK_TABLE;
+
+	/* Don't send command to uCode if nothing has changed */
+	if (!memcmp(&cmd.enhance_table[0], &(priv->sensitivity_tbl[0]),
+		    sizeof(u16)*HD_TABLE_SIZE) &&
+	    !memcmp(&cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX],
+		    &(priv->enhance_sensitivity_tbl[0]),
+		    sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES)) {
+		IWL_DEBUG_CALIB(priv, "No change in SENSITIVITY_CMD\n");
+		return 0;
+	}
+
+	/* Copy table for comparison next time */
+	memcpy(&(priv->sensitivity_tbl[0]), &(cmd.enhance_table[0]),
+	       sizeof(u16)*HD_TABLE_SIZE);
+	memcpy(&(priv->enhance_sensitivity_tbl[0]),
+	       &(cmd.enhance_table[HD_INA_NON_SQUARE_DET_OFDM_INDEX]),
+	       sizeof(u16)*ENHANCE_HD_TABLE_ENTRIES);
 
 	return iwl_send_cmd(priv, &cmd_out);
 }
@@ -527,7 +598,10 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	data->last_bad_plcp_cnt_cck = 0;
 	data->last_fa_cnt_cck = 0;
 
-	ret |= iwl_sensitivity_write(priv);
+	if (priv->enhance_sensitivity_table)
+		ret |= iwl_enhance_sensitivity_write(priv);
+	else
+		ret |= iwl_sensitivity_write(priv);
 	IWL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
 }
 
@@ -633,7 +707,10 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 
 	iwl_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
 	iwl_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
-	iwl_sensitivity_write(priv);
+	if (priv->enhance_sensitivity_table)
+		iwl_enhance_sensitivity_write(priv);
+	else
+		iwl_sensitivity_write(priv);
 }
 
 static inline u8 find_first_chain(u8 mask)

@@ -609,9 +609,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	else
 		ah->tx_trig_level = (AR_FTRIG_512B >> AR_FTRIG_S);
 
-	if (AR_SREV_9300_20_OR_LATER(ah))
-		ar9003_hw_set_nf_limits(ah);
-
 	ath9k_init_nfcal_hist_buffer(ah);
 	ah->bb_watchdog_timeout_ms = 25;
 
@@ -1235,9 +1232,11 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	if (!ah->chip_fullsleep) {
 		ath9k_hw_abortpcurecv(ah);
-		if (!ath9k_hw_stopdmarecv(ah))
+		if (!ath9k_hw_stopdmarecv(ah)) {
 			ath_print(common, ATH_DBG_XMIT,
 				"Failed to stop receive dma\n");
+			bChannelChange = false;
+		}
 	}
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))

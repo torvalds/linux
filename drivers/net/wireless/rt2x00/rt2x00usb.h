@@ -399,6 +399,16 @@ void rt2x00usb_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 void rt2x00usb_kill_tx_queue(struct rt2x00_dev *rt2x00dev,
 			      const enum data_queue_qid qid);
 
+/**
+ * rt2x00usb_watchdog - Watchdog for USB communication
+ * @rt2x00dev: Pointer to &struct rt2x00_dev
+ *
+ * Check the health of the USB communication and determine
+ * if timeouts have occured. If this is the case, this function
+ * will reset all communication to restore functionality again.
+ */
+void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev);
+
 /*
  * Device initialization handlers.
  */

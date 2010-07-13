@@ -398,12 +398,7 @@
  */
 #define FH_TSSR_TX_ERROR_REG		(FH_TSSR_LOWER_BOUND + 0x018)
 
-#define FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) ((1 << (_chnl)) << 24)
-#define FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl) ((1 << (_chnl)) << 16)
-
-#define FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) \
-	(FH_TSSR_TX_STATUS_REG_BIT_BUFS_EMPTY(_chnl) | \
-	FH_TSSR_TX_STATUS_REG_BIT_NO_PEND_REQ(_chnl))
+#define FH_TSSR_TX_STATUS_REG_MSK_CHNL_IDLE(_chnl) ((1 << (_chnl)) << 16)
 
 /* Tx service channels */
 #define FH_SRVC_CHNL		(9)

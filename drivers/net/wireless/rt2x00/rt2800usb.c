@@ -28,7 +28,6 @@
 	Supported chipsets: RT2800U.
  */
 
-#include <linux/crc-ccitt.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/init.h>
@@ -57,84 +56,10 @@ static char *rt2800usb_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 	return FIRMWARE_RT2870;
 }
 
-static bool rt2800usb_check_crc(const u8 *data, const size_t len)
-{
-	u16 fw_crc;
-	u16 crc;
-
-	/*
-	 * The last 2 bytes in the firmware array are the crc checksum itself,
-	 * this means that we should never pass those 2 bytes to the crc
-	 * algorithm.
-	 */
-	fw_crc = (data[len - 2] << 8 | data[len - 1]);
-
-	/*
-	 * Use the crc ccitt algorithm.
-	 * This will return the same value as the legacy driver which
-	 * used bit ordering reversion on the both the firmware bytes
-	 * before input input as well as on the final output.
-	 * Obviously using crc ccitt directly is much more efficient.
-	 */
-	crc = crc_ccitt(~0, data, len - 2);
-
-	/*
-	 * There is a small difference between the crc-itu-t + bitrev and
-	 * the crc-ccitt crc calculation. In the latter method the 2 bytes
-	 * will be swapped, use swab16 to convert the crc to the correct
-	 * value.
-	 */
-	crc = swab16(crc);
-
-	return fw_crc == crc;
-}
-
-static int rt2800usb_check_firmware(struct rt2x00_dev *rt2x00dev,
+static int rt2800usb_write_firmware(struct rt2x00_dev *rt2x00dev,
 				    const u8 *data, const size_t len)
 {
-	size_t offset = 0;
-
-	/*
-	 * Firmware files:
-	 * There are 2 variations of the rt2870 firmware.
-	 * a) size: 4kb
-	 * b) size: 8kb
-	 * Note that (b) contains 2 separate firmware blobs of 4k
-	 * within the file. The first blob is the same firmware as (a),
-	 * but the second blob is for the additional chipsets.
-	 */
-	if (len != 4096 && len != 8192)
-		return FW_BAD_LENGTH;
-
-	/*
-	 * Check if we need the upper 4kb firmware data or not.
-	 */
-	if ((len == 4096) &&
-	    !rt2x00_rt(rt2x00dev, RT2860) &&
-	    !rt2x00_rt(rt2x00dev, RT2872) &&
-	    !rt2x00_rt(rt2x00dev, RT3070))
-		return FW_BAD_VERSION;
-
-	/*
-	 * 8kb firmware files must be checked as if it were
-	 * 2 separate firmware files.
-	 */
-	while (offset < len) {
-		if (!rt2800usb_check_crc(data + offset, 4096))
-			return FW_BAD_CRC;
-
-		offset += 4096;
-	}
-
-	return FW_OK;
-}
-
-static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
-				   const u8 *data, const size_t len)
-{
-	unsigned int i;
 	int status;
-	u32 reg;
 	u32 offset;
 	u32 length;
 
@@ -149,21 +74,6 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	} else {
 		offset = 4096;
 		length = 4096;
-	}
-
-	/*
-	 * Wait for stable hardware.
-	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-		if (reg && reg != ~0)
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "Unstable hardware.\n");
-		return -EBUSY;
 	}
 
 	/*
@@ -202,28 +112,6 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 		rt2800_mcu_request(rt2x00dev, MCU_CURRENT, 0, 0, 0);
 		udelay(10);
 	}
-
-	/*
-	 * Wait for device to stabilize.
-	 */
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
-		if (rt2x00_get_field32(reg, PBF_SYS_CTRL_READY))
-			break;
-		msleep(1);
-	}
-
-	if (i == REGISTER_BUSY_COUNT) {
-		ERROR(rt2x00dev, "PBF system register not ready.\n");
-		return -EBUSY;
-	}
-
-	/*
-	 * Initialize firmware.
-	 */
-	rt2800_register_write(rt2x00dev, H2M_BBP_AGENT, 0);
-	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
-	msleep(1);
 
 	return 0;
 }
@@ -406,7 +294,9 @@ static int rt2800usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 		rt2800usb_toggle_rx(rt2x00dev, state);
 		break;
 	case STATE_RADIO_IRQ_ON:
+	case STATE_RADIO_IRQ_ON_ISR:
 	case STATE_RADIO_IRQ_OFF:
+	case STATE_RADIO_IRQ_OFF_ISR:
 		/* No support, but no error either */
 		break;
 	case STATE_DEEP_SLEEP:
@@ -563,7 +453,7 @@ static void rt2800usb_fill_rxdone(struct queue_entry *entry,
 	/*
 	 * Process the RXWI structure.
 	 */
-	rt2800_process_rxwi(entry->skb, rxdesc);
+	rt2800_process_rxwi(entry, rxdesc);
 }
 
 /*
@@ -580,25 +470,9 @@ static int rt2800usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	return rt2800_validate_eeprom(rt2x00dev);
 }
 
-static const struct rt2800_ops rt2800usb_rt2800_ops = {
-	.register_read		= rt2x00usb_register_read,
-	.register_read_lock	= rt2x00usb_register_read_lock,
-	.register_write		= rt2x00usb_register_write,
-	.register_write_lock	= rt2x00usb_register_write_lock,
-
-	.register_multiread	= rt2x00usb_register_multiread,
-	.register_multiwrite	= rt2x00usb_register_multiwrite,
-
-	.regbusy_read		= rt2x00usb_regbusy_read,
-
-	.drv_init_registers	= rt2800usb_init_registers,
-};
-
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 {
 	int retval;
-
-	rt2x00dev->priv = (void *)&rt2800usb_rt2800_ops;
 
 	/*
 	 * Allocate eeprom data.
@@ -632,6 +506,8 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
 	if (!modparam_nohwcrypt)
 		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
+	__set_bit(DRIVER_SUPPORT_LINK_TUNING, &rt2x00dev->flags);
+	__set_bit(DRIVER_SUPPORT_WATCHDOG, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
@@ -641,11 +517,45 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	return 0;
 }
 
+static const struct ieee80211_ops rt2800usb_mac80211_ops = {
+	.tx			= rt2x00mac_tx,
+	.start			= rt2x00mac_start,
+	.stop			= rt2x00mac_stop,
+	.add_interface		= rt2x00mac_add_interface,
+	.remove_interface	= rt2x00mac_remove_interface,
+	.config			= rt2x00mac_config,
+	.configure_filter	= rt2x00mac_configure_filter,
+	.set_tim		= rt2x00mac_set_tim,
+	.set_key		= rt2x00mac_set_key,
+	.sw_scan_start		= rt2x00mac_sw_scan_start,
+	.sw_scan_complete	= rt2x00mac_sw_scan_complete,
+	.get_stats		= rt2x00mac_get_stats,
+	.get_tkip_seq		= rt2800_get_tkip_seq,
+	.set_rts_threshold	= rt2800_set_rts_threshold,
+	.bss_info_changed	= rt2x00mac_bss_info_changed,
+	.conf_tx		= rt2800_conf_tx,
+	.get_tsf		= rt2800_get_tsf,
+	.rfkill_poll		= rt2x00mac_rfkill_poll,
+	.ampdu_action		= rt2800_ampdu_action,
+};
+
+static const struct rt2800_ops rt2800usb_rt2800_ops = {
+	.register_read		= rt2x00usb_register_read,
+	.register_read_lock	= rt2x00usb_register_read_lock,
+	.register_write		= rt2x00usb_register_write,
+	.register_write_lock	= rt2x00usb_register_write_lock,
+	.register_multiread	= rt2x00usb_register_multiread,
+	.register_multiwrite	= rt2x00usb_register_multiwrite,
+	.regbusy_read		= rt2x00usb_regbusy_read,
+	.drv_write_firmware	= rt2800usb_write_firmware,
+	.drv_init_registers	= rt2800usb_init_registers,
+};
+
 static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.probe_hw		= rt2800usb_probe_hw,
 	.get_firmware_name	= rt2800usb_get_firmware_name,
-	.check_firmware		= rt2800usb_check_firmware,
-	.load_firmware		= rt2800usb_load_firmware,
+	.check_firmware		= rt2800_check_firmware,
+	.load_firmware		= rt2800_load_firmware,
 	.initialize		= rt2x00usb_initialize,
 	.uninitialize		= rt2x00usb_uninitialize,
 	.clear_entry		= rt2x00usb_clear_entry,
@@ -654,6 +564,7 @@ static const struct rt2x00lib_ops rt2800usb_rt2x00_ops = {
 	.link_stats		= rt2800_link_stats,
 	.reset_tuner		= rt2800_reset_tuner,
 	.link_tuner		= rt2800_link_tuner,
+	.watchdog		= rt2x00usb_watchdog,
 	.write_tx_desc		= rt2800usb_write_tx_desc,
 	.write_tx_data		= rt2800usb_write_tx_data,
 	.write_beacon		= rt2800_write_beacon,
@@ -703,7 +614,8 @@ static const struct rt2x00_ops rt2800usb_ops = {
 	.tx			= &rt2800usb_queue_tx,
 	.bcn			= &rt2800usb_queue_bcn,
 	.lib			= &rt2800usb_rt2x00_ops,
-	.hw			= &rt2800_mac80211_ops,
+	.drv			= &rt2800usb_rt2800_ops,
+	.hw			= &rt2800usb_mac80211_ops,
 #ifdef CONFIG_RT2X00_LIB_DEBUGFS
 	.debugfs		= &rt2800_rt2x00debug,
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */

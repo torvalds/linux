@@ -544,20 +544,8 @@ static int lbs_thread(void *data)
 	return 0;
 }
 
-static int lbs_ret_host_sleep_activate(struct lbs_private *priv,
-		unsigned long dummy,
-		struct cmd_header *cmd)
-{
-	lbs_deb_enter(LBS_DEB_FW);
-	priv->is_host_sleep_activated = 1;
-	wake_up_interruptible(&priv->host_sleep_q);
-	lbs_deb_leave(LBS_DEB_FW);
-	return 0;
-}
-
 int lbs_suspend(struct lbs_private *priv)
 {
-	struct cmd_header cmd;
 	int ret;
 
 	lbs_deb_enter(LBS_DEB_FW);
@@ -571,25 +559,8 @@ int lbs_suspend(struct lbs_private *priv)
 		priv->deep_sleep_required = 1;
 	}
 
-	memset(&cmd, 0, sizeof(cmd));
-	ret = lbs_host_sleep_cfg(priv, priv->wol_criteria,
-						(struct wol_config *)NULL);
-	if (ret) {
-		lbs_pr_info("Host sleep configuration failed: %d\n", ret);
-		return ret;
-	}
-	if (priv->psstate == PS_STATE_FULL_POWER) {
-		ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
-				sizeof(cmd), lbs_ret_host_sleep_activate, 0);
-		if (ret)
-			lbs_pr_info("HOST_SLEEP_ACTIVATE failed: %d\n", ret);
-	}
+	ret = lbs_set_host_sleep(priv, 1);
 
-	if (!wait_event_interruptible_timeout(priv->host_sleep_q,
-				priv->is_host_sleep_activated, (10 * HZ))) {
-		lbs_pr_err("host_sleep_q: timer expired\n");
-		ret = -1;
-	}
 	netif_device_detach(priv->dev);
 	if (priv->mesh_dev)
 		netif_device_detach(priv->mesh_dev);
@@ -602,11 +573,10 @@ EXPORT_SYMBOL_GPL(lbs_suspend);
 int lbs_resume(struct lbs_private *priv)
 {
 	int ret;
-	uint32_t criteria = EHS_REMOVE_WAKEUP;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
-	ret = lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
+	ret = lbs_set_host_sleep(priv, 0);
 
 	netif_device_attach(priv->dev);
 	if (priv->mesh_dev)

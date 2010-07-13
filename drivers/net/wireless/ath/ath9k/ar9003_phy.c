@@ -1015,213 +1015,38 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 	return true;
 }
 
-static void ar9003_hw_nf_sanitize_2g(struct ath_hw *ah, s16 *nf)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (*nf > ah->nf_2g_max) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "2 GHz NF (%d) > MAX (%d), "
-			  "correcting to MAX",
-			  *nf, ah->nf_2g_max);
-		*nf = ah->nf_2g_max;
-	} else if (*nf < ah->nf_2g_min) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "2 GHz NF (%d) < MIN (%d), "
-			  "correcting to MIN",
-			  *nf, ah->nf_2g_min);
-		*nf = ah->nf_2g_min;
-	}
-}
-
-static void ar9003_hw_nf_sanitize_5g(struct ath_hw *ah, s16 *nf)
-{
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	if (*nf > ah->nf_5g_max) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "5 GHz NF (%d) > MAX (%d), "
-			  "correcting to MAX",
-			  *nf, ah->nf_5g_max);
-		*nf = ah->nf_5g_max;
-	} else if (*nf < ah->nf_5g_min) {
-		ath_print(common, ATH_DBG_CALIBRATE,
-			  "5 GHz NF (%d) < MIN (%d), "
-			  "correcting to MIN",
-			  *nf, ah->nf_5g_min);
-		*nf = ah->nf_5g_min;
-	}
-}
-
-static void ar9003_hw_nf_sanitize(struct ath_hw *ah, s16 *nf)
-{
-	if (IS_CHAN_2GHZ(ah->curchan))
-		ar9003_hw_nf_sanitize_2g(ah, nf);
-	else
-		ar9003_hw_nf_sanitize_5g(ah, nf);
-}
-
 static void ar9003_hw_do_getnf(struct ath_hw *ah,
 			      int16_t nfarray[NUM_NF_READINGS])
 {
-	struct ath_common *common = ath9k_hw_common(ah);
 	int16_t nf;
 
 	nf = MS(REG_READ(ah, AR_PHY_CCA_0), AR_PHY_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ar9003_hw_nf_sanitize(ah, &nf);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
-	nfarray[0] = nf;
+	nfarray[0] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_CCA_1), AR_PHY_CH1_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ar9003_hw_nf_sanitize(ah, &nf);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ctl] [chain 1] is %d\n", nf);
-	nfarray[1] = nf;
+	nfarray[1] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_CCA_2), AR_PHY_CH2_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ar9003_hw_nf_sanitize(ah, &nf);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ctl] [chain 2] is %d\n", nf);
-	nfarray[2] = nf;
+	nfarray[2] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ar9003_hw_nf_sanitize(ah, &nf);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ext] [chain 0] is %d\n", nf);
-	nfarray[3] = nf;
+	nfarray[3] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_1), AR_PHY_CH1_EXT_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ar9003_hw_nf_sanitize(ah, &nf);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ext] [chain 1] is %d\n", nf);
-	nfarray[4] = nf;
+	nfarray[4] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA_2), AR_PHY_CH2_EXT_MINCCA_PWR);
-	if (nf & 0x100)
-		nf = 0 - ((nf ^ 0x1ff) + 1);
-	ar9003_hw_nf_sanitize(ah, &nf);
-	ath_print(common, ATH_DBG_CALIBRATE,
-		  "NF calibrated [ext] [chain 2] is %d\n", nf);
-	nfarray[5] = nf;
+	nfarray[5] = sign_extend(nf, 9);
 }
 
-void ar9003_hw_set_nf_limits(struct ath_hw *ah)
+static void ar9003_hw_set_nf_limits(struct ath_hw *ah)
 {
-	ah->nf_2g_max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
-	ah->nf_2g_min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
-	ah->nf_5g_max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
-	ah->nf_5g_min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
-}
-
-/*
- * Find out which of the RX chains are enabled
- */
-static u32 ar9003_hw_get_rx_chainmask(struct ath_hw *ah)
-{
-	u32 chain = REG_READ(ah, AR_PHY_RX_CHAINMASK);
-	/*
-	 * The bits [2:0] indicate the rx chain mask and are to be
-	 * interpreted as follows:
-	 * 00x => Only chain 0 is enabled
-	 * 01x => Chain 1 and 0 enabled
-	 * 1xx => Chain 2,1 and 0 enabled
-	 */
-	return chain & 0x7;
-}
-
-static void ar9003_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
-{
-	struct ath9k_nfcal_hist *h;
-	unsigned i, j;
-	int32_t val;
-	const u32 ar9300_cca_regs[6] = {
-		AR_PHY_CCA_0,
-		AR_PHY_CCA_1,
-		AR_PHY_CCA_2,
-		AR_PHY_EXT_CCA,
-		AR_PHY_EXT_CCA_1,
-		AR_PHY_EXT_CCA_2,
-	};
-	u8 chainmask, rx_chain_status;
-	struct ath_common *common = ath9k_hw_common(ah);
-
-	rx_chain_status = ar9003_hw_get_rx_chainmask(ah);
-
-	chainmask = 0x3F;
-	h = ah->nfCalHist;
-
-	for (i = 0; i < NUM_NF_READINGS; i++) {
-		if (chainmask & (1 << i)) {
-			val = REG_READ(ah, ar9300_cca_regs[i]);
-			val &= 0xFFFFFE00;
-			val |= (((u32) (h[i].privNF) << 1) & 0x1ff);
-			REG_WRITE(ah, ar9300_cca_regs[i], val);
-		}
-	}
-
-	/*
-	 * Load software filtered NF value into baseband internal minCCApwr
-	 * variable.
-	 */
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_ENABLE_NF);
-	REG_CLR_BIT(ah, AR_PHY_AGC_CONTROL,
-		    AR_PHY_AGC_CONTROL_NO_UPDATE_NF);
-	REG_SET_BIT(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_NF);
-
-	/*
-	 * Wait for load to complete, should be fast, a few 10s of us.
-	 * The max delay was changed from an original 250us to 10000us
-	 * since 250us often results in NF load timeout and causes deaf
-	 * condition during stress testing 12/12/2009
-	 */
-	for (j = 0; j < 1000; j++) {
-		if ((REG_READ(ah, AR_PHY_AGC_CONTROL) &
-		     AR_PHY_AGC_CONTROL_NF) == 0)
-			break;
-		udelay(10);
-	}
-
-	/*
-	 * We timed out waiting for the noisefloor to load, probably due to an
-	 * in-progress rx. Simply return here and allow the load plenty of time
-	 * to complete before the next calibration interval.  We need to avoid
-	 * trying to load -50 (which happens below) while the previous load is
-	 * still in progress as this can cause rx deafness. Instead by returning
-	 * here, the baseband nf cal will just be capped by our present
-	 * noisefloor until the next calibration timer.
-	 */
-	if (j == 1000) {
-		ath_print(common, ATH_DBG_ANY, "Timeout while waiting for nf "
-			  "to load: AR_PHY_AGC_CONTROL=0x%x\n",
-			  REG_READ(ah, AR_PHY_AGC_CONTROL));
-		return;
-	}
-
-	/*
-	 * Restore maxCCAPower register parameter again so that we're not capped
-	 * by the median we just loaded.  This will be initial (and max) value
-	 * of next noise floor calibration the baseband does.
-	 */
-	for (i = 0; i < NUM_NF_READINGS; i++) {
-		if (chainmask & (1 << i)) {
-			val = REG_READ(ah, ar9300_cca_regs[i]);
-			val &= 0xFFFFFE00;
-			val |= (((u32) (-50) << 1) & 0x1ff);
-			REG_WRITE(ah, ar9300_cca_regs[i], val);
-		}
-	}
+	ah->nf_2g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_2GHZ;
+	ah->nf_2g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_2GHZ;
+	ah->nf_2g.nominal = AR_PHY_CCA_NOM_VAL_9300_2GHZ;
+	ah->nf_5g.max = AR_PHY_CCA_MAX_GOOD_VAL_9300_5GHZ;
+	ah->nf_5g.min = AR_PHY_CCA_MIN_GOOD_VAL_9300_5GHZ;
+	ah->nf_5g.nominal = AR_PHY_CCA_NOM_VAL_9300_5GHZ;
 }
 
 /*
@@ -1291,6 +1116,14 @@ static void ar9003_hw_ani_cache_ini_regs(struct ath_hw *ah)
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 {
 	struct ath_hw_private_ops *priv_ops = ath9k_hw_private_ops(ah);
+	const u32 ar9300_cca_regs[6] = {
+		AR_PHY_CCA_0,
+		AR_PHY_CCA_1,
+		AR_PHY_CCA_2,
+		AR_PHY_EXT_CCA,
+		AR_PHY_EXT_CCA_1,
+		AR_PHY_EXT_CCA_2,
+	};
 
 	priv_ops->rf_set_freq = ar9003_hw_set_channel;
 	priv_ops->spur_mitigate_freq = ar9003_hw_spur_mitigate;
@@ -1307,8 +1140,10 @@ void ar9003_hw_attach_phy_ops(struct ath_hw *ah)
 	priv_ops->set_diversity = ar9003_hw_set_diversity;
 	priv_ops->ani_control = ar9003_hw_ani_control;
 	priv_ops->do_getnf = ar9003_hw_do_getnf;
-	priv_ops->loadnf = ar9003_hw_loadnf;
 	priv_ops->ani_cache_ini_regs = ar9003_hw_ani_cache_ini_regs;
+
+	ar9003_hw_set_nf_limits(ah);
+	memcpy(ah->nf_regs, ar9300_cca_regs, sizeof(ah->nf_regs));
 }
 
 void ar9003_hw_bb_watchdog_config(struct ath_hw *ah)

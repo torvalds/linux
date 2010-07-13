@@ -859,6 +859,24 @@ int iwl_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 	return 0;
 }
 
+static void iwl_bg_tx_flush(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, tx_flush);
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	/* do nothing if rf-kill is on */
+	if (!iwl_is_ready_rf(priv))
+		return;
+
+	if (priv->cfg->ops->lib->txfifo_flush) {
+		IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
+		iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	}
+}
+
 /**
  * iwl_setup_rx_handlers - Initialize Rx handler callbacks
  *
@@ -1806,12 +1824,21 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 	const u8 *data;
 	int wanted_alternative = iwlagn_wanted_ucode_alternative, tmp;
 	u64 alternatives;
+	u32 tlv_len;
+	enum iwl_ucode_tlv_type tlv_type;
+	const u8 *tlv_data;
+	int ret = 0;
 
-	if (len < sizeof(*ucode))
+	if (len < sizeof(*ucode)) {
+		IWL_ERR(priv, "uCode has invalid length: %zd\n", len);
 		return -EINVAL;
+	}
 
-	if (ucode->magic != cpu_to_le32(IWL_TLV_UCODE_MAGIC))
+	if (ucode->magic != cpu_to_le32(IWL_TLV_UCODE_MAGIC)) {
+		IWL_ERR(priv, "invalid uCode magic: 0X%x\n",
+			le32_to_cpu(ucode->magic));
 		return -EINVAL;
+	}
 
 	/*
 	 * Check which alternatives are present, and "downgrade"
@@ -1836,11 +1863,9 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 
 	len -= sizeof(*ucode);
 
-	while (len >= sizeof(*tlv)) {
-		u32 tlv_len;
-		enum iwl_ucode_tlv_type tlv_type;
+	while (len >= sizeof(*tlv) && !ret) {
 		u16 tlv_alt;
-		const u8 *tlv_data;
+		u32 fixed_tlv_size = 4;
 
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
@@ -1850,8 +1875,11 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 		tlv_alt = le16_to_cpu(tlv->alternative);
 		tlv_data = tlv->data;
 
-		if (len < tlv_len)
+		if (len < tlv_len) {
+			IWL_ERR(priv, "invalid TLV len: %zd/%u\n",
+				len, tlv_len);
 			return -EINVAL;
+		}
 		len -= ALIGN(tlv_len, 4);
 		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 
@@ -1885,56 +1913,77 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 			pieces->boot_size = tlv_len;
 			break;
 		case IWL_UCODE_TLV_PROBE_MAX_LEN:
-			if (tlv_len != 4)
-				return -EINVAL;
-			capa->max_probe_length =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				capa->max_probe_length =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
-			if (tlv_len != 4)
-				return -EINVAL;
-			pieces->init_evtlog_ptr =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				pieces->init_evtlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_SIZE:
-			if (tlv_len != 4)
-				return -EINVAL;
-			pieces->init_evtlog_size =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				pieces->init_evtlog_size =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_ERRLOG_PTR:
-			if (tlv_len != 4)
-				return -EINVAL;
-			pieces->init_errlog_ptr =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				pieces->init_errlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_EVTLOG_PTR:
-			if (tlv_len != 4)
-				return -EINVAL;
-			pieces->inst_evtlog_ptr =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				pieces->inst_evtlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_EVTLOG_SIZE:
-			if (tlv_len != 4)
-				return -EINVAL;
-			pieces->inst_evtlog_size =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				pieces->inst_evtlog_size =
+					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_ERRLOG_PTR:
-			if (tlv_len != 4)
-				return -EINVAL;
-			pieces->inst_errlog_ptr =
-				le32_to_cpup((__le32 *)tlv_data);
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				pieces->inst_errlog_ptr =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
+		case IWL_UCODE_TLV_ENHANCE_SENS_TBL:
+			if (tlv_len)
+				ret = -EINVAL;
+			else
+				priv->enhance_sensitivity_table = true;
 			break;
 		default:
+			IWL_WARN(priv, "unknown TLV: %d\n", tlv_type);
 			break;
 		}
 	}
 
-	if (len)
-		return -EINVAL;
+	if (len) {
+		IWL_ERR(priv, "invalid TLV after parsing: %zd\n", len);
+		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)data, len);
+		ret = -EINVAL;
+	} else if (ret) {
+		IWL_ERR(priv, "TLV %d has invalid size: %u\n",
+			tlv_type, tlv_len);
+		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)tlv_data, tlv_len);
+	}
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -2247,17 +2296,41 @@ static const char *desc_lookup_text[] = {
 	"DEBUG_1",
 	"DEBUG_2",
 	"DEBUG_3",
-	"ADVANCED SYSASSERT"
 };
 
-static const char *desc_lookup(int i)
+static struct { char *name; u8 num; } advanced_lookup[] = {
+	{ "NMI_INTERRUPT_WDG", 0x34 },
+	{ "SYSASSERT", 0x35 },
+	{ "UCODE_VERSION_MISMATCH", 0x37 },
+	{ "BAD_COMMAND", 0x38 },
+	{ "NMI_INTERRUPT_DATA_ACTION_PT", 0x3C },
+	{ "FATAL_ERROR", 0x3D },
+	{ "NMI_TRM_HW_ERR", 0x46 },
+	{ "NMI_INTERRUPT_TRM", 0x4C },
+	{ "NMI_INTERRUPT_BREAK_POINT", 0x54 },
+	{ "NMI_INTERRUPT_WDG_RXF_FULL", 0x5C },
+	{ "NMI_INTERRUPT_WDG_NO_RBD_RXF_FULL", 0x64 },
+	{ "NMI_INTERRUPT_HOST", 0x66 },
+	{ "NMI_INTERRUPT_ACTION_PT", 0x7C },
+	{ "NMI_INTERRUPT_UNKNOWN", 0x84 },
+	{ "NMI_INTERRUPT_INST_ACTION_PT", 0x86 },
+	{ "ADVANCED_SYSASSERT", 0 },
+};
+
+static const char *desc_lookup(u32 num)
 {
-	int max = ARRAY_SIZE(desc_lookup_text) - 1;
+	int i;
+	int max = ARRAY_SIZE(desc_lookup_text);
 
-	if (i < 0 || i > max)
-		i = max;
+	if (num < max)
+		return desc_lookup_text[num];
 
-	return desc_lookup_text[i];
+	max = ARRAY_SIZE(advanced_lookup) - 1;
+	for (i = 0; i < max; i++) {
+		if (advanced_lookup[i].num == num)
+			break;;
+	}
+	return advanced_lookup[i].name;
 }
 
 #define ERROR_START_OFFSET  (1 * sizeof(u32))
@@ -3614,6 +3687,44 @@ out_exit:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
+static void iwl_mac_flush(struct ieee80211_hw *hw, bool drop)
+{
+	struct iwl_priv *priv = hw->priv;
+
+	mutex_lock(&priv->mutex);
+	IWL_DEBUG_MAC80211(priv, "enter\n");
+
+	/* do not support "flush" */
+	if (!priv->cfg->ops->lib->txfifo_flush)
+		goto done;
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+		IWL_DEBUG_TX(priv, "Aborting flush due to device shutdown\n");
+		goto done;
+	}
+	if (iwl_is_rfkill(priv)) {
+		IWL_DEBUG_TX(priv, "Aborting flush due to RF Kill\n");
+		goto done;
+	}
+
+	/*
+	 * mac80211 will not push any more frames for transmit
+	 * until the flush is completed
+	 */
+	if (drop) {
+		IWL_DEBUG_MAC80211(priv, "send flush command\n");
+		if (priv->cfg->ops->lib->txfifo_flush(priv, IWL_DROP_ALL)) {
+			IWL_ERR(priv, "flush request fail\n");
+			goto done;
+		}
+	}
+	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
+	iwlagn_wait_tx_queue_empty(priv);
+done:
+	mutex_unlock(&priv->mutex);
+	IWL_DEBUG_MAC80211(priv, "leave\n");
+}
+
 /*****************************************************************************
  *
  * driver setup and teardown
@@ -3630,6 +3741,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->rx_replenish, iwl_bg_rx_replenish);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
 	INIT_WORK(&priv->run_time_calib_work, iwl_bg_run_time_calib_work);
+	INIT_WORK(&priv->tx_flush, iwl_bg_tx_flush);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl_bg_alive_start);
 
@@ -3787,6 +3899,7 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.sta_add = iwlagn_mac_sta_add,
 	.sta_remove = iwl_mac_sta_remove,
 	.channel_switch = iwl_mac_channel_switch,
+	.flush = iwl_mac_flush,
 };
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -4233,6 +4346,14 @@ static DEFINE_PCI_DEVICE_TABLE(iwl_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x0087, 0x1326, iwl6050_2abg_cfg)},
 	{IWL_PCI_DEVICE(0x0089, 0x1311, iwl6050_2agn_cfg)},
 	{IWL_PCI_DEVICE(0x0089, 0x1316, iwl6050_2abg_cfg)},
+
+/* 6x50 WiFi/WiMax Series Gen2 */
+	{IWL_PCI_DEVICE(0x0885, 0x1305, iwl6050g2_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1306, iwl6050g2_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1325, iwl6050g2_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0885, 0x1326, iwl6050g2_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0886, 0x1315, iwl6050g2_bgn_cfg)},
+	{IWL_PCI_DEVICE(0x0886, 0x1316, iwl6050g2_bgn_cfg)},
 
 /* 1000 Series WiFi */
 	{IWL_PCI_DEVICE(0x0083, 0x1205, iwl1000_bgn_cfg)},

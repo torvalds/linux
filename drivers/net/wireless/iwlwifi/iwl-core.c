@@ -2627,7 +2627,7 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 }
 
 
-int iwl_force_reset(struct iwl_priv *priv, int mode)
+int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
 {
 	struct iwl_force_reset *force_reset;
 
@@ -2640,12 +2640,14 @@ int iwl_force_reset(struct iwl_priv *priv, int mode)
 	}
 	force_reset = &priv->force_reset[mode];
 	force_reset->reset_request_count++;
-	if (force_reset->last_force_reset_jiffies &&
-	    time_after(force_reset->last_force_reset_jiffies +
-	    force_reset->reset_duration, jiffies)) {
-		IWL_DEBUG_INFO(priv, "force reset rejected\n");
-		force_reset->reset_reject_count++;
-		return -EAGAIN;
+	if (!external) {
+		if (force_reset->last_force_reset_jiffies &&
+		    time_after(force_reset->last_force_reset_jiffies +
+		    force_reset->reset_duration, jiffies)) {
+			IWL_DEBUG_INFO(priv, "force reset rejected\n");
+			force_reset->reset_reject_count++;
+			return -EAGAIN;
+		}
 	}
 	force_reset->reset_success_count++;
 	force_reset->last_force_reset_jiffies = jiffies;
@@ -2655,6 +2657,19 @@ int iwl_force_reset(struct iwl_priv *priv, int mode)
 		iwl_force_rf_reset(priv);
 		break;
 	case IWL_FW_RESET:
+		/*
+		 * if the request is from external(ex: debugfs),
+		 * then always perform the request in regardless the module
+		 * parameter setting
+		 * if the request is from internal (uCode error or driver
+		 * detect failure), then fw_restart module parameter
+		 * need to be check before performing firmware reload
+		 */
+		if (!external && !priv->cfg->mod_params->restart_fw) {
+			IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
+				       "module parameter setting\n");
+			break;
+		}
 		IWL_ERR(priv, "On demand firmware reload\n");
 		/* Set the FW error flag -- cleared on iwl_down */
 		set_bit(STATUS_FW_ERROR, &priv->status);
@@ -2713,7 +2728,7 @@ static int iwl_check_stuck_queue(struct iwl_priv *priv, int cnt)
 					"queue %d stuck %d time. Fw reload.\n",
 					q->id, q->repeat_same_read_ptr);
 				q->repeat_same_read_ptr = 0;
-				iwl_force_reset(priv, IWL_FW_RESET);
+				iwl_force_reset(priv, IWL_FW_RESET, false);
 			} else {
 				q->repeat_same_read_ptr++;
 				IWL_DEBUG_RADIO(priv,

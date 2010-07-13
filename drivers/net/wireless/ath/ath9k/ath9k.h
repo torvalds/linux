@@ -428,6 +428,7 @@ int ath_beaconq_config(struct ath_softc *sc);
 
 #define ATH_PAPRD_TIMEOUT	100 /* msecs */
 
+void ath_hw_check(struct work_struct *work);
 void ath_paprd_calibrate(struct work_struct *work);
 void ath_ani_calibrate(unsigned long data);
 
@@ -562,6 +563,7 @@ struct ath_softc {
 	spinlock_t sc_pm_lock;
 	struct mutex mutex;
 	struct work_struct paprd_work;
+	struct work_struct hw_check_work;
 	struct completion paprd_complete;
 
 	u32 intrstatus;
