@@ -161,24 +161,30 @@ static void __fsi_reg_mask_set(u32 reg, u32 mask, u32 data)
 
 static void fsi_reg_write(struct fsi_priv *fsi, u32 reg, u32 data)
 {
-	if (reg > REG_END)
+	if (reg > REG_END) {
+		pr_err("fsi: register access err (%s)\n", __func__);
 		return;
+	}
 
 	__fsi_reg_write((u32)(fsi->base + reg), data);
 }
 
 static u32 fsi_reg_read(struct fsi_priv *fsi, u32 reg)
 {
-	if (reg > REG_END)
+	if (reg > REG_END) {
+		pr_err("fsi: register access err (%s)\n", __func__);
 		return 0;
+	}
 
 	return __fsi_reg_read((u32)(fsi->base + reg));
 }
 
 static void fsi_reg_mask_set(struct fsi_priv *fsi, u32 reg, u32 mask, u32 data)
 {
-	if (reg > REG_END)
+	if (reg > REG_END) {
+		pr_err("fsi: register access err (%s)\n", __func__);
 		return;
+	}
 
 	__fsi_reg_mask_set((u32)(fsi->base + reg), mask, data);
 }
@@ -188,8 +194,10 @@ static void fsi_master_write(struct fsi_master *master, u32 reg, u32 data)
 	unsigned long flags;
 
 	if ((reg < MREG_START) ||
-	    (reg > MREG_END))
+	    (reg > MREG_END)) {
+		pr_err("fsi: register access err (%s)\n", __func__);
 		return;
+	}
 
 	spin_lock_irqsave(&master->lock, flags);
 	__fsi_reg_write((u32)(master->base + reg), data);
@@ -202,8 +210,10 @@ static u32 fsi_master_read(struct fsi_master *master, u32 reg)
 	unsigned long flags;
 
 	if ((reg < MREG_START) ||
-	    (reg > MREG_END))
+	    (reg > MREG_END)) {
+		pr_err("fsi: register access err (%s)\n", __func__);
 		return 0;
+	}
 
 	spin_lock_irqsave(&master->lock, flags);
 	ret = __fsi_reg_read((u32)(master->base + reg));
@@ -218,8 +228,10 @@ static void fsi_master_mask_set(struct fsi_master *master,
 	unsigned long flags;
 
 	if ((reg < MREG_START) ||
-	    (reg > MREG_END))
+	    (reg > MREG_END)) {
+		pr_err("fsi: register access err (%s)\n", __func__);
 		return;
+	}
 
 	spin_lock_irqsave(&master->lock, flags);
 	__fsi_reg_mask_set((u32)(master->base + reg), mask, data);
