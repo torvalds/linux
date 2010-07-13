@@ -321,9 +321,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *sp;
 	u64 *sptep = NULL;
-	int direct;
-	gfn_t table_gfn;
-	int level;
+	int uninitialized_var(level);
 	bool dirty = is_dirty_gpte(gw->ptes[gw->level - 1]);
 	unsigned direct_access;
 	struct kvm_shadow_walk_iterator iterator;
@@ -335,61 +333,68 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	if (!dirty)
 		direct_access &= ~ACC_WRITE_MASK;
 
-	for_each_shadow_entry(vcpu, addr, iterator) {
+	for (shadow_walk_init(&iterator, vcpu, addr);
+	     shadow_walk_okay(&iterator) && iterator.level > gw->level;
+	     shadow_walk_next(&iterator)) {
+		gfn_t table_gfn;
+
 		level = iterator.level;
 		sptep = iterator.sptep;
-		if (iterator.level == hlevel) {
-			mmu_set_spte(vcpu, sptep, access,
-				     gw->pte_access & access,
-				     user_fault, write_fault,
-				     dirty, ptwrite, level,
-				     gw->gfn, pfn, false, true);
-			break;
-		}
-
-		if (is_shadow_present_pte(*sptep) && !is_large_pte(*sptep)
-		    && level == gw->level)
-			validate_direct_spte(vcpu, sptep, direct_access);
 
 		drop_large_spte(vcpu, sptep);
 
 		if (is_shadow_present_pte(*sptep))
 			continue;
 
-		if (level <= gw->level) {
-			direct = 1;
-			access = direct_access;
-
-			/*
-			 * It is a large guest pages backed by small host pages,
-			 * So we set @direct(@sp->role.direct)=1, and set
-			 * @table_gfn(@sp->gfn)=the base page frame for linear
-			 * translations.
-			 */
-			table_gfn = gw->gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
-			access &= gw->pte_access;
-		} else {
-			direct = 0;
-			table_gfn = gw->table_gfn[level - 2];
-		}
+		table_gfn = gw->table_gfn[level - 2];
 		sp = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
-					       direct, access, sptep);
-		if (!direct)
-			/*
-			 * Verify that the gpte in the page we've just write
-			 * protected is still there.
-			 */
-			if (FNAME(gpte_changed)(vcpu, gw, level - 1)) {
-				kvm_mmu_put_page(sp, sptep);
-				kvm_release_pfn_clean(pfn);
-				sptep = NULL;
-				break;
-			}
+				      false, access, sptep);
+
+		/*
+		 * Verify that the gpte in the page we've just write
+		 * protected is still there.
+		 */
+		if (FNAME(gpte_changed)(vcpu, gw, level - 1))
+			goto out_gpte_changed;
 
 		link_shadow_page(sptep, sp);
 	}
 
+	for (;
+	     shadow_walk_okay(&iterator) && iterator.level > hlevel;
+	     shadow_walk_next(&iterator)) {
+		gfn_t direct_gfn;
+
+		level = iterator.level;
+		sptep = iterator.sptep;
+
+		validate_direct_spte(vcpu, sptep, direct_access);
+
+		drop_large_spte(vcpu, sptep);
+
+		if (is_shadow_present_pte(*sptep))
+			continue;
+
+		direct_gfn = gw->gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
+
+		sp = kvm_mmu_get_page(vcpu, direct_gfn, addr, level-1,
+				      true, direct_access, sptep);
+		link_shadow_page(sptep, sp);
+	}
+
+	sptep = iterator.sptep;
+	level = iterator.level;
+
+	mmu_set_spte(vcpu, sptep, access, gw->pte_access & access,
+		     user_fault, write_fault, dirty, ptwrite, level,
+		     gw->gfn, pfn, false, true);
+
 	return sptep;
+
+out_gpte_changed:
+	kvm_mmu_put_page(sp, sptep);
+	kvm_release_pfn_clean(pfn);
+	return NULL;
 }
 
 /*
