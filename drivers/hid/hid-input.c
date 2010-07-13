@@ -301,6 +301,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	case HID_UP_DIGITIZER:
 		switch (usage->hid & 0xff) {
+		case 0x00: /* Undefined */
+			goto ignore;
+
 		case 0x30: /* TipPressure */
 			if (!test_bit(BTN_TOUCH, input->keybit)) {
 				device->quirks |= HID_QUIRK_NOTOUCH;
