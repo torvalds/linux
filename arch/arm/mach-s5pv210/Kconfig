@@ -48,10 +48,10 @@ config S5PV210_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
-# machine support
+menu "S5PC110 Machines"
 
 config MACH_AQUILA
-	bool "Samsung Aquila"
+	bool "Aquila"
 	select CPU_S5PV210
 	select ARCH_SPARSEMEM_ENABLE
 	select S5PV210_SETUP_FB_24BPP
@@ -71,10 +71,26 @@ config MACH_GONI
 	  Machine support for Samsung GONI board
 	  S5PC110(MCP) is one of package option of S5PV210
 
+config MACH_SMDKC110
+	bool "SMDKC110"
+	select CPU_S5PV210
+	select ARCH_SPARSEMEM_ENABLE
+	select SAMSUNG_DEV_IDE
+	select S3C_DEV_WDT
+	select HAVE_S3C2410_WATCHDOG
+	select S5PV210_SETUP_IDE
+	help
+	  Machine support for Samsung SMDKC110
+	  S5PC110(MCP) is one of package option of S5PV210
+
+endmenu
+
 config S5PC110_DEV_ONENAND
 	bool
 	help
 	  Compile in platform device definition for OneNAND1 controller
+
+menu "S5PV210 Machines"
 
 config MACH_SMDKV210
 	bool "SMDKV210"
@@ -89,16 +105,6 @@ config MACH_SMDKV210
 	help
 	  Machine support for Samsung SMDKV210
 
-config MACH_SMDKC110
-	bool "SMDKC110"
-	select CPU_S5PV210
-	select ARCH_SPARSEMEM_ENABLE
-	select SAMSUNG_DEV_IDE
-	select S3C_DEV_WDT
-	select HAVE_S3C2410_WATCHDOG
-	select S5PV210_SETUP_IDE
-	help
-	  Machine support for Samsung SMDKC110
-	  S5PC110(MCP) is one of package option of S5PV210
+endmenu
 
 endif
