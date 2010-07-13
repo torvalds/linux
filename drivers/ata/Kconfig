@@ -805,6 +805,15 @@ config PATA_RZ1000
 
 	  If unsure, say N.
 
+config PATA_SAMSUNG_CF
+	tristate "Samsung SoC PATA support"
+	depends on SAMSUNG_DEV_IDE
+	help
+	  This option enables basic support for Samsung's S3C/S5P board
+	  PATA controllers via the new ATA layer
+
+	  If unsure, say N.
+
 config PATA_WINBOND_VLB
 	tristate "Winbond W83759A VLB PATA support (Experimental)"
 	depends on ISA && EXPERIMENTAL
