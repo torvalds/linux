@@ -65,7 +65,7 @@
 #define OCMD_YUV_410_PLANAR	(0xe<<10) /* also 411 */
 #define OCMD_TVSYNCFLIP_PARITY	(0x1<<9)
 #define OCMD_TVSYNCFLIP_ENABLE	(0x1<<7)
-#define OCMD_BUF_TYPE_MASK	(Ox1<<5)
+#define OCMD_BUF_TYPE_MASK	(0x1<<5)
 #define OCMD_BUF_TYPE_FRAME	(0x0<<5)
 #define OCMD_BUF_TYPE_FIELD	(0x1<<5)
 #define OCMD_TEST_MODE		(0x1<<4)
