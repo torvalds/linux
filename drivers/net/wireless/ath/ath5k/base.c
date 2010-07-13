@@ -2639,6 +2639,15 @@ ath5k_stop_locked(struct ath5k_softc *sc)
 	return 0;
 }
 
+static void stop_tasklets(struct ath5k_softc *sc)
+{
+	tasklet_kill(&sc->rxtq);
+	tasklet_kill(&sc->txtq);
+	tasklet_kill(&sc->calib);
+	tasklet_kill(&sc->beacontq);
+	tasklet_kill(&sc->ani_tasklet);
+}
+
 /*
  * Stop the device, grabbing the top-level lock to protect
  * against concurrent entry through ath5k_init (which can happen
@@ -2683,11 +2692,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	mmiowb();
 	mutex_unlock(&sc->lock);
 
-	tasklet_kill(&sc->rxtq);
-	tasklet_kill(&sc->txtq);
-	tasklet_kill(&sc->calib);
-	tasklet_kill(&sc->beacontq);
-	tasklet_kill(&sc->ani_tasklet);
+	stop_tasklets(sc);
 
 	ath5k_rfkill_hw_stop(sc->ah);
 
@@ -2937,8 +2942,11 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
 
+	ath5k_hw_set_imr(ah, 0);
+	synchronize_irq(sc->pdev->irq);
+	stop_tasklets(sc);
+
 	if (chan) {
-		ath5k_hw_set_imr(ah, 0);
 		ath5k_txq_cleanup(sc);
 		ath5k_rx_stop(sc);
 
