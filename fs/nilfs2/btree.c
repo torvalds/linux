@@ -555,17 +555,13 @@ static int nilfs_btree_lookup(const struct nilfs_bmap *btree,
 			      __u64 key, int level, __u64 *ptrp)
 {
 	struct nilfs_btree_path *path;
-	__u64 ptr;
 	int ret;
 
 	path = nilfs_btree_alloc_path();
 	if (path == NULL)
 		return -ENOMEM;
 
-	ret = nilfs_btree_do_lookup(btree, path, key, &ptr, level);
-
-	if (ptrp != NULL)
-		*ptrp = ptr;
+	ret = nilfs_btree_do_lookup(btree, path, key, ptrp, level);
 
 	nilfs_btree_free_path(path);
 

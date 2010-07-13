@@ -56,8 +56,7 @@ static int nilfs_direct_lookup(const struct nilfs_bmap *direct,
 	if (ptr == NILFS_BMAP_INVALID_PTR)
 		return -ENOENT;
 
-	if (ptrp != NULL)
-		*ptrp = ptr;
+	*ptrp = ptr;
 	return 0;
 }
 
