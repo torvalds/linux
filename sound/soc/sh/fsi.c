@@ -111,7 +111,9 @@ struct fsi_priv {
 	int periods;
 };
 
-struct fsi_regs {
+struct fsi_core {
+	int ver;
+
 	u32 int_st;
 	u32 iemsk;
 	u32 imsk;
@@ -122,7 +124,7 @@ struct fsi_master {
 	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
-	struct fsi_regs *regs;
+	struct fsi_core *core;
 	struct sh_fsi_platform_info *info;
 	spinlock_t lock;
 };
@@ -339,8 +341,8 @@ static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, master->regs->imsk,  data, data);
-	fsi_master_mask_set(master, master->regs->iemsk, data, data);
+	fsi_master_mask_set(master, master->core->imsk,  data, data);
+	fsi_master_mask_set(master, master->core->iemsk, data, data);
 }
 
 static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
@@ -348,18 +350,18 @@ static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, master->regs->imsk,  data, 0);
-	fsi_master_mask_set(master, master->regs->iemsk, data, 0);
+	fsi_master_mask_set(master, master->core->imsk,  data, 0);
+	fsi_master_mask_set(master, master->core->iemsk, data, 0);
 }
 
 static u32 fsi_irq_get_status(struct fsi_master *master)
 {
-	return fsi_master_read(master, master->regs->int_st);
+	return fsi_master_read(master, master->core->int_st);
 }
 
 static void fsi_irq_clear_all_status(struct fsi_master *master)
 {
-	fsi_master_write(master, master->regs->int_st, 0x0000000);
+	fsi_master_write(master, master->core->int_st, 0);
 }
 
 static void fsi_irq_clear_status(struct fsi_priv *fsi)
@@ -371,7 +373,7 @@ static void fsi_irq_clear_status(struct fsi_priv *fsi)
 	data |= fsi_port_ab_io_bit(fsi, 1);
 
 	/* clear interrupt factor */
-	fsi_master_mask_set(master, master->regs->int_st, data, 0);
+	fsi_master_mask_set(master, master->core->int_st, data, 0);
 }
 
 /************************************************************************
@@ -987,7 +989,7 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.master	= master;
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
-	master->regs		= (struct fsi_regs *)id_entry->driver_data;
+	master->core		= (struct fsi_core *)id_entry->driver_data;
 	spin_lock_init(&master->lock);
 
 	pm_runtime_enable(&pdev->dev);
@@ -1068,21 +1070,27 @@ static struct dev_pm_ops fsi_pm_ops = {
 	.runtime_resume		= fsi_runtime_nop,
 };
 
-static struct fsi_regs fsi_regs = {
+static struct fsi_core fsi1_core = {
+	.ver	= 1,
+
+	/* Interrupt */
 	.int_st	= INT_ST,
 	.iemsk	= IEMSK,
 	.imsk	= IMSK,
 };
 
-static struct fsi_regs fsi2_regs = {
+static struct fsi_core fsi2_core = {
+	.ver	= 2,
+
+	/* Interrupt */
 	.int_st	= CPU_INT_ST,
 	.iemsk	= CPU_IEMSK,
 	.imsk	= CPU_IMSK,
 };
 
 static struct platform_device_id fsi_id_table[] = {
-	{ "sh_fsi",	(kernel_ulong_t)&fsi_regs },
-	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_regs },
+	{ "sh_fsi",	(kernel_ulong_t)&fsi1_core },
+	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_core },
 };
 
 static struct platform_driver fsi_driver = {
