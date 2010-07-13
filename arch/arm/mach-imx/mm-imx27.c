@@ -81,6 +81,6 @@ int imx27_register_gpios(void);
 
 void __init mx27_init_irq(void)
 {
-	imx27_register_gpios();
 	mxc_init_irq(MX27_IO_ADDRESS(MX27_AVIC_BASE_ADDR));
+	imx27_register_gpios();
 }

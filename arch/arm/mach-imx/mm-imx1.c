@@ -45,6 +45,6 @@ int imx1_register_gpios(void);
 
 void __init mx1_init_irq(void)
 {
-	imx1_register_gpios();
 	mxc_init_irq(MX1_IO_ADDRESS(MX1_AVIC_BASE_ADDR));
+	imx1_register_gpios();
 }

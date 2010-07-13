@@ -81,6 +81,6 @@ void __init mx51_init_irq(void)
 	if (!tzic_virt)
 		panic("unable to map TZIC interrupt controller\n");
 
-	imx51_register_gpios();
 	tzic_init_irq(tzic_virt);
+	imx51_register_gpios();
 }

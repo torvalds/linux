@@ -81,6 +81,6 @@ int imx21_register_gpios(void);
 
 void __init mx21_init_irq(void)
 {
-	imx21_register_gpios();
 	mxc_init_irq(MX21_IO_ADDRESS(MX21_AVIC_BASE_ADDR));
+	imx21_register_gpios();
 }
