@@ -578,8 +578,12 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 		}
 		QLCWR32(adapter, QLCNIC_NIU_GB_PAUSE_CTL, val);
 	} else if (adapter->ahw.port_type == QLCNIC_XGBE) {
+		if (!pause->rx_pause || pause->autoneg)
+			return -EOPNOTSUPP;
+
 		if ((port < 0) || (port > QLCNIC_NIU_MAX_XG_PORTS))
 			return -EIO;
+
 		val = QLCRD32(adapter, QLCNIC_NIU_XG_PAUSE_CTL);
 		if (port == 0) {
 			if (pause->tx_pause)
