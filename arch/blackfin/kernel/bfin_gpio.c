@@ -157,7 +157,7 @@ static int cmp_label(unsigned short ident, const char *label)
 #define DECLARE_RESERVED_MAP(m, c) static unsigned short reserved_##m##_map[c]
 
 DECLARE_RESERVED_MAP(gpio, GPIO_BANK_NUM);
-DECLARE_RESERVED_MAP(peri, gpio_bank(MAX_RESOURCES));
+DECLARE_RESERVED_MAP(peri, DIV_ROUND_UP(MAX_RESOURCES, GPIO_BANKSIZE));
 DECLARE_RESERVED_MAP(gpio_irq, GPIO_BANK_NUM);
 
 inline int check_gpio(unsigned gpio)
