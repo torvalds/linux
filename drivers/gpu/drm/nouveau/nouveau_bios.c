@@ -2129,10 +2129,10 @@ init_compute_mem(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 * This also has probably been done in the scripts, but an mmio trace of
 	 * s3 resume shows nvidia doing it anyway (unlike the NV_VIO_SRX write)
 	 */
-	bios_wr32(bios, NV_PFB_REFCTRL, NV_PFB_REFCTRL_VALID_1);
+	bios_wr32(bios, NV10_PFB_REFCTRL, NV10_PFB_REFCTRL_VALID_1);
 
 	/* write back the saved configuration value */
-	bios_wr32(bios, NV_PFB_CFG0, bios->state.saved_nv_pfb_cfg0);
+	bios_wr32(bios, NV04_PFB_CFG0, bios->state.saved_nv_pfb_cfg0);
 
 	return 1;
 }
@@ -2209,14 +2209,14 @@ init_configure_mem(struct nvbios *bios, uint16_t offset,
 	     reg = ROM32(bios->data[seqtbloffs += 4])) {
 
 		switch (reg) {
-		case NV_PFB_PRE:
-			data = NV_PFB_PRE_CMD_PRECHARGE;
+		case NV04_PFB_PRE:
+			data = NV04_PFB_PRE_CMD_PRECHARGE;
 			break;
-		case NV_PFB_PAD:
-			data = NV_PFB_PAD_CKE_NORMAL;
+		case NV04_PFB_PAD:
+			data = NV04_PFB_PAD_CKE_NORMAL;
 			break;
-		case NV_PFB_REF:
-			data = NV_PFB_REF_CMD_REFRESH;
+		case NV04_PFB_REF:
+			data = NV04_PFB_REF_CMD_REFRESH;
 			break;
 		default:
 			data = ROM32(bios->data[meminitdata]);
@@ -2418,7 +2418,7 @@ init_ram_condition(struct nvbios *bios, uint16_t offset,
 	 * offset + 1  (8 bit): mask
 	 * offset + 2  (8 bit): cmpval
 	 *
-	 * Test if (NV_PFB_BOOT_0 & "mask") equals "cmpval".
+	 * Test if (NV04_PFB_BOOT_0 & "mask") equals "cmpval".
 	 * If condition not met skip subsequent opcodes until condition is
 	 * inverted (INIT_NOT), or we hit INIT_RESUME
 	 */
@@ -2430,7 +2430,7 @@ init_ram_condition(struct nvbios *bios, uint16_t offset,
 	if (!iexec->execute)
 		return 3;
 
-	data = bios_rd32(bios, NV_PFB_BOOT_0) & mask;
+	data = bios_rd32(bios, NV04_PFB_BOOT_0) & mask;
 
 	BIOSLOG(bios, "0x%04X: Checking if 0x%08X equals 0x%08X\n",
 		offset, data, cmpval);
@@ -6343,7 +6343,7 @@ nouveau_bios_init(struct drm_device *dev)
 
 	/* these will need remembering across a suspend */
 	saved_nv_pextdev_boot_0 = bios_rd32(bios, NV_PEXTDEV_BOOT_0);
-	bios->state.saved_nv_pfb_cfg0 = bios_rd32(bios, NV_PFB_CFG0);
+	bios->state.saved_nv_pfb_cfg0 = bios_rd32(bios, NV04_PFB_CFG0);
 
 	/* init script execution disabled */
 	bios->execute = false;

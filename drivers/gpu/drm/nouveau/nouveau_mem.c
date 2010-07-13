@@ -260,19 +260,19 @@ nouveau_mem_close(struct drm_device *dev)
 static uint32_t
 nouveau_mem_detect_nv04(struct drm_device *dev)
 {
-	uint32_t boot0 = nv_rd32(dev, NV03_BOOT_0);
+	uint32_t boot0 = nv_rd32(dev, NV04_PFB_BOOT_0);
 
 	if (boot0 & 0x00000100)
 		return (((boot0 >> 12) & 0xf) * 2 + 2) * 1024 * 1024;
 
-	switch (boot0 & NV03_BOOT_0_RAM_AMOUNT) {
-	case NV04_BOOT_0_RAM_AMOUNT_32MB:
+	switch (boot0 & NV04_PFB_BOOT_0_RAM_AMOUNT) {
+	case NV04_PFB_BOOT_0_RAM_AMOUNT_32MB:
 		return 32 * 1024 * 1024;
-	case NV04_BOOT_0_RAM_AMOUNT_16MB:
+	case NV04_PFB_BOOT_0_RAM_AMOUNT_16MB:
 		return 16 * 1024 * 1024;
-	case NV04_BOOT_0_RAM_AMOUNT_8MB:
+	case NV04_PFB_BOOT_0_RAM_AMOUNT_8MB:
 		return 8 * 1024 * 1024;
-	case NV04_BOOT_0_RAM_AMOUNT_4MB:
+	case NV04_PFB_BOOT_0_RAM_AMOUNT_4MB:
 		return 4 * 1024 * 1024;
 	}
 
@@ -318,10 +318,10 @@ nouveau_mem_detect(struct drm_device *dev)
 		dev_priv->vram_size = nouveau_mem_detect_nforce(dev);
 	} else
 	if (dev_priv->card_type < NV_50) {
-		dev_priv->vram_size  = nv_rd32(dev, NV04_FIFO_DATA);
-		dev_priv->vram_size &= NV10_FIFO_DATA_RAM_AMOUNT_MB_MASK;
+		dev_priv->vram_size  = nv_rd32(dev, NV04_PFB_FIFO_DATA);
+		dev_priv->vram_size &= NV10_PFB_FIFO_DATA_RAM_AMOUNT_MB_MASK;
 	} else {
-		dev_priv->vram_size = nv_rd32(dev, NV04_FIFO_DATA);
+		dev_priv->vram_size = nv_rd32(dev, NV04_PFB_FIFO_DATA);
 		dev_priv->vram_size |= (dev_priv->vram_size & 0xff) << 32;
 		dev_priv->vram_size &= 0xffffffff00ll;
 		if (dev_priv->chipset == 0xaa || dev_priv->chipset == 0xac) {
