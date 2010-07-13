@@ -310,6 +310,15 @@ int blkdev_issue_flush(struct block_device *bdev, gfp_t gfp_mask,
 	if (!q)
 		return -ENXIO;
 
+	/*
+	 * some block devices may not have their queue correctly set up here
+	 * (e.g. loop device without a backing file) and so issuing a flush
+	 * here will panic. Ensure there is a request function before issuing
+	 * the barrier.
+	 */
+	if (!q->make_request_fn)
+		return -ENXIO;
+
 	bio = bio_alloc(gfp_mask, 0);
 	bio->bi_end_io = bio_end_empty_barrier;
 	bio->bi_bdev = bdev;
