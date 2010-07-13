@@ -1489,7 +1489,7 @@ static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
 	spte = __pa(sp->spt)
 		| PT_PRESENT_MASK | PT_ACCESSED_MASK
 		| PT_WRITABLE_MASK | PT_USER_MASK;
-	*sptep = spte;
+	__set_spte(sptep, spte);
 }
 
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
