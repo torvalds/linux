@@ -1482,6 +1482,16 @@ static void shadow_walk_next(struct kvm_shadow_walk_iterator *iterator)
 	--iterator->level;
 }
 
+static void link_shadow_page(u64 *sptep, struct kvm_mmu_page *sp)
+{
+	u64 spte;
+
+	spte = __pa(sp->spt)
+		| PT_PRESENT_MASK | PT_ACCESSED_MASK
+		| PT_WRITABLE_MASK | PT_USER_MASK;
+	*sptep = spte;
+}
+
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 					 struct kvm_mmu_page *sp)
 {

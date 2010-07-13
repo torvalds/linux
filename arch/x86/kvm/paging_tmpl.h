@@ -309,7 +309,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 {
 	unsigned access = gw->pt_access;
 	struct kvm_mmu_page *sp;
-	u64 spte, *sptep = NULL;
+	u64 *sptep = NULL;
 	int direct;
 	gfn_t table_gfn;
 	int r;
@@ -395,10 +395,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			}
 		}
 
-		spte = __pa(sp->spt)
-			| PT_PRESENT_MASK | PT_ACCESSED_MASK
-			| PT_WRITABLE_MASK | PT_USER_MASK;
-		*sptep = spte;
+		link_shadow_page(sptep, sp);
 	}
 
 	return sptep;
