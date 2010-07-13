@@ -76,6 +76,7 @@
 static const char driver_name [] = "at91_udc";
 static const char ep0name[] = "ep0";
 
+#define VBUS_POLL_TIMEOUT	msecs_to_jiffies(1000)
 
 #define at91_udp_read(udc, reg) \
 	__raw_readl((udc)->udp_baseaddr + (reg))
@@ -1585,18 +1586,46 @@ static struct at91_udc controller = {
 	/* ep6 and ep7 are also reserved (custom silicon might use them) */
 };
 
+static void at91_vbus_update(struct at91_udc *udc, unsigned value)
+{
+	value ^= udc->board.vbus_active_low;
+	if (value != udc->vbus)
+		at91_vbus_session(&udc->gadget, value);
+}
+
 static irqreturn_t at91_vbus_irq(int irq, void *_udc)
 {
 	struct at91_udc	*udc = _udc;
-	unsigned	value;
 
 	/* vbus needs at least brief debouncing */
 	udelay(10);
-	value = gpio_get_value(udc->board.vbus_pin);
-	if (value != udc->vbus)
-		at91_vbus_session(&udc->gadget, value);
+	at91_vbus_update(udc, gpio_get_value(udc->board.vbus_pin));
 
 	return IRQ_HANDLED;
+}
+
+static void at91_vbus_timer_work(struct work_struct *work)
+{
+	struct at91_udc *udc = container_of(work, struct at91_udc,
+					    vbus_timer_work);
+
+	at91_vbus_update(udc, gpio_get_value_cansleep(udc->board.vbus_pin));
+
+	if (!timer_pending(&udc->vbus_timer))
+		mod_timer(&udc->vbus_timer, jiffies + VBUS_POLL_TIMEOUT);
+}
+
+static void at91_vbus_timer(unsigned long data)
+{
+	struct at91_udc *udc = (struct at91_udc *)data;
+
+	/*
+	 * If we are polling vbus it is likely that the gpio is on an
+	 * bus such as i2c or spi which may sleep, so schedule some work
+	 * to read the vbus gpio
+	 */
+	if (!work_pending(&udc->vbus_timer_work))
+		schedule_work(&udc->vbus_timer_work);
 }
 
 int usb_gadget_register_driver (struct usb_gadget_driver *driver)
@@ -1800,13 +1829,23 @@ static int __init at91udc_probe(struct platform_device *pdev)
 		 * Get the initial state of VBUS - we cannot expect
 		 * a pending interrupt.
 		 */
-		udc->vbus = gpio_get_value(udc->board.vbus_pin);
-		if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
-				IRQF_DISABLED, driver_name, udc)) {
-			DBG("request vbus irq %d failed\n",
-					udc->board.vbus_pin);
-			retval = -EBUSY;
-			goto fail3;
+		udc->vbus = gpio_get_value_cansleep(udc->board.vbus_pin) ^
+			udc->board.vbus_active_low;
+
+		if (udc->board.vbus_polled) {
+			INIT_WORK(&udc->vbus_timer_work, at91_vbus_timer_work);
+			setup_timer(&udc->vbus_timer, at91_vbus_timer,
+				    (unsigned long)udc);
+			mod_timer(&udc->vbus_timer,
+				  jiffies + VBUS_POLL_TIMEOUT);
+		} else {
+			if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
+					IRQF_DISABLED, driver_name, udc)) {
+				DBG("request vbus irq %d failed\n",
+				    udc->board.vbus_pin);
+				retval = -EBUSY;
+				goto fail3;
+			}
 		}
 	} else {
 		DBG("no VBUS detection, assuming always-on\n");
@@ -1898,7 +1937,7 @@ static int at91udc_suspend(struct platform_device *pdev, pm_message_t mesg)
 		enable_irq_wake(udc->udp_irq);
 
 	udc->active_suspend = wake;
-	if (udc->board.vbus_pin > 0 && wake)
+	if (udc->board.vbus_pin > 0 && !udc->board.vbus_polled && wake)
 		enable_irq_wake(udc->board.vbus_pin);
 	return 0;
 }
@@ -1908,7 +1947,8 @@ static int at91udc_resume(struct platform_device *pdev)
 	struct at91_udc *udc = platform_get_drvdata(pdev);
 	unsigned long	flags;
 
-	if (udc->board.vbus_pin > 0 && udc->active_suspend)
+	if (udc->board.vbus_pin > 0 && !udc->board.vbus_polled &&
+	    udc->active_suspend)
 		disable_irq_wake(udc->board.vbus_pin);
 
 	/* maybe reconnect to host; if so, clocks on */
