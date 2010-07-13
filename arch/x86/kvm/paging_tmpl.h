@@ -319,10 +319,11 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			 int *ptwrite, pfn_t pfn)
 {
 	unsigned access = gw->pt_access;
-	struct kvm_mmu_page *sp;
+	struct kvm_mmu_page *sp = NULL;
 	u64 *sptep = NULL;
 	int uninitialized_var(level);
 	bool dirty = is_dirty_gpte(gw->ptes[gw->level - 1]);
+	int top_level;
 	unsigned direct_access;
 	struct kvm_shadow_walk_iterator iterator;
 
@@ -332,6 +333,18 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	direct_access = gw->pt_access & gw->pte_access;
 	if (!dirty)
 		direct_access &= ~ACC_WRITE_MASK;
+
+	top_level = vcpu->arch.mmu.root_level;
+	if (top_level == PT32E_ROOT_LEVEL)
+		top_level = PT32_ROOT_LEVEL;
+	/*
+	 * Verify that the top-level gpte is still there.  Since the page
+	 * is a root page, it is either write protected (and cannot be
+	 * changed from now on) or it is invalid (in which case, we don't
+	 * really care if it changes underneath us after this point).
+	 */
+	if (FNAME(gpte_changed)(vcpu, gw, top_level))
+		goto out_gpte_changed;
 
 	for (shadow_walk_init(&iterator, vcpu, addr);
 	     shadow_walk_okay(&iterator) && iterator.level > gw->level;
@@ -343,12 +356,12 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 
 		drop_large_spte(vcpu, sptep);
 
-		if (is_shadow_present_pte(*sptep))
-			continue;
-
-		table_gfn = gw->table_gfn[level - 2];
-		sp = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
-				      false, access, sptep);
+		sp = NULL;
+		if (!is_shadow_present_pte(*sptep)) {
+			table_gfn = gw->table_gfn[level - 2];
+			sp = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
+					      false, access, sptep);
+		}
 
 		/*
 		 * Verify that the gpte in the page we've just write
@@ -357,7 +370,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		if (FNAME(gpte_changed)(vcpu, gw, level - 1))
 			goto out_gpte_changed;
 
-		link_shadow_page(sptep, sp);
+		if (sp)
+			link_shadow_page(sptep, sp);
 	}
 
 	for (;
@@ -392,7 +406,8 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 	return sptep;
 
 out_gpte_changed:
-	kvm_mmu_put_page(sp, sptep);
+	if (sp)
+		kvm_mmu_put_page(sp, sptep);
 	kvm_release_pfn_clean(pfn);
 	return NULL;
 }
