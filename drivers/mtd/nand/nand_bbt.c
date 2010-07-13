@@ -1093,29 +1093,50 @@ int nand_update_bbt(struct mtd_info *mtd, loff_t offs)
 static uint8_t scan_ff_pattern[] = { 0xff, 0xff };
 
 static struct nand_bbt_descr smallpage_memorybased = {
-	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = 5,
+	.options = 0,
+	.offs = NAND_SMALL_BADBLOCK_POS,
 	.len = 1,
+	.pattern = scan_ff_pattern
+};
+
+static struct nand_bbt_descr smallpage_scan2nd_memorybased = {
+	.options = NAND_BBT_SCAN2NDPAGE,
+	.offs = NAND_SMALL_BADBLOCK_POS,
+	.len = 2,
 	.pattern = scan_ff_pattern
 };
 
 static struct nand_bbt_descr largepage_memorybased = {
 	.options = 0,
-	.offs = 0,
+	.offs = NAND_LARGE_BADBLOCK_POS,
+	.len = 1,
+	.pattern = scan_ff_pattern
+};
+
+static struct nand_bbt_descr largepage_scan2nd_memorybased = {
+	.options = NAND_BBT_SCAN2NDPAGE,
+	.offs = NAND_LARGE_BADBLOCK_POS,
 	.len = 2,
+	.pattern = scan_ff_pattern
+};
+
+static struct nand_bbt_descr lastpage_memorybased = {
+	.options = NAND_BBT_SCANLASTPAGE,
+	.offs = 0,
+	.len = 1,
 	.pattern = scan_ff_pattern
 };
 
 static struct nand_bbt_descr smallpage_flashbased = {
 	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = 5,
+	.offs = NAND_SMALL_BADBLOCK_POS,
 	.len = 1,
 	.pattern = scan_ff_pattern
 };
 
 static struct nand_bbt_descr largepage_flashbased = {
 	.options = NAND_BBT_SCAN2NDPAGE,
-	.offs = 0,
+	.offs = NAND_LARGE_BADBLOCK_POS,
 	.len = 2,
 	.pattern = scan_ff_pattern
 };
@@ -1197,8 +1218,18 @@ int nand_default_bbt(struct mtd_info *mtd)
 		this->bbt_td = NULL;
 		this->bbt_md = NULL;
 		if (!this->badblock_pattern) {
-			this->badblock_pattern = (mtd->writesize > 512) ?
-			    &largepage_memorybased : &smallpage_memorybased;
+			if (this->options & NAND_BBT_SCANLASTPAGE)
+				this->badblock_pattern = &lastpage_memorybased;
+			else if (this->options & NAND_BBT_SCAN2NDPAGE)
+				this->badblock_pattern = this->badblockpos ==
+					NAND_SMALL_BADBLOCK_POS ?
+					&smallpage_scan2nd_memorybased :
+					&largepage_scan2nd_memorybased;
+			else
+				this->badblock_pattern = this->badblockpos ==
+					NAND_SMALL_BADBLOCK_POS ?
+					&smallpage_memorybased :
+					&largepage_memorybased;
 		}
 	}
 	return nand_scan_bbt(mtd, this->badblock_pattern);
