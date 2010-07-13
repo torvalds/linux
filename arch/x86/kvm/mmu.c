@@ -1500,6 +1500,29 @@ static void drop_large_spte(struct kvm_vcpu *vcpu, u64 *sptep)
 	}
 }
 
+static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
+				   unsigned direct_access)
+{
+	if (is_shadow_present_pte(*sptep) && !is_large_pte(*sptep)) {
+		struct kvm_mmu_page *child;
+
+		/*
+		 * For the direct sp, if the guest pte's dirty bit
+		 * changed form clean to dirty, it will corrupt the
+		 * sp's access: allow writable in the read-only sp,
+		 * so we should update the spte at this point to get
+		 * a new sp with the correct access.
+		 */
+		child = page_header(*sptep & PT64_BASE_ADDR_MASK);
+		if (child->role.access == direct_access)
+			return;
+
+		mmu_page_remove_parent_pte(child, sptep);
+		__set_spte(sptep, shadow_trap_nonpresent_pte);
+		kvm_flush_remote_tlbs(vcpu->kvm);
+	}
+}
+
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 					 struct kvm_mmu_page *sp)
 {
