@@ -234,6 +234,7 @@ static int viafb_set_par(struct fb_info *info)
 	struct VideoModeTable *vmode_entry, *vmode_entry1 = NULL;
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
+	viafb_update_fix(info);
 	viapar->depth = fb_get_color_depth(&info->var, &info->fix);
 	viafb_update_device_setting(viafbinfo->var.xres, viafbinfo->var.yres,
 		viafbinfo->var.bits_per_pixel, viafb_refresh, 0);
@@ -257,7 +258,6 @@ static int viafb_set_par(struct fb_info *info)
 	}
 
 	if (vmode_entry) {
-		viafb_update_fix(info);
 		if (viafb_dual_fb && viapar->iga_path == IGA2)
 			viafb_bpp1 = info->var.bits_per_pixel;
 		else
