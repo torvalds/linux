@@ -60,12 +60,12 @@ static acpi_status acpi_atlas_button_handler(u32 function,
 		input_report_key(input_dev, atlas_keymap[code], key_down);
 		input_sync(input_dev);
 
-		status = 0;
+		status = AE_OK;
 	} else {
 		printk(KERN_WARNING "atlas: shrugged on unexpected function"
 			":function=%x,address=%lx,value=%x\n",
 			function, (unsigned long)address, (u32)*value);
-		status = -EINVAL;
+		status = AE_BAD_PARAMETER;
 	}
 
 	return status;
@@ -114,10 +114,10 @@ static int atlas_acpi_button_add(struct acpi_device *device)
 	if (ACPI_FAILURE(status)) {
 		printk(KERN_ERR "Atlas: Error installing addr spc handler\n");
 		input_unregister_device(input_dev);
-		status = -EINVAL;
+		err = -EINVAL;
 	}
 
-	return status;
+	return err;
 }
 
 static int atlas_acpi_button_remove(struct acpi_device *device, int type)
@@ -126,14 +126,12 @@ static int atlas_acpi_button_remove(struct acpi_device *device, int type)
 
 	status = acpi_remove_address_space_handler(device->handle,
 				0x81, &acpi_atlas_button_handler);
-	if (ACPI_FAILURE(status)) {
+	if (ACPI_FAILURE(status))
 		printk(KERN_ERR "Atlas: Error removing addr spc handler\n");
-		status = -EINVAL;
-	}
 
 	input_unregister_device(input_dev);
 
-	return status;
+	return 0;
 }
 
 static const struct acpi_device_id atlas_device_ids[] = {
