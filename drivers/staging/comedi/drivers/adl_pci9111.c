@@ -38,8 +38,8 @@ Supports:
   - do_insn read/write
   - ai_do_cmd mode with the following sources:
 
-    - start_src 		TRIG_NOW
-    - scan_begin_src 		TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
+    - start_src			TRIG_NOW
+    - scan_begin_src		TRIG_FOLLOW	TRIG_TIMER	TRIG_EXT
     - convert_src				TRIG_TIMER	TRIG_EXT
     - scan_end_src		TRIG_COUNT
     - stop_src			TRIG_COUNT	TRIG_NONE
@@ -247,12 +247,14 @@ TODO:
     &PCI9111_AI_RESOLUTION_MASK)					\
    ^ PCI9111_AI_RESOLUTION_2_CMP_BIT)
 
-#define pci9111_hr_ai_get_data() \
-  (inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE) & PCI9111_HR_AI_RESOLUTION_MASK) \
-  ^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT
+#define pci9111_hr_ai_get_data()					\
+  ((inw(PCI9111_IO_BASE+PCI9111_REGISTER_AD_FIFO_VALUE)			\
+    & PCI9111_HR_AI_RESOLUTION_MASK)					\
+   ^ PCI9111_HR_AI_RESOLUTION_2_CMP_BIT)
 
-#define pci9111_ao_set_data(data) \
-  outw(data&PCI9111_AO_RESOLUTION_MASK, PCI9111_IO_BASE+PCI9111_REGISTER_DA_OUTPUT)
+#define pci9111_ao_set_data(data)					\
+  outw(data&PCI9111_AO_RESOLUTION_MASK,					\
+       PCI9111_IO_BASE+PCI9111_REGISTER_DA_OUTPUT)
 
 #define pci9111_di_get_bits() \
   inw(PCI9111_IO_BASE+PCI9111_REGISTER_DIGITAL_IO)
@@ -297,12 +299,11 @@ static const struct comedi_lrange pci9111_hr_ai_range = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
-	{
-	PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID, PCI_ANY_ID,
-		    PCI_ANY_ID, 0, 0, 0},
-	    /* { PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
-	{
-	0}
+	{ PCI_VENDOR_ID_ADLINK, PCI9111_HR_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,
+	  0, 0, 0 },
+	/* { PCI_VENDOR_ID_ADLINK, PCI9111_HG_DEVICE_ID, PCI_ANY_ID, PCI_ANY_ID,
+	 *   0, 0, 0 }, */
+	{ 0 }
 };
 
 MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
@@ -394,7 +395,8 @@ struct pci9111_private_data {
 	struct pci_dev *pci_device;
 	unsigned long io_range;	/*  PCI6503 io range */
 
-	unsigned long lcr_io_base;	/*  Local configuration register base address */
+	unsigned long lcr_io_base; /* Local configuration register base
+				    * address */
 	unsigned long lcr_io_range;
 
 	int stop_counter;
@@ -407,7 +409,8 @@ struct pci9111_private_data {
 
 	int ao_readback;	/*  Last written analog output data */
 
-	unsigned int timer_divisor_1;	/*  Divisor values for the 8254 timer pacer */
+	unsigned int timer_divisor_1; /* Divisor values for the 8254 timer
+				       * pacer */
 	unsigned int timer_divisor_2;
 
 	int is_valid;		/*  Is device valid */
@@ -415,7 +418,7 @@ struct pci9111_private_data {
 	short ai_bounce_buffer[2 * PCI9111_FIFO_HALF_SIZE];
 };
 
-#define dev_private 	((struct pci9111_private_data *)dev->private)
+#define dev_private	((struct pci9111_private_data *)dev->private)
 
 /*  ------------------------------------------------------------------ */
 /*  PLX9050 SECTION */
@@ -597,10 +600,12 @@ static int pci9111_ai_cancel(struct comedi_device *dev,
 
 /*  Test analog input command */
 
-#define pci9111_check_trigger_src(src, flags) \
-  tmp = src; \
-  src &= flags; \
-  if (!src || tmp != src) error++
+#define pci9111_check_trigger_src(src, flags)	do {			\
+		tmp = src;						\
+		src &= flags;						\
+		if (!src || tmp != src)					\
+			error++;					\
+	} while (false);
 
 static int
 pci9111_ai_do_cmd_test(struct comedi_device *dev,
@@ -624,7 +629,8 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	if (error)
 		return 1;
 
-	/*  step 2 : make sure trigger sources are unique and mutually compatible */
+	/*  step 2 : make sure trigger sources are unique and mutually
+	 *  compatible */
 
 	if (cmd->start_src != TRIG_NOW)
 		error++;
@@ -686,7 +692,8 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 		cmd->scan_begin_arg = board->ai_acquisition_period_min_ns;
 		error++;
 	}
-	if ((cmd->scan_begin_src == TRIG_FOLLOW) && (cmd->scan_begin_arg != 0)) {
+	if ((cmd->scan_begin_src == TRIG_FOLLOW)
+	    && (cmd->scan_begin_arg != 0)) {
 		cmd->scan_begin_arg = 0;
 		error++;
 	}
@@ -1277,10 +1284,12 @@ static int pci9111_attach(struct comedi_device *dev,
 			for (i = 0; i < pci9111_board_nbr; i++) {
 				if (pci9111_boards[i].device_id ==
 				    pci_device->device) {
-					/*  was a particular bus/slot requested? */
+					/* was a particular bus/slot
+					 * requested? */
 					if ((it->options[0] != 0)
 					    || (it->options[1] != 0)) {
-						/*  are we on the wrong bus/slot? */
+						/* are we on the wrong
+						 * bus/slot? */
 						if (pci_device->bus->number !=
 						    it->options[0]
 						    ||
@@ -1316,7 +1325,8 @@ found:
 
 	/*  TODO: Warn about non-tested boards. */
 
-	/*  Read local configuration register base address [PCI_BASE_ADDRESS #1]. */
+	/*  Read local configuration register base address
+	 *  [PCI_BASE_ADDRESS #1]. */
 
 	lcr_io_base = pci_resource_start(pci_device, 1);
 	lcr_io_range = pci_resource_len(pci_device, 1);
