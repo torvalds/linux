@@ -105,6 +105,7 @@ static inline int nilfs_bmap_is_new_ptr(unsigned long ptr)
  * @b_last_allocated_ptr: last allocated ptr for data block
  * @b_ptr_type: pointer type
  * @b_state: state
+ * @b_nchildren_per_block: maximum number of child nodes for non-root nodes
  */
 struct nilfs_bmap {
 	union {
@@ -118,6 +119,7 @@ struct nilfs_bmap {
 	__u64 b_last_allocated_ptr;
 	int b_ptr_type;
 	int b_state;
+	__u16 b_nchildren_per_block;
 };
 
 /* pointer type */
