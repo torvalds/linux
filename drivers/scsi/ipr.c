@@ -1168,7 +1168,7 @@ static void ipr_update_res_entry(struct ipr_resource_entry *res,
 	if (res->ioa_cfg->sis64) {
 		res->flags = cfgtew->u.cfgte64->flags;
 		res->res_flags = cfgtew->u.cfgte64->res_flags;
-		res->type = cfgtew->u.cfgte64->res_type & 0x0f;
+		res->type = cfgtew->u.cfgte64->res_type;
 
 		memcpy(&res->std_inq_data, &cfgtew->u.cfgte64->std_inq_data,
 			sizeof(struct ipr_std_inq_data));
@@ -3762,6 +3762,36 @@ static struct device_attribute ipr_update_fw_attr = {
 	.store = ipr_store_update_fw
 };
 
+/**
+ * ipr_show_fw_type - Show the adapter's firmware type.
+ * @dev:	class device struct
+ * @buf:	buffer
+ *
+ * Return value:
+ *	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_fw_type(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	unsigned long lock_flags = 0;
+	int len;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	len = snprintf(buf, PAGE_SIZE, "%d\n", ioa_cfg->sis64);
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+static struct device_attribute ipr_ioa_fw_type_attr = {
+	.attr = {
+		.name =		"fw_type",
+		.mode =		S_IRUGO,
+	},
+	.show = ipr_show_fw_type
+};
+
 static struct device_attribute *ipr_ioa_attrs[] = {
 	&ipr_fw_version_attr,
 	&ipr_log_level_attr,
@@ -3769,6 +3799,7 @@ static struct device_attribute *ipr_ioa_attrs[] = {
 	&ipr_ioa_state_attr,
 	&ipr_ioa_reset_attr,
 	&ipr_update_fw_attr,
+	&ipr_ioa_fw_type_attr,
 	NULL,
 };
 
@@ -4122,14 +4153,49 @@ static ssize_t ipr_show_resource_path(struct device *dev, struct device_attribut
 static struct device_attribute ipr_resource_path_attr = {
 	.attr = {
 		.name = 	"resource_path",
-		.mode =		S_IRUSR,
+		.mode =		S_IRUGO,
 	},
 	.show = ipr_show_resource_path
+};
+
+/**
+ * ipr_show_resource_type - Show the resource type for this device.
+ * @dev:	device struct
+ * @buf:	buffer
+ *
+ * Return value:
+ *	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_resource_type(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct scsi_device *sdev = to_scsi_device(dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)sdev->host->hostdata;
+	struct ipr_resource_entry *res;
+	unsigned long lock_flags = 0;
+	ssize_t len = -ENXIO;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	res = (struct ipr_resource_entry *)sdev->hostdata;
+
+	if (res)
+		len = snprintf(buf, PAGE_SIZE, "%x\n", res->type);
+
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+static struct device_attribute ipr_resource_type_attr = {
+	.attr = {
+		.name =		"resource_type",
+		.mode =		S_IRUGO,
+	},
+	.show = ipr_show_resource_type
 };
 
 static struct device_attribute *ipr_dev_attrs[] = {
 	&ipr_adapter_handle_attr,
 	&ipr_resource_path_attr,
+	&ipr_resource_type_attr,
 	NULL,
 };
 
