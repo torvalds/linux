@@ -72,7 +72,7 @@ config ATMEL_TCLIB
 
 config ATMEL_TCB_CLKSRC
 	bool "TC Block Clocksource"
-	depends on ATMEL_TCLIB && GENERIC_TIME
+	depends on ATMEL_TCLIB
 	default y
 	help
 	  Select this to get a high precision clocksource based on a
@@ -240,7 +240,7 @@ config CS5535_MFGPT_DEFAULT_IRQ
 
 config CS5535_CLOCK_EVENT_SRC
 	tristate "CS5535/CS5536 high-res timer (MFGPT) events"
-	depends on GENERIC_TIME && GENERIC_CLOCKEVENTS && CS5535_MFGPT
+	depends on GENERIC_CLOCKEVENTS && CS5535_MFGPT
 	help
 	  This driver provides a clock event source based on the MFGPT
 	  timer(s) in the CS5535 and CS5536 companion chips.

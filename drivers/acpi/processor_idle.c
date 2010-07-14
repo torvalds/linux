@@ -264,7 +264,7 @@ int acpi_processor_resume(struct acpi_device * device)
 	return 0;
 }
 
-#if defined (CONFIG_GENERIC_TIME) && defined (CONFIG_X86)
+#if defined(CONFIG_X86)
 static void tsc_check_state(int state)
 {
 	switch (boot_cpu_data.x86_vendor) {

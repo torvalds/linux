@@ -531,7 +531,7 @@ static u64 clocksource_max_deferment(struct clocksource *cs)
 	return max_nsecs - (max_nsecs >> 5);
 }
 
-#ifdef CONFIG_GENERIC_TIME
+#ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
 
 /**
  * clocksource_select - Select the best clocksource available
@@ -577,7 +577,7 @@ static void clocksource_select(void)
 	}
 }
 
-#else /* CONFIG_GENERIC_TIME */
+#else /* !CONFIG_ARCH_USES_GETTIMEOFFSET */
 
 static inline void clocksource_select(void) { }
 
