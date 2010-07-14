@@ -959,6 +959,8 @@ dm9000_rx(struct net_device *dev)
 	do {
 		ior(db, DM9000_MRCMDX);	/* Dummy read */
 
+		udelay(1);//add by lyx@20100713,or dm9000_rx will be error in high frequence
+
 		/* Get most updated data */
 		rxbyte = readb(db->io_data);
 
@@ -1638,6 +1640,9 @@ dm9000_probe(struct platform_device *pdev)
 		       ndev->name, dm9000_type_to_char(db->type),
 		       db->io_addr, db->io_data, ndev->irq,
 		       ndev->dev_addr, mac_src);
+
+	dm9000_shutdown(ndev);//add by lyx@20100713, reduce power consume
+
 	return 0;
 
 out:
