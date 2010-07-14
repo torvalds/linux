@@ -135,12 +135,12 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 	}
 
 	/* reset accumulative statistics for "no-counter" type statistics */
-	priv->_agn.accum_statistics.general.temperature =
-		priv->_agn.statistics.general.temperature;
-	priv->_agn.accum_statistics.general.temperature_m =
-		priv->_agn.statistics.general.temperature_m;
-	priv->_agn.accum_statistics.general.ttl_timestamp =
-		priv->_agn.statistics.general.ttl_timestamp;
+	priv->_agn.accum_statistics.general.common.temperature =
+		priv->_agn.statistics.general.common.temperature;
+	priv->_agn.accum_statistics.general.common.temperature_m =
+		priv->_agn.statistics.general.common.temperature_m;
+	priv->_agn.accum_statistics.general.common.ttl_timestamp =
+		priv->_agn.statistics.general.common.ttl_timestamp;
 	priv->_agn.accum_statistics.tx.tx_power.ant_a =
 		priv->_agn.statistics.tx.tx_power.ant_a;
 	priv->_agn.accum_statistics.tx.tx_power.ant_b =
@@ -232,8 +232,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 		     (int)sizeof(priv->_agn.statistics),
 		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
 
-	change = ((priv->_agn.statistics.general.temperature !=
-		   pkt->u.stats.general.temperature) ||
+	change = ((priv->_agn.statistics.general.common.temperature !=
+		   pkt->u.stats.general.common.temperature) ||
 		  ((priv->_agn.statistics.flag &
 		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
 		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));

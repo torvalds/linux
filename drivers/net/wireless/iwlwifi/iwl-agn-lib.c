@@ -364,7 +364,7 @@ void iwlagn_temperature(struct iwl_priv *priv)
 {
 	/* store temperature from statistics (in Celsius) */
 	priv->temperature =
-		le32_to_cpu(priv->_agn.statistics.general.temperature);
+		le32_to_cpu(priv->_agn.statistics.general.common.temperature);
 	iwl_tt_handler(priv);
 }
 

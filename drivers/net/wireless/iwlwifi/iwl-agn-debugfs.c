@@ -759,8 +759,8 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	char *buf;
 	int bufsz = sizeof(struct statistics_general) * 10 + 300;
 	ssize_t ret;
-	struct statistics_general *general, *accum_general;
-	struct statistics_general *delta_general, *max_general;
+	struct statistics_general_common *general, *accum_general;
+	struct statistics_general_common *delta_general, *max_general;
 	struct statistics_dbg *dbg, *accum_dbg, *delta_dbg, *max_dbg;
 	struct statistics_div *div, *accum_div, *delta_div, *max_div;
 
@@ -777,18 +777,18 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	  * the last statistics notification from uCode
 	  * might not reflect the current uCode activity
 	  */
-	general = &priv->_agn.statistics.general;
-	dbg = &priv->_agn.statistics.general.dbg;
-	div = &priv->_agn.statistics.general.div;
-	accum_general = &priv->_agn.accum_statistics.general;
-	delta_general = &priv->_agn.delta_statistics.general;
-	max_general = &priv->_agn.max_delta.general;
-	accum_dbg = &priv->_agn.accum_statistics.general.dbg;
-	delta_dbg = &priv->_agn.delta_statistics.general.dbg;
-	max_dbg = &priv->_agn.max_delta.general.dbg;
-	accum_div = &priv->_agn.accum_statistics.general.div;
-	delta_div = &priv->_agn.delta_statistics.general.div;
-	max_div = &priv->_agn.max_delta.general.div;
+	general = &priv->_agn.statistics.general.common;
+	dbg = &priv->_agn.statistics.general.common.dbg;
+	div = &priv->_agn.statistics.general.common.div;
+	accum_general = &priv->_agn.accum_statistics.general.common;
+	delta_general = &priv->_agn.delta_statistics.general.common;
+	max_general = &priv->_agn.max_delta.general.common;
+	accum_dbg = &priv->_agn.accum_statistics.general.common.dbg;
+	delta_dbg = &priv->_agn.delta_statistics.general.common.dbg;
+	max_dbg = &priv->_agn.max_delta.general.common.dbg;
+	accum_div = &priv->_agn.accum_statistics.general.common.div;
+	delta_div = &priv->_agn.delta_statistics.general.common.div;
+	max_div = &priv->_agn.max_delta.general.common.div;
 	pos += iwl_statistics_flag(priv, buf, bufsz);
 	pos += scnprintf(buf + pos, bufsz - pos, "%-32s     current"
 			 "acumulative       delta         max\n",
