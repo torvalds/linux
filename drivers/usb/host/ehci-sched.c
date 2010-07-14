@@ -1417,7 +1417,7 @@ iso_stream_schedule (
 	if (!stream->highspeed)
 		period <<= 3;
 
-	now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
+	now = ehci_readl(ehci, &ehci->regs->frame_index) & (mod - 1);
 
 	/* Typical case: reuse current schedule, stream is still active.
 	 * Hopefully there are no gaps from the host falling behind
@@ -1461,7 +1461,7 @@ iso_stream_schedule (
 	 * jump until after the queue is primed.
 	 */
 	start = SCHEDULE_SLOP + (now & ~0x07);
-	start %= mod;
+	start &= mod - 1;
 	stream->next_uframe = start;
 
 	/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
@@ -1483,7 +1483,7 @@ iso_stream_schedule (
 
 		/* schedule it here if there's enough bandwidth */
 		if (enough_space) {
-			stream->next_uframe = start % mod;
+			stream->next_uframe = start & (mod - 1);
 			goto ready;
 		}
 	}
@@ -1599,7 +1599,7 @@ itd_link_urb (
 	struct ehci_iso_sched	*iso_sched = urb->hcpriv;
 	struct ehci_itd		*itd;
 
-	next_uframe = stream->next_uframe % mod;
+	next_uframe = stream->next_uframe & (mod - 1);
 
 	if (unlikely (list_empty(&stream->td_list))) {
 		ehci_to_hcd(ehci)->self.bandwidth_allocated
@@ -1637,13 +1637,13 @@ itd_link_urb (
 
 		next_uframe += stream->interval;
 		stream->depth += stream->interval;
-		next_uframe %= mod;
+		next_uframe &= mod - 1;
 		packet++;
 
 		/* link completed itds into the schedule */
 		if (((next_uframe >> 3) != frame)
 				|| packet == urb->number_of_packets) {
-			itd_link (ehci, frame % ehci->periodic_size, itd);
+			itd_link(ehci, frame & (ehci->periodic_size - 1), itd);
 			itd = NULL;
 		}
 	}
@@ -2020,7 +2020,7 @@ sitd_link_urb (
 			"sched devp %s ep%d%s-iso [%d] %dms/%04x\n",
 			urb->dev->devpath, stream->bEndpointAddress & 0x0f,
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
-			(next_uframe >> 3) % ehci->periodic_size,
+			(next_uframe >> 3) & (ehci->periodic_size - 1),
 			stream->interval, hc32_to_cpu(ehci, stream->splits));
 		stream->start = jiffies;
 	}
@@ -2043,13 +2043,13 @@ sitd_link_urb (
 		sitd->urb = urb;
 
 		sitd_patch(ehci, stream, sitd, sched, packet);
-		sitd_link (ehci, (next_uframe >> 3) % ehci->periodic_size,
+		sitd_link(ehci, (next_uframe >> 3) & (ehci->periodic_size - 1),
 				sitd);
 
 		next_uframe += stream->interval << 3;
 		stream->depth += stream->interval << 3;
 	}
-	stream->next_uframe = next_uframe % mod;
+	stream->next_uframe = next_uframe & (mod - 1);
 
 	/* don't need that schedule data any more */
 	iso_sched_free (stream, sched);
@@ -2258,7 +2258,7 @@ scan_periodic (struct ehci_hcd *ehci)
 	now_uframe = ehci->next_uframe;
 	if (HC_IS_RUNNING(ehci_to_hcd(ehci)->state)) {
 		clock = ehci_readl(ehci, &ehci->regs->frame_index);
-		clock_frame = (clock >> 3) % ehci->periodic_size;
+		clock_frame = (clock >> 3) & (ehci->periodic_size - 1);
 	} else  {
 		clock = now_uframe + mod - 1;
 		clock_frame = -1;
@@ -2267,7 +2267,7 @@ scan_periodic (struct ehci_hcd *ehci)
 		free_cached_lists(ehci);
 		ehci->clock_frame = clock_frame;
 	}
-	clock %= mod;
+	clock &= mod - 1;
 	clock_frame = clock >> 3;
 
 	for (;;) {
@@ -2356,7 +2356,7 @@ restart:
 				 * frame is current.
 				 */
 				if (((frame == clock_frame) ||
-				     (((frame + 1) % ehci->periodic_size)
+				     (((frame + 1) & (ehci->periodic_size - 1))
 				      == clock_frame))
 				    && live
 				    && (q.sitd->hw_results &
@@ -2423,7 +2423,8 @@ restart:
 					|| ehci->periodic_sched == 0)
 				break;
 			ehci->next_uframe = now_uframe;
-			now = ehci_readl(ehci, &ehci->regs->frame_index) % mod;
+			now = ehci_readl(ehci, &ehci->regs->frame_index) &
+					(mod - 1);
 			if (now_uframe == now)
 				break;
 
@@ -2436,7 +2437,7 @@ restart:
 			}
 		} else {
 			now_uframe++;
-			now_uframe %= mod;
+			now_uframe &= mod - 1;
 		}
 	}
 }
