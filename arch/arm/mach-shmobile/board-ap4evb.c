@@ -576,12 +576,74 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&sh_mmcif_device
 };
 
+/*
+ * FIXME !!
+ *
+ * gpio_no_direction
+ * gpio_pull_up
+ * are quick_hack.
+ *
+ * current gpio frame work doesn't have
+ * the method to control only pull up/down/free.
+ * this function should be replaced by correct gpio function
+ */
+static void __init gpio_no_direction(u32 addr)
+{
+	__raw_writeb(0x00, addr);
+}
+
+static void __init gpio_pull_up(u32 addr)
+{
+	u8 data = __raw_readb(addr);
+
+	data &= 0x0F;
+	data |= 0xC0;
+	__raw_writeb(data, addr);
+}
+
 /* TouchScreen */
 #define IRQ28	evt2irq(0x3380) /* IRQ28A */
 #define IRQ7	evt2irq(0x02e0) /* IRQ7A */
+static int ts_get_pendown_state(void)
+{
+	int val1, val2;
+
+	gpio_free(GPIO_FN_IRQ28_123);
+	gpio_free(GPIO_FN_IRQ7_40);
+
+	gpio_request(GPIO_PORT123, NULL);
+	gpio_request(GPIO_PORT40, NULL);
+
+	gpio_direction_input(GPIO_PORT123);
+	gpio_direction_input(GPIO_PORT40);
+
+	val1 = gpio_get_value(GPIO_PORT123);
+	val2 = gpio_get_value(GPIO_PORT40);
+
+	gpio_request(GPIO_FN_IRQ28_123, NULL);	/* for QHD */
+	gpio_request(GPIO_FN_IRQ7_40, NULL);	/* for WVGA */
+
+	return val1 ^ val2;
+}
+
+#define PORT40CR	0xE6051028
+#define PORT123CR	0xE605007B
+static int ts_init(void)
+{
+	gpio_request(GPIO_FN_IRQ28_123, NULL);	/* for QHD */
+	gpio_request(GPIO_FN_IRQ7_40, NULL);	/* for WVGA */
+
+	gpio_pull_up(PORT40CR);
+	gpio_pull_up(PORT123CR);
+
+	return 0;
+}
+
 static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
+	.get_pendown_state	= ts_get_pendown_state,
+	.init_platform_hw	= ts_init,
 };
 
 static struct i2c_board_info tsc_device = {
@@ -623,20 +685,6 @@ static void __init ap4evb_map_io(void)
 	/* setup early devices and console here as well */
 	sh7372_add_early_devices();
 	shmobile_setup_console();
-}
-
-/*
- * FIXME !!
- *
- * gpio_no_direction is quick_hack.
- *
- * current gpio frame work doesn't have
- * the method to control only pull up/down/free.
- * this function should be replaced by correct gpio function
- */
-static void __init gpio_no_direction(u32 addr)
-{
-	__raw_writeb(0x00, addr);
 }
 
 #define GPIO_PORT9CR	0xE6051009
@@ -784,7 +832,6 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_KEYIN4,     NULL);
 
 	/* enable TouchScreen */
-	gpio_request(GPIO_FN_IRQ28_123, NULL);
 	set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ28;
@@ -860,7 +907,6 @@ static void __init ap4evb_init(void)
 	lcdc_info.ch[0].lcd_size_cfg.height	= 91;
 
 	/* enable TouchScreen */
-	gpio_request(GPIO_FN_IRQ7_40, NULL);
 	set_irq_type(IRQ7, IRQ_TYPE_LEVEL_LOW);
 
 	tsc_device.irq = IRQ7;
