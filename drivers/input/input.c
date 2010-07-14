@@ -694,7 +694,7 @@ int input_set_keycode(struct input_dev *dev,
 		      unsigned int scancode, unsigned int keycode)
 {
 	unsigned long flags;
-	int old_keycode;
+	unsigned int old_keycode;
 	int retval;
 
 	if (keycode > KEY_MAX)
