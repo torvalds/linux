@@ -864,9 +864,9 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	/* XXX this assumes clock->shift == 22 */
 	/* 4611686018 ~= 2^(20+64-22) / 1e9 */
 	new_tb_to_xs = (u64) mult * 4611686018ULL;
-	new_stamp_xsec = (u64) xtime.tv_nsec * XSEC_PER_SEC;
+	new_stamp_xsec = (u64) wall_time->tv_nsec * XSEC_PER_SEC;
 	do_div(new_stamp_xsec, 1000000000);
-	new_stamp_xsec += (u64) xtime.tv_sec * XSEC_PER_SEC;
+	new_stamp_xsec += (u64) wall_time->tv_sec * XSEC_PER_SEC;
 
 	/*
 	 * tb_update_count is used to allow the userspace gettimeofday code
@@ -884,7 +884,7 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	vdso_data->tb_to_xs = new_tb_to_xs;
 	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
 	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
-	vdso_data->stamp_xtime = xtime;
+	vdso_data->stamp_xtime = *wall_time;
 	smp_wmb();
 	++(vdso_data->tb_update_count);
 }
@@ -1093,7 +1093,7 @@ void __init time_init(void)
 	vdso_data->tb_orig_stamp = tb_last_jiffy;
 	vdso_data->tb_update_count = 0;
 	vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
-	vdso_data->stamp_xsec = (u64) xtime.tv_sec * XSEC_PER_SEC;
+	vdso_data->stamp_xsec = (u64) get_seconds() * XSEC_PER_SEC;
 	vdso_data->tb_to_xs = tb_to_xs;
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
