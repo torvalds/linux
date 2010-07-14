@@ -1442,13 +1442,13 @@ static bool maybe_create_worker(struct global_cwq *gcwq)
 	if (!need_to_create_worker(gcwq))
 		return false;
 restart:
+	spin_unlock_irq(&gcwq->lock);
+
 	/* if we don't make progress in MAYDAY_INITIAL_TIMEOUT, call for help */
 	mod_timer(&gcwq->mayday_timer, jiffies + MAYDAY_INITIAL_TIMEOUT);
 
 	while (true) {
 		struct worker *worker;
-
-		spin_unlock_irq(&gcwq->lock);
 
 		worker = create_worker(gcwq, true);
 		if (worker) {
@@ -1462,15 +1462,13 @@ restart:
 		if (!need_to_create_worker(gcwq))
 			break;
 
-		spin_unlock_irq(&gcwq->lock);
 		__set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(CREATE_COOLDOWN);
-		spin_lock_irq(&gcwq->lock);
+
 		if (!need_to_create_worker(gcwq))
 			break;
 	}
 
-	spin_unlock_irq(&gcwq->lock);
 	del_timer_sync(&gcwq->mayday_timer);
 	spin_lock_irq(&gcwq->lock);
 	if (need_to_create_worker(gcwq))
