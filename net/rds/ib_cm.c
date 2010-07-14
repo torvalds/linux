@@ -38,6 +38,38 @@
 #include "rds.h"
 #include "ib.h"
 
+static char *rds_ib_event_type_strings[] = {
+#define RDS_IB_EVENT_STRING(foo) [IB_EVENT_##foo] = __stringify(foo)
+	RDS_IB_EVENT_STRING(CQ_ERR),
+	RDS_IB_EVENT_STRING(QP_FATAL),
+	RDS_IB_EVENT_STRING(QP_REQ_ERR),
+	RDS_IB_EVENT_STRING(QP_ACCESS_ERR),
+	RDS_IB_EVENT_STRING(COMM_EST),
+	RDS_IB_EVENT_STRING(SQ_DRAINED),
+	RDS_IB_EVENT_STRING(PATH_MIG),
+	RDS_IB_EVENT_STRING(PATH_MIG_ERR),
+	RDS_IB_EVENT_STRING(DEVICE_FATAL),
+	RDS_IB_EVENT_STRING(PORT_ACTIVE),
+	RDS_IB_EVENT_STRING(PORT_ERR),
+	RDS_IB_EVENT_STRING(LID_CHANGE),
+	RDS_IB_EVENT_STRING(PKEY_CHANGE),
+	RDS_IB_EVENT_STRING(SM_CHANGE),
+	RDS_IB_EVENT_STRING(SRQ_ERR),
+	RDS_IB_EVENT_STRING(SRQ_LIMIT_REACHED),
+	RDS_IB_EVENT_STRING(QP_LAST_WQE_REACHED),
+	RDS_IB_EVENT_STRING(CLIENT_REREGISTER),
+#undef RDS_IB_EVENT_STRING
+};
+
+static char *rds_ib_event_str(enum ib_event_type type)
+{
+	if (type < ARRAY_SIZE(rds_ib_event_type_strings) &&
+	    rds_ib_event_type_strings[type])
+		return rds_ib_event_type_strings[type];
+	else
+		return "unknown";
+};
+
 /*
  * Set the selected protocol version
  */
@@ -202,7 +234,8 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 
 static void rds_ib_cq_event_handler(struct ib_event *event, void *data)
 {
-	rdsdebug("event %u data %p\n", event->event, data);
+	rdsdebug("event %u (%s) data %p\n",
+		 event->event, rds_ib_event_str(event->event), data);
 }
 
 static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
@@ -210,16 +243,18 @@ static void rds_ib_qp_event_handler(struct ib_event *event, void *data)
 	struct rds_connection *conn = data;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
-	rdsdebug("conn %p ic %p event %u\n", conn, ic, event->event);
+	rdsdebug("conn %p ic %p event %u (%s)\n", conn, ic, event->event,
+		 rds_ib_event_str(event->event));
 
 	switch (event->event) {
 	case IB_EVENT_COMM_EST:
 		rdma_notify(ic->i_cm_id, IB_EVENT_COMM_EST);
 		break;
 	default:
-		rdsdebug("Fatal QP Event %u "
+		rdsdebug("Fatal QP Event %u (%s) "
 			"- connection %pI4->%pI4, reconnecting\n",
-			event->event, &conn->c_laddr, &conn->c_faddr);
+			event->event, rds_ib_event_str(event->event),
+			&conn->c_laddr, &conn->c_faddr);
 		rds_conn_drop(conn);
 		break;
 	}
