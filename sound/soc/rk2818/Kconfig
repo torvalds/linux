@@ -39,10 +39,10 @@ config SND_ROCKCHIP_SOC_RK1000
 if SND_ROCKCHIP_SOC_WM8988 || SND_ROCKCHIP_SOC_RK1000 || SND_ROCKCHIP_SOC_WM8994
 choice
   prompt "set i2s type"
-	config SND_ROCKCHIP_SOC_SLAVE
-		tristate "I2s run in slave Mode codec run in Master"
+	config SND_CODEC_SOC_MASTER
+		tristate "Codec run in Master"
 
-	config  SND_ROCKCHIP_SOC_MASTER
-		tristate  "I2s run in master Mode codec run in Master"
+	config SND_CODEC_SOC_SLAVE
+		tristate  "Codec run in Slave"
 endchoice
 endif

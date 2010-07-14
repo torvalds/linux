@@ -115,4 +115,10 @@ config BATTERY_RK2818
 	depends on RK28_ADC
 	help
 	  Say Y to enable support for the battery on the RK2818.
+	  
+config PMIC_LP8725
+tristate "pmic lp8725"
+depends on I2C
+help
+  Say Y to enable support for the pmic lp8725 on the RK2818.  
 endif # POWER_SUPPLY

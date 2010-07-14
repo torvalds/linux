@@ -30,3 +30,4 @@ obj-$(CONFIG_BATTERY_DA9030)	+= da9030_battery.o
 obj-$(CONFIG_BATTERY_MAX17040)	+= max17040_battery.o
 obj-$(CONFIG_CHARGER_PCF50633)	+= pcf50633-charger.o
 obj-$(CONFIG_BATTERY_RK2818)	+= rk2818_battery.o
+obj-$(CONFIG_PMIC_LP8725)	+= pmic_lp8725.o
