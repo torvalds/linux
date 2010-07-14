@@ -1142,87 +1142,24 @@ static int hci_reassembly(struct hci_dev *hdev, int type, void *data,
 	return remain;
 }
 
-/* Receive packet type fragment */
-#define __reassembly(hdev, type)  ((hdev)->reassembly[(type) - 1])
-
 int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 {
+	int rem = 0;
+
 	if (type < HCI_ACLDATA_PKT || type > HCI_EVENT_PKT)
 		return -EILSEQ;
 
-	while (count) {
-		struct sk_buff *skb = __reassembly(hdev, type);
-		struct { int expect; } *scb;
-		int len = 0;
+	do {
+		rem = hci_reassembly(hdev, type, data, count,
+						type - 1, GFP_ATOMIC);
+		if (rem < 0)
+			return rem;
 
-		if (!skb) {
-			/* Start of the frame */
+		data += (count - rem);
+		count = rem;
+	} while (count);
 
-			switch (type) {
-			case HCI_EVENT_PKT:
-				if (count >= HCI_EVENT_HDR_SIZE) {
-					struct hci_event_hdr *h = data;
-					len = HCI_EVENT_HDR_SIZE + h->plen;
-				} else
-					return -EILSEQ;
-				break;
-
-			case HCI_ACLDATA_PKT:
-				if (count >= HCI_ACL_HDR_SIZE) {
-					struct hci_acl_hdr *h = data;
-					len = HCI_ACL_HDR_SIZE + __le16_to_cpu(h->dlen);
-				} else
-					return -EILSEQ;
-				break;
-
-			case HCI_SCODATA_PKT:
-				if (count >= HCI_SCO_HDR_SIZE) {
-					struct hci_sco_hdr *h = data;
-					len = HCI_SCO_HDR_SIZE + h->dlen;
-				} else
-					return -EILSEQ;
-				break;
-			}
-
-			skb = bt_skb_alloc(len, GFP_ATOMIC);
-			if (!skb) {
-				BT_ERR("%s no memory for packet", hdev->name);
-				return -ENOMEM;
-			}
-
-			skb->dev = (void *) hdev;
-			bt_cb(skb)->pkt_type = type;
-
-			__reassembly(hdev, type) = skb;
-
-			scb = (void *) skb->cb;
-			scb->expect = len;
-		} else {
-			/* Continuation */
-
-			scb = (void *) skb->cb;
-			len = scb->expect;
-		}
-
-		len = min(len, count);
-
-		memcpy(skb_put(skb, len), data, len);
-
-		scb->expect -= len;
-
-		if (scb->expect == 0) {
-			/* Complete frame */
-
-			__reassembly(hdev, type) = NULL;
-
-			bt_cb(skb)->pkt_type = type;
-			hci_recv_frame(skb);
-		}
-
-		count -= len; data += len;
-	}
-
-	return 0;
+	return rem;
 }
 EXPORT_SYMBOL(hci_recv_fragment);
 
