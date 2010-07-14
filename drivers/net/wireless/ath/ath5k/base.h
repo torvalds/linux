@@ -137,6 +137,7 @@ struct ath5k_statistics {
 
 	unsigned int mib_intr;
 	unsigned int rxorn_intr;
+	unsigned int rxeol_intr;
 };
 
 #if CHAN_DEBUG

@@ -1728,8 +1728,6 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 	ath5k_hw_stop_rx_dma(ah);	/* disable DMA engine */
 
 	ath5k_debug_printrxbuffs(sc, ah);
-
-	sc->rxlink = NULL;		/* just in case */
 }
 
 static unsigned int
@@ -2633,8 +2631,7 @@ ath5k_stop_locked(struct ath5k_softc *sc)
 	if (!test_bit(ATH_STAT_INVALID, sc->status)) {
 		ath5k_rx_stop(sc);
 		ath5k_hw_phy_disable(ah);
-	} else
-		sc->rxlink = NULL;
+	}
 
 	return 0;
 }
@@ -2771,7 +2768,7 @@ ath5k_intr(int irq, void *dev_id)
 				*     RXE bit is written, but it doesn't work at
 				*     least on older hardware revs.
 				*/
-				sc->rxlink = NULL;
+				sc->stats.rxeol_intr++;
 			}
 			if (status & AR5K_INT_TXURN) {
 				/* bump tx trigger level */
