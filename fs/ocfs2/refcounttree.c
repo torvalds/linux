@@ -2931,6 +2931,12 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 	offset = ((loff_t)cpos) << OCFS2_SB(sb)->s_clustersize_bits;
 	end = offset + (new_len << OCFS2_SB(sb)->s_clustersize_bits);
+	/*
+	 * We only duplicate pages until we reach the page contains i_size - 1.
+	 * So trim 'end' to i_size.
+	 */
+	if (end > i_size_read(context->inode))
+		end = i_size_read(context->inode);
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
