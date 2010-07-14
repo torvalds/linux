@@ -404,15 +404,12 @@ struct ehci_iso_stream {
 	u32			refcount;
 	u8			bEndpointAddress;
 	u8			highspeed;
-	u16			depth;		/* depth in uframes */
 	struct list_head	td_list;	/* queued itds/sitds */
 	struct list_head	free_list;	/* list of unused itds/sitds */
 	struct usb_device	*udev;
 	struct usb_host_endpoint *ep;
 
 	/* output of (re)scheduling */
-	unsigned long		start;		/* jiffies */
-	unsigned long		rescheduled;
 	int			next_uframe;
 	__hc32			splits;
 

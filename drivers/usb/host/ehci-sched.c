@@ -1074,15 +1074,6 @@ iso_stream_put(struct ehci_hcd *ehci, struct ehci_iso_stream *stream)
 		if (stream->ep)
 			stream->ep->hcpriv = NULL;
 
-		if (stream->rescheduled) {
-			ehci_info (ehci, "ep%d%s-iso rescheduled "
-				"%lu times in %lu seconds\n",
-				stream->bEndpointAddress, is_in ? "in" : "out",
-				stream->rescheduled,
-				((jiffies - stream->start)/HZ)
-				);
-		}
-
 		kfree(stream);
 	}
 }
@@ -1617,7 +1608,6 @@ itd_link_urb (
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
 			urb->interval,
 			next_uframe >> 3, next_uframe & 0x7);
-		stream->start = jiffies;
 	}
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs++;
 
@@ -1643,7 +1633,6 @@ itd_link_urb (
 		itd_patch(ehci, itd, iso_sched, packet, uframe);
 
 		next_uframe += stream->interval;
-		stream->depth += stream->interval;
 		next_uframe &= mod - 1;
 		packet++;
 
@@ -1699,7 +1688,6 @@ itd_complete (
 
 		t = hc32_to_cpup(ehci, &itd->hw_transaction [uframe]);
 		itd->hw_transaction [uframe] = 0;
-		stream->depth -= stream->interval;
 
 		/* report transfer status */
 		if (unlikely (t & ISO_ERRS)) {
@@ -2029,7 +2017,6 @@ sitd_link_urb (
 			(stream->bEndpointAddress & USB_DIR_IN) ? "in" : "out",
 			(next_uframe >> 3) & (ehci->periodic_size - 1),
 			stream->interval, hc32_to_cpu(ehci, stream->splits));
-		stream->start = jiffies;
 	}
 	ehci_to_hcd(ehci)->self.bandwidth_isoc_reqs++;
 
@@ -2054,7 +2041,6 @@ sitd_link_urb (
 				sitd);
 
 		next_uframe += stream->interval << 3;
-		stream->depth += stream->interval << 3;
 	}
 	stream->next_uframe = next_uframe & (mod - 1);
 
@@ -2114,7 +2100,6 @@ sitd_complete (
 		desc->actual_length = desc->length - SITD_LENGTH(t);
 		urb->actual_length += desc->actual_length;
 	}
-	stream->depth -= stream->interval << 3;
 
 	/* handle completion now? */
 	if ((urb_index + 1) != urb->number_of_packets)
