@@ -623,6 +623,7 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 	unsigned long iflag = 0;
 	struct lpfc_iocbq *iocbq;
 	int i;
+	struct lpfc_sli_ring *pring = &phba->sli.ring[LPFC_ELS_RING];
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	spin_lock(&phba->sli4_hba.abts_scsi_buf_list_lock);
@@ -651,6 +652,8 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 		psb = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
 		psb->exch_busy = 0;
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
+		if (pring->txq_cnt)
+			lpfc_worker_wake_up(phba);
 		return;
 
 	}
@@ -1322,6 +1325,10 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	bf_set(pde5_type, pde5, LPFC_PDE5_DESCRIPTOR);
 	pde5->reftag = reftag;
 
+	/* Endian convertion if necessary for PDE5 */
+	pde5->word0 = cpu_to_le32(pde5->word0);
+	pde5->reftag = cpu_to_le32(pde5->reftag);
+
 	/* advance bpl and increment bde count */
 	num_bde++;
 	bpl++;
@@ -1339,6 +1346,11 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	}
 	bf_set(pde6_ai, pde6, 1);
 	bf_set(pde6_apptagval, pde6, apptagval);
+
+	/* Endian convertion if necessary for PDE6 */
+	pde6->word0 = cpu_to_le32(pde6->word0);
+	pde6->word1 = cpu_to_le32(pde6->word1);
+	pde6->word2 = cpu_to_le32(pde6->word2);
 
 	/* advance bpl and increment bde count */
 	num_bde++;
@@ -1447,6 +1459,10 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		bf_set(pde5_type, pde5, LPFC_PDE5_DESCRIPTOR);
 		pde5->reftag = reftag;
 
+		/* Endian convertion if necessary for PDE5 */
+		pde5->word0 = cpu_to_le32(pde5->word0);
+		pde5->reftag = cpu_to_le32(pde5->reftag);
+
 		/* advance bpl and increment bde count */
 		num_bde++;
 		bpl++;
@@ -1463,6 +1479,11 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		bf_set(pde6_ai, pde6, 1);
 		bf_set(pde6_apptagval, pde6, apptagval);
 
+		/* Endian convertion if necessary for PDE6 */
+		pde6->word0 = cpu_to_le32(pde6->word0);
+		pde6->word1 = cpu_to_le32(pde6->word1);
+		pde6->word2 = cpu_to_le32(pde6->word2);
+
 		/* advance bpl and increment bde count */
 		num_bde++;
 		bpl++;
@@ -1473,7 +1494,6 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 		prot_bde->addrHigh = le32_to_cpu(putPaddrLow(protphysaddr));
 		prot_bde->addrLow = le32_to_cpu(putPaddrHigh(protphysaddr));
 		protgroup_len = sg_dma_len(sgpe);
-
 
 		/* must be integer multiple of the DIF block length */
 		BUG_ON(protgroup_len % 8);
@@ -3047,7 +3067,9 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	int ret = SUCCESS;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
-	fc_block_scsi_eh(cmnd);
+	ret = fc_block_scsi_eh(cmnd);
+	if (ret)
+		return ret;
 	lpfc_cmd = (struct lpfc_scsi_buf *)cmnd->host_scribble;
 	BUG_ON(!lpfc_cmd);
 
@@ -3365,7 +3387,9 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 		return FAILED;
 	}
 	pnode = rdata->pnode;
-	fc_block_scsi_eh(cmnd);
+	status = fc_block_scsi_eh(cmnd);
+	if (status)
+		return status;
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
@@ -3430,7 +3454,9 @@ lpfc_target_reset_handler(struct scsi_cmnd *cmnd)
 		return FAILED;
 	}
 	pnode = rdata->pnode;
-	fc_block_scsi_eh(cmnd);
+	status = fc_block_scsi_eh(cmnd);
+	if (status)
+		return status;
 
 	status = lpfc_chk_tgt_mapped(vport, cmnd);
 	if (status == FAILED) {
@@ -3496,7 +3522,9 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	fc_host_post_vendor_event(shost, fc_get_event_number(),
 		sizeof(scsi_event), (char *)&scsi_event, LPFC_NL_VENDOR_ID);
 
-	fc_block_scsi_eh(cmnd);
+	ret = fc_block_scsi_eh(cmnd);
+	if (ret)
+		return ret;
 
 	/*
 	 * Since the driver manages a single bus device, reset all

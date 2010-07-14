@@ -601,15 +601,8 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 			list_add(&sglq->list, &phba->sli4_hba.lpfc_sgl_list);
 
 			/* Check if TXQ queue needs to be serviced */
-			if (pring->txq_cnt) {
-				spin_lock_irqsave(
-					&phba->pport->work_port_lock, iflag);
-				phba->pport->work_port_events |=
-					WORKER_SERVICE_TXQ;
+			if (pring->txq_cnt)
 				lpfc_worker_wake_up(phba);
-				spin_unlock_irqrestore(
-					&phba->pport->work_port_lock, iflag);
-			}
 		}
 	}
 
@@ -12757,6 +12750,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	LPFC_MBOXQ_t *mb, *nextmb;
 	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
@@ -12778,6 +12772,9 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			}
 			ndlp = (struct lpfc_nodelist *) mb->context2;
 			if (ndlp) {
+				spin_lock_irq(shost->host_lock);
+				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
+				spin_unlock_irq(shost->host_lock);
 				lpfc_nlp_put(ndlp);
 				mb->context2 = NULL;
 			}
@@ -12793,6 +12790,9 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 			ndlp = (struct lpfc_nodelist *) mb->context2;
 			if (ndlp) {
+				spin_lock_irq(shost->host_lock);
+				ndlp->nlp_flag &= ~NLP_IGNR_REG_CMPL;
+				spin_unlock_irq(shost->host_lock);
 				lpfc_nlp_put(ndlp);
 				mb->context2 = NULL;
 			}
@@ -12878,10 +12878,6 @@ lpfc_drain_txq(struct lpfc_hba *phba)
 		}
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 	}
-
-	spin_lock_irqsave(&phba->pport->work_port_lock, iflags);
-	phba->pport->work_port_events &= ~WORKER_SERVICE_TXQ;
-	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflags);
 
 	/* Cancel all the IOCBs that cannot be issued */
 	lpfc_sli_cancel_iocbs(phba, &completions, IOSTAT_LOCAL_REJECT,

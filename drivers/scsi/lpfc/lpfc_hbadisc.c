@@ -276,7 +276,8 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 	    !(ndlp->nlp_flag & NLP_DELAY_TMO) &&
 	    !(ndlp->nlp_flag & NLP_NPR_2B_DISC) &&
 	    (ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	    (ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE))
+	    (ndlp->nlp_state != NLP_STE_REG_LOGIN_ISSUE) &&
+	    (ndlp->nlp_state != NLP_STE_PRLI_ISSUE))
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 
 	lpfc_unregister_unused_fcf(phba);
@@ -587,7 +588,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 							(status &
 							 HA_RXMASK));
 		}
-		if (phba->pport->work_port_events & WORKER_SERVICE_TXQ)
+		if (pring->txq_cnt)
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
