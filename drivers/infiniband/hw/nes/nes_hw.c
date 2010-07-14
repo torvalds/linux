@@ -1970,7 +1970,7 @@ void nes_destroy_nic_qp(struct nes_vnic *nesvnic)
 			dev_kfree_skb(
 				nesvnic->nic.tx_skb[nesvnic->nic.sq_tail]);
 
-		nesvnic->nic.sq_tail = (++nesvnic->nic.sq_tail)
+		nesvnic->nic.sq_tail = (nesvnic->nic.sq_tail + 1)
 					& (nesvnic->nic.sq_size - 1);
 	}
 
