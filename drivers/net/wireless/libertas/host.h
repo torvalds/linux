@@ -398,12 +398,12 @@ struct mrvl_ie_domain_param_set {
 
 	u8 countrycode[COUNTRY_CODE_LEN];
 	struct ieee80211_country_ie_triplet triplet[1];
-} __attribute__ ((packed));
+} __packed;
 
 struct cmd_ds_802_11d_domain_info {
 	__le16 action;
 	struct mrvl_ie_domain_param_set domain;
-} __attribute__ ((packed));
+} __packed;
 
 struct lbs_802_11d_domain_reg {
 	/** Country code*/
@@ -411,7 +411,7 @@ struct lbs_802_11d_domain_reg {
 	/** No. of triplet*/
 	u8 no_triplet;
 	struct ieee80211_country_ie_triplet triplet[MRVDRV_MAX_TRIPLET_802_11D];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Define data structure for CMD_GET_HW_SPEC

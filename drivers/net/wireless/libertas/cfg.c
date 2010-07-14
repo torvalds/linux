@@ -891,7 +891,7 @@ struct cmd_key_material {
 
 	__le16 action;
 	struct MrvlIEtype_keyParamSet param;
-} __attribute__ ((packed));
+} __packed;
 
 static int lbs_set_key_material(struct lbs_private *priv,
 				int key_type,
@@ -1395,7 +1395,7 @@ struct cmd_monitor_mode {
 
 	__le16 action;
 	__le16 mode;
-} __attribute__ ((packed));
+} __packed;
 
 static int lbs_enable_monitor_mode(struct lbs_private *priv, int mode)
 {
@@ -1450,7 +1450,7 @@ struct cmd_rssi {
 	__le16 nf;
 	__le16 avg_snr;
 	__le16 avg_nf;
-} __attribute__ ((packed));
+} __packed;
 
 static int lbs_get_signal(struct lbs_private *priv, s8 *signal, s8 *noise)
 {
