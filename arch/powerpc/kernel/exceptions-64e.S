@@ -204,11 +204,30 @@ exc_##n##_bad_stack:							    \
 	lis	r,TSR_FIS@h;						\
 	mtspr	SPRN_TSR,r
 
+/* Used by asynchronous interrupt that may happen in the idle loop.
+ *
+ * This check if the thread was in the idle loop, and if yes, returns
+ * to the caller rather than the PC. This is to avoid a race if
+ * interrupts happen before the wait instruction.
+ */
+#define CHECK_NAPPING()							\
+	clrrdi	r11,r1,THREAD_SHIFT;					\
+	ld	r10,TI_LOCAL_FLAGS(r11);				\
+	andi.	r9,r10,_TLF_NAPPING;					\
+	beq+	1f;							\
+	ld	r8,_LINK(r1);						\
+	rlwinm	r7,r10,0,~_TLF_NAPPING;					\
+	std	r8,_NIP(r1);						\
+	std	r7,TI_LOCAL_FLAGS(r11);					\
+1:
+
+
 #define MASKABLE_EXCEPTION(trapnum, label, hdlr, ack)			\
 	START_EXCEPTION(label);						\
 	NORMAL_EXCEPTION_PROLOG(trapnum, PROLOG_ADDITION_MASKABLE)	\
 	EXCEPTION_COMMON(trapnum, PACA_EXGEN, INTS_DISABLE_ALL)		\
 	ack(r8);							\
+	CHECK_NAPPING();						\
 	addi	r3,r1,STACK_FRAME_OVERHEAD;				\
 	bl	hdlr;							\
 	b	.ret_from_except_lite;
@@ -257,6 +276,7 @@ interrupt_end_book3e:
 	CRIT_EXCEPTION_PROLOG(0x100, PROLOG_ADDITION_NONE)
 //	EXCEPTION_COMMON(0x100, PACA_EXCRIT, INTS_DISABLE_ALL)
 //	bl	special_reg_save_crit
+//	CHECK_NAPPING();
 //	addi	r3,r1,STACK_FRAME_OVERHEAD
 //	bl	.critical_exception
 //	b	ret_from_crit_except
@@ -268,6 +288,7 @@ interrupt_end_book3e:
 //	EXCEPTION_COMMON(0x200, PACA_EXMC, INTS_DISABLE_ALL)
 //	bl	special_reg_save_mc
 //	addi	r3,r1,STACK_FRAME_OVERHEAD
+//	CHECK_NAPPING();
 //	bl	.machine_check_exception
 //	b	ret_from_mc_except
 	b	.
@@ -338,6 +359,7 @@ interrupt_end_book3e:
 	CRIT_EXCEPTION_PROLOG(0x9f0, PROLOG_ADDITION_NONE)
 //	EXCEPTION_COMMON(0x9f0, PACA_EXCRIT, INTS_DISABLE_ALL)
 //	bl	special_reg_save_crit
+//	CHECK_NAPPING();
 //	addi	r3,r1,STACK_FRAME_OVERHEAD
 //	bl	.unknown_exception
 //	b	ret_from_crit_except
@@ -434,6 +456,7 @@ kernel_dbg_exc:
 	CRIT_EXCEPTION_PROLOG(0x2080, PROLOG_ADDITION_NONE)
 //	EXCEPTION_COMMON(0x2080, PACA_EXCRIT, INTS_DISABLE_ALL)
 //	bl	special_reg_save_crit
+//	CHECK_NAPPING();
 //	addi	r3,r1,STACK_FRAME_OVERHEAD
 //	bl	.doorbell_critical_exception
 //	b	ret_from_crit_except
