@@ -1828,7 +1828,6 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 	u32 tlv_len;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
-	int ret = 0;
 
 	if (len < sizeof(*ucode)) {
 		IWL_ERR(priv, "uCode has invalid length: %zd\n", len);
@@ -1864,9 +1863,8 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 
 	len -= sizeof(*ucode);
 
-	while (len >= sizeof(*tlv) && !ret) {
+	while (len >= sizeof(*tlv)) {
 		u16 tlv_alt;
-		u32 fixed_tlv_size = 4;
 
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
@@ -1914,65 +1912,56 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 			pieces->boot_size = tlv_len;
 			break;
 		case IWL_UCODE_TLV_PROBE_MAX_LEN:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				capa->max_probe_length =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->max_probe_length =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->init_evtlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_evtlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_EVTLOG_SIZE:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->init_evtlog_size =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_evtlog_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_INIT_ERRLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->init_errlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->init_errlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_EVTLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->inst_evtlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_evtlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_EVTLOG_SIZE:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->inst_evtlog_size =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_evtlog_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_RUNT_ERRLOG_PTR:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				pieces->inst_errlog_ptr =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			pieces->inst_errlog_ptr =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		case IWL_UCODE_TLV_ENHANCE_SENS_TBL:
 			if (tlv_len)
-				ret = -EINVAL;
-			else
-				priv->enhance_sensitivity_table = true;
+				goto invalid_tlv_len;
+			priv->enhance_sensitivity_table = true;
 			break;
 		case IWL_UCODE_TLV_PHY_CALIBRATION_SIZE:
-			if (tlv_len != fixed_tlv_size)
-				ret = -EINVAL;
-			else
-				capa->standard_phy_calibration_size =
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			capa->standard_phy_calibration_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
 		default:
@@ -1984,14 +1973,16 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 	if (len) {
 		IWL_ERR(priv, "invalid TLV after parsing: %zd\n", len);
 		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)data, len);
-		ret = -EINVAL;
-	} else if (ret) {
-		IWL_ERR(priv, "TLV %d has invalid size: %u\n",
-			tlv_type, tlv_len);
-		iwl_print_hex_dump(priv, IWL_DL_FW, (u8 *)tlv_data, tlv_len);
+		return -EINVAL;
 	}
 
-	return ret;
+	return 0;
+
+ invalid_tlv_len:
+	IWL_ERR(priv, "TLV %d has invalid size: %u\n", tlv_type, tlv_len);
+	iwl_print_hex_dump(priv, IWL_DL_FW, tlv_data, tlv_len);
+
+	return -EINVAL;
 }
 
 /**
