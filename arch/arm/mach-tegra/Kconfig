@@ -22,7 +22,12 @@ comment "Tegra board type"
 config MACH_HARMONY
        bool "Harmony board"
        help
-         Support for nVidia Harmony development platform
+         Support for NVIDIA Harmony development platform
+
+config MACH_VENTANA
+       bool "Ventana board"
+       help
+         Support for NVIDIA Ventana development platform
 
 choice
         prompt "Low-level debug console UART"
