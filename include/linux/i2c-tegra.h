@@ -18,8 +18,17 @@
 #ifndef _LINUX_I2C_TEGRA_H
 #define _LINUX_I2C_TEGRA_H
 
+#include <mach/pinmux.h>
+
+#define TEGRA_I2C_MAX_BUS 3
+
 struct tegra_i2c_platform_data {
-	unsigned long bus_clk_rate;
+	int adapter_nr;
+	int bus_count;
+	const struct tegra_pingroup_config *bus_mux[TEGRA_I2C_MAX_BUS];
+	int bus_mux_len[TEGRA_I2C_MAX_BUS];
+	unsigned long bus_clk_rate[TEGRA_I2C_MAX_BUS];
+	bool is_dvc;
 };
 
 #endif /* _LINUX_I2C_TEGRA_H */
