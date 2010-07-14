@@ -28,7 +28,6 @@
 
 #define		EFUSE_FOR_92SU		1
 
-/*--------------------------Define Parameters-------------------------------*/
 #define		EFUSE_MAC_LEN					0x200
 #define		EFUSE_REAL_CONTENT_LEN		512
 #define		EFUSE_MAP_LEN					128
@@ -51,7 +50,6 @@
 #define		PG_SWBYTE_H			0x01
 #define		PG_SWBYTE_L			0x02
 
-/*--------------------------Exported Function prototype---------------------*/
 extern	void
 EFUSE_Initialize(struct net_device* dev);
 extern	u8
@@ -77,6 +75,5 @@ EFUSE_ShadowMapUpdate(struct net_device* dev);
 
 extern	bool
 EFUSE_ProgramMap(struct net_device* dev,char* pFileName, u8 TableType);		// 0=Shadow 1=Real Efuse
-/*--------------------------Exported Function prototype---------------------*/
 
 #endif

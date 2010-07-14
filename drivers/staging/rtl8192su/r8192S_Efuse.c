@@ -83,7 +83,6 @@ struct efuse_priv
 	u8		tx_power_g[14];
 };
 
-/*------------------------Define global variable-----------------------------*/
 const u8 MAX_PGPKT_SIZE = 9; //header+ 2* 4 words (BYTES)
 const u8 PGPKT_DATA_SIZE = 8; //BYTES sizeof(u8)*8
 const u32 EFUSE_MAX_SIZE = 512;
@@ -107,7 +106,6 @@ const EFUSE_MAP RTL8712_SDIO_EFUSE_TABLE[]={
 /*TxPwIndex */	{11		,0		,0			,28	}  // 58~73h  3...4
 };
 
-/*--------------------Define function prototype-----------------------*/
 //
 // From WMAC Efuse one byte R/W
 //
@@ -176,7 +174,6 @@ efuse_CalculateWordCnts(u8 word_en);
 #ifdef TO_DO_LIST
 static void efuse_reg_ctrl(struct net_device* dev, u8 bPowerOn);
 #endif
-/*--------------------Define function prototype-----------------------*/
 
 
 
@@ -283,7 +280,7 @@ EFUSE_Read1Byte(struct net_device* dev, u16	Address)
 	else
 		return 0xFF;
 
-}	/* EFUSE_Read1Byte */
+}
 
 
 /*-----------------------------------------------------------------------------
