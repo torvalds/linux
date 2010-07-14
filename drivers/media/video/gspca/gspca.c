@@ -201,7 +201,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 
 	buffer_len = le16_to_cpu(ep->wMaxPacketSize);
 	interval = ep->bInterval;
-	PDEBUG(D_PROBE, "found int in endpoint: 0x%x, "
+	PDEBUG(D_CONF, "found int in endpoint: 0x%x, "
 		"buffer_len=%u, interval=%u",
 		ep->bEndpointAddress, buffer_len, interval);
 
@@ -226,7 +226,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	gspca_dev->int_urb = urb;
 	ret = usb_submit_urb(urb, GFP_KERNEL);
 	if (ret < 0) {
-		PDEBUG(D_ERR, "submit URB failed with error %i", ret);
+		PDEBUG(D_ERR, "submit int URB failed with error %i", ret);
 		goto error_submit;
 	}
 	return ret;
@@ -2216,12 +2216,8 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	/* the USB video interface must be the first one */
 	if (dev->config->desc.bNumInterfaces != 1
-	 && intf->cur_altsetting->desc.bInterfaceNumber != 0) {
-		PDEBUG(D_ERR, "%04x:%04x bad interface %d",
-				id->idVendor, id->idProduct,
-				intf->cur_altsetting->desc.bInterfaceNumber);
+	 && intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return -ENODEV;
-	}
 
 	return gspca_dev_probe2(intf, id, sd_desc, dev_size, module);
 }
