@@ -26,6 +26,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/notifier.h>
+#include <linux/kobject.h>
 
 #define PADATA_CPU_SERIAL   0x01
 #define PADATA_CPU_PARALLEL 0x02
@@ -142,7 +143,8 @@ struct parallel_data {
  *           cbcpu for parallel and serial works respectivly.
  * @cpumask_change_notifier: Notifiers chain for user-defined notify
  *            callbacks that will be called when either @pcpu or @cbcpu
- *             or both cpumasks change.
+ *            or both cpumasks change.
+ * @kobj: padata instance kernel object.
  * @lock: padata instance lock.
  * @flags: padata flags.
  */
@@ -155,6 +157,7 @@ struct padata_instance {
 		cpumask_var_t		 cbcpu;
 	} cpumask;
 	struct blocking_notifier_head	 cpumask_change_notifier;
+	struct kobject                   kobj;
 	struct mutex			 lock;
 	u8				 flags;
 #define	PADATA_INIT	1
