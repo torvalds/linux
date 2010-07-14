@@ -29,21 +29,14 @@ typedef enum _VERSION_8192S{
 	VERSION_8192S_CCUT
 }VERSION_8192S,*PVERSION_8192S;
 
-//#ifdef RTL8192SU
 typedef enum _VERSION_8192SUsb{
 	VERSION_8192SU_A, //A-Cut
 	VERSION_8192SU_B, //B-Cut
 	VERSION_8192SU_C, //C-Cut
 }VERSION_8192SUsb, *PVERSION_8192SUsb;
-//#else
-typedef enum _VERSION_819xU{
-	VERSION_819xU_A, // A-cut
-	VERSION_819xU_B, // B-cut
-	VERSION_819xU_C,// C-cut
-}VERSION_819xU,*PVERSION_819xU;
-//#endif
 
-/* 2007/11/15 MH Define different RF type. */
+
+/* RF type. */
 typedef	enum _RT_RF_TYPE_DEFINITION
 {
 	RF_1T2R = 0,
@@ -51,9 +44,6 @@ typedef	enum _RT_RF_TYPE_DEFINITION
 	RF_2T2R,
 	RF_1T1R,
 	RF_2T2R_GREEN,
-	//RF_3T3R,
-	//RF_3T4R,
-	//RF_4T4R,
 	RF_819X_MAX_TYPE
 }RT_RF_TYPE_DEF_E;
 
@@ -71,8 +61,6 @@ typedef enum _BaseBand_Config_Type{
 #define MAX_RX_URB 16
 
 #define R8180_MAX_RETRY 255
-//#define MAX_RX_NORMAL_URB 3
-//#define MAX_RX_COMMAND_URB 2
 #define RX_URB_SIZE 		9100
 
 #define BB_ANTATTEN_CHAN14	0x0c
@@ -146,13 +134,6 @@ typedef enum _BaseBand_Config_Type{
 #define EPROM_CK_SHIFT 			2
 #define EPROM_W_SHIFT 			1
 #define EPROM_R_SHIFT 			0
-
-//#define	MAC0 			 0x000,
-//#define	MAC1 			 0x001,
-//#define	MAC2 			 0x002,
-//#define	MAC3 			 0x003,
-//#define	MAC4 			 0x004,
-//#define	MAC5 			 0x005,
 
 //============================================================
 //       8192S Regsiter offset definition
@@ -529,14 +510,6 @@ typedef enum _BaseBand_Config_Type{
 // USB RPWM register
 #define	USB_RPWM			0xFE58
 
-//FIXLZM SVN_BRACH NOT MOD HERE, IF MOD RX IS LITTLE LOW
-//#if ((HAL_CODE_BASE == RTL8192_S) &&  (DEV_BUS_TYPE==PCI_INTERFACE))
-//#define	RPWM		PCI_RPWM
-//#elif ((HAL_CODE_BASE == RTL8192_S) &&  (DEV_BUS_TYPE==USB_INTERFACE))
-//#define	RPWM		USB_RPWM
-//#endif
-
-
 //============================================================================
 //       8190 Regsiter offset definition
 //============================================================================
@@ -777,13 +750,11 @@ typedef enum _BaseBand_Config_Type{
 #define		RCR_MXDMA_OFFSET		8
 #define		RCR_FIFO_OFFSET		13
 
-//in 92U FIXLZM
-//#ifdef RTL8192U
 #define RCR_ONLYERLPKT		BIT31			// Early Receiving based on Packet Size.
 #define RCR_ENCS2			BIT30			// Enable Carrier Sense Detection Method 2
 #define RCR_ENCS1			BIT29			// Enable Carrier Sense Detection Method 1
 #define RCR_ACKTXBW			(BIT24|BIT25)		// TXBW Setting of ACK frames
-//#endif
+
 //----------------------------------------------------------------------------
 //       8192S (MSR) Media Status Register	(Offset 0x4C, 8 bits)
 //----------------------------------------------------------------------------
@@ -1460,34 +1431,4 @@ Default: 00b.
 #define		HAL_8192S_HW_GPIO_OFF_MASK	0xF7
 #define		HAL_8192S_HW_GPIO_WPS_BIT	BIT4
 
-#endif  //R8192S_HW
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#endif
