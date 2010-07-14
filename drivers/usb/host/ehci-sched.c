@@ -1399,7 +1399,6 @@ iso_stream_schedule (
 	int			status;
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
-	struct pci_dev		*pdev;
 
 	if (sched->span > (mod - SCHEDULE_SLOP)) {
 		ehci_dbg (ehci, "iso request %p too long\n", urb);
@@ -1426,15 +1425,14 @@ iso_stream_schedule (
 	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
-		pdev = to_pci_dev(ehci_to_hcd(ehci)->self.controller);
 		start = stream->next_uframe;
 
 		/* For high speed devices, allow scheduling within the
-		 * isochronous scheduling threshold.  For full speed devices,
-		 * don't. (Work around for Intel ICH9 bug.)
+		 * isochronous scheduling threshold.  For full speed devices
+		 * and Intel PCI-based controllers, don't (work around for
+		 * Intel ICH9 bug).
 		 */
-		if (!stream->highspeed &&
-				pdev->vendor == PCI_VENDOR_ID_INTEL)
+		if (!stream->highspeed && ehci->fs_i_thresh)
 			next = now + ehci->i_thresh;
 		else
 			next = now;

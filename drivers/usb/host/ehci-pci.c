@@ -114,6 +114,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	case PCI_VENDOR_ID_INTEL:
 		ehci->need_io_watchdog = 0;
+		ehci->fs_i_thresh = 1;
 		if (pdev->device == 0x27cc) {
 			ehci->broken_periodic = 1;
 			ehci_info(ehci, "using broken periodic workaround\n");
