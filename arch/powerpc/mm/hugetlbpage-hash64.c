@@ -121,8 +121,15 @@ repeat:
                         }
 		}
 
-		if (unlikely(slot == -2))
-			panic("hash_huge_page: pte_insert failed\n");
+		/*
+		 * Hypervisor failure. Restore old pte and return -1
+		 * similar to __hash_page_*
+		 */
+		if (unlikely(slot == -2)) {
+			*ptep = __pte(old_pte);
+			err = -1;
+			goto out;
+		}
 
 		new_pte |= (slot << 12) & (_PAGE_F_SECOND | _PAGE_F_GIX);
 	}
