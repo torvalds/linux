@@ -3583,7 +3583,7 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	kref_init(&ndlp->kref);
 	NLP_INT_NODE_ACT(ndlp);
 	atomic_set(&ndlp->cmd_pending, 0);
-	ndlp->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
+	ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
 }
 
 struct lpfc_nodelist *

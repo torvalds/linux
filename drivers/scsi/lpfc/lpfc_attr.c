@@ -2208,6 +2208,13 @@ LPFC_VPORT_ATTR_R(lun_queue_depth, 30, 1, 128,
 		  "Max number of FCP commands we can queue to a specific LUN");
 
 /*
+# tgt_queue_depth:  This parameter is used to limit the number of outstanding
+# commands per target port. Value range is [10,65535]. Default value is 65535.
+*/
+LPFC_VPORT_ATTR_R(tgt_queue_depth, 65535, 10, 65535,
+	"Max number of FCP commands we can queue to a specific target port");
+
+/*
 # hba_queue_depth:  This parameter is used to limit the number of outstanding
 # commands per lpfc HBA. Value range is [32,8192]. If this parameter
 # value is greater than the maximum number of exchanges supported by the HBA,
@@ -3122,7 +3129,7 @@ lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
 			continue;
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
-		ndlp->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
+		ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
 	}
 	spin_unlock_irq(shost->host_lock);
 	return 0;
@@ -3326,6 +3333,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_temp_sensor,
 	&dev_attr_lpfc_log_verbose,
 	&dev_attr_lpfc_lun_queue_depth,
+	&dev_attr_lpfc_tgt_queue_depth,
 	&dev_attr_lpfc_hba_queue_depth,
 	&dev_attr_lpfc_peer_port_login,
 	&dev_attr_lpfc_nodev_tmo,
@@ -3387,6 +3395,7 @@ struct device_attribute *lpfc_vport_attrs[] = {
 	&dev_attr_lpfc_drvr_version,
 	&dev_attr_lpfc_log_verbose,
 	&dev_attr_lpfc_lun_queue_depth,
+	&dev_attr_lpfc_tgt_queue_depth,
 	&dev_attr_lpfc_nodev_tmo,
 	&dev_attr_lpfc_devloss_tmo,
 	&dev_attr_lpfc_hba_queue_depth,
@@ -4575,6 +4584,7 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 {
 	lpfc_log_verbose_init(vport, lpfc_log_verbose);
 	lpfc_lun_queue_depth_init(vport, lpfc_lun_queue_depth);
+	lpfc_tgt_queue_depth_init(vport, lpfc_tgt_queue_depth);
 	lpfc_devloss_tmo_init(vport, lpfc_devloss_tmo);
 	lpfc_nodev_tmo_init(vport, lpfc_nodev_tmo);
 	lpfc_peer_port_login_init(vport, lpfc_peer_port_login);

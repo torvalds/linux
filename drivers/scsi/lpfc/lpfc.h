@@ -48,7 +48,7 @@ struct lpfc_sli2_slim;
 #define LPFC_TGTQ_INTERVAL	40000	/* Min amount of time between tgt
 					   queue depth change in millisecs */
 #define LPFC_TGTQ_RAMPUP_PCENT	5	/* Target queue rampup in percentage */
-#define LPFC_MIN_TGT_QDEPTH	100
+#define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
 #define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
@@ -400,6 +400,7 @@ struct lpfc_vport {
 	uint32_t cfg_max_luns;
 	uint32_t cfg_enable_da_id;
 	uint32_t cfg_max_scsicmpl_time;
+	uint32_t cfg_tgt_queue_depth;
 
 	uint32_t dev_loss_tmo_changed;
 

@@ -2458,14 +2458,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	} else if (pnode && NLP_CHK_NODE_ACT(pnode)) {
-		if ((pnode->cmd_qdepth < LPFC_MAX_TGT_QDEPTH) &&
+		if ((pnode->cmd_qdepth < vport->cfg_tgt_queue_depth) &&
 		   time_after(jiffies, pnode->last_change_time +
 			      msecs_to_jiffies(LPFC_TGTQ_INTERVAL))) {
 			spin_lock_irqsave(shost->host_lock, flags);
-			pnode->cmd_qdepth += pnode->cmd_qdepth *
-				LPFC_TGTQ_RAMPUP_PCENT / 100;
-			if (pnode->cmd_qdepth > LPFC_MAX_TGT_QDEPTH)
-				pnode->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
+			depth = pnode->cmd_qdepth * LPFC_TGTQ_RAMPUP_PCENT
+				/ 100;
+			depth = depth ? depth : 1;
+			pnode->cmd_qdepth += depth;
+			if (pnode->cmd_qdepth > vport->cfg_tgt_queue_depth)
+				pnode->cmd_qdepth = vport->cfg_tgt_queue_depth;
 			pnode->last_change_time = jiffies;
 			spin_unlock_irqrestore(shost->host_lock, flags);
 		}
@@ -2920,8 +2922,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		cmnd->result = ScsiResult(DID_TRANSPORT_DISRUPTED, 0);
 		goto out_fail_command;
 	}
-	if (vport->cfg_max_scsicmpl_time &&
-		(atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth))
+	if (atomic_read(&ndlp->cmd_pending) >= ndlp->cmd_qdepth)
 		goto out_host_busy;
 
 	lpfc_cmd = lpfc_get_scsi_buf(phba);
