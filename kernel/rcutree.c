@@ -145,7 +145,7 @@ module_param(qlowmark, int, 0);
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 int rcu_cpu_stall_suppress __read_mostly;
-module_param(rcu_cpu_stall_suppress, int, 0);
+module_param(rcu_cpu_stall_suppress, int, 0644);
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 static void force_quiescent_state(struct rcu_state *rsp, int relaxed);
