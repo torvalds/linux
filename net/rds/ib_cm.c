@@ -615,11 +615,18 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 		}
 
 		/*
-		 * Don't wait for the send ring to be empty -- there may be completed
-		 * non-signaled entries sitting on there. We unmap these below.
+		 * We want to wait for tx and rx completion to finish
+		 * before we tear down the connection, but we have to be
+		 * careful not to get stuck waiting on a send ring that
+		 * only has unsignaled sends in it.  We've shutdown new
+		 * sends before getting here so by waiting for signaled
+		 * sends to complete we're ensured that there will be no
+		 * more tx processing.
 		 */
 		wait_event(rds_ib_ring_empty_wait,
-			rds_ib_ring_empty(&ic->i_recv_ring));
+			   rds_ib_ring_empty(&ic->i_recv_ring) &&
+			   (atomic_read(&ic->i_signaled_sends) == 0));
+		tasklet_kill(&ic->i_recv_tasklet);
 
 		if (ic->i_send_hdrs)
 			ib_dma_free_coherent(dev,
@@ -729,6 +736,7 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 #ifndef KERNEL_HAS_ATOMIC64
 	spin_lock_init(&ic->i_ack_lock);
 #endif
+	atomic_set(&ic->i_signaled_sends, 0);
 
 	/*
 	 * rds_ib_conn_shutdown() waits for these to be emptied so they

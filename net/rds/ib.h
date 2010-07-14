@@ -108,6 +108,7 @@ struct rds_ib_connection {
 	struct rds_header	*i_send_hdrs;
 	u64			i_send_hdrs_dma;
 	struct rds_ib_send_work *i_sends;
+	atomic_t		i_signaled_sends;
 
 	/* rx */
 	struct tasklet_struct	i_recv_tasklet;
