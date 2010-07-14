@@ -3415,13 +3415,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (sd->sensor == SENSOR_OV7670)
 		sd->flags |= FL_HFLIP | FL_VFLIP;
 
-	if (sd->bridge == BRIDGE_VC0321) {
-		reg_r(gspca_dev, 0x8a, 0, 3);
-		reg_w(gspca_dev, 0x87, 0x00, 0x0f0f);
-
-		reg_r(gspca_dev, 0x8b, 0, 3);
-		reg_w(gspca_dev, 0x88, 0x00, 0x0202);
-	}
 	return 0;
 }
 
@@ -3430,12 +3423,18 @@ static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor == SENSOR_POxxxx) {
-		reg_r(gspca_dev, 0xa1, 0xb300, 1);
-		if (gspca_dev->usb_buf[0] != 0) {
-			reg_w(gspca_dev, 0xa0, 0x26, 0xb300);
-			reg_w(gspca_dev, 0xa0, 0x04, 0xb300);
-			reg_w(gspca_dev, 0xa0, 0x00, 0xb300);
+	if (sd->bridge == BRIDGE_VC0321) {
+		reg_r(gspca_dev, 0x8a, 0, 3);
+		reg_w(gspca_dev, 0x87, 0x00, 0x0f0f);
+		reg_r(gspca_dev, 0x8b, 0, 3);
+		reg_w(gspca_dev, 0x88, 0x00, 0x0202);
+		if (sd->sensor == SENSOR_POxxxx) {
+			reg_r(gspca_dev, 0xa1, 0xb300, 1);
+			if (gspca_dev->usb_buf[0] != 0) {
+				reg_w(gspca_dev, 0xa0, 0x26, 0xb300);
+				reg_w(gspca_dev, 0xa0, 0x04, 0xb300);
+				reg_w(gspca_dev, 0xa0, 0x00, 0xb300);
+			}
 		}
 	}
 	return gspca_dev->usb_err;
