@@ -66,7 +66,7 @@ struct bdaddr_list {
 	struct list_head list;
 	bdaddr_t bdaddr;
 };
-
+#define NUM_REASSEMBLY 4
 struct hci_dev {
 	struct list_head list;
 	spinlock_t	lock;
@@ -123,7 +123,7 @@ struct hci_dev {
 	struct sk_buff_head	cmd_q;
 
 	struct sk_buff		*sent_cmd;
-	struct sk_buff		*reassembly[3];
+	struct sk_buff		*reassembly[NUM_REASSEMBLY];
 
 	struct mutex		req_lock;
 	wait_queue_head_t	req_wait_q;

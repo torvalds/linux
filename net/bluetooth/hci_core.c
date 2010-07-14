@@ -914,7 +914,7 @@ int hci_register_dev(struct hci_dev *hdev)
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < NUM_REASSEMBLY; i++)
 		hdev->reassembly[i] = NULL;
 
 	init_waitqueue_head(&hdev->req_wait_q);
@@ -973,7 +973,7 @@ int hci_unregister_dev(struct hci_dev *hdev)
 
 	hci_dev_do_close(hdev);
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < NUM_REASSEMBLY; i++)
 		kfree_skb(hdev->reassembly[i]);
 
 	hci_notify(hdev, HCI_DEV_UNREG);
@@ -1034,7 +1034,7 @@ int hci_recv_frame(struct sk_buff *skb)
 EXPORT_SYMBOL(hci_recv_frame);
 
 /* Receive packet type fragment */
-#define __reassembly(hdev, type)  ((hdev)->reassembly[(type) - 2])
+#define __reassembly(hdev, type)  ((hdev)->reassembly[(type) - 1])
 
 int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 {
