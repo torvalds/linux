@@ -640,12 +640,16 @@ static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 				   : USB_ENDPOINT_XFER_ISOC;
 	i = gspca_dev->alt;			/* previous alt setting */
 	if (gspca_dev->cam.reverse_alts) {
+		if (gspca_dev->audio)
+			i++;
 		while (++i < gspca_dev->nbalt) {
 			ep = alt_xfer(&intf->altsetting[i], xfer);
 			if (ep)
 				break;
 		}
 	} else {
+		if (gspca_dev->audio)
+			i--;
 		while (--i >= 0) {
 			ep = alt_xfer(&intf->altsetting[i], xfer);
 			if (ep)
@@ -2146,6 +2150,24 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	gspca_dev->dev = dev;
 	gspca_dev->iface = intf->cur_altsetting->desc.bInterfaceNumber;
 	gspca_dev->nbalt = intf->num_altsetting;
+
+	/* check if any audio device */
+	if (dev->config->desc.bNumInterfaces != 1) {
+		int i;
+		struct usb_interface *intf2;
+
+		for (i = 0; i < dev->config->desc.bNumInterfaces; i++) {
+			intf2 = dev->config->interface[i];
+			if (intf2 != NULL
+			 && intf2->altsetting != NULL
+			 && intf2->altsetting->desc.bInterfaceClass ==
+					 USB_CLASS_AUDIO) {
+				gspca_dev->audio = 1;
+				break;
+			}
+		}
+	}
+
 	gspca_dev->sd_desc = sd_desc;
 	gspca_dev->nbufread = 2;
 	gspca_dev->empty_packet = -1;	/* don't check the empty packets */

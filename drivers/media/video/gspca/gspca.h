@@ -198,6 +198,7 @@ struct gspca_dev {
 	struct mutex read_lock;		/* read protection */
 	struct mutex queue_lock;	/* ISOC queue protection */
 	int usb_err;			/* USB error - protected by usb_lock */
+	u16 pkt_size;			/* ISOC packet size */
 #ifdef CONFIG_PM
 	char frozen;			/* suspend - resume */
 #endif
@@ -208,7 +209,7 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	__u8 nbalt;			/* number of USB alternate settings */
-	u16 pkt_size;			/* ISOC packet size */
+	u8 audio;			/* presence of audio device */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
