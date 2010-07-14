@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/leds-ld-cpcap.h>
@@ -34,6 +35,7 @@
 #include <linux/spi/spi.h>
 
 #include <mach/gpio.h>
+#include <mach/iomap.h>
 #include <mach/irqs.h>
 
 #include "board-stingray.h"
@@ -148,6 +150,8 @@ static struct notifier_block validity_reboot_notifier = {
 
 static int cpcap_validity_probe(struct platform_device *pdev)
 {
+	int err;
+
 	if (pdev->dev.platform_data == NULL) {
 		dev_err(&pdev->dev, "no platform_data\n");
 		return -EINVAL;
@@ -160,6 +164,13 @@ static int cpcap_validity_probe(struct platform_device *pdev)
 			   (CPCAP_BIT_AP_KERNEL_PANIC | CPCAP_BIT_SOFT_RESET));
 
 	register_reboot_notifier(&validity_reboot_notifier);
+
+	/* CORE_PWR_REQ is only properly connected on P1 hardware and later */
+	if (stingray_revision() >= STINGRAY_REVISION_P1) {
+		err = cpcap_uc_start(cpcap_di, CPCAP_MACRO_14);
+		dev_info(&pdev->dev, "Started macro 14: %d\n", err);
+	} else
+		dev_info(&pdev->dev, "Not starting macro 14 (no hw support)\n");
 
 	return 0;
 }
@@ -667,6 +678,13 @@ static struct platform_device mdm_ctrl_platform_device = {
 int __init stingray_power_init(void)
 {
 	int i;
+	unsigned long pmc_cntrl_0;
+
+	/* Enable CORE_PWR_REQ signal from T20. The signal must be enabled
+	 * before the CPCAP uC firmware is started. */
+	pmc_cntrl_0 = readl(IO_ADDRESS(TEGRA_PMC_BASE));
+	pmc_cntrl_0 |= 0x00000200;
+	writel(pmc_cntrl_0, IO_ADDRESS(TEGRA_PMC_BASE));
 
 	if (stingray_revision() <= STINGRAY_REVISION_M1) {
 		cpcap_regulator[CPCAP_SW5].constraints.boot_on = 1;
