@@ -1268,6 +1268,9 @@ typedef struct r8192_priv
 	bool		EepromOrEfuse;
 	bool		bBootFromEfuse;	// system boot form EFUSE
 	u8  		EfuseMap[2][HWSET_MAX_SIZE_92S];
+	u16		EfuseUsedBytes;
+	u8		EfuseUsedPercentage;
+
 
 	u8  		EEPROMUsbOption;
 	u8  		EEPROMUsbPhyParam[5];

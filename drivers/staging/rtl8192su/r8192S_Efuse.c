@@ -88,6 +88,7 @@ const u8 MAX_PGPKT_SIZE = 9; //header+ 2* 4 words (BYTES)
 const u8 PGPKT_DATA_SIZE = 8; //BYTES sizeof(u8)*8
 const u32 EFUSE_MAX_SIZE = 512;
 
+const u8 EFUSE_OOB_PROTECT_BYTES = 14;
 
 const EFUSE_MAP RTL8712_SDIO_EFUSE_TABLE[]={
 				//offset	word_s	byte_start	byte_cnts
@@ -157,7 +158,7 @@ efuse_ParsingMap(char* szStr,u32* pu4bVal,u32* pu4bMove);
 //
 static	u8
 efuse_PgPacketRead(	struct net_device* dev,u8	offset,u8 *data);
-static	u8
+static	u32
 efuse_PgPacketWrite(struct net_device* dev,u8 offset,u8 word_en,u8	*data);
 static	void
 efuse_WordEnableDataRead(	u8 word_en,u8 *sourdata,u8 *targetdata);
@@ -499,76 +500,145 @@ void
 ReadEFuse(struct net_device* dev, u16	 _offset, u16 _size_byte, u8 *pbuf)
 {
 
-	u8  	efuseTbl[128];
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	u8  	efuseTbl[EFUSE_MAP_LEN];
 	u8  	rtemp8[1];
 	u16 	eFuse_Addr = 0;
 	u8  	offset, wren;
 	u16  	i, j;
-	u16 	eFuseWord[16][4];// = {0xFF};//FIXLZM
+	u16 	eFuseWord[EFUSE_MAX_SECTION][EFUSE_MAX_WORD_UNIT];
+	u16	efuse_utilized = 0;
+	u16	efuse_usage = 0;
 
-	for(i=0; i<16; i++)
-		for(j=0; j<4; j++)
-			eFuseWord[i][j]=0xFF;
-
-	// Do NOT excess total size of EFuse table. Added by Roger, 2008.11.10.
-	if((_offset + _size_byte)>128)
-	{// total E-Fuse table is 128bytes
+	if((_offset + _size_byte)>EFUSE_MAP_LEN)
+	{
 		printk("ReadEFuse(): Invalid offset with read bytes!!\n");
 		return;
 	}
 
-	// Refresh efuse init map as all oxFF.
-	for (i = 0; i < 128; i++)
-		efuseTbl[i] = 0xFF;
+	for(i = 0; i < EFUSE_MAX_SECTION; i++)
+		for(j = 0; j < EFUSE_MAX_WORD_UNIT; j++)
+			eFuseWord[i][j]=0xFFFF;
 
 #if (EFUSE_READ_SWITCH == 1)
 	ReadEFuseByte(dev, eFuse_Addr, rtemp8);
 #else
 	rtemp8[0] = EFUSE_Read1Byte(dev, eFuse_Addr);
 #endif
-	if(*rtemp8 != 0xFF)		eFuse_Addr++;
-	while((*rtemp8 != 0xFF) && (eFuse_Addr < 512)){
+	if(*rtemp8 != 0xFF){
+		efuse_utilized++;
+		RT_TRACE(COMP_EPROM, "Addr=%d\n", eFuse_Addr);
+		eFuse_Addr++;
+	}
+
+	while((*rtemp8 != 0xFF) && (eFuse_Addr < EFUSE_REAL_CONTENT_LEN))
+	{
 		offset = ((*rtemp8 >> 4) & 0x0f);
-		if(offset <= 0x0F){
+		if(offset < EFUSE_MAX_SECTION)
+		{
 			wren = (*rtemp8 & 0x0f);
-			for(i=0; i<4; i++){
-				if(!(wren & 0x01)){
+			RT_TRACE(COMP_EPROM, "Offset-%d Worden=%x\n", offset, wren);
+
+			for(i = 0; i < EFUSE_MAX_WORD_UNIT; i++)
+			{
+				if(!(wren & 0x01))
+				{
+					RT_TRACE(COMP_EPROM, "Addr=%d\n", eFuse_Addr);
 #if (EFUSE_READ_SWITCH == 1)
 					ReadEFuseByte(dev, eFuse_Addr, rtemp8);	eFuse_Addr++;
 #else
 					rtemp8[0] = EFUSE_Read1Byte(dev, eFuse_Addr);	eFuse_Addr++;
 #endif
+					efuse_utilized++;
 					eFuseWord[offset][i] = (*rtemp8 & 0xff);
-					if(eFuse_Addr >= 512) break;
+					if(eFuse_Addr >= EFUSE_REAL_CONTENT_LEN)
+						break;
+
+					RT_TRACE(COMP_EPROM, "Addr=%d\n", eFuse_Addr);
 #if (EFUSE_READ_SWITCH == 1)
 					ReadEFuseByte(dev, eFuse_Addr, rtemp8);	eFuse_Addr++;
 #else
 					rtemp8[0] = EFUSE_Read1Byte(dev, eFuse_Addr);	eFuse_Addr++;
 #endif
+					efuse_utilized++;
 					eFuseWord[offset][i] |= (((u16)*rtemp8 << 8) & 0xff00);
-					if(eFuse_Addr >= 512) break;
+					if(eFuse_Addr >= EFUSE_REAL_CONTENT_LEN)
+						break;
 				}
 				wren >>= 1;
 			}
 		}
+
+		RT_TRACE(COMP_EPROM, "Addr=%d\n", eFuse_Addr);
 #if (EFUSE_READ_SWITCH == 1)
 		ReadEFuseByte(dev, eFuse_Addr, rtemp8);
 #else
 		rtemp8[0] = EFUSE_Read1Byte(dev, eFuse_Addr);	eFuse_Addr++;
 #endif
-		if(*rtemp8 != 0xFF && (eFuse_Addr < 512))	eFuse_Addr++;
+		if(*rtemp8 != 0xFF && (eFuse_Addr < 512))
+		{
+			efuse_utilized++;
+			eFuse_Addr++;
+		}
 	}
 
-	for(i=0; i<16; i++){
-		for(j=0; j<4; j++){
+	for(i=0; i<EFUSE_MAX_SECTION; i++)
+	{
+		for(j=0; j<EFUSE_MAX_WORD_UNIT; j++)
+		{
 			efuseTbl[(i*8)+(j*2)]=(eFuseWord[i][j] & 0xff);
 			efuseTbl[(i*8)+((j*2)+1)]=((eFuseWord[i][j] >> 8) & 0xff);
 		}
 	}
 	for(i=0; i<_size_byte; i++)
 		pbuf[i] = efuseTbl[_offset+i];
+
+	efuse_usage = (u8)((efuse_utilized*100)/EFUSE_REAL_CONTENT_LEN);
+	priv->EfuseUsedBytes = efuse_utilized;
+	priv->EfuseUsedPercentage = (u8)efuse_usage;
 }
 #endif
+
+extern	bool
+EFUSE_ShadowUpdateChk(struct net_device* dev)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	u8	SectionIdx, i, Base;
+	u16	WordsNeed = 0, HdrNum = 0, TotalBytes = 0, EfuseUsed = 0;
+	bool	bWordChanged, bResult = true;
+
+	for (SectionIdx = 0; SectionIdx < 16; SectionIdx++)
+	{
+		Base = SectionIdx * 8;
+		bWordChanged = false;
+
+		for (i = 0; i < 8; i=i+2)
+		{
+			if((priv->EfuseMap[EFUSE_INIT_MAP][Base+i] !=
+				priv->EfuseMap[EFUSE_MODIFY_MAP][Base+i]) ||
+				(priv->EfuseMap[EFUSE_INIT_MAP][Base+i+1] !=
+				priv->EfuseMap[EFUSE_MODIFY_MAP][Base+i+1]))
+			{
+				WordsNeed++;
+				bWordChanged = true;
+			}
+		}
+
+		if( bWordChanged==true )
+			HdrNum++;
+	}
+
+	TotalBytes = HdrNum + WordsNeed*2;
+	EfuseUsed = priv->EfuseUsedBytes;
+
+	if( (TotalBytes + EfuseUsed) >= (EFUSE_MAX_SIZE-EFUSE_OOB_PROTECT_BYTES))
+		bResult = true;
+
+	RT_TRACE(COMP_EPROM, "EFUSE_ShadowUpdateChk(): TotalBytes(%x), HdrNum(%x), WordsNeed(%x), EfuseUsed(%d)\n",
+		TotalBytes, HdrNum, WordsNeed, EfuseUsed);
+
+	return bResult;
+}
 
 /*-----------------------------------------------------------------------------
  * Function:	EFUSE_ShadowRead
@@ -645,14 +715,25 @@ EFUSE_ShadowWrite(	struct net_device*	dev,	u8 Type, u16 Offset,u32	Value)
  * 11/12/2008 	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
-extern	void
+extern bool
 EFUSE_ShadowUpdate(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16			i, offset, base = 0;
 	u8			word_en = 0x0F;
-	bool first_pg = false;
-	// For Efuse write action, we must enable LDO2.5V and 40MHZ clk.
+	bool			first_pg = false;
+
+	RT_TRACE(COMP_EPROM, "--->EFUSE_ShadowUpdate()\n");
+
+	if(!EFUSE_ShadowUpdateChk(dev))
+	{
+		efuse_ReadAllMap(dev, &priv->EfuseMap[EFUSE_INIT_MAP][0]);
+		memcpy((void *)&priv->EfuseMap[EFUSE_MODIFY_MAP][0],
+			(void *)&priv->EfuseMap[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE_92S);
+
+		RT_TRACE(COMP_EPROM, "<---EFUSE_ShadowUpdate(): Efuse out of capacity!!\n");
+		return false;
+	}
 	efuse_PowerSwitch(dev, TRUE);
 
 	//
@@ -670,13 +751,12 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 		//
 		for (i = 0; i < 8; i++)
 		{
-			if (offset == 0 && priv->EfuseMap[EFUSE_INIT_MAP][base+i] == 0xFF)
-			{
-				first_pg = TRUE;
-			}
 			if (first_pg == TRUE)
 			{
 				word_en &= ~(1<<(i/2));
+				RT_TRACE(COMP_EPROM,"Section(%x) Addr[%x] %x update to %x, Word_En=%02x\n",
+				offset, base+i, priv->EfuseMap[EFUSE_INIT_MAP][base+i],
+				priv->EfuseMap[EFUSE_MODIFY_MAP][base+i],word_en);
 				priv->EfuseMap[EFUSE_INIT_MAP][base+i] =
 				priv->EfuseMap[EFUSE_MODIFY_MAP][base+i];
 			}else
@@ -685,8 +765,9 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 				priv->EfuseMap[EFUSE_MODIFY_MAP][base+i])
 			{
 				word_en &= ~(EFUSE_BIT(i/2));
-				//RT_TRACE(COMP_EFUSE,  "Offset=%d Addr%x %x ==> %x Word_En=%02x\n",
-				//offset, base+i, priv->EfuseMap[0][base+i], priv->EfuseMap[1][base+i],word_en);
+				RT_TRACE(COMP_EPROM, "Section(%x) Addr[%x] %x update to %x, Word_En=%02x\n",
+				offset, base+i, priv->EfuseMap[0][base+i],
+				priv->EfuseMap[1][base+i],word_en);
 
 				// Update init table!!!
 				priv->EfuseMap[EFUSE_INIT_MAP][base+i] =
@@ -702,20 +783,26 @@ EFUSE_ShadowUpdate(struct net_device* dev)
 		{
 			u8	tmpdata[8];
 
-			memcpy(tmpdata, &(priv->EfuseMap[EFUSE_MODIFY_MAP][base]), 8);
-			efuse_PgPacketWrite(dev,(u8)offset,word_en,tmpdata);
+			memcpy((void *)tmpdata, (void *)&(priv->EfuseMap[EFUSE_MODIFY_MAP][base]), 8);
+			RT_TRACE(COMP_INIT, "U-EFUSE\n");
+
+			if(!efuse_PgPacketWrite(dev,(u8)offset,word_en,tmpdata))
+			{
+				RT_TRACE(COMP_EPROM,"EFUSE_ShadowUpdate(): PG section(%x) fail!!\n", offset);
+				break;
+			}
 		}
 
 	}
-	// We will force write 0x10EC into address 10&11 after all Efuse content.
-	//
-
-
 	// For warm reboot, we must resume Efuse clock to 500K.
-	efuse_PowerSwitch(dev, FALSE);
-	// 2008/12/01 MH We update shadow content again!!!!
-	EFUSE_ShadowMapUpdate(dev);
 
+	efuse_PowerSwitch(dev, FALSE);
+
+	efuse_ReadAllMap(dev, &priv->EfuseMap[EFUSE_INIT_MAP][0]);
+	memcpy((void *)&priv->EfuseMap[EFUSE_MODIFY_MAP][0],
+		(void *)&priv->EfuseMap[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE_92S);
+
+	return true;
 }
 
 /*-----------------------------------------------------------------------------
@@ -743,8 +830,8 @@ extern void EFUSE_ShadowMapUpdate(struct net_device* dev)
 	}else{
 		efuse_ReadAllMap(dev, &priv->EfuseMap[EFUSE_INIT_MAP][0]);
 	}
-	memcpy(&priv->EfuseMap[EFUSE_MODIFY_MAP][0],
-		&priv->EfuseMap[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE_92S);
+	memcpy((void *)&priv->EfuseMap[EFUSE_MODIFY_MAP][0],
+		(void *)&priv->EfuseMap[EFUSE_INIT_MAP][0], HWSET_MAX_SIZE_92S);
 
 }
 
@@ -1119,7 +1206,7 @@ efuse_PgPacketRead(	struct net_device*	dev,	u8 offset, u8	*data)
  * 11/16/2008 	MHC		Reorganize code Arch and assign as local API.
  *
  *---------------------------------------------------------------------------*/
-static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *data)
+static u32 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *data)
 {
 	u8 WriteState = PG_STATE_HEADER;
 
@@ -1227,14 +1314,12 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 							badworden = efuse_WordEnableDataWrite(dev,efuse_addr+1, tmp_pkt.word_en ,target_pkt.data);
 
 							//************  so-2-2-A-1 *******************
-							//############################
 							if(0x0F != (badworden&0x0F))
 							{
 								u8 reorg_offset = offset;
 								u8 reorg_worden=badworden;
 								efuse_PgPacketWrite(dev,reorg_offset,reorg_worden,originaldata);
 							}
-							//############################
 
 							tmp_word_en = 0x0F;
 							if(  (target_pkt.word_en&BIT0)^(match_word_en&BIT0)  )
@@ -1257,13 +1342,13 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 							//************  so-2-2-A-2 *******************
 							if((tmp_word_en&0x0F)!=0x0F){
 								//reorganize other pg packet
-								//efuse_addr = efuse_addr + (2*tmp_word_cnts) +1;//next pg packet addr
-								efuse_addr = efuse_GetCurrentSize(dev);
-								//===========================
-								target_pkt.offset = offset;
+
+							efuse_addr = efuse_GetCurrentSize(dev);
+
+							target_pkt.offset = offset;
 								target_pkt.word_en= tmp_word_en;
-								//===========================
-							}else{
+
+						}else{
 								bContinual = FALSE;
 							}
 							#if (EFUSE_ERROE_HANDLE == 1)
@@ -1278,10 +1363,8 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 						else{//************  so-2-2-B *******************
 							//reorganize other pg packet
 							efuse_addr = efuse_addr + (2*tmp_word_cnts) +1;//next pg packet addr
-							//===========================
 							target_pkt.offset = offset;
 							target_pkt.word_en= target_pkt.word_en;
-							//===========================
 							#if (EFUSE_ERROE_HANDLE == 1)
 							WriteState=PG_STATE_HEADER;
 							#endif
@@ -1320,13 +1403,10 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 
 					//************  s1-2-A :cover the exist data *******************
 					memset(originaldata,0xff,sizeof(u8)*8);
-					//PlatformFillMemory((PVOID)originaldata, sizeof(u8)*8, 0xff);
 
 					if(efuse_PgPacketRead( dev, tmp_pkt.offset,originaldata))
 					{	//check if data exist
-						//efuse_reg_ctrl(pAdapter,TRUE);//power on
 						badworden = efuse_WordEnableDataWrite(dev,efuse_addr+1,tmp_pkt.word_en,originaldata);
-						//############################
 						if(0x0F != (badworden&0x0F))
 						{
 							u8 reorg_offset = tmp_pkt.offset;
@@ -1334,7 +1414,6 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 							efuse_PgPacketWrite(dev,reorg_offset,reorg_worden,originaldata);
 							efuse_addr = efuse_GetCurrentSize(dev);
 						}
-						//############################
 						else{
 							efuse_addr = efuse_addr + (tmp_word_cnts*2) +1; //Next pg_packet
 						}
@@ -1374,11 +1453,9 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 			{//reorganize other pg packet //************  s1-1-B *******************
 				efuse_addr = efuse_addr + (2*target_word_cnts) +1;//next pg packet addr
 
-				//===========================
 				target_pkt.offset = offset;
 				target_pkt.word_en= badworden;
 				target_word_cnts =  efuse_CalculateWordCnts(target_pkt.word_en);
-				//===========================
 				#if (EFUSE_ERROE_HANDLE == 1)
 				WriteState=PG_STATE_HEADER;
 				repeat_times++;
@@ -1392,6 +1469,10 @@ static u8 efuse_PgPacketWrite(struct net_device* dev, u8 offset, u8 word_en,u8 *
 		}
 	}
 
+	if(efuse_addr  >= (EFUSE_MAX_SIZE-EFUSE_OOB_PROTECT_BYTES))
+	{
+		RT_TRACE(COMP_EPROM, "efuse_PgPacketWrite(): efuse_addr(%x) Out of size!!\n", efuse_addr);
+	}
 	return TRUE;
 }
 
@@ -1678,12 +1759,10 @@ EFUSE_ProgramMap(struct net_device* dev, char* pFileName,u8	TableType)
 				{
 					u32	j;
 
-					//GetHexValueFromString(szLine, &u4bRegValue, &u4bMove);
 					efuse_ParsingMap(szLine, &u4bRegValue, &u4bMove);
 
 					// Get next hex value as EEPROM value.
 					szLine += u4bMove;
-					//WriteEEprom(dev, (u16)(ithLine*8+i), (u16)u4bRegValue);
 					eeprom[index++] = (u8)(u4bRegValue&0xff);
 					eeprom[index++] = (u8)((u4bRegValue>>8)&0xff);
 
@@ -1713,7 +1792,7 @@ EFUSE_ProgramMap(struct net_device* dev, char* pFileName,u8	TableType)
 	}
 
 	return	rtStatus;
-}	/* EFUSE_ProgramMap */
+}
 
 #endif
 
@@ -1762,9 +1841,6 @@ efuse_ParsingMap(char* szStr,u32* pu4bVal,u32* pu4bMove)
 	// Check input parameter.
 	if(szStr == NULL || pu4bVal == NULL || pu4bMove == NULL)
 	{
-		//RT_TRACE(COMP_EFUSE,
-		//"eeprom_ParsingMap(): Invalid IN args! szStr: %p, pu4bVal: %p, pu4bMove: %p\n",
-		//szStr, pu4bVal, pu4bMove);
 		return FALSE;
 	}
 
@@ -1798,17 +1874,12 @@ efuse_ParsingMap(char* szStr,u32* pu4bVal,u32* pu4bMove)
 
 	return TRUE;
 
-}	/* efuse_ParsingMap */
+}
 #endif
 
-//
-// Useless Section Code Now!!!!!!
-//
-// Porting from 8712 SDIO
 int efuse_one_byte_rw(struct net_device* dev, u8 bRead, u16 addr, u8 *data)
 {
 	u32 bResult;
-	//u8 efuse_ctlreg,tmpidx = 0;
 	u8 tmpidx = 0;
 	u8 tmpv8=0;
 
@@ -1858,7 +1929,7 @@ int efuse_one_byte_rw(struct net_device* dev, u8 bRead, u16 addr, u8 *data)
 	}
 	return bResult;
 }
-//------------------------------------------------------------------------------
+
 void efuse_access(struct net_device* dev, u8 bRead,u16 start_addr, u8 cnts, u8 *data)
 {
 	u8	efuse_clk_ori,efuse_clk_new;//,tmp8;
@@ -1889,9 +1960,8 @@ void efuse_access(struct net_device* dev, u8 bRead,u16 start_addr, u8 cnts, u8 *
 	//-----------------e-fuse one byte read / write ------------------------------
 	for(i=0;i<cnts;i++){
 		efuse_one_byte_rw(dev,bRead, start_addr+i , data+i);
-		////RT_TRACE(_module_rtl871x_mp_ioctl_c_,_drv_err_,("==>efuse_access addr:0x%02x value:0x%02x\n",data+i,*(data+i)));
+
 	}
-	// -----------------e-fuse pwr & clk reg ctrl ---------------------------------
 	write_nic_byte(dev, EFUSE_TEST+3, read_nic_byte(dev, EFUSE_TEST+3)&0x7f);
 	write_nic_byte(dev, EFUSE_CLK_CTRL, read_nic_byte(dev, EFUSE_CLK_CTRL)&0xfd);
 
@@ -1899,8 +1969,6 @@ void efuse_access(struct net_device* dev, u8 bRead,u16 start_addr, u8 cnts, u8 *
 	if(efuse_clk_new != efuse_clk_ori)	write_nic_byte(dev, 0x10250003, efuse_clk_ori);
 
 }
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
 
 #ifdef TO_DO_LIST
 static	void efuse_reg_ctrl(struct net_device* dev, u8 bPowerOn)
@@ -1933,9 +2001,7 @@ static	void efuse_reg_ctrl(struct net_device* dev, u8 bPowerOn)
 
 }
 #endif
-//------------------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
 void efuse_read_data(struct net_device* dev,u8 efuse_read_item,u8 *data,u32 data_size)
 {
 	u8 offset, word_start,byte_start,byte_cnts;
@@ -1989,7 +2055,7 @@ void efuse_read_data(struct net_device* dev,u8 efuse_read_item,u8 *data,u32 data
 	}
 
 }
-//------------------------------------------------------------------------------
+
 //per interface doesn't alike
 void efuse_write_data(struct net_device* dev,u8 efuse_write_item,u8 *data,u32 data_size,u32 bWordUnit)
 {
@@ -2082,7 +2148,6 @@ void efuse_write_data(struct net_device* dev,u8 efuse_write_item,u8 *data,u32 da
 		}
 
 	}
-	//========================================================================
 	else if(pg_pkt_cnts>1){//situation B
 		if(word_start==0){
 			word_en = 0x00;
@@ -2103,7 +2168,6 @@ void efuse_write_data(struct net_device* dev,u8 efuse_write_item,u8 *data,u32 da
 
 		}
 	}
-	//========================================================================
 	else{//situation C
 		word_en = 0x0f;
 		for(tmpidx= 0; tmpidx<word_cnts ; tmpidx++)

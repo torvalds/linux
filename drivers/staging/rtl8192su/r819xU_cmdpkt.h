@@ -173,6 +173,7 @@ typedef enum tag_command_packet_directories {
     RX_DBGINFO_FEEDBACK = 5,
     RX_TX_PER_PKT_FEEDBACK = 6,
     RX_TX_RATE_HISTORY = 7,
+    RX_TX_TSSI_MEAN_BACK = 8,
     RX_CMD_ELE_MAX
 } cmpk_element_e;
 
