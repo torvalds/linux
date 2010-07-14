@@ -1395,27 +1395,30 @@ iso_stream_schedule (
 	struct ehci_iso_stream	*stream
 )
 {
-	u32			now, next, start, period;
+	u32			now, next, start, period, span;
 	int			status;
 	unsigned		mod = ehci->periodic_size << 3;
 	struct ehci_iso_sched	*sched = urb->hcpriv;
 
-	if (sched->span > (mod - SCHEDULE_SLOP)) {
+	period = urb->interval;
+	span = sched->span;
+	if (!stream->highspeed) {
+		period <<= 3;
+		span <<= 3;
+	}
+
+	if (span > mod - SCHEDULE_SLOP) {
 		ehci_dbg (ehci, "iso request %p too long\n", urb);
 		status = -EFBIG;
 		goto fail;
 	}
 
-	if ((stream->depth + sched->span) > mod) {
+	if (stream->depth + span > mod) {
 		ehci_dbg (ehci, "request %p would overflow (%d+%d>%d)\n",
-			urb, stream->depth, sched->span, mod);
+			urb, stream->depth, span, mod);
 		status = -EFBIG;
 		goto fail;
 	}
-
-	period = urb->interval;
-	if (!stream->highspeed)
-		period <<= 3;
 
 	now = ehci_readl(ehci, &ehci->regs->frame_index) & (mod - 1);
 
@@ -1445,7 +1448,7 @@ iso_stream_schedule (
 					period);
 
 		/* Tried to schedule too far into the future? */
-		if (unlikely(((start - now) & (mod - 1)) + sched->span
+		if (unlikely(((start - now) & (mod - 1)) + span
 					>= mod - 2 * SCHEDULE_SLOP)) {
 			status = -EFBIG;
 			goto fail;
