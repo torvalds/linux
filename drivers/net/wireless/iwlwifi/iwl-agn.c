@@ -1692,6 +1692,7 @@ static void iwl_nic_start(struct iwl_priv *priv)
 
 struct iwlagn_ucode_capabilities {
 	u32 max_probe_length;
+	u32 standard_phy_calibration_size;
 };
 
 static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context);
@@ -1967,6 +1968,13 @@ static int iwlagn_load_firmware(struct iwl_priv *priv,
 			else
 				priv->enhance_sensitivity_table = true;
 			break;
+		case IWL_UCODE_TLV_PHY_CALIBRATION_SIZE:
+			if (tlv_len != fixed_tlv_size)
+				ret = -EINVAL;
+			else
+				capa->standard_phy_calibration_size =
+					le32_to_cpup((__le32 *)tlv_data);
+			break;
 		default:
 			IWL_WARN(priv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -2005,6 +2013,8 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	u32 build;
 	struct iwlagn_ucode_capabilities ucode_capa = {
 		.max_probe_length = 200,
+		.standard_phy_calibration_size =
+			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE,
 	};
 
 	memset(&pieces, 0, sizeof(pieces));
@@ -2225,6 +2235,20 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_DEBUG_INFO(priv, "Copying (but not loading) boot instr len %Zd\n",
 			pieces.boot_size);
 	memcpy(priv->ucode_boot.v_addr, pieces.boot, pieces.boot_size);
+
+	/*
+	 * figure out the offset of chain noise reset and gain commands
+	 * base on the size of standard phy calibration commands table size
+	 */
+	if (ucode_capa.standard_phy_calibration_size >
+	    IWL_MAX_PHY_CALIBRATE_TBL_SIZE)
+		ucode_capa.standard_phy_calibration_size =
+			IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE;
+
+	priv->_agn.phy_calib_chain_noise_reset_cmd =
+		ucode_capa.standard_phy_calibration_size;
+	priv->_agn.phy_calib_chain_noise_gain_cmd =
+		ucode_capa.standard_phy_calibration_size + 1;
 
 	/**************************************************
 	 * This is still part of probe() in a sense...

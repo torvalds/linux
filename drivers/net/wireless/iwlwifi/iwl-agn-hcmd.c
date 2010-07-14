@@ -164,7 +164,7 @@ static void iwlagn_gain_computation(struct iwl_priv *priv,
 
 		memset(&cmd, 0, sizeof(cmd));
 
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_GAIN_CMD;
+		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_gain_cmd;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;
 		cmd.hdr.data_valid = 1;
@@ -197,7 +197,7 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 		data->beacon_count = 0;
 
 		memset(&cmd, 0, sizeof(cmd));
-		cmd.hdr.op_code = IWL_PHY_CALIBRATE_CHAIN_NOISE_RESET_CMD;
+		cmd.hdr.op_code = priv->_agn.phy_calib_chain_noise_reset_cmd;
 		cmd.hdr.first_group = 0;
 		cmd.hdr.groups_num = 1;
 		cmd.hdr.data_valid = 1;
