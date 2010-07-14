@@ -25,9 +25,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/notifier.h>
+#include <linux/kobject.h>
 #include <crypto/pcrypt.h>
 
 struct pcrypt_instance {
+	const char *name;
 	struct padata_instance *pinst;
 	struct workqueue_struct *wq;
 
@@ -55,7 +57,7 @@ struct pcrypt_instance {
 
 static struct pcrypt_instance pencrypt;
 static struct pcrypt_instance pdecrypt;
-
+static struct kset           *pcrypt_kset;
 
 struct pcrypt_instance_ctx {
 	struct crypto_spawn spawn;
@@ -429,12 +431,25 @@ static int pcrypt_cpumask_change_notify(struct notifier_block *self,
 	return 0;
 }
 
+static int pcrypt_sysfs_add(struct padata_instance *pinst, const char *name)
+{
+	int ret;
+
+	pinst->kobj.kset = pcrypt_kset;
+	ret = kobject_add(&pinst->kobj, NULL, name);
+	if (!ret)
+		kobject_uevent(&pinst->kobj, KOBJ_ADD);
+
+	return ret;
+}
+
 static int __pcrypt_init_instance(struct pcrypt_instance *pcrypt,
 				  const char *name)
 {
 	int ret = -ENOMEM;
 	struct pcrypt_cpumask *mask;
 
+	pcrypt->name = name;
 	pcrypt->wq = create_workqueue(name);
 	if (!pcrypt->wq)
 		goto err;
@@ -459,7 +474,13 @@ static int __pcrypt_init_instance(struct pcrypt_instance *pcrypt,
 	if (ret)
 		goto err_free_cpumask;
 
+	ret = pcrypt_sysfs_add(pcrypt->pinst, name);
+	if (ret)
+		goto err_unregister_notifier;
+
 	return ret;
+err_unregister_notifier:
+	padata_unregister_cpumask_notifier(pcrypt->pinst, &pcrypt->nblock);
 err_free_cpumask:
 	free_cpumask_var(mask->mask);
 	kfree(mask);
@@ -473,6 +494,7 @@ err:
 
 static void __pcrypt_deinit_instance(struct pcrypt_instance *pcrypt)
 {
+	kobject_put(&pcrypt->pinst->kobj);
 	free_cpumask_var(pcrypt->cb_cpumask->mask);
 	kfree(pcrypt->cb_cpumask);
 
@@ -491,11 +513,15 @@ static struct crypto_template pcrypt_tmpl = {
 
 static int __init pcrypt_init(void)
 {
-	int err;
+	int err = -ENOMEM;
+
+	pcrypt_kset = kset_create_and_add("pcrypt", NULL, kernel_kobj);
+	if (!pcrypt_kset)
+		goto err;
 
 	err = __pcrypt_init_instance(&pencrypt, "pencrypt");
 	if (err)
-		goto err;
+		goto err_unreg_kset;
 
 	err = __pcrypt_init_instance(&pdecrypt, "pdecrypt");
 	if (err)
@@ -508,6 +534,8 @@ static int __init pcrypt_init(void)
 
 err_deinit_pencrypt:
 	__pcrypt_deinit_instance(&pencrypt);
+err_unreg_kset:
+	kset_unregister(pcrypt_kset);
 err:
 	return err;
 }
@@ -517,6 +545,7 @@ static void __exit pcrypt_exit(void)
 	__pcrypt_deinit_instance(&pencrypt);
 	__pcrypt_deinit_instance(&pdecrypt);
 
+	kset_unregister(pcrypt_kset);
 	crypto_unregister_template(&pcrypt_tmpl);
 }
 
