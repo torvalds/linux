@@ -964,6 +964,7 @@ objlayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 static struct pnfs_layoutdriver_type objlayout_type = {
 	.id = LAYOUT_OSD2_OBJECTS,
 	.name = "LAYOUT_OSD2_OBJECTS",
+	.flags                   = PNFS_LAYOUTRET_ON_SETATTR,
 
 	.alloc_layout_hdr        = objlayout_alloc_layout_hdr,
 	.free_layout_hdr         = objlayout_free_layout_hdr,
