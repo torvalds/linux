@@ -687,13 +687,6 @@ typedef enum rf_optype
 	RF_OP_By_FW,
 	RF_OP_MAX
 }rf_op_type;
-/* 8190 Loopback Mode definition */
-typedef enum _rtl819xUsb_loopback{
-	RTL819xU_NO_LOOPBACK = 0,
-	RTL819xU_MAC_LOOPBACK = 1,
-	RTL819xU_DMA_LOOPBACK = 2,
-	RTL819xU_CCK_LOOPBACK = 3,
-}rtl819xUsb_loopback_e;
 
 /* for rtl819x */
 typedef enum _RT_STATUS{
@@ -703,16 +696,13 @@ typedef enum _RT_STATUS{
 	RT_STATUS_RESOURCE = 3
 }RT_STATUS,*PRT_STATUS;
 
-//#ifdef RTL8192SU
 typedef enum _RTL8192SUSB_LOOPBACK{
 	RTL8192SU_NO_LOOPBACK = 0,
 	RTL8192SU_MAC_LOOPBACK = 1,
 	RTL8192SU_DMA_LOOPBACK = 2,
 	RTL8192SU_CCK_LOOPBACK = 3,
 }RTL8192SUSB_LOOPBACK_E;
-//#endif
 
-//+by amy 080507
 #define MAX_RECEIVE_BUFFER_SIZE	9100	// Add this to 9100 bytes to receive A-MSDU from RT-AP
 
 
@@ -1245,7 +1235,7 @@ typedef struct r8192_priv
 	bool bCurrentRxAggrEnable;
 	u8 Rf_Mode; //add for Firmware RF -R/W switch
 	prt_firmware		pFirmware;
-	rtl819xUsb_loopback_e	LoopbackMode;
+	RTL8192SUSB_LOOPBACK_E	LoopbackMode;
 	bool usb_error;
 
 	u16 EEPROMTxPowerDiff;
@@ -1495,11 +1485,11 @@ typedef struct r8192_priv
 	LED_819xUsb			SwLed0;
 	LED_819xUsb			SwLed1;
         u8                              bRegUseLed;
-	struct work_struct		BlinkWorkItem; 
+	struct work_struct		BlinkWorkItem;
 	/* added for led control */
 	u16				FwCmdIOMap;
 	u32				FwCmdIOParam;
-	u8				DMFlag; 
+	u8				DMFlag;
 
 
 
