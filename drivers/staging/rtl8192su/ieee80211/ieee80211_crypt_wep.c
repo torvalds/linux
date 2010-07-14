@@ -9,7 +9,6 @@
  * more details.
  */
 
-//#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -291,6 +290,5 @@ void __exit ieee80211_crypto_wep_exit(void)
 
 void ieee80211_wep_null(void)
 {
-//	printk("============>%s()\n", __FUNCTION__);
         return;
 }
