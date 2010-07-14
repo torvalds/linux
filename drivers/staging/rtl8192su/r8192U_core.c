@@ -254,53 +254,49 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 {
 	int i, max_chan=-1, min_chan=-1;
 	struct ieee80211_device* ieee = priv->ieee80211;
-	switch (channel_plan)
-	{
-		case COUNTRY_CODE_FCC:
-		case COUNTRY_CODE_IC:
-		case COUNTRY_CODE_ETSI:
-		case COUNTRY_CODE_SPAIN:
-		case COUNTRY_CODE_FRANCE:
-		case COUNTRY_CODE_MKK:
-		case COUNTRY_CODE_MKK1:
-		case COUNTRY_CODE_ISRAEL:
-		case COUNTRY_CODE_TELEC:
-		case COUNTRY_CODE_MIC:
-		{
-			Dot11d_Init(ieee);
-			ieee->bGlobalDomain = false;
-			//acturally 8225 & 8256 rf chip only support B,G,24N mode
-                        if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256) || (priv->rf_chip == RF_6052))
-			{
-				min_chan = 1;
-				max_chan = 14;
-			}
-			else
-			{
-				RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
-			}
-			if (ChannelPlan[channel_plan].Len != 0){
-				// Clear old channel map
-				memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
-				// Set new channel map
-				for (i=0;i<ChannelPlan[channel_plan].Len;i++)
-				{
-					if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
-					break;
-					GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
-				}
-			}
-			break;
+
+	ieee->bGlobalDomain = false;
+	switch (priv->rf_chip) {
+	case RF_8225:
+	case RF_8256:
+	case RF_6052:
+		min_chan = 1;
+		max_chan = 14;
+		break;
+	default:
+		pr_err("%s(): unknown rf chip, can't set channel map\n",
+								__func__);
+		break;
+	}
+	if (ChannelPlan[channel_plan].Len != 0) {
+		memset(GET_DOT11D_INFO(ieee)->channel_map, 0,
+				sizeof(GET_DOT11D_INFO(ieee)->channel_map));
+
+		for (i = 0; i < ChannelPlan[channel_plan].Len; i++) {
+			if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
+				break;
+			GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
 		}
-		case COUNTRY_CODE_GLOBAL_DOMAIN:
-		{
-			GET_DOT11D_INFO(ieee)->bEnabled = 0;//this flag enabled to follow 11d country IE setting, otherwise, it shall follow global domain settings.
-			Dot11d_Reset(ieee);
-			ieee->bGlobalDomain = true;
-			break;
-		}
-		default:
-			break;
+	}
+	switch (channel_plan) {
+	case COUNTRY_CODE_GLOBAL_DOMAIN:
+		ieee->bGlobalDomain = true;
+		for (i = 12; i <= 14; i++)
+			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
+		ieee->IbssStartChnl = 10;
+		ieee->ibss_maxjoin_chal = 11;
+		break;
+	case COUNTRY_CODE_WORLD_WIDE_13:
+		printk(KERN_INFO "world wide 13\n");
+		for (i = 12; i <= 13; i++)
+			GET_DOT11D_INFO(ieee)->channel_map[i] = 2;
+		ieee->IbssStartChnl = 10;
+		ieee->ibss_maxjoin_chal = 11;
+		break;
+	default:
+		ieee->IbssStartChnl = 1;
+		ieee->ibss_maxjoin_chal = 14;
+		break;
 	}
 	return;
 }

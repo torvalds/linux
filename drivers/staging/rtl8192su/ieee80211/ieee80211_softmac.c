@@ -1432,6 +1432,8 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 	if ((ieee->iw_mode == IW_MODE_ADHOC) && !(net->capability & WLAN_CAPABILITY_IBSS))
 		return;
 
+	if ((ieee->iw_mode == IW_MODE_ADHOC) && (net->channel > ieee->ibss_maxjoin_chal))
+		return;
 
 	if (ieee->iw_mode == IW_MODE_INFRA || ieee->iw_mode == IW_MODE_ADHOC){
 		/* if the user specified the AP MAC, we need also the essid
@@ -2362,7 +2364,7 @@ void ieee80211_start_ibss_wq(struct work_struct *work)
 
 //	if((IS_DOT11D_ENABLE(ieee)) && (ieee->state == IEEE80211_NOLINK))
 	if (ieee->state == IEEE80211_NOLINK)
-		ieee->current_network.channel = 6;
+		ieee->current_network.channel = ieee->IbssStartChnl;
 	/* if not then the state is not linked. Maybe the user swithced to
 	 * ad-hoc mode just after being in monitor mode, or just after
 	 * being very few time in managed mode (so the card have had no

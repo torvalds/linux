@@ -1120,9 +1120,12 @@ enum {
 	COUNTRY_CODE_MKK = 5,
 	COUNTRY_CODE_MKK1 = 6,
 	COUNTRY_CODE_ISRAEL = 7,
-	COUNTRY_CODE_TELEC,
-	COUNTRY_CODE_MIC,
-	COUNTRY_CODE_GLOBAL_DOMAIN
+	COUNTRY_CODE_TELEC = 8,
+	COUNTRY_CODE_MIC = 9,
+	COUNTRY_CODE_GLOBAL_DOMAIN = 10,
+	COUNTRY_CODE_WORLD_WIDE_13 = 11,
+	COUNTRY_CODE_TELEC_NETGEAR = 12,
+	COUNTRY_CODE_MAX
 };
 
 #include "ieee80211_r8192s.h"
@@ -1295,6 +1298,10 @@ struct ieee80211_device {
 	 */
 	void *pDot11dInfo;
 	bool bGlobalDomain;
+
+	u8   IbssStartChnl;
+	u8   ibss_maxjoin_chal;
+
 	int rate;       /* current rate */
 	int basic_rate;
 	//FIXME: pleace callback, see if redundant with softmac_features
