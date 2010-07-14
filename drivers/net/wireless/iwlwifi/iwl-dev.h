@@ -1322,10 +1322,14 @@ struct iwl_priv {
 			u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 
 			struct iwl_notif_statistics statistics;
+			struct iwl_bt_notif_statistics statistics_bt;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 			struct iwl_notif_statistics accum_statistics;
 			struct iwl_notif_statistics delta_statistics;
 			struct iwl_notif_statistics max_delta;
+			struct iwl_bt_notif_statistics accum_statistics_bt;
+			struct iwl_bt_notif_statistics delta_statistics_bt;
+			struct iwl_bt_notif_statistics max_delta_bt;
 #endif
 		} _agn;
 #endif

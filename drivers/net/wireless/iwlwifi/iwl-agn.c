@@ -3008,9 +3008,17 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 	}
 
 	if (priv->start_calib) {
-		iwl_chain_noise_calibration(priv, &priv->_agn.statistics);
-
-		iwl_sensitivity_calibration(priv, &priv->_agn.statistics);
+		if (priv->cfg->bt_statistics) {
+			iwl_chain_noise_calibration(priv,
+					(void *)&priv->_agn.statistics_bt);
+			iwl_sensitivity_calibration(priv,
+					(void *)&priv->_agn.statistics_bt);
+		} else {
+			iwl_chain_noise_calibration(priv,
+					(void *)&priv->_agn.statistics);
+			iwl_sensitivity_calibration(priv,
+					(void *)&priv->_agn.statistics);
+		}
 	}
 
 	mutex_unlock(&priv->mutex);

@@ -3988,6 +3988,7 @@ struct iwl_rx_packet {
 		struct iwl_sleep_notification sleep_notif;
 		struct iwl_spectrum_resp spectrum;
 		struct iwl_notif_statistics stats;
+		struct iwl_bt_notif_statistics stats_bt;
 		struct iwl_compressed_ba_resp compressed_ba;
 		struct iwl_missed_beacon_notif missed_beacon;
 		struct iwl_coex_medium_notification coex_medium_notif;

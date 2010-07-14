@@ -605,8 +605,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	IWL_DEBUG_CALIB(priv, "<<return 0x%X\n", ret);
 }
 
-void iwl_sensitivity_calibration(struct iwl_priv *priv,
-				    struct iwl_notif_statistics *resp)
+void iwl_sensitivity_calibration(struct iwl_priv *priv, void *resp)
 {
 	u32 rx_enable_time;
 	u32 fa_cck;
@@ -616,8 +615,8 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	u32 norm_fa_ofdm;
 	u32 norm_fa_cck;
 	struct iwl_sensitivity_data *data = NULL;
-	struct statistics_rx_non_phy *rx_info = &(resp->rx.general);
-	struct statistics_rx *statistics = &(resp->rx);
+	struct statistics_rx_non_phy *rx_info;
+	struct statistics_rx_phy *ofdm, *cck;
 	unsigned long flags;
 	struct statistics_general_data statis;
 
@@ -632,6 +631,16 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->cfg->bt_statistics) {
+		rx_info = &(((struct iwl_bt_notif_statistics *)resp)->
+			      rx.general.common);
+		ofdm = &(((struct iwl_bt_notif_statistics *)resp)->rx.ofdm);
+		cck = &(((struct iwl_bt_notif_statistics *)resp)->rx.cck);
+	} else {
+		rx_info = &(((struct iwl_notif_statistics *)resp)->rx.general);
+		ofdm = &(((struct iwl_notif_statistics *)resp)->rx.ofdm);
+		cck = &(((struct iwl_notif_statistics *)resp)->rx.cck);
+	}
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, "<< invalid data.\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -640,23 +649,23 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 
 	/* Extract Statistics: */
 	rx_enable_time = le32_to_cpu(rx_info->channel_load);
-	fa_cck = le32_to_cpu(statistics->cck.false_alarm_cnt);
-	fa_ofdm = le32_to_cpu(statistics->ofdm.false_alarm_cnt);
-	bad_plcp_cck = le32_to_cpu(statistics->cck.plcp_err);
-	bad_plcp_ofdm = le32_to_cpu(statistics->ofdm.plcp_err);
+	fa_cck = le32_to_cpu(cck->false_alarm_cnt);
+	fa_ofdm = le32_to_cpu(ofdm->false_alarm_cnt);
+	bad_plcp_cck = le32_to_cpu(cck->plcp_err);
+	bad_plcp_ofdm = le32_to_cpu(ofdm->plcp_err);
 
 	statis.beacon_silence_rssi_a =
-			le32_to_cpu(statistics->general.beacon_silence_rssi_a);
+			le32_to_cpu(rx_info->beacon_silence_rssi_a);
 	statis.beacon_silence_rssi_b =
-			le32_to_cpu(statistics->general.beacon_silence_rssi_b);
+			le32_to_cpu(rx_info->beacon_silence_rssi_b);
 	statis.beacon_silence_rssi_c =
-			le32_to_cpu(statistics->general.beacon_silence_rssi_c);
+			le32_to_cpu(rx_info->beacon_silence_rssi_c);
 	statis.beacon_energy_a =
-			le32_to_cpu(statistics->general.beacon_energy_a);
+			le32_to_cpu(rx_info->beacon_energy_a);
 	statis.beacon_energy_b =
-			le32_to_cpu(statistics->general.beacon_energy_b);
+			le32_to_cpu(rx_info->beacon_energy_b);
 	statis.beacon_energy_c =
-			le32_to_cpu(statistics->general.beacon_energy_c);
+			le32_to_cpu(rx_info->beacon_energy_c);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -728,8 +737,7 @@ static inline u8 find_first_chain(u8 mask)
  * 1)  Which antennas are connected.
  * 2)  Differential rx gain settings to balance the 3 receivers.
  */
-void iwl_chain_noise_calibration(struct iwl_priv *priv,
-				 struct iwl_notif_statistics *stat_resp)
+void iwl_chain_noise_calibration(struct iwl_priv *priv, void *stat_resp)
 {
 	struct iwl_chain_noise_data *data = NULL;
 
@@ -753,7 +761,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	u32 active_chains = 0;
 	u8 num_tx_chains;
 	unsigned long flags;
-	struct statistics_rx_non_phy *rx_info = &(stat_resp->rx.general);
+	struct statistics_rx_non_phy *rx_info;
 	u8 first_chain;
 
 	if (priv->disable_chain_noise_cal)
@@ -772,6 +780,13 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+	if (priv->cfg->bt_statistics) {
+		rx_info = &(((struct iwl_bt_notif_statistics *)stat_resp)->
+			      rx.general.common);
+	} else {
+		rx_info = &(((struct iwl_notif_statistics *)stat_resp)->
+			      rx.general);
+	}
 	if (rx_info->interference_data_flag != INTERFERENCE_DATA_AVAILABLE) {
 		IWL_DEBUG_CALIB(priv, " << Interference data unavailable\n");
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -780,8 +795,19 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 
 	rxon_band24 = !!(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK);
 	rxon_chnum = le16_to_cpu(priv->staging_rxon.channel);
-	stat_band24 = !!(stat_resp->flag & STATISTICS_REPLY_FLG_BAND_24G_MSK);
-	stat_chnum = le32_to_cpu(stat_resp->flag) >> 16;
+	if (priv->cfg->bt_statistics) {
+		stat_band24 = !!(((struct iwl_bt_notif_statistics *)
+				 stat_resp)->flag &
+				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
+		stat_chnum = le32_to_cpu(((struct iwl_bt_notif_statistics *)
+					 stat_resp)->flag) >> 16;
+	} else {
+		stat_band24 = !!(((struct iwl_notif_statistics *)
+				 stat_resp)->flag &
+				 STATISTICS_REPLY_FLG_BAND_24G_MSK);
+		stat_chnum = le32_to_cpu(((struct iwl_notif_statistics *)
+					 stat_resp)->flag) >> 16;
+	}
 
 	/* Make sure we accumulate data for just the associated channel
 	 *   (even if scanning). */
