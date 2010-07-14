@@ -335,6 +335,7 @@ struct iwl_cfg {
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
 	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 	const bool need_dc_calib;
+	const bool bt_statistics;
 };
 
 /***************************
