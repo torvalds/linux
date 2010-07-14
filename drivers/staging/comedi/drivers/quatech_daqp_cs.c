@@ -208,7 +208,7 @@ static void hex_dump(char *str, void *ptr, int len)
 
 	for (i = 0; i < len; i++) {
 		if (i % 16 == 0)
-			printk("\n0x%08x:", (unsigned int)cptr);
+			printk("\n%p:", cptr);
 
 		printk(" %02x", *(cptr++));
 	}
