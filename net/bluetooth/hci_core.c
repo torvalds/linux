@@ -1163,6 +1163,41 @@ int hci_recv_fragment(struct hci_dev *hdev, int type, void *data, int count)
 }
 EXPORT_SYMBOL(hci_recv_fragment);
 
+#define STREAM_REASSEMBLY 0
+
+int hci_recv_stream_fragment(struct hci_dev *hdev, void *data, int count)
+{
+	int type;
+	int rem = 0;
+
+	do {
+		struct sk_buff *skb = hdev->reassembly[STREAM_REASSEMBLY];
+
+		if (!skb) {
+			struct { char type; } *pkt;
+
+			/* Start of the frame */
+			pkt = data;
+			type = pkt->type;
+
+			data++;
+			count--;
+		} else
+			type = bt_cb(skb)->pkt_type;
+
+		rem = hci_reassembly(hdev, type, data,
+					count, STREAM_REASSEMBLY, GFP_ATOMIC);
+		if (rem < 0)
+			return rem;
+
+		data += (count - rem);
+		count = rem;
+	} while (count);
+
+	return rem;
+}
+EXPORT_SYMBOL(hci_recv_stream_fragment);
+
 /* ---- Interface to upper protocols ---- */
 
 /* Register/Unregister protocols.
