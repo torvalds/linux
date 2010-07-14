@@ -968,6 +968,70 @@ struct kvm_xcrs {
 
 This ioctl would set vcpu's xcr to the value userspace specified.
 
+4.45 KVM_GET_SUPPORTED_CPUID
+
+Capability: KVM_CAP_EXT_CPUID
+Architectures: x86
+Type: system ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+#define KVM_CPUID_FLAG_SIGNIFCANT_INDEX 1
+#define KVM_CPUID_FLAG_STATEFUL_FUNC    2
+#define KVM_CPUID_FLAG_STATE_READ_NEXT  4
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features which are supported by both the hardware
+and kvm.  Userspace can use the information returned by this ioctl to
+construct cpuid information (for KVM_SET_CPUID2) that is consistent with
+hardware, kernel, and userspace capabilities, and with user requirements (for
+example, the user may wish to constrain cpuid to emulate older hardware,
+or for feature consistency across a cluster).
+
+Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
+with the 'nent' field indicating the number of entries in the variable-size
+array 'entries'.  If the number of entries is too low to describe the cpu
+capabilities, an error (E2BIG) is returned.  If the number is too high,
+the 'nent' field is adjusted and an error (ENOMEM) is returned.  If the
+number is just right, the 'nent' field is adjusted to the number of valid
+entries in the 'entries' array, which is then filled.
+
+The entries returned are the host cpuid as returned by the cpuid instruction,
+with unknown or unsupported features masked out.  The fields in each entry
+are defined as follows:
+
+  function: the eax value used to obtain the entry
+  index: the ecx value used to obtain the entry (for entries that are
+         affected by ecx)
+  flags: an OR of zero or more of the following:
+        KVM_CPUID_FLAG_SIGNIFCANT_INDEX:
+           if the index field is valid
+        KVM_CPUID_FLAG_STATEFUL_FUNC:
+           if cpuid for this function returns different values for successive
+           invocations; there will be several entries with the same function,
+           all with this flag set
+        KVM_CPUID_FLAG_STATE_READ_NEXT:
+           for KVM_CPUID_FLAG_STATEFUL_FUNC entries, set if this entry is
+           the first entry to be read by a cpu
+   eax, ebx, ecx, edx: the values returned by the cpuid instruction for
+         this function/index combination
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
