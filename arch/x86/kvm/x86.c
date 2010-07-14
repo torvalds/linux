@@ -3936,6 +3936,9 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gva_t gva)
 {
 	gpa_t gpa;
 
+	if (tdp_enabled)
+		return false;
+
 	/*
 	 * if emulation was due to access to shadowed page table
 	 * and it failed try to unshadow page and re-entetr the
