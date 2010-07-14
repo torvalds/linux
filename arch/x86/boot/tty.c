@@ -152,35 +152,40 @@ int getchar_timeout(void)
 	return 0;		/* Timeout! */
 }
 
-static void early_serial_init(int baud)
+static void early_serial_init(int port, int baud)
 {
 	unsigned char c;
 	unsigned divisor;
 
-	outb(0x3, early_serial_base + LCR);	/* 8n1 */
-	outb(0, early_serial_base + IER);	/* no interrupt */
-	outb(0, early_serial_base + FCR);	/* no fifo */
-	outb(0x3, early_serial_base + MCR);	/* DTR + RTS */
+	outb(0x3, port + LCR);	/* 8n1 */
+	outb(0, port + IER);	/* no interrupt */
+	outb(0, port + FCR);	/* no fifo */
+	outb(0x3, port + MCR);	/* DTR + RTS */
 
 	divisor	= 115200 / baud;
-	c = inb(early_serial_base + LCR);
-	outb(c | DLAB, early_serial_base + LCR);
-	outb(divisor & 0xff, early_serial_base + DLL);
-	outb((divisor >> 8) & 0xff, early_serial_base + DLH);
-	outb(c & ~DLAB, early_serial_base + LCR);
+	c = inb(port + LCR);
+	outb(c | DLAB, port + LCR);
+	outb(divisor & 0xff, port + DLL);
+	outb((divisor >> 8) & 0xff, port + DLH);
+	outb(c & ~DLAB, port + LCR);
+
+	early_serial_base = port;
+
+	printf("Early serial console at I/O port 0x%x baud: %d\n", port, baud);
 }
 
-static int parse_earlyprintk(void)
+static void parse_earlyprintk(void)
 {
 	int baud = DEFAULT_BAUD;
 	char arg[32];
 	int pos = 0;
+	int port = 0;
 
 	if (cmdline_find_option("earlyprintk", arg, sizeof arg) > 0) {
 		char *e;
 
 		if (!strncmp(arg, "serial", 6)) {
-			early_serial_base = DEFAULT_SERIAL_PORT;
+			port = DEFAULT_SERIAL_PORT;
 			pos += 6;
 		}
 
@@ -189,15 +194,15 @@ static int parse_earlyprintk(void)
 
 		if (!strncmp(arg, "ttyS", 4)) {
 			static const int bases[] = { 0x3f8, 0x2f8 };
-			int port = 0;
+			int idx = 0;
 
 			if (!strncmp(arg + pos, "ttyS", 4))
 				pos += 4;
 
 			if (arg[pos++] == '1')
-				port = 1;
+				idx = 1;
 
-			early_serial_base = bases[port];
+			port = bases[idx];
 		}
 
 		if (arg[pos] == ',')
@@ -208,7 +213,8 @@ static int parse_earlyprintk(void)
 			baud = DEFAULT_BAUD;
 	}
 
-	return baud;
+	if (port)
+		early_serial_init(port, baud);
 }
 
 #define BASE_BAUD (1843200/16)
@@ -227,44 +233,41 @@ static unsigned int probe_baud(int port)
 	return BASE_BAUD / quot;
 }
 
-static int parse_console_uart8250(void)
+static void parse_console_uart8250(void)
 {
 	char optstr[64], *options;
 	int baud = DEFAULT_BAUD;
+	int port = 0;
 
 	/*
 	 * console=uart8250,io,0x3f8,115200n8
 	 * need to make sure it is last one console !
 	 */
 	if (cmdline_find_option("console", optstr, sizeof optstr) <= 0)
-		return baud;
+		return;
 
 	options = optstr;
 
 	if (!strncmp(options, "uart8250,io,", 12))
-		early_serial_base = simple_strtoull(options + 12, &options, 0);
+		port = simple_strtoull(options + 12, &options, 0);
 	else if (!strncmp(options, "uart,io,", 8))
-		early_serial_base = simple_strtoull(options + 8, &options, 0);
+		port = simple_strtoull(options + 8, &options, 0);
 	else
-		return baud;
+		return;
 
 	if (options && (options[0] == ','))
 		baud = simple_strtoull(options + 1, &options, 0);
 	else
-		baud = probe_baud(early_serial_base);
+		baud = probe_baud(port);
 
-	return baud;
+	if (port)
+		early_serial_init(port, baud);
 }
 
 void console_init(void)
 {
-	int baud;
-
-	baud = parse_earlyprintk();
+	parse_earlyprintk();
 
 	if (!early_serial_base)
-		baud = parse_console_uart8250();
-
-	if (early_serial_base != 0)
-		early_serial_init(baud);
+		parse_console_uart8250();
 }
