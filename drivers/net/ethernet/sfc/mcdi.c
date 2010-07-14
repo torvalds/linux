@@ -678,7 +678,7 @@ fail:
 }
 
 int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-			   u16 *fw_subtype_list)
+			   u16 *fw_subtype_list, u32 *capabilities)
 {
 	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LENMIN];
 	size_t outlen;
@@ -708,6 +708,14 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 		       outbuf + MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST,
 		       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MINNUM *
 		       sizeof(fw_subtype_list[0]));
+	if (capabilities) {
+		if (port_num)
+			*capabilities = MCDI_DWORD(outbuf,
+					GET_BOARD_CFG_OUT_CAPABILITIES_PORT1);
+		else
+			*capabilities = MCDI_DWORD(outbuf,
+					GET_BOARD_CFG_OUT_CAPABILITIES_PORT0);
+	}
 
 	return 0;
 

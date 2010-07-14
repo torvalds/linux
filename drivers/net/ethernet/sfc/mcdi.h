@@ -97,7 +97,7 @@ extern void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
 extern int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			       bool *was_attached_out);
 extern int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-				  u16 *fw_subtype_list);
+				  u16 *fw_subtype_list, u32 *capabilities);
 extern int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
 			     u32 dest_evq);
 extern int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
