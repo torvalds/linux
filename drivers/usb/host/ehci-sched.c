@@ -1413,13 +1413,6 @@ iso_stream_schedule (
 		goto fail;
 	}
 
-	if (stream->depth + span > mod) {
-		ehci_dbg (ehci, "request %p would overflow (%d+%d>%d)\n",
-			urb, stream->depth, span, mod);
-		status = -EFBIG;
-		goto fail;
-	}
-
 	now = ehci_readl(ehci, &ehci->regs->frame_index) & (mod - 1);
 
 	/* Typical case: reuse current schedule, stream is still active.
@@ -1428,7 +1421,7 @@ iso_stream_schedule (
 	 * slot in the schedule, implicitly assuming URB_ISO_ASAP.
 	 */
 	if (likely (!list_empty (&stream->td_list))) {
-		start = stream->next_uframe;
+		u32	excess;
 
 		/* For high speed devices, allow scheduling within the
 		 * isochronous scheduling threshold.  For full speed devices
@@ -1440,21 +1433,23 @@ iso_stream_schedule (
 		else
 			next = now;
 
-		/* Fell behind (by up to twice the slop amount)? */
-		if (((start - next) & (mod - 1)) >=
-				mod - 2 * SCHEDULE_SLOP)
-			start += period * DIV_ROUND_UP(
-					(next - start) & (mod - 1),
-					period);
-
-		/* Tried to schedule too far into the future? */
-		if (unlikely(((start - now) & (mod - 1)) + span
-					>= mod - 2 * SCHEDULE_SLOP)) {
+		/* Fell behind (by up to twice the slop amount)?
+		 * We decide based on the time of the last currently-scheduled
+		 * slot, not the time of the next available slot.
+		 */
+		excess = (stream->next_uframe - period - next) & (mod - 1);
+		if (excess >= mod - 2 * SCHEDULE_SLOP)
+			start = next + excess - mod + period *
+					DIV_ROUND_UP(mod - excess, period);
+		else
+			start = next + excess + period;
+		if (start - now >= mod) {
+			ehci_dbg(ehci, "request %p would overflow (%d+%d >= %d)\n",
+					urb, start - now - period, period,
+					mod);
 			status = -EFBIG;
 			goto fail;
 		}
-		stream->next_uframe = start;
-		goto ready;
 	}
 
 	/* need to schedule; when's the next (u)frame we could start?
@@ -1463,51 +1458,60 @@ iso_stream_schedule (
 	 * can also help high bandwidth if the dma and irq loads don't
 	 * jump until after the queue is primed.
 	 */
-	start = SCHEDULE_SLOP + (now & ~0x07);
-	start &= mod - 1;
-	stream->next_uframe = start;
+	else {
+		start = SCHEDULE_SLOP + (now & ~0x07);
 
-	/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
+		/* NOTE:  assumes URB_ISO_ASAP, to limit complexity/bugs */
 
-	/* find a uframe slot with enough bandwidth */
-	for (; start < (stream->next_uframe + period); start++) {
-		int		enough_space;
+		/* find a uframe slot with enough bandwidth */
+		next = start + period;
+		for (; start < next; start++) {
 
-		/* check schedule: enough space? */
-		if (stream->highspeed)
-			enough_space = itd_slot_ok (ehci, mod, start,
-					stream->usecs, period);
-		else {
-			if ((start % 8) >= 6)
-				continue;
-			enough_space = sitd_slot_ok (ehci, mod, stream,
-					start, sched, period);
+			/* check schedule: enough space? */
+			if (stream->highspeed) {
+				if (itd_slot_ok(ehci, mod, start,
+						stream->usecs, period))
+					break;
+			} else {
+				if ((start % 8) >= 6)
+					continue;
+				if (sitd_slot_ok(ehci, mod, stream,
+						start, sched, period))
+					break;
+			}
 		}
 
-		/* schedule it here if there's enough bandwidth */
-		if (enough_space) {
-			stream->next_uframe = start & (mod - 1);
-			goto ready;
+		/* no room in the schedule */
+		if (start == next) {
+			ehci_dbg(ehci, "iso resched full %p (now %d max %d)\n",
+				urb, now, now + mod);
+			status = -ENOSPC;
+			goto fail;
 		}
 	}
 
-	/* no room in the schedule */
-	ehci_dbg (ehci, "iso %ssched full %p (now %d max %d)\n",
-		list_empty (&stream->td_list) ? "" : "re",
-		urb, now, now + mod);
-	status = -ENOSPC;
+	/* Tried to schedule too far into the future? */
+	if (unlikely(start - now + span - period
+				>= mod - 2 * SCHEDULE_SLOP)) {
+		ehci_dbg(ehci, "request %p would overflow (%d+%d >= %d)\n",
+				urb, start - now, span - period,
+				mod - 2 * SCHEDULE_SLOP);
+		status = -EFBIG;
+		goto fail;
+	}
 
-fail:
-	iso_sched_free (stream, sched);
-	urb->hcpriv = NULL;
-	return status;
+	stream->next_uframe = start & (mod - 1);
 
-ready:
 	/* report high speed start in uframes; full speed, in frames */
 	urb->start_frame = stream->next_uframe;
 	if (!stream->highspeed)
 		urb->start_frame >>= 3;
 	return 0;
+
+ fail:
+	iso_sched_free(stream, sched);
+	urb->hcpriv = NULL;
+	return status;
 }
 
 /*-------------------------------------------------------------------------*/
