@@ -758,6 +758,10 @@ static struct clk gpt_32k_clk = {
 	.parent = &ckil_clk,
 };
 
+static struct clk kpp_clk = {
+	.id = 0,
+};
+
 #define DEFINE_CLOCK(name, i, er, es, gr, sr, p, s)	\
 	static struct clk name = {			\
 		.id		= i,			\
@@ -832,6 +836,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", ahb_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usboh3_clk)
 	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", ahb_clk)
+	_REGISTER_CLOCK("imx-keypad.0", NULL, kpp_clk)
 };
 
 static void clk_tree_init(void)
