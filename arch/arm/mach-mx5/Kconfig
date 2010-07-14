@@ -15,4 +15,10 @@ config MACH_MX51_BABBAGE
 	  u-boot. This includes specific configurations for the board and its
 	  peripherals.
 
+config MACH_MX51_3DS
+	bool "Support MX51PDK (3DS)"
+	select MXC_DEBUG_BOARD
+	help
+	  Include support for MX51PDK (3DS) platform. This includes specific
+	  configurations for the board and its peripherals.
 endif
