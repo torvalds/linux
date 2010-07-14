@@ -1,21 +1,23 @@
-/*
-   This file contains wireless extension handlers.
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ * Linux device driver for RTL8192U
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004-2005  <andreamrl@tiscali.it>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part
-   of the official realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   We want to tanks the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
 
 #include <linux/string.h>
 #include "r8192U.h"
@@ -248,6 +250,7 @@ static int r8192_wx_get_ap_status(struct net_device *dev,
         struct r8192_priv *priv = ieee80211_priv(dev);
         struct ieee80211_device *ieee = priv->ieee80211;
         struct ieee80211_network *target;
+	struct ieee80211_network *latest = NULL;
 	int name_len;
 
         down(&priv->wx_sem);
@@ -259,13 +262,20 @@ static int r8192_wx_get_ap_status(struct net_device *dev,
         list_for_each_entry(target, &ieee->network_list, list) {
                 if ( (target->ssid_len == name_len) &&
 		     (strncmp(target->ssid, (char*)wrqu->data.pointer, name_len)==0)){
-			if(target->wpa_ie_len>0 || target->rsn_ie_len>0 )
-				//set flags=1 to indicate this ap is WPA
-				wrqu->data.flags = 1;
-			else wrqu->data.flags = 0;
+			if ((latest == NULL) ||(target->last_scanned > latest->last_scanned))
+				latest = target;
 
+		}
+        }
 
-		break;
+        if(latest != NULL)
+        {
+		wrqu->data.length = latest->SignalStrength;
+
+		if(latest->wpa_ie_len>0 || latest->rsn_ie_len>0 ) {
+			wrqu->data.flags = 1;
+		} else {
+			wrqu->data.flags = 0;
                 }
         }
 
@@ -459,14 +469,6 @@ static int rtl8180_wx_get_range(struct net_device *dev,
 
 	range->we_version_compiled = WIRELESS_EXT;
 	range->we_version_source = 16;
-
-//	range->retry_capa;	/* What retry options are supported */
-//	range->retry_flags;	/* How to decode max/min retry limit */
-//	range->r_time_flags;	/* How to decode max/min retry life */
-//	range->min_retry;	/* Minimal number of retries */
-//	range->max_retry;	/* Maximal number of retries */
-//	range->min_r_time;	/* Minimal retry lifetime */
-//	range->max_r_time;	/* Maximal retry lifetime */
 
 
 	for (i = 0, val = 0; i < 14; i++) {
