@@ -641,7 +641,7 @@ static int mixer_ioctl(unsigned int cmd, unsigned long arg)
 
 static long dev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int minor = iminor(inode);
+	int minor = iminor(file->f_path.dentry->d_inode);
 	int ret;
 
 	if (cmd == OSS_GETVERSION) {
