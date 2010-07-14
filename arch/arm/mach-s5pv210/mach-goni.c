@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/fb.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -20,11 +21,13 @@
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/regs-fb.h>
 
 #include <plat/regs-serial.h>
 #include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/fb.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -73,7 +76,35 @@ static struct s3c2410_uartcfg goni_uartcfgs[] __initdata = {
 	},
 };
 
+/* Frame Buffer */
+static struct s3c_fb_pd_win goni_fb_win0 = {
+	.win_mode = {
+		.pixclock = 1000000000000ULL / ((16+16+2+480)*(28+3+2+800)*55),
+		.left_margin	= 16,
+		.right_margin	= 16,
+		.upper_margin	= 3,
+		.lower_margin	= 28,
+		.hsync_len	= 2,
+		.vsync_len	= 2,
+		.xres		= 480,
+		.yres		= 800,
+		.refresh	= 55,
+	},
+	.max_bpp	= 32,
+	.default_bpp	= 16,
+};
+
+static struct s3c_fb_platdata goni_lcd_pdata __initdata = {
+	.win[0]		= &goni_fb_win0,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB |
+			  VIDCON0_CLKSEL_LCD,
+	.vidcon1	= VIDCON1_INV_VCLK | VIDCON1_INV_VDEN
+			  | VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.setup_gpio	= s5pv210_fb_gpio_setup_24bpp,
+};
+
 static struct platform_device *goni_devices[] __initdata = {
+	&s3c_device_fb,
 	&s5pc110_device_onenand,
 };
 
@@ -86,6 +117,9 @@ static void __init goni_map_io(void)
 
 static void __init goni_machine_init(void)
 {
+	/* FB */
+	s3c_fb_set_platdata(&goni_lcd_pdata);
+
 	platform_add_devices(goni_devices, ARRAY_SIZE(goni_devices));
 }
 

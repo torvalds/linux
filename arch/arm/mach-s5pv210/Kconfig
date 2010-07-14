@@ -59,6 +59,8 @@ config MACH_GONI
 	bool "GONI"
 	select CPU_S5PV210
 	select ARCH_SPARSEMEM_ENABLE
+	select S5PV210_SETUP_FB_24BPP
+	select S3C_DEV_FB
 	select S5PC110_DEV_ONENAND
 	help
 	  Machine support for Samsung GONI board
