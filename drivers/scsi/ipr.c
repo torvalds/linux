@@ -7169,12 +7169,15 @@ static int ipr_reset_next_stage(struct ipr_cmnd *ipr_cmd)
 		stage_time = ioa_cfg->transop_timeout;
 		ipr_cmd->job_step = ipr_ioafp_identify_hrrq;
 	} else if (stage == IPR_IPL_INIT_STAGE_TRANSOP) {
-		ipr_cmd->job_step = ipr_ioafp_identify_hrrq;
-		maskval = IPR_PCII_IPL_STAGE_CHANGE;
-		maskval = (maskval << 32) | IPR_PCII_IOA_TRANS_TO_OPER;
-		writeq(maskval, ioa_cfg->regs.set_interrupt_mask_reg);
-		int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
-		return IPR_RC_JOB_CONTINUE;
+		int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
+		if (int_reg & IPR_PCII_IOA_TRANS_TO_OPER) {
+			ipr_cmd->job_step = ipr_ioafp_identify_hrrq;
+			maskval = IPR_PCII_IPL_STAGE_CHANGE;
+			maskval = (maskval << 32) | IPR_PCII_IOA_TRANS_TO_OPER;
+			writeq(maskval, ioa_cfg->regs.set_interrupt_mask_reg);
+			int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
+			return IPR_RC_JOB_CONTINUE;
+		}
 	}
 
 	ipr_cmd->timer.data = (unsigned long) ipr_cmd;
