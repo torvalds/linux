@@ -1,35 +1,20 @@
 /******************************************************************************
-
-     (c) Copyright 2008, RealTEK Technologies Inc. All Rights Reserved.
-
- Module:	hal8192sphy.c
-
- Note:		Merge 92SE/SU PHY config as below
-			1. BB register R/W API
- 			2. RF register R/W API
- 			3. Initial BB/RF/MAC config by reading BB/MAC/RF txt.
- 			3. Power setting API
- 			4. Channel switch API
- 			5. Initial gain switch API.
- 			6. Other BB/MAC/RF API.
-
- Function:	PHY: Extern function, phy: local function
-
- Export:	PHY_FunctionName
-
- Abbrev:	NONE
-
- History:
-	Data		Who		Remark
-	08/08/2008  MHC    	1. Port from 9x series phycfg.c
-						2. Reorganize code arch and ad description.
-						3. Collect similar function.
-						4. Seperate extern/local API.
-	08/12/2008	MHC		We must merge or move USB PHY relative function later.
-	10/07/2008	MHC		Add IQ calibration for PHY.(Only 1T2R mode now!!!)
-	11/06/2008	MHC		Add TX Power index PG file to config in 0xExx register
-						area to map with EEPROM/EFUSE tx pwr index.
-
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
 ******************************************************************************/
 #include "r8192U.h"
 #include "r8192U_dm.h"
@@ -86,7 +71,6 @@ static long phy_TxPwrIdxToDbm( struct net_device* dev, WIRELESS_MODE   WirelessM
 static u8 phy_DbmToTxPwrIdx( struct net_device* dev, WIRELESS_MODE WirelessMode, long PowerInDbm);
 void phy_SetFwCmdIOCallback(struct net_device* dev);
 
-//#if ((HAL_CODE_BASE == RTL8192_S) && (DEV_BUS_TYPE==USB_INTERFACE))
 //
 // Description:
 //	Base Band read by 4181 to make sure that operation could be done in unlimited cycle.
@@ -118,7 +102,7 @@ u32 phy_QueryUsbBBReg(struct net_device* dev, u32	RegAddr)
 		msleep(1); // 1 ms
 
 		// Wait too long, return FALSE to avoid to be stuck here.
-		if((BBWaitCounter > 100) )//||RT_USB_CANNOT_IO(Adapter))
+		if((BBWaitCounter > 100) )
 		{
 			RT_TRACE(COMP_RF, "phy_QueryUsbBBReg(): (%d) Wait too logn to query BB!!\n", BBWaitCounter);
 			return ReturnValue;
@@ -267,8 +251,6 @@ u32 phy_QueryUsbRFReg(	struct net_device* dev, RF90_RADIO_PATH_E eRFPath,	u32	Of
 	// Data FW read back.
 	ReturnValue = read_nic_dword(dev, RF_BB_CMD_DATA);
 
-	//PlatformAcquireSpinLock(Adapter, RT_RF_OPERATE_SPINLOCK);
-	//spin_unlock_irqrestore(&priv->rf_lock, flags);   //LZM,090318
 	up(&priv->rf_sem);
 	priv->bChangeRFInProgress = false;
 
@@ -306,8 +288,6 @@ void phy_SetUsbRFReg(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32	RegAdd
 	//
 	while(priv->bChangeRFInProgress)
 	{
-		//PlatformReleaseSpinLock(Adapter, RT_RF_OPERATE_SPINLOCK);
-		//spin_lock_irqsave(&priv->rf_lock, flags);	//LZM,090318
 		down(&priv->rf_sem);
 
 		RFWaitCounter ++;
@@ -321,12 +301,10 @@ void phy_SetUsbRFReg(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32	RegAdd
 		}
 		else
 		{
-			//PlatformAcquireSpinLock(Adapter, RT_RF_OPERATE_SPINLOCK);
 		}
 	}
 
 	priv->bChangeRFInProgress = true;
-	//PlatformReleaseSpinLock(Adapter, RT_RF_OPERATE_SPINLOCK);
 
 
 	RegAddr &= 0x3f; //RF_Offset= 0x00~0x3F
@@ -347,8 +325,6 @@ void phy_SetUsbRFReg(struct net_device* dev,RF90_RADIO_PATH_E eRFPath,u32	RegAdd
 		RT_TRACE(COMP_RF, "phy_SetUsbRFReg(): Set RegAddr(%#x) = %#x Fail!!!\n", RegAddr, Data);
 	}
 
-	//PlatformAcquireSpinLock(Adapter, RT_RF_OPERATE_SPINLOCK);
-	//spin_unlock_irqrestore(&priv->rf_lock, flags);   //LZM,090318
 	up(&priv->rf_sem);
 	priv->bChangeRFInProgress = false;
 
@@ -395,7 +371,6 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 RegAddr, u32 BitMask)
 //#if ((HAL_CODE_BASE == RTL8192_S) && (DEV_BUS_TYPE==USB_INTERFACE))
 	if(IS_BB_REG_OFFSET_92S(RegAddr))
 	{
-		//if(RT_USB_CANNOT_IO(Adapter))	return	FALSE;
 
 		if((RegAddr & 0x03) != 0)
 		{
@@ -413,7 +388,7 @@ u32 rtl8192_QueryBBReg(struct net_device* dev, u32 RegAddr, u32 BitMask)
 	BitShift = phy_CalculateBitShift(BitMask);
 	ReturnValue = (OriginalValue & BitMask) >> BitShift;
 
-	//RTPRINT(FPHY, PHY_BBR, ("BBR MASK=0x%x Addr[0x%x]=0x%x\n", BitMask, RegAddr, OriginalValue));
+
 	RT_TRACE(COMP_RF, "<---PHY_QueryBBReg(): RegAddr(%#x), BitMask(%#x), OriginalValue(%#x)\n", RegAddr, BitMask, OriginalValue);
 	return (ReturnValue);
 }
@@ -480,7 +455,6 @@ void rtl8192_setBBreg(struct net_device* dev, u32 RegAddr, u32 BitMask, u32 Data
 			write_nic_dword(dev, RegAddr, Data);
 	}
 
-	//RT_TRACE(COMP_RF, "<---PHY_SetBBReg(): RegAddr(%#x), BitMask(%#x), Data(%#x)\n", RegAddr, BitMask, Data);
 
 	return;
 }
@@ -527,9 +501,6 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 		return 0;
 	}
 
-	/* 2008/01/17 MH We get and release spin lock when reading RF register. */
-	//PlatformAcquireSpinLock(dev, RT_RF_OPERATE_SPINLOCK);FIXLZM
-	//spin_lock_irqsave(&priv->rf_lock, flags);	//YJ,test,090113
 	down(&priv->rf_sem);
 	//
 	// <Roger_Notes> Due to 8051 operation cycle (limitation cycle: 6us) and 1-Byte access issue, we should use
@@ -537,17 +508,11 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 	// infinite cycle.
 	// 2008.09.06.
 	//
-//#if (HAL_CODE_BASE == RTL8192_S && DEV_BUS_TYPE==USB_INTERFACE)
-	//if(RT_USB_CANNOT_IO(Adapter))	return FALSE;
 	Original_Value = phy_QueryUsbRFReg(dev, eRFPath, RegAddr);
 
 	BitShift =  phy_CalculateBitShift(BitMask);
 	Readback_Value = (Original_Value & BitMask) >> BitShift;
-	//spin_unlock_irqrestore(&priv->rf_lock, flags);   //YJ,test,090113
 	up(&priv->rf_sem);
-	//PlatformReleaseSpinLock(dev, RT_RF_OPERATE_SPINLOCK);
-
-	//RTPRINT(FPHY, PHY_RFR, ("RFR-%d MASK=0x%x Addr[0x%x]=0x%x\n", eRFPath, BitMask, RegAddr, Original_Value));
 
 	return (Readback_Value);
 }
@@ -570,8 +535,6 @@ u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u3
 * Return:		None
 * Note:		This function is equal to "PutRFRegSetting" in PHY programming guide
 */
-//use phy  8225 8256
-//void PHY_SetRFReg(struct net_device* dev,RF90_RADIO_PATH_E eRFPath, u32	RegAddr,	u32 BitMask,u32	Data	)
 void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask, u32 Data)
 {
 
@@ -592,9 +555,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 		return;
 	}
 
-	/* 2008/01/17 MH We get and release spin lock when writing RF register. */
-	//PlatformAcquireSpinLock(dev, RT_RF_OPERATE_SPINLOCK);
-	//spin_lock_irqsave(&priv->rf_lock, flags);	//YJ,test,090113
 	down(&priv->rf_sem);
 	//
 	// <Roger_Notes> Due to 8051 operation cycle (limitation cycle: 6us) and 1-Byte access issue, we should use
@@ -602,8 +562,6 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 	// infinite cycle.
 	// 2008.09.06.
 	//
-//#if (HAL_CODE_BASE == RTL8192_S && DEV_BUS_TYPE==USB_INTERFACE)
-		//if(RT_USB_CANNOT_IO(Adapter))	return;
 
 		if (BitMask != bRFRegOffsetMask) // RF data is 12 bits only
 		{
@@ -614,10 +572,7 @@ void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32
 		}
 		else
 			phy_SetUsbRFReg(dev, eRFPath, RegAddr, Data);
-	//PlatformReleaseSpinLock(dev, RT_RF_OPERATE_SPINLOCK);
-	//spin_unlock_irqrestore(&priv->rf_lock, flags);   //YJ,test,090113
 	up(&priv->rf_sem);
-	//RTPRINT(FPHY, PHY_RFW, ("RFW-%d MASK=0x%x Addr[0x%x]=0x%x\n", eRFPath, BitMask, RegAddr, Data));
 	RT_TRACE(COMP_RF, "<---PHY_SetRFReg(): RegAddr(%#x), BitMask(%#x), Data(%#x), eRFPath(%#x)\n",
 			RegAddr, BitMask, Data, eRFPath);
 
@@ -691,29 +646,9 @@ PHY_BBConfig8192S(struct net_device* dev)
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	phy_InitBBRFRegisterDefinition(dev);
 
-	//
-	// Config BB and AGC
-	//
-	//switch( Adapter->MgntInfo.bRegHwParaFile )
-	//{
-	//	case 0:
-	//		phy_BB8190_Config_HardCode(dev);
-	//		break;
 
-	//	case 1:
 			rtStatus = phy_BB8192S_Config_ParaFile(dev);
-	//		break;
 
-	//	case 2:
-			// Partial Modify.
-	//		phy_BB8190_Config_HardCode(dev);
-	//		phy_BB8192S_Config_ParaFile(dev);
-	//		break;
-
-	//	default:
-	//		phy_BB8190_Config_HardCode(dev);
-	//		break;
-	//}
 	PathMap = (u8)(rtl8192_QueryBBReg(dev, rFPGA0_TxInfo, 0xf) |
 				rtl8192_QueryBBReg(dev, rOFDM0_TRxPathEnable, 0xf));
 	priv->rf_pathmap = PathMap;
@@ -774,15 +709,10 @@ PHY_RFConfig8192S(struct net_device* dev)
 }
 
 
-// Joseph test: new initialize order!!
-// Test only!! This part need to be re-organized.
-// Now it is just for 8256.
-//use in phy only
 #ifdef TO_DO_LIST
 static RT_STATUS
 phy_BB8190_Config_HardCode(struct net_device* dev)
 {
-	//RT_ASSERT(FALSE, ("This function is not implement yet!! \n"));
 	return RT_STATUS_SUCCESS;
 }
 #endif
@@ -811,7 +741,6 @@ phy_SetBBtoDiffRFWithHeaderFile(struct net_device* dev, u8 ConfigType)
 	u32* 			Rtl819XPHY_REGArraytoXTXR_Table;
 	u16				PHY_REGArraytoXTXRLen;
 
-//#if (HAL_CODE_BASE != RTL8192_S)
 
 	if(priv->rf_type == RF_1T1R)
 	{
@@ -823,11 +752,6 @@ phy_SetBBtoDiffRFWithHeaderFile(struct net_device* dev, u8 ConfigType)
 		Rtl819XPHY_REGArraytoXTXR_Table = Rtl819XPHY_REG_to1T2R_Array;
 		PHY_REGArraytoXTXRLen = PHY_ChangeTo_1T2RArrayLength;
 	}
-	//else if(priv->rf_type == RF_2T2R || priv->rf_type == RF_2T2R_GREEN)
-	//{
-	//	Rtl819XPHY_REGArraytoXTXR_Table = Rtl819XPHY_REG_to2T2R_Array;
-	//	PHY_REGArraytoXTXRLen = PHY_ChangeTo_2T2RArrayLength;
-	//}
 	else
 	{
 		return RT_STATUS_FAILURE;
@@ -850,15 +774,11 @@ phy_SetBBtoDiffRFWithHeaderFile(struct net_device* dev, u8 ConfigType)
 			else if (Rtl819XPHY_REGArraytoXTXR_Table[i] == 0xf9)
 				udelay(1);
 			rtl8192_setBBreg(dev, Rtl819XPHY_REGArraytoXTXR_Table[i], Rtl819XPHY_REGArraytoXTXR_Table[i+1], Rtl819XPHY_REGArraytoXTXR_Table[i+2]);
-			//RT_TRACE(COMP_SEND,
-			//"The Rtl819XPHY_REGArraytoXTXR_Table[0] is %lx Rtl819XPHY_REGArraytoXTXR_Table[1] is %lx Rtl819XPHY_REGArraytoXTXR_Table[2] is %lx \n",
-			//Rtl819XPHY_REGArraytoXTXR_Table[i],Rtl819XPHY_REGArraytoXTXR_Table[i+1], Rtl819XPHY_REGArraytoXTXR_Table[i+2]);
 		}
 	}
 	else {
 		RT_TRACE(COMP_SEND, "phy_SetBBtoDiffRFWithHeaderFile(): ConfigType != BaseBand_Config_PHY_REG\n");
 	}
-//#endif	// #if (HAL_CODE_BASE != RTL8192_S)
 	return RT_STATUS_SUCCESS;
 }
 
@@ -869,14 +789,6 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 {
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	RT_STATUS			rtStatus = RT_STATUS_SUCCESS;
-	//u8				u2RegValue;
-	//u16				u4RegValue;
-	//char				szBBRegFile[] = RTL819X_PHY_REG;
-	//char				szBBRegFile1T2R[] = RTL819X_PHY_REG_1T2R;
-	//char				szBBRegPgFile[] = RTL819X_PHY_REG_PG;
-	//char				szAGCTableFile[] = RTL819X_AGC_TAB;
-	//char				szBBRegto1T1RFile[] = RTL819X_PHY_REG_to1T1R;
-	//char				szBBRegto1T2RFile[] = RTL819X_PHY_REG_to1T2R;
 
 	RT_TRACE(COMP_INIT, "==>phy_BB8192S_Config_ParaFile\n");
 
@@ -956,42 +868,16 @@ phy_ConfigMACWithHeaderFile(struct net_device* dev)
 	u32					i = 0;
 	u32					ArrayLength = 0;
 	u32*					ptrArray;
-	//struct r8192_priv 	*priv = ieee80211_priv(dev);
 
-//#if (HAL_CODE_BASE != RTL8192_S)
-	/*if(Adapter->bInHctTest)
-	{
-		RT_TRACE(COMP_INIT, DBG_LOUD, ("Rtl819XMACPHY_ArrayDTM\n"));
-		ArrayLength = MACPHY_ArrayLengthDTM;
-		ptrArray = Rtl819XMACPHY_ArrayDTM;
-	}
-	else if(pHalData->bTXPowerDataReadFromEEPORM)
-	{
-//		RT_TRACE(COMP_INIT, DBG_LOUD, ("Rtl819XMACPHY_Array_PG\n"));
-//		ArrayLength = MACPHY_Array_PGLength;
-//		ptrArray = Rtl819XMACPHY_Array_PG;
-
-	}else*/
 	{ //2008.11.06 Modified by tynli.
 		RT_TRACE(COMP_INIT, "Read Rtl819XMACPHY_Array\n");
 		ArrayLength = MAC_2T_ArrayLength;
 		ptrArray = Rtl819XMAC_Array;
 	}
 
-	/*for(i = 0 ;i < ArrayLength;i=i+3){
-		RT_TRACE(COMP_SEND, DBG_LOUD, ("The Rtl819XMACPHY_Array[0] is %lx Rtl819XMACPHY_Array[1] is %lx Rtl819XMACPHY_Array[2] is %lx\n",ptrArray[i], ptrArray[i+1], ptrArray[i+2]));
-		if(ptrArray[i] == 0x318)
-		{
-			ptrArray[i+2] = 0x00000800;
-			//DbgPrint("ptrArray[i], ptrArray[i+1], ptrArray[i+2] = %x, %x, %x\n",
-			//	ptrArray[i], ptrArray[i+1], ptrArray[i+2]);
-		}
-		PHY_SetBBReg(Adapter, ptrArray[i], ptrArray[i+1], ptrArray[i+2]);
-	}*/
 	for(i = 0 ;i < ArrayLength;i=i+2){ // Add by tynli for 2 column
 		write_nic_byte(dev, ptrArray[i], (u8)ptrArray[i+1]);
 	}
-//#endif
 	return RT_STATUS_SUCCESS;
 }
 
@@ -1015,12 +901,10 @@ static	RT_STATUS
 phy_ConfigBBWithHeaderFile(struct net_device* dev,u8 ConfigType)
 {
 	int 		i;
-	//u8 		ArrayLength;
 	u32*	Rtl819XPHY_REGArray_Table;
 	u32*	Rtl819XAGCTAB_Array_Table;
 	u16		PHY_REGArrayLen, AGCTAB_ArrayLen;
-	//struct r8192_priv *priv = ieee80211_priv(dev);
-//#if (HAL_CODE_BASE != RTL8192_S)
+
 	/*if(Adapter->bInHctTest)
 	{
 
@@ -1041,15 +925,10 @@ phy_ConfigBBWithHeaderFile(struct net_device* dev,u8 ConfigType)
 	}
 	else
 	*/
-	//{
-	//
-	// 2008.11.06 Modified by tynli.
-	//
 	AGCTAB_ArrayLen = AGCTAB_ArrayLength;
 	Rtl819XAGCTAB_Array_Table = Rtl819XAGCTAB_Array;
 	PHY_REGArrayLen = PHY_REG_2T2RArrayLength; // Default RF_type: 2T2R
 	Rtl819XPHY_REGArray_Table = Rtl819XPHY_REG_Array;
-	//}
 
 	if(ConfigType == BaseBand_Config_PHY_REG)
 	{
@@ -1068,7 +947,6 @@ phy_ConfigBBWithHeaderFile(struct net_device* dev,u8 ConfigType)
 			else if (Rtl819XPHY_REGArray_Table[i] == 0xf9)
 				udelay(1);
 			rtl8192_setBBreg(dev, Rtl819XPHY_REGArray_Table[i], bMaskDWord, Rtl819XPHY_REGArray_Table[i+1]);
-			//RT_TRACE(COMP_SEND, "The Rtl819XPHY_REGArray_Table[0] is %lx Rtl819XPHY_REGArray[1] is %lx \n",Rtl819XPHY_REGArray_Table[i], Rtl819XPHY_REGArray_Table[i+1]);
 
 		}
 	}
@@ -1078,7 +956,6 @@ phy_ConfigBBWithHeaderFile(struct net_device* dev,u8 ConfigType)
 			rtl8192_setBBreg(dev, Rtl819XAGCTAB_Array_Table[i], bMaskDWord, Rtl819XAGCTAB_Array_Table[i+1]);
 		}
 	}
-//#endif	// #if (HAL_CODE_BASE != RTL8192_S)
 	return RT_STATUS_SUCCESS;
 }
 
@@ -1103,12 +980,8 @@ static RT_STATUS
 phy_ConfigBBWithPgHeaderFile(struct net_device* dev,u8 ConfigType)
 {
 	int i;
-	//u8 ArrayLength;
 	u32*	Rtl819XPHY_REGArray_Table_PG;
 	u16	PHY_REGArrayPGLen;
-	//struct r8192_priv *priv = ieee80211_priv(dev);
-//#if (HAL_CODE_BASE != RTL8192_S)
-	// Default: pHalData->RF_Type = RF_2T2R.
 
 	PHY_REGArrayPGLen = PHY_REG_Array_PGLength;
 	Rtl819XPHY_REGArray_Table_PG = Rtl819XPHY_REG_Array_PG;
@@ -1130,15 +1003,13 @@ phy_ConfigBBWithPgHeaderFile(struct net_device* dev,u8 ConfigType)
 			else if (Rtl819XPHY_REGArray_Table_PG[i] == 0xf9)
 				udelay(1);
 			rtl8192_setBBreg(dev, Rtl819XPHY_REGArray_Table_PG[i], Rtl819XPHY_REGArray_Table_PG[i+1], Rtl819XPHY_REGArray_Table_PG[i+2]);
-			//RT_TRACE(COMP_SEND, "The Rtl819XPHY_REGArray_Table_PG[0] is %lx Rtl819XPHY_REGArray_Table_PG[1] is %lx \n",
-			//		Rtl819XPHY_REGArray_Table_PG[i], Rtl819XPHY_REGArray_Table_PG[i+1]);
 		}
 	}else{
 		RT_TRACE(COMP_SEND, "phy_ConfigBBWithPgHeaderFile(): ConfigType != BaseBand_Config_PHY_REG\n");
 	}
 	return RT_STATUS_SUCCESS;
 
-}	/* phy_ConfigBBWithPgHeaderFile */
+}
 
 /*-----------------------------------------------------------------------------
  * Function:    PHY_ConfigRFWithHeaderFile()
@@ -1162,12 +1033,9 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int			i;
-	//u32*	pRFArray;
 	RT_STATUS	rtStatus = RT_STATUS_SUCCESS;
 	u32			*Rtl819XRadioA_Array_Table;
 	u32			*Rtl819XRadioB_Array_Table;
-	//u32*	Rtl819XRadioC_Array_Table;
-	//u32*	Rtl819XRadioD_Array_Table;
 	u16			RadioA_ArrayLen,RadioB_ArrayLen;
 
 	{	//2008.11.06 Modified by tynli
@@ -1190,18 +1058,12 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 
 	rtStatus = RT_STATUS_SUCCESS;
 
-	// When initialization, we want the delay function(mdelay(), delay_us()
-	// ==> actually we call PlatformStallExecution()) to do NdisStallExecution()
-	// [busy wait] instead of NdisMSleep(). So we acquire RT_INITIAL_SPINLOCK
-	// to run at Dispatch level to achive it.
-	//cosa PlatformAcquireSpinLock(Adapter, RT_INITIAL_SPINLOCK);
 
 	switch(eRFPath){
 		case RF90_PATH_A:
 			for(i = 0;i<RadioA_ArrayLen; i=i+2){
 				if(Rtl819XRadioA_Array_Table[i] == 0xfe)
 					{ // Deay specific ms. Only RF configuration require delay.
-//#if (DEV_BUS_TYPE == USB_INTERFACE)
 						mdelay(1000);
 				}
 					else if (Rtl819XRadioA_Array_Table[i] == 0xfd)
@@ -1210,7 +1072,6 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 						mdelay(1);
 					else if (Rtl819XRadioA_Array_Table[i] == 0xfb)
 						udelay(50);
-						//PlatformStallExecution(50);
 					else if (Rtl819XRadioA_Array_Table[i] == 0xfa)
 						udelay(5);
 					else if (Rtl819XRadioA_Array_Table[i] == 0xf9)
@@ -1225,7 +1086,6 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	
 			for(i = 0;i<RadioB_ArrayLen; i=i+2){
 				if(Rtl819XRadioB_Array_Table[i] == 0xfe)
 					{ // Deay specific ms. Only RF configuration require delay.
-//#if (DEV_BUS_TYPE == USB_INTERFACE)
 						mdelay(1000);
 				}
 					else if (Rtl819XRadioB_Array_Table[i] == 0xfd)
@@ -1281,7 +1141,6 @@ PHY_CheckBBAndRFOK(
 	RF90_RADIO_PATH_E	eRFPath
 	)
 {
-	//struct r8192_priv *priv = ieee80211_priv(dev);
 	RT_STATUS			rtStatus = RT_STATUS_SUCCESS;
 	u32				i, CheckTimes = 4,ulRegRead = 0;
 	u32				WriteAddr[4];
@@ -1302,7 +1161,6 @@ PHY_CheckBBAndRFOK(
 		switch(CheckBlock)
 		{
 		case HW90_BLOCK_MAC:
-			//RT_ASSERT(FALSE, ("PHY_CheckBBRFOK(): Never Write 0x100 here!"));
 			RT_TRACE(COMP_INIT, "PHY_CheckBBRFOK(): Never Write 0x100 here!\n");
 			break;
 
@@ -1313,18 +1171,12 @@ PHY_CheckBBAndRFOK(
 			break;
 
 		case HW90_BLOCK_RF:
-			// When initialization, we want the delay function(mdelay(), delay_us()
-			// ==> actually we call PlatformStallExecution()) to do NdisStallExecution()
-			// [busy wait] instead of NdisMSleep(). So we acquire RT_INITIAL_SPINLOCK
-			// to run at Dispatch level to achive it.
-			//cosa PlatformAcquireSpinLock(dev, RT_INITIAL_SPINLOCK);
 			WriteData[i] &= 0xfff;
 			rtl8192_phy_SetRFReg(dev, eRFPath, WriteAddr[HW90_BLOCK_RF], bRFRegOffsetMask, WriteData[i]);
 			// TODO: we should not delay for such a long time. Ask SD3
 			mdelay(10);
 			ulRegRead = rtl8192_phy_QueryRFReg(dev, eRFPath, WriteAddr[HW90_BLOCK_RF], bMaskDWord);
 			mdelay(10);
-			//cosa PlatformReleaseSpinLock(dev, RT_INITIAL_SPINLOCK);
 			break;
 
 		default:
@@ -1338,7 +1190,6 @@ PHY_CheckBBAndRFOK(
 		//
 		if(ulRegRead != WriteData[i])
 		{
-			//RT_TRACE(COMP_FPGA,  ("ulRegRead: %x, WriteData: %x \n", ulRegRead, WriteData[i]));
 			RT_TRACE(COMP_ERR, "read back error(read:%x, write:%x)\n", ulRegRead, WriteData[i]);
 			rtStatus = RT_STATUS_FAILURE;
 			break;
@@ -1348,7 +1199,6 @@ PHY_CheckBBAndRFOK(
 	return rtStatus;
 }
 
-//no use temp in windows driver
 #ifdef TO_DO_LIST
 void
 PHY_SetRFPowerState8192SUsb(
@@ -1359,7 +1209,6 @@ PHY_SetRFPowerState8192SUsb(
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool			WaitShutDown = FALSE;
 	u32			DWordContent;
-	//RF90_RADIO_PATH_E	eRFPath;
 	u8				eRFPath;
 	BB_REGISTER_DEFINITION_T	*pPhyReg;
 
@@ -1368,7 +1217,6 @@ PHY_SetRFPowerState8192SUsb(
 
 	priv->SetRFPowerStateInProgress = TRUE;
 
-	// TODO: Emily, 2006.11.21, we should rewrite this function
 
 	if(RFPowerState==RF_SHUT_DOWN)
 	{
@@ -1420,22 +1268,20 @@ PHY_SetRFPowerState8192SUsb(
 
 	case RF_8258:
 		break;
-	}// switch( priv->rf_chip )
+	}
 
 	priv->SetRFPowerStateInProgress = FALSE;
 }
 #endif
 
 #ifdef RTL8192U
-//no use temp in windows driver
 void
 PHY_UpdateInitialGain(
 	struct net_device* dev
 	)
 {
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
-	//unsigned char			*IGTable;
-	//u8			DIG_CurrentInitialGain = 4;
+
 
 	switch(priv->rf_chip)
 	{
@@ -1456,7 +1302,6 @@ PHY_UpdateInitialGain(
 }
 #endif
 
-//YJ,modified,090107
 void PHY_GetHWRegOriginalValue(struct net_device* dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1625,8 +1470,6 @@ static void phy_InitBBRFRegisterDefinition(	struct net_device* dev)
 	// Tranceiver LSSI Readback PI mode
 	priv->PHYRegDef[RF90_PATH_A].rfLSSIReadBackPi = TransceiverA_HSPI_Readback;
 	priv->PHYRegDef[RF90_PATH_B].rfLSSIReadBackPi = TransceiverB_HSPI_Readback;
-	//pHalData->PHYRegDef[RF90_PATH_C].rfLSSIReadBackPi = rFPGA0_XC_LSSIReadBack;
-	//pHalData->PHYRegDef[RF90_PATH_D].rfLSSIReadBackPi = rFPGA0_XD_LSSIReadBack;
 
 }
 
@@ -1637,9 +1480,7 @@ static void phy_InitBBRFRegisterDefinition(	struct net_device* dev)
 //	Assumption: This function must be executed in re-schdulable context,
 //		ie. PASSIVE_LEVEL.
 //
-//	050823, by rcnjko.
-//not understand it seem's use in init
-//SetHwReg8192SUsb--->HalFunc.SetHwRegHandler
+
 bool PHY_SetRFPowerState(struct net_device* dev, RT_RF_POWER_STATE eRFPowerState)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -1665,8 +1506,6 @@ static bool phy_SetRFPowerState8192SU(struct net_device* dev,RT_RF_POWER_STATE e
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool			bResult = TRUE;
-	//u8		eRFPath;
-	//u8		i, QueueID;
 	u8 		u1bTmp;
 
 	if(priv->SetRFPowerStateInProgress == TRUE)
@@ -1728,7 +1567,6 @@ static bool phy_SetRFPowerState8192SU(struct net_device* dev,RT_RF_POWER_STATE e
 
 			default:
 				bResult = FALSE;
-				//RT_ASSERT(FALSE, ("phy_SetRFPowerState8192SU(): unknown state to set: 0x%X!!!\n", eRFPowerState));
 				break;
 		}
 		break;
@@ -1860,7 +1698,6 @@ PHY_GetTxPowerLevel8192S(
  void PHY_SetTxPowerLevel8192S(struct net_device* dev, u8	channel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//HAL_DATA_TYPE		*pHalData = GET_HAL_DATA(dev);
 	u8	powerlevel = (u8)EEPROM_Default_TxPower, powerlevelOFDM24G = 0x10;
 	s8 	ant_pwr_diff = 0;
 	u32	u4RegValue;
@@ -2095,8 +1932,6 @@ PHY_GetTxPowerLevel8192S(
 	switch(priv->rf_chip)
 	{
 		case RF_8225:
-			//PHY_SetRF8225CckTxPower(dev, powerlevel);
-			//PHY_SetRF8225OfdmTxPower(dev, powerlevelOFDM24G);
 		break;
 
 		case RF_8256:
@@ -2173,8 +2008,6 @@ extern void PHY_SetBeaconHwReg(	struct net_device* dev, u16 BeaconInterval)
 	u32 NewBeaconNum;
 
 	NewBeaconNum = BeaconInterval *32 - 64;
-	//PlatformEFIOWrite4Byte(Adapter, WFM3+4, NewBeaconNum);
-	//PlatformEFIOWrite4Byte(Adapter, WFM3, 0xB026007C);
 	write_nic_dword(dev, WFM3+4, NewBeaconNum);
 	write_nic_dword(dev, WFM3, 0xB026007C);
 }
@@ -2192,7 +2025,6 @@ static u8 phy_DbmToTxPwrIdx(
 	long			PowerInDbm
 	)
 {
-	//struct r8192_priv *priv = ieee80211_priv(dev);
 	u8				TxPwrIdx = 0;
 	long				Offset = 0;
 
@@ -2327,9 +2159,6 @@ PHY_ScanOperationBackup8192S(
 void PHY_InitialGain8192S(struct net_device* dev,u8 Operation	)
 {
 
-	//struct r8192_priv *priv = ieee80211_priv(dev);
-	//u32					BitMask;
-	//u8					initial_gain;
 }
 
 /*-----------------------------------------------------------------------------
@@ -2353,11 +2182,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8	 			regBwOpMode;
 
-	//return;
-
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//u32				NowL, NowH;
-	//u8Byte				BeginTime, EndTime;
 	u8				regRRSR_RSC;
 
 	RT_TRACE(COMP_SWBW, "==>SetBWModeCallback8190Pci()  Switch to %s bandwidth\n", \
@@ -2372,10 +2196,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 	if(!priv->up)
 		return;
 
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//NowL = read_nic_dword(dev, TSFR);
-	//NowH = read_nic_dword(dev, TSFR+4);
-	//BeginTime = ((u8Byte)NowH << 32) + NowL;
 
 	//3//
 	//3//<1>Set MAC register
@@ -2386,8 +2206,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 	switch(priv->CurrentChannelBW)
 	{
 		case HT_CHANNEL_WIDTH_20:
-			//if(priv->card_8192_version >= VERSION_8192S_BCUT)
-			//	write_nic_byte(dev, rFPGA0_AnalogParameter2, 0x58);
 
 			regBwOpMode |= BW_OPMODE_20MHZ;
 		       	// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
@@ -2395,8 +2213,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 			break;
 
 		case HT_CHANNEL_WIDTH_20_40:
-			//if(priv->card_8192_version >= VERSION_8192S_BCUT)
-			//	write_nic_byte(dev, rFPGA0_AnalogParameter2, 0x18);
 
 			regBwOpMode &= ~BW_OPMODE_20MHZ;
         		// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
@@ -2421,12 +2237,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x0);
 			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x0);
 
-			// Correct the tx power for CCK rate in 40M. Suggest by YN, 20071207
-			// It is set in Tx descriptor for 8192x series
-			//write_nic_dword(dev, rCCK0_TxFilter1, 0x1a1b0000);
-			//write_nic_dword(dev, rCCK0_TxFilter2, 0x090e1317);
-			//write_nic_dword(dev, rCCK0_DebugPort, 0x00000204);
-
 			if (priv->card_8192_version >= VERSION_8192S_BCUT)
 				write_nic_byte(dev, rFPGA0_AnalogParameter2, 0x58);
 
@@ -2438,10 +2248,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 			rtl8192_setBBreg(dev, rFPGA0_RFMOD, bRFMOD, 0x1);
 			rtl8192_setBBreg(dev, rFPGA1_RFMOD, bRFMOD, 0x1);
 
-			// Correct the tx power for CCK rate in 40M. Suggest by YN, 20071207
-			//write_nic_dword(dev, rCCK0_TxFilter1, 0x35360000);
-			//write_nic_dword(dev, rCCK0_TxFilter2, 0x121c252e);
-			//write_nic_dword(dev, rCCK0_DebugPort, 0x00000409);
 
 			// Set Control channel to upper or lower. These settings are required only for 40MHz
 			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
@@ -2461,11 +2267,6 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 	}
 	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
 
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//NowL = read_nic_dword(dev, TSFR);
-	//NowH = read_nic_dword(dev, TSFR+4);
-	//EndTime = ((u8Byte)NowH << 32) + NowL;
-	//RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWModeCallback8190Pci: time of SetBWMode = %I64d us!\n", (EndTime - BeginTime)));
 
 	//3<3>Set RF related register
 	switch( priv->rf_chip )
@@ -2516,35 +2317,10 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
  *
  * Note:		We do not take j mode into consideration now
  *---------------------------------------------------------------------------*/
-//extern void PHY_SetBWMode8192S(	struct net_device* dev,
-//	HT_CHANNEL_WIDTH	Bandwidth,	// 20M or 40M
-//	HT_EXTCHNL_OFFSET	Offset		// Upper, Lower, or Don't care
 void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET Offset)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	HT_CHANNEL_WIDTH tmpBW = priv->CurrentChannelBW;
-
-
-	// Modified it for 20/40 mhz switch by guangan 070531
-
-	//return;
-
-	//if(priv->SwChnlInProgress)
-//	if(pMgntInfo->bScanInProgress)
-//	{
-//		RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWMode8190Pci() %s Exit because bScanInProgress!\n",
-//					Bandwidth == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz"));
-//		return;
-//	}
-
-//	if(priv->SetBWModeInProgress)
-//	{
-//		// Modified it for 20/40 mhz switch by guangan 070531
-//		RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWMode8190Pci() %s cancel last timer because SetBWModeInProgress!\n",
-//					Bandwidth == HT_CHANNEL_WIDTH_20?"20MHz":"40MHz"));
-//		PlatformCancelTimer(dev, &priv->SetBWModeTimer);
-//		//return;
-//	}
 
 	if(priv->SetBWModeInProgress)
 		return;
@@ -2578,7 +2354,6 @@ void PHY_SwChnlCallback8192S(struct net_device *dev)
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32		delay;
-	//bool			ret;
 
 	RT_TRACE(COMP_CH, "==>SwChnlCallback8190Pci(), switch to channel %d\n", priv->chan);
 
@@ -2595,16 +2370,11 @@ void PHY_SwChnlCallback8192S(struct net_device *dev)
 		if(!priv->SwChnlInProgress)
 			break;
 
-		//if(!phy_SwChnlStepByStep(dev, priv->CurrentChannel, &priv->SwChnlStage, &priv->SwChnlStep, &delay))
 		if(!phy_SwChnlStepByStep(dev, priv->chan, &priv->SwChnlStage, &priv->SwChnlStep, &delay))
 		{
 			if(delay>0)
 			{
 				mdelay(delay);
-				//PlatformSetTimer(dev, &priv->SwChnlTimer, delay);
-				//mod_timer(&priv->SwChnlTimer,  jiffies + MSECS(delay));
-				//==>PHY_SwChnlCallback8192S(dev); for 92se
-				//==>SwChnlCallback8192SUsb(dev) for 92su
 			}
 			else
 			continue;
@@ -2618,12 +2388,9 @@ void PHY_SwChnlCallback8192S(struct net_device *dev)
 }
 
 // Call after initialization
-//extern void PHY_SwChnl8192S(struct net_device* dev,	u8 channel)
 u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//u8 			tmpchannel =channel;
-	//bool			bResult = false;
 
         if(!priv->up)
 		return false;
@@ -2634,7 +2401,6 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 	if(priv->SetBWModeInProgress)
 		return false;
 
-	//--------------------------------------------
 	switch(priv->ieee80211->mode)
 	{
 	case WIRELESS_MODE_A:
@@ -2661,10 +2427,9 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 		break;
 
 	default:
-			;//RT_TRACE(COMP_ERR, "Invalid WirelessMode(%#x)!!\n", priv->ieee80211->mode);
+			;
 		break;
 	}
-	//--------------------------------------------
 
 	priv->SwChnlInProgress = TRUE;
 	if( channel == 0)
@@ -2675,7 +2440,7 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 	priv->SwChnlStage=0;
 	priv->SwChnlStep=0;
 
-	if((priv->up))// && !(RT_CANNOT_IO(Adapter) && Adapter->bInSetPower))
+	if((priv->up))
 	{
 	SwChnlCallback8192SUsbWorkItem(dev);
 #ifdef TO_DO_LIST
@@ -2695,7 +2460,6 @@ u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel)
 	{
 		RT_TRACE(COMP_SCAN, "PHY_SwChnl8192S SwChnlInProgress FALSE driver sleep or unload\n");
 		priv->SwChnlInProgress = false;
-		//priv->CurrentChannel = tmpchannel;
 	}
         return true;
 }
@@ -2767,14 +2531,10 @@ phy_SetSwChnlCmdArray(
 
 	if(CmdTable == NULL)
 	{
-		//RT_ASSERT(FALSE, ("phy_SetSwChnlCmdArray(): CmdTable cannot be NULL.\n"));
 		return FALSE;
 	}
 	if(CmdTableIdx >= CmdTableSz)
 	{
-		//RT_ASSERT(FALSE,
-			//	("phy_SetSwChnlCmdArray(): Access invalid index, please check size of the table, CmdTableIdx:%d, CmdTableSz:%d\n",
-				//CmdTableIdx, CmdTableSz));
 		return FALSE;
 	}
 
@@ -2798,7 +2558,6 @@ phy_SwChnlStepByStep(
 	)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//PCHANNEL_ACCESS_SETTING	pChnlAccessSetting;
 	SwChnlCmd				PreCommonCmd[MAX_PRECMD_CNT];
 	u32					PreCommonCmdCnt;
 	SwChnlCmd				PostCommonCmd[MAX_POSTCMD_CNT];
@@ -2808,22 +2567,13 @@ phy_SwChnlStepByStep(
 	SwChnlCmd				*CurrentCmd = NULL;
 	u8					eRFPath;
 
-	//RT_ASSERT((dev != NULL), ("Adapter should not be NULL\n"));
-	//RT_ASSERT(IsLegalChannel(dev, channel), ("illegal channel: %d\n", channel));
 	RT_TRACE(COMP_CH, "===========>%s(), channel:%d, stage:%d, step:%d\n", __FUNCTION__, channel, *stage, *step);
-	//RT_ASSERT((pHalData != NULL), ("pHalData should not be NULL\n"));
 	if (!IsLegalChannel(priv->ieee80211, channel))
 	{
 		RT_TRACE(COMP_ERR, "=============>set to illegal channel:%d\n", channel);
 		return true; //return true to tell upper caller function this channel setting is finished! Or it will in while loop.
 	}
 
-	//pChnlAccessSetting = &Adapter->MgntInfo.Info8185.ChannelAccessSetting;
-	//RT_ASSERT((pChnlAccessSetting != NULL), ("pChnlAccessSetting should not be NULL\n"));
-
-	//for(eRFPath = RF90_PATH_A; eRFPath <priv->NumTotalRFPath; eRFPath++)
-	//for(eRFPath = 0; eRFPath <priv->NumTotalRFPath; eRFPath++)
-	//{
 		// <1> Fill up pre common command.
 	PreCommonCmdCnt = 0;
 	phy_SetSwChnlCmdArray(PreCommonCmd, PreCommonCmdCnt++, MAX_PRECMD_CNT,
@@ -2844,8 +2594,7 @@ phy_SwChnlStepByStep(
 		case RF_8225:
 		if (channel < 1 || channel > 14)
 			RT_TRACE(COMP_ERR, "illegal channel for zebra:%d\n", channel);
-		//RT_ASSERT((channel >= 1 && channel <= 14), ("illegal channel for Zebra: %d\n", channel));
-		// 2008/09/04 MH Change channel.
+
 		phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
 			CmdID_RF_WriteReg, rRfChannel, channel, 10);
 		phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
@@ -2855,8 +2604,6 @@ phy_SwChnlStepByStep(
 	case RF_8256:
 		if (channel < 1 || channel > 14)
 			RT_TRACE(COMP_ERR, "illegal channel for zebra:%d\n", channel);
-		// TEST!! This is not the table for 8256!!
-		//RT_ASSERT((channel >= 1 && channel <= 14), ("illegal channel for Zebra: %d\n", channel));
 		phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
 			CmdID_RF_WriteReg, rRfChannel, channel, 10);
 		phy_SetSwChnlCmdArray(RfDependCmd, RfDependCmdCnt++, MAX_RFDEPENDCMD_CNT,
@@ -2876,7 +2623,6 @@ phy_SwChnlStepByStep(
 		break;
 
 	default:
-		//RT_ASSERT(FALSE, ("Unknown rf_chip: %d\n", priv->rf_chip));
 		return FALSE;
 		break;
 	}
@@ -2913,7 +2659,6 @@ phy_SwChnlStepByStep(
 		switch(CurrentCmd->CmdID)
 		{
 		case CmdID_SetTxPowerLevel:
-			//if(priv->card_8192_version > VERSION_8190_BD)
 				PHY_SetTxPowerLevel8192S(dev,channel);
 			break;
 		case CmdID_WritePortUlong:
@@ -2930,7 +2675,6 @@ phy_SwChnlStepByStep(
 			{
 			// For new T65 RF 0222d register 0x18 bit 0-9 = channel number.
 				rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, 0x1f, (CurrentCmd->Para2));
-				//printk("====>%x, %x, read_back:%x\n", CurrentCmd->Para2,CurrentCmd->Para1, rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, CurrentCmd->Para1, 0x1f));
 			}
 			break;
                 default:
@@ -2939,7 +2683,6 @@ phy_SwChnlStepByStep(
 
 		break;
 	}while(TRUE);
-	//cosa }/*for(Number of RF paths)*/
 
 	(*delay)=CurrentCmd->msDelay;
 	(*step)++;
@@ -2985,14 +2728,8 @@ phy_FinishSwChnlNow(	// We should not call this function directly
  *	11/15/2007	MHC		Create Version 0.
  *
  *---------------------------------------------------------------------------*/
- //called by rtl8192_phy_QueryRFReg, rtl8192_phy_SetRFReg, PHY_SetRFPowerState8192SUsb
-//extern	bool
-//PHY_CheckIsLegalRfPath8192S(
-//	struct net_device* dev,
-//	u32	eRFPath)
 u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device* dev, u32 eRFPath)
 {
-//	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool				rtValue = TRUE;
 
 	// NOt check RF Path now.!
@@ -3023,7 +2760,6 @@ u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device* dev, u32 eRFPath)
 void
 PHY_IQCalibrate(	struct net_device* dev)
 {
-	//struct r8192_priv 	*priv = ieee80211_priv(dev);
 	u32				i, reg;
 	u32				old_value;
 	long				X, Y, TX0[4];
@@ -3039,7 +2775,6 @@ PHY_IQCalibrate(	struct net_device* dev)
 	{
 		// IQK
 		rtl8192_setBBreg(dev, 0xc04, bMaskDWord, 0x00a05430);
-		//PlatformStallExecution(5);
 		udelay(5);
 		rtl8192_setBBreg(dev, 0xc08, bMaskDWord, 0x000800e4);
 		udelay(5);
@@ -3169,8 +2904,6 @@ PHY_IQCalibrate(	struct net_device* dev)
  *---------------------------------------------------------------------------*/
 extern void PHY_IQCalibrateBcut(struct net_device* dev)
 {
-	//struct r8192_priv 	*priv = ieee80211_priv(dev);
-	//PMGNT_INFO		pMgntInfo = &pAdapter->MgntInfo;
 	u32				i, reg;
 	u32				old_value;
 	long				X, Y, TX0[4];
@@ -3212,7 +2945,6 @@ extern void PHY_IQCalibrateBcut(struct net_device* dev)
 	calibrate_set [10] = 0xed0;
 	calibrate_set [11] = 0xed4;
 	calibrate_set [12] = 0xed8;
-	//RT_TRACE(COMP_INIT, DBG_LOUD, ("Save e70~ee0 register setting\n"));
 	for (i = 0; i < 13; i++)
 	{
 		load_value[i] = rtl8192_QueryBBReg(dev, calibrate_set[i], bMaskDWord);
@@ -3232,7 +2964,6 @@ extern void PHY_IQCalibrateBcut(struct net_device* dev)
 		//BB switch to PI mode. If default is PI mode, ignoring 2 commands below.
 		if (!RfPiEnable)	//if original is SI mode, then switch to PI mode.
 		{
-			//DbgPrint("IQK Switch to PI mode\n");
 			rtl8192_setBBreg(dev, 0x820, bMaskDWord, 0x01000100);
 			rtl8192_setBBreg(dev, 0x828, bMaskDWord, 0x01000100);
 		}
@@ -3369,7 +3100,6 @@ extern void PHY_IQCalibrateBcut(struct net_device* dev)
 	//
 	// 4. Reload e70~ee0 register setting.
 	//
-	//RT_TRACE(COMP_INIT, DBG_LOUD, ("Reload e70~ee0 register setting.\n"));
 	for (i = 0; i < 13; i++)
 		rtl8192_setBBreg(dev, calibrate_set[i], bMaskDWord, load_value[i]);
 
@@ -3380,14 +3110,12 @@ extern void PHY_IQCalibrateBcut(struct net_device* dev)
 
 
 
-}	// PHY_IQCalibrateBcut
+}
 
 
 //
 // Move from phycfg.c to gen.c to be code independent later
 //
-//-------------------------Move to other DIR later----------------------------*/
-//#if (DEV_BUS_TYPE == USB_INTERFACE)
 
 //    use in phy only (in win it's timer)
 void SwChnlCallback8192SUsb(struct net_device *dev)
@@ -3395,7 +3123,6 @@ void SwChnlCallback8192SUsb(struct net_device *dev)
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32			delay;
-//	bool			ret;
 
 	RT_TRACE(COMP_SCAN, "==>SwChnlCallback8190Pci(), switch to channel %d\n",
 		 priv->chan);
@@ -3418,7 +3145,6 @@ void SwChnlCallback8192SUsb(struct net_device *dev)
 		{
 			if(delay>0)
 			{
-				//PlatformSetTimer(dev, &priv->SwChnlTimer, delay);
 
 			}
 			else
@@ -3473,16 +3199,12 @@ void SwChnlCallback8192SUsbWorkItem(struct net_device *dev )
  *			(2) Will two workitem of "switch channel" and "switch channel bandwidth" run
  *			     concurrently?
  *---------------------------------------------------------------------------*/
-//====>//rtl8192_SetBWMode
-//    use in phy only (in win it's timer)
+//    use in phy only
 void SetBWModeCallback8192SUsb(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8	 			regBwOpMode;
 
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//u32				NowL, NowH;
-	//u8Byte				BeginTime, EndTime;
 	u8				regRRSR_RSC;
 
 	RT_TRACE(COMP_SCAN, "==>SetBWModeCallback8190Pci()  Switch to %s bandwidth\n", \
@@ -3497,10 +3219,6 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 	if(!priv->up)
 		return;
 
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//NowL = read_nic_dword(dev, TSFR);
-	//NowH = read_nic_dword(dev, TSFR+4);
-	//BeginTime = ((u8Byte)NowH << 32) + NowL;
 
 	//3<1>Set MAC register
 	regBwOpMode = read_nic_byte(dev, BW_OPMODE);
@@ -3510,13 +3228,11 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 	{
 		case HT_CHANNEL_WIDTH_20:
 			regBwOpMode |= BW_OPMODE_20MHZ;
-		       // 2007/02/07 Mark by Emily becasue we have not verify whether this register works
 			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
 			break;
 
 		case HT_CHANNEL_WIDTH_20_40:
 			regBwOpMode &= ~BW_OPMODE_20MHZ;
-        		// 2007/02/07 Mark by Emily becasue we have not verify whether this register works
 			write_nic_byte(dev, BW_OPMODE, regBwOpMode);
 
 			regRRSR_RSC = (regRRSR_RSC&0x90) |(priv->nCur40MhzPrimeSC<<5);
@@ -3546,12 +3262,6 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 			rtl8192_setBBreg(dev, rCCK0_System, bCCKSideBand, (priv->nCur40MhzPrimeSC>>1));
 			rtl8192_setBBreg(dev, rOFDM1_LSTF, 0xC00, priv->nCur40MhzPrimeSC);
 
-			// Correct the tx power for CCK rate in 40M. Suggest by YN, 20071207
-			//PHY_SetBBReg(Adapter, rCCK0_TxFilter1, bMaskDWord, 0x35360000);
-			//PHY_SetBBReg(Adapter, rCCK0_TxFilter2, bMaskDWord, 0x121c252e);
-			//PHY_SetBBReg(Adapter, rCCK0_DebugPort, bMaskDWord, 0x00000409);
-			//PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter1, bADClkPhase, 0);
-
 			if (priv->card_8192_version >= VERSION_8192S_BCUT)
 				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0xff, 0x18);
 
@@ -3563,12 +3273,6 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 
 	}
 	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
-
-	// Added it for 20/40 mhz switch time evaluation by guangan 070531
-	//NowL = read_nic_dword(dev, TSFR);
-	//NowH = read_nic_dword(dev, TSFR+4);
-	//EndTime = ((u8Byte)NowH << 32) + NowL;
-	//RT_TRACE(COMP_SCAN, DBG_LOUD, ("SetBWModeCallback8190Pci: time of SetBWMode = %I64d us!\n", (EndTime - BeginTime)));
 
 #if 1
 	//3<3>Set RF related register
@@ -3597,7 +3301,6 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 			break;
 
 		default:
-			//RT_ASSERT(FALSE, ("Unknown rf_chip: %d\n", priv->rf_chip));
 			break;
 	}
 #endif
@@ -3705,7 +3408,6 @@ void SetBWModeCallback8192SUsbWorkItem(struct net_device *dev)
 	priv->SetBWModeInProgress= FALSE;
 }
 
-//--------------------------Move to oter DIR later-------------------------------*/
 void InitialGain8192S(struct net_device *dev,	u8 Operation)
 {
 #ifdef TO_DO_LIST
@@ -3812,7 +3514,6 @@ bool HalSetFwCmd8192S(struct net_device* dev, FW_CMD_IO_TYPE	FwCmdIO)
 
 	u16	FwCmdWaitLimit = 1000;
 
-	//if(IS_HARDWARE_TYPE_8192SU(Adapter) && Adapter->bInHctTest)
 	if(priv->bInHctTest)
 		return true;
 
@@ -3828,11 +3529,6 @@ bool HalSetFwCmd8192S(struct net_device* dev, FW_CMD_IO_TYPE	FwCmdIO)
 #if 1
 	while(priv->SetFwCmdInProgress && FwCmdWaitCounter<FwCmdWaitLimit)
 	{
-		//if(RT_USB_CANNOT_IO(Adapter))
-		//{
-		//	RT_TRACE(COMP_CMD, DBG_WARNING, ("HalSetFwCmd8192S(): USB can NOT IO!!\n"));
-		//	return FALSE;
-		//}
 
 		RT_TRACE(COMP_CMD, "HalSetFwCmd8192S(): previous workitem not finish!!\n");
 		return false;
@@ -3843,9 +3539,7 @@ bool HalSetFwCmd8192S(struct net_device* dev, FW_CMD_IO_TYPE	FwCmdIO)
 
 	if(FwCmdWaitCounter == FwCmdWaitLimit)
 	{
-		//RT_ASSERT(FALSE, ("SetFwCmdIOWorkItemCallback(): Wait too logn to set FW CMD\n"));
 		RT_TRACE(COMP_CMD, "HalSetFwCmd8192S(): Wait too logn to set FW CMD\n");
-		//return false;
 	}
 #endif
 	if (priv->SetFwCmdInProgress)
@@ -3898,7 +3592,6 @@ void ChkFwCmdIoDone(struct net_device* dev)
 //
 void phy_SetFwCmdIOCallback(struct net_device* dev)
 {
-	//struct net_device* dev = (struct net_device*) data;
 	u32 	 	input;
 	static u32 ScanRegister;
 	struct r8192_priv *priv = ieee80211_priv(dev);
