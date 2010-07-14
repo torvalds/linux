@@ -924,3 +924,90 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	kfree(buf);
 	return ret;
 }
+
+ssize_t iwl_ucode_bt_stats_read(struct file *file,
+				char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	int pos = 0;
+	char *buf;
+	int bufsz = (sizeof(struct statistics_bt_activity) * 24) + 200;
+	ssize_t ret;
+	struct statistics_bt_activity *bt, *accum_bt;
+
+	if (!iwl_is_alive(priv))
+		return -EAGAIN;
+
+	/* make request to uCode to retrieve statistics information */
+	mutex_lock(&priv->mutex);
+	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
+	mutex_unlock(&priv->mutex);
+
+	if (ret) {
+		IWL_ERR(priv,
+			"Error sending statistics request: %zd\n", ret);
+		return -EAGAIN;
+	}
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf) {
+		IWL_ERR(priv, "Can not allocate Buffer\n");
+		return -ENOMEM;
+	}
+
+	/*
+	 * the statistic information display here is based on
+	 * the last statistics notification from uCode
+	 * might not reflect the current uCode activity
+	 */
+	bt = &priv->_agn.statistics_bt.general.activity;
+	accum_bt = &priv->_agn.accum_statistics_bt.general.activity;
+
+	pos += iwl_statistics_flag(priv, buf, bufsz);
+	pos += scnprintf(buf + pos, bufsz - pos, "Statistics_BT:\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			"\t\t\tcurrent\t\t\taccumulative\n");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_tx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_tx_req_cnt),
+			 accum_bt->hi_priority_tx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_tx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_tx_denied_cnt),
+			 accum_bt->hi_priority_tx_denied_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_tx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_tx_req_cnt),
+			 accum_bt->lo_priority_tx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_tx_denied_cnt),
+			 accum_bt->lo_priority_tx_denied_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_rx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_rx_req_cnt),
+			 accum_bt->hi_priority_rx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "hi_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->hi_priority_rx_denied_cnt),
+			 accum_bt->hi_priority_rx_denied_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_rx_req_cnt:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_rx_req_cnt),
+			 accum_bt->lo_priority_rx_req_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "lo_priority_rx_denied_cnt:\t%u\t\t\t%u\n",
+			 le32_to_cpu(bt->lo_priority_rx_denied_cnt),
+			 accum_bt->lo_priority_rx_denied_cnt);
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "(rx)num_bt_kills:\t\t%u\t\t\t%u\n",
+			 le32_to_cpu(priv->_agn.statistics_bt.rx.
+				general.num_bt_kills),
+			 priv->_agn.accum_statistics_bt.rx.
+				general.num_bt_kills);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+	kfree(buf);
+	return ret;
+}
