@@ -2920,7 +2920,12 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 
 		dsi_update_screen_dispc(dssdev, x, y, w, h);
 	} else {
-		dsi_update_screen_l4(dssdev, x, y, w, h);
+		int r;
+
+		r = dsi_update_screen_l4(dssdev, x, y, w, h);
+		if (r)
+			return r;
+
 		dsi_perf_show("L4");
 		callback(0, data);
 	}
