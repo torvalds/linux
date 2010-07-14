@@ -1396,34 +1396,6 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	return ret;
 }
 
-/*fixme: have an audio flag in gspca_dev?*/
-static int vidioc_s_audio(struct file *file, void *priv,
-			 struct v4l2_audio *audio)
-{
-	if (audio->index != 0)
-		return -EINVAL;
-	return 0;
-}
-
-static int vidioc_g_audio(struct file *file, void *priv,
-			 struct v4l2_audio *audio)
-{
-	strcpy(audio->name, "Microphone");
-	return 0;
-}
-
-static int vidioc_enumaudio(struct file *file, void *priv,
-			 struct v4l2_audio *audio)
-{
-	if (audio->index != 0)
-		return -EINVAL;
-
-	strcpy(audio->name, "Microphone");
-	audio->capability = 0;
-	audio->mode = 0;
-	return 0;
-}
-
 static int vidioc_querymenu(struct file *file, void *priv,
 			    struct v4l2_querymenu *qmenu)
 {
@@ -2112,9 +2084,6 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_queryctrl	= vidioc_queryctrl,
 	.vidioc_g_ctrl		= vidioc_g_ctrl,
 	.vidioc_s_ctrl		= vidioc_s_ctrl,
-	.vidioc_g_audio		= vidioc_g_audio,
-	.vidioc_s_audio		= vidioc_s_audio,
-	.vidioc_enumaudio	= vidioc_enumaudio,
 	.vidioc_querymenu	= vidioc_querymenu,
 	.vidioc_enum_input	= vidioc_enum_input,
 	.vidioc_g_input		= vidioc_g_input,
