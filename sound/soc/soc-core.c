@@ -84,7 +84,7 @@ static int run_delayed_work(struct delayed_work *dwork)
 /* codec register dump */
 static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 {
-	int i, step = 1, count = 0;
+	int ret, i, step = 1, count = 0;
 
 	if (!codec->reg_cache_size)
 		return 0;
@@ -101,12 +101,24 @@ static ssize_t soc_codec_reg_show(struct snd_soc_codec *codec, char *buf)
 		if (count >= PAGE_SIZE - 1)
 			break;
 
-		if (codec->display_register)
+		if (codec->display_register) {
 			count += codec->display_register(codec, buf + count,
 							 PAGE_SIZE - count, i);
-		else
-			count += snprintf(buf + count, PAGE_SIZE - count,
-					  "%4x", codec->read(codec, i));
+		} else {
+			/* If the read fails it's almost certainly due to
+			 * the register being volatile and the device being
+			 * powered off.
+			 */
+			ret = codec->read(codec, i);
+			if (ret >= 0)
+				count += snprintf(buf + count,
+						  PAGE_SIZE - count,
+						  "%4x", ret);
+			else
+				count += snprintf(buf + count,
+						  PAGE_SIZE - count,
+						  "<no data: %d>", ret);
+		}
 
 		if (count >= PAGE_SIZE - 1)
 			break;
