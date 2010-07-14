@@ -3357,22 +3357,14 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 					"evt_tag:x%x, fcf_index:x%x\n",
 					acqe_fcoe->event_tag,
 					acqe_fcoe->index);
+		/* If the FCF discovery is in progress, do nothing. */
 		spin_lock_irq(&phba->hbalock);
-		if ((phba->fcf.fcf_flag & FCF_SCAN_DONE) ||
-		    (phba->hba_flag & FCF_DISC_INPROGRESS)) {
-			/*
-			 * If the current FCF is in discovered state or
-			 * FCF discovery is in progress, do nothing.
-			 */
+		if (phba->hba_flag & FCF_DISC_INPROGRESS) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
-
+		/* If fast FCF failover rescan event is pending, do nothing */
 		if (phba->fcf.fcf_flag & FCF_REDISC_EVT) {
-			/*
-			 * If fast FCF failover rescan event is pending,
-			 * do nothing.
-			 */
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
@@ -3393,7 +3385,13 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 					acqe_fcoe->index);
 			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fcoe->index);
 		}
-
+		/* If the FCF has been in discovered state, do nothing. */
+		spin_lock_irq(&phba->hbalock);
+		if (phba->fcf.fcf_flag & FCF_SCAN_DONE) {
+			spin_unlock_irq(&phba->hbalock);
+			break;
+		}
+		spin_unlock_irq(&phba->hbalock);
 		/* Otherwise, scan the entire FCF table and re-discover SAN */
 		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
 				"2770 Start FCF table scan due to new FCF "

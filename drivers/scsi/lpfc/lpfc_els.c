@@ -813,18 +813,21 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 */
 				lpfc_printf_log(phba, KERN_WARNING,
 						LOG_FIP | LOG_ELS,
-						"2760 FLOGI exhausted FCF "
-						"round robin failover list, "
-						"retry FLOGI on the current "
-						"registered FCF index:%d\n",
+						"2760 Completed one round "
+						"of FLOGI FCF round robin "
+						"failover list, retry FLOGI "
+						"on currently registered "
+						"FCF index:%d\n",
 						phba->fcf.current_rec.fcf_indx);
-				spin_lock_irq(&phba->hbalock);
-				phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-				spin_unlock_irq(&phba->hbalock);
 			} else {
+				lpfc_printf_log(phba, KERN_INFO,
+						LOG_FIP | LOG_ELS,
+						"2794 FLOGI FCF round robin "
+						"failover to FCF index x%x\n",
+						fcf_index);
 				rc = lpfc_sli4_fcf_rr_read_fcf_rec(phba,
 								   fcf_index);
-				if (rc) {
+				if (rc)
 					lpfc_printf_log(phba, KERN_WARNING,
 							LOG_FIP | LOG_ELS,
 							"2761 FLOGI round "
@@ -833,10 +836,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 							"rc:x%x, fcf_index:"
 							"%d\n", rc,
 						phba->fcf.current_rec.fcf_indx);
-					spin_lock_irq(&phba->hbalock);
-					phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
-					spin_unlock_irq(&phba->hbalock);
-				} else
+				else
 					goto out;
 			}
 		}

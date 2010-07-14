@@ -12405,19 +12405,47 @@ lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
 {
 	uint16_t next_fcf_index;
 
-	/* Search from the currently registered FCF index */
+	/* Search start from next bit of currently registered FCF index */
+	next_fcf_index = (phba->fcf.current_rec.fcf_indx + 1) %
+					LPFC_SLI4_FCF_TBL_INDX_MAX;
 	next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
 				       LPFC_SLI4_FCF_TBL_INDX_MAX,
-				       phba->fcf.current_rec.fcf_indx);
+				       next_fcf_index);
+
 	/* Wrap around condition on phba->fcf.fcf_rr_bmask */
 	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX)
 		next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
 					       LPFC_SLI4_FCF_TBL_INDX_MAX, 0);
-	/* Round robin failover stop condition */
-	if ((next_fcf_index == phba->fcf.fcf_rr_init_indx) ||
-		(next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX))
-		return LPFC_FCOE_FCF_NEXT_NONE;
 
+	/* Check roundrobin failover list empty condition */
+	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
+				"2844 No roundrobin failover FCF available\n");
+		return LPFC_FCOE_FCF_NEXT_NONE;
+	}
+
+	/* Check roundrobin failover index bmask stop condition */
+	if (next_fcf_index == phba->fcf.fcf_rr_init_indx) {
+		if (!(phba->fcf.fcf_flag & FCF_REDISC_RRU)) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP,
+					"2847 Round robin failover FCF index "
+					"search hit stop condition:x%x\n",
+					next_fcf_index);
+			return LPFC_FCOE_FCF_NEXT_NONE;
+		}
+		/* The roundrobin failover index bmask updated, start over */
+		lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+				"2848 Round robin failover FCF index bmask "
+				"updated, start over\n");
+		spin_lock_irq(&phba->hbalock);
+		phba->fcf.fcf_flag &= ~FCF_REDISC_RRU;
+		spin_unlock_irq(&phba->hbalock);
+		return phba->fcf.fcf_rr_init_indx;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+			"2845 Get next round robin failover "
+			"FCF index x%x\n", next_fcf_index);
 	return next_fcf_index;
 }
 
@@ -12447,11 +12475,20 @@ lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *phba, uint16_t fcf_index)
 	/* Set the eligible FCF record index bmask */
 	set_bit(fcf_index, phba->fcf.fcf_rr_bmask);
 
+	/* Set the roundrobin index bmask updated */
+	spin_lock_irq(&phba->hbalock);
+	phba->fcf.fcf_flag |= FCF_REDISC_RRU;
+	spin_unlock_irq(&phba->hbalock);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+			"2790 Set FCF index x%x to round robin failover "
+			"bmask\n", fcf_index);
+
 	return 0;
 }
 
 /**
- * lpfc_sli4_fcf_rr_index_set - Clear bmask from eligible fcf record index
+ * lpfc_sli4_fcf_rr_index_clear - Clear bmask from eligible fcf record index
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine clears the FCF record index from the eligible bmask for
@@ -12472,6 +12509,10 @@ lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
 	}
 	/* Clear the eligible FCF record index bmask */
 	clear_bit(fcf_index, phba->fcf.fcf_rr_bmask);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+			"2791 Clear FCF index x%x from round robin failover "
+			"bmask\n", fcf_index);
 }
 
 /**
@@ -12534,7 +12575,7 @@ lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 }
 
 /**
- * lpfc_sli4_redisc_all_fcf - Request to rediscover entire FCF table by port.
+ * lpfc_sli4_redisc_fcf_table - Request to rediscover entire FCF table by port.
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to request for rediscovery of the entire FCF table

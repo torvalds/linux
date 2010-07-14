@@ -163,6 +163,7 @@ struct lpfc_fcf {
 #define FCF_REDISC_PEND	0x80 /* FCF rediscovery pending */
 #define FCF_REDISC_EVT	0x100 /* FCF rediscovery event to worker thread */
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
+#define FCF_REDISC_RRU	0x400 /* Roundrobin bitmap updated */
 	uint32_t addr_mode;
 	uint16_t fcf_rr_init_indx;
 	uint32_t eligible_fcf_cnt;

@@ -1572,7 +1572,7 @@ lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
 }
 
 /**
- * lpfc_mbx_cmpl_read_fcf_record - Completion handler for read_fcf mbox.
+ * lpfc_sli4_fcf_rec_mbox_parse - Parse read_fcf mbox command.
  * @phba: pointer to lpfc hba data structure.
  * @mboxq: pointer to mailbox object.
  * @next_fcf_index: pointer to holder of next fcf index.
@@ -2026,9 +2026,14 @@ read_next_fcf:
 			memcpy(&phba->fcf.current_rec,
 			       &phba->fcf.failover_rec,
 			       sizeof(struct lpfc_fcf_rec));
-			/* mark the FCF fast failover completed */
+			/*
+			 * Mark the fast FCF failover rediscovery completed
+			 * and the start of the first round of the roundrobin
+			 * FCF failover.
+			 */
 			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
+			phba->fcf.fcf_flag &=
+					~(FCF_REDISC_FOV | FCF_REDISC_RRU);
 			spin_unlock_irq(&phba->hbalock);
 			/*
 			 * Set up the initial registered FCF index for FLOGI
@@ -2074,9 +2079,14 @@ read_next_fcf:
 			 * through the FCF scanning process.
 			 */
 
-			/* mark the initial FCF discovery completed */
+			/*
+			 * Mark the initial FCF discovery completed and
+			 * the start of the first round of the roundrobin
+			 * FCF failover.
+			 */
 			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &= ~FCF_INIT_DISC;
+			phba->fcf.fcf_flag &=
+					~(FCF_INIT_DISC | FCF_REDISC_RRU);
 			spin_unlock_irq(&phba->hbalock);
 			/*
 			 * Set up the initial registered FCF index for FLOGI
@@ -2206,7 +2216,7 @@ lpfc_mbx_cmpl_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		goto out;
 
 	/* If FCF discovery period is over, no need to proceed */
-	if (phba->fcf.fcf_flag & FCF_DISCOVERY)
+	if (!(phba->fcf.fcf_flag & FCF_DISCOVERY))
 		goto out;
 
 	/* Parse the FCF record from the non-embedded mailbox command */
@@ -5331,13 +5341,15 @@ void
 lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 {
 	/*
-	 * If HBA is not running in FIP mode or if HBA does not support
-	 * FCoE or if FCF is not registered, do nothing.
+	 * If HBA is not running in FIP mode, if HBA does not support
+	 * FCoE, if FCF discovery is ongoing, or if FCF has not been
+	 * registered, do nothing.
 	 */
 	spin_lock_irq(&phba->hbalock);
 	if (!(phba->hba_flag & HBA_FCOE_SUPPORT) ||
 	    !(phba->fcf.fcf_flag & FCF_REGISTERED) ||
 	    !(phba->hba_flag & HBA_FIP_SUPPORT) ||
+	    (phba->fcf.fcf_flag & FCF_DISCOVERY) ||
 	    (phba->pport->port_state == LPFC_FLOGI)) {
 		spin_unlock_irq(&phba->hbalock);
 		return;
