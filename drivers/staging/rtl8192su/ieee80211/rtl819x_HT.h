@@ -1,3 +1,21 @@
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #ifndef _RTL819XU_HTTYPE_H_
 #define _RTL819XU_HTTYPE_H_
 
@@ -381,8 +399,7 @@ typedef struct _BSS_HT{
 	u16					bdHTInfoLen;
 
 	HT_SPEC_VER				bdHTSpecVer;
-	//HT_CAPABILITY_ELE			bdHTCapEle;
-	//HT_INFORMATION_ELE		bdHTInfoEle;
+	HT_CHANNEL_WIDTH			bdBandWidth;
 
 	u8					bdRT2RTAggregation;
 	u8					bdRT2RTLongSlotTime;
@@ -406,7 +423,7 @@ typedef struct _MIMO_EVM{
 
 typedef struct _FALSE_ALARM_STATISTICS{
 	u32	Cnt_Parity_Fail;
-	u32    Cnt_Rate_Illegal;
+	u32	Cnt_Rate_Illegal;
 	u32	Cnt_Crc8_fail;
 	u32	Cnt_all;
 }FALSE_ALARM_STATISTICS, *PFALSE_ALARM_STATISTICS;
@@ -496,9 +513,9 @@ typedef enum _HT_IOT_ACTION{
 }HT_IOT_ACTION_E, *PHT_IOT_ACTION_E;
 
 typedef enum _HT_IOT_RAFUNC{
+	HT_IOT_RAFUNC_DISABLE_ALL = 0x00,
 	HT_IOT_RAFUNC_PEER_1R = 0x01,
 	HT_IOT_RAFUNC_TX_AMSDU = 0x02,
-	HT_IOT_RAFUNC_DISABLE_ALL = 0x80,
 }HT_IOT_RAFUNC, *PHT_IOT_RAFUNC;
 
 typedef enum _RT_HT_CAP{
@@ -510,5 +527,4 @@ typedef enum _RT_HT_CAP{
 	RT_HT_CAP_USE_92SE = 0x20,
 }RT_HT_CAPBILITY, *PRT_HT_CAPBILITY;
 
-#endif //_RTL819XU_HTTYPE_H_
-
+#endif

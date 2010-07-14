@@ -1,5 +1,22 @@
 
-//As this function is mainly ported from Windows driver, so leave the name little changed. If any confusion caused, tell me. Created by WB. 2008.05.08
+/******************************************************************************
+ * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * wlanfae <wlanfae@realtek.com>
+******************************************************************************/
 #include "ieee80211.h"
 #include "rtl819x_HT.h"
 u8 MCS_FILTER_ALL[16] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -32,8 +49,7 @@ u16 MCS_DATA_RATE[2][2][77] =
 static u8 UNKNOWN_BORADCOM[3] = {0x00, 0x14, 0xbf};
 static u8 LINKSYSWRT330_LINKSYSWRT300_BROADCOM[3] = {0x00, 0x1a, 0x70};
 static u8 LINKSYSWRT350_LINKSYSWRT150_BROADCOM[3] = {0x00, 0x1d, 0x7e};
-static u8 NETGEAR834Bv2_BROADCOM[3] = {0x00, 0x1b, 0x2f};
-static u8 BELKINF5D8233V1_RALINK[3] = {0x00, 0x17, 0x3f};	//cosa 03202008
+static u8 BELKINF5D8233V1_RALINK[3] = {0x00, 0x17, 0x3f};	
 static u8 BELKINF5D82334V3_RALINK[3] = {0x00, 0x1c, 0xdf};
 static u8 PCI_RALINK[3] = {0x00, 0x90, 0xcc};
 static u8 EDIMAX_RALINK[3] = {0x00, 0x0e, 0x2e};
@@ -41,10 +57,9 @@ static u8 AIRLINK_RALINK[3] = {0x00, 0x18, 0x02};
 static u8 DLINK_ATHEROS_1[3] = {0x00, 0x1c, 0xf0};
 static u8 DLINK_ATHEROS_2[3] = {0x00, 0x21, 0x91};
 static u8 CISCO_BROADCOM[3] = {0x00, 0x17, 0x94};
+static u8 NETGEAR_BROADCOM[3] = {0x00, 0x1f, 0x33};
 static u8 LINKSYS_MARVELL_4400N[3] = {0x00, 0x14, 0xa4};
-// 2008/04/01 MH For Cisco G mode RX TP We need to change FW duration. Should we put the
-// code in other place??
-//static u8 WIFI_CISCO_G_AP[3] = {0x00, 0x40, 0x96};
+
 /********************************************************************************************************************
  *function:  This function update default settings in pHTInfo structure
  *   input:  PRT_HIGH_THROUGHPUT	pHTInfo
@@ -351,7 +366,6 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
     		    (memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
     		    (memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-    		    (memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) ||
     		    (net->broadcom_cap_exist))
     		  retValue = true;
 	else if(net->bssht.bdRT2RTAggregation)
@@ -384,8 +398,7 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
 	else if((memcmp(net->bssid, UNKNOWN_BORADCOM, 3)==0) ||
 			(memcmp(net->bssid, LINKSYSWRT330_LINKSYSWRT300_BROADCOM, 3)==0)||
-			(memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0)||
-			(memcmp(net->bssid, NETGEAR834Bv2_BROADCOM, 3)==0) )
+			(memcmp(net->bssid, LINKSYSWRT350_LINKSYSWRT150_BROADCOM, 3)==0))
 		pHTInfo->IOTPeer = HT_IOT_PEER_BROADCOM;
 	else if((memcmp(net->bssid, BELKINF5D8233V1_RALINK, 3)==0) ||
 			(memcmp(net->bssid, BELKINF5D82334V3_RALINK, 3)==0) ||
@@ -398,7 +411,7 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 		(memcmp(net->bssid, DLINK_ATHEROS_1, 3) == 0)||
 		(memcmp(net->bssid, DLINK_ATHEROS_2, 3) == 0))
 		pHTInfo->IOTPeer = HT_IOT_PEER_ATHEROS;
-	else if(memcmp(net->bssid, CISCO_BROADCOM, 3)==0)
+	else if ((memcmp(net->bssid, CISCO_BROADCOM, 3)==0)||net->cisco_cap_exist)
 		pHTInfo->IOTPeer = HT_IOT_PEER_CISCO;
 	else if ((memcmp(net->bssid, LINKSYS_MARVELL_4400N, 3) == 0) ||
 		  net->marvell_cap_exist)
@@ -751,10 +764,11 @@ bool HTIOCActAllowPeerAggOnePacket(struct ieee80211_device* ieee,struct ieee8021
 {
 	bool 	retValue = false;
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
+	if(pHTInfo->IOTPeer == HT_IOT_PEER_BROADCOM)
 	{
-		if(pHTInfo->IOTPeer == HT_IOT_PEER_MARVELL)
+		if((memcmp(network->bssid, NETGEAR_BROADCOM, 3)==0)
+			&& (network->bssht.bdBandWidth == HT_CHANNEL_WIDTH_20_40))
 			return true;
-
 	}
 	return retValue;
 }
