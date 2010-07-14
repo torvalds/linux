@@ -25,6 +25,7 @@
 #include <linux/fsl_devices.h>
 #include <linux/pda_power.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -34,7 +35,9 @@
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/nand.h>
+#include <mach/clk.h>
 
+#include "clock.h"
 #include "board.h"
 #include "board-harmony.h"
 #include "clock.h"
@@ -172,7 +175,7 @@ static struct fsl_usb2_platform_data tegra_otg_pdata = {
 	.phy_mode	= FSL_USB2_PHY_UTMI,
 };
 
-struct platform_device tegra_otg = {
+static struct platform_device tegra_otg = {
 	.name = "fsl-tegra-udc",
 	.id   = -1,
 	.dev  = {
@@ -196,6 +199,28 @@ static struct platform_device pda_power_device = {
 	},
 };
 
+static struct resource tegra_gart_resources[] = {
+    {
+	.name = "mc",
+	.flags = IORESOURCE_MEM,
+	.start = TEGRA_MC_BASE,
+	.end = TEGRA_MC_BASE + TEGRA_MC_SIZE - 1,
+    },
+    {
+	.name = "gart",
+	.flags = IORESOURCE_MEM,
+	.start = 0x58000000,
+	.end = 0x58000000 - 1 + 32 * 1024 * 1024,
+    }
+};
+
+static struct platform_device tegra_gart_dev = {
+    .name = "tegra_gart",
+    .id = -1,
+    .num_resources = ARRAY_SIZE(tegra_gart_resources),
+    .resource = tegra_gart_resources
+};
+
 static struct platform_device *harmony_devices[] __initdata = {
 	&debug_uart,
 	&tegra_nand_device,
@@ -209,6 +234,7 @@ static struct platform_device *harmony_devices[] __initdata = {
 	&tegra_spi_device2,
 	&tegra_spi_device3,
 	&tegra_spi_device4,
+	&tegra_gart_dev,
 };
 
 static void __init tegra_harmony_fixup(struct machine_desc *desc,
