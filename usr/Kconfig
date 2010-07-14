@@ -144,7 +144,7 @@ config INITRAMFS_COMPRESSION_LZO
 	depends on RD_LZO
 	help
 	  Its compression ratio is the poorest among the four. The kernel
-	  size is about about 10% bigger than gzip; however its speed
+	  size is about 10% bigger than gzip; however its speed
 	  (both compression and decompression) is the fastest.
 
 endchoice

@@ -179,7 +179,7 @@ config KERNEL_LZO
 	depends on HAVE_KERNEL_LZO
 	help
 	  Its compression ratio is the poorest among the 4. The kernel
-	  size is about about 10% bigger than gzip; however its speed
+	  size is about 10% bigger than gzip; however its speed
 	  (both compression and decompression) is the fastest.
 
 endchoice
