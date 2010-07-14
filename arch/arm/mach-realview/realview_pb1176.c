@@ -25,6 +25,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
+#include <linux/amba/pl022.h>
 #include <linux/io.h>
 
 #include <mach/hardware.h>
@@ -123,6 +124,12 @@ static struct pl061_platform_data gpio2_plat_data = {
 	.irq_base	= -1,
 };
 
+static struct pl022_ssp_controller ssp0_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 0,
+	.num_chipselect = 1,
+};
+
 /*
  * RealView PB1176 AMBA devices
  */
@@ -166,7 +173,7 @@ static struct pl061_platform_data gpio2_plat_data = {
 #define PB1176_UART3_DMA	{ 0x86, 0x87 }
 #define PB1176_UART4_IRQ	{ IRQ_PB1176_UART4, NO_IRQ }
 #define PB1176_UART4_DMA	{ 0, 0 }
-#define PB1176_SSP_IRQ		{ IRQ_PB1176_SSP, NO_IRQ }
+#define PB1176_SSP_IRQ		{ IRQ_DC1176_SSP, NO_IRQ }
 #define PB1176_SSP_DMA		{ 9, 8 }
 
 /* FPGA Primecells */
@@ -189,7 +196,7 @@ AMBA_DEVICE(uart0,	"dev:uart0",	PB1176_UART0,	NULL);
 AMBA_DEVICE(uart1,	"dev:uart1",	PB1176_UART1,	NULL);
 AMBA_DEVICE(uart2,	"dev:uart2",	PB1176_UART2,	NULL);
 AMBA_DEVICE(uart3,	"dev:uart3",	PB1176_UART3,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	NULL);
+AMBA_DEVICE(ssp0,	"dev:ssp0",	PB1176_SSP,	&ssp0_plat_data);
 AMBA_DEVICE(clcd,	"dev:clcd",	PB1176_CLCD,	&clcd_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {

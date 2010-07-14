@@ -349,6 +349,9 @@ static struct clk_lookup lookups[] = {
 	}, {	/* PB:CLCD */
 		.dev_id		= "issp:clcd",
 		.clk		= &oscvco_clk,
+	}, {	/* SSP */
+		.dev_id		= "dev:ssp0",
+		.clk		= &ref24_clk,
 	}
 };
 
