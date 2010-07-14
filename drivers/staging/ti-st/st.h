@@ -50,15 +50,6 @@ enum proto_type {
 	ST_MAX,
 };
 
-enum {
-	ST_ERR_FAILURE = -1,	/* check struct */
-	ST_SUCCESS,
-	ST_ERR_PENDING = -5,	/* to call reg_complete_cb */
-	ST_ERR_ALREADY,		/* already registered */
-	ST_ERR_INPROGRESS,
-	ST_ERR_NOPROTO,		/* protocol not supported */
-};
-
 /* per protocol structure
  * for BT/FM and GPS
  */

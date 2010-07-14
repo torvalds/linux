@@ -191,7 +191,7 @@ static int hci_st_open(struct hci_dev *hdev)
 
 	/* Register with ST layer */
 	err = st_register(&hci_st_proto);
-	if (err == ST_ERR_PENDING) {
+	if (err == -EINPROGRESS) {
 		/* Prepare wait-for-completion handler data structures.
 		 * Needed to syncronize this and st_registration_completion_cb()
 		 * functions.
@@ -232,7 +232,7 @@ static int hci_st_open(struct hci_dev *hdev)
 			return -EAGAIN;
 		}
 		err = 0;
-	} else if (err == ST_ERR_FAILURE) {
+	} else if (err == -1) {
 		BT_DRV_ERR("st_register failed %d", err);
 		BTDRV_API_EXIT(-EAGAIN);
 		return -EAGAIN;
@@ -280,7 +280,7 @@ static int hci_st_close(struct hci_dev *hdev)
 	/* Unregister from ST layer */
 	if (test_and_clear_bit(BT_ST_REGISTERED, &hst->flags)) {
 		err = st_unregister(ST_BT);
-		if (err != ST_SUCCESS) {
+		if (err != 0) {
 			BT_DRV_ERR("st_unregister failed %d", err);
 			BTDRV_API_EXIT(-EBUSY);
 			return -EBUSY;

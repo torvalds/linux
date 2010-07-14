@@ -247,13 +247,13 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	INIT_COMPLETION(kim_gdata->kim_rcvd);
 	if (4 != st_int_write(kim_gdata->core_data, read_ver_cmd, 4)) {
 		pr_err("kim: couldn't write 4 bytes");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 
 	if (!wait_for_completion_timeout
 	    (&kim_gdata->kim_rcvd, msecs_to_jiffies(CMD_RESP_TIME))) {
 		pr_err(" waiting for ver info- timed out ");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 
 	version =
@@ -275,7 +275,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	kim_gdata->version.min_ver = min_ver;
 
 	pr_info("%s", bts_scr_name);
-	return ST_SUCCESS;
+	return 0;
 }
 
 /* internal function which parses through the .bts firmware script file
@@ -283,7 +283,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
  */
 static long download_firmware(struct kim_data_s *kim_gdata)
 {
-	long err = ST_SUCCESS;
+	long err = 0;
 	long len = 0;
 	register unsigned char *ptr = NULL;
 	register unsigned char *action_ptr = NULL;
@@ -292,7 +292,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 	pr_info("%s", __func__);
 
 	err = read_local_version(kim_gdata, bts_scr_name);
-	if (err != ST_SUCCESS) {
+	if (err != 0) {
 		pr_err("kim: failed to read local ver");
 		return err;
 	}
@@ -303,7 +303,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 		     (kim_gdata->fw_entry->size == 0))) {
 		pr_err(" request_firmware failed(errno %ld) for %s", err,
 			   bts_scr_name);
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 	ptr = (void *)kim_gdata->fw_entry->data;
 	len = kim_gdata->fw_entry->size;
@@ -338,7 +338,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 					   ((struct bts_action *)ptr)->size);
 			if (unlikely(err < 0)) {
 				release_firmware(kim_gdata->fw_entry);
-				return ST_ERR_FAILURE;
+				return -1;
 			}
 			if (!wait_for_completion_timeout
 			    (&kim_gdata->kim_rcvd,
@@ -347,7 +347,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 				    (" response timeout during fw download ");
 				/* timed out */
 				release_firmware(kim_gdata->fw_entry);
-				return ST_ERR_FAILURE;
+				return -1;
 			}
 			break;
 		case ACTION_DELAY:	/* sleep */
@@ -365,7 +365,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 	}
 	/* fw download complete */
 	release_firmware(kim_gdata->fw_entry);
-	return ST_SUCCESS;
+	return 0;
 }
 
 /**********************************************************************/
@@ -451,7 +451,7 @@ void st_kim_complete(void *kim_data)
 */
 long st_kim_start(void *kim_data)
 {
-	long err = ST_SUCCESS;
+	long err = 0;
 	long retry = POR_RETRY_COUNT;
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 
@@ -475,7 +475,7 @@ long st_kim_start(void *kim_data)
 		err = kill_pid(find_get_pid(kim_gdata->uim_pid), SIGUSR2, 0);
 		if (err != 0) {
 			pr_info(" sending SIGUSR2 to uim failed %ld", err);
-			err = ST_ERR_FAILURE;
+			err = -1;
 			continue;
 		}
 #endif
@@ -486,13 +486,13 @@ long st_kim_start(void *kim_data)
 				msecs_to_jiffies(LDISC_TIME));
 		if (!err) {	/* timeout */
 			pr_err("line disc installation timed out ");
-			err = ST_ERR_FAILURE;
+			err = -1;
 			continue;
 		} else {
 			/* ldisc installed now */
 			pr_info(" line discipline installed ");
 			err = download_firmware(kim_gdata);
-			if (err != ST_SUCCESS) {
+			if (err != 0) {
 				pr_err("download firmware failed");
 				continue;
 			} else {	/* on success don't retry */
@@ -507,7 +507,7 @@ long st_kim_start(void *kim_data)
 */
 long st_kim_stop(void *kim_data)
 {
-	long err = ST_SUCCESS;
+	long err = 0;
 	struct kim_data_s	*kim_gdata = (struct kim_data_s *)kim_data;
 
 	INIT_COMPLETION(kim_gdata->ldisc_installed);
@@ -516,7 +516,7 @@ long st_kim_stop(void *kim_data)
 	err = kill_pid(find_get_pid(kim_gdata->uim_pid), SIGUSR2, 1);
 	if (err != 0) {
 		pr_err("sending SIGUSR2 to uim failed %ld", err);
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 #endif
 	/* set BT rfkill to be blocked */
@@ -527,7 +527,7 @@ long st_kim_stop(void *kim_data)
 			msecs_to_jiffies(LDISC_TIME));
 	if (!err) {		/* timeout */
 		pr_err(" timed out waiting for ldisc to be un-installed");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 
 	/* By default configure BT nShutdown to LOW state */
@@ -607,7 +607,7 @@ static int kim_toggle_radio(void *data, bool blocked)
 		pr_err(" wrong proto type ");
 	break;
 	}
-	return ST_SUCCESS;
+	return 0;
 }
 
 void st_kim_ref(struct st_data_s **core_data)
@@ -643,7 +643,7 @@ static int kim_probe(struct platform_device *pdev)
 	status = st_core_init(&kim_gdata->core_data);
 	if (status != 0) {
 		pr_err(" ST core init failed");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 	/* refer to itself */
 	kim_gdata->core_data->kim_data = kim_gdata;
@@ -716,7 +716,7 @@ static int kim_probe(struct platform_device *pdev)
 		return -1;
 	}
 	pr_info(" sysfs entries created ");
-	return ST_SUCCESS;
+	return 0;
 }
 
 static int kim_remove(struct platform_device *pdev)
@@ -745,7 +745,7 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
-	return ST_SUCCESS;
+	return 0;
 }
 
 /**********************************************************************/
@@ -753,13 +753,13 @@ static int kim_remove(struct platform_device *pdev)
 
 static int __init st_kim_init(void)
 {
-	long ret = ST_SUCCESS;
+	long ret = 0;
 	ret = platform_driver_register(&kim_platform_driver);
 	if (ret != 0) {
 		pr_err("platform drv registration failed");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
-	return ST_SUCCESS;
+	return 0;
 }
 
 static void __exit st_kim_deinit(void)

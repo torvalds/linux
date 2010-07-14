@@ -87,7 +87,7 @@ int st_int_write(struct st_data_s *st_gdata,
 	struct tty_struct *tty;
 	if (unlikely(st_gdata == NULL || st_gdata->tty == NULL)) {
 		pr_err("tty unavailable to perform write");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 	tty = st_gdata->tty;
 #ifdef VERBOSE
@@ -123,7 +123,7 @@ void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
 	 */
 	if (likely(st_gdata->list[protoid]->recv != NULL)) {
 		if (unlikely(st_gdata->list[protoid]->recv(st_gdata->rx_skb)
-			     != ST_SUCCESS)) {
+			     != 0)) {
 			pr_err(" proto stack %d's ->recv failed", protoid);
 			kfree_skb(st_gdata->rx_skb);
 			return;
@@ -601,7 +601,7 @@ void kim_st_list_protocols(struct st_data_s *st_gdata, char *buf)
 long st_register(struct st_proto_s *new_proto)
 {
 	struct st_data_s	*st_gdata;
-	long err = ST_SUCCESS;
+	long err = 0;
 	unsigned long flags = 0;
 
 	st_kim_ref(&st_gdata);
@@ -609,17 +609,17 @@ long st_register(struct st_proto_s *new_proto)
 	if (st_gdata == NULL || new_proto == NULL || new_proto->recv == NULL
 	    || new_proto->reg_complete_cb == NULL) {
 		pr_err("gdata/new_proto/recv or reg_complete_cb not ready");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 
 	if (new_proto->type < ST_BT || new_proto->type >= ST_MAX) {
 		pr_err("protocol %d not supported", new_proto->type);
-		return ST_ERR_NOPROTO;
+		return -EPROTONOSUPPORT;
 	}
 
 	if (st_gdata->list[new_proto->type] != NULL) {
 		pr_err("protocol %d already registered", new_proto->type);
-		return ST_ERR_ALREADY;
+		return -EALREADY;
 	}
 
 	/* can be from process context only */
@@ -636,7 +636,7 @@ long st_register(struct st_proto_s *new_proto)
 
 		set_bit(ST_REG_PENDING, &st_gdata->st_state);
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
-		return ST_ERR_PENDING;
+		return -EINPROGRESS;
 	} else if (st_gdata->protos_registered == ST_EMPTY) {
 		pr_info(" protocol list empty :%d ", new_proto->type);
 		set_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
@@ -651,15 +651,15 @@ long st_register(struct st_proto_s *new_proto)
 		 * since it involves BT fw download
 		 */
 		err = st_kim_start(st_gdata->kim_data);
-		if (err != ST_SUCCESS) {
+		if (err != 0) {
 			clear_bit(ST_REG_IN_PROGRESS, &st_gdata->st_state);
 			if ((st_gdata->protos_registered != ST_EMPTY) &&
 			    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 				pr_err(" KIM failure complete callback ");
-				st_reg_complete(st_gdata, ST_ERR_FAILURE);
+				st_reg_complete(st_gdata, -1);
 			}
 
-			return ST_ERR_FAILURE;
+			return -1;
 		}
 
 		/* the protocol might require other gpios to be toggled
@@ -675,7 +675,7 @@ long st_register(struct st_proto_s *new_proto)
 		if ((st_gdata->protos_registered != ST_EMPTY) &&
 		    (test_bit(ST_REG_PENDING, &st_gdata->st_state))) {
 			pr_info(" call reg complete callback ");
-			st_reg_complete(st_gdata, ST_SUCCESS);
+			st_reg_complete(st_gdata, 0);
 		}
 		clear_bit(ST_REG_PENDING, &st_gdata->st_state);
 
@@ -685,7 +685,7 @@ long st_register(struct st_proto_s *new_proto)
 		if (st_gdata->list[new_proto->type] != NULL) {
 			pr_err(" proto %d already registered ",
 				   new_proto->type);
-			return ST_ERR_ALREADY;
+			return -EALREADY;
 		}
 
 		spin_lock_irqsave(&st_gdata->lock, flags);
@@ -709,7 +709,7 @@ long st_register(struct st_proto_s *new_proto)
 		default:
 			pr_err("%d protocol not supported",
 				   new_proto->type);
-			err = ST_ERR_NOPROTO;
+			err = -EPROTONOSUPPORT;
 			/* something wrong */
 			break;
 		}
@@ -730,7 +730,7 @@ EXPORT_SYMBOL_GPL(st_register);
  */
 long st_unregister(enum proto_type type)
 {
-	long err = ST_SUCCESS;
+	long err = 0;
 	unsigned long flags = 0;
 	struct st_data_s	*st_gdata;
 
@@ -739,7 +739,7 @@ long st_unregister(enum proto_type type)
 	st_kim_ref(&st_gdata);
 	if (type < ST_BT || type >= ST_MAX) {
 		pr_err(" protocol %d not supported", type);
-		return ST_ERR_NOPROTO;
+		return -EPROTONOSUPPORT;
 	}
 
 	spin_lock_irqsave(&st_gdata->lock, flags);
@@ -747,7 +747,7 @@ long st_unregister(enum proto_type type)
 	if (st_gdata->list[type] == NULL) {
 		pr_err(" protocol %d not registered", type);
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
-		return ST_ERR_NOPROTO;
+		return -EPROTONOSUPPORT;
 	}
 
 	st_gdata->protos_registered--;
@@ -794,7 +794,7 @@ long st_write(struct sk_buff *skb)
 	if (unlikely(skb == NULL || st_gdata == NULL
 		|| st_gdata->tty == NULL)) {
 		pr_err("data/tty unavailable to perform write");
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 #ifdef DEBUG			/* open-up skb to read the 1st byte */
 	switch (skb->data[0]) {
@@ -813,7 +813,7 @@ long st_write(struct sk_buff *skb)
 	if (unlikely(st_gdata->list[protoid] == NULL)) {
 		pr_err(" protocol %d not registered, and writing? ",
 			   protoid);
-		return ST_ERR_FAILURE;
+		return -1;
 	}
 #endif
 	pr_info("%d to be written", skb->len);
@@ -837,7 +837,7 @@ EXPORT_SYMBOL_GPL(st_unregister);
  */
 static int st_tty_open(struct tty_struct *tty)
 {
-	int err = ST_SUCCESS;
+	int err = 0;
 	struct st_data_s *st_gdata;
 	pr_info("%s ", __func__);
 
