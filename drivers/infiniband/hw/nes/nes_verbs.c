@@ -518,7 +518,7 @@ static int nes_query_device(struct ib_device *ibdev, struct ib_device_attr *prop
 	memset(props, 0, sizeof(*props));
 	memcpy(&props->sys_image_guid, nesvnic->netdev->dev_addr, 6);
 
-	props->fw_ver = nesdev->nesadapter->fw_ver;
+	props->fw_ver = nesdev->nesadapter->firmware_version;
 	props->device_cap_flags = nesdev->nesadapter->device_cap_flags;
 	props->vendor_id = nesdev->nesadapter->vendor_id;
 	props->vendor_part_id = nesdev->nesadapter->vendor_part_id;
