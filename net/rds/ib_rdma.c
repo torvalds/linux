@@ -94,8 +94,8 @@ static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_ipaddr *i_ipaddr;
 
-	list_for_each_entry(rds_ibdev, &rds_ib_devices, list) {
-		rcu_read_lock();
+	rcu_read_lock();
+	list_for_each_entry_rcu(rds_ibdev, &rds_ib_devices, list) {
 		list_for_each_entry_rcu(i_ipaddr, &rds_ibdev->ipaddr_list, list) {
 			if (i_ipaddr->ipaddr == ipaddr) {
 				atomic_inc(&rds_ibdev->refcount);
@@ -103,8 +103,8 @@ static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 				return rds_ibdev;
 			}
 		}
-		rcu_read_unlock();
 	}
+	rcu_read_unlock();
 
 	return NULL;
 }
@@ -761,12 +761,14 @@ void rds_ib_flush_mrs(void)
 {
 	struct rds_ib_device *rds_ibdev;
 
+	down_read(&rds_ib_devices_lock);
 	list_for_each_entry(rds_ibdev, &rds_ib_devices, list) {
 		struct rds_ib_mr_pool *pool = rds_ibdev->mr_pool;
 
 		if (pool)
 			rds_ib_flush_mr_pool(pool, 0, NULL);
 	}
+	up_read(&rds_ib_devices_lock);
 }
 
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,

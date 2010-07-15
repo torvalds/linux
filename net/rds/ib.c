@@ -53,6 +53,12 @@ MODULE_PARM_DESC(fmr_message_size, " Max size of a RDMA transfer");
 module_param(rds_ib_retry_count, int, 0444);
 MODULE_PARM_DESC(rds_ib_retry_count, " Number of hw retries before reporting an error");
 
+/*
+ * we have a clumsy combination of RCU and a rwsem protecting this list
+ * because it is used both in the get_mr fast path and while blocking in
+ * the FMR flushing path.
+ */
+DECLARE_RWSEM(rds_ib_devices_lock);
 struct list_head rds_ib_devices;
 
 /* NOTE: if also grabbing ibdev lock, grab this first */
@@ -171,7 +177,10 @@ void rds_ib_add_one(struct ib_device *device)
 
 	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
 	INIT_LIST_HEAD(&rds_ibdev->conn_list);
-	list_add_tail(&rds_ibdev->list, &rds_ib_devices);
+
+	down_write(&rds_ib_devices_lock);
+	list_add_tail_rcu(&rds_ibdev->list, &rds_ib_devices);
+	up_write(&rds_ib_devices_lock);
 	atomic_inc(&rds_ibdev->refcount);
 
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
@@ -230,16 +239,20 @@ void rds_ib_remove_one(struct ib_device *device)
 
 	rds_ib_dev_shutdown(rds_ibdev);
 
-	/*
-	 * prevent future connection attempts from getting a reference to this
-	 * device and wait for currently racing connection attempts to finish
-	 * getting their reference
-	 */
+	/* stop connection attempts from getting a reference to this device. */
 	ib_set_client_data(device, &rds_ib_client, NULL);
+
+	down_write(&rds_ib_devices_lock);
+	list_del_rcu(&rds_ibdev->list);
+	up_write(&rds_ib_devices_lock);
+
+	/*
+	 * This synchronize rcu is waiting for readers of both the ib
+	 * client data and the devices list to finish before we drop
+	 * both of those references.
+	 */
 	synchronize_rcu();
 	rds_ib_dev_put(rds_ibdev);
-
-	list_del(&rds_ibdev->list);
 	rds_ib_dev_put(rds_ibdev);
 }
 

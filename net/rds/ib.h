@@ -23,6 +23,7 @@
 
 #define RDS_IB_RECYCLE_BATCH_COUNT	32
 
+extern struct rw_semaphore rds_ib_devices_lock;
 extern struct list_head rds_ib_devices;
 
 /*
