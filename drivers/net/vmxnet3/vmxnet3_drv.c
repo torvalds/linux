@@ -132,7 +132,7 @@ vmxnet3_tq_stop(struct vmxnet3_tx_queue *tq, struct vmxnet3_adapter *adapter)
  * Check the link state. This may start or stop the tx queue.
  */
 static void
-vmxnet3_check_link(struct vmxnet3_adapter *adapter)
+vmxnet3_check_link(struct vmxnet3_adapter *adapter, bool affectTxQueue)
 {
 	u32 ret;
 
@@ -145,14 +145,16 @@ vmxnet3_check_link(struct vmxnet3_adapter *adapter)
 		if (!netif_carrier_ok(adapter->netdev))
 			netif_carrier_on(adapter->netdev);
 
-		vmxnet3_tq_start(&adapter->tx_queue, adapter);
+		if (affectTxQueue)
+			vmxnet3_tq_start(&adapter->tx_queue, adapter);
 	} else {
 		printk(KERN_INFO "%s: NIC Link is Down\n",
 		       adapter->netdev->name);
 		if (netif_carrier_ok(adapter->netdev))
 			netif_carrier_off(adapter->netdev);
 
-		vmxnet3_tq_stop(&adapter->tx_queue, adapter);
+		if (affectTxQueue)
+			vmxnet3_tq_stop(&adapter->tx_queue, adapter);
 	}
 }
 
@@ -167,7 +169,7 @@ vmxnet3_process_events(struct vmxnet3_adapter *adapter)
 
 	/* Check if link state has changed */
 	if (events & VMXNET3_ECR_LINK)
-		vmxnet3_check_link(adapter);
+		vmxnet3_check_link(adapter, true);
 
 	/* Check if there is an error on xmit/recv queues */
 	if (events & (VMXNET3_ECR_TQERR | VMXNET3_ECR_RQERR)) {
@@ -1894,7 +1896,7 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 	 * Check link state when first activating device. It will start the
 	 * tx queue if the link is up.
 	 */
-	vmxnet3_check_link(adapter);
+	vmxnet3_check_link(adapter, true);
 
 	napi_enable(&adapter->napi);
 	vmxnet3_enable_all_intrs(adapter);
@@ -2496,6 +2498,7 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 	}
 
 	set_bit(VMXNET3_STATE_BIT_QUIESCED, &adapter->state);
+	vmxnet3_check_link(adapter, false);
 	atomic_inc(&devices_found);
 	return 0;
 
