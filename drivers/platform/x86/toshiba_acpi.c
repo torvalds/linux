@@ -129,6 +129,8 @@ enum {KE_KEY, KE_END};
 
 static struct key_entry toshiba_acpi_keymap[]  = {
 	{KE_KEY, 0x101, KEY_MUTE},
+	{KE_KEY, 0x102, KEY_ZOOMOUT},
+	{KE_KEY, 0x103, KEY_ZOOMIN},
 	{KE_KEY, 0x13b, KEY_COFFEE},
 	{KE_KEY, 0x13c, KEY_BATTERY},
 	{KE_KEY, 0x13d, KEY_SLEEP},
