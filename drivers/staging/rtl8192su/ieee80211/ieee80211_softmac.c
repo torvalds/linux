@@ -1407,6 +1407,12 @@ void ieee80211_associate_procedure_wq(struct work_struct *work)
 	//ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
 
+	if(ieee->eRFPowerState == eRfOff)
+	{
+            printk("=============>%s():Rf state is eRfOff, schedule ipsleave wq again,return\n",__FUNCTION__);
+		up(&ieee->wx_sem);
+		return;
+	}
 	ieee->associate_seq = 1;
 	ieee80211_associate_step1(ieee);
 
