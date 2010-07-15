@@ -10,13 +10,13 @@
 #
 
 usage() {
-	echo "Usage: $0 [--scm-only] [srctree]" >&2
+	echo "Usage: $0 [--save-scmversion] [srctree]" >&2
 	exit 1
 }
 
 scm_only=false
 srctree=.
-if test "$1" = "--scm-only"; then
+if test "$1" = "--save-scmversion"; then
 	scm_only=true
 	shift
 fi
@@ -132,7 +132,10 @@ collect_files()
 }
 
 if $scm_only; then
-	scm_version
+	if test ! -e .scmversion; then
+		res=$(scm_version)
+		echo "$res" >.scmversion
+	fi
 	exit
 fi
 
