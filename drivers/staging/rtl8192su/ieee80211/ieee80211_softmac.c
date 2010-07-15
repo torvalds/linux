@@ -183,19 +183,53 @@ void init_mgmt_queue(struct ieee80211_device *ieee)
 	ieee->mgmt_queue_tail = ieee->mgmt_queue_head = 0;
 }
 
+u8
+MgntQuery_TxRateExcludeCCKRates(struct ieee80211_device *ieee)
+{
+	u16	i;
+	u8	QueryRate = 0;
+	u8	BasicRate;
+
+
+	for( i = 0; i < ieee->current_network.rates_len; i++)
+	{
+		BasicRate = ieee->current_network.rates[i]&0x7F;
+		if(!ieee80211_is_cck_rate(BasicRate))
+		{
+			if(QueryRate == 0)
+			{
+				QueryRate = BasicRate;
+			}
+			else
+			{
+				if(BasicRate < QueryRate)
+				{
+					QueryRate = BasicRate;
+				}
+			}
+		}
+	}
+
+	if(QueryRate == 0)
+	{
+		QueryRate = 12;
+		printk("No BasicRate found!!\n");
+	}
+	return QueryRate;
+}
 u8 MgntQuery_MgntFrameTxRate(struct ieee80211_device *ieee)
 {
 	PRT_HIGH_THROUGHPUT      pHTInfo = ieee->pHTInfo;
 	u8 rate;
 
-	// 2008/01/25 MH For broadcom, MGNT frame set as OFDM 6M.
-	if(pHTInfo->IOTAction & HT_IOT_ACT_MGNT_USE_CCK_6M)
-		rate = 0x0c;
+	if(pHTInfo->IOTAction & HT_IOT_ACT_WA_IOT_Broadcom)
+	{
+		rate = MgntQuery_TxRateExcludeCCKRates(ieee);
+	}
 	else
 		rate = ieee->basic_rate & 0x7f;
 
 	if(rate == 0){
-		// 2005.01.26, by rcnjko.
 		if(ieee->mode == IEEE_A||
 		   ieee->mode== IEEE_N_5G||
 		   (ieee->mode== IEEE_N_24G&&!pHTInfo->bCurSuppCCK))
@@ -203,17 +237,6 @@ u8 MgntQuery_MgntFrameTxRate(struct ieee80211_device *ieee)
 		else
 			rate = 0x02;
 	}
-
-	/*
-	// Data rate of ProbeReq is already decided. Annie, 2005-03-31
-	if( pMgntInfo->bScanInProgress || (pMgntInfo->bDualModeScanStep!=0) )
-	{
-	if(pMgntInfo->dot11CurrentWirelessMode==WIRELESS_MODE_A)
-	rate = 0x0c;
-	else
-	rate = 0x02;
-	}
-	 */
 	return rate;
 }
 
