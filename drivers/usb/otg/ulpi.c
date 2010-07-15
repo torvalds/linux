@@ -31,8 +31,6 @@
 
 #define ULPI_ID(vendor, product) (((vendor) << 16) | (product))
 
-#define TR_FLAG(flags, a, b)	(((flags) & a) ? b : 0)
-
 /* ULPI hardcoded IDs, used for probing */
 static unsigned int ulpi_ids[] = {
 	ULPI_ID(0x04cc, 0x1504),	/* NXP ISP1504 */
