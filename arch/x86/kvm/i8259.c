@@ -363,10 +363,20 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 		}
 	} else
 		switch (s->init_state) {
-		case 0:		/* normal mode */
+		case 0: { /* normal mode */
+			u8 imr_diff = s->imr ^ val,
+				off = (s == &s->pics_state->pics[0]) ? 0 : 8;
 			s->imr = val;
+			for (irq = 0; irq < PIC_NUM_PINS/2; irq++)
+				if (imr_diff & (1 << irq))
+					kvm_fire_mask_notifiers(
+						s->pics_state->kvm,
+						SELECT_PIC(irq + off),
+						irq + off,
+						!!(s->imr & (1 << irq)));
 			pic_update_irq(s->pics_state);
 			break;
+		}
 		case 1:
 			s->irq_base = val & 0xf8;
 			s->init_state = 2;
