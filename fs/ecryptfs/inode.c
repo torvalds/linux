@@ -348,6 +348,76 @@ out:
 }
 
 /**
+ * ecryptfs_new_lower_dentry
+ * @ename: The name of the new dentry.
+ * @lower_dir_dentry: Parent directory of the new dentry.
+ * @nd: nameidata from last lookup.
+ *
+ * Create a new dentry or get it from lower parent dir.
+ */
+static struct dentry *
+ecryptfs_new_lower_dentry(struct qstr *name, struct dentry *lower_dir_dentry,
+			  struct nameidata *nd)
+{
+	struct dentry *new_dentry;
+	struct dentry *tmp;
+	struct inode *lower_dir_inode;
+
+	lower_dir_inode = lower_dir_dentry->d_inode;
+
+	tmp = d_alloc(lower_dir_dentry, name);
+	if (!tmp)
+		return ERR_PTR(-ENOMEM);
+
+	mutex_lock(&lower_dir_inode->i_mutex);
+	new_dentry = lower_dir_inode->i_op->lookup(lower_dir_inode, tmp, nd);
+	mutex_unlock(&lower_dir_inode->i_mutex);
+
+	if (!new_dentry)
+		new_dentry = tmp;
+	else
+		dput(tmp);
+
+	return new_dentry;
+}
+
+
+/**
+ * ecryptfs_lookup_one_lower
+ * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
+ * @lower_dir_dentry: lower parent directory
+ *
+ * Get the lower dentry from vfs. If lower dentry does not exist yet,
+ * create it.
+ */
+static struct dentry *
+ecryptfs_lookup_one_lower(struct dentry *ecryptfs_dentry,
+			  struct dentry *lower_dir_dentry)
+{
+	struct nameidata nd;
+	struct vfsmount *lower_mnt;
+	struct qstr *name;
+	int err;
+
+	name = &ecryptfs_dentry->d_name;
+	lower_mnt = mntget(ecryptfs_dentry_to_lower_mnt(
+				    ecryptfs_dentry->d_parent));
+	err = vfs_path_lookup(lower_dir_dentry, lower_mnt, name->name , 0, &nd);
+	mntput(lower_mnt);
+
+	if (!err) {
+		/* we dont need the mount */
+		mntput(nd.path.mnt);
+		return nd.path.dentry;
+	}
+	if (err != -ENOENT)
+		return ERR_PTR(err);
+
+	/* create a new lower dentry */
+	return ecryptfs_new_lower_dentry(name, lower_dir_dentry, &nd);
+}
+
+/**
  * ecryptfs_lookup
  * @ecryptfs_dir_inode: The eCryptfs directory inode
  * @ecryptfs_dentry: The eCryptfs dentry that we are looking up
@@ -374,14 +444,12 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		goto out_d_drop;
 	}
 	lower_dir_dentry = ecryptfs_dentry_to_lower(ecryptfs_dentry->d_parent);
-	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
-	lower_dentry = lookup_one_len(ecryptfs_dentry->d_name.name,
-				      lower_dir_dentry,
-				      ecryptfs_dentry->d_name.len);
-	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
+
+	lower_dentry = ecryptfs_lookup_one_lower(ecryptfs_dentry,
+						 lower_dir_dentry);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_lower() returned "
 				"[%d] on lower_dentry = [%s]\n", __func__, rc,
 				encrypted_and_encoded_name);
 		goto out_d_drop;
@@ -403,14 +471,11 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 		       "filename; rc = [%d]\n", __func__, rc);
 		goto out_d_drop;
 	}
-	mutex_lock(&lower_dir_dentry->d_inode->i_mutex);
-	lower_dentry = lookup_one_len(encrypted_and_encoded_name,
-				      lower_dir_dentry,
-				      encrypted_and_encoded_name_size - 1);
-	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
+	lower_dentry = ecryptfs_lookup_one_lower(ecryptfs_dentry,
+						 lower_dir_dentry);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
-		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_lower() returned "
 				"[%d] on lower_dentry = [%s]\n", __func__, rc,
 				encrypted_and_encoded_name);
 		goto out_d_drop;
