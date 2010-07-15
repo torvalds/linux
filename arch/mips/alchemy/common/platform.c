@@ -33,7 +33,6 @@
 	}
 
 static struct plat_serial8250_port au1x00_uart_data[] = {
-#if defined(CONFIG_SERIAL_8250_AU1X00)
 #if defined(CONFIG_SOC_AU1000)
 	PORT(UART0_PHYS_ADDR, AU1000_UART0_INT),
 	PORT(UART1_PHYS_ADDR, AU1000_UART1_INT),
@@ -54,7 +53,6 @@ static struct plat_serial8250_port au1x00_uart_data[] = {
 	PORT(UART0_PHYS_ADDR, AU1200_UART0_INT),
 	PORT(UART1_PHYS_ADDR, AU1200_UART1_INT),
 #endif
-#endif	/* CONFIG_SERIAL_8250_AU1X00 */
 	{ },
 };
 
