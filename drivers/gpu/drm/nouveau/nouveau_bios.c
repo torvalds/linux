@@ -5739,13 +5739,6 @@ parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 	case OUTPUT_TV:
 		entry->tvconf.has_component_output = false;
 		break;
-	case OUTPUT_TMDS:
-		/*
-		 * Invent a DVI-A output, by copying the fields of the DVI-D
-		 * output; reported to work by math_b on an NV20(!).
-		 */
-		fabricate_vga_output(dcb, entry->i2c_index, entry->heads);
-		break;
 	case OUTPUT_LVDS:
 		if ((conn & 0x00003f00) != 0x10)
 			entry->lvdsconf.use_straps_for_mode = true;
