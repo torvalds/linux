@@ -217,17 +217,13 @@ struct vxge_fifo_stats {
 };
 
 struct vxge_fifo {
-	struct net_device	*ndev;
-	struct pci_dev		*pdev;
+	struct net_device *ndev;
+	struct pci_dev *pdev;
 	struct __vxge_hw_fifo *handle;
+	struct netdev_queue *txq;
 
-	/* The vpath id maintained in the driver -
-	 * 0 to 'maximum_vpaths_in_function - 1'
-	 */
-	int driver_id;
 	int tx_steering_type;
 	int indicate_max_pkts;
-	spinlock_t tx_lock;
 
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
@@ -275,7 +271,6 @@ struct vxge_ring {
 } ____cacheline_aligned;
 
 struct vxge_vpath {
-
 	struct vxge_fifo fifo;
 	struct vxge_ring ring;
 
@@ -442,10 +437,6 @@ void vxge_close_vpaths(struct vxgedev *vdev, int index);
 int vxge_open_vpaths(struct vxgedev *vdev);
 
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
-
-void vxge_stop_tx_queue(struct vxge_fifo *fifo);
-
-void vxge_wake_tx_queue(struct vxge_fifo *fifo);
 
 enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
 	struct macInfo *mac);
