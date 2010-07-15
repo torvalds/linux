@@ -1502,16 +1502,16 @@ static inline void ezusb_delete(struct ezusb_priv *upriv)
 	    ezusb_ctx_complete(list_entry(item,
 					  struct request_context, list));
 
-	if (upriv->read_urb->status == -EINPROGRESS)
+	if (upriv->read_urb && upriv->read_urb->status == -EINPROGRESS)
 		printk(KERN_ERR PFX "Some URB in progress\n");
 
 	mutex_unlock(&upriv->mtx);
 
-	kfree(upriv->read_urb->transfer_buffer);
-	if (upriv->bap_buf != NULL)
-		kfree(upriv->bap_buf);
-	if (upriv->read_urb != NULL)
+	if (upriv->read_urb) {
+		kfree(upriv->read_urb->transfer_buffer);
 		usb_free_urb(upriv->read_urb);
+	}
+	kfree(upriv->bap_buf);
 	if (upriv->dev) {
 		struct orinoco_private *priv = ndev_priv(upriv->dev);
 		orinoco_if_del(priv);
