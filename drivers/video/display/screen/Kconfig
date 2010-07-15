@@ -5,6 +5,8 @@ config LCD_NULL
 	bool "NULL"
 config LCD_TD043MGEA1
 	bool "RGB TD043MGEA1"
+config LCD_HX8357
+	bool "RGB HX8357"	
 config LCD_TJ048NC01CA
     bool "RGB TJ048NC01CA"
 config LCD_HL070VM4AU
