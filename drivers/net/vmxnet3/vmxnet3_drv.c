@@ -2302,9 +2302,13 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 	adapter->intr.mask_mode = (cfg >> 2) & 0x3;
 
 	if (adapter->intr.type == VMXNET3_IT_AUTO) {
-		int err;
+		adapter->intr.type = VMXNET3_IT_MSIX;
+	}
 
 #ifdef CONFIG_PCI_MSI
+	if (adapter->intr.type == VMXNET3_IT_MSIX) {
+		int err;
+
 		adapter->intr.msix_entries[0].entry = 0;
 		err = pci_enable_msix(adapter->pdev, adapter->intr.msix_entries,
 				      VMXNET3_LINUX_MAX_MSIX_VECT);
@@ -2313,15 +2317,18 @@ vmxnet3_alloc_intr_resources(struct vmxnet3_adapter *adapter)
 			adapter->intr.type = VMXNET3_IT_MSIX;
 			return;
 		}
-#endif
+		adapter->intr.type = VMXNET3_IT_MSI;
+	}
 
+	if (adapter->intr.type == VMXNET3_IT_MSI) {
+		int err;
 		err = pci_enable_msi(adapter->pdev);
 		if (!err) {
 			adapter->intr.num_intrs = 1;
-			adapter->intr.type = VMXNET3_IT_MSI;
 			return;
 		}
 	}
+#endif /* CONFIG_PCI_MSI */
 
 	adapter->intr.type = VMXNET3_IT_INTX;
 
