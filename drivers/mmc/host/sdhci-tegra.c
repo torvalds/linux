@@ -128,7 +128,7 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, host);
 
-	if (plat->cd_gpio) {
+	if (plat->cd_gpio != -1) {
 		rc = request_irq(gpio_to_irq(plat->cd_gpio), carddetect_irq,
 			IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 			mmc_hostname(sdhci->mmc), sdhci);
