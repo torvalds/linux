@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
+#include <linux/kernel.h>
 
 #include "hysdn_defs.h"
 
@@ -155,9 +156,8 @@ static ssize_t
 hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
 {
 	unsigned long u = 0;
-	int found = 0;
-	unsigned char *cp, valbuf[128];
-	long base = 10;
+	int rc;
+	unsigned char valbuf[128];
 	hysdn_card *card = file->private_data;
 
 	if (count > (sizeof(valbuf) - 1))
@@ -166,32 +166,10 @@ hysdn_log_write(struct file *file, const char __user *buf, size_t count, loff_t 
 		return (-EFAULT);	/* copy failed */
 
 	valbuf[count] = 0;	/* terminating 0 */
-	cp = valbuf;
-	if ((count > 2) && (valbuf[0] == '0') && (valbuf[1] == 'x')) {
-		cp += 2;	/* pointer after hex modifier */
-		base = 16;
-	}
-	/* scan the input for debug flags */
-	while (*cp) {
-		if ((*cp >= '0') && (*cp <= '9')) {
-			found = 1;
-			u *= base;	/* adjust to next digit */
-			u += *cp++ - '0';
-			continue;
-		}
-		if (base != 16)
-			break;	/* end of number */
 
-		if ((*cp >= 'a') && (*cp <= 'f')) {
-			found = 1;
-			u *= base;	/* adjust to next digit */
-			u += *cp++ - 'a' + 10;
-			continue;
-		}
-		break;		/* terminated */
-	}
+	rc = strict_strtoul(valbuf, 0, &u);
 
-	if (found) {
+	if (rc == 0) {
 		card->debug_flags = u;	/* remember debug flags */
 		hysdn_addlog(card, "debug set to 0x%lx", card->debug_flags);
 	}
