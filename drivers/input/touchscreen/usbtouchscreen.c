@@ -1296,6 +1296,29 @@ static void usbtouch_close(struct input_dev *input)
 		usb_kill_urb(usbtouch->irq);
 }
 
+static int usbtouch_suspend
+(struct usb_interface *intf, pm_message_t message)
+{
+	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
+
+	usb_kill_urb(usbtouch->irq);
+
+	return 0;
+}
+
+static int usbtouch_resume(struct usb_interface *intf)
+{
+	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
+	struct input_dev *input = usbtouch->input;
+	int result = 0;
+
+	mutex_lock(&input->mutex);
+	if (input->users || usbtouch->type->irq_always)
+		result = usb_submit_urb(usbtouch->irq, GFP_NOIO);
+	mutex_unlock(&input->mutex);
+
+	return result;
+}
 
 static void usbtouch_free_buffers(struct usb_device *udev,
 				  struct usbtouch_usb *usbtouch)
@@ -1486,6 +1509,8 @@ static struct usb_driver usbtouch_driver = {
 	.name		= "usbtouchscreen",
 	.probe		= usbtouch_probe,
 	.disconnect	= usbtouch_disconnect,
+	.suspend	= usbtouch_suspend,
+	.resume		= usbtouch_resume,
 	.id_table	= usbtouch_devices,
 };
 
