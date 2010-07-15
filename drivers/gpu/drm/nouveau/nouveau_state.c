@@ -266,7 +266,10 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->instmem.clear		= nv50_instmem_clear;
 		engine->instmem.bind		= nv50_instmem_bind;
 		engine->instmem.unbind		= nv50_instmem_unbind;
-		engine->instmem.flush		= nv50_instmem_flush;
+		if (dev_priv->chipset == 0x50)
+			engine->instmem.flush	= nv50_instmem_flush;
+		else
+			engine->instmem.flush	= nv84_instmem_flush;
 		engine->mc.init			= nv50_mc_init;
 		engine->mc.takedown		= nv50_mc_takedown;
 		engine->timer.init		= nv04_timer_init;

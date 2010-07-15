@@ -486,6 +486,14 @@ nv50_instmem_unbind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 void
 nv50_instmem_flush(struct drm_device *dev)
 {
+	nv_wr32(dev, 0x00330c, 0x00000001);
+	if (!nv_wait(0x00330c, 0x00000001, 0x00000000))
+		NV_ERROR(dev, "PRAMIN flush timeout\n");
+}
+
+void
+nv84_instmem_flush(struct drm_device *dev)
+{
 	nv_wr32(dev, 0x070000, 0x00000001);
 	if (!nv_wait(0x070000, 0x00000001, 0x00000000))
 		NV_ERROR(dev, "PRAMIN flush timeout\n");
