@@ -265,9 +265,6 @@ void ieee80211_send_ADDBAReq(struct ieee80211_device* ieee, u8*	dst, PBA_RECORD	
 	if (skb)
 	{
 		softmac_mgmt_xmit(skb, ieee);
-		//add statistic needed here.
-		//and skb will be freed in softmac_mgmt_xmit(), so omit all dev_kfree_skb_any() outside softmac_mgmt_xmit()
-		//WB
 	}
 	else
 	{
@@ -291,7 +288,6 @@ void ieee80211_send_ADDBARsp(struct ieee80211_device* ieee, u8* dst, PBA_RECORD 
 	if (skb)
 	{
 		softmac_mgmt_xmit(skb, ieee);
-		//same above
 	}
 	else
 	{
@@ -318,7 +314,6 @@ void ieee80211_send_DELBA(struct ieee80211_device* ieee, u8* dst, PBA_RECORD pBA
 	if (skb)
 	{
 		softmac_mgmt_xmit(skb, ieee);
-		//same above
 	}
 	else
 	{
@@ -414,7 +409,6 @@ int ieee80211_rx_ADDBAReq( struct ieee80211_device* ieee, struct sk_buff *skb)
 	ActivateBAEntry(ieee, pBA, 0);
 	ieee80211_send_ADDBARsp(ieee, dst, pBA, ADDBA_STATUS_SUCCESS);
 
-	// End of procedure.
 	return 0;
 
 OnADDBAReq_Fail:
@@ -546,11 +540,11 @@ int ieee80211_rx_ADDBARsp( struct ieee80211_device* ieee, struct sk_buff *skb)
 		pAdmittedBA->BaParamSet = *pBaParamSet;
 		DeActivateBAEntry(ieee, pAdmittedBA);
 		ActivateBAEntry(ieee, pAdmittedBA, *pBaTimeoutVal);
-	}
-	else
-	{
-		// Delay next ADDBA process.
+	} else {
 		pTS->bAddBaReqDelayed = true;
+		pTS->bDisable_AddBa = true;
+		ReasonCode = DELBA_REASON_END_BA;
+		goto OnADDBARsp_Reject;
 	}
 
 	// End of procedure
