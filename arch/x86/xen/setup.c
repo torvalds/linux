@@ -226,6 +226,8 @@ void __init xen_arch_setup(void)
 	struct physdev_set_iopl set_iopl;
 	int rc;
 
+	xen_panic_handler_init();
+
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_4gb_segments);
 	HYPERVISOR_vm_assist(VMASST_CMD_enable, VMASST_TYPE_writable_pagetables);
 
