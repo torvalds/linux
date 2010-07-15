@@ -498,12 +498,8 @@ static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 			self->first_visible_entry_idx = self->index - offset;
 			self->seek(self, -offset, SEEK_END);
 			break;
-		case NEWT_KEY_RIGHT:
-		case NEWT_KEY_LEFT:
-		case NEWT_KEY_TAB:
-			return es->u.key;
 		default:
-			continue;
+			return es->u.key;
 		}
 		if (ui_browser__refresh_entries(self) < 0)
 			return -1;
