@@ -19,6 +19,10 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
+#if defined(CONFIG_PPC_DCR)
+#include <asm/dcr.h>
+#endif
+
 extern struct device_attribute of_platform_device_attrs[];
 
 static int of_platform_bus_match(struct device *dev, struct device_driver *drv)
