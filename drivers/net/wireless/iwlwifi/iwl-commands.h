@@ -964,8 +964,8 @@ struct iwl_qosparam_cmd {
 #define	IWL_STATION_COUNT	32 	/* MAX(3945,4965)*/
 #define	IWL_INVALID_STATION 	255
 
-#define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2);
-#define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8);
+#define STA_FLG_TX_RATE_MSK		cpu_to_le32(1 << 2)
+#define STA_FLG_PWR_SAVE_MSK		cpu_to_le32(1 << 8)
 #define STA_FLG_RTS_MIMO_PROT_MSK	cpu_to_le32(1 << 17)
 #define STA_FLG_AGG_MPDU_8US_MSK	cpu_to_le32(1 << 18)
 #define STA_FLG_MAX_AGG_SIZE_POS	(19)
