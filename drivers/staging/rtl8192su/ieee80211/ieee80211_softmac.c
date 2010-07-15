@@ -316,16 +316,24 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 	short single = ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE;
 	struct ieee80211_hdr_3addr  *header =
 		(struct ieee80211_hdr_3addr  *) skb->data;
+	u16 fc,type,stype;
         cb_desc *tcb_desc = (cb_desc *)(skb->cb + 8);
 
+	fc = header->frame_control;
+	type = WLAN_FC_GET_TYPE(fc);
+	stype = WLAN_FC_GET_STYPE(fc);
+
+
+	if(stype != IEEE80211_STYPE_PSPOLL)
 	tcb_desc->queue_index = MGNT_QUEUE;
+	else
+		tcb_desc->queue_index = HIGH_QUEUE;
 	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
 	tcb_desc->RATRIndex = 7;
 	tcb_desc->bTxDisableRateFallBack = 1;
 	tcb_desc->bTxUseDriverAssingedRate = 1;
-	//printk("=============>%s()\n", __FUNCTION__);
 	if(single){
-
+		if(!(type == IEEE80211_FTYPE_CTL)) {
 		header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 		if (ieee->seq_ctrl[0] == 0xFFF)
@@ -333,12 +341,13 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 		else
 			ieee->seq_ctrl[0]++;
 
+		}
 		/* avoid watchdog triggers */
 	//	ieee->dev->trans_start = jiffies;
 		ieee->softmac_data_hard_start_xmit(skb,ieee->dev,ieee->basic_rate);
 
 	}else{
-
+		if(!(type == IEEE80211_FTYPE_CTL)) {
 		header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 		if (ieee->seq_ctrl[0] == 0xFFF)
@@ -346,6 +355,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 		else
 			ieee->seq_ctrl[0]++;
 
+		}
 		ieee->softmac_hard_start_xmit(skb,ieee->dev);
 
 	}
