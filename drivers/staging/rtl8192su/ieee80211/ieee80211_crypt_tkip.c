@@ -604,7 +604,7 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 }
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
-				     int hdr_len, void *priv)
+				     int hdr_len, void *priv, struct ieee80211_device* ieee)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	u8 mic[8];
@@ -630,9 +630,14 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		       "MSDU from %pM keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
-		if (skb->dev)
+                printk("%d, force_mic_error = %d\n", (memcmp(mic, skb->data + skb->len - 8, 8) != 0),\
+                        ieee->force_mic_error);
+		if (skb->dev) {
+                        printk("skb->dev != NULL\n");
 			ieee80211_michael_mic_failure(skb->dev, hdr, keyidx);
+                }
 		tkey->dot11RSNAStatsTKIPLocalMICFailures++;
+                ieee->force_mic_error = false;
 		return -1;
 	}
 

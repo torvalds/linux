@@ -1141,6 +1141,7 @@ struct ieee80211_device {
 	/* hw security related */
 	u8 hwsec_active;
 	bool is_silent_reset;
+	bool force_mic_error;
 	bool is_roaming;
 	bool ieee_up;
 	bool bSupportRemoteWakeUp;
