@@ -291,18 +291,3 @@ FTRACE_ENTRY(branch, trace_branch,
 		 __entry->func, __entry->file, __entry->correct)
 );
 
-FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
-
-	TRACE_KSYM,
-
-	F_STRUCT(
-		__field(	unsigned long,	ip			  )
-		__field(	unsigned char,	type			  )
-		__array(	char	     ,	cmd,	   TASK_COMM_LEN  )
-		__field(	unsigned long,  addr			  )
-	),
-
-	F_printk("ip: %pF type: %d ksym_name: %pS cmd: %s",
-		(void *)__entry->ip, (unsigned int)__entry->type,
-		(void *)__entry->addr,  __entry->cmd)
-);
