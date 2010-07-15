@@ -133,6 +133,12 @@ static struct clk init_clocks_disable[] = {
 		.id		= -1,
 		.parent		= &clk_h,
 	}, {
+		.name		= "rtc",
+		.id		= -1,
+		.parent		= &clk_p,
+		.enable		= s3c64xx_pclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_PCLK_RTC,
+	}, {
 		.name		= "adc",
 		.id		= -1,
 		.parent		= &clk_p,
@@ -294,12 +300,6 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_p,
 		.enable		= s3c64xx_pclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_PCLK_UART3,
-	}, {
-		.name		= "rtc",
-		.id		= -1,
-		.parent		= &clk_p,
-		.enable		= s3c64xx_pclk_ctrl,
-		.ctrlbit	= S3C_CLKCON_PCLK_RTC,
 	}, {
 		.name		= "watchdog",
 		.id		= -1,
