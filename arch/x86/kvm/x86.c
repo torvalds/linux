@@ -3562,6 +3562,10 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 		goto emul_write;
 
 	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
+	if (is_error_page(page)) {
+		kvm_release_page_clean(page);
+		goto emul_write;
+	}
 
 	kaddr = kmap_atomic(page, KM_USER0);
 	kaddr += offset_in_page(gpa);
