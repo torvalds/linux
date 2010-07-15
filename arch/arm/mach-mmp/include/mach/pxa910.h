@@ -1,6 +1,11 @@
 #ifndef __ASM_MACH_PXA910_H
 #define __ASM_MACH_PXA910_H
 
+struct sys_timer;
+
+extern struct sys_timer pxa910_timer;
+extern void __init pxa910_init_irq(void);
+
 #include <linux/i2c.h>
 #include <mach/devices.h>
 #include <plat/i2c.h>

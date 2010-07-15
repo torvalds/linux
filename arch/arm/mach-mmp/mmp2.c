@@ -27,6 +27,7 @@
 #include <mach/mfp.h>
 #include <mach/gpio.h>
 #include <mach/devices.h>
+#include <mach/mmp2.h>
 
 #include "common.h"
 #include "clock.h"
