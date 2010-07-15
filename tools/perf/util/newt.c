@@ -491,11 +491,11 @@ static int ui_browser__run(struct ui_browser *self, struct newtExitStruct *es)
 			break;
 		case NEWT_KEY_END:
 			offset = self->height - 1;
+			if (offset >= self->nr_entries)
+				offset = self->nr_entries - 1;
 
-			if (offset > self->nr_entries)
-				offset = self->nr_entries;
-
-			self->index = self->first_visible_entry_idx = self->nr_entries - 1 - offset;
+			self->index = self->nr_entries - 1;
+			self->first_visible_entry_idx = self->index - offset;
 			self->seek(self, -offset, SEEK_END);
 			break;
 		case NEWT_KEY_RIGHT:
