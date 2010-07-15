@@ -1268,6 +1268,7 @@ static void usbtouch_irq(struct urb *urb)
 	usbtouch->type->process_pkt(usbtouch, usbtouch->data, urb->actual_length);
 
 exit:
+	usb_mark_last_busy(interface_to_usbdev(usbtouch->interface));
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		err("%s - usb_submit_urb failed with result: %d",
@@ -1277,23 +1278,39 @@ exit:
 static int usbtouch_open(struct input_dev *input)
 {
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
+	int r;
 
 	usbtouch->irq->dev = interface_to_usbdev(usbtouch->interface);
 
+	r = usb_autopm_get_interface(usbtouch->interface) ? -EIO : 0;
+	if (r < 0)
+		goto out;
+
 	if (!usbtouch->type->irq_always) {
-		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL))
-		  return -EIO;
+		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL)) {
+			r = -EIO;
+			goto out_put;
+		}
 	}
 
-	return 0;
+	usbtouch->interface->needs_remote_wakeup = 1;
+out_put:
+	usb_autopm_put_interface(usbtouch->interface);
+out:
+	return r;
 }
 
 static void usbtouch_close(struct input_dev *input)
 {
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
+	int r;
 
 	if (!usbtouch->type->irq_always)
 		usb_kill_urb(usbtouch->irq);
+	r = usb_autopm_get_interface(usbtouch->interface);
+	usbtouch->interface->needs_remote_wakeup = 0;
+	if (!r)
+		usb_autopm_put_interface(usbtouch->interface);
 }
 
 static int usbtouch_suspend
@@ -1457,8 +1474,11 @@ static int usbtouch_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, usbtouch);
 
 	if (usbtouch->type->irq_always) {
+		/* this can't fail */
+		usb_autopm_get_interface(intf);
 		err = usb_submit_urb(usbtouch->irq, GFP_KERNEL);
 		if (err) {
+			usb_autopm_put_interface(intf);
 			err("%s - usb_submit_urb failed with result: %d",
 			    __func__, err);
 			goto out_unregister_input;
@@ -1512,6 +1532,7 @@ static struct usb_driver usbtouch_driver = {
 	.suspend	= usbtouch_suspend,
 	.resume		= usbtouch_resume,
 	.id_table	= usbtouch_devices,
+	.supports_autosuspend = 1,
 };
 
 static int __init usbtouch_init(void)
