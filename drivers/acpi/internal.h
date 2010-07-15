@@ -22,14 +22,7 @@
 
 int init_acpi_device_notify(void);
 int acpi_scan_init(void);
-int acpi_system_init(void);
 int acpi_sysfs_init(void);
-
-#ifdef CONFIG_ACPI_DEBUG
-int acpi_debug_init(void);
-#else
-static inline int acpi_debug_init(void) { return 0; }
-#endif
 
 #ifdef CONFIG_DEBUG_FS
 int acpi_debugfs_init(void);
