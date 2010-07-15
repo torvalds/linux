@@ -1580,6 +1580,27 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	dout("prepare_send_request %p tid %lld %s (attempt %d)\n", req,
 	     req->r_tid, ceph_mds_op_name(req->r_op), req->r_attempts);
 
+	if (req->r_got_unsafe) {
+		/*
+		 * Replay.  Do not regenerate message (and rebuild
+		 * paths, etc.); just use the original message.
+		 * Rebuilding paths will break for renames because
+		 * d_move mangles the src name.
+		 */
+		msg = req->r_request;
+		rhead = msg->front.iov_base;
+
+		flags = le32_to_cpu(rhead->flags);
+		flags |= CEPH_MDS_FLAG_REPLAY;
+		rhead->flags = cpu_to_le32(flags);
+
+		if (req->r_target_inode)
+			rhead->ino = cpu_to_le64(ceph_ino(req->r_target_inode));
+
+		rhead->num_retry = req->r_attempts - 1;
+		return 0;
+	}
+
 	if (req->r_request) {
 		ceph_msg_put(req->r_request);
 		req->r_request = NULL;
@@ -1601,13 +1622,9 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 	rhead->flags = cpu_to_le32(flags);
 	rhead->num_fwd = req->r_num_fwd;
 	rhead->num_retry = req->r_attempts - 1;
+	rhead->ino = 0;
 
 	dout(" r_locked_dir = %p\n", req->r_locked_dir);
-
-	if (req->r_target_inode && req->r_got_unsafe)
-		rhead->ino = cpu_to_le64(ceph_ino(req->r_target_inode));
-	else
-		rhead->ino = 0;
 	return 0;
 }
 
