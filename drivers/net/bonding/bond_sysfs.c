@@ -1427,8 +1427,8 @@ static ssize_t bonding_show_queue_id(struct device *d,
 
 	read_lock(&bond->lock);
 	bond_for_each_slave(bond, slave, i) {
-		if (res > (PAGE_SIZE - 6)) {
-			/* not enough space for another interface name */
+		if (res > (PAGE_SIZE - IFNAMSIZ - 6)) {
+			/* not enough space for another interface_name:queue_id pair */
 			if ((PAGE_SIZE - res) > 10)
 				res = PAGE_SIZE - 10;
 			res += sprintf(buf + res, "++more++ ");
