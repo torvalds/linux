@@ -4354,9 +4354,6 @@ static __init int tracer_init_debugfs(void)
 	trace_create_file("dyn_ftrace_total_info", 0444, d_tracer,
 			&ftrace_update_tot_cnt, &tracing_dyn_info_fops);
 #endif
-#ifdef CONFIG_SYSPROF_TRACER
-	init_tracer_sysprof_debugfs(d_tracer);
-#endif
 
 	create_trace_options_dir();
 

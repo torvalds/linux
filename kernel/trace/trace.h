@@ -296,7 +296,6 @@ struct dentry *trace_create_file(const char *name,
 				 const struct file_operations *fops);
 
 struct dentry *tracing_init_dentry(void);
-void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
 
 struct ring_buffer_event;
 
@@ -427,8 +426,6 @@ extern int trace_selftest_startup_wakeup(struct tracer *trace,
 extern int trace_selftest_startup_nop(struct tracer *trace,
 					 struct trace_array *tr);
 extern int trace_selftest_startup_sched_switch(struct tracer *trace,
-					       struct trace_array *tr);
-extern int trace_selftest_startup_sysprof(struct tracer *trace,
 					       struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
