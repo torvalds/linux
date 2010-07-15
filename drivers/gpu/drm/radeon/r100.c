@@ -3809,6 +3809,31 @@ void r100_fini(struct radeon_device *rdev)
 	rdev->bios = NULL;
 }
 
+/*
+ * Due to how kexec works, it can leave the hw fully initialised when it
+ * boots the new kernel. However doing our init sequence with the CP and
+ * WB stuff setup causes GPU hangs on the RN50 at least. So at startup
+ * do some quick sanity checks and restore sane values to avoid this
+ * problem.
+ */
+void r100_restore_sanity(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	tmp = RREG32(RADEON_CP_CSQ_CNTL);
+	if (tmp) {
+		WREG32(RADEON_CP_CSQ_CNTL, 0);
+	}
+	tmp = RREG32(RADEON_CP_RB_CNTL);
+	if (tmp) {
+		WREG32(RADEON_CP_RB_CNTL, 0);
+	}
+	tmp = RREG32(RADEON_SCRATCH_UMSK);
+	if (tmp) {
+		WREG32(RADEON_SCRATCH_UMSK, 0);
+	}
+}
+
 int r100_init(struct radeon_device *rdev)
 {
 	int r;
@@ -3821,6 +3846,8 @@ int r100_init(struct radeon_device *rdev)
 	radeon_scratch_init(rdev);
 	/* Initialize surface registers */
 	radeon_surface_init(rdev);
+	/* sanity check some register to avoid hangs like after kexec */
+	r100_restore_sanity(rdev);
 	/* TODO: disable VGA need to use VGA request */
 	/* BIOS*/
 	if (!radeon_get_bios(rdev)) {
