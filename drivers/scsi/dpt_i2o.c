@@ -2640,6 +2640,13 @@ static s32 adpt_i2o_reparse_lct(adpt_hba* pHba)
 				continue;
 			}
 			bus_no = buf[0]>>16;
+			if (bus_no >= MAX_CHANNEL) {	/* Something wrong skip it */
+				printk(KERN_WARNING
+					"%s: Channel number %d out of range\n",
+					pHba->name, bus_no);
+				continue;
+			}
+
 			scsi_id = buf[1];
 			scsi_lun = (buf[2]>>8 )&0xff;
 			pDev = pHba->channel[bus_no].device[scsi_id];
@@ -2668,10 +2675,6 @@ static s32 adpt_i2o_reparse_lct(adpt_hba* pHba)
 				adpt_i2o_report_hba_unit(pHba, d);
 				adpt_i2o_install_device(pHba, d);
 	
-				if(bus_no >= MAX_CHANNEL) {	// Something wrong skip it
-					printk(KERN_WARNING"%s: Channel number %d out of range \n", pHba->name, bus_no);
-					continue;
-				}
 				pDev = pHba->channel[bus_no].device[scsi_id];	
 				if( pDev == NULL){
 					pDev =
