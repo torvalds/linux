@@ -3932,8 +3932,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ieee80211_hw *hw;
 	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	unsigned long flags;
-	u16 pci_cmd;
-	u8 perm_addr[ETH_ALEN];
+	u16 pci_cmd, num_mac;
 
 	/************************
 	 * 1. Allocating HW data
@@ -4051,9 +4050,17 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	iwl_eeprom_get_mac(priv, perm_addr);
-	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", perm_addr);
-	SET_IEEE80211_PERM_ADDR(priv->hw, perm_addr);
+	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
+	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
+	priv->hw->wiphy->addresses = priv->addresses;
+	priv->hw->wiphy->n_addresses = 1;
+	num_mac = iwl_eeprom_query16(priv, EEPROM_NUM_MAC_ADDRESS);
+	if (num_mac > 1) {
+		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
+		       ETH_ALEN);
+		priv->addresses[1].addr[5]++;
+		priv->hw->wiphy->n_addresses++;
+	}
 
 	/************************
 	 * 5. Setup HW constants

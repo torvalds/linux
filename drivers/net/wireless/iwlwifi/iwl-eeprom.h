@@ -402,6 +402,7 @@ struct iwl_eeprom_calib_info {
 #define EEPROM_WOWLAN_MODE                  (2*0x47)	/* 2  bytes */
 #define EEPROM_RADIO_CONFIG                 (2*0x48)	/* 2  bytes */
 #define EEPROM_3945_M_VERSION               (2*0x4A)	/* 1  bytes */
+#define EEPROM_NUM_MAC_ADDRESS              (2*0x4C)	/* 2  bytes */
 
 /* The following masks are to be applied on EEPROM_RADIO_CONFIG */
 #define EEPROM_RF_CFG_TYPE_MSK(x)   (x & 0x3)         /* bits 0-1   */

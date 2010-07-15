@@ -1154,6 +1154,9 @@ struct iwl_priv {
 	u32  hw_wa_rev;
 	u8   rev_id;
 
+	/* EEPROM MAC addresses */
+	struct mac_address addresses[2];
+
 	/* uCode images, save to reload in case of failure */
 	int fw_index;			/* firmware we're trying to load */
 	u32 ucode_ver;			/* version of ucode, copy of
