@@ -573,7 +573,7 @@ geode_aes_probe(struct pci_dev *dev, const struct pci_device_id *id)
 }
 
 static struct pci_device_id geode_aes_tbl[] = {
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_LX_AES, PCI_ANY_ID, PCI_ANY_ID} ,
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_LX_AES), } ,
 	{ 0, }
 };
 
