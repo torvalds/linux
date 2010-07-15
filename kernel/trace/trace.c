@@ -1331,61 +1331,6 @@ static void __trace_userstack(struct trace_array *tr, unsigned long flags)
 
 #endif /* CONFIG_STACKTRACE */
 
-static void
-ftrace_trace_special(void *__tr,
-		     unsigned long arg1, unsigned long arg2, unsigned long arg3,
-		     int pc)
-{
-	struct ftrace_event_call *call = &event_special;
-	struct ring_buffer_event *event;
-	struct trace_array *tr = __tr;
-	struct ring_buffer *buffer = tr->buffer;
-	struct special_entry *entry;
-
-	event = trace_buffer_lock_reserve(buffer, TRACE_SPECIAL,
-					  sizeof(*entry), 0, pc);
-	if (!event)
-		return;
-	entry	= ring_buffer_event_data(event);
-	entry->arg1			= arg1;
-	entry->arg2			= arg2;
-	entry->arg3			= arg3;
-
-	if (!filter_check_discard(call, entry, buffer, event))
-		trace_buffer_unlock_commit(buffer, event, 0, pc);
-}
-
-void
-__trace_special(void *__tr, void *__data,
-		unsigned long arg1, unsigned long arg2, unsigned long arg3)
-{
-	ftrace_trace_special(__tr, arg1, arg2, arg3, preempt_count());
-}
-
-void
-ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
-{
-	struct trace_array *tr = &global_trace;
-	struct trace_array_cpu *data;
-	unsigned long flags;
-	int cpu;
-	int pc;
-
-	if (tracing_disabled)
-		return;
-
-	pc = preempt_count();
-	local_irq_save(flags);
-	cpu = raw_smp_processor_id();
-	data = tr->data[cpu];
-
-	if (likely(atomic_inc_return(&data->disabled) == 1))
-		ftrace_trace_special(tr, arg1, arg2, arg3, pc);
-
-	atomic_dec(&data->disabled);
-	local_irq_restore(flags);
-}
-
 /**
  * trace_vbprintk - write binary msg to tracing buffer
  *
