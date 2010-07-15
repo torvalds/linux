@@ -1514,6 +1514,9 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	ceph_encode_filepath(&p, end, ino1, path1);
 	ceph_encode_filepath(&p, end, ino2, path2);
 
+	/* make note of release offset, in case we need to replay */
+	req->r_request_release_offset = p - msg->front.iov_base;
+
 	/* cap releases */
 	releases = 0;
 	if (req->r_inode_drop)
@@ -1598,6 +1601,11 @@ static int __prepare_send_request(struct ceph_mds_client *mdsc,
 			rhead->ino = cpu_to_le64(ceph_ino(req->r_target_inode));
 
 		rhead->num_retry = req->r_attempts - 1;
+
+		/* remove cap/dentry releases from message */
+		rhead->num_releases = 0;
+		msg->hdr.front_len = cpu_to_le32(req->r_request_release_offset);
+		msg->front.iov_len = req->r_request_release_offset;
 		return 0;
 	}
 
