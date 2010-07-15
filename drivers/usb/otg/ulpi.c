@@ -34,6 +34,7 @@
 /* ULPI hardcoded IDs, used for probing */
 static unsigned int ulpi_ids[] = {
 	ULPI_ID(0x04cc, 0x1504),	/* NXP ISP1504 */
+	ULPI_ID(0x0424, 0x0006),        /* SMSC USB3319 */
 };
 
 static int ulpi_set_flags(struct otg_transceiver *otg)
