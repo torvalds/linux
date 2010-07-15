@@ -264,8 +264,7 @@ static void __devexit nicstar_remove_one(struct pci_dev *pcidev)
 }
 
 static struct pci_device_id nicstar_pci_tbl[] __devinitdata = {
-	{PCI_VENDOR_ID_IDT, PCI_DEVICE_ID_IDT_IDT77201,
-	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77201), 0 },
 	{0,}			/* terminate list */
 };
 
