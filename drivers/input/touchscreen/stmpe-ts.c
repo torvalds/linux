@@ -269,7 +269,7 @@ static int __devinit stmpe_input_probe(struct platform_device *pdev)
 	struct input_dev *idev;
 	struct stmpe_ts_platform_data *ts_pdata = NULL;
 	int ret = 0;
-	unsigned int ts_irq;
+	int ts_irq;
 
 	ts_irq = platform_get_irq_byname(pdev, "FIFO_TH");
 	if (ts_irq < 0)
