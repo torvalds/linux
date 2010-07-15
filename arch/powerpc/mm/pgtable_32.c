@@ -26,7 +26,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/highmem.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 #include <linux/slab.h>
 
 #include <asm/pgtable.h>
@@ -198,7 +198,7 @@ __ioremap_caller(phys_addr_t addr, unsigned long size, unsigned long flags,
 	 * mem_init() sets high_memory so only do the check after that.
 	 */
 	if (mem_init_done && (p < virt_to_phys(high_memory)) &&
-	    !(__allow_ioremap_reserved && lmb_is_region_reserved(p, size))) {
+	    !(__allow_ioremap_reserved && memblock_is_region_reserved(p, size))) {
 		printk("__ioremap(): phys addr 0x%llx is RAM lr %p\n",
 		       (unsigned long long)p, __builtin_return_address(0));
 		return NULL;
@@ -331,7 +331,7 @@ void __init mapin_ram(void)
 		s = mmu_mapin_ram(top);
 		__mapin_ram_chunk(s, top);
 
-		top = lmb_end_of_DRAM();
+		top = memblock_end_of_DRAM();
 		s = wii_mmu_mapin_mem2(top);
 		__mapin_ram_chunk(s, top);
 	}
