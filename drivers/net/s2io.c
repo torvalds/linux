@@ -1,6 +1,6 @@
 /************************************************************************
  * s2io.c: A Linux PCI-X Ethernet driver for Neterion 10GbE Server NIC
- * Copyright(c) 2002-2007 Neterion Inc.
+ * Copyright(c) 2002-2010 Exar Corp.
  *
  * This software may be used and distributed according to the terms of
  * the GNU General Public License (GPL), incorporated herein by reference.
@@ -8199,7 +8199,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		goto register_failed;
 	}
 	s2io_vpd_read(sp);
-	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2007 Neterion Inc.\n");
+	DBG_PRINT(ERR_DBG, "Copyright(c) 2002-2010 Exar Corp.\n");
 	DBG_PRINT(ERR_DBG, "%s: Neterion %s (rev %d)\n", dev->name,
 		  sp->product_name, pdev->revision);
 	DBG_PRINT(ERR_DBG, "%s: Driver version %s\n", dev->name,

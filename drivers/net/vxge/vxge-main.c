@@ -7,9 +7,9 @@
 * system is licensed under the GPL.
 * See the file COPYING in this distribution for more information.
 *
-* vxge-main.c: Driver for Neterion Inc's X3100 Series 10GbE PCIe I/O
+* vxge-main.c: Driver for Exar Corp's X3100 Series 10GbE PCIe I/O
 *              Virtualized Server Adapter.
-* Copyright(c) 2002-2009 Neterion Inc.
+* Copyright(c) 2002-2010 Exar Corp.
 *
 * The module loadable parameters that are supported by the driver and a brief
 * explanation of all the variables:
@@ -4433,7 +4433,7 @@ vxge_starter(void)
 	char version[32];
 	snprintf(version, 32, "%s", DRV_VERSION);
 
-	printk(KERN_INFO "%s: Copyright(c) 2002-2009 Neterion Inc\n",
+	printk(KERN_INFO "%s: Copyright(c) 2002-2010 Exar Corp.\n",
 		VXGE_DRIVER_NAME);
 	printk(KERN_INFO "%s: Driver version: %s\n",
 			VXGE_DRIVER_NAME, version);
