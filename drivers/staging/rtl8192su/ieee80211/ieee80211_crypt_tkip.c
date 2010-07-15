@@ -42,6 +42,7 @@ struct ieee80211_tkip_data {
 
 	u32 rx_iv32;
 	u16 rx_iv16;
+	bool initialized;
 	u16 rx_ttak[5];
 	int rx_phase1_done;
 	u32 rx_iv32_new;
@@ -432,8 +433,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	if (!tcb_desc->bHwSec)
 	{
-		if (iv32 < tkey->rx_iv32 ||
-		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
+		if ((iv32 < tkey->rx_iv32 ||
+		(iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16))&&tkey->initialized) {
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG "TKIP: replay detected: STA=%pM"
 				" previous TSC %08x%04x received TSC "
@@ -443,6 +444,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 			tkey->dot11RSNAStatsTKIPReplays++;
 			return -4;
 		}
+                tkey->initialized = true;
 
 		if (iv32 != tkey->rx_iv32 || !tkey->rx_phase1_done) {
 			tkip_mixing_phase1(tkey->rx_ttak, tkey->key, hdr->addr2, iv32);
@@ -451,10 +453,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		tkip_mixing_phase2(rc4key, tkey->key, tkey->rx_ttak, iv16);
 
 		plen = skb->len - hdr_len - 12;
-
+		sg_init_one(&sg, pos, plen+4);
 		crypto_blkcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-		sg_init_one(&sg, pos, plen + 4);
-
 		if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 			if (net_ratelimit()) {
 				printk(KERN_DEBUG ": TKIP: failed to decrypt "
