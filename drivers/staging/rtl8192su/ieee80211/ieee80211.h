@@ -168,6 +168,10 @@ typedef struct ieee_param {
 /* QOS control */
 #define IEEE80211_QCTL_TID              0x000F
 
+#define OUI_SUBTYPE_WMM_INFO		0
+#define OUI_SUBTYPE_WMM_PARAM	1
+#define OUI_SUBTYPE_QOS_CAPABI	5
+
 /* debug macros */
 #define CONFIG_IEEE80211_DEBUG
 #ifdef CONFIG_IEEE80211_DEBUG

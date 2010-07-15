@@ -684,7 +684,6 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 	memcpy(auth->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(auth->header.addr3, beacon->bssid, ETH_ALEN);
 
-	//auth->algorithm = ieee->open_wep ? WLAN_AUTH_OPEN : WLAN_AUTH_SHARED_KEY;
 	if(ieee->auth_mode == 0)
 		auth->algorithm = WLAN_AUTH_OPEN;
 	else if(ieee->auth_mode == 1)
@@ -701,6 +700,26 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 
 }
 
+void constructWMMIE(u8* wmmie, u8* wmm_len,u8 oui_subtype)
+{
+	u8	szQoSOUI[] ={221, 0, 0x00, 0x50, 0xf2, 0x02, 0, 1};
+
+	if (oui_subtype == OUI_SUBTYPE_QOS_CAPABI)
+	{
+		szQoSOUI[0] = 46;
+		szQoSOUI[1] = *wmm_len;
+		memcpy(wmmie,szQoSOUI,3);
+		*wmm_len = 3;
+	}
+	else
+	{
+		szQoSOUI[1] = *wmm_len + 6;
+		szQoSOUI[6] = oui_subtype;
+		memcpy(wmmie, szQoSOUI, 8);
+		*(wmmie+8) = 0;
+		*wmm_len = 9;
+	}
+}
 
 static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *dest)
 {
@@ -719,13 +738,17 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	int wpa_ie_len = ieee->wpa_ie_len;
 	u8 erpinfo_content = 0;
 
-	u8* tmp_ht_cap_buf;
+	u8* tmp_ht_cap_buf=NULL;
 	u8 tmp_ht_cap_len=0;
-	u8* tmp_ht_info_buf;
+	u8* tmp_ht_info_buf=NULL;
 	u8 tmp_ht_info_len=0;
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	u8* tmp_generic_ie_buf=NULL;
 	u8 tmp_generic_ie_len=0;
+
+
+	u8 wmmie[9] = {0};
+	u8 wmm_len = 0;
 
 	if(rate_ex_len > 0) rate_ex_len+=2;
 
@@ -734,7 +757,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	else
 		atim_len = 0;
 
-#if 1
+#if 0
 	if(ieee80211_is_54g(ieee->current_network))
 		erp_len = 3;
 	else
@@ -759,21 +782,35 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 		((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
 	//HT ralated element
 #if 1
-	tmp_ht_cap_buf =(u8*) &(ieee->pHTInfo->SelfHTCap);
-	tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
-	tmp_ht_info_buf =(u8*) &(ieee->pHTInfo->SelfHTInfo);
-	tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
-	HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt);
-	HTConstructInfoElement(ieee,tmp_ht_info_buf,&tmp_ht_info_len, encrypt);
+	if(ieee->pHTInfo->bCurrentHTSupport){
+		tmp_ht_cap_buf =(u8*) &(ieee->pHTInfo->SelfHTCap);
+		tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
+		tmp_ht_info_buf =(u8*) &(ieee->pHTInfo->SelfHTInfo);
+		tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
+
+		HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt);
+
+		HTConstructInfoElement(ieee,tmp_ht_info_buf,&tmp_ht_info_len, encrypt);
 
 
-        if(pHTInfo->bRegRT2RTAggregation)
-        {
-        	tmp_generic_ie_buf = ieee->pHTInfo->szRT2RTAggBuffer;
-		tmp_generic_ie_len = sizeof(ieee->pHTInfo->szRT2RTAggBuffer);
-		HTConstructRT2RTAggElement(ieee, tmp_generic_ie_buf, &tmp_generic_ie_len);
-        }
+		if(pHTInfo->bRegRT2RTAggregation)
+		{
+			tmp_generic_ie_buf = ieee->pHTInfo->szRT2RTAggBuffer;
+			tmp_generic_ie_len = sizeof(ieee->pHTInfo->szRT2RTAggBuffer);
+			HTConstructRT2RTAggElement(ieee, tmp_generic_ie_buf, &tmp_generic_ie_len);
+		}
+	}
 #endif
+
+	if(ieee->qos_support){
+
+		if(ieee->iw_mode == IW_MODE_ADHOC)
+		{
+			wmm_len = 1;
+			constructWMMIE(wmmie,&wmm_len,OUI_SUBTYPE_WMM_INFO);
+		}
+	}
+
 	beacon_size = sizeof(struct ieee80211_probe_response)+2+
 		ssid_len
 		+3 //channel
