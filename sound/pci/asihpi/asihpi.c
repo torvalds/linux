@@ -460,6 +460,7 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_card_asihpi *card = snd_pcm_substream_chip(substream);
 	int err;
 	u16 format;
+	int width;
 	unsigned int bytes_per_sec;
 
 	print_hwparams(params);
@@ -512,9 +513,10 @@ static int snd_card_asihpi_pcm_hw_params(struct snd_pcm_substream *substream,
 				dpcm->hpi_buffer_attached);
 	}
 	bytes_per_sec = params_rate(params) * params_channels(params);
-	bytes_per_sec *= snd_pcm_format_width(params_format(params));
+	width = snd_pcm_format_width(params_format(params));
+	bytes_per_sec *= width;
 	bytes_per_sec /= 8;
-	if (bytes_per_sec <= 0)
+	if (width < 0 || bytes_per_sec == 0)
 		return -EINVAL;
 
 	dpcm->bytes_per_sec = bytes_per_sec;
