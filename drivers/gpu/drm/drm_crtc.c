@@ -1126,7 +1126,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 		if (file_priv->master->minor->type == DRM_MINOR_CONTROL) {
 			list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 					    head) {
-				DRM_DEBUG_KMS("CRTC ID is %d\n", crtc->base.id);
+				DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 				if (put_user(crtc->base.id, crtc_id + copied)) {
 					ret = -EFAULT;
 					goto out;
@@ -1154,8 +1154,8 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 			list_for_each_entry(encoder,
 					    &dev->mode_config.encoder_list,
 					    head) {
-				DRM_DEBUG_KMS("ENCODER ID is %d\n",
-					  encoder->base.id);
+				DRM_DEBUG_KMS("[ENCODER:%d:%s]\n", encoder->base.id,
+						drm_get_encoder_name(encoder));
 				if (put_user(encoder->base.id, encoder_id +
 					     copied)) {
 					ret = -EFAULT;
@@ -1185,8 +1185,9 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 			list_for_each_entry(connector,
 					    &dev->mode_config.connector_list,
 					    head) {
-				DRM_DEBUG_KMS("CONNECTOR ID is %d\n",
-					  connector->base.id);
+				DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+					connector->base.id,
+					drm_get_connector_name(connector));
 				if (put_user(connector->base.id,
 					     connector_id + copied)) {
 					ret = -EFAULT;
@@ -1209,7 +1210,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	}
 	card_res->count_connectors = connector_count;
 
-	DRM_DEBUG_KMS("Counted %d %d %d\n", card_res->count_crtcs,
+	DRM_DEBUG_KMS("CRTC[%d] CONNECTORS[%d] ENCODERS[%d]\n", card_res->count_crtcs,
 		  card_res->count_connectors, card_res->count_encoders);
 
 out:
@@ -1312,7 +1313,7 @@ int drm_mode_getconnector(struct drm_device *dev, void *data,
 
 	memset(&u_mode, 0, sizeof(struct drm_mode_modeinfo));
 
-	DRM_DEBUG_KMS("connector id %d:\n", out_resp->connector_id);
+	DRM_DEBUG_KMS("[CONNECTOR:%d:?]\n", out_resp->connector_id);
 
 	mutex_lock(&dev->mode_config.mutex);
 
@@ -1493,6 +1494,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		goto out;
 	}
 	crtc = obj_to_crtc(obj);
+	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
 	if (crtc_req->mode_valid) {
 		/* If we have a mode we need a framebuffer. */
@@ -1569,6 +1571,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 				goto out;
 			}
 			connector = obj_to_connector(obj);
+			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
+					connector->base.id,
+					drm_get_connector_name(connector));
 
 			connector_set[i] = connector;
 		}
@@ -1684,6 +1689,7 @@ int drm_mode_addfb(struct drm_device *dev,
 
 	r->fb_id = fb->base.id;
 	list_add(&fb->filp_head, &file_priv->fbs);
+	DRM_DEBUG_KMS("[FB:%d]\n", fb->base.id);
 
 out:
 	mutex_unlock(&dev->mode_config.mutex);
