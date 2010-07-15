@@ -1,7 +1,7 @@
 #
 # Core Alchemy code
 #
-platform-$(CONFIG_MACH_ALCHEMY)	+= alchemy/common/
+platform-$(CONFIG_MIPS_ALCHEMY)	+= alchemy/common/
 
 
 #
@@ -106,4 +106,4 @@ load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 # compiler picks the board one.  If they don't, it will make sure
 # the alchemy generic gpio header is picked up.
 
-cflags-$(CONFIG_MACH_ALCHEMY)	+= -I$(srctree)/arch/mips/include/asm/mach-au1x00
+cflags-$(CONFIG_MIPS_ALCHEMY)	+= -I$(srctree)/arch/mips/include/asm/mach-au1x00

@@ -1031,7 +1031,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_ep93xx_driver
 #endif
 
-#ifdef CONFIG_SOC_AU1X00
+#ifdef CONFIG_MIPS_ALCHEMY
 #include "ohci-au1xxx.c"
 #define PLATFORM_DRIVER		ohci_hcd_au1xxx_driver
 #endif

@@ -260,7 +260,7 @@ config SERIAL_8250_ACORN
 
 config SERIAL_8250_AU1X00
 	bool "Au1x00 serial port support"
-	depends on SERIAL_8250 != n && SOC_AU1X00
+	depends on SERIAL_8250 != n && MIPS_ALCHEMY
 	help
 	  If you have an Au1x00 SOC based board and want to use the serial port,
 	  say Y to this option. The driver can handle up to 4 serial ports,
