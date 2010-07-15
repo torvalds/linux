@@ -162,6 +162,7 @@ void rs690_mc_init(struct radeon_device *rdev)
 	rs690_pm_info(rdev);
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
+	rdev->mc.gtt_base_align = rdev->mc.gtt_size - 1;
 	radeon_gtt_location(rdev, &rdev->mc);
 	radeon_update_bandwidth_info(rdev);
 }
