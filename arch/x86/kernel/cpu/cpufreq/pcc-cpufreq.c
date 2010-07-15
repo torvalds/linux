@@ -541,13 +541,13 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	if (!pcch_virt_addr) {
 		result = -1;
-		goto pcch_null;
+		goto out;
 	}
 
 	result = pcc_get_offset(cpu);
 	if (result) {
 		dprintk("init: PCCP evaluation failed\n");
-		goto free;
+		goto out;
 	}
 
 	policy->max = policy->cpuinfo.max_freq =
@@ -556,14 +556,15 @@ static int pcc_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		ioread32(&pcch_hdr->minimum_frequency) * 1000;
 	policy->cur = pcc_get_freq(cpu);
 
+	if (!policy->cur) {
+		dprintk("init: Unable to get current CPU frequency\n");
+		result = -EINVAL;
+		goto out;
+	}
+
 	dprintk("init: policy->max is %d, policy->min is %d\n",
 		policy->max, policy->min);
-
-	return 0;
-free:
-	pcc_clear_mapping();
-	free_percpu(pcc_cpu_info);
-pcch_null:
+out:
 	return result;
 }
 
