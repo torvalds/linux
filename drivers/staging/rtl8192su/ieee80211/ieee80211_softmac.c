@@ -1606,6 +1606,16 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 	if (skb->len < sizeof (struct ieee80211_hdr_3addr  ))
 		return -1; /* corrupted */
 
+        if((memcmp(header->addr3,ieee->current_network.bssid,ETH_ALEN) != 0)&&
+                (memcmp(header->addr3,"\xff\xff\xff\xff\xff\xff",ETH_ALEN) != 0)) {
+            return -1;
+        }
+
+        if(memcmp(header->addr3,ieee->current_network.bssid,ETH_ALEN) == 0) {
+        }
+
+        if(memcmp(header->addr3,"\xff\xff\xff\xff\xff\xff",ETH_ALEN) == 0) {
+        }
 	memcpy(src,header->addr2, ETH_ALEN);
 
 	skbend = (u8*)skb->data + skb->len;
@@ -1623,7 +1633,6 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 		tag++; /* point to the next tag */
 	}
 
-	//IEEE80211DMESG("Card MAC address is "MACSTR, MAC2STR(src));
 	if (ssidlen == 0) return 1;
 
 	if (!ssid) return 1; /* ssid not found in tagged param */
