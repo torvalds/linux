@@ -12,12 +12,11 @@
  * Copyright(c) 2002-2010 Exar Corp.
  ******************************************************************************/
 #ifndef VXGE_VERSION_H
-
 #define VXGE_VERSION_H
 
 #define VXGE_VERSION_MAJOR	"2"
 #define VXGE_VERSION_MINOR	"0"
-#define VXGE_VERSION_FIX	"8"
-#define VXGE_VERSION_BUILD	"20182"
+#define VXGE_VERSION_FIX	"9"
+#define VXGE_VERSION_BUILD	"20840"
 #define VXGE_VERSION_FOR	"k"
 #endif
