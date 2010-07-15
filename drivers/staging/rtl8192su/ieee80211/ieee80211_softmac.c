@@ -1042,6 +1042,33 @@ void ieee80211_resp_to_probe(struct ieee80211_device *ieee, u8 *dest)
 }
 
 
+inline int SecIsInPMKIDList(struct ieee80211_device *ieee, u8 *bssid)
+{
+	int i = 0;
+
+	do
+	{
+		if ((ieee->PMKIDList[i].bUsed) && (memcmp(ieee->PMKIDList[i].Bssid, bssid, ETH_ALEN) == 0))
+		{
+			break;
+		}
+		else
+		{
+			i++;
+		}
+	} while (i < NUM_PMKID_CACHE);
+
+	if (i == NUM_PMKID_CACHE)
+	{
+		i = -1;
+	}
+	else
+	{
+	}
+
+	return (i);
+
+}
 inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beacon,struct ieee80211_device *ieee)
 {
 	struct sk_buff *skb;
@@ -1058,6 +1085,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	unsigned int cxvernum_ie_len=0;
 	struct ieee80211_crypt_data* crypt;
 	int encrypt;
+	int	PMKCacheIdx;
 
 	unsigned int rate_len = ieee80211_MFIE_rate_len(ieee);
 	unsigned int wmm_info_len = beacon->qos_data.supported?9:0;
@@ -1099,6 +1127,14 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	{
 		cxvernum_ie_len = 5+2;
 	}
+
+	PMKCacheIdx = SecIsInPMKIDList(ieee, ieee->current_network.bssid);
+	if (PMKCacheIdx >= 0)
+	{
+		wpa_ie_len += 18;
+		printk("[PMK cache]: WPA2 IE length: %x\n", wpa_ie_len);
+	}
+
 	len = sizeof(struct ieee80211_assoc_request_frame)+ 2
 		+ beacon->ssid_len//essid tagged val
 		+ rate_len//rates tagged val
@@ -1226,6 +1262,13 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	tag = skb_put(skb, wpa_ie_len);
 	if (wpa_ie_len){
 		memcpy(tag, ieee->wpa_ie, ieee->wpa_ie_len);
+		if (PMKCacheIdx >= 0)
+		{
+			tag = skb_put(skb, 18);
+			*tag = 1;
+			*(tag + 1) = 0;
+			memcpy((tag + 2), &ieee->PMKIDList[PMKCacheIdx].PMKID, 16);
+		}
 	}
 
 	tag = skb_put(skb,wmm_info_len);

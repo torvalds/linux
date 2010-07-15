@@ -1013,6 +1013,70 @@ static int r8192_wx_set_mlme(struct net_device *dev,
 	return ret;
 }
 
+static int r8192_wx_set_pmkid(struct net_device *dev,
+                                        struct iw_request_info *info,
+                                        union iwreq_data *wrqu, char *extra)
+{
+	int i;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct ieee80211_device* ieee = priv->ieee80211;
+	struct iw_pmksa*  pPMK = (struct iw_pmksa*)extra;
+	int	intReturn = false;
+
+	switch (pPMK->cmd)
+	{
+		case IW_PMKSA_ADD:
+			for (i = 0; i < NUM_PMKID_CACHE; i++)
+			{
+				if (memcmp(ieee->PMKIDList[i].Bssid, pPMK->bssid.sa_data, ETH_ALEN) == 0)
+				{
+                    			memcpy(ieee->PMKIDList[i].PMKID, pPMK->pmkid, IW_PMKID_LEN);
+					memcpy(ieee->PMKIDList[i].Bssid, pPMK->bssid.sa_data, ETH_ALEN);
+					ieee->PMKIDList[i].bUsed = true;
+					intReturn = true;
+					goto __EXIT__;
+				}
+			}
+
+			for (i = 0; i < NUM_PMKID_CACHE; i++)
+			{
+				if (ieee->PMKIDList[i].bUsed == false)
+				{
+					memcpy(ieee->PMKIDList[i].PMKID, pPMK->pmkid, IW_PMKID_LEN);
+					memcpy(ieee->PMKIDList[i].Bssid, pPMK->bssid.sa_data, ETH_ALEN);
+					ieee->PMKIDList[i].bUsed = true;
+					intReturn = true;
+					goto __EXIT__;
+				}
+			}
+			break;
+
+		case IW_PMKSA_REMOVE:
+			for (i = 0; i < NUM_PMKID_CACHE; i++)
+			{
+				if (memcmp(ieee->PMKIDList[i].Bssid, pPMK->bssid.sa_data, ETH_ALEN) == true)
+				{
+					memset(&ieee->PMKIDList[i], 0x00, sizeof(RT_PMKID_LIST));
+					intReturn = true;
+					break;
+				}
+	        }
+			break;
+
+		case IW_PMKSA_FLUSH:
+			memset(&ieee->PMKIDList[0], 0x00, (sizeof(RT_PMKID_LIST) * NUM_PMKID_CACHE));
+            intReturn = true;
+			break;
+
+		default:
+			break;
+	}
+
+__EXIT__:
+	return (intReturn);
+
+}
+
 static int r8192_wx_set_gen_ie(struct net_device *dev,
                                         struct iw_request_info *info,
                                         union iwreq_data *data, char *extra)
@@ -1095,7 +1159,7 @@ static iw_handler r8192_wx_handlers[] =
 	NULL,//r8192_wx_get_auth,//NULL, 			/* SIOCSIWAUTH */
 	r8192_wx_set_enc_ext, 			/* SIOCSIWENCODEEXT */
 	NULL,//r8192_wx_get_enc_ext,//NULL, 			/* SIOCSIWENCODEEXT */
-	NULL, 			/* SIOCSIWPMKSA */
+	r8192_wx_set_pmkid, /* SIOCSIWPMKSA */
 	NULL, 			 /*---hole---*/
 
 };
