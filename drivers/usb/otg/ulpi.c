@@ -54,7 +54,7 @@ static int ulpi_set_flags(struct otg_transceiver *otg)
 	if (otg->flags & USB_OTG_EXT_VBUS_INDICATOR)
 		flags |= ULPI_OTG_CTRL_EXTVBUSIND;
 
-	return otg_io_write(otg, flags, ULPI_SET(ULPI_OTG_CTRL));
+	return otg_io_write(otg, flags, ULPI_OTG_CTRL);
 }
 
 static int ulpi_init(struct otg_transceiver *otg)
@@ -95,7 +95,7 @@ static int ulpi_set_vbus(struct otg_transceiver *otg, bool on)
 			flags |= ULPI_OTG_CTRL_DRVVBUS_EXT;
 	}
 
-	return otg_io_write(otg, flags, ULPI_SET(ULPI_OTG_CTRL));
+	return otg_io_write(otg, flags, ULPI_OTG_CTRL);
 }
 
 struct otg_transceiver *
