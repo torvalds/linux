@@ -100,6 +100,11 @@ load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 platform-$(CONFIG_MIPS_XXS1500)	+= alchemy/xxs1500/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
+#
+# Trapeze ITS GRP board
+#
+platform-$(CONFIG_MIPS_GPR)	+= alchemy/gpr/
+load-$(CONFIG_MIPS_GPR)		+= 0xffffffff80100000
 
 # boards can specify their own <gpio.h> in one of their include dirs.
 # If they do, placing this line here at the end will make sure the
