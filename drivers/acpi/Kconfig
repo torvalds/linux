@@ -54,9 +54,6 @@ config ACPI_PROCFS
 	  they have been replaced by functions in /sys.
 	  The deprecated files (and their replacements) include:
 
-	  /proc/acpi/processor/*/power (/sys/devices/system/cpu/*/cpuidle/*)
-	  /proc/acpi/processor/*/performance (/sys/devices/system/cpu/*/
-		cpufreq/*)
 	  /proc/acpi/processor/*/throttling (/sys/class/thermal/
 		cooling_device*/*)
 	  This option has no effect on /proc/acpi/ files
