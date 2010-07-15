@@ -228,10 +228,6 @@ struct vxge_fifo {
 	int tx_steering_type;
 	int indicate_max_pkts;
 	spinlock_t tx_lock;
-	/* flag used to maintain queue state when MULTIQ is not enabled */
-#define VPATH_QUEUE_START       0
-#define VPATH_QUEUE_STOP        1
-	int queue_state;
 
 	/* Tx stats */
 	struct vxge_fifo_stats stats;
@@ -447,13 +443,9 @@ int vxge_open_vpaths(struct vxgedev *vdev);
 
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
 
-void vxge_stop_all_tx_queue(struct vxgedev *vdev);
-
 void vxge_stop_tx_queue(struct vxge_fifo *fifo);
 
-void vxge_start_all_tx_queue(struct vxgedev *vdev);
-
-void vxge_wake_tx_queue(struct vxge_fifo *fifo, struct sk_buff *skb);
+void vxge_wake_tx_queue(struct vxge_fifo *fifo);
 
 enum vxge_hw_status vxge_add_mac_addr(struct vxgedev *vdev,
 	struct macInfo *mac);
