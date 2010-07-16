@@ -1492,6 +1492,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	struct intel_connector *intel_connector;
 	struct intel_dp_priv *dp_priv;
 	const char *name = NULL;
+	int type;
 
 	intel_encoder = kcalloc(sizeof(struct intel_encoder) +
 			       sizeof(struct intel_dp_priv), 1, GFP_KERNEL);
@@ -1506,17 +1507,23 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	dp_priv = (struct intel_dp_priv *)(intel_encoder + 1);
 
+	if (HAS_PCH_SPLIT(dev) && (output_reg == PCH_DP_D))
+		if (intel_dpd_is_edp(dev))
+			dp_priv->is_pch_edp = true;
+
+	if (output_reg == DP_A || IS_PCH_eDP(dp_priv)) {
+		type = DRM_MODE_CONNECTOR_eDP;
+		intel_encoder->type = INTEL_OUTPUT_EDP;
+	} else {
+		type = DRM_MODE_CONNECTOR_DisplayPort;
+		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
+	}
+
 	connector = &intel_connector->base;
-	drm_connector_init(dev, connector, &intel_dp_connector_funcs,
-			   DRM_MODE_CONNECTOR_DisplayPort);
+	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
-
-	if (output_reg == DP_A)
-		intel_encoder->type = INTEL_OUTPUT_EDP;
-	else
-		intel_encoder->type = INTEL_OUTPUT_DISPLAYPORT;
 
 	if (output_reg == DP_B || output_reg == PCH_DP_B)
 		intel_encoder->clone_mask = (1 << INTEL_DP_B_CLONE_BIT);
@@ -1527,11 +1534,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	if (IS_eDP(intel_encoder))
 		intel_encoder->clone_mask = (1 << INTEL_EDP_CLONE_BIT);
-
-	if (HAS_PCH_SPLIT(dev) && (output_reg == PCH_DP_D)) {
-		if (intel_dpd_is_edp(dev))
-			dp_priv->is_pch_edp = true;
-	}
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = true;
