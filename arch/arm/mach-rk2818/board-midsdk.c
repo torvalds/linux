@@ -287,6 +287,21 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.cfg_gpio = rk2818_i2c1_cfg_gpio,
 };
 
+struct rk2818_i2c_platform_data default_i2c2_data = { 
+	.bus_num    = 2,
+	.flags      = 0,
+	.slave_addr = 0xff,
+	.scl_rate  = 400*1000,
+	
+};
+struct rk2818_i2c_platform_data default_i2c3_data = { 
+
+	.bus_num    = 3,
+	.flags      = 0,
+	.slave_addr = 0xff,
+	.scl_rate  = 400*1000,
+	
+};
 static struct i2c_board_info __initdata board_i2c0_devices[] = {
 #if defined (CONFIG_RK1000_CONTROL)
 	{
@@ -358,12 +373,27 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 	{},
 };
 
+static struct i2c_board_info __initdata board_i2c2_devices[] = {
+
+};
+static struct i2c_board_info __initdata board_i2c3_devices[] = {
+	
+};	
 
 /*****************************************************************************************
  * SPI devices
  *author: lhh
  *****************************************************************************************/
 static struct spi_board_info board_spi_devices[] = {
+#if defined(CONFIG_SPI_FPGA)
+	{	/* fpga ice65l08xx */
+		.modalias	= "spi_fpga",
+		.chip_select	= 1,
+		.max_speed_hz	= 8 * 1000 * 1000,
+		.bus_num	= 0,
+		.mode	= SPI_MODE_0,
+	},
+#endif
 #if defined(CONFIG_ENC28J60)	
 	{	/* net chip */
 		.modalias	= "enc28j60",
@@ -423,6 +453,12 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_I2C1_RK2818
 	&rk2818_device_i2c1,
+#endif
+#ifdef CONFIG_SPI_I2C
+	&rk2818_device_i2c2,
+#endif
+#ifdef CONFIG_SPI_I2C
+	&rk2818_device_i2c3,
 #endif
 #ifdef CONFIG_SDMMC0_RK2818	
 	&rk2818_device_sdmmc0,
@@ -506,6 +542,12 @@ static void __init machine_rk2818_board_init(void)
 #ifdef CONFIG_I2C1_RK2818
 	i2c_register_board_info(default_i2c1_data.bus_num, board_i2c1_devices,
 			ARRAY_SIZE(board_i2c1_devices));
+#endif
+#ifdef CONFIG_SPI_I2C
+	i2c_register_board_info(default_i2c2_data.bus_num, board_i2c2_devices,
+			ARRAY_SIZE(board_i2c2_devices));
+	i2c_register_board_info(default_i2c3_data.bus_num, board_i2c3_devices,
+			ARRAY_SIZE(board_i2c3_devices));
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));

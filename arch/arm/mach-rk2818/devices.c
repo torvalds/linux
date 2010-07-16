@@ -169,7 +169,20 @@ struct platform_device rk2818_device_i2c1 = {
 		.platform_data = &default_i2c1_data,
 	},
 };
-
+struct platform_device rk2818_device_i2c2 = {
+	.name	= "fpga_i2c",
+	.id	= 2,	
+	.dev 			= {
+		.platform_data = &default_i2c2_data,
+	},
+};
+struct platform_device rk2818_device_i2c3 = {
+	.name	= "fpga_i2c",
+	.id	= 3,	
+	.dev 			= {
+		.platform_data = &default_i2c3_data,
+	},
+};
 struct platform_device rk2818_device_uart0 = {
 	.name	= "rk2818_serial",
 	.id	= 0,

@@ -29,6 +29,7 @@
 *.lzma
 *.patch
 *.gcno
+Untitled Project.*
 
 #
 # Top-level generic files
