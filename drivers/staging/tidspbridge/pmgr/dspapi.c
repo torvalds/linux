@@ -1407,6 +1407,8 @@ u32 strmwrap_allocate_buffer(union trapped_args *args, void *pr_ctxt)
 		return -EINVAL;
 
 	ap_buffer = kmalloc((num_bufs * sizeof(u8 *)), GFP_KERNEL);
+	if (ap_buffer == NULL)
+		return -ENOMEM;
 
 	status = strm_allocate_buffer(args->args_strm_allocatebuffer.hstream,
 				      args->args_strm_allocatebuffer.usize,
@@ -1446,6 +1448,8 @@ u32 strmwrap_free_buffer(union trapped_args *args, void *pr_ctxt)
 		return -EINVAL;
 
 	ap_buffer = kmalloc((num_bufs * sizeof(u8 *)), GFP_KERNEL);
+	if (ap_buffer == NULL)
+		return -ENOMEM;
 
 	CP_FM_USR(ap_buffer, args->args_strm_freebuffer.ap_buffer, status,
 		  num_bufs);
