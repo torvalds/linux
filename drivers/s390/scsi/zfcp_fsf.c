@@ -732,7 +732,7 @@ static int zfcp_fsf_req_send(struct zfcp_fsf_req *req)
 
 	zfcp_reqlist_add(adapter->req_list, req);
 
-	req->qdio_req.qdio_outb_usage = atomic_read(&qdio->req_q.count);
+	req->qdio_req.qdio_outb_usage = atomic_read(&qdio->req_q_free);
 	req->issued = get_clock();
 	if (zfcp_qdio_send(qdio, &req->qdio_req)) {
 		del_timer(&req->timer);
@@ -2025,7 +2025,7 @@ static void zfcp_fsf_req_trace(struct zfcp_fsf_req *req, struct scsi_cmnd *scsi)
 	blktrc.magic = ZFCP_BLK_DRV_DATA_MAGIC;
 	if (req->status & ZFCP_STATUS_FSFREQ_ERROR)
 		blktrc.flags |= ZFCP_BLK_REQ_ERROR;
-	blktrc.inb_usage = req->qdio_req.qdio_inb_usage;
+	blktrc.inb_usage = 0;
 	blktrc.outb_usage = req->qdio_req.qdio_outb_usage;
 
 	if (req->adapter->adapter_features & FSF_FEATURE_MEASUREMENT_DATA &&
@@ -2207,7 +2207,7 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 		return -EBUSY;
 
 	spin_lock(&qdio->req_q_lock);
-	if (atomic_read(&qdio->req_q.count) <= 0) {
+	if (atomic_read(&qdio->req_q_free) <= 0) {
 		atomic_inc(&qdio->req_q_full);
 		goto out;
 	}
@@ -2407,7 +2407,7 @@ out:
 void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
-	struct qdio_buffer *sbal = qdio->resp_q.sbal[sbal_idx];
+	struct qdio_buffer *sbal = qdio->res_q[sbal_idx];
 	struct qdio_buffer_element *sbale;
 	struct zfcp_fsf_req *fsf_req;
 	unsigned long req_id;
@@ -2428,8 +2428,6 @@ void zfcp_fsf_reqid_check(struct zfcp_qdio *qdio, int sbal_idx)
 			      req_id, dev_name(&adapter->ccw_device->dev));
 
 		fsf_req->qdio_req.sbal_response = sbal_idx;
-		fsf_req->qdio_req.qdio_inb_usage =
-			atomic_read(&qdio->resp_q.count);
 		zfcp_fsf_req_complete(fsf_req);
 
 		if (likely(sbale->flags & SBAL_FLAGS_LAST_ENTRY))
