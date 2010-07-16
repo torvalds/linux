@@ -850,8 +850,12 @@ static int kvm_handle_hva(struct kvm *kvm, unsigned long hva,
 			ret = handler(kvm, &memslot->rmap[gfn_offset], data);
 
 			for (j = 0; j < KVM_NR_PAGE_SIZES - 1; ++j) {
-				int idx = gfn_offset;
-				idx /= KVM_PAGES_PER_HPAGE(PT_DIRECTORY_LEVEL + j);
+				unsigned long idx;
+				int sh;
+
+				sh = KVM_HPAGE_GFN_SHIFT(PT_DIRECTORY_LEVEL+j);
+				idx = ((memslot->base_gfn+gfn_offset) >> sh) -
+					(memslot->base_gfn >> sh);
 				ret |= handler(kvm,
 					&memslot->lpage_info[j][idx].rmap_pde,
 					data);
