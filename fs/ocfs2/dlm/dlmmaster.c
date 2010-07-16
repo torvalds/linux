@@ -3050,8 +3050,6 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	/* check for pre-existing lock */
 	spin_lock(&dlm->spinlock);
 	res = __dlm_lookup_lockres(dlm, name, namelen, hash);
-	spin_lock(&dlm->master_lock);
-
 	if (res) {
 		spin_lock(&res->spinlock);
 		if (res->state & DLM_LOCK_RES_RECOVERING) {
@@ -3069,14 +3067,15 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 		spin_unlock(&res->spinlock);
 	}
 
+	spin_lock(&dlm->master_lock);
 	/* ignore status.  only nonzero status would BUG. */
 	ret = dlm_add_migration_mle(dlm, res, mle, &oldmle,
 				    name, namelen,
 				    migrate->new_master,
 				    migrate->master);
 
-unlock:
 	spin_unlock(&dlm->master_lock);
+unlock:
 	spin_unlock(&dlm->spinlock);
 
 	if (oldmle) {
