@@ -1464,7 +1464,7 @@ intel_trans_dp_port_sel (struct drm_crtc *crtc)
 }
 
 /* check the VBT to see whether the eDP is on DP-D port */
-static bool intel_dpd_is_edp(struct drm_device *dev)
+bool intel_dpd_is_edp(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct child_device_config *p_child;

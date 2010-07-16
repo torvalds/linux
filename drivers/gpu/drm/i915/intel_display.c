@@ -5111,18 +5111,25 @@ static void intel_setup_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_encoder *encoder;
+	bool dpd_is_edp = false;
 
-	intel_crt_init(dev);
-
-	/* Set up integrated LVDS */
 	if (IS_MOBILE(dev) && !IS_I830(dev))
 		intel_lvds_init(dev);
 
 	if (HAS_PCH_SPLIT(dev)) {
-		int found;
+		dpd_is_edp = intel_dpd_is_edp(dev);
 
 		if (IS_MOBILE(dev) && (I915_READ(DP_A) & DP_DETECTED))
 			intel_dp_init(dev, DP_A);
+
+		if (dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
+			intel_dp_init(dev, PCH_DP_D);
+	}
+
+	intel_crt_init(dev);
+
+	if (HAS_PCH_SPLIT(dev)) {
+		int found;
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
@@ -5142,7 +5149,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		if (I915_READ(PCH_DP_C) & DP_DETECTED)
 			intel_dp_init(dev, PCH_DP_C);
 
-		if (I915_READ(PCH_DP_D) & DP_DETECTED)
+		if (!dpd_is_edp && (I915_READ(PCH_DP_D) & DP_DETECTED))
 			intel_dp_init(dev, PCH_DP_D);
 
 	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
