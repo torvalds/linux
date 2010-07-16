@@ -687,7 +687,7 @@ static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
 	if (!is_rmap_spte(old_spte))
 		return;
 	pfn = spte_to_pfn(old_spte);
-	if (old_spte & shadow_accessed_mask)
+	if (!shadow_accessed_mask || old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
 	if (is_writable_pte(old_spte))
 		kvm_set_pfn_dirty(pfn);
@@ -815,7 +815,8 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 				kvm_set_pfn_dirty(spte_to_pfn(*spte));
 			old_spte = __xchg_spte(spte, new_spte);
 			if (is_shadow_present_pte(old_spte)
-			    && (old_spte & shadow_accessed_mask))
+			    && (!shadow_accessed_mask ||
+			    old_spte & shadow_accessed_mask))
 				mark_page_accessed(pfn_to_page(spte_to_pfn(old_spte)));
 			spte = rmap_next(kvm, rmapp, spte);
 		}
