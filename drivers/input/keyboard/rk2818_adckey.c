@@ -26,7 +26,7 @@
 #include <mach/gpio.h>
 #include <mach/adc.h>
 
-#if 0
+#if 0 
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -50,7 +50,11 @@
 
 
 #define Valuedrift		50
+#ifndef CONFIG_MACH_RK2818PHONE
 #define ADEmpty			1000
+#else
+#define ADEmpty			900
+#endif
 #define ADInvalid		20
 #define ADKEYNUM		10
 
@@ -74,6 +78,7 @@ typedef  struct tagADC_keyst
 	unsigned int adc_keycode;
 }ADC_keyst,*pADC_keyst;
 
+#ifndef CONFIG_MACH_RK2818PHONE
 //	adc	 ---> key	
 static  ADC_keyst gAdcValueTab[] = 
 {
@@ -85,6 +90,18 @@ static  ADC_keyst gAdcValueTab[] =
 	{899, AD2KEY6},
 	{ADEmpty,0}
 };
+#else
+static  ADC_keyst gAdcValueTab[] = 
+{
+	{95,  AD2KEY1},
+	{192, AD2KEY2},
+	{280, AD2KEY3},
+	{376, AD2KEY4},
+	{467, AD2KEY5},
+	{560, AD2KEY6},
+	{ADEmpty,0}
+};
+#endif
 
 //key code tab
 static unsigned char gInitKeyCode[ADKEYNUM] = 
@@ -240,10 +257,13 @@ static void rk28_adkeyscan_timer(unsigned long data)
 
 	//rk28_read_adc(pRk28AdcKey);	
 	adcvalue = gAdcValue[ADKEYCH];
+	DBG("=========== adcvalue=0x%x ===========\n",adcvalue);
+
 	if((adcvalue > ADEmpty) || (adcvalue < ADInvalid))
 	{
-		if(gLastCode == 0)
-		return;
+		if(gLastCode == 0) {
+			return;
+		}
 		else
 		{
 			if(gLastCode == KEYMENU)
@@ -268,7 +288,7 @@ static void rk28_adkeyscan_timer(unsigned long data)
 		}
 	}
 	
-	DBG("adcvalue=0x%x\n",adcvalue);
+	//DBG("adcvalue=0x%x\n",adcvalue);
 	
 	code=rk28_get_keycode(adcvalue,gAdcValueTab);
 	if(code)
