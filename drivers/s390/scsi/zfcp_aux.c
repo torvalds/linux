@@ -98,12 +98,10 @@ static void __init zfcp_init_device_setup(char *devstr)
 	u64 wwpn, lun;
 
 	/* duplicate devstr and keep the original for sysfs presentation*/
-	str_saved = kmalloc(strlen(devstr) + 1, GFP_KERNEL);
+	str_saved = kstrdup(devstr, GFP_KERNEL);
 	str = str_saved;
 	if (!str)
 		return;
-
-	strcpy(str, devstr);
 
 	token = strsep(&str, ",");
 	if (!token || strlen(token) >= ZFCP_BUS_ID_SIZE)
