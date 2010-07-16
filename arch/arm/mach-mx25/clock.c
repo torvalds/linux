@@ -292,6 +292,9 @@ int __init mx25_clocks_init(void)
 	__raw_writel((1 << 19), CRM_BASE + CCM_CGCR0);
 	__raw_writel((0xf << 16) | (3 << 26), CRM_BASE + CCM_CGCR1);
 	__raw_writel((1 << 5), CRM_BASE + CCM_CGCR2);
+#if defined(CONFIG_DEBUG_LL) && !defined(CONFIG_DEBUG_ICEDCC)
+	clk_enable(&uart1_clk);
+#endif
 
 	/* Clock source for lcdc and csi is upll */
 	__raw_writel(__raw_readl(CRM_BASE+0x64) | (1 << 7) | (1 << 0),
