@@ -107,13 +107,13 @@ static inline void cifs_fscache_release_inode_cookie(struct inode *inode) {}
 static inline void cifs_fscache_set_inode_cookie(struct inode *inode,
 						 struct file *filp) {}
 static inline void cifs_fscache_reset_inode_cookie(struct inode *inode) {}
-static inline void cifs_fscache_release_page(struct page *page, gfp_t gfp)
+static inline int cifs_fscache_release_page(struct page *page, gfp_t gfp)
 {
 	return 1; /* May release page */
 }
 
-static inline int cifs_fscache_invalidate_page(struct page *page,
-			struct inode *) {}
+static inline void cifs_fscache_invalidate_page(struct page *page,
+			struct inode *inode) {}
 static inline int
 cifs_readpage_from_fscache(struct inode *inode, struct page *page)
 {
