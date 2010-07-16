@@ -81,7 +81,7 @@ static struct map_desc s5p_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S3C_VA_UART,
 		.pfn		= __phys_to_pfn(S3C_PA_UART),
-		.length		= SZ_4K,
+		.length		= SZ_512K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)VA_VIC0,
