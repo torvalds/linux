@@ -686,6 +686,10 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 								  sizeof(struct input_absinfo))))
 					return -EFAULT;
 
+				/* We can't change number of reserved MT slots */
+				if (t == ABS_MT_SLOT)
+					return -EINVAL;
+
 				/*
 				 * Take event lock to ensure that we are not
 				 * changing device parameters in the middle
