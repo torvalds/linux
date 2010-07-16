@@ -104,9 +104,9 @@ typedef void hpi_handler_func(struct hpi_message *, struct hpi_response *);
 #define STR_ROLE_FIELD_MAX 255U
 
 struct hpi_entity_str {
-	uint16_t size;
-	uint8_t type;
-	uint8_t role;
+	u16 size;
+	u8 type;
+	u8 role;
 };
 
 #if defined(_MSC_VER)
@@ -119,11 +119,11 @@ struct hpi_entity {
 #if ! defined(HPI_OS_DSP_C6000) || (defined(HPI_OS_DSP_C6000) && (__TI_COMPILER_VERSION__ > 6000008))
 	/* DSP C6000 compiler v6.0.8 and lower
 	   do not support  flexible array member */
-	uint8_t value[];
+	u8 value[];
 #else
 	/* NOTE! Using sizeof(struct hpi_entity) will give erroneous results */
 #define HPI_INTERNAL_WARN_ABOUT_ENTITY_VALUE
-	uint8_t value[1];
+	u8 value[1];
 #endif
 };
 
