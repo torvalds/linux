@@ -165,7 +165,7 @@ static inline int ablkcipher_next_slow(struct ablkcipher_request *req,
 
 	p = kmalloc(n, GFP_ATOMIC);
 	if (!p)
-		ablkcipher_walk_done(req, walk, -ENOMEM);
+		return ablkcipher_walk_done(req, walk, -ENOMEM);
 
 	base = p + 1;
 
