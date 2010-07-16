@@ -74,14 +74,9 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char *buf,
 	if (count > LIRCBUF_SIZE || count % 2 == 0)
 		return -EINVAL;
 
-	txbuf = kzalloc(sizeof(int) * LIRCBUF_SIZE, GFP_KERNEL);
-	if (!txbuf)
-		return -ENOMEM;
-
-	if (copy_from_user(txbuf, buf, n)) {
-		ret = -EFAULT;
-		goto out;
-	}
+	txbuf = memdup_user(buf, n);
+	if (IS_ERR(txbuf))
+		return PTR_ERR(txbuf);
 
 	ir_dev = lirc->ir_dev;
 	if (!ir_dev) {
