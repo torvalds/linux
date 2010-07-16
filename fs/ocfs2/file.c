@@ -767,7 +767,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	struct page *page;
 	unsigned long index = abs_from >> PAGE_CACHE_SHIFT;
 	handle_t *handle = NULL;
-	int ret;
+	int ret = 0;
 	unsigned zero_from, zero_to, block_start, block_end;
 
 	BUG_ON(abs_from >= abs_to);
