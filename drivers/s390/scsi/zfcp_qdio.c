@@ -283,6 +283,7 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 	id->q_format = QDIO_ZFCP_QFMT;
 	memcpy(id->adapter_name, dev_name(&id->cdev->dev), 8);
 	ASCEBC(id->adapter_name, 8);
+	id->qib_rflags = QIB_RFLAGS_ENABLE_DATA_DIV;
 	id->qib_param_field_format = 0;
 	id->qib_param_field = NULL;
 	id->input_slib_elements = NULL;
@@ -294,8 +295,8 @@ static void zfcp_qdio_setup_init_data(struct qdio_initialize *id,
 	id->int_parm = (unsigned long) qdio;
 	id->input_sbal_addr_array = (void **) (qdio->res_q);
 	id->output_sbal_addr_array = (void **) (qdio->req_q);
-
 }
+
 /**
  * zfcp_qdio_allocate - allocate queue memory and initialize QDIO data
  * @adapter: pointer to struct zfcp_adapter
@@ -358,6 +359,7 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	struct qdio_initialize init_data;
 	struct zfcp_adapter *adapter = qdio->adapter;
 	struct ccw_device *cdev = adapter->ccw_device;
+	struct qdio_ssqd_desc ssqd;
 	int cc;
 
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
@@ -367,6 +369,13 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 
 	if (qdio_establish(&init_data))
 		goto failed_establish;
+
+	if (qdio_get_ssqd_desc(init_data.cdev, &ssqd))
+		goto failed_qdio;
+
+	if (ssqd.qdioac2 & CHSC_AC2_DATA_DIV_ENABLED)
+		atomic_set_mask(ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED,
+				&qdio->adapter->status);
 
 	if (qdio_activate(cdev))
 		goto failed_qdio;
