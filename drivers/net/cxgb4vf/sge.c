@@ -2351,7 +2351,7 @@ void t4vf_free_sge_resources(struct adapter *adapter)
 	struct sge_rspq *intrq = &s->intrq;
 	int qs;
 
-	for (qs = 0; qs < adapter->sge.ethqsets; qs++) {
+	for (qs = 0; qs < adapter->sge.ethqsets; qs++, rxq++, txq++) {
 		if (rxq->rspq.desc)
 			free_rspq_fl(adapter, &rxq->rspq, &rxq->fl);
 		if (txq->q.desc) {
