@@ -682,9 +682,14 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 static void set_spte_track_bits(u64 *sptep, u64 new_spte)
 {
 	pfn_t pfn;
-	u64 old_spte;
+	u64 old_spte = *sptep;
 
-	old_spte = __xchg_spte(sptep, new_spte);
+	if (!shadow_accessed_mask || !is_shadow_present_pte(old_spte) ||
+	      old_spte & shadow_accessed_mask) {
+		__set_spte(sptep, new_spte);
+	} else
+		old_spte = __xchg_spte(sptep, new_spte);
+
 	if (!is_rmap_spte(old_spte))
 		return;
 	pfn = spte_to_pfn(old_spte);
