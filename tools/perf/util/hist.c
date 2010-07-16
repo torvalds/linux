@@ -795,6 +795,21 @@ enum hist_filter {
 	HIST_FILTER__THREAD,
 };
 
+static void hists__remove_entry_filter(struct hists *self, struct hist_entry *h,
+				       enum hist_filter filter)
+{
+	h->filtered &= ~(1 << filter);
+	if (h->filtered)
+		return;
+
+	++self->nr_entries;
+	self->stats.total_period += h->period;
+	self->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
+
+	if (h->ms.sym && self->max_sym_namelen < h->ms.sym->namelen)
+		self->max_sym_namelen = h->ms.sym->namelen;
+}
+
 void hists__filter_by_dso(struct hists *self, const struct dso *dso)
 {
 	struct rb_node *nd;
@@ -814,15 +829,7 @@ void hists__filter_by_dso(struct hists *self, const struct dso *dso)
 			continue;
 		}
 
-		h->filtered &= ~(1 << HIST_FILTER__DSO);
-		if (!h->filtered) {
-			++self->nr_entries;
-			self->stats.total_period += h->period;
-			self->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
-			if (h->ms.sym &&
-			    self->max_sym_namelen < h->ms.sym->namelen)
-				self->max_sym_namelen = h->ms.sym->namelen;
-		}
+		hists__remove_entry_filter(self, h, HIST_FILTER__DSO);
 	}
 }
 
@@ -841,15 +848,8 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 			h->filtered |= (1 << HIST_FILTER__THREAD);
 			continue;
 		}
-		h->filtered &= ~(1 << HIST_FILTER__THREAD);
-		if (!h->filtered) {
-			++self->nr_entries;
-			self->stats.total_period += h->period;
-			self->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
-			if (h->ms.sym &&
-			    self->max_sym_namelen < h->ms.sym->namelen)
-				self->max_sym_namelen = h->ms.sym->namelen;
-		}
+
+		hists__remove_entry_filter(self, h, HIST_FILTER__THREAD);
 	}
 }
 
