@@ -465,6 +465,8 @@ static int VmbusChannelCreateGpadlHeader(void *Kbuffer, u32 Size,
 			  sizeof(struct vmbus_channel_gpadl_header) +
 			  sizeof(struct gpa_range) + pageCount * sizeof(u64);
 		msgHeader = kzalloc(msgSize, GFP_KERNEL);
+		if (msgHeader == NULL)
+			goto nomem;
 		msgHeader->MessageSize = msgSize;
 
 		gpaHeader = (struct vmbus_channel_gpadl_header *)msgHeader->Msg;
