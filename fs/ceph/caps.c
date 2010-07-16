@@ -586,6 +586,7 @@ retry:
 		} else {
 			pr_err("ceph_add_cap: couldn't find snap realm %llx\n",
 			       realmino);
+			WARN_ON(!realm);
 		}
 	}
 
