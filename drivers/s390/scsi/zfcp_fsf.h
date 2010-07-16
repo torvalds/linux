@@ -352,6 +352,8 @@ struct fsf_qtcb_bottom_support {
 	u8  els[256];
 } __attribute__ ((packed));
 
+#define ZFCP_FSF_TIMER_INT_MASK	0x3FFF
+
 struct fsf_qtcb_bottom_config {
 	u32 lic_version;
 	u32 feature_selection;
