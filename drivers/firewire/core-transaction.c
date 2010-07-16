@@ -883,6 +883,11 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *p)
 	if (p->ack != ACK_PENDING && p->ack != ACK_COMPLETE)
 		return;
 
+	if (TCODE_IS_LINK_INTERNAL(HEADER_GET_TCODE(p->header[0]))) {
+		fw_cdev_handle_phy_packet(card, p);
+		return;
+	}
+
 	request = allocate_request(card, p);
 	if (request == NULL) {
 		/* FIXME: send statically allocated busy packet. */

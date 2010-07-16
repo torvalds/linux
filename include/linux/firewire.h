@@ -111,8 +111,9 @@ struct fw_card {
 	bool beta_repeaters_present;
 
 	int index;
-
 	struct list_head link;
+
+	struct list_head phy_receiver_list;
 
 	struct delayed_work br_work; /* bus reset job */
 	bool br_short;

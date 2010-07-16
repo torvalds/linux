@@ -128,6 +128,7 @@ extern const struct file_operations fw_device_ops;
 
 void fw_device_cdev_update(struct fw_device *device);
 void fw_device_cdev_remove(struct fw_device *device);
+void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p);
 
 
 /* -device */
@@ -214,6 +215,7 @@ static inline bool is_next_generation(int new_generation, int old_generation)
 
 #define TCODE_IS_READ_REQUEST(tcode)	(((tcode) & ~1) == 4)
 #define TCODE_IS_BLOCK_PACKET(tcode)	(((tcode) &  1) != 0)
+#define TCODE_IS_LINK_INTERNAL(tcode)	((tcode) == 0xe)
 #define TCODE_IS_REQUEST(tcode)		(((tcode) &  2) == 0)
 #define TCODE_IS_RESPONSE(tcode)	(((tcode) &  2) != 0)
 #define TCODE_HAS_REQUEST_DATA(tcode)	(((tcode) & 12) != 4)

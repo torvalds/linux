@@ -69,6 +69,9 @@ struct client {
 	struct fw_iso_buffer buffer;
 	unsigned long vm_start;
 
+	struct list_head phy_receiver_link;
+	u64 phy_receiver_closure;
+
 	struct list_head link;
 	struct kref kref;
 };
@@ -201,6 +204,11 @@ struct outbound_phy_packet_event {
 	struct fw_cdev_event_phy_packet phy_packet;
 };
 
+struct inbound_phy_packet_event {
+	struct event event;
+	struct fw_cdev_event_phy_packet phy_packet;
+};
+
 static inline void __user *u64_to_uptr(__u64 value)
 {
 	return (void __user *)(unsigned long)value;
@@ -236,6 +244,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	idr_init(&client->resource_idr);
 	INIT_LIST_HEAD(&client->event_list);
 	init_waitqueue_head(&client->wait);
+	INIT_LIST_HEAD(&client->phy_receiver_link);
 	kref_init(&client->kref);
 
 	file->private_data = client;
@@ -357,7 +366,7 @@ static void queue_bus_reset_event(struct client *client)
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
 	if (e == NULL) {
-		fw_notify("Out of memory when allocating bus reset event\n");
+		fw_notify("Out of memory when allocating event\n");
 		return;
 	}
 
@@ -404,6 +413,7 @@ union ioctl_arg {
 	struct fw_cdev_send_stream_packet	send_stream_packet;
 	struct fw_cdev_get_cycle_timer2		get_cycle_timer2;
 	struct fw_cdev_send_phy_packet		send_phy_packet;
+	struct fw_cdev_receive_phy_packets	receive_phy_packets;
 };
 
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
@@ -671,9 +681,10 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (r == NULL || e == NULL)
+	if (r == NULL || e == NULL) {
+		fw_notify("Out of memory when allocating event\n");
 		goto failed;
-
+	}
 	r->card    = card;
 	r->request = request;
 	r->data    = payload;
@@ -902,9 +913,10 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 	struct iso_interrupt_event *e;
 
 	e = kmalloc(sizeof(*e) + header_length, GFP_ATOMIC);
-	if (e == NULL)
+	if (e == NULL) {
+		fw_notify("Out of memory when allocating event\n");
 		return;
-
+	}
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
 	e->interrupt.closure   = client->iso_closure;
 	e->interrupt.cycle     = cycle;
@@ -1447,6 +1459,52 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	return 0;
 }
 
+static int ioctl_receive_phy_packets(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_receive_phy_packets *a = &arg->receive_phy_packets;
+	struct fw_card *card = client->device->card;
+
+	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	if (!client->device->is_local)
+		return -ENOSYS;
+
+	spin_lock_irq(&card->lock);
+
+	list_move_tail(&client->phy_receiver_link, &card->phy_receiver_list);
+	client->phy_receiver_closure = a->closure;
+
+	spin_unlock_irq(&card->lock);
+
+	return 0;
+}
+
+void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
+{
+	struct client *client;
+	struct inbound_phy_packet_event *e;
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+
+	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
+		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
+		if (e == NULL) {
+			fw_notify("Out of memory when allocating event\n");
+			break;
+		}
+		e->phy_packet.closure	= client->phy_receiver_closure;
+		e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_RECEIVED;
+		e->phy_packet.rcode	= RCODE_COMPLETE;
+		e->phy_packet.length	= 8;
+		e->phy_packet.data[0]	= p->header[1];
+		e->phy_packet.data[1]	= p->header[2];
+		queue_event(client, &e->event,
+			    &e->phy_packet, sizeof(e->phy_packet) + 8, NULL, 0);
+	}
+
+	spin_unlock_irqrestore(&card->lock, flags);
+}
+
 static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x00] = ioctl_get_info,
 	[0x01] = ioctl_send_request,
@@ -1470,6 +1528,7 @@ static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x13] = ioctl_send_stream_packet,
 	[0x14] = ioctl_get_cycle_timer2,
 	[0x15] = ioctl_send_phy_packet,
+	[0x16] = ioctl_receive_phy_packets,
 };
 
 static int dispatch_ioctl(struct client *client,
@@ -1576,6 +1635,10 @@ static int fw_device_op_release(struct inode *inode, struct file *file)
 {
 	struct client *client = file->private_data;
 	struct event *event, *next_event;
+
+	spin_lock_irq(&client->device->card->lock);
+	list_del(&client->phy_receiver_link);
+	spin_unlock_irq(&client->device->card->lock);
 
 	mutex_lock(&client->device->client_list_mutex);
 	list_del(&client->link);

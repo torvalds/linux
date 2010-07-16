@@ -500,6 +500,7 @@ void fw_card_initialize(struct fw_card *card,
 	kref_init(&card->kref);
 	init_completion(&card->done);
 	INIT_LIST_HEAD(&card->transaction_list);
+	INIT_LIST_HEAD(&card->phy_receiver_list);
 	spin_lock_init(&card->lock);
 
 	card->local_node = NULL;
