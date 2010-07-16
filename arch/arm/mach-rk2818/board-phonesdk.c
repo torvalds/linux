@@ -444,9 +444,9 @@ struct rk2818_fb_mach_info rk2818_fb_mach_info = {
 
 struct rk2818bl_info rk2818_bl_info = {
         .pwm_id   = 0,
-        .pw_pin   = GPIO_HIGH | (RK2818_PIN_PA3<< 8) ,
+        .pw_pin   = GPIO_HIGH | (RK2818_PIN_PF4<< 8) ,
         .bl_ref   = 0,
-        .pw_iomux = GPIOA23_UART2_SEL_NAME,
+        .pw_iomux = GPIOF34_UART3_SEL_NAME,
 };
 
 static struct platform_device *devices[] __initdata = {

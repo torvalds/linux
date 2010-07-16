@@ -44,7 +44,11 @@
 #define ENDCALL					62
 #define	KEYSTART				28			//ENTER
 #define KEYMENU					AD2KEY6		///CALL
+#ifndef CONFIG_MACH_RK2818PHONE
 #define KEY_PLAYON_PIN			RK2818_PIN_PE1
+#else
+#define KEY_PLAYON_PIN			RK2818_PIN_PA3
+#endif
 #define	KEY_PLAY_SHORT_PRESS	KEYSTART	//code for short press the play key
 #define	KEY_PLAY_LONG_PRESS		ENDCALL		//code for long press the play key
 
@@ -59,7 +63,11 @@
 #define ADKEYNUM		10
 
 #define ADKEYCH			1	//AD通道
+#ifndef CONFIG_MACH_RK2818PHONE
 #define KEYPLAY_ON		0	//按键接通时的电平值
+#else
+#define KEYPLAY_ON		1	//按键接通时的电平值
+#endif
 #define KEY_PHYS_NAME	"rk2818_adckey/input0"
 
 volatile int gADSampleTimes = 0;
