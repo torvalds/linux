@@ -96,6 +96,9 @@ extern void zfcp_erp_adapter_access_changed(struct zfcp_adapter *, char *,
 extern void zfcp_erp_timeout_handler(unsigned long);
 
 /* zfcp_fc.c */
+extern void zfcp_fc_enqueue_event(struct zfcp_adapter *,
+				enum fc_host_event_code event_code, u32);
+extern void zfcp_fc_post_event(struct work_struct *);
 extern void zfcp_fc_scan_ports(struct work_struct *);
 extern void zfcp_fc_incoming_els(struct zfcp_fsf_req *);
 extern void zfcp_fc_port_did_lookup(struct work_struct *);

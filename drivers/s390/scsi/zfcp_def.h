@@ -37,6 +37,7 @@
 #include <asm/ebcdic.h>
 #include <asm/sysinfo.h>
 #include "zfcp_fsf.h"
+#include "zfcp_fc.h"
 #include "zfcp_qdio.h"
 
 struct zfcp_reqlist;
@@ -190,6 +191,7 @@ struct zfcp_adapter {
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
 	struct device_dma_parameters dma_parms;
+	struct zfcp_fc_events events;
 };
 
 struct zfcp_port {

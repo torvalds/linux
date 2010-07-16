@@ -524,6 +524,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	rwlock_init(&adapter->port_list_lock);
 	INIT_LIST_HEAD(&adapter->port_list);
 
+	INIT_LIST_HEAD(&adapter->events.list);
+	INIT_WORK(&adapter->events.work, zfcp_fc_post_event);
+	spin_lock_init(&adapter->events.list_lock);
+
 	init_waitqueue_head(&adapter->erp_ready_wq);
 	init_waitqueue_head(&adapter->erp_done_wqh);
 
