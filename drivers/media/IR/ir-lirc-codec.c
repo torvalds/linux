@@ -15,9 +15,9 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <media/lirc.h>
+#include <media/lirc_dev.h>
 #include <media/ir-core.h>
 #include "ir-core-priv.h"
-#include "lirc_dev.h"
 
 #define LIRCBUF_SIZE 256
 

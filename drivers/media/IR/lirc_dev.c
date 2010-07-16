@@ -37,7 +37,7 @@
 #include <linux/cdev.h>
 
 #include <media/lirc.h>
-#include "lirc_dev.h"
+#include <media/lirc_dev.h>
 
 static int debug;
 

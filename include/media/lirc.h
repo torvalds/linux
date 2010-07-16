@@ -1,6 +1,6 @@
 /*
  * lirc.h - linux infrared remote control header file
- * last modified 2010/06/03 by Jarod Wilson
+ * last modified 2010/07/13 by Jarod Wilson
  */
 
 #ifndef _LINUX_LIRC_H
@@ -32,6 +32,9 @@
 #define LIRC_IS_PULSE(val) (LIRC_MODE2(val) == LIRC_MODE2_PULSE)
 #define LIRC_IS_FREQUENCY(val) (LIRC_MODE2(val) == LIRC_MODE2_FREQUENCY)
 #define LIRC_IS_TIMEOUT(val) (LIRC_MODE2(val) == LIRC_MODE2_TIMEOUT)
+
+/* used heavily by lirc userspace */
+#define lirc_t int
 
 /*** lirc compatible hardware features ***/
 
@@ -95,12 +98,10 @@
 #define LIRC_GET_MIN_TIMEOUT           _IOR('i', 0x00000008, __u32)
 #define LIRC_GET_MAX_TIMEOUT           _IOR('i', 0x00000009, __u32)
 
-#if 0	/* these ioctls are not used at the moment */
 #define LIRC_GET_MIN_FILTER_PULSE      _IOR('i', 0x0000000a, __u32)
 #define LIRC_GET_MAX_FILTER_PULSE      _IOR('i', 0x0000000b, __u32)
 #define LIRC_GET_MIN_FILTER_SPACE      _IOR('i', 0x0000000c, __u32)
 #define LIRC_GET_MAX_FILTER_SPACE      _IOR('i', 0x0000000d, __u32)
-#endif
 
 /* code length in bits, currently only for LIRC_MODE_LIRCCODE */
 #define LIRC_GET_LENGTH                _IOR('i', 0x0000000f, __u32)
@@ -121,23 +122,30 @@
  */
 #define LIRC_SET_REC_TIMEOUT           _IOW('i', 0x00000018, __u32)
 
-#if 0	/* these ioctls are not used at the moment */
+/* 1 enables, 0 disables timeout reports in MODE2 */
+#define LIRC_SET_REC_TIMEOUT_REPORTS   _IOW('i', 0x00000019, __u32)
+
 /*
  * pulses shorter than this are filtered out by hardware (software
  * emulation in lirc_dev?)
  */
-#define LIRC_SET_REC_FILTER_PULSE      _IOW('i', 0x00000019, __u32)
+#define LIRC_SET_REC_FILTER_PULSE      _IOW('i', 0x0000001a, __u32)
 /*
  * spaces shorter than this are filtered out by hardware (software
  * emulation in lirc_dev?)
  */
-#define LIRC_SET_REC_FILTER_SPACE      _IOW('i', 0x0000001a, __u32)
+#define LIRC_SET_REC_FILTER_SPACE      _IOW('i', 0x0000001b, __u32)
 /*
  * if filter cannot be set independantly for pulse/space, this should
  * be used
  */
-#define LIRC_SET_REC_FILTER            _IOW('i', 0x0000001b, __u32)
-#endif
+#define LIRC_SET_REC_FILTER            _IOW('i', 0x0000001c, __u32)
+
+/*
+ * if enabled from the next key press on the driver will send
+ * LIRC_MODE2_FREQUENCY packets
+ */
+#define LIRC_SET_MEASURE_CARRIER_MODE  _IOW('i', 0x0000001d, __u32)
 
 /*
  * to set a range use
@@ -151,13 +159,7 @@
 
 #define LIRC_NOTIFY_DECODE             _IO('i', 0x00000020)
 
-#if 0	/* these ioctls are not used at the moment */
-/*
- * from the next key press on the driver will send
- * LIRC_MODE2_FREQUENCY packets
- */
-#define LIRC_MEASURE_CARRIER_ENABLE    _IO('i', 0x00000021)
-#define LIRC_MEASURE_CARRIER_DISABLE   _IO('i', 0x00000022)
-#endif
+#define LIRC_SETUP_START               _IO('i', 0x00000021)
+#define LIRC_SETUP_END                 _IO('i', 0x00000022)
 
 #endif
