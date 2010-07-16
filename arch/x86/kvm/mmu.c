@@ -679,7 +679,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	}
 }
 
-static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
+static void set_spte_track_bits(u64 *sptep, u64 new_spte)
 {
 	pfn_t pfn;
 	u64 old_spte;
@@ -692,6 +692,11 @@ static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
 		kvm_set_pfn_accessed(pfn);
 	if (is_writable_pte(old_spte))
 		kvm_set_pfn_dirty(pfn);
+}
+
+static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
+{
+	set_spte_track_bits(sptep, new_spte);
 	rmap_remove(kvm, sptep);
 }
 
@@ -791,7 +796,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			     unsigned long data)
 {
 	int need_flush = 0;
-	u64 *spte, new_spte, old_spte;
+	u64 *spte, new_spte;
 	pte_t *ptep = (pte_t *)data;
 	pfn_t new_pfn;
 
@@ -812,13 +817,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			new_spte &= ~PT_WRITABLE_MASK;
 			new_spte &= ~SPTE_HOST_WRITEABLE;
 			new_spte &= ~shadow_accessed_mask;
-			if (is_writable_pte(*spte))
-				kvm_set_pfn_dirty(spte_to_pfn(*spte));
-			old_spte = __xchg_spte(spte, new_spte);
-			if (is_shadow_present_pte(old_spte)
-			    && (!shadow_accessed_mask ||
-			    old_spte & shadow_accessed_mask))
-				mark_page_accessed(pfn_to_page(spte_to_pfn(old_spte)));
+			set_spte_track_bits(spte, new_spte);
 			spte = rmap_next(kvm, rmapp, spte);
 		}
 	}
