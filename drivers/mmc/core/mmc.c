@@ -253,8 +253,13 @@ static int mmc_read_ext_csd(struct mmc_card *card)
 			ext_csd[EXT_CSD_SEC_CNT + 3] << 24;
 
 		/* Cards with density > 2GiB are sector addressed */
-		if (card->ext_csd.sectors > (2u * 1024 * 1024 * 1024) / 512)
+		if (card->ext_csd.sectors > (2u * 1024 * 1024 * 1024) / 512) {
+			unsigned boot_sectors;
+			boot_sectors = ext_csd[EXT_CSD_BOOT_SIZE_MULTI];
+			boot_sectors *= SZ_256K / 512;
+			card->ext_csd.sectors -= boot_sectors;
 			mmc_card_set_blockaddr(card);
+		}
 	}
 
 	switch (ext_csd[EXT_CSD_CARD_TYPE] & EXT_CSD_CARD_TYPE_MASK) {
