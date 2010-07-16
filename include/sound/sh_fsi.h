@@ -12,6 +12,9 @@
  * published by the Free Software Foundation.
  */
 
+#define FSI_PORT_A	0
+#define FSI_PORT_B	1
+
 /* flags format
 
  * 0xABCDEEFF
