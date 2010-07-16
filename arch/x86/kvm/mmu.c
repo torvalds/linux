@@ -307,9 +307,10 @@ static void update_spte(u64 *sptep, u64 new_spte)
 {
 	u64 old_spte;
 
-	if (!shadow_accessed_mask || (new_spte & shadow_accessed_mask)) {
+	if (!shadow_accessed_mask || (new_spte & shadow_accessed_mask) ||
+	      !is_rmap_spte(*sptep))
 		__set_spte(sptep, new_spte);
-	} else {
+	else {
 		old_spte = __xchg_spte(sptep, new_spte);
 		if (old_spte & shadow_accessed_mask)
 			mark_page_accessed(pfn_to_page(spte_to_pfn(old_spte)));
