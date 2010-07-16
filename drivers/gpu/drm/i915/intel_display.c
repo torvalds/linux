@@ -1998,9 +1998,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 				reg = I915_READ(trans_dp_ctl);
 				reg &= ~TRANS_DP_PORT_SEL_MASK;
 				reg = TRANS_DP_OUTPUT_ENABLE |
-				      TRANS_DP_ENH_FRAMING |
-				      TRANS_DP_VSYNC_ACTIVE_HIGH |
-				      TRANS_DP_HSYNC_ACTIVE_HIGH;
+				      TRANS_DP_ENH_FRAMING;
+
+				if (crtc->mode.flags & DRM_MODE_FLAG_PHSYNC)
+				      reg |= TRANS_DP_HSYNC_ACTIVE_HIGH;
+				if (crtc->mode.flags & DRM_MODE_FLAG_PVSYNC)
+				      reg |= TRANS_DP_VSYNC_ACTIVE_HIGH;
 
 				switch (intel_trans_dp_port_sel(crtc)) {
 				case PCH_DP_B:
