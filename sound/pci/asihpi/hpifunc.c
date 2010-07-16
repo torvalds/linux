@@ -2179,7 +2179,7 @@ u16 hpi_compander_get_attack_time_constant(const struct hpi_hsubsys
 	*ph_subsys, u32 h_control, unsigned int index, u32 *attack)
 {
 	return hpi_control_param_get(ph_subsys, h_control,
-		HPI_COMPANDER_ATTACK, 0, index, attack, &index);
+		HPI_COMPANDER_ATTACK, 0, index, attack, NULL);
 }
 
 u16 hpi_compander_set_decay_time_constant(const struct hpi_hsubsys *ph_subsys,
@@ -2193,7 +2193,7 @@ u16 hpi_compander_get_decay_time_constant(const struct hpi_hsubsys *ph_subsys,
 	u32 h_control, unsigned int index, u32 *decay)
 {
 	return hpi_control_param_get(ph_subsys, h_control,
-		HPI_COMPANDER_DECAY, 0, index, decay, &index);
+		HPI_COMPANDER_DECAY, 0, index, decay, NULL);
 
 }
 
@@ -2244,7 +2244,7 @@ u16 hpi_compander_get_ratio(const struct hpi_hsubsys *ph_subsys,
 	u32 h_control, u32 index, u32 *ratio100)
 {
 	return hpi_control_param_get(ph_subsys, h_control,
-		HPI_COMPANDER_RATIO, 0, index, ratio100, &index);
+		HPI_COMPANDER_RATIO, 0, index, ratio100, NULL);
 }
 
 u16 hpi_level_query_range(const struct hpi_hsubsys *ph_subsys, u32 h_control,
@@ -3258,8 +3258,7 @@ static inline size_t hpi_entity_item_count(struct hpi_entity *entity_ptr)
 static inline struct hpi_entity *hpi_entity_ptr_to_next(struct hpi_entity
 	*entity_ptr)
 {
-	return (void *)(((uint8_t *) entity_ptr) +
-		hpi_entity_size(entity_ptr));
+	return (void *)(((u8 *)entity_ptr) + hpi_entity_size(entity_ptr));
 }
 
 static inline u16 hpi_entity_check_type(const enum e_entity_type t)
