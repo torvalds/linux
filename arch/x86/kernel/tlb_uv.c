@@ -1635,12 +1635,16 @@ static int __init uv_bau_init(void)
 	alloc_intr_gate(vector, uv_bau_message_intr1);
 
 	for_each_possible_blade(uvhub) {
-		pnode = uv_blade_to_pnode(uvhub);
-		/* INIT the bau */
-		uv_write_global_mmr64(pnode, UVH_LB_BAU_SB_ACTIVATION_CONTROL,
-				      ((unsigned long)1 << 63));
-		mmr = 1; /* should be 1 to broadcast to both sockets */
-		uv_write_global_mmr64(pnode, UVH_BAU_DATA_BROADCAST, mmr);
+		if (uv_blade_nr_possible_cpus(uvhub)) {
+			pnode = uv_blade_to_pnode(uvhub);
+			/* INIT the bau */
+			uv_write_global_mmr64(pnode,
+					UVH_LB_BAU_SB_ACTIVATION_CONTROL,
+					((unsigned long)1 << 63));
+			mmr = 1; /* should be 1 to broadcast to both sockets */
+			uv_write_global_mmr64(pnode, UVH_BAU_DATA_BROADCAST,
+						mmr);
+		}
 	}
 
 	return 0;
