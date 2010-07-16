@@ -98,7 +98,7 @@ static inline void cifs_fscache_unregister(void) {}
 static inline void
 cifs_fscache_get_client_cookie(struct TCP_Server_Info *server) {}
 static inline void
-cifs_fscache_get_client_cookie(struct TCP_Server_Info *server); {}
+cifs_fscache_release_client_cookie(struct TCP_Server_Info *server) {}
 static inline void cifs_fscache_get_super_cookie(struct cifsTconInfo *tcon) {}
 static inline void
 cifs_fscache_release_super_cookie(struct cifsTconInfo *tcon) {}
