@@ -439,21 +439,6 @@ config ARCH_IXP4XX
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
 
-config ARCH_L7200
-	bool "LinkUp-L7200"
-	select CPU_ARM720T
-	select FIQ
-	select ARCH_USES_GETTIMEOFFSET
-	help
-	  Say Y here if you intend to run this kernel on a LinkUp Systems
-	  L7200 Software Development Board which uses an ARM720T processor.
-	  Information on this board can be obtained at:
-
-	  <http://www.linkupsys.com/>
-
-	  If you have any questions or comments about the Linux kernel port
-	  to this board, send e-mail to <sjhill@cotw.com>.
-
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select PCI
@@ -1185,7 +1170,6 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 128 if ARCH_L7200
 	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
