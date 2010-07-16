@@ -765,10 +765,15 @@ static unsigned int mousedev_poll(struct file *file, poll_table *wait)
 {
 	struct mousedev_client *client = file->private_data;
 	struct mousedev *mousedev = client->mousedev;
+	unsigned int mask;
 
 	poll_wait(file, &mousedev->wait, wait);
-	return ((client->ready || client->buffer) ? (POLLIN | POLLRDNORM) : 0) |
-		(mousedev->exist ? 0 : (POLLHUP | POLLERR));
+
+	mask = mousedev->exist ? POLLOUT | POLLWRNORM : POLLHUP | POLLERR;
+	if (client->ready || client->buffer)
+		mask |= POLLIN | POLLRDNORM;
+
+	return mask;
 }
 
 static const struct file_operations mousedev_fops = {
