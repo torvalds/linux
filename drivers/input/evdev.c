@@ -403,10 +403,15 @@ static unsigned int evdev_poll(struct file *file, poll_table *wait)
 {
 	struct evdev_client *client = file->private_data;
 	struct evdev *evdev = client->evdev;
+	unsigned int mask;
 
 	poll_wait(file, &evdev->wait, wait);
-	return ((client->head == client->tail) ? 0 : (POLLIN | POLLRDNORM)) |
-		(evdev->exist ? 0 : (POLLHUP | POLLERR));
+
+	mask = evdev->exist ? POLLOUT | POLLWRNORM : POLLHUP | POLLERR;
+	if (client->head != client->tail)
+		mask |= POLLIN | POLLRDNORM;
+
+	return mask;
 }
 
 #ifdef CONFIG_COMPAT
