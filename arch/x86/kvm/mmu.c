@@ -1985,6 +1985,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		mark_page_dirty(vcpu->kvm, gfn);
 
 set_pte:
+	if (is_writable_pte(*sptep) && !is_writable_pte(spte))
+		kvm_set_pfn_dirty(pfn);
 	update_spte(sptep, spte);
 done:
 	return ret;
@@ -1998,7 +2000,6 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			 bool reset_host_protection)
 {
 	int was_rmapped = 0;
-	int was_writable = is_writable_pte(*sptep);
 	int rmap_count;
 
 	pgprintk("%s: spte %llx access %x write_fault %d"
@@ -2048,15 +2049,10 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 	page_header_update_slot(vcpu->kvm, sptep, gfn);
 	if (!was_rmapped) {
 		rmap_count = rmap_add(vcpu, sptep, gfn);
-		kvm_release_pfn_clean(pfn);
 		if (rmap_count > RMAP_RECYCLE_THRESHOLD)
 			rmap_recycle(vcpu, sptep, gfn);
-	} else {
-		if (was_writable)
-			kvm_release_pfn_dirty(pfn);
-		else
-			kvm_release_pfn_clean(pfn);
 	}
+	kvm_release_pfn_clean(pfn);
 	if (speculative) {
 		vcpu->arch.last_pte_updated = sptep;
 		vcpu->arch.last_pte_gfn = gfn;
