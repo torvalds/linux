@@ -215,4 +215,20 @@ void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
 				QDIO_MAX_BUFFERS_PER_Q;
 }
 
+/**
+ * zfcp_qdio_set_data_div - set data division count
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: The current zfcp_qdio_req
+ * @count: The data division count
+ */
+static inline
+void zfcp_qdio_set_data_div(struct zfcp_qdio *qdio,
+			    struct zfcp_qdio_req *q_req, u32 count)
+{
+	struct qdio_buffer_element *sbale;
+
+	sbale = &qdio->req_q[q_req->sbal_first]->element[0];
+	sbale->length = count;
+}
+
 #endif /* ZFCP_QDIO_H */

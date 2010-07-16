@@ -220,6 +220,9 @@ void zfcp_fc_scsi_to_fcp(struct fcp_cmnd *fcp, struct scsi_cmnd *scsi)
 	memcpy(fcp->fc_cdb, scsi->cmnd, scsi->cmd_len);
 
 	fcp->fc_dl = scsi_bufflen(scsi);
+
+	if (scsi_get_prot_type(scsi) == SCSI_PROT_DIF_TYPE1)
+		fcp->fc_dl += fcp->fc_dl / scsi->device->sector_size * 8;
 }
 
 /**

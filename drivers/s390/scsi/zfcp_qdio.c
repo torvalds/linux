@@ -193,10 +193,6 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 		bytes += sg->length;
 	}
 
-	/* assume that no other SBALEs are to follow in the same SBAL */
-	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
-	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
-
 	return bytes;
 }
 

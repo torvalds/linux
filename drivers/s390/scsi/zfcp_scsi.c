@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <scsi/fc/fc_fcp.h>
+#include <scsi/scsi_eh.h>
 #include <asm/atomic.h>
 #include "zfcp_ext.h"
 #include "zfcp_dbf.h"
@@ -21,6 +22,13 @@
 static unsigned int default_depth = 32;
 module_param_named(queue_depth, default_depth, uint, 0600);
 MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
+
+static bool enable_dif;
+
+#ifdef CONFIG_ZFCP_DIF
+module_param_named(dif, enable_dif, bool, 0600);
+MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
+#endif
 
 static int zfcp_scsi_change_queue_depth(struct scsi_device *sdev, int depth,
 					int reason)
@@ -650,6 +658,51 @@ void zfcp_scsi_scan_work(struct work_struct *work)
 
 	zfcp_scsi_scan(unit);
 	put_device(&unit->dev);
+}
+
+/**
+ * zfcp_scsi_set_prot - Configure DIF/DIX support in scsi_host
+ * @adapter: The adapter where to configure DIF/DIX for the SCSI host
+ */
+void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
+{
+	unsigned int mask = 0;
+	unsigned int data_div;
+	struct Scsi_Host *shost = adapter->scsi_host;
+
+	data_div = atomic_read(&adapter->status) &
+		   ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED;
+
+	if (enable_dif &&
+	    adapter->adapter_features & FSF_FEATURE_DIF_PROT_TYPE1)
+		mask |= SHOST_DIF_TYPE1_PROTECTION;
+
+	if (enable_dif && data_div &&
+	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
+		mask |= SHOST_DIX_TYPE1_PROTECTION;
+		scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);
+		shost->sg_tablesize = ZFCP_QDIO_MAX_SBALES_PER_REQ / 2;
+		shost->max_sectors = ZFCP_QDIO_MAX_SBALES_PER_REQ * 8 / 2;
+	}
+
+	scsi_host_set_prot(shost, mask);
+}
+
+/**
+ * zfcp_scsi_dif_sense_error - Report DIF/DIX error as driver sense error
+ * @scmd: The SCSI command to report the error for
+ * @ascq: The ASCQ to put in the sense buffer
+ *
+ * See the error handling in sd_done for the sense codes used here.
+ * Set DID_SOFT_ERROR to retry the request, if possible.
+ */
+void zfcp_scsi_dif_sense_error(struct scsi_cmnd *scmd, int ascq)
+{
+	scsi_build_sense_buffer(1, scmd->sense_buffer,
+				ILLEGAL_REQUEST, 0x10, ascq);
+	set_driver_byte(scmd, DRIVER_SENSE);
+	scmd->result |= SAM_STAT_CHECK_CONDITION;
+	set_host_byte(scmd, DID_SOFT_ERROR);
 }
 
 struct fc_function_template zfcp_transport_functions = {
