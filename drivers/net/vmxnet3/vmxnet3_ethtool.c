@@ -291,10 +291,11 @@ vmxnet3_set_flags(struct net_device *netdev, u32 data)
 
 		/* update harware LRO capability accordingly */
 		if (lro_requested)
-			adapter->shared->devRead.misc.uptFeatures &= UPT1_F_LRO;
+			adapter->shared->devRead.misc.uptFeatures |=
+						cpu_to_le64(UPT1_F_LRO);
 		else
 			adapter->shared->devRead.misc.uptFeatures &=
-								~UPT1_F_LRO;
+						cpu_to_le64(~UPT1_F_LRO);
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_UPDATE_FEATURE);
 	}
