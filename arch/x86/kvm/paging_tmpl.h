@@ -638,8 +638,9 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 			return -EINVAL;
 
 		gfn = gpte_to_gfn(gpte);
-		if (gfn != sp->gfns[i] ||
-		      !is_present_gpte(gpte) || !(gpte & PT_ACCESSED_MASK)) {
+		if (is_rsvd_bits_set(vcpu, gpte, PT_PAGE_TABLE_LEVEL)
+		      || gfn != sp->gfns[i] || !is_present_gpte(gpte)
+		      || !(gpte & PT_ACCESSED_MASK)) {
 			u64 nonpresent;
 
 			if (is_present_gpte(gpte) || !clear_unsync)
