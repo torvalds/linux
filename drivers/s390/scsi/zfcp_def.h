@@ -212,6 +212,7 @@ struct zfcp_port {
 	struct work_struct     test_link_work;
 	struct work_struct     rport_work;
 	enum { RPORT_NONE, RPORT_ADD, RPORT_DEL }  rport_task;
+	unsigned int		starget_id;
 };
 
 struct zfcp_unit {

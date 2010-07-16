@@ -564,6 +564,7 @@ static void zfcp_scsi_rport_register(struct zfcp_port *port)
 	rport->maxframe_size = port->maxframe_size;
 	rport->supported_classes = port->supported_classes;
 	port->rport = rport;
+	port->starget_id = rport->scsi_target_id;
 
 	zfcp_scsi_queue_unit_register(port);
 }
