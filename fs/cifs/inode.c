@@ -777,8 +777,10 @@ retry_iget5_locked:
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
 		if (inode->i_state & I_NEW) {
 			inode->i_ino = hash;
+#ifdef CONFIG_CIFS_FSCACHE
 			/* initialize per-inode cache cookie pointer */
 			CIFS_I(inode)->fscache = NULL;
+#endif
 			unlock_new_inode(inode);
 		}
 	}
@@ -810,8 +812,10 @@ struct inode *cifs_root_iget(struct super_block *sb, unsigned long ino)
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
+#ifdef CONFIG_CIFS_FSCACHE
 	/* populate tcon->resource_id */
 	cifs_sb->tcon->resource_id = CIFS_I(inode)->uniqueid;
+#endif
 
 	if (rc && cifs_sb->tcon->ipc) {
 		cFYI(1, "ipc connection - fake read inode");
