@@ -23,8 +23,12 @@ extern struct platform_device rk2818_device_uart3;
 extern struct platform_device rk2818_device_spim;
 extern struct platform_device rk2818_device_i2c0;
 extern struct platform_device rk2818_device_i2c1;
+extern struct platform_device rk2818_device_i2c2;
+extern struct platform_device rk2818_device_i2c3;
 extern struct rk2818_i2c_platform_data default_i2c0_data;
 extern struct rk2818_i2c_platform_data default_i2c1_data;
+extern struct rk2818_i2c_platform_data default_i2c2_data;
+extern struct rk2818_i2c_platform_data default_i2c3_data;
 
 extern struct platform_device rk2818_device_sdmmc0;
 extern struct platform_device rk2818_device_sdmmc1;
