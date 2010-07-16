@@ -71,16 +71,23 @@ static int nilfs_btree_get_block(const struct nilfs_btree *btree, __u64 ptr,
 {
 	struct address_space *btnc =
 		&NILFS_BMAP_I((struct nilfs_bmap *)btree)->i_btnode_cache;
+	struct buffer_head *bh;
 	int err;
 
 	err = nilfs_btnode_submit_block(btnc, ptr, 0, bhp);
 	if (err)
 		return err == -EEXIST ? 0 : err;
 
-	wait_on_buffer(*bhp);
-	if (!buffer_uptodate(*bhp)) {
-		brelse(*bhp);
+	bh = *bhp;
+	wait_on_buffer(bh);
+	if (!buffer_uptodate(bh)) {
+		brelse(bh);
 		return -EIO;
+	}
+	if (nilfs_btree_broken_node_block(bh)) {
+		clear_buffer_uptodate(bh);
+		brelse(bh);
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -380,6 +387,43 @@ static int nilfs_btree_node_lookup(const struct nilfs_btree_node *node,
 	*indexp = index;
 
 	return s == 0;
+}
+
+/**
+ * nilfs_btree_node_broken - verify consistency of btree node
+ * @node: btree node block to be examined
+ * @size: node size (in bytes)
+ * @blocknr: block number
+ *
+ * Return Value: If node is broken, 1 is returned. Otherwise, 0 is returned.
+ */
+static int nilfs_btree_node_broken(const struct nilfs_btree_node *node,
+				   size_t size, sector_t blocknr)
+{
+	int level, flags, nchildren;
+	int ret = 0;
+
+	level = nilfs_btree_node_get_level(node);
+	flags = nilfs_btree_node_get_flags(node);
+	nchildren = nilfs_btree_node_get_nchildren(node);
+
+	if (unlikely(level < NILFS_BTREE_LEVEL_NODE_MIN ||
+		     level >= NILFS_BTREE_LEVEL_MAX ||
+		     (flags & NILFS_BTREE_NODE_ROOT) ||
+		     nchildren < 0 ||
+		     nchildren > NILFS_BTREE_NODE_NCHILDREN_MAX(size))) {
+		printk(KERN_CRIT "NILFS: bad btree node (blocknr=%llu): "
+		       "level = %d, flags = 0x%x, nchildren = %d\n",
+		       (unsigned long long)blocknr, level, flags, nchildren);
+		ret = 1;
+	}
+	return ret;
+}
+
+int nilfs_btree_broken_node_block(struct buffer_head *bh)
+{
+	return nilfs_btree_node_broken((struct nilfs_btree_node *)bh->b_data,
+				       bh->b_size, bh->b_blocknr);
 }
 
 static inline struct nilfs_btree_node *

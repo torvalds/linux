@@ -80,4 +80,6 @@ int nilfs_btree_convert_and_insert(struct nilfs_bmap *, __u64, __u64,
 				   const __u64 *, const __u64 *, int);
 void nilfs_btree_init_gc(struct nilfs_bmap *);
 
+int nilfs_btree_broken_node_block(struct buffer_head *bh);
+
 #endif	/* _NILFS_BTREE_H */

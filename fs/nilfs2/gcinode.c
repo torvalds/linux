@@ -164,10 +164,15 @@ int nilfs_gccache_wait_and_mark_dirty(struct buffer_head *bh)
 	if (buffer_dirty(bh))
 		return -EEXIST;
 
-	if (buffer_nilfs_node(bh))
+	if (buffer_nilfs_node(bh)) {
+		if (nilfs_btree_broken_node_block(bh)) {
+			clear_buffer_uptodate(bh);
+			return -EIO;
+		}
 		nilfs_btnode_mark_dirty(bh);
-	else
+	} else {
 		nilfs_mdt_mark_buffer_dirty(bh);
+	}
 	return 0;
 }
 
