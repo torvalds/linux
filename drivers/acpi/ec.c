@@ -864,10 +864,18 @@ ec_parse_io_ports(struct acpi_resource *resource, void *context)
 	 * the second address region returned is the status/command
 	 * port.
 	 */
-	if (ec->data_addr == 0)
+	if (ec->data_addr == 0) {
 		ec->data_addr = resource->data.io.minimum;
-	else if (ec->command_addr == 0)
+		WARN(!request_region(ec->data_addr, 1, "EC data"),
+		     "Could not request EC data io port %lu",
+		     ec->data_addr);
+	}
+	else if (ec->command_addr == 0) {
 		ec->command_addr = resource->data.io.minimum;
+		WARN(!request_region(ec->command_addr, 1, "EC command"),
+		     "Could not request EC command io port %lu",
+		     ec->command_addr);
+	}
 	else
 		return AE_CTRL_TERMINATE;
 
