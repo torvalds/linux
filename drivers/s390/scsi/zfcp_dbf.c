@@ -1005,7 +1005,7 @@ int zfcp_dbf_adapter_register(struct zfcp_adapter *adapter)
 	char dbf_name[DEBUG_MAX_NAME_LEN];
 	struct zfcp_dbf *dbf;
 
-	dbf = kmalloc(sizeof(struct zfcp_dbf), GFP_KERNEL);
+	dbf = kzalloc(sizeof(struct zfcp_dbf), GFP_KERNEL);
 	if (!dbf)
 		return -ENOMEM;
 
