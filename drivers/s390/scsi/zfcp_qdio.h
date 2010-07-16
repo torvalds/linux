@@ -19,6 +19,14 @@
 /* index of last SBALE (with respect to DMQ bug workaround) */
 #define ZFCP_QDIO_LAST_SBALE_PER_SBAL	(ZFCP_QDIO_MAX_SBALES_PER_SBAL - 1)
 
+/* Max SBALS for chaining */
+#define ZFCP_QDIO_MAX_SBALS_PER_REQ	36
+
+/* max. number of (data buffer) SBALEs in largest SBAL chain
+ * request ID + QTCB in SBALE 0 + 1 of first SBAL in chain   */
+#define ZFCP_QDIO_MAX_SBALES_PER_REQ     \
+	(ZFCP_QDIO_MAX_SBALS_PER_REQ * ZFCP_QDIO_MAX_SBALES_PER_SBAL - 2)
+
 /**
  * struct zfcp_qdio_queue - qdio queue buffer, zfcp index and free count
  * @sbal: qdio buffers
@@ -134,10 +142,14 @@ void zfcp_qdio_req_init(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 			unsigned long req_id, u32 sbtype, void *data, u32 len)
 {
 	struct qdio_buffer_element *sbale;
+	int count = min(atomic_read(&qdio->req_q.count),
+			ZFCP_QDIO_MAX_SBALS_PER_REQ);
 
 	q_req->sbal_first = q_req->sbal_last = qdio->req_q.first;
 	q_req->sbal_number = 1;
 	q_req->sbtype = sbtype;
+	q_req->sbal_limit = (q_req->sbal_first + count - 1)
+					% QDIO_MAX_BUFFERS_PER_Q;
 
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);
 	sbale->addr = (void *) req_id;
@@ -208,6 +220,22 @@ static inline
 void zfcp_qdio_skip_to_last_sbale(struct zfcp_qdio_req *q_req)
 {
 	q_req->sbale_curr = ZFCP_QDIO_LAST_SBALE_PER_SBAL;
+}
+
+/**
+ * zfcp_qdio_sbal_limit - set the sbal limit for a request in q_req
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: The current zfcp_qdio_req
+ * @max_sbals: maximum number of SBALs allowed
+ */
+static inline
+void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
+			  struct zfcp_qdio_req *q_req, int max_sbals)
+{
+	int count = min(atomic_read(&qdio->req_q.count), max_sbals);
+
+	q_req->sbal_limit = (q_req->sbal_first + count - 1) %
+				QDIO_MAX_BUFFERS_PER_Q;
 }
 
 #endif /* ZFCP_QDIO_H */

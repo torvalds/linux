@@ -141,15 +141,6 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	zfcp_qdio_resp_put_back(qdio, count);
 }
 
-static void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
-				 struct zfcp_qdio_req *q_req, int max_sbals)
-{
-	int count = atomic_read(&qdio->req_q.count);
-	count = min(count, max_sbals);
-	q_req->sbal_limit = (q_req->sbal_first + count - 1)
-					% QDIO_MAX_BUFFERS_PER_Q;
-}
-
 static struct qdio_buffer_element *
 zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 {
@@ -173,6 +164,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 
 	/* keep this requests number of SBALs up-to-date */
 	q_req->sbal_number++;
+	BUG_ON(q_req->sbal_number > ZFCP_QDIO_MAX_SBALS_PER_REQ);
 
 	/* start at first SBALE of new SBAL */
 	q_req->sbale_curr = 0;
@@ -213,13 +205,10 @@ static void zfcp_qdio_undo_sbals(struct zfcp_qdio *qdio,
  * Returns: number of bytes, or error (negativ)
  */
 int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
-			    struct scatterlist *sg, int max_sbals)
+			    struct scatterlist *sg)
 {
 	struct qdio_buffer_element *sbale;
 	int bytes = 0;
-
-	/* figure out last allowed SBAL */
-	zfcp_qdio_sbal_limit(qdio, q_req, max_sbals);
 
 	/* set storage-block type for this request */
 	sbale = zfcp_qdio_sbale_req(qdio, q_req);

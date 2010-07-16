@@ -959,8 +959,7 @@ static void zfcp_fsf_setup_ct_els_unchained(struct zfcp_qdio *qdio,
 
 static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 				       struct scatterlist *sg_req,
-				       struct scatterlist *sg_resp,
-				       int max_sbals)
+				       struct scatterlist *sg_resp)
 {
 	struct zfcp_adapter *adapter = req->adapter;
 	u32 feat = adapter->adapter_features;
@@ -983,15 +982,14 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 		return 0;
 	}
 
-	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->qdio_req,
-					sg_req, max_sbals);
+	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->qdio_req, sg_req);
 	if (bytes <= 0)
 		return -EIO;
 	req->qtcb->bottom.support.req_buf_length = bytes;
 	zfcp_qdio_skip_to_last_sbale(&req->qdio_req);
 
 	bytes = zfcp_qdio_sbals_from_sg(adapter->qdio, &req->qdio_req,
-					sg_resp, max_sbals);
+					sg_resp);
 	req->qtcb->bottom.support.resp_buf_length = bytes;
 	if (bytes <= 0)
 		return -EIO;
@@ -1002,11 +1000,11 @@ static int zfcp_fsf_setup_ct_els_sbals(struct zfcp_fsf_req *req,
 static int zfcp_fsf_setup_ct_els(struct zfcp_fsf_req *req,
 				 struct scatterlist *sg_req,
 				 struct scatterlist *sg_resp,
-				 int max_sbals, unsigned int timeout)
+				 unsigned int timeout)
 {
 	int ret;
 
-	ret = zfcp_fsf_setup_ct_els_sbals(req, sg_req, sg_resp, max_sbals);
+	ret = zfcp_fsf_setup_ct_els_sbals(req, sg_req, sg_resp);
 	if (ret)
 		return ret;
 
@@ -1046,8 +1044,7 @@ int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *wka_port,
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	ret = zfcp_fsf_setup_ct_els(req, ct->req, ct->resp,
-				    ZFCP_FSF_MAX_SBALS_PER_REQ, timeout);
+	ret = zfcp_fsf_setup_ct_els(req, ct->req, ct->resp, timeout);
 	if (ret)
 		goto failed_send;
 
@@ -1143,7 +1140,10 @@ int zfcp_fsf_send_els(struct zfcp_adapter *adapter, u32 d_id,
 	}
 
 	req->status |= ZFCP_STATUS_FSFREQ_CLEANUP;
-	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, 2, timeout);
+
+	zfcp_qdio_sbal_limit(qdio, &req->qdio_req, 2);
+
+	ret = zfcp_fsf_setup_ct_els(req, els->req, els->resp, timeout);
 
 	if (ret)
 		goto failed_send;
@@ -2259,20 +2259,9 @@ int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *unit,
 	zfcp_fc_scsi_to_fcp(fcp_cmnd, scsi_cmnd);
 
 	real_bytes = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req,
-					     scsi_sglist(scsi_cmnd),
-					     ZFCP_FSF_MAX_SBALS_PER_REQ);
-	if (unlikely(real_bytes < 0)) {
-		if (req->qdio_req.sbal_number >= ZFCP_FSF_MAX_SBALS_PER_REQ) {
-			dev_err(&adapter->ccw_device->dev,
-				"Oversize data package, unit 0x%016Lx "
-				"on port 0x%016Lx closed\n",
-				(unsigned long long)unit->fcp_lun,
-				(unsigned long long)unit->port->wwpn);
-			zfcp_erp_unit_shutdown(unit, 0, "fssfct1", req);
-			retval = -EINVAL;
-		}
+					     scsi_sglist(scsi_cmnd));
+	if (unlikely(real_bytes < 0))
 		goto failed_scsi_cmnd;
-	}
 
 	retval = zfcp_fsf_req_send(req);
 	if (unlikely(retval))
@@ -2391,9 +2380,8 @@ struct zfcp_fsf_req *zfcp_fsf_control_file(struct zfcp_adapter *adapter,
 	bottom->operation_subtype = FSF_CFDC_OPERATION_SUBTYPE;
 	bottom->option = fsf_cfdc->option;
 
-	bytes = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req,
-					fsf_cfdc->sg,
-					ZFCP_FSF_MAX_SBALS_PER_REQ);
+	bytes = zfcp_qdio_sbals_from_sg(qdio, &req->qdio_req, fsf_cfdc->sg);
+
 	if (bytes != ZFCP_CFDC_MAX_SIZE) {
 		zfcp_fsf_req_free(req);
 		goto out;

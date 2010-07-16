@@ -151,14 +151,6 @@
 /* fc service class */
 #define FSF_CLASS_3				0x00000003
 
-/* SBAL chaining */
-#define ZFCP_FSF_MAX_SBALS_PER_REQ		36
-
-/* max. number of (data buffer) SBALEs in largest SBAL chain
- * request ID + QTCB in SBALE 0 + 1 of first SBAL in chain   */
-#define ZFCP_FSF_MAX_SBALES_PER_REQ	\
-	(ZFCP_FSF_MAX_SBALS_PER_REQ * ZFCP_QDIO_MAX_SBALES_PER_SBAL - 2)
-
 /* logging space behind QTCB */
 #define FSF_QTCB_LOG_SIZE			1024
 
