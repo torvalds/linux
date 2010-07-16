@@ -91,6 +91,19 @@ static void __devinit quirk_resource_alignment(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_resource_alignment);
 
+/*
+ * Decoding should be disabled for a PCI device during BAR sizing to avoid
+ * conflict. But doing so may cause problems on host bridge and perhaps other
+ * key system devices. For devices that need to have mmio decoding always-on,
+ * we need to set the dev->mmio_always_on bit.
+ */
+static void __devinit quirk_mmio_always_on(struct pci_dev *dev)
+{
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_HOST)
+		dev->mmio_always_on = 1;
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_ANY_ID, PCI_ANY_ID, quirk_mmio_always_on);
+
 /* The Mellanox Tavor device gives false positive parity errors
  * Mark this device with a broken_parity_status, to allow
  * PCI scanning code to "skip" this now blacklisted device.
