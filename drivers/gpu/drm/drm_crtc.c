@@ -80,6 +80,7 @@ static struct drm_prop_enum_list drm_dithering_mode_enum_list[] =
 {
 	{ DRM_MODE_DITHERING_OFF, "Off" },
 	{ DRM_MODE_DITHERING_ON, "On" },
+	{ DRM_MODE_DITHERING_AUTO, "Automatic" },
 };
 
 /*
