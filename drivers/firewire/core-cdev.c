@@ -194,6 +194,13 @@ struct iso_resource_event {
 	struct fw_cdev_event_iso_resource iso_resource;
 };
 
+struct outbound_phy_packet_event {
+	struct event event;
+	struct client *client;
+	struct fw_packet p;
+	struct fw_cdev_event_phy_packet phy_packet;
+};
+
 static inline void __user *u64_to_uptr(__u64 value)
 {
 	return (void __user *)(unsigned long)value;
@@ -396,6 +403,7 @@ union ioctl_arg {
 	struct fw_cdev_allocate_iso_resource	allocate_iso_resource;
 	struct fw_cdev_send_stream_packet	send_stream_packet;
 	struct fw_cdev_get_cycle_timer2		get_cycle_timer2;
+	struct fw_cdev_send_phy_packet		send_phy_packet;
 };
 
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
@@ -1384,6 +1392,61 @@ static int ioctl_send_stream_packet(struct client *client, union ioctl_arg *arg)
 	return init_request(client, &request, dest, a->speed);
 }
 
+static void outbound_phy_packet_callback(struct fw_packet *packet,
+					 struct fw_card *card, int status)
+{
+	struct outbound_phy_packet_event *e =
+		container_of(packet, struct outbound_phy_packet_event, p);
+
+	switch (status) {
+	/* expected: */
+	case ACK_COMPLETE:	e->phy_packet.rcode = RCODE_COMPLETE;	break;
+	/* should never happen with PHY packets: */
+	case ACK_PENDING:	e->phy_packet.rcode = RCODE_COMPLETE;	break;
+	case ACK_BUSY_X:
+	case ACK_BUSY_A:
+	case ACK_BUSY_B:	e->phy_packet.rcode = RCODE_BUSY;	break;
+	case ACK_DATA_ERROR:	e->phy_packet.rcode = RCODE_DATA_ERROR;	break;
+	case ACK_TYPE_ERROR:	e->phy_packet.rcode = RCODE_TYPE_ERROR;	break;
+	/* stale generation; cancelled; on certain controllers: no ack */
+	default:		e->phy_packet.rcode = status;		break;
+	}
+
+	queue_event(e->client, &e->event,
+		    &e->phy_packet, sizeof(e->phy_packet), NULL, 0);
+	client_put(e->client);
+}
+
+static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_send_phy_packet *a = &arg->send_phy_packet;
+	struct fw_card *card = client->device->card;
+	struct outbound_phy_packet_event *e;
+
+	/* Access policy: Allow this ioctl only on local nodes' device files. */
+	if (!client->device->is_local)
+		return -ENOSYS;
+
+	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	if (e == NULL)
+		return -ENOMEM;
+
+	client_get(client);
+	e->client		= client;
+	e->p.speed		= SCODE_100;
+	e->p.generation		= a->generation;
+	e->p.header[0]		= a->data[0];
+	e->p.header[1]		= a->data[1];
+	e->p.header_length	= 8;
+	e->p.callback		= outbound_phy_packet_callback;
+	e->phy_packet.closure	= a->closure;
+	e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_SENT;
+
+	card->driver->send_request(card, &e->p);
+
+	return 0;
+}
+
 static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x00] = ioctl_get_info,
 	[0x01] = ioctl_send_request,
@@ -1406,6 +1469,7 @@ static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x12] = ioctl_send_broadcast_request,
 	[0x13] = ioctl_send_stream_packet,
 	[0x14] = ioctl_get_cycle_timer2,
+	[0x15] = ioctl_send_phy_packet,
 };
 
 static int dispatch_ioctl(struct client *client,

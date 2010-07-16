@@ -34,6 +34,7 @@
 
 /* available since kernel version 2.6.36 */
 #define FW_CDEV_EVENT_REQUEST2			0x06
+#define FW_CDEV_EVENT_PHY_PACKET_SENT		0x07
 
 /**
  * struct fw_cdev_event_common - Common part of all fw_cdev_event_ types
@@ -284,6 +285,19 @@ struct fw_cdev_event_iso_resource {
 };
 
 /**
+ * struct fw_cdev_event_phy_packet - A PHY packet was transmitted
+ * @closure:	See &fw_cdev_event_common;
+ *		set by %FW_CDEV_IOC_SEND_PHY_PACKET ioctl
+ * @type:	%FW_CDEV_EVENT_PHY_PACKET_SENT
+ * @rcode:	%RCODE_..., indicates success or failure of transmission
+ */
+struct fw_cdev_event_phy_packet {
+	__u64 closure;
+	__u32 type;
+	__u32 rcode;
+};
+
+/**
  * union fw_cdev_event - Convenience union of fw_cdev_event_ types
  * @common:        Valid for all types
  * @bus_reset:     Valid if @common.type == %FW_CDEV_EVENT_BUS_RESET
@@ -294,6 +308,7 @@ struct fw_cdev_event_iso_resource {
  * @iso_resource:  Valid if @common.type ==
  *				%FW_CDEV_EVENT_ISO_RESOURCE_ALLOCATED or
  *				%FW_CDEV_EVENT_ISO_RESOURCE_DEALLOCATED
+ * @phy_packet:    Valid if @common.type == %FW_CDEV_EVENT_PHY_PACKET_SENT
  *
  * Convenience union for userspace use.  Events could be read(2) into an
  * appropriately aligned char buffer and then cast to this union for further
@@ -311,6 +326,7 @@ union fw_cdev_event {
 	struct fw_cdev_event_request2		request2;     /* added in 2.6.36 */
 	struct fw_cdev_event_iso_interrupt	iso_interrupt;
 	struct fw_cdev_event_iso_resource	iso_resource; /* added in 2.6.30 */
+	struct fw_cdev_event_phy_packet		phy_packet;   /* added in 2.6.36 */
 };
 
 /* available since kernel version 2.6.22 */
@@ -342,6 +358,9 @@ union fw_cdev_event {
 /* available since kernel version 2.6.34 */
 #define FW_CDEV_IOC_GET_CYCLE_TIMER2   _IOWR('#', 0x14, struct fw_cdev_get_cycle_timer2)
 
+/* available since kernel version 2.6.36 */
+#define FW_CDEV_IOC_SEND_PHY_PACKET    _IOWR('#', 0x15, struct fw_cdev_send_phy_packet)
+
 /*
  * ABI version history
  *  1  (2.6.22)  - initial version
@@ -357,8 +376,9 @@ union fw_cdev_event {
  *               - shared use and auto-response for FCP registers
  *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
  *               - added %FW_CDEV_IOC_GET_CYCLE_TIMER2
- *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2
+ *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2, %FW_CDEV_EVENT_PHY_PACKET_SENT
  *               - implemented &fw_cdev_event_bus_reset.bm_node_id
+ *               - added %FW_CDEV_IOC_SEND_PHY_PACKET
  */
 #define FW_CDEV_VERSION 3 /* Meaningless; don't use this macro. */
 
@@ -806,6 +826,28 @@ struct fw_cdev_send_stream_packet {
 	__u64 data;
 	__u32 generation;
 	__u32 speed;
+};
+
+/**
+ * struct fw_cdev_send_phy_packet - send a PHY packet
+ * @closure:	Passed back to userspace in the PHY-packet-sent event
+ * @data:	First and second quadlet of the PHY packet
+ * @generation:	The bus generation where packet is valid
+ *
+ * The %FW_CDEV_IOC_SEND_PHY_PACKET ioctl sends a PHY packet to all nodes
+ * on the same card as this device.  After transmission, an
+ * %FW_CDEV_EVENT_PHY_PACKET_SENT event is generated.
+ *
+ * The payload @data[] shall be specified in host byte order.  Usually,
+ * @data[1] needs to be the bitwise inverse of @data[0].  VersaPHY packets
+ * are an exception to this rule.
+ *
+ * The ioctl is only permitted on device files which represent a local node.
+ */
+struct fw_cdev_send_phy_packet {
+	__u64 closure;
+	__u32 data[2];
+	__u32 generation;
 };
 
 #endif /* _LINUX_FIREWIRE_CDEV_H */
