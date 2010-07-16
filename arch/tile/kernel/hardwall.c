@@ -364,6 +364,8 @@ static struct hardwall_info *hardwall_create(
 	/* Allocate a new rectangle optimistically. */
 	rect = kmalloc(sizeof(struct hardwall_info),
 			GFP_KERNEL | __GFP_ZERO);
+	if (rect == NULL)
+		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&rect->task_head);
 
 	/* Compute the rectangle size and validate that it's plausible. */
