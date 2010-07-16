@@ -390,6 +390,9 @@ extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
 static struct tegra_sdhci_platform_data stingray_sdhci_platform_data3 = {
 	.clk_id = NULL,
 	.force_hs = 0,
+	.cd_gpio = -1,
+	.wp_gpio = -1,
+	.power_gpio = -1,
 };
 
 static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {

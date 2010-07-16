@@ -134,7 +134,10 @@ struct tegra_sdhci_platform_data stingray_wifi_data = {
 		.status			= stingray_wifi_status,
 		.register_status_notify	= stingray_wifi_status_register,
 		.embedded_sdio		= &stingray_wifi_emb_data,
-	}
+	},
+	.cd_gpio = -1,
+	.wp_gpio = -1,
+	.power_gpio = -1,
 };
 
 static int stingray_wifi_set_carddetect(int val)
