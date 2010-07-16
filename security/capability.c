@@ -27,7 +27,7 @@ static int cap_quota_on(struct dentry *dentry)
 	return 0;
 }
 
-static int cap_bprm_check_security (struct linux_binprm *bprm)
+static int cap_bprm_check_security(struct linux_binprm *bprm)
 {
 	return 0;
 }
