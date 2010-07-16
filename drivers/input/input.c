@@ -227,12 +227,12 @@ static void input_handle_event(struct input_dev *dev,
 
 		case SYN_REPORT:
 			if (!dev->sync) {
-				dev->sync = 1;
+				dev->sync = true;
 				disposition = INPUT_PASS_TO_HANDLERS;
 			}
 			break;
 		case SYN_MT_REPORT:
-			dev->sync = 0;
+			dev->sync = false;
 			disposition = INPUT_PASS_TO_HANDLERS;
 			break;
 		}
@@ -317,7 +317,7 @@ static void input_handle_event(struct input_dev *dev,
 	}
 
 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
-		dev->sync = 0;
+		dev->sync = false;
 
 	if ((disposition & INPUT_PASS_TO_DEVICE) && dev->event)
 		dev->event(dev, type, code, value);

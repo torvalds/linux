@@ -57,7 +57,6 @@ struct mousedev_hw_data {
 };
 
 struct mousedev {
-	int exist;
 	int open;
 	int minor;
 	struct input_handle handle;
@@ -66,6 +65,7 @@ struct mousedev {
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
 	struct device dev;
+	bool exist;
 
 	struct list_head mixdev_node;
 	int mixdev_open;
@@ -802,7 +802,7 @@ static void mousedev_remove_chrdev(struct mousedev *mousedev)
 static void mousedev_mark_dead(struct mousedev *mousedev)
 {
 	mutex_lock(&mousedev->mutex);
-	mousedev->exist = 0;
+	mousedev->exist = false;
 	mutex_unlock(&mousedev->mutex);
 }
 
@@ -862,7 +862,7 @@ static struct mousedev *mousedev_create(struct input_dev *dev,
 		dev_set_name(&mousedev->dev, "mouse%d", minor);
 
 	mousedev->minor = minor;
-	mousedev->exist = 1;
+	mousedev->exist = true;
 	mousedev->handle.dev = input_get_device(dev);
 	mousedev->handle.name = dev_name(&mousedev->dev);
 	mousedev->handle.handler = handler;

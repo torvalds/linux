@@ -24,7 +24,6 @@
 #include "input-compat.h"
 
 struct evdev {
-	int exist;
 	int open;
 	int minor;
 	struct input_handle handle;
@@ -34,6 +33,7 @@ struct evdev {
 	spinlock_t client_lock; /* protects client_list */
 	struct mutex mutex;
 	struct device dev;
+	bool exist;
 };
 
 struct evdev_client {
@@ -793,7 +793,7 @@ static void evdev_remove_chrdev(struct evdev *evdev)
 static void evdev_mark_dead(struct evdev *evdev)
 {
 	mutex_lock(&evdev->mutex);
-	evdev->exist = 0;
+	evdev->exist = false;
 	mutex_unlock(&evdev->mutex);
 }
 
@@ -842,7 +842,7 @@ static int evdev_connect(struct input_handler *handler, struct input_dev *dev,
 	init_waitqueue_head(&evdev->wait);
 
 	dev_set_name(&evdev->dev, "event%d", minor);
-	evdev->exist = 1;
+	evdev->exist = true;
 	evdev->minor = minor;
 
 	evdev->handle.dev = input_get_device(dev);
