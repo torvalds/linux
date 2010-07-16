@@ -43,7 +43,7 @@
 #define DP_LINK_CONFIGURATION_SIZE	9
 
 #define IS_eDP(i) ((i)->type == INTEL_OUTPUT_EDP)
-#define IS_PCH_eDP(dp_priv) ((dp_priv)->has_edp)
+#define IS_PCH_eDP(dp_priv) ((dp_priv)->is_pch_edp)
 
 struct intel_dp_priv {
 	uint32_t output_reg;
@@ -57,7 +57,7 @@ struct intel_dp_priv {
 	struct intel_encoder *intel_encoder;
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
-	bool has_edp;
+	bool is_pch_edp;
 };
 
 static void
@@ -598,7 +598,7 @@ bool intel_pch_has_edp(struct drm_crtc *crtc)
 		dp_priv = intel_encoder->dev_priv;
 
 		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT)
-			return dp_priv->has_edp;
+			return dp_priv->is_pch_edp;
 	}
 	return false;
 }
@@ -1530,7 +1530,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	if (HAS_PCH_SPLIT(dev) && (output_reg == PCH_DP_D)) {
 		if (intel_dpd_is_edp(dev))
-			dp_priv->has_edp = true;
+			dp_priv->is_pch_edp = true;
 	}
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1);
