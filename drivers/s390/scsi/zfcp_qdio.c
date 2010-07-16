@@ -30,12 +30,15 @@ static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 	return 0;
 }
 
-static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id)
+static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id,
+				    unsigned int qdio_err)
 {
 	struct zfcp_adapter *adapter = qdio->adapter;
 
 	dev_warn(&adapter->ccw_device->dev, "A QDIO problem occurred\n");
 
+	if (qdio_err & QDIO_ERROR_SLSB_STATE)
+		zfcp_qdio_siosl(adapter);
 	zfcp_erp_adapter_reopen(adapter,
 				ZFCP_STATUS_ADAPTER_LINK_UNPLUGGED |
 				ZFCP_STATUS_COMMON_ERP_FAILED, id, NULL);
@@ -74,7 +77,7 @@ static void zfcp_qdio_int_req(struct ccw_device *cdev, unsigned int qdio_err,
 
 	if (unlikely(qdio_err)) {
 		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, idx, count);
-		zfcp_qdio_handler_error(qdio, "qdireq1");
+		zfcp_qdio_handler_error(qdio, "qdireq1", qdio_err);
 		return;
 	}
 
@@ -95,7 +98,7 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 
 	if (unlikely(qdio_err)) {
 		zfcp_dbf_hba_qdio(qdio->adapter->dbf, qdio_err, idx, count);
-		zfcp_qdio_handler_error(qdio, "qdires1");
+		zfcp_qdio_handler_error(qdio, "qdires1", qdio_err);
 		return;
 	}
 
@@ -361,6 +364,9 @@ int zfcp_qdio_open(struct zfcp_qdio *qdio)
 	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_QDIOUP)
 		return -EIO;
 
+	atomic_clear_mask(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
+			  &qdio->adapter->status);
+
 	zfcp_qdio_setup_init_data(&init_data, qdio);
 
 	if (qdio_establish(&init_data))
@@ -440,3 +446,26 @@ int zfcp_qdio_setup(struct zfcp_adapter *adapter)
 	return 0;
 }
 
+/**
+ * zfcp_qdio_siosl - Trigger logging in FCP channel
+ * @adapter: The zfcp_adapter where to trigger logging
+ *
+ * Call the cio siosl function to trigger hardware logging.  This
+ * wrapper function sets a flag to ensure hardware logging is only
+ * triggered once before going through qdio shutdown.
+ *
+ * The triggers are always run from qdio tasklet context, so no
+ * additional synchronization is necessary.
+ */
+void zfcp_qdio_siosl(struct zfcp_adapter *adapter)
+{
+	int rc;
+
+	if (atomic_read(&adapter->status) & ZFCP_STATUS_ADAPTER_SIOSL_ISSUED)
+		return;
+
+	rc = ccw_device_siosl(adapter->ccw_device);
+	if (!rc)
+		atomic_set_mask(ZFCP_STATUS_ADAPTER_SIOSL_ISSUED,
+				&adapter->status);
+}

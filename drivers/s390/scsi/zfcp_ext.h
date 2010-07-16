@@ -152,6 +152,7 @@ extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *, struct zfcp_qdio_req *,
 				   struct scatterlist *);
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);
+extern void zfcp_qdio_siosl(struct zfcp_adapter *);
 
 /* zfcp_scsi.c */
 extern struct zfcp_data zfcp_data;
