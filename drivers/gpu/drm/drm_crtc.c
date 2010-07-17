@@ -2617,6 +2617,15 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	crtc = obj_to_crtc(obj);
 
+	if (crtc->fb == NULL) {
+		/* The framebuffer is currently unbound, presumably
+		 * due to a hotplug event, that userspace has not
+		 * yet discovered.
+		 */
+		ret = -EBUSY;
+		goto out;
+	}
+
 	if (crtc->funcs->page_flip == NULL)
 		goto out;
 
