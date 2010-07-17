@@ -201,7 +201,7 @@ static inline int dccp_ackvec_set_buf_head_state(struct dccp_ackvec *av,
 						 const unsigned int packets,
 						 const unsigned char state)
 {
-	unsigned int gap;
+	long gap;
 	long new_head;
 
 	if (av->av_vec_len + packets > DCCP_MAX_ACKVEC_LEN)
