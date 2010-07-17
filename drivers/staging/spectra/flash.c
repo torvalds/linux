@@ -775,7 +775,7 @@ static void dump_cache_l2_table(void)
 {
 	struct list_head *p;
 	struct spectra_l2_cache_list *pnd;
-	int n, i;
+	int n;
 
 	n = 0;
 	list_for_each(p, &cache_l2.table.list) {
