@@ -200,27 +200,25 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	if (dev_priv->panel_fixed_mode == NULL)
 		return true;
 	/*
-	 * If we have timings from the BIOS for the panel, put them in
+	 * We have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
 	 * with the panel scaling set up to source from the H/VDisplay
 	 * of the original mode.
 	 */
-	if (dev_priv->panel_fixed_mode != NULL) {
-		adjusted_mode->hdisplay = dev_priv->panel_fixed_mode->hdisplay;
-		adjusted_mode->hsync_start =
-			dev_priv->panel_fixed_mode->hsync_start;
-		adjusted_mode->hsync_end =
-			dev_priv->panel_fixed_mode->hsync_end;
-		adjusted_mode->htotal = dev_priv->panel_fixed_mode->htotal;
-		adjusted_mode->vdisplay = dev_priv->panel_fixed_mode->vdisplay;
-		adjusted_mode->vsync_start =
-			dev_priv->panel_fixed_mode->vsync_start;
-		adjusted_mode->vsync_end =
-			dev_priv->panel_fixed_mode->vsync_end;
-		adjusted_mode->vtotal = dev_priv->panel_fixed_mode->vtotal;
-		adjusted_mode->clock = dev_priv->panel_fixed_mode->clock;
-		drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
-	}
+	adjusted_mode->hdisplay = dev_priv->panel_fixed_mode->hdisplay;
+	adjusted_mode->hsync_start =
+		dev_priv->panel_fixed_mode->hsync_start;
+	adjusted_mode->hsync_end =
+		dev_priv->panel_fixed_mode->hsync_end;
+	adjusted_mode->htotal = dev_priv->panel_fixed_mode->htotal;
+	adjusted_mode->vdisplay = dev_priv->panel_fixed_mode->vdisplay;
+	adjusted_mode->vsync_start =
+		dev_priv->panel_fixed_mode->vsync_start;
+	adjusted_mode->vsync_end =
+		dev_priv->panel_fixed_mode->vsync_end;
+	adjusted_mode->vtotal = dev_priv->panel_fixed_mode->vtotal;
+	adjusted_mode->clock = dev_priv->panel_fixed_mode->clock;
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
 
 	/* Make sure pre-965s set dither correctly */
 	if (!IS_I965G(dev)) {
