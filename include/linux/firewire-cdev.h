@@ -84,8 +84,9 @@ struct fw_cdev_event_bus_reset {
 
 /**
  * struct fw_cdev_event_response - Sent when a response packet was received
- * @closure:	See &fw_cdev_event_common;
- *		set by %FW_CDEV_IOC_SEND_REQUEST ioctl
+ * @closure:	See &fw_cdev_event_common; set by %FW_CDEV_IOC_SEND_REQUEST
+ *		or %FW_CDEV_IOC_SEND_BROADCAST_REQUEST
+ *		or %FW_CDEV_IOC_SEND_STREAM_PACKET ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_RESPONSE
  * @rcode:	Response code returned by the remote node
  * @length:	Data length, i.e. the response's payload size in bytes
@@ -95,6 +96,11 @@ struct fw_cdev_event_bus_reset {
  * sent by %FW_CDEV_IOC_SEND_REQUEST ioctl.  The payload data for responses
  * carrying data (read and lock responses) follows immediately and can be
  * accessed through the @data field.
+ *
+ * The event is also generated after conclusions of transactions that do not
+ * involve response packets.  This includes unified write transactions,
+ * broadcast write transactions, and transmission of asynchronous stream
+ * packets.  @rcode indicates success or failure of such transmissions.
  */
 struct fw_cdev_event_response {
 	__u64 closure;
@@ -447,7 +453,9 @@ struct fw_cdev_send_response {
  * range to be used for later deallocation of the range.
  *
  * The address range is allocated on all local nodes.  The address allocation
- * is exclusive except for the FCP command and response registers.
+ * is exclusive except for the FCP command and response registers.  If an
+ * exclusive address region is already in use, the ioctl fails with errno set
+ * to %EBUSY.
  */
 struct fw_cdev_allocate {
 	__u64 offset;
@@ -475,9 +483,14 @@ struct fw_cdev_deallocate {
  * Initiate a bus reset for the bus this device is on.  The bus reset can be
  * either the original (long) bus reset or the arbitrated (short) bus reset
  * introduced in 1394a-2000.
+ *
+ * The ioctl returns immediately.  A subsequent &fw_cdev_event_bus_reset
+ * indicates when the reset actually happened.  Since ABI v4, this may be
+ * considerably later than the ioctl because the kernel ensures a grace period
+ * between subsequent bus resets as per IEEE 1394 bus management specification.
  */
 struct fw_cdev_initiate_bus_reset {
-	__u32 type;	/* FW_CDEV_SHORT_RESET or FW_CDEV_LONG_RESET */
+	__u32 type;
 };
 
 /**
@@ -501,9 +514,10 @@ struct fw_cdev_initiate_bus_reset {
  *
  * @immediate, @key, and @data array elements are CPU-endian quadlets.
  *
- * If successful, the kernel adds the descriptor and writes back a handle to the
- * kernel-side object to be used for later removal of the descriptor block and
- * immediate key.
+ * If successful, the kernel adds the descriptor and writes back a @handle to
+ * the kernel-side object to be used for later removal of the descriptor block
+ * and immediate key.  The kernel will also generate a bus reset to signal the
+ * change of the configuration ROM to other nodes.
  *
  * This ioctl affects the configuration ROMs of all local nodes.
  * The ioctl only succeeds on device files which represent a local node.
@@ -522,7 +536,8 @@ struct fw_cdev_add_descriptor {
  *		descriptor was added
  *
  * Remove a descriptor block and accompanying immediate key from the local
- * nodes' configuration ROMs.
+ * nodes' configuration ROMs.  The kernel will also generate a bus reset to
+ * signal the change of the configuration ROM to other nodes.
  */
 struct fw_cdev_remove_descriptor {
 	__u32 handle;
@@ -554,6 +569,8 @@ struct fw_cdev_remove_descriptor {
  *
  * Note that the effect of a @header_size > 4 depends on
  * &fw_cdev_get_info.version, as documented at &fw_cdev_event_iso_interrupt.
+ *
+ * No more than one iso context can be created per fd.
  */
 struct fw_cdev_create_iso_context {
 	__u32 type;
