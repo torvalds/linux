@@ -281,6 +281,26 @@ static struct platform_device pmu_device = {
 	.resource		= &pmu_resource,
 };
 
+static struct resource char_lcd_resources[] = {
+	{
+		.start = REALVIEW_CHAR_LCD_BASE,
+		.end   = (REALVIEW_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_PB1176_CHARLCD,
+		.end	= IRQ_PB1176_CHARLCD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name		=	"arm-charlcd",
+	.id		=	-1,
+	.num_resources	=	ARRAY_SIZE(char_lcd_resources),
+	.resource	=	char_lcd_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 	/* ARM1176 DevChip GIC, primary */
@@ -343,6 +363,7 @@ static void __init realview_pb1176_init(void)
 	platform_device_register(&realview_i2c_device);
 	realview_usb_register(realview_pb1176_isp1761_resources);
 	platform_device_register(&pmu_device);
+	platform_device_register(&char_lcd_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];

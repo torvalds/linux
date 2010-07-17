@@ -331,6 +331,26 @@ static struct platform_device pmu_device = {
 	.resource		= pmu_resources,
 };
 
+static struct resource char_lcd_resources[] = {
+	{
+		.start = REALVIEW_CHAR_LCD_BASE,
+		.end   = (REALVIEW_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_EB_CHARLCD,
+		.end	= IRQ_EB_CHARLCD,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name		=	"arm-charlcd",
+	.id		=	-1,
+	.num_resources	=	ARRAY_SIZE(char_lcd_resources),
+	.resource	=	char_lcd_resources,
+};
+
 static void __init gic_init_irq(void)
 {
 	if (core_tile_eb11mp() || core_tile_a9mp()) {
@@ -449,6 +469,7 @@ static void __init realview_eb_init(void)
 
 	realview_flash_register(&realview_eb_flash_resource, 1);
 	platform_device_register(&realview_i2c_device);
+	platform_device_register(&char_lcd_device);
 	eth_device_register();
 	realview_usb_register(realview_eb_isp1761_resources);
 

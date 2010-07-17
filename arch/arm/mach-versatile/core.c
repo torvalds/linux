@@ -355,6 +355,21 @@ static struct mmci_platform_data mmc0_plat_data = {
 	.gpio_cd	= -1,
 };
 
+static struct resource char_lcd_resources[] = {
+	{
+		.start = VERSATILE_CHAR_LCD_BASE,
+		.end   = (VERSATILE_CHAR_LCD_BASE + SZ_4K - 1),
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device char_lcd_device = {
+	.name           =       "arm-charlcd",
+	.id             =       -1,
+	.num_resources  =       ARRAY_SIZE(char_lcd_resources),
+	.resource       =       char_lcd_resources,
+};
+
 /*
  * Clock handling
  */
@@ -853,6 +868,7 @@ void __init versatile_init(void)
 	platform_device_register(&versatile_flash_device);
 	platform_device_register(&versatile_i2c_device);
 	platform_device_register(&smc91x_device);
+	platform_device_register(&char_lcd_device);
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
 		struct amba_device *d = amba_devs[i];
