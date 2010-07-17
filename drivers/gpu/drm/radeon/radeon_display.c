@@ -558,15 +558,17 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 					current_freq = radeon_div(tmp, ref_div * post_div);
 
 					if (pll->flags & RADEON_PLL_PREFER_CLOSEST_LOWER) {
-						error = freq - current_freq;
-						error = error < 0 ? 0xffffffff : error;
+						if (freq < current_freq)
+							error = 0xffffffff;
+						else
+							error = freq - current_freq;
 					} else
 						error = abs(current_freq - freq);
 					vco_diff = abs(vco - best_vco);
 
 					if ((best_vco == 0 && error < best_error) ||
 					    (best_vco != 0 &&
-					     (error < best_error - 100 ||
+					     ((best_error > 100 && error < best_error - 100) ||
 					      (abs(error - best_error) < 100 && vco_diff < best_vco_diff)))) {
 						best_post_div = post_div;
 						best_ref_div = ref_div;
