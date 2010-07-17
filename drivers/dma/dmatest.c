@@ -540,7 +540,7 @@ static int dmatest_add_channel(struct dma_chan *chan)
 	struct dmatest_chan	*dtc;
 	struct dma_device	*dma_dev = chan->device;
 	unsigned int		thread_count = 0;
-	unsigned int		cnt;
+	int cnt;
 
 	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
