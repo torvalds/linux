@@ -1698,7 +1698,7 @@ static int get_l2_cache_blks(void)
 static int erase_l2_cache_blocks(void)
 {
 	int i, ret = PASS;
-	u32 pblk, lblk;
+	u32 pblk, lblk = BAD_BLOCK;
 	u64 addr;
 	u32 *pbt = (u32 *)g_pBlockTable;
 
