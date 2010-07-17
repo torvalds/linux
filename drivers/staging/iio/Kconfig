@@ -44,6 +44,7 @@ source "drivers/staging/iio/adc/Kconfig"
 source "drivers/staging/iio/gyro/Kconfig"
 source "drivers/staging/iio/imu/Kconfig"
 source "drivers/staging/iio/light/Kconfig"
+source "drivers/staging/iio/magnetometer/Kconfig"
 
 source "drivers/staging/iio/trigger/Kconfig"
 
