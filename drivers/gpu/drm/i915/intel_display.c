@@ -2371,8 +2371,6 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 		if (mode->clock * 3 > 27000 * 4)
 			return MODE_CLOCK_HIGH;
 	}
-
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	return true;
 }
 
