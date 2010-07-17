@@ -1933,6 +1933,36 @@ static inline ktime_t net_invalid_timestamp(void)
 	return ktime_set(0, 0);
 }
 
+extern void skb_timestamping_init(void);
+
+#ifdef CONFIG_NETWORK_PHY_TIMESTAMPING
+
+extern void skb_clone_tx_timestamp(struct sk_buff *skb);
+extern bool skb_defer_rx_timestamp(struct sk_buff *skb);
+
+#else /* CONFIG_NETWORK_PHY_TIMESTAMPING */
+
+static inline void skb_clone_tx_timestamp(struct sk_buff *skb)
+{
+}
+
+static inline bool skb_defer_rx_timestamp(struct sk_buff *skb)
+{
+	return false;
+}
+
+#endif /* !CONFIG_NETWORK_PHY_TIMESTAMPING */
+
+/**
+ * skb_complete_tx_timestamp() - deliver cloned skb with tx timestamps
+ *
+ * @skb: clone of the the original outgoing packet
+ * @hwtstamps: hardware time stamps
+ *
+ */
+void skb_complete_tx_timestamp(struct sk_buff *skb,
+			       struct skb_shared_hwtstamps *hwtstamps);
+
 /**
  * skb_tstamp_tx - queue clone of skb with send time stamps
  * @orig_skb:	the original outgoing packet
@@ -1965,6 +1995,7 @@ static inline void sw_tx_timestamp(struct sk_buff *skb)
  */
 static inline void skb_tx_timestamp(struct sk_buff *skb)
 {
+	skb_clone_tx_timestamp(skb);
 	sw_tx_timestamp(skb);
 }
 

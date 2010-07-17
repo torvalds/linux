@@ -2394,6 +2394,10 @@ static int __init sock_init(void)
 	netfilter_init();
 #endif
 
+#ifdef CONFIG_NETWORK_PHY_TIMESTAMPING
+	skb_timestamping_init();
+#endif
+
 	return 0;
 }
 

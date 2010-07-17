@@ -361,6 +361,11 @@ int phy_mii_ioctl(struct phy_device *phydev,
 		}
 		break;
 
+	case SIOCSHWTSTAMP:
+		if (phydev->drv->hwtstamp)
+			return phydev->drv->hwtstamp(phydev, ifr);
+		/* fall through */
+
 	default:
 		return -EOPNOTSUPP;
 	}

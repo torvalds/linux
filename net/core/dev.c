@@ -2957,6 +2957,9 @@ int netif_receive_skb(struct sk_buff *skb)
 	if (netdev_tstamp_prequeue)
 		net_timestamp_check(skb);
 
+	if (skb_defer_rx_timestamp(skb))
+		return NET_RX_SUCCESS;
+
 #ifdef CONFIG_RPS
 	{
 		struct rps_dev_flow voidflow, *rflow = &voidflow;

@@ -54,6 +54,7 @@
 
 struct vlan_group;
 struct netpoll_info;
+struct phy_device;
 /* 802.11 specific */
 struct wireless_dev;
 					/* source back-compat hooks */
@@ -1065,6 +1066,9 @@ struct net_device {
 #endif
 	/* n-tuple filter list attached to this device */
 	struct ethtool_rx_ntuple_list ethtool_ntuple_list;
+
+	/* phy device may attach itself for hardware timestamping */
+	struct phy_device *phydev;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
