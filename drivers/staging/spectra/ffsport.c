@@ -114,7 +114,6 @@ u64 GLOB_u64_Remainder(u64 addr, u32 divisor_type)
 
 #define GLOB_SBD_NAME          "nd"
 #define GLOB_SBD_IRQ_NUM       (29)
-#define GLOB_VERSION		"driver version 20091110"
 
 #define GLOB_SBD_IOCTL_GC                        (0x7701)
 #define GLOB_SBD_IOCTL_WL                        (0x7702)
