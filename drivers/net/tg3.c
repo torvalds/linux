@@ -10932,7 +10932,7 @@ static int tg3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		if (!(tp->tg3_flags3 & TG3_FLG3_PHY_CONNECTED))
 			return -EAGAIN;
 		phydev = tp->mdio_bus->phy_map[TG3_PHY_MII_ADDR];
-		return phy_mii_ioctl(phydev, data, cmd);
+		return phy_mii_ioctl(phydev, ifr, cmd);
 	}
 
 	switch (cmd) {

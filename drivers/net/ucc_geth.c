@@ -3714,7 +3714,7 @@ static int ucc_geth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!ugeth->phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(ugeth->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(ugeth->phydev, rq, cmd);
 }
 
 static const struct net_device_ops ucc_geth_netdev_ops = {

@@ -1284,7 +1284,7 @@ static int sh_eth_do_ioctl(struct net_device *ndev, struct ifreq *rq,
 	if (!phydev)
 		return -ENODEV;
 
-	return phy_mii_ioctl(phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
 #if defined(SH_ETH_HAS_TSU)

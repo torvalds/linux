@@ -730,7 +730,7 @@ static int ethoc_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		phy = priv->phy;
 	}
 
-	return phy_mii_ioctl(phy, mdio, cmd);
+	return phy_mii_ioctl(phy, ifr, cmd);
 }
 
 static int ethoc_config(struct net_device *dev, struct ifmap *map)

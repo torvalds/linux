@@ -620,7 +620,7 @@ static int octeon_mgmt_ioctl(struct net_device *netdev,
 	if (!p->phydev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(p->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(p->phydev, rq, cmd);
 }
 
 static void octeon_mgmt_adjust_link(struct net_device *netdev)
