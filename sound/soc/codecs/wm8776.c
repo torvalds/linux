@@ -93,7 +93,6 @@ SOC_DAPM_SINGLE("Bypass Switch", WM8776_OUTMUX, 2, 1, 0),
 
 static const struct snd_soc_dapm_widget wm8776_dapm_widgets[] = {
 SND_SOC_DAPM_INPUT("AUX"),
-SND_SOC_DAPM_INPUT("AUX"),
 
 SND_SOC_DAPM_INPUT("AIN1"),
 SND_SOC_DAPM_INPUT("AIN2"),
