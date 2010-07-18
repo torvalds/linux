@@ -1406,7 +1406,9 @@ xfs_end_io_direct(
 	struct kiocb	*iocb,
 	loff_t		offset,
 	ssize_t		size,
-	void		*private)
+	void		*private,
+	int		ret,
+	bool		is_async)
 {
 	xfs_ioend_t	*ioend = iocb->private;
 
@@ -1452,6 +1454,9 @@ xfs_end_io_direct(
 	 * against double-freeing.
 	 */
 	iocb->private = NULL;
+
+	if (is_async)
+		aio_complete(iocb, ret, 0);
 }
 
 STATIC ssize_t

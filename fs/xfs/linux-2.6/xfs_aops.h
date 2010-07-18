@@ -37,6 +37,8 @@ typedef struct xfs_ioend {
 	size_t			io_size;	/* size of the extent */
 	xfs_off_t		io_offset;	/* offset in the file */
 	struct work_struct	io_work;	/* xfsdatad work queue */
+	struct kiocb		*io_iocb;
+	int			io_result;
 } xfs_ioend_t;
 
 extern const struct address_space_operations xfs_address_space_operations;
