@@ -30,11 +30,12 @@ fi
 
 scm_version()
 {
-	local short=false
+	local short
+	short=false
 
 	cd "$srctree"
 	if test -e .scmversion; then
-		cat "$_"
+		cat .scmversion
 		return
 	fi
 	if test "$1" = "--short"; then
@@ -136,7 +137,7 @@ if $scm_only; then
 fi
 
 if test -e include/config/auto.conf; then
-	source "$_"
+	. include/config/auto.conf
 else
 	echo "Error: kernelrelease not valid - run 'make prepare' to update it"
 	exit 1
