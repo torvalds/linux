@@ -1679,26 +1679,16 @@ static int cifs_truncate_page(struct address_space *mapping, loff_t from)
 	return rc;
 }
 
-static int cifs_vmtruncate(struct inode *inode, loff_t offset)
+static void cifs_setsize(struct inode *inode, loff_t offset)
 {
 	loff_t oldsize;
-	int err;
 
 	spin_lock(&inode->i_lock);
-	err = inode_newsize_ok(inode, offset);
-	if (err) {
-		spin_unlock(&inode->i_lock);
-		goto out;
-	}
-
 	oldsize = inode->i_size;
 	i_size_write(inode, offset);
 	spin_unlock(&inode->i_lock);
+
 	truncate_pagecache(inode, oldsize, offset);
-	if (inode->i_op->truncate)
-		inode->i_op->truncate(inode);
-out:
-	return err;
 }
 
 static int
@@ -1771,7 +1761,7 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 
 	if (rc == 0) {
 		cifsInode->server_eof = attrs->ia_size;
-		rc = cifs_vmtruncate(inode, attrs->ia_size);
+		cifs_setsize(inode, attrs->ia_size);
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
 
@@ -1891,11 +1881,8 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 		goto out;
 
 	if ((attrs->ia_valid & ATTR_SIZE) &&
-	    attrs->ia_size != i_size_read(inode)) {
-		rc = vmtruncate(inode, attrs->ia_size);
-		if (rc)
-			goto out;
-	}
+	    attrs->ia_size != i_size_read(inode))
+		truncate_setsize(inode, attrs->ia_size);
 
 	setattr_copy(inode, attrs);
 	mark_inode_dirty(inode);
@@ -2050,11 +2037,8 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 		goto cifs_setattr_exit;
 
 	if ((attrs->ia_valid & ATTR_SIZE) &&
-	    attrs->ia_size != i_size_read(inode)) {
-		rc = vmtruncate(inode, attrs->ia_size);
-		if (rc)
-			goto cifs_setattr_exit;
-	}
+	    attrs->ia_size != i_size_read(inode))
+		truncate_setsize(inode, attrs->ia_size);
 
 	setattr_copy(inode, attrs);
 	mark_inode_dirty(inode);
