@@ -370,8 +370,16 @@ static int nilfs_btree_node_broken(const struct nilfs_btree_node *node,
 
 int nilfs_btree_broken_node_block(struct buffer_head *bh)
 {
-	return nilfs_btree_node_broken((struct nilfs_btree_node *)bh->b_data,
+	int ret;
+
+	if (buffer_nilfs_checked(bh))
+		return 0;
+
+	ret = nilfs_btree_node_broken((struct nilfs_btree_node *)bh->b_data,
 				       bh->b_size, bh->b_blocknr);
+	if (likely(!ret))
+		set_buffer_nilfs_checked(bh);
+	return ret;
 }
 
 static struct nilfs_btree_node *
