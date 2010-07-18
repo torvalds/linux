@@ -120,9 +120,10 @@ static bool
 get_tv_detect_quirks(struct drm_device *dev, uint32_t *pin_mask)
 {
 	/* Zotac FX5200 */
-	if ((dev->pdev->device == 0x0322) &&
-	    (dev->pdev->subsystem_vendor == 0x19da) &&
-	    (dev->pdev->subsystem_device == 0x2035)) {
+	if (dev->pdev->device == 0x0322 &&
+	    dev->pdev->subsystem_vendor == 0x19da &&
+	    (dev->pdev->subsystem_device == 0x1035 ||
+	     dev->pdev->subsystem_device == 0x2035)) {
 		*pin_mask = 0xc;
 		return false;
 	}
