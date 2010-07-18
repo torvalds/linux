@@ -66,32 +66,6 @@ static void nilfs_btree_free_path(struct nilfs_btree_path *path)
 /*
  * B-tree node operations
  */
-static int nilfs_btree_get_block(const struct nilfs_bmap *btree, __u64 ptr,
-				 struct buffer_head **bhp)
-{
-	struct address_space *btnc = &NILFS_BMAP_I(btree)->i_btnode_cache;
-	struct buffer_head *bh;
-	sector_t pbn = 0;
-	int err;
-
-	err = nilfs_btnode_submit_block(btnc, ptr, pbn, READ, bhp, &pbn);
-	if (err)
-		return err == -EEXIST ? 0 : err;
-
-	bh = *bhp;
-	wait_on_buffer(bh);
-	if (!buffer_uptodate(bh)) {
-		brelse(bh);
-		return -EIO;
-	}
-	if (nilfs_btree_broken_node_block(bh)) {
-		clear_buffer_uptodate(bh);
-		brelse(bh);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int nilfs_btree_get_new_block(const struct nilfs_bmap *btree,
 				     __u64 ptr, struct buffer_head **bhp)
 {
@@ -450,6 +424,74 @@ nilfs_btree_bad_node(struct nilfs_btree_node *node, int level)
 		return 1;
 	}
 	return 0;
+}
+
+struct nilfs_btree_readahead_info {
+	struct nilfs_btree_node *node;	/* parent node */
+	int max_ra_blocks;		/* max nof blocks to read ahead */
+	int index;			/* current index on the parent node */
+	int ncmax;			/* nof children in the parent node */
+};
+
+static int __nilfs_btree_get_block(const struct nilfs_bmap *btree, __u64 ptr,
+				   struct buffer_head **bhp,
+				   const struct nilfs_btree_readahead_info *ra)
+{
+	struct address_space *btnc = &NILFS_BMAP_I(btree)->i_btnode_cache;
+	struct buffer_head *bh, *ra_bh;
+	sector_t submit_ptr = 0;
+	int ret;
+
+	ret = nilfs_btnode_submit_block(btnc, ptr, 0, READ, &bh, &submit_ptr);
+	if (ret) {
+		if (ret != -EEXIST)
+			return ret;
+		goto out_check;
+	}
+
+	if (ra) {
+		int i, n;
+		__u64 ptr2;
+
+		/* read ahead sibling nodes */
+		for (n = ra->max_ra_blocks, i = ra->index + 1;
+		     n > 0 && i < ra->ncmax; n--, i++) {
+			ptr2 = nilfs_btree_node_get_ptr(ra->node, i, ra->ncmax);
+
+			ret = nilfs_btnode_submit_block(btnc, ptr2, 0, READA,
+							&ra_bh, &submit_ptr);
+			if (likely(!ret || ret == -EEXIST))
+				brelse(ra_bh);
+			else if (ret != -EBUSY)
+				break;
+			if (!buffer_locked(bh))
+				goto out_no_wait;
+		}
+	}
+
+	wait_on_buffer(bh);
+
+ out_no_wait:
+	if (!buffer_uptodate(bh)) {
+		brelse(bh);
+		return -EIO;
+	}
+
+ out_check:
+	if (nilfs_btree_broken_node_block(bh)) {
+		clear_buffer_uptodate(bh);
+		brelse(bh);
+		return -EINVAL;
+	}
+
+	*bhp = bh;
+	return 0;
+}
+
+static int nilfs_btree_get_block(const struct nilfs_bmap *btree, __u64 ptr,
+				   struct buffer_head **bhp)
+{
+	return __nilfs_btree_get_block(btree, ptr, bhp, NULL);
 }
 
 static int nilfs_btree_do_lookup(const struct nilfs_bmap *btree,
