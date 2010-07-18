@@ -234,4 +234,9 @@ void fw_fill_response(struct fw_packet *response, u32 *request_header,
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
 
+static inline bool is_ping_packet(u32 *data)
+{
+	return (data[0] & 0xc0ffffff) == 0 && ~data[0] == data[1];
+}
+
 #endif /* _FIREWIRE_CORE_H */

@@ -1068,6 +1068,9 @@ static int at_context_queue_packet(struct context *ctx,
 		header[1] = cpu_to_le32(packet->header[0]);
 		header[2] = cpu_to_le32(packet->header[1]);
 		d[0].req_count = cpu_to_le16(12);
+
+		if (is_ping_packet(packet->header))
+			d[0].control |= cpu_to_le16(DESCRIPTOR_PING);
 		break;
 
 	case 4:

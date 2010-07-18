@@ -294,7 +294,10 @@ struct fw_cdev_event_iso_resource {
  * @length:	Data length in bytes
  * @data:	Incoming data
  *
- * If @type is %FW_CDEV_EVENT_PHY_PACKET_SENT, @length is 0 and @data empty.
+ * If @type is %FW_CDEV_EVENT_PHY_PACKET_SENT, @length is 0 and @data empty,
+ * except in case of a ping packet:  Then, @length is 4, and @data[0] is the
+ * ping time in 49.152MHz clocks if @rcode is %RCODE_COMPLETE.
+ *
  * If @type is %FW_CDEV_EVENT_PHY_PACKET_RECEIVED, @length is 8 and @data
  * consists of the two PHY packet quadlets, in host byte order.
  */

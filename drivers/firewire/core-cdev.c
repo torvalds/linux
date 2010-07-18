@@ -1423,9 +1423,10 @@ static void outbound_phy_packet_callback(struct fw_packet *packet,
 	/* stale generation; cancelled; on certain controllers: no ack */
 	default:		e->phy_packet.rcode = status;		break;
 	}
+	e->phy_packet.data[0] = packet->timestamp;
 
-	queue_event(e->client, &e->event,
-		    &e->phy_packet, sizeof(e->phy_packet), NULL, 0);
+	queue_event(e->client, &e->event, &e->phy_packet,
+		    sizeof(e->phy_packet) + e->phy_packet.length, NULL, 0);
 	client_put(e->client);
 }
 
@@ -1439,7 +1440,7 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	if (!client->device->is_local)
 		return -ENOSYS;
 
-	e = kzalloc(sizeof(*e), GFP_KERNEL);
+	e = kzalloc(sizeof(*e) + 4, GFP_KERNEL);
 	if (e == NULL)
 		return -ENOMEM;
 
@@ -1453,6 +1454,8 @@ static int ioctl_send_phy_packet(struct client *client, union ioctl_arg *arg)
 	e->p.callback		= outbound_phy_packet_callback;
 	e->phy_packet.closure	= a->closure;
 	e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_SENT;
+	if (is_ping_packet(a->data))
+			e->phy_packet.length = 4;
 
 	card->driver->send_request(card, &e->p);
 
