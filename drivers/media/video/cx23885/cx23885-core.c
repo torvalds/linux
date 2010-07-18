@@ -1765,7 +1765,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 		handled += cx23885_video_irq(dev, vida_status);
 
 	if (pci_status & PCI_MSK_IR) {
-		v4l2_subdev_call(dev->sd_ir, ir, interrupt_service_routine,
+		v4l2_subdev_call(dev->sd_ir, core, interrupt_service_routine,
 				 pci_status, &ir_handled);
 		if (ir_handled)
 			handled++;

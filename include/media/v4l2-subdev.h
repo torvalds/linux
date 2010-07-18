@@ -131,6 +131,11 @@ struct v4l2_subdev_io_pin_config {
 
    s_power: puts subdevice in power saving mode (on == 0) or normal operation
 	mode (on == 1).
+
+   interrupt_service_routine: Called by the bridge chip's interrupt service
+	handler, when an interrupt status has be raised due to this subdev,
+	so that this subdev can handle the details.  It may schedule work to be
+	performed later.  It must not sleep.  *Called from an IRQ context*.
  */
 struct v4l2_subdev_core_ops {
 	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
@@ -156,6 +161,8 @@ struct v4l2_subdev_core_ops {
 	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
 #endif
 	int (*s_power)(struct v4l2_subdev *sd, int on);
+	int (*interrupt_service_routine)(struct v4l2_subdev *sd,
+						u32 status, bool *handled);
 };
 
 /* s_mode: switch the tuner to a specific tuner mode. Replacement of s_radio.
@@ -330,11 +337,6 @@ struct v4l2_subdev_sensor_ops {
 };
 
 /*
-   interrupt_service_routine: Called by the bridge chip's interrupt service
-	handler, when an IR interrupt status has be raised due to this subdev,
-	so that this subdev can handle the details.  It may schedule work to be
-	performed later.  It must not sleep.  *Called from an IRQ context*.
-
    [rt]x_g_parameters: Get the current operating parameters and state of the
 	the IR receiver or transmitter.
 
@@ -392,10 +394,6 @@ struct v4l2_subdev_ir_parameters {
 };
 
 struct v4l2_subdev_ir_ops {
-	/* Common to receiver and transmitter */
-	int (*interrupt_service_routine)(struct v4l2_subdev *sd,
-						u32 status, bool *handled);
-
 	/* Receiver */
 	int (*rx_read)(struct v4l2_subdev *sd, u8 *buf, size_t count,
 				ssize_t *num);

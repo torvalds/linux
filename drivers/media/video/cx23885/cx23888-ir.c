@@ -1126,11 +1126,10 @@ static const struct v4l2_subdev_core_ops cx23888_ir_core_ops = {
 	.g_register = cx23888_ir_g_register,
 	.s_register = cx23888_ir_s_register,
 #endif
+	.interrupt_service_routine = cx23888_ir_irq_handler,
 };
 
 static const struct v4l2_subdev_ir_ops cx23888_ir_ir_ops = {
-	.interrupt_service_routine = cx23888_ir_irq_handler,
-
 	.rx_read = cx23888_ir_rx_read,
 	.rx_g_parameters = cx23888_ir_rx_g_parameters,
 	.rx_s_parameters = cx23888_ir_rx_s_parameters,
