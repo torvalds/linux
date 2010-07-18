@@ -2264,6 +2264,7 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 		page = read_cache_page_gfp(mapping, i,
 					   GFP_HIGHUSER |
 					   __GFP_COLD |
+					   __GFP_RECLAIMABLE |
 					   gfpmask);
 		if (IS_ERR(page))
 			goto err_pages;
