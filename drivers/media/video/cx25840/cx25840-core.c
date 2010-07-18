@@ -144,6 +144,158 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 
 /* ----------------------------------------------------------------------- */
 
+static int cx23885_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
+				      struct v4l2_subdev_io_pin_config *p)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int i;
+	u32 pin_ctrl;
+	u8 gpio_oe, gpio_data, strength;
+
+	pin_ctrl = cx25840_read4(client, 0x120);
+	gpio_oe = cx25840_read(client, 0x160);
+	gpio_data = cx25840_read(client, 0x164);
+
+	for (i = 0; i < n; i++) {
+		strength = p[i].strength;
+		if (strength > CX25840_PIN_DRIVE_FAST)
+			strength = CX25840_PIN_DRIVE_FAST;
+
+		switch (p[i].pin) {
+		case CX23885_PIN_IRQ_N_GPIO16:
+			if (p[i].function != CX23885_PAD_IRQ_N) {
+				/* GPIO16 */
+				pin_ctrl &= ~(0x1 << 25);
+			} else {
+				/* IRQ_N */
+				if (p[i].flags &
+					(V4L2_SUBDEV_IO_PIN_DISABLE |
+					 V4L2_SUBDEV_IO_PIN_INPUT)) {
+					pin_ctrl &= ~(0x1 << 25);
+				} else {
+					pin_ctrl |= (0x1 << 25);
+				}
+				if (p[i].flags &
+					V4L2_SUBDEV_IO_PIN_ACTIVE_LOW) {
+					pin_ctrl &= ~(0x1 << 24);
+				} else {
+					pin_ctrl |= (0x1 << 24);
+				}
+			}
+			break;
+		case CX23885_PIN_IR_RX_GPIO19:
+			if (p[i].function != CX23885_PAD_GPIO19) {
+				/* IR_RX */
+				gpio_oe |= (0x1 << 0);
+				pin_ctrl &= ~(0x3 << 18);
+				pin_ctrl |= (strength << 18);
+			} else {
+				/* GPIO19 */
+				gpio_oe &= ~(0x1 << 0);
+				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+					gpio_data &= ~(0x1 << 0);
+					gpio_data |= ((p[i].value & 0x1) << 0);
+				}
+				pin_ctrl &= ~(0x3 << 12);
+				pin_ctrl |= (strength << 12);
+			}
+			break;
+		case CX23885_PIN_IR_TX_GPIO20:
+			if (p[i].function != CX23885_PAD_GPIO20) {
+				/* IR_TX */
+				gpio_oe |= (0x1 << 1);
+				if (p[i].flags & V4L2_SUBDEV_IO_PIN_DISABLE)
+					pin_ctrl &= ~(0x1 << 10);
+				else
+					pin_ctrl |= (0x1 << 10);
+				pin_ctrl &= ~(0x3 << 18);
+				pin_ctrl |= (strength << 18);
+			} else {
+				/* GPIO20 */
+				gpio_oe &= ~(0x1 << 1);
+				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+					gpio_data &= ~(0x1 << 1);
+					gpio_data |= ((p[i].value & 0x1) << 1);
+				}
+				pin_ctrl &= ~(0x3 << 12);
+				pin_ctrl |= (strength << 12);
+			}
+			break;
+		case CX23885_PIN_I2S_SDAT_GPIO21:
+			if (p[i].function != CX23885_PAD_GPIO21) {
+				/* I2S_SDAT */
+				/* TODO: Input or Output config */
+				gpio_oe |= (0x1 << 2);
+				pin_ctrl &= ~(0x3 << 22);
+				pin_ctrl |= (strength << 22);
+			} else {
+				/* GPIO21 */
+				gpio_oe &= ~(0x1 << 2);
+				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+					gpio_data &= ~(0x1 << 2);
+					gpio_data |= ((p[i].value & 0x1) << 2);
+				}
+				pin_ctrl &= ~(0x3 << 12);
+				pin_ctrl |= (strength << 12);
+			}
+			break;
+		case CX23885_PIN_I2S_WCLK_GPIO22:
+			if (p[i].function != CX23885_PAD_GPIO22) {
+				/* I2S_WCLK */
+				/* TODO: Input or Output config */
+				gpio_oe |= (0x1 << 3);
+				pin_ctrl &= ~(0x3 << 22);
+				pin_ctrl |= (strength << 22);
+			} else {
+				/* GPIO22 */
+				gpio_oe &= ~(0x1 << 3);
+				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+					gpio_data &= ~(0x1 << 3);
+					gpio_data |= ((p[i].value & 0x1) << 3);
+				}
+				pin_ctrl &= ~(0x3 << 12);
+				pin_ctrl |= (strength << 12);
+			}
+			break;
+		case CX23885_PIN_I2S_BCLK_GPIO23:
+			if (p[i].function != CX23885_PAD_GPIO23) {
+				/* I2S_BCLK */
+				/* TODO: Input or Output config */
+				gpio_oe |= (0x1 << 4);
+				pin_ctrl &= ~(0x3 << 22);
+				pin_ctrl |= (strength << 22);
+			} else {
+				/* GPIO23 */
+				gpio_oe &= ~(0x1 << 4);
+				if (p[i].flags & V4L2_SUBDEV_IO_PIN_SET_VALUE) {
+					gpio_data &= ~(0x1 << 4);
+					gpio_data |= ((p[i].value & 0x1) << 4);
+				}
+				pin_ctrl &= ~(0x3 << 12);
+				pin_ctrl |= (strength << 12);
+			}
+			break;
+		}
+	}
+
+	cx25840_write(client, 0x164, gpio_data);
+	cx25840_write(client, 0x160, gpio_oe);
+	cx25840_write4(client, 0x120, pin_ctrl);
+	return 0;
+}
+
+static int common_s_io_pin_config(struct v4l2_subdev *sd, size_t n,
+				      struct v4l2_subdev_io_pin_config *pincfg)
+{
+	struct cx25840_state *state = to_state(sd);
+
+	if (is_cx2388x(state))
+		return cx23885_s_io_pin_config(sd, n, pincfg);
+	return 0;
+}
+
+/* ----------------------------------------------------------------------- */
+
 static void init_dll1(struct i2c_client *client)
 {
 	/* This is the Hauppauge sequence used to
@@ -1610,6 +1762,7 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.s_std = cx25840_s_std,
 	.reset = cx25840_reset,
 	.load_fw = cx25840_load_fw,
+	.s_io_pin_config = common_s_io_pin_config,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register = cx25840_g_register,
 	.s_register = cx25840_s_register,
