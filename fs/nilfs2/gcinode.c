@@ -151,8 +151,10 @@ int nilfs_gccache_submit_read_data(struct inode *inode, sector_t blkoff,
 int nilfs_gccache_submit_read_node(struct inode *inode, sector_t pbn,
 				   __u64 vbn, struct buffer_head **out_bh)
 {
-	int ret = nilfs_btnode_submit_block(&NILFS_I(inode)->i_btnode_cache,
-					    vbn ? : pbn, pbn, out_bh);
+	int ret;
+
+	ret = nilfs_btnode_submit_block(&NILFS_I(inode)->i_btnode_cache,
+					vbn ? : pbn, pbn, READ, out_bh, &pbn);
 	if (ret == -EEXIST) /* internal code (cache hit) */
 		ret = 0;
 	return ret;

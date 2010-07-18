@@ -71,9 +71,10 @@ static int nilfs_btree_get_block(const struct nilfs_bmap *btree, __u64 ptr,
 {
 	struct address_space *btnc = &NILFS_BMAP_I(btree)->i_btnode_cache;
 	struct buffer_head *bh;
+	sector_t pbn = 0;
 	int err;
 
-	err = nilfs_btnode_submit_block(btnc, ptr, 0, bhp);
+	err = nilfs_btnode_submit_block(btnc, ptr, pbn, READ, bhp, &pbn);
 	if (err)
 		return err == -EEXIST ? 0 : err;
 
