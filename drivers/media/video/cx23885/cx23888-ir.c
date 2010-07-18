@@ -60,6 +60,8 @@ MODULE_PARM_DESC(ir_888_debug, "enable debug messages [CX23888 IR controller]");
 #define CNTRL_CPL	0x00001000
 #define CNTRL_LBM	0x00002000
 #define CNTRL_R		0x00004000
+/* CX23888 specific control flag */
+#define CNTRL_IVO	0x00008000
 
 #define CX23888_IR_TXCLK_REG	0x170004
 #define TXCLK_TCD	0x0000FFFF
@@ -423,6 +425,13 @@ static inline void control_tx_polarity_invert(struct cx23885_dev *dev,
 			   invert ? CNTRL_CPL : 0);
 }
 
+static inline void control_tx_level_invert(struct cx23885_dev *dev,
+					  bool invert)
+{
+	cx23888_ir_and_or4(dev, CX23888_IR_CNTRL_REG, ~CNTRL_IVO,
+			   invert ? CNTRL_IVO : 0);
+}
+
 /*
  * IR Rx & Tx Clock Register helpers
  */
@@ -782,8 +791,8 @@ static int cx23888_ir_rx_s_parameters(struct v4l2_subdev *sd,
 
 	control_rx_s_edge_detection(dev, CNTRL_EDG_BOTH);
 
-	o->invert = p->invert;
-	atomic_set(&state->rx_invert, p->invert);
+	o->invert_level = p->invert_level;
+	atomic_set(&state->rx_invert, p->invert_level);
 
 	o->interrupt_enable = p->interrupt_enable;
 	o->enable = p->enable;
@@ -894,8 +903,11 @@ static int cx23888_ir_tx_s_parameters(struct v4l2_subdev *sd,
 	/* FIXME - make this dependent on resolution for better performance */
 	control_tx_irq_watermark(dev, TX_FIFO_HALF_EMPTY);
 
-	control_tx_polarity_invert(dev, p->invert);
-	o->invert = p->invert;
+	control_tx_polarity_invert(dev, p->invert_carrier_sense);
+	o->invert_carrier_sense = p->invert_carrier_sense;
+
+	control_tx_level_invert(dev, p->invert_level);
+	o->invert_level = p->invert_level;
 
 	o->interrupt_enable = p->interrupt_enable;
 	o->enable = p->enable;
@@ -1025,8 +1037,11 @@ static int cx23888_ir_log_status(struct v4l2_subdev *sd)
 		  cntrl & CNTRL_TFE ? "enabled" : "disabled");
 	v4l2_info(sd, "\tFIFO interrupt watermark:          %s\n",
 		  cntrl & CNTRL_TIC ? "not empty" : "half full or less");
-	v4l2_info(sd, "\tSignal polarity:                   %s\n",
-		  cntrl & CNTRL_CPL ? "0:mark 1:space" : "0:space 1:mark");
+	v4l2_info(sd, "\tOutput pin level inversion         %s\n",
+		  cntrl & CNTRL_IVO ? "yes" : "no");
+	v4l2_info(sd, "\tCarrier polarity:                  %s\n",
+		  cntrl & CNTRL_CPL ? "space:burst mark:noburst"
+				    : "space:noburst mark:burst");
 	if (cntrl & CNTRL_MOD) {
 		v4l2_info(sd, "\tCarrier (16 clocks):               %u Hz\n",
 			  clock_divider_to_carrier_freq(txclk));
@@ -1146,7 +1161,7 @@ static const struct v4l2_subdev_ir_parameters default_rx_params = {
 	.noise_filter_min_width = 333333, /* ns */
 	.carrier_range_lower = 35000,
 	.carrier_range_upper = 37000,
-	.invert = false,
+	.invert_level = false,
 };
 
 static const struct v4l2_subdev_ir_parameters default_tx_params = {
@@ -1160,7 +1175,8 @@ static const struct v4l2_subdev_ir_parameters default_tx_params = {
 	.modulation = true,
 	.carrier_freq = 36000, /* 36 kHz - RC-5 carrier */
 	.duty_cycle = 25,      /* 25 %   - RC-5 carrier */
-	.invert = false,
+	.invert_level = false,
+	.invert_carrier_sense = false,
 };
 
 int cx23888_ir_probe(struct cx23885_dev *dev)

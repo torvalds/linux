@@ -379,7 +379,10 @@ struct v4l2_subdev_ir_parameters {
 	u32 max_pulse_width;       /* ns,      valid only for baseband signal */
 	unsigned int carrier_freq; /* Hz,      valid only for modulated signal*/
 	unsigned int duty_cycle;   /* percent, valid only for modulated signal*/
-	bool invert;		   /* logically invert sense of mark/space */
+	bool invert_level;	   /* invert signal level */
+
+	/* Tx only */
+	bool invert_carrier_sense; /* Send 0/space as a carrier burst */
 
 	/* Rx only */
 	u32 noise_filter_min_width;       /* ns, min time of a valid pulse */

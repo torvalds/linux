@@ -170,7 +170,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 		 * mark is received as low logic level;
 		 * falling edges are detected as rising edges; etc.
 		 */
-		params.invert = true;
+		params.invert_level = true;
 		break;
 	}
 	v4l2_subdev_call(dev->sd_ir, ir, rx_s_parameters, &params);
