@@ -120,10 +120,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 	cx_write(bus->reg_wdata, wdata);
 	cx_write(bus->reg_ctrl, ctrl);
 
-	retval = i2c_wait_done(i2c_adap);
-	if (retval < 0)
-		goto err;
-	if (retval == 0)
+	if (!i2c_wait_done(i2c_adap))
 		goto eio;
 	if (!i2c_slave_did_ack(i2c_adap)) {
 		retval = -ENXIO;
@@ -149,10 +146,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		cx_write(bus->reg_wdata, wdata);
 		cx_write(bus->reg_ctrl, ctrl);
 
-		retval = i2c_wait_done(i2c_adap);
-		if (retval < 0)
-			goto err;
-		if (retval == 0)
+		if (!i2c_wait_done(i2c_adap))
 			goto eio;
 		if (i2c_debug) {
 			dprintk(1, " %02x", msg->buf[cnt]);
@@ -213,10 +207,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		cx_write(bus->reg_addr, msg->addr << 25);
 		cx_write(bus->reg_ctrl, ctrl);
 
-		retval = i2c_wait_done(i2c_adap);
-		if (retval < 0)
-			goto err;
-		if (retval == 0)
+		if (!i2c_wait_done(i2c_adap))
 			goto eio;
 		if (cnt == 0 && !i2c_slave_did_ack(i2c_adap)) {
 			retval = -ENXIO;
