@@ -285,10 +285,10 @@ struct fw_packet {
 	u32 timestamp;
 
 	/*
-	 * This callback is called when the packet transmission has
-	 * completed; for successful transmission, the status code is
-	 * the ack received from the destination, otherwise it's a
-	 * negative errno: ENOMEM, ESTALE, ETIMEDOUT, ENODEV, EIO.
+	 * This callback is called when the packet transmission has completed.
+	 * For successful transmission, the status code is the ack received
+	 * from the destination.  Otherwise it is one of the juju-specific
+	 * rcodes:  RCODE_SEND_ERROR, _CANCELLED, _BUSY, _GENERATION, _NO_ACK.
 	 * The callback can be called from tasklet context and thus
 	 * must never block.
 	 */

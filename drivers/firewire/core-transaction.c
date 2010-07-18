@@ -310,7 +310,10 @@ static int allocate_tlabel(struct fw_card *card)
  * After the transaction is completed successfully or unsuccessfully, the
  * @callback will be called.  Among its parameters is the response code which
  * is either one of the rcodes per IEEE 1394 or, in case of internal errors,
- * the firewire-core specific %RCODE_SEND_ERROR.
+ * the firewire-core specific %RCODE_SEND_ERROR.  The other firewire-core
+ * specific rcodes (%RCODE_CANCELLED, %RCODE_BUSY, %RCODE_GENERATION,
+ * %RCODE_NO_ACK) denote transaction timeout, busy responder, stale request
+ * generation, or missing ACK respectively.
  *
  * Note some timing corner cases:  fw_send_request() may complete much earlier
  * than when the request packet actually hits the wire.  On the other hand,

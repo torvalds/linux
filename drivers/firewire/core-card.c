@@ -570,12 +570,12 @@ static int dummy_set_config_rom(struct fw_card *card,
 
 static void dummy_send_request(struct fw_card *card, struct fw_packet *packet)
 {
-	packet->callback(packet, card, -ENODEV);
+	packet->callback(packet, card, RCODE_CANCELLED);
 }
 
 static void dummy_send_response(struct fw_card *card, struct fw_packet *packet)
 {
-	packet->callback(packet, card, -ENODEV);
+	packet->callback(packet, card, RCODE_CANCELLED);
 }
 
 static int dummy_cancel_packet(struct fw_card *card, struct fw_packet *packet)
