@@ -142,6 +142,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct vlan_hdr *vhdr;
 	struct vlan_rx_stats *rx_stats;
+	struct net_device *vlan_dev;
 	u16 vlan_id;
 	u16 vlan_tci;
 
@@ -157,55 +158,71 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 	vlan_id = vlan_tci & VLAN_VID_MASK;
 
 	rcu_read_lock();
-	skb->dev = __find_vlan_dev(dev, vlan_id);
-	if (!skb->dev) {
-		pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
-			 __func__, vlan_id, dev->name);
-		goto err_unlock;
-	}
+	vlan_dev = __find_vlan_dev(dev, vlan_id);
 
-	rx_stats = per_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats,
-			       smp_processor_id());
-	u64_stats_update_begin(&rx_stats->syncp);
-	rx_stats->rx_packets++;
-	rx_stats->rx_bytes += skb->len;
+	/* If the VLAN device is defined, we use it.
+	 * If not, and the VID is 0, it is a 802.1p packet (not
+	 * really a VLAN), so we will just netif_rx it later to the
+	 * original interface, but with the skb->proto set to the
+	 * wrapped proto: we do nothing here.
+	 */
+
+	if (!vlan_dev) {
+		if (vlan_id) {
+			pr_debug("%s: ERROR: No net_device for VID: %u on dev: %s\n",
+				 __func__, vlan_id, dev->name);
+			goto err_unlock;
+		}
+		rx_stats = NULL;
+	} else {
+		skb->dev = vlan_dev;
+
+		rx_stats = per_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats,
+					smp_processor_id());
+		u64_stats_update_begin(&rx_stats->syncp);
+		rx_stats->rx_packets++;
+		rx_stats->rx_bytes += skb->len;
+
+		skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tci);
+
+		pr_debug("%s: priority: %u for TCI: %hu\n",
+			 __func__, skb->priority, vlan_tci);
+
+		switch (skb->pkt_type) {
+		case PACKET_BROADCAST:
+			/* Yeah, stats collect these together.. */
+			/* stats->broadcast ++; // no such counter :-( */
+			break;
+
+		case PACKET_MULTICAST:
+			rx_stats->rx_multicast++;
+			break;
+
+		case PACKET_OTHERHOST:
+			/* Our lower layer thinks this is not local, let's make
+			 * sure.
+			 * This allows the VLAN to have a different MAC than the
+			 * underlying device, and still route correctly.
+			 */
+			if (!compare_ether_addr(eth_hdr(skb)->h_dest,
+						skb->dev->dev_addr))
+				skb->pkt_type = PACKET_HOST;
+			break;
+		default:
+			break;
+		}
+		u64_stats_update_end(&rx_stats->syncp);
+	}
 
 	skb_pull_rcsum(skb, VLAN_HLEN);
-
-	skb->priority = vlan_get_ingress_priority(skb->dev, vlan_tci);
-
-	pr_debug("%s: priority: %u for TCI: %hu\n",
-		 __func__, skb->priority, vlan_tci);
-
-	switch (skb->pkt_type) {
-	case PACKET_BROADCAST: /* Yeah, stats collect these together.. */
-		/* stats->broadcast ++; // no such counter :-( */
-		break;
-
-	case PACKET_MULTICAST:
-		rx_stats->rx_multicast++;
-		break;
-
-	case PACKET_OTHERHOST:
-		/* Our lower layer thinks this is not local, let's make sure.
-		 * This allows the VLAN to have a different MAC than the
-		 * underlying device, and still route correctly.
-		 */
-		if (!compare_ether_addr(eth_hdr(skb)->h_dest,
-					skb->dev->dev_addr))
-			skb->pkt_type = PACKET_HOST;
-		break;
-	default:
-		break;
-	}
-	u64_stats_update_end(&rx_stats->syncp);
-
 	vlan_set_encap_proto(skb, vhdr);
 
-	skb = vlan_check_reorder_header(skb);
-	if (!skb) {
-		rx_stats->rx_errors++;
-		goto err_unlock;
+	if (vlan_dev) {
+		skb = vlan_check_reorder_header(skb);
+		if (!skb) {
+			rx_stats->rx_errors++;
+			goto err_unlock;
+		}
 	}
 
 	netif_rx(skb);

@@ -8,6 +8,9 @@
 int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 		      u16 vlan_tci, int polling)
 {
+	struct net_device *vlan_dev;
+	u16 vlan_id;
+
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
@@ -16,9 +19,12 @@ int __vlan_hwaccel_rx(struct sk_buff *skb, struct vlan_group *grp,
 
 	skb->skb_iif = skb->dev->ifindex;
 	__vlan_hwaccel_put_tag(skb, vlan_tci);
-	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+	vlan_id = vlan_tci & VLAN_VID_MASK;
+	vlan_dev = vlan_group_get_device(grp, vlan_id);
 
-	if (!skb->dev)
+	if (vlan_dev)
+		skb->dev = vlan_dev;
+	else if (vlan_id)
 		goto drop;
 
 	return (polling ? netif_receive_skb(skb) : netif_rx(skb));
@@ -83,15 +89,20 @@ vlan_gro_common(struct napi_struct *napi, struct vlan_group *grp,
 		unsigned int vlan_tci, struct sk_buff *skb)
 {
 	struct sk_buff *p;
+	struct net_device *vlan_dev;
+	u16 vlan_id;
 
 	if (skb_bond_should_drop(skb, ACCESS_ONCE(skb->dev->master)))
 		skb->deliver_no_wcard = 1;
 
 	skb->skb_iif = skb->dev->ifindex;
 	__vlan_hwaccel_put_tag(skb, vlan_tci);
-	skb->dev = vlan_group_get_device(grp, vlan_tci & VLAN_VID_MASK);
+	vlan_id = vlan_tci & VLAN_VID_MASK;
+	vlan_dev = vlan_group_get_device(grp, vlan_id);
 
-	if (!skb->dev)
+	if (vlan_dev)
+		skb->dev = vlan_dev;
+	else if (vlan_id)
 		goto drop;
 
 	for (p = napi->gro_list; p; p = p->next) {
