@@ -584,7 +584,7 @@ static inline void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 				conn->out = 1;
 				conn->link_mode |= HCI_LM_MASTER;
 			} else
-				BT_ERR("No memmory for new connection");
+				BT_ERR("No memory for new connection");
 		}
 	}
 
@@ -965,7 +965,7 @@ static inline void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *sk
 		conn = hci_conn_hash_lookup_ba(hdev, ev->link_type, &ev->bdaddr);
 		if (!conn) {
 			if (!(conn = hci_conn_add(hdev, ev->link_type, &ev->bdaddr))) {
-				BT_ERR("No memmory for new connection");
+				BT_ERR("No memory for new connection");
 				hci_dev_unlock(hdev);
 				return;
 			}
