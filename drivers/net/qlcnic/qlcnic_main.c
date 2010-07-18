@@ -2695,9 +2695,14 @@ static int qlcnic_is_first_func(struct pci_dev *pdev)
 		oth_pdev = pci_get_domain_bus_and_slot(pci_domain_nr
 			(pdev->bus), pdev->bus->number,
 			PCI_DEVFN(PCI_SLOT(pdev->devfn), val));
+		if (!oth_pdev)
+			continue;
 
-		if (oth_pdev && (oth_pdev->current_state != PCI_D3cold))
+		if (oth_pdev->current_state != PCI_D3cold) {
+			pci_dev_put(oth_pdev);
 			return 0;
+		}
+		pci_dev_put(oth_pdev);
 	}
 	return 1;
 }
