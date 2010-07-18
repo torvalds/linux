@@ -99,7 +99,7 @@ static int i2c_sendbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_wait_done(i2c_adap))
 			return -EIO;
 		if (!i2c_slave_did_ack(i2c_adap))
-			return -EIO;
+			return -ENXIO;
 
 		dprintk(1, "%s() returns 0\n", __func__);
 		return 0;
@@ -185,7 +185,7 @@ static int i2c_readbytes(struct i2c_adapter *i2c_adap,
 		if (!i2c_wait_done(i2c_adap))
 			return -EIO;
 		if (!i2c_slave_did_ack(i2c_adap))
-			return -EIO;
+			return -ENXIO;
 
 
 		dprintk(1, "%s() returns 0\n", __func__);
