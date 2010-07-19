@@ -1790,7 +1790,7 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 		if (dir_in) {
 			s3c_hsotg_complete_in(hsotg, hs_ep);
 
-			if (idx == 0)
+			if (idx == 0 && !hs_ep->req)
 				s3c_hsotg_enqueue_setup(hsotg);
 		} else if (using_dma(hsotg)) {
 			/* We're using DMA, we need to fire an OutDone here
