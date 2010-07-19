@@ -24,6 +24,76 @@ struct _fpx_sw_bytes fx_sw_reserved_ia32;
 static unsigned int *xstate_offsets, *xstate_sizes, xstate_features;
 
 /*
+ * If a processor implementation discern that a processor state component is
+ * in its initialized state it may modify the corresponding bit in the
+ * xsave_hdr.xstate_bv as '0', with out modifying the corresponding memory
+ * layout in the case of xsaveopt. While presenting the xstate information to
+ * the user, we always ensure that the memory layout of a feature will be in
+ * the init state if the corresponding header bit is zero. This is to ensure
+ * that the user doesn't see some stale state in the memory layout during
+ * signal handling, debugging etc.
+ */
+void __sanitize_i387_state(struct task_struct *tsk)
+{
+	u64 xstate_bv;
+	int feature_bit = 0x2;
+	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state->fxsave;
+
+	if (!fx)
+		return;
+
+	BUG_ON(task_thread_info(tsk)->status & TS_USEDFPU);
+
+	xstate_bv = tsk->thread.fpu.state->xsave.xsave_hdr.xstate_bv;
+
+	/*
+	 * None of the feature bits are in init state. So nothing else
+	 * to do for us, as the memory layout is upto date.
+	 */
+	if ((xstate_bv & pcntxt_mask) == pcntxt_mask)
+		return;
+
+	/*
+	 * FP is in init state
+	 */
+	if (!(xstate_bv & XSTATE_FP)) {
+		fx->cwd = 0x37f;
+		fx->swd = 0;
+		fx->twd = 0;
+		fx->fop = 0;
+		fx->rip = 0;
+		fx->rdp = 0;
+		memset(&fx->st_space[0], 0, 128);
+	}
+
+	/*
+	 * SSE is in init state
+	 */
+	if (!(xstate_bv & XSTATE_SSE))
+		memset(&fx->xmm_space[0], 0, 256);
+
+	xstate_bv = (pcntxt_mask & ~xstate_bv) >> 2;
+
+	/*
+	 * Update all the other memory layouts for which the corresponding
+	 * header bit is in the init state.
+	 */
+	while (xstate_bv) {
+		if (xstate_bv & 0x1) {
+			int offset = xstate_offsets[feature_bit];
+			int size = xstate_sizes[feature_bit];
+
+			memcpy(((void *) fx) + offset,
+			       ((void *) init_xstate_buf) + offset,
+			       size);
+		}
+
+		xstate_bv >>= 1;
+		feature_bit++;
+	}
+}
+
+/*
  * Check for the presence of extended state information in the
  * user fpstate pointer in the sigcontext.
  */
@@ -112,6 +182,7 @@ int save_i387_xstate(void __user *buf)
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
 	} else {
+		sanitize_i387_state(tsk);
 		if (__copy_to_user(buf, &tsk->thread.fpu.state->fxsave,
 				   xstate_size))
 			return -1;
@@ -333,10 +404,26 @@ static void setup_xstate_features(void)
  */
 static void __init setup_xstate_init(void)
 {
+	setup_xstate_features();
+
+	/*
+	 * Setup init_xstate_buf to represent the init state of
+	 * all the features managed by the xsave
+	 */
 	init_xstate_buf = alloc_bootmem(xstate_size);
 	init_xstate_buf->i387.mxcsr = MXCSR_DEFAULT;
 
-	setup_xstate_features();
+	clts();
+	/*
+	 * Init all the features state with header_bv being 0x0
+	 */
+	xrstor_state(init_xstate_buf, -1);
+	/*
+	 * Dump the init state again. This is to identify the init state
+	 * of any feature which is not represented by all zero's.
+	 */
+	xsave_state(init_xstate_buf, -1);
+	stts();
 }
 
 /*

@@ -190,6 +190,8 @@ int xfpregs_get(struct task_struct *target, const struct user_regset *regset,
 	if (ret)
 		return ret;
 
+	sanitize_i387_state(target);
+
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.fpu.state->fxsave, 0, -1);
 }
@@ -206,6 +208,8 @@ int xfpregs_set(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	sanitize_i387_state(target);
 
 	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				 &target->thread.fpu.state->fxsave, 0, -1);
@@ -446,6 +450,8 @@ int fpregs_get(struct task_struct *target, const struct user_regset *regset,
 					   -1);
 	}
 
+	sanitize_i387_state(target);
+
 	if (kbuf && pos == 0 && count == sizeof(env)) {
 		convert_from_fxsr(kbuf, target);
 		return 0;
@@ -466,6 +472,8 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	ret = init_fpu(target);
 	if (ret)
 		return ret;
+
+	sanitize_i387_state(target);
 
 	if (!HAVE_HWFP)
 		return fpregs_soft_set(target, regset, pos, count, kbuf, ubuf);
@@ -532,6 +540,9 @@ static int save_i387_xsave(void __user *buf)
 	struct task_struct *tsk = current;
 	struct _fpstate_ia32 __user *fx = buf;
 	int err = 0;
+
+
+	sanitize_i387_state(tsk);
 
 	/*
 	 * For legacy compatible, we always set FP/SSE bits in the bit

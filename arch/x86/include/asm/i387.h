@@ -58,9 +58,23 @@ extern int restore_i387_xstate_ia32(void __user *buf);
 
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
+static __always_inline __pure bool use_xsaveopt(void)
+{
+	return 0;
+}
+
 static __always_inline __pure bool use_xsave(void)
 {
 	return static_cpu_has(X86_FEATURE_XSAVE);
+}
+
+extern void __sanitize_i387_state(struct task_struct *);
+
+static inline void sanitize_i387_state(struct task_struct *tsk)
+{
+	if (!use_xsaveopt())
+		return;
+	__sanitize_i387_state(tsk);
 }
 
 #ifdef CONFIG_X86_64
