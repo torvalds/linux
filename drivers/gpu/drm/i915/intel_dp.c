@@ -511,10 +511,36 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 {
 	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dp_priv   *dp_priv = intel_encoder->dev_priv;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int lane_count, clock;
 	int max_lane_count = intel_dp_max_lane_count(intel_encoder);
 	int max_clock = intel_dp_max_link_bw(intel_encoder) == DP_LINK_BW_2_7 ? 1 : 0;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
+
+	if ((IS_eDP(intel_encoder) || IS_PCH_eDP(dp_priv)) &&
+	    dev_priv->panel_fixed_mode) {
+		struct drm_display_mode *fixed_mode = dev_priv->panel_fixed_mode;
+
+		adjusted_mode->hdisplay = fixed_mode->hdisplay;
+		adjusted_mode->hsync_start = fixed_mode->hsync_start;
+		adjusted_mode->hsync_end = fixed_mode->hsync_end;
+		adjusted_mode->htotal = fixed_mode->htotal;
+
+		adjusted_mode->vdisplay = fixed_mode->vdisplay;
+		adjusted_mode->vsync_start = fixed_mode->vsync_start;
+		adjusted_mode->vsync_end = fixed_mode->vsync_end;
+		adjusted_mode->vtotal = fixed_mode->vtotal;
+
+		adjusted_mode->clock = fixed_mode->clock;
+		drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+
+		/*
+		 * the mode->clock is used to calculate the Data&Link M/N
+		 * of the pipe. For the eDP the fixed clock should be used.
+		 */
+		mode->clock = dev_priv->panel_fixed_mode->clock;
+	}
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {
