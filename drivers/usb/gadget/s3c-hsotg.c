@@ -538,6 +538,17 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	if (can_write > 512)
 		can_write = 512;
 
+	/* limit the write to one max-packet size worth of data, but allow
+	 * the transfer to return that it did not run out of fifo space
+	 * doing it. */
+	if (to_write > hs_ep->ep.maxpacket) {
+		to_write = hs_ep->ep.maxpacket;
+
+		s3c_hsotg_en_gsint(hsotg,
+				   periodic ? S3C_GINTSTS_PTxFEmp :
+				   S3C_GINTSTS_NPTxFEmp);
+	}
+
 	/* see if we can write data */
 
 	if (to_write > can_write) {
