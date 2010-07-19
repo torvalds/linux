@@ -3816,8 +3816,7 @@ static void  calc_bucket_map(int bucket[], int num_buckets,
 	}
 }
 
-static void
-cciss_put_controller_into_performant_mode(ctlr_info_t *h)
+static void __devinit cciss_put_controller_into_performant_mode(ctlr_info_t *h)
 {
 	int l = 0;
 	__u32 trans_support;
