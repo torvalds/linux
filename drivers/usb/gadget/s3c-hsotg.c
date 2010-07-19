@@ -2082,17 +2082,12 @@ irq_retry:
 		kill_all_requests(hsotg, &hsotg->eps[0], -ECONNRESET, true);
 
 		/* it seems after a reset we can end up with a situation
-		 * where the TXFIFO still has data in it... try flushing
-		 * it to remove anything that may still be in it.
+		 * where the TXFIFO still has data in it... the docs
+		 * suggest resetting all the fifos, so use the init_fifo
+		 * code to relayout and flush the fifos.
 		 */
 
-		if (1) {
-			writel(S3C_GRSTCTL_TxFNum(0) | S3C_GRSTCTL_TxFFlsh,
-			       hsotg->regs + S3C_GRSTCTL);
-
-			dev_info(hsotg->dev, "GNPTXSTS=%08x\n",
-				 readl(hsotg->regs + S3C_GNPTXSTS));
-		}
+		s3c_hsotg_init_fifo(hsotg);
 
 		s3c_hsotg_enqueue_setup(hsotg);
 
