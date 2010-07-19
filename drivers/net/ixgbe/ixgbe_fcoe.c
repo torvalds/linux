@@ -190,7 +190,7 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 	}
 
 	/* alloc the udl from our ddp pool */
-	ddp->udl = pci_pool_alloc(fcoe->pool, GFP_KERNEL, &ddp->udp);
+	ddp->udl = pci_pool_alloc(fcoe->pool, GFP_ATOMIC, &ddp->udp);
 	if (!ddp->udl) {
 		e_err(drv, "failed allocated ddp context\n");
 		goto out_noddp_unmap;
