@@ -1018,6 +1018,9 @@ static ssize_t __write_ports_addxprt(char *buf)
 				PF_INET6, port, SVC_SOCK_ANONYMOUS);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;
+
+	/* Decrease the count, but don't shut down the service */
+	nfsd_serv->sv_nrthreads--;
 	return 0;
 out_close:
 	xprt = svc_find_xprt(nfsd_serv, transport, PF_INET, port);
@@ -1026,8 +1029,7 @@ out_close:
 		svc_xprt_put(xprt);
 	}
 out_err:
-	/* Decrease the count, but don't shut down the service */
-	nfsd_serv->sv_nrthreads--;
+	svc_destroy(nfsd_serv);
 	return err;
 }
 
