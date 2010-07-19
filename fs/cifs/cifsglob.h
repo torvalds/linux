@@ -214,7 +214,8 @@ struct cifsSesInfo {
 	char *serverNOS;	/* name of network operating system of server */
 	char *serverDomain;	/* security realm of server */
 	int Suid;		/* remote smb uid  */
-	uid_t linux_uid;        /* local Linux uid */
+	uid_t linux_uid;        /* overriding owner of files on the mount */
+	uid_t cred_uid;		/* owner of credentials */
 	int capabilities;
 	char serverName[SERVER_NAME_LEN_WITH_NULL * 2];	/* BB make bigger for
 				TCP names - will ipv6 and sctp addresses fit? */

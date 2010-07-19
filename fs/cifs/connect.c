@@ -67,6 +67,7 @@ struct smb_vol {
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[16]; /* netbios name of client */
 	char target_rfc1001_name[16]; /* netbios name of server for Win9x/ME */
+	uid_t cred_uid;
 	uid_t linux_uid;
 	gid_t linux_gid;
 	mode_t file_mode;
@@ -832,7 +833,8 @@ cifs_parse_mount_options(char *options, const char *devname,
 	/* null target name indicates to use *SMBSERVR default called name
 	   if we end up sending RFC1001 session initialize */
 	vol->target_rfc1001_name[0] = 0;
-	vol->linux_uid = current_uid();  /* use current_euid() instead? */
+	vol->cred_uid = current_uid();
+	vol->linux_uid = current_uid();
 	vol->linux_gid = current_gid();
 
 	/* default to only allowing write access to owner of the mount */
@@ -1658,7 +1660,7 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb_vol *vol)
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 		switch (server->secType) {
 		case Kerberos:
-			if (vol->linux_uid != ses->linux_uid)
+			if (vol->cred_uid != ses->cred_uid)
 				continue;
 			break;
 		default:
@@ -1775,6 +1777,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb_vol *volume_info)
 		if (ses->domainName)
 			strcpy(ses->domainName, volume_info->domainname);
 	}
+	ses->cred_uid = volume_info->cred_uid;
 	ses->linux_uid = volume_info->linux_uid;
 	ses->overrideSecFlg = volume_info->secFlg;
 
