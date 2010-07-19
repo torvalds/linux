@@ -4096,6 +4096,18 @@ static void __devinit cciss_find_board_params(ctlr_info_t *h)
 	}
 }
 
+static inline bool CISS_signature_present(ctlr_info_t *h)
+{
+	if ((readb(&h->cfgtable->Signature[0]) != 'C') ||
+	    (readb(&h->cfgtable->Signature[1]) != 'I') ||
+	    (readb(&h->cfgtable->Signature[2]) != 'S') ||
+	    (readb(&h->cfgtable->Signature[3]) != 'S')) {
+		dev_warn(&h->pdev->dev, "not a valid CISS config table\n");
+		return false;
+	}
+	return true;
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	int prod_index, err;
@@ -4153,11 +4165,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 #endif				/* CCISS_DEBUG */
 	cciss_find_board_params(c);
 
-	if ((readb(&c->cfgtable->Signature[0]) != 'C') ||
-	    (readb(&c->cfgtable->Signature[1]) != 'I') ||
-	    (readb(&c->cfgtable->Signature[2]) != 'S') ||
-	    (readb(&c->cfgtable->Signature[3]) != 'S')) {
-		printk("Does not appear to be a valid CISS config table\n");
+	if (!CISS_signature_present(c)) {
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
