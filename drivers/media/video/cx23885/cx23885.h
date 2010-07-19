@@ -403,7 +403,8 @@ static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
 #define call_all(dev, o, f, args...) \
 	v4l2_device_call_all(&dev->v4l2_dev, 0, o, f, ##args)
 
-#define CX23885_HW_888_IR (1 << 0)
+#define CX23885_HW_888_IR  (1 << 0)
+#define CX23885_HW_AV_CORE (1 << 1)
 
 #define call_hw(dev, grpid, o, f, args...) \
 	v4l2_device_call_all(&dev->v4l2_dev, grpid, o, f, ##args)
