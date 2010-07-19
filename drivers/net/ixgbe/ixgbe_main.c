@@ -2800,10 +2800,8 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 		    /* Perform hash on these packet types */
 		mrqc |= IXGBE_MRQC_RSS_FIELD_IPV4
 		      | IXGBE_MRQC_RSS_FIELD_IPV4_TCP
-		      | IXGBE_MRQC_RSS_FIELD_IPV4_UDP
 		      | IXGBE_MRQC_RSS_FIELD_IPV6
-		      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP
-		      | IXGBE_MRQC_RSS_FIELD_IPV6_UDP;
+		      | IXGBE_MRQC_RSS_FIELD_IPV6_TCP;
 	}
 	IXGBE_WRITE_REG(hw, IXGBE_MRQC, mrqc);
 
