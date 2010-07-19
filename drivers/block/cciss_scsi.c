@@ -49,8 +49,10 @@ static int fill_cmd(ctlr_info_t *h, CommandList_struct *c, __u8 cmd, void *buff,
 	__u8 page_code, unsigned char *scsi3addr,
 	int cmd_type);
 
-static CommandList_struct *cmd_alloc(ctlr_info_t *h, int get_from_pool);
-static void cmd_free(ctlr_info_t *h, CommandList_struct *c, int got_from_pool);
+static CommandList_struct *cmd_alloc(ctlr_info_t *h);
+static CommandList_struct *cmd_special_alloc(ctlr_info_t *h);
+static void cmd_free(ctlr_info_t *h, CommandList_struct *c);
+static void cmd_special_free(ctlr_info_t *h, CommandList_struct *c);
 
 static int cciss_scsi_proc_info(
 		struct Scsi_Host *sh,
@@ -1582,7 +1584,7 @@ static int wait_for_device_to_become_ready(ctlr_info_t *h,
 	int waittime = HZ;
 	CommandList_struct *c;
 
-	c = cmd_alloc(h, 1);
+	c = cmd_alloc(h);
 	if (!c) {
 		printk(KERN_WARNING "cciss%d: out of memory in "
 			"wait_for_device_to_become_ready.\n", h->ctlr);
@@ -1640,7 +1642,7 @@ retry_tur:
 	else
 		printk(KERN_WARNING "cciss%d: device is ready.\n", h->ctlr);
 
-	cmd_free(h, c, 1);
+	cmd_free(h, c);
 	return rc;
 }
 
