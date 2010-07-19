@@ -52,7 +52,8 @@
 struct snd_platform_data {
 	u32 tx_dma_offset;
 	u32 rx_dma_offset;
-	enum dma_event_q eventq_no;	/* event queue number */
+	enum dma_event_q asp_chan_q;	/* event queue number for ASP channel */
+	enum dma_event_q ram_chan_q;	/* event queue number for RAM channel */
 	unsigned int codec_fmt;
 	/*
 	 * Allowing this is more efficient and eliminates left and right swaps

@@ -648,6 +648,8 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	struct snd_platform_data *pdata = pdev->dev.platform_data;
 	struct davinci_mcbsp_dev *dev;
 	struct resource *mem, *ioarea, *res;
+	enum dma_event_q asp_chan_q = EVENTQ_0;
+	enum dma_event_q ram_chan_q = EVENTQ_1;
 	int ret;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -676,7 +678,15 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 			pdata->sram_size_capture;
 		dev->clk_input_pin = pdata->clk_input_pin;
 		dev->i2s_accurate_sck = pdata->i2s_accurate_sck;
+		asp_chan_q = pdata->asp_chan_q;
+		ram_chan_q = pdata->ram_chan_q;
 	}
+
+	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].asp_chan_q	= asp_chan_q;
+	dev->dma_params[SNDRV_PCM_STREAM_PLAYBACK].ram_chan_q	= ram_chan_q;
+	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].asp_chan_q	= asp_chan_q;
+	dev->dma_params[SNDRV_PCM_STREAM_CAPTURE].ram_chan_q	= ram_chan_q;
+
 	dev->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dev->clk)) {
 		ret = -ENODEV;
