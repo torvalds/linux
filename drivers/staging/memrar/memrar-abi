@@ -1,7 +1,7 @@
 What:		/dev/memrar
 Date:		March 2010
-KernelVersion:	Kernel version this feature first showed up in.
-Contact:	Ossama Othman <ossama.othman@intel.com>
+KernelVersion:	2.6.34
+Contact:	Eugene Epshteyn <eugene.epshteyn@intel.com>
 Description:	The Intel Moorestown Restricted Access Region (RAR)
 		Handler driver exposes an ioctl() based interface that
 		allows a user to reserve and release blocks of RAR
