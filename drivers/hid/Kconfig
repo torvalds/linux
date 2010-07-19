@@ -71,7 +71,6 @@ config HID_A4TECH
 config HID_ACRUX_FF
 	tristate "ACRUX force feedback support"
 	depends on USB_HID
-	default !EMBEDDED
 	select INPUT_FF_MEMLESS
 	---help---
 	Say Y here if you want to enable force feedback support for ACRUX
