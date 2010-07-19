@@ -4108,6 +4108,18 @@ static inline bool CISS_signature_present(ctlr_info_t *h)
 	return true;
 }
 
+/* Need to enable prefetch in the SCSI core for 6400 in x86 */
+static inline void cciss_enable_scsi_prefetch(ctlr_info_t *h)
+{
+#ifdef CONFIG_X86
+	u32 prefetch;
+
+	prefetch = readl(&(h->cfgtable->SCSI_Prefetch));
+	prefetch |= 0x100;
+	writel(prefetch, &(h->cfgtable->SCSI_Prefetch));
+#endif
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	int prod_index, err;
@@ -4169,16 +4181,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
-#ifdef CONFIG_X86
-	{
-		/* Need to enable prefetch in the SCSI core for 6400 in x86 */
-		__u32 prefetch;
-		prefetch = readl(&(c->cfgtable->SCSI_Prefetch));
-		prefetch |= 0x100;
-		writel(prefetch, &(c->cfgtable->SCSI_Prefetch));
-	}
-#endif
-
+	cciss_enable_scsi_prefetch(c);
 	/* Disabling DMA prefetch and refetch for the P600.
 	 * An ASIC bug may result in accesses to invalid memory addresses.
 	 * We've disabled prefetch for some time now. Testing with XEN
