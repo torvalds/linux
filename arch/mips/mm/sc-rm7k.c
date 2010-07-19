@@ -95,16 +95,8 @@ static __cpuinit void __rm7k_sc_enable(void)
 	write_c0_taglo(0);
 	write_c0_taghi(0);
 
-	for (i = 0; i < scache_size; i += sc_lsize) {
-		__asm__ __volatile__ (
-		      ".set noreorder\n\t"
-		      ".set mips3\n\t"
-		      "cache %1, (%0)\n\t"
-		      ".set mips0\n\t"
-		      ".set reorder"
-		      :
-		      : "r" (CKSEG0ADDR(i)), "i" (Index_Store_Tag_SD));
-	}
+	for (i = 0; i < scache_size; i += sc_lsize)
+		cache_op(Index_Store_Tag_SD, CKSEG0ADDR(i));
 }
 
 static __cpuinit void rm7k_sc_enable(void)
