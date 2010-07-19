@@ -1374,8 +1374,22 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	 */
 
 	ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
-	if (ret)
+	if (ret) {
+		if ((IS_eDP(intel_encoder) || IS_PCH_eDP(dp_priv)) &&
+		    !dev_priv->panel_fixed_mode) {
+			struct drm_display_mode *newmode;
+			list_for_each_entry(newmode, &connector->probed_modes,
+					    head) {
+				if (newmode->type & DRM_MODE_TYPE_PREFERRED) {
+					dev_priv->panel_fixed_mode =
+						drm_mode_duplicate(dev, newmode);
+					break;
+				}
+			}
+		}
+
 		return ret;
+	}
 
 	/* if eDP has no EDID, try to use fixed panel mode from VBT */
 	if (IS_eDP(intel_encoder) || IS_PCH_eDP(dp_priv)) {
