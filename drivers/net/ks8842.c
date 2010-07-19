@@ -424,16 +424,14 @@ static int ks8842_tx_frame(struct sk_buff *skb, struct net_device *netdev)
 static void ks8842_rx_frame(struct net_device *netdev,
 	struct ks8842_adapter *adapter)
 {
-	u16 status16;
 	u32 status;
 	int len;
 
 	if (adapter->conf_flags & KS884X_16BIT) {
-		status16 = ks8842_read16(adapter, 17, REG_QMU_DATA_LO);
-		len  = (int)ks8842_read16(adapter, 17, REG_QMU_DATA_HI);
-		len &= 0xffff;
+		status = ks8842_read16(adapter, 17, REG_QMU_DATA_LO);
+		len = ks8842_read16(adapter, 17, REG_QMU_DATA_HI);
 		netdev_dbg(netdev, "%s - rx_data: status: %x\n",
-			   __func__, status16);
+			   __func__, status);
 	} else {
 		status = ks8842_read32(adapter, 17, REG_QMU_DATA_LO);
 		len = (status >> 16) & 0x7ff;
