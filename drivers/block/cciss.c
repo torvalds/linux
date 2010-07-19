@@ -4486,6 +4486,34 @@ static __devinit int cciss_hard_reset_controller(struct pci_dev *pdev)
 	return 0;
 }
 
+static __devinit int cciss_init_reset_devices(struct pci_dev *pdev)
+{
+	int i;
+
+	if (!reset_devices)
+		return 0;
+
+	/* Reset the controller with a PCI power-cycle */
+	if (cciss_hard_reset_controller(pdev) || cciss_reset_msi(pdev))
+		return -ENODEV;
+
+	/* Some devices (notably the HP Smart Array 5i Controller)
+	   need a little pause here */
+	msleep(CCISS_POST_RESET_PAUSE_MSECS);
+
+	/* Now try to get the controller to respond to a no-op */
+	for (i = 0; i < CCISS_POST_RESET_NOOP_RETRIES; i++) {
+		if (cciss_noop(pdev) == 0)
+			break;
+		else
+			dev_warn(&pdev->dev, "no-op failed%s\n",
+				(i < CCISS_POST_RESET_NOOP_RETRIES - 1 ?
+					"; re-trying" : ""));
+		msleep(CCISS_POST_RESET_NOOP_INTERVAL_MSECS);
+	}
+	return 0;
+}
+
 /*
  *  This is it.  Find all the controllers and register them.  I really hate
  *  stealing all these major device numbers.
@@ -4501,26 +4529,9 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	int dac, return_code;
 	InquiryData_struct *inq_buff;
 
-	if (reset_devices) {
-		/* Reset the controller with a PCI power-cycle */
-		if (cciss_hard_reset_controller(pdev) || cciss_reset_msi(pdev))
-			return -ENODEV;
-
-		/* Now try to get the controller to respond to a no-op. Some
-		   devices (notably the HP Smart Array 5i Controller) need
-		   up to 30 seconds to respond. */
-		for (i=0; i<30; i++) {
-			if (cciss_noop(pdev) == 0)
-				break;
-
-			schedule_timeout_uninterruptible(HZ);
-		}
-		if (i == 30) {
-			printk(KERN_ERR "cciss: controller seems dead\n");
-			return -EBUSY;
-		}
-	}
-
+	rc = cciss_init_reset_devices(pdev);
+	if (rc)
+		return rc;
 	i = alloc_cciss_hba();
 	if (i < 0)
 		return -1;
