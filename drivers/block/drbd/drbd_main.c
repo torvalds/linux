@@ -2371,11 +2371,7 @@ static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
 
 static void consider_delay_probes(struct drbd_conf *mdev)
 {
-	if (mdev->state.conn != C_SYNC_SOURCE || mdev->agreed_pro_version < 93)
-		return;
-
-	if (mdev->dp_volume_last + mdev->sync_conf.dp_volume * 2 < mdev->send_cnt)
-		drbd_send_delay_probes(mdev);
+	return;
 }
 
 static int w_delay_probes(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
