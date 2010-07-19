@@ -12,6 +12,8 @@
  * published by the Free Software Foundation.
 */
 
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -130,6 +132,7 @@ struct s3c_hsotg_ep {
  * @regs: The memory area mapped for accessing registers.
  * @regs_res: The resource that was allocated when claiming register space.
  * @irq: The IRQ number we are using
+ * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
  * @debug_root: root directrory for debugfs.
  * @debug_file: main status file for debugfs.
  * @debug_fifo: FIFO status file for debugfs.
@@ -147,6 +150,8 @@ struct s3c_hsotg {
 	void __iomem		*regs;
 	struct resource		*regs_res;
 	int			irq;
+
+	unsigned int		dedicated_fifos:1;
 
 	struct dentry		*debug_root;
 	struct dentry		*debug_file;
@@ -466,7 +471,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 	if (to_write == 0)
 		return 0;
 
-	if (periodic) {
+	if (periodic && !hsotg->dedicated_fifos) {
 		u32 epsize = readl(hsotg->regs + S3C_DIEPTSIZ(hs_ep->index));
 		int size_left;
 		int size_done;
@@ -504,6 +509,11 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 			s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_PTxFEmp);
 			return -ENOSPC;
 		}
+	} else if (hsotg->dedicated_fifos && hs_ep->index != 0) {
+		can_write = readl(hsotg->regs + S3C_DTXFSTS(hs_ep->index));
+
+		can_write &= 0xffff;
+		can_write *= 4;
 	} else {
 		if (S3C_GNPTXSTS_NPTxQSpcAvail_GET(gnptxsts) == 0) {
 			dev_dbg(hsotg->dev,
@@ -1829,6 +1839,15 @@ static void s3c_hsotg_epint(struct s3c_hsotg *hsotg, unsigned int idx,
 				 __func__, idx);
 			clear |= S3C_DIEPMSK_INTknEPMisMsk;
 		}
+
+		/* FIFO has space or is empty (see GAHBCFG) */
+		if (hsotg->dedicated_fifos &&
+		    ints & S3C_DIEPMSK_TxFIFOEmpty) {
+			dev_dbg(hsotg->dev, "%s: ep%d: TxFIFOEmpty\n",
+				__func__, idx);
+			s3c_hsotg_trytx(hsotg, hs_ep);
+			clear |= S3C_DIEPMSK_TxFIFOEmpty;
+		}
 	}
 
 	writel(clear, hsotg->regs + epint_reg);
@@ -2280,6 +2299,12 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 		break;
 	}
 
+	/* if the hardware has dedicated fifos, we must give each IN EP
+	 * a unique tx-fifo even if it is non-periodic.
+	 */
+	if (dir_in && hsotg->dedicated_fifos)
+		epctrl |= S3C_DxEPCTL_TxFNum(index);
+
 	/* for non control endpoints, set PID to D0 */
 	if (index)
 		epctrl |= S3C_DxEPCTL_SetD0PID;
@@ -2569,7 +2594,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	writel(S3C_DIEPMSK_TimeOUTMsk | S3C_DIEPMSK_AHBErrMsk |
 	       S3C_DIEPMSK_INTknEPMisMsk |
-	       S3C_DIEPMSK_EPDisbldMsk | S3C_DIEPMSK_XferComplMsk,
+	       S3C_DIEPMSK_EPDisbldMsk | S3C_DIEPMSK_XferComplMsk |
+	       ((hsotg->dedicated_fifos) ? S3C_DIEPMSK_TxFIFOEmpty : 0),
 	       hsotg->regs + S3C_DIEPMSK);
 
 	/* don't need XferCompl, we get that from RXFIFO in slave mode. In
@@ -2778,6 +2804,8 @@ static void s3c_hsotg_otgreset(struct s3c_hsotg *hsotg)
 
 static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 {
+	u32 cfg4;
+
 	/* unmask subset of endpoint interrupts */
 
 	writel(S3C_DIEPMSK_TimeOUTMsk | S3C_DIEPMSK_AHBErrMsk |
@@ -2813,6 +2841,14 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 
 	writel(using_dma(hsotg) ? S3C_GAHBCFG_DMAEn : 0x0,
 	       hsotg->regs + S3C_GAHBCFG);
+
+	/* check hardware configuration */
+
+	cfg4 = readl(hsotg->regs + 0x50);
+	hsotg->dedicated_fifos = (cfg4 >> 25) & 1;
+
+	dev_info(hsotg->dev, "%s fifos\n",
+		 hsotg->dedicated_fifos ? "dedicated" : "shared");
 }
 
 static void s3c_hsotg_dump(struct s3c_hsotg *hsotg)
