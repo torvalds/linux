@@ -2222,6 +2222,7 @@ S:	Maintained
 F:	drivers/net/eth16i.c
 
 EXT2 FILE SYSTEM
+M:	Jan Kara <jack@suse.cz>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/ext2.txt
@@ -2229,6 +2230,7 @@ F:	fs/ext2/
 F:	include/linux/ext2*
 
 EXT3 FILE SYSTEM
+M:	Jan Kara <jack@suse.cz>
 M:	Andrew Morton <akpm@linux-foundation.org>
 M:	Andreas Dilger <adilger.kernel@dilger.ca>
 L:	linux-ext4@vger.kernel.org
