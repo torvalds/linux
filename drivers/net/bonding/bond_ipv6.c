@@ -178,6 +178,8 @@ static int bond_inet6addr_event(struct notifier_block *this,
 		}
 
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
+			if (!bond->vlgrp)
+				continue;
 			vlan_dev = vlan_group_get_device(bond->vlgrp,
 							 vlan->vlan_id);
 			if (vlan_dev == event_dev) {
