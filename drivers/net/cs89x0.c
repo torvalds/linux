@@ -176,12 +176,6 @@ static unsigned int cs8900_irq_map[] = {IRQ_IXDP2351_CS8900, 0, 0, 0};
 #elif defined(CONFIG_ARCH_IXDP2X01)
 static unsigned int netcard_portlist[] __used __initdata = {IXDP2X01_CS8900_VIRT_BASE, 0};
 static unsigned int cs8900_irq_map[] = {IRQ_IXDP2X01_CS8900, 0, 0, 0};
-#elif defined(CONFIG_ARCH_PNX010X)
-#include <mach/gpio.h>
-#define CIRRUS_DEFAULT_BASE	IO_ADDRESS(EXT_STATIC2_s0_BASE + 0x200000)	/* = Physical address 0x48200000 */
-#define CIRRUS_DEFAULT_IRQ	VH_INTC_INT_NUM_CASCADED_INTERRUPT_1 /* Event inputs bank 1 - ID 35/bit 3 */
-static unsigned int netcard_portlist[] __used __initdata = {CIRRUS_DEFAULT_BASE, 0};
-static unsigned int cs8900_irq_map[] = {CIRRUS_DEFAULT_IRQ, 0, 0, 0};
 #elif defined(CONFIG_MACH_MX31ADS)
 #include <mach/board-mx31ads.h>
 static unsigned int netcard_portlist[] __used __initdata = {
@@ -367,18 +361,6 @@ writeword(unsigned long base_addr, int portno, u16 value)
 {
 	__raw_writel(value, base_addr + (portno << 1));
 }
-#elif defined(CONFIG_ARCH_PNX010X)
-static u16
-readword(unsigned long base_addr, int portno)
-{
-	return inw(base_addr + (portno << 1));
-}
-
-static void
-writeword(unsigned long base_addr, int portno, u16 value)
-{
-	outw(value, base_addr + (portno << 1));
-}
 #else
 static u16
 readword(unsigned long base_addr, int portno)
@@ -540,30 +522,6 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 		lp->force = g_cs89x0_media__force;
 #endif
         }
-
-#ifdef CONFIG_ARCH_PNX010X
-	initialize_ebi();
-
-	/* Map GPIO registers for the pins connected to the CS8900a. */
-	if (map_cirrus_gpio() < 0)
-		return -ENODEV;
-
-	reset_cirrus();
-
-	/* Map event-router registers. */
-	if (map_event_router() < 0)
-		return -ENODEV;
-
-	enable_cirrus_irq();
-
-	unmap_cirrus_gpio();
-	unmap_event_router();
-
-	dev->base_addr = ioaddr;
-
-	for (i = 0 ; i < 3 ; i++)
-		readreg(dev, 0);
-#endif
 
 	/* Grab the region so we can find another board if autoIRQ fails. */
 	/* WTF is going on here? */
@@ -1343,9 +1301,6 @@ net_open(struct net_device *dev)
 	case A_CNF_MEDIA_10B_2: result = lp->adapter_cnf & A_CNF_10B_2; break;
         default: result = lp->adapter_cnf & (A_CNF_10B_T | A_CNF_AUI | A_CNF_10B_2);
         }
-#ifdef CONFIG_ARCH_PNX010X
-	result = A_CNF_10B_T;
-#endif
         if (!result) {
                 printk(KERN_ERR "%s: EEPROM is configured for unavailable media\n", dev->name);
 release_dma:
