@@ -15,6 +15,9 @@
  *
  * CX23885 support by Steven Toth <stoth@linuxtv.org>.
  *
+ * CX2388[578] IRQ handling, IO Pin mux configuration and other small fixes are
+ * Copyright (C) 2010 Andy Walls <awalls@md.metrocast.net>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
@@ -47,6 +50,28 @@
 MODULE_DESCRIPTION("Conexant CX25840 audio/video decoder driver");
 MODULE_AUTHOR("Ulf Eklund, Chris Kennedy, Hans Verkuil, Tyler Trafford");
 MODULE_LICENSE("GPL");
+
+#define CX25840_VID_INT_STAT_REG 0x410
+#define CX25840_VID_INT_STAT_BITS 0x0000ffff
+#define CX25840_VID_INT_MASK_BITS 0xffff0000
+#define CX25840_VID_INT_MASK_SHFT 16
+#define CX25840_VID_INT_MASK_REG 0x412
+
+#define CX23885_AUD_MC_INT_MASK_REG 0x80c
+#define CX23885_AUD_MC_INT_STAT_BITS 0xffff0000
+#define CX23885_AUD_MC_INT_CTRL_BITS 0x0000ffff
+#define CX23885_AUD_MC_INT_STAT_SHFT 16
+
+#define CX25840_AUD_INT_CTRL_REG 0x812
+#define CX25840_AUD_INT_STAT_REG 0x813
+
+#define CX23885_PIN_CTRL_IRQ_REG 0x123
+#define CX23885_PIN_CTRL_IRQ_IR_STAT  0x40
+#define CX23885_PIN_CTRL_IRQ_AUD_STAT 0x20
+#define CX23885_PIN_CTRL_IRQ_VID_STAT 0x10
+
+#define CX25840_IR_STATS_REG	0x210
+#define CX25840_IR_IRQEN_REG	0x214
 
 static int cx25840_debug;
 
@@ -135,6 +160,14 @@ int cx25840_and_or(struct i2c_client *client, u16 addr, unsigned and_mask,
 	return cx25840_write(client, addr,
 			     (cx25840_read(client, addr) & and_mask) |
 			     or_value);
+}
+
+int cx25840_and_or4(struct i2c_client *client, u16 addr, u32 and_mask,
+		    u32 or_value)
+{
+	return cx25840_write4(client, addr,
+			      (cx25840_read4(client, addr) & and_mask) |
+			      or_value);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -592,6 +625,13 @@ static void cx23885_initialize(struct i2c_client *client)
 
 	/* start microcontroller */
 	cx25840_and_or(client, 0x803, ~0x10, 0x10);
+
+	/* Disable and clear video interrupts - we don't use them */
+	cx25840_write4(client, CX25840_VID_INT_STAT_REG, 0xffffffff);
+
+	/* Disable and clear audio interrupts - we don't use them */
+	cx25840_write(client, CX25840_AUD_INT_CTRL_REG, 0xff);
+	cx25840_write(client, CX25840_AUD_INT_STAT_REG, 0xff);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1748,7 +1788,91 @@ static int cx25840_log_status(struct v4l2_subdev *sd)
 	log_video_status(client);
 	if (!is_cx2583x(state))
 		log_audio_status(client);
+	cx25840_ir_log_status(sd);
 	return 0;
+}
+
+static int cx23885_irq_handler(struct v4l2_subdev *sd, u32 status,
+			       bool *handled)
+{
+	struct cx25840_state *state = to_state(sd);
+	struct i2c_client *c = v4l2_get_subdevdata(sd);
+	u8 irq_stat, aud_stat, aud_en, ir_stat, ir_en;
+	u32 vid_stat, aud_mc_stat;
+	bool block_handled;
+	int ret = 0;
+
+	irq_stat = cx25840_read(c, CX23885_PIN_CTRL_IRQ_REG);
+	v4l_dbg(2, cx25840_debug, c, "AV Core IRQ status (entry): %s %s %s\n",
+		irq_stat & CX23885_PIN_CTRL_IRQ_IR_STAT ? "ir" : "  ",
+		irq_stat & CX23885_PIN_CTRL_IRQ_AUD_STAT ? "aud" : "   ",
+		irq_stat & CX23885_PIN_CTRL_IRQ_VID_STAT ? "vid" : "   ");
+
+	if ((is_cx23885(state) || is_cx23887(state))) {
+		ir_stat = cx25840_read(c, CX25840_IR_STATS_REG);
+		ir_en = cx25840_read(c, CX25840_IR_IRQEN_REG);
+		v4l_dbg(2, cx25840_debug, c,
+			"AV Core ir IRQ status: %#04x disables: %#04x\n",
+			ir_stat, ir_en);
+		if (irq_stat & CX23885_PIN_CTRL_IRQ_IR_STAT) {
+			block_handled = false;
+			ret = cx25840_ir_irq_handler(sd,
+						     status, &block_handled);
+			if (block_handled)
+				*handled = true;
+		}
+	}
+
+	aud_stat = cx25840_read(c, CX25840_AUD_INT_STAT_REG);
+	aud_en = cx25840_read(c, CX25840_AUD_INT_CTRL_REG);
+	v4l_dbg(2, cx25840_debug, c,
+		"AV Core audio IRQ status: %#04x disables: %#04x\n",
+		aud_stat, aud_en);
+	aud_mc_stat = cx25840_read4(c, CX23885_AUD_MC_INT_MASK_REG);
+	v4l_dbg(2, cx25840_debug, c,
+		"AV Core audio MC IRQ status: %#06x enables: %#06x\n",
+		aud_mc_stat >> CX23885_AUD_MC_INT_STAT_SHFT,
+		aud_mc_stat & CX23885_AUD_MC_INT_CTRL_BITS);
+	if (irq_stat & CX23885_PIN_CTRL_IRQ_AUD_STAT) {
+		if (aud_stat) {
+			cx25840_write(c, CX25840_AUD_INT_STAT_REG, aud_stat);
+			*handled = true;
+		}
+	}
+
+	vid_stat = cx25840_read4(c, CX25840_VID_INT_STAT_REG);
+	v4l_dbg(2, cx25840_debug, c,
+		"AV Core video IRQ status: %#06x disables: %#06x\n",
+		vid_stat & CX25840_VID_INT_STAT_BITS,
+		vid_stat >> CX25840_VID_INT_MASK_SHFT);
+	if (irq_stat & CX23885_PIN_CTRL_IRQ_VID_STAT) {
+		if (vid_stat & CX25840_VID_INT_STAT_BITS) {
+			cx25840_write4(c, CX25840_VID_INT_STAT_REG, vid_stat);
+			*handled = true;
+		}
+	}
+
+	irq_stat = cx25840_read(c, CX23885_PIN_CTRL_IRQ_REG);
+	v4l_dbg(2, cx25840_debug, c, "AV Core IRQ status (exit): %s %s %s\n",
+		irq_stat & CX23885_PIN_CTRL_IRQ_IR_STAT ? "ir" : "  ",
+		irq_stat & CX23885_PIN_CTRL_IRQ_AUD_STAT ? "aud" : "   ",
+		irq_stat & CX23885_PIN_CTRL_IRQ_VID_STAT ? "vid" : "   ");
+
+	return ret;
+}
+
+static int cx25840_irq_handler(struct v4l2_subdev *sd, u32 status,
+			       bool *handled)
+{
+	struct cx25840_state *state = to_state(sd);
+
+	*handled = false;
+
+	/* Only support the CX2388[578] AV Core for now */
+	if (is_cx2388x(state))
+		return cx23885_irq_handler(sd, status, handled);
+
+	return -ENODEV;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -1767,6 +1891,7 @@ static const struct v4l2_subdev_core_ops cx25840_core_ops = {
 	.g_register = cx25840_g_register,
 	.s_register = cx25840_s_register,
 #endif
+	.interrupt_service_routine = cx25840_irq_handler,
 };
 
 static const struct v4l2_subdev_tuner_ops cx25840_tuner_ops = {
@@ -1801,6 +1926,7 @@ static const struct v4l2_subdev_ops cx25840_ops = {
 	.audio = &cx25840_audio_ops,
 	.video = &cx25840_video_ops,
 	.vbi = &cx25840_vbi_ops,
+	.ir = &cx25840_ir_ops,
 };
 
 /* ----------------------------------------------------------------------- */
@@ -1942,6 +2068,7 @@ static int cx25840_probe(struct i2c_client *client,
 	state->id = id;
 	state->rev = device_id;
 
+	cx25840_ir_probe(sd);
 	return 0;
 }
 
@@ -1949,6 +2076,7 @@ static int cx25840_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
+	cx25840_ir_remove(sd);
 	v4l2_device_unregister_subdev(sd);
 	kfree(to_state(sd));
 	return 0;
