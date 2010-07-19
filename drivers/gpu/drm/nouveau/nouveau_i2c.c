@@ -278,3 +278,37 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 	return i2c->chan;
 }
 
+bool
+nouveau_probe_i2c_addr(struct nouveau_i2c_chan *i2c, int addr)
+{
+	struct i2c_msg msg = {
+		.addr = addr,
+		.len = 0,
+	};
+
+	return i2c_transfer(&i2c->adapter, &msg, 1) == 1;
+}
+
+int
+nouveau_i2c_identify(struct drm_device *dev, const char *what,
+		     struct i2c_board_info *info, int index)
+{
+	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, index);
+	int was_locked, i;
+
+	was_locked = NVLockVgaCrtcs(dev, false);
+	NV_DEBUG(dev, "Probing %ss on I2C bus: %d\n", what, index);
+
+	for (i = 0; info[i].addr; i++) {
+		if (nouveau_probe_i2c_addr(i2c, info[i].addr)) {
+			NV_INFO(dev, "Detected %s: %s\n", what, info[i].type);
+			goto out;
+		}
+	}
+
+	NV_DEBUG(dev, "No devices found.\n");
+out:
+	NVLockVgaCrtcs(dev, was_locked);
+
+	return info[i].addr ? i : -ENODEV;
+}

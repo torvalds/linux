@@ -139,26 +139,10 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 			     struct nouveau_encoder **pnv_encoder)
 {
 	struct drm_device *dev = connector->dev;
-	uint8_t out_buf[] = { 0x0, 0x0}, buf[2];
 	int ret, flags, i;
 
-	struct i2c_msg msgs[] = {
-		{
-			.addr = 0x50,
-			.flags = 0,
-			.len = 1,
-			.buf = out_buf,
-		},
-		{
-			.addr = 0x50,
-			.flags = I2C_M_RD,
-			.len = 1,
-			.buf = buf,
-		}
-	};
-
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
-		struct nouveau_i2c_chan *i2c = NULL;
+		struct nouveau_i2c_chan *i2c;
 		struct nouveau_encoder *nv_encoder;
 		struct drm_mode_object *obj;
 		int id;
@@ -178,10 +162,10 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 			continue;
 
 		nouveau_connector_ddc_prepare(connector, &flags);
-		ret = i2c_transfer(&i2c->adapter, msgs, 2);
+		ret = nouveau_probe_i2c_addr(i2c, 0x50);
 		nouveau_connector_ddc_finish(connector, flags);
 
-		if (ret == 2) {
+		if (ret) {
 			*pnv_encoder = nv_encoder;
 			return i2c;
 		}
