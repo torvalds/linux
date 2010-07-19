@@ -4112,13 +4112,25 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 	return 0;
 }
 
+static void __devinit cciss_get_max_perf_mode_cmds(struct ctlr_info *h)
+{
+	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	if (h->max_commands < 16) {
+		dev_warn(&h->pdev->dev, "Controller reports "
+			"max supported commands of %d, an obvious lie. "
+			"Using 16.  Ensure that firmware is up to date.\n",
+			h->max_commands);
+		h->max_commands = 16;
+	}
+}
+
 /* Interrogate the hardware for some limits:
  * max commands, max SG elements without chaining, and with chaining,
  * SG chain block size, etc.
  */
 static void __devinit cciss_find_board_params(ctlr_info_t *h)
 {
-	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	cciss_get_max_perf_mode_cmds(h);
 	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
 	h->maxsgentries = readl(&(h->cfgtable->MaxSGElements));
 	/*
