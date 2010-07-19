@@ -828,14 +828,7 @@ xfs_reclaim_inodes(
 
 /*
  * Shrinker infrastructure.
- *
- * This is all far more complex than it needs to be. It adds a global list of
- * mounts because the shrinkers can only call a global context. We need to make
- * the shrinkers pass a context to avoid the need for global state.
  */
-static LIST_HEAD(xfs_mount_list);
-static struct rw_semaphore xfs_mount_list_lock;
-
 static int
 xfs_reclaim_inode_shrink(
 	struct shrinker	*shrink,
@@ -847,65 +840,38 @@ xfs_reclaim_inode_shrink(
 	xfs_agnumber_t	ag;
 	int		reclaimable = 0;
 
+	mp = container_of(shrink, struct xfs_mount, m_inode_shrink);
 	if (nr_to_scan) {
 		if (!(gfp_mask & __GFP_FS))
 			return -1;
 
-		down_read(&xfs_mount_list_lock);
-		list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
-			xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
+		xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
 					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
-			if (nr_to_scan <= 0)
-				break;
-		}
-		up_read(&xfs_mount_list_lock);
-	}
+		/* if we don't exhaust the scan, don't bother coming back */
+		if (nr_to_scan > 0)
+			return -1;
+       }
 
-	down_read(&xfs_mount_list_lock);
-	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
-		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
-			pag = xfs_perag_get(mp, ag);
-			reclaimable += pag->pag_ici_reclaimable;
-			xfs_perag_put(pag);
-		}
+	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
+		pag = xfs_perag_get(mp, ag);
+		reclaimable += pag->pag_ici_reclaimable;
+		xfs_perag_put(pag);
 	}
-	up_read(&xfs_mount_list_lock);
 	return reclaimable;
-}
-
-static struct shrinker xfs_inode_shrinker = {
-	.shrink = xfs_reclaim_inode_shrink,
-	.seeks = DEFAULT_SEEKS,
-};
-
-void __init
-xfs_inode_shrinker_init(void)
-{
-	init_rwsem(&xfs_mount_list_lock);
-	register_shrinker(&xfs_inode_shrinker);
-}
-
-void
-xfs_inode_shrinker_destroy(void)
-{
-	ASSERT(list_empty(&xfs_mount_list));
-	unregister_shrinker(&xfs_inode_shrinker);
 }
 
 void
 xfs_inode_shrinker_register(
 	struct xfs_mount	*mp)
 {
-	down_write(&xfs_mount_list_lock);
-	list_add_tail(&mp->m_mplist, &xfs_mount_list);
-	up_write(&xfs_mount_list_lock);
+	mp->m_inode_shrink.shrink = xfs_reclaim_inode_shrink;
+	mp->m_inode_shrink.seeks = DEFAULT_SEEKS;
+	register_shrinker(&mp->m_inode_shrink);
 }
 
 void
 xfs_inode_shrinker_unregister(
 	struct xfs_mount	*mp)
 {
-	down_write(&xfs_mount_list_lock);
-	list_del(&mp->m_mplist);
-	up_write(&xfs_mount_list_lock);
+	unregister_shrinker(&mp->m_inode_shrink);
 }
