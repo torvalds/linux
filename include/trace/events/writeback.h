@@ -5,6 +5,7 @@
 #define _TRACE_WRITEBACK_H
 
 #include <linux/backing-dev.h>
+#include <linux/device.h>
 #include <linux/writeback.h>
 
 struct wb_writeback_work;
