@@ -3659,6 +3659,11 @@ void * __init __alloc_memory_core_early(int nid, u64 size, u64 align,
 		ptr = phys_to_virt(addr);
 		memset(ptr, 0, size);
 		reserve_early_without_check(addr, addr + size, "BOOTMEM");
+		/*
+		 * The min_count is set to 0 so that bootmem allocated blocks
+		 * are never reported as leaks.
+		 */
+		kmemleak_alloc(ptr, size, 0, 0);
 		return ptr;
 	}
 
