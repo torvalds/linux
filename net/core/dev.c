@@ -5282,15 +5282,17 @@ void netdev_run_todo(void)
 void dev_txq_stats_fold(const struct net_device *dev,
 			struct rtnl_link_stats64 *stats)
 {
-	unsigned long tx_bytes = 0, tx_packets = 0, tx_dropped = 0;
+	u64 tx_bytes = 0, tx_packets = 0, tx_dropped = 0;
 	unsigned int i;
 	struct netdev_queue *txq;
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		txq = netdev_get_tx_queue(dev, i);
+		spin_lock_bh(&txq->_xmit_lock);
 		tx_bytes   += txq->tx_bytes;
 		tx_packets += txq->tx_packets;
 		tx_dropped += txq->tx_dropped;
+		spin_unlock_bh(&txq->_xmit_lock);
 	}
 	if (tx_bytes || tx_packets || tx_dropped) {
 		stats->tx_bytes   = tx_bytes;
