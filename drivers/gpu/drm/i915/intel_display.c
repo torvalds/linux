@@ -2734,7 +2734,7 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	 */
 	entries_required = ((clock_in_khz / 1000) * pixel_size * latency_ns) /
 		1000;
-	entries_required /= wm->cacheline_size;
+	entries_required = DIV_ROUND_UP(entries_required, wm->cacheline_size);
 
 	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries_required);
 
@@ -2855,11 +2855,9 @@ static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
-	if (plane == 0)
-		size = dsparb & 0x7f;
-	else
-		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) -
-			(dsparb & 0x7f);
+	size = dsparb & 0x7f;
+	if (plane)
+		size = ((dsparb >> DSPARB_CSTART_SHIFT) & 0x7f) - size;
 
 	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
 			plane ? "B" : "A", size);
@@ -2873,11 +2871,9 @@ static int i85x_get_fifo_size(struct drm_device *dev, int plane)
 	uint32_t dsparb = I915_READ(DSPARB);
 	int size;
 
-	if (plane == 0)
-		size = dsparb & 0x1ff;
-	else
-		size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) -
-			(dsparb & 0x1ff);
+	size = dsparb & 0x1ff;
+	if (plane)
+		size = ((dsparb >> DSPARB_BEND_SHIFT) & 0x1ff) - size;
 	size >>= 1; /* Convert to cachelines */
 
 	DRM_DEBUG_KMS("FIFO size - (0x%08x) %s: %d\n", dsparb,
@@ -3009,12 +3005,12 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 	 */
 	entries_required = ((planea_clock / 1000) * pixel_size * latency_ns) /
 		1000;
-	entries_required /= G4X_FIFO_LINE_SIZE;
+	entries_required = DIV_ROUND_UP(entries_required, G4X_FIFO_LINE_SIZE);
 	planea_wm = entries_required + planea_params.guard_size;
 
 	entries_required = ((planeb_clock / 1000) * pixel_size * latency_ns) /
 		1000;
-	entries_required /= G4X_FIFO_LINE_SIZE;
+	entries_required = DIV_ROUND_UP(entries_required, G4X_FIFO_LINE_SIZE);
 	planeb_wm = entries_required + planeb_params.guard_size;
 
 	cursora_wm = cursorb_wm = 16;
@@ -3033,12 +3029,12 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		/* Use ns/us then divide to preserve precision */
 		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			      pixel_size * sr_hdisplay;
-		sr_entries = roundup(sr_entries / cacheline_size, 1);
+		sr_entries = DIV_ROUND_UP(sr_entries, cacheline_size);
 
 		entries_required = (((sr_latency_ns / line_time_us) +
 				     1000) / 1000) * pixel_size * 64;
-		entries_required = roundup(entries_required /
-					   g4x_cursor_wm_info.cacheline_size, 1);
+		entries_required = DIV_ROUND_UP(entries_required,
+					   g4x_cursor_wm_info.cacheline_size);
 		cursor_sr = entries_required + g4x_cursor_wm_info.guard_size;
 
 		if (cursor_sr > g4x_cursor_wm_info.max_wm)
@@ -3089,7 +3085,7 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 		/* Use ns/us then divide to preserve precision */
 		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			      pixel_size * sr_hdisplay;
-		sr_entries = roundup(sr_entries / I915_FIFO_LINE_SIZE, 1);
+		sr_entries = DIV_ROUND_UP(sr_entries, I915_FIFO_LINE_SIZE);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
 		srwm = I965_FIFO_SIZE - sr_entries;
 		if (srwm < 0)
@@ -3098,8 +3094,8 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 
 		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			     pixel_size * 64;
-		sr_entries = roundup(sr_entries /
-				     i965_cursor_wm_info.cacheline_size, 1);
+		sr_entries = DIV_ROUND_UP(sr_entries,
+					  i965_cursor_wm_info.cacheline_size);
 		cursor_sr = i965_cursor_wm_info.fifo_size -
 			    (sr_entries + i965_cursor_wm_info.guard_size);
 
@@ -3181,7 +3177,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		/* Use ns/us then divide to preserve precision */
 		sr_entries = (((sr_latency_ns / line_time_us) + 1000) / 1000) *
 			      pixel_size * sr_hdisplay;
-		sr_entries = roundup(sr_entries / cacheline_size, 1);
+		sr_entries = DIV_ROUND_UP(sr_entries, cacheline_size);
 		DRM_DEBUG_KMS("self-refresh entries: %d\n", sr_entries);
 		srwm = total_size - sr_entries;
 		if (srwm < 0)
@@ -3270,7 +3266,7 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		entries_required = ((planea_clock / 1000) * pixel_size *
 				     ILK_LP0_PLANE_LATENCY) / 1000;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_display_wm_info.cacheline_size);
+						ironlake_display_wm_info.cacheline_size);
 		planea_wm = entries_required +
 			    ironlake_display_wm_info.guard_size;
 
@@ -3304,7 +3300,7 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		entries_required = ((planeb_clock / 1000) * pixel_size *
 				     ILK_LP0_PLANE_LATENCY) / 1000;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_display_wm_info.cacheline_size);
+						ironlake_display_wm_info.cacheline_size);
 		planeb_wm = entries_required +
 			    ironlake_display_wm_info.guard_size;
 
@@ -3353,14 +3349,14 @@ static void ironlake_update_wm(struct drm_device *dev,  int planea_clock,
 		/* calculate the self-refresh watermark for display plane */
 		entries_required = line_count * sr_hdisplay * pixel_size;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_display_srwm_info.cacheline_size);
+						ironlake_display_srwm_info.cacheline_size);
 		sr_wm = entries_required +
 			ironlake_display_srwm_info.guard_size;
 
 		/* calculate the self-refresh watermark for display cursor */
 		entries_required = line_count * pixel_size * 64;
 		entries_required = DIV_ROUND_UP(entries_required,
-				   ironlake_cursor_srwm_info.cacheline_size);
+						ironlake_cursor_srwm_info.cacheline_size);
 		cursor_wm = entries_required +
 			    ironlake_cursor_srwm_info.guard_size;
 
