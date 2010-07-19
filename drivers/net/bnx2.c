@@ -6631,7 +6631,7 @@ bnx2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		GET_64BIT_NET_STATS(stat_IfHCOutOctets);
 
 	net_stats->multicast =
-		GET_64BIT_NET_STATS(stat_IfHCOutMulticastPkts);
+		GET_64BIT_NET_STATS(stat_IfHCInMulticastPkts);
 
 	net_stats->collisions =
 		GET_32BIT_NET_STATS(stat_EtherStatsCollisions);
