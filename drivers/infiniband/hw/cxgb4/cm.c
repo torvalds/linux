@@ -780,11 +780,11 @@ static void connect_reply_upcall(struct c4iw_ep *ep, int status)
 		event.private_data_len = ep->plen;
 		event.private_data = ep->mpa_pkt + sizeof(struct mpa_message);
 	}
-	if (ep->com.cm_id) {
-		PDBG("%s ep %p tid %u status %d\n", __func__, ep,
-		     ep->hwtid, status);
-		ep->com.cm_id->event_handler(ep->com.cm_id, &event);
-	}
+
+	PDBG("%s ep %p tid %u status %d\n", __func__, ep,
+	     ep->hwtid, status);
+	ep->com.cm_id->event_handler(ep->com.cm_id, &event);
+
 	if (status < 0) {
 		ep->com.cm_id->rem_ref(ep->com.cm_id);
 		ep->com.cm_id = NULL;
