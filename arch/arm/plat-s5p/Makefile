@@ -12,6 +12,7 @@ obj-				:=
 
 # Core files
 
+obj-y				+= dev-pmu.o
 obj-y				+= dev-uart.o
 obj-y				+= cpu.o
 obj-y				+= clock.o
