@@ -4120,6 +4120,24 @@ static inline void cciss_enable_scsi_prefetch(ctlr_info_t *h)
 #endif
 }
 
+/* Disable DMA prefetch for the P600.  Otherwise an ASIC bug may result
+ * in a prefetch beyond physical memory.
+ */
+static inline void cciss_p600_dma_prefetch_quirk(ctlr_info_t *h)
+{
+	u32 dma_prefetch;
+	__u32 dma_refetch;
+
+	if (h->board_id != 0x3225103C)
+		return;
+	dma_prefetch = readl(h->vaddr + I2O_DMA1_CFG);
+	dma_prefetch |= 0x8000;
+	writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);
+	pci_read_config_dword(h->pdev, PCI_COMMAND_PARITY, &dma_refetch);
+	dma_refetch |= 0x1;
+	pci_write_config_dword(h->pdev, PCI_COMMAND_PARITY, dma_refetch);
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	int prod_index, err;
@@ -4182,24 +4200,7 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 		goto err_out_free_res;
 	}
 	cciss_enable_scsi_prefetch(c);
-	/* Disabling DMA prefetch and refetch for the P600.
-	 * An ASIC bug may result in accesses to invalid memory addresses.
-	 * We've disabled prefetch for some time now. Testing with XEN
-	 * kernels revealed a bug in the refetch if dom0 resides on a P600.
-	 */
-	if (c->board_id == 0x3225103C) {
-		__u32 dma_prefetch;
-		__u32 dma_refetch;
-		dma_prefetch = readl(c->vaddr + I2O_DMA1_CFG);
-		dma_prefetch |= 0x8000;
-		writel(dma_prefetch, c->vaddr + I2O_DMA1_CFG);
-		pci_read_config_dword(c->pdev, PCI_COMMAND_PARITY,
-			&dma_refetch);
-		dma_refetch |= 0x1;
-		pci_write_config_dword(c->pdev, PCI_COMMAND_PARITY,
-			dma_refetch);
-	}
-
+	cciss_p600_dma_prefetch_quirk(c);
 #ifdef CCISS_DEBUG
 	printk(KERN_WARNING "Trying to put board into Performant mode\n");
 #endif				/* CCISS_DEBUG */
