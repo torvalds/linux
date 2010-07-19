@@ -6740,6 +6740,11 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
 	}
+	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
+		netdev->vlan_features |= NETIF_F_FCOE_CRC;
+		netdev->vlan_features |= NETIF_F_FSO;
+		netdev->vlan_features |= NETIF_F_FCOE_MTU;
+	}
 #endif /* IXGBE_FCOE */
 	if (pci_using_dac)
 		netdev->features |= NETIF_F_HIGHDMA;

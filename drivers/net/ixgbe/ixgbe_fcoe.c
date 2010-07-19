@@ -622,9 +622,6 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 	netdev->features |= NETIF_F_FCOE_CRC;
 	netdev->features |= NETIF_F_FSO;
 	netdev->features |= NETIF_F_FCOE_MTU;
-	netdev->vlan_features |= NETIF_F_FCOE_CRC;
-	netdev->vlan_features |= NETIF_F_FSO;
-	netdev->vlan_features |= NETIF_F_FCOE_MTU;
 	netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
 
 	ixgbe_init_interrupt_scheme(adapter);
@@ -658,24 +655,20 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 		goto out_disable;
 
 	e_info(drv, "Disabling FCoE offload features.\n");
+	netdev->features &= ~NETIF_F_FCOE_CRC;
+	netdev->features &= ~NETIF_F_FSO;
+	netdev->features &= ~NETIF_F_FCOE_MTU;
+	netdev->fcoe_ddp_xid = 0;
+	netdev_features_change(netdev);
+
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_stop(netdev);
 
 	ixgbe_clear_interrupt_scheme(adapter);
-
 	adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
 	adapter->ring_feature[RING_F_FCOE].indices = 0;
-	netdev->features &= ~NETIF_F_FCOE_CRC;
-	netdev->features &= ~NETIF_F_FSO;
-	netdev->features &= ~NETIF_F_FCOE_MTU;
-	netdev->vlan_features &= ~NETIF_F_FCOE_CRC;
-	netdev->vlan_features &= ~NETIF_F_FSO;
-	netdev->vlan_features &= ~NETIF_F_FCOE_MTU;
-	netdev->fcoe_ddp_xid = 0;
-
 	ixgbe_cleanup_fcoe(adapter);
 	ixgbe_init_interrupt_scheme(adapter);
-	netdev_features_change(netdev);
 
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_open(netdev);
