@@ -2745,8 +2745,14 @@ static unsigned long intel_calculate_wm(unsigned long clock_in_khz,
 	/* Don't promote wm_size to unsigned... */
 	if (wm_size > (long)wm->max_wm)
 		wm_size = wm->max_wm;
-	if (wm_size <= 0)
+	if (wm_size <= 0) {
 		wm_size = wm->default_wm;
+		DRM_ERROR("Insufficient FIFO for plane, expect flickering:"
+			  " entries required = %ld, available = %lu.\n",
+			  entries_required + wm->guard_size,
+			  wm->fifo_size);
+	}
+
 	return wm_size;
 }
 
