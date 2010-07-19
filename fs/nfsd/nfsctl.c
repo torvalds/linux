@@ -950,14 +950,18 @@ static ssize_t __write_ports_addfd(char *buf)
 		return err;
 
 	err = lockd_up();
-	if (err != 0)
-		goto out;
+	if (err != 0) {
+		svc_destroy(nfsd_serv);
+		return err;
+	}
 
 	err = svc_addsock(nfsd_serv, fd, buf, SIMPLE_TRANSACTION_LIMIT);
-	if (err < 0)
+	if (err < 0) {
 		lockd_down();
+		svc_destroy(nfsd_serv);
+		return err;
+	}
 
-out:
 	/* Decrease the count, but don't shut down the service */
 	nfsd_serv->sv_nrthreads--;
 	return err;
