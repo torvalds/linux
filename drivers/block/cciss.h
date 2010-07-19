@@ -419,6 +419,4 @@ struct board_type {
 	int nr_cmds; /* Max cmds this kind of ctlr can handle. */
 };
 
-#define CCISS_LOCK(i)	(&hba[i]->lock)
-
 #endif /* CCISS_H */
