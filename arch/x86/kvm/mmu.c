@@ -2926,7 +2926,7 @@ static int kvm_mmu_remove_some_alloc_mmu_pages(struct kvm *kvm)
 	return kvm_mmu_zap_page(kvm, page) + 1;
 }
 
-static int mmu_shrink(int nr_to_scan, gfp_t gfp_mask)
+static int mmu_shrink(struct shrinker *shrink, int nr_to_scan, gfp_t gfp_mask)
 {
 	struct kvm *kvm;
 	struct kvm *kvm_freed = NULL;

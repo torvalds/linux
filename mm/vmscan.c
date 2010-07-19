@@ -213,8 +213,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 	list_for_each_entry(shrinker, &shrinker_list, list) {
 		unsigned long long delta;
 		unsigned long total_scan;
-		unsigned long max_pass = (*shrinker->shrink)(0, gfp_mask);
+		unsigned long max_pass;
 
+		max_pass = (*shrinker->shrink)(shrinker, 0, gfp_mask);
 		delta = (4 * scanned) / shrinker->seeks;
 		delta *= max_pass;
 		do_div(delta, lru_pages + 1);
@@ -242,8 +243,9 @@ unsigned long shrink_slab(unsigned long scanned, gfp_t gfp_mask,
 			int shrink_ret;
 			int nr_before;
 
-			nr_before = (*shrinker->shrink)(0, gfp_mask);
-			shrink_ret = (*shrinker->shrink)(this_scan, gfp_mask);
+			nr_before = (*shrinker->shrink)(shrinker, 0, gfp_mask);
+			shrink_ret = (*shrinker->shrink)(shrinker, this_scan,
+								gfp_mask);
 			if (shrink_ret == -1)
 				break;
 			if (shrink_ret < nr_before)

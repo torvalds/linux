@@ -838,6 +838,7 @@ static struct rw_semaphore xfs_mount_list_lock;
 
 static int
 xfs_reclaim_inode_shrink(
+	struct shrinker	*shrink,
 	int		nr_to_scan,
 	gfp_t		gfp_mask)
 {
