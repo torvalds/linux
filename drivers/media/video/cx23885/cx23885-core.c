@@ -34,6 +34,7 @@
 #include "cimax2.h"
 #include "cx23888-ir.h"
 #include "cx23885-ir.h"
+#include "cx23885-av.h"
 #include "cx23885-input.h"
 
 MODULE_DESCRIPTION("Driver for cx23885 based TV cards");
@@ -1856,13 +1857,13 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 			handled++;
 	}
 
-	if (pci_status & PCI_MSK_AV_CORE) {
-		subdev_handled = false;
-		v4l2_subdev_call(dev->sd_cx25840,
-				 core, interrupt_service_routine,
-				 pci_status, &subdev_handled);
-		if (subdev_handled)
-			handled++;
+	if ((pci_status & pci_mask) & PCI_MSK_AV_CORE) {
+		cx23885_irq_disable(dev, PCI_MSK_AV_CORE);
+		if (!schedule_work(&dev->cx25840_work))
+			printk(KERN_ERR "%s: failed to set up deferred work for"
+			       " AV Core/IR interrupt. Interrupt is disabled"
+			       " and won't be re-enabled\n", dev->name);
+		handled++;
 	}
 
 	if (handled)
@@ -1882,11 +1883,11 @@ static void cx23885_v4l2_dev_notify(struct v4l2_subdev *sd,
 	dev = to_cx23885(sd->v4l2_dev);
 
 	switch (notification) {
-	case V4L2_SUBDEV_IR_RX_NOTIFY: /* Called in an IRQ context */
+	case V4L2_SUBDEV_IR_RX_NOTIFY: /* Possibly called in an IRQ context */
 		if (sd == dev->sd_ir)
 			cx23885_ir_rx_v4l2_dev_notify(sd, *(u32 *)arg);
 		break;
-	case V4L2_SUBDEV_IR_TX_NOTIFY: /* Called in an IRQ context */
+	case V4L2_SUBDEV_IR_TX_NOTIFY: /* Possibly called in an IRQ context */
 		if (sd == dev->sd_ir)
 			cx23885_ir_tx_v4l2_dev_notify(sd, *(u32 *)arg);
 		break;
@@ -1895,6 +1896,7 @@ static void cx23885_v4l2_dev_notify(struct v4l2_subdev *sd,
 
 static void cx23885_v4l2_dev_notify_init(struct cx23885_dev *dev)
 {
+	INIT_WORK(&dev->cx25840_work, cx23885_av_work_handler);
 	INIT_WORK(&dev->ir_rx_work, cx23885_ir_rx_work_handler);
 	INIT_WORK(&dev->ir_tx_work, cx23885_ir_tx_work_handler);
 	dev->v4l2_dev.notify = cx23885_v4l2_dev_notify;
