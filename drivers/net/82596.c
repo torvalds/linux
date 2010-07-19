@@ -1040,8 +1040,8 @@ err_queue:
 err_irq_56:
 #ifdef ENABLE_MVME16x_NET
 	free_irq(0x56, dev);
-#endif
 err_irq_dev:
+#endif
 	free_irq(dev->irq, dev);
 
 	return res;
