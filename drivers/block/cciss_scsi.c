@@ -921,7 +921,6 @@ cciss_scsi_do_simple_cmd(ctlr_info_t *c,
 			unsigned char *buf, int bufsize,
 			int direction)
 {
-	unsigned long flags;
 	DECLARE_COMPLETION_ONSTACK(wait);
 
 	cp->cmd_type = CMD_IOCTL_PEND;		// treat this like an ioctl 
@@ -948,14 +947,7 @@ cciss_scsi_do_simple_cmd(ctlr_info_t *c,
 			bufsize, DMA_FROM_DEVICE); 
 
 	cp->waiting = &wait;
-
-	/* Put the request on the tail of the request queue */
-	spin_lock_irqsave(CCISS_LOCK(c->ctlr), flags);
-	addQ(&c->reqQ, cp);
-	c->Qdepth++;
-	start_io(c);
-	spin_unlock_irqrestore(CCISS_LOCK(c->ctlr), flags);
-
+	enqueue_cmd_and_start_io(c, cp);
 	wait_for_completion(&wait);
 
 	/* undo the dma mapping */
@@ -1525,15 +1517,7 @@ cciss_scsi_queue_command (struct scsi_cmnd *cmd, void (* done)(struct scsi_cmnd 
 		break;
 	}
 	cciss_scatter_gather(c, cp, cmd);
-
-	/* Put the request on the tail of the request queue */
-
-	spin_lock_irqsave(CCISS_LOCK(ctlr), flags);
-	addQ(&c->reqQ, cp);
-	c->Qdepth++;
-	start_io(c);
-	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
-
+	enqueue_cmd_and_start_io(c, cp);
 	/* the cmd'll come back via intr handler in complete_scsi_command()  */
 	return 0;
 }
