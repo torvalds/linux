@@ -32,6 +32,6 @@ config SND_SOC_EUKREA_TLV320
 	select SND_SOC_TLV320AIC23
 	help
 	  Enable I2S based access to the TLV320AIC23B codec attached
-	  to the SSI4 interface
+	  to the SSI interface
 
 endif	# SND_IMX_SOC
