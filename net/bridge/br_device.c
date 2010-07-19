@@ -217,14 +217,6 @@ static bool br_devices_support_netpoll(struct net_bridge *br)
 	return count != 0 && ret;
 }
 
-static void br_poll_controller(struct net_device *br_dev)
-{
-	struct netpoll *np = br_dev->npinfo->netpoll;
-
-	if (np->real_dev != br_dev)
-		netpoll_poll_dev(np->real_dev);
-}
-
 void br_netpoll_cleanup(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
@@ -295,7 +287,6 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_do_ioctl		 = br_dev_ioctl,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_netpoll_cleanup	 = br_netpoll_cleanup,
-	.ndo_poll_controller	 = br_poll_controller,
 #endif
 };
 
