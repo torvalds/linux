@@ -91,7 +91,9 @@ struct s3c_hsotg_req;
  * For periodic IN endpoints, we have fifo_size and fifo_load to try
  * and keep track of the amount of data in the periodic FIFO for each
  * of these as we don't have a status register that tells us how much
- * is in each of them.
+ * is in each of them. (note, this may actually be useless information
+ * as in shared-fifo mode periodic in acts like a single-frame packet
+ * buffer than a fifo)
  */
 struct s3c_hsotg_ep {
 	struct usb_ep		ep;
@@ -473,6 +475,14 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 		 * how much data is left in the fifo. */
 
 		size_left = S3C_DxEPTSIZ_XferSize_GET(epsize);
+
+		/* if shared fifo, we cannot write anything until the
+		 * previous data has been completely sent.
+		 */
+		if (hs_ep->fifo_load != 0) {
+			s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_PTxFEmp);
+			return -ENOSPC;
+		}
 
 		dev_dbg(hsotg->dev, "%s: left=%d, load=%d, fifo=%d, size %d\n",
 			__func__, size_left,
