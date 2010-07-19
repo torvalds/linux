@@ -398,7 +398,9 @@ static struct kmemleak_object *lookup_object(unsigned long ptr, int alias)
 		object = prio_tree_entry(node, struct kmemleak_object,
 					 tree_node);
 		if (!alias && object->pointer != ptr) {
-			kmemleak_warn("Found object by alias");
+			pr_warning("Found object by alias at 0x%08lx\n", ptr);
+			dump_stack();
+			dump_object_info(object);
 			object = NULL;
 		}
 	} else
