@@ -26,6 +26,7 @@ struct bq24617_data {
 	struct work_struct work;
 	int stat1_irq;
 	int stat2_irq;
+	int detect_irq;
 	struct wake_lock wake_lock;
 	struct power_supply ac;
 	int ac_online;
@@ -43,7 +44,7 @@ static enum power_supply_property bq24617_power_props[] = {
 
 int is_ac_charge_complete(void)
 {
-	return bq24617_stat2_value;
+	return !bq24617_stat2_value;
 }
 
 static int power_get_property(struct power_supply *psy,
@@ -75,17 +76,22 @@ static void bq24617_work(struct work_struct *work)
 	struct bq24617_data *bq_data =
 		container_of(work, struct bq24617_data, work);
 	int stat1;
+	int detect = 0;
 
 	/* STAT1 indicates charging, STAT2 indicates charge complete */
 	stat1 = gpio_get_value(irq_to_gpio(bq_data->stat1_irq));
 	bq24617_stat2_value = gpio_get_value(irq_to_gpio(bq_data->stat2_irq));
 
-	if (!stat1 || bq24617_stat2_value)
+	if (bq_data->detect_irq >= 0)
+		detect = gpio_get_value(irq_to_gpio(bq_data->detect_irq));
+
+	if (!stat1 || !bq24617_stat2_value || detect)
 		bq_data->ac_online = 1;
 	else
 		bq_data->ac_online = 0;
 
-	pr_info("%s: ac_online=%d\n", __func__, bq_data->ac_online);
+	pr_info("%s: ac_online=%d (stat1=%d, stat2=%d, detect=%d)\n", __func__,
+		bq_data->ac_online, stat1, bq24617_stat2_value, detect);
 
 	power_supply_changed(&bq_data->ac);
 	wake_unlock(&bq_data->wake_lock);
@@ -146,10 +152,28 @@ static int bq24617_probe(struct platform_device *pdev)
 		goto free_stat2;
 	}
 
+	bq_data->detect_irq = platform_get_irq_byname(pdev, "detect");
+	if (bq_data->detect_irq < 0)
+		dev_info(&pdev->dev, "Only using STAT lines for detection.\n");
+	else {
+		dev_info(&pdev->dev, "Using STAT and DETECT for detection.\n");
+
+		retval = request_irq(bq_data->detect_irq, bq24617_isr, flags,
+				     "bq24617_detect", bq_data);
+		if (retval) {
+			dev_err(&pdev->dev, "Failed requesting DETECT IRQ\n");
+			goto free_all;
+		}
+
+		enable_irq_wake(bq_data->detect_irq);
+	}
+
 	bq24617_work(&bq_data->work);
 
 	return 0;
 
+free_all:
+	power_supply_unregister(&bq_data->ac);
 free_stat2:
 	free_irq(bq_data->stat2_irq, bq_data);
 free_stat1:
@@ -170,6 +194,8 @@ static int bq24617_remove(struct platform_device *pdev)
 
 	free_irq(bq_data->stat1_irq, bq_data);
 	free_irq(bq_data->stat2_irq, bq_data);
+	if (bq_data->detect_irq >= 0)
+		free_irq(bq_data->detect_irq, bq_data);
 
 	wake_lock_destroy(&bq_data->wake_lock);
 	kfree(bq_data);
