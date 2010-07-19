@@ -33,7 +33,7 @@ static void ch7006_encoder_set_config(struct drm_encoder *encoder,
 {
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
 
-	priv->params = params;
+	priv->params = *(struct ch7006_encoder_params *)params;
 }
 
 static void ch7006_encoder_destroy(struct drm_encoder *encoder)
@@ -114,7 +114,7 @@ static void ch7006_encoder_mode_set(struct drm_encoder *encoder,
 {
 	struct i2c_client *client = drm_i2c_encoder_get_client(encoder);
 	struct ch7006_priv *priv = to_ch7006_priv(encoder);
-	struct ch7006_encoder_params *params = priv->params;
+	struct ch7006_encoder_params *params = &priv->params;
 	struct ch7006_state *state = &priv->state;
 	uint8_t *regs = state->regs;
 	struct ch7006_mode *mode = priv->mode;
