@@ -4002,9 +4002,16 @@ static int __devinit cciss_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 	return -ENODEV;
 }
 
+static inline bool cciss_board_disabled(ctlr_info_t *h)
+{
+	u16 command;
+
+	(void) pci_read_config_word(h->pdev, PCI_COMMAND, &command);
+	return ((command & PCI_COMMAND_MEMORY) == 0);
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
-	ushort command;
 	__u32 scratchpad = 0;
 	__u64 cfg_offset;
 	__u32 cfg_base_addr;
@@ -4018,15 +4025,11 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	c->product_name = products[prod_index].product_name;
 	c->access = *(products[prod_index].access);
 
-	/* check to see if controller has been disabled */
-	/* BEFORE trying to enable it */
-	(void)pci_read_config_word(c->pdev, PCI_COMMAND, &command);
-	if (!(command & 0x02)) {
+	if (cciss_board_disabled(c)) {
 		printk(KERN_WARNING
 		       "cciss: controller appears to be disabled\n");
 		return -ENODEV;
 	}
-
 	err = pci_enable_device(c->pdev);
 	if (err) {
 		printk(KERN_ERR "cciss: Unable to Enable PCI device\n");
