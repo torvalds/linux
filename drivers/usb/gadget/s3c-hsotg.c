@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/clk.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -2798,12 +2799,30 @@ static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
  */
 static void s3c_hsotg_otgreset(struct s3c_hsotg *hsotg)
 {
+	struct clk *xusbxti;
 	u32 osc;
 
 	writel(0, S3C_PHYPWR);
 	mdelay(1);
 
 	osc = hsotg->plat->is_osc ? S3C_PHYCLK_EXT_OSC : 0;
+
+	xusbxti = clk_get(hsotg->dev, "xusbxti");
+	if (xusbxti && !IS_ERR(xusbxti)) {
+		switch (clk_get_rate(xusbxti)) {
+		case 12*MHZ:
+			osc |= S3C_PHYCLK_CLKSEL_12M;
+			break;
+		case 24*MHZ:
+			osc |= S3C_PHYCLK_CLKSEL_24M;
+			break;
+		default:
+		case 48*MHZ:
+			/* default reference clock */
+			break;
+		}
+		clk_put(xusbxti);
+	}
 
 	writel(osc | 0x10, S3C_PHYCLK);
 
