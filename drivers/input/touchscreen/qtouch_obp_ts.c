@@ -1120,18 +1120,6 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 	uint16_t info_blk_size;
 	struct qtm_obj_entry entry;
 
-	unsigned char powerconfig[5];
-
-	/*  HACK!!: This is a hack
-	Once we have a new load of firmware we MUST remove this */
-	powerconfig[0] = 0x35;
-	powerconfig[1] = 0x01;
-	powerconfig[2] = 0x0a;
-	powerconfig[3] = 0x0a;
-	powerconfig[4] = 0x01;
-
-	err = qtouch_write(ts, powerconfig, 5);
-	/* End Hack */
 	/* query the device and get the info block. */
 	err = qtouch_read_addr(ts, QTM_OBP_ID_INFO_ADDR, &qtm_info,
 			       sizeof(qtm_info));
@@ -1864,11 +1852,9 @@ static int qtouch_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 		enable_irq(ts->client->irq);
 	}
 
-	/* HACK!! Don't put the touch to sleep.  This
-	must be removed after we get new firmware
 	ret = qtouch_power_config(ts, 0);
 	if (ret < 0)
-		pr_err("%s: Cannot write power config\n", __func__);*/
+		pr_err("%s: Cannot write power config\n", __func__);
 
 	return 0;
 }
