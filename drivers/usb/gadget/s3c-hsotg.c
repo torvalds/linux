@@ -1383,6 +1383,9 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 	read_ptr = hs_req->req.actual;
 	max_req = hs_req->req.length - read_ptr;
 
+	dev_dbg(hsotg->dev, "%s: read %d/%d, done %d/%d\n",
+		__func__, to_read, max_req, read_ptr, hs_req->req.length);
+
 	if (to_read > max_req) {
 		/* more data appeared than we where willing
 		 * to deal with in this request.
@@ -1391,9 +1394,6 @@ static void s3c_hsotg_rx_data(struct s3c_hsotg *hsotg, int ep_idx, int size)
 		/* currently we don't deal this */
 		WARN_ON_ONCE(1);
 	}
-
-	dev_dbg(hsotg->dev, "%s: read %d/%d, done %d/%d\n",
-		__func__, to_read, max_req, read_ptr, hs_req->req.length);
 
 	hs_ep->total_data += to_read;
 	hs_req->req.actual += to_read;
@@ -1463,9 +1463,11 @@ static void s3c_hsotg_send_zlp(struct s3c_hsotg *hsotg,
 static void s3c_hsotg_handle_outdone(struct s3c_hsotg *hsotg,
 				     int epnum, bool was_setup)
 {
+	u32 epsize = readl(hsotg->regs + S3C_DOEPTSIZ(epnum));
 	struct s3c_hsotg_ep *hs_ep = &hsotg->eps[epnum];
 	struct s3c_hsotg_req *hs_req = hs_ep->req;
 	struct usb_request *req = &hs_req->req;
+	unsigned size_left = S3C_DxEPTSIZ_XferSize_GET(epsize);
 	int result = 0;
 
 	if (!hs_req) {
@@ -1474,9 +1476,7 @@ static void s3c_hsotg_handle_outdone(struct s3c_hsotg *hsotg,
 	}
 
 	if (using_dma(hsotg)) {
-		u32 epsize = readl(hsotg->regs + S3C_DOEPTSIZ(epnum));
 		unsigned size_done;
-		unsigned size_left;
 
 		/* Calculate the size of the transfer by checking how much
 		 * is left in the endpoint size register and then working it
@@ -1486,12 +1486,16 @@ static void s3c_hsotg_handle_outdone(struct s3c_hsotg *hsotg,
 		 * so may overshoot/undershoot the transfer.
 		 */
 
-		size_left = S3C_DxEPTSIZ_XferSize_GET(epsize);
-
 		size_done = hs_ep->size_loaded - size_left;
 		size_done += hs_ep->last_load;
 
 		req->actual = size_done;
+	}
+
+	/* if there is more request to do, schedule new transfer */
+	if (req->actual < req->length && size_left == 0) {
+		s3c_hsotg_start_req(hsotg, hs_ep, hs_req, true);
+		return;
 	}
 
 	if (req->actual < req->length && req->short_not_ok) {
