@@ -4009,6 +4009,23 @@ static inline bool cciss_board_disabled(ctlr_info_t *h)
 	return ((command & PCI_COMMAND_MEMORY) == 0);
 }
 
+static int __devinit cciss_pci_find_memory_BAR(struct pci_dev *pdev,
+	unsigned long *memory_bar)
+{
+	int i;
+
+	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++)
+		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM) {
+			/* addressing mode bits already removed */
+			*memory_bar = pci_resource_start(pdev, i);
+			dev_dbg(&pdev->dev, "memory BAR = %lx\n",
+				*memory_bar);
+			return 0;
+		}
+	dev_warn(&pdev->dev, "no memory BAR found\n");
+	return -ENODEV;
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	__u32 scratchpad = 0;
@@ -4052,25 +4069,9 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
  * else we use the IO-APIC interrupt assigned to us by system ROM.
  */
 	cciss_interrupt_mode(c);
-
-	/* find the memory BAR */
-	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(c->pdev, i) & IORESOURCE_MEM)
-			break;
-	}
-	if (i == DEVICE_COUNT_RESOURCE) {
-		printk(KERN_WARNING "cciss: No memory BAR found\n");
-		err = -ENODEV;
+	err = cciss_pci_find_memory_BAR(c->pdev, &c->paddr);
+	if (err)
 		goto err_out_free_res;
-	}
-
-	c->paddr = pci_resource_start(c->pdev, i); /* addressing mode bits
-						 * already removed
-						 */
-
-#ifdef CCISS_DEBUG
-	printk("address 0 = %lx\n", c->paddr);
-#endif				/* CCISS_DEBUG */
 	c->vaddr = remap_pci_mem(c->paddr, 0x250);
 
 	/* Wait for the board to become ready.  (PCI hotplug needs this.)
