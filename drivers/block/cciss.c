@@ -4064,29 +4064,40 @@ static int __devinit cciss_wait_for_board_ready(ctlr_info_t *h)
 	return -ENODEV;
 }
 
+static int __devinit cciss_find_cfg_addrs(struct pci_dev *pdev,
+	void __iomem *vaddr, u32 *cfg_base_addr, u64 *cfg_base_addr_index,
+	u64 *cfg_offset)
+{
+	*cfg_base_addr = readl(vaddr + SA5_CTCFG_OFFSET);
+	*cfg_offset = readl(vaddr + SA5_CTMEM_OFFSET);
+	*cfg_base_addr &= (u32) 0x0000ffff;
+	*cfg_base_addr_index = find_PCI_BAR_index(pdev, *cfg_base_addr);
+	if (*cfg_base_addr_index == -1) {
+		dev_warn(&pdev->dev, "cannot find cfg_base_addr_index, "
+			"*cfg_base_addr = 0x%08x\n", *cfg_base_addr);
+		return -ENODEV;
+	}
+	return 0;
+}
+
 static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 {
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
 	u32 trans_offset;
+	int rc;
 
-	/* get the address index number */
-	cfg_base_addr = readl(h->vaddr + SA5_CTCFG_OFFSET);
-	cfg_base_addr &= (u32) 0x0000ffff;
-	cfg_base_addr_index = find_PCI_BAR_index(h->pdev, cfg_base_addr);
-	if (cfg_base_addr_index == -1) {
-		dev_warn(&h->pdev->dev, "cannot find cfg_base_addr_index\n");
-		return -ENODEV;
-	}
-	cfg_offset = readl(h->vaddr + SA5_CTMEM_OFFSET);
+	rc = cciss_find_cfg_addrs(h->pdev, h->vaddr, &cfg_base_addr,
+		&cfg_base_addr_index, &cfg_offset);
+	if (rc)
+		return rc;
 	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
-			       cfg_base_addr_index) + cfg_offset,
-				sizeof(h->cfgtable));
+		cfg_base_addr_index) + cfg_offset, sizeof(h->cfgtable));
 	if (!h->cfgtable)
 		return -ENOMEM;
 	/* Find performant mode table. */
-	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
+	trans_offset = readl(&h->cfgtable->TransMethodOffset);
 	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
 				cfg_base_addr_index)+cfg_offset+trans_offset,
 				sizeof(*h->transtable));
