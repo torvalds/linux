@@ -2230,7 +2230,7 @@ F:	include/linux/ext2*
 
 EXT3 FILE SYSTEM
 M:	Andrew Morton <akpm@linux-foundation.org>
-M:	Andreas Dilger <adilger@sun.com>
+M:	Andreas Dilger <adilger.kernel@dilger.ca>
 L:	linux-ext4@vger.kernel.org
 S:	Maintained
 F:	Documentation/filesystems/ext3.txt
@@ -2239,7 +2239,7 @@ F:	include/linux/ext3*
 
 EXT4 FILE SYSTEM
 M:	"Theodore Ts'o" <tytso@mit.edu>
-M:	Andreas Dilger <adilger@sun.com>
+M:	Andreas Dilger <adilger.kernel@dilger.ca>
 L:	linux-ext4@vger.kernel.org
 W:	http://ext4.wiki.kernel.org
 Q:	http://patchwork.ozlabs.org/project/linux-ext4/list/
