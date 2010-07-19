@@ -289,12 +289,6 @@ static struct spi_board_info eukrea_mbimx27_spi_board_info[] __initdata = {
 	},
 };
 
-static struct i2c_board_info eukrea_mbimx27_i2c_devices[] = {
-	{
-		I2C_BOARD_INFO("tlv320aic23", 0x1a),
-	},
-};
-
 static int eukrea_mbimx27_spi_cs[] = {GPIO_PORTD | 28};
 
 static const struct spi_imx_master eukrea_mbimx27_spi0_data __initconst = {
@@ -302,6 +296,12 @@ static const struct spi_imx_master eukrea_mbimx27_spi0_data __initconst = {
 	.num_chipselect = ARRAY_SIZE(eukrea_mbimx27_spi_cs),
 };
 #endif
+
+static struct i2c_board_info eukrea_mbimx27_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("tlv320aic23", 0x1a),
+	},
+};
 
 static struct platform_device *platform_devices[] __initdata = {
 	&leds_gpio,
