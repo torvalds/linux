@@ -559,4 +559,5 @@ static void __exit exit_sysv_fs(void)
 
 module_init(init_sysv_fs)
 module_exit(exit_sysv_fs)
+MODULE_ALIAS("v7");
 MODULE_LICENSE("GPL");
