@@ -3830,20 +3830,75 @@ static void __devinit cciss_wait_for_mode_change_ack(ctlr_info_t *h)
 	}
 }
 
-static void __devinit cciss_put_controller_into_performant_mode(ctlr_info_t *h)
+static __devinit void cciss_enter_performant_mode(ctlr_info_t *h)
 {
-	__u32 trans_support;
+	/* This is a bit complicated.  There are 8 registers on
+	 * the controller which we write to to tell it 8 different
+	 * sizes of commands which there may be.  It's a way of
+	 * reducing the DMA done to fetch each command.  Encoded into
+	 * each command's tag are 3 bits which communicate to the controller
+	 * which of the eight sizes that command fits within.  The size of
+	 * each command depends on how many scatter gather entries there are.
+	 * Each SG entry requires 16 bytes.  The eight registers are programmed
+	 * with the number of 16-byte blocks a command of that size requires.
+	 * The smallest command possible requires 5 such 16 byte blocks.
+	 * the largest command possible requires MAXSGENTRIES + 4 16-byte
+	 * blocks.  Note, this only extends to the SG entries contained
+	 * within the command block, and does not extend to chained blocks
+	 * of SG elements.   bft[] contains the eight values we write to
+	 * the registers.  They are not evenly distributed, but have more
+	 * sizes for small commands, and fewer sizes for larger commands.
+	 */
 	__u32 trans_offset;
+	int bft[8] = { 5, 6, 8, 10, 12, 20, 28, MAXSGENTRIES + 4};
 			/*
 			 *  5 = 1 s/g entry or 4k
 			 *  6 = 2 s/g entry or 8k
 			 *  8 = 4 s/g entry or 16k
 			 * 10 = 6 s/g entry or 24k
 			 */
-	int bft[8] = { 5, 6, 8, 10, 12, 20, 28, MAXSGENTRIES + 4};
 	unsigned long register_value;
-
 	BUILD_BUG_ON(28 > MAXSGENTRIES + 4);
+
+	h->reply_pool_wraparound = 1; /* spec: init to 1 */
+
+	/* Controller spec: zero out this buffer. */
+	memset(h->reply_pool, 0, h->max_commands * sizeof(__u64));
+	h->reply_pool_head = h->reply_pool;
+
+	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
+	calc_bucket_map(bft, ARRAY_SIZE(bft), h->maxsgentries,
+				h->blockFetchTable);
+	writel(bft[0], &h->transtable->BlockFetch0);
+	writel(bft[1], &h->transtable->BlockFetch1);
+	writel(bft[2], &h->transtable->BlockFetch2);
+	writel(bft[3], &h->transtable->BlockFetch3);
+	writel(bft[4], &h->transtable->BlockFetch4);
+	writel(bft[5], &h->transtable->BlockFetch5);
+	writel(bft[6], &h->transtable->BlockFetch6);
+	writel(bft[7], &h->transtable->BlockFetch7);
+
+	/* size of controller ring buffer */
+	writel(h->max_commands, &h->transtable->RepQSize);
+	writel(1, &h->transtable->RepQCount);
+	writel(0, &h->transtable->RepQCtrAddrLow32);
+	writel(0, &h->transtable->RepQCtrAddrHigh32);
+	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
+	writel(0, &h->transtable->RepQAddr0High32);
+	writel(CFGTBL_Trans_Performant,
+			&(h->cfgtable->HostWrite.TransportRequest));
+
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+	cciss_wait_for_mode_change_ack(h);
+	register_value = readl(&(h->cfgtable->TransportActive));
+	if (!(register_value & CFGTBL_Trans_Performant))
+		printk(KERN_WARNING "cciss: unable to get board into"
+					" performant mode\n");
+}
+
+static void __devinit cciss_put_controller_into_performant_mode(ctlr_info_t *h)
+{
+	__u32 trans_support;
 
 	dev_dbg(&h->pdev->dev, "Trying to put board into Performant mode\n");
 	/* Attempt to put controller into performant mode if supported */
@@ -3878,46 +3933,11 @@ static void __devinit cciss_put_controller_into_performant_mode(ctlr_info_t *h)
 	if ((h->reply_pool == NULL) || (h->blockFetchTable == NULL))
 		goto clean_up;
 
-	h->reply_pool_wraparound = 1; /* spec: init to 1 */
-
-	/* Controller spec: zero out this buffer. */
-	memset(h->reply_pool, 0, h->max_commands * sizeof(__u64));
-	h->reply_pool_head = h->reply_pool;
-
-	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
-	calc_bucket_map(bft, ARRAY_SIZE(bft), h->maxsgentries,
-				h->blockFetchTable);
-	writel(bft[0], &h->transtable->BlockFetch0);
-	writel(bft[1], &h->transtable->BlockFetch1);
-	writel(bft[2], &h->transtable->BlockFetch2);
-	writel(bft[3], &h->transtable->BlockFetch3);
-	writel(bft[4], &h->transtable->BlockFetch4);
-	writel(bft[5], &h->transtable->BlockFetch5);
-	writel(bft[6], &h->transtable->BlockFetch6);
-	writel(bft[7], &h->transtable->BlockFetch7);
-
-	/* size of controller ring buffer */
-	writel(h->max_commands, &h->transtable->RepQSize);
-	writel(1, &h->transtable->RepQCount);
-	writel(0, &h->transtable->RepQCtrAddrLow32);
-	writel(0, &h->transtable->RepQCtrAddrHigh32);
-	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
-	writel(0, &h->transtable->RepQAddr0High32);
-	writel(CFGTBL_Trans_Performant,
-			&(h->cfgtable->HostWrite.TransportRequest));
-
-	h->transMethod = CFGTBL_Trans_Performant;
-	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-	cciss_wait_for_mode_change_ack(h);
-	register_value = readl(&(h->cfgtable->TransportActive));
-	if (!(register_value & CFGTBL_Trans_Performant)) {
-		printk(KERN_WARNING "cciss: unable to get board into"
-					" performant mode\n");
-		return;
-	}
+	cciss_enter_performant_mode(h);
 
 	/* Change the access methods to the performant access methods */
 	h->access = SA5_performant_access;
+	h->transMethod = CFGTBL_Trans_Performant;
 
 	return;
 clean_up:
