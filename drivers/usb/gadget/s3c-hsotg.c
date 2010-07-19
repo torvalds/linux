@@ -2801,9 +2801,11 @@ static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 static void s3c_hsotg_otgreset(struct s3c_hsotg *hsotg)
 {
 	struct clk *xusbxti;
-	u32 osc;
+	u32 pwr, osc;
 
-	writel(0, S3C_PHYPWR);
+	pwr = readl(S3C_PHYPWR);
+	pwr &= ~0x19;
+	writel(pwr, S3C_PHYPWR);
 	mdelay(1);
 
 	osc = hsotg->plat->is_osc ? S3C_PHYCLK_EXT_OSC : 0;
