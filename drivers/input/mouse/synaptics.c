@@ -600,7 +600,7 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 
 	if (SYN_CAP_PALMDETECT(priv->capabilities))
-		__set_bit(ABS_TOOL_WIDTH, dev->absbit);
+		input_set_abs_params(dev, ABS_TOOL_WIDTH, 0, 15, 0, 0);
 
 	__set_bit(EV_KEY, dev->evbit);
 	__set_bit(BTN_TOUCH, dev->keybit);
