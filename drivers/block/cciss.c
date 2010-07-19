@@ -4114,6 +4114,10 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	if (err)
 		goto err_out_free_res;
 	c->vaddr = remap_pci_mem(c->paddr, 0x250);
+	if (!c->vaddr) {
+		err = -ENOMEM;
+		goto err_out_free_res;
+	}
 	err = cciss_wait_for_board_ready(c);
 	if (err)
 		goto err_out_free_res;
@@ -4198,6 +4202,12 @@ err_out_free_res:
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
 	 */
+	if (c->transtable)
+		iounmap(c->transtable);
+	if (c->cfgtable)
+		iounmap(c->cfgtable);
+	if (c->vaddr)
+		iounmap(c->vaddr);
 	pci_release_regions(c->pdev);
 	return err;
 }
@@ -4745,6 +4755,8 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 		pci_disable_msi(hba[i]->pdev);
 #endif				/* CONFIG_PCI_MSI */
 
+	iounmap(hba[i]->transtable);
+	iounmap(hba[i]->cfgtable);
 	iounmap(hba[i]->vaddr);
 
 	pci_free_consistent(hba[i]->pdev, hba[i]->nr_cmds * sizeof(CommandList_struct),
