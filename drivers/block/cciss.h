@@ -190,6 +190,21 @@ struct ctlr_info
 
 #define CCISS_INTR_ON 	1 
 #define CCISS_INTR_OFF	0
+
+
+/* CCISS_BOARD_READY_WAIT_SECS is how long to wait for a board
+ * to become ready, in seconds, before giving up on it.
+ * CCISS_BOARD_READY_POLL_INTERVAL_MSECS * is how long to wait
+ * between polling the board to see if it is ready, in
+ * milliseconds.  CCISS_BOARD_READY_ITERATIONS is derived
+ * the above.
+ */
+#define CCISS_BOARD_READY_WAIT_SECS (120)
+#define CCISS_BOARD_READY_POLL_INTERVAL_MSECS (100)
+#define CCISS_BOARD_READY_ITERATIONS \
+	((CCISS_BOARD_READY_WAIT_SECS * 1000) / \
+		CCISS_BOARD_READY_POLL_INTERVAL_MSECS)
+
 /* 
 	Send the command to the hardware 
 */

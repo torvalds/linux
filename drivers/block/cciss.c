@@ -4026,9 +4026,23 @@ static int __devinit cciss_pci_find_memory_BAR(struct pci_dev *pdev,
 	return -ENODEV;
 }
 
+static int __devinit cciss_wait_for_board_ready(ctlr_info_t *h)
+{
+	int i;
+	u32 scratchpad;
+
+	for (i = 0; i < CCISS_BOARD_READY_ITERATIONS; i++) {
+		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (scratchpad == CCISS_FIRMWARE_READY)
+			return 0;
+		msleep(CCISS_BOARD_READY_POLL_INTERVAL_MSECS);
+	}
+	dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
+	return -ENODEV;
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
-	__u32 scratchpad = 0;
 	__u64 cfg_offset;
 	__u32 cfg_base_addr;
 	__u64 cfg_base_addr_index;
@@ -4073,21 +4087,9 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 	if (err)
 		goto err_out_free_res;
 	c->vaddr = remap_pci_mem(c->paddr, 0x250);
-
-	/* Wait for the board to become ready.  (PCI hotplug needs this.)
-	 * We poll for up to 120 secs, once per 100ms. */
-	for (i = 0; i < 1200; i++) {
-		scratchpad = readl(c->vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (scratchpad == CCISS_FIRMWARE_READY)
-			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(msecs_to_jiffies(100));	/* wait 100ms */
-	}
-	if (scratchpad != CCISS_FIRMWARE_READY) {
-		printk(KERN_WARNING "cciss: Board not ready.  Timed out.\n");
-		err = -ENODEV;
+	err = cciss_wait_for_board_ready(c);
+	if (err)
 		goto err_out_free_res;
-	}
 
 	/* get the address index number */
 	cfg_base_addr = readl(c->vaddr + SA5_CTCFG_OFFSET);
