@@ -74,7 +74,7 @@ enum hcill_states_e {
 
 struct hcill_cmd {
 	u8 cmd;
-} __attribute__((packed));
+} __packed;
 
 struct ll_struct {
 	unsigned long rx_state;

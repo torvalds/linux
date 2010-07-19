@@ -119,13 +119,13 @@ struct btmrvl_cmd {
 	__le16 ocf_ogf;
 	u8 length;
 	u8 data[4];
-} __attribute__ ((packed));
+} __packed;
 
 struct btmrvl_event {
 	u8 ec;		/* event counter */
 	u8 length;
 	u8 data[4];
-} __attribute__ ((packed));
+} __packed;
 
 /* Prototype of global function */
 
