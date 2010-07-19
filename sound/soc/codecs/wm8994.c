@@ -2361,6 +2361,20 @@ SOC_DAPM_SINGLE("AIF2 Switch", WM8994_AIF1_ADC1_RIGHT_MIXER_ROUTING,
 		0, 1, 0),
 };
 
+static const struct snd_kcontrol_new aif1adc2l_mix[] = {
+SOC_DAPM_SINGLE("DMIC Switch", WM8994_AIF1_ADC2_LEFT_MIXER_ROUTING,
+		1, 1, 0),
+SOC_DAPM_SINGLE("AIF2 Switch", WM8994_AIF1_ADC2_LEFT_MIXER_ROUTING,
+		0, 1, 0),
+};
+
+static const struct snd_kcontrol_new aif1adc2r_mix[] = {
+SOC_DAPM_SINGLE("DMIC Switch", WM8994_AIF1_ADC2_RIGHT_MIXER_ROUTING,
+		1, 1, 0),
+SOC_DAPM_SINGLE("AIF2 Switch", WM8994_AIF1_ADC2_RIGHT_MIXER_ROUTING,
+		0, 1, 0),
+};
+
 static const struct snd_kcontrol_new aif2dac2l_mix[] = {
 SOC_DAPM_SINGLE("Right Sidetone Switch", WM8994_DAC2_LEFT_MIXER_ROUTING,
 		5, 1, 0),
@@ -2527,6 +2541,11 @@ SND_SOC_DAPM_MIXER("AIF1ADC1L Mixer", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MIXER("AIF1ADC1R Mixer", SND_SOC_NOPM, 0, 0,
 		   aif1adc1r_mix, ARRAY_SIZE(aif1adc1r_mix)),
 
+SND_SOC_DAPM_MIXER("AIF1ADC2L Mixer", SND_SOC_NOPM, 0, 0,
+		   aif1adc2l_mix, ARRAY_SIZE(aif1adc2l_mix)),
+SND_SOC_DAPM_MIXER("AIF1ADC2R Mixer", SND_SOC_NOPM, 0, 0,
+		   aif1adc2r_mix, ARRAY_SIZE(aif1adc2r_mix)),
+
 SND_SOC_DAPM_MIXER("AIF2DAC2L Mixer", SND_SOC_NOPM, 0, 0,
 		   aif2dac2l_mix, ARRAY_SIZE(aif2dac2l_mix)),
 SND_SOC_DAPM_MIXER("AIF2DAC2R Mixer", SND_SOC_NOPM, 0, 0,
@@ -2688,6 +2707,14 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{ "AIF1ADC1R", NULL, "AIF1ADC1R Mixer" },
 	{ "AIF1ADC1R Mixer", "ADC/DMIC Switch", "ADCR Mux" },
 	{ "AIF1ADC1R Mixer", "AIF2 Switch", "AIF2DACR" },
+
+	{ "AIF1ADC2L", NULL, "AIF1ADC2L Mixer" },
+	{ "AIF1ADC2L Mixer", "DMIC Switch", "DMIC2L" },
+	{ "AIF1ADC2L Mixer", "AIF2 Switch", "AIF2DACL" },
+
+	{ "AIF1ADC2R", NULL, "AIF1ADC2R Mixer" },
+	{ "AIF1ADC2R Mixer", "DMIC Switch", "DMIC2R" },
+	{ "AIF1ADC2R Mixer", "AIF2 Switch", "AIF2DACR" },
 
 	/* Pin level routing for AIF3 */
 	{ "AIF1DAC1L", NULL, "AIF1DAC Mux" },
