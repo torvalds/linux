@@ -299,6 +299,83 @@ static struct sram_channel cx23887_sram_channels[] = {
 	},
 };
 
+void cx23885_irq_add(struct cx23885_dev *dev, u32 mask)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
+
+	dev->pci_irqmask |= mask;
+
+	spin_unlock_irqrestore(&dev->pci_irqmask_lock, flags);
+}
+
+void cx23885_irq_add_enable(struct cx23885_dev *dev, u32 mask)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
+
+	dev->pci_irqmask |= mask;
+	cx_set(PCI_INT_MSK, mask);
+
+	spin_unlock_irqrestore(&dev->pci_irqmask_lock, flags);
+}
+
+void cx23885_irq_enable(struct cx23885_dev *dev, u32 mask)
+{
+	u32 v;
+	unsigned long flags;
+	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
+
+	v = mask & dev->pci_irqmask;
+	if (v)
+		cx_set(PCI_INT_MSK, v);
+
+	spin_unlock_irqrestore(&dev->pci_irqmask_lock, flags);
+}
+
+static inline void cx23885_irq_enable_all(struct cx23885_dev *dev)
+{
+	cx23885_irq_enable(dev, 0xffffffff);
+}
+
+void cx23885_irq_disable(struct cx23885_dev *dev, u32 mask)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
+
+	cx_clear(PCI_INT_MSK, mask);
+
+	spin_unlock_irqrestore(&dev->pci_irqmask_lock, flags);
+}
+
+static inline void cx23885_irq_disable_all(struct cx23885_dev *dev)
+{
+	cx23885_irq_disable(dev, 0xffffffff);
+}
+
+void cx23885_irq_remove(struct cx23885_dev *dev, u32 mask)
+{
+	unsigned long flags;
+	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
+
+	dev->pci_irqmask &= ~mask;
+	cx_clear(PCI_INT_MSK, mask);
+
+	spin_unlock_irqrestore(&dev->pci_irqmask_lock, flags);
+}
+
+static u32 cx23885_irq_get_mask(struct cx23885_dev *dev)
+{
+	u32 v;
+	unsigned long flags;
+	spin_lock_irqsave(&dev->pci_irqmask_lock, flags);
+
+	v = cx_read(PCI_INT_MSK);
+
+	spin_unlock_irqrestore(&dev->pci_irqmask_lock, flags);
+	return v;
+}
+
 static int cx23885_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
@@ -548,7 +625,7 @@ static void cx23885_shutdown(struct cx23885_dev *dev)
 	cx_write(UART_CTL, 0);
 
 	/* Disable Interrupts */
-	cx_write(PCI_INT_MSK, 0);
+	cx23885_irq_disable_all(dev);
 	cx_write(VID_A_INT_MSK, 0);
 	cx_write(VID_B_INT_MSK, 0);
 	cx_write(VID_C_INT_MSK, 0);
@@ -774,6 +851,8 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 {
 	int i;
 
+	spin_lock_init(&dev->pci_irqmask_lock);
+
 	mutex_init(&dev->lock);
 	mutex_init(&dev->gpio_lock);
 
@@ -820,9 +899,9 @@ static int cx23885_dev_setup(struct cx23885_dev *dev)
 
 	dev->pci_bus  = dev->pci->bus->number;
 	dev->pci_slot = PCI_SLOT(dev->pci->devfn);
-	dev->pci_irqmask = 0x001f00;
+	cx23885_irq_add(dev, 0x001f00);
 	if (cx23885_boards[dev->board].cimax > 0)
-		dev->pci_irqmask |= 0x01800000; /* for CiMaxes */
+		cx23885_irq_add(dev, 0x01800000); /* for CiMaxes */
 
 	/* External Master 1 Bus */
 	dev->i2c_bus[0].nr = 0;
@@ -1156,7 +1235,7 @@ static void cx23885_tsport_reg_dump(struct cx23885_tsport *port)
 	dprintk(1, "%s() DEV_CNTRL2               0x%08X\n", __func__,
 		cx_read(DEV_CNTRL2));
 	dprintk(1, "%s() PCI_INT_MSK              0x%08X\n", __func__,
-		cx_read(PCI_INT_MSK));
+		cx23885_irq_get_mask(dev));
 	dprintk(1, "%s() AUD_INT_INT_MSK          0x%08X\n", __func__,
 		cx_read(AUDIO_INT_INT_MSK));
 	dprintk(1, "%s() AUD_INT_DMA_CTL          0x%08X\n", __func__,
@@ -1292,7 +1371,8 @@ static int cx23885_start_dma(struct cx23885_tsport *port,
 		dprintk(1, "%s() enabling TS int's and DMA\n", __func__);
 		cx_set(port->reg_ts_int_msk,  port->ts_int_msk_val);
 		cx_set(port->reg_dma_ctl, port->dma_ctl_val);
-		cx_set(PCI_INT_MSK, dev->pci_irqmask | port->pci_irqmask);
+		cx23885_irq_add(dev, port->pci_irqmask);
+		cx23885_irq_enable_all(dev);
 		break;
 	default:
 		BUG();
@@ -1653,7 +1733,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	bool subdev_handled;
 
 	pci_status = cx_read(PCI_INT_STAT);
-	pci_mask = cx_read(PCI_INT_MSK);
+	pci_mask = cx23885_irq_get_mask(dev);
 	vida_status = cx_read(VID_A_INT_STAT);
 	vida_mask = cx_read(VID_A_INT_MSK);
 	ts1_status = cx_read(VID_B_INT_STAT);
@@ -1981,7 +2061,7 @@ static int __devinit cx23885_initdev(struct pci_dev *pci_dev,
 
 	switch (dev->board) {
 	case CX23885_BOARD_NETUP_DUAL_DVBS2_CI:
-		cx_set(PCI_INT_MSK, 0x01800000); /* for NetUP */
+		cx23885_irq_add_enable(dev, 0x01800000); /* for NetUP */
 		break;
 	}
 

@@ -1012,7 +1012,6 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_888_IR);
 		v4l2_subdev_call(dev->sd_cx25840, core, s_io_pin_config,
 				 ir_rxtx_pin_cfg_count, ir_rxtx_pin_cfg);
-		dev->pci_irqmask |= PCI_MSK_IR;
 		/*
 		 * For these boards we need to invert the Tx output via the
 		 * IR controller to have the LED off while idle
@@ -1033,7 +1032,6 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		}
 		v4l2_subdev_call(dev->sd_cx25840, core, s_io_pin_config,
 				 ir_rx_pin_cfg_count, ir_rx_pin_cfg);
-		dev->pci_irqmask |= PCI_MSK_AV_CORE;
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
@@ -1043,7 +1041,6 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		}
 		v4l2_subdev_call(dev->sd_cx25840, core, s_io_pin_config,
 				 ir_rxtx_pin_cfg_count, ir_rxtx_pin_cfg);
-		dev->pci_irqmask |= PCI_MSK_AV_CORE;
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
 		request_module("ir-kbd-i2c");
@@ -1058,15 +1055,13 @@ void cx23885_ir_fini(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		dev->pci_irqmask &= ~PCI_MSK_IR;
-		cx_clear(PCI_INT_MSK, PCI_MSK_IR);
+		cx23885_irq_remove(dev, PCI_MSK_IR);
 		cx23888_ir_remove(dev);
 		dev->sd_ir = NULL;
 		break;
 	case CX23885_BOARD_TEVII_S470:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-		dev->pci_irqmask &= ~PCI_MSK_AV_CORE;
-		cx_clear(PCI_INT_MSK, PCI_MSK_AV_CORE);
+		cx23885_irq_remove(dev, PCI_MSK_AV_CORE);
 		/* sd_ir is a duplicate pointer to the AV Core, just clear it */
 		dev->sd_ir = NULL;
 		break;
@@ -1078,13 +1073,13 @@ void cx23885_ir_pci_int_enable(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		if (dev->sd_ir && (dev->pci_irqmask & PCI_MSK_IR))
-			cx_set(PCI_INT_MSK, PCI_MSK_IR);
+		if (dev->sd_ir)
+			cx23885_irq_add_enable(dev, PCI_MSK_IR);
 		break;
 	case CX23885_BOARD_TEVII_S470:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
-		if (dev->sd_ir && (dev->pci_irqmask & PCI_MSK_AV_CORE))
-			cx_set(PCI_INT_MSK, PCI_MSK_AV_CORE);
+		if (dev->sd_ir)
+			cx23885_irq_add_enable(dev, PCI_MSK_AV_CORE);
 		break;
 	}
 }

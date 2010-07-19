@@ -325,6 +325,7 @@ struct cx23885_dev {
 	u32                        __iomem *lmmio;
 	u8                         __iomem *bmmio;
 	int                        pci_irqmask;
+	spinlock_t		   pci_irqmask_lock; /* protects mask reg too */
 	int                        hwrevision;
 
 	/* This valud is board specific and is used to configure the
@@ -485,6 +486,10 @@ extern u32 cx23885_gpio_get(struct cx23885_dev *dev, u32 mask);
 extern void cx23885_gpio_enable(struct cx23885_dev *dev, u32 mask,
 	int asoutput);
 
+extern void cx23885_irq_add_enable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_enable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_disable(struct cx23885_dev *dev, u32 mask);
+extern void cx23885_irq_remove(struct cx23885_dev *dev, u32 mask);
 
 /* ----------------------------------------------------------- */
 /* cx23885-cards.c                                             */
