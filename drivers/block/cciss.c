@@ -4072,6 +4072,30 @@ static int __devinit cciss_find_cfgtables(ctlr_info_t *h)
 	return 0;
 }
 
+/* Interrogate the hardware for some limits:
+ * max commands, max SG elements without chaining, and with chaining,
+ * SG chain block size, etc.
+ */
+static void __devinit cciss_find_board_params(ctlr_info_t *h)
+{
+	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	h->nr_cmds = h->max_commands - 4; /* Allow room for some ioctls */
+	h->maxsgentries = readl(&(h->cfgtable->MaxSGElements));
+	/*
+	 * Limit in-command s/g elements to 32 save dma'able memory.
+	 * Howvever spec says if 0, use 31
+	 */
+	h->max_cmd_sgentries = 31;
+	if (h->maxsgentries > 512) {
+		h->max_cmd_sgentries = 32;
+		h->chainsize = h->maxsgentries - h->max_cmd_sgentries + 1;
+		h->maxsgentries--; /* save one for chain pointer */
+	} else {
+		h->maxsgentries = 31; /* default to traditional values */
+		h->chainsize = 0;
+	}
+}
+
 static int __devinit cciss_pci_init(ctlr_info_t *c)
 {
 	int prod_index, err;
@@ -4127,34 +4151,8 @@ static int __devinit cciss_pci_init(ctlr_info_t *c)
 #ifdef CCISS_DEBUG
 	print_cfg_table(c->cfgtable);
 #endif				/* CCISS_DEBUG */
+	cciss_find_board_params(c);
 
-	/* Some controllers support Zero Memory Raid (ZMR).
-	 * When configured in ZMR mode the number of supported
-	 * commands drops to 64. So instead of just setting an
-	 * arbitrary value we make the driver a little smarter.
-	 * We read the config table to tell us how many commands
-	 * are supported on the controller then subtract 4 to
-	 * leave a little room for ioctl calls.
-	 */
-	c->max_commands = readl(&(c->cfgtable->MaxPerformantModeCommands));
-	c->maxsgentries = readl(&(c->cfgtable->MaxSGElements));
-
-	/*
-	 * Limit native command to 32 s/g elements to save dma'able memory.
-	 * Howvever spec says if 0, use 31
-	 */
-
-	c->max_cmd_sgentries = 31;
-	if (c->maxsgentries > 512) {
-		c->max_cmd_sgentries = 32;
-		c->chainsize = c->maxsgentries - c->max_cmd_sgentries + 1;
-		c->maxsgentries -= 1;   /* account for chain pointer */
-	} else {
-		c->maxsgentries = 31;   /* Default to traditional value */
-		c->chainsize = 0;       /* traditional */
-	}
-
-	c->nr_cmds = c->max_commands - 4;
 	if ((readb(&c->cfgtable->Signature[0]) != 'C') ||
 	    (readb(&c->cfgtable->Signature[1]) != 'I') ||
 	    (readb(&c->cfgtable->Signature[2]) != 'S') ||
