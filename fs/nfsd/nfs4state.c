@@ -51,7 +51,6 @@ static time_t boot_time;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
 static u32 current_delegid = 1;
-static u32 nfs4_init;
 static stateid_t zerostateid;             /* bits all 0 */
 static stateid_t onestateid;              /* bits all 1 */
 static u64 current_sessionid = 1;
@@ -4071,16 +4070,8 @@ out_free_laundry:
 int
 nfs4_state_start(void)
 {
-	int ret;
-
-	if (nfs4_init)
-		return 0;
 	nfsd4_load_reboot_recovery_data();
-	ret = __nfs4_state_start();
-	if (ret)
-		return ret;
-	nfs4_init = 1;
-	return 0;
+	return __nfs4_state_start();
 }
 
 static void
@@ -4115,7 +4106,6 @@ __nfs4_state_shutdown(void)
 	}
 
 	nfsd4_shutdown_recdir();
-	nfs4_init = 0;
 }
 
 void

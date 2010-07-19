@@ -180,6 +180,31 @@ int nfsd_nrthreads(void)
 	return rv;
 }
 
+static bool nfsd_up = false;
+
+static int nfsd_startup(unsigned short port, int nrservs)
+{
+	int ret;
+
+	ret = nfs4_state_start();
+	nfsd_up = true;
+	return ret;
+}
+
+static void nfsd_shutdown(void)
+{
+	/*
+	 * write_ports can create the server without actually starting
+	 * any threads--if we get shut down before any threads are
+	 * started, then nfsd_last_thread will be run before any of this
+	 * other initialization has been done.
+	 */
+	if (!nfsd_up)
+		return;
+	nfs4_state_shutdown();
+	nfsd_up = false;
+}
+
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
@@ -188,7 +213,7 @@ static void nfsd_last_thread(struct svc_serv *serv)
 		lockd_down();
 	nfsd_serv = NULL;
 	nfsd_racache_shutdown();
-	nfs4_state_shutdown();
+	nfsd_shutdown();
 
 	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
 			    "cache\n");
@@ -380,6 +405,7 @@ int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
+	bool	first_thread;
 
 	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
@@ -395,19 +421,23 @@ nfsd_svc(unsigned short port, int nrservs)
 	error =	nfsd_racache_init(2*nrservs);
 	if (error<0)
 		goto out;
-	error = nfs4_state_start();
-	if (error)
-		goto out;
+
+	first_thread = (nfsd_serv->sv_nrthreads == 0) && (nrservs != 0);
+
+	if (first_thread) {
+		error = nfsd_startup(port, nrservs);
+		if (error)
+			goto out;
+	}
 
 	nfsd_reset_versions();
 
 	error = nfsd_create_serv();
-
 	if (error)
-		goto out;
+		goto out_shutdown;
 	error = nfsd_init_socks(port);
 	if (error)
-		goto failure;
+		goto out_destroy;
 
 	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
 	if (error == 0)
@@ -416,9 +446,12 @@ nfsd_svc(unsigned short port, int nrservs)
 		 * so subtract 1
 		 */
 		error = nfsd_serv->sv_nrthreads - 1;
- failure:
+out_destroy:
 	svc_destroy(nfsd_serv);		/* Release server */
- out:
+out_shutdown:
+	if (error < 0 && first_thread)
+		nfsd_shutdown();
+out:
 	mutex_unlock(&nfsd_mutex);
 	return error;
 }
