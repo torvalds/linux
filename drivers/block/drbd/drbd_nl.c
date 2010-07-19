@@ -172,6 +172,10 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 		put_net_conf(mdev);
 	}
 
+	/* The helper may take some time.
+	 * write out any unsynced meta data changes now */
+	drbd_md_sync(mdev);
+
 	dev_info(DEV, "helper command: %s %s %s\n", usermode_helper, cmd, mb);
 
 	drbd_bcast_ev_helper(mdev, cmd);
