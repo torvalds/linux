@@ -223,6 +223,8 @@ enum intel_pch {
 	PCH_CPT,	/* Cougarpoint PCH */
 };
 
+#define QUIRK_PIPEA_FORCE (1<<0)
+
 struct intel_fbdev;
 
 typedef struct drm_i915_private {
@@ -337,6 +339,8 @@ typedef struct drm_i915_private {
 
 	/* PCH chipset type */
 	enum intel_pch pch_type;
+
+	unsigned long quirks;
 
 	/* Register state */
 	bool modeset_on_lid;

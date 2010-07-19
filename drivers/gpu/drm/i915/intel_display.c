@@ -2270,6 +2270,11 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			intel_wait_for_vblank(dev);
 		}
 
+		/* Don't disable pipe A or pipe A PLLs if needed */
+		if (pipeconf_reg == PIPEACONF &&
+		    (dev_priv->quirks & QUIRK_PIPEA_FORCE))
+			goto skip_pipe_off;
+
 		/* Next, disable display pipes */
 		temp = I915_READ(pipeconf_reg);
 		if ((temp & PIPEACONF_ENABLE) != 0) {
@@ -2285,7 +2290,7 @@ static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
 			I915_WRITE(dpll_reg, temp & ~DPLL_VCO_ENABLE);
 			I915_READ(dpll_reg);
 		}
-
+	skip_pipe_off:
 		/* Wait for the clocks to turn off. */
 		udelay(150);
 		break;
@@ -5526,6 +5531,66 @@ static void intel_init_display(struct drm_device *dev)
 	}
 }
 
+/*
+ * Some BIOSes insist on assuming the GPU's pipe A is enabled at suspend,
+ * resume, or other times.  This quirk makes sure that's the case for
+ * affected systems.
+ */
+static void quirk_pipea_force (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
+	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
+}
+
+struct intel_quirk {
+	int device;
+	int subsystem_vendor;
+	int subsystem_device;
+	void (*hook)(struct drm_device *dev);
+};
+
+struct intel_quirk intel_quirks[] = {
+	/* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
+	{ 0x2a42, 0x103c, 0x30eb, quirk_pipea_force },
+	/* HP Mini needs pipe A force quirk (LP: #322104) */
+	{ 0x27ae,0x103c, 0x361a, quirk_pipea_force },
+
+	/* Thinkpad R31 needs pipe A force quirk */
+	{ 0x3577, 0x1014, 0x0505, quirk_pipea_force },
+	/* Toshiba Protege R-205, S-209 needs pipe A force quirk */
+	{ 0x2592, 0x1179, 0x0001, quirk_pipea_force },
+
+	/* ThinkPad X30 needs pipe A force quirk (LP: #304614) */
+	{ 0x3577,  0x1014, 0x0513, quirk_pipea_force },
+	/* ThinkPad X40 needs pipe A force quirk */
+
+	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
+	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
+
+	/* 855 & before need to leave pipe A & dpll A up */
+	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+};
+
+static void intel_init_quirks(struct drm_device *dev)
+{
+	struct pci_dev *d = dev->pdev;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(intel_quirks); i++) {
+		struct intel_quirk *q = &intel_quirks[i];
+
+		if (d->device == q->device &&
+		    (d->subsystem_vendor == q->subsystem_vendor ||
+		     q->subsystem_vendor == PCI_ANY_ID) &&
+		    (d->subsystem_device == q->subsystem_device ||
+		     q->subsystem_device == PCI_ANY_ID))
+			q->hook(dev);
+	}
+}
+
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -5537,6 +5602,8 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.min_height = 0;
 
 	dev->mode_config.funcs = (void *)&intel_mode_funcs;
+
+	intel_init_quirks(dev);
 
 	intel_init_display(dev);
 
