@@ -852,7 +852,7 @@ static void cpm_uart_init_smc(struct uart_cpm_port *pinfo)
 	 */
 	cpm_set_smc_fcr(up);
 
-	/* Using idle charater time requires some additional tuning.  */
+	/* Using idle character time requires some additional tuning.  */
 	out_be16(&up->smc_mrblr, pinfo->rx_fifosize);
 	out_be16(&up->smc_maxidl, pinfo->rx_fifosize);
 	out_be16(&up->smc_brklen, 0);

@@ -2649,7 +2649,7 @@ static int __init rs_360_init(void)
 				sup->tfcr = SMC_EB;
 
 				/* Set this to 1 for now, so we get single
-				 * character interrupts.  Using idle charater
+				 * character interrupts.  Using idle character
 				 * time requires some additional tuning.
 				 */
 				sup->mrblr = 1;
@@ -2728,7 +2728,7 @@ static int __init rs_360_init(void)
 				up->tfcr = SMC_EB;
 
 				/* Set this to 1 for now, so we get single
-				 * character interrupts.  Using idle charater
+				 * character interrupts.  Using idle character
 				 * time requires some additional tuning.
 				 */
 				up->mrblr = 1;
@@ -2886,7 +2886,7 @@ int serial_console_setup( struct console *co, char *options)
 		sup->tfcr = SMC_EB;
 
 		/* Set this to 1 for now, so we get single
-		 * character interrupts.  Using idle charater
+		 * character interrupts.  Using idle character
 		 * time requires some additional tuning.
 		 */
 		sup->mrblr = 1;
