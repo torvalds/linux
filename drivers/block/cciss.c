@@ -4495,6 +4495,7 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	int rc, i;
 	CfgTable_struct __iomem *cfgtable;
 	bool use_doorbell;
+	u32 board_id;
 
 	/* For controllers as old a the p600, this is very nearly
 	 * the same thing as
@@ -4516,6 +4517,19 @@ static __devinit int cciss_kdump_hard_reset_controller(struct pci_dev *pdev)
 	 * method of resetting doesn't work so we have another way
 	 * using the doorbell register.
 	 */
+
+	/* Exclude 640x boards.  These are two pci devices in one slot
+	 * which share a battery backed cache module.  One controls the
+	 * cache, the other accesses the cache through the one that controls
+	 * it.  If we reset the one controlling the cache, the other will
+	 * likely not be happy.  Just forbid resetting this conjoined mess.
+	 */
+	cciss_lookup_board_id(pdev, &board_id);
+	if (board_id == 0x409C0E11 || board_id == 0x409D0E11) {
+		dev_warn(&pdev->dev, "Cannot reset Smart Array 640x "
+				"due to shared cache module.");
+		return -ENODEV;
+	}
 
 	for (i = 0; i < 32; i++)
 		pci_read_config_word(pdev, 2*i, &saved_config_space[i]);
@@ -4600,7 +4614,8 @@ static __devinit int cciss_init_reset_devices(struct pci_dev *pdev)
 
 	/* -ENOTSUPP here means we cannot reset the controller
 	 * but it's already (and still) up and running in
-	 * "performant mode".
+	 * "performant mode".  Or, it might be 640x, which can't reset
+	 * due to concerns about shared bbwc between 6402/6404 pair.
 	 */
 	if (rc == -ENOTSUPP)
 		return 0; /* just try to do the kdump anyhow. */
