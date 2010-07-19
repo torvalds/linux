@@ -310,11 +310,11 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 		hsotg->regs + S3C_GNPTXFSIZ);
 	*/
 
-	/* set FIFO sizes to 2048/0x1C0 */
+	/* set FIFO sizes to 2048/1024 */
 
 	writel(2048, hsotg->regs + S3C_GRXFSIZ);
 	writel(S3C_GNPTXFSIZ_NPTxFStAddr(2048) |
-	       S3C_GNPTXFSIZ_NPTxFDep(0x1C0),
+	       S3C_GNPTXFSIZ_NPTxFDep(1024),
 	       hsotg->regs + S3C_GNPTXFSIZ);
 
 	/* arange all the rest of the TX FIFOs, as some versions of this
