@@ -21,6 +21,8 @@ struct _fpx_sw_bytes fx_sw_reserved;
 struct _fpx_sw_bytes fx_sw_reserved_ia32;
 #endif
 
+static unsigned int *xstate_offsets, *xstate_sizes, xstate_features;
+
 /*
  * Check for the presence of extended state information in the
  * user fpstate pointer in the sigcontext.
@@ -302,12 +304,39 @@ void __cpuinit xsave_init(void)
 }
 
 /*
+ * Record the offsets and sizes of different state managed by the xsave
+ * memory layout.
+ */
+static void setup_xstate_features(void)
+{
+	int eax, ebx, ecx, edx, leaf = 0x2;
+
+	xstate_features = fls64(pcntxt_mask);
+	xstate_offsets = alloc_bootmem(xstate_features * sizeof(int));
+	xstate_sizes = alloc_bootmem(xstate_features * sizeof(int));
+
+	do {
+		cpuid_count(0xd, leaf, &eax, &ebx, &ecx, &edx);
+
+		if (eax == 0)
+			break;
+
+		xstate_offsets[leaf] = ebx;
+		xstate_sizes[leaf] = eax;
+
+		leaf++;
+	} while (1);
+}
+
+/*
  * setup the xstate image representing the init state
  */
 static void __init setup_xstate_init(void)
 {
 	init_xstate_buf = alloc_bootmem(xstate_size);
 	init_xstate_buf->i387.mxcsr = MXCSR_DEFAULT;
+
+	setup_xstate_features();
 }
 
 /*
