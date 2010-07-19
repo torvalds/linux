@@ -34,6 +34,11 @@ extern void (*cpu_wait)(void);
 extern unsigned int vced_count, vcei_count;
 
 /*
+ * MIPS does have an arch_pick_mmap_layout()
+ */
+#define HAVE_ARCH_PICK_MMAP_LAYOUT 1
+
+/*
  * A special page (the vdso) is mapped into all processes at the very
  * top of the virtual memory space.
  */
@@ -52,6 +57,9 @@ extern unsigned int vced_count, vcei_count;
  * space during mmap's.
  */
 #define TASK_UNMAPPED_BASE	((TASK_SIZE / 3) & ~(PAGE_SIZE))
+
+#define TASK_IS_32BIT_ADDR 1
+
 #endif
 
 #ifdef CONFIG_64BIT
@@ -77,6 +85,9 @@ extern unsigned int vced_count, vcei_count;
 		PAGE_ALIGN(TASK_SIZE32 / 3) : PAGE_ALIGN(TASK_SIZE / 3))
 #define TASK_SIZE_OF(tsk)						\
 	(test_tsk_thread_flag(tsk, TIF_32BIT_ADDR) ? TASK_SIZE32 : TASK_SIZE)
+
+#define TASK_IS_32BIT_ADDR test_thread_flag(TIF_32BIT_ADDR)
+
 #endif
 
 #ifdef __KERNEL__
