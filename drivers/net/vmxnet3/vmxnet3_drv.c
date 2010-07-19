@@ -2365,6 +2365,7 @@ vmxnet3_reset_work(struct work_struct *data)
 		return;
 
 	/* if the device is closed, we must leave it alone */
+	rtnl_lock();
 	if (netif_running(adapter->netdev)) {
 		printk(KERN_INFO "%s: resetting\n", adapter->netdev->name);
 		vmxnet3_quiesce_dev(adapter);
@@ -2373,6 +2374,7 @@ vmxnet3_reset_work(struct work_struct *data)
 	} else {
 		printk(KERN_INFO "%s: already closed\n", adapter->netdev->name);
 	}
+	rtnl_unlock();
 
 	clear_bit(VMXNET3_STATE_BIT_RESETTING, &adapter->state);
 }
