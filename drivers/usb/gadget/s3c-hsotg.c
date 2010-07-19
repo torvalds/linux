@@ -612,8 +612,7 @@ static unsigned get_ep_limit(struct s3c_hsotg_ep *hs_ep)
 		maxpkt = S3C_DxEPTSIZ_PktCnt_LIMIT + 1;
 	} else {
 		if (hs_ep->dir_in) {
-			/* maxsize = S3C_DIEPTSIZ0_XferSize_LIMIT + 1; */
-			maxsize = 64+64+1;
+			maxsize = 64+64;
 			maxpkt = S3C_DIEPTSIZ0_PktCnt_LIMIT + 1;
 		} else {
 			maxsize = 0x3f;
