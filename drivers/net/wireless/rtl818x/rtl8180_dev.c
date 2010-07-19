@@ -103,6 +103,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	unsigned int count = 32;
+	u8 signal;
 
 	while (count--) {
 		struct rtl8180_rx_desc *entry = &priv->rx_ring[priv->rx_idx];
@@ -130,10 +131,14 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			skb_put(skb, flags & 0xFFF);
 
 			rx_status.antenna = (flags2 >> 15) & 1;
-			/* TODO: improve signal/rssi reporting */
-			rx_status.signal = (flags2 >> 8) & 0x7F;
-			/* XXX: is this correct? */
 			rx_status.rate_idx = (flags >> 20) & 0xF;
+			/* TODO: improve signal/rssi reporting for !rtl8185 */
+			signal = (flags2 >> 17) & 0x7F;
+			if (rx_status.rate_idx > 3)
+				signal = 90 - clamp_t(u8, signal, 25, 90);
+			else
+				signal = 95 - clamp_t(u8, signal, 30, 95);
+			rx_status.signal = signal;
 			rx_status.freq = dev->conf.channel->center_freq;
 			rx_status.band = dev->conf.channel->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
