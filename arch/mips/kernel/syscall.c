@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/random.h>
+#include <linux/elf.h>
 
 #include <asm/asm.h>
 #include <asm/branch.h>
@@ -151,6 +152,33 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	mm->mmap_base = TASK_UNMAPPED_BASE + random_factor;
 	mm->get_unmapped_area = arch_get_unmapped_area;
 	mm->unmap_area = arch_unmap_area;
+}
+
+static inline unsigned long brk_rnd(void)
+{
+	unsigned long rnd = get_random_int();
+
+	rnd = rnd << PAGE_SHIFT;
+	/* 8MB for 32bit, 256MB for 64bit */
+	if (TASK_IS_32BIT_ADDR)
+		rnd = rnd & 0x7ffffful;
+	else
+		rnd = rnd & 0xffffffful;
+
+	return rnd;
+}
+
+unsigned long arch_randomize_brk(struct mm_struct *mm)
+{
+	unsigned long base = mm->brk;
+	unsigned long ret;
+
+	ret = PAGE_ALIGN(base + brk_rnd());
+
+	if (ret < mm->brk)
+		return mm->brk;
+
+	return ret;
 }
 
 SYSCALL_DEFINE6(mips_mmap, unsigned long, addr, unsigned long, len,
