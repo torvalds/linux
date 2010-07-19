@@ -249,6 +249,8 @@ static int ieee80211_open(struct net_device *dev)
 			local->fif_other_bss++;
 
 		ieee80211_configure_filter(local);
+
+		netif_carrier_on(dev);
 		break;
 	default:
 		res = drv_add_interface(local, &sdata->vif);
