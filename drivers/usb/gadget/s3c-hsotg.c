@@ -505,6 +505,7 @@ static int s3c_hsotg_write_fifo(struct s3c_hsotg *hsotg,
 		}
 
 		can_write = S3C_GNPTXSTS_NPTxFSpcAvail_GET(gnptxsts);
+		can_write *= 4;	/* fifo size is in 32bit quantities. */
 	}
 
 	dev_dbg(hsotg->dev, "%s: GNPTXSTS=%08x, can=%d, to=%d, mps %d\n",
@@ -2732,7 +2733,7 @@ static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 	 */
 
 	ptxfifo = readl(hsotg->regs + S3C_DPTXFSIZn(epnum));
-	hs_ep->fifo_size = S3C_DPTXFSIZn_DPTxFSize_GET(ptxfifo);
+	hs_ep->fifo_size = S3C_DPTXFSIZn_DPTxFSize_GET(ptxfifo) * 4;
 
 	/* if we're using dma, we need to set the next-endpoint pointer
 	 * to be something valid.
