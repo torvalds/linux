@@ -6,6 +6,7 @@
 #include <linux/string.h>
 #include <linux/pm_runtime.h>
 #include <asm/atomic.h>
+#include <linux/jiffies.h>
 #include "power.h"
 
 /*
@@ -110,6 +111,33 @@ static ssize_t control_store(struct device * dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(control, 0644, control_show, control_store);
+
+static ssize_t rtpm_active_time_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	spin_lock_irq(&dev->power.lock);
+	update_pm_runtime_accounting(dev);
+	ret = sprintf(buf, "%i\n", jiffies_to_msecs(dev->power.active_jiffies));
+	spin_unlock_irq(&dev->power.lock);
+	return ret;
+}
+
+static DEVICE_ATTR(runtime_active_time, 0444, rtpm_active_time_show, NULL);
+
+static ssize_t rtpm_suspended_time_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	int ret;
+	spin_lock_irq(&dev->power.lock);
+	update_pm_runtime_accounting(dev);
+	ret = sprintf(buf, "%i\n",
+		jiffies_to_msecs(dev->power.suspended_jiffies));
+	spin_unlock_irq(&dev->power.lock);
+	return ret;
+}
+
+static DEVICE_ATTR(runtime_suspended_time, 0444, rtpm_suspended_time_show, NULL);
 
 static ssize_t rtpm_status_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -254,6 +282,8 @@ static struct attribute * power_attrs[] = {
 #ifdef CONFIG_PM_RUNTIME
 	&dev_attr_control.attr,
 	&dev_attr_runtime_status.attr,
+	&dev_attr_runtime_suspended_time.attr,
+	&dev_attr_runtime_active_time.attr,
 #endif
 	&dev_attr_wakeup.attr,
 #ifdef CONFIG_PM_SLEEP

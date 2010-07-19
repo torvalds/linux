@@ -477,8 +477,14 @@ struct dev_pm_info {
 	enum rpm_request	request;
 	enum rpm_status		runtime_status;
 	int			runtime_error;
+	unsigned long		active_jiffies;
+	unsigned long		suspended_jiffies;
+	unsigned long		accounting_timestamp;
 #endif
 };
+
+extern void update_pm_runtime_accounting(struct device *dev);
+
 
 /*
  * The PM_EVENT_ messages are also used by drivers implementing the legacy
