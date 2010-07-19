@@ -570,12 +570,14 @@ static void __init tegra_stingray_init(void)
 	/* Enable charging */
 	tegra_gpio_enable(TEGRA_GPIO_PV5);
 	gpio_request(TEGRA_GPIO_PV5, "chg_stat1");
+	gpio_direction_input(TEGRA_GPIO_PV5);
 	gpio_export(TEGRA_GPIO_PV5, false);
 	if (stingray_revision() <= STINGRAY_REVISION_P0) {
 		bq24617_device.resource = bq24617_resources_m1_p0;
 
 		tegra_gpio_enable(TEGRA_GPIO_PV6);
 		gpio_request(TEGRA_GPIO_PV6, "chg_stat2");
+		gpio_direction_input(TEGRA_GPIO_PV6);
 		gpio_export(TEGRA_GPIO_PV6, false);
 
 		tegra_gpio_enable(TEGRA_GPIO_PJ0);
@@ -585,10 +587,12 @@ static void __init tegra_stingray_init(void)
 	} else {
 		tegra_gpio_enable(TEGRA_GPIO_PV6);
 		gpio_request(TEGRA_GPIO_PV6, "chg_detect");
+		gpio_direction_input(TEGRA_GPIO_PV6);
 		gpio_export(TEGRA_GPIO_PV6, false);
 
 		tegra_gpio_enable(TEGRA_GPIO_PD1);
 		gpio_request(TEGRA_GPIO_PD1, "chg_stat2");
+		gpio_direction_input(TEGRA_GPIO_PD1);
 		gpio_export(TEGRA_GPIO_PD1, false);
 
 		tegra_gpio_enable(TEGRA_GPIO_PI4);
