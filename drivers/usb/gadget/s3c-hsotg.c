@@ -152,6 +152,7 @@ struct s3c_hsotg {
 	void __iomem		*regs;
 	struct resource		*regs_res;
 	int			irq;
+	struct clk		*clk;
 
 	unsigned int		dedicated_fifos:1;
 
@@ -3258,13 +3259,20 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->dev = dev;
 	hsotg->plat = plat;
 
+	hsotg->clk = clk_get(&pdev->dev, "otg");
+	if (IS_ERR(hsotg->clk)) {
+		dev_err(dev, "cannot get otg clock\n");
+		ret = -EINVAL;
+		goto err_mem;
+	}
+
 	platform_set_drvdata(pdev, hsotg);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(dev, "cannot find register resource 0\n");
 		ret = -EINVAL;
-		goto err_mem;
+		goto err_clk;
 	}
 
 	hsotg->regs_res = request_mem_region(res->start, resource_size(res),
@@ -3272,7 +3280,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	if (!hsotg->regs_res) {
 		dev_err(dev, "cannot reserve registers\n");
 		ret = -ENOENT;
-		goto err_mem;
+		goto err_clk;
 	}
 
 	hsotg->regs = ioremap(res->start, resource_size(res));
@@ -3325,6 +3333,8 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	/* reset the system */
 
+	clk_enable(hsotg->clk);
+
 	s3c_hsotg_gate(pdev, true);
 
 	s3c_hsotg_otgreset(hsotg);
@@ -3348,7 +3358,8 @@ err_regs:
 err_regs_res:
 	release_resource(hsotg->regs_res);
 	kfree(hsotg->regs_res);
-
+err_clk:
+	clk_put(hsotg->clk);
 err_mem:
 	kfree(hsotg);
 	return ret;
@@ -3369,6 +3380,9 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	kfree(hsotg->regs_res);
 
 	s3c_hsotg_gate(pdev, false);
+
+	clk_disable(hsotg->clk);
+	clk_put(hsotg->clk);
 
 	kfree(hsotg);
 	return 0;
