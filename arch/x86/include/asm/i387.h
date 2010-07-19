@@ -60,7 +60,7 @@ extern int restore_i387_xstate_ia32(void __user *buf);
 
 static __always_inline __pure bool use_xsaveopt(void)
 {
-	return 0;
+	return static_cpu_has(X86_FEATURE_XSAVEOPT);
 }
 
 static __always_inline __pure bool use_xsave(void)
