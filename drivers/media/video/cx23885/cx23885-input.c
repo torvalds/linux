@@ -99,8 +99,10 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
+	case CX23885_BOARD_TEVII_S470:
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/*
-		 * The only board we handle right now.  However other boards
+		 * The only boards we handle right now.  However other boards
 		 * using the CX2388x integrated IR controller should be similar
 		 */
 		break;
@@ -148,6 +150,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		/*
 		 * The IR controller on this board only returns pulse widths.
 		 * Any other mode setting will fail to set up the device.
@@ -170,6 +173,37 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 		 * mark is received as low logic level;
 		 * falling edges are detected as rising edges; etc.
 		 */
+		params.invert_level = true;
+		break;
+	case CX23885_BOARD_TEVII_S470:
+		/*
+		 * The IR controller on this board only returns pulse widths.
+		 * Any other mode setting will fail to set up the device.
+		 */
+		params.mode = V4L2_SUBDEV_IR_MODE_PULSE_WIDTH;
+		params.enable = true;
+		params.interrupt_enable = true;
+		params.shutdown = false;
+
+		/* Setup for a standard NEC protocol */
+		params.carrier_freq = 37917; /* Hz, 455 kHz/12 for NEC */
+		params.carrier_range_lower = 33000; /* Hz */
+		params.carrier_range_upper = 43000; /* Hz */
+		params.duty_cycle = 33; /* percent, 33 percent for NEC */
+
+		/*
+		 * NEC max pulse width: (64/3)/(455 kHz/12) * 16 nec_units
+		 * (64/3)/(455 kHz/12) * 16 nec_units * 1.375 = 12378022 ns
+		 */
+		params.max_pulse_width = 12378022; /* ns */
+
+		/*
+		 * NEC noise filter min width: (64/3)/(455 kHz/12) * 1 nec_unit
+		 * (64/3)/(455 kHz/12) * 1 nec_units * 0.625 = 351648 ns
+		 */
+		params.noise_filter_min_width = 351648; /* ns */
+
+		params.modulation = false;
 		params.invert_level = true;
 		break;
 	}
@@ -244,11 +278,19 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	switch (dev->board) {
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
-		/* Integrated CX23888 IR controller */
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+		/* Integrated CX2388[58] IR controller */
 		driver_type = RC_DRIVER_IR_RAW;
 		allowed_protos = IR_TYPE_ALL;
 		/* The grey Hauppauge RC-5 remote */
 		rc_map = RC_MAP_RC5_HAUPPAUGE_NEW;
+		break;
+	case CX23885_BOARD_TEVII_S470:
+		/* Integrated CX23885 IR controller */
+		driver_type = RC_DRIVER_IR_RAW;
+		allowed_protos = IR_TYPE_ALL;
+		/* A guess at the remote */
+		rc_map = RC_MAP_TEVII_NEC;
 		break;
 	default:
 		return -ENODEV;

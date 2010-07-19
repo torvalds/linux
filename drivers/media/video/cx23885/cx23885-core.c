@@ -1650,7 +1650,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 	u32 ts1_status, ts1_mask;
 	u32 ts2_status, ts2_mask;
 	int vida_count = 0, ts1_count = 0, ts2_count = 0, handled = 0;
-	bool ir_handled = false;
+	bool subdev_handled;
 
 	pci_status = cx_read(PCI_INT_STAT);
 	pci_mask = cx_read(PCI_INT_MSK);
@@ -1681,7 +1681,7 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 			  PCI_MSK_VID_C   | PCI_MSK_VID_B   | PCI_MSK_VID_A   |
 			  PCI_MSK_AUD_INT | PCI_MSK_AUD_EXT |
 			  PCI_MSK_GPIO0   | PCI_MSK_GPIO1   |
-			  PCI_MSK_IR)) {
+			  PCI_MSK_AV_CORE | PCI_MSK_IR)) {
 
 		if (pci_status & PCI_MSK_RISC_RD)
 			dprintk(7, " (PCI_MSK_RISC_RD   0x%08x)\n",
@@ -1731,6 +1731,10 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 			dprintk(7, " (PCI_MSK_GPIO1     0x%08x)\n",
 				PCI_MSK_GPIO1);
 
+		if (pci_status & PCI_MSK_AV_CORE)
+			dprintk(7, " (PCI_MSK_AV_CORE   0x%08x)\n",
+				PCI_MSK_AV_CORE);
+
 		if (pci_status & PCI_MSK_IR)
 			dprintk(7, " (PCI_MSK_IR        0x%08x)\n",
 				PCI_MSK_IR);
@@ -1765,9 +1769,19 @@ static irqreturn_t cx23885_irq(int irq, void *dev_id)
 		handled += cx23885_video_irq(dev, vida_status);
 
 	if (pci_status & PCI_MSK_IR) {
+		subdev_handled = false;
 		v4l2_subdev_call(dev->sd_ir, core, interrupt_service_routine,
-				 pci_status, &ir_handled);
-		if (ir_handled)
+				 pci_status, &subdev_handled);
+		if (subdev_handled)
+			handled++;
+	}
+
+	if (pci_status & PCI_MSK_AV_CORE) {
+		subdev_handled = false;
+		v4l2_subdev_call(dev->sd_cx25840,
+				 core, interrupt_service_routine,
+				 pci_status, &subdev_handled);
+		if (subdev_handled)
 			handled++;
 	}
 
