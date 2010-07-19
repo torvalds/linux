@@ -52,6 +52,7 @@
 /* Configuration Table */
 #define CFGTBL_ChangeReq        0x00000001l
 #define CFGTBL_AccCmds          0x00000001l
+#define DOORBELL_CTLR_RESET     0x00000004l
 
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
@@ -230,6 +231,9 @@ typedef struct _CfgTable_struct {
   DWORD            MaxPhysicalDrives;
   DWORD            MaxPhysicalDrivesPerLogicalUnit;
   DWORD            MaxPerformantModeCommands;
+  u8		   reserved[0x78 - 0x58];
+  u32		   misc_fw_support; /* offset 0x78 */
+#define MISC_FW_DOORBELL_RESET (0x02)
 } CfgTable_struct;
 
 struct TransTable_struct {
