@@ -803,8 +803,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 	/* after reinitialize QoS TX queues setting to default,
 	 * disable QoS at all */
-	local->hw.conf.flags &=	~IEEE80211_CONF_QOS;
-	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
+	sdata->vif.bss_conf.qos = sdata->vif.type != NL80211_IFTYPE_STATION;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -1161,7 +1161,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_BASIC_RATES |
 			  BSS_CHANGED_BEACON_INT |
 			  BSS_CHANGED_BSSID |
-			  BSS_CHANGED_CQM;
+			  BSS_CHANGED_CQM |
+			  BSS_CHANGED_QOS;
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:

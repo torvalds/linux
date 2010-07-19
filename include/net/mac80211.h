@@ -147,6 +147,8 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_CQM: Connection quality monitor config changed
  * @BSS_CHANGED_IBSS: IBSS join status changed
  * @BSS_CHANGED_ARP_FILTER: Hardware ARP filter address list or state changed.
+ * @BSS_CHANGED_QOS: QoS for this association was enabled/disabled. Note
+ *	that it is only ever disabled for station mode.
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -162,6 +164,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_CQM			= 1<<10,
 	BSS_CHANGED_IBSS		= 1<<11,
 	BSS_CHANGED_ARP_FILTER		= 1<<12,
+	BSS_CHANGED_QOS			= 1<<13,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -217,6 +220,7 @@ enum ieee80211_bss_change {
  *	filter ARP queries based on the @arp_addr_list, if disabled, the
  *	hardware must not perform any ARP filtering. Note, that the filter will
  *	be enabled also in promiscuous mode.
+ * @qos: This is a QoS-enabled BSS.
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -240,6 +244,7 @@ struct ieee80211_bss_conf {
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
 	u8 arp_addr_cnt;
 	bool arp_filter_enabled;
+	bool qos;
 };
 
 /**
@@ -620,15 +625,11 @@ struct ieee80211_rx_status {
  *	may turn the device off as much as possible. Typically, this flag will
  *	be set when an interface is set UP but not associated or scanning, but
  *	it can also be unset in that case when monitor interfaces are active.
- * @IEEE80211_CONF_QOS: Enable 802.11e QoS also know as WMM (Wireless
- *      Multimedia). On some drivers (iwlwifi is one of know) we have
- *      to enable/disable QoS explicitly.
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_MONITOR		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
 	IEEE80211_CONF_IDLE		= (1<<2),
-	IEEE80211_CONF_QOS		= (1<<3),
 };
 
 
@@ -643,7 +644,6 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  * @IEEE80211_CONF_CHANGE_SMPS: Spatial multiplexing powersave mode changed
- * @IEEE80211_CONF_CHANGE_QOS: Quality of service was enabled or disabled
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_SMPS		= BIT(1),
@@ -654,7 +654,6 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
-	IEEE80211_CONF_CHANGE_QOS		= BIT(9),
 };
 
 /**
