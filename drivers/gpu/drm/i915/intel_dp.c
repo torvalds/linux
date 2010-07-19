@@ -150,8 +150,20 @@ intel_dp_mode_valid(struct drm_connector *connector,
 {
 	struct drm_encoder *encoder = intel_attached_encoder(connector);
 	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
+	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_encoder));
 	int max_lanes = intel_dp_max_lane_count(intel_encoder);
+
+	if ((IS_eDP(intel_encoder) || IS_PCH_eDP(dp_priv)) &&
+	    dev_priv->panel_fixed_mode) {
+		if (mode->hdisplay > dev_priv->panel_fixed_mode->hdisplay)
+			return MODE_PANEL;
+
+		if (mode->vdisplay > dev_priv->panel_fixed_mode->vdisplay)
+			return MODE_PANEL;
+	}
 
 	/* only refuse the mode on non eDP since we have seen some wierd eDP panels
 	   which are outside spec tolerances but somehow work by magic */
