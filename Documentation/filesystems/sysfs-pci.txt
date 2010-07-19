@@ -39,7 +39,7 @@ files, each with their own function.
        local_cpus	   nearby CPU mask (cpumask, ro)
        remove		   remove device from kernel's list (ascii, wo)
        resource		   PCI resource host addresses (ascii, ro)
-       resource0..N	   PCI resource N, if present (binary, mmap)
+       resource0..N	   PCI resource N, if present (binary, mmap, rw[1])
        resource0_wc..N_wc  PCI WC map resource N, if prefetchable (binary, mmap)
        rom		   PCI ROM resource, if present (binary, ro)
        subsystem_device	   PCI subsystem device (ascii, ro)
@@ -54,13 +54,16 @@ files, each with their own function.
   binary - file contains binary data
   cpumask - file contains a cpumask type
 
+[1] rw for RESOURCE_IO (I/O port) regions only
+
 The read only files are informational, writes to them will be ignored, with
 the exception of the 'rom' file.  Writable files can be used to perform
 actions on the device (e.g. changing config space, detaching a device).
 mmapable files are available via an mmap of the file at offset 0 and can be
 used to do actual device programming from userspace.  Note that some platforms
 don't support mmapping of certain resources, so be sure to check the return
-value from any attempted mmap.
+value from any attempted mmap.  The most notable of these are I/O port
+resources, which also provide read/write access.
 
 The 'enable' file provides a counter that indicates how many times the device 
 has been enabled.  If the 'enable' file currently returns '4', and a '1' is
