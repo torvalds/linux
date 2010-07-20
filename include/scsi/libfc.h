@@ -412,6 +412,7 @@ struct fc_seq {
  * @esb_stat:     ESB exchange status
  * @r_a_tov:      Resouce allocation time out value (in msecs)
  * @seq_id:       The next sequence ID to use
+ * @encaps:       encapsulation information for lower-level driver
  * @f_ctl:        F_CTL flags for the sequence
  * @fh_type:      The frame type
  * @class:        The class of service
@@ -443,6 +444,7 @@ struct fc_exch {
 	u32		    esb_stat;
 	u32		    r_a_tov;
 	u8		    seq_id;
+	u8		    encaps;
 	u32		    f_ctl;
 	u8		    fh_type;
 	enum fc_class	    class;

@@ -464,6 +464,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 
 	f_ctl = ntoh24(fh->fh_f_ctl);
 	fc_exch_setup_hdr(ep, fp, f_ctl);
+	fr_encaps(fp) = ep->encaps;
 
 	/*
 	 * update sequence count if this frame is carrying
@@ -1259,6 +1260,7 @@ static void fc_exch_recv_req(struct fc_lport *lport, struct fc_exch_mgr *mp,
 		sp = fr_seq(fp);	/* sequence will be held */
 		ep = fc_seq_exch(sp);
 		fc_seq_send_ack(sp, fp);
+		ep->encaps = fr_encaps(fp);
 
 		/*
 		 * Call the receive function.

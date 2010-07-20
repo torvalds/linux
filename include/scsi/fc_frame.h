@@ -51,6 +51,7 @@
 #define fr_sof(fp)	(fr_cb(fp)->fr_sof)
 #define fr_eof(fp)	(fr_cb(fp)->fr_eof)
 #define fr_flags(fp)	(fr_cb(fp)->fr_flags)
+#define fr_encaps(fp)	(fr_cb(fp)->fr_encaps)
 #define fr_max_payload(fp)	(fr_cb(fp)->fr_max_payload)
 #define fr_fsp(fp)	(fr_cb(fp)->fr_fsp)
 #define fr_crc(fp)	(fr_cb(fp)->fr_crc)
@@ -69,6 +70,7 @@ struct fcoe_rcv_info {
 	u8		fr_sof;		/* start of frame delimiter */
 	u8		fr_eof;		/* end of frame delimiter */
 	u8		fr_flags;	/* flags - see below */
+	u8		fr_encaps;	/* LLD encapsulation info (e.g. FIP) */
 	u8		granted_mac[ETH_ALEN]; /* FCoE MAC address */
 };
 
@@ -97,6 +99,7 @@ static inline void fc_frame_init(struct fc_frame *fp)
 	fr_dev(fp) = NULL;
 	fr_seq(fp) = NULL;
 	fr_flags(fp) = 0;
+	fr_encaps(fp) = 0;
 }
 
 struct fc_frame *fc_frame_alloc_fill(struct fc_lport *, size_t payload_len);
