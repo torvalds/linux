@@ -1076,14 +1076,15 @@ int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	sk_for_each_bound(sk, node, &nl_table[ssk->sk_protocol].mc_list)
 		do_one_broadcast(sk, &info);
 
-	kfree_skb(skb);
+	consume_skb(skb);
 
 	netlink_unlock_table();
 
-	kfree_skb(info.skb2);
-
-	if (info.delivery_failure)
+	if (info.delivery_failure) {
+		kfree_skb(info.skb2);
 		return -ENOBUFS;
+	} else
+		consume_skb(info.skb2);
 
 	if (info.delivered) {
 		if (info.congested && (allocation & __GFP_WAIT))

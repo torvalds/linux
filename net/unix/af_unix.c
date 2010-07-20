@@ -1906,7 +1906,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 				break;
 			}
 
-			kfree_skb(skb);
+			consume_skb(skb);
 
 			if (siocb->scm->fp)
 				break;

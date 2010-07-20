@@ -407,7 +407,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
 		audit_hold_skb(skb);
 	} else
 		/* drop the extra reference if sent ok */
-		kfree_skb(skb);
+		consume_skb(skb);
 }
 
 static int kauditd_thread(void *dummy)
