@@ -1082,6 +1082,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	case DRM_MODE_CONNECTOR_DVIA:
@@ -1096,6 +1098,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_DVID:
@@ -1186,6 +1190,8 @@ radeon_add_atom_connector(struct drm_device *dev,
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
 						      radeon_atombios_get_tv_info(rdev));
+			/* no HPD on analog connectors */
+			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1209,7 +1215,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 		break;
 	}
 
-	if (hpd->hpd == RADEON_HPD_NONE) {
+	if (radeon_connector->hpd.hpd == RADEON_HPD_NONE) {
 		if (i2c_bus->valid)
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	} else
@@ -1276,6 +1282,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 		break;
 	case DRM_MODE_CONNECTOR_DVIA:
@@ -1290,6 +1298,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		drm_connector_attach_property(&radeon_connector->base,
 					      rdev->mode_info.load_detect_property,
 					      1);
+		/* no HPD on analog connectors */
+		radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		break;
 	case DRM_MODE_CONNECTOR_DVII:
 	case DRM_MODE_CONNECTOR_DVID:
@@ -1328,6 +1338,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.tv_std_property,
 						      radeon_combios_get_tv_info(rdev));
+			/* no HPD on analog connectors */
+			radeon_connector->hpd.hpd = RADEON_HPD_NONE;
 		}
 		break;
 	case DRM_MODE_CONNECTOR_LVDS:
@@ -1345,7 +1357,7 @@ radeon_add_legacy_connector(struct drm_device *dev,
 		break;
 	}
 
-	if (hpd->hpd == RADEON_HPD_NONE) {
+	if (radeon_connector->hpd.hpd == RADEON_HPD_NONE) {
 		if (i2c_bus->valid)
 			connector->polled = DRM_CONNECTOR_POLL_CONNECT;
 	} else
