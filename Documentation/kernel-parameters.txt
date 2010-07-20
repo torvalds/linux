@@ -1028,6 +1028,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			result in a hardware IOTLB flush operation as opposed
 			to batching them for performance.
 
+	intremap=	[X86-64, Intel-IOMMU]
+			Format: { on (default) | off | nosid }
+			on	enable Interrupt Remapping (default)
+			off	disable Interrupt Remapping
+			nosid	disable Source ID checking
+
 	inttest=	[IA64]
 
 	iomem=		Disable strict checking of access to MMIO memory
@@ -1755,6 +1761,7 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nointremap	[X86-64, Intel-IOMMU] Do not enable interrupt
 			remapping.
+			[Deprecated - use intremap=off]
 
 	nointroute	[IA-64]
 
