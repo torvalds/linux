@@ -4697,6 +4697,16 @@ i915_gem_load(struct drm_device *dev)
 	list_add(&dev_priv->mm.shrink_list, &shrink_list);
 	spin_unlock(&shrink_list_lock);
 
+	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
+	if (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev)) {
+		u32 tmp = I915_READ(MI_ARB_STATE);
+		if (!(tmp & MI_ARB_C3_LP_WRITE_ENABLE)) {
+			/* arb state is a masked write, so set bit + bit in mask */
+			tmp = MI_ARB_C3_LP_WRITE_ENABLE | (MI_ARB_C3_LP_WRITE_ENABLE << MI_ARB_MASK_SHIFT);
+			I915_WRITE(MI_ARB_STATE, tmp);
+		}
+	}
+
 	/* Old X drivers will take 0-2 for front, back, depth buffers */
 	dev_priv->fence_reg_start = 3;
 
