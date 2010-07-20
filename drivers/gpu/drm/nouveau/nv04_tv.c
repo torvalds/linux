@@ -194,7 +194,6 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 	struct nouveau_i2c_chan *i2c =
 		nouveau_i2c_find(dev, entry->i2c_index);
 	int type, ret;
-	bool was_locked;
 
 	/* Ensure that we can talk to this encoder */
 	type = nv04_tv_identify(dev, entry->i2c_index);
@@ -224,13 +223,8 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 	nv_encoder->or = ffs(entry->or) - 1;
 
 	/* Run the slave-specific initialization */
-	was_locked = NVLockVgaCrtcs(dev, false);
-
 	ret = drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
 				   &i2c->adapter, &nv04_tv_encoder_info[type]);
-
-	NVLockVgaCrtcs(dev, was_locked);
-
 	if (ret < 0)
 		goto fail_cleanup;
 

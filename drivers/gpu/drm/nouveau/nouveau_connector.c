@@ -102,44 +102,12 @@ nouveau_connector_destroy(struct drm_connector *drm_connector)
 	kfree(drm_connector);
 }
 
-static void
-nouveau_connector_ddc_prepare(struct drm_connector *connector, int *flags)
-{
-	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
-
-	if (dev_priv->card_type >= NV_50)
-		return;
-
-	*flags = 0;
-	if (NVLockVgaCrtcs(dev_priv->dev, false))
-		*flags |= 1;
-	if (nv_heads_tied(dev_priv->dev))
-		*flags |= 2;
-
-	if (*flags & 2)
-		NVSetOwner(dev_priv->dev, 0); /* necessary? */
-}
-
-static void
-nouveau_connector_ddc_finish(struct drm_connector *connector, int flags)
-{
-	struct drm_nouveau_private *dev_priv = connector->dev->dev_private;
-
-	if (dev_priv->card_type >= NV_50)
-		return;
-
-	if (flags & 2)
-		NVSetOwner(dev_priv->dev, 4);
-	if (flags & 1)
-		NVLockVgaCrtcs(dev_priv->dev, true);
-}
-
 static struct nouveau_i2c_chan *
 nouveau_connector_ddc_detect(struct drm_connector *connector,
 			     struct nouveau_encoder **pnv_encoder)
 {
 	struct drm_device *dev = connector->dev;
-	int ret, flags, i;
+	int i;
 
 	for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 		struct nouveau_i2c_chan *i2c;
@@ -155,17 +123,9 @@ nouveau_connector_ddc_detect(struct drm_connector *connector,
 		if (!obj)
 			continue;
 		nv_encoder = nouveau_encoder(obj_to_encoder(obj));
+		i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 
-		if (nv_encoder->dcb->i2c_index < 0xf)
-			i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
-		if (!i2c)
-			continue;
-
-		nouveau_connector_ddc_prepare(connector, &flags);
-		ret = nouveau_probe_i2c_addr(i2c, 0x50);
-		nouveau_connector_ddc_finish(connector, flags);
-
-		if (ret) {
+		if (i2c && nouveau_probe_i2c_addr(i2c, 0x50)) {
 			*pnv_encoder = nv_encoder;
 			return i2c;
 		}
@@ -218,7 +178,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct nouveau_i2c_chan *i2c;
-	int type, flags;
+	int type;
 
 	/* Cleanup the previous EDID block. */
 	if (nv_connector->edid) {
@@ -229,9 +189,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 
 	i2c = nouveau_connector_ddc_detect(connector, &nv_encoder);
 	if (i2c) {
-		nouveau_connector_ddc_prepare(connector, &flags);
 		nv_connector->edid = drm_get_edid(connector, &i2c->adapter);
-		nouveau_connector_ddc_finish(connector, flags);
 		drm_mode_connector_update_edid_property(connector,
 							nv_connector->edid);
 		if (!nv_connector->edid) {

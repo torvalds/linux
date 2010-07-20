@@ -321,10 +321,9 @@ nouveau_pci_resume(struct pci_dev *pdev)
 			NV_ERROR(dev, "Could not pin/map cursor.\n");
 	}
 
-	if (dev_priv->card_type < NV_50) {
+	if (dev_priv->card_type < NV_50)
 		nv04_display_restore(dev);
-		NVLockVgaCrtcs(dev, false);
-	} else
+	else
 		nv50_display_init(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
