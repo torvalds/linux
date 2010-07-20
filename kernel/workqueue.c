@@ -186,6 +186,27 @@ struct wq_flusher {
 };
 
 /*
+ * All cpumasks are assumed to be always set on UP and thus can't be
+ * used to determine whether there's something to be done.
+ */
+#ifdef CONFIG_SMP
+typedef cpumask_var_t mayday_mask_t;
+#define mayday_test_and_set_cpu(cpu, mask)	\
+	cpumask_test_and_set_cpu((cpu), (mask))
+#define mayday_clear_cpu(cpu, mask)		cpumask_clear_cpu((cpu), (mask))
+#define for_each_mayday_cpu(cpu, mask)		for_each_cpu((cpu), (mask))
+#define alloc_mayday_mask(maskp, gfp)		alloc_cpumask_var((maskp), (gfp))
+#define free_mayday_mask(mask)			free_cpumask_var((mask))
+#else
+typedef unsigned long mayday_mask_t;
+#define mayday_test_and_set_cpu(cpu, mask)	test_and_set_bit(0, &(mask))
+#define mayday_clear_cpu(cpu, mask)		clear_bit(0, &(mask))
+#define for_each_mayday_cpu(cpu, mask)		if ((cpu) = 0, (mask))
+#define alloc_mayday_mask(maskp, gfp)		true
+#define free_mayday_mask(mask)			do { } while (0)
+#endif
+
+/*
  * The externally visible workqueue abstraction is an array of
  * per-CPU workqueues:
  */
@@ -206,7 +227,7 @@ struct workqueue_struct {
 	struct list_head	flusher_queue;	/* F: flush waiters */
 	struct list_head	flusher_overflow; /* F: flush overflow list */
 
-	cpumask_var_t		mayday_mask;	/* cpus requesting rescue */
+	mayday_mask_t		mayday_mask;	/* cpus requesting rescue */
 	struct worker		*rescuer;	/* I: rescue worker */
 
 	int			saved_max_active; /* W: saved cwq max_active */
@@ -1387,7 +1408,7 @@ static bool send_mayday(struct work_struct *work)
 	/* WORK_CPU_UNBOUND can't be set in cpumask, use cpu 0 instead */
 	if (cpu == WORK_CPU_UNBOUND)
 		cpu = 0;
-	if (!cpumask_test_and_set_cpu(cpu, wq->mayday_mask))
+	if (!mayday_test_and_set_cpu(cpu, wq->mayday_mask))
 		wake_up_process(wq->rescuer->task);
 	return true;
 }
@@ -1915,14 +1936,14 @@ repeat:
 	 * See whether any cpu is asking for help.  Unbounded
 	 * workqueues use cpu 0 in mayday_mask for CPU_UNBOUND.
 	 */
-	for_each_cpu(cpu, wq->mayday_mask) {
+	for_each_mayday_cpu(cpu, wq->mayday_mask) {
 		unsigned int tcpu = is_unbound ? WORK_CPU_UNBOUND : cpu;
 		struct cpu_workqueue_struct *cwq = get_cwq(tcpu, wq);
 		struct global_cwq *gcwq = cwq->gcwq;
 		struct work_struct *work, *n;
 
 		__set_current_state(TASK_RUNNING);
-		cpumask_clear_cpu(cpu, wq->mayday_mask);
+		mayday_clear_cpu(cpu, wq->mayday_mask);
 
 		/* migrate to the target cpu if possible */
 		rescuer->gcwq = gcwq;
@@ -2724,7 +2745,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 	if (flags & WQ_RESCUER) {
 		struct worker *rescuer;
 
-		if (!alloc_cpumask_var(&wq->mayday_mask, GFP_KERNEL))
+		if (!alloc_mayday_mask(&wq->mayday_mask, GFP_KERNEL))
 			goto err;
 
 		wq->rescuer = rescuer = alloc_worker();
@@ -2759,7 +2780,7 @@ struct workqueue_struct *__alloc_workqueue_key(const char *name,
 err:
 	if (wq) {
 		free_cwqs(wq);
-		free_cpumask_var(wq->mayday_mask);
+		free_mayday_mask(wq->mayday_mask);
 		kfree(wq->rescuer);
 		kfree(wq);
 	}
@@ -2800,7 +2821,7 @@ void destroy_workqueue(struct workqueue_struct *wq)
 
 	if (wq->flags & WQ_RESCUER) {
 		kthread_stop(wq->rescuer->task);
-		free_cpumask_var(wq->mayday_mask);
+		free_mayday_mask(wq->mayday_mask);
 	}
 
 	free_cwqs(wq);
