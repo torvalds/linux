@@ -417,7 +417,7 @@ static void padata_init_pqueues(struct parallel_data *pd)
 	}
 
 	num_cpus = cpumask_weight(pd->cpumask.pcpu);
-	pd->max_seq_nr = (MAX_SEQ_NR / num_cpus) * num_cpus - 1;
+	pd->max_seq_nr = num_cpus ? (MAX_SEQ_NR / num_cpus) * num_cpus - 1 : 0;
 }
 
 /* Allocate and initialize the internal cpumask dependend resources. */
@@ -527,21 +527,19 @@ static void padata_replace(struct padata_instance *pinst,
 	rcu_assign_pointer(pinst->pd, pd_new);
 
 	synchronize_rcu();
-	if (!pd_old)
-		goto out;
 
-	padata_flush_queues(pd_old);
 	if (!cpumask_equal(pd_old->cpumask.pcpu, pd_new->cpumask.pcpu))
 		notification_mask |= PADATA_CPU_PARALLEL;
 	if (!cpumask_equal(pd_old->cpumask.cbcpu, pd_new->cpumask.cbcpu))
 		notification_mask |= PADATA_CPU_SERIAL;
 
+	padata_flush_queues(pd_old);
 	padata_free_pd(pd_old);
+
 	if (notification_mask)
 		blocking_notifier_call_chain(&pinst->cpumask_change_notifier,
 					     notification_mask, pinst);
 
-out:
 	pinst->flags &= ~PADATA_RESET;
 }
 
@@ -673,6 +671,7 @@ int __padata_set_cpumasks(struct padata_instance *pinst,
 	struct parallel_data *pd = NULL;
 
 	mutex_lock(&pinst->lock);
+	get_online_cpus();
 
 	valid = padata_validate_cpumask(pinst, pcpumask);
 	if (!valid) {
@@ -681,20 +680,16 @@ int __padata_set_cpumasks(struct padata_instance *pinst,
 	}
 
 	valid = padata_validate_cpumask(pinst, cbcpumask);
-	if (!valid) {
+	if (!valid)
 		__padata_stop(pinst);
-		goto out_replace;
-	}
 
-	get_online_cpus();
-
+out_replace:
 	pd = padata_alloc_pd(pinst, pcpumask, cbcpumask);
 	if (!pd) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-out_replace:
 	cpumask_copy(pinst->cpumask.pcpu, pcpumask);
 	cpumask_copy(pinst->cpumask.cbcpu, cbcpumask);
 
@@ -705,7 +700,6 @@ out_replace:
 
 out:
 	put_online_cpus();
-
 	mutex_unlock(&pinst->lock);
 
 	return err;
@@ -776,11 +770,8 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 	if (cpumask_test_cpu(cpu, cpu_online_mask)) {
 
 		if (!padata_validate_cpumask(pinst, pinst->cpumask.pcpu) ||
-		    !padata_validate_cpumask(pinst, pinst->cpumask.cbcpu)) {
+		    !padata_validate_cpumask(pinst, pinst->cpumask.cbcpu))
 			__padata_stop(pinst);
-			padata_replace(pinst, pd);
-			goto out;
-		}
 
 		pd = padata_alloc_pd(pinst, pinst->cpumask.pcpu,
 				     pinst->cpumask.cbcpu);
@@ -790,7 +781,6 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 		padata_replace(pinst, pd);
 	}
 
-out:
 	return 0;
 }
 
