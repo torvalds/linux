@@ -45,3 +45,5 @@ obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_PCAP)		+= pcap_ts.o
 obj-$(CONFIG_TOUCHSCREEN_XPT2046_SPI)		+= xpt2046_ts.o
 obj-$(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)		+= xpt2046_cbn_ts.o calibration_ts.o largenum_ts.o
+obj-$(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI)		+= xpt2046_ts_320X480.o
+#obj-$(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)		+= xpt2046_cbn_ts.o calibration_ts.o largenum_ts.o
