@@ -580,10 +580,8 @@ static int fc_fcp_send_data(struct fc_fcp_pkt *fsp, struct fc_seq *seq,
 			   fsp, seq_blen, lport->lso_max, t_blen);
 	}
 
-	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);
 	if (t_blen > 512)
 		t_blen &= ~(512 - 1);	/* round down to block size */
-	WARN_ON(t_blen < FC_MIN_MAX_PAYLOAD);	/* won't go below 256 */
 	sc = fsp->cmd;
 
 	remaining = seq_blen;
