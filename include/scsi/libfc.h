@@ -739,7 +739,7 @@ struct libfc_function_template {
  * @buf_len:       Length of the discovery buffer
  * @disc_id:       Discovery ID
  * @rports:        List of discovered remote ports
- * @lport:         The local port that discovery is for
+ * @priv:          Private pointer for use by discovery code
  * @disc_mutex:    Mutex that protects the discovery context
  * @partial_buf:   Partial name buffer (if names are returned
  *                 in multiple frames)
@@ -755,7 +755,7 @@ struct fc_disc {
 	u16                   disc_id;
 
 	struct list_head      rports;
-	struct fc_lport	      *lport;
+	void		      *priv;
 	struct mutex	      disc_mutex;
 	struct fc_gpn_ft_resp partial_buf;
 	struct delayed_work   disc_work;
@@ -1002,6 +1002,11 @@ void fc_rport_terminate_io(struct fc_rport *);
  * DISCOVERY LAYER
  *****************************/
 int fc_disc_init(struct fc_lport *);
+
+static inline struct fc_lport *fc_disc_lport(struct fc_disc *disc)
+{
+	return container_of(disc, struct fc_lport, disc);
+}
 
 /*
  * FCP LAYER

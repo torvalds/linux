@@ -65,7 +65,7 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
 
-	lport = disc->lport;
+	lport = fc_disc_lport(disc);
 
 	mutex_lock(&disc->disc_mutex);
 	list_for_each_entry_rcu(rdata, &disc->rports, peers)
@@ -96,7 +96,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 	LIST_HEAD(disc_ports);
 	struct fc_disc_port *dp, *next;
 
-	lport = disc->lport;
+	lport = fc_disc_lport(disc);
 
 	FC_DISC_DBG(disc, "Received an RSCN event\n");
 
@@ -275,7 +275,7 @@ static void fc_disc_start(void (*disc_callback)(struct fc_lport *,
  */
 static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 {
-	struct fc_lport *lport = disc->lport;
+	struct fc_lport *lport = fc_disc_lport(disc);
 	struct fc_rport_priv *rdata;
 
 	FC_DISC_DBG(disc, "Discovery complete\n");
@@ -313,7 +313,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
  */
 static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 {
-	struct fc_lport *lport = disc->lport;
+	struct fc_lport *lport = fc_disc_lport(disc);
 	unsigned long delay = 0;
 
 	FC_DISC_DBG(disc, "Error %ld, retries %d/%d\n",
@@ -353,7 +353,7 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 static void fc_disc_gpn_ft_req(struct fc_disc *disc)
 {
 	struct fc_frame *fp;
-	struct fc_lport *lport = disc->lport;
+	struct fc_lport *lport = fc_disc_lport(disc);
 
 	WARN_ON(!fc_lport_test_ready(lport));
 
@@ -396,7 +396,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 	struct fc_rport_identifiers ids;
 	struct fc_rport_priv *rdata;
 
-	lport = disc->lport;
+	lport = fc_disc_lport(disc);
 	disc->seq_count++;
 
 	/*
@@ -733,7 +733,7 @@ int fc_disc_init(struct fc_lport *lport)
 	mutex_init(&disc->disc_mutex);
 	INIT_LIST_HEAD(&disc->rports);
 
-	disc->lport = lport;
+	disc->priv = lport;
 
 	return 0;
 }
