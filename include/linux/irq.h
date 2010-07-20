@@ -439,12 +439,12 @@ extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 static inline bool alloc_desc_masks(struct irq_desc *desc, int node,
 							bool boot)
 {
+#ifdef CONFIG_CPUMASK_OFFSTACK
 	gfp_t gfp = GFP_ATOMIC;
 
 	if (boot)
 		gfp = GFP_NOWAIT;
 
-#ifdef CONFIG_CPUMASK_OFFSTACK
 	if (!alloc_cpumask_var_node(&desc->affinity, gfp, node))
 		return false;
 
