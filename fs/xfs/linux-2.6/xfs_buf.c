@@ -578,9 +578,9 @@ _xfs_buf_read(
 			XBF_READ_AHEAD | _XBF_RUN_QUEUES);
 
 	status = xfs_buf_iorequest(bp);
-	if (!status && !(flags & XBF_ASYNC))
-		status = xfs_buf_iowait(bp);
-	return status;
+	if (status || XFS_BUF_ISERROR(bp) || (flags & XBF_ASYNC))
+		return status;
+	return xfs_buf_iowait(bp);
 }
 
 xfs_buf_t *
@@ -1280,8 +1280,19 @@ submit_io:
 		if (size)
 			goto next_chunk;
 	} else {
-		bio_put(bio);
+		/*
+		 * if we get here, no pages were added to the bio. However,
+		 * we can't just error out here - if the pages are locked then
+		 * we have to unlock them otherwise we can hang on a later
+		 * access to the page.
+		 */
 		xfs_buf_ioerror(bp, EIO);
+		if (bp->b_flags & _XBF_PAGE_LOCKED) {
+			int i;
+			for (i = 0; i < bp->b_page_count; i++)
+				unlock_page(bp->b_pages[i]);
+		}
+		bio_put(bio);
 	}
 }
 
