@@ -108,10 +108,10 @@ static inline int fcoe_ctlr_fcf_usable(struct fcoe_fcf *fcf)
  * fcoe_ctlr_init() - Initialize the FCoE Controller instance
  * @fip: The FCoE controller to initialize
  */
-void fcoe_ctlr_init(struct fcoe_ctlr *fip)
+void fcoe_ctlr_init(struct fcoe_ctlr *fip, enum fip_state mode)
 {
 	fip->state = FIP_ST_LINK_WAIT;
-	fip->mode = FIP_ST_AUTO;
+	fip->mode = mode;
 	INIT_LIST_HEAD(&fip->fcfs);
 	mutex_init(&fip->ctlr_mutex);
 	fip->flogi_oxid = FC_XID_UNKNOWN;

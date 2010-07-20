@@ -54,6 +54,15 @@ enum fip_state {
 	FIP_ST_ENABLED,
 };
 
+/*
+ * Modes:
+ * The mode is the state that is to be entered after link up.
+ * It must not change after fcoe_ctlr_init() sets it.
+ */
+#define FIP_MODE_AUTO		FIP_ST_AUTO
+#define FIP_MODE_NON_FIP	FIP_ST_NON_FIP
+#define FIP_MODE_FABRIC		FIP_ST_ENABLED
+
 /**
  * struct fcoe_ctlr - FCoE Controller and FIP state
  * @state:	   internal FIP state for network link and FIP or non-FIP mode.
@@ -152,7 +161,7 @@ struct fcoe_fcf {
 };
 
 /* FIP API functions */
-void fcoe_ctlr_init(struct fcoe_ctlr *);
+void fcoe_ctlr_init(struct fcoe_ctlr *, enum fip_state);
 void fcoe_ctlr_destroy(struct fcoe_ctlr *);
 void fcoe_ctlr_link_up(struct fcoe_ctlr *);
 int fcoe_ctlr_link_down(struct fcoe_ctlr *);

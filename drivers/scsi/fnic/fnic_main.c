@@ -617,7 +617,6 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fnic->ctlr.send = fnic_eth_send;
 	fnic->ctlr.update_mac = fnic_update_mac;
 	fnic->ctlr.get_src_addr = fnic_get_mac;
-	fcoe_ctlr_init(&fnic->ctlr);
 	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware supports FIP\n");
@@ -625,10 +624,11 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 		vnic_dev_packet_filter(fnic->vdev, 1, 1, 0, 0, 0);
 		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
+		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
 	} else {
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware uses non-FIP mode\n");
-		fnic->ctlr.mode = FIP_ST_NON_FIP;
+		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_NON_FIP);
 	}
 	fnic->state = FNIC_IN_FC_MODE;
 
