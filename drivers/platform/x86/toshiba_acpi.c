@@ -722,25 +722,22 @@ static const struct file_operations version_proc_fops = {
 
 #define PROC_TOSHIBA		"toshiba"
 
-static acpi_status __init add_device(void)
+static void __init add_device(void)
 {
 	proc_create("lcd", S_IRUGO | S_IWUSR, toshiba_proc_dir, &lcd_proc_fops);
 	proc_create("video", S_IRUGO | S_IWUSR, toshiba_proc_dir, &video_proc_fops);
 	proc_create("fan", S_IRUGO | S_IWUSR, toshiba_proc_dir, &fan_proc_fops);
 	proc_create("keys", S_IRUGO | S_IWUSR, toshiba_proc_dir, &keys_proc_fops);
 	proc_create("version", S_IRUGO, toshiba_proc_dir, &version_proc_fops);
-
-	return AE_OK;
 }
 
-static acpi_status remove_device(void)
+static void remove_device(void)
 {
 	remove_proc_entry("lcd", toshiba_proc_dir);
 	remove_proc_entry("video", toshiba_proc_dir);
 	remove_proc_entry("fan", toshiba_proc_dir);
 	remove_proc_entry("keys", toshiba_proc_dir);
 	remove_proc_entry("version", toshiba_proc_dir);
-	return AE_OK;
 }
 
 static struct backlight_ops toshiba_backlight_data = {
@@ -923,7 +920,6 @@ static void toshiba_acpi_exit(void)
 
 static int __init toshiba_acpi_init(void)
 {
-	acpi_status status = AE_OK;
 	u32 hci_result;
 	bool bt_present;
 	int ret = 0;
@@ -971,11 +967,7 @@ static int __init toshiba_acpi_init(void)
 		toshiba_acpi_exit();
 		return -ENODEV;
 	} else {
-		status = add_device();
-		if (ACPI_FAILURE(status)) {
-			toshiba_acpi_exit();
-			return -ENODEV;
-		}
+		add_device();
 	}
 
 	props.max_brightness = HCI_LCD_BRIGHTNESS_LEVELS - 1;
