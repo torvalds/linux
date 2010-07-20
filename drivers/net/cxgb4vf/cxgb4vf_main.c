@@ -533,10 +533,9 @@ static int setup_sge_queues(struct adapter *adapter)
 		struct port_info *pi = netdev_priv(dev);
 		struct sge_eth_rxq *rxq = &s->ethrxq[pi->first_qset];
 		struct sge_eth_txq *txq = &s->ethtxq[pi->first_qset];
-		int nqsets = (adapter->flags & USING_MSIX) ? pi->nqsets : 1;
 		int qs;
 
-		for (qs = 0; qs < nqsets; qs++, rxq++, txq++) {
+		for (qs = 0; qs < pi->nqsets; qs++, rxq++, txq++) {
 			err = t4vf_sge_alloc_rxq(adapter, &rxq->rspq, false,
 						 dev, msix++,
 						 &rxq->fl, t4vf_ethrx_handler);
@@ -565,10 +564,9 @@ static int setup_sge_queues(struct adapter *adapter)
 		struct port_info *pi = netdev_priv(dev);
 		struct sge_eth_rxq *rxq = &s->ethrxq[pi->first_qset];
 		struct sge_eth_txq *txq = &s->ethtxq[pi->first_qset];
-		int nqsets = (adapter->flags & USING_MSIX) ? pi->nqsets : 1;
 		int qs;
 
-		for (qs = 0; qs < nqsets; qs++, rxq++, txq++) {
+		for (qs = 0; qs < pi->nqsets; qs++, rxq++, txq++) {
 			IQ_MAP(s, rxq->rspq.abs_id) = &rxq->rspq;
 			EQ_MAP(s, txq->q.abs_id) = &txq->q;
 
