@@ -68,14 +68,10 @@ static void fc_rport_enter_ready(struct fc_rport_priv *);
 static void fc_rport_enter_logo(struct fc_rport_priv *);
 static void fc_rport_enter_adisc(struct fc_rport_priv *);
 
-static void fc_rport_recv_plogi_req(struct fc_lport *,
-				    struct fc_seq *, struct fc_frame *);
-static void fc_rport_recv_prli_req(struct fc_rport_priv *,
-				   struct fc_seq *, struct fc_frame *);
-static void fc_rport_recv_prlo_req(struct fc_rport_priv *,
-				   struct fc_seq *, struct fc_frame *);
-static void fc_rport_recv_logo_req(struct fc_lport *,
-				   struct fc_seq *, struct fc_frame *);
+static void fc_rport_recv_plogi_req(struct fc_lport *, struct fc_frame *);
+static void fc_rport_recv_prli_req(struct fc_rport_priv *, struct fc_frame *);
+static void fc_rport_recv_prlo_req(struct fc_rport_priv *, struct fc_frame *);
+static void fc_rport_recv_logo_req(struct fc_lport *, struct fc_frame *);
 static void fc_rport_timeout(struct work_struct *);
 static void fc_rport_error(struct fc_rport_priv *, struct fc_frame *);
 static void fc_rport_error_retry(struct fc_rport_priv *, struct fc_frame *);
@@ -736,11 +732,10 @@ static void fc_rport_enter_flogi(struct fc_rport_priv *rdata)
 /**
  * fc_rport_recv_flogi_req() - Handle Fabric Login (FLOGI) request in p-mp mode
  * @lport: The local port that received the PLOGI request
- * @sp:	   The sequence that the PLOGI request was on
  * @rx_fp: The PLOGI request frame
  */
 static void fc_rport_recv_flogi_req(struct fc_lport *lport,
-				    struct fc_seq *sp, struct fc_frame *rx_fp)
+				    struct fc_frame *rx_fp)
 {
 	struct fc_disc *disc;
 	struct fc_els_flogi *flp;
@@ -749,7 +744,6 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	struct fc_seq_els_data rjt_data;
 	u32 sid;
 
-	rjt_data.fp = NULL;
 	sid = fc_frame_sid(fp);
 
 	FC_RPORT_ID_DBG(lport, sid, "Received FLOGI request\n");
@@ -817,7 +811,6 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	if (!fp)
 		goto out;
 
-	sp = lport->tt.seq_start_next(sp);
 	fc_flogi_fill(lport, fp);
 	flp = fc_frame_payload_get(fp, sizeof(*flp));
 	flp->fl_cmd = ELS_LS_ACC;
@@ -837,7 +830,7 @@ out:
 
 reject:
 	mutex_unlock(&disc->disc_mutex);
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(rx_fp);
 }
 
@@ -1296,13 +1289,12 @@ static void fc_rport_enter_adisc(struct fc_rport_priv *rdata)
 /**
  * fc_rport_recv_adisc_req() - Handler for Address Discovery (ADISC) requests
  * @rdata: The remote port that sent the ADISC request
- * @sp:	   The sequence the ADISC request was on
  * @in_fp: The ADISC request frame
  *
  * Locking Note:  Called with the lport and rport locks held.
  */
 static void fc_rport_recv_adisc_req(struct fc_rport_priv *rdata,
-				    struct fc_seq *sp, struct fc_frame *in_fp)
+				    struct fc_frame *in_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
@@ -1313,10 +1305,9 @@ static void fc_rport_recv_adisc_req(struct fc_rport_priv *rdata,
 
 	adisc = fc_frame_payload_get(in_fp, sizeof(*adisc));
 	if (!adisc) {
-		rjt_data.fp = NULL;
 		rjt_data.reason = ELS_RJT_PROT;
 		rjt_data.explan = ELS_EXPL_INV_LEN;
-		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+		lport->tt.seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 		goto drop;
 	}
 
@@ -1335,14 +1326,13 @@ drop:
 /**
  * fc_rport_recv_rls_req() - Handle received Read Link Status request
  * @rdata: The remote port that sent the RLS request
- * @sp:	The sequence that the RLS was on
  * @rx_fp: The PRLI request frame
  *
  * Locking Note: The rport lock is expected to be held before calling
  * this function.
  */
 static void fc_rport_recv_rls_req(struct fc_rport_priv *rdata,
-				  struct fc_seq *sp, struct fc_frame *rx_fp)
+				  struct fc_frame *rx_fp)
 
 {
 	struct fc_lport *lport = rdata->local_port;
@@ -1393,8 +1383,7 @@ static void fc_rport_recv_rls_req(struct fc_rport_priv *rdata,
 	goto out;
 
 out_rjt:
-	rjt_data.fp = NULL;
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 out:
 	fc_frame_free(rx_fp);
 }
@@ -1402,7 +1391,6 @@ out:
 /**
  * fc_rport_recv_els_req() - Handler for validated ELS requests
  * @lport: The local port that received the ELS request
- * @sp:	   The sequence that the ELS request was on
  * @fp:	   The ELS request frame
  *
  * Handle incoming ELS requests that require port login.
@@ -1410,15 +1398,10 @@ out:
  *
  * Locking Note: Called with the lport lock held.
  */
-static void fc_rport_recv_els_req(struct fc_lport *lport,
-				  struct fc_seq *sp, struct fc_frame *fp)
+static void fc_rport_recv_els_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_rport_priv *rdata;
 	struct fc_seq_els_data els_data;
-
-	els_data.fp = NULL;
-	els_data.reason = ELS_RJT_UNAB;
-	els_data.explan = ELS_EXPL_PLOGI_REQD;
 
 	mutex_lock(&lport->disc.disc_mutex);
 	rdata = lport->tt.rport_lookup(lport, fc_frame_sid(fp));
@@ -1442,24 +1425,24 @@ static void fc_rport_recv_els_req(struct fc_lport *lport,
 
 	switch (fc_frame_payload_op(fp)) {
 	case ELS_PRLI:
-		fc_rport_recv_prli_req(rdata, sp, fp);
+		fc_rport_recv_prli_req(rdata, fp);
 		break;
 	case ELS_PRLO:
-		fc_rport_recv_prlo_req(rdata, sp, fp);
+		fc_rport_recv_prlo_req(rdata, fp);
 		break;
 	case ELS_ADISC:
-		fc_rport_recv_adisc_req(rdata, sp, fp);
+		fc_rport_recv_adisc_req(rdata, fp);
 		break;
 	case ELS_RRQ:
-		els_data.fp = fp;
-		lport->tt.seq_els_rsp_send(sp, ELS_RRQ, &els_data);
+		lport->tt.seq_els_rsp_send(fp, ELS_RRQ, NULL);
+		fc_frame_free(fp);
 		break;
 	case ELS_REC:
-		els_data.fp = fp;
-		lport->tt.seq_els_rsp_send(sp, ELS_REC, &els_data);
+		lport->tt.seq_els_rsp_send(fp, ELS_REC, NULL);
+		fc_frame_free(fp);
 		break;
 	case ELS_RLS:
-		fc_rport_recv_rls_req(rdata, sp, fp);
+		fc_rport_recv_rls_req(rdata, fp);
 		break;
 	default:
 		fc_frame_free(fp);	/* can't happen */
@@ -1470,20 +1453,20 @@ static void fc_rport_recv_els_req(struct fc_lport *lport,
 	return;
 
 reject:
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &els_data);
+	els_data.reason = ELS_RJT_UNAB;
+	els_data.explan = ELS_EXPL_PLOGI_REQD;
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
 	fc_frame_free(fp);
 }
 
 /**
  * fc_rport_recv_req() - Handler for requests
- * @sp:	   The sequence the request was on
- * @fp:	   The request frame
  * @lport: The local port that received the request
+ * @fp:	   The request frame
  *
  * Locking Note: Called with the lport lock held.
  */
-void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
-		       struct fc_lport *lport)
+void fc_rport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_seq_els_data els_data;
 
@@ -1495,13 +1478,13 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 	 */
 	switch (fc_frame_payload_op(fp)) {
 	case ELS_FLOGI:
-		fc_rport_recv_flogi_req(lport, sp, fp);
+		fc_rport_recv_flogi_req(lport, fp);
 		break;
 	case ELS_PLOGI:
-		fc_rport_recv_plogi_req(lport, sp, fp);
+		fc_rport_recv_plogi_req(lport, fp);
 		break;
 	case ELS_LOGO:
-		fc_rport_recv_logo_req(lport, sp, fp);
+		fc_rport_recv_logo_req(lport, fp);
 		break;
 	case ELS_PRLI:
 	case ELS_PRLO:
@@ -1509,14 +1492,13 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 	case ELS_RRQ:
 	case ELS_REC:
 	case ELS_RLS:
-		fc_rport_recv_els_req(lport, sp, fp);
+		fc_rport_recv_els_req(lport, fp);
 		break;
 	default:
-		fc_frame_free(fp);
-		els_data.fp = NULL;
 		els_data.reason = ELS_RJT_UNSUP;
 		els_data.explan = ELS_EXPL_NONE;
-		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &els_data);
+		lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &els_data);
+		fc_frame_free(fp);
 		break;
 	}
 }
@@ -1524,13 +1506,12 @@ void fc_rport_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 /**
  * fc_rport_recv_plogi_req() - Handler for Port Login (PLOGI) requests
  * @lport: The local port that received the PLOGI request
- * @sp:	   The sequence that the PLOGI request was on
  * @rx_fp: The PLOGI request frame
  *
  * Locking Note: The rport lock is held before calling this function.
  */
 static void fc_rport_recv_plogi_req(struct fc_lport *lport,
-				    struct fc_seq *sp, struct fc_frame *rx_fp)
+				    struct fc_frame *rx_fp)
 {
 	struct fc_disc *disc;
 	struct fc_rport_priv *rdata;
@@ -1539,7 +1520,6 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	struct fc_seq_els_data rjt_data;
 	u32 sid;
 
-	rjt_data.fp = NULL;
 	sid = fc_frame_sid(fp);
 
 	FC_RPORT_ID_DBG(lport, sid, "Received PLOGI request\n");
@@ -1635,21 +1615,20 @@ out:
 	return;
 
 reject:
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 
 /**
  * fc_rport_recv_prli_req() - Handler for process login (PRLI) requests
  * @rdata: The remote port that sent the PRLI request
- * @sp:	   The sequence that the PRLI was on
  * @rx_fp: The PRLI request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
  */
 static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
-				   struct fc_seq *sp, struct fc_frame *rx_fp)
+				   struct fc_frame *rx_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
@@ -1666,7 +1645,6 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	u32 fcp_parm;
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 
-	rjt_data.fp = NULL;
 	FC_RPORT_DBG(rdata, "Received PRLI request while in state %s\n",
 		     fc_rport_state(rdata));
 
@@ -1759,7 +1737,7 @@ reject_len:
 	rjt_data.reason = ELS_RJT_PROT;
 	rjt_data.explan = ELS_EXPL_INV_LEN;
 reject:
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 drop:
 	fc_frame_free(rx_fp);
 }
@@ -1767,18 +1745,15 @@ drop:
 /**
  * fc_rport_recv_prlo_req() - Handler for process logout (PRLO) requests
  * @rdata: The remote port that sent the PRLO request
- * @sp:	   The sequence that the PRLO was on
  * @rx_fp: The PRLO request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
  */
 static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
-				   struct fc_seq *sp,
 				   struct fc_frame *rx_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_exch *ep;
 	struct fc_frame *fp;
 	struct {
 		struct fc_els_prlo prlo;
@@ -1789,8 +1764,6 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 	unsigned int len;
 	unsigned int plen;
 	struct fc_seq_els_data rjt_data;
-
-	rjt_data.fp = NULL;
 
 	FC_RPORT_DBG(rdata, "Received PRLO request while in state %s\n",
 		     fc_rport_state(rdata));
@@ -1814,8 +1787,6 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 		goto reject;
 	}
 
-	sp = lport->tt.seq_start_next(sp);
-	WARN_ON(!sp);
 	pp = fc_frame_payload_get(fp, len);
 	WARN_ON(!pp);
 	memset(pp, 0, len);
@@ -1829,17 +1800,15 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 
 	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
 
-	ep = fc_seq_exch(sp);
-	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-		       FC_TYPE_ELS, FC_FCTL_RESP, 0);
-	lport->tt.seq_send(lport, sp, fp);
+	fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
+	lport->tt.frame_send(lport, fp);
 	goto drop;
 
 reject_len:
 	rjt_data.reason = ELS_RJT_PROT;
 	rjt_data.explan = ELS_EXPL_INV_LEN;
 reject:
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(rx_fp, ELS_LS_RJT, &rjt_data);
 drop:
 	fc_frame_free(rx_fp);
 }
@@ -1847,20 +1816,17 @@ drop:
 /**
  * fc_rport_recv_logo_req() - Handler for logout (LOGO) requests
  * @lport: The local port that received the LOGO request
- * @sp:	   The sequence that the LOGO request was on
  * @fp:	   The LOGO request frame
  *
  * Locking Note: The rport lock is exected to be held before calling
  * this function.
  */
-static void fc_rport_recv_logo_req(struct fc_lport *lport,
-				   struct fc_seq *sp,
-				   struct fc_frame *fp)
+static void fc_rport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_rport_priv *rdata;
 	u32 sid;
 
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	sid = fc_frame_sid(fp);
 

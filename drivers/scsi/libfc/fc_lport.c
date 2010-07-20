@@ -375,34 +375,31 @@ static void fc_lport_add_fc4_type(struct fc_lport *lport, enum fc_fh_type type)
 
 /**
  * fc_lport_recv_rlir_req() - Handle received Registered Link Incident Report.
- * @sp:	   The sequence in the RLIR exchange
- * @fp:	   The RLIR request frame
  * @lport: Fibre Channel local port recieving the RLIR
+ * @fp:	   The RLIR request frame
  *
  * Locking Note: The lport lock is expected to be held before calling
  * this function.
  */
-static void fc_lport_recv_rlir_req(struct fc_seq *sp, struct fc_frame *fp,
-				   struct fc_lport *lport)
+static void fc_lport_recv_rlir_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	FC_LPORT_DBG(lport, "Received RLIR request while in state %s\n",
 		     fc_lport_state(lport));
 
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 	fc_frame_free(fp);
 }
 
 /**
  * fc_lport_recv_echo_req() - Handle received ECHO request
- * @sp:	   The sequence in the ECHO exchange
- * @fp:	   ECHO request frame
  * @lport: The local port recieving the ECHO
+ * @fp:	   ECHO request frame
  *
  * Locking Note: The lport lock is expected to be held before calling
  * this function.
  */
-static void fc_lport_recv_echo_req(struct fc_seq *sp, struct fc_frame *in_fp,
-				   struct fc_lport *lport)
+static void fc_lport_recv_echo_req(struct fc_lport *lport,
+				   struct fc_frame *in_fp)
 {
 	struct fc_frame *fp;
 	unsigned int len;
@@ -431,15 +428,14 @@ static void fc_lport_recv_echo_req(struct fc_seq *sp, struct fc_frame *in_fp,
 
 /**
  * fc_lport_recv_rnid_req() - Handle received Request Node ID data request
- * @sp:	   The sequence in the RNID exchange
- * @fp:	   The RNID request frame
  * @lport: The local port recieving the RNID
+ * @fp:	   The RNID request frame
  *
  * Locking Note: The lport lock is expected to be held before calling
  * this function.
  */
-static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
-				   struct fc_lport *lport)
+static void fc_lport_recv_rnid_req(struct fc_lport *lport,
+				   struct fc_frame *in_fp)
 {
 	struct fc_frame *fp;
 	struct fc_els_rnid *req;
@@ -457,10 +453,9 @@ static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
 
 	req = fc_frame_payload_get(in_fp, sizeof(*req));
 	if (!req) {
-		rjt_data.fp = NULL;
 		rjt_data.reason = ELS_RJT_LOGIC;
 		rjt_data.explan = ELS_EXPL_NONE;
-		lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+		lport->tt.seq_els_rsp_send(in_fp, ELS_LS_RJT, &rjt_data);
 	} else {
 		fmt = req->rnid_fmt;
 		len = sizeof(*rp);
@@ -492,17 +487,15 @@ static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
 
 /**
  * fc_lport_recv_logo_req() - Handle received fabric LOGO request
- * @sp:	   The sequence in the LOGO exchange
- * @fp:	   The LOGO request frame
  * @lport: The local port recieving the LOGO
+ * @fp:	   The LOGO request frame
  *
  * Locking Note: The lport lock is exected to be held before calling
  * this function.
  */
-static void fc_lport_recv_logo_req(struct fc_seq *sp, struct fc_frame *fp,
-				   struct fc_lport *lport)
+static void fc_lport_recv_logo_req(struct fc_lport *lport, struct fc_frame *fp)
 {
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 	fc_lport_enter_reset(lport);
 	fc_frame_free(fp);
 }
@@ -773,9 +766,8 @@ EXPORT_SYMBOL(fc_lport_set_local_id);
 
 /**
  * fc_lport_recv_flogi_req() - Receive a FLOGI request
- * @sp_in: The sequence the FLOGI is on
- * @rx_fp: The FLOGI frame
  * @lport: The local port that recieved the request
+ * @rx_fp: The FLOGI frame
  *
  * A received FLOGI request indicates a point-to-point connection.
  * Accept it with the common service parameters indicating our N port.
@@ -784,13 +776,11 @@ EXPORT_SYMBOL(fc_lport_set_local_id);
  * Locking Note: The lport lock is expected to be held before calling
  * this function.
  */
-static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
-				    struct fc_frame *rx_fp,
-				    struct fc_lport *lport)
+static void fc_lport_recv_flogi_req(struct fc_lport *lport,
+				    struct fc_frame *rx_fp)
 {
 	struct fc_frame *fp;
 	struct fc_frame_header *fh;
-	struct fc_seq *sp;
 	struct fc_els_flogi *flp;
 	struct fc_els_flogi *new_flp;
 	u64 remote_wwpn;
@@ -850,16 +840,13 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 	}
 	fc_lport_ptp_setup(lport, remote_fid, remote_wwpn,
 			   get_unaligned_be64(&flp->fl_wwnn));
-
 out:
-	sp = fr_seq(rx_fp);
 	fc_frame_free(rx_fp);
 }
 
 /**
  * fc_lport_recv_req() - The generic lport request handler
  * @lport: The local port that received the request
- * @sp:	   The sequence the request is on
  * @fp:	   The request frame
  *
  * This function will see if the lport handles the request or
@@ -868,11 +855,10 @@ out:
  * Locking Note: This function should not be called with the lport
  *		 lock held becuase it will grab the lock.
  */
-static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
-			      struct fc_frame *fp)
+static void fc_lport_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
-	void (*recv) (struct fc_seq *, struct fc_frame *, struct fc_lport *);
+	void (*recv)(struct fc_lport *, struct fc_frame *);
 
 	mutex_lock(&lport->lp_mutex);
 
@@ -912,19 +898,13 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 			break;
 		}
 
-		recv(sp, fp, lport);
+		recv(lport, fp);
 	} else {
 		FC_LPORT_DBG(lport, "dropping invalid frame (eof %x)\n",
 			     fr_eof(fp));
 		fc_frame_free(fp);
 	}
 	mutex_unlock(&lport->lp_mutex);
-
-	/*
-	 *  The common exch_done for all request may not be good
-	 *  if any request requires longer hold on exhange. XXX
-	 */
-	lport->tt.exch_done(sp);
 }
 
 /**

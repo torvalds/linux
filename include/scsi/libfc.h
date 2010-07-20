@@ -249,14 +249,12 @@ struct fcoe_dev_stats {
 
 /**
  * struct fc_seq_els_data - ELS data used for passing ELS specific responses
- * @fp:     The ELS frame
  * @reason: The reason for rejection
  * @explan: The explaination of the rejection
  *
  * Mainly used by the exchange manager layer.
  */
 struct fc_seq_els_data {
-	struct fc_frame *fp;
 	enum fc_els_rjt_reason reason;
 	enum fc_els_rjt_explan explan;
 };
@@ -519,12 +517,11 @@ struct libfc_function_template {
 			struct fc_frame *);
 
 	/*
-	 * Send an ELS response using infomation from a previous
-	 * exchange and sequence.
+	 * Send an ELS response using infomation from the received frame.
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*seq_els_rsp_send)(struct fc_seq *, enum fc_els_cmd,
+	void (*seq_els_rsp_send)(struct fc_frame *, enum fc_els_cmd,
 				 struct fc_seq_els_data *);
 
 	/*
@@ -583,8 +580,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*lport_recv)(struct fc_lport *, struct fc_seq *,
-			   struct fc_frame *);
+	void (*lport_recv)(struct fc_lport *, struct fc_frame *);
 
 	/*
 	 * Reset the local port.
@@ -646,8 +642,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*rport_recv_req)(struct fc_seq *, struct fc_frame *,
-			       struct fc_lport *);
+	void (*rport_recv_req)(struct fc_lport *, struct fc_frame *);
 
 	/*
 	 * lookup an rport by it's port ID.
@@ -693,8 +688,7 @@ struct libfc_function_template {
 	 *
 	 * STATUS: OPTIONAL
 	 */
-	void (*disc_recv_req)(struct fc_seq *, struct fc_frame *,
-			      struct fc_lport *);
+	void (*disc_recv_req)(struct fc_lport *, struct fc_frame *);
 
 	/*
 	 * Start discovery for a local port.

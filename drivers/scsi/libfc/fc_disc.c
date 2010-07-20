@@ -75,15 +75,13 @@ void fc_disc_stop_rports(struct fc_disc *disc)
 
 /**
  * fc_disc_recv_rscn_req() - Handle Registered State Change Notification (RSCN)
- * @sp:	   The sequence of the RSCN exchange
+ * @disc:  The discovery object to which the RSCN applies
  * @fp:	   The RSCN frame
- * @lport: The local port that the request will be sent on
  *
  * Locking Note: This function expects that the disc_mutex is locked
  *		 before it is called.
  */
-static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
-				  struct fc_disc *disc)
+static void fc_disc_recv_rscn_req(struct fc_disc *disc, struct fc_frame *fp)
 {
 	struct fc_lport *lport;
 	struct fc_els_rscn *rp;
@@ -151,7 +149,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 			break;
 		}
 	}
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_ACC, NULL);
 
 	/*
 	 * If not doing a complete rediscovery, do GPN_ID on
@@ -177,25 +175,22 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 	return;
 reject:
 	FC_DISC_DBG(disc, "Received a bad RSCN frame\n");
-	rjt_data.fp = NULL;
 	rjt_data.reason = ELS_RJT_LOGIC;
 	rjt_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(sp, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 
 /**
  * fc_disc_recv_req() - Handle incoming requests
- * @sp:	   The sequence of the request exchange
- * @fp:	   The request frame
  * @lport: The local port receiving the request
+ * @fp:	   The request frame
  *
  * Locking Note: This function is called from the EM and will lock
  *		 the disc_mutex before calling the handler for the
  *		 request.
  */
-static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
-			     struct fc_lport *lport)
+static void fc_disc_recv_req(struct fc_lport *lport, struct fc_frame *fp)
 {
 	u8 op;
 	struct fc_disc *disc = &lport->disc;
@@ -204,7 +199,7 @@ static void fc_disc_recv_req(struct fc_seq *sp, struct fc_frame *fp,
 	switch (op) {
 	case ELS_RSCN:
 		mutex_lock(&disc->disc_mutex);
-		fc_disc_recv_rscn_req(sp, fp, disc);
+		fc_disc_recv_rscn_req(disc, fp);
 		mutex_unlock(&disc->disc_mutex);
 		break;
 	default:

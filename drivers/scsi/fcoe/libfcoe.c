@@ -2341,20 +2341,19 @@ drop:
 
 /**
  * fcoe_ctlr_disc_recv - discovery receive handler for VN2VN mode.
- * @fip: The FCoE controller
+ * @lport: The local port
+ * @fp: The received frame
  *
  * This should never be called since we don't see RSCNs or other
  * fabric-generated ELSes.
  */
-static void fcoe_ctlr_disc_recv(struct fc_seq *seq, struct fc_frame *fp,
-				struct fc_lport *lport)
+static void fcoe_ctlr_disc_recv(struct fc_lport *lport, struct fc_frame *fp)
 {
 	struct fc_seq_els_data rjt_data;
 
-	rjt_data.fp = NULL;
 	rjt_data.reason = ELS_RJT_UNSUP;
 	rjt_data.explan = ELS_EXPL_NONE;
-	lport->tt.seq_els_rsp_send(seq, ELS_LS_RJT, &rjt_data);
+	lport->tt.seq_els_rsp_send(fp, ELS_LS_RJT, &rjt_data);
 	fc_frame_free(fp);
 }
 
