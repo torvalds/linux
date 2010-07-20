@@ -77,7 +77,7 @@ static LIST_HEAD(qd_lru_list);
 static atomic_t qd_lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(qd_lru_lock);
 
-int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
+int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	struct gfs2_quota_data *qd;
 	struct gfs2_sbd *sdp;
