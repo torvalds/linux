@@ -21,6 +21,7 @@
 #include <linux/fscache.h>
 #include <linux/sched.h>
 #include <linux/slow-work.h>
+#include <linux/workqueue.h>
 
 #define NR_MAXCACHES BITS_PER_LONG
 
@@ -389,7 +390,7 @@ struct fscache_object {
 	struct fscache_cache	*cache;		/* cache that supplied this object */
 	struct fscache_cookie	*cookie;	/* netfs's file/index object */
 	struct fscache_object	*parent;	/* parent object */
-	struct slow_work	work;		/* attention scheduling record */
+	struct work_struct	work;		/* attention scheduling record */
 	struct list_head	dependents;	/* FIFO of dependent objects */
 	struct list_head	dep_link;	/* link in parent's dependents list */
 	struct list_head	pending_ops;	/* unstarted operations on this object */
@@ -411,7 +412,7 @@ extern const char *fscache_object_states[];
 	(test_bit(FSCACHE_IOERROR, &(obj)->cache->flags) &&	\
 	 (obj)->state >= FSCACHE_OBJECT_DYING)
 
-extern const struct slow_work_ops fscache_object_slow_work_ops;
+extern void fscache_object_work_func(struct work_struct *work);
 
 /**
  * fscache_object_init - Initialise a cache object description
@@ -433,7 +434,7 @@ void fscache_object_init(struct fscache_object *object,
 	spin_lock_init(&object->lock);
 	INIT_LIST_HEAD(&object->cache_link);
 	INIT_HLIST_NODE(&object->cookie_link);
-	vslow_work_init(&object->work, &fscache_object_slow_work_ops);
+	INIT_WORK(&object->work, fscache_object_work_func);
 	INIT_LIST_HEAD(&object->dependents);
 	INIT_LIST_HEAD(&object->dep_link);
 	INIT_LIST_HEAD(&object->pending_ops);
@@ -533,6 +534,8 @@ extern void fscache_io_error(struct fscache_cache *cache);
 
 extern void fscache_mark_pages_cached(struct fscache_retrieval *op,
 				      struct pagevec *pagevec);
+
+extern bool fscache_object_sleep_till_congested(signed long *timeoutp);
 
 extern enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 					       const void *data,
