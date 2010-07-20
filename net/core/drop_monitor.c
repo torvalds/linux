@@ -223,6 +223,11 @@ static int set_all_monitor_traces(int state)
 
 	spin_lock(&trace_state_lock);
 
+	if (state == trace_state) {
+		rc = -EAGAIN;
+		goto out_unlock;
+	}
+
 	switch (state) {
 	case TRACE_ON:
 		rc |= register_trace_kfree_skb(trace_kfree_skb_hit, NULL);
@@ -251,11 +256,12 @@ static int set_all_monitor_traces(int state)
 
 	if (!rc)
 		trace_state = state;
+	else
+		rc = -EINPROGRESS;
 
+out_unlock:
 	spin_unlock(&trace_state_lock);
 
-	if (rc)
-		return -EINPROGRESS;
 	return rc;
 }
 
