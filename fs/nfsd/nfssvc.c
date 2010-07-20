@@ -186,8 +186,16 @@ static int nfsd_startup(unsigned short port, int nrservs)
 {
 	int ret;
 
+	ret = lockd_up();
+	if (ret)
+		return ret;
 	ret = nfs4_state_start();
+	if (ret)
+		goto out_lockd;
 	nfsd_up = true;
+	return 0;
+out_lockd:
+	lockd_down();
 	return ret;
 }
 
@@ -201,6 +209,7 @@ static void nfsd_shutdown(void)
 	 */
 	if (!nfsd_up)
 		return;
+	lockd_down();
 	nfs4_state_shutdown();
 	nfsd_up = false;
 }
@@ -208,9 +217,6 @@ static void nfsd_shutdown(void)
 static void nfsd_last_thread(struct svc_serv *serv)
 {
 	/* When last nfsd thread exits we need to do some clean-up */
-	struct svc_xprt *xprt;
-	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list)
-		lockd_down();
 	nfsd_serv = NULL;
 	nfsd_racache_shutdown();
 	nfsd_shutdown();
@@ -310,16 +316,8 @@ static int nfsd_init_socks(int port)
 	if (error < 0)
 		return error;
 
-	error = lockd_up();
-	if (error < 0)
-		return error;
-
 	error = svc_create_xprt(nfsd_serv, "tcp", PF_INET, port,
 					SVC_SOCK_DEFAULTS);
-	if (error < 0)
-		return error;
-
-	error = lockd_up();
 	if (error < 0)
 		return error;
 
@@ -400,6 +398,11 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 	return err;
 }
 
+/*
+ * Adjust the number of threads and return the new number of threads.
+ * This is also the function that starts the server if necessary, if
+ * this is the first time nrservs is nonzero.
+ */
 int
 nfsd_svc(unsigned short port, int nrservs)
 {
