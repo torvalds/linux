@@ -673,7 +673,6 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	/* Start local port initiatialization */
 
 	lp->link_up = 0;
-	lp->tt = fnic_transport_template;
 
 	lp->max_retry_count = fnic->config.flogi_retries;
 	lp->max_rport_retry_count = fnic->config.plogi_retries;
@@ -689,11 +688,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	fc_set_wwnn(lp, fnic->config.node_wwn);
 	fc_set_wwpn(lp, fnic->config.port_wwn);
 
-	fc_lport_init(lp);
-	fc_exch_init(lp);
-	fc_elsct_init(lp);
-	fc_rport_init(lp);
-	fc_disc_init(lp);
+	fcoe_libfc_config(lp, &fnic->ctlr, &fnic_transport_template, 0);
 
 	if (!fc_exch_mgr_alloc(lp, FC_CLASS_3, FCPIO_HOST_EXCH_RANGE_START,
 			       FCPIO_HOST_EXCH_RANGE_END, NULL)) {
