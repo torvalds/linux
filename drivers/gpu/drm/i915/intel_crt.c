@@ -264,12 +264,13 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 static bool intel_crt_detect_ddc(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
+	struct drm_i915_private *dev_priv = encoder->dev->dev_private;
 
 	/* CRT should always be at 0, but check anyway */
 	if (intel_encoder->type != INTEL_OUTPUT_ANALOG)
 		return false;
 
-	return intel_ddc_probe(intel_encoder);
+	return intel_ddc_probe(intel_encoder, dev_priv->crt_ddc_pin);
 }
 
 static enum drm_connector_status
@@ -445,29 +446,18 @@ static void intel_crt_destroy(struct drm_connector *connector)
 
 static int intel_crt_get_modes(struct drm_connector *connector)
 {
-	struct intel_encoder *encoder = intel_attached_encoder(connector);
-	struct i2c_adapter *ddc_bus;
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = intel_ddc_get_modes(connector, encoder->ddc_bus);
+	ret = intel_ddc_get_modes(connector,
+				 &dev_priv->gmbus[dev_priv->crt_ddc_pin].adapter);
 	if (ret || !IS_G4X(dev))
-		goto end;
+		return ret;
 
 	/* Try to probe digital port for output in DVI-I -> VGA mode. */
-	ddc_bus = intel_i2c_create(encoder, GPIOD, "CRTDDC_D");
-	if (!ddc_bus) {
-		dev_printk(KERN_ERR, &connector->dev->pdev->dev,
-			   "DDC bus registration failed for CRTDDC_D.\n");
-		goto end;
-	}
-	/* Try to get modes by GPIOD port */
-	ret = intel_ddc_get_modes(connector, ddc_bus);
-	intel_i2c_destroy(ddc_bus);
-
-end:
-	return ret;
-
+	return intel_ddc_get_modes(connector,
+				   &dev_priv->gmbus[GMBUS_PORT_DPB].adapter);
 }
 
 static int intel_crt_set_property(struct drm_connector *connector,
@@ -513,7 +503,6 @@ void intel_crt_init(struct drm_device *dev)
 	struct intel_encoder *intel_encoder;
 	struct intel_connector *intel_connector;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 i2c_reg;
 
 	intel_encoder = kzalloc(sizeof(struct intel_encoder), GFP_KERNEL);
 	if (!intel_encoder)
@@ -533,27 +522,6 @@ void intel_crt_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_DAC);
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
-
-	/* Set up the DDC bus. */
-	if (HAS_PCH_SPLIT(dev))
-		i2c_reg = PCH_GPIOA;
-	else {
-		i2c_reg = GPIOA;
-		/* Use VBT information for CRT DDC if available */
-		if (dev_priv->crt_ddc_bus != 0)
-			i2c_reg = dev_priv->crt_ddc_bus;
-	}
-	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
-						  i2c_reg, "CRTDDC_A");
-	if (!intel_encoder->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
-			   "failed.\n");
-		drm_connector_cleanup(&intel_connector->base);
-		kfree(intel_connector);
-		drm_encoder_cleanup(&intel_encoder->base);
-		kfree(intel_encoder);
-		return;
-	}
 
 	intel_encoder->type = INTEL_OUTPUT_ANALOG;
 	intel_encoder->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |

@@ -2001,6 +2001,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
 	intel_setup_mchbar(dev);
+	intel_setup_gmbus(dev);
 	intel_opregion_setup(dev);
 
 	i915_gem_load(dev);
@@ -2155,6 +2156,7 @@ int i915_driver_unload(struct drm_device *dev)
 		intel_cleanup_overlay(dev);
 	}
 
+	intel_teardown_gmbus(dev);
 	intel_teardown_mchbar(dev);
 
 	destroy_workqueue(dev_priv->wq);

@@ -2530,12 +2530,6 @@ void intel_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 
-	if (intel_encoder->ddc_bus)
-		intel_i2c_destroy(intel_encoder->ddc_bus);
-
-	if (intel_encoder->i2c_bus)
-		intel_i2c_destroy(intel_encoder->i2c_bus);
-
 	drm_encoder_cleanup(encoder);
 	kfree(intel_encoder);
 }

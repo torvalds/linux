@@ -72,7 +72,7 @@ static const struct intel_dvo_device intel_dvo_devices[] = {
 		.name = "ch7017",
 		.dvo_reg = DVOC,
 		.slave_addr = 0x75,
-		.gpio = GPIOE,
+		.gpio = GMBUS_PORT_DPD,
 		.dev_ops = &ch7017_ops,
 	}
 };
@@ -81,6 +81,7 @@ struct intel_dvo {
 	struct intel_encoder base;
 
 	struct intel_dvo_device dev;
+	int ddc_bus;
 
 	struct drm_display_mode *panel_fixed_mode;
 	bool panel_wants_dither;
@@ -235,13 +236,15 @@ static enum drm_connector_status intel_dvo_detect(struct drm_connector *connecto
 static int intel_dvo_get_modes(struct drm_connector *connector)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
+	struct drm_i915_private *dev_priv = connector->dev->dev_private;
 
 	/* We should probably have an i2c driver get_modes function for those
 	 * devices which will have a fixed set of modes determined by the chip
 	 * (TV-out, for example), but for now with just TMDS and LVDS,
 	 * that's not the case.
 	 */
-	intel_ddc_get_modes(connector, intel_dvo->base.ddc_bus);
+	intel_ddc_get_modes(connector,
+			    &dev_priv->gmbus[intel_dvo->ddc_bus].adapter);
 	if (!list_empty(&connector->probed_modes))
 		return 1;
 
@@ -341,10 +344,10 @@ intel_dvo_get_current_mode(struct drm_connector *connector)
 
 void intel_dvo_init(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
 	struct intel_dvo *intel_dvo;
 	struct intel_connector *intel_connector;
-	struct i2c_adapter *i2cbus = NULL;
 	int ret = 0;
 	int i;
 	int encoder_type = DRM_MODE_ENCODER_NONE;
@@ -364,15 +367,13 @@ void intel_dvo_init(struct drm_device *dev)
 			 &intel_dvo_enc_funcs, encoder_type);
 
 	/* Set up the DDC bus */
-	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
-						  GPIOD, "DVODDC_D");
-	if (!intel_encoder->ddc_bus)
-		goto free_intel;
+	intel_dvo->ddc_bus = GMBUS_PORT_DPB;
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
 		struct drm_connector *connector = &intel_connector->base;
 		const struct intel_dvo_device *dvo = &intel_dvo_devices[i];
+		struct i2c_adapter *i2c;
 		int gpio;
 
 		/* Allow the I2C driver info to specify the GPIO to be used in
@@ -382,23 +383,18 @@ void intel_dvo_init(struct drm_device *dev)
 		if (dvo->gpio != 0)
 			gpio = dvo->gpio;
 		else if (dvo->type == INTEL_DVO_CHIP_LVDS)
-			gpio = GPIOB;
+			gpio = GMBUS_PORT_PANEL;
 		else
-			gpio = GPIOE;
+			gpio = GMBUS_PORT_DPD;
 
 		/* Set up the I2C bus necessary for the chip we're probing.
 		 * It appears that everything is on GPIOE except for panels
 		 * on i830 laptops, which are on GPIOB (DVOA).
 		 */
-		if (i2cbus != NULL)
-			intel_i2c_destroy(i2cbus);
-		i2cbus = intel_i2c_create(intel_encoder, gpio,
-					  gpio == GPIOB ?  "DVOI2C_B" : "DVOI2C_E");
-		if (i2cbus == NULL)
-			continue;
+		i2c = &dev_priv->gmbus[gpio].adapter;
 
 		intel_dvo->dev = *dvo;
-		ret = dvo->dev_ops->init(&intel_dvo->dev, i2cbus);
+		ret = dvo->dev_ops->init(&intel_dvo->dev, i2c);
 		if (!ret)
 			continue;
 
@@ -451,11 +447,6 @@ void intel_dvo_init(struct drm_device *dev)
 		return;
 	}
 
-	intel_i2c_destroy(intel_encoder->ddc_bus);
-	/* Didn't find a chip, so tear down. */
-	if (i2cbus != NULL)
-		intel_i2c_destroy(i2cbus);
-free_intel:
 	drm_encoder_cleanup(&intel_encoder->base);
 	kfree(intel_dvo);
 	kfree(intel_connector);

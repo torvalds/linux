@@ -34,6 +34,7 @@
 #include "intel_bios.h"
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
+#include <linux/i2c.h>
 #include <drm/intel-gtt.h>
 
 /* General customization:
@@ -246,6 +247,12 @@ typedef struct drm_i915_private {
 
 	void __iomem *regs;
 
+	struct intel_gmbus {
+		struct i2c_adapter adapter;
+		struct i2c_adapter *force_bitbanging;
+		int pin;
+	} *gmbus;
+
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer render_ring;
 	struct intel_ring_buffer bsd_ring;
@@ -339,7 +346,7 @@ typedef struct drm_i915_private {
 
 	struct notifier_block lid_notifier;
 
-	int crt_ddc_bus; /* 0 = unknown, else GPIO to use for CRT DDC */
+	int crt_ddc_pin;
 	struct drm_i915_fence_reg fence_regs[16]; /* assume 965 */
 	int fence_reg_start; /* 4 if userland hasn't ioctl'd us yet */
 	int num_fence_regs; /* 8 on pre-965, 16 otherwise */
@@ -1069,6 +1076,11 @@ extern int i915_restore_state(struct drm_device *dev);
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
+
+/* intel_i2c.c */
+extern int intel_setup_gmbus(struct drm_device *dev);
+extern void intel_teardown_gmbus(struct drm_device *dev);
+extern void intel_i2c_reset(struct drm_device *dev);
 
 /* intel_opregion.c */
 extern int intel_opregion_setup(struct drm_device *dev);

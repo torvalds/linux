@@ -291,14 +291,6 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 			  struct bdb_header *bdb)
 {
 	struct bdb_general_definitions *general;
-	const int crt_bus_map_table[] = {
-		GPIOB,
-		GPIOA,
-		GPIOC,
-		GPIOD,
-		GPIOE,
-		GPIOF,
-	};
 
 	general = find_section(bdb, BDB_GENERAL_DEFINITIONS);
 	if (general) {
@@ -306,10 +298,8 @@ parse_general_definitions(struct drm_i915_private *dev_priv,
 		if (block_size >= sizeof(*general)) {
 			int bus_pin = general->crt_ddc_gmbus_pin;
 			DRM_DEBUG_KMS("crt_ddc_bus_pin: %d\n", bus_pin);
-			if ((bus_pin >= 1) && (bus_pin <= 6)) {
-				dev_priv->crt_ddc_bus =
-					crt_bus_map_table[bus_pin-1];
-			}
+			if (bus_pin >= 1 && bus_pin <= 6)
+				dev_priv->crt_ddc_pin = bus_pin - 1;
 		} else {
 			DRM_DEBUG_KMS("BDB_GD too small (%d). Invalid.\n",
 				  block_size);
@@ -532,6 +522,8 @@ intel_init_bios(struct drm_device *dev)
 	struct pci_dev *pdev = dev->pdev;
 	struct bdb_header *bdb = NULL;
 	u8 __iomem *bios = NULL;
+
+	dev_priv->crt_ddc_pin = GMBUS_PORT_VGADDC;
 
 	/* XXX Should this validation be moved to intel_opregion.c? */
 	if (dev_priv->opregion.vbt) {

@@ -1490,7 +1490,7 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
-	ret = intel_ddc_get_modes(connector, intel_dp->base.ddc_bus);
+	ret = intel_ddc_get_modes(connector, &intel_dp->adapter);
 	if (ret) {
 		if ((IS_eDP(intel_dp) || IS_PCH_eDP(intel_dp)) &&
 		    !dev_priv->panel_fixed_mode) {
@@ -1705,7 +1705,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 
 	intel_dp_i2c_init(intel_dp, intel_connector, name);
 
-	intel_encoder->ddc_bus = &intel_dp->adapter;
 	intel_encoder->hot_plug = intel_dp_hot_plug;
 
 	if (output_reg == DP_A || IS_PCH_eDP(intel_dp)) {

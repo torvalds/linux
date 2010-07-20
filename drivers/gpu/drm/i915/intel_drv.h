@@ -26,8 +26,6 @@
 #define __INTEL_DRV_H__
 
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
-#include <linux/i2c-algo-bit.h>
 #include "i915_drv.h"
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
@@ -127,13 +125,6 @@ intel_mode_get_pixel_multiplier(const struct drm_display_mode *mode)
 	return (mode->private_flags & INTEL_MODE_PIXEL_MULTIPLIER_MASK) >> INTEL_MODE_PIXEL_MULTIPLIER_SHIFT;
 }
 
-struct intel_i2c_chan {
-	struct intel_encoder *encoder;
-	u32 reg; /* GPIO reg */
-	struct i2c_adapter adapter;
-	struct i2c_algo_bit_data algo;
-};
-
 struct intel_framebuffer {
 	struct drm_framebuffer base;
 	struct drm_gem_object *obj;
@@ -149,8 +140,6 @@ struct intel_fbdev {
 struct intel_encoder {
 	struct drm_encoder base;
 	int type;
-	struct i2c_adapter *i2c_bus;
-	struct i2c_adapter *ddc_bus;
 	bool load_detect_temp;
 	bool needs_tv_clock;
 	void (*hot_plug)(struct intel_encoder *);
@@ -206,14 +195,8 @@ struct intel_unpin_work {
 	bool enable_stall_check;
 };
 
-struct i2c_adapter *intel_i2c_create(struct intel_encoder *encoder,
-				     const u32 reg,
-				     const char *name);
-void intel_i2c_destroy(struct i2c_adapter *adapter);
 int intel_ddc_get_modes(struct drm_connector *c, struct i2c_adapter *adapter);
-extern bool intel_ddc_probe(struct intel_encoder *intel_encoder);
-void intel_i2c_quirk_set(struct drm_device *dev, bool enable);
-void intel_i2c_reset_gmbus(struct drm_device *dev);
+extern bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus);
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);

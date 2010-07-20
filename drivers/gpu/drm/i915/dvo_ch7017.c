@@ -168,7 +168,6 @@ static void ch7017_dpms(struct intel_dvo_device *dvo, int mode);
 static bool ch7017_read(struct intel_dvo_device *dvo, int addr, uint8_t *val)
 {
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	u8 out_buf[2];
 	u8 in_buf[2];
 
@@ -190,7 +189,7 @@ static bool ch7017_read(struct intel_dvo_device *dvo, int addr, uint8_t *val)
 	out_buf[0] = addr;
 	out_buf[1] = 0;
 
-	if (i2c_transfer(&i2cbus->adapter, msgs, 2) == 2) {
+	if (i2c_transfer(adapter, msgs, 2) == 2) {
 		*val= in_buf[0];
 		return true;
 	};
@@ -201,7 +200,6 @@ static bool ch7017_read(struct intel_dvo_device *dvo, int addr, uint8_t *val)
 static bool ch7017_write(struct intel_dvo_device *dvo, int addr, uint8_t val)
 {
 	struct i2c_adapter *adapter = dvo->i2c_bus;
-	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	uint8_t out_buf[2];
 	struct i2c_msg msg = {
 		.addr = dvo->slave_addr,
@@ -213,7 +211,7 @@ static bool ch7017_write(struct intel_dvo_device *dvo, int addr, uint8_t val)
 	out_buf[0] = addr;
 	out_buf[1] = val;
 
-	if (i2c_transfer(&i2cbus->adapter, &msg, 1) == 1)
+	if (i2c_transfer(adapter, &msg, 1) == 1)
 		return true;
 
 	return false;
@@ -223,7 +221,6 @@ static bool ch7017_write(struct intel_dvo_device *dvo, int addr, uint8_t val)
 static bool ch7017_init(struct intel_dvo_device *dvo,
 			struct i2c_adapter *adapter)
 {
-	struct intel_i2c_chan *i2cbus = container_of(adapter, struct intel_i2c_chan, adapter);
 	struct ch7017_priv *priv;
 	uint8_t val;
 
@@ -242,7 +239,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	    val != CH7019_DEVICE_ID_VALUE) {
 		DRM_DEBUG_KMS("ch701x not detected, got %d: from %s "
 				"Slave %d.\n",
-			  val, i2cbus->adapter.name,dvo->slave_addr);
+			  val, adapter->name,dvo->slave_addr);
 		goto fail;
 	}
 

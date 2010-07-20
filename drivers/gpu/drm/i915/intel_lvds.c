@@ -474,11 +474,12 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 {
 	struct intel_lvds *intel_lvds = intel_attached_lvds(connector);
 	struct drm_device *dev = connector->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *mode;
 
 	if (intel_lvds->edid_good) {
 		int ret = intel_ddc_get_modes(connector,
-					      intel_lvds->base.ddc_bus);
+					      &dev_priv->gmbus[GMBUS_PORT_PANEL].adapter);
 		if (ret)
 			return ret;
 	}
@@ -898,21 +899,12 @@ void intel_lvds_init(struct drm_device *dev)
 	 *    if closed, act like it's not there for now
 	 */
 
-	/* Set up the DDC bus. */
-	intel_encoder->ddc_bus = intel_i2c_create(intel_encoder,
-						  gpio, "LVDSDDC_C");
-	if (!intel_encoder->ddc_bus) {
-		dev_printk(KERN_ERR, &dev->pdev->dev, "DDC bus registration "
-			   "failed.\n");
-		goto failed;
-	}
-
 	/*
 	 * Attempt to get the fixed panel mode from DDC.  Assume that the
 	 * preferred mode is the right one.
 	 */
 	intel_lvds->edid_good = true;
-	if (!intel_ddc_get_modes(connector, intel_encoder->ddc_bus))
+	if (!intel_ddc_get_modes(connector, &dev_priv->gmbus[GMBUS_PORT_PANEL].adapter))
 		intel_lvds->edid_good = false;
 
 	if (!intel_lvds->edid_good) {
@@ -999,8 +991,6 @@ out:
 
 failed:
 	DRM_DEBUG_KMS("No LVDS modes found, disabling.\n");
-	if (intel_encoder->ddc_bus)
-		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
 	kfree(intel_lvds);
