@@ -1210,6 +1210,8 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	struct fcoe_interface *fcoe;
 	struct fc_frame_header *fh;
 	struct fcoe_percpu_s *fps;
+	struct fcoe_port *port;
+	struct ethhdr *eh;
 	unsigned int cpu;
 
 	fcoe = container_of(ptype, struct fcoe_interface, fcoe_packet_type);
@@ -1227,9 +1229,21 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 			skb_tail_pointer(skb), skb_end_pointer(skb),
 			skb->csum, skb->dev ? skb->dev->name : "<NULL>");
 
-	/* check for FCOE packet type */
-	if (unlikely(eth_hdr(skb)->h_proto != htons(ETH_P_FCOE))) {
-		FCOE_NETDEV_DBG(netdev, "Wrong FC type frame");
+	/* check for mac addresses */
+	eh = eth_hdr(skb);
+	port = lport_priv(lport);
+	if (compare_ether_addr(eh->h_dest, port->data_src_addr) &&
+	    compare_ether_addr(eh->h_dest, fcoe->ctlr.ctl_src_addr) &&
+	    compare_ether_addr(eh->h_dest, (u8[6])FC_FCOE_FLOGI_MAC)) {
+		FCOE_NETDEV_DBG(netdev, "wrong destination mac address:%pM\n",
+				eh->h_dest);
+		goto err;
+	}
+
+	if (is_fip_mode(&fcoe->ctlr) &&
+	    compare_ether_addr(eh->h_source, fcoe->ctlr.dest_addr)) {
+		FCOE_NETDEV_DBG(netdev, "wrong source mac address:%pM\n",
+				eh->h_source);
 		goto err;
 	}
 

@@ -170,4 +170,14 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *, struct fc_lport *,
 u64 fcoe_wwn_from_mac(unsigned char mac[], unsigned int, unsigned int);
 int fcoe_libfc_config(struct fc_lport *, struct libfc_function_template *);
 
+/**
+ * is_fip_mode() - returns true if FIP mode selected.
+ * @fip:	FCoE controller.
+ */
+static inline bool is_fip_mode(struct fcoe_ctlr *fip)
+{
+	return fip->state == FIP_ST_ENABLED;
+}
+
+
 #endif /* _LIBFCOE_H */
