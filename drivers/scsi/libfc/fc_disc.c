@@ -63,12 +63,12 @@ static void fc_disc_restart(struct fc_disc *);
 void fc_disc_stop_rports(struct fc_disc *disc)
 {
 	struct fc_lport *lport;
-	struct fc_rport_priv *rdata, *next;
+	struct fc_rport_priv *rdata;
 
 	lport = disc->lport;
 
 	mutex_lock(&disc->disc_mutex);
-	list_for_each_entry_safe(rdata, next, &disc->rports, peers)
+	list_for_each_entry_rcu(rdata, &disc->rports, peers)
 		lport->tt.rport_logoff(rdata);
 	mutex_unlock(&disc->disc_mutex);
 }
@@ -292,7 +292,7 @@ static void fc_disc_done(struct fc_disc *disc, enum fc_disc_event event)
 	 * Skip ports which were never discovered.  These are the dNS port
 	 * and ports which were created by PLOGI.
 	 */
-	list_for_each_entry(rdata, &disc->rports, peers) {
+	list_for_each_entry_rcu(rdata, &disc->rports, peers) {
 		if (!rdata->disc_id)
 			continue;
 		if (rdata->disc_id == disc->disc_id)

@@ -95,13 +95,15 @@ static const char *fc_rport_state_names[] = {
  * fc_rport_lookup() - Lookup a remote port by port_id
  * @lport:   The local port to lookup the remote port on
  * @port_id: The remote port ID to look up
+ *
+ * The caller must hold either disc_mutex or rcu_read_lock().
  */
 static struct fc_rport_priv *fc_rport_lookup(const struct fc_lport *lport,
 					     u32 port_id)
 {
 	struct fc_rport_priv *rdata;
 
-	list_for_each_entry(rdata, &lport->disc.rports, peers)
+	list_for_each_entry_rcu(rdata, &lport->disc.rports, peers)
 		if (rdata->ids.port_id == port_id)
 			return rdata;
 	return NULL;
@@ -146,8 +148,20 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	INIT_DELAYED_WORK(&rdata->retry_work, fc_rport_timeout);
 	INIT_WORK(&rdata->event_work, fc_rport_work);
 	if (port_id != FC_FID_DIR_SERV)
-		list_add(&rdata->peers, &lport->disc.rports);
+		list_add_rcu(&rdata->peers, &lport->disc.rports);
 	return rdata;
+}
+
+/**
+ * fc_rport_free_rcu() - Free a remote port
+ * @rcu: The rcu_head structure inside the remote port
+ */
+static void fc_rport_free_rcu(struct rcu_head *rcu)
+{
+	struct fc_rport_priv *rdata;
+
+	rdata = container_of(rcu, struct fc_rport_priv, rcu);
+	kfree(rdata);
 }
 
 /**
@@ -159,7 +173,7 @@ static void fc_rport_destroy(struct kref *kref)
 	struct fc_rport_priv *rdata;
 
 	rdata = container_of(kref, struct fc_rport_priv, kref);
-	kfree(rdata);
+	call_rcu(&rdata->rcu, fc_rport_free_rcu);
 }
 
 /**
@@ -334,7 +348,7 @@ static void fc_rport_work(struct work_struct *work)
 				mutex_unlock(&rdata->rp_mutex);
 			} else {
 				FC_RPORT_DBG(rdata, "work delete\n");
-				list_del(&rdata->peers);
+				list_del_rcu(&rdata->peers);
 				mutex_unlock(&rdata->rp_mutex);
 				kref_put(&rdata->kref, lport->tt.rport_destroy);
 			}

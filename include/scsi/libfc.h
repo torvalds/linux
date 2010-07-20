@@ -195,6 +195,7 @@ struct fc_rport_libfc_priv {
  * @rp_mutex:       The mutex that protects the remote port
  * @retry_work:     Handle for retries
  * @event_callback: Callback when READY, FAILED or LOGO states complete
+ * @rcu:	    Structure used for freeing in an RCU-safe manner
  */
 struct fc_rport_priv {
 	struct fc_lport		    *local_port;
@@ -217,6 +218,7 @@ struct fc_rport_priv {
 	struct list_head            peers;
 	struct work_struct          event_work;
 	u32			    supported_classes;
+	struct rcu_head		    rcu;
 };
 
 /**
