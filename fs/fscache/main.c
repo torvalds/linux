@@ -106,10 +106,6 @@ static int __init fscache_init(void)
 	unsigned int cpu;
 	int ret;
 
-	ret = slow_work_register_user(THIS_MODULE);
-	if (ret < 0)
-		goto error_slow_work;
-
 	fscache_object_max_active =
 		clamp_val(nr_cpus,
 			  fscache_object_max_active, WQ_UNBOUND_MAX_ACTIVE);
@@ -176,8 +172,6 @@ error_proc:
 error_op_wq:
 	destroy_workqueue(fscache_object_wq);
 error_object_wq:
-	slow_work_unregister_user(THIS_MODULE);
-error_slow_work:
 	return ret;
 }
 
@@ -196,7 +190,6 @@ static void __exit fscache_exit(void)
 	fscache_proc_cleanup();
 	destroy_workqueue(fscache_op_wq);
 	destroy_workqueue(fscache_object_wq);
-	slow_work_unregister_user(THIS_MODULE);
 	printk(KERN_NOTICE "FS-Cache: Unloaded\n");
 }
 

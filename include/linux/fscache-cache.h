@@ -20,7 +20,6 @@
 
 #include <linux/fscache.h>
 #include <linux/sched.h>
-#include <linux/slow-work.h>
 #include <linux/workqueue.h>
 
 #define NR_MAXCACHES BITS_PER_LONG
