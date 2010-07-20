@@ -2615,11 +2615,15 @@ static int alloc_cwqs(struct workqueue_struct *wq)
 	const size_t size = sizeof(struct cpu_workqueue_struct);
 	const size_t align = max_t(size_t, 1 << WORK_STRUCT_FLAG_BITS,
 				   __alignof__(unsigned long long));
+#ifdef CONFIG_SMP
+	bool percpu = !(wq->flags & WQ_UNBOUND);
+#else
+	bool percpu = false;
+#endif
 
-	if (CONFIG_SMP && !(wq->flags & WQ_UNBOUND)) {
-		/* on SMP, percpu allocator can align itself */
+	if (percpu)
 		wq->cpu_wq.pcpu = __alloc_percpu(size, align);
-	} else {
+	else {
 		void *ptr;
 
 		/*
@@ -2641,7 +2645,13 @@ static int alloc_cwqs(struct workqueue_struct *wq)
 
 static void free_cwqs(struct workqueue_struct *wq)
 {
-	if (CONFIG_SMP && !(wq->flags & WQ_UNBOUND))
+#ifdef CONFIG_SMP
+	bool percpu = !(wq->flags & WQ_UNBOUND);
+#else
+	bool percpu = false;
+#endif
+
+	if (percpu)
 		free_percpu(wq->cpu_wq.pcpu);
 	else if (wq->cpu_wq.single) {
 		/* the pointer to free is stored right after the cwq */
