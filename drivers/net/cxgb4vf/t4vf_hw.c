@@ -163,7 +163,7 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	for (i = 0; i < 500; i += ms) {
 		if (sleep_ok) {
 			ms = delay[delay_idx];
-			if (delay_idx < ARRAY_SIZE(delay))
+			if (delay_idx < ARRAY_SIZE(delay) - 1)
 				delay_idx++;
 			msleep(ms);
 		} else
