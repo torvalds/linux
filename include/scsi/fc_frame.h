@@ -66,8 +66,8 @@ struct fcoe_rcv_info {
 	struct fc_fcp_pkt *fr_fsp;	/* for the corresponding fcp I/O */
 	u32		fr_crc;
 	u16		fr_max_payload;	/* max FC payload */
-	enum fc_sof	fr_sof;		/* start of frame delimiter */
-	enum fc_eof	fr_eof;		/* end of frame delimiter */
+	u8		fr_sof;		/* start of frame delimiter */
+	u8		fr_eof;		/* end of frame delimiter */
 	u8		fr_flags;	/* flags - see below */
 	u8		granted_mac[ETH_ALEN]; /* FCoE MAC address */
 };
