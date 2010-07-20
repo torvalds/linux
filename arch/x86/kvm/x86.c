@@ -5005,7 +5005,6 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	int r;
 	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
 		vcpu->run->request_interrupt_window;
-	bool req_event;
 
 	if (vcpu->requests) {
 		if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu))
@@ -5041,33 +5040,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (unlikely(r))
 		goto out;
 
-	preempt_disable();
-
-	kvm_x86_ops->prepare_guest_switch(vcpu);
-	if (vcpu->fpu_active)
-		kvm_load_guest_fpu(vcpu);
-	kvm_load_guest_xcr0(vcpu);
-
-	atomic_set(&vcpu->guest_mode, 1);
-	smp_wmb();
-
-	local_irq_disable();
-
-	req_event = kvm_check_request(KVM_REQ_EVENT, vcpu);
-
-	if (!atomic_read(&vcpu->guest_mode) || vcpu->requests
-	    || need_resched() || signal_pending(current)) {
-		if (req_event)
-			kvm_make_request(KVM_REQ_EVENT, vcpu);
-		atomic_set(&vcpu->guest_mode, 0);
-		smp_wmb();
-		local_irq_enable();
-		preempt_enable();
-		r = 1;
-		goto out;
-	}
-
-	if (req_event || req_int_win) {
+	if (kvm_check_request(KVM_REQ_EVENT, vcpu) || req_int_win) {
 		inject_pending_event(vcpu);
 
 		/* enable NMI/IRQ window open exits if needed */
@@ -5080,6 +5053,29 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			update_cr8_intercept(vcpu);
 			kvm_lapic_sync_to_vapic(vcpu);
 		}
+	}
+
+	preempt_disable();
+
+	kvm_x86_ops->prepare_guest_switch(vcpu);
+	if (vcpu->fpu_active)
+		kvm_load_guest_fpu(vcpu);
+	kvm_load_guest_xcr0(vcpu);
+
+	atomic_set(&vcpu->guest_mode, 1);
+	smp_wmb();
+
+	local_irq_disable();
+
+	if (!atomic_read(&vcpu->guest_mode) || vcpu->requests
+	    || need_resched() || signal_pending(current)) {
+		atomic_set(&vcpu->guest_mode, 0);
+		smp_wmb();
+		local_irq_enable();
+		preempt_enable();
+		kvm_x86_ops->cancel_injection(vcpu);
+		r = 1;
+		goto out;
 	}
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);

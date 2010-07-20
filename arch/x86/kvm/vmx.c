@@ -3895,6 +3895,16 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 				  IDT_VECTORING_ERROR_CODE);
 }
 
+static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
+{
+	__vmx_complete_interrupts(to_vmx(vcpu),
+				  vmcs_read32(VM_ENTRY_INTR_INFO_FIELD),
+				  VM_ENTRY_INSTRUCTION_LEN,
+				  VM_ENTRY_EXCEPTION_ERROR_CODE);
+
+	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
+}
+
 /*
  * Failure to inject an interrupt should give us the information
  * in IDT_VECTORING_INFO_FIELD.  However, if the failure occurs
@@ -4348,6 +4358,7 @@ static struct kvm_x86_ops vmx_x86_ops = {
 	.set_irq = vmx_inject_irq,
 	.set_nmi = vmx_inject_nmi,
 	.queue_exception = vmx_queue_exception,
+	.cancel_injection = vmx_cancel_injection,
 	.interrupt_allowed = vmx_interrupt_allowed,
 	.nmi_allowed = vmx_nmi_allowed,
 	.get_nmi_mask = vmx_get_nmi_mask,

@@ -3261,6 +3261,17 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 	}
 }
 
+static void svm_cancel_injection(struct kvm_vcpu *vcpu)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	struct vmcb_control_area *control = &svm->vmcb->control;
+
+	control->exit_int_info = control->event_inj;
+	control->exit_int_info_err = control->event_inj_err;
+	control->event_inj = 0;
+	svm_complete_interrupts(svm);
+}
+
 #ifdef CONFIG_X86_64
 #define R "r"
 #else
@@ -3631,6 +3642,7 @@ static struct kvm_x86_ops svm_x86_ops = {
 	.set_irq = svm_set_irq,
 	.set_nmi = svm_inject_nmi,
 	.queue_exception = svm_queue_exception,
+	.cancel_injection = svm_cancel_injection,
 	.interrupt_allowed = svm_interrupt_allowed,
 	.nmi_allowed = svm_nmi_allowed,
 	.get_nmi_mask = svm_get_nmi_mask,
