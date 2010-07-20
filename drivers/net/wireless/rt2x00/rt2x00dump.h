@@ -116,7 +116,7 @@ struct rt2x00dump_hdr {
 
 	__le16 chip_rt;
 	__le16 chip_rf;
-	__le32 chip_rev;
+	__le16 chip_rev;
 
 	__le16 type;
 	__u8 queue_index;
