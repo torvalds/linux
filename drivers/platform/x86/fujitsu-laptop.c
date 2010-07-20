@@ -182,7 +182,7 @@ static enum led_brightness logolamp_get(struct led_classdev *cdev);
 static void logolamp_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
 
-struct led_classdev logolamp_led = {
+static struct led_classdev logolamp_led = {
  .name = "fujitsu::logolamp",
  .brightness_get = logolamp_get,
  .brightness_set = logolamp_set
@@ -192,7 +192,7 @@ static enum led_brightness kblamps_get(struct led_classdev *cdev);
 static void kblamps_set(struct led_classdev *cdev,
 			       enum led_brightness brightness);
 
-struct led_classdev kblamps_led = {
+static struct led_classdev kblamps_led = {
  .name = "fujitsu::kblamps",
  .brightness_get = kblamps_get,
  .brightness_set = kblamps_set
