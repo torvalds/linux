@@ -242,8 +242,6 @@ static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 	acpi_status status = AE_OK;
 	struct acpi_power_resource *resource = NULL;
 	struct list_head *node, *next;
-	struct acpi_power_reference *ref;
-
 
 	result = acpi_power_get_context(handle, &resource);
 	if (result)

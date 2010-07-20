@@ -722,13 +722,12 @@ static inline void acpi_idle_do_entry(struct acpi_processor_cx *cx)
 	} else if (cx->entry_method == ACPI_CSTATE_HALT) {
 		acpi_safe_halt();
 	} else {
-		int unused;
 		/* IO port based C-state */
 		inb(cx->address);
 		/* Dummy wait op - must do something useless after P_LVL2 read
 		   because chipsets cannot guarantee that STPCLK# signal
 		   gets asserted in time to freeze execution properly. */
-		unused = inl(acpi_gbl_FADT.xpm_timer_block.address);
+		inl(acpi_gbl_FADT.xpm_timer_block.address);
 	}
 	start_critical_timings();
 }

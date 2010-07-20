@@ -141,15 +141,14 @@ static struct osi_linux {
 static void __init acpi_request_region (struct acpi_generic_address *addr,
 	unsigned int length, char *desc)
 {
-	struct resource *res;
-
 	if (!addr->address || !length)
 		return;
 
+	/* Resources are never freed */
 	if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_IO)
-		res = request_region(addr->address, length, desc);
+		request_region(addr->address, length, desc);
 	else if (addr->space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY)
-		res = request_mem_region(addr->address, length, desc);
+		request_mem_region(addr->address, length, desc);
 }
 
 static int __init acpi_reserve_resources(void)
