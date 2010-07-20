@@ -5982,7 +5982,13 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		}
 		break;
 	case OUTPUT_TMDS:
-		entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
+		if (dcb->version >= 0x22)
+			entry->tmdsconf.slave_addr = (conf & 0x00000070) >> 4;
+		else if (dcb->version >= 0x30)
+			entry->tmdsconf.slave_addr = (conf & 0x00000700) >> 8;
+		else if (dcb->version >= 0x40)
+			entry->tmdsconf.sor.link = (conf & 0x00000030) >> 4;
+
 		break;
 	case 0xe:
 		/* weird g80 mobile type that "nv" treats as a terminator */
@@ -6272,6 +6278,19 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 		dcb->i2c_table = &bios->data[i2ctabptr];
 		if (dcb->version >= 0x30)
 			dcb->i2c_default_indices = dcb->i2c_table[4];
+
+		/*
+		 * Parse the "management" I2C bus, used for hardware
+		 * monitoring and some external TMDS transmitters.
+		 */
+		if (dcb->version >= 0x22) {
+			int idx = (dcb->version >= 0x40 ?
+				   dcb->i2c_default_indices & 0xf :
+				   2);
+
+			read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
+					   idx, &dcb->i2c[idx]);
+		}
 	}
 
 	if (entries > DCB_MAX_NUM_ENTRIES)

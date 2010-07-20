@@ -34,6 +34,8 @@
 #include "nouveau_hw.h"
 #include "nvreg.h"
 
+#include "i2c/sil164.h"
+
 #define FP_TG_CONTROL_ON  (NV_PRAMDAC_FP_TG_CONTROL_DISPEN_POS |	\
 			   NV_PRAMDAC_FP_TG_CONTROL_HSYNC_POS |		\
 			   NV_PRAMDAC_FP_TG_CONTROL_VSYNC_POS)
@@ -429,6 +431,11 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	else
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
 
+	/* Init external transmitters */
+	if (get_slave_funcs(encoder))
+		get_slave_funcs(encoder)->mode_set(encoder, &nv_encoder->mode,
+						   &nv_encoder->mode);
+
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
 	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
@@ -550,8 +557,39 @@ static void nv04_dfp_destroy(struct drm_encoder *encoder)
 
 	NV_DEBUG_KMS(encoder->dev, "\n");
 
+	if (get_slave_funcs(encoder))
+		get_slave_funcs(encoder)->destroy(encoder);
+
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);
+}
+
+static void nv04_tmds_slave_init(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct nouveau_i2c_chan *i2c = nouveau_i2c_find(dev, 2);
+	struct i2c_board_info info[] = {
+		{
+			.type = "sil164",
+			.addr = (dcb->tmdsconf.slave_addr == 0x7 ? 0x3a : 0x38),
+			.platform_data = &(struct sil164_encoder_params) {
+				SIL164_INPUT_EDGE_RISING
+			}
+		},
+		{ }
+	};
+	int type;
+
+	if (!nv_gf4_disp_arch(dev) || !i2c)
+		return;
+
+	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, 2);
+	if (type < 0)
+		return;
+
+	drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
+			     &i2c->adapter, &info[type]);
 }
 
 static const struct drm_encoder_helper_funcs nv04_lvds_helper_funcs = {
@@ -615,6 +653,10 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_entry *entry)
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
+
+	if (entry->type == OUTPUT_TMDS &&
+	    entry->location != DCB_LOC_ON_CHIP)
+		nv04_tmds_slave_init(encoder);
 
 	drm_mode_connector_attach_encoder(connector, encoder);
 	return 0;
