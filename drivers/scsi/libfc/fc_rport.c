@@ -89,7 +89,6 @@ static const char *fc_rport_state_names[] = {
 	[RPORT_ST_PRLI] = "PRLI",
 	[RPORT_ST_RTV] = "RTV",
 	[RPORT_ST_READY] = "Ready",
-	[RPORT_ST_LOGO] = "LOGO",
 	[RPORT_ST_ADISC] = "ADISC",
 	[RPORT_ST_DELETE] = "Delete",
 };
@@ -514,9 +513,6 @@ static void fc_rport_timeout(struct work_struct *work)
 	case RPORT_ST_RTV:
 		fc_rport_enter_rtv(rdata);
 		break;
-	case RPORT_ST_LOGO:
-		fc_rport_enter_logo(rdata);
-		break;
 	case RPORT_ST_ADISC:
 		fc_rport_enter_adisc(rdata);
 		break;
@@ -547,7 +543,6 @@ static void fc_rport_error(struct fc_rport_priv *rdata, struct fc_frame *fp)
 	switch (rdata->rp_state) {
 	case RPORT_ST_FLOGI:
 	case RPORT_ST_PLOGI:
-	case RPORT_ST_LOGO:
 		rdata->flags &= ~FC_RP_STARTED;
 		fc_rport_enter_delete(rdata, RPORT_EV_FAILED);
 		break;
@@ -791,7 +786,6 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 
 	switch (rdata->rp_state) {
 	case RPORT_ST_INIT:
-	case RPORT_ST_LOGO:
 	case RPORT_ST_DELETE:
 		mutex_unlock(&rdata->rp_mutex);
 		rjt_data.reason = ELS_RJT_FIP;
@@ -1037,52 +1031,6 @@ err:
 }
 
 /**
- * fc_rport_logo_resp() - Handler for logout (LOGO) responses
- * @sp:	       The sequence the LOGO was on
- * @fp:	       The LOGO response frame
- * @rdata_arg: The remote port that sent the LOGO response
- *
- * Locking Note: This function will be called without the rport lock
- * held, but it will lock, call an _enter_* function or fc_rport_error
- * and then unlock the rport.
- */
-static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
-			       void *rdata_arg)
-{
-	struct fc_rport_priv *rdata = rdata_arg;
-	u8 op;
-
-	mutex_lock(&rdata->rp_mutex);
-
-	FC_RPORT_DBG(rdata, "Received a LOGO %s\n", fc_els_resp_type(fp));
-
-	if (rdata->rp_state != RPORT_ST_LOGO) {
-		FC_RPORT_DBG(rdata, "Received a LOGO response, but in state "
-			     "%s\n", fc_rport_state(rdata));
-		if (IS_ERR(fp))
-			goto err;
-		goto out;
-	}
-
-	if (IS_ERR(fp)) {
-		fc_rport_error_retry(rdata, fp);
-		goto err;
-	}
-
-	op = fc_frame_payload_op(fp);
-	if (op != ELS_LS_ACC)
-		FC_RPORT_DBG(rdata, "Bad ELS response op %x for LOGO command\n",
-			     op);
-	fc_rport_enter_delete(rdata, RPORT_EV_LOGO);
-
-out:
-	fc_frame_free(fp);
-err:
-	mutex_unlock(&rdata->rp_mutex);
-	kref_put(&rdata->kref, rdata->local_port->tt.rport_destroy);
-}
-
-/**
  * fc_rport_enter_prli() - Send Process Login (PRLI) request
  * @rdata: The remote port to send the PRLI request to
  *
@@ -1224,6 +1172,24 @@ static void fc_rport_enter_rtv(struct fc_rport_priv *rdata)
 }
 
 /**
+ * fc_rport_logo_resp() - Handler for logout (LOGO) responses
+ * @sp:	       The sequence the LOGO was on
+ * @fp:	       The LOGO response frame
+ * @lport_arg: The local port
+ */
+static void fc_rport_logo_resp(struct fc_seq *sp, struct fc_frame *fp,
+			       void *lport_arg)
+{
+	struct fc_lport *lport = lport_arg;
+
+	FC_RPORT_ID_DBG(lport, fc_seq_exch(sp)->did,
+			"Received a LOGO %s\n", fc_els_resp_type(fp));
+	if (IS_ERR(fp))
+		return;
+	fc_frame_free(fp);
+}
+
+/**
  * fc_rport_enter_logo() - Send a logout (LOGO) request
  * @rdata: The remote port to send the LOGO request to
  *
@@ -1235,23 +1201,14 @@ static void fc_rport_enter_logo(struct fc_rport_priv *rdata)
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_frame *fp;
 
-	FC_RPORT_DBG(rdata, "Port entered LOGO state from %s state\n",
+	FC_RPORT_DBG(rdata, "Port sending LOGO from %s state\n",
 		     fc_rport_state(rdata));
 
-	fc_rport_state_enter(rdata, RPORT_ST_LOGO);
-
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_logo));
-	if (!fp) {
-		fc_rport_error_retry(rdata, fp);
+	if (!fp)
 		return;
-	}
-
-	if (!lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_LOGO,
-				  fc_rport_logo_resp, rdata,
-				  2 * lport->r_a_tov))
-		fc_rport_error_retry(rdata, NULL);
-	else
-		kref_get(&rdata->kref);
+	(void)lport->tt.elsct_send(lport, rdata->ids.port_id, fp, ELS_LOGO,
+				   fc_rport_logo_resp, lport, 0);
 }
 
 /**
@@ -1670,7 +1627,6 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 		break;
 	case RPORT_ST_FLOGI:
 	case RPORT_ST_DELETE:
-	case RPORT_ST_LOGO:
 		FC_RPORT_DBG(rdata, "Received PLOGI in state %s - send busy\n",
 			     fc_rport_state(rdata));
 		mutex_unlock(&rdata->rp_mutex);

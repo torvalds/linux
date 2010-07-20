@@ -103,7 +103,6 @@ enum fc_disc_event {
  * @RPORT_ST_PRLI:    Waiting for PRLI completion
  * @RPORT_ST_RTV:     Waiting for RTV completion
  * @RPORT_ST_READY:   Ready for use
- * @RPORT_ST_LOGO:    Remote port logout (LOGO) sent
  * @RPORT_ST_ADISC:   Discover Address sent
  * @RPORT_ST_DELETE:  Remote port being deleted
 */
@@ -115,7 +114,6 @@ enum fc_rport_state {
 	RPORT_ST_PRLI,
 	RPORT_ST_RTV,
 	RPORT_ST_READY,
-	RPORT_ST_LOGO,
 	RPORT_ST_ADISC,
 	RPORT_ST_DELETE,
 };
