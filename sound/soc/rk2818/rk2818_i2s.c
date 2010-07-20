@@ -343,10 +343,13 @@ int rockchip_i2s_resume(struct snd_soc_dai *cpu_dai)
 #endif
 
 
-#define ROCKCHIP_I2S_RATES \
+/*#define ROCKCHIP_I2S_RATES \
 	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
-	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)
+	SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 | SNDRV_PCM_RATE_96000)*///cjq
+
+#define ROCKCHIP_I2S_RATES \
+	(SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
 static struct snd_soc_dai_ops rockchip_i2s_dai_ops = {
 	.trigger = rockchip_i2s_trigger,
@@ -368,7 +371,7 @@ struct snd_soc_dai rk2818_i2s_dai = {
 		.rates = ROCKCHIP_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = ROCKCHIP_I2S_RATES,
 		.formats = SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE,},

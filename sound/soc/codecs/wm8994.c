@@ -2234,7 +2234,9 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-#define WM8994_RATES SNDRV_PCM_RATE_8000_96000
+//#define WM8994_RATES SNDRV_PCM_RATE_8000_96000//cjq
+
+#define WM8994_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
@@ -2258,7 +2260,7 @@ struct snd_soc_dai wm8994_dai = {
 	},
 	.capture = {
 		.stream_name = "Capture",
-		.channels_min = 1,
+		.channels_min = 2,
 		.channels_max = 2,
 		.rates = WM8994_RATES,
 		.formats = WM8994_FORMATS,
