@@ -271,6 +271,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&smdk6410_smsc911x,
 	&s3c_device_adc,
 	&s3c_device_cfcon,
+	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 };
