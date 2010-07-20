@@ -4074,6 +4074,11 @@ static int wm8994_codec_probe(struct platform_device *pdev)
 			    1 << WM8994_AIF2DAC_3D_GAIN_SHIFT,
 			    1 << WM8994_AIF2DAC_3D_GAIN_SHIFT);
 
+	/* Unconditionally enable AIF1 ADC TDM mode; it only affects
+	 * behaviour on idle TDM clock cycles. */
+	snd_soc_update_bits(codec, WM8994_AIF1_CONTROL_1,
+			    WM8994_AIF1ADC_TDM, WM8994_AIF1ADC_TDM);
+
 	wm8994_update_class_w(codec);
 
 	ret = snd_soc_register_codec(codec);
