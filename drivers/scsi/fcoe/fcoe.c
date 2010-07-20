@@ -1534,11 +1534,9 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 	/* fill up mac and fcoe headers */
 	eh = eth_hdr(skb);
 	eh->h_proto = htons(ETH_P_FCOE);
+	memcpy(eh->h_dest, fcoe->ctlr.dest_addr, ETH_ALEN);
 	if (fcoe->ctlr.map_dest)
-		fc_fcoe_set_mac(eh->h_dest, fh->fh_d_id);
-	else
-		/* insert GW address */
-		memcpy(eh->h_dest, fcoe->ctlr.dest_addr, ETH_ALEN);
+		memcpy(eh->h_dest + 3, fh->fh_d_id, 3);
 
 	if (unlikely(fcoe->ctlr.flogi_oxid != FC_XID_UNKNOWN))
 		memcpy(eh->h_source, fcoe->ctlr.ctl_src_addr, ETH_ALEN);

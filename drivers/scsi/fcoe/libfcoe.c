@@ -153,6 +153,20 @@ static inline int fcoe_ctlr_fcf_usable(struct fcoe_fcf *fcf)
 }
 
 /**
+ * fcoe_ctlr_map_dest() - Set flag and OUI for mapping destination addresses
+ * @fip: The FCoE controller
+ */
+static void fcoe_ctlr_map_dest(struct fcoe_ctlr *fip)
+{
+	if (fip->mode == FIP_MODE_VN2VN)
+		hton24(fip->dest_addr, FIP_VN_FC_MAP);
+	else
+		hton24(fip->dest_addr, FIP_DEF_FC_MAP);
+	hton24(fip->dest_addr + 3, 0);
+	fip->map_dest = 1;
+}
+
+/**
  * fcoe_ctlr_init() - Initialize the FCoE Controller instance
  * @fip: The FCoE controller to initialize
  */
@@ -345,7 +359,7 @@ static void fcoe_ctlr_reset(struct fcoe_ctlr *fip)
 	fip->port_ka_time = 0;
 	fip->sol_time = 0;
 	fip->flogi_oxid = FC_XID_UNKNOWN;
-	fip->map_dest = 0;
+	fcoe_ctlr_map_dest(fip);
 }
 
 /**
@@ -573,11 +587,11 @@ int fcoe_ctlr_els_send(struct fcoe_ctlr *fip, struct fc_lport *lport,
 			fip->flogi_count++;
 			if (fip->flogi_count < 3)
 				goto drop;
-			fip->map_dest = 1;
+			fcoe_ctlr_map_dest(fip);
 			return 0;
 		}
 		if (fip->state == FIP_ST_NON_FIP)
-			fip->map_dest = 1;
+			fcoe_ctlr_map_dest(fip);
 	}
 
 	if (fip->state == FIP_ST_NON_FIP)
@@ -1411,6 +1425,7 @@ static void fcoe_ctlr_timer_work(struct work_struct *work)
 			       "Fibre-Channel Forwarder MAC %pM\n",
 			       fip->lp->host->host_no, sel->fcf_mac);
 			memcpy(fip->dest_addr, sel->fcf_mac, ETH_ALEN);
+			fip->map_dest = 0;
 			fip->port_ka_time = jiffies +
 				msecs_to_jiffies(FIP_VN_KA_PERIOD);
 			fip->ctlr_ka_time = jiffies + sel->fka_period;
@@ -1527,7 +1542,7 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		 * Otherwise we use the FCoE gateway addr
 		 */
 		if (!compare_ether_addr(sa, (u8[6])FC_FCOE_FLOGI_MAC)) {
-			fip->map_dest = 1;
+			fcoe_ctlr_map_dest(fip);
 		} else {
 			memcpy(fip->dest_addr, sa, ETH_ALEN);
 			fip->map_dest = 0;
@@ -2426,6 +2441,7 @@ static void fcoe_ctlr_vn_timeout(struct fcoe_ctlr *fip)
 		new_port_id = fip->port_id;
 		hton24(mac, FIP_VN_FC_MAP);
 		hton24(mac + 3, new_port_id);
+		fcoe_ctlr_map_dest(fip);
 		fip->update_mac(fip->lp, mac);
 		fcoe_ctlr_vn_send_claim(fip);
 		next_time = jiffies + msecs_to_jiffies(FIP_VN_ANN_WAIT);
