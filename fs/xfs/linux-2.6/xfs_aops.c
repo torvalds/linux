@@ -1493,8 +1493,8 @@ xfs_vm_write_begin(
 	void			**fsdata)
 {
 	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-								xfs_get_blocks);
+	return block_write_begin(file, mapping, pos, len, flags | AOP_FLAG_NOFS,
+				 pagep, fsdata, xfs_get_blocks);
 }
 
 STATIC sector_t
