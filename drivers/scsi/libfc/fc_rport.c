@@ -127,7 +127,7 @@ static struct fc_rport_priv *fc_rport_create(struct fc_lport *lport,
 	if (rdata)
 		return rdata;
 
-	rdata = kzalloc(sizeof(*rdata), GFP_KERNEL);
+	rdata = kzalloc(sizeof(*rdata) + lport->rport_priv_size, GFP_KERNEL);
 	if (!rdata)
 		return NULL;
 

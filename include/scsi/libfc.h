@@ -799,6 +799,7 @@ struct fc_disc {
  * @mfs:                   The maximum Fibre Channel payload size
  * @max_retry_count:       The maximum retry attempts
  * @max_rport_retry_count: The maximum remote port retry attempts
+ * @rport_priv_size:       Size needed by driver after struct fc_rport_priv
  * @lro_xid:               The maximum XID for LRO
  * @lso_max:               The maximum large offload send size
  * @fcts:                  FC-4 type mask
@@ -848,6 +849,7 @@ struct fc_lport {
 	u32			       mfs;
 	u8			       max_retry_count;
 	u8			       max_rport_retry_count;
+	u16			       rport_priv_size;
 	u16			       link_speed;
 	u16			       link_supported_speeds;
 	u16			       lro_xid;
