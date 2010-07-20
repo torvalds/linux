@@ -772,6 +772,7 @@ static acpi_status WMID_set_capabilities(void)
 		obj->buffer.length == sizeof(u32)) {
 		devices = *((u32 *) obj->buffer.pointer);
 	} else {
+		kfree(out.pointer);
 		return AE_ERROR;
 	}
 
@@ -788,6 +789,7 @@ static acpi_status WMID_set_capabilities(void)
 	if (!(devices & 0x20))
 		max_brightness = 0x9;
 
+	kfree(out.pointer);
 	return status;
 }
 
@@ -1094,6 +1096,7 @@ static u32 get_wmid_devices(void)
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
 	acpi_status status;
+	u32 devices = 0;
 
 	status = wmi_query_block(WMID_GUID2, 1, &out);
 	if (ACPI_FAILURE(status))
@@ -1102,10 +1105,11 @@ static u32 get_wmid_devices(void)
 	obj = (union acpi_object *) out.pointer;
 	if (obj && obj->type == ACPI_TYPE_BUFFER &&
 		obj->buffer.length == sizeof(u32)) {
-		return *((u32 *) obj->buffer.pointer);
-	} else {
-		return 0;
+		devices = *((u32 *) obj->buffer.pointer);
 	}
+
+	kfree(out.pointer);
+	return devices;
 }
 
 /*
