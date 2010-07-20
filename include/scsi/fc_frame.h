@@ -30,6 +30,23 @@
 
 #include <linux/if_ether.h>
 
+/* some helpful macros */
+
+#define ntohll(x) be64_to_cpu(x)
+#define htonll(x) cpu_to_be64(x)
+
+static inline u32 ntoh24(const u8 *p)
+{
+	return (p[0] << 16) | (p[1] << 8) | p[2];
+}
+
+static inline void hton24(u8 *p, u32 v)
+{
+	p[0] = (v >> 16) & 0xff;
+	p[1] = (v >> 8) & 0xff;
+	p[2] = v & 0xff;
+}
+
 /*
  * The fc_frame interface is used to pass frame data between functions.
  * The frame includes the data buffer, length, and SOF / EOF delimiter types.
@@ -139,13 +156,39 @@ static inline int fc_frame_is_linear(struct fc_frame *fp)
 
 /*
  * Get frame header from message in fc_frame structure.
+ * This version doesn't do a length check.
+ */
+static inline
+struct fc_frame_header *__fc_frame_header_get(const struct fc_frame *fp)
+{
+	return (struct fc_frame_header *)fr_hdr(fp);
+}
+
+/*
+ * Get frame header from message in fc_frame structure.
  * This hides a cast and provides a place to add some checking.
  */
 static inline
 struct fc_frame_header *fc_frame_header_get(const struct fc_frame *fp)
 {
 	WARN_ON(fr_len(fp) < sizeof(struct fc_frame_header));
-	return (struct fc_frame_header *) fr_hdr(fp);
+	return __fc_frame_header_get(fp);
+}
+
+/*
+ * Get source FC_ID (S_ID) from frame header in message.
+ */
+static inline u32 fc_frame_sid(const struct fc_frame *fp)
+{
+	return ntoh24(__fc_frame_header_get(fp)->fh_s_id);
+}
+
+/*
+ * Get destination FC_ID (D_ID) from frame header in message.
+ */
+static inline u32 fc_frame_did(const struct fc_frame *fp)
+{
+	return ntoh24(__fc_frame_header_get(fp)->fh_d_id);
 }
 
 /*

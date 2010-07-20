@@ -747,13 +747,11 @@ static void fc_rport_recv_flogi_req(struct fc_lport *lport,
 	struct fc_rport_priv *rdata;
 	struct fc_frame *fp = rx_fp;
 	struct fc_exch *ep;
-	struct fc_frame_header *fh;
 	struct fc_seq_els_data rjt_data;
 	u32 sid, f_ctl;
 
 	rjt_data.fp = NULL;
-	fh = fc_frame_header_get(fp);
-	sid = ntoh24(fh->fh_s_id);
+	sid = fc_frame_sid(fp);
 
 	FC_RPORT_ID_DBG(lport, sid, "Received FLOGI request\n");
 
@@ -1430,17 +1428,14 @@ static void fc_rport_recv_els_req(struct fc_lport *lport,
 				  struct fc_seq *sp, struct fc_frame *fp)
 {
 	struct fc_rport_priv *rdata;
-	struct fc_frame_header *fh;
 	struct fc_seq_els_data els_data;
 
 	els_data.fp = NULL;
 	els_data.reason = ELS_RJT_UNAB;
 	els_data.explan = ELS_EXPL_PLOGI_REQD;
 
-	fh = fc_frame_header_get(fp);
-
 	mutex_lock(&lport->disc.disc_mutex);
-	rdata = lport->tt.rport_lookup(lport, ntoh24(fh->fh_s_id));
+	rdata = lport->tt.rport_lookup(lport, fc_frame_sid(fp));
 	if (!rdata) {
 		mutex_unlock(&lport->disc.disc_mutex);
 		goto reject;
@@ -1555,14 +1550,12 @@ static void fc_rport_recv_plogi_req(struct fc_lport *lport,
 	struct fc_rport_priv *rdata;
 	struct fc_frame *fp = rx_fp;
 	struct fc_exch *ep;
-	struct fc_frame_header *fh;
 	struct fc_els_flogi *pl;
 	struct fc_seq_els_data rjt_data;
 	u32 sid, f_ctl;
 
 	rjt_data.fp = NULL;
-	fh = fc_frame_header_get(fp);
-	sid = ntoh24(fh->fh_s_id);
+	sid = fc_frame_sid(fp);
 
 	FC_RPORT_ID_DBG(lport, sid, "Received PLOGI request\n");
 
@@ -1682,7 +1675,6 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	struct fc_lport *lport = rdata->local_port;
 	struct fc_exch *ep;
 	struct fc_frame *fp;
-	struct fc_frame_header *fh;
 	struct {
 		struct fc_els_prli prli;
 		struct fc_els_spp spp;
@@ -1698,12 +1690,10 @@ static void fc_rport_recv_prli_req(struct fc_rport_priv *rdata,
 	u32 roles = FC_RPORT_ROLE_UNKNOWN;
 
 	rjt_data.fp = NULL;
-	fh = fc_frame_header_get(rx_fp);
-
 	FC_RPORT_DBG(rdata, "Received PRLI request while in state %s\n",
 		     fc_rport_state(rdata));
 
-	len = fr_len(rx_fp) - sizeof(*fh);
+	len = fr_len(rx_fp) - sizeof(struct fc_frame_header);
 	pp = fc_frame_payload_get(rx_fp, sizeof(*pp));
 	if (!pp)
 		goto reject_len;
@@ -1817,7 +1807,6 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 				   struct fc_frame *rx_fp)
 {
 	struct fc_lport *lport = rdata->local_port;
-	struct fc_frame_header *fh;
 	struct fc_exch *ep;
 	struct fc_frame *fp;
 	struct {
@@ -1832,12 +1821,11 @@ static void fc_rport_recv_prlo_req(struct fc_rport_priv *rdata,
 	struct fc_seq_els_data rjt_data;
 
 	rjt_data.fp = NULL;
-	fh = fc_frame_header_get(rx_fp);
 
 	FC_RPORT_DBG(rdata, "Received PRLO request while in state %s\n",
 		     fc_rport_state(rdata));
 
-	len = fr_len(rx_fp) - sizeof(*fh);
+	len = fr_len(rx_fp) - sizeof(struct fc_frame_header);
 	pp = fc_frame_payload_get(rx_fp, sizeof(*pp));
 	if (!pp)
 		goto reject_len;
@@ -1901,14 +1889,12 @@ static void fc_rport_recv_logo_req(struct fc_lport *lport,
 				   struct fc_seq *sp,
 				   struct fc_frame *fp)
 {
-	struct fc_frame_header *fh;
 	struct fc_rport_priv *rdata;
 	u32 sid;
 
 	lport->tt.seq_els_rsp_send(sp, ELS_LS_ACC, NULL);
 
-	fh = fc_frame_header_get(fp);
-	sid = ntoh24(fh->fh_s_id);
+	sid = fc_frame_sid(fp);
 
 	mutex_lock(&lport->disc.disc_mutex);
 	rdata = lport->tt.rport_lookup(lport, sid);

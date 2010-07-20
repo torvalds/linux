@@ -42,24 +42,6 @@
 #define	FC_EX_TIMEOUT	1	/* Exchange timeout */
 #define	FC_EX_CLOSED	2	/* Exchange closed */
 
-/* some helpful macros */
-
-#define ntohll(x) be64_to_cpu(x)
-#define htonll(x) cpu_to_be64(x)
-
-
-static inline u32 ntoh24(const u8 *p)
-{
-	return (p[0] << 16) | (p[1] << 8) | p[2];
-}
-
-static inline void hton24(u8 *p, u32 v)
-{
-	p[0] = (v >> 16) & 0xff;
-	p[1] = (v >> 8) & 0xff;
-	p[2] = v & 0xff;
-}
-
 /**
  * enum fc_lport_state - Local port states
  * @LPORT_ST_DISABLED: Disabled

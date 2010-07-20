@@ -800,7 +800,6 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 				    struct fc_lport *lport)
 {
 	struct fc_frame *fp;
-	struct fc_frame_header *fh;
 	struct fc_seq *sp;
 	struct fc_exch *ep;
 	struct fc_els_flogi *flp;
@@ -813,8 +812,7 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 	FC_LPORT_DBG(lport, "Received FLOGI request while in state %s\n",
 		     fc_lport_state(lport));
 
-	fh = fc_frame_header_get(rx_fp);
-	remote_fid = ntoh24(fh->fh_s_id);
+	remote_fid = fc_frame_sid(rx_fp);
 	flp = fc_frame_payload_get(rx_fp, sizeof(*flp));
 	if (!flp)
 		goto out;
@@ -910,7 +908,7 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 				recv = fc_lport_recv_flogi_req;
 			break;
 		case ELS_LOGO:
-			if (ntoh24(fh->fh_s_id) == FC_FID_FLOGI)
+			if (fc_frame_sid(fp) == FC_FID_FLOGI)
 				recv = fc_lport_recv_logo_req;
 			break;
 		case ELS_RSCN:
@@ -1468,7 +1466,6 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 			 void *lp_arg)
 {
 	struct fc_lport *lport = lp_arg;
-	struct fc_frame_header *fh;
 	struct fc_els_flogi *flp;
 	u32 did;
 	u16 csp_flags;
@@ -1496,8 +1493,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 		goto err;
 	}
 
-	fh = fc_frame_header_get(fp);
-	did = ntoh24(fh->fh_d_id);
+	did = fc_frame_did(fp);
 	if (fc_frame_payload_op(fp) == ELS_LS_ACC && did != 0) {
 		flp = fc_frame_payload_get(fp, sizeof(*flp));
 		if (flp) {
@@ -1523,7 +1519,7 @@ void fc_lport_flogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 				       "Port (%6.6x) entered "
 				       "point-to-point mode\n",
 				       lport->host->host_no, did);
-				fc_lport_ptp_setup(lport, ntoh24(fh->fh_s_id),
+				fc_lport_ptp_setup(lport, fc_frame_sid(fp),
 						   get_unaligned_be64(
 							   &flp->fl_wwpn),
 						   get_unaligned_be64(
