@@ -855,7 +855,36 @@ out:
 reclaim:
 	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	xfs_ireclaim(ip);
+
+	XFS_STATS_INC(xs_ig_reclaims);
+	/*
+	 * Remove the inode from the per-AG radix tree.
+	 *
+	 * Because radix_tree_delete won't complain even if the item was never
+	 * added to the tree assert that it's been there before to catch
+	 * problems with the inode life time early on.
+	 */
+	write_lock(&pag->pag_ici_lock);
+	if (!radix_tree_delete(&pag->pag_ici_root,
+				XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino)))
+		ASSERT(0);
+	write_unlock(&pag->pag_ici_lock);
+
+	/*
+	 * Here we do an (almost) spurious inode lock in order to coordinate
+	 * with inode cache radix tree lookups.  This is because the lookup
+	 * can reference the inodes in the cache without taking references.
+	 *
+	 * We make that OK here by ensuring that we wait until the inode is
+	 * unlocked after the lookup before we go ahead and free it.  We get
+	 * both the ilock and the iolock because the code may need to drop the
+	 * ilock one but will still hold the iolock.
+	 */
+	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+	xfs_qm_dqdetach(ip);
+	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
+
+	xfs_inode_free(ip);
 	return error;
 
 }

@@ -91,7 +91,7 @@ xfs_inode_alloc(
 	return ip;
 }
 
-STATIC void
+void
 xfs_inode_free(
 	struct xfs_inode	*ip)
 {
@@ -415,57 +415,6 @@ out_error_or_again:
 	}
 	xfs_perag_put(pag);
 	return error;
-}
-
-/*
- * This is called free all the memory associated with an inode.
- * It must free the inode itself and any buffers allocated for
- * if_extents/if_data and if_broot.  It must also free the lock
- * associated with the inode.
- *
- * Note: because we don't initialise everything on reallocation out
- * of the zone, we must ensure we nullify everything correctly before
- * freeing the structure.
- */
-void
-xfs_ireclaim(
-	struct xfs_inode	*ip)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_perag	*pag;
-	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
-
-	XFS_STATS_INC(xs_ig_reclaims);
-
-	/*
-	 * Remove the inode from the per-AG radix tree.
-	 *
-	 * Because radix_tree_delete won't complain even if the item was never
-	 * added to the tree assert that it's been there before to catch
-	 * problems with the inode life time early on.
-	 */
-	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
-	write_lock(&pag->pag_ici_lock);
-	if (!radix_tree_delete(&pag->pag_ici_root, agino))
-		ASSERT(0);
-	write_unlock(&pag->pag_ici_lock);
-	xfs_perag_put(pag);
-
-	/*
-	 * Here we do an (almost) spurious inode lock in order to coordinate
-	 * with inode cache radix tree lookups.  This is because the lookup
-	 * can reference the inodes in the cache without taking references.
-	 *
-	 * We make that OK here by ensuring that we wait until the inode is
-	 * unlocked after the lookup before we go ahead and free it.  We get
-	 * both the ilock and the iolock because the code may need to drop the
-	 * ilock one but will still hold the iolock.
-	 */
-	xfs_ilock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-	xfs_qm_dqdetach(ip);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL);
-
-	xfs_inode_free(ip);
 }
 
 /*
