@@ -1027,6 +1027,10 @@ struct fc_seq *fc_elsct_send(struct fc_lport *, u32 did,
 				    void *arg, u32 timer_msec);
 void fc_lport_flogi_resp(struct fc_seq *, struct fc_frame *, void *);
 void fc_lport_logo_resp(struct fc_seq *, struct fc_frame *, void *);
+void fc_fill_reply_hdr(struct fc_frame *, const struct fc_frame *,
+		       enum fc_rctl, u32 parm_offset);
+void fc_fill_hdr(struct fc_frame *, const struct fc_frame *,
+		 enum fc_rctl, u32 f_ctl, u16 seq_cnt, u32 parm_offset);
 
 
 /*

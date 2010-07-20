@@ -405,11 +405,9 @@ static void fc_lport_recv_echo_req(struct fc_seq *sp, struct fc_frame *in_fp,
 				   struct fc_lport *lport)
 {
 	struct fc_frame *fp;
-	struct fc_exch *ep = fc_seq_exch(sp);
 	unsigned int len;
 	void *pp;
 	void *dp;
-	u32 f_ctl;
 
 	FC_LPORT_DBG(lport, "Received ECHO request while in state %s\n",
 		     fc_lport_state(lport));
@@ -425,11 +423,8 @@ static void fc_lport_recv_echo_req(struct fc_seq *sp, struct fc_frame *in_fp,
 		dp = fc_frame_payload_get(fp, len);
 		memcpy(dp, pp, len);
 		*((__be32 *)dp) = htonl(ELS_LS_ACC << 24);
-		sp = lport->tt.seq_start_next(sp);
-		f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ;
-		fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-			       FC_TYPE_ELS, f_ctl, 0);
-		lport->tt.seq_send(lport, sp, fp);
+		fc_fill_reply_hdr(fp, in_fp, FC_RCTL_ELS_REP, 0);
+		lport->tt.frame_send(lport, fp);
 	}
 	fc_frame_free(in_fp);
 }
@@ -447,7 +442,6 @@ static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
 				   struct fc_lport *lport)
 {
 	struct fc_frame *fp;
-	struct fc_exch *ep = fc_seq_exch(sp);
 	struct fc_els_rnid *req;
 	struct {
 		struct fc_els_rnid_resp rnid;
@@ -457,7 +451,6 @@ static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
 	struct fc_seq_els_data rjt_data;
 	u8 fmt;
 	size_t len;
-	u32 f_ctl;
 
 	FC_LPORT_DBG(lport, "Received RNID request while in state %s\n",
 		     fc_lport_state(lport));
@@ -490,12 +483,8 @@ static void fc_lport_recv_rnid_req(struct fc_seq *sp, struct fc_frame *in_fp,
 				memcpy(&rp->gen, &lport->rnid_gen,
 				       sizeof(rp->gen));
 			}
-			sp = lport->tt.seq_start_next(sp);
-			f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ;
-			f_ctl |= FC_FC_END_SEQ | FC_FC_SEQ_INIT;
-			fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
-				       FC_TYPE_ELS, f_ctl, 0);
-			lport->tt.seq_send(lport, sp, fp);
+			fc_fill_reply_hdr(fp, in_fp, FC_RCTL_ELS_REP, 0);
+			lport->tt.frame_send(lport, fp);
 		}
 	}
 	fc_frame_free(in_fp);
@@ -800,14 +789,13 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 				    struct fc_lport *lport)
 {
 	struct fc_frame *fp;
+	struct fc_frame_header *fh;
 	struct fc_seq *sp;
-	struct fc_exch *ep;
 	struct fc_els_flogi *flp;
 	struct fc_els_flogi *new_flp;
 	u64 remote_wwpn;
 	u32 remote_fid;
 	u32 local_fid;
-	u32 f_ctl;
 
 	FC_LPORT_DBG(lport, "Received FLOGI request while in state %s\n",
 		     fc_lport_state(lport));
@@ -843,7 +831,6 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 
 	fp = fc_frame_alloc(lport, sizeof(*flp));
 	if (fp) {
-		sp = lport->tt.seq_start_next(fr_seq(rx_fp));
 		new_flp = fc_frame_payload_get(fp, sizeof(*flp));
 		fc_lport_flogi_fill(lport, new_flp, ELS_FLOGI);
 		new_flp->fl_cmd = (u8) ELS_LS_ACC;
@@ -852,11 +839,11 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 		 * Send the response.  If this fails, the originator should
 		 * repeat the sequence.
 		 */
-		f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ;
-		ep = fc_seq_exch(sp);
-		fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, remote_fid, local_fid,
-			       FC_TYPE_ELS, f_ctl, 0);
-		lport->tt.seq_send(lport, sp, fp);
+		fc_fill_reply_hdr(fp, rx_fp, FC_RCTL_ELS_REP, 0);
+		fh = fc_frame_header_get(fp);
+		hton24(fh->fh_s_id, local_fid);
+		hton24(fh->fh_d_id, remote_fid);
+		lport->tt.frame_send(lport, fp);
 
 	} else {
 		fc_lport_error(lport, fp);
@@ -1731,8 +1718,7 @@ static int fc_lport_els_request(struct fc_bsg_job *job,
 	hton24(fh->fh_d_id, did);
 	hton24(fh->fh_s_id, lport->port_id);
 	fh->fh_type = FC_TYPE_ELS;
-	hton24(fh->fh_f_ctl, FC_FC_FIRST_SEQ |
-	       FC_FC_END_SEQ | FC_FC_SEQ_INIT);
+	hton24(fh->fh_f_ctl, FC_FCTL_REQ);
 	fh->fh_cs_ctl = 0;
 	fh->fh_df_ctl = 0;
 	fh->fh_parm_offset = 0;
@@ -1791,8 +1777,7 @@ static int fc_lport_ct_request(struct fc_bsg_job *job,
 	hton24(fh->fh_d_id, did);
 	hton24(fh->fh_s_id, lport->port_id);
 	fh->fh_type = FC_TYPE_CT;
-	hton24(fh->fh_f_ctl, FC_FC_FIRST_SEQ |
-	       FC_FC_END_SEQ | FC_FC_SEQ_INIT);
+	hton24(fh->fh_f_ctl, FC_FCTL_REQ);
 	fh->fh_cs_ctl = 0;
 	fh->fh_df_ctl = 0;
 	fh->fh_parm_offset = 0;
