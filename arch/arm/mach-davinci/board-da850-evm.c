@@ -787,7 +787,7 @@ static __init void da850_evm_init(void)
 	if (ret)
 		pr_warning("da850_evm_init: rtc setup failed: %d\n", ret);
 
-	ret = da850_register_cpufreq();
+	ret = da850_register_cpufreq("pll0_sysclk3");
 	if (ret)
 		pr_warning("da850_evm_init: cpufreq registration failed: %d\n",
 				ret);
