@@ -3,7 +3,6 @@
 
 #include <linux/types.h>
 #include <asm/processor.h>
-#include <asm/i387.h>
 
 #define XSTATE_FP	0x1
 #define XSTATE_SSE	0x2
