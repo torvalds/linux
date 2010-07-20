@@ -1134,7 +1134,7 @@ xfs_trans_add_item(
 	ASSERT(lip->li_mountp = tp->t_mountp);
 	ASSERT(lip->li_ailp = tp->t_mountp->m_ail);
 
-	lidp = kmem_zone_zalloc(xfs_log_item_desc_zone, KM_SLEEP);
+	lidp = kmem_zone_zalloc(xfs_log_item_desc_zone, KM_SLEEP | KM_NOFS);
 
 	lidp->lid_item = lip;
 	lidp->lid_flags = 0;
