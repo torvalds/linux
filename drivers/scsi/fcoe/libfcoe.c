@@ -469,11 +469,15 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		struct fip_header fip;
 		struct fip_encaps encaps;
 	} __attribute__((packed)) *cap;
+	struct fc_frame_header *fh;
 	struct fip_mac_desc *mac;
 	struct fcoe_fcf *fcf;
 	size_t dlen;
 	u16 fip_flags;
+	u8 op;
 
+	fh = (struct fc_frame_header *)skb->data;
+	op = *(u8 *)(fh + 1);
 	dlen = sizeof(struct fip_encaps) + skb->len;	/* len before push */
 	cap = (struct fip_encaps_head *)skb_push(skb, sizeof(*cap));
 	memset(cap, 0, sizeof(*cap));
@@ -481,6 +485,7 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	if (lport->point_to_multipoint) {
 		if (fcoe_ctlr_vn_lookup(fip, d_id, cap->eth.h_dest))
 			return -ENODEV;
+		fip_flags = 0;
 	} else {
 		fcf = fip->sel_fcf;
 		if (!fcf)
@@ -497,26 +502,35 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 
 	cap->fip.fip_ver = FIP_VER_ENCAPS(FIP_VER);
 	cap->fip.fip_op = htons(FIP_OP_LS);
-	cap->fip.fip_subcode = FIP_SC_REQ;
-	cap->fip.fip_dl_len = htons((dlen + sizeof(*mac)) / FIP_BPW);
+	if (op == ELS_LS_ACC || op == ELS_LS_RJT)
+		cap->fip.fip_subcode = FIP_SC_REP;
+	else
+		cap->fip.fip_subcode = FIP_SC_REQ;
 	cap->fip.fip_flags = htons(fip_flags);
 
 	cap->encaps.fd_desc.fip_dtype = dtype;
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
 
-	mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
-	memset(mac, 0, sizeof(*mac));
-	mac->fd_desc.fip_dtype = FIP_DT_MAC;
-	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
-	if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {
-		memcpy(mac->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
-	} else if (fip_flags & FIP_FL_SPMA) {
-		LIBFCOE_FIP_DBG(fip, "FLOGI/FDISC sent with SPMA\n");
-		memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
-	} else {
-		LIBFCOE_FIP_DBG(fip, "FLOGI/FDISC sent with FPMA\n");
-		/* FPMA only FLOGI must leave the MAC desc set to all 0s */
+	if (op != ELS_LS_RJT) {
+		dlen += sizeof(*mac);
+		mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
+		memset(mac, 0, sizeof(*mac));
+		mac->fd_desc.fip_dtype = FIP_DT_MAC;
+		mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
+		if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {
+			memcpy(mac->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
+		} else if (fip->mode == FIP_MODE_VN2VN) {
+			hton24(mac->fd_mac, FIP_VN_FC_MAP);
+			hton24(mac->fd_mac + 3, fip->port_id);
+		} else if (fip_flags & FIP_FL_SPMA) {
+			LIBFCOE_FIP_DBG(fip, "FLOGI/FDISC sent with SPMA\n");
+			memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
+		} else {
+			LIBFCOE_FIP_DBG(fip, "FLOGI/FDISC sent with FPMA\n");
+			/* FPMA only FLOGI.  Must leave the MAC desc zeroed. */
+		}
 	}
+	cap->fip.fip_dl_len = htons(dlen / FIP_BPW);
 
 	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
