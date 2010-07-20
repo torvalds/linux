@@ -279,7 +279,7 @@ void ath_paprd_calibrate(struct work_struct *work)
 	hdr = (struct ieee80211_hdr *)skb->data;
 	ftype = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_NULLFUNC;
 	hdr->frame_control = cpu_to_le16(ftype);
-	hdr->duration_id = 10;
+	hdr->duration_id = cpu_to_le16(10);
 	memcpy(hdr->addr1, hw->wiphy->perm_addr, ETH_ALEN);
 	memcpy(hdr->addr2, hw->wiphy->perm_addr, ETH_ALEN);
 	memcpy(hdr->addr3, hw->wiphy->perm_addr, ETH_ALEN);
