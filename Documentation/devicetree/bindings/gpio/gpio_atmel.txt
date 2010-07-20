@@ -1,7 +1,7 @@
 * Atmel GPIO controller (PIO)
 
 Required properties:
-- compatible: "atmel,at91rm9200-gpio"
+- compatible: "atmel,<chip>-gpio", where <chip> is at91rm9200 or at91sam9x5.
 - reg: Should contain GPIO controller registers location and length
 - interrupts: Should be the port interrupt shared by all the pins.
 - #gpio-cells: Should be two.  The first cell is the pin number and

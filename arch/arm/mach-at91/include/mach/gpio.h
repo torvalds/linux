@@ -191,10 +191,15 @@
 extern int __init_or_module at91_set_GPIO_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_A_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_B_periph(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_C_periph(unsigned pin, int use_pullup);
+extern int __init_or_module at91_set_D_periph(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_gpio_input(unsigned pin, int use_pullup);
 extern int __init_or_module at91_set_gpio_output(unsigned pin, int value);
 extern int __init_or_module at91_set_deglitch(unsigned pin, int is_on);
+extern int __init_or_module at91_set_debounce(unsigned pin, int is_on, int div);
 extern int __init_or_module at91_set_multi_drive(unsigned pin, int is_on);
+extern int __init_or_module at91_set_pulldown(unsigned pin, int is_on);
+extern int __init_or_module at91_disable_schmitt_trig(unsigned pin);
 
 /* callable at any time */
 extern int at91_set_gpio_value(unsigned pin, int value);
