@@ -555,6 +555,7 @@ static acpi_status AMW0_find_mailled(void)
 	obj->buffer.length == sizeof(struct wmab_ret)) {
 		ret = *((struct wmab_ret *) obj->buffer.pointer);
 	} else {
+		kfree(out.pointer);
 		return AE_ERROR;
 	}
 
@@ -570,7 +571,7 @@ static acpi_status AMW0_set_capabilities(void)
 {
 	struct wmab_args args;
 	struct wmab_ret ret;
-	acpi_status status = AE_OK;
+	acpi_status status;
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *obj;
 
@@ -593,12 +594,13 @@ static acpi_status AMW0_set_capabilities(void)
 	if (ACPI_FAILURE(status))
 		return status;
 
-	obj = (union acpi_object *) out.pointer;
+	obj = out.pointer;
 	if (obj && obj->type == ACPI_TYPE_BUFFER &&
 	obj->buffer.length == sizeof(struct wmab_ret)) {
 		ret = *((struct wmab_ret *) obj->buffer.pointer);
 	} else {
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto out;
 	}
 
 	if (ret.eax & 0x1)
@@ -607,22 +609,25 @@ static acpi_status AMW0_set_capabilities(void)
 	args.ebx = 2 << 8;
 	args.ebx |= ACER_AMW0_BLUETOOTH_MASK;
 
+	/*
+	 * It's ok to use existing buffer for next wmab_execute call.
+	 * But we need to kfree(out.pointer) if next wmab_execute fail.
+	 */
 	status = wmab_execute(&args, &out);
 	if (ACPI_FAILURE(status))
-		return status;
+		goto out;
 
 	obj = (union acpi_object *) out.pointer;
 	if (obj && obj->type == ACPI_TYPE_BUFFER
 	&& obj->buffer.length == sizeof(struct wmab_ret)) {
 		ret = *((struct wmab_ret *) obj->buffer.pointer);
 	} else {
-		return AE_ERROR;
+		status = AE_ERROR;
+		goto out;
 	}
 
 	if (ret.eax & 0x1)
 		interface->capability |= ACER_CAP_BLUETOOTH;
-
-	kfree(out.pointer);
 
 	/*
 	 * This appears to be safe to enable, since all Wistron based laptops
@@ -632,7 +637,10 @@ static acpi_status AMW0_set_capabilities(void)
 	if (quirks->brightness >= 0)
 		interface->capability |= ACER_CAP_BRIGHTNESS;
 
-	return AE_OK;
+	status = AE_OK;
+out:
+	kfree(out.pointer);
+	return status;
 }
 
 static struct wmi_interface AMW0_interface = {
