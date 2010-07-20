@@ -47,7 +47,7 @@ MA 02111-1307 USA
  + might want to get rid of MAXboards for allocating initial buffer.
     confusing and not necessary
 
- + in cleanup_module the MOD_IN_USE looks like it is check after it should
+ + in dt3155_exit the MOD_IN_USE looks like it is check after it should
 
  * GFP_DMA should not be set with a PCI system (pg 291)
 
@@ -166,7 +166,7 @@ static void quick_stop (int minor)
  *
  * - looks like this isr supports IRQ sharing (or could) JML
  * - Assumes irq's are disabled, via SA_INTERRUPT flag
- * being set in request_irq() call from init_module()
+ * being set in request_irq() call from dt3155_init()
  *****************************************************/
 static void dt3155_isr(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -838,7 +838,7 @@ dt3155_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 /*****************************************************
  * file operations supported by DT3155 driver
- *  needed by init_module
+ *  needed by dt3155_init
  *  register_chrdev
  *****************************************************/
 static struct file_operations dt3155_fops = {
@@ -939,10 +939,8 @@ err:
 
 u32 allocatorAddr = 0;
 
-/*****************************************************
- * init_module()
- *****************************************************/
-int init_module(void)
+
+int dt3155_init(void)
 {
   struct dt3155_status *dts;
   int index;
@@ -1061,16 +1059,12 @@ int init_module(void)
   return 0;
 }
 
-/*****************************************************
- * cleanup_module(void)
- *
- *****************************************************/
-void cleanup_module(void)
+void dt3155_exit(void)
 {
   struct dt3155_status *dts;
   int index;
 
-  printk(KERN_INFO "DT3155:  cleanup_module called\n");
+  printk(KERN_INFO "DT3155:  dt3155_exit called\n");
 
   /* removed DMA allocated with the allocator */
 #ifdef STANDALONE_ALLOCATOR
@@ -1094,3 +1088,5 @@ void cleanup_module(void)
     }
 }
 
+module_init(dt3155_init);
+module_exit(dt3155_exit);
