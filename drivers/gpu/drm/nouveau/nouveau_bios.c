@@ -6551,8 +6551,10 @@ nouveau_run_vbios_init(struct drm_device *dev)
 	int i, ret = 0;
 
 	NVLockVgaCrtcs(dev, false);
-	if (nv_two_heads(dev))
-		NVSetOwner(dev, bios->state.crtchead);
+	if (nv_two_heads(dev)) {
+		bios->state.crtchead = 0;
+		NVSetOwner(dev, 0);
+	}
 
 	if (bios->major_version < 5)	/* BMP only */
 		load_nv17_hw_sequencer_ucode(dev, bios);
