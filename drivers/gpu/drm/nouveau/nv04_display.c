@@ -81,8 +81,6 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 	}
 
 ownerknown:
-	NV_INFO(dev, "Initial CRTC_OWNER is %d\n", dev_priv->crtc_owner);
-
 	/* we need to ensure the heads are not tied henceforth, or reading any
 	 * 8 bit reg on head B will fail
 	 * setting a single arbitrary head solves that */
@@ -244,11 +242,8 @@ nv04_display_restore(struct drm_device *dev)
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		crtc->funcs->restore(crtc);
 
-	if (nv_two_heads(dev)) {
-		NV_INFO(dev, "Restoring CRTC_OWNER to %d.\n",
-			dev_priv->crtc_owner);
+	if (nv_two_heads(dev))
 		NVSetOwner(dev, dev_priv->crtc_owner);
-	}
 
 	NVLockVgaCrtcs(dev, true);
 }
