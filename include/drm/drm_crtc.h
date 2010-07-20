@@ -31,7 +31,6 @@
 #include <linux/idr.h>
 
 #include <linux/fb.h>
-#include <linux/slow-work.h>
 
 struct drm_device;
 struct drm_mode_set;
@@ -595,7 +594,7 @@ struct drm_mode_config {
 
 	/* output poll support */
 	bool poll_enabled;
-	struct delayed_slow_work output_poll_slow_work;
+	struct delayed_work output_poll_work;
 
 	/* pointers to standard properties */
 	struct list_head property_blob_list;
