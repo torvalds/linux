@@ -43,7 +43,8 @@ static void ceph_fault(struct ceph_connection *con);
  * nicely render a sockaddr as a string.
  */
 #define MAX_ADDR_STR 20
-static char addr_str[MAX_ADDR_STR][40];
+#define MAX_ADDR_STR_LEN 60
+static char addr_str[MAX_ADDR_STR][MAX_ADDR_STR_LEN];
 static DEFINE_SPINLOCK(addr_str_lock);
 static int last_addr_str;
 
@@ -52,7 +53,6 @@ const char *pr_addr(const struct sockaddr_storage *ss)
 	int i;
 	char *s;
 	struct sockaddr_in *in4 = (void *)ss;
-	unsigned char *quad = (void *)&in4->sin_addr.s_addr;
 	struct sockaddr_in6 *in6 = (void *)ss;
 
 	spin_lock(&addr_str_lock);
@@ -64,25 +64,13 @@ const char *pr_addr(const struct sockaddr_storage *ss)
 
 	switch (ss->ss_family) {
 	case AF_INET:
-		sprintf(s, "%u.%u.%u.%u:%u",
-			(unsigned int)quad[0],
-			(unsigned int)quad[1],
-			(unsigned int)quad[2],
-			(unsigned int)quad[3],
-			(unsigned int)ntohs(in4->sin_port));
+		snprintf(s, MAX_ADDR_STR_LEN, "%pI4:%u", &in4->sin_addr,
+			 (unsigned int)ntohs(in4->sin_port));
 		break;
 
 	case AF_INET6:
-		sprintf(s, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x:%u",
-			in6->sin6_addr.s6_addr16[0],
-			in6->sin6_addr.s6_addr16[1],
-			in6->sin6_addr.s6_addr16[2],
-			in6->sin6_addr.s6_addr16[3],
-			in6->sin6_addr.s6_addr16[4],
-			in6->sin6_addr.s6_addr16[5],
-			in6->sin6_addr.s6_addr16[6],
-			in6->sin6_addr.s6_addr16[7],
-			(unsigned int)ntohs(in6->sin6_port));
+		snprintf(s, MAX_ADDR_STR_LEN, "[%pI6c]:%u", &in6->sin6_addr,
+			 (unsigned int)ntohs(in6->sin6_port));
 		break;
 
 	default:
@@ -215,12 +203,13 @@ static void set_sock_callbacks(struct socket *sock,
  */
 static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 {
-	struct sockaddr *paddr = (struct sockaddr *)&con->peer_addr.in_addr;
+	struct sockaddr_storage *paddr = &con->peer_addr.in_addr;
 	struct socket *sock;
 	int ret;
 
 	BUG_ON(con->sock);
-	ret = sock_create_kern(AF_INET, SOCK_STREAM, IPPROTO_TCP, &sock);
+	ret = sock_create_kern(con->peer_addr.in_addr.ss_family, SOCK_STREAM,
+			       IPPROTO_TCP, &sock);
 	if (ret)
 		return ERR_PTR(ret);
 	con->sock = sock;
@@ -234,7 +223,8 @@ static struct socket *ceph_tcp_connect(struct ceph_connection *con)
 
 	dout("connect %s\n", pr_addr(&con->peer_addr.in_addr));
 
-	ret = sock->ops->connect(sock, paddr, sizeof(*paddr), O_NONBLOCK);
+	ret = sock->ops->connect(sock, (struct sockaddr *)paddr, sizeof(*paddr),
+				 O_NONBLOCK);
 	if (ret == -EINPROGRESS) {
 		dout("connect %s EINPROGRESS sk_state = %u\n",
 		     pr_addr(&con->peer_addr.in_addr),
@@ -1009,18 +999,31 @@ int ceph_parse_ips(const char *c, const char *end,
 		struct sockaddr_in *in4 = (void *)ss;
 		struct sockaddr_in6 *in6 = (void *)ss;
 		int port;
+		char delim = ',';
+
+		if (*p == '[') {
+			delim = ']';
+			p++;
+		}
 
 		memset(ss, 0, sizeof(*ss));
 		if (in4_pton(p, end - p, (u8 *)&in4->sin_addr.s_addr,
-			     ',', &ipend)) {
+			     delim, &ipend))
 			ss->ss_family = AF_INET;
-		} else if (in6_pton(p, end - p, (u8 *)&in6->sin6_addr.s6_addr,
-				    ',', &ipend)) {
+		else if (in6_pton(p, end - p, (u8 *)&in6->sin6_addr.s6_addr,
+				  delim, &ipend))
 			ss->ss_family = AF_INET6;
-		} else {
+		else
 			goto bad;
-		}
 		p = ipend;
+
+		if (delim == ']') {
+			if (*p != ']') {
+				dout("missing matching ']'\n");
+				goto bad;
+			}
+			p++;
+		}
 
 		/* port? */
 		if (p < end && *p == ':') {
@@ -1055,7 +1058,7 @@ int ceph_parse_ips(const char *c, const char *end,
 	return 0;
 
 bad:
-	pr_err("parse_ips bad ip '%s'\n", c);
+	pr_err("parse_ips bad ip '%.*s'\n", (int)(end - c), c);
 	return -EINVAL;
 }
 
@@ -2015,20 +2018,20 @@ void ceph_con_revoke(struct ceph_connection *con, struct ceph_msg *msg)
 {
 	mutex_lock(&con->mutex);
 	if (!list_empty(&msg->list_head)) {
-		dout("con_revoke %p msg %p\n", con, msg);
+		dout("con_revoke %p msg %p - was on queue\n", con, msg);
 		list_del_init(&msg->list_head);
 		ceph_msg_put(msg);
 		msg->hdr.seq = 0;
-		if (con->out_msg == msg) {
-			ceph_msg_put(con->out_msg);
-			con->out_msg = NULL;
-		}
+	}
+	if (con->out_msg == msg) {
+		dout("con_revoke %p msg %p - was sending\n", con, msg);
+		con->out_msg = NULL;
 		if (con->out_kvec_is_msg) {
 			con->out_skip = con->out_kvec_bytes;
 			con->out_kvec_is_msg = false;
 		}
-	} else {
-		dout("con_revoke %p msg %p - not queued (sent?)\n", con, msg);
+		ceph_msg_put(msg);
+		msg->hdr.seq = 0;
 	}
 	mutex_unlock(&con->mutex);
 }
