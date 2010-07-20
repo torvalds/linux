@@ -746,9 +746,10 @@ static void __init cm_x300_init(void)
 {
 	cm_x300_init_mfp();
 
-	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
+	if (cpu_is_pxa300())
+		pxa_set_ffuart_info(NULL);
 
 	cm_x300_init_da9030();
 	cm_x300_init_dm9000();
