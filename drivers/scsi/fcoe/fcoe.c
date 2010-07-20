@@ -117,9 +117,14 @@ static void fcoe_recv_frame(struct sk_buff *skb);
 
 static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
-module_param_call(create, fcoe_create, NULL, NULL, S_IWUSR);
+module_param_call(create, fcoe_create, NULL, (void *)FIP_MODE_AUTO, S_IWUSR);
 __MODULE_PARM_TYPE(create, "string");
 MODULE_PARM_DESC(create, " Creates fcoe instance on a ethernet interface");
+module_param_call(create_vn2vn, fcoe_create, NULL,
+		  (void *)FIP_MODE_VN2VN, S_IWUSR);
+__MODULE_PARM_TYPE(create_vn2vn, "string");
+MODULE_PARM_DESC(create_vn2vn, " Creates a VN_node to VN_node FCoE instance "
+		 "on an Ethernet interface");
 module_param_call(destroy, fcoe_destroy, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(destroy, "string");
 MODULE_PARM_DESC(destroy, " Destroys fcoe instance on a ethernet interface");
@@ -341,10 +346,12 @@ static int fcoe_interface_setup(struct fcoe_interface *fcoe,
 /**
  * fcoe_interface_create() - Create a FCoE interface on a net device
  * @netdev: The net device to create the FCoE interface on
+ * @fip_mode: The mode to use for FIP
  *
  * Returns: pointer to a struct fcoe_interface or NULL on error
  */
-static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
+static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
+						    enum fip_state fip_mode)
 {
 	struct fcoe_interface *fcoe;
 	int err;
@@ -361,7 +368,7 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev)
 	/*
 	 * Initialize FIP.
 	 */
-	fcoe_ctlr_init(&fcoe->ctlr, FIP_MODE_AUTO);
+	fcoe_ctlr_init(&fcoe->ctlr, fip_mode);
 	fcoe->ctlr.send = fcoe_fip_send;
 	fcoe->ctlr.update_mac = fcoe_update_src_mac;
 	fcoe->ctlr.get_src_addr = fcoe_get_src_mac;
@@ -2088,6 +2095,7 @@ static void fcoe_destroy_work(struct work_struct *work)
  */
 static int fcoe_create(const char *buffer, struct kernel_param *kp)
 {
+	enum fip_state fip_mode = (enum fip_state)(long)kp->arg;
 	int rc;
 	struct fcoe_interface *fcoe;
 	struct fc_lport *lport;
@@ -2129,7 +2137,7 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 		goto out_putdev;
 	}
 
-	fcoe = fcoe_interface_create(netdev);
+	fcoe = fcoe_interface_create(netdev, fip_mode);
 	if (!fcoe) {
 		rc = -ENOMEM;
 		goto out_putdev;
