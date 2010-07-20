@@ -524,6 +524,10 @@ static int acerhdf_check_hardware(void)
 	version = dmi_get_system_info(DMI_BIOS_VERSION);
 	product = dmi_get_system_info(DMI_PRODUCT_NAME);
 
+	if (!vendor || !version || !product) {
+		pr_err("error getting hardware information\n");
+		return -EINVAL;
+	}
 
 	pr_info("Acer Aspire One Fan driver, v.%s\n", DRV_VER);
 
