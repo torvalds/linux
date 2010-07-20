@@ -182,6 +182,7 @@ config COMPAL_LAPTOP
 	depends on ACPI
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
+	depends on HWMON
 	---help---
 	  This is a driver for laptops built by Compal:
 
