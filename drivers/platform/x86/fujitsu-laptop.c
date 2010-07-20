@@ -603,7 +603,7 @@ static int dmi_check_cb_s6410(const struct dmi_system_id *id)
 	dmi_check_cb_common(id);
 	fujitsu->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
 	fujitsu->keycode2 = KEY_HELP;	/* "Mobility Center" */
-	return 0;
+	return 1;
 }
 
 static int dmi_check_cb_s6420(const struct dmi_system_id *id)
@@ -611,7 +611,7 @@ static int dmi_check_cb_s6420(const struct dmi_system_id *id)
 	dmi_check_cb_common(id);
 	fujitsu->keycode1 = KEY_SCREENLOCK;	/* "Lock" */
 	fujitsu->keycode2 = KEY_HELP;	/* "Mobility Center" */
-	return 0;
+	return 1;
 }
 
 static int dmi_check_cb_p8010(const struct dmi_system_id *id)
@@ -620,7 +620,7 @@ static int dmi_check_cb_p8010(const struct dmi_system_id *id)
 	fujitsu->keycode1 = KEY_HELP;	/* "Support" */
 	fujitsu->keycode3 = KEY_SWITCHVIDEOMODE;	/* "Presentation" */
 	fujitsu->keycode4 = KEY_WWW;	/* "Internet" */
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id fujitsu_dmi_table[] = {

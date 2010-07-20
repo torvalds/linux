@@ -275,7 +275,7 @@ static int set_backlight_level(int level)
 
 	ec_write(BACKLIGHT_LEVEL_ADDR, level);
 
-	return 0;
+	return 1;
 }
 
 static int get_backlight_level(void)

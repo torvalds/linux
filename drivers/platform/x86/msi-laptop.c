@@ -434,7 +434,7 @@ static int dmi_check_cb(const struct dmi_system_id *id)
 {
 	printk(KERN_INFO "msi-laptop: Identified laptop model '%s'.\n",
 	       id->ident);
-	return 0;
+	return 1;
 }
 
 static struct dmi_system_id __initdata msi_dmi_table[] = {
