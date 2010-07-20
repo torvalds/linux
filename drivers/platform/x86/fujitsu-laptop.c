@@ -725,6 +725,7 @@ static int acpi_fujitsu_add(struct acpi_device *device)
 
 err_unregister_input_dev:
 	input_unregister_device(input);
+	input = NULL;
 err_free_input_dev:
 	input_free_device(input);
 err_stop:
@@ -737,8 +738,6 @@ static int acpi_fujitsu_remove(struct acpi_device *device, int type)
 	struct input_dev *input = fujitsu->input;
 
 	input_unregister_device(input);
-
-	input_free_device(input);
 
 	fujitsu->acpi_handle = NULL;
 
@@ -930,6 +929,7 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 
 err_unregister_input_dev:
 	input_unregister_device(input);
+	input = NULL;
 err_free_input_dev:
 	input_free_device(input);
 err_free_fifo:
@@ -952,8 +952,6 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
 #endif
 
 	input_unregister_device(input);
-
-	input_free_device(input);
 
 	kfifo_free(&fujitsu_hotkey->fifo);
 
