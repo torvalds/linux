@@ -51,6 +51,7 @@
 #include "gpio-names.h"
 #include "devices.h"
 #include "power.h"
+#include "nv/include/linux/nvmem_ioctl.h"
 
 /* NVidia bootloader tags */
 #define ATAG_NVIDIA		0x41000801
@@ -713,6 +714,9 @@ static struct tegra_suspend_platform_data stingray_suspend = {
 	.wake_any = 0,
 };
 
+extern int nvmap_add_carveout_heap(unsigned long, size_t, const char *,
+				   unsigned int);
+
 static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;
@@ -768,6 +772,9 @@ static void __init tegra_stingray_init(void)
 
 	clk = tegra_get_clock_by_name("uartb");
 	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
+
+	nvmap_add_carveout_heap(TEGRA_IRAM_BASE, TEGRA_IRAM_SIZE, "iram",
+				NVMEM_HEAP_CARVEOUT_IRAM);
 
 	clk = clk_get_sys("3d", NULL);
 	tegra_periph_reset_assert(clk);
