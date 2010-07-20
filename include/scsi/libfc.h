@@ -556,6 +556,13 @@ struct libfc_function_template {
 	struct fc_seq *(*seq_start_next)(struct fc_seq *);
 
 	/*
+	 * Assign a sequence for an incoming request frame.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	struct fc_seq *(*seq_assign)(struct fc_lport *, struct fc_frame *);
+
+	/*
 	 * Reset an exchange manager, completing all sequences and exchanges.
 	 * If s_id is non-zero, reset only exchanges originating from that FID.
 	 * If d_id is non-zero, reset only exchanges sending to that FID.

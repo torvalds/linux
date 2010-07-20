@@ -1231,6 +1231,28 @@ free:
 }
 
 /**
+ * fc_seq_assign() - Assign exchange and sequence for incoming request
+ * @lport: The local port that received the request
+ * @fp:    The request frame
+ *
+ * On success, the sequence pointer will be returned and also in fr_seq(@fp).
+ */
+static struct fc_seq *fc_seq_assign(struct fc_lport *lport, struct fc_frame *fp)
+{
+	struct fc_exch_mgr_anchor *ema;
+
+	WARN_ON(lport != fr_dev(fp));
+	WARN_ON(fr_seq(fp));
+	fr_seq(fp) = NULL;
+
+	list_for_each_entry(ema, &lport->ema_list, ema_list)
+		if ((!ema->match || ema->match(fp)) &&
+		    fc_seq_lookup_recip(lport, ema->mp, fp) != FC_RJT_NONE)
+			break;
+	return fr_seq(fp);
+}
+
+/**
  * fc_exch_recv_req() - Handler for an incoming request where is other
  *			end is originating the sequence
  * @lport: The local port that received the request
@@ -2282,6 +2304,9 @@ int fc_exch_init(struct fc_lport *lport)
 
 	if (!lport->tt.seq_exch_abort)
 		lport->tt.seq_exch_abort = fc_seq_exch_abort;
+
+	if (!lport->tt.seq_assign)
+		lport->tt.seq_assign = fc_seq_assign;
 
 	return 0;
 }
