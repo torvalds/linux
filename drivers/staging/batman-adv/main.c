@@ -59,7 +59,7 @@ static struct packet_type batman_adv_packet_type __read_mostly = {
 
 struct workqueue_struct *bat_event_workqueue;
 
-int init_module(void)
+static int __init batman_init(void)
 {
 	int retval;
 
@@ -131,7 +131,7 @@ end:
 	return -ENOMEM;
 }
 
-void cleanup_module(void)
+static void __exit batman_exit(void)
 {
 	deactivate_module();
 
@@ -272,6 +272,9 @@ int is_mcast(uint8_t *addr)
 {
 	return *addr & 0x01;
 }
+
+module_init(batman_init);
+module_exit(batman_exit);
 
 MODULE_LICENSE("GPL");
 
