@@ -36,10 +36,6 @@ extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
 extern struct sort_entry sort_sym;
 extern struct sort_entry sort_parent;
-extern unsigned int dsos__col_width;
-extern unsigned int comms__col_width;
-extern unsigned int threads__col_width;
-extern unsigned int cpus__col_width;
 extern enum sort_type sort__first_dimension;
 
 struct hist_entry {
@@ -87,7 +83,7 @@ struct sort_entry {
 	int64_t (*se_collapse)(struct hist_entry *, struct hist_entry *);
 	int	(*se_snprintf)(struct hist_entry *self, char *bf, size_t size,
 			       unsigned int width);
-	unsigned int *se_width;
+	u8	se_width_idx;
 	bool	elide;
 };
 

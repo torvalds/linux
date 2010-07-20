@@ -340,30 +340,29 @@ int event__synthesize_kernel_mmap(event__handler_t process,
 	return process(&ev, session);
 }
 
-static void thread__comm_adjust(struct thread *self)
+static void thread__comm_adjust(struct thread *self, struct hists *hists)
 {
 	char *comm = self->comm;
 
 	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
 	    (!symbol_conf.comm_list ||
 	     strlist__has_entry(symbol_conf.comm_list, comm))) {
-		unsigned int slen = strlen(comm);
+		u16 slen = strlen(comm);
 
-		if (slen > comms__col_width) {
-			comms__col_width = slen;
-			threads__col_width = slen + 6;
-		}
+		if (hists__new_col_len(hists, HISTC_COMM, slen))
+			hists__set_col_len(hists, HISTC_THREAD, slen + 6);
 	}
 }
 
-static int thread__set_comm_adjust(struct thread *self, const char *comm)
+static int thread__set_comm_adjust(struct thread *self, const char *comm,
+				   struct hists *hists)
 {
 	int ret = thread__set_comm(self, comm);
 
 	if (ret)
 		return ret;
 
-	thread__comm_adjust(self);
+	thread__comm_adjust(self, hists);
 
 	return 0;
 }
@@ -374,7 +373,8 @@ int event__process_comm(event_t *self, struct perf_session *session)
 
 	dump_printf(": %s:%d\n", self->comm.comm, self->comm.tid);
 
-	if (thread == NULL || thread__set_comm_adjust(thread, self->comm.comm)) {
+	if (thread == NULL || thread__set_comm_adjust(thread, self->comm.comm,
+						      &session->hists)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
@@ -641,16 +641,13 @@ void thread__find_addr_location(struct thread *self,
 		al->sym = NULL;
 }
 
-static void dso__calc_col_width(struct dso *self)
+static void dso__calc_col_width(struct dso *self, struct hists *hists)
 {
 	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
 	    (!symbol_conf.dso_list ||
 	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
-		u16 slen = self->short_name_len;
-		if (verbose)
-			slen = self->long_name_len;
-		if (dsos__col_width < slen)
-			dsos__col_width = slen;
+		u16 slen = dso__name_len(self);
+		hists__new_col_len(hists, HISTC_DSO, slen);
 	}
 
 	self->slen_calculated = 1;
@@ -729,16 +726,17 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 		 * sampled.
 		 */
 		if (!sort_dso.elide && !al->map->dso->slen_calculated)
-			dso__calc_col_width(al->map->dso);
+			dso__calc_col_width(al->map->dso, &session->hists);
 
 		al->sym = map__find_symbol(al->map, al->addr, filter);
 	} else {
 		const unsigned int unresolved_col_width = BITS_PER_LONG / 4;
 
-		if (dsos__col_width < unresolved_col_width &&
+		if (hists__col_len(&session->hists, HISTC_DSO) < unresolved_col_width &&
 		    !symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
 		    !symbol_conf.dso_list)
-			dsos__col_width = unresolved_col_width;
+			hists__set_col_len(&session->hists, HISTC_DSO,
+					   unresolved_col_width);
 	}
 
 	if (symbol_conf.sym_list && al->sym &&

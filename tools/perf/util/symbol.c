@@ -12,6 +12,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include "build-id.h"
+#include "debug.h"
 #include "symbol.h"
 #include "strlist.h"
 
@@ -39,6 +40,14 @@ struct symbol_conf symbol_conf = {
 	.use_modules	  = true,
 	.try_vmlinux_path = true,
 };
+
+int dso__name_len(const struct dso *self)
+{
+	if (verbose)
+		return self->long_name_len;
+
+	return self->short_name_len;
+}
 
 bool dso__loaded(const struct dso *self, enum map_type type)
 {

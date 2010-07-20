@@ -692,7 +692,8 @@ static void hist_entry__append_callchain_browser(struct hist_entry *self,
 }
 
 static size_t hist_entry__append_browser(struct hist_entry *self,
-					 newtComponent tree, u64 total)
+					 newtComponent tree,
+					 struct hists *hists)
 {
 	char s[256];
 	size_t ret;
@@ -700,8 +701,8 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 	if (symbol_conf.exclude_other && !self->parent)
 		return 0;
 
-	ret = hist_entry__snprintf(self, s, sizeof(s), NULL,
-				   false, 0, false, total);
+	ret = hist_entry__snprintf(self, s, sizeof(s), hists, NULL,
+				   false, 0, false, hists->stats.total_period);
 	if (symbol_conf.use_callchain) {
 		int indexes[2];
 
@@ -842,7 +843,7 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 		if (h->filtered)
 			continue;
 
-		len = hist_entry__append_browser(h, self->tree, hists->stats.total_period);
+		len = hist_entry__append_browser(h, self->tree, hists);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
