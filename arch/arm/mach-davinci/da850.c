@@ -983,7 +983,7 @@ static int da850_set_pll0rate(struct clk *clk, unsigned long index)
 	return 0;
 }
 #else
-int __init da850_register_cpufreq(void)
+int __init da850_register_cpufreq(char *async_clk)
 {
 	return 0;
 }
