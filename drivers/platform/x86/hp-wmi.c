@@ -711,8 +711,10 @@ static int hp_wmi_resume_handler(struct device *device)
 static int __init hp_wmi_init(void)
 {
 	int err;
+	int event_capable = wmi_has_guid(HPWMI_EVENT_GUID);
+	int bios_capable = wmi_has_guid(HPWMI_BIOS_GUID);
 
-	if (wmi_has_guid(HPWMI_EVENT_GUID)) {
+	if (event_capable) {
 		err = wmi_install_notify_handler(HPWMI_EVENT_GUID,
 						 hp_wmi_notify, NULL);
 		if (ACPI_FAILURE(err))
@@ -724,7 +726,7 @@ static int __init hp_wmi_init(void)
 		}
 	}
 
-	if (wmi_has_guid(HPWMI_BIOS_GUID)) {
+	if (bios_capable) {
 		err = platform_driver_register(&hp_wmi_driver);
 		if (err)
 			goto err_driver_reg;
@@ -737,6 +739,9 @@ static int __init hp_wmi_init(void)
 		if (err)
 			goto err_device_add;
 	}
+
+	if (!bios_capable && !event_capable)
+		return -ENODEV;
 
 	return 0;
 
