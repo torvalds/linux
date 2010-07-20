@@ -1918,8 +1918,8 @@ static int fcoe_disable(const char *buffer, struct kernel_param *kp)
 	rtnl_unlock();
 
 	if (fcoe) {
-		fc_fabric_logoff(fcoe->ctlr.lp);
 		fcoe_ctlr_link_down(&fcoe->ctlr);
+		fcoe_clean_pending_queue(fcoe->ctlr.lp);
 	} else
 		rc = -ENODEV;
 
@@ -1972,12 +1972,10 @@ static int fcoe_enable(const char *buffer, struct kernel_param *kp)
 	fcoe = fcoe_hostlist_lookup_port(netdev);
 	rtnl_unlock();
 
-	if (fcoe) {
-		if (!fcoe_link_ok(fcoe->ctlr.lp))
-			fcoe_ctlr_link_up(&fcoe->ctlr);
-		rc = fc_fabric_login(fcoe->ctlr.lp);
-	} else
+	if (!fcoe)
 		rc = -ENODEV;
+	else if (!fcoe_link_ok(fcoe->ctlr.lp))
+		fcoe_ctlr_link_up(&fcoe->ctlr);
 
 	dev_put(netdev);
 out_nodev:
