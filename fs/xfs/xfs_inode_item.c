@@ -214,7 +214,6 @@ xfs_inode_item_format(
 	uint			nvecs;
 	size_t			data_bytes;
 	xfs_bmbt_rec_t		*ext_buffer;
-	int			nrecs;
 	xfs_mount_t		*mp;
 
 	vecp->i_addr = &iip->ili_format;
@@ -314,9 +313,8 @@ xfs_inode_item_format(
 			ASSERT(ip->i_df.if_u1.if_extents != NULL);
 			ASSERT(ip->i_d.di_nextents > 0);
 			ASSERT(iip->ili_extents_buf == NULL);
-			nrecs = ip->i_df.if_bytes /
-				(uint)sizeof(xfs_bmbt_rec_t);
-			ASSERT(nrecs > 0);
+			ASSERT((ip->i_df.if_bytes /
+				(uint)sizeof(xfs_bmbt_rec_t)) > 0);
 #ifdef XFS_NATIVE_HOST
 			if (nrecs == ip->i_d.di_nextents) {
 				/*
@@ -439,15 +437,15 @@ xfs_inode_item_format(
 		ASSERT(!(iip->ili_format.ilf_fields &
 			 (XFS_ILOG_ADATA | XFS_ILOG_ABROOT)));
 		if (iip->ili_format.ilf_fields & XFS_ILOG_AEXT) {
+#ifdef DEBUG
+			int nrecs = ip->i_afp->if_bytes /
+				(uint)sizeof(xfs_bmbt_rec_t);
+			ASSERT(nrecs > 0);
+			ASSERT(nrecs == ip->i_d.di_anextents);
 			ASSERT(ip->i_afp->if_bytes > 0);
 			ASSERT(ip->i_afp->if_u1.if_extents != NULL);
 			ASSERT(ip->i_d.di_anextents > 0);
-#ifdef DEBUG
-			nrecs = ip->i_afp->if_bytes /
-				(uint)sizeof(xfs_bmbt_rec_t);
 #endif
-			ASSERT(nrecs > 0);
-			ASSERT(nrecs == ip->i_d.di_anextents);
 #ifdef XFS_NATIVE_HOST
 			/*
 			 * There are not delayed allocation extents
@@ -889,10 +887,8 @@ xfs_iflush_abort(
 	xfs_inode_t		*ip)
 {
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
-	xfs_mount_t		*mp;
 
 	iip = ip->i_itemp;
-	mp = ip->i_mount;
 	if (iip) {
 		struct xfs_ail	*ailp = iip->ili_item.li_ailp;
 		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {

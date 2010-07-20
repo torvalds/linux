@@ -261,7 +261,6 @@ xfs_iget_cache_miss(
 {
 	struct xfs_inode	*ip;
 	int			error;
-	unsigned long		first_index, mask;
 	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ino);
 
 	ip = xfs_inode_alloc(mp, ino);
@@ -298,8 +297,6 @@ xfs_iget_cache_miss(
 			BUG();
 	}
 
-	mask = ~(((XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog)) - 1);
-	first_index = agino & mask;
 	write_lock(&pag->pag_ici_lock);
 
 	/* insert the new inode */

@@ -1042,7 +1042,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	xlog_in_core_t		*iclog, *prev_iclog=NULL;
 	xfs_buf_t		*bp;
 	int			i;
-	int			iclogsize;
 	int			error = ENOMEM;
 	uint			log2_size = 0;
 
@@ -1122,7 +1121,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	 * with different amounts of memory.  See the definition of
 	 * xlog_in_core_t in xfs_log_priv.h for details.
 	 */
-	iclogsize = log->l_iclog_size;
 	ASSERT(log->l_iclog_size >= 4096);
 	for (i=0; i < log->l_iclog_bufs; i++) {
 		*iclogp = kmem_zalloc(sizeof(xlog_in_core_t), KM_MAYFAIL);

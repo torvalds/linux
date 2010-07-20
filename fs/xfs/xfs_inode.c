@@ -918,7 +918,6 @@ xfs_iread_extents(
 	int		error;
 	xfs_ifork_t	*ifp;
 	xfs_extnum_t	nextents;
-	size_t		size;
 
 	if (unlikely(XFS_IFORK_FORMAT(ip, whichfork) != XFS_DINODE_FMT_BTREE)) {
 		XFS_ERROR_REPORT("xfs_iread_extents", XFS_ERRLEVEL_LOW,
@@ -926,7 +925,6 @@ xfs_iread_extents(
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 	nextents = XFS_IFORK_NEXTENTS(ip, whichfork);
-	size = nextents * sizeof(xfs_bmbt_rec_t);
 	ifp = XFS_IFORK_PTR(ip, whichfork);
 
 	/*
@@ -3503,13 +3501,11 @@ xfs_iext_remove_indirect(
 	xfs_extnum_t	ext_diff;	/* extents to remove in current list */
 	xfs_extnum_t	nex1;		/* number of extents before idx */
 	xfs_extnum_t	nex2;		/* extents after idx + count */
-	int		nlists;		/* entries in indirection array */
 	int		page_idx = idx;	/* index in target extent list */
 
 	ASSERT(ifp->if_flags & XFS_IFEXTIREC);
 	erp = xfs_iext_idx_to_irec(ifp,  &page_idx, &erp_idx, 0);
 	ASSERT(erp != NULL);
-	nlists = ifp->if_real_bytes / XFS_IEXT_BUFSZ;
 	nex1 = page_idx;
 	ext_cnt = count;
 	while (ext_cnt) {
