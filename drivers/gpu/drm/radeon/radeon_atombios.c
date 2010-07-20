@@ -161,6 +161,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 		}
 	}
 
+	/* ASUS HD 3600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x9598) &&
+	    (dev->pdev->subsystem_vendor == 0x1043) &&
+	    (dev->pdev->subsystem_device == 0x01e4)) {
+		if (*connector_type == DRM_MODE_CONNECTOR_HDMIA) {
+			*connector_type = DRM_MODE_CONNECTOR_DVII;
+		}
+	}
+
 	/* ASUS HD 3450 board lists the DVI port as HDMI */
 	if ((dev->pdev->device == 0x95C5) &&
 	    (dev->pdev->subsystem_vendor == 0x1043) &&
