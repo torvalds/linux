@@ -38,6 +38,8 @@
 #include "ib.h"
 #include "xlist.h"
 
+struct workqueue_struct *rds_ib_fmr_wq;
+
 static DEFINE_PER_CPU(unsigned long, clean_list_grace);
 #define CLEAN_LIST_BUSY_BIT 0
 
@@ -303,6 +305,9 @@ static struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev)
 	struct rds_ib_mr_pool *pool = rds_ibdev->mr_pool;
 	struct rds_ib_mr *ibmr = NULL;
 	int err = 0, iter = 0;
+
+	if (atomic_read(&pool->dirty_count) >= pool->max_items / 10)
+		queue_delayed_work(rds_ib_fmr_wq, &pool->flush_worker, 10);
 
 	while (1) {
 		ibmr = rds_ib_reuse_fmr(pool);
@@ -690,8 +695,6 @@ out:
 out_nolock:
 	return ret;
 }
-
-struct workqueue_struct *rds_ib_fmr_wq;
 
 int rds_ib_fmr_init(void)
 {
