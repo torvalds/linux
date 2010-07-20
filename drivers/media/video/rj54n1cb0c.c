@@ -1,5 +1,5 @@
 /*
- * Driver for RJ54N1CB0C CMOS Image Sensor from Micron
+ * Driver for RJ54N1CB0C CMOS Image Sensor from Sharp
  *
  * Copyright (C) 2009, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
  *
