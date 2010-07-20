@@ -216,9 +216,8 @@ static inline void __up_write(struct rw_semaphore *sem)
 	rwsem_count_t tmp;
 	asm volatile("# beginning __up_write\n\t"
 		     LOCK_PREFIX "  xadd      %1,(%2)\n\t"
-		     /* tries to transition
-			0xffff0001 -> 0x00000000 */
-		     "  jz       1f\n"
+		     /* subtracts 0xffff0001, returns the old value */
+		     "  jns        1f\n\t"
 		     "  call call_rwsem_wake\n"
 		     "1:\n\t"
 		     "# ending __up_write\n"
