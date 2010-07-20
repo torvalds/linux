@@ -30,6 +30,16 @@
 #include "netup-init.h"
 #include "cx23888-ir.h"
 
+static unsigned int enable_885_ir;
+module_param(enable_885_ir, int, 0644);
+MODULE_PARM_DESC(enable_885_ir,
+		 "Enable integrated IR controller for supported\n"
+		 "\t\t    CX2388[57] boards that are wired for it:\n"
+		 "\t\t\tHVR-1250 (reported safe)\n"
+		 "\t\t\tTeVii S470 (reported unsafe)\n"
+		 "\t\t    This can cause an interrupt storm with some cards.\n"
+		 "\t\t    Default: 0 [Disabled]");
+
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
 
@@ -1025,6 +1035,8 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 		v4l2_subdev_call(dev->sd_ir, ir, tx_s_parameters, &params);
 		break;
 	case CX23885_BOARD_TEVII_S470:
+		if (!enable_885_ir)
+			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
 		if (dev->sd_ir == NULL) {
 			ret = -ENODEV;
@@ -1034,6 +1046,8 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 				 ir_rx_pin_cfg_count, ir_rx_pin_cfg);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+		if (!enable_885_ir)
+			break;
 		dev->sd_ir = cx23885_find_hw(dev, CX23885_HW_AV_CORE);
 		if (dev->sd_ir == NULL) {
 			ret = -ENODEV;
@@ -1214,6 +1228,11 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	 * loaded, ensure this happens.
 	 */
 	switch (dev->board) {
+	case CX23885_BOARD_TEVII_S470:
+	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+		/* Currently only enabled for the integrated IR controller */
+		if (!enable_885_ir)
+			break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
@@ -1226,8 +1245,6 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_MAGICPRO_PROHDTVE2:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	case CX23885_BOARD_LEADTEK_WINFAST_PXTV1200:
-	case CX23885_BOARD_TEVII_S470:
-	case CX23885_BOARD_HAUPPAUGE_HVR1250:
 		dev->sd_cx25840 = v4l2_i2c_new_subdev(&dev->v4l2_dev,
 				&dev->i2c_bus[2].i2c_adap,
 				"cx25840", "cx25840", 0x88 >> 1, NULL);
