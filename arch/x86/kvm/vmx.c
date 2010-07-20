@@ -125,6 +125,7 @@ struct vcpu_vmx {
 	unsigned long         host_rsp;
 	int                   launched;
 	u8                    fail;
+	u32                   exit_intr_info;
 	u32                   idt_vectoring_info;
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
@@ -3775,18 +3776,9 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 	vmcs_write32(TPR_THRESHOLD, irr);
 }
 
-static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
+static void vmx_complete_atomic_exit(struct vcpu_vmx *vmx)
 {
-	u32 exit_intr_info;
-	u32 idt_vectoring_info = vmx->idt_vectoring_info;
-	bool unblock_nmi;
-	u8 vector;
-	int type;
-	bool idtv_info_valid;
-
-	exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
-
-	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
+	u32 exit_intr_info = vmx->exit_intr_info;
 
 	/* Handle machine checks before interrupts are enabled */
 	if ((vmx->exit_reason == EXIT_REASON_MCE_DURING_VMENTRY)
@@ -3801,8 +3793,16 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 		asm("int $2");
 		kvm_after_handle_nmi(&vmx->vcpu);
 	}
+}
 
-	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
+static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
+{
+	u32 exit_intr_info = vmx->exit_intr_info;
+	bool unblock_nmi;
+	u8 vector;
+	bool idtv_info_valid;
+
+	idtv_info_valid = vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
 	if (cpu_has_virtual_nmis()) {
 		unblock_nmi = (exit_intr_info & INTR_INFO_UNBLOCK_NMI) != 0;
@@ -3824,6 +3824,16 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 	} else if (unlikely(vmx->soft_vnmi_blocked))
 		vmx->vnmi_blocked_time +=
 			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
+}
+
+static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
+{
+	u32 idt_vectoring_info = vmx->idt_vectoring_info;
+	u8 vector;
+	int type;
+	bool idtv_info_valid;
+
+	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
 	vmx->vcpu.arch.nmi_injected = false;
 	kvm_clear_exception_queue(&vmx->vcpu);
@@ -4036,6 +4046,11 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
 
+	vmx->exit_reason = vmcs_read32(VM_EXIT_REASON);
+	vmx->exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+	vmx_complete_atomic_exit(vmx);
+	vmx_recover_nmi_blocking(vmx);
 	vmx_complete_interrupts(vmx);
 }
 
