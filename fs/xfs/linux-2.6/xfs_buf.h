@@ -187,7 +187,6 @@ typedef struct xfs_buf {
 	atomic_t		b_io_remaining;	/* #outstanding I/O requests */
 	xfs_buf_iodone_t	b_iodone;	/* I/O completion function */
 	xfs_buf_relse_t		b_relse;	/* releasing function */
-	xfs_buf_bdstrat_t	b_strat;	/* pre-write function */
 	struct completion	b_iowait;	/* queue for I/O waiters */
 	void			*b_fspriv;
 	void			*b_fspriv2;
@@ -244,11 +243,6 @@ extern int xfs_buf_iorequest(xfs_buf_t *);
 extern int xfs_buf_iowait(xfs_buf_t *);
 extern void xfs_buf_iomove(xfs_buf_t *, size_t, size_t, void *,
 				xfs_buf_rw_t);
-
-static inline int xfs_buf_iostrategy(xfs_buf_t *bp)
-{
-	return bp->b_strat ? bp->b_strat(bp) : xfs_buf_iorequest(bp);
-}
 
 static inline int xfs_buf_geterror(xfs_buf_t *bp)
 {
@@ -321,8 +315,6 @@ extern void xfs_buf_terminate(void);
 #define XFS_BUF_IODONE_FUNC(bp)			((bp)->b_iodone)
 #define XFS_BUF_SET_IODONE_FUNC(bp, func)	((bp)->b_iodone = (func))
 #define XFS_BUF_CLR_IODONE_FUNC(bp)		((bp)->b_iodone = NULL)
-#define XFS_BUF_SET_BDSTRAT_FUNC(bp, func)	((bp)->b_strat = (func))
-#define XFS_BUF_CLR_BDSTRAT_FUNC(bp)		((bp)->b_strat = NULL)
 
 #define XFS_BUF_FSPRIVATE(bp, type)		((type)(bp)->b_fspriv)
 #define XFS_BUF_SET_FSPRIVATE(bp, val)		((bp)->b_fspriv = (void*)(val))

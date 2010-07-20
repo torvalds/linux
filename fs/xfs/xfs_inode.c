@@ -2719,7 +2719,6 @@ cluster_corrupt_out:
 		 * mark it as stale and brelse.
 		 */
 		if (XFS_BUF_IODONE_FUNC(bp)) {
-			XFS_BUF_CLR_BDSTRAT_FUNC(bp);
 			XFS_BUF_UNDONE(bp);
 			XFS_BUF_STALE(bp);
 			XFS_BUF_ERROR(bp,EIO);

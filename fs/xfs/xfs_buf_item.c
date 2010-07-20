@@ -694,7 +694,6 @@ xfs_buf_item_init(
 	 */
 	if (bp->b_mount != mp)
 		bp->b_mount = mp;
-	XFS_BUF_SET_BDSTRAT_FUNC(bp, xfs_bdstrat_cb);
 	if (XFS_BUF_FSPRIVATE(bp, void *) != NULL) {
 		lip = XFS_BUF_FSPRIVATE(bp, xfs_log_item_t *);
 		if (lip->li_type == XFS_LI_BUF) {

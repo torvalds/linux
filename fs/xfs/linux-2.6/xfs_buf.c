@@ -987,13 +987,12 @@ xfs_bwrite(
 {
 	int			error;
 
-	bp->b_strat = xfs_bdstrat_cb;
 	bp->b_mount = mp;
 	bp->b_flags |= XBF_WRITE;
 	bp->b_flags &= ~(XBF_ASYNC | XBF_READ);
 
 	xfs_buf_delwri_dequeue(bp);
-	xfs_buf_iostrategy(bp);
+	xfs_bdstrat_cb(bp);
 
 	error = xfs_buf_iowait(bp);
 	if (error)
@@ -1009,7 +1008,6 @@ xfs_bdwrite(
 {
 	trace_xfs_buf_bdwrite(bp, _RET_IP_);
 
-	bp->b_strat = xfs_bdstrat_cb;
 	bp->b_mount = mp;
 
 	bp->b_flags &= ~XBF_READ;
@@ -1044,7 +1042,6 @@ xfs_bioerror(
 	XFS_BUF_UNDONE(bp);
 	XFS_BUF_STALE(bp);
 
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
 	xfs_biodone(bp);
 
 	return EIO;
@@ -1074,7 +1071,6 @@ xfs_bioerror_relse(
 	XFS_BUF_DONE(bp);
 	XFS_BUF_STALE(bp);
 	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
 	if (!(fl & XBF_ASYNC)) {
 		/*
 		 * Mark b_error and B_ERROR _both_.
@@ -1869,7 +1865,7 @@ xfsbufd(
 			struct xfs_buf *bp;
 			bp = list_first_entry(&tmp, struct xfs_buf, b_list);
 			list_del_init(&bp->b_list);
-			xfs_buf_iostrategy(bp);
+			xfs_bdstrat_cb(bp);
 			count++;
 		}
 		if (count)
@@ -1916,7 +1912,7 @@ xfs_flush_buftarg(
 			bp->b_flags &= ~XBF_ASYNC;
 			list_add(&bp->b_list, &wait_list);
 		}
-		xfs_buf_iostrategy(bp);
+		xfs_bdstrat_cb(bp);
 	}
 
 	if (wait) {
