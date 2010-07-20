@@ -137,7 +137,7 @@ static void stop_ep_timer(struct iwch_ep *ep)
 	put_ep(&ep->com);
 }
 
-int iwch_l2t_send(struct t3cdev *tdev, struct sk_buff *skb, struct l2t_entry *l2e)
+static int iwch_l2t_send(struct t3cdev *tdev, struct sk_buff *skb, struct l2t_entry *l2e)
 {
 	int	error = 0;
 	struct cxio_rdev *rdev;
