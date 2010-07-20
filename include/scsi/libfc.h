@@ -97,6 +97,8 @@ enum fc_disc_event {
 /**
  * enum fc_rport_state - Remote port states
  * @RPORT_ST_INIT:    Initialized
+ * @RPORT_ST_FLOGI:   Waiting for FLOGI completion for point-to-multipoint
+ * @RPORT_ST_PLOGI_WAIT:   Waiting for peer to login for point-to-multipoint
  * @RPORT_ST_PLOGI:   Waiting for PLOGI completion
  * @RPORT_ST_PRLI:    Waiting for PRLI completion
  * @RPORT_ST_RTV:     Waiting for RTV completion
@@ -107,6 +109,8 @@ enum fc_disc_event {
 */
 enum fc_rport_state {
 	RPORT_ST_INIT,
+	RPORT_ST_FLOGI,
+	RPORT_ST_PLOGI_WAIT,
 	RPORT_ST_PLOGI,
 	RPORT_ST_PRLI,
 	RPORT_ST_RTV,

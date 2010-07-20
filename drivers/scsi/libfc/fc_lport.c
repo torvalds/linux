@@ -906,10 +906,10 @@ static void fc_lport_recv_req(struct fc_lport *lport, struct fc_seq *sp,
 		recv = lport->tt.rport_recv_req;
 		switch (fc_frame_payload_op(fp)) {
 		case ELS_FLOGI:
-			recv = fc_lport_recv_flogi_req;
+			if (!lport->point_to_multipoint)
+				recv = fc_lport_recv_flogi_req;
 			break;
 		case ELS_LOGO:
-			fh = fc_frame_header_get(fp);
 			if (ntoh24(fh->fh_s_id) == FC_FID_FLOGI)
 				recv = fc_lport_recv_logo_req;
 			break;
