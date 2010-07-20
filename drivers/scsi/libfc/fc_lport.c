@@ -755,6 +755,34 @@ static void fc_lport_set_port_id(struct fc_lport *lport, u32 port_id,
 }
 
 /**
+ * fc_lport_set_port_id() - set the local port Port ID for point-to-multipoint
+ * @lport: The local port which will have its Port ID set.
+ * @port_id: The new port ID.
+ *
+ * Called by the lower-level driver when transport sets the local port_id.
+ * This is used in VN_port to VN_port mode for FCoE, and causes FLOGI and
+ * discovery to be skipped.
+ */
+void fc_lport_set_local_id(struct fc_lport *lport, u32 port_id)
+{
+	mutex_lock(&lport->lp_mutex);
+
+	fc_lport_set_port_id(lport, port_id, NULL);
+
+	switch (lport->state) {
+	case LPORT_ST_RESET:
+	case LPORT_ST_FLOGI:
+		if (port_id)
+			fc_lport_enter_ready(lport);
+		break;
+	default:
+		break;
+	}
+	mutex_unlock(&lport->lp_mutex);
+}
+EXPORT_SYMBOL(fc_lport_set_local_id);
+
+/**
  * fc_lport_recv_flogi_req() - Receive a FLOGI request
  * @sp_in: The sequence the FLOGI is on
  * @rx_fp: The FLOGI frame
@@ -954,7 +982,7 @@ static void fc_lport_reset_locked(struct fc_lport *lport)
 	lport->tt.exch_mgr_reset(lport, 0, 0);
 	fc_host_fabric_name(lport->host) = 0;
 
-	if (lport->port_id)
+	if (lport->port_id && (!lport->point_to_multipoint || !lport->link_up))
 		fc_lport_set_port_id(lport, 0, NULL);
 }
 
@@ -1535,6 +1563,12 @@ void fc_lport_enter_flogi(struct fc_lport *lport)
 		     fc_lport_state(lport));
 
 	fc_lport_state_enter(lport, LPORT_ST_FLOGI);
+
+	if (lport->point_to_multipoint) {
+		if (lport->port_id)
+			fc_lport_enter_ready(lport);
+		return;
+	}
 
 	fp = fc_frame_alloc(lport, sizeof(struct fc_els_flogi));
 	if (!fp)

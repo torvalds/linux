@@ -846,6 +846,7 @@ struct fc_lport {
 	u32			       lro_enabled:1;
 	u32			       does_npiv:1;
 	u32			       npiv_enabled:1;
+	u32			       point_to_multipoint:1;
 	u32			       mfs;
 	u8			       max_retry_count;
 	u8			       max_rport_retry_count;
@@ -991,6 +992,7 @@ int fc_set_mfs(struct fc_lport *, u32 mfs);
 struct fc_lport *libfc_vport_create(struct fc_vport *, int privsize);
 struct fc_lport *fc_vport_id_lookup(struct fc_lport *, u32 port_id);
 int fc_lport_bsg_request(struct fc_bsg_job *);
+void fc_lport_set_local_id(struct fc_lport *, u32 port_id);
 
 /*
  * REMOTE PORT LAYER
