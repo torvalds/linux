@@ -750,7 +750,7 @@ int s3c_i2sv2_register_dai(struct device *dev, int id,
 	drv->suspend = s3c2412_i2s_suspend;
 	drv->resume = s3c2412_i2s_resume;
 
-	return snd_soc_register_dai(dev, id, drv);
+	return snd_soc_register_dai(dev, drv);
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_register_dai);
 
