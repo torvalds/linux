@@ -282,6 +282,7 @@ static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic
 		if (!frag)
 			return NULL;
 
+		sg_init_table(&frag->f_sg, 1);
 		ret = rds_page_remainder_alloc(&frag->f_sg,
 					       RDS_FRAG_SIZE, page_mask);
 		if (ret) {
