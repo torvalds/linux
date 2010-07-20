@@ -297,7 +297,7 @@ static int write_acpi_int_ret(acpi_handle handle, const char *method, int val,
 	acpi_status status;
 
 	if (!handle)
-		return 0;
+		return -1;
 
 	params.count = 1;
 	params.pointer = &in_obj;
