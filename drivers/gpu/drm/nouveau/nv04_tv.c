@@ -242,7 +242,6 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 	};
 
 	/* Attach it to the specified connector. */
-	sfuncs->set_config(encoder, nv04_tv_encoder_info[type].platform_data);
 	sfuncs->create_resources(encoder, connector);
 	drm_mode_connector_attach_encoder(connector, encoder);
 
