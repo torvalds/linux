@@ -75,14 +75,12 @@ enum fip_state {
  * @flogi_count:   number of FLOGI attempts in AUTO mode.
  * @map_dest:	   use the FC_MAP mode for destination MAC addresses.
  * @spma:	   supports SPMA server-provided MACs mode
- * @send_ctlr_ka:  need to send controller keep alive
- * @send_port_ka:  need to send port keep alives
  * @dest_addr:	   MAC address of the selected FC forwarder.
  * @ctl_src_addr:  the native MAC address of our local port.
  * @send:	   LLD-supplied function to handle sending FIP Ethernet frames
  * @update_mac:    LLD-supplied function to handle changes to MAC addresses.
  * @get_src_addr:  LLD-supplied function to supply a source MAC address.
- * @lock:	   lock protecting this structure.
+ * @ctlr_mutex:	   lock protecting this structure.
  *
  * This structure is used by all FCoE drivers.  It contains information
  * needed by all FCoE low-level drivers (LLDs) as well as internal state
@@ -106,18 +104,15 @@ struct fcoe_ctlr {
 	u16 user_mfs;
 	u16 flogi_oxid;
 	u8 flogi_count;
-	u8 reset_req;
 	u8 map_dest;
 	u8 spma;
-	u8 send_ctlr_ka;
-	u8 send_port_ka;
 	u8 dest_addr[ETH_ALEN];
 	u8 ctl_src_addr[ETH_ALEN];
 
 	void (*send)(struct fcoe_ctlr *, struct sk_buff *);
 	void (*update_mac)(struct fc_lport *, u8 *addr);
 	u8 * (*get_src_addr)(struct fc_lport *);
-	spinlock_t lock;
+	struct mutex ctlr_mutex;
 };
 
 /**
