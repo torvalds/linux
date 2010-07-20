@@ -2565,7 +2565,7 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 	u16 last_ae;
 	u8 original_hw_tcp_state;
 	u8 original_ibqp_state;
-	enum iw_cm_event_type disconn_status = IW_CM_EVENT_STATUS_OK;
+	enum iw_cm_event_status disconn_status = IW_CM_EVENT_STATUS_OK;
 	int issue_disconn = 0;
 	int issue_close = 0;
 	int issue_flush = 0;
