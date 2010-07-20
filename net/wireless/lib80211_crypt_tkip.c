@@ -578,7 +578,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 	}
 
 	if (ieee80211_is_data_qos(hdr11->frame_control)) {
-		hdr[12] = le16_to_cpu(*ieee80211_get_qos_ctl(hdr11))
+		hdr[12] = le16_to_cpu(*((__le16 *)ieee80211_get_qos_ctl(hdr11)))
 			& IEEE80211_QOS_CTL_TID_MASK;
 	} else
 		hdr[12] = 0;		/* priority */
