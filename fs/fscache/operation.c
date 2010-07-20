@@ -42,15 +42,11 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 
 	fscache_stat(&fscache_n_op_enqueue);
 	switch (op->flags & FSCACHE_OP_TYPE) {
-	case FSCACHE_OP_FAST:
-		_debug("queue fast");
+	case FSCACHE_OP_ASYNC:
+		_debug("queue async");
 		atomic_inc(&op->usage);
-		if (!schedule_work(&op->fast_work))
+		if (!queue_work(fscache_op_wq, &op->work))
 			fscache_put_operation(op);
-		break;
-	case FSCACHE_OP_SLOW:
-		_debug("queue slow");
-		slow_work_enqueue(&op->slow_work);
 		break;
 	case FSCACHE_OP_MYTHREAD:
 		_debug("queue for caller's attention");
@@ -455,36 +451,13 @@ void fscache_operation_gc(struct work_struct *work)
 }
 
 /*
- * allow the slow work item processor to get a ref on an operation
+ * execute an operation using fs_op_wq to provide processing context -
+ * the caller holds a ref to this object, so we don't need to hold one
  */
-static int fscache_op_get_ref(struct slow_work *work)
+void fscache_op_work_func(struct work_struct *work)
 {
 	struct fscache_operation *op =
-		container_of(work, struct fscache_operation, slow_work);
-
-	atomic_inc(&op->usage);
-	return 0;
-}
-
-/*
- * allow the slow work item processor to discard a ref on an operation
- */
-static void fscache_op_put_ref(struct slow_work *work)
-{
-	struct fscache_operation *op =
-		container_of(work, struct fscache_operation, slow_work);
-
-	fscache_put_operation(op);
-}
-
-/*
- * execute an operation using the slow thread pool to provide processing context
- * - the caller holds a ref to this object, so we don't need to hold one
- */
-static void fscache_op_execute(struct slow_work *work)
-{
-	struct fscache_operation *op =
-		container_of(work, struct fscache_operation, slow_work);
+		container_of(work, struct fscache_operation, work);
 	unsigned long start;
 
 	_enter("{OBJ%x OP%x,%d}",
@@ -494,31 +467,7 @@ static void fscache_op_execute(struct slow_work *work)
 	start = jiffies;
 	op->processor(op);
 	fscache_hist(fscache_ops_histogram, start);
+	fscache_put_operation(op);
 
 	_leave("");
 }
-
-/*
- * describe an operation for slow-work debugging
- */
-#ifdef CONFIG_SLOW_WORK_DEBUG
-static void fscache_op_desc(struct slow_work *work, struct seq_file *m)
-{
-	struct fscache_operation *op =
-		container_of(work, struct fscache_operation, slow_work);
-
-	seq_printf(m, "FSC: OBJ%x OP%x: %s/%s fl=%lx",
-		   op->object->debug_id, op->debug_id,
-		   op->name, op->state, op->flags);
-}
-#endif
-
-const struct slow_work_ops fscache_op_slow_work_ops = {
-	.owner		= THIS_MODULE,
-	.get_ref	= fscache_op_get_ref,
-	.put_ref	= fscache_op_put_ref,
-	.execute	= fscache_op_execute,
-#ifdef CONFIG_SLOW_WORK_DEBUG
-	.desc		= fscache_op_desc,
-#endif
-};
