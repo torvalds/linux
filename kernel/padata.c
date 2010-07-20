@@ -114,7 +114,7 @@ int padata_do_parallel(struct padata_instance *pinst,
 	pd = rcu_dereference(pinst->pd);
 
 	err = -EINVAL;
-	if (!(pinst->flags & PADATA_INIT))
+	if (!(pinst->flags & PADATA_INIT) || pinst->flags & PADATA_INVALID)
 		goto out;
 
 	if (!cpumask_test_cpu(cb_cpu, pd->cpumask.cbcpu))
