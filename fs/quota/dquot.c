@@ -132,6 +132,22 @@ static __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_state_lock);
 __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_data_lock);
 EXPORT_SYMBOL(dq_data_lock);
 
+void __quota_error(struct super_block *sb, const char *func,
+		  const char *fmt, ...)
+{
+	va_list args;
+
+	if (printk_ratelimit()) {
+		va_start(args, fmt);
+		printk(KERN_ERR "Quota error (device %s): %s: ",
+		       sb->s_id, func);
+		vprintk(fmt, args);
+		printk("\n");
+		va_end(args);
+	}
+}
+EXPORT_SYMBOL(__quota_error);
+
 #if defined(CONFIG_QUOTA_DEBUG) || defined(CONFIG_PRINT_QUOTA_WARNING)
 static char *quotatypes[] = INITQFNAMES;
 #endif
@@ -705,11 +721,8 @@ void dqput(struct dquot *dquot)
 		return;
 #ifdef CONFIG_QUOTA_DEBUG
 	if (!atomic_read(&dquot->dq_count)) {
-		printk("VFS: dqput: trying to free free dquot\n");
-		printk("VFS: device %s, dquot of %s %d\n",
-			dquot->dq_sb->s_id,
-			quotatypes[dquot->dq_type],
-			dquot->dq_id);
+		quota_error(dquot->dq_sb, "trying to free free dquot of %s %d",
+			    quotatypes[dquot->dq_type], dquot->dq_id);
 		BUG();
 	}
 #endif
@@ -732,9 +745,9 @@ we_slept:
 		/* Commit dquot before releasing */
 		ret = dquot->dq_sb->dq_op->write_dquot(dquot);
 		if (ret < 0) {
-			printk(KERN_ERR "VFS: cannot write quota structure on "
-				"device %s (error %d). Quota may get out of "
-				"sync!\n", dquot->dq_sb->s_id, ret);
+			quota_error(dquot->dq_sb, "Can't write quota structure"
+				    " (error %d). Quota may get out of sync!",
+				    ret);
 			/*
 			 * We clear dirty bit anyway, so that we avoid
 			 * infinite loop here
@@ -914,9 +927,9 @@ static void add_dquot_ref(struct super_block *sb, int type)
 
 #ifdef CONFIG_QUOTA_DEBUG
 	if (reserved) {
-		printk(KERN_WARNING "VFS (%s): Writes happened before quota"
-			" was turned on thus quota information is probably "
-			"inconsistent. Please run quotacheck(8).\n", sb->s_id);
+		quota_error(sb, "Writes happened before quota was turned on "
+			"thus quota information is probably inconsistent. "
+			"Please run quotacheck(8)");
 	}
 #endif
 }
@@ -947,7 +960,9 @@ static int remove_inode_dquot_ref(struct inode *inode, int type,
 		if (dqput_blocks(dquot)) {
 #ifdef CONFIG_QUOTA_DEBUG
 			if (atomic_read(&dquot->dq_count) != 1)
-				printk(KERN_WARNING "VFS: Adding dquot with dq_count %d to dispose list.\n", atomic_read(&dquot->dq_count));
+				quota_error(inode->i_sb, "Adding dquot with "
+					    "dq_count %d to dispose list",
+					    atomic_read(&dquot->dq_count));
 #endif
 			spin_lock(&dq_list_lock);
 			/* As dquot must have currently users it can't be on
