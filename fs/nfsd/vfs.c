@@ -2052,7 +2052,6 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 					struct dentry *dentry, int acc)
 {
 	struct inode	*inode = dentry->d_inode;
-	struct path	path;
 	int		err;
 
 	if (acc == NFSD_MAY_NOP)
@@ -2125,15 +2124,7 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 	if (err == -EACCES && S_ISREG(inode->i_mode) &&
 	    acc == (NFSD_MAY_READ | NFSD_MAY_OWNER_OVERRIDE))
 		err = inode_permission(inode, MAY_EXEC);
-	if (err)
-		goto nfsd_out;
 
-	/* Do integrity (permission) checking now, but defer incrementing
-	 * IMA counts to the actual file open.
-	 */
-	path.mnt = exp->ex_path.mnt;
-	path.dentry = dentry;
-nfsd_out:
 	return err? nfserrno(err) : 0;
 }
 

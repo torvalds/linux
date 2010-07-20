@@ -3421,11 +3421,9 @@ static inline void
 nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 {
 	struct nfs4_stateowner *sop;
-	unsigned int hval;
 
 	if (fl->fl_lmops == &nfsd_posix_mng_ops) {
 		sop = (struct nfs4_stateowner *) fl->fl_owner;
-		hval = lockownerid_hashval(sop->so_id);
 		kref_get(&sop->so_ref);
 		deny->ld_sop = sop;
 		deny->ld_clientid = sop->so_client->cl_clientid;
