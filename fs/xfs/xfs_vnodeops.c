@@ -589,9 +589,9 @@ xfs_free_eofblocks(
 	 */
 	end_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)ip->i_size));
 	last_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
-	map_len = last_fsb - end_fsb;
-	if (map_len <= 0)
+	if (last_fsb <= end_fsb)
 		return 0;
+	map_len = last_fsb - end_fsb;
 
 	nimaps = 1;
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
