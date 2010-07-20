@@ -143,6 +143,9 @@ struct twl4030_priv {
 	u8 earpiece_enabled;
 	u8 predrivel_enabled, predriver_enabled;
 	u8 carkitl_enabled, carkitr_enabled;
+
+	/* Delay needed after enabling the digimic interface */
+	unsigned int digimic_delay;
 };
 
 /*
@@ -311,6 +314,8 @@ static void twl4030_init_chip(struct platform_device *pdev)
 	/* Machine dependent setup */
 	if (!setup)
 		return;
+
+	twl4030->digimic_delay = setup->digimic_delay;
 
 	/* Configuration for headset ramp delay from setup data */
 	if (setup->sysclk != twl4030->sysclk)
@@ -852,6 +857,16 @@ static int headsetrpga_event(struct snd_soc_dapm_widget *w,
 		twl4030->hsr_enabled = 0;
 		break;
 	}
+	return 0;
+}
+
+static int digimic_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(w->codec);
+
+	if (twl4030->digimic_delay)
+		mdelay(twl4030->digimic_delay);
 	return 0;
 }
 
@@ -1439,10 +1454,12 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("ADC Physical Right",
 		TWL4030_REG_AVADC_CTL, 1, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA("Digimic0 Enable",
-		TWL4030_REG_ADCMICSEL, 1, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Digimic1 Enable",
-		TWL4030_REG_ADCMICSEL, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA_E("Digimic0 Enable",
+		TWL4030_REG_ADCMICSEL, 1, 0, NULL, 0,
+		digimic_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_E("Digimic1 Enable",
+		TWL4030_REG_ADCMICSEL, 3, 0, NULL, 0,
+		digimic_event, SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_MICBIAS("Mic Bias 1", TWL4030_REG_MICBIAS_CTL, 0, 0),
 	SND_SOC_DAPM_MICBIAS("Mic Bias 2", TWL4030_REG_MICBIAS_CTL, 1, 0),
