@@ -82,6 +82,9 @@ static int pcrypt_do_parallel(struct padata_priv *padata, unsigned int *cb_cpu,
 	if (cpumask_test_cpu(cpu, cpumask->mask))
 			goto out;
 
+	if (!cpumask_weight(cpumask->mask))
+			goto out;
+
 	cpu_index = cpu % cpumask_weight(cpumask->mask);
 
 	cpu = cpumask_first(cpumask->mask);
