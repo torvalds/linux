@@ -534,7 +534,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		}
 	}
 
-	if (IS_eDP(intel_encoder)) {
+	if (IS_eDP(intel_encoder) || IS_PCH_eDP(dp_priv)) {
 		/* okay we failed just pick the highest */
 		dp_priv->lane_count = max_lane_count;
 		dp_priv->link_bw = bws[max_clock];
