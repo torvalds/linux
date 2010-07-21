@@ -616,7 +616,7 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 	struct pci_dev *pcidev = phba->pcidev;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
-	int ret, msix_vec, i = 0;
+	int ret, msix_vec, i, j;
 	char desc[32];
 
 	phwi_ctrlr = phba->phwi_ctrlr;
@@ -628,10 +628,25 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 			msix_vec = phba->msix_entries[i].vector;
 			ret = request_irq(msix_vec, be_isr_msix, 0, desc,
 					  &phwi_context->be_eq[i]);
+			if (ret) {
+				shost_printk(KERN_ERR, phba->shost,
+					     "beiscsi_init_irqs-Failed to"
+					     "register msix for i = %d\n", i);
+				if (!i)
+					return ret;
+				goto free_msix_irqs;
+			}
 		}
 		msix_vec = phba->msix_entries[i].vector;
 		ret = request_irq(msix_vec, be_isr_mcc, 0, "beiscsi_msix_mcc",
 				  &phwi_context->be_eq[i]);
+		if (ret) {
+			shost_printk(KERN_ERR, phba->shost, "beiscsi_init_irqs-"
+				     "Failed to register beiscsi_msix_mcc\n");
+			i++;
+			goto free_msix_irqs;
+		}
+
 	} else {
 		ret = request_irq(pcidev->irq, be_isr, IRQF_SHARED,
 				  "beiscsi", phba);
@@ -642,6 +657,10 @@ static int beiscsi_init_irqs(struct beiscsi_hba *phba)
 		}
 	}
 	return 0;
+free_msix_irqs:
+	for (j = i - 1; j == 0; j++)
+		free_irq(msix_vec, &phwi_context->be_eq[j]);
+	return ret;
 }
 
 static void hwi_ring_cq_db(struct beiscsi_hba *phba,
