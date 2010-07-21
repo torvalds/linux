@@ -397,7 +397,7 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	struct nand_chip *chip = mtd->priv;
 	uint8_t buf[2] = { 0, 0 };
-	int block, ret;
+	int block, ret, i = 0;
 
 	if (chip->options & NAND_BBT_SCANLASTPAGE)
 		ofs += mtd->erasesize - mtd->writesize;
@@ -411,17 +411,31 @@ static int nand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	if (chip->options & NAND_USE_FLASH_BBT)
 		ret = nand_update_bbt(mtd, ofs);
 	else {
-		/* We write two bytes, so we dont have to mess with 16 bit
-		 * access
-		 */
 		nand_get_device(chip, mtd, FL_WRITING);
-		ofs += mtd->oobsize;
-		chip->ops.len = chip->ops.ooblen = 2;
-		chip->ops.datbuf = NULL;
-		chip->ops.oobbuf = buf;
-		chip->ops.ooboffs = chip->badblockpos & ~0x01;
 
-		ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+		/* Write to first two pages and to byte 1 and 6 if necessary.
+		 * If we write to more than one location, the first error
+		 * encountered quits the procedure. We write two bytes per
+		 * location, so we dont have to mess with 16 bit access.
+		 */
+		do {
+			chip->ops.len = chip->ops.ooblen = 2;
+			chip->ops.datbuf = NULL;
+			chip->ops.oobbuf = buf;
+			chip->ops.ooboffs = chip->badblockpos & ~0x01;
+
+			ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+
+			if (!ret && (chip->options & NAND_BBT_SCANBYTE1AND6)) {
+				chip->ops.ooboffs = NAND_SMALL_BADBLOCK_POS
+					& ~0x01;
+				ret = nand_do_write_oob(mtd, ofs, &chip->ops);
+			}
+			i++;
+			ofs += mtd->writesize;
+		} while (!ret && (chip->options & NAND_BBT_SCAN2NDPAGE) &&
+				i < 2);
+
 		nand_release_device(mtd);
 	}
 	if (!ret)
