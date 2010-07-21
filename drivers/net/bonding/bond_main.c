@@ -570,10 +570,8 @@ static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *sla
 	struct vlan_entry *vlan;
 	const struct net_device_ops *slave_ops = slave_dev->netdev_ops;
 
-	write_lock_bh(&bond->lock);
-
 	if (!bond->vlgrp)
-		goto out;
+		return;
 
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
 	    slave_ops->ndo_vlan_rx_register)
@@ -581,13 +579,10 @@ static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *sla
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
 	    !(slave_ops->ndo_vlan_rx_add_vid))
-		goto out;
+		return;
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list)
 		slave_ops->ndo_vlan_rx_add_vid(slave_dev, vlan->vlan_id);
-
-out:
-	write_unlock_bh(&bond->lock);
 }
 
 static void bond_del_vlans_from_slave(struct bonding *bond,
@@ -597,10 +592,8 @@ static void bond_del_vlans_from_slave(struct bonding *bond,
 	struct vlan_entry *vlan;
 	struct net_device *vlan_dev;
 
-	write_lock_bh(&bond->lock);
-
 	if (!bond->vlgrp)
-		goto out;
+		return;
 
 	if (!(slave_dev->features & NETIF_F_HW_VLAN_FILTER) ||
 	    !(slave_ops->ndo_vlan_rx_kill_vid))
@@ -621,9 +614,6 @@ unreg:
 	if ((slave_dev->features & NETIF_F_HW_VLAN_RX) &&
 	    slave_ops->ndo_vlan_rx_register)
 		slave_ops->ndo_vlan_rx_register(slave_dev, NULL);
-
-out:
-	write_unlock_bh(&bond->lock);
 }
 
 /*------------------------------- Link status -------------------------------*/
