@@ -423,7 +423,7 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 			struct be_queue_info *cq);
 
 int be_poll_mcc(struct be_ctrl_info *ctrl);
-unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
+int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
 unsigned int be_cmd_get_mac_addr(struct beiscsi_hba *phba);
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);

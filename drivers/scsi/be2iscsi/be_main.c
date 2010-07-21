@@ -3295,7 +3295,7 @@ static void hwi_purge_eq(struct beiscsi_hba *phba)
 
 static void beiscsi_clean_port(struct beiscsi_hba *phba)
 {
-	unsigned char mgmt_status;
+	int mgmt_status;
 
 	mgmt_status = mgmt_epfw_cleanup(phba, CMD_CONNECTION_CHUTE_0);
 	if (mgmt_status)

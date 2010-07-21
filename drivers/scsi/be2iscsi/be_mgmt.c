@@ -21,7 +21,7 @@
 #include "be_mgmt.h"
 #include "be_iscsi.h"
 
-unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
+int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 				struct beiscsi_hba *phba)
 {
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
@@ -65,7 +65,7 @@ unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 	return status;
 }
 
-unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
+int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba)
 {
 	struct be_dma_mem nonemb_cmd;
@@ -117,8 +117,7 @@ unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 	return status;
 }
 
-
-unsigned char mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
+int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
@@ -144,7 +143,7 @@ unsigned char mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
 	return status;
 }
 
-unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
+unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				struct invalidate_command_table *inv_tbl,
 				unsigned int num_invalidate, unsigned int cid)
 {
@@ -202,7 +201,7 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	return tag;
 }
 
-unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
+unsigned int mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 struct beiscsi_endpoint *beiscsi_ep,
 					 unsigned short cid,
 					 unsigned short issue_reset,
@@ -239,7 +238,7 @@ unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
 	return tag;
 }
 
-unsigned char mgmt_upload_connection(struct beiscsi_hba *phba,
+unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 				unsigned short cid, unsigned int upload_flag)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
