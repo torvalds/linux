@@ -68,6 +68,39 @@ static unsigned long sh_clk_div6_recalc(struct clk *clk)
 	return clk->freq_table[idx].frequency;
 }
 
+static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
+{
+	struct clk_div_mult_table *table = &sh_clk_div6_table;
+	u32 value;
+	int ret, i;
+
+	if (!clk->parent_table || !clk->parent_num)
+		return -EINVAL;
+
+	/* Search the parent */
+	for (i = 0; i < clk->parent_num; i++)
+		if (clk->parent_table[i] == parent)
+			break;
+
+	if (i == clk->parent_num)
+		return -ENODEV;
+
+	ret = clk_reparent(clk, parent);
+	if (ret < 0)
+		return ret;
+
+	value = __raw_readl(clk->enable_reg) &
+		~(((1 << clk->src_width) - 1) << clk->src_shift);
+
+	__raw_writel(value | (i << clk->src_shift), clk->enable_reg);
+
+	/* Rebuild the frequency table */
+	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
+			     table, &clk->arch_flags);
+
+	return 0;
+}
+
 static int sh_clk_div6_set_rate(struct clk *clk,
 				unsigned long rate, int algo_id)
 {
@@ -117,7 +150,17 @@ static struct clk_ops sh_clk_div6_clk_ops = {
 	.disable	= sh_clk_div6_disable,
 };
 
-int __init sh_clk_div6_register(struct clk *clks, int nr)
+static struct clk_ops sh_clk_div6_reparent_clk_ops = {
+	.recalc		= sh_clk_div6_recalc,
+	.round_rate	= sh_clk_div_round_rate,
+	.set_rate	= sh_clk_div6_set_rate,
+	.enable		= sh_clk_div6_enable,
+	.disable	= sh_clk_div6_disable,
+	.set_parent	= sh_clk_div6_set_parent,
+};
+
+static int __init sh_clk_div6_register_ops(struct clk *clks, int nr,
+					   struct clk_ops *ops)
 {
 	struct clk *clkp;
 	void *freq_table;
@@ -136,7 +179,7 @@ int __init sh_clk_div6_register(struct clk *clks, int nr)
 	for (k = 0; !ret && (k < nr); k++) {
 		clkp = clks + k;
 
-		clkp->ops = &sh_clk_div6_clk_ops;
+		clkp->ops = ops;
 		clkp->id = -1;
 		clkp->freq_table = freq_table + (k * freq_table_size);
 		clkp->freq_table[nr_divs].frequency = CPUFREQ_TABLE_END;
@@ -145,6 +188,17 @@ int __init sh_clk_div6_register(struct clk *clks, int nr)
 	}
 
 	return ret;
+}
+
+int __init sh_clk_div6_register(struct clk *clks, int nr)
+{
+	return sh_clk_div6_register_ops(clks, nr, &sh_clk_div6_clk_ops);
+}
+
+int __init sh_clk_div6_reparent_register(struct clk *clks, int nr)
+{
+	return sh_clk_div6_register_ops(clks, nr,
+					&sh_clk_div6_reparent_clk_ops);
 }
 
 static unsigned long sh_clk_div4_recalc(struct clk *clk)
