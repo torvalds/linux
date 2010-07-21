@@ -162,7 +162,7 @@ int __init arch_early_irq_init(void)
 
 	cfg = irq_cfgx;
 	count = ARRAY_SIZE(irq_cfgx);
-	node= cpu_to_node(boot_cpu_id);
+	node = cpu_to_node(0);
 
 	for (i = 0; i < count; i++) {
 		desc = irq_to_desc(i);
@@ -1483,7 +1483,7 @@ static void __init setup_IO_APIC_irqs(void)
 	int notcon = 0;
 	struct irq_desc *desc;
 	struct irq_cfg *cfg;
-	int node = cpu_to_node(boot_cpu_id);
+	int node = cpu_to_node(0);
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
 
@@ -1548,7 +1548,7 @@ static void __init setup_IO_APIC_irqs(void)
 void setup_IO_APIC_irq_extra(u32 gsi)
 {
 	int apic_id = 0, pin, idx, irq;
-	int node = cpu_to_node(boot_cpu_id);
+	int node = cpu_to_node(0);
 	struct irq_desc *desc;
 	struct irq_cfg *cfg;
 
@@ -2925,7 +2925,7 @@ static inline void __init check_timer(void)
 {
 	struct irq_desc *desc = irq_to_desc(0);
 	struct irq_cfg *cfg = desc->chip_data;
-	int node = cpu_to_node(boot_cpu_id);
+	int node = cpu_to_node(0);
 	int apic1, pin1, apic2, pin2;
 	unsigned long flags;
 	int no_pin1 = 0;
@@ -3279,7 +3279,7 @@ unsigned int create_irq_nr(unsigned int irq_want, int node)
 
 int create_irq(void)
 {
-	int node = cpu_to_node(boot_cpu_id);
+	int node = cpu_to_node(0);
 	unsigned int irq_want;
 	int irq;
 
@@ -3901,7 +3901,7 @@ static int __io_apic_set_pci_routing(struct device *dev, int irq,
 	if (dev)
 		node = dev_to_node(dev);
 	else
-		node = cpu_to_node(boot_cpu_id);
+		node = cpu_to_node(0);
 
 	desc = irq_to_desc_alloc_node(irq, node);
 	if (!desc) {

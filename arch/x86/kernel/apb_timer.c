@@ -343,7 +343,7 @@ void apbt_setup_secondary_clock(void)
 
 	/* Don't register boot CPU clockevent */
 	cpu = smp_processor_id();
-	if (cpu == boot_cpu_id)
+	if (!cpu)
 		return;
 	/*
 	 * We need to calculate the scaled math multiplication factor for
