@@ -260,8 +260,7 @@ def taskState(state):
 	}
 
 	if state not in states:
-		print "Unhandled task state %d" % state
-		return ""
+		return "Unknown"
 
 	return states[state]
 
