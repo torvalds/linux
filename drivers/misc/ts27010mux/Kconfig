@@ -1,0 +1,11 @@
+#
+# TS 27.010 configuration
+#
+
+menu "Motorola TS 27.010 Mux driver"
+
+config TS27010MUX
+        tristate "Motorola TS 27.010 Mux driver"
+        default n
+
+endmenu

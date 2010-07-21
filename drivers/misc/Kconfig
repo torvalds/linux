@@ -480,6 +480,7 @@ config GPS_GPIO_BRCM4750
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
+source "drivers/misc/ts27010mux/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
 
 endif # MISC_DEVICES
