@@ -81,7 +81,9 @@ config MACH_SMDKC110
 	select CPU_S5PV210
 	select ARCH_SPARSEMEM_ENABLE
 	select SAMSUNG_DEV_IDE
+	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select HAVE_S3C_RTC
 	select HAVE_S3C2410_WATCHDOG
 	select S5PV210_SETUP_IDE
 	help
@@ -109,10 +111,12 @@ config MACH_SMDKV210
 	select SAMSUNG_DEV_IDE
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_TS
+	select S3C_DEV_RTC
 	select S3C_DEV_WDT
-	select S5PV210_SETUP_KEYPAD
+	select HAVE_S3C_RTC
 	select HAVE_S3C2410_WATCHDOG
 	select S5PV210_SETUP_IDE
+	select S5PV210_SETUP_KEYPAD
 	select S5PV210_SETUP_SDHCI
 	help
 	  Machine support for Samsung SMDKV210

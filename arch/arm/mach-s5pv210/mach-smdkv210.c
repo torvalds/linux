@@ -108,6 +108,7 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
 	&samsung_device_keypad,
+	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 };
