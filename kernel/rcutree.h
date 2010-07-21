@@ -264,6 +264,12 @@ struct rcu_data {
 						/*  scheduling clock irq */
 						/*  before ratting on them. */
 
+#ifdef CONFIG_RCU_CPU_STALL_DETECTOR_RUNNABLE
+#define RCU_CPU_STALL_SUPPRESS_INIT 0
+#else
+#define RCU_CPU_STALL_SUPPRESS_INIT 1
+#endif
+
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))

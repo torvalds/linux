@@ -144,7 +144,7 @@ module_param(qhimark, int, 0);
 module_param(qlowmark, int, 0);
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
-int rcu_cpu_stall_suppress __read_mostly;
+int rcu_cpu_stall_suppress __read_mostly = RCU_CPU_STALL_SUPPRESS_INIT;
 module_param(rcu_cpu_stall_suppress, int, 0644);
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
 
