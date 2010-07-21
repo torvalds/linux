@@ -67,7 +67,8 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 
 	sysfs_addrm_start(&acxt, parent_sd);
 	/* Symlinks must be between directories with the same ns_type */
-	if (ns_type == sysfs_ns_type(sd->s_symlink.target_sd->s_parent)) {
+	if (!ns_type ||
+	    (ns_type == sysfs_ns_type(sd->s_symlink.target_sd->s_parent))) {
 		if (warn)
 			error = sysfs_add_one(&acxt, sd);
 		else
