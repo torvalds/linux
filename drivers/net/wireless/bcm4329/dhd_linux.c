@@ -2159,7 +2159,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 
 	dhdp->pktfilter_count = 1;
 	/* Setup filter to allow only unicast */
-	dhdp->pktfilter[0] = "100 0 0 0 0xff 0x00";
+	dhdp->pktfilter[0] = "100 0 0 0 0x01 0x00";
 #endif /* EMBEDDED_PLATFORM */
 
 	/* Bus is ready, do any protocol initialization */
