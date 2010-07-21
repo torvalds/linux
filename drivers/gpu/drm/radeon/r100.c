@@ -1230,7 +1230,6 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 5);
 	reg = CP_PACKET0_GET_REG(header);
-	mutex_lock(&p->rdev->ddev->mode_config.mutex);
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
@@ -1264,7 +1263,6 @@ int r100_cs_packet_parse_vline(struct radeon_cs_parser *p)
 		ib[h_idx + 3] |= RADEON_ENG_DISPLAY_SELECT_CRTC1;
 	}
 out:
-	mutex_unlock(&p->rdev->ddev->mode_config.mutex);
 	return r;
 }
 
