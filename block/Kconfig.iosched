@@ -41,7 +41,7 @@ config CFQ_GROUP_IOSCHED
 
 config IOSCHED_BFQ
 	tristate "BFQ I/O scheduler"
-	default n
+	default y
 	---help---
 	  The BFQ I/O scheduler tries to distribute bandwidth among
 	  all processes according to their weights.
@@ -62,7 +62,7 @@ config CGROUP_BFQIO
 
 choice
 	prompt "Default I/O scheduler"
-	default DEFAULT_CFQ
+	default DEFAULT_BFQ
 	help
 	  Select the I/O scheduler which will be used by default for all
 	  block devices.
