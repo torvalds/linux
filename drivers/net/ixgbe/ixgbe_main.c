@@ -3684,10 +3684,6 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* signal that we are down to the interrupt handler */
 	set_bit(__IXGBE_DOWN, &adapter->state);
 
-	/* power down the optics */
-	if (hw->phy.multispeed_fiber)
-		hw->mac.ops.disable_tx_laser(hw);
-
 	/* disable receive for all VFs and wait one second */
 	if (adapter->num_vfs) {
 		/* ping all the active vfs to let them know we are going down */
@@ -3741,6 +3737,10 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 		IXGBE_WRITE_REG(hw, IXGBE_DMATXCTL,
 		                (IXGBE_READ_REG(hw, IXGBE_DMATXCTL) &
 		                 ~IXGBE_DMATXCTL_TE));
+
+	/* power down the optics */
+	if (hw->phy.multispeed_fiber)
+		hw->mac.ops.disable_tx_laser(hw);
 
 	/* clear n-tuple filters that are cached */
 	ethtool_ntuple_flush(netdev);
@@ -4001,7 +4001,7 @@ static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
 
 done:
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
-	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
+	netif_set_real_num_tx_queues(adapter->netdev, adapter->num_tx_queues);
 }
 
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
@@ -5195,7 +5195,6 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		ixgbe_free_all_tx_resources(adapter);
 		ixgbe_free_all_rx_resources(adapter);
 	}
-	ixgbe_clear_interrupt_scheme(adapter);
 
 #ifdef CONFIG_PM
 	retval = pci_save_state(pdev);
@@ -5229,6 +5228,8 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 		pci_wake_from_d3(pdev, false);
 
 	*enable_wake = !!wufc;
+
+	ixgbe_clear_interrupt_scheme(adapter);
 
 	ixgbe_release_hw_control(adapter);
 
@@ -6023,7 +6024,6 @@ static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
 static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 	              int queue, u32 tx_flags)
 {
-	/* Right now, we support IPv4 only */
 	struct ixgbe_atr_input atr_input;
 	struct tcphdr *th;
 	struct iphdr *iph = ip_hdr(skb);
@@ -6032,6 +6032,9 @@ static void ixgbe_atr(struct ixgbe_adapter *adapter, struct sk_buff *skb,
 	u32 src_ipv4_addr, dst_ipv4_addr;
 	u8 l4type = 0;
 
+	/* Right now, we support IPv4 only */
+	if (skb->protocol != htons(ETH_P_IP))
+		return;
 	/* check if we're UDP or TCP */
 	if (iph->protocol == IPPROTO_TCP) {
 		th = tcp_hdr(skb);

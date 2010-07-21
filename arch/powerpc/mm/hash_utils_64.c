@@ -31,7 +31,7 @@
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/signal.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/processor.h>
 #include <asm/pgtable.h>
@@ -384,8 +384,8 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 	printk(KERN_INFO "Huge page(16GB) memory: "
 			"addr = 0x%lX size = 0x%lX pages = %d\n",
 			phys_addr, block_size, expected_pages);
-	if (phys_addr + (16 * GB) <= lmb_end_of_DRAM()) {
-		lmb_reserve(phys_addr, block_size * expected_pages);
+	if (phys_addr + (16 * GB) <= memblock_end_of_DRAM()) {
+		memblock_reserve(phys_addr, block_size * expected_pages);
 		add_gpage(phys_addr, block_size, expected_pages);
 	}
 	return 0;
@@ -458,7 +458,7 @@ static void __init htab_init_page_sizes(void)
 	 * and we have at least 1G of RAM at boot
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift &&
-	    lmb_phys_mem_size() >= 0x40000000)
+	    memblock_phys_mem_size() >= 0x40000000)
 		mmu_vmemmap_psize = MMU_PAGE_16M;
 	else if (mmu_psize_defs[MMU_PAGE_64K].shift)
 		mmu_vmemmap_psize = MMU_PAGE_64K;
@@ -520,7 +520,7 @@ static unsigned long __init htab_get_table_size(void)
 		return 1UL << ppc64_pft_size;
 
 	/* round mem_size up to next power of 2 */
-	mem_size = lmb_phys_mem_size();
+	mem_size = memblock_phys_mem_size();
 	rnd_mem_size = 1UL << __ilog2(mem_size);
 	if (rnd_mem_size < mem_size)
 		rnd_mem_size <<= 1;
@@ -627,7 +627,7 @@ static void __init htab_initialize(void)
 		else
 			limit = 0;
 
-		table = lmb_alloc_base(htab_size_bytes, htab_size_bytes, limit);
+		table = memblock_alloc_base(htab_size_bytes, htab_size_bytes, limit);
 
 		DBG("Hash table allocated at %lx, size: %lx\n", table,
 		    htab_size_bytes);
@@ -647,9 +647,9 @@ static void __init htab_initialize(void)
 	prot = pgprot_val(PAGE_KERNEL);
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
-	linear_map_hash_count = lmb_end_of_DRAM() >> PAGE_SHIFT;
-	linear_map_hash_slots = __va(lmb_alloc_base(linear_map_hash_count,
-						    1, lmb.rmo_size));
+	linear_map_hash_count = memblock_end_of_DRAM() >> PAGE_SHIFT;
+	linear_map_hash_slots = __va(memblock_alloc_base(linear_map_hash_count,
+						    1, memblock.rmo_size));
 	memset(linear_map_hash_slots, 0, linear_map_hash_count);
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
@@ -659,16 +659,16 @@ static void __init htab_initialize(void)
 	 */
 
 	/* create bolted the linear mapping in the hash table */
-	for (i=0; i < lmb.memory.cnt; i++) {
-		base = (unsigned long)__va(lmb.memory.region[i].base);
-		size = lmb.memory.region[i].size;
+	for (i=0; i < memblock.memory.cnt; i++) {
+		base = (unsigned long)__va(memblock.memory.region[i].base);
+		size = memblock.memory.region[i].size;
 
 		DBG("creating mapping for region: %lx..%lx (prot: %lx)\n",
 		    base, size, prot);
 
 #ifdef CONFIG_U3_DART
 		/* Do not map the DART space. Fortunately, it will be aligned
-		 * in such a way that it will not cross two lmb regions and
+		 * in such a way that it will not cross two memblock regions and
 		 * will fit within a single 16Mb page.
 		 * The DART space is assumed to be a full 16Mb region even if
 		 * we only use 2Mb of that space. We will use more of it later

@@ -657,6 +657,7 @@ static u64 maybe_change_configuration(struct cpu_hw_events *cpuc, u64 pcr)
 		cpuc->current_idx[i] = idx;
 
 		enc = perf_event_get_enc(cpuc->events[i]);
+		pcr &= ~mask_for_index(idx);
 		pcr |= event_encoding(enc, idx);
 	}
 out:

@@ -1344,7 +1344,7 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 	int type = le16_to_cpu(msg->hdr.type);
 
 	if (!osd)
-		return;
+		goto out;
 	osdc = osd->o_osdc;
 
 	switch (type) {
@@ -1359,6 +1359,7 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 		pr_err("received unknown message type %d %s\n", type,
 		       ceph_msg_type_name(type));
 	}
+out:
 	ceph_msg_put(msg);
 }
 

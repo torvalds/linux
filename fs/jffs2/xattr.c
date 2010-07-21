@@ -626,7 +626,7 @@ void jffs2_xattr_free_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 
 static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
 {
-	/* success of check_xattr_ref_inode() means taht inode (ic) dose not have
+	/* success of check_xattr_ref_inode() means that inode (ic) dose not have
 	 * duplicate name/value pairs. If duplicate name/value pair would be found,
 	 * one will be removed.
 	 */

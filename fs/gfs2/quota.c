@@ -77,7 +77,7 @@ static LIST_HEAD(qd_lru_list);
 static atomic_t qd_lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(qd_lru_lock);
 
-int gfs2_shrink_qd_memory(int nr, gfp_t gfp_mask)
+int gfs2_shrink_qd_memory(struct shrinker *shrink, int nr, gfp_t gfp_mask)
 {
 	struct gfs2_quota_data *qd;
 	struct gfs2_sbd *sdp;
@@ -694,10 +694,8 @@ get_a_page:
 		if (!buffer_mapped(bh))
 			goto unlock_out;
 		/* If it's a newly allocated disk block for quota, zero it */
-		if (buffer_new(bh)) {
-			memset(bh->b_data, 0, bh->b_size);
-			set_buffer_uptodate(bh);
-		}
+		if (buffer_new(bh))
+			zero_user(page, pos - blocksize, bh->b_size);
 	}
 
 	if (PageUptodate(page))
@@ -723,7 +721,7 @@ get_a_page:
 
 	/* If quota straddles page boundary, we need to update the rest of the
 	 * quota at the beginning of the next page */
-	if (offset != 0) { /* first page, offset is closer to PAGE_CACHE_SIZE */
+	if ((offset + sizeof(struct gfs2_quota)) > PAGE_CACHE_SIZE) {
 		ptr = ptr + nbytes;
 		nbytes = sizeof(struct gfs2_quota) - nbytes;
 		offset = 0;

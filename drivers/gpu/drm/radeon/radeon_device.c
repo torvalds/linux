@@ -226,20 +226,20 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 {
 	u64 size_af, size_bf;
 
-	size_af = 0xFFFFFFFF - mc->vram_end;
-	size_bf = mc->vram_start;
+	size_af = ((0xFFFFFFFF - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
+	size_bf = mc->vram_start & ~mc->gtt_base_align;
 	if (size_bf > size_af) {
 		if (mc->gtt_size > size_bf) {
 			dev_warn(rdev->dev, "limiting GTT\n");
 			mc->gtt_size = size_bf;
 		}
-		mc->gtt_start = mc->vram_start - mc->gtt_size;
+		mc->gtt_start = (mc->vram_start & ~mc->gtt_base_align) - mc->gtt_size;
 	} else {
 		if (mc->gtt_size > size_af) {
 			dev_warn(rdev->dev, "limiting GTT\n");
 			mc->gtt_size = size_af;
 		}
-		mc->gtt_start = mc->vram_end + 1;
+		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
 	}
 	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
 	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",

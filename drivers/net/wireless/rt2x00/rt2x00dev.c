@@ -854,6 +854,11 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		    BIT(NL80211_IFTYPE_WDS);
 
 	/*
+	 * Initialize configuration work.
+	 */
+	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
+
+	/*
 	 * Let the driver probe the device to detect the capabilities.
 	 */
 	retval = rt2x00dev->ops->lib->probe_hw(rt2x00dev);
@@ -861,11 +866,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		ERROR(rt2x00dev, "Failed to allocate device.\n");
 		goto exit;
 	}
-
-	/*
-	 * Initialize configuration work.
-	 */
-	INIT_WORK(&rt2x00dev->intf_work, rt2x00lib_intf_scheduled);
 
 	/*
 	 * Allocate queue array.
