@@ -509,6 +509,8 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		SE_DEBUG(DBG_LVL_1,
 			 "mgmt_open_connection Failed for cid=%d\n",
 			 beiscsi_ep->ep_cid);
+		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+		return -EAGAIN;
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);
