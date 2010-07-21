@@ -312,6 +312,7 @@ struct beiscsi_hba {
 	struct list_head hba_queue;
 	unsigned short *cid_array;
 	struct iscsi_endpoint **ep_array;
+	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
 	struct {
 		/**
@@ -342,6 +343,8 @@ struct beiscsi_hba {
 	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
+	unsigned int read_mac_address;
+	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 
 };
