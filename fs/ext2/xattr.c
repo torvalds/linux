@@ -791,7 +791,6 @@ ext2_xattr_delete_inode(struct inode *inode)
 		if (ce)
 			mb_cache_entry_free(ce);
 		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
-		mark_inode_dirty(inode);
 		get_bh(bh);
 		bforget(bh);
 		unlock_buffer(bh);
@@ -806,7 +805,6 @@ ext2_xattr_delete_inode(struct inode *inode)
 		if (IS_SYNC(inode))
 			sync_dirty_buffer(bh);
 		dquot_free_block_nodirty(inode, 1);
-		mark_inode_dirty(inode);
 	}
 	EXT2_I(inode)->i_file_acl = 0;
 
