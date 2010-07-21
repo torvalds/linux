@@ -292,6 +292,12 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 			/* setup one handler for each entry */
 			set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
 			set_irq_data(port[i].irq, &port[i]);
+			if (port[i].irq_high) {
+				/* setup handler for GPIO 16 to 31 */
+				set_irq_chained_handler(port[i].irq_high,
+						mx3_gpio_irq_handler);
+				set_irq_data(port[i].irq_high, &port[i]);
+			}
 		}
 	}
 

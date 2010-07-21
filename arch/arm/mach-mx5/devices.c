@@ -250,24 +250,28 @@ static struct mxc_gpio_port mxc_gpio_ports[] = {
 		.chip.label = "gpio-0",
 		.base = MX51_IO_ADDRESS(MX51_GPIO1_BASE_ADDR),
 		.irq = MX51_MXC_INT_GPIO1_LOW,
+		.irq_high = MX51_MXC_INT_GPIO1_HIGH,
 		.virtual_irq_start = MXC_GPIO_IRQ_START
 	},
 	{
 		.chip.label = "gpio-1",
 		.base = MX51_IO_ADDRESS(MX51_GPIO2_BASE_ADDR),
 		.irq = MX51_MXC_INT_GPIO2_LOW,
+		.irq_high = MX51_MXC_INT_GPIO2_HIGH,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 1
 	},
 	{
 		.chip.label = "gpio-2",
 		.base = MX51_IO_ADDRESS(MX51_GPIO3_BASE_ADDR),
 		.irq = MX51_MXC_INT_GPIO3_LOW,
+		.irq_high = MX51_MXC_INT_GPIO3_HIGH,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 2
 	},
 	{
 		.chip.label = "gpio-3",
 		.base = MX51_IO_ADDRESS(MX51_GPIO4_BASE_ADDR),
 		.irq = MX51_MXC_INT_GPIO4_LOW,
+		.irq_high = MX51_MXC_INT_GPIO4_HIGH,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32 * 3
 	},
 };
