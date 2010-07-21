@@ -16,6 +16,11 @@
  */
 u64 pcntxt_mask;
 
+/*
+ * Represents init state for the supported extended state.
+ */
+static struct xsave_struct *init_xstate_buf;
+
 struct _fpx_sw_bytes fx_sw_reserved;
 #ifdef CONFIG_IA32_EMULATION
 struct _fpx_sw_bytes fx_sw_reserved_ia32;
@@ -347,11 +352,6 @@ static void prepare_fx_sw_frame(void)
 	fx_sw_reserved_ia32.extended_size = sig_xstate_ia32_size;
 #endif
 }
-
-/*
- * Represents init state for the supported extended state.
- */
-struct xsave_struct *init_xstate_buf;
 
 #ifdef CONFIG_X86_64
 unsigned int sig_xstate_size = sizeof(struct _fpstate);
