@@ -538,7 +538,7 @@ static int max_buffer_sectors;
 
 static int *errors;
 typedef void (*done_f)(int);
-static struct cont_t {
+static const struct cont_t {
 	void (*interrupt)(void);
 				/* this is called after the interrupt of the
 				 * main command */
@@ -1970,14 +1970,14 @@ static void do_wakeup(void)
 	wake_up(&command_done);
 }
 
-static struct cont_t wakeup_cont = {
+static const struct cont_t wakeup_cont = {
 	.interrupt	= empty,
 	.redo		= do_wakeup,
 	.error		= empty,
 	.done		= (done_f)empty
 };
 
-static struct cont_t intr_cont = {
+static const struct cont_t intr_cont = {
 	.interrupt	= empty,
 	.redo		= process_fd_request,
 	.error		= empty,
@@ -2183,7 +2183,7 @@ static void redo_format(void)
 	debugt(__func__, "queue format request");
 }
 
-static struct cont_t format_cont = {
+static const struct cont_t format_cont = {
 	.interrupt	= format_interrupt,
 	.redo		= redo_format,
 	.error		= bad_flp_intr,
@@ -2879,7 +2879,7 @@ do_request:
 	return;
 }
 
-static struct cont_t rw_cont = {
+static const struct cont_t rw_cont = {
 	.interrupt	= rw_interrupt,
 	.redo		= redo_fd_request,
 	.error		= bad_flp_intr,
@@ -2915,7 +2915,7 @@ static void do_fd_request(struct request_queue *q)
 	is_alive(__func__, "");
 }
 
-static struct cont_t poll_cont = {
+static const struct cont_t poll_cont = {
 	.interrupt	= success_and_wakeup,
 	.redo		= floppy_ready,
 	.error		= generic_failure,
@@ -2946,7 +2946,7 @@ static void reset_intr(void)
 	pr_info("weird, reset interrupt called\n");
 }
 
-static struct cont_t reset_cont = {
+static const struct cont_t reset_cont = {
 	.interrupt	= reset_intr,
 	.redo		= success_and_wakeup,
 	.error		= generic_failure,
@@ -3051,7 +3051,7 @@ static void raw_cmd_done(int flag)
 	generic_done(flag);
 }
 
-static struct cont_t raw_cmd_cont = {
+static const struct cont_t raw_cmd_cont = {
 	.interrupt	= success_and_wakeup,
 	.redo		= floppy_start,
 	.error		= generic_failure,
