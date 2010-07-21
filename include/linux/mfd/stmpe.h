@@ -170,6 +170,8 @@ struct stmpe_ts_platform_data {
  * @blocks: bitmask of blocks to enable (use STMPE_BLOCK_*)
  * @irq_trigger: IRQ trigger to use for the interrupt to the host
  * @irq_invert_polarity: IRQ line is connected with reversed polarity
+ * @autosleep: bool to enable/disable stmpe autosleep
+ * @autosleep_timeout: inactivity timeout in milliseconds for autosleep
  * @irq_base: base IRQ number.  %STMPE_NR_IRQS irqs will be used, or
  *	      %STMPE_NR_INTERNAL_IRQS if the GPIO driver is not used.
  * @gpio: GPIO-specific platform data
@@ -182,6 +184,8 @@ struct stmpe_platform_data {
 	int irq_base;
 	unsigned int irq_trigger;
 	bool irq_invert_polarity;
+	bool autosleep;
+	int autosleep_timeout;
 
 	struct stmpe_gpio_platform_data *gpio;
 	struct stmpe_keypad_platform_data *keypad;

@@ -49,6 +49,7 @@ struct stmpe_variant_block {
  *		Called with the I/O lock held.
  * @get_altfunc: callback to get the alternate function number for the
  *		 specific block
+ * @enable_autosleep: callback to configure autosleep with specified timeout
  */
 struct stmpe_variant_info {
 	const char *name;
@@ -62,6 +63,7 @@ struct stmpe_variant_info {
 	int num_irqs;
 	int (*enable)(struct stmpe *stmpe, unsigned int blocks, bool enable);
 	int (*get_altfunc)(struct stmpe *stmpe, enum stmpe_block block);
+	int (*enable_autosleep)(struct stmpe *stmpe, int autosleep_timeout);
 };
 
 #define STMPE_ICR_LSB_HIGH	(1 << 2)
@@ -118,6 +120,7 @@ struct stmpe_variant_info {
 #define STMPE1601_NR_INTERNAL_IRQS	9
 
 #define STMPE1601_REG_SYS_CTRL			0x02
+#define STMPE1601_REG_SYS_CTRL2			0x03
 #define STMPE1601_REG_ICR_LSB			0x11
 #define STMPE1601_REG_IER_LSB			0x13
 #define STMPE1601_REG_ISR_MSB			0x14
@@ -136,6 +139,10 @@ struct stmpe_variant_info {
 #define STMPE1601_SYS_CTRL_ENABLE_GPIO		(1 << 3)
 #define STMPE1601_SYS_CTRL_ENABLE_KPC		(1 << 1)
 #define STMPE1601_SYSCON_ENABLE_SPWM		(1 << 0)
+
+/* The 1601/2403 share the same masks */
+#define STMPE1601_AUTOSLEEP_TIMEOUT_MASK	(0x7)
+#define STPME1601_AUTOSLEEP_ENABLE		(1 << 3)
 
 /*
  * STMPE24xx

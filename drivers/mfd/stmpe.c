@@ -455,6 +455,67 @@ static struct stmpe_variant_block stmpe1601_blocks[] = {
 	},
 };
 
+/* supported autosleep timeout delay (in msecs) */
+static const int stmpe_autosleep_delay[] = {
+	4, 16, 32, 64, 128, 256, 512, 1024,
+};
+
+static int stmpe_round_timeout(int timeout)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(stmpe_autosleep_delay); i++) {
+		if (stmpe_autosleep_delay[i] >= timeout)
+			return i;
+	}
+
+	/*
+	 * requests for delays longer than supported should not return the
+	 * longest supported delay
+	 */
+	return -EINVAL;
+}
+
+static int stmpe_autosleep(struct stmpe *stmpe, int autosleep_timeout)
+{
+	int ret;
+
+	if (!stmpe->variant->enable_autosleep)
+		return -ENOSYS;
+
+	mutex_lock(&stmpe->lock);
+	ret = stmpe->variant->enable_autosleep(stmpe, autosleep_timeout);
+	mutex_unlock(&stmpe->lock);
+
+	return ret;
+}
+
+/*
+ * Both stmpe 1601/2403 support same layout for autosleep
+ */
+static int stmpe1601_autosleep(struct stmpe *stmpe,
+		int autosleep_timeout)
+{
+	int ret, timeout;
+
+	/* choose the best available timeout */
+	timeout = stmpe_round_timeout(autosleep_timeout);
+	if (timeout < 0) {
+		dev_err(stmpe->dev, "invalid timeout\n");
+		return timeout;
+	}
+
+	ret = __stmpe_set_bits(stmpe, STMPE1601_REG_SYS_CTRL2,
+			STMPE1601_AUTOSLEEP_TIMEOUT_MASK,
+			timeout);
+	if (ret < 0)
+		return ret;
+
+	return __stmpe_set_bits(stmpe, STMPE1601_REG_SYS_CTRL2,
+			STPME1601_AUTOSLEEP_ENABLE,
+			STPME1601_AUTOSLEEP_ENABLE);
+}
+
 static int stmpe1601_enable(struct stmpe *stmpe, unsigned int blocks,
 			    bool enable)
 {
@@ -497,6 +558,7 @@ static struct stmpe_variant_info stmpe1601 = {
 	.num_irqs	= STMPE1601_NR_INTERNAL_IRQS,
 	.enable		= stmpe1601_enable,
 	.get_altfunc	= stmpe1601_get_altfunc,
+	.enable_autosleep	= stmpe1601_autosleep,
 };
 
 /*
@@ -589,6 +651,7 @@ static struct stmpe_variant_info stmpe2403 = {
 	.num_irqs	= STMPE24XX_NR_INTERNAL_IRQS,
 	.enable		= stmpe24xx_enable,
 	.get_altfunc	= stmpe24xx_get_altfunc,
+	.enable_autosleep	= stmpe1601_autosleep, /* same as stmpe1601 */
 };
 
 static struct stmpe_variant_info *stmpe_variant_info[] = {
@@ -731,6 +794,7 @@ static void stmpe_irq_remove(struct stmpe *stmpe)
 static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 {
 	unsigned int irq_trigger = stmpe->pdata->irq_trigger;
+	int autosleep_timeout = stmpe->pdata->autosleep_timeout;
 	struct stmpe_variant_info *variant = stmpe->variant;
 	u8 icr = STMPE_ICR_LSB_GIM;
 	unsigned int id;
@@ -765,6 +829,12 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 
 	if (stmpe->pdata->irq_invert_polarity)
 		icr ^= STMPE_ICR_LSB_HIGH;
+
+	if (stmpe->pdata->autosleep) {
+		ret = stmpe_autosleep(stmpe, autosleep_timeout);
+		if (ret)
+			return ret;
+	}
 
 	return stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_ICR_LSB], icr);
 }
