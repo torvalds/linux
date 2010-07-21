@@ -50,7 +50,7 @@ int mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 					pfw_cfg->ulp[0].sq_count;
 		if (phba->fw_config.iscsi_cid_count > (BE2_MAX_SESSIONS / 2)) {
 			SE_DEBUG(DBG_LVL_8,
-				"FW reported MAX CXNS as %d \t"
+				"FW reported MAX CXNS as %d\t"
 				"Max Supported = %d.\n",
 				phba->fw_config.iscsi_cid_count,
 				BE2_MAX_SESSIONS);
@@ -145,9 +145,10 @@ int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute)
 
 unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				struct invalidate_command_table *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid)
+				unsigned int num_invalidate, unsigned int cid,
+				struct be_dma_mem *nonemb_cmd)
+
 {
-	struct be_dma_mem nonemb_cmd;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct be_mcc_wrb *wrb;
 	struct be_sge *sge;
@@ -161,18 +162,7 @@ unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 		return tag;
 	}
 
-	nonemb_cmd.va = pci_alloc_consistent(ctrl->pdev,
-				sizeof(struct invalidate_commands_params_in),
-				&nonemb_cmd.dma);
-	if (nonemb_cmd.va == NULL) {
-		SE_DEBUG(DBG_LVL_1,
-			 "Failed to alloc memory for mgmt_invalidate_icds\n");
-		spin_unlock(&ctrl->mbox_lock);
-		free_mcc_tag(&phba->ctrl, tag);
-		return 0;
-	}
-	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
-	req = nonemb_cmd.va;
+	req = nonemb_cmd->va;
 	memset(req, 0, sizeof(*req));
 	wrb = wrb_from_mccq(phba);
 	sge = nonembedded_sgl(wrb);
@@ -190,15 +180,12 @@ unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 		req->icd_count++;
 		inv_tbl++;
 	}
-	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd.dma));
-	sge->pa_lo = cpu_to_le32(nonemb_cmd.dma & 0xFFFFFFFF);
-	sge->len = cpu_to_le32(nonemb_cmd.size);
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd->size);
 
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
-	if (nonemb_cmd.va)
-		pci_free_consistent(ctrl->pdev, nonemb_cmd.size,
-				    nonemb_cmd.va, nonemb_cmd.dma);
 	return tag;
 }
 
@@ -269,7 +256,9 @@ unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 
 int mgmt_open_connection(struct beiscsi_hba *phba,
 			 struct sockaddr *dst_addr,
-			 struct beiscsi_endpoint *beiscsi_ep)
+			 struct beiscsi_endpoint *beiscsi_ep,
+			 struct be_dma_mem *nonemb_cmd)
+
 {
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
@@ -285,6 +274,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	unsigned int tag = 0;
 	unsigned int i;
 	unsigned short cid = beiscsi_ep->ep_cid;
+	struct be_sge *sge;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	phwi_context = phwi_ctrlr->phwi_ctxt;
@@ -300,10 +290,14 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		return tag;
 	}
 	wrb = wrb_from_mccq(phba);
-	req = embedded_payload(wrb);
+	memset(wrb, 0, sizeof(*wrb));
+	sge = nonembedded_sgl(wrb);
+
+	req = nonemb_cmd->va;
+	memset(req, 0, sizeof(*req));
 	wrb->tag0 |= tag;
 
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_TCP_CONNECT_AND_OFFLOAD,
 			   sizeof(*req));
@@ -347,6 +341,9 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	req->do_offload = 1;
 	req->dataout_template_pa.lo = ptemplate_address->lo;
 	req->dataout_template_pa.hi = ptemplate_address->hi;
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd->size);
 	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 	return tag;

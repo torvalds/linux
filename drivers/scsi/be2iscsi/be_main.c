@@ -71,6 +71,7 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	struct beiscsi_hba *phba;
 	struct iscsi_session *session;
 	struct invalidate_command_table *inv_tbl;
+	struct be_dma_mem nonemb_cmd;
 	unsigned int cid, tag, num_invalidate;
 
 	cls_session = starget_to_session(scsi_target(sc->device));
@@ -101,18 +102,34 @@ static int beiscsi_eh_abort(struct scsi_cmnd *sc)
 	inv_tbl->cid = cid;
 	inv_tbl->icd = aborted_io_task->psgl_handle->sgl_index;
 	num_invalidate = 1;
-	tag = mgmt_invalidate_icds(phba, inv_tbl, num_invalidate, cid);
+	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
+				sizeof(struct invalidate_commands_params_in),
+				&nonemb_cmd.dma);
+	if (nonemb_cmd.va == NULL) {
+		SE_DEBUG(DBG_LVL_1,
+			 "Failed to allocate memory for"
+			 "mgmt_invalidate_icds\n");
+		return FAILED;
+	}
+	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
+
+	tag = mgmt_invalidate_icds(phba, inv_tbl, num_invalidate,
+				   cid, &nonemb_cmd);
 	if (!tag) {
 		shost_printk(KERN_WARNING, phba->shost,
 			     "mgmt_invalidate_icds could not be"
 			     " submitted\n");
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+
 		return FAILED;
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);
 		free_mcc_tag(&phba->ctrl, tag);
 	}
-
+	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			    nonemb_cmd.va, nonemb_cmd.dma);
 	return iscsi_eh_abort(sc);
 }
 
@@ -126,6 +143,7 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 	struct iscsi_session *session;
 	struct iscsi_cls_session *cls_session;
 	struct invalidate_command_table *inv_tbl;
+	struct be_dma_mem nonemb_cmd;
 	unsigned int cid, tag, i, num_invalidate;
 	int rc = FAILED;
 
@@ -160,18 +178,33 @@ static int beiscsi_eh_device_reset(struct scsi_cmnd *sc)
 	spin_unlock_bh(&session->lock);
 	inv_tbl = phba->inv_tbl;
 
-	tag = mgmt_invalidate_icds(phba, inv_tbl, num_invalidate, cid);
+	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
+				sizeof(struct invalidate_commands_params_in),
+				&nonemb_cmd.dma);
+	if (nonemb_cmd.va == NULL) {
+		SE_DEBUG(DBG_LVL_1,
+			 "Failed to allocate memory for"
+			 "mgmt_invalidate_icds\n");
+		return FAILED;
+	}
+	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
+	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
+	tag = mgmt_invalidate_icds(phba, inv_tbl, num_invalidate,
+				   cid, &nonemb_cmd);
 	if (!tag) {
 		shost_printk(KERN_WARNING, phba->shost,
 			     "mgmt_invalidate_icds could not be"
 			     " submitted\n");
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
 		return FAILED;
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);
 		free_mcc_tag(&phba->ctrl, tag);
 	}
-
+	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			    nonemb_cmd.va, nonemb_cmd.dma);
 	return iscsi_eh_device_reset(sc);
 unlock:
 	spin_unlock_bh(&session->lock);

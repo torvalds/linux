@@ -87,15 +87,18 @@ struct mcc_wrb {
 };
 
 int mgmt_epfw_cleanup(struct beiscsi_hba *phba, unsigned short chute);
-int mgmt_open_connection(struct beiscsi_hba *phba, struct sockaddr *dst_addr,
-			 struct beiscsi_endpoint *beiscsi_ep);
+int mgmt_open_connection(struct beiscsi_hba *phba,
+			 struct sockaddr *dst_addr,
+			 struct beiscsi_endpoint *beiscsi_ep,
+			 struct be_dma_mem *nonemb_cmd);
 
 unsigned int mgmt_upload_connection(struct beiscsi_hba *phba,
 				     unsigned short cid,
 				     unsigned int upload_flag);
 unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				struct invalidate_command_table *inv_tbl,
-				unsigned int num_invalidate, unsigned int cid);
+				unsigned int num_invalidate, unsigned int cid,
+				struct be_dma_mem *nonemb_cmd);
 
 struct iscsi_invalidate_connection_params_in {
 	struct be_cmd_req_hdr hdr;

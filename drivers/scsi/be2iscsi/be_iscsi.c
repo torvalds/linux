@@ -488,6 +488,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	struct be_mcc_wrb *wrb;
 	struct tcp_connect_and_offload_out *ptcpcnct_out;
 	unsigned short status, extd_status;
+	struct be_dma_mem nonemb_cmd;
 	unsigned int tag, wrb_num;
 	int ret = -ENOMEM;
 
@@ -504,16 +505,31 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	if (beiscsi_ep->ep_cid > (phba->fw_config.iscsi_cid_start +
 				  phba->params.cxns_per_ctrl * 2)) {
 		SE_DEBUG(DBG_LVL_1, "Failed in allocate iscsi cid\n");
+		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		goto free_ep;
 	}
 
 	beiscsi_ep->cid_vld = 0;
-	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep);
+	nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
+				sizeof(struct tcp_connect_and_offload_in),
+				&nonemb_cmd.dma);
+	if (nonemb_cmd.va == NULL) {
+		SE_DEBUG(DBG_LVL_1,
+			 "Failed to allocate memory for mgmt_open_connection"
+			 "\n");
+		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+		return -ENOMEM;
+	}
+	nonemb_cmd.size = sizeof(struct tcp_connect_and_offload_in);
+	memset(nonemb_cmd.va, 0, nonemb_cmd.size);
+	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep, &nonemb_cmd);
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_1,
 			 "mgmt_open_connection Failed for cid=%d\n",
 			 beiscsi_ep->ep_cid);
 		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
 		return -EAGAIN;
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
@@ -526,7 +542,10 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		SE_DEBUG(DBG_LVL_1, "mgmt_open_connection Failed"
 				    " status = %d extd_status = %d\n",
 				    status, extd_status);
+		beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
 		free_mcc_tag(&phba->ctrl, tag);
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			    nonemb_cmd.va, nonemb_cmd.dma);
 		goto free_ep;
 	} else {
 		wrb = queue_get_wrb(mccq, wrb_num);
@@ -538,6 +557,9 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 		beiscsi_ep->cid_vld = 1;
 		SE_DEBUG(DBG_LVL_8, "mgmt_open_connection Success\n");
 	}
+	beiscsi_put_cid(phba, beiscsi_ep->ep_cid);
+	pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+			    nonemb_cmd.va, nonemb_cmd.dma);
 	return 0;
 
 free_ep:
