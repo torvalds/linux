@@ -91,6 +91,13 @@ static void update_blkif_status(blkif_t *blkif)
 		return;
 	}
 
+	err = filemap_write_and_wait(blkif->vbd.bdev->bd_inode->i_mapping);
+	if (err) {
+		xenbus_dev_error(blkif->be->dev, err, "block flush");
+		return;
+	}
+	invalidate_inode_pages2(blkif->vbd.bdev->bd_inode->i_mapping);
+
 	blkif->xenblkd = kthread_run(blkif_schedule, blkif, name);
 	if (IS_ERR(blkif->xenblkd)) {
 		err = PTR_ERR(blkif->xenblkd);
