@@ -57,6 +57,7 @@ config MACH_SMDKC100
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_HSMMC2
 	select SAMSUNG_DEV_KEYPAD
+	select S3C_DEV_RTC
 	select SAMSUNG_DEV_TS
 	select S3C_DEV_WDT
 	select HAVE_S3C2410_WATCHDOG
@@ -65,6 +66,7 @@ config MACH_SMDKC100
 	select S5PC100_SETUP_IDE
 	select S5PC100_SETUP_KEYPAD
 	select S5PC100_SETUP_SDHCI
+	select HAVE_S3C_RTC
 	help
 	  Machine support for the Samsung SMDKC100
 
