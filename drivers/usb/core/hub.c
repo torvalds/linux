@@ -20,6 +20,7 @@
 #include <linux/usb.h>
 #include <linux/usbdevice_fs.h>
 #include <linux/usb/hcd.h>
+#include <linux/usb/quirks.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
@@ -1802,7 +1803,6 @@ int usb_new_device(struct usb_device *udev)
 	pm_runtime_set_active(&udev->dev);
 	pm_runtime_enable(&udev->dev);
 
-	usb_detect_quirks(udev);
 	err = usb_enumerate_device(udev);	/* Read descriptors */
 	if (err < 0)
 		goto fail;
@@ -3113,6 +3113,10 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		status = hub_port_init(hub, udev, port1, i);
 		if (status < 0)
 			goto loop;
+
+		usb_detect_quirks(udev);
+		if (udev->quirks & USB_QUIRK_DELAY_INIT)
+			msleep(1000);
 
 		/* consecutive bus-powered hubs aren't reliable; they can
 		 * violate the voltage drop budget.  if the new child has
