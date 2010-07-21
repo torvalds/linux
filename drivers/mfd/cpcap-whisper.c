@@ -27,6 +27,7 @@
 #include <linux/workqueue.h>
 
 #include <linux/regulator/consumer.h>
+#include <linux/usb/otg.h>
 
 #include <linux/spi/cpcap.h>
 #include <linux/spi/cpcap-regbits.h>
@@ -96,6 +97,7 @@ struct cpcap_whisper_data {
 	struct switch_dev wsdev;
 	struct switch_dev dsdev;
 	struct switch_dev asdev;
+	struct otg_transceiver *otg;
 };
 
 static int whisper_debug;
@@ -202,6 +204,9 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
 					     CPCAP_BIT_VBUSPD);
 		gpio_set_value(data->pdata->data_gpio, 1);
+		if (data->otg)
+			blocking_notifier_call_chain(&data->otg->notifier,
+						     USB_EVENT_VBUS, NULL);
 		break;
 
 	case CPCAP_ACCY_USB_HOST:
@@ -209,6 +214,9 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 					     CPCAP_BIT_VBUSPD);
 		gpio_set_value(data->pdata->pwr_gpio, 1);
 		gpio_set_value(data->pdata->data_gpio, 1);
+		if (data->otg)
+			blocking_notifier_call_chain(&data->otg->notifier,
+						     USB_EVENT_ID, NULL);
 		break;
 
 	case CPCAP_ACCY_WHISPER:
@@ -237,6 +245,9 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC2, 0,
 					     CPCAP_BIT_USBXCVREN);
 		vusb_disable(data);
+		if (data->otg)
+			blocking_notifier_call_chain(&data->otg->notifier,
+						     USB_EVENT_NONE, NULL);
 		break;
 	}
 
@@ -538,6 +549,10 @@ static int cpcap_whisper_probe(struct platform_device *pdev)
 		goto free_irqs;
 	}
 
+#ifdef CONFIG_USB_CPCAP_OTG
+	data->otg = otg_get_transceiver();
+#endif
+
 	data->cpcap->accydata = data;
 	dev_info(&pdev->dev, "CPCAP Whisper detection probed\n");
 
@@ -580,6 +595,11 @@ static int __exit cpcap_whisper_remove(struct platform_device *pdev)
 
 	vusb_disable(data);
 	regulator_put(data->regulator);
+
+#ifdef CONFIG_USB_CPCAP_OTG
+	if (data->otg)
+		otg_put_transceiver(data->otg);
+#endif
 
 	wake_lock_destroy(&data->wake_lock);
 
