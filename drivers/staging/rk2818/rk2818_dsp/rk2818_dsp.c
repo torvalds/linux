@@ -138,8 +138,6 @@ struct rk28dsp_inf {
 
 #define DSP_CLOCK_ENABLE()		if(!inf->clk_enabled) { clk_enable(inf->clk);  inf->clk_enabled = 1; }
 #define DSP_CLOCK_DISABLE()		if(inf->clk_enabled)  { clk_disable(inf->clk); inf->clk_enabled = 0; }
-//#define DSP_CLOCK_ENABLE()		__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x10)) , SCU_BASE_ADDR_VA+0x1c);
-//#define DSP_CLOCK_DISABLE()		__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) | (0x02)) , SCU_BASE_ADDR_VA+0x1c);
 
 
 typedef enum _DSP_STATUS {
@@ -353,12 +351,12 @@ void dsp_powerctl(int ctl, int arg)
     {
     case DPC_NORMAL:
         {
-            /* dsp clock enable 0x12*/
-			DSP_CLOCK_ENABLE();
-
             /* dsp subsys power on 0x21*/
             __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x10) & (~0x21)) , SCU_BASE_ADDR_VA+0x10);
             mdelay(15);
+
+            /* dsp clock enable 0x12*/
+			DSP_CLOCK_ENABLE();
 
             /* dsp core & peripheral rst */
             __raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x28) | 0x02000030) , SCU_BASE_ADDR_VA+0x28);
@@ -446,11 +444,11 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 
 #if CLOSE_CLK_GATE
 			/* sram dsp clock enable */
-			DSP_CLOCK_ENABLE();
+			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x10)) , SCU_BASE_ADDR_VA+0x1c);
 			/* dsp ahb bus clock enable*/
 			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x24) & (~0x04)) , SCU_BASE_ADDR_VA+0x24);
 			/* dsp clock enable 0x12*/
-			__raw_writel((__raw_readl(SCU_BASE_ADDR_VA+0x1c) & (~0x02)) , SCU_BASE_ADDR_VA+0x1c);
+			DSP_CLOCK_ENABLE();
 #endif
 	        /* change dsp & arm to normal mode */
 	        inf->dsp_status = DS_NORMAL;
