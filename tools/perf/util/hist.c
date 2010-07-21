@@ -5,6 +5,12 @@
 #include "sort.h"
 #include <math.h>
 
+enum hist_filter {
+	HIST_FILTER__DSO,
+	HIST_FILTER__THREAD,
+	HIST_FILTER__PARENT,
+};
+
 struct callchain_param	callchain_param = {
 	.mode	= CHAIN_GRAPH_REL,
 	.min_percent = 0.5
@@ -52,9 +58,18 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 
 static void hists__inc_nr_entries(struct hists *self, struct hist_entry *entry)
 {
+	if (entry->filtered)
+		return;
 	if (entry->ms.sym && self->max_sym_namelen < entry->ms.sym->namelen)
 		self->max_sym_namelen = entry->ms.sym->namelen;
 	++self->nr_entries;
+}
+
+static u8 symbol__parent_filter(const struct symbol *parent)
+{
+	if (symbol_conf.exclude_other && parent == NULL)
+		return 1 << HIST_FILTER__PARENT;
+	return 0;
 }
 
 struct hist_entry *__hists__add_entry(struct hists *self,
@@ -75,6 +90,7 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		.level	= al->level,
 		.period	= period,
 		.parent = sym_parent,
+		.filtered = symbol__parent_filter(sym_parent),
 	};
 	int cmp;
 
@@ -789,11 +805,6 @@ print_entries:
 
 	return ret;
 }
-
-enum hist_filter {
-	HIST_FILTER__DSO,
-	HIST_FILTER__THREAD,
-};
 
 static void hists__remove_entry_filter(struct hists *self, struct hist_entry *h,
 				       enum hist_filter filter)
