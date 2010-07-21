@@ -457,12 +457,6 @@ struct rds_sock {
 	__be32			rs_conn_addr;
 	__be16			rs_bound_port;
 	__be16			rs_conn_port;
-
-	/*
-	 * This is only used to communicate the transport between bind and
-	 * initiating connections.  All other trans use is referenced through
-	 * the connection.
-	 */
 	struct rds_transport    *rs_transport;
 
 	/*
