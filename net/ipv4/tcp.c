@@ -608,6 +608,7 @@ ssize_t tcp_splice_read(struct socket *sock, loff_t *ppos,
 	ssize_t spliced;
 	int ret;
 
+	sock_rps_record_flow(sk);
 	/*
 	 * We can't seek on a socket input
 	 */
