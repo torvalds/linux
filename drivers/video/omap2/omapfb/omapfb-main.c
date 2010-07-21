@@ -2038,11 +2038,11 @@ static int omapfb_mode_to_timings(const char *mode_str,
 #ifdef CONFIG_OMAP2_DSS_VENC
 	if (strcmp(mode_str, "pal") == 0) {
 		*timings = omap_dss_pal_timings;
-		*bpp = 0;
+		*bpp = 24;
 		return 0;
 	} else if (strcmp(mode_str, "ntsc") == 0) {
 		*timings = omap_dss_ntsc_timings;
-		*bpp = 0;
+		*bpp = 24;
 		return 0;
 	}
 #endif
