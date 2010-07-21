@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
 
@@ -28,6 +29,7 @@
 #include <plat/adc.h>
 #include <plat/ts.h>
 #include <plat/ata.h>
+#include <plat/iic.h>
 #include <plat/keypad.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -107,10 +109,25 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s3c_device_hsmmc1,
 	&s3c_device_hsmmc2,
 	&s3c_device_hsmmc3,
+	&s3c_device_i2c0,
+	&s3c_device_i2c1,
+	&s3c_device_i2c2,
 	&samsung_device_keypad,
 	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
+};
+
+static struct i2c_board_info smdkv210_i2c_devs0[] __initdata = {
+	{ I2C_BOARD_INFO("24c08", 0x50), },     /* Samsung S524AD0XD1 */
+};
+
+static struct i2c_board_info smdkv210_i2c_devs1[] __initdata = {
+	/* To Be Updated */
+};
+
+static struct i2c_board_info smdkv210_i2c_devs2[] __initdata = {
+	/* To Be Updated */
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
@@ -130,6 +147,17 @@ static void __init smdkv210_machine_init(void)
 {
 	samsung_keypad_set_platdata(&smdkv210_keypad_data);
 	s3c24xx_ts_set_platdata(&s3c_ts_platform);
+
+	s3c_i2c0_set_platdata(NULL);
+	s3c_i2c1_set_platdata(NULL);
+	s3c_i2c2_set_platdata(NULL);
+	i2c_register_board_info(0, smdkv210_i2c_devs0,
+			ARRAY_SIZE(smdkv210_i2c_devs0));
+	i2c_register_board_info(1, smdkv210_i2c_devs1,
+			ARRAY_SIZE(smdkv210_i2c_devs1));
+	i2c_register_board_info(2, smdkv210_i2c_devs2,
+			ARRAY_SIZE(smdkv210_i2c_devs2));
+
 	s3c_ide_set_platdata(&smdkv210_ide_pdata);
 
 	platform_add_devices(smdkv210_devices, ARRAY_SIZE(smdkv210_devices));
