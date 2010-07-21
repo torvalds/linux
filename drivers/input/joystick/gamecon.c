@@ -578,7 +578,7 @@ static void gc_psx_command(struct gc *gc, int b, unsigned char *data)
 		read = parport_read_status(port) ^ 0x80;
 
 		for (j = 0; j < GC_MAX_DEVICES; j++) {
-			struct gc_pad *pad = &gc->pads[i];
+			struct gc_pad *pad = &gc->pads[j];
 
 			if (pad->type == GC_PSX || pad->type == GC_DDR)
 				data[j] |= (read & gc_status_bit[j]) ? (1 << i) : 0;
