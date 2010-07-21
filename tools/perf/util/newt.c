@@ -750,6 +750,7 @@ int hist_entry__tui_annotate(struct hist_entry *self)
 
 	browser.width += 18; /* Percentage */
 	ui_browser__show(&browser, self->ms.sym->name);
+	newtFormAddHotKey(browser.form, ' ');
 	ret = ui_browser__run(&browser, &es);
 	newtFormDestroy(browser.form);
 	newtPopWindow();
