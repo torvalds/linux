@@ -352,7 +352,7 @@ config ARCH_ENABLE_MEMORY_HOTREMOVE
 
 config KEXEC
 	bool "kexec system call (EXPERIMENTAL)"
-	depends on (PPC_BOOK3S || (FSL_BOOKE && !SMP)) && EXPERIMENTAL
+	depends on (PPC_BOOK3S || FSL_BOOKE) && EXPERIMENTAL
 	help
 	  kexec is a system call that implements the ability to shutdown your
 	  current kernel, and to start another kernel.  It is like a reboot
@@ -369,8 +369,8 @@ config KEXEC
 
 config CRASH_DUMP
 	bool "Build a kdump crash kernel"
-	depends on PPC64 || 6xx
-	select RELOCATABLE if PPC64
+	depends on PPC64 || 6xx || FSL_BOOKE
+	select RELOCATABLE if PPC64 || FSL_BOOKE
 	help
 	  Build a kernel suitable for use as a kdump capture kernel.
 	  The same kernel binary can be used as production kernel and dump
@@ -898,7 +898,7 @@ config KERNEL_START_BOOL
 config KERNEL_START
 	hex "Virtual address of kernel base" if KERNEL_START_BOOL
 	default PAGE_OFFSET if PAGE_OFFSET_BOOL
-	default "0xc2000000" if CRASH_DUMP
+	default "0xc2000000" if CRASH_DUMP && !RELOCATABLE
 	default "0xc0000000"
 
 config PHYSICAL_START_BOOL
@@ -911,7 +911,7 @@ config PHYSICAL_START_BOOL
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if PHYSICAL_START_BOOL
-	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP
+	default "0x02000000" if PPC_STD_MMU && CRASH_DUMP && !RELOCATABLE
 	default "0x00000000"
 
 config PHYSICAL_ALIGN
