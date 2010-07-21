@@ -443,12 +443,13 @@ nfsd_svc(unsigned short port, int nrservs)
 	if (error)
 		goto out_shutdown;
 	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
-	if (error == 0)
-		/* We are holding a reference to nfsd_serv which
-		 * we don't want to count in the return value,
-		 * so subtract 1
-		 */
-		error = nfsd_serv->sv_nrthreads - 1;
+	if (error)
+		goto out_destroy;
+	/* We are holding a reference to nfsd_serv which
+	 * we don't want to count in the return value,
+	 * so subtract 1
+	 */
+	error = nfsd_serv->sv_nrthreads - 1;
 out_destroy:
 	svc_destroy(nfsd_serv);		/* Release server */
 out_shutdown:
