@@ -135,7 +135,7 @@ void sysfs_delete_link(struct kobject *kobj, struct kobject *targ,
 {
 	const void *ns = NULL;
 	spin_lock(&sysfs_assoc_lock);
-	if (targ->sd)
+	if (targ->sd && sysfs_ns_type(kobj->sd))
 		ns = targ->sd->s_ns;
 	spin_unlock(&sysfs_assoc_lock);
 	sysfs_hash_and_remove(kobj->sd, ns, name);
