@@ -435,7 +435,10 @@ class TimeSlice:
 		self.__update_total_load(new_rq, in_rq)
 
 		ts_list.append(self)
-		self.event_cpus = [old_cpu, new_cpu]
+
+		if old_rq is not out_rq:
+			self.event_cpus.append(old_cpu)
+		self.event_cpus.append(new_cpu)
 
 	def wake_up(self, ts_list, pid, cpu, fork):
 		old_rq = self.prev.rqs[cpu]
