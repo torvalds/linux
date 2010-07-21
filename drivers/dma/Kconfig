@@ -33,6 +33,19 @@ if DMADEVICES
 
 comment "DMA Devices"
 
+config INTEL_MID_DMAC
+	tristate "Intel MID DMA support for Peripheral DMA controllers"
+	depends on PCI && X86
+	select DMA_ENGINE
+	default n
+	help
+	  Enable support for the Intel(R) MID DMA engine present
+	  in Intel MID chipsets.
+
+	  Say Y here if you have such a chipset.
+
+	  If unsure, say N.
+
 config ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	bool
 
