@@ -896,6 +896,10 @@ extern void nv10_fb_takedown(struct drm_device *);
 extern void nv10_fb_set_region_tiling(struct drm_device *, int, uint32_t,
 				      uint32_t, uint32_t);
 
+/* nv30_fb.c */
+extern int  nv30_fb_init(struct drm_device *);
+extern void nv30_fb_takedown(struct drm_device *);
+
 /* nv40_fb.c */
 extern int  nv40_fb_init(struct drm_device *);
 extern void nv40_fb_takedown(struct drm_device *);
