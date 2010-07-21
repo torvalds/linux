@@ -41,16 +41,16 @@
 #include <plat/adc.h>
 #include <plat/ts.h>
 
-#define S5P6440_UCON_DEFAULT    (S3C2410_UCON_TXILEVEL |	\
+#define SMDK6440_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				S3C2410_UCON_RXILEVEL |		\
 				S3C2410_UCON_TXIRQMODE |	\
 				S3C2410_UCON_RXIRQMODE |	\
 				S3C2410_UCON_RXFIFO_TOI |	\
 				S3C2443_UCON_RXERR_IRQEN)
 
-#define S5P6440_ULCON_DEFAULT	S3C2410_LCON_CS8
+#define SMDK6440_ULCON_DEFAULT	S3C2410_LCON_CS8
 
-#define S5P6440_UFCON_DEFAULT   (S3C2410_UFCON_FIFOMODE |	\
+#define SMDK6440_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
 				S3C2440_UFCON_TXTRIG16 |	\
 				S3C2410_UFCON_RXTRIG8)
 
@@ -58,30 +58,30 @@ static struct s3c2410_uartcfg smdk6440_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
-		.ucon	     = S5P6440_UCON_DEFAULT,
-		.ulcon	     = S5P6440_ULCON_DEFAULT,
-		.ufcon	     = S5P6440_UFCON_DEFAULT,
+		.ucon	     = SMDK6440_UCON_DEFAULT,
+		.ulcon	     = SMDK6440_ULCON_DEFAULT,
+		.ufcon	     = SMDK6440_UFCON_DEFAULT,
 	},
 	[1] = {
 		.hwport	     = 1,
 		.flags	     = 0,
-		.ucon	     = S5P6440_UCON_DEFAULT,
-		.ulcon	     = S5P6440_ULCON_DEFAULT,
-		.ufcon	     = S5P6440_UFCON_DEFAULT,
+		.ucon	     = SMDK6440_UCON_DEFAULT,
+		.ulcon	     = SMDK6440_ULCON_DEFAULT,
+		.ufcon	     = SMDK6440_UFCON_DEFAULT,
 	},
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
-		.ucon	     = S5P6440_UCON_DEFAULT,
-		.ulcon	     = S5P6440_ULCON_DEFAULT,
-		.ufcon	     = S5P6440_UFCON_DEFAULT,
+		.ucon	     = SMDK6440_UCON_DEFAULT,
+		.ulcon	     = SMDK6440_ULCON_DEFAULT,
+		.ufcon	     = SMDK6440_UFCON_DEFAULT,
 	},
 	[3] = {
 		.hwport	     = 3,
 		.flags	     = 0,
-		.ucon	     = S5P6440_UCON_DEFAULT,
-		.ulcon	     = S5P6440_ULCON_DEFAULT,
-		.ufcon	     = S5P6440_UFCON_DEFAULT,
+		.ucon	     = SMDK6440_UCON_DEFAULT,
+		.ulcon	     = SMDK6440_ULCON_DEFAULT,
+		.ufcon	     = SMDK6440_UFCON_DEFAULT,
 	},
 };
 

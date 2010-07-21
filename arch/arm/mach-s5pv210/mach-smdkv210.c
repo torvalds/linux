@@ -29,16 +29,16 @@
 #include <plat/ts.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
-#define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+#define SMDKV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				 S3C2410_UCON_RXILEVEL |	\
 				 S3C2410_UCON_TXIRQMODE |	\
 				 S3C2410_UCON_RXIRQMODE |	\
 				 S3C2410_UCON_RXFIFO_TOI |	\
 				 S3C2443_UCON_RXERR_IRQEN)
 
-#define S5PV210_ULCON_DEFAULT	S3C2410_LCON_CS8
+#define SMDKV210_ULCON_DEFAULT	S3C2410_LCON_CS8
 
-#define S5PV210_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
+#define SMDKV210_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
 				 S5PV210_UFCON_TXTRIG4 |	\
 				 S5PV210_UFCON_RXTRIG4)
 
@@ -46,30 +46,30 @@ static struct s3c2410_uartcfg smdkv210_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport		= 0,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKV210_UCON_DEFAULT,
+		.ulcon		= SMDKV210_ULCON_DEFAULT,
+		.ufcon		= SMDKV210_UFCON_DEFAULT,
 	},
 	[1] = {
 		.hwport		= 1,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKV210_UCON_DEFAULT,
+		.ulcon		= SMDKV210_ULCON_DEFAULT,
+		.ufcon		= SMDKV210_UFCON_DEFAULT,
 	},
 	[2] = {
 		.hwport		= 2,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKV210_UCON_DEFAULT,
+		.ulcon		= SMDKV210_ULCON_DEFAULT,
+		.ufcon		= SMDKV210_UFCON_DEFAULT,
 	},
 	[3] = {
 		.hwport		= 3,
 		.flags		= 0,
-		.ucon		= S5PV210_UCON_DEFAULT,
-		.ulcon		= S5PV210_ULCON_DEFAULT,
-		.ufcon		= S5PV210_UFCON_DEFAULT,
+		.ucon		= SMDKV210_UCON_DEFAULT,
+		.ulcon		= SMDKV210_ULCON_DEFAULT,
+		.ufcon		= SMDKV210_UFCON_DEFAULT,
 	},
 };
 

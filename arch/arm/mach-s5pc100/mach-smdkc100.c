@@ -44,16 +44,16 @@
 #include <plat/iic.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
-#define S5PC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
+#define SMDKC100_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
 				 S3C2410_UCON_RXILEVEL |	\
 				 S3C2410_UCON_TXIRQMODE |	\
 				 S3C2410_UCON_RXIRQMODE |	\
 				 S3C2410_UCON_RXFIFO_TOI |	\
 				 S3C2443_UCON_RXERR_IRQEN)
 
-#define S5PC100_ULCON_DEFAULT	S3C2410_LCON_CS8
+#define SMDKC100_ULCON_DEFAULT	S3C2410_LCON_CS8
 
-#define S5PC100_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
+#define SMDKC100_UFCON_DEFAULT	(S3C2410_UFCON_FIFOMODE |	\
 				 S3C2440_UFCON_RXTRIG8 |	\
 				 S3C2440_UFCON_TXTRIG16)
 
@@ -61,30 +61,30 @@ static struct s3c2410_uartcfg smdkc100_uartcfgs[] __initdata = {
 	[0] = {
 		.hwport	     = 0,
 		.flags	     = 0,
-		.ucon	     = S5PC100_UCON_DEFAULT,
-		.ulcon	     = S5PC100_ULCON_DEFAULT,
-		.ufcon	     = S5PC100_UFCON_DEFAULT,
+		.ucon	     = SMDKC100_UCON_DEFAULT,
+		.ulcon	     = SMDKC100_ULCON_DEFAULT,
+		.ufcon	     = SMDKC100_UFCON_DEFAULT,
 	},
 	[1] = {
 		.hwport	     = 1,
 		.flags	     = 0,
-		.ucon	     = S5PC100_UCON_DEFAULT,
-		.ulcon	     = S5PC100_ULCON_DEFAULT,
-		.ufcon	     = S5PC100_UFCON_DEFAULT,
+		.ucon	     = SMDKC100_UCON_DEFAULT,
+		.ulcon	     = SMDKC100_ULCON_DEFAULT,
+		.ufcon	     = SMDKC100_UFCON_DEFAULT,
 	},
 	[2] = {
 		.hwport	     = 2,
 		.flags	     = 0,
-		.ucon	     = S5PC100_UCON_DEFAULT,
-		.ulcon	     = S5PC100_ULCON_DEFAULT,
-		.ufcon	     = S5PC100_UFCON_DEFAULT,
+		.ucon	     = SMDKC100_UCON_DEFAULT,
+		.ulcon	     = SMDKC100_ULCON_DEFAULT,
+		.ufcon	     = SMDKC100_UFCON_DEFAULT,
 	},
 	[3] = {
 		.hwport	     = 3,
 		.flags	     = 0,
-		.ucon	     = S5PC100_UCON_DEFAULT,
-		.ulcon	     = S5PC100_ULCON_DEFAULT,
-		.ufcon	     = S5PC100_UFCON_DEFAULT,
+		.ucon	     = SMDKC100_UCON_DEFAULT,
+		.ulcon	     = SMDKC100_ULCON_DEFAULT,
+		.ufcon	     = SMDKC100_UFCON_DEFAULT,
 	},
 };
 
