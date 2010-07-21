@@ -34,7 +34,7 @@
  * being registered.  Consequently, the interrupt-based PCIe PME signaling will
  * not be used by any PCIe root ports in that case.
  */
-static bool pcie_pme_disabled;
+static bool pcie_pme_disabled = true;
 
 /*
  * The PCI Express Base Specification 2.0, Section 6.1.8, states the following:
@@ -64,12 +64,19 @@ bool pcie_pme_msi_disabled;
 
 static int __init pcie_pme_setup(char *str)
 {
-	if (!strcmp(str, "off"))
-		pcie_pme_disabled = true;
-	else if (!strcmp(str, "force"))
+	if (!strncmp(str, "auto", 4))
+		pcie_pme_disabled = false;
+	else if (!strncmp(str, "force", 5))
 		pcie_pme_force_enable = true;
-	else if (!strcmp(str, "nomsi"))
-		pcie_pme_msi_disabled = true;
+
+	str = strchr(str, ',');
+	if (str) {
+		str++;
+		str += strspn(str, " \t");
+		if (*str && !strcmp(str, "nomsi"))
+			pcie_pme_msi_disabled = true;
+	}
+
 	return 1;
 }
 __setup("pcie_pme=", pcie_pme_setup);

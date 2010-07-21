@@ -177,6 +177,7 @@ void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level);
+void rs690_pm_info(struct radeon_device *rdev);
 
 /*
  * Fences.
@@ -350,6 +351,7 @@ struct radeon_mc {
 	int			vram_mtrr;
 	bool			vram_is_ddr;
 	bool			igp_sideport_enabled;
+	u64                     gtt_base_align;
 };
 
 bool radeon_combios_sideport_present(struct radeon_device *rdev);
@@ -619,7 +621,8 @@ enum radeon_dynpm_state {
 	DYNPM_STATE_DISABLED,
 	DYNPM_STATE_MINIMUM,
 	DYNPM_STATE_PAUSED,
-	DYNPM_STATE_ACTIVE
+	DYNPM_STATE_ACTIVE,
+	DYNPM_STATE_SUSPENDED,
 };
 enum radeon_dynpm_action {
 	DYNPM_ACTION_NONE,

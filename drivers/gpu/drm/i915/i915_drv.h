@@ -596,6 +596,7 @@ typedef struct drm_i915_private {
 	struct drm_crtc *plane_to_crtc_mapping[2];
 	struct drm_crtc *pipe_to_crtc_mapping[2];
 	wait_queue_head_t pending_flip_queue;
+	bool flip_pending_is_done;
 
 	/* Reclocking support */
 	bool render_reclock_avail;
@@ -1076,7 +1077,7 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 	drm_i915_private_t *dev_priv = dev->dev_private;                \
 	if (I915_VERBOSE)						\
 		DRM_DEBUG("   BEGIN_LP_RING %x\n", (int)(n));		\
-	intel_ring_begin(dev, &dev_priv->render_ring, 4*(n));		\
+	intel_ring_begin(dev, &dev_priv->render_ring, (n));		\
 } while (0)
 
 

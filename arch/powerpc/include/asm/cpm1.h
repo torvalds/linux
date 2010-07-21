@@ -17,6 +17,7 @@
 #ifndef __CPM1__
 #define __CPM1__
 
+#include <linux/init.h>
 #include <asm/8xx_immap.h>
 #include <asm/ptrace.h>
 #include <asm/cpm.h>
@@ -54,7 +55,7 @@ extern cpm8xx_t __iomem *cpmp; /* Pointer to comm processor */
 
 extern void cpm_setbrg(uint brg, uint rate);
 
-extern void cpm_load_patch(cpm8xx_t *cp);
+extern void __init cpm_load_patch(cpm8xx_t *cp);
 
 extern void cpm_reset(void);
 

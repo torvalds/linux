@@ -575,6 +575,8 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 		 * 4    SFP_DA_CORE1 - 82599-specific
 		 * 5    SFP_SR/LR_CORE0 - 82599-specific
 		 * 6    SFP_SR/LR_CORE1 - 82599-specific
+		 * 7    SFP_act_lmt_DA_CORE0 - 82599-specific
+		 * 8    SFP_act_lmt_DA_CORE1 - 82599-specific
 		 */
 		if (hw->mac.type == ixgbe_mac_82598EB) {
 			if (cable_tech & IXGBE_SFF_DA_PASSIVE_CABLE)

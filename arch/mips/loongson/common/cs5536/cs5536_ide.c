@@ -51,6 +51,7 @@ void pci_ide_write_reg(int reg, u32 value)
 			lo |= SOFT_BAR_IDE_FLAG;
 			_wrmsr(GLCP_MSR_REG(GLCP_SOFT_COM), hi, lo);
 		} else if (value & 0x01) {
+			_rdmsr(IDE_MSR_REG(IDE_IO_BAR), &hi, &lo);
 			lo = (value & 0xfffffff0) | 0x1;
 			_wrmsr(IDE_MSR_REG(IDE_IO_BAR), hi, lo);
 
@@ -65,19 +66,30 @@ void pci_ide_write_reg(int reg, u32 value)
 			_rdmsr(DIVIL_MSR_REG(DIVIL_BALL_OPTS), &hi, &lo);
 			lo |= 0x01;
 			_wrmsr(DIVIL_MSR_REG(DIVIL_BALL_OPTS), hi, lo);
-		} else
+		} else {
+			_rdmsr(IDE_MSR_REG(IDE_CFG), &hi, &lo);
+			lo = value;
 			_wrmsr(IDE_MSR_REG(IDE_CFG), hi, lo);
+		}
 		break;
 	case PCI_IDE_DTC_REG:
+		_rdmsr(IDE_MSR_REG(IDE_DTC), &hi, &lo);
+		lo = value;
 		_wrmsr(IDE_MSR_REG(IDE_DTC), hi, lo);
 		break;
 	case PCI_IDE_CAST_REG:
+		_rdmsr(IDE_MSR_REG(IDE_CAST), &hi, &lo);
+		lo = value;
 		_wrmsr(IDE_MSR_REG(IDE_CAST), hi, lo);
 		break;
 	case PCI_IDE_ETC_REG:
+		_rdmsr(IDE_MSR_REG(IDE_ETC), &hi, &lo);
+		lo = value;
 		_wrmsr(IDE_MSR_REG(IDE_ETC), hi, lo);
 		break;
 	case PCI_IDE_PM_REG:
+		_rdmsr(IDE_MSR_REG(IDE_INTERNAL_PM), &hi, &lo);
+		lo = value;
 		_wrmsr(IDE_MSR_REG(IDE_INTERNAL_PM), hi, lo);
 		break;
 	default:
@@ -167,6 +179,7 @@ u32 pci_ide_read_reg(int reg)
 	case PCI_IDE_ETC_REG:
 		_rdmsr(IDE_MSR_REG(IDE_ETC), &hi, &lo);
 		conf_data = lo;
+		break;
 	case PCI_IDE_PM_REG:
 		_rdmsr(IDE_MSR_REG(IDE_INTERNAL_PM), &hi, &lo);
 		conf_data = lo;

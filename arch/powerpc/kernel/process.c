@@ -1005,7 +1005,6 @@ out:
 	return error;
 }
 
-#ifdef CONFIG_IRQSTACKS
 static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 				  unsigned long nbytes)
 {
@@ -1029,10 +1028,6 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	}
 	return 0;
 }
-
-#else
-#define valid_irq_stack(sp, p, nb)	0
-#endif /* CONFIG_IRQSTACKS */
 
 int validate_sp(unsigned long sp, struct task_struct *p,
 		       unsigned long nbytes)

@@ -205,7 +205,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 	{
 		struct icmphdr *icmph;
 
-		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph)))
+		if (!pskb_may_pull(skb, ihl + sizeof(*icmph)))
 			goto drop;
 
 		icmph = (void *)(skb_network_header(skb) + ihl);
@@ -214,6 +214,9 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		    (icmph->type != ICMP_TIME_EXCEEDED) &&
 		    (icmph->type != ICMP_PARAMETERPROB))
 			break;
+
+		if (!pskb_may_pull(skb, ihl + sizeof(*icmph) + sizeof(*iph)))
+			goto drop;
 
 		iph = (void *)(icmph + 1);
 		if (egress)

@@ -399,8 +399,8 @@ static void gigaset_freebcs(struct bc_state *bcs)
 	gig_dbg(DEBUG_INIT, "clearing bcs[%d]->at_state", bcs->channel);
 	clear_at_state(&bcs->at_state);
 	gig_dbg(DEBUG_INIT, "freeing bcs[%d]->skb", bcs->channel);
-	dev_kfree_skb(bcs->skb);
-	bcs->skb = NULL;
+	dev_kfree_skb(bcs->rx_skb);
+	bcs->rx_skb = NULL;
 
 	for (i = 0; i < AT_NUM; ++i) {
 		kfree(bcs->commands[i]);
@@ -634,19 +634,10 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	bcs->emptycount = 0;
 #endif
 
-	gig_dbg(DEBUG_INIT, "allocating bcs[%d]->skb", channel);
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_bufsize = 0;
+	bcs->rx_skb = NULL;
+	bcs->rx_fcs = PPP_INITFCS;
 	bcs->inputstate = 0;
-	if (cs->ignoreframes) {
-		bcs->skb = NULL;
-	} else {
-		bcs->skb = dev_alloc_skb(SBUFSIZE + cs->hw_hdr_len);
-		if (bcs->skb != NULL)
-			skb_reserve(bcs->skb, cs->hw_hdr_len);
-		else
-			pr_err("out of memory\n");
-	}
-
 	bcs->channel = channel;
 	bcs->cs = cs;
 
@@ -658,16 +649,15 @@ static struct bc_state *gigaset_initbcs(struct bc_state *bcs,
 	for (i = 0; i < AT_NUM; ++i)
 		bcs->commands[i] = NULL;
 
+	spin_lock_init(&bcs->aplock);
+	bcs->ap = NULL;
+	bcs->apconnstate = 0;
+
 	gig_dbg(DEBUG_INIT, "  setting up bcs[%d]->hw", channel);
 	if (cs->ops->initbcshw(bcs))
 		return bcs;
 
 	gig_dbg(DEBUG_INIT, "  failed");
-
-	gig_dbg(DEBUG_INIT, "  freeing bcs[%d]->skb", channel);
-	dev_kfree_skb(bcs->skb);
-	bcs->skb = NULL;
-
 	return NULL;
 }
 
@@ -839,14 +829,12 @@ void gigaset_bcs_reinit(struct bc_state *bcs)
 	bcs->emptycount = 0;
 #endif
 
-	bcs->fcs = PPP_INITFCS;
+	bcs->rx_fcs = PPP_INITFCS;
 	bcs->chstate = 0;
 
 	bcs->ignore = cs->ignoreframes;
-	if (bcs->ignore) {
-		dev_kfree_skb(bcs->skb);
-		bcs->skb = NULL;
-	}
+	dev_kfree_skb(bcs->rx_skb);
+	bcs->rx_skb = NULL;
 
 	cs->ops->reinitbcshw(bcs);
 }

@@ -162,44 +162,12 @@ psx_client_can_cache:
 	return 0;
 }
 
-static struct cifsFileInfo *
-cifs_fill_filedata(struct file *file)
-{
-	struct list_head *tmp;
-	struct cifsFileInfo *pCifsFile = NULL;
-	struct cifsInodeInfo *pCifsInode = NULL;
-
-	/* search inode for this file and fill in file->private_data */
-	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
-	read_lock(&GlobalSMBSeslock);
-	list_for_each(tmp, &pCifsInode->openFileList) {
-		pCifsFile = list_entry(tmp, struct cifsFileInfo, flist);
-		if ((pCifsFile->pfile == NULL) &&
-		    (pCifsFile->pid == current->tgid)) {
-			/* mode set in cifs_create */
-
-			/* needed for writepage */
-			pCifsFile->pfile = file;
-			file->private_data = pCifsFile;
-			break;
-		}
-	}
-	read_unlock(&GlobalSMBSeslock);
-
-	if (file->private_data != NULL) {
-		return pCifsFile;
-	} else if ((file->f_flags & O_CREAT) && (file->f_flags & O_EXCL))
-			cERROR(1, "could not find file instance for "
-				   "new file %p", file);
-	return NULL;
-}
-
 /* all arguments to this function must be checked for validity in caller */
-static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
-	struct cifsInodeInfo *pCifsInode, struct cifsFileInfo *pCifsFile,
+static inline int cifs_open_inode_helper(struct inode *inode,
 	struct cifsTconInfo *pTcon, int *oplock, FILE_ALL_INFO *buf,
 	char *full_path, int xid)
 {
+	struct cifsInodeInfo *pCifsInode = CIFS_I(inode);
 	struct timespec temp;
 	int rc;
 
@@ -213,36 +181,35 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 	/* if not oplocked, invalidate inode pages if mtime or file
 	   size changed */
 	temp = cifs_NTtimeToUnix(buf->LastWriteTime);
-	if (timespec_equal(&file->f_path.dentry->d_inode->i_mtime, &temp) &&
-			   (file->f_path.dentry->d_inode->i_size ==
+	if (timespec_equal(&inode->i_mtime, &temp) &&
+			   (inode->i_size ==
 			    (loff_t)le64_to_cpu(buf->EndOfFile))) {
 		cFYI(1, "inode unchanged on server");
 	} else {
-		if (file->f_path.dentry->d_inode->i_mapping) {
+		if (inode->i_mapping) {
 			/* BB no need to lock inode until after invalidate
 			since namei code should already have it locked? */
-			rc = filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
+			rc = filemap_write_and_wait(inode->i_mapping);
 			if (rc != 0)
-				CIFS_I(file->f_path.dentry->d_inode)->write_behind_rc = rc;
+				pCifsInode->write_behind_rc = rc;
 		}
 		cFYI(1, "invalidating remote inode since open detected it "
 			 "changed");
-		invalidate_remote_inode(file->f_path.dentry->d_inode);
+		invalidate_remote_inode(inode);
 	}
 
 client_can_cache:
 	if (pTcon->unix_ext)
-		rc = cifs_get_inode_info_unix(&file->f_path.dentry->d_inode,
-			full_path, inode->i_sb, xid);
+		rc = cifs_get_inode_info_unix(&inode, full_path, inode->i_sb,
+					      xid);
 	else
-		rc = cifs_get_inode_info(&file->f_path.dentry->d_inode,
-			full_path, buf, inode->i_sb, xid, NULL);
+		rc = cifs_get_inode_info(&inode, full_path, buf, inode->i_sb,
+					 xid, NULL);
 
 	if ((*oplock & 0xF) == OPLOCK_EXCLUSIVE) {
 		pCifsInode->clientCanCacheAll = true;
 		pCifsInode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p",
-			 file->f_path.dentry->d_inode);
+		cFYI(1, "Exclusive Oplock granted on inode %p", inode);
 	} else if ((*oplock & 0xF) == OPLOCK_READ)
 		pCifsInode->clientCanCacheRead = true;
 
@@ -256,7 +223,7 @@ int cifs_open(struct inode *inode, struct file *file)
 	__u32 oplock;
 	struct cifs_sb_info *cifs_sb;
 	struct cifsTconInfo *tcon;
-	struct cifsFileInfo *pCifsFile;
+	struct cifsFileInfo *pCifsFile = NULL;
 	struct cifsInodeInfo *pCifsInode;
 	char *full_path = NULL;
 	int desiredAccess;
@@ -270,12 +237,6 @@ int cifs_open(struct inode *inode, struct file *file)
 	tcon = cifs_sb->tcon;
 
 	pCifsInode = CIFS_I(file->f_path.dentry->d_inode);
-	pCifsFile = cifs_fill_filedata(file);
-	if (pCifsFile) {
-		rc = 0;
-		FreeXid(xid);
-		return rc;
-	}
 
 	full_path = build_path_from_dentry(file->f_path.dentry);
 	if (full_path == NULL) {
@@ -299,8 +260,7 @@ int cifs_open(struct inode *inode, struct file *file)
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
 		oflags |= SMB_O_CREAT;
 		/* can not refresh inode info since size could be stale */
-		rc = cifs_posix_open(full_path, &inode, file->f_path.mnt,
-				inode->i_sb,
+		rc = cifs_posix_open(full_path, &inode, inode->i_sb,
 				cifs_sb->mnt_file_mode /* ignored */,
 				oflags, &oplock, &netfid, xid);
 		if (rc == 0) {
@@ -308,9 +268,20 @@ int cifs_open(struct inode *inode, struct file *file)
 			/* no need for special case handling of setting mode
 			   on read only files needed here */
 
-			pCifsFile = cifs_fill_filedata(file);
-			cifs_posix_open_inode_helper(inode, file, pCifsInode,
-						     oplock, netfid);
+			rc = cifs_posix_open_inode_helper(inode, file,
+					pCifsInode, oplock, netfid);
+			if (rc != 0) {
+				CIFSSMBClose(xid, tcon, netfid);
+				goto out;
+			}
+
+			pCifsFile = cifs_new_fileinfo(inode, netfid, file,
+							file->f_path.mnt,
+							oflags);
+			if (pCifsFile == NULL) {
+				CIFSSMBClose(xid, tcon, netfid);
+				rc = -ENOMEM;
+			}
 			goto out;
 		} else if ((rc == -EINVAL) || (rc == -EOPNOTSUPP)) {
 			if (tcon->ses->serverNOS)
@@ -391,16 +362,16 @@ int cifs_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
+	rc = cifs_open_inode_helper(inode, tcon, &oplock, buf, full_path, xid);
+	if (rc != 0)
+		goto out;
+
 	pCifsFile = cifs_new_fileinfo(inode, netfid, file, file->f_path.mnt,
 					file->f_flags);
-	file->private_data = pCifsFile;
-	if (file->private_data == NULL) {
+	if (pCifsFile == NULL) {
 		rc = -ENOMEM;
 		goto out;
 	}
-
-	rc = cifs_open_inode_helper(inode, file, pCifsInode, pCifsFile, tcon,
-				    &oplock, buf, full_path, xid);
 
 	if (oplock & CIFS_CREATE_ACTION) {
 		/* time to set mode which we can not set earlier due to
@@ -513,8 +484,7 @@ reopen_error_exit:
 			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
 		int oflags = (int) cifs_posix_convert_flags(file->f_flags);
 		/* can not refresh inode info since size could be stale */
-		rc = cifs_posix_open(full_path, NULL, file->f_path.mnt,
-				inode->i_sb,
+		rc = cifs_posix_open(full_path, NULL, inode->i_sb,
 				cifs_sb->mnt_file_mode /* ignored */,
 				oflags, &oplock, &netfid, xid);
 		if (rc == 0) {

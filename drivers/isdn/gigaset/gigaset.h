@@ -45,10 +45,6 @@
 #define MAX_EVENTS 64		/* size of event queue */
 
 #define RBUFSIZE 8192
-#define SBUFSIZE 4096		/* sk_buff payload size */
-
-#define TRANSBUFSIZE 768	/* bytes per skb for transparent receive */
-#define MAX_BUF_SIZE (SBUFSIZE - 2)	/* Max. size of a data packet from LL */
 
 /* compile time options */
 #define GIG_MAJOR 0
@@ -190,10 +186,9 @@ void gigaset_dbg_buffer(enum debuglevel level, const unsigned char *msg,
 #define AT_BC		3
 #define AT_PROTO	4
 #define AT_TYPE		5
-#define AT_HLC		6
-#define AT_CLIP		7
+#define AT_CLIP		6
 /* total number */
-#define AT_NUM		8
+#define AT_NUM		7
 
 /* variables in struct at_state_t */
 #define VAR_ZSAU	0
@@ -380,8 +375,10 @@ struct bc_state {
 
 	struct at_state_t at_state;
 
-	__u16 fcs;
-	struct sk_buff *skb;
+	/* receive buffer */
+	unsigned rx_bufsize;		/* max size accepted by application */
+	struct sk_buff *rx_skb;
+	__u16 rx_fcs;
 	int inputstate;			/* see INS_XXXX */
 
 	int channel;
@@ -406,7 +403,9 @@ struct bc_state {
 		struct bas_bc_state *bas;	/* usb hardware driver (base) */
 	} hw;
 
-	void *ap;			/* LL application structure */
+	void *ap;			/* associated LL application */
+	int apconnstate;		/* LL application connection state */
+	spinlock_t aplock;
 };
 
 struct cardstate {
@@ -801,8 +800,23 @@ static inline void gigaset_bchannel_up(struct bc_state *bcs)
 	gigaset_schedule_event(bcs->cs);
 }
 
-/* handling routines for sk_buff */
-/* ============================= */
+/* set up next receive skb for data mode */
+static inline struct sk_buff *gigaset_new_rx_skb(struct bc_state *bcs)
+{
+	struct cardstate *cs = bcs->cs;
+	unsigned short hw_hdr_len = cs->hw_hdr_len;
+
+	if (bcs->ignore) {
+		bcs->rx_skb = NULL;
+	} else {
+		bcs->rx_skb = dev_alloc_skb(bcs->rx_bufsize + hw_hdr_len);
+		if (bcs->rx_skb == NULL)
+			dev_warn(cs->dev, "could not allocate skb\n");
+		else
+			skb_reserve(bcs->rx_skb, hw_hdr_len);
+	}
+	return bcs->rx_skb;
+}
 
 /* append received bytes to inbuf */
 int gigaset_fill_inbuf(struct inbuf_t *inbuf, const unsigned char *src,
