@@ -25,6 +25,10 @@ struct clk {
 	int			id;
 
 	struct clk		*parent;
+	struct clk		**parent_table;	/* list of parents to */
+	unsigned short		parent_num;	/* choose between */
+	unsigned char		src_shift;	/* source clock field in the */
+	unsigned char		src_width;	/* configuration register */
 	struct clk_ops		*ops;
 
 	struct list_head	children;
