@@ -1069,65 +1069,6 @@ static struct trace_event trace_wake_event = {
 	.funcs		= &trace_wake_funcs,
 };
 
-/* TRACE_SPECIAL */
-static enum print_line_t trace_special_print(struct trace_iterator *iter,
-					     int flags, struct trace_event *event)
-{
-	struct special_entry *field;
-
-	trace_assign_type(field, iter->ent);
-
-	if (!trace_seq_printf(&iter->seq, "# %ld %ld %ld\n",
-			      field->arg1,
-			      field->arg2,
-			      field->arg3))
-		return TRACE_TYPE_PARTIAL_LINE;
-
-	return TRACE_TYPE_HANDLED;
-}
-
-static enum print_line_t trace_special_hex(struct trace_iterator *iter,
-					   int flags, struct trace_event *event)
-{
-	struct special_entry *field;
-	struct trace_seq *s = &iter->seq;
-
-	trace_assign_type(field, iter->ent);
-
-	SEQ_PUT_HEX_FIELD_RET(s, field->arg1);
-	SEQ_PUT_HEX_FIELD_RET(s, field->arg2);
-	SEQ_PUT_HEX_FIELD_RET(s, field->arg3);
-
-	return TRACE_TYPE_HANDLED;
-}
-
-static enum print_line_t trace_special_bin(struct trace_iterator *iter,
-					   int flags, struct trace_event *event)
-{
-	struct special_entry *field;
-	struct trace_seq *s = &iter->seq;
-
-	trace_assign_type(field, iter->ent);
-
-	SEQ_PUT_FIELD_RET(s, field->arg1);
-	SEQ_PUT_FIELD_RET(s, field->arg2);
-	SEQ_PUT_FIELD_RET(s, field->arg3);
-
-	return TRACE_TYPE_HANDLED;
-}
-
-static struct trace_event_functions trace_special_funcs = {
-	.trace		= trace_special_print,
-	.raw		= trace_special_print,
-	.hex		= trace_special_hex,
-	.binary		= trace_special_bin,
-};
-
-static struct trace_event trace_special_event = {
-	.type		= TRACE_SPECIAL,
-	.funcs		= &trace_special_funcs,
-};
-
 /* TRACE_STACK */
 
 static enum print_line_t trace_stack_print(struct trace_iterator *iter,
@@ -1161,9 +1102,6 @@ static enum print_line_t trace_stack_print(struct trace_iterator *iter,
 
 static struct trace_event_functions trace_stack_funcs = {
 	.trace		= trace_stack_print,
-	.raw		= trace_special_print,
-	.hex		= trace_special_hex,
-	.binary		= trace_special_bin,
 };
 
 static struct trace_event trace_stack_event = {
@@ -1194,9 +1132,6 @@ static enum print_line_t trace_user_stack_print(struct trace_iterator *iter,
 
 static struct trace_event_functions trace_user_stack_funcs = {
 	.trace		= trace_user_stack_print,
-	.raw		= trace_special_print,
-	.hex		= trace_special_hex,
-	.binary		= trace_special_bin,
 };
 
 static struct trace_event trace_user_stack_event = {
@@ -1314,7 +1249,6 @@ static struct trace_event *events[] __initdata = {
 	&trace_fn_event,
 	&trace_ctx_event,
 	&trace_wake_event,
-	&trace_special_event,
 	&trace_stack_event,
 	&trace_user_stack_event,
 	&trace_bprint_event,

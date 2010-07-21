@@ -151,23 +151,6 @@ FTRACE_ENTRY_DUP(wakeup, ctx_switch_entry,
 );
 
 /*
- * Special (free-form) trace entry:
- */
-FTRACE_ENTRY(special, special_entry,
-
-	TRACE_SPECIAL,
-
-	F_STRUCT(
-		__field(	unsigned long,	arg1	)
-		__field(	unsigned long,	arg2	)
-		__field(	unsigned long,	arg3	)
-	),
-
-	F_printk("(%08lx) (%08lx) (%08lx)",
-		 __entry->arg1, __entry->arg2, __entry->arg3)
-);
-
-/*
  * Stack-trace entry:
  */
 
