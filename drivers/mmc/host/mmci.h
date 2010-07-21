@@ -145,6 +145,7 @@
 #define NR_SG		16
 
 struct clk;
+struct variant_data;
 
 struct mmci_host {
 	void __iomem		*base;
@@ -164,6 +165,7 @@ struct mmci_host {
 	unsigned int		cclk;
 	u32			pwr;
 	struct mmci_platform_data *plat;
+	struct variant_data	*variant;
 
 	u8			hw_designer;
 	u8			hw_revision:4;

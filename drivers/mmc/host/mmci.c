@@ -36,12 +36,30 @@
 
 static unsigned int fmax = 515633;
 
+/**
+ * struct variant_data - MMCI variant-specific quirks
+ * @clkreg: default value for MCICLOCK register
+ */
+struct variant_data {
+	unsigned int		clkreg;
+};
+
+static struct variant_data variant_arm = {
+};
+
+static struct variant_data variant_u300 = {
+};
+
+static struct variant_data variant_ux500 = {
+	.clkreg			= MCI_CLK_ENABLE,
+};
 /*
  * This must be called with host->lock held
  */
 static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 {
-	u32 clk = 0;
+	struct variant_data *variant = host->variant;
+	u32 clk = variant->clkreg;
 
 	if (desired) {
 		if (desired >= host->mclk) {
@@ -563,6 +581,7 @@ static const struct mmc_host_ops mmci_ops = {
 static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 {
 	struct mmci_platform_data *plat = dev->dev.platform_data;
+	struct variant_data *variant = id->data;
 	struct mmci_host *host;
 	struct mmc_host *mmc;
 	int ret;
@@ -606,6 +625,7 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 		goto clk_free;
 
 	host->plat = plat;
+	host->variant = variant;
 	host->mclk = clk_get_rate(host->clk);
 	/*
 	 * According to the spec, mclk is max 100 MHz,
@@ -845,19 +865,28 @@ static struct amba_id mmci_ids[] = {
 	{
 		.id	= 0x00041180,
 		.mask	= 0x000fffff,
+		.data	= &variant_arm,
 	},
 	{
 		.id	= 0x00041181,
 		.mask	= 0x000fffff,
+		.data	= &variant_arm,
 	},
 	/* ST Micro variants */
 	{
 		.id     = 0x00180180,
 		.mask   = 0x00ffffff,
+		.data	= &variant_u300,
 	},
 	{
 		.id     = 0x00280180,
 		.mask   = 0x00ffffff,
+		.data	= &variant_u300,
+	},
+	{
+		.id     = 0x00480180,
+		.mask   = 0x00ffffff,
+		.data	= &variant_ux500,
 	},
 	{ 0, 0 },
 };
