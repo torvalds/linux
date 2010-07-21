@@ -359,6 +359,7 @@ struct beiscsi_conn {
 	u32 beiscsi_conn_cid;
 	struct beiscsi_endpoint *ep;
 	unsigned short login_in_progress;
+	struct wrb_handle *plogin_wrb_handle;
 	struct sgl_handle *plogin_sgl_handle;
 	struct beiscsi_session *beiscsi_sess;
 	struct iscsi_task *task;
