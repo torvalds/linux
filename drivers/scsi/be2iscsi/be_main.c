@@ -41,6 +41,8 @@
 static unsigned int be_iopoll_budget = 10;
 static unsigned int be_max_phys_size = 64;
 static unsigned int enable_msix = 1;
+static unsigned int gcrashmode = 0;
+static unsigned int num_hba = 0;
 
 MODULE_DEVICE_TABLE(pci, beiscsi_pci_id_table);
 MODULE_DESCRIPTION(DRV_DESC " " BUILD_STR);
@@ -3731,6 +3733,8 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 	struct hwi_context_memory *phwi_context;
 	struct be_eq_obj *pbe_eq;
 	unsigned int i, msix_vec;
+	u8 *real_offset = 0;
+	u32 value = 0;
 
 	phba = (struct beiscsi_hba *)pci_get_drvdata(pcidev);
 	if (!phba) {
@@ -3759,6 +3763,14 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 
 	beiscsi_clean_port(phba);
 	beiscsi_free_mem(phba);
+	real_offset = (u8 *)phba->csr_va + MPU_EP_SEMAPHORE;
+
+	value = readl((void *)real_offset);
+
+	if (value & 0x00010000) {
+		value &= 0xfffeffff;
+		writel(value, (void *)real_offset);
+	}
 	beiscsi_unmap_pci_function(phba);
 	pci_free_consistent(phba->pcidev,
 			    phba->ctrl.mbox_mem_alloced.size,
@@ -3792,6 +3804,8 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	struct hwi_context_memory *phwi_context;
 	struct be_eq_obj *pbe_eq;
 	int ret, num_cpus, i;
+	u8 *real_offset = 0;
+	u32 value = 0;
 
 	ret = beiscsi_enable_pci(pcidev);
 	if (ret < 0) {
@@ -3835,6 +3849,33 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe-"
 				"Failed in be_ctrl_init\n");
 		goto hba_free;
+	}
+
+	if (!num_hba) {
+		real_offset = (u8 *)phba->csr_va + MPU_EP_SEMAPHORE;
+		value = readl((void *)real_offset);
+		if (value & 0x00010000) {
+			gcrashmode++;
+			shost_printk(KERN_ERR, phba->shost,
+				"Loading Driver in crashdump mode\n");
+			ret = beiscsi_pci_soft_reset(phba);
+			if (ret) {
+				shost_printk(KERN_ERR, phba->shost,
+					"Reset Failed. Aborting Crashdump\n");
+				goto hba_free;
+			}
+			ret = be_chk_reset_complete(phba);
+			if (ret) {
+				shost_printk(KERN_ERR, phba->shost,
+					"Failed to get out of reset."
+					"Aborting Crashdump\n");
+				goto hba_free;
+			}
+		} else {
+			value |= 0x00010000;
+			writel(value, (void *)real_offset);
+			num_hba++;
+		}
 	}
 
 	spin_lock_init(&phba->io_sgl_lock);
@@ -3907,6 +3948,15 @@ free_twq:
 	beiscsi_clean_port(phba);
 	beiscsi_free_mem(phba);
 free_port:
+	real_offset = (u8 *)phba->csr_va + MPU_EP_SEMAPHORE;
+
+	value = readl((void *)real_offset);
+
+	if (value & 0x00010000) {
+		value &= 0xfffeffff;
+		writel(value, (void *)real_offset);
+	}
+
 	pci_free_consistent(phba->pcidev,
 			    phba->ctrl.mbox_mem_alloced.size,
 			    phba->ctrl.mbox_mem_alloced.va,

@@ -901,6 +901,9 @@ struct be_fw_cfg {
 						 * the cxn
 						 */
 
+int beiscsi_pci_soft_reset(struct beiscsi_hba *phba);
+int be_chk_reset_complete(struct beiscsi_hba *phba);
+
 void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 			bool embedded, u8 sge_cnt);
 

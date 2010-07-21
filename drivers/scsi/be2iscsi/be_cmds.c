@@ -19,6 +19,86 @@
 #include "be_mgmt.h"
 #include "be_main.h"
 
+int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
+{
+	u32 sreset;
+	u8 *pci_reset_offset = 0;
+	u8 *pci_online0_offset = 0;
+	u8 *pci_online1_offset = 0;
+	u32 pconline0 = 0;
+	u32 pconline1 = 0;
+	u32 i;
+
+	pci_reset_offset = (u8 *)phba->pci_va + BE2_SOFT_RESET;
+	pci_online0_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE0;
+	pci_online1_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE1;
+	sreset = readl((void *)pci_reset_offset);
+	sreset |= BE2_SET_RESET;
+	writel(sreset, (void *)pci_reset_offset);
+
+	i = 0;
+	while (sreset & BE2_SET_RESET) {
+		if (i > 64)
+			break;
+		msleep(100);
+		sreset = readl((void *)pci_reset_offset);
+		i++;
+	}
+
+	if (sreset & BE2_SET_RESET) {
+		printk(KERN_ERR "Soft Reset  did not deassert\n");
+		return -EIO;
+	}
+	pconline1 = BE2_MPU_IRAM_ONLINE;
+	writel(pconline0, (void *)pci_online0_offset);
+	writel(pconline1, (void *)pci_online1_offset);
+
+	sreset = BE2_SET_RESET;
+	writel(sreset, (void *)pci_reset_offset);
+
+	i = 0;
+	while (sreset & BE2_SET_RESET) {
+		if (i > 64)
+			break;
+		msleep(1);
+		sreset = readl((void *)pci_reset_offset);
+		i++;
+	}
+	if (sreset & BE2_SET_RESET) {
+		printk(KERN_ERR "MPU Online Soft Reset did not deassert\n");
+		return -EIO;
+	}
+	return 0;
+}
+
+int be_chk_reset_complete(struct beiscsi_hba *phba)
+{
+	unsigned int num_loop;
+	u8 *mpu_sem = 0;
+	u32 status;
+
+	num_loop = 1000;
+	mpu_sem = (u8 *)phba->csr_va + MPU_EP_SEMAPHORE;
+	msleep(5000);
+
+	while (num_loop) {
+		status = readl((void *)mpu_sem);
+
+		if ((status & 0x80000000) || (status & 0x0000FFFF) == 0xC000)
+			break;
+		msleep(60);
+		num_loop--;
+	}
+
+	if ((status & 0x80000000) || (!num_loop)) {
+		printk(KERN_ERR "Failed in be_chk_reset_complete"
+		"status = 0x%x\n", status);
+		return -EIO;
+	}
+
+	return 0;
+}
+
 void be_mcc_notify(struct beiscsi_hba *phba)
 {
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
