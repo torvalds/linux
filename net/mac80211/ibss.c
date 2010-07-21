@@ -943,11 +943,6 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 		}
 	}
 
-	del_timer_sync(&sdata->u.ibss.timer);
-	clear_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
-	cancel_work_sync(&sdata->work);
-	clear_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
-
 	sta_info_flush(sdata->local, sdata);
 
 	/* remove beacon */
@@ -963,6 +958,20 @@ int ieee80211_ibss_leave(struct ieee80211_sub_if_data *sdata)
 	skb_queue_purge(&sdata->skb_queue);
 	memset(sdata->u.ibss.bssid, 0, ETH_ALEN);
 	sdata->u.ibss.ssid_len = 0;
+
+	/*
+	 * ssid_len indicates active or not, so needs to be visible to
+	 * everybody, especially ieee80211_ibss_notify_scan_completed,
+	 * so it won't restart the timer after we remove it here.
+	 */
+	mb();
+
+	del_timer_sync(&sdata->u.ibss.timer);
+	clear_bit(IEEE80211_IBSS_REQ_RUN, &sdata->u.ibss.request);
+	/*
+	 * Since the REQ_RUN bit is clear, the work won't do
+	 * anything if it runs after this.
+	 */
 
 	ieee80211_recalc_idle(sdata->local);
 
