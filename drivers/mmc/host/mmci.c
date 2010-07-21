@@ -120,7 +120,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		data->blksz, data->blocks, data->flags);
 
 	host->data = data;
-	host->size = data->blksz;
+	host->size = data->blksz * data->blocks;
 	host->data_xfered = 0;
 
 	mmci_init_sg(host, data);
