@@ -118,6 +118,8 @@ static unsigned char	fec_mac_default[] = {
 #define FEC_ENET_MII	((uint)0x00800000)	/* MII interrupt */
 #define FEC_ENET_EBERR	((uint)0x00400000)	/* SDMA bus error */
 
+#define FEC_DEFAULT_IMASK (FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII)
+
 /* The FEC stores dest/src/type, data, and checksum for receive packets.
  */
 #define PKT_MAXBUF_SIZE		1518
@@ -1213,8 +1215,7 @@ fec_restart(struct net_device *dev, int duplex)
 	writel(0, fep->hwp + FEC_R_DES_ACTIVE);
 
 	/* Enable interrupts we wish to service */
-	writel(FEC_ENET_TXF | FEC_ENET_RXF | FEC_ENET_MII,
-			fep->hwp + FEC_IMASK);
+	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 }
 
 static void
@@ -1233,8 +1234,8 @@ fec_stop(struct net_device *dev)
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
 	udelay(10);
-
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
+	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 }
 
 static int __devinit
