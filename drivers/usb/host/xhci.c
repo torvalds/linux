@@ -20,6 +20,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/pci.h>
 #include <linux/irq.h>
 #include <linux/log2.h>
 #include <linux/module.h>
@@ -171,22 +172,95 @@ int xhci_reset(struct xhci_hcd *xhci)
 	return handshake(xhci, &xhci->op_regs->status, STS_CNR, 0, 250 * 1000);
 }
 
-
-#if 0
-/* Set up MSI-X table for entry 0 (may claim other entries later) */
-static int xhci_setup_msix(struct xhci_hcd *xhci)
+static irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd)
 {
-	int ret;
+	irqreturn_t ret;
+
+	set_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
+
+	ret = xhci_irq(hcd);
+
+	return ret;
+}
+
+/*
+ * Free IRQs
+ * free all IRQs request
+ */
+static void xhci_free_irq(struct xhci_hcd *xhci)
+{
+	int i;
 	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 
-	xhci->msix_count = 0;
-	/* XXX: did I do this right?  ixgbe does kcalloc for more than one */
-	xhci->msix_entries = kmalloc(sizeof(struct msix_entry), GFP_KERNEL);
+	/* return if using legacy interrupt */
+	if (xhci_to_hcd(xhci)->irq >= 0)
+		return;
+
+	if (xhci->msix_entries) {
+		for (i = 0; i < xhci->msix_count; i++)
+			if (xhci->msix_entries[i].vector)
+				free_irq(xhci->msix_entries[i].vector,
+						xhci_to_hcd(xhci));
+	} else if (pdev->irq >= 0)
+		free_irq(pdev->irq, xhci_to_hcd(xhci));
+
+	return;
+}
+
+/*
+ * Set up MSI
+ */
+static int xhci_setup_msi(struct xhci_hcd *xhci)
+{
+	int ret;
+	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	ret = pci_enable_msi(pdev);
+	if (ret) {
+		xhci_err(xhci, "failed to allocate MSI entry\n");
+		return ret;
+	}
+
+	ret = request_irq(pdev->irq, (irq_handler_t)xhci_msi_irq,
+				0, "xhci_hcd", xhci_to_hcd(xhci));
+	if (ret) {
+		xhci_err(xhci, "disable MSI interrupt\n");
+		pci_disable_msi(pdev);
+	}
+
+	return ret;
+}
+
+/*
+ * Set up MSI-X
+ */
+static int xhci_setup_msix(struct xhci_hcd *xhci)
+{
+	int i, ret = 0;
+	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
+
+	/*
+	 * calculate number of msi-x vectors supported.
+	 * - HCS_MAX_INTRS: the max number of interrupts the host can handle,
+	 *   with max number of interrupters based on the xhci HCSPARAMS1.
+	 * - num_online_cpus: maximum msi-x vectors per CPUs core.
+	 *   Add additional 1 vector to ensure always available interrupt.
+	 */
+	xhci->msix_count = min(num_online_cpus() + 1,
+				HCS_MAX_INTRS(xhci->hcs_params1));
+
+	xhci->msix_entries =
+		kmalloc((sizeof(struct msix_entry))*xhci->msix_count,
+				GFP_KERNEL);
 	if (!xhci->msix_entries) {
 		xhci_err(xhci, "Failed to allocate MSI-X entries\n");
 		return -ENOMEM;
 	}
-	xhci->msix_entries[0].entry = 0;
+
+	for (i = 0; i < xhci->msix_count; i++) {
+		xhci->msix_entries[i].entry = i;
+		xhci->msix_entries[i].vector = 0;
+	}
 
 	ret = pci_enable_msix(pdev, xhci->msix_entries, xhci->msix_count);
 	if (ret) {
@@ -194,20 +268,19 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 		goto free_entries;
 	}
 
-	/*
-	 * Pass the xhci pointer value as the request_irq "cookie".
-	 * If more irqs are added, this will need to be unique for each one.
-	 */
-	ret = request_irq(xhci->msix_entries[0].vector, &xhci_irq, 0,
-			"xHCI", xhci_to_hcd(xhci));
-	if (ret) {
-		xhci_err(xhci, "Failed to allocate MSI-X interrupt\n");
-		goto disable_msix;
+	for (i = 0; i < xhci->msix_count; i++) {
+		ret = request_irq(xhci->msix_entries[i].vector,
+				(irq_handler_t)xhci_msi_irq,
+				0, "xhci_hcd", xhci_to_hcd(xhci));
+		if (ret)
+			goto disable_msix;
 	}
-	xhci_dbg(xhci, "Finished setting up MSI-X\n");
-	return 0;
+
+	return ret;
 
 disable_msix:
+	xhci_err(xhci, "disable MSI-X interrupt\n");
+	xhci_free_irq(xhci);
 	pci_disable_msix(pdev);
 free_entries:
 	kfree(xhci->msix_entries);
@@ -215,21 +288,23 @@ free_entries:
 	return ret;
 }
 
-/* XXX: code duplication; can xhci_setup_msix call this? */
 /* Free any IRQs and disable MSI-X */
 static void xhci_cleanup_msix(struct xhci_hcd *xhci)
 {
 	struct pci_dev *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
-	if (!xhci->msix_entries)
-		return;
 
-	free_irq(xhci->msix_entries[0].vector, xhci);
-	pci_disable_msix(pdev);
-	kfree(xhci->msix_entries);
-	xhci->msix_entries = NULL;
-	xhci_dbg(xhci, "Finished cleaning up MSI-X\n");
+	xhci_free_irq(xhci);
+
+	if (xhci->msix_entries) {
+		pci_disable_msix(pdev);
+		kfree(xhci->msix_entries);
+		xhci->msix_entries = NULL;
+	} else {
+		pci_disable_msi(pdev);
+	}
+
+	return;
 }
-#endif
 
 /*
  * Initialize memory for HCD and xHC (one-time init).
@@ -423,20 +498,36 @@ int xhci_run(struct usb_hcd *hcd)
 {
 	u32 temp;
 	u64 temp_64;
+	u32 ret;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct pci_dev  *pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 	void (*doorbell)(struct xhci_hcd *) = NULL;
 
 	hcd->uses_new_polling = 1;
 
 	xhci_dbg(xhci, "xhci_run\n");
-#if 0	/* FIXME: MSI not setup yet */
-	/* Do this at the very last minute */
-	ret = xhci_setup_msix(xhci);
-	if (!ret)
-		return ret;
+	/* unregister the legacy interrupt */
+	if (hcd->irq)
+		free_irq(hcd->irq, hcd);
+	hcd->irq = -1;
 
-	return -ENOSYS;
-#endif
+	ret = xhci_setup_msix(xhci);
+	if (ret)
+		/* fall back to msi*/
+		ret = xhci_setup_msi(xhci);
+
+	if (ret) {
+		/* fall back to legacy interrupt*/
+		ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
+					hcd->irq_descr, hcd);
+		if (ret) {
+			xhci_err(xhci, "request interrupt %d failed\n",
+					pdev->irq);
+			return ret;
+		}
+		hcd->irq = pdev->irq;
+	}
+
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 	init_timer(&xhci->event_ring_timer);
 	xhci->event_ring_timer.data = (unsigned long) xhci;
@@ -520,11 +611,9 @@ void xhci_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
 	xhci_reset(xhci);
+	xhci_cleanup_msix(xhci);
 	spin_unlock_irq(&xhci->lock);
 
-#if 0	/* No MSI yet */
-	xhci_cleanup_msix(xhci);
-#endif
 #ifdef CONFIG_USB_XHCI_HCD_DEBUGGING
 	/* Tell the event ring poll function not to reschedule */
 	xhci->zombie = 1;
@@ -558,11 +647,8 @@ void xhci_shutdown(struct usb_hcd *hcd)
 
 	spin_lock_irq(&xhci->lock);
 	xhci_halt(xhci);
-	spin_unlock_irq(&xhci->lock);
-
-#if 0
 	xhci_cleanup_msix(xhci);
-#endif
+	spin_unlock_irq(&xhci->lock);
 
 	xhci_dbg(xhci, "xhci_shutdown completed - status = %x\n",
 		    xhci_readl(xhci, &xhci->op_regs->status));

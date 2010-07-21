@@ -1130,7 +1130,7 @@ struct xhci_hcd {
 	int		page_size;
 	/* Valid values are 12 to 20, inclusive */
 	int		page_shift;
-	/* only one MSI vector for now, but might need more later */
+	/* msi-x vectors */
 	int		msix_count;
 	struct msix_entry	*msix_entries;
 	/* data structures */
