@@ -41,6 +41,7 @@ extern struct snd_soc_codec_device soc_codec_dev_twl4030;
 
 struct twl4030_setup_data {
 	unsigned int ramp_delay_value;
+	unsigned int digimic_delay; /* in ms */
 	unsigned int sysclk;
 	unsigned int offset_cncl_path;
 	unsigned int check_defaults:1;

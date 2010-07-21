@@ -143,6 +143,9 @@ struct twl4030_priv {
 	u8 earpiece_enabled;
 	u8 predrivel_enabled, predriver_enabled;
 	u8 carkitl_enabled, carkitr_enabled;
+
+	/* Delay needed after enabling the digimic interface */
+	unsigned int digimic_delay;
 };
 
 /*
@@ -311,6 +314,8 @@ static void twl4030_init_chip(struct platform_device *pdev)
 	/* Machine dependent setup */
 	if (!setup)
 		return;
+
+	twl4030->digimic_delay = setup->digimic_delay;
 
 	/* Configuration for headset ramp delay from setup data */
 	if (setup->sysclk != twl4030->sysclk)
@@ -540,10 +545,11 @@ static const struct snd_kcontrol_new twl4030_dapm_abypassl2_control =
 static const struct snd_kcontrol_new twl4030_dapm_abypassv_control =
 	SOC_DAPM_SINGLE("Switch", TWL4030_REG_VDL_APGA_CTL, 2, 1, 0);
 
-/* Digital bypass gain, 0 mutes the bypass */
+/* Digital bypass gain, mute instead of -30dB */
 static const unsigned int twl4030_dapm_dbypass_tlv[] = {
-	TLV_DB_RANGE_HEAD(2),
-	0, 3, TLV_DB_SCALE_ITEM(-2400, 0, 1),
+	TLV_DB_RANGE_HEAD(3),
+	0, 1, TLV_DB_SCALE_ITEM(-3000, 600, 1),
+	2, 3, TLV_DB_SCALE_ITEM(-2400, 0, 0),
 	4, 7, TLV_DB_SCALE_ITEM(-1800, 600, 0),
 };
 
@@ -851,6 +857,16 @@ static int headsetrpga_event(struct snd_soc_dapm_widget *w,
 		twl4030->hsr_enabled = 0;
 		break;
 	}
+	return 0;
+}
+
+static int digimic_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(w->codec);
+
+	if (twl4030->digimic_delay)
+		mdelay(twl4030->digimic_delay);
 	return 0;
 }
 
@@ -1438,10 +1454,12 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("ADC Physical Right",
 		TWL4030_REG_AVADC_CTL, 1, 0, NULL, 0),
 
-	SND_SOC_DAPM_PGA("Digimic0 Enable",
-		TWL4030_REG_ADCMICSEL, 1, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Digimic1 Enable",
-		TWL4030_REG_ADCMICSEL, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA_E("Digimic0 Enable",
+		TWL4030_REG_ADCMICSEL, 1, 0, NULL, 0,
+		digimic_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_E("Digimic1 Enable",
+		TWL4030_REG_ADCMICSEL, 3, 0, NULL, 0,
+		digimic_event, SND_SOC_DAPM_POST_PMU),
 
 	SND_SOC_DAPM_MICBIAS("Mic Bias 1", TWL4030_REG_MICBIAS_CTL, 0, 0),
 	SND_SOC_DAPM_MICBIAS("Mic Bias 2", TWL4030_REG_MICBIAS_CTL, 1, 0),
@@ -1459,8 +1477,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	/* Supply for the digital part (APLL) */
 	{"Digital Voice Playback Mixer", NULL, "APLL Enable"},
 
-	{"Digital R1 Playback Mixer", NULL, "AIF Enable"},
-	{"Digital L1 Playback Mixer", NULL, "AIF Enable"},
+	{"DAC Left1", NULL, "AIF Enable"},
+	{"DAC Right1", NULL, "AIF Enable"},
+	{"DAC Left2", NULL, "AIF Enable"},
+	{"DAC Right1", NULL, "AIF Enable"},
+
 	{"Digital R2 Playback Mixer", NULL, "AIF Enable"},
 	{"Digital L2 Playback Mixer", NULL, "AIF Enable"},
 
@@ -1531,10 +1552,10 @@ static const struct snd_soc_dapm_route intercon[] = {
 
 	/* outputs */
 	/* Must be always connected (for AIF and APLL) */
-	{"Virtual HiFi OUT", NULL, "Digital L1 Playback Mixer"},
-	{"Virtual HiFi OUT", NULL, "Digital R1 Playback Mixer"},
-	{"Virtual HiFi OUT", NULL, "Digital L2 Playback Mixer"},
-	{"Virtual HiFi OUT", NULL, "Digital R2 Playback Mixer"},
+	{"Virtual HiFi OUT", NULL, "DAC Left1"},
+	{"Virtual HiFi OUT", NULL, "DAC Right1"},
+	{"Virtual HiFi OUT", NULL, "DAC Left2"},
+	{"Virtual HiFi OUT", NULL, "DAC Right2"},
 	/* Must be always connected (for APLL) */
 	{"Virtual Voice OUT", NULL, "Digital Voice Playback Mixer"},
 	/* Physical outputs */
