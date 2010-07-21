@@ -39,19 +39,23 @@ static unsigned int fmax = 515633;
 /**
  * struct variant_data - MMCI variant-specific quirks
  * @clkreg: default value for MCICLOCK register
+ * @clkreg_enable: enable value for MMCICLOCK register
  */
 struct variant_data {
 	unsigned int		clkreg;
+	unsigned int		clkreg_enable;
 };
 
 static struct variant_data variant_arm = {
 };
 
 static struct variant_data variant_u300 = {
+	.clkreg_enable		= 1 << 13, /* HWFCEN */
 };
 
 static struct variant_data variant_ux500 = {
 	.clkreg			= MCI_CLK_ENABLE,
+	.clkreg_enable		= 1 << 14, /* HWFCEN */
 };
 /*
  * This must be called with host->lock held
@@ -71,8 +75,8 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 				clk = 255;
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
-		if (host->hw_designer == AMBA_VENDOR_ST)
-			clk |= MCI_ST_FCEN; /* Bug fix in ST IP block */
+
+		clk |= variant->clkreg_enable;
 		clk |= MCI_CLK_ENABLE;
 		/* This hasn't proven to be worthwhile */
 		/* clk |= MCI_CLK_PWRSAVE; */

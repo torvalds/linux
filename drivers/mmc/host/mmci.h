@@ -28,8 +28,6 @@
 #define MCI_4BIT_BUS		(1 << 11)
 /* 8bit wide buses supported in ST Micro versions */
 #define MCI_ST_8BIT_BUS		(1 << 12)
-/* HW flow control on the ST Micro version */
-#define MCI_ST_FCEN		(1 << 13)
 
 #define MMCIARGUMENT		0x008
 #define MMCICOMMAND		0x00c
