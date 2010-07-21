@@ -59,15 +59,15 @@ void __cpuinit mxcsr_feature_mask_init(void)
 	stts();
 }
 
-void __cpuinit init_thread_xstate(void)
+static void __cpuinit init_thread_xstate(void)
 {
+	/*
+	 * Note that xstate_size might be overwriten later during
+	 * xsave_init().
+	 */
+
 	if (!HAVE_HWFP) {
 		xstate_size = sizeof(struct i387_soft_struct);
-		return;
-	}
-
-	if (cpu_has_xsave) {
-		xsave_cntxt_init();
 		return;
 	}
 
@@ -84,6 +84,7 @@ void __cpuinit init_thread_xstate(void)
  * Called at bootup to set up the initial FPU state that is later cloned
  * into all processes.
  */
+
 void __cpuinit fpu_init(void)
 {
 	unsigned long oldcr0 = read_cr0();
@@ -93,14 +94,24 @@ void __cpuinit fpu_init(void)
 
 	write_cr0(oldcr0 & ~(X86_CR0_TS|X86_CR0_EM)); /* clear TS and EM */
 
-	xsave_init();
+	if (!smp_processor_id())
+		init_thread_xstate();
 
 	mxcsr_feature_mask_init();
 	/* clean state in init */
 	current_thread_info()->status = 0;
 	clear_used_math();
 }
-#endif	/* CONFIG_X86_64 */
+
+#else	/* CONFIG_X86_64 */
+
+void __cpuinit fpu_init(void)
+{
+	if (!smp_processor_id())
+		init_thread_xstate();
+}
+
+#endif	/* CONFIG_X86_32 */
 
 static void fpu_finit(struct fpu *fpu)
 {

@@ -362,9 +362,6 @@ unsigned int sig_xstate_size = sizeof(struct _fpstate);
  */
 static void __cpuinit __xsave_init(void)
 {
-	if (!cpu_has_xsave)
-		return;
-
 	set_in_cr4(X86_CR4_OSXSAVE);
 
 	/*
@@ -429,7 +426,7 @@ static void __init setup_xstate_init(void)
 /*
  * Enable and initialize the xsave feature.
  */
-void __ref xsave_cntxt_init(void)
+static void __cpuinit xsave_cntxt_init(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -466,10 +463,13 @@ void __ref xsave_cntxt_init(void)
 
 void __cpuinit xsave_init(void)
 {
+	if (!cpu_has_xsave)
+		return;
+
 	/*
 	 * Boot processor to setup the FP and extended state context info.
 	 */
 	if (!smp_processor_id())
-		init_thread_xstate();
+		xsave_cntxt_init();
 	__xsave_init();
 }
