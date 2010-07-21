@@ -67,6 +67,12 @@ static void __cpuinit init_thread_xstate(void)
 	 */
 
 	if (!HAVE_HWFP) {
+		/*
+		 * Disable xsave as we do not support it if i387
+		 * emulation is enabled.
+		 */
+		setup_clear_cpu_cap(X86_FEATURE_XSAVE);
+		setup_clear_cpu_cap(X86_FEATURE_XSAVEOPT);
 		xstate_size = sizeof(struct i387_soft_struct);
 		return;
 	}
