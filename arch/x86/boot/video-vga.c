@@ -41,13 +41,12 @@ static __videocard video_vga;
 static u8 vga_set_basic_mode(void)
 {
 	struct biosregs ireg, oreg;
-	u16 ax;
 	u8 mode;
 
 	initregs(&ireg);
 
 	/* Query current mode */
-	ax = 0x0f00;
+	ireg.ax = 0x0f00;
 	intcall(0x10, &ireg, &oreg);
 	mode = oreg.al;
 

@@ -140,10 +140,10 @@ static int deliver_clone(const struct net_bridge_port *prev,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb))
 {
+	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb) {
-		struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
-
 		dev->stats.tx_dropped++;
 		return -ENOMEM;
 	}

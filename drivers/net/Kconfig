@@ -2754,6 +2754,7 @@ config MYRI10GE_DCA
 config NETXEN_NIC
 	tristate "NetXen Multi port (1/10) Gigabit Ethernet NIC"
 	depends on PCI
+	select FW_LOADER
 	help
 	  This enables the support for NetXen's Gigabit Ethernet card.
 
@@ -2819,6 +2820,7 @@ config BNX2X
 config QLCNIC
 	tristate "QLOGIC QLCNIC 1/10Gb Converged Ethernet NIC Support"
 	depends on PCI
+	select FW_LOADER
 	help
 	  This driver supports QLogic QLE8240 and QLE8242 Converged Ethernet
 	  devices.

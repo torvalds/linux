@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 
 #include <asm/delay.h>
 #include <sound/core.h>

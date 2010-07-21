@@ -1149,13 +1149,10 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	else
 		req->cmd_flags |= bio->bi_rw & REQ_FAILFAST_MASK;
 
-	if (unlikely(bio_rw_flagged(bio, BIO_RW_DISCARD))) {
+	if (bio_rw_flagged(bio, BIO_RW_DISCARD))
 		req->cmd_flags |= REQ_DISCARD;
-		if (bio_rw_flagged(bio, BIO_RW_BARRIER))
-			req->cmd_flags |= REQ_SOFTBARRIER;
-	} else if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER)))
+	if (bio_rw_flagged(bio, BIO_RW_BARRIER))
 		req->cmd_flags |= REQ_HARDBARRIER;
-
 	if (bio_rw_flagged(bio, BIO_RW_SYNCIO))
 		req->cmd_flags |= REQ_RW_SYNC;
 	if (bio_rw_flagged(bio, BIO_RW_META))
@@ -1586,7 +1583,7 @@ void submit_bio(int rw, struct bio *bio)
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (bio_has_data(bio)) {
+	if (bio_has_data(bio) && !(rw & (1 << BIO_RW_DISCARD))) {
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {

@@ -79,7 +79,13 @@ void rs690_pm_info(struct radeon_device *rdev)
 			tmp.full = dfixed_const(100);
 			rdev->pm.igp_sideport_mclk.full = dfixed_const(info->info.ulBootUpMemoryClock);
 			rdev->pm.igp_sideport_mclk.full = dfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-			rdev->pm.igp_system_mclk.full = dfixed_const(le16_to_cpu(info->info.usK8MemoryClock));
+			if (info->info.usK8MemoryClock)
+				rdev->pm.igp_system_mclk.full = dfixed_const(le16_to_cpu(info->info.usK8MemoryClock));
+			else if (rdev->clock.default_mclk) {
+				rdev->pm.igp_system_mclk.full = dfixed_const(rdev->clock.default_mclk);
+				rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
+			} else
+				rdev->pm.igp_system_mclk.full = dfixed_const(400);
 			rdev->pm.igp_ht_link_clk.full = dfixed_const(le16_to_cpu(info->info.usFSBClock));
 			rdev->pm.igp_ht_link_width.full = dfixed_const(info->info.ucHTLinkWidth);
 			break;
@@ -87,34 +93,31 @@ void rs690_pm_info(struct radeon_device *rdev)
 			tmp.full = dfixed_const(100);
 			rdev->pm.igp_sideport_mclk.full = dfixed_const(info->info_v2.ulBootUpSidePortClock);
 			rdev->pm.igp_sideport_mclk.full = dfixed_div(rdev->pm.igp_sideport_mclk, tmp);
-			rdev->pm.igp_system_mclk.full = dfixed_const(info->info_v2.ulBootUpUMAClock);
+			if (info->info_v2.ulBootUpUMAClock)
+				rdev->pm.igp_system_mclk.full = dfixed_const(info->info_v2.ulBootUpUMAClock);
+			else if (rdev->clock.default_mclk)
+				rdev->pm.igp_system_mclk.full = dfixed_const(rdev->clock.default_mclk);
+			else
+				rdev->pm.igp_system_mclk.full = dfixed_const(66700);
 			rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
 			rdev->pm.igp_ht_link_clk.full = dfixed_const(info->info_v2.ulHTLinkFreq);
 			rdev->pm.igp_ht_link_clk.full = dfixed_div(rdev->pm.igp_ht_link_clk, tmp);
 			rdev->pm.igp_ht_link_width.full = dfixed_const(le16_to_cpu(info->info_v2.usMinHTLinkWidth));
 			break;
 		default:
-			tmp.full = dfixed_const(100);
 			/* We assume the slower possible clock ie worst case */
-			/* DDR 333Mhz */
-			rdev->pm.igp_sideport_mclk.full = dfixed_const(333);
-			/* FIXME: system clock ? */
-			rdev->pm.igp_system_mclk.full = dfixed_const(100);
-			rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
-			rdev->pm.igp_ht_link_clk.full = dfixed_const(200);
+			rdev->pm.igp_sideport_mclk.full = dfixed_const(200);
+			rdev->pm.igp_system_mclk.full = dfixed_const(200);
+			rdev->pm.igp_ht_link_clk.full = dfixed_const(1000);
 			rdev->pm.igp_ht_link_width.full = dfixed_const(8);
 			DRM_ERROR("No integrated system info for your GPU, using safe default\n");
 			break;
 		}
 	} else {
-		tmp.full = dfixed_const(100);
 		/* We assume the slower possible clock ie worst case */
-		/* DDR 333Mhz */
-		rdev->pm.igp_sideport_mclk.full = dfixed_const(333);
-		/* FIXME: system clock ? */
-		rdev->pm.igp_system_mclk.full = dfixed_const(100);
-		rdev->pm.igp_system_mclk.full = dfixed_div(rdev->pm.igp_system_mclk, tmp);
-		rdev->pm.igp_ht_link_clk.full = dfixed_const(200);
+		rdev->pm.igp_sideport_mclk.full = dfixed_const(200);
+		rdev->pm.igp_system_mclk.full = dfixed_const(200);
+		rdev->pm.igp_ht_link_clk.full = dfixed_const(1000);
 		rdev->pm.igp_ht_link_width.full = dfixed_const(8);
 		DRM_ERROR("No integrated system info for your GPU, using safe default\n");
 	}
@@ -228,10 +231,6 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 	fixed20_12 a, b, c;
 	fixed20_12 pclk, request_fifo_depth, tolerable_latency, estimated_width;
 	fixed20_12 consumption_time, line_time, chunk_time, read_delay_latency;
-	/* FIXME: detect IGP with sideport memory, i don't think there is any
-	 * such product available
-	 */
-	bool sideport = false;
 
 	if (!crtc->base.enabled) {
 		/* FIXME: wouldn't it better to set priority mark to maximum */
@@ -300,7 +299,7 @@ void rs690_crtc_bandwidth_compute(struct radeon_device *rdev,
 
 	/* Maximun bandwidth is the minimun bandwidth of all component */
 	rdev->pm.max_bandwidth = rdev->pm.core_bandwidth;
-	if (sideport) {
+	if (rdev->mc.igp_sideport_enabled) {
 		if (rdev->pm.max_bandwidth.full > rdev->pm.sideport_bandwidth.full &&
 			rdev->pm.sideport_bandwidth.full)
 			rdev->pm.max_bandwidth = rdev->pm.sideport_bandwidth;

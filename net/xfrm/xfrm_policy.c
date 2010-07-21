@@ -2300,7 +2300,8 @@ int xfrm_bundle_ok(struct xfrm_policy *pol, struct xfrm_dst *first,
 			return 0;
 		if (xdst->xfrm_genid != dst->xfrm->genid)
 			return 0;
-		if (xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
+		if (xdst->num_pols > 0 &&
+		    xdst->policy_genid != atomic_read(&xdst->pols[0]->genid))
 			return 0;
 
 		if (strict && fl &&

@@ -206,6 +206,7 @@ static int synaptics_resolution(struct psmouse *psmouse)
 	unsigned char max[3];
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
+		return 0;
 
 	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res) == 0) {
 		if (res[0] != 0 && (res[1] & 0x80) && res[2] != 0) {

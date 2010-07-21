@@ -69,7 +69,7 @@ static irqreturn_t pcf8574_kp_irq_handler(int irq, void *dev_id)
 	unsigned char nextstate = read_state(lp);
 
 	if (lp->laststate != nextstate) {
-		int key_down = nextstate <= ARRAY_SIZE(lp->btncode);
+		int key_down = nextstate < ARRAY_SIZE(lp->btncode);
 		unsigned short keycode = key_down ?
 			lp->btncode[nextstate] : lp->btncode[lp->laststate];
 

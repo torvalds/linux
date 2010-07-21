@@ -132,7 +132,7 @@ config PPC
 	select HAVE_ARCH_KGDB
 	select HAVE_KRETPROBES
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_DMA_ATTRS
 	select HAVE_DMA_API_DEBUG
 	select USE_GENERIC_SMP_HELPERS if SMP
@@ -400,7 +400,7 @@ config IRQ_ALL_CPUS
 
 config SPARSE_IRQ
 	bool "Support sparse irq numbering"
-	default y
+	default n
 	help
 	  This enables support for sparse irqs. This is useful for distro
 	  kernels that want to define a high CONFIG_NR_CPUS value but still
@@ -409,7 +409,7 @@ config SPARSE_IRQ
 	  ( Sparse IRQs can also be beneficial on NUMA boxes, as they spread
 	    out the irq_desc[] array in a more NUMA-friendly way. )
 
-	  If you don't know what to do here, say Y.
+	  If you don't know what to do here, say N.
 
 config NUMA
 	bool "NUMA support"

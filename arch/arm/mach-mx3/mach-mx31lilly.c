@@ -115,6 +115,8 @@ static struct platform_device physmap_flash_device = {
 
 /* USB */
 
+#if defined(CONFIG_USB_ULPI)
+
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
 			PAD_CTL_ODE_CMOS | PAD_CTL_100K_PU)
 
@@ -244,10 +246,20 @@ static struct mxc_usbh_platform_data usbh2_pdata = {
 	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
 };
 
-static struct platform_device *devices[] __initdata = {
-	&smsc91x_device,
-	&physmap_flash_device,
-};
+static void lilly1131_usb_init(void)
+{
+	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+
+	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
+	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+}
+
+#else
+static inline void lilly1131_usb_init(void) {}
+#endif /* CONFIG_USB_ULPI */
 
 /* SPI */
 
@@ -277,6 +289,11 @@ static struct spi_board_info mc13783_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select	= 0,
 	.platform_data	= &mc13783_pdata,
+};
+
+static struct platform_device *devices[] __initdata = {
+	&smsc91x_device,
+	&physmap_flash_device,
 };
 
 static int mx31lilly_baseboard;
@@ -321,13 +338,7 @@ static void __init mx31lilly_board_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	/* USB */
-	usbotg_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
-	usbh2_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
-				USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
-
-	mxc_register_device(&mxc_usbh1, &usbh1_pdata);
-	mxc_register_device(&mxc_usbh2, &usbh2_pdata);
+	lilly1131_usb_init();
 }
 
 static void __init mx31lilly_timer_init(void)

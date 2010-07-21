@@ -33,7 +33,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_device.h>
 #include <linux/phy.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/system.h>
 #include <asm/atomic.h>
@@ -325,7 +325,7 @@ static void __init mpc85xx_mds_setup_arch(void)
 #endif	/* CONFIG_QUICC_ENGINE */
 
 #ifdef CONFIG_SWIOTLB
-	if (lmb_end_of_DRAM() > max) {
+	if (memblock_end_of_DRAM() > max) {
 		ppc_swiotlb_enable = 1;
 		set_pci_dma_ops(&swiotlb_dma_ops);
 		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;

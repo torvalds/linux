@@ -206,6 +206,7 @@ enum radeon_connector_table {
 	CT_MINI_INTERNAL,
 	CT_IMAC_G5_ISIGHT,
 	CT_EMAC,
+	CT_RN50_POWER,
 };
 
 enum radeon_dvo_chip {
