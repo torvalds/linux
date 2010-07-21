@@ -89,7 +89,6 @@ struct gc_pad {
 struct gc {
 	struct pardevice *pd;
 	struct gc_pad pads[GC_MAX_DEVICES];
-	struct input_dev *dev[GC_MAX_DEVICES];
 	struct timer_list timer;
 	int pad_count[GC_MAX];
 	int used;
@@ -387,7 +386,7 @@ static void gc_nes_process_packet(struct gc *gc)
 	for (i = 0; i < GC_MAX_DEVICES; i++) {
 
 		pad = &gc->pads[i];
-		dev = gc->dev[i];
+		dev = pad->dev;
 		s = gc_status_bit[i];
 
 		switch (pad->type) {
