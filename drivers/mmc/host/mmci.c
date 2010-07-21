@@ -40,22 +40,27 @@ static unsigned int fmax = 515633;
  * struct variant_data - MMCI variant-specific quirks
  * @clkreg: default value for MCICLOCK register
  * @clkreg_enable: enable value for MMCICLOCK register
+ * @datalength_bits: number of bits in the MMCIDATALENGTH register
  */
 struct variant_data {
 	unsigned int		clkreg;
 	unsigned int		clkreg_enable;
+	unsigned int		datalength_bits;
 };
 
 static struct variant_data variant_arm = {
+	.datalength_bits	= 16,
 };
 
 static struct variant_data variant_u300 = {
 	.clkreg_enable		= 1 << 13, /* HWFCEN */
+	.datalength_bits	= 16,
 };
 
 static struct variant_data variant_ux500 = {
 	.clkreg			= MCI_CLK_ENABLE,
 	.clkreg_enable		= 1 << 14, /* HWFCEN */
+	.datalength_bits	= 24,
 };
 /*
  * This must be called with host->lock held
@@ -699,10 +704,11 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 	mmc->max_phys_segs = NR_SG;
 
 	/*
-	 * Since we only have a 16-bit data length register, we must
-	 * ensure that we don't exceed 2^16-1 bytes in a single request.
+	 * Since only a certain number of bits are valid in the data length
+	 * register, we must ensure that we don't exceed 2^num-1 bytes in a
+	 * single request.
 	 */
-	mmc->max_req_size = 65535;
+	mmc->max_req_size = (1 << variant->datalength_bits) - 1;
 
 	/*
 	 * Set the maximum segment size.  Since we aren't doing DMA
