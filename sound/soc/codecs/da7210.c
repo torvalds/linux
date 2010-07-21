@@ -23,6 +23,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/tlv.h>
 
 #include "da7210.h"
 
@@ -136,6 +137,29 @@
 
 #define DA7210_VERSION "0.0.1"
 
+/*
+ * Playback Volume
+ *
+ * max		: 0x3F (+15.0 dB)
+ *		   (1.5 dB step)
+ * min		: 0x11 (-54.0 dB)
+ * mute		: 0x10
+ * reserved	: 0x00 - 0x0F
+ *
+ * ** FIXME **
+ *
+ * Reserved area are considered as "mute".
+ * -> min = -79.5 dB
+ */
+static const DECLARE_TLV_DB_SCALE(hp_out_tlv, -7950, 150, 1);
+
+static const struct snd_kcontrol_new da7210_snd_controls[] = {
+
+	SOC_DOUBLE_R_TLV("HeadPhone Playback Volume",
+			 DA7210_HP_L_VOL, DA7210_HP_R_VOL,
+			 0, 0x3F, 0, hp_out_tlv),
+};
+
 /* Codec private data */
 struct da7210_priv {
 	struct snd_soc_codec codec;
@@ -218,10 +242,6 @@ static int da7210_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 
 	if (is_play) {
-		/* PlayBack Volume 40 */
-		snd_soc_update_bits(codec, DA7210_HP_L_VOL, 0x3F, 40);
-		snd_soc_update_bits(codec, DA7210_HP_R_VOL, 0x3F, 40);
-
 		/* Enable Out */
 		snd_soc_update_bits(codec, DA7210_OUTMIX_L, 0x1F, 0x10);
 		snd_soc_update_bits(codec, DA7210_OUTMIX_R, 0x1F, 0x10);
@@ -646,6 +666,9 @@ static int da7210_probe(struct platform_device *pdev)
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0)
 		goto pcm_err;
+
+	snd_soc_add_controls(da7210_codec, da7210_snd_controls,
+			     ARRAY_SIZE(da7210_snd_controls));
 
 	dev_info(&pdev->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
