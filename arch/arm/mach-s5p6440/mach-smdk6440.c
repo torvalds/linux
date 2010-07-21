@@ -88,6 +88,7 @@ static struct s3c2410_uartcfg smdk6440_uartcfgs[] __initdata = {
 static struct platform_device *smdk6440_devices[] __initdata = {
 	&s5p6440_device_iis,
 	&s3c_device_adc,
+	&s3c_device_rtc,
 	&s3c_device_ts,
 	&s3c_device_wdt,
 };
