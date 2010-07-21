@@ -850,6 +850,33 @@ print_entries:
 	return ret;
 }
 
+/*
+ * See hists__fprintf to match the column widths
+ */
+unsigned int hists__sort_list_width(struct hists *self)
+{
+	struct sort_entry *se;
+	int ret = 9; /* total % */
+
+	if (symbol_conf.show_cpu_utilization) {
+		ret += 7; /* count_sys % */
+		ret += 6; /* count_us % */
+		if (perf_guest) {
+			ret += 13; /* count_guest_sys % */
+			ret += 12; /* count_guest_us % */
+		}
+	}
+
+	if (symbol_conf.show_nr_samples)
+		ret += 11;
+
+	list_for_each_entry(se, &hist_entry__sort_list, list)
+		if (!se->elide)
+			ret += 2 + hists__col_len(self, se->se_width_idx);
+
+	return ret;
+}
+
 static void hists__remove_entry_filter(struct hists *self, struct hist_entry *h,
 				       enum hist_filter filter)
 {

@@ -141,4 +141,7 @@ int hist_entry__tui_annotate(struct hist_entry *self);
 
 int hists__tui_browse_tree(struct rb_root *self, const char *help);
 #endif
+
+unsigned int hists__sort_list_width(struct hists *self);
+
 #endif	/* __PERF_HIST_H */
