@@ -1018,7 +1018,7 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 
 	drbd_rs_complete_io(mdev, e->sector);
 
-	di = (struct digest_info *)(unsigned long)e->block_id;
+	di = e->digest;
 
 	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
 		/* quick hack to try to avoid a race against reconfiguration.
@@ -1126,7 +1126,7 @@ int w_e_end_ov_reply(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * the resync lru has been cleaned up already */
 	drbd_rs_complete_io(mdev, e->sector);
 
-	di = (struct digest_info *)(unsigned long)e->block_id;
+	di = e->digest;
 
 	if (likely((e->flags & EE_WAS_ERROR) == 0)) {
 		digest_size = crypto_hash_digestsize(mdev->verify_tfm);

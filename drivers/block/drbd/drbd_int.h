@@ -759,7 +759,7 @@ struct digest_info {
 struct drbd_epoch_entry {
 	struct drbd_work w;
 	struct hlist_node colision;
-	struct drbd_epoch *epoch;
+	struct drbd_epoch *epoch; /* for writes */
 	struct drbd_conf *mdev;
 	struct page *pages;
 	atomic_t pending_bios;
@@ -767,7 +767,10 @@ struct drbd_epoch_entry {
 	/* see comments on ee flag bits below */
 	unsigned long flags;
 	sector_t sector;
-	u64 block_id;
+	union {
+		u64 block_id;
+		struct digest_info *digest;
+	};
 };
 
 /* ee flag bits.
@@ -1032,10 +1035,10 @@ struct drbd_conf {
 	spinlock_t epoch_lock;
 	unsigned int epochs;
 	enum write_ordering_e write_ordering;
-	struct list_head active_ee; /* IO in progress */
-	struct list_head sync_ee;   /* IO in progress */
+	struct list_head active_ee; /* IO in progress (P_DATA gets written to disk) */
+	struct list_head sync_ee;   /* IO in progress (P_RS_DATA_REPLY gets written to disk) */
 	struct list_head done_ee;   /* send ack */
-	struct list_head read_ee;   /* IO in progress */
+	struct list_head read_ee;   /* IO in progress (any read) */
 	struct list_head net_ee;    /* zero-copy network send in progress */
 	struct hlist_head *ee_hash; /* is proteced by req_lock! */
 	unsigned int ee_hash_s;
