@@ -13,3 +13,4 @@ ccflags-y += -Iarch/arm/mach-tegra/nv/nvrm/core
 obj-y += nvrm_rmctrace.o
 obj-y += nvrm_transport.o
 obj-y += nvrm_module_stub.o
+obj-y += nvrm_power.o

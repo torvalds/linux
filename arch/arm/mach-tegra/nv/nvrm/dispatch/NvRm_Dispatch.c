@@ -162,12 +162,6 @@ NvError nvrm_dma_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *O
 	return NvSuccess;
 }
 
-NvError nvrm_power_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *OutBuffer, NvU32 OutSize, NvDispatchCtx* Ctx )
-{
-	printk("NVRM: %s %d\n", __func__, function);
-	return NvSuccess;
-}
-
 NvError nvrm_gpio_Dispatch( NvU32 function, void *InBuffer, NvU32 InSize, void *OutBuffer, NvU32 OutSize, NvDispatchCtx* Ctx )
 {
 	printk("NVRM: %s %d\n", __func__, function);

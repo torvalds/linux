@@ -12,11 +12,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <mach/iomap.h>
+
 #include "nvcommon.h"
 #include "nvrm_module.h"
+#include "../../../../clock.h"
 
 NvError NvRmModuleGetCapabilities( NvRmDeviceHandle hDeviceHandle,
     NvRmModuleID Module, NvRmModuleCapability * pCaps, NvU32 NumCaps,
@@ -160,18 +163,37 @@ void NvRmModuleGetBaseAddress( NvRmDeviceHandle hRmDeviceHandle, NvRmModuleID Mo
 	printk("%s module %d 0x%08x x %dK\n", __func__, Module, *pBaseAddress, *pSize / 1024);
 }
 
+#define is_avp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Avp)
+#define is_csi(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Csi)
+#define is_isp(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Isp)
+#define is_vi(_mod) (NVRM_MODULE_ID_MODULE(_mod)==NvRmModuleID_Vi)
+
 void NvRmModuleReset(NvRmDeviceHandle hRmDevice, NvRmModuleID Module)
 {
+    struct clk *clk = NULL;
     void __iomem *clk_rst = IO_ADDRESS(TEGRA_CLK_RESET_BASE);
-    if (NVRM_MODULE_ID_MODULE(Module) != NvRmModuleID_Avp ||
-        NVRM_MODULE_ID_INSTANCE(Module) != 0) {
+
+    if (is_avp(Module)) {
+        writel(1<<1, clk_rst + 0x300);
+        udelay(10);
+        writel(1<<1, clk_rst + 0x304);
+    } else if (is_csi(Module))
+        clk = clk_get_sys("csi", NULL);
+    else if (is_vi(Module))
+        clk = clk_get_sys("vi", NULL);
+    else if (is_isp(Module))
+        clk = clk_get_sys("isp", NULL);
+    else {
         printk("%s MOD[%lu] INST[%lu] not implemented\n", __func__,
                NVRM_MODULE_ID_MODULE(Module),
                NVRM_MODULE_ID_INSTANCE(Module));
         return;
     }
 
-    writel(1<<1, clk_rst + 0x300);
-    udelay(10);
-    writel(1<<1, clk_rst + 0x304);
+    if (clk) {
+        tegra2_periph_reset_assert(clk);
+        udelay(10);
+        tegra2_periph_reset_deassert(clk);
+        clk_put(clk);
+    }
 }
