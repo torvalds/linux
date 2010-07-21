@@ -790,6 +790,30 @@ int nilfs_store_magic_and_option(struct super_block *sb,
 	return !parse_options(data, sb, 0) ? -EINVAL : 0 ;
 }
 
+int nilfs_check_feature_compatibility(struct super_block *sb,
+				      struct nilfs_super_block *sbp)
+{
+	__u64 features;
+
+	features = le64_to_cpu(sbp->s_feature_incompat) &
+		~NILFS_FEATURE_INCOMPAT_SUPP;
+	if (features) {
+		printk(KERN_ERR "NILFS: couldn't mount because of unsupported "
+		       "optional features (%llx)\n",
+		       (unsigned long long)features);
+		return -EINVAL;
+	}
+	features = le64_to_cpu(sbp->s_feature_compat_ro) &
+		~NILFS_FEATURE_COMPAT_RO_SUPP;
+	if (!(sb->s_flags & MS_RDONLY) && features) {
+		printk(KERN_ERR "NILFS: couldn't mount RDWR because of "
+		       "unsupported optional features (%llx)\n",
+		       (unsigned long long)features);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 /**
  * nilfs_fill_super() - initialize a super block instance
  * @sb: super_block
@@ -984,11 +1008,26 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 		nilfs_cleanup_super(sbi);
 		up_write(&nilfs->ns_sem);
 	} else {
+		__u64 features;
+
 		/*
 		 * Mounting a RDONLY partition read-write, so reread and
 		 * store the current valid flag.  (It may have been changed
 		 * by fsck since we originally mounted the partition.)
 		 */
+		down_read(&nilfs->ns_sem);
+		features = le64_to_cpu(nilfs->ns_sbp[0]->s_feature_compat_ro) &
+			~NILFS_FEATURE_COMPAT_RO_SUPP;
+		up_read(&nilfs->ns_sem);
+		if (features) {
+			printk(KERN_WARNING "NILFS (device %s): couldn't "
+			       "remount RDWR because of unsupported optional "
+			       "features (%llx)\n",
+			       sb->s_id, (unsigned long long)features);
+			err = -EROFS;
+			goto restore_opts;
+		}
+
 		sb->s_flags &= ~MS_RDONLY;
 
 		err = nilfs_attach_segment_constructor(sbi);

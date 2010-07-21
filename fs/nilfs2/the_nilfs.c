@@ -385,10 +385,22 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto skip_recovery;
 
 	if (s_flags & MS_RDONLY) {
+		__u64 features;
+
 		if (nilfs_test_opt(sbi, NORECOVERY)) {
 			printk(KERN_INFO "NILFS: norecovery option specified. "
 			       "skipping roll-forward recovery\n");
 			goto skip_recovery;
+		}
+		features = le64_to_cpu(nilfs->ns_sbp[0]->s_feature_compat_ro) &
+			~NILFS_FEATURE_COMPAT_RO_SUPP;
+		if (features) {
+			printk(KERN_ERR "NILFS: couldn't proceed with "
+			       "recovery because of unsupported optional "
+			       "features (%llx)\n",
+			       (unsigned long long)features);
+			err = -EROFS;
+			goto failed_unload;
 		}
 		if (really_read_only) {
 			printk(KERN_ERR "NILFS: write access "
@@ -644,6 +656,10 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		if (err)
 			goto out;
 
+		err = nilfs_check_feature_compatibility(sb, sbp);
+		if (err)
+			goto out;
+
 		blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
 		if (sb->s_blocksize != blocksize &&
 		    !sb_set_blocksize(sb, blocksize)) {
@@ -666,6 +682,10 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		goto out;
 
 	err = nilfs_store_magic_and_option(sb, sbp, data);
+	if (err)
+		goto failed_sbh;
+
+	err = nilfs_check_feature_compatibility(sb, sbp);
 	if (err)
 		goto failed_sbh;
 
