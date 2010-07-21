@@ -360,15 +360,10 @@ unsigned int sig_xstate_size = sizeof(struct _fpstate);
 /*
  * Enable the extended processor state save/restore feature
  */
-static void __cpuinit __xsave_init(void)
+static inline void xstate_enable(u64 mask)
 {
 	set_in_cr4(X86_CR4_OSXSAVE);
-
-	/*
-	 * Enable all the features that the HW is capable of
-	 * and the Linux kernel is aware of.
-	 */
-	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
+	xsetbv(XCR_XFEATURE_ENABLED_MASK, mask);
 }
 
 /*
@@ -426,7 +421,7 @@ static void __init setup_xstate_init(void)
 /*
  * Enable and initialize the xsave feature.
  */
-static void __cpuinit xsave_cntxt_init(void)
+static void __cpuinit xstate_enable_boot_cpu(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -443,7 +438,8 @@ static void __cpuinit xsave_cntxt_init(void)
 	 * Support only the state known to OS.
 	 */
 	pcntxt_mask = pcntxt_mask & XCNTXT_MASK;
-	__xsave_init();
+
+	xstate_enable(pcntxt_mask);
 
 	/*
 	 * Recompute the context size for enabled features
@@ -470,6 +466,7 @@ void __cpuinit xsave_init(void)
 	 * Boot processor to setup the FP and extended state context info.
 	 */
 	if (!smp_processor_id())
-		xsave_cntxt_init();
-	__xsave_init();
+		xstate_enable_boot_cpu();
+	else
+		xstate_enable(pcntxt_mask);
 }
