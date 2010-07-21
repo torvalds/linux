@@ -239,7 +239,7 @@ void __init setup_per_cpu_areas(void)
 		per_cpu(x86_cpu_to_node_map, cpu) =
 			early_per_cpu_map(x86_cpu_to_node_map, cpu);
 		/*
-		 * Ensure taht the boot cpu numa_node is correct when the boot
+		 * Ensure that the boot cpu numa_node is correct when the boot
 		 * cpu is on a node that doesn't have memory installed.
 		 * Also cpu_up() will call cpu_to_node() for APs when
 		 * MEMORY_HOTPLUG is defined, before per_cpu(numa_node) is set
