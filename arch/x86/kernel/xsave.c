@@ -360,10 +360,10 @@ unsigned int sig_xstate_size = sizeof(struct _fpstate);
 /*
  * Enable the extended processor state save/restore feature
  */
-static inline void xstate_enable(u64 mask)
+static inline void xstate_enable(void)
 {
 	set_in_cr4(X86_CR4_OSXSAVE);
-	xsetbv(XCR_XFEATURE_ENABLED_MASK, mask);
+	xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
 }
 
 /*
@@ -421,7 +421,7 @@ static void __init setup_xstate_init(void)
 /*
  * Enable and initialize the xsave feature.
  */
-static void __cpuinit xstate_enable_boot_cpu(void)
+static void __init xstate_enable_boot_cpu(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -444,7 +444,7 @@ static void __cpuinit xstate_enable_boot_cpu(void)
 	 */
 	pcntxt_mask = pcntxt_mask & XCNTXT_MASK;
 
-	xstate_enable(pcntxt_mask);
+	xstate_enable();
 
 	/*
 	 * Recompute the context size for enabled features
@@ -462,16 +462,22 @@ static void __cpuinit xstate_enable_boot_cpu(void)
 	       pcntxt_mask, xstate_size);
 }
 
+/*
+ * For the very first instance, this calls xstate_enable_boot_cpu();
+ * for all subsequent instances, this calls xstate_enable().
+ *
+ * This is somewhat obfuscated due to the lack of powerful enough
+ * overrides for the section checks.
+ */
 void __cpuinit xsave_init(void)
 {
+	static __refdata void (*next_func)(void) = xstate_enable_boot_cpu;
+	void (*this_func)(void);
+
 	if (!cpu_has_xsave)
 		return;
 
-	/*
-	 * Boot processor to setup the FP and extended state context info.
-	 */
-	if (!smp_processor_id())
-		xstate_enable_boot_cpu();
-	else
-		xstate_enable(pcntxt_mask);
+	this_func = next_func;
+	next_func = xstate_enable;
+	this_func();
 }
