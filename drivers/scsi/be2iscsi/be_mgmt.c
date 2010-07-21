@@ -168,6 +168,7 @@ unsigned int  mgmt_invalidate_icds(struct beiscsi_hba *phba,
 		SE_DEBUG(DBG_LVL_1,
 			 "Failed to alloc memory for mgmt_invalidate_icds\n");
 		spin_unlock(&ctrl->mbox_lock);
+		free_mcc_tag(&phba->ctrl, tag);
 		return 0;
 	}
 	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
@@ -330,6 +331,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 		shost_printk(KERN_ERR, phba->shost, "unknown addr family %d\n",
 			     dst_addr->sa_family);
 		spin_unlock(&ctrl->mbox_lock);
+		free_mcc_tag(&phba->ctrl, tag);
 		return -EINVAL;
 
 	}
