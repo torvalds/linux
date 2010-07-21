@@ -379,7 +379,7 @@ static void setup_xstate_features(void)
 	xstate_sizes = alloc_bootmem(xstate_features * sizeof(int));
 
 	do {
-		cpuid_count(0xd, leaf, &eax, &ebx, &ecx, &edx);
+		cpuid_count(XSTATE_CPUID, leaf, &eax, &ebx, &ecx, &edx);
 
 		if (eax == 0)
 			break;
@@ -425,7 +425,12 @@ static void __cpuinit xstate_enable_boot_cpu(void)
 {
 	unsigned int eax, ebx, ecx, edx;
 
-	cpuid_count(0xd, 0, &eax, &ebx, &ecx, &edx);
+	if (boot_cpu_data.cpuid_level < XSTATE_CPUID) {
+		WARN(1, KERN_ERR "XSTATE_CPUID missing\n");
+		return;
+	}
+
+	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
 	pcntxt_mask = eax + ((u64)edx << 32);
 
 	if ((pcntxt_mask & XSTATE_FPSSE) != XSTATE_FPSSE) {
@@ -444,7 +449,7 @@ static void __cpuinit xstate_enable_boot_cpu(void)
 	/*
 	 * Recompute the context size for enabled features
 	 */
-	cpuid_count(0xd, 0, &eax, &ebx, &ecx, &edx);
+	cpuid_count(XSTATE_CPUID, 0, &eax, &ebx, &ecx, &edx);
 	xstate_size = ebx;
 
 	update_regset_xstate_info(xstate_size, pcntxt_mask);
