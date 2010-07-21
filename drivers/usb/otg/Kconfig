@@ -67,6 +67,7 @@ config NOP_USB_XCEIV
 	 built-in with usb ip or which are autonomous and doesn't require any
 	 phy programming such as ISP1x04 etc.
 
+
 config USB_TEGRA_OTG
 	boolean "Tegra OTG Driver"
 	depends on USB && ARCH_TEGRA
@@ -74,5 +75,15 @@ config USB_TEGRA_OTG
 	help
 	  Enable this driver on boards which use the internal VBUS and ID
 	  sensing of the Tegra USB PHY.
+
+config USB_CPCAP_OTG
+	boolean "Motorola CPCAP OTG Driver"
+	depends on USB && ARCH_TEGRA && MFD_CPCAP
+	select USB_OTG_UTILS
+	help
+	  Enable this driver on boards that use the CPCAP sensors for
+	  ID and VBUS sensing. The driver receives notifications from
+	  cpcap-whisper and emulates the same behavior as when the VBUS
+	  and ID pins are connected to the app processor.
 
 endif # USB || OTG
