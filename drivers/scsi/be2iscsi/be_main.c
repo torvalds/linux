@@ -3172,7 +3172,7 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 	return 0;
 }
 
-static unsigned char hwi_enable_intr(struct beiscsi_hba *phba)
+static void hwi_enable_intr(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
 	struct hwi_controller *phwi_ctrlr;
@@ -3207,7 +3207,6 @@ static unsigned char hwi_enable_intr(struct beiscsi_hba *phba)
 			}
 		}
 	}
-	return true;
 }
 
 static void hwi_disable_intr(struct beiscsi_hba *phba)
@@ -3773,7 +3772,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_context_memory *phwi_context;
 	struct be_eq_obj *pbe_eq;
-	int ret, msix_vec, num_cpus, i;
+	int ret, num_cpus, i;
 
 	ret = beiscsi_enable_pci(pcidev);
 	if (ret < 0) {
@@ -3874,25 +3873,10 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 			     "Failed to beiscsi_init_irqs\n");
 		goto free_blkenbld;
 	}
-	ret = hwi_enable_intr(phba);
-	if (ret < 0) {
-		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe-"
-			     "Failed to hwi_enable_intr\n");
-		goto free_ctrlr;
-	}
+	hwi_enable_intr(phba);
 	SE_DEBUG(DBG_LVL_8, "\n\n\n SUCCESS - DRIVER LOADED\n\n\n");
 	return 0;
 
-free_ctrlr:
-	if (phba->msix_enabled) {
-		for (i = 0; i <= phba->num_cpus; i++) {
-			msix_vec = phba->msix_entries[i].vector;
-			free_irq(msix_vec, &phwi_context->be_eq[i]);
-		}
-	} else
-		if (phba->pcidev->irq)
-			free_irq(phba->pcidev->irq, phba);
-	pci_disable_msix(phba->pcidev);
 free_blkenbld:
 	destroy_workqueue(phba->wq);
 	if (blk_iopoll_enabled)
@@ -3910,6 +3894,8 @@ free_port:
 			   phba->ctrl.mbox_mem_alloced.dma);
 	beiscsi_unmap_pci_function(phba);
 hba_free:
+	if (phba->msix_enabled)
+		pci_disable_msix(phba->pcidev);
 	iscsi_host_remove(phba->shost);
 	pci_dev_put(phba->pcidev);
 	iscsi_host_free(phba->shost);
