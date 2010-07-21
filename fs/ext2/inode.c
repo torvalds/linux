@@ -423,6 +423,8 @@ static int ext2_alloc_blocks(struct inode *inode,
 failed_out:
 	for (i = 0; i <index; i++)
 		ext2_free_blocks(inode, new_blocks[i], 1);
+	if (index)
+		mark_inode_dirty(inode);
 	return ret;
 }
 
@@ -993,8 +995,8 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 			else if (block_to_free == nr - count)
 				count++;
 			else {
-				mark_inode_dirty(inode);
 				ext2_free_blocks (inode, block_to_free, count);
+				mark_inode_dirty(inode);
 			free_this:
 				block_to_free = nr;
 				count = 1;
@@ -1002,8 +1004,8 @@ static inline void ext2_free_data(struct inode *inode, __le32 *p, __le32 *q)
 		}
 	}
 	if (count > 0) {
-		mark_inode_dirty(inode);
 		ext2_free_blocks (inode, block_to_free, count);
+		mark_inode_dirty(inode);
 	}
 }
 

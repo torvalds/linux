@@ -674,6 +674,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 			new_bh = sb_getblk(sb, block);
 			if (!new_bh) {
 				ext2_free_blocks(inode, block, 1);
+				mark_inode_dirty(inode);
 				error = -EIO;
 				goto cleanup;
 			}
@@ -729,6 +730,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 				mb_cache_entry_free(ce);
 			ea_bdebug(old_bh, "freeing");
 			ext2_free_blocks(inode, old_bh->b_blocknr, 1);
+			mark_inode_dirty(inode);
 			/* We let our caller release old_bh, so we
 			 * need to duplicate the buffer before. */
 			get_bh(old_bh);
@@ -789,6 +791,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 		if (ce)
 			mb_cache_entry_free(ce);
 		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
+		mark_inode_dirty(inode);
 		get_bh(bh);
 		bforget(bh);
 		unlock_buffer(bh);

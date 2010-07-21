@@ -572,7 +572,6 @@ error_return:
 	brelse(bitmap_bh);
 	release_blocks(sb, freed);
 	dquot_free_block_nodirty(inode, freed);
-	mark_inode_dirty(inode);
 }
 
 /**
