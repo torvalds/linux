@@ -128,7 +128,8 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		for (i = 0, found = 0; i < rdev->num_crtc; i++) {
 			crtc = (struct drm_crtc *)minfo->crtcs[i];
 			if (crtc && crtc->base.id == value) {
-				value = i;
+				struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+				value = radeon_crtc->crtc_id;
 				found = 1;
 				break;
 			}
