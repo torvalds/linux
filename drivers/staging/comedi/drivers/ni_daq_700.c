@@ -47,7 +47,6 @@ IRQ is assigned but not used.
 
 #include <linux/ioport.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>

@@ -1,4 +1,9 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* No dev_info_t, no cs_types.h (as of 2.6.36)
+   dev_info_t and a few other typedefs are removed. No longer use them
+   in PCMCIA device drivers. Also, do not include pcmcia/cs_types.h, as
+   this file is gone.
+
 * No dev_node_t (as of 2.6.35)
    There is no more need to fill out a "dev_node_t" structure.
 

@@ -48,7 +48,6 @@ the PCMCIA interface.
 
 #include "8255.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>

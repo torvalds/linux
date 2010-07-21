@@ -27,7 +27,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cisreg.h>

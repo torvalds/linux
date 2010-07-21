@@ -42,7 +42,6 @@
 #include <linux/mii.h>
 #include "../8390.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>
@@ -112,8 +111,6 @@ static int setup_dma_config(struct pcmcia_device *link, int start_pg,
 			    int stop_pg);
 
 static void pcnet_detach(struct pcmcia_device *p_dev);
-
-static dev_info_t dev_info = "pcnet_cs";
 
 /*====================================================================*/
 
@@ -956,7 +953,7 @@ static int pcnet_open(struct net_device *dev)
     set_misc_reg(dev);
 
     outb_p(0xFF, nic_base + EN0_ISR); /* Clear bogus intr. */
-    ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, dev_info, dev);
+    ret = request_irq(dev->irq, ei_irq_wrapper, IRQF_SHARED, dev->name, dev);
     if (ret)
 	    return ret;
 

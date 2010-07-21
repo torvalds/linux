@@ -43,14 +43,6 @@ typedef struct conf_reg_t {
 #define CV_COPY_VALUE		0x08
 #define CV_EXT_STATUS		0x10
 
-/* For GetFirst/NextClient */
-typedef struct client_req_t {
-    socket_t	Socket;
-    u_int	Attributes;
-} client_req_t;
-
-#define CLIENT_THIS_SOCKET	0x01
-
 /* ModifyConfiguration */
 typedef struct modconf_t {
     u_int	Attributes;
@@ -133,7 +125,7 @@ typedef struct io_req_t {
 /* For GetMemPage, MapMemPage */
 typedef struct memreq_t {
     u_int	CardOffset;
-    page_t	Page;
+    u_short	Page;
 } memreq_t;
 
 /* For ModifyWindow */

@@ -48,7 +48,6 @@
 
 #include <net/iw_handler.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -88,13 +87,6 @@
  */
 static int wl3501_config(struct pcmcia_device *link);
 static void wl3501_release(struct pcmcia_device *link);
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card configuration
- * database.
- */
-static dev_info_t wl3501_dev_info = "wl3501_cs";
 
 static const struct {
 	int reg_domain;
@@ -1421,7 +1413,7 @@ static struct iw_statistics *wl3501_get_wireless_stats(struct net_device *dev)
 
 static void wl3501_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, wl3501_dev_info, sizeof(info->driver));
+	strlcpy(info->driver, "wl3501_cs", sizeof(info->driver));
 }
 
 static const struct ethtool_ops ops = {

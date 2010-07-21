@@ -26,7 +26,6 @@
 #include <linux/ssb/ssb.h>
 #include <linux/slab.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>

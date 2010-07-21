@@ -20,7 +20,6 @@
 #include <linux/mod_devicetable.h>
 #endif
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/device_id.h>
 
 #ifdef __KERNEL__
@@ -36,6 +35,8 @@ struct pcmcia_socket;
 struct pcmcia_device;
 struct config_t;
 struct net_device;
+
+typedef unsigned long window_handle_t;
 
 /* dynamic device IDs for PCMCIA device drivers. See
  * Documentation/pcmcia/driver.txt for details.

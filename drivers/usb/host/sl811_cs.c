@@ -20,7 +20,6 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
@@ -42,8 +41,6 @@ MODULE_LICENSE("GPL");
 /*====================================================================*/
 /* VARIABLES                                                          */
 /*====================================================================*/
-
-static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
@@ -246,7 +243,7 @@ MODULE_DEVICE_TABLE(pcmcia, sl811_ids);
 static struct pcmcia_driver sl811_cs_driver = {
 	.owner		= THIS_MODULE,
 	.drv		= {
-		.name	= (char *)driver_name,
+		.name	= "sl811_cs",
 	},
 	.probe		= sl811_cs_probe,
 	.remove		= sl811_cs_detach,

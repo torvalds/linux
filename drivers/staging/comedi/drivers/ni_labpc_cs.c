@@ -71,7 +71,6 @@ NI manuals:
 #include "comedi_fc.h"
 #include "ni_labpc.h"
 
-#include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
