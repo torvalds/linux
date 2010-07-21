@@ -1992,7 +1992,7 @@ int dquot_disable(struct super_block *sb, int type, unsigned int flags)
 				truncate_inode_pages(&toputinode[cnt]->i_data,
 						     0);
 				mutex_unlock(&toputinode[cnt]->i_mutex);
-				mark_inode_dirty(toputinode[cnt]);
+				mark_inode_dirty_sync(toputinode[cnt]);
 			}
 			mutex_unlock(&dqopt->dqonoff_mutex);
 		}

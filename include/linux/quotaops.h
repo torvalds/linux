@@ -266,7 +266,7 @@ static inline int dquot_alloc_space_nodirty(struct inode *inode, qsize_t nr)
 static inline void dquot_alloc_space_nofail(struct inode *inode, qsize_t nr)
 {
 	__dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN|DQUOT_SPACE_NOFAIL);
-	mark_inode_dirty(inode);
+	mark_inode_dirty_sync(inode);
 }
 
 static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
@@ -275,7 +275,7 @@ static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
 
 	ret = dquot_alloc_space_nodirty(inode, nr);
 	if (!ret)
-		mark_inode_dirty(inode);
+		mark_inode_dirty_sync(inode);
 	return ret;
 }
 
@@ -305,7 +305,7 @@ static inline int dquot_prealloc_block(struct inode *inode, qsize_t nr)
 
 	ret = dquot_prealloc_block_nodirty(inode, nr);
 	if (!ret)
-		mark_inode_dirty(inode);
+		mark_inode_dirty_sync(inode);
 	return ret;
 }
 
@@ -321,7 +321,7 @@ static inline int dquot_claim_block(struct inode *inode, qsize_t nr)
 
 	ret = dquot_claim_space_nodirty(inode, nr << inode->i_blkbits);
 	if (!ret)
-		mark_inode_dirty(inode);
+		mark_inode_dirty_sync(inode);
 	return ret;
 }
 
@@ -333,7 +333,7 @@ static inline void dquot_free_space_nodirty(struct inode *inode, qsize_t nr)
 static inline void dquot_free_space(struct inode *inode, qsize_t nr)
 {
 	dquot_free_space_nodirty(inode, nr);
-	mark_inode_dirty(inode);
+	mark_inode_dirty_sync(inode);
 }
 
 static inline void dquot_free_block_nodirty(struct inode *inode, qsize_t nr)
