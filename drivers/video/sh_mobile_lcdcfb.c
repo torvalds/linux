@@ -577,7 +577,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 
 		board_cfg = &ch->cfg.board_cfg;
 		if (board_cfg->display_on)
-			board_cfg->display_on(board_cfg->board_data);
+			board_cfg->display_on(board_cfg->board_data, ch->info);
 	}
 
 	return 0;
