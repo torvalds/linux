@@ -98,7 +98,7 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 		dev_err(&ctrl->pdev->dev,
 			"error in cmd completion: status(compl/extd)=%d/%d\n",
 			compl_status, extd_status);
-		return -1;
+		return -EBUSY;
 	}
 	return 0;
 }
@@ -231,7 +231,7 @@ static int be_mcc_wait_compl(struct beiscsi_hba *phba)
 	}
 	if (i == mcc_timeout) {
 		dev_err(&phba->pcidev->dev, "mccq poll timed out\n");
-		return -1;
+		return -EBUSY;
 	}
 	return 0;
 }
@@ -257,7 +257,7 @@ static int be_mbox_db_ready_wait(struct be_ctrl_info *ctrl)
 
 		if (cnt > 6000000) {
 			dev_err(&ctrl->pdev->dev, "mbox_db poll timed out\n");
-			return -1;
+			return -EBUSY;
 		}
 
 		if (cnt > 50) {
@@ -309,7 +309,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 		}
 	} else {
 		dev_err(&ctrl->pdev->dev, "invalid mailbox completion\n");
-		return -1;
+		return -EBUSY;
 	}
 	return 0;
 }
@@ -355,7 +355,7 @@ static int be_mbox_notify_wait(struct beiscsi_hba *phba)
 			return status;
 	} else {
 		dev_err(&phba->pcidev->dev, "invalid mailbox completion\n");
-		return -1;
+		return -EBUSY;
 	}
 	return 0;
 }
@@ -652,7 +652,7 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	default:
 		spin_unlock(&ctrl->mbox_lock);
 		BUG();
-		return -1;
+		return -ENXIO;
 	}
 	be_cmd_hdr_prepare(&req->hdr, subsys, opcode, sizeof(*req));
 	if (queue_type != QTYPE_SGL)

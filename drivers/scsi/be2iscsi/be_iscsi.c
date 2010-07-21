@@ -230,7 +230,7 @@ int beiscsi_conn_get_param(struct iscsi_cls_conn *cls_conn,
 	if (!beiscsi_ep) {
 		SE_DEBUG(DBG_LVL_1,
 			 "In beiscsi_conn_get_param , no beiscsi_ep\n");
-		return -1;
+		return -ENODEV;
 	}
 
 	switch (param) {
@@ -309,7 +309,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 		tag = be_cmd_get_mac_addr(phba);
 		if (!tag) {
 			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
-			return -1;
+			return -EAGAIN;
 		} else
 			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 						 phba->ctrl.mcc_numtag[tag]);
@@ -322,7 +322,7 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 					    " status = %d extd_status = %d\n",
 					    status, extd_status);
 			free_mcc_tag(&phba->ctrl, tag);
-			return -1;
+			return -EAGAIN;
 		} else {
 			wrb = queue_get_wrb(mccq, wrb_num);
 			free_mcc_tag(&phba->ctrl, tag);
@@ -485,7 +485,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	struct tcp_connect_and_offload_out *ptcpcnct_out;
 	unsigned short status, extd_status;
 	unsigned int tag, wrb_num;
-	int ret = -1;
+	int ret = -ENOMEM;
 
 	SE_DEBUG(DBG_LVL_8, "In beiscsi_open_conn\n");
 	beiscsi_ep->ep_cid = beiscsi_get_cid(phba);
@@ -536,7 +536,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 
 free_ep:
 	beiscsi_free_ep(beiscsi_ep);
-	return -1;
+	return -EBUSY;
 }
 
 /**
@@ -626,7 +626,7 @@ static int beiscsi_close_conn(struct  beiscsi_endpoint *beiscsi_ep, int flag)
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_8, "upload failed for cid 0x%x\n",
 			 beiscsi_ep->ep_cid);
-		ret = -1;
+		ret = -EAGAIN;
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);

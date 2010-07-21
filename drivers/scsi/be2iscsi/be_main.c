@@ -2681,7 +2681,7 @@ static int be_queue_alloc(struct beiscsi_hba *phba, struct be_queue_info *q,
 	mem->size = len * entry_size;
 	mem->va = pci_alloc_consistent(phba->pcidev, mem->size, &mem->dma);
 	if (!mem->va)
-		return -1;
+		return -ENOMEM;
 	memset(mem->va, 0, mem->size);
 	return 0;
 }
@@ -2877,7 +2877,7 @@ mcc_cq_destroy:
 mcc_cq_free:
 	be_queue_free(phba, cq);
 err:
-	return -1;
+	return -ENOMEM;
 }
 
 static int find_num_cpus(void)

@@ -81,7 +81,7 @@ unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 		SE_DEBUG(DBG_LVL_1,
 			 "Failed to allocate memory for mgmt_check_supported_fw"
 			 "\n");
-		return -1;
+		return -ENOMEM;
 	}
 	nonemb_cmd.size = sizeof(struct be_mgmt_controller_attributes);
 	req = nonemb_cmd.va;
