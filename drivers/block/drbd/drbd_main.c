@@ -827,9 +827,10 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	    os.conn <= C_DISCONNECTING)
 		ns.conn = os.conn;
 
-	/* After a network error (+C_TEAR_DOWN) only C_UNCONNECTED or C_DISCONNECTING can follow */
+	/* After a network error (+C_TEAR_DOWN) only C_UNCONNECTED or C_DISCONNECTING can follow.
+	 * If you try to go into some Sync* state, that shall fail (elsewhere). */
 	if (os.conn >= C_TIMEOUT && os.conn <= C_TEAR_DOWN &&
-	    ns.conn != C_UNCONNECTED && ns.conn != C_DISCONNECTING)
+	    ns.conn != C_UNCONNECTED && ns.conn != C_DISCONNECTING && ns.conn <= C_TEAR_DOWN)
 		ns.conn = os.conn;
 
 	/* After C_DISCONNECTING only C_STANDALONE may follow */
