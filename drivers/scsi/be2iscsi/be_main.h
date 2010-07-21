@@ -39,7 +39,7 @@
 				"Linux iSCSI Driver version" BUILD_STR
 #define DRV_DESC		BE_NAME " " "Driver"
 
-#define BE_VENDOR_ID 		0x19A2
+#define BE_VENDOR_ID		0x19A2
 /* DEVICE ID's for BE2 */
 #define BE_DEVICE_ID1		0x212
 #define OC_DEVICE_ID1		0x702
@@ -68,8 +68,8 @@
 #define BEISCSI_NUM_MAX_LUN	256	/* scsi_host->max_lun */
 #define BEISCSI_NUM_DEVICES_SUPPORTED	0x01
 #define BEISCSI_MAX_FRAGS_INIT	192
-#define BE_NUM_MSIX_ENTRIES 	1
-#define MPU_EP_SEMAPHORE 	0xac
+#define BE_NUM_MSIX_ENTRIES	1
+#define MPU_EP_SEMAPHORE	0xac
 
 #define BE_SENSE_INFO_SIZE		258
 #define BE_ISCSI_PDU_HEADER_SIZE	64
@@ -105,7 +105,7 @@ do {							\
 #define HWI_GET_ASYNC_PDU_CTX(phwi)	(phwi->phwi_ctxt->pasync_ctx)
 
 /********* Memory BAR register ************/
-#define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
+#define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET	0xfc
 /**
  * Host Interrupt Enable, if set interrupts are enabled although "PCI Interrupt
  * Disable" may still globally block interrupts in addition to individual
@@ -116,7 +116,7 @@ do {							\
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29)	/* bit 29 */
 
 /********* ISR0 Register offset **********/
-#define CEV_ISR0_OFFSET 			0xC18
+#define CEV_ISR0_OFFSET				0xC18
 #define CEV_ISR_SIZE				4
 
 /**
@@ -139,12 +139,12 @@ do {							\
 #define DB_EQ_REARM_SHIFT		(29)	/* bit 29 */
 
 /********* Compl Q door bell *************/
-#define DB_CQ_OFFSET 			0x120
+#define DB_CQ_OFFSET			0x120
 #define DB_CQ_RING_ID_MASK		0x3FF	/* bits 0 - 9 */
 /* Number of event entries processed */
-#define DB_CQ_NUM_POPPED_SHIFT		(16) 	/* bits 16 - 28 */
+#define DB_CQ_NUM_POPPED_SHIFT		(16)	/* bits 16 - 28 */
 /* Rearm bit */
-#define DB_CQ_REARM_SHIFT		(29) 	/* bit 29 */
+#define DB_CQ_REARM_SHIFT		(29)	/* bit 29 */
 
 #define GET_HWI_CONTROLLER_WS(pc)	(pc->phwi_ctrlr)
 #define HWI_GET_DEF_BUFQ_ID(pc) (((struct hwi_controller *)\
@@ -161,12 +161,12 @@ enum be_mem_enum {
 	HWI_MEM_WRBH,
 	HWI_MEM_SGLH,
 	HWI_MEM_SGE,
-	HWI_MEM_ASYNC_HEADER_BUF, 	/* 5 */
+	HWI_MEM_ASYNC_HEADER_BUF,	/* 5 */
 	HWI_MEM_ASYNC_DATA_BUF,
 	HWI_MEM_ASYNC_HEADER_RING,
 	HWI_MEM_ASYNC_DATA_RING,
 	HWI_MEM_ASYNC_HEADER_HANDLE,
-	HWI_MEM_ASYNC_DATA_HANDLE, 	/* 10 */
+	HWI_MEM_ASYNC_DATA_HANDLE,	/* 10 */
 	HWI_MEM_ASYNC_PDU_CONTEXT,
 	ISCSI_MEM_GLOBAL_HEADER,
 	SE_MEM_MAX

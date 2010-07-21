@@ -47,8 +47,8 @@ struct be_mcc_wrb {
 
 #define CQE_FLAGS_VALID_MASK (1 << 31)
 #define CQE_FLAGS_ASYNC_MASK (1 << 30)
-#define CQE_FLAGS_COMPLETED_MASK 	(1 << 28)
-#define CQE_FLAGS_CONSUMED_MASK 	(1 << 27)
+#define CQE_FLAGS_COMPLETED_MASK	(1 << 28)
+#define CQE_FLAGS_CONSUMED_MASK		(1 << 27)
 
 /* Completion Status */
 #define MCC_STATUS_SUCCESS 0x0
@@ -143,14 +143,14 @@ struct be_mcc_mailbox {
  */
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
-#define OPCODE_COMMON_MCC_CREATE        		21
-#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES               32
+#define OPCODE_COMMON_MCC_CREATE			21
+#define OPCODE_COMMON_GET_CNTL_ATTRIBUTES		32
 #define OPCODE_COMMON_GET_FW_VERSION			35
 #define OPCODE_COMMON_MODIFY_EQ_DELAY			41
 #define OPCODE_COMMON_FIRMWARE_CONFIG			42
-#define OPCODE_COMMON_MCC_DESTROY        		53
-#define OPCODE_COMMON_CQ_DESTROY        		54
-#define OPCODE_COMMON_EQ_DESTROY        		55
+#define OPCODE_COMMON_MCC_DESTROY			53
+#define OPCODE_COMMON_CQ_DESTROY			54
+#define OPCODE_COMMON_EQ_DESTROY			55
 #define OPCODE_COMMON_QUERY_FIRMWARE_CONFIG		58
 #define OPCODE_COMMON_FUNCTION_RESET			61
 
@@ -164,9 +164,9 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ISCSI_NTWK_GET_NIC_CONFIG		7
 #define OPCODE_COMMON_ISCSI_SET_FRAGNUM_BITS_FOR_SGL_CRA 61
 #define OPCODE_COMMON_ISCSI_DEFQ_CREATE                 64
-#define OPCODE_COMMON_ISCSI_DEFQ_DESTROY 		65
+#define OPCODE_COMMON_ISCSI_DEFQ_DESTROY		65
 #define OPCODE_COMMON_ISCSI_WRBQ_CREATE			66
-#define OPCODE_COMMON_ISCSI_WRBQ_DESTROY 		67
+#define OPCODE_COMMON_ISCSI_WRBQ_DESTROY		67
 
 struct be_cmd_req_hdr {
 	u8 opcode;		/* dword 0 */
@@ -875,7 +875,7 @@ struct be_fw_cfg {
 						 */
 #define UNSOL_HDR_NOTIFY		28	/* Unsolicited header notify.*/
 #define UNSOL_DATA_NOTIFY		29	/* Unsolicited data notify.*/
-#define UNSOL_DATA_DIGEST_ERROR_NOTIFY 	30	/* Unsolicited data digest
+#define UNSOL_DATA_DIGEST_ERROR_NOTIFY	30	/* Unsolicited data digest
 						 * error notify.
 						 */
 #define DRIVERMSG_NOTIFY		31	/* TCP acknowledge based

@@ -216,7 +216,7 @@ static struct beiscsi_hba *beiscsi_hba_alloc(struct pci_dev *pcidev)
 	shost = iscsi_host_alloc(&beiscsi_sht, sizeof(*phba), 0);
 	if (!shost) {
 		dev_err(&pcidev->dev, "beiscsi_hba_alloc -"
-			"iscsi_host_alloc failed \n");
+			"iscsi_host_alloc failed\n");
 		return NULL;
 	}
 	shost->dma_boundary = pcidev->dma_mask;
@@ -371,7 +371,7 @@ static void beiscsi_get_params(struct beiscsi_hba *phba)
 				    + BE2_TMFS) / 512) + 1) * 512;
 	phba->params.num_eq_entries = (phba->params.num_eq_entries < 1024)
 				? 1024 : phba->params.num_eq_entries;
-	SE_DEBUG(DBG_LVL_8, "phba->params.num_eq_entries=%d \n",
+	SE_DEBUG(DBG_LVL_8, "phba->params.num_eq_entries=%d\n",
 			     phba->params.num_eq_entries);
 	phba->params.num_cq_entries =
 	    (((BE2_CMDS_PER_CXN * 2 +  phba->fw_config.iscsi_cid_count * 2
@@ -692,7 +692,7 @@ beiscsi_process_async_pdu(struct beiscsi_conn *beiscsi_conn,
 		break;
 	default:
 		shost_printk(KERN_WARNING, phba->shost,
-			     "Unrecognized opcode 0x%x in async msg \n",
+			     "Unrecognized opcode 0x%x in async msg\n",
 			     (ppdu->
 			     dw[offsetof(struct amap_pdu_base, opcode) / 32]
 						& PDUBASE_OPCODE_MASK));
@@ -711,7 +711,7 @@ static struct sgl_handle *alloc_io_sgl_handle(struct beiscsi_hba *phba)
 
 	if (phba->io_sgl_hndl_avbl) {
 		SE_DEBUG(DBG_LVL_8,
-			 "In alloc_io_sgl_handle,io_sgl_alloc_index=%d \n",
+			 "In alloc_io_sgl_handle,io_sgl_alloc_index=%d\n",
 			 phba->io_sgl_alloc_index);
 		psgl_handle = phba->io_sgl_hndl_base[phba->
 						io_sgl_alloc_index];
@@ -730,7 +730,7 @@ static struct sgl_handle *alloc_io_sgl_handle(struct beiscsi_hba *phba)
 static void
 free_io_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle)
 {
-	SE_DEBUG(DBG_LVL_8, "In free_,io_sgl_free_index=%d \n",
+	SE_DEBUG(DBG_LVL_8, "In free_,io_sgl_free_index=%d\n",
 		 phba->io_sgl_free_index);
 	if (phba->io_sgl_hndl_base[phba->io_sgl_free_index]) {
 		/*
@@ -739,7 +739,7 @@ free_io_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle)
 		 */
 		 SE_DEBUG(DBG_LVL_8,
 			 "Double Free in IO SGL io_sgl_free_index=%d,"
-			 "value there=%p \n", phba->io_sgl_free_index,
+			 "value there=%p\n", phba->io_sgl_free_index,
 			 phba->io_sgl_hndl_base[phba->io_sgl_free_index]);
 		return;
 	}
@@ -804,7 +804,7 @@ free_wrb_handle(struct beiscsi_hba *phba, struct hwi_wrb_context *pwrb_context,
 
 	SE_DEBUG(DBG_LVL_8,
 		 "FREE WRB: pwrb_handle=%p free_index=0x%x"
-		 "wrb_handles_available=%d \n",
+		 "wrb_handles_available=%d\n",
 		 pwrb_handle, pwrb_context->free_index,
 		 pwrb_context->wrb_handles_available);
 }
@@ -816,7 +816,7 @@ static struct sgl_handle *alloc_mgmt_sgl_handle(struct beiscsi_hba *phba)
 	if (phba->eh_sgl_hndl_avbl) {
 		psgl_handle = phba->eh_sgl_hndl_base[phba->eh_sgl_alloc_index];
 		phba->eh_sgl_hndl_base[phba->eh_sgl_alloc_index] = NULL;
-		SE_DEBUG(DBG_LVL_8, "mgmt_sgl_alloc_index=%d=0x%x \n",
+		SE_DEBUG(DBG_LVL_8, "mgmt_sgl_alloc_index=%d=0x%x\n",
 			 phba->eh_sgl_alloc_index, phba->eh_sgl_alloc_index);
 		phba->eh_sgl_hndl_avbl--;
 		if (phba->eh_sgl_alloc_index ==
@@ -834,7 +834,7 @@ void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle)
 {
 
-	SE_DEBUG(DBG_LVL_8, "In  free_mgmt_sgl_handle,eh_sgl_free_index=%d \n",
+	SE_DEBUG(DBG_LVL_8, "In  free_mgmt_sgl_handle,eh_sgl_free_index=%d\n",
 			     phba->eh_sgl_free_index);
 	if (phba->eh_sgl_hndl_base[phba->eh_sgl_free_index]) {
 		/*
@@ -842,7 +842,7 @@ free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle)
 		 * failed in xmit_task or alloc_pdu.
 		 */
 		SE_DEBUG(DBG_LVL_8,
-			 "Double Free in eh SGL ,eh_sgl_free_index=%d \n",
+			 "Double Free in eh SGL ,eh_sgl_free_index=%d\n",
 			 phba->eh_sgl_free_index);
 		return;
 	}
@@ -1081,7 +1081,7 @@ static void hwi_complete_cmd(struct beiscsi_conn *beiscsi_conn,
 	case HWH_TYPE_LOGIN:
 		SE_DEBUG(DBG_LVL_1,
 			 "\t\t No HWH_TYPE_LOGIN Expected in hwi_complete_cmd"
-			 "- Solicited path \n");
+			 "- Solicited path\n");
 		break;
 
 	case HWH_TYPE_NOP:
@@ -1164,7 +1164,7 @@ hwi_get_async_handle(struct beiscsi_hba *phba,
 	default:
 		pbusy_list = NULL;
 		shost_printk(KERN_WARNING, phba->shost,
-			"Unexpected code=%d \n",
+			"Unexpected code=%d\n",
 			 pdpdu_cqe->dw[offsetof(struct amap_i_t_dpdu_cqe,
 					code) / 32] & PDUCQE_CODE_MASK);
 		return NULL;
@@ -1552,7 +1552,7 @@ static void  beiscsi_process_mcc_isr(struct beiscsi_hba *phba)
 			else
 				SE_DEBUG(DBG_LVL_1,
 					" Unsupported Async Event, flags"
-					" = 0x%08x \n", mcc_compl->flags);
+					" = 0x%08x\n", mcc_compl->flags);
 		} else if (mcc_compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 			be_mcc_compl_process_isr(&phba->ctrl, mcc_compl);
 			atomic_dec(&phba->ctrl.mcc_obj.q.used);
@@ -1611,7 +1611,7 @@ static unsigned int beiscsi_process_cq(struct be_eq_obj *pbe_eq)
 			hwi_complete_cmd(beiscsi_conn, phba, sol);
 			break;
 		case DRIVERMSG_NOTIFY:
-			SE_DEBUG(DBG_LVL_8, "Received DRIVERMSG_NOTIFY \n");
+			SE_DEBUG(DBG_LVL_8, "Received DRIVERMSG_NOTIFY\n");
 			dmsg = (struct dmsg_cqe *)sol;
 			hwi_complete_drvr_msgs(beiscsi_conn, phba, sol);
 			break;
@@ -1782,9 +1782,9 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 			sg_len = sg_dma_len(sg);
 			addr = (u64) sg_dma_address(sg);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_addr_lo, pwrb,
-							(addr & 0xFFFFFFFF));
+						((u32)(addr & 0xFFFFFFFF)));
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_addr_hi, pwrb,
-							(addr >> 32));
+							((u32)(addr >> 32)));
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_len, pwrb,
 							sg_len);
 			sge_len = sg_len;
@@ -1794,9 +1794,9 @@ hwi_write_sgl(struct iscsi_wrb *pwrb, struct scatterlist *sg,
 			sg_len = sg_dma_len(sg);
 			addr = (u64) sg_dma_address(sg);
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_addr_lo, pwrb,
-							(addr & 0xFFFFFFFF));
+						((u32)(addr & 0xFFFFFFFF)));
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_addr_hi, pwrb,
-							(addr >> 32));
+							((u32)(addr >> 32)));
 			AMAP_SET_BITS(struct amap_iscsi_wrb, sge1_len, pwrb,
 							sg_len);
 		}
@@ -1872,9 +1872,9 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 			addr = 0;
 		}
 		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_addr_lo, pwrb,
-						(addr & 0xFFFFFFFF));
+						((u32)(addr & 0xFFFFFFFF)));
 		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_addr_hi, pwrb,
-						(addr >> 32));
+						((u32)(addr >> 32)));
 		AMAP_SET_BITS(struct amap_iscsi_wrb, sge0_len, pwrb,
 						task->data_count);
 
@@ -1904,9 +1904,9 @@ static void hwi_write_buffer(struct iscsi_wrb *pwrb, struct iscsi_task *task)
 		psgl++;
 		if (task->data) {
 			AMAP_SET_BITS(struct amap_iscsi_sge, addr_lo, psgl,
-						(addr & 0xFFFFFFFF));
+						((u32)(addr & 0xFFFFFFFF)));
 			AMAP_SET_BITS(struct amap_iscsi_sge, addr_hi, psgl,
-						(addr >> 32));
+						((u32)(addr >> 32)));
 		}
 		AMAP_SET_BITS(struct amap_iscsi_sge, len, psgl, 0x106);
 	}
@@ -2054,7 +2054,8 @@ free_mem:
 					    mem_descr->mem_array[j - 1].size,
 					    mem_descr->mem_array[j - 1].
 					    virtual_address,
-					    mem_descr->mem_array[j - 1].
+					    (unsigned long)mem_descr->
+					    mem_array[j - 1].
 					    bus_address.u.a64.address);
 		}
 		if (i) {
@@ -2223,10 +2224,10 @@ static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	if (mem_descr->mem_array[0].virtual_address) {
 		SE_DEBUG(DBG_LVL_8,
 			 "hwi_init_async_pdu_ctx HWI_MEM_ASYNC_HEADER_BUF"
-			 "va=%p \n", mem_descr->mem_array[0].virtual_address);
+			 "va=%p\n", mem_descr->mem_array[0].virtual_address);
 	} else
 		shost_printk(KERN_WARNING, phba->shost,
-			     "No Virtual address \n");
+			     "No Virtual address\n");
 
 	pasync_ctx->async_header.va_base =
 			mem_descr->mem_array[0].virtual_address;
@@ -2239,10 +2240,10 @@ static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	if (mem_descr->mem_array[0].virtual_address) {
 		SE_DEBUG(DBG_LVL_8,
 			 "hwi_init_async_pdu_ctx HWI_MEM_ASYNC_HEADER_RING"
-			 "va=%p \n", mem_descr->mem_array[0].virtual_address);
+			 "va=%p\n", mem_descr->mem_array[0].virtual_address);
 	} else
 		shost_printk(KERN_WARNING, phba->shost,
-			    "No Virtual address \n");
+			    "No Virtual address\n");
 	pasync_ctx->async_header.ring_base =
 			mem_descr->mem_array[0].virtual_address;
 
@@ -2251,10 +2252,10 @@ static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	if (mem_descr->mem_array[0].virtual_address) {
 		SE_DEBUG(DBG_LVL_8,
 			 "hwi_init_async_pdu_ctx HWI_MEM_ASYNC_HEADER_HANDLE"
-			 "va=%p \n", mem_descr->mem_array[0].virtual_address);
+			 "va=%p\n", mem_descr->mem_array[0].virtual_address);
 	} else
 		shost_printk(KERN_WARNING, phba->shost,
-			    "No Virtual address \n");
+			    "No Virtual address\n");
 
 	pasync_ctx->async_header.handle_base =
 			mem_descr->mem_array[0].virtual_address;
@@ -2266,10 +2267,10 @@ static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	if (mem_descr->mem_array[0].virtual_address) {
 		SE_DEBUG(DBG_LVL_8,
 			 "hwi_init_async_pdu_ctx HWI_MEM_ASYNC_DATA_BUF"
-			 "va=%p \n", mem_descr->mem_array[0].virtual_address);
+			 "va=%p\n", mem_descr->mem_array[0].virtual_address);
 	} else
 		shost_printk(KERN_WARNING, phba->shost,
-			    "No Virtual address \n");
+			    "No Virtual address\n");
 	pasync_ctx->async_data.va_base =
 			mem_descr->mem_array[0].virtual_address;
 	pasync_ctx->async_data.pa_base.u.a64.address =
@@ -2280,10 +2281,10 @@ static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	if (mem_descr->mem_array[0].virtual_address) {
 		SE_DEBUG(DBG_LVL_8,
 			 "hwi_init_async_pdu_ctx HWI_MEM_ASYNC_DATA_RING"
-			 "va=%p \n", mem_descr->mem_array[0].virtual_address);
+			 "va=%p\n", mem_descr->mem_array[0].virtual_address);
 	} else
 		shost_printk(KERN_WARNING, phba->shost,
-			     "No Virtual address \n");
+			     "No Virtual address\n");
 
 	pasync_ctx->async_data.ring_base =
 			mem_descr->mem_array[0].virtual_address;
@@ -2292,7 +2293,7 @@ static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
 	mem_descr += HWI_MEM_ASYNC_DATA_HANDLE;
 	if (!mem_descr->mem_array[0].virtual_address)
 		shost_printk(KERN_WARNING, phba->shost,
-			    "No Virtual address \n");
+			    "No Virtual address\n");
 
 	pasync_ctx->async_data.handle_base =
 			mem_descr->mem_array[0].virtual_address;
@@ -2364,7 +2365,7 @@ be_sgl_create_contiguous(void *virtual_address,
 	WARN_ON(!sgl);
 
 	sgl->va = virtual_address;
-	sgl->dma = physical_address;
+	sgl->dma = (unsigned long)physical_address;
 	sgl->size = length;
 
 	return 0;
@@ -2447,7 +2448,7 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 				    sizeof(struct be_eq_entry), eq_vaddress);
 		if (ret) {
 			shost_printk(KERN_ERR, phba->shost,
-				     "be_fill_queue Failed for EQ \n");
+				     "be_fill_queue Failed for EQ\n");
 			goto create_eq_error;
 		}
 
@@ -2457,7 +2458,7 @@ static int beiscsi_create_eqs(struct beiscsi_hba *phba,
 		if (ret) {
 			shost_printk(KERN_ERR, phba->shost,
 				     "beiscsi_cmd_eq_create"
-				     "Failedfor EQ \n");
+				     "Failedfor EQ\n");
 			goto create_eq_error;
 		}
 		SE_DEBUG(DBG_LVL_8, "eqid = %d\n", phwi_context->be_eq[i].q.id);
@@ -2505,7 +2506,7 @@ static int beiscsi_create_cqs(struct beiscsi_hba *phba,
 				    sizeof(struct sol_cqe), cq_vaddress);
 		if (ret) {
 			shost_printk(KERN_ERR, phba->shost,
-				     "be_fill_queue Failed for ISCSI CQ \n");
+				     "be_fill_queue Failed for ISCSI CQ\n");
 			goto create_cq_error;
 		}
 
@@ -2515,7 +2516,7 @@ static int beiscsi_create_cqs(struct beiscsi_hba *phba,
 		if (ret) {
 			shost_printk(KERN_ERR, phba->shost,
 				     "beiscsi_cmd_eq_create"
-				     "Failed for ISCSI CQ \n");
+				     "Failed for ISCSI CQ\n");
 			goto create_cq_error;
 		}
 		SE_DEBUG(DBG_LVL_8, "iscsi cq_id is %d for eq_id %d\n",
@@ -2565,7 +2566,8 @@ beiscsi_create_def_hdr(struct beiscsi_hba *phba,
 			     "be_fill_queue Failed for DEF PDU HDR\n");
 		return ret;
 	}
-	mem->dma = mem_descr->mem_array[idx].bus_address.u.a64.address;
+	mem->dma = (unsigned long)mem_descr->mem_array[idx].
+				  bus_address.u.a64.address;
 	ret = be_cmd_create_default_pdu_queue(&phba->ctrl, cq, dq,
 					      def_pdu_ring_sz,
 					      phba->params.defpdu_hdr_sz);
@@ -2609,7 +2611,8 @@ beiscsi_create_def_data(struct beiscsi_hba *phba,
 			     "be_fill_queue Failed for DEF PDU DATA\n");
 		return ret;
 	}
-	mem->dma = mem_descr->mem_array[idx].bus_address.u.a64.address;
+	mem->dma = (unsigned long)mem_descr->mem_array[idx].
+				  bus_address.u.a64.address;
 	ret = be_cmd_create_default_pdu_queue(&phba->ctrl, cq, dataq,
 					      def_pdu_ring_sz,
 					      phba->params.defpdu_data_sz);
@@ -2623,7 +2626,7 @@ beiscsi_create_def_data(struct beiscsi_hba *phba,
 	SE_DEBUG(DBG_LVL_8, "iscsi def data id is %d\n",
 		 phwi_context->be_def_dataq.id);
 	hwi_post_async_buffers(phba, 0);
-	SE_DEBUG(DBG_LVL_8, "DEFAULT PDU DATA RING CREATED \n");
+	SE_DEBUG(DBG_LVL_8, "DEFAULT PDU DATA RING CREATED\n");
 	return 0;
 }
 
@@ -2655,7 +2658,7 @@ beiscsi_post_pages(struct beiscsi_hba *phba)
 		}
 		pm_arr++;
 	}
-	SE_DEBUG(DBG_LVL_8, "POSTED PAGES \n");
+	SE_DEBUG(DBG_LVL_8, "POSTED PAGES\n");
 	return 0;
 }
 
@@ -2885,7 +2888,7 @@ static int find_num_cpus(void)
 	if (num_cpus >= MAX_CPUS)
 		num_cpus = MAX_CPUS - 1;
 
-	SE_DEBUG(DBG_LVL_8, "num_cpus = %d \n", num_cpus);
+	SE_DEBUG(DBG_LVL_8, "num_cpus = %d\n", num_cpus);
 	return num_cpus;
 }
 
@@ -2908,7 +2911,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 
 	status = beiscsi_create_eqs(phba, phwi_context);
 	if (status != 0) {
-		shost_printk(KERN_ERR, phba->shost, "EQ not created \n");
+		shost_printk(KERN_ERR, phba->shost, "EQ not created\n");
 		goto error;
 	}
 
@@ -2919,7 +2922,7 @@ static int hwi_init_port(struct beiscsi_hba *phba)
 	status = mgmt_check_supported_fw(ctrl, phba);
 	if (status != 0) {
 		shost_printk(KERN_ERR, phba->shost,
-			     "Unsupported fw version \n");
+			     "Unsupported fw version\n");
 		goto error;
 	}
 
@@ -2975,7 +2978,7 @@ static int hwi_init_controller(struct beiscsi_hba *phba)
 	if (1 == phba->init_mem[HWI_MEM_ADDN_CONTEXT].num_elements) {
 		phwi_ctrlr->phwi_ctxt = (struct hwi_context_memory *)phba->
 		    init_mem[HWI_MEM_ADDN_CONTEXT].mem_array[0].virtual_address;
-		SE_DEBUG(DBG_LVL_8, " phwi_ctrlr->phwi_ctxt=%p \n",
+		SE_DEBUG(DBG_LVL_8, " phwi_ctrlr->phwi_ctxt=%p\n",
 			 phwi_ctrlr->phwi_ctxt);
 	} else {
 		shost_printk(KERN_ERR, phba->shost,
@@ -3008,8 +3011,8 @@ static void beiscsi_free_mem(struct beiscsi_hba *phba)
 			pci_free_consistent(phba->pcidev,
 			  mem_descr->mem_array[j - 1].size,
 			  mem_descr->mem_array[j - 1].virtual_address,
-			  mem_descr->mem_array[j - 1].bus_address.
-				u.a64.address);
+			  (unsigned long)mem_descr->mem_array[j - 1].
+			  bus_address.u.a64.address);
 		}
 		kfree(mem_descr->mem_array);
 		mem_descr++;
@@ -3025,7 +3028,7 @@ static int beiscsi_init_controller(struct beiscsi_hba *phba)
 	ret = beiscsi_get_memory(phba);
 	if (ret < 0) {
 		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe -"
-			     "Failed in beiscsi_alloc_memory \n");
+			     "Failed in beiscsi_alloc_memory\n");
 		return ret;
 	}
 
@@ -3102,12 +3105,12 @@ static int beiscsi_init_sgl_handle(struct beiscsi_hba *phba)
 	}
 	SE_DEBUG(DBG_LVL_8,
 		 "phba->io_sgl_hndl_avbl=%d"
-		 "phba->eh_sgl_hndl_avbl=%d \n",
+		 "phba->eh_sgl_hndl_avbl=%d\n",
 		 phba->io_sgl_hndl_avbl,
 		 phba->eh_sgl_hndl_avbl);
 	mem_descr_sg = phba->init_mem;
 	mem_descr_sg += HWI_MEM_SGE;
-	SE_DEBUG(DBG_LVL_8, "\n mem_descr_sg->num_elements=%d \n",
+	SE_DEBUG(DBG_LVL_8, "\n mem_descr_sg->num_elements=%d\n",
 		 mem_descr_sg->num_elements);
 	arr_index = 0;
 	idx = 0;
@@ -3156,7 +3159,7 @@ static int hba_setup_cid_tbls(struct beiscsi_hba *phba)
 	if (!phba->ep_array) {
 		shost_printk(KERN_ERR, phba->shost,
 			     "Failed to allocate memory in "
-			     "hba_setup_cid_tbls \n");
+			     "hba_setup_cid_tbls\n");
 		kfree(phba->cid_array);
 		return -ENOMEM;
 	}
@@ -3185,21 +3188,21 @@ static unsigned char hwi_enable_intr(struct beiscsi_hba *phba)
 	addr = (u8 __iomem *) ((u8 __iomem *) ctrl->pcicfg +
 			PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET);
 	reg = ioread32(addr);
-	SE_DEBUG(DBG_LVL_8, "reg =x%08x \n", reg);
+	SE_DEBUG(DBG_LVL_8, "reg =x%08x\n", reg);
 
 	enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 	if (!enabled) {
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
-		SE_DEBUG(DBG_LVL_8, "reg =x%08x addr=%p \n", reg, addr);
+		SE_DEBUG(DBG_LVL_8, "reg =x%08x addr=%p\n", reg, addr);
 		iowrite32(reg, addr);
 		if (!phba->msix_enabled) {
 			eq = &phwi_context->be_eq[0].q;
-			SE_DEBUG(DBG_LVL_8, "eq->id=%d \n", eq->id);
+			SE_DEBUG(DBG_LVL_8, "eq->id=%d\n", eq->id);
 			hwi_ring_eq_db(phba, eq->id, 0, 0, 1, 1);
 		} else {
 			for (i = 0; i <= phba->num_cpus; i++) {
 				eq = &phwi_context->be_eq[i].q;
-				SE_DEBUG(DBG_LVL_8, "eq->id=%d \n", eq->id);
+				SE_DEBUG(DBG_LVL_8, "eq->id=%d\n", eq->id);
 				hwi_ring_eq_db(phba, eq->id, 0, 0, 1, 1);
 			}
 		}
@@ -3220,7 +3223,7 @@ static void hwi_disable_intr(struct beiscsi_hba *phba)
 		iowrite32(reg, addr);
 	} else
 		shost_printk(KERN_WARNING, phba->shost,
-			     "In hwi_disable_intr, Already Disabled \n");
+			     "In hwi_disable_intr, Already Disabled\n");
 }
 
 static int beiscsi_init_port(struct beiscsi_hba *phba)
@@ -3231,14 +3234,14 @@ static int beiscsi_init_port(struct beiscsi_hba *phba)
 	if (ret < 0) {
 		shost_printk(KERN_ERR, phba->shost,
 			     "beiscsi_dev_probe - Failed in"
-			     "beiscsi_init_controller \n");
+			     "beiscsi_init_controller\n");
 		return ret;
 	}
 	ret = beiscsi_init_sgl_handle(phba);
 	if (ret < 0) {
 		shost_printk(KERN_ERR, phba->shost,
 			     "beiscsi_dev_probe - Failed in"
-			     "beiscsi_init_sgl_handle \n");
+			     "beiscsi_init_sgl_handle\n");
 		goto do_cleanup_ctrlr;
 	}
 
@@ -3297,7 +3300,7 @@ static void beiscsi_clean_port(struct beiscsi_hba *phba)
 	mgmt_status = mgmt_epfw_cleanup(phba, CMD_CONNECTION_CHUTE_0);
 	if (mgmt_status)
 		shost_printk(KERN_WARNING, phba->shost,
-			     "mgmt_epfw_cleanup FAILED \n");
+			     "mgmt_epfw_cleanup FAILED\n");
 
 	hwi_purge_eq(phba);
 	hwi_cleanup(phba);
@@ -3487,7 +3490,7 @@ free_hndls:
 	io_task->pwrb_handle = NULL;
 	pci_pool_free(beiscsi_sess->bhs_pool, io_task->cmd_bhs,
 		      io_task->bhs_pa.u.a64.address);
-	SE_DEBUG(DBG_LVL_1, "Alloc of SGL_ICD Failed \n");
+	SE_DEBUG(DBG_LVL_1, "Alloc of SGL_ICD Failed\n");
 	return -ENOMEM;
 }
 
@@ -3654,7 +3657,7 @@ static int beiscsi_mtask(struct iscsi_task *task)
 		break;
 
 	default:
-		SE_DEBUG(DBG_LVL_1, "opcode =%d Not supported \n",
+		SE_DEBUG(DBG_LVL_1, "opcode =%d Not supported\n",
 			 task->hdr->opcode & ISCSI_OPCODE_MASK);
 		return -EINVAL;
 	}
@@ -3696,7 +3699,7 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	sg = scsi_sglist(sc);
 	if (sc->sc_data_direction == DMA_TO_DEVICE) {
 		writedir = 1;
-		SE_DEBUG(DBG_LVL_4, "task->imm_count=0x%08x \n",
+		SE_DEBUG(DBG_LVL_4, "task->imm_count=0x%08x\n",
 			 task->imm_count);
 	} else
 		writedir = 0;
@@ -3713,7 +3716,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 
 	phba = (struct beiscsi_hba *)pci_get_drvdata(pcidev);
 	if (!phba) {
-		dev_err(&pcidev->dev, "beiscsi_remove called with no phba \n");
+		dev_err(&pcidev->dev, "beiscsi_remove called with no phba\n");
 		return;
 	}
 
@@ -3782,7 +3785,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	phba = beiscsi_hba_alloc(pcidev);
 	if (!phba) {
 		dev_err(&pcidev->dev, "beiscsi_dev_probe-"
-			" Failed in beiscsi_hba_alloc \n");
+			" Failed in beiscsi_hba_alloc\n");
 		goto disable_pci;
 	}
 
@@ -3805,7 +3808,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	else
 		num_cpus = 1;
 	phba->num_cpus = num_cpus;
-	SE_DEBUG(DBG_LVL_8, "num_cpus = %d \n", phba->num_cpus);
+	SE_DEBUG(DBG_LVL_8, "num_cpus = %d\n", phba->num_cpus);
 
 	if (enable_msix)
 		beiscsi_msix_enable(phba);
@@ -3877,7 +3880,7 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 			     "Failed to hwi_enable_intr\n");
 		goto free_ctrlr;
 	}
-	SE_DEBUG(DBG_LVL_8, "\n\n\n SUCCESS - DRIVER LOADED \n\n\n");
+	SE_DEBUG(DBG_LVL_8, "\n\n\n SUCCESS - DRIVER LOADED\n\n\n");
 	return 0;
 
 free_ctrlr:
@@ -3989,7 +3992,7 @@ static int __init beiscsi_module_init(void)
 			 "transport.\n");
 		return -ENOMEM;
 	}
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_module_init, tt=%p \n",
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_module_init, tt=%p\n",
 		 &beiscsi_iscsi_transport);
 
 	ret = pci_register_driver(&beiscsi_pci_driver);

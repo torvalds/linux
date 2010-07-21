@@ -58,7 +58,7 @@ unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 		}
 	} else {
 		shost_printk(KERN_WARNING, phba->shost,
-			     "Failed in mgmt_get_fw_config \n");
+			     "Failed in mgmt_get_fw_config\n");
 	}
 
 	spin_unlock(&ctrl->mbox_lock);
@@ -167,7 +167,7 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				&nonemb_cmd.dma);
 	if (nonemb_cmd.va == NULL) {
 		SE_DEBUG(DBG_LVL_1,
-			 "Failed to allocate memory for mgmt_invalidate_icds\n");
+			 "Failed to alloc memory for mgmt_invalidate_icds\n");
 		spin_unlock(&ctrl->mbox_lock);
 		return 0;
 	}
@@ -339,7 +339,7 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	if (phba->nxt_cqid == phba->num_cpus)
 		phba->nxt_cqid = 0;
 	req->cq_id = phwi_context->be_cq[i].id;
-	SE_DEBUG(DBG_LVL_8, "i=%d cq_id=%d \n", i, req->cq_id);
+	SE_DEBUG(DBG_LVL_8, "i=%d cq_id=%d\n", i, req->cq_id);
 	req->defq_id = def_hdr_id;
 	req->hdr_ring_id = def_hdr_id;
 	req->data_ring_id = def_data_id;

@@ -151,20 +151,20 @@ void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 {
 	switch (evt->port_link_status) {
 	case ASYNC_EVENT_LINK_DOWN:
-		SE_DEBUG(DBG_LVL_1, "Link Down on Physical Port %d \n",
-						evt->physical_port);
+		SE_DEBUG(DBG_LVL_1, "Link Down on Physical Port %d\n",
+				     evt->physical_port);
 		phba->state |= BE_ADAPTER_LINK_DOWN;
 		iscsi_host_for_each_session(phba->shost,
 					    be2iscsi_fail_session);
 		break;
 	case ASYNC_EVENT_LINK_UP:
 		phba->state = BE_ADAPTER_UP;
-		SE_DEBUG(DBG_LVL_1, "Link UP on Physical Port %d \n",
+		SE_DEBUG(DBG_LVL_1, "Link UP on Physical Port %d\n",
 						evt->physical_port);
 		break;
 	default:
 		SE_DEBUG(DBG_LVL_1, "Unexpected Async Notification %d on"
-				    "Physical Port %d \n",
+				    "Physical Port %d\n",
 				     evt->port_link_status,
 				     evt->physical_port);
 	}
@@ -199,7 +199,7 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 			else
 				SE_DEBUG(DBG_LVL_1,
 					 " Unsupported Async Event, flags"
-					 " = 0x%08x \n", compl->flags);
+					 " = 0x%08x\n", compl->flags);
 
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
 				status = be_mcc_compl_process(ctrl, compl);
@@ -286,7 +286,7 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status != 0) {
-		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed 1\n");
+		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed\n");
 		return status;
 	}
 	val = 0;
@@ -297,14 +297,14 @@ int be_mbox_notify(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_db_ready_wait(ctrl);
 	if (status != 0) {
-		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed 2\n");
+		SE_DEBUG(DBG_LVL_1, " be_mbox_db_ready_wait failed\n");
 		return status;
 	}
 	if (be_mcc_compl_is_new(compl)) {
 		status = be_mcc_compl_process(ctrl, &mbox->compl);
 		be_mcc_compl_use(compl);
 		if (status) {
-			SE_DEBUG(DBG_LVL_1, "After be_mcc_compl_process \n");
+			SE_DEBUG(DBG_LVL_1, "After be_mcc_compl_process\n");
 			return status;
 		}
 	} else {
@@ -500,7 +500,7 @@ int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
 
 	status = be_mbox_notify(ctrl);
 	if (status)
-		SE_DEBUG(DBG_LVL_1, "be_cmd_fw_initialize Failed \n");
+		SE_DEBUG(DBG_LVL_1, "be_cmd_fw_initialize Failed\n");
 
 	spin_unlock(&ctrl->mbox_lock);
 	return status;
@@ -517,7 +517,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 	void *ctxt = &req->context;
 	int status;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_cq_create \n");
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_cq_create\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 
@@ -550,7 +550,7 @@ int beiscsi_cmd_cq_create(struct be_ctrl_info *ctrl,
 		cq->id = le16_to_cpu(resp->cq_id);
 		cq->created = true;
 	} else
-		SE_DEBUG(DBG_LVL_1, "In be_cmd_cq_create, status=ox%08x \n",
+		SE_DEBUG(DBG_LVL_1, "In be_cmd_cq_create, status=ox%08x\n",
 			status);
 	spin_unlock(&ctrl->mbox_lock);
 
@@ -619,7 +619,7 @@ int beiscsi_cmd_q_destroy(struct be_ctrl_info *ctrl, struct be_queue_info *q,
 	u8 subsys = 0, opcode = 0;
 	int status;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_q_destroy \n");
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_cmd_q_destroy\n");
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
