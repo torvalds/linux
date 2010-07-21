@@ -294,7 +294,7 @@ static int pcmcia_device_probe(struct device *dev)
 	}
 
 	mutex_lock(&s->ops_mutex);
-	if ((s->pcmcia_state.has_pfc) &&
+	if ((s->pcmcia_pfc) &&
 	    (p_dev->socket->device_count == 1) && (p_dev->device_no == 0))
 		pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
 	mutex_unlock(&s->ops_mutex);
@@ -359,7 +359,7 @@ static int pcmcia_device_remove(struct device *dev)
 	 * pseudo multi-function card, we need to unbind
 	 * all devices
 	 */
-	if ((p_dev->socket->pcmcia_state.has_pfc) &&
+	if ((p_dev->socket->pcmcia_pfc) &&
 	    (p_dev->socket->device_count > 0) &&
 	    (p_dev->device_no == 0))
 		pcmcia_card_remove(p_dev->socket, p_dev);
@@ -681,7 +681,7 @@ static void pcmcia_requery(struct pcmcia_socket *s)
 	 * call pcmcia_device_add() -- which will fail if both
 	 * devices are already registered. */
 	mutex_lock(&s->ops_mutex);
-	has_pfc = s->pcmcia_state.has_pfc;
+	has_pfc = s->pcmcia_pfc;
 	mutex_unlock(&s->ops_mutex);
 	if (has_pfc)
 		pcmcia_device_add(s, 0);
@@ -813,7 +813,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
 		dev_dbg(&dev->dev, "this is a pseudo-multi-function device\n");
 		mutex_lock(&dev->socket->ops_mutex);
-		dev->socket->pcmcia_state.has_pfc = 1;
+		dev->socket->pcmcia_pfc = 1;
 		mutex_unlock(&dev->socket->ops_mutex);
 		if (dev->device_no != did->device_no)
 			return 0;
@@ -827,7 +827,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 
 		/* if this is a pseudo-multi-function device,
 		 * we need explicit matches */
-		if (dev->socket->pcmcia_state.has_pfc)
+		if (dev->socket->pcmcia_pfc)
 			return 0;
 		if (dev->device_no)
 			return 0;
@@ -1226,7 +1226,7 @@ static int pcmcia_bus_add(struct pcmcia_socket *skt)
 	atomic_set(&skt->present, 1);
 
 	mutex_lock(&skt->ops_mutex);
-	skt->pcmcia_state.has_pfc = 0;
+	skt->pcmcia_pfc = 0;
 	destroy_cis_cache(skt); /* to be on the safe side... */
 	mutex_unlock(&skt->ops_mutex);
 
@@ -1317,7 +1317,7 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 	}
 
 	INIT_LIST_HEAD(&socket->devices_list);
-	memset(&socket->pcmcia_state, 0, sizeof(u8));
+	socket->pcmcia_pfc = 0;
 	socket->device_count = 0;
 	atomic_set(&socket->present, 0);
 
