@@ -370,7 +370,7 @@ static inline void xstate_enable(u64 mask)
  * Record the offsets and sizes of different state managed by the xsave
  * memory layout.
  */
-static void setup_xstate_features(void)
+static void __init setup_xstate_features(void)
 {
 	int eax, ebx, ecx, edx, leaf = 0x2;
 
