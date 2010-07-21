@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
@@ -72,6 +72,7 @@ struct ts102_regs {
 #define UCTRL_STAT_RXNE_STA        0x04    /* receive FIFO not empty status */
 #define UCTRL_STAT_RXO_STA         0x08    /* receive FIFO overflow status */
 
+static DEFINE_MUTEX(uctrl_mutex);
 static const char *uctrl_extstatus[16] = {
         "main power available",
         "internal battery attached",
@@ -210,10 +211,10 @@ uctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int
 uctrl_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
+	mutex_lock(&uctrl_mutex);
 	uctrl_get_event_status(global_driver);
 	uctrl_get_external_status(global_driver);
-	unlock_kernel();
+	mutex_unlock(&uctrl_mutex);
 	return 0;
 }
 
