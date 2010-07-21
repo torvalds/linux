@@ -277,6 +277,10 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 		if (session->max_burst > 262144)
 			session->max_burst = 262144;
 		break;
+	case ISCSI_PARAM_MAX_XMIT_DLENGTH:
+		if ((conn->max_xmit_dlength > 65536) ||
+		    (conn->max_xmit_dlength == 0))
+			conn->max_xmit_dlength = 65536;
 	default:
 		return 0;
 	}
