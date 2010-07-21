@@ -580,9 +580,9 @@ beiscsi_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 	beiscsi_ep = ep->dd_data;
 	beiscsi_ep->phba = phba;
 	beiscsi_ep->openiscsi_ep = ep;
-	if (beiscsi_open_conn(ep, NULL, dst_addr, non_blocking)) {
+	ret = beiscsi_open_conn(ep, NULL, dst_addr, non_blocking);
+	if (ret) {
 		SE_DEBUG(DBG_LVL_1, "Failed in beiscsi_open_conn\n");
-		ret = -ENOMEM;
 		goto free_ep;
 	}
 
