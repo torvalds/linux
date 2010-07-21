@@ -11,6 +11,8 @@
 #ifndef __ASM_SH7372_H__
 #define __ASM_SH7372_H__
 
+#include <linux/sh_clk.h>
+
 /*
  * Pin Function Controller:
  *	GPIO_FN_xx - GPIO used to select pin function
@@ -454,5 +456,9 @@ enum {
 	SHDMA_SLAVE_SDHI2_RX,
 	SHDMA_SLAVE_SDHI2_TX,
 };
+
+extern struct clk dv_clki_clk;
+extern struct clk dv_clki_div2_clk;
+extern struct clk pllc2_clk;
 
 #endif /* __ASM_SH7372_H__ */
