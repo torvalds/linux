@@ -1914,6 +1914,13 @@ config FB_SH_MOBILE_LCDC
 	---help---
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
+config FB_SH_MOBILE_HDMI
+	tristate "SuperH Mobile HDMI controller support"
+	depends on FB_SH_MOBILE_LCDC
+	select FB_MODE_HELPERS
+	---help---
+	  Driver for the on-chip SH-Mobile HDMI controller.
+
 config FB_TMIO
 	tristate "Toshiba Mobile IO FrameBuffer support"
 	depends on FB && MFD_CORE
