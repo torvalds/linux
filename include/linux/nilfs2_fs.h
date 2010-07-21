@@ -212,7 +212,10 @@ struct nilfs_super_block {
 /*F8*/	__le32  s_c_interval;           /* Commit interval of segment */
 	__le32  s_c_block_max;          /* Threshold of data amount for
 					   the segment construction */
-	__u32	s_reserved[192];	/* padding to the end of the block */
+/*100*/	__le64  s_feature_compat;	/* Compatible feature set */
+	__le64  s_feature_compat_ro;	/* Read-only compatible feature set */
+	__le64  s_feature_incompat;	/* Incompatible feature set */
+	__u32	s_reserved[186];	/* padding to the end of the block */
 };
 
 /*
@@ -226,6 +229,16 @@ struct nilfs_super_block {
  */
 #define NILFS_CURRENT_REV	2	/* current major revision */
 #define NILFS_MINOR_REV		0	/* minor revision */
+
+/*
+ * Feature set definitions
+ *
+ * If there is a bit set in the incompatible feature set that the kernel
+ * doesn't know about, it should refuse to mount the filesystem.
+ */
+#define NILFS_FEATURE_COMPAT_SUPP	0ULL
+#define NILFS_FEATURE_COMPAT_RO_SUPP	0ULL
+#define NILFS_FEATURE_INCOMPAT_SUPP	0ULL
 
 /*
  * Bytes count of super_block for CRC-calculation
