@@ -26,7 +26,6 @@
 #include <linux/amba/mmci.h>
 #include <linux/regulator/consumer.h>
 
-#include <asm/cacheflush.h>
 #include <asm/div64.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
@@ -96,6 +95,18 @@ static void mmci_stop_data(struct mmci_host *host)
 	writel(0, host->base + MMCIDATACTRL);
 	writel(0, host->base + MMCIMASK1);
 	host->data = NULL;
+}
+
+static void mmci_init_sg(struct mmci_host *host, struct mmc_data *data)
+{
+	unsigned int flags = SG_MITER_ATOMIC;
+
+	if (data->flags & MMC_DATA_READ)
+		flags |= SG_MITER_TO_SG;
+	else
+		flags |= SG_MITER_FROM_SG;
+
+	sg_miter_start(&host->sg_miter, data->sg, data->sg_len, flags);
 }
 
 static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
@@ -210,8 +221,17 @@ mmci_data_irq(struct mmci_host *host, struct mmc_data *data,
 		 * We hit an error condition.  Ensure that any data
 		 * partially written to a page is properly coherent.
 		 */
-		if (host->sg_len && data->flags & MMC_DATA_READ)
-			flush_dcache_page(sg_page(host->sg_ptr));
+		if (data->flags & MMC_DATA_READ) {
+			struct sg_mapping_iter *sg_miter = &host->sg_miter;
+			unsigned long flags;
+
+			local_irq_save(flags);
+			if (sg_miter_next(sg_miter)) {
+				flush_dcache_page(sg_miter->page);
+				sg_miter_stop(sg_miter);
+			}
+			local_irq_restore(flags);
+		}
 	}
 	if (status & MCI_DATAEND) {
 		mmci_stop_data(host);
@@ -314,15 +334,18 @@ static int mmci_pio_write(struct mmci_host *host, char *buffer, unsigned int rem
 static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 {
 	struct mmci_host *host = dev_id;
+	struct sg_mapping_iter *sg_miter = &host->sg_miter;
 	void __iomem *base = host->base;
+	unsigned long flags;
 	u32 status;
 
 	status = readl(base + MMCISTATUS);
 
 	dev_dbg(mmc_dev(host->mmc), "irq1 (pio) %08x\n", status);
 
+	local_irq_save(flags);
+
 	do {
-		unsigned long flags;
 		unsigned int remain, len;
 		char *buffer;
 
@@ -336,11 +359,11 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 		if (!(status & (MCI_TXFIFOHALFEMPTY|MCI_RXDATAAVLBL)))
 			break;
 
-		/*
-		 * Map the current scatter buffer.
-		 */
-		buffer = mmci_kmap_atomic(host, &flags) + host->sg_off;
-		remain = host->sg_ptr->length - host->sg_off;
+		if (!sg_miter_next(sg_miter))
+			break;
+
+		buffer = sg_miter->addr;
+		remain = sg_miter->length;
 
 		len = 0;
 		if (status & MCI_RXACTIVE)
@@ -348,30 +371,23 @@ static irqreturn_t mmci_pio_irq(int irq, void *dev_id)
 		if (status & MCI_TXACTIVE)
 			len = mmci_pio_write(host, buffer, remain, status);
 
-		/*
-		 * Unmap the buffer.
-		 */
-		mmci_kunmap_atomic(host, buffer, &flags);
+		sg_miter->consumed = len;
 
-		host->sg_off += len;
 		host->size -= len;
 		remain -= len;
 
 		if (remain)
 			break;
 
-		/*
-		 * If we were reading, and we have completed this
-		 * page, ensure that the data cache is coherent.
-		 */
 		if (status & MCI_RXACTIVE)
-			flush_dcache_page(sg_page(host->sg_ptr));
-
-		if (!mmci_next_sg(host))
-			break;
+			flush_dcache_page(sg_miter->page);
 
 		status = readl(base + MMCISTATUS);
 	} while (1);
+
+	sg_miter_stop(sg_miter);
+
+	local_irq_restore(flags);
 
 	/*
 	 * If we're nearing the end of the read, switch to
