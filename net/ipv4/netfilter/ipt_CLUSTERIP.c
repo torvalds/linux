@@ -469,7 +469,7 @@ struct arp_payload {
 	__be32 src_ip;
 	u_int8_t dst_hw[ETH_ALEN];
 	__be32 dst_ip;
-} __attribute__ ((packed));
+} __packed;
 
 #ifdef DEBUG
 static void arp_print(struct arp_payload *payload)
