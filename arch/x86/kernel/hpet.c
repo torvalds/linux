@@ -949,7 +949,7 @@ fs_initcall(hpet_late_init);
 
 void hpet_disable(void)
 {
-	if (is_hpet_capable()) {
+	if (is_hpet_capable() && hpet_virt_address) {
 		unsigned long cfg = hpet_readl(HPET_CFG);
 
 		if (hpet_legacy_int_enabled) {
