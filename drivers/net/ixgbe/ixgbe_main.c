@@ -6492,6 +6492,15 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 #endif
 	u32 part_num, eec;
 
+	/* Catch broken hardware that put the wrong VF device ID in
+	 * the PCIe SR-IOV capability.
+	 */
+	if (pdev->is_virtfn) {
+		WARN(1, KERN_ERR "%s (%hx:%hx) should not be a VF!\n",
+		     pci_name(pdev), pdev->vendor, pdev->device);
+		return -EINVAL;
+	}
+
 	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
