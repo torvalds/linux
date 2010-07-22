@@ -1,5 +1,7 @@
-#include <stdlib.h>
+#include <linux/firewire-constants.h>
 #include <stdio.h>
+#include <stdlib.h>
+
 #include "list.h"
 #include "nosy-dump.h"
 
@@ -176,7 +178,7 @@ decode_fcp(struct link_transaction *t)
 	    ((unsigned long long) t->request->packet.common.offset_high << 32) |
 	    t->request->packet.common.offset_low;
 
-	if (t->request->packet.common.tcode != TCODE_WRITE_BLOCK)
+	if (t->request->packet.common.tcode != TCODE_WRITE_BLOCK_REQUEST)
 		return 0;
 
 	if (offset == CSR_FCP_COMMAND || offset == CSR_FCP_RESPONSE) {

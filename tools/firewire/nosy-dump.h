@@ -3,35 +3,10 @@
 
 #define array_length(array) (sizeof(array) / sizeof(array[0]))
 
-#define TCODE_WRITE_QUADLET         0x0
-#define TCODE_WRITE_BLOCK           0x1
-#define TCODE_WRITE_RESPONSE        0x2
-#define TCODE_READ_QUADLET          0x4
-#define TCODE_READ_BLOCK            0x5
-#define TCODE_READ_QUADLET_RESPONSE 0x6
-#define TCODE_READ_BLOCK_RESPONSE   0x7
-#define TCODE_CYCLE_START           0x8
-#define TCODE_LOCK_REQUEST          0x9
-#define TCODE_ISO_DATA              0xa
-#define TCODE_LOCK_RESPONSE         0xb
-#define TCODE_PHY_PACKET            0x10
-
-#define ACK_NO_ACK               0x0
-#define ACK_COMPLETE             0x1
-#define ACK_PENDING              0x2
-#define ACK_BUSY_X               0x4
-#define ACK_BUSY_A               0x5
-#define ACK_BUSY_B               0x6
-#define ACK_DATA_ERROR           0xd
-#define ACK_TYPE_ERROR           0xe 
-
+#define ACK_NO_ACK   0x0
 #define ACK_DONE(a)  ((a >> 2) == 0)
 #define ACK_BUSY(a)  ((a >> 2) == 1)
 #define ACK_ERROR(a) ((a >> 2) == 3)
-
-#define SPEED_100                0x0
-#define SPEED_200                0x1
-#define SPEED_400                0x2
 
 #include <stdint.h>
 
@@ -91,6 +66,8 @@ struct phy_packet {
 	uint32_t inverted;
 	uint32_t ack;
 };
+
+#define TCODE_PHY_PACKET 0x10
 
 #define PHY_PACKET_CONFIGURATION 0x00
 #define PHY_PACKET_LINK_ON 0x01

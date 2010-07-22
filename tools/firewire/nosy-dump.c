@@ -20,6 +20,7 @@
 #include <byteswap.h>
 #include <endian.h>
 #include <fcntl.h>
+#include <linux/firewire-constants.h>
 #include <poll.h>
 #include <popt.h>
 #include <signal.h>
@@ -522,8 +523,8 @@ handle_request_packet(uint32_t *data, size_t length)
 
 	switch (sa->ack) {
 	case ACK_COMPLETE:
-		if (p->common.tcode != TCODE_WRITE_QUADLET &&
-		    p->common.tcode != TCODE_WRITE_BLOCK)
+		if (p->common.tcode != TCODE_WRITE_QUADLET_REQUEST &&
+		    p->common.tcode != TCODE_WRITE_BLOCK_REQUEST)
 			/* error, unified transactions only allowed for write */;
 		list_remove(&t->link);
 		handle_transaction(t);
@@ -967,7 +968,7 @@ int main(int argc, const char *argv[])
 
 		filter = ~0;
 		if (!option_iso)
-			filter &= ~(1 << TCODE_ISO_DATA);
+			filter &= ~(1 << TCODE_STREAM_DATA);
 		if (!option_cycle_start)
 			filter &= ~(1 << TCODE_CYCLE_START);
 		if (view == VIEW_STATS)
