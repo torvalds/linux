@@ -129,7 +129,7 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 {
 	register int room = skb_tailroom(kim_gdata->rx_skb);
 
-	pr_info("len %d room %d", len, room);
+	pr_debug("len %d room %d", len, room);
 
 	if (!len) {
 		validate_firmware_response(kim_gdata);
@@ -170,7 +170,7 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 	struct hci_event_hdr *eh;
 	register int len = 0, type = 0;
 
-	pr_info("%s", __func__);
+	pr_debug("%s", __func__);
 	/* Decode received bytes here */
 	ptr = (char *)data;
 	if (unlikely(ptr == NULL)) {
@@ -192,7 +192,7 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 			switch (kim_gdata->rx_state) {
 				/* Waiting for complete packet ? */
 			case ST_BT_W4_DATA:
-				pr_info("Complete pkt received");
+				pr_debug("Complete pkt received");
 				validate_firmware_response(kim_gdata);
 				kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 				kim_gdata->rx_skb = NULL;
@@ -201,7 +201,7 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 			case ST_BT_W4_EVENT_HDR:
 				eh = (struct hci_event_hdr *)kim_gdata->
 				    rx_skb->data;
-				pr_info("Event header: evt 0x%2.2x"
+				pr_debug("Event header: evt 0x%2.2x"
 					   "plen %d", eh->evt, eh->plen);
 				kim_check_data_len(kim_gdata, eh->plen);
 				continue;
@@ -242,7 +242,7 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	unsigned short version = 0, chip = 0, min_ver = 0, maj_ver = 0;
 	char read_ver_cmd[] = { 0x01, 0x01, 0x10, 0x00 };
 
-	pr_info("%s", __func__);
+	pr_debug("%s", __func__);
 
 	INIT_COMPLETION(kim_gdata->kim_rcvd);
 	if (4 != st_int_write(kim_gdata->core_data, read_ver_cmd, 4)) {
@@ -289,8 +289,6 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 	register unsigned char *action_ptr = NULL;
 	unsigned char bts_scr_name[30] = { 0 };	/* 30 char long bts scr name? */
 
-	pr_info("%s", __func__);
-
 	err = read_local_version(kim_gdata, bts_scr_name);
 	if (err != 0) {
 		pr_err("kim: failed to read local ver");
@@ -314,7 +312,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 	len -= sizeof(struct bts_header);
 
 	while (len > 0 && ptr) {
-		pr_info(" action size %d, type %d ",
+		pr_debug(" action size %d, type %d ",
 			   ((struct bts_action *)ptr)->size,
 			   ((struct bts_action *)ptr)->type);
 
@@ -327,8 +325,8 @@ static long download_firmware(struct kim_data_s *kim_gdata)
 				/* ignore remote change
 				 * baud rate HCI VS command */
 				pr_err
-				    (" change remote baud\
-				    rate command in firmware");
+				    (" change remote baud"
+				    " rate command in firmware");
 				break;
 			}
 
@@ -558,7 +556,6 @@ static ssize_t store_pid(struct device *dev, struct device_attribute
 			 *devattr, char *buf, size_t count)
 {
 	struct kim_data_s	*kim_gdata = dev_get_drvdata(dev);
-	pr_info("%s: pid %s ", __func__, buf);
 	sscanf(buf, "%ld", &kim_gdata->uim_pid);
 	/* to be made use by kim_start to signal SIGUSR2
 	 */
@@ -590,7 +587,7 @@ static ssize_t show_list(struct device *dev, struct device_attribute
 static int kim_toggle_radio(void *data, bool blocked)
 {
 	enum proto_type type = *((enum proto_type *)data);
-	pr_info(" %s: %d ", __func__, type);
+	pr_debug(" %s: %d ", __func__, type);
 
 	switch (type) {
 	case ST_BT:
