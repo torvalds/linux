@@ -413,7 +413,16 @@ do_translation_fault(unsigned long addr, unsigned int fsr,
 	pmd_k = pmd_offset(pgd_k, addr);
 	pmd   = pmd_offset(pgd, addr);
 
-	if (pmd_none(*pmd_k))
+	/*
+	 * On ARM one Linux PGD entry contains two hardware entries (see page
+	 * tables layout in pgtable.h). We normally guarantee that we always
+	 * fill both L1 entries. But create_mapping() doesn't follow the rule.
+	 * It can create inidividual L1 entries, so here we have to call
+	 * pmd_none() check for the entry really corresponded to address, not
+	 * for the first of pair.
+	 */
+	index = (addr >> SECTION_SHIFT) & 1;
+	if (pmd_none(pmd_k[index]))
 		goto bad_area;
 
 	copy_pmd(pmd, pmd_k);
