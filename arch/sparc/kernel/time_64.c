@@ -419,7 +419,7 @@ static struct platform_device rtc_cmos_device = {
 	.num_resources	= 1,
 };
 
-static int __devinit rtc_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit rtc_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct resource *r;
 
@@ -477,7 +477,7 @@ static struct platform_device rtc_bq4802_device = {
 	.num_resources	= 1,
 };
 
-static int __devinit bq4802_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit bq4802_probe(struct platform_device *op, const struct of_device_id *match)
 {
 
 	printk(KERN_INFO "%s: BQ4802 regs at 0x%llx\n",
@@ -534,7 +534,7 @@ static struct platform_device m48t59_rtc = {
 	},
 };
 
-static int __devinit mostek_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit mostek_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->dev.of_node;
 

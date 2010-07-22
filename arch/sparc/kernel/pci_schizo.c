@@ -844,7 +844,7 @@ static int pbm_routes_this_ino(struct pci_pbm_info *pbm, u32 ino)
  */
 static void tomatillo_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->op->dev.of_node);
+	struct platform_device *op = of_find_device_by_node(pbm->op->dev.of_node);
 	u64 tmp, err_mask, err_no_mask;
 	int err;
 
@@ -939,7 +939,7 @@ static void tomatillo_register_error_handlers(struct pci_pbm_info *pbm)
 
 static void schizo_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->op->dev.of_node);
+	struct platform_device *op = of_find_device_by_node(pbm->op->dev.of_node);
 	u64 tmp, err_mask, err_no_mask;
 	int err;
 
@@ -1307,7 +1307,7 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 }
 
 static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
-				     struct of_device *op, u32 portid,
+				     struct platform_device *op, u32 portid,
 				     int chip_type)
 {
 	const struct linux_prom64_registers *regs;
@@ -1413,7 +1413,7 @@ static struct pci_pbm_info * __devinit schizo_find_sibling(u32 portid,
 	return NULL;
 }
 
-static int __devinit __schizo_init(struct of_device *op, unsigned long chip_type)
+static int __devinit __schizo_init(struct platform_device *op, unsigned long chip_type)
 {
 	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
@@ -1460,7 +1460,7 @@ out_err:
 	return err;
 }
 
-static int __devinit schizo_probe(struct of_device *op,
+static int __devinit schizo_probe(struct platform_device *op,
 				  const struct of_device_id *match)
 {
 	return __schizo_init(op, (unsigned long) match->data);

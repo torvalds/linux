@@ -57,7 +57,7 @@ extern void of_iounmap(struct resource *res, void __iomem *base, unsigned long s
 
 /* These routines are here to provide compatibility with how powerpc
  * handles IRQ mapping for OF device nodes.  We precompute and permanently
- * register them in the of_device objects, whereas powerpc computes them
+ * register them in the platform_device objects, whereas powerpc computes them
  * on request.
  */
 static inline void irq_dispose_mapping(unsigned int virq)

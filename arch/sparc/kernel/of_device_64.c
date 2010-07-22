@@ -310,10 +310,10 @@ static int __init use_1to1_mapping(struct device_node *pp)
 
 static int of_resource_verbose;
 
-static void __init build_device_resources(struct of_device *op,
+static void __init build_device_resources(struct platform_device *op,
 					  struct device *parent)
 {
-	struct of_device *p_op;
+	struct platform_device *p_op;
 	struct of_bus *bus;
 	int na, ns;
 	int index, num_reg;
@@ -322,7 +322,7 @@ static void __init build_device_resources(struct of_device *op,
 	if (!parent)
 		return;
 
-	p_op = to_of_device(parent);
+	p_op = to_platform_device(parent);
 	bus = of_match_bus(p_op->dev.of_node);
 	bus->count_cells(op->dev.of_node, &na, &ns);
 
@@ -528,7 +528,7 @@ static unsigned int __init pci_irq_swizzle(struct device_node *dp,
 
 static int of_irq_verbose;
 
-static unsigned int __init build_one_device_irq(struct of_device *op,
+static unsigned int __init build_one_device_irq(struct platform_device *op,
 						struct device *parent,
 						unsigned int irq)
 {
@@ -630,10 +630,10 @@ out:
 	return irq;
 }
 
-static struct of_device * __init scan_one_device(struct device_node *dp,
+static struct platform_device * __init scan_one_device(struct device_node *dp,
 						 struct device *parent)
 {
-	struct of_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
+	struct platform_device *op = kzalloc(sizeof(*op), GFP_KERNEL);
 	const unsigned int *irq;
 	struct dev_archdata *sd;
 	int len, i;
@@ -686,7 +686,7 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 static void __init scan_tree(struct device_node *dp, struct device *parent)
 {
 	while (dp) {
-		struct of_device *op = scan_one_device(dp, parent);
+		struct platform_device *op = scan_one_device(dp, parent);
 
 		if (op)
 			scan_tree(dp->child, &op->dev);
@@ -698,7 +698,7 @@ static void __init scan_tree(struct device_node *dp, struct device *parent)
 static int __init scan_of_devices(void)
 {
 	struct device_node *root = of_find_node_by_path("/");
-	struct of_device *parent;
+	struct platform_device *parent;
 
 	parent = scan_one_device(root, NULL);
 	if (!parent)

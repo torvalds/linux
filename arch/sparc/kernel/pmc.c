@@ -51,7 +51,7 @@ static void pmc_swift_idle(void)
 #endif
 }
 
-static int __devinit pmc_probe(struct of_device *op,
+static int __devinit pmc_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	regs = of_ioremap(&op->resource[0], 0,

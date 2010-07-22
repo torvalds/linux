@@ -102,7 +102,8 @@ static struct of_device_id __initdata auxio_match[] = {
 
 MODULE_DEVICE_TABLE(of, auxio_match);
 
-static int __devinit auxio_probe(struct of_device *dev, const struct of_device_id *match)
+static int __devinit auxio_probe(struct platform_device *dev,
+				 const struct of_device_id *match)
 {
 	struct device_node *dp = dev->dev.of_node;
 	unsigned long size;

@@ -311,7 +311,7 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
 	struct device_node *dp = pbm->op->dev.of_node;
-	struct of_device *op;
+	struct platform_device *op;
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
 	int err;
@@ -443,7 +443,7 @@ static void __devinit sabre_scan_bus(struct pci_pbm_info *pbm,
 }
 
 static void __devinit sabre_pbm_init(struct pci_pbm_info *pbm,
-				     struct of_device *op)
+				     struct platform_device *op)
 {
 	psycho_pbm_init_common(pbm, op, "SABRE", PBM_CHIP_TYPE_SABRE);
 	pbm->pci_afsr = pbm->controller_regs + SABRE_PIOAFSR;
@@ -452,7 +452,7 @@ static void __devinit sabre_pbm_init(struct pci_pbm_info *pbm,
 	sabre_scan_bus(pbm, &op->dev);
 }
 
-static int __devinit sabre_probe(struct of_device *op,
+static int __devinit sabre_probe(struct platform_device *op,
 				 const struct of_device_id *match)
 {
 	const struct linux_prom64_registers *pr_regs;

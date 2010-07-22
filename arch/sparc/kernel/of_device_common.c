@@ -13,19 +13,19 @@
 
 static int node_match(struct device *dev, void *data)
 {
-	struct of_device *op = to_of_device(dev);
+	struct platform_device *op = to_platform_device(dev);
 	struct device_node *dp = data;
 
 	return (op->dev.of_node == dp);
 }
 
-struct of_device *of_find_device_by_node(struct device_node *dp)
+struct platform_device *of_find_device_by_node(struct device_node *dp)
 {
 	struct device *dev = bus_find_device(&platform_bus_type, NULL,
 					     dp, node_match);
 
 	if (dev)
-		return to_of_device(dev);
+		return to_platform_device(dev);
 
 	return NULL;
 }
@@ -33,7 +33,7 @@ EXPORT_SYMBOL(of_find_device_by_node);
 
 unsigned int irq_of_parse_and_map(struct device_node *node, int index)
 {
-	struct of_device *op = of_find_device_by_node(node);
+	struct platform_device *op = of_find_device_by_node(node);
 
 	if (!op || index >= op->archdata.num_irqs)
 		return 0;
@@ -43,16 +43,16 @@ unsigned int irq_of_parse_and_map(struct device_node *node, int index)
 EXPORT_SYMBOL(irq_of_parse_and_map);
 
 /* Take the archdata values for IOMMU, STC, and HOSTDATA found in
- * BUS and propagate to all child of_device objects.
+ * BUS and propagate to all child platform_device objects.
  */
-void of_propagate_archdata(struct of_device *bus)
+void of_propagate_archdata(struct platform_device *bus)
 {
 	struct dev_archdata *bus_sd = &bus->dev.archdata;
 	struct device_node *bus_dp = bus->dev.of_node;
 	struct device_node *dp;
 
 	for (dp = bus_dp->child; dp; dp = dp->sibling) {
-		struct of_device *op = of_find_device_by_node(dp);
+		struct platform_device *op = of_find_device_by_node(dp);
 
 		op->dev.archdata.iommu = bus_sd->iommu;
 		op->dev.archdata.stc = bus_sd->stc;

@@ -59,7 +59,7 @@ static int __devinit clock_board_calc_nslots(struct clock_board *p)
 	}
 }
 
-static int __devinit clock_board_probe(struct of_device *op,
+static int __devinit clock_board_probe(struct platform_device *op,
 				       const struct of_device_id *match)
 {
 	struct clock_board *p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -157,7 +157,7 @@ static struct of_platform_driver clock_board_driver = {
 	},
 };
 
-static int __devinit fhc_probe(struct of_device *op,
+static int __devinit fhc_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	struct fhc *p = kzalloc(sizeof(*p), GFP_KERNEL);

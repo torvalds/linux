@@ -68,7 +68,7 @@ static void apc_swift_idle(void)
 #endif
 } 
 
-static inline void apc_free(struct of_device *op)
+static inline void apc_free(struct platform_device *op)
 {
 	of_iounmap(&op->resource[0], regs, resource_size(&op->resource[0]));
 }
@@ -136,7 +136,7 @@ static const struct file_operations apc_fops = {
 
 static struct miscdevice apc_miscdev = { APC_MINOR, APC_DEVNAME, &apc_fops };
 
-static int __devinit apc_probe(struct of_device *op,
+static int __devinit apc_probe(struct platform_device *op,
 			       const struct of_device_id *match)
 {
 	int err;
