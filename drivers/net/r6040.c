@@ -510,7 +510,7 @@ static int r6040_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	if (!lp->phydev)
 		return -EINVAL;
 
-	return phy_mii_ioctl(lp->phydev, if_mii(rq), cmd);
+	return phy_mii_ioctl(lp->phydev, rq, cmd);
 }
 
 static int r6040_rx(struct net_device *dev, int limit)
