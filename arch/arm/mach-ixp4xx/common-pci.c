@@ -382,7 +382,8 @@ void __init ixp4xx_pci_preinit(void)
 
 
 	/* hook in our fault handler for PCI errors */
-	hook_fault_code(16+6, abort_handler, SIGBUS, "imprecise external abort");
+	hook_fault_code(16+6, abort_handler, SIGBUS, 0,
+			"imprecise external abort");
 
 	pr_debug("setup PCI-AHB(inbound) and AHB-PCI(outbound) address mappings\n");
 

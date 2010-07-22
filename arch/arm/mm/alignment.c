@@ -924,8 +924,10 @@ static int __init alignment_init(void)
 		ai_usermode = UM_FIXUP;
 	}
 
-	hook_fault_code(1, do_alignment, SIGBUS, "alignment exception");
-	hook_fault_code(3, do_alignment, SIGBUS, "alignment exception");
+	hook_fault_code(1, do_alignment, SIGBUS, BUS_ADRALN,
+			"alignment exception");
+	hook_fault_code(3, do_alignment, SIGBUS, BUS_ADRALN,
+			"alignment exception");
 
 	return 0;
 }
