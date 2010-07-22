@@ -1112,8 +1112,18 @@ int xhci_endpoint_init(struct xhci_hcd *xhci,
 	ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->in_ctx, ep_index);
 
 	/* Set up the endpoint ring */
-	virt_dev->eps[ep_index].new_ring =
-		xhci_ring_alloc(xhci, 1, true, mem_flags);
+	/*
+	 * Isochronous endpoint ring needs bigger size because one isoc URB
+	 * carries multiple packets and it will insert multiple tds to the
+	 * ring.
+	 * This should be replaced with dynamic ring resizing in the future.
+	 */
+	if (usb_endpoint_xfer_isoc(&ep->desc))
+		virt_dev->eps[ep_index].new_ring =
+			xhci_ring_alloc(xhci, 8, true, mem_flags);
+	else
+		virt_dev->eps[ep_index].new_ring =
+			xhci_ring_alloc(xhci, 1, true, mem_flags);
 	if (!virt_dev->eps[ep_index].new_ring) {
 		/* Attempt to use the ring cache */
 		if (virt_dev->num_rings_cached == 0)
