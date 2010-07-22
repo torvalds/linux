@@ -819,7 +819,8 @@ int wlan_unsetup(wlandevice_t *wlandev)
 
 	if (wlandev->netdev) {
 		wdev = netdev_priv(wlandev->netdev);
-		if(wdev->wiphy) wlan_free_wiphy(wdev->wiphy);
+		if (wdev->wiphy)
+			wlan_free_wiphy(wdev->wiphy);
 		free_netdev(wlandev->netdev);
 		wlandev->netdev = NULL;
 	}
