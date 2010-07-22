@@ -1356,6 +1356,109 @@ td_cleanup:
 }
 
 /*
+ * Process control tds, update urb status and actual_length.
+ */
+static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
+	union xhci_trb *event_trb, struct xhci_transfer_event *event,
+	struct xhci_virt_ep *ep, int *status)
+{
+	struct xhci_virt_device *xdev;
+	struct xhci_ring *ep_ring;
+	unsigned int slot_id;
+	int ep_index;
+	struct xhci_ep_ctx *ep_ctx;
+	u32 trb_comp_code;
+
+	slot_id = TRB_TO_SLOT_ID(event->flags);
+	xdev = xhci->devs[slot_id];
+	ep_index = TRB_TO_EP_ID(event->flags) - 1;
+	ep_ring = xhci_dma_to_transfer_ring(ep, event->buffer);
+	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
+	trb_comp_code = GET_COMP_CODE(event->transfer_len);
+
+	xhci_debug_trb(xhci, xhci->event_ring->dequeue);
+	switch (trb_comp_code) {
+	case COMP_SUCCESS:
+		if (event_trb == ep_ring->dequeue) {
+			xhci_warn(xhci, "WARN: Success on ctrl setup TRB "
+					"without IOC set??\n");
+			*status = -ESHUTDOWN;
+		} else if (event_trb != td->last_trb) {
+			xhci_warn(xhci, "WARN: Success on ctrl data TRB "
+					"without IOC set??\n");
+			*status = -ESHUTDOWN;
+		} else {
+			xhci_dbg(xhci, "Successful control transfer!\n");
+			*status = 0;
+		}
+		break;
+	case COMP_SHORT_TX:
+		xhci_warn(xhci, "WARN: short transfer on control ep\n");
+		if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+			*status = -EREMOTEIO;
+		else
+			*status = 0;
+		break;
+	default:
+		if (!xhci_requires_manual_halt_cleanup(xhci,
+					ep_ctx, trb_comp_code))
+			break;
+		xhci_dbg(xhci, "TRB error code %u, "
+				"halted endpoint index = %u\n",
+				trb_comp_code, ep_index);
+		/* else fall through */
+	case COMP_STALL:
+		/* Did we transfer part of the data (middle) phase? */
+		if (event_trb != ep_ring->dequeue &&
+				event_trb != td->last_trb)
+			td->urb->actual_length =
+				td->urb->transfer_buffer_length
+				- TRB_LEN(event->transfer_len);
+		else
+			td->urb->actual_length = 0;
+
+		xhci_cleanup_halted_endpoint(xhci,
+			slot_id, ep_index, 0, td, event_trb);
+		return finish_td(xhci, td, event_trb, event, ep, status, true);
+	}
+	/*
+	 * Did we transfer any data, despite the errors that might have
+	 * happened?  I.e. did we get past the setup stage?
+	 */
+	if (event_trb != ep_ring->dequeue) {
+		/* The event was for the status stage */
+		if (event_trb == td->last_trb) {
+			if (td->urb->actual_length != 0) {
+				/* Don't overwrite a previously set error code
+				 */
+				if ((*status == -EINPROGRESS || *status == 0) &&
+						(td->urb->transfer_flags
+						 & URB_SHORT_NOT_OK))
+					/* Did we already see a short data
+					 * stage? */
+					*status = -EREMOTEIO;
+			} else {
+				td->urb->actual_length =
+					td->urb->transfer_buffer_length;
+			}
+		} else {
+		/* Maybe the event was for the data stage? */
+			if (trb_comp_code != COMP_STOP_INVAL) {
+				/* We didn't stop on a link TRB in the middle */
+				td->urb->actual_length =
+					td->urb->transfer_buffer_length -
+					TRB_LEN(event->transfer_len);
+				xhci_dbg(xhci, "Waiting for status "
+						"stage event\n");
+				return 0;
+			}
+		}
+	}
+
+	return finish_td(xhci, td, event_trb, event, ep, status, false);
+}
+
+/*
  * If this function returns an error condition, it means it got a Transfer
  * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
  * At this point, the host controller is probably hosed and should be reset.
@@ -1482,84 +1585,9 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	/* Now update the urb's actual_length and give back to the core */
 	/* Was this a control transfer? */
 	if (usb_endpoint_xfer_control(&td->urb->ep->desc)) {
-		xhci_debug_trb(xhci, xhci->event_ring->dequeue);
-		switch (trb_comp_code) {
-		case COMP_SUCCESS:
-			if (event_trb == ep_ring->dequeue) {
-				xhci_warn(xhci, "WARN: Success on ctrl setup TRB without IOC set??\n");
-				status = -ESHUTDOWN;
-			} else if (event_trb != td->last_trb) {
-				xhci_warn(xhci, "WARN: Success on ctrl data TRB without IOC set??\n");
-				status = -ESHUTDOWN;
-			} else {
-				xhci_dbg(xhci, "Successful control transfer!\n");
-				status = 0;
-			}
-			break;
-		case COMP_SHORT_TX:
-			xhci_warn(xhci, "WARN: short transfer on control ep\n");
-			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-				status = -EREMOTEIO;
-			else
-				status = 0;
-			break;
-
-		default:
-			if (!xhci_requires_manual_halt_cleanup(xhci,
-						ep_ctx, trb_comp_code))
-				break;
-			xhci_dbg(xhci, "TRB error code %u, "
-					"halted endpoint index = %u\n",
-					trb_comp_code, ep_index);
-			/* else fall through */
-		case COMP_STALL:
-			/* Did we transfer part of the data (middle) phase? */
-			if (event_trb != ep_ring->dequeue &&
-					event_trb != td->last_trb)
-				td->urb->actual_length =
-					td->urb->transfer_buffer_length
-					- TRB_LEN(event->transfer_len);
-			else
-				td->urb->actual_length = 0;
-
-			xhci_cleanup_halted_endpoint(xhci,
-					slot_id, ep_index, 0, td, event_trb);
-
-			ret = finish_td(xhci, td, event_trb, event, ep,
-					 &status, true);
-			goto cleanup;
-		}
-		/*
-		 * Did we transfer any data, despite the errors that might have
-		 * happened?  I.e. did we get past the setup stage?
-		 */
-		if (event_trb != ep_ring->dequeue) {
-			/* The event was for the status stage */
-			if (event_trb == td->last_trb) {
-				if (td->urb->actual_length != 0) {
-					/* Don't overwrite a previously set error code */
-					if ((status == -EINPROGRESS ||
-								status == 0) &&
-							(td->urb->transfer_flags
-							 & URB_SHORT_NOT_OK))
-						/* Did we already see a short data stage? */
-						status = -EREMOTEIO;
-				} else {
-					td->urb->actual_length =
-						td->urb->transfer_buffer_length;
-				}
-			} else {
-			/* Maybe the event was for the data stage? */
-				if (trb_comp_code != COMP_STOP_INVAL) {
-					/* We didn't stop on a link TRB in the middle */
-					td->urb->actual_length =
-						td->urb->transfer_buffer_length -
-						TRB_LEN(event->transfer_len);
-					xhci_dbg(xhci, "Waiting for status stage event\n");
-					goto cleanup;
-				}
-			}
-		}
+		ret = process_ctrl_td(xhci, td, event_trb, event, ep,
+					&status);
+		goto cleanup;
 	} else {
 		switch (trb_comp_code) {
 		case COMP_SUCCESS:
