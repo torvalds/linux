@@ -85,7 +85,8 @@ config FIREWIRE_NOSY
 	  Apple Power Mac G3 blue & white (onboard controller).
 
 	  To compile this driver as a module, say M here:  The module will be
-	  called nosy.
+	  called nosy.  Source code of a userspace interface to nosy, called
+	  nosy-dump, can be found in tools/firewire/ of the kernel sources.
 
 	  If unsure, say N.
 
