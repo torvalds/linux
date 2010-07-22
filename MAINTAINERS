@@ -6178,14 +6178,6 @@ F:	Documentation/watchdog/
 F:	drivers/watchdog/
 F:	include/linux/watchdog.h
 
-WAVELAN NETWORK DRIVER & WIRELESS EXTENSIONS
-M:	Jean Tourrilhes <jt@hpl.hp.com>
-L:	linux-wireless@vger.kernel.org
-W:	http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/
-S:	Maintained
-F:	Documentation/networking/wavelan.txt
-F:	drivers/staging/wavelan/
-
 WD7000 SCSI DRIVER
 M:	Miroslav Zagorac <zaga@fly.cc.fer.hr>
 L:	linux-scsi@vger.kernel.org
