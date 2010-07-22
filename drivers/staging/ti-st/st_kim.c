@@ -104,10 +104,11 @@ const unsigned char *protocol_names[] = {
 /**********************************************************************/
 /* internal functions */
 
-/*
- * function to return whether the firmware response was proper
- * in case of error don't complete so that waiting for proper
- * response times out
+/**
+ * validate_firmware_response -
+ *	function to return whether the firmware response was proper
+ *	in case of error don't complete so that waiting for proper
+ *	response times out
  */
 void validate_firmware_response(struct kim_data_s *kim_gdata)
 {
@@ -158,10 +159,11 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
 	return 0;
 }
 
-/* receive function called during firmware download
- * - firmware download responses on different UART drivers
- *   have been observed to come in bursts of different
- *   tty_receive and hence the logic
+/**
+ * kim_int_recv - receive function called during firmware download
+ *	firmware download responses on different UART drivers
+ *	have been observed to come in bursts of different
+ *	tty_receive and hence the logic
  */
 void kim_int_recv(struct kim_data_s *kim_gdata,
 	const unsigned char *data, long count)
@@ -220,7 +222,7 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 			ptr++;
 			count--;
 			continue;
-		}		/* end of switch *ptr */
+		}
 		ptr++;
 		count--;
 		kim_gdata->rx_skb =
@@ -230,9 +232,9 @@ void kim_int_recv(struct kim_data_s *kim_gdata,
 			kim_gdata->rx_state = ST_W4_PACKET_TYPE;
 			kim_gdata->rx_count = 0;
 			return;
-		} /* not necessary in this case */
+		}
 		bt_cb(kim_gdata->rx_skb)->pkt_type = type;
-	}			/* end of while count */
+	}
 	pr_info("done %s", __func__);
 	return;
 }
@@ -278,8 +280,10 @@ static long read_local_version(struct kim_data_s *kim_gdata, char *bts_scr_name)
 	return 0;
 }
 
-/* internal function which parses through the .bts firmware script file
- * intreprets SEND, DELAY actions only as of now
+/**
+ * download_firmware -
+ *	internal function which parses through the .bts firmware
+ *	script file intreprets SEND, DELAY actions only as of now
  */
 static long download_firmware(struct kim_data_s *kim_gdata)
 {
@@ -445,8 +449,13 @@ void st_kim_complete(void *kim_data)
 	complete(&kim_gdata->ldisc_installed);
 }
 
-/* called from ST Core upon 1st registration
-*/
+/**
+ * st_kim_start - called from ST Core upon 1st registration
+ *	This involves toggling the chip enable gpio, reading
+ *	the firmware version from chip, forming the fw file name
+ *	based on the chip version, requesting the fw, parsing it
+ *	and perform download(send/recv).
+ */
 long st_kim_start(void *kim_data)
 {
 	long err = 0;
@@ -501,8 +510,10 @@ long st_kim_start(void *kim_data)
 	return err;
 }
 
-/* called from ST Core, on the last un-registration
-*/
+/**
+ * st_kim_stop - called from ST Core, on the last un-registration
+ *	toggle low the chip enable gpio
+ */
 long st_kim_stop(void *kim_data)
 {
 	long err = 0;
@@ -607,6 +618,13 @@ static int kim_toggle_radio(void *data, bool blocked)
 	return 0;
 }
 
+/**
+ * st_kim_ref - reference the core's data
+ *	This references the per-ST platform device in the arch/xx/
+ *	board-xx.c file.
+ *	This would enable multiple such platform devices to exist
+ *	on a given platform
+ */
 void st_kim_ref(struct st_data_s **core_data)
 {
 	struct platform_device	*pdev;

@@ -24,24 +24,24 @@
 #define ST_H
 
 #include <linux/skbuff.h>
-/*
- * st.h
- */
 
 /* TODO:
  * Move the following to tty.h upon acceptance
  */
 #define N_TI_WL	20	/* Ldisc for TI's WL BT, FM, GPS combo chips */
 
-/* some gpios have active high, others like fm have
- * active low
+/**
+ * enum kim_gpio_state - Few protocols such as FM have ACTIVE LOW
+ *	gpio states for their chip/core enable gpios
  */
 enum kim_gpio_state {
 	KIM_GPIO_INACTIVE,
 	KIM_GPIO_ACTIVE,
 };
-/*
- * the list of protocols on chip
+
+/**
+ * enum proto-type - The protocol on WiLink chips which share a
+ *	common physical interface like UART.
  */
 enum proto_type {
 	ST_BT,
@@ -50,28 +50,26 @@ enum proto_type {
 	ST_MAX,
 };
 
-/* per protocol structure
- * for BT/FM and GPS
+/**
+ * struct st_proto_s - Per Protocol structure from BT/FM/GPS to ST
+ * @type: type of the protocol being registered among the
+ *	available proto_type(BT, FM, GPS the protocol which share TTY).
+ * @recv: the receiver callback pointing to a function in the
+ *	protocol drivers called by the ST driver upon receiving
+ *	relevant data.
+ * @match_packet: reserved for future use, to make ST more generic
+ * @reg_complete_cb: callback handler pointing to a function in protocol
+ *	handler called by ST when the pending registrations are complete.
+ *	The registrations are marked pending, in situations when fw
+ *	download is in progress.
+ * @write: pointer to function in ST provided to protocol drivers from ST,
+ *	to be made use when protocol drivers have data to send to TTY.
  */
 struct st_proto_s {
 	enum proto_type type;
-/*
- * to be called by ST when data arrives
- */
 	long (*recv) (struct sk_buff *);
-/*
- * for future use, logic now to be in ST
- */
 	unsigned char (*match_packet) (const unsigned char *data);
-/*
- * subsequent registration return PENDING,
- * signalled complete by this callback function
- */
 	void (*reg_complete_cb) (char data);
-/*
- * write function, sent in as NULL and to be returned to
- * protocol drivers
- */
 	long (*write) (struct sk_buff *skb);
 };
 

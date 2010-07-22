@@ -72,6 +72,7 @@ bool is_protocol_list_empty(void)
 	return ST_EMPTY;
 }
 #endif
+
 /* can be called in from
  * -- KIM (during fw download)
  * -- ST Core (during st_write)
@@ -131,7 +132,8 @@ void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
 	return;
 }
 
-/*
+/**
+ * st_reg_complete -
  * to call registration complete callbacks
  * of all protocol stack drivers
  */
@@ -185,8 +187,9 @@ static inline int st_check_data_len(struct st_data_s *st_gdata,
 	return 0;
 }
 
-/* internal function for action when wake-up ack
- * received
+/**
+ * st_wakeup_ack - internal function for action when wake-up ack
+ *	received
  */
 static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	unsigned char cmd)
@@ -209,9 +212,13 @@ static inline void st_wakeup_ack(struct st_data_s *st_gdata,
 	st_tx_wakeup(st_gdata);
 }
 
-/* Decodes received RAW data and forwards to corresponding
- * client drivers (Bluetooth,FM,GPS..etc).
- *
+/**
+ * st_int_recv - ST's internal receive function.
+ *	Decodes received RAW data and forwards to corresponding
+ *	client drivers (Bluetooth,FM,GPS..etc).
+ *	This can receive various types of packets,
+ *	HCI-Events, ACL, SCO, 4 types of HCI-LL PM packets
+ *	CH-8 packets from FM, CH-9 packets from GPS cores.
  */
 void st_int_recv(void *disc_data,
 	const unsigned char *data, long count)
@@ -438,41 +445,39 @@ void st_int_recv(void *disc_data,
 	return;
 }
 
-/* internal de-Q function
- * -- return previous in-completely written skb
- *  or return the skb in the txQ
+/**
+ * st_int_dequeue - internal de-Q function.
+ *	If the previous data set was not written
+ *	completely, return that skb which has the pending data.
+ *	In normal cases, return top of txq.
  */
 struct sk_buff *st_int_dequeue(struct st_data_s *st_gdata)
 {
 	struct sk_buff *returning_skb;
 
 	pr_debug("%s", __func__);
-	/* if the previous skb wasn't written completely
-	 */
 	if (st_gdata->tx_skb != NULL) {
 		returning_skb = st_gdata->tx_skb;
 		st_gdata->tx_skb = NULL;
 		return returning_skb;
 	}
-
-	/* de-Q from the txQ always if previous write is complete */
 	return skb_dequeue(&st_gdata->txq);
 }
 
-/* internal Q-ing function
- * will either Q the skb to txq or the tx_waitq
- * depending on the ST LL state
- *
- * lock the whole func - since ll_getstate and Q-ing should happen
- * in one-shot
+/**
+ * st_int_enqueue - internal Q-ing function.
+ *	Will either Q the skb to txq or the tx_waitq
+ *	depending on the ST LL state.
+ *	If the chip is asleep, then Q it onto waitq and
+ *	wakeup the chip.
+ *	txq and waitq needs protection since the other contexts
+ *	may be sending data, waking up chip.
  */
 void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 {
 	unsigned long flags = 0;
 
 	pr_debug("%s", __func__);
-	/* this function can be invoked in more then one context.
-	 * so have a lock */
 	spin_lock_irqsave(&st_gdata->lock, flags);
 
 	switch (st_ll_getstate(st_gdata)) {
@@ -483,16 +488,12 @@ void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 	case ST_LL_ASLEEP_TO_AWAKE:
 		skb_queue_tail(&st_gdata->tx_waitq, skb);
 		break;
-	case ST_LL_AWAKE_TO_ASLEEP:	/* host cannot be in this state */
+	case ST_LL_AWAKE_TO_ASLEEP:
 		pr_err("ST LL is illegal state(%ld),"
 			   "purging received skb.", st_ll_getstate(st_gdata));
 		kfree_skb(skb);
 		break;
-
 	case ST_LL_ASLEEP:
-		/* call a function of ST LL to put data
-		 * in tx_waitQ and wake_ind in txQ
-		 */
 		skb_queue_tail(&st_gdata->tx_waitq, skb);
 		st_ll_wakeup(st_gdata);
 		break;
@@ -502,6 +503,7 @@ void st_int_enqueue(struct st_data_s *st_gdata, struct sk_buff *skb)
 		kfree_skb(skb);
 		break;
 	}
+
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 	pr_debug("done %s", __func__);
 	return;
