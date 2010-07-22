@@ -469,7 +469,7 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	v7sb = (struct v7_super_block *) bh->b_data;
 	if (fs16_to_cpu(sbi, v7sb->s_nfree) > V7_NICFREE ||
 	    fs16_to_cpu(sbi, v7sb->s_ninode) > V7_NICINOD ||
-	    fs32_to_cpu(sbi, v7sb->s_time) == 0)
+	    fs32_to_cpu(sbi, v7sb->s_fsize) > V7_MAXSIZE)
 		goto failed;
 
 	/* plausibility check on root inode: it is a directory,
@@ -479,7 +479,9 @@ static int v7_fill_super(struct super_block *sb, void *data, int silent)
 	v7i = (struct sysv_inode *)(bh2->b_data + 64);
 	if ((fs16_to_cpu(sbi, v7i->i_mode) & ~0777) != S_IFDIR ||
 	    (fs32_to_cpu(sbi, v7i->i_size) == 0) ||
-	    (fs32_to_cpu(sbi, v7i->i_size) & 017) != 0)
+	    (fs32_to_cpu(sbi, v7i->i_size) & 017) ||
+	    (fs32_to_cpu(sbi, v7i->i_size) > V7_NFILES *
+	     sizeof (struct sysv_dir_entry)))
 		goto failed;
 	brelse(bh2);
 	bh2 = NULL;
