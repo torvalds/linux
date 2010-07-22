@@ -83,8 +83,6 @@
 #include "hfa384x.h"
 #include "prism2mgmt.h"
 
-#define wlan_hexchar(x) (((x) < 0x0a) ? ('0' + (x)) : ('a' + ((x) - 0x0a)))
-
 /* Create a string of printable chars from something that might not be */
 /* It's recommended that the str be 4*len + 1 bytes long */
 #define wlan_mkprintstr(buf, buflen, str, strlen) \
@@ -99,8 +97,8 @@
 		} else { \
 			(str)[j] = '\\'; \
 			(str)[j+1] = 'x'; \
-			(str)[j+2] = wlan_hexchar(((buf)[i] & 0xf0) >> 4); \
-			(str)[j+3] = wlan_hexchar(((buf)[i] & 0x0f)); \
+			(str)[j+2] = hex_asc_hi((buf)[i]); \
+			(str)[j+3] = hex_asc_lo((buf)[i]); \
 			j += 4; \
 		} \
 	} \
