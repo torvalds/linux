@@ -1592,7 +1592,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	u32 trb_comp_code;
 	int ret = 0;
 
-	xhci_dbg(xhci, "In %s\n", __func__);
 	slot_id = TRB_TO_SLOT_ID(event->flags);
 	xdev = xhci->devs[slot_id];
 	if (!xdev) {
@@ -1614,7 +1613,6 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 
 	event_dma = event->buffer;
 	/* This TRB should be in the TD at the head of this ring's TD list */
-	xhci_dbg(xhci, "%s - checking for list empty\n", __func__);
 	if (list_empty(&ep_ring->td_list)) {
 		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
 				TRB_TO_SLOT_ID(event->flags), ep_index);
@@ -1623,30 +1621,17 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		xhci_print_trb_offsets(xhci, (union xhci_trb *) event);
 		goto cleanup;
 	}
-	xhci_dbg(xhci, "%s - getting list entry\n", __func__);
 	td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
 
 	/* Is this a TRB in the currently executing TD? */
-	xhci_dbg(xhci, "%s - looking for TD\n", __func__);
 	event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
 			td->last_trb, event_dma);
-	xhci_dbg(xhci, "%s - found event_seg = %p\n", __func__, event_seg);
 	if (!event_seg) {
 		/* HC is busted, give up! */
 		xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not part of current TD\n");
 		return -ESHUTDOWN;
 	}
 	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
-	xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
-			(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
-	xhci_dbg(xhci, "Offset 0x00 (buffer lo) = 0x%x\n",
-			lower_32_bits(event->buffer));
-	xhci_dbg(xhci, "Offset 0x04 (buffer hi) = 0x%x\n",
-			upper_32_bits(event->buffer));
-	xhci_dbg(xhci, "Offset 0x08 (transfer length) = 0x%x\n",
-			(unsigned int) event->transfer_len);
-	xhci_dbg(xhci, "Offset 0x0C (flags) = 0x%x\n",
-			(unsigned int) event->flags);
 
 	/* Look for common error cases */
 	trb_comp_code = GET_COMP_CODE(event->transfer_len);
