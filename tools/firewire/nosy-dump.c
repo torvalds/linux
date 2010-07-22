@@ -230,6 +230,11 @@ handle_transaction(struct link_transaction *t)
   struct subaction *sa;
   int i;
 
+  if (!t->request) {
+    printf("BUG in handle_transaction\n");
+    return;
+  }
+
   for (i = 0; i < array_length(protocol_decoders); i++)
     if (protocol_decoders[i].decode(t))
       break;
