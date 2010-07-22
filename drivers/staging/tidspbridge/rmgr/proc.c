@@ -272,7 +272,7 @@ static inline struct page *get_mapping_page(struct dmm_map_object *map_obj,
  */
 int
 proc_attach(u32 processor_id,
-	    OPTIONAL const struct dsp_processorattrin *attr_in,
+	    const struct dsp_processorattrin *attr_in,
 	    void **ph_processor, struct process_context *pr_ctxt)
 {
 	int status = 0;

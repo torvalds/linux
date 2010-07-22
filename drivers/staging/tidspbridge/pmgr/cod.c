@@ -217,7 +217,7 @@ void cod_close(struct cod_libraryobj *lib)
  *
  */
 int cod_create(OUT struct cod_manager **mgr, char *str_zl_file,
-		      OPTIONAL const struct cod_attrs *attrs)
+		      const struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
 	struct dbll_attrs zl_attrs;

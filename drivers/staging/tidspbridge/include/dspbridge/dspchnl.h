@@ -35,7 +35,7 @@ extern int bridge_chnl_open(OUT struct chnl_object **chnl,
 				   struct chnl_mgr *hchnl_mgr,
 				   s8 chnl_mode,
 				   u32 ch_id,
-				   const OPTIONAL struct chnl_attr
+				   const struct chnl_attr
 				   *pattrs);
 
 extern int bridge_chnl_close(struct chnl_object *chnl_obj);
@@ -43,7 +43,7 @@ extern int bridge_chnl_close(struct chnl_object *chnl_obj);
 extern int bridge_chnl_add_io_req(struct chnl_object *chnl_obj,
 				      void *host_buf,
 				      u32 byte_size, u32 buf_size,
-				      OPTIONAL u32 dw_dsp_addr, u32 dw_arg);
+				      u32 dw_dsp_addr, u32 dw_arg);
 
 extern int bridge_chnl_get_ioc(struct chnl_object *chnl_obj,
 				   u32 timeout, OUT struct chnl_ioc *chan_ioc);

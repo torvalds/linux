@@ -292,8 +292,8 @@ enum node_state node_get_state(void *hnode)
  */
 int node_allocate(struct proc_object *hprocessor,
 			 const struct dsp_uuid *node_uuid,
-			 OPTIONAL const struct dsp_cbdata *pargs,
-			 OPTIONAL const struct dsp_nodeattrin *attr_in,
+			 const struct dsp_cbdata *pargs,
+			 const struct dsp_nodeattrin *attr_in,
 			 OUT struct node_object **ph_node,
 			 struct process_context *pr_ctxt)
 {
@@ -685,7 +685,7 @@ func_end:
  *      Allocates buffer for zero copy messaging.
  */
 DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
-			 OPTIONAL OUT struct dsp_bufferattr *pattr,
+			 OUT struct dsp_bufferattr *pattr,
 			 OUT u8 **pbuffer)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
@@ -833,8 +833,8 @@ func_end:
  */
 int node_connect(struct node_object *node1, u32 stream1,
 			struct node_object *node2,
-			u32 stream2, OPTIONAL struct dsp_strmattr *pattrs,
-			OPTIONAL struct dsp_cbdata *conn_param)
+			u32 stream2, struct dsp_strmattr *pattrs,
+			struct dsp_cbdata *conn_param)
 {
 	struct node_mgr *hnode_mgr;
 	char *pstr_dev_name = NULL;
@@ -1674,7 +1674,7 @@ void node_exit(void)
  *      Frees the message buffer.
  */
 int node_free_msg_buf(struct node_object *hnode, u8 * pbuffer,
-			     OPTIONAL struct dsp_bufferattr *pattr)
+			     struct dsp_bufferattr *pattr)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
 	int status = 0;

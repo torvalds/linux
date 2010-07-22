@@ -70,9 +70,9 @@ static char dsp_char2_gpp_char(char *word, s32 dsp_char_size);
 static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 				   struct dsp_uuid *uuid_obj,
 				   OUT u16 *num_libs,
-				   OPTIONAL OUT u16 *num_pers_libs,
-				   OPTIONAL OUT struct dsp_uuid *dep_lib_uuids,
-				   OPTIONAL OUT bool *prstnt_dep_libs,
+				   OUT u16 *num_pers_libs,
+				   OUT struct dsp_uuid *dep_lib_uuids,
+				   OUT bool *prstnt_dep_libs,
 				   enum nldr_phase phase);
 
 /*
@@ -1394,9 +1394,9 @@ static char dsp_char2_gpp_char(char *word, s32 dsp_char_size)
 static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 				   struct dsp_uuid *uuid_obj,
 				   OUT u16 *num_libs,
-				   OPTIONAL OUT u16 *num_pers_libs,
-				   OPTIONAL OUT struct dsp_uuid *dep_lib_uuids,
-				   OPTIONAL OUT bool *prstnt_dep_libs,
+				   OUT u16 *num_pers_libs,
+				   OUT struct dsp_uuid *dep_lib_uuids,
+				   OUT bool *prstnt_dep_libs,
 				   enum nldr_phase phase)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;

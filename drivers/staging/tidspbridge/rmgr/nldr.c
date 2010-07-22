@@ -307,8 +307,8 @@ static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
 			    enum nldr_phase phase);
 static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 			       u32 align, u32 *dsp_address,
-			       OPTIONAL s32 segmnt_id,
-			       OPTIONAL s32 req, bool reserve);
+			       s32 segmnt_id,
+			       s32 req, bool reserve);
 static int remote_free(void **ref, u16 space, u32 dsp_address, u32 size,
 			      bool reserve);
 
@@ -1630,7 +1630,7 @@ func_end:
  */
 static int remote_alloc(void **ref, u16 mem_sect, u32 size,
 			       u32 align, u32 *dsp_address,
-			       OPTIONAL s32 segmnt_id, OPTIONAL s32 req,
+			       s32 segmnt_id, s32 req,
 			       bool reserve)
 {
 	struct nldr_nodeobject *hnode = (struct nldr_nodeobject *)ref;

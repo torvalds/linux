@@ -52,7 +52,7 @@ extern char *iva_img;
  *      When attr_in is NULL, the default timeout value is 10 seconds.
  */
 extern int proc_attach(u32 processor_id,
-			      OPTIONAL const struct dsp_processorattrin
+			      const struct dsp_processorattrin
 			      *attr_in, void **ph_processor,
 			      struct process_context *pr_ctxt);
 

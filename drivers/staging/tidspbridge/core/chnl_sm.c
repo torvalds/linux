@@ -91,7 +91,7 @@ static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
  */
 int bridge_chnl_add_io_req(struct chnl_object *chnl_obj, void *host_buf,
 			       u32 byte_size, u32 buf_size,
-			       OPTIONAL u32 dw_dsp_addr, u32 dw_arg)
+			       u32 dw_dsp_addr, u32 dw_arg)
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
