@@ -1558,14 +1558,14 @@ static int stmmac_mac_device_setup(struct net_device *dev)
 	else
 		device = dwmac100_setup(ioaddr);
 
+	if (!device)
+		return -ENOMEM;
+
 	if (priv->enh_desc) {
 		device->desc = &enh_desc_ops;
 		pr_info("\tEnhanced descriptor structure\n");
 	} else
 		device->desc = &ndesc_ops;
-
-	if (!device)
-		return -ENOMEM;
 
 	priv->hw = device;
 
