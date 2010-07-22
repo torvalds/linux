@@ -266,6 +266,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	spin_lock(&inode->i_lock);
 	if ((filp->f_pos == 2 || fi->dentry) &&
 	    !ceph_test_opt(client, NOASYNCREADDIR) &&
+	    ceph_snap(inode) != CEPH_SNAPDIR &&
 	    (ci->i_ceph_flags & CEPH_I_COMPLETE) &&
 	    __ceph_caps_issued_mask(ci, CEPH_CAP_FILE_SHARED, 1)) {
 		err = __dcache_readdir(filp, dirent, filldir);
