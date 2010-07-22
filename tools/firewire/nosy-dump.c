@@ -903,11 +903,12 @@ set_input_mode(void)
 
 int main(int argc, const char *argv[])
 {
+	uint32_t buf[128 * 1024];
+	uint32_t filter;
+	int length, retval, view;
 	int fd = -1;
 	FILE *output = NULL, *input = NULL;
 	poptContext con;
-	int retval;
-	int view;
 	char c;
 	struct pollfd pollfds[2];
 
@@ -961,70 +962,62 @@ int main(int argc, const char *argv[])
 
 	setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
-	if (1) {
-		uint32_t buf[128 * 1024];
-		uint32_t filter;
-		int length;
+	filter = ~0;
+	if (!option_iso)
+		filter &= ~(1 << TCODE_STREAM_DATA);
+	if (!option_cycle_start)
+		filter &= ~(1 << TCODE_CYCLE_START);
+	if (view == VIEW_STATS)
+		filter = ~(1 << TCODE_CYCLE_START);
 
-		filter = ~0;
-		if (!option_iso)
-			filter &= ~(1 << TCODE_STREAM_DATA);
-		if (!option_cycle_start)
-			filter &= ~(1 << TCODE_CYCLE_START);
-		if (view == VIEW_STATS)
-			filter = ~(1 << TCODE_CYCLE_START);
+	ioctl(fd, NOSY_IOC_FILTER, filter);
 
-		ioctl(fd, NOSY_IOC_FILTER, filter);
+	ioctl(fd, NOSY_IOC_START);
 
-		ioctl(fd, NOSY_IOC_START);
+	pollfds[0].fd = fd;
+	pollfds[0].events = POLLIN;
+	pollfds[1].fd = STDIN_FILENO;
+	pollfds[1].events = POLLIN;
 
-		pollfds[0].fd = fd;
-		pollfds[0].events = POLLIN;
-		pollfds[1].fd = STDIN_FILENO;
-		pollfds[1].events = POLLIN;
-
-		while (run) {
-			if (input != NULL) {
-				if (fread(&length, sizeof length, 1, input) != 1)
+	while (run) {
+		if (input != NULL) {
+			if (fread(&length, sizeof length, 1, input) != 1)
+				return 0;
+			fread(buf, 1, length, input);
+		} else {
+			poll(pollfds, 2, -1);
+			if (pollfds[1].revents) {
+				read(STDIN_FILENO, &c, sizeof c);
+				switch (c) {
+				case 'q':
+					if (output != NULL)
+						fclose(output);
 					return 0;
-				fread(buf, 1, length, input);
-			} else {
-				poll(pollfds, 2, -1);
-				if (pollfds[1].revents) {
-					read(STDIN_FILENO, &c, sizeof c);
-					switch (c) {
-					case 'q':
-						if (output != NULL)
-							fclose(output);
-						return 0;
-					}
 				}
-
-				if (pollfds[0].revents)
-					length = read(fd, buf, sizeof buf);
-				else
-					continue;
 			}
 
-			if (output != NULL) {
-				fwrite(&length, sizeof length, 1, output);
-				fwrite(buf, 1, length, output);
-			}
-
-			switch (view) {
-			case VIEW_TRANSACTION:
-				handle_packet(buf, length);
-				break;
-			case VIEW_PACKET:
-				print_packet(buf, length);
-				break;
-			case VIEW_STATS:
-				print_stats(buf, length);
-				break;
-			}
+			if (pollfds[0].revents)
+				length = read(fd, buf, sizeof buf);
+			else
+				continue;
 		}
-	} else {
-		poptPrintUsage(con, stdout, 0);
+
+		if (output != NULL) {
+			fwrite(&length, sizeof length, 1, output);
+			fwrite(buf, 1, length, output);
+		}
+
+		switch (view) {
+		case VIEW_TRANSACTION:
+			handle_packet(buf, length);
+			break;
+		case VIEW_PACKET:
+			print_packet(buf, length);
+			break;
+		case VIEW_STATS:
+			print_stats(buf, length);
+			break;
+		}
 	}
 
 	if (output != NULL)
