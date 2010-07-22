@@ -180,7 +180,7 @@ void lbs_send_tx_feedback(struct lbs_private *priv, u32 try_count)
 {
 	struct tx_radiotap_hdr *radiotap_hdr;
 
-	if (!priv->wdev->iftype == NL80211_IFTYPE_MONITOR ||
+	if (priv->wdev->iftype != NL80211_IFTYPE_MONITOR ||
 	    priv->currenttxskb == NULL)
 		return;
 
