@@ -1492,7 +1492,6 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 			 u8 *country_ie,
 			 u8 country_ie_len)
 {
-	struct ieee80211_regdomain *rd = NULL;
 	char alpha2[2];
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
@@ -1529,7 +1528,7 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 
 	request = kzalloc(sizeof(struct regulatory_request), GFP_KERNEL);
 	if (!request)
-		goto free_rd_out;
+		goto out;
 
 	request->wiphy_idx = get_wiphy_idx(wiphy);
 	request->alpha2[0] = alpha2[0];
@@ -1543,8 +1542,6 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 
 	return;
 
-free_rd_out:
-	kfree(rd);
 out:
 	mutex_unlock(&reg_mutex);
 }
