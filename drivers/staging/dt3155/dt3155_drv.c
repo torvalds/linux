@@ -65,7 +65,7 @@ MA 02111-1307 USA
 #include <linux/smp_lock.h>
 #include <linux/io.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "dt3155.h"
 #include "dt3155_drv.h"
