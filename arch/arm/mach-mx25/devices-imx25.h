@@ -9,6 +9,11 @@
 #include <mach/mx25.h>
 #include <mach/devices-common.h>
 
+#define imx25_add_flexcan0(pdata)	\
+	imx_add_flexcan(0, MX25_CAN1_BASE_ADDR, SZ_16K, MX25_INT_CAN1, pdata)
+#define imx25_add_flexcan1(pdata)	\
+	imx_add_flexcan(1, MX25_CAN2_BASE_ADDR, SZ_16K, MX25_INT_CAN2, pdata)
+
 #define imx25_add_imx_i2c0(pdata)	\
 	imx_add_imx_i2c(0, MX25_I2C1_BASE_ADDR, SZ_16K, MX25_INT_I2C1, pdata)
 #define imx25_add_imx_i2c1(pdata)	\
