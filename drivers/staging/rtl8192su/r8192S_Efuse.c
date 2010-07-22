@@ -29,6 +29,7 @@
 #include "r8192S_Efuse.h"
 
 #include <linux/types.h>
+#include <linux/ctype.h>
 
 #define 	_POWERON_DELAY_
 #define 	_PRE_EXECUTE_READ_CMD_
@@ -1793,26 +1794,6 @@ EFUSE_ProgramMap(struct net_device* dev, char* pFileName,u8	TableType)
 
 #endif
 
-//
-//	Description:
-//		Return TRUE if chTmp is represent for hex digit and
-//		FALSE otherwise.
-//
-//
-bool IsHexDigit(	char chTmp)
-{
-	if( (chTmp >= '0' && chTmp <= '9') ||
-		(chTmp >= 'a' && chTmp <= 'f') ||
-		(chTmp >= 'A' && chTmp <= 'F') )
-	{
-		return TRUE;
-	}
-	else
-	{
-		return FALSE;
-	}
-}
-
 /*-----------------------------------------------------------------------------
  * Function:	efuse_ParsingMap
  *
@@ -1855,10 +1836,8 @@ efuse_ParsingMap(char* szStr,u32* pu4bVal,u32* pu4bMove)
 
 	// Check if szScan is now pointer to a character for hex digit,
 	// if not, it means this is not a valid hex number.
-	if(!IsHexDigit(*szScan))
-	{
+	if (!isxdigit(*szScan))
 		return FALSE;
-	}
 
 	// Parse each digit.
 	do
@@ -1867,7 +1846,7 @@ efuse_ParsingMap(char* szStr,u32* pu4bVal,u32* pu4bMove)
 
 		szScan++;
 		(*pu4bMove)++;
-	} while(IsHexDigit(*szScan));
+	} while (isxdigit(*szScan));
 
 	return TRUE;
 
