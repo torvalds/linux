@@ -420,9 +420,19 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 static int xlvbd_barrier(struct blkfront_info *info)
 {
 	int err;
+	unsigned ordered = QUEUE_ORDERED_NONE;
 
-	err = blk_queue_ordered(info->rq,
-				info->feature_barrier ? QUEUE_ORDERED_DRAIN : QUEUE_ORDERED_NONE);
+	/*
+	 * If we don't have barrier support, then there's really no
+	 * way to guarantee write ordering, so we really just have to
+	 * send writes to the backend and hope for the best.  If
+	 * barriers are supported then we can treat them as proper
+	 * ordering tags.
+	 */
+	if (info->feature_barrier)
+		ordered = QUEUE_ORDERED_TAG;
+
+	err = blk_queue_ordered(info->rq, ordered);
 
 	if (err)
 		return err;
@@ -509,8 +519,7 @@ static int xlvbd_alloc_gendisk(blkif_sector_t capacity,
 	info->rq = gd->queue;
 	info->gd = gd;
 
-	if (info->feature_barrier)
-		xlvbd_barrier(info);
+	xlvbd_barrier(info);
 
 	if (vdisk_info & VDISK_READONLY)
 		set_disk_ro(gd, 1);
