@@ -497,6 +497,7 @@ remove_card(struct pci_dev *dev)
 			    lynx->rcv_buffer, lynx->rcv_buffer_bus);
 
 	iounmap(lynx->registers);
+	pci_disable_device(dev);
 
 	minors[lynx->misc.minor] = NULL;
 	misc_deregister(&lynx->misc);
@@ -511,7 +512,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 {
 	struct pcilynx *lynx;
 	u32 p, end;
-	int i;
+	int ret, i;
 
 	if (pci_set_dma_mask(dev, 0xffffffff)) {
 		error("DMA address limits not supported "
@@ -527,7 +528,8 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	lynx = kzalloc(sizeof *lynx, GFP_KERNEL);
 	if (lynx == NULL) {
 		error("Failed to allocate control structure memory\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_disable;
 	}
 	lynx->pci_device = dev;
 	pci_set_drvdata(dev, lynx);
@@ -547,9 +549,9 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	if (lynx->rcv_start_pcl == NULL ||
 	    lynx->rcv_pcl == NULL ||
 	    lynx->rcv_buffer == NULL) {
-		/* FIXME: do proper error handling. */
 		error("Failed to allocate receive buffer\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto fail_deallocate;
 	}
 	lynx->rcv_start_pcl->next = lynx->rcv_pcl_bus;
 	lynx->rcv_pcl->next = PCL_NEXT_INVALID;
@@ -609,22 +611,46 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	if (request_irq(dev->irq, irq_handler, IRQF_SHARED,
 			driver_name, lynx)) {
 		error("Failed to allocate shared interrupt %d\n", dev->irq);
-		return -EIO;
+		ret = -EIO;
+		goto fail_deallocate;
 	}
 
 	lynx->misc.parent = &dev->dev;
 	lynx->misc.minor = MISC_DYNAMIC_MINOR;
 	lynx->misc.name = "nosy";
 	lynx->misc.fops = &nosy_ops;
-	if (misc_register(&lynx->misc)) {
+	ret = misc_register(&lynx->misc);
+	if (ret) {
 		error("Failed to register misc char device\n");
-		return -ENOMEM;
+		goto fail_free_irq;
 	}
 	minors[lynx->misc.minor] = lynx;
 
 	notify("Initialized PCILynx IEEE1394 card, irq=%d\n", dev->irq);
 
 	return 0;
+
+fail_free_irq:
+	reg_write(lynx, PCI_INT_ENABLE, 0);
+	free_irq(lynx->pci_device->irq, lynx);
+
+fail_deallocate:
+	if (lynx->rcv_start_pcl)
+		pci_free_consistent(lynx->pci_device, sizeof(struct pcl),
+				lynx->rcv_start_pcl, lynx->rcv_start_pcl_bus);
+	if (lynx->rcv_pcl)
+		pci_free_consistent(lynx->pci_device, sizeof(struct pcl),
+				lynx->rcv_pcl, lynx->rcv_pcl_bus);
+	if (lynx->rcv_buffer)
+		pci_free_consistent(lynx->pci_device, PAGE_SIZE,
+				lynx->rcv_buffer, lynx->rcv_buffer_bus);
+	iounmap(lynx->registers);
+	kfree(lynx);
+
+fail_disable:
+	pci_disable_device(dev);
+
+	return ret;
 }
 
 static struct pci_device_id pci_table[] __devinitdata = {
