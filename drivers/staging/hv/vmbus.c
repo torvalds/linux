@@ -58,7 +58,6 @@ static struct hv_device *gDevice; /* vmbus root device */
 static void VmbusGetChannelOffers(void)
 {
 	VmbusChannelRequestOffers();
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -133,8 +132,6 @@ static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
 	ret = VmbusConnect();
 
 	/* VmbusSendEvent(device->localPortId+1); */
-	DPRINT_EXIT(VMBUS);
-
 	return ret;
 }
 
@@ -148,8 +145,6 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 	VmbusChannelReleaseUnattachedChannels();
 	VmbusDisconnect();
 	on_each_cpu(HvSynicCleanup, NULL, 1);
-	DPRINT_EXIT(VMBUS);
-
 	return ret;
 }
 
@@ -161,7 +156,6 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 	/* struct vmbus_driver *driver = (struct vmbus_driver *)drv; */
 
 	HvCleanup();
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -252,7 +246,6 @@ static int VmbusOnISR(struct hv_driver *drv)
 		ret |= 0x2;
 	}
 
-	DPRINT_EXIT(VMBUS);
 	return ret;
 }
 
@@ -295,8 +288,6 @@ int VmbusInitialize(struct hv_driver *drv)
 		DPRINT_ERR(VMBUS, "Unable to initialize the hypervisor - 0x%x",
 				ret);
 	gDriver = drv;
-
-	DPRINT_EXIT(VMBUS);
 
 	return ret;
 }

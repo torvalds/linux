@@ -380,9 +380,6 @@ int RingBufferWrite(RING_BUFFER_INFO *OutRingInfo,
 			byteAvailToWrite);
 
 		spin_unlock_irqrestore(&OutRingInfo->ring_lock, flags);
-
-		DPRINT_EXIT(VMBUS);
-
 		return -1;
 	}
 
@@ -414,9 +411,6 @@ int RingBufferWrite(RING_BUFFER_INFO *OutRingInfo,
 	/* DumpRingInfo(OutRingInfo, "AFTER "); */
 
 	spin_unlock_irqrestore(&OutRingInfo->ring_lock, flags);
-
-	DPRINT_EXIT(VMBUS);
-
 	return 0;
 }
 

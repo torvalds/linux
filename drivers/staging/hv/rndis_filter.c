@@ -263,7 +263,6 @@ static int RndisFilterSendRequest(struct rndis_device *Device,
 	packet->Completion.Send.SendCompletionTid = (unsigned long)Device;
 
 	ret = gRndisFilter.InnerDriver.OnSend(Device->NetDevice->Device, packet);
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -321,8 +320,6 @@ static void RndisFilterReceiveResponse(struct rndis_device *Device,
 			   Response->Message.InitializeComplete.RequestId,
 			   Response->NdisMessageType);
 	}
-
-	DPRINT_EXIT(NETVSC);
 }
 
 static void RndisFilterReceiveIndicateStatus(struct rndis_device *Device,
@@ -371,8 +368,6 @@ static void RndisFilterReceiveData(struct rndis_device *Device,
 
 	gRndisFilter.InnerDriver.OnReceiveCallback(Device->NetDevice->Device,
 						   Packet);
-
-	DPRINT_EXIT(NETVSC);
 }
 
 static int RndisFilterOnReceive(struct hv_device *Device,
@@ -390,7 +385,6 @@ static int RndisFilterOnReceive(struct hv_device *Device,
 	if (!netDevice->Extension) {
 		DPRINT_ERR(NETVSC, "got rndis message but no rndis device..."
 			  "dropping this message!");
-		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
 
@@ -398,7 +392,6 @@ static int RndisFilterOnReceive(struct hv_device *Device,
 	if (rndisDevice->State == RNDIS_DEV_UNINITIALIZED) {
 		DPRINT_ERR(NETVSC, "got rndis message but rndis device "
 			   "uninitialized...dropping this message!");
-		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
 
@@ -423,7 +416,6 @@ static int RndisFilterOnReceive(struct hv_device *Device,
 			   "bytes got %u)...dropping this message!",
 			   rndisHeader->MessageLength,
 			   Packet->TotalDataBufferLength);
-		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
 #endif
@@ -471,7 +463,6 @@ static int RndisFilterOnReceive(struct hv_device *Device,
 		break;
 	}
 
-	DPRINT_EXIT(NETVSC);
 	return 0;
 }
 
@@ -526,7 +517,6 @@ static int RndisFilterQueryDevice(struct rndis_device *Device, u32 Oid,
 Cleanup:
 	if (request)
 		PutRndisRequest(Device, request);
-	DPRINT_EXIT(NETVSC);
 
 	return ret;
 }
@@ -602,8 +592,6 @@ Cleanup:
 	if (request)
 		PutRndisRequest(Device, request);
 Exit:
-	DPRINT_EXIT(NETVSC);
-
 	return ret;
 }
 
@@ -643,8 +631,6 @@ int RndisFilterInit(struct netvsc_driver *Driver)
 	Driver->OnSend = RndisFilterOnSend;
 	/* Driver->QueryLinkStatus = RndisFilterQueryDeviceLinkStatus; */
 	Driver->OnReceiveCallback = RndisFilterOnReceive;
-
-	DPRINT_EXIT(NETVSC);
 
 	return 0;
 }
@@ -694,7 +680,6 @@ static int RndisFilterInitDevice(struct rndis_device *Device)
 Cleanup:
 	if (request)
 		PutRndisRequest(Device, request);
-	DPRINT_EXIT(NETVSC);
 
 	return ret;
 }
@@ -722,7 +707,6 @@ static void RndisFilterHaltDevice(struct rndis_device *Device)
 Cleanup:
 	if (request)
 		PutRndisRequest(Device, request);
-	DPRINT_EXIT(NETVSC);
 	return;
 }
 
@@ -740,7 +724,6 @@ static int RndisFilterOpenDevice(struct rndis_device *Device)
 	if (ret == 0)
 		Device->State = RNDIS_DEV_DATAINITIALIZED;
 
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -755,8 +738,6 @@ static int RndisFilterCloseDevice(struct rndis_device *Device)
 	if (ret == 0)
 		Device->State = RNDIS_DEV_INITIALIZED;
 
-	DPRINT_EXIT(NETVSC);
-
 	return ret;
 }
 
@@ -769,10 +750,8 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 	struct netvsc_device_info *deviceInfo = AdditionalInfo;
 
 	rndisDevice = GetRndisDevice();
-	if (!rndisDevice) {
-		DPRINT_EXIT(NETVSC);
+	if (!rndisDevice)
 		return -1;
-	}
 
 	DPRINT_DBG(NETVSC, "rndis device object allocated - %p", rndisDevice);
 
@@ -784,7 +763,6 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 	ret = gRndisFilter.InnerDriver.Base.OnDeviceAdd(Device, AdditionalInfo);
 	if (ret != 0) {
 		kfree(rndisDevice);
-		DPRINT_EXIT(NETVSC);
 		return ret;
 	}
 
@@ -825,8 +803,6 @@ static int RndisFilterOnDeviceAdd(struct hv_device *Device,
 	DPRINT_INFO(NETVSC, "Device 0x%p link state %s", rndisDevice,
 		    ((deviceInfo->LinkState) ? ("down") : ("up")));
 
-	DPRINT_EXIT(NETVSC);
-
 	return ret;
 }
 
@@ -844,44 +820,31 @@ static int RndisFilterOnDeviceRemove(struct hv_device *Device)
 	/* Pass control to inner driver to remove the device */
 	gRndisFilter.InnerDriver.Base.OnDeviceRemove(Device);
 
-	DPRINT_EXIT(NETVSC);
-
 	return 0;
 }
 
 static void RndisFilterOnCleanup(struct hv_driver *Driver)
 {
-	DPRINT_EXIT(NETVSC);
 }
 
 int RndisFilterOnOpen(struct hv_device *Device)
 {
-	int ret;
 	struct netvsc_device *netDevice = Device->Extension;
 
 	if (!netDevice)
 		return -EINVAL;
 
-	ret = RndisFilterOpenDevice(netDevice->Extension);
-
-	DPRINT_EXIT(NETVSC);
-
-	return ret;
+	return RndisFilterOpenDevice(netDevice->Extension);
 }
 
 int RndisFilterOnClose(struct hv_device *Device)
 {
-	int ret;
 	struct netvsc_device *netDevice = Device->Extension;
 
 	if (!netDevice)
 		return -EINVAL;
 
-	ret = RndisFilterCloseDevice(netDevice->Extension);
-
-	DPRINT_EXIT(NETVSC);
-
-	return ret;
+	return RndisFilterCloseDevice(netDevice->Extension);
 }
 
 static int RndisFilterOnSend(struct hv_device *Device,
@@ -937,8 +900,6 @@ static int RndisFilterOnSend(struct hv_device *Device,
 				filterPacket->CompletionContext;
 	}
 
-	DPRINT_EXIT(NETVSC);
-
 	return ret;
 }
 
@@ -948,13 +909,10 @@ static void RndisFilterOnSendCompletion(void *Context)
 
 	/* Pass it back to the original handler */
 	filterPacket->OnCompletion(filterPacket->CompletionContext);
-
-	DPRINT_EXIT(NETVSC);
 }
 
 
 static void RndisFilterOnSendRequestCompletion(void *Context)
 {
 	/* Noop */
-	DPRINT_EXIT(NETVSC);
 }

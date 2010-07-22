@@ -173,8 +173,6 @@ static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(drv_ctx);
 
-	DPRINT_EXIT(STORVSC_DRV);
-
 	return ret;
 }
 
@@ -215,9 +213,6 @@ static void storvsc_drv_exit(void)
 		storvsc_drv_obj->Base.OnCleanup(&storvsc_drv_obj->Base);
 
 	vmbus_child_driver_unregister(drv_ctx);
-
-	DPRINT_EXIT(STORVSC_DRV);
-
 	return;
 }
 
@@ -265,8 +260,6 @@ static int storvsc_probe(struct device *device)
 
 	if (!host_device_ctx->request_pool) {
 		scsi_host_put(host);
-		DPRINT_EXIT(STORVSC_DRV);
-
 		return -ENOMEM;
 	}
 
@@ -278,8 +271,6 @@ static int storvsc_probe(struct device *device)
 		DPRINT_ERR(STORVSC_DRV, "unable to add scsi vsc device");
 		kmem_cache_destroy(host_device_ctx->request_pool);
 		scsi_host_put(host);
-		DPRINT_EXIT(STORVSC_DRV);
-
 		return -1;
 	}
 
@@ -303,15 +294,10 @@ static int storvsc_probe(struct device *device)
 
 		kmem_cache_destroy(host_device_ctx->request_pool);
 		scsi_host_put(host);
-		DPRINT_EXIT(STORVSC_DRV);
-
 		return -1;
 	}
 
 	scsi_scan_host(host);
-
-	DPRINT_EXIT(STORVSC_DRV);
-
 	return ret;
 }
 
@@ -334,10 +320,8 @@ static int storvsc_remove(struct device *device)
 			(struct host_device_context *)host->hostdata;
 
 
-	if (!storvsc_drv_obj->Base.OnDeviceRemove) {
-		DPRINT_EXIT(STORVSC_DRV);
+	if (!storvsc_drv_obj->Base.OnDeviceRemove)
 		return -1;
-	}
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
@@ -360,9 +344,6 @@ static int storvsc_remove(struct device *device)
 
 	DPRINT_INFO(STORVSC, "releasing host adapter (%p)...", host);
 	scsi_host_put(host);
-
-	DPRINT_EXIT(STORVSC_DRV);
-
 	return ret;
 }
 
@@ -417,8 +398,6 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	scsi_done_fn(scmnd);
 
 	kmem_cache_free(host_device_ctx->request_pool, cmd_request);
-
-	DPRINT_EXIT(STORVSC_DRV);
 }
 
 static int do_bounce_buffer(struct scatterlist *sgl, unsigned int sg_count)
@@ -800,8 +779,6 @@ retry_request:
 		ret = SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 
-	DPRINT_EXIT(STORVSC_DRV);
-
 	return ret;
 }
 
@@ -866,15 +843,11 @@ static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
 
 	/* Invokes the vsc to reset the host/bus */
 	ret = StorVscOnHostReset(&device_ctx->device_obj);
-	if (ret != 0) {
-		DPRINT_EXIT(STORVSC_DRV);
+	if (ret != 0)
 		return ret;
-	}
 
 	DPRINT_INFO(STORVSC_DRV, "sdev (%p) dev obj (%p) - host reseted",
 		    scmnd->device, &device_ctx->device_obj);
-
-	DPRINT_EXIT(STORVSC_DRV);
 
 	return ret;
 }
@@ -965,7 +938,6 @@ static int __init storvsc_init(void)
 
 	DPRINT_INFO(STORVSC_DRV, "Storvsc initializing....");
 	ret = storvsc_drv_init(StorVscInitialize);
-	DPRINT_EXIT(STORVSC_DRV);
 	return ret;
 }
 

@@ -43,10 +43,8 @@ static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	deviceInfo = (struct storvsc_device_info *)AdditionalInfo;
 
 	ret = StorVscOnDeviceAdd(Device, AdditionalInfo);
-	if (ret != 0) {
-		DPRINT_EXIT(BLKVSC);
+	if (ret != 0)
 		return ret;
-	}
 
 	/*
 	 * We need to use the device instance guid to set the path and target
@@ -60,8 +58,6 @@ static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	deviceInfo->TargetId = Device->deviceInstance.data[5] << 8 |
 			       Device->deviceInstance.data[4];
-
-	DPRINT_EXIT(BLKVSC);
 
 	return ret;
 }
@@ -101,8 +97,6 @@ int BlkVscInitialize(struct hv_driver *Driver)
 	storDriver->Base.OnDeviceRemove = StorVscOnDeviceRemove;
 	storDriver->Base.OnCleanup = StorVscOnCleanup;
 	storDriver->OnIORequest	= StorVscOnIORequest;
-
-	DPRINT_EXIT(BLKVSC);
 
 	return ret;
 }

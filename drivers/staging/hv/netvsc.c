@@ -200,9 +200,6 @@ int NetVscInitialize(struct hv_driver *drv)
 	driver->OnSend			= NetVscOnSend;
 
 	RndisFilterInit(driver);
-
-	DPRINT_EXIT(NETVSC);
-
 	return 0;
 }
 
@@ -216,7 +213,6 @@ static int NetVscInitializeReceiveBufferWithNetVsp(struct hv_device *Device)
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "unable to get net device..."
 			   "device being destroyed?");
-		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
 	/* ASSERT(netDevice->ReceiveBufferSize > 0); */
@@ -331,7 +327,6 @@ Cleanup:
 
 Exit:
 	PutNetDevice(Device);
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -345,7 +340,6 @@ static int NetVscInitializeSendBufferWithNetVsp(struct hv_device *Device)
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "unable to get net device..."
 			   "device being destroyed?");
-		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
 	if (netDevice->SendBufferSize <= 0) {
@@ -428,7 +422,6 @@ Cleanup:
 
 Exit:
 	PutNetDevice(Device);
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -467,7 +460,6 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 		if (ret != 0) {
 			DPRINT_ERR(NETVSC, "unable to send revoke receive "
 				   "buffer to netvsp");
-			DPRINT_EXIT(NETVSC);
 			return -1;
 		}
 	}
@@ -484,7 +476,6 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 		if (ret != 0) {
 			DPRINT_ERR(NETVSC,
 				   "unable to teardown receive buffer's gpadl");
-			DPRINT_EXIT(NETVSC);
 			return -1;
 		}
 		NetDevice->ReceiveBufferGpadlHandle = 0;
@@ -504,8 +495,6 @@ static int NetVscDestroyReceiveBuffer(struct netvsc_device *NetDevice)
 		kfree(NetDevice->ReceiveSections);
 		NetDevice->ReceiveSections = NULL;
 	}
-
-	DPRINT_EXIT(NETVSC);
 
 	return ret;
 }
@@ -544,7 +533,6 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 		if (ret != 0) {
 			DPRINT_ERR(NETVSC, "unable to send revoke send buffer "
 				   "to netvsp");
-			DPRINT_EXIT(NETVSC);
 			return -1;
 		}
 	}
@@ -562,7 +550,6 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 		if (ret != 0) {
 			DPRINT_ERR(NETVSC, "unable to teardown send buffer's "
 				   "gpadl");
-			DPRINT_EXIT(NETVSC);
 			return -1;
 		}
 		NetDevice->SendBufferGpadlHandle = 0;
@@ -576,8 +563,6 @@ static int NetVscDestroySendBuffer(struct netvsc_device *NetDevice)
 			     NetDevice->SendBufferSize >> PAGE_SHIFT);
 		NetDevice->SendBuffer = NULL;
 	}
-
-	DPRINT_EXIT(NETVSC);
 
 	return ret;
 }
@@ -594,7 +579,6 @@ static int NetVscConnectToVsp(struct hv_device *Device)
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "unable to get net device..."
 			   "device being destroyed?");
-		DPRINT_EXIT(NETVSC);
 		return -1;
 	}
 
@@ -684,7 +668,6 @@ static int NetVscConnectToVsp(struct hv_device *Device)
 
 Cleanup:
 	PutNetDevice(Device);
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -692,8 +675,6 @@ static void NetVscDisconnectFromVsp(struct netvsc_device *NetDevice)
 {
 	NetVscDestroyReceiveBuffer(NetDevice);
 	NetVscDestroySendBuffer(NetDevice);
-
-	DPRINT_EXIT(NETVSC);
 }
 
 /*
@@ -771,7 +752,6 @@ static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	DPRINT_INFO(NETVSC, "*** NetVSC channel handshake result - %d ***",
 		    ret);
 
-	DPRINT_EXIT(NETVSC);
 	return ret;
 
 Close:
@@ -796,7 +776,6 @@ Cleanup:
 		FreeNetDevice(netDevice);
 	}
 
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -850,8 +829,6 @@ static int NetVscOnDeviceRemove(struct hv_device *Device)
 
 	kfree(netDevice->ChannelInitEvent);
 	FreeNetDevice(netDevice);
-
-	DPRINT_EXIT(NETVSC);
 	return 0;
 }
 
@@ -860,7 +837,6 @@ static int NetVscOnDeviceRemove(struct hv_device *Device)
  */
 static void NetVscOnCleanup(struct hv_driver *drv)
 {
-	DPRINT_EXIT(NETVSC);
 }
 
 static void NetVscOnSendCompletion(struct hv_device *Device,
@@ -874,7 +850,6 @@ static void NetVscOnSendCompletion(struct hv_device *Device,
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "unable to get net device..."
 			   "device being destroyed?");
-		DPRINT_EXIT(NETVSC);
 		return;
 	}
 
@@ -908,7 +883,6 @@ static void NetVscOnSendCompletion(struct hv_device *Device,
 	}
 
 	PutNetDevice(Device);
-	DPRINT_EXIT(NETVSC);
 }
 
 static int NetVscOnSend(struct hv_device *Device,
@@ -923,7 +897,6 @@ static int NetVscOnSend(struct hv_device *Device,
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "net device (%p) shutting down..."
 			   "ignoring outbound packets", netDevice);
-		DPRINT_EXIT(NETVSC);
 		return -2;
 	}
 
@@ -963,8 +936,6 @@ static int NetVscOnSend(struct hv_device *Device,
 
 	atomic_inc(&netDevice->NumOutstandingSends);
 	PutNetDevice(Device);
-
-	DPRINT_EXIT(NETVSC);
 	return ret;
 }
 
@@ -988,7 +959,6 @@ static void NetVscOnReceive(struct hv_device *Device,
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "unable to get net device..."
 			   "device being destroyed?");
-		DPRINT_EXIT(NETVSC);
 		return;
 	}
 
@@ -1164,7 +1134,6 @@ static void NetVscOnReceive(struct hv_device *Device,
 	/* ASSERT(list_empty(&listHead)); */
 
 	PutNetDevice(Device);
-	DPRINT_EXIT(NETVSC);
 }
 
 static void NetVscSendReceiveCompletion(struct hv_device *Device,
@@ -1234,7 +1203,6 @@ static void NetVscOnReceiveCompletion(void *Context)
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "unable to get net device..."
 			   "device being destroyed?");
-		DPRINT_EXIT(NETVSC);
 		return;
 	}
 
@@ -1265,7 +1233,6 @@ static void NetVscOnReceiveCompletion(void *Context)
 		NetVscSendReceiveCompletion(device, transactionId);
 
 	PutNetDevice(device);
-	DPRINT_EXIT(NETVSC);
 }
 
 static void NetVscOnChannelCallback(void *Context)
@@ -1292,7 +1259,6 @@ static void NetVscOnChannelCallback(void *Context)
 	if (!netDevice) {
 		DPRINT_ERR(NETVSC, "net device (%p) shutting down..."
 			   "ignoring inbound packets", netDevice);
-		DPRINT_EXIT(NETVSC);
 		goto out;
 	}
 
@@ -1356,7 +1322,6 @@ static void NetVscOnChannelCallback(void *Context)
 	} while (1);
 
 	PutNetDevice(device);
-	DPRINT_EXIT(NETVSC);
 out:
 	kfree(buffer);
 	return;

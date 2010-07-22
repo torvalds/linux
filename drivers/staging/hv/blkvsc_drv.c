@@ -193,8 +193,6 @@ static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(drv_ctx);
 
-	DPRINT_EXIT(BLKVSC_DRV);
-
 	return ret;
 }
 
@@ -236,8 +234,6 @@ static void blkvsc_drv_exit(void)
 		storvsc_drv_obj->Base.OnCleanup(&storvsc_drv_obj->Base);
 
 	vmbus_child_driver_unregister(drv_ctx);
-
-	DPRINT_EXIT(BLKVSC_DRV);
 
 	return;
 }
@@ -406,8 +402,6 @@ Cleanup:
 		kfree(blkdev);
 		blkdev = NULL;
 	}
-
-	DPRINT_EXIT(BLKVSC_DRV);
 
 	return ret;
 }
@@ -747,10 +741,8 @@ static int blkvsc_remove(struct device *device)
 
 	DPRINT_DBG(BLKVSC_DRV, "blkvsc_remove()\n");
 
-	if (!storvsc_drv_obj->Base.OnDeviceRemove) {
-		DPRINT_EXIT(BLKVSC_DRV);
+	if (!storvsc_drv_obj->Base.OnDeviceRemove)
 		return -1;
-	}
 
 	/*
 	 * Call to the vsc driver to let it know that the device is being
@@ -793,8 +785,6 @@ static int blkvsc_remove(struct device *device)
 	kmem_cache_destroy(blkdev->request_pool);
 
 	kfree(blkdev);
-
-	DPRINT_EXIT(BLKVSC_DRV);
 
 	return ret;
 }
@@ -1487,8 +1477,6 @@ static int __init blkvsc_init(void)
 	DPRINT_INFO(BLKVSC_DRV, "Blkvsc initializing....");
 
 	ret = blkvsc_drv_init(BlkVscInitialize);
-
-	DPRINT_EXIT(BLKVSC_DRV);
 
 	return ret;
 }

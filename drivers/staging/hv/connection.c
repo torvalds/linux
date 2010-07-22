@@ -153,8 +153,6 @@ int VmbusConnect(void)
 
 	kfree(msgInfo->WaitEvent);
 	kfree(msgInfo);
-	DPRINT_EXIT(VMBUS);
-
 	return 0;
 
 Cleanup:
@@ -177,8 +175,6 @@ Cleanup:
 		kfree(msgInfo->WaitEvent);
 		kfree(msgInfo);
 	}
-
-	DPRINT_EXIT(VMBUS);
 
 	return ret;
 }
@@ -217,7 +213,6 @@ int VmbusDisconnect(void)
 
 Cleanup:
 	kfree(msg);
-	DPRINT_EXIT(VMBUS);
 	return ret;
 }
 
@@ -304,8 +299,6 @@ void VmbusOnEvents(void)
 			}
 		 }
 	}
-	DPRINT_EXIT(VMBUS);
-
 	return;
 }
 
@@ -326,16 +319,10 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
  */
 int VmbusSetEvent(u32 childRelId)
 {
-	int ret = 0;
-
 	/* Each u32 represents 32 channels */
 	set_bit(childRelId & 31,
 		(unsigned long *)gVmbusConnection.SendInterruptPage +
 		(childRelId >> 5));
 
-	ret = HvSignalEvent();
-
-	DPRINT_EXIT(VMBUS);
-
-	return ret;
+	return HvSignalEvent();
 }

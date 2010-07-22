@@ -90,7 +90,6 @@ static int netvsc_open(struct net_device *net)
 		DPRINT_ERR(NETVSC_DRV, "unable to open device...link is down.");
 	}
 
-	DPRINT_EXIT(NETVSC_DRV);
 	return ret;
 }
 
@@ -105,8 +104,6 @@ static int netvsc_close(struct net_device *net)
 	ret = RndisFilterOnClose(device_obj);
 	if (ret != 0)
 		DPRINT_ERR(NETVSC_DRV, "unable to close device (ret %d).", ret);
-
-	DPRINT_EXIT(NETVSC_DRV);
 
 	return ret;
 }
@@ -129,8 +126,6 @@ static void netvsc_xmit_completion(void *context)
 		if ((net_device_ctx->avail += num_pages) >= PACKET_PAGES_HIWATER)
  			netif_wake_queue(net);
 	}
-
-	DPRINT_EXIT(NETVSC_DRV);
 }
 
 static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
@@ -217,7 +212,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		netvsc_xmit_completion(packet);
 	}
 
-	DPRINT_EXIT(NETVSC_DRV);
 	return NETDEV_TX_OK;
 }
 
@@ -243,7 +237,6 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 		netif_carrier_off(net);
 		netif_stop_queue(net);
 	}
-	DPRINT_EXIT(NETVSC_DRV);
 }
 
 /*
@@ -310,8 +303,6 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 
 	DPRINT_DBG(NETVSC_DRV, "# of recvs %lu total size %lu",
 		   net->stats.rx_packets, net->stats.rx_bytes);
-
-	DPRINT_EXIT(NETVSC_DRV);
 
 	return 0;
 }
@@ -408,7 +399,6 @@ static int netvsc_probe(struct device *device)
 		free_netdev(net);
 	}
 
-	DPRINT_EXIT(NETVSC_DRV);
 	return ret;
 }
 
@@ -426,14 +416,11 @@ static int netvsc_remove(struct device *device)
 
 	if (net == NULL) {
 		DPRINT_INFO(NETVSC, "no net device to remove");
-		DPRINT_EXIT(NETVSC_DRV);
 		return 0;
 	}
 
-	if (!net_drv_obj->Base.OnDeviceRemove) {
-		DPRINT_EXIT(NETVSC_DRV);
+	if (!net_drv_obj->Base.OnDeviceRemove)
 		return -1;
-	}
 
 	/* Stop outbound asap */
 	netif_stop_queue(net);
@@ -452,7 +439,6 @@ static int netvsc_remove(struct device *device)
 	}
 
 	free_netdev(net);
-	DPRINT_EXIT(NETVSC_DRV);
 	return ret;
 }
 
@@ -497,8 +483,6 @@ static void netvsc_drv_exit(void)
 
 	vmbus_child_driver_unregister(drv_ctx);
 
-	DPRINT_EXIT(NETVSC_DRV);
-
 	return;
 }
 
@@ -527,8 +511,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	/* The driver belongs to vmbus */
 	ret = vmbus_child_driver_register(drv_ctx);
 
-	DPRINT_EXIT(NETVSC_DRV);
-
 	return ret;
 }
 
@@ -548,24 +530,17 @@ MODULE_DEVICE_TABLE(dmi, hv_netvsc_dmi_table);
 
 static int __init netvsc_init(void)
 {
-	int ret;
-
 	DPRINT_INFO(NETVSC_DRV, "Netvsc initializing....");
 
 	if (!dmi_check_system(hv_netvsc_dmi_table))
 		return -ENODEV;
 
-	ret = netvsc_drv_init(NetVscInitialize);
-
-	DPRINT_EXIT(NETVSC_DRV);
-
-	return ret;
+	return netvsc_drv_init(NetVscInitialize);
 }
 
 static void __exit netvsc_exit(void)
 {
 	netvsc_drv_exit();
-	DPRINT_EXIT(NETVSC_DRV);
 }
 
 static const struct pci_device_id __initconst

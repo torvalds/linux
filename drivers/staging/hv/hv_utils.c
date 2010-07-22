@@ -98,8 +98,6 @@ static void shutdown_onchannelcallback(void *context)
 
 	kfree(buf);
 
-	DPRINT_EXIT(VMBUS);
-
 	if (execute_shutdown == true)
 		orderly_poweroff(false);
 }
@@ -186,8 +184,6 @@ static void timesync_onchannelcallback(void *context)
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 /*
@@ -241,8 +237,6 @@ static void heartbeat_onchannelcallback(void *context)
 	}
 
 	kfree(buf);
-
-	DPRINT_EXIT(VMBUS);
 }
 
 static int __init init_hyperv_utils(void)
