@@ -4681,9 +4681,8 @@ S:	Maintained
 F:	drivers/rapidio/
 
 RAYLINK/WEBGEAR 802.11 WIRELESS LAN DRIVER
-M:	Corey Thomas <coreythomas@charter.net>
 L:	linux-wireless@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/ray*
 
 RCUTORTURE MODULE
