@@ -1820,9 +1820,8 @@ static int kdb_sr(int argc, const char **argv)
 {
 	if (argc != 1)
 		return KDB_ARGCOUNT;
-	sysrq_toggle_support(1);
 	kdb_trap_printk++;
-	handle_sysrq(*argv[1], NULL);
+	__handle_sysrq(*argv[1], NULL, 0);
 	kdb_trap_printk--;
 
 	return 0;
