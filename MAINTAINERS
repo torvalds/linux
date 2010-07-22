@@ -4499,7 +4499,7 @@ PRISM54 WIRELESS DRIVER
 M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://prism54.org
-S:	Maintained
+S:	Obsolete
 F:	drivers/net/wireless/prism54/
 
 PROMISE DC4030 CACHING DISK CONTROLLER DRIVER
