@@ -321,7 +321,7 @@ static struct {
 	unsigned short	vendor;
 	unsigned short	product;
 	unsigned short	release;
-	char		*serial_parm;
+	char		*serial;
 	unsigned int	buflen;
 
 	int		transport_type;
@@ -365,6 +365,8 @@ MODULE_PARM_DESC(stall, "false to prevent bulk stalls");
 module_param_named(cdrom, mod_data.cdrom, bool, S_IRUGO);
 MODULE_PARM_DESC(cdrom, "true to emulate cdrom instead of disk");
 
+module_param_named(serial, mod_data.serial, charp, S_IRUGO);
+MODULE_PARM_DESC(serial, "USB serial number");
 
 /* In the non-TEST version, only the module parameters listed above
  * are available. */
@@ -385,9 +387,6 @@ MODULE_PARM_DESC(product, "USB Product ID");
 
 module_param_named(release, mod_data.release, ushort, S_IRUGO);
 MODULE_PARM_DESC(release, "USB release number");
-
-module_param_named(serial, mod_data.serial_parm, charp, S_IRUGO);
-MODULE_PARM_DESC(serial, "USB serial number");
 
 module_param_named(buflen, mod_data.buflen, uint, S_IRUGO);
 MODULE_PARM_DESC(buflen, "I/O buffer size");
@@ -3291,10 +3290,12 @@ static int __init check_parameters(struct fsg_dev *fsg)
 		return -ETOOSMALL;
 	}
 
+#endif /* CONFIG_USB_FILE_STORAGE_TEST */
+
 	/* Serial string handling.
 	 * On a real device, the serial string would be loaded
 	 * from permanent storage. */
-	if (mod_data.serial_parm) {
+	if (mod_data.serial) {
 		const char *ch;
 		unsigned len = 0;
 
@@ -3303,7 +3304,7 @@ static int __init check_parameters(struct fsg_dev *fsg)
 		 * 12 uppercase hexadecimal characters.
 		 * BBB need at least 12 uppercase hexadecimal characters,
 		 * with a maximum of 126. */
-		for (ch = mod_data.serial_parm; *ch; ++ch) {
+		for (ch = mod_data.serial; *ch; ++ch) {
 			++len;
 			if ((*ch < '0' || *ch > '9') &&
 			    (*ch < 'A' || *ch > 'F')) { /* not uppercase hex */
@@ -3322,8 +3323,11 @@ static int __init check_parameters(struct fsg_dev *fsg)
 				"Failing back to default\n");
 			goto fill_serial;
 		}
-		fsg_strings[FSG_STRING_SERIAL - 1].s = mod_data.serial_parm;
+		fsg_strings[FSG_STRING_SERIAL - 1].s = mod_data.serial;
 	} else {
+		WARNING(fsg,
+			"Userspace failed to provide serial number; "
+			"Failing back to default\n");
 fill_serial:
 		/* Serial number not specified or invalid, make our own.
 		 * We just encode it from the driver version string,
@@ -3338,8 +3342,6 @@ fill_serial:
 			sprintf(&fsg_string_serial[i], "%02X", c);
 		}
 	}
-
-#endif /* CONFIG_USB_FILE_STORAGE_TEST */
 
 	return 0;
 }
