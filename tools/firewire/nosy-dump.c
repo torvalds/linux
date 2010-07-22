@@ -133,7 +133,7 @@ static const struct poptOption options[] = {
 };
 
 /* Allow all ^C except the first to interrupt the program in the usual way. */
-void
+static void
 sigint_handler(int signal_num)
 {
 	if (run == 1) {
@@ -142,7 +142,7 @@ sigint_handler(int signal_num)
 	}
 }
 
-struct subaction *
+static struct subaction *
 subaction_create(uint32_t *data, size_t length)
 {
 	struct subaction *sa;
@@ -156,17 +156,17 @@ subaction_create(uint32_t *data, size_t length)
 	return sa;
 }
 
-void
+static void
 subaction_destroy(struct subaction *sa)
 {
 	free(sa);
 }
 
-struct list pending_transaction_list = {
+static struct list pending_transaction_list = {
 	&pending_transaction_list, &pending_transaction_list
 };
 
-struct link_transaction *
+static struct link_transaction *
 link_transaction_lookup(int request_node, int response_node, int tlabel)
 {
 	struct link_transaction *t;
@@ -190,7 +190,7 @@ link_transaction_lookup(int request_node, int response_node, int tlabel)
 	return t;
 }
 
-void
+static void
 link_transaction_destroy(struct link_transaction *t)
 {
 	struct subaction *sa;
@@ -213,11 +213,11 @@ struct protocol_decoder {
 	int (*decode)(struct link_transaction *t);
 };
 
-static struct protocol_decoder protocol_decoders[] = {
+static const struct protocol_decoder protocol_decoders[] = {
 	{ "FCP", decode_fcp }
 };
 
-void
+static void
 handle_transaction(struct link_transaction *t)
 {
 	struct subaction *sa;
@@ -254,7 +254,7 @@ handle_transaction(struct link_transaction *t)
 	link_transaction_destroy(t);
 }
 
-void
+static void
 clear_pending_transaction_list(void)
 {
 	struct link_transaction *t;
@@ -313,7 +313,7 @@ struct packet_info {
 	const char *name;
 	int type;
 	int response_tcode;
-	struct packet_field *fields;
+	const struct packet_field *fields;
 	int field_count;
 };
 
@@ -344,20 +344,20 @@ struct packet_field {
 	{ "src", 32, 16 },						\
 	{ "rcode", 48, 4, PACKET_FIELD_TRANSACTION, rcode_names }
 
-struct packet_field read_quadlet_request_fields[] = {
+static const struct packet_field read_quadlet_request_fields[] = {
 	COMMON_REQUEST_FIELDS,
 	{ "crc", 96, 32, PACKET_FIELD_DETAIL },
 	{ "ack", 156, 4, 0, ack_names },
 };
 
-struct packet_field read_quadlet_response_fields[] = {
+static const struct packet_field read_quadlet_response_fields[] = {
 	COMMON_RESPONSE_FIELDS,
 	{ "data", 96, 32, PACKET_FIELD_TRANSACTION },
 	{ "crc", 128, 32, PACKET_FIELD_DETAIL },
 	{ "ack", 188, 4, 0, ack_names },
 };
 
-struct packet_field read_block_request_fields[] = {
+static const struct packet_field read_block_request_fields[] = {
 	COMMON_REQUEST_FIELDS,
 	{ "data_length", 96, 16, PACKET_FIELD_TRANSACTION },
 	{ "extended_tcode", 112, 16 },
@@ -365,7 +365,7 @@ struct packet_field read_block_request_fields[] = {
 	{ "ack", 188, 4, 0, ack_names },
 };
 
-struct packet_field block_response_fields[] = {
+static const struct packet_field block_response_fields[] = {
 	COMMON_RESPONSE_FIELDS,
 	{ "data_length", 96, 16, PACKET_FIELD_DATA_LENGTH },
 	{ "extended_tcode", 112, 16 },
@@ -375,13 +375,13 @@ struct packet_field block_response_fields[] = {
 	{ "ack", -4, 4, 0, ack_names },
 };
 
-struct packet_field write_quadlet_request_fields[] = {
+static const struct packet_field write_quadlet_request_fields[] = {
 	COMMON_REQUEST_FIELDS,
 	{ "data", 96, 32, PACKET_FIELD_TRANSACTION },
 	{ "ack", -4, 4, 0, ack_names },
 };
 
-struct packet_field block_request_fields[] = {
+static const struct packet_field block_request_fields[] = {
 	COMMON_REQUEST_FIELDS,
 	{ "data_length", 96, 16, PACKET_FIELD_DATA_LENGTH | PACKET_FIELD_TRANSACTION },
 	{ "extended_tcode", 112, 16, PACKET_FIELD_TRANSACTION },
@@ -391,13 +391,13 @@ struct packet_field block_request_fields[] = {
 	{ "ack", -4, 4, 0, ack_names },
 };
 
-struct packet_field write_response_fields[] = {
+static const struct packet_field write_response_fields[] = {
 	COMMON_RESPONSE_FIELDS,
 	{ "reserved", 64, 32, PACKET_FIELD_DETAIL },
 	{ "ack", -4, 4, 0, ack_names },
 };
 
-struct packet_field iso_data_fields[] = {
+static const struct packet_field iso_data_fields[] = {
 	{ "data_length", 0, 16, PACKET_FIELD_DATA_LENGTH },
 	{ "tag", 16, 2 },
 	{ "channel", 18, 6 },
@@ -409,7 +409,7 @@ struct packet_field iso_data_fields[] = {
 	{ "ack", -4, 4, 0, ack_names },
 };
 
-static struct packet_info packet_info[] = {
+static const struct packet_info packet_info[] = {
 	{
 		.name		= "write_quadlet_request",
 		.type		= PACKET_REQUEST,
@@ -486,7 +486,7 @@ static struct packet_info packet_info[] = {
 	},
 };
 
-int
+static int
 handle_packet(uint32_t *data, size_t length)
 {
 	if (length == 0) {
@@ -629,7 +629,8 @@ handle_packet(uint32_t *data, size_t length)
 	return 1;
 }
 
-unsigned int get_bits(struct link_packet *packet, int offset, int width)
+static unsigned int
+get_bits(struct link_packet *packet, int offset, int width)
 {
 	uint32_t *data = (uint32_t *) packet;
 	uint32_t index, shift, mask;
@@ -649,7 +650,8 @@ unsigned int get_bits(struct link_packet *packet, int offset, int width)
 #error unsupported byte order.
 #endif
 
-void dump_data(unsigned char *data, int length)
+static void
+dump_data(unsigned char *data, int length)
 {
 	int i, print_length;
 
@@ -671,14 +673,14 @@ static void
 decode_link_packet(struct link_packet *packet, size_t length,
 		   int include_flags, int exclude_flags)
 {
-	struct packet_info *pi;
+	const struct packet_info *pi;
 	int data_length = 0;
 	int i;
 
 	pi = &packet_info[packet->common.tcode];
 
 	for (i = 0; i < pi->field_count; i++) {
-		struct packet_field *f = &pi->fields[i];
+		const struct packet_field *f = &pi->fields[i];
 		int offset;
 
 		if (f->flags & exclude_flags)
@@ -848,15 +850,15 @@ print_stats(uint32_t *data, size_t length)
 	printf(SHOW_CURSOR "\n");
 }
 
-struct termios saved_attributes;
+static struct termios saved_attributes;
 
-void
+static void
 reset_input_mode(void)
 {
 	tcsetattr(STDIN_FILENO, TCSANOW, &saved_attributes);
 }
 
-void
+static void
 set_input_mode(void)
 {
 	struct termios tattr;
