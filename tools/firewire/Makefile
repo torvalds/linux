@@ -1,12 +1,12 @@
-version = 0.3
 prefix = /usr
+nosy-dump-version = 0.4
 
 CC = gcc
 
 all : nosy-dump
 
 nosy-dump : CFLAGS = -Wall -O2 -g
-nosy-dump : CPPFLAGS = -DVERSION=\"$(version)\" -I../../drivers/firewire
+nosy-dump : CPPFLAGS = -DVERSION=\"$(nosy-dump-version)\" -I../../drivers/firewire
 nosy-dump : LDFLAGS = -g
 nosy-dump : LDLIBS = -lpopt
 
