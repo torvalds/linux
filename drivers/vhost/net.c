@@ -533,7 +533,6 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
                 vhost_net_enable_vq(n, vq);
 	}
 
-done:
 	mutex_unlock(&vq->mutex);
 
 	if (oldsock) {
