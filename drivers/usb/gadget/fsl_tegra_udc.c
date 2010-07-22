@@ -83,8 +83,12 @@ void fsl_udc_clk_release(void)
 
 void fsl_udc_clk_suspend(void)
 {
+	tegra_usb_phy_power_off(phy);
+	clk_disable(udc_clk);
 }
 
 void fsl_udc_clk_resume(void)
 {
+	clk_enable(udc_clk);
+	tegra_usb_phy_power_on(phy);
 }

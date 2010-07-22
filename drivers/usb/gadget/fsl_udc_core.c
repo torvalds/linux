@@ -1779,15 +1779,7 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 	u32 temp;
 #endif
 
-	/* Disable ISR for OTG host mode */
-	if (udc->stopped)
-		return IRQ_NONE;
 	spin_lock_irqsave(&udc->lock, flags);
-	irq_src = fsl_readl(&dr_regs->usbsts) & fsl_readl(&dr_regs->usbintr);
-	/* Clear notification bits */
-	fsl_writel(irq_src, &dr_regs->usbsts);
-
-	/* VDBG("irq_src [0x%8x]", irq_src); */
 
 #ifdef CONFIG_ARCH_TEGRA
 	if (udc->transceiver) {
@@ -1824,7 +1816,23 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 			spin_unlock_irqrestore(&udc->lock, flags);
 			return IRQ_HANDLED;
 		}
-	} else {
+	}
+#endif
+
+	/* Disable ISR for OTG host mode */
+	if (udc->stopped) {
+		spin_unlock_irqrestore(&udc->lock, flags);
+		return IRQ_NONE;
+	}
+
+	irq_src = fsl_readl(&dr_regs->usbsts) & fsl_readl(&dr_regs->usbintr);
+	/* Clear notification bits */
+	fsl_writel(irq_src, &dr_regs->usbsts);
+
+	/* VDBG("irq_src [0x%8x]", irq_src); */
+
+#ifdef CONFIG_ARCH_TEGRA
+	if (!udc->transceiver) {
 		/* VBUS A session detection interrupts. When the interrupt is received,
 		 * the mark the vbus active shadow.
 		 */
@@ -2552,6 +2560,8 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	udc_controller->transceiver = otg_get_transceiver();
+	if (udc_controller->transceiver)
+		udc_controller->vbus_active = 1;
 #else
 #ifdef CONFIG_ARCH_TEGRA
 	/* Power down the phy if cable is not connected */
