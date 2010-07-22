@@ -3242,8 +3242,7 @@ static int receive_req_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned int data_size)
 {
 	struct p_state *p = &mdev->data.rbuf.state;
-	enum drbd_conns nconn, oconn;
-	union drbd_state ns, peer_state;
+	union drbd_state os, ns, peer_state;
 	enum drbd_disk_state real_peer_disk;
 	enum chg_state_flags cs_flags;
 	int rv;
@@ -3258,38 +3257,38 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 
 	spin_lock_irq(&mdev->req_lock);
  retry:
-	oconn = nconn = mdev->state.conn;
+	os = ns = mdev->state;
 	spin_unlock_irq(&mdev->req_lock);
 
-	if (nconn == C_WF_REPORT_PARAMS)
-		nconn = C_CONNECTED;
+	if (ns.conn == C_WF_REPORT_PARAMS)
+		ns.conn = C_CONNECTED;
 
 	if (mdev->p_uuid && peer_state.disk >= D_NEGOTIATING &&
 	    get_ldev_if_state(mdev, D_NEGOTIATING)) {
 		int cr; /* consider resync */
 
 		/* if we established a new connection */
-		cr  = (oconn < C_CONNECTED);
+		cr  = (os.conn < C_CONNECTED);
 		/* if we had an established connection
 		 * and one of the nodes newly attaches a disk */
-		cr |= (oconn == C_CONNECTED &&
+		cr |= (os.conn == C_CONNECTED &&
 		       (peer_state.disk == D_NEGOTIATING ||
-			mdev->state.disk == D_NEGOTIATING));
+			os.disk == D_NEGOTIATING));
 		/* if we have both been inconsistent, and the peer has been
 		 * forced to be UpToDate with --overwrite-data */
 		cr |= test_bit(CONSIDER_RESYNC, &mdev->flags);
 		/* if we had been plain connected, and the admin requested to
 		 * start a sync by "invalidate" or "invalidate-remote" */
-		cr |= (oconn == C_CONNECTED &&
+		cr |= (os.conn == C_CONNECTED &&
 				(peer_state.conn >= C_STARTING_SYNC_S &&
 				 peer_state.conn <= C_WF_BITMAP_T));
 
 		if (cr)
-			nconn = drbd_sync_handshake(mdev, peer_state.role, real_peer_disk);
+			ns.conn = drbd_sync_handshake(mdev, peer_state.role, real_peer_disk);
 
 		put_ldev(mdev);
-		if (nconn == C_MASK) {
-			nconn = C_CONNECTED;
+		if (ns.conn == C_MASK) {
+			ns.conn = C_CONNECTED;
 			if (mdev->state.disk == D_NEGOTIATING) {
 				drbd_force_state(mdev, NS(disk, D_DISKLESS));
 			} else if (peer_state.disk == D_NEGOTIATING) {
@@ -3299,7 +3298,7 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 			} else {
 				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
 					return FALSE;
-				D_ASSERT(oconn == C_WF_REPORT_PARAMS);
+				D_ASSERT(os.conn == C_WF_REPORT_PARAMS);
 				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 				return FALSE;
 			}
@@ -3307,18 +3306,16 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 	}
 
 	spin_lock_irq(&mdev->req_lock);
-	if (mdev->state.conn != oconn)
+	if (mdev->state.i != os.i)
 		goto retry;
 	clear_bit(CONSIDER_RESYNC, &mdev->flags);
-	ns.i = mdev->state.i;
-	ns.conn = nconn;
 	ns.peer = peer_state.role;
 	ns.pdsk = real_peer_disk;
 	ns.peer_isp = (peer_state.aftr_isp | peer_state.user_isp);
-	if ((nconn == C_CONNECTED || nconn == C_WF_BITMAP_S) && ns.disk == D_NEGOTIATING)
+	if ((ns.conn == C_CONNECTED || ns.conn == C_WF_BITMAP_S) && ns.disk == D_NEGOTIATING)
 		ns.disk = mdev->new_state_tmp.disk;
-	cs_flags = CS_VERBOSE + (oconn < C_CONNECTED && nconn >= C_CONNECTED ? 0 : CS_HARD);
-	if (ns.pdsk == D_CONSISTENT && is_susp(ns) && nconn == C_CONNECTED && oconn < C_CONNECTED &&
+	cs_flags = CS_VERBOSE + (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED ? 0 : CS_HARD);
+	if (ns.pdsk == D_CONSISTENT && is_susp(ns) && ns.conn == C_CONNECTED && os.conn < C_CONNECTED &&
 	    test_bit(NEW_CUR_UUID, &mdev->flags)) {
 		/* Do not allow tl_restart(resend) for a rebooted peer. We can only allow this
 		   for temporal network outages! */
@@ -3339,8 +3336,8 @@ static int receive_state(struct drbd_conf *mdev, enum drbd_packets cmd, unsigned
 		return FALSE;
 	}
 
-	if (oconn > C_WF_REPORT_PARAMS) {
-		if (nconn > C_CONNECTED && peer_state.conn <= C_CONNECTED &&
+	if (os.conn > C_WF_REPORT_PARAMS) {
+		if (ns.conn > C_CONNECTED && peer_state.conn <= C_CONNECTED &&
 		    peer_state.disk != D_NEGOTIATING ) {
 			/* we want resync, peer has not yet decided to sync... */
 			/* Nowadays only used when forcing a node into primary role and
