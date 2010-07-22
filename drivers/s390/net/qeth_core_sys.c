@@ -433,6 +433,7 @@ static ssize_t qeth_dev_layer2_store(struct device *dev,
 	if (card->options.layer2 == newdis)
 		goto out;
 	else {
+		card->info.mac_bits  = 0;
 		if (card->discipline.ccwgdriver) {
 			card->discipline.ccwgdriver->remove(card->gdev);
 			qeth_core_free_discipline(card);
