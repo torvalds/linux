@@ -76,8 +76,6 @@ static int netvsc_open(struct net_device *net)
 	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 	int ret = 0;
 
-	DPRINT_ENTER(NETVSC_DRV);
-
 	if (netif_carrier_ok(net)) {
 		/* Open up the device */
 		ret = RndisFilterOnOpen(device_obj);
@@ -102,8 +100,6 @@ static int netvsc_close(struct net_device *net)
 	struct hv_device *device_obj = &net_device_ctx->device_ctx->device_obj;
 	int ret;
 
-	DPRINT_ENTER(NETVSC_DRV);
-
 	netif_stop_queue(net);
 
 	ret = RndisFilterOnClose(device_obj);
@@ -120,8 +116,6 @@ static void netvsc_xmit_completion(void *context)
 	struct hv_netvsc_packet *packet = (struct hv_netvsc_packet *)context;
 	struct sk_buff *skb = (struct sk_buff *)
 		(unsigned long)packet->Completion.Send.SendCompletionTid;
-
-	DPRINT_ENTER(NETVSC_DRV);
 
 	kfree(packet);
 
@@ -150,8 +144,6 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	struct hv_netvsc_packet *packet;
 	int ret;
 	unsigned int i, num_pages;
-
-	DPRINT_ENTER(NETVSC_DRV);
 
 	DPRINT_DBG(NETVSC_DRV, "xmit packet - len %d data_len %d",
 		   skb->len, skb->data_len);
@@ -238,8 +230,6 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	struct vm_device *device_ctx = to_vm_device(device_obj);
 	struct net_device *net = dev_get_drvdata(&device_ctx->device);
 
-	DPRINT_ENTER(NETVSC_DRV);
-
 	if (!net) {
 		DPRINT_ERR(NETVSC_DRV, "got link status but net device "
 				"not initialized yet");
@@ -269,8 +259,6 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	void *data;
 	int i;
 	unsigned long flags;
-
-	DPRINT_ENTER(NETVSC_DRV);
 
 	if (!net) {
 		DPRINT_ERR(NETVSC_DRV, "got receive callback but net device "
@@ -364,8 +352,6 @@ static int netvsc_probe(struct device *device)
 	struct netvsc_device_info device_info;
 	int ret;
 
-	DPRINT_ENTER(NETVSC_DRV);
-
 	if (!net_drv_obj->Base.OnDeviceAdd)
 		return -1;
 
@@ -438,8 +424,6 @@ static int netvsc_remove(struct device *device)
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	int ret;
 
-	DPRINT_ENTER(NETVSC_DRV);
-
 	if (net == NULL) {
 		DPRINT_INFO(NETVSC, "no net device to remove");
 		DPRINT_EXIT(NETVSC_DRV);
@@ -488,8 +472,6 @@ static void netvsc_drv_exit(void)
 	struct device *current_dev;
 	int ret;
 
-	DPRINT_ENTER(NETVSC_DRV);
-
 	while (1) {
 		current_dev = NULL;
 
@@ -525,8 +507,6 @@ static int netvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
 	struct netvsc_driver *net_drv_obj = &g_netvsc_drv.drv_obj;
 	struct driver_context *drv_ctx = &g_netvsc_drv.drv_ctx;
 	int ret;
-
-	DPRINT_ENTER(NETVSC_DRV);
 
 	vmbus_get_interface(&net_drv_obj->Base.VmbusChannelInterface);
 
@@ -570,7 +550,6 @@ static int __init netvsc_init(void)
 {
 	int ret;
 
-	DPRINT_ENTER(NETVSC_DRV);
 	DPRINT_INFO(NETVSC_DRV, "Netvsc initializing....");
 
 	if (!dmi_check_system(hv_netvsc_dmi_table))
@@ -585,7 +564,6 @@ static int __init netvsc_init(void)
 
 static void __exit netvsc_exit(void)
 {
-	DPRINT_ENTER(NETVSC_DRV);
 	netvsc_drv_exit();
 	DPRINT_EXIT(NETVSC_DRV);
 }

@@ -93,19 +93,12 @@ extern unsigned int vmbus_loglevel;
 	} while (0)
 
 #ifdef DEBUG
-#define DPRINT_ENTER(mod) do {\
-	if ((mod & (HIWORD(vmbus_loglevel))) && \
-	    (DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel)))	\
-		printk(KERN_DEBUG "["#mod"]: %s() enter\n", __func__);\
-	} while (0)
-
 #define DPRINT_EXIT(mod) do {\
 	if ((mod & (HIWORD(vmbus_loglevel))) && \
 	    (DEBUG_LVL_ENTEREXIT <= LOWORD(vmbus_loglevel)))	\
 		printk(KERN_DEBUG "["#mod"]: %s() exit\n", __func__);\
 	} while (0)
 #else
-#define DPRINT_ENTER(mod)
 #define DPRINT_EXIT(mod)
 #endif
 

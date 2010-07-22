@@ -74,8 +74,6 @@ static void VmbusChannelSetEvent(struct vmbus_channel *Channel)
 {
 	struct hv_monitor_page *monitorPage;
 
-	DPRINT_ENTER(VMBUS);
-
 	if (Channel->OfferMsg.MonitorAllocated) {
 		/* Each u32 represents 32 channels */
 		set_bit(Channel->OfferMsg.ChildRelId & 31,
@@ -100,8 +98,6 @@ static void VmbusChannelSetEvent(struct vmbus_channel *Channel)
 static void VmbusChannelClearEvent(struct vmbus_channel *channel)
 {
 	struct hv_monitor_page *monitorPage;
-
-	DPRINT_ENTER(VMBUS);
 
 	if (Channel->OfferMsg.MonitorAllocated) {
 		/* Each u32 represents 32 channels */
@@ -179,8 +175,6 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 	void *in, *out;
 	unsigned long flags;
 	int ret, err = 0;
-
-	DPRINT_ENTER(VMBUS);
 
 	/* Aligned to page size */
 	/* ASSERT(!(SendRingBufferSize & (PAGE_SIZE - 1))); */
@@ -511,8 +505,6 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 	unsigned long flags;
 	int ret = 0;
 
-	DPRINT_ENTER(VMBUS);
-
 	nextGpadlHandle = atomic_read(&gVmbusConnection.NextGpadlHandle);
 	atomic_inc(&gVmbusConnection.NextGpadlHandle);
 
@@ -610,8 +602,6 @@ int VmbusChannelTeardownGpadl(struct vmbus_channel *Channel, u32 GpadlHandle)
 	unsigned long flags;
 	int ret;
 
-	DPRINT_ENTER(VMBUS);
-
 	/* ASSERT(GpadlHandle != 0); */
 
 	info = kmalloc(sizeof(*info) +
@@ -667,8 +657,6 @@ void VmbusChannelClose(struct vmbus_channel *Channel)
 	struct vmbus_channel_msginfo *info;
 	unsigned long flags;
 	int ret;
-
-	DPRINT_ENTER(VMBUS);
 
 	/* Stop callback and cancel the timer asap */
 	Channel->OnChannelCallback = NULL;
@@ -751,7 +739,6 @@ int VmbusChannelSendPacket(struct vmbus_channel *Channel, const void *Buffer,
 	u64 alignedData = 0;
 	int ret;
 
-	DPRINT_ENTER(VMBUS);
 	DPRINT_DBG(VMBUS, "channel %p buffer %p len %d",
 		   Channel, Buffer, BufferLen);
 
@@ -801,8 +788,6 @@ int VmbusChannelSendPacketPageBuffer(struct vmbus_channel *Channel,
 	u32 packetLenAligned;
 	struct scatterlist bufferList[3];
 	u64 alignedData = 0;
-
-	DPRINT_ENTER(VMBUS);
 
 	if (PageCount > MAX_PAGE_BUFFER_COUNT)
 		return -EINVAL;
@@ -868,8 +853,6 @@ int VmbusChannelSendPacketMultiPageBuffer(struct vmbus_channel *Channel,
 	u64 alignedData = 0;
 	u32 PfnCount = NUM_PAGES_SPANNED(MultiPageBuffer->Offset,
 					 MultiPageBuffer->Length);
-
-	DPRINT_ENTER(VMBUS);
 
 	DumpVmbusChannel(Channel);
 
@@ -944,8 +927,6 @@ int VmbusChannelRecvPacket(struct vmbus_channel *Channel, void *Buffer,
 	int ret;
 	unsigned long flags;
 
-	DPRINT_ENTER(VMBUS);
-
 	*BufferActualLen = 0;
 	*RequestId = 0;
 
@@ -1010,8 +991,6 @@ int VmbusChannelRecvPacketRaw(struct vmbus_channel *Channel, void *Buffer,
 	u32 userLen;
 	int ret;
 	unsigned long flags;
-
-	DPRINT_ENTER(VMBUS);
 
 	*BufferActualLen = 0;
 	*RequestId = 0;

@@ -352,8 +352,6 @@ int RingBufferWrite(RING_BUFFER_INFO *OutRingInfo,
 	u64 prevIndices = 0;
 	unsigned long flags;
 
-	DPRINT_ENTER(VMBUS);
-
 	for_each_sg(sglist, sg, sgcount, i)
 	{
 		totalBytesToWrite += sg->length;

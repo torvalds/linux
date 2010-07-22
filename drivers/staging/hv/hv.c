@@ -192,8 +192,6 @@ int HvInit(void)
 	union hv_x64_msr_hypercall_contents hypercallMsr;
 	void *virtAddr = NULL;
 
-	DPRINT_ENTER(VMBUS);
-
 	memset(gHvContext.synICEventPage, 0, sizeof(void *) * MAX_NUM_CPUS);
 	memset(gHvContext.synICMessagePage, 0, sizeof(void *) * MAX_NUM_CPUS);
 
@@ -303,8 +301,6 @@ void HvCleanup(void)
 {
 	union hv_x64_msr_hypercall_contents hypercallMsr;
 
-	DPRINT_ENTER(VMBUS);
-
 	kfree(gHvContext.SignalEventBuffer);
 	gHvContext.SignalEventBuffer = NULL;
 	gHvContext.SignalEventParam = NULL;
@@ -391,8 +387,6 @@ void HvSynicInit(void *irqarg)
 
 	u32 irqVector = *((u32 *)(irqarg));
 	int cpu = smp_processor_id();
-
-	DPRINT_ENTER(VMBUS);
 
 	if (!gHvContext.HypercallPage) {
 		DPRINT_EXIT(VMBUS);
@@ -489,8 +483,6 @@ void HvSynicCleanup(void *arg)
 	union hv_synic_simp simp;
 	union hv_synic_siefp siefp;
 	int cpu = smp_processor_id();
-
-	DPRINT_ENTER(VMBUS);
 
 	if (!gHvContext.SynICInitialized) {
 		DPRINT_EXIT(VMBUS);

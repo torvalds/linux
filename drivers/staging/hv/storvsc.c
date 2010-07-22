@@ -356,8 +356,6 @@ static void StorVscOnIOCompletion(struct hv_device *Device,
 	struct hv_storvsc_request *request;
 	struct storvsc_device *storDevice;
 
-	DPRINT_ENTER(STORVSC);
-
 	storDevice = MustGetStorDevice(Device);
 	if (!storDevice) {
 		DPRINT_ERR(STORVSC, "unable to get stor device..."
@@ -448,8 +446,6 @@ static void StorVscOnChannelCallback(void *context)
 	unsigned char packet[ALIGN_UP(sizeof(struct vstor_packet), 8)];
 	struct storvsc_request_extension *request;
 	int ret;
-
-	DPRINT_ENTER(STORVSC);
 
 	/* ASSERT(device); */
 
@@ -547,8 +543,6 @@ static int StorVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	struct storvsc_device_info *deviceInfo;
 	int ret = 0;
 
-	DPRINT_ENTER(STORVSC);
-
 	deviceInfo = (struct storvsc_device_info *)AdditionalInfo;
 	storDevice = AllocStorDevice(Device);
 	if (!storDevice) {
@@ -596,8 +590,6 @@ static int StorVscOnDeviceRemove(struct hv_device *Device)
 {
 	struct storvsc_device *storDevice;
 
-	DPRINT_ENTER(STORVSC);
-
 	DPRINT_INFO(STORVSC, "disabling storage device (%p)...",
 		    Device->Extension);
 
@@ -636,8 +628,6 @@ int StorVscOnHostReset(struct hv_device *Device)
 	struct storvsc_request_extension *request;
 	struct vstor_packet *vstorPacket;
 	int ret;
-
-	DPRINT_ENTER(STORVSC);
 
 	DPRINT_INFO(STORVSC, "resetting host adapter...");
 
@@ -701,8 +691,6 @@ static int StorVscOnIORequest(struct hv_device *Device,
 	struct storvsc_request_extension *requestExtension;
 	struct vstor_packet *vstorPacket;
 	int ret = 0;
-
-	DPRINT_ENTER(STORVSC);
 
 	requestExtension =
 		(struct storvsc_request_extension *)Request->Extension;
@@ -796,7 +784,6 @@ static int StorVscOnIORequest(struct hv_device *Device,
  */
 static void StorVscOnCleanup(struct hv_driver *Driver)
 {
-	DPRINT_ENTER(STORVSC);
 	DPRINT_EXIT(STORVSC);
 }
 
@@ -806,8 +793,6 @@ static void StorVscOnCleanup(struct hv_driver *Driver)
 int StorVscInitialize(struct hv_driver *Driver)
 {
 	struct storvsc_driver_object *storDriver;
-
-	DPRINT_ENTER(STORVSC);
 
 	storDriver = (struct storvsc_driver_object *)Driver;
 

@@ -40,8 +40,6 @@ static int BlkVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 	struct storvsc_device_info *deviceInfo;
 	int ret = 0;
 
-	DPRINT_ENTER(BLKVSC);
-
 	deviceInfo = (struct storvsc_device_info *)AdditionalInfo;
 
 	ret = StorVscOnDeviceAdd(Device, AdditionalInfo);
@@ -72,8 +70,6 @@ int BlkVscInitialize(struct hv_driver *Driver)
 {
 	struct storvsc_driver_object *storDriver;
 	int ret = 0;
-
-	DPRINT_ENTER(BLKVSC);
 
 	storDriver = (struct storvsc_driver_object *)Driver;
 
