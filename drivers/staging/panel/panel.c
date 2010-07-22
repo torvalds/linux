@@ -48,6 +48,7 @@
 #include <linux/fcntl.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/parport.h>
 #include <linux/version.h>
@@ -1179,22 +1180,16 @@ static inline int handle_lcd_special_code(void)
 			break;
 
 		while (*esc) {
+			char *endp;
+
 			if (*esc == 'x') {
 				esc++;
-				lcd_addr_x = 0;
-				while (isdigit(*esc)) {
-					lcd_addr_x = lcd_addr_x * 10 +
-						     (*esc - '0');
-					esc++;
-				}
+				lcd_addr_x = simple_strtoul(esc, &endp, 10);
+				esc = endp;
 			} else if (*esc == 'y') {
 				esc++;
-				lcd_addr_y = 0;
-				while (isdigit(*esc)) {
-					lcd_addr_y = lcd_addr_y * 10 +
-						     (*esc - '0');
-					esc++;
-				}
+				lcd_addr_y = simple_strtoul(esc, &endp, 10);
+				esc = endp;
 			} else
 				break;
 		}
