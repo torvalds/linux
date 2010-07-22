@@ -576,17 +576,6 @@ ieee80211_tx_h_select_key(struct ieee80211_tx_data *tx)
 }
 
 static ieee80211_tx_result debug_noinline
-ieee80211_tx_h_sta(struct ieee80211_tx_data *tx)
-{
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
-
-	if (tx->sta && tx->sta->uploaded)
-		info->control.sta = &tx->sta->sta;
-
-	return TX_CONTINUE;
-}
-
-static ieee80211_tx_result debug_noinline
 ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx->skb);
@@ -1307,6 +1296,11 @@ static int __ieee80211_tx(struct ieee80211_local *local,
 			break;
 		}
 
+		if (sta && sta->uploaded)
+			info->control.sta = &sta->sta;
+		else
+			info->control.sta = NULL;
+
 		ret = drv_tx(local, skb);
 		if (WARN_ON(ret != NETDEV_TX_OK && skb->len != len)) {
 			dev_kfree_skb(skb);
@@ -1346,7 +1340,6 @@ static int invoke_tx_handlers(struct ieee80211_tx_data *tx)
 	CALL_TXH(ieee80211_tx_h_check_assoc);
 	CALL_TXH(ieee80211_tx_h_ps_buf);
 	CALL_TXH(ieee80211_tx_h_select_key);
-	CALL_TXH(ieee80211_tx_h_sta);
 	if (!(tx->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL))
 		CALL_TXH(ieee80211_tx_h_rate_ctrl);
 
