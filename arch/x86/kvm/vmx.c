@@ -182,7 +182,6 @@ static int init_rmode(struct kvm *kvm);
 static u64 construct_eptp(unsigned long root_hpa);
 static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
-static void fixup_rmode_irq(struct vcpu_vmx *vmx, u32 *idt_vectoring_info);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
@@ -3827,6 +3826,29 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 			ktime_to_ns(ktime_sub(ktime_get(), vmx->entry_time));
 }
 
+/*
+ * Failure to inject an interrupt should give us the information
+ * in IDT_VECTORING_INFO_FIELD.  However, if the failure occurs
+ * when fetching the interrupt redirection bitmap in the real-mode
+ * tss, this doesn't happen.  So we do it ourselves.
+ */
+static void fixup_rmode_irq(struct vcpu_vmx *vmx, u32 *idt_vectoring_info)
+{
+	vmx->rmode.irq.pending = 0;
+	if (kvm_rip_read(&vmx->vcpu) + 1 != vmx->rmode.irq.rip)
+		return;
+	kvm_rip_write(&vmx->vcpu, vmx->rmode.irq.rip);
+	if (*idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
+		*idt_vectoring_info &= ~VECTORING_INFO_TYPE_MASK;
+		*idt_vectoring_info |= INTR_TYPE_EXT_INTR;
+		return;
+	}
+	*idt_vectoring_info =
+		VECTORING_INFO_VALID_MASK
+		| INTR_TYPE_EXT_INTR
+		| vmx->rmode.irq.vector;
+}
+
 static void __vmx_complete_interrupts(struct vcpu_vmx *vmx,
 				      u32 idt_vectoring_info,
 				      int instr_len_field,
@@ -3903,29 +3925,6 @@ static void vmx_cancel_injection(struct kvm_vcpu *vcpu)
 				  VM_ENTRY_EXCEPTION_ERROR_CODE);
 
 	vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
-}
-
-/*
- * Failure to inject an interrupt should give us the information
- * in IDT_VECTORING_INFO_FIELD.  However, if the failure occurs
- * when fetching the interrupt redirection bitmap in the real-mode
- * tss, this doesn't happen.  So we do it ourselves.
- */
-static void fixup_rmode_irq(struct vcpu_vmx *vmx, u32 *idt_vectoring_info)
-{
-	vmx->rmode.irq.pending = 0;
-	if (kvm_rip_read(&vmx->vcpu) + 1 != vmx->rmode.irq.rip)
-		return;
-	kvm_rip_write(&vmx->vcpu, vmx->rmode.irq.rip);
-	if (*idt_vectoring_info & VECTORING_INFO_VALID_MASK) {
-		*idt_vectoring_info &= ~VECTORING_INFO_TYPE_MASK;
-		*idt_vectoring_info |= INTR_TYPE_EXT_INTR;
-		return;
-	}
-	*idt_vectoring_info =
-		VECTORING_INFO_VALID_MASK
-		| INTR_TYPE_EXT_INTR
-		| vmx->rmode.irq.vector;
 }
 
 #ifdef CONFIG_X86_64
