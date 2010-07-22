@@ -147,7 +147,7 @@ mpc52xx_wkup_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
-static int __devinit mpc52xx_wkup_gpiochip_probe(struct of_device *ofdev,
+static int __devinit mpc52xx_wkup_gpiochip_probe(struct platform_device *ofdev,
 					const struct of_device_id *match)
 {
 	struct mpc52xx_gpiochip *chip;
@@ -179,7 +179,7 @@ static int __devinit mpc52xx_wkup_gpiochip_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int mpc52xx_gpiochip_remove(struct of_device *ofdev)
+static int mpc52xx_gpiochip_remove(struct platform_device *ofdev)
 {
 	return -EBUSY;
 }
@@ -310,7 +310,7 @@ mpc52xx_simple_gpio_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
 	return 0;
 }
 
-static int __devinit mpc52xx_simple_gpiochip_probe(struct of_device *ofdev,
+static int __devinit mpc52xx_simple_gpiochip_probe(struct platform_device *ofdev,
 					const struct of_device_id *match)
 {
 	struct mpc52xx_gpiochip *chip;

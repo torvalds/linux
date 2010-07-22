@@ -54,16 +54,16 @@ const struct of_device_id of_default_bus_ids[] = {
 
 static int of_dev_node_match(struct device *dev, void *data)
 {
-	return to_of_device(dev)->dev.of_node == data;
+	return to_platform_device(dev)->dev.of_node == data;
 }
 
-struct of_device *of_find_device_by_node(struct device_node *np)
+struct platform_device *of_find_device_by_node(struct device_node *np)
 {
 	struct device *dev;
 
 	dev = bus_find_device(&platform_bus_type, NULL, np, of_dev_node_match);
 	if (dev)
-		return to_of_device(dev);
+		return to_platform_device(dev);
 	return NULL;
 }
 EXPORT_SYMBOL(of_find_device_by_node);
@@ -76,7 +76,7 @@ EXPORT_SYMBOL(of_find_device_by_node);
  * lacking some bits needed here.
  */
 
-static int __devinit of_pci_phb_probe(struct of_device *dev,
+static int __devinit of_pci_phb_probe(struct platform_device *dev,
 				      const struct of_device_id *match)
 {
 	struct pci_controller *phb;

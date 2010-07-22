@@ -720,7 +720,7 @@ static inline int mpc52xx_gpt_wdt_setup(struct mpc52xx_gpt_priv *gpt,
 /* ---------------------------------------------------------------------
  * of_platform bus binding code
  */
-static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
+static int __devinit mpc52xx_gpt_probe(struct platform_device *ofdev,
 				       const struct of_device_id *match)
 {
 	struct mpc52xx_gpt_priv *gpt;
@@ -766,7 +766,7 @@ static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
 	return 0;
 }
 
-static int mpc52xx_gpt_remove(struct of_device *ofdev)
+static int mpc52xx_gpt_remove(struct platform_device *ofdev)
 {
 	return -EBUSY;
 }
