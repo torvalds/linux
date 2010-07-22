@@ -95,7 +95,7 @@ struct packet_buffer {
 
 struct pcilynx {
 	struct pci_dev *pci_device;
-	unsigned char *registers;
+	__iomem char *registers;
 
 	struct pcl *rcv_start_pcl, *rcv_pcl;
 	u32 *rcv_buffer;
@@ -163,7 +163,7 @@ packet_buffer_destroy(struct packet_buffer *buffer)
 }
 
 static int
-packet_buffer_get(struct client *client, void *data, size_t user_length)
+packet_buffer_get(struct client *client, char __user *data, size_t user_length)
 {
 	struct packet_buffer *buffer = &client->buffer;
 	size_t length;
@@ -362,7 +362,7 @@ nosy_poll(struct file *file, poll_table *pt)
 }
 
 static ssize_t
-nosy_read(struct file *file, char *buffer, size_t count, loff_t *offset)
+nosy_read(struct file *file, char __user *buffer, size_t count, loff_t *offset)
 {
 	struct client *client = file->private_data;
 
@@ -383,7 +383,7 @@ nosy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		stats.lost_packet_count  = client->buffer.lost_packet_count;
 		spin_unlock_irq(client_list_lock);
 
-		if (copy_to_user((void *) arg, &stats, sizeof stats))
+		if (copy_to_user((void __user *) arg, &stats, sizeof stats))
 			return -EFAULT;
 		else
 			return 0;
