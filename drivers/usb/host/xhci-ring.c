@@ -1459,6 +1459,117 @@ static int process_ctrl_td(struct xhci_hcd *xhci, struct xhci_td *td,
 }
 
 /*
+ * Process bulk and interrupt tds, update urb status and actual_length.
+ */
+static int process_bulk_intr_td(struct xhci_hcd *xhci, struct xhci_td *td,
+	union xhci_trb *event_trb, struct xhci_transfer_event *event,
+	struct xhci_virt_ep *ep, int *status)
+{
+	struct xhci_ring *ep_ring;
+	union xhci_trb *cur_trb;
+	struct xhci_segment *cur_seg;
+	u32 trb_comp_code;
+
+	ep_ring = xhci_dma_to_transfer_ring(ep, event->buffer);
+	trb_comp_code = GET_COMP_CODE(event->transfer_len);
+
+	switch (trb_comp_code) {
+	case COMP_SUCCESS:
+		/* Double check that the HW transferred everything. */
+		if (event_trb != td->last_trb) {
+			xhci_warn(xhci, "WARN Successful completion "
+					"on short TX\n");
+			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+				*status = -EREMOTEIO;
+			else
+				*status = 0;
+		} else {
+			if (usb_endpoint_xfer_bulk(&td->urb->ep->desc))
+				xhci_dbg(xhci, "Successful bulk "
+						"transfer!\n");
+			else
+				xhci_dbg(xhci, "Successful interrupt "
+						"transfer!\n");
+			*status = 0;
+		}
+		break;
+	case COMP_SHORT_TX:
+		if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+			*status = -EREMOTEIO;
+		else
+			*status = 0;
+		break;
+	default:
+		/* Others already handled above */
+		break;
+	}
+	dev_dbg(&td->urb->dev->dev,
+			"ep %#x - asked for %d bytes, "
+			"%d bytes untransferred\n",
+			td->urb->ep->desc.bEndpointAddress,
+			td->urb->transfer_buffer_length,
+			TRB_LEN(event->transfer_len));
+	/* Fast path - was this the last TRB in the TD for this URB? */
+	if (event_trb == td->last_trb) {
+		if (TRB_LEN(event->transfer_len) != 0) {
+			td->urb->actual_length =
+				td->urb->transfer_buffer_length -
+				TRB_LEN(event->transfer_len);
+			if (td->urb->transfer_buffer_length <
+					td->urb->actual_length) {
+				xhci_warn(xhci, "HC gave bad length "
+						"of %d bytes left\n",
+						TRB_LEN(event->transfer_len));
+				td->urb->actual_length = 0;
+				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+					*status = -EREMOTEIO;
+				else
+					*status = 0;
+			}
+			/* Don't overwrite a previously set error code */
+			if (*status == -EINPROGRESS) {
+				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
+					*status = -EREMOTEIO;
+				else
+					*status = 0;
+			}
+		} else {
+			td->urb->actual_length =
+				td->urb->transfer_buffer_length;
+			/* Ignore a short packet completion if the
+			 * untransferred length was zero.
+			 */
+			if (*status == -EREMOTEIO)
+				*status = 0;
+		}
+	} else {
+		/* Slow path - walk the list, starting from the dequeue
+		 * pointer, to get the actual length transferred.
+		 */
+		td->urb->actual_length = 0;
+		for (cur_trb = ep_ring->dequeue, cur_seg = ep_ring->deq_seg;
+				cur_trb != event_trb;
+				next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
+			if ((cur_trb->generic.field[3] &
+			 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_TR_NOOP) &&
+			    (cur_trb->generic.field[3] &
+			 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_LINK))
+				td->urb->actual_length +=
+					TRB_LEN(cur_trb->generic.field[2]);
+		}
+		/* If the ring didn't stop on a Link or No-op TRB, add
+		 * in the actual bytes transferred from the Normal TRB
+		 */
+		if (trb_comp_code != COMP_STOP_INVAL)
+			td->urb->actual_length +=
+				TRB_LEN(cur_trb->generic.field[2]) -
+				TRB_LEN(event->transfer_len);
+	}
+
+	return finish_td(xhci, td, event_trb, event, ep, status, false);
+}
+
+/*
  * If this function returns an error condition, it means it got a Transfer
  * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
  * At this point, the host controller is probably hosed and should be reset.
@@ -1584,109 +1695,12 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	}
 	/* Now update the urb's actual_length and give back to the core */
 	/* Was this a control transfer? */
-	if (usb_endpoint_xfer_control(&td->urb->ep->desc)) {
+	if (usb_endpoint_xfer_control(&td->urb->ep->desc))
 		ret = process_ctrl_td(xhci, td, event_trb, event, ep,
 					&status);
-		goto cleanup;
-	} else {
-		switch (trb_comp_code) {
-		case COMP_SUCCESS:
-			/* Double check that the HW transferred everything. */
-			if (event_trb != td->last_trb) {
-				xhci_warn(xhci, "WARN Successful completion "
-						"on short TX\n");
-				if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-					status = -EREMOTEIO;
-				else
-					status = 0;
-			} else {
-				if (usb_endpoint_xfer_bulk(&td->urb->ep->desc))
-					xhci_dbg(xhci, "Successful bulk "
-							"transfer!\n");
-				else
-					xhci_dbg(xhci, "Successful interrupt "
-							"transfer!\n");
-				status = 0;
-			}
-			break;
-		case COMP_SHORT_TX:
-			if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-				status = -EREMOTEIO;
-			else
-				status = 0;
-			break;
-		default:
-			/* Others already handled above */
-			break;
-		}
-		dev_dbg(&td->urb->dev->dev,
-				"ep %#x - asked for %d bytes, "
-				"%d bytes untransferred\n",
-				td->urb->ep->desc.bEndpointAddress,
-				td->urb->transfer_buffer_length,
-				TRB_LEN(event->transfer_len));
-		/* Fast path - was this the last TRB in the TD for this URB? */
-		if (event_trb == td->last_trb) {
-			if (TRB_LEN(event->transfer_len) != 0) {
-				td->urb->actual_length =
-					td->urb->transfer_buffer_length -
-					TRB_LEN(event->transfer_len);
-				if (td->urb->transfer_buffer_length <
-						td->urb->actual_length) {
-					xhci_warn(xhci, "HC gave bad length "
-							"of %d bytes left\n",
-							TRB_LEN(event->transfer_len));
-					td->urb->actual_length = 0;
-					if (td->urb->transfer_flags &
-							URB_SHORT_NOT_OK)
-						status = -EREMOTEIO;
-					else
-						status = 0;
-				}
-				/* Don't overwrite a previously set error code */
-				if (status == -EINPROGRESS) {
-					if (td->urb->transfer_flags & URB_SHORT_NOT_OK)
-						status = -EREMOTEIO;
-					else
-						status = 0;
-				}
-			} else {
-				td->urb->actual_length = td->urb->transfer_buffer_length;
-				/* Ignore a short packet completion if the
-				 * untransferred length was zero.
-				 */
-				if (status == -EREMOTEIO)
-					status = 0;
-			}
-		} else {
-			/* Slow path - walk the list, starting from the dequeue
-			 * pointer, to get the actual length transferred.
-			 */
-			union xhci_trb *cur_trb;
-			struct xhci_segment *cur_seg;
-
-			td->urb->actual_length = 0;
-			for (cur_trb = ep_ring->dequeue, cur_seg = ep_ring->deq_seg;
-					cur_trb != event_trb;
-					next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-				if ((cur_trb->generic.field[3] &
-				 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_TR_NOOP) &&
-				    (cur_trb->generic.field[3] &
-				 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_LINK))
-					td->urb->actual_length +=
-						TRB_LEN(cur_trb->generic.field[2]);
-			}
-			/* If the ring didn't stop on a Link or No-op TRB, add
-			 * in the actual bytes transferred from the Normal TRB
-			 */
-			if (trb_comp_code != COMP_STOP_INVAL)
-				td->urb->actual_length +=
-					TRB_LEN(cur_trb->generic.field[2]) -
-					TRB_LEN(event->transfer_len);
-		}
-	}
-
-	ret =  finish_td(xhci, td, event_trb, event, ep, &status, false);
+	else
+		ret = process_bulk_intr_td(xhci, td, event_trb, event, ep,
+					&status);
 
 cleanup:
 	inc_deq(xhci, xhci->event_ring, true);
