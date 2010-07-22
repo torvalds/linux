@@ -860,8 +860,6 @@ static void qeth_l2_remove_device(struct ccwgroup_device *cgdev)
 		unregister_netdev(card->dev);
 		card->dev = NULL;
 	}
-
-	qeth_l2_del_all_mc(card);
 	return;
 }
 
