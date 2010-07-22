@@ -308,6 +308,8 @@ dev_wlc_ioctl(
 		return ret;
 	}
 
+	net_os_wake_lock(dev);
+
 	WL_TRACE(("%s, PID:%x: send Local IOCTL -> dhd: cmd:0x%x, buf:%p, len:%d ,\n",
 		__FUNCTION__, current->pid, cmd, arg, len));
 
@@ -323,6 +325,7 @@ dev_wlc_ioctl(
 		ret = dev_open(dev);
 		if (ret) {
 			WL_ERROR(("%s: Error dev_open: %d\n", __func__, ret));
+			net_os_wake_unlock(dev);
 			return ret;
 		}
 
@@ -338,6 +341,9 @@ dev_wlc_ioctl(
 	else {
 		WL_TRACE(("%s: call after driver stop\n", __FUNCTION__));
 	}
+
+	net_os_wake_unlock(dev);
+
 	return ret;
 }
 
@@ -941,6 +947,7 @@ wl_iw_send_priv_event(
 	strcpy(extra, flag);
 	wrqu.data.length = strlen(extra);
 	wireless_send_event(dev, cmd, &wrqu, extra);
+	net_os_wake_lock_timeout_enable(dev);
 	WL_TRACE(("Send IWEVCUSTOM Event as %s\n", extra));
 
 	return 0;
@@ -1031,8 +1038,6 @@ wl_iw_control_wl_off(
 		dhd_customer_gpio_wlan_ctrl(WLAN_RESET_OFF);
 
 		wl_iw_send_priv_event(dev, "STOP");
-
-		net_os_wake_lock_timeout_enable(dev);
 	}
 
 	mutex_unlock(&wl_start_lock);
@@ -1063,8 +1068,6 @@ wl_iw_control_wl_on(
 #else
 	wl_iw_iscan_set_scan_broadcast_prep(dev, 0);
 #endif
-
-	net_os_wake_lock_timeout_enable(dev);
 
 	WL_TRACE(("Exited %s \n", __FUNCTION__));
 
@@ -2264,13 +2267,15 @@ _iscan_sysioc_thread(void *data)
 	status = WL_SCAN_RESULTS_PARTIAL;
 	while (down_interruptible(&iscan->sysioc_sem) == 0) {
 
+		net_os_wake_lock(iscan->dev);
+
 #if defined(SOFTAP)
 		if (ap_cfg_running) {
 			WL_TRACE(("%s skipping SCAN ops in AP mode !!!\n", __FUNCTION__));
+			net_os_wake_unlock(iscan->dev);
 			continue;
 		}
 #endif
-		net_os_wake_lock(iscan->dev);
 
 		if (iscan->timer_on) {
 			iscan->timer_on = 0;
@@ -5134,7 +5139,7 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 		return -1;
 	}
 
-    net_os_wake_lock(dev);
+	net_os_wake_lock(dev);
 
 	WL_SOFTAP(("wl_iw: set ap profile:\n"));
 	WL_SOFTAP(("	ssid = '%s'\n", ap->ssid));
@@ -5269,9 +5274,9 @@ static int set_ap_cfg(struct net_device *dev, struct ap_profile *ap)
 fail:
 	WL_SOFTAP(("%s exit with %d\n", __FUNCTION__, res));
 
-    net_os_wake_unlock(dev);
+	net_os_wake_unlock(dev);
 
-    return res;
+	return res;
 }
 
 
@@ -5555,10 +5560,10 @@ static int iwpriv_softap_stop(struct net_device *dev,
 		return res;
 	}
 
-    net_os_wake_lock(dev);
+	net_os_wake_lock(dev);
 
 	if ((ap_cfg_running == TRUE)) {
-        wl_iw_softap_deassoc_stations(ap_net_dev);
+		wl_iw_softap_deassoc_stations(ap_net_dev);
 
 		if ((res = dev_iw_write_cfg1_bss_var(dev, 2)) < 0)
 			WL_ERROR(("%s failed to del BSS err = %d", __FUNCTION__, res));
@@ -5573,9 +5578,9 @@ static int iwpriv_softap_stop(struct net_device *dev,
 
 	WL_SOFTAP(("%s Done with %d\n", __FUNCTION__, res));
 
-    net_os_wake_unlock(dev);
+	net_os_wake_unlock(dev);
 
-    return res;
+	return res;
 }
 
 
@@ -5685,7 +5690,7 @@ iwpriv_en_ap_bss(
 		return -1;
 	}
 
-    net_os_wake_lock(dev);
+	net_os_wake_lock(dev);
 
 	WL_TRACE(("%s: rcvd IWPRIV IOCTL:  for dev:%s\n", __FUNCTION__, dev->name));
 
@@ -5701,7 +5706,7 @@ iwpriv_en_ap_bss(
 
 	WL_SOFTAP(("%s done with res %d \n", __FUNCTION__, res));
 
-    net_os_wake_unlock(dev);
+	net_os_wake_unlock(dev);
 
 	return res;
 }
@@ -6210,11 +6215,14 @@ int wl_iw_ioctl(
 	char *extra = NULL;
 	int token_size = 1, max_tokens = 0, ret = 0;
 
+	net_os_wake_lock(dev);
+
 	WL_TRACE(("%s: cmd:%x alled via dhd->do_ioctl()entry point\n", __FUNCTION__, cmd));
 	if (cmd < SIOCIWFIRST ||
 		IW_IOCTL_IDX(cmd) >= ARRAYSIZE(wl_iw_handler) ||
 		!(handler = wl_iw_handler[IW_IOCTL_IDX(cmd)])) {
 			WL_ERROR(("%s: error in cmd=%x : not supported\n", __FUNCTION__, cmd));
+			net_os_wake_unlock(dev);
 			return -EOPNOTSUPP;
 	}
 
@@ -6279,14 +6287,18 @@ int wl_iw_ioctl(
 		if (wrq->u.data.length > max_tokens) {
 			WL_ERROR(("%s: error in cmd=%x wrq->u.data.length=%d  > max_tokens=%d\n", \
 				__FUNCTION__, cmd, wrq->u.data.length, max_tokens));
-			return -E2BIG;
+			ret = -E2BIG;
+			goto wl_iw_ioctl_done;
 		}
-		if (!(extra = kmalloc(max_tokens * token_size, GFP_KERNEL)))
-			return -ENOMEM;
+		if (!(extra = kmalloc(max_tokens * token_size, GFP_KERNEL))) {
+			ret = -ENOMEM;
+			goto wl_iw_ioctl_done;
+		}
 
 		if (copy_from_user(extra, wrq->u.data.pointer, wrq->u.data.length * token_size)) {
 			kfree(extra);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto wl_iw_ioctl_done;
 		}
 	}
 
@@ -6298,11 +6310,16 @@ int wl_iw_ioctl(
 	if (extra) {
 		if (copy_to_user(wrq->u.data.pointer, extra, wrq->u.data.length * token_size)) {
 			kfree(extra);
-			return -EFAULT;
+			ret = -EFAULT;
+			goto wl_iw_ioctl_done;
 		}
 
 		kfree(extra);
 	}
+
+wl_iw_ioctl_done:
+
+	net_os_wake_unlock(dev);
 
 	return ret;
 }
@@ -6429,7 +6446,7 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 		return;
 	}
 
-    net_os_wake_lock(dev);
+	net_os_wake_lock(dev);
 
 	WL_TRACE(("%s: dev=%s event=%d \n", __FUNCTION__, dev->name, event_type));
 
@@ -6516,7 +6533,6 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 
 			bzero(wrqu.addr.sa_data, ETHER_ADDR_LEN);
 			bzero(&extra, ETHER_ADDR_LEN);
-            net_os_wake_lock_timeout_enable(dev);
 		}
 		else {
 			memcpy(wrqu.addr.sa_data, &e->addr, ETHER_ADDR_LEN);
@@ -6535,6 +6551,7 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 			WL_TRACE(("Link UP\n"));
 
 		}
+		net_os_wake_lock_timeout_enable(dev);
 		wrqu.addr.sa_family = ARPHRD_ETHER;
 		break;
 	case WLC_E_ACTION_FRAME:
@@ -6652,8 +6669,8 @@ wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data)
 	}
 #endif
 wl_iw_event_end:
-    net_os_wake_unlock(dev);
-#endif 
+	net_os_wake_unlock(dev);
+#endif
 }
 
 int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats)
@@ -6821,7 +6838,7 @@ _bt_dhcp_sysioc_thread(void *data)
 				g_bt->bt_state = BT_DHCP_IDLE;
 				g_bt->timer_on = 0;
 				break;
-		 }
+		}
 
 		net_os_wake_unlock(g_bt->dev);
 	}
