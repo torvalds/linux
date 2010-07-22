@@ -2077,8 +2077,8 @@ static void ath_wake_mac80211_queue(struct ath_softc *sc, struct ath_txq *txq)
 
 	spin_lock_bh(&txq->axq_lock);
 	if (txq->stopped && sc->tx.pending_frames[qnum] < ATH_MAX_QDEPTH) {
-		ath_mac80211_start_queue(sc, qnum);
-		txq->stopped = 0;
+		if (ath_mac80211_start_queue(sc, qnum))
+			txq->stopped = 0;
 	}
 	spin_unlock_bh(&txq->axq_lock);
 }
