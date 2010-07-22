@@ -467,6 +467,15 @@ config USB_MDM6600_CDMA_MODEM
           To compile this driver as a module, choose M here: the
           module will be called mdm6600_modem.  If unsure, choose N.
 
+config USB_SERIAL_MOTO_FLASH_MODEM
+	tristate "USB Motorola modem flash driver"
+	---help---
+	 Say Y here if you want to enable the AP/BP USB IPC link
+	 driver for MDM6600 modem.
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called moto_flashmdm.  If unsure, choose N.
+
 config USB_SERIAL_NAVMAN
 	tristate "USB Navman GPS device"
 	help
