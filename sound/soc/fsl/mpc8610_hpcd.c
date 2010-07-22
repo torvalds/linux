@@ -14,7 +14,7 @@
 #include <linux/interrupt.h>
 #include <linux/of_device.h>
 #include <sound/soc.h>
-#include <asm/immap_86xx.h>
+#include <asm/fsl_guts.h>
 
 #include "fsl_dma.h"
 #include "fsl_ssi.h"
@@ -57,9 +57,9 @@ static int mpc8610_hpcd_machine_probe(struct platform_device *sound_device)
 	struct snd_soc_card *card = platform_get_drvdata(sound_device);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
-	struct ccsr_guts __iomem *guts;
+	struct ccsr_guts_86xx __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_86xx));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;
@@ -142,9 +142,9 @@ static int mpc8610_hpcd_machine_remove(struct platform_device *sound_device)
 	struct snd_soc_card *card = platform_get_drvdata(sound_device);
 	struct mpc8610_hpcd_data *machine_data =
 		container_of(card, struct mpc8610_hpcd_data, card);
-	struct ccsr_guts __iomem *guts;
+	struct ccsr_guts_86xx __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_86xx));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;

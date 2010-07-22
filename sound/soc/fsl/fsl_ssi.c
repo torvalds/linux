@@ -24,8 +24,6 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/immap_86xx.h>
-
 #include "fsl_ssi.h"
 
 /**
