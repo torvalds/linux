@@ -672,11 +672,6 @@ static long wb_writeback(struct bdi_writeback *wb,
 	long write_chunk = MAX_WRITEBACK_PAGES;
 	struct inode *inode;
 
-	if (wbc.for_kupdate) {
-		wbc.older_than_this = &oldest_jif;
-		oldest_jif = jiffies -
-				msecs_to_jiffies(dirty_expire_interval * 10);
-	}
 	if (!wbc.range_cyclic) {
 		wbc.range_start = 0;
 		wbc.range_end = LLONG_MAX;
@@ -722,6 +717,12 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 */
 		if (work->for_background && !over_bground_thresh())
 			break;
+
+		if (work->for_kupdate) {
+			oldest_jif = jiffies -
+				msecs_to_jiffies(dirty_expire_interval * 10);
+			wbc.older_than_this = &oldest_jif;
+		}
 
 		wbc.more_io = 0;
 		wbc.nr_to_write = write_chunk;
