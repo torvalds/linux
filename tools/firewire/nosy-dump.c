@@ -487,6 +487,143 @@ static const struct packet_info packet_info[] = {
 };
 
 static int
+handle_request_packet(uint32_t *data, size_t length)
+{
+	struct link_packet *p = (struct link_packet *) data;
+	struct subaction *sa, *prev;
+	struct link_transaction *t;
+
+	t = link_transaction_lookup(p->common.source, p->common.destination,
+			p->common.tlabel);
+	sa = subaction_create(data, length);
+	t->request = sa;
+
+	if (!list_empty(&t->request_list)) {
+		prev = list_tail(&t->request_list,
+				 struct subaction, link);
+
+		if (!ACK_BUSY(prev->ack)) {
+			/*
+			 * error, we should only see ack_busy_* before the
+			 * ack_pending/ack_complete -- this is an ack_pending
+			 * instead (ack_complete would have finished the
+			 * transaction).
+			 */
+		}
+
+		if (prev->packet.common.tcode != sa->packet.common.tcode ||
+		    prev->packet.common.tlabel != sa->packet.common.tlabel) {
+			/* memcmp() ? */
+			/* error, these should match for retries. */
+		}
+	}
+
+	list_append(&t->request_list, &sa->link);
+
+	switch (sa->ack) {
+	case ACK_COMPLETE:
+		if (p->common.tcode != TCODE_WRITE_QUADLET &&
+		    p->common.tcode != TCODE_WRITE_BLOCK)
+			/* error, unified transactions only allowed for write */;
+		list_remove(&t->link);
+		handle_transaction(t);
+		break;
+
+	case ACK_NO_ACK:
+	case ACK_DATA_ERROR:
+	case ACK_TYPE_ERROR:
+		list_remove(&t->link);
+		handle_transaction(t);
+		break;
+
+	case ACK_PENDING:
+		/* request subaction phase over, wait for response. */
+		break;
+
+	case ACK_BUSY_X:
+	case ACK_BUSY_A:
+	case ACK_BUSY_B:
+		/* ok, wait for retry. */
+		/* check that retry protocol is respected. */
+		break;
+	}
+
+	return 1;
+}
+
+static int
+handle_response_packet(uint32_t *data, size_t length)
+{
+	struct link_packet *p = (struct link_packet *) data;
+	struct subaction *sa, *prev;
+	struct link_transaction *t;
+
+	t = link_transaction_lookup(p->common.destination, p->common.source,
+			p->common.tlabel);
+	if (list_empty(&t->request_list)) {
+		/* unsolicited response */
+	}
+
+	sa = subaction_create(data, length);
+	t->response = sa;
+
+	if (!list_empty(&t->response_list)) {
+		prev = list_tail(&t->response_list, struct subaction, link);
+
+		if (!ACK_BUSY(prev->ack)) {
+			/*
+			 * error, we should only see ack_busy_* before the
+			 * ack_pending/ack_complete
+			 */
+		}
+
+		if (prev->packet.common.tcode != sa->packet.common.tcode ||
+		    prev->packet.common.tlabel != sa->packet.common.tlabel) {
+			/* use memcmp() instead? */
+			/* error, these should match for retries. */
+		}
+	} else {
+		prev = list_tail(&t->request_list, struct subaction, link);
+		if (prev->ack != ACK_PENDING) {
+			/*
+			 * error, should not get response unless last request got
+			 * ack_pending.
+			 */
+		}
+
+		if (packet_info[prev->packet.common.tcode].response_tcode !=
+		    sa->packet.common.tcode) {
+			/* error, tcode mismatch */
+		}
+	}
+
+	list_append(&t->response_list, &sa->link);
+
+	switch (sa->ack) {
+	case ACK_COMPLETE:
+	case ACK_NO_ACK:
+	case ACK_DATA_ERROR:
+	case ACK_TYPE_ERROR:
+		list_remove(&t->link);
+		handle_transaction(t);
+		/* transaction complete, remove t from pending list. */
+		break;
+
+	case ACK_PENDING:
+		/* error for responses. */
+		break;
+
+	case ACK_BUSY_X:
+	case ACK_BUSY_A:
+	case ACK_BUSY_B:
+		/* no problem, wait for next retry */
+		break;
+	}
+
+	return 1;
+}
+
+static int
 handle_packet(uint32_t *data, size_t length)
 {
 	if (length == 0) {
@@ -494,131 +631,13 @@ handle_packet(uint32_t *data, size_t length)
 		clear_pending_transaction_list();
 	} else if (length > sizeof(struct phy_packet)) {
 		struct link_packet *p = (struct link_packet *) data;
-		struct subaction *sa, *prev;
-		struct link_transaction *t;
 
 		switch (packet_info[p->common.tcode].type) {
 		case PACKET_REQUEST:
-			t = link_transaction_lookup(p->common.source, p->common.destination,
-					p->common.tlabel);
-			sa = subaction_create(data, length);
-			t->request = sa;
-
-			if (!list_empty(&t->request_list)) {
-				prev = list_tail(&t->request_list,
-						 struct subaction, link);
-
-				if (!ACK_BUSY(prev->ack)) {
-					/*
-					 * error, we should only see ack_busy_* before the
-					 * ack_pending/ack_complete -- this is an ack_pending
-					 * instead (ack_complete would have finished the
-					 * transaction).
-					 */
-				}
-
-				if (prev->packet.common.tcode != sa->packet.common.tcode ||
-				    prev->packet.common.tlabel != sa->packet.common.tlabel) {
-					/* memcmp() ? */
-					/* error, these should match for retries. */
-				}
-			}
-
-			list_append(&t->request_list, &sa->link);
-
-			switch (sa->ack) {
-			case ACK_COMPLETE:
-				if (p->common.tcode != TCODE_WRITE_QUADLET &&
-				    p->common.tcode != TCODE_WRITE_BLOCK)
-					/* error, unified transactions only allowed for write */;
-				list_remove(&t->link);
-				handle_transaction(t);
-				break;
-
-			case ACK_NO_ACK:
-			case ACK_DATA_ERROR:
-			case ACK_TYPE_ERROR:
-				list_remove(&t->link);
-				handle_transaction(t);
-				break;
-
-			case ACK_PENDING:
-				/* request subaction phase over, wait for response. */
-				break;
-
-			case ACK_BUSY_X:
-			case ACK_BUSY_A:
-			case ACK_BUSY_B:
-				/* ok, wait for retry. */
-				/* check that retry protocol is respected. */
-				break;
-			}
-			break;
+			return handle_request_packet(data, length);
 
 		case PACKET_RESPONSE:
-			t = link_transaction_lookup(p->common.destination, p->common.source,
-					p->common.tlabel);
-			if (list_empty(&t->request_list)) {
-				/* unsolicited response */
-			}
-
-			sa = subaction_create(data, length);
-			t->response = sa;
-
-			if (!list_empty(&t->response_list)) {
-				prev = list_tail(&t->response_list, struct subaction, link);
-
-				if (!ACK_BUSY(prev->ack)) {
-					/*
-					 * error, we should only see ack_busy_* before the
-					 * ack_pending/ack_complete
-					 */
-				}
-
-				if (prev->packet.common.tcode != sa->packet.common.tcode ||
-				    prev->packet.common.tlabel != sa->packet.common.tlabel) {
-					/* use memcmp() instead? */
-					/* error, these should match for retries. */
-				}
-			} else {
-				prev = list_tail(&t->request_list, struct subaction, link);
-				if (prev->ack != ACK_PENDING) {
-					/*
-					 * error, should not get response unless last request got
-					 * ack_pending.
-					 */
-				}
-
-				if (packet_info[prev->packet.common.tcode].response_tcode !=
-				    sa->packet.common.tcode) {
-					/* error, tcode mismatch */
-				}
-			}
-
-			list_append(&t->response_list, &sa->link);
-
-			switch (sa->ack) {
-			case ACK_COMPLETE:
-			case ACK_NO_ACK:
-			case ACK_DATA_ERROR:
-			case ACK_TYPE_ERROR:
-				list_remove(&t->link);
-				handle_transaction(t);
-				/* transaction complete, remove t from pending list. */
-				break;
-
-			case ACK_PENDING:
-				/* error for responses. */
-				break;
-
-			case ACK_BUSY_X:
-			case ACK_BUSY_A:
-			case ACK_BUSY_B:
-				/* no problem, wait for next retry */
-				break;
-			}
-
-			break;
+			return handle_response_packet(data, length);
 
 		case PACKET_OTHER:
 		case PACKET_RESERVED:
