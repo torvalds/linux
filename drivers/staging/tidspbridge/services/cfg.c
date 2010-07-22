@@ -51,7 +51,7 @@ void cfg_exit(void)
  *      Retreive the autostart mask, if any, for this board.
  */
 int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
-			      OUT u32 *auto_start)
+			      u32 *auto_start)
 {
 	int status = 0;
 	u32 dw_buf_size;
@@ -77,7 +77,7 @@ int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
  *      Retrieve the Device Object handle for a given devnode.
  */
 int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
-			      OUT u32 *value)
+			      u32 *value)
 {
 	int status = 0;
 	u32 dw_buf_size;
@@ -113,7 +113,7 @@ int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
  *      Retreive the default executable, if any, for this board.
  */
 int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 buf_size,
-			     OUT char *str_exec_file)
+			     char *str_exec_file)
 {
 	int status = 0;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);
@@ -143,7 +143,7 @@ int cfg_get_exec_file(struct cfg_devnode *dev_node_obj, u32 buf_size,
  *  Purpose:
  *      Retrieve the Object handle from the Registry
  */
-int cfg_get_object(OUT u32 *value, u8 dw_type)
+int cfg_get_object(u32 *value, u8 dw_type)
 {
 	int status = -EINVAL;
 	struct drv_data *drv_datap = dev_get_drvdata(bridge);

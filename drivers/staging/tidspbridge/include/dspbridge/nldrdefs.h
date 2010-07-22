@@ -131,9 +131,9 @@ typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
 				       void *priv_ref,
 				       const struct dcd_nodeprops
 				       * node_props,
-				       OUT struct nldr_nodeobject
+				       struct nldr_nodeobject
 				       **nldr_nodeobj,
-				       OUT bool *pf_phase_split);
+				       bool *pf_phase_split);
 
 /*
  *  ======== nldr_create ========
@@ -156,7 +156,7 @@ typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
  *      0:        Valid *nldr.
  *      error:          *nldr == NULL.
  */
-typedef int(*nldr_createfxn) (OUT struct nldr_object **nldr,
+typedef int(*nldr_createfxn) (struct nldr_object **nldr,
 				     struct dev_object *hdev_obj,
 				     const struct nldr_attrs *pattrs);
 

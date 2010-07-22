@@ -164,7 +164,7 @@ static void un_register_gppsm_seg(struct cmm_allocator *psma);
  *      inUseList.
  */
 void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
-		     struct cmm_attrs *pattrs, OUT void **pp_buf_va)
+		     struct cmm_attrs *pattrs, void **pp_buf_va)
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	void *buf_pa = NULL;
@@ -240,7 +240,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
  *  Purpose:
  *      Create a communication memory manager object.
  */
-int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
+int cmm_create(struct cmm_object **ph_cmm_mgr,
 		      struct dev_object *hdev_obj,
 		      const struct cmm_mgrattrs *mgr_attrts)
 {
@@ -429,7 +429,7 @@ int cmm_free_buf(struct cmm_object *hcmm_mgr, void *buf_pa,
  *      Return the communication memory manager object for this device.
  *      This is typically called from the client process.
  */
-int cmm_get_handle(void *hprocessor, OUT struct cmm_object ** ph_cmm_mgr)
+int cmm_get_handle(void *hprocessor, struct cmm_object ** ph_cmm_mgr)
 {
 	int status = 0;
 	struct dev_object *hdev_obj;
@@ -453,7 +453,7 @@ int cmm_get_handle(void *hprocessor, OUT struct cmm_object ** ph_cmm_mgr)
  *      Return the current memory utilization information.
  */
 int cmm_get_info(struct cmm_object *hcmm_mgr,
-			OUT struct cmm_info *cmm_info_obj)
+			struct cmm_info *cmm_info_obj)
 {
 	struct cmm_object *cmm_mgr_obj = (struct cmm_object *)hcmm_mgr;
 	u32 ul_seg;
@@ -954,7 +954,7 @@ static struct cmm_allocator *get_allocator(struct cmm_object *cmm_mgr_obj,
  *  Purpose:
  *      Create an address translator object.
  */
-int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
+int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 			     struct cmm_object *hcmm_mgr,
 			     struct cmm_xlatorattrs *xlator_attrs)
 {
@@ -1075,7 +1075,7 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
  *  Purpose:
  *      Set/Get translator info.
  */
-int cmm_xlator_info(struct cmm_xlatorobject *xlator, OUT u8 ** paddr,
+int cmm_xlator_info(struct cmm_xlatorobject *xlator, u8 ** paddr,
 			   u32 ul_size, u32 segm_id, bool set_info)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;

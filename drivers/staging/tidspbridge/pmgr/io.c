@@ -46,7 +46,7 @@ static u32 refs;
  *      Create an IO manager object, responsible for managing IO between
  *      CHNL and msg_ctrl
  */
-int io_create(OUT struct io_mgr **io_man, struct dev_object *hdev_obj,
+int io_create(struct io_mgr **io_man, struct dev_object *hdev_obj,
 		     const struct io_attrs *mgr_attrts)
 {
 	struct bridge_drv_interface *intf_fxns;

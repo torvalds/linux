@@ -216,7 +216,7 @@ void cod_close(struct cod_libraryobj *lib)
  *      dynamically loaded object files.
  *
  */
-int cod_create(OUT struct cod_manager **mgr, char *str_zl_file,
+int cod_create(struct cod_manager **mgr, char *str_zl_file,
 		      const struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
@@ -399,7 +399,7 @@ int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      given the section name.
  */
 int cod_get_section(struct cod_libraryobj *lib, char *str_sect,
-			   OUT u32 *addr, OUT u32 *len)
+			   u32 *addr, u32 *len)
 {
 	struct cod_manager *cod_mgr_obj;
 	int status = 0;
@@ -630,7 +630,7 @@ int cod_open_base(struct cod_manager *hmgr, char *sz_coff_path,
  *      Retrieve the content of a code section given the section name.
  */
 int cod_read_section(struct cod_libraryobj *lib, char *str_sect,
-			    OUT char *str_content, u32 content_size)
+			    char *str_content, u32 content_size)
 {
 	int status = 0;
 

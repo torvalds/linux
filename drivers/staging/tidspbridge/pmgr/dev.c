@@ -92,7 +92,7 @@ static u32 refs;		/* Module reference count */
 static int fxn_not_implemented(int arg, ...);
 static int init_cod_mgr(struct dev_object *dev_obj);
 static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
-				 OUT struct bridge_drv_interface *intf_fxns);
+				 struct bridge_drv_interface *intf_fxns);
 /*
  *  ======== dev_brd_write_fxn ========
  *  Purpose:
@@ -131,7 +131,7 @@ u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
  *      Called by the operating system to load the PM Bridge Driver for a
  *      PM board (device).
  */
-int dev_create_device(OUT struct dev_object **device_obj,
+int dev_create_device(struct dev_object **device_obj,
 			     const char *driver_file_name,
 			     struct cfg_devnode *dev_node_obj)
 {
@@ -260,7 +260,7 @@ int dev_create_device(OUT struct dev_object **device_obj,
 	}
 leave:
 	/*  If all went well, return a handle to the dev object;
-	 *  else, cleanup and return NULL in the OUT parameter. */
+	 *  else, cleanup and return NULL in the parameter. */
 	if (DSP_SUCCEEDED(status)) {
 		*device_obj = dev_obj;
 	} else {
@@ -420,7 +420,7 @@ int dev_destroy_device(struct dev_object *hdev_obj)
  *      device.
  */
 int dev_get_chnl_mgr(struct dev_object *hdev_obj,
-			    OUT struct chnl_mgr **mgr)
+			    struct chnl_mgr **mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -447,7 +447,7 @@ int dev_get_chnl_mgr(struct dev_object *hdev_obj,
  *      device.
  */
 int dev_get_cmm_mgr(struct dev_object *hdev_obj,
-			   OUT struct cmm_object **mgr)
+			   struct cmm_object **mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -474,7 +474,7 @@ int dev_get_cmm_mgr(struct dev_object *hdev_obj,
  *      device.
  */
 int dev_get_dmm_mgr(struct dev_object *hdev_obj,
-			   OUT struct dmm_object **mgr)
+			   struct dmm_object **mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -500,7 +500,7 @@ int dev_get_dmm_mgr(struct dev_object *hdev_obj,
  *      Retrieve the COD manager create for this device.
  */
 int dev_get_cod_mgr(struct dev_object *hdev_obj,
-			   OUT struct cod_manager **cod_mgr)
+			   struct cod_manager **cod_mgr)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -524,7 +524,7 @@ int dev_get_cod_mgr(struct dev_object *hdev_obj,
  *  ========= dev_get_deh_mgr ========
  */
 int dev_get_deh_mgr(struct dev_object *hdev_obj,
-			   OUT struct deh_mgr **deh_manager)
+			   struct deh_mgr **deh_manager)
 {
 	int status = 0;
 
@@ -546,7 +546,7 @@ int dev_get_deh_mgr(struct dev_object *hdev_obj,
  *      Retrieve the platform specific device ID for this device.
  */
 int dev_get_dev_node(struct dev_object *hdev_obj,
-			    OUT struct cfg_devnode **dev_nde)
+			    struct cfg_devnode **dev_nde)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -588,7 +588,7 @@ struct dev_object *dev_get_first(void)
  *      if_fxns != NULL.
  */
 int dev_get_intf_fxns(struct dev_object *hdev_obj,
-			     OUT struct bridge_drv_interface **if_fxns)
+			     struct bridge_drv_interface **if_fxns)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -612,7 +612,7 @@ int dev_get_intf_fxns(struct dev_object *hdev_obj,
  *  ========= dev_get_io_mgr ========
  */
 int dev_get_io_mgr(struct dev_object *hdev_obj,
-			  OUT struct io_mgr **io_man)
+			  struct io_mgr **io_man)
 {
 	int status = 0;
 
@@ -652,7 +652,7 @@ struct dev_object *dev_get_next(struct dev_object *hdev_obj)
 /*
  *  ========= dev_get_msg_mgr ========
  */
-void dev_get_msg_mgr(struct dev_object *hdev_obj, OUT struct msg_mgr **msg_man)
+void dev_get_msg_mgr(struct dev_object *hdev_obj, struct msg_mgr **msg_man)
 {
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(msg_man != NULL);
@@ -667,7 +667,7 @@ void dev_get_msg_mgr(struct dev_object *hdev_obj, OUT struct msg_mgr **msg_man)
  *      Retrieve the Node Manager Handle
  */
 int dev_get_node_manager(struct dev_object *hdev_obj,
-				OUT struct node_mgr **node_man)
+				struct node_mgr **node_man)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -691,7 +691,7 @@ int dev_get_node_manager(struct dev_object *hdev_obj,
  *  ======== dev_get_symbol ========
  */
 int dev_get_symbol(struct dev_object *hdev_obj,
-			  const char *str_sym, OUT u32 * pul_value)
+			  const char *str_sym, u32 * pul_value)
 {
 	int status = 0;
 	struct cod_manager *cod_mgr;
@@ -718,7 +718,7 @@ int dev_get_symbol(struct dev_object *hdev_obj,
  *      bridge_dev_create fxn.
  */
 int dev_get_bridge_context(struct dev_object *hdev_obj,
-			       OUT struct bridge_dev_context **phbridge_context)
+			       struct bridge_dev_context **phbridge_context)
 {
 	int status = 0;
 	struct dev_object *dev_obj = hdev_obj;
@@ -974,7 +974,7 @@ static int init_cod_mgr(struct dev_object *dev_obj)
  *      0 and List is not Empty.
  */
 int dev_insert_proc_object(struct dev_object *hdev_obj,
-				  u32 proc_obj, OUT bool *already_attached)
+				  u32 proc_obj, bool *already_attached)
 {
 	int status = 0;
 	struct dev_object *dev_obj = (struct dev_object *)hdev_obj;
@@ -1069,7 +1069,7 @@ int dev_get_dev_type(struct dev_object *device_obj, u8 *dev_type)
  *      All function pointers in the dev object's fxn interface are not NULL.
  */
 static void store_interface_fxns(struct bridge_drv_interface *drv_fxns,
-				 OUT struct bridge_drv_interface *intf_fxns)
+				 struct bridge_drv_interface *intf_fxns)
 {
 	u32 bridge_version;
 

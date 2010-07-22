@@ -133,7 +133,7 @@ struct io_mgr {
 
 /* Function Prototypes */
 static void io_dispatch_chnl(struct io_mgr *pio_mgr,
-				OUT struct chnl_object *pchnl, u8 io_mode);
+				struct chnl_object *pchnl, u8 io_mode);
 static void io_dispatch_msg(struct io_mgr *pio_mgr,
 			    struct msg_mgr *hmsg_mgr);
 static void io_dispatch_pm(struct io_mgr *pio_mgr);
@@ -161,7 +161,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
  *  ======== bridge_io_create ========
  *      Create an IO manager object.
  */
-int bridge_io_create(OUT struct io_mgr **io_man,
+int bridge_io_create(struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
 			    const struct io_attrs *mgr_attrts)
 {
@@ -839,7 +839,7 @@ func_end:
  *      Proc-copy chanl dispatch.
  */
 static void io_dispatch_chnl(struct io_mgr *pio_mgr,
-				OUT struct chnl_object *pchnl, u8 io_mode)
+				struct chnl_object *pchnl, u8 io_mode)
 {
 	if (!pio_mgr)
 		goto func_end;
@@ -919,7 +919,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
  *      out the dispatch of I/O as a non-preemptible event.It can only be
  *      pre-empted      by an ISR.
  */
-void io_dpc(OUT unsigned long ref_data)
+void io_dpc(unsigned long ref_data)
 {
 	struct io_mgr *pio_mgr = (struct io_mgr *)ref_data;
 	struct chnl_mgr *chnl_mgr_obj;
@@ -1014,7 +1014,7 @@ void io_mbox_msg(u32 msg)
  *      interrupts the DSP.
  */
 void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
-			u8 io_mode, OUT u16 *mbx_val)
+			u8 io_mode, u16 *mbx_val)
 {
 	struct chnl_mgr *chnl_mgr_obj;
 	struct shm *sm;
@@ -1793,7 +1793,7 @@ int io_sh_msetting(struct io_mgr *hio_mgr, u8 desc, void *pargs)
  *      Gets the Processor's Load information
  */
 int bridge_io_get_proc_load(struct io_mgr *hio_mgr,
-				OUT struct dsp_procloadstat *proc_lstat)
+				struct dsp_procloadstat *proc_lstat)
 {
 	proc_lstat->curr_load =
 			hio_mgr->shared_mem->load_mon_info.curr_dsp_load;

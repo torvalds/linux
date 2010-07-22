@@ -394,7 +394,7 @@ extern int drv_remove_dev_object(struct drv_object *driver_obj,
  *      later used by the CFG module.
  */
 extern int drv_request_resources(u32 dw_context,
-					OUT u32 *dev_node_strg);
+					u32 *dev_node_strg);
 
 /*
  *  ======== drv_release_resources ========
@@ -463,7 +463,7 @@ extern void mem_ext_phys_pool_release(void);
  *      location of memory.
  */
 extern void *mem_alloc_phys_mem(u32 byte_size,
-				u32 align_mask, OUT u32 *physical_address);
+				u32 align_mask, u32 *physical_address);
 
 /*
  *  ======== mem_free_phys_mem ========

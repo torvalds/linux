@@ -91,7 +91,7 @@ extern void cod_close(struct cod_libraryobj *lib);
  *      str_zl_file != NULL
  *  Ensures:
  */
-extern int cod_create(OUT struct cod_manager **mgr,
+extern int cod_create(struct cod_manager **mgr,
 			     char *str_zl_file,
 			     const struct cod_attrs *attrs);
 
@@ -227,7 +227,7 @@ extern int cod_get_loader(struct cod_manager *cod_mgr_obj,
  */
 extern int cod_get_section(struct cod_libraryobj *lib,
 				  char *str_sect,
-				  OUT u32 *addr, OUT u32 *len);
+				  u32 *addr, u32 *len);
 
 /*
  *  ======== cod_get_sym_value ========
@@ -251,7 +251,7 @@ extern int cod_get_section(struct cod_libraryobj *lib,
  *  Ensures:
  */
 extern int cod_get_sym_value(struct cod_manager *cod_mgr_obj,
-				    char *str_sym, OUT u32 * pul_value);
+				    char *str_sym, u32 * pul_value);
 
 /*
  *  ======== cod_init ========
@@ -321,7 +321,7 @@ extern int cod_load_base(struct cod_manager *cod_mgr_obj,
  */
 extern int cod_open(struct cod_manager *hmgr,
 			   char *sz_coff_path,
-			   u32 flags, OUT struct cod_libraryobj **lib_obj);
+			   u32 flags, struct cod_libraryobj **lib_obj);
 
 /*
  *  ======== cod_open_base ========
@@ -364,6 +364,6 @@ extern int cod_open_base(struct cod_manager *hmgr, char *sz_coff_path,
  */
 extern int cod_read_section(struct cod_libraryobj *lib,
 				   char *str_sect,
-				   OUT char *str_content, u32 content_size);
+				   char *str_content, u32 content_size);
 
 #endif /* COD_ */

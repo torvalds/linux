@@ -153,8 +153,8 @@ extern int proc_detach(struct process_context *pr_ctxt);
 extern int proc_enum_nodes(void *hprocessor,
 				  void **node_tab,
 				  u32 node_tab_size,
-				  OUT u32 *pu_num_nodes,
-				  OUT u32 *pu_allocated);
+				  u32 *pu_num_nodes,
+				  u32 *pu_allocated);
 
 /*
  *  ======== proc_get_resource_info ========
@@ -184,7 +184,7 @@ extern int proc_enum_nodes(void *hprocessor,
  */
 extern int proc_get_resource_info(void *hprocessor,
 					 u32 resource_type,
-					 OUT struct dsp_resourceinfo
+					 struct dsp_resourceinfo
 					 *resource_info,
 					 u32 resource_info_size);
 
@@ -256,7 +256,7 @@ extern bool proc_init(void);
  *  Ensures:
  *  Details:
  */
-extern int proc_get_state(void *hprocessor, OUT struct dsp_processorstate
+extern int proc_get_state(void *hprocessor, struct dsp_processorstate
 				 *proc_state_obj, u32 state_info_size);
 
 /*

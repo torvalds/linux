@@ -51,7 +51,7 @@ extern void cfg_exit(void);
  *      0:        *auto_start contains autostart mask for this devnode.
  */
 extern int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
-				     OUT u32 *auto_start);
+				     u32 *auto_start);
 
 /*
  *  ======== cfg_get_cd_version ========
@@ -70,7 +70,7 @@ extern int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
  *      0:    Success.
  *      else:       *version is NULL.
  */
-extern int cfg_get_cd_version(OUT u32 *version);
+extern int cfg_get_cd_version(u32 *version);
 
 /*
  *  ======== cfg_get_dev_object ========
@@ -91,7 +91,7 @@ extern int cfg_get_cd_version(OUT u32 *version);
  *      else:       *value is set to 0L.
  */
 extern int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
-				     OUT u32 *value);
+				     u32 *value);
 
 /*
  *  ======== cfg_get_exec_file ========
@@ -113,7 +113,7 @@ extern int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
  *                  devnode.
  */
 extern int cfg_get_exec_file(struct cfg_devnode *dev_node_obj,
-				    u32 buf_size, OUT char *str_exec_file);
+				    u32 buf_size, char *str_exec_file);
 
 /*
  *  ======== cfg_get_object ========
@@ -130,7 +130,7 @@ extern int cfg_get_exec_file(struct cfg_devnode *dev_node_obj,
  *      0:    *value is set to the retrieved u32(non-Zero).
  *      else:       *value is set to 0L.
  */
-extern int cfg_get_object(OUT u32 *value, u8 dw_type);
+extern int cfg_get_object(u32 *value, u8 dw_type);
 
 /*
  *  ======== cfg_get_perf_value ========
@@ -146,7 +146,7 @@ extern int cfg_get_object(OUT u32 *value, u8 dw_type);
  *      enable_perf != NULL;
  *  Ensures:
  */
-extern void cfg_get_perf_value(OUT bool *enable_perf);
+extern void cfg_get_perf_value(bool *enable_perf);
 
 /*
  *  ======== cfg_get_zl_file ========
@@ -168,7 +168,7 @@ extern void cfg_get_perf_value(OUT bool *enable_perf);
  *                  for this devnode.
  */
 extern int cfg_get_zl_file(struct cfg_devnode *dev_node_obj,
-				  u32 buf_size, OUT char *str_zl_file_name);
+				  u32 buf_size, char *str_zl_file_name);
 
 /*
  *  ======== cfg_init ========

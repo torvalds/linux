@@ -44,7 +44,7 @@
  *  ======== dsp_init ========
  *  	Allocates bridge resources. Loads a base image onto DSP, if specified.
  */
-u32 dsp_init(OUT u32 *init_status)
+u32 dsp_init(u32 *init_status)
 {
 	char dev_node[MAXREGPATHLENGTH] = "TIOMAP1510";
 	int status = -EPERM;

@@ -40,7 +40,7 @@
  *      msg_callback != NULL.
  *  Ensures:
  */
-extern int msg_create(OUT struct msg_mgr **msg_man,
+extern int msg_create(struct msg_mgr **msg_man,
 			     struct dev_object *hdev_obj,
 			     msg_onexit msg_callback);
 

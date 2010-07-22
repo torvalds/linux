@@ -26,12 +26,12 @@
 
 #include <dspbridge/msgdefs.h>
 
-extern int bridge_msg_create(OUT struct msg_mgr **msg_man,
+extern int bridge_msg_create(struct msg_mgr **msg_man,
 				    struct dev_object *hdev_obj,
 				    msg_onexit msg_callback);
 
 extern int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
-				       OUT struct msg_queue **msgq,
+				       struct msg_queue **msgq,
 				       u32 msgq_id, u32 max_msgs, void *arg);
 
 extern void bridge_msg_delete(struct msg_mgr *hmsg_mgr);

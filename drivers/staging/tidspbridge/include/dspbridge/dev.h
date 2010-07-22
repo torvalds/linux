@@ -89,7 +89,7 @@ extern u32 dev_brd_write_fxn(void *arb,
  *      Otherwise, does not create the device object, ensures the Bridge driver
  *      module is unloaded, and sets *device_obj to NULL.
  */
-extern int dev_create_device(OUT struct dev_object
+extern int dev_create_device(struct dev_object
 				    **device_obj,
 				    const char *driver_file_name,
 				    struct cfg_devnode *dev_node_obj);
@@ -124,7 +124,7 @@ extern int dev_create_device(OUT struct dev_object
  *      Otherwise, does not create the device object, ensures the Bridge driver
  *      module is unloaded, and sets *device_obj to NULL.
  */
-extern int dev_create_iva_device(OUT struct dev_object
+extern int dev_create_iva_device(struct dev_object
 					**device_obj,
 					const char *driver_file_name,
 					const struct cfg_hostres
@@ -208,7 +208,7 @@ extern int dev_destroy_device(struct dev_object
  *      else:           *mgr is NULL.
  */
 extern int dev_get_chnl_mgr(struct dev_object *hdev_obj,
-				   OUT struct chnl_mgr **mgr);
+				   struct chnl_mgr **mgr);
 
 /*
  *  ======== dev_get_cmm_mgr ========
@@ -231,7 +231,7 @@ extern int dev_get_chnl_mgr(struct dev_object *hdev_obj,
  *      else:           *mgr is NULL.
  */
 extern int dev_get_cmm_mgr(struct dev_object *hdev_obj,
-				  OUT struct cmm_object **mgr);
+				  struct cmm_object **mgr);
 
 /*
  *  ======== dev_get_dmm_mgr ========
@@ -254,7 +254,7 @@ extern int dev_get_cmm_mgr(struct dev_object *hdev_obj,
  *      else:           *mgr is NULL.
  */
 extern int dev_get_dmm_mgr(struct dev_object *hdev_obj,
-				  OUT struct dmm_object **mgr);
+				  struct dmm_object **mgr);
 
 /*
  *  ======== dev_get_cod_mgr ========
@@ -275,7 +275,7 @@ extern int dev_get_dmm_mgr(struct dev_object *hdev_obj,
  *      else:           *cod_mgr is NULL.
  */
 extern int dev_get_cod_mgr(struct dev_object *hdev_obj,
-				  OUT struct cod_manager **cod_mgr);
+				  struct cod_manager **cod_mgr);
 
 /*
  *  ======== dev_get_deh_mgr ========
@@ -295,7 +295,7 @@ extern int dev_get_cod_mgr(struct dev_object *hdev_obj,
  *      else:       *deh_manager is NULL.
  */
 extern int dev_get_deh_mgr(struct dev_object *hdev_obj,
-				  OUT struct deh_mgr **deh_manager);
+				  struct deh_mgr **deh_manager);
 
 /*
  *  ======== dev_get_dev_node ========
@@ -316,7 +316,7 @@ extern int dev_get_deh_mgr(struct dev_object *hdev_obj,
  *      else:           *dev_nde is NULL.
  */
 extern int dev_get_dev_node(struct dev_object *hdev_obj,
-				   OUT struct cfg_devnode **dev_nde);
+				   struct cfg_devnode **dev_nde);
 
 /*
  *  ======== dev_get_dev_type ========
@@ -380,7 +380,7 @@ extern struct dev_object *dev_get_first(void);
  *      else:           *if_fxns is NULL.
  */
 extern int dev_get_intf_fxns(struct dev_object *hdev_obj,
-			    OUT struct bridge_drv_interface **if_fxns);
+			    struct bridge_drv_interface **if_fxns);
 
 /*
  *  ======== dev_get_io_mgr ========
@@ -401,7 +401,7 @@ extern int dev_get_intf_fxns(struct dev_object *hdev_obj,
  *      else:           *mgr is NULL.
  */
 extern int dev_get_io_mgr(struct dev_object *hdev_obj,
-				 OUT struct io_mgr **mgr);
+				 struct io_mgr **mgr);
 
 /*
  *  ======== dev_get_next ========
@@ -443,7 +443,7 @@ extern struct dev_object *dev_get_next(struct dev_object
  *  Ensures:
  */
 extern void dev_get_msg_mgr(struct dev_object *hdev_obj,
-			    OUT struct msg_mgr **msg_man);
+			    struct msg_mgr **msg_man);
 
 /*
  *  ========= dev_get_node_manager ========
@@ -466,7 +466,7 @@ extern void dev_get_msg_mgr(struct dev_object *hdev_obj,
  */
 extern int dev_get_node_manager(struct dev_object
 				       *hdev_obj,
-				       OUT struct node_mgr **node_man);
+				       struct node_mgr **node_man);
 
 /*
  *  ======== dev_get_symbol ========
@@ -490,7 +490,7 @@ extern int dev_get_node_manager(struct dev_object
  *      0:        *pul_value contains the symbol value;
  */
 extern int dev_get_symbol(struct dev_object *hdev_obj,
-				 const char *str_sym, OUT u32 * pul_value);
+				 const char *str_sym, u32 * pul_value);
 
 /*
  *  ======== dev_get_bridge_context ========
@@ -511,7 +511,7 @@ extern int dev_get_symbol(struct dev_object *hdev_obj,
  *      else:           *phbridge_context is NULL;
  */
 extern int dev_get_bridge_context(struct dev_object *hdev_obj,
-				      OUT struct bridge_dev_context
+				      struct bridge_dev_context
 				      **phbridge_context);
 
 /*
@@ -585,7 +585,7 @@ extern int dev_is_locked(struct dev_object *hdev_obj);
 extern int dev_insert_proc_object(struct dev_object
 					 *hdev_obj,
 					 u32 proc_obj,
-					 OUT bool *already_attached);
+					 bool *already_attached);
 
 /*
  *  ======== dev_remove_proc_object ========

@@ -81,13 +81,13 @@ static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 				  struct node_strmdef strm_def, u32 max,
 				  u32 chars_in_rms_word);
 static int send_message(struct disp_object *disp_obj, u32 timeout,
-			       u32 ul_bytes, OUT u32 *pdw_arg);
+			       u32 ul_bytes, u32 *pdw_arg);
 
 /*
  *  ======== disp_create ========
  *  Create a NODE Dispatcher object.
  */
-int disp_create(OUT struct disp_object **dispatch_obj,
+int disp_create(struct disp_object **dispatch_obj,
 		       struct dev_object *hdev_obj,
 		       const struct disp_attr *disp_attrs)
 {
@@ -252,7 +252,7 @@ int disp_node_create(struct disp_object *disp_obj,
 			    struct node_object *hnode, u32 rms_fxn,
 			    u32 ul_create_fxn,
 			    const struct node_createargs *pargs,
-			    OUT nodeenv *node_env)
+			    nodeenv *node_env)
 {
 	struct node_msgargs node_msg_args;
 	struct node_taskargs task_arg_obj;

@@ -294,7 +294,7 @@ int node_allocate(struct proc_object *hprocessor,
 			 const struct dsp_uuid *node_uuid,
 			 const struct dsp_cbdata *pargs,
 			 const struct dsp_nodeattrin *attr_in,
-			 OUT struct node_object **ph_node,
+			 struct node_object **ph_node,
 			 struct process_context *pr_ctxt)
 {
 	struct node_mgr *hnode_mgr;
@@ -685,8 +685,8 @@ func_end:
  *      Allocates buffer for zero copy messaging.
  */
 DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
-			 OUT struct dsp_bufferattr *pattr,
-			 OUT u8 **pbuffer)
+			 struct dsp_bufferattr *pattr,
+			 u8 **pbuffer)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
 	int status = 0;
@@ -1300,7 +1300,7 @@ func_end:
  *  Purpose:
  *      Create a NODE Manager object.
  */
-int node_create_mgr(OUT struct node_mgr **node_man,
+int node_create_mgr(struct node_mgr **node_man,
 			   struct dev_object *hdev_obj)
 {
 	u32 i;
@@ -1613,8 +1613,8 @@ int node_delete_mgr(struct node_mgr *hnode_mgr)
  *      Enumerate currently allocated nodes.
  */
 int node_enum_nodes(struct node_mgr *hnode_mgr, void **node_tab,
-			   u32 node_tab_size, OUT u32 *pu_num_nodes,
-			   OUT u32 *pu_allocated)
+			   u32 node_tab_size, u32 *pu_num_nodes,
+			   u32 *pu_allocated)
 {
 	struct node_object *hnode;
 	u32 i;
@@ -1716,7 +1716,7 @@ func_end:
  *      structure.
  */
 int node_get_attr(struct node_object *hnode,
-			 OUT struct dsp_nodeattr *pattr, u32 attr_size)
+			 struct dsp_nodeattr *pattr, u32 attr_size)
 {
 	struct node_mgr *hnode_mgr;
 	int status = 0;
@@ -1760,7 +1760,7 @@ int node_get_attr(struct node_object *hnode,
  *      host and a node.
  */
 int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
-			       OUT u32 *chan_id)
+			       u32 *chan_id)
 {
 	enum node_type node_type;
 	int status = -EINVAL;
@@ -1802,7 +1802,7 @@ int node_get_channel_id(struct node_object *hnode, u32 dir, u32 index,
  *      Retrieve a message from a node on the DSP.
  */
 int node_get_message(struct node_object *hnode,
-			    OUT struct dsp_msg *message, u32 utimeout)
+			    struct dsp_msg *message, u32 utimeout)
 {
 	struct node_mgr *hnode_mgr;
 	enum node_type node_type;
@@ -2365,7 +2365,7 @@ func_end:
  *      Signal a node running on the DSP that it should exit its execute phase
  *      function.
  */
-int node_terminate(struct node_object *hnode, OUT int *pstatus)
+int node_terminate(struct node_object *hnode, int *pstatus)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
 	struct node_mgr *hnode_mgr = NULL;
@@ -3005,7 +3005,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
  */
 int node_get_uuid_props(void *hprocessor,
 			       const struct dsp_uuid *node_uuid,
-			       OUT struct dsp_ndbprops *node_props)
+			       struct dsp_ndbprops *node_props)
 {
 	struct node_mgr *hnode_mgr = NULL;
 	struct dev_object *hdev_obj;

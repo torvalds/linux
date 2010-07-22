@@ -46,7 +46,7 @@
  */
 extern int strm_allocate_buffer(struct strm_object *stream_obj,
 				       u32 usize,
-				       OUT u8 **ap_buffer,
+				       u8 **ap_buffer,
 				       u32 num_bufs,
 				       struct process_context *pr_ctxt);
 
@@ -90,7 +90,7 @@ extern int strm_close(struct strm_object *stream_obj,
  *      0:        Valid *strm_man.
  *      error:          *strm_man == NULL.
  */
-extern int strm_create(OUT struct strm_mgr **strm_man,
+extern int strm_create(struct strm_mgr **strm_man,
 			      struct dev_object *dev_obj);
 
 /*
@@ -158,7 +158,7 @@ extern int strm_free_buffer(struct strm_object *stream_obj,
  *  Ensures:
  */
 extern int strm_get_event_handle(struct strm_object *stream_obj,
-					OUT void **ph_event);
+					void **ph_event);
 
 /*
  *  ======== strm_get_info ========
@@ -180,7 +180,7 @@ extern int strm_get_event_handle(struct strm_object *stream_obj,
  *  Ensures:
  */
 extern int strm_get_info(struct strm_object *stream_obj,
-				OUT struct stream_info *stream_info,
+				struct stream_info *stream_info,
 				u32 stream_info_size);
 
 /*
@@ -272,7 +272,7 @@ extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
  */
 extern int strm_open(struct node_object *hnode, u32 dir,
 			    u32 index, struct strm_attr *pattr,
-			    OUT struct strm_object **strm_objct,
+			    struct strm_object **strm_objct,
 			    struct process_context *pr_ctxt);
 
 /*
@@ -322,7 +322,7 @@ extern int strm_prepare_buffer(struct strm_object *stream_obj,
  *  Ensures:
  */
 extern int strm_reclaim(struct strm_object *stream_obj,
-			       OUT u8 **buf_ptr, u32 * nbytes,
+			       u8 **buf_ptr, u32 * nbytes,
 			       u32 *buff_size, u32 *pdw_arg);
 
 /*
@@ -377,7 +377,7 @@ extern int strm_register_notify(struct strm_object *stream_obj,
  *      Error:          *pmask == 0.
  */
 extern int strm_select(struct strm_object **strm_tab,
-			      u32 strms, OUT u32 *pmask, u32 utimeout);
+			      u32 strms, u32 *pmask, u32 utimeout);
 
 /*
  *  ======== strm_unprepare_buffer ========

@@ -48,7 +48,7 @@
  *      0:        IS_VALID(*dispatch_obj).
  *      error:          *dispatch_obj == NULL.
  */
-extern int disp_create(OUT struct disp_object **dispatch_obj,
+extern int disp_create(struct disp_object **dispatch_obj,
 			      struct dev_object *hdev_obj,
 			      const struct disp_attr *disp_attrs);
 
@@ -148,7 +148,7 @@ extern int disp_node_create(struct disp_object *disp_obj,
 				   u32 rms_fxn,
 				   u32 ul_create_fxn,
 				   const struct node_createargs
-				   *pargs, OUT nodeenv *node_env);
+				   *pargs, nodeenv *node_env);
 
 /*
  *  ======== disp_node_delete ========

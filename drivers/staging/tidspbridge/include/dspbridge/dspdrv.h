@@ -57,6 +57,6 @@ extern bool dsp_deinit(u32 device_context);
  *      Succeeded:  device context > 0
  *      Failed:     device Context = 0
  */
-extern u32 dsp_init(OUT u32 *init_status);
+extern u32 dsp_init(u32 *init_status);
 
 #endif

@@ -53,7 +53,7 @@ static u32 refs;
  *  Purpose:
  *      MGR Object gets created only once during driver Loading.
  */
-int mgr_create(OUT struct mgr_object **mgr_obj,
+int mgr_create(struct mgr_object **mgr_obj,
 		      struct cfg_devnode *dev_node_obj)
 {
 	int status = 0;
@@ -114,8 +114,8 @@ int mgr_destroy(struct mgr_object *hmgr_obj)
  *      Enumerate and get configuration information about nodes configured
  *      in the node database.
  */
-int mgr_enum_node_info(u32 node_id, OUT struct dsp_ndbprops *pndb_props,
-			      u32 undb_props_size, OUT u32 *pu_num_nodes)
+int mgr_enum_node_info(u32 node_id, struct dsp_ndbprops *pndb_props,
+			      u32 undb_props_size, u32 *pu_num_nodes)
 {
 	int status = 0;
 	struct dsp_uuid node_uuid, temp_uuid;
@@ -178,9 +178,9 @@ func_cont:
  *      DSP processors.
  */
 int mgr_enum_processor_info(u32 processor_id,
-				   OUT struct dsp_processorinfo *
+				   struct dsp_processorinfo *
 				   processor_info, u32 processor_info_size,
-				   OUT u8 *pu_num_procs)
+				   u8 *pu_num_procs)
 {
 	int status = 0;
 	int status1 = 0;
@@ -305,7 +305,7 @@ void mgr_exit(void)
  *      Retrieves the MGR handle. Accessor Function.
  */
 int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
-			      OUT u32 *dcd_handle)
+			      u32 *dcd_handle)
 {
 	int status = -EPERM;
 	struct mgr_object *pmgr_obj = (struct mgr_object *)mgr_handle;
@@ -355,7 +355,7 @@ bool mgr_init(void)
  *      Block on any Bridge event(s)
  */
 int mgr_wait_for_bridge_events(struct dsp_notification **anotifications,
-				      u32 count, OUT u32 *pu_index,
+				      u32 count, u32 *pu_index,
 				      u32 utimeout)
 {
 	int status;

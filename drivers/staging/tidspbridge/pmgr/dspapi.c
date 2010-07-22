@@ -1127,7 +1127,7 @@ u32 nodewrap_alloc_msg_buf(union trapped_args *args, void *pr_ctxt)
 			pattr = &attr;
 
 	}
-	/* OUT argument */
+	/* argument */
 	CP_FM_USR(&pbuffer, args->args_node_allocmsgbuf.pbuffer, status, 1);
 	if (DSP_SUCCEEDED(status)) {
 		status = node_alloc_msg_buf(args->args_node_allocmsgbuf.hnode,

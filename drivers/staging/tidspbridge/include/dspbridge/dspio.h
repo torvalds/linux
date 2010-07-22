@@ -26,7 +26,7 @@
 #include <dspbridge/devdefs.h>
 #include <dspbridge/iodefs.h>
 
-extern int bridge_io_create(OUT struct io_mgr **io_man,
+extern int bridge_io_create(struct io_mgr **io_man,
 				   struct dev_object *hdev_obj,
 				   const struct io_attrs *mgr_attrts);
 
@@ -36,6 +36,6 @@ extern int bridge_io_on_loaded(struct io_mgr *hio_mgr);
 
 extern int iva_io_on_loaded(struct io_mgr *hio_mgr);
 extern int bridge_io_get_proc_load(struct io_mgr *hio_mgr,
-				       OUT struct dsp_procloadstat *proc_lstat);
+				       struct dsp_procloadstat *proc_lstat);
 
 #endif /* DSPIO_ */

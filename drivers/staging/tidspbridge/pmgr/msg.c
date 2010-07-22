@@ -45,7 +45,7 @@ static u32 refs;		/* module reference count */
  *      Create an object to manage message queues. Only one of these objects
  *      can exist per device object.
  */
-int msg_create(OUT struct msg_mgr **msg_man,
+int msg_create(struct msg_mgr **msg_man,
 		      struct dev_object *hdev_obj, msg_onexit msg_callback)
 {
 	struct bridge_drv_interface *intf_fxns;

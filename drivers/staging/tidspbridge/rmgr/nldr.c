@@ -326,7 +326,7 @@ static u32 find_gcf(u32 a, u32 b);
  */
 int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 			 const struct dcd_nodeprops *node_props,
-			 OUT struct nldr_nodeobject **nldr_nodeobj,
+			 struct nldr_nodeobject **nldr_nodeobj,
 			 bool *pf_phase_split)
 {
 	struct nldr_nodeobject *nldr_node_obj = NULL;
@@ -425,7 +425,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
 /*
  *  ======== nldr_create ========
  */
-int nldr_create(OUT struct nldr_object **nldr,
+int nldr_create(struct nldr_object **nldr,
 		       struct dev_object *hdev_obj,
 		       const struct nldr_attrs *pattrs)
 {
@@ -776,7 +776,7 @@ int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
  *  Given a NLDR object, retrieve RMM Manager Handle
  */
 int nldr_get_rmm_manager(struct nldr_object *nldr,
-				OUT struct rmm_target_obj **rmm_mgr)
+				struct rmm_target_obj **rmm_mgr)
 {
 	int status = 0;
 	struct nldr_object *nldr_obj = nldr;

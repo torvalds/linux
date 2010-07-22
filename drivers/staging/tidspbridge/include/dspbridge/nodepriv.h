@@ -102,7 +102,7 @@ struct node_createargs {
  *  Ensures:
  */
 extern int node_get_channel_id(struct node_object *hnode,
-				      u32 dir, u32 index, OUT u32 *chan_id);
+				      u32 dir, u32 index, u32 *chan_id);
 
 /*
  *  ======== node_get_strm_mgr ========

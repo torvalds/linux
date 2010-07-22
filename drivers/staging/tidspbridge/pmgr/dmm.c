@@ -117,7 +117,7 @@ int dmm_create_tables(struct dmm_object *dmm_mgr, u32 addr, u32 size)
  *  Purpose:
  *      Create a dynamic memory manager object.
  */
-int dmm_create(OUT struct dmm_object **dmm_manager,
+int dmm_create(struct dmm_object **dmm_manager,
 		      struct dev_object *hdev_obj,
 		      const struct dmm_mgrattrs *mgr_attrts)
 {
@@ -197,7 +197,7 @@ void dmm_exit(void)
  *      Return the dynamic memory manager object for this device.
  *      This is typically called from the client process.
  */
-int dmm_get_handle(void *hprocessor, OUT struct dmm_object **dmm_manager)
+int dmm_get_handle(void *hprocessor, struct dmm_object **dmm_manager)
 {
 	int status = 0;
 	struct dev_object *hdev_obj;

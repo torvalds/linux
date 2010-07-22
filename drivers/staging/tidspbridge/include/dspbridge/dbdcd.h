@@ -90,7 +90,7 @@ extern int dcd_auto_unregister(struct dcd_manager *hdcd_mgr,
  *      A DCD manager handle is created.
  */
 extern int dcd_create_manager(char *sz_zl_dll_name,
-				     OUT struct dcd_manager **dcd_mgr);
+				     struct dcd_manager **dcd_mgr);
 
 /*
  *  ======== dcd_destroy_manager ========
@@ -130,7 +130,7 @@ extern int dcd_destroy_manager(struct dcd_manager *hdcd_mgr);
  */
 extern int dcd_enumerate_object(s32 index,
 				       enum dsp_dcdobjtype obj_type,
-				       OUT struct dsp_uuid *uuid_obj);
+				       struct dsp_uuid *uuid_obj);
 
 /*
  *  ======== dcd_exit ========
@@ -172,8 +172,8 @@ extern void dcd_exit(void);
 extern int dcd_get_dep_libs(struct dcd_manager *hdcd_mgr,
 				   struct dsp_uuid *uuid_obj,
 				   u16 num_libs,
-				   OUT struct dsp_uuid *dep_lib_uuids,
-				   OUT bool *prstnt_dep_libs,
+				   struct dsp_uuid *dep_lib_uuids,
+				   bool *prstnt_dep_libs,
 				   enum nldr_phase phase);
 
 /*
@@ -201,8 +201,8 @@ extern int dcd_get_dep_libs(struct dcd_manager *hdcd_mgr,
  */
 extern int dcd_get_num_dep_libs(struct dcd_manager *hdcd_mgr,
 				       struct dsp_uuid *uuid_obj,
-				       OUT u16 *num_libs,
-				       OUT u16 *num_pers_libs,
+				       u16 *num_libs,
+				       u16 *num_pers_libs,
 				       enum nldr_phase phase);
 
 /*
@@ -231,10 +231,10 @@ extern int dcd_get_num_dep_libs(struct dcd_manager *hdcd_mgr,
  */
 extern int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 				       struct dsp_uuid *uuid_obj,
-				       OUT char *str_lib_name,
-				       OUT u32 *buff_size,
+				       char *str_lib_name,
+				       u32 *buff_size,
 				       enum nldr_phase phase,
-				       OUT bool *phase_split);
+				       bool *phase_split);
 
 /*
  *  ======== dcd_get_object_def ========
@@ -264,7 +264,7 @@ extern int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 extern int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 				     struct dsp_uuid *obj_uuid,
 				     enum dsp_dcdobjtype obj_type,
-				     OUT struct dcd_genericobj *obj_def);
+				     struct dcd_genericobj *obj_def);
 
 /*
  *  ======== dcd_get_objects ========

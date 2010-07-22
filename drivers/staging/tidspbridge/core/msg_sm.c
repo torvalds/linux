@@ -48,7 +48,7 @@ static void free_msg_list(struct lst_list *msg_list);
  *      Create an object to manage message queues. Only one of these objects
  *      can exist per device object.
  */
-int bridge_msg_create(OUT struct msg_mgr **msg_man,
+int bridge_msg_create(struct msg_mgr **msg_man,
 			     struct dev_object *hdev_obj,
 			     msg_onexit msg_callback)
 {
@@ -120,7 +120,7 @@ func_end:
  *      on the DSP.
  */
 int bridge_msg_create_queue(struct msg_mgr *hmsg_mgr,
-				OUT struct msg_queue **msgq,
+				struct msg_queue **msgq,
 				u32 msgq_id, u32 max_msgs, void *arg)
 {
 	u32 i;

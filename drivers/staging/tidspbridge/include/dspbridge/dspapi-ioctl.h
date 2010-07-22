@@ -339,7 +339,7 @@ union trapped_args {
 		struct cmm_object *hcmm_mgr;
 		u32 usize;
 		struct cmm_attrs *pattrs;
-		OUT void **pp_buf_va;
+		void **pp_buf_va;
 	} args_cmm_allocbuf;
 
 	struct {

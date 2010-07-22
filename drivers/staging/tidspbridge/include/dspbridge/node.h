@@ -60,7 +60,7 @@ extern int node_allocate(struct proc_object *hprocessor,
 				const struct dsp_cbdata
 				*pargs, const struct dsp_nodeattrin
 				*attr_in,
-				OUT struct node_object **ph_node,
+				struct node_object **ph_node,
 				struct process_context *pr_ctxt);
 
 /*
@@ -87,7 +87,7 @@ extern int node_allocate(struct proc_object *hprocessor,
  */
 extern int node_alloc_msg_buf(struct node_object *hnode,
 				     u32 usize, struct dsp_bufferattr
-				     *pattr, OUT u8 **pbuffer);
+				     *pattr, u8 **pbuffer);
 
 /*
  *  ======== node_change_priority ========
@@ -231,7 +231,7 @@ extern int node_create(struct node_object *hnode);
  *      0:        Valide *node_man.
  *      error:          *node_man == NULL.
  */
-extern int node_create_mgr(OUT struct node_mgr **node_man,
+extern int node_create_mgr(struct node_mgr **node_man,
 				  struct dev_object *hdev_obj);
 
 /*
@@ -299,8 +299,8 @@ extern int node_delete_mgr(struct node_mgr *hnode_mgr);
 extern int node_enum_nodes(struct node_mgr *hnode_mgr,
 				  void **node_tab,
 				  u32 node_tab_size,
-				  OUT u32 *pu_num_nodes,
-				  OUT u32 *pu_allocated);
+				  u32 *pu_num_nodes,
+				  u32 *pu_allocated);
 
 /*
  *  ======== node_exit ========
@@ -358,7 +358,7 @@ extern int node_free_msg_buf(struct node_object *hnode,
  *      0:        *pattrs contains the node's current attributes.
  */
 extern int node_get_attr(struct node_object *hnode,
-				OUT struct dsp_nodeattr *pattr, u32 attr_size);
+				struct dsp_nodeattr *pattr, u32 attr_size);
 
 /*
  *  ======== node_get_message ========
@@ -384,7 +384,7 @@ extern int node_get_attr(struct node_object *hnode,
  *  Ensures:
  */
 extern int node_get_message(struct node_object *hnode,
-				   OUT struct dsp_msg *message, u32 utimeout);
+				   struct dsp_msg *message, u32 utimeout);
 
 /*
  *  ======== node_get_nldr_obj ========
@@ -399,7 +399,7 @@ extern int node_get_message(struct node_object *hnode,
  *  Ensures:
  */
 extern int node_get_nldr_obj(struct node_mgr *hnode_mgr,
-				    OUT struct nldr_object **nldr_ovlyobj);
+				    struct nldr_object **nldr_ovlyobj);
 
 /*
  *  ======== node_init ========
@@ -544,7 +544,7 @@ extern int node_run(struct node_object *hnode);
  *  Ensures:
  */
 extern int node_terminate(struct node_object *hnode,
-				 OUT int *pstatus);
+				 int *pstatus);
 
 /*
  *  ======== node_get_uuid_props ========
@@ -555,7 +555,7 @@ extern int node_terminate(struct node_object *hnode,
  */
 extern int node_get_uuid_props(void *hprocessor,
 				      const struct dsp_uuid *node_uuid,
-				      OUT struct dsp_ndbprops
+				      struct dsp_ndbprops
 				      *node_props);
 
 #ifdef CONFIG_TIDSPBRIDGE_BACKTRACE

@@ -77,7 +77,7 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  *                              board without an intervening call to
  *                              chnl_destroy() will fail.
  */
-extern int chnl_create(OUT struct chnl_mgr **channel_mgr,
+extern int chnl_create(struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
 			      const struct chnl_mgrattrs *mgr_attrts);
 

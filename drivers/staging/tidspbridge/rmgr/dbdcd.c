@@ -69,10 +69,10 @@ static void compress_buf(char *psz_buf, u32 ul_buf_size, s32 char_size);
 static char dsp_char2_gpp_char(char *word, s32 dsp_char_size);
 static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 				   struct dsp_uuid *uuid_obj,
-				   OUT u16 *num_libs,
-				   OUT u16 *num_pers_libs,
-				   OUT struct dsp_uuid *dep_lib_uuids,
-				   OUT bool *prstnt_dep_libs,
+				   u16 *num_libs,
+				   u16 *num_pers_libs,
+				   struct dsp_uuid *dep_lib_uuids,
+				   bool *prstnt_dep_libs,
 				   enum nldr_phase phase);
 
 /*
@@ -125,7 +125,7 @@ int dcd_auto_unregister(struct dcd_manager *hdcd_mgr,
  *      Creates DCD manager.
  */
 int dcd_create_manager(char *sz_zl_dll_name,
-			      OUT struct dcd_manager **dcd_mgr)
+			      struct dcd_manager **dcd_mgr)
 {
 	struct cod_manager *cod_mgr;	/* COD manager handle */
 	struct dcd_manager *dcd_mgr_obj = NULL;	/* DCD Manager pointer */
@@ -194,7 +194,7 @@ int dcd_destroy_manager(struct dcd_manager *hdcd_mgr)
  *      Enumerates objects in the DCD.
  */
 int dcd_enumerate_object(s32 index, enum dsp_dcdobjtype obj_type,
-				OUT struct dsp_uuid *uuid_obj)
+				struct dsp_uuid *uuid_obj)
 {
 	int status = 0;
 	char sz_reg_key[DCD_MAXPATHLENGTH];
@@ -327,8 +327,8 @@ void dcd_exit(void)
  */
 int dcd_get_dep_libs(struct dcd_manager *hdcd_mgr,
 			    struct dsp_uuid *uuid_obj,
-			    u16 num_libs, OUT struct dsp_uuid *dep_lib_uuids,
-			    OUT bool *prstnt_dep_libs,
+			    u16 num_libs, struct dsp_uuid *dep_lib_uuids,
+			    bool *prstnt_dep_libs,
 			    enum nldr_phase phase)
 {
 	int status = 0;
@@ -351,7 +351,7 @@ int dcd_get_dep_libs(struct dcd_manager *hdcd_mgr,
  */
 int dcd_get_num_dep_libs(struct dcd_manager *hdcd_mgr,
 				struct dsp_uuid *uuid_obj,
-				OUT u16 *num_libs, OUT u16 *num_pers_libs,
+				u16 *num_libs, u16 *num_pers_libs,
 				enum nldr_phase phase)
 {
 	int status = 0;
@@ -377,7 +377,7 @@ int dcd_get_num_dep_libs(struct dcd_manager *hdcd_mgr,
 int dcd_get_object_def(struct dcd_manager *hdcd_mgr,
 			      struct dsp_uuid *obj_uuid,
 			      enum dsp_dcdobjtype obj_type,
-			      OUT struct dcd_genericobj *obj_def)
+			      struct dcd_genericobj *obj_def)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;	/* ptr to DCD mgr */
 	struct cod_libraryobj *lib = NULL;
@@ -644,9 +644,9 @@ func_end:
  */
 int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
 				struct dsp_uuid *uuid_obj,
-				OUT char *str_lib_name,
-				OUT u32 *buff_size,
-				enum nldr_phase phase, OUT bool *phase_split)
+				char *str_lib_name,
+				u32 *buff_size,
+				enum nldr_phase phase, bool *phase_split)
 {
 	char sz_reg_key[DCD_MAXPATHLENGTH];
 	char sz_uuid[MAXUUIDLEN];
@@ -1393,10 +1393,10 @@ static char dsp_char2_gpp_char(char *word, s32 dsp_char_size)
  */
 static int get_dep_lib_info(struct dcd_manager *hdcd_mgr,
 				   struct dsp_uuid *uuid_obj,
-				   OUT u16 *num_libs,
-				   OUT u16 *num_pers_libs,
-				   OUT struct dsp_uuid *dep_lib_uuids,
-				   OUT bool *prstnt_dep_libs,
+				   u16 *num_libs,
+				   u16 *num_pers_libs,
+				   struct dsp_uuid *dep_lib_uuids,
+				   bool *prstnt_dep_libs,
 				   enum nldr_phase phase)
 {
 	struct dcd_manager *dcd_mgr_obj = hdcd_mgr;

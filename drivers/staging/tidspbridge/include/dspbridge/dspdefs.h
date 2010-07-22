@@ -263,7 +263,7 @@ typedef int(*fxn_brd_status) (struct bridge_dev_context *dev_ctxt,
  *  Will not write more than ul_num_bytes bytes into host_buf.
  */
 typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
-				   OUT u8 *host_buf,
+				   u8 *host_buf,
 				   u32 dsp_addr,
 				   u32 ul_num_bytes, u32 mem_type);
 
@@ -323,7 +323,7 @@ typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
  *      No channel manager exists for this board.
  *  Ensures:
  */
-typedef int(*fxn_chnl_create) (OUT struct chnl_mgr
+typedef int(*fxn_chnl_create) (struct chnl_mgr
 				      **channel_mgr,
 				      struct dev_object
 				      * hdev_obj,
@@ -407,7 +407,7 @@ typedef void (*fxn_deh_notify) (struct deh_mgr *hdeh_mgr,
  *      0:                *chnl is a valid channel.
  *      else:                   *chnl is set to NULL if (chnl != NULL);
  */
-typedef int(*fxn_chnl_open) (OUT struct chnl_object
+typedef int(*fxn_chnl_open) (struct chnl_object
 				    **chnl,
 				    struct chnl_mgr *hchnl_mgr,
 				    s8 chnl_mode,
@@ -503,7 +503,7 @@ typedef int(*fxn_chnl_addioreq) (struct chnl_object
  */
 typedef int(*fxn_chnl_getioc) (struct chnl_object *chnl_obj,
 				      u32 timeout,
-				      OUT struct chnl_ioc *chan_ioc);
+				      struct chnl_ioc *chan_ioc);
 
 /*
  *  ======== bridge_chnl_cancel_io ========
@@ -561,7 +561,7 @@ typedef int(*fxn_chnl_flushio) (struct chnl_object *chnl_obj,
  *                      if (channel_info != NULL).
  */
 typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
-				       OUT struct chnl_info *channel_info);
+				       struct chnl_info *channel_info);
 
 /*
  *  ======== bridge_chnl_get_mgr_info ========
@@ -583,7 +583,7 @@ typedef int(*fxn_chnl_getinfo) (struct chnl_object *chnl_obj,
 typedef int(*fxn_chnl_getmgrinfo) (struct chnl_mgr
 					  * hchnl_mgr,
 					  u32 ch_id,
-					  OUT struct chnl_mgrinfo *mgr_info);
+					  struct chnl_mgrinfo *mgr_info);
 
 /*
  *  ======== bridge_chnl_idle ========
@@ -679,7 +679,7 @@ typedef int(*fxn_chnl_registernotify)
  *      function returns, they must not be stored into the device context
  *      structure.
  */
-typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
+typedef int(*fxn_dev_create) (struct bridge_dev_context
 				     **device_ctx,
 				     struct dev_object
 				     * hdev_obj,
@@ -703,7 +703,7 @@ typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
  *  Ensures:
  */
 typedef int(*fxn_dev_ctrl) (struct bridge_dev_context *dev_ctxt,
-				   u32 dw_cmd, OUT void *pargs);
+				   u32 dw_cmd, void *pargs);
 
 /*
  *  ======== bridge_dev_destroy ========
@@ -744,7 +744,7 @@ typedef int(*fxn_dev_destroy) (struct bridge_dev_context *dev_ctxt);
  *      io_man != NULL;
  *  Ensures:
  */
-typedef int(*fxn_io_create) (OUT struct io_mgr **io_man,
+typedef int(*fxn_io_create) (struct io_mgr **io_man,
 				    struct dev_object *hdev_obj,
 				    const struct io_attrs *mgr_attrts);
 
@@ -818,7 +818,7 @@ typedef int(*fxn_io_getprocload) (struct io_mgr *hio_mgr,
  *  Ensures:
  */
 typedef int(*fxn_msg_create)
- (OUT struct msg_mgr **msg_man,
+ (struct msg_mgr **msg_man,
   struct dev_object *hdev_obj, msg_onexit msg_callback);
 
 /*
@@ -845,7 +845,7 @@ typedef int(*fxn_msg_create)
  */
 typedef int(*fxn_msg_createqueue)
  (struct msg_mgr *hmsg_mgr,
-  OUT struct msg_queue **msgq, u32 msgq_id, u32 max_msgs, void *h);
+  struct msg_queue **msgq, u32 msgq_id, u32 max_msgs, void *h);
 
 /*
  *  ======== bridge_msg_delete ========
@@ -1048,7 +1048,7 @@ struct bridge_drv_interface {
  *  Details:
  *      Called during the Device_Init phase.
  */
-void bridge_drv_entry(OUT struct bridge_drv_interface **drv_intf,
+void bridge_drv_entry(struct bridge_drv_interface **drv_intf,
 		   const char *driver_file_name);
 
 #endif /* DSPDEFS_ */

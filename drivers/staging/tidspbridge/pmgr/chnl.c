@@ -51,7 +51,7 @@ static u32 refs;
  *      Create a channel manager object, responsible for opening new channels
  *      and closing old ones for a given 'Bridge board.
  */
-int chnl_create(OUT struct chnl_mgr **channel_mgr,
+int chnl_create(struct chnl_mgr **channel_mgr,
 		       struct dev_object *hdev_obj,
 		       const struct chnl_mgrattrs *mgr_attrts)
 {

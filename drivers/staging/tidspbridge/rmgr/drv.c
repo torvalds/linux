@@ -422,7 +422,7 @@ int drv_proc_update_strm_res(u32 num_bufs, void *strm_resources)
  *  Purpose:
  *      DRV Object gets created only once during Driver Loading.
  */
-int drv_create(OUT struct drv_object **drv_obj)
+int drv_create(struct drv_object **drv_obj)
 {
 	int status = 0;
 	struct drv_object *pdrv_object = NULL;
@@ -969,7 +969,7 @@ void mem_ext_phys_pool_release(void)
  *     Allocate physically contiguous, uncached memory from external memory pool
  */
 
-static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * phys_addr)
+static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, u32 * phys_addr)
 {
 	u32 new_alloc_ptr;
 	u32 offset;
@@ -1013,7 +1013,7 @@ static void *mem_ext_phys_mem_alloc(u32 bytes, u32 align, OUT u32 * phys_addr)
  *      Allocate physically contiguous, uncached memory
  */
 void *mem_alloc_phys_mem(u32 byte_size, u32 align_mask,
-				OUT u32 *physical_address)
+				u32 *physical_address)
 {
 	void *va_mem = NULL;
 	dma_addr_t pa_mem;

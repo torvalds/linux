@@ -51,7 +51,7 @@ bool symbols_reloaded = true;
  *      Copies DSP external memory buffers to the host side buffers.
  */
 int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
-			     OUT u8 *host_buff, u32 dsp_addr,
+			     u8 *host_buff, u32 dsp_addr,
 			     u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;

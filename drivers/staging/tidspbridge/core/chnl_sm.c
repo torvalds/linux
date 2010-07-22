@@ -81,7 +81,7 @@ static void free_chirp_list(struct lst_list *chirp_list);
 static struct chnl_irp *make_new_chirp(void);
 
 static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
-				      OUT u32 *chnl);
+				      u32 *chnl);
 
 /*
  *  ======== bridge_chnl_add_io_req ========
@@ -381,7 +381,7 @@ func_cont:
  *      Create a channel manager object, responsible for opening new channels
  *      and closing old ones for a given board.
  */
-int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
+int bridge_chnl_create(struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
 			      const struct chnl_mgrattrs *mgr_attrts)
 {
@@ -534,7 +534,7 @@ int bridge_chnl_flush_io(struct chnl_object *chnl_obj, u32 timeout)
  *      Retrieve information related to a channel.
  */
 int bridge_chnl_get_info(struct chnl_object *chnl_obj,
-			     OUT struct chnl_info *channel_info)
+			     struct chnl_info *channel_info)
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
@@ -568,7 +568,7 @@ int bridge_chnl_get_info(struct chnl_object *chnl_obj,
  *      Note: Ensures Channel Invariant (see notes above).
  */
 int bridge_chnl_get_ioc(struct chnl_object *chnl_obj, u32 timeout,
-			    OUT struct chnl_ioc *chan_ioc)
+			    struct chnl_ioc *chan_ioc)
 {
 	int status = 0;
 	struct chnl_object *pchnl = (struct chnl_object *)chnl_obj;
@@ -711,7 +711,7 @@ func_end:
  *      Retrieve information related to the channel manager.
  */
 int bridge_chnl_get_mgr_info(struct chnl_mgr *hchnl_mgr, u32 ch_id,
-				 OUT struct chnl_mgrinfo *mgr_info)
+				 struct chnl_mgrinfo *mgr_info)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = (struct chnl_mgr *)hchnl_mgr;
@@ -775,7 +775,7 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
  *  ======== bridge_chnl_open ========
  *      Open a new half-duplex channel to the DSP board.
  */
-int bridge_chnl_open(OUT struct chnl_object **chnl,
+int bridge_chnl_open(struct chnl_object **chnl,
 			    struct chnl_mgr *hchnl_mgr, s8 chnl_mode,
 			    u32 ch_id, const struct chnl_attr *pattrs)
 {
@@ -997,7 +997,7 @@ static struct chnl_irp *make_new_chirp(void)
  *      Search for a free channel slot in the array of channel pointers.
  */
 static int search_free_channel(struct chnl_mgr *chnl_mgr_obj,
-				      OUT u32 *chnl)
+				      u32 *chnl)
 {
 	int status = -ENOSR;
 	u32 i;

@@ -62,7 +62,7 @@
  */
 extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
 			    u32 usize, struct cmm_attrs *pattrs,
-			    OUT void **pp_buf_va);
+			    void **pp_buf_va);
 
 /*
  *  ======== cmm_create ========
@@ -85,7 +85,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *  Ensures:
  *
  */
-extern int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
+extern int cmm_create(struct cmm_object **ph_cmm_mgr,
 			     struct dev_object *hdev_obj,
 			     const struct cmm_mgrattrs *mgr_attrts);
 
@@ -163,7 +163,7 @@ extern int cmm_free_buf(struct cmm_object *hcmm_mgr,
  *  Ensures:
  */
 extern int cmm_get_handle(void *hprocessor,
-				 OUT struct cmm_object **ph_cmm_mgr);
+				 struct cmm_object **ph_cmm_mgr);
 
 /*
  *  ======== cmm_get_info ========
@@ -182,7 +182,7 @@ extern int cmm_get_handle(void *hprocessor,
  *
  */
 extern int cmm_get_info(struct cmm_object *hcmm_mgr,
-			       OUT struct cmm_info *cmm_info_obj);
+			       struct cmm_info *cmm_info_obj);
 
 /*
  *  ======== cmm_init ========
@@ -295,7 +295,7 @@ extern void *cmm_xlator_alloc_buf(struct cmm_xlatorobject *xlator,
  *  Ensures:
  *
  */
-extern int cmm_xlator_create(OUT struct cmm_xlatorobject **xlator,
+extern int cmm_xlator_create(struct cmm_xlatorobject **xlator,
 				    struct cmm_object *hcmm_mgr,
 				    struct cmm_xlatorattrs *xlator_attrs);
 
@@ -359,7 +359,7 @@ extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
  *
  */
 extern int cmm_xlator_info(struct cmm_xlatorobject *xlator,
-				  OUT u8 **paddr,
+				  u8 **paddr,
 				  u32 ul_size, u32 segm_id, bool set_info);
 
 /*

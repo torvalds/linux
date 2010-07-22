@@ -98,7 +98,7 @@ static void delete_strm_mgr(struct strm_mgr *strm_mgr_obj);
  *      Allocates buffers for a stream.
  */
 int strm_allocate_buffer(struct strm_object *stream_obj, u32 usize,
-				OUT u8 **ap_buffer, u32 num_bufs,
+				u8 **ap_buffer, u32 num_bufs,
 				struct process_context *pr_ctxt)
 {
 	int status = 0;
@@ -201,7 +201,7 @@ func_end:
  *  Purpose:
  *      Create a STRM manager object.
  */
-int strm_create(OUT struct strm_mgr **strm_man,
+int strm_create(struct strm_mgr **strm_man,
 		       struct dev_object *dev_obj)
 {
 	struct strm_mgr *strm_mgr_obj;
@@ -310,7 +310,7 @@ int strm_free_buffer(struct strm_object *stream_obj, u8 ** ap_buffer,
  *      Retrieves information about a stream.
  */
 int strm_get_info(struct strm_object *stream_obj,
-			 OUT struct stream_info *stream_info,
+			 struct stream_info *stream_info,
 			 u32 stream_info_size)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -469,7 +469,7 @@ int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
  */
 int strm_open(struct node_object *hnode, u32 dir, u32 index,
 		     struct strm_attr *pattr,
-		     OUT struct strm_object **strm_objct,
+		     struct strm_object **strm_objct,
 		     struct process_context *pr_ctxt)
 {
 	struct strm_mgr *strm_mgr_obj;
@@ -620,7 +620,7 @@ func_cont:
  *  Purpose:
  *      Relcaims a buffer from a stream.
  */
-int strm_reclaim(struct strm_object *stream_obj, OUT u8 ** buf_ptr,
+int strm_reclaim(struct strm_object *stream_obj, u8 ** buf_ptr,
 			u32 *nbytes, u32 *buff_size, u32 *pdw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -747,7 +747,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
  *      Selects a ready stream.
  */
 int strm_select(struct strm_object **strm_tab, u32 strms,
-		       OUT u32 *pmask, u32 utimeout)
+		       u32 *pmask, u32 utimeout)
 {
 	u32 index;
 	struct chnl_info chnl_info_obj;

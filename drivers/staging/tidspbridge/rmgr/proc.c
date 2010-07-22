@@ -582,8 +582,8 @@ int proc_detach(struct process_context *pr_ctxt)
  *      on a DSP processor.
  */
 int proc_enum_nodes(void *hprocessor, void **node_tab,
-			   u32 node_tab_size, OUT u32 *pu_num_nodes,
-			   OUT u32 *pu_allocated)
+			   u32 node_tab_size, u32 *pu_num_nodes,
+			   u32 *pu_allocated)
 {
 	int status = -EPERM;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;
@@ -849,7 +849,7 @@ int proc_invalidate_memory(void *hprocessor, void *pmpu_addr, u32 size)
  *      Enumerate the resources currently available on a processor.
  */
 int proc_get_resource_info(void *hprocessor, u32 resource_type,
-				  OUT struct dsp_resourceinfo *resource_info,
+				  struct dsp_resourceinfo *resource_info,
 				  u32 resource_info_size)
 {
 	int status = -EPERM;
@@ -964,7 +964,7 @@ int proc_get_dev_object(void *hprocessor,
  *      Report the state of the specified DSP processor.
  */
 int proc_get_state(void *hprocessor,
-			  OUT struct dsp_processorstate *proc_state_obj,
+			  struct dsp_processorstate *proc_state_obj,
 			  u32 state_info_size)
 {
 	int status = 0;
