@@ -1393,7 +1393,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 		mii_preamble_required++;
 		if (vp->drv_flags & EXTRA_PREAMBLE)
 			mii_preamble_required++;
-		mdio_sync(ioaddr, 32);
+		mdio_sync(vp, 32);
 		mdio_read(dev, 24, MII_BMSR);
 		for (phy = 0; phy < 32 && phy_idx < 1; phy++) {
 			int mii_status, phyx;
