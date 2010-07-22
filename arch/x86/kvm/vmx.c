@@ -182,6 +182,7 @@ static int init_rmode(struct kvm *kvm);
 static u64 construct_eptp(unsigned long root_hpa);
 static void kvm_cpu_vmxon(u64 addr);
 static void kvm_cpu_vmxoff(void);
+static void fixup_rmode_irq(struct vcpu_vmx *vmx);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
@@ -3828,11 +3829,15 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 
 static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 {
-	u32 idt_vectoring_info = vmx->idt_vectoring_info;
+	u32 idt_vectoring_info;
 	u8 vector;
 	int type;
 	bool idtv_info_valid;
 
+	if (vmx->rmode.irq.pending)
+		fixup_rmode_irq(vmx);
+
+	idt_vectoring_info = vmx->idt_vectoring_info;
 	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
 	vmx->vcpu.arch.nmi_injected = false;
@@ -4040,8 +4045,6 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs_dirty = 0;
 
 	vmx->idt_vectoring_info = vmcs_read32(IDT_VECTORING_INFO_FIELD);
-	if (vmx->rmode.irq.pending)
-		fixup_rmode_irq(vmx);
 
 	asm("mov %0, %%ds; mov %0, %%es" : : "r"(__USER_DS));
 	vmx->launched = 1;
