@@ -51,7 +51,7 @@
  */
 extern int io_create(OUT struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
-			    IN CONST struct io_attrs *mgr_attrts);
+			    IN const struct io_attrs *mgr_attrts);
 
 /*
  *  ======== io_destroy ========

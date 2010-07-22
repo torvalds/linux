@@ -242,7 +242,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
  */
 int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 		      struct dev_object *hdev_obj,
-		      IN CONST struct cmm_mgrattrs *mgr_attrts)
+		      IN const struct cmm_mgrattrs *mgr_attrts)
 {
 	struct cmm_object *cmm_obj = NULL;
 	int status = 0;

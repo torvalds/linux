@@ -50,7 +50,7 @@
  */
 extern int disp_create(OUT struct disp_object **dispatch_obj,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct disp_attr *disp_attrs);
+			      IN const struct disp_attr *disp_attrs);
 
 /*
  *  ======== disp_delete ========
@@ -147,7 +147,7 @@ extern int disp_node_create(struct disp_object *disp_obj,
 				   struct node_object *hnode,
 				   u32 rms_fxn,
 				   u32 ul_create_fxn,
-				   IN CONST struct node_createargs
+				   IN const struct node_createargs
 				   *pargs, OUT nodeenv *node_env);
 
 /*

@@ -383,7 +383,7 @@ func_end:
  *      Put a message onto a msg_ctrl queue.
  */
 int bridge_msg_put(struct msg_queue *msg_queue_obj,
-			  IN CONST struct dsp_msg *pmsg, u32 utimeout)
+			  IN const struct dsp_msg *pmsg, u32 utimeout)
 {
 	struct msg_frame *msg_frame_obj;
 	struct msg_mgr *hmsg_mgr;

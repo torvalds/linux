@@ -252,7 +252,7 @@ static int get_fxn_address(struct node_object *hnode, u32 * fxn_addr,
 				  u32 phase);
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
-				 CONST struct dsp_uuid *node_uuid,
+				 const struct dsp_uuid *node_uuid,
 				 struct dcd_genericobj *dcd_prop);
 static int get_proc_props(struct node_mgr *hnode_mgr,
 				 struct dev_object *hdev_obj);
@@ -291,9 +291,9 @@ enum node_state node_get_state(void *hnode)
  *      Allocate GPP resources to manage a node on the DSP.
  */
 int node_allocate(struct proc_object *hprocessor,
-			 IN CONST struct dsp_uuid *node_uuid,
-			 OPTIONAL IN CONST struct dsp_cbdata *pargs,
-			 OPTIONAL IN CONST struct dsp_nodeattrin *attr_in,
+			 IN const struct dsp_uuid *node_uuid,
+			 OPTIONAL IN const struct dsp_cbdata *pargs,
+			 OPTIONAL IN const struct dsp_nodeattrin *attr_in,
 			 OUT struct node_object **ph_node,
 			 struct process_context *pr_ctxt)
 {
@@ -2094,7 +2094,7 @@ func_end:
  *      message, or a timeout occurs.
  */
 int node_put_message(struct node_object *hnode,
-			    IN CONST struct dsp_msg *pmsg, u32 utimeout)
+			    IN const struct dsp_msg *pmsg, u32 utimeout)
 {
 	struct node_mgr *hnode_mgr = NULL;
 	enum node_type node_type;
@@ -2888,7 +2888,7 @@ void get_node_info(struct node_object *hnode, struct dsp_nodeinfo *node_info)
  */
 static int get_node_props(struct dcd_manager *hdcd_mgr,
 				 struct node_object *hnode,
-				 CONST struct dsp_uuid *node_uuid,
+				 const struct dsp_uuid *node_uuid,
 				 struct dcd_genericobj *dcd_prop)
 {
 	u32 len;
@@ -3004,7 +3004,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
  *      Fetch Node UUID properties from DCD/DOF file.
  */
 int node_get_uuid_props(void *hprocessor,
-			       IN CONST struct dsp_uuid *node_uuid,
+			       IN const struct dsp_uuid *node_uuid,
 			       OUT struct dsp_ndbprops *node_props)
 {
 	struct node_mgr *hnode_mgr = NULL;

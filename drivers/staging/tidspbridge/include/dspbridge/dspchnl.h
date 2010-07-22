@@ -26,7 +26,7 @@
 
 extern int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 				     struct dev_object *hdev_obj,
-				     IN CONST struct chnl_mgrattrs
+				     IN const struct chnl_mgrattrs
 				     *mgr_attrts);
 
 extern int bridge_chnl_destroy(struct chnl_mgr *hchnl_mgr);
@@ -35,7 +35,7 @@ extern int bridge_chnl_open(OUT struct chnl_object **chnl,
 				   struct chnl_mgr *hchnl_mgr,
 				   s8 chnl_mode,
 				   u32 ch_id,
-				   CONST IN OPTIONAL struct chnl_attr
+				   const IN OPTIONAL struct chnl_attr
 				   *pattrs);
 
 extern int bridge_chnl_close(struct chnl_object *chnl_obj);

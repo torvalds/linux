@@ -87,7 +87,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  */
 extern int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 			     struct dev_object *hdev_obj,
-			     IN CONST struct cmm_mgrattrs *mgr_attrts);
+			     IN const struct cmm_mgrattrs *mgr_attrts);
 
 /*
  *  ======== cmm_destroy ========

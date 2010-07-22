@@ -110,7 +110,7 @@ static s32 cod_f_close(struct file *filp)
 	return 0;
 }
 
-static struct file *cod_f_open(CONST char *psz_file_name, CONST char *sz_mode)
+static struct file *cod_f_open(const char *psz_file_name, const char *sz_mode)
 {
 	mm_segment_t fs;
 	struct file *filp;
@@ -217,7 +217,7 @@ void cod_close(struct cod_libraryobj *lib)
  *
  */
 int cod_create(OUT struct cod_manager **mgr, char *str_zl_file,
-		      IN OPTIONAL CONST struct cod_attrs *attrs)
+		      IN OPTIONAL const struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
 	struct dbll_attrs zl_attrs;

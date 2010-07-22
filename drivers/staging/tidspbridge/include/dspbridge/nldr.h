@@ -26,14 +26,14 @@
 #define NLDR_
 
 extern int nldr_allocate(struct nldr_object *nldr_obj,
-				void *priv_ref, IN CONST struct dcd_nodeprops
+				void *priv_ref, IN const struct dcd_nodeprops
 				*node_props,
 				OUT struct nldr_nodeobject **nldr_nodeobj,
 				IN bool *pf_phase_split);
 
 extern int nldr_create(OUT struct nldr_object **nldr,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct nldr_attrs *pattrs);
+			      IN const struct nldr_attrs *pattrs);
 
 extern void nldr_delete(struct nldr_object *nldr_obj);
 extern void nldr_exit(void);

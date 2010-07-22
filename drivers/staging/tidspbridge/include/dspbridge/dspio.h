@@ -28,7 +28,7 @@
 
 extern int bridge_io_create(OUT struct io_mgr **io_man,
 				   struct dev_object *hdev_obj,
-				   IN CONST struct io_attrs *mgr_attrts);
+				   IN const struct io_attrs *mgr_attrts);
 
 extern int bridge_io_destroy(struct io_mgr *hio_mgr);
 

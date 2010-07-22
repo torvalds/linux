@@ -383,7 +383,7 @@ func_cont:
  */
 int bridge_chnl_create(OUT struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct chnl_mgrattrs *mgr_attrts)
+			      IN const struct chnl_mgrattrs *mgr_attrts)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = NULL;
@@ -777,7 +777,7 @@ int bridge_chnl_idle(struct chnl_object *chnl_obj, u32 timeout,
  */
 int bridge_chnl_open(OUT struct chnl_object **chnl,
 			    struct chnl_mgr *hchnl_mgr, s8 chnl_mode,
-			    u32 ch_id, CONST IN struct chnl_attr *pattrs)
+			    u32 ch_id, const IN struct chnl_attr *pattrs)
 {
 	int status = 0;
 	struct chnl_mgr *chnl_mgr_obj = hchnl_mgr;

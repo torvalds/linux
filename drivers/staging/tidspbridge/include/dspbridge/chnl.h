@@ -79,7 +79,7 @@ extern int chnl_close(struct chnl_object *chnl_obj);
  */
 extern int chnl_create(OUT struct chnl_mgr **channel_mgr,
 			      struct dev_object *hdev_obj,
-			      IN CONST struct chnl_mgrattrs *mgr_attrts);
+			      IN const struct chnl_mgrattrs *mgr_attrts);
 
 /*
  *  ======== chnl_destroy ========

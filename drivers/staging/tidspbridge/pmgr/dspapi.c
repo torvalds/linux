@@ -905,7 +905,7 @@ u32 procwrap_load(union trapped_args *args, void *pr_ctxt)
 	if (DSP_SUCCEEDED(status)) {
 		status = proc_load(args->args_proc_load.hprocessor,
 				   args->args_proc_load.argc_index,
-				   (CONST char **)argv, (CONST char **)envp);
+				   (const char **)argv, (const char **)envp);
 	}
 func_cont:
 	if (envp) {

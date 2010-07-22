@@ -325,7 +325,7 @@ static u32 find_gcf(u32 a, u32 b);
  *  ======== nldr_allocate ========
  */
 int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
-			 IN CONST struct dcd_nodeprops *node_props,
+			 IN const struct dcd_nodeprops *node_props,
 			 OUT struct nldr_nodeobject **nldr_nodeobj,
 			 IN bool *pf_phase_split)
 {
@@ -427,7 +427,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
  */
 int nldr_create(OUT struct nldr_object **nldr,
 		       struct dev_object *hdev_obj,
-		       IN CONST struct nldr_attrs *pattrs)
+		       IN const struct nldr_attrs *pattrs)
 {
 	struct cod_manager *cod_mgr;	/* COD manager */
 	char *psz_coff_buf = NULL;

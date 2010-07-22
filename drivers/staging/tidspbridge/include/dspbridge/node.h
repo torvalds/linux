@@ -56,9 +56,9 @@
  *      error:              *ph_node == NULL.
  */
 extern int node_allocate(struct proc_object *hprocessor,
-				IN CONST struct dsp_uuid *node_uuid,
-				OPTIONAL IN CONST struct dsp_cbdata
-				*pargs, OPTIONAL IN CONST struct dsp_nodeattrin
+				IN const struct dsp_uuid *node_uuid,
+				OPTIONAL IN const struct dsp_cbdata
+				*pargs, OPTIONAL IN const struct dsp_nodeattrin
 				*attr_in,
 				OUT struct node_object **ph_node,
 				struct process_context *pr_ctxt);
@@ -470,7 +470,7 @@ extern int node_pause(struct node_object *hnode);
  *  Ensures:
  */
 extern int node_put_message(struct node_object *hnode,
-				   IN CONST struct dsp_msg *pmsg, u32 utimeout);
+				   IN const struct dsp_msg *pmsg, u32 utimeout);
 
 /*
  *  ======== node_register_notify ========
@@ -554,7 +554,7 @@ extern int node_terminate(struct node_object *hnode,
  *
  */
 extern int node_get_uuid_props(void *hprocessor,
-				      IN CONST struct dsp_uuid *node_uuid,
+				      IN const struct dsp_uuid *node_uuid,
 				      OUT struct dsp_ndbprops
 				      *node_props);
 

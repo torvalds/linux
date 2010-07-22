@@ -272,7 +272,7 @@ static inline struct page *get_mapping_page(struct dmm_map_object *map_obj,
  */
 int
 proc_attach(u32 processor_id,
-	    OPTIONAL CONST struct dsp_processorattrin *attr_in,
+	    OPTIONAL const struct dsp_processorattrin *attr_in,
 	    void **ph_processor, struct process_context *pr_ctxt)
 {
 	int status = 0;
@@ -469,7 +469,7 @@ int proc_auto_start(struct cfg_devnode *dev_node_obj,
 		argv[0] = sz_exec_file;
 		argv[1] = NULL;
 		/* ...and try to load it: */
-		status = proc_load(p_proc_object, 1, (CONST char **)argv, NULL);
+		status = proc_load(p_proc_object, 1, (const char **)argv, NULL);
 		if (DSP_SUCCEEDED(status))
 			status = proc_start(p_proc_object);
 	}
@@ -1055,8 +1055,8 @@ bool proc_init(void)
  *      This will be an OEM-only function, and not part of the DSP/BIOS Bridge
  *      application developer's API.
  */
-int proc_load(void *hprocessor, IN CONST s32 argc_index,
-		     IN CONST char **user_args, IN CONST char **user_envp)
+int proc_load(void *hprocessor, IN const s32 argc_index,
+		     IN const char **user_args, IN const char **user_envp)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;

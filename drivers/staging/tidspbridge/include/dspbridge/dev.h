@@ -91,7 +91,7 @@ extern u32 dev_brd_write_fxn(void *arb,
  */
 extern int dev_create_device(OUT struct dev_object
 				    **device_obj,
-				    IN CONST char *driver_file_name,
+				    IN const char *driver_file_name,
 				    struct cfg_devnode *dev_node_obj);
 
 /*
@@ -126,8 +126,8 @@ extern int dev_create_device(OUT struct dev_object
  */
 extern int dev_create_iva_device(OUT struct dev_object
 					**device_obj,
-					IN CONST char *driver_file_name,
-					IN CONST struct cfg_hostres
+					IN const char *driver_file_name,
+					IN const struct cfg_hostres
 					*host_config,
 					struct cfg_devnode *dev_node_obj);
 
@@ -490,7 +490,7 @@ extern int dev_get_node_manager(struct dev_object
  *      0:        *pul_value contains the symbol value;
  */
 extern int dev_get_symbol(struct dev_object *hdev_obj,
-				 IN CONST char *str_sym, OUT u32 * pul_value);
+				 IN const char *str_sym, OUT u32 * pul_value);
 
 /*
  *  ======== dev_get_bridge_context ========

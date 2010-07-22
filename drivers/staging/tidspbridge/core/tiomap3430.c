@@ -237,7 +237,7 @@ static void bad_page_dump(u32 pa, struct page *pg)
  *      Bridge Driver entry point.
  */
 void bridge_drv_entry(OUT struct bridge_drv_interface **drv_intf,
-		   IN CONST char *driver_file_name)
+		   IN const char *driver_file_name)
 {
 
 	DBC_REQUIRE(driver_file_name != NULL);

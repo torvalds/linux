@@ -52,7 +52,7 @@ extern char *iva_img;
  *      When attr_in is NULL, the default timeout value is 10 seconds.
  */
 extern int proc_attach(u32 processor_id,
-			      OPTIONAL CONST struct dsp_processorattrin
+			      OPTIONAL const struct dsp_processorattrin
 			      *attr_in, void **ph_processor,
 			      struct process_context *pr_ctxt);
 
@@ -329,8 +329,8 @@ extern int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size);
  *      can load the processor.
  */
 extern int proc_load(void *hprocessor,
-			    IN CONST s32 argc_index, IN CONST char **user_args,
-			    IN CONST char **user_envp);
+			    IN const s32 argc_index, IN const char **user_args,
+			    IN const char **user_envp);
 
 /*
  *  ======== proc_register_notify ========
