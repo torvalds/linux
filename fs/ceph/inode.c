@@ -1199,8 +1199,10 @@ retry_lookup:
 				goto out;
 			}
 			err = ceph_init_dentry(dn);
-			if (err < 0)
+			if (err < 0) {
+				dput(dn);
 				goto out;
+			}
 		} else if (dn->d_inode &&
 			   (ceph_ino(dn->d_inode) != vino.ino ||
 			    ceph_snap(dn->d_inode) != vino.snap)) {
