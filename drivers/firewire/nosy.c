@@ -444,6 +444,10 @@ irq_handler(int irq, void *device)
 
 	pci_int_status = reg_read(lynx, PCI_INT_STATUS);
 
+	if (pci_int_status == ~0)
+		/* Card was ejected. */
+		return IRQ_NONE;
+
 	if ((pci_int_status & PCI_INT_INT_PEND) == 0)
 		/* Not our interrupt, bail out quickly. */
 		return IRQ_NONE;
