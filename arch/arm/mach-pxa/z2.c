@@ -164,7 +164,7 @@ static struct mtd_partition z2_flash_parts[] = {
 	}, {
 		.name	= "U-Boot Environment",
 		.offset	= 0x40000,
-		.size	= 0x60000,
+		.size	= 0x20000,
 	}, {
 		.name	= "Flash",
 		.offset	= 0x60000,
