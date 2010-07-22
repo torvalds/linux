@@ -260,68 +260,44 @@ set_phy_reg(struct pcilynx *lynx, int addr, int val)
 	return 0;
 }
 
-static void
-nosy_start_snoop(struct client *client)
-{
-	spin_lock_irq(&client->lynx->client_list_lock);
-	list_add_tail(&client->link, &client->lynx->client_list);
-	spin_unlock_irq(&client->lynx->client_list_lock);
-}
-
-static void
-nosy_stop_snoop(struct client *client)
-{
-	spin_lock_irq(&client->lynx->client_list_lock);
-	list_del_init(&client->link);
-	spin_unlock_irq(&client->lynx->client_list_lock);
-}
-
-static struct client *
-nosy_add_client(struct pcilynx *lynx)
-{
-	struct client *client;
-
-	client = kmalloc(sizeof *client, GFP_KERNEL);
-	client->tcode_mask = ~0;
-	client->lynx = lynx;
-	INIT_LIST_HEAD(&client->link);
-
-	if (packet_buffer_init(&client->buffer, 128 * 1024) < 0) {
-		kfree(client);
-		debug("Failed to allocate packet buffer\n");
-		return NULL;
-	}
-
-	return client;
-}
-
-static void
-nosy_remove_client(struct client *client)
-{
-	nosy_stop_snoop(client);
-	packet_buffer_destroy(&client->buffer);
-	kfree(client);
-}
-
 static int
 nosy_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
+	struct client *client;
 
 	if (minor > MAX_MINORS || minors[minor] == NULL)
 		return -ENODEV;
 
-	file->private_data = nosy_add_client(minors[minor]);
-	if (file->private_data == NULL)
+	client = kmalloc(sizeof *client, GFP_KERNEL);
+	if (client == NULL)
 		return -ENOMEM;
-	else
-		return 0;
+
+	client->tcode_mask = ~0;
+	client->lynx = minors[minor];
+	INIT_LIST_HEAD(&client->link);
+
+	if (packet_buffer_init(&client->buffer, 128 * 1024) < 0) {
+		kfree(client);
+		return -ENOMEM;
+	}
+
+	file->private_data = client;
+
+	return 0;
 }
 
 static int
 nosy_release(struct inode *inode, struct file *file)
 {
-	nosy_remove_client(file->private_data);
+	struct client *client = file->private_data;
+
+	spin_lock_irq(&client->lynx->client_list_lock);
+	list_del_init(&client->link);
+	spin_unlock_irq(&client->lynx->client_list_lock);
+
+	packet_buffer_destroy(&client->buffer);
+	kfree(client);
 
 	return 0;
 }
@@ -367,17 +343,24 @@ nosy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return 0;
 
 	case NOSY_IOC_START:
-		nosy_start_snoop(client);
+		spin_lock_irq(client_list_lock);
+		list_add_tail(&client->link, &client->lynx->client_list);
+		spin_unlock_irq(client_list_lock);
+
 		return 0;
 
 	case NOSY_IOC_STOP:
-		nosy_stop_snoop(client);
+		spin_lock_irq(client_list_lock);
+		list_del_init(&client->link);
+		spin_unlock_irq(client_list_lock);
+
 		return 0;
 
 	case NOSY_IOC_FILTER:
 		spin_lock_irq(client_list_lock);
 		client->tcode_mask = arg;
 		spin_unlock_irq(client_list_lock);
+
 		return 0;
 
 	default:
