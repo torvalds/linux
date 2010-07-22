@@ -51,33 +51,19 @@
 
 static char driver_name[] = KBUILD_MODNAME;
 
-struct pcl_status {
-	unsigned int transfer_count : 13;
-	unsigned int reserved0 : 1;
-	unsigned int ack_type : 1;
-	unsigned int ack : 4;
-	unsigned int rcv_speed : 2;
-	unsigned int rcv_dma_channel : 6;
-	unsigned int packet_complete : 1;
-	unsigned int packet_error : 1;
-	unsigned int master_error : 1;
-	unsigned int iso_mode : 1;
-	unsigned int self_id : 1;
-};
-
 /* this is the physical layout of a PCL, its size is 128 bytes */
 struct pcl {
-        u32 next;
-        u32 async_error_next;
-        u32 user_data;
-        struct pcl_status pcl_status;
-        u32 remaining_transfer_count;
-        u32 next_data_buffer;
-        struct {
-                u32 control;
-                u32 pointer;
-        } buffer[13] __attribute__ ((packed));
-} __attribute__ ((packed));
+	__le32 next;
+	__le32 async_error_next;
+	u32 user_data;
+	__le32 pcl_status;
+	__le32 remaining_transfer_count;
+	__le32 next_data_buffer;
+	struct {
+		__le32 control;
+		__le32 pointer;
+	} buffer[13];
+};
 
 struct packet {
 	unsigned int length;
@@ -98,7 +84,7 @@ struct pcilynx {
 	__iomem char *registers;
 
 	struct pcl *rcv_start_pcl, *rcv_pcl;
-	u32 *rcv_buffer;
+	__le32 *rcv_buffer;
 
 	dma_addr_t rcv_start_pcl_bus, rcv_pcl_bus, rcv_buffer_bus;
 
@@ -426,35 +412,26 @@ static const struct file_operations nosy_ops = {
 
 #define PHY_PACKET_SIZE 12 /* 1 payload, 1 inverse, 1 ack = 3 quadlets */
 
-struct link_packet {
-	unsigned int priority : 4;
-	unsigned int tcode : 4;
-	unsigned int rt : 2;
-	unsigned int tlabel : 6;
-	unsigned int destination : 16;
-};
-
 static void
 packet_irq_handler(struct pcilynx *lynx)
 {
 	struct client *client;
-	u32 tcode_mask;
+	u32 tcode_mask, tcode;
 	size_t length;
-	struct link_packet *packet;
 	struct timeval tv;
 
 	/* FIXME: Also report rcv_speed. */
 
-	length = lynx->rcv_pcl->pcl_status.transfer_count;
-	packet = (struct link_packet *) &lynx->rcv_buffer[1];
+	length = __le32_to_cpu(lynx->rcv_pcl->pcl_status) & 0x00001fff;
+	tcode  = __le32_to_cpu(lynx->rcv_buffer[1]) >> 4 & 0xf;
 
 	do_gettimeofday(&tv);
-	lynx->rcv_buffer[0] = tv.tv_usec;
+	lynx->rcv_buffer[0] = (__force __le32)tv.tv_usec;
 
 	if (length == PHY_PACKET_SIZE)
 		tcode_mask = 1 << TCODE_PHY_PACKET;
 	else
-		tcode_mask = 1 << packet->tcode;
+		tcode_mask = 1 << tcode;
 
 	spin_lock(&lynx->client_list_lock);
 
@@ -602,21 +579,22 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 		ret = -ENOMEM;
 		goto fail_deallocate;
 	}
-	lynx->rcv_start_pcl->next = lynx->rcv_pcl_bus;
-	lynx->rcv_pcl->next = PCL_NEXT_INVALID;
-	lynx->rcv_pcl->async_error_next = PCL_NEXT_INVALID;
+	lynx->rcv_start_pcl->next	= cpu_to_le32(lynx->rcv_pcl_bus);
+	lynx->rcv_pcl->next		= cpu_to_le32(PCL_NEXT_INVALID);
+	lynx->rcv_pcl->async_error_next	= cpu_to_le32(PCL_NEXT_INVALID);
 
 	lynx->rcv_pcl->buffer[0].control =
-		PCL_CMD_RCV | PCL_BIGENDIAN | 2044;
-	lynx->rcv_pcl->buffer[0].pointer = lynx->rcv_buffer_bus + 4;
+			cpu_to_le32(PCL_CMD_RCV | PCL_BIGENDIAN | 2044);
+	lynx->rcv_pcl->buffer[0].pointer =
+			cpu_to_le32(lynx->rcv_buffer_bus + 4);
 	p = lynx->rcv_buffer_bus + 2048;
 	end = lynx->rcv_buffer_bus + RCV_BUFFER_SIZE;
 	for (i = 1; p < end; i++, p += 2048) {
 		lynx->rcv_pcl->buffer[i].control =
-			PCL_CMD_RCV | PCL_BIGENDIAN | 2048;
-		lynx->rcv_pcl->buffer[i].pointer = p;
+			cpu_to_le32(PCL_CMD_RCV | PCL_BIGENDIAN | 2048);
+		lynx->rcv_pcl->buffer[i].pointer = cpu_to_le32(p);
 	}
-	lynx->rcv_pcl->buffer[i - 1].control |= PCL_LAST_BUFF;
+	lynx->rcv_pcl->buffer[i - 1].control |= cpu_to_le32(PCL_LAST_BUFF);
 
 	reg_set_bits(lynx, MISC_CONTROL, MISC_CONTROL_SWRESET);
 	/* Fix buggy cards with autoboot pin not tied low: */
