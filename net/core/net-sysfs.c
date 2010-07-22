@@ -95,6 +95,7 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 }
 
 NETDEVICE_SHOW(dev_id, fmt_hex);
+NETDEVICE_SHOW(addr_assign_type, fmt_dec);
 NETDEVICE_SHOW(addr_len, fmt_dec);
 NETDEVICE_SHOW(iflink, fmt_dec);
 NETDEVICE_SHOW(ifindex, fmt_dec);
@@ -295,6 +296,7 @@ static ssize_t show_ifalias(struct device *dev,
 }
 
 static struct device_attribute net_class_attributes[] = {
+	__ATTR(addr_assign_type, S_IRUGO, show_addr_assign_type, NULL),
 	__ATTR(addr_len, S_IRUGO, show_addr_len, NULL),
 	__ATTR(dev_id, S_IRUGO, show_dev_id, NULL),
 	__ATTR(ifalias, S_IRUGO | S_IWUSR, show_ifalias, store_ifalias),
