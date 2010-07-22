@@ -578,16 +578,24 @@ static void xhci_giveback_urb_in_irq(struct xhci_hcd *xhci,
 		struct xhci_td *cur_td, int status, char *adjective)
 {
 	struct usb_hcd *hcd = xhci_to_hcd(xhci);
+	struct urb	*urb;
+	struct urb_priv	*urb_priv;
 
-	cur_td->urb->hcpriv = NULL;
-	usb_hcd_unlink_urb_from_ep(hcd, cur_td->urb);
-	xhci_dbg(xhci, "Giveback %s URB %p\n", adjective, cur_td->urb);
+	urb = cur_td->urb;
+	urb_priv = urb->hcpriv;
+	urb_priv->td_cnt++;
 
-	spin_unlock(&xhci->lock);
-	usb_hcd_giveback_urb(hcd, cur_td->urb, status);
-	kfree(cur_td);
-	spin_lock(&xhci->lock);
-	xhci_dbg(xhci, "%s URB given back\n", adjective);
+	/* Only giveback urb when this is the last td in urb */
+	if (urb_priv->td_cnt == urb_priv->length) {
+		usb_hcd_unlink_urb_from_ep(hcd, urb);
+		xhci_dbg(xhci, "Giveback %s URB %p\n", adjective, urb);
+
+		spin_unlock(&xhci->lock);
+		usb_hcd_giveback_urb(hcd, urb, status);
+		xhci_urb_free_priv(xhci, urb_priv);
+		spin_lock(&xhci->lock);
+		xhci_dbg(xhci, "%s URB given back\n", adjective);
+	}
 }
 
 /*
@@ -1272,6 +1280,7 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 	struct urb *urb = NULL;
 	struct xhci_ep_ctx *ep_ctx;
 	int ret = 0;
+	struct urb_priv	*urb_priv;
 	u32 trb_comp_code;
 
 	slot_id = TRB_TO_SLOT_ID(event->flags);
@@ -1325,6 +1334,7 @@ static int finish_td(struct xhci_hcd *xhci, struct xhci_td *td,
 td_cleanup:
 		/* Clean up the endpoint's TD list */
 		urb = td->urb;
+		urb_priv = urb->hcpriv;
 
 		/* Do one last check of the actual transfer length.
 		 * If the host controller said we transferred more data than
@@ -1349,7 +1359,10 @@ td_cleanup:
 		if (!list_empty(&td->cancelled_td_list))
 			list_del(&td->cancelled_td_list);
 
-		ret = 1;
+		urb_priv->td_cnt++;
+		/* Giveback the urb when all the tds are completed */
+		if (urb_priv->td_cnt == urb_priv->length)
+			ret = 1;
 	}
 
 	return ret;
@@ -1588,6 +1601,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	union xhci_trb *event_trb;
 	struct urb *urb = NULL;
 	int status = -EINPROGRESS;
+	struct urb_priv *urb_priv;
 	struct xhci_ep_ctx *ep_ctx;
 	u32 trb_comp_code;
 	int ret = 0;
@@ -1770,6 +1784,7 @@ cleanup:
 
 		if (ret) {
 			urb = td->urb;
+			urb_priv = urb->hcpriv;
 			/* Leave the TD around for the reset endpoint function
 			 * to use(but only if it's not a control endpoint,
 			 * since we already queued the Set TR dequeue pointer
@@ -1778,7 +1793,7 @@ cleanup:
 			if (usb_endpoint_xfer_control(&urb->ep->desc) ||
 				(trb_comp_code != COMP_STALL &&
 					trb_comp_code != COMP_BABBLE))
-				kfree(td);
+				xhci_urb_free_priv(xhci, urb_priv);
 
 			usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
 			xhci_dbg(xhci, "Giveback URB %p, len = %d, "
@@ -1979,10 +1994,12 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 		unsigned int stream_id,
 		unsigned int num_trbs,
 		struct urb *urb,
-		struct xhci_td **td,
+		unsigned int td_index,
 		gfp_t mem_flags)
 {
 	int ret;
+	struct urb_priv *urb_priv;
+	struct xhci_td	*td;
 	struct xhci_ring *ep_ring;
 	struct xhci_ep_ctx *ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
 
@@ -1998,24 +2015,29 @@ static int prepare_transfer(struct xhci_hcd *xhci,
 			num_trbs, mem_flags);
 	if (ret)
 		return ret;
-	*td = kzalloc(sizeof(struct xhci_td), mem_flags);
-	if (!*td)
-		return -ENOMEM;
-	INIT_LIST_HEAD(&(*td)->td_list);
-	INIT_LIST_HEAD(&(*td)->cancelled_td_list);
 
-	ret = usb_hcd_link_urb_to_ep(xhci_to_hcd(xhci), urb);
-	if (unlikely(ret)) {
-		kfree(*td);
-		return ret;
+	urb_priv = urb->hcpriv;
+	td = urb_priv->td[td_index];
+
+	INIT_LIST_HEAD(&td->td_list);
+	INIT_LIST_HEAD(&td->cancelled_td_list);
+
+	if (td_index == 0) {
+		ret = usb_hcd_link_urb_to_ep(xhci_to_hcd(xhci), urb);
+		if (unlikely(ret)) {
+			xhci_urb_free_priv(xhci, urb_priv);
+			urb->hcpriv = NULL;
+			return ret;
+		}
 	}
 
-	(*td)->urb = urb;
-	urb->hcpriv = (void *) (*td);
+	td->urb = urb;
 	/* Add this TD to the tail of the endpoint ring's TD list */
-	list_add_tail(&(*td)->td_list, &ep_ring->td_list);
-	(*td)->start_seg = ep_ring->enq_seg;
-	(*td)->first_trb = ep_ring->enqueue;
+	list_add_tail(&td->td_list, &ep_ring->td_list);
+	td->start_seg = ep_ring->enq_seg;
+	td->first_trb = ep_ring->enqueue;
+
+	urb_priv->td[td_index] = td;
 
 	return 0;
 }
@@ -2154,6 +2176,7 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 {
 	struct xhci_ring *ep_ring;
 	unsigned int num_trbs;
+	struct urb_priv *urb_priv;
 	struct xhci_td *td;
 	struct scatterlist *sg;
 	int num_sgs;
@@ -2174,9 +2197,13 @@ static int queue_bulk_sg_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	trb_buff_len = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
-			num_trbs, urb, &td, mem_flags);
+			num_trbs, urb, 0, mem_flags);
 	if (trb_buff_len < 0)
 		return trb_buff_len;
+
+	urb_priv = urb->hcpriv;
+	td = urb_priv->td[0];
+
 	/*
 	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
 	 * until we've finished creating all the other TRBs.  The ring's cycle
@@ -2297,6 +2324,7 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		struct urb *urb, int slot_id, unsigned int ep_index)
 {
 	struct xhci_ring *ep_ring;
+	struct urb_priv *urb_priv;
 	struct xhci_td *td;
 	int num_trbs;
 	struct xhci_generic_trb *start_trb;
@@ -2342,9 +2370,12 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
-			num_trbs, urb, &td, mem_flags);
+			num_trbs, urb, 0, mem_flags);
 	if (ret < 0)
 		return ret;
+
+	urb_priv = urb->hcpriv;
+	td = urb_priv->td[0];
 
 	/*
 	 * Don't give the first TRB to the hardware (by toggling the cycle bit)
@@ -2431,6 +2462,7 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 	struct xhci_generic_trb *start_trb;
 	int start_cycle;
 	u32 field, length_field;
+	struct urb_priv *urb_priv;
 	struct xhci_td *td;
 
 	ep_ring = xhci_urb_to_transfer_ring(xhci, urb);
@@ -2458,9 +2490,12 @@ int xhci_queue_ctrl_tx(struct xhci_hcd *xhci, gfp_t mem_flags,
 		num_trbs++;
 	ret = prepare_transfer(xhci, xhci->devs[slot_id],
 			ep_index, urb->stream_id,
-			num_trbs, urb, &td, mem_flags);
+			num_trbs, urb, 0, mem_flags);
 	if (ret < 0)
 		return ret;
+
+	urb_priv = urb->hcpriv;
+	td = urb_priv->td[0];
 
 	/*
 	 * Don't give the first TRB to the hardware (by toggling the cycle bit)

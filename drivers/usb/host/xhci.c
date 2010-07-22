@@ -804,7 +804,8 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 	unsigned long flags;
 	int ret = 0;
 	unsigned int slot_id, ep_index;
-
+	struct urb_priv	*urb_priv;
+	int size, i;
 
 	if (!urb || xhci_check_args(hcd, urb->dev, urb->ep, true, __func__) <= 0)
 		return -EINVAL;
@@ -824,6 +825,30 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		ret = -ESHUTDOWN;
 		goto exit;
 	}
+
+	if (usb_endpoint_xfer_isoc(&urb->ep->desc))
+		size = urb->number_of_packets;
+	else
+		size = 1;
+
+	urb_priv = kzalloc(sizeof(struct urb_priv) +
+				  size * sizeof(struct xhci_td *), mem_flags);
+	if (!urb_priv)
+		return -ENOMEM;
+
+	for (i = 0; i < size; i++) {
+		urb_priv->td[i] = kzalloc(sizeof(struct xhci_td), mem_flags);
+		if (!urb_priv->td[i]) {
+			urb_priv->length = i;
+			xhci_urb_free_priv(xhci, urb_priv);
+			return -ENOMEM;
+		}
+	}
+
+	urb_priv->length = size;
+	urb_priv->td_cnt = 0;
+	urb->hcpriv = urb_priv;
+
 	if (usb_endpoint_xfer_control(&urb->ep->desc)) {
 		/* Check to see if the max packet size for the default control
 		 * endpoint changed during FS device enumeration
@@ -877,6 +902,8 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 exit:
 	return ret;
 dying:
+	xhci_urb_free_priv(xhci, urb_priv);
+	urb->hcpriv = NULL;
 	xhci_dbg(xhci, "Ep 0x%x: URB %p submitted for "
 			"non-responsive xHCI host.\n",
 			urb->ep->desc.bEndpointAddress, urb);
@@ -918,9 +945,10 @@ dying:
 int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 {
 	unsigned long flags;
-	int ret;
+	int ret, i;
 	u32 temp;
 	struct xhci_hcd *xhci;
+	struct urb_priv	*urb_priv;
 	struct xhci_td *td;
 	unsigned int ep_index;
 	struct xhci_ring *ep_ring;
@@ -935,12 +963,12 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	temp = xhci_readl(xhci, &xhci->op_regs->status);
 	if (temp == 0xffffffff) {
 		xhci_dbg(xhci, "HW died, freeing TD.\n");
-		td = (struct xhci_td *) urb->hcpriv;
+		urb_priv = urb->hcpriv;
 
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, -ESHUTDOWN);
-		kfree(td);
+		xhci_urb_free_priv(xhci, urb_priv);
 		return ret;
 	}
 	if (xhci->xhc_state & XHCI_STATE_DYING) {
@@ -968,9 +996,14 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 
 	xhci_dbg(xhci, "Endpoint ring:\n");
 	xhci_debug_ring(xhci, ep_ring);
-	td = (struct xhci_td *) urb->hcpriv;
 
-	list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
+	urb_priv = urb->hcpriv;
+
+	for (i = urb_priv->td_cnt; i < urb_priv->length; i++) {
+		td = urb_priv->td[i];
+		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
+	}
+
 	/* Queue a stop endpoint command, but only if this is
 	 * the first cancellation to be handled.
 	 */

@@ -1090,6 +1090,12 @@ struct xhci_scratchpad {
 	dma_addr_t *sp_dma_buffers;
 };
 
+struct urb_priv {
+	int	length;
+	int	td_cnt;
+	struct	xhci_td	*td[0];
+};
+
 /*
  * Each segment table entry is 4*32bits long.  1K seems like an ok size:
  * (1K bytes * 8bytes/bit) / (4*32 bits) = 64 segment entries in the table,
@@ -1347,6 +1353,7 @@ struct xhci_ring *xhci_stream_id_to_ring(
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 		bool allocate_in_ctx, bool allocate_completion,
 		gfp_t mem_flags);
+void xhci_urb_free_priv(struct xhci_hcd *xhci, struct urb_priv *urb_priv);
 void xhci_free_command(struct xhci_hcd *xhci,
 		struct xhci_command *command);
 
