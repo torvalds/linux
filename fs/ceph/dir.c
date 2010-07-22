@@ -1014,18 +1014,22 @@ out_touch:
 
 /*
  * When a dentry is released, clear the dir I_COMPLETE if it was part
- * of the current dir gen.
+ * of the current dir gen or if this is in the snapshot namespace.
  */
 static void ceph_dentry_release(struct dentry *dentry)
 {
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	struct inode *parent_inode = dentry->d_parent->d_inode;
+	u64 snapid = ceph_snap(parent_inode);
 
-	if (parent_inode) {
+	dout("dentry_release %p parent %p\n", dentry, parent_inode);
+
+	if (parent_inode && snapid != CEPH_SNAPDIR) {
 		struct ceph_inode_info *ci = ceph_inode(parent_inode);
 
 		spin_lock(&parent_inode->i_lock);
-		if (ci->i_shared_gen == di->lease_shared_gen) {
+		if (ci->i_shared_gen == di->lease_shared_gen ||
+		    snapid <= CEPH_MAXSNAP) {
 			dout(" clearing %p complete (d_release)\n",
 			     parent_inode);
 			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
@@ -1242,7 +1246,9 @@ struct dentry_operations ceph_dentry_ops = {
 
 struct dentry_operations ceph_snapdir_dentry_ops = {
 	.d_revalidate = ceph_snapdir_d_revalidate,
+	.d_release = ceph_dentry_release,
 };
 
 struct dentry_operations ceph_snap_dentry_ops = {
+	.d_release = ceph_dentry_release,
 };
