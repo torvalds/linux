@@ -1543,6 +1543,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	if (volume_info->UNCip && volume_info->UNC) {
 		rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
 					volume_info->UNCip,
+					strlen(volume_info->UNCip),
 					volume_info->port);
 		if (!rc) {
 			/* we failed translating address */
