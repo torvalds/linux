@@ -700,7 +700,7 @@ static void paint_ptr(unsigned long ptr, int color)
 }
 
 /*
- * Make a object permanently as gray-colored so that it can no longer be
+ * Mark an object permanently as gray-colored so that it can no longer be
  * reported as a leak. This is used in general to mark a false positive.
  */
 static void make_gray_object(unsigned long ptr)
