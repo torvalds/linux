@@ -39,7 +39,7 @@
 #define DBG(x...) do { } while (0)
 #endif
 
-#define WM8994_TEST
+//#define WM8994_TEST
 
 struct i2c_client *wm8994_client;
 int reg_send_data(struct i2c_client *client, unsigned short *reg, unsigned short *data, u32 scl_rate);
@@ -134,10 +134,11 @@ static int wm8994_read(unsigned short reg,unsigned short *value)
 	if (reg_recv_data(wm8994_client,&regs,&values,400000) >= 0)
 	{
 		*value=((values>>8)& 0x00FF)|((values<<8)&0xFF00);
-		DBG("Enter::%s----line->%d--reg=0x%x value=%x\n",__FUNCTION__,__LINE__,reg,*value);
 		return 0;
 	}
+
 	printk("%s---line->%d:Codec read error!\n",__FUNCTION__,__LINE__);
+
 	return -EIO;
 }
 	
@@ -146,12 +147,11 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 {
 	unsigned short regs=((reg>>8)&0x00FF)|((reg<<8)&0xFF00),values=((value>>8)&0x00FF)|((value<<8)&0xFF00);
 
-	DBG("Enter::%s----line->%d-- reg=%x--value=%x -- regs=%x--values=%x\n",__FUNCTION__,__LINE__,reg,value,regs,values);
-
 	if (reg_send_data(wm8994_client,&regs,&values,400000)>=0)
 		return 0;
 
 	printk("%s---line->%d:Codec write error!\n",__FUNCTION__,__LINE__);
+
 	return -EIO;
 }
 
@@ -159,12 +159,13 @@ static int wm8994_write(unsigned short reg,unsigned short value)
 
 void  AP_to_Headset(void)
 {
-	DBG("Enter::%s----line->%d-- AP_to_Headset\n",__FUNCTION__,__LINE__);
+
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_AP_to_Headset;
 	wm8994_reset();
 	mdelay(50);
 
-#if 1
 	wm8994_write(0x01,  0x0003);
 	mdelay(50);
 	wm8994_write(0x221, 0x0700);  
@@ -200,44 +201,17 @@ void  AP_to_Headset(void)
 	wm8994_write(0x23,  0x0100);
 	wm8994_write(0x36,  0x0003);
 
-#endif
-#if 0
-	wm8994_write(0x01,  0x0003);  
-	mdelay(50);
-	wm8994_write(0x221, 0x0700);  
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	mdelay(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x01,  0x0303);  // sysclk = fll (bit4 =1)   0x0011 
-	wm8994_write(0x05,  0x0303);  // i2s 16 bits
-  
-	wm8994_write(0x2D,  0x0100);
-	wm8994_write(0x2E,  0x0100);
-	wm8994_write(0x4C,  0x9F25);
-	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x200, 0x0011);	
-	wm8994_write(0x208, 0x000A);	
-	wm8994_write(0x601, 0x0001);
-	wm8994_write(0x602, 0x0001);
-
-	wm8994_write(0x610, 0x01C0);		
-	wm8994_write(0x611, 0x01C0);		
-	wm8994_write(0x420, 0x0000);
-#endif
-
 }
 
 void  AP_to_Speakers(void)
 {
-	DBG("Enter::%s----line->%d-- AP_to_Speakers\n",__FUNCTION__,__LINE__);
+
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_AP_to_Speakers;
 	wm8994_reset();
 	mdelay(50);
 
-#if 1  // codec slave
 	wm8994_write(0x01,  0x0003);
 	mdelay(50);
 	wm8994_write(0x221, 0x0700);
@@ -274,42 +248,13 @@ void  AP_to_Speakers(void)
 	wm8994_write(0x23,  0x0100);
 	wm8994_write(0x36,  0x0003);	
 	mdelay(50);
-#endif
-#if 0
-	wm8994_write(0x01,  0x0003);  
-	mdelay(50);
-	wm8994_write(0x221, 0x0700);  
-	wm8994_write(0x222, 0x3127);	
-	wm8994_write(0x223, 0x0100);	
-	wm8994_write(0x220, 0x0004);
-	mdelay(50);
-	wm8994_write(0x220, 0x0005);  
-
-	wm8994_write(0x01,  0x3003);  // sysclk = fll (bit4 =1)   0x0011 
-	wm8994_write(0x03,  0x0330);
-	wm8994_write(0x05,  0x0303);  // i2s 16 bits
-
-	wm8994_write(0x22,  0x0000);
-	wm8994_write(0x23,  0x0100);
-	wm8994_write(0x2D,  0x0001);
-	wm8994_write(0x2E,  0x0001);
-//	wm8994_write(0x4C,  0x9F25);
-//	wm8994_write(0x60,  0x00EE);
-	wm8994_write(0x200, 0x0011);	
-	wm8994_write(0x208, 0x000A);	
-	wm8994_write(0x601, 0x0001);
-	wm8994_write(0x602, 0x0001);
-
-	wm8994_write(0x610, 0x01C0);		
-	wm8994_write(0x611, 0x01C0);
-	wm8994_write(0x620, 0x0000);
-	wm8994_write(0x420, 0x0000);
-#endif
 }
 
 void  Recorder(void)
 {
-	DBG("Enter::%s----line->%d-- Recorder\n",__FUNCTION__,__LINE__);
+
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_Recorder;
 	wm8994_reset();
 	mdelay(50);
@@ -347,7 +292,9 @@ void  Recorder(void)
 
 void  FM_to_Headset(void)
 {
-	DBG("Enter::%s----line->%d-- FM_to_Headset\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_FM_to_Headset;
 	wm8994_reset();
 	mdelay(50);
@@ -375,7 +322,9 @@ void  FM_to_Headset(void)
 
 void  FM_to_Headset_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- FM_to_Headset_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_FM_to_Headset_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -419,7 +368,9 @@ void  FM_to_Headset_and_Record(void)
 
 void  FM_to_Speakers(void)
 {
-	DBG("Enter::%s----line->%d-- FM_to_Speakers\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_FM_to_Speakers;
 	wm8994_reset();
 	mdelay(50);
@@ -439,8 +390,6 @@ void  FM_to_Speakers(void)
 	wm8994_write(0x2A,   0x0100);
 	wm8994_write(0x2D,   0x0040);
 	wm8994_write(0x2E,   0x0040);
-//	wm8994_write(0x4C,   0x9F25);
-//	wm8994_write(0x60,   0x00EE);
 
 	wm8994_write(0x220,  0x0003);
 	wm8994_write(0x221,  0x0700);
@@ -453,7 +402,9 @@ void  FM_to_Speakers(void)
 
 void  FM_to_Speakers_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- FM_to_Speakers_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_FM_to_Speakers_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -484,8 +435,6 @@ void  FM_to_Speakers_and_Record(void)
 	wm8994_write(0x2A,   0x0100);
 	wm8994_write(0x2D,   0x0040);
 	wm8994_write(0x2E,   0x0040);
-//	wm8994_write(0x4C,   0x9F25);
-//	wm8994_write(0x60,   0x00EE);
 
 	wm8994_write(0x220,  0x0003);
 	wm8994_write(0x221,  0x0700);
@@ -504,7 +453,9 @@ void  FM_to_Speakers_and_Record(void)
 
 void  HandsetMIC_to_Baseband_to_Headset(void)
 {
-	DBG("Enter::%s----line->%d-- HandsetMIC_to_Baseband_to_Headset\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_HandsetMIC_to_Baseband_to_Headset;
 	wm8994_reset();
 	mdelay(50);
@@ -533,7 +484,9 @@ void  HandsetMIC_to_Baseband_to_Headset(void)
 
 void  HandsetMIC_to_Baseband_to_Headset_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- HandsetMIC_to_Baseband_to_Headset_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_HandsetMIC_to_Baseband_to_Headset_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -573,7 +526,9 @@ void  HandsetMIC_to_Baseband_to_Headset_and_Record(void)
 
 void  MainMIC_to_Baseband_to_Earpiece(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_Baseband_to_Earpiece\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_Baseband_to_Earpiece;
 	wm8994_reset();
 	mdelay(50);
@@ -593,7 +548,9 @@ void  MainMIC_to_Baseband_to_Earpiece(void)
 
 void  MainMIC_to_Baseband_to_Earpiece_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_Baseband_to_Earpiece_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_Baseband_to_Earpiece_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -628,7 +585,9 @@ void  MainMIC_to_Baseband_to_Earpiece_and_Record(void)
 
 void  MainMIC_to_Baseband_to_Speakers(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_Baseband_to_Speakers\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_Baseband_to_Speakers;
 	wm8994_reset();
 	mdelay(50);
@@ -653,7 +612,9 @@ void  MainMIC_to_Baseband_to_Speakers(void)
 
 void  MainMIC_to_Baseband_to_Speakers_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_Baseband_to_Speakers_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_Baseband_to_Speakers_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -690,11 +651,13 @@ void  MainMIC_to_Baseband_to_Speakers_and_Record(void)
 
 void  BT_Baseband(void)
 {
-	DBG("Enter::%s----line->%d-- BT_Baseband\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_BT_Baseband;
 	wm8994_reset();
 	mdelay(50);
-#if 1
+
 	wm8994_write(0x01,  0x0003);  
 	mdelay(50);
 	wm8994_write(0x221, 0x0700);  
@@ -751,49 +714,13 @@ void  BT_Baseband(void)
 	wm8994_write(0x313, 0x0090);  //master   0x0090 lrck2 8kHz bclk2 1MH
 	wm8994_write(0x315, 0x007D);  //master   0x007D lrck2 8kHz bclk2 1MH
 #endif
-
-#endif
-#if 0
-	wm8994_write(0x01 ,0x0003);
-	wm8994_write(0x02 ,0x63A0); 
-	wm8994_write(0x03 ,0x30A0); 
-	wm8994_write(0x04 ,0x0303); 
-	wm8994_write(0x05 ,0x0202); 
-	wm8994_write(0x06 ,0x0001); 
-	wm8994_write(0x19 ,0x014B); 
-	wm8994_write(0x1B ,0x014B); 
-	wm8994_write(0x1E ,0x0006); 
-	wm8994_write(0x28 ,0x00CC); 
-	wm8994_write(0x29 ,0x0100); 
-	wm8994_write(0x2A ,0x0100); 
-	wm8994_write(0x2D ,0x0001); 
-	wm8994_write(0x34 ,0x0001); 
-	wm8994_write(0x200 ,0x0001);
-	wm8994_write(0x208 ,0x000A);
-#ifdef CONFIG_SND_CODEC_SOC_MASTER
-	wm8994_write(0x302 ,0x7000);
-#endif
-	wm8994_write(0x303, 0x0090);  //master   0x0090 lrck1 8kHz bclk1 1MH
-	wm8994_write(0x305, 0x007D);  //master   0x007D lrck1 8kHz bclk1 1MH
-
-	wm8994_write(0x420 ,0x0000);
-	wm8994_write(0x601 ,0x0001);
-	wm8994_write(0x602 ,0x0001);
-	wm8994_write(0x606 ,0x0002);
-	wm8994_write(0x607 ,0x0002);
-	wm8994_write(0x610 ,0x01C0);
-	wm8994_write(0x611 ,0x01C0);
-	wm8994_write(0x620 ,0x0000);
-	wm8994_write(0x707 ,0xA100);
-	wm8994_write(0x708 ,0x2100);
-	wm8994_write(0x709 ,0x2100);
-	wm8994_write(0x70A ,0x2100);
-#endif
 }
 
 void  BT_Baseband_and_record(void)
 {
-	DBG("Enter::%s----line->%d-- BT_Baseband_and_record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_BT_Baseband_and_record;
 	wm8994_reset();
 	mdelay(50);
@@ -853,11 +780,13 @@ void  BT_Baseband_and_record(void)
 }
 
 
-///PCM BB BEGIN////////////////////////////////////
+///PCM BB BEGIN//
 
 void  HandsetMIC_to_PCMBaseband_to_Headset(void)
 {
-	DBG("Enter::%s----line->%d-- HandsetMIC_to_PCMBaseband_to_Headset\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_HandsetMIC_to_PCMBaseband_to_Headset;
 	wm8994_reset();
 	mdelay(50);
@@ -910,7 +839,6 @@ void  HandsetMIC_to_PCMBaseband_to_Headset(void)
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
 	wm8994_write(0x621, 0x0001);
-//	wm8994_write(0x317, 0x0003);
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
 #endif
@@ -918,7 +846,9 @@ void  HandsetMIC_to_PCMBaseband_to_Headset(void)
 
 void  HandsetMIC_to_PCMBaseband_to_Headset_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- HandsetMIC_to_PCMBaseband_to_Headset_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_HandsetMIC_to_PCMBaseband_to_Headset_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -972,7 +902,6 @@ void  HandsetMIC_to_PCMBaseband_to_Headset_and_Record(void)
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
 	wm8994_write(0x621, 0x0000);
-//	wm8994_write(0x317, 0x0003);
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
 #endif
@@ -1004,7 +933,9 @@ void  HandsetMIC_to_PCMBaseband_to_Headset_and_Record(void)
 
 void  MainMIC_to_PCMBaseband_to_Earpiece(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_PCMBaseband_to_Earpiece\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_PCMBaseband_to_Earpiece;
 	wm8994_reset();
 	mdelay(50);
@@ -1030,8 +961,6 @@ void  MainMIC_to_PCMBaseband_to_Earpiece(void)
 	wm8994_write(0x2D,  0x0001);
 	wm8994_write(0x2E,  0x0001);
 	wm8994_write(0x33,  0x0018);
-//	wm8994_write(0x4C,  0x9F25);
-//	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x200, 0x0001);
 	wm8994_write(0x204, 0x0001);
 	wm8994_write(0x208, 0x0007);
@@ -1060,7 +989,7 @@ void  MainMIC_to_PCMBaseband_to_Earpiece(void)
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
 	wm8994_write(0x621, 0x0001);
-//	wm8994_write(0x317, 0x0003);
+
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
 #endif
@@ -1068,7 +997,9 @@ void  MainMIC_to_PCMBaseband_to_Earpiece(void)
 
 void  MainMIC_to_PCMBaseband_to_Earpiece_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_PCMBaseband_to_Earpiece_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_PCMBaseband_to_Earpiece_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -1094,8 +1025,6 @@ void  MainMIC_to_PCMBaseband_to_Earpiece_and_Record(void)
 	wm8994_write(0x2D,  0x0001);
 	wm8994_write(0x2E,  0x0001);
 	wm8994_write(0x33,  0x0018);
-//	wm8994_write(0x4C,  0x9F25);
-//	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x200, 0x0001);	
 	wm8994_write(0x204, 0x0001);
 	wm8994_write(0x208, 0x0007);	
@@ -1123,7 +1052,7 @@ void  MainMIC_to_PCMBaseband_to_Earpiece_and_Record(void)
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
 	wm8994_write(0x621, 0x0001);
-//	wm8994_write(0x317, 0x0003);
+
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
 #endif
@@ -1156,11 +1085,13 @@ void  MainMIC_to_PCMBaseband_to_Earpiece_and_Record(void)
 
 void  MainMIC_to_PCMBaseband_to_Speakers(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_PCMBaseband_to_Speakers\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_PCMBaseband_to_Speakers;
 	wm8994_reset();
 	mdelay(50);
-#if 1
+
 	wm8994_write(0x01,  0x0013);  
 	mdelay(50);
 	wm8994_write(0x221, 0x0700);  //MCLK=12MHz   //FLL1 CONTRLO(2)
@@ -1183,8 +1114,6 @@ void  MainMIC_to_PCMBaseband_to_Speakers(void)
 	wm8994_write(0x2D,  0x0001);
 	wm8994_write(0x2E,  0x0001);
 	wm8994_write(0x36,  0x000C);  //MIXOUTL_TO_SPKMIXL  MIXOUTR_TO_SPKMIXR
-//	wm8994_write(0x4C,  0x9F25);
-//	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x200, 0x0001);  //AIF1 CLOCKING(1)
 	wm8994_write(0x204, 0x0001);  //AIF2 CLOCKING(1)
 	wm8994_write(0x208, 0x0007);  //CLOCKING(1)
@@ -1212,16 +1141,17 @@ void  MainMIC_to_PCMBaseband_to_Speakers(void)
 	wm8994_write(0x604, 0x0010);  //ADC2_TO_DAC2L
 	wm8994_write(0x605, 0x0010);  //ADC2_TO_DAC2R
 	wm8994_write(0x621, 0x0001);
-//	wm8994_write(0x317, 0x0003);
+
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
-#endif
 #endif
 }
 
 void  MainMIC_to_PCMBaseband_to_Speakers_and_Record(void)
 {
-	DBG("Enter::%s----line->%d-- MainMIC_to_PCMBaseband_to_Speakers_and_Record\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_MainMIC_to_PCMBaseband_to_Speakers_and_Record;
 	wm8994_reset();
 	mdelay(50);
@@ -1248,8 +1178,6 @@ void  MainMIC_to_PCMBaseband_to_Speakers_and_Record(void)
 	wm8994_write(0x2D,  0x0001);
 	wm8994_write(0x2E,  0x0001);
 	wm8994_write(0x36,  0x000C);
-//	wm8994_write(0x4C,  0x9F25);
-//	wm8994_write(0x60,  0x00EE);
 	wm8994_write(0x200, 0x0001);	
 	wm8994_write(0x204, 0x0001);
 	wm8994_write(0x208, 0x0007);	
@@ -1278,7 +1206,6 @@ void  MainMIC_to_PCMBaseband_to_Speakers_and_Record(void)
 	wm8994_write(0x604, 0x0010);
 	wm8994_write(0x605, 0x0010);
 	wm8994_write(0x621, 0x0001);
-//	wm8994_write(0x317, 0x0003);
 #ifdef CONFIG_SND_CODEC_SOC_MASTER
 	wm8994_write(0x312, 0x4000);  //AIF2 SET AS MASTER
 #endif
@@ -1311,7 +1238,9 @@ void  MainMIC_to_PCMBaseband_to_Speakers_and_Record(void)
 
 void  BT_PCMBaseband(void)
 {
-	DBG("Enter::%s----line->%d-- BT_PCMBaseband\n",__FUNCTION__,__LINE__);
+	
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_BT_PCMBaseband;
 	wm8994_reset();
 	mdelay(50);
@@ -1357,24 +1286,19 @@ void  BT_PCMBaseband(void)
 	wm8994_write(0x04 ,0x3301);  //ADCL off
 	wm8994_write(0x05 ,0x3301);  //DACL off
 
-//	wm8994_write(0x29 ,0x0005);  
 	wm8994_write(0x2A ,0x0005);
 
 	wm8994_write(0x313 ,0x00F0);
 	wm8994_write(0x314 ,0x0020);
 	wm8994_write(0x315 ,0x0020);
 
-//	wm8994_write(0x2D  ,0x0001);
 	wm8994_write(0x2E  ,0x0001);
 	wm8994_write(0x420 ,0x0000);
 	wm8994_write(0x520 ,0x0000);
-//	wm8994_write(0x601 ,0x0001);
 	wm8994_write(0x602 ,0x0001);
 	wm8994_write(0x604 ,0x0001);
 	wm8994_write(0x605 ,0x0001);
-//	wm8994_write(0x606 ,0x0002);
 	wm8994_write(0x607 ,0x0002);
-//	wm8994_write(0x610 ,0x01C0);
 	wm8994_write(0x611 ,0x01C0);
 	wm8994_write(0x612 ,0x01C0);
 	wm8994_write(0x613 ,0x01C0);
@@ -1395,7 +1319,9 @@ void  BT_PCMBaseband(void)
 
 void  BT_PCMBaseband_and_record(void)
 {
-	DBG("Enter::%s----line->%d-- BT_PCMBaseband_and_record\n",__FUNCTION__,__LINE__);
+
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_mode=wm8994_BT_PCMBaseband_and_record;
 	wm8994_reset();
 	mdelay(50);
@@ -1440,25 +1366,20 @@ void  BT_PCMBaseband_and_record(void)
 	wm8994_write(0x03  ,0x0030);
 	wm8994_write(0x04  ,0x3301);  //ADCL off
 	wm8994_write(0x05  ,0x3301);  //DACL off
-
-//	wm8994_write(0x29  ,0x0005);  
+  
 	wm8994_write(0x2A  ,0x0005);
 
 	wm8994_write(0x313 ,0x00F0);
 	wm8994_write(0x314 ,0x0020);
 	wm8994_write(0x315 ,0x0020);
 
-//	wm8994_write(0x2D  ,0x0001);
 	wm8994_write(0x2E  ,0x0001);
 	wm8994_write(0x420 ,0x0000);
 	wm8994_write(0x520 ,0x0000);
-//	wm8994_write(0x601 ,0x0001);
 	wm8994_write(0x602 ,0x0001);
 	wm8994_write(0x604 ,0x0001);
 	wm8994_write(0x605 ,0x0001);
-//	wm8994_write(0x606 ,0x0002);
 	wm8994_write(0x607 ,0x0002);
-//	wm8994_write(0x610 ,0x01C0);
 	wm8994_write(0x611 ,0x01C0);
 	wm8994_write(0x612 ,0x01C0);
 	wm8994_write(0x613 ,0x01C0);
@@ -1508,7 +1429,7 @@ wm8994_codec_fnc_t *wm8994_codec_sequence[] = {
 ///PCM BB END
 };
 
-/********************set wm8994 volume*****volume=0\1\2\3\4\5\6\7*******************/
+/*************set wm8994 volume****************/
 
 unsigned char Handset_maxvol=0x3f,VRX_maxvol=0x07,Speaker_maxvol=0x3f,AP_maxvol=0xff,Recorder_maxvol=0x1f,FM_maxvol=0x1f;
 
@@ -1569,8 +1490,6 @@ void wm8994_codec_set_volume(unsigned char mode,unsigned char volume)
 int snd_soc_info_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo)
 {
-	
-	//uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 
 	uinfo->count = 1;
@@ -1582,15 +1501,14 @@ int snd_soc_info_route(struct snd_kcontrol *kcontrol,
 int snd_soc_get_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	DBG("@@@Enter::%s----line->%d\n",__FUNCTION__,__LINE__);
 	return 0;
 }
 
 int snd_soc_put_route(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
-{	
+{
 	
-	DBG("@@@Enter::%s----line->%d\n",__FUNCTION__,__LINE__);
+	DBG("%s::%d\n",__FUNCTION__,__LINE__);
 	int route = kcontrol->private_value & 0xff;
 
 	switch(route)
@@ -1726,8 +1644,6 @@ static int wm8994_lrc_control(struct snd_soc_dapm_widget *w,
 		adctl2 &= ~0x4;
 	else
 		adctl2 |= 0x4;
-
-	DBG("Enter::%s----line->%d, adctl2 = %x\n",__FUNCTION__,__LINE__,adctl2);
 	
 	return snd_soc_write(codec, WM8994_ADCTL2, adctl2);
 }
@@ -2035,7 +1951,7 @@ static int wm8994_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct wm8994_priv *wm8994 = codec->private_data;
 	
-	DBG("Enter::%s----line->%d\n",__FUNCTION__,__LINE__);
+	DBG("%s----%d\n",__FUNCTION__,__LINE__);
 		
 	switch (freq) {
 	case 11289600:
@@ -2117,7 +2033,6 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	DBG("Enter::%s----line->%d  iface=%x\n",__FUNCTION__,__LINE__,iface);
 	snd_soc_write(codec, WM8994_IFACE, iface);
 	return 0;
 }
@@ -2131,7 +2046,7 @@ static int wm8994_pcm_startup(struct snd_pcm_substream *substream,
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
 	 */
-	DBG("Enter::%s----line->%d  wm8994->sysclk=%d\n",__FUNCTION__,__LINE__,wm8994->sysclk); 
+
 	if (!wm8994->sysclk) {
 		dev_err(codec->dev,
 			"No MCLK configured, call set_sysclk() on init\n");
@@ -2183,7 +2098,7 @@ static int wm8994_pcm_hw_params(struct snd_pcm_substream *substream,
 		iface |= 0x000c;
 		break;
 	}
-	DBG("Enter::%s----line->%d  iface=%x srate =%x rate=%d\n",__FUNCTION__,__LINE__,iface,srate,params_rate(params));
+	DBG("%s::%d--  iface=%x srate =%x rate=%d\n",__FUNCTION__,__LINE__,iface,srate,params_rate(params));
 
 	/* set iface & srate */
 	snd_soc_write(codec, WM8994_IFACE, iface);
@@ -2203,7 +2118,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
 	u16 pwr_reg = snd_soc_read(codec, WM8994_PWR1) & ~0x1c1;
-	DBG("Enter::%s----line->%d level =%d\n",__FUNCTION__,__LINE__,level);
+
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 		break;
@@ -2234,9 +2149,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-//#define WM8994_RATES SNDRV_PCM_RATE_8000_96000//cjq
-
-#define WM8994_RATES (SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
+#define WM8994_RATES SNDRV_PCM_RATE_48000
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
@@ -2274,7 +2187,7 @@ static int wm8994_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	DBG("Enter::%s----line->%d\n",__FUNCTION__,__LINE__);
+
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	wm8994_reset();
 	mdelay(50);
@@ -2289,7 +2202,7 @@ static int wm8994_resume(struct platform_device *pdev)
 	u8 data[2];
 	u16 *cache = codec->reg_cache;
 	wm8994_codec_fnc_t **wm8994_fnc_ptr=wm8994_codec_sequence;
-	DBG("Enter::%s----line->%d\n",__FUNCTION__,__LINE__);
+
 	/* Sync reg_cache with the hardware */
 	for (i = 0; i < WM8994_NUM_REG; i++) {
 		if (i == WM8994_RESET)
@@ -2309,7 +2222,7 @@ static int wm8994_resume(struct platform_device *pdev)
 	{
 		wm8994_fnc_ptr+=wm8994_mode;
 		(*wm8994_fnc_ptr)() ;
-		printk("%s----line->%d--: Wm8994 resume with error mode\n",__FUNCTION__,__LINE__);
+		printk("%s--%d--: Wm8994 resume with error mode\n",__FUNCTION__,__LINE__);
 	}
 
 	return 0;
@@ -2385,11 +2298,17 @@ static int wm8994_register(struct wm8994_priv *wm8994,
 	int ret;
 	u16 reg;
 
+#ifdef WM8994_TEST
 	/*************text----------cjq**************/
-	DBG("\n\n\nEnter::%s----line->%d-- WM8994 test begin\n",__FUNCTION__,__LINE__);
+
+	DBG("%s::%d-- WM8994 test begin\n",__FUNCTION__,__LINE__);
+
 	AP_to_Headset();
 	//HandsetMIC_to_Baseband_to_Headset();
-	DBG("Enter::%s----line->%d-- WM8994 test end\n\n\n\n",__FUNCTION__,__LINE__);
+
+	DBG("%s::%d-- WM8994 test end",__FUNCTION__,__LINE__);
+
+#endif
 
 	if (wm8994_codec) {
 		dev_err(codec->dev, "Another WM8994 is registered\n");
