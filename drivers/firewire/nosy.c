@@ -108,7 +108,7 @@ struct pcilynx {
 
 struct client {
 	struct pcilynx *lynx;
-	unsigned long tcode_mask;
+	u32 tcode_mask;
 	struct packet_buffer buffer;
 	struct list_head link;
 };
@@ -351,17 +351,20 @@ nosy_read(struct file *file, char *buffer, size_t count, loff_t *offset)
 	return packet_buffer_get(&client->buffer, buffer, count);
 }
 
-static int
-nosy_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long arg)
+static long
+nosy_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
+	spinlock_t *client_list_lock = &client->lynx->client_list_lock;
 	struct nosy_stats stats;
 
 	switch (cmd) {
 	case NOSY_IOC_GET_STATS:
+		spin_lock_irq(client_list_lock);
 		stats.total_packet_count = client->buffer.total_packet_count;
-		stats.lost_packet_count = client->buffer.lost_packet_count;
+		stats.lost_packet_count  = client->buffer.lost_packet_count;
+		spin_unlock_irq(client_list_lock);
+
 		if (copy_to_user((void *) arg, &stats, sizeof stats))
 			return -EFAULT;
 		else
@@ -376,7 +379,9 @@ nosy_ioctl(struct inode *inode, struct file *file,
 		return 0;
 
 	case NOSY_IOC_FILTER:
+		spin_lock_irq(client_list_lock);
 		client->tcode_mask = arg;
+		spin_unlock_irq(client_list_lock);
 		return 0;
 
 	default:
@@ -386,12 +391,12 @@ nosy_ioctl(struct inode *inode, struct file *file,
 }
 
 static const struct file_operations nosy_ops = {
-	.owner =	THIS_MODULE,
-	.read =		nosy_read,
-	.ioctl =	nosy_ioctl,
-	.poll =		nosy_poll,
-	.open =		nosy_open,
-	.release =	nosy_release,
+	.owner =		THIS_MODULE,
+	.read =			nosy_read,
+	.unlocked_ioctl =	nosy_ioctl,
+	.poll =			nosy_poll,
+	.open =			nosy_open,
+	.release =		nosy_release,
 };
 
 #define PHY_PACKET_SIZE 12 /* 1 payload, 1 inverse, 1 ack = 3 quadlets */
@@ -409,7 +414,7 @@ packet_handler(struct pcilynx *lynx)
 {
 	unsigned long flags;
 	struct client *client;
-	unsigned long tcode_mask;
+	u32 tcode_mask;
 	size_t length;
 	struct link_packet *packet;
 	struct timeval tv;
