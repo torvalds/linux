@@ -748,9 +748,9 @@ static ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
 	ssize_t		rc = count;
 	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
-	int		i;
+	unsigned long	ro;
 
-	if (sscanf(buf, "%d", &i) != 1)
+	if (strict_strtoul(buf, 2, &ro))
 		return -EINVAL;
 
 	/*
@@ -762,8 +762,8 @@ static ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
 		LDBG(curlun, "read-only status change prevented\n");
 		rc = -EBUSY;
 	} else {
-		curlun->ro = !!i;
-		curlun->initially_ro = !!i;
+		curlun->ro = ro;
+		curlun->initially_ro = ro;
 		LDBG(curlun, "read-only status set to %d\n", curlun->ro);
 	}
 	up_read(filesem);
