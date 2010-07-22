@@ -119,7 +119,9 @@ void st_send_frame(enum proto_type protoid, struct st_data_s *st_gdata)
 	 *   protocol stack driver
 	 */
 	if (likely(st_gdata->list[protoid]->recv != NULL)) {
-		if (unlikely(st_gdata->list[protoid]->recv(st_gdata->rx_skb)
+		if (unlikely
+			(st_gdata->list[protoid]->recv
+			(st_gdata->list[protoid]->priv_data, st_gdata->rx_skb)
 			     != 0)) {
 			pr_err(" proto stack %d's ->recv failed", protoid);
 			kfree_skb(st_gdata->rx_skb);
@@ -144,7 +146,8 @@ void st_reg_complete(struct st_data_s *st_gdata, char err)
 	for (i = 0; i < ST_MAX; i++) {
 		if (likely(st_gdata != NULL && st_gdata->list[i] != NULL &&
 			   st_gdata->list[i]->reg_complete_cb != NULL))
-			st_gdata->list[i]->reg_complete_cb(err);
+			st_gdata->list[i]->reg_complete_cb
+				(st_gdata->list[i]->priv_data, err);
 	}
 }
 
@@ -878,6 +881,7 @@ static void st_tty_close(struct tty_struct *tty)
 			pr_err("%d not un-registered", i);
 		st_gdata->list[i] = NULL;
 	}
+	st_gdata->protos_registered = 0;
 	spin_unlock_irqrestore(&st_gdata->lock, flags);
 	/*
 	 * signal to UIM via KIM that -

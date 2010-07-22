@@ -64,13 +64,17 @@ enum proto_type {
  *	download is in progress.
  * @write: pointer to function in ST provided to protocol drivers from ST,
  *	to be made use when protocol drivers have data to send to TTY.
+ * @priv_data: privdate data holder for the protocol drivers, sent
+ *	from the protocol drivers during registration, and sent back on
+ *	reg_complete_cb and recv.
  */
 struct st_proto_s {
 	enum proto_type type;
-	long (*recv) (struct sk_buff *);
+	long (*recv) (void *, struct sk_buff *);
 	unsigned char (*match_packet) (const unsigned char *data);
-	void (*reg_complete_cb) (char data);
+	void (*reg_complete_cb) (void *, char data);
 	long (*write) (struct sk_buff *skb);
+	void *priv_data;
 };
 
 extern long st_register(struct st_proto_s *);
