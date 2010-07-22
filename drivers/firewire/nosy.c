@@ -276,7 +276,7 @@ nosy_stop_snoop(struct client *client)
 	unsigned long flags;
 
 	spin_lock_irqsave(&client->lynx->client_list_lock, flags);
-	list_del(&client->link);
+	list_del_init(&client->link);
 	spin_unlock_irqrestore(&client->lynx->client_list_lock, flags);
 }
 
