@@ -1675,6 +1675,16 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 					"still with TDs queued?\n",
 				TRB_TO_SLOT_ID(event->flags), ep_index);
 		goto cleanup;
+	case COMP_MISSED_INT:
+		/*
+		 * When encounter missed service error, one or more isoc tds
+		 * may be missed by xHC.
+		 * Set skip flag of the ep_ring; Complete the missed tds as
+		 * short transfer when process the ep_ring next time.
+		 */
+		ep->skip = true;
+		xhci_dbg(xhci, "Miss service interval error, set skip flag\n");
+		goto cleanup;
 	default:
 		if (xhci_is_vendor_info_code(xhci, trb_comp_code)) {
 			status = 0;
@@ -1685,60 +1695,108 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		goto cleanup;
 	}
 
-	/* This TRB should be in the TD at the head of this ring's TD list */
-	if (list_empty(&ep_ring->td_list)) {
-		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
-				TRB_TO_SLOT_ID(event->flags), ep_index);
-		xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
-				(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
-		xhci_print_trb_offsets(xhci, (union xhci_trb *) event);
-		goto cleanup;
-	}
-	td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
+	do {
+		/* This TRB should be in the TD at the head of this ring's
+		 * TD list.
+		 */
+		if (list_empty(&ep_ring->td_list)) {
+			xhci_warn(xhci, "WARN Event TRB for slot %d ep %d "
+					"with no TDs queued?\n",
+				  TRB_TO_SLOT_ID(event->flags), ep_index);
+			xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
+			  (unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
+			xhci_print_trb_offsets(xhci, (union xhci_trb *) event);
+			if (ep->skip) {
+				ep->skip = false;
+				xhci_dbg(xhci, "td_list is empty while skip "
+						"flag set. Clear skip flag.\n");
+			}
+			ret = 0;
+			goto cleanup;
+		}
 
-	/* Is this a TRB in the currently executing TD? */
-	event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
-			td->last_trb, event_dma);
-	if (!event_seg) {
-		/* HC is busted, give up! */
-		xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not part of current TD\n");
-		return -ESHUTDOWN;
-	}
-	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
+		td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
+		/* Is this a TRB in the currently executing TD? */
+		event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
+				td->last_trb, event_dma);
+		if (event_seg && ep->skip) {
+			xhci_dbg(xhci, "Found td. Clear skip flag.\n");
+			ep->skip = false;
+		}
+		if (!event_seg &&
+		   (!ep->skip || !usb_endpoint_xfer_isoc(&td->urb->ep->desc))) {
+			/* HC is busted, give up! */
+			xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not "
+					"part of current TD\n");
+			return -ESHUTDOWN;
+		}
 
-	/* Now update the urb's actual_length and give back to the core */
-	/* Was this a control transfer? */
-	if (usb_endpoint_xfer_control(&td->urb->ep->desc))
-		ret = process_ctrl_td(xhci, td, event_trb, event, ep,
-					&status);
-	else
-		ret = process_bulk_intr_td(xhci, td, event_trb, event, ep,
-					&status);
+		if (event_seg) {
+			event_trb = &event_seg->trbs[(event_dma -
+					 event_seg->dma) / sizeof(*event_trb)];
+			/*
+			 * No-op TRB should not trigger interrupts.
+			 * If event_trb is a no-op TRB, it means the
+			 * corresponding TD has been cancelled. Just ignore
+			 * the TD.
+			 */
+			if ((event_trb->generic.field[3] & TRB_TYPE_BITMASK)
+					 == TRB_TYPE(TRB_TR_NOOP)) {
+				xhci_dbg(xhci, "event_trb is a no-op TRB. "
+						"Skip it\n");
+				goto cleanup;
+			}
+		}
+
+		/* Now update the urb's actual_length and give back to
+		 * the core
+		 */
+		if (usb_endpoint_xfer_control(&td->urb->ep->desc))
+			ret = process_ctrl_td(xhci, td, event_trb, event, ep,
+						 &status);
+		else
+			ret = process_bulk_intr_td(xhci, td, event_trb, event,
+						 ep, &status);
 
 cleanup:
-	inc_deq(xhci, xhci->event_ring, true);
-	xhci_set_hc_event_deq(xhci);
-
-	/* FIXME for multi-TD URBs (who have buffers bigger than 64MB) */
-	if (ret) {
-		urb = td->urb;
-		/* Leave the TD around for the reset endpoint function to use
-		 * (but only if it's not a control endpoint, since we already
-		 * queued the Set TR dequeue pointer command for stalled
-		 * control endpoints).
+		/*
+		 * Do not update event ring dequeue pointer if ep->skip is set.
+		 * Will roll back to continue process missed tds.
 		 */
-		if (usb_endpoint_xfer_control(&urb->ep->desc) ||
-			(trb_comp_code != COMP_STALL &&
-				trb_comp_code != COMP_BABBLE))
-			kfree(td);
+		if (trb_comp_code == COMP_MISSED_INT || !ep->skip) {
+			inc_deq(xhci, xhci->event_ring, true);
+			xhci_set_hc_event_deq(xhci);
+		}
 
-		usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
-		xhci_dbg(xhci, "Giveback URB %p, len = %d, status = %d\n",
-				urb, urb->actual_length, status);
-		spin_unlock(&xhci->lock);
-		usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, status);
-		spin_lock(&xhci->lock);
-	}
+		if (ret) {
+			urb = td->urb;
+			/* Leave the TD around for the reset endpoint function
+			 * to use(but only if it's not a control endpoint,
+			 * since we already queued the Set TR dequeue pointer
+			 * command for stalled control endpoints).
+			 */
+			if (usb_endpoint_xfer_control(&urb->ep->desc) ||
+				(trb_comp_code != COMP_STALL &&
+					trb_comp_code != COMP_BABBLE))
+				kfree(td);
+
+			usb_hcd_unlink_urb_from_ep(xhci_to_hcd(xhci), urb);
+			xhci_dbg(xhci, "Giveback URB %p, len = %d, "
+					"status = %d\n",
+					urb, urb->actual_length, status);
+			spin_unlock(&xhci->lock);
+			usb_hcd_giveback_urb(xhci_to_hcd(xhci), urb, status);
+			spin_lock(&xhci->lock);
+		}
+
+	/*
+	 * If ep->skip is set, it means there are missed tds on the
+	 * endpoint ring need to take care of.
+	 * Process them as short transfer until reach the td pointed by
+	 * the event.
+	 */
+	} while (ep->skip && trb_comp_code != COMP_MISSED_INT);
+
 	return 0;
 }
 
