@@ -265,6 +265,7 @@ static int intel_idle_probe(void)
 		break;
 
 	case 0x1C:	/* 28 - Atom Processor */
+	case 0x26:	/* 38 - Lincroft Atom Processor */
 		lapic_timer_reliable_states = (1 << 2) | (1 << 1); /* C2, C1 */
 		cpuidle_state_table = atom_cstates;
 		break;
