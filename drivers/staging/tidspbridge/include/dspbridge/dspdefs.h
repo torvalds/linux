@@ -157,7 +157,7 @@ typedef int(*fxn_brd_memcopy) (struct bridge_dev_context
  */
 typedef int(*fxn_brd_memwrite) (struct bridge_dev_context
 				       * dev_ctxt,
-				       IN u8 *host_buf,
+				       u8 *host_buf,
 				       u32 dsp_addr, u32 ul_num_bytes,
 				       u32 mem_type);
 
@@ -288,7 +288,7 @@ typedef int(*fxn_brd_read) (struct bridge_dev_context *dev_ctxt,
  *  Ensures:
  */
 typedef int(*fxn_brd_write) (struct bridge_dev_context *dev_ctxt,
-				    IN u8 *host_buf,
+				    u8 *host_buf,
 				    u32 dsp_addr,
 				    u32 ul_num_bytes, u32 mem_type);
 
@@ -327,7 +327,7 @@ typedef int(*fxn_chnl_create) (OUT struct chnl_mgr
 				      **channel_mgr,
 				      struct dev_object
 				      * hdev_obj,
-				      IN const struct
+				      const struct
 				      chnl_mgrattrs * mgr_attrts);
 
 /*
@@ -412,7 +412,7 @@ typedef int(*fxn_chnl_open) (OUT struct chnl_object
 				    struct chnl_mgr *hchnl_mgr,
 				    s8 chnl_mode,
 				    u32 ch_id,
-				    const IN OPTIONAL struct
+				    const OPTIONAL struct
 				    chnl_attr * pattrs);
 
 /*
@@ -675,7 +675,7 @@ typedef int(*fxn_chnl_registernotify)
  *      DSP configuration information, create a board context, a handle to
  *      which is passed into other Bridge BRD and CHNL functions.  The
  *      board context contains state information for the device. Since the
- *      addresses of all IN pointer parameters may be invalid when this
+ *      addresses of all pointer parameters may be invalid when this
  *      function returns, they must not be stored into the device context
  *      structure.
  */
@@ -683,7 +683,7 @@ typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
 				     **device_ctx,
 				     struct dev_object
 				     * hdev_obj,
-				     IN struct cfg_hostres
+				     struct cfg_hostres
 				     * config_param);
 
 /*
@@ -703,7 +703,7 @@ typedef int(*fxn_dev_create) (OUT struct bridge_dev_context
  *  Ensures:
  */
 typedef int(*fxn_dev_ctrl) (struct bridge_dev_context *dev_ctxt,
-				   u32 dw_cmd, IN OUT void *pargs);
+				   u32 dw_cmd, OUT void *pargs);
 
 /*
  *  ======== bridge_dev_destroy ========
@@ -746,7 +746,7 @@ typedef int(*fxn_dev_destroy) (struct bridge_dev_context *dev_ctxt);
  */
 typedef int(*fxn_io_create) (OUT struct io_mgr **io_man,
 				    struct dev_object *hdev_obj,
-				    IN const struct io_attrs *mgr_attrts);
+				    const struct io_attrs *mgr_attrts);
 
 /*
  *  ======== bridge_io_destroy ========
@@ -916,7 +916,7 @@ typedef int(*fxn_msg_get) (struct msg_queue *msg_queue_obj,
  *  Ensures:
  */
 typedef int(*fxn_msg_put) (struct msg_queue *msg_queue_obj,
-				  IN const struct dsp_msg *pmsg, u32 utimeout);
+				  const struct dsp_msg *pmsg, u32 utimeout);
 
 /*
  *  ======== bridge_msg_register_notify ========
@@ -1049,6 +1049,6 @@ struct bridge_drv_interface {
  *      Called during the Device_Init phase.
  */
 void bridge_drv_entry(OUT struct bridge_drv_interface **drv_intf,
-		   IN const char *driver_file_name);
+		   const char *driver_file_name);
 
 #endif /* DSPDEFS_ */

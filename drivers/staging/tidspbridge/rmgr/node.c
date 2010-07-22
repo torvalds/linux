@@ -291,9 +291,9 @@ enum node_state node_get_state(void *hnode)
  *      Allocate GPP resources to manage a node on the DSP.
  */
 int node_allocate(struct proc_object *hprocessor,
-			 IN const struct dsp_uuid *node_uuid,
-			 OPTIONAL IN const struct dsp_cbdata *pargs,
-			 OPTIONAL IN const struct dsp_nodeattrin *attr_in,
+			 const struct dsp_uuid *node_uuid,
+			 OPTIONAL const struct dsp_cbdata *pargs,
+			 OPTIONAL const struct dsp_nodeattrin *attr_in,
 			 OUT struct node_object **ph_node,
 			 struct process_context *pr_ctxt)
 {
@@ -685,7 +685,7 @@ func_end:
  *      Allocates buffer for zero copy messaging.
  */
 DBAPI node_alloc_msg_buf(struct node_object *hnode, u32 usize,
-			 OPTIONAL IN OUT struct dsp_bufferattr *pattr,
+			 OPTIONAL OUT struct dsp_bufferattr *pattr,
 			 OUT u8 **pbuffer)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
@@ -833,8 +833,8 @@ func_end:
  */
 int node_connect(struct node_object *node1, u32 stream1,
 			struct node_object *node2,
-			u32 stream2, OPTIONAL IN struct dsp_strmattr *pattrs,
-			OPTIONAL IN struct dsp_cbdata *conn_param)
+			u32 stream2, OPTIONAL struct dsp_strmattr *pattrs,
+			OPTIONAL struct dsp_cbdata *conn_param)
 {
 	struct node_mgr *hnode_mgr;
 	char *pstr_dev_name = NULL;
@@ -1673,7 +1673,7 @@ void node_exit(void)
  *  Purpose:
  *      Frees the message buffer.
  */
-int node_free_msg_buf(struct node_object *hnode, IN u8 * pbuffer,
+int node_free_msg_buf(struct node_object *hnode, u8 * pbuffer,
 			     OPTIONAL struct dsp_bufferattr *pattr)
 {
 	struct node_object *pnode = (struct node_object *)hnode;
@@ -2094,7 +2094,7 @@ func_end:
  *      message, or a timeout occurs.
  */
 int node_put_message(struct node_object *hnode,
-			    IN const struct dsp_msg *pmsg, u32 utimeout)
+			    const struct dsp_msg *pmsg, u32 utimeout)
 {
 	struct node_mgr *hnode_mgr = NULL;
 	enum node_type node_type;
@@ -3004,7 +3004,7 @@ static int get_proc_props(struct node_mgr *hnode_mgr,
  *      Fetch Node UUID properties from DCD/DOF file.
  */
 int node_get_uuid_props(void *hprocessor,
-			       IN const struct dsp_uuid *node_uuid,
+			       const struct dsp_uuid *node_uuid,
 			       OUT struct dsp_ndbprops *node_props)
 {
 	struct node_mgr *hnode_mgr = NULL;

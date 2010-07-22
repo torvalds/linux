@@ -42,7 +42,7 @@ extern int bridge_msg_get(struct msg_queue *msg_queue_obj,
 				 struct dsp_msg *pmsg, u32 utimeout);
 
 extern int bridge_msg_put(struct msg_queue *msg_queue_obj,
-				 IN const struct dsp_msg *pmsg, u32 utimeout);
+				 const struct dsp_msg *pmsg, u32 utimeout);
 
 extern int bridge_msg_register_notify(struct msg_queue *msg_queue_obj,
 					  u32 event_mask,

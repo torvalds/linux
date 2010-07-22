@@ -217,7 +217,7 @@ void cod_close(struct cod_libraryobj *lib)
  *
  */
 int cod_create(OUT struct cod_manager **mgr, char *str_zl_file,
-		      IN OPTIONAL const struct cod_attrs *attrs)
+		      OPTIONAL const struct cod_attrs *attrs)
 {
 	struct cod_manager *mgr_new;
 	struct dbll_attrs zl_attrs;
@@ -398,7 +398,7 @@ int cod_get_loader(struct cod_manager *cod_mgr_obj,
  *      Retrieve the starting address and length of a section in the COFF file
  *      given the section name.
  */
-int cod_get_section(struct cod_libraryobj *lib, IN char *str_sect,
+int cod_get_section(struct cod_libraryobj *lib, char *str_sect,
 			   OUT u32 *addr, OUT u32 *len)
 {
 	struct cod_manager *cod_mgr_obj;
@@ -554,7 +554,7 @@ int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
  *  ======== cod_open ========
  *      Open library for reading sections.
  */
-int cod_open(struct cod_manager *hmgr, IN char *sz_coff_path,
+int cod_open(struct cod_manager *hmgr, char *sz_coff_path,
 		    u32 flags, struct cod_libraryobj **lib_obj)
 {
 	int status = 0;
@@ -591,7 +591,7 @@ int cod_open(struct cod_manager *hmgr, IN char *sz_coff_path,
  *  Purpose:
  *      Open base image for reading sections.
  */
-int cod_open_base(struct cod_manager *hmgr, IN char *sz_coff_path,
+int cod_open_base(struct cod_manager *hmgr, char *sz_coff_path,
 			 dbll_flags flags)
 {
 	int status = 0;
@@ -629,8 +629,8 @@ int cod_open_base(struct cod_manager *hmgr, IN char *sz_coff_path,
  *  Purpose:
  *      Retrieve the content of a code section given the section name.
  */
-int cod_read_section(struct cod_libraryobj *lib, IN char *str_sect,
-			    OUT char *str_content, IN u32 content_size)
+int cod_read_section(struct cod_libraryobj *lib, char *str_sect,
+			    OUT char *str_content, u32 content_size)
 {
 	int status = 0;
 

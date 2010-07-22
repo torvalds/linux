@@ -239,7 +239,7 @@ void dsp_gpt_wait_overflow(short int clk_id, unsigned int load)
  *      Enable Clock .
  *
  */
-int dsp_clk_enable(IN enum dsp_clk_id clk_id)
+int dsp_clk_enable(enum dsp_clk_id clk_id)
 {
 	int status = 0;
 
@@ -317,7 +317,7 @@ u32 dsp_clock_enable_all(u32 dsp_per_clocks)
  *      Disable the clock.
  *
  */
-int dsp_clk_disable(IN enum dsp_clk_id clk_id)
+int dsp_clk_disable(enum dsp_clk_id clk_id)
 {
 	int status = 0;
 

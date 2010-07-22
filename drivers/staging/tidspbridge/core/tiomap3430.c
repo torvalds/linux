@@ -85,7 +85,7 @@ static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
 				    int *board_state);
 static int bridge_brd_stop(struct bridge_dev_context *dev_ctxt);
 static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
-				   IN u8 *host_buff,
+				   u8 *host_buff,
 				   u32 dsp_addr, u32 ul_num_bytes,
 				   u32 mem_type);
 static int bridge_brd_set_state(struct bridge_dev_context *dev_ctxt,
@@ -94,7 +94,7 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 				   u32 dsp_dest_addr, u32 dsp_src_addr,
 				   u32 ul_num_bytes, u32 mem_type);
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
-				    IN u8 *host_buff, u32 dsp_addr,
+				    u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 mem_type);
 static int bridge_brd_mem_map(struct bridge_dev_context *dev_ctxt,
 				  u32 ul_mpu_addr, u32 virt_addr,
@@ -105,9 +105,9 @@ static int bridge_brd_mem_un_map(struct bridge_dev_context *dev_ctxt,
 static int bridge_dev_create(OUT struct bridge_dev_context
 					**dev_cntxt,
 					struct dev_object *hdev_obj,
-					IN struct cfg_hostres *config_param);
+					struct cfg_hostres *config_param);
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
-				  u32 dw_cmd, IN OUT void *pargs);
+				  u32 dw_cmd, OUT void *pargs);
 static int bridge_dev_destroy(struct bridge_dev_context *dev_ctxt);
 static u32 user_va2_pa(struct mm_struct *mm, u32 address);
 static int pte_update(struct bridge_dev_context *dev_ctxt, u32 pa,
@@ -237,7 +237,7 @@ static void bad_page_dump(u32 pa, struct page *pg)
  *      Bridge Driver entry point.
  */
 void bridge_drv_entry(OUT struct bridge_drv_interface **drv_intf,
-		   IN const char *driver_file_name)
+		   const char *driver_file_name)
 {
 
 	DBC_REQUIRE(driver_file_name != NULL);
@@ -759,7 +759,7 @@ static int bridge_brd_status(struct bridge_dev_context *dev_ctxt,
  *      Copies the buffers to DSP internal or external memory.
  */
 static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
-				   IN u8 *host_buff, u32 dsp_addr,
+				   u8 *host_buff, u32 dsp_addr,
 				   u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;
@@ -788,7 +788,7 @@ static int bridge_brd_write(struct bridge_dev_context *dev_ctxt,
 static int bridge_dev_create(OUT struct bridge_dev_context
 					**dev_cntxt,
 					struct dev_object *hdev_obj,
-					IN struct cfg_hostres *config_param)
+					struct cfg_hostres *config_param)
 {
 	int status = 0;
 	struct bridge_dev_context *dev_context = NULL;
@@ -954,7 +954,7 @@ func_end:
  *      Receives device specific commands.
  */
 static int bridge_dev_ctrl(struct bridge_dev_context *dev_context,
-				  u32 dw_cmd, IN OUT void *pargs)
+				  u32 dw_cmd, OUT void *pargs)
 {
 	int status = 0;
 	struct bridge_ioctl_extproc *pa_ext_proc =
@@ -1141,7 +1141,7 @@ static int bridge_brd_mem_copy(struct bridge_dev_context *dev_ctxt,
 
 /* Mem Write does not halt the DSP to write unlike bridge_brd_write */
 static int bridge_brd_mem_write(struct bridge_dev_context *dev_ctxt,
-				    IN u8 *host_buff, u32 dsp_addr,
+				    u8 *host_buff, u32 dsp_addr,
 				    u32 ul_num_bytes, u32 mem_type)
 {
 	int status = 0;

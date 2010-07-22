@@ -185,7 +185,7 @@ extern void mgr_exit(void);
  *      0 and *dcd_handle != NULL ||
  *      -EPERM and *dcd_handle == NULL
  */
-extern int mgr_get_dcd_handle(IN struct mgr_object
+extern int mgr_get_dcd_handle(struct mgr_object
 				     *mgr_handle, OUT u32 *dcd_handle);
 
 /*

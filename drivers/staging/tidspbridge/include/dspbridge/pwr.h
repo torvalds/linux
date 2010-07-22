@@ -45,7 +45,7 @@
  *      -EPERM:          General failure, unable to send sleep command to
  *                          the DSP.
  */
-extern int pwr_sleep_dsp(IN const u32 sleep_code, IN const u32 timeout);
+extern int pwr_sleep_dsp(const u32 sleep_code, const u32 timeout);
 
 /*
  *  ======== pwr_wake_dsp ========
@@ -66,7 +66,7 @@ extern int pwr_sleep_dsp(IN const u32 sleep_code, IN const u32 timeout);
  *      -EPERM:          General failure, unable to send wake command to
  *                          the DSP.
  */
-extern int pwr_wake_dsp(IN const u32 timeout);
+extern int pwr_wake_dsp(const u32 timeout);
 
 /*
  *  ======== pwr_pm_pre_scale ========
@@ -84,7 +84,7 @@ extern int pwr_wake_dsp(IN const u32 timeout);
  *      -EPERM:          General failure, unable to send wake command to
  *                          the DSP.
  */
-extern int pwr_pm_pre_scale(IN u16 voltage_domain, u32 level);
+extern int pwr_pm_pre_scale(u16 voltage_domain, u32 level);
 
 /*
  *  ======== pwr_pm_post_scale ========
@@ -102,6 +102,6 @@ extern int pwr_pm_pre_scale(IN u16 voltage_domain, u32 level);
  *      -EPERM:          General failure, unable to send wake command to
  *                          the DSP.
  */
-extern int pwr_pm_post_scale(IN u16 voltage_domain, u32 level);
+extern int pwr_pm_post_scale(u16 voltage_domain, u32 level);
 
 #endif /* PWR_ */

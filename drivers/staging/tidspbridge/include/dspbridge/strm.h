@@ -240,8 +240,8 @@ extern bool strm_init(void);
  *      pbuf != NULL.
  *  Ensures:
  */
-extern int strm_issue(struct strm_object *stream_obj, IN u8 * pbuf,
-			     u32 ul_bytes, u32 ul_buf_size, IN u32 dw_arg);
+extern int strm_issue(struct strm_object *stream_obj, u8 * pbuf,
+			     u32 ul_bytes, u32 ul_buf_size, u32 dw_arg);
 
 /*
  *  ======== strm_open ========
@@ -271,7 +271,7 @@ extern int strm_issue(struct strm_object *stream_obj, IN u8 * pbuf,
  *      error:          *strm_objct == NULL.
  */
 extern int strm_open(struct node_object *hnode, u32 dir,
-			    u32 index, IN struct strm_attr *pattr,
+			    u32 index, struct strm_attr *pattr,
 			    OUT struct strm_object **strm_objct,
 			    struct process_context *pr_ctxt);
 
@@ -376,7 +376,7 @@ extern int strm_register_notify(struct strm_object *stream_obj,
  *      0:        *pmask != 0 || utimeout == 0.
  *      Error:          *pmask == 0.
  */
-extern int strm_select(IN struct strm_object **strm_tab,
+extern int strm_select(struct strm_object **strm_tab,
 			      u32 strms, OUT u32 *pmask, u32 utimeout);
 
 /*

@@ -38,7 +38,7 @@
  *  Details:
  *      UUID string limit currently set at MAXUUIDLEN.
  */
-void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
+void uuid_uuid_to_string(struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
 			 s32 size);
 
 /*
@@ -56,7 +56,7 @@ void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
  *      We assume the string representation of a UUID has the following format:
  *      "12345678_1234_1234_1234_123456789abc".
  */
-extern void uuid_uuid_from_string(IN char *sz_uuid,
+extern void uuid_uuid_from_string(char *sz_uuid,
 				  OUT struct dsp_uuid *uuid_obj);
 
 #endif /* UUIDUTIL_ */

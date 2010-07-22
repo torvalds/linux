@@ -65,7 +65,7 @@ extern int write_dsp_data(struct bridge_dev_context *dev_context,
  *  shm Memory manager in the CDB
  */
 extern int write_ext_dsp_data(struct bridge_dev_context *dev_context,
-				     IN u8 *host_buff, u32 dsp_addr,
+				     u8 *host_buff, u32 dsp_addr,
 				     u32 ul_num_bytes, u32 mem_type,
 				     bool dynamic_load);
 
@@ -73,9 +73,9 @@ extern int write_ext_dsp_data(struct bridge_dev_context *dev_context,
  * ======== write_ext32_bit_dsp_data ========
  * Writes 32 bit data to the external memory
  */
-extern inline void write_ext32_bit_dsp_data(IN const
+extern inline void write_ext32_bit_dsp_data(const
 					struct bridge_dev_context *dev_context,
-					IN u32 dsp_addr, IN u32 val)
+					u32 dsp_addr, u32 val)
 {
 	*(u32 *) dsp_addr = ((dev_context->tc_word_swap_on) ? (((val << 16) &
 								 0xFFFF0000) |
@@ -88,8 +88,8 @@ extern inline void write_ext32_bit_dsp_data(IN const
  * ======== read_ext32_bit_dsp_data ========
  * Reads 32 bit data from the external memory
  */
-extern inline u32 read_ext32_bit_dsp_data(IN const struct bridge_dev_context
-					  *dev_context, IN u32 dsp_addr)
+extern inline u32 read_ext32_bit_dsp_data(const struct bridge_dev_context
+					  *dev_context, u32 dsp_addr)
 {
 	u32 ret;
 	ret = *(u32 *) dsp_addr;

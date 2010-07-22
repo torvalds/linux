@@ -30,27 +30,27 @@ extern struct mailbox_context mboxsetting;
  * Wakes up the DSP from DeepSleep
  */
 extern int wake_dsp(struct bridge_dev_context *dev_context,
-							IN void *pargs);
+							void *pargs);
 
 /*
  * ======== sleep_dsp =========
  * Places the DSP in DeepSleep.
  */
 extern int sleep_dsp(struct bridge_dev_context *dev_context,
-			    IN u32 dw_cmd, IN void *pargs);
+			    u32 dw_cmd, void *pargs);
 /*
  *  ========interrupt_dsp========
  *  	  Sends an interrupt to DSP unconditionally.
  */
 extern void interrupt_dsp(struct bridge_dev_context *dev_context,
-							IN u16 mb_val);
+							u16 mb_val);
 
 /*
  * ======== wake_dsp =========
  * Wakes up the DSP from DeepSleep
  */
 extern int dsp_peripheral_clk_ctrl(struct bridge_dev_context
-					*dev_context, IN void *pargs);
+					*dev_context, void *pargs);
 /*
  *  ======== handle_hibernation_from_dsp ========
  *  	Handle Hibernation requested from DSP
@@ -61,19 +61,19 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context);
  *  	Handle Post Scale notification to DSP
  */
 int post_scale_dsp(struct bridge_dev_context *dev_context,
-							IN void *pargs);
+							void *pargs);
 /*
  *  ======== pre_scale_dsp ========
  *  	Handle Pre Scale notification to DSP
  */
 int pre_scale_dsp(struct bridge_dev_context *dev_context,
-							IN void *pargs);
+							void *pargs);
 /*
  *  ======== handle_constraints_set ========
  *  	Handle constraints request from DSP
  */
 int handle_constraints_set(struct bridge_dev_context *dev_context,
-				  IN void *pargs);
+				  void *pargs);
 
 /*
  *  ======== dsp_clk_wakeup_event_ctrl ========

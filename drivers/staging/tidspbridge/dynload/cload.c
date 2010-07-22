@@ -961,7 +961,7 @@ static void cload_cinit(struct dload_state *dlthis,
 	ldr_addr atmp;
 	struct ldr_section_info cinit_info;
 
-	/*  PROCESS ALL THE INITIALIZATION RECORDS IN THE BUFFER. */
+	/*  PROCESS ALL THE INITIALIZATION RECORDS THE BUFFER. */
 	while (true) {
 		left = pktend - pktp;
 		switch (dlthis->cinit_state) {

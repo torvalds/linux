@@ -242,7 +242,7 @@ void *cmm_calloc_buf(struct cmm_object *hcmm_mgr, u32 usize,
  */
 int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 		      struct dev_object *hdev_obj,
-		      IN const struct cmm_mgrattrs *mgr_attrts)
+		      const struct cmm_mgrattrs *mgr_attrts)
 {
 	struct cmm_object *cmm_obj = NULL;
 	int status = 0;
@@ -1075,7 +1075,7 @@ int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator, void *buf_va)
  *  Purpose:
  *      Set/Get translator info.
  */
-int cmm_xlator_info(struct cmm_xlatorobject *xlator, IN OUT u8 ** paddr,
+int cmm_xlator_info(struct cmm_xlatorobject *xlator, OUT u8 ** paddr,
 			   u32 ul_size, u32 segm_id, bool set_info)
 {
 	struct cmm_xlator *xlator_obj = (struct cmm_xlator *)xlator;

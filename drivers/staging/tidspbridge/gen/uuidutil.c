@@ -36,8 +36,8 @@
  *      Note: snprintf format specifier is:
  *      %[flags] [width] [.precision] [{h | l | I64 | L}]type
  */
-void uuid_uuid_to_string(IN struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
-			 IN s32 size)
+void uuid_uuid_to_string(struct dsp_uuid *uuid_obj, OUT char *sz_uuid,
+			 s32 size)
 {
 	s32 i;			/* return result from snprintf. */
 
@@ -75,7 +75,7 @@ static s32 uuid_hex_to_bin(char *buf, s32 len)
  *  Purpose:
  *      Converts a string to a struct dsp_uuid.
  */
-void uuid_uuid_from_string(IN char *sz_uuid, OUT struct dsp_uuid *uuid_obj)
+void uuid_uuid_from_string(char *sz_uuid, OUT struct dsp_uuid *uuid_obj)
 {
 	s32 j;
 

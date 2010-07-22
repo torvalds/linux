@@ -132,7 +132,7 @@ u32 dev_brd_write_fxn(void *arb, u32 dsp_add, void *host_buf,
  *      PM board (device).
  */
 int dev_create_device(OUT struct dev_object **device_obj,
-			     IN const char *driver_file_name,
+			     const char *driver_file_name,
 			     struct cfg_devnode *dev_node_obj)
 {
 	struct cfg_hostres *host_res;
@@ -691,7 +691,7 @@ int dev_get_node_manager(struct dev_object *hdev_obj,
  *  ======== dev_get_symbol ========
  */
 int dev_get_symbol(struct dev_object *hdev_obj,
-			  IN const char *str_sym, OUT u32 * pul_value)
+			  const char *str_sym, OUT u32 * pul_value)
 {
 	int status = 0;
 	struct cod_manager *cod_mgr;

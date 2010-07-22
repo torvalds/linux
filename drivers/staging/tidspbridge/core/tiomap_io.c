@@ -179,7 +179,7 @@ int read_ext_dsp_data(struct bridge_dev_context *dev_ctxt,
  *      Copies buffers to the DSP internal/external memory.
  */
 int write_dsp_data(struct bridge_dev_context *dev_context,
-			  IN u8 *host_buff, u32 dsp_addr, u32 ul_num_bytes,
+			  u8 *host_buff, u32 dsp_addr, u32 ul_num_bytes,
 			  u32 mem_type)
 {
 	u32 offset;
@@ -225,7 +225,7 @@ int write_dsp_data(struct bridge_dev_context *dev_context,
  *
  */
 int write_ext_dsp_data(struct bridge_dev_context *dev_context,
-			      IN u8 *host_buff, u32 dsp_addr,
+			      u8 *host_buff, u32 dsp_addr,
 			      u32 ul_num_bytes, u32 mem_type,
 			      bool dynamic_load)
 {

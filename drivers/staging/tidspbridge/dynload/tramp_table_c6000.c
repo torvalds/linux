@@ -26,7 +26,7 @@
 #define C6X_TRAMP_WORD_COUNT			8
 #define C6X_TRAMP_MAX_RELOS			 8
 
-/*  THIS HASH FUNCTION MUST MATCH THE ONE IN reloc_table_c6000.c */
+/*  THIS HASH FUNCTION MUST MATCH THE ONE reloc_table_c6000.c */
 #define HASH_FUNC(zz) (((((zz) + 1) * UINT32_C(1845)) >> 11) & 63)
 
 /*  THIS MUST MATCH reloc_record_t FOR A SYMBOL BASED RELO */

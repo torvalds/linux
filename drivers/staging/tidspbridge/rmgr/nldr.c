@@ -287,7 +287,7 @@ static u32 refs;		/* module reference count */
 static int add_ovly_info(void *handle, struct dbll_sect_info *sect_info,
 				u32 addr, u32 bytes);
 static int add_ovly_node(struct dsp_uuid *uuid_obj,
-				enum dsp_dcdobjtype obj_type, IN void *handle);
+				enum dsp_dcdobjtype obj_type, void *handle);
 static int add_ovly_sect(struct nldr_object *nldr_obj,
 				struct ovly_sect **lst,
 				struct dbll_sect_info *sect_inf,
@@ -325,9 +325,9 @@ static u32 find_gcf(u32 a, u32 b);
  *  ======== nldr_allocate ========
  */
 int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
-			 IN const struct dcd_nodeprops *node_props,
+			 const struct dcd_nodeprops *node_props,
 			 OUT struct nldr_nodeobject **nldr_nodeobj,
-			 IN bool *pf_phase_split)
+			 bool *pf_phase_split)
 {
 	struct nldr_nodeobject *nldr_node_obj = NULL;
 	int status = 0;
@@ -427,7 +427,7 @@ int nldr_allocate(struct nldr_object *nldr_obj, void *priv_ref,
  */
 int nldr_create(OUT struct nldr_object **nldr,
 		       struct dev_object *hdev_obj,
-		       IN const struct nldr_attrs *pattrs)
+		       const struct nldr_attrs *pattrs)
 {
 	struct cod_manager *cod_mgr;	/* COD manager */
 	char *psz_coff_buf = NULL;
@@ -1013,7 +1013,7 @@ func_end:
  *  Callback function passed to dcd_get_objects.
  */
 static int add_ovly_node(struct dsp_uuid *uuid_obj,
-				enum dsp_dcdobjtype obj_type, IN void *handle)
+				enum dsp_dcdobjtype obj_type, void *handle)
 {
 	struct nldr_object *nldr_obj = (struct nldr_object *)handle;
 	char *node_name = NULL;

@@ -78,7 +78,7 @@ extern void io_cancel_chnl(struct io_mgr *hio_mgr, u32 chnl);
  *  Ensures:
  *      Non-preemptible (but interruptible).
  */
-extern void io_dpc(IN OUT unsigned long ref_data);
+extern void io_dpc(OUT unsigned long ref_data);
 
 /*
  *  ======== io_mbox_msg ========
@@ -287,7 +287,7 @@ extern void io_or_set_value(struct bridge_dev_context *dev_ctxt,
 extern void io_and_set_value(struct bridge_dev_context *dev_ctxt,
 			     u32 dsp_addr, u32 value);
 
-extern void io_intr_dsp2(IN struct io_mgr *pio_mgr, IN u16 mb_val);
+extern void io_intr_dsp2(struct io_mgr *pio_mgr, u16 mb_val);
 
 extern void io_sm_init(void);
 

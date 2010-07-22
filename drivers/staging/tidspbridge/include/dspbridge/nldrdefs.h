@@ -129,7 +129,7 @@ enum nldr_phase {
  */
 typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
 				       void *priv_ref,
-				       IN const struct dcd_nodeprops
+				       const struct dcd_nodeprops
 				       * node_props,
 				       OUT struct nldr_nodeobject
 				       **nldr_nodeobj,
@@ -158,7 +158,7 @@ typedef int(*nldr_allocatefxn) (struct nldr_object *nldr_obj,
  */
 typedef int(*nldr_createfxn) (OUT struct nldr_object **nldr,
 				     struct dev_object *hdev_obj,
-				     IN const struct nldr_attrs *pattrs);
+				     const struct nldr_attrs *pattrs);
 
 /*
  *  ======== nldr_delete ========

@@ -47,7 +47,7 @@ static u32 refs;
  *      CHNL and msg_ctrl
  */
 int io_create(OUT struct io_mgr **io_man, struct dev_object *hdev_obj,
-		     IN const struct io_attrs *mgr_attrts)
+		     const struct io_attrs *mgr_attrts)
 {
 	struct bridge_drv_interface *intf_fxns;
 	struct io_mgr *hio_mgr = NULL;

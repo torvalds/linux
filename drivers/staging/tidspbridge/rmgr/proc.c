@@ -492,7 +492,7 @@ func_end:
  *      Call the bridge_dev_ctrl fxn with the Argument. This is a Synchronous
  *      Operation. arg can be null.
  */
-int proc_ctrl(void *hprocessor, u32 dw_cmd, IN struct dsp_cbdata * arg)
+int proc_ctrl(void *hprocessor, u32 dw_cmd, struct dsp_cbdata * arg)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = hprocessor;
@@ -582,7 +582,7 @@ int proc_detach(struct process_context *pr_ctxt)
  *      on a DSP processor.
  */
 int proc_enum_nodes(void *hprocessor, void **node_tab,
-			   IN u32 node_tab_size, OUT u32 *pu_num_nodes,
+			   u32 node_tab_size, OUT u32 *pu_num_nodes,
 			   OUT u32 *pu_allocated)
 {
 	int status = -EPERM;
@@ -1055,8 +1055,8 @@ bool proc_init(void)
  *      This will be an OEM-only function, and not part of the DSP/BIOS Bridge
  *      application developer's API.
  */
-int proc_load(void *hprocessor, IN const s32 argc_index,
-		     IN const char **user_args, IN const char **user_envp)
+int proc_load(void *hprocessor, const s32 argc_index,
+		     const char **user_args, const char **user_envp)
 {
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)hprocessor;

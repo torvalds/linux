@@ -132,9 +132,9 @@ struct io_mgr {
 };
 
 /* Function Prototypes */
-static void io_dispatch_chnl(IN struct io_mgr *pio_mgr,
-				IN OUT struct chnl_object *pchnl, u8 io_mode);
-static void io_dispatch_msg(IN struct io_mgr *pio_mgr,
+static void io_dispatch_chnl(struct io_mgr *pio_mgr,
+				OUT struct chnl_object *pchnl, u8 io_mode);
+static void io_dispatch_msg(struct io_mgr *pio_mgr,
 			    struct msg_mgr *hmsg_mgr);
 static void io_dispatch_pm(struct io_mgr *pio_mgr);
 static void notify_chnl_complete(struct chnl_object *pchnl,
@@ -163,7 +163,7 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
  */
 int bridge_io_create(OUT struct io_mgr **io_man,
 			    struct dev_object *hdev_obj,
-			    IN const struct io_attrs *mgr_attrts)
+			    const struct io_attrs *mgr_attrts)
 {
 	int status = 0;
 	struct io_mgr *pio_mgr = NULL;
@@ -838,8 +838,8 @@ func_end:
  *  ======== io_dispatch_chnl ========
  *      Proc-copy chanl dispatch.
  */
-static void io_dispatch_chnl(IN struct io_mgr *pio_mgr,
-				IN OUT struct chnl_object *pchnl, u8 io_mode)
+static void io_dispatch_chnl(struct io_mgr *pio_mgr,
+				OUT struct chnl_object *pchnl, u8 io_mode)
 {
 	if (!pio_mgr)
 		goto func_end;
@@ -859,7 +859,7 @@ func_end:
  *  ======== io_dispatch_msg ========
  *      Performs I/O dispatch on message queues.
  */
-static void io_dispatch_msg(IN struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
+static void io_dispatch_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 {
 	if (!pio_mgr)
 		goto func_end;
@@ -919,7 +919,7 @@ static void io_dispatch_pm(struct io_mgr *pio_mgr)
  *      out the dispatch of I/O as a non-preemptible event.It can only be
  *      pre-empted      by an ISR.
  */
-void io_dpc(IN OUT unsigned long ref_data)
+void io_dpc(OUT unsigned long ref_data)
 {
 	struct io_mgr *pio_mgr = (struct io_mgr *)ref_data;
 	struct chnl_mgr *chnl_mgr_obj;
@@ -1720,7 +1720,7 @@ static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
 }
 
 /* ZCPY IO routines. */
-void io_intr_dsp2(IN struct io_mgr *pio_mgr, IN u16 mb_val)
+void io_intr_dsp2(struct io_mgr *pio_mgr, u16 mb_val)
 {
 	sm_interrupt_dsp(pio_mgr->hbridge_context, mb_val);
 }
@@ -1792,7 +1792,7 @@ int io_sh_msetting(struct io_mgr *hio_mgr, u8 desc, void *pargs)
  *  ======== bridge_io_get_proc_load ========
  *      Gets the Processor's Load information
  */
-int bridge_io_get_proc_load(IN struct io_mgr *hio_mgr,
+int bridge_io_get_proc_load(struct io_mgr *hio_mgr,
 				OUT struct dsp_procloadstat *proc_lstat)
 {
 	proc_lstat->curr_load =

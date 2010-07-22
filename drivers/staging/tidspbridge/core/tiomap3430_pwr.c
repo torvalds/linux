@@ -50,7 +50,7 @@
  *  	Sets new DSP constraint
  */
 int handle_constraints_set(struct bridge_dev_context *dev_context,
-				  IN void *pargs)
+				  void *pargs)
 {
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 *constraint_val;
@@ -142,8 +142,8 @@ int handle_hibernation_from_dsp(struct bridge_dev_context *dev_context)
  *  ======== sleep_dsp ========
  *  	Put DSP in low power consuming state.
  */
-int sleep_dsp(struct bridge_dev_context *dev_context, IN u32 dw_cmd,
-		     IN void *pargs)
+int sleep_dsp(struct bridge_dev_context *dev_context, u32 dw_cmd,
+		     void *pargs)
 {
 	int status = 0;
 #ifdef CONFIG_PM
@@ -248,7 +248,7 @@ int sleep_dsp(struct bridge_dev_context *dev_context, IN u32 dw_cmd,
  *  ======== wake_dsp ========
  *  	Wake up DSP from sleep.
  */
-int wake_dsp(struct bridge_dev_context *dev_context, IN void *pargs)
+int wake_dsp(struct bridge_dev_context *dev_context, void *pargs)
 {
 	int status = 0;
 #ifdef CONFIG_PM
@@ -275,7 +275,7 @@ int wake_dsp(struct bridge_dev_context *dev_context, IN void *pargs)
  *  	Enable/Disable the DSP peripheral clocks as needed..
  */
 int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
-				   IN void *pargs)
+				   void *pargs)
 {
 	u32 ext_clk = 0;
 	u32 ext_clk_id = 0;
@@ -336,7 +336,7 @@ int dsp_peripheral_clk_ctrl(struct bridge_dev_context *dev_context,
  *  Sends prescale notification to DSP
  *
  */
-int pre_scale_dsp(struct bridge_dev_context *dev_context, IN void *pargs)
+int pre_scale_dsp(struct bridge_dev_context *dev_context, void *pargs)
 {
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 	u32 level;
@@ -370,7 +370,7 @@ int pre_scale_dsp(struct bridge_dev_context *dev_context, IN void *pargs)
  *
  */
 int post_scale_dsp(struct bridge_dev_context *dev_context,
-							IN void *pargs)
+							void *pargs)
 {
 	int status = 0;
 #ifdef CONFIG_TIDSPBRIDGE_DVFS

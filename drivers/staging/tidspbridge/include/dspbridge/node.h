@@ -56,9 +56,9 @@
  *      error:              *ph_node == NULL.
  */
 extern int node_allocate(struct proc_object *hprocessor,
-				IN const struct dsp_uuid *node_uuid,
-				OPTIONAL IN const struct dsp_cbdata
-				*pargs, OPTIONAL IN const struct dsp_nodeattrin
+				const struct dsp_uuid *node_uuid,
+				OPTIONAL const struct dsp_cbdata
+				*pargs, OPTIONAL const struct dsp_nodeattrin
 				*attr_in,
 				OUT struct node_object **ph_node,
 				struct process_context *pr_ctxt);
@@ -182,8 +182,8 @@ extern int node_connect(struct node_object *node1,
 			       u32 stream1,
 			       struct node_object *node2,
 			       u32 stream2,
-			       OPTIONAL IN struct dsp_strmattr *pattrs,
-			       OPTIONAL IN struct dsp_cbdata
+			       OPTIONAL struct dsp_strmattr *pattrs,
+			       OPTIONAL struct dsp_cbdata
 			       *conn_param);
 
 /*
@@ -334,7 +334,7 @@ extern void node_exit(void);
  *  Ensures:
  */
 extern int node_free_msg_buf(struct node_object *hnode,
-				    IN u8 *pbuffer,
+				    u8 *pbuffer,
 				    OPTIONAL struct dsp_bufferattr
 				    *pattr);
 
@@ -470,7 +470,7 @@ extern int node_pause(struct node_object *hnode);
  *  Ensures:
  */
 extern int node_put_message(struct node_object *hnode,
-				   IN const struct dsp_msg *pmsg, u32 utimeout);
+				   const struct dsp_msg *pmsg, u32 utimeout);
 
 /*
  *  ======== node_register_notify ========
@@ -554,7 +554,7 @@ extern int node_terminate(struct node_object *hnode,
  *
  */
 extern int node_get_uuid_props(void *hprocessor,
-				      IN const struct dsp_uuid *node_uuid,
+				      const struct dsp_uuid *node_uuid,
 				      OUT struct dsp_ndbprops
 				      *node_props);
 

@@ -71,8 +71,8 @@ struct dcd_genericobj {
 };
 
 /* DCD Internal Callback Type */
-typedef int(*dcd_registerfxn) (IN struct dsp_uuid *uuid_obj,
-				      IN enum dsp_dcdobjtype obj_type,
-				      IN void *handle);
+typedef int(*dcd_registerfxn) (struct dsp_uuid *uuid_obj,
+				      enum dsp_dcdobjtype obj_type,
+				      void *handle);
 
 #endif /* DBDCDDEF_ */

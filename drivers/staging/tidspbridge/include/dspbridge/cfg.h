@@ -50,7 +50,7 @@ extern void cfg_exit(void);
  *  Ensures:
  *      0:        *auto_start contains autostart mask for this devnode.
  */
-extern int cfg_get_auto_start(IN struct cfg_devnode *dev_node_obj,
+extern int cfg_get_auto_start(struct cfg_devnode *dev_node_obj,
 				     OUT u32 *auto_start);
 
 /*
@@ -90,7 +90,7 @@ extern int cfg_get_cd_version(OUT u32 *version);
  *      0:    *value is set to the retrieved u32.
  *      else:       *value is set to 0L.
  */
-extern int cfg_get_dev_object(IN struct cfg_devnode *dev_node_obj,
+extern int cfg_get_dev_object(struct cfg_devnode *dev_node_obj,
 				     OUT u32 *value);
 
 /*
@@ -112,8 +112,8 @@ extern int cfg_get_dev_object(IN struct cfg_devnode *dev_node_obj,
  *                  and *str_exec_file contains default executable for this
  *                  devnode.
  */
-extern int cfg_get_exec_file(IN struct cfg_devnode *dev_node_obj,
-				    IN u32 buf_size, OUT char *str_exec_file);
+extern int cfg_get_exec_file(struct cfg_devnode *dev_node_obj,
+				    u32 buf_size, OUT char *str_exec_file);
 
 /*
  *  ======== cfg_get_object ========
@@ -167,8 +167,8 @@ extern void cfg_get_perf_value(OUT bool *enable_perf);
  *                  str_zl_file_name, and *str_zl_file_name contains ZLFileName
  *                  for this devnode.
  */
-extern int cfg_get_zl_file(IN struct cfg_devnode *dev_node_obj,
-				  IN u32 buf_size, OUT char *str_zl_file_name);
+extern int cfg_get_zl_file(struct cfg_devnode *dev_node_obj,
+				  u32 buf_size, OUT char *str_zl_file_name);
 
 /*
  *  ======== cfg_init ========
@@ -199,8 +199,8 @@ extern bool cfg_init(void);
  *  Ensures:
  *      0:    The Private u32 was successfully set.
  */
-extern int cfg_set_dev_object(IN struct cfg_devnode *dev_node_obj,
-				     IN u32 value);
+extern int cfg_set_dev_object(struct cfg_devnode *dev_node_obj,
+				     u32 value);
 
 /*
  *  ======== CFG_SetDrvObject ========
@@ -217,6 +217,6 @@ extern int cfg_set_dev_object(IN struct cfg_devnode *dev_node_obj,
  *  Ensures:
  *      0:        The Private u32 was successfully set.
  */
-extern int cfg_set_object(IN u32 value, u8 dw_type);
+extern int cfg_set_object(u32 value, u8 dw_type);
 
 #endif /* CFG_ */

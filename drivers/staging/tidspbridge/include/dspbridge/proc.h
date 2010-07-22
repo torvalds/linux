@@ -99,7 +99,7 @@ extern int proc_auto_start(struct cfg_devnode *dev_node_obj,
  *      This function Calls bridge_dev_ctrl.
  */
 extern int proc_ctrl(void *hprocessor,
-			    u32 dw_cmd, IN struct dsp_cbdata *arg);
+			    u32 dw_cmd, struct dsp_cbdata *arg);
 
 /*
  *  ======== proc_detach ========
@@ -152,7 +152,7 @@ extern int proc_detach(struct process_context *pr_ctxt);
  */
 extern int proc_enum_nodes(void *hprocessor,
 				  void **node_tab,
-				  IN u32 node_tab_size,
+				  u32 node_tab_size,
 				  OUT u32 *pu_num_nodes,
 				  OUT u32 *pu_allocated);
 
@@ -329,8 +329,8 @@ extern int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size);
  *      can load the processor.
  */
 extern int proc_load(void *hprocessor,
-			    IN const s32 argc_index, IN const char **user_args,
-			    IN const char **user_envp);
+			    const s32 argc_index, const char **user_args,
+			    const char **user_envp);
 
 /*
  *  ======== proc_register_notify ========

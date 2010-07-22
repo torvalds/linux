@@ -393,7 +393,7 @@ extern int drv_remove_dev_object(struct drv_object *driver_obj,
  *      Resource structure is stored in the registry which will be
  *      later used by the CFG module.
  */
-extern int drv_request_resources(IN u32 dw_context,
+extern int drv_request_resources(u32 dw_context,
 					OUT u32 *dev_node_strg);
 
 /*
@@ -410,7 +410,7 @@ extern int drv_request_resources(IN u32 dw_context,
  *      The Resources are released based on Bus type.
  *      Resource structure is deleted from the registry
  */
-extern int drv_release_resources(IN u32 dw_context,
+extern int drv_release_resources(u32 dw_context,
 					struct drv_object *hdrv_obj);
 
 /**
@@ -438,7 +438,7 @@ void bridge_recover_schedule(void);
  *      - MEM initialized.
  *      - valid physical address for the base and size > 0
  */
-extern void mem_ext_phys_pool_init(IN u32 pool_phys_base, IN u32 pool_size);
+extern void mem_ext_phys_pool_init(u32 pool_phys_base, u32 pool_size);
 
 /*
  *  ======== mem_ext_phys_pool_release ========
@@ -462,8 +462,8 @@ extern void mem_ext_phys_pool_release(void);
  *      the size requested.  Returned physical address refers to physical
  *      location of memory.
  */
-extern void *mem_alloc_phys_mem(IN u32 byte_size,
-				IN u32 align_mask, OUT u32 *physical_address);
+extern void *mem_alloc_phys_mem(u32 byte_size,
+				u32 align_mask, OUT u32 *physical_address);
 
 /*
  *  ======== mem_free_phys_mem ========

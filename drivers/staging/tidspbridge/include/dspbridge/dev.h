@@ -91,7 +91,7 @@ extern u32 dev_brd_write_fxn(void *arb,
  */
 extern int dev_create_device(OUT struct dev_object
 				    **device_obj,
-				    IN const char *driver_file_name,
+				    const char *driver_file_name,
 				    struct cfg_devnode *dev_node_obj);
 
 /*
@@ -126,8 +126,8 @@ extern int dev_create_device(OUT struct dev_object
  */
 extern int dev_create_iva_device(OUT struct dev_object
 					**device_obj,
-					IN const char *driver_file_name,
-					IN const struct cfg_hostres
+					const char *driver_file_name,
+					const struct cfg_hostres
 					*host_config,
 					struct cfg_devnode *dev_node_obj);
 
@@ -149,7 +149,7 @@ extern int dev_create_iva_device(OUT struct dev_object
  *      0 and hdev_obj->hnode_mgr != NULL
  *      else    hdev_obj->hnode_mgr == NULL
  */
-extern int dev_create2(IN struct dev_object *hdev_obj);
+extern int dev_create2(struct dev_object *hdev_obj);
 
 /*
  *  ======== dev_destroy2 ========
@@ -167,7 +167,7 @@ extern int dev_create2(IN struct dev_object *hdev_obj);
  *      0 and hdev_obj->hnode_mgr == NULL
  *      else    -EPERM.
  */
-extern int dev_destroy2(IN struct dev_object *hdev_obj);
+extern int dev_destroy2(struct dev_object *hdev_obj);
 
 /*
  *  ======== dev_destroy_device ========
@@ -490,7 +490,7 @@ extern int dev_get_node_manager(struct dev_object
  *      0:        *pul_value contains the symbol value;
  */
 extern int dev_get_symbol(struct dev_object *hdev_obj,
-				 IN const char *str_sym, OUT u32 * pul_value);
+				 const char *str_sym, OUT u32 * pul_value);
 
 /*
  *  ======== dev_get_bridge_context ========
@@ -557,7 +557,7 @@ extern bool dev_init(void);
  *      DEV Initialized.
  *  Ensures:
  */
-extern int dev_is_locked(IN struct dev_object *hdev_obj);
+extern int dev_is_locked(struct dev_object *hdev_obj);
 
 /*
  *  ======== dev_insert_proc_object ========
@@ -582,9 +582,9 @@ extern int dev_is_locked(IN struct dev_object *hdev_obj);
  *      this is the first Processor attaching.
  *      If it is False, there are already processors attached.
  */
-extern int dev_insert_proc_object(IN struct dev_object
+extern int dev_insert_proc_object(struct dev_object
 					 *hdev_obj,
-					 IN u32 proc_obj,
+					 u32 proc_obj,
 					 OUT bool *already_attached);
 
 /*

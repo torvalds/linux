@@ -87,7 +87,7 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  */
 extern int cmm_create(OUT struct cmm_object **ph_cmm_mgr,
 			     struct dev_object *hdev_obj,
-			     IN const struct cmm_mgrattrs *mgr_attrts);
+			     const struct cmm_mgrattrs *mgr_attrts);
 
 /*
  *  ======== cmm_destroy ========
@@ -359,7 +359,7 @@ extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
  *
  */
 extern int cmm_xlator_info(struct cmm_xlatorobject *xlator,
-				  IN OUT u8 **paddr,
+				  OUT u8 **paddr,
 				  u32 ul_size, u32 segm_id, bool set_info);
 
 /*

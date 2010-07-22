@@ -423,7 +423,7 @@ bool strm_init(void)
  *  Purpose:
  *      Issues a buffer on a stream
  */
-int strm_issue(struct strm_object *stream_obj, IN u8 *pbuf, u32 ul_bytes,
+int strm_issue(struct strm_object *stream_obj, u8 *pbuf, u32 ul_bytes,
 		      u32 ul_buf_size, u32 dw_arg)
 {
 	struct bridge_drv_interface *intf_fxns;
@@ -468,7 +468,7 @@ int strm_issue(struct strm_object *stream_obj, IN u8 *pbuf, u32 ul_bytes,
  *      XDAIS socket node on the DSP.
  */
 int strm_open(struct node_object *hnode, u32 dir, u32 index,
-		     IN struct strm_attr *pattr,
+		     struct strm_attr *pattr,
 		     OUT struct strm_object **strm_objct,
 		     struct process_context *pr_ctxt)
 {
@@ -746,7 +746,7 @@ int strm_register_notify(struct strm_object *stream_obj, u32 event_mask,
  *  Purpose:
  *      Selects a ready stream.
  */
-int strm_select(IN struct strm_object **strm_tab, u32 strms,
+int strm_select(struct strm_object **strm_tab, u32 strms,
 		       OUT u32 *pmask, u32 utimeout)
 {
 	u32 index;

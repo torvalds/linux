@@ -119,7 +119,7 @@ int dmm_create_tables(struct dmm_object *dmm_mgr, u32 addr, u32 size)
  */
 int dmm_create(OUT struct dmm_object **dmm_manager,
 		      struct dev_object *hdev_obj,
-		      IN const struct dmm_mgrattrs *mgr_attrts)
+		      const struct dmm_mgrattrs *mgr_attrts)
 {
 	struct dmm_object *dmm_obj = NULL;
 	int status = 0;
