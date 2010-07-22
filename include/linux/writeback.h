@@ -34,6 +34,7 @@ struct writeback_control {
 	long nr_to_write;		/* Write this many pages, and decrement
 					   this for each page written */
 	long pages_skipped;		/* Pages which were not written */
+	long inodes_written;		/* # of inodes written (at least) */
 
 	/*
 	 * For a_ops->writepages(): is start or end are non-zero then this is

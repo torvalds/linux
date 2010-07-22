@@ -464,6 +464,7 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 			 * No need to add it back to the LRU.
 			 */
 			list_del_init(&inode->i_wb_list);
+			wbc->inodes_written++;
 		}
 	}
 	inode_sync_complete(inode);
@@ -725,6 +726,7 @@ static long wb_writeback(struct bdi_writeback *wb,
 		wbc.more_io = 0;
 		wbc.nr_to_write = write_chunk;
 		wbc.pages_skipped = 0;
+		wbc.inodes_written = 0;
 
 		trace_wbc_writeback_start(&wbc, wb->bdi);
 		if (work->sb)
@@ -740,6 +742,8 @@ static long wb_writeback(struct bdi_writeback *wb,
 		 * If we consumed everything, see if we have more
 		 */
 		if (wbc.nr_to_write <= 0)
+			continue;
+		if (wbc.inodes_written)
 			continue;
 		/*
 		 * Didn't write everything and we don't have more IO, bail
