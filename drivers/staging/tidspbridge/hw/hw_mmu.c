@@ -16,7 +16,6 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#include <GlobalTypes.h>
 #include <linux/io.h>
 #include "MMURegAcM.h"
 #include <hw_defs.h>
@@ -250,10 +249,6 @@ hw_status hw_mmu_fault_addr_read(const void __iomem *base_address, u32 *addr)
 {
 	hw_status status = 0;
 
-	/*Check the input Parameters */
-	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
-			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
-
 	/* read values from register */
 	*addr = MMUMMU_FAULT_AD_READ_REGISTER32(base_address);
 
@@ -264,10 +259,6 @@ hw_status hw_mmu_ttb_set(const void __iomem *base_address, u32 ttb_phys_addr)
 {
 	hw_status status = 0;
 	u32 load_ttb;
-
-	/*Check the input Parameters */
-	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
-			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
 
 	load_ttb = ttb_phys_addr & ~0x7FUL;
 	/* write values to register */
@@ -346,14 +337,6 @@ hw_status hw_mmu_tlb_add(const void __iomem *base_address,
 	enum hw_mmu_page_size_t mmu_pg_size;
 
 	/*Check the input Parameters */
-	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
-			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
-	CHECK_INPUT_RANGE_MIN0(page_sz, MMU_PAGE_MAX, RET_PARAM_OUT_OF_RANGE,
-			       RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
-	CHECK_INPUT_RANGE_MIN0(map_attrs->element_size, MMU_ELEMENTSIZE_MAX,
-			       RET_PARAM_OUT_OF_RANGE, RES_MMU_BASE +
-			       RES_INVALID_INPUT_PARAM);
-
 	switch (page_sz) {
 	case HW_PAGE_SIZE4KB:
 		mmu_pg_size = HW_MMU_SMALL_PAGE;
@@ -526,10 +509,6 @@ static hw_status mmu_flush_entry(const void __iomem *base_address)
 	hw_status status = 0;
 	u32 flush_entry_data = 0x1;
 
-	/*Check the input Parameters */
-	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
-			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
-
 	/* write values to register */
 	MMUMMU_FLUSH_ENTRY_WRITE_REGISTER32(base_address, flush_entry_data);
 
@@ -545,10 +524,6 @@ static hw_status mmu_set_cam_entry(const void __iomem *base_address,
 {
 	hw_status status = 0;
 	u32 mmu_cam_reg;
-
-	/*Check the input Parameters */
-	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
-			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
 
 	mmu_cam_reg = (virtual_addr_tag << 12);
 	mmu_cam_reg = (mmu_cam_reg) | (page_sz) | (valid_bit << 2) |
@@ -569,13 +544,6 @@ static hw_status mmu_set_ram_entry(const void __iomem *base_address,
 {
 	hw_status status = 0;
 	u32 mmu_ram_reg;
-
-	/*Check the input Parameters */
-	CHECK_INPUT_PARAM(base_address, 0, RET_BAD_NULL_PARAM,
-			  RES_MMU_BASE + RES_INVALID_INPUT_PARAM);
-	CHECK_INPUT_RANGE_MIN0(element_size, MMU_ELEMENTSIZE_MAX,
-			       RET_PARAM_OUT_OF_RANGE, RES_MMU_BASE +
-			       RES_INVALID_INPUT_PARAM);
 
 	mmu_ram_reg = (physical_addr & MMU_ADDR_MASK);
 	mmu_ram_reg = (mmu_ram_reg) | ((endianism << 9) | (element_size << 7) |

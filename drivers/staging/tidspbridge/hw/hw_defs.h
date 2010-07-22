@@ -19,8 +19,6 @@
 #ifndef _HW_DEFS_H
 #define _HW_DEFS_H
 
-#include <GlobalTypes.h>
-
 /* Page size */
 #define HW_PAGE_SIZE4KB   0x1000
 #define HW_PAGE_SIZE64KB  0x10000

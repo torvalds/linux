@@ -17,7 +17,6 @@
 #ifndef _MMU_REG_ACM_H
 #define _MMU_REG_ACM_H
 
-#include <GlobalTypes.h>
 #include <linux/io.h>
 #include <EasiGlobal.h>
 
