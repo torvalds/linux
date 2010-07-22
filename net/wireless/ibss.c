@@ -247,8 +247,10 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 	if (!netif_running(wdev->netdev))
 		return 0;
 
-	if (wdev->wext.keys)
+	if (wdev->wext.keys) {
 		wdev->wext.keys->def = wdev->wext.default_key;
+		wdev->wext.keys->defmgmt = wdev->wext.default_mgmt_key;
+	}
 
 	wdev->wext.ibss.privacy = wdev->wext.default_key != -1;
 
