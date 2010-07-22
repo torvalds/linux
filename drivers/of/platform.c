@@ -30,8 +30,13 @@ static int platform_driver_probe_shim(struct platform_device *pdev)
 
 	pdrv = container_of(pdev->dev.driver, struct platform_driver, driver);
 	ofpdrv = container_of(pdrv, struct of_platform_driver, platform_driver);
+
+	/* There is an unlikely chance that an of_platform driver might match
+	 * on a non-OF platform device.  If so, then of_match_device() will
+	 * come up empty.  Return -EINVAL in this case so other drivers get
+	 * the chance to bind. */
 	match = of_match_device(pdev->dev.driver->of_match_table, &pdev->dev);
-	return ofpdrv->probe(pdev, match);
+	return match ? ofpdrv->probe(pdev, match) : -EINVAL;
 }
 
 static void platform_driver_shutdown_shim(struct platform_device *pdev)
