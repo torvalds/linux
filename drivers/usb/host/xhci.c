@@ -897,7 +897,12 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 				slot_id, ep_index);
 		spin_unlock_irqrestore(&xhci->lock, flags);
 	} else {
-		ret = -EINVAL;
+		spin_lock_irqsave(&xhci->lock, flags);
+		if (xhci->xhc_state & XHCI_STATE_DYING)
+			goto dying;
+		ret = xhci_queue_isoc_tx_prepare(xhci, GFP_ATOMIC, urb,
+				slot_id, ep_index);
+		spin_unlock_irqrestore(&xhci->lock, flags);
 	}
 exit:
 	return ret;
