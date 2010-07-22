@@ -209,7 +209,7 @@ static struct nuc900_spi_info nuc900_spiflash_data = {
 	.divider	= 24,
 	.sleep		= 0,
 	.txnum		= 0,
-	.txbitlen	= 1,
+	.txbitlen	= 8,
 	.bus_num	= 0,
 };
 
@@ -258,7 +258,7 @@ static struct spi_board_info nuc900_spi_board_info[] __initdata = {
 		.modalias = "m25p80",
 		.max_speed_hz = 20000000,
 		.bus_num = 0,
-		.chip_select = 1,
+		.chip_select = 0,
 		.platform_data = &nuc900_spi_flash_data,
 		.mode = SPI_MODE_0,
 	},
