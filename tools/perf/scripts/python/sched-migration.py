@@ -27,6 +27,11 @@ from perf_trace_context import *
 from Core import *
 
 class RootFrame(wx.Frame):
+	Y_OFFSET = 100
+	CPU_HEIGHT = 100
+	CPU_SPACE = 50
+	EVENT_MARKING_WIDTH = 5
+
 	def __init__(self, timeslices, parent = None, id = -1, title = "Migration"):
 		wx.Frame.__init__(self, parent, id, title)
 
@@ -97,8 +102,8 @@ class RootFrame(wx.Frame):
 		if width_px == 0:
 			return
 
-		offset_py = 100 + (cpu * 150)
-		width_py = 100
+		offset_py = RootFrame.Y_OFFSET + (cpu * (RootFrame.CPU_HEIGHT + RootFrame.CPU_SPACE))
+		width_py = RootFrame.CPU_HEIGHT
 
 		if cpu in slice.event_cpus:
 			rgb = rq.event.color()
@@ -107,9 +112,9 @@ class RootFrame(wx.Frame):
 				color = wx.Colour(r, g, b)
 				brush = wx.Brush(color, wx.SOLID)
 				dc.SetBrush(brush)
-				dc.DrawRectangle(offset_px, offset_py, width_px, 5)
-				width_py -= 5
-				offset_py += 5
+				dc.DrawRectangle(offset_px, offset_py, width_px, RootFrame.EVENT_MARKING_WIDTH)
+				width_py -= RootFrame.EVENT_MARKING_WIDTH
+				offset_py += RootFrame.EVENT_MARKING_WIDTH
 
 		red_power = int(0xff - (0xff * load_rate))
 		color = wx.Colour(0xff, red_power, red_power)
@@ -154,11 +159,11 @@ class RootFrame(wx.Frame):
 		self.update_rectangles(dc, start, end)
 
 	def cpu_from_ypixel(self, y):
-		y -= 100
-		cpu = y / 150
-		height = y % 150
+		y -= RootFrame.Y_OFFSET
+		cpu = y / (RootFrame.CPU_HEIGHT + RootFrame.CPU_SPACE)
+		height = y % (RootFrame.CPU_HEIGHT + RootFrame.CPU_SPACE)
 
-		if cpu < 0 or cpu > self.max_cpu or height > 100:
+		if cpu < 0 or cpu > self.max_cpu or height > RootFrame.CPU_HEIGHT:
 			return -1
 
 		return cpu
