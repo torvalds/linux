@@ -17,6 +17,7 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/init.h>
@@ -44,10 +45,6 @@
 
 #define TCODE_PHY_PACKET		0x10
 #define PCI_DEVICE_ID_TI_PCILYNX	0x8000
-
-#define notify(s, args...) printk(KERN_NOTICE s, ## args)
-#define error(s, args...) printk(KERN_ERR s, ## args)
-#define debug(s, args...) printk(KERN_DEBUG s, ## args)
 
 static char driver_name[] = KBUILD_MODNAME;
 
@@ -260,15 +257,15 @@ static int
 set_phy_reg(struct pcilynx *lynx, int addr, int val)
 {
 	if (addr > 15) {
-		debug("PHY register address %d out of range\n", addr);
+		dev_err(&lynx->pci_device->dev,
+			"PHY register address %d out of range\n", addr);
 		return -1;
 	}
-
 	if (val > 0xff) {
-		debug("PHY register value %d out of range\n", val);
+		dev_err(&lynx->pci_device->dev,
+			"PHY register value %d out of range\n", val);
 		return -1;
 	}
-
 	reg_write(lynx, LINK_PHY, LINK_PHY_WRITE |
 		  LINK_PHY_ADDR(addr) | LINK_PHY_WDATA(val));
 
@@ -540,19 +537,19 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	int ret, i;
 
 	if (pci_set_dma_mask(dev, 0xffffffff)) {
-		error("DMA address limits not supported "
-		      "for PCILynx hardware\n");
+		dev_err(&dev->dev,
+		    "DMA address limits not supported for PCILynx hardware\n");
 		return -ENXIO;
 	}
 	if (pci_enable_device(dev)) {
-		error("Failed to enable PCILynx hardware\n");
+		dev_err(&dev->dev, "Failed to enable PCILynx hardware\n");
 		return -ENXIO;
 	}
 	pci_set_master(dev);
 
 	lynx = kzalloc(sizeof *lynx, GFP_KERNEL);
 	if (lynx == NULL) {
-		error("Failed to allocate control structure memory\n");
+		dev_err(&dev->dev, "Failed to allocate control structure\n");
 		ret = -ENOMEM;
 		goto fail_disable;
 	}
@@ -575,7 +572,7 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	if (lynx->rcv_start_pcl == NULL ||
 	    lynx->rcv_pcl == NULL ||
 	    lynx->rcv_buffer == NULL) {
-		error("Failed to allocate receive buffer\n");
+		dev_err(&dev->dev, "Failed to allocate receive buffer\n");
 		ret = -ENOMEM;
 		goto fail_deallocate;
 	}
@@ -637,7 +634,8 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 
 	if (request_irq(dev->irq, irq_handler, IRQF_SHARED,
 			driver_name, lynx)) {
-		error("Failed to allocate shared interrupt %d\n", dev->irq);
+		dev_err(&dev->dev,
+			"Failed to allocate shared interrupt %d\n", dev->irq);
 		ret = -EIO;
 		goto fail_deallocate;
 	}
@@ -650,14 +648,15 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	mutex_lock(&card_mutex);
 	ret = misc_register(&lynx->misc);
 	if (ret) {
-		error("Failed to register misc char device\n");
+		dev_err(&dev->dev, "Failed to register misc char device\n");
 		mutex_unlock(&card_mutex);
 		goto fail_free_irq;
 	}
 	list_add_tail(&lynx->link, &card_list);
 	mutex_unlock(&card_mutex);
 
-	notify("Initialized PCILynx IEEE1394 card, irq=%d\n", dev->irq);
+	dev_info(&dev->dev,
+		 "Initialized PCILynx IEEE1394 card, irq=%d\n", dev->irq);
 
 	return 0;
 
@@ -715,7 +714,7 @@ static void __exit nosy_cleanup(void)
 {
 	pci_unregister_driver(&lynx_pci_driver);
 
-	notify("Unloaded %s.\n", driver_name);
+	pr_info("Unloaded %s\n", driver_name);
 }
 
 module_init(nosy_init);
