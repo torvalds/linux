@@ -1605,36 +1605,16 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 	ep = &xdev->eps[ep_index];
 	ep_ring = xhci_dma_to_transfer_ring(ep, event->buffer);
 	ep_ctx = xhci_get_ep_ctx(xhci, xdev->out_ctx, ep_index);
-	if (!ep_ring || (ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_DISABLED) {
+	if (!ep_ring ||
+		(ep_ctx->ep_info & EP_STATE_MASK) == EP_STATE_DISABLED) {
 		xhci_err(xhci, "ERROR Transfer event for disabled endpoint "
 				"or incorrect stream ring\n");
 		return -ENODEV;
 	}
 
 	event_dma = event->buffer;
-	/* This TRB should be in the TD at the head of this ring's TD list */
-	if (list_empty(&ep_ring->td_list)) {
-		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
-				TRB_TO_SLOT_ID(event->flags), ep_index);
-		xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
-				(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
-		xhci_print_trb_offsets(xhci, (union xhci_trb *) event);
-		goto cleanup;
-	}
-	td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
-
-	/* Is this a TRB in the currently executing TD? */
-	event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
-			td->last_trb, event_dma);
-	if (!event_seg) {
-		/* HC is busted, give up! */
-		xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not part of current TD\n");
-		return -ESHUTDOWN;
-	}
-	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
-
-	/* Look for common error cases */
 	trb_comp_code = GET_COMP_CODE(event->transfer_len);
+	/* Look for common error cases */
 	switch (trb_comp_code) {
 	/* Skip codes that require special handling depending on
 	 * transfer type
@@ -1670,14 +1650,62 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		xhci_warn(xhci, "WARN: HC couldn't access mem fast enough\n");
 		status = -ENOSR;
 		break;
+	case COMP_BW_OVER:
+		xhci_warn(xhci, "WARN: bandwidth overrun event on endpoint\n");
+		break;
+	case COMP_BUFF_OVER:
+		xhci_warn(xhci, "WARN: buffer overrun event on endpoint\n");
+		break;
+	case COMP_UNDERRUN:
+		/*
+		 * When the Isoch ring is empty, the xHC will generate
+		 * a Ring Overrun Event for IN Isoch endpoint or Ring
+		 * Underrun Event for OUT Isoch endpoint.
+		 */
+		xhci_dbg(xhci, "underrun event on endpoint\n");
+		if (!list_empty(&ep_ring->td_list))
+			xhci_dbg(xhci, "Underrun Event for slot %d ep %d "
+					"still with TDs queued?\n",
+				TRB_TO_SLOT_ID(event->flags), ep_index);
+		goto cleanup;
+	case COMP_OVERRUN:
+		xhci_dbg(xhci, "overrun event on endpoint\n");
+		if (!list_empty(&ep_ring->td_list))
+			xhci_dbg(xhci, "Overrun Event for slot %d ep %d "
+					"still with TDs queued?\n",
+				TRB_TO_SLOT_ID(event->flags), ep_index);
+		goto cleanup;
 	default:
 		if (xhci_is_vendor_info_code(xhci, trb_comp_code)) {
 			status = 0;
 			break;
 		}
-		xhci_warn(xhci, "ERROR Unknown event condition, HC probably busted\n");
+		xhci_warn(xhci, "ERROR Unknown event condition, HC probably "
+				"busted\n");
 		goto cleanup;
 	}
+
+	/* This TRB should be in the TD at the head of this ring's TD list */
+	if (list_empty(&ep_ring->td_list)) {
+		xhci_warn(xhci, "WARN Event TRB for slot %d ep %d with no TDs queued?\n",
+				TRB_TO_SLOT_ID(event->flags), ep_index);
+		xhci_dbg(xhci, "Event TRB with TRB type ID %u\n",
+				(unsigned int) (event->flags & TRB_TYPE_BITMASK)>>10);
+		xhci_print_trb_offsets(xhci, (union xhci_trb *) event);
+		goto cleanup;
+	}
+	td = list_entry(ep_ring->td_list.next, struct xhci_td, td_list);
+
+	/* Is this a TRB in the currently executing TD? */
+	event_seg = trb_in_td(ep_ring->deq_seg, ep_ring->dequeue,
+			td->last_trb, event_dma);
+	if (!event_seg) {
+		/* HC is busted, give up! */
+		xhci_err(xhci, "ERROR Transfer event TRB DMA ptr not part of current TD\n");
+		return -ESHUTDOWN;
+	}
+	event_trb = &event_seg->trbs[(event_dma - event_seg->dma) / sizeof(*event_trb)];
+
 	/* Now update the urb's actual_length and give back to the core */
 	/* Was this a control transfer? */
 	if (usb_endpoint_xfer_control(&td->urb->ep->desc))
