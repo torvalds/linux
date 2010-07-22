@@ -2291,6 +2291,9 @@ static int kdb_ll(int argc, const char **argv)
 	while (va) {
 		char buf[80];
 
+		if (KDB_FLAG(CMD_INTERRUPT))
+			return 0;
+
 		sprintf(buf, "%s " kdb_machreg_fmt "\n", command, va);
 		diag = kdb_parse(buf);
 		if (diag)
