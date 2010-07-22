@@ -263,21 +263,17 @@ set_phy_reg(struct pcilynx *lynx, int addr, int val)
 static void
 nosy_start_snoop(struct client *client)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&client->lynx->client_list_lock, flags);
+	spin_lock_irq(&client->lynx->client_list_lock);
 	list_add_tail(&client->link, &client->lynx->client_list);
-	spin_unlock_irqrestore(&client->lynx->client_list_lock, flags);
+	spin_unlock_irq(&client->lynx->client_list_lock);
 }
 
 static void
 nosy_stop_snoop(struct client *client)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&client->lynx->client_list_lock, flags);
+	spin_lock_irq(&client->lynx->client_list_lock);
 	list_del_init(&client->link);
-	spin_unlock_irqrestore(&client->lynx->client_list_lock, flags);
+	spin_unlock_irq(&client->lynx->client_list_lock);
 }
 
 static struct client *
@@ -410,9 +406,8 @@ struct link_packet {
 };
 
 static void
-packet_handler(struct pcilynx *lynx)
+packet_irq_handler(struct pcilynx *lynx)
 {
-	unsigned long flags;
 	struct client *client;
 	u32 tcode_mask;
 	size_t length;
@@ -432,31 +427,30 @@ packet_handler(struct pcilynx *lynx)
 	else
 		tcode_mask = 1 << packet->tcode;
 
-	spin_lock_irqsave(&lynx->client_list_lock, flags);
+	spin_lock(&lynx->client_list_lock);
 
 	list_for_each_entry(client, &lynx->client_list, link)
 		if (client->tcode_mask & tcode_mask)
 			packet_buffer_put(&client->buffer,
 					  lynx->rcv_buffer, length + 4);
 
-	spin_unlock_irqrestore(&lynx->client_list_lock, flags);
+	spin_unlock(&lynx->client_list_lock);
 }
 
 static void
-bus_reset_handler(struct pcilynx *lynx)
+bus_reset_irq_handler(struct pcilynx *lynx)
 {
-	unsigned long flags;
 	struct client *client;
 	struct timeval tv;
 
 	do_gettimeofday(&tv);
 
-	spin_lock_irqsave(&lynx->client_list_lock, flags);
+	spin_lock(&lynx->client_list_lock);
 
 	list_for_each_entry(client, &lynx->client_list, link)
 		packet_buffer_put(&client->buffer, &tv.tv_usec, 4);
 
-	spin_unlock_irqrestore(&lynx->client_list_lock, flags);
+	spin_unlock(&lynx->client_list_lock);
 }
 
 static irqreturn_t
@@ -478,7 +472,7 @@ irq_handler(int irq, void *device)
 		reg_write(lynx, LINK_INT_STATUS, link_int_status);
 
 		if ((link_int_status & LINK_INT_PHY_BUSRESET) > 0)
-			bus_reset_handler(lynx);
+			bus_reset_irq_handler(lynx);
 	}
 
 	/* Clear the PCI_INT_STATUS register only after clearing the
@@ -488,7 +482,7 @@ irq_handler(int irq, void *device)
 	reg_write(lynx, PCI_INT_STATUS, pci_int_status);
 
 	if ((pci_int_status & PCI_INT_DMA0_HLT) > 0) {
-		packet_handler(lynx);
+		packet_irq_handler(lynx);
 		run_pcl(lynx, lynx->rcv_start_pcl_bus, 0);
 	}
 
