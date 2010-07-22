@@ -195,7 +195,7 @@ static void qeth_l3_convert_addr_to_bits(u8 *addr, u8 *bits, int len)
 	}
 }
 
-static int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
+int qeth_l3_is_addr_covered_by_ipato(struct qeth_card *card,
 						struct qeth_ipaddr *addr)
 {
 	struct qeth_ipato_entry *ipatoe;
