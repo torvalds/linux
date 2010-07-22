@@ -26,7 +26,7 @@ const struct of_device_id *of_match_device(const struct of_device_id *matches,
 }
 EXPORT_SYMBOL(of_match_device);
 
-struct of_device *of_dev_get(struct of_device *dev)
+struct platform_device *of_dev_get(struct platform_device *dev)
 {
 	struct device *tmp;
 
@@ -34,13 +34,13 @@ struct of_device *of_dev_get(struct of_device *dev)
 		return NULL;
 	tmp = get_device(&dev->dev);
 	if (tmp)
-		return to_of_device(tmp);
+		return to_platform_device(tmp);
 	else
 		return NULL;
 }
 EXPORT_SYMBOL(of_dev_get);
 
-void of_dev_put(struct of_device *dev)
+void of_dev_put(struct platform_device *dev)
 {
 	if (dev)
 		put_device(&dev->dev);
@@ -50,18 +50,18 @@ EXPORT_SYMBOL(of_dev_put);
 static ssize_t devspec_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 
-	ofdev = to_of_device(dev);
+	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->full_name);
 }
 
 static ssize_t name_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 
-	ofdev = to_of_device(dev);
+	ofdev = to_platform_device(dev);
 	return sprintf(buf, "%s\n", ofdev->dev.of_node->name);
 }
 
@@ -90,15 +90,15 @@ struct device_attribute of_platform_device_attrs[] = {
  */
 void of_release_dev(struct device *dev)
 {
-	struct of_device *ofdev;
+	struct platform_device *ofdev;
 
-	ofdev = to_of_device(dev);
+	ofdev = to_platform_device(dev);
 	of_node_put(ofdev->dev.of_node);
 	kfree(ofdev);
 }
 EXPORT_SYMBOL(of_release_dev);
 
-int of_device_register(struct of_device *ofdev)
+int of_device_register(struct platform_device *ofdev)
 {
 	BUG_ON(ofdev->dev.of_node == NULL);
 
@@ -119,7 +119,7 @@ int of_device_register(struct of_device *ofdev)
 }
 EXPORT_SYMBOL(of_device_register);
 
-void of_device_unregister(struct of_device *ofdev)
+void of_device_unregister(struct platform_device *ofdev)
 {
 	device_unregister(&ofdev->dev);
 }

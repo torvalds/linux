@@ -39,14 +39,14 @@ static inline int of_driver_match_device(const struct device *dev,
 	return of_match_device(drv->of_match_table, dev) != NULL;
 }
 
-extern struct of_device *of_dev_get(struct of_device *dev);
-extern void of_dev_put(struct of_device *dev);
+extern struct platform_device *of_dev_get(struct platform_device *dev);
+extern void of_dev_put(struct platform_device *dev);
 
-extern int of_device_register(struct of_device *ofdev);
-extern void of_device_unregister(struct of_device *ofdev);
+extern int of_device_register(struct platform_device *ofdev);
+extern void of_device_unregister(struct platform_device *ofdev);
 extern void of_release_dev(struct device *dev);
 
-static inline void of_device_free(struct of_device *dev)
+static inline void of_device_free(struct platform_device *dev)
 {
 	of_release_dev(&dev->dev);
 }

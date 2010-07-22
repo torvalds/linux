@@ -27,13 +27,13 @@ extern const struct of_device_id of_default_bus_ids[];
  */
 struct of_platform_driver
 {
-	int	(*probe)(struct of_device* dev,
+	int	(*probe)(struct platform_device* dev,
 			 const struct of_device_id *match);
-	int	(*remove)(struct of_device* dev);
+	int	(*remove)(struct platform_device* dev);
 
-	int	(*suspend)(struct of_device* dev, pm_message_t state);
-	int	(*resume)(struct of_device* dev);
-	int	(*shutdown)(struct of_device* dev);
+	int	(*suspend)(struct platform_device* dev, pm_message_t state);
+	int	(*resume)(struct platform_device* dev);
+	int	(*shutdown)(struct platform_device* dev);
 
 	struct device_driver	driver;
 	struct platform_driver	platform_driver;
@@ -49,16 +49,16 @@ extern void of_unregister_driver(struct of_platform_driver *drv);
 extern int of_register_platform_driver(struct of_platform_driver *drv);
 extern void of_unregister_platform_driver(struct of_platform_driver *drv);
 
-extern struct of_device *of_device_alloc(struct device_node *np,
+extern struct platform_device *of_device_alloc(struct device_node *np,
 					 const char *bus_id,
 					 struct device *parent);
-extern struct of_device *of_find_device_by_node(struct device_node *np);
+extern struct platform_device *of_find_device_by_node(struct device_node *np);
 
 extern int of_bus_type_init(struct bus_type *bus, const char *name);
 
 #if !defined(CONFIG_SPARC) /* SPARC has its own device registration method */
 /* Platform devices and busses creation */
-extern struct of_device *of_platform_device_create(struct device_node *np,
+extern struct platform_device *of_platform_device_create(struct device_node *np,
 						   const char *bus_id,
 						   struct device *parent);
 

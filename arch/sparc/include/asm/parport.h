@@ -103,7 +103,7 @@ static inline unsigned int get_dma_residue(unsigned int dmanr)
 	return ebus_dma_residue(&sparc_ebus_dmas[dmanr].info);
 }
 
-static int __devinit ecpp_probe(struct of_device *op, const struct of_device_id *match)
+static int __devinit ecpp_probe(struct platform_device *op, const struct of_device_id *match)
 {
 	unsigned long base = op->resource[0].start;
 	unsigned long config = op->resource[1].start;
@@ -192,7 +192,7 @@ out_err:
 	return err;
 }
 
-static int __devexit ecpp_remove(struct of_device *op)
+static int __devexit ecpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	int slot = p->dma;

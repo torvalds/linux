@@ -94,11 +94,11 @@ static int of_platform_device_probe(struct device *dev)
 {
 	int error = -ENODEV;
 	struct of_platform_driver *drv;
-	struct of_device *of_dev;
+	struct platform_device *of_dev;
 	const struct of_device_id *match;
 
 	drv = to_of_platform_driver(dev->driver);
-	of_dev = to_of_device(dev);
+	of_dev = to_platform_device(dev);
 
 	if (!drv->probe)
 		return error;
@@ -116,7 +116,7 @@ static int of_platform_device_probe(struct device *dev)
 
 static int of_platform_device_remove(struct device *dev)
 {
-	struct of_device *of_dev = to_of_device(dev);
+	struct platform_device *of_dev = to_platform_device(dev);
 	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
 
 	if (dev->driver && drv->remove)
@@ -126,7 +126,7 @@ static int of_platform_device_remove(struct device *dev)
 
 static void of_platform_device_shutdown(struct device *dev)
 {
-	struct of_device *of_dev = to_of_device(dev);
+	struct platform_device *of_dev = to_platform_device(dev);
 	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
 
 	if (dev->driver && drv->shutdown)
@@ -137,7 +137,7 @@ static void of_platform_device_shutdown(struct device *dev)
 
 static int of_platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 {
-	struct of_device *of_dev = to_of_device(dev);
+	struct platform_device *of_dev = to_platform_device(dev);
 	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
 	int ret = 0;
 
@@ -148,7 +148,7 @@ static int of_platform_legacy_suspend(struct device *dev, pm_message_t mesg)
 
 static int of_platform_legacy_resume(struct device *dev)
 {
-	struct of_device *of_dev = to_of_device(dev);
+	struct platform_device *of_dev = to_platform_device(dev);
 	struct of_platform_driver *drv = to_of_platform_driver(dev->driver);
 	int ret = 0;
 
@@ -543,11 +543,11 @@ static void of_device_make_bus_id(struct device *dev)
  * @bus_id: Name to assign to the device.  May be null to use default name.
  * @parent: Parent device.
  */
-struct of_device *of_device_alloc(struct device_node *np,
+struct platform_device *of_device_alloc(struct device_node *np,
 				  const char *bus_id,
 				  struct device *parent)
 {
-	struct of_device *dev;
+	struct platform_device *dev;
 	int rc, i, num_reg = 0, num_irq = 0;
 	struct resource *res, temp_res;
 
@@ -600,11 +600,11 @@ EXPORT_SYMBOL(of_device_alloc);
  * @bus_id: name to assign device
  * @parent: Linux device model parent device.
  */
-struct of_device *of_platform_device_create(struct device_node *np,
+struct platform_device *of_platform_device_create(struct device_node *np,
 					    const char *bus_id,
 					    struct device *parent)
 {
-	struct of_device *dev;
+	struct platform_device *dev;
 
 	dev = of_device_alloc(np, bus_id, parent);
 	if (!dev)
@@ -642,7 +642,7 @@ static int of_platform_bus_create(const struct device_node *bus,
 				  struct device *parent)
 {
 	struct device_node *child;
-	struct of_device *dev;
+	struct platform_device *dev;
 	int rc = 0;
 
 	for_each_child_of_node(bus, child) {
@@ -678,7 +678,7 @@ int of_platform_bus_probe(struct device_node *root,
 			  struct device *parent)
 {
 	struct device_node *child;
-	struct of_device *dev;
+	struct platform_device *dev;
 	int rc = 0;
 
 	if (matches == NULL)
