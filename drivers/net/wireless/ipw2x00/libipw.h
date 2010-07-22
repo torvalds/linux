@@ -828,7 +828,6 @@ struct libipw_device {
 	int host_strip_iv_icv;
 
 	int host_open_frag;
-	int host_build_iv;
 	int ieee802_1x;		/* is IEEE 802.1X used */
 
 	/* WPA data */

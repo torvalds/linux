@@ -757,7 +757,6 @@ static struct lib80211_crypto_ops lib80211_crypt_tkip = {
 	.name = "TKIP",
 	.init = lib80211_tkip_init,
 	.deinit = lib80211_tkip_deinit,
-	.build_iv = lib80211_tkip_hdr,
 	.encrypt_mpdu = lib80211_tkip_encrypt,
 	.decrypt_mpdu = lib80211_tkip_decrypt,
 	.encrypt_msdu = lib80211_michael_mic_add,
