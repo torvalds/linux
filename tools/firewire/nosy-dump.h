@@ -33,61 +33,63 @@
 #define SPEED_200                0x1
 #define SPEED_400                0x2
 
-struct phy_packet {
-  unsigned long timestamp;
+#include <stdint.h>
 
+struct phy_packet {
+  uint32_t timestamp;
   union {
     struct {
-      unsigned int zero : 24;
-      unsigned int phy_id : 6;
-      unsigned int identifier : 2;
+      uint32_t zero:24;
+      uint32_t phy_id:6;
+      uint32_t identifier:2;
     } common, link_on;
+
     struct {
-      unsigned int zero : 16;
-      unsigned int gap_count : 6;
-      unsigned int set_gap_count : 1;
-      unsigned int set_root : 1;
-      unsigned int root_id : 6;
-      unsigned int identifier : 2;
+      uint32_t zero:16;
+      uint32_t gap_count:6;
+      uint32_t set_gap_count:1;
+      uint32_t set_root:1;
+      uint32_t root_id:6;
+      uint32_t identifier:2;
     } phy_config;
+
     struct {
-      unsigned int more_packets : 1;
-      unsigned int initiated_reset : 1;
-      unsigned int port2 : 2;
-      unsigned int port1 : 2;
-      unsigned int port0 : 2;
-      unsigned int power_class : 3;
-      unsigned int contender : 1;
-      unsigned int phy_delay : 2;
-      unsigned int phy_speed : 2;
-      unsigned int gap_count : 6;
-      unsigned int link_active : 1;
-      unsigned int extended : 1;
-      unsigned int phy_id : 6;
-      unsigned int identifier : 2;
+      uint32_t more_packets:1;
+      uint32_t initiated_reset:1;
+      uint32_t port2:2;
+      uint32_t port1:2;
+      uint32_t port0:2;
+      uint32_t power_class:3;
+      uint32_t contender:1;
+      uint32_t phy_delay:2;
+      uint32_t phy_speed:2;
+      uint32_t gap_count:6;
+      uint32_t link_active:1;
+      uint32_t extended:1;
+      uint32_t phy_id:6;
+      uint32_t identifier:2;
     } self_id;
 
     struct {
-      unsigned int more_packets : 1;
-      unsigned int reserved1 : 1;
-      unsigned int porth : 2;
-      unsigned int portg : 2;
-      unsigned int portf : 2;
-      unsigned int porte : 2;
-      unsigned int portd : 2;
-      unsigned int portc : 2;
-      unsigned int portb : 2;
-      unsigned int porta : 2;
-      unsigned int reserved0 : 2;
-      unsigned int sequence : 3;
-      unsigned int extended : 1;
-      unsigned int phy_id : 6;
-      unsigned int identifier : 2;
+      uint32_t more_packets:1;
+      uint32_t reserved1:1;
+      uint32_t porth:2;
+      uint32_t portg:2;
+      uint32_t portf:2;
+      uint32_t porte:2;
+      uint32_t portd:2;
+      uint32_t portc:2;
+      uint32_t portb:2;
+      uint32_t porta:2;
+      uint32_t reserved0:2;
+      uint32_t sequence:3;
+      uint32_t extended:1;
+      uint32_t phy_id:6;
+      uint32_t identifier:2;
     } ext_self_id;
   };
-
-  unsigned long inverted;
-  unsigned long ack;
+  uint32_t inverted;
+  uint32_t ack;
 };
 
 #define PHY_PACKET_CONFIGURATION 0x00
@@ -95,186 +97,88 @@ struct phy_packet {
 #define PHY_PACKET_SELF_ID 0x02
 
 struct link_packet {
-  unsigned long timestamp;
-
+  uint32_t timestamp;
   union {
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
+      uint32_t priority:4;
+      uint32_t tcode:4;
+      uint32_t rt:2;
+      uint32_t tlabel:6;
+      uint32_t destination:16;
 
-      unsigned int offset_high : 16;
-      unsigned int source : 16;
+      uint32_t offset_high:16;
+      uint32_t source:16;
 
-      unsigned long offset_low;
+      uint32_t offset_low;
     } common;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int offset_high : 16;
-      unsigned int source : 16;
-
-      unsigned long offset_low;
-
-      unsigned long crc;
+      uint32_t common[3];
+      uint32_t crc;
     } read_quadlet;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int reserved0 : 12;
-      unsigned int rcode : 4;
-      unsigned int source : 16;
-
-      unsigned long reserved1;
-
-      unsigned long data;
- 
-      unsigned long crc; 
+      uint32_t common[3];
+      uint32_t data;
+      uint32_t crc;
     } read_quadlet_response;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int offset_high : 16;
-      unsigned int source : 16;
-
-      unsigned long offset_low;
-
-      unsigned int extended_tcode : 16;
-      unsigned int data_length : 16;
-
-      unsigned long crc;
+      uint32_t common[3];
+      uint32_t extended_tcode:16;
+      uint32_t data_length:16;
+      uint32_t crc;
     } read_block;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int reserved0 : 12;
-      unsigned int rcode : 4;
-      unsigned int source : 16;
-
-      unsigned long reserved1;
-
-      unsigned int extended_tcode : 16;
-      unsigned int data_length : 16;
-
-      unsigned long crc; 
-
-      unsigned long data[0];
-
+      uint32_t common[3];
+      uint32_t extended_tcode:16;
+      uint32_t data_length:16;
+      uint32_t crc;
+      uint32_t data[0];
       /* crc and ack follows. */
-
     } read_block_response;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int offset_high : 16;
-      unsigned int source : 16;
-
-      unsigned long offset_low;
-
-      unsigned long data;
- 
-      unsigned long crc; 
-
+      uint32_t common[3];
+      uint32_t data;
+      uint32_t crc;
     } write_quadlet;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int offset_high : 16;
-      unsigned int source : 16;
-
-      unsigned int offset_low : 32;
-
-      unsigned int extended_tcode : 16;
-      unsigned int data_length : 16;
- 
-      unsigned long crc; 
-      unsigned long data[0];
-
+      uint32_t common[3];
+      uint32_t extended_tcode:16;
+      uint32_t data_length:16;
+      uint32_t crc;
+      uint32_t data[0];
       /* crc and ack follows. */
-
     } write_block;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int reserved0 : 12;
-      unsigned int rcode : 4;
-      unsigned int source : 16;
-
-      unsigned long reserved1;
-
-      unsigned long crc; 
+      uint32_t common[3];
+      uint32_t crc;
     } write_response;
 
     struct {
-      unsigned int priority : 4;
-      unsigned int tcode : 4;
-      unsigned int rt : 2;
-      unsigned int tlabel : 6;
-      unsigned int destination : 16;
-
-      unsigned int offset_high : 16;
-      unsigned int source : 16;
-
-      unsigned long offset_low;
-
-      unsigned long data;
-
-      unsigned long crc; 
+      uint32_t common[3];
+      uint32_t data;
+      uint32_t crc;
     } cycle_start;
 
     struct {
-      unsigned int sy : 4;
-      unsigned int tcode : 4;
-      unsigned int channel : 6;
-      unsigned int tag : 2;
-      unsigned int data_length : 16;
+      uint32_t sy:4;
+      uint32_t tcode:4;
+      uint32_t channel:6;
+      uint32_t tag:2;
+      uint32_t data_length:16;
 
-      unsigned long crc;
+      uint32_t crc;
     } iso_data;
-
   };
-
 };
 
 struct subaction {
-  unsigned long ack;
+  uint32_t ack;
   size_t length;
   struct list link;
   struct link_packet packet;

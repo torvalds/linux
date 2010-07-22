@@ -46,7 +46,7 @@ enum {
 };
 
 static void
-print_packet(unsigned long *data, size_t length);
+print_packet(uint32_t *data, size_t length);
 static void
 decode_link_packet(struct link_packet *packet, size_t length,
 		   int include_flags, int exclude_flags);
@@ -151,7 +151,7 @@ sigint_handler(int signal_num)
 }
 
 struct subaction *
-subaction_create(unsigned long *data, size_t length)
+subaction_create(uint32_t *data, size_t length)
 {
   struct subaction *sa;
 
@@ -247,9 +247,9 @@ handle_transaction(struct link_transaction *t)
 
   if (option_verbose) {
     list_for_each_entry(sa, &t->request_list, link)
-      print_packet((unsigned long *) &sa->packet, sa->length);
+      print_packet((uint32_t *) &sa->packet, sa->length);
     list_for_each_entry(sa, &t->response_list, link)
-      print_packet((unsigned long *) &sa->packet, sa->length);
+      print_packet((uint32_t *) &sa->packet, sa->length);
   }
   printf("\r\n");
 
@@ -506,7 +506,7 @@ static struct packet_info packet_info[] = {
 };
 
 int
-handle_packet(unsigned long *data, size_t length)
+handle_packet(uint32_t *data, size_t length)
 {
   if (length == 0) {
     printf("bus reset\r\n");
@@ -642,8 +642,8 @@ handle_packet(unsigned long *data, size_t length)
 
 unsigned int get_bits(struct link_packet *packet, int offset, int width)
 {
-  unsigned long *data = (unsigned long *) packet;
-  unsigned long index, shift, mask;
+  uint32_t *data = (uint32_t *) packet;
+  uint32_t index, shift, mask;
 
   index = offset / 32 + 1;
   shift = 32 - (offset & 31) - width;
@@ -703,7 +703,7 @@ decode_link_packet(struct link_packet *packet, size_t length,
       offset = f->offset;
 
     if (f->value_names != NULL) {
-      unsigned long bits;
+      uint32_t bits;
 
       bits = get_bits(packet, offset, f->width);
       printf("%s", f->value_names[bits]);
@@ -741,18 +741,18 @@ decode_link_packet(struct link_packet *packet, size_t length,
 }
 
 static void
-print_packet(unsigned long *data, size_t length)
+print_packet(uint32_t *data, size_t length)
 {
   int i;
 
-  printf("%6lu  ", data[0]);
+  printf("%6u  ", data[0]);
 
   if (length == 4)
     printf("bus reset");
   else if (length < sizeof(struct phy_packet)) {
     printf("short packet: ");
     for (i = 1; i < length / 4; i++)
-      printf("%s%08lx", i == 0 ? "[" : " ", data[i]);
+      printf("%s%08x", i == 0 ? "[" : " ", data[i]);
     printf("]");
 
   }
@@ -803,7 +803,7 @@ print_packet(unsigned long *data, size_t length)
     default:
       printf("unknown phy packet: ");
       for (i = 1; i < length / 4; i++)
-	printf("%s%08lx", i == 0 ? "[" : " ", data[i]);
+	printf("%s%08x", i == 0 ? "[" : " ", data[i]);
       printf("]");
       break;
     }
@@ -829,7 +829,7 @@ print_packet(unsigned long *data, size_t length)
 #define CLEAR		"\033[H\033[2J"
 
 static void
-print_stats(unsigned long *data, size_t length)
+print_stats(uint32_t *data, size_t length)
 {
   static int bus_reset_count, short_packet_count, phy_packet_count;
   static int tcode_count[16];
@@ -959,8 +959,8 @@ int main(int argc, const char *argv[])
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
 
   if (1) {
-    unsigned long buf[128 * 1024];
-    unsigned int filter;
+    uint32_t buf[128 * 1024];
+    uint32_t filter;
     int length;
 
     filter = ~0;
@@ -968,11 +968,10 @@ int main(int argc, const char *argv[])
       filter &= ~(1 <<TCODE_ISO_DATA);
     if (!option_cycle_start)
       filter &= ~(1 << TCODE_CYCLE_START);
-
     if (view == VIEW_STATS)
-      ioctl(fd, NOSY_IOC_FILTER, ~(1 << TCODE_CYCLE_START));
-    else
-      ioctl(fd, NOSY_IOC_FILTER, filter);
+      filter = ~(1 << TCODE_CYCLE_START);
+
+    ioctl(fd, NOSY_IOC_FILTER, filter);
 
     ioctl(fd, NOSY_IOC_START);
 

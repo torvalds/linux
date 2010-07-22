@@ -158,12 +158,12 @@ static const struct avc_opcode_info opcode_info[256] = {
 };
 
 struct avc_frame {
-    unsigned int operand0 : 8;
-    unsigned int opcode : 8;
-    unsigned int subunit_id : 3;
-    unsigned int subunit_type : 5;
-    unsigned int ctype : 4;
-    unsigned int cts : 4;
+    uint32_t operand0:8;
+    uint32_t opcode:8;
+    uint32_t subunit_id:3;
+    uint32_t subunit_type:5;
+    uint32_t ctype:4;
+    uint32_t cts:4;
 };
 
 static void
