@@ -468,10 +468,9 @@ static int work_next_color(int color)
 }
 
 /*
- * Work data points to the cwq while a work is on queue.  Once
- * execution starts, it points to the cpu the work was last on.  This
- * can be distinguished by comparing the data value against
- * PAGE_OFFSET.
+ * A work's data points to the cwq with WORK_STRUCT_CWQ set while the
+ * work is on queue.  Once execution starts, WORK_STRUCT_CWQ is
+ * cleared and the work data contains the cpu number it was last on.
  *
  * set_work_{cwq|cpu}() and clear_work_data() can be used to set the
  * cwq, cpu or clear work->data.  These functions should only be
@@ -494,7 +493,7 @@ static void set_work_cwq(struct work_struct *work,
 			 unsigned long extra_flags)
 {
 	set_work_data(work, (unsigned long)cwq,
-		      WORK_STRUCT_PENDING | extra_flags);
+		      WORK_STRUCT_PENDING | WORK_STRUCT_CWQ | extra_flags);
 }
 
 static void set_work_cpu(struct work_struct *work, unsigned int cpu)
@@ -507,25 +506,24 @@ static void clear_work_data(struct work_struct *work)
 	set_work_data(work, WORK_STRUCT_NO_CPU, 0);
 }
 
-static inline unsigned long get_work_data(struct work_struct *work)
-{
-	return atomic_long_read(&work->data) & WORK_STRUCT_WQ_DATA_MASK;
-}
-
 static struct cpu_workqueue_struct *get_work_cwq(struct work_struct *work)
 {
-	unsigned long data = get_work_data(work);
+	unsigned long data = atomic_long_read(&work->data);
 
-	return data >= PAGE_OFFSET ? (void *)data : NULL;
+	if (data & WORK_STRUCT_CWQ)
+		return (void *)(data & WORK_STRUCT_WQ_DATA_MASK);
+	else
+		return NULL;
 }
 
 static struct global_cwq *get_work_gcwq(struct work_struct *work)
 {
-	unsigned long data = get_work_data(work);
+	unsigned long data = atomic_long_read(&work->data);
 	unsigned int cpu;
 
-	if (data >= PAGE_OFFSET)
-		return ((struct cpu_workqueue_struct *)data)->gcwq;
+	if (data & WORK_STRUCT_CWQ)
+		return ((struct cpu_workqueue_struct *)
+			(data & WORK_STRUCT_WQ_DATA_MASK))->gcwq;
 
 	cpu = data >> WORK_STRUCT_FLAG_BITS;
 	if (cpu == WORK_CPU_NONE)
@@ -3500,14 +3498,6 @@ void __init init_workqueues(void)
 {
 	unsigned int cpu;
 	int i;
-
-	/*
-	 * The pointer part of work->data is either pointing to the
-	 * cwq or contains the cpu number the work ran last on.  Make
-	 * sure cpu number won't overflow into kernel pointer area so
-	 * that they can be distinguished.
-	 */
-	BUILD_BUG_ON(WORK_CPU_LAST << WORK_STRUCT_FLAG_BITS >= PAGE_OFFSET);
 
 	hotcpu_notifier(workqueue_cpu_callback, CPU_PRI_WORKQUEUE);
 
