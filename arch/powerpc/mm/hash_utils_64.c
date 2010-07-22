@@ -955,6 +955,17 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 		return 1;
 	}
 
+	/* Add _PAGE_PRESENT to the required access perm */
+	access |= _PAGE_PRESENT;
+
+	/* Pre-check access permissions (will be re-checked atomically
+	 * in __hash_page_XX but this pre-check is a fast path
+	 */
+	if (access & ~pte_val(*ptep)) {
+		DBG_LOW(" no access !\n");
+		return 1;
+	}
+
 #ifdef CONFIG_HUGETLB_PAGE
 	if (hugeshift)
 		return __hash_page_huge(ea, access, vsid, ptep, trap, local,
@@ -967,14 +978,6 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	DBG_LOW(" i-pte: %016lx %016lx\n", pte_val(*ptep),
 		pte_val(*(ptep + PTRS_PER_PTE)));
 #endif
-	/* Pre-check access permissions (will be re-checked atomically
-	 * in __hash_page_XX but this pre-check is a fast path
-	 */
-	if (access & ~pte_val(*ptep)) {
-		DBG_LOW(" no access !\n");
-		return 1;
-	}
-
 	/* Do actual hashing */
 #ifdef CONFIG_PPC_64K_PAGES
 	/* If _PAGE_4K_PFN is set, make sure this is a 4k segment */
