@@ -1883,6 +1883,7 @@ static int kdb_lsmod(int argc, const char **argv)
 			kdb_printf(" (Loading)");
 		else
 			kdb_printf(" (Live)");
+		kdb_printf(" 0x%p", mod->module_core);
 
 #ifdef CONFIG_MODULE_UNLOAD
 		{
