@@ -284,6 +284,7 @@ struct fsg_lun {
 	unsigned int	prevent_medium_removal:1;
 	unsigned int	registered:1;
 	unsigned int	info_valid:1;
+	unsigned int	nofua:1;
 
 	u32		sense_data;
 	u32		sense_data_info;
@@ -714,6 +715,14 @@ static ssize_t fsg_show_ro(struct device *dev, struct device_attribute *attr,
 				  : curlun->initially_ro);
 }
 
+static ssize_t fsg_show_nofua(struct device *dev, struct device_attribute *attr,
+			      char *buf)
+{
+	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
+
+	return sprintf(buf, "%u\n", curlun->nofua);
+}
+
 static ssize_t fsg_show_file(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
@@ -768,6 +777,25 @@ static ssize_t fsg_store_ro(struct device *dev, struct device_attribute *attr,
 	}
 	up_read(filesem);
 	return rc;
+}
+
+static ssize_t fsg_store_nofua(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count)
+{
+	struct fsg_lun	*curlun = fsg_lun_from_dev(dev);
+	unsigned long	nofua;
+
+	if (strict_strtoul(buf, 2, &nofua))
+		return -EINVAL;
+
+	/* Sync data when switching from async mode to sync */
+	if (!nofua && curlun->nofua)
+		fsg_lun_fsync_sub(curlun);
+
+	curlun->nofua = nofua;
+
+	return count;
 }
 
 static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,

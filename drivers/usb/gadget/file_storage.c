@@ -93,6 +93,8 @@
  *	removable		Default false, boolean for removable media
  *	luns=N			Default N = number of filenames, number of
  *					LUNs to support
+ *	nofua=b[,b...]		Default false, booleans for ignore FUA flag
+ *					in SCSI WRITE(10,12) commands
  *	stall			Default determined according to the type of
  *					USB device controller (usually true),
  *					boolean to permit the driver to halt
@@ -112,12 +114,12 @@
  *					PAGE_CACHE_SIZE)
  *
  * If CONFIG_USB_FILE_STORAGE_TEST is not set, only the "file", "ro",
- * "removable", "luns", "stall", and "cdrom" options are available; default
- * values are used for everything else.
+ * "removable", "luns", "nofua", "stall", and "cdrom" options are available;
+ * default values are used for everything else.
  *
  * The pathnames of the backing files and the ro settings are available in
- * the attribute files "file" and "ro" in the lun<n> subdirectory of the
- * gadget's sysfs directory.  If the "removable" option is set, writing to
+ * the attribute files "file", "nofua", and "ro" in the lun<n> subdirectory of
+ * the gadget's sysfs directory.  If the "removable" option is set, writing to
  * these files will simulate ejecting/loading the medium (writing an empty
  * line means eject) and adjusting a write-enable tab.  Changes to the ro
  * setting are not allowed when the medium is loaded or if CD-ROM emulation
@@ -304,8 +306,10 @@ MODULE_LICENSE("Dual BSD/GPL");
 static struct {
 	char		*file[FSG_MAX_LUNS];
 	int		ro[FSG_MAX_LUNS];
+	int		nofua[FSG_MAX_LUNS];
 	unsigned int	num_filenames;
 	unsigned int	num_ros;
+	unsigned int	num_nofuas;
 	unsigned int	nluns;
 
 	int		removable;
@@ -344,6 +348,10 @@ MODULE_PARM_DESC(file, "names of backing files or devices");
 
 module_param_array_named(ro, mod_data.ro, bool, &mod_data.num_ros, S_IRUGO);
 MODULE_PARM_DESC(ro, "true to force read-only");
+
+module_param_array_named(nofua, mod_data.nofua, bool, &mod_data.num_nofuas,
+		S_IRUGO);
+MODULE_PARM_DESC(nofua, "true to ignore SCSI WRITE(10,12) FUA bit");
 
 module_param_named(luns, mod_data.nluns, uint, S_IRUGO);
 MODULE_PARM_DESC(luns, "number of LUNs");
@@ -1279,7 +1287,8 @@ static int do_write(struct fsg_dev *fsg)
 			curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 			return -EINVAL;
 		}
-		if (fsg->cmnd[1] & 0x08) {	// FUA
+		/* FUA */
+		if (!curlun->nofua && (fsg->cmnd[1] & 0x08)) {
 			spin_lock(&curlun->filp->f_lock);
 			curlun->filp->f_flags |= O_DSYNC;
 			spin_unlock(&curlun->filp->f_lock);
@@ -3133,6 +3142,7 @@ static int fsg_main_thread(void *fsg_)
 
 /* The write permissions and store_xxx pointers are set in fsg_bind() */
 static DEVICE_ATTR(ro, 0444, fsg_show_ro, NULL);
+static DEVICE_ATTR(nofua, 0644, fsg_show_nofua, NULL);
 static DEVICE_ATTR(file, 0444, fsg_show_file, NULL);
 
 
@@ -3362,6 +3372,10 @@ static int __ref fsg_bind(struct usb_gadget *gadget)
 		}
 	}
 
+	/* Only for removable media? */
+	dev_attr_nofua.attr.mode = 0644;
+	dev_attr_nofua.store = fsg_store_nofua;
+
 	/* Find out how many LUNs there should be */
 	i = mod_data.nluns;
 	if (i == 0)
@@ -3387,6 +3401,7 @@ static int __ref fsg_bind(struct usb_gadget *gadget)
 		curlun->ro = mod_data.cdrom || mod_data.ro[i];
 		curlun->initially_ro = curlun->ro;
 		curlun->removable = mod_data.removable;
+		curlun->nofua = mod_data.nofua[i];
 		curlun->dev.release = lun_release;
 		curlun->dev.parent = &gadget->dev;
 		curlun->dev.driver = &fsg_driver.driver;
@@ -3400,6 +3415,8 @@ static int __ref fsg_bind(struct usb_gadget *gadget)
 		}
 		if ((rc = device_create_file(&curlun->dev,
 					&dev_attr_ro)) != 0 ||
+				(rc = device_create_file(&curlun->dev,
+					&dev_attr_nofua)) != 0 ||
 				(rc = device_create_file(&curlun->dev,
 					&dev_attr_file)) != 0) {
 			device_unregister(&curlun->dev);
@@ -3525,8 +3542,8 @@ static int __ref fsg_bind(struct usb_gadget *gadget)
 				if (IS_ERR(p))
 					p = NULL;
 			}
-			LINFO(curlun, "ro=%d, file: %s\n",
-					curlun->ro, (p ? p : "(error)"));
+			LINFO(curlun, "ro=%d, nofua=%d, file: %s\n",
+			      curlun->ro, curlun->nofua, (p ? p : "(error)"));
 		}
 	}
 	kfree(pathbuf);
