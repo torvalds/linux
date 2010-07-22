@@ -748,7 +748,7 @@ minstrel_ht_alloc_sta(void *priv, struct ieee80211_sta *sta, gfp_t gfp)
 	return msp;
 
 error1:
-	kfree(msp->sample_table);
+	kfree(msp->ratelist);
 error:
 	kfree(msp);
 	return NULL;
