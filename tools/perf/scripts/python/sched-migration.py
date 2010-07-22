@@ -54,6 +54,8 @@ class RootFrame(wx.Frame):
 		self.scroll_panel.Bind(wx.EVT_KEY_DOWN, self.on_key_press)
 		self.scroll_panel.Bind(wx.EVT_LEFT_DOWN, self.on_mouse_down)
 		self.scroll.Bind(wx.EVT_PAINT, self.on_paint)
+		self.scroll.Bind(wx.EVT_KEY_DOWN, self.on_key_press)
+		self.scroll.Bind(wx.EVT_LEFT_DOWN, self.on_mouse_down)
 
 		self.scroll.Fit()
 		self.Fit()
