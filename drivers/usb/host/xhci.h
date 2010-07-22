@@ -919,6 +919,9 @@ struct xhci_event_cmd {
 /* Control transfer TRB specific fields */
 #define TRB_DIR_IN		(1<<16)
 
+/* Isochronous TRB specific fields */
+#define TRB_SIA			(1<<31)
+
 struct xhci_generic_trb {
 	u32 field[4];
 };
@@ -1416,6 +1419,8 @@ int xhci_queue_bulk_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
 int xhci_queue_intr_tx(struct xhci_hcd *xhci, gfp_t mem_flags, struct urb *urb,
 		int slot_id, unsigned int ep_index);
+int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
+		struct urb *urb, int slot_id, unsigned int ep_index);
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id, bool command_must_succeed);
 int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
