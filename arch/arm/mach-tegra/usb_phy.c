@@ -29,6 +29,7 @@
 
 #define USB_PORTSC1		0x184
 #define   USB_PORTSC1_PTS(x)	(((x) & 0x3) << 30)
+#define   USB_PORTSC1_PHCD	(1 << 23)
 
 #define USB_SUSP_CTRL		0x400
 #define   USB_WAKE_ON_CNNT_EN_DEV	(1 << 3)
@@ -240,6 +241,52 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy)
 	}
 }
 
+void utmi_phy_power_off(struct tegra_usb_phy *phy)
+{
+	unsigned long val;
+	void *base = phy->regs;
+
+	if (phy->instance == 0) {
+		val = readl(base + USB_SUSP_CTRL);
+		val |= USB_SUSP_SET;
+		writel(val, base + USB_SUSP_CTRL);
+
+		udelay(10);
+
+		val = readl(base + USB_SUSP_CTRL);
+		val &= ~USB_SUSP_SET;
+		writel(val, base + USB_SUSP_CTRL);
+	}
+
+	if (phy->instance == 2) {
+		val = readl(base + USB_PORTSC1);
+		val |= USB_PORTSC1_PHCD;
+		writel(val, base + USB_PORTSC1);
+	}
+
+	val = readl(base + USB_SUSP_CTRL);
+	val |= USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV;
+	writel(val, base + USB_SUSP_CTRL);
+
+	val = readl(base + USB_SUSP_CTRL);
+	val |= UTMIP_RESET;
+	writel(val, base + USB_SUSP_CTRL);
+
+	val = readl(base + UTMIP_BAT_CHRG_CFG0);
+	val |= UTMIP_PD_CHRG;
+	writel(val, base + UTMIP_BAT_CHRG_CFG0);
+
+	val = readl(base + UTMIP_XCVR_CFG0);
+	val |= UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
+	       UTMIP_FORCE_PDZI_POWERDOWN;
+	writel(val, base + UTMIP_XCVR_CFG0);
+
+	val = readl(base + UTMIP_XCVR_CFG1);
+	val |= UTMIP_FORCE_PDDISC_POWERDOWN | UTMIP_FORCE_PDCHRP_POWERDOWN |
+	       UTMIP_FORCE_PDDR_POWERDOWN;
+	writel(val, base + UTMIP_XCVR_CFG1);
+}
+
 struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs)
 {
 	struct tegra_usb_phy *phy;
@@ -260,8 +307,6 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs)
 		err = PTR_ERR(phy->pll_u);
 		goto err0;
 	}
-
-	clk_enable(phy->pll_u);
 
 	parent_rate = clk_get_rate(clk_get_parent(phy->pll_u));
 	for (freq_sel = 0; freq_sel < ARRAY_SIZE(udc_freq_table); freq_sel++) {
@@ -291,15 +336,25 @@ err0:
 int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
 {
 	/* TODO usb2 ulpi */
+	clk_enable(phy->pll_u);
 	if (phy->instance != 1)
 		utmi_phy_power_on(phy);
 
 	return 0;
 }
 
+int tegra_usb_phy_power_off(struct tegra_usb_phy *phy)
+{
+	/* TODO usb2 ulpi */
+	if (phy->instance != 1)
+		utmi_phy_power_off(phy);
+	clk_disable(phy->pll_u);
+
+	return 0;
+}
+
 int tegra_usb_phy_close(struct tegra_usb_phy *phy)
 {
-	clk_disable(phy->pll_u);
 	clk_put(phy->pll_u);
 	kfree(phy);
 	return 0;

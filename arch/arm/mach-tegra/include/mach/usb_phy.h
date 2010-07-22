@@ -30,6 +30,8 @@ struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs);
 
 int tegra_usb_phy_power_on(struct tegra_usb_phy *phy);
 
+int tegra_usb_phy_power_off(struct tegra_usb_phy *phy);
+
 int tegra_usb_phy_close(struct tegra_usb_phy *phy);
 
 #endif //__MACH_USB_PHY_H
