@@ -747,6 +747,7 @@ struct qeth_card {
 	struct qdio_ssqd_desc ssqd;
 	debug_info_t *debug;
 	struct mutex conf_mutex;
+	struct mutex discipline_mutex;
 };
 
 struct qeth_card_list_struct {
