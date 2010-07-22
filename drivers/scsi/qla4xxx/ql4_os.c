@@ -2020,6 +2020,11 @@ static int qla4xxx_eh_device_reset(struct scsi_cmnd *cmd)
 	if (!ddb_entry)
 		return ret;
 
+	ret = iscsi_block_scsi_eh(cmd);
+	if (ret)
+		return ret;
+	ret = FAILED;
+
 	ql4_printk(KERN_INFO, ha,
 		   "scsi%ld:%d:%d:%d: DEVICE RESET ISSUED.\n", ha->host_no,
 		   cmd->device->channel, cmd->device->id, cmd->device->lun);
@@ -2072,10 +2077,14 @@ static int qla4xxx_eh_target_reset(struct scsi_cmnd *cmd)
 {
 	struct scsi_qla_host *ha = to_qla_host(cmd->device->host);
 	struct ddb_entry *ddb_entry = cmd->device->hostdata;
-	int stat;
+	int stat, ret;
 
 	if (!ddb_entry)
 		return FAILED;
+
+	ret = iscsi_block_scsi_eh(cmd);
+	if (ret)
+		return ret;
 
 	starget_printk(KERN_INFO, scsi_target(cmd->device),
 		       "WARM TARGET RESET ISSUED.\n");

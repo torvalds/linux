@@ -30,6 +30,7 @@
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/iscsi_if.h>
+#include <scsi/scsi_cmnd.h>
 
 #define ISCSI_SESSION_ATTRS 23
 #define ISCSI_CONN_ATTRS 13
@@ -533,6 +534,37 @@ static void iscsi_scan_session(struct work_struct *work)
 	iscsi_user_scan_session(&session->dev, &scan_data);
 	atomic_dec(&ihost->nr_scans);
 }
+
+/**
+ * iscsi_block_scsi_eh - block scsi eh until session state has transistioned
+ * cmd: scsi cmd passed to scsi eh handler
+ *
+ * If the session is down this function will wait for the recovery
+ * timer to fire or for the session to be logged back in. If the
+ * recovery timer fires then FAST_IO_FAIL is returned. The caller
+ * should pass this error value to the scsi eh.
+ */
+int iscsi_block_scsi_eh(struct scsi_cmnd *cmd)
+{
+	struct iscsi_cls_session *session =
+			starget_to_session(scsi_target(cmd->device));
+	unsigned long flags;
+	int ret = 0;
+
+	spin_lock_irqsave(&session->lock, flags);
+	while (session->state != ISCSI_SESSION_LOGGED_IN) {
+		if (session->state == ISCSI_SESSION_FREE) {
+			ret = FAST_IO_FAIL;
+			break;
+		}
+		spin_unlock_irqrestore(&session->lock, flags);
+		msleep(1000);
+		spin_lock_irqsave(&session->lock, flags);
+	}
+	spin_unlock_irqrestore(&session->lock, flags);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iscsi_block_scsi_eh);
 
 static void session_recovery_timedout(struct work_struct *work)
 {
