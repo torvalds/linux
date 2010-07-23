@@ -187,7 +187,7 @@ static int ir_lirc_register(struct input_dev *input_dev)
 		return rc;
 
 	rbuf = kzalloc(sizeof(struct lirc_buffer), GFP_KERNEL);
-	if (!drv)
+	if (!rbuf)
 		goto rbuf_alloc_failed;
 
 	rc = lirc_buffer_init(rbuf, sizeof(int), LIRCBUF_SIZE);
