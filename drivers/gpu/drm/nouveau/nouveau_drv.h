@@ -1186,6 +1186,14 @@ static inline void nv_wr32(struct drm_device *dev, unsigned reg, u32 val)
 	iowrite32_native(val, dev_priv->mmio + reg);
 }
 
+static inline void nv_mask(struct drm_device *dev, u32 reg, u32 mask, u32 val)
+{
+	u32 tmp = nv_rd32(dev, reg);
+	tmp &= ~mask;
+	tmp |= val;
+	nv_wr32(dev, reg, tmp);
+}
+
 static inline u8 nv_rd08(struct drm_device *dev, unsigned reg)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
