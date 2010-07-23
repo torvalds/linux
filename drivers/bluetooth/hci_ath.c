@@ -163,7 +163,7 @@ static int ath_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	struct ath_struct *ath = hu->priv;
 
 	if (bt_cb(skb)->pkt_type == HCI_SCODATA_PKT) {
-		kfree(skb);
+		kfree_skb(skb);
 		return 0;
 	}
 
