@@ -508,7 +508,7 @@ EXPORT_SYMBOL(of_unregister_driver);
  * value to derive a unique name.  As a last resort it will use the node
  * name followed by a unique number.
  */
-static void of_device_make_bus_id(struct device *dev)
+void of_device_make_bus_id(struct device *dev)
 {
 	static atomic_t bus_no_reg_magic;
 	struct device_node *node = dev->of_node;
