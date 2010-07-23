@@ -183,6 +183,7 @@ config COMPAL_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL
 	depends on HWMON
+	depends on POWER_SUPPLY
 	---help---
 	  This is a driver for laptops built by Compal:
 
