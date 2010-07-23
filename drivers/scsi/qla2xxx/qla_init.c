@@ -1402,9 +1402,10 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 
 	if (IS_QLA82XX(ha)) {
 		rval = ha->isp_ops->load_risc(vha, &srisc_address);
-		if (rval == QLA_SUCCESS)
+		if (rval == QLA_SUCCESS) {
+			qla2x00_stop_firmware(vha);
 			goto enable_82xx_npiv;
-		else
+		} else
 			goto failed;
 	}
 
