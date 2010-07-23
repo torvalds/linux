@@ -6894,13 +6894,12 @@ static void get_mac_addr(struct dev_info *hw_priv, u8 *macaddr, int port)
 	i = j = num = got_num = 0;
 	while (j < MAC_ADDR_LEN) {
 		if (macaddr[i]) {
+			int digit;
+
 			got_num = 1;
-			if ('0' <= macaddr[i] && macaddr[i] <= '9')
-				num = num * 16 + macaddr[i] - '0';
-			else if ('A' <= macaddr[i] && macaddr[i] <= 'F')
-				num = num * 16 + 10 + macaddr[i] - 'A';
-			else if ('a' <= macaddr[i] && macaddr[i] <= 'f')
-				num = num * 16 + 10 + macaddr[i] - 'a';
+			digit = hex_to_bin(macaddr[i]);
+			if (digit >= 0)
+				num = num * 16 + digit;
 			else if (':' == macaddr[i])
 				got_num = 2;
 			else
