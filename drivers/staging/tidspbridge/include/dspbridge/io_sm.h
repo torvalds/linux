@@ -33,9 +33,6 @@
 #define DSP_FIELD_ADDR(type, field, base, wordsize) \
     ((((s32)&(((type *)0)->field)) / wordsize) + (u32)base)
 
-#define IO_OR_VALUE(context, type, base, field, value)  (base->field |= value)
-#define IO_AND_VALUE(context, type, base, field, value) (base->field &= value)
-
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 /* The maximum number of OPPs that are supported */
 extern s32 dsp_max_opps;

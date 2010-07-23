@@ -149,6 +149,17 @@ static int register_shm_segs(struct io_mgr *hio_mgr,
 				    struct cod_manager *cod_man,
 				    u32 dw_gpp_base_pa);
 
+static inline void set_chnl_free(struct shm *sm, u32 chnl)
+{
+	sm->host_free_mask &= ~(1 << chnl);
+}
+
+static inline void set_chnl_busy(struct shm *sm, u32 chnl)
+{
+	sm->host_free_mask |= 1 << chnl;
+}
+
+
 /*
  *  ======== bridge_io_create ========
  *      Create an IO manager object.
@@ -818,8 +829,7 @@ void io_cancel_chnl(struct io_mgr *hio_mgr, u32 chnl)
 	sm = hio_mgr->shared_mem;
 
 	/* Inform DSP that we have no more buffers on this channel */
-	IO_AND_VALUE(pio_mgr->hbridge_context, struct shm, sm, host_free_mask,
-		     (~(1 << chnl)));
+	set_chnl_free(sm, chnl);
 
 	sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 func_end:
@@ -994,8 +1004,7 @@ void io_request_chnl(struct io_mgr *io_manager, struct chnl_object *pchnl,
 		DBC_ASSERT((pchnl->dw_state == CHNL_STATEREADY) ||
 			   (pchnl->dw_state == CHNL_STATEEOS));
 		/* Indicate to the DSP we have a buffer available for input */
-		IO_OR_VALUE(io_manager->hbridge_context, struct shm, sm,
-			    host_free_mask, (1 << pchnl->chnl_id));
+		set_chnl_busy(sm, pchnl->chnl_id);
 		*mbx_val = MBX_PCPY_CLASS;
 	} else if (io_mode == IO_OUTPUT) {
 		/*
@@ -1156,10 +1165,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 				if (!pchnl->pio_requests)
 					goto func_end;
 				if (LST_IS_EMPTY(pchnl->pio_requests)) {
-					IO_AND_VALUE(pio_mgr->hbridge_context,
-						     struct shm, sm,
-						     host_free_mask,
-						     ~(1 << pchnl->chnl_id));
+					set_chnl_free(sm, pchnl->chnl_id);
 				}
 				clear_chnl = true;
 				notify_client = true;
