@@ -712,6 +712,25 @@ qla24xx_set_t10dif_tags(struct scsi_cmnd *cmd, struct fw_dif_context *pkt,
 	 * match LBA in CDB + N
 	 */
 	case SCSI_PROT_DIF_TYPE2:
+		if (!ql2xenablehba_err_chk)
+			break;
+
+		if (scsi_prot_sg_count(cmd)) {
+			spt = page_address(sg_page(scsi_prot_sglist(cmd))) +
+			    scsi_prot_sglist(cmd)[0].offset;
+			pkt->app_tag = swab32(spt->app_tag);
+			pkt->app_tag_mask[0] =  0xff;
+			pkt->app_tag_mask[1] =  0xff;
+		}
+
+		pkt->ref_tag = cpu_to_le32((uint32_t)
+		    (0xffffffff & scsi_get_lba(cmd)));
+
+		/* enable ALL bytes of the ref tag */
+		pkt->ref_tag_mask[0] = 0xff;
+		pkt->ref_tag_mask[1] = 0xff;
+		pkt->ref_tag_mask[2] = 0xff;
+		pkt->ref_tag_mask[3] = 0xff;
 		break;
 
 	/* For Type 3 protection: 16 bit GUARD only */
@@ -1062,7 +1081,7 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	total_bytes = data_bytes;
 	dif_bytes = 0;
 	blk_size = cmd->device->sector_size;
-	if (scsi_get_prot_type(cmd) == SCSI_PROT_DIF_TYPE1) {
+	if (scsi_get_prot_op(cmd) != SCSI_PROT_NORMAL) {
 		dif_bytes = (data_bytes / blk_size) * 8;
 		total_bytes += dif_bytes;
 	}
@@ -1100,6 +1119,12 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	    vha->host_no, dif_bytes, dif_bytes, total_bytes, total_bytes,
 	    crc_ctx_pkt->blk_size, crc_ctx_pkt->blk_size));
 
+	if (!data_bytes || cmd->sc_data_direction == DMA_NONE) {
+		DEBUG18(printk(KERN_INFO "%s: Zero data bytes or DMA-NONE %d\n",
+		    __func__, data_bytes));
+		cmd_pkt->byte_count = __constant_cpu_to_le32(0);
+		return QLA_SUCCESS;
+	}
 	/* Walks data segments */
 
 	cmd_pkt->control_flags |=
@@ -1310,9 +1335,11 @@ qla24xx_dif_start_scsi(srb_t *sp)
 
 #define QDSS_GOT_Q_SPACE	BIT_0
 
-	/* Only process protection in this routine */
-	if (scsi_get_prot_op(cmd) == SCSI_PROT_NORMAL)
-		return qla24xx_start_scsi(sp);
+	/* Only process protection or >16 cdb in this routine */
+	if (scsi_get_prot_op(cmd) == SCSI_PROT_NORMAL) {
+		if (cmd->cmd_len <= 16)
+			return qla24xx_start_scsi(sp);
+	}
 
 	/* Setup device pointers. */
 

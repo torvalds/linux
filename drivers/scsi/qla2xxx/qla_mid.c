@@ -399,7 +399,10 @@ qla24xx_create_vhost(struct fc_vport *fc_vport)
 	host->can_queue = base_vha->req->length + 128;
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
-	host->max_cmd_len = MAX_CMDSZ;
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif)
+		host->max_cmd_len = 32;
+	else
+		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
 	host->unique_id = host->host_no;

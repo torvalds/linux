@@ -2147,7 +2147,10 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->this_id = 255;
 	host->cmd_per_lun = 3;
 	host->unique_id = host->host_no;
-	host->max_cmd_len = MAX_CMDSZ;
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif)
+		host->max_cmd_len = 32;
+	else
+		host->max_cmd_len = MAX_CMDSZ;
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
 	host->transportt = qla2xxx_transport_template;
@@ -2255,8 +2258,10 @@ skip_dpc:
 			    " protection.\n"));
 			scsi_host_set_prot(host,
 			    SHOST_DIF_TYPE1_PROTECTION
+			    | SHOST_DIF_TYPE2_PROTECTION
 			    | SHOST_DIF_TYPE3_PROTECTION
 			    | SHOST_DIX_TYPE1_PROTECTION
+			    | SHOST_DIX_TYPE2_PROTECTION
 			    | SHOST_DIX_TYPE3_PROTECTION);
 			scsi_host_set_guard(host, SHOST_DIX_GUARD_CRC);
 		} else
