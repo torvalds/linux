@@ -43,9 +43,6 @@
 /*  ----------------------------------- This */
 #include <dspbridge/cod.h>
 
-/* magic number for handle validation */
-#define MAGIC	 0xc001beef
-
 /*
  *  ======== cod_manager ========
  */
@@ -58,7 +55,6 @@ struct cod_manager {
 	struct dbll_fxns fxns;
 	struct dbll_attrs attrs;
 	char sz_zl_file[COD_MAXPATHLENGTH];
-	u32 ul_magic;
 };
 
 /*
@@ -234,8 +230,6 @@ int cod_create(struct cod_manager **mgr, char *str_zl_file,
 	if (mgr_new == NULL)
 		return -ENOMEM;
 
-	mgr_new->ul_magic = MAGIC;
-
 	/* Set up loader functions */
 	mgr_new->fxns = ldr_fxns;
 
@@ -295,7 +289,6 @@ void cod_delete(struct cod_manager *cod_mgr_obj)
 		cod_mgr_obj->fxns.delete_fxn(cod_mgr_obj->target);
 		cod_mgr_obj->fxns.exit_fxn();
 	}
-	cod_mgr_obj->ul_magic = ~MAGIC;
 	kfree(cod_mgr_obj);
 }
 
