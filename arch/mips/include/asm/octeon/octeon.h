@@ -253,4 +253,6 @@ static inline uint32_t octeon_npi_read32(uint64_t address)
 
 extern struct cvmx_bootinfo *octeon_bootinfo;
 
+extern uint64_t octeon_bootloader_entry_addr;
+
 #endif /* __ASM_OCTEON_OCTEON_H */
