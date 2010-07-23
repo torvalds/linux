@@ -2644,16 +2644,26 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
+	struct common_audit_data ad;
+	u32 perms;
+	bool from_access;
 
+	from_access = mask & MAY_ACCESS;
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
 
-	if (!mask) {
-		/* No permission to check.  Existence test. */
+	/* No permission to check.  Existence test. */
+	if (!mask)
 		return 0;
-	}
 
-	return inode_has_perm(cred, inode,
-			      file_mask_to_av(inode->i_mode, mask), NULL);
+	COMMON_AUDIT_DATA_INIT(&ad, FS);
+	ad.u.fs.inode = inode;
+
+	if (from_access)
+		ad.selinux_audit_data.auditdeny |= FILE__AUDIT_ACCESS;
+
+	perms = file_mask_to_av(inode->i_mode, mask);
+
+	return inode_has_perm(cred, inode, perms, &ad);
 }
 
 static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)

@@ -90,6 +90,11 @@ struct common_audit_data {
 			u32 requested;
 			u32 audited;
 			u32 denied;
+			/*
+			 * auditdeny is a bit tricky and unintuitive.  See the
+			 * comments in avc.c for it's meaning and usage.
+			 */
+			u32 auditdeny;
 			struct av_decision *avd;
 			int result;
 		} selinux_audit_data;
