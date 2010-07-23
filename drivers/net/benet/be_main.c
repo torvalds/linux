@@ -695,7 +695,7 @@ static int be_get_vf_config(struct net_device *netdev, int vf,
 		return -EINVAL;
 
 	vi->vf = vf;
-	vi->tx_rate = 0;
+	vi->tx_rate = adapter->vf_cfg[vf].vf_tx_rate;
 	vi->vlan = adapter->vf_cfg[vf].vf_vlan_tag;
 	vi->qos = 0;
 	memcpy(&vi->mac, adapter->vf_cfg[vf].vf_mac_addr, ETH_ALEN);
@@ -728,6 +728,30 @@ static int be_set_vf_vlan(struct net_device *netdev,
 	if (status)
 		dev_info(&adapter->pdev->dev,
 				"VLAN %d config on VF %d failed\n", vlan, vf);
+	return status;
+}
+
+static int be_set_vf_tx_rate(struct net_device *netdev,
+			int vf, int rate)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	int status = 0;
+
+	if (!adapter->sriov_enabled)
+		return -EPERM;
+
+	if ((vf >= num_vfs) || (rate < 0))
+		return -EINVAL;
+
+	if (rate > 10000)
+		rate = 10000;
+
+	adapter->vf_cfg[vf].vf_tx_rate = rate;
+	status = be_cmd_set_qos(adapter, rate / 10, vf);
+
+	if (status)
+		dev_info(&adapter->pdev->dev,
+				"tx rate %d on VF %d failed\n", rate, vf);
 	return status;
 }
 
@@ -2256,6 +2280,7 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_vlan_rx_kill_vid	= be_vlan_rem_vid,
 	.ndo_set_vf_mac		= be_set_vf_mac,
 	.ndo_set_vf_vlan	= be_set_vf_vlan,
+	.ndo_set_vf_tx_rate	= be_set_vf_tx_rate,
 	.ndo_get_vf_config	= be_get_vf_config
 };
 

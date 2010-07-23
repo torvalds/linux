@@ -124,6 +124,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_CQ_CREATE				12
 #define OPCODE_COMMON_EQ_CREATE				13
 #define OPCODE_COMMON_MCC_CREATE        		21
+#define OPCODE_COMMON_SET_QOS				28
 #define OPCODE_COMMON_SEEPROM_READ			30
 #define OPCODE_COMMON_NTWK_RX_FILTER    		34
 #define OPCODE_COMMON_GET_FW_VERSION			35
@@ -894,6 +895,22 @@ struct be_cmd_resp_get_phy_info {
 	u32 future_use[4];
 };
 
+/*********************** Set QOS ***********************/
+
+#define BE_QOS_BITS_NIC				1
+
+struct be_cmd_req_set_qos {
+	struct be_cmd_req_hdr hdr;
+	u32 valid_bits;
+	u32 max_bps_nic;
+	u32 rsvd[7];
+};
+
+struct be_cmd_resp_set_qos {
+	struct be_cmd_resp_hdr hdr;
+	u32 rsvd;
+};
+
 extern int be_pci_fnum_get(struct be_adapter *adapter);
 extern int be_cmd_POST(struct be_adapter *adapter);
 extern int be_cmd_mac_addr_query(struct be_adapter *adapter, u8 *mac_addr,
@@ -974,4 +991,5 @@ extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
 extern int be_cmd_get_phy_info(struct be_adapter *adapter,
 		struct be_dma_mem *cmd);
+extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 

@@ -225,6 +225,7 @@ struct be_vf_cfg {
 	u32 vf_if_handle;
 	u32 vf_pmac_id;
 	u16 vf_vlan_tag;
+	u32 vf_tx_rate;
 };
 
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
