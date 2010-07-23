@@ -46,9 +46,6 @@
 /* magic number for handle validation */
 #define MAGIC	 0xc001beef
 
-/* macro to validate COD manager handles */
-#define IS_VALID(h)    ((h) != NULL && (h)->ul_magic == MAGIC)
-
 /*
  *  ======== cod_manager ========
  */
@@ -199,7 +196,7 @@ void cod_close(struct cod_libraryobj *lib)
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(lib != NULL);
-	DBC_REQUIRE(IS_VALID(((struct cod_libraryobj *)lib)->cod_mgr));
+	DBC_REQUIRE(lib->cod_mgr);
 
 	hmgr = lib->cod_mgr;
 	hmgr->fxns.close_fxn(lib->dbll_lib);
@@ -285,7 +282,7 @@ int cod_create(struct cod_manager **mgr, char *str_zl_file,
 void cod_delete(struct cod_manager *cod_mgr_obj)
 {
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 
 	if (cod_mgr_obj->base_lib) {
 		if (cod_mgr_obj->loaded)
@@ -328,7 +325,7 @@ int cod_get_base_lib(struct cod_manager *cod_mgr_obj,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(plib != NULL);
 
 	*plib = (struct dbll_library_obj *)cod_mgr_obj->base_lib;
@@ -345,7 +342,7 @@ int cod_get_base_name(struct cod_manager *cod_mgr_obj, char *sz_name,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(sz_name != NULL);
 
 	if (usize <= COD_MAXPATHLENGTH)
@@ -365,7 +362,7 @@ int cod_get_base_name(struct cod_manager *cod_mgr_obj, char *sz_name,
 int cod_get_entry(struct cod_manager *cod_mgr_obj, u32 *entry_pt)
 {
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(entry_pt != NULL);
 
 	*entry_pt = cod_mgr_obj->ul_entry;
@@ -384,7 +381,7 @@ int cod_get_loader(struct cod_manager *cod_mgr_obj,
 	int status = 0;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(loader != NULL);
 
 	*loader = (struct dbll_tar_obj *)cod_mgr_obj->target;
@@ -406,7 +403,7 @@ int cod_get_section(struct cod_libraryobj *lib, char *str_sect,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(lib != NULL);
-	DBC_REQUIRE(IS_VALID(lib->cod_mgr));
+	DBC_REQUIRE(lib->cod_mgr);
 	DBC_REQUIRE(str_sect != NULL);
 	DBC_REQUIRE(addr != NULL);
 	DBC_REQUIRE(len != NULL);
@@ -440,7 +437,7 @@ int cod_get_sym_value(struct cod_manager *cod_mgr_obj, char *str_sym,
 	struct dbll_sym_val *dbll_sym;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(str_sym != NULL);
 	DBC_REQUIRE(pul_value != NULL);
 
@@ -505,7 +502,7 @@ int cod_load_base(struct cod_manager *cod_mgr_obj, u32 num_argc, char *args[],
 	u32 i;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(cod_mgr_obj));
+	DBC_REQUIRE(cod_mgr_obj);
 	DBC_REQUIRE(num_argc > 0);
 	DBC_REQUIRE(args != NULL);
 	DBC_REQUIRE(args[0] != NULL);
@@ -561,7 +558,7 @@ int cod_open(struct cod_manager *hmgr, char *sz_coff_path,
 	struct cod_libraryobj *lib = NULL;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(hmgr));
+	DBC_REQUIRE(hmgr);
 	DBC_REQUIRE(sz_coff_path != NULL);
 	DBC_REQUIRE(flags == COD_NOLOAD || flags == COD_SYMB);
 	DBC_REQUIRE(lib_obj != NULL);
@@ -598,7 +595,7 @@ int cod_open_base(struct cod_manager *hmgr, char *sz_coff_path,
 	struct dbll_library_obj *lib;
 
 	DBC_REQUIRE(refs > 0);
-	DBC_REQUIRE(IS_VALID(hmgr));
+	DBC_REQUIRE(hmgr);
 	DBC_REQUIRE(sz_coff_path != NULL);
 
 	/* if we previously opened a base image, close it now */
@@ -636,7 +633,7 @@ int cod_read_section(struct cod_libraryobj *lib, char *str_sect,
 
 	DBC_REQUIRE(refs > 0);
 	DBC_REQUIRE(lib != NULL);
-	DBC_REQUIRE(IS_VALID(lib->cod_mgr));
+	DBC_REQUIRE(lib->cod_mgr);
 	DBC_REQUIRE(str_sect != NULL);
 	DBC_REQUIRE(str_content != NULL);
 
