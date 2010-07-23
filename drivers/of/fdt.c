@@ -169,7 +169,7 @@ int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
 	if (cp == NULL)
 		return 0;
 	while (cplen > 0) {
-		if (strncasecmp(cp, compat, strlen(compat)) == 0)
+		if (of_compat_cmp(cp, compat, strlen(compat)) == 0)
 			return 1;
 		l = strlen(cp) + 1;
 		cp += l;
