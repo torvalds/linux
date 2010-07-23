@@ -1692,6 +1692,9 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 		break;
 
 	case CS_RESET:
+		cp->result = DID_TRANSPORT_DISRUPTED << 16;
+		break;
+
 	case CS_ABORTED:
 		cp->result = DID_RESET << 16;
 		break;
