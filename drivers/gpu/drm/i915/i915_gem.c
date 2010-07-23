@@ -1709,9 +1709,9 @@ i915_get_gem_seqno(struct drm_device *dev,
 /**
  * This function clears the request list as sequence numbers are passed.
  */
-void
-i915_gem_retire_requests(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
+static void
+i915_gem_retire_requests_ring(struct drm_device *dev,
+			      struct intel_ring_buffer *ring)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
@@ -1751,6 +1751,16 @@ i915_gem_retire_requests(struct drm_device *dev,
 }
 
 void
+i915_gem_retire_requests(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	i915_gem_retire_requests_ring(dev, &dev_priv->render_ring);
+	if (HAS_BSD(dev))
+		i915_gem_retire_requests_ring(dev, &dev_priv->bsd_ring);
+}
+
+void
 i915_gem_retire_work_handler(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv;
@@ -1761,10 +1771,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	dev = dev_priv->dev;
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_retire_requests(dev, &dev_priv->render_ring);
-
-	if (HAS_BSD(dev))
-		i915_gem_retire_requests(dev, &dev_priv->bsd_ring);
+	i915_gem_retire_requests(dev);
 
 	if (!dev_priv->mm.suspended &&
 		(!list_empty(&dev_priv->render_ring.request_list) ||
@@ -1832,7 +1839,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno,
 	 * a separate wait queue to handle that.
 	 */
 	if (ret == 0)
-		i915_gem_retire_requests(dev, ring);
+		i915_gem_retire_requests_ring(dev, ring);
 
 	return ret;
 }
@@ -2107,10 +2114,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 	struct intel_ring_buffer *bsd_ring = &dev_priv->bsd_ring;
 	for (;;) {
-		i915_gem_retire_requests(dev, render_ring);
-
-		if (HAS_BSD(dev))
-			i915_gem_retire_requests(dev, bsd_ring);
+		i915_gem_retire_requests(dev);
 
 		/* If there's an inactive buffer available now, grab it
 		 * and be done.
@@ -4330,7 +4334,6 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_busy *args = data;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL) {
@@ -4345,10 +4348,7 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 * actually unmasked, and our working set ends up being larger than
 	 * required.
 	 */
-	i915_gem_retire_requests(dev, &dev_priv->render_ring);
-
-	if (HAS_BSD(dev))
-		i915_gem_retire_requests(dev, &dev_priv->bsd_ring);
+	i915_gem_retire_requests(dev);
 
 	obj_priv = to_intel_bo(obj);
 	/* Don't count being on the flushing list against the object being
@@ -5054,10 +5054,7 @@ rescan:
 			continue;
 
 		spin_unlock(&shrink_list_lock);
-		i915_gem_retire_requests(dev, &dev_priv->render_ring);
-
-		if (HAS_BSD(dev))
-			i915_gem_retire_requests(dev, &dev_priv->bsd_ring);
+		i915_gem_retire_requests(dev);
 
 		list_for_each_entry_safe(obj_priv, next_obj,
 					 &dev_priv->mm.inactive_list,

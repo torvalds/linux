@@ -340,7 +340,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	/*
 	 * Clear request list
 	 */
-	i915_gem_retire_requests(dev, &dev_priv->render_ring);
+	i915_gem_retire_requests(dev);
 
 	if (need_display)
 		i915_save_display(dev);
