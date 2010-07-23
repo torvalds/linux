@@ -1499,26 +1499,46 @@ end:
 static void
 uvc_ctrl_prune_entity(struct uvc_device *dev, struct uvc_entity *entity)
 {
-	static const struct {
+	struct uvc_ctrl_blacklist {
 		struct usb_device_id id;
 		u8 index;
-	} blacklist[] = {
+	};
+
+	static const struct uvc_ctrl_blacklist processing_blacklist[] = {
 		{ { USB_DEVICE(0x13d3, 0x509b) }, 9 }, /* Gain */
 		{ { USB_DEVICE(0x1c4f, 0x3000) }, 6 }, /* WB Temperature */
 		{ { USB_DEVICE(0x5986, 0x0241) }, 2 }, /* Hue */
 	};
+	static const struct uvc_ctrl_blacklist camera_blacklist[] = {
+		{ { USB_DEVICE(0x06f8, 0x3005) }, 9 }, /* Zoom, Absolute */
+	};
 
-	u8 *controls;
+	const struct uvc_ctrl_blacklist *blacklist;
 	unsigned int size;
+	unsigned int count;
 	unsigned int i;
+	u8 *controls;
 
-	if (UVC_ENTITY_TYPE(entity) != UVC_VC_PROCESSING_UNIT)
+	switch (UVC_ENTITY_TYPE(entity)) {
+	case UVC_VC_PROCESSING_UNIT:
+		blacklist = processing_blacklist;
+		count = ARRAY_SIZE(processing_blacklist);
+		controls = entity->processing.bmControls;
+		size = entity->processing.bControlSize;
+		break;
+
+	case UVC_ITT_CAMERA:
+		blacklist = camera_blacklist;
+		count = ARRAY_SIZE(camera_blacklist);
+		controls = entity->camera.bmControls;
+		size = entity->camera.bControlSize;
+		break;
+
+	default:
 		return;
+	}
 
-	controls = entity->processing.bmControls;
-	size = entity->processing.bControlSize;
-
-	for (i = 0; i < ARRAY_SIZE(blacklist); ++i) {
+	for (i = 0; i < count; ++i) {
 		if (!usb_match_one_id(dev->intf, &blacklist[i].id))
 			continue;
 
