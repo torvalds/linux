@@ -5796,7 +5796,7 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 {
 	u8 *vpd_data;
 	u8 data;
-	int i = 0, cnt, fail = 0;
+	int i = 0, cnt, len, fail = 0;
 	int vpd_addr = 0x80;
 	struct swStat *swstats = &nic->mac_control.stats_info->sw_stat;
 
@@ -5837,20 +5837,28 @@ static void s2io_vpd_read(struct s2io_nic *nic)
 
 	if (!fail) {
 		/* read serial number of adapter */
-		for (cnt = 0; cnt < 256; cnt++) {
+		for (cnt = 0; cnt < 252; cnt++) {
 			if ((vpd_data[cnt] == 'S') &&
-			    (vpd_data[cnt+1] == 'N') &&
-			    (vpd_data[cnt+2] < VPD_STRING_LEN)) {
-				memset(nic->serial_num, 0, VPD_STRING_LEN);
-				memcpy(nic->serial_num, &vpd_data[cnt + 3],
-				       vpd_data[cnt+2]);
-				break;
+			    (vpd_data[cnt+1] == 'N')) {
+				len = vpd_data[cnt+2];
+				if (len < min(VPD_STRING_LEN, 256-cnt-2)) {
+					memcpy(nic->serial_num,
+					       &vpd_data[cnt + 3],
+					       len);
+					memset(nic->serial_num+len,
+					       0,
+					       VPD_STRING_LEN-len);
+					break;
+				}
 			}
 		}
 	}
 
-	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN))
-		memcpy(nic->product_name, &vpd_data[3], vpd_data[1]);
+	if ((!fail) && (vpd_data[1] < VPD_STRING_LEN)) {
+		len = vpd_data[1];
+		memcpy(nic->product_name, &vpd_data[3], len);
+		nic->product_name[len] = 0;
+	}
 	kfree(vpd_data);
 	swstats->mem_freed += 256;
 }
