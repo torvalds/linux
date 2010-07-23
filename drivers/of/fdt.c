@@ -320,13 +320,13 @@ unsigned long __init unflatten_dt_node(unsigned long mem,
 			if ((strcmp(pname, "phandle") == 0) ||
 			    (strcmp(pname, "linux,phandle") == 0)) {
 				if (np->phandle == 0)
-					np->phandle = *((u32 *)*p);
+					np->phandle = be32_to_cpup((__be32*)*p);
 			}
 			/* And we process the "ibm,phandle" property
 			 * used in pSeries dynamic device tree
 			 * stuff */
 			if (strcmp(pname, "ibm,phandle") == 0)
-				np->phandle = *((u32 *)*p);
+				np->phandle = be32_to_cpup((__be32 *)*p);
 			pp->name = pname;
 			pp->length = sz;
 			pp->value = (void *)*p;

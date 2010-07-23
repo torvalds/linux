@@ -54,7 +54,7 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 static struct device_node *of_irq_find_parent(struct device_node *child)
 {
 	struct device_node *p;
-	const phandle *parp;
+	const __be32 *parp;
 
 	if (!of_node_get(child))
 		return NULL;
@@ -67,7 +67,7 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
 			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
 				p = of_node_get(of_irq_dflt_pic);
 			else
-				p = of_find_node_by_phandle(*parp);
+				p = of_find_node_by_phandle(be32_to_cpup(parp));
 		}
 		of_node_put(child);
 		child = p;
@@ -206,7 +206,7 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 			if (of_irq_workarounds & OF_IMAP_NO_PHANDLE)
 				newpar = of_node_get(of_irq_dflt_pic);
 			else
-				newpar = of_find_node_by_phandle((phandle)*imap);
+				newpar = of_find_node_by_phandle(be32_to_cpup(imap));
 			imap++;
 			--imaplen;
 
