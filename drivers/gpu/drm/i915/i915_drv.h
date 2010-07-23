@@ -215,6 +215,7 @@ enum no_fbc_reason {
 	FBC_MODE_TOO_LARGE, /* mode too large for compression */
 	FBC_BAD_PLANE, /* fbc not supported on plane */
 	FBC_NOT_TILED, /* buffer not tiled */
+	FBC_MULTIPLE_PIPES, /* more than one pipe active */
 };
 
 enum intel_pch {

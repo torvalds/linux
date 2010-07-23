@@ -1180,8 +1180,12 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	struct drm_framebuffer *fb = crtc->fb;
 	struct intel_framebuffer *intel_fb;
 	struct drm_i915_gem_object *obj_priv;
+	struct drm_crtc *tmp_crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = intel_crtc->plane;
+	int crtcs_enabled = 0;
+
+	DRM_DEBUG_KMS("\n");
 
 	if (!i915_powersave)
 		return;
@@ -1199,10 +1203,21 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	 * If FBC is already on, we just have to verify that we can
 	 * keep it that way...
 	 * Need to disable if:
+	 *   - more than one pipe is active
 	 *   - changing FBC params (stride, fence, mode)
 	 *   - new fb is too large to fit in compressed buffer
 	 *   - going to an unsupported config (interlace, pixel multiply, etc.)
 	 */
+	list_for_each_entry(tmp_crtc, &dev->mode_config.crtc_list, head) {
+		if (tmp_crtc->enabled)
+			crtcs_enabled++;
+	}
+	DRM_DEBUG_KMS("%d pipes active\n", crtcs_enabled);
+	if (crtcs_enabled > 1) {
+		DRM_DEBUG_KMS("more than one pipe active, disabling compression\n");
+		dev_priv->no_fbc_reason = FBC_MULTIPLE_PIPES;
+		goto out_disable;
+	}
 	if (intel_fb->obj->size > dev_priv->cfb_size) {
 		DRM_DEBUG_KMS("framebuffer too large, disabling "
 				"compression\n");
