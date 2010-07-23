@@ -91,8 +91,8 @@ static struct device_node *of_irq_find_parent(struct device_node *child)
  * properties, for example when resolving PCI interrupts when no device
  * node exist for the parent.
  */
-int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
-		const u32 *addr, struct of_irq *out_irq)
+int of_irq_map_raw(struct device_node *parent, const __be32 *intspec,
+		   u32 ointsize, const __be32 *addr, struct of_irq *out_irq)
 {
 	struct device_node *ipar, *tnode, *old = NULL, *newpar = NULL;
 	const __be32 *tmp, *imap, *imask;
@@ -100,7 +100,8 @@ int of_irq_map_raw(struct device_node *parent, const u32 *intspec, u32 ointsize,
 	int imaplen, match, i;
 
 	pr_debug("of_irq_map_raw: par=%s,intspec=[0x%08x 0x%08x...],ointsize=%d\n",
-	    parent->full_name, intspec[0], intspec[1], ointsize);
+		 parent->full_name, be32_to_cpup(intspec),
+		 be32_to_cpup(intspec + 1), ointsize);
 
 	ipar = of_node_get(parent);
 
@@ -278,7 +279,7 @@ EXPORT_SYMBOL_GPL(of_irq_map_raw);
 int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq)
 {
 	struct device_node *p;
-	const u32 *intspec, *tmp, *addr;
+	const __be32 *intspec, *tmp, *addr;
 	u32 intsize, intlen;
 	int res = -EINVAL;
 
@@ -292,9 +293,9 @@ int of_irq_map_one(struct device_node *device, int index, struct of_irq *out_irq
 	intspec = of_get_property(device, "interrupts", &intlen);
 	if (intspec == NULL)
 		return -EINVAL;
-	intlen /= sizeof(u32);
+	intlen /= sizeof(*intspec);
 
-	pr_debug(" intspec=%d intlen=%d\n", *intspec, intlen);
+	pr_debug(" intspec=%d intlen=%d\n", be32_to_cpup(intspec), intlen);
 
 	/* Get the reg property (if any) */
 	addr = of_get_property(device, "reg", NULL);
