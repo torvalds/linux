@@ -313,6 +313,7 @@ void rds_conn_shutdown(struct rds_connection *conn)
 void rds_conn_destroy(struct rds_connection *conn)
 {
 	struct rds_message *rm, *rtmp;
+	unsigned long flags;
 
 	rdsdebug("freeing conn %p for %pI4 -> "
 		 "%pI4\n", conn, &conn->c_laddr,
@@ -350,7 +351,9 @@ void rds_conn_destroy(struct rds_connection *conn)
 	BUG_ON(!list_empty(&conn->c_retrans));
 	kmem_cache_free(rds_conn_slab, conn);
 
+	spin_lock_irqsave(&rds_conn_lock, flags);
 	rds_conn_count--;
+	spin_unlock_irqrestore(&rds_conn_lock, flags);
 }
 EXPORT_SYMBOL_GPL(rds_conn_destroy);
 
