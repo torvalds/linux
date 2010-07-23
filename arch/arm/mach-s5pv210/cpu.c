@@ -36,6 +36,7 @@
 #include <plat/iic-core.h>
 #include <plat/keypad-core.h>
 #include <plat/sdhci.h>
+#include <plat/reset.h>
 
 /* Initial IO mappings */
 
@@ -69,6 +70,11 @@ static void s5pv210_idle(void)
 		cpu_do_idle();
 
 	local_irq_enable();
+}
+
+static void s5pv210_sw_reset(void)
+{
+	__raw_writel(0x1, S5P_SWRESET);
 }
 
 /* s5pv210_map_io
@@ -144,6 +150,9 @@ int __init s5pv210_init(void)
 
 	/* set idle function */
 	pm_idle = s5pv210_idle;
+
+	/* set sw_reset function */
+	s5p_reset_hook = s5pv210_sw_reset;
 
 	return sysdev_register(&s5pv210_sysdev);
 }
