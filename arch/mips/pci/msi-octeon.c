@@ -228,49 +228,26 @@ static irqreturn_t octeon_msi_interrupt(int cpl, void *dev_id)
 	irq = fls64(msi_bits);
 	if (irq) {
 		irq += OCTEON_IRQ_MSI_BIT0 - 1;
+		if (octeon_has_feature(OCTEON_FEATURE_PCIE)) {
+			/* These chips have PCIe */
+			cvmx_write_csr(CVMX_PEXP_NPEI_MSI_RCV0,
+				       1ull << (irq - OCTEON_IRQ_MSI_BIT0));
+		} else {
+			/* These chips have PCI */
+			cvmx_write_csr(CVMX_NPI_NPI_MSI_RCV,
+				       1ull << (irq - OCTEON_IRQ_MSI_BIT0));
+		}
 		if (irq_desc[irq].action) {
 			do_IRQ(irq);
 			return IRQ_HANDLED;
 		} else {
 			pr_err("Spurious MSI interrupt %d\n", irq);
-			if (octeon_has_feature(OCTEON_FEATURE_PCIE)) {
-				/* These chips have PCIe */
-				cvmx_write_csr(CVMX_PEXP_NPEI_MSI_RCV0,
-					       1ull << (irq -
-							OCTEON_IRQ_MSI_BIT0));
-			} else {
-				/* These chips have PCI */
-				cvmx_write_csr(CVMX_NPI_NPI_MSI_RCV,
-					       1ull << (irq -
-							OCTEON_IRQ_MSI_BIT0));
-			}
 		}
 	}
 	return IRQ_NONE;
 }
 
 static DEFINE_RAW_SPINLOCK(octeon_irq_msi_lock);
-
-static void octeon_irq_msi_ack(unsigned int irq)
-{
-	if (!octeon_has_feature(OCTEON_FEATURE_PCIE)) {
-		/* These chips have PCI */
-		cvmx_write_csr(CVMX_NPI_NPI_MSI_RCV,
-			       1ull << (irq - OCTEON_IRQ_MSI_BIT0));
-	} else {
-		/*
-		 * These chips have PCIe. Thankfully the ACK doesn't
-		 * need any locking.
-		 */
-		cvmx_write_csr(CVMX_PEXP_NPEI_MSI_RCV0,
-			       1ull << (irq - OCTEON_IRQ_MSI_BIT0));
-	}
-}
-
-static void octeon_irq_msi_eoi(unsigned int irq)
-{
-	/* Nothing needed */
-}
 
 static void octeon_irq_msi_enable(unsigned int irq)
 {
@@ -326,8 +303,6 @@ static struct irq_chip octeon_irq_chip_msi = {
 	.name = "MSI",
 	.enable = octeon_irq_msi_enable,
 	.disable = octeon_irq_msi_disable,
-	.ack = octeon_irq_msi_ack,
-	.eoi = octeon_irq_msi_eoi,
 };
 
 /*
@@ -338,34 +313,28 @@ static int __init octeon_msi_initialize(void)
 	int irq;
 
 	for (irq = OCTEON_IRQ_MSI_BIT0; irq <= OCTEON_IRQ_MSI_LAST; irq++) {
-		set_irq_chip_and_handler(irq, &octeon_irq_chip_msi,
-					 handle_percpu_irq);
+		set_irq_chip_and_handler(irq, &octeon_irq_chip_msi, handle_simple_irq);
 	}
 
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE)) {
 		if (request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt,
-				IRQF_SHARED,
-				"MSI[0:63]", octeon_msi_interrupt))
+				0, "MSI[0:63]", octeon_msi_interrupt))
 			panic("request_irq(OCTEON_IRQ_PCI_MSI0) failed");
 	} else if (octeon_is_pci_host()) {
 		if (request_irq(OCTEON_IRQ_PCI_MSI0, octeon_msi_interrupt,
-				IRQF_SHARED,
-				"MSI[0:15]", octeon_msi_interrupt))
+				0, "MSI[0:15]", octeon_msi_interrupt))
 			panic("request_irq(OCTEON_IRQ_PCI_MSI0) failed");
 
 		if (request_irq(OCTEON_IRQ_PCI_MSI1, octeon_msi_interrupt,
-				IRQF_SHARED,
-				"MSI[16:31]", octeon_msi_interrupt))
+				0, "MSI[16:31]", octeon_msi_interrupt))
 			panic("request_irq(OCTEON_IRQ_PCI_MSI1) failed");
 
 		if (request_irq(OCTEON_IRQ_PCI_MSI2, octeon_msi_interrupt,
-				IRQF_SHARED,
-				"MSI[32:47]", octeon_msi_interrupt))
+				0, "MSI[32:47]", octeon_msi_interrupt))
 			panic("request_irq(OCTEON_IRQ_PCI_MSI2) failed");
 
 		if (request_irq(OCTEON_IRQ_PCI_MSI3, octeon_msi_interrupt,
-				IRQF_SHARED,
-				"MSI[48:63]", octeon_msi_interrupt))
+				0, "MSI[48:63]", octeon_msi_interrupt))
 			panic("request_irq(OCTEON_IRQ_PCI_MSI3) failed");
 
 	}
