@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2008 Cavium Networks
+ * Copyright (C) 2004-2008, 2009, 2010 Cavium Networks
  */
 #include <linux/cpu.h>
 #include <linux/init.h>
@@ -102,24 +102,47 @@ static void octeon_smp_setup(void)
 	const int coreid = cvmx_get_core_num();
 	int cpus;
 	int id;
-
 	int core_mask = octeon_get_boot_coremask();
+#ifdef CONFIG_HOTPLUG_CPU
+	unsigned int num_cores = cvmx_octeon_num_cores();
+#endif
 
-	cpus_clear(cpu_possible_map);
+	/* The present CPUs are initially just the boot cpu (CPU 0). */
+	for (id = 0; id < NR_CPUS; id++) {
+		set_cpu_possible(id, id == 0);
+		set_cpu_present(id, id == 0);
+	}
+
 	__cpu_number_map[coreid] = 0;
 	__cpu_logical_map[0] = coreid;
-	cpu_set(0, cpu_possible_map);
 
+	/* The present CPUs get the lowest CPU numbers. */
 	cpus = 1;
-	for (id = 0; id < 16; id++) {
+	for (id = 0; id < NR_CPUS; id++) {
 		if ((id != coreid) && (core_mask & (1 << id))) {
-			cpu_set(cpus, cpu_possible_map);
+			set_cpu_possible(cpus, true);
+			set_cpu_present(cpus, true);
 			__cpu_number_map[id] = cpus;
 			__cpu_logical_map[cpus] = id;
 			cpus++;
 		}
 	}
-	cpu_present_map = cpu_possible_map;
+
+#ifdef CONFIG_HOTPLUG_CPU
+	/*
+	 * The possible CPUs are all those present on the chip.  We
+	 * will assign CPU numbers for possible cores as well.  Cores
+	 * are always consecutively numberd from 0.
+	 */
+	for (id = 0; id < num_cores && id < NR_CPUS; id++) {
+		if (!(core_mask & (1 << id))) {
+			set_cpu_possible(cpus, true);
+			__cpu_number_map[id] = cpus;
+			__cpu_logical_map[cpus] = id;
+			cpus++;
+		}
+	}
+#endif
 
 	octeon_smp_hotplug_setup();
 }
