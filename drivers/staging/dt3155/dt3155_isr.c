@@ -180,7 +180,7 @@ void printques(struct dt3155_fbuffer *fb)
  *  the start address up to the beginning of the
  *  next 4MB chunk (assuming bufsize < 4MB).
  *****************************************************/
-u32 adjust_4MB(u32 buf_addr, u32 bufsize)
+static u32 adjust_4MB(u32 buf_addr, u32 bufsize)
 {
     if (((buf_addr+bufsize) & UPPER_10_BITS) != (buf_addr & UPPER_10_BITS))
 	return (buf_addr+bufsize) & UPPER_10_BITS;
@@ -196,7 +196,7 @@ u32 adjust_4MB(u32 buf_addr, u32 bufsize)
  *  buffers.  If there is not enough free space
  *  try for less memory.
  *****************************************************/
-void allocate_buffers(u32 *buf_addr, u32* total_size_kbs,
+static void allocate_buffers(u32 *buf_addr, u32* total_size_kbs,
 		       u32 bufsize)
 {
   /* Compute the minimum amount of memory guaranteed to hold all
