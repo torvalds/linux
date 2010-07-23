@@ -394,6 +394,7 @@ union fw_cdev_event {
  *  4  (2.6.36)  - added %FW_CDEV_EVENT_REQUEST2, %FW_CDEV_EVENT_PHY_PACKET_*
  *               - implemented &fw_cdev_event_bus_reset.bm_node_id
  *               - added %FW_CDEV_IOC_SEND_PHY_PACKET, _RECEIVE_PHY_PACKETS
+ *               - added &fw_cdev_allocate.region_end
  */
 #define FW_CDEV_VERSION 3 /* Meaningless; don't use this macro. */
 
@@ -473,17 +474,21 @@ struct fw_cdev_send_response {
 };
 
 /**
- * struct fw_cdev_allocate - Allocate a CSR address range
+ * struct fw_cdev_allocate - Allocate a CSR in an address range
  * @offset:	Start offset of the address range
  * @closure:	To be passed back to userspace in request events
- * @length:	Length of the address range, in bytes
+ * @length:	Length of the CSR, in bytes
  * @handle:	Handle to the allocation, written by the kernel
+ * @region_end:	First address above the address range (added in ABI v4, 2.6.36)
  *
  * Allocate an address range in the 48-bit address space on the local node
  * (the controller).  This allows userspace to listen for requests with an
- * offset within that address range.  When the kernel receives a request
- * within the range, an &fw_cdev_event_request event will be written back.
- * The @closure field is passed back to userspace in the response event.
+ * offset within that address range.  Every time when the kernel receives a
+ * request within the range, an &fw_cdev_event_request2 event will be emitted.
+ * (If the kernel or the client implements ABI version <= 3, an
+ * &fw_cdev_event_request will be generated instead.)
+ *
+ * The @closure field is passed back to userspace in these request events.
  * The @handle field is an out parameter, returning a handle to the allocated
  * range to be used for later deallocation of the range.
  *
@@ -491,12 +496,26 @@ struct fw_cdev_send_response {
  * is exclusive except for the FCP command and response registers.  If an
  * exclusive address region is already in use, the ioctl fails with errno set
  * to %EBUSY.
+ *
+ * If kernel and client implement ABI version >= 4, the kernel looks up a free
+ * spot of size @length inside [@offset..@region_end) and, if found, writes
+ * the start address of the new CSR back in @offset.  I.e. @offset is an
+ * in and out parameter.  If this automatic placement of a CSR in a bigger
+ * address range is not desired, the client simply needs to set @region_end
+ * = @offset + @length.
+ *
+ * If the kernel or the client implements ABI version <= 3, @region_end is
+ * ignored and effectively assumed to be @offset + @length.
+ *
+ * @region_end is only present in a kernel header >= 2.6.36.  If necessary,
+ * this can for example be tested by #ifdef FW_CDEV_EVENT_REQUEST2.
  */
 struct fw_cdev_allocate {
 	__u64 offset;
 	__u64 closure;
 	__u32 length;
 	__u32 handle;
+	__u64 region_end;	/* available since kernel version 2.6.36 */
 };
 
 /**

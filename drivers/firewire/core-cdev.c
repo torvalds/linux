@@ -50,8 +50,9 @@
 /*
  * ABI version history is documented in linux/firewire-cdev.h.
  */
-#define FW_CDEV_KERNEL_VERSION		4
-#define FW_CDEV_VERSION_EVENT_REQUEST2	4
+#define FW_CDEV_KERNEL_VERSION			4
+#define FW_CDEV_VERSION_EVENT_REQUEST2		4
+#define FW_CDEV_VERSION_ALLOCATE_REGION_END	4
 
 struct client {
 	u32 version;
@@ -773,7 +774,11 @@ static int ioctl_allocate(struct client *client, union ioctl_arg *arg)
 		return -ENOMEM;
 
 	region.start = a->offset;
-	region.end   = a->offset + a->length;
+	if (client->version < FW_CDEV_VERSION_ALLOCATE_REGION_END)
+		region.end = a->offset + a->length;
+	else
+		region.end = a->region_end;
+
 	r->handler.length           = a->length;
 	r->handler.address_callback = handle_request;
 	r->handler.callback_data    = r;
@@ -785,6 +790,7 @@ static int ioctl_allocate(struct client *client, union ioctl_arg *arg)
 		kfree(r);
 		return ret;
 	}
+	a->offset = r->handler.offset;
 
 	r->resource.release = release_address_handler;
 	ret = add_client_resource(client, &r->resource, GFP_KERNEL);
