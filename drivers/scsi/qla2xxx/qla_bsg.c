@@ -396,15 +396,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	char  *type = "FC_BSG_HST_CT";
 	struct srb_ctx *ct;
 
-	/* pass through is supported only for ISP 4Gb or higher */
-	if (!IS_FWI2_CAPABLE(ha)) {
-		DEBUG2(qla_printk(KERN_INFO, ha,
-		    "scsi(%ld):Firmware is not capable to support FC "
-		    "CT pass thru\n", vha->host_no));
-		rval = -EPERM;
-		goto done;
-	}
-
 	req_sg_cnt =
 		dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
 			bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);

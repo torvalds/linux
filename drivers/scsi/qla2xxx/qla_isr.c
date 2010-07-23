@@ -984,6 +984,86 @@ logio_done:
 }
 
 static void
+qla2x00_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
+    sts_entry_t *pkt, int iocb_type)
+{
+	const char func[] = "CT_IOCB";
+	const char *type;
+	struct qla_hw_data *ha = vha->hw;
+	srb_t *sp;
+	struct srb_ctx *sp_bsg;
+	struct fc_bsg_job *bsg_job;
+	uint16_t comp_status;
+
+	sp = qla2x00_get_sp_from_handle(vha, func, req, pkt);
+	if (!sp)
+		return;
+
+	sp_bsg = sp->ctx;
+	bsg_job = sp_bsg->u.bsg_job;
+
+	type = NULL;
+	switch (sp_bsg->type) {
+	case SRB_CT_CMD:
+		type = "ct pass-through";
+		break;
+	default:
+		qla_printk(KERN_WARNING, ha,
+		    "%s: Unrecognized SRB: (%p) type=%d.\n", func, sp,
+		    sp_bsg->type);
+		return;
+	}
+
+	comp_status = le16_to_cpu(pkt->comp_status);
+
+	/* return FC_CTELS_STATUS_OK and leave the decoding of the ELS/CT
+	 * fc payload  to the caller
+	 */
+	bsg_job->reply->reply_data.ctels_reply.status = FC_CTELS_STATUS_OK;
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+
+	if (comp_status != CS_COMPLETE) {
+		if (comp_status == CS_DATA_UNDERRUN) {
+			bsg_job->reply->result = DID_OK << 16;
+			bsg_job->reply->reply_payload_rcv_len =
+			    le16_to_cpu(((sts_entry_t *)pkt)->rsp_info_len);
+
+			DEBUG2(qla_printk(KERN_WARNING, ha,
+			    "scsi(%ld): CT pass-through-%s error "
+			    "comp_status-status=0x%x total_byte = 0x%x.\n",
+			    vha->host_no, type, comp_status,
+			    bsg_job->reply->reply_payload_rcv_len));
+		} else {
+			DEBUG2(qla_printk(KERN_WARNING, ha,
+			    "scsi(%ld): CT pass-through-%s error "
+			    "comp_status-status=0x%x.\n",
+			    vha->host_no, type, comp_status));
+			bsg_job->reply->result = DID_ERROR << 16;
+			bsg_job->reply->reply_payload_rcv_len = 0;
+		}
+		DEBUG2(qla2x00_dump_buffer((uint8_t *)pkt, sizeof(*pkt)));
+	} else {
+		bsg_job->reply->result =  DID_OK << 16;;
+		bsg_job->reply->reply_payload_rcv_len =
+		    bsg_job->reply_payload.payload_len;
+		bsg_job->reply_len = 0;
+	}
+
+	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+
+	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+
+	if (sp_bsg->type == SRB_ELS_CMD_HST || sp_bsg->type == SRB_CT_CMD)
+		kfree(sp->fcport);
+
+	kfree(sp->ctx);
+	mempool_free(sp, ha->srb_mempool);
+	bsg_job->job_done(bsg_job);
+}
+
+static void
 qla24xx_els_ct_entry(scsi_qla_host_t *vha, struct req_que *req,
     struct sts_entry_24xx *pkt, int iocb_type)
 {
@@ -1302,6 +1382,9 @@ qla2x00_process_response_queue(struct rsp_que *rsp)
 		case MBX_IOCB_TYPE:
 			qla2x00_mbx_iocb_entry(vha, rsp->req,
 			    (struct mbx_entry *)pkt);
+			break;
+		case CT_IOCB_TYPE:
+			qla2x00_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);
 			break;
 		default:
 			/* Type Not Supported. */

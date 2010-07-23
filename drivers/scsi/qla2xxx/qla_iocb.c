@@ -1765,6 +1765,82 @@ qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 }
 
 static void
+qla2x00_ct_iocb(srb_t *sp, ms_iocb_entry_t *ct_iocb)
+{
+	uint16_t        avail_dsds;
+	uint32_t        *cur_dsd;
+	struct scatterlist *sg;
+	int index;
+	uint16_t tot_dsds;
+	scsi_qla_host_t *vha = sp->fcport->vha;
+	struct qla_hw_data *ha = vha->hw;
+	struct fc_bsg_job *bsg_job = ((struct srb_ctx *)sp->ctx)->u.bsg_job;
+	int loop_iterartion = 0;
+	int cont_iocb_prsnt = 0;
+	int entry_count = 1;
+
+	memset(ct_iocb, 0, sizeof(ms_iocb_entry_t));
+	ct_iocb->entry_type = CT_IOCB_TYPE;
+	ct_iocb->entry_status = 0;
+	ct_iocb->handle1 = sp->handle;
+	SET_TARGET_ID(ha, ct_iocb->loop_id, sp->fcport->loop_id);
+	ct_iocb->status = __constant_cpu_to_le16(0);
+	ct_iocb->control_flags = __constant_cpu_to_le16(0);
+	ct_iocb->timeout = 0;
+	ct_iocb->cmd_dsd_count =
+	    __constant_cpu_to_le16(bsg_job->request_payload.sg_cnt);
+	ct_iocb->total_dsd_count =
+	    __constant_cpu_to_le16(bsg_job->request_payload.sg_cnt + 1);
+	ct_iocb->req_bytecount =
+	    cpu_to_le32(bsg_job->request_payload.payload_len);
+	ct_iocb->rsp_bytecount =
+	    cpu_to_le32(bsg_job->reply_payload.payload_len);
+
+	ct_iocb->dseg_req_address[0] = cpu_to_le32(LSD(sg_dma_address
+	    (bsg_job->request_payload.sg_list)));
+	ct_iocb->dseg_req_address[1] = cpu_to_le32(MSD(sg_dma_address
+	    (bsg_job->request_payload.sg_list)));
+	ct_iocb->dseg_req_length = ct_iocb->req_bytecount;
+
+	ct_iocb->dseg_rsp_address[0] = cpu_to_le32(LSD(sg_dma_address
+	    (bsg_job->reply_payload.sg_list)));
+	ct_iocb->dseg_rsp_address[1] = cpu_to_le32(MSD(sg_dma_address
+	    (bsg_job->reply_payload.sg_list)));
+	ct_iocb->dseg_rsp_length = ct_iocb->rsp_bytecount;
+
+	avail_dsds = 1;
+	cur_dsd = (uint32_t *)ct_iocb->dseg_rsp_address;
+	index = 0;
+	tot_dsds = bsg_job->reply_payload.sg_cnt;
+
+	for_each_sg(bsg_job->reply_payload.sg_list, sg, tot_dsds, index) {
+		dma_addr_t       sle_dma;
+		cont_a64_entry_t *cont_pkt;
+
+		/* Allocate additional continuation packets? */
+		if (avail_dsds == 0) {
+			/*
+			* Five DSDs are available in the Cont.
+			* Type 1 IOCB.
+			       */
+			cont_pkt = qla2x00_prep_cont_type1_iocb(vha);
+			cur_dsd = (uint32_t *) cont_pkt->dseg_0_address;
+			avail_dsds = 5;
+			cont_iocb_prsnt = 1;
+			entry_count++;
+		}
+
+		sle_dma = sg_dma_address(sg);
+		*cur_dsd++   = cpu_to_le32(LSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(MSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(sg_dma_len(sg));
+		loop_iterartion++;
+		avail_dsds--;
+	}
+	ct_iocb->entry_count = entry_count;
+}
+
+static void
 qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
 {
 	uint16_t        avail_dsds;
@@ -1867,7 +1943,9 @@ qla2x00_start_sp(srb_t *sp)
 		qla24xx_els_iocb(sp, pkt);
 		break;
 	case SRB_CT_CMD:
-		qla24xx_ct_iocb(sp, pkt);
+		IS_FWI2_CAPABLE(ha) ?
+		qla24xx_ct_iocb(sp, pkt) :
+		qla2x00_ct_iocb(sp, pkt);
 		break;
 	case SRB_ADISC_CMD:
 		IS_FWI2_CAPABLE(ha) ?
