@@ -216,9 +216,9 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 
 	/* Adjust var according to our driver's own table */
 	viafb_fill_var_timing_info(var, viafb_refresh, vmode_entry);
-	if (info->var.accel_flags & FB_ACCELF_TEXT &&
+	if (var->accel_flags & FB_ACCELF_TEXT &&
 		!ppar->shared->vdev->engine_mmio)
-		info->var.accel_flags = 0;
+		var->accel_flags = 0;
 
 	return 0;
 }
