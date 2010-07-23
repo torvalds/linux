@@ -423,6 +423,14 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		bf = bf_next;
 	}
 
+	/* prepend un-acked frames to the beginning of the pending frame queue */
+	if (!list_empty(&bf_pending)) {
+		spin_lock_bh(&txq->axq_lock);
+		list_splice(&bf_pending, &tid->buf_q);
+		ath_tx_queue_tid(txq, tid);
+		spin_unlock_bh(&txq->axq_lock);
+	}
+
 	if (tid->state & AGGR_CLEANUP) {
 		if (tid->baw_head == tid->baw_tail) {
 			tid->state &= ~AGGR_ADDBA_COMPLETE;
@@ -433,14 +441,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 		}
 		rcu_read_unlock();
 		return;
-	}
-
-	/* prepend un-acked frames to the beginning of the pending frame queue */
-	if (!list_empty(&bf_pending)) {
-		spin_lock_bh(&txq->axq_lock);
-		list_splice(&bf_pending, &tid->buf_q);
-		ath_tx_queue_tid(txq, tid);
-		spin_unlock_bh(&txq->axq_lock);
 	}
 
 	rcu_read_unlock();
