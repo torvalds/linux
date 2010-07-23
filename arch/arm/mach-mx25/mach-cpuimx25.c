@@ -29,7 +29,7 @@
 #include <linux/usb/ulpi.h>
 #include <linux/fsl_devices.h>
 
-#include <mach/board-eukrea_cpuimx25.h>
+#include <mach/eukrea-baseboards.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

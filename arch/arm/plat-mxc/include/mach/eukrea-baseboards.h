@@ -19,22 +19,27 @@
  * MA 02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_BOARD_EUKREA_CPUIMX35_H__
-#define __ASM_ARCH_MXC_BOARD_EUKREA_CPUIMX35_H__
+#ifndef __MACH_EUKREA_BASEBOARDS_H__
+#define __MACH_EUKREA_BASEBOARDS_H__
 
 #ifndef __ASSEMBLY__
 /*
  * This CPU module needs a baseboard to work. After basic initializing
  * its own devices, it calls baseboard's init function.
  * TODO: Add your own baseboard init function and call it from
- * inside eukrea_cpuimx25_init().
+ * inside eukrea_cpuimx25_init() eukrea_cpuimx27_init()
+ * or eukrea_cpuimx35_init().
  *
  * This example here is for the development board. Refer
- * eukrea_mbimx25-baseboard.c
+ * mach-mx25/eukrea_mbimxsd-baseboard.c for cpuimx25
+ * mach-imx/eukrea_mbimx27-baseboard.c for cpuimx27
+ * mach-mx3/eukrea_mbimxsd-baseboard.c for cpuimx35
  */
 
-extern void eukrea_mbimxsd_baseboard_init(void);
+extern void eukrea_mbimx25_baseboard_init(void);
+extern void eukrea_mbimx27_baseboard_init(void);
+extern void eukrea_mbimx35_baseboard_init(void);
 
 #endif
 
-#endif /* __ASM_ARCH_MXC_BOARD_EUKREA_CPUIMX35_H__ */
+#endif /* __MACH_EUKREA_BASEBOARDS_H__ */
