@@ -48,7 +48,7 @@ static int priv_tramp_sect_tgt_alloc(struct dload_state *dlthis)
 	sect_info->load_addr = 0;
 	ret_val = dlthis->myalloc->dload_allocate(dlthis->myalloc,
 						  sect_info,
-						  DS_ALIGNMENT
+						  ds_alignment
 						  (sect_info->type));
 
 	if (ret_val == 0)

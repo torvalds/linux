@@ -326,19 +326,32 @@ struct reloc_record_t {
 /**************************************************************************** */
 
 /* Enum for DOFF section types (bits 0-3 of flag): See dynamic_loader.h */
-
-/* Macros to help processing of sections */
-#define DLOAD_SECT_TYPE(s_hdr)      ((s_hdr)->ds_flags & 0xF)
-
+#define DS_SECTION_TYPE_MASK	0xF
 /* DS_ALLOCATE indicates whether a section needs space on the target */
 #define DS_ALLOCATE_MASK            0x10
-#define DS_NEEDS_ALLOCATION(s_hdr)  ((s_hdr)->ds_flags & DS_ALLOCATE_MASK)
-
 /* DS_DOWNLOAD indicates that the loader needs to copy bits */
 #define DS_DOWNLOAD_MASK            0x20
-#define DS_NEEDS_DOWNLOAD(s_hdr)    ((s_hdr)->ds_flags & DS_DOWNLOAD_MASK)
-
 /* Section alignment requirement in AUs */
-#define DS_ALIGNMENT(ds_flags) (1 << (((ds_flags) >> 8) & 0xF))
+#define DS_ALIGNMENT_SHIFT	8
+
+static inline bool dload_check_type(struct doff_scnhdr_t *sptr, u32 flag)
+{
+	return (sptr->ds_flags & DS_SECTION_TYPE_MASK) == flag;
+}
+static inline bool ds_needs_allocation(struct doff_scnhdr_t *sptr)
+{
+	return sptr->ds_flags & DS_ALLOCATE_MASK;
+}
+
+static inline bool ds_needs_download(struct doff_scnhdr_t *sptr)
+{
+	return sptr->ds_flags & DS_DOWNLOAD_MASK;
+}
+
+static inline int ds_alignment(u16 ds_flags)
+{
+	return 1 << ((ds_flags >> DS_ALIGNMENT_SHIFT) & DS_SECTION_TYPE_MASK);
+}
+
 
 #endif /* _DOFF_H */

@@ -528,7 +528,7 @@ static void allocate_sections(struct dload_state *dlthis)
 		}
 #endif
 		/* allocate target storage for sections that require it */
-		if (DS_NEEDS_ALLOCATION(shp)) {
+		if (ds_needs_allocation(shp)) {
 			*asecs = *DOFFSEC_IS_LDRSEC(shp);
 			asecs->context = 0;	/* zero the context field */
 #if BITS_PER_AU > BITS_PER_BYTE
@@ -540,7 +540,7 @@ static void allocate_sections(struct dload_state *dlthis)
 			if (dlthis->myalloc != NULL) {
 				if (!dlthis->myalloc->
 				    dload_allocate(dlthis->myalloc, asecs,
-						   DS_ALIGNMENT(asecs->type))) {
+						   ds_alignment(asecs->type))) {
 					dload_error(dlthis, tgtalloc,
 						    asecs->name, asecs->size);
 					return;
@@ -1155,7 +1155,7 @@ static void dload_data(struct dload_state *dlthis)
 	 */
 	for (curr_sect = 0; curr_sect < dlthis->dfile_hdr.df_no_scns;
 	     curr_sect += 1) {
-		if (DS_NEEDS_DOWNLOAD(sptr)) {
+		if (ds_needs_download(sptr)) {
 			s32 nip;
 			ldr_addr image_offset = 0;
 			/* set relocation info for this section */
@@ -1201,7 +1201,7 @@ static void dload_data(struct dload_state *dlthis)
 				dest = ibuf.bufr;
 #ifdef OPT_ZERO_COPY_LOADER
 				zero_copy = false;
-				if (DLOAD_SECT_TYPE(sptr) != DLOAD_CINIT) {
+				if (!dload_check_type(sptr, DLOAD_CINIT) {
 					dlthis->myio->writemem(dlthis->myio,
 							       &dest,
 							       lptr->load_addr +
@@ -1267,8 +1267,8 @@ static void dload_data(struct dload_state *dlthis)
 
 					/* stuff the result into target
 					 * memory */
-					if (DLOAD_SECT_TYPE(sptr) ==
-					    DLOAD_CINIT) {
+					if (dload_check_type(sptr,
+						DLOAD_CINIT)) {
 						cload_cinit(dlthis,
 							    &ibuf.ipacket);
 						cinit_processed = true;
@@ -1306,7 +1306,7 @@ static void dload_data(struct dload_state *dlthis)
 				    BYTE_TO_TADDR(ibuf.ipacket.packet_size);
 			}	/* process packets */
 			/* if this is a BSS section, we may want to fill it */
-			if (DLOAD_SECT_TYPE(sptr) != DLOAD_BSS)
+			if (!dload_check_type(sptr, DLOAD_BSS))
 				goto loop_cont;
 
 			if (!(dlthis->myoptions & DLOAD_INITBSS))
@@ -1330,7 +1330,7 @@ static void dload_data(struct dload_state *dlthis)
 		}
 		/* if DS_DOWNLOAD_MASK */
 		/* If not loading, but BSS, zero initialize */
-		if (DLOAD_SECT_TYPE(sptr) != DLOAD_BSS)
+		if (!dload_check_type(sptr, DLOAD_BSS))
 			goto loop_cont;
 
 		if (!(dlthis->myoptions & DLOAD_INITBSS))
