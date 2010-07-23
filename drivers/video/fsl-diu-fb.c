@@ -317,6 +317,17 @@ static void fsl_diu_free(void *virt, size_t size)
 		free_pages_exact(virt, size);
 }
 
+/*
+ * Workaround for failed writing desc register of planes.
+ * Needed with MPC5121 DIU rev 2.0 silicon.
+ */
+void wr_reg_wa(u32 *reg, u32 val)
+{
+	do {
+		out_be32(reg, val);
+	} while (in_be32(reg) != val);
+}
+
 static int fsl_diu_enable_panel(struct fb_info *info)
 {
 	struct mfb_info *pmfbi, *cmfbi, *mfbi = info->par;
@@ -330,7 +341,7 @@ static int fsl_diu_enable_panel(struct fb_info *info)
 		switch (mfbi->index) {
 		case 0:				/* plane 0 */
 			if (hw->desc[0] != ad->paddr)
-				out_be32(&hw->desc[0], ad->paddr);
+				wr_reg_wa(&hw->desc[0], ad->paddr);
 			break;
 		case 1:				/* plane 1 AOI 0 */
 			cmfbi = machine_data->fsl_diu_info[2]->par;
@@ -340,7 +351,7 @@ static int fsl_diu_enable_panel(struct fb_info *info)
 						cpu_to_le32(cmfbi->ad->paddr);
 				else
 					ad->next_ad = 0;
-				out_be32(&hw->desc[1], ad->paddr);
+				wr_reg_wa(&hw->desc[1], ad->paddr);
 			}
 			break;
 		case 3:				/* plane 2 AOI 0 */
@@ -351,14 +362,14 @@ static int fsl_diu_enable_panel(struct fb_info *info)
 						cpu_to_le32(cmfbi->ad->paddr);
 				else
 					ad->next_ad = 0;
-				out_be32(&hw->desc[2], ad->paddr);
+				wr_reg_wa(&hw->desc[2], ad->paddr);
 			}
 			break;
 		case 2:				/* plane 1 AOI 1 */
 			pmfbi = machine_data->fsl_diu_info[1]->par;
 			ad->next_ad = 0;
 			if (hw->desc[1] == machine_data->dummy_ad->paddr)
-				out_be32(&hw->desc[1], ad->paddr);
+				wr_reg_wa(&hw->desc[1], ad->paddr);
 			else					/* AOI0 open */
 				pmfbi->ad->next_ad = cpu_to_le32(ad->paddr);
 			break;
@@ -366,7 +377,7 @@ static int fsl_diu_enable_panel(struct fb_info *info)
 			pmfbi = machine_data->fsl_diu_info[3]->par;
 			ad->next_ad = 0;
 			if (hw->desc[2] == machine_data->dummy_ad->paddr)
-				out_be32(&hw->desc[2], ad->paddr);
+				wr_reg_wa(&hw->desc[2], ad->paddr);
 			else				/* AOI0 was open */
 				pmfbi->ad->next_ad = cpu_to_le32(ad->paddr);
 			break;
@@ -390,27 +401,24 @@ static int fsl_diu_disable_panel(struct fb_info *info)
 	switch (mfbi->index) {
 	case 0:					/* plane 0 */
 		if (hw->desc[0] != machine_data->dummy_ad->paddr)
-			out_be32(&hw->desc[0],
-				machine_data->dummy_ad->paddr);
+			wr_reg_wa(&hw->desc[0], machine_data->dummy_ad->paddr);
 		break;
 	case 1:					/* plane 1 AOI 0 */
 		cmfbi = machine_data->fsl_diu_info[2]->par;
 		if (cmfbi->count > 0)	/* AOI1 is open */
-			out_be32(&hw->desc[1], cmfbi->ad->paddr);
+			wr_reg_wa(&hw->desc[1], cmfbi->ad->paddr);
 					/* move AOI1 to the first */
 		else			/* AOI1 was closed */
-			out_be32(&hw->desc[1],
-				machine_data->dummy_ad->paddr);
+			wr_reg_wa(&hw->desc[1], machine_data->dummy_ad->paddr);
 					/* close AOI 0 */
 		break;
 	case 3:					/* plane 2 AOI 0 */
 		cmfbi = machine_data->fsl_diu_info[4]->par;
 		if (cmfbi->count > 0)	/* AOI1 is open */
-			out_be32(&hw->desc[2], cmfbi->ad->paddr);
+			wr_reg_wa(&hw->desc[2], cmfbi->ad->paddr);
 					/* move AOI1 to the first */
 		else			/* AOI1 was closed */
-			out_be32(&hw->desc[2],
-				machine_data->dummy_ad->paddr);
+			wr_reg_wa(&hw->desc[2], machine_data->dummy_ad->paddr);
 					/* close AOI 0 */
 		break;
 	case 2:					/* plane 1 AOI 1 */
@@ -421,7 +429,7 @@ static int fsl_diu_disable_panel(struct fb_info *info)
 					/* AOI0 is open, must be the first */
 				pmfbi->ad->next_ad = 0;
 		} else			/* AOI1 is the first in the chain */
-			out_be32(&hw->desc[1], machine_data->dummy_ad->paddr);
+			wr_reg_wa(&hw->desc[1], machine_data->dummy_ad->paddr);
 					/* close AOI 1 */
 		break;
 	case 4:					/* plane 2 AOI 1 */
@@ -432,7 +440,7 @@ static int fsl_diu_disable_panel(struct fb_info *info)
 				/* AOI0 is open, must be the first */
 				pmfbi->ad->next_ad = 0;
 		} else		/* AOI1 is the first in the chain */
-			out_be32(&hw->desc[2], machine_data->dummy_ad->paddr);
+			wr_reg_wa(&hw->desc[2], machine_data->dummy_ad->paddr);
 				/* close AOI 1 */
 		break;
 	default:
