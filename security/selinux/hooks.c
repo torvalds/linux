@@ -1776,27 +1776,9 @@ static inline u32 open_file_to_av(struct file *file)
 {
 	u32 av = file_to_av(file);
 
-	if (selinux_policycap_openperm) {
-		mode_t mode = file->f_path.dentry->d_inode->i_mode;
-		/*
-		 * lnk files and socks do not really have an 'open'
-		 */
-		if (S_ISREG(mode))
-			av |= FILE__OPEN;
-		else if (S_ISCHR(mode))
-			av |= CHR_FILE__OPEN;
-		else if (S_ISBLK(mode))
-			av |= BLK_FILE__OPEN;
-		else if (S_ISFIFO(mode))
-			av |= FIFO_FILE__OPEN;
-		else if (S_ISDIR(mode))
-			av |= DIR__OPEN;
-		else if (S_ISSOCK(mode))
-			av |= SOCK_FILE__OPEN;
-		else
-			printk(KERN_ERR "SELinux: WARNING: inside %s with "
-				"unknown mode:%o\n", __func__, mode);
-	}
+	if (selinux_policycap_openperm)
+		av |= FILE__OPEN;
+
 	return av;
 }
 
