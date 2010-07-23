@@ -154,7 +154,6 @@ static void which_list(ns_dev * card, struct sk_buff *skb);
 #endif
 static void ns_poll(unsigned long arg);
 static int ns_parse_mac(char *mac, unsigned char *esi);
-static short ns_h2i(char c);
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr);
 static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
@@ -2824,9 +2823,9 @@ static int ns_parse_mac(char *mac, unsigned char *esi)
 		return -1;
 	j = 0;
 	for (i = 0; i < 6; i++) {
-		if ((byte1 = ns_h2i(mac[j++])) < 0)
+		if ((byte1 = hex_to_bin(mac[j++])) < 0)
 			return -1;
-		if ((byte0 = ns_h2i(mac[j++])) < 0)
+		if ((byte0 = hex_to_bin(mac[j++])) < 0)
 			return -1;
 		esi[i] = (unsigned char)(byte1 * 16 + byte0);
 		if (i < 5) {
@@ -2837,16 +2836,6 @@ static int ns_parse_mac(char *mac, unsigned char *esi)
 	return 0;
 }
 
-static short ns_h2i(char c)
-{
-	if (c >= '0' && c <= '9')
-		return (short)(c - '0');
-	if (c >= 'A' && c <= 'F')
-		return (short)(c - 'A' + 10);
-	if (c >= 'a' && c <= 'f')
-		return (short)(c - 'a' + 10);
-	return -1;
-}
 
 static void ns_phy_put(struct atm_dev *dev, unsigned char value,
 		       unsigned long addr)
