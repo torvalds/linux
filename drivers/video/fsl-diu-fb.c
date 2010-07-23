@@ -35,6 +35,7 @@
 
 #include <sysdev/fsl_soc.h>
 #include <linux/fsl-diu-fb.h>
+#include "edid.h"
 
 /*
  * These parameters give default parameters
@@ -217,6 +218,7 @@ struct mfb_info {
 	int x_aoi_d;		/* aoi display x offset to physical screen */
 	int y_aoi_d;		/* aoi display y offset to physical screen */
 	struct fsl_diu_data *parent;
+	u8 *edid_data;
 };
 
 
@@ -1185,18 +1187,30 @@ static int __devinit install_fb(struct fb_info *info)
 	int rc;
 	struct mfb_info *mfbi = info->par;
 	const char *aoi_mode, *init_aoi_mode = "320x240";
+	struct fb_videomode *db = fsl_diu_mode_db;
+	unsigned int dbsize = ARRAY_SIZE(fsl_diu_mode_db);
+	int has_default_mode = 1;
 
 	if (init_fbinfo(info))
 		return -EINVAL;
 
-	if (mfbi->index == 0)	/* plane 0 */
+	if (mfbi->index == 0) {	/* plane 0 */
+		if (mfbi->edid_data) {
+			/* Now build modedb from EDID */
+			fb_edid_to_monspecs(mfbi->edid_data, &info->monspecs);
+			fb_videomode_to_modelist(info->monspecs.modedb,
+						 info->monspecs.modedb_len,
+						 &info->modelist);
+			db = info->monspecs.modedb;
+			dbsize = info->monspecs.modedb_len;
+		}
 		aoi_mode = fb_mode;
-	else
+	} else {
 		aoi_mode = init_aoi_mode;
+	}
 	pr_debug("mode used = %s\n", aoi_mode);
-	rc = fb_find_mode(&info->var, info, aoi_mode, fsl_diu_mode_db,
-	     ARRAY_SIZE(fsl_diu_mode_db), &fsl_diu_default_mode, default_bpp);
-
+	rc = fb_find_mode(&info->var, info, aoi_mode, db, dbsize,
+			  &fsl_diu_default_mode, default_bpp);
 	switch (rc) {
 	case 1:
 		pr_debug("using mode specified in @mode\n");
@@ -1214,8 +1228,48 @@ static int __devinit install_fb(struct fb_info *info)
 	default:
 		pr_debug("rc = %d\n", rc);
 		pr_debug("failed to find mode\n");
-		return -EINVAL;
+		/*
+		 * For plane 0 we continue and look into
+		 * driver's internal modedb.
+		 */
+		if (mfbi->index == 0 && mfbi->edid_data)
+			has_default_mode = 0;
+		else
+			return -EINVAL;
 		break;
+	}
+
+	if (!has_default_mode) {
+		rc = fb_find_mode(&info->var, info, aoi_mode, fsl_diu_mode_db,
+				  ARRAY_SIZE(fsl_diu_mode_db),
+				  &fsl_diu_default_mode,
+				  default_bpp);
+		if (rc > 0 && rc < 5)
+			has_default_mode = 1;
+	}
+
+	/* Still not found, use preferred mode from database if any */
+	if (!has_default_mode && info->monspecs.modedb) {
+		struct fb_monspecs *specs = &info->monspecs;
+		struct fb_videomode *modedb = &specs->modedb[0];
+
+		/*
+		 * Get preferred timing. If not found,
+		 * first mode in database will be used.
+		 */
+		if (specs->misc & FB_MISC_1ST_DETAIL) {
+			int i;
+
+			for (i = 0; i < specs->modedb_len; i++) {
+				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
+					modedb = &specs->modedb[i];
+					break;
+				}
+			}
+		}
+
+		info->var.bits_per_pixel = default_bpp;
+		fb_videomode_to_var(&info->var, modedb);
 	}
 
 	pr_debug("xres_virtual %d\n", info->var.xres_virtual);
@@ -1255,6 +1309,9 @@ static void uninstall_fb(struct fb_info *info)
 
 	if (!mfbi->registered)
 		return;
+
+	if (mfbi->index == 0)
+		kfree(mfbi->edid_data);
 
 	unregister_framebuffer(info);
 	unmap_video_memory(info);
@@ -1456,6 +1513,17 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 		mfbi = machine_data->fsl_diu_info[i]->par;
 		memcpy(mfbi, &mfb_template[i], sizeof(struct mfb_info));
 		mfbi->parent = machine_data;
+
+		if (mfbi->index == 0) {
+			const u8 *prop;
+			int len;
+
+			/* Get EDID */
+			prop = of_get_property(np, "edid", &len);
+			if (prop && len == EDID_LENGTH)
+				mfbi->edid_data = kmemdup(prop, EDID_LENGTH,
+							  GFP_KERNEL);
+		}
 	}
 
 	ret = of_address_to_resource(np, 0, &res);
