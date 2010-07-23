@@ -98,7 +98,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_object_pin(fbo, 64*1024);
+	ret = intel_pin_and_fence_fb_obj(dev, fbo);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;
