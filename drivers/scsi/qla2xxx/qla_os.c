@@ -2487,9 +2487,22 @@ qla2x00_free_device(scsi_qla_host_t *vha)
 
 	qla2x00_free_irqs(vha);
 
+	qla2x00_free_fcports(vha);
+
 	qla2x00_mem_free(ha);
 
 	qla2x00_free_queues(ha);
+}
+
+void qla2x00_free_fcports(struct scsi_qla_host *vha)
+{
+	fc_port_t *fcport, *tfcport;
+
+	list_for_each_entry_safe(fcport, tfcport, &vha->vp_fcports, list) {
+		list_del(&fcport->list);
+		kfree(fcport);
+		fcport = NULL;
+	}
 }
 
 static inline void

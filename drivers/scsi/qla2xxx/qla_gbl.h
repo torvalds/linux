@@ -122,6 +122,7 @@ extern struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *,
 extern void qla2x00_free_host(struct scsi_qla_host *);
 extern void qla2x00_relogin(struct scsi_qla_host *);
 extern void qla2x00_do_work(struct scsi_qla_host *);
+extern void qla2x00_free_fcports(struct scsi_qla_host *);
 
 /*
  * Global Functions in qla_mid.c source file.
