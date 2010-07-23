@@ -2050,8 +2050,15 @@ int c4iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 		goto fail3;
 
 	/* wait for pass_open_rpl */
-	wait_event(ep->com.waitq, ep->com.rpl_done);
-	err = ep->com.rpl_err;
+	wait_event_timeout(ep->com.waitq, ep->com.rpl_done, C4IW_WR_TO);
+	if (ep->com.rpl_done)
+		err = ep->com.rpl_err;
+	else {
+		printk(KERN_ERR MOD "Device %s not responding!\n",
+		       pci_name(ep->com.dev->rdev.lldi.pdev));
+		ep->com.dev->rdev.flags = T4_FATAL_ERROR;
+		err = -EIO;
+	}
 	if (!err) {
 		cm_id->provider_data = ep;
 		goto out;
@@ -2080,10 +2087,17 @@ int c4iw_destroy_listen(struct iw_cm_id *cm_id)
 	err = listen_stop(ep);
 	if (err)
 		goto done;
-	wait_event(ep->com.waitq, ep->com.rpl_done);
+	wait_event_timeout(ep->com.waitq, ep->com.rpl_done, C4IW_WR_TO);
+	if (ep->com.rpl_done)
+		err = ep->com.rpl_err;
+	else {
+		printk(KERN_ERR MOD "Device %s not responding!\n",
+		       pci_name(ep->com.dev->rdev.lldi.pdev));
+		ep->com.dev->rdev.flags = T4_FATAL_ERROR;
+		err = -EIO;
+	}
 	cxgb4_free_stid(ep->com.dev->rdev.lldi.tids, ep->stid, PF_INET);
 done:
-	err = ep->com.rpl_err;
 	cm_id->rem_ref(cm_id);
 	c4iw_put_ep(&ep->com);
 	return err;
