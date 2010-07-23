@@ -1471,6 +1471,7 @@ int cfg80211_wext_siwpmksa(struct net_device *dev,
 		return -EOPNOTSUPP;
 	}
 }
+EXPORT_SYMBOL_GPL(cfg80211_wext_siwpmksa);
 
 static const iw_handler cfg80211_handlers[] = {
 	[IW_IOCTL_IDX(SIOCGIWNAME)]	= (iw_handler) cfg80211_wext_giwname,

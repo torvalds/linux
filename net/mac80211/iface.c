@@ -249,6 +249,8 @@ static int ieee80211_open(struct net_device *dev)
 			local->fif_other_bss++;
 
 		ieee80211_configure_filter(local);
+
+		netif_carrier_on(dev);
 		break;
 	default:
 		res = drv_add_interface(local, &sdata->vif);
@@ -741,7 +743,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 			int len = skb->len;
 
 			mutex_lock(&local->sta_mtx);
-			sta = sta_info_get(sdata, mgmt->sa);
+			sta = sta_info_get_bss(sdata, mgmt->sa);
 			if (sta) {
 				switch (mgmt->u.action.u.addba_req.action_code) {
 				case WLAN_ACTION_ADDBA_REQ:
@@ -782,7 +784,7 @@ static void ieee80211_iface_work(struct work_struct *work)
 			 * right, so terminate the session.
 			 */
 			mutex_lock(&local->sta_mtx);
-			sta = sta_info_get(sdata, mgmt->sa);
+			sta = sta_info_get_bss(sdata, mgmt->sa);
 			if (sta) {
 				u16 tid = *ieee80211_get_qos_ctl(hdr) &
 						IEEE80211_QOS_CTL_TID_MASK;

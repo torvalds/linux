@@ -472,23 +472,21 @@ int wiphy_register(struct wiphy *wiphy)
 	/* check and set up bitrates */
 	ieee80211_set_bitrate_flags(wiphy);
 
+	mutex_lock(&cfg80211_mutex);
+
 	res = device_add(&rdev->wiphy.dev);
 	if (res)
-		return res;
+		goto out_unlock;
 
 	res = rfkill_register(rdev->rfkill);
 	if (res)
 		goto out_rm_dev;
-
-	mutex_lock(&cfg80211_mutex);
 
 	/* set up regulatory info */
 	wiphy_update_regulatory(wiphy, NL80211_REGDOM_SET_BY_CORE);
 
 	list_add_rcu(&rdev->list, &cfg80211_rdev_list);
 	cfg80211_rdev_list_generation++;
-
-	mutex_unlock(&cfg80211_mutex);
 
 	/* add to debugfs */
 	rdev->wiphy.debugfsdir =
@@ -509,11 +507,15 @@ int wiphy_register(struct wiphy *wiphy)
 	}
 
 	cfg80211_debugfs_rdev_add(rdev);
+	mutex_unlock(&cfg80211_mutex);
 
 	return 0;
 
- out_rm_dev:
+out_rm_dev:
 	device_del(&rdev->wiphy.dev);
+
+out_unlock:
+	mutex_unlock(&cfg80211_mutex);
 	return res;
 }
 EXPORT_SYMBOL(wiphy_register);

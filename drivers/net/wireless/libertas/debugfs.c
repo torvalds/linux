@@ -905,7 +905,7 @@ static ssize_t lbs_debugfs_read(struct file *file, char __user *userbuf,
 
 	p = buf;
 
-	d = (struct debug_data *)file->private_data;
+	d = file->private_data;
 
 	for (i = 0; i < num_of_items; i++) {
 		if (d[i].size == 1)
@@ -944,7 +944,7 @@ static ssize_t lbs_debugfs_write(struct file *f, const char __user *buf,
 	char *p0;
 	char *p1;
 	char *p2;
-	struct debug_data *d = (struct debug_data *)f->private_data;
+	struct debug_data *d = f->private_data;
 
 	pdata = kmalloc(cnt, GFP_KERNEL);
 	if (pdata == NULL)

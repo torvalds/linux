@@ -388,7 +388,7 @@ static int 	ath5k_init(struct ath5k_softc *sc);
 static int 	ath5k_stop_locked(struct ath5k_softc *sc);
 static int 	ath5k_stop_hw(struct ath5k_softc *sc);
 static irqreturn_t ath5k_intr(int irq, void *dev_id);
-static void 	ath5k_tasklet_reset(unsigned long data);
+static void ath5k_reset_work(struct work_struct *work);
 
 static void 	ath5k_tasklet_calibrate(unsigned long data);
 
@@ -831,10 +831,11 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 
 	tasklet_init(&sc->rxtq, ath5k_tasklet_rx, (unsigned long)sc);
 	tasklet_init(&sc->txtq, ath5k_tasklet_tx, (unsigned long)sc);
-	tasklet_init(&sc->restq, ath5k_tasklet_reset, (unsigned long)sc);
 	tasklet_init(&sc->calib, ath5k_tasklet_calibrate, (unsigned long)sc);
 	tasklet_init(&sc->beacontq, ath5k_tasklet_beacon, (unsigned long)sc);
 	tasklet_init(&sc->ani_tasklet, ath5k_tasklet_ani, (unsigned long)sc);
+
+	INIT_WORK(&sc->reset_work, ath5k_reset_work);
 
 	ret = ath5k_eeprom_read_mac(ah, mac);
 	if (ret) {
@@ -1727,8 +1728,6 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 	ath5k_hw_stop_rx_dma(ah);	/* disable DMA engine */
 
 	ath5k_debug_printrxbuffs(sc, ah);
-
-	sc->rxlink = NULL;		/* just in case */
 }
 
 static unsigned int
@@ -2294,8 +2293,8 @@ err_unmap:
  * frame contents are done as needed and the slot time is
  * also adjusted based on current state.
  *
- * This is called from software irq context (beacontq or restq
- * tasklets) or user context from ath5k_beacon_config.
+ * This is called from software irq context (beacontq tasklets)
+ * or user context from ath5k_beacon_config.
  */
 static void
 ath5k_beacon_send(struct ath5k_softc *sc)
@@ -2328,7 +2327,7 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 				sc->bmisscount);
 			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 				  "stuck beacon, resetting\n");
-			tasklet_schedule(&sc->restq);
+			ieee80211_queue_work(sc->hw, &sc->reset_work);
 		}
 		return;
 	}
@@ -2632,10 +2631,18 @@ ath5k_stop_locked(struct ath5k_softc *sc)
 	if (!test_bit(ATH_STAT_INVALID, sc->status)) {
 		ath5k_rx_stop(sc);
 		ath5k_hw_phy_disable(ah);
-	} else
-		sc->rxlink = NULL;
+	}
 
 	return 0;
+}
+
+static void stop_tasklets(struct ath5k_softc *sc)
+{
+	tasklet_kill(&sc->rxtq);
+	tasklet_kill(&sc->txtq);
+	tasklet_kill(&sc->calib);
+	tasklet_kill(&sc->beacontq);
+	tasklet_kill(&sc->ani_tasklet);
 }
 
 /*
@@ -2682,12 +2689,7 @@ ath5k_stop_hw(struct ath5k_softc *sc)
 	mmiowb();
 	mutex_unlock(&sc->lock);
 
-	tasklet_kill(&sc->rxtq);
-	tasklet_kill(&sc->txtq);
-	tasklet_kill(&sc->restq);
-	tasklet_kill(&sc->calib);
-	tasklet_kill(&sc->beacontq);
-	tasklet_kill(&sc->ani_tasklet);
+	stop_tasklets(sc);
 
 	ath5k_rfkill_hw_stop(sc->ah);
 
@@ -2737,7 +2739,7 @@ ath5k_intr(int irq, void *dev_id)
 			 */
 			ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 				  "fatal int, resetting\n");
-			tasklet_schedule(&sc->restq);
+			ieee80211_queue_work(sc->hw, &sc->reset_work);
 		} else if (unlikely(status & AR5K_INT_RXORN)) {
 			/*
 			 * Receive buffers are full. Either the bus is busy or
@@ -2752,7 +2754,7 @@ ath5k_intr(int irq, void *dev_id)
 			if (ah->ah_mac_srev < AR5K_SREV_AR5212) {
 				ATH5K_DBG(sc, ATH5K_DEBUG_RESET,
 					  "rx overrun, resetting\n");
-				tasklet_schedule(&sc->restq);
+				ieee80211_queue_work(sc->hw, &sc->reset_work);
 			}
 			else
 				tasklet_schedule(&sc->rxtq);
@@ -2766,7 +2768,7 @@ ath5k_intr(int irq, void *dev_id)
 				*     RXE bit is written, but it doesn't work at
 				*     least on older hardware revs.
 				*/
-				sc->rxlink = NULL;
+				sc->stats.rxeol_intr++;
 			}
 			if (status & AR5K_INT_TXURN) {
 				/* bump tx trigger level */
@@ -2799,14 +2801,6 @@ ath5k_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void
-ath5k_tasklet_reset(unsigned long data)
-{
-	struct ath5k_softc *sc = (void *)data;
-
-	ath5k_reset(sc, sc->curchan);
-}
-
 /*
  * Periodically recalibrate the PHY to account
  * for temperature/environment changes.
@@ -2830,7 +2824,7 @@ ath5k_tasklet_calibrate(unsigned long data)
 		 * to load new gain values.
 		 */
 		ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "calibration, resetting\n");
-		ath5k_reset(sc, sc->curchan);
+		ieee80211_queue_work(sc->hw, &sc->reset_work);
 	}
 	if (ath5k_hw_phy_calibrate(ah, sc->curchan))
 		ATH5K_ERR(sc, "calibration of channel %u failed\n",
@@ -2934,6 +2928,8 @@ drop_packet:
 /*
  * Reset the hardware.  If chan is not NULL, then also pause rx/tx
  * and change to the given channel.
+ *
+ * This should be called with sc->lock.
  */
 static int
 ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
@@ -2943,8 +2939,11 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
 
+	ath5k_hw_set_imr(ah, 0);
+	synchronize_irq(sc->pdev->irq);
+	stop_tasklets(sc);
+
 	if (chan) {
-		ath5k_hw_set_imr(ah, 0);
 		ath5k_txq_cleanup(sc);
 		ath5k_rx_stop(sc);
 
@@ -2988,6 +2987,16 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 	return 0;
 err:
 	return ret;
+}
+
+static void ath5k_reset_work(struct work_struct *work)
+{
+	struct ath5k_softc *sc = container_of(work, struct ath5k_softc,
+		reset_work);
+
+	mutex_lock(&sc->lock);
+	ath5k_reset(sc, sc->curchan);
+	mutex_unlock(&sc->lock);
 }
 
 static int ath5k_start(struct ieee80211_hw *hw)

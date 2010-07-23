@@ -377,14 +377,11 @@ struct ieee80211_if_managed {
 	int last_cqm_event_signal;
 };
 
-enum ieee80211_ibss_request {
-	IEEE80211_IBSS_REQ_RUN	= 0,
-};
-
 struct ieee80211_if_ibss {
 	struct timer_list timer;
 
-	unsigned long request;
+	struct mutex mtx;
+
 	unsigned long last_scan_completed;
 
 	u32 basic_rates;

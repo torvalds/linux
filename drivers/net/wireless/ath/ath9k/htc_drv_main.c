@@ -438,10 +438,11 @@ static void ath9k_htc_update_rate(struct ath9k_htc_priv *priv,
 			  bss_conf->bssid, be32_to_cpu(trate.capflags));
 }
 
-int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
-			   struct ieee80211_vif *vif,
-			   struct ieee80211_sta *sta,
-			   enum ieee80211_ampdu_mlme_action action, u16 tid)
+static int ath9k_htc_tx_aggr_oper(struct ath9k_htc_priv *priv,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta,
+				  enum ieee80211_ampdu_mlme_action action,
+				  u16 tid)
 {
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_target_aggr aggr;
@@ -492,8 +493,7 @@ static int ath9k_debugfs_open(struct inode *inode, struct file *file)
 static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
-	struct ath9k_htc_priv *priv =
-		(struct ath9k_htc_priv *) file->private_data;
+	struct ath9k_htc_priv *priv = file->private_data;
 	struct ath9k_htc_target_stats cmd_rsp;
 	char buf[512];
 	unsigned int len = 0;
@@ -536,8 +536,7 @@ static const struct file_operations fops_tgt_stats = {
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
-	struct ath9k_htc_priv *priv =
-		(struct ath9k_htc_priv *) file->private_data;
+	struct ath9k_htc_priv *priv = file->private_data;
 	char buf[512];
 	unsigned int len = 0;
 
@@ -582,8 +581,7 @@ static const struct file_operations fops_xmit = {
 static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
-	struct ath9k_htc_priv *priv =
-		(struct ath9k_htc_priv *) file->private_data;
+	struct ath9k_htc_priv *priv = file->private_data;
 	char buf[512];
 	unsigned int len = 0;
 

@@ -813,6 +813,13 @@ ssize_t iwl_ucode_general_stats_read(struct file *file, char __user *user_buf,
 			 delta_dbg->burst_count, max_dbg->burst_count);
 	pos += scnprintf(buf + pos, bufsz - pos,
 			 "  %-30s %10u  %10u  %10u  %10u\n",
+			 "wait_for_silence_timeout_count:",
+			 le32_to_cpu(dbg->wait_for_silence_timeout_cnt),
+			 accum_dbg->wait_for_silence_timeout_cnt,
+			 delta_dbg->wait_for_silence_timeout_cnt,
+			 max_dbg->wait_for_silence_timeout_cnt);
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "  %-30s %10u  %10u  %10u  %10u\n",
 			 "sleep_time:",
 			 le32_to_cpu(general->sleep_time),
 			 accum_general->sleep_time,

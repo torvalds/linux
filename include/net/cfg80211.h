@@ -1952,6 +1952,10 @@ int cfg80211_wext_giwap(struct net_device *dev,
 			struct iw_request_info *info,
 			struct sockaddr *ap_addr, char *extra);
 
+int cfg80211_wext_siwpmksa(struct net_device *dev,
+			   struct iw_request_info *info,
+			   struct iw_point *data, char *extra);
+
 /*
  * callbacks for asynchronous cfg80211 methods, notification
  * functions and BSS handling helpers

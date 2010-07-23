@@ -1245,7 +1245,7 @@ struct iwl_txfifo_flush_cmd {
 	__le32 fifo_control;
 	__le16 flush_control;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * REPLY_WEP_KEY = 0x20
@@ -3035,7 +3035,8 @@ struct iwl39_statistics_tx {
 struct statistics_dbg {
 	__le32 burst_check;
 	__le32 burst_count;
-	__le32 reserved[4];
+	__le32 wait_for_silence_timeout_cnt;
+	__le32 reserved[3];
 } __packed;
 
 struct iwl39_statistics_div {
@@ -3547,7 +3548,7 @@ struct iwl_sensitivity_cmd {
 struct iwl_enhance_sensitivity_cmd {
 	__le16 control;			/* always use "1" */
 	__le16 enhance_table[ENHANCE_HD_TABLE_SIZE];	/* use HD_* as index */
-} __attribute__ ((packed));
+} __packed;
 
 
 /**

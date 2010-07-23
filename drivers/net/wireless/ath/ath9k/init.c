@@ -787,12 +787,12 @@ void ath9k_deinit_device(struct ath_softc *sc)
 		ieee80211_unregister_hw(aphy->hw);
 		ieee80211_free_hw(aphy->hw);
 	}
-	kfree(sc->sec_wiphy);
 
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath_tx_cleanup(sc);
 	ath9k_deinit_softc(sc);
+	kfree(sc->sec_wiphy);
 }
 
 void ath_descdma_cleanup(struct ath_softc *sc,

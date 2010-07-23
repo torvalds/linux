@@ -223,7 +223,6 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 			       struct cal_data_per_freq_ar9287 *pRawDataSet,
 			       u8 *bChans, u16 availPiers,
 			       u16 tPdGainOverlap,
-			       int16_t *pMinCalPower,
 			       u16 *pPdGainBoundaries,
 			       u8 *pPDADCValues,
 			       u16 numXpdGains)
@@ -303,7 +302,6 @@ static void ath9k_hw_get_ar9287_gain_boundaries_pdadcs(struct ath_hw *ah,
 		}
 	}
 
-	*pMinCalPower = (int16_t)(minPwrT4[0] / 2);
 	k = 0;
 
 	for (i = 0; i < numXpdGains; i++) {
@@ -458,7 +456,6 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 	u8 pdadcValues[AR9287_NUM_PDADC_VALUES];
 	u16 gainBoundaries[AR9287_PD_GAINS_IN_MASK];
 	u16 numPiers = 0, i, j;
-	int16_t tMinCalPower;
 	u16 numXpdGain, xpdMask;
 	u16 xpdGainValues[AR9287_NUM_PD_GAINS] = {0, 0, 0, 0};
 	u32 reg32, regOffset, regChainOffset, regval;
@@ -530,7 +527,6 @@ static void ath9k_hw_set_ar9287_power_cal_table(struct ath_hw *ah,
 							   pRawDataset,
 							   pCalBChans, numPiers,
 							   pdGainOverlap_t2,
-							   &tMinCalPower,
 							   gainBoundaries,
 							   pdadcValues,
 							   numXpdGain);

@@ -1267,7 +1267,7 @@ static ssize_t iwl_dbgfs_ucode_tracing_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_priv *priv = file->private_data;
 	int pos = 0;
 	char buf[128];
 	const size_t bufsz = sizeof(buf);
@@ -1317,7 +1317,7 @@ static ssize_t iwl_dbgfs_rxon_flags_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_priv *priv = file->private_data;
 	int len = 0;
 	char buf[20];
 
@@ -1329,7 +1329,7 @@ static ssize_t iwl_dbgfs_rxon_filter_flags_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_priv *priv = file->private_data;
 	int len = 0;
 	char buf[20];
 
@@ -1342,7 +1342,7 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 					 char __user *user_buf,
 					 size_t count, loff_t *ppos)
 {
-	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_priv *priv = file->private_data;
 	char *buf;
 	int pos = 0;
 	ssize_t ret = -EFAULT;
@@ -1404,7 +1404,7 @@ static ssize_t iwl_dbgfs_plcp_delta_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos) {
 
-	struct iwl_priv *priv = (struct iwl_priv *)file->private_data;
+	struct iwl_priv *priv = file->private_data;
 	int pos = 0;
 	char buf[12];
 	const size_t bufsz = sizeof(buf);

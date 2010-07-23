@@ -329,7 +329,6 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	int isaggr, txfail, txpending, sendbar = 0, needreset = 0, nbad = 0;
 	bool rc_update = true;
 	struct ieee80211_tx_rate rates[4];
-	unsigned long flags;
 
 	skb = bf->bf_mpdu;
 	hdr = (struct ieee80211_hdr *)skb->data;
@@ -346,9 +345,21 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	if (!sta) {
 		rcu_read_unlock();
 
-		spin_lock_irqsave(&sc->tx.txbuflock, flags);
-		list_splice_tail_init(bf_q, &sc->tx.txbuf);
-		spin_unlock_irqrestore(&sc->tx.txbuflock, flags);
+		INIT_LIST_HEAD(&bf_head);
+		while (bf) {
+			bf_next = bf->bf_next;
+
+			bf->bf_state.bf_type |= BUF_XRETRY;
+			if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) ||
+			    !bf->bf_stale || bf_next != NULL)
+				list_move_tail(&bf->list, &bf_head);
+
+			ath_tx_rc_status(bf, ts, 0, 0, false);
+			ath_tx_complete_buf(sc, bf, txq, &bf_head, ts,
+				0, 0);
+
+			bf = bf_next;
+		}
 		return;
 	}
 

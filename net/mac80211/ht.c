@@ -29,7 +29,7 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 
 	memset(ht_cap, 0, sizeof(*ht_cap));
 
-	if (!ht_cap_ie)
+	if (!ht_cap_ie || !sband->ht_cap.ht_supported)
 		return;
 
 	ht_cap->ht_supported = true;

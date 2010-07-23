@@ -1763,6 +1763,15 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
+	if (changes & BSS_CHANGED_QOS) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&priv->lock, flags);
+		priv->qos_data.qos_active = bss_conf->qos;
+		iwl_update_qos(priv);
+		spin_unlock_irqrestore(&priv->lock, flags);
+	}
+
 	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_AP) {
 		dev_kfree_skb(priv->ibss_beacon);
 		priv->ibss_beacon = ieee80211_beacon_get(hw, vif);
@@ -2132,15 +2141,6 @@ int iwl_mac_config(struct ieee80211_hw *hw, u32 changed)
 			priv->tx_power_user_lmt, conf->power_level);
 
 		iwl_set_tx_power(priv, conf->power_level, false);
-	}
-
-	if (changed & IEEE80211_CONF_CHANGE_QOS) {
-		bool qos_active = !!(conf->flags & IEEE80211_CONF_QOS);
-
-		spin_lock_irqsave(&priv->lock, flags);
-		priv->qos_data.qos_active = qos_active;
-		iwl_update_qos(priv);
-		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
 	if (!iwl_is_ready(priv)) {

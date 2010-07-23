@@ -314,13 +314,15 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 #define MWL8K_CMD_SET_NEW_STN		0x1111		/* per-vif */
 #define MWL8K_CMD_UPDATE_STADB		0x1123
 
-static const char *mwl8k_cmd_name(u16 cmd, char *buf, int bufsize)
+static const char *mwl8k_cmd_name(__le16 cmd, char *buf, int bufsize)
 {
+	u16 command = le16_to_cpu(cmd);
+
 #define MWL8K_CMDNAME(x)	case MWL8K_CMD_##x: do {\
 					snprintf(buf, bufsize, "%s", #x);\
 					return buf;\
 					} while (0)
-	switch (cmd & ~0x8000) {
+	switch (command & ~0x8000) {
 		MWL8K_CMDNAME(CODE_DNLD);
 		MWL8K_CMDNAME(GET_HW_SPEC);
 		MWL8K_CMDNAME(SET_HW_SPEC);
@@ -1538,7 +1540,7 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 	unsigned long timeout = 0;
 	u8 buf[32];
 
-	cmd->result = 0xffff;
+	cmd->result = (__force __le16) 0xffff;
 	dma_size = le16_to_cpu(cmd->length);
 	dma_addr = pci_map_single(priv->pdev, cmd, dma_size,
 				  PCI_DMA_BIDIRECTIONAL);
@@ -1842,22 +1844,22 @@ static int mwl8k_cmd_get_hw_spec_ap(struct ieee80211_hw *hw)
 		priv->sta_macids_supported = 0x00000000;
 
 		off = le32_to_cpu(cmd->wcbbase0) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[0].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[0].txd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->rxwrptr) & 0xffff;
-		iowrite32(cpu_to_le32(priv->rxq[0].rxd_dma), priv->sram + off);
+		iowrite32(priv->rxq[0].rxd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->rxrdptr) & 0xffff;
-		iowrite32(cpu_to_le32(priv->rxq[0].rxd_dma), priv->sram + off);
+		iowrite32(priv->rxq[0].rxd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->wcbbase1) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[1].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[1].txd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->wcbbase2) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[2].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[2].txd_dma, priv->sram + off);
 
 		off = le32_to_cpu(cmd->wcbbase3) & 0xffff;
-		iowrite32(cpu_to_le32(priv->txq[3].txd_dma), priv->sram + off);
+		iowrite32(priv->txq[3].txd_dma, priv->sram + off);
 	}
 
 	kfree(cmd);
@@ -3052,7 +3054,7 @@ static int mwl8k_cmd_update_stadb_add(struct ieee80211_hw *hw,
 	p->peer_type = MWL8K_PEER_TYPE_ACCESSPOINT;
 	p->basic_caps = cpu_to_le16(vif->bss_conf.assoc_capability);
 	p->ht_support = sta->ht_cap.ht_supported;
-	p->ht_caps = sta->ht_cap.cap;
+	p->ht_caps = cpu_to_le16(sta->ht_cap.cap);
 	p->extended_ht_caps = (sta->ht_cap.ampdu_factor & 3) |
 		((sta->ht_cap.ampdu_density & 7) << 2);
 	if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)

@@ -698,10 +698,11 @@ void ieee80211_dynamic_ps_timer(unsigned long data)
 
 /* MLME */
 static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
-				     struct ieee80211_if_managed *ifmgd,
+				     struct ieee80211_sub_if_data *sdata,
 				     u8 *wmm_param, size_t wmm_param_len)
 {
 	struct ieee80211_tx_queue_params params;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t left;
 	int count;
 	u8 *pos, uapsd_queues = 0;
@@ -790,8 +791,8 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	}
 
 	/* enable WMM or activate new settings */
-	local->hw.conf.flags |=	IEEE80211_CONF_QOS;
-	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
+	sdata->vif.bss_conf.qos = true;
+	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
 }
 
 static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
@@ -1325,7 +1326,7 @@ static bool ieee80211_assoc_success(struct ieee80211_work *wk,
 	}
 
 	if (elems.wmm_param)
-		ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
+		ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 					 elems.wmm_param_len);
 	else
 		ieee80211_set_wmm_default(sdata);
@@ -1597,7 +1598,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems,
 				      true);
 
-		ieee80211_sta_wmm_params(local, ifmgd, elems.wmm_param,
+		ieee80211_sta_wmm_params(local, sdata, elems.wmm_param,
 					 elems.wmm_param_len);
 	}
 
@@ -2030,6 +2031,8 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 		auth_alg = WLAN_AUTH_OPEN;
 		break;
 	case NL80211_AUTHTYPE_SHARED_KEY:
+		if (IS_ERR(sdata->local->wep_tx_tfm))
+			return -EOPNOTSUPP;
 		auth_alg = WLAN_AUTH_SHARED_KEY;
 		break;
 	case NL80211_AUTHTYPE_FT:

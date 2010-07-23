@@ -411,10 +411,6 @@ int libipw_wx_set_encode(struct libipw_device *ieee,
 
 	/* If a new key was provided, set it up */
 	if (erq->length > 0) {
-#ifdef CONFIG_LIBIPW_DEBUG
-		DECLARE_SSID_BUF(ssid);
-#endif
-
 		len = erq->length <= 5 ? 5 : 13;
 		memcpy(sec.keys[key], keybuf, erq->length);
 		if (len > erq->length)
