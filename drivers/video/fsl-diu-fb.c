@@ -1108,6 +1108,10 @@ static int fsl_diu_open(struct fb_info *info, int user)
 	struct mfb_info *mfbi = info->par;
 	int res = 0;
 
+	/* free boot splash memory on first /dev/fb0 open */
+	if (!mfbi->index && diu_ops.release_bootmem)
+		diu_ops.release_bootmem();
+
 	spin_lock(&diu_lock);
 	mfbi->count++;
 	if (mfbi->count == 1) {
@@ -1435,6 +1439,7 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	int ret, i, error = 0;
 	struct resource res;
 	struct fsl_diu_data *machine_data;
+	int diu_mode;
 
 	machine_data = kzalloc(sizeof(struct fsl_diu_data), GFP_KERNEL);
 	if (!machine_data)
@@ -1471,7 +1476,9 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 		goto error2;
 	}
 
-	out_be32(&dr.diu_reg->diu_mode, 0);		/* disable DIU anyway*/
+	diu_mode = in_be32(&dr.diu_reg->diu_mode);
+	if (diu_mode != MFB_MODE1)
+		out_be32(&dr.diu_reg->diu_mode, 0);	/* disable DIU */
 
 	/* Get the IRQ of the DIU */
 	machine_data->irq = irq_of_parse_and_map(np, 0);
@@ -1519,7 +1526,13 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 	machine_data->dummy_ad->offset_xyd = 0;
 	machine_data->dummy_ad->next_ad = 0;
 
-	out_be32(&dr.diu_reg->desc[0], machine_data->dummy_ad->paddr);
+	/*
+	 * Let DIU display splash screen if it was pre-initialized
+	 * by the bootloader, set dummy area descriptor otherwise.
+	 */
+	if (diu_mode != MFB_MODE1)
+		out_be32(&dr.diu_reg->desc[0], machine_data->dummy_ad->paddr);
+
 	out_be32(&dr.diu_reg->desc[1], machine_data->dummy_ad->paddr);
 	out_be32(&dr.diu_reg->desc[2], machine_data->dummy_ad->paddr);
 
