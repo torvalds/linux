@@ -283,16 +283,13 @@ unsigned int arpt_do_table(struct sk_buff *skb,
 	arp = arp_hdr(skb);
 	do {
 		const struct arpt_entry_target *t;
-		int hdr_len;
 
 		if (!arp_packet_match(arp, skb->dev, indev, outdev, &e->arp)) {
 			e = arpt_next_entry(e);
 			continue;
 		}
 
-		hdr_len = sizeof(*arp) + (2 * sizeof(struct in_addr)) +
-			(2 * skb->dev->addr_len);
-		ADD_COUNTER(e->counters, hdr_len, 1);
+		ADD_COUNTER(e->counters, arp_hdr_len(skb->dev), 1);
 
 		t = arpt_get_target_c(e);
 
