@@ -17,9 +17,9 @@ config MACH_EUKREA_CPUIMX25
 choice
 	prompt "Baseboard"
 	depends on MACH_EUKREA_CPUIMX25
-	default MACH_EUKREA_MBIMXSD_BASEBOARD
+	default MACH_EUKREA_MBIMXSD25_BASEBOARD
 
-config MACH_EUKREA_MBIMXSD_BASEBOARD
+config MACH_EUKREA_MBIMXSD25_BASEBOARD
 	prompt "Eukrea MBIMXSD development board"
 	bool
 	help
