@@ -1845,8 +1845,8 @@ cifs_put_tcon(struct cifsTconInfo *tcon)
 	CIFSSMBTDis(xid, tcon);
 	_FreeXid(xid);
 
-	tconInfoFree(tcon);
 	cifs_fscache_release_super_cookie(tcon);
+	tconInfoFree(tcon);
 	cifs_put_smb_ses(ses);
 }
 
