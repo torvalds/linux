@@ -312,6 +312,10 @@ void rds_conn_shutdown(struct rds_connection *conn)
 
 /*
  * Stop and free a connection.
+ *
+ * This can only be used in very limited circumstances.  It assumes that once
+ * the conn has been shutdown that no one else is referencing the connection.
+ * We can only ensure this in the rmmod path in the current code.
  */
 void rds_conn_destroy(struct rds_connection *conn)
 {
@@ -326,10 +330,11 @@ void rds_conn_destroy(struct rds_connection *conn)
 	spin_lock_irq(&rds_conn_lock);
 	hlist_del_init_rcu(&conn->c_hash_node);
 	spin_unlock_irq(&rds_conn_lock);
-
 	synchronize_rcu();
 
-	rds_conn_shutdown(conn);
+	/* shut the connection down */
+	rds_conn_drop(conn);
+	flush_work(&conn->c_down_w);
 
 	/* tear down queued messages */
 	list_for_each_entry_safe(rm, rtmp,
