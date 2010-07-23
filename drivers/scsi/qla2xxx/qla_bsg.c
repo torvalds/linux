@@ -229,7 +229,7 @@ static int
 qla2x00_process_els(struct fc_bsg_job *bsg_job)
 {
 	struct fc_rport *rport;
-	fc_port_t *fcport;
+	fc_port_t *fcport = NULL;
 	struct Scsi_Host *host;
 	scsi_qla_host_t *vha;
 	struct qla_hw_data *ha;
@@ -239,6 +239,29 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	int rval =  (DRIVER_ERROR << 16);
 	uint16_t nextlid = 0;
 	struct srb_ctx *els;
+
+	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS) {
+		rport = bsg_job->rport;
+		fcport = *(fc_port_t **) rport->dd_data;
+		host = rport_to_shost(rport);
+		vha = shost_priv(host);
+		ha = vha->hw;
+		type = "FC_BSG_RPT_ELS";
+	} else {
+		host = bsg_job->shost;
+		vha = shost_priv(host);
+		ha = vha->hw;
+		type = "FC_BSG_HST_ELS_NOLOGIN";
+	}
+
+	/* pass through is supported only for ISP 4Gb or higher */
+	if (!IS_FWI2_CAPABLE(ha)) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "scsi(%ld):ELS passthru not supported for ISP23xx based "
+		    "adapters\n", vha->host_no));
+		rval = -EPERM;
+		goto done;
+	}
 
 	/*  Multiple SG's are not supported for ELS requests */
 	if (bsg_job->request_payload.sg_cnt > 1 ||
@@ -254,13 +277,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 
 	/* ELS request for rport */
 	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS) {
-		rport = bsg_job->rport;
-		fcport = *(fc_port_t **) rport->dd_data;
-		host = rport_to_shost(rport);
-		vha = shost_priv(host);
-		ha = vha->hw;
-		type = "FC_BSG_RPT_ELS";
-
 		/* make sure the rport is logged in,
 		 * if not perform fabric login
 		 */
@@ -272,11 +288,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 			goto done;
 		}
 	} else {
-		host = bsg_job->shost;
-		vha = shost_priv(host);
-		ha = vha->hw;
-		type = "FC_BSG_HST_ELS_NOLOGIN";
-
 		/* Allocate a dummy fcport structure, since functions
 		 * preparing the IOCB and mailbox command retrieves port
 		 * specific information from fcport structure. For Host based
