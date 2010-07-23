@@ -26,7 +26,6 @@
 #include <linux/input.h>
 #include <video/platform_lcd.h>
 
-#include <mach/board-eukrea_cpuimx25.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx25.h>
 #include <mach/common.h>

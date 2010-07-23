@@ -36,7 +36,6 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <mach/board-eukrea_cpuimx35.h>
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/imx-uart.h>
