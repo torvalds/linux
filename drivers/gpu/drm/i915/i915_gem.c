@@ -1967,11 +1967,12 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 	 * before we unbind.
 	 */
 	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
-	if (ret) {
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("set_domain failed: %d\n", ret);
+	if (ret == -ERESTARTSYS)
 		return ret;
-	}
+	/* Continue on if we fail due to EIO, the GPU is hung so we
+	 * should be safe and we need to cleanup or else we might
+	 * cause memory corruption through use-after-free.
+	 */
 
 	BUG_ON(obj_priv->active);
 
@@ -2007,7 +2008,7 @@ i915_gem_object_unbind(struct drm_gem_object *obj)
 
 	trace_i915_gem_object_unbind(obj);
 
-	return 0;
+	return ret;
 }
 
 static struct drm_gem_object *
