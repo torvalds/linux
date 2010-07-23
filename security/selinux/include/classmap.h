@@ -3,7 +3,7 @@
 
 #define COMMON_FILE_PERMS COMMON_FILE_SOCK_PERMS, "unlink", "link", \
     "rename", "execute", "swapon", "quotaon", "mounton", "audit_access", \
-    "open"
+    "open", "execmod"
 
 #define COMMON_SOCK_PERMS COMMON_FILE_SOCK_PERMS, "bind", "connect", \
     "listen", "accept", "getopt", "setopt", "shutdown", "recvfrom",  \
@@ -44,7 +44,7 @@ struct security_class_mapping secclass_map[] = {
 	    "quotaget", NULL } },
 	{ "file",
 	  { COMMON_FILE_PERMS,
-	    "execute_no_trans", "entrypoint", "execmod", NULL } },
+	    "execute_no_trans", "entrypoint", NULL } },
 	{ "dir",
 	  { COMMON_FILE_PERMS, "add_name", "remove_name",
 	    "reparent", "search", "rmdir", NULL } },
@@ -52,8 +52,7 @@ struct security_class_mapping secclass_map[] = {
 	{ "lnk_file",
 	  { COMMON_FILE_PERMS, NULL } },
 	{ "chr_file",
-	  { COMMON_FILE_PERMS,
-	    "execute_no_trans", "entrypoint", "execmod", NULL } },
+	  { COMMON_FILE_PERMS, NULL } },
 	{ "blk_file",
 	  { COMMON_FILE_PERMS, NULL } },
 	{ "sock_file",
