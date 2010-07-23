@@ -109,6 +109,7 @@ struct tegra_i2c_dev {
 	int msg_read;
 	int msg_transfer_complete;
 	unsigned long bus_clk_rate;
+	bool is_suspended;
 };
 
 static void dvc_writel(struct tegra_i2c_dev *i2c_dev, u32 val, unsigned long reg)
@@ -439,7 +440,7 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	tegra_i2c_mask_irq(i2c_dev, int_mask);
 
 	dev_dbg(i2c_dev->dev, "after transfer: %08x fifo %02x\n", i2c_readl(i2c_dev, I2C_PACKET_TRANSFER_STATUS), i2c_readl(i2c_dev, I2C_FIFO_STATUS));
-	if (ret == 0) {
+	if (WARN_ON(ret == 0)) {
 		dev_err(i2c_dev->dev, "i2c transfer timed out\n");
 
 		tegra_i2c_init(i2c_dev);
@@ -466,6 +467,10 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int n
 	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	int i;
 	int ret = 0;
+
+	if(i2c_dev->is_suspended)
+		return -EBUSY;
+
 	clk_enable(i2c_dev->clk);
 	for (i = 0; i < num; i++) {
 		int stop = (i == (num - 1)) ? 1  : 0;
@@ -617,23 +622,47 @@ static int tegra_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int tegra_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	/* FIXME to be implemented */
+	struct tegra_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
+
+	i2c_lock_adapter(&i2c_dev->adapter);
+	i2c_dev->is_suspended = true;
+	i2c_unlock_adapter(&i2c_dev->adapter);
+
 	return 0;
 }
 
 static int tegra_i2c_resume(struct platform_device *pdev)
 {
-	/* FIXME to be implemented */
+	struct tegra_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
+	int ret;
+
+	i2c_lock_adapter(&i2c_dev->adapter);
+
+	ret = tegra_i2c_init(i2c_dev);
+
+	if (ret) {
+		i2c_unlock_adapter(&i2c_dev->adapter);
+		return ret;
+	}
+
+	i2c_dev->is_suspended = false;
+
+	i2c_unlock_adapter(&i2c_dev->adapter);
+
 	return 0;
 }
+#endif
 
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
 	.remove  = tegra_i2c_remove,
+#ifdef CONFIG_PM
 	.suspend = tegra_i2c_suspend,
 	.resume  = tegra_i2c_resume,
+#endif
 	.driver  =
 	{
 		.name  = "tegra-i2c",
