@@ -41,13 +41,28 @@ qla24xx_fcp_prio_cfg_valid(struct qla_fcp_prio_cfg *pri_cfg, uint8_t flag)
 	int i, ret, num_valid;
 	uint8_t *bcode;
 	struct qla_fcp_prio_entry *pri_entry;
+	uint32_t *bcode_val_ptr, bcode_val;
 
 	ret = 1;
 	num_valid = 0;
 	bcode = (uint8_t *)pri_cfg;
+	bcode_val_ptr = (uint32_t *)pri_cfg;
+	bcode_val = (uint32_t)(*bcode_val_ptr);
 
-	if (bcode[0x0] != 'H' || bcode[0x1] != 'Q' || bcode[0x2] != 'O' ||
-			bcode[0x3] != 'S') {
+	if (bcode_val == 0xFFFFFFFF) {
+		/* No FCP Priority config data in flash */
+		DEBUG2(printk(KERN_INFO
+		    "%s: No FCP priority config data.\n",
+		    __func__));
+		return 0;
+	}
+
+	if (bcode[0] != 'H' || bcode[1] != 'Q' || bcode[2] != 'O' ||
+			bcode[3] != 'S') {
+		/* Invalid FCP priority data header*/
+		DEBUG2(printk(KERN_ERR
+		    "%s: Invalid FCP Priority data header. bcode=0x%x\n",
+		    __func__, bcode_val));
 		return 0;
 	}
 	if (flag != 1)
@@ -60,8 +75,18 @@ qla24xx_fcp_prio_cfg_valid(struct qla_fcp_prio_cfg *pri_cfg, uint8_t flag)
 		pri_entry++;
 	}
 
-	if (num_valid == 0)
+	if (num_valid == 0) {
+		/* No valid FCP priority data entries */
+		DEBUG2(printk(KERN_ERR
+		    "%s: No valid FCP Priority data entries.\n",
+		    __func__));
 		ret = 0;
+	} else {
+		/* FCP priority data is valid */
+		DEBUG2(printk(KERN_INFO
+		    "%s: Valid FCP priority data. num entries = %d\n",
+		    __func__, num_valid));
+	}
 
 	return ret;
 }
@@ -77,6 +102,11 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct fc_bsg_job *bsg_job)
 	uint32_t oper;
 
 	bsg_job->reply->reply_payload_rcv_len = 0;
+
+	if (!IS_QLA24XX_TYPE(ha) || !IS_QLA25XX(ha)) {
+		ret = -EINVAL;
+		goto exit_fcp_prio_cfg;
+	}
 
 	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
 		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||

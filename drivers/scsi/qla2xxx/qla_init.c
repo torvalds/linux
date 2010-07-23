@@ -566,11 +566,8 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		}
 	}
 
-	if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)) {
-		if (qla24xx_read_fcp_prio_cfg(vha))
-			qla_printk(KERN_ERR, ha,
-			"Unable to read FCP priority data.\n");
-	}
+	if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))
+		qla24xx_read_fcp_prio_cfg(vha);
 
 	return (rval);
 }
