@@ -28,30 +28,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/atomic.h>
 
-/*
- * The list of OF IDs below is used for matching bus types in the
- * system whose devices are to be exposed as of_platform_devices.
- *
- * This is the default list valid for most platforms. This file provides
- * functions who can take an explicit list if necessary though
- *
- * The search is always performed recursively looking for children of
- * the provided device_node and recursively if such a children matches
- * a bus type in the list
- */
-
-const struct of_device_id of_default_bus_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .type = "spider", },
-	{ .type = "axon", },
-	{ .type = "plb5", },
-	{ .type = "plb4", },
-	{ .type = "opb", },
-	{ .type = "ebc", },
-	{},
-};
-
 #ifdef CONFIG_PPC_OF_PLATFORM_PCI
 
 /* The probing of PCI controllers from of_platform is currently

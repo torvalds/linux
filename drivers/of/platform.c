@@ -701,9 +701,7 @@ int of_platform_bus_probe(struct device_node *root,
 	struct platform_device *dev;
 	int rc = 0;
 
-	if (matches == NULL)
-		matches = of_default_bus_ids;
-	if (matches == OF_NO_DEEP_PROBE)
+	if (WARN_ON(!matches || matches == OF_NO_DEEP_PROBE))
 		return -EINVAL;
 	if (root == NULL)
 		root = of_find_node_by_path("/");

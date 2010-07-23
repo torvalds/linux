@@ -19,8 +19,6 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
-extern const struct of_device_id of_default_bus_ids[];
-
 /*
  * An of_platform_driver driver is attached to a basic of_device on
  * the "platform bus" (platform_bus_type).
