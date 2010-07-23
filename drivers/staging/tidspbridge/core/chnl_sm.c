@@ -230,7 +230,7 @@ func_cont:
 	omap_mbox_enable_irq(dev_ctxt->mbox, IRQ_RX);
 	spin_unlock_bh(&chnl_mgr_obj->chnl_mgr_lock);
 	if (mb_val != 0)
-		io_intr_dsp2(chnl_mgr_obj->hio_mgr, mb_val);
+		sm_interrupt_dsp(dev_ctxt, mb_val);
 
 	/* Schedule a DPC, to do the actual data transfer */
 	if (sched_dpc)

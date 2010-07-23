@@ -132,10 +132,6 @@ struct io_mgr {
 };
 
 /* Function Prototypes */
-static void io_dispatch_chnl(struct io_mgr *pio_mgr,
-				struct chnl_object *pchnl, u8 io_mode);
-static void io_dispatch_msg(struct io_mgr *pio_mgr,
-			    struct msg_mgr *hmsg_mgr);
 static void io_dispatch_pm(struct io_mgr *pio_mgr);
 static void notify_chnl_complete(struct chnl_object *pchnl,
 				 struct chnl_irp *chnl_packet_obj);
@@ -147,10 +143,6 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr);
 static u32 find_ready_output(struct chnl_mgr *chnl_mgr_obj,
 			     struct chnl_object *pchnl, u32 mask);
-static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		     void *src, u32 usize);
-static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		      void *src, u32 usize);
 
 /* Bus Addr (cached kernel) */
 static int register_shm_segs(struct io_mgr *hio_mgr,
@@ -834,42 +826,6 @@ func_end:
 	return;
 }
 
-/*
- *  ======== io_dispatch_chnl ========
- *      Proc-copy chanl dispatch.
- */
-static void io_dispatch_chnl(struct io_mgr *pio_mgr,
-				struct chnl_object *pchnl, u8 io_mode)
-{
-	if (!pio_mgr)
-		goto func_end;
-
-	/* See if there is any data available for transfer */
-	if (io_mode != IO_SERVICE)
-		goto func_end;
-
-	/* Any channel will do for this mode */
-	input_chnl(pio_mgr, pchnl, io_mode);
-	output_chnl(pio_mgr, pchnl, io_mode);
-func_end:
-	return;
-}
-
-/*
- *  ======== io_dispatch_msg ========
- *      Performs I/O dispatch on message queues.
- */
-static void io_dispatch_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
-{
-	if (!pio_mgr)
-		goto func_end;
-
-	/* We are performing both input and output processing. */
-	input_msg(pio_mgr, hmsg_mgr);
-	output_msg(pio_mgr, hmsg_mgr);
-func_end:
-	return;
-}
 
 /*
  *  ======== io_dispatch_pm ========
@@ -956,10 +912,17 @@ void io_dpc(unsigned long ref_data)
 						  pio_mgr->intr_val);
 			}
 		}
-		io_dispatch_chnl(pio_mgr, NULL, IO_SERVICE);
+		/* Proc-copy chanel dispatch */
+		input_chnl(pio_mgr, NULL, IO_SERVICE);
+		output_chnl(pio_mgr, NULL, IO_SERVICE);
+
 #ifdef CHNL_MESSAGES
-		if (msg_mgr_obj)
-			io_dispatch_msg(pio_mgr, msg_mgr_obj);
+		if (msg_mgr_obj) {
+			/* Perform I/O dispatch on message queues */
+			input_msg(pio_mgr, msg_mgr_obj);
+			output_msg(pio_mgr, msg_mgr_obj);
+		}
+
 #endif
 #ifdef CONFIG_TIDSPBRIDGE_DEBUG
 		if (pio_mgr->intr_val & MBX_DBG_SYSPRINTF) {
@@ -1162,10 +1125,8 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 				 * buffer.
 				 */
 				bytes = min(bytes, chnl_packet_obj->byte_size);
-				/* Transfer buffer from DSP side */
-				bytes = read_data(pio_mgr->hbridge_context,
-						  chnl_packet_obj->host_sys_buf,
-						  pio_mgr->input, bytes);
+				memcpy(chnl_packet_obj->host_sys_buf,
+						pio_mgr->input, bytes);
 				pchnl->bytes_moved += bytes;
 				chnl_packet_obj->byte_size = bytes;
 				chnl_packet_obj->dw_arg = dw_arg;
@@ -1448,10 +1409,10 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 		chnl_mgr_obj->dw_output_mask &= ~(1 << chnl_id);
 
 	/* Transfer buffer to DSP side */
-	chnl_packet_obj->byte_size =
-	    write_data(pio_mgr->hbridge_context, pio_mgr->output,
-		       chnl_packet_obj->host_sys_buf, min(pio_mgr->usm_buf_size,
-						  chnl_packet_obj->byte_size));
+	chnl_packet_obj->byte_size = min(pio_mgr->usm_buf_size,
+					chnl_packet_obj->byte_size);
+	memcpy(pio_mgr->output,	chnl_packet_obj->host_sys_buf,
+					chnl_packet_obj->byte_size);
 	pchnl->bytes_moved += chnl_packet_obj->byte_size;
 	/* Write all 32 bits of arg */
 	IO_SET_LONG(pio_mgr->hbridge_context, struct shm, sm, arg,
@@ -1697,34 +1658,7 @@ func_end:
 	return status;
 }
 
-/*
- *  ======== read_data ========
- *      Copies buffers from the shared memory to the host buffer.
- */
-static u32 read_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		     void *src, u32 usize)
-{
-	memcpy(dest, src, usize);
-	return usize;
-}
-
-/*
- *  ======== write_data ========
- *      Copies buffers from the host side buffer to the shared memory.
- */
-static u32 write_data(struct bridge_dev_context *dev_ctxt, void *dest,
-		      void *src, u32 usize)
-{
-	memcpy(dest, src, usize);
-	return usize;
-}
-
 /* ZCPY IO routines. */
-void io_intr_dsp2(struct io_mgr *pio_mgr, u16 mb_val)
-{
-	sm_interrupt_dsp(pio_mgr->hbridge_context, mb_val);
-}
-
 /*
  *  ======== IO_SHMcontrol ========
  *      Sets the requested shm setting.
