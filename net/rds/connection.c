@@ -336,6 +336,10 @@ void rds_conn_destroy(struct rds_connection *conn)
 	rds_conn_drop(conn);
 	flush_work(&conn->c_down_w);
 
+	/* make sure lingering queued work won't try to ref the conn */
+	cancel_delayed_work_sync(&conn->c_send_w);
+	cancel_delayed_work_sync(&conn->c_recv_w);
+
 	/* tear down queued messages */
 	list_for_each_entry_safe(rm, rtmp,
 				 &conn->c_send_queue,
