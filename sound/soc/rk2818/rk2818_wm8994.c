@@ -51,22 +51,22 @@ static int rk2818_hw_params(struct snd_pcm_substream *substream,
     else
     {
 	    /* set codec DAI configuration */
-	    #if defined (CONFIG_SND_ROCKCHIP_SOC_MASTER) 
+	    #if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
 	    ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS); 
 	    #endif	
-	    #if defined (CONFIG_SND_ROCKCHIP_SOC_SLAVE) 
+	    #if defined (CONFIG_SND_CODEC_SOC_MASTER) 
 	    ret = codec_dai->ops->set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
 	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
 	    #endif
 	    if (ret < 0)
 	    	  return ret; 
 	    /* set cpu DAI configuration */
-	    #if defined (CONFIG_SND_ROCKCHIP_SOC_MASTER) 
+	    #if defined (CONFIG_SND_CODEC_SOC_SLAVE) 
 	    ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	    #endif	
-	    #if defined (CONFIG_SND_ROCKCHIP_SOC_SLAVE) 
+	    #if defined (CONFIG_SND_CODEC_SOC_MASTER) 
 	    ret = cpu_dai->ops->set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 	    	SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
 	    #endif		

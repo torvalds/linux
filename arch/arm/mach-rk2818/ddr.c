@@ -1749,7 +1749,7 @@ static int __init update_frq(void)
 #endif
 	return 0;	
 }
-core_initcall_sync(update_frq);
+//core_initcall_sync(update_frq);
 
 #endif //endi of #ifdef DRIVERS_SDRAM
 
