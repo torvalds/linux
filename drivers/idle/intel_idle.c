@@ -77,10 +77,8 @@ static struct cpuidle_driver intel_idle_driver = {
 };
 /* intel_idle.max_cstate=0 disables driver */
 static int max_cstate = MWAIT_MAX_NUM_CSTATES - 1;
-static int power_policy = 7; /* 0 = max perf; 15 = max powersave */
 
 static unsigned int mwait_substates;
-static int (*choose_substate)(int);
 
 /* Reliable LAPIC Timer States, bit 1 for C1 etc.  */
 static unsigned int lapic_timer_reliable_states;
@@ -168,42 +166,6 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = NULL },	/* disabled */
 };
 
-/*
- * choose_tunable_substate()
- *
- * Run-time decision on which C-state substate to invoke
- * If power_policy = 0, choose shallowest substate (0)
- * If power_policy = 15, choose deepest substate
- * If power_policy = middle, choose middle substate etc.
- */
-static int choose_tunable_substate(int cstate)
-{
-	unsigned int num_substates;
-	unsigned int substate_choice;
-
-	power_policy &= 0xF;	/* valid range: 0-15 */
-	cstate &= 7;	/* valid range: 0-7 */
-
-	num_substates = (mwait_substates >> ((cstate) * 4))
-				& MWAIT_SUBSTATE_MASK;
-
-	if (num_substates <= 1)
-		return 0;
-
-	substate_choice = ((power_policy + (power_policy + 1) *
-				(num_substates - 1)) / 16);
-
-	return substate_choice;
-}
-
-/*
- * choose_zero_substate()
- */
-static int choose_zero_substate(int cstate)
-{
-	return 0;
-}
-
 /**
  * intel_idle
  * @dev: cpuidle_device
@@ -220,8 +182,6 @@ static int intel_idle(struct cpuidle_device *dev, struct cpuidle_state *state)
 	int cpu = smp_processor_id();
 
 	cstate = (((eax) >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) + 1;
-
-	eax = eax + (choose_substate)(cstate);
 
 	local_irq_disable();
 
@@ -301,13 +261,11 @@ static int intel_idle_probe(void)
 	case 0x25:	/* Westmere */
 	case 0x2C:	/* Westmere */
 		cpuidle_state_table = nehalem_cstates;
-		choose_substate = choose_tunable_substate;
 		break;
 
 	case 0x1C:	/* 28 - Atom Processor */
 		lapic_timer_reliable_states = (1 << 2) | (1 << 1); /* C2, C1 */
 		cpuidle_state_table = atom_cstates;
-		choose_substate = choose_zero_substate;
 		break;
 #ifdef FUTURE_USE
 	case 0x17:	/* 23 - Core 2 Duo */
@@ -447,7 +405,6 @@ static void __exit intel_idle_exit(void)
 module_init(intel_idle_init);
 module_exit(intel_idle_exit);
 
-module_param(power_policy, int, 0644);
 module_param(max_cstate, int, 0444);
 
 MODULE_AUTHOR("Len Brown <len.brown@intel.com>");
