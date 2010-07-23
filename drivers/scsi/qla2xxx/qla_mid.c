@@ -482,7 +482,7 @@ qla25xx_delete_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	return ret;
 }
 
-int
+static int
 qla25xx_delete_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 {
 	int ret = -1;
@@ -496,23 +496,6 @@ qla25xx_delete_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 
 	return ret;
 }
-
-int qla25xx_update_req_que(struct scsi_qla_host *vha, uint8_t que, uint8_t qos)
-{
-	int ret = 0;
-	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = ha->req_q_map[que];
-
-	req->options |= BIT_3;
-	req->qos = qos;
-	ret = qla25xx_init_req_que(vha, req);
-	if (ret != QLA_SUCCESS)
-		DEBUG2_17(printk(KERN_WARNING "%s failed\n", __func__));
-	/* restore options bit */
-	req->options &= ~BIT_3;
-	return ret;
-}
-
 
 /* Delete all queues for a given vhost */
 int
@@ -739,36 +722,4 @@ que_failed:
 	qla25xx_free_rsp_que(base_vha, rsp);
 failed:
 	return 0;
-}
-
-int
-qla25xx_create_queues(struct scsi_qla_host *vha, uint8_t qos)
-{
-	uint16_t options = 0;
-	uint8_t ret = 0;
-	struct qla_hw_data *ha = vha->hw;
-	struct rsp_que *rsp;
-
-	options |= BIT_1;
-	ret = qla25xx_create_rsp_que(ha, options, vha->vp_idx, 0, -1);
-	if (!ret) {
-		qla_printk(KERN_WARNING, ha, "Response Que create failed\n");
-		return ret;
-	} else
-		qla_printk(KERN_INFO, ha, "Response Que:%d created.\n", ret);
-	rsp = ha->rsp_q_map[ret];
-
-	options = 0;
-	if (qos & BIT_7)
-		options |= BIT_8;
-	ret = qla25xx_create_req_que(ha, options, vha->vp_idx, 0, ret,
-					qos & ~BIT_7);
-	if (ret) {
-		vha->req = ha->req_q_map[ret];
-		qla_printk(KERN_INFO, ha, "Request Que:%d created.\n", ret);
-	} else
-		qla_printk(KERN_WARNING, ha, "Request Que create failed\n");
-	rsp->req = ha->req_q_map[ret];
-
-	return ret;
 }

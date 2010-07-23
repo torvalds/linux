@@ -64,7 +64,7 @@ qla2x00_ctx_sp_timeout(unsigned long __data)
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
-void
+static void
 qla2x00_ctx_sp_free(srb_t *sp)
 {
 	struct srb_ctx *ctx = sp->ctx;

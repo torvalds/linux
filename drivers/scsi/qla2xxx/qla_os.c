@@ -701,7 +701,7 @@ qla2x00_wait_for_hba_online(scsi_qla_host_t *vha)
  *    Success (Adapter is online/no flash ops) : 0
  *    Failed  (Adapter is offline/disabled/flash ops in progress) : 1
  */
-int
+static int
 qla2x00_wait_for_reset_ready(scsi_qla_host_t *vha)
 {
 	int		return_status;
@@ -3469,7 +3469,7 @@ qla2x00_sp_free_dma(srb_t *sp)
 	CMD_SP(cmd) = NULL;
 }
 
-void
+static void
 qla2x00_sp_final_compl(struct qla_hw_data *ha, srb_t *sp)
 {
 	struct scsi_cmnd *cmd = sp->cmd;

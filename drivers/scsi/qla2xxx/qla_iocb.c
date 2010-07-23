@@ -461,7 +461,7 @@ queuing_error:
  *
  * Returns non-zero if a failure occurred, else zero.
  */
-int
+static int
 __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 			struct rsp_que *rsp, uint16_t loop_id,
 			uint16_t lun, uint8_t type)
