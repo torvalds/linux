@@ -382,6 +382,7 @@ static struct tracer wakeup_tracer __read_mostly =
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
 #endif
+	.use_max_tr	= 1,
 };
 
 static struct tracer wakeup_rt_tracer __read_mostly =
@@ -396,6 +397,7 @@ static struct tracer wakeup_rt_tracer __read_mostly =
 #ifdef CONFIG_FTRACE_SELFTEST
 	.selftest    = trace_selftest_startup_wakeup,
 #endif
+	.use_max_tr	= 1,
 };
 
 __init static int init_wakeup_tracer(void)

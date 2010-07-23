@@ -443,6 +443,7 @@ int ring_buffer_print_page_header(struct trace_seq *s)
  */
 struct ring_buffer_per_cpu {
 	int				cpu;
+	atomic_t			record_disabled;
 	struct ring_buffer		*buffer;
 	spinlock_t			reader_lock;	/* serialize readers */
 	arch_spinlock_t			lock;
@@ -462,7 +463,6 @@ struct ring_buffer_per_cpu {
 	unsigned long			read;
 	u64				write_stamp;
 	u64				read_stamp;
-	atomic_t			record_disabled;
 };
 
 struct ring_buffer {

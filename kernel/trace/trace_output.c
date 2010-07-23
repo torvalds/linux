@@ -16,9 +16,6 @@
 
 DECLARE_RWSEM(trace_event_mutex);
 
-DEFINE_PER_CPU(struct trace_seq, ftrace_event_seq);
-EXPORT_PER_CPU_SYMBOL(ftrace_event_seq);
-
 static struct hlist_head event_hash[EVENT_HASHSIZE] __read_mostly;
 
 static int next_event_type = __TRACE_LAST_TYPE + 1;
