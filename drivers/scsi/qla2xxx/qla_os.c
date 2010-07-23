@@ -903,24 +903,17 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	return ret;
 }
 
-enum nexus_wait_type {
-	WAIT_HOST = 0,
-	WAIT_TARGET,
-	WAIT_LUN,
-};
-
-static int
+int
 qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
-	unsigned int l, srb_t *sp, enum nexus_wait_type type)
+	unsigned int l, enum nexus_wait_type type)
 {
 	int cnt, match, status;
 	unsigned long flags;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req;
+	srb_t *sp;
 
 	status = QLA_SUCCESS;
-	if (!sp)
-		return status;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	req = vha->req;
@@ -958,24 +951,6 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *vha, unsigned int t,
 	return status;
 }
 
-void qla82xx_wait_for_pending_commands(scsi_qla_host_t *vha)
-{
-	int cnt;
-	srb_t *sp;
-	struct req_que *req = vha->req;
-
-	DEBUG2(qla_printk(KERN_INFO, vha->hw,
-		"Waiting for pending commands\n"));
-	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
-		sp = req->outstanding_cmds[cnt];
-		if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
-			sp, WAIT_HOST) == QLA_SUCCESS) {
-			DEBUG2(qla_printk(KERN_INFO, vha->hw,
-				"Done wait for pending commands\n"));
-		}
-	}
-}
-
 static char *reset_errors[] = {
 	"HBA not online",
 	"HBA not ready",
@@ -1011,7 +986,7 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 		goto eh_reset_failed;
 	err = 3;
 	if (qla2x00_eh_wait_for_pending_commands(vha, cmd->device->id,
-	    cmd->device->lun, (srb_t *) CMD_SP(cmd), type) != QLA_SUCCESS)
+	    cmd->device->lun, type) != QLA_SUCCESS)
 		goto eh_reset_failed;
 
 	qla_printk(KERN_INFO, vha->hw, "scsi(%ld:%d:%d): %s RESET SUCCEEDED.\n",
@@ -1019,7 +994,7 @@ __qla2xxx_eh_generic_reset(char *name, enum nexus_wait_type type,
 
 	return SUCCESS;
 
- eh_reset_failed:
+eh_reset_failed:
 	qla_printk(KERN_INFO, vha->hw, "scsi(%ld:%d:%d): %s RESET FAILED: %s.\n"
 	    , vha->host_no, cmd->device->id, cmd->device->lun, name,
 	    reset_errors[err]);
@@ -1069,7 +1044,6 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	int ret = FAILED;
 	unsigned int id, lun;
 	unsigned long serial;
-	srb_t *sp = (srb_t *) CMD_SP(cmd);
 
 	fc_block_scsi_eh(cmd);
 
@@ -1096,7 +1070,7 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 		goto eh_bus_reset_done;
 
 	/* Flush outstanding commands. */
-	if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0, sp, WAIT_HOST) !=
+	if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0, WAIT_HOST) !=
 	    QLA_SUCCESS)
 		ret = FAILED;
 
@@ -1131,7 +1105,6 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	int ret = FAILED;
 	unsigned int id, lun;
 	unsigned long serial;
-	srb_t *sp = (srb_t *) CMD_SP(cmd);
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	fc_block_scsi_eh(cmd);
@@ -1186,7 +1159,7 @@ qla2xxx_eh_host_reset(struct scsi_cmnd *cmd)
 	}
 
 	/* Waiting for command to be returned to OS.*/
-	if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0, sp, WAIT_HOST) ==
+	if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0, WAIT_HOST) ==
 		QLA_SUCCESS)
 		ret = SUCCESS;
 

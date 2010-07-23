@@ -3833,8 +3833,13 @@ qla2x00_abort_isp_cleanup(scsi_qla_host_t *vha)
 	}
 
 	/* Make sure for ISP 82XX IO DMA is complete */
-	if (IS_QLA82XX(ha))
-		qla82xx_wait_for_pending_commands(vha);
+	if (IS_QLA82XX(ha)) {
+		if (qla2x00_eh_wait_for_pending_commands(vha, 0, 0,
+			WAIT_HOST) == QLA_SUCCESS) {
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			"Done wait for pending commands\n"));
+		}
+	}
 
 	/* Requeue all commands in outstanding command list. */
 	qla2x00_abort_all_cmds(vha, DID_RESET << 16);

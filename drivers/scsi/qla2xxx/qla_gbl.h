@@ -292,7 +292,9 @@ extern int
 qla24xx_abort_target(struct fc_port *, unsigned int, int);
 extern int
 qla24xx_lun_reset(struct fc_port *, unsigned int, int);
-
+extern int
+qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *, unsigned int,
+	unsigned int, enum nexus_wait_type);
 extern int
 qla2x00_system_error(scsi_qla_host_t *);
 
@@ -569,7 +571,6 @@ extern int qla82xx_mbx_intr_enable(scsi_qla_host_t *);
 extern int qla82xx_mbx_intr_disable(scsi_qla_host_t *);
 extern void qla82xx_start_iocbs(srb_t *);
 extern int qla82xx_fcoe_ctx_reset(scsi_qla_host_t *);
-extern void qla82xx_wait_for_pending_commands(scsi_qla_host_t *);
 
 /* BSG related functions */
 extern int qla24xx_bsg_request(struct fc_bsg_job *);

@@ -2981,9 +2981,15 @@ typedef struct scsi_qla_host {
 
 #define	QLA_DSDS_PER_IOCB	37
 
+#define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
+
+enum nexus_wait_type {
+	WAIT_HOST = 0,
+	WAIT_TARGET,
+	WAIT_LUN,
+};
+
 #include "qla_gbl.h"
 #include "qla_dbg.h"
 #include "qla_inline.h"
-
-#define CMD_SP(Cmnd)		((Cmnd)->SCp.ptr)
 #endif
