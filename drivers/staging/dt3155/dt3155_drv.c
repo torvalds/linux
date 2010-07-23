@@ -940,7 +940,7 @@ err:
 u32 allocatorAddr = 0;
 
 
-int dt3155_init(void)
+static int __init dt3155_init(void)
 {
   struct dt3155_status *dts;
   int index;
@@ -1059,7 +1059,7 @@ int dt3155_init(void)
   return 0;
 }
 
-void dt3155_exit(void)
+static void __exit dt3155_exit(void)
 {
   struct dt3155_status *dts;
   int index;
