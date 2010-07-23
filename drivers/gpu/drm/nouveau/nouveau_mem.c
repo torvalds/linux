@@ -341,18 +341,36 @@ nouveau_mem_detect(struct drm_device *dev)
 	return -ENOMEM;
 }
 
-#if __OS_HAS_AGP
-static void nouveau_mem_reset_agp(struct drm_device *dev)
+int
+nouveau_mem_reset_agp(struct drm_device *dev)
 {
-	uint32_t saved_pci_nv_1, saved_pci_nv_19, pmc_enable;
+#if __OS_HAS_AGP
+	uint32_t saved_pci_nv_1, pmc_enable;
+	int ret;
+
+	/* First of all, disable fast writes, otherwise if it's
+	 * already enabled in the AGP bridge and we disable the card's
+	 * AGP controller we might be locking ourselves out of it. */
+	if (dev->agp->acquired) {
+		struct drm_agp_info info;
+		struct drm_agp_mode mode;
+
+		ret = drm_agp_info(dev, &info);
+		if (ret)
+			return ret;
+
+		mode.mode = info.mode & ~0x10;
+		ret = drm_agp_enable(dev, mode);
+		if (ret)
+			return ret;
+	}
 
 	saved_pci_nv_1 = nv_rd32(dev, NV04_PBUS_PCI_NV_1);
-	saved_pci_nv_19 = nv_rd32(dev, NV04_PBUS_PCI_NV_19);
 
 	/* clear busmaster bit */
 	nv_wr32(dev, NV04_PBUS_PCI_NV_1, saved_pci_nv_1 & ~0x4);
-	/* clear SBA and AGP bits */
-	nv_wr32(dev, NV04_PBUS_PCI_NV_19, saved_pci_nv_19 & 0xfffff0ff);
+	/* disable AGP */
+	nv_wr32(dev, NV04_PBUS_PCI_NV_19, 0);
 
 	/* power cycle pgraph, if enabled */
 	pmc_enable = nv_rd32(dev, NV03_PMC_ENABLE);
@@ -364,10 +382,11 @@ static void nouveau_mem_reset_agp(struct drm_device *dev)
 	}
 
 	/* and restore (gives effect of resetting AGP) */
-	nv_wr32(dev, NV04_PBUS_PCI_NV_19, saved_pci_nv_19);
 	nv_wr32(dev, NV04_PBUS_PCI_NV_1, saved_pci_nv_1);
-}
 #endif
+
+	return 0;
+}
 
 int
 nouveau_mem_init_agp(struct drm_device *dev)
@@ -377,11 +396,6 @@ nouveau_mem_init_agp(struct drm_device *dev)
 	struct drm_agp_info info;
 	struct drm_agp_mode mode;
 	int ret;
-
-	if (nouveau_noagp)
-		return 0;
-
-	nouveau_mem_reset_agp(dev);
 
 	if (!dev->agp->acquired) {
 		ret = drm_agp_acquire(dev);
@@ -479,7 +493,8 @@ nouveau_mem_init(struct drm_device *dev)
 
 	/* GART */
 #if !defined(__powerpc__) && !defined(__ia64__)
-	if (drm_device_is_agp(dev) && dev->agp) {
+	if (drm_device_is_agp(dev) && dev->agp && !nouveau_noagp) {
+		nouveau_mem_reset_agp(dev);
 		ret = nouveau_mem_init_agp(dev);
 		if (ret)
 			NV_ERROR(dev, "Error initialising AGP: %d\n", ret);

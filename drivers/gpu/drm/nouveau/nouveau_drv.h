@@ -688,6 +688,7 @@ extern int  nouveau_card_init(struct drm_device *);
 extern int  nouveau_mem_detect(struct drm_device *dev);
 extern int  nouveau_mem_init(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
+extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
 extern struct nouveau_tile_reg *nv10_mem_set_tiling(struct drm_device *dev,
 						    uint32_t addr,

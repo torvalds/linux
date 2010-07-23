@@ -259,6 +259,10 @@ nouveau_pci_resume(struct pci_dev *pdev)
 		return -1;
 	pci_set_master(dev->pdev);
 
+	/* Make sure the AGP controller is in a consistent state */
+	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP)
+		nouveau_mem_reset_agp(dev);
+
 	NV_INFO(dev, "POSTing device...\n");
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)
