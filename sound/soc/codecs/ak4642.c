@@ -498,8 +498,10 @@ static int ak4642_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 
 	ret = ak4642_init(ak4642);
-	if (ret < 0)
+	if (ret < 0) {
 		printk(KERN_ERR "failed to initialise AK4642\n");
+		kfree(ak4642);
+	}
 
 	return ret;
 }
