@@ -181,7 +181,7 @@ void arch_teardown_msi_irq(unsigned int irq)
 	int number_irqs;
 	uint64_t bitmask;
 
-	if ((irq < OCTEON_IRQ_MSI_BIT0) || (irq > OCTEON_IRQ_MSI_BIT63))
+	if ((irq < OCTEON_IRQ_MSI_BIT0) || (irq > OCTEON_IRQ_MSI_LAST))
 		panic("arch_teardown_msi_irq: Attempted to teardown illegal "
 		      "MSI interrupt (%d)", irq);
 	irq -= OCTEON_IRQ_MSI_BIT0;
@@ -337,7 +337,7 @@ static int __init octeon_msi_initialize(void)
 {
 	int irq;
 
-	for (irq = OCTEON_IRQ_MSI_BIT0; irq <= OCTEON_IRQ_MSI_BIT63; irq++) {
+	for (irq = OCTEON_IRQ_MSI_BIT0; irq <= OCTEON_IRQ_MSI_LAST; irq++) {
 		set_irq_chip_and_handler(irq, &octeon_irq_chip_msi,
 					 handle_percpu_irq);
 	}
