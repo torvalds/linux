@@ -499,7 +499,7 @@ static int da7210_init(struct da7210_priv *da7210)
 	ret = snd_soc_register_dai(&da7210_dai);
 	if (ret) {
 		dev_err(codec->dev, "Failed to register DAI: %d\n", ret);
-		goto init_err;
+		goto codec_err;
 	}
 
 	/* FIXME
@@ -585,6 +585,8 @@ static int da7210_init(struct da7210_priv *da7210)
 
 	return ret;
 
+codec_err:
+	snd_soc_unregister_codec(codec);
 init_err:
 	kfree(codec->reg_cache);
 	codec->reg_cache = NULL;
@@ -612,8 +614,10 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 	codec->control_data = i2c;
 
 	ret = da7210_init(da7210);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err("Failed to initialise da7210 audio codec\n");
+		kfree(da7210);
+	}
 
 	return ret;
 }
