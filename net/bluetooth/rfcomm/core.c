@@ -1415,8 +1415,8 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 		return 0;
 
 	if (len == 1) {
-		/* This is a request, return default settings */
-		bit_rate  = RFCOMM_RPN_BR_115200;
+		/* This is a request, return default (according to ETSI TS 07.10) settings */
+		bit_rate  = RFCOMM_RPN_BR_9600;
 		data_bits = RFCOMM_RPN_DATA_8;
 		stop_bits = RFCOMM_RPN_STOP_1;
 		parity    = RFCOMM_RPN_PARITY_NONE;
@@ -1431,9 +1431,9 @@ static int rfcomm_recv_rpn(struct rfcomm_session *s, int cr, int len, struct sk_
 
 	if (rpn->param_mask & cpu_to_le16(RFCOMM_RPN_PM_BITRATE)) {
 		bit_rate = rpn->bit_rate;
-		if (bit_rate != RFCOMM_RPN_BR_115200) {
+		if (bit_rate > RFCOMM_RPN_BR_230400) {
 			BT_DBG("RPN bit rate mismatch 0x%x", bit_rate);
-			bit_rate = RFCOMM_RPN_BR_115200;
+			bit_rate = RFCOMM_RPN_BR_9600;
 			rpn_mask ^= RFCOMM_RPN_PM_BITRATE;
 		}
 	}
