@@ -656,8 +656,9 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || (vf >= num_vfs))
 		return -EINVAL;
 
-	status = be_cmd_pmac_del(adapter, adapter->vf_if_handle[vf],
-				adapter->vf_pmac_id[vf]);
+	if (adapter->vf_pmac_id[vf] != BE_INVALID_PMAC_ID)
+		status = be_cmd_pmac_del(adapter, adapter->vf_if_handle[vf],
+					adapter->vf_pmac_id[vf]);
 
 	status = be_cmd_pmac_add(adapter, mac, adapter->vf_if_handle[vf],
 				&adapter->vf_pmac_id[vf]);
@@ -1910,6 +1911,7 @@ static int be_setup(struct be_adapter *adapter)
 				"Interface Create failed for VF %d\n", vf);
 				goto if_destroy;
 			}
+			adapter->vf_pmac_id[vf] = BE_INVALID_PMAC_ID;
 			vf++;
 		}
 	} else if (!be_physfn(adapter)) {

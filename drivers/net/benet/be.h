@@ -221,6 +221,7 @@ struct be_rx_obj {
 };
 
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
+#define BE_INVALID_PMAC_ID		0xffffffff
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
