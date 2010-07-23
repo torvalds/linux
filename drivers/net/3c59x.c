@@ -1029,6 +1029,7 @@ static int __devinit vortex_init_one(struct pci_dev *pdev,
 	rc = vortex_probe1(&pdev->dev, ioaddr, pdev->irq,
 			   ent->driver_data, unit);
 	if (rc < 0) {
+		pci_iounmap(pdev, ioaddr);
 		pci_disable_device(pdev);
 		goto out;
 	}
