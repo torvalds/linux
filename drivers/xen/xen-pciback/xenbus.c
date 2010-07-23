@@ -54,23 +54,29 @@ static void pciback_disconnect(struct pciback_device *pdev)
 		unbind_from_irqhandler(pdev->evtchn_irq, pdev);
 		pdev->evtchn_irq = INVALID_EVTCHN_IRQ;
 	}
+	spin_unlock(&pdev->dev_lock);
 
 	/* If the driver domain started an op, make sure we complete it
 	 * before releasing the shared memory */
+
+	/* Note, the workqueue does not use spinlocks at all.*/
 	flush_workqueue(pciback_wq);
 
+	spin_lock(&pdev->dev_lock);
 	if (pdev->sh_info != NULL) {
 		xenbus_unmap_ring_vfree(pdev->xdev, pdev->sh_info);
 		pdev->sh_info = NULL;
 	}
-
 	spin_unlock(&pdev->dev_lock);
+
 }
 
 static void free_pdev(struct pciback_device *pdev)
 {
-	if (pdev->be_watching)
+	if (pdev->be_watching) {
 		unregister_xenbus_watch(&pdev->be_watch);
+		pdev->be_watching = 0;
+	}
 
 	pciback_disconnect(pdev);
 
@@ -98,7 +104,10 @@ static int pciback_do_attach(struct pciback_device *pdev, int gnt_ref,
 				"Error mapping other domain page in ours.");
 		goto out;
 	}
+
+	spin_lock(&pdev->dev_lock);
 	pdev->sh_info = vaddr;
+	spin_unlock(&pdev->dev_lock);
 
 	err = bind_interdomain_evtchn_to_irqhandler(
 		pdev->xdev->otherend_id, remote_evtchn, pciback_handle_event,
@@ -108,7 +117,10 @@ static int pciback_do_attach(struct pciback_device *pdev, int gnt_ref,
 				 "Error binding event channel to IRQ");
 		goto out;
 	}
+
+	spin_lock(&pdev->dev_lock);
 	pdev->evtchn_irq = err;
+	spin_unlock(&pdev->dev_lock);
 	err = 0;
 
 	dev_dbg(&pdev->xdev->dev, "Attached!\n");
@@ -122,7 +134,6 @@ static int pciback_attach(struct pciback_device *pdev)
 	int gnt_ref, remote_evtchn;
 	char *magic = NULL;
 
-	spin_lock(&pdev->dev_lock);
 
 	/* Make sure we only do this setup once */
 	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
@@ -168,7 +179,6 @@ static int pciback_attach(struct pciback_device *pdev)
 
 	dev_dbg(&pdev->xdev->dev, "Connected? %d\n", err);
 out:
-	spin_unlock(&pdev->dev_lock);
 
 	kfree(magic);
 
@@ -340,7 +350,6 @@ static int pciback_reconfigure(struct pciback_device *pdev)
 	char state_str[64];
 	char dev_str[64];
 
-	spin_lock(&pdev->dev_lock);
 
 	dev_dbg(&pdev->xdev->dev, "Reconfiguring device ...\n");
 
@@ -481,8 +490,6 @@ static int pciback_reconfigure(struct pciback_device *pdev)
 	}
 
 out:
-	spin_unlock(&pdev->dev_lock);
-
 	return 0;
 }
 
@@ -538,8 +545,6 @@ static int pciback_setup_backend(struct pciback_device *pdev)
 	int i, num_devs;
 	char dev_str[64];
 	char state_str[64];
-
-	spin_lock(&pdev->dev_lock);
 
 	/* It's possible we could get the call to setup twice, so make sure
 	 * we're not already connected.
@@ -621,8 +626,6 @@ static int pciback_setup_backend(struct pciback_device *pdev)
 				 "Error switching to initialised state!");
 
 out:
-	spin_unlock(&pdev->dev_lock);
-
 	if (!err)
 		/* see if pcifront is already configured (if not, we'll wait) */
 		pciback_attach(pdev);
@@ -669,6 +672,7 @@ static int pciback_xenbus_probe(struct xenbus_device *dev,
 				pciback_be_watch);
 	if (err)
 		goto out;
+
 	pdev->be_watching = 1;
 
 	/* We need to force a call to our callback here in case

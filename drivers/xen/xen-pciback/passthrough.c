@@ -113,14 +113,14 @@ int pciback_publish_pci_roots(struct pciback_device *pdev,
 {
 	int err = 0;
 	struct passthrough_dev_data *dev_data = pdev->pci_dev_data;
-	struct pci_dev_entry *dev_entry, *e;
+	struct pci_dev_entry *dev_entry, *e, *tmp;
 	struct pci_dev *dev;
 	int found;
 	unsigned int domain, bus;
 
 	spin_lock(&dev_data->lock);
 
-	list_for_each_entry(dev_entry, &dev_data->dev_list, list) {
+	list_for_each_entry_safe(dev_entry, tmp, &dev_data->dev_list, list) {
 		/* Only publish this device as a root if none of its
 		 * parent bridges are exported
 		 */
@@ -139,13 +139,16 @@ int pciback_publish_pci_roots(struct pciback_device *pdev,
 		bus = (unsigned int)dev_entry->dev->bus->number;
 
 		if (!found) {
+			spin_unlock(&dev_data->lock);
 			err = publish_root_cb(pdev, domain, bus);
 			if (err)
 				break;
+			spin_lock(&dev_data->lock);
 		}
 	}
 
-	spin_unlock(&dev_data->lock);
+	if (!err)
+		spin_unlock(&dev_data->lock);
 
 	return err;
 }
