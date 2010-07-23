@@ -2356,6 +2356,9 @@ static void __devinit __nv_msi_ht_cap_quirk(struct pci_dev *dev, int all)
 	int pos;
 	int found;
 
+	if (!pci_msi_enabled())
+		return;
+
 	/* check if there is HT MSI cap or enabled on this device */
 	found = ht_check_msi_mapping(dev);
 
