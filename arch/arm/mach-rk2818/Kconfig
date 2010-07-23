@@ -17,6 +17,13 @@ config MACH_RK2818PHONE
         help
           Support for the ROCKCHIP Board For Rk2818 Phone.
 
+config MACH_RAHO
+			depends on ARCH_RK2818
+        default n
+        bool "ROCKCHIP Board For raho"
+        help
+          Support for the ROCKCHIP Board For raho Phone.
+          
 config RK28_GPIO_IRQ
 	int
 	default 16 if ARCH_RK2818	
