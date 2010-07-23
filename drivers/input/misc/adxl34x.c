@@ -432,11 +432,10 @@ void adxl34x_resume(struct adxl34x *ac)
 	if (ac->suspended && !ac->disabled && ac->opened)
 		__adxl34x_enable(ac);
 
-	ac->suspended= false;
+	ac->suspended = false;
 
 	mutex_unlock(&ac->mutex);
 }
-
 EXPORT_SYMBOL_GPL(adxl34x_resume);
 
 static ssize_t adxl34x_disable_show(struct device *dev,
@@ -709,7 +708,7 @@ struct adxl34x *adxl34x_probe(struct device *dev, int irq,
 	input_dev = input_allocate_device();
 	if (!ac || !input_dev) {
 		err = -ENOMEM;
-		goto err_out;
+		goto err_free_mem;
 	}
 
 	ac->fifo_delay = fifo_delay_default;
@@ -904,9 +903,9 @@ int adxl34x_remove(struct adxl34x *ac)
 	sysfs_remove_group(&ac->dev->kobj, &adxl34x_attr_group);
 	free_irq(ac->irq, ac);
 	input_unregister_device(ac->input);
+	dev_dbg(ac->dev, "unregistered accelerometer\n");
 	kfree(ac);
 
-	dev_dbg(ac->dev, "unregistered accelerometer\n");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(adxl34x_remove);
