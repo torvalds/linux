@@ -543,8 +543,8 @@ int fw_core_add_address_handler(struct fw_address_handler *handler,
 	int ret = -EBUSY;
 
 	if (region->start & 0xffff000000000003ULL ||
-	    region->end   & 0xffff000000000003ULL ||
 	    region->start >= region->end ||
+	    region->end   > 0x0001000000000000ULL ||
 	    handler->length & 3 ||
 	    handler->length == 0)
 		return -EINVAL;
