@@ -749,7 +749,7 @@ struct be_cmd_resp_query_fw_cfg {
 	u32 be_config_number;
 	u32 asic_revision;
 	u32 phys_port;
-	u32 function_cap;
+	u32 function_mode;
 	u32 rsvd[26];
 };
 

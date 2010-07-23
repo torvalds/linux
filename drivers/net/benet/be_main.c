@@ -963,7 +963,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
-	if ((adapter->cap & 0x400) && !vtm)
+	if ((adapter->function_mode & 0x400) && !vtm)
 		vlanf = 0;
 
 	if (unlikely(vlanf)) {
@@ -1003,7 +1003,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 
 	/* vlanf could be wrongly set in some cards.
 	 * ignore if vtm is not set */
-	if ((adapter->cap & 0x400) && !vtm)
+	if ((adapter->function_mode & 0x400) && !vtm)
 		vlanf = 0;
 
 	skb = napi_get_frags(&eq_obj->napi);
@@ -2500,7 +2500,7 @@ static int be_get_config(struct be_adapter *adapter)
 		return status;
 
 	status = be_cmd_query_fw_cfg(adapter,
-				&adapter->port_num, &adapter->cap);
+				&adapter->port_num, &adapter->function_mode);
 	if (status)
 		return status;
 
@@ -2520,7 +2520,7 @@ static int be_get_config(struct be_adapter *adapter)
 		memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
 	}
 
-	if (adapter->cap & 0x400)
+	if (adapter->function_mode & 0x400)
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/4;
 	else
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;

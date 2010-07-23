@@ -285,7 +285,7 @@ struct be_adapter {
 	u32 port_num;
 	bool promiscuous;
 	bool wol;
-	u32 cap;
+	u32 function_mode;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	int link_speed;

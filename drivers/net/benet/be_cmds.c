@@ -1258,7 +1258,7 @@ err:
 }
 
 /* Uses mbox */
-int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *cap)
+int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *mode)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_query_fw_cfg *req;
@@ -1279,7 +1279,7 @@ int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num, u32 *cap)
 	if (!status) {
 		struct be_cmd_resp_query_fw_cfg *resp = embedded_payload(wrb);
 		*port_num = le32_to_cpu(resp->phys_port);
-		*cap = le32_to_cpu(resp->function_cap);
+		*mode = le32_to_cpu(resp->function_mode);
 	}
 
 	spin_unlock(&adapter->mbox_lock);
