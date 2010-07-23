@@ -281,12 +281,23 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 bool
 nouveau_probe_i2c_addr(struct nouveau_i2c_chan *i2c, int addr)
 {
-	struct i2c_msg msg = {
-		.addr = addr,
-		.len = 0,
+	uint8_t buf[] = { 0 };
+	struct i2c_msg msgs[] = {
+		{
+			.addr = addr,
+			.flags = 0,
+			.len = 1,
+			.buf = buf,
+		},
+		{
+			.addr = addr,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = buf,
+		}
 	};
 
-	return i2c_transfer(&i2c->adapter, &msg, 1) == 1;
+	return i2c_transfer(&i2c->adapter, msgs, 2) == 2;
 }
 
 int
