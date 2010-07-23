@@ -36,8 +36,6 @@ quota_mt(const struct sk_buff *skb, struct xt_action_param *par)
 		/* we do not allow even small packets from now on */
 		priv->quota = 0;
 	}
-	/* Copy quota back to matchinfo so that iptables can display it */
-	q->quota = priv->quota;
 	spin_unlock_bh(&priv->lock);
 
 	return ret;
