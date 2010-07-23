@@ -619,6 +619,7 @@ struct c4iw_ep {
 	u16 plen;
 	u16 rss_qid;
 	u16 txq_idx;
+	u16 ctrlq_idx;
 	u8 tos;
 };
 
