@@ -33,13 +33,8 @@
 #define DSP_FIELD_ADDR(type, field, base, wordsize) \
     ((((s32)&(((type *)0)->field)) / wordsize) + (u32)base)
 
-/* Access can be different SM access word size (e.g. 16/32 bit words) */
-#define IO_SET_VALUE(context, type, base, field, value) (base->field = value)
-#define IO_GET_VALUE(context, type, base, field)	(base->field)
 #define IO_OR_VALUE(context, type, base, field, value)  (base->field |= value)
 #define IO_AND_VALUE(context, type, base, field, value) (base->field &= value)
-#define IO_SET_LONG(context, type, base, field, value)  (base->field = value)
-#define IO_GET_LONG(context, type, base, field)         (base->field)
 
 #ifdef CONFIG_TIDSPBRIDGE_DVFS
 /* The maximum number of OPPs that are supported */

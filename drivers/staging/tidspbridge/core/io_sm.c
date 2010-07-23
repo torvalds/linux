@@ -1094,15 +1094,12 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	chnl_mgr_obj = pio_mgr->hchnl_mgr;
 
 	/* Attempt to perform input */
-	if (!IO_GET_VALUE(pio_mgr->hbridge_context, struct shm, sm, input_full))
+	if (!sm->input_full)
 		goto func_end;
 
-	bytes =
-	    IO_GET_VALUE(pio_mgr->hbridge_context, struct shm, sm,
-			 input_size) * chnl_mgr_obj->word_size;
-	chnl_id = IO_GET_VALUE(pio_mgr->hbridge_context, struct shm,
-							sm, input_id);
-	dw_arg = IO_GET_LONG(pio_mgr->hbridge_context, struct shm, sm, arg);
+	bytes = sm->input_size * chnl_mgr_obj->word_size;
+	chnl_id = sm->input_id;
+	dw_arg = sm->arg;
 	if (chnl_id >= CHNL_MAXCHANNELS) {
 		/* Shouldn't be here: would indicate corrupted shm. */
 		DBC_ASSERT(chnl_id);
@@ -1185,8 +1182,7 @@ static void input_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	}
 	if (clear_chnl) {
 		/* Indicate to the DSP we have read the input */
-		IO_SET_VALUE(pio_mgr->hbridge_context, struct shm, sm,
-							input_full, 0);
+		sm->input_full = 0;
 		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 	}
 	if (notify_client) {
@@ -1215,12 +1211,8 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 
 	msg_ctr_obj = pio_mgr->msg_input_ctrl;
 	/* Get the number of input messages to be read */
-	input_empty =
-	    IO_GET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl, msg_ctr_obj,
-			 buf_empty);
-	num_msgs =
-	    IO_GET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl, msg_ctr_obj,
-			 size);
+	input_empty = msg_ctr_obj->buf_empty;
+	num_msgs = msg_ctr_obj->size;
 	if (input_empty)
 		goto func_end;
 
@@ -1310,10 +1302,8 @@ static void input_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 	/* Set the post SWI flag */
 	if (num_msgs > 0) {
 		/* Tell the DSP we've read the messages */
-		IO_SET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl,
-			     msg_ctr_obj, buf_empty, true);
-		IO_SET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl,
-			     msg_ctr_obj, post_swi, true);
+		msg_ctr_obj->buf_empty = true;
+		msg_ctr_obj->post_swi = true;
 		sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 	}
 func_end:
@@ -1375,15 +1365,14 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 	chnl_mgr_obj = pio_mgr->hchnl_mgr;
 	sm = pio_mgr->shared_mem;
 	/* Attempt to perform output */
-	if (IO_GET_VALUE(pio_mgr->hbridge_context, struct shm, sm, output_full))
+	if (sm->output_full)
 		goto func_end;
 
 	if (pchnl && !((pchnl->dw_state & ~CHNL_STATEEOS) == CHNL_STATEREADY))
 		goto func_end;
 
 	/* Look to see if both a PC and DSP output channel are ready */
-	dw_dsp_f_mask = IO_GET_VALUE(pio_mgr->hbridge_context, struct shm, sm,
-				     dsp_free_mask);
+	dw_dsp_f_mask = sm->dsp_free_mask;
 	chnl_id =
 	    find_ready_output(chnl_mgr_obj, pchnl,
 			      (chnl_mgr_obj->dw_output_mask & dw_dsp_f_mask));
@@ -1415,23 +1404,19 @@ static void output_chnl(struct io_mgr *pio_mgr, struct chnl_object *pchnl,
 					chnl_packet_obj->byte_size);
 	pchnl->bytes_moved += chnl_packet_obj->byte_size;
 	/* Write all 32 bits of arg */
-	IO_SET_LONG(pio_mgr->hbridge_context, struct shm, sm, arg,
-		    chnl_packet_obj->dw_arg);
+	sm->arg = chnl_packet_obj->dw_arg;
 #if _CHNL_WORDSIZE == 2
-	IO_SET_VALUE(pio_mgr->hbridge_context, struct shm, sm, output_id,
-		     (u16) chnl_id);
-	IO_SET_VALUE(pio_mgr->hbridge_context, struct shm, sm, output_size,
-		     (u16) (chnl_packet_obj->byte_size +
-			    (chnl_mgr_obj->word_size -
-			     1)) / (u16) chnl_mgr_obj->word_size);
+	/* Access can be different SM access word size (e.g. 16/32 bit words) */
+	sm->output_id = (u16) chnl_id;
+	sm->output_size = (u16) (chnl_packet_obj->byte_size +
+				chnl_mgr_obj->word_size - 1) /
+				(u16) chnl_mgr_obj->word_size;
 #else
-	IO_SET_VALUE(pio_mgr->hbridge_context, struct shm, sm, output_id,
-								chnl_id);
-	IO_SET_VALUE(pio_mgr->hbridge_context, struct shm, sm, output_size,
-		     (chnl_packet_obj->byte_size +
-		      (chnl_mgr_obj->word_size - 1)) / chnl_mgr_obj->word_size);
+	sm->output_id = chnl_id;
+	sm->output_size = (chnl_packet_obj->byte_size +
+			chnl_mgr_obj->word_size - 1) / chnl_mgr_obj->word_size;
 #endif
-	IO_SET_VALUE(pio_mgr->hbridge_context, struct shm, sm, output_full, 1);
+	sm->output_full =  1;
 	/* Indicate to the DSP we have written the output */
 	sm_interrupt_dsp(pio_mgr->hbridge_context, MBX_PCPY_CLASS);
 	/* Notify client with IO completion record (keep EOS) */
@@ -1463,9 +1448,7 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 	msg_ctr_obj = pio_mgr->msg_output_ctrl;
 
 	/* Check if output has been cleared */
-	output_empty =
-	    IO_GET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl, msg_ctr_obj,
-			 buf_empty);
+	output_empty = msg_ctr_obj->buf_empty;
 	if (output_empty) {
 		num_msgs = (hmsg_mgr->msgs_pending > hmsg_mgr->max_msgs) ?
 		    hmsg_mgr->max_msgs : hmsg_mgr->msgs_pending;
@@ -1512,17 +1495,17 @@ static void output_msg(struct io_mgr *pio_mgr, struct msg_mgr *hmsg_mgr)
 		if (num_msgs > 0) {
 			hmsg_mgr->msgs_pending -= num_msgs;
 #if _CHNL_WORDSIZE == 2
-			IO_SET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl,
-				     msg_ctr_obj, size, (u16) num_msgs);
+			/*
+			 * Access can be different SM access word size
+			 * (e.g. 16/32 bit words)
+			 */
+			msg_ctr_obj->size = (u16) num_msgs;
 #else
-			IO_SET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl,
-				     msg_ctr_obj, size, num_msgs);
+			msg_ctr_obj->size = num_msgs;
 #endif
-			IO_SET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl,
-				     msg_ctr_obj, buf_empty, false);
+			msg_ctr_obj->buf_empty = false;
 			/* Set the post SWI flag */
-			IO_SET_VALUE(pio_mgr->hbridge_context, struct msg_ctrl,
-				     msg_ctr_obj, post_swi, true);
+			msg_ctr_obj->post_swi = true;
 			/* Tell the DSP we have written the output. */
 			sm_interrupt_dsp(pio_mgr->hbridge_context,
 						MBX_PCPY_CLASS);
