@@ -663,6 +663,15 @@ config NETFILTER_XT_MATCH_CONNTRACK
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
+config NETFILTER_XT_MATCH_CPU
+	tristate '"cpu" match support'
+	depends on NETFILTER_ADVANCED
+	help
+	  CPU matching allows you to match packets based on the CPU
+	  currently handling the packet.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_MATCH_DCCP
 	tristate '"dccp" protocol match support'
 	depends on NETFILTER_ADVANCED
