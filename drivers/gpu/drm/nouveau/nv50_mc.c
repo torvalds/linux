@@ -31,7 +31,20 @@
 int
 nv50_mc_init(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
 	nv_wr32(dev, NV03_PMC_ENABLE, 0xFFFFFFFF);
+
+	/* disable, and ack any pending gpio interrupts
+	 * XXX doesn't technically belong here, but it'll do for the moment
+	 */
+	nv_wr32(dev, 0xe050, 0x00000000);
+	nv_wr32(dev, 0xe054, 0xffffffff);
+	if (dev_priv->chipset >= 0x90) {
+		nv_wr32(dev, 0xe070, 0x00000000);
+		nv_wr32(dev, 0xe074, 0xffffffff);
+	}
+
 	return 0;
 }
 

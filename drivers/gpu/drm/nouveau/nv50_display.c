@@ -184,7 +184,7 @@ nv50_display_init(struct drm_device *dev)
 	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
 	struct nouveau_channel *evo = dev_priv->evo;
 	struct drm_connector *connector;
-	uint32_t val, ram_amount, hpd_en[2];
+	uint32_t val, ram_amount;
 	uint64_t start;
 	int ret, i;
 
@@ -365,26 +365,10 @@ nv50_display_init(struct drm_device *dev)
 					     NV50_PDISPLAY_INTR_EN_CLK_UNK40));
 
 	/* enable hotplug interrupts */
-	hpd_en[0] = hpd_en[1] = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		struct dcb_gpio_entry *gpio;
 
-		if (conn->dcb->gpio_tag == 0xff)
-			continue;
-
-		gpio = nouveau_bios_gpio_entry(dev, conn->dcb->gpio_tag);
-		if (!gpio)
-			continue;
-
-		hpd_en[gpio->line >> 4] |= (0x00010001 << (gpio->line & 0xf));
-	}
-
-	nv_wr32(dev, 0xe054, 0xffffffff);
-	nv_wr32(dev, 0xe050, hpd_en[0]);
-	if (dev_priv->chipset >= 0x90) {
-		nv_wr32(dev, 0xe074, 0xffffffff);
-		nv_wr32(dev, 0xe070, hpd_en[1]);
+		nv50_gpio_irq_enable(dev, conn->dcb->gpio_tag, true);
 	}
 
 	return 0;
