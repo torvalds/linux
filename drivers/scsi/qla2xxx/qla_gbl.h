@@ -441,6 +441,7 @@ extern int qla2x00_ga_nxt(scsi_qla_host_t *, fc_port_t *);
 extern int qla2x00_gid_pt(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_gpn_id(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_gnn_id(scsi_qla_host_t *, sw_info_t *);
+extern void qla2x00_gff_id(scsi_qla_host_t *, sw_info_t *);
 extern int qla2x00_rft_id(scsi_qla_host_t *);
 extern int qla2x00_rff_id(scsi_qla_host_t *);
 extern int qla2x00_rnn_id(scsi_qla_host_t *);

@@ -3078,7 +3078,6 @@ qla2x00_configure_fabric(scsi_qla_host_t *vha)
 	return (rval);
 }
 
-
 /*
  * qla2x00_find_all_fabric_devs
  *
@@ -3131,6 +3130,10 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		    qla2x00_gfpn_id(vha, swl) == QLA_SUCCESS) {
 			qla2x00_gpsc(vha, swl);
 		}
+
+		/* If other queries succeeded probe for FC-4 type */
+		if (swl)
+			qla2x00_gff_id(vha, swl);
 	}
 	swl_idx = 0;
 
@@ -3172,6 +3175,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 				memcpy(new_fcport->fabric_port_name,
 				    swl[swl_idx].fabric_port_name, WWN_SIZE);
 				new_fcport->fp_speed = swl[swl_idx].fp_speed;
+				new_fcport->fc4_type = swl[swl_idx].fc4_type;
 
 				if (swl[swl_idx].d_id.b.rsvd_1 != 0) {
 					last_dev = 1;
@@ -3231,6 +3235,11 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 
 		/* Bypass reserved domain fields. */
 		if ((new_fcport->d_id.b.domain & 0xf0) == 0xf0)
+			continue;
+
+		/* Bypass ports whose FCP-4 type is not FCP_SCSI */
+		if (new_fcport->fc4_type != FC4_TYPE_FCP_SCSI &&
+		    new_fcport->fc4_type != FC4_TYPE_UNKNOWN)
 			continue;
 
 		/* Locate matching device in database. */
