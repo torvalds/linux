@@ -127,6 +127,8 @@ repeat:
 		 */
 		if (unlikely(slot == -2)) {
 			*ptep = __pte(old_pte);
+			hash_failure_debug(ea, access, vsid, trap, ssize,
+					   mmu_psize, old_pte);
 			return -1;
 		}
 
