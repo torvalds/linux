@@ -788,54 +788,84 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-static int is_irq_enabled_on_cpu(unsigned int irq, unsigned int cpu)
-{
-	unsigned int isset;
-	int coreid = octeon_coreid_for_cpu(cpu);
-	int bit = (irq < OCTEON_IRQ_WDOG0) ?
-		   irq - OCTEON_IRQ_WORKQ0 : irq - OCTEON_IRQ_WDOG0;
-       if (irq < 64) {
-		isset = (cvmx_read_csr(CVMX_CIU_INTX_EN0(coreid * 2)) &
-			(1ull << bit)) >> bit;
-       } else {
-	       isset = (cvmx_read_csr(CVMX_CIU_INTX_EN1(coreid * 2 + 1)) &
-			(1ull << bit)) >> bit;
-       }
-       return isset;
-}
 
 void fixup_irqs(void)
 {
-       int irq;
+	int irq;
+	struct irq_desc *desc;
+	cpumask_t new_affinity;
+	unsigned long flags;
+	int do_set_affinity;
+	int cpu;
+
+	cpu = smp_processor_id();
 
 	for (irq = OCTEON_IRQ_SW0; irq <= OCTEON_IRQ_TIMER; irq++)
 		octeon_irq_core_disable_local(irq);
 
-	for (irq = OCTEON_IRQ_WORKQ0; irq <= OCTEON_IRQ_GPIO15; irq++) {
-		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
-			/* ciu irq migrates to next cpu */
-			octeon_irq_chip_ciu0.disable(irq);
-			octeon_irq_ciu0_set_affinity(irq, &cpu_online_map);
-		}
-	}
+	for (irq = OCTEON_IRQ_WORKQ0; irq < OCTEON_IRQ_LAST; irq++) {
+		desc = irq_to_desc(irq);
+		switch (irq) {
+		case OCTEON_IRQ_MBOX0:
+		case OCTEON_IRQ_MBOX1:
+			/* The eoi function will disable them on this CPU. */
+			desc->chip->eoi(irq);
+			break;
+		case OCTEON_IRQ_WDOG0:
+		case OCTEON_IRQ_WDOG1:
+		case OCTEON_IRQ_WDOG2:
+		case OCTEON_IRQ_WDOG3:
+		case OCTEON_IRQ_WDOG4:
+		case OCTEON_IRQ_WDOG5:
+		case OCTEON_IRQ_WDOG6:
+		case OCTEON_IRQ_WDOG7:
+		case OCTEON_IRQ_WDOG8:
+		case OCTEON_IRQ_WDOG9:
+		case OCTEON_IRQ_WDOG10:
+		case OCTEON_IRQ_WDOG11:
+		case OCTEON_IRQ_WDOG12:
+		case OCTEON_IRQ_WDOG13:
+		case OCTEON_IRQ_WDOG14:
+		case OCTEON_IRQ_WDOG15:
+			/*
+			 * These have special per CPU semantics and
+			 * are handled in the watchdog driver.
+			 */
+			break;
+		default:
+			raw_spin_lock_irqsave(&desc->lock, flags);
+			/*
+			 * If this irq has an action, it is in use and
+			 * must be migrated if it has affinity to this
+			 * cpu.
+			 */
+			if (desc->action && cpumask_test_cpu(cpu, desc->affinity)) {
+				if (cpumask_weight(desc->affinity) > 1) {
+					/*
+					 * It has multi CPU affinity,
+					 * just remove this CPU from
+					 * the affinity set.
+					 */
+					cpumask_copy(&new_affinity, desc->affinity);
+					cpumask_clear_cpu(cpu, &new_affinity);
+				} else {
+					/*
+					 * Otherwise, put it on lowest
+					 * numbered online CPU.
+					 */
+					cpumask_clear(&new_affinity);
+					cpumask_set_cpu(cpumask_first(cpu_online_mask), &new_affinity);
+				}
+				do_set_affinity = 1;
+			} else {
+				do_set_affinity = 0;
+			}
+			raw_spin_unlock_irqrestore(&desc->lock, flags);
 
-#if 0
-	for (irq = OCTEON_IRQ_MBOX0; irq <= OCTEON_IRQ_MBOX1; irq++)
-		octeon_irq_mailbox_mask(irq);
-#endif
-	for (irq = OCTEON_IRQ_UART0; irq <= OCTEON_IRQ_BOOTDMA; irq++) {
-		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
-			/* ciu irq migrates to next cpu */
-			octeon_irq_chip_ciu0.disable(irq);
-			octeon_irq_ciu0_set_affinity(irq, &cpu_online_map);
-		}
-	}
+			if (do_set_affinity)
+				irq_set_affinity(irq, &new_affinity);
 
-	for (irq = OCTEON_IRQ_UART2; irq <= OCTEON_IRQ_RESERVED135; irq++) {
-		if (is_irq_enabled_on_cpu(irq, smp_processor_id())) {
-			/* ciu irq migrates to next cpu */
-			octeon_irq_chip_ciu1.disable(irq);
-			octeon_irq_ciu1_set_affinity(irq, &cpu_online_map);
+			break;
 		}
 	}
 }
