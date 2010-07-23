@@ -1879,7 +1879,7 @@ int proc_notify_clients(void *proc, u32 events)
 	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
 	DBC_REQUIRE(p_proc_object);
-	DBC_REQUIRE(IS_VALID_PROC_EVENT(events));
+	DBC_REQUIRE(is_valid_proc_event(events));
 	DBC_REQUIRE(refs > 0);
 	if (!p_proc_object) {
 		status = -EFAULT;
@@ -1902,7 +1902,7 @@ int proc_notify_all_clients(void *proc, u32 events)
 	int status = 0;
 	struct proc_object *p_proc_object = (struct proc_object *)proc;
 
-	DBC_REQUIRE(IS_VALID_PROC_EVENT(events));
+	DBC_REQUIRE(is_valid_proc_event(events));
 	DBC_REQUIRE(refs > 0);
 
 	if (!p_proc_object) {

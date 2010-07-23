@@ -135,13 +135,11 @@
 #define PDELETE	 "delete"
 #define PEXECUTE	"execute"
 
-#define IS_EQUAL_UUID(uuid1, uuid2) (\
-	((uuid1).ul_data1 == (uuid2).ul_data1) && \
-	((uuid1).us_data2 == (uuid2).us_data2) && \
-	((uuid1).us_data3 == (uuid2).us_data3) && \
-	((uuid1).uc_data4 == (uuid2).uc_data4) && \
-	((uuid1).uc_data5 == (uuid2).uc_data5) && \
-	(strncmp((void *)(uuid1).uc_data6, (void *)(uuid2).uc_data6, 6)) == 0)
+static inline bool is_equal_uuid(struct dsp_uuid *uuid1,
+							struct dsp_uuid *uuid2)
+{
+	return !memcmp(uuid1, uuid2, sizeof(struct dsp_uuid));
+}
 
     /*
      *  ======== mem_seg_info ========
@@ -1487,8 +1485,8 @@ static int load_ovly(struct nldr_nodeobject *nldr_node_obj,
 
 	/* Find the node in the table */
 	for (i = 0; i < nldr_obj->ovly_nodes; i++) {
-		if (IS_EQUAL_UUID
-		    (nldr_node_obj->uuid, nldr_obj->ovly_table[i].uuid)) {
+		if (is_equal_uuid
+		    (&nldr_node_obj->uuid, &nldr_obj->ovly_table[i].uuid)) {
 			/* Found it */
 			po_node = &(nldr_obj->ovly_table[i]);
 			break;
@@ -1825,8 +1823,8 @@ static void unload_ovly(struct nldr_nodeobject *nldr_node_obj,
 
 	/* Find the node in the table */
 	for (i = 0; i < nldr_obj->ovly_nodes; i++) {
-		if (IS_EQUAL_UUID
-		    (nldr_node_obj->uuid, nldr_obj->ovly_table[i].uuid)) {
+		if (is_equal_uuid
+		    (&nldr_node_obj->uuid, &nldr_obj->ovly_table[i].uuid)) {
 			/* Found it */
 			po_node = &(nldr_obj->ovly_table[i]);
 			break;
