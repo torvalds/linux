@@ -224,6 +224,7 @@ struct be_vf_cfg {
 	unsigned char vf_mac_addr[ETH_ALEN];
 	u32 vf_if_handle;
 	u32 vf_pmac_id;
+	u16 vf_vlan_tag;
 };
 
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
