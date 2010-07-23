@@ -2645,6 +2645,8 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
 
+	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
+
 	if (!mask) {
 		/* No permission to check.  Existence test. */
 		return 0;
