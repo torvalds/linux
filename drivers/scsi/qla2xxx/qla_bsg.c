@@ -1259,6 +1259,13 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 		return -EINVAL;
 	}
 
+	if (fcport->flags & FCF_LOGIN_NEEDED) {
+		DEBUG2(printk(KERN_ERR "%s(%ld): Remote port not logged in, "
+		    "flags = 0x%x\n",
+		    __func__, vha->host_no, fcport->flags));
+		return -EINVAL;
+	}
+
 	if (port_param->mode)
 		rval = qla2x00_set_idma_speed(vha, fcport->loop_id,
 			port_param->speed, mb);
