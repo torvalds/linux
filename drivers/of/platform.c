@@ -22,6 +22,26 @@
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
+static int of_dev_node_match(struct device *dev, void *data)
+{
+	return dev->of_node == data;
+}
+
+/**
+ * of_find_device_by_node - Find the platform_device associated with a node
+ * @np: Pointer to device tree node
+ *
+ * Returns platform_device pointer, or NULL if not found
+ */
+struct platform_device *of_find_device_by_node(struct device_node *np)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&platform_bus_type, NULL, np, of_dev_node_match);
+	return dev ? to_platform_device(dev) : NULL;
+}
+EXPORT_SYMBOL(of_find_device_by_node);
+
 static int platform_driver_probe_shim(struct platform_device *pdev)
 {
 	struct platform_driver *pdrv;

@@ -11,26 +11,6 @@
 
 #include "of_device_common.h"
 
-static int node_match(struct device *dev, void *data)
-{
-	struct platform_device *op = to_platform_device(dev);
-	struct device_node *dp = data;
-
-	return (op->dev.of_node == dp);
-}
-
-struct platform_device *of_find_device_by_node(struct device_node *dp)
-{
-	struct device *dev = bus_find_device(&platform_bus_type, NULL,
-					     dp, node_match);
-
-	if (dev)
-		return to_platform_device(dev);
-
-	return NULL;
-}
-EXPORT_SYMBOL(of_find_device_by_node);
-
 unsigned int irq_of_parse_and_map(struct device_node *node, int index)
 {
 	struct platform_device *op = of_find_device_by_node(node);

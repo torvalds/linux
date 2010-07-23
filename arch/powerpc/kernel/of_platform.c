@@ -52,22 +52,6 @@ const struct of_device_id of_default_bus_ids[] = {
 	{},
 };
 
-static int of_dev_node_match(struct device *dev, void *data)
-{
-	return to_platform_device(dev)->dev.of_node == data;
-}
-
-struct platform_device *of_find_device_by_node(struct device_node *np)
-{
-	struct device *dev;
-
-	dev = bus_find_device(&platform_bus_type, NULL, np, of_dev_node_match);
-	if (dev)
-		return to_platform_device(dev);
-	return NULL;
-}
-EXPORT_SYMBOL(of_find_device_by_node);
-
 #ifdef CONFIG_PPC_OF_PLATFORM_PCI
 
 /* The probing of PCI controllers from of_platform is currently
