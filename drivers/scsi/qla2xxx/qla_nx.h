@@ -816,7 +816,6 @@ struct qla82xx_uri_data_desc{
 #define QLA82XX_FLASH_ROMIMAGE		4
 #define QLA82XX_UNKNOWN_ROMIMAGE	0xff
 
-#define QLA82XX_IS_REVISION_P3PLUS(_rev_)	((_rev_) >= 0x50)
 #define MIU_TEST_AGT_WRDATA_UPPER_LO		(0x0b0)
 #define	MIU_TEST_AGT_WRDATA_UPPER_HI		(0x0b4)
 
@@ -887,7 +886,7 @@ struct ct6_dsd {
 	struct list_head dsd_list;
 };
 
-#define MBC_TOGGLE_INTR			0x10
+#define MBC_TOGGLE_INTERRUPT	0x10
 
 /* Flash  offset */
 #define FLT_REG_BOOTLOAD_82XX	0x72

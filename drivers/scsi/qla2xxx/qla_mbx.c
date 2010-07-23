@@ -4111,7 +4111,7 @@ qla82xx_mbx_intr_enable(scsi_qla_host_t *vha)
 		"%s(%ld): entered.\n", __func__, vha->host_no));
 
 	memset(mcp, 0, sizeof(mbx_cmd_t));
-	mcp->mb[0] = MBC_TOGGLE_INTR;
+	mcp->mb[0] = MBC_TOGGLE_INTERRUPT;
 	mcp->mb[1] = 1;
 
 	mcp->out_mb = MBX_1|MBX_0;
@@ -4147,7 +4147,7 @@ qla82xx_mbx_intr_disable(scsi_qla_host_t *vha)
 		"%s(%ld): entered.\n", __func__, vha->host_no));
 
 	memset(mcp, 0, sizeof(mbx_cmd_t));
-	mcp->mb[0] = MBC_TOGGLE_INTR;
+	mcp->mb[0] = MBC_TOGGLE_INTERRUPT;
 	mcp->mb[1] = 0;
 
 	mcp->out_mb = MBX_1|MBX_0;
