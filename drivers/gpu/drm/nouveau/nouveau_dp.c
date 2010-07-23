@@ -23,8 +23,10 @@
  */
 
 #include "drmP.h"
+
 #include "nouveau_drv.h"
 #include "nouveau_i2c.h"
+#include "nouveau_connector.h"
 #include "nouveau_encoder.h"
 
 static int
@@ -271,6 +273,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_connector *nv_connector;
 	struct bit_displayport_encoder_table *dpe;
 	int dpe_headerlen;
 	uint8_t config[4], status[3];
@@ -279,11 +282,20 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 
 	NV_DEBUG_KMS(dev, "link training!!\n");
 
+	nv_connector = nouveau_encoder_connector_get(nv_encoder);
+	if (!nv_connector)
+		return false;
+
 	dpe = nouveau_bios_dp_table(dev, nv_encoder->dcb, &dpe_headerlen);
 	if (!dpe) {
 		NV_ERROR(dev, "SOR-%d: no DP encoder table!\n", nv_encoder->or);
 		return false;
 	}
+
+	/* disable hotplug detect, this flips around on some panels during
+	 * link training.
+	 */
+	nv50_gpio_irq_enable(dev, nv_connector->dcb->gpio_tag, false);
 
 	if (dpe->script0) {
 		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
@@ -422,6 +434,9 @@ stop:
 		nouveau_bios_run_init_table(dev, le16_to_cpu(dpe->script1),
 					    nv_encoder->dcb);
 	}
+
+	/* re-enable hotplug detect */
+	nv50_gpio_irq_enable(dev, nv_connector->dcb->gpio_tag, true);
 
 	return eq_done;
 }
