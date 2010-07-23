@@ -28,17 +28,19 @@
  * its own devices, it calls baseboard's init function.
  * TODO: Add your own baseboard init function and call it from
  * inside eukrea_cpuimx25_init() eukrea_cpuimx27_init()
- * or eukrea_cpuimx35_init().
+ * eukrea_cpuimx35_init() or eukrea_cpuimx51_init().
  *
  * This example here is for the development board. Refer
  * mach-mx25/eukrea_mbimxsd-baseboard.c for cpuimx25
  * mach-imx/eukrea_mbimx27-baseboard.c for cpuimx27
  * mach-mx3/eukrea_mbimxsd-baseboard.c for cpuimx35
+ * mach-mx5/eukrea_mbimx51-baseboard.c for cpuimx51
  */
 
 extern void eukrea_mbimx25_baseboard_init(void);
 extern void eukrea_mbimx27_baseboard_init(void);
 extern void eukrea_mbimx35_baseboard_init(void);
+extern void eukrea_mbimx51_baseboard_init(void);
 
 #endif
 
