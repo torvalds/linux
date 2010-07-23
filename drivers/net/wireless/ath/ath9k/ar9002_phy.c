@@ -477,7 +477,8 @@ static void ar9002_hw_do_getnf(struct ath_hw *ah,
 	nfarray[0] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR9280_PHY_EXT_MINCCA_PWR);
-	nfarray[3] = sign_extend(nf, 9);
+	if (IS_CHAN_HT40(ah->curchan))
+		nfarray[3] = sign_extend(nf, 9);
 
 	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		return;
@@ -486,7 +487,8 @@ static void ar9002_hw_do_getnf(struct ath_hw *ah,
 	nfarray[1] = sign_extend(nf, 9);
 
 	nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR9280_PHY_CH1_EXT_MINCCA_PWR);
-	nfarray[4] = sign_extend(nf, 9);
+	if (IS_CHAN_HT40(ah->curchan))
+		nfarray[4] = sign_extend(nf, 9);
 }
 
 static void ar9002_hw_set_nf_limits(struct ath_hw *ah)

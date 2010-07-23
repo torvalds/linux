@@ -1506,6 +1506,9 @@ static void ar5008_hw_do_getnf(struct ath_hw *ah,
 	nf = MS(REG_READ(ah, AR_PHY_CH2_CCA), AR_PHY_CH2_MINCCA_PWR);
 	nfarray[2] = sign_extend(nf, 9);
 
+	if (!IS_CHAN_HT40(ah->curchan))
+		return;
+
 	nf = MS(REG_READ(ah, AR_PHY_EXT_CCA), AR_PHY_EXT_MINCCA_PWR);
 	nfarray[3] = sign_extend(nf, 9);
 
