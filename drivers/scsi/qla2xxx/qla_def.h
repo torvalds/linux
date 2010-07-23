@@ -2714,6 +2714,8 @@ struct qla_hw_data {
 	uint8_t 	fcode_revision[16];
 	uint32_t	fw_revision[4];
 
+	uint32_t	gold_fw_version[4];
+
 	/* Offsets for flash/nvram access (set to ~0 if not used). */
 	uint32_t	flash_conf_off;
 	uint32_t	flash_data_off;

@@ -2759,6 +2759,28 @@ qla24xx_get_flash_version(scsi_qla_host_t *vha, void *mbuf)
 		ha->fw_revision[3] = dcode[3];
 	}
 
+	/* Check for golden firmware and get version if available */
+	if (!IS_QLA81XX(ha)) {
+		/* Golden firmware is not present in non 81XX adapters */
+		return ret;
+	}
+
+	memset(ha->gold_fw_version, 0, sizeof(ha->gold_fw_version));
+	dcode = mbuf;
+	ha->isp_ops->read_optrom(vha, (uint8_t *)dcode,
+	    ha->flt_region_gold_fw << 2, 32);
+
+	if (dcode[4] == 0xFFFFFFFF && dcode[5] == 0xFFFFFFFF &&
+	    dcode[6] == 0xFFFFFFFF && dcode[7] == 0xFFFFFFFF) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "%s(%ld): Unrecognized golden fw at 0x%x.\n",
+		    __func__, vha->host_no, ha->flt_region_gold_fw * 4));
+		return ret;
+	}
+
+	for (i = 4; i < 8; i++)
+		ha->gold_fw_version[i-4] = be32_to_cpu(dcode[i]);
+
 	return ret;
 }
 
