@@ -252,7 +252,6 @@ int dload_get_section_info(void *minfo, const char *section_name,
 }
 
 #define IPH_SIZE (sizeof(struct image_packet_t) - sizeof(u32))
-#define REVERSE_REORDER_MAP(rawmap) ((rawmap) ^ 0x3030303)
 
 /**************************************************************************
  * Procedure dload_get_section

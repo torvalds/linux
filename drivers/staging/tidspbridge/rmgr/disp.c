@@ -54,8 +54,6 @@
 
 #define CHNLIOREQS      1
 
-#define SWAP_WORD(x)     (((u32)(x) >> 16) | ((u32)(x) << 16))
-
 /*
  *  ======== disp_object ========
  */

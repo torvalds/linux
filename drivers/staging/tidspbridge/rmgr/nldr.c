@@ -114,19 +114,6 @@
 #define DELETECODEFLAGBIT   5
 #define MAXFLAGS	    6
 
-#define IS_INTERNAL(nldr_obj, segid) (((segid) <= MAXSEGID && \
-	    nldr_obj->seg_table[(segid)] & DYNM_INTERNAL) || \
-	    (segid) == MEMINTERNALID)
-
-#define IS_EXTERNAL(nldr_obj, segid) (((segid) <= MAXSEGID && \
-	    nldr_obj->seg_table[(segid)] & DYNM_EXTERNAL) || \
-	    (segid) == MEMEXTERNALID)
-
-#define SWAPLONG(x) ((((x) << 24) & 0xFF000000) | (((x) << 8) & 0xFF0000L) | \
-	(((x) >> 8) & 0xFF00L) | (((x) >> 24) & 0xFF))
-
-#define SWAPWORD(x) ((((x) << 8) & 0xFF00) | (((x) >> 8) & 0xFF))
-
     /*
      *  These names may be embedded in overlay sections to identify which
      *  node phase the section should be overlayed.

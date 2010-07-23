@@ -50,9 +50,6 @@
 #define CHNL_STATECANCEL	1	/* I/O was cancelled. */
 #define CHNL_STATEEOS		2	/* End Of Stream reached. */
 
-/* Determine if user supplied an event for this channel: */
-#define CHNL_IS_USER_EVENT(mode)  (mode & CHNL_MODEUSEREVENT)
-
 /* Macros for checking mode: */
 #define CHNL_IS_INPUT(mode)      (mode & CHNL_MODEFROMDSP)
 #define CHNL_IS_OUTPUT(mode)     (!CHNL_IS_INPUT(mode))

@@ -310,10 +310,6 @@ extern uint32_t dload_reverse_checksum16(void *data, unsigned siz);
 #endif
 #endif
 
-#define IS_DATA_SCN(zzz) (DLOAD_SECTION_TYPE((zzz)->type) != DLOAD_TEXT)
-#define IS_DATA_SCN_NUM(zzz) \
-		(DLOAD_SECT_TYPE(&dlthis->sect_hdrs[(zzz)-1]) != DLOAD_TEXT)
-
 /*
  * exported by reloc.c
  */

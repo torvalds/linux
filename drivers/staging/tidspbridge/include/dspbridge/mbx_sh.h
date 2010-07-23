@@ -177,22 +177,8 @@
 #define MBX_PM_OPP2 1
 #define MBX_PM_OPP3 2
 #define MBX_PM_OPP4 3
-#define MBX_OLDOPP_EXTRACT(OPPMSG) ((0x00F0 & (OPPMSG)) >> 4)
-#define MBX_NEWOPP_EXTRACT(OPPMSG) (0x000F & (OPPMSG))
-#define MBX_PREVOPP_EXTRACT(OPPMSG) ((0x00F0 & (OPPMSG)) >> 4)
-#define MBX_CUROPP_EXTRACT(OPPMSG) (0x000F & (OPPMSG))
 
 /* Bridge Debug Commands */
 #define MBX_DBG_SYSPRINTF       (MBX_DBG_CLASS + 0x0)
-
-/*
- * Useful macros
- */
-/* DSP-DMA channel */
-#define MBX_SETDDMAVAL(x, y)  (MBX_DDMA_CLASS | (x << MBX_DDMA_BUFSHIFT) | \
-	(y << MBX_DDMA_CHNLSHIFT))
-
-/* Zero-Copy channel */
-#define MBX_SETZCPYVAL(x)  (MBX_ZCPY_CLASS | (x << MBX_ZCPY_CHNLSHIFT))
 
 #endif /* _MBX_SH_H */

@@ -120,17 +120,6 @@ static inline bool is_valid_proc_event(u32 x)
 	return (x == 0 || (x & VALID_PROC_EVENT && !(x & ~VALID_PROC_EVENT)));
 }
 
-#define IS_VALID_NODE_EVENT(x)    (((x) == 0) || \
-	(((x) & (DSP_NODESTATECHANGE | DSP_NODEMESSAGEREADY)) && \
-	!((x) & ~(DSP_NODESTATECHANGE | DSP_NODEMESSAGEREADY))))
-
-#define IS_VALID_STRM_EVENT(x)     (((x) == 0) || (((x) & (DSP_STREAMDONE | \
-				DSP_STREAMIOCOMPLETION)) && \
-				!((x) & ~(DSP_STREAMDONE | \
-				DSP_STREAMIOCOMPLETION))))
-
-#define IS_VALID_NOTIFY_MASK(x)   ((x) & DSP_SIGNALEVENT)
-
 /* The Node UUID structure */
 struct dsp_uuid {
 	u32 ul_data1;

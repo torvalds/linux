@@ -40,7 +40,6 @@
 #define CHNL_IOCSTATEOS      0x8000	/* End Of Stream reached. */
 
 /* Macros for checking I/O Completion status: */
-#define CHNL_IS_EOS(ioc)         (ioc.status & CHNL_IOCSTATEOS)
 #define CHNL_IS_IO_COMPLETE(ioc)  (!(ioc.status & ~CHNL_IOCSTATEOS))
 #define CHNL_IS_IO_CANCELLED(ioc) (ioc.status & CHNL_IOCSTATCANCEL)
 #define CHNL_IS_TIMED_OUT(ioc)    (ioc.status & CHNL_IOCSTATTIMEOUT)
