@@ -552,6 +552,14 @@ typedef struct drm_i915_private {
 		struct list_head fence_list;
 
 		/**
+		 * List of objects currently pending being freed.
+		 *
+		 * These objects are no longer in use, but due to a signal
+		 * we were prevented from freeing them at the appointed time.
+		 */
+		struct list_head deferred_free_list;
+
+		/**
 		 * We leave the user IRQ off as much as possible,
 		 * but this means that requests will finish and never
 		 * be retired once the system goes idle. Set a timer to

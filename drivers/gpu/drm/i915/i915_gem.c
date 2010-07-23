@@ -53,6 +53,7 @@ static int i915_gem_evict_from_inactive_list(struct drm_device *dev);
 static int i915_gem_phys_pwrite(struct drm_device *dev, struct drm_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
 				struct drm_file *file_priv);
+static void i915_gem_free_object_tail(struct drm_gem_object *obj);
 
 static LIST_HEAD(shrink_list);
 static DEFINE_SPINLOCK(shrink_list_lock);
@@ -1754,6 +1755,20 @@ void
 i915_gem_retire_requests(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (!list_empty(&dev_priv->mm.deferred_free_list)) {
+	    struct drm_i915_gem_object *obj_priv, *tmp;
+
+	    /* We must be careful that during unbind() we do not
+	     * accidentally infinitely recurse into retire requests.
+	     * Currently:
+	     *   retire -> free -> unbind -> wait -> retire_ring
+	     */
+	    list_for_each_entry_safe(obj_priv, tmp,
+				     &dev_priv->mm.deferred_free_list,
+				     list)
+		    i915_gem_free_object_tail(&obj_priv->base);
+	}
 
 	i915_gem_retire_requests_ring(dev, &dev_priv->render_ring);
 	if (HAS_BSD(dev))
@@ -4458,6 +4473,30 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 	return 0;
 }
 
+static void i915_gem_free_object_tail(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	int ret;
+
+	ret = i915_gem_object_unbind(obj);
+	if (ret == -ERESTARTSYS) {
+		list_move(&obj_priv->list,
+			  &dev_priv->mm.deferred_free_list);
+		return;
+	}
+
+	if (obj_priv->mmap_offset)
+		i915_gem_free_mmap_offset(obj);
+
+	drm_gem_object_release(obj);
+
+	kfree(obj_priv->page_cpu_valid);
+	kfree(obj_priv->bit_17);
+	kfree(obj_priv);
+}
+
 void i915_gem_free_object(struct drm_gem_object *obj)
 {
 	struct drm_device *dev = obj->dev;
@@ -4471,16 +4510,7 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	if (obj_priv->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
-	i915_gem_object_unbind(obj);
-
-	if (obj_priv->mmap_offset)
-		i915_gem_free_mmap_offset(obj);
-
-	drm_gem_object_release(obj);
-
-	kfree(obj_priv->page_cpu_valid);
-	kfree(obj_priv->bit_17);
-	kfree(obj_priv);
+	i915_gem_free_object_tail(obj);
 }
 
 /** Unbinds all inactive objects. */
@@ -4756,6 +4786,7 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.gpu_write_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
+	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.active_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.request_list);
 	if (HAS_BSD(dev)) {
