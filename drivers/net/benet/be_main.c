@@ -656,16 +656,42 @@ static int be_set_vf_mac(struct net_device *netdev, int vf, u8 *mac)
 	if (!is_valid_ether_addr(mac) || (vf >= num_vfs))
 		return -EINVAL;
 
-	if (adapter->vf_pmac_id[vf] != BE_INVALID_PMAC_ID)
-		status = be_cmd_pmac_del(adapter, adapter->vf_if_handle[vf],
-					adapter->vf_pmac_id[vf]);
+	if (adapter->vf_cfg[vf].vf_pmac_id != BE_INVALID_PMAC_ID)
+		status = be_cmd_pmac_del(adapter,
+					adapter->vf_cfg[vf].vf_if_handle,
+					adapter->vf_cfg[vf].vf_pmac_id);
 
-	status = be_cmd_pmac_add(adapter, mac, adapter->vf_if_handle[vf],
-				&adapter->vf_pmac_id[vf]);
-	if (!status)
+	status = be_cmd_pmac_add(adapter, mac,
+				adapter->vf_cfg[vf].vf_if_handle,
+				&adapter->vf_cfg[vf].vf_pmac_id);
+
+	if (status)
 		dev_err(&adapter->pdev->dev, "MAC %pM set on VF %d Failed\n",
 				mac, vf);
+	else
+		memcpy(adapter->vf_cfg[vf].vf_mac_addr, mac, ETH_ALEN);
+
 	return status;
+}
+
+static int be_get_vf_config(struct net_device *netdev, int vf,
+			struct ifla_vf_info *vi)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+
+	if (!adapter->sriov_enabled)
+		return -EPERM;
+
+	if (vf >= num_vfs)
+		return -EINVAL;
+
+	vi->vf = vf;
+	vi->tx_rate = 0;
+	vi->vlan = 0;
+	vi->qos = 0;
+	memcpy(&vi->mac, adapter->vf_cfg[vf].vf_mac_addr, ETH_ALEN);
+
+	return 0;
 }
 
 static void be_rx_rate_update(struct be_adapter *adapter)
@@ -1904,14 +1930,15 @@ static int be_setup(struct be_adapter *adapter)
 			cap_flags = en_flags = BE_IF_FLAGS_UNTAGGED
 					| BE_IF_FLAGS_BROADCAST;
 			status = be_cmd_if_create(adapter, cap_flags, en_flags,
-					mac, true, &adapter->vf_if_handle[vf],
+					mac, true,
+					&adapter->vf_cfg[vf].vf_if_handle,
 					NULL, vf+1);
 			if (status) {
 				dev_err(&adapter->pdev->dev,
 				"Interface Create failed for VF %d\n", vf);
 				goto if_destroy;
 			}
-			adapter->vf_pmac_id[vf] = BE_INVALID_PMAC_ID;
+			adapter->vf_cfg[vf].vf_pmac_id = BE_INVALID_PMAC_ID;
 			vf++;
 		}
 	} else if (!be_physfn(adapter)) {
@@ -1945,8 +1972,9 @@ tx_qs_destroy:
 	be_tx_queues_destroy(adapter);
 if_destroy:
 	for (vf = 0; vf < num_vfs; vf++)
-		if (adapter->vf_if_handle[vf])
-			be_cmd_if_destroy(adapter, adapter->vf_if_handle[vf]);
+		if (adapter->vf_cfg[vf].vf_if_handle)
+			be_cmd_if_destroy(adapter,
+					adapter->vf_cfg[vf].vf_if_handle);
 	be_cmd_if_destroy(adapter, adapter->if_handle);
 do_none:
 	return status;
@@ -2189,7 +2217,8 @@ static struct net_device_ops be_netdev_ops = {
 	.ndo_vlan_rx_register	= be_vlan_register,
 	.ndo_vlan_rx_add_vid	= be_vlan_add_vid,
 	.ndo_vlan_rx_kill_vid	= be_vlan_rem_vid,
-	.ndo_set_vf_mac		= be_set_vf_mac
+	.ndo_set_vf_mac		= be_set_vf_mac,
+	.ndo_get_vf_config	= be_get_vf_config
 };
 
 static void be_netdev_init(struct net_device *netdev)

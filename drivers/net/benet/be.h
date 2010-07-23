@@ -220,6 +220,12 @@ struct be_rx_obj {
 	struct be_rx_page_info page_info_tbl[RX_Q_LEN];
 };
 
+struct be_vf_cfg {
+	unsigned char vf_mac_addr[ETH_ALEN];
+	u32 vf_if_handle;
+	u32 vf_pmac_id;
+};
+
 #define BE_NUM_MSIX_VECTORS		2	/* 1 each for Tx and Rx */
 #define BE_INVALID_PMAC_ID		0xffffffff
 struct be_adapter {
@@ -289,8 +295,7 @@ struct be_adapter {
 	struct completion flash_compl;
 
 	bool sriov_enabled;
-	u32 vf_if_handle[BE_MAX_VF];
-	u32 vf_pmac_id[BE_MAX_VF];
+	struct be_vf_cfg vf_cfg[BE_MAX_VF];
 	u8 base_eq_id;
 	u8 is_virtfn;
 };
