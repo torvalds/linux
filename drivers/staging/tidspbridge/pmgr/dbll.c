@@ -41,10 +41,7 @@
 /* Max buffer length */
 #define MAXEXPR 128
 
-#ifndef UINT32_C
-#define UINT32_C(zzz) ((uint32_t)zzz)
-#endif
-#define DOFF_ALIGN(x) (((x) + 3) & ~UINT32_C(3))
+#define DOFF_ALIGN(x) (((x) + 3) & ~3UL)
 
 /*
  *  ======== struct dbll_tar_obj* ========

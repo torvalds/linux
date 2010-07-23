@@ -24,11 +24,8 @@
 #ifndef _DOFF_H
 #define _DOFF_H
 
-#ifndef UINT32_C
-#define UINT32_C(zzz) ((u32)zzz)
-#endif
 
-#define BYTE_RESHUFFLE_VALUE UINT32_C(0x00010203)
+#define BYTE_RESHUFFLE_VALUE 0x00010203
 
 /* DOFF file header containing fields categorizing the remainder of the file */
 struct doff_filehdr_t {
@@ -312,7 +309,7 @@ struct reloc_record_t {
 
 /* Return the address/size >= to addr that is at a 32-bit boundary */
 /* This assumes that a byte is 8 bits */
-#define         DOFF_ALIGN(addr)            (((addr) + 3) & ~UINT32_C(3))
+#define         DOFF_ALIGN(addr)            (((addr) + 3) & ~3UL)
 
 /**************************************************************************** */
 /* */

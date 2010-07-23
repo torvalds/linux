@@ -34,14 +34,6 @@ static const char err_alloc[] = { "Syms->dload_allocate( %d ) failed" };
 static const char stbl[] = { "Bad string table offset " FMT_UI32 };
 #endif
 
-/*
- * we use the fact that DOFF section records are shaped just like
- * ldr_section_info to reduce our section storage usage.  These macros
- * marks the places where that assumption is made
- */
-#define DOFFSEC_IS_LDRSEC(pdoffsec) ((struct ldr_section_info *)(pdoffsec))
-#define LDRSEC_IS_DOFFSEC(ldrsec) ((struct doff_scnhdr_t *)(ldrsec))
-
 /************************************************************** */
 /********************* SUPPORT FUNCTIONS ********************** */
 /************************************************************** */
@@ -110,7 +102,7 @@ static void expand_sec_names(struct dload_state *dlthis)
 	/* For each sec, copy and expand its name */
 	curr = xstrings;
 	for (sec = 0; sec < dlthis->dfile_hdr.df_no_scns; sec++) {
-		shp = DOFFSEC_IS_LDRSEC(&dlthis->sect_hdrs[sec]);
+		shp = (struct ldr_section_info *)&dlthis->sect_hdrs[sec];
 		next = unpack_sec_name(dlthis, *(u32 *) &shp->name, curr);
 		if (next == NULL)
 			break;	/* error */
@@ -213,7 +205,7 @@ void *dload_module_open(struct dynamic_loader_stream *module,
 	/* to a pointer into the string table. */
 	for (sec = 0; sec < dlthis->dfile_hdr.df_no_scns; sec++) {
 		struct ldr_section_info *shp =
-		    DOFFSEC_IS_LDRSEC(&dlthis->sect_hdrs[sec]);
+		    (struct ldr_section_info *)&dlthis->sect_hdrs[sec];
 		shp->name = dlthis->str_head + *(u32 *) &shp->name;
 	}
 #endif
@@ -249,7 +241,7 @@ int dload_get_section_info(void *minfo, const char *section_name,
 		return false;
 
 	for (sec = 0; sec < dlthis->dfile_hdr.df_no_scns; sec++) {
-		shp = DOFFSEC_IS_LDRSEC(&dlthis->sect_hdrs[sec]);
+		shp = (struct ldr_section_info *)&dlthis->sect_hdrs[sec];
 		if (strcmp(section_name, shp->name) == 0) {
 			*section_info = shp;
 			return true;
@@ -294,7 +286,7 @@ int dload_get_section(void *minfo,
 	dlthis = (struct dload_state *)minfo;
 	if (!dlthis)
 		return false;
-	sptr = LDRSEC_IS_DOFFSEC(section_info);
+	sptr = (struct doff_scnhdr_t *)section_info;
 	if (sptr == NULL)
 		return false;
 

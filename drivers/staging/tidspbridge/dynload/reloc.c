@@ -107,7 +107,7 @@ int dload_repack(struct dload_state *dlthis, rvalue val, tgt_au_t * data,
 
 	fieldsz -= 1;	/* avoid nastiness with 32-bit shift of 32-bit value */
 	/* clip the bits */
-	mask = ((UINT32_C(2) << fieldsz) - 1);
+	mask = (2UL << fieldsz) - 1;
 	objval = (val & mask);
 	/* * store the bits through the specified mask */
 	if (TARGET_BIG_ENDIAN) {

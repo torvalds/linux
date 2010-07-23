@@ -27,7 +27,7 @@
 #define C6X_TRAMP_MAX_RELOS			 8
 
 /*  THIS HASH FUNCTION MUST MATCH THE ONE reloc_table_c6000.c */
-#define HASH_FUNC(zz) (((((zz) + 1) * UINT32_C(1845)) >> 11) & 63)
+#define HASH_FUNC(zz) (((((zz) + 1) * 1845UL) >> 11) & 63)
 
 /*  THIS MUST MATCH reloc_record_t FOR A SYMBOL BASED RELO */
 struct c6000_relo_record {

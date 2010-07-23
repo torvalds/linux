@@ -16,7 +16,7 @@
 
 /* Tables generated for c6000 */
 
-#define HASH_FUNC(zz) (((((zz) + 1) * UINT32_C(1845)) >> 11) & 63)
+#define HASH_FUNC(zz) (((((zz) + 1) * 1845UL) >> 11) & 63)
 #define HASH_L(zz) ((zz) >> 8)
 #define HASH_I(zz) ((zz) & 0xFF)
 

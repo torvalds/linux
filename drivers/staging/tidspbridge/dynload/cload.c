@@ -20,13 +20,6 @@
 #define LINKER_MODULES_HEADER ("_" MODULES_HEADER)
 
 /*
- * we use the fact that DOFF section records are shaped just like
- * ldr_section_info to reduce our section storage usage.  This macro marks
- * the places where that assumption is made
- */
-#define DOFFSEC_IS_LDRSEC(pdoffsec) ((struct ldr_section_info *)(pdoffsec))
-
-/*
  * forward references
  */
 static void dload_symbols(struct dload_state *dlthis);
@@ -519,17 +512,17 @@ static void allocate_sections(struct dload_state *dlthis)
 #if BITS_PER_AU <= BITS_PER_BYTE
 		/* attempt to insert the name of this section */
 		if (soffset < dlthis->dfile_hdr.df_strtab_size)
-			DOFFSEC_IS_LDRSEC(shp)->name = dlthis->str_head +
-			    soffset;
+			((struct ldr_section_info *)shp)->name =
+				dlthis->str_head + soffset;
 		else {
 			dload_error(dlthis, "Bad name offset in section %d",
 				    curr_sect);
-			DOFFSEC_IS_LDRSEC(shp)->name = NULL;
+			((struct ldr_section_info *)shp)->name = NULL;
 		}
 #endif
 		/* allocate target storage for sections that require it */
 		if (ds_needs_allocation(shp)) {
-			*asecs = *DOFFSEC_IS_LDRSEC(shp);
+			*asecs = *(struct ldr_section_info *)shp;
 			asecs->context = 0;	/* zero the context field */
 #if BITS_PER_AU > BITS_PER_BYTE
 			asecs->name = unpack_name(dlthis, soffset);
@@ -1162,7 +1155,7 @@ static void dload_data(struct dload_state *dlthis)
 			if (curr_sect < dlthis->allocated_secn_count)
 				dlthis->delta_runaddr = sptr->ds_paddr;
 			else {
-				lptr = DOFFSEC_IS_LDRSEC(sptr);
+				lptr = (struct ldr_section_info *)sptr;
 				dlthis->delta_runaddr = 0;
 			}
 			dlthis->image_secn = lptr;
@@ -1337,7 +1330,7 @@ static void dload_data(struct dload_state *dlthis)
 			goto loop_cont;
 
 		if (curr_sect >= dlthis->allocated_secn_count)
-			lptr = DOFFSEC_IS_LDRSEC(sptr);
+			lptr = (struct ldr_section_info *)sptr;
 
 		if (cinit_processed) {
 			/*Don't clear BSS after load-time initialization */
