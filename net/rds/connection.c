@@ -117,6 +117,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 {
 	struct rds_connection *conn, *parent = NULL;
 	struct hlist_head *head = rds_conn_bucket(laddr, faddr);
+	struct rds_transport *loop_trans;
 	unsigned long flags;
 	int ret;
 
@@ -163,7 +164,9 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	 * can bind to the destination address then we'd rather the messages
 	 * flow through loopback rather than either transport.
 	 */
-	if (rds_trans_get_preferred(faddr)) {
+	loop_trans = rds_trans_get_preferred(faddr);
+	if (loop_trans) {
+		rds_trans_put(loop_trans);
 		conn->c_loopback = 1;
 		if (is_outgoing && trans->t_prefer_loopback) {
 			/* "outgoing" connection - and the transport

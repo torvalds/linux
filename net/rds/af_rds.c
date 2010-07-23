@@ -90,6 +90,8 @@ static int rds_release(struct socket *sock)
 	rds_sock_count--;
 	spin_unlock_irqrestore(&rds_sock_lock, flags);
 
+	rds_trans_put(rs->rs_transport);
+
 	sock->sk = NULL;
 	sock_put(sk);
 out:
