@@ -287,7 +287,10 @@ void ioat2_timer_event(unsigned long data)
 			chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
 			dev_err(to_dev(chan), "%s: Channel halted (%x)\n",
 				__func__, chanerr);
-			BUG_ON(is_ioat_bug(chanerr));
+			if (test_bit(IOAT_RUN, &chan->state))
+				BUG_ON(is_ioat_bug(chanerr));
+			else /* we never got off the ground */
+				return;
 		}
 
 		/* if we haven't made progress and we have already
@@ -492,6 +495,8 @@ static struct ioat_ring_ent **ioat2_alloc_ring(struct dma_chan *c, int order, gf
 	return ring;
 }
 
+void ioat2_free_chan_resources(struct dma_chan *c);
+
 /* ioat2_alloc_chan_resources - allocate/initialize ioat2 descriptor ring
  * @chan: channel to be initialized
  */
@@ -500,6 +505,7 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 	struct ioat_chan_common *chan = &ioat->base;
 	struct ioat_ring_ent **ring;
+	u64 status;
 	int order;
 
 	/* have we already been set up? */
@@ -540,7 +546,20 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	tasklet_enable(&chan->cleanup_task);
 	ioat2_start_null_desc(ioat);
 
-	return 1 << ioat->alloc_order;
+	/* check that we got off the ground */
+	udelay(5);
+	status = ioat_chansts(chan);
+	if (is_ioat_active(status) || is_ioat_idle(status)) {
+		set_bit(IOAT_RUN, &chan->state);
+		return 1 << ioat->alloc_order;
+	} else {
+		u32 chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
+
+		dev_WARN(to_dev(chan),
+			"failed to start channel chanerr: %#x\n", chanerr);
+		ioat2_free_chan_resources(c);
+		return -EFAULT;
+	}
 }
 
 bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
@@ -778,6 +797,7 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 	del_timer_sync(&chan->timer);
 	device->cleanup_fn((unsigned long) c);
 	device->reset_hw(chan);
+	clear_bit(IOAT_RUN, &chan->state);
 
 	spin_lock_bh(&chan->cleanup_lock);
 	spin_lock_bh(&ioat->prep_lock);
