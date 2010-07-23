@@ -250,16 +250,6 @@ struct srb_iocb {
 			uint32_t lun;
 			uint32_t data;
 		} tmf;
-		struct {
-			/*
-			 * values for modif field below are as
-			 * defined in mrk_entry_24xx struct
-			 * for the modifier field in qla_fw.h.
-			 */
-			uint8_t modif;
-			uint16_t lun;
-			uint32_t data;
-		} marker;
 	} u;
 
 	struct timer_list timer;
@@ -277,7 +267,6 @@ struct srb_iocb {
 #define SRB_CT_CMD	5
 #define SRB_ADISC_CMD	6
 #define SRB_TM_CMD	7
-#define SRB_MARKER_CMD	8
 
 struct srb_ctx {
 	uint16_t type;

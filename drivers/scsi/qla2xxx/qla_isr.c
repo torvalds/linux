@@ -1238,39 +1238,6 @@ qla24xx_tm_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	iocb->done(sp);
 }
 
-static void
-qla24xx_marker_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
-    struct mrk_entry_24xx *mrk)
-{
-	const char func[] = "MRK-IOCB";
-	const char *type;
-	fc_port_t *fcport;
-	srb_t *sp;
-	struct srb_iocb *iocb;
-	struct srb_ctx *ctx;
-	struct sts_entry_24xx *sts = (struct sts_entry_24xx *)mrk;
-
-	sp = qla2x00_get_sp_from_handle(vha, func, req, mrk);
-	if (!sp)
-		return;
-
-	ctx = sp->ctx;
-	iocb = ctx->u.iocb_cmd;
-	type = ctx->name;
-	fcport = sp->fcport;
-
-	if (sts->entry_status) {
-		iocb->u.marker.data = 1;
-		DEBUG2(printk(KERN_WARNING
-		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x.\n",
-		    fcport->vha->host_no, sp->handle, type,
-		    sts->entry_status));
-		DEBUG2(qla2x00_dump_buffer((uint8_t *)mrk, sizeof(*sts)));
-	}
-
-	iocb->done(sp);
-}
-
 /**
  * qla2x00_process_response_queue() - Process response queue entries.
  * @ha: SCSI driver HA context
@@ -1941,10 +1908,6 @@ void qla24xx_process_response_queue(struct scsi_qla_host *vha,
 		case TSK_MGMT_IOCB_TYPE:
 			qla24xx_tm_iocb_entry(vha, rsp->req,
 			    (struct tsk_mgmt_entry *)pkt);
-			break;
-		case MARKER_TYPE:
-			qla24xx_marker_iocb_entry(vha, rsp->req,
-			    (struct mrk_entry_24xx *)pkt);
 			break;
                 case CT_IOCB_TYPE:
 			qla24xx_els_ct_entry(vha, rsp->req, pkt, CT_IOCB_TYPE);

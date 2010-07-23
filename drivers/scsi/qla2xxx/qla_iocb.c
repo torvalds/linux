@@ -11,8 +11,6 @@
 
 #include <scsi/scsi_tcq.h>
 
-static request_t *qla2x00_req_pkt(struct scsi_qla_host *, struct req_que *,
-							struct rsp_que *rsp);
 static void qla2x00_isp_cmd(struct scsi_qla_host *, struct req_que *);
 
 static void qla25xx_set_que(srb_t *, struct rsp_que **);
@@ -474,7 +472,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	scsi_qla_host_t *base_vha = pci_get_drvdata(ha->pdev);
 
 	mrk24 = NULL;
-	mrk = (mrk_entry_t *)qla2x00_req_pkt(vha, req, rsp);
+	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, 0);
 	if (mrk == NULL) {
 		DEBUG2_3(printk("%s(%ld): failed to allocate Marker IOCB.\n",
 		    __func__, base_vha->host_no));
@@ -518,84 +516,6 @@ qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 	spin_unlock_irqrestore(&vha->hw->hardware_lock, flags);
 
 	return (ret);
-}
-
-/**
- * qla2x00_req_pkt() - Retrieve a request packet from the request ring.
- * @ha: HA context
- *
- * Note: The caller must hold the hardware lock before calling this routine.
- *
- * Returns NULL if function failed, else, a pointer to the request packet.
- */
-static request_t *
-qla2x00_req_pkt(struct scsi_qla_host *vha, struct req_que *req,
-		struct rsp_que *rsp)
-{
-	struct qla_hw_data *ha = vha->hw;
-	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
-	request_t	*pkt = NULL;
-	uint16_t	cnt;
-	uint32_t	*dword_ptr;
-	uint32_t	timer;
-	uint16_t	req_cnt = 1;
-
-	/* Wait 1 second for slot. */
-	for (timer = HZ; timer; timer--) {
-		if ((req_cnt + 2) >= req->cnt) {
-			/* Calculate number of free request entries. */
-			if (ha->mqenable)
-				cnt = (uint16_t)
-					RD_REG_DWORD(&reg->isp25mq.req_q_out);
-			else {
-				if (IS_QLA82XX(ha))
-					cnt = (uint16_t)RD_REG_DWORD(
-					    &reg->isp82.req_q_out);
-				else if (IS_FWI2_CAPABLE(ha))
-					cnt = (uint16_t)RD_REG_DWORD(
-						&reg->isp24.req_q_out);
-				else
-					cnt = qla2x00_debounce_register(
-						ISP_REQ_Q_OUT(ha, &reg->isp));
-			}
-			if  (req->ring_index < cnt)
-				req->cnt = cnt - req->ring_index;
-			else
-				req->cnt = req->length -
-				    (req->ring_index - cnt);
-		}
-		/* If room for request in request ring. */
-		if ((req_cnt + 2) < req->cnt) {
-			req->cnt--;
-			pkt = req->ring_ptr;
-
-			/* Zero out packet. */
-			dword_ptr = (uint32_t *)pkt;
-			for (cnt = 0; cnt < REQUEST_ENTRY_SIZE / 4; cnt++)
-				*dword_ptr++ = 0;
-
-			/* Set entry count. */
-			pkt->entry_count = 1;
-
-			break;
-		}
-
-		/* Release ring specific lock */
-		spin_unlock_irq(&ha->hardware_lock);
-
-		udelay(2);   /* 2 us */
-
-		/* Check for pending interrupts. */
-		/* During init we issue marker directly */
-		if (!vha->marker_needed && !vha->flags.init_done)
-			qla2x00_poll(rsp);
-		spin_lock_irq(&ha->hardware_lock);
-	}
-	if (!pkt) {
-		DEBUG2_3(printk("%s(): **** FAILED ****\n", __func__));
-	}
-
-	return (pkt);
 }
 
 /**
@@ -1559,11 +1479,9 @@ static void qla25xx_set_que(srb_t *sp, struct rsp_que **rsp)
 }
 
 /* Generic Control-SRB manipulation functions. */
-
-static void *
-qla2x00_alloc_iocbs(srb_t *sp)
+void *
+qla2x00_alloc_iocbs(scsi_qla_host_t *vha, srb_t *sp)
 {
-	scsi_qla_host_t	*vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = ha->req_q_map[0];
 	device_reg_t __iomem *reg = ISP_QUE_REG(ha, req->id);
@@ -1573,6 +1491,10 @@ qla2x00_alloc_iocbs(srb_t *sp)
 
 	pkt = NULL;
 	req_cnt = 1;
+	handle = 0;
+
+	if (!sp)
+		goto skip_cmd_array;
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
@@ -1586,10 +1508,18 @@ qla2x00_alloc_iocbs(srb_t *sp)
 	if (index == MAX_OUTSTANDING_COMMANDS)
 		goto queuing_error;
 
+	/* Prep command array. */
+	req->current_outstanding_cmd = handle;
+	req->outstanding_cmds[handle] = sp;
+	sp->handle = handle;
+
+skip_cmd_array:
 	/* Check for room on request queue. */
 	if (req->cnt < req_cnt) {
 		if (ha->mqenable)
 			cnt = RD_REG_DWORD(&reg->isp25mq.req_q_out);
+		else if (IS_QLA82XX(ha))
+			cnt = RD_REG_DWORD(&reg->isp82.req_q_out);
 		else if (IS_FWI2_CAPABLE(ha))
 			cnt = RD_REG_DWORD(&reg->isp24.req_q_out);
 		else
@@ -1606,15 +1536,11 @@ qla2x00_alloc_iocbs(srb_t *sp)
 		goto queuing_error;
 
 	/* Prep packet */
-	req->current_outstanding_cmd = handle;
-	req->outstanding_cmds[handle] = sp;
 	req->cnt -= req_cnt;
-
 	pkt = req->ring_ptr;
 	memset(pkt, 0, REQUEST_ENTRY_SIZE);
 	pkt->entry_count = req_cnt;
 	pkt->handle = handle;
-	sp->handle = handle;
 
 queuing_error:
 	return pkt;
@@ -1795,31 +1721,6 @@ qla24xx_tm_iocb(srb_t *sp, struct tsk_mgmt_entry *tsk)
 }
 
 static void
-qla24xx_marker_iocb(srb_t *sp, struct mrk_entry_24xx *mrk)
-{
-	uint16_t lun;
-	uint8_t modif;
-	struct fc_port *fcport = sp->fcport;
-	scsi_qla_host_t *vha = fcport->vha;
-	struct srb_ctx *ctx = sp->ctx;
-	struct srb_iocb *iocb = ctx->u.iocb_cmd;
-	struct req_que *req = vha->req;
-
-	lun = iocb->u.marker.lun;
-	modif = iocb->u.marker.modif;
-	mrk->entry_type = MARKER_TYPE;
-	mrk->modifier = modif;
-	if (modif !=  MK_SYNC_ALL) {
-		mrk->nport_handle = cpu_to_le16(fcport->loop_id);
-		mrk->lun[1] = LSB(lun);
-		mrk->lun[2] = MSB(lun);
-		host_to_fcp_swap(mrk->lun, sizeof(mrk->lun));
-		mrk->vp_index = vha->vp_idx;
-		mrk->handle = MAKE_HANDLE(req->id, mrk->handle);
-	}
-}
-
-static void
 qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 {
 	struct fc_bsg_job *bsg_job = ((struct srb_ctx *)sp->ctx)->u.bsg_job;
@@ -1945,7 +1846,7 @@ qla2x00_start_sp(srb_t *sp)
 
 	rval = QLA_FUNCTION_FAILED;
 	spin_lock_irqsave(&ha->hardware_lock, flags);
-	pkt = qla2x00_alloc_iocbs(sp);
+	pkt = qla2x00_alloc_iocbs(sp->fcport->vha, sp);
 	if (!pkt)
 		goto done;
 
@@ -1975,9 +1876,6 @@ qla2x00_start_sp(srb_t *sp)
 		break;
 	case SRB_TM_CMD:
 		qla24xx_tm_iocb(sp, pkt);
-		break;
-	case SRB_MARKER_CMD:
-		qla24xx_marker_iocb(sp, pkt);
 		break;
 	default:
 		break;

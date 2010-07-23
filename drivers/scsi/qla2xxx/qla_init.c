@@ -367,58 +367,6 @@ done:
 	return rval;
 }
 
-static void
-qla2x00_async_marker_ctx_done(srb_t *sp)
-{
-	struct srb_ctx *ctx = sp->ctx;
-	struct srb_iocb *iocb = (struct srb_iocb *)ctx->u.iocb_cmd;
-
-	qla2x00_async_marker_done(sp->fcport->vha, sp->fcport, iocb);
-	iocb->free(sp);
-}
-
-int
-qla2x00_async_marker(fc_port_t *fcport, uint16_t lun, uint8_t modif)
-{
-	struct scsi_qla_host *vha = fcport->vha;
-	srb_t *sp;
-	struct srb_ctx *ctx;
-	struct srb_iocb *mrk;
-	int rval;
-
-	rval = QLA_FUNCTION_FAILED;
-	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx), 0);
-	if (!sp)
-		goto done;
-
-	ctx = sp->ctx;
-	ctx->type = SRB_MARKER_CMD;
-	ctx->name = "marker";
-	mrk = ctx->u.iocb_cmd;
-	mrk->u.marker.lun = lun;
-	mrk->u.marker.modif = modif;
-	mrk->timeout = qla2x00_async_iocb_timeout;
-	mrk->done = qla2x00_async_marker_ctx_done;
-
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS)
-		goto done_free_sp;
-
-	DEBUG2(printk(KERN_DEBUG
-	    "scsi(%ld:%x): Async-marker - loop-id=%x "
-	    "portid=%02x%02x%02x.\n",
-	    fcport->vha->host_no, sp->handle, fcport->loop_id,
-	    fcport->d_id.b.domain, fcport->d_id.b.area,
-	    fcport->d_id.b.al_pa));
-
-	return rval;
-
-done_free_sp:
-	mrk->free(sp);
-done:
-	return rval;
-}
-
 void
 qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
@@ -500,31 +448,14 @@ qla2x00_async_tm_cmd_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	lun = (uint16_t)iocb->u.tmf.lun;
 
 	/* Issue Marker IOCB */
-	rval = qla2x00_async_marker(fcport, lun,
+	rval = qla2x00_marker(vha, vha->hw->req_q_map[0],
+		vha->hw->rsp_q_map[0], fcport->loop_id, lun,
 		flags == TCF_LUN_RESET ? MK_SYNC_ID_LUN : MK_SYNC_ID);
 
 	if ((rval != QLA_SUCCESS) || iocb->u.tmf.data) {
 		DEBUG2_3_11(printk(KERN_WARNING
 			"%s(%ld): TM IOCB failed (%x).\n",
 			__func__, vha->host_no, rval));
-	}
-
-	return;
-}
-
-void
-qla2x00_async_marker_done(struct scsi_qla_host *vha, fc_port_t *fcport,
-    struct srb_iocb *iocb)
-{
-	/*
-	 * Currently we dont have any specific post response processing
-	 * for this IOCB. We'll just return success or failed
-	 * depending on whether the IOCB command succeeded or failed.
-	 */
-	if (iocb->u.tmf.data) {
-		DEBUG2_3_11(printk(KERN_WARNING
-		    "%s(%ld): Marker IOCB failed (%x).\n",
-		    __func__, vha->host_no, iocb->u.tmf.data));
 	}
 
 	return;
