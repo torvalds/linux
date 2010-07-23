@@ -374,7 +374,7 @@ static struct android_usb_platform_data andusb_plat_factory = {
 };
 
 static struct platform_device usbnet_device = {
-	.name	= "usbnet",
+	.name = "usbnet",
 };
 
 /* bq24617 charger */
@@ -584,7 +584,6 @@ static int __init parse_tag_bdaddr(const struct tag *tag)
 
 	return 0;
 }
-
 __tagtable(ATAG_BDADDR, parse_tag_bdaddr);
 
 static void stingray_w1_init(void)
@@ -593,30 +592,50 @@ static void stingray_w1_init(void)
 	platform_device_register(&tegra_w1_device);
 }
 
-#define BOOT_MODE_MAX_LEN 30
-static char boot_mode[BOOT_MODE_MAX_LEN+1];
-int __init board_boot_mode_init(char *s)
+/* powerup reason */
+#define ATAG_POWERUP_REASON		 0xf1000401
+#define ATAG_POWERUP_REASON_SIZE 3 /* size + tag id + tag data */
 
+static unsigned int powerup_reason = PU_REASON_PWR_KEY_PRESS;
+
+static int __init parse_tag_powerup_reason(const struct tag *tag)
 {
-	strncpy(boot_mode, s, BOOT_MODE_MAX_LEN);
+	if (tag->hdr.size != ATAG_POWERUP_REASON_SIZE)
+		return -EINVAL;
+	memcpy(&powerup_reason, &tag->u, sizeof(powerup_reason));
+	printk(KERN_INFO "powerup reason=0x%08x\n", powerup_reason);
+	return 0;
+}
+__tagtable(ATAG_POWERUP_REASON, parse_tag_powerup_reason);
 
-	printk(KERN_INFO "boot_mode=%s\n", boot_mode);
-
+#define SERIAL_NUMBER_LENGTH 16
+static char usb_serial_num[SERIAL_NUMBER_LENGTH + 1];
+static int __init mot_usb_serial_num_setup(char *options)
+{
+	strncpy(usb_serial_num, options, SERIAL_NUMBER_LENGTH);
+	usb_serial_num[SERIAL_NUMBER_LENGTH] = '\0';
+	printk(KERN_INFO "usb_serial_num=%s\n", usb_serial_num);
 	return 1;
 }
-__setup("androidboot.mode=", board_boot_mode_init);
+__setup("androidboot.serialno=", mot_usb_serial_num_setup);
 
 static void stingray_gadget_init(void)
 {
-	int factory_test = !strcmp(boot_mode, "factorycable");
+	struct android_usb_platform_data *platform_data;
 
-	/* use different USB configuration when in factory test mode */
-	if (factory_test) {
-		androidusb_device.dev.platform_data = &andusb_plat_factory;
+	if (powerup_reason & PU_REASON_FACTORY_CABLE)
+	{
+		platform_data = &andusb_plat_factory;
 		platform_device_register(&usbnet_device);
 	}
+	else
+		platform_data = &andusb_plat;
+
+	platform_data->serial_number = usb_serial_num;
+	androidusb_device.dev.platform_data = platform_data;
 	platform_device_register(&androidusb_device);
 }
+
 static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
@@ -651,9 +670,9 @@ static void __init stingray_power_off_init(void)
 		pm_power_off = stingray_power_off;
 }
 
-static int stingray_board_revision = STINGRAY_REVISION_UNKNOWN;
+static unsigned int stingray_board_revision = STINGRAY_REVISION_UNKNOWN;
 
-int stingray_revision(void)
+unsigned int stingray_revision(void)
 {
 	return stingray_board_revision;
 }
@@ -668,10 +687,13 @@ static int __init stingray_revision_parse(char *options)
 		stingray_board_revision = STINGRAY_REVISION_P1;
 	else if (!strcmp(options, "p2"))
 		stingray_board_revision = STINGRAY_REVISION_P2;
+	else
+		stingray_board_revision = system_rev;
+
+	printk(KERN_INFO "hw_rev=0x%x\n", stingray_board_revision);
 
 	return 1;
 }
-
 __setup("hw_rev=", stingray_revision_parse);
 
 static void __init tegra_stingray_init(void)
