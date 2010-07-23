@@ -197,14 +197,32 @@ void read_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
 {
 	struct msi_desc *entry = get_irq_desc_msi(desc);
 
-	/* We do not touch the hardware (which may not even be
-	 * accessible at the moment) but return the last message
-	 * written.  Assert that this is valid, assuming that
-	 * valid messages are not all-zeroes. */
-	BUG_ON(!(entry->msg.address_hi | entry->msg.address_lo |
-		 entry->msg.data));
+	BUG_ON(entry->dev->current_state != PCI_D0);
 
-	*msg = entry->msg;
+	if (entry->msi_attrib.is_msix) {
+		void __iomem *base = entry->mask_base +
+			entry->msi_attrib.entry_nr * PCI_MSIX_ENTRY_SIZE;
+
+		msg->address_lo = readl(base + PCI_MSIX_ENTRY_LOWER_ADDR);
+		msg->address_hi = readl(base + PCI_MSIX_ENTRY_UPPER_ADDR);
+		msg->data = readl(base + PCI_MSIX_ENTRY_DATA);
+	} else {
+		struct pci_dev *dev = entry->dev;
+		int pos = entry->msi_attrib.pos;
+		u16 data;
+
+		pci_read_config_dword(dev, msi_lower_address_reg(pos),
+					&msg->address_lo);
+		if (entry->msi_attrib.is_64) {
+			pci_read_config_dword(dev, msi_upper_address_reg(pos),
+						&msg->address_hi);
+			pci_read_config_word(dev, msi_data_reg(pos, 1), &data);
+		} else {
+			msg->address_hi = 0;
+			pci_read_config_word(dev, msi_data_reg(pos, 0), &data);
+		}
+		msg->data = data;
+	}
 }
 
 void read_msi_msg(unsigned int irq, struct msi_msg *msg)
@@ -212,6 +230,25 @@ void read_msi_msg(unsigned int irq, struct msi_msg *msg)
 	struct irq_desc *desc = irq_to_desc(irq);
 
 	read_msi_msg_desc(desc, msg);
+}
+
+void get_cached_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
+{
+	struct msi_desc *entry = get_irq_desc_msi(desc);
+
+	/* Assert that the cache is valid, assuming that
+	 * valid messages are not all-zeroes. */
+	BUG_ON(!(entry->msg.address_hi | entry->msg.address_lo |
+		 entry->msg.data));
+
+	*msg = entry->msg;
+}
+
+void get_cached_msi_msg(unsigned int irq, struct msi_msg *msg)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+
+	get_cached_msi_msg_desc(desc, msg);
 }
 
 void write_msi_msg_desc(struct irq_desc *desc, struct msi_msg *msg)
