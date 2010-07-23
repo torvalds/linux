@@ -441,7 +441,7 @@ static void au0828_copy_vbi(struct au0828_dev *dev,
 			      unsigned char *outp, unsigned long len)
 {
 	unsigned char *startwrite, *startread;
-	int bytesperline = dev->vbi_width;
+	int bytesperline;
 	int i, j = 0;
 
 	if (dev == NULL) {
@@ -463,6 +463,8 @@ static void au0828_copy_vbi(struct au0828_dev *dev,
 		au0828_isocdbg("outp is null\n");
 		return;
 	}
+
+	bytesperline = dev->vbi_width;
 
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
