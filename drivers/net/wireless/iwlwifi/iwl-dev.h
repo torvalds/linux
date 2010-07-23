@@ -1052,7 +1052,6 @@ struct iwl_event_log {
 /* timer constants use to monitor and recover stuck tx queues in mSecs */
 #define IWL_MONITORING_PERIOD  (1000)
 #define IWL_ONE_HUNDRED_MSECS   (100)
-#define IWL_SIXTY_SECS          (60000)
 
 enum iwl_reset {
 	IWL_RF_RESET = 0,
