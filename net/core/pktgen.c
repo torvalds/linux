@@ -1434,18 +1434,12 @@ static ssize_t pktgen_if_write(struct file *file,
 		i += len;
 
 		for (*m = 0; *v && m < pkt_dev->dst_mac + 6; v++) {
-			if (*v >= '0' && *v <= '9') {
-				*m *= 16;
-				*m += *v - '0';
-			}
-			if (*v >= 'A' && *v <= 'F') {
-				*m *= 16;
-				*m += *v - 'A' + 10;
-			}
-			if (*v >= 'a' && *v <= 'f') {
-				*m *= 16;
-				*m += *v - 'a' + 10;
-			}
+			int value;
+
+			value = hex_to_bin(*v);
+			if (value >= 0)
+				*m = *m * 16 + value;
+
 			if (*v == ':') {
 				m++;
 				*m = 0;
@@ -1476,18 +1470,12 @@ static ssize_t pktgen_if_write(struct file *file,
 		i += len;
 
 		for (*m = 0; *v && m < pkt_dev->src_mac + 6; v++) {
-			if (*v >= '0' && *v <= '9') {
-				*m *= 16;
-				*m += *v - '0';
-			}
-			if (*v >= 'A' && *v <= 'F') {
-				*m *= 16;
-				*m += *v - 'A' + 10;
-			}
-			if (*v >= 'a' && *v <= 'f') {
-				*m *= 16;
-				*m += *v - 'a' + 10;
-			}
+			int value;
+
+			value = hex_to_bin(*v);
+			if (value >= 0)
+				*m = *m * 16 + value;
+
 			if (*v == ':') {
 				m++;
 				*m = 0;
