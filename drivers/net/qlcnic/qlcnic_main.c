@@ -1176,6 +1176,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 	ret = qlcnic_fw_create_ctx(adapter);
 	if (ret) {
 		qlcnic_detach(adapter);
+		netif_device_attach(netdev);
 		return ret;
 	}
 
