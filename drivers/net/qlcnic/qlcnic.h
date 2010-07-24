@@ -1301,8 +1301,6 @@ struct qlcnic_nic_template {
 	int (*get_mac_addr) (struct qlcnic_adapter *, u8*);
 	int (*config_bridged_mode) (struct qlcnic_adapter *, u32);
 	int (*config_led) (struct qlcnic_adapter *, u32, u32);
-	int (*set_ilb_mode) (struct qlcnic_adapter *);
-	void (*clear_ilb_mode) (struct qlcnic_adapter *);
 	int (*start_firmware) (struct qlcnic_adapter *);
 };
 

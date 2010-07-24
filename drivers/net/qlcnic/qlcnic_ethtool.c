@@ -678,6 +678,12 @@ static int qlcnic_loopback_test(struct net_device *netdev)
 	int max_sds_rings = adapter->max_sds_rings;
 	int ret;
 
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		dev_warn(&adapter->pdev->dev, "Loopback test not supported"
+				"for non privilege function\n");
+		return 0;
+	}
+
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
 
@@ -685,13 +691,13 @@ static int qlcnic_loopback_test(struct net_device *netdev)
 	if (ret)
 		goto clear_it;
 
-	ret = adapter->nic_ops->set_ilb_mode(adapter);
+	ret = qlcnic_set_ilb_mode(adapter);
 	if (ret)
 		goto done;
 
 	ret = qlcnic_do_ilb_test(adapter);
 
-	adapter->nic_ops->clear_ilb_mode(adapter);
+	qlcnic_clear_ilb_mode(adapter);
 
 done:
 	qlcnic_diag_free_res(netdev, max_sds_rings);

@@ -107,8 +107,6 @@ static void qlcnic_config_indev_addr(struct net_device *dev, unsigned long);
 static int qlcnic_start_firmware(struct qlcnic_adapter *);
 
 static void qlcnic_dev_set_npar_ready(struct qlcnic_adapter *);
-static void qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *);
-static int qlcnicvf_set_ilb_mode(struct qlcnic_adapter *);
 static int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
 static int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
 static int qlcnicvf_start_firmware(struct qlcnic_adapter *);
@@ -381,8 +379,6 @@ static struct qlcnic_nic_template qlcnic_ops = {
 	.get_mac_addr = qlcnic_get_mac_address,
 	.config_bridged_mode = qlcnic_config_bridged_mode,
 	.config_led = qlcnic_config_led,
-	.set_ilb_mode = qlcnic_set_ilb_mode,
-	.clear_ilb_mode = qlcnic_clear_ilb_mode,
 	.start_firmware = qlcnic_start_firmware
 };
 
@@ -390,8 +386,6 @@ static struct qlcnic_nic_template qlcnic_vf_ops = {
 	.get_mac_addr = qlcnic_get_mac_address,
 	.config_bridged_mode = qlcnicvf_config_bridged_mode,
 	.config_led = qlcnicvf_config_led,
-	.set_ilb_mode = qlcnicvf_set_ilb_mode,
-	.clear_ilb_mode = qlcnicvf_clear_ilb_mode,
 	.start_firmware = qlcnicvf_start_firmware
 };
 
@@ -2839,18 +2833,6 @@ static int
 qlcnicvf_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 {
 	return -EOPNOTSUPP;
-}
-
-static int
-qlcnicvf_set_ilb_mode(struct qlcnic_adapter *adapter)
-{
-	return -EOPNOTSUPP;
-}
-
-static void
-qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *adapter)
-{
-	return;
 }
 
 static ssize_t
