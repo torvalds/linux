@@ -68,7 +68,7 @@ enum opcode {
 	insn_pref, insn_rfe, insn_sc, insn_scd, insn_sd, insn_sll,
 	insn_sra, insn_srl, insn_rotr, insn_subu, insn_sw, insn_tlbp,
 	insn_tlbr, insn_tlbwi, insn_tlbwr, insn_xor, insn_xori,
-	insn_dins, insn_syscall
+	insn_dins, insn_syscall, insn_bbit0, insn_bbit1
 };
 
 struct insn {
@@ -143,6 +143,8 @@ static struct insn insn_table[] __cpuinitdata = {
 	{ insn_xori,  M(xori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_dins, M(spec3_op, 0, 0, 0, 0, dins_op), RS | RT | RD | RE },
 	{ insn_syscall, M(spec_op, 0, 0, 0, 0, syscall_op), SCIMM},
+	{ insn_bbit0, M(lwc2_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
+	{ insn_bbit1, M(swc2_op, 0, 0, 0, 0, 0), RS | RT | BIMM },
 	{ insn_invalid, 0, 0 }
 };
 
@@ -411,6 +413,8 @@ I_u3u1u2(_xor)
 I_u2u1u3(_xori)
 I_u2u1msbu3(_dins);
 I_u1(_syscall);
+I_u1u2s3(_bbit0);
+I_u1u2s3(_bbit1);
 
 /* Handle labels. */
 void __cpuinit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid)
@@ -619,4 +623,20 @@ uasm_il_bgez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid)
 {
 	uasm_r_mips_pc16(r, *p, lid);
 	uasm_i_bgez(p, reg, 0);
+}
+
+void __cpuinit
+uasm_il_bbit0(u32 **p, struct uasm_reloc **r, unsigned int reg,
+	      unsigned int bit, int lid)
+{
+	uasm_r_mips_pc16(r, *p, lid);
+	uasm_i_bbit0(p, reg, bit, 0);
+}
+
+void __cpuinit
+uasm_il_bbit1(u32 **p, struct uasm_reloc **r, unsigned int reg,
+	      unsigned int bit, int lid)
+{
+	uasm_r_mips_pc16(r, *p, lid);
+	uasm_i_bbit1(p, reg, bit, 0);
 }

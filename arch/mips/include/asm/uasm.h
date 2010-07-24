@@ -223,3 +223,7 @@ void uasm_il_bne(u32 **p, struct uasm_reloc **r, unsigned int reg1,
 void uasm_il_bnez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_bgezl(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
 void uasm_il_bgez(u32 **p, struct uasm_reloc **r, unsigned int reg, int lid);
+void uasm_il_bbit0(u32 **p, struct uasm_reloc **r, unsigned int reg,
+		   unsigned int bit, int lid);
+void uasm_il_bbit1(u32 **p, struct uasm_reloc **r, unsigned int reg,
+		   unsigned int bit, int lid);
