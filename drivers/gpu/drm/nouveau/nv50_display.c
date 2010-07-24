@@ -178,6 +178,17 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
 }
 
 int
+nv50_display_early_init(struct drm_device *dev)
+{
+	return 0;
+}
+
+void
+nv50_display_late_takedown(struct drm_device *dev)
+{
+}
+
+int
 nv50_display_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -528,7 +539,8 @@ int nv50_display_create(struct drm_device *dev)
 	return 0;
 }
 
-int nv50_display_destroy(struct drm_device *dev)
+void
+nv50_display_destroy(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
@@ -538,8 +550,6 @@ int nv50_display_destroy(struct drm_device *dev)
 
 	nv50_display_disable(dev);
 	nv50_evo_channel_del(&dev_priv->evo);
-
-	return 0;
 }
 
 static u16

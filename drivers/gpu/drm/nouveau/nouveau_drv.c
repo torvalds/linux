@@ -263,6 +263,9 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	if (dev_priv->gart_info.type == NOUVEAU_GART_AGP)
 		nouveau_mem_reset_agp(dev);
 
+	/* Make the CRTCs accessible */
+	engine->display.early_init(dev);
+
 	NV_INFO(dev, "POSTing device...\n");
 	ret = nouveau_run_vbios_init(dev);
 	if (ret)
@@ -325,10 +328,7 @@ nouveau_pci_resume(struct pci_dev *pdev)
 			NV_ERROR(dev, "Could not pin/map cursor.\n");
 	}
 
-	if (dev_priv->card_type < NV_50)
-		nv04_display_restore(dev);
-	else
-		nv50_display_init(dev);
+	engine->display.init(dev);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);

@@ -351,6 +351,14 @@ struct nouveau_pgraph_engine {
 				  uint32_t size, uint32_t pitch);
 };
 
+struct nouveau_display_engine {
+	int (*early_init)(struct drm_device *);
+	void (*late_takedown)(struct drm_device *);
+	int (*create)(struct drm_device *);
+	int (*init)(struct drm_device *);
+	void (*destroy)(struct drm_device *);
+};
+
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
 	struct nouveau_mc_engine      mc;
@@ -358,6 +366,7 @@ struct nouveau_engine {
 	struct nouveau_fb_engine      fb;
 	struct nouveau_pgraph_engine  graph;
 	struct nouveau_fifo_engine    fifo;
+	struct nouveau_display_engine display;
 };
 
 struct nouveau_pll_vals {
@@ -1081,9 +1090,11 @@ extern int nv04_tv_create(struct drm_connector *, struct dcb_entry *);
 extern int nv17_tv_create(struct drm_connector *, struct dcb_entry *);
 
 /* nv04_display.c */
+extern int nv04_display_early_init(struct drm_device *);
+extern void nv04_display_late_takedown(struct drm_device *);
 extern int nv04_display_create(struct drm_device *);
+extern int nv04_display_init(struct drm_device *);
 extern void nv04_display_destroy(struct drm_device *);
-extern void nv04_display_restore(struct drm_device *);
 
 /* nv04_crtc.c */
 extern int nv04_crtc_create(struct drm_device *, int index);

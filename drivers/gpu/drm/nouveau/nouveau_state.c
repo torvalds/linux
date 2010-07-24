@@ -84,6 +84,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
 		engine->fifo.load_context	= nv04_fifo_load_context;
 		engine->fifo.unload_context	= nv04_fifo_unload_context;
+		engine->display.early_init	= nv04_display_early_init;
+		engine->display.late_takedown	= nv04_display_late_takedown;
+		engine->display.create		= nv04_display_create;
+		engine->display.init		= nv04_display_init;
+		engine->display.destroy		= nv04_display_destroy;
 		break;
 	case 0x10:
 		engine->instmem.init		= nv04_instmem_init;
@@ -126,6 +131,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv10_fifo_destroy_context;
 		engine->fifo.load_context	= nv10_fifo_load_context;
 		engine->fifo.unload_context	= nv10_fifo_unload_context;
+		engine->display.early_init	= nv04_display_early_init;
+		engine->display.late_takedown	= nv04_display_late_takedown;
+		engine->display.create		= nv04_display_create;
+		engine->display.init		= nv04_display_init;
+		engine->display.destroy		= nv04_display_destroy;
 		break;
 	case 0x20:
 		engine->instmem.init		= nv04_instmem_init;
@@ -168,6 +178,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv10_fifo_destroy_context;
 		engine->fifo.load_context	= nv10_fifo_load_context;
 		engine->fifo.unload_context	= nv10_fifo_unload_context;
+		engine->display.early_init	= nv04_display_early_init;
+		engine->display.late_takedown	= nv04_display_late_takedown;
+		engine->display.create		= nv04_display_create;
+		engine->display.init		= nv04_display_init;
+		engine->display.destroy		= nv04_display_destroy;
 		break;
 	case 0x30:
 		engine->instmem.init		= nv04_instmem_init;
@@ -210,6 +225,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv10_fifo_destroy_context;
 		engine->fifo.load_context	= nv10_fifo_load_context;
 		engine->fifo.unload_context	= nv10_fifo_unload_context;
+		engine->display.early_init	= nv04_display_early_init;
+		engine->display.late_takedown	= nv04_display_late_takedown;
+		engine->display.create		= nv04_display_create;
+		engine->display.init		= nv04_display_init;
+		engine->display.destroy		= nv04_display_destroy;
 		break;
 	case 0x40:
 	case 0x60:
@@ -253,6 +273,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv40_fifo_destroy_context;
 		engine->fifo.load_context	= nv40_fifo_load_context;
 		engine->fifo.unload_context	= nv40_fifo_unload_context;
+		engine->display.early_init	= nv04_display_early_init;
+		engine->display.late_takedown	= nv04_display_late_takedown;
+		engine->display.create		= nv04_display_create;
+		engine->display.init		= nv04_display_init;
+		engine->display.destroy		= nv04_display_destroy;
 		break;
 	case 0x50:
 	case 0x80: /* gotta love NVIDIA's consistency.. */
@@ -297,6 +322,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fifo.destroy_context	= nv50_fifo_destroy_context;
 		engine->fifo.load_context	= nv50_fifo_load_context;
 		engine->fifo.unload_context	= nv50_fifo_unload_context;
+		engine->display.early_init	= nv50_display_early_init;
+		engine->display.late_takedown	= nv50_display_late_takedown;
+		engine->display.create		= nv50_display_create;
+		engine->display.init		= nv50_display_init;
+		engine->display.destroy		= nv50_display_destroy;
 		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
@@ -415,10 +445,15 @@ nouveau_card_init(struct drm_device *dev)
 	engine = &dev_priv->engine;
 	spin_lock_init(&dev_priv->context_switch_lock);
 
+	/* Make the CRTCs and I2C buses accessible */
+	ret = engine->display.early_init(dev);
+	if (ret)
+		goto out;
+
 	/* Parse BIOS tables / Run init tables if card not POSTed */
 	ret = nouveau_bios_init(dev);
 	if (ret)
-		goto out;
+		goto out_display_early;
 
 	ret = nouveau_mem_detect(dev);
 	if (ret)
@@ -474,10 +509,7 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_graph;
 	}
 
-	if (dev_priv->card_type >= NV_50)
-		ret = nv50_display_create(dev);
-	else
-		ret = nv04_display_create(dev);
+	ret = engine->display.create(dev);
 	if (ret)
 		goto out_fifo;
 
@@ -511,10 +543,7 @@ nouveau_card_init(struct drm_device *dev)
 out_irq:
 	drm_irq_uninstall(dev);
 out_display:
-	if (dev_priv->card_type >= NV_50)
-		nv50_display_destroy(dev);
-	else
-		nv04_display_destroy(dev);
+	engine->display.destroy(dev);
 out_fifo:
 	if (!nouveau_noaccel)
 		engine->fifo.takedown(dev);
@@ -538,6 +567,8 @@ out_gpuobj_early:
 	nouveau_gpuobj_late_takedown(dev);
 out_bios:
 	nouveau_bios_takedown(dev);
+out_display_early:
+	engine->display.late_takedown(dev);
 out:
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 	return ret;
@@ -562,6 +593,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	engine->fb.takedown(dev);
 	engine->timer.takedown(dev);
 	engine->mc.takedown(dev);
+	engine->display.late_takedown(dev);
 
 	mutex_lock(&dev->struct_mutex);
 	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
@@ -798,13 +830,11 @@ void nouveau_lastclose(struct drm_device *dev)
 int nouveau_unload(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_engine *engine = &dev_priv->engine;
 
 	drm_kms_helper_poll_fini(dev);
 	nouveau_fbcon_fini(dev);
-	if (dev_priv->card_type >= NV_50)
-		nv50_display_destroy(dev);
-	else
-		nv04_display_destroy(dev);
+	engine->display.destroy(dev);
 	nouveau_card_takedown(dev);
 
 	iounmap(dev_priv->mmio);

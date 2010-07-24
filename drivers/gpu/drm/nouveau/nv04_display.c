@@ -76,6 +76,32 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 }
 
 int
+nv04_display_early_init(struct drm_device *dev)
+{
+	/* Unlock the VGA CRTCs. */
+	NVLockVgaCrtcs(dev, false);
+
+	/* Make sure the CRTCs aren't in slaved mode. */
+	if (nv_two_heads(dev)) {
+		nv04_display_store_initial_head_owner(dev);
+		NVSetOwner(dev, 0);
+	}
+
+	return 0;
+}
+
+void
+nv04_display_late_takedown(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (nv_two_heads(dev))
+		NVSetOwner(dev, dev_priv->crtc_owner);
+
+	NVLockVgaCrtcs(dev, true);
+}
+
+int
 nv04_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -86,13 +112,6 @@ nv04_display_create(struct drm_device *dev)
 	int i, ret;
 
 	NV_DEBUG_KMS(dev, "\n");
-
-	NVLockVgaCrtcs(dev, false);
-
-	if (nv_two_heads(dev)) {
-		nv04_display_store_initial_head_owner(dev);
-		NVSetOwner(dev, 0);
-	}
 
 	nouveau_hw_save_vga_fonts(dev, 1);
 
@@ -176,7 +195,6 @@ nv04_display_create(struct drm_device *dev)
 void
 nv04_display_destroy(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 
@@ -204,19 +222,13 @@ nv04_display_destroy(struct drm_device *dev)
 	drm_mode_config_cleanup(dev);
 
 	nouveau_hw_save_vga_fonts(dev, 0);
-
-	if (nv_two_heads(dev))
-		NVSetOwner(dev, dev_priv->crtc_owner);
-	NVLockVgaCrtcs(dev, true);
 }
 
-void
-nv04_display_restore(struct drm_device *dev)
+int
+nv04_display_init(struct drm_device *dev)
 {
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
-
-	NVLockVgaCrtcs(dev, false);
 
 	/* meh.. modeset apparently doesn't setup all the regs and depends
 	 * on pre-existing state, for now load the state of the card *before*
@@ -234,5 +246,7 @@ nv04_display_restore(struct drm_device *dev)
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		crtc->funcs->restore(crtc);
+
+	return 0;
 }
 
