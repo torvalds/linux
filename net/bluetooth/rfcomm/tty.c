@@ -1153,7 +1153,7 @@ static const struct tty_operations rfcomm_ops = {
 	.tiocmset		= rfcomm_tty_tiocmset,
 };
 
-int rfcomm_init_ttys(void)
+int __init rfcomm_init_ttys(void)
 {
 	rfcomm_tty_driver = alloc_tty_driver(RFCOMM_TTY_PORTS);
 	if (!rfcomm_tty_driver)
@@ -1183,7 +1183,7 @@ int rfcomm_init_ttys(void)
 	return 0;
 }
 
-void rfcomm_cleanup_ttys(void)
+void __exit rfcomm_cleanup_ttys(void)
 {
 	tty_unregister_driver(rfcomm_tty_driver);
 	put_tty_driver(rfcomm_tty_driver);
