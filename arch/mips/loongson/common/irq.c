@@ -53,9 +53,6 @@ void __init arch_init_irq(void)
 	 */
 	clear_c0_status(ST0_IM | ST0_BEV);
 
-	/* setting irq trigger mode */
-	set_irq_trigger_mode();
-
 	/* no steer */
 	LOONGSON_INTSTEER = 0;
 

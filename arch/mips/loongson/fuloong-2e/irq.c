@@ -44,13 +44,6 @@ static struct irqaction cascade_irqaction = {
 	.name = "cascade",
 };
 
-void __init set_irq_trigger_mode(void)
-{
-	/* most bonito irq should be level triggered */
-	LOONGSON_INTEDGE = LOONGSON_ICU_SYSTEMERR | LOONGSON_ICU_MASTERERR |
-	    LOONGSON_ICU_RETRYERR | LOONGSON_ICU_MBOXES;
-}
-
 void __init mach_init_irq(void)
 {
 	/* init all controller
@@ -58,6 +51,10 @@ void __init mach_init_irq(void)
 	 *   16-23        ------> mips cpu interrupt
 	 *   32-63        ------> bonito irq
 	 */
+
+	/* most bonito irq should be level triggered */
+	LOONGSON_INTEDGE = LOONGSON_ICU_SYSTEMERR | LOONGSON_ICU_MASTERERR |
+	    LOONGSON_ICU_RETRYERR | LOONGSON_ICU_MBOXES;
 
 	/* Sets the first-level interrupt dispatcher. */
 	mips_cpu_irq_init();

@@ -91,13 +91,6 @@ void mach_irq_dispatch(unsigned int pending)
 		spurious_interrupt();
 }
 
-void __init set_irq_trigger_mode(void)
-{
-	/* setup cs5536 as high level trigger */
-	LOONGSON_INTPOL = LOONGSON_INT_BIT_INT0 | LOONGSON_INT_BIT_INT1;
-	LOONGSON_INTEDGE &= ~(LOONGSON_INT_BIT_INT0 | LOONGSON_INT_BIT_INT1);
-}
-
 static irqreturn_t ip6_action(int cpl, void *dev_id)
 {
 	return IRQ_HANDLED;
@@ -121,6 +114,10 @@ void __init mach_init_irq(void)
 	 *   16-23        ------> mips cpu interrupt
 	 *   32-63        ------> bonito irq
 	 */
+
+	/* setup cs5536 as high level trigger */
+	LOONGSON_INTPOL = LOONGSON_INT_BIT_INT0 | LOONGSON_INT_BIT_INT1;
+	LOONGSON_INTEDGE &= ~(LOONGSON_INT_BIT_INT0 | LOONGSON_INT_BIT_INT1);
 
 	/* Sets the first-level interrupt dispatcher. */
 	mips_cpu_irq_init();
