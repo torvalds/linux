@@ -25,15 +25,40 @@
 #define DCLK_POL		0
 #define SWAP_RB			0
 
-#define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
-#define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
-#define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C1_SCL
-#define CLK_SET()       gpio_set_value(RK2818_PIN_PE7, GPIO_HIGH)
-#define CLK_CLR()       gpio_set_value(RK2818_PIN_PE7, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C1_SDA
-#define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
-#define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
+
+#if defined (CONFIG_MACH_RK2818PHONE)  
+
+#define TXD_PORT        RK2818_PIN_PE6
+#define CLK_PORT        RK2818_PIN_PE7
+#define CS_PORT         RK2818_PIN_PA4
+
+#define CS_OUT()        gpio_direction_output(CS_PORT, 0)
+#define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0)  //I2C1_SCL
+#define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0)  //I2C1_SDA
+#define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
+
+#elif defined(CONFIG_MACH_RAHO)
+
+#define TXD_PORT        RK2818_PIN_PE4
+#define CLK_PORT        RK2818_PIN_PE5
+#define CS_PORT         RK2818_PIN_PH6
+
+#define CS_OUT()        gpio_direction_output(CS_PORT, 0)
+#define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0)  //I2C1_SCL
+#define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0)  //I2C1_SDA
+#define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
+
+#endif
 
 int init(void);
 int standby(u8 enable);
@@ -41,6 +66,7 @@ int standby(u8 enable);
 void screen_set_iomux(u8 enable)
 {
     int ret=-1;
+#if defined (CONFIG_MACH_RK2818PHONE)    
     if(enable)
     {
         rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
@@ -52,9 +78,9 @@ void screen_set_iomux(u8 enable)
             goto pin_err;
         }  
         
-        rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 0);                   
+        rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 0);    
 
-        ret = gpio_request(RK2818_PIN_PE7, NULL); 
+        ret = gpio_request(TXD_PORT, NULL); 
         if(0)//(ret != 0)
         {
             gpio_free(RK2818_PIN_PE7);
@@ -73,12 +99,52 @@ void screen_set_iomux(u8 enable)
     else
     {
          gpio_free(RK2818_PIN_PA4); 
-       //  rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
+         rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
 
          gpio_free(RK2818_PIN_PE7);   
          gpio_free(RK2818_PIN_PE6); 
          rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
     }
+#elif defined(CONFIG_MACH_RAHO)    
+    if(enable)
+    {
+        rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 0);
+        ret = gpio_request(CS_PORT, NULL); 
+        if(ret != 0)
+        {
+            gpio_free(CS_PORT);
+            printk(">>>>>> lcd cs gpio_request err \n ");           
+            goto pin_err;
+        }  
+        
+        rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 1);    
+
+        ret = gpio_request(TXD_PORT, NULL); 
+        if(ret != 0)
+        {
+            gpio_free(TXD_PORT);
+            printk(">>>>>> lcd clk gpio_request err \n "); 
+            goto pin_err;
+        }  
+        
+        ret = gpio_request(CLK_PORT, NULL); 
+        if(ret != 0)
+        {
+            gpio_free(CLK_PORT);
+            printk(">>>>>> lcd txd gpio_request err \n "); 
+            goto pin_err;
+        }        
+    }
+    else
+    {
+         gpio_free(CS_PORT); 
+         rk2818_mux_api_set(GPIOH6_IQ_SEL_NAME, 1);
+
+         gpio_free(TXD_PORT);   
+         gpio_free(CLK_PORT); 
+         rk2818_mux_api_set(GPIOE_I2C0_SEL_NAME, 0);
+    }
+#endif
     return ;
 pin_err:
     return ;
