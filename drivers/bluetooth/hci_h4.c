@@ -173,7 +173,7 @@ static struct hci_uart_proto h4p = {
 	.flush		= h4_flush,
 };
 
-int h4_init(void)
+int __init h4_init(void)
 {
 	int err = hci_uart_register_proto(&h4p);
 
@@ -185,7 +185,7 @@ int h4_init(void)
 	return err;
 }
 
-int h4_deinit(void)
+int __exit h4_deinit(void)
 {
 	return hci_uart_unregister_proto(&h4p);
 }
