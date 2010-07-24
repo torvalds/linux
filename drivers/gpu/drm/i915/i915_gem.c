@@ -128,8 +128,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 		return -ENOMEM;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	drm_gem_object_handle_unreference_unlocked(obj);
-
+	drm_gem_object_unreference_unlocked(obj);
 	if (ret)
 		return ret;
 
