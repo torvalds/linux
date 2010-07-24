@@ -36,7 +36,7 @@ struct pcmcia_device;
 struct config_t;
 struct net_device;
 
-typedef unsigned long window_handle_t;
+typedef struct resource *window_handle_t;
 
 /* dynamic device IDs for PCMCIA device drivers. See
  * Documentation/pcmcia/driver.txt for details.
@@ -63,6 +63,17 @@ struct pcmcia_driver {
 int pcmcia_register_driver(struct pcmcia_driver *driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver);
 
+/* for struct resource * array embedded in struct pcmcia_device */
+enum {
+	PCMCIA_IOPORT_0,
+	PCMCIA_IOPORT_1,
+	PCMCIA_IOMEM_0,
+	PCMCIA_IOMEM_1,
+	PCMCIA_IOMEM_2,
+	PCMCIA_IOMEM_3,
+	PCMCIA_NUM_RESOURCES,
+};
+
 struct pcmcia_device {
 	/* the socket and the device_no [for multifunction devices]
 	   uniquely define a pcmcia_device */
@@ -85,7 +96,7 @@ struct pcmcia_device {
 
 	/* device setup */
 	unsigned int		irq;
-	struct resource		*resource[MAX_IO_WIN];
+	struct resource		*resource[PCMCIA_NUM_RESOURCES];
 
 	unsigned int		io_lines; /* number of I/O lines */
 

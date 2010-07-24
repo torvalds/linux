@@ -40,6 +40,7 @@ typedef struct config_t {
 	unsigned int	CardValues;
 
 	struct resource io[MAX_IO_WIN]; /* io ports */
+	struct resource mem[MAX_WIN];   /* mem areas */
 
 	struct {
 		u_int	Attributes;

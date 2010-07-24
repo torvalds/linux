@@ -77,26 +77,19 @@ typedef struct win_req_t {
 } win_req_t;
 
 /* Attributes for RequestWindow */
-#define WIN_ADDR_SPACE		0x0001
-#define WIN_ADDR_SPACE_MEM	0x0000
-#define WIN_ADDR_SPACE_IO	0x0001
-#define WIN_MEMORY_TYPE		0x0002
-#define WIN_MEMORY_TYPE_CM	0x0000
-#define WIN_MEMORY_TYPE_AM	0x0002
-#define WIN_ENABLE		0x0004
-#define WIN_DATA_WIDTH		0x0018
-#define WIN_DATA_WIDTH_8	0x0000
-#define WIN_DATA_WIDTH_16	0x0008
-#define WIN_DATA_WIDTH_32	0x0010
-#define WIN_PAGED		0x0020
-#define WIN_SHARED		0x0040
-#define WIN_FIRST_SHARED	0x0080
-#define WIN_USE_WAIT		0x0100
-#define WIN_STRICT_ALIGN	0x0200
-#define WIN_MAP_BELOW_1MB	0x0400
-#define WIN_PREFETCH		0x0800
-#define WIN_CACHEABLE		0x1000
-#define WIN_BAR_MASK		0xe000
-#define WIN_BAR_SHIFT		13
+#define WIN_MEMORY_TYPE_CM	0x00 /* default */
+#define WIN_MEMORY_TYPE_AM	0x20 /* MAP_ATTRIB */
+#define WIN_DATA_WIDTH_8	0x00 /* default */
+#define WIN_DATA_WIDTH_16	0x02 /* MAP_16BIT */
+#define WIN_ENABLE		0x01 /* MAP_ACTIVE */
+#define WIN_USE_WAIT		0x40 /* MAP_USE_WAIT */
+
+#define WIN_FLAGS_MAP		0x63 /* MAP_ATTRIB | MAP_16BIT | MAP_ACTIVE |
+					MAP_USE_WAIT */
+#define WIN_FLAGS_REQ		0x1c /* mapping to socket->win[i]:
+					0x04 -> 0
+					0x08 -> 1
+					0x0c -> 2
+					0x10 -> 3 */
 
 #endif /* _LINUX_CS_H */

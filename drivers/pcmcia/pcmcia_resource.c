@@ -196,15 +196,17 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
 			unsigned int offset)
 {
 	struct pcmcia_socket *s = p_dev->socket;
+	struct resource *res = wh;
+	unsigned int w;
 	int ret;
 
-	wh--;
-	if (wh >= MAX_WIN)
+	w = ((res->flags & IORESOURCE_BITS & WIN_FLAGS_REQ) >> 2) - 1;
+	if (w >= MAX_WIN)
 		return -EINVAL;
 
 	mutex_lock(&s->ops_mutex);
-	s->win[wh].card_start = offset;
-	ret = s->ops->set_mem_map(s, &s->win[wh]);
+	s->win[w].card_start = offset;
+	ret = s->ops->set_mem_map(s, &s->win[w]);
 	if (ret)
 		dev_warn(&s->dev, "failed to set_mem_map\n");
 	mutex_unlock(&s->ops_mutex);
@@ -371,19 +373,22 @@ out:
 } /* pcmcia_release_io */
 
 
-int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
+int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	pccard_mem_map *win;
+	unsigned int w;
 
-	wh--;
-	if (wh >= MAX_WIN)
+	dev_dbg(&p_dev->dev, "releasing window %pR\n", res);
+
+	w = ((res->flags & IORESOURCE_BITS & WIN_FLAGS_REQ) >> 2) - 1;
+	if (w >= MAX_WIN)
 		return -EINVAL;
 
 	mutex_lock(&s->ops_mutex);
-	win = &s->win[wh];
+	win = &s->win[w];
 
-	if (!(p_dev->_win & CLIENT_WIN_REQ(wh))) {
+	if (!(p_dev->_win & CLIENT_WIN_REQ(w))) {
 		dev_dbg(&s->dev, "not releasing unknown window\n");
 		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
@@ -392,7 +397,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 	/* Shut down memory window */
 	win->flags &= ~MAP_ACTIVE;
 	s->ops->set_mem_map(s, win);
-	s->state &= ~SOCKET_WIN_REQ(wh);
+	s->state &= ~SOCKET_WIN_REQ(w);
 
 	/* Release system memory */
 	if (win->res) {
@@ -400,7 +405,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 		kfree(win->res);
 		win->res = NULL;
 	}
-	p_dev->_win &= ~CLIENT_WIN_REQ(wh);
+	p_dev->_win &= ~CLIENT_WIN_REQ(w);
 	mutex_unlock(&s->ops_mutex);
 
 	return 0;
@@ -775,23 +780,18 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	struct pcmcia_socket *s = p_dev->socket;
 	pccard_mem_map *win;
 	u_long align;
+	struct resource *res;
 	int w;
 
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "No card present\n");
 		return -ENODEV;
 	}
-	if (req->Attributes & (WIN_PAGED | WIN_SHARED)) {
-		dev_dbg(&s->dev, "bad attribute setting for iomem region\n");
-		return -EINVAL;
-	}
 
 	/* Window size defaults to smallest available */
 	if (req->Size == 0)
 		req->Size = s->map_size;
-	align = (((s->features & SS_CAP_MEM_ALIGN) ||
-		  (req->Attributes & WIN_STRICT_ALIGN)) ?
-		 req->Size : s->map_size);
+	align = (s->features & SS_CAP_MEM_ALIGN) ? req->Size : s->map_size;
 	if (req->Size & (s->map_size-1)) {
 		dev_dbg(&s->dev, "invalid map size\n");
 		return -EINVAL;
@@ -805,20 +805,21 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 		align = 0;
 
 	/* Allocate system memory window */
+	mutex_lock(&s->ops_mutex);
 	for (w = 0; w < MAX_WIN; w++)
 		if (!(s->state & SOCKET_WIN_REQ(w)))
 			break;
 	if (w == MAX_WIN) {
 		dev_dbg(&s->dev, "all windows are used already\n");
+		mutex_unlock(&s->ops_mutex);
 		return -EINVAL;
 	}
 
-	mutex_lock(&s->ops_mutex);
 	win = &s->win[w];
 
 	if (!(s->features & SS_CAP_STATIC_MAP)) {
 		win->res = pcmcia_find_mem_region(req->Base, req->Size, align,
-						      (req->Attributes & WIN_MAP_BELOW_1MB), s);
+						0, s);
 		if (!win->res) {
 			dev_dbg(&s->dev, "allocating mem region failed\n");
 			mutex_unlock(&s->ops_mutex);
@@ -829,16 +830,8 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 
 	/* Configure the socket controller */
 	win->map = w+1;
-	win->flags = 0;
+	win->flags = req->Attributes;
 	win->speed = req->AccessSpeed;
-	if (req->Attributes & WIN_MEMORY_TYPE)
-		win->flags |= MAP_ATTRIB;
-	if (req->Attributes & WIN_ENABLE)
-		win->flags |= MAP_ACTIVE;
-	if (req->Attributes & WIN_DATA_WIDTH_16)
-		win->flags |= MAP_16BIT;
-	if (req->Attributes & WIN_USE_WAIT)
-		win->flags |= MAP_USE_WAIT;
 	win->card_start = 0;
 
 	if (s->ops->set_mem_map(s, win) != 0) {
@@ -854,8 +847,16 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	else
 		req->Base = win->res->start;
 
+	/* convert to new-style resources */
+	res = p_dev->resource[w + MAX_IO_WIN];
+	res->start = req->Base;
+	res->end = req->Base + req->Size - 1;
+	res->flags &= ~IORESOURCE_BITS;
+	res->flags |= (req->Attributes & WIN_FLAGS_MAP) | (win->map << 2);
+	dev_dbg(&s->dev, "request_window results in %pR\n", res);
+
 	mutex_unlock(&s->ops_mutex);
-	*wh = w + 1;
+	*wh = res;
 
 	return 0;
 } /* pcmcia_request_window */
@@ -863,13 +864,18 @@ EXPORT_SYMBOL(pcmcia_request_window);
 
 void pcmcia_disable_device(struct pcmcia_device *p_dev)
 {
+	int i;
+	for (i = 0; i < MAX_WIN; i++) {
+		struct resource *res = p_dev->resource[MAX_IO_WIN + i];
+		if (res->flags & WIN_FLAGS_REQ)
+			pcmcia_release_window(p_dev, res);
+	}
+
 	pcmcia_release_configuration(p_dev);
 	pcmcia_release_io(p_dev);
 	if (p_dev->_irq) {
 		free_irq(p_dev->irq, p_dev->priv);
 		p_dev->_irq = 0;
 	}
-	if (p_dev->win)
-		pcmcia_release_window(p_dev, p_dev->win);
 }
 EXPORT_SYMBOL(pcmcia_disable_device);

@@ -157,15 +157,12 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	return 0;
 
 exit3:
-	pcmcia_release_window(p_dev, ipw->handle_attr_memory);
 exit2:
 	if (ipw->common_memory) {
 		release_mem_region(ipw->request_common_memory.Base,
 				ipw->request_common_memory.Size);
 		iounmap(ipw->common_memory);
-		pcmcia_release_window(p_dev, ipw->handle_common_memory);
-	} else
-		pcmcia_release_window(p_dev, ipw->handle_common_memory);
+	}
 exit1:
 	release_resource(io_resource);
 	pcmcia_disable_device(p_dev);
@@ -238,13 +235,12 @@ exit:
 		release_mem_region(ipw->request_attr_memory.Base,
 				ipw->request_attr_memory.Size);
 		iounmap(ipw->attr_memory);
-		pcmcia_release_window(link, ipw->handle_attr_memory);
+
 	}
 	if (ipw->common_memory) {
 		release_mem_region(ipw->request_common_memory.Base,
 				ipw->request_common_memory.Size);
 		iounmap(ipw->common_memory);
-		pcmcia_release_window(link, ipw->handle_common_memory);
 	}
 	pcmcia_disable_device(link);
 	return -1;
@@ -262,11 +258,6 @@ static void release_ipwireless(struct ipw_dev *ipw)
 				ipw->request_attr_memory.Size);
 		iounmap(ipw->attr_memory);
 	}
-	if (ipw->common_memory)
-		pcmcia_release_window(ipw->link, ipw->handle_common_memory);
-	if (ipw->attr_memory)
-		pcmcia_release_window(ipw->link, ipw->handle_attr_memory);
-
 	pcmcia_disable_device(ipw->link);
 }
 

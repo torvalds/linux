@@ -556,9 +556,15 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 			c->io[i].name = dev_name(&p_dev->dev);
 			c->io[i].flags = IORESOURCE_IO;
 		}
+		for (i = 0; i< MAX_WIN; i++) {
+			c->mem[i].name = dev_name(&p_dev->dev);
+			c->mem[i].flags = IORESOURCE_MEM;
+		}
 	}
 	for (i = 0; i < MAX_IO_WIN; i++)
 		p_dev->resource[i] = &p_dev->function_config->io[i];
+	for (; i < (MAX_IO_WIN + MAX_WIN); i++)
+		p_dev->resource[i] = &p_dev->function_config->mem[i-MAX_IO_WIN];
 
 	mutex_unlock(&s->ops_mutex);
 

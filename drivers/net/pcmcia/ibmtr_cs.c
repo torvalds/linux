@@ -319,7 +319,6 @@ static void ibmtr_release(struct pcmcia_device *link)
 	if (link->win) {
 		struct tok_info *ti = netdev_priv(dev);
 		iounmap(ti->mmio);
-		pcmcia_release_window(link, info->sram_win_handle);
 	}
 	pcmcia_disable_device(link);
 }

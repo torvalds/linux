@@ -76,8 +76,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	dev->conf.Attributes = CONF_ENABLE_IRQ;
 	dev->conf.IntType = INT_MEMORY_AND_IO;
 
-	win.Attributes = WIN_ADDR_SPACE_MEM | WIN_MEMORY_TYPE_CM |
-			 WIN_ENABLE | WIN_DATA_WIDTH_16 |
+	win.Attributes =  WIN_ENABLE | WIN_DATA_WIDTH_16 |
 			 WIN_USE_WAIT;
 	win.Base = 0;
 	win.Size = SSB_CORE_SIZE;
