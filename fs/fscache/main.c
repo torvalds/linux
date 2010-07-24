@@ -186,7 +186,9 @@ static void __exit fscache_exit(void)
 
 	kobject_put(fscache_root);
 	kmem_cache_destroy(fscache_cookie_jar);
+#ifdef CONFIG_SYSCTL
 	unregister_sysctl_table(fscache_sysctl_header);
+#endif
 	fscache_proc_cleanup();
 	destroy_workqueue(fscache_op_wq);
 	destroy_workqueue(fscache_object_wq);
