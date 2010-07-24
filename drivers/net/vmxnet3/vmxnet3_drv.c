@@ -664,8 +664,13 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 	while (len) {
 		u32 buf_size;
 
-		buf_size = len > VMXNET3_MAX_TX_BUF_SIZE ?
-			   VMXNET3_MAX_TX_BUF_SIZE : len;
+		if (len < VMXNET3_MAX_TX_BUF_SIZE) {
+			buf_size = len;
+			dw2 |= len;
+		} else {
+			buf_size = VMXNET3_MAX_TX_BUF_SIZE;
+			/* spec says that for TxDesc.len, 0 == 2^14 */
+		}
 
 		tbi = tq->buf_info + tq->tx_ring.next2fill;
 		tbi->map_type = VMXNET3_MAP_SINGLE;
@@ -673,13 +678,13 @@ vmxnet3_map_pkt(struct sk_buff *skb, struct vmxnet3_tx_ctx *ctx,
 				skb->data + buf_offset, buf_size,
 				PCI_DMA_TODEVICE);
 
-		tbi->len = buf_size; /* this automatically convert 2^14 to 0 */
+		tbi->len = buf_size;
 
 		gdesc = tq->tx_ring.base + tq->tx_ring.next2fill;
 		BUG_ON(gdesc->txd.gen == tq->tx_ring.gen);
 
 		gdesc->txd.addr = cpu_to_le64(tbi->dma_addr);
-		gdesc->dword[2] = cpu_to_le32(dw2 | buf_size);
+		gdesc->dword[2] = cpu_to_le32(dw2);
 		gdesc->dword[3] = 0;
 
 		dev_dbg(&adapter->netdev->dev,
