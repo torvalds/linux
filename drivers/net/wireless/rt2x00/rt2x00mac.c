@@ -273,17 +273,24 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	mutex_init(&intf->beacon_skb_mutex);
 	intf->beacon = entry;
 
-	if (vif->type == NL80211_IFTYPE_AP)
-		memcpy(&intf->bssid, vif->addr, ETH_ALEN);
-	memcpy(&intf->mac, vif->addr, ETH_ALEN);
-
 	/*
 	 * The MAC adddress must be configured after the device
 	 * has been initialized. Otherwise the device can reset
 	 * the MAC registers.
+	 * The BSSID address must only be configured in AP mode,
+	 * however we should not send an empty BSSID address for
+	 * STA interfaces at this time, since this can cause
+	 * invalid behavior in the device.
 	 */
-	rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
-			      intf->mac, intf->bssid);
+	memcpy(&intf->mac, vif->addr, ETH_ALEN);
+	if (vif->type == NL80211_IFTYPE_AP) {
+		memcpy(&intf->bssid, vif->addr, ETH_ALEN);
+		rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
+				      intf->mac, intf->bssid);
+	} else {
+		rt2x00lib_config_intf(rt2x00dev, intf, vif->type,
+				      intf->mac, NULL);
+	}
 
 	/*
 	 * Some filters depend on the current working mode. We can force
