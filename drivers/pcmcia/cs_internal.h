@@ -35,7 +35,9 @@ typedef struct config_t {
 	unsigned int	ConfigBase;
 	unsigned char	Status, Pin, Copy, Option, ExtStatus;
 	unsigned int	CardValues;
-	io_req_t	io;
+
+	struct resource io[MAX_IO_WIN]; /* io ports */
+
 	struct {
 		u_int	Attributes;
 	} irq;

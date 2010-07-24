@@ -68,9 +68,6 @@ typedef struct io_req_t {
 } io_req_t;
 
 /* Attributes for RequestIO and ReleaseIO */
-#define IO_SHARED		0x01
-#define IO_FIRST_SHARED		0x02
-#define IO_FORCE_ALIAS_ACCESS	0x04
 #define IO_DATA_PATH_WIDTH	0x18
 #define IO_DATA_PATH_WIDTH_8	0x00
 #define IO_DATA_PATH_WIDTH_16	0x08

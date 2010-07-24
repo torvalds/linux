@@ -531,7 +531,6 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 	list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
 		if (p_dev->func == tmp_dev->func) {
 			p_dev->function_config = tmp_dev->function_config;
-			p_dev->io = tmp_dev->io;
 			p_dev->irq = tmp_dev->irq;
 			kref_get(&p_dev->function_config->ref);
 		}
@@ -544,15 +543,23 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 			"IRQ setup failed -- device might not work\n");
 
 	if (!p_dev->function_config) {
+		config_t *c;
 		dev_dbg(&p_dev->dev, "creating config_t\n");
-		p_dev->function_config = kzalloc(sizeof(struct config_t),
-						 GFP_KERNEL);
-		if (!p_dev->function_config) {
+		c = kzalloc(sizeof(struct config_t), GFP_KERNEL);
+		if (!c) {
 			mutex_unlock(&s->ops_mutex);
 			goto err_unreg;
 		}
-		kref_init(&p_dev->function_config->ref);
+		p_dev->function_config = c;
+		kref_init(&c->ref);
+		for (i = 0; i < MAX_IO_WIN; i++) {
+			c->io[i].name = dev_name(&p_dev->dev);
+			c->io[i].flags = IORESOURCE_IO;
+		}
 	}
+	for (i = 0; i < MAX_IO_WIN; i++)
+		p_dev->resource[i] = &p_dev->function_config->io[i];
+
 	mutex_unlock(&s->ops_mutex);
 
 	dev_printk(KERN_NOTICE, &p_dev->dev,

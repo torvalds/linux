@@ -80,13 +80,13 @@ struct pcmcia_device {
 	struct list_head	socket_device_list;
 
 	/* deprecated, will be cleaned up soon */
-	u_int			open;
 	io_req_t		io;
 	config_req_t		conf;
 	window_handle_t		win;
 
 	/* device setup */
 	unsigned int		irq;
+	struct resource		*resource[MAX_IO_WIN];
 
 	/* Is the device suspended? */
 	u16			suspended:1;
@@ -120,6 +120,7 @@ struct pcmcia_device {
 
 	/* data private to drivers */
 	void			*priv;
+	unsigned int		open;
 };
 
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
