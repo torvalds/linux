@@ -572,8 +572,8 @@ static int dtl1_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	link->resource[0]->end = 8;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -597,14 +597,13 @@ static int dtl1_confcheck(struct pcmcia_device *p_dev,
 			  unsigned int vcc,
 			  void *priv_data)
 {
-	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.NumPorts1 = cf->io.win[0].len;	/*yo */
-		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
-			return 0;
-	}
-	return -ENODEV;
+	if ((cf->io.nwin != 1) || (cf->io.win[0].len <= 8))
+		return -ENODEV;
+
+	p_dev->resource[0]->start = cf->io.win[0].base;
+	p_dev->resource[0]->end = cf->io.win[0].len;	/*yo */
+	p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	return pcmcia_request_io(p_dev);
 }
 
 static int dtl1_config(struct pcmcia_device *link)
@@ -613,7 +612,7 @@ static int dtl1_config(struct pcmcia_device *link)
 	int i;
 
 	/* Look for a generic full-sized window */
-	link->io.NumPorts1 = 8;
+	link->resource[0]->end = 8;
 	if (pcmcia_loop_config(link, dtl1_confcheck, NULL) < 0)
 		goto failed;
 

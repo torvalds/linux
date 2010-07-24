@@ -145,9 +145,8 @@ static int wl_adapter_attach(struct pcmcia_device *link)
 	return -ENOMEM;
     }
 
-    link->io.NumPorts1      = HCF_NUM_IO_PORTS;
-    link->io.Attributes1    = IO_DATA_PATH_WIDTH_16;
-    link->io.IOAddrLines    = 6;
+    link->resource[0]->end      = HCF_NUM_IO_PORTS;
+    link->resource[0]->flags    = IO_DATA_PATH_WIDTH_16;
     link->conf.Attributes   = CONF_ENABLE_IRQ;
     link->conf.IntType      = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex  = 5;
@@ -305,8 +304,9 @@ void wl_adapter_insert( struct pcmcia_device *link )
 
     /* Do we need to allocate an interrupt? */
     link->conf.Attributes |= CONF_ENABLE_IRQ;
+    link->io_lines = 6;
 
-    ret = pcmcia_request_io(link, &link->io);
+    ret = pcmcia_request_io(link);
     if (ret != 0)
         goto failed;
 

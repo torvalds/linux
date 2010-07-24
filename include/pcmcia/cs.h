@@ -56,23 +56,6 @@ typedef struct config_req_t {
 #define INT_CARDBUS		0x04
 #define INT_ZOOMED_VIDEO	0x08
 
-/* For RequestIO and ReleaseIO */
-typedef struct io_req_t {
-    u_int	BasePort1;
-    u_int	NumPorts1;
-    u_int	Attributes1;
-    u_int	BasePort2;
-    u_int	NumPorts2;
-    u_int	Attributes2;
-    u_int	IOAddrLines;
-} io_req_t;
-
-/* Attributes for RequestIO and ReleaseIO */
-#define IO_DATA_PATH_WIDTH	0x18
-#define IO_DATA_PATH_WIDTH_8	0x00
-#define IO_DATA_PATH_WIDTH_16	0x08
-#define IO_DATA_PATH_WIDTH_AUTO	0x10
-
 /* Bits in IRQInfo1 field */
 #define IRQ_NMI_ID		0x01
 #define IRQ_IOCK_ID		0x02

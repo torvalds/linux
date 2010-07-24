@@ -315,9 +315,8 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	local->finder = p_dev;
 
 	/* The io structure describes IO port mapping. None used here */
-	p_dev->io.NumPorts1 = 0;
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines = 5;
+	p_dev->resource[0]->end = 0;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
 	p_dev->conf.Attributes = CONF_ENABLE_IRQ;

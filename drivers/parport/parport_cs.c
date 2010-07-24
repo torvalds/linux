@@ -101,8 +101,8 @@ static int parport_probe(struct pcmcia_device *link)
     link->priv = info;
     info->p_dev = link;
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -143,16 +143,16 @@ static int parport_config_check(struct pcmcia_device *p_dev,
 {
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
 		if (epp_mode)
 			p_dev->conf.ConfigIndex |= FORCE_EPP_MODE;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
-		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
 		if (io->nwin == 2) {
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
-		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+		if (pcmcia_request_io(p_dev) != 0)
 			return -ENODEV;
 		return 0;
 	}

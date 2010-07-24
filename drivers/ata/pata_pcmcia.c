@@ -200,21 +200,23 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		pdev->io.BasePort1 = io->win[0].base;
-		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-		if (!(io->flags & CISTPL_IO_16BIT))
-			pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		pdev->io_lines = io->flags & CISTPL_IO_LINES_MASK;
+		pdev->resource[0]->start = io->win[0].base;
+		if (!(io->flags & CISTPL_IO_16BIT)) {
+			pdev->resource[0]->flags &= ~IO_DATA_PATH_WIDTH;
+			pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+		}
 		if (io->nwin == 2) {
-			pdev->io.NumPorts1 = 8;
-			pdev->io.BasePort2 = io->win[1].base;
-			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
-			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+			pdev->resource[0]->end = 8;
+			pdev->resource[1]->start = io->win[1].base;
+			pdev->resource[1]->end = (stk->is_kme) ? 2 : 1;
+			if (pcmcia_request_io(pdev) != 0)
 				return -ENODEV;
 			stk->ctl_base = pdev->resource[1]->start;
 		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
-			pdev->io.NumPorts1 = io->win[0].len;
-			pdev->io.NumPorts2 = 0;
-			if (pcmcia_request_io(pdev, &pdev->io) != 0)
+			pdev->resource[0]->end = io->win[0].len;
+			pdev->resource[1]->end = 0;
+			if (pcmcia_request_io(pdev) != 0)
 				return -ENODEV;
 			stk->ctl_base = pdev->resource[0]->start + 0x0e;
 		} else
@@ -245,9 +247,8 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	struct ata_port_operations *ops = &pcmcia_port_ops;
 
 	/* Set up attributes in order to probe card and get resources */
-	pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	pdev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	pdev->io.IOAddrLines = 3;
+	pdev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	pdev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	pdev->conf.Attributes = CONF_ENABLE_IRQ;
 	pdev->conf.IntType = INT_MEMORY_AND_IO;
 

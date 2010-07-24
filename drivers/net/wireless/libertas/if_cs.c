@@ -801,9 +801,9 @@ static int if_cs_ioprobe(struct pcmcia_device *p_dev,
 			 unsigned int vcc,
 			 void *priv_data)
 {
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
 
 	/* Do we need to allocate an interrupt? */
 	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
@@ -815,7 +815,7 @@ static int if_cs_ioprobe(struct pcmcia_device *p_dev,
 	}
 
 	/* This reserves IO space but doesn't actually enable it */
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	return pcmcia_request_io(p_dev);
 }
 
 static int if_cs_probe(struct pcmcia_device *p_dev)

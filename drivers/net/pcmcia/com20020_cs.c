@@ -158,9 +158,8 @@ static int com20020_probe(struct pcmcia_device *p_dev)
     /* fill in our module parameters as defaults */
     dev->dev_addr[0] = node;
 
-    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    p_dev->io.NumPorts1 = 16;
-    p_dev->io.IOAddrLines = 16;
+    p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    p_dev->resource[0]->end = 16;
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -245,20 +244,24 @@ static int com20020_config(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "com20020_config\n");
 
-    dev_dbg(&link->dev, "baseport1 is %Xh\n", link->io.BasePort1);
+    dev_dbg(&link->dev, "baseport1 is %Xh\n",
+	    (unsigned int) link->resource[0]->start);
+
     i = -ENODEV;
-    if (!link->io.BasePort1)
+    link->io_lines = 16;
+
+    if (!link->resource[0]->start)
     {
 	for (ioaddr = 0x100; ioaddr < 0x400; ioaddr += 0x10)
 	{
-	    link->io.BasePort1 = ioaddr;
-	    i = pcmcia_request_io(link, &link->io);
+	    link->resource[0]->start = ioaddr;
+	    i = pcmcia_request_io(link);
 	    if (i == 0)
 		break;
 	}
     }
     else
-	i = pcmcia_request_io(link, &link->io);
+	i = pcmcia_request_io(link);
     
     if (i != 0)
     {

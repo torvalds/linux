@@ -80,13 +80,14 @@ struct pcmcia_device {
 	struct list_head	socket_device_list;
 
 	/* deprecated, will be cleaned up soon */
-	io_req_t		io;
 	config_req_t		conf;
 	window_handle_t		win;
 
 	/* device setup */
 	unsigned int		irq;
 	struct resource		*resource[MAX_IO_WIN];
+
+	unsigned int		io_lines; /* number of I/O lines */
 
 	/* Is the device suspended? */
 	u16			suspended:1;
@@ -179,7 +180,7 @@ int pcmcia_read_config_byte(struct pcmcia_device *p_dev, off_t where, u8 *val);
 int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val);
 
 /* device configuration */
-int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
+int pcmcia_request_io(struct pcmcia_device *p_dev);
 
 int __must_check
 __pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
@@ -205,6 +206,22 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t win,
 
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
 void pcmcia_disable_device(struct pcmcia_device *p_dev);
+
+/* IO ports */
+#define IO_DATA_PATH_WIDTH	0x18
+#define IO_DATA_PATH_WIDTH_8	0x00
+#define IO_DATA_PATH_WIDTH_16	0x08
+#define IO_DATA_PATH_WIDTH_AUTO	0x10
+
+/* convert flag found in cfgtable to data path width parameter */
+static inline int pcmcia_io_cfg_data_width(unsigned int flags)
+{
+	if (!(flags & CISTPL_IO_8BIT))
+		return IO_DATA_PATH_WIDTH_16;
+	if (!(flags & CISTPL_IO_16BIT))
+		return IO_DATA_PATH_WIDTH_8;
+	return IO_DATA_PATH_WIDTH_AUTO;
+}
 
 #endif /* __KERNEL__ */
 

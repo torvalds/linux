@@ -126,9 +126,8 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
       and attributes of IO windows) are fixed by the nature of the
       device, and can be hard-wired here.
     */
-    link->io.NumPorts1 = 8;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 3;
+    link->resource[0]->end = 8;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -173,16 +172,18 @@ static int elsa_cs_configcheck(struct pcmcia_device *p_dev,
 {
 	int j;
 
+	p_dev->io_lines = 3;
+
 	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
 		printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	} else {
 		printk(KERN_INFO "(elsa_cs: looks like the 97 model)\n");
 		for (j = 0x2f0; j > 0x100; j -= 0x10) {
-			p_dev->io.BasePort1 = j;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[0]->start = j;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}

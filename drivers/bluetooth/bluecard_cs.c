@@ -865,9 +865,6 @@ static int bluecard_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
-
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -890,12 +887,14 @@ static int bluecard_config(struct pcmcia_device *link)
 	int i, n;
 
 	link->conf.ConfigIndex = 0x20;
-	link->io.NumPorts1 = 64;
-	link->io.IOAddrLines = 6;
+
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	link->resource[0]->end = 64;
+	link->io_lines = 6;
 
 	for (n = 0; n < 0x400; n += 0x40) {
-		link->io.BasePort1 = n ^ 0x300;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = n ^ 0x300;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}

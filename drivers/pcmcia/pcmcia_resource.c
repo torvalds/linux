@@ -70,7 +70,8 @@ static int alloc_io_space(struct pcmcia_socket *s, struct resource *res,
 
 	res->flags |= IORESOURCE_IO;
 
-	dev_dbg(&s->dev, "alloc_io_space request for %pR\n", res);
+	dev_dbg(&s->dev, "alloc_io_space request for %pR, %d lines\n",
+		res, lines);
 
 	align = base ? (lines ? 1<<lines : 0) : 1;
 	if (align && (align < num)) {
@@ -541,37 +542,24 @@ EXPORT_SYMBOL(pcmcia_request_configuration);
  * pcmcia_request_io() - attempt to reserve port ranges for PCMCIA devices
  *
  * pcmcia_request_io() attepts to reserve the IO port ranges specified in
- * struct pcmcia_device *p_dev->resource[0] and *p_dev->resource[1]. The
+ * &struct pcmcia_device @p_dev->resource[0] and @p_dev->resource[1]. The
  * "start" value is the requested start of the IO port resource; "end"
- * relfects the number of ports requested.
- *
- * If io_req_t is passed, those values are converted automatically.
+ * reflects the number of ports requested. The number of IO lines requested
+ * is specified in &struct pcmcia_device @p_dev->io_lines.
  */
-int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
+int pcmcia_request_io(struct pcmcia_device *p_dev)
 {
 	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c;
+	config_t *c = p_dev->function_config;
 	int ret = -EINVAL;
-	unsigned int lines = req->IOAddrLines;
 
 	mutex_lock(&s->ops_mutex);
+	dev_dbg(&s->dev, "pcmcia_request_io: %pR , %pR", &c->io[0], &c->io[1]);
 
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "pcmcia_request_io: No card present\n");
 		goto out;
 	}
-
-	c = p_dev->function_config;
-	if (req) {
-		c->io[0].start = req->BasePort1;
-		c->io[0].end = req->NumPorts1;
-		c->io[0].flags |= req->Attributes1;
-		c->io[1].start = req->BasePort2;
-		c->io[1].end = req->NumPorts2;
-		c->io[1].flags |= req->Attributes2;
-	}
-
-	dev_dbg(&s->dev, "pcmcia_request_io: %pR , %pR", &c->io[0], &c->io[1]);
 
 	if (c->state & CONFIG_LOCKED) {
 		dev_dbg(&s->dev, "Configuration is locked\n");
@@ -582,12 +570,12 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 		goto out;
 	}
 
-	ret = alloc_io_space(s, &c->io[0], lines);
+	ret = alloc_io_space(s, &c->io[0], p_dev->io_lines);
 	if (ret)
 		goto out;
 
 	if (c->io[1].end) {
-		ret = alloc_io_space(s, &c->io[1], lines);
+		ret = alloc_io_space(s, &c->io[1], p_dev->io_lines);
 		if (ret) {
 			release_io_space(s, &c->io[0]);
 			goto out;
@@ -597,11 +585,6 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 
 	c->state |= CONFIG_IO_REQ;
 	p_dev->_io = 1;
-
-	if (!ret) {
-		req->BasePort1 = c->io[0].start;
-		req->BasePort2 = c->io[1].start;
-	}
 
 	dev_dbg(&s->dev, "pcmcia_request_io succeeded: %pR , %pR",
 		&c->io[0], &c->io[1]);

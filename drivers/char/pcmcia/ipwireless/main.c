@@ -88,15 +88,15 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	memreq_t memreq_common_memory;
 	int ret;
 
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	p_dev->io.BasePort1 = cfg->io.win[0].base;
-	p_dev->io.NumPorts1 = cfg->io.win[0].len;
-	p_dev->io.IOAddrLines = 16;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
 
 	/* 0x40 causes it to generate level mode interrupts. */
 	/* 0x04 enables IREQ pin. */
 	p_dev->conf.ConfigIndex = cfg->index | 0x44;
-	ret = pcmcia_request_io(p_dev, &p_dev->io);
+	p_dev->io_lines = 16;
+	ret = pcmcia_request_io(p_dev);
 	if (ret)
 		return ret;
 

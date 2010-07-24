@@ -248,9 +248,8 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     lp->base = NULL;
 
     /* The io structure describes IO port mapping */
-    link->io.NumPorts1 = 32;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 5;
+    link->resource[0]->end = 32;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
 
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
@@ -288,13 +287,13 @@ static int mfc_try_io_port(struct pcmcia_device *link)
 	{ 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
 
     for (i = 0; i < 5; i++) {
-	link->io.BasePort2 = serial_base[i];
-	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	if (link->io.BasePort2 == 0) {
-	    link->io.NumPorts2 = 0;
+	link->resource[1]->start = serial_base[i];
+	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
+	if (link->resource[1]->start == 0) {
+	    link->resource[1]->end = 0;
 	    printk(KERN_NOTICE "fmvj18x_cs: out of resource for serial\n");
 	}
-	ret = pcmcia_request_io(link, &link->io);
+	ret = pcmcia_request_io(link);
 	if (ret == 0)
 		return ret;
     }
@@ -310,8 +309,8 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
 	0x380,0x3c0 only for ioport.
     */
     for (ioaddr = 0x300; ioaddr < 0x3e0; ioaddr += 0x20) {
-	link->io.BasePort1 = ioaddr;
-	ret = pcmcia_request_io(link, &link->io);
+	link->resource[0]->start = ioaddr;
+	ret = pcmcia_request_io(link);
 	if (ret == 0) {
 	    /* calculate ConfigIndex value */
 	    link->conf.ConfigIndex = 
@@ -345,6 +344,8 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "fmvj18x_config\n");
 
+    link->io_lines = 5;
+
     len = pcmcia_get_tuple(link, CISTPL_FUNCE, &buf);
     kfree(buf);
 
@@ -363,20 +364,20 @@ static int fmvj18x_config(struct pcmcia_device *link)
 		/* MultiFunction Card */
 		link->conf.ConfigBase = 0x800;
 		link->conf.ConfigIndex = 0x47;
-		link->io.NumPorts2 = 8;
+		link->resource[1]->end = 8;
 	    }
 	    break;
 	case MANFID_NEC:
 	    cardtype = NEC; /* MultiFunction Card */
 	    link->conf.ConfigBase = 0x800;
 	    link->conf.ConfigIndex = 0x47;
-	    link->io.NumPorts2 = 8;
+	    link->resource[1]->end = 8;
 	    break;
 	case MANFID_KME:
 	    cardtype = KME; /* MultiFunction Card */
 	    link->conf.ConfigBase = 0x800;
 	    link->conf.ConfigIndex = 0x47;
-	    link->io.NumPorts2 = 8;
+	    link->resource[1]->end = 8;
 	    break;
 	case MANFID_CONTEC:
 	    cardtype = CONTEC;
@@ -417,14 +418,14 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	}
     }
 
-    if (link->io.NumPorts2 != 0) {
+    if (link->resource[1]->end != 0) {
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {
 	ret = ungermann_try_io_port(link);
 	if (ret != 0) goto failed;
     } else { 
-	    ret = pcmcia_request_io(link, &link->io);
+	    ret = pcmcia_request_io(link);
 	    if (ret)
 		    goto failed;
     }

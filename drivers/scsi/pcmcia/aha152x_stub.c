@@ -100,9 +100,8 @@ static int aha152x_probe(struct pcmcia_device *link)
     info->p_dev = link;
     link->priv = info;
 
-    link->io.NumPorts1 = 0x20;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-    link->io.IOAddrLines = 10;
+    link->resource[0]->end = 0x20;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
@@ -130,15 +129,16 @@ static int aha152x_config_check(struct pcmcia_device *p_dev,
 				unsigned int vcc,
 				void *priv_data)
 {
+	p_dev->io_lines = 10;
 	/* For New Media T&J, look for a SCSI window */
 	if (cfg->io.win[0].len >= 0x20)
-		p_dev->io.BasePort1 = cfg->io.win[0].base;
+		p_dev->resource[0]->start = cfg->io.win[0].base;
 	else if ((cfg->io.nwin > 1) &&
 		 (cfg->io.win[1].len >= 0x20))
-		p_dev->io.BasePort1 = cfg->io.win[1].base;
+		p_dev->resource[0]->start = cfg->io.win[1].base;
 	if ((cfg->io.nwin > 0) &&
-	    (p_dev->io.BasePort1 < 0xffff)) {
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+	    (p_dev->resource[0]->start < 0xffff)) {
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -EINVAL;

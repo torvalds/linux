@@ -571,18 +571,15 @@ static int mgslpc_ioprobe(struct pcmcia_device *p_dev,
 			  unsigned int vcc,
 			  void *priv_data)
 {
-	if (cfg->io.nwin > 0) {
-		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-		if (!(cfg->io.flags & CISTPL_IO_8BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-		if (!(cfg->io.flags & CISTPL_IO_16BIT))
-			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-		p_dev->io.IOAddrLines = cfg->io.flags & CISTPL_IO_LINES_MASK;
-		p_dev->io.BasePort1 = cfg->io.win[0].base;
-		p_dev->io.NumPorts1 = cfg->io.win[0].len;
-		return pcmcia_request_io(p_dev, &p_dev->io);
-	}
-	return -ENODEV;
+	if (!cfg->io.nwin)
+		return -ENODEV;
+
+	p_dev->resource[0]->start = cfg->io.win[0].base;
+	p_dev->resource[0]->end = cfg->io.win[0].len;
+	p_dev->resource[0]->flags |= pcmcia_io_cfg_data_width(cfg->io.flags);
+	p_dev->io_lines = cfg->io.flags & CISTPL_IO_LINES_MASK;
+
+	return pcmcia_request_io(p_dev);
 }
 
 static int mgslpc_config(struct pcmcia_device *link)

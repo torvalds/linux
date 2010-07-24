@@ -151,9 +151,8 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->priv = info;
     info->ti = netdev_priv(dev);
 
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    link->io.NumPorts1 = 4;
-    link->io.IOAddrLines = 16;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+    link->resource[0]->end = 4;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
@@ -218,16 +217,17 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     dev_dbg(&link->dev, "ibmtr_config\n");
 
     link->conf.ConfigIndex = 0x61;
+    link->io_lines = 16;
 
     /* Determine if this is PRIMARY or ALTERNATE. */
 
     /* Try PRIMARY card at 0xA20-0xA23 */
-    link->io.BasePort1 = 0xA20;
-    i = pcmcia_request_io(link, &link->io);
+    link->resource[0]->start = 0xA20;
+    i = pcmcia_request_io(link);
     if (i != 0) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
-	link->io.BasePort1 = 0xA24;
-	ret = pcmcia_request_io(link, &link->io);
+	link->resource[0]->start = 0xA24;
+	ret = pcmcia_request_io(link);
 	if (ret)
 		goto failed;
     }

@@ -335,8 +335,8 @@ static int serial_probe(struct pcmcia_device *link)
 	info->p_dev = link;
 	link->priv = info;
 
-	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	link->io.NumPorts1 = 8;
+	link->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	link->resource[0]->end = 8;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	if (do_sound) {
 		link->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -424,12 +424,13 @@ static int simple_config_check(struct pcmcia_device *p_dev,
 		p_dev->conf.Vpp =
 			cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
+	p_dev->io_lines = ((*try & 0x1) == 0) ?
+			16 : cf->io.flags & CISTPL_IO_LINES_MASK;
+
 	if ((cf->io.nwin > 0) && (cf->io.win[0].len == size_table[(*try >> 1)])
 	    && (cf->io.win[0].base != 0)) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.IOAddrLines = ((*try & 0x1) == 0) ?
-			16 : cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -EINVAL;
@@ -446,9 +447,9 @@ static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
 
 	if ((cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
 		for (j = 0; j < 5; j++) {
-			p_dev->io.BasePort1 = base[j];
-			p_dev->io.IOAddrLines = base[j] ? 16 : 3;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[0]->start = base[j];
+			p_dev->io_lines = base[j] ? 16 : 3;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}
@@ -521,9 +522,9 @@ static int multi_config_check(struct pcmcia_device *p_dev,
 	/* The quad port cards have bad CIS's, so just look for a
 	   window larger than 8 ports and assume it will be right */
 	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io)) {
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+		if (!pcmcia_request_io(p_dev)) {
 			*base2 = p_dev->resource[0]->start + 8;
 			return 0;
 		}
@@ -540,10 +541,10 @@ static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
 	int *base2 = priv_data;
 
 	if (cf->io.nwin == 2) {
-		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.BasePort2 = cf->io.win[1].base;
-		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-		if (!pcmcia_request_io(p_dev, &p_dev->io)) {
+		p_dev->resource[0]->start = cf->io.win[0].base;
+		p_dev->resource[1]->start = cf->io.win[1].base;
+		p_dev->io_lines = cf->io.flags & CISTPL_IO_LINES_MASK;
+		if (!pcmcia_request_io(p_dev)) {
 			*base2 = p_dev->resource[1]->start;
 			return 0;
 		}
@@ -557,10 +558,10 @@ static int multi_config(struct pcmcia_device *link)
 	int i, base2 = 0;
 
 	/* First, look for a generic full-sized window */
-	link->io.NumPorts1 = info->multi * 8;
+	link->resource[0]->end = info->multi * 8;
 	if (pcmcia_loop_config(link, multi_config_check, &base2)) {
 		/* If that didn't work, look for two windows */
-		link->io.NumPorts1 = link->io.NumPorts2 = 8;
+		link->resource[0]->end = link->resource[1]->end = 8;
 		info->multi = 2;
 		if (pcmcia_loop_config(link, multi_config_check_notpicky,
 				       &base2)) {

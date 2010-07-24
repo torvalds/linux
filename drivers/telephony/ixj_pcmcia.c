@@ -32,9 +32,8 @@ static int ixj_probe(struct pcmcia_device *p_dev)
 {
 	dev_dbg(&p_dev->dev, "ixj_attach()\n");
 	/* Create new ixj device */
-	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines = 3;
+	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
+	p_dev->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
 	p_dev->priv = kzalloc(sizeof(struct ixj_info_t), GFP_KERNEL);
 	if (!p_dev->priv) {
@@ -120,13 +119,14 @@ static int ixj_config_check(struct pcmcia_device *p_dev,
 {
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->io.BasePort1 = io->win[0].base;
-		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->resource[0]->start = io->win[0].base;
+		p_dev->resource[0]->end = io->win[0].len;
+		p_dev->io_lines = 3;
 		if (io->nwin == 2) {
-			p_dev->io.BasePort2 = io->win[1].base;
-			p_dev->io.NumPorts2 = io->win[1].len;
+			p_dev->resource[1]->start = io->win[1].base;
+			p_dev->resource[1]->end = io->win[1].len;
 		}
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -ENODEV;

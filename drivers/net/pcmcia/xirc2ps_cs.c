@@ -677,9 +677,9 @@ xirc2ps_config_modem(struct pcmcia_device *p_dev,
 
 	if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
 		for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-			p_dev->io.BasePort2 = cf->io.win[0].base;
-			p_dev->io.BasePort1 = ioaddr;
-			if (!pcmcia_request_io(p_dev, &p_dev->io))
+			p_dev->resource[1]->start = cf->io.win[0].base;
+			p_dev->resource[0]->start = ioaddr;
+			if (!pcmcia_request_io(p_dev))
 				return 0;
 		}
 	}
@@ -696,11 +696,11 @@ xirc2ps_config_check(struct pcmcia_device *p_dev,
 	int *pass = priv_data;
 
 	if (cf->io.nwin > 0 && (cf->io.win[0].base & 0xf) == 8) {
-		p_dev->io.BasePort2 = cf->io.win[0].base;
-		p_dev->io.BasePort1 = p_dev->io.BasePort2
+		p_dev->resource[1]->start = cf->io.win[0].base;
+		p_dev->resource[0]->start = p_dev->resource[1]->start
 			+ (*pass ? (cf->index & 0x20 ? -24:8)
 			   : (cf->index & 0x20 ?   8:-24));
-		if (!pcmcia_request_io(p_dev, &p_dev->io))
+		if (!pcmcia_request_io(p_dev))
 			return 0;
 	}
 	return -ENODEV;
@@ -807,8 +807,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto failure;
     }
 
-    link->io.IOAddrLines =10;
-    link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+    link->resource[0]->flags |= IO_DATA_PATH_WIDTH_16;
     if (local->modem) {
 	int pass;
 
@@ -816,16 +815,16 @@ xirc2ps_config(struct pcmcia_device * link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status |= CCSR_AUDIO_ENA;
 	}
-	link->io.NumPorts2 = 8;
-	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
+	link->resource[1]->end = 8;
+	link->resource[1]->flags |= IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
 	    /* Take the Modem IO port from the CIS and scan for a free
 	     * Ethernet port */
-	    link->io.NumPorts1 = 16; /* no Mako stuff anymore */
+	    link->resource[0]->end = 16; /* no Mako stuff anymore */
 	    if (!pcmcia_loop_config(link, xirc2ps_config_modem, NULL))
 		    goto port_found;
 	} else {
-	    link->io.NumPorts1 = 18;
+	    link->resource[0]->end = 18;
 	    /* We do 2 passes here: The first one uses the regular mapping and
 	     * the second tries again, thereby considering that the 32 ports are
 	     * mirrored every 32 bytes. Actually we use a mirrored port for
@@ -840,14 +839,15 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
-	link->io.NumPorts1 = 16;
+	link->io_lines = 10;
+	link->resource[0]->end = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-	    link->io.BasePort1 = ioaddr;
-	    if (!(err=pcmcia_request_io(link, &link->io)))
+	    link->resource[0]->start = ioaddr;
+	    if (!(err = pcmcia_request_io(link)))
 		goto port_found;
 	}
-	link->io.BasePort1 = 0; /* let CS decide */
-	if ((err=pcmcia_request_io(link, &link->io)))
+	link->resource[0]->start = 0; /* let CS decide */
+	if ((err = pcmcia_request_io(link)))
 	    goto config_error;
     }
   port_found:

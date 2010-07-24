@@ -75,9 +75,8 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
 {
 
     /* The io structure describes IO port mapping */
-    p_dev->io.NumPorts1 = 16;
-    p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-    p_dev->io.NumPorts2 = 0;
+    p_dev->resource[0]->end = 16;
+    p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_8;
 
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
@@ -119,13 +118,9 @@ static int avmcs_configcheck(struct pcmcia_device *p_dev,
 	if (cf->io.nwin <= 0)
 		return -ENODEV;
 
-	p_dev->io.BasePort1 = cf->io.win[0].base;
-	p_dev->io.NumPorts1 = cf->io.win[0].len;
-	p_dev->io.NumPorts2 = 0;
-	printk(KERN_INFO "avm_cs: testing i/o %#x-%#x\n",
-	       p_dev->io.BasePort1,
-	       p_dev->io.BasePort1+p_dev->io.NumPorts1-1);
-	return pcmcia_request_io(p_dev, &p_dev->io);
+	p_dev->resource[0]->start = cf->io.win[0].base;
+	p_dev->resource[0]->end = cf->io.win[0].len;
+	return pcmcia_request_io(p_dev);
 }
 
 static int avmcs_config(struct pcmcia_device *link)

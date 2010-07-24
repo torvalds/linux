@@ -1884,9 +1884,8 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	struct wl3501_card *this;
 
 	/* The io structure describes IO port mapping */
-	p_dev->io.NumPorts1	= 16;
-	p_dev->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
-	p_dev->io.IOAddrLines	= 5;
+	p_dev->resource[0]->end	= 16;
+	p_dev->resource[0]->flags	= IO_DATA_PATH_WIDTH_8;
 
 	/* General socket configuration */
 	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
@@ -1932,13 +1931,14 @@ static int wl3501_config(struct pcmcia_device *link)
 	/* Try allocating IO ports.  This tries a few fixed addresses.  If you
 	 * want, you can also read the card's config table to pick addresses --
 	 * see the serial driver for an example. */
+	link->io_lines = 5;
 
 	for (j = 0x280; j < 0x400; j += 0x20) {
 		/* The '^0x300' is so that we probe 0x300-0x3ff first, then
 		 * 0x200-0x2ff, and so on, because this seems safer */
-		link->io.BasePort1 = j;
-		link->io.BasePort2 = link->io.BasePort1 + 0x10;
-		i = pcmcia_request_io(link, &link->io);
+		link->resource[0]->start = j;
+		link->resource[1]->start = link->resource[0]->start + 0x10;
+		i = pcmcia_request_io(link);
 		if (i == 0)
 			break;
 	}
