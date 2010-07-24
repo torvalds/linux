@@ -71,6 +71,7 @@ Ip_u2u1u3(_dsra);
 Ip_u2u1u3(_dsrl);
 Ip_u2u1u3(_dsrl32);
 Ip_u2u1u3(_drotr);
+Ip_u2u1u3(_drotr32);
 Ip_u3u1u2(_dsubu);
 Ip_0(_eret);
 Ip_u1(_j);
@@ -174,6 +175,15 @@ static inline void uasm_i_dsrl_safe(u32 **p, unsigned int a1,
 		uasm_i_dsrl(p, a1, a2, a3);
 	else
 		uasm_i_dsrl32(p, a1, a2, a3 - 32);
+}
+
+static inline void uasm_i_drotr_safe(u32 **p, unsigned int a1,
+				     unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_drotr(p, a1, a2, a3);
+	else
+		uasm_i_drotr32(p, a1, a2, a3 - 32);
 }
 
 static inline void uasm_i_dsll_safe(u32 **p, unsigned int a1,
