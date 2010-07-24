@@ -6550,11 +6550,8 @@ nouveau_run_vbios_init(struct drm_device *dev)
 	struct nvbios *bios = &dev_priv->vbios;
 	int i, ret = 0;
 
-	NVLockVgaCrtcs(dev, false);
-	if (nv_two_heads(dev)) {
-		bios->state.crtchead = 0;
-		NVSetOwner(dev, 0);
-	}
+	/* Reset the BIOS head to 0. */
+	bios->state.crtchead = 0;
 
 	if (bios->major_version < 5)	/* BMP only */
 		load_nv17_hw_sequencer_ucode(dev, bios);
@@ -6587,8 +6584,6 @@ nouveau_run_vbios_init(struct drm_device *dev)
 		}
 	}
 
-	NVLockVgaCrtcs(dev, true);
-
 	return ret;
 }
 
@@ -6618,13 +6613,11 @@ nouveau_bios_posted(struct drm_device *dev)
 		return true;
 	}
 
-	NVLockVgaCrtcs(dev, false);
 	htotal  = NVReadVgaCrtc(dev, 0, 0x06);
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x01) << 8;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x20) << 4;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x25) & 0x01) << 10;
 	htotal |= (NVReadVgaCrtc(dev, 0, 0x41) & 0x01) << 11;
-	NVLockVgaCrtcs(dev, true);
 
 	return (htotal != 0);
 }
@@ -6668,14 +6661,12 @@ nouveau_bios_init(struct drm_device *dev)
 		return ret;
 
 	/* feature_byte on BMP is poor, but init always sets CR4B */
-	NVLockVgaCrtcs(dev, false);
 	if (bios->major_version < 5)
 		bios->is_mobile = NVReadVgaCrtc(dev, 0, NV_CIO_CRE_4B) & 0x40;
 
 	/* all BIT systems need p_f_m_t for digital_min_front_porch */
 	if (bios->is_mobile || bios->major_version >= 5)
 		ret = parse_fp_mode_table(dev, bios);
-	NVLockVgaCrtcs(dev, true);
 
 	/* allow subsequent scripts to execute */
 	bios->execute = true;
