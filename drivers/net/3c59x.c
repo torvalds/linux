@@ -2918,6 +2918,36 @@ static void vortex_get_drvinfo(struct net_device *dev,
 	}
 }
 
+static void vortex_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct vortex_private *vp = netdev_priv(dev);
+
+	spin_lock_irq(&vp->lock);
+	wol->supported = WAKE_MAGIC;
+
+	wol->wolopts = 0;
+	if (vp->enable_wol)
+		wol->wolopts |= WAKE_MAGIC;
+	spin_unlock_irq(&vp->lock);
+}
+
+static int vortex_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
+{
+	struct vortex_private *vp = netdev_priv(dev);
+	if (wol->wolopts & ~WAKE_MAGIC)
+		return -EINVAL;
+
+	spin_lock_irq(&vp->lock);
+	if (wol->wolopts & WAKE_MAGIC)
+		vp->enable_wol = 1;
+	else
+		vp->enable_wol = 0;
+	acpi_set_WOL(dev);
+	spin_unlock_irq(&vp->lock);
+
+	return 0;
+}
+
 static const struct ethtool_ops vortex_ethtool_ops = {
 	.get_drvinfo		= vortex_get_drvinfo,
 	.get_strings            = vortex_get_strings,
@@ -2929,6 +2959,8 @@ static const struct ethtool_ops vortex_ethtool_ops = {
 	.set_settings           = vortex_set_settings,
 	.get_link               = ethtool_op_get_link,
 	.nway_reset             = vortex_nway_reset,
+	.get_wol                = vortex_get_wol,
+	.set_wol                = vortex_set_wol,
 };
 
 #ifdef CONFIG_PCI
