@@ -322,12 +322,10 @@ static int fuse_ctl_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 }
 
-static int fuse_ctl_get_sb(struct file_system_type *fs_type, int flags,
-			const char *dev_name, void *raw_data,
-			struct vfsmount *mnt)
+static struct dentry *fuse_ctl_mount(struct file_system_type *fs_type,
+			int flags, const char *dev_name, void *raw_data)
 {
-	return get_sb_single(fs_type, flags, raw_data,
-				fuse_ctl_fill_super, mnt);
+	return mount_single(fs_type, flags, raw_data, fuse_ctl_fill_super);
 }
 
 static void fuse_ctl_kill_sb(struct super_block *sb)
@@ -346,7 +344,7 @@ static void fuse_ctl_kill_sb(struct super_block *sb)
 static struct file_system_type fuse_ctl_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fusectl",
-	.get_sb		= fuse_ctl_get_sb,
+	.mount		= fuse_ctl_mount,
 	.kill_sb	= fuse_ctl_kill_sb,
 };
 

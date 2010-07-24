@@ -798,17 +798,17 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 	return spufs_create_root(sb, data);
 }
 
-static int
-spufs_get_sb(struct file_system_type *fstype, int flags,
-		const char *name, void *data, struct vfsmount *mnt)
+static struct dentry *
+spufs_mount(struct file_system_type *fstype, int flags,
+		const char *name, void *data)
 {
-	return get_sb_single(fstype, flags, data, spufs_fill_super, mnt);
+	return mount_single(fstype, flags, data, spufs_fill_super);
 }
 
 static struct file_system_type spufs_type = {
 	.owner = THIS_MODULE,
 	.name = "spufs",
-	.get_sb = spufs_get_sb,
+	.mount = spufs_mount,
 	.kill_sb = kill_litter_super,
 };
 
