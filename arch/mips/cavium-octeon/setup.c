@@ -687,7 +687,10 @@ void __init plat_mem_setup(void)
 		      "cvmx_bootmem_phy_alloc\n");
 }
 
-
+/*
+ * Emit one character to the boot UART.  Exported for use by the
+ * watchdog timer.
+ */
 int prom_putchar(char c)
 {
 	uint64_t lsrval;
@@ -701,6 +704,7 @@ int prom_putchar(char c)
 	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
 	return 1;
 }
+EXPORT_SYMBOL(prom_putchar);
 
 void prom_free_prom_memory(void)
 {
