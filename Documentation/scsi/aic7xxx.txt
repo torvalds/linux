@@ -344,7 +344,7 @@ The following information is available in this file:
       http://www.adaptec.com/buy-cables/.
 
    Europe
-    - Visit our Web site at http://www.adaptec-europe.com/.
+    - Visit our Web site at http://www.adaptec.com/en-US/_common/world_index.
     - To speak with a Technical Support Specialist, call, or email,
       * German:  +49 89 4366 5522, Monday-Friday, 9:00-17:00 CET,
         http://ask-de.adaptec.com/.

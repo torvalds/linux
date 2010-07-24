@@ -73,9 +73,9 @@ contact Bodo  Bauer  at  bb@ricochet.net.  We'll  be happy to add them to this
 document.
 
 The   latest   version    of   this   document   is    available   online   at
-http://skaro.nightcrawler.com/~bb/Docs/Proc as HTML version.
+http://tldp.org/LDP/Linux-Filesystem-Hierarchy/html/proc.html
 
-If  the above  direction does  not works  for you,  ypu could  try the  kernel
+If  the above  direction does  not works  for you,  you could  try the  kernel
 mailing  list  at  linux-kernel@vger.kernel.org  and/or try  to  reach  me  at
 comandante@zaralinux.com.
 

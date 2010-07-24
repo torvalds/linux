@@ -97,4 +97,4 @@ of all affected systems, so the only safe solution was to prevent access to
 the SMBus on all IBM systems (detected using DMI data.)
 
 For additional information, read:
-http://www.lm-sensors.org/browser/lm-sensors/trunk/README.thinkpad
+http://www.lm-sensors.org/browser/lm-sensors/trunk/README

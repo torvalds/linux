@@ -128,7 +128,7 @@ OPTIONS
 RESOURCES
 =========
 
-Our current recommendation is to use Inferno (http://www.vitanuova.com/inferno)
+Our current recommendation is to use Inferno (http://www.vitanuova.com/nferno/index.html)
 as the 9p server.  You can start a 9p server under Inferno by issuing the
 following command:
    ; styxlisten -A tcp!*!564 export '#U*'

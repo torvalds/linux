@@ -2432,7 +2432,7 @@ be found at:
 https://lists.sourceforge.net/lists/listinfo/bonding-devel
 
 Donald Becker's Ethernet Drivers and diag programs may be found at :
- - http://www.scyld.com/network/
+ - http://web.archive.org/web/*/http://www.scyld.com/network/ 
 
 You will also find a lot of information regarding Ethernet, NWay, MII,
 etc. at www.scyld.com.

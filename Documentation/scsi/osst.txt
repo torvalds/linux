@@ -135,7 +135,7 @@ The driver development is coordinated through a mailing list
 a CVS repository and some web pages. 
 The tester's pages which contain recent news and updated drivers to download
 can be found on
-http://linux1.onstream.nl/test/
+http://sourceforge.net/projects/osst/
 
 If you find any problems, please have a look at the tester's page in order
 to see whether the problem is already known and solved. Otherwise, please
