@@ -536,7 +536,7 @@ restart:
  */
 static void prune_dcache(int count)
 {
-	struct super_block *sb, *n;
+	struct super_block *sb, *p = NULL;
 	int w_count;
 	int unused = dentry_stat.nr_unused;
 	int prune_ratio;
@@ -550,7 +550,7 @@ static void prune_dcache(int count)
 	else
 		prune_ratio = unused / count;
 	spin_lock(&sb_lock);
-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+	list_for_each_entry(sb, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
 		if (sb->s_nr_dentry_unused == 0)
@@ -590,14 +590,16 @@ static void prune_dcache(int count)
 			up_read(&sb->s_umount);
 		}
 		spin_lock(&sb_lock);
-		/* lock was dropped, must reset next */
-		list_safe_reset_next(sb, n, s_list);
+		if (p)
+			__put_super(p);
 		count -= pruned;
-		__put_super(sb);
+		p = sb;
 		/* more work left to do? */
 		if (count <= 0)
 			break;
 	}
+	if (p)
+		__put_super(p);
 	spin_unlock(&sb_lock);
 	spin_unlock(&dcache_lock);
 }
