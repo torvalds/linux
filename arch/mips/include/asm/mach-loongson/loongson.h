@@ -62,6 +62,14 @@ extern int mach_i8259_irq(void);
 #define LOONGSON_IRQ_BASE	32
 #define LOONGSON2_PERFCNT_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* cpu perf counter */
 
+#include <linux/interrupt.h>
+static inline void do_perfcnt_IRQ(void)
+{
+#if defined(CONFIG_OPROFILE) || defined(CONFIG_OPROFILE_MODULE)
+	do_IRQ(LOONGSON2_PERFCNT_IRQ);
+#endif
+}
+
 #define LOONGSON_FLASH_BASE	0x1c000000
 #define LOONGSON_FLASH_SIZE	0x02000000	/* 32M */
 #define LOONGSON_FLASH_TOP	(LOONGSON_FLASH_BASE+LOONGSON_FLASH_SIZE-1)
