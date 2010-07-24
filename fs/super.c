@@ -918,6 +918,7 @@ struct vfsmount *
 vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void *data)
 {
 	struct vfsmount *mnt;
+	struct dentry *root;
 	char *secdata = NULL;
 	int error;
 
@@ -942,9 +943,19 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void 
 			goto out_free_secdata;
 	}
 
-	error = type->get_sb(type, flags, name, data, mnt);
-	if (error < 0)
-		goto out_free_secdata;
+	if (type->mount) {
+		root = type->mount(type, flags, name, data);
+		if (IS_ERR(root)) {
+			error = PTR_ERR(root);
+			goto out_free_secdata;
+		}
+		mnt->mnt_root = root;
+		mnt->mnt_sb = root->d_sb;
+	} else {
+		error = type->get_sb(type, flags, name, data, mnt);
+		if (error < 0)
+			goto out_free_secdata;
+	}
 	BUG_ON(!mnt->mnt_sb);
 	WARN_ON(!mnt->mnt_sb->s_bdi);
 	mnt->mnt_sb->s_flags |= MS_BORN;
