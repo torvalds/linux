@@ -528,7 +528,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	 * Dirty & Deferred IO
 	 */
 	par->dirty.x1 = par->dirty.x2 = 0;
-	par->dirty.y1 = par->dirty.y1 = 0;
+	par->dirty.y1 = par->dirty.y2 = 0;
 	par->dirty.active = true;
 	spin_lock_init(&par->dirty.lock);
 	info->fbdefio = &vmw_defio;
