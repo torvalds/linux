@@ -19,18 +19,6 @@
 #include <linux/interrupt.h>
 #endif
 
-/* for AdjustResourceInfo */
-/* Action field */
-#define REMOVE_MANAGED_RESOURCE		1
-#define ADD_MANAGED_RESOURCE		2
-
-/* For CardValues field */
-#define CV_OPTION_VALUE		0x01
-#define CV_STATUS_VALUE		0x02
-#define CV_PIN_REPLACEMENT	0x04
-#define CV_COPY_VALUE		0x08
-#define CV_EXT_STATUS		0x10
-
 /* ModifyConfiguration */
 typedef struct modconf_t {
     u_int	Attributes;

@@ -63,6 +63,9 @@ struct socket_data {
 #define MEM_PROBE_LOW	(1 << 0)
 #define MEM_PROBE_HIGH	(1 << 1)
 
+/* Action field */
+#define REMOVE_MANAGED_RESOURCE		1
+#define ADD_MANAGED_RESOURCE		2
 
 /*======================================================================
 
