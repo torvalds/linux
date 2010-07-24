@@ -53,6 +53,9 @@ static const u_int exponent[] = {
 /* Upper limit on reasonable # of tuples */
 #define MAX_TUPLES		200
 
+/* Bits in IRQInfo1 field */
+#define IRQ_INFO2_VALID		0x10
+
 /* 16-bit CIS? */
 static int cis_width;
 module_param(cis_width, int, 0444);

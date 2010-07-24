@@ -56,16 +56,6 @@ typedef struct config_req_t {
 #define INT_CARDBUS		0x04
 #define INT_ZOOMED_VIDEO	0x08
 
-/* Bits in IRQInfo1 field */
-#define IRQ_NMI_ID		0x01
-#define IRQ_IOCK_ID		0x02
-#define IRQ_BERR_ID		0x04
-#define IRQ_VEND_ID		0x08
-#define IRQ_INFO2_VALID		0x10
-#define IRQ_LEVEL_ID		0x20
-#define IRQ_PULSE_ID		0x40
-#define IRQ_SHARE_ID		0x80
-
 /* Configuration registers present */
 #define PRESENT_OPTION		0x001
 #define PRESENT_STATUS		0x002
@@ -83,12 +73,6 @@ typedef struct memreq_t {
     u_int	CardOffset;
     u_short	Page;
 } memreq_t;
-
-/* For ModifyWindow */
-typedef struct modwin_t {
-    u_int	Attributes;
-    u_int	AccessSpeed;
-} modwin_t;
 
 /* For RequestWindow */
 typedef struct win_req_t {
@@ -120,8 +104,5 @@ typedef struct win_req_t {
 #define WIN_CACHEABLE		0x1000
 #define WIN_BAR_MASK		0xe000
 #define WIN_BAR_SHIFT		13
-
-/* Flag to bind to all functions */
-#define BIND_FN_ALL	0xff
 
 #endif /* _LINUX_CS_H */

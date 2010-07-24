@@ -26,6 +26,9 @@
 /* Flags in client state */
 #define CLIENT_WIN_REQ(i)	(0x1<<(i))
 
+/* Flag to access all functions */
+#define BIND_FN_ALL	0xff
+
 /* Each card function gets one of these guys */
 typedef struct config_t {
 	struct kref	ref;
