@@ -104,7 +104,7 @@ static int intel_agp_map_memory(struct agp_memory *mem)
 	DBG("try mapping %lu pages\n", (unsigned long)mem->page_count);
 
 	if (sg_alloc_table(&st, mem->page_count, GFP_KERNEL))
-		return -ENOMEM;
+		goto err;
 
 	mem->sg_list = sg = st.sgl;
 
@@ -113,11 +113,14 @@ static int intel_agp_map_memory(struct agp_memory *mem)
 
 	mem->num_sg = pci_map_sg(intel_private.pcidev, mem->sg_list,
 				 mem->page_count, PCI_DMA_BIDIRECTIONAL);
-	if (unlikely(!mem->num_sg)) {
-		intel_agp_free_sglist(mem);
-		return -ENOMEM;
-	}
+	if (unlikely(!mem->num_sg))
+		goto err;
+
 	return 0;
+
+err:
+	sg_free_table(&st);
+	return -ENOMEM;
 }
 
 static void intel_agp_unmap_memory(struct agp_memory *mem)
