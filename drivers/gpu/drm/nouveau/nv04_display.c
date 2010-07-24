@@ -78,6 +78,14 @@ nv04_display_store_initial_head_owner(struct drm_device *dev)
 int
 nv04_display_early_init(struct drm_device *dev)
 {
+	/* Make the I2C buses accessible. */
+	if (!nv_gf4_disp_arch(dev)) {
+		uint32_t pmc_enable = nv_rd32(dev, NV03_PMC_ENABLE);
+
+		if (!(pmc_enable & 1))
+			nv_wr32(dev, NV03_PMC_ENABLE, pmc_enable | 1);
+	}
+
 	/* Unlock the VGA CRTCs. */
 	NVLockVgaCrtcs(dev, false);
 
