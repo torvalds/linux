@@ -298,7 +298,7 @@ static int tc589_config(struct pcmcia_device *link)
 	    goto failed;
 
     dev->irq = link->irq;
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
     ioaddr = dev->base_addr;
     EL3WINDOW(0);
 

@@ -227,7 +227,7 @@ static void sandisk_set_iobase(local_info_t *local)
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	res = pcmcia_write_config_byte(hw_priv->link, 0x10,
-				hw_priv->link->io.BasePort1 & 0x00ff);
+				hw_priv->link->resource[0]->start & 0x00ff);
 	if (res != 0) {
 		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 0 -"
 		       " res=%d\n", res);
@@ -235,7 +235,7 @@ static void sandisk_set_iobase(local_info_t *local)
 	udelay(10);
 
 	res = pcmcia_write_config_byte(hw_priv->link, 0x12,
-				(hw_priv->link->io.BasePort1 >> 8) & 0x00ff);
+				(hw_priv->link->resource[0]->start >> 8) & 0x00ff);
 	if (res != 0) {
 		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 1 -"
 		       " res=%d\n", res);
@@ -265,7 +265,7 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	local_info_t *local = iface->local;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
-	if (hw_priv->link->io.NumPorts1 < 0x42) {
+	if (resource_size(hw_priv->link->resource[0]) < 0x42) {
 		/* Not enough ports to be SanDisk multi-function card */
 		ret = -ENODEV;
 		goto done;
@@ -604,7 +604,7 @@ static int prism2_config(struct pcmcia_device *link)
 		goto failed_unlock;
 
 	dev->irq = link->irq;
-	dev->base_addr = link->io.BasePort1;
+	dev->base_addr = link->resource[0]->start;
 
 	spin_unlock_irqrestore(&local->irq_init_lock, flags);
 
@@ -616,12 +616,10 @@ static int prism2_config(struct pcmcia_device *link)
 		       link->conf.Vpp % 10);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %d", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1+link->io.NumPorts1-1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2+link->io.NumPorts2-1);
+	if (link->resource[0])
+		printk(" & %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	printk("\n");
 
 	local->shutdown = 0;

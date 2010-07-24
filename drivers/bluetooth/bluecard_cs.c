@@ -159,7 +159,7 @@ static void bluecard_detach(struct pcmcia_device *p_dev);
 static void bluecard_activity_led_timeout(u_long arg)
 {
 	bluecard_info_t *info = (bluecard_info_t *)arg;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		return;
@@ -176,7 +176,7 @@ static void bluecard_activity_led_timeout(u_long arg)
 
 static void bluecard_enable_activity_led(bluecard_info_t *info)
 {
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		return;
@@ -232,7 +232,7 @@ static void bluecard_write_wakeup(bluecard_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register unsigned int offset;
 		register unsigned char command;
 		register unsigned long ready_bit;
@@ -379,7 +379,7 @@ static void bluecard_receive(bluecard_info_t *info, unsigned int offset)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(XMIT_SENDING_READY, &(info->tx_state)))
 		bluecard_enable_activity_led(info);
@@ -508,7 +508,7 @@ static irqreturn_t bluecard_interrupt(int irq, void *dev_inst)
 	if (!test_bit(CARD_READY, &(info->hw_state)))
 		return IRQ_HANDLED;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -622,7 +622,7 @@ static int bluecard_hci_flush(struct hci_dev *hdev)
 static int bluecard_hci_open(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = (bluecard_info_t *)(hdev->driver_data);
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
@@ -642,7 +642,7 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 static int bluecard_hci_close(struct hci_dev *hdev)
 {
 	bluecard_info_t *info = (bluecard_info_t *)(hdev->driver_data);
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (!test_and_clear_bit(HCI_RUNNING, &(hdev->flags)))
 		return 0;
@@ -709,7 +709,7 @@ static int bluecard_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned l
 
 static int bluecard_open(bluecard_info_t *info)
 {
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev;
 	unsigned char id;
 
@@ -828,7 +828,7 @@ static int bluecard_open(bluecard_info_t *info)
 
 static int bluecard_close(bluecard_info_t *info)
 {
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)

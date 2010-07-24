@@ -457,7 +457,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     if (pcmcia_loop_config(link, mhz_mfc_config_check, NULL))
 	    return -ENODEV;
 
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     /* Allocate a memory window, for accessing the ISR */
     req.Attributes = WIN_DATA_WIDTH_8|WIN_MEMORY_TYPE_AM|WIN_ENABLE;
@@ -545,7 +545,7 @@ static void mot_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
     unsigned int ioaddr = dev->base_addr;
-    unsigned int iouart = link->io.BasePort2;
+    unsigned int iouart = link->resource[1]->start;
 
     /* Set UART base address and force map with COR bit 1 */
     writeb(iouart & 0xff,        smc->base + MOT_UART + CISREG_IOBASE_0);
@@ -614,7 +614,7 @@ static int smc_config(struct pcmcia_device *link)
     link->io.NumPorts1 = 16;
     i = pcmcia_loop_config(link, smc_configcheck, NULL);
     if (!i)
-	    dev->base_addr = link->io.BasePort1;
+	    dev->base_addr = link->resource[0]->start;
 
     return i;
 }
@@ -666,7 +666,7 @@ static int osi_config(struct pcmcia_device *link)
 	link->io.NumPorts2 = 0;
 	i = pcmcia_request_io(link, &link->io);
     }
-    dev->base_addr = link->io.BasePort1 + 0x10;
+    dev->base_addr = link->resource[0]->start + 0x10;
     return i;
 }
 
@@ -683,7 +683,7 @@ static int osi_load_firmware(struct pcmcia_device *link)
 
 	/* Download the Seven of Diamonds firmware */
 	for (i = 0; i < fw->size; i++) {
-	    outb(fw->data[i], link->io.BasePort1 + 2);
+	    outb(fw->data[i], link->resource[0]->start + 2);
 	    udelay(50);
 	}
 	release_firmware(fw);
@@ -725,12 +725,12 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
 		return rc;
     } else if (manfid == MANFID_OSITECH) {
 	/* Make sure both functions are powered up */
-	set_bits(0x300, link->io.BasePort1 + OSITECH_AUI_PWR);
+	set_bits(0x300, link->resource[0]->start + OSITECH_AUI_PWR);
 	/* Now, turn on the interrupt for both card functions */
-	set_bits(0x300, link->io.BasePort1 + OSITECH_RESET_ISR);
+	set_bits(0x300, link->resource[0]->start + OSITECH_RESET_ISR);
 	dev_dbg(&link->dev, "AUI/PWR: %4.4x RESET/ISR: %4.4x\n",
-	      inw(link->io.BasePort1 + OSITECH_AUI_PWR),
-	      inw(link->io.BasePort1 + OSITECH_RESET_ISR));
+	      inw(link->resource[0]->start + OSITECH_AUI_PWR),
+	      inw(link->resource[0]->start + OSITECH_RESET_ISR));
     }
     return 0;
 }

@@ -167,7 +167,7 @@ static int aha152x_config_cs(struct pcmcia_device *link)
     /* Set configuration options for the aha152x driver */
     memset(&s, 0, sizeof(s));
     s.conf        = "PCMCIA setup";
-    s.io_port     = link->io.BasePort1;
+    s.io_port     = link->resource[0]->start;
     s.irq         = link->irq;
     s.scsiid      = host_id;
     s.reconnect   = reconnect;

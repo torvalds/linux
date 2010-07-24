@@ -214,23 +214,21 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
 	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	printk(", irq %d", link->irq);
-    if (link->io.NumPorts1)
-        printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-               link->io.BasePort1+link->io.NumPorts1-1);
-    if (link->io.NumPorts2)
-        printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-               link->io.BasePort2+link->io.NumPorts2-1);
+    if (link->resource[0])
+	printk(" & %pR", link->resource[0]);
+    if (link->resource[1])
+	printk(" & %pR", link->resource[1]);
     printk("\n");
 
     icard.para[0] = link->irq;
-    icard.para[1] = link->io.BasePort1;
+    icard.para[1] = link->resource[0]->start;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_ELSA_PCMCIA;
     
     i = hisax_init_pcmcia(link, &(((local_info_t*)link->priv)->busy), &icard);
     if (i < 0) {
-    	printk(KERN_ERR "elsa_cs: failed to initialize Elsa PCMCIA %d at i/o %#x\n",
-    		i, link->io.BasePort1);
+	printk(KERN_ERR "elsa_cs: failed to initialize Elsa "
+		"PCMCIA %d with %pR\n", i, link->resource[0]);
     	elsa_cs_release(link);
     } else
     	((local_info_t*)link->priv)->cardnr = i;

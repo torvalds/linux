@@ -421,7 +421,7 @@ static struct card_fixup card_fixups[] = {
 static void set_cardparameter(struct cm4000_dev *dev)
 {
 	int i;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	u_int8_t stopbits = 0x02; /* ISO default */
 
 	DEBUGP(3, dev, "-> set_cardparameter\n");
@@ -454,7 +454,7 @@ static int set_protocol(struct cm4000_dev *dev, struct ptsreq *ptsreq)
 	unsigned short num_bytes_read;
 	unsigned char pts_reply[4];
 	ssize_t rc;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 
 	rc = 0;
 
@@ -663,7 +663,7 @@ static void terminate_monitor(struct cm4000_dev *dev)
 static void monitor_card(unsigned long p)
 {
 	struct cm4000_dev *dev = (struct cm4000_dev *) p;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	unsigned short s;
 	struct ptsreq ptsreq;
 	int i, atrc;
@@ -924,7 +924,7 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 			loff_t *ppos)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	ssize_t rc;
 	int i, j, k;
 
@@ -1047,7 +1047,7 @@ static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	unsigned short s;
 	unsigned char tmp;
 	unsigned char infolen;
@@ -1400,7 +1400,7 @@ static void stop_monitor(struct cm4000_dev *dev)
 static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct cm4000_dev *dev = filp->private_data;
-	unsigned int iobase = dev->p_dev->io.BasePort1;
+	unsigned int iobase = dev->p_dev->resource[0]->start;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct pcmcia_device *link;
 	int size;

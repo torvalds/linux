@@ -88,7 +88,7 @@ static int das08_cs_attach(struct comedi_device *dev,
 			printk(" no pcmcia cards found\n");
 			return -EIO;
 		}
-		iobase = link->io.BasePort1;
+		iobase = link->resource[0]->start;
 	} else {
 		printk(" bug! board does not have PCMCIA bustype\n");
 		return -EINVAL;
@@ -283,12 +283,10 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	printk("\n");
 
 	return;

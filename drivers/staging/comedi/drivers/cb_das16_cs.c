@@ -170,7 +170,7 @@ static int das16cs_attach(struct comedi_device *dev,
 	if (!link)
 		return -EIO;
 
-	dev->iobase = link->io.BasePort1;
+	dev->iobase = link->resource[0]->start;;
 	printk("I/O base=0x%04lx ", dev->iobase);
 
 	printk("fingerprint:\n");
@@ -787,12 +787,10 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(", io %pR", link->resource[1]);
 	printk("\n");
 
 	return;

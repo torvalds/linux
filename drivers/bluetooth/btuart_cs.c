@@ -142,7 +142,7 @@ static void btuart_write_wakeup(btuart_info_t *info)
 	}
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register struct sk_buff *skb;
 		register int len;
 
@@ -183,7 +183,7 @@ static void btuart_receive(btuart_info_t *info)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	do {
 		info->hdev->stat.byte_rx++;
@@ -297,7 +297,7 @@ static irqreturn_t btuart_interrupt(int irq, void *dev_inst)
 		/* our irq handler is shared */
 		return IRQ_NONE;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -354,7 +354,7 @@ static void btuart_change_speed(btuart_info_t *info, unsigned int speed)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock_irqsave(&(info->lock), flags);
 
@@ -478,7 +478,7 @@ static int btuart_hci_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned lon
 static int btuart_open(btuart_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev;
 
 	spin_lock_init(&(info->lock));
@@ -548,7 +548,7 @@ static int btuart_open(btuart_info_t *info)
 static int btuart_close(btuart_info_t *info)
 {
 	unsigned long flags;
-	unsigned int iobase = info->p_dev->io.BasePort1;
+	unsigned int iobase = info->p_dev->resource[0]->start;
 	struct hci_dev *hdev = info->hdev;
 
 	if (!hdev)

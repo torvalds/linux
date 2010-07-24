@@ -1719,17 +1719,19 @@ static int nsp_cs_config(struct pcmcia_device *link)
 		goto cs_failed;
 
 	if (free_ports) {
-		if (link->io.BasePort1) {
-			release_region(link->io.BasePort1, link->io.NumPorts1);
+		if (link->resource[0]) {
+			release_region(link->resource[0]->start,
+					resource_size(link->resource[0]));
 		}
-		if (link->io.BasePort2) {
-			release_region(link->io.BasePort2, link->io.NumPorts2);
+		if (link->resource[1]) {
+			release_region(link->resource[1]->start,
+					resource_size(link->resource[1]));
 		}
 	}
 
 	/* Set port and IRQ */
-	data->BaseAddress = link->io.BasePort1;
-	data->NumAddress  = link->io.NumPorts1;
+	data->BaseAddress = link->resource[0]->start;
+	data->NumAddress  = resource_size(link->resource[0]);
 	data->IrqNumber   = link->irq;
 
 	nsp_dbg(NSP_DEBUG_INIT, "I/O[0x%x+0x%x] IRQ %d",
@@ -1764,13 +1766,10 @@ static int nsp_cs_config(struct pcmcia_device *link)
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
 		printk(", irq %d", link->irq);
 	}
-	if (link->io.NumPorts1) {
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1+link->io.NumPorts1-1);
-	}
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2+link->io.NumPorts2-1);
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	if (link->win)
 		printk(", mem 0x%06lx-0x%06lx", cfg_mem->req.Base,
 		       cfg_mem->req.Base+cfg_mem->req.Size-1);

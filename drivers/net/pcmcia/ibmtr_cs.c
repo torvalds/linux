@@ -231,7 +231,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
     }
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     ret = pcmcia_request_exclusive_irq(link, ibmtr_interrupt);
     if (ret)

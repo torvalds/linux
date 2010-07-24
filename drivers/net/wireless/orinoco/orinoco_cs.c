@@ -257,7 +257,8 @@ orinoco_cs_config(struct pcmcia_device *link)
 	/* We initialize the hermes structure before completing PCMCIA
 	 * configuration just in case the interrupt handler gets
 	 * called. */
-	mem = ioport_map(link->io.BasePort1, link->io.NumPorts1);
+	mem = ioport_map(link->resource[0]->start,
+			resource_size(link->resource[0]));
 	if (!mem)
 		goto failed;
 
@@ -279,7 +280,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 	}
 
 	/* Register an interface with the stack */
-	if (orinoco_if_add(priv, link->io.BasePort1,
+	if (orinoco_if_add(priv, link->resource[0]->start,
 			   link->irq, NULL) != 0) {
 		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;

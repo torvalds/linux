@@ -315,7 +315,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
 	if (ret == 0) {
 	    /* calculate ConfigIndex value */
 	    link->conf.ConfigIndex = 
-		((link->io.BasePort1 & 0x0f0) >> 3) | 0x22;
+		((link->resource[0]->start & 0x0f0) >> 3) | 0x22;
 	    return ret;
 	}
     }
@@ -436,9 +436,9 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    goto failed;
 
     dev->irq = link->irq;
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
-    if (link->io.BasePort2 != 0) {
+    if (resource_size(link->resource[1]) != 0) {
 	ret = fmvj18x_setup_mfc(link);
 	if (ret != 0) goto failed;
     }

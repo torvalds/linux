@@ -210,13 +210,13 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
 			if (pcmcia_request_io(pdev, &pdev->io) != 0)
 				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort2;
+			stk->ctl_base = pdev->resource[1]->start;
 		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
 			pdev->io.NumPorts1 = io->win[0].len;
 			pdev->io.NumPorts2 = 0;
 			if (pcmcia_request_io(pdev, &pdev->io) != 0)
 				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
+			stk->ctl_base = pdev->resource[0]->start + 0x0e;
 		} else
 			return -ENODEV;
 		/* If we've got this far, we're done */
@@ -270,7 +270,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 		if (pcmcia_loop_config(pdev, pcmcia_check_one_config, stk))
 			goto failed; /* No suitable config found */
 	}
-	io_base = pdev->io.BasePort1;
+	io_base = pdev->resource[0]->start;
 	ctl_base = stk->ctl_base;
 	if (!pdev->irq)
 		goto failed;
@@ -293,7 +293,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 
 	/* FIXME: Could be more ports at base + 0x10 but we only deal with
 	   one right now */
-	if (pdev->io.NumPorts1 >= 0x20)
+	if (resource_size(pdev->resource[0]) >= 0x20)
 		n_ports = 2;
 
 	if (pdev->manf_id == 0x0097 && pdev->card_id == 0x1620)

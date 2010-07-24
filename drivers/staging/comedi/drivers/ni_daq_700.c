@@ -376,7 +376,7 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		link = pcmcia_cur_dev;	/* XXX hack */
 		if (!link)
 			return -EIO;
-		iobase = link->io.BasePort1;
+		iobase = link->resource[0]->start;
 #ifdef incomplete
 		irq = link->irq;
 #endif
@@ -644,12 +644,10 @@ static void dio700_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %d", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
+	if (link->resource[0])
+		printk(", io %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	if (link->win)
 		printk(", mem 0x%06lx-0x%06lx", req.Base,
 		       req.Base + req.Size - 1);

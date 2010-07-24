@@ -853,7 +853,8 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out1;
 
 	/* Initialize io access */
-	card->iobase = ioport_map(p_dev->io.BasePort1, p_dev->io.NumPorts1);
+	card->iobase = ioport_map(p_dev->resource[0]->start,
+				resource_size(p_dev->resource[0]));
 	if (!card->iobase) {
 		lbs_pr_err("error in ioport_map\n");
 		ret = -EIO;
@@ -872,9 +873,7 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	}
 
 	/* Finally, report what we've done */
-	lbs_deb_cs("irq %d, io 0x%04x-0x%04x\n",
-	       p_dev->irq, p_dev->io.BasePort1,
-	       p_dev->io.BasePort1 + p_dev->io.NumPorts1 - 1);
+	lbs_deb_cs("irq %d, io %pR", p_dev->irq, p_dev->resource[0]);
 
 	/*
 	 * Most of the libertas cards can do unaligned register access, but some

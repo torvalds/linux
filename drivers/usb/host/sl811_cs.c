@@ -189,7 +189,7 @@ static int sl811_cs_config(struct pcmcia_device *link)
 		goto failed;
 
 	/* require an IRQ and two registers */
-	if (!link->io.NumPorts1 || link->io.NumPorts1 < 2)
+	if (resource_size(link->resource[0]) < 2)
 		goto failed;
 
 	if (!link->irq)
@@ -204,11 +204,10 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	if (link->conf.Vpp)
 		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
 	printk(", irq %d", link->irq);
-	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-	       link->io.BasePort1+link->io.NumPorts1-1);
+	printk(", io %pR", link->resource[0]);
 	printk("\n");
 
-	if (sl811_hc_init(parent, link->io.BasePort1, link->irq)
+	if (sl811_hc_init(parent, link->resource[0]->start, link->irq)
 			< 0) {
 failed:
 		printk(KERN_WARNING "sl811_cs_config failed\n");

@@ -554,7 +554,7 @@ static int pcnet_config(struct pcmcia_device *link)
     if (!link->irq)
 	    goto failed;
 
-    if (link->io.NumPorts2 == 8) {
+    if (resource_size(link->resource[1]) == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
@@ -566,7 +566,7 @@ static int pcnet_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
     dev->irq = link->irq;
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
     if (info->flags & HAS_MISC_REG) {
 	if ((if_port == 1) || (if_port == 2))
 	    dev->if_port = if_port;

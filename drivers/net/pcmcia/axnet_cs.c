@@ -332,7 +332,7 @@ static int axnet_config(struct pcmcia_device *link)
     if (!link->irq)
 	    goto failed;
     
-    if (link->io.NumPorts2 == 8) {
+    if (resource_size(link->resource[1]) == 8) {
 	link->conf.Attributes |= CONF_ENABLE_SPKR;
 	link->conf.Status = CCSR_AUDIO_ENA;
     }
@@ -342,7 +342,7 @@ static int axnet_config(struct pcmcia_device *link)
 	    goto failed;
 
     dev->irq = link->irq;
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     if (!get_prom(link)) {
 	printk(KERN_NOTICE "axnet_cs: this is not an AX88190 card!\n");

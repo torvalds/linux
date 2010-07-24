@@ -241,7 +241,8 @@ static int vxpocket_config(struct pcmcia_device *link)
 	chip->dev = &link->dev;
 	snd_card_set_dev(chip->card, chip->dev);
 
-	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq) < 0)
+	if (snd_vxpocket_assign_resources(chip, link->resource[0]->start,
+						link->irq) < 0)
 		goto failed;
 
 	return 0;

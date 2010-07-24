@@ -609,16 +609,15 @@ static int mgslpc_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    info->io_base = link->io.BasePort1;
+    info->io_base = link->resource[0]->start;
     info->irq_level = link->irq;
 
     dev_info(&link->dev, "index 0x%02x:",
 	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	    printk(", irq %d", link->irq);
-    if (link->io.NumPorts1)
-	    printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		   link->io.BasePort1+link->io.NumPorts1-1);
+    if (link->resource[0])
+	    printk(", io %pR", link->resource[0]);
     printk("\n");
     return 0;
 

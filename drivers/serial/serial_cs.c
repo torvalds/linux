@@ -463,13 +463,13 @@ static int simple_config(struct pcmcia_device *link)
 	/* If the card is already configured, look up the port and irq */
 	if (link->function_config) {
 		unsigned int port = 0;
-		if ((link->io.BasePort2 != 0) &&
-		    (link->io.NumPorts2 == 8)) {
-			port = link->io.BasePort2;
+		if ((link->resource[1]->end != 0) &&
+			(resource_size(link->resource[1]) == 8)) {
+			port = link->resource[1]->end;
 			info->slave = 1;
 		} else if ((info->manfid == MANFID_OSITECH) &&
-			   (link->io.NumPorts1 == 0x40)) {
-			port = link->io.BasePort1 + 0x28;
+			(resource_size(link->resource[0]) == 0x40)) {
+			port = link->resource[0]->start + 0x28;
 			info->slave = 1;
 		}
 		if (info->slave) {
@@ -507,7 +507,7 @@ found_port:
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0)
 		return -1;
-	return setup_serial(link, info, link->io.BasePort1, link->irq);
+	return setup_serial(link, info, link->resource[0]->start, link->irq);
 }
 
 static int multi_config_check(struct pcmcia_device *p_dev,
@@ -524,7 +524,7 @@ static int multi_config_check(struct pcmcia_device *p_dev,
 		p_dev->io.BasePort1 = cf->io.win[0].base;
 		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 		if (!pcmcia_request_io(p_dev, &p_dev->io)) {
-			*base2 = p_dev->io.BasePort1 + 8;
+			*base2 = p_dev->resource[0]->start + 8;
 			return 0;
 		}
 	}
@@ -544,7 +544,7 @@ static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
 		p_dev->io.BasePort2 = cf->io.win[1].base;
 		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 		if (!pcmcia_request_io(p_dev, &p_dev->io)) {
-			*base2 = p_dev->io.BasePort2;
+			*base2 = p_dev->resource[1]->start;
 			return 0;
 		}
 	}
@@ -596,9 +596,9 @@ static int multi_config(struct pcmcia_device *link)
 		    link->conf.ConfigIndex == 3) {
 			err = setup_serial(link, info, base2,
 					link->irq);
-			base2 = link->io.BasePort1;
+			base2 = link->resource[0]->start;;
 		} else {
-			err = setup_serial(link, info, link->io.BasePort1,
+			err = setup_serial(link, info, link->resource[0]->start,
 					link->irq);
 		}
 		info->c950ctrl = base2;
@@ -613,7 +613,7 @@ static int multi_config(struct pcmcia_device *link)
 		return 0;
 	}
 
-	setup_serial(link, info, link->io.BasePort1, link->irq);
+	setup_serial(link, info, link->resource[0]->start, link->irq);
 	for (i = 0; i < info->multi - 1; i++)
 		setup_serial(link, info, base2 + (8 * i),
 				link->irq);

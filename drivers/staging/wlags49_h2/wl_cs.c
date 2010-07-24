@@ -319,7 +319,7 @@ void wl_adapter_insert( struct pcmcia_device *link )
         goto failed;
 
     dev->irq        = link->irq;
-    dev->base_addr  = link->io.BasePort1;
+    dev->base_addr  = link->resource[0]->start;
 
     SET_NETDEV_DEV(dev, &link->dev);
     if (register_netdev(dev) != 0) {

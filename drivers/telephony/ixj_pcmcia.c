@@ -150,7 +150,8 @@ static int ixj_config(struct pcmcia_device * link)
 	/*
  	 *	Register the card with the core.
 	 */
-	j = ixj_pcmcia_probe(link->io.BasePort1, link->io.BasePort1 + 0x10);
+	j = ixj_pcmcia_probe(link->resource[0]->start,
+			     link->resource[0]->start + 0x10);
 
 	info->ndev = 1;
 	ixj_get_serial(link, j);

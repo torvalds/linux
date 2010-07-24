@@ -215,18 +215,18 @@ static int qlogic_config(struct pcmcia_device * link)
 
 	if ((info->manf_id == MANFID_MACNICA) || (info->manf_id == MANFID_PIONEER) || (info->manf_id == 0x0098)) {
 		/* set ATAcmd */
-		outb(0xb4, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0xb4, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 
 	/* The KXL-810AN has a bigger IO port window */
-	if (link->io.NumPorts1 == 32)
+	if (resource_size(link->resource[0]) == 32)
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1 + 16, link->irq);
+			link->resource[0]->start + 16, link->irq);
 	else
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1, link->irq);
+			link->resource[0]->start, link->irq);
 	
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
@@ -268,9 +268,9 @@ static int qlogic_resume(struct pcmcia_device *link)
 	if ((info->manf_id == MANFID_MACNICA) ||
 	    (info->manf_id == MANFID_PIONEER) ||
 	    (info->manf_id == 0x0098)) {
-		outb(0x80, link->io.BasePort1 + 0xd);
-		outb(0x24, link->io.BasePort1 + 0x9);
-		outb(0x04, link->io.BasePort1 + 0xd);
+		outb(0x80, link->resource[0]->start + 0xd);
+		outb(0x24, link->resource[0]->start + 0x9);
+		outb(0x04, link->resource[0]->start + 0xd);
 	}
 	/* Ugggglllyyyy!!! */
 	qlogicfas408_bus_reset(NULL);

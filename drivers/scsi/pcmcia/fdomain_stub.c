@@ -137,10 +137,10 @@ static int fdomain_config(struct pcmcia_device *link)
 	    goto failed;
 
     /* A bad hack... */
-    release_region(link->io.BasePort1, link->io.NumPorts1);
+    release_region(link->resource[0]->start, resource_size(link->resource[0]));
 
     /* Set configuration options for the fdomain driver */
-    sprintf(str, "%d,%d", link->io.BasePort1, link->irq);
+    sprintf(str, "%d,%d", (unsigned int) link->resource[0]->start, link->irq);
     fdomain_setup(str);
 
     host = __fdomain_16x0_detect(&fdomain_driver_template);

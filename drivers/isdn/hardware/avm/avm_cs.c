@@ -191,9 +191,10 @@ static int avmcs_config(struct pcmcia_device *link)
 	default:
         case AVM_CARDTYPE_B1: addcard = b1pcmcia_addcard_b1; break;
     }
-    if ((i = (*addcard)(link->io.BasePort1, link->irq)) < 0) {
-	    dev_err(&link->dev, "avm_cs: failed to add AVM-Controller at i/o %#x, irq %d\n",
-		    link->io.BasePort1, link->irq);
+    if ((i = (*addcard)(link->resource[0]->start, link->irq)) < 0) {
+	    dev_err(&link->dev,
+		    "avm_cs: failed to add AVM-Controller at i/o %#x, irq %d\n",
+		    (unsigned int) link->resource[0]->start, link->irq);
 	    avmcs_release(link);
 	    return -ENODEV;
     }
@@ -211,7 +212,7 @@ static int avmcs_config(struct pcmcia_device *link)
 
 static void avmcs_release(struct pcmcia_device *link)
 {
-	b1pcmcia_delcard(link->io.BasePort1, link->irq);
+	b1pcmcia_delcard(link->resource[0]->start, link->irq);
 	pcmcia_disable_device(link);
 } /* avmcs_release */
 

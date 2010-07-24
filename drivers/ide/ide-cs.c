@@ -239,13 +239,13 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
 			if (pcmcia_request_io(pdev, &pdev->io) != 0)
 				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort2;
+			stk->ctl_base = pdev->resource[1]->start;
 		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
 			pdev->io.NumPorts1 = io->win[0].len;
 			pdev->io.NumPorts2 = 0;
 			if (pcmcia_request_io(pdev, &pdev->io) != 0)
 				return -ENODEV;
-			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
+			stk->ctl_base = pdev->resource[0]->start + 0x0e;
 		} else
 			return -ENODEV;
 		/* If we've got this far, we're done */
@@ -279,7 +279,7 @@ static int ide_config(struct pcmcia_device *link)
 	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
 		    goto failed; /* No suitable config found */
     }
-    io_base = link->io.BasePort1;
+    io_base = link->resource[0]->start;
     ctl_base = stk->ctl_base;
 
     if (!link->irq)
@@ -296,7 +296,7 @@ static int ide_config(struct pcmcia_device *link)
 	outb(0x81, ctl_base+1);
 
      host = idecs_register(io_base, ctl_base, link->irq, link);
-     if (host == NULL && link->io.NumPorts1 == 0x20) {
+     if (host == NULL && resource_size(link->resource[0]) == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
 				  link->irq, link);

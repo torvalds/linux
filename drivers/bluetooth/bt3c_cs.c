@@ -188,7 +188,7 @@ static void bt3c_write_wakeup(bt3c_info_t *info)
 		return;
 
 	do {
-		register unsigned int iobase = info->p_dev->io.BasePort1;
+		register unsigned int iobase = info->p_dev->resource[0]->start;
 		register struct sk_buff *skb;
 		register int len;
 
@@ -226,7 +226,7 @@ static void bt3c_receive(bt3c_info_t *info)
 		return;
 	}
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	avail = bt3c_read(iobase, 0x7006);
 	//printk("bt3c_cs: receiving %d bytes\n", avail);
@@ -347,7 +347,7 @@ static irqreturn_t bt3c_interrupt(int irq, void *dev_inst)
 		/* our irq handler is shared */
 		return IRQ_NONE;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	spin_lock(&(info->lock));
 
@@ -480,7 +480,7 @@ static int bt3c_load_firmware(bt3c_info_t *info, const unsigned char *firmware,
 	unsigned int iobase, size, addr, fcs, tmp;
 	int i, err = 0;
 
-	iobase = info->p_dev->io.BasePort1;
+	iobase = info->p_dev->resource[0]->start;
 
 	/* Reset */
 	bt3c_io_write(iobase, 0x8040, 0x0404);

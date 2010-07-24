@@ -871,7 +871,7 @@ static int daqp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	dev->iobase = local->link->io.BasePort1;
+	dev->iobase = local->link->resource[0]->start;
 
 	ret = alloc_subdevices(dev, 4);
 	if (ret < 0)
@@ -1153,12 +1153,10 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		printk(", irq %u", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2 + link->io.NumPorts2 - 1);
+	if (link->resource[0])
+		printk(" & %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	printk("\n");
 
 	return;

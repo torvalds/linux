@@ -109,7 +109,7 @@ static inline unsigned char xinb(unsigned short port)
 static void cm4040_do_poll(unsigned long dummy)
 {
 	struct reader_dev *dev = (struct reader_dev *) dummy;
-	unsigned int obs = xinb(dev->p_dev->io.BasePort1
+	unsigned int obs = xinb(dev->p_dev->resource[0]->start
 				+ REG_OFFSET_BUFFER_STATUS);
 
 	if ((obs & BSR_BULK_IN_FULL)) {
@@ -140,7 +140,7 @@ static void cm4040_stop_poll(struct reader_dev *dev)
 static int wait_for_bulk_out_ready(struct reader_dev *dev)
 {
 	int i, rc;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 
 	for (i = 0; i < POLL_LOOP_COUNT; i++) {
 		if ((xinb(iobase + REG_OFFSET_BUFFER_STATUS)
@@ -170,7 +170,7 @@ static int wait_for_bulk_out_ready(struct reader_dev *dev)
 /* Write to Sync Control Register */
 static int write_sync_reg(unsigned char val, struct reader_dev *dev)
 {
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 	int rc;
 
 	rc = wait_for_bulk_out_ready(dev);
@@ -188,7 +188,7 @@ static int write_sync_reg(unsigned char val, struct reader_dev *dev)
 static int wait_for_bulk_in_ready(struct reader_dev *dev)
 {
 	int i, rc;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 
 	for (i = 0; i < POLL_LOOP_COUNT; i++) {
 		if ((xinb(iobase + REG_OFFSET_BUFFER_STATUS)
@@ -218,7 +218,7 @@ static ssize_t cm4040_read(struct file *filp, char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	struct reader_dev *dev = filp->private_data;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 	size_t bytes_to_read;
 	unsigned long i;
 	size_t min_bytes_to_read;
@@ -320,7 +320,7 @@ static ssize_t cm4040_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct reader_dev *dev = filp->private_data;
-	int iobase = dev->p_dev->io.BasePort1;
+	int iobase = dev->p_dev->resource[0]->start;
 	ssize_t rc;
 	int i;
 	unsigned int bytes_to_write;
@@ -567,8 +567,8 @@ static int reader_config(struct pcmcia_device *link, int devno)
 
 	dev = link->priv;
 
-	DEBUGP(2, dev, "device " DEVICE_NAME "%d at 0x%.4x-0x%.4x\n", devno,
-	      link->io.BasePort1, link->io.BasePort1+link->io.NumPorts1);
+	DEBUGP(2, dev, "device " DEVICE_NAME "%d at %pR\n", devno,
+	      link->resource[0]);
 	DEBUGP(2, dev, "<- reader_config (succ)\n");
 
 	return 0;

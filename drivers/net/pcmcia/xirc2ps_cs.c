@@ -877,13 +877,13 @@ xirc2ps_config(struct pcmcia_device * link)
 	 * the base address of the ethernet port (BasePort1) is written
 	 * to the BAR registers of the modem.
 	 */
-	err = pcmcia_write_config_byte(link, CISREG_IOBASE_0,
-				link->io.BasePort2 & 0xff);
+	err = pcmcia_write_config_byte(link, CISREG_IOBASE_0, (u8)
+				link->resource[1]->start & 0xff);
 	if (err)
 	    goto config_error;
 
 	err = pcmcia_write_config_byte(link, CISREG_IOBASE_1,
-				(link->io.BasePort2 >> 8) & 0xff);
+				(link->resource[1]->start >> 8) & 0xff);
 	if (err)
 	    goto config_error;
 
@@ -907,7 +907,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	 * part.
 	 */
 	writeb(0x47, local->dingo_ccr + CISREG_COR);
-	ioaddr = link->io.BasePort1;
+	ioaddr = link->resource[0]->start;
 	writeb(ioaddr & 0xff	  , local->dingo_ccr + CISREG_IOBASE_0);
 	writeb((ioaddr >> 8)&0xff , local->dingo_ccr + CISREG_IOBASE_1);
 
@@ -954,7 +954,7 @@ xirc2ps_config(struct pcmcia_device * link)
 
     /* we can now register the device with the net subsystem */
     dev->irq = link->irq;
-    dev->base_addr = link->io.BasePort1;
+    dev->base_addr = link->resource[0]->start;
 
     if (local->dingo)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */

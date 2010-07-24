@@ -355,7 +355,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EIO;
 
 	dev->driver = &driver_ni_mio_cs;
-	dev->iobase = link->io.BasePort1;
+	dev->iobase = link->resource[0]->start;
 
 	irq = link->irq;
 

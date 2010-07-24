@@ -253,7 +253,7 @@ static int atmel_config(struct pcmcia_device *link)
 
 	((local_info_t*)link->priv)->eth_dev =
 		init_atmel_card(link->irq,
-				link->io.BasePort1,
+				link->resource[0]->start,
 				did ? did->driver_info : ATMEL_FW_TYPE_NONE,
 				&link->dev,
 				card_present,

@@ -266,7 +266,7 @@ static int com20020_config(struct pcmcia_device *link)
 	goto failed;
     }
 	
-    ioaddr = dev->base_addr = link->io.BasePort1;
+    ioaddr = dev->base_addr = link->resource[0]->start;
     dev_dbg(&link->dev, "got ioaddr %Xh\n", ioaddr);
 
     dev_dbg(&link->dev, "request IRQ %d\n",

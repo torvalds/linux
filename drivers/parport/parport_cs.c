@@ -177,12 +177,14 @@ static int parport_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
+    p = parport_pc_probe_port(link->resource[0]->start,
+			      link->resource[1]->start,
 			      link->irq, PARPORT_DMA_NONE,
 			      &link->dev, IRQF_SHARED);
     if (p == NULL) {
 	printk(KERN_NOTICE "parport_cs: parport_pc_probe_port() at "
-	       "0x%3x, irq %u failed\n", link->io.BasePort1,
+	       "0x%3x, irq %u failed\n",
+	       (unsigned int) link->resource[0]->start,
 	       link->irq);
 	goto failed;
     }

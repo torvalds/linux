@@ -271,7 +271,7 @@ static int airo_config(struct pcmcia_device *link)
 		goto failed;
 	((local_info_t *)link->priv)->eth_dev =
 		init_airo_card(link->irq,
-			       link->io.BasePort1, 1, &link->dev);
+			       link->resource[0]->start, 1, &link->dev);
 	if (!((local_info_t *)link->priv)->eth_dev)
 		goto failed;
 
@@ -281,12 +281,10 @@ static int airo_config(struct pcmcia_device *link)
 	if (link->conf.Vpp)
 		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
 	printk(", irq %d", link->irq);
-	if (link->io.NumPorts1)
-		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
-		       link->io.BasePort1+link->io.NumPorts1-1);
-	if (link->io.NumPorts2)
-		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
-		       link->io.BasePort2+link->io.NumPorts2-1);
+	if (link->resource[0])
+		printk(" & %pR", link->resource[0]);
+	if (link->resource[1])
+		printk(" & %pR", link->resource[1]);
 	if (link->win)
 		printk(", mem 0x%06lx-0x%06lx", req->Base,
 		       req->Base+req->Size-1);
