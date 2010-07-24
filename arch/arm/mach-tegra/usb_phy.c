@@ -35,6 +35,7 @@
 #define   USB_WAKE_ON_CNNT_EN_DEV	(1 << 3)
 #define   USB_WAKE_ON_DISCON_EN_DEV	(1 << 4)
 #define   USB_SUSP_CLR		(1 << 5)
+#define   USB_PHY_CLK_VALID	(1 << 7)
 #define   UTMIP_RESET			(1 << 11)
 #define   UTMIP_PHY_ENABLE		(1 << 12)
 #define   USB_SUSP_SET		(1 << 14)
@@ -54,6 +55,8 @@
 
 #define UTMIP_XCVR_CFG0		0x808
 #define   UTMIP_XCVR_SETUP(x)			(((x) & 0xf) << 0)
+#define   UTMIP_XCVR_LSRSLEW(x)			(((x) & 0x3) << 8)
+#define   UTMIP_XCVR_LSFSLEW(x)			(((x) & 0x3) << 10)
 #define   UTMIP_FORCE_PD_POWERDOWN		(1 << 14)
 #define   UTMIP_FORCE_PD2_POWERDOWN		(1 << 16)
 #define   UTMIP_FORCE_PDZI_POWERDOWN		(1 << 18)
@@ -117,10 +120,27 @@ static const u16 udc_debounce_table[] = {
 	0xFDE8, /* 26 MHz */
 };
 
+static int utmi_phy_wait_stable(struct tegra_usb_phy *phy)
+{
+	void __iomem *base = phy->regs;
+	unsigned long timeout = jiffies + HZ;
+
+	while (time_before(jiffies, timeout)) {
+		if (readl(base + USB_SUSP_CTRL) & USB_PHY_CLK_VALID)
+			return 0;
+		udelay(10);
+		cpu_relax();
+	}
+	if (readl(base + USB_SUSP_CTRL) & USB_PHY_CLK_VALID)
+		return 0;
+	else
+		return -ETIMEDOUT;
+}
+
 static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
 {
 	unsigned long val;
-	void *base = phy->regs;
+	void __iomem *base = phy->regs;
 
 	val = readl(base + USB_SUSP_CTRL);
 	val |= UTMIP_RESET;
@@ -131,10 +151,6 @@ static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
 		val |= USB1_NO_LEGACY_MODE;
 		writel(val, base + USB1_LEGACY_CTRL);
 	}
-
-	val = readl(base + UTMIP_TX_CFG0);
-	val |= UTMIP_FS_PREABMLE_J;
-	writel(val, base + UTMIP_TX_CFG0);
 
 	val = readl(base + UTMIP_HSRX_CFG0);
 	val &= ~(UTMIP_IDLE_WAIT(~0) | UTMIP_ELASTIC_LIMIT(~0));
@@ -168,26 +184,30 @@ static void utmi_phy_init(struct tegra_usb_phy *phy, int freq_sel)
 	writel(val, base + UTMIP_PLL_CFG1);
 }
 
-void utmi_phy_power_on(struct tegra_usb_phy *phy)
+void utmi_phy_power_on(struct tegra_usb_phy *phy,
+		       enum tegra_usb_phy_mode phy_mode)
 {
 	unsigned long val;
-	void *base = phy->regs;
+	void __iomem *base = phy->regs;
 
-	val = readl(base + USB_SUSP_CTRL);
-	val &= ~(USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV);
-	writel(val, base + USB_SUSP_CTRL);
+	if (phy_mode == TEGRA_USB_PHY_MODE_DEVICE) {
+		val = readl(base + USB_SUSP_CTRL);
+		val &= ~(USB_WAKE_ON_CNNT_EN_DEV | USB_WAKE_ON_DISCON_EN_DEV);
+		writel(val, base + USB_SUSP_CTRL);
+	}
 
 	val = readl(base + UTMIP_XCVR_CFG0);
 	val &= ~(UTMIP_FORCE_PD_POWERDOWN | UTMIP_FORCE_PD2_POWERDOWN |
-		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_SETUP(~0) |
-		 UTMIP_XCVR_HSSLEW_MSB(~0));
-	val |= UTMIP_XCVR_SETUP(0xF);
-	/* TODO: slow rise/fall times in host mode */
+		 UTMIP_FORCE_PDZI_POWERDOWN | UTMIP_XCVR_SETUP(~0));
+	if (phy_mode == TEGRA_USB_PHY_MODE_HOST) {
+		val &= ~(UTMIP_XCVR_LSFSLEW(~0) | UTMIP_XCVR_LSRSLEW(~0));
+		val |= UTMIP_XCVR_LSFSLEW(2) | UTMIP_XCVR_LSRSLEW(2);
+		val |= UTMIP_XCVR_SETUP(0x9);
+	} else {
+		val &= ~(UTMIP_XCVR_HSSLEW_MSB(~0));
+		val |= UTMIP_XCVR_SETUP(0xF);
+	}
 	writel(val, base + UTMIP_XCVR_CFG0);
-
-	val = readl(base + UTMIP_SPARE_CFG0);
-	val &= ~FUSE_SETUP_SEL;
-	writel(val, base + UTMIP_SPARE_CFG0);
 
 	val = readl(base + UTMIP_BIAS_CFG0);
 	val &= ~(UTMIP_OTGPD | UTMIP_BIASPD);
@@ -234,6 +254,9 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy)
 		writel(val, base + USB_SUSP_CTRL);
 	}
 
+	if (utmi_phy_wait_stable(phy))
+		pr_err("%s: timeout waiting for phy to stabilize\n", __func__);
+
 	if (phy->instance == 2) {
 		val = readl(base + USB_PORTSC1);
 		val &= ~USB_PORTSC1_PTS(~0);
@@ -244,7 +267,7 @@ void utmi_phy_power_on(struct tegra_usb_phy *phy)
 void utmi_phy_power_off(struct tegra_usb_phy *phy)
 {
 	unsigned long val;
-	void *base = phy->regs;
+	void __iomem *base = phy->regs;
 
 	if (phy->instance == 0) {
 		val = readl(base + USB_SUSP_CTRL);
@@ -333,12 +356,13 @@ err0:
 	return ERR_PTR(err);
 }
 
-int tegra_usb_phy_power_on(struct tegra_usb_phy *phy)
+int tegra_usb_phy_power_on(struct tegra_usb_phy *phy,
+			   enum tegra_usb_phy_mode phy_mode)
 {
 	/* TODO usb2 ulpi */
 	clk_enable(phy->pll_u);
 	if (phy->instance != 1)
-		utmi_phy_power_on(phy);
+		utmi_phy_power_on(phy, phy_mode);
 
 	return 0;
 }

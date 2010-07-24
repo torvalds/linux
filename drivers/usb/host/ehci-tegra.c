@@ -50,7 +50,7 @@ static void tegra_ehci_power_up(struct usb_hcd *hcd)
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
 
 	clk_enable(tegra->clk);
-	tegra_usb_phy_power_on(tegra->phy);
+	tegra_usb_phy_power_on(tegra->phy, TEGRA_USB_PHY_MODE_HOST);
 	tegra->host_resumed = 1;
 }
 
@@ -419,7 +419,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		goto fail_phy;
 	}
 
-	tegra_usb_phy_power_on(tegra->phy);
+	tegra_usb_phy_power_on(tegra->phy, TEGRA_USB_PHY_MODE_HOST);
 
 	err = tegra_ehci_reset(hcd);
 	if (err) {

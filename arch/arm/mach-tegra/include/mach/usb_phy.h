@@ -26,9 +26,15 @@ struct tegra_usb_phy {
 	struct clk *pll_u;
 };
 
+enum tegra_usb_phy_mode {
+	TEGRA_USB_PHY_MODE_DEVICE,
+	TEGRA_USB_PHY_MODE_HOST,
+};
+
 struct tegra_usb_phy *tegra_usb_phy_open(int instance, void __iomem *regs);
 
-int tegra_usb_phy_power_on(struct tegra_usb_phy *phy);
+int tegra_usb_phy_power_on(struct tegra_usb_phy *phy,
+			   enum tegra_usb_phy_mode phy_mode);
 
 int tegra_usb_phy_power_off(struct tegra_usb_phy *phy);
 

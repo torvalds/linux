@@ -56,7 +56,7 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 		goto err1;
 	}
 
-	tegra_usb_phy_power_on(phy);
+	tegra_usb_phy_power_on(phy, TEGRA_USB_PHY_MODE_DEVICE);
 
 	return 0;
 err1:
@@ -90,5 +90,5 @@ void fsl_udc_clk_suspend(void)
 void fsl_udc_clk_resume(void)
 {
 	clk_enable(udc_clk);
-	tegra_usb_phy_power_on(phy);
+	tegra_usb_phy_power_on(phy, TEGRA_USB_PHY_MODE_DEVICE);
 }
