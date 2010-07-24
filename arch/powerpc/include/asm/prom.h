@@ -103,6 +103,13 @@ struct device_node *of_find_next_cache_node(struct device_node *np);
 /* Get the MAC address */
 extern const void *of_get_mac_address(struct device_node *np);
 
+#ifdef CONFIG_NUMA
+extern int of_node_to_nid(struct device_node *device);
+#else
+static inline int of_node_to_nid(struct device_node *device) { return 0; }
+#endif
+#define of_node_to_nid of_node_to_nid
+
 /**
  * of_irq_map_pci - Resolve the interrupt for a PCI device
  * @pdev:	the device whose interrupt is to be resolved
