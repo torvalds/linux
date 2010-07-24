@@ -545,7 +545,6 @@ failed:
 static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 {
     win_req_t req;
-    memreq_t mem;
     u_char __iomem *base;
     int i, j;
 
@@ -558,9 +557,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 	return -1;
 
     base = ioremap(req.Base, req.Size);
-    mem.Page = 0;
-    mem.CardOffset = 0;
-    pcmcia_map_mem_page(link, link->win, &mem);
+    pcmcia_map_mem_page(link, link->win, 0);
 
     /*
      *  MBH10304 CISTPL_FUNCE_LAN_NODE_ID format
@@ -594,7 +591,6 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 {
     win_req_t req;
-    memreq_t mem;
     int i;
     struct net_device *dev = link->priv;
     unsigned int ioaddr;
@@ -614,9 +610,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 	return -1;
     }
 
-    mem.Page = 0;
-    mem.CardOffset = 0;
-    i = pcmcia_map_mem_page(link, link->win, &mem);
+    i = pcmcia_map_mem_page(link, link->win, 0);
     if (i != 0) {
 	iounmap(lp->base);
 	lp->base = NULL;

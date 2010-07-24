@@ -84,8 +84,6 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 {
 	struct ipw_dev *ipw = priv_data;
 	struct resource *io_resource;
-	memreq_t memreq_attr_memory;
-	memreq_t memreq_common_memory;
 	int ret;
 
 	p_dev->resource[0]->flags |= IO_DATA_PATH_WIDTH_AUTO;
@@ -121,11 +119,8 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	if (ret != 0)
 		goto exit1;
 
-	memreq_common_memory.CardOffset = cfg->mem.win[0].card_addr;
-	memreq_common_memory.Page = 0;
-
 	ret = pcmcia_map_mem_page(p_dev, ipw->handle_common_memory,
-				&memreq_common_memory);
+				cfg->mem.win[0].card_addr);
 
 	if (ret != 0)
 		goto exit2;
@@ -150,12 +145,7 @@ static int ipwireless_probe(struct pcmcia_device *p_dev,
 	if (ret != 0)
 		goto exit2;
 
-	memreq_attr_memory.CardOffset = 0;
-	memreq_attr_memory.Page = 0;
-
-	ret = pcmcia_map_mem_page(p_dev, ipw->handle_attr_memory,
-				&memreq_attr_memory);
-
+	ret = pcmcia_map_mem_page(p_dev, ipw->handle_attr_memory, 0);
 	if (ret != 0)
 		goto exit3;
 

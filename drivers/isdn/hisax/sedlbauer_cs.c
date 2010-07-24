@@ -232,7 +232,6 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	*/
 	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
 		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
-		memreq_t map;
 		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
 		req->Attributes |= WIN_ENABLE;
 		req->Base = mem->win[0].host_addr;
@@ -240,9 +239,9 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 		req->AccessSpeed = 0;
 		if (pcmcia_request_window(p_dev, req, &p_dev->win) != 0)
 			return -ENODEV;
-		map.Page = 0;
-		map.CardOffset = mem->win[0].card_addr;
-		if (pcmcia_map_mem_page(p_dev, p_dev->win, &map) != 0)
+
+		if (pcmcia_map_mem_page(p_dev, p_dev->win,
+						mem->win[0].card_addr) != 0)
 			return -ENODEV;
 	}
 	return 0;

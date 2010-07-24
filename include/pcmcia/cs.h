@@ -68,12 +68,6 @@ typedef struct config_req_t {
 #define PRESENT_IOBASE_3	0x100
 #define PRESENT_IOSIZE		0x200
 
-/* For GetMemPage, MapMemPage */
-typedef struct memreq_t {
-    u_int	CardOffset;
-    u_short	Page;
-} memreq_t;
-
 /* For RequestWindow */
 typedef struct win_req_t {
     u_int	Attributes;

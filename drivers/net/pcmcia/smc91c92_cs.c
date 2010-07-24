@@ -443,7 +443,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
     win_req_t req;
-    memreq_t mem;
+    unsigned int offset;
     int i;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -467,11 +467,8 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 	    return -ENODEV;
 
     smc->base = ioremap(req.Base, req.Size);
-    mem.CardOffset = mem.Page = 0;
-    if (smc->manfid == MANFID_MOTOROLA)
-	mem.CardOffset = link->conf.ConfigBase;
-    i = pcmcia_map_mem_page(link, link->win, &mem);
-
+    offset = (smc->manfid == MANFID_MOTOROLA) ? link->conf.ConfigBase : 0;
+    i = pcmcia_map_mem_page(link, link->win, offset);
     if ((i == 0) &&
 	(smc->manfid == MANFID_MEGAHERTZ) &&
 	(smc->cardid == PRODID_MEGAHERTZ_EM3288))

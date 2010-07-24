@@ -393,7 +393,6 @@ static int ray_config(struct pcmcia_device *link)
 	int ret = 0;
 	int i;
 	win_req_t req;
-	memreq_t mem;
 	struct net_device *dev = (struct net_device *)link->priv;
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -430,9 +429,7 @@ static int ray_config(struct pcmcia_device *link)
 	ret = pcmcia_request_window(link, &req, &link->win);
 	if (ret)
 		goto failed;
-	mem.CardOffset = 0x0000;
-	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link, link->win, &mem);
+	ret = pcmcia_map_mem_page(link, link->win, 0);
 	if (ret)
 		goto failed;
 	local->sram = ioremap(req.Base, req.Size);
@@ -446,9 +443,7 @@ static int ray_config(struct pcmcia_device *link)
 	ret = pcmcia_request_window(link, &req, &local->rmem_handle);
 	if (ret)
 		goto failed;
-	mem.CardOffset = 0x8000;
-	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link, local->rmem_handle, &mem);
+	ret = pcmcia_map_mem_page(link, local->rmem_handle, 0x8000);
 	if (ret)
 		goto failed;
 	local->rmem = ioremap(req.Base, req.Size);
@@ -462,9 +457,7 @@ static int ray_config(struct pcmcia_device *link)
 	ret = pcmcia_request_window(link, &req, &local->amem_handle);
 	if (ret)
 		goto failed;
-	mem.CardOffset = 0x0000;
-	mem.Page = 0;
-	ret = pcmcia_map_mem_page(link, local->amem_handle, &mem);
+	ret = pcmcia_map_mem_page(link, local->amem_handle, 0);
 	if (ret)
 		goto failed;
 	local->amem = ioremap(req.Base, req.Size);

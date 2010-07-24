@@ -211,7 +211,6 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     struct net_device *dev = info->dev;
     struct tok_info *ti = netdev_priv(dev);
     win_req_t req;
-    memreq_t mem;
     int i, ret;
 
     dev_dbg(&link->dev, "ibmtr_config\n");
@@ -250,9 +249,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = mmiobase;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, link->win, &mem);
+    ret = pcmcia_map_mem_page(link, link->win, mmiobase);
     if (ret)
 	    goto failed;
     ti->mmio = ioremap(req.Base, req.Size);
@@ -267,13 +264,11 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = srambase;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, info->sram_win_handle, &mem);
+    ret = pcmcia_map_mem_page(link, info->sram_win_handle, srambase);
     if (ret)
 	    goto failed;
 
-    ti->sram_base = mem.CardOffset >> 12;
+    ti->sram_base = srambase >> 12;
     ti->sram_virt = ioremap(req.Base, req.Size);
     ti->sram_phys = req.Base;
 

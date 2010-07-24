@@ -64,7 +64,6 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 {
 	struct ssb_bus *ssb;
 	win_req_t win;
-	memreq_t mem;
 	int err = -ENOMEM;
 	int res = 0;
 
@@ -87,9 +86,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	if (res != 0)
 		goto err_kfree_ssb;
 
-	mem.CardOffset = 0;
-	mem.Page = 0;
-	res = pcmcia_map_mem_page(dev, dev->win, &mem);
+	res = pcmcia_map_mem_page(dev, dev->win, 0);
 	if (res != 0)
 		goto err_disable;
 

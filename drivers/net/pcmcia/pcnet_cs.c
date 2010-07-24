@@ -301,7 +301,6 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     win_req_t req;
-    memreq_t mem;
     u_char __iomem *base, *virt;
     int i, j;
 
@@ -314,10 +313,8 @@ static hw_info_t *get_hwinfo(struct pcmcia_device *link)
 	return NULL;
 
     virt = ioremap(req.Base, req.Size);
-    mem.Page = 0;
     for (i = 0; i < NR_INFO; i++) {
-	mem.CardOffset = hw_info[i].offset & ~(req.Size-1);
-	pcmcia_map_mem_page(link, link->win, &mem);
+	pcmcia_map_mem_page(link, link->win, hw_info[i].offset & ~(req.Size-1));
 	base = &virt[hw_info[i].offset & (req.Size-1)];
 	if ((readb(base+0) == hw_info[i].a0) &&
 	    (readb(base+2) == hw_info[i].a1) &&
@@ -1463,7 +1460,6 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     struct net_device *dev = link->priv;
     pcnet_dev_t *info = PRIV(dev);
     win_req_t req;
-    memreq_t mem;
     int i, window_size, offset, ret;
 
     window_size = (stop_pg - start_pg) << 8;
@@ -1482,11 +1478,9 @@ static int setup_shmem_window(struct pcmcia_device *link, int start_pg,
     if (ret)
 	    goto failed;
 
-    mem.CardOffset = (start_pg << 8) + cm_offset;
-    offset = mem.CardOffset % window_size;
-    mem.CardOffset -= offset;
-    mem.Page = 0;
-    ret = pcmcia_map_mem_page(link, link->win, &mem);
+    offset = (start_pg << 8) + cm_offset;
+    offset -= offset % window_size;
+    ret = pcmcia_map_mem_page(link, link->win, offset);
     if (ret)
 	    goto failed;
 

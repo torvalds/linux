@@ -193,7 +193,7 @@ EXPORT_SYMBOL(pcmcia_write_config_byte);
 
 
 int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
-			memreq_t *req)
+			unsigned int offset)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	int ret;
@@ -201,12 +201,9 @@ int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,
 	wh--;
 	if (wh >= MAX_WIN)
 		return -EINVAL;
-	if (req->Page != 0) {
-		dev_dbg(&s->dev, "failure: requested page is zero\n");
-		return -EINVAL;
-	}
+
 	mutex_lock(&s->ops_mutex);
-	s->win[wh].card_start = req->CardOffset;
+	s->win[wh].card_start = offset;
 	ret = s->ops->set_mem_map(s, &s->win[wh]);
 	if (ret)
 		dev_warn(&s->dev, "failed to set_mem_map\n");

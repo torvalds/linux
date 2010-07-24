@@ -102,7 +102,7 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 {
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	window_handle_t win = (window_handle_t)map->map_priv_2;
-	memreq_t mrq;
+	unsigned int offset;
 	int ret;
 
 	if (!pcmcia_dev_present(dev->p_dev)) {
@@ -110,15 +110,14 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 		return 0;
 	}
 
-	mrq.CardOffset = to & ~(dev->win_size-1);
-	if(mrq.CardOffset != dev->offset) {
+	offset = to & ~(dev->win_size-1);
+	if (offset != dev->offset) {
 		DEBUG(2, "Remapping window from 0x%8.8x to 0x%8.8x",
-		      dev->offset, mrq.CardOffset);
-		mrq.Page = 0;
-		ret = pcmcia_map_mem_page(dev->p_dev, win, &mrq);
+		      dev->offset, offset);
+		ret = pcmcia_map_mem_page(dev->p_dev, win, offset);
 		if (ret != 0)
 			return NULL;
-		dev->offset = mrq.CardOffset;
+		dev->offset = offset;
 	}
 	return dev->win_base + (to & (dev->win_size-1));
 }

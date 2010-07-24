@@ -870,7 +870,6 @@ xirc2ps_config(struct pcmcia_device * link)
 
     if (local->dingo) {
 	win_req_t req;
-	memreq_t mem;
 
 	/* Reset the modem's BAR to the correct value
 	 * This is necessary because in the RequestConfiguration call,
@@ -898,9 +897,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	    goto config_error;
 
 	local->dingo_ccr = ioremap(req.Base,0x1000) + 0x0800;
-	mem.CardOffset = 0x0;
-	mem.Page = 0;
-	if ((err = pcmcia_map_mem_page(link, link->win, &mem)))
+	if ((err = pcmcia_map_mem_page(link, link->win, 0)))
 	    goto config_error;
 
 	/* Setup the CCRs; there are no infos in the CIS about the Ethernet
