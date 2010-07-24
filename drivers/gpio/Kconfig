@@ -1,5 +1,5 @@
 #
-# GPIO infrastructure and expanders
+# platform-neutral GPIO infrastructure and expanders
 #
 
 config ARCH_WANT_OPTIONAL_GPIOLIB

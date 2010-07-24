@@ -1820,9 +1820,8 @@ static int kdb_sr(int argc, const char **argv)
 {
 	if (argc != 1)
 		return KDB_ARGCOUNT;
-	sysrq_toggle_support(1);
 	kdb_trap_printk++;
-	handle_sysrq(*argv[1], NULL);
+	__handle_sysrq(*argv[1], NULL, 0);
 	kdb_trap_printk--;
 
 	return 0;
@@ -1883,6 +1882,7 @@ static int kdb_lsmod(int argc, const char **argv)
 			kdb_printf(" (Loading)");
 		else
 			kdb_printf(" (Live)");
+		kdb_printf(" 0x%p", mod->module_core);
 
 #ifdef CONFIG_MODULE_UNLOAD
 		{
@@ -2290,6 +2290,9 @@ static int kdb_ll(int argc, const char **argv)
 
 	while (va) {
 		char buf[80];
+
+		if (KDB_FLAG(CMD_INTERRUPT))
+			return 0;
 
 		sprintf(buf, "%s " kdb_machreg_fmt "\n", command, va);
 		diag = kdb_parse(buf);

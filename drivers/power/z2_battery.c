@@ -9,19 +9,13 @@
  *
  */
 
-#include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/power_supply.h>
-#include <linux/i2c.h>
-#include <linux/spinlock.h>
-#include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <asm/irq.h>
-#include <asm/mach/irq.h>
+#include <linux/power_supply.h>
+#include <linux/slab.h>
 #include <linux/z2_battery.h>
 
 #define	Z2_DEFAULT_NAME	"Z2"

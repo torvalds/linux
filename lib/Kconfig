@@ -181,9 +181,6 @@ config HAS_DMA
 config CHECK_SIGNATURE
 	bool
 
-config HAVE_LMB
-	boolean
-
 config CPUMASK_OFFSTACK
 	bool "Force CPU masks off stack" if DEBUG_PER_CPU_MAPS
 	help

@@ -495,7 +495,6 @@ static void balance_dirty_pages(struct address_space *mapping,
 
 	for (;;) {
 		struct writeback_control wbc = {
-			.bdi		= bdi,
 			.sync_mode	= WB_SYNC_NONE,
 			.older_than_this = NULL,
 			.nr_to_write	= write_chunk,
@@ -537,7 +536,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 		 * up.
 		 */
 		if (bdi_nr_reclaimable > bdi_thresh) {
-			writeback_inodes_wbc(&wbc);
+			writeback_inodes_wb(&bdi->wb, &wbc);
 			pages_written += write_chunk - wbc.nr_to_write;
 			get_dirty_limits(&background_thresh, &dirty_thresh,
 				       &bdi_thresh, bdi);
@@ -597,7 +596,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 	    (!laptop_mode && ((global_page_state(NR_FILE_DIRTY)
 			       + global_page_state(NR_UNSTABLE_NFS))
 					  > background_thresh)))
-		bdi_start_writeback(bdi, NULL, 0);
+		bdi_start_background_writeback(bdi);
 }
 
 void set_page_dirty_balance(struct page *page, int page_mkwrite)
@@ -705,9 +704,8 @@ void laptop_mode_timer_fn(unsigned long data)
 	 * We want to write everything out, not just down to the dirty
 	 * threshold
 	 */
-
 	if (bdi_has_dirty_io(&q->backing_dev_info))
-		bdi_start_writeback(&q->backing_dev_info, NULL, nr_pages);
+		bdi_start_writeback(&q->backing_dev_info, nr_pages);
 }
 
 /*

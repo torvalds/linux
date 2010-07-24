@@ -330,7 +330,6 @@ extern void exc_lvl_ctx_init(void);
 #define exc_lvl_ctx_init()
 #endif
 
-#ifdef CONFIG_IRQSTACKS
 /*
  * Per-cpu stacks for handling hard and soft interrupts.
  */
@@ -341,11 +340,6 @@ extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
 extern int call_handle_irq(int irq, void *p1,
 			   struct thread_info *tp, void *func);
-#else
-#define irq_ctx_init()
-
-#endif /* CONFIG_IRQSTACKS */
-
 extern void do_IRQ(struct pt_regs *regs);
 
 #endif /* _ASM_IRQ_H */

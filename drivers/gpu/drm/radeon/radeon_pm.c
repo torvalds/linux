@@ -397,13 +397,20 @@ static ssize_t radeon_set_pm_method(struct device *dev,
 		rdev->pm.dynpm_planned_action = DYNPM_ACTION_DEFAULT;
 		mutex_unlock(&rdev->pm.mutex);
 	} else if (strncmp("profile", buf, strlen("profile")) == 0) {
+		bool flush_wq = false;
+
 		mutex_lock(&rdev->pm.mutex);
-		rdev->pm.pm_method = PM_METHOD_PROFILE;
+		if (rdev->pm.pm_method == PM_METHOD_DYNPM) {
+			cancel_delayed_work(&rdev->pm.dynpm_idle_work);
+			flush_wq = true;
+		}
 		/* disable dynpm */
 		rdev->pm.dynpm_state = DYNPM_STATE_DISABLED;
 		rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
-		cancel_delayed_work(&rdev->pm.dynpm_idle_work);
+		rdev->pm.pm_method = PM_METHOD_PROFILE;
 		mutex_unlock(&rdev->pm.mutex);
+		if (flush_wq)
+			flush_workqueue(rdev->wq);
 	} else {
 		DRM_ERROR("invalid power method!\n");
 		goto fail;
@@ -418,9 +425,18 @@ static DEVICE_ATTR(power_method, S_IRUGO | S_IWUSR, radeon_get_pm_method, radeon
 
 void radeon_pm_suspend(struct radeon_device *rdev)
 {
+	bool flush_wq = false;
+
 	mutex_lock(&rdev->pm.mutex);
-	cancel_delayed_work(&rdev->pm.dynpm_idle_work);
+	if (rdev->pm.pm_method == PM_METHOD_DYNPM) {
+		cancel_delayed_work(&rdev->pm.dynpm_idle_work);
+		if (rdev->pm.dynpm_state == DYNPM_STATE_ACTIVE)
+			rdev->pm.dynpm_state = DYNPM_STATE_SUSPENDED;
+		flush_wq = true;
+	}
 	mutex_unlock(&rdev->pm.mutex);
+	if (flush_wq)
+		flush_workqueue(rdev->wq);
 }
 
 void radeon_pm_resume(struct radeon_device *rdev)
@@ -432,6 +448,12 @@ void radeon_pm_resume(struct radeon_device *rdev)
 	rdev->pm.current_sclk = rdev->clock.default_sclk;
 	rdev->pm.current_mclk = rdev->clock.default_mclk;
 	rdev->pm.current_vddc = rdev->pm.power_state[rdev->pm.default_power_state_index].clock_info[0].voltage.voltage;
+	if (rdev->pm.pm_method == PM_METHOD_DYNPM
+	    && rdev->pm.dynpm_state == DYNPM_STATE_SUSPENDED) {
+		rdev->pm.dynpm_state = DYNPM_STATE_ACTIVE;
+		queue_delayed_work(rdev->wq, &rdev->pm.dynpm_idle_work,
+					msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
+	}
 	mutex_unlock(&rdev->pm.mutex);
 	radeon_pm_compute_clocks(rdev);
 }
@@ -486,6 +508,8 @@ int radeon_pm_init(struct radeon_device *rdev)
 void radeon_pm_fini(struct radeon_device *rdev)
 {
 	if (rdev->pm.num_power_states > 1) {
+		bool flush_wq = false;
+
 		mutex_lock(&rdev->pm.mutex);
 		if (rdev->pm.pm_method == PM_METHOD_PROFILE) {
 			rdev->pm.profile = PM_PROFILE_DEFAULT;
@@ -493,13 +517,16 @@ void radeon_pm_fini(struct radeon_device *rdev)
 			radeon_pm_set_clocks(rdev);
 		} else if (rdev->pm.pm_method == PM_METHOD_DYNPM) {
 			/* cancel work */
-			cancel_delayed_work_sync(&rdev->pm.dynpm_idle_work);
+			cancel_delayed_work(&rdev->pm.dynpm_idle_work);
+			flush_wq = true;
 			/* reset default clocks */
 			rdev->pm.dynpm_state = DYNPM_STATE_DISABLED;
 			rdev->pm.dynpm_planned_action = DYNPM_ACTION_DEFAULT;
 			radeon_pm_set_clocks(rdev);
 		}
 		mutex_unlock(&rdev->pm.mutex);
+		if (flush_wq)
+			flush_workqueue(rdev->wq);
 
 		device_remove_file(rdev->dev, &dev_attr_power_profile);
 		device_remove_file(rdev->dev, &dev_attr_power_method);
@@ -720,12 +747,12 @@ static void radeon_dynpm_idle_work_handler(struct work_struct *work)
 			radeon_pm_get_dynpm_state(rdev);
 			radeon_pm_set_clocks(rdev);
 		}
+
+		queue_delayed_work(rdev->wq, &rdev->pm.dynpm_idle_work,
+					msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
 	}
 	mutex_unlock(&rdev->pm.mutex);
 	ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
-
-	queue_delayed_work(rdev->wq, &rdev->pm.dynpm_idle_work,
-					msecs_to_jiffies(RADEON_IDLE_LOOP_MS));
 }
 
 /*

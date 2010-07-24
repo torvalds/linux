@@ -673,6 +673,7 @@ static void _set_gpio_debounce(struct gpio_bank *bank, unsigned gpio,
 		if (cpu_is_omap34xx() || cpu_is_omap44xx())
 			clk_disable(bank->dbck);
 	}
+	bank->dbck_enable_mask = val;
 
 	__raw_writel(val, reg);
 }

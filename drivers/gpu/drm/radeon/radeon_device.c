@@ -226,20 +226,20 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 {
 	u64 size_af, size_bf;
 
-	size_af = 0xFFFFFFFF - mc->vram_end;
-	size_bf = mc->vram_start;
+	size_af = ((0xFFFFFFFF - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
+	size_bf = mc->vram_start & ~mc->gtt_base_align;
 	if (size_bf > size_af) {
 		if (mc->gtt_size > size_bf) {
 			dev_warn(rdev->dev, "limiting GTT\n");
 			mc->gtt_size = size_bf;
 		}
-		mc->gtt_start = mc->vram_start - mc->gtt_size;
+		mc->gtt_start = (mc->vram_start & ~mc->gtt_base_align) - mc->gtt_size;
 	} else {
 		if (mc->gtt_size > size_af) {
 			dev_warn(rdev->dev, "limiting GTT\n");
 			mc->gtt_size = size_af;
 		}
-		mc->gtt_start = mc->vram_end + 1;
+		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
 	}
 	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
 	dev_info(rdev->dev, "GTT: %lluM 0x%08llX - 0x%08llX\n",
@@ -779,6 +779,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 int radeon_resume_kms(struct drm_device *dev)
 {
+	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (rdev->powered_down)
@@ -797,6 +798,12 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_resume(rdev);
 	radeon_pm_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
+
+	/* turn on display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	}
+
 	radeon_fbdev_set_suspend(rdev, 0);
 	release_console_sem();
 

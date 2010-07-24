@@ -51,7 +51,7 @@
 #include <linux/suspend.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <linux/lmb.h>
+#include <linux/memblock.h>
 
 #include <asm/reg.h>
 #include <asm/sections.h>
@@ -619,7 +619,7 @@ static int __init pmac_probe(void)
 	 * driver needs that. We have to allocate it now. We allocate 4k
 	 * (1 small page) for now.
 	 */
-	smu_cmdbuf_abs = lmb_alloc_base(4096, 4096, 0x80000000UL);
+	smu_cmdbuf_abs = memblock_alloc_base(4096, 4096, 0x80000000UL);
 #endif /* CONFIG_PMAC_SMU */
 
 	return 1;

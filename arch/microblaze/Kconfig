@@ -5,7 +5,7 @@ mainmenu "Linux/Microblaze Kernel Configuration"
 
 config MICROBLAZE
 	def_bool y
-	select HAVE_LMB
+	select HAVE_MEMBLOCK
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_FUNCTION_GRAPH_TRACER

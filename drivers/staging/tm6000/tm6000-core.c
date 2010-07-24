@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include "tm6000.h"

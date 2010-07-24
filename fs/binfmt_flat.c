@@ -68,11 +68,7 @@
  * Here we can be a bit looser than the data sections since this
  * needs to only meet arch ABI requirements.
  */
-#ifdef ARCH_SLAB_MINALIGN
-#define FLAT_STACK_ALIGN	(ARCH_SLAB_MINALIGN)
-#else
-#define FLAT_STACK_ALIGN	(sizeof(void *))
-#endif
+#define FLAT_STACK_ALIGN	max_t(unsigned long, sizeof(void *), ARCH_SLAB_MINALIGN)
 
 #define RELOC_FAILED 0xff00ff01		/* Relocation incorrect somewhere */
 #define UNLOADED_LIB 0x7ff000ff		/* Placeholder for unused library */

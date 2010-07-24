@@ -333,7 +333,6 @@ static int evergreen_cs_packet_parse_vline(struct radeon_cs_parser *p)
 	header = radeon_get_ib_value(p, h_idx);
 	crtc_id = radeon_get_ib_value(p, h_idx + 2 + 7 + 1);
 	reg = CP_PACKET0_GET_REG(header);
-	mutex_lock(&p->rdev->ddev->mode_config.mutex);
 	obj = drm_mode_object_find(p->rdev->ddev, crtc_id, DRM_MODE_OBJECT_CRTC);
 	if (!obj) {
 		DRM_ERROR("cannot find crtc %d\n", crtc_id);
@@ -368,7 +367,6 @@ static int evergreen_cs_packet_parse_vline(struct radeon_cs_parser *p)
 		}
 	}
 out:
-	mutex_unlock(&p->rdev->ddev->mode_config.mutex);
 	return r;
 }
 
@@ -1197,7 +1195,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 					DRM_ERROR("bad SET_RESOURCE (tex)\n");
 					return -EINVAL;
 				}
-				ib[idx+1+(i*8)+3] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				ib[idx+1+(i*8)+2] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
 					ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
 				else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
@@ -1209,7 +1207,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 					DRM_ERROR("bad SET_RESOURCE (tex)\n");
 					return -EINVAL;
 				}
-				ib[idx+1+(i*8)+4] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				ib[idx+1+(i*8)+3] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				mipmap = reloc->robj;
 				r = evergreen_check_texture_resource(p,  idx+1+(i*8),
 						texture, mipmap);

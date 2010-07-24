@@ -525,13 +525,21 @@ static inline struct cgroup_subsys_state *cgroup_subsys_state(
 	return cgrp->subsys[subsys_id];
 }
 
-static inline struct cgroup_subsys_state *task_subsys_state(
-	struct task_struct *task, int subsys_id)
+/*
+ * function to get the cgroup_subsys_state which allows for extra
+ * rcu_dereference_check() conditions, such as locks used during the
+ * cgroup_subsys::attach() methods.
+ */
+#define task_subsys_state_check(task, subsys_id, __c)			\
+	rcu_dereference_check(task->cgroups->subsys[subsys_id],		\
+			      rcu_read_lock_held() ||			\
+			      lockdep_is_held(&task->alloc_lock) ||	\
+			      cgroup_lock_is_held() || (__c))
+
+static inline struct cgroup_subsys_state *
+task_subsys_state(struct task_struct *task, int subsys_id)
 {
-	return rcu_dereference_check(task->cgroups->subsys[subsys_id],
-				     rcu_read_lock_held() ||
-				     lockdep_is_held(&task->alloc_lock) ||
-				     cgroup_lock_is_held());
+	return task_subsys_state_check(task, subsys_id, false);
 }
 
 static inline struct cgroup* task_cgroup(struct task_struct *task,
