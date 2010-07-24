@@ -915,6 +915,9 @@ config CPU_LITTLE_ENDIAN
 
 endchoice
 
+config EXPORT_UASM
+	bool
+
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
