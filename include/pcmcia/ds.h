@@ -174,8 +174,8 @@ struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *p_dev);
 int pcmcia_reset_card(struct pcmcia_socket *skt);
 
 /* CIS config */
-int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
-					 conf_reg_t *reg);
+int pcmcia_read_config_byte(struct pcmcia_device *p_dev, off_t where, u8 *val);
+int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val);
 
 /* device configuration */
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);

@@ -209,7 +209,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
  * Probably only useful for writing one-byte registers. Must be called
  * with ops_mutex held.
  */
-void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
+int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		   u_int len, void *ptr)
 {
 	void __iomem *sys, *end;
@@ -231,7 +231,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 				((cis_width) ? MAP_16BIT : 0));
 		if (!sys) {
 			dev_dbg(&s->dev, "could not map memory\n");
-			return; /* FIXME: Error */
+			return -EINVAL;
 		}
 
 		writeb(flags, sys+CISREG_ICTRL0);
@@ -256,7 +256,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 			sys = set_cis_map(s, card_offset, flags);
 			if (!sys) {
 				dev_dbg(&s->dev, "could not map memory\n");
-				return; /* FIXME: error */
+				return -EINVAL;
 			}
 
 			end = sys + s->map_size;
@@ -270,6 +270,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 			addr = 0;
 		}
 	}
+	return 0;
 }
 
 

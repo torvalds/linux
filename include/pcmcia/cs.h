@@ -19,18 +19,6 @@
 #include <linux/interrupt.h>
 #endif
 
-/* For AccessConfigurationRegister */
-typedef struct conf_reg_t {
-    u_char	Function;
-    u_int	Action;
-    off_t	Offset;
-    u_int	Value;
-} conf_reg_t;
-
-/* Actions */
-#define CS_READ		1
-#define CS_WRITE	2
-
 /* for AdjustResourceInfo */
 /* Action field */
 #define REMOVE_MANAGED_RESOURCE		1

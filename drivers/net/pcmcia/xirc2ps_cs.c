@@ -869,7 +869,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	goto config_error;
 
     if (local->dingo) {
-	conf_reg_t reg;
 	win_req_t req;
 	memreq_t mem;
 
@@ -878,15 +877,14 @@ xirc2ps_config(struct pcmcia_device * link)
 	 * the base address of the ethernet port (BasePort1) is written
 	 * to the BAR registers of the modem.
 	 */
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_IOBASE_0;
-	reg.Value = link->io.BasePort2 & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg)))
+	err = pcmcia_write_config_byte(link, CISREG_IOBASE_0,
+				link->io.BasePort2 & 0xff);
+	if (err)
 	    goto config_error;
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_IOBASE_1;
-	reg.Value = (link->io.BasePort2 >> 8) & 0xff;
-	if ((err = pcmcia_access_configuration_register(link, &reg)))
+
+	err = pcmcia_write_config_byte(link, CISREG_IOBASE_1,
+				(link->io.BasePort2 >> 8) & 0xff);
+	if (err)
 	    goto config_error;
 
 	/* There is no config entry for the Ethernet part which

@@ -71,14 +71,9 @@
 /* Write to a PCMCIA configuration register. */
 static int ssb_pcmcia_cfg_write(struct ssb_bus *bus, u8 offset, u8 value)
 {
-	conf_reg_t reg;
 	int res;
 
-	memset(&reg, 0, sizeof(reg));
-	reg.Offset = offset;
-	reg.Action = CS_WRITE;
-	reg.Value = value;
-	res = pcmcia_access_configuration_register(bus->host_pcmcia, &reg);
+	res = pcmcia_write_config_byte(bus->host_pcmcia, offset, value);
 	if (unlikely(res != 0))
 		return -EBUSY;
 
@@ -88,16 +83,11 @@ static int ssb_pcmcia_cfg_write(struct ssb_bus *bus, u8 offset, u8 value)
 /* Read from a PCMCIA configuration register. */
 static int ssb_pcmcia_cfg_read(struct ssb_bus *bus, u8 offset, u8 *value)
 {
-	conf_reg_t reg;
 	int res;
 
-	memset(&reg, 0, sizeof(reg));
-	reg.Offset = offset;
-	reg.Action = CS_READ;
-	res = pcmcia_access_configuration_register(bus->host_pcmcia, &reg);
+	res = pcmcia_read_config_byte(bus->host_pcmcia, offset, value);
 	if (unlikely(res != 0))
 		return -EBUSY;
-	*value = reg.Value;
 
 	return 0;
 }

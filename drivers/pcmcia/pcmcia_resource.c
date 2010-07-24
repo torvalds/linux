@@ -108,24 +108,24 @@ static void release_io_space(struct pcmcia_socket *s, unsigned int base,
 } /* release_io_space */
 
 
-/** pccard_access_configuration_register
+/**
+ * pcmcia_access_config() - read or write card configuration registers
  *
- * Access_configuration_register() reads and writes configuration
- * registers in attribute memory.  Memory window 0 is reserved for
- * this and the tuple reading services.
+ * pcmcia_access_config() reads and writes configuration registers in
+ * attribute memory.  Memory window 0 is reserved for this and the tuple
+ * reading services. Drivers must use pcmcia_read_config_byte() or
+ * pcmcia_write_config_byte().
  */
-
-int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
-					 conf_reg_t *reg)
+static int pcmcia_access_config(struct pcmcia_device *p_dev,
+				off_t where, u8 *val,
+				int (*accessf) (struct pcmcia_socket *s,
+						int attr, unsigned int addr,
+						unsigned int len, void *ptr))
 {
 	struct pcmcia_socket *s;
 	config_t *c;
 	int addr;
-	u_char val;
 	int ret = 0;
-
-	if (!p_dev || !p_dev->function_config)
-		return -EINVAL;
 
 	s = p_dev->socket;
 
@@ -138,26 +138,40 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 		return -EACCES;
 	}
 
-	addr = (c->ConfigBase + reg->Offset) >> 1;
+	addr = (c->ConfigBase + where) >> 1;
 
-	switch (reg->Action) {
-	case CS_READ:
-		ret = pcmcia_read_cis_mem(s, 1, addr, 1, &val);
-		reg->Value = val;
-		break;
-	case CS_WRITE:
-		val = reg->Value;
-		pcmcia_write_cis_mem(s, 1, addr, 1, &val);
-		break;
-	default:
-		dev_dbg(&s->dev, "Invalid conf register request\n");
-		ret = -EINVAL;
-		break;
-	}
+	ret = accessf(s, 1, addr, 1, val);
+
 	mutex_unlock(&s->ops_mutex);
+
 	return ret;
-} /* pcmcia_access_configuration_register */
-EXPORT_SYMBOL(pcmcia_access_configuration_register);
+} /* pcmcia_access_config */
+
+
+/**
+ * pcmcia_read_config_byte() - read a byte from a card configuration register
+ *
+ * pcmcia_read_config_byte() reads a byte from a configuration register in
+ * attribute memory.
+ */
+int pcmcia_read_config_byte(struct pcmcia_device *p_dev, off_t where, u8 *val)
+{
+	return pcmcia_access_config(p_dev, where, val, pcmcia_read_cis_mem);
+}
+EXPORT_SYMBOL(pcmcia_read_config_byte);
+
+
+/**
+ * pcmcia_write_config_byte() - write a byte to a card configuration register
+ *
+ * pcmcia_write_config_byte() writes a byte to a configuration register in
+ * attribute memory.
+ */
+int pcmcia_write_config_byte(struct pcmcia_device *p_dev, off_t where, u8 val)
+{
+	return pcmcia_access_config(p_dev, where, &val, pcmcia_write_cis_mem);
+}
+EXPORT_SYMBOL(pcmcia_write_config_byte);
 
 
 int pcmcia_map_mem_page(struct pcmcia_device *p_dev, window_handle_t wh,

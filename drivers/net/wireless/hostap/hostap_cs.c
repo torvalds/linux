@@ -224,27 +224,18 @@ static int prism2_pccard_card_present(local_info_t *local)
 static void sandisk_set_iobase(local_info_t *local)
 {
 	int res;
-	conf_reg_t reg;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = 0x10; /* 0x3f0 IO base 1 */
-	reg.Value = hw_priv->link->io.BasePort1 & 0x00ff;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, 0x10,
+				hw_priv->link->io.BasePort1 & 0x00ff);
 	if (res != 0) {
 		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 0 -"
 		       " res=%d\n", res);
 	}
 	udelay(10);
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = 0x12; /* 0x3f2 IO base 2 */
-	reg.Value = (hw_priv->link->io.BasePort1 & 0xff00) >> 8;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, 0x12,
+				(hw_priv->link->io.BasePort1 >> 8) & 0x00ff);
 	if (res != 0) {
 		printk(KERN_DEBUG "Prism3 SanDisk - failed to set I/O base 1 -"
 		       " res=%d\n", res);
@@ -270,7 +261,6 @@ static void sandisk_write_hcr(local_info_t *local, int hcr)
 static int sandisk_enable_wireless(struct net_device *dev)
 {
 	int res, ret = 0;
-	conf_reg_t reg;
 	struct hostap_interface *iface = netdev_priv(dev);
 	local_info_t *local = iface->local;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
@@ -297,12 +287,8 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	       " - using vendor-specific initialization\n", dev->name);
 	hw_priv->sandisk_connectplus = 1;
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
-	reg.Value = COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				COR_SOFT_RESET);
 	if (res != 0) {
 		printk(KERN_DEBUG "%s: SanDisk - COR sreset failed (%d)\n",
 		       dev->name, res);
@@ -310,16 +296,13 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	}
 	mdelay(5);
 
-	reg.Function = 0;
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
 	/*
 	 * Do not enable interrupts here to avoid some bogus events. Interrupts
 	 * will be enabled during the first cor_sreset call.
 	 */
-	reg.Value = COR_LEVEL_REQ | 0x8 | COR_ADDR_DECODE | COR_FUNC_ENA;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				(COR_LEVEL_REQ | 0x8 | COR_ADDR_DECODE |
+					COR_FUNC_ENA));
 	if (res != 0) {
 		printk(KERN_DEBUG "%s: SanDisk - COR sreset failed (%d)\n",
 		       dev->name, res);
@@ -342,30 +325,23 @@ done:
 static void prism2_pccard_cor_sreset(local_info_t *local)
 {
 	int res;
-	conf_reg_t reg;
+	u8 val;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	if (!prism2_pccard_card_present(local))
 	       return;
 
-	reg.Function = 0;
-	reg.Action = CS_READ;
-	reg.Offset = CISREG_COR;
-	reg.Value = 0;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_read_config_byte(hw_priv->link, CISREG_COR, &val);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 1 (%d)\n",
 		       res);
 		return;
 	}
 	printk(KERN_DEBUG "prism2_pccard_cor_sreset: original COR %02x\n",
-	       reg.Value);
+		val);
 
-	reg.Action = CS_WRITE;
-	reg.Value |= COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	val |= COR_SOFT_RESET;
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR, val);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 2 (%d)\n",
 		       res);
@@ -374,11 +350,10 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 
 	mdelay(hw_priv->sandisk_connectplus ? 5 : 2);
 
-	reg.Value &= ~COR_SOFT_RESET;
+	val &= ~COR_SOFT_RESET;
 	if (hw_priv->sandisk_connectplus)
-		reg.Value |= COR_IREQ_ENA;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+		val |= COR_IREQ_ENA;
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR, val);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_cor_sreset failed 3 (%d)\n",
 		       res);
@@ -395,8 +370,7 @@ static void prism2_pccard_cor_sreset(local_info_t *local)
 static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 {
 	int res;
-	conf_reg_t reg;
-	int old_cor;
+	u8 old_cor;
 	struct hostap_cs_priv *hw_priv = local->hw_priv;
 
 	if (!prism2_pccard_card_present(local))
@@ -407,25 +381,17 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 		return;
 	}
 
-	reg.Function = 0;
-	reg.Action = CS_READ;
-	reg.Offset = CISREG_COR;
-	reg.Value = 0;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_read_config_byte(hw_priv->link, CISREG_COR, &old_cor);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 1 "
 		       "(%d)\n", res);
 		return;
 	}
 	printk(KERN_DEBUG "prism2_pccard_genesis_sreset: original COR %02x\n",
-	       reg.Value);
-	old_cor = reg.Value;
+		old_cor);
 
-	reg.Action = CS_WRITE;
-	reg.Value |= COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				old_cor | COR_SOFT_RESET);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 2 "
 		       "(%d)\n", res);
@@ -435,11 +401,7 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	mdelay(10);
 
 	/* Setup Genesis mode */
-	reg.Action = CS_WRITE;
-	reg.Value = hcr;
-	reg.Offset = CISREG_CCSR;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_CCSR, hcr);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 3 "
 		       "(%d)\n", res);
@@ -447,11 +409,8 @@ static void prism2_pccard_genesis_reset(local_info_t *local, int hcr)
 	}
 	mdelay(10);
 
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
-	reg.Value = old_cor & ~COR_SOFT_RESET;
-	res = pcmcia_access_configuration_register(hw_priv->link,
-						   &reg);
+	res = pcmcia_write_config_byte(hw_priv->link, CISREG_COR,
+				old_cor & ~COR_SOFT_RESET);
 	if (res != 0) {
 		printk(KERN_DEBUG "prism2_pccard_genesis_sreset failed 4 "
 		       "(%d)\n", res);

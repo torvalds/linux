@@ -79,35 +79,27 @@ static int
 spectrum_reset(struct pcmcia_device *link, int idle)
 {
 	int ret;
-	conf_reg_t reg;
-	u_int save_cor;
+	u8 save_cor;
+	u8 ccsr;
 
 	/* Doing it if hardware is gone is guaranteed crash */
 	if (!pcmcia_dev_present(link))
 		return -ENODEV;
 
 	/* Save original COR value */
-	reg.Function = 0;
-	reg.Action = CS_READ;
-	reg.Offset = CISREG_COR;
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ret = pcmcia_read_config_byte(link, CISREG_COR, &save_cor);
 	if (ret)
 		goto failed;
-	save_cor = reg.Value;
 
 	/* Soft-Reset card */
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
-	reg.Value = (save_cor | COR_SOFT_RESET);
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ret = pcmcia_write_config_byte(link, CISREG_COR,
+				(save_cor | COR_SOFT_RESET));
 	if (ret)
 		goto failed;
 	udelay(1000);
 
 	/* Read CCSR */
-	reg.Action = CS_READ;
-	reg.Offset = CISREG_CCSR;
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ret = pcmcia_read_config_byte(link, CISREG_CCSR, &ccsr);
 	if (ret)
 		goto failed;
 
@@ -115,19 +107,15 @@ spectrum_reset(struct pcmcia_device *link, int idle)
 	 * Start or stop the firmware.  Memory width bit should be
 	 * preserved from the value we've just read.
 	 */
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_CCSR;
-	reg.Value = (idle ? HCR_IDLE : HCR_RUN) | (reg.Value & HCR_MEM16);
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ccsr = (idle ? HCR_IDLE : HCR_RUN) | (ccsr & HCR_MEM16);
+	ret = pcmcia_write_config_byte(link, CISREG_CCSR, ccsr);
 	if (ret)
 		goto failed;
 	udelay(1000);
 
 	/* Restore original COR configuration index */
-	reg.Action = CS_WRITE;
-	reg.Offset = CISREG_COR;
-	reg.Value = (save_cor & ~COR_SOFT_RESET);
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ret = pcmcia_write_config_byte(link, CISREG_COR,
+				(save_cor & ~COR_SOFT_RESET));
 	if (ret)
 		goto failed;
 	udelay(1000);

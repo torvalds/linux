@@ -757,29 +757,20 @@ static void nmclan_reset(struct net_device *dev)
 
 #if RESET_XILINX
   struct pcmcia_device *link = &lp->link;
-  conf_reg_t reg;
-  u_long OrigCorValue; 
+  u8 OrigCorValue;
 
   /* Save original COR value */
-  reg.Function = 0;
-  reg.Action = CS_READ;
-  reg.Offset = CISREG_COR;
-  reg.Value = 0;
-  pcmcia_access_configuration_register(link, &reg);
-  OrigCorValue = reg.Value;
+  pcmcia_read_config_byte(link, CISREG_COR, &OrigCorValue);
 
   /* Reset Xilinx */
-  reg.Action = CS_WRITE;
-  reg.Offset = CISREG_COR;
-  dev_dbg(&link->dev, "nmclan_reset: OrigCorValue=0x%lX, resetting...\n",
+  dev_dbg(&link->dev, "nmclan_reset: OrigCorValue=0x%x, resetting...\n",
 	OrigCorValue);
-  reg.Value = COR_SOFT_RESET;
-  pcmcia_access_configuration_register(link, &reg);
+  pcmcia_write_config_byte(link, CISREG_COR, COR_SOFT_RESET);
   /* Need to wait for 20 ms for PCMCIA to finish reset. */
 
   /* Restore original COR configuration index */
-  reg.Value = COR_LEVEL_REQ | (OrigCorValue & COR_CONFIG_MASK);
-  pcmcia_access_configuration_register(link, &reg);
+  pcmcia_write_config_byte(link, CISREG_COR,
+			  (COR_LEVEL_REQ | (OrigCorValue & COR_CONFIG_MASK)));
   /* Xilinx is now completely reset along with the MACE chip. */
   lp->tx_free_frames=AM2150_MAX_TX_FRAMES;
 

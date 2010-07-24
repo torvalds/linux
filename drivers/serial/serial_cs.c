@@ -114,16 +114,14 @@ static void quirk_setup_brainboxes_0104(struct pcmcia_device *link, struct uart_
 
 static int quirk_post_ibm(struct pcmcia_device *link)
 {
-	conf_reg_t reg = { 0, CS_READ, 0x800, 0 };
+	u8 val;
 	int ret;
 
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ret = pcmcia_read_config_byte(link, 0x800, &val);
 	if (ret)
 		goto failed;
 
-	reg.Action = CS_WRITE;
-	reg.Value = reg.Value | 1;
-	ret = pcmcia_access_configuration_register(link, &reg);
+	ret = pcmcia_write_config_byte(link, 0x800, val | 1);
 	if (ret)
 		goto failed;
 	return 0;

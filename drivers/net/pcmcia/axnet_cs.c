@@ -378,8 +378,7 @@ static int axnet_config(struct pcmcia_device *link)
     /* Maybe PHY is in power down mode. (PPD_SET = 1) 
        Bit 2 of CCSR is active low. */ 
     if (i == 32) {
-	conf_reg_t reg = { 0, CS_WRITE, CISREG_CCSR, 0x04 };
- 	pcmcia_access_configuration_register(link, &reg);
+	pcmcia_write_config_byte(link, CISREG_CCSR, 0x04);
 	for (i = 0; i < 32; i++) {
 	    j = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 1);
 	    j2 = mdio_read(dev->base_addr + AXNET_MII_EEP, i, 2);

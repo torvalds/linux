@@ -158,8 +158,8 @@ extern struct bin_attribute pccard_cis_attr;
 
 int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr,
 			u_int addr, u_int len, void *ptr);
-void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr,
-			  u_int addr, u_int len, void *ptr);
+int pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr,
+			u_int addr, u_int len, void *ptr);
 void release_cis_mem(struct pcmcia_socket *s);
 void destroy_cis_cache(struct pcmcia_socket *s);
 int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
