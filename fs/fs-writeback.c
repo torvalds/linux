@@ -840,7 +840,7 @@ int bdi_writeback_thread(void *data)
 
 			/*
 			 * Longest period of inactivity that we tolerate. If we
-			 * see dirty data again later, the task will get
+			 * see dirty data again later, the thread will get
 			 * recreated automatically.
 			 */
 			max_idle = max(5UL * 60 * HZ, wait_jiffies);

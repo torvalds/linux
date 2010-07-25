@@ -50,7 +50,7 @@ static struct timer_list sync_supers_timer;
 static int bdi_sync_supers(void *);
 static void sync_supers_timer_fn(unsigned long);
 
-static void bdi_add_default_flusher_task(struct backing_dev_info *bdi);
+static void bdi_add_default_flusher_thread(struct backing_dev_info *bdi);
 
 #ifdef CONFIG_DEBUG_FS
 #include <linux/debugfs.h>
@@ -279,10 +279,10 @@ static void bdi_flush_io(struct backing_dev_info *bdi)
 }
 
 /*
- * kupdated() used to do this. We cannot do it from the bdi_forker_task()
+ * kupdated() used to do this. We cannot do it from the bdi_forker_thread()
  * or we risk deadlocking on ->s_umount. The longer term solution would be
  * to implement sync_supers_bdi() or similar and simply do it from the
- * bdi writeback tasks individually.
+ * bdi writeback thread individually.
  */
 static int bdi_sync_supers(void *unused)
 {
@@ -318,7 +318,7 @@ static void sync_supers_timer_fn(unsigned long unused)
 	bdi_arm_supers_timer();
 }
 
-static int bdi_forker_task(void *ptr)
+static int bdi_forker_thread(void *ptr)
 {
 	struct bdi_writeback *me = ptr;
 
@@ -354,7 +354,7 @@ static int bdi_forker_task(void *ptr)
 			    !bdi_has_dirty_io(bdi))
 				continue;
 
-			bdi_add_default_flusher_task(bdi);
+			bdi_add_default_flusher_thread(bdi);
 		}
 
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -376,7 +376,7 @@ static int bdi_forker_task(void *ptr)
 
 		/*
 		 * This is our real job - check for pending entries in
-		 * bdi_pending_list, and create the tasks that got added
+		 * bdi_pending_list, and create the threads that got added
 		 */
 		bdi = list_entry(bdi_pending_list.next, struct backing_dev_info,
 				 bdi_list);
@@ -387,7 +387,7 @@ static int bdi_forker_task(void *ptr)
 		wb->task = kthread_run(bdi_writeback_thread, wb, "flush-%s",
 					dev_name(bdi->dev));
 		/*
-		 * If task creation fails, then readd the bdi to
+		 * If thread creation fails, then readd the bdi to
 		 * the pending list and force writeout of the bdi
 		 * from this forker thread. That will free some memory
 		 * and we can try again.
@@ -430,10 +430,10 @@ static void bdi_add_to_pending(struct rcu_head *head)
 }
 
 /*
- * Add the default flusher task that gets created for any bdi
+ * Add the default flusher thread that gets created for any bdi
  * that has dirty data pending writeout
  */
-void static bdi_add_default_flusher_task(struct backing_dev_info *bdi)
+static void bdi_add_default_flusher_thread(struct backing_dev_info *bdi)
 {
 	if (!bdi_cap_writeback_dirty(bdi))
 		return;
@@ -445,10 +445,10 @@ void static bdi_add_default_flusher_task(struct backing_dev_info *bdi)
 	}
 
 	/*
-	 * Check with the helper whether to proceed adding a task. Will only
+	 * Check with the helper whether to proceed adding a thread. Will only
 	 * abort if we two or more simultanous calls to
-	 * bdi_add_default_flusher_task() occured, further additions will block
-	 * waiting for previous additions to finish.
+	 * bdi_add_default_flusher_thread() occured, further additions will
+	 * block waiting for previous additions to finish.
 	 */
 	if (!test_and_set_bit(BDI_pending, &bdi->state)) {
 		list_del_rcu(&bdi->bdi_list);
@@ -506,7 +506,7 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 	if (bdi_cap_flush_forker(bdi)) {
 		struct bdi_writeback *wb = &bdi->wb;
 
-		wb->task = kthread_run(bdi_forker_task, wb, "bdi-%s",
+		wb->task = kthread_run(bdi_forker_thread, wb, "bdi-%s",
 						dev_name(dev));
 		if (IS_ERR(wb->task)) {
 			wb->task = NULL;

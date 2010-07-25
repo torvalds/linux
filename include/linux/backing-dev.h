@@ -50,7 +50,7 @@ struct bdi_writeback {
 
 	unsigned long last_old_flush;		/* last old data flush */
 
-	struct task_struct	*task;		/* writeback task */
+	struct task_struct	*task;		/* writeback thread */
 	struct list_head	b_dirty;	/* dirty inodes */
 	struct list_head	b_io;		/* parked for writeback */
 	struct list_head	b_more_io;	/* parked for more writeback */
