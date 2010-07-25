@@ -326,7 +326,25 @@ enum {
 #define NILFS_DIR_ROUND			(NILFS_DIR_PAD - 1)
 #define NILFS_DIR_REC_LEN(name_len)	(((name_len) + 12 + NILFS_DIR_ROUND) & \
 					~NILFS_DIR_ROUND)
+#define NILFS_MAX_REC_LEN		((1<<16)-1)
 
+static inline unsigned nilfs_rec_len_from_disk(__le16 dlen)
+{
+	unsigned len = le16_to_cpu(dlen);
+
+	if (len == NILFS_MAX_REC_LEN)
+		return 1 << 16;
+	return len;
+}
+
+static inline __le16 nilfs_rec_len_to_disk(unsigned len)
+{
+	if (len == (1 << 16))
+		return cpu_to_le16(NILFS_MAX_REC_LEN);
+	else if (len > (1 << 16))
+		BUG();
+	return cpu_to_le16(len);
+}
 
 /**
  * struct nilfs_finfo - file information
