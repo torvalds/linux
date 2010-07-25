@@ -305,19 +305,17 @@ static const struct super_operations sockfs_ops = {
 	.statfs		= simple_statfs,
 };
 
-static int sockfs_get_sb(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data,
-			 struct vfsmount *mnt)
+static struct dentry *sockfs_mount(struct file_system_type *fs_type,
+			 int flags, const char *dev_name, void *data)
 {
-	return get_sb_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC,
-			     mnt);
+	return mount_pseudo(fs_type, "socket:", &sockfs_ops, SOCKFS_MAGIC);
 }
 
 static struct vfsmount *sock_mnt __read_mostly;
 
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",
-	.get_sb =	sockfs_get_sb,
+	.mount =	sockfs_mount,
 	.kill_sb =	kill_anon_super,
 };
 

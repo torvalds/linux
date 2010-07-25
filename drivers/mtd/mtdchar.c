@@ -1030,17 +1030,15 @@ static const struct file_operations mtd_fops = {
 #endif
 };
 
-static int mtd_inodefs_get_sb(struct file_system_type *fs_type, int flags,
-                               const char *dev_name, void *data,
-                               struct vfsmount *mnt)
+static struct dentry *mtd_inodefs_mount(struct file_system_type *fs_type,
+				int flags, const char *dev_name, void *data)
 {
-        return get_sb_pseudo(fs_type, "mtd_inode:", NULL, MTD_INODE_FS_MAGIC,
-                             mnt);
+        return mount_pseudo(fs_type, "mtd_inode:", NULL, MTD_INODE_FS_MAGIC);
 }
 
 static struct file_system_type mtd_inodefs_type = {
        .name = "mtd_inodefs",
-       .get_sb = mtd_inodefs_get_sb,
+       .mount = mtd_inodefs_mount,
        .kill_sb = kill_anon_super,
 };
 
