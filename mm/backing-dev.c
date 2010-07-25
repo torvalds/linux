@@ -511,23 +511,16 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...)
 {
 	va_list args;
-	int ret = 0;
 	struct device *dev;
 
 	if (bdi->dev)	/* The driver needs to use separate queues per device */
-		goto exit;
+		return 0;
 
 	va_start(args, fmt);
 	dev = device_create_vargs(bdi_class, parent, MKDEV(0, 0), bdi, fmt, args);
 	va_end(args);
-	if (IS_ERR(dev)) {
-		ret = PTR_ERR(dev);
-		goto exit;
-	}
-
-	spin_lock_bh(&bdi_lock);
-	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
-	spin_unlock_bh(&bdi_lock);
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	bdi->dev = dev;
 
@@ -541,20 +534,19 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 
 		wb->task = kthread_run(bdi_forker_thread, wb, "bdi-%s",
 						dev_name(dev));
-		if (IS_ERR(wb->task)) {
-			wb->task = NULL;
-			ret = -ENOMEM;
-
-			bdi_remove_from_list(bdi);
-			goto exit;
-		}
+		if (IS_ERR(wb->task))
+			return PTR_ERR(wb->task);
 	}
 
 	bdi_debug_register(bdi, dev_name(dev));
 	set_bit(BDI_registered, &bdi->state);
+
+	spin_lock_bh(&bdi_lock);
+	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
+	spin_unlock_bh(&bdi_lock);
+
 	trace_writeback_bdi_register(bdi);
-exit:
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(bdi_register);
 
