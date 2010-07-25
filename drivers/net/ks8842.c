@@ -34,7 +34,12 @@
 #define DRV_NAME "ks8842"
 
 /* Timberdale specific Registers */
-#define REG_TIMB_RST	0x1c
+#define REG_TIMB_RST		0x1c
+#define REG_TIMB_FIFO		0x20
+#define REG_TIMB_ISR		0x24
+#define REG_TIMB_IER		0x28
+#define REG_TIMB_IAR		0x2C
+#define REQ_TIMB_DMA_RESUME	0x30
 
 /* KS8842 registers */
 
@@ -281,10 +286,6 @@ static void ks8842_reset_hw(struct ks8842_adapter *adapter)
 
 	/* restart port auto-negotiation */
 	ks8842_enable_bits(adapter, 49, 1 << 13, REG_P1CR4);
-
-	if (!(adapter->conf_flags & MICREL_KS884X))
-		/* only advertise 10Mbps */
-		ks8842_clear_bits(adapter, 49, 3 << 2, REG_P1CR4);
 
 	/* Enable the transmitter */
 	ks8842_enable_tx(adapter);
@@ -542,6 +543,10 @@ void ks8842_tasklet(unsigned long arg)
 
 	/* Ack */
 	ks8842_write16(adapter, 18, isr, REG_ISR);
+
+	if (!(adapter->conf_flags & MICREL_KS884X))
+		/* Ack in the timberdale IP as well */
+		iowrite32(0x1, adapter->hw_addr + REG_TIMB_IAR);
 
 	if (!netif_running(netdev))
 		return;
