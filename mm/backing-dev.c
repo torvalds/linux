@@ -331,7 +331,7 @@ static int bdi_forker_thread(void *ptr)
 	for (;;) {
 		bool fork = false;
 		struct task_struct *task;
-		struct backing_dev_info *bdi, *tmp;
+		struct backing_dev_info *bdi;
 
 		/*
 		 * Temporary measure, we want to make sure we don't see
@@ -347,7 +347,7 @@ static int bdi_forker_thread(void *ptr)
 		 * Check if any existing bdi's have dirty data without
 		 * a thread registered. If so, set that up.
 		 */
-		list_for_each_entry_safe(bdi, tmp, &bdi_list, bdi_list) {
+		list_for_each_entry(bdi, &bdi_list, bdi_list) {
 			if (!bdi_cap_writeback_dirty(bdi))
 				continue;
 			if (bdi->wb.task)
@@ -359,8 +359,13 @@ static int bdi_forker_thread(void *ptr)
 			WARN(!test_bit(BDI_registered, &bdi->state),
 			     "bdi %p/%s is not registered!\n", bdi, bdi->name);
 
-			list_del_rcu(&bdi->bdi_list);
 			fork = true;
+
+			/*
+			 * Set the pending bit - if someone will try to
+			 * unregister this bdi - it'll wait on this bit.
+			 */
+			set_bit(BDI_pending, &bdi->state);
 			break;
 		}
 		spin_unlock_bh(&bdi_lock);
@@ -383,29 +388,13 @@ static int bdi_forker_thread(void *ptr)
 
 		__set_current_state(TASK_RUNNING);
 
-		/*
-		 * Set the pending bit - if someone will try to unregister this
-		 * bdi - it'll wait on this bit.
-		 */
-		set_bit(BDI_pending, &bdi->state);
-
-		/* Make sure no one uses the picked bdi */
-		synchronize_rcu();
-
 		task = kthread_run(bdi_writeback_thread, &bdi->wb, "flush-%s",
 				   dev_name(bdi->dev));
 		if (IS_ERR(task)) {
 			/*
-			 * If thread creation fails, then readd the bdi back to
-			 * the list and force writeout of the bdi from this
-			 * forker thread. That will free some memory and we can
-			 * try again. Add it to the tail so we get a chance to
-			 * flush other bdi's to free memory.
+			 * If thread creation fails, force writeout of the bdi
+			 * from the thread.
 			 */
-			spin_lock_bh(&bdi_lock);
-			list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
-			spin_unlock_bh(&bdi_lock);
-
 			bdi_flush_io(bdi);
 		} else
 			bdi->wb.task = task;

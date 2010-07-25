@@ -804,13 +804,6 @@ int bdi_writeback_thread(void *data)
 	unsigned long wait_jiffies = -1UL;
 	long pages_written;
 
-	/*
-	 * Add us to the active bdi_list
-	 */
-	spin_lock_bh(&bdi_lock);
-	list_add_rcu(&bdi->bdi_list, &bdi_list);
-	spin_unlock_bh(&bdi_lock);
-
 	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
 	set_freezable();
 
