@@ -316,6 +316,18 @@ static void sync_supers_timer_fn(unsigned long unused)
 	bdi_arm_supers_timer();
 }
 
+/*
+ * Calculate the longest interval (jiffies) bdi threads are allowed to be
+ * inactive.
+ */
+static unsigned long bdi_longest_inactive(void)
+{
+	unsigned long interval;
+
+	interval = msecs_to_jiffies(dirty_writeback_interval * 10);
+	return max(5UL * 60 * HZ, interval);
+}
+
 static int bdi_forker_thread(void *ptr)
 {
 	struct bdi_writeback *me = ptr;
@@ -329,11 +341,12 @@ static int bdi_forker_thread(void *ptr)
 	set_user_nice(current, 0);
 
 	for (;;) {
-		struct task_struct *task;
+		struct task_struct *task = NULL;
 		struct backing_dev_info *bdi;
 		enum {
 			NO_ACTION,   /* Nothing to do */
 			FORK_THREAD, /* Fork bdi thread */
+			KILL_THREAD, /* Kill inactive bdi thread */
 		} action = NO_ACTION;
 
 		/*
@@ -346,10 +359,6 @@ static int bdi_forker_thread(void *ptr)
 		spin_lock_bh(&bdi_lock);
 		set_current_state(TASK_INTERRUPTIBLE);
 
-		/*
-		 * Check if any existing bdi's have dirty data without
-		 * a thread registered. If so, set that up.
-		 */
 		list_for_each_entry(bdi, &bdi_list, bdi_list) {
 			bool have_dirty_io;
 
@@ -376,6 +385,25 @@ static int bdi_forker_thread(void *ptr)
 				action = FORK_THREAD;
 				break;
 			}
+
+			spin_lock(&bdi->wb_lock);
+			/*
+			 * If there is no work to do and the bdi thread was
+			 * inactive long enough - kill it. The wb_lock is taken
+			 * to make sure no-one adds more work to this bdi and
+			 * wakes the bdi thread up.
+			 */
+			if (bdi->wb.task && !have_dirty_io &&
+			    time_after(jiffies, bdi->wb.last_active +
+						bdi_longest_inactive())) {
+				task = bdi->wb.task;
+				bdi->wb.task = NULL;
+				spin_unlock(&bdi->wb_lock);
+				set_bit(BDI_pending, &bdi->state);
+				action = KILL_THREAD;
+				break;
+			}
+			spin_unlock(&bdi->wb_lock);
 		}
 		spin_unlock_bh(&bdi_lock);
 
@@ -394,8 +422,20 @@ static int bdi_forker_thread(void *ptr)
 				 * the bdi from the thread.
 				 */
 				bdi_flush_io(bdi);
-			} else
+			} else {
+				/*
+				 * The spinlock makes sure we do not lose
+				 * wake-ups when racing with 'bdi_queue_work()'.
+				 */
+				spin_lock(&bdi->wb_lock);
 				bdi->wb.task = task;
+				spin_unlock(&bdi->wb_lock);
+			}
+			break;
+
+		case KILL_THREAD:
+			__set_current_state(TASK_RUNNING);
+			kthread_stop(task);
 			break;
 
 		case NO_ACTION:
@@ -407,6 +447,13 @@ static int bdi_forker_thread(void *ptr)
 			/* Back to the main loop */
 			continue;
 		}
+
+		/*
+		 * Clear pending bit and wakeup anybody waiting to tear us down.
+		 */
+		clear_bit(BDI_pending, &bdi->state);
+		smp_mb__after_clear_bit();
+		wake_up_bit(&bdi->state, BDI_pending);
 	}
 
 	return 0;
@@ -490,15 +537,15 @@ static void bdi_wb_shutdown(struct backing_dev_info *bdi)
 		return;
 
 	/*
+	 * Make sure nobody finds us on the bdi_list anymore
+	 */
+	bdi_remove_from_list(bdi);
+
+	/*
 	 * If setup is pending, wait for that to complete first
 	 */
 	wait_on_bit(&bdi->state, BDI_pending, bdi_sched_wait,
 			TASK_UNINTERRUPTIBLE);
-
-	/*
-	 * Make sure nobody finds us on the bdi_list anymore
-	 */
-	bdi_remove_from_list(bdi);
 
 	/*
 	 * Finally, kill the kernel thread. We don't need to be RCU
