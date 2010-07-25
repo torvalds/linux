@@ -87,7 +87,7 @@ static struct resource *__iodyn_find_io_region(struct pcmcia_socket *s,
 
 static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 			unsigned int *base, unsigned int num,
-			unsigned int align)
+			unsigned int align, struct resource **parent)
 {
 	int i, ret = 0;
 
@@ -128,6 +128,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 				((res->flags & ~IORESOURCE_BITS) |
 					(attr & IORESOURCE_BITS));
 			s->io[i].InUse = num;
+			*parent = res;
 			return 0;
 		}
 
@@ -139,6 +140,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 				continue;
 			*base = try;
 			s->io[i].InUse += num;
+			*parent = res;
 			return 0;
 		}
 
@@ -151,6 +153,7 @@ static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
 				continue;
 			*base = try;
 			s->io[i].InUse += num;
+			*parent = res;
 			return 0;
 		}
 	}

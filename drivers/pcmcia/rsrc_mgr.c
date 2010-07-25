@@ -47,11 +47,12 @@ struct resource *pcmcia_make_resource(unsigned long start, unsigned long end,
 
 static int static_find_io(struct pcmcia_socket *s, unsigned int attr,
 			unsigned int *base, unsigned int num,
-			unsigned int align)
+			unsigned int align, struct resource **parent)
 {
 	if (!s->io_offset)
 		return -EINVAL;
 	*base = s->io_offset | (*base & 0x0fff);
+	*parent = NULL;
 
 	return 0;
 }

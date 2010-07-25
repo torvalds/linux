@@ -62,7 +62,8 @@ struct pccard_resource_ops {
 					 unsigned int attr,
 					 unsigned int *base,
 					 unsigned int num,
-					 unsigned int align);
+					 unsigned int align,
+					 struct resource **parent);
 	struct resource* (*find_mem)	(unsigned long base, unsigned long num,
 					 unsigned long align, int low,
 					 struct pcmcia_socket *s);

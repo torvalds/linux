@@ -56,6 +56,33 @@ struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 }
 
 
+static void release_io_space(struct pcmcia_socket *s, struct resource *res)
+{
+	resource_size_t num = resource_size(res);
+	int i;
+
+	dev_dbg(&s->dev, "release_io_space for %pR\n", res);
+
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		if (!s->io[i].res)
+			continue;
+		if ((s->io[i].res->start <= res->start) &&
+		    (s->io[i].res->end >= res->end)) {
+			s->io[i].InUse -= num;
+			if (res->parent)
+				release_resource(res);
+			res->start = res->end = 0;
+			res->flags = IORESOURCE_IO;
+			/* Free the window if no one else is using it */
+			if (s->io[i].InUse == 0) {
+				release_resource(s->io[i].res);
+				kfree(s->io[i].res);
+				s->io[i].res = NULL;
+			}
+		}
+	}
+} /* release_io_space */
+
 /** alloc_io_space
  *
  * Special stuff for managing IO windows, because they are scarce
@@ -87,43 +114,28 @@ static int alloc_io_space(struct pcmcia_socket *s, struct resource *res,
 		align = 0;
 	}
 
-	ret = s->resource_ops->find_io(s, res->flags, &base, num, align);
+	ret = s->resource_ops->find_io(s, res->flags, &base, num, align,
+				&res->parent);
 	if (ret) {
-		dev_dbg(&s->dev, "alloc_io_space request returned %d", ret);
+		dev_dbg(&s->dev, "alloc_io_space request failed (%d)\n", ret);
 		return -EINVAL;
 	}
 
 	res->start = base;
 	res->end = res->start + num - 1;
-	dev_dbg(&s->dev, "alloc_io_space request returned %pR, %d\n", res, ret);
-	return 0;
-} /* alloc_io_space */
 
-
-static void release_io_space(struct pcmcia_socket *s, struct resource *res)
-{
-	resource_size_t num = resource_size(res);
-	int i;
-
-	dev_dbg(&s->dev, "release_io_space for %pR\n", res);
-
-	for (i = 0; i < MAX_IO_WIN; i++) {
-		if (!s->io[i].res)
-			continue;
-		if ((s->io[i].res->start <= res->start) &&
-		    (s->io[i].res->end >= res->end)) {
-			s->io[i].InUse -= num;
-			res->start = res->end = 0;
-			res->flags = IORESOURCE_IO;
-			/* Free the window if no one else is using it */
-			if (s->io[i].InUse == 0) {
-				release_resource(s->io[i].res);
-				kfree(s->io[i].res);
-				s->io[i].res = NULL;
-			}
+	if (res->parent) {
+		ret = request_resource(res->parent, res);
+		if (ret) {
+			dev_warn(&s->dev,
+				"request_resource %pR failed: %d\n", res, ret);
+			res->parent = NULL;
+			release_io_space(s, res);
 		}
 	}
-} /* release_io_space */
+	dev_dbg(&s->dev, "alloc_io_space request result %d: %pR\n", ret, res);
+	return ret;
+} /* alloc_io_space */
 
 
 /**
@@ -401,6 +413,7 @@ int pcmcia_release_window(struct pcmcia_device *p_dev, struct resource *res)
 
 	/* Release system memory */
 	if (win->res) {
+		release_resource(res);
 		release_resource(win->res);
 		kfree(win->res);
 		win->res = NULL;
@@ -853,6 +866,11 @@ int pcmcia_request_window(struct pcmcia_device *p_dev, win_req_t *req, window_ha
 	res->end = req->Base + req->Size - 1;
 	res->flags &= ~IORESOURCE_BITS;
 	res->flags |= (req->Attributes & WIN_FLAGS_MAP) | (win->map << 2);
+	res->flags |= IORESOURCE_MEM;
+	res->parent = win->res;
+	if (win->res)
+		request_resource(&iomem_resource, res);
+
 	dev_dbg(&s->dev, "request_window results in %pR\n", res);
 
 	mutex_unlock(&s->ops_mutex);

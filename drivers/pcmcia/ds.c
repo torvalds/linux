@@ -553,11 +553,11 @@ static struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
 		p_dev->function_config = c;
 		kref_init(&c->ref);
 		for (i = 0; i < MAX_IO_WIN; i++) {
-			c->io[i].name = dev_name(&p_dev->dev);
+			c->io[i].name = p_dev->devname;
 			c->io[i].flags = IORESOURCE_IO;
 		}
 		for (i = 0; i< MAX_WIN; i++) {
-			c->mem[i].name = dev_name(&p_dev->dev);
+			c->mem[i].name = p_dev->devname;
 			c->mem[i].flags = IORESOURCE_MEM;
 		}
 	}
