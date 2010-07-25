@@ -1041,11 +1041,11 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	return err;
 }
 
-static int fuse_get_sb(struct file_system_type *fs_type,
+static struct dentry *fuse_mount(struct file_system_type *fs_type,
 		       int flags, const char *dev_name,
-		       void *raw_data, struct vfsmount *mnt)
+		       void *raw_data)
 {
-	return get_sb_nodev(fs_type, flags, raw_data, fuse_fill_super, mnt);
+	return mount_nodev(fs_type, flags, raw_data, fuse_fill_super);
 }
 
 static void fuse_kill_sb_anon(struct super_block *sb)
@@ -1065,7 +1065,7 @@ static struct file_system_type fuse_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "fuse",
 	.fs_flags	= FS_HAS_SUBTYPE,
-	.get_sb		= fuse_get_sb,
+	.mount		= fuse_mount,
 	.kill_sb	= fuse_kill_sb_anon,
 };
 

@@ -306,16 +306,16 @@ static int coda_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 /* init_coda: used by filesystems.c to register coda */
 
-static int coda_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *coda_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
-	return get_sb_nodev(fs_type, flags, data, coda_fill_super, mnt);
+	return mount_nodev(fs_type, flags, data, coda_fill_super);
 }
 
 struct file_system_type coda_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "coda",
-	.get_sb		= coda_get_sb,
+	.mount		= coda_mount,
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_BINARY_MOUNTDATA,
 };
