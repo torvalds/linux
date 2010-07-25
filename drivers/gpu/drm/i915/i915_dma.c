@@ -128,9 +128,11 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
+	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
 	if (HAS_BSD(dev))
 		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
+	mutex_unlock(&dev->struct_mutex);
 
 	/* Clear the HWS virtual address at teardown */
 	if (I915_NEED_GFX_HWS(dev))
@@ -1229,7 +1231,7 @@ static void i915_warn_stolen(struct drm_device *dev)
 static void i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mm_node *compressed_fb, *compressed_llb;
+	struct drm_mm_node *compressed_fb, *uninitialized_var(compressed_llb);
 	unsigned long cfb_base;
 	unsigned long ll_base = 0;
 
@@ -1409,6 +1411,10 @@ static int i915_load_modeset_init(struct drm_device *dev,
 					     i915_switcheroo_can_switch);
 	if (ret)
 		goto cleanup_vga_client;
+
+	/* IIR "flip pending" bit means done if this bit is set */
+	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
+		dev_priv->flip_pending_is_done = true;
 
 	intel_modeset_init(dev);
 

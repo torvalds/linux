@@ -745,10 +745,6 @@ struct ring_info {
 
 	/* Buffer Address store. */
 	struct buffAdd **ba;
-
-	/* per-Ring statistics */
-	unsigned long rx_packets;
-	unsigned long rx_bytes;
 } ____cacheline_aligned;
 
 /* Fifo specific structure */

@@ -6,12 +6,12 @@
  * for more details.
  */
 
-#ifndef _ASM_MICROBLAZE_LMB_H
-#define _ASM_MICROBLAZE_LMB_H
+#ifndef _ASM_MICROBLAZE_MEMBLOCK_H
+#define _ASM_MICROBLAZE_MEMBLOCK_H
 
-/* LMB limit is OFF */
-#define LMB_REAL_LIMIT	0xFFFFFFFF
+/* MEMBLOCK limit is OFF */
+#define MEMBLOCK_REAL_LIMIT	0xFFFFFFFF
 
-#endif /* _ASM_MICROBLAZE_LMB_H */
+#endif /* _ASM_MICROBLAZE_MEMBLOCK_H */
 
 

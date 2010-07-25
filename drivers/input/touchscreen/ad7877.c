@@ -679,6 +679,13 @@ static int __devinit ad7877_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
+	spi->bits_per_word = 16;
+	err = spi_setup(spi);
+	if (err) {
+		dev_dbg(&spi->dev, "spi master doesn't support 16 bits/word\n");
+		return err;
+	}
+
 	ts = kzalloc(sizeof(struct ad7877), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ts || !input_dev) {

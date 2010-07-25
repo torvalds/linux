@@ -940,22 +940,30 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		if (HAS_BSD(dev) && (iir & I915_BSD_USER_INTERRUPT))
 			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
 
-		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
+		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 0);
+			if (dev_priv->flip_pending_is_done)
+				intel_finish_page_flip_plane(dev, 0);
+		}
 
-		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
+		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 1);
+			if (dev_priv->flip_pending_is_done)
+				intel_finish_page_flip_plane(dev, 1);
+		}
 
 		if (pipea_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 0);
-			intel_finish_page_flip(dev, 0);
+			if (!dev_priv->flip_pending_is_done)
+				intel_finish_page_flip(dev, 0);
 		}
 
 		if (pipeb_stats & vblank_status) {
 			vblank++;
 			drm_handle_vblank(dev, 1);
-			intel_finish_page_flip(dev, 1);
+			if (!dev_priv->flip_pending_is_done)
+				intel_finish_page_flip(dev, 1);
 		}
 
 		if ((pipea_stats & I915_LEGACY_BLC_EVENT_STATUS) ||
@@ -1387,29 +1395,10 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[1] = 0;
 
 	if (I915_HAS_HOTPLUG(dev)) {
-		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
-
-		/* Note HDMI and DP share bits */
-		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMID_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS)
-			hotplug_en |= CRT_HOTPLUG_INT_EN;
-		/* Ignore TV since it's buggy */
-
-		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
-
 		/* Enable in IER... */
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 		/* and unmask in IMR */
-		i915_enable_irq(dev_priv, I915_DISPLAY_PORT_INTERRUPT);
+		dev_priv->irq_mask_reg &= ~I915_DISPLAY_PORT_INTERRUPT;
 	}
 
 	/*
@@ -1427,15 +1416,40 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	}
 	I915_WRITE(EMR, error_mask);
 
-	/* Disable pipe interrupt enables, clear pending pipe status */
-	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);
-	I915_WRITE(PIPEBSTAT, I915_READ(PIPEBSTAT) & 0x8000ffff);
-	/* Clear pending interrupt status */
-	I915_WRITE(IIR, I915_READ(IIR));
-
-	I915_WRITE(IER, enable_mask);
 	I915_WRITE(IMR, dev_priv->irq_mask_reg);
+	I915_WRITE(IER, enable_mask);
 	(void) I915_READ(IER);
+
+	if (I915_HAS_HOTPLUG(dev)) {
+		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+
+		/* Note HDMI and DP share bits */
+		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
+			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
+			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
+			hotplug_en |= HDMID_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
+			hotplug_en |= CRT_HOTPLUG_INT_EN;
+
+			/* Programming the CRT detection parameters tends
+			   to generate a spurious hotplug event about three
+			   seconds later.  So just do it once.
+			*/
+			if (IS_G4X(dev))
+				hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
+			hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
+		}
+
+		/* Ignore TV since it's buggy */
+
+		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+	}
 
 	opregion_enable_asle(dev);
 

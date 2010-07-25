@@ -33,7 +33,6 @@
 
 	.text
 
-#ifdef CONFIG_IRQSTACKS
 _GLOBAL(call_do_softirq)
 	mflr	r0
 	stw	r0,4(r1)
@@ -56,7 +55,6 @@ _GLOBAL(call_handle_irq)
 	lwz	r0,4(r1)
 	mtlr	r0
 	blr
-#endif /* CONFIG_IRQSTACKS */
 
 /*
  * This returns the high 64 bits of the product of two 64-bit numbers.

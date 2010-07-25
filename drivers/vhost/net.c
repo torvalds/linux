@@ -98,7 +98,8 @@ static void tx_poll_start(struct vhost_net *net, struct socket *sock)
 static void handle_tx(struct vhost_net *net)
 {
 	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_TX];
-	unsigned head, out, in, s;
+	unsigned out, in, s;
+	int head;
 	struct msghdr msg = {
 		.msg_name = NULL,
 		.msg_namelen = 0,
@@ -135,6 +136,9 @@ static void handle_tx(struct vhost_net *net)
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 NULL, NULL);
+		/* On error, stop handling until the next kick. */
+		if (unlikely(head < 0))
+			break;
 		/* Nothing new?  Wait for eventfd to tell us they refilled. */
 		if (head == vq->num) {
 			wmem = atomic_read(&sock->sk->sk_wmem_alloc);
@@ -173,8 +177,8 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 		if (err != len)
-			pr_err("Truncated TX packet: "
-			       " len %d != %zd\n", err, len);
+			pr_debug("Truncated TX packet: "
+				 " len %d != %zd\n", err, len);
 		vhost_add_used_and_signal(&net->dev, vq, head, 0);
 		total_len += len;
 		if (unlikely(total_len >= VHOST_NET_WEIGHT)) {
@@ -192,7 +196,8 @@ static void handle_tx(struct vhost_net *net)
 static void handle_rx(struct vhost_net *net)
 {
 	struct vhost_virtqueue *vq = &net->dev.vqs[VHOST_NET_VQ_RX];
-	unsigned head, out, in, log, s;
+	unsigned out, in, log, s;
+	int head;
 	struct vhost_log *vq_log;
 	struct msghdr msg = {
 		.msg_name = NULL,
@@ -228,6 +233,9 @@ static void handle_rx(struct vhost_net *net)
 					 ARRAY_SIZE(vq->iov),
 					 &out, &in,
 					 vq_log, &log);
+		/* On error, stop handling until the next kick. */
+		if (unlikely(head < 0))
+			break;
 		/* OK, now we need to know about added descriptors. */
 		if (head == vq->num) {
 			if (unlikely(vhost_enable_notify(vq))) {
@@ -267,8 +275,8 @@ static void handle_rx(struct vhost_net *net)
 		}
 		/* TODO: Should check and handle checksum. */
 		if (err > len) {
-			pr_err("Discarded truncated rx packet: "
-			       " len %d > %zd\n", err, len);
+			pr_debug("Discarded truncated rx packet: "
+				 " len %d > %zd\n", err, len);
 			vhost_discard_vq_desc(vq);
 			continue;
 		}
@@ -526,10 +534,15 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	rcu_assign_pointer(vq->private_data, sock);
 	vhost_net_enable_vq(n, vq);
 done:
+	mutex_unlock(&vq->mutex);
+
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
 		fput(oldsock->file);
 	}
+
+	mutex_unlock(&n->dev.mutex);
+	return 0;
 
 err_vq:
 	mutex_unlock(&vq->mutex);

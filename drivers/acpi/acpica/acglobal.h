@@ -125,6 +125,14 @@ u8 ACPI_INIT_GLOBAL(acpi_gbl_enable_aml_debug_object, FALSE);
  */
 u8 ACPI_INIT_GLOBAL(acpi_gbl_copy_dsdt_locally, FALSE);
 
+/*
+ * Optionally truncate I/O addresses to 16 bits. Provides compatibility
+ * with other ACPI implementations. NOTE: During ACPICA initialization,
+ * this value is set to TRUE if any Windows OSI strings have been
+ * requested by the BIOS.
+ */
+u8 ACPI_INIT_GLOBAL(acpi_gbl_truncate_io_addresses, FALSE);
+
 /* acpi_gbl_FADT is a local copy of the FADT, converted to a common format. */
 
 struct acpi_table_fadt acpi_gbl_FADT;

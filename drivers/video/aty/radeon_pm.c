@@ -2872,7 +2872,7 @@ void radeonfb_pm_init(struct radeonfb_info *rinfo, int dynclk, int ignore_devlis
 		}
 
 #if 0
-		/* Power down TV DAC, taht saves a significant amount of power,
+		/* Power down TV DAC, that saves a significant amount of power,
 		 * we'll have something better once we actually have some TVOut
 		 * support
 		 */

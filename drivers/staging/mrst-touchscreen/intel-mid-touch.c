@@ -817,9 +817,9 @@ static int mrstouch_remove(struct spi_device *spi)
 	free_irq(mrstouchdevp->irq, mrstouchdevp);
 	input_unregister_device(mrstouchdevp->input);
 	input_free_device(mrstouchdevp->input);
-	kfree(mrstouchdevp);
 	if (mrstouchdevp->pendet_thrd)
 		kthread_stop(mrstouchdevp->pendet_thrd);
+	kfree(mrstouchdevp);
 	return 0;
 }
 

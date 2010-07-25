@@ -90,6 +90,7 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 
 	memcpy(self->filename, filename, len);
 	self->threads = RB_ROOT;
+	INIT_LIST_HEAD(&self->dead_threads);
 	self->hists_tree = RB_ROOT;
 	self->last_match = NULL;
 	self->mmap_window = 32;
@@ -129,6 +130,16 @@ void perf_session__delete(struct perf_session *self)
 	close(self->fd);
 	free(self->cwd);
 	free(self);
+}
+
+void perf_session__remove_thread(struct perf_session *self, struct thread *th)
+{
+	rb_erase(&th->rb_node, &self->threads);
+	/*
+	 * We may have references to this thread, for instance in some hist_entry
+	 * instances, so just move them to a separate list.
+	 */
+	list_add_tail(&th->node, &self->dead_threads);
 }
 
 static bool symbol__match_parent_regex(struct symbol *sym)

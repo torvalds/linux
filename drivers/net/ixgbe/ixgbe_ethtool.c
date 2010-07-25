@@ -2077,25 +2077,6 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
-/*
- * this function must be called before setting the new value of
- * rx_itr_setting
- */
-static bool ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
-                               struct ethtool_coalesce *ec)
-{
-	/* check the old value and enable RSC if necessary */
-	if ((adapter->rx_itr_setting == 0) &&
-	    (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)) {
-		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
-		adapter->netdev->features |= NETIF_F_LRO;
-		DPRINTK(PROBE, INFO, "rx-usecs set to %d, re-enabling RSC\n",
-		        ec->rx_coalesce_usecs);
-		return true;
-	}
-	return false;
-}
-
 static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
@@ -2124,9 +2105,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		    (1000000/ec->rx_coalesce_usecs < IXGBE_MIN_INT_RATE))
 			return -EINVAL;
 
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_reenable_rsc(adapter, ec);
-
 		/* store the value in ints/second */
 		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
 
@@ -2135,9 +2113,6 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		/* clear the lower bit as its used for dynamic state */
 		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
-		/* check the old value and enable RSC if necessary */
-		need_reset = ixgbe_reenable_rsc(adapter, ec);
-
 		/* 1 means dynamic mode */
 		adapter->rx_eitr_param = 20000;
 		adapter->rx_itr_setting = 1;
@@ -2157,10 +2132,11 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 */
 		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
-			netdev->features &= ~NETIF_F_LRO;
-			DPRINTK(PROBE, INFO,
-			        "rx-usecs set to 0, disabling RSC\n");
-
+			if (netdev->features & NETIF_F_LRO) {
+				netdev->features &= ~NETIF_F_LRO;
+				DPRINTK(PROBE, INFO, "rx-usecs set to 0, "
+					"disabling LRO/RSC\n");
+			}
 			need_reset = true;
 		}
 	}
@@ -2255,6 +2231,9 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 			}
 		} else if (!adapter->rx_itr_setting) {
 			netdev->features &= ~ETH_FLAG_LRO;
+			if (data & ETH_FLAG_LRO)
+				DPRINTK(PROBE, INFO, "rx-usecs set to 0, "
+					"LRO/RSC cannot be enabled.\n");
 		}
 	}
 
