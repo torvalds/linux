@@ -38,6 +38,7 @@
 #include "nv50_display.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
+static int nouveau_stub_init(struct drm_device *dev) { return 0; }
 
 static int nouveau_init_engine_ptrs(struct drm_device *dev)
 {
@@ -89,6 +90,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.create		= nv04_display_create;
 		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->gpio.init		= nouveau_stub_init;
+		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.get		= NULL;
+		engine->gpio.set		= NULL;
+		engine->gpio.irq_enable		= NULL;
 		break;
 	case 0x10:
 		engine->instmem.init		= nv04_instmem_init;
@@ -136,6 +142,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.create		= nv04_display_create;
 		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->gpio.init		= nouveau_stub_init;
+		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.get		= nv10_gpio_get;
+		engine->gpio.set		= nv10_gpio_set;
+		engine->gpio.irq_enable		= NULL;
 		break;
 	case 0x20:
 		engine->instmem.init		= nv04_instmem_init;
@@ -183,6 +194,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.create		= nv04_display_create;
 		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->gpio.init		= nouveau_stub_init;
+		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.get		= nv10_gpio_get;
+		engine->gpio.set		= nv10_gpio_set;
+		engine->gpio.irq_enable		= NULL;
 		break;
 	case 0x30:
 		engine->instmem.init		= nv04_instmem_init;
@@ -230,6 +246,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.create		= nv04_display_create;
 		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->gpio.init		= nouveau_stub_init;
+		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.get		= nv10_gpio_get;
+		engine->gpio.set		= nv10_gpio_set;
+		engine->gpio.irq_enable		= NULL;
 		break;
 	case 0x40:
 	case 0x60:
@@ -278,6 +299,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.create		= nv04_display_create;
 		engine->display.init		= nv04_display_init;
 		engine->display.destroy		= nv04_display_destroy;
+		engine->gpio.init		= nouveau_stub_init;
+		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.get		= nv10_gpio_get;
+		engine->gpio.set		= nv10_gpio_set;
+		engine->gpio.irq_enable		= NULL;
 		break;
 	case 0x50:
 	case 0x80: /* gotta love NVIDIA's consistency.. */
@@ -327,6 +353,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->display.create		= nv50_display_create;
 		engine->display.init		= nv50_display_init;
 		engine->display.destroy		= nv50_display_destroy;
+		engine->gpio.init		= nv50_gpio_init;
+		engine->gpio.takedown		= nouveau_stub_takedown;
+		engine->gpio.get		= nv50_gpio_get;
+		engine->gpio.set		= nv50_gpio_set;
+		engine->gpio.irq_enable		= nv50_gpio_irq_enable;
 		break;
 	default:
 		NV_ERROR(dev, "NV%02x unsupported\n", dev_priv->chipset);
@@ -485,10 +516,15 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_gpuobj;
 
+	/* PGPIO */
+	ret = engine->gpio.init(dev);
+	if (ret)
+		goto out_mc;
+
 	/* PTIMER */
 	ret = engine->timer.init(dev);
 	if (ret)
-		goto out_mc;
+		goto out_gpio;
 
 	/* PFB */
 	ret = engine->fb.init(dev);
@@ -554,6 +590,8 @@ out_fb:
 	engine->fb.takedown(dev);
 out_timer:
 	engine->timer.takedown(dev);
+out_gpio:
+	engine->gpio.takedown(dev);
 out_mc:
 	engine->mc.takedown(dev);
 out_gpuobj:
@@ -592,6 +630,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	}
 	engine->fb.takedown(dev);
 	engine->timer.takedown(dev);
+	engine->gpio.takedown(dev);
 	engine->mc.takedown(dev);
 	engine->display.late_takedown(dev);
 

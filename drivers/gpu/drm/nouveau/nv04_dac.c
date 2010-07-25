@@ -220,6 +220,7 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpio_engine *gpio = &dev_priv->engine.gpio;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
 	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
@@ -251,11 +252,11 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4 & 0xffffffcf);
 	}
 
-	saved_gpio1 = nv17_gpio_get(dev, DCB_GPIO_TVDAC1);
-	saved_gpio0 = nv17_gpio_get(dev, DCB_GPIO_TVDAC0);
+	saved_gpio1 = gpio->get(dev, DCB_GPIO_TVDAC1);
+	saved_gpio0 = gpio->get(dev, DCB_GPIO_TVDAC0);
 
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
+	gpio->set(dev, DCB_GPIO_TVDAC1, dcb->type == OUTPUT_TV);
+	gpio->set(dev, DCB_GPIO_TVDAC0, dcb->type == OUTPUT_TV);
 
 	msleep(4);
 
@@ -303,8 +304,8 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 		nvWriteMC(dev, NV_PBUS_POWERCTRL_4, saved_powerctrl_4);
 	nvWriteMC(dev, NV_PBUS_POWERCTRL_2, saved_powerctrl_2);
 
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
-	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
+	gpio->set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
+	gpio->set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
 
 	return sample;
 }

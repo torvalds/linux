@@ -272,6 +272,8 @@ bool
 nouveau_dp_link_train(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *nv_connector;
 	struct bit_displayport_encoder_table *dpe;
@@ -295,7 +297,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder)
 	/* disable hotplug detect, this flips around on some panels during
 	 * link training.
 	 */
-	nv50_gpio_irq_enable(dev, nv_connector->dcb->gpio_tag, false);
+	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, false);
 
 	if (dpe->script0) {
 		NV_DEBUG_KMS(dev, "SOR-%d: running DP script 0\n", nv_encoder->or);
@@ -436,7 +438,7 @@ stop:
 	}
 
 	/* re-enable hotplug detect */
-	nv50_gpio_irq_enable(dev, nv_connector->dcb->gpio_tag, true);
+	pgpio->irq_enable(dev, nv_connector->dcb->gpio_tag, true);
 
 	return eq_done;
 }

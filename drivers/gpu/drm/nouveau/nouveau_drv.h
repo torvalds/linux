@@ -359,6 +359,16 @@ struct nouveau_display_engine {
 	void (*destroy)(struct drm_device *);
 };
 
+struct nouveau_gpio_engine {
+	int  (*init)(struct drm_device *);
+	void (*takedown)(struct drm_device *);
+
+	int  (*get)(struct drm_device *, enum dcb_gpio_tag);
+	int  (*set)(struct drm_device *, enum dcb_gpio_tag, int state);
+
+	void (*irq_enable)(struct drm_device *, enum dcb_gpio_tag, bool on);
+};
+
 struct nouveau_engine {
 	struct nouveau_instmem_engine instmem;
 	struct nouveau_mc_engine      mc;
@@ -367,6 +377,7 @@ struct nouveau_engine {
 	struct nouveau_pgraph_engine  graph;
 	struct nouveau_fifo_engine    fifo;
 	struct nouveau_display_engine display;
+	struct nouveau_gpio_engine    gpio;
 };
 
 struct nouveau_pll_vals {
@@ -1149,11 +1160,12 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
 
-/* nv17_gpio.c */
-int nv17_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
-int nv17_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
+/* nv10_gpio.c */
+int nv10_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
+int nv10_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 
 /* nv50_gpio.c */
+int nv50_gpio_init(struct drm_device *dev);
 int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 void nv50_gpio_irq_enable(struct drm_device *, enum dcb_gpio_tag, bool on);

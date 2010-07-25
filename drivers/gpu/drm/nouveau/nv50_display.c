@@ -193,6 +193,7 @@ nv50_display_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	struct nouveau_gpio_engine *pgpio = &dev_priv->engine.gpio;
 	struct nouveau_channel *evo = dev_priv->evo;
 	struct drm_connector *connector;
 	uint32_t val, ram_amount;
@@ -379,7 +380,7 @@ nv50_display_init(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 
-		nv50_gpio_irq_enable(dev, conn->dcb->gpio_tag, true);
+		pgpio->irq_enable(dev, conn->dcb->gpio_tag, true);
 	}
 
 	return 0;

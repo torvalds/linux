@@ -93,3 +93,19 @@ nv50_gpio_irq_enable(struct drm_device *dev, enum dcb_gpio_tag tag, bool on)
 	nv_wr32(dev, reg + 4, mask);
 	nv_mask(dev, reg + 0, mask, on ? mask : 0);
 }
+
+int
+nv50_gpio_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	/* disable, and ack any pending gpio interrupts */
+	nv_wr32(dev, 0xe050, 0x00000000);
+	nv_wr32(dev, 0xe054, 0xffffffff);
+	if (dev_priv->chipset >= 0x90) {
+		nv_wr32(dev, 0xe070, 0x00000000);
+		nv_wr32(dev, 0xe074, 0xffffffff);
+	}
+
+	return 0;
+}
