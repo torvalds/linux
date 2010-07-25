@@ -165,6 +165,9 @@ static ssize_t dbgfs_state(struct file *file, char __user *user_buf,
 	len += snprintf((buf + len), (DEBUGFS_BUF_SIZE - len),
 			"Next RX len: %d\n", cfspi->rx_npck_len);
 
+	if (len > DEBUGFS_BUF_SIZE)
+		len = DEBUGFS_BUF_SIZE;
+
 	size = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
 
