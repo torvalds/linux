@@ -310,6 +310,7 @@ static void wakeup_timer_fn(unsigned long data)
 
 	spin_lock_bh(&bdi->wb_lock);
 	if (bdi->wb.task) {
+		trace_writeback_wake_thread(bdi);
 		wake_up_process(bdi->wb.task);
 	} else {
 		/*
@@ -317,6 +318,7 @@ static void wakeup_timer_fn(unsigned long data)
 		 * In this case we have to wake-up the forker thread which
 		 * should create and run the bdi thread.
 		 */
+		trace_writeback_wake_forker_thread(bdi);
 		wake_up_process(default_backing_dev_info.wb.task);
 	}
 	spin_unlock_bh(&bdi->wb_lock);
