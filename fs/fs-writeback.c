@@ -848,16 +848,17 @@ int bdi_writeback_thread(void *data)
 				break;
 		}
 
+		set_current_state(TASK_INTERRUPTIBLE);
+		if (!list_empty(&bdi->work_list)) {
+			__set_current_state(TASK_RUNNING);
+			continue;
+		}
+
 		if (dirty_writeback_interval) {
 			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
-			schedule_timeout_interruptible(wait_jiffies);
-		} else {
-			set_current_state(TASK_INTERRUPTIBLE);
-			if (list_empty_careful(&wb->bdi->work_list) &&
-			    !kthread_should_stop())
-				schedule();
-			__set_current_state(TASK_RUNNING);
-		}
+			schedule_timeout(wait_jiffies);
+		} else
+			schedule();
 
 		try_to_freeze();
 	}
