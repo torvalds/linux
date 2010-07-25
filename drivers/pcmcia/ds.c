@@ -1011,6 +1011,18 @@ pcmcia_device_stringattr(prod_id2, prod_id[1]);
 pcmcia_device_stringattr(prod_id3, prod_id[2]);
 pcmcia_device_stringattr(prod_id4, prod_id[3]);
 
+static ssize_t pcmcia_show_resources(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct pcmcia_device *p_dev = to_pcmcia_dev(dev);
+	char *str = buf;
+	int i;
+
+	for (i = 0; i < PCMCIA_NUM_RESOURCES; i++)
+		str += sprintf(str, "%pr\n", p_dev->resource[i]);
+
+	return str - buf;
+}
 
 static ssize_t pcmcia_show_pm_state(struct device *dev, struct device_attribute *attr, char *buf)
 {
@@ -1081,6 +1093,7 @@ static ssize_t pcmcia_store_allow_func_id_match(struct device *dev,
 static struct device_attribute pcmcia_dev_attrs[] = {
 	__ATTR(function, 0444, func_show, NULL),
 	__ATTR(pm_state, 0644, pcmcia_show_pm_state, pcmcia_store_pm_state),
+	__ATTR(resources, 0444, pcmcia_show_resources, NULL),
 	__ATTR_RO(func_id),
 	__ATTR_RO(manf_id),
 	__ATTR_RO(card_id),
