@@ -439,10 +439,17 @@ static int bdi_forker_thread(void *ptr)
 			break;
 
 		case NO_ACTION:
-			if (dirty_writeback_interval)
-				schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
+			if (!wb_has_dirty_io(me) || !dirty_writeback_interval)
+				/*
+				 * There are no dirty data. The only thing we
+				 * should now care about is checking for
+				 * inactive bdi threads and killing them. Thus,
+				 * let's sleep for longer time, save energy and
+				 * be friendly for battery-driven devices.
+				 */
+				schedule_timeout(bdi_longest_inactive());
 			else
-				schedule();
+				schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
 			try_to_freeze();
 			/* Back to the main loop */
 			continue;
