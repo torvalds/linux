@@ -800,12 +800,12 @@ int bdi_writeback_thread(void *data)
 {
 	struct bdi_writeback *wb = data;
 	struct backing_dev_info *bdi = wb->bdi;
-	unsigned long last_active = jiffies;
 	unsigned long wait_jiffies = -1UL;
 	long pages_written;
 
 	current->flags |= PF_FLUSHER | PF_SWAPWRITE;
 	set_freezable();
+	wb->last_active = jiffies;
 
 	/*
 	 * Our parent may run at a different priority, just set us to normal
@@ -827,7 +827,7 @@ int bdi_writeback_thread(void *data)
 		trace_writeback_pages_written(pages_written);
 
 		if (pages_written)
-			last_active = jiffies;
+			wb->last_active = jiffies;
 		else if (wait_jiffies != -1UL) {
 			unsigned long max_idle;
 
@@ -837,7 +837,7 @@ int bdi_writeback_thread(void *data)
 			 * recreated automatically.
 			 */
 			max_idle = max(5UL * 60 * HZ, wait_jiffies);
-			if (time_after(jiffies, max_idle + last_active))
+			if (time_after(jiffies, max_idle + wb->last_active))
 				break;
 		}
 

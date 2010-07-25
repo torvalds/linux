@@ -45,15 +45,16 @@ enum bdi_stat_item {
 #define BDI_STAT_BATCH (8*(1+ilog2(nr_cpu_ids)))
 
 struct bdi_writeback {
-	struct backing_dev_info *bdi;		/* our parent bdi */
+	struct backing_dev_info *bdi;	/* our parent bdi */
 	unsigned int nr;
 
-	unsigned long last_old_flush;		/* last old data flush */
+	unsigned long last_old_flush;	/* last old data flush */
+	unsigned long last_active;	/* last time bdi thread was active */
 
-	struct task_struct	*task;		/* writeback thread */
-	struct list_head	b_dirty;	/* dirty inodes */
-	struct list_head	b_io;		/* parked for writeback */
-	struct list_head	b_more_io;	/* parked for more writeback */
+	struct task_struct *task;	/* writeback thread */
+	struct list_head b_dirty;	/* dirty inodes */
+	struct list_head b_io;		/* parked for writeback */
+	struct list_head b_more_io;	/* parked for more writeback */
 };
 
 struct backing_dev_info {
