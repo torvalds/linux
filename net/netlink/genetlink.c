@@ -877,11 +877,7 @@ static int __init genl_init(void)
 	for (i = 0; i < GENL_FAM_TAB_SIZE; i++)
 		INIT_LIST_HEAD(&family_ht[i]);
 
-	err = genl_register_family(&genl_ctrl);
-	if (err < 0)
-		goto problem;
-
-	err = genl_register_ops(&genl_ctrl, &genl_ctrl_ops);
+	err = genl_register_family_with_ops(&genl_ctrl, &genl_ctrl_ops, 1);
 	if (err < 0)
 		goto problem;
 
