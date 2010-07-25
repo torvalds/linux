@@ -43,18 +43,20 @@ class RootFrame(wx.Frame):
 		self.timeslices = timeslices
 		(self.ts_start, self.ts_end) = timeslices.interval()
 		self.update_width_virtual()
+		self.nr_cpus = timeslices.max_cpu() + 1
+		self.height_virtual = RootFrame.Y_OFFSET + (self.nr_cpus * (RootFrame.CPU_HEIGHT + RootFrame.CPU_SPACE))
 
 		# whole window panel
 		self.panel = wx.Panel(self, size=(self.screen_width, self.screen_height))
 
 		# scrollable container
 		self.scroll = wx.ScrolledWindow(self.panel)
-		self.scroll.SetScrollbars(self.scroll_scale, self.scroll_scale, self.width_virtual / self.scroll_scale, 100 / 10)
+		self.scroll.SetScrollbars(self.scroll_scale, self.scroll_scale, self.width_virtual / self.scroll_scale, self.height_virtual / self.scroll_scale)
 		self.scroll.EnableScrolling(True, True)
 		self.scroll.SetFocus()
 
 		# scrollable drawing area
-		self.scroll_panel = wx.Panel(self.scroll, size=(self.screen_width, self.screen_height / 2))
+		self.scroll_panel = wx.Panel(self.scroll, size=(self.screen_width - 15, self.screen_height / 2))
 		self.scroll_panel.Bind(wx.EVT_PAINT, self.on_paint)
 		self.scroll_panel.Bind(wx.EVT_KEY_DOWN, self.on_key_press)
 		self.scroll_panel.Bind(wx.EVT_LEFT_DOWN, self.on_mouse_down)
@@ -65,9 +67,8 @@ class RootFrame(wx.Frame):
 		self.scroll.Fit()
 		self.Fit()
 
-		self.scroll_panel.SetDimensions(-1, -1, self.width_virtual, -1, wx.SIZE_USE_EXISTING)
+		self.scroll_panel.SetDimensions(-1, -1, self.width_virtual, self.height_virtual, wx.SIZE_USE_EXISTING)
 
-		self.max_cpu = -1
 		self.txt = None
 
 		self.Show(True)
@@ -143,8 +144,6 @@ class RootFrame(wx.Frame):
 
 			for cpu in timeslice.rqs:
 				self.update_rectangle_cpu(dc, timeslice, cpu, self.timeslices[0].start)
-				if cpu > self.max_cpu:
-					self.max_cpu = cpu
 
 	def on_paint(self, event):
 		color = wx.Colour(0xff, 0xff, 0xff)
@@ -163,7 +162,7 @@ class RootFrame(wx.Frame):
 		cpu = y / (RootFrame.CPU_HEIGHT + RootFrame.CPU_SPACE)
 		height = y % (RootFrame.CPU_HEIGHT + RootFrame.CPU_SPACE)
 
-		if cpu < 0 or cpu > self.max_cpu or height > RootFrame.CPU_HEIGHT:
+		if cpu < 0 or cpu > self.nr_cpus - 1 or height > RootFrame.CPU_HEIGHT:
 			return -1
 
 		return cpu
@@ -206,7 +205,7 @@ class RootFrame(wx.Frame):
 		self.update_width_virtual()
 		(xpos, ypos) = self.scroll.GetViewStart()
 		xpos = self.us_to_px(x) / self.scroll_scale
-		self.scroll.SetScrollbars(self.scroll_scale, self.scroll_scale, self.width_virtual / self.scroll_scale, 100 / 10, xpos, ypos)
+		self.scroll.SetScrollbars(self.scroll_scale, self.scroll_scale, self.width_virtual / self.scroll_scale, self.height_virtual / self.scroll_scale, xpos, ypos)
 		self.Refresh()
 
 	def zoom_in(self):
@@ -234,7 +233,11 @@ class RootFrame(wx.Frame):
 		if key == wx.WXK_RIGHT:
 			self.scroll.Scroll(x + 1, y)
 		elif key == wx.WXK_LEFT:
-			self.scroll.Scroll(x -1, y)
+			self.scroll.Scroll(x - 1, y)
+		elif key == wx.WXK_DOWN:
+			self.scroll.Scroll(x, y + 1)
+		elif key == wx.WXK_UP:
+			self.scroll.Scroll(x, y - 1)
 
 
 threads = { 0 : "idle"}
@@ -503,6 +506,14 @@ class TimeSliceList(UserList):
 			return (0, 0)
 
 		return (self.data[0].start, self.data[-1].end)
+
+	def max_cpu(self):
+		last_ts = self.data[-1]
+		max_cpu = 0
+		for cpu in last_ts.rqs:
+			if cpu > max_cpu:
+				max_cpu = cpu
+		return max_cpu
 
 
 class SchedEventProxy:
