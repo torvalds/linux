@@ -329,9 +329,12 @@ static int bdi_forker_thread(void *ptr)
 	set_user_nice(current, 0);
 
 	for (;;) {
-		bool fork = false;
 		struct task_struct *task;
 		struct backing_dev_info *bdi;
+		enum {
+			NO_ACTION,   /* Nothing to do */
+			FORK_THREAD, /* Fork bdi thread */
+		} action = NO_ACTION;
 
 		/*
 		 * Temporary measure, we want to make sure we don't see
@@ -348,25 +351,31 @@ static int bdi_forker_thread(void *ptr)
 		 * a thread registered. If so, set that up.
 		 */
 		list_for_each_entry(bdi, &bdi_list, bdi_list) {
-			if (!bdi_cap_writeback_dirty(bdi))
-				continue;
-			if (bdi->wb.task)
-				continue;
-			if (list_empty(&bdi->work_list) &&
-			    !bdi_has_dirty_io(bdi))
+			bool have_dirty_io;
+
+			if (!bdi_cap_writeback_dirty(bdi) ||
+			     bdi_cap_flush_forker(bdi))
 				continue;
 
 			WARN(!test_bit(BDI_registered, &bdi->state),
 			     "bdi %p/%s is not registered!\n", bdi, bdi->name);
 
-			fork = true;
+			have_dirty_io = !list_empty(&bdi->work_list) ||
+					wb_has_dirty_io(&bdi->wb);
 
 			/*
-			 * Set the pending bit - if someone will try to
-			 * unregister this bdi - it'll wait on this bit.
+			 * If the bdi has work to do, but the thread does not
+			 * exist - create it.
 			 */
-			set_bit(BDI_pending, &bdi->state);
-			break;
+			if (!bdi->wb.task && have_dirty_io) {
+				/*
+				 * Set the pending bit - if someone will try to
+				 * unregister this bdi - it'll wait on this bit.
+				 */
+				set_bit(BDI_pending, &bdi->state);
+				action = FORK_THREAD;
+				break;
+			}
 		}
 		spin_unlock_bh(&bdi_lock);
 
@@ -374,30 +383,30 @@ static int bdi_forker_thread(void *ptr)
 		if (!list_empty(&me->bdi->work_list))
 			__set_current_state(TASK_RUNNING);
 
-		if (!fork) {
-			unsigned long wait;
+		switch (action) {
+		case FORK_THREAD:
+			__set_current_state(TASK_RUNNING);
+			task = kthread_run(bdi_writeback_thread, &bdi->wb, "flush-%s",
+					   dev_name(bdi->dev));
+			if (IS_ERR(task)) {
+				/*
+				 * If thread creation fails, force writeout of
+				 * the bdi from the thread.
+				 */
+				bdi_flush_io(bdi);
+			} else
+				bdi->wb.task = task;
+			break;
 
-			wait = msecs_to_jiffies(dirty_writeback_interval * 10);
-			if (wait)
-				schedule_timeout(wait);
+		case NO_ACTION:
+			if (dirty_writeback_interval)
+				schedule_timeout(msecs_to_jiffies(dirty_writeback_interval * 10));
 			else
 				schedule();
 			try_to_freeze();
+			/* Back to the main loop */
 			continue;
 		}
-
-		__set_current_state(TASK_RUNNING);
-
-		task = kthread_run(bdi_writeback_thread, &bdi->wb, "flush-%s",
-				   dev_name(bdi->dev));
-		if (IS_ERR(task)) {
-			/*
-			 * If thread creation fails, force writeout of the bdi
-			 * from the thread.
-			 */
-			bdi_flush_io(bdi);
-		} else
-			bdi->wb.task = task;
 	}
 
 	return 0;
