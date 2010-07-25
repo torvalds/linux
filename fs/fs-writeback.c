@@ -76,7 +76,7 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
 {
 	trace_writeback_queue(bdi, work);
 
-	spin_lock(&bdi->wb_lock);
+	spin_lock_bh(&bdi->wb_lock);
 	list_add_tail(&work->list, &bdi->work_list);
 	if (bdi->wb.task) {
 		wake_up_process(bdi->wb.task);
@@ -88,7 +88,7 @@ static void bdi_queue_work(struct backing_dev_info *bdi,
 		trace_writeback_nothread(bdi, work);
 		wake_up_process(default_backing_dev_info.wb.task);
 	}
-	spin_unlock(&bdi->wb_lock);
+	spin_unlock_bh(&bdi->wb_lock);
 }
 
 static void
@@ -704,13 +704,13 @@ get_next_work_item(struct backing_dev_info *bdi)
 {
 	struct wb_writeback_work *work = NULL;
 
-	spin_lock(&bdi->wb_lock);
+	spin_lock_bh(&bdi->wb_lock);
 	if (!list_empty(&bdi->work_list)) {
 		work = list_entry(bdi->work_list.next,
 				  struct wb_writeback_work, list);
 		list_del_init(&work->list);
 	}
-	spin_unlock(&bdi->wb_lock);
+	spin_unlock_bh(&bdi->wb_lock);
 	return work;
 }
 
@@ -810,6 +810,12 @@ int bdi_writeback_thread(void *data)
 	trace_writeback_thread_start(bdi);
 
 	while (!kthread_should_stop()) {
+		/*
+		 * Remove own delayed wake-up timer, since we are already awake
+		 * and we'll take care of the preriodic write-back.
+		 */
+		del_timer(&wb->wakeup_timer);
+
 		pages_written = wb_do_writeback(wb, 0);
 
 		trace_writeback_pages_written(pages_written);
@@ -866,26 +872,6 @@ void wakeup_flusher_threads(long nr_pages)
 		__bdi_start_writeback(bdi, nr_pages, false, false);
 	}
 	rcu_read_unlock();
-}
-
-/*
- * This function is used when the first inode for this bdi is marked dirty. It
- * wakes-up the corresponding bdi thread which should then take care of the
- * periodic background write-out of dirty inodes.
- */
-static void wakeup_bdi_thread(struct backing_dev_info *bdi)
-{
-	spin_lock(&bdi->wb_lock);
-	if (bdi->wb.task)
-		wake_up_process(bdi->wb.task);
-	else
-		/*
-		 * When bdi tasks are inactive for long time, they are killed.
-		 * In this case we have to wake-up the forker thread which
-		 * should create and run the bdi thread.
-		 */
-		wake_up_process(default_backing_dev_info.wb.task);
-	spin_unlock(&bdi->wb_lock);
 }
 
 static noinline void block_dump___mark_inode_dirty(struct inode *inode)
@@ -1019,7 +1005,7 @@ out:
 	spin_unlock(&inode_lock);
 
 	if (wakeup_bdi)
-		wakeup_bdi_thread(bdi);
+		bdi_wakeup_thread_delayed(bdi);
 }
 EXPORT_SYMBOL(__mark_inode_dirty);
 
