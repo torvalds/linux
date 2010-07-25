@@ -146,6 +146,36 @@ void nv04_dfp_update_fp_control(struct drm_encoder *encoder, int mode)
 	}
 }
 
+static struct drm_encoder *get_tmds_slave(struct drm_encoder *encoder)
+{
+	struct drm_device *dev = encoder->dev;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	struct drm_encoder *slave;
+
+	if (dcb->type != OUTPUT_TMDS || dcb->location == DCB_LOC_ON_CHIP)
+		return NULL;
+
+	/* Some BIOSes (e.g. the one in a Quadro FX1000) report several
+	 * TMDS transmitters at the same I2C address, in the same I2C
+	 * bus. This can still work because in that case one of them is
+	 * always hard-wired to a reasonable configuration using straps,
+	 * and the other one needs to be programmed.
+	 *
+	 * I don't think there's a way to know which is which, even the
+	 * blob programs the one exposed via I2C for *both* heads, so
+	 * let's do the same.
+	 */
+	list_for_each_entry(slave, &dev->mode_config.encoder_list, head) {
+		struct dcb_entry *slave_dcb = nouveau_encoder(slave)->dcb;
+
+		if (slave_dcb->type == OUTPUT_TMDS && get_slave_funcs(slave) &&
+		    slave_dcb->tmdsconf.slave_addr == dcb->tmdsconf.slave_addr)
+			return slave;
+	}
+
+	return NULL;
+}
+
 static bool nv04_dfp_mode_fixup(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,
 				struct drm_display_mode *adjusted_mode)
@@ -432,9 +462,9 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 		NVWriteRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + nv04_dac_output_offset(encoder), 0x00100000);
 
 	/* Init external transmitters */
-	if (get_slave_funcs(encoder))
-		get_slave_funcs(encoder)->mode_set(encoder, &nv_encoder->mode,
-						   &nv_encoder->mode);
+	if (get_tmds_slave(encoder))
+		get_slave_funcs(get_tmds_slave(encoder))->mode_set(
+			encoder, &nv_encoder->mode, &nv_encoder->mode);
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
@@ -581,7 +611,8 @@ static void nv04_tmds_slave_init(struct drm_encoder *encoder)
 	};
 	int type;
 
-	if (!nv_gf4_disp_arch(dev) || !i2c)
+	if (!nv_gf4_disp_arch(dev) || !i2c ||
+	    get_tmds_slave(encoder))
 		return;
 
 	type = nouveau_i2c_identify(dev, "TMDS transmitter", info, 2);
