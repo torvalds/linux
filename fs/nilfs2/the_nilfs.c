@@ -671,7 +671,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		goto out;
 	}
 
-	blocksize = sb_min_blocksize(sb, BLOCK_SIZE);
+	blocksize = sb_min_blocksize(sb, NILFS_MIN_BLOCK_SIZE);
 	if (!blocksize) {
 		printk(KERN_ERR "NILFS: unable to set blocksize\n");
 		err = -EINVAL;
@@ -690,6 +690,13 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 		goto failed_sbh;
 
 	blocksize = BLOCK_SIZE << le32_to_cpu(sbp->s_log_block_size);
+	if (blocksize < NILFS_MIN_BLOCK_SIZE ||
+	    blocksize > NILFS_MAX_BLOCK_SIZE) {
+		printk(KERN_ERR "NILFS: couldn't mount because of unsupported "
+		       "filesystem blocksize %d\n", blocksize);
+		err = -EINVAL;
+		goto failed_sbh;
+	}
 	if (sb->s_blocksize != blocksize) {
 		int hw_blocksize = bdev_logical_block_size(sb->s_bdev);
 

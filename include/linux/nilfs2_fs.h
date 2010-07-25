@@ -287,6 +287,12 @@ struct nilfs_super_block {
 #define NILFS_NAME_LEN 255
 
 /*
+ * Block size limitations
+ */
+#define NILFS_MIN_BLOCK_SIZE		1024
+#define NILFS_MAX_BLOCK_SIZE		65536
+
+/*
  * The new version of the directory entry.  Since V0 structures are
  * stored in intel byte order, and the name_len field could never be
  * bigger than 255 chars, it's safe to reclaim the extra byte for the
