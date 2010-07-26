@@ -150,11 +150,9 @@ static u32 opcode_table[256] = {
 	/* 0x40 - 0x4F */
 	X16(DstReg),
 	/* 0x50 - 0x57 */
-	SrcReg | Stack, SrcReg | Stack, SrcReg | Stack, SrcReg | Stack,
-	SrcReg | Stack, SrcReg | Stack, SrcReg | Stack, SrcReg | Stack,
+	X8(SrcReg | Stack),
 	/* 0x58 - 0x5F */
-	DstReg | Stack, DstReg | Stack, DstReg | Stack, DstReg | Stack,
-	DstReg | Stack, DstReg | Stack, DstReg | Stack, DstReg | Stack,
+	X8(DstReg | Stack),
 	/* 0x60 - 0x67 */
 	ImplicitOps | Stack | No64, ImplicitOps | Stack | No64,
 	0, DstReg | SrcMem32 | ModRM | Mov /* movsxd (x86/64) */ ,
