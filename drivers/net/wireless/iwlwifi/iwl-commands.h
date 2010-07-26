@@ -3132,7 +3132,7 @@ struct statistics_rx_non_phy_bt {
 	/* additional stats for bt */
 	__le32 num_bt_kills;
 	__le32 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct statistics_rx {
 	struct statistics_rx_phy ofdm;
@@ -3146,7 +3146,7 @@ struct statistics_rx_bt {
 	struct statistics_rx_phy cck;
 	struct statistics_rx_non_phy_bt general;
 	struct statistics_rx_ht_phy ofdm_ht;
-} __attribute__ ((packed));
+} __packed;
 
 /**
  * struct statistics_tx_power - current tx power
@@ -3226,7 +3226,7 @@ struct statistics_general_common {
 	 *  in order to get out of bad PHY status
 	 */
 	__le32 num_of_sos_states;
-} __attribute__ ((packed));
+} __packed;
 
 struct statistics_bt_activity {
 	/* Tx statistics */
@@ -3239,13 +3239,13 @@ struct statistics_bt_activity {
 	__le32 hi_priority_rx_denied_cnt;
 	__le32 lo_priority_rx_req_cnt;
 	__le32 lo_priority_rx_denied_cnt;
-} __attribute__ ((packed));
+} __packed;
 
 struct statistics_general {
 	struct statistics_general_common common;
 	__le32 reserved2;
 	__le32 reserved3;
-} __attribute__ ((packed));
+} __packed;
 
 struct statistics_general_bt {
 	struct statistics_general_common common;
@@ -3316,7 +3316,7 @@ struct iwl_bt_notif_statistics {
 	struct statistics_rx_bt rx;
 	struct statistics_tx tx;
 	struct statistics_general_bt general;
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * MISSED_BEACONS_NOTIFICATION = 0xa2 (notification only, not a command)
