@@ -1,8 +1,8 @@
 /*
  * omap-pm.h - OMAP power management interface
  *
- * Copyright (C) 2008-2009 Texas Instruments, Inc.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Texas Instruments, Inc.
+ * Copyright (C) 2008-2010 Nokia Corporation
  * Paul Walmsley
  *
  * Interface developed by (in alphabetical order): Karthik Dasu, Jouni
@@ -89,7 +89,7 @@ void omap_pm_if_exit(void);
  * @t: maximum MPU wakeup latency in microseconds
  *
  * Request that the maximum interrupt latency for the MPU to be no
- * greater than 't' microseconds. "Interrupt latency" in this case is
+ * greater than @t microseconds. "Interrupt latency" in this case is
  * defined as the elapsed time from the occurrence of a hardware or
  * timer interrupt to the time when the device driver's interrupt
  * service routine has been entered by the MPU.
@@ -105,15 +105,19 @@ void omap_pm_if_exit(void);
  * elapsed from when a device driver enables a hardware device with
  * clk_enable(), to when the device is ready for register access or
  * other use.  To control this device wakeup latency, use
- * set_max_dev_wakeup_lat()
+ * omap_pm_set_max_dev_wakeup_lat()
  *
- * Multiple calls to set_max_mpu_wakeup_lat() will replace the
+ * Multiple calls to omap_pm_set_max_mpu_wakeup_lat() will replace the
  * previous t value.  To remove the latency target for the MPU, call
  * with t = -1.
  *
- * No return value.
+ * XXX This constraint will be deprecated soon in favor of the more
+ * general omap_pm_set_max_dev_wakeup_lat()
+ *
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
+int omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
 
 
 /**
@@ -123,8 +127,8 @@ void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
  * @r: minimum throughput (in KiB/s)
  *
  * Request that the minimum data throughput on the OCP interconnect
- * attached to device 'dev' interconnect agent 'tbus_id' be no less
- * than 'r' KiB/s.
+ * attached to device @dev interconnect agent @tbus_id be no less
+ * than @r KiB/s.
  *
  * It is expected that the OMAP PM or bus code will use this
  * information to set the interconnect clock to run at the lowest
@@ -138,40 +142,44 @@ void omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t);
  * code will also need to add an minimum L3 interconnect speed
  * constraint,
  *
- * Multiple calls to set_min_bus_tput() will replace the previous rate
- * value for this device.  To remove the interconnect throughput
- * restriction for this device, call with r = 0.
+ * Multiple calls to omap_pm_set_min_bus_tput() will replace the
+ * previous rate value for this device.  To remove the interconnect
+ * throughput restriction for this device, call with r = 0.
  *
- * No return value.
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_min_bus_tput(struct device *dev, u8 agent_id, unsigned long r);
+int omap_pm_set_min_bus_tput(struct device *dev, u8 agent_id, unsigned long r);
 
 
 /**
  * omap_pm_set_max_dev_wakeup_lat - set the maximum device enable latency
- * @dev: struct device *
+ * @req_dev: struct device * requesting the constraint, or NULL if none
+ * @dev: struct device * to set the constraint one
  * @t: maximum device wakeup latency in microseconds
  *
- * Request that the maximum amount of time necessary for a device to
- * become accessible after its clocks are enabled should be no greater
- * than 't' microseconds.  Specifically, this represents the time from
- * when a device driver enables device clocks with clk_enable(), to
- * when the register reads and writes on the device will succeed.
- * This function should be called before clk_disable() is called,
- * since the power state transition decision may be made during
- * clk_disable().
+ * Request that the maximum amount of time necessary for a device @dev
+ * to become accessible after its clocks are enabled should be no
+ * greater than @t microseconds.  Specifically, this represents the
+ * time from when a device driver enables device clocks with
+ * clk_enable(), to when the register reads and writes on the device
+ * will succeed.  This function should be called before clk_disable()
+ * is called, since the power state transition decision may be made
+ * during clk_disable().
  *
  * It is intended that underlying PM code will use this information to
  * determine what power state to put the powerdomain enclosing this
  * device into.
  *
- * Multiple calls to set_max_dev_wakeup_lat() will replace the
- * previous wakeup latency values for this device.  To remove the wakeup
- * latency restriction for this device, call with t = -1.
+ * Multiple calls to omap_pm_set_max_dev_wakeup_lat() will replace the
+ * previous wakeup latency values for this device.  To remove the
+ * wakeup latency restriction for this device, call with t = -1.
  *
- * No return value.
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_max_dev_wakeup_lat(struct device *dev, long t);
+int omap_pm_set_max_dev_wakeup_lat(struct device *req_dev, struct device *dev,
+				   long t);
 
 
 /**
@@ -198,9 +206,10 @@ void omap_pm_set_max_dev_wakeup_lat(struct device *dev, long t);
  * value for this device.  To remove the maximum DMA latency for this
  * device, call with t = -1.
  *
- * No return value.
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
  */
-void omap_pm_set_max_sdma_lat(struct device *dev, long t);
+int omap_pm_set_max_sdma_lat(struct device *dev, long t);
 
 
 /*
