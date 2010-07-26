@@ -29,8 +29,6 @@ int hdpvr_config_call(struct hdpvr_device *dev, uint value, u8 valbuf)
 	int ret;
 	char request_type = 0x38, snd_request = 0x01;
 
-	msleep(10);
-
 	mutex_lock(&dev->usbc_mutex);
 	dev->usbc_buf[0] = valbuf;
 	ret = usb_control_msg(dev->udev,
