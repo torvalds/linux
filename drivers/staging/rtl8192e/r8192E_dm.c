@@ -26,20 +26,20 @@ Major Change History:
 // Indicate different AP vendor for IOT issue.
 //
 #ifdef  RTL8190P
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0x5e4322, 	0x5e4322,  	0x604322, 	0xa44f, 	0x5e4322,	0x5e4322};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0xa44f, 	0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322,	0x5e4322};
 #else
 #ifdef RTL8192E
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5e4322,	0x5e4322};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0xa44f,		0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322, 	0x5e4322};
 #else
-static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_DL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f, 	0x5e4322};
-static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
+static const u32 edca_setting_UL[HT_IOT_PEER_MAX] =
 { 0x5e4322, 	0xa44f, 	0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f, 	0x5e4322};
 #endif
 #endif
