@@ -170,7 +170,7 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 	struct ieee80211_hw *hw =
 		ieee80211_alloc_hw(sizeof(struct iwl_priv), hw_ops);
 	if (hw == NULL) {
-		printk(KERN_ERR "%s: Can not allocate network device\n",
+		pr_err("%s: Can not allocate network device\n",
 		       cfg->name);
 		goto out;
 	}

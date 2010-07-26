@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -3933,7 +3935,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	 *   space for this driver's private structure */
 	hw = iwl_alloc_all(cfg, &iwl3945_hw_ops);
 	if (hw == NULL) {
-		printk(KERN_ERR DRV_NAME "Can not allocate network device\n");
+		pr_err("Can not allocate network device\n");
 		err = -ENOMEM;
 		goto out;
 	}
@@ -4225,19 +4227,18 @@ static int __init iwl3945_init(void)
 {
 
 	int ret;
-	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
-	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
+	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	pr_info(DRV_COPYRIGHT "\n");
 
 	ret = iwl3945_rate_control_register();
 	if (ret) {
-		printk(KERN_ERR DRV_NAME
-		       "Unable to register rate control algorithm: %d\n", ret);
+		pr_err("Unable to register rate control algorithm: %d\n", ret);
 		return ret;
 	}
 
 	ret = pci_register_driver(&iwl3945_driver);
 	if (ret) {
-		printk(KERN_ERR DRV_NAME "Unable to initialize PCI module\n");
+		pr_err("Unable to initialize PCI module\n");
 		goto error_register;
 	}
 

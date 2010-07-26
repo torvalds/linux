@@ -905,16 +905,14 @@ static int mwl8k_rxq_init(struct ieee80211_hw *hw, int index)
 
 	rxq->rxd = pci_alloc_consistent(priv->pdev, size, &rxq->rxd_dma);
 	if (rxq->rxd == NULL) {
-		printk(KERN_ERR "%s: failed to alloc RX descriptors\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc rx descriptors\n");
 		return -ENOMEM;
 	}
 	memset(rxq->rxd, 0, size);
 
 	rxq->buf = kmalloc(MWL8K_RX_DESCS * sizeof(*rxq->buf), GFP_KERNEL);
 	if (rxq->buf == NULL) {
-		printk(KERN_ERR "%s: failed to alloc RX skbuff list\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc rx skbuff list\n");
 		pci_free_consistent(priv->pdev, size, rxq->rxd, rxq->rxd_dma);
 		return -ENOMEM;
 	}
@@ -1141,16 +1139,14 @@ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
 
 	txq->txd = pci_alloc_consistent(priv->pdev, size, &txq->txd_dma);
 	if (txq->txd == NULL) {
-		printk(KERN_ERR "%s: failed to alloc TX descriptors\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc tx descriptors\n");
 		return -ENOMEM;
 	}
 	memset(txq->txd, 0, size);
 
 	txq->skb = kmalloc(MWL8K_TX_DESCS * sizeof(*txq->skb), GFP_KERNEL);
 	if (txq->skb == NULL) {
-		printk(KERN_ERR "%s: failed to alloc TX skbuff list\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to alloc tx skbuff list\n");
 		pci_free_consistent(priv->pdev, size, txq->txd, txq->txd_dma);
 		return -ENOMEM;
 	}
@@ -1206,11 +1202,12 @@ static void mwl8k_dump_tx_rings(struct ieee80211_hw *hw)
 				unused++;
 		}
 
-		printk(KERN_ERR "%s: txq[%d] len=%d head=%d tail=%d "
-		       "fw_owned=%d drv_owned=%d unused=%d\n",
-		       wiphy_name(hw->wiphy), i,
-		       txq->len, txq->head, txq->tail,
-		       fw_owned, drv_owned, unused);
+		wiphy_err(hw->wiphy,
+			  "txq[%d] len=%d head=%d tail=%d "
+			  "fw_owned=%d drv_owned=%d unused=%d\n",
+			  i,
+			  txq->len, txq->head, txq->tail,
+			  fw_owned, drv_owned, unused);
 	}
 }
 
@@ -1254,25 +1251,23 @@ static int mwl8k_tx_wait_empty(struct ieee80211_hw *hw)
 		if (timeout) {
 			WARN_ON(priv->pending_tx_pkts);
 			if (retry) {
-				printk(KERN_NOTICE "%s: tx rings drained\n",
-				       wiphy_name(hw->wiphy));
+				wiphy_notice(hw->wiphy, "tx rings drained\n");
 			}
 			break;
 		}
 
 		if (priv->pending_tx_pkts < oldcount) {
-			printk(KERN_NOTICE "%s: waiting for tx rings "
-			       "to drain (%d -> %d pkts)\n",
-			       wiphy_name(hw->wiphy), oldcount,
-			       priv->pending_tx_pkts);
+			wiphy_notice(hw->wiphy,
+				     "waiting for tx rings to drain (%d -> %d pkts)\n",
+				     oldcount, priv->pending_tx_pkts);
 			retry = 1;
 			continue;
 		}
 
 		priv->tx_wait = NULL;
 
-		printk(KERN_ERR "%s: tx rings stuck for %d ms\n",
-		       wiphy_name(hw->wiphy), MWL8K_TX_WAIT_TIMEOUT_MS);
+		wiphy_err(hw->wiphy, "tx rings stuck for %d ms\n",
+			  MWL8K_TX_WAIT_TIMEOUT_MS);
 		mwl8k_dump_tx_rings(hw);
 
 		rc = -ETIMEDOUT;
@@ -1423,8 +1418,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
 				skb->len, PCI_DMA_TODEVICE);
 
 	if (pci_dma_mapping_error(priv->pdev, dma)) {
-		printk(KERN_DEBUG "%s: failed to dma map skb, "
-		       "dropping TX frame.\n", wiphy_name(hw->wiphy));
+		wiphy_debug(hw->wiphy,
+			    "failed to dma map skb, dropping TX frame.\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -1572,10 +1567,9 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 					PCI_DMA_BIDIRECTIONAL);
 
 	if (!timeout) {
-		printk(KERN_ERR "%s: Command %s timeout after %u ms\n",
-		       wiphy_name(hw->wiphy),
-		       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-		       MWL8K_CMD_TIMEOUT_MS);
+		wiphy_err(hw->wiphy, "command %s timeout after %u ms\n",
+			  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
+			  MWL8K_CMD_TIMEOUT_MS);
 		rc = -ETIMEDOUT;
 	} else {
 		int ms;
@@ -1584,15 +1578,14 @@ static int mwl8k_post_cmd(struct ieee80211_hw *hw, struct mwl8k_cmd_pkt *cmd)
 
 		rc = cmd->result ? -EINVAL : 0;
 		if (rc)
-			printk(KERN_ERR "%s: Command %s error 0x%x\n",
-			       wiphy_name(hw->wiphy),
-			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-			       le16_to_cpu(cmd->result));
+			wiphy_err(hw->wiphy, "command %s error 0x%x\n",
+				  mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
+				  le16_to_cpu(cmd->result));
 		else if (ms > 2000)
-			printk(KERN_NOTICE "%s: Command %s took %d ms\n",
-			       wiphy_name(hw->wiphy),
-			       mwl8k_cmd_name(cmd->code, buf, sizeof(buf)),
-			       ms);
+			wiphy_notice(hw->wiphy, "command %s took %d ms\n",
+				     mwl8k_cmd_name(cmd->code,
+						    buf, sizeof(buf)),
+				     ms);
 	}
 
 	return rc;
@@ -3192,8 +3185,8 @@ static int mwl8k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	int rc;
 
 	if (!priv->radio_on) {
-		printk(KERN_DEBUG "%s: dropped TX frame since radio "
-		       "disabled\n", wiphy_name(hw->wiphy));
+		wiphy_debug(hw->wiphy,
+			    "dropped TX frame since radio disabled\n");
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
 	}
@@ -3211,8 +3204,7 @@ static int mwl8k_start(struct ieee80211_hw *hw)
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to register irq handler\n");
 		return -EIO;
 	}
 
@@ -3299,9 +3291,8 @@ static int mwl8k_add_interface(struct ieee80211_hw *hw,
 	 * mode.  (Sniffer mode is only used on STA firmware.)
 	 */
 	if (priv->sniffer_enabled) {
-		printk(KERN_INFO "%s: unable to create STA "
-		       "interface due to sniffer mode being enabled\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_info(hw->wiphy,
+			   "unable to create STA interface because sniffer mode is enabled\n");
 		return -EINVAL;
 	}
 
@@ -3583,9 +3574,8 @@ mwl8k_configure_filter_sniffer(struct ieee80211_hw *hw,
 	 */
 	if (!list_empty(&priv->vif_list)) {
 		if (net_ratelimit())
-			printk(KERN_INFO "%s: not enabling sniffer "
-			       "mode because STA interface is active\n",
-			       wiphy_name(hw->wiphy));
+			wiphy_info(hw->wiphy,
+				   "not enabling sniffer mode because STA interface is active\n");
 		return 0;
 	}
 
@@ -3913,8 +3903,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {
-		printk(KERN_ERR "%s: Cannot map device SRAM\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "cannot map device sram\n");
 		goto err_iounmap;
 	}
 
@@ -3926,8 +3915,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	if (priv->regs == NULL) {
 		priv->regs = pci_iomap(pdev, 2, 0x10000);
 		if (priv->regs == NULL) {
-			printk(KERN_ERR "%s: Cannot map device registers\n",
-			       wiphy_name(hw->wiphy));
+			wiphy_err(hw->wiphy, "cannot map device registers\n");
 			goto err_iounmap;
 		}
 	}
@@ -3939,16 +3927,14 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	/* Ask userland hotplug daemon for the device firmware */
 	rc = mwl8k_request_firmware(priv);
 	if (rc) {
-		printk(KERN_ERR "%s: Firmware files not found\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "firmware files not found\n");
 		goto err_stop_firmware;
 	}
 
 	/* Load firmware into hardware */
 	rc = mwl8k_load_firmware(hw);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot start firmware\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "cannot start firmware\n");
 		goto err_stop_firmware;
 	}
 
@@ -3959,9 +3945,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	if (priv->ap_fw) {
 		priv->rxd_ops = priv->device_info->ap_rxd_ops;
 		if (priv->rxd_ops == NULL) {
-			printk(KERN_ERR "%s: Driver does not have AP "
-			       "firmware image support for this hardware\n",
-			       wiphy_name(hw->wiphy));
+			wiphy_err(hw->wiphy,
+				  "Driver does not have AP firmware image support for this hardware\n");
 			goto err_stop_firmware;
 		}
 	} else {
@@ -4039,8 +4024,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	rc = request_irq(priv->pdev->irq, mwl8k_interrupt,
 			 IRQF_SHARED, MWL8K_NAME, hw);
 	if (rc) {
-		printk(KERN_ERR "%s: failed to register IRQ handler\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "failed to register irq handler\n");
 		goto err_free_queues;
 	}
 
@@ -4060,8 +4044,7 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 		rc = mwl8k_cmd_get_hw_spec_sta(hw);
 	}
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot initialise firmware\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "cannot initialise firmware\n");
 		goto err_free_irq;
 	}
 
@@ -4075,15 +4058,14 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	/* Turn radio off */
 	rc = mwl8k_cmd_radio_disable(hw);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot disable\n", wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "cannot disable\n");
 		goto err_free_irq;
 	}
 
 	/* Clear MAC address */
 	rc = mwl8k_cmd_set_mac_addr(hw, NULL, "\x00\x00\x00\x00\x00\x00");
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot clear MAC address\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "cannot clear mac address\n");
 		goto err_free_irq;
 	}
 
@@ -4093,17 +4075,16 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	rc = ieee80211_register_hw(hw);
 	if (rc) {
-		printk(KERN_ERR "%s: Cannot register device\n",
-		       wiphy_name(hw->wiphy));
+		wiphy_err(hw->wiphy, "cannot register device\n");
 		goto err_free_queues;
 	}
 
-	printk(KERN_INFO "%s: %s v%d, %pM, %s firmware %u.%u.%u.%u\n",
-	       wiphy_name(hw->wiphy), priv->device_info->part_name,
-	       priv->hw_rev, hw->wiphy->perm_addr,
-	       priv->ap_fw ? "AP" : "STA",
-	       (priv->fw_rev >> 24) & 0xff, (priv->fw_rev >> 16) & 0xff,
-	       (priv->fw_rev >> 8) & 0xff, priv->fw_rev & 0xff);
+	wiphy_info(hw->wiphy, "%s v%d, %pm, %s firmware %u.%u.%u.%u\n",
+		   priv->device_info->part_name,
+		   priv->hw_rev, hw->wiphy->perm_addr,
+		   priv->ap_fw ? "AP" : "STA",
+		   (priv->fw_rev >> 24) & 0xff, (priv->fw_rev >> 16) & 0xff,
+		   (priv->fw_rev >> 8) & 0xff, priv->fw_rev & 0xff);
 
 	return 0;
 

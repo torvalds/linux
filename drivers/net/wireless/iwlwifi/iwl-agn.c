@@ -27,6 +27,8 @@
  *
  *****************************************************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -4417,19 +4419,18 @@ static int __init iwl_init(void)
 {
 
 	int ret;
-	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
-	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
+	pr_info(DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	pr_info(DRV_COPYRIGHT "\n");
 
 	ret = iwlagn_rate_control_register();
 	if (ret) {
-		printk(KERN_ERR DRV_NAME
-		       "Unable to register rate control algorithm: %d\n", ret);
+		pr_err("Unable to register rate control algorithm: %d\n", ret);
 		return ret;
 	}
 
 	ret = pci_register_driver(&iwl_driver);
 	if (ret) {
-		printk(KERN_ERR DRV_NAME "Unable to initialize PCI module\n");
+		pr_err("Unable to initialize PCI module\n");
 		goto error_register;
 	}
 
