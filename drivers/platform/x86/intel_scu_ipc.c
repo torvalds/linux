@@ -162,6 +162,8 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 
 	mutex_lock(&ipclock);
 
+	memset(cbuf, 0, sizeof(cbuf));
+
 	if (ipcdev.pdev == NULL) {
 		mutex_unlock(&ipclock);
 		return -ENODEV;
