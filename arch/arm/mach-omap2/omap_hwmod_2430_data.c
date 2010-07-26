@@ -65,7 +65,8 @@ static struct omap_hwmod omap2430_l3_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap2430_l3_masters),
 	.slaves		= omap2430_l3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2430_l3_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 static struct omap_hwmod omap2430_l4_wkup_hwmod;
@@ -97,7 +98,8 @@ static struct omap_hwmod omap2430_l4_core_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap2430_l4_core_masters),
 	.slaves		= omap2430_l4_core_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2430_l4_core_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* Slave interfaces on the L4_WKUP interconnect */
@@ -117,7 +119,8 @@ static struct omap_hwmod omap2430_l4_wkup_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap2430_l4_wkup_masters),
 	.slaves		= omap2430_l4_wkup_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap2430_l4_wkup_slaves),
-	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
+	.flags		= HWMOD_NO_IDLEST,
 };
 
 /* Master interfaces on the MPU device */
