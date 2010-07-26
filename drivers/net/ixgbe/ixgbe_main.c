@@ -4783,6 +4783,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 #ifdef CONFIG_IXGBE_DCB
 		/* Default traffic class to use for FCoE */
 		adapter->fcoe.tc = IXGBE_FCOE_DEFTC;
+		adapter->fcoe.up = IXGBE_FCOE_DEFTC;
 #endif
 #endif /* IXGBE_FCOE */
 	}
@@ -6147,21 +6148,26 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int txq = smp_processor_id();
 
+#ifdef IXGBE_FCOE
+	if ((skb->protocol == htons(ETH_P_FCOE)) ||
+	    (skb->protocol == htons(ETH_P_FIP))) {
+		if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
+			txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
+			txq += adapter->ring_feature[RING_F_FCOE].mask;
+			return txq;
+		} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+			txq = adapter->fcoe.up;
+			return txq;
+		}
+	}
+#endif
+
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
 		while (unlikely(txq >= dev->real_num_tx_queues))
 			txq -= dev->real_num_tx_queues;
 		return txq;
 	}
 
-#ifdef IXGBE_FCOE
-	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    ((skb->protocol == htons(ETH_P_FCOE)) ||
-	     (skb->protocol == htons(ETH_P_FIP)))) {
-		txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
-		txq += adapter->ring_feature[RING_F_FCOE].mask;
-		return txq;
-	}
-#endif
 	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
 		if (skb->priority == TC_PRIO_CONTROL)
 			txq = adapter->ring_feature[RING_F_DCB].indices-1;
@@ -6205,18 +6211,15 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
 #ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
-#ifdef CONFIG_IXGBE_DCB
-		/* for FCoE with DCB, we force the priority to what
-		 * was specified by the switch */
-		if ((skb->protocol == htons(ETH_P_FCOE)) ||
-		    (skb->protocol == htons(ETH_P_FIP))) {
-			tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
-				      << IXGBE_TX_FLAGS_VLAN_SHIFT);
-			tx_flags |= ((adapter->fcoe.up << 13)
-				     << IXGBE_TX_FLAGS_VLAN_SHIFT);
-		}
-#endif
+	/* for FCoE with DCB, we force the priority to what
+	 * was specified by the switch */
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED &&
+	    (skb->protocol == htons(ETH_P_FCOE) ||
+	     skb->protocol == htons(ETH_P_FIP))) {
+		tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
+			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		tx_flags |= ((adapter->fcoe.up << 13)
+			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
 		/* flag for FCoE offloads */
 		if (skb->protocol == htons(ETH_P_FCOE))
 			tx_flags |= IXGBE_TX_FLAGS_FCOE;
