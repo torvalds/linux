@@ -149,6 +149,33 @@ int omap_pm_set_max_sdma_lat(struct device *dev, long t)
 	return 0;
 }
 
+int omap_pm_set_min_clk_rate(struct device *dev, struct clk *c, long r)
+{
+	if (!dev || !c || r < 0) {
+		WARN(1, "OMAP PM: %s: invalid parameter(s)", __func__);
+		return -EINVAL;
+	}
+
+	if (r == 0)
+		pr_debug("OMAP PM: remove min clk rate constraint: "
+			 "dev %s\n", dev_name(dev));
+	else
+		pr_debug("OMAP PM: add min clk rate constraint: "
+			 "dev %s, rate = %ld Hz\n", dev_name(dev), r);
+
+	/*
+	 * Code in a real implementation should keep track of these
+	 * constraints on the clock, and determine the highest minimum
+	 * clock rate.  It should iterate over each OPP and determine
+	 * whether the OPP will result in a clock rate that would
+	 * satisfy this constraint (and any other PM constraint in effect
+	 * at that time).  Once it finds the lowest-voltage OPP that
+	 * meets those conditions, it should switch to it, or return
+	 * an error if the code is not capable of doing so.
+	 */
+
+	return 0;
+}
 
 /*
  * DSP Bridge-specific constraints

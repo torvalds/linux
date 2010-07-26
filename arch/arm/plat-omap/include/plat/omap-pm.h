@@ -16,6 +16,7 @@
 
 #include <linux/device.h>
 #include <linux/cpufreq.h>
+#include <linux/clk.h>
 
 #include "powerdomain.h"
 
@@ -211,6 +212,66 @@ int omap_pm_set_max_dev_wakeup_lat(struct device *req_dev, struct device *dev,
  */
 int omap_pm_set_max_sdma_lat(struct device *dev, long t);
 
+
+/**
+ * omap_pm_set_min_clk_rate - set minimum clock rate requested by @dev
+ * @dev: struct device * requesting the constraint
+ * @clk: struct clk * to set the minimum rate constraint on
+ * @r: minimum rate in Hz
+ *
+ * Request that the minimum clock rate on the device @dev's clk @clk
+ * be no less than @r Hz.
+ *
+ * It is expected that the OMAP PM code will use this information to
+ * find an OPP or clock setting that will satisfy this clock rate
+ * constraint, along with any other applicable system constraints on
+ * the clock rate or corresponding voltage, etc.
+ *
+ * omap_pm_set_min_clk_rate() differs from the clock code's
+ * clk_set_rate() in that it considers other constraints before taking
+ * any hardware action, and may change a system OPP rather than just a
+ * clock rate.  clk_set_rate() is intended to be a low-level
+ * interface.
+ *
+ * omap_pm_set_min_clk_rate() is easily open to abuse.  A better API
+ * would be something like "omap_pm_set_min_dev_performance()";
+ * however, there is no easily-generalizable concept of performance
+ * that applies to all devices.  Only a device (and possibly the
+ * device subsystem) has both the subsystem-specific knowledge, and
+ * the hardware IP block-specific knowledge, to translate a constraint
+ * on "touchscreen sampling accuracy" or "number of pixels or polygons
+ * rendered per second" to a clock rate.  This translation can be
+ * dependent on the hardware IP block's revision, or firmware version,
+ * and the driver is the only code on the system that has this
+ * information and can know how to translate that into a clock rate.
+ *
+ * The intended use-case for this function is for userspace or other
+ * kernel code to communicate a particular performance requirement to
+ * a subsystem; then for the subsystem to communicate that requirement
+ * to something that is meaningful to the device driver; then for the
+ * device driver to convert that requirement to a clock rate, and to
+ * then call omap_pm_set_min_clk_rate().
+ *
+ * Users of this function (such as device drivers) should not simply
+ * call this function with some high clock rate to ensure "high
+ * performance."  Rather, the device driver should take a performance
+ * constraint from its subsystem, such as "render at least X polygons
+ * per second," and use some formula or table to convert that into a
+ * clock rate constraint given the hardware type and hardware
+ * revision.  Device drivers or subsystems should not assume that they
+ * know how to make a power/performance tradeoff - some device use
+ * cases may tolerate a lower-fidelity device function for lower power
+ * consumption; others may demand a higher-fidelity device function,
+ * no matter what the power consumption.
+ *
+ * Multiple calls to omap_pm_set_min_clk_rate() will replace the
+ * previous rate value for the device @dev.  To remove the minimum clock
+ * rate constraint for the device, call with r = 0.
+ *
+ * Returns -EINVAL for an invalid argument, -ERANGE if the constraint
+ * is not satisfiable, or 0 upon success.
+ */
+int omap_pm_set_min_clk_rate(struct device *dev, struct clk *c, long r);
 
 /*
  * DSP Bridge-specific constraints
