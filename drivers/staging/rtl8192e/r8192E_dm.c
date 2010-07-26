@@ -2094,8 +2094,6 @@ static void dm_ctrl_initgain_byrssi(struct net_device *dev)
 		dm_ctrl_initgain_byrssi_by_fwfalse_alarm(dev);
 	else if(dm_digtable.dig_algorithm == DIG_ALGO_BY_RSSI)
 		dm_ctrl_initgain_byrssi_by_driverrssi(dev);
-	else
-		return;
 }
 
 
@@ -2937,8 +2935,6 @@ void dm_gpio_change_rf_callback(struct work_struct *work)
 	u8 tmp1byte;
 	RT_RF_POWER_STATE	eRfPowerStateToSet;
 	bool bActuallySet = false;
-
-		bActuallySet=false;
 
 		if(!priv->up)
 		{
