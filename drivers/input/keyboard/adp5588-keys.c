@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 
 #include <linux/i2c/adp5588.h>
@@ -54,6 +55,10 @@
 
 #define KEYP_MAX_EVENT		10
 
+#define MAXGPIO			18
+#define ADP_BANK(offs)		((offs) >> 3)
+#define ADP_BIT(offs)		(1u << ((offs) & 0x7))
+
 /*
  * Early pre 4.0 Silicon required to delay readout by at least 25ms,
  * since the Event Counter Register updated 25ms after the interrupt
@@ -69,6 +74,14 @@ struct adp5588_kpad {
 	unsigned short keycode[ADP5588_KEYMAPSIZE];
 	const struct adp5588_gpi_map *gpimap;
 	unsigned short gpimapsize;
+#ifdef CONFIG_GPIOLIB
+	unsigned char gpiomap[MAXGPIO];
+	bool export_gpio;
+	struct gpio_chip gc;
+	struct mutex gpio_lock;	/* Protect cached dir, dat_out */
+	u8 dat_out[3];
+	u8 dir[3];
+#endif
 };
 
 static int adp5588_read(struct i2c_client *client, u8 reg)
@@ -85,6 +98,183 @@ static int adp5588_write(struct i2c_client *client, u8 reg, u8 val)
 {
 	return i2c_smbus_write_byte_data(client, reg, val);
 }
+
+#ifdef CONFIG_GPIOLIB
+static int adp5588_gpio_get_value(struct gpio_chip *chip, unsigned off)
+{
+	struct adp5588_kpad *kpad = container_of(chip, struct adp5588_kpad, gc);
+	unsigned int bank = ADP_BANK(kpad->gpiomap[off]);
+	unsigned int bit = ADP_BIT(kpad->gpiomap[off]);
+
+	return !!(adp5588_read(kpad->client, GPIO_DAT_STAT1 + bank) & bit);
+}
+
+static void adp5588_gpio_set_value(struct gpio_chip *chip,
+				   unsigned off, int val)
+{
+	struct adp5588_kpad *kpad = container_of(chip, struct adp5588_kpad, gc);
+	unsigned int bank = ADP_BANK(kpad->gpiomap[off]);
+	unsigned int bit = ADP_BIT(kpad->gpiomap[off]);
+
+	mutex_lock(&kpad->gpio_lock);
+
+	if (val)
+		kpad->dat_out[bank] |= bit;
+	else
+		kpad->dat_out[bank] &= ~bit;
+
+	adp5588_write(kpad->client, GPIO_DAT_OUT1 + bank,
+			   kpad->dat_out[bank]);
+
+	mutex_unlock(&kpad->gpio_lock);
+}
+
+static int adp5588_gpio_direction_input(struct gpio_chip *chip, unsigned off)
+{
+	struct adp5588_kpad *kpad = container_of(chip, struct adp5588_kpad, gc);
+	unsigned int bank = ADP_BANK(kpad->gpiomap[off]);
+	unsigned int bit = ADP_BIT(kpad->gpiomap[off]);
+	int ret;
+
+	mutex_lock(&kpad->gpio_lock);
+
+	kpad->dir[bank] &= ~bit;
+	ret = adp5588_write(kpad->client, GPIO_DIR1 + bank, kpad->dir[bank]);
+
+	mutex_unlock(&kpad->gpio_lock);
+
+	return ret;
+}
+
+static int adp5588_gpio_direction_output(struct gpio_chip *chip,
+					 unsigned off, int val)
+{
+	struct adp5588_kpad *kpad = container_of(chip, struct adp5588_kpad, gc);
+	unsigned int bank = ADP_BANK(kpad->gpiomap[off]);
+	unsigned int bit = ADP_BIT(kpad->gpiomap[off]);
+	int ret;
+
+	mutex_lock(&kpad->gpio_lock);
+
+	kpad->dir[bank] |= bit;
+
+	if (val)
+		kpad->dat_out[bank] |= bit;
+	else
+		kpad->dat_out[bank] &= ~bit;
+
+	ret = adp5588_write(kpad->client, GPIO_DAT_OUT1 + bank,
+				 kpad->dat_out[bank]);
+	ret |= adp5588_write(kpad->client, GPIO_DIR1 + bank,
+				 kpad->dir[bank]);
+
+	mutex_unlock(&kpad->gpio_lock);
+
+	return ret;
+}
+
+static int __devinit adp5588_gpio_add(struct device *dev)
+{
+	struct adp5588_kpad *kpad = dev_get_drvdata(dev);
+	const struct adp5588_kpad_platform_data *pdata = dev->platform_data;
+	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
+	int i, error;
+
+	if (gpio_data) {
+		int j = 0;
+		bool pin_used[MAXGPIO];
+
+		for (i = 0; i < pdata->rows; i++)
+			pin_used[i] = true;
+
+		for (i = 0; i < pdata->cols; i++)
+			pin_used[i + GPI_PIN_COL_BASE - GPI_PIN_BASE] = true;
+
+		for (i = 0; i < kpad->gpimapsize; i++)
+			pin_used[kpad->gpimap[i].pin - GPI_PIN_BASE] = true;
+
+		for (i = 0; i < MAXGPIO; i++) {
+			if (!pin_used[i])
+				kpad->gpiomap[j++] = i;
+		}
+		kpad->gc.ngpio = j;
+
+		if (kpad->gc.ngpio)
+			kpad->export_gpio = true;
+	}
+
+	if (!kpad->export_gpio) {
+		dev_info(dev, "No unused gpios left to export\n");
+		return 0;
+	}
+
+	kpad->gc.direction_input = adp5588_gpio_direction_input;
+	kpad->gc.direction_output = adp5588_gpio_direction_output;
+	kpad->gc.get = adp5588_gpio_get_value;
+	kpad->gc.set = adp5588_gpio_set_value;
+	kpad->gc.can_sleep = 1;
+
+	kpad->gc.base = gpio_data->gpio_start;
+	kpad->gc.label = kpad->client->name;
+	kpad->gc.owner = THIS_MODULE;
+
+	mutex_init(&kpad->gpio_lock);
+
+	error = gpiochip_add(&kpad->gc);
+	if (error) {
+		dev_err(dev, "gpiochip_add failed, err: %d\n", error);
+		return error;
+	}
+
+	for (i = 0; i <= ADP_BANK(MAXGPIO); i++) {
+		kpad->dat_out[i] = adp5588_read(kpad->client,
+						GPIO_DAT_OUT1 + i);
+		kpad->dir[i] = adp5588_read(kpad->client, GPIO_DIR1 + i);
+	}
+
+	if (gpio_data->setup) {
+		error = gpio_data->setup(kpad->client,
+					 kpad->gc.base, kpad->gc.ngpio,
+					 gpio_data->context);
+		if (error)
+			dev_warn(dev, "setup failed, %d\n", error);
+	}
+
+	return 0;
+}
+
+static void __devexit adp5588_gpio_remove(struct device *dev)
+{
+	struct adp5588_kpad *kpad = dev_get_drvdata(dev);
+	const struct adp5588_kpad_platform_data *pdata = dev->platform_data;
+	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
+	int error;
+
+	if (!kpad->export_gpio)
+		return;
+
+	if (gpio_data->teardown) {
+		error = gpio_data->teardown(kpad->client,
+					    kpad->gc.base, kpad->gc.ngpio,
+					    gpio_data->context);
+		if (error)
+			dev_warn(dev, "teardown failed %d\n", error);
+	}
+
+	error = gpiochip_remove(&kpad->gc);
+	if (error)
+		dev_warn(dev, "gpiochip_remove failed %d\n", error);
+}
+#else
+static inline int adp5588_gpio_add(struct device *dev)
+{
+	return 0;
+}
+
+static inline void adp5588_gpio_remove(struct device *dev)
+{
+}
+#endif
 
 static void adp5588_report_events(struct adp5588_kpad *kpad, int ev_cnt)
 {
@@ -150,7 +340,8 @@ static irqreturn_t adp5588_irq(int irq, void *handle)
 
 static int __devinit adp5588_setup(struct i2c_client *client)
 {
-	struct adp5588_kpad_platform_data *pdata = client->dev.platform_data;
+	const struct adp5588_kpad_platform_data *pdata = client->dev.platform_data;
+	const struct adp5588_gpio_platform_data *gpio_data = pdata->gpio_data;
 	int i, ret;
 	unsigned char evt_mode1 = 0, evt_mode2 = 0, evt_mode3 = 0;
 
@@ -182,6 +373,15 @@ static int __devinit adp5588_setup(struct i2c_client *client)
 		ret |= adp5588_write(client, GPI_EM1, evt_mode1);
 		ret |= adp5588_write(client, GPI_EM2, evt_mode2);
 		ret |= adp5588_write(client, GPI_EM3, evt_mode3);
+	}
+
+	if (gpio_data) {
+		for (i = 0; i <= ADP_BANK(MAXGPIO); i++) {
+			int pull_mask = gpio_data->pullup_dis_mask;
+
+			ret |= adp5588_write(client, GPIO_PULL1 + i,
+				(pull_mask >> (8 * i)) & 0xFF);
+		}
 	}
 
 	ret |= adp5588_write(client, INT_STAT, CMP2_INT | CMP1_INT |
@@ -240,7 +440,7 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct adp5588_kpad *kpad;
-	struct adp5588_kpad_platform_data *pdata = client->dev.platform_data;
+	const struct adp5588_kpad_platform_data *pdata = client->dev.platform_data;
 	struct input_dev *input;
 	unsigned int revid;
 	int ret, i;
@@ -381,6 +581,10 @@ static int __devinit adp5588_probe(struct i2c_client *client,
 	if (kpad->gpimapsize)
 		adp5588_report_switch_state(kpad);
 
+	error = adp5588_gpio_add(&client->dev);
+	if (error)
+		goto err_free_irq;
+
 	device_init_wakeup(&client->dev, 1);
 	i2c_set_clientdata(client, kpad);
 
@@ -407,6 +611,7 @@ static int __devexit adp5588_remove(struct i2c_client *client)
 	free_irq(client->irq, kpad);
 	cancel_delayed_work_sync(&kpad->work);
 	input_unregister_device(kpad->input);
+	adp5588_gpio_remove(&client->dev);
 	kfree(kpad);
 
 	return 0;
