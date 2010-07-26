@@ -434,7 +434,6 @@ static int has_failed(raid5_conf_t *conf)
 }
 
 static void unplug_slaves(mddev_t *mddev);
-static void raid5_unplug_device(raid5_conf_t *conf);
 
 static struct stripe_head *
 get_active_stripe(raid5_conf_t *conf, sector_t sector,
@@ -464,7 +463,7 @@ get_active_stripe(raid5_conf_t *conf, sector_t sector,
 						     < (conf->max_nr_stripes *3/4)
 						     || !conf->inactive_blocked),
 						    conf->device_lock,
-						    raid5_unplug_device(conf)
+						    md_raid5_unplug_device(conf)
 					);
 				conf->inactive_blocked = 0;
 			} else
@@ -3659,7 +3658,7 @@ static void unplug_slaves(mddev_t *mddev)
 	rcu_read_unlock();
 }
 
-static void raid5_unplug_device(raid5_conf_t *conf)
+void md_raid5_unplug_device(raid5_conf_t *conf)
 {
 	unsigned long flags;
 
@@ -3675,17 +3674,18 @@ static void raid5_unplug_device(raid5_conf_t *conf)
 
 	unplug_slaves(conf->mddev);
 }
+EXPORT_SYMBOL_GPL(md_raid5_unplug_device);
 
 static void raid5_unplug(struct plug_handle *plug)
 {
 	raid5_conf_t *conf = container_of(plug, raid5_conf_t, plug);
-	raid5_unplug_device(conf);
+	md_raid5_unplug_device(conf);
 }
 
 static void raid5_unplug_queue(struct request_queue *q)
 {
 	mddev_t *mddev = q->queuedata;
-	raid5_unplug_device(mddev->private);
+	md_raid5_unplug_device(mddev->private);
 }
 
 int md_raid5_congested(mddev_t *mddev, int bits)
@@ -4095,7 +4095,7 @@ static int make_request(mddev_t *mddev, struct bio * bi)
 				 * add failed due to overlap.  Flush everything
 				 * and wait a while
 				 */
-				raid5_unplug_device(conf);
+				md_raid5_unplug_device(conf);
 				release_stripe(sh);
 				schedule();
 				goto retry;
@@ -4991,7 +4991,7 @@ static int only_parity(int raid_disk, int algo, int raid_disks, int max_degraded
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
-	int working_disks = 0, chunk_size;
+	int working_disks = 0;
 	int dirty_parity_disks = 0;
 	mdk_rdev_t *rdev;
 	sector_t reshape_offset = 0;
@@ -5191,6 +5191,7 @@ static int run(mddev_t *mddev)
 	plugger_init(&conf->plug, raid5_unplug);
 	mddev->plug = &conf->plug;
 	if (mddev->queue) {
+		int chunk_size;
 		/* read-ahead size must cover two whole stripes, which
 		 * is 2 * (datadisks) * chunksize where 'n' is the
 		 * number of raid devices
@@ -5205,20 +5206,18 @@ static int run(mddev_t *mddev)
 
 		mddev->queue->backing_dev_info.congested_data = mddev;
 		mddev->queue->backing_dev_info.congested_fn = raid5_congested;
+		mddev->queue->queue_lock = &conf->device_lock;
+		mddev->queue->unplug_fn = raid5_unplug_queue;
+
+		chunk_size = mddev->chunk_sectors << 9;
+		blk_queue_io_min(mddev->queue, chunk_size);
+		blk_queue_io_opt(mddev->queue, chunk_size *
+				 (conf->raid_disks - conf->max_degraded));
+
+		list_for_each_entry(rdev, &mddev->disks, same_set)
+			disk_stack_limits(mddev->gendisk, rdev->bdev,
+					  rdev->data_offset << 9);
 	}
-
-	mddev->queue->queue_lock = &conf->device_lock;
-
-	mddev->queue->unplug_fn = raid5_unplug_queue;
-
-	chunk_size = mddev->chunk_sectors << 9;
-	blk_queue_io_min(mddev->queue, chunk_size);
-	blk_queue_io_opt(mddev->queue, chunk_size *
-			 (conf->raid_disks - conf->max_degraded));
-
-	list_for_each_entry(rdev, &mddev->disks, same_set)
-		disk_stack_limits(mddev->gendisk, rdev->bdev,
-				  rdev->data_offset << 9);
 
 	return 0;
 abort:
