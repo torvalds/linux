@@ -1635,6 +1635,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 		} else {
 			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
 			    ioc->name, pci_name(pdev));
+			pci_release_selected_regions(pdev, ioc->bars);
 			return r;
 		}
 	} else {
@@ -1648,6 +1649,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 		} else {
 			printk(MYIOC_s_WARN_FMT "no suitable DMA mask for %s\n",
 			    ioc->name, pci_name(pdev));
+			pci_release_selected_regions(pdev, ioc->bars);
 			return r;
 		}
 	}
@@ -1678,6 +1680,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 	if (mem == NULL) {
 		printk(MYIOC_s_ERR_FMT ": ERROR - Unable to map adapter"
 			" memory!\n", ioc->name);
+		pci_release_selected_regions(pdev, ioc->bars);
 		return -EINVAL;
 	}
 	ioc->memmap = mem;
