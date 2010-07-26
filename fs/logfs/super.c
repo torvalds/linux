@@ -536,19 +536,16 @@ static void logfs_kill_sb(struct super_block *sb)
 	log_super("LogFS: Finished unmounting\n");
 }
 
-int logfs_get_sb_device(struct file_system_type *type, int flags,
+int logfs_get_sb_device(struct logfs_super *super,
+		struct file_system_type *type, int flags,
 		struct mtd_info *mtd, struct block_device *bdev,
 		const struct logfs_device_ops *devops, struct vfsmount *mnt)
 {
-	struct logfs_super *super;
 	struct super_block *sb;
 	int err = -ENOMEM;
 	static int mount_count;
 
 	log_super("LogFS: Start mount %x\n", mount_count++);
-	super = kzalloc(sizeof(*super), GFP_KERNEL);
-	if (!super)
-		goto err0;
 
 	super->s_mtd	= mtd;
 	super->s_bdev	= bdev;
@@ -603,20 +600,27 @@ static int logfs_get_sb(struct file_system_type *type, int flags,
 		const char *devname, void *data, struct vfsmount *mnt)
 {
 	ulong mtdnr;
+	struct logfs_super *super;
+
+	super = kzalloc(sizeof(*super), GFP_KERNEL);
+	if (!super)
+		return -ENOMEM;
 
 	if (!devname)
-		return logfs_get_sb_bdev(type, flags, devname, mnt);
+		return logfs_get_sb_bdev(super, type, flags, devname, mnt);
 	if (strncmp(devname, "mtd", 3))
-		return logfs_get_sb_bdev(type, flags, devname, mnt);
+		return logfs_get_sb_bdev(super, type, flags, devname, mnt);
 
 	{
 		char *garbage;
 		mtdnr = simple_strtoul(devname+3, &garbage, 0);
-		if (*garbage)
+		if (*garbage) {
+			kfree(super);
 			return -EINVAL;
+		}
 	}
 
-	return logfs_get_sb_mtd(type, flags, mtdnr, mnt);
+	return logfs_get_sb_mtd(super, type, flags, mtdnr, mnt);
 }
 
 static struct file_system_type logfs_fs_type = {

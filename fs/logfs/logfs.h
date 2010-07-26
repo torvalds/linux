@@ -471,24 +471,30 @@ void logfs_compr_exit(void);
 
 /* dev_bdev.c */
 #ifdef CONFIG_BLOCK
-int logfs_get_sb_bdev(struct file_system_type *type, int flags,
+int logfs_get_sb_bdev(struct logfs_super *s,
+		struct file_system_type *type, int flags,
 		const char *devname, struct vfsmount *mnt);
 #else
-static inline int logfs_get_sb_bdev(struct file_system_type *type, int flags,
+static inline int logfs_get_sb_bdev(struct logfs_super *s,
+		struct file_system_type *type, int flags,
 		const char *devname, struct vfsmount *mnt)
 {
+	kfree(s);
 	return -ENODEV;
 }
 #endif
 
 /* dev_mtd.c */
 #ifdef CONFIG_MTD
-int logfs_get_sb_mtd(struct file_system_type *type, int flags,
+int logfs_get_sb_mtd(struct logfs_super *s,
+		struct file_system_type *type, int flags,
 		int mtdnr, struct vfsmount *mnt);
 #else
-static inline int logfs_get_sb_mtd(struct file_system_type *type, int flags,
+static inline int logfs_get_sb_mtd(struct logfs_super *s,
+		struct file_system_type *type, int flags,
 		int mtdnr, struct vfsmount *mnt)
 {
+	kfree(s);
 	return -ENODEV;
 }
 #endif
@@ -619,7 +625,8 @@ void emergency_read_end(struct page *page);
 void logfs_crash_dump(struct super_block *sb);
 void *memchr_inv(const void *s, int c, size_t n);
 int logfs_statfs(struct dentry *dentry, struct kstatfs *stats);
-int logfs_get_sb_device(struct file_system_type *type, int flags,
+int logfs_get_sb_device(struct logfs_super *s,
+		struct file_system_type *type, int flags,
 		struct mtd_info *mtd, struct block_device *bdev,
 		const struct logfs_device_ops *devops, struct vfsmount *mnt);
 int logfs_check_ds(struct logfs_disk_super *ds);
