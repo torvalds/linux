@@ -148,7 +148,10 @@ static inline int busy_loop(void) /* Wait till scu status is busy */
 			return -ETIMEDOUT;
 		}
 	}
-	return (status >> 1) & 1;
+	if ((status >> 1) & 1)
+		return -EIO;
+
+	return 0;
 }
 
 /* Read/Write power control(PMIC in Langwell, MSIC in PenWell) registers */
