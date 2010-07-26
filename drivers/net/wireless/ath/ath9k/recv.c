@@ -844,9 +844,9 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	int dma_type;
 
 	if (edma)
-		dma_type = DMA_FROM_DEVICE;
-	else
 		dma_type = DMA_BIDIRECTIONAL;
+	else
+		dma_type = DMA_FROM_DEVICE;
 
 	qtype = hp ? ATH9K_RX_QUEUE_HP : ATH9K_RX_QUEUE_LP;
 	spin_lock_bh(&sc->rx.rxbuflock);
