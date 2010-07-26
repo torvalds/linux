@@ -37,10 +37,6 @@ void machine_kexec_cleanup(struct kimage *image)
 {
 }
 
-void machine_shutdown(void)
-{
-}
-
 void machine_crash_shutdown(struct pt_regs *regs)
 {
 }
