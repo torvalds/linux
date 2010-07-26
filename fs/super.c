@@ -715,15 +715,14 @@ static int ns_set_super(struct super_block *sb, void *data)
 	return set_anon_super(sb, NULL);
 }
 
-int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt)
+struct dentry *mount_ns(struct file_system_type *fs_type, int flags,
+	void *data, int (*fill_super)(struct super_block *, void *, int))
 {
 	struct super_block *sb;
 
 	sb = sget(fs_type, ns_test_super, ns_set_super, data);
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	if (!sb->s_root) {
 		int err;
@@ -731,17 +730,16 @@ int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
 		err = fill_super(sb, data, flags & MS_SILENT ? 1 : 0);
 		if (err) {
 			deactivate_locked_super(sb);
-			return err;
+			return ERR_PTR(err);
 		}
 
 		sb->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
-EXPORT_SYMBOL(get_sb_ns);
+EXPORT_SYMBOL(mount_ns);
 
 #ifdef CONFIG_BLOCK
 static int set_bdev_super(struct super_block *s, void *data)

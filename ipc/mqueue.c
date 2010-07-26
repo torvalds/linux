@@ -211,13 +211,13 @@ out:
 	return error;
 }
 
-static int mqueue_get_sb(struct file_system_type *fs_type,
+static struct dentry *mqueue_mount(struct file_system_type *fs_type,
 			 int flags, const char *dev_name,
-			 void *data, struct vfsmount *mnt)
+			 void *data)
 {
 	if (!(flags & MS_KERNMOUNT))
 		data = current->nsproxy->ipc_ns;
-	return get_sb_ns(fs_type, flags, data, mqueue_fill_super, mnt);
+	return mount_ns(fs_type, flags, data, mqueue_fill_super);
 }
 
 static void init_once(void *foo)
@@ -1232,7 +1232,7 @@ static const struct super_operations mqueue_super_ops = {
 
 static struct file_system_type mqueue_fs_type = {
 	.name = "mqueue",
-	.get_sb = mqueue_get_sb,
+	.mount = mqueue_mount,
 	.kill_sb = kill_litter_super,
 };
 

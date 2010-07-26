@@ -1789,9 +1789,8 @@ struct file_system_type {
 	struct lock_class_key i_alloc_sem_key;
 };
 
-extern int get_sb_ns(struct file_system_type *fs_type, int flags, void *data,
-	int (*fill_super)(struct super_block *, void *, int),
-	struct vfsmount *mnt);
+extern struct dentry *mount_ns(struct file_system_type *fs_type, int flags,
+	void *data, int (*fill_super)(struct super_block *, void *, int));
 extern struct dentry *mount_bdev(struct file_system_type *fs_type,
 	int flags, const char *dev_name, void *data,
 	int (*fill_super)(struct super_block *, void *, int));
