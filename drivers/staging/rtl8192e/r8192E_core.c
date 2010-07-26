@@ -349,8 +349,8 @@ u8 rtl8192e_ap_sec_type(struct ieee80211_device *ieee)
 	//struct r8192_priv* priv = ieee80211_priv(dev);
 	//struct ieee80211_device *ieee = priv->ieee80211;
 
-	static u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
-	static u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
+	static const u8 ccmp_ie[4] = {0x00,0x50,0xf2,0x04};
+	static const u8 ccmp_rsn_ie[4] = {0x00, 0x0f, 0xac, 0x04};
 	int wpa_ie_len= ieee->wpa_ie_len;
 	struct ieee80211_crypt_data* crypt;
 	int encrypt;
