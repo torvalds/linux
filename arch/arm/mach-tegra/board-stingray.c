@@ -471,6 +471,21 @@ static struct tegra_w1_platform_data tegra_w1_pdata = {
 	.timings = &tegra_w1_platform_timings,
 };
 
+static struct resource ram_console_resources[] = {
+	{
+		.start  = SZ_1G - SZ_256K,
+		.end    = SZ_1G - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ram_console_device = {
+	.name           = "ram_console",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(ram_console_resources),
+	.resource       = ram_console_resources,
+};
+
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&cpcap_otg,
@@ -488,6 +503,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&tegra_spi_device3,
 	&tegra_spi_device4,
 	&tegra_gart_dev,
+	&ram_console_device,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
@@ -610,7 +626,7 @@ static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *t
 	mi->bank[0].size = 448 * SZ_1M;
 	mi->bank[1].start = SZ_512M;
 	mi->bank[1].node = PHYS_TO_NID(SZ_512M);
-	mi->bank[1].size = SZ_512M;
+	mi->bank[1].size = SZ_512M - SZ_256K;
 }
 
 static void stingray_power_off(void)
