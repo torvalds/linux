@@ -32,50 +32,50 @@
  */
 
 static struct omap_hwmod omap3xxx_mpu_hwmod;
-static struct omap_hwmod omap3xxx_l3_hwmod;
+static struct omap_hwmod omap3xxx_l3_main_hwmod;
 static struct omap_hwmod omap3xxx_l4_core_hwmod;
 static struct omap_hwmod omap3xxx_l4_per_hwmod;
 
 /* L3 -> L4_CORE interface */
-static struct omap_hwmod_ocp_if omap3xxx_l3__l4_core = {
-	.master	= &omap3xxx_l3_hwmod,
+static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_core = {
+	.master	= &omap3xxx_l3_main_hwmod,
 	.slave	= &omap3xxx_l4_core_hwmod,
 	.user	= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* L3 -> L4_PER interface */
-static struct omap_hwmod_ocp_if omap3xxx_l3__l4_per = {
-	.master = &omap3xxx_l3_hwmod,
+static struct omap_hwmod_ocp_if omap3xxx_l3_main__l4_per = {
+	.master = &omap3xxx_l3_main_hwmod,
 	.slave	= &omap3xxx_l4_per_hwmod,
 	.user	= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
 /* MPU -> L3 interface */
-static struct omap_hwmod_ocp_if omap3xxx_mpu__l3 = {
+static struct omap_hwmod_ocp_if omap3xxx_mpu__l3_main = {
 	.master = &omap3xxx_mpu_hwmod,
-	.slave	= &omap3xxx_l3_hwmod,
+	.slave	= &omap3xxx_l3_main_hwmod,
 	.user	= OCP_USER_MPU,
 };
 
 /* Slave interfaces on the L3 interconnect */
-static struct omap_hwmod_ocp_if *omap3xxx_l3_slaves[] = {
-	&omap3xxx_mpu__l3,
+static struct omap_hwmod_ocp_if *omap3xxx_l3_main_slaves[] = {
+	&omap3xxx_mpu__l3_main,
 };
 
 /* Master interfaces on the L3 interconnect */
-static struct omap_hwmod_ocp_if *omap3xxx_l3_masters[] = {
-	&omap3xxx_l3__l4_core,
-	&omap3xxx_l3__l4_per,
+static struct omap_hwmod_ocp_if *omap3xxx_l3_main_masters[] = {
+	&omap3xxx_l3_main__l4_core,
+	&omap3xxx_l3_main__l4_per,
 };
 
 /* L3 */
-static struct omap_hwmod omap3xxx_l3_hwmod = {
+static struct omap_hwmod omap3xxx_l3_main_hwmod = {
 	.name		= "l3_main",
 	.class		= &l3_hwmod_class,
-	.masters	= omap3xxx_l3_masters,
-	.masters_cnt	= ARRAY_SIZE(omap3xxx_l3_masters),
-	.slaves		= omap3xxx_l3_slaves,
-	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l3_slaves),
+	.masters	= omap3xxx_l3_main_masters,
+	.masters_cnt	= ARRAY_SIZE(omap3xxx_l3_main_masters),
+	.slaves		= omap3xxx_l3_main_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l3_main_slaves),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
 	.flags		= HWMOD_NO_IDLEST,
 };
@@ -91,7 +91,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 
 /* Slave interfaces on the L4_CORE interconnect */
 static struct omap_hwmod_ocp_if *omap3xxx_l4_core_slaves[] = {
-	&omap3xxx_l3__l4_core,
+	&omap3xxx_l3_main__l4_core,
 };
 
 /* Master interfaces on the L4_CORE interconnect */
@@ -113,7 +113,7 @@ static struct omap_hwmod omap3xxx_l4_core_hwmod = {
 
 /* Slave interfaces on the L4_PER interconnect */
 static struct omap_hwmod_ocp_if *omap3xxx_l4_per_slaves[] = {
-	&omap3xxx_l3__l4_per,
+	&omap3xxx_l3_main__l4_per,
 };
 
 /* Master interfaces on the L4_PER interconnect */
@@ -155,7 +155,7 @@ static struct omap_hwmod omap3xxx_l4_wkup_hwmod = {
 
 /* Master interfaces on the MPU device */
 static struct omap_hwmod_ocp_if *omap3xxx_mpu_masters[] = {
-	&omap3xxx_mpu__l3,
+	&omap3xxx_mpu__l3_main,
 };
 
 /* MPU */
@@ -169,7 +169,7 @@ static struct omap_hwmod omap3xxx_mpu_hwmod = {
 };
 
 static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
-	&omap3xxx_l3_hwmod,
+	&omap3xxx_l3_main_hwmod,
 	&omap3xxx_l4_core_hwmod,
 	&omap3xxx_l4_per_hwmod,
 	&omap3xxx_l4_wkup_hwmod,
