@@ -342,8 +342,10 @@ static void ui_browser__reset_index(struct ui_browser *self)
 
 static int ui_browser__show(struct ui_browser *self, const char *title)
 {
-	if (self->form != NULL)
-		return 0;
+	if (self->form != NULL) {
+		newtFormDestroy(self->form);
+		newtPopWindow();
+	}
 	ui_browser__refresh_dimensions(self);
 	newtCenteredWindow(self->width + 2, self->height, title);
 	self->form = newt_form__new();
