@@ -647,7 +647,7 @@ static int __must_check __sta_info_destroy(struct sta_info *sta)
 		return ret;
 
 	if (sta->key) {
-		ieee80211_key_free(sta->key);
+		ieee80211_key_free(local, sta->key);
 		WARN_ON(sta->key);
 	}
 

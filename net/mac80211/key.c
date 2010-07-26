@@ -323,13 +323,15 @@ static void __ieee80211_key_destroy(struct ieee80211_key *key)
 	if (!key)
 		return;
 
-	ieee80211_key_disable_hw_accel(key);
+	if (key->local)
+		ieee80211_key_disable_hw_accel(key);
 
 	if (key->conf.alg == ALG_CCMP)
 		ieee80211_aes_key_free(key->u.ccmp.tfm);
 	if (key->conf.alg == ALG_AES_CMAC)
 		ieee80211_aes_cmac_key_free(key->u.aes_cmac.tfm);
-	ieee80211_debugfs_key_remove(key);
+	if (key->local)
+		ieee80211_debugfs_key_remove(key);
 
 	kfree(key);
 }
@@ -410,14 +412,11 @@ static void __ieee80211_key_free(struct ieee80211_key *key)
 	__ieee80211_key_destroy(key);
 }
 
-void ieee80211_key_free(struct ieee80211_key *key)
+void ieee80211_key_free(struct ieee80211_local *local,
+			struct ieee80211_key *key)
 {
-	struct ieee80211_local *local;
-
 	if (!key)
 		return;
-
-	local = key->sdata->local;
 
 	mutex_lock(&local->key_mtx);
 	__ieee80211_key_free(key);
