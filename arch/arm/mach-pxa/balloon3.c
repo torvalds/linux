@@ -51,6 +51,180 @@
 #include "generic.h"
 #include "devices.h"
 
+/******************************************************************************
+ * Pin configuration
+ ******************************************************************************/
+static unsigned long balloon3_pin_config[] __initdata = {
+	/* Select BTUART 'COM1/ttyS0' as IO option for pins 42/43/44/45 */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+	GPIO45_BTUART_RTS,
+
+	/* Wakeup GPIO */
+	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,
+
+	/* NAND & IDLE LED GPIOs */
+	GPIO9_GPIO,
+	GPIO10_GPIO,
+};
+
+/******************************************************************************
+ * Audio and Touchscreen
+ ******************************************************************************/
+static unsigned long balloon3_ac97_pin_config[] = {
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+	GPIO113_AC97_nRESET,
+};
+
+/******************************************************************************
+ * Framebuffer
+ ******************************************************************************/
+
+static void balloon3_backlight_power(int on)
+{
+	pr_debug("%s: power is %s\n", __func__, on ? "on" : "off");
+	gpio_set_value(BALLOON3_GPIO_RUN_BACKLIGHT, on);
+}
+
+static struct pxafb_mode_info balloon3_lcd_modes[] = {
+	{
+		.pixclock		= 38000,
+		.xres			= 480,
+		.yres			= 640,
+		.bpp			= 16,
+		.hsync_len		= 8,
+		.left_margin		= 8,
+		.right_margin		= 8,
+		.vsync_len		= 2,
+		.upper_margin		= 4,
+		.lower_margin		= 5,
+		.sync			= 0,
+	},
+};
+
+static struct pxafb_mach_info balloon3_pxafb_info = {
+	.modes			= balloon3_lcd_modes,
+	.num_modes		= ARRAY_SIZE(balloon3_lcd_modes),
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
+	.pxafb_backlight_power	= balloon3_backlight_power,
+};
+
+/******************************************************************************
+ * SD/MMC card controller
+ ******************************************************************************/
+static unsigned long balloon3_mmc_pin_config[] = {
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+};
+
+static void balloon3_mci_setpower(struct device *dev, unsigned int vdd)
+{
+	struct pxamci_platform_data *p_d = dev->platform_data;
+
+	if ((1 << vdd) & p_d->ocr_mask) {
+		pr_debug("%s: on\n", __func__);
+		/* FIXME something to prod here? */
+	} else {
+		pr_debug("%s: off\n", __func__);
+		/* FIXME something to prod here? */
+	}
+}
+
+static struct pxamci_platform_data balloon3_mci_platform_data = {
+	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.setpower 	= balloon3_mci_setpower,
+};
+
+/******************************************************************************
+ * USB Gadget
+ ******************************************************************************/
+static int balloon3_udc_is_connected(void)
+{
+	pr_debug("%s: udc connected\n", __func__);
+	return 1;
+}
+
+static void balloon3_udc_command(int cmd)
+{
+	switch (cmd) {
+	case PXA2XX_UDC_CMD_CONNECT:
+		UP2OCR |= (UP2OCR_DPPUE + UP2OCR_DPPUBE);
+		pr_debug("%s: connect\n", __func__);
+		break;
+	case PXA2XX_UDC_CMD_DISCONNECT:
+		UP2OCR &= ~UP2OCR_DPPUE;
+		pr_debug("%s: disconnect\n", __func__);
+		break;
+	}
+}
+
+static struct pxa2xx_udc_mach_info balloon3_udc_info = {
+	.udc_is_connected = balloon3_udc_is_connected,
+	.udc_command      = balloon3_udc_command,
+};
+
+/******************************************************************************
+ * IrDA
+ ******************************************************************************/
+static struct pxaficp_platform_data balloon3_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE | IR_OFF,
+};
+
+/******************************************************************************
+ * USB Host
+ ******************************************************************************/
+static unsigned long balloon3_ohci_pin_config[] = {
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+};
+
+static struct pxaohci_platform_data balloon3_ohci_platform_data = {
+	.port_mode	= PMM_PERPORT_MODE,
+	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
+};
+
+/******************************************************************************
+ * LED
+ ******************************************************************************/
+static struct gpio_led balloon3_gpio_leds[] = {
+	{
+		.name			= "balloon3:green:idle",
+		.default_trigger	= "heartbeat",
+		.gpio			= BALLOON3_GPIO_LED_IDLE,
+		.active_low		= 1,
+	},
+	{
+		.name			= "balloon3:green:nand",
+		.default_trigger	= "nand-disk",
+		.gpio			= BALLOON3_GPIO_LED_NAND,
+		.active_low		= 1,
+	},
+};
+
+static struct gpio_led_platform_data balloon3_gpio_leds_platform_data = {
+	.leds		= balloon3_gpio_leds,
+	.num_leds	= ARRAY_SIZE(balloon3_gpio_leds),
+};
+
+static struct platform_device balloon3led_device = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &balloon3_gpio_leds_platform_data,
+	},
+};
+
+/******************************************************************************
+ * Compatibility: Parameter parsing
+ ******************************************************************************/
 static unsigned long balloon3_irq_enabled;
 
 static unsigned long balloon3_features_present =
@@ -73,6 +247,9 @@ int __init parse_balloon3_features(char *arg)
 }
 early_param("balloon3_features", parse_balloon3_features);
 
+/******************************************************************************
+ * FPGA IRQ
+ ******************************************************************************/
 static void balloon3_mask_irq(unsigned int irq)
 {
 	int balloon3_irq = (irq - BALLOON3_IRQ(0));
@@ -132,159 +309,9 @@ static void __init balloon3_init_irq(void)
 		"enabled\n", __func__, BALLOON3_AUX_NIRQ);
 }
 
-static unsigned long balloon3_ac97_pin_config[] = {
-	GPIO28_AC97_BITCLK,
-	GPIO29_AC97_SDATA_IN_0,
-	GPIO30_AC97_SDATA_OUT,
-	GPIO31_AC97_SYNC,
-	GPIO113_AC97_nRESET,
-};
-
-static void balloon3_backlight_power(int on)
-{
-	pr_debug("%s: power is %s\n", __func__, on ? "on" : "off");
-	gpio_set_value(BALLOON3_GPIO_RUN_BACKLIGHT, on);
-}
-
-static unsigned long balloon3_lcd_pin_config[] = {
-	/* LCD - 16bpp Active TFT */
-	GPIOxx_LCD_TFT_16BPP,
-
-	GPIO99_GPIO,		/* Backlight */
-};
-
-static struct pxafb_mode_info balloon3_lcd_modes[] = {
-	{
-		.pixclock		= 38000,
-		.xres			= 480,
-		.yres			= 640,
-		.bpp			= 16,
-		.hsync_len		= 8,
-		.left_margin		= 8,
-		.right_margin		= 8,
-		.vsync_len		= 2,
-		.upper_margin		= 4,
-		.lower_margin		= 5,
-		.sync			= 0,
-	},
-};
-
-static struct pxafb_mach_info balloon3_pxafb_info = {
-	.modes			= balloon3_lcd_modes,
-	.num_modes		= ARRAY_SIZE(balloon3_lcd_modes),
-	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
-	.pxafb_backlight_power	= balloon3_backlight_power,
-};
-
-static unsigned long balloon3_mmc_pin_config[] = {
-	GPIO32_MMC_CLK,
-	GPIO92_MMC_DAT_0,
-	GPIO109_MMC_DAT_1,
-	GPIO110_MMC_DAT_2,
-	GPIO111_MMC_DAT_3,
-	GPIO112_MMC_CMD,
-};
-
-static void balloon3_mci_setpower(struct device *dev, unsigned int vdd)
-{
-	struct pxamci_platform_data *p_d = dev->platform_data;
-
-	if ((1 << vdd) & p_d->ocr_mask) {
-		pr_debug("%s: on\n", __func__);
-		/* FIXME something to prod here? */
-	} else {
-		pr_debug("%s: off\n", __func__);
-		/* FIXME something to prod here? */
-	}
-}
-
-static struct pxamci_platform_data balloon3_mci_platform_data = {
-	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.setpower 	= balloon3_mci_setpower,
-};
-
-static int balloon3_udc_is_connected(void)
-{
-	pr_debug("%s: udc connected\n", __func__);
-	return 1;
-}
-
-static void balloon3_udc_command(int cmd)
-{
-	switch (cmd) {
-	case PXA2XX_UDC_CMD_CONNECT:
-		UP2OCR |= (UP2OCR_DPPUE + UP2OCR_DPPUBE);
-		pr_debug("%s: connect\n", __func__);
-		break;
-	case PXA2XX_UDC_CMD_DISCONNECT:
-		UP2OCR &= ~UP2OCR_DPPUE;
-		pr_debug("%s: disconnect\n", __func__);
-		break;
-	}
-}
-
-static struct pxa2xx_udc_mach_info balloon3_udc_info = {
-	.udc_is_connected = balloon3_udc_is_connected,
-	.udc_command      = balloon3_udc_command,
-};
-
-static struct pxaficp_platform_data balloon3_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE | IR_OFF,
-};
-
-static unsigned long balloon3_ohci_pin_config[] = {
-	GPIO88_USBH1_PWR,
-	GPIO89_USBH1_PEN,
-};
-
-static struct pxaohci_platform_data balloon3_ohci_platform_data = {
-	.port_mode	= PMM_PERPORT_MODE,
-	.flags		= ENABLE_PORT_ALL | POWER_CONTROL_LOW | POWER_SENSE_LOW,
-};
-
-static unsigned long balloon3_pin_config[] __initdata = {
-	/* Select BTUART 'COM1/ttyS0' as IO option for pins 42/43/44/45 */
-	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
-	GPIO44_BTUART_CTS,
-	GPIO45_BTUART_RTS,
-
-	/* Wakeup GPIO */
-	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,
-
-	/* NAND & IDLE LED GPIOs */
-	GPIO9_GPIO,
-	GPIO10_GPIO,
-};
-
-static struct gpio_led balloon3_gpio_leds[] = {
-	{
-		.name			= "balloon3:green:idle",
-		.default_trigger	= "heartbeat",
-		.gpio			= BALLOON3_GPIO_LED_IDLE,
-		.active_low		= 1,
-	},
-	{
-		.name			= "balloon3:green:nand",
-		.default_trigger	= "nand-disk",
-		.gpio			= BALLOON3_GPIO_LED_NAND,
-		.active_low		= 1,
-	},
-};
-
-static struct gpio_led_platform_data balloon3_gpio_leds_platform_data = {
-	.leds		= balloon3_gpio_leds,
-	.num_leds	= ARRAY_SIZE(balloon3_gpio_leds),
-};
-
-static struct platform_device balloon3led_device = {
-	.name	= "leds-gpio",
-	.id	= -1,
-	.dev	= {
-		.platform_data	= &balloon3_gpio_leds_platform_data,
-	},
-};
-
+/******************************************************************************
+ * Machine init
+ ******************************************************************************/
 static void __init balloon3_init(void)
 {
 	pr_info("Initialising Balloon3\n");
