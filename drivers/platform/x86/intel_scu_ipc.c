@@ -58,8 +58,8 @@
 
 #define IPC_BASE_ADDR     0xFF11C000	/* IPC1 base register address */
 #define IPC_MAX_ADDR      0x100		/* Maximum IPC regisers */
-#define IPC_WWBUF_SIZE    16		/* IPC Write buffer Size */
-#define IPC_RWBUF_SIZE    16		/* IPC Read buffer Size */
+#define IPC_WWBUF_SIZE    20		/* IPC Write buffer Size */
+#define IPC_RWBUF_SIZE    20		/* IPC Read buffer Size */
 #define IPC_I2C_BASE      0xFF12B000	/* I2C control register base address */
 #define IPC_I2C_MAX_ADDR  0x10		/* Maximum I2C regisers */
 
