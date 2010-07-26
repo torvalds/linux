@@ -5368,13 +5368,18 @@ mptsas_init(void)
 		return -ENODEV;
 	mptsas_transport_template->eh_timed_out = mptsas_eh_timed_out;
 
-	mptsasDoneCtx = mpt_register(mptscsih_io_done, MPTSAS_DRIVER);
-	mptsasTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSAS_DRIVER);
+	mptsasDoneCtx = mpt_register(mptscsih_io_done, MPTSAS_DRIVER,
+	    "mptscsih_io_done");
+	mptsasTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSAS_DRIVER,
+	    "mptscsih_taskmgmt_complete");
 	mptsasInternalCtx =
-		mpt_register(mptscsih_scandv_complete, MPTSAS_DRIVER);
-	mptsasMgmtCtx = mpt_register(mptsas_mgmt_done, MPTSAS_DRIVER);
+		mpt_register(mptscsih_scandv_complete, MPTSAS_DRIVER,
+		    "mptscsih_scandv_complete");
+	mptsasMgmtCtx = mpt_register(mptsas_mgmt_done, MPTSAS_DRIVER,
+	    "mptsas_mgmt_done");
 	mptsasDeviceResetCtx =
-		mpt_register(mptsas_taskmgmt_complete, MPTSAS_DRIVER);
+		mpt_register(mptsas_taskmgmt_complete, MPTSAS_DRIVER,
+		    "mptsas_taskmgmt_complete");
 
 	mpt_event_register(mptsasDoneCtx, mptsas_event_process);
 	mpt_reset_register(mptsasDoneCtx, mptsas_ioc_reset);
