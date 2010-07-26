@@ -761,6 +761,9 @@ static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 		ok = decode_config4(c);
 
 	mips_probe_watch_registers(c);
+
+	if (cpu_has_mips_r2)
+		c->core = read_c0_ebase() & 0x3ff;
 }
 
 static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
