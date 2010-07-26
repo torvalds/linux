@@ -92,11 +92,7 @@ u32 rt_global_debug_component = \
 			//	COMP_POWER_TRACKING	|
                         // 	COMP_INTR       |
 				COMP_ERR ; //always open err flags on
-#ifndef PCI_DEVICE
-#define PCI_DEVICE(vend,dev)\
-	.vendor=(vend),.device=(dev),\
-	.subvendor=PCI_ANY_ID,.subdevice=PCI_ANY_ID
-#endif
+
 static const struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 #ifdef RTL8190P
 	/* Realtek */
