@@ -1264,6 +1264,12 @@ cifs_parse_mount_options(char *options, const char *devname,
 		} else if ((strnicmp(data, "nocase", 6) == 0) ||
 			   (strnicmp(data, "ignorecase", 10)  == 0)) {
 			vol->nocase = 1;
+		} else if (strnicmp(data, "mand", 4) == 0) {
+			/* ignore */
+		} else if (strnicmp(data, "nomand", 6) == 0) {
+			/* ignore */
+		} else if (strnicmp(data, "_netdev", 7) == 0) {
+			/* ignore */
 		} else if (strnicmp(data, "brl", 3) == 0) {
 			vol->nobrl =  0;
 		} else if ((strnicmp(data, "nobrl", 5) == 0) ||
