@@ -2218,6 +2218,10 @@ static int wm8994_resume(struct platform_device *pdev)
 		wm8994_fnc_ptr+=wm8994_mode;
 		(*wm8994_fnc_ptr)() ;
 	}
+	else if(wm8994_mode>wm8994_BT_PCMBaseband_and_record)
+	{
+		printk("%s--%d--: Wm8994 resume with null mode\n",__FUNCTION__,__LINE__);
+	}
 	else
 	{
 		wm8994_fnc_ptr+=wm8994_mode;
