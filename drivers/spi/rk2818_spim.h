@@ -178,20 +178,6 @@ static inline void spi_set_clk(struct rk2818_spi *dws, u16 div)
 	rk2818_writel(dws, SPIM_BAUDR, div);
 }
 
-static inline void spi_chip_sel(struct rk2818_spi *dws, u16 cs)
-{
-	if (cs > 1)
-		return;
-
-	if (dws->cs_control){
-		if(cs == 1)
-			dws->cs_control(2);	
-		else
-			dws->cs_control(1);
-	}
-	rk2818_writel(dws, SPIM_SER, 1 << cs);
-}
-
 /* Disable IRQ bits */
 static inline void spi_mask_intr(struct rk2818_spi *dws, u32 mask)
 {

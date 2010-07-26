@@ -24,7 +24,7 @@
 
 /* Other */
 #define DCLK_POL		0 
-#define SWAP_RB			1
+#define SWAP_RB			0
 
 int init(void);
 int standby(u8 enable);

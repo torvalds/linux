@@ -40,6 +40,7 @@
 
 #include "devices.h"
 
+#include "../../../drivers/spi/rk2818_spim.h"
 
 /* --------------------------------------------------------------------
  *  声明了rk2818_gpioBank数组，并定义了GPIO寄存器组ID和寄存器基地址。
@@ -388,6 +389,25 @@ static struct i2c_board_info __initdata board_i2c3_devices[] = {
 	
 };	
 
+static void spi_xpt2046_cs_control(u32 command)
+{
+	if(command == 3)	
+	    {
+	    //printk("spi_xpt2046_cs_control cs \n");
+	    gpio_direction_output(RK2818_PIN_PF5, GPIO_LOW);
+	    }
+	if(command == 0)
+	    {
+	    //printk("spi_xpt2046_cs_control decs \n");
+	    gpio_direction_output(RK2818_PIN_PF5, GPIO_HIGH);
+	    }
+}
+
+struct rk2818_spi_chip spi_xpt2046_info = {
+	.cs_control = spi_xpt2046_cs_control,
+};
+
+
 /*****************************************************************************************
  * SPI devices
  *author: lhh
@@ -414,10 +434,11 @@ static struct spi_board_info board_spi_devices[] = {
 #if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
 	{
 		.modalias	= "xpt2046_ts",
-		.chip_select	= 0,
+		.chip_select	= 2,
 		.max_speed_hz	= 125 * 1000 * 26,/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
-		.irq		= RK2818_PIN_PE1,
+		.controller_data = &spi_xpt2046_info,
+		.irq = RK2818_PIN_PE1,
 	},
 #endif
 
@@ -557,6 +578,13 @@ static void __init machine_rk2818_board_init(void)
 	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
 	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
 	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_SPI0);//use for SPI CLK SDI SDO
+
+	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
+	if(0 != gpio_request(RK2818_PIN_PF5, NULL))
+    {
+        gpio_free(RK2818_PIN_PF5);
+        printk(">>>>>> RK2818_PIN_PF5 gpio_request err \n "); 
+    } 
 }
 
 static void __init machine_rk2818_mapio(void)

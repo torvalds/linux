@@ -428,6 +428,17 @@ static void dma_transfer(struct rk2818_spi *dws, struct spi_transfer *xfer) //in
 	
 }
 
+static void spi_chip_sel(struct rk2818_spi *dws, u16 cs)
+{
+    if(cs >= dws->master->num_chipselect)
+		return;
+
+	if (dws->cs_control){
+	    dws->cs_control(cs+1);
+	}
+	//rk2818_writel(dws, SPIM_SER, 1 << cs);
+}
+
 static void pump_transfers(unsigned long data)
 {
 	struct rk2818_spi *dws = (struct rk2818_spi *)data;
@@ -644,7 +655,8 @@ static void pump_messages(struct work_struct *work)
 						struct spi_transfer,
 						transfer_list);
 	dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
-
+    dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
+    
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&dws->pump_transfers);
 
@@ -953,7 +965,11 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	}
 	master->mode_bits = SPI_CPOL | SPI_CPHA;
 	master->bus_num = pdev->id;
-	master->num_chipselect = 2;
+#if defined(CONFIG_MACH_RAHO)	
+	master->num_chipselect = 3; //raho 大板需要支持3个片选 dxj
+#else
+    master->num_chipselect = 2; 
+#endif
 	master->cleanup = rk2818_spi_cleanup;
 	master->setup = rk2818_spi_setup;
 	master->transfer = rk2818_spi_transfer;
