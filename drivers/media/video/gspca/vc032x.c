@@ -39,6 +39,10 @@ struct sd {
 	u8 vflip;
 	u8 lightfreq;
 	s8 sharpness;
+	u16 exposure;
+	u8 gain;
+	u8 autogain;
+	u8 backlight;
 
 	u8 image_offset;
 
@@ -77,6 +81,14 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setbacklight(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getbacklight(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 #define BRIGHTNESS_IDX 0
@@ -185,6 +197,66 @@ static const struct ctrl sd_ctrls[] = {
 	 .set = sd_setsharpness,
 	 .get = sd_getsharpness,
 	 },
+#define GAIN_IDX 7
+	{
+	    {
+		.id      = V4L2_CID_GAIN,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Gain",
+		.minimum = 0,
+		.maximum = 78,
+		.step    = 1,
+#define GAIN_DEF 0
+		.default_value = GAIN_DEF,
+	    },
+	    .set = sd_setgain,
+	    .get = sd_getgain,
+	},
+#define EXPOSURE_IDX 8
+	{
+		{
+			.id = V4L2_CID_EXPOSURE,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Exposure",
+#define EXPOSURE_DEF 450
+			.minimum = 0,
+			.maximum = 4095,
+			.step = 1,
+			.default_value = EXPOSURE_DEF,
+		},
+		.set = sd_setexposure,
+		.get = sd_getexposure,
+	},
+#define AUTOGAIN_IDX 9
+	{
+		{
+			.id = V4L2_CID_AUTOGAIN,
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.name = "Automatic Gain and Exposure",
+			.minimum = 0,
+			.maximum = 1,
+			.step = 1,
+#define AUTOGAIN_DEF 1
+			.default_value = AUTOGAIN_DEF,
+		},
+		.set = sd_setautogain,
+		.get = sd_getautogain,
+	},
+#define BACKLIGHT_IDX 10
+	{
+		{
+			.id = V4L2_CID_BACKLIGHT_COMPENSATION,
+			.type = V4L2_CTRL_TYPE_BOOLEAN,
+			.name = "Backlight Compensation",
+			.minimum = 0,
+			.maximum = 15,
+			.step = 1,
+#define BACKLIGHT_DEF 15
+			.default_value = BACKLIGHT_DEF,
+		},
+		.set = sd_setbacklight,
+		.get = sd_getbacklight,
+	},
 };
 
 /* table of the disabled controls */
@@ -192,33 +264,51 @@ static u32 ctrl_dis[] = {
 /* SENSOR_HV7131R 0 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
 		| (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << LIGHTFREQ_IDX)
-		| (1 << SHARPNESS_IDX),
+		| (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_MI0360 1 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
 		| (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << LIGHTFREQ_IDX)
-		| (1 << SHARPNESS_IDX),
+		| (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_MI1310_SOC 2 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
-		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX),
+		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_MI1320 3 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
-		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX),
+		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_MI1320_SOC 4 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
-		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX),
+		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_OV7660 5 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
-		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX),
+		| (1 << LIGHTFREQ_IDX) | (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_OV7670 6 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
-		| (1 << SHARPNESS_IDX),
+		| (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_PO1200 7 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
-		| (1 << LIGHTFREQ_IDX),
+		| (1 << LIGHTFREQ_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_PO3130NC 8 */
 	(1 << BRIGHTNESS_IDX) | (1 << CONTRAST_IDX) | (1 << COLORS_IDX)
 		| (1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << LIGHTFREQ_IDX)
-		| (1 << SHARPNESS_IDX),
+		| (1 << SHARPNESS_IDX)
+		| (1 << GAIN_IDX) | (1 << EXPOSURE_IDX)
+		| (1 << AUTOGAIN_IDX) | (1 << BACKLIGHT_IDX),
 /* SENSOR_POxxxx 9 */
 	(1 << HFLIP_IDX) | (1 << VFLIP_IDX) | (1 << LIGHTFREQ_IDX),
 };
@@ -2825,7 +2915,9 @@ static const u8 poxxxx_init_common[][4] = {
 	{0x00, 0x1e, 0xc6, 0xaa},
 	{0x00, 0x00, 0x40, 0xdd},
 	{0x00, 0x1d, 0x05, 0xaa},
-
+	{}
+};
+static const u8 poxxxx_gamma[][4] = {
 	{0x00, 0xd6, 0x22, 0xaa},	/* gamma 0 */
 	{0x00, 0x73, 0x00, 0xaa},
 	{0x00, 0x74, 0x0a, 0xaa},
@@ -2867,19 +2959,9 @@ static const u8 poxxxx_init_common[][4] = {
 	{0x00, 0x7c, 0xba, 0xaa},
 	{0x00, 0x7d, 0xd4, 0xaa},
 	{0x00, 0x7e, 0xea, 0xaa},
-
-	{0x00, 0xaa, 0xff, 0xaa},	/* back light comp */
-	{0x00, 0xc4, 0x03, 0xaa},
-	{0x00, 0xc5, 0x19, 0xaa},
-	{0x00, 0xc6, 0x03, 0xaa},
-	{0x00, 0xc7, 0x91, 0xaa},
-	{0x00, 0xc8, 0x01, 0xaa},
-	{0x00, 0xc9, 0xdd, 0xaa},
-	{0x00, 0xca, 0x02, 0xaa},
-	{0x00, 0xcb, 0x37, 0xaa},
-
-/* read d1 */
-	{0x00, 0xd1, 0x3c, 0xaa},
+	{}
+};
+static const u8 poxxxx_init_start_3[][4] = {
 	{0x00, 0xb8, 0x28, 0xaa},
 	{0x00, 0xb9, 0x1e, 0xaa},
 	{0x00, 0xb6, 0x14, 0xaa},
@@ -2959,9 +3041,6 @@ static const u8 poxxxx_init_end_1[][4] = {
 	{0x00, 0xb3, 0x08, 0xaa},
 	{0x00, 0xb4, 0x0b, 0xaa},
 	{0x00, 0xb5, 0x0d, 0xaa},
-	{0x00, 0x59, 0x7e, 0xaa},	/* sharpness */
-	{0x00, 0x16, 0x00, 0xaa},	/* white balance */
-	{0x00, 0x18, 0x00, 0xaa},
 	{}
 };
 static const u8 poxxxx_init_end_2[][4] = {
@@ -3409,6 +3488,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->vflip = VFLIP_DEF;
 	sd->lightfreq = FREQ_DEF;
 	sd->sharpness = SHARPNESS_DEF;
+	sd->gain = GAIN_DEF;
+	sd->exposure = EXPOSURE_DEF;
+	sd->autogain = AUTOGAIN_DEF;
+	sd->backlight = BACKLIGHT_DEF;
 
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
 
@@ -3551,6 +3634,82 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 		break;
 	}
 }
+static void setgain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (gspca_dev->ctrl_dis & (1 << GAIN_IDX))
+		return;
+	i2c_write(gspca_dev, 0x15, &sd->gain, 1);
+}
+
+static void setexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 data;
+
+	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
+		return;
+	data = sd->exposure >> 8;
+	i2c_write(gspca_dev, 0x1a, &data, 1);
+	data = sd->exposure;
+	i2c_write(gspca_dev, 0x1b, &data, 1);
+}
+
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	static const u8 data[2] = {0x28, 0x3c};
+
+	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN_IDX))
+		return;
+	i2c_write(gspca_dev, 0xd1, &data[sd->autogain], 1);
+}
+
+static void setgamma(struct gspca_dev *gspca_dev)
+{
+/*fixme:to do */
+	usb_exchange(gspca_dev, poxxxx_gamma);
+}
+
+static void setbacklight(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u16 v;
+	u8 data;
+
+	data = (sd->backlight << 4) | 0x0f;
+	i2c_write(gspca_dev, 0xaa, &data, 1);
+	v = 613 + 12 * sd->backlight;
+	data = v >> 8;
+	i2c_write(gspca_dev, 0xc4, &data, 1);
+	data = v;
+	i2c_write(gspca_dev, 0xc5, &data, 1);
+	v = 1093 - 12 * sd->backlight;
+	data = v >> 8;
+	i2c_write(gspca_dev, 0xc6, &data, 1);
+	data = v;
+	i2c_write(gspca_dev, 0xc7, &data, 1);
+	v = 342 + 9 * sd->backlight;
+	data = v >> 8;
+	i2c_write(gspca_dev, 0xc8, &data, 1);
+	data = v;
+	i2c_write(gspca_dev, 0xc9, &data, 1);
+	v = 702 - 9 * sd->backlight;
+	data = v >> 8;
+	i2c_write(gspca_dev, 0xca, &data, 1);
+	data = v;
+	i2c_write(gspca_dev, 0xcb, &data, 1);
+}
+
+static void setwb(struct gspca_dev *gspca_dev)
+{
+/*fixme:to do - valid when reg d1 = 0x1c - (reg16 + reg15 = 0xa3)*/
+	static const u8 data[2] = {0x00, 0x00};
+
+	i2c_write(gspca_dev, 0x16, &data[0], 1);
+	i2c_write(gspca_dev, 0x18, &data[1], 1);
+}
 
 static int sd_start(struct gspca_dev *gspca_dev)
 {
@@ -3662,6 +3821,16 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	default:
 /*	case SENSOR_POxxxx: */
 		usb_exchange(gspca_dev, poxxxx_init_common);
+		setgamma(gspca_dev);
+		setbacklight(gspca_dev);
+		setbrightness(gspca_dev);
+		setcontrast(gspca_dev);
+		setcolors(gspca_dev);
+		setsharpness(gspca_dev);
+		setautogain(gspca_dev);
+		setexposure(gspca_dev);
+		setgain(gspca_dev);
+		usb_exchange(gspca_dev, poxxxx_init_start_3);
 		if (mode)
 			init = poxxxx_initQVGA;
 		else
@@ -3693,7 +3862,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 			break;
 		}
 		msleep(100);
-		setsharpness(gspca_dev);
 		sethvflip(gspca_dev);
 		setlightfreq(gspca_dev);
 	}
@@ -3704,14 +3872,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0xa0, 0x0000, 0xbfff);
 		break;
 	case SENSOR_POxxxx:
-		setcolors(gspca_dev);
-		setbrightness(gspca_dev);
-		setcontrast(gspca_dev);
-
-		/* led on */
-		msleep(80);
-		reg_w(gspca_dev, 0x89, 0xffff, 0xfdff);
 		usb_exchange(gspca_dev, poxxxx_init_end_2);
+		setwb(gspca_dev);
+		msleep(80);		/* led on */
+		reg_w(gspca_dev, 0x89, 0xffff, 0xfdff);
 		break;
 	}
 	return gspca_dev->usb_err;
@@ -3908,6 +4072,80 @@ static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->sharpness;
+	return 0;
+}
+
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->gain = val;
+	if (gspca_dev->streaming)
+		setgain(gspca_dev);
+	return gspca_dev->usb_err;
+}
+
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->gain;
+	return 0;
+}
+
+static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->exposure = val;
+	if (gspca_dev->streaming)
+		setexposure(gspca_dev);
+	return gspca_dev->usb_err;
+}
+
+static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->exposure;
+	return 0;
+}
+
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->autogain = val;
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
+
+	return gspca_dev->usb_err;
+}
+
+static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->autogain;
+	return 0;
+}
+
+static int sd_setbacklight(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->backlight = val;
+	if (gspca_dev->streaming)
+		setbacklight(gspca_dev);
+
+	return gspca_dev->usb_err;
+}
+
+static int sd_getbacklight(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->backlight;
 	return 0;
 }
 
