@@ -74,8 +74,6 @@ struct intel_scu_ipc_dev {
 
 static struct intel_scu_ipc_dev  ipcdev; /* Only one for now */
 
-#define PLATFORM_LANGWELL 1
-#define PLATFORM_PENWELL 2
 static int platform;		/* Platform type */
 
 /*
@@ -169,7 +167,7 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 		return -ENODEV;
 	}
 
-	if (platform == PLATFORM_LANGWELL) {
+	if (platform != MRST_CPU_CHIP_PENWELL) {
 		/* Entry is 4 bytes for read/write, 5 bytes for read modify */
 		for (nc = 0; nc < count; nc++, offset += 3) {
 			cbuf[offset] = addr[nc];
@@ -217,7 +215,7 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 	if (id == IPC_CMD_PCNTRL_R) { /* Read rbuf */
 		/* Workaround: values are read as 0 without memcpy_fromio */
 		memcpy_fromio(cbuf, ipcdev.ipc_base + 0x90, 16);
-		if (platform == PLATFORM_LANGWELL) {
+		if (platform != MRST_CPU_CHIP_PENWELL) {
 			for (nc = 0, offset = 2; nc < count; nc++, offset += 3)
 				data[nc] = ipc_data_readb(offset);
 		} else {
@@ -741,14 +739,9 @@ static struct pci_driver ipc_driver = {
 
 static int __init intel_scu_ipc_init(void)
 {
-	if (boot_cpu_data.x86 == 6 &&
-		boot_cpu_data.x86_model == 0x27 &&
-		boot_cpu_data.x86_mask == 1)
-			platform = PLATFORM_PENWELL;
-	else if (boot_cpu_data.x86 == 6 &&
-		boot_cpu_data.x86_model == 0x26)
-			platform = PLATFORM_LANGWELL;
-
+	platform = mrst_identify_cpu();
+	if (platform == 0)
+		return -ENODEV;
 	return  pci_register_driver(&ipc_driver);
 }
 
