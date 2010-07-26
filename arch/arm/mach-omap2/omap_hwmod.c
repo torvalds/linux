@@ -1,7 +1,7 @@
 /*
  * omap_hwmod implementation for OMAP2/3/4
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009-2010 Nokia Corporation
  *
  * Paul Walmsley, Benoît Cousson, Kevin Hilman
  *
@@ -1069,12 +1069,12 @@ static int _setup(struct omap_hwmod *oh, void *data)
 
 u32 omap_hwmod_readl(struct omap_hwmod *oh, u16 reg_offs)
 {
-	return __raw_readl(oh->_rt_va + reg_offs);
+	return __raw_readl(oh->_mpu_rt_va + reg_offs);
 }
 
 void omap_hwmod_writel(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 {
-	__raw_writel(v, oh->_rt_va + reg_offs);
+	__raw_writel(v, oh->_mpu_rt_va + reg_offs);
 }
 
 int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode)
@@ -1131,7 +1131,7 @@ int omap_hwmod_register(struct omap_hwmod *oh)
 	ms_id = _find_mpu_port_index(oh);
 	if (!IS_ERR_VALUE(ms_id)) {
 		oh->_mpu_port_index = ms_id;
-		oh->_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
+		oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
 	} else {
 		oh->_int_flags |= _HWMOD_NO_MPU_PORT;
 	}
@@ -1283,7 +1283,7 @@ int omap_hwmod_unregister(struct omap_hwmod *oh)
 	pr_debug("omap_hwmod: %s: unregistering\n", oh->name);
 
 	mutex_lock(&omap_hwmod_mutex);
-	iounmap(oh->_rt_va);
+	iounmap(oh->_mpu_rt_va);
 	list_del(&oh->node);
 	mutex_unlock(&omap_hwmod_mutex);
 
@@ -1541,6 +1541,29 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 
 	return c->clkdm->pwrdm.ptr;
 
+}
+
+/**
+ * omap_hwmod_get_mpu_rt_va - return the module's base address (for the MPU)
+ * @oh: struct omap_hwmod *
+ *
+ * Returns the virtual address corresponding to the beginning of the
+ * module's register target, in the address range that is intended to
+ * be used by the MPU.  Returns the virtual address upon success or NULL
+ * upon error.
+ */
+void __iomem *omap_hwmod_get_mpu_rt_va(struct omap_hwmod *oh)
+{
+	if (!oh)
+		return NULL;
+
+	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
+		return NULL;
+
+	if (oh->_state == _HWMOD_STATE_UNKNOWN)
+		return NULL;
+
+	return oh->_mpu_rt_va;
 }
 
 /**
