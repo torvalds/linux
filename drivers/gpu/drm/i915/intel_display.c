@@ -3888,6 +3888,11 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		udelay(150);
 	}
 
+	if (HAS_PCH_SPLIT(dev)) {
+		pipeconf &= ~PIPE_ENABLE_DITHER;
+		pipeconf &= ~PIPE_DITHER_TYPE_MASK;
+	}
+
 	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
 	 * This is an exception to the general rule that mode_set doesn't turn
 	 * things on.
@@ -3930,16 +3935,13 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			if (dev_priv->lvds_dither) {
 				if (HAS_PCH_SPLIT(dev)) {
 					pipeconf |= PIPE_ENABLE_DITHER;
-					pipeconf &= ~PIPE_DITHER_TYPE_MASK;
 					pipeconf |= PIPE_DITHER_TYPE_ST01;
 				} else
 					lvds |= LVDS_ENABLE_DITHER;
 			} else {
-				if (HAS_PCH_SPLIT(dev)) {
-					pipeconf &= ~PIPE_ENABLE_DITHER;
-					pipeconf &= ~PIPE_DITHER_TYPE_MASK;
-				} else
+				if (!HAS_PCH_SPLIT(dev)) {
 					lvds &= ~LVDS_ENABLE_DITHER;
+				}
 			}
 		}
 		I915_WRITE(lvds_reg, lvds);
