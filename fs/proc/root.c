@@ -35,8 +35,8 @@ static int proc_set_super(struct super_block *sb, void *data)
 	return set_anon_super(sb, NULL);
 }
 
-static int proc_get_sb(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *proc_mount(struct file_system_type *fs_type,
+	int flags, const char *dev_name, void *data)
 {
 	int err;
 	struct super_block *sb;
@@ -61,14 +61,14 @@ static int proc_get_sb(struct file_system_type *fs_type,
 
 	sb = sget(fs_type, proc_test_super, proc_set_super, ns);
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	if (!sb->s_root) {
 		sb->s_flags = flags;
 		err = proc_fill_super(sb);
 		if (err) {
 			deactivate_locked_super(sb);
-			return err;
+			return ERR_PTR(err);
 		}
 
 		ei = PROC_I(sb->s_root->d_inode);
@@ -81,8 +81,7 @@ static int proc_get_sb(struct file_system_type *fs_type,
 		sb->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
 static void proc_kill_sb(struct super_block *sb)
@@ -96,7 +95,7 @@ static void proc_kill_sb(struct super_block *sb)
 
 static struct file_system_type proc_fs_type = {
 	.name		= "proc",
-	.get_sb		= proc_get_sb,
+	.mount		= proc_mount,
 	.kill_sb	= proc_kill_sb,
 };
 
