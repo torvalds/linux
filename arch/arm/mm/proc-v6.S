@@ -42,14 +42,11 @@ ENTRY(cpu_v6_proc_init)
 	mov	pc, lr
 
 ENTRY(cpu_v6_proc_fin)
-	stmfd	sp!, {lr}
-	cpsid	if				@ disable interrupts
-	bl	v6_flush_kern_cache_all
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x0006			@ .............ca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
-	ldmfd	sp!, {pc}
+	mov	pc, lr
 
 /*
  *	cpu_v6_reset(loc)

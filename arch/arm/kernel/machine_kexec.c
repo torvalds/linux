@@ -74,7 +74,11 @@ void machine_kexec(struct kimage *image)
 			   (unsigned long) reboot_code_buffer + KEXEC_CONTROL_PAGE_SIZE);
 	printk(KERN_INFO "Bye!\n");
 
-	cpu_proc_fin();
+	local_irq_disable();
+	local_fiq_disable();
 	setup_mm_for_reboot(0); /* mode is not used, so just pass 0*/
+	flush_cache_all();
+	cpu_proc_fin();
+	flush_cache_all();
 	cpu_reset(reboot_code_buffer_phys);
 }
