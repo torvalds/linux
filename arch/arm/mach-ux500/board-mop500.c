@@ -17,6 +17,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
+#include <linux/mfd/ab8500.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -70,10 +71,15 @@ struct pl022_config_chip ab4500_chip_info = {
 	.cs_control = ab4500_spi_cs_control,
 };
 
+static struct ab8500_platform_data ab8500_platdata = {
+	.irq_base	= MOP500_AB8500_IRQ_BASE,
+};
+
 static struct spi_board_info u8500_spi_devices[] = {
 	{
 		.modalias = "ab8500",
 		.controller_data = &ab4500_chip_info,
+		.platform_data = &ab8500_platdata,
 		.max_speed_hz = 12000000,
 		.bus_num = 0,
 		.chip_select = 0,

@@ -79,6 +79,10 @@
 /* This will be overridden by board-specific irq headers */
 #define IRQ_BOARD_END			IRQ_BOARD_START
 
+#ifdef CONFIG_MACH_U8500_MOP
+#include <mach/irqs-board-mop500.h>
+#endif
+
 #define NR_IRQS				IRQ_BOARD_END
 
 #endif /* ASM_ARCH_IRQS_H */
