@@ -9,6 +9,12 @@ defines of FPGA chip ICE65L08's register
 #define SPI_DPRAM_BUSY_PIN RK2818_PIN_PA2
 #define SPI_FPGA_STANDBY_PIN RK2818_PIN_PH7
 
+#define SPI_FPGA_TEST_DEBUG	0
+#if SPI_FPGA_TEST_DEBUG
+#define SPI_FPGA_TEST_DEBUG_PIN RK2818_PIN_PE0
+extern int spi_test_wrong_handle(void);
+#endif
+
 struct uart_icount {
 	__u32	cts;
 	__u32	dsr;
@@ -132,6 +138,7 @@ struct spi_fpga_port {
 #define SEL_GPIO		1
 #define SEL_I2C			2
 #define SEL_DPRAM		3
+#define READ_TOP_INT	4
 
 /* CMD */
 #define ICE_SEL_UART 			(SEL_UART<<6)
@@ -196,6 +203,17 @@ typedef enum I2C_ch
 	I2C_CH2,
 	I2C_CH3	
 }eI2C_ch_t;
+typedef enum eI2CReadMode
+{
+	I2C_NORMAL,
+	I2C_NOREG
+}eI2ReadMode_t;
+
+typedef enum eI2RegType
+{
+	I2C_8_BIT,
+	I2C_16_BIT
+}eI2RegType_t;
 
 #define ICE_SEL_I2C_START            (0<<0)
 #define ICE_SEL_I2C_STOP              (1<<0)
@@ -298,6 +316,7 @@ typedef enum eSpiGpioPinDirection
 {
 	SPI_GPIO_IN = 0,
 	SPI_GPIO_OUT,
+	SPI_GPIO_DIR_ERR,
 }eSpiGpioPinDirection_t;
 
 
@@ -483,7 +502,7 @@ extern int spi_gpio_unregister(struct spi_fpga_port *port);
 #endif
 #if defined(CONFIG_SPI_I2C)
 extern int spi_i2c_handle_irq(struct spi_fpga_port *port,unsigned char channel);
-extern int spi_i2c_register(struct spi_fpga_port *port);
+extern int spi_i2c_register(struct spi_fpga_port *port,int num);
 extern int spi_i2c_unregister(struct spi_fpga_port *port);
 #endif
 #if defined(CONFIG_SPI_DPRAM)

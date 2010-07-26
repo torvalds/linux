@@ -44,20 +44,21 @@
 #include <linux/i2c.h>
 #include <mach/rk2818_iomap.h>
 
-#include "spi_fpga.h"
+#include <mach/spi_fpga.h>
 
 #if defined(CONFIG_SPI_FPGA_INIT_DEBUG)
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
 #endif
+
 struct spi_fpga_port *pFpgaPort;
 
 /*------------------------spi读写的基本函数-----------------------*/
 unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 {
 	unsigned char index = 0;
-	unsigned char tx_buf[1], rx_buf[2], n_rx=2, stat=0;
+	unsigned char tx_buf[2], rx_buf[2], n_rx=2, stat=0;
 	unsigned int result=0;
 	//printk("index1=%d\n",index);
 
@@ -68,10 +69,11 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			index = port->uart.index;
 			reg = (((reg) | ICE_SEL_UART) | ICE_SEL_READ | ICE_SEL_UART_CH(index));
 			tx_buf[0] = reg & 0xff;
+			tx_buf[1] = 0;
 			rx_buf[0] = 0;
 			rx_buf[1] = 0;	
-			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf), rx_buf, n_rx);
-			result = rx_buf[1];
+			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf)-1, rx_buf, n_rx);
+			result = (rx_buf[0] << 8) | rx_buf[1];
 			DBG("%s,SEL_UART reg=0x%x,result=0x%x\n",__FUNCTION__,reg&0xff,result&0xff);
 			break;
 #endif
@@ -80,6 +82,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 		case SEL_GPIO:
 			reg = (((reg) | ICE_SEL_GPIO) | ICE_SEL_READ );
 			tx_buf[0] = reg & 0xff;
+			tx_buf[1] = 0;//give fpga 8 clks for reading data
 			rx_buf[0] = 0;
 			rx_buf[1] = 0;	
 			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf), rx_buf, n_rx);
@@ -90,13 +93,14 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 
 #if defined(CONFIG_SPI_I2C)
 		case SEL_I2C:
-			reg = (((reg) | ICE_SEL_I2C) & ICE_SEL_READ );
+			reg = (((reg) | ICE_SEL_I2C) | ICE_SEL_READ );
 			tx_buf[0] = reg & 0xff;
+			tx_buf[1] = 0;
 			rx_buf[0] = 0;
 			rx_buf[1] = 0;				
-			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf), rx_buf, n_rx);
-			result = (rx_buf[0] << 8) | rx_buf[1];
-			DBG("%s,SEL_I2C reg=0x%x,result=0x%x [0x%x] [0x%x]\n",__FUNCTION__,reg&0xff,result&0xffff,rx_buf[0],rx_buf[1]);					
+			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf)-1, rx_buf, n_rx);
+			result =  rx_buf[1];
+			DBG("%s,SEL_I2C reg=0x%x,result=0x%x \n",__FUNCTION__,reg&0xff,result&0xffff);					
 			break;
 #endif
 
@@ -104,6 +108,7 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 		case SEL_DPRAM:
 			reg = (((reg) | ICE_SEL_DPRAM) & ICE_SEL_DPRAM_READ );
 			tx_buf[0] = reg & 0xff;
+			tx_buf[1] = 0;//give fpga 8 clks for reading data
 			rx_buf[0] = 0;
 			rx_buf[1] = 0;				
 			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf), rx_buf, n_rx);
@@ -111,8 +116,18 @@ unsigned int spi_in(struct spi_fpga_port *port, int reg, int type)
 			DBG("%s,SEL_GPIO reg=0x%x,result=0x%x\n",__FUNCTION__,reg&0xff,result&0xffff);	
 			break;
 #endif
+		case READ_TOP_INT:
+			reg = (((reg) | ICE_SEL_UART) | ICE_SEL_READ);
+			tx_buf[0] = reg & 0xff;
+			tx_buf[1] = 0;
+			rx_buf[0] = 0;
+			rx_buf[1] = 0;	
+			stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, sizeof(tx_buf)-1, rx_buf, n_rx);
+			result = rx_buf[1];
+			DBG("%s,SEL_INT reg=0x%x,result=0x%x\n",__FUNCTION__,reg&0xff,result&0xff);
+			break;
 		default:
-			printk("Can not support this type!\n");
+			printk("%s err: Can not support this type!\n",__FUNCTION__);
 			break;
 	}
 
@@ -150,7 +165,6 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 #endif
 
 #if defined(CONFIG_SPI_I2C)
-
 		case SEL_I2C:
 			reg = (((reg) | ICE_SEL_I2C) & ICE_SEL_WRITE);
 			tx_buf[0] = reg & 0xff;
@@ -173,61 +187,87 @@ void spi_out(struct spi_fpga_port *port, int reg, int value, int type)
 #endif
 
 		default:
-			printk("Can not support this type!\n");
+			printk("%s err: Can not support this type!\n",__FUNCTION__);
 			break;
 	}
 
 }
 
+#if SPI_FPGA_TEST_DEBUG
+int spi_test_wrong_handle(void)
+{
+	gpio_direction_output(SPI_FPGA_TEST_DEBUG_PIN,0);
+	udelay(2);
+	gpio_direction_output(SPI_FPGA_TEST_DEBUG_PIN,1);
+	printk("%s:give one trailing edge!\n",__FUNCTION__);
+	return 0;
+}
+
+static int spi_test_request_gpio(int set)
+{
+	int ret;
+	rk2818_mux_api_set(GPIOE0_VIPDATA0_SEL_NAME,0);
+	ret = gpio_request(SPI_FPGA_TEST_DEBUG_PIN, NULL);
+	if (ret) {
+		printk("%s:failed to request SPI_FPGA_TEST_DEBUG_PIN pin\n",__FUNCTION__);
+		return ret;
+	}	
+	gpio_direction_output(SPI_FPGA_TEST_DEBUG_PIN,set);
+
+	return 0;
+}
+
+#endif
 
 static void spi_fpga_irq_work_handler(struct work_struct *work)
 {
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, fpga_irq_work);
 	struct spi_device 	*spi = port->spi;
-	int ret,uart_ch,gpio_ch;
+	int ret,uart_ch=0;
 
 	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	
-	ret = spi_in(port, ICE_SEL_READ_INT_TYPE, SEL_UART);
+	ret = spi_in(port, ICE_SEL_READ_INT_TYPE, READ_TOP_INT);
 	if((ret | ICE_INT_TYPE_UART0) == ICE_INT_TYPE_UART0)
 	{
 #if defined(CONFIG_SPI_UART)
-		uart_ch = 0;
-		printk("Enter::%s,LINE=%d,uart_ch=%d,uart.index=%d\n",__FUNCTION__,__LINE__,uart_ch,port->uart.index);
+		DBG("%s:ICE_INT_TYPE_UART0 ret=0x%x\n",__FUNCTION__,ret);
 		port->uart.index = uart_ch;
 		spi_uart_handle_irq(spi);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_GPIO) == ICE_INT_TYPE_GPIO)
 	{
-		gpio_ch = 0;
-		printk("Enter::%s,LINE=%d,gpio_ch=%d\n",__FUNCTION__,__LINE__,gpio_ch);
 #if defined(CONFIG_SPI_GPIO)
+		printk("%s:ICE_INT_TYPE_GPIO ret=0x%x\n",__FUNCTION__,ret);
 		spi_gpio_handle_irq(spi);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_I2C2) == ICE_INT_TYPE_I2C2)
 	{
 #if defined(CONFIG_SPI_I2C)
-		spi_i2c_handle_irq(port,0);
+		DBG("%s:ICE_INT_TYPE_I2C2 ret=0x%x\n",__FUNCTION__,ret);
+		spi_i2c_handle_irq(port,I2C_CH2);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_I2C3) == ICE_INT_TYPE_I2C3)
 	{
 #if defined(CONFIG_SPI_I2C)
-		spi_i2c_handle_irq(port,1);
+		DBG("%s:ICE_INT_TYPE_I2C3 ret=0x%x\n",__FUNCTION__,ret);
+		spi_i2c_handle_irq(port,I2C_CH3);
 #endif
 	}
 	else if((ret | ICE_INT_TYPE_DPRAM) == ICE_INT_TYPE_DPRAM)
 	{
 #if defined(CONFIG_SPI_DPRAM)
+		DBG("%s:ICE_INT_TYPE_DPRAM ret=0x%x\n",__FUNCTION__,ret);
 		spi_dpram_handle_irq(spi);
 #endif
 	}
 	else
 	{
-		printk("%s:NO such INT TYPE\n",__FUNCTION__);
+		printk("%s:NO such INT TYPE,ret=0x%x\n",__FUNCTION__,ret);
 	}
 
 	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
@@ -267,12 +307,13 @@ static int spi_open_sysclk(int set)
 	return 0;
 }
 
-
+extern int spi_i2c_set_bt_power(void);
 static int __devinit spi_fpga_probe(struct spi_device * spi)
 {
 	struct spi_fpga_port *port;
 	int ret;
 	char b[12];
+	int num;
 	DBG("Enter::%s,LINE=%d************************\n",__FUNCTION__,__LINE__);
 	/*
 	 * bits_per_word cannot be configured in platform data
@@ -318,18 +359,23 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 		return ret;
 	}
 #endif
-#if 0 //defined(CONFIG_SPI_I2C)
+#if defined(CONFIG_SPI_I2C)
 
 	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
-	ret = spi_i2c_register(port);
-	printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
-	if(ret)
+	spin_lock_init(&port->i2c.i2c_lock);
+	for (num= 2;num<4;num++)
 	{
-		spi_i2c_unregister(port);
-		printk("%s:ret=%d,fail to spi_i2c_register\n",__FUNCTION__,ret);
-		return ret;
+		ret = spi_i2c_register(port,num);
+		printk("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+		if(ret)
+		{
+			spi_i2c_unregister(port);
+			printk("%s:ret=%d,fail to spi_i2c_register\n",__FUNCTION__,ret);
+			return ret;
+		}
 	}
 #endif
+
 #if defined(CONFIG_SPI_DPRAM)
 	ret = spi_dpram_register(port);
 	if(ret)
@@ -360,6 +406,10 @@ static int __devinit spi_fpga_probe(struct spi_device * spi)
 	
 #if defined(CONFIG_SPI_GPIO)
 	spi_gpio_init();
+#endif
+
+#if	SPI_FPGA_TEST_DEBUG
+	spi_test_request_gpio(GPIO_HIGH);
 #endif
 
 	return 0;

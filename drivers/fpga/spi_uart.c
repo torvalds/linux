@@ -27,7 +27,7 @@
 #include <linux/i2c.h>
 #include <mach/rk2818_iomap.h>
 
-#include "spi_fpga.h"
+#include <mach/spi_fpga.h>
 
 #if defined(CONFIG_SPI_UART_DEBUG)
 #define DBG(x...)   printk(x)
@@ -36,6 +36,9 @@
 #endif
 
 #define SPI_UART_TEST 0
+
+#define SPI_UART_FIFO_LEN	32
+#define SPI_UART_TXRX_BUF	0		//send or recieve several bytes one time
 
 static struct tty_driver *spi_uart_tty_driver;
 /*------------------------以下是spi2uart变量-----------------------*/
@@ -60,6 +63,41 @@ static struct tty_driver *spi_uart_tty_driver;
 static struct spi_uart *spi_uart_table[UART_NR];
 static DEFINE_SPINLOCK(spi_uart_table_lock);
 
+#if SPI_UART_TXRX_BUF
+static int spi_uart_write_buf(struct spi_uart *uart, unsigned char *buf, int len)
+{
+	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
+	int index = port->uart.index;
+	int reg = 0;
+	unsigned char tx_buf[SPI_UART_TXRX_BUF+2];//uart's tx fifo max lenth + 1
+	
+	reg = ((((reg) | ICE_SEL_UART) & ICE_SEL_WRITE) | ICE_SEL_UART_CH(index));
+	tx_buf[0] = reg & 0xff;
+	tx_buf[1] = 0;
+	memcpy(tx_buf+2, buf, len);
+	spi_write(port->spi, (const u8 *)&tx_buf, len+2);
+	DBG("%s,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)tx_buf,len);
+	return 0;
+}
+
+
+static int spi_uart_read_buf(struct spi_uart *uart, unsigned char *buf, int len)
+{
+	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
+	int index = port->uart.index;
+	int reg = 0,stat = 0;
+	unsigned char tx_buf[1],rx_buf[SPI_UART_FIFO_LEN+1];
+	
+	reg = (((reg) | ICE_SEL_UART) | ICE_SEL_READ | ICE_SEL_UART_CH(index));
+	tx_buf[0] = reg & 0xff;
+	//give fpga 8 clks for reading data
+	stat = spi_write_then_read(port->spi, (const u8 *)&tx_buf, 1, rx_buf, len+1);
+	memcpy(buf, rx_buf+1, len);
+	DBG("%s,buf=0x%x,len=0x%x\n",__FUNCTION__,reg&0xff,(int)buf,len);
+	return stat;
+}
+
+#endif
 
 static int spi_uart_add_port(struct spi_uart *uart)
 {
@@ -359,9 +397,38 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 {
 	struct tty_struct *tty = uart->tty;
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
-	
 	unsigned int ch, flag;
-	int max_count = 1024;	
+	int max_count = 1024;
+
+#if SPI_UART_TXRX_BUF
+	int ret,count,stat = 0,num = 0;
+	unsigned char buf[SPI_UART_FIFO_LEN];
+	max_count = 512;
+	while (max_count >0 )
+	{
+		ret = spi_in(port, UART_RX, SEL_UART);
+		count = (ret >> 8) & 0xff;	
+		if(count == 0)
+		break;
+		buf[0] = ret & 0xff;
+		if(count > 1)
+		{
+			stat = spi_uart_read_buf(uart,buf+1,count-1);
+			if(stat)
+			printk("err:%s:stat=%d,fail to read uart data because of spi bus error!\n",__FUNCTION__,stat);	
+		}
+		max_count -= count;
+		while (count-- >0 )
+		{
+			flag = TTY_NORMAL;
+			ch = buf[num++];
+			tty_insert_flip_char(tty, ch, flag);
+		}
+		
+		tty_flip_buffer_push(tty); 
+	}
+	printk("r%d\n",1024-max_count);
+#else	
 	//printk("rx:");
 	while (--max_count >0 )
 	{
@@ -370,7 +437,6 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 		flag = TTY_NORMAL;
 		uart->icount.rx++;
 		//--max_count;
-#if 1
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
 				        UART_LSR_FE | UART_LSR_OE))) {
 			/*
@@ -397,7 +463,7 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 			else if (*status & UART_LSR_FE)
 				flag = TTY_FRAME;
 		}
-#endif
+
 		if ((*status & uart->ignore_status_mask & ~UART_LSR_OE) == 0)
 			tty_insert_flip_char(tty, ch, flag);
 
@@ -415,6 +481,8 @@ static void spi_uart_receive_chars(struct spi_uart *uart, unsigned int *status)
 	DBG("Enter::%s,LINE=%d,rx_count=%d********\n",__FUNCTION__,__LINE__,(1024-max_count));
 	printk("r%d\n",1024-max_count);
 	tty_flip_buffer_push(tty);
+
+#endif
 	
 }
 
@@ -422,6 +490,9 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 {
 	struct circ_buf *xmit = &uart->xmit;
 	int count;
+#if SPI_UART_TXRX_BUF	
+	unsigned char buf[SPI_UART_FIFO_LEN];
+#endif
 	struct spi_fpga_port *port = container_of(uart, struct spi_fpga_port, uart);
 	
 	if (uart->x_char) {
@@ -438,7 +509,23 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		return;
 	}
 	//printk("tx:");
-	count = 32;//
+
+#if SPI_UART_TXRX_BUF
+	//send several bytes one time
+	count = 0;
+	while(count < SPI_UART_FIFO_LEN)
+	{
+		buf[count] = xmit->buf[xmit->tail];
+		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
+		uart->icount.tx++;
+		count++;
+		if (circ_empty(xmit))
+		break;
+	}
+	spi_uart_write_buf(uart,buf,count);
+#else
+	//send one byte one time
+	count = SPI_UART_FIFO_LEN;//
 	while(count > 0)
 	{
 		spi_out(port, UART_TX, xmit->buf[xmit->tail], SEL_UART);
@@ -449,7 +536,7 @@ static void spi_uart_transmit_chars(struct spi_uart *uart)
 		if (circ_empty(xmit))
 		break;	
 	}
-
+#endif
 	//printk("\n");
 	DBG("Enter::%s,LINE=%d,tx_count=%d\n",__FUNCTION__,__LINE__,(32-count));
 	if (circ_chars_pending(xmit) < WAKEUP_CHARS)
@@ -515,41 +602,61 @@ static void spi_uart_check_modem_status(struct spi_uart *uart)
 #if SPI_UART_TEST
 #define UART_TEST_LEN 16	//8bit
 unsigned char buf_test_uart[UART_TEST_LEN];
-unsigned int ice65l08_init_para[]=
+
+void spi_uart_test_init(struct spi_fpga_port *port)
 {
-	0x030083,					
-	0x010000,
-	0x000034,					// (0100XYH) 设置分频系数：XY =  MCLK / (4*波特率)；
-	0x030003,					// 设置字节有效长度： 8 bits；
-	0x01000f,					// TX RX 中断
-	0x020080,					// 设置触发等级   接受FIFO为 16bytes 产生中断；
-};
+	unsigned char cval, fcr = 0;
+	unsigned int baud, quot;
+	unsigned char mcr = 0;
+	int ret;
+	
+	DBG("Enter::%s,LINE=%d,mcr=0x%x\n",__FUNCTION__,__LINE__,mcr);
+	spi_out(port, UART_MCR, mcr, SEL_UART);
+	baud = 1500000;
+	cval = UART_LCR_WLEN8;
+	fcr = UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10;
+	quot = 6000000 / baud;
+	mcr |= UART_MCR_RTS;
+	mcr |= UART_MCR_AFE;
+	
+	spi_out(port, UART_FCR, UART_FCR_ENABLE_FIFO, SEL_UART);
+	spi_out(port, UART_FCR, UART_FCR_ENABLE_FIFO |
+			UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT, SEL_UART);
+	spi_out(port, UART_FCR, 0, SEL_UART);
+	spi_out(port, UART_LCR, UART_LCR_WLEN8, SEL_UART);
+	spi_out(port, UART_LCR, cval | UART_LCR_DLAB, SEL_UART);
+	spi_out(port, UART_DLL, quot & 0xff, SEL_UART);	
+	ret = spi_in(port, UART_DLL, SEL_UART)&0xff;
+	printk("%s:quot=0x%x,UART_DLL=0x%x\n",__FUNCTION__,quot,ret);
+	spi_out(port, UART_DLM, quot >> 8, SEL_UART);	
+	spi_out(port, UART_LCR, cval, SEL_UART);
+	spi_out(port, UART_FCR, fcr, SEL_UART);
+	spi_out(port, UART_MCR, mcr, SEL_UART);
+
+
+}
 
 void spi_uart_work_handler(struct work_struct *work)
 {
 	int i;
-	int ret,count;
-	int offset,value;
+	int count;
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, uart.spi_uart_work);
 	printk("*************test spi_uart now***************\n");
-
+	spi_uart_test_init(port);
 	for(i=0;i<UART_TEST_LEN;i++)
-	buf_test_uart[i] = '0'+i;	
-
-	for(i =0; i<sizeof(ice65l08_init_para)/sizeof(ice65l08_init_para[0]); i++)
-	{
-		offset = (ice65l08_init_para[i] >> 16) & 0xff;
-		value = ice65l08_init_para[i] & 0xffff;
-		spi_out(port, offset, value, SEL_UART);
-	}	
-	
+	buf_test_uart[i] = '0'+i;		
 	count = UART_TEST_LEN;
+#if SPI_UART_TXRX_BUF
+	spi_uart_write_buf(&port->uart, buf_test_uart, count);
+#else
 	while(count > 0)
 	{
 		spi_out(port, UART_TX, buf_test_uart[UART_TEST_LEN-count], SEL_UART);
 		--count;
 	}
+#endif
+
 }
 
 static void spi_testuart_timer(unsigned long data)

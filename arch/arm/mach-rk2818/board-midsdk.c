@@ -287,14 +287,14 @@ struct rk2818_i2c_platform_data default_i2c1_data = {
 	.cfg_gpio = rk2818_i2c1_cfg_gpio,
 };
 
-struct rk2818_i2c_platform_data default_i2c2_data = { 
+struct rk2818_i2c_spi_data default_i2c2_data = { 
 	.bus_num    = 2,
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
 	
 };
-struct rk2818_i2c_platform_data default_i2c3_data = { 
+struct rk2818_i2c_spi_data default_i2c3_data = { 
 
 	.bus_num    = 3,
 	.flags      = 0,
@@ -453,12 +453,6 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_I2C1_RK2818
 	&rk2818_device_i2c1,
-#endif
-#ifdef CONFIG_SPI_I2C
-	&rk2818_device_i2c2,
-#endif
-#ifdef CONFIG_SPI_I2C
-	&rk2818_device_i2c3,
 #endif
 #ifdef CONFIG_SDMMC0_RK2818	
 	&rk2818_device_sdmmc0,

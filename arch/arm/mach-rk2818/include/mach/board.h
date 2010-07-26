@@ -32,6 +32,12 @@ struct rk2818_sdmmc_platform_data {
 	void    (*cfg_gpio)(struct platform_device *dev);
 };
 
+struct rk2818_i2c_spi_data {
+	int     bus_num;        
+	unsigned int    flags;     
+	unsigned int    slave_addr; 
+	unsigned long   scl_rate;   
+};
 struct rk2818_i2c_platform_data {
 	int     bus_num;        
 	unsigned int    flags;     

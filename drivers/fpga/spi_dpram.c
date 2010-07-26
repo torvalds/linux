@@ -27,7 +27,7 @@
 #include <linux/i2c.h>
 #include <mach/rk2818_iomap.h>
 
-#include "spi_fpga.h"
+#include <mach/spi_fpga.h>
 
 #if defined(CONFIG_SPI_DPRAM_DEBUG)
 #define DBG(x...)   printk(x)
@@ -117,12 +117,13 @@ static int spi_dpram_read_buf(struct spi_dpram *dpram, unsigned short int addr, 
 {
 	struct spi_fpga_port *port = container_of(dpram, struct spi_fpga_port, dpram);
 	unsigned char opt = ((ICE_SEL_DPRAM & ICE_SEL_DPRAM_NOMAL & ICE_SEL_DPRAM_READ));
-	unsigned char tx_buf[3];
+	unsigned char tx_buf[4];
 	unsigned char stat;
 	
 	tx_buf[0] = opt;
 	tx_buf[1] = ((addr << 1) >> 8) & 0xff;
 	tx_buf[2] = ((addr << 1) & 0xff);
+	tx_buf[3] = 0;//give fpga 8 clks for reading data
 	
 	stat = spi_write_then_read(port->spi, tx_buf, sizeof(tx_buf), buf, len);	
 	if(stat)
@@ -172,11 +173,12 @@ int spi_dpram_read_ptr(struct spi_dpram *dpram, unsigned short int addr)
 	int ret;
 	struct spi_fpga_port *port = container_of(dpram, struct spi_fpga_port, dpram);
 	unsigned char opt = ((ICE_SEL_DPRAM & ICE_SEL_DPRAM_NOMAL & ICE_SEL_DPRAM_READ));
-	unsigned char tx_buf[3],rx_buf[2];
+	unsigned char tx_buf[4],rx_buf[2];
 	
 	tx_buf[0] = opt;
 	tx_buf[1] = ((addr << 1) >> 8) & 0xff;
 	tx_buf[2] = ((addr << 1) & 0xff);
+	tx_buf[3] = 0;//give fpga 8 clks for reading data
 
 	ret = spi_write_then_read(port->spi, tx_buf, sizeof(tx_buf), rx_buf, sizeof(rx_buf));
 	if(ret)
@@ -221,11 +223,12 @@ int spi_dpram_read_mailbox(struct spi_dpram *dpram)
 	int ret;
 	struct spi_fpga_port *port = container_of(dpram, struct spi_fpga_port, dpram);
 	unsigned char opt = ((ICE_SEL_DPRAM & ICE_SEL_DPRAM_NOMAL & ICE_SEL_DPRAM_READ));
-	unsigned char tx_buf[3],rx_buf[2];
+	unsigned char tx_buf[4],rx_buf[2];
 	
 	tx_buf[0] = opt;
 	tx_buf[1] = ((SPI_DPRAM_MAILBOX_BPWRITE << 1) >> 8) & 0xff;
 	tx_buf[2] = ((SPI_DPRAM_MAILBOX_BPWRITE << 1) & 0xff);
+	tx_buf[3] = 0;//give fpga 8 clks for reading data
 
 	ret = spi_write_then_read(port->spi, tx_buf, sizeof(tx_buf), rx_buf, sizeof(rx_buf));
 	if(ret)
@@ -271,80 +274,82 @@ static irqreturn_t spi_dpram_busy_irq(int irq, void *dev_id)
 }
 
 #if SPI_DPRAM_TEST
-#define DPRAM_TEST_LEN 512	//8bit
+#define SEL_RAM0	0
+#define SEL_RAM1	1
+#define SEL_RAM2	2
+#define SEL_RAM3	3
+#define SEL_REG		4
+#define SEL_RAM		SEL_RAM2
+#define DPRAM_TEST_LEN 16	//8bit
 unsigned char buf_test_dpram[DPRAM_TEST_LEN];
 void spi_dpram_work_handler(struct work_struct *work)
 {
-	int i;
+	int i,j;
 	int ret;
 	struct spi_fpga_port *port =
 		container_of(work, struct spi_fpga_port, dpram.spi_dpram_work);
 	printk("*************test spi_dpram now***************\n");
-
-	for(i=0; i<(DPRAM_TEST_LEN>>1); i++)
-	{
-		buf_test_dpram[2*i] = (0xa000+i)>>8;
-		buf_test_dpram[2*i+1] = (0xa000+i)&0xff;
-	}
-#if 0
+	
+#if(SEL_RAM == SEL_RAM0)
 	//RAM0
 	for(i=0;i<(SPI_DPRAM_BPWRITE_SIZE/(DPRAM_TEST_LEN>>1));i++)
 	{
-		spi_dpram_read_buf(&port->dpram, SPI_DPRAM_BPWRITE_START+(i*DPRAM_TEST_LEN>>1), port->dpram.prx, DPRAM_TEST_LEN);
+		port->dpram.read_dpram(&port->dpram, SPI_DPRAM_BPWRITE_START+(i*DPRAM_TEST_LEN>>1), port->dpram.prx+i*DPRAM_TEST_LEN, DPRAM_TEST_LEN);
 	}
 	
-	for(i=0;i<DPRAM_TEST_LEN;i++)
+	for(i=0;i<SPI_DPRAM_BPWRITE_SIZE;i++)
 	{
 		ret = (*(port->dpram.prx+2*i)<<8) | (*(port->dpram.prx+2*i+1));
 		if(ret != 0xa000+i)
 		printk("prx[%d]=0x%x ram[%d]=0x%x\n",i,ret&0xffff,i,0xa000+i);
 	}
-#endif
-
 	
-#if 0	
+#elif(SEL_RAM == SEL_RAM1)	
 	//RAM1
 	for(i=0;i<(SPI_DPRAM_APWRITE_SIZE/(DPRAM_TEST_LEN>>1));i++)
 	{				
+		for(j=(i*(DPRAM_TEST_LEN>>1)); j<((i+1)*(DPRAM_TEST_LEN>>1)); j++)
+		{
+			buf_test_dpram[2*(j-(i*(DPRAM_TEST_LEN>>1)))] = (0xa000+j)>>8;
+			buf_test_dpram[2*(j-(i*(DPRAM_TEST_LEN>>1)))+1] = (0xa000+j)&0xff;
+			printk("buf_test_dpram[%d]=0x%x\n",j,buf_test_dpram[(j-(i*(DPRAM_TEST_LEN>>1)))]);
+		}
+		
 		port->dpram.write_dpram(&port->dpram, ((DPRAM_TEST_LEN*i)>>1)+SPI_DPRAM_APWRITE_START, buf_test_dpram, sizeof(buf_test_dpram));
 		mdelay(1);
 	}
-
-	for(i=0;i<DPRAM_TEST_LEN;i++)
-	printk("buf_test_dpram[%d]=0x%x\n",i,buf_test_dpram[i]);
-	DBG("\n");
-#endif
-
-
-#if 0
+	
+#elif(SEL_RAM == SEL_RAM2)
 	//RAM2
 	for(i=0;i<(SPI_DPRAM_LOG_BPWRITE_SIZE/(DPRAM_TEST_LEN>>1));i++)
 	{
-		spi_dpram_read_buf(&port->dpram, SPI_DPRAM_LOG_BPWRITE_START+(i*DPRAM_TEST_LEN>>1), port->dpram.prx, DPRAM_TEST_LEN);
+		port->dpram.read_dpram(&port->dpram, SPI_DPRAM_LOG_BPWRITE_START+(i*DPRAM_TEST_LEN>>1), port->dpram.prx+i*DPRAM_TEST_LEN, DPRAM_TEST_LEN);
 	}
 	
-	for(i=0;i<DPRAM_TEST_LEN;i++)
-	{		
+	for(i=0;i<SPI_DPRAM_LOG_BPWRITE_SIZE;i++)
+	{
 		ret = (*(port->dpram.prx+2*i)<<8) | (*(port->dpram.prx+2*i+1));
 		if(ret != 0xc000+i)
 		printk("prx[%d]=0x%x ram[%d]=0x%x\n",i,ret&0xffff,i,0xc000+i);
 	}
-#endif
-
-#if 0	
+	
+#elif(SEL_RAM == SEL_RAM3)	
 	//RAM3
 	for(i=0;i<(SPI_DPRAM_LOG_APWRITE_SIZE/(DPRAM_TEST_LEN>>1));i++)
 	{				
-		spi_dpram_write_buf(&port->dpram, ((DPRAM_TEST_LEN*i)>>1)+SPI_DPRAM_LOG_APWRITE_START, buf_test_dpram, sizeof(buf_test_dpram));
+		for(j=(i*(DPRAM_TEST_LEN>>1)); j<((i+1)*(DPRAM_TEST_LEN>>1)); j++)
+		{
+			buf_test_dpram[2*(j-(i*(DPRAM_TEST_LEN>>1)))] = (0xa000+j)>>8;
+			buf_test_dpram[2*(j-(i*(DPRAM_TEST_LEN>>1)))+1] = (0xa000+j)&0xff;
+			printk("buf_test_dpram[%d]=0x%x\n",j,buf_test_dpram[(j-(i*(DPRAM_TEST_LEN>>1)))]);
+		}
+		
+		port->dpram.write_dpram(&port->dpram, ((DPRAM_TEST_LEN*i)>>1)+SPI_DPRAM_LOG_APWRITE_START, buf_test_dpram, sizeof(buf_test_dpram));
 		mdelay(1);
 	}
 	
-	for(i=0;i<DPRAM_TEST_LEN;i++)
-	printk("buf_test_dpram[%d]=0x%x\n",i,buf_test_dpram[i]);
-	DBG("\n");
-#endif
+#elif(SEL_RAM == SEL_REG)
 
-#if 1
 	port->dpram.write_ptr(&port->dpram, SPI_DPRAM_PTR0_APWRITE_BPREAD, SPI_DPRAM_PTR0_APWRITE_BPREAD);
 	port->dpram.write_ptr(&port->dpram, SPI_DPRAM_PTR1_APWRITE_BPREAD, SPI_DPRAM_PTR1_APWRITE_BPREAD);
 	port->dpram.write_ptr(&port->dpram, SPI_DPRAM_PTR2_APWRITE_BPREAD, SPI_DPRAM_PTR2_APWRITE_BPREAD);
@@ -353,46 +358,24 @@ void spi_dpram_work_handler(struct work_struct *work)
 
 	ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR0_BPWRITE_APREAD);
 	if(ret != SPI_DPRAM_PTR0_BPWRITE_APREAD)
-	{
-		//ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR0_BPWRITE_APREAD);
-		//if(ret != SPI_DPRAM_PTR0_BPWRITE_APREAD)
-		printk("SPI_DPRAM_PTR0_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR0_BPWRITE_APREAD,ret);
-	}
+	printk("SPI_DPRAM_PTR0_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR0_BPWRITE_APREAD,ret);
 	
 	ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR1_BPWRITE_APREAD);
 	if(ret != SPI_DPRAM_PTR1_BPWRITE_APREAD)
-	{
-		//ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR1_BPWRITE_APREAD);
-		//if(ret != SPI_DPRAM_PTR1_BPWRITE_APREAD)
-		printk("SPI_DPRAM_PTR1_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR1_BPWRITE_APREAD,ret);
-	}
-	
+	printk("SPI_DPRAM_PTR1_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR1_BPWRITE_APREAD,ret);
+
 	ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR2_BPWRITE_APREAD);
 	if(ret != SPI_DPRAM_PTR2_BPWRITE_APREAD)
-	{
-		//ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR2_BPWRITE_APREAD);
-		//if(ret != SPI_DPRAM_PTR2_BPWRITE_APREAD)
-		printk("SPI_DPRAM_PTR2_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR2_BPWRITE_APREAD,ret);
-	}
-
+	printk("SPI_DPRAM_PTR2_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR2_BPWRITE_APREAD,ret);
 
 	ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR3_BPWRITE_APREAD);
 	if(ret != SPI_DPRAM_PTR3_BPWRITE_APREAD)
-	{
-		//ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_PTR3_BPWRITE_APREAD);
-		//if(ret != SPI_DPRAM_PTR3_BPWRITE_APREAD)	
-		printk("SPI_DPRAM_PTR3_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR3_BPWRITE_APREAD,ret);
-
-	}
-	mdelay(10);
+	printk("SPI_DPRAM_PTR3_BPWRITE_APREAD(0x%x)=0x%x\n",SPI_DPRAM_PTR3_BPWRITE_APREAD,ret);
 
 	ret = port->dpram.read_mailbox(&port->dpram);
 	if(ret != SPI_DPRAM_MAILBOX_BPWRITE)
-	{
-		//ret = port->dpram.read_ptr(&port->dpram, SPI_DPRAM_MAILBOX_BPWRITE);
-		//if(ret != SPI_DPRAM_MAILBOX_BPWRITE)	
-		printk("SPI_DPRAM_MAILBOX_BPWRITE(0x%x)=0x%x\n",SPI_DPRAM_MAILBOX_BPWRITE,ret);
-	}
+	printk("SPI_DPRAM_MAILBOX_BPWRITE(0x%x)=0x%x\n",SPI_DPRAM_MAILBOX_BPWRITE,ret);
+	
 
 #endif
 
@@ -414,10 +397,9 @@ static void spi_testdpram_timer(unsigned long data)
 int spi_dpram_handle_irq(struct spi_device *spi)
 {
 	struct spi_fpga_port *port = spi_get_drvdata(spi);
-	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
-#if 0
 	unsigned char mbox = port->dpram.read_mailbox(&port->dpram);
 	unsigned int len;
+	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
 	switch(mbox)
 	{
 		case MAILBOX_BPWRITE_DATA:
@@ -431,7 +413,7 @@ int spi_dpram_handle_irq(struct spi_device *spi)
 		default:
 			break;
 	}
-#endif	
+	
 	return 0;
 }
 
@@ -451,8 +433,8 @@ static int dpr_open(struct inode *inode, struct file *filp)
 
 static int dpr_close(struct inode *inode, struct file *filp)
 {
-	struct spi_fpga_port *port = pFpgaPort;
-	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+	//struct spi_fpga_port *port = pFpgaPort;
+	DBG("%s:line=%d\n",__FUNCTION__,__LINE__);
 	filp->private_data = NULL;
 	return 0;
 }
@@ -528,9 +510,9 @@ static ssize_t dpr_write (struct file *filp, const char __user *buffer, size_t c
 unsigned int dpr_poll(struct file *filp, struct poll_table_struct * wait)
 {
 	unsigned int mask = 0;
-	struct spi_fpga_port *port = filp->private_data;
-
-	DBG("%s:line=%d,port=0x%x\n",__FUNCTION__,__LINE__,(int)port);
+	struct spi_fpga_port *port;
+	port = filp->private_data;
+	DBG("%s:line=%d\n",__FUNCTION__,__LINE__);
 
 	return mask;
 }

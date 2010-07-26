@@ -514,6 +514,7 @@ struct i2c_msg {
 	__u32 scl_rate;
 	__u16 channel;
 	__u16 read_type;
+	__u16 reg_type;
 };
 
 /* To determine what functionality is present */
