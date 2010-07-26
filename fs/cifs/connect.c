@@ -846,9 +846,6 @@ cifs_parse_mount_options(char *options, const char *devname,
 	/* default to using server inode numbers where available */
 	vol->server_ino = 1;
 
-	/* XXX: default to fsc for testing until mount.cifs pieces are done */
-	vol->fsc = 1;
-
 	if (!options)
 		return 1;
 
