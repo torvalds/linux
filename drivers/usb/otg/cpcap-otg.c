@@ -156,7 +156,7 @@ static int cpcap_otg_set_suspend(struct otg_transceiver *otg, int suspend)
 	return 0;
 }
 
-static int __init cpcap_otg_probe(struct platform_device *pdev)
+static int cpcap_otg_probe(struct platform_device *pdev)
 {
 	struct cpcap_otg_data *cpcap;
 	struct resource *res;
