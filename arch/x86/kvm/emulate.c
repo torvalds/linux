@@ -161,12 +161,8 @@ static u32 opcode_table[256] = {
 	SrcImm | Mov | Stack, 0, SrcImmByte | Mov | Stack, 0,
 	DstDI | ByteOp | Mov | String, DstDI | Mov | String, /* insb, insw/insd */
 	SrcSI | ByteOp | ImplicitOps | String, SrcSI | ImplicitOps | String, /* outsb, outsw/outsd */
-	/* 0x70 - 0x77 */
-	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
-	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
-	/* 0x78 - 0x7F */
-	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
-	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
+	/* 0x70 - 0x7F */
+	X16(SrcImmByte),
 	/* 0x80 - 0x87 */
 	Group | Group1_80, Group | Group1_81,
 	Group | Group1_82, Group | Group1_83,
