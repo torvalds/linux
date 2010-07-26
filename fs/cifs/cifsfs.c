@@ -545,9 +545,9 @@ static const struct super_operations cifs_super_ops = {
 #endif
 };
 
-static int
-cifs_get_sb(struct file_system_type *fs_type,
-	    int flags, const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *
+cifs_do_mount(struct file_system_type *fs_type,
+	    int flags, const char *dev_name, void *data)
 {
 	int rc;
 	struct super_block *sb;
@@ -557,18 +557,17 @@ cifs_get_sb(struct file_system_type *fs_type,
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
 	if (IS_ERR(sb))
-		return PTR_ERR(sb);
+		return ERR_CAST(sb);
 
 	sb->s_flags = flags;
 
 	rc = cifs_read_super(sb, data, dev_name, flags & MS_SILENT ? 1 : 0);
 	if (rc) {
 		deactivate_locked_super(sb);
-		return rc;
+		return ERR_PTR(rc);
 	}
 	sb->s_flags |= MS_ACTIVE;
-	simple_set_mnt(mnt, sb);
-	return 0;
+	return dget(sb->s_root);
 }
 
 static ssize_t cifs_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
@@ -634,7 +633,7 @@ static int cifs_setlease(struct file *file, long arg, struct file_lock **lease)
 struct file_system_type cifs_fs_type = {
 	.owner = THIS_MODULE,
 	.name = "cifs",
-	.get_sb = cifs_get_sb,
+	.mount = cifs_do_mount,
 	.kill_sb = kill_anon_super,
 	/*  .fs_flags */
 };
