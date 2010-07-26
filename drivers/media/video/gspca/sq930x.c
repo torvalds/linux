@@ -307,7 +307,8 @@ static const struct i2c_write_cmd mt9v111_init_3[] = {
 	{0x62, 0x0405},
 };
 static const struct i2c_write_cmd mt9v111_init_4[] = {
-	{0x05, 0x00ce},		/* horizontal blanking */
+/*	{0x05, 0x00ce}, */
+	{0x05, 0x005d},		/* horizontal blanking */
 };
 
 static const struct ucbus_write_cmd ov7660_start_0[] = {
