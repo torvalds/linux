@@ -1944,7 +1944,6 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 
 urb_submit_failed:
 	ir_input_unregister(ictx->idev);
-	input_free_device(ictx->idev);
 idev_setup_failed:
 find_endpoint_failed:
 	mutex_unlock(&ictx->lock);
@@ -2014,10 +2013,8 @@ static struct imon_context *imon_init_intf1(struct usb_interface *intf,
 	return ictx;
 
 urb_submit_failed:
-	if (ictx->touch) {
+	if (ictx->touch)
 		input_unregister_device(ictx->touch);
-		input_free_device(ictx->touch);
-	}
 touch_setup_failed:
 find_endpoint_failed:
 	mutex_unlock(&ictx->lock);
