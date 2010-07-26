@@ -347,12 +347,12 @@ static int ui_browser__show(struct ui_browser *self, const char *title)
 		newtPopWindow();
 	}
 	ui_browser__refresh_dimensions(self);
-	newtCenteredWindow(self->width + 2, self->height, title);
+	newtCenteredWindow(self->width, self->height, title);
 	self->form = newt_form__new();
 	if (self->form == NULL)
 		return -1;
 
-	self->sb = newtVerticalScrollbar(self->width + 1, 0, self->height,
+	self->sb = newtVerticalScrollbar(self->width, 0, self->height,
 					 HE_COLORSET_NORMAL,
 					 HE_COLORSET_SELECTED);
 	if (self->sb == NULL)
