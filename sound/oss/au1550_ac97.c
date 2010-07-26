@@ -163,19 +163,10 @@ ld2(unsigned int x)
 static void
 au1550_delay(int msec)
 {
-	unsigned long   tmo;
-	signed long     tmo2;
-
 	if (in_interrupt())
 		return;
 
-	tmo = jiffies + (msec * HZ) / 1000;
-	for (;;) {
-		tmo2 = tmo - jiffies;
-		if (tmo2 <= 0)
-			break;
-		schedule_timeout(tmo2);
-	}
+	schedule_timeout_uninterruptible(msecs_to_jiffies(msec));
 }
 
 static u16
