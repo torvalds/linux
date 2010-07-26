@@ -56,7 +56,7 @@ config GENERIC_CLOCKEVENTS
 config GENERIC_CLOCKEVENTS_BROADCAST
 	bool
 	depends on GENERIC_CLOCKEVENTS
-	default y if SMP && !LOCAL_TIMERS
+	default y if SMP
 
 config HAVE_TCM
 	bool
