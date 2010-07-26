@@ -664,6 +664,7 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 		u32	 log_info;
 
 		status = le16_to_cpu(pScsiReply->IOCStatus) & MPI_IOCSTATUS_MASK;
+
 		scsi_state = pScsiReply->SCSIState;
 		scsi_status = pScsiReply->SCSIStatus;
 		xfer_cnt = le32_to_cpu(pScsiReply->TransferCount);
@@ -738,15 +739,36 @@ mptscsih_io_done(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf, MPT_FRAME_HDR *mr)
 
 		case MPI_IOCSTATUS_SCSI_IOC_TERMINATED:		/* 0x004B */
 			if ( ioc->bus_type == SAS ) {
-				u16 ioc_status = le16_to_cpu(pScsiReply->IOCStatus);
-				if (ioc_status & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE) {
-					if ((log_info & SAS_LOGINFO_MASK)
-					    == SAS_LOGINFO_NEXUS_LOSS) {
-						sc->result =
-							(DID_TRANSPORT_DISRUPTED
-							<< 16);
-						break;
-					}
+				u16 ioc_status =
+				    le16_to_cpu(pScsiReply->IOCStatus);
+				if ((ioc_status &
+					MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE)
+					&&
+					((log_info & SAS_LOGINFO_MASK) ==
+					SAS_LOGINFO_NEXUS_LOSS)) {
+						VirtDevice *vdevice =
+						sc->device->hostdata;
+
+					    /* flag the device as being in
+					     * device removal delay so we can
+					     * notify the midlayer to hold off
+					     * on timeout eh */
+						if (vdevice && vdevice->
+							vtarget &&
+							vdevice->vtarget->
+							raidVolume)
+							printk(KERN_INFO
+							"Skipping Raid Volume"
+							"for inDMD\n");
+						else if (vdevice &&
+							vdevice->vtarget)
+							vdevice->vtarget->
+								inDMD = 1;
+
+					    sc->result =
+						    (DID_TRANSPORT_DISRUPTED
+						    << 16);
+					    break;
 				}
 			} else if (ioc->bus_type == FC) {
 				/*

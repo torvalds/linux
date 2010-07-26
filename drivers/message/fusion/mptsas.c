@@ -57,6 +57,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_sas.h>
+#include <scsi/scsi_transport.h>
 #include <scsi/scsi_dbg.h>
 
 #include "mptbase.h"
@@ -1912,6 +1913,48 @@ mptsas_qcmd(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_cmnd *))
 	return mptscsih_qcmd(SCpnt,done);
 }
 
+/**
+ *	mptsas_mptsas_eh_timed_out - resets the scsi_cmnd timeout
+ *		if the device under question is currently in the
+ *		device removal delay.
+ *	@sc: scsi command that the midlayer is about to time out
+ *
+ **/
+static enum blk_eh_timer_return mptsas_eh_timed_out(struct scsi_cmnd *sc)
+{
+	MPT_SCSI_HOST *hd;
+	MPT_ADAPTER   *ioc;
+	VirtDevice    *vdevice;
+	enum blk_eh_timer_return rc = BLK_EH_NOT_HANDLED;
+
+	hd = shost_priv(sc->device->host);
+	if (hd == NULL) {
+		printk(KERN_ERR MYNAM ": %s: Can't locate host! (sc=%p)\n",
+		    __func__, sc);
+		goto done;
+	}
+
+	ioc = hd->ioc;
+	if (ioc->bus_type != SAS) {
+		printk(KERN_ERR MYNAM ": %s: Wrong bus type (sc=%p)\n",
+		    __func__, sc);
+		goto done;
+	}
+
+	vdevice = sc->device->hostdata;
+	if (vdevice && vdevice->vtarget && (vdevice->vtarget->inDMD
+		|| vdevice->vtarget->deleted)) {
+		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT ": %s: target removed "
+		    "or in device removal delay (sc=%p)\n",
+		    ioc->name, __func__, sc));
+		rc = BLK_EH_RESET_TIMER;
+		goto done;
+	}
+
+done:
+	return rc;
+}
+
 
 static struct scsi_host_template mptsas_driver_template = {
 	.module				= THIS_MODULE,
@@ -2984,6 +3027,7 @@ static int mptsas_probe_one_phy(struct device *dev,
 	struct sas_phy *phy;
 	struct sas_port *port;
 	int error = 0;
+	VirtTarget *vtarget;
 
 	if (!dev) {
 		error = -ENODEV;
@@ -3204,6 +3248,16 @@ static int mptsas_probe_one_phy(struct device *dev,
 				mptsas_exp_repmanufacture_info(ioc,
 					identify.sas_address,
 					rphy_to_expander_device(rphy));
+	}
+
+	/* If the device exists,verify it wasn't previously flagged
+	as a missing device.  If so, clear it */
+	vtarget = mptsas_find_vtarget(ioc,
+	    phy_info->attached.channel,
+	    phy_info->attached.id);
+	if (vtarget && vtarget->inDMD) {
+		printk(KERN_INFO "Device returned, unsetting inDMD\n");
+		vtarget->inDMD = 0;
 	}
 
  out:
@@ -3659,9 +3713,42 @@ mptsas_send_link_status_event(struct fw_event_work *fw_event)
 		    MPI_SAS_IOUNIT0_RATE_FAILED_SPEED_NEGOTIATION)
 			phy_info->phy->negotiated_linkrate =
 			    SAS_LINK_RATE_FAILED;
-		else
+		else {
 			phy_info->phy->negotiated_linkrate =
 			    SAS_LINK_RATE_UNKNOWN;
+			if (ioc->device_missing_delay &&
+			    mptsas_is_end_device(&phy_info->attached)) {
+				struct scsi_device		*sdev;
+				VirtDevice			*vdevice;
+				u8	channel, id;
+				id = phy_info->attached.id;
+				channel = phy_info->attached.channel;
+				devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+				"Link down for fw_id %d:fw_channel %d\n",
+				    ioc->name, phy_info->attached.id,
+				    phy_info->attached.channel));
+
+				shost_for_each_device(sdev, ioc->sh) {
+					vdevice = sdev->hostdata;
+					if ((vdevice == NULL) ||
+						(vdevice->vtarget == NULL))
+						continue;
+					if ((vdevice->vtarget->tflags &
+					    MPT_TARGET_FLAGS_RAID_COMPONENT ||
+					    vdevice->vtarget->raidVolume))
+						continue;
+					if (vdevice->vtarget->id == id &&
+						vdevice->vtarget->channel ==
+						channel)
+						devtprintk(ioc,
+						printk(MYIOC_s_DEBUG_FMT
+						"SDEV OUTSTANDING CMDS"
+						"%d\n", ioc->name,
+						sdev->device_busy));
+				}
+
+			}
+		}
 	}
  out:
 	mptsas_free_fw_event(ioc, fw_event);
@@ -4906,12 +4993,47 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	{
 		EVENT_DATA_SAS_DEVICE_STATUS_CHANGE *sas_event_data =
 		    (EVENT_DATA_SAS_DEVICE_STATUS_CHANGE *)reply->Data;
+		u16	ioc_stat;
+		ioc_stat = le16_to_cpu(reply->IOCStatus);
 
 		if (sas_event_data->ReasonCode ==
 		    MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING) {
 			mptsas_target_reset_queue(ioc, sas_event_data);
 			return 0;
 		}
+		if (sas_event_data->ReasonCode ==
+			MPI_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET &&
+			ioc->device_missing_delay &&
+			(ioc_stat & MPI_IOCSTATUS_FLAG_LOG_INFO_AVAILABLE)) {
+			VirtTarget *vtarget = NULL;
+			u8		id, channel;
+			u32	 log_info = le32_to_cpu(reply->IOCLogInfo);
+
+			id = sas_event_data->TargetID;
+			channel = sas_event_data->Bus;
+
+			vtarget = mptsas_find_vtarget(ioc, channel, id);
+			if (vtarget) {
+				devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+				    "LogInfo (0x%x) available for "
+				   "INTERNAL_DEVICE_RESET"
+				   "fw_id %d fw_channel %d\n", ioc->name,
+				   log_info, id, channel));
+				if (vtarget->raidVolume) {
+					devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+					"Skipping Raid Volume for inDMD\n",
+					ioc->name));
+				} else {
+					devtprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+					"Setting device flag inDMD\n",
+					ioc->name));
+					vtarget->inDMD = 1;
+				}
+
+			}
+
+		}
+
 		break;
 	}
 	case MPI_EVENT_SAS_EXPANDER_STATUS_CHANGE:
@@ -5244,6 +5366,7 @@ mptsas_init(void)
 	    sas_attach_transport(&mptsas_transport_functions);
 	if (!mptsas_transport_template)
 		return -ENODEV;
+	mptsas_transport_template->eh_timed_out = mptsas_eh_timed_out;
 
 	mptsasDoneCtx = mpt_register(mptscsih_io_done, MPTSAS_DRIVER);
 	mptsasTaskCtx = mpt_register(mptscsih_taskmgmt_complete, MPTSAS_DRIVER);
