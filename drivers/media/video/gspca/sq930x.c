@@ -49,19 +49,17 @@ struct sd {
 	u8 do_ctrl;
 
 	u8 sensor;
-enum {
+	u8 type;
+#define Generic 0
+#define Creative_live_motion 1
+};
+enum sensors {
 	SENSOR_ICX098BQ,
 	SENSOR_LZ24BP,
 	SENSOR_MI0360,
 	SENSOR_MT9V111,
 	SENSOR_OV7660,
 	SENSOR_OV9630,
-} sensors;
-	u8 type;
-#define Generic 0
-#define Creative_live_motion 1
-
-	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 static int sd_setexpo(struct gspca_dev *gspca_dev, __s32 val);

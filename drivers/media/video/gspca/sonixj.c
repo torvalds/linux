@@ -66,7 +66,11 @@ struct sd {
 #define BRIDGE_SN9C110 2
 #define BRIDGE_SN9C120 3
 	u8 sensor;			/* Type of image sensor chip */
-enum {
+	u8 i2c_addr;
+
+	u8 jpeg_hdr[JPEG_HDR_SZ];
+};
+enum sensors {
 	SENSOR_ADCM1700,
 	SENSOR_GC0307,
 	SENSOR_HV7131R,
@@ -81,10 +85,6 @@ enum {
 	SENSOR_PO2030N,
 	SENSOR_SOI768,
 	SENSOR_SP80708,
-} sensors;
-	u8 i2c_addr;
-
-	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* V4L2 controls supported by the driver */
