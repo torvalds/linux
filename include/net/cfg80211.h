@@ -2442,8 +2442,9 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 	wiphy_printk(KERN_NOTICE, wiphy, format, ##args)
 #define wiphy_info(wiphy, format, args...)			\
 	wiphy_printk(KERN_INFO, wiphy, format, ##args)
-#define wiphy_debug(wiphy, format, args...)			\
-	wiphy_printk(KERN_DEBUG, wiphy, format, ##args)
+
+int wiphy_debug(const struct wiphy *wiphy, const char *format, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #if defined(DEBUG)
 #define wiphy_dbg(wiphy, format, args...)			\

@@ -907,3 +907,52 @@ static void __exit cfg80211_exit(void)
 	destroy_workqueue(cfg80211_wq);
 }
 module_exit(cfg80211_exit);
+
+static int ___wiphy_printk(const char *level, const struct wiphy *wiphy,
+			   struct va_format *vaf)
+{
+	if (!wiphy)
+		return printk("%s(NULL wiphy *): %pV", level, vaf);
+
+	return printk("%s%s: %pV", level, wiphy_name(wiphy), vaf);
+}
+
+int __wiphy_printk(const char *level, const struct wiphy *wiphy,
+		   const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	r = ___wiphy_printk(level, wiphy, &vaf);
+	va_end(args);
+
+	return r;
+}
+EXPORT_SYMBOL(__wiphy_printk);
+
+#define define_wiphy_printk_level(func, kern_level)		\
+int func(const struct wiphy *wiphy, const char *fmt, ...)	\
+{								\
+	struct va_format vaf;					\
+	va_list args;						\
+	int r;							\
+								\
+	va_start(args, fmt);					\
+								\
+	vaf.fmt = fmt;						\
+	vaf.va = &args;						\
+								\
+	r = ___wiphy_printk(kern_level, wiphy, &vaf);		\
+	va_end(args);						\
+								\
+	return r;						\
+}								\
+EXPORT_SYMBOL(func);
+
+define_wiphy_printk_level(wiphy_debug, KERN_DEBUG);
