@@ -6068,6 +6068,8 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
+	if (mddev->event_work.func)
+		schedule_work(&mddev->event_work);
 	md_new_event_inintr(mddev);
 }
 

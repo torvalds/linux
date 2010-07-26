@@ -318,6 +318,7 @@ struct mddev_s
 	struct bio *barrier;
 	atomic_t flush_pending;
 	struct work_struct barrier_work;
+	struct work_struct event_work;	/* used by dm to report failure event */
 };
 
 
