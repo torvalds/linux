@@ -3391,6 +3391,33 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->bridge = id->driver_info >> 8;
+	sd->flags = id->driver_info & 0xff;
+
+	if (id->idVendor == 0x046d &&
+	    (id->idProduct == 0x0892 || id->idProduct == 0x0896))
+		sd->sensor = SENSOR_POxxxx;	/* no probe */
+
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->colors = COLOR_DEF;
+	sd->hflip = HFLIP_DEF;
+	sd->vflip = VFLIP_DEF;
+	sd->lightfreq = FREQ_DEF;
+	sd->sharpness = SHARPNESS_DEF;
+	sd->gain = GAIN_DEF;
+	sd->exposure = EXPOSURE_DEF;
+	sd->autogain = AUTOGAIN_DEF;
+	sd->backlight = BACKLIGHT_DEF;
+
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	int sensor;
 	static u8 npkt[] = {	/* number of packets per ISOC message */
@@ -3406,14 +3433,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		128,		/* POxxxx 9 */
 	};
 
-	cam = &gspca_dev->cam;
-	sd->bridge = id->driver_info >> 8;
-	sd->flags = id->driver_info & 0xff;
-	if (id->idVendor == 0x046d &&
-	    (id->idProduct == 0x0892 || id->idProduct == 0x0896))
-		sensor = SENSOR_POxxxx;
-	else
+	if (sd->sensor != SENSOR_POxxxx)
 		sensor = vc032x_probe_sensor(gspca_dev);
+	else
+		sensor = sd->sensor;
+
 	switch (sensor) {
 	case -1:
 		PDEBUG(D_PROBE, "Unknown sensor...");
@@ -3452,6 +3476,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	sd->sensor = sensor;
 
+	cam = &gspca_dev->cam;
 	if (sd->bridge == BRIDGE_VC0321) {
 		cam->cam_mode = vc0321_mode;
 		cam->nmodes = ARRAY_SIZE(vc0321_mode);
@@ -3480,31 +3505,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		}
 	}
 	cam->npkt = npkt[sd->sensor];
-
-	sd->brightness = BRIGHTNESS_DEF;
-	sd->contrast = CONTRAST_DEF;
-	sd->colors = COLOR_DEF;
-	sd->hflip = HFLIP_DEF;
-	sd->vflip = VFLIP_DEF;
-	sd->lightfreq = FREQ_DEF;
-	sd->sharpness = SHARPNESS_DEF;
-	sd->gain = GAIN_DEF;
-	sd->exposure = EXPOSURE_DEF;
-	sd->autogain = AUTOGAIN_DEF;
-	sd->backlight = BACKLIGHT_DEF;
-
 	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
 
 	if (sd->sensor == SENSOR_OV7670)
 		sd->flags |= FL_HFLIP | FL_VFLIP;
-
-	return 0;
-}
-
-/* this function is called at probe and resume time */
-static int sd_init(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(gspca_dev, 0x8a, 0, 3);
