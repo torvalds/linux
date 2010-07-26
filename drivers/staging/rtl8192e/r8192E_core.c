@@ -97,7 +97,7 @@ u32 rt_global_debug_component = \
 	.vendor=(vend),.device=(dev),\
 	.subvendor=PCI_ANY_ID,.subdevice=PCI_ANY_ID
 #endif
-static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
+static const struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 #ifdef RTL8190P
 	/* Realtek */
 	/* Dlink */
@@ -163,6 +163,7 @@ static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
 static void rtl8192_prepare_beacon(struct r8192_priv *priv);
 static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 static void rtl8192_try_wake_queue(struct net_device *dev, int pri);
+static void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 
 #ifdef ENABLE_DOT11D
 
@@ -947,7 +948,7 @@ void rtl8192_rx_enable(struct net_device *dev)
  *  HIGH_QUEUE     ===>                        7
  *  BEACON_QUEUE   ===>                        8
  *  */
-static u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
+static const u32 TX_DESC_BASE[] = {BKQDA, BEQDA, VIQDA, VOQDA, HCCAQDA, CQDA, MQDA, HQDA, BQDA};
 void rtl8192_tx_enable(struct net_device *dev)
 {
     struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -1123,7 +1124,7 @@ static void rtl8192_reset(struct net_device *dev)
 }
 #endif
 
-static u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
+static const u16 rtl_rate[] = {10,20,55,110,60,90,120,180,240,360,480,540};
 inline u16 rtl8192_rate2rate(short rate)
 {
 	if (rate >11) return 0;
@@ -1993,7 +1994,7 @@ static void rtl8192_update_beacon(struct work_struct * work)
 /*
 * background support to run QoS activate functionality
 */
-static int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_VO};
+static const int WDCAPARA_ADD[] = {EDCAPARA_BE,EDCAPARA_BK,EDCAPARA_VI,EDCAPARA_VO};
 static void rtl8192_qos_activate(struct work_struct * work)
 {
         struct r8192_priv *priv = container_of(work, struct r8192_priv, qos_activate);
@@ -4124,14 +4125,14 @@ static void CamRestoreAllEntry(struct net_device *dev)
 {
 	u8 EntryId = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u8*	MacAddr = priv->ieee80211->current_network.bssid;
+	const u8*	MacAddr = priv->ieee80211->current_network.bssid;
 
-	static u8	CAM_CONST_ADDR[4][6] = {
+	static const u8	CAM_CONST_ADDR[4][6] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x02},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
-	static u8	CAM_CONST_BROAD[] =
+	static const u8	CAM_CONST_BROAD[] =
 		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 	RT_TRACE(COMP_SEC, "CamRestoreAllEntry: \n");
@@ -6846,7 +6847,7 @@ void setKey(	struct net_device *dev,
 		u8 EntryNo,
 		u8 KeyIndex,
 		u16 KeyType,
-		u8 *MacAddr,
+		const u8 *MacAddr,
 		u8 DefaultKey,
 		u32 *KeyContent )
 {

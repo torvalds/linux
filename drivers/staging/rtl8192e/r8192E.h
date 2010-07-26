@@ -1468,7 +1468,6 @@ typedef	union _AC_PARAM{
 
 #endif
 bool init_firmware(struct net_device *dev);
-void rtl819xE_tx_cmd(struct net_device *dev, struct sk_buff *skb);
 short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
 u32 read_cam(struct net_device *dev, u8 addr);
 void write_cam(struct net_device *dev, u8 addr, u32 data);
@@ -1505,7 +1504,7 @@ void rtl8187_set_rxconf(struct net_device *dev);
 //short check_nic_enough_desc(struct net_device *dev, priority_t priority);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
+void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
 void CamPrintDbgReg(struct net_device* dev);
 extern	void	dm_cck_txpower_adjust(struct net_device *dev,bool  binch14);
 extern void firmware_init_param(struct net_device *dev);
