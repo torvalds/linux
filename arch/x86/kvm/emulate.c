@@ -94,6 +94,15 @@
 #define Src2One     (3<<29)
 #define Src2Mask    (7<<29)
 
+#define X2(x) (x), (x)
+#define X3(x) X2(x), (x)
+#define X4(x) X2(x), X2(x)
+#define X5(x) X4(x), (x)
+#define X6(x) X4(x), X2(x)
+#define X7(x) X4(x), X3(x)
+#define X8(x) X4(x), X4(x)
+#define X16(x) X8(x), X8(x)
+
 enum {
 	Group1_80, Group1_81, Group1_82, Group1_83,
 	Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
