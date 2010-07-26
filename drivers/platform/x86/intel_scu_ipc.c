@@ -154,7 +154,7 @@ static inline int busy_loop(void) /* Wait till scu status is busy */
 /* Read/Write power control(PMIC in Langwell, MSIC in PenWell) registers */
 static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 {
-	int nc;
+	int i, nc, bytes;
 	u32 offset = 0;
 	u32 err = 0;
 	u8 cbuf[IPC_WWBUF_SIZE] = { };
@@ -170,25 +170,18 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 	}
 
 	if (platform != MRST_CPU_CHIP_PENWELL) {
-		/* Entry is 4 bytes for read/write, 5 bytes for read modify */
-		for (nc = 0; nc < count; nc++, offset += 3) {
-			cbuf[offset] = addr[nc];
-			cbuf[offset + 1] = addr[nc] >> 8;
+		bytes = 0;
+		for(i=0; i<count; i++) {
+			cbuf[bytes++] = addr[i];
+			cbuf[bytes++] = addr[i] >> 8;
 			if (id != IPC_CMD_PCNTRL_R)
-				cbuf[offset + 2] = data[nc];
-			if (id == IPC_CMD_PCNTRL_M) {
-				cbuf[offset + 3] = data[nc + 1];
-				offset += 1;
-			}
+				cbuf[bytes++] = data[i];
+			if (id == IPC_CMD_PCNTRL_M)
+				cbuf[bytes++] = data[i + 1];
 		}
-		for (nc = 0, offset = 0; nc < count; nc++, offset += 4)
-			ipc_data_writel(wbuf[nc], offset); /* Write wbuff */
-
-		if (id != IPC_CMD_PCNTRL_M)
-			ipc_command((count*4) << 16 |  id << 12 | 0 << 8 | op);
-		else
-			ipc_command((count*5) << 16 |  id << 12 | 0 << 8 | op);
-
+		for(i=0; i<bytes; i+=4)
+			ipc_data_writel(wbuf[i/4], i);
+		ipc_command(bytes << 16 |  id << 12 | 0 << 8 | op);
 	} else {
 		for (nc = 0; nc < count; nc++, offset += 2) {
 			cbuf[offset] = addr[nc];
