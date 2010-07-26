@@ -76,7 +76,7 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0x0001,
 		.maximum = 0x0fff,
 		.step = 1,
-#define EXPO_DEF 0x027d
+#define EXPO_DEF 0x0356
 		.default_value = EXPO_DEF,
 	    },
 	    .set = sd_setexpo,
@@ -90,7 +90,7 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0x01,
 		.maximum = 0xff,
 		.step = 1,
-#define GAIN_DEF 0x61
+#define GAIN_DEF 0x8d
 		.default_value = GAIN_DEF,
 	    },
 	    .set = sd_setgain,
