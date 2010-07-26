@@ -22,6 +22,7 @@ extern  int s5pv310_init(void);
 extern void s5pv310_init_irq(void);
 extern void s5pv310_map_io(void);
 extern void s5pv310_init_clocks(int xtal);
+extern struct sys_timer s5pv310_timer;
 
 #define s5pv310_init_uarts s5pv310_common_init_uarts
 
