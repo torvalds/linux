@@ -238,16 +238,8 @@ static u32 twobyte_table[256] = {
 	ImplicitOps | Priv, 0, ImplicitOps | Priv, 0,
 	ImplicitOps, ImplicitOps | Priv, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0,
-	/* 0x40 - 0x47 */
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	/* 0x48 - 0x4F */
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
-	DstReg | SrcMem | ModRM | Mov, DstReg | SrcMem | ModRM | Mov,
+	/* 0x40 - 0x4F */
+	X16(DstReg | SrcMem | ModRM | Mov),
 	/* 0x50 - 0x5F */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0x60 - 0x6F */
