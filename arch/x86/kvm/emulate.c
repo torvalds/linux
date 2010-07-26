@@ -84,6 +84,7 @@
 #define GroupDual   (1<<15)     /* Alternate decoding of mod == 3 */
 #define GroupMask   0x0f        /* Group number stored in bits 0:3 */
 /* Misc flags */
+#define Undefined   (1<<25) /* No Such Instruction */
 #define Lock        (1<<26) /* lock prefix is allowed for the instruction */
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
@@ -1065,7 +1066,7 @@ done_prefixes:
 	}
 
 	/* Unrecognised? */
-	if (c->d == 0) {
+	if (c->d == 0 || (c->d & Undefined)) {
 		DPRINTF("Cannot emulate %02x\n", c->b);
 		return -1;
 	}
