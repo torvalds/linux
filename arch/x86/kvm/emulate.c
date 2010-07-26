@@ -105,8 +105,7 @@
 #define X16(x) X8(x), X8(x)
 
 enum {
-	Group1_80, Group1_81, Group1_82, Group1_83,
-	Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
+	Group1, Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
 	Group8, Group9,
 };
 
@@ -165,8 +164,10 @@ static u32 opcode_table[256] = {
 	/* 0x70 - 0x7F */
 	X16(SrcImmByte),
 	/* 0x80 - 0x87 */
-	Group | Group1_80, Group | Group1_81,
-	Group | Group1_82, Group | Group1_83,
+	ByteOp | DstMem | SrcImm | ModRM | Group | Group1,
+	DstMem | SrcImm | ModRM | Group | Group1,
+	ByteOp | DstMem | SrcImm | ModRM | No64 | Group | Group1,
+	DstMem | SrcImmByte | ModRM | Group | Group1,
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstMem | SrcReg | ModRM | Lock, DstMem | SrcReg | ModRM | Lock,
 	/* 0x88 - 0x8F */
@@ -285,42 +286,8 @@ static u32 twobyte_table[256] = {
 };
 
 static u32 group_table[] = {
-	[Group1_80*8] =
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | Lock,
-	ByteOp | DstMem | SrcImm | ModRM,
-	[Group1_81*8] =
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM | Lock,
-	DstMem | SrcImm | ModRM,
-	[Group1_82*8] =
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64 | Lock,
-	ByteOp | DstMem | SrcImm | ModRM | No64,
-	[Group1_83*8] =
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM | Lock,
-	DstMem | SrcImmByte | ModRM,
+	[Group1*8] =
+	X7(Lock), 0,
 	[Group1A*8] =
 	DstMem | SrcNone | ModRM | Mov | Stack, 0, 0, 0, 0, 0, 0, 0,
 	[Group3_Byte*8] =
