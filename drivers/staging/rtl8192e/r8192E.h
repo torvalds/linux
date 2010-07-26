@@ -1503,7 +1503,6 @@ void write_phy_ofdm(struct net_device *dev, u8 adr, u32 data);
 void rtl8185_tx_antenna(struct net_device *dev, u8 ant);
 void rtl8187_set_rxconf(struct net_device *dev);
 //short check_nic_enough_desc(struct net_device *dev, priority_t priority);
-void rtl8192_start_beacon(struct net_device *dev);
 void CamResetAllEntry(struct net_device* dev);
 void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );

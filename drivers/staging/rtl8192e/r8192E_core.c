@@ -155,6 +155,15 @@ static struct pci_driver rtl8192_pci_driver = {
 #endif
 };
 
+static void rtl8192_start_beacon(struct net_device *dev);
+static void rtl8192_stop_beacon(struct net_device *dev);
+static void rtl819x_watchdog_wqcallback(struct work_struct *work);
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
+static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
+static void rtl8192_prepare_beacon(struct r8192_priv *priv);
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev);
+static void rtl8192_try_wake_queue(struct net_device *dev, int pri);
+
 #ifdef ENABLE_DOT11D
 
 typedef struct _CHANNEL_LIST
@@ -487,15 +496,13 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 /* this might still called in what was the PHY rtl8185/rtl8192 common code
  * plans are to possibilty turn it again in one common code...
  */
-inline void force_pci_posting(struct net_device *dev)
+void force_pci_posting(struct net_device *dev)
 {
 }
 
 
 //warning message WB
-irqreturn_t rtl8192_interrupt(int irq, void *netdev);
 //static struct net_device_stats *rtl8192_stats(struct net_device *dev);
-void rtl8192_commit(struct net_device *dev);
 //void rtl8192_restart(struct net_device *dev);
 void rtl8192_restart(struct work_struct *work);
 //void rtl8192_rq_tx_ack(struct work_struct *work);
@@ -1251,8 +1258,6 @@ static int rtl8192_hard_start_xmit(struct sk_buff *skb,struct net_device *dev)
 
 }
 
-
-void rtl8192_try_wake_queue(struct net_device *dev, int pri);
 
 static void rtl8192_tx_isr(struct net_device *dev, int prio)
 {
@@ -2646,11 +2651,6 @@ static void rtl8192_init_priv_lock(struct r8192_priv* priv)
 	mutex_init(&priv->mutex);
 }
 
-extern  void    rtl819x_watchdog_wqcallback(struct work_struct *work);
-
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv);
-void rtl8192_irq_tx_tasklet(struct r8192_priv *priv);
-void rtl8192_prepare_beacon(struct r8192_priv *priv);
 //init tasklet and wait_queue here. only 2.6 above kernel is considered
 #define DRV_NAME "wlan0"
 static void rtl8192_init_priv_task(struct net_device* dev)
@@ -3807,7 +3807,7 @@ static RT_STATUS rtl8192_adapter_start(struct net_device *dev)
 
 }
 
-void rtl8192_prepare_beacon(struct r8192_priv *priv)
+static void rtl8192_prepare_beacon(struct r8192_priv *priv)
 {
 	struct sk_buff *skb;
 	//unsigned long flags;
@@ -3837,7 +3837,7 @@ void rtl8192_prepare_beacon(struct r8192_priv *priv)
  * rtl8192_beacon_tx_enable(). rtl8192_beacon_tx_disable() might
  * be used to stop beacon transmission
  */
-void rtl8192_start_beacon(struct net_device *dev)
+static void rtl8192_start_beacon(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct ieee80211_network *net = &priv->ieee80211->current_network;
@@ -4668,7 +4668,7 @@ static void rtl819x_update_rxcounts(
 }
 
 
-void rtl819x_watchdog_wqcallback(struct work_struct *work)
+static void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
 	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
        struct r8192_priv *priv = container_of(dwork,struct r8192_priv,watch_dog_wq);
@@ -6075,7 +6075,7 @@ static void rtl8192_tx_resume(struct net_device *dev)
 	}
 }
 
-void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_tx_tasklet(struct r8192_priv *priv)
 {
        rtl8192_tx_resume(priv->ieee80211->dev);
 }
@@ -6304,7 +6304,7 @@ done:
 
 }
 
-void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
+static void rtl8192_irq_rx_tasklet(struct r8192_priv *priv)
 {
        rtl8192_rx(priv->ieee80211->dev);
 	/* unmask RDU */
@@ -6639,7 +6639,7 @@ static void __exit rtl8192_pci_module_exit(void)
 }
 
 //warning message WB
-irqreturn_t rtl8192_interrupt(int irq, void *netdev)
+static irqreturn_t rtl8192_interrupt(int irq, void *netdev)
 {
     struct net_device *dev = (struct net_device *) netdev;
     struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
@@ -6783,7 +6783,7 @@ irqreturn_t rtl8192_interrupt(int irq, void *netdev)
     return IRQ_HANDLED;
 }
 
-void rtl8192_try_wake_queue(struct net_device *dev, int pri)
+static void rtl8192_try_wake_queue(struct net_device *dev, int pri)
 {
 #if 0
 	unsigned long flags;
