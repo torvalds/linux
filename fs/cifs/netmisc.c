@@ -61,6 +61,7 @@ static const struct smb_to_posix_error mapping_table_ERRDOS[] = {
 	{ERRremcd, -EACCES},
 	{ERRdiffdevice, -EXDEV},
 	{ERRnofiles, -ENOENT},
+	{ERRwriteprot, -EROFS},
 	{ERRbadshare, -ETXTBSY},
 	{ERRlock, -EACCES},
 	{ERRunsup, -EINVAL},
