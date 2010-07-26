@@ -1735,11 +1735,6 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff* skb)
     pdesc->NoEnc = 1;
     pdesc->SecType = 0x0;
     if (tcb_desc->bHwSec) {
-        static u8 tmp =0;
-        if (!tmp) {
-            printk("==>================hw sec\n");
-            tmp = 1;
-        }
         switch (priv->ieee80211->pairwise_key_type) {
             case KEY_TYPE_WEP40:
             case KEY_TYPE_WEP104:
