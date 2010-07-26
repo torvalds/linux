@@ -862,7 +862,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		buf[i++] = 0x35;	/* reg = global gain */
 		buf[i++] = 0x00;	/* val H */
 		buf[i++] = sensor->i2c_dum;
-		buf[i++] = sd->gain;	/* val L */
+		buf[i++] = 0x80 + sd->gain / 2; /* val L */
 		buf[i++] = 0x00;
 		buf[i++] = 0x00;
 		buf[i++] = 0x00;
