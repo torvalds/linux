@@ -105,8 +105,7 @@
 #define X16(x) X8(x), X8(x)
 
 enum {
-	Group1, Group1A, Group3_Byte, Group3, Group4, Group5, Group7,
-	Group8, Group9,
+	Group1, Group1A, Group3, Group4, Group5, Group7, Group8, Group9,
 };
 
 static u32 opcode_table[256] = {
@@ -217,7 +216,7 @@ static u32 opcode_table[256] = {
 	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
-	ImplicitOps | Priv, ImplicitOps, Group | Group3_Byte, Group | Group3,
+	ImplicitOps | Priv, ImplicitOps, ByteOp | Group | Group3, Group | Group3,
 	/* 0xF8 - 0xFF */
 	ImplicitOps, 0, ImplicitOps, ImplicitOps,
 	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
@@ -290,14 +289,10 @@ static u32 group_table[] = {
 	X7(Lock), 0,
 	[Group1A*8] =
 	DstMem | SrcNone | ModRM | Mov | Stack, 0, 0, 0, 0, 0, 0, 0,
-	[Group3_Byte*8] =
-	ByteOp | SrcImm | DstMem | ModRM, ByteOp | SrcImm | DstMem | ModRM,
-	ByteOp | DstMem | SrcNone | ModRM | Lock, ByteOp | DstMem | SrcNone | ModRM | Lock,
-	0, 0, 0, 0,
 	[Group3*8] =
 	DstMem | SrcImm | ModRM, DstMem | SrcImm | ModRM,
 	DstMem | SrcNone | ModRM | Lock, DstMem | SrcNone | ModRM | Lock,
-	0, 0, 0, 0,
+	X4(Undefined),
 	[Group4*8] =
 	ByteOp | DstMem | SrcNone | ModRM | Lock, ByteOp | DstMem | SrcNone | ModRM | Lock,
 	0, 0, 0, 0, 0, 0,
