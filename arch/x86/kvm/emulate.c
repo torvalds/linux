@@ -955,7 +955,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 	int mode = ctxt->mode;
-	int def_op_bytes, def_ad_bytes, group;
+	int def_op_bytes, def_ad_bytes, group, dual;
 
 
 	/* we cannot decode insn before we complete previous rep insn */
@@ -1055,14 +1055,16 @@ done_prefixes:
 
 	if (c->d & Group) {
 		group = c->d & GroupMask;
+		dual = c->d & GroupDual;
 		c->modrm = insn_fetch(u8, 1, c->eip);
 		--c->eip;
 
 		group = (group << 3) + ((c->modrm >> 3) & 7);
-		if ((c->d & GroupDual) && (c->modrm >> 6) == 3)
-			c->d = group2_table[group];
+		c->d &= ~(Group | GroupDual | GroupMask);
+		if (dual && (c->modrm >> 6) == 3)
+			c->d |= group2_table[group];
 		else
-			c->d = group_table[group];
+			c->d |= group_table[group];
 	}
 
 	/* Unrecognised? */
