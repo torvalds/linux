@@ -560,8 +560,8 @@ static int btrfs_test_super(struct super_block *s, void *data)
  * Note:  This is based on get_sb_bdev from fs/super.c with a few additions
  *	  for multiple device setup.  Make sure to keep it in sync.
  */
-static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
-		const char *dev_name, void *data, struct vfsmount *mnt)
+static struct dentry *btrfs_mount(struct file_system_type *fs_type, int flags,
+		const char *dev_name, void *data)
 {
 	struct block_device *bdev = NULL;
 	struct super_block *s;
@@ -580,7 +580,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 					  &subvol_name, &subvol_objectid,
 					  &fs_devices);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	error = btrfs_scan_one_device(dev_name, mode, fs_type, &fs_devices);
 	if (error)
@@ -656,11 +656,8 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		root = new_root;
 	}
 
-	mnt->mnt_sb = s;
-	mnt->mnt_root = root;
-
 	kfree(subvol_name);
-	return 0;
+	return root;
 
 error_s:
 	error = PTR_ERR(s);
@@ -669,7 +666,7 @@ error_close_devices:
 error_free_subvol_name:
 	kfree(subvol_name);
 error:
-	return error;
+	return ERR_PTR(error);
 }
 
 static int btrfs_remount(struct super_block *sb, int *flags, char *data)
@@ -746,7 +743,7 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 static struct file_system_type btrfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "btrfs",
-	.get_sb		= btrfs_get_sb,
+	.mount		= btrfs_mount,
 	.kill_sb	= kill_anon_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
