@@ -152,6 +152,10 @@ static int device_authorization(struct hdpvr_device *dev)
 			 ret, print_buf);
 	}
 #endif
+
+	v4l2_info(&dev->v4l2_dev, "firmware version 0x%x dated %s\n",
+			  dev->usbc_buf[1], &dev->usbc_buf[2]);
+
 	if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION) {
 		dev->flags &= ~HDPVR_FLAG_AC3_CAP;
 	} else if (dev->usbc_buf[1] == HDPVR_FIRMWARE_VERSION_AC3) {
