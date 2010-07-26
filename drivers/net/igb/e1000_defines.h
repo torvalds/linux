@@ -570,6 +570,10 @@
 
 #define NVM_82580_LAN_FUNC_OFFSET(a) (a ? (0x40 + (0x40 * a)) : 0)
 
+/* Mask bits for fields in Word 0x24 of the NVM */
+#define NVM_WORD24_COM_MDIO         0x0008 /* MDIO interface shared */
+#define NVM_WORD24_EXT_MDIO         0x0004 /* MDIO accesses routed external */
+
 /* Mask bits for fields in Word 0x0f of the NVM */
 #define NVM_WORD0F_PAUSE_MASK       0x3000
 #define NVM_WORD0F_ASM_DIR          0x2000

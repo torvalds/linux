@@ -1549,6 +1549,43 @@ out:
 }
 
 /**
+ *  igb_reset_mdicnfg_82580 - Reset MDICNFG destination and com_mdio bits
+ *  @hw: pointer to the HW structure
+ *
+ *  This resets the the MDICNFG.Destination and MDICNFG.Com_MDIO bits based on
+ *  the values found in the EEPROM.  This addresses an issue in which these
+ *  bits are not restored from EEPROM after reset.
+ **/
+static s32 igb_reset_mdicnfg_82580(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+	u32 mdicnfg;
+	u16 nvm_data;
+
+	if (hw->mac.type != e1000_82580)
+		goto out;
+	if (!igb_sgmii_active_82575(hw))
+		goto out;
+
+	ret_val = hw->nvm.ops.read(hw, NVM_INIT_CONTROL3_PORT_A +
+				   NVM_82580_LAN_FUNC_OFFSET(hw->bus.func), 1,
+				   &nvm_data);
+	if (ret_val) {
+		hw_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	mdicnfg = rd32(E1000_MDICNFG);
+	if (nvm_data & NVM_WORD24_EXT_MDIO)
+		mdicnfg |= E1000_MDICNFG_EXT_MDIO;
+	if (nvm_data & NVM_WORD24_COM_MDIO)
+		mdicnfg |= E1000_MDICNFG_COM_MDIO;
+	wr32(E1000_MDICNFG, mdicnfg);
+out:
+	return ret_val;
+}
+
+/**
  *  igb_reset_hw_82580 - Reset hardware
  *  @hw: pointer to the HW structure
  *
@@ -1622,6 +1659,10 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 	/* Clear any pending interrupt events. */
 	wr32(E1000_IMC, 0xffffffff);
 	icr = rd32(E1000_ICR);
+
+	ret_val = igb_reset_mdicnfg_82580(hw);
+	if (ret_val)
+		hw_dbg("Could not reset MDICNFG based on EEPROM\n");
 
 	/* Install any alternate MAC address into RAR0 */
 	ret_val = igb_check_alt_mac_addr(hw);
