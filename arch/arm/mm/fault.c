@@ -607,6 +607,17 @@ static int __init exceptions_init(void)
 				"I-cache maintenance fault");
 	}
 
+	if (cpu_architecture() >= CPU_ARCH_ARMv7) {
+		/*
+		 * TODO: Access flag faults introduced in ARMv6K.
+		 * Runtime check for 'K' extension is needed
+		 */
+		hook_fault_code(3, do_bad, SIGSEGV, SEGV_MAPERR,
+				"section access flag fault");
+		hook_fault_code(6, do_bad, SIGSEGV, SEGV_MAPERR,
+				"section access flag fault");
+	}
+
 	return 0;
 }
 

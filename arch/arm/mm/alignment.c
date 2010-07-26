@@ -926,8 +926,18 @@ static int __init alignment_init(void)
 
 	hook_fault_code(1, do_alignment, SIGBUS, BUS_ADRALN,
 			"alignment exception");
-	hook_fault_code(3, do_alignment, SIGBUS, BUS_ADRALN,
-			"alignment exception");
+
+	/*
+	 * ARMv6K and ARMv7 use fault status 3 (0b00011) as Access Flag section
+	 * fault, not as alignment error.
+	 *
+	 * TODO: handle ARMv6K properly. Runtime check for 'K' extension is
+	 * needed.
+	 */
+	if (cpu_architecture() <= CPU_ARCH_ARMv6) {
+		hook_fault_code(3, do_alignment, SIGBUS, BUS_ADRALN,
+				"alignment exception");
+	}
 
 	return 0;
 }
