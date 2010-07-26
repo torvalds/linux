@@ -5650,8 +5650,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_sw_init;
 
-	err = -EIO;
-
 	memcpy(&hw->mac.ops, ei->mac_ops, sizeof(hw->mac.ops));
 	memcpy(&hw->nvm.ops, ei->nvm_ops, sizeof(hw->nvm.ops));
 	memcpy(&hw->phy.ops, ei->phy_ops, sizeof(hw->phy.ops));
