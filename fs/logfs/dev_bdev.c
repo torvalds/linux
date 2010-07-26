@@ -298,9 +298,9 @@ static int bdev_write_sb(struct super_block *sb, struct page *page)
 	return sync_request(page, bdev, WRITE);
 }
 
-static void bdev_put_device(struct super_block *sb)
+static void bdev_put_device(struct logfs_super *s)
 {
-	close_bdev_exclusive(logfs_super(sb)->s_bdev, FMODE_READ|FMODE_WRITE);
+	close_bdev_exclusive(s->s_bdev, FMODE_READ|FMODE_WRITE);
 }
 
 static int bdev_can_write_buf(struct super_block *sb, u64 ofs)

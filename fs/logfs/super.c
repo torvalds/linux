@@ -529,7 +529,7 @@ static void logfs_kill_sb(struct super_block *sb)
 	logfs_cleanup_rw(sb);
 	if (super->s_erase_page)
 		__free_page(super->s_erase_page);
-	super->s_devops->put_device(sb);
+	super->s_devops->put_device(super);
 	logfs_mempool_destroy(super->s_btree_pool);
 	logfs_mempool_destroy(super->s_alias_pool);
 	kfree(super);
@@ -586,8 +586,8 @@ err1:
 	deactivate_locked_super(sb);
 	return err;
 err0:
+	super->s_devops->put_device(super);
 	kfree(super);
-	//devops->put_device(sb);
 	return err;
 }
 

@@ -136,6 +136,7 @@ struct logfs_area_ops {
 	int	(*erase_segment)(struct logfs_area *area);
 };
 
+struct logfs_super;	/* forward */
 /**
  * struct logfs_device_ops - device access operations
  *
@@ -156,7 +157,7 @@ struct logfs_device_ops {
 			int ensure_write);
 	int (*can_write_buf)(struct super_block *sb, u64 ofs);
 	void (*sync)(struct super_block *sb);
-	void (*put_device)(struct super_block *sb);
+	void (*put_device)(struct logfs_super *s);
 };
 
 /**

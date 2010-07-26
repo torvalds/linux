@@ -230,9 +230,9 @@ static void mtd_writeseg(struct super_block *sb, u64 ofs, size_t len)
 	__mtd_writeseg(sb, ofs, ofs >> PAGE_SHIFT, len >> PAGE_SHIFT);
 }
 
-static void mtd_put_device(struct super_block *sb)
+static void mtd_put_device(struct logfs_super *s)
 {
-	put_mtd_device(logfs_super(sb)->s_mtd);
+	put_mtd_device(s->s_mtd);
 }
 
 static int mtd_can_write_buf(struct super_block *sb, u64 ofs)
