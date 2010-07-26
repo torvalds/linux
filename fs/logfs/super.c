@@ -325,7 +325,7 @@ static int logfs_make_writeable(struct super_block *sb)
 	return 0;
 }
 
-static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
+static int logfs_get_sb_final(struct super_block *sb)
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct inode *rootdir;
@@ -356,7 +356,6 @@ static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 	}
 
 	log_super("LogFS: Finished mounting\n");
-	simple_set_mnt(mnt, sb);
 	return 0;
 
 fail:
@@ -536,9 +535,8 @@ static void logfs_kill_sb(struct super_block *sb)
 	log_super("LogFS: Finished unmounting\n");
 }
 
-int logfs_get_sb_device(struct logfs_super *super,
-		struct file_system_type *type, int flags,
-		struct vfsmount *mnt)
+static struct dentry *logfs_get_sb_device(struct logfs_super *super,
+		struct file_system_type *type, int flags)
 {
 	struct super_block *sb;
 	int err = -ENOMEM;
@@ -548,14 +546,17 @@ int logfs_get_sb_device(struct logfs_super *super,
 
 	err = -EINVAL;
 	sb = sget(type, logfs_sb_test, logfs_sb_set, super);
-	if (IS_ERR(sb))
-		goto err0;
+	if (IS_ERR(sb)) {
+		super->s_devops->put_device(super);
+		kfree(super);
+		return ERR_CAST(sb);
+	}
 
 	if (sb->s_root) {
 		/* Device is already in use */
-		err = 0;
-		simple_set_mnt(mnt, sb);
-		goto err0;
+		super->s_devops->put_device(super);
+		kfree(super);
+		return dget(sb->s_root);
 	}
 
 	/*
@@ -573,10 +574,12 @@ int logfs_get_sb_device(struct logfs_super *super,
 		goto err1;
 
 	sb->s_flags |= MS_ACTIVE;
-	err = logfs_get_sb_final(sb, mnt);
-	if (err)
+	err = logfs_get_sb_final(sb);
+	if (err) {
 		deactivate_locked_super(sb);
-	return err;
+		return ERR_PTR(err);
+	}
+	return dget(sb->s_root);
 
 err1:
 	/* no ->s_root, no ->put_super() */
@@ -584,15 +587,11 @@ err1:
 	iput(super->s_segfile_inode);
 	iput(super->s_mapping_inode);
 	deactivate_locked_super(sb);
-	return err;
-err0:
-	super->s_devops->put_device(super);
-	kfree(super);
-	return err;
+	return ERR_PTR(err);
 }
 
-static int logfs_get_sb(struct file_system_type *type, int flags,
-		const char *devname, void *data, struct vfsmount *mnt)
+static struct dentry *logfs_mount(struct file_system_type *type, int flags,
+		const char *devname, void *data)
 {
 	ulong mtdnr;
 	struct logfs_super *super;
@@ -600,7 +599,7 @@ static int logfs_get_sb(struct file_system_type *type, int flags,
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	if (!devname)
 		err = logfs_get_sb_bdev(super, type, devname);
@@ -617,16 +616,16 @@ static int logfs_get_sb(struct file_system_type *type, int flags,
 
 	if (err) {
 		kfree(super);
-		return err;
+		return ERR_PTR(err);
 	}
 
-	return logfs_get_sb_device(super, type, flags, mnt);
+	return logfs_get_sb_device(super, type, flags);
 }
 
 static struct file_system_type logfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "logfs",
-	.get_sb		= logfs_get_sb,
+	.mount		= logfs_mount,
 	.kill_sb	= logfs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 
