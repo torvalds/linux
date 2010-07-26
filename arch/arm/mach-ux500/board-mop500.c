@@ -78,7 +78,7 @@ static struct spi_board_info u8500_spi_devices[] = {
 		.bus_num = 0,
 		.chip_select = 0,
 		.mode = SPI_MODE_0,
-		.irq = IRQ_AB4500,
+		.irq = IRQ_DB8500_AB8500,
 	},
 };
 
