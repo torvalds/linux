@@ -885,6 +885,9 @@ static void hists__remove_entry_filter(struct hists *self, struct hist_entry *h,
 		return;
 
 	++self->nr_entries;
+	if (h->ms.unfolded)
+		self->nr_entries += h->nr_rows;
+	h->row_offset = 0;
 	self->stats.total_period += h->period;
 	self->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
 

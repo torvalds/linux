@@ -102,6 +102,8 @@ struct ref_reloc_sym {
 struct map_symbol {
 	struct map    *map;
 	struct symbol *sym;
+	bool	      unfolded;
+	bool	      has_children;
 };
 
 struct addr_location {

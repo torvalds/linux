@@ -38,6 +38,12 @@ extern struct sort_entry sort_sym;
 extern struct sort_entry sort_parent;
 extern enum sort_type sort__first_dimension;
 
+/**
+ * struct hist_entry - histogram entry
+ *
+ * @row_offset - offset from the first callchain expanded to appear on screen
+ * @nr_rows - rows expanded in callchain, recalculated on folding/unfolding
+ */
 struct hist_entry {
 	struct rb_node		rb_node;
 	u64			period;
@@ -50,6 +56,12 @@ struct hist_entry {
 	u64			ip;
 	s32			cpu;
 	u32			nr_events;
+
+	/* XXX These two should move to some tree widget lib */
+	u16			row_offset;
+	u16			nr_rows;
+
+	bool			init_have_children;
 	char			level;
 	u8			filtered;
 	struct symbol		*parent;
