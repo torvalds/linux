@@ -185,14 +185,15 @@ static void flush(struct rk2818_spi *dws)
 
 static void null_cs_control(u32 command)
 {
-		if(command == 2)	
-			gpio_direction_output(RK2818_PIN_PB0,GPIO_LOW);
-		else if(command == 1)
-			gpio_direction_output(RK2818_PIN_PB4,GPIO_LOW);
-		else{
-			gpio_direction_output(RK2818_PIN_PB0,GPIO_HIGH);
-			gpio_direction_output(RK2818_PIN_PB4,GPIO_HIGH);
-		}
+    //printk("null_cs_control [%d]\n", command);
+	if(command == 2)	
+		gpio_direction_output(RK2818_PIN_PB0,GPIO_LOW);
+	else if(command == 1)
+		gpio_direction_output(RK2818_PIN_PB4,GPIO_LOW);
+	else{
+		gpio_direction_output(RK2818_PIN_PB0,GPIO_HIGH);
+		gpio_direction_output(RK2818_PIN_PB4,GPIO_HIGH);
+	}
 }
 
 static int null_writer(struct rk2818_spi *dws)
@@ -436,7 +437,7 @@ static void spi_chip_sel(struct rk2818_spi *dws, u16 cs)
 	if (dws->cs_control){
 	    dws->cs_control(cs+1);
 	}
-	//rk2818_writel(dws, SPIM_SER, 1 << cs);
+	rk2818_writel(dws, SPIM_SER, 1 << cs);
 }
 
 static void pump_transfers(unsigned long data)
@@ -655,7 +656,7 @@ static void pump_messages(struct work_struct *work)
 						struct spi_transfer,
 						transfer_list);
 	dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
-    dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
+    //dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
     
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&dws->pump_transfers);
