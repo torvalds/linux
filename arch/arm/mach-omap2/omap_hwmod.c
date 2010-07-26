@@ -886,7 +886,7 @@ static int _reset(struct omap_hwmod *oh)
 }
 
 /**
- * _enable - enable an omap_hwmod
+ * _omap_hwmod_enable - enable an omap_hwmod
  * @oh: struct omap_hwmod *
  *
  * Enables an omap_hwmod @oh such that the MPU can access the hwmod's
@@ -894,7 +894,7 @@ static int _reset(struct omap_hwmod *oh)
  * Returns -EINVAL if the hwmod is in the wrong state or passes along
  * the return value of _wait_target_ready().
  */
-static int _enable(struct omap_hwmod *oh)
+int _omap_hwmod_enable(struct omap_hwmod *oh)
 {
 	int r;
 
@@ -939,7 +939,7 @@ static int _enable(struct omap_hwmod *oh)
  * no further work.  Returns -EINVAL if the hwmod is in the wrong
  * state or returns 0.
  */
-static int _idle(struct omap_hwmod *oh)
+int _omap_hwmod_idle(struct omap_hwmod *oh)
 {
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
 		WARN(1, "omap_hwmod: %s: idle state can only be entered from "
@@ -1029,7 +1029,7 @@ static int _setup(struct omap_hwmod *oh)
 
 	oh->_state = _HWMOD_STATE_INITIALIZED;
 
-	r = _enable(oh);
+	r = _omap_hwmod_enable(oh);
 	if (r) {
 		pr_warning("omap_hwmod: %s: cannot be enabled (%d)\n",
 			   oh->name, oh->_state);
@@ -1041,7 +1041,7 @@ static int _setup(struct omap_hwmod *oh)
 		 * XXX Do the OCP_SYSCONFIG bits need to be
 		 * reprogrammed after a reset?  If not, then this can
 		 * be removed.  If they do, then probably the
-		 * _enable() function should be split to avoid the
+		 * _omap_hwmod_enable() function should be split to avoid the
 		 * rewrite of the OCP_SYSCONFIG register.
 		 */
 		if (oh->class->sysc) {
@@ -1051,7 +1051,7 @@ static int _setup(struct omap_hwmod *oh)
 	}
 
 	if (!(oh->flags & HWMOD_INIT_NO_IDLE))
-		_idle(oh);
+		_omap_hwmod_idle(oh);
 
 	return 0;
 }
@@ -1292,11 +1292,12 @@ int omap_hwmod_enable(struct omap_hwmod *oh)
 		return -EINVAL;
 
 	mutex_lock(&omap_hwmod_mutex);
-	r = _enable(oh);
+	r = _omap_hwmod_enable(oh);
 	mutex_unlock(&omap_hwmod_mutex);
 
 	return r;
 }
+
 
 /**
  * omap_hwmod_idle - idle an omap_hwmod
@@ -1311,7 +1312,7 @@ int omap_hwmod_idle(struct omap_hwmod *oh)
 		return -EINVAL;
 
 	mutex_lock(&omap_hwmod_mutex);
-	_idle(oh);
+	_omap_hwmod_idle(oh);
 	mutex_unlock(&omap_hwmod_mutex);
 
 	return 0;
@@ -1413,7 +1414,7 @@ int omap_hwmod_reset(struct omap_hwmod *oh)
 	mutex_lock(&omap_hwmod_mutex);
 	r = _reset(oh);
 	if (!r)
-		r = _enable(oh);
+		r = _omap_hwmod_enable(oh);
 	mutex_unlock(&omap_hwmod_mutex);
 
 	return r;
