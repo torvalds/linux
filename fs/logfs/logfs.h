@@ -472,29 +472,23 @@ void logfs_compr_exit(void);
 /* dev_bdev.c */
 #ifdef CONFIG_BLOCK
 int logfs_get_sb_bdev(struct logfs_super *s,
-		struct file_system_type *type, int flags,
-		const char *devname, struct vfsmount *mnt);
+		struct file_system_type *type,
+		const char *devname);
 #else
 static inline int logfs_get_sb_bdev(struct logfs_super *s,
-		struct file_system_type *type, int flags,
-		const char *devname, struct vfsmount *mnt)
+		struct file_system_type *type,
+		const char *devname)
 {
-	kfree(s);
 	return -ENODEV;
 }
 #endif
 
 /* dev_mtd.c */
 #ifdef CONFIG_MTD
-int logfs_get_sb_mtd(struct logfs_super *s,
-		struct file_system_type *type, int flags,
-		int mtdnr, struct vfsmount *mnt);
+int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr)
 #else
-static inline int logfs_get_sb_mtd(struct logfs_super *s,
-		struct file_system_type *type, int flags,
-		int mtdnr, struct vfsmount *mnt)
+static inline int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr)
 {
-	kfree(s);
 	return -ENODEV;
 }
 #endif

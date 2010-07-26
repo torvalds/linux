@@ -596,26 +596,31 @@ static int logfs_get_sb(struct file_system_type *type, int flags,
 {
 	ulong mtdnr;
 	struct logfs_super *super;
+	int err;
 
 	super = kzalloc(sizeof(*super), GFP_KERNEL);
 	if (!super)
 		return -ENOMEM;
 
 	if (!devname)
-		return logfs_get_sb_bdev(super, type, flags, devname, mnt);
-	if (strncmp(devname, "mtd", 3))
-		return logfs_get_sb_bdev(super, type, flags, devname, mnt);
-
-	{
+		err = logfs_get_sb_bdev(super, type, devname);
+	else if (strncmp(devname, "mtd", 3))
+		err = logfs_get_sb_bdev(super, type, devname);
+	else {
 		char *garbage;
 		mtdnr = simple_strtoul(devname+3, &garbage, 0);
-		if (*garbage) {
-			kfree(super);
-			return -EINVAL;
-		}
+		if (*garbage)
+			err = -EINVAL;
+		else
+			err = logfs_get_sb_mtd(super, mtdnr);
 	}
 
-	return logfs_get_sb_mtd(super, type, flags, mtdnr, mnt);
+	if (err) {
+		kfree(super);
+		return err;
+	}
+
+	return logfs_get_sb_device(super, type, flags, mnt);
 }
 
 static struct file_system_type logfs_fs_type = {

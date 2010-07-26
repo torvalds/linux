@@ -265,18 +265,14 @@ static const struct logfs_device_ops mtd_devops = {
 	.put_device	= mtd_put_device,
 };
 
-int logfs_get_sb_mtd(struct logfs_super *s,
-		struct file_system_type *type, int flags,
-		int mtdnr, struct vfsmount *mnt)
+int logfs_get_sb_mtd(struct logfs_super *s, int mtdnr)
 {
 	struct mtd_info *mtd = get_mtd_device(NULL, mtdnr);
-	if (IS_ERR(mtd)) {
-		kfree(s);
+	if (IS_ERR(mtd))
 		return PTR_ERR(mtd);
-	}
 
 	s->s_bdev = NULL;
 	s->s_mtd = mtd;
 	s->s_devops = &mtd_devops;
-	return logfs_get_sb_device(s, type, flags, mnt);
+	return 0;
 }

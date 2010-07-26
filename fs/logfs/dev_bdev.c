@@ -9,7 +9,6 @@
 #include <linux/bio.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
-#include <linux/slab.h>
 #include <linux/gfp.h>
 
 #define PAGE_OFS(ofs) ((ofs) & (PAGE_SIZE-1))
@@ -321,27 +320,23 @@ static const struct logfs_device_ops bd_devops = {
 	.put_device	= bdev_put_device,
 };
 
-int logfs_get_sb_bdev(struct logfs_super *p,
-		struct file_system_type *type, int flags,
-		const char *devname, struct vfsmount *mnt)
+int logfs_get_sb_bdev(struct logfs_super *p, struct file_system_type *type,
+		const char *devname)
 {
 	struct block_device *bdev;
 
 	bdev = open_bdev_exclusive(devname, FMODE_READ|FMODE_WRITE, type);
-	if (IS_ERR(bdev)) {
-		kfree(p);
+	if (IS_ERR(bdev))
 		return PTR_ERR(bdev);
-	}
 
 	if (MAJOR(bdev->bd_dev) == MTD_BLOCK_MAJOR) {
 		int mtdnr = MINOR(bdev->bd_dev);
 		close_bdev_exclusive(bdev, FMODE_READ|FMODE_WRITE);
-		return logfs_get_sb_mtd(p, type, flags, mtdnr, mnt);
+		return logfs_get_sb_mtd(p, mtdnr);
 	}
 
 	p->s_bdev = bdev;
 	p->s_mtd = NULL;
 	p->s_devops = &bd_devops;
-
-	return logfs_get_sb_device(p, type, flags, mnt);
+	return 0;
 }
