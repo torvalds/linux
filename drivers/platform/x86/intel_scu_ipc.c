@@ -23,7 +23,7 @@
 #include <linux/pm.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <asm/setup.h>
+#include <asm/mrst.h>
 #include <asm/intel_scu_ipc.h>
 
 /* IPC defines the following message types */
@@ -78,12 +78,9 @@ struct intel_scu_ipc_dev {
 
 static struct intel_scu_ipc_dev  ipcdev; /* Only one for now */
 
-static int platform = 1;
-module_param(platform, int, 0);
-MODULE_PARM_DESC(platform, "1 for moorestown platform");
-
-
-
+#define PLATFORM_LANGWELL 1
+#define PLATFORM_PENWELL 2
+static int platform;		/* Platform type */
 
 /*
  * IPC Read Buffer (Read Only):
@@ -817,6 +814,14 @@ static struct pci_driver ipc_driver = {
 
 static int __init intel_scu_ipc_init(void)
 {
+	if (boot_cpu_data.x86 == 6 &&
+		boot_cpu_data.x86_model == 0x27 &&
+		boot_cpu_data.x86_mask == 1)
+			platform = PLATFORM_PENWELL;
+	else if (boot_cpu_data.x86 == 6 &&
+		boot_cpu_data.x86_model == 0x26)
+			platform = PLATFORM_LANGWELL;
+
 	return  pci_register_driver(&ipc_driver);
 }
 
