@@ -38,10 +38,6 @@
 #define IPC_CMD_PCNTRL_R      1 /* Register read */
 #define IPC_CMD_PCNTRL_M      2 /* Register read-modify-write */
 
-/* Miscelaneous Command ids */
-#define IPC_CMD_INDIRECT_RD   2 /* 32bit indirect read */
-#define IPC_CMD_INDIRECT_WR   5 /* 32bit indirect write */
-
 /*
  * IPC register summary
  *
