@@ -79,7 +79,6 @@ static int proc_get_sb(struct file_system_type *fs_type,
 		}
 
 		sb->s_flags |= MS_ACTIVE;
-		ns->proc_mnt = mnt;
 	}
 
 	simple_set_mnt(mnt, sb);
@@ -115,6 +114,7 @@ void __init proc_root_init(void)
 		return;
 	}
 
+	init_pid_ns.proc_mnt = proc_mnt;
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();
@@ -213,6 +213,7 @@ int pid_ns_prepare_proc(struct pid_namespace *ns)
 	if (IS_ERR(mnt))
 		return PTR_ERR(mnt);
 
+	ns->proc_mnt = mnt;
 	return 0;
 }
 
