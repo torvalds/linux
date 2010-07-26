@@ -154,7 +154,7 @@ static inline int busy_loop(void) /* Wait till scu status is busy */
 /* Read/Write power control(PMIC in Langwell, MSIC in PenWell) registers */
 static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 {
-	int i, nc, bytes;
+	int i, nc, bytes, d;
 	u32 offset = 0;
 	u32 err = 0;
 	u8 cbuf[IPC_WWBUF_SIZE] = { };
@@ -171,15 +171,16 @@ static int pwr_reg_rdwr(u16 *addr, u8 *data, u32 count, u32 op, u32 id)
 
 	if (platform != MRST_CPU_CHIP_PENWELL) {
 		bytes = 0;
-		for(i=0; i<count; i++) {
+		d = 0;
+		for (i = 0; i < count; i++) {
 			cbuf[bytes++] = addr[i];
 			cbuf[bytes++] = addr[i] >> 8;
 			if (id != IPC_CMD_PCNTRL_R)
-				cbuf[bytes++] = data[i];
+				cbuf[bytes++] = data[d++];
 			if (id == IPC_CMD_PCNTRL_M)
-				cbuf[bytes++] = data[i + 1];
+				cbuf[bytes++] = data[d++];
 		}
-		for(i=0; i<bytes; i+=4)
+		for (i = 0; i < bytes; i += 4)
 			ipc_data_writel(wbuf[i/4], i);
 		ipc_command(bytes << 16 |  id << 12 | 0 << 8 | op);
 	} else {
