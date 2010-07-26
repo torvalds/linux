@@ -380,6 +380,9 @@ nv50_display_init(struct drm_device *dev)
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
 
+		if (conn->dcb->gpio_tag == 0xff)
+			continue;
+
 		pgpio->irq_enable(dev, conn->dcb->gpio_tag, true);
 	}
 
