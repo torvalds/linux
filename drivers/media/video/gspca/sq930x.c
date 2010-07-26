@@ -1111,7 +1111,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 				ARRAY_SIZE(mt9v111_init_2));
 		ucbus_write(gspca_dev, mt9v111_start_1,
 				ARRAY_SIZE(mt9v111_start_1),
-				8);
+				5);
 		i2c_write(sd, mt9v111_init_3,
 				ARRAY_SIZE(mt9v111_init_3));
 		i2c_write(sd, mt9v111_init_4,
