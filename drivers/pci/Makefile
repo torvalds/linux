@@ -55,6 +55,9 @@ obj-$(CONFIG_MICROBLAZE) += setup-bus.o
 #
 obj-$(CONFIG_ACPI)    += pci-acpi.o
 
+# SMBIOS provided firmware instance and labels
+obj-$(CONFIG_DMI)    += pci-label.o
+
 # Cardbus & CompactPCI use setup-bus
 obj-$(CONFIG_HOTPLUG) += setup-bus.o
 

@@ -11,6 +11,15 @@
 extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
+#ifndef CONFIG_DMI
+static inline void pci_create_firmware_label_files(struct pci_dev *pdev)
+{ return 0; }
+static inline void pci_remove_firmware_label_files(struct pci_dev *pdev)
+{ return 0; }
+#else
+extern void pci_create_firmware_label_files(struct pci_dev *pdev);
+extern void pci_remove_firmware_label_files(struct pci_dev *pdev);
+#endif
 extern void pci_cleanup_rom(struct pci_dev *dev);
 #ifdef HAVE_PCI_MMAP
 extern int pci_mmap_fits(struct pci_dev *pdev, int resno,
