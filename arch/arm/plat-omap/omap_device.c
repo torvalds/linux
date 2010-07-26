@@ -1,7 +1,7 @@
 /*
  * omap_device implementation
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009-2010 Nokia Corporation
  * Paul Walmsley, Kevin Hilman
  *
  * Developed in collaboration with (alphabetical order): Benoit
@@ -90,8 +90,11 @@
 #define USE_WAKEUP_LAT			0
 #define IGNORE_WAKEUP_LAT		1
 
-
-#define OMAP_DEVICE_MAGIC 0xf00dcafe
+/*
+ * OMAP_DEVICE_MAGIC: used to determine whether a struct omap_device
+ * obtained via container_of() is in fact a struct omap_device
+ */
+#define OMAP_DEVICE_MAGIC		 0xf00dcafe
 
 /* Private functions */
 

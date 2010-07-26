@@ -423,7 +423,7 @@ static int _init_main_clk(struct omap_hwmod *oh)
 }
 
 /**
- * _init_interface_clk - get a struct clk * for the the hwmod's interface clks
+ * _init_interface_clks - get a struct clk * for the the hwmod's interface clks
  * @oh: struct omap_hwmod *
  *
  * Called from _init_clocks().  Populates the @oh OCP slave interface
@@ -1077,6 +1077,21 @@ void omap_hwmod_writel(u32 v, struct omap_hwmod *oh, u16 reg_offs)
 	__raw_writel(v, oh->_mpu_rt_va + reg_offs);
 }
 
+/**
+ * omap_hwmod_set_slave_idlemode - set the hwmod's OCP slave idlemode
+ * @oh: struct omap_hwmod *
+ * @idlemode: SIDLEMODE field bits (shifted to bit 0)
+ *
+ * Sets the IP block's OCP slave idlemode in hardware, and updates our
+ * local copy.  Intended to be used by drivers that have some erratum
+ * that requires direct manipulation of the SIDLEMODE bits.  Returns
+ * -EINVAL if @oh is null, or passes along the return value from
+ * _set_slave_idlemode().
+ *
+ * XXX Does this function have any current users?  If not, we should
+ * remove it; it is better to let the rest of the hwmod code handle this.
+ * Any users of this function should be scrutinized carefully.
+ */
 int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode)
 {
 	u32 v;
