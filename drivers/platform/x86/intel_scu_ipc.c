@@ -116,24 +116,6 @@ static inline void ipc_data_writel(u32 data, u32 offset) /* Write ipc data */
 }
 
 /*
- * IPC destination Pointer (Write Only):
- * Use content as pointer for destination write
- */
-static inline void ipc_write_dptr(u32 data) /* Write dptr data */
-{
-	writel(data, ipcdev.ipc_base + 0x0C);
-}
-
-/*
- * IPC Source Pointer (Write Only):
- * Use content as pointer for read location
-*/
-static inline void ipc_write_sptr(u32 data) /* Write dptr data */
-{
-	writel(data, ipcdev.ipc_base + 0x08);
-}
-
-/*
  * Status Register (Read Only):
  * Driver will read this register to get the ready/busy status of the IPC
  * block and error status of the IPC command that was just processed by SCU
@@ -412,70 +394,6 @@ int intel_scu_ipc_update_register(u16 addr, u8 bits, u8 mask)
 	return pwr_reg_rdwr(&addr, data, 1, IPCMSG_PCNTRL, IPC_CMD_PCNTRL_M);
 }
 EXPORT_SYMBOL(intel_scu_ipc_update_register);
-
-/**
- *	intel_scu_ipc_register_read	-	32bit indirect read
- *	@addr: register address
- *	@value: 32bit value return
- *
- *	Performs IA 32 bit indirect read, returns 0 on success, or an
- *	error code.
- *
- *	Can be used when SCCB(System Controller Configuration Block) register
- *	HRIM(Honor Restricted IPC Messages) is set (bit 23)
- *
- *	This function may sleep. Locking for SCU accesses is handled for
- *	the caller.
- */
-int intel_scu_ipc_register_read(u32 addr, u32 *value)
-{
-	u32 err = 0;
-
-	mutex_lock(&ipclock);
-	if (ipcdev.pdev == NULL) {
-		mutex_unlock(&ipclock);
-		return -ENODEV;
-	}
-	ipc_write_sptr(addr);
-	ipc_command(4 << 16 | IPC_CMD_INDIRECT_RD);
-	err = busy_loop();
-	*value = ipc_data_readl(0);
-	mutex_unlock(&ipclock);
-	return err;
-}
-EXPORT_SYMBOL(intel_scu_ipc_register_read);
-
-/**
- *	intel_scu_ipc_register_write	-	32bit indirect write
- *	@addr: register address
- *	@value: 32bit value to write
- *
- *	Performs IA 32 bit indirect write, returns 0 on success, or an
- *	error code.
- *
- *	Can be used when SCCB(System Controller Configuration Block) register
- *	HRIM(Honor Restricted IPC Messages) is set (bit 23)
- *
- *	This function may sleep. Locking for SCU accesses is handled for
- *	the caller.
- */
-int intel_scu_ipc_register_write(u32 addr, u32 value)
-{
-	u32 err = 0;
-
-	mutex_lock(&ipclock);
-	if (ipcdev.pdev == NULL) {
-		mutex_unlock(&ipclock);
-		return -ENODEV;
-	}
-	ipc_write_dptr(addr);
-	ipc_data_writel(value, 0);
-	ipc_command(4 << 16 | IPC_CMD_INDIRECT_WR);
-	err = busy_loop();
-	mutex_unlock(&ipclock);
-	return err;
-}
-EXPORT_SYMBOL(intel_scu_ipc_register_write);
 
 /**
  *	intel_scu_ipc_simple_command	-	send a simple command

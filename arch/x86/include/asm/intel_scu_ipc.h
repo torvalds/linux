@@ -34,20 +34,6 @@ int intel_scu_ipc_writev(u16 *addr, u8 *data, int len);
 /* Update single register based on the mask */
 int intel_scu_ipc_update_register(u16 addr, u8 data, u8 mask);
 
-/*
- * Indirect register read
- * Can be used when SCCB(System Controller Configuration Block) register
- * HRIM(Honor Restricted IPC Messages) is set (bit 23)
- */
-int intel_scu_ipc_register_read(u32 addr, u32 *data);
-
-/*
- * Indirect register write
- * Can be used when SCCB(System Controller Configuration Block) register
- * HRIM(Honor Restricted IPC Messages) is set (bit 23)
- */
-int intel_scu_ipc_register_write(u32 addr, u32 data);
-
 /* Issue commands to the SCU with or without data */
 int intel_scu_ipc_simple_command(int cmd, int sub);
 int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
