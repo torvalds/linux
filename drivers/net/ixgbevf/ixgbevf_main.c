@@ -2229,7 +2229,7 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	if (err) {
 		dev_info(&pdev->dev,
 		         "PF still in reset state, assigning new address\n");
-		random_ether_addr(hw->mac.addr);
+		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
 	} else {
 		err = hw->mac.ops.init_hw(hw);
 		if (err) {
