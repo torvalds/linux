@@ -1629,7 +1629,8 @@ update_amp_value(struct hda_codec *codec, hda_nid_t nid,
 
 	if (val > 0)
 		val += ofs;
-	maxval = get_amp_max_value(codec, nid, dir, ofs);
+	/* ofs = 0: raw max value */
+	maxval = get_amp_max_value(codec, nid, dir, 0);
 	if (val > maxval)
 		val = maxval;
 	return snd_hda_codec_amp_update(codec, nid, ch, dir, idx,
