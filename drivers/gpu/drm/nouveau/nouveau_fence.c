@@ -186,8 +186,6 @@ nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 	unsigned long timeout = jiffies + (3 * DRM_HZ);
 	int ret = 0;
 
-	__set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
-
 	while (1) {
 		if (nouveau_fence_signalled(sync_obj, sync_arg))
 			break;
@@ -197,6 +195,8 @@ nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 			break;
 		}
 
+		__set_current_state(intr ? TASK_INTERRUPTIBLE
+			: TASK_UNINTERRUPTIBLE);
 		if (lazy)
 			schedule_timeout(1);
 
