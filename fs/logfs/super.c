@@ -538,8 +538,7 @@ static void logfs_kill_sb(struct super_block *sb)
 
 int logfs_get_sb_device(struct logfs_super *super,
 		struct file_system_type *type, int flags,
-		struct mtd_info *mtd, struct block_device *bdev,
-		const struct logfs_device_ops *devops, struct vfsmount *mnt)
+		struct vfsmount *mnt)
 {
 	struct super_block *sb;
 	int err = -ENOMEM;
@@ -547,8 +546,6 @@ int logfs_get_sb_device(struct logfs_super *super,
 
 	log_super("LogFS: Start mount %x\n", mount_count++);
 
-	super->s_mtd	= mtd;
-	super->s_bdev	= bdev;
 	err = -EINVAL;
 	sb = sget(type, logfs_sb_test, logfs_sb_set, super);
 	if (IS_ERR(sb))
@@ -560,8 +557,6 @@ int logfs_get_sb_device(struct logfs_super *super,
 		simple_set_mnt(mnt, sb);
 		goto err0;
 	}
-
-	super->s_devops = devops;
 
 	/*
 	 * sb->s_maxbytes is limited to 8TB.  On 32bit systems, the page cache

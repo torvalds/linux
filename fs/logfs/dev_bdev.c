@@ -339,5 +339,9 @@ int logfs_get_sb_bdev(struct logfs_super *p,
 		return logfs_get_sb_mtd(p, type, flags, mtdnr, mnt);
 	}
 
-	return logfs_get_sb_device(p, type, flags, NULL, bdev, &bd_devops, mnt);
+	p->s_bdev = bdev;
+	p->s_mtd = NULL;
+	p->s_devops = &bd_devops;
+
+	return logfs_get_sb_device(p, type, flags, mnt);
 }

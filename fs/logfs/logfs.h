@@ -627,8 +627,7 @@ void *memchr_inv(const void *s, int c, size_t n);
 int logfs_statfs(struct dentry *dentry, struct kstatfs *stats);
 int logfs_get_sb_device(struct logfs_super *s,
 		struct file_system_type *type, int flags,
-		struct mtd_info *mtd, struct block_device *bdev,
-		const struct logfs_device_ops *devops, struct vfsmount *mnt);
+		struct vfsmount *mnt);
 int logfs_check_ds(struct logfs_disk_super *ds);
 int logfs_write_sb(struct super_block *sb);
 

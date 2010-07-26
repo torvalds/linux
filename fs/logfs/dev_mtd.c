@@ -269,13 +269,14 @@ int logfs_get_sb_mtd(struct logfs_super *s,
 		struct file_system_type *type, int flags,
 		int mtdnr, struct vfsmount *mnt)
 {
-	struct mtd_info *mtd;
-	const struct logfs_device_ops *devops = &mtd_devops;
-
-	mtd = get_mtd_device(NULL, mtdnr);
+	struct mtd_info *mtd = get_mtd_device(NULL, mtdnr);
 	if (IS_ERR(mtd)) {
 		kfree(s);
 		return PTR_ERR(mtd);
 	}
-	return logfs_get_sb_device(s, type, flags, mtd, NULL, devops, mnt);
+
+	s->s_bdev = NULL;
+	s->s_mtd = mtd;
+	s->s_devops = &mtd_devops;
+	return logfs_get_sb_device(s, type, flags, mnt);
 }
