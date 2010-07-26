@@ -204,7 +204,10 @@ static void rv770_mc_program(struct radeon_device *rdev)
 		WREG32((0x2c20 + j), 0x00000000);
 		WREG32((0x2c24 + j), 0x00000000);
 	}
-	WREG32(HDP_REG_COHERENCY_FLUSH_CNTL, 0);
+	/* r7xx hw bug.  Read from HDP_DEBUG1 rather
+	 * than writing to HDP_REG_COHERENCY_FLUSH_CNTL
+	 */
+	tmp = RREG32(HDP_DEBUG1);
 
 	rv515_mc_stop(rdev, &save);
 	if (r600_mc_wait_for_idle(rdev)) {

@@ -250,6 +250,7 @@
 #define	HDP_NONSURFACE_SIZE				0x2C0C
 #define HDP_REG_COHERENCY_FLUSH_CNTL			0x54A0
 #define	HDP_TILING_CONFIG				0x2F3C
+#define HDP_DEBUG1                                      0x2F34
 
 #define MC_VM_AGP_TOP					0x2184
 #define MC_VM_AGP_BOT					0x2188
