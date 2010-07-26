@@ -147,10 +147,8 @@ static u32 opcode_table[256] = {
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
 	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
 	0, 0,
-	/* 0x40 - 0x47 */
-	DstReg, DstReg, DstReg, DstReg, DstReg, DstReg, DstReg, DstReg,
-	/* 0x48 - 0x4F */
-	DstReg, DstReg, DstReg, DstReg,	DstReg, DstReg, DstReg, DstReg,
+	/* 0x40 - 0x4F */
+	X16(DstReg),
 	/* 0x50 - 0x57 */
 	SrcReg | Stack, SrcReg | Stack, SrcReg | Stack, SrcReg | Stack,
 	SrcReg | Stack, SrcReg | Stack, SrcReg | Stack, SrcReg | Stack,
