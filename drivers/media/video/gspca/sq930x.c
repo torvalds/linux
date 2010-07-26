@@ -48,7 +48,7 @@ enum sensors {
 	SENSOR_ICX098BQ,
 	SENSOR_LZ24BP,
 	SENSOR_MI0360,
-	SENSOR_MT9V111,
+	SENSOR_MT9V111,		/* = MI360SOC */
 	SENSOR_OV7660,
 	SENSOR_OV9630,
 };
@@ -279,7 +279,7 @@ static const struct i2c_write_cmd mt9v111_init_0[] = {
 	{0x01, 0x0001},		/* select IFP/SOC registers */
 	{0x06, 0x300c},		/* operating mode control */
 	{0x08, 0xcc00},		/* output format control (RGB) */
-	{0x01, 0x0004},		/* select core registers */
+	{0x01, 0x0004},		/* select sensor core registers */
 };
 static const struct i2c_write_cmd mt9v111_init_1[] = {
 	{0x03, 0x01e5},		/* window height */
@@ -321,6 +321,7 @@ static const struct ucbus_write_cmd ov9630_start_0[] = {
 	{0xf334, 0x3e}, {0xf335, 0xf8}, {0xf33f, 0x03}
 };
 
+/* start parameters indexed by [sensor][mode] */
 static const struct cap_s {
 	u8	cc_sizeid;
 	u8	cc_bytes[32];
@@ -923,11 +924,12 @@ static void send_start(struct gspca_dev *gspca_dev)
 	reg_wb(gspca_dev, 0x0900 | SQ930_CTRL_CAP_START,
 			0x0a00 | cap->cc_sizeid,
 			cap->cc_bytes, 32);
-};
+}
+
 static void send_stop(struct gspca_dev *gspca_dev)
 {
 	reg_w(gspca_dev, SQ930_CTRL_CAP_STOP, 0);
-};
+}
 
 /* function called at start time before URB creation */
 static int sd_isoc_init(struct gspca_dev *gspca_dev)
@@ -1014,7 +1016,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		/* 1st start */
 		send_start(gspca_dev);
 		msleep(60);
-		reg_w(gspca_dev, SQ930_CTRL_CAP_STOP, 0x0000);
+		send_stop(gspca_dev);
 
 		i2c_write(sd,
 			mi0360_start_4, ARRAY_SIZE(mi0360_start_4));
