@@ -30,6 +30,7 @@
  */
 
 static struct omap_hwmod omap2430_mpu_hwmod;
+static struct omap_hwmod omap2430_iva_hwmod;
 static struct omap_hwmod omap2430_l3_main_hwmod;
 static struct omap_hwmod omap2430_l4_core_hwmod;
 
@@ -70,8 +71,6 @@ static struct omap_hwmod omap2430_l3_main_hwmod = {
 };
 
 static struct omap_hwmod omap2430_l4_wkup_hwmod;
-static struct omap_hwmod omap2430_mmc1_hwmod;
-static struct omap_hwmod omap2430_mmc2_hwmod;
 
 /* L4_CORE -> L4_WKUP interface */
 static struct omap_hwmod_ocp_if omap2430_l4_core__l4_wkup = {
@@ -138,11 +137,40 @@ static struct omap_hwmod omap2430_mpu_hwmod = {
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430),
 };
 
+/*
+ * IVA2_1 interface data
+ */
+
+/* IVA2 <- L3 interface */
+static struct omap_hwmod_ocp_if omap2430_l3__iva = {
+	.master		= &omap2430_l3_main_hwmod,
+	.slave		= &omap2430_iva_hwmod,
+	.clk		= "dsp_fck",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_ocp_if *omap2430_iva_masters[] = {
+	&omap2430_l3__iva,
+};
+
+/*
+ * IVA2 (IVA2)
+ */
+
+static struct omap_hwmod omap2430_iva_hwmod = {
+	.name		= "iva",
+	.class		= &iva_hwmod_class,
+	.masters	= omap2430_iva_masters,
+	.masters_cnt	= ARRAY_SIZE(omap2430_iva_masters),
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP2430)
+};
+
 static __initdata struct omap_hwmod *omap2430_hwmods[] = {
 	&omap2430_l3_main_hwmod,
 	&omap2430_l4_core_hwmod,
 	&omap2430_l4_wkup_hwmod,
 	&omap2430_mpu_hwmod,
+	&omap2430_iva_hwmod,
 	NULL,
 };
 
