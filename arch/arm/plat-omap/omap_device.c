@@ -359,7 +359,7 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 	struct omap_device *od;
 	char *pdev_name2;
 	struct resource *res = NULL;
-	int res_count;
+	int i, res_count;
 	struct omap_hwmod **hwmods;
 
 	if (!ohs || oh_cnt == 0 || !pdev_name)
@@ -415,6 +415,9 @@ struct omap_device *omap_device_build_ss(const char *pdev_name, int pdev_id,
 		ret = omap_early_device_register(od);
 	else
 		ret = omap_device_register(od);
+
+	for (i = 0; i < oh_cnt; i++)
+		hwmods[i]->od = od;
 
 	if (ret)
 		goto odbs_exit4;
