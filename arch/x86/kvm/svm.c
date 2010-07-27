@@ -2371,6 +2371,7 @@ static int stgi_interception(struct vcpu_svm *svm)
 
 	svm->next_rip = kvm_rip_read(&svm->vcpu) + 3;
 	skip_emulated_instruction(&svm->vcpu);
+	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 
 	enable_gif(svm);
 
@@ -2763,6 +2764,7 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 {
 	struct kvm_run *kvm_run = svm->vcpu.run;
 
+	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 	svm_clear_vintr(svm);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	/*
@@ -3209,8 +3211,10 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 
 	svm->int3_injected = 0;
 
-	if (svm->vcpu.arch.hflags & HF_IRET_MASK)
+	if (svm->vcpu.arch.hflags & HF_IRET_MASK) {
 		svm->vcpu.arch.hflags &= ~(HF_NMI_MASK | HF_IRET_MASK);
+		kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
+	}
 
 	svm->vcpu.arch.nmi_injected = false;
 	kvm_clear_exception_queue(&svm->vcpu);
@@ -3218,6 +3222,8 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 
 	if (!(exitintinfo & SVM_EXITINTINFO_VALID))
 		return;
+
+	kvm_make_request(KVM_REQ_EVENT, &svm->vcpu);
 
 	vector = exitintinfo & SVM_EXITINTINFO_VEC_MASK;
 	type = exitintinfo & SVM_EXITINTINFO_TYPE_MASK;

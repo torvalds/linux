@@ -284,6 +284,8 @@ static void kvm_multiple_exception(struct kvm_vcpu *vcpu,
 	u32 prev_nr;
 	int class1, class2;
 
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
+
 	if (!vcpu->arch.exception.pending) {
 	queue:
 		vcpu->arch.exception.pending = true;
@@ -356,6 +358,7 @@ void kvm_propagate_fault(struct kvm_vcpu *vcpu)
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu)
 {
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	vcpu->arch.nmi_pending = 1;
 }
 EXPORT_SYMBOL_GPL(kvm_inject_nmi);
@@ -2418,6 +2421,7 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 		return -ENXIO;
 
 	kvm_queue_interrupt(vcpu, irq->irq, false);
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	return 0;
 }
@@ -2570,6 +2574,8 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 
 	if (events->flags & KVM_VCPUEVENT_VALID_SIPI_VECTOR)
 		vcpu->arch.sipi_vector = events->sipi_vector;
+
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	return 0;
 }
@@ -4329,6 +4335,7 @@ done:
 
 	toggle_interruptibility(vcpu, vcpu->arch.emulate_ctxt.interruptibility);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 
@@ -4998,6 +5005,7 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	int r;
 	bool req_int_win = !irqchip_in_kernel(vcpu->kvm) &&
 		vcpu->run->request_interrupt_window;
+	bool req_event;
 
 	if (vcpu->requests) {
 		if (kvm_check_request(KVM_REQ_MMU_RELOAD, vcpu))
@@ -5045,8 +5053,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	local_irq_disable();
 
+	req_event = kvm_check_request(KVM_REQ_EVENT, vcpu);
+
 	if (!atomic_read(&vcpu->guest_mode) || vcpu->requests
 	    || need_resched() || signal_pending(current)) {
+		if (req_event)
+			kvm_make_request(KVM_REQ_EVENT, vcpu);
 		atomic_set(&vcpu->guest_mode, 0);
 		smp_wmb();
 		local_irq_enable();
@@ -5055,17 +5067,19 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	inject_pending_event(vcpu);
+	if (req_event || req_int_win) {
+		inject_pending_event(vcpu);
 
-	/* enable NMI/IRQ window open exits if needed */
-	if (vcpu->arch.nmi_pending)
-		kvm_x86_ops->enable_nmi_window(vcpu);
-	else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
-		kvm_x86_ops->enable_irq_window(vcpu);
+		/* enable NMI/IRQ window open exits if needed */
+		if (vcpu->arch.nmi_pending)
+			kvm_x86_ops->enable_nmi_window(vcpu);
+		else if (kvm_cpu_has_interrupt(vcpu) || req_int_win)
+			kvm_x86_ops->enable_irq_window(vcpu);
 
-	if (kvm_lapic_enabled(vcpu)) {
-		update_cr8_intercept(vcpu);
-		kvm_lapic_sync_to_vapic(vcpu);
+		if (kvm_lapic_enabled(vcpu)) {
+			update_cr8_intercept(vcpu);
+			kvm_lapic_sync_to_vapic(vcpu);
+		}
 	}
 
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
@@ -5305,6 +5319,8 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	vcpu->arch.exception.pending = false;
 
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
+
 	return 0;
 }
 
@@ -5368,6 +5384,7 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
 	vcpu->arch.mp_state = mp_state->mp_state;
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 0;
 }
 
@@ -5389,6 +5406,7 @@ int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
 	memcpy(vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(vcpu, vcpu->arch.emulate_ctxt.eip);
 	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return EMULATE_DONE;
 }
 EXPORT_SYMBOL_GPL(kvm_task_switch);
@@ -5458,6 +5476,8 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	    sregs->cs.selector == 0xf000 && sregs->cs.base == 0xffff0000 &&
 	    !is_protmode(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	return 0;
 }
@@ -5690,6 +5710,8 @@ int kvm_arch_vcpu_reset(struct kvm_vcpu *vcpu)
 	memset(vcpu->arch.db, 0, sizeof(vcpu->arch.db));
 	vcpu->arch.dr6 = DR6_FIXED_1;
 	vcpu->arch.dr7 = DR7_FIXED_1;
+
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 
 	return kvm_x86_ops->vcpu_reset(vcpu);
 }
@@ -6001,6 +6023,7 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 	    kvm_is_linear_rip(vcpu, vcpu->arch.singlestep_rip))
 		rflags |= X86_EFLAGS_TF;
 	kvm_x86_ops->set_rflags(vcpu, rflags);
+	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 EXPORT_SYMBOL_GPL(kvm_set_rflags);
 
