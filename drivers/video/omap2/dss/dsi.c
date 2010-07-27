@@ -90,6 +90,7 @@ struct dsi_reg { u16 idx; };
 #define DSI_DSIPHY_CFG1			DSI_REG(0x200 + 0x0004)
 #define DSI_DSIPHY_CFG2			DSI_REG(0x200 + 0x0008)
 #define DSI_DSIPHY_CFG5			DSI_REG(0x200 + 0x0014)
+#define DSI_DSIPHY_CFG10		DSI_REG(0x200 + 0x0028)
 
 /* DSI_PLL_CTRL_SCP */
 
@@ -206,6 +207,15 @@ enum fifo_size {
 enum dsi_vc_mode {
 	DSI_VC_MODE_L4 = 0,
 	DSI_VC_MODE_VP,
+};
+
+enum dsi_lane {
+	DSI_CLK_P	= 1 << 0,
+	DSI_CLK_N	= 1 << 1,
+	DSI_DATA1_P	= 1 << 2,
+	DSI_DATA1_N	= 1 << 3,
+	DSI_DATA2_P	= 1 << 4,
+	DSI_DATA2_N	= 1 << 5,
 };
 
 struct dsi_update_region {
@@ -1863,6 +1873,54 @@ static void dsi_complexio_timings(void)
 	dsi_write_reg(DSI_DSIPHY_CFG2, r);
 }
 
+static void dsi_enable_lane_override(struct omap_dss_device *dssdev,
+		enum dsi_lane lanes)
+{
+	int clk_lane   = dssdev->phy.dsi.clk_lane;
+	int data1_lane = dssdev->phy.dsi.data1_lane;
+	int data2_lane = dssdev->phy.dsi.data2_lane;
+	int clk_pol    = dssdev->phy.dsi.clk_pol;
+	int data1_pol  = dssdev->phy.dsi.data1_pol;
+	int data2_pol  = dssdev->phy.dsi.data2_pol;
+
+	u32 l = 0;
+
+	if (lanes & DSI_CLK_P)
+		l |= 1 << ((clk_lane - 1) * 2 + (clk_pol ? 0 : 1));
+	if (lanes & DSI_CLK_N)
+		l |= 1 << ((clk_lane - 1) * 2 + (clk_pol ? 1 : 0));
+
+	if (lanes & DSI_DATA1_P)
+		l |= 1 << ((data1_lane - 1) * 2 + (data1_pol ? 0 : 1));
+	if (lanes & DSI_DATA1_N)
+		l |= 1 << ((data1_lane - 1) * 2 + (data1_pol ? 1 : 0));
+
+	if (lanes & DSI_DATA2_P)
+		l |= 1 << ((data2_lane - 1) * 2 + (data2_pol ? 0 : 1));
+	if (lanes & DSI_DATA2_N)
+		l |= 1 << ((data2_lane - 1) * 2 + (data2_pol ? 1 : 0));
+
+	/*
+	 * Bits in REGLPTXSCPDAT4TO0DXDY:
+	 * 17: DY0 18: DX0
+	 * 19: DY1 20: DX1
+	 * 21: DY2 22: DX2
+	 */
+
+	/* Set the lane override configuration */
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, l, 22, 17); /* REGLPTXSCPDAT4TO0DXDY */
+
+	/* Enable lane override */
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, 1, 27, 27); /* ENLPTXSCPDAT */
+}
+
+static void dsi_disable_lane_override(void)
+{
+	/* Disable lane override */
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, 0, 27, 27); /* ENLPTXSCPDAT */
+	/* Reset the lane override configuration */
+	REG_FLD_MOD(DSI_DSIPHY_CFG10, 0, 22, 17); /* REGLPTXSCPDAT4TO0DXDY */
+}
 
 static int dsi_complexio_init(struct omap_dss_device *dssdev)
 {
