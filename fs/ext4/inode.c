@@ -3668,6 +3668,8 @@ static int ext4_end_io_nolock(ext4_io_end_t *io)
 		return ret;
 	}
 
+	if (io->iocb)
+		aio_complete(io->iocb, io->result, 0);
 	/* clear the DIO AIO unwritten flag */
 	io->flag = 0;
 	return ret;
@@ -3767,6 +3769,8 @@ static ext4_io_end_t *ext4_init_io_end (struct inode *inode, gfp_t flags)
 		io->offset = 0;
 		io->size = 0;
 		io->page = NULL;
+		io->iocb = NULL;
+		io->result = 0;
 		INIT_WORK(&io->work, ext4_end_io_work);
 		INIT_LIST_HEAD(&io->list);
 	}
@@ -3796,12 +3800,18 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	if (io_end->flag != EXT4_IO_UNWRITTEN){
 		ext4_free_io_end(io_end);
 		iocb->private = NULL;
-		goto out;
+out:
+		if (is_async)
+			aio_complete(iocb, ret, 0);
+		return;
 	}
 
 	io_end->offset = offset;
 	io_end->size = size;
-	io_end->flag = EXT4_IO_UNWRITTEN;
+	if (is_async) {
+		io_end->iocb = iocb;
+		io_end->result = ret;
+	}
 	wq = EXT4_SB(io_end->inode->i_sb)->dio_unwritten_wq;
 
 	/* queue the work to convert unwritten extents to written */
@@ -3813,9 +3823,6 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 	list_add_tail(&io_end->list, &ei->i_completed_io_list);
 	spin_unlock_irqrestore(&ei->i_completed_io_lock, flags);
 	iocb->private = NULL;
-out:
-	if (is_async)
-		aio_complete(iocb, ret, 0);
 }
 
 static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate)
