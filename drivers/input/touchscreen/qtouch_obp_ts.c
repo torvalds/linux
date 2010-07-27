@@ -30,6 +30,8 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 
+#define IGNORE_CHECKSUM_MISMATCH
+
 struct qtm_object {
 	struct qtm_obj_entry		entry;
 	uint8_t				report_id_min;
@@ -488,16 +490,16 @@ static int qtouch_hw_init(struct qtouch_ts_data *ts)
 		}
 	}
 
-	/* configure the grip suppression table */
+	/* configure the grip face suppression table */
 	obj = find_obj(ts, QTM_OBJ_PROCI_GRIPFACESUPPRESSION);
 	if (obj && obj->entry.num_inst > 0) {
 		ret = qtouch_write_addr(ts, obj->entry.addr,
-					&ts->pdata->grip_suppression_cfg,
+					&ts->pdata->grip_face_suppression_cfg,
 					min(sizeof
-					    (ts->pdata->grip_suppression_cfg),
+					    (ts->pdata->grip_face_suppression_cfg),
 					    obj->entry.size));
 		if (ret != 0) {
-			pr_err("%s: Can't write the grip suppression config\n",
+			pr_err("%s: Can't write the grip face suppression config\n",
 			       __func__);
 			return ret;
 		}
@@ -597,6 +599,48 @@ static int qtouch_hw_init(struct qtouch_ts_data *ts)
 					    obj->entry.size));
 		if (ret != 0) {
 			pr_err("%s: Can't write the noise suppression config\n",
+			       __func__);
+			return ret;
+		}
+	}
+
+	/* configure the grip suppression table */
+	obj = find_obj(ts, QTM_OBJ_PROCI_GRIPSUPPRESSION);
+	if (obj && obj->entry.num_inst > 0) {
+		ret = qtouch_write_addr(ts, obj->entry.addr,
+					&ts->pdata->gripsuppression_t40_cfg,
+					min(sizeof(ts->pdata->gripsuppression_t40_cfg),
+					    obj->entry.size));
+		if (ret != 0) {
+			pr_err("%s: Can't write the grip suppression config\n",
+			       __func__);
+			return ret;
+		}
+	}
+
+	/* configure the palm suppression table */
+	obj = find_obj(ts, QTM_OBJ_PROCI_PALMSUPPRESSION);
+	if (obj && obj->entry.num_inst > 0) {
+		ret = qtouch_write_addr(ts, obj->entry.addr,
+					&ts->pdata->palm_suppression_cfg,
+					min(sizeof(ts->pdata->palm_suppression_cfg),
+					    obj->entry.size));
+		if (ret != 0) {
+			pr_err("%s: Can't write the palm suppression config\n",
+			       __func__);
+			return ret;
+		}
+	}
+
+	/* configure the Digitizer HID config */
+	obj = find_obj(ts, QTM_OBJ_SPT_DIGITIZER);
+	if (obj && obj->entry.num_inst > 0) {
+		ret = qtouch_write_addr(ts, obj->entry.addr,
+					&ts->pdata->spt_digitizer_cfg,
+					min(sizeof(ts->pdata->spt_digitizer_cfg),
+					    obj->entry.size));
+		if (ret != 0) {
+			pr_err("%s: Can't write the Digitizer HID config\n",
 			       __func__);
 			return ret;
 		}
@@ -1251,11 +1295,12 @@ static int qtouch_process_info_block(struct qtouch_ts_data *ts)
 #endif
 	}
 
-	pr_info("%s: %s found.\n  family 0x%x, variant 0x%x, ver 0x%x\n"
-		"  build 0x%x, matrix %dx%d, %d objects.\n", __func__,
+	pr_info("%s: %s found.\n"
+		"  family 0x%x, variant 0x%x, ver 0x%x, build 0x%x\n"
+		"  matrix %dx%d, %d objects, info blk chksum 0x%x\n", __func__,
 		QTOUCH_TS_NAME, qtm_info.family_id, qtm_info.variant_id,
 		qtm_info.version, qtm_info.build, qtm_info.matrix_x_size,
-		qtm_info.matrix_y_size, qtm_info.num_objs);
+		qtm_info.matrix_y_size, qtm_info.num_objs, our_csum);
 
 	ts->eeprom_checksum = ts->pdata->nv_checksum;
 	ts->family_id = qtm_info.family_id;

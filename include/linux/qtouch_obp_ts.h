@@ -33,7 +33,7 @@
 #define QTM_OBP_BOOT_CRC_PASSED		0x04
 
 #define QTM_OBP_SLEEP_WAIT_FOR_BOOT	100
-#define QTM_OBP_SLEEP_WAIT_FOR_RESET	500
+#define QTM_OBP_SLEEP_WAIT_FOR_RESET	6000
 #define QTM_OBP_SLEEP_WAIT_FOR_BACKUP	500
 #define QTM_OBP_SLEEP_RESET_HOLD	20
 #define QTM_OBP_SLEEP_WAIT_FOR_HW_RESET	40
@@ -69,9 +69,15 @@ enum {
 	QTM_OBJ_PROCI_TWO_TOUCH_GESTURE_PROC = 27,
 	QTM_OBJ_SPT_CTE_CONFIG		= 28,
 	QTM_OBJ_NOISESUPPRESSION_1	= 36,
+	QTM_OBJ_DEBUG_DIAGNOSTIC	= 37,
+	QTM_OBJ_SPT_USERDATA		= 38,
+	QTM_OBJ_PROCI_GRIPSUPPRESSION	= 40,
+	QTM_OBJ_PROCI_PALMSUPPRESSION	= 41,
+	QTM_OBJ_SPT_DIGITIZER		= 43,
+	QTM_OBJ_SPT_MESSAGECOUNT	= 44,
 
 	/* Max number of objects currently defined */
-	QTM_OBP_MAX_OBJECT_NUM = QTM_OBJ_NOISESUPPRESSION_1 + 1,
+	QTM_OBP_MAX_OBJECT_NUM = QTM_OBJ_SPT_MESSAGECOUNT + 1,
 };
 
 /* OBP structures as defined by the wire protocol. */
@@ -179,13 +185,15 @@ struct qtm_gen_power_cfg {
 /* GEN_ACQUIRECONFIG_T8 */
 struct qtm_gen_acquire_cfg {
 	uint8_t			charge_time;       /* in 250ns */
-	uint8_t			atouch_drift;      /* in 200ms */
+	uint8_t			reserve1;
 	uint8_t			touch_drift;       /* in 200ms */
 	uint8_t			drift_susp;        /* in 200ms */
 	uint8_t			touch_autocal;     /* in 200ms */
-	uint8_t			sync;
+	uint8_t			reserve5;
 	uint8_t			atch_cal_suspend_time;
 	uint8_t			atch_cal_suspend_thres;
+	uint8_t			atch_cal_force_thres;
+	uint8_t			atch_cal_force_ratio;
 } __attribute__ ((packed));
 
 /* TOUCH_MULTITOUCHSCREEN_T9 */
@@ -219,6 +227,9 @@ struct qtm_touch_multi_cfg {
 	uint8_t			y_edge_ctrl;
 	uint8_t			y_edge_dist;
 	uint8_t			jump_limit;
+	uint8_t 		tch_thres_hyst;
+	uint8_t 		xpitch;
+	uint8_t 		ypitch;
 } __attribute__ ((packed));
 
 /* TOUCH_KEYARRAY_T15 */
@@ -232,8 +243,8 @@ struct qtm_touch_keyarray_cfg {
 	uint8_t			burst_len;
 	uint8_t			tch_det_thr;
 	uint8_t			tch_det_int;
-	uint8_t			rsvd1;
-	uint8_t			rsvd2;
+	uint8_t			reserve9;
+	uint8_t			reserve10;
 } __attribute__ ((packed));
 
 /* PROCG_SIGNALFILTER_T16 */
@@ -279,14 +290,14 @@ struct qtm_spt_gpio_pwm_cfg {
 } __attribute__ ((packed));
 
 /* PROCI_GRIPFACESUPPRESSION_T20 */
-struct qtm_proci_grip_suppression_cfg {
+struct qtm_proci_grip_face_suppression_cfg {
 	uint8_t			ctrl;
 	uint8_t			xlogrip;
 	uint8_t			xhigrip;
 	uint8_t			ylogrip;
 	uint8_t			yhigrip;
 	uint8_t			maxtchs;
-	uint8_t			reserve0;
+	uint8_t			reserve6;
 	uint8_t			szthr1;
 	uint8_t			szthr2;
 	uint8_t			shpthr1;
@@ -297,20 +308,22 @@ struct qtm_proci_grip_suppression_cfg {
 /* PROCG_NOISESUPPRESSION_T22 */
 struct qtm_procg_noise_suppression_cfg {
 	uint8_t			ctrl;
-	uint8_t			outlier_filter_len;
-	uint8_t			reserve0;
-	uint16_t		gcaf_upper_limit;
-	uint16_t		gcaf_lower_limit;
-	uint8_t			gcaf_low_count;
-	uint8_t			noise_threshold;
 	uint8_t			reserve1;
+	uint8_t			reserve2;
+	uint8_t			reserve3;
+	uint8_t			reserve4;
+	uint8_t			reserve5;
+	uint8_t			reserve6;
+	uint8_t			reserve7;
+	uint8_t 		noise_thres;
+	uint8_t 		reserve9;
 	uint8_t			freq_hop_scale;
 	uint8_t			burst_freq_0;
 	uint8_t			burst_freq_1;
 	uint8_t			burst_freq_2;
 	uint8_t			burst_freq_3;
 	uint8_t			burst_freq_4;
-	uint8_t			idle_gcaf_valid;
+	uint8_t			reserve16;
 } __attribute__ ((packed));
 
 /* TOUCH_PROXIMITY_T23 */
@@ -320,7 +333,7 @@ struct qtm_touch_proximity_cfg {
 	uint8_t			y_origin;
 	uint8_t			x_size;
 	uint8_t			y_size;
-	uint8_t			reserve0;
+	uint8_t			reserve5;
 	uint8_t			blen;
 	uint16_t		tch_thresh;
 	uint8_t			tch_detect_int;
@@ -332,7 +345,7 @@ struct qtm_touch_proximity_cfg {
 /* PROCI_ONETOUCHGESTUREPROCESSOR_T24 */
 struct qtm_proci_one_touch_gesture_proc_cfg {
 	uint8_t			ctrl;
-	uint8_t			reserve0;
+	uint8_t			num_gestures;
 	uint16_t		gesture_enable;
 	uint8_t			pres_proc;
 	uint8_t			tap_time_out;
@@ -362,8 +375,8 @@ struct qtm_spt_self_test_cfg {
 /* PROCI_TWOTOUCHGESTUREPROCESSOR_T27 */
 struct qtm_proci_two_touch_gesture_proc_cfg {
 	uint8_t			ctrl;
-	uint8_t			reserved0;
-	uint8_t			reserved1;
+	uint8_t			num_gestures;
+	uint8_t			reserve2;
 	uint8_t			gesture_enable;
 	uint8_t			rotate_threshold;
 	uint16_t		zoom_threshold;
@@ -373,7 +386,7 @@ struct qtm_proci_two_touch_gesture_proc_cfg {
 struct qtm_spt_cte_config_cfg {
 	uint8_t			ctrl;
 	uint8_t			command;
-	uint8_t			mode;
+	uint8_t			reserve2;
 	uint8_t			idle_gcaf_depth;
 	uint8_t			active_gcaf_depth;
 	uint8_t			voltage;
@@ -394,6 +407,33 @@ struct qtm_proci_noise1_suppression_cfg {
 	uint8_t			offset[168];
 	uint8_t			bad_chan[11];
 	uint8_t			x_short;
+} __attribute__ ((packed));
+
+/* QTM_OBJ_PROCI_GRIPSUPPRESSION T40 */
+struct qtm_proci_gripsuppression_cfg {
+	uint8_t		ctrl;
+	uint8_t		xlo_grip;
+	uint8_t		xhi_grip;
+	uint8_t		ylo_grip;
+	uint8_t 	yhi_grip;
+} __attribute__ ((packed));
+
+/* QTM_OBJ_PROCI_PALMSUPPRESSION T41 */
+struct qtm_proci_palm_suppression_cfg {
+	uint8_t		ctrl;
+	uint8_t		small_obj_thr;
+	uint8_t		sig_spread_thr;
+	uint8_t		large_obj_thr;
+	uint8_t		distance_thr;
+	uint8_t		sup_ext_to;
+} __attribute__ ((packed));
+
+/* QTM_OBJ_SPT_DIGITIZER T43 */
+struct qtm_spt_digitizer_cfg {
+	uint8_t		ctrl;
+	uint8_t		hid_idlerate;
+	uint16_t	xlength;
+	uint16_t	ylength;
 } __attribute__ ((packed));
 
 /*******************************/
@@ -485,7 +525,7 @@ struct qtouch_ts_platform_data {
 	struct qtm_proci_linear_tbl_cfg			linear_tbl_cfg;
 	struct spt_comms_config_cfg			comms_config_cfg;
 	struct qtm_spt_gpio_pwm_cfg			gpio_pwm_cfg;
-	struct qtm_proci_grip_suppression_cfg		grip_suppression_cfg;
+	struct qtm_proci_grip_face_suppression_cfg	grip_face_suppression_cfg;
 	struct qtm_procg_noise_suppression_cfg		noise_suppression_cfg;
 	struct qtm_touch_proximity_cfg			touch_proximity_cfg;
 	struct qtm_proci_one_touch_gesture_proc_cfg	one_touch_gesture_proc_cfg;
@@ -493,6 +533,9 @@ struct qtouch_ts_platform_data {
 	struct qtm_proci_two_touch_gesture_proc_cfg	two_touch_gesture_proc_cfg;
 	struct qtm_spt_cte_config_cfg			cte_config_cfg;
 	struct qtm_proci_noise1_suppression_cfg		noise1_suppression_cfg;
+	struct qtm_proci_gripsuppression_cfg		gripsuppression_t40_cfg;
+	struct qtm_proci_palm_suppression_cfg		palm_suppression_cfg;
+	struct qtm_spt_digitizer_cfg			spt_digitizer_cfg;
 
 	struct virt_keys	vkeys;
 };
