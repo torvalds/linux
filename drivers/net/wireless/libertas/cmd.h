@@ -129,4 +129,6 @@ int lbs_set_deep_sleep(struct lbs_private *priv, int deep_sleep);
 
 int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep);
 
+int lbs_set_monitor_mode(struct lbs_private *priv, int enable);
+
 #endif /* _LBS_CMD_H */

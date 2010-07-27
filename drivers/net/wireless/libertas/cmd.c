@@ -6,6 +6,7 @@
 #include <linux/kfifo.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/if_arp.h>
 
 #include "decl.h"
 #include "cfg.h"
@@ -576,23 +577,35 @@ int lbs_set_tx_power(struct lbs_private *priv, s16 dbm)
 	return ret;
 }
 
-static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
-				      u16 cmd_action, void *pdata_buf)
+/**
+ *  @brief Enable or disable monitor mode (only implemented on OLPC usb8388 FW)
+ *
+ *  @param priv        A pointer to struct lbs_private structure
+ *  @param enable      1 to enable monitor mode, 0 to disable
+ *
+ *  @return            0 on success, error on failure
+ */
+int lbs_set_monitor_mode(struct lbs_private *priv, int enable)
 {
-	struct cmd_ds_802_11_monitor_mode *monitor = &cmd->params.monitor;
+	struct cmd_ds_802_11_monitor_mode cmd;
+	int ret;
 
-	cmd->command = cpu_to_le16(CMD_802_11_MONITOR_MODE);
-	cmd->size =
-	    cpu_to_le16(sizeof(struct cmd_ds_802_11_monitor_mode) +
-			     sizeof(struct cmd_header));
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	if (enable)
+		cmd.mode = cpu_to_le16(0x1);
 
-	monitor->action = cpu_to_le16(cmd_action);
-	if (cmd_action == CMD_ACT_SET) {
-		monitor->mode =
-		    cpu_to_le16((u16) (*(u32 *) pdata_buf));
+	lbs_deb_cmd("SET_MONITOR_MODE: %d\n", enable);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_MONITOR_MODE, &cmd);
+	if (ret == 0) {
+		priv->dev->type = enable ? ARPHRD_IEEE80211_RADIOTAP :
+						ARPHRD_ETHER;
 	}
 
-	return 0;
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
 }
 
 /**
@@ -1091,11 +1104,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
 		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
-		break;
-
-	case CMD_802_11_MONITOR_MODE:
-		ret = lbs_cmd_802_11_monitor_mode(cmdptr,
-				          cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_RSSI:

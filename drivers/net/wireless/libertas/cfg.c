@@ -7,7 +7,6 @@
  */
 
 #include <linux/slab.h>
-#include <linux/if_arp.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>
@@ -1383,56 +1382,6 @@ static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
 }
 
 
-
-/***************************************************************************
- * Monitor mode
- */
-
-/* like "struct cmd_ds_802_11_monitor_mode", but with cmd_header. Once we
- * get rid of WEXT, this should go into host.h */
-struct cmd_monitor_mode {
-	struct cmd_header hdr;
-
-	__le16 action;
-	__le16 mode;
-} __packed;
-
-static int lbs_enable_monitor_mode(struct lbs_private *priv, int mode)
-{
-	struct cmd_monitor_mode cmd;
-	int ret;
-
-	lbs_deb_enter(LBS_DEB_CFG80211);
-
-	/*
-	 * cmd       98 00
-	 * size      0c 00
-	 * sequence  xx xx
-	 * result    00 00
-	 * action    01 00    ACT_SET
-	 * enable    01 00
-	 */
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.action = cpu_to_le16(CMD_ACT_SET);
-	cmd.mode = cpu_to_le16(mode);
-
-	ret = lbs_cmd_with_response(priv, CMD_802_11_MONITOR_MODE, &cmd);
-
-	if (ret == 0)
-		priv->dev->type = ARPHRD_IEEE80211_RADIOTAP;
-	else
-		priv->dev->type = ARPHRD_ETHER;
-
-	lbs_deb_leave(LBS_DEB_CFG80211);
-	return ret;
-}
-
-
-
-
-
-
 /***************************************************************************
  * Get station
  */
@@ -1558,17 +1507,17 @@ static int lbs_change_intf(struct wiphy *wiphy, struct net_device *dev,
 
 	switch (type) {
 	case NL80211_IFTYPE_MONITOR:
-		ret = lbs_enable_monitor_mode(priv, 1);
+		ret = lbs_set_monitor_mode(priv, 1);
 		break;
 	case NL80211_IFTYPE_STATION:
 		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_enable_monitor_mode(priv, 0);
+			ret = lbs_set_monitor_mode(priv, 0);
 		if (!ret)
 			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 1);
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		if (priv->wdev->iftype == NL80211_IFTYPE_MONITOR)
-			ret = lbs_enable_monitor_mode(priv, 0);
+			ret = lbs_set_monitor_mode(priv, 0);
 		if (!ret)
 			ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, 2);
 		break;

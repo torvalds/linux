@@ -675,7 +675,10 @@ struct cmd_ds_802_11_rf_tx_power {
 	s8 minlevel;
 } __packed;
 
+/* MONITOR_MODE only exists in OLPC v5 firmware */
 struct cmd_ds_802_11_monitor_mode {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 mode;
 } __packed;
@@ -966,7 +969,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_802_11_monitor_mode monitor;
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_mac_reg_access macreg;
