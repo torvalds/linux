@@ -80,9 +80,6 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 
 	dev_set_drvdata(&ofdev->dev, master);
 
-	/* Add any subnodes on the SPI bus */
-	of_register_spi_devices(master, ofdev->dev.of_node);
-
 	return 0;
 }
 
