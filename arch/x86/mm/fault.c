@@ -872,8 +872,14 @@ spurious_fault(unsigned long error_code, unsigned long address)
 	if (pmd_large(*pmd))
 		return spurious_fault_check(error_code, (pte_t *) pmd);
 
+	/*
+	 * Note: don't use pte_present() here, since it returns true
+	 * if the _PAGE_PROTNONE bit is set.  However, this aliases the
+	 * _PAGE_GLOBAL bit, which for kernel pages give false positives
+	 * when CONFIG_DEBUG_PAGEALLOC is used.
+	 */
 	pte = pte_offset_kernel(pmd, address);
-	if (!pte_present(*pte))
+	if (!(pte_flags(*pte) & _PAGE_PRESENT))
 		return 0;
 
 	ret = spurious_fault_check(error_code, pte);
