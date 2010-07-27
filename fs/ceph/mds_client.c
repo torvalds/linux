@@ -868,7 +868,7 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	wake_up(&ci->i_cap_wq);
+	wake_up_all(&ci->i_cap_wq);
 	if (arg) {
 		spin_lock(&inode->i_lock);
 		ci->i_wanted_max_size = 0;
@@ -1564,7 +1564,7 @@ static void complete_request(struct ceph_mds_client *mdsc,
 	if (req->r_callback)
 		req->r_callback(mdsc, req);
 	else
-		complete(&req->r_completion);
+		complete_all(&req->r_completion);
 }
 
 /*
@@ -1932,7 +1932,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	if (head->safe) {
 		req->r_got_safe = true;
 		__unregister_request(mdsc, req);
-		complete(&req->r_safe_completion);
+		complete_all(&req->r_safe_completion);
 
 		if (req->r_got_unsafe) {
 			/*
@@ -1947,7 +1947,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 
 			/* last unsafe request during umount? */
 			if (mdsc->stopping && !__get_oldest_req(mdsc))
-				complete(&mdsc->safe_umount_waiters);
+				complete_all(&mdsc->safe_umount_waiters);
 			mutex_unlock(&mdsc->mutex);
 			goto out;
 		}
@@ -2126,7 +2126,7 @@ static void handle_session(struct ceph_mds_session *session,
 			pr_info("mds%d reconnect denied\n", session->s_mds);
 		remove_session_caps(session);
 		wake = 1; /* for good measure */
-		complete(&mdsc->session_close_waiters);
+		complete_all(&mdsc->session_close_waiters);
 		kick_requests(mdsc, mds);
 		break;
 

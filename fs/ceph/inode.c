@@ -1501,7 +1501,7 @@ retry:
 	if (wrbuffer_refs == 0)
 		ceph_check_caps(ci, CHECK_CAPS_AUTHONLY, NULL);
 	if (wake)
-		wake_up(&ci->i_cap_wq);
+		wake_up_all(&ci->i_cap_wq);
 }
 
 
