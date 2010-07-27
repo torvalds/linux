@@ -1166,6 +1166,9 @@ struct ext4_sb_info {
 
 	/* workqueue for dio unwritten */
 	struct workqueue_struct *dio_unwritten_wq;
+
+	/* timer for periodic error stats printing */
+	struct timer_list s_err_report;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
