@@ -90,7 +90,7 @@ static int locked_disable_mdp_irq(struct mdp_info *mdp, uint32_t mask)
 	mdp_irq_mask &= ~(mask);
 	/* if no one is waiting on the interrupt, disable it */
 	if (!mdp_irq_mask) {
-		disable_irq(mdp->irq);
+		disable_irq_nosync(mdp->irq);
 		if (clk)
 			clk_disable(clk);
 	}
