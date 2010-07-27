@@ -401,9 +401,9 @@ static int ext4_valid_extent_entries(struct inode *inode,
 	return 1;
 }
 
-static int __ext4_ext_check(const char *function, struct inode *inode,
-					struct ext4_extent_header *eh,
-					int depth)
+static int __ext4_ext_check(const char *function, unsigned int line,
+			    struct inode *inode, struct ext4_extent_header *eh,
+			    int depth)
 {
 	const char *error_msg;
 	int max = 0;
@@ -436,7 +436,7 @@ static int __ext4_ext_check(const char *function, struct inode *inode,
 	return 0;
 
 corrupted:
-	ext4_error_inode(function, inode,
+	ext4_error_inode(inode, function, line, 0,
 			"bad header/extent: %s - magic %x, "
 			"entries %u, max %u(%u), depth %u(%u)",
 			error_msg, le16_to_cpu(eh->eh_magic),
@@ -447,7 +447,7 @@ corrupted:
 }
 
 #define ext4_ext_check(inode, eh, depth)	\
-	__ext4_ext_check(__func__, inode, eh, depth)
+	__ext4_ext_check(__func__, __LINE__, inode, eh, depth)
 
 int ext4_ext_check_inode(struct inode *inode)
 {

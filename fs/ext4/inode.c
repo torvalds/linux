@@ -337,7 +337,8 @@ static int ext4_block_to_path(struct inode *inode,
 	return n;
 }
 
-static int __ext4_check_blockref(const char *function, struct inode *inode,
+static int __ext4_check_blockref(const char *function, unsigned int line,
+				 struct inode *inode,
 				 __le32 *p, unsigned int max)
 {
 	__le32 *bref = p;
@@ -348,8 +349,8 @@ static int __ext4_check_blockref(const char *function, struct inode *inode,
 		if (blk &&
 		    unlikely(!ext4_data_block_valid(EXT4_SB(inode->i_sb),
 						    blk, 1))) {
-			ext4_error_inode(function, inode,
-					 "invalid block reference %u", blk);
+			ext4_error_inode(inode, function, line, blk,
+					 "invalid block");
 			return -EIO;
 		}
 	}
@@ -358,11 +359,13 @@ static int __ext4_check_blockref(const char *function, struct inode *inode,
 
 
 #define ext4_check_indirect_blockref(inode, bh)                         \
-	__ext4_check_blockref(__func__, inode, (__le32 *)(bh)->b_data,  \
+	__ext4_check_blockref(__func__, __LINE__, inode,		\
+			      (__le32 *)(bh)->b_data,			\
 			      EXT4_ADDR_PER_BLOCK((inode)->i_sb))
 
 #define ext4_check_inode_blockref(inode)                                \
-	__ext4_check_blockref(__func__, inode, EXT4_I(inode)->i_data,   \
+	__ext4_check_blockref(__func__, __LINE__, inode,		\
+			      EXT4_I(inode)->i_data,			\
 			      EXT4_NDIR_BLOCKS)
 
 /**
@@ -1129,21 +1132,22 @@ void ext4_da_update_reserve_space(struct inode *inode,
 }
 
 static int __check_block_validity(struct inode *inode, const char *func,
-				  struct ext4_map_blocks *map)
+				unsigned int line,
+				struct ext4_map_blocks *map)
 {
 	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), map->m_pblk,
 				   map->m_len)) {
-		ext4_error_inode(func, inode,
-			   "lblock %lu mapped to illegal pblock %llu "
-			   "(length %d)", (unsigned long) map->m_lblk,
-				 map->m_pblk, map->m_len);
+		ext4_error_inode(inode, func, line, map->m_pblk,
+				 "lblock %lu mapped to illegal pblock "
+				 "(length %d)", (unsigned long) map->m_lblk,
+				 map->m_len);
 		return -EIO;
 	}
 	return 0;
 }
 
 #define check_block_validity(inode, map)	\
-	__check_block_validity((inode), __func__, (map))
+	__check_block_validity((inode), __func__, __LINE__, (map))
 
 /*
  * Return the number of contiguous dirty pages in a given inode
@@ -4471,9 +4475,8 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 * (should be rare).
 			 */
 			if (!bh) {
-				EXT4_ERROR_INODE(inode,
-						 "Read failure block=%llu",
-						 (unsigned long long) nr);
+				EXT4_ERROR_INODE_BLOCK(inode, nr,
+						       "Read failure");
 				continue;
 			}
 
@@ -4788,8 +4791,8 @@ static int __ext4_get_inode_loc(struct inode *inode,
 
 	bh = sb_getblk(sb, block);
 	if (!bh) {
-		EXT4_ERROR_INODE(inode, "unable to read inode block - "
-				 "block %llu", block);
+		EXT4_ERROR_INODE_BLOCK(inode, block,
+				       "unable to read itable block");
 		return -EIO;
 	}
 	if (!buffer_uptodate(bh)) {
@@ -4887,8 +4890,8 @@ make_io:
 		submit_bh(READ_META, bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
-			EXT4_ERROR_INODE(inode, "unable to read inode "
-					 "block %llu", block);
+			EXT4_ERROR_INODE_BLOCK(inode, block,
+					       "unable to read itable block");
 			brelse(bh);
 			return -EIO;
 		}
@@ -5389,9 +5392,8 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 		if (wbc->sync_mode == WB_SYNC_ALL)
 			sync_dirty_buffer(iloc.bh);
 		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
-			EXT4_ERROR_INODE(inode,
-				"IO error syncing inode (block=%llu)",
-				(unsigned long long) iloc.bh->b_blocknr);
+			EXT4_ERROR_INODE_BLOCK(inode, iloc.bh->b_blocknr,
+					 "IO error syncing inode");
 			err = -EIO;
 		}
 		brelse(iloc.bh);

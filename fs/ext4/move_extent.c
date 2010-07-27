@@ -148,17 +148,17 @@ mext_next_extent(struct inode *inode, struct ext4_ext_path *path,
  */
 static int
 mext_check_null_inode(struct inode *inode1, struct inode *inode2,
-		const char *function)
+		      const char *function, unsigned int line)
 {
 	int ret = 0;
 
 	if (inode1 == NULL) {
-		__ext4_error(inode2->i_sb, function,
+		__ext4_error(inode2->i_sb, function, line,
 			"Both inodes should not be NULL: "
 			"inode1 NULL inode2 %lu", inode2->i_ino);
 		ret = -EIO;
 	} else if (inode2 == NULL) {
-		__ext4_error(inode1->i_sb, function,
+		__ext4_error(inode1->i_sb, function, line,
 			"Both inodes should not be NULL: "
 			"inode1 %lu inode2 NULL", inode1->i_ino);
 		ret = -EIO;
@@ -1084,7 +1084,7 @@ mext_inode_double_lock(struct inode *inode1, struct inode *inode2)
 
 	BUG_ON(inode1 == NULL && inode2 == NULL);
 
-	ret = mext_check_null_inode(inode1, inode2, __func__);
+	ret = mext_check_null_inode(inode1, inode2, __func__, __LINE__);
 	if (ret < 0)
 		goto out;
 
@@ -1121,7 +1121,7 @@ mext_inode_double_unlock(struct inode *inode1, struct inode *inode2)
 
 	BUG_ON(inode1 == NULL && inode2 == NULL);
 
-	ret = mext_check_null_inode(inode1, inode2, __func__);
+	ret = mext_check_null_inode(inode1, inode2, __func__, __LINE__);
 	if (ret < 0)
 		goto out;
 

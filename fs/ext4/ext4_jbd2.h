@@ -162,7 +162,7 @@ int __ext4_handle_dirty_super(const char *where, unsigned int line,
 	__ext4_handle_dirty_super(__func__, __LINE__, (handle), (sb))
 
 handle_t *ext4_journal_start_sb(struct super_block *sb, int nblocks);
-int __ext4_journal_stop(const char *where, handle_t *handle);
+int __ext4_journal_stop(const char *where, unsigned int line, handle_t *handle);
 
 #define EXT4_NOJOURNAL_MAX_REF_COUNT ((unsigned long) 4096)
 
@@ -215,7 +215,7 @@ static inline handle_t *ext4_journal_start(struct inode *inode, int nblocks)
 }
 
 #define ext4_journal_stop(handle) \
-	__ext4_journal_stop(__func__, (handle))
+	__ext4_journal_stop(__func__, __LINE__, (handle))
 
 static inline handle_t *ext4_journal_current_handle(void)
 {
