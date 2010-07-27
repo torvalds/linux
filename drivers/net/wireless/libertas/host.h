@@ -595,6 +595,8 @@ struct cmd_ds_802_11_radio_control {
 } __packed;
 
 struct cmd_ds_802_11_beacon_control {
+	struct cmd_header hdr;
+
 	__le16 action;
 	__le16 beacon_enable;
 	__le16 beacon_period;
@@ -972,7 +974,6 @@ struct cmd_ds_command {
 
 		struct cmd_ds_bt_access bt;
 		struct cmd_ds_fwt_access fwt;
-		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
 } __packed;
 #endif

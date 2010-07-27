@@ -1216,9 +1216,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 #endif
 
-	case CMD_802_11_BEACON_CTRL:
-		ret = lbs_cmd_bcn_ctrl(priv, cmdptr, cmd_action);
-		break;
 	case CMD_802_11_DEEP_SLEEP:
 		cmdptr->command = cpu_to_le16(CMD_802_11_DEEP_SLEEP);
 		cmdptr->size = cpu_to_le16(sizeof(struct cmd_header));
