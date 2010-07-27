@@ -2239,7 +2239,7 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 	mapping = inode->i_mapping;
 	for (i = 0; i < page_count; i++) {
 		page = read_cache_page_gfp(mapping, i,
-					   mapping_gfp_mask (mapping) |
+					   GFP_HIGHUSER |
 					   __GFP_COLD |
 					   gfpmask);
 		if (IS_ERR(page))

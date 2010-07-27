@@ -1700,8 +1700,12 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 	if (!driver || driver != udc->driver || !driver->unbind)
 		return -EINVAL;
 
-	dprintk(DEBUG_NORMAL,"usb_gadget_register_driver() '%s'\n",
+	dprintk(DEBUG_NORMAL, "usb_gadget_unregister_driver() '%s'\n",
 		driver->driver.name);
+
+	/* report disconnect */
+	if (driver->disconnect)
+		driver->disconnect(&udc->gadget);
 
 	driver->unbind(&udc->gadget);
 

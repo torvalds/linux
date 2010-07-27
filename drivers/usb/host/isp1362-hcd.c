@@ -2224,12 +2224,9 @@ static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 
 /*-------------------------------------------------------------------------*/
 
-static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
+static void __isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 {
 	int tmp = 20;
-	unsigned long flags;
-
-	spin_lock_irqsave(&isp1362_hcd->lock, flags);
 
 	isp1362_write_reg16(isp1362_hcd, HCSWRES, HCSWRES_MAGIC);
 	isp1362_write_reg32(isp1362_hcd, HCCMDSTAT, OHCI_HCR);
@@ -2240,6 +2237,14 @@ static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
 	}
 	if (!tmp)
 		pr_err("Software reset timeout\n");
+}
+
+static void isp1362_sw_reset(struct isp1362_hcd *isp1362_hcd)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&isp1362_hcd->lock, flags);
+	__isp1362_sw_reset(isp1362_hcd);
 	spin_unlock_irqrestore(&isp1362_hcd->lock, flags);
 }
 
@@ -2418,7 +2423,7 @@ static void isp1362_hc_stop(struct usb_hcd *hcd)
 	if (isp1362_hcd->board && isp1362_hcd->board->reset)
 		isp1362_hcd->board->reset(hcd->self.controller, 1);
 	else
-		isp1362_sw_reset(isp1362_hcd);
+		__isp1362_sw_reset(isp1362_hcd);
 
 	if (isp1362_hcd->board && isp1362_hcd->board->clock)
 		isp1362_hcd->board->clock(hcd->self.controller, 0);

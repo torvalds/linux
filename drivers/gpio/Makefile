@@ -1,4 +1,8 @@
-# gpio support: dedicated expander chips, etc
+# generic gpio support: dedicated expander chips, etc
+#
+# NOTE: platform-specific GPIO drivers don't belong in the
+# drivers/gpio directory; put them with other platform setup
+# code, IRQ controllers, board init, etc.
 
 ccflags-$(CONFIG_DEBUG_GPIO)	+= -DDEBUG
 

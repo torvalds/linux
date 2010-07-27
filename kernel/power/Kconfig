@@ -99,9 +99,13 @@ config PM_SLEEP_ADVANCED_DEBUG
 	depends on PM_ADVANCED_DEBUG
 	default n
 
+config SUSPEND_NVS
+       bool
+
 config SUSPEND
 	bool "Suspend to RAM and standby"
 	depends on PM && ARCH_SUSPEND_POSSIBLE
+	select SUSPEND_NVS if HAS_IOMEM
 	default y
 	---help---
 	  Allow the system to enter sleep states in which main memory is
@@ -130,13 +134,10 @@ config SUSPEND_FREEZER
 
 	  Turning OFF this setting is NOT recommended! If in doubt, say Y.
 
-config HIBERNATION_NVS
-	bool
-
 config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
 	depends on PM && SWAP && ARCH_HIBERNATION_POSSIBLE
-	select HIBERNATION_NVS if HAS_IOMEM
+	select SUSPEND_NVS if HAS_IOMEM
 	---help---
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the

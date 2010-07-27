@@ -163,8 +163,6 @@ ENDPROC(__und_invalid)
 	@  r4 - orig_r0 (see pt_regs definition in ptrace.h)
 	@
 	stmia	r5, {r0 - r4}
-
-	asm_trace_hardirqs_off
 	.endm
 
 	.align	5
@@ -205,7 +203,7 @@ __dabt_svc:
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-	disable_irq
+	disable_irq_notrace
 
 	@
 	@ restore SPSR and restart the instruction
@@ -219,6 +217,9 @@ ENDPROC(__dabt_svc)
 __irq_svc:
 	svc_entry
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	bl	trace_hardirqs_off
+#endif
 #ifdef CONFIG_PREEMPT
 	get_thread_info tsk
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
@@ -292,7 +293,7 @@ __und_svc:
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-1:	disable_irq
+1:	disable_irq_notrace
 
 	@
 	@ restore SPSR and restart the instruction
@@ -328,7 +329,7 @@ __pabt_svc:
 	@
 	@ IRQs off again before pulling preserved data off the stack
 	@
-	disable_irq
+	disable_irq_notrace
 
 	@
 	@ restore SPSR and restart the instruction
@@ -394,8 +395,6 @@ ENDPROC(__pabt_svc)
 	@ Clear FP to mark the first stack frame
 	@
 	zero_fp
-
-	asm_trace_hardirqs_off
 	.endm
 
 	.macro	kuser_cmpxchg_check
@@ -465,9 +464,6 @@ __irq_usr:
  ARM(	strne	r0, [r0, -r0]	)
  THUMB(	movne	r0, #0		)
  THUMB(	strne	r0, [r0]	)
-#endif
-#ifdef CONFIG_TRACE_IRQFLAGS
-	bl	trace_hardirqs_on
 #endif
 
 	mov	why, #0

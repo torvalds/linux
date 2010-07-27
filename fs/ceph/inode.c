@@ -854,8 +854,8 @@ static struct dentry *splice_dentry(struct dentry *dn, struct inode *in,
 		d_drop(dn);
 	realdn = d_materialise_unique(dn, in);
 	if (IS_ERR(realdn)) {
-		pr_err("splice_dentry error %p inode %p ino %llx.%llx\n",
-		       dn, in, ceph_vinop(in));
+		pr_err("splice_dentry error %ld %p inode %p ino %llx.%llx\n",
+		       PTR_ERR(realdn), dn, in, ceph_vinop(in));
 		if (prehash)
 			*prehash = false; /* don't rehash on error */
 		dn = realdn; /* note realdn contains the error */
@@ -1234,18 +1234,23 @@ retry_lookup:
 				goto out;
 			}
 			dn = splice_dentry(dn, in, NULL);
+			if (IS_ERR(dn))
+				dn = NULL;
 		}
 
 		if (fill_inode(in, &rinfo->dir_in[i], NULL, session,
 			       req->r_request_started, -1,
 			       &req->r_caps_reservation) < 0) {
 			pr_err("fill_inode badness on %p\n", in);
-			dput(dn);
-			continue;
+			goto next_item;
 		}
-		update_dentry_lease(dn, rinfo->dir_dlease[i],
-				    req->r_session, req->r_request_started);
-		dput(dn);
+		if (dn)
+			update_dentry_lease(dn, rinfo->dir_dlease[i],
+					    req->r_session,
+					    req->r_request_started);
+next_item:
+		if (dn)
+			dput(dn);
 	}
 	req->r_did_prepopulate = true;
 

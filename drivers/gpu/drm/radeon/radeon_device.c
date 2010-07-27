@@ -779,6 +779,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 int radeon_resume_kms(struct drm_device *dev)
 {
+	struct drm_connector *connector;
 	struct radeon_device *rdev = dev->dev_private;
 
 	if (rdev->powered_down)
@@ -797,6 +798,12 @@ int radeon_resume_kms(struct drm_device *dev)
 	radeon_resume(rdev);
 	radeon_pm_resume(rdev);
 	radeon_restore_bios_scratch_regs(rdev);
+
+	/* turn on display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_ON);
+	}
+
 	radeon_fbdev_set_suspend(rdev, 0);
 	release_console_sem();
 

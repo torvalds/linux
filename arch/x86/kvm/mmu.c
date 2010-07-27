@@ -1879,6 +1879,8 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 			pgprintk("hfn old %lx new %lx\n",
 				 spte_to_pfn(*sptep), pfn);
 			rmap_remove(vcpu->kvm, sptep);
+			__set_spte(sptep, shadow_trap_nonpresent_pte);
+			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else
 			was_rmapped = 1;
 	}

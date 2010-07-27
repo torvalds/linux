@@ -1553,6 +1553,24 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 	rcu_read_unlock();
 }
 
+/*
+ * Routine to help set real_num_tx_queues. To avoid skbs mapped to queues
+ * greater then real_num_tx_queues stale skbs on the qdisc must be flushed.
+ */
+void netif_set_real_num_tx_queues(struct net_device *dev, unsigned int txq)
+{
+	unsigned int real_num = dev->real_num_tx_queues;
+
+	if (unlikely(txq > dev->num_tx_queues))
+		;
+	else if (txq > real_num)
+		dev->real_num_tx_queues = txq;
+	else if (txq < real_num) {
+		dev->real_num_tx_queues = txq;
+		qdisc_reset_all_tx_gt(dev, txq);
+	}
+}
+EXPORT_SYMBOL(netif_set_real_num_tx_queues);
 
 static inline void __netif_reschedule(struct Qdisc *q)
 {

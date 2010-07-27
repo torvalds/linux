@@ -107,11 +107,11 @@ struct uvc_streaming_control {
 #define UVC_WARN_MINMAX				0
 #define UVC_WARN_PROBE_DEF			1
 
-extern unsigned int uvc_trace_param;
+extern unsigned int uvc_gadget_trace_param;
 
 #define uvc_trace(flag, msg...) \
 	do { \
-		if (uvc_trace_param & flag) \
+		if (uvc_gadget_trace_param & flag) \
 			printk(KERN_DEBUG "uvcvideo: " msg); \
 	} while (0)
 
@@ -220,15 +220,9 @@ struct uvc_file_handle
 #define to_uvc_file_handle(handle) \
 	container_of(handle, struct uvc_file_handle, vfh)
 
-extern struct v4l2_file_operations uvc_v4l2_fops;
-
 /* ------------------------------------------------------------------------
  * Functions
  */
-
-extern int uvc_video_enable(struct uvc_video *video, int enable);
-extern int uvc_video_init(struct uvc_video *video);
-extern int uvc_video_pump(struct uvc_video *video);
 
 extern void uvc_endpoint_stream(struct uvc_device *dev);
 

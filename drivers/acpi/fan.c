@@ -347,7 +347,6 @@ static int __init acpi_fan_init(void)
 {
 	int result = 0;
 
-
 #ifdef CONFIG_ACPI_PROCFS
 	acpi_fan_dir = proc_mkdir(ACPI_FAN_CLASS, acpi_root_dir);
 	if (!acpi_fan_dir)
@@ -356,7 +355,9 @@ static int __init acpi_fan_init(void)
 
 	result = acpi_bus_register_driver(&acpi_fan_driver);
 	if (result < 0) {
+#ifdef CONFIG_ACPI_PROCFS
 		remove_proc_entry(ACPI_FAN_CLASS, acpi_root_dir);
+#endif
 		return -ENODEV;
 	}
 

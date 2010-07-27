@@ -130,9 +130,14 @@ void r600_pm_get_dynpm_state(struct radeon_device *rdev)
 							break;
 						}
 					}
-				} else
-					rdev->pm.requested_power_state_index =
-						rdev->pm.current_power_state_index - 1;
+				} else {
+					if (rdev->pm.current_power_state_index == 0)
+						rdev->pm.requested_power_state_index =
+							rdev->pm.num_power_states - 1;
+					else
+						rdev->pm.requested_power_state_index =
+							rdev->pm.current_power_state_index - 1;
+				}
 			}
 			rdev->pm.requested_clock_mode_index = 0;
 			/* don't use the power state if crtcs are active and no display flag is set */
@@ -1097,7 +1102,7 @@ static void r600_mc_program(struct radeon_device *rdev)
 	WREG32(MC_VM_FB_LOCATION, tmp);
 	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
 	WREG32(HDP_NONSURFACE_INFO, (2 << 7));
-	WREG32(HDP_NONSURFACE_SIZE, rdev->mc.mc_vram_size | 0x3FF);
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	if (rdev->flags & RADEON_IS_AGP) {
 		WREG32(MC_VM_AGP_TOP, rdev->mc.gtt_end >> 22);
 		WREG32(MC_VM_AGP_BOT, rdev->mc.gtt_start >> 22);
@@ -1219,8 +1224,10 @@ int r600_mc_init(struct radeon_device *rdev)
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	r600_vram_gtt_location(rdev, &rdev->mc);
 
-	if (rdev->flags & RADEON_IS_IGP)
+	if (rdev->flags & RADEON_IS_IGP) {
+		rs690_pm_info(rdev);
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	}
 	radeon_update_bandwidth_info(rdev);
 	return 0;
 }

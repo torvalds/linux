@@ -1197,7 +1197,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 					DRM_ERROR("bad SET_RESOURCE (tex)\n");
 					return -EINVAL;
 				}
-				ib[idx+1+(i*8)+3] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				ib[idx+1+(i*8)+2] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
 					ib[idx+1+(i*8)+1] |= TEX_ARRAY_MODE(ARRAY_2D_TILED_THIN1);
 				else if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
@@ -1209,7 +1209,7 @@ static int evergreen_packet3_check(struct radeon_cs_parser *p,
 					DRM_ERROR("bad SET_RESOURCE (tex)\n");
 					return -EINVAL;
 				}
-				ib[idx+1+(i*8)+4] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				ib[idx+1+(i*8)+3] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
 				mipmap = reloc->robj;
 				r = evergreen_check_texture_resource(p,  idx+1+(i*8),
 						texture, mipmap);
