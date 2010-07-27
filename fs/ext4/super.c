@@ -307,6 +307,35 @@ void ext4_journal_abort_handle(const char *caller, unsigned int line,
 	jbd2_journal_abort_handle(handle);
 }
 
+static void __save_error_info(struct super_block *sb, const char *func,
+			    unsigned int line)
+{
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+
+	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
+	es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
+	es->s_last_error_time = cpu_to_le32(get_seconds());
+	strncpy(es->s_last_error_func, func, sizeof(es->s_last_error_func));
+	es->s_last_error_line = cpu_to_le32(line);
+	if (!es->s_first_error_time) {
+		es->s_first_error_time = es->s_last_error_time;
+		strncpy(es->s_first_error_func, func,
+			sizeof(es->s_first_error_func));
+		es->s_first_error_line = cpu_to_le32(line);
+		es->s_first_error_ino = es->s_last_error_ino;
+		es->s_first_error_block = es->s_last_error_block;
+	}
+	es->s_error_count = cpu_to_le32(le32_to_cpu(es->s_error_count) + 1);
+}
+
+static void save_error_info(struct super_block *sb, const char *func,
+			    unsigned int line)
+{
+	__save_error_info(sb, func, line);
+	ext4_commit_super(sb, 1);
+}
+
+
 /* Deal with the reporting of failure conditions on a filesystem such as
  * inconsistencies detected or read IO failures.
  *
@@ -324,11 +353,6 @@ void ext4_journal_abort_handle(const char *caller, unsigned int line,
 
 static void ext4_handle_error(struct super_block *sb)
 {
-	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
-
-	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-	es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
-
 	if (sb->s_flags & MS_RDONLY)
 		return;
 
@@ -343,7 +367,6 @@ static void ext4_handle_error(struct super_block *sb)
 		ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
 		sb->s_flags |= MS_RDONLY;
 	}
-	ext4_commit_super(sb, 1);
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT4-fs (device %s): panic forced after error\n",
 			sb->s_id);
@@ -369,7 +392,11 @@ void ext4_error_inode(struct inode *inode, const char *function,
 		      const char *fmt, ...)
 {
 	va_list args;
+	struct ext4_super_block *es = EXT4_SB(inode->i_sb)->s_es;
 
+	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
+	es->s_last_error_block = cpu_to_le64(block);
+	save_error_info(inode->i_sb, function, line);
 	va_start(args, fmt);
 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: inode #%lu: ",
 	       inode->i_sb->s_id, function, line, inode->i_ino);
@@ -387,9 +414,13 @@ void ext4_error_file(struct file *file, const char *function,
 		     unsigned int line, const char *fmt, ...)
 {
 	va_list args;
+	struct ext4_super_block *es;
 	struct inode *inode = file->f_dentry->d_inode;
 	char pathname[80], *path;
 
+	es = EXT4_SB(inode->i_sb)->s_es;
+	es->s_last_error_ino = cpu_to_le32(inode->i_ino);
+	save_error_info(inode->i_sb, function, line);
 	va_start(args, fmt);
 	path = d_path(&(file->f_path), pathname, sizeof(pathname));
 	if (!path)
@@ -459,6 +490,7 @@ void __ext4_std_error(struct super_block *sb, const char *function,
 	errstr = ext4_decode_error(sb, errno, nbuf);
 	printk(KERN_CRIT "EXT4-fs error (device %s) in %s:%d: %s\n",
 	       sb->s_id, function, line, errstr);
+	save_error_info(sb, function, line);
 
 	ext4_handle_error(sb);
 }
@@ -478,6 +510,7 @@ void __ext4_abort(struct super_block *sb, const char *function,
 {
 	va_list args;
 
+	save_error_info(sb, function, line);
 	va_start(args, fmt);
 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: ", sb->s_id,
 	       function, line);
@@ -485,18 +518,16 @@ void __ext4_abort(struct super_block *sb, const char *function,
 	printk("\n");
 	va_end(args);
 
+	if ((sb->s_flags & MS_RDONLY) == 0) {
+		ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
+		sb->s_flags |= MS_RDONLY;
+		EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
+		if (EXT4_SB(sb)->s_journal)
+			jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
+		save_error_info(sb, function, line);
+	}
 	if (test_opt(sb, ERRORS_PANIC))
 		panic("EXT4-fs panic from previous error\n");
-
-	if (sb->s_flags & MS_RDONLY)
-		return;
-
-	ext4_msg(sb, KERN_CRIT, "Remounting filesystem read-only");
-	EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-	sb->s_flags |= MS_RDONLY;
-	EXT4_SB(sb)->s_mount_flags |= EXT4_MF_FS_ABORTED;
-	if (EXT4_SB(sb)->s_journal)
-		jbd2_journal_abort(EXT4_SB(sb)->s_journal, -EIO);
 }
 
 void ext4_msg (struct super_block * sb, const char *prefix,
@@ -534,6 +565,9 @@ __acquires(bitlock)
 	va_list args;
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
+	es->s_last_error_ino = cpu_to_le32(ino);
+	es->s_last_error_block = cpu_to_le64(block);
+	__save_error_info(sb, function, line);
 	va_start(args, fmt);
 	printk(KERN_CRIT "EXT4-fs error (device %s): %s:%d: group %u",
 	       sb->s_id, function, line, grp);
@@ -546,11 +580,10 @@ __acquires(bitlock)
 	va_end(args);
 
 	if (test_opt(sb, ERRORS_CONT)) {
-		EXT4_SB(sb)->s_mount_state |= EXT4_ERROR_FS;
-		es->s_state |= cpu_to_le16(EXT4_ERROR_FS);
 		ext4_commit_super(sb, 0);
 		return;
 	}
+
 	ext4_unlock_group(sb, grp);
 	ext4_handle_error(sb);
 	/*
@@ -3332,8 +3365,17 @@ static int ext4_load_journal(struct super_block *sb,
 
 	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER))
 		err = jbd2_journal_wipe(journal, !really_read_only);
-	if (!err)
+	if (!err) {
+		char *save = kmalloc(EXT4_S_ERR_LEN, GFP_KERNEL);
+		if (save)
+			memcpy(save, ((char *) es) +
+			       EXT4_S_ERR_START, EXT4_S_ERR_LEN);
 		err = jbd2_journal_load(journal);
+		if (save)
+			memcpy(((char *) es) + EXT4_S_ERR_START,
+			       save, EXT4_S_ERR_LEN);
+		kfree(save);
+	}
 
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "error loading journal");

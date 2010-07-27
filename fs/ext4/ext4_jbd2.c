@@ -134,6 +134,11 @@ int __ext4_handle_dirty_metadata(const char *where, unsigned int line,
 		if (inode && inode_needs_sync(inode)) {
 			sync_dirty_buffer(bh);
 			if (buffer_req(bh) && !buffer_uptodate(bh)) {
+				struct ext4_super_block *es;
+
+				es = EXT4_SB(inode->i_sb)->s_es;
+				es->s_last_error_block =
+					cpu_to_le64(bh->b_blocknr);
 				ext4_error_inode(inode, where, line,
 						 bh->b_blocknr,
 					"IO error syncing itable block");
