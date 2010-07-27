@@ -4138,7 +4138,6 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	ext4_lblk_t blk = off >> EXT4_BLOCK_SIZE_BITS(sb);
 	int err = 0;
 	int offset = off & (sb->s_blocksize - 1);
-	int journal_quota = EXT4_SB(sb)->s_qf_names[type] != NULL;
 	struct buffer_head *bh;
 	handle_t *handle = journal_current_handle();
 
@@ -4163,24 +4162,16 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	bh = ext4_bread(handle, inode, blk, 1, &err);
 	if (!bh)
 		goto out;
-	if (journal_quota) {
-		err = ext4_journal_get_write_access(handle, bh);
-		if (err) {
-			brelse(bh);
-			goto out;
-		}
+	err = ext4_journal_get_write_access(handle, bh);
+	if (err) {
+		brelse(bh);
+		goto out;
 	}
 	lock_buffer(bh);
 	memcpy(bh->b_data+offset, data, len);
 	flush_dcache_page(bh->b_page);
 	unlock_buffer(bh);
-	if (journal_quota)
-		err = ext4_handle_dirty_metadata(handle, NULL, bh);
-	else {
-		/* Always do at least ordered writes for quotas */
-		err = ext4_jbd2_file_inode(handle, inode);
-		mark_buffer_dirty(bh);
-	}
+	err = ext4_handle_dirty_metadata(handle, NULL, bh);
 	brelse(bh);
 out:
 	if (err) {
