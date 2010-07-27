@@ -882,7 +882,10 @@ struct cmd_ds_802_11_led_ctrl {
 	u8 data[256];
 } __packed;
 
+/* Automatic Frequency Control */
 struct cmd_ds_802_11_afc {
+	struct cmd_header hdr;
+
 	__le16 afc_auto;
 	union {
 		struct {
@@ -965,7 +968,6 @@ struct cmd_ds_command {
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;
 
-		struct cmd_ds_802_11_afc afc;
 		struct cmd_ds_802_11_led_ctrl ledgpio;
 
 		struct cmd_ds_bt_access bt;

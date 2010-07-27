@@ -1204,19 +1204,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
 		break;
 
-	case CMD_802_11_SET_AFC:
-	case CMD_802_11_GET_AFC:
-
-		cmdptr->command = cpu_to_le16(cmd_no);
-		cmdptr->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_afc) +
-					   sizeof(struct cmd_header));
-
-		memmove(&cmdptr->params.afc,
-			pdata_buf, sizeof(struct cmd_ds_802_11_afc));
-
-		ret = 0;
-		goto done;
-
 #ifdef CONFIG_LIBERTAS_MESH
 
 	case CMD_BT_ACCESS:
