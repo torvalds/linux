@@ -645,18 +645,17 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	gfn = kvm_mmu_page_get_gfn(sp, spte - sp->spt);
 	rmapp = gfn_to_rmap(kvm, gfn, sp->role.level);
 	if (!*rmapp) {
-		printk(KERN_ERR "rmap_remove: %p %llx 0->BUG\n", spte, *spte);
+		printk(KERN_ERR "rmap_remove: %p 0->BUG\n", spte);
 		BUG();
 	} else if (!(*rmapp & 1)) {
-		rmap_printk("rmap_remove:  %p %llx 1->0\n", spte, *spte);
+		rmap_printk("rmap_remove:  %p 1->0\n", spte);
 		if ((u64 *)*rmapp != spte) {
-			printk(KERN_ERR "rmap_remove:  %p %llx 1->BUG\n",
-			       spte, *spte);
+			printk(KERN_ERR "rmap_remove:  %p 1->BUG\n", spte);
 			BUG();
 		}
 		*rmapp = 0;
 	} else {
-		rmap_printk("rmap_remove:  %p %llx many->many\n", spte, *spte);
+		rmap_printk("rmap_remove:  %p many->many\n", spte);
 		desc = (struct kvm_rmap_desc *)(*rmapp & ~1ul);
 		prev_desc = NULL;
 		while (desc) {
@@ -670,7 +669,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 			prev_desc = desc;
 			desc = desc->more;
 		}
-		pr_err("rmap_remove: %p %llx many->many\n", spte, *spte);
+		pr_err("rmap_remove: %p many->many\n", spte);
 		BUG();
 	}
 }
