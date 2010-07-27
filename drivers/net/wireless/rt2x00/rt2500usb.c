@@ -376,7 +376,7 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 		if (key->hw_key_idx > 0 && crypto->cipher != curr_cipher)
 			return -EOPNOTSUPP;
 
-		rt2500usb_register_multiwrite(rt2x00dev, reg,
+		rt2500usb_register_multiwrite(rt2x00dev, KEY_ENTRY(key->hw_key_idx),
 					      crypto->key, sizeof(crypto->key));
 
 		/*
