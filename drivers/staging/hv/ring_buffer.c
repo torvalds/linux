@@ -257,7 +257,7 @@ Description:
 
 --*/
 void RingBufferGetDebugInfo(RING_BUFFER_INFO *RingInfo,
-			    RING_BUFFER_DEBUG_INFO *DebugInfo)
+			    struct hv_ring_buffer_debug_info *debug_info)
 {
 	u32 bytesAvailToWrite;
 	u32 bytesAvailToRead;
@@ -267,11 +267,11 @@ void RingBufferGetDebugInfo(RING_BUFFER_INFO *RingInfo,
 					&bytesAvailToRead,
 					&bytesAvailToWrite);
 
-		DebugInfo->BytesAvailToRead = bytesAvailToRead;
-		DebugInfo->BytesAvailToWrite = bytesAvailToWrite;
-		DebugInfo->CurrentReadIndex = RingInfo->RingBuffer->ReadIndex;
-		DebugInfo->CurrentWriteIndex = RingInfo->RingBuffer->WriteIndex;
-		DebugInfo->CurrentInterruptMask = RingInfo->RingBuffer->InterruptMask;
+		debug_info->BytesAvailToRead = bytesAvailToRead;
+		debug_info->BytesAvailToWrite = bytesAvailToWrite;
+		debug_info->CurrentReadIndex = RingInfo->RingBuffer->ReadIndex;
+		debug_info->CurrentWriteIndex = RingInfo->RingBuffer->WriteIndex;
+		debug_info->CurrentInterruptMask = RingInfo->RingBuffer->InterruptMask;
 	}
 }
 

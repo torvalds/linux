@@ -63,13 +63,13 @@ typedef struct _RING_BUFFER_INFO {
 
 } RING_BUFFER_INFO;
 
-typedef struct _RING_BUFFER_DEBUG_INFO {
+struct hv_ring_buffer_debug_info {
 	u32 CurrentInterruptMask;
 	u32 CurrentReadIndex;
 	u32 CurrentWriteIndex;
 	u32 BytesAvailToRead;
 	u32 BytesAvailToWrite;
-} RING_BUFFER_DEBUG_INFO;
+};
 
 
 
@@ -96,6 +96,6 @@ u32 GetRingBufferInterruptMask(RING_BUFFER_INFO *RingInfo);
 void DumpRingInfo(RING_BUFFER_INFO *RingInfo, char *Prefix);
 
 void RingBufferGetDebugInfo(RING_BUFFER_INFO *RingInfo,
-			    RING_BUFFER_DEBUG_INFO *DebugInfo);
+			    struct hv_ring_buffer_debug_info *debug_info);
 
 #endif /* _RING_BUFFER_H_ */

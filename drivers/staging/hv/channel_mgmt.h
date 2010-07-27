@@ -272,8 +272,8 @@ struct vmbus_channel_debug_info {
 	u32 ClientMonitorLatency;
 	u32 ClientMonitorConnectionId;
 
-	RING_BUFFER_DEBUG_INFO Inbound;
-	RING_BUFFER_DEBUG_INFO Outbound;
+	struct hv_ring_buffer_debug_info Inbound;
+	struct hv_ring_buffer_debug_info Outbound;
 };
 
 /*
