@@ -96,7 +96,9 @@ struct vhost_virtqueue {
 	struct iovec indirect[VHOST_NET_MAX_SG];
 	struct iovec iov[VHOST_NET_MAX_SG];
 	struct iovec hdr[VHOST_NET_MAX_SG];
-	size_t hdr_size;
+	size_t vhost_hlen;
+	size_t sock_hlen;
+	struct vring_used_elem heads[VHOST_NET_MAX_SG];
 	/* We use a kind of RCU to access private pointer.
 	 * All readers access it from worker, which makes it possible to
 	 * flush the vhost_work instead of synchronize_rcu. Therefore readers do
@@ -139,12 +141,16 @@ int vhost_get_vq_desc(struct vhost_dev *, struct vhost_virtqueue *,
 		      struct iovec iov[], unsigned int iov_count,
 		      unsigned int *out_num, unsigned int *in_num,
 		      struct vhost_log *log, unsigned int *log_num);
-void vhost_discard_vq_desc(struct vhost_virtqueue *);
+void vhost_discard_vq_desc(struct vhost_virtqueue *, int n);
 
 int vhost_add_used(struct vhost_virtqueue *, unsigned int head, int len);
-void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
+int vhost_add_used_n(struct vhost_virtqueue *, struct vring_used_elem *heads,
+		     unsigned count);
 void vhost_add_used_and_signal(struct vhost_dev *, struct vhost_virtqueue *,
-			       unsigned int head, int len);
+			       unsigned int id, int len);
+void vhost_add_used_and_signal_n(struct vhost_dev *, struct vhost_virtqueue *,
+			       struct vring_used_elem *heads, unsigned count);
+void vhost_signal(struct vhost_dev *, struct vhost_virtqueue *);
 void vhost_disable_notify(struct vhost_virtqueue *);
 bool vhost_enable_notify(struct vhost_virtqueue *);
 
@@ -161,7 +167,8 @@ enum {
 	VHOST_FEATURES = (1 << VIRTIO_F_NOTIFY_ON_EMPTY) |
 			 (1 << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1 << VHOST_F_LOG_ALL) |
-			 (1 << VHOST_NET_F_VIRTIO_NET_HDR),
+			 (1 << VHOST_NET_F_VIRTIO_NET_HDR) |
+			 (1 << VIRTIO_NET_F_MRG_RXBUF),
 };
 
 static inline int vhost_has_feature(struct vhost_dev *dev, int bit)

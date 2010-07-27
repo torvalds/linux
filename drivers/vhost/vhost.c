@@ -149,7 +149,8 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->used_flags = 0;
 	vq->log_used = false;
 	vq->log_addr = -1ull;
-	vq->hdr_size = 0;
+	vq->vhost_hlen = 0;
+	vq->sock_hlen = 0;
 	vq->private_data = NULL;
 	vq->log_base = NULL;
 	vq->error_ctx = NULL;
@@ -1101,9 +1102,9 @@ int vhost_get_vq_desc(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 }
 
 /* Reverse the effect of vhost_get_vq_desc. Useful for error handling. */
-void vhost_discard_vq_desc(struct vhost_virtqueue *vq)
+void vhost_discard_vq_desc(struct vhost_virtqueue *vq, int n)
 {
-	vq->last_avail_idx--;
+	vq->last_avail_idx -= n;
 }
 
 /* After we've used one of their buffers, we tell them about it.  We'll then
@@ -1148,6 +1149,67 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 	return 0;
 }
 
+static int __vhost_add_used_n(struct vhost_virtqueue *vq,
+			    struct vring_used_elem *heads,
+			    unsigned count)
+{
+	struct vring_used_elem __user *used;
+	int start;
+
+	start = vq->last_used_idx % vq->num;
+	used = vq->used->ring + start;
+	if (copy_to_user(used, heads, count * sizeof *used)) {
+		vq_err(vq, "Failed to write used");
+		return -EFAULT;
+	}
+	if (unlikely(vq->log_used)) {
+		/* Make sure data is seen before log. */
+		smp_wmb();
+		/* Log used ring entry write. */
+		log_write(vq->log_base,
+			  vq->log_addr +
+			   ((void __user *)used - (void __user *)vq->used),
+			  count * sizeof *used);
+	}
+	vq->last_used_idx += count;
+	return 0;
+}
+
+/* After we've used one of their buffers, we tell them about it.  We'll then
+ * want to notify the guest, using eventfd. */
+int vhost_add_used_n(struct vhost_virtqueue *vq, struct vring_used_elem *heads,
+		     unsigned count)
+{
+	int start, n, r;
+
+	start = vq->last_used_idx % vq->num;
+	n = vq->num - start;
+	if (n < count) {
+		r = __vhost_add_used_n(vq, heads, n);
+		if (r < 0)
+			return r;
+		heads += n;
+		count -= n;
+	}
+	r = __vhost_add_used_n(vq, heads, count);
+
+	/* Make sure buffer is written before we update index. */
+	smp_wmb();
+	if (put_user(vq->last_used_idx, &vq->used->idx)) {
+		vq_err(vq, "Failed to increment used idx");
+		return -EFAULT;
+	}
+	if (unlikely(vq->log_used)) {
+		/* Log used index update. */
+		log_write(vq->log_base,
+			  vq->log_addr + offsetof(struct vring_used, idx),
+			  sizeof vq->used->idx);
+		if (vq->log_ctx)
+			eventfd_signal(vq->log_ctx, 1);
+	}
+	return r;
+}
+
 /* This actually signals the guest, using eventfd. */
 void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
@@ -1182,6 +1244,15 @@ void vhost_add_used_and_signal(struct vhost_dev *dev,
 	vhost_signal(dev, vq);
 }
 
+/* multi-buffer version of vhost_add_used_and_signal */
+void vhost_add_used_and_signal_n(struct vhost_dev *dev,
+				 struct vhost_virtqueue *vq,
+				 struct vring_used_elem *heads, unsigned count)
+{
+	vhost_add_used_n(vq, heads, count);
+	vhost_signal(dev, vq);
+}
+
 /* OK, now we need to know about added descriptors. */
 bool vhost_enable_notify(struct vhost_virtqueue *vq)
 {
@@ -1206,7 +1277,7 @@ bool vhost_enable_notify(struct vhost_virtqueue *vq)
 		return false;
 	}
 
-	return avail_idx != vq->last_avail_idx;
+	return avail_idx != vq->avail_idx;
 }
 
 /* We don't need to be notified again. */
