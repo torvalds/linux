@@ -28,8 +28,7 @@
 #include <linux/kobject.h>
 #include <crypto/pcrypt.h>
 
-struct pcrypt_instance {
-	const char *name;
+struct padata_pcrypt {
 	struct padata_instance *pinst;
 	struct workqueue_struct *wq;
 
@@ -55,8 +54,8 @@ struct pcrypt_instance {
 	struct notifier_block nblock;
 };
 
-static struct pcrypt_instance pencrypt;
-static struct pcrypt_instance pdecrypt;
+static struct padata_pcrypt pencrypt;
+static struct padata_pcrypt pdecrypt;
 static struct kset           *pcrypt_kset;
 
 struct pcrypt_instance_ctx {
@@ -70,7 +69,7 @@ struct pcrypt_aead_ctx {
 };
 
 static int pcrypt_do_parallel(struct padata_priv *padata, unsigned int *cb_cpu,
-			      struct pcrypt_instance *pcrypt)
+			      struct padata_pcrypt *pcrypt)
 {
 	unsigned int cpu_index, cpu, i;
 	struct pcrypt_cpumask *cpumask;
@@ -408,13 +407,13 @@ static void pcrypt_free(struct crypto_instance *inst)
 static int pcrypt_cpumask_change_notify(struct notifier_block *self,
 					unsigned long val, void *data)
 {
-	struct pcrypt_instance *pcrypt;
+	struct padata_pcrypt *pcrypt;
 	struct pcrypt_cpumask *new_mask, *old_mask;
 
 	if (!(val & PADATA_CPU_SERIAL))
 		return 0;
 
-	pcrypt = container_of(self, struct pcrypt_instance, nblock);
+	pcrypt = container_of(self, struct padata_pcrypt, nblock);
 	new_mask = kmalloc(sizeof(*new_mask), GFP_KERNEL);
 	if (!new_mask)
 		return -ENOMEM;
@@ -446,13 +445,12 @@ static int pcrypt_sysfs_add(struct padata_instance *pinst, const char *name)
 	return ret;
 }
 
-static int __pcrypt_init_instance(struct pcrypt_instance *pcrypt,
-				  const char *name)
+static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
+			      const char *name)
 {
 	int ret = -ENOMEM;
 	struct pcrypt_cpumask *mask;
 
-	pcrypt->name = name;
 	pcrypt->wq = create_workqueue(name);
 	if (!pcrypt->wq)
 		goto err;
@@ -495,7 +493,7 @@ err:
 	return ret;
 }
 
-static void __pcrypt_deinit_instance(struct pcrypt_instance *pcrypt)
+static void pcrypt_fini_padata(struct padata_pcrypt *pcrypt)
 {
 	kobject_put(&pcrypt->pinst->kobj);
 	free_cpumask_var(pcrypt->cb_cpumask->mask);
@@ -522,11 +520,11 @@ static int __init pcrypt_init(void)
 	if (!pcrypt_kset)
 		goto err;
 
-	err = __pcrypt_init_instance(&pencrypt, "pencrypt");
+	err = pcrypt_init_padata(&pencrypt, "pencrypt");
 	if (err)
 		goto err_unreg_kset;
 
-	err = __pcrypt_init_instance(&pdecrypt, "pdecrypt");
+	err = pcrypt_init_padata(&pdecrypt, "pdecrypt");
 	if (err)
 		goto err_deinit_pencrypt;
 
@@ -536,7 +534,7 @@ static int __init pcrypt_init(void)
 	return crypto_register_template(&pcrypt_tmpl);
 
 err_deinit_pencrypt:
-	__pcrypt_deinit_instance(&pencrypt);
+	pcrypt_fini_padata(&pencrypt);
 err_unreg_kset:
 	kset_unregister(pcrypt_kset);
 err:
@@ -545,8 +543,8 @@ err:
 
 static void __exit pcrypt_exit(void)
 {
-	__pcrypt_deinit_instance(&pencrypt);
-	__pcrypt_deinit_instance(&pdecrypt);
+	pcrypt_fini_padata(&pencrypt);
+	pcrypt_fini_padata(&pdecrypt);
 
 	kset_unregister(pcrypt_kset);
 	crypto_unregister_template(&pcrypt_tmpl);
