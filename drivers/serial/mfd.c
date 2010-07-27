@@ -1217,25 +1217,38 @@ static struct uart_driver serial_hsu_reg = {
 #ifdef CONFIG_PM
 static int serial_hsu_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	void *priv = pci_get_drvdata(pdev);
 	struct uart_hsu_port *up;
 
-	up = pci_get_drvdata(pdev);
-	if (!up)
-		return 0;
+	/* Make sure this is not the internal dma controller */
+	if (priv && (pdev->device != 0x081E)) {
+		up = priv;
+		uart_suspend_port(&serial_hsu_reg, &up->port);
+	}
 
-	uart_suspend_port(&serial_hsu_reg, &up->port);
-
+	pci_save_state(pdev);
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
         return 0;
 }
 
 static int serial_hsu_resume(struct pci_dev *pdev)
 {
+	void *priv = pci_get_drvdata(pdev);
 	struct uart_hsu_port *up;
+	int ret;
 
-	up = pci_get_drvdata(pdev);
-	if (!up)
-		return 0;
-	uart_resume_port(&serial_hsu_reg, &up->port);
+	pci_set_power_state(pdev, PCI_D0);
+	pci_restore_state(pdev);
+
+	ret = pci_enable_device(pdev);
+	if (ret)
+		dev_warn(&pdev->dev,
+			"HSU: can't re-enable device, try to continue\n");
+
+	if (priv && (pdev->device != 0x081E)) {
+		up = priv;
+		uart_resume_port(&serial_hsu_reg, &up->port);
+	}
 	return 0;
 }
 #else
