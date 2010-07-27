@@ -48,8 +48,8 @@ static unsigned long __iomem *hpwdt_timer_reg;
 static unsigned long __iomem *hpwdt_timer_con;
 
 static struct pci_device_id hpwdt_devices[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_COMPAQ, 0xB203) },	/* iLO2 */
+	{ PCI_DEVICE(PCI_VENDOR_ID_HP, 0x3306) },	/* iLO3 */
 	{0},			/* terminate list */
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
@@ -548,7 +548,7 @@ static const struct watchdog_info ident = {
 	.options = WDIOF_SETTIMEOUT |
 		   WDIOF_KEEPALIVEPING |
 		   WDIOF_MAGICCLOSE,
-	.identity = "HP iLO2 HW Watchdog Timer",
+	.identity = "HP iLO2+ HW Watchdog Timer",
 };
 
 static long hpwdt_ioctl(struct file *file, unsigned int cmd,
@@ -654,13 +654,13 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	hpwdt_check_nmi_sourcing(dev);
 
 	/*
-	 * First let's find out if we are on an iLO2 server. We will
+	 * First let's find out if we are on an iLO2+ server. We will
 	 * not run on a legacy ASM box.
 	 * So we only support the G5 ProLiant servers and higher.
 	 */
 	if (dev->subsystem_vendor != PCI_VENDOR_ID_HP) {
 		dev_warn(&dev->dev,
-			"This server does not have an iLO2 ASIC.\n");
+			"This server does not have an iLO2+ ASIC.\n");
 		return -ENODEV;
 	}
 
@@ -674,7 +674,7 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	pci_mem_addr = pci_iomap(dev, 1, 0x80);
 	if (!pci_mem_addr) {
 		dev_warn(&dev->dev,
-			"Unable to detect the iLO2 server memory.\n");
+			"Unable to detect the iLO2+ server memory.\n");
 		retval = -ENOMEM;
 		goto error_pci_iomap;
 	}

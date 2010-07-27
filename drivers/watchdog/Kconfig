@@ -574,11 +574,11 @@ config IT87_WDT
 	  be called it87_wdt.
 
 config HP_WATCHDOG
-	tristate "HP Proliant iLO 2 Hardware Watchdog Timer"
+	tristate "HP Proliant iLO2+ Hardware Watchdog Timer"
 	depends on X86
 	help
 	  A software monitoring watchdog and NMI sourcing driver. This driver
-	  will detect lockups and provide stack trace. Also, when an NMI
+	  will detect lockups and provide a stack trace. Also, when an NMI
 	  occurs this driver will make the necessary BIOS calls to log
 	  the cause of the NMI. This is a driver that will only load on a
 	  HP ProLiant system with a minimum of iLO2 support.
