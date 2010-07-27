@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/kobject.h>
+#include <linux/cpu.h>
 #include <crypto/pcrypt.h>
 
 struct padata_pcrypt {
@@ -409,6 +410,7 @@ static int pcrypt_cpumask_change_notify(struct notifier_block *self,
 {
 	struct padata_pcrypt *pcrypt;
 	struct pcrypt_cpumask *new_mask, *old_mask;
+	struct padata_cpumask *cpumask = (struct padata_cpumask *)data;
 
 	if (!(val & PADATA_CPU_SERIAL))
 		return 0;
@@ -424,7 +426,7 @@ static int pcrypt_cpumask_change_notify(struct notifier_block *self,
 
 	old_mask = pcrypt->cb_cpumask;
 
-	padata_get_cpumask(pcrypt->pinst, PADATA_CPU_SERIAL, new_mask->mask);
+	cpumask_copy(new_mask->mask, cpumask->cbcpu);
 	rcu_assign_pointer(pcrypt->cb_cpumask, new_mask);
 	synchronize_rcu_bh();
 
@@ -451,6 +453,8 @@ static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
 	int ret = -ENOMEM;
 	struct pcrypt_cpumask *mask;
 
+	get_online_cpus();
+
 	pcrypt->wq = create_workqueue(name);
 	if (!pcrypt->wq)
 		goto err;
@@ -467,7 +471,7 @@ static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
 		goto err_free_padata;
 	}
 
-	padata_get_cpumask(pcrypt->pinst, PADATA_CPU_SERIAL, mask->mask);
+	cpumask_and(mask->mask, cpu_possible_mask, cpu_active_mask);
 	rcu_assign_pointer(pcrypt->cb_cpumask, mask);
 
 	pcrypt->nblock.notifier_call = pcrypt_cpumask_change_notify;
@@ -479,7 +483,10 @@ static int pcrypt_init_padata(struct padata_pcrypt *pcrypt,
 	if (ret)
 		goto err_unregister_notifier;
 
+	put_online_cpus();
+
 	return ret;
+
 err_unregister_notifier:
 	padata_unregister_cpumask_notifier(pcrypt->pinst, &pcrypt->nblock);
 err_free_cpumask:
@@ -490,6 +497,8 @@ err_free_padata:
 err_destroy_workqueue:
 	destroy_workqueue(pcrypt->wq);
 err:
+	put_online_cpus();
+
 	return ret;
 }
 
