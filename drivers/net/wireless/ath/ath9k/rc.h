@@ -27,17 +27,29 @@ struct ath_softc;
 #define RATE_TABLE_SIZE  64
 #define MAX_TX_RATE_PHY  48
 
-/* VALID_ALL - valid for 20/40/Legacy,
- * VALID - Legacy only,
- * VALID_20 - HT 20 only,
- * VALID_40 - HT 40 only */
 
-#define INVALID    0x0
-#define VALID      0x1
-#define VALID_20   0x2
-#define VALID_40   0x4
-#define VALID_2040 (VALID_20|VALID_40)
-#define VALID_ALL  (VALID_2040|VALID)
+#define RC_INVALID	0x0000
+#define RC_LEGACY	0x0001
+#define RC_SS		0x0002
+#define RC_DS		0x0004
+#define RC_TS		0x0008
+#define RC_HT_20	0x0010
+#define RC_HT_40	0x0020
+
+#define RC_SS_OR_LEGACY(f)     ((f) & (RC_SS | RC_LEGACY))
+
+#define RC_HT_2040		(RC_HT_20 | RC_HT_40)
+#define RC_ALL_STREAM		(RC_SS | RC_DS)
+#define RC_L_SD			(RC_LEGACY | RC_SS | RC_DS)
+#define RC_HT_SD_2040		(RC_HT_2040 | RC_SS | RC_DS)
+#define RC_HT_S_20		(RC_HT_20 | RC_SS)
+#define RC_HT_SD_20		(RC_HT_20 | RC_SS | RC_DS)
+#define RC_HT_SD_40		(RC_HT_40 | RC_SS | RC_DS)
+#define RC_HT_S_20		(RC_HT_20 | RC_SS)
+#define RC_HT_S_40		(RC_HT_40 | RC_SS)
+#define RC_HT_D_20		(RC_HT_20 | RC_DS)
+#define RC_HT_D_40		(RC_HT_40 | RC_DS)
+#define RC_ALL			(RC_LEGACY | RC_HT_2040 | RC_ALL_STREAM)
 
 enum {
 	WLAN_RC_PHY_OFDM,
@@ -73,15 +85,19 @@ enum {
 #define WLAN_RC_PHY_HT(_phy)    (_phy >= WLAN_RC_PHY_HT_20_SS)
 
 #define WLAN_RC_CAP_MODE(capflag) (((capflag & WLAN_RC_HT_FLAG) ?	\
-		(capflag & WLAN_RC_40_FLAG) ? VALID_40 : VALID_20 : VALID))
+	((capflag & WLAN_RC_40_FLAG) ? RC_HT_40 : RC_HT_20) : RC_LEGACY))
+
+#define WLAN_RC_CAP_STREAM(capflag) \
+	(((capflag) & WLAN_RC_DS_FLAG) ? RC_DS : RC_SS)
+
 
 /* Return TRUE if flag supports HT20 && client supports HT20 or
  * return TRUE if flag supports HT40 && client supports HT40.
  * This is used becos some rates overlap between HT20/HT40.
  */
 #define WLAN_RC_PHY_HT_VALID(flag, capflag)			\
-	(((flag & VALID_20) && !(capflag & WLAN_RC_40_FLAG)) || \
-	 ((flag & VALID_40) && (capflag & WLAN_RC_40_FLAG)))
+	(((flag & RC_HT_20) && !(capflag & WLAN_RC_40_FLAG)) || \
+	 ((flag & RC_HT_40) && (capflag & WLAN_RC_40_FLAG)))
 
 #define WLAN_RC_DS_FLAG         (0x01)
 #define WLAN_RC_40_FLAG         (0x02)
@@ -110,8 +126,7 @@ struct ath_rate_table {
 	int rate_cnt;
 	int mcs_start;
 	struct {
-		u8 valid;
-		u8 valid_single_stream;
+		u16 rate_flags;
 		u8 phy;
 		u32 ratekbps;
 		u32 user_ratekbps;
