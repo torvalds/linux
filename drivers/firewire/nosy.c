@@ -1,7 +1,6 @@
-/* -*- c-file-style: "linux" -*-
- *
- * nosy.c - Snoop mode driver for TI pcilynx 1394 controllers
- * Copyright (C) 2002 Kristian Høgsberg
+/*
+ * nosy - Snoop mode driver for TI PCILynx 1394 controllers
+ * Copyright (C) 2002-2007 Kristian HÃ¸gsberg
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -18,23 +17,25 @@
  * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/sched.h> /* required for linux/wait.h */
-#include <linux/wait.h>
 #include <linux/errno.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/pci.h>
 #include <linux/fs.h>
-#include <linux/poll.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
 #include <linux/miscdevice.h>
-#include <asm/byteorder.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/poll.h>
+#include <linux/sched.h> /* required for linux/wait.h */
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/timex.h>
+#include <linux/uaccess.h>
+#include <linux/wait.h>
+
 #include <asm/atomic.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
-#include <asm/timex.h>
+#include <asm/byteorder.h>
 
 #include "nosy.h"
 #include "nosy-user.h"
@@ -46,7 +47,7 @@
 #define error(s, args...) printk(KERN_ERR s, ## args)
 #define debug(s, args...) printk(KERN_DEBUG s, ## args)
 
-static const char driver_name[] = "nosy";
+static char driver_name[] = KBUILD_MODNAME;
 
 struct pcl_status {
 	unsigned int transfer_count : 13;
@@ -77,8 +78,7 @@ struct pcl {
 } __attribute__ ((packed));
 
 struct packet {
-	unsigned int length : 16;
-	unsigned int code : 16;
+	unsigned int length;
 	char data[0];
 };
 
@@ -87,8 +87,8 @@ struct packet_buffer {
 	size_t capacity;
 	long total_packet_count, lost_packet_count;
 	atomic_t size;
-	struct packet *head, *tail;	
-        wait_queue_head_t wait;	
+	struct packet *head, *tail;
+	wait_queue_head_t wait;
 };
 
 struct pcilynx {
@@ -106,7 +106,6 @@ struct pcilynx {
 	struct miscdevice misc;
 };
 
-
 struct client {
 	struct pcilynx *lynx;
 	unsigned long tcode_mask;
@@ -115,7 +114,7 @@ struct client {
 };
 
 #define MAX_MINORS 64
-struct pcilynx *minors[MAX_MINORS];
+static struct pcilynx *minors[MAX_MINORS];
 
 static int
 packet_buffer_init(struct packet_buffer *buffer, size_t capacity)
@@ -128,7 +127,7 @@ packet_buffer_init(struct packet_buffer *buffer, size_t capacity)
 	buffer->capacity = capacity;
 	buffer->lost_packet_count = 0;
 	atomic_set(&buffer->size, 0);
-        init_waitqueue_head(&buffer->wait);
+	init_waitqueue_head(&buffer->wait);
 
 	return 0;
 }
@@ -158,8 +157,7 @@ packet_buffer_get(struct packet_buffer *buffer, void *data, size_t user_length)
 		if (copy_to_user(data, buffer->head->data, length))
 			return -EFAULT;
 		buffer->head = (struct packet *) &buffer->head->data[length];
-	}
-	else {
+	} else {
 		size_t split = end - buffer->head->data;
 
 		if (copy_to_user(data, buffer->head->data, split))
@@ -169,11 +167,12 @@ packet_buffer_get(struct packet_buffer *buffer, void *data, size_t user_length)
 		buffer->head = (struct packet *) &buffer->data[length - split];
 	}
 
-	/* Decrease buffer->size as the last thing, since this is what
+	/*
+	 * Decrease buffer->size as the last thing, since this is what
 	 * keeps the interrupt from overwriting the packet we are
-	 * retrieving from the buffer.  */
-
-	atomic_sub(sizeof (struct packet) + length, &buffer->size);
+	 * retrieving from the buffer.
+	 */
+	atomic_sub(sizeof(struct packet) + length, &buffer->size);
 
 	return length;
 }
@@ -185,8 +184,8 @@ packet_buffer_put(struct packet_buffer *buffer, void *data, size_t length)
 
 	buffer->total_packet_count++;
 
-	if (buffer->capacity < 
-	    atomic_read(&buffer->size) + sizeof (struct packet) + length) {
+	if (buffer->capacity <
+	    atomic_read(&buffer->size) + sizeof(struct packet) + length) {
 		buffer->lost_packet_count++;
 		return;
 	}
@@ -197,69 +196,68 @@ packet_buffer_put(struct packet_buffer *buffer, void *data, size_t length)
 	if (&buffer->tail->data[length] < end) {
 		memcpy(buffer->tail->data, data, length);
 		buffer->tail = (struct packet *) &buffer->tail->data[length];
-	}
-	else {
+	} else {
 		size_t split = end - buffer->tail->data;
 
 		memcpy(buffer->tail->data, data, split);
 		memcpy(buffer->data, data + split, length - split);
 		buffer->tail = (struct packet *) &buffer->data[length - split];
 	}
-	
+
 	/* Finally, adjust buffer size and wake up userspace reader. */
 
-	atomic_add(sizeof (struct packet) + length, &buffer->size);
+	atomic_add(sizeof(struct packet) + length, &buffer->size);
 	wake_up_interruptible(&buffer->wait);
 }
 
 static inline void
 reg_write(struct pcilynx *lynx, int offset, u32 data)
 {
-        writel(data, lynx->registers + offset);
+	writel(data, lynx->registers + offset);
 }
 
 static inline u32
 reg_read(struct pcilynx *lynx, int offset)
 {
-        return readl(lynx->registers + offset);
+	return readl(lynx->registers + offset);
 }
 
 static inline void
 reg_set_bits(struct pcilynx *lynx, int offset, u32 mask)
 {
-        reg_write(lynx, offset, (reg_read(lynx, offset) | mask));
+	reg_write(lynx, offset, (reg_read(lynx, offset) | mask));
 }
 
-/* Maybe the pcl programs could be setup to just append data instead
- * of using a whole packet. */
-
-static inline void 
-run_pcl(struct pcilynx *lynx, dma_addr_t pcl_bus, int dmachan)
+/*
+ * Maybe the pcl programs could be set up to just append data instead
+ * of using a whole packet.
+ */
+static inline void
+run_pcl(struct pcilynx *lynx, dma_addr_t pcl_bus,
+			   int dmachan)
 {
-        reg_write(lynx, DMA0_CURRENT_PCL + dmachan * 0x20, pcl_bus);
-        reg_write(lynx, DMA0_CHAN_CTRL + dmachan * 0x20,
-                  DMA_CHAN_CTRL_ENABLE | DMA_CHAN_CTRL_LINK);
+	reg_write(lynx, DMA0_CURRENT_PCL + dmachan * 0x20, pcl_bus);
+	reg_write(lynx, DMA0_CHAN_CTRL + dmachan * 0x20,
+		  DMA_CHAN_CTRL_ENABLE | DMA_CHAN_CTRL_LINK);
 }
 
 static int
 set_phy_reg(struct pcilynx *lynx, int addr, int val)
 {
-        if (addr > 15) {
-                debug("%s: PHY register address %d out of range",
-		      __FUNCTION__, addr);
-                return -1;
-        }
+	if (addr > 15) {
+		debug("PHY register address %d out of range\n", addr);
+		return -1;
+	}
 
-        if (val > 0xff) {
-                debug("%s: PHY register value %d out of range",
-		      __FUNCTION__, val);
-                return -1;
-        }
+	if (val > 0xff) {
+		debug("PHY register value %d out of range\n", val);
+		return -1;
+	}
 
-        reg_write(lynx, LINK_PHY, LINK_PHY_WRITE |
+	reg_write(lynx, LINK_PHY, LINK_PHY_WRITE |
 		  LINK_PHY_ADDR(addr) | LINK_PHY_WDATA(val));
 
-        return 0;
+	return 0;
 }
 
 static void
@@ -317,7 +315,7 @@ nosy_open(struct inode *inode, struct file *file)
 	if (minor > MAX_MINORS || minors[minor] == NULL)
 		return -ENODEV;
 
-        file->private_data = nosy_add_client(minors[minor]);
+	file->private_data = nosy_add_client(minors[minor]);
 	if (file->private_data == NULL)
 		return -ENOMEM;
 	else
@@ -329,7 +327,7 @@ nosy_release(struct inode *inode, struct file *file)
 {
 	nosy_remove_client(file->private_data);
 
-        return 0;
+	return 0;
 }
 
 static unsigned int
@@ -358,19 +356,17 @@ nosy_ioctl(struct inode *inode, struct file *file,
 	   unsigned int cmd, unsigned long arg)
 {
 	struct client *client = file->private_data;
+	struct nosy_stats stats;
 
 	switch (cmd) {
-	case NOSY_IOC_GET_STATS: {
-		struct nosy_stats stats;
-
+	case NOSY_IOC_GET_STATS:
 		stats.total_packet_count = client->buffer.total_packet_count;
 		stats.lost_packet_count = client->buffer.lost_packet_count;
 		if (copy_to_user((void *) arg, &stats, sizeof stats))
 			return -EFAULT;
 		else
 			return 0;
-	}
-	
+
 	case NOSY_IOC_START:
 		nosy_start_snoop(client);
 		return 0;
@@ -389,13 +385,13 @@ nosy_ioctl(struct inode *inode, struct file *file,
 	}
 }
 
-static struct file_operations nosy_ops = {
+static const struct file_operations nosy_ops = {
 	.owner =	THIS_MODULE,
-        .read =         nosy_read,
+	.read =		nosy_read,
 	.ioctl =	nosy_ioctl,
-        .poll =         nosy_poll,
-        .open =         nosy_open,
-        .release =      nosy_release,
+	.poll =		nosy_poll,
+	.open =		nosy_open,
+	.release =	nosy_release,
 };
 
 #define PHY_PACKET_SIZE 12 /* 1 payload, 1 inverse, 1 ack = 3 quadlets */
@@ -412,7 +408,6 @@ static void
 packet_handler(struct pcilynx *lynx)
 {
 	unsigned long flags;
-	struct list_head *pos;
 	struct client *client;
 	unsigned long tcode_mask;
 	size_t length;
@@ -434,12 +429,10 @@ packet_handler(struct pcilynx *lynx)
 
 	spin_lock_irqsave(&lynx->client_list_lock, flags);
 
-	list_for_each(pos, &lynx->client_list) {
-		client = list_entry(pos, struct client, link);
+	list_for_each_entry(client, &lynx->client_list, link)
 		if (client->tcode_mask & tcode_mask)
-			packet_buffer_put(&client->buffer, 
+			packet_buffer_put(&client->buffer,
 					  lynx->rcv_buffer, length + 4);
-	}
 
 	spin_unlock_irqrestore(&lynx->client_list_lock, flags);
 }
@@ -448,7 +441,6 @@ static void
 bus_reset_handler(struct pcilynx *lynx)
 {
 	unsigned long flags;
-	struct list_head *pos;
 	struct client *client;
 	struct timeval tv;
 
@@ -456,23 +448,19 @@ bus_reset_handler(struct pcilynx *lynx)
 
 	spin_lock_irqsave(&lynx->client_list_lock, flags);
 
-	list_for_each(pos, &lynx->client_list) {
-		client = list_entry(pos, struct client, link);
+	list_for_each_entry(client, &lynx->client_list, link)
 		packet_buffer_put(&client->buffer, &tv.tv_usec, 4);
-	}
 
 	spin_unlock_irqrestore(&lynx->client_list_lock, flags);
 }
 
-
-
 static irqreturn_t
 irq_handler(int irq, void *device)
 {
-	struct pcilynx *lynx = (struct pcilynx *) device;
+	struct pcilynx *lynx = device;
 	u32 pci_int_status;
-	
-        pci_int_status = reg_read(lynx, PCI_INT_STATUS);
+
+	pci_int_status = reg_read(lynx, PCI_INT_STATUS);
 
 	if ((pci_int_status & PCI_INT_INT_PEND) == 0)
 		/* Not our interrupt, bail out quickly. */
@@ -505,19 +493,19 @@ irq_handler(int irq, void *device)
 static void
 remove_card(struct pci_dev *dev)
 {
-        struct pcilynx *lynx;
+	struct pcilynx *lynx;
 
-        lynx = pci_get_drvdata(dev);
-        if (!lynx)
+	lynx = pci_get_drvdata(dev);
+	if (!lynx)
 		return;
-        pci_set_drvdata(dev, NULL);
+	pci_set_drvdata(dev, NULL);
 
 	reg_write(lynx, PCI_INT_ENABLE, 0);
 	free_irq(lynx->pci_device->irq, lynx);
 
-	pci_free_consistent(lynx->pci_device, sizeof (struct pcl), 
+	pci_free_consistent(lynx->pci_device, sizeof(struct pcl),
 			    lynx->rcv_start_pcl, lynx->rcv_start_pcl_bus);
-	pci_free_consistent(lynx->pci_device, sizeof (struct pcl), 
+	pci_free_consistent(lynx->pci_device, sizeof(struct pcl),
 			    lynx->rcv_pcl, lynx->rcv_pcl_bus);
 	pci_free_consistent(lynx->pci_device, PAGE_SIZE,
 			    lynx->rcv_buffer, lynx->rcv_buffer_bus);
@@ -532,64 +520,58 @@ remove_card(struct pci_dev *dev)
 
 #define RCV_BUFFER_SIZE (16 * 1024)
 
-#define FAIL(s, args...)			\
-	do {					\
-		error(s, ## args);		\
-		return err;			\
-	} while (0)
-
 static int __devinit
 add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 {
-        struct pcilynx *lynx;
+	struct pcilynx *lynx;
 	u32 p, end;
-	int err, i;
+	int i;
 
-        err = -ENXIO;
-
-        if (pci_set_dma_mask(dev, 0xffffffff))
-                FAIL("DMA address limits not supported "
-		     "for PCILynx hardware.\n");
-        if (pci_enable_device(dev))
-                FAIL("Failed to enable PCILynx hardware.\n");
-        pci_set_master(dev);
-
-        err = -ENOMEM;
+	if (pci_set_dma_mask(dev, 0xffffffff)) {
+		error("DMA address limits not supported "
+		      "for PCILynx hardware\n");
+		return -ENXIO;
+	}
+	if (pci_enable_device(dev)) {
+		error("Failed to enable PCILynx hardware\n");
+		return -ENXIO;
+	}
+	pci_set_master(dev);
 
 	lynx = kzalloc(sizeof *lynx, GFP_KERNEL);
-        if (lynx == NULL)
-		FAIL("Failed to allocate control structure memory.\n");
-
-        lynx->pci_device = dev;
-        pci_set_drvdata(dev, lynx);
+	if (lynx == NULL) {
+		error("Failed to allocate control structure memory\n");
+		return -ENOMEM;
+	}
+	lynx->pci_device = dev;
+	pci_set_drvdata(dev, lynx);
 
 	spin_lock_init(&lynx->client_list_lock);
 	INIT_LIST_HEAD(&lynx->client_list);
 
-        lynx->registers = ioremap_nocache(pci_resource_start(dev, 0),
-                                          PCILYNX_MAX_REGISTER);
+	lynx->registers = ioremap_nocache(pci_resource_start(dev, 0),
+					  PCILYNX_MAX_REGISTER);
 
-        lynx->rcv_start_pcl = pci_alloc_consistent(lynx->pci_device,
-						   sizeof(struct pcl),
-						   &lynx->rcv_start_pcl_bus);
-        lynx->rcv_pcl = pci_alloc_consistent(lynx->pci_device,
-					     sizeof(struct pcl),
-					     &lynx->rcv_pcl_bus);
-        lynx->rcv_buffer = pci_alloc_consistent(lynx->pci_device, RCV_BUFFER_SIZE,
-						&lynx->rcv_buffer_bus);
-        if (lynx->rcv_start_pcl == NULL ||
+	lynx->rcv_start_pcl = pci_alloc_consistent(lynx->pci_device,
+				sizeof(struct pcl), &lynx->rcv_start_pcl_bus);
+	lynx->rcv_pcl = pci_alloc_consistent(lynx->pci_device,
+				sizeof(struct pcl), &lynx->rcv_pcl_bus);
+	lynx->rcv_buffer = pci_alloc_consistent(lynx->pci_device,
+				RCV_BUFFER_SIZE, &lynx->rcv_buffer_bus);
+	if (lynx->rcv_start_pcl == NULL ||
 	    lynx->rcv_pcl == NULL ||
-	    lynx->rcv_buffer == NULL)
+	    lynx->rcv_buffer == NULL) {
 		/* FIXME: do proper error handling. */
-                FAIL("Failed to allocate receive buffer.\n");
-
+		error("Failed to allocate receive buffer\n");
+		return -ENOMEM;
+	}
 	lynx->rcv_start_pcl->next = lynx->rcv_pcl_bus;
-        lynx->rcv_pcl->next = PCL_NEXT_INVALID;
-        lynx->rcv_pcl->async_error_next = PCL_NEXT_INVALID;
+	lynx->rcv_pcl->next = PCL_NEXT_INVALID;
+	lynx->rcv_pcl->async_error_next = PCL_NEXT_INVALID;
 
-        lynx->rcv_pcl->buffer[0].control =
+	lynx->rcv_pcl->buffer[0].control =
 		PCL_CMD_RCV | PCL_BIGENDIAN | 2044;
-        lynx->rcv_pcl->buffer[0].pointer = lynx->rcv_buffer_bus + 4;
+	lynx->rcv_pcl->buffer[0].pointer = lynx->rcv_buffer_bus + 4;
 	p = lynx->rcv_buffer_bus + 2048;
 	end = lynx->rcv_buffer_bus + RCV_BUFFER_SIZE;
 	for (i = 1; p < end; i++, p += 2048) {
@@ -599,31 +581,31 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 	}
 	lynx->rcv_pcl->buffer[i - 1].control |= PCL_LAST_BUFF;
 
-        reg_set_bits(lynx, MISC_CONTROL, MISC_CONTROL_SWRESET);
-        /* Fix buggy cards with autoboot pin not tied low: */
-        reg_write(lynx, DMA0_CHAN_CTRL, 0);
-        reg_write(lynx, DMA_GLOBAL_REGISTER, 0x00 << 24);
+	reg_set_bits(lynx, MISC_CONTROL, MISC_CONTROL_SWRESET);
+	/* Fix buggy cards with autoboot pin not tied low: */
+	reg_write(lynx, DMA0_CHAN_CTRL, 0);
+	reg_write(lynx, DMA_GLOBAL_REGISTER, 0x00 << 24);
 
 #if 0
-        /* now, looking for PHY register set */
-        if ((get_phy_reg(lynx, 2) & 0xe0) == 0xe0) {
-                lynx->phyic.reg_1394a = 1;
-                PRINT(KERN_INFO, lynx->id,
-                      "found 1394a conform PHY (using extended register set)");
-                lynx->phyic.vendor = get_phy_vendorid(lynx);
-                lynx->phyic.product = get_phy_productid(lynx);
-        } else {
-                lynx->phyic.reg_1394a = 0;
-                PRINT(KERN_INFO, lynx->id, "found old 1394 PHY");
-        }
+	/* now, looking for PHY register set */
+	if ((get_phy_reg(lynx, 2) & 0xe0) == 0xe0) {
+		lynx->phyic.reg_1394a = 1;
+		PRINT(KERN_INFO, lynx->id,
+		      "found 1394a conform PHY (using extended register set)");
+		lynx->phyic.vendor = get_phy_vendorid(lynx);
+		lynx->phyic.product = get_phy_productid(lynx);
+	} else {
+		lynx->phyic.reg_1394a = 0;
+		PRINT(KERN_INFO, lynx->id, "found old 1394 PHY");
+	}
 #endif
 
 	/* Setup the general receive FIFO max size. */
 	reg_write(lynx, FIFO_SIZES, 255);
 
-        reg_set_bits(lynx, PCI_INT_ENABLE, PCI_INT_DMA_ALL);
+	reg_set_bits(lynx, PCI_INT_ENABLE, PCI_INT_DMA_ALL);
 
-        reg_write(lynx, LINK_INT_ENABLE,
+	reg_write(lynx, LINK_INT_ENABLE,
 		  LINK_INT_PHY_TIME_OUT | LINK_INT_PHY_REG_RCVD |
 		  LINK_INT_PHY_BUSRESET | LINK_INT_IT_STUCK |
 		  LINK_INT_AT_STUCK | LINK_INT_SNTRJ |
@@ -638,58 +620,60 @@ add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 
 	run_pcl(lynx, lynx->rcv_start_pcl_bus, 0);
 
-        if (request_irq(dev->irq, irq_handler, IRQF_SHARED, driver_name, lynx))
-		FAIL("Failed to allocate shared interrupt %d.", dev->irq);
+	if (request_irq(dev->irq, irq_handler, IRQF_SHARED,
+			driver_name, lynx)) {
+		error("Failed to allocate shared interrupt %d\n", dev->irq);
+		return -EIO;
+	}
 
 	lynx->misc.parent = &dev->dev;
 	lynx->misc.minor = MISC_DYNAMIC_MINOR;
 	lynx->misc.name = "nosy";
 	lynx->misc.fops = &nosy_ops;
-	if (misc_register(&lynx->misc))
-                FAIL("Failed to register misc char device.");
+	if (misc_register(&lynx->misc)) {
+		error("Failed to register misc char device\n");
+		return -ENOMEM;
+	}
 	minors[lynx->misc.minor] = lynx;
 
 	notify("Initialized PCILynx IEEE1394 card, irq=%d\n", dev->irq);
 
-        return 0;
+	return 0;
 }
 
 static struct pci_device_id pci_table[] __devinitdata = {
 	{
-                .vendor =    PCI_VENDOR_ID_TI,
-                .device =    PCI_DEVICE_ID_TI_PCILYNX,
-                .subvendor = PCI_ANY_ID,
-                .subdevice = PCI_ANY_ID,
+		.vendor =    PCI_VENDOR_ID_TI,
+		.device =    PCI_DEVICE_ID_TI_PCILYNX,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
 	},
 	{ }	/* Terminating entry */
 };
 
 static struct pci_driver lynx_pci_driver = {
-	.name =		(char *) driver_name,
+	.name =		driver_name,
 	.id_table =	pci_table,
 	.probe =	add_card,
-	.remove =	__devexit_p(remove_card),
+	.remove =	remove_card,
 };
 
-MODULE_AUTHOR("Kristian Høgsberg");
+MODULE_AUTHOR("Kristian Hoegsberg");
 MODULE_DESCRIPTION("Snoop mode driver for TI pcilynx 1394 controllers");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, pci_table);
 
 static int __init nosy_init(void)
 {
- 	/* notify("Loaded %s version %s.\n", driver_name, VERSION); */
-
-        return pci_register_driver(&lynx_pci_driver);
+	return pci_register_driver(&lynx_pci_driver);
 }
 
 static void __exit nosy_cleanup(void)
 {
-        pci_unregister_driver(&lynx_pci_driver);
+	pci_unregister_driver(&lynx_pci_driver);
 
 	notify("Unloaded %s.\n", driver_name);
 }
-
 
 module_init(nosy_init);
 module_exit(nosy_cleanup);

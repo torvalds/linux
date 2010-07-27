@@ -1,4 +1,5 @@
-/* Chip register definitions for PCILynx chipset.  Based on pcilynx.h
+/*
+ * Chip register definitions for PCILynx chipset.  Based on pcilynx.h
  * from the Linux 1394 drivers, but modified a bit so the names here
  * match the specification exactly (even though they have weird names,
  * like xxx_OVER_FLOW, or arbitrary abbreviations like SNTRJ for "sent
@@ -16,7 +17,7 @@
 #define SERIAL_EEPROM_CONTROL             0x44
 
 #define PCI_INT_STATUS                    0x48
-#define PCI_INT_ENABLE                    0x4c               
+#define PCI_INT_ENABLE                    0x4c
 /* status and enable have identical bit numbers */
 #define PCI_INT_INT_PEND                  (1<<31)
 #define PCI_INT_FRC_INT                   (1<<30)
@@ -48,7 +49,7 @@
 #define LBUS_ADDR_SEL_RAM                 (0x0<<16)
 #define LBUS_ADDR_SEL_ROM                 (0x1<<16)
 #define LBUS_ADDR_SEL_AUX                 (0x2<<16)
-#define LBUS_ADDR_SEL_ZV                  (0x3<<16)       
+#define LBUS_ADDR_SEL_ZV                  (0x3<<16)
 
 #define GPIO_CTRL_A                       0xb8
 #define GPIO_CTRL_B                       0xbc
@@ -90,14 +91,14 @@
 #define PCL_BIGENDIAN          (1<<16)
 #define PCL_ISOMODE            (1<<12)
 
-#define DMA0_PREV_PCL                     0x100               
+#define DMA0_PREV_PCL                     0x100
 #define DMA1_PREV_PCL                     0x120
 #define DMA2_PREV_PCL                     0x140
 #define DMA3_PREV_PCL                     0x160
 #define DMA4_PREV_PCL                     0x180
 #define DMA_PREV_PCL(chan)                (DMA_BREG(DMA0_PREV_PCL, chan))
 
-#define DMA0_CURRENT_PCL                  0x104            
+#define DMA0_CURRENT_PCL                  0x104
 #define DMA1_CURRENT_PCL                  0x124
 #define DMA2_CURRENT_PCL                  0x144
 #define DMA3_CURRENT_PCL                  0x164
@@ -118,15 +119,14 @@
 #define DMA_CHAN_STAT_PKTCMPL             (1<<27)
 #define DMA_CHAN_STAT_SPECIALACK          (1<<14)
 
-
-#define DMA0_CHAN_CTRL                    0x110              
+#define DMA0_CHAN_CTRL                    0x110
 #define DMA1_CHAN_CTRL                    0x130
 #define DMA2_CHAN_CTRL                    0x150
 #define DMA3_CHAN_CTRL                    0x170
 #define DMA4_CHAN_CTRL                    0x190
 #define DMA_CHAN_CTRL(chan)               (DMA_BREG(DMA0_CHAN_CTRL, chan))
 /* CHAN_CTRL registers share bits */
-#define DMA_CHAN_CTRL_ENABLE              (1<<31)      
+#define DMA_CHAN_CTRL_ENABLE              (1<<31)
 #define DMA_CHAN_CTRL_BUSY                (1<<30)
 #define DMA_CHAN_CTRL_LINK                (1<<29)
 
@@ -153,28 +153,28 @@
 #define DMA2_WORD0_CMP_VALUE              0xb20
 #define DMA3_WORD0_CMP_VALUE              0xb30
 #define DMA4_WORD0_CMP_VALUE              0xb40
-#define DMA_WORD0_CMP_VALUE(chan)         (DMA_SREG(DMA0_WORD0_CMP_VALUE, chan))
+#define DMA_WORD0_CMP_VALUE(chan)	(DMA_SREG(DMA0_WORD0_CMP_VALUE, chan))
 
 #define DMA0_WORD0_CMP_ENABLE             0xb04
 #define DMA1_WORD0_CMP_ENABLE             0xb14
 #define DMA2_WORD0_CMP_ENABLE             0xb24
 #define DMA3_WORD0_CMP_ENABLE             0xb34
 #define DMA4_WORD0_CMP_ENABLE             0xb44
-#define DMA_WORD0_CMP_ENABLE(chan)        (DMA_SREG(DMA0_WORD0_CMP_ENABLE,chan))
+#define DMA_WORD0_CMP_ENABLE(chan)	(DMA_SREG(DMA0_WORD0_CMP_ENABLE, chan))
 
 #define DMA0_WORD1_CMP_VALUE              0xb08
 #define DMA1_WORD1_CMP_VALUE              0xb18
 #define DMA2_WORD1_CMP_VALUE              0xb28
 #define DMA3_WORD1_CMP_VALUE              0xb38
 #define DMA4_WORD1_CMP_VALUE              0xb48
-#define DMA_WORD1_CMP_VALUE(chan)         (DMA_SREG(DMA0_WORD1_CMP_VALUE, chan))
+#define DMA_WORD1_CMP_VALUE(chan)	(DMA_SREG(DMA0_WORD1_CMP_VALUE, chan))
 
 #define DMA0_WORD1_CMP_ENABLE             0xb0c
 #define DMA1_WORD1_CMP_ENABLE             0xb1c
 #define DMA2_WORD1_CMP_ENABLE             0xb2c
 #define DMA3_WORD1_CMP_ENABLE             0xb3c
 #define DMA4_WORD1_CMP_ENABLE             0xb4c
-#define DMA_WORD1_CMP_ENABLE(chan)        (DMA_SREG(DMA0_WORD1_CMP_ENABLE,chan))
+#define DMA_WORD1_CMP_ENABLE(chan)	(DMA_SREG(DMA0_WORD1_CMP_ENABLE, chan))
 /* word 1 compare enable flags */
 #define DMA_WORD1_CMP_MATCH_OTHERBUS      (1<<15)
 #define DMA_WORD1_CMP_MATCH_BROADCAST     (1<<14)
@@ -211,7 +211,6 @@
 #define LINK_PHY_WDATA(data)              (data<<16)
 #define LINK_PHY_RADDR(addr)              (addr<<8)
 
-
 #define LINK_INT_STATUS                   0xf14
 #define LINK_INT_ENABLE                   0xf18
 /* status and enable have identical bit numbers */
@@ -235,4 +234,4 @@
 #define LINK_INT_GRF_OVER_FLOW            (1<<5)
 #define LINK_INT_ITF_UNDER_FLOW           (1<<4)
 #define LINK_INT_ATF_UNDER_FLOW           (1<<3)
-#define LINK_INT_IARB_FAILED              (1<<0) 
+#define LINK_INT_IARB_FAILED              (1<<0)
