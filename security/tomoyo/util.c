@@ -911,7 +911,7 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 	if (!domain)
 		return true;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
-		if (!ptr->is_deleted)
+		if (ptr->is_deleted)
 			continue;
 		switch (ptr->type) {
 			u16 perm;
