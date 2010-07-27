@@ -131,4 +131,6 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep);
 
 int lbs_set_monitor_mode(struct lbs_private *priv, int enable);
 
+int lbs_get_rssi(struct lbs_private *priv, s8 *snr, s8 *nf);
+
 #endif /* _LBS_CMD_H */

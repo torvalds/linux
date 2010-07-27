@@ -1386,39 +1386,6 @@ static int lbs_cfg_del_key(struct wiphy *wiphy, struct net_device *netdev,
  * Get station
  */
 
-/*
- * Returns the signal or 0 in case of an error.
- */
-
-/* like "struct cmd_ds_802_11_rssi", but with cmd_header. Once we get rid
- * of WEXT, this should go into host.h */
-struct cmd_rssi {
-	struct cmd_header hdr;
-
-	__le16 n_or_snr;
-	__le16 nf;
-	__le16 avg_snr;
-	__le16 avg_nf;
-} __packed;
-
-static int lbs_get_signal(struct lbs_private *priv, s8 *signal, s8 *noise)
-{
-	struct cmd_rssi cmd;
-	int ret;
-
-	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
-	cmd.n_or_snr = cpu_to_le16(DEFAULT_BCN_AVG_FACTOR);
-	ret = lbs_cmd_with_response(priv, CMD_802_11_RSSI, &cmd);
-
-	if (ret == 0) {
-		*signal = CAL_RSSI(le16_to_cpu(cmd.n_or_snr),
-				le16_to_cpu(cmd.nf));
-		*noise  = CAL_NF(le16_to_cpu(cmd.nf));
-	}
-	return ret;
-}
-
-
 static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 			      u8 *mac, struct station_info *sinfo)
 {
@@ -1439,7 +1406,7 @@ static int lbs_cfg_get_station(struct wiphy *wiphy, struct net_device *dev,
 	sinfo->rx_packets = priv->dev->stats.rx_packets;
 
 	/* Get current RSSI */
-	ret = lbs_get_signal(priv, &signal, &noise);
+	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
 		sinfo->signal = signal;
 		sinfo->filled |= STATION_INFO_SIGNAL;
@@ -1479,7 +1446,7 @@ static int lbs_get_survey(struct wiphy *wiphy, struct net_device *dev,
 	survey->channel = ieee80211_get_channel(wiphy,
 		ieee80211_channel_to_frequency(priv->channel));
 
-	ret = lbs_get_signal(priv, &signal, &noise);
+	ret = lbs_get_rssi(priv, &signal, &noise);
 	if (ret == 0) {
 		survey->filled = SURVEY_INFO_NOISE_DBM;
 		survey->noise = noise;

@@ -12,6 +12,8 @@
 #include "cfg.h"
 #include "cmd.h"
 
+#define CAL_NF(nf)		((s32)(-(s32)(nf)))
+#define CAL_RSSI(snr, nf)	((s32)((s32)(snr) + CAL_NF(nf)))
 
 static struct cmd_ctrl_node *lbs_get_cmd_ctrl_node(struct lbs_private *priv);
 
@@ -690,6 +692,39 @@ out:
 	return ret;
 }
 
+/**
+ *  @brief Get current RSSI and noise floor
+ *
+ *  @param priv		A pointer to struct lbs_private structure
+ *  @param rssi		On successful return, signal level in mBm
+ *
+ *  @return 	   	The channel on success, error on failure
+ */
+int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
+{
+	struct cmd_ds_802_11_rssi cmd;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	BUG_ON(rssi == NULL);
+	BUG_ON(nf == NULL);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	/* Average SNR over last 8 beacons */
+	cmd.n_or_snr = cpu_to_le16(8);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RSSI, &cmd);
+	if (ret == 0) {
+		*nf = CAL_NF(le16_to_cpu(cmd.nf));
+		*rssi = CAL_RSSI(le16_to_cpu(cmd.n_or_snr), le16_to_cpu(cmd.nf));
+	}
+
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
 static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 			       u8 cmd_action, void *pdata_buf)
 {
@@ -1104,10 +1139,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
 		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
-		break;
-
-	case CMD_802_11_RSSI:
-		ret = lbs_cmd_802_11_rssi(priv, cmdptr);
 		break;
 
 	case CMD_802_11_SET_AFC:

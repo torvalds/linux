@@ -644,19 +644,19 @@ struct cmd_ds_802_11_rf_channel {
 } __packed;
 
 struct cmd_ds_802_11_rssi {
-	/* weighting factor */
-	__le16 N;
+	struct cmd_header hdr;
 
-	__le16 reserved_0;
-	__le16 reserved_1;
-	__le16 reserved_2;
-} __packed;
+	/* request:  number of beacons (N) to average the SNR and NF over
+	 * response: SNR of most recent beacon
+	 */
+	__le16 n_or_snr;
 
-struct cmd_ds_802_11_rssi_rsp {
-	__le16 SNR;
-	__le16 noisefloor;
-	__le16 avgSNR;
-	__le16 avgnoisefloor;
+	/* The following fields are only set in the response.
+	 * In the request these are reserved and should be set to 0.
+	 */
+	__le16 nf;       /* most recent beacon noise floor */
+	__le16 avg_snr;  /* average SNR weighted by N from request */
+	__le16 avg_nf;   /* average noise floor weighted by N from request */
 } __packed;
 
 struct cmd_ds_802_11_mac_address {
@@ -969,8 +969,6 @@ struct cmd_ds_command {
 	/* command Body */
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
-		struct cmd_ds_802_11_rssi rssi;
-		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;

@@ -301,19 +301,6 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define	BAND_G			(0x02)
 #define ALL_802_11_BANDS	(BAND_B | BAND_G)
 
-/** MACRO DEFINITIONS */
-#define CAL_NF(NF)			((s32)(-(s32)(NF)))
-#define CAL_RSSI(SNR, NF) 		((s32)((s32)(SNR) + CAL_NF(NF)))
-#define SCAN_RSSI(RSSI)			(0x100 - ((u8)(RSSI)))
-
-#define DEFAULT_BCN_AVG_FACTOR		8
-#define DEFAULT_DATA_AVG_FACTOR		8
-#define AVG_SCALE			100
-#define CAL_AVG_SNR_NF(AVG, SNRNF, N)         \
-                        (((AVG) == 0) ? ((u16)(SNRNF) * AVG_SCALE) : \
-                        ((((int)(AVG) * (N -1)) + ((u16)(SNRNF) * \
-                        AVG_SCALE))  / N))
-
 #define MAX_RATES			14
 
 #define	MAX_LEDS			8
