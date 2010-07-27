@@ -172,7 +172,7 @@
 #ifdef CONFIG_PCI_MSI
 /* 152 - 215 represent the MSI interrupts 0-63 */
 #define OCTEON_IRQ_MSI_BIT0	152
-#define OCTEON_IRQ_MSI_LAST	(OCTEON_IRQ_MSI_BIT0 + 63)
+#define OCTEON_IRQ_MSI_LAST	(OCTEON_IRQ_MSI_BIT0 + 255)
 
 #define OCTEON_IRQ_LAST		(OCTEON_IRQ_MSI_LAST + 1)
 #else
