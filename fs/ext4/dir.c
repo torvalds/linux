@@ -61,10 +61,11 @@ static unsigned char get_dtype(struct super_block *sb, int filetype)
 }
 
 
-int ext4_check_dir_entry(const char *function, struct inode *dir,
-			 struct ext4_dir_entry_2 *de,
-			 struct buffer_head *bh,
-			 unsigned int offset)
+int __ext4_check_dir_entry(const char *function, unsigned int line,
+			   struct inode *dir,
+			   struct ext4_dir_entry_2 *de,
+			   struct buffer_head *bh,
+			   unsigned int offset)
 {
 	const char *error_msg = NULL;
 	const int rlen = ext4_rec_len_from_disk(de->rec_len,
@@ -194,7 +195,7 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (!ext4_check_dir_entry("ext4_readdir", inode, de,
+			if (!ext4_check_dir_entry(inode, de,
 						  bh, offset)) {
 				/*
 				 * On error, skip the f_pos to the next block
