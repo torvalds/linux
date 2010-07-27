@@ -26,6 +26,8 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/hrtimer.h>
+#include <linux/backing-dev.h>
+#include <linux/module.h>
 
 static void __jbd2_journal_temp_unlink_buffer(struct journal_head *jh);
 
@@ -83,30 +85,38 @@ jbd2_get_transaction(journal_t *journal, transaction_t *transaction)
  * transaction's buffer credits.
  */
 
-static int start_this_handle(journal_t *journal, handle_t *handle)
+static int start_this_handle(journal_t *journal, handle_t *handle,
+			     int gfp_mask)
 {
 	transaction_t *transaction;
 	int needed;
 	int nblocks = handle->h_buffer_credits;
 	transaction_t *new_transaction = NULL;
-	int ret = 0;
 	unsigned long ts = jiffies;
 
 	if (nblocks > journal->j_max_transaction_buffers) {
 		printk(KERN_ERR "JBD: %s wants too many credits (%d > %d)\n",
 		       current->comm, nblocks,
 		       journal->j_max_transaction_buffers);
-		ret = -ENOSPC;
-		goto out;
+		return -ENOSPC;
 	}
 
 alloc_transaction:
 	if (!journal->j_running_transaction) {
-		new_transaction = kzalloc(sizeof(*new_transaction),
-						GFP_NOFS|__GFP_NOFAIL);
+		new_transaction = kzalloc(sizeof(*new_transaction), gfp_mask);
 		if (!new_transaction) {
-			ret = -ENOMEM;
-			goto out;
+			/*
+			 * If __GFP_FS is not present, then we may be
+			 * being called from inside the fs writeback
+			 * layer, so we MUST NOT fail.  Since
+			 * __GFP_NOFAIL is going away, we will arrange
+			 * to retry the allocation ourselves.
+			 */
+			if ((gfp_mask & __GFP_FS) == 0) {
+				congestion_wait(BLK_RW_ASYNC, HZ/50);
+				goto alloc_transaction;
+			}
+			return -ENOMEM;
 		}
 	}
 
@@ -123,8 +133,8 @@ repeat_locked:
 	if (is_journal_aborted(journal) ||
 	    (journal->j_errno != 0 && !(journal->j_flags & JBD2_ACK_ERR))) {
 		spin_unlock(&journal->j_state_lock);
-		ret = -EROFS;
-		goto out;
+		kfree(new_transaction);
+		return -EROFS;
 	}
 
 	/* Wait on the journal's transaction barrier if necessary */
@@ -240,10 +250,8 @@ repeat_locked:
 	spin_unlock(&journal->j_state_lock);
 
 	lock_map_acquire(&handle->h_lockdep_map);
-out:
-	if (unlikely(new_transaction))		/* It's usually NULL */
-		kfree(new_transaction);
-	return ret;
+	kfree(new_transaction);
+	return 0;
 }
 
 static struct lock_class_key jbd2_handle_key;
@@ -278,7 +286,7 @@ static handle_t *new_handle(int nblocks)
  *
  * Return a pointer to a newly allocated handle, or NULL on failure
  */
-handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
+handle_t *jbd2__journal_start(journal_t *journal, int nblocks, int gfp_mask)
 {
 	handle_t *handle = journal_current_handle();
 	int err;
@@ -298,7 +306,7 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 
 	current->journal_info = handle;
 
-	err = start_this_handle(journal, handle);
+	err = start_this_handle(journal, handle, gfp_mask);
 	if (err < 0) {
 		jbd2_free_handle(handle);
 		current->journal_info = NULL;
@@ -308,6 +316,15 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 out:
 	return handle;
 }
+EXPORT_SYMBOL(jbd2__journal_start);
+
+
+handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
+{
+	return jbd2__journal_start(journal, nblocks, GFP_NOFS);
+}
+EXPORT_SYMBOL(jbd2_journal_start);
+
 
 /**
  * int jbd2_journal_extend() - extend buffer credits.
@@ -394,8 +411,7 @@ out:
  * transaction capabable of guaranteeing the requested number of
  * credits.
  */
-
-int jbd2_journal_restart(handle_t *handle, int nblocks)
+int jbd2__journal_restart(handle_t *handle, int nblocks, int gfp_mask)
 {
 	transaction_t *transaction = handle->h_transaction;
 	journal_t *journal = transaction->t_journal;
@@ -428,10 +444,17 @@ int jbd2_journal_restart(handle_t *handle, int nblocks)
 
 	lock_map_release(&handle->h_lockdep_map);
 	handle->h_buffer_credits = nblocks;
-	ret = start_this_handle(journal, handle);
+	ret = start_this_handle(journal, handle, gfp_mask);
 	return ret;
 }
+EXPORT_SYMBOL(jbd2__journal_restart);
 
+
+int jbd2_journal_restart(handle_t *handle, int nblocks)
+{
+	return jbd2__journal_restart(handle, nblocks, GFP_NOFS);
+}
+EXPORT_SYMBOL(jbd2_journal_restart);
 
 /**
  * void jbd2_journal_lock_updates () - establish a transaction barrier.
