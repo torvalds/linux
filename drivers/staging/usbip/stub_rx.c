@@ -457,8 +457,8 @@ static void masking_bogus_flags(struct urb *urb)
 	}
 
 	/* enforce simple/standard policy */
-	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
-			URB_NO_INTERRUPT | URB_DIR_MASK | URB_FREE_BUFFER);
+	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_INTERRUPT |
+		   URB_DIR_MASK | URB_FREE_BUFFER);
 	switch (xfertype) {
 	case USB_ENDPOINT_XFER_BULK:
 		if (is_out)
