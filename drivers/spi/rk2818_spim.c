@@ -437,7 +437,8 @@ static void spi_chip_sel(struct rk2818_spi *dws, u16 cs)
 	if (dws->cs_control){
 	    dws->cs_control(cs+1);
 	}
-	rk2818_writel(dws, SPIM_SER, 1 << cs);
+	//rk2818_writel(dws, SPIM_SER, 1 << cs);
+	rk2818_writel(dws, SPIM_SER, 1 << 0);
 }
 
 static void pump_transfers(unsigned long data)
@@ -656,7 +657,7 @@ static void pump_messages(struct work_struct *work)
 						struct spi_transfer,
 						transfer_list);
 	dws->cur_chip = spi_get_ctldata(dws->cur_msg->spi);
-    //dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
+    dws->prev_chip = NULL; //每个pump message时强制更新cs dxj
     
 	/* Mark as busy and launch transfers */
 	tasklet_schedule(&dws->pump_transfers);

@@ -212,7 +212,11 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_max		= 7,
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
+#if defined(CONFIG_MACH_RAHO)	
+    .gpio_pendown		= RK2818_PIN_PE1,
+#else
 	.gpio_pendown		= RK2818_PIN_PE3,
+#endif	
 	.penirq_recheck_delay_usecs = 1,
 
 };

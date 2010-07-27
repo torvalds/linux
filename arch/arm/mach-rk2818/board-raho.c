@@ -431,7 +431,8 @@ static struct spi_board_info board_spi_devices[] = {
 		.mode	= SPI_MODE_0,
 	},
 #endif	
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_320X480_CBN_SPI)\
+    ||defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
 	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 2,
@@ -441,7 +442,6 @@ static struct spi_board_info board_spi_devices[] = {
 		.irq = RK2818_PIN_PE1,
 	},
 #endif
-
 }; 
 
 /*rk2818_fb gpio information*/
