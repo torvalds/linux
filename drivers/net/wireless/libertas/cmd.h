@@ -3,6 +3,8 @@
 #ifndef _LBS_CMD_H_
 #define _LBS_CMD_H_
 
+#include <net/cfg80211.h>
+
 #include "host.h"
 #include "dev.h"
 
@@ -132,5 +134,9 @@ int lbs_set_host_sleep(struct lbs_private *priv, int host_sleep);
 int lbs_set_monitor_mode(struct lbs_private *priv, int enable);
 
 int lbs_get_rssi(struct lbs_private *priv, s8 *snr, s8 *nf);
+
+int lbs_set_11d_domain_info(struct lbs_private *priv,
+			    struct regulatory_request *request,
+			    struct ieee80211_supported_band **bands);
 
 #endif /* _LBS_CMD_H */

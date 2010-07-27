@@ -389,28 +389,20 @@ struct lbs_offset_value {
 	u32 value;
 } __packed;
 
-#define MRVDRV_MAX_TRIPLET_802_11D              83
-
-#define COUNTRY_CODE_LEN                        3
+#define MAX_11D_TRIPLETS	83
 
 struct mrvl_ie_domain_param_set {
 	struct mrvl_ie_header header;
 
-	u8 countrycode[COUNTRY_CODE_LEN];
-	struct ieee80211_country_ie_triplet triplet[1];
+	u8 country_code[3];
+	struct ieee80211_country_ie_triplet triplet[MAX_11D_TRIPLETS];
 } __packed;
 
 struct cmd_ds_802_11d_domain_info {
+	struct cmd_header hdr;
+
 	__le16 action;
 	struct mrvl_ie_domain_param_set domain;
-} __packed;
-
-struct lbs_802_11d_domain_reg {
-	/** Country code*/
-	u8 country_code[COUNTRY_CODE_LEN];
-	/** No. of triplet*/
-	u8 no_triplet;
-	struct ieee80211_country_ie_triplet triplet[MRVDRV_MAX_TRIPLET_802_11D];
 } __packed;
 
 /*
@@ -972,9 +964,6 @@ struct cmd_ds_command {
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;
-
-		struct cmd_ds_802_11d_domain_info domaininfo;
-		struct cmd_ds_802_11d_domain_info domaininforesp;
 
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
 		struct cmd_ds_802_11_afc afc;

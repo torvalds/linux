@@ -96,53 +96,6 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
-
-/**
- *  @brief This function parses countryinfo from AP and download country info to FW
- *  @param priv    pointer to struct lbs_private
- *  @param resp    pointer to command response buffer
- *  @return        0; -1
- */
-static int lbs_ret_802_11d_domain_info(struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11d_domain_info *domaininfo =
-			&resp->params.domaininforesp;
-	struct mrvl_ie_domain_param_set *domain = &domaininfo->domain;
-	u16 action = le16_to_cpu(domaininfo->action);
-	s16 ret = 0;
-	u8 nr_triplet = 0;
-
-	lbs_deb_enter(LBS_DEB_11D);
-
-	lbs_deb_hex(LBS_DEB_11D, "domain info resp", (u8 *) resp,
-			(int)le16_to_cpu(resp->size));
-
-	nr_triplet = (le16_to_cpu(domain->header.len) - COUNTRY_CODE_LEN) /
-		sizeof(struct ieee80211_country_ie_triplet);
-
-	lbs_deb_11d("domain info resp: nr_triplet %d\n", nr_triplet);
-
-	if (nr_triplet > MRVDRV_MAX_TRIPLET_802_11D) {
-		lbs_deb_11d("invalid number of triplets returned!!\n");
-		return -1;
-	}
-
-	switch (action) {
-	case CMD_ACT_SET:	/*Proc set action */
-		break;
-
-	case CMD_ACT_GET:
-		break;
-	default:
-		lbs_deb_11d("invalid action:%d\n", domaininfo->action);
-		ret = -1;
-		break;
-	}
-
-	lbs_deb_leave_args(LBS_DEB_11D, "ret %d", ret);
-	return ret;
-}
-
 static inline int handle_cmd_response(struct lbs_private *priv,
 				      struct cmd_header *cmd_response)
 {
@@ -170,10 +123,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		break;
 
 	case CMD_RET(CMD_802_11_BEACON_STOP):
-		break;
-
-	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
-		ret = lbs_ret_802_11d_domain_info(resp);
 		break;
 
 	case CMD_RET(CMD_802_11_TPC_CFG):

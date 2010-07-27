@@ -725,6 +725,129 @@ int lbs_get_rssi(struct lbs_private *priv, s8 *rssi, s8 *nf)
 	return ret;
 }
 
+/**
+ *  @brief Send regulatory and 802.11d domain information to the firmware
+ *
+ *  @param priv		pointer to struct lbs_private
+ *  @param request	cfg80211 regulatory request structure
+ *  @param bands	the device's supported bands and channels
+ *
+ *  @return		0 on success, error code on failure
+*/
+int lbs_set_11d_domain_info(struct lbs_private *priv,
+			    struct regulatory_request *request,
+			    struct ieee80211_supported_band **bands)
+{
+	struct cmd_ds_802_11d_domain_info cmd;
+	struct mrvl_ie_domain_param_set *domain = &cmd.domain;
+	struct ieee80211_country_ie_triplet *t;
+	enum ieee80211_band band;
+	struct ieee80211_channel *ch;
+	u8 num_triplet = 0;
+	u8 num_parsed_chan = 0;
+	u8 first_channel = 0, next_chan = 0, max_pwr = 0;
+	u8 i, flag = 0;
+	size_t triplet_size;
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_11D);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+
+	lbs_deb_11d("Setting country code '%c%c'\n",
+		    request->alpha2[0], request->alpha2[1]);
+
+	domain->header.type = cpu_to_le16(TLV_TYPE_DOMAIN);
+
+	/* Set country code */
+	domain->country_code[0] = request->alpha2[0];
+	domain->country_code[1] = request->alpha2[1];
+	domain->country_code[2] = ' ';
+
+	/* Now set up the channel triplets; firmware is somewhat picky here
+	 * and doesn't validate channel numbers and spans; hence it would
+	 * interpret a triplet of (36, 4, 20) as channels 36, 37, 38, 39.  Since
+	 * the last 3 aren't valid channels, the driver is responsible for
+	 * splitting that up into 4 triplet pairs of (36, 1, 20) + (40, 1, 20)
+	 * etc.
+	 */
+	for (band = 0;
+	     (band < IEEE80211_NUM_BANDS) && (num_triplet < MAX_11D_TRIPLETS);
+	     band++) {
+
+		if (!bands[band])
+			continue;
+
+		for (i = 0;
+		     (i < bands[band]->n_channels) && (num_triplet < MAX_11D_TRIPLETS);
+		     i++) {
+			ch = &bands[band]->channels[i];
+			if (ch->flags & IEEE80211_CHAN_DISABLED)
+				continue;
+
+			if (!flag) {
+				flag = 1;
+				next_chan = first_channel = (u32) ch->hw_value;
+				max_pwr = ch->max_power;
+				num_parsed_chan = 1;
+				continue;
+			}
+
+			if ((ch->hw_value == next_chan + 1) &&
+					(ch->max_power == max_pwr)) {
+				/* Consolidate adjacent channels */
+				next_chan++;
+				num_parsed_chan++;
+			} else {
+				/* Add this triplet */
+				lbs_deb_11d("11D triplet (%d, %d, %d)\n",
+					first_channel, num_parsed_chan,
+					max_pwr);
+				t = &domain->triplet[num_triplet];
+				t->chans.first_channel = first_channel;
+				t->chans.num_channels = num_parsed_chan;
+				t->chans.max_power = max_pwr;
+				num_triplet++;
+				flag = 0;
+			}
+		}
+
+		if (flag) {
+			/* Add last triplet */
+			lbs_deb_11d("11D triplet (%d, %d, %d)\n", first_channel,
+				num_parsed_chan, max_pwr);
+			t = &domain->triplet[num_triplet];
+			t->chans.first_channel = first_channel;
+			t->chans.num_channels = num_parsed_chan;
+			t->chans.max_power = max_pwr;
+			num_triplet++;
+		}
+	}
+
+	lbs_deb_11d("# triplets %d\n", num_triplet);
+
+	/* Set command header sizes */
+	triplet_size = num_triplet * sizeof(struct ieee80211_country_ie_triplet);
+	domain->header.len = cpu_to_le16(sizeof(domain->country_code) +
+					triplet_size);
+
+	lbs_deb_hex(LBS_DEB_11D, "802.11D domain param set",
+			(u8 *) &cmd.domain.country_code,
+			le16_to_cpu(domain->header.len));
+
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd.hdr) +
+				   sizeof(cmd.action) +
+				   sizeof(cmd.domain.header) +
+				   sizeof(cmd.domain.country_code) +
+				   triplet_size);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11D_DOMAIN_INFO, &cmd);
+
+	lbs_deb_leave_args(LBS_DEB_11D, "ret %d", ret);
+	return ret;
+}
+
 static int lbs_cmd_reg_access(struct cmd_ds_command *cmdptr,
 			       u8 cmd_action, void *pdata_buf)
 {
@@ -1006,66 +1129,6 @@ void lbs_set_mac_control(struct lbs_private *priv)
 }
 
 /**
- *  @brief This function implements command CMD_802_11D_DOMAIN_INFO
- *  @param priv       pointer to struct lbs_private
- *  @param cmd        pointer to cmd buffer
- *  @param cmdno      cmd ID
- *  @param cmdOption  cmd action
- *  @return           0
-*/
-int lbs_cmd_802_11d_domain_info(struct lbs_private *priv,
-				 struct cmd_ds_command *cmd,
-				 u16 cmdoption)
-{
-	struct cmd_ds_802_11d_domain_info *pdomaininfo =
-	    &cmd->params.domaininfo;
-	struct mrvl_ie_domain_param_set *domain = &pdomaininfo->domain;
-	u8 nr_triplet = priv->domain_reg.no_triplet;
-
-	lbs_deb_enter(LBS_DEB_11D);
-
-	lbs_deb_11d("nr_triplet=%x\n", nr_triplet);
-
-	pdomaininfo->action = cpu_to_le16(cmdoption);
-	if (cmdoption == CMD_ACT_GET) {
-		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
-					sizeof(struct cmd_header));
-		lbs_deb_hex(LBS_DEB_11D, "802_11D_DOMAIN_INFO", (u8 *) cmd,
-			le16_to_cpu(cmd->size));
-		goto done;
-	}
-
-	domain->header.type = cpu_to_le16(TLV_TYPE_DOMAIN);
-	memcpy(domain->countrycode, priv->domain_reg.country_code,
-	       sizeof(domain->countrycode));
-
-	domain->header.len = cpu_to_le16(nr_triplet
-				* sizeof(struct ieee80211_country_ie_triplet)
-				+ sizeof(domain->countrycode));
-
-	if (nr_triplet) {
-		memcpy(domain->triplet, priv->domain_reg.triplet,
-				nr_triplet *
-				sizeof(struct ieee80211_country_ie_triplet));
-
-		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
-					     le16_to_cpu(domain->header.len) +
-					     sizeof(struct mrvl_ie_header) +
-					     sizeof(struct cmd_header));
-	} else {
-		cmd->size = cpu_to_le16(sizeof(pdomaininfo->action) +
-					sizeof(struct cmd_header));
-	}
-
-	lbs_deb_hex(LBS_DEB_11D, "802_11D_DOMAIN_INFO", (u8 *) cmd,
-			le16_to_cpu(cmd->size));
-
-done:
-	lbs_deb_enter(LBS_DEB_11D);
-	return 0;
-}
-
-/**
  *  @brief This function prepare the command before send to firmware.
  *
  *  @param priv		A pointer to struct lbs_private structure
@@ -1153,11 +1216,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 		ret = 0;
 		goto done;
-
-	case CMD_802_11D_DOMAIN_INFO:
-		cmdptr->command = cpu_to_le16(cmd_no);
-		ret = lbs_cmd_802_11d_domain_info(priv, cmdptr, cmd_action);
-		break;
 
 	case CMD_802_11_TPC_CFG:
 		cmdptr->command = cpu_to_le16(CMD_802_11_TPC_CFG);

@@ -60,9 +60,6 @@ struct lbs_private {
 	struct dentry *regs_dir;
 	struct dentry *debugfs_regs_files[6];
 
-	/** 11D and domain regulatory data */
-	struct lbs_802_11d_domain_reg domain_reg;
-
 	/* Hardware debugging */
 	u32 mac_offset;
 	u32 bbp_offset;
