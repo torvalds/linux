@@ -104,6 +104,48 @@ struct pca9554_platform_data {
 	int		(*teardown)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
 	char		**names;
 };
+
+/*lcd*/
+struct lcd_td043mgea1_data{
+    u32 pin_txd;
+    u32 pin_clk;
+    u32 pin_cs;
+    void (*screen_set_iomux)(u8 enable);
+};
+
+//ROCKCHIP AD KEY CODE ,for demo board
+//      key		--->	EV	
+#define AD2KEY1                 114   ///VOLUME_DOWN
+#define AD2KEY2                 115   ///VOLUME_UP
+#define AD2KEY3                 59    ///MENU
+#define AD2KEY4                 102   ///HOME
+#define AD2KEY5                 158   ///BACK
+#define AD2KEY6                 61    ///CALL
+#define AD2KEY7                 127   ///SEARCH
+#define ENDCALL					62
+#define	KEYSTART				28			//ENTER
+#define KEYMENU					AD2KEY6		///CALL
+#define	KEY_PLAY_SHORT_PRESS	KEYSTART	//code for short press the play key
+#define	KEY_PLAY_LONG_PRESS		ENDCALL		//code for long press the play key
+
+//ADC Registers
+typedef  struct tagADC_keyst
+{
+	unsigned int adc_value;
+	unsigned int adc_keycode;
+}ADC_keyst,*pADC_keyst;
+
+/*ad key*/
+struct adc_key_data{
+    u32 pin_playon;
+    u32 playon_level;
+    u32 adc_empty;
+    u32 adc_invalid;
+    u32 adc_drift;
+    u32 adc_chn;
+    ADC_keyst * adc_key_table;
+};
+
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 void __init rk2818_add_devices(void);
 void __init rk2818_map_common_io(void);

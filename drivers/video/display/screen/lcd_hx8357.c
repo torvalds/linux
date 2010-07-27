@@ -4,7 +4,9 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include "screen.h"
+#include <mach/board.h>
 
+extern struct lcd_td043mgea1_data lcd_td043mgea1;
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -30,6 +32,21 @@ int init(void);
 int standby(u8 enable);
 void set_lcd_info(struct rk28fb_screen *screen);
 
+#define TXD_PORT        lcd_td043mgea1.pin_txd
+#define CLK_PORT        lcd_td043mgea1.pin_clk
+#define CS_PORT         lcd_td043mgea1.pin_cs
+
+#define CS_OUT()        gpio_direction_output(CS_PORT, 0)
+#define CS_SET()        gpio_set_value(CS_PORT, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(CS_PORT, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(CLK_PORT, 0) 
+#define CLK_SET()       gpio_set_value(CLK_PORT, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(CLK_PORT, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(TXD_PORT, 0) 
+#define TXD_SET()       gpio_set_value(TXD_PORT, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(TXD_PORT, GPIO_LOW)
+
+#if 0
 static void screen_set_iomux(u8 enable)
 {
     int ret=-1;
@@ -76,56 +93,10 @@ pin_err:
     return ;
 
 }
-void set_lcd_info(struct rk28fb_screen *screen)
-{
-	printk("lcd_hx8357 set_lcd_info \n"); 
-    /* screen type & face */
-    screen->type = OUT_TYPE;
-    screen->face = OUT_FACE;
- 
-    /* Screen size */
-    screen->x_res = H_VD;
-    screen->y_res = V_VD;
-
-    /* Timing */
-    screen->pixclock = OUT_CLK;
-	screen->left_margin = H_BP;		/*>2*/ 
-	screen->right_margin = H_FP;	/*>2*/ 
-	screen->hsync_len = H_PW;		/*>2*/ //***all > 326, 4<PW+BP<15, 
-	screen->upper_margin = V_BP;	/*>2*/ 
-	screen->lower_margin = V_FP;	/*>2*/ 
-	screen->vsync_len = V_PW;		/*>6*/ 
-
-	/* Pin polarity */
-	screen->pin_hsync = 0; 
-	screen->pin_vsync = 0; 
-	screen->pin_den = 0;
-	screen->pin_dclk = DCLK_POL;
-
-	/* Swap rule */
-    screen->swap_rb = SWAP_RB;
-    screen->swap_rg = 0;
-    screen->swap_gb = 0;
-    screen->swap_delta = 0;
-    screen->swap_dumy = 0;
-
-    /* Operation function*/
-    screen->init = init;
-    screen->standby = standby;
-}
+#endif
 
 void spi_screenreg_set(u32 Addr, u32 Data)
 {
-#define CS_OUT()        gpio_direction_output(RK2818_PIN_PH6, GPIO_OUT)
-#define CS_SET()        gpio_set_value(RK2818_PIN_PH6, GPIO_HIGH)
-#define CS_CLR()        gpio_set_value(RK2818_PIN_PH6, GPIO_LOW)
-#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE5, GPIO_OUT)  //I2C0_SCL
-#define CLK_SET()       gpio_set_value(RK2818_PIN_PE5, GPIO_HIGH)
-#define CLK_CLR()       gpio_set_value(RK2818_PIN_PE5, GPIO_LOW)
-#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE4, GPIO_OUT)  //I2C0_SDA
-#define TXD_SET()       gpio_set_value(RK2818_PIN_PE4, GPIO_HIGH)
-#define TXD_CLR()       gpio_set_value(RK2818_PIN_PE4, GPIO_LOW)
-
 #define DRVDelayUs(i)   udelay(i*2)
 
     u32 i;
@@ -167,24 +138,6 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 	DRVDelayUs(2);
 	CS_CLR(); 
 	
-#if 0 
-	TXD_CLR();  //write
-
-	// \u6a21\u62dfCLK
-    CLK_CLR();
-    DRVDelayUs(2);
-    CLK_SET();
-    DRVDelayUs(2);
-
-	TXD_SET();  //highz
-
-	// \u6a21\u62dfCLK
-    CLK_CLR();
-    DRVDelayUs(2);
-    CLK_SET();
-    DRVDelayUs(2);
-#endif 
-
 	control_bit = 0x72<<8; 
 	Data = (control_bit | Data); 
 	//printk("data is 0x%x \n", Data); 
@@ -206,16 +159,51 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 	CLK_CLR();
 	TXD_CLR();
 	DRVDelayUs(2);
-
 }
 
+void set_lcd_info(struct rk28fb_screen *screen)
+{
+	//printk("lcd_hx8357 set_lcd_info \n"); 
+    /* screen type & face */
+    screen->type = OUT_TYPE;
+    screen->face = OUT_FACE;
+ 
+    /* Screen size */
+    screen->x_res = H_VD;
+    screen->y_res = V_VD;
 
+    /* Timing */
+    screen->pixclock = OUT_CLK;
+	screen->left_margin = H_BP;		/*>2*/ 
+	screen->right_margin = H_FP;	/*>2*/ 
+	screen->hsync_len = H_PW;		/*>2*/ //***all > 326, 4<PW+BP<15, 
+	screen->upper_margin = V_BP;	/*>2*/ 
+	screen->lower_margin = V_FP;	/*>2*/ 
+	screen->vsync_len = V_PW;		/*>6*/ 
+
+	/* Pin polarity */
+	screen->pin_hsync = 0; 
+	screen->pin_vsync = 0; 
+	screen->pin_den = 0;
+	screen->pin_dclk = DCLK_POL;
+
+	/* Swap rule */
+    screen->swap_rb = SWAP_RB;
+    screen->swap_rg = 0;
+    screen->swap_gb = 0;
+    screen->swap_delta = 0;
+    screen->swap_dumy = 0;
+
+    /* Operation function*/
+    screen->init = init;
+    screen->standby = standby;
+}
 
 int init(void)
 { 
 
-	printk("lcd_hx8357 init \n"); 
-	screen_set_iomux(1);
+	//printk("lcd_hx8357 init \n"); 
+	lcd_td043mgea1.screen_set_iomux(1);
 
 #if 0 											//***这句代码是不是写错了 
     spi_screenreg_set(0x02, 0x07);
@@ -341,7 +329,7 @@ int init(void)
 	spi_screenreg_set(0x2d, 0x1f); 
 	spi_screenreg_set(0xe8, 0x90); 
 #endif 
-	screen_set_iomux(0);
+	lcd_td043mgea1.screen_set_iomux(0);
 
     return 0;
 }
@@ -349,9 +337,9 @@ int init(void)
 int standby(u8 enable)	//***enable =1 means suspend, 0 means resume 
 {
 	
-     screen_set_iomux(1);
+     lcd_td043mgea1.screen_set_iomux(1);
 	if(enable) {
-		printk("---------screen suspend--------------\n");
+		//printk("---------screen suspend--------------\n");
 		#if 0 
 		spi_screenreg_set(0x03, 0xde); 
 		#else 
@@ -359,7 +347,7 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		spi_screenreg_set(0x19, 0x00); 
 		#endif 
 	} else { 
-		printk("---------screen resume--------------\n ");
+		//printk("---------screen resume--------------\n ");
 		#if 0 
 		spi_screenreg_set(0x03, 0x5f); 
 		#else 
@@ -370,7 +358,7 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 		#endif 
 	}
 
-   screen_set_iomux(0);
+   lcd_td043mgea1.screen_set_iomux(0);
     return 0;
 }
 

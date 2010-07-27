@@ -465,8 +465,9 @@ static int rk2818_i2c_xfer(struct i2c_adapter *adap,
 	}
 	else
 	{
-		dev_info(i2c->dev, "Scl_rate(%uKhz) is failed to change[0 -- 400Khz],  current rate(%luKhz)\n",
-				msgs[0].scl_rate/1000, i2c->scl_rate/1000);
+		//dev_info(i2c->dev, "Scl_rate(%uKhz) is failed to change[0 -- 400Khz],  current rate(%luKhz)\n",
+		//		msgs[0].scl_rate/1000, i2c->scl_rate/1000);
+		i2c->scl_rate = 400000;
 	}
 
 	ret = rk2818_i2c_init_hw(i2c);

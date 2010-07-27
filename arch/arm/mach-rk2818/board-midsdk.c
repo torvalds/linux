@@ -518,6 +518,83 @@ static void rk2818_power_off(void)
 	gpio_set_value(POWER_PIN, 0);/*power down*/
 }
 
+void lcd_set_iomux(u8 enable)
+{
+    int ret=-1;
+    
+    if(enable)
+    {
+        rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
+        ret = gpio_request(RK2818_PIN_PA4, NULL); 
+        if(0)//(ret != 0)
+        {
+            gpio_free(RK2818_PIN_PA4);
+            printk(">>>>>> lcd cs gpio_request err \n ");           
+            goto pin_err;
+        }  
+        
+        rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 0);    
+
+        ret = gpio_request(RK2818_PIN_PE7, NULL); 
+        if(0)//(ret != 0)
+        {
+            gpio_free(RK2818_PIN_PE7);
+            printk(">>>>>> lcd clk gpio_request err \n "); 
+            goto pin_err;
+        }  
+        
+        ret = gpio_request(RK2818_PIN_PE6, NULL); 
+        if(0)//(ret != 0)
+        {
+            gpio_free(RK2818_PIN_PE6);
+            printk(">>>>>> lcd txd gpio_request err \n "); 
+            goto pin_err;
+        }        
+    }
+    else
+    {
+         gpio_free(RK2818_PIN_PA4); 
+         rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
+
+         gpio_free(RK2818_PIN_PE7);   
+         gpio_free(RK2818_PIN_PE6); 
+         rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
+    }
+    return ;
+pin_err:
+    return ;
+
+}
+
+struct lcd_td043mgea1_data lcd_td043mgea1 = {
+    .pin_txd    = RK2818_PIN_PE6,
+    .pin_clk    = RK2818_PIN_PE7,
+    .pin_cs     = RK2818_PIN_PA4,
+    .screen_set_iomux = lcd_set_iomux,
+};
+
+//	adc	 ---> key	
+static  ADC_keyst gAdcValueTab[] = 
+{
+	{95,  AD2KEY1},///VOLUME_DOWN
+	{192, AD2KEY2},///VOLUME_UP
+	{280, AD2KEY3},///MENU
+	{376, AD2KEY4},///HOME
+	{467, AD2KEY5},///BACK
+	{560, AD2KEY6},///CALL
+	{0,0}
+};
+
+struct adc_key_data rk2818_adc_key = {
+    .pin_playon     = RK2818_PIN_PA3,
+    .playon_level   = 1,
+    .adc_empty      = 900,
+    .adc_invalid    = 20,
+    .adc_drift      = 50,
+    .adc_chn        = 1,
+    .adc_key_table  = gAdcValueTab,
+};
+
 static void __init machine_rk2818_init_irq(void)
 {
 	rk2818_init_irq();

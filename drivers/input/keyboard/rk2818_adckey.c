@@ -25,93 +25,29 @@
 #include <asm/mach/map.h>
 #include <mach/gpio.h>
 #include <mach/adc.h>
+#include <mach/board.h>
 
-#if 0 
+extern struct adc_key_data rk2818_adc_key;
+
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
 #endif
 
-//ROCKCHIP AD KEY CODE ,for demo board
-//      key		--->	EV	
-#define AD2KEY1                 114   ///VOLUME_DOWN
-#define AD2KEY2                 115   ///VOLUME_UP
-#define AD2KEY3                 59    ///MENU
-#define AD2KEY4                 102   ///HOME
-#define AD2KEY5                 158   ///BACK
-#define AD2KEY6                 61    ///CALL
-
-#define ENDCALL					62
-#define	KEYSTART				28			//ENTER
-#define KEYMENU					AD2KEY6		///CALL
-#ifndef CONFIG_MACH_RK2818PHONE
-#define KEY_PLAYON_PIN			RK2818_PIN_PE1
-#else
-#define KEY_PLAYON_PIN			RK2818_PIN_PA3
-#endif
-#define	KEY_PLAY_SHORT_PRESS	KEYSTART	//code for short press the play key
-#define	KEY_PLAY_LONG_PRESS		ENDCALL		//code for long press the play key
-
-
-#define Valuedrift		50
-#ifndef CONFIG_MACH_RK2818PHONE
-#define ADEmpty			1000
-#else
-#define ADEmpty			900
-#endif
-#define ADInvalid		20
-#define ADKEYNUM		10
-
-#define ADKEYCH			1	//AD通道
-#ifndef CONFIG_MACH_RK2818PHONE
-#define KEYPLAY_ON		0	//按键接通时的电平值
-#else
-#define KEYPLAY_ON		1	//按键接通时的电平值
-#endif
 #define KEY_PHYS_NAME	"rk2818_adckey/input0"
 
 volatile int gADSampleTimes = 0;
 volatile int gStatePlaykey = 0;
-
 volatile unsigned int gCodeCount = 0;
 volatile unsigned int gThisCode = 0;
 volatile unsigned int gLastCode = 0;
 volatile unsigned int gFlagShortPlay = 0;
 volatile unsigned int gFlagLongPlay = 0;
 volatile unsigned int gPlayCount = 0;
-//ADC Registers
-typedef  struct tagADC_keyst
-{
-	unsigned int adc_value;
-	unsigned int adc_keycode;
-}ADC_keyst,*pADC_keyst;
-
-#ifndef CONFIG_MACH_RK2818PHONE
-//	adc	 ---> key	
-static  ADC_keyst gAdcValueTab[] = 
-{
-	{95,  AD2KEY1},
-	{249, AD2KEY2},
-	{406, AD2KEY3},
-	{561, AD2KEY4},
-	{726, AD2KEY5},
-	{899, AD2KEY6},
-	{ADEmpty,0}
-};
-#else
-static  ADC_keyst gAdcValueTab[] = 
-{
-	{95,  AD2KEY1},
-	{192, AD2KEY2},
-	{280, AD2KEY3},
-	{376, AD2KEY4},
-	{467, AD2KEY5},
-	{560, AD2KEY6},
-	{ADEmpty,0}
-};
-#endif
 
 //key code tab
+#define ADKEYNUM		10
 static unsigned char gInitKeyCode[ADKEYNUM] = 
 {
 	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,	
@@ -133,9 +69,9 @@ struct rk28_adckey *pRk28AdcKey;
 
 unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 {	
-	while(ptab->adc_value != ADEmpty)
+	while(ptab->adc_value != 0)
 	{
-		if((advalue > ptab->adc_value - Valuedrift) && (advalue < ptab->adc_value + Valuedrift))
+		if((advalue > ptab->adc_value - rk2818_adc_key.adc_drift) && (advalue < ptab->adc_value + rk2818_adc_key.adc_drift))
 		return ptab->adc_keycode;
 		ptab++;
 	}
@@ -143,7 +79,6 @@ unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 	return 0;
 }
 
-#if 1
 static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 { 
 	
@@ -153,7 +88,6 @@ static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-#endif
 void rk28_send_wakeup_key( void ) 
 {
     input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,1);
@@ -207,7 +141,7 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	add_timer(&pRk28AdcKey->timer);
 
 	/*handle long press of play key*/
-	if(gpio_get_value(KEY_PLAYON_PIN) == KEYPLAY_ON) 
+	if(gpio_get_value(rk2818_adc_key.pin_playon) == rk2818_adc_key.playon_level)
 	{
 		if(++gPlayCount > 20000)
 			gPlayCount = 101;
@@ -252,7 +186,6 @@ static void rk28_adkeyscan_timer(unsigned long data)
 		gFlagLongPlay = 0;
 		gPlayCount = 0;
 	}
-	
 
 	/*handle long press of adc key*/
 	if (gADSampleTimes < 4)
@@ -264,10 +197,10 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	gADSampleTimes = 0;
 
 	//rk28_read_adc(pRk28AdcKey);	
-	adcvalue = gAdcValue[ADKEYCH];
+	adcvalue = gAdcValue[rk2818_adc_key.adc_chn];
 	DBG("=========== adcvalue=0x%x ===========\n",adcvalue);
 
-	if((adcvalue > ADEmpty) || (adcvalue < ADInvalid))
+	if((adcvalue > rk2818_adc_key.adc_empty) || (adcvalue < rk2818_adc_key.adc_invalid))
 	{
 		if(gLastCode == 0) {
 			return;
@@ -298,7 +231,7 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	
 	//DBG("adcvalue=0x%x\n",adcvalue);
 	
-	code=rk28_get_keycode(adcvalue,gAdcValueTab);
+	code=rk28_get_keycode(adcvalue,rk2818_adc_key.adc_key_table);
 	if(code)
 	{
 		if(code == KEYMENU)
@@ -382,37 +315,39 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register input device\n");
 		goto failed_free_dev;
 	}
-
-	error = gpio_request(KEY_PLAYON_PIN, "play key gpio");
+	
+	error = gpio_request(rk2818_adc_key.pin_playon, "play key gpio");
 	if (error) {
 		dev_err(&pdev->dev, "failed to request play key gpio\n");
 		goto free_gpio;
 	}
-#if KEYPLAY_ON	
-	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullDown);
-	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk28_playkey_irq,IRQF_TRIGGER_RISING,NULL,NULL);
-	if(error)
-	{
-		printk("unable to request play key irq\n");
-		goto free_gpio_irq;
-	}	
-#else
-	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullUp);
-	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
-	if(error)
-	{
-		printk("unable to request play key irq\n");
-		goto free_gpio_irq;
-	}
-#endif
+    if(rk2818_adc_key.playon_level)
+    {
+    	gpio_pull_updown(rk2818_adc_key.pin_playon,GPIOPullDown);
+    	error = request_irq(gpio_to_irq(rk2818_adc_key.pin_playon),rk28_playkey_irq,IRQF_TRIGGER_RISING,NULL,NULL);
+    	if(error)
+    	{
+    		printk("unable to request play key irq\n");
+    		goto free_gpio_irq;
+    	}	
+    }
+    else
+    {
+    	gpio_pull_updown(rk2818_adc_key.pin_playon,GPIOPullUp);
+    	error = request_irq(gpio_to_irq(rk2818_adc_key.pin_playon),rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+    	if(error)
+    	{
+    		printk("unable to request play key irq\n");
+    		goto free_gpio_irq;
+    	}
+    }
 
-	enable_irq_wake(gpio_to_irq(KEY_PLAYON_PIN)); // so play/wakeup key can wake up system
-
+	enable_irq_wake(gpio_to_irq(rk2818_adc_key.pin_playon)); // so play/wakeup key can wake up system
 #if 0
-	error = gpio_direction_input(KEY_PLAYON_PIN);
+	error = gpio_direction_input(rk2818_adc_key.pin_playon);
 	if (error) 
 	{
-		printk("failed to set gpio KEY_PLAYON_PIN input\n");
+		printk("failed to set gpio rk2818_adc_key.pin_playon input\n");
 		goto free_gpio_irq;
 	}
 #endif
@@ -423,9 +358,9 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	return 0;
 	
 free_gpio_irq:
-	free_irq(gpio_to_irq(KEY_PLAYON_PIN),NULL);
+	free_irq(gpio_to_irq(rk2818_adc_key.pin_playon),NULL);
 free_gpio:	
-	gpio_free(KEY_PLAYON_PIN);
+	gpio_free(rk2818_adc_key.pin_playon);
 failed_free_dev:
 	platform_set_drvdata(pdev, NULL);
 	input_free_device(input_dev);
@@ -442,9 +377,8 @@ static int __devexit rk28_adckey_remove(struct platform_device *pdev)
 	input_free_device(adckey->input_dev);
 	platform_set_drvdata(pdev, NULL);
 	kfree(adckey);
-	free_irq(gpio_to_irq(KEY_PLAYON_PIN),NULL);
-	gpio_free(KEY_PLAYON_PIN);
-	
+	free_irq(gpio_to_irq(rk2818_adc_key.pin_playon),NULL);
+	gpio_free(rk2818_adc_key.pin_playon);
 	return 0;
 }
 
