@@ -98,6 +98,16 @@ struct padata_parallel_queue {
        int                   cpu_index;
 };
 
+/**
+ * struct padata_cpumask - The cpumasks for the parallel/serial workers
+ *
+ * @pcpu: cpumask for the parallel workers.
+ * @cbcpu: cpumask for the serial (callback) workers.
+ */
+struct padata_cpumask {
+	cpumask_var_t	pcpu;
+	cpumask_var_t	cbcpu;
+};
 
 /**
  * struct parallel_data - Internal control structure, covers everything
@@ -110,8 +120,7 @@ struct padata_parallel_queue {
  * @reorder_objects: Number of objects waiting in the reorder queues.
  * @refcnt: Number of objects holding a reference on this parallel_data.
  * @max_seq_nr:  Maximal used sequence number.
- * @cpumask: Contains two cpumasks: pcpu and cbcpu for
- *           parallel and serial workers respectively.
+ * @cpumask: The cpumasks in use for parallel and serial workers.
  * @lock: Reorder lock.
  * @processed: Number of already processed objects.
  * @timer: Reorder timer.
@@ -120,17 +129,14 @@ struct parallel_data {
 	struct padata_instance		*pinst;
 	struct padata_parallel_queue	*pqueue;
 	struct padata_serial_queue	*squeue;
-	atomic_t			 seq_nr;
-	atomic_t			 reorder_objects;
-	atomic_t			 refcnt;
-	unsigned int			 max_seq_nr;
-	struct {
-		cpumask_var_t		 pcpu;
-		cpumask_var_t		 cbcpu;
-	} cpumask;
-	spinlock_t                       lock ____cacheline_aligned;
-	unsigned int			 processed;
-	struct timer_list		 timer;
+	atomic_t			seq_nr;
+	atomic_t			reorder_objects;
+	atomic_t			refcnt;
+	unsigned int			max_seq_nr;
+	struct padata_cpumask		cpumask;
+	spinlock_t                      lock ____cacheline_aligned;
+	unsigned int			processed;
+	struct timer_list		timer;
 };
 
 /**
@@ -139,8 +145,7 @@ struct parallel_data {
  * @cpu_notifier: cpu hotplug notifier.
  * @wq: The workqueue in use.
  * @pd: The internal control structure.
- * @cpumask: User supplied cpumask. Contains two cpumasks: pcpu and
- *           cbcpu for parallel and serial works respectivly.
+ * @cpumask: User supplied cpumasks for parallel and serial works.
  * @cpumask_change_notifier: Notifiers chain for user-defined notify
  *            callbacks that will be called when either @pcpu or @cbcpu
  *            or both cpumasks change.
@@ -152,10 +157,7 @@ struct padata_instance {
 	struct notifier_block		 cpu_notifier;
 	struct workqueue_struct		*wq;
 	struct parallel_data		*pd;
-	struct {
-		cpumask_var_t		 pcpu;
-		cpumask_var_t		 cbcpu;
-	} cpumask;
+	struct padata_cpumask		cpumask;
 	struct blocking_notifier_head	 cpumask_change_notifier;
 	struct kobject                   kobj;
 	struct mutex			 lock;

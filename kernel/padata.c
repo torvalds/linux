@@ -538,7 +538,8 @@ static void padata_replace(struct padata_instance *pinst,
 
 	if (notification_mask)
 		blocking_notifier_call_chain(&pinst->cpumask_change_notifier,
-					     notification_mask, pinst);
+					     notification_mask,
+					     &pd_new->cpumask);
 
 	pinst->flags &= ~PADATA_RESET;
 }
