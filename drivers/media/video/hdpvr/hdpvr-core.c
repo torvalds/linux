@@ -326,8 +326,12 @@ static int hdpvr_probe(struct usb_interface *interface,
 	if (default_video_input < HDPVR_VIDEO_INPUTS)
 		dev->options.video_input = default_video_input;
 
-	if (default_audio_input < HDPVR_AUDIO_INPUTS)
+	if (default_audio_input < HDPVR_AUDIO_INPUTS) {
 		dev->options.audio_input = default_audio_input;
+		if (default_audio_input == HDPVR_SPDIF)
+			dev->options.audio_codec =
+				V4L2_MPEG_AUDIO_ENCODING_AC3;
+	}
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 
