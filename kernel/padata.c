@@ -623,55 +623,12 @@ int padata_get_cpumask(struct padata_instance *pinst,
 }
 EXPORT_SYMBOL(padata_get_cpumask);
 
-/**
- * padata_set_cpumask: Sets specified by @cpumask_type cpumask to the value
- *                     equivalent to @cpumask.
- *
- * @pinst: padata instance
- * @cpumask_type: PADATA_CPU_SERIAL or PADATA_CPU_PARALLEL corresponding
- *                to parallel and serial cpumasks respectively.
- * @cpumask: the cpumask to use
- */
-int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
-		       cpumask_var_t cpumask)
-{
-	struct cpumask *serial_mask, *parallel_mask;
-
-	switch (cpumask_type) {
-	case PADATA_CPU_PARALLEL:
-		serial_mask = pinst->cpumask.cbcpu;
-		parallel_mask = cpumask;
-		break;
-	case PADATA_CPU_SERIAL:
-		parallel_mask = pinst->cpumask.pcpu;
-		serial_mask = cpumask;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return __padata_set_cpumasks(pinst, parallel_mask, serial_mask);
-}
-EXPORT_SYMBOL(padata_set_cpumask);
-
-/**
- * __padata_set_cpumasks - Set both parallel and serial cpumasks. The first
- *                         one is used by parallel workers and the second one
- *                         by the wokers doing serialization.
- *
- * @pinst: padata instance
- * @pcpumask: the cpumask to use for parallel workers
- * @cbcpumask: the cpumsak to use for serial workers
- */
-int __padata_set_cpumasks(struct padata_instance *pinst,
-			  cpumask_var_t pcpumask, cpumask_var_t cbcpumask)
+static int __padata_set_cpumasks(struct padata_instance *pinst,
+				 cpumask_var_t pcpumask,
+				 cpumask_var_t cbcpumask)
 {
 	int valid;
-	int err = 0;
-	struct parallel_data *pd = NULL;
-
-	mutex_lock(&pinst->lock);
-	get_online_cpus();
+	struct parallel_data *pd;
 
 	valid = padata_validate_cpumask(pinst, pcpumask);
 	if (!valid) {
@@ -685,10 +642,8 @@ int __padata_set_cpumasks(struct padata_instance *pinst,
 
 out_replace:
 	pd = padata_alloc_pd(pinst, pcpumask, cbcpumask);
-	if (!pd) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!pd)
+		return -ENOMEM;
 
 	cpumask_copy(pinst->cpumask.pcpu, pcpumask);
 	cpumask_copy(pinst->cpumask.cbcpu, cbcpumask);
@@ -698,14 +653,76 @@ out_replace:
 	if (valid)
 		__padata_start(pinst);
 
-out:
+	return 0;
+}
+
+/**
+ * padata_set_cpumasks - Set both parallel and serial cpumasks. The first
+ *                       one is used by parallel workers and the second one
+ *                       by the wokers doing serialization.
+ *
+ * @pinst: padata instance
+ * @pcpumask: the cpumask to use for parallel workers
+ * @cbcpumask: the cpumsak to use for serial workers
+ */
+int padata_set_cpumasks(struct padata_instance *pinst, cpumask_var_t pcpumask,
+			cpumask_var_t cbcpumask)
+{
+	int err;
+
+	mutex_lock(&pinst->lock);
+	get_online_cpus();
+
+	err = __padata_set_cpumasks(pinst, pcpumask, cbcpumask);
+
 	put_online_cpus();
 	mutex_unlock(&pinst->lock);
 
 	return err;
 
 }
-EXPORT_SYMBOL(__padata_set_cpumasks);
+EXPORT_SYMBOL(padata_set_cpumasks);
+
+/**
+ * padata_set_cpumask: Sets specified by @cpumask_type cpumask to the value
+ *                     equivalent to @cpumask.
+ *
+ * @pinst: padata instance
+ * @cpumask_type: PADATA_CPU_SERIAL or PADATA_CPU_PARALLEL corresponding
+ *                to parallel and serial cpumasks respectively.
+ * @cpumask: the cpumask to use
+ */
+int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
+		       cpumask_var_t cpumask)
+{
+	struct cpumask *serial_mask, *parallel_mask;
+	int err = -EINVAL;
+
+	mutex_lock(&pinst->lock);
+	get_online_cpus();
+
+	switch (cpumask_type) {
+	case PADATA_CPU_PARALLEL:
+		serial_mask = pinst->cpumask.cbcpu;
+		parallel_mask = cpumask;
+		break;
+	case PADATA_CPU_SERIAL:
+		parallel_mask = pinst->cpumask.pcpu;
+		serial_mask = cpumask;
+		break;
+	default:
+		 goto out;
+	}
+
+	err =  __padata_set_cpumasks(pinst, parallel_mask, serial_mask);
+
+out:
+	put_online_cpus();
+	mutex_unlock(&pinst->lock);
+
+	return err;
+}
+EXPORT_SYMBOL(padata_set_cpumask);
 
 static int __padata_add_cpu(struct padata_instance *pinst, int cpu)
 {

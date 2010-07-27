@@ -178,9 +178,9 @@ extern int padata_get_cpumask(struct padata_instance *pinst,
 			      int cpumask_type, struct cpumask *out_mask);
 extern int padata_set_cpumask(struct padata_instance *pinst, int cpumask_type,
 			      cpumask_var_t cpumask);
-extern int __padata_set_cpumasks(struct padata_instance *pinst,
-				 cpumask_var_t pcpumask,
-				 cpumask_var_t cbcpumask);
+extern int padata_set_cpumasks(struct padata_instance *pinst,
+			       cpumask_var_t pcpumask,
+			       cpumask_var_t cbcpumask);
 extern int padata_add_cpu(struct padata_instance *pinst, int cpu, int mask);
 extern int padata_remove_cpu(struct padata_instance *pinst, int cpu, int mask);
 extern int padata_start(struct padata_instance *pinst);
