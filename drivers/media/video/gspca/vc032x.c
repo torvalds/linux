@@ -3520,8 +3520,8 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			if (gspca_dev->usb_buf[0] != 0) {
 				reg_w(gspca_dev, 0xa0, 0x26, 0xb300);
 				reg_w(gspca_dev, 0xa0, 0x04, 0xb300);
-				reg_w(gspca_dev, 0xa0, 0x00, 0xb300);
 			}
+			reg_w(gspca_dev, 0xa0, 0x00, 0xb300);
 		}
 	}
 	return gspca_dev->usb_err;
