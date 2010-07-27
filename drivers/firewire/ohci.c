@@ -595,6 +595,7 @@ static int ar_context_add_page(struct ar_context *ctx)
 	ab->descriptor.res_count      = cpu_to_le16(PAGE_SIZE - offset);
 	ab->descriptor.branch_address = 0;
 
+	wmb(); /* finish init of new descriptors before branch_address update */
 	ctx->last_buffer->descriptor.branch_address = cpu_to_le32(ab_bus | 1);
 	ctx->last_buffer->next = ab;
 	ctx->last_buffer = ab;
@@ -982,6 +983,8 @@ static void context_append(struct context *ctx,
 	d_bus = desc->buffer_bus + (d - desc->buffer) * sizeof(*d);
 
 	desc->used += (z + extra) * sizeof(*d);
+
+	wmb(); /* finish init of new descriptors before branch_address update */
 	ctx->prev->branch_address = cpu_to_le32(d_bus | z);
 	ctx->prev = find_branch_descriptor(d, z);
 
