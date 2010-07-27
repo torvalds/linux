@@ -1113,9 +1113,11 @@ struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
 	 */
 
 	prepare_to_wait(&coredev->buffer_mng_waitq, &wait, TASK_INTERRUPTIBLE);
-
-	if (list_empty(&coredev->buffers))
+	if (list_empty(&coredev->buffers)) {
+		spin_unlock_irqrestore(&coredev->bufferslock, flags);
 		schedule();
+		spin_lock_irqsave(&coredev->bufferslock, flags);
+	}
 
 	finish_wait(&coredev->buffer_mng_waitq, &wait);
 
