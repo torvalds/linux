@@ -54,28 +54,6 @@ void lbs_mac_event_disconnected(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_ASSOC);
 }
 
-static inline int handle_cmd_response(struct lbs_private *priv,
-				      struct cmd_header *cmd_response)
-{
-	struct cmd_ds_command *resp = (struct cmd_ds_command *) cmd_response;
-	int ret = 0;
-	uint16_t respcmd = le16_to_cpu(resp->command);
-
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	switch (respcmd) {
-	case CMD_RET(CMD_802_11_BEACON_STOP):
-		break;
-
-	default:
-		lbs_pr_err("CMD_RESP: unknown cmd response 0x%04x\n",
-			   le16_to_cpu(resp->command));
-		break;
-	}
-	lbs_deb_leave(LBS_DEB_HOST);
-	return ret;
-}
-
 int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 {
 	uint16_t respcmd, curcmd;
@@ -216,8 +194,7 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	if (priv->cur_cmd && priv->cur_cmd->callback) {
 		ret = priv->cur_cmd->callback(priv, priv->cur_cmd->callback_arg,
 				resp);
-	} else
-		ret = handle_cmd_response(priv, resp);
+	}
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
