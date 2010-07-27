@@ -27,7 +27,7 @@
 
 #include <linux/scatterlist.h>
 
-typedef struct _RING_BUFFER {
+struct hv_ring_buffer {
 	/* Offset in bytes from the start of ring data below */
 	volatile u32 WriteIndex;
 
@@ -51,10 +51,10 @@ typedef struct _RING_BUFFER {
 	 * !!! DO NOT place any fields below this !!!
 	 */
 	u8 Buffer[0];
-} __attribute__((packed)) RING_BUFFER;
+} __attribute__((packed));
 
 struct hv_ring_buffer_info {
-	RING_BUFFER *RingBuffer;
+	struct hv_ring_buffer *RingBuffer;
 	u32 RingSize;			/* Include the shared header */
 	spinlock_t ring_lock;
 

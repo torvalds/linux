@@ -302,16 +302,16 @@ Description:
 --*/
 int RingBufferInit(struct hv_ring_buffer_info *RingInfo, void *Buffer, u32 BufferLen)
 {
-	if (sizeof(RING_BUFFER) != PAGE_SIZE)
+	if (sizeof(struct hv_ring_buffer) != PAGE_SIZE)
 		return -EINVAL;
 
 	memset(RingInfo, 0, sizeof(struct hv_ring_buffer_info));
 
-	RingInfo->RingBuffer = (RING_BUFFER *)Buffer;
+	RingInfo->RingBuffer = (struct hv_ring_buffer *)Buffer;
 	RingInfo->RingBuffer->ReadIndex = RingInfo->RingBuffer->WriteIndex = 0;
 
 	RingInfo->RingSize = BufferLen;
-	RingInfo->RingDataSize = BufferLen - sizeof(RING_BUFFER);
+	RingInfo->RingDataSize = BufferLen - sizeof(struct hv_ring_buffer);
 
 	spin_lock_init(&RingInfo->ring_lock);
 
