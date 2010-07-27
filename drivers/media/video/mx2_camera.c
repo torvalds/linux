@@ -461,7 +461,7 @@ static void free_buffer(struct videobuf_queue *vq, struct mx2_buffer *buf)
 
 	/*
 	 * This waits until this buffer is out of danger, i.e., until it is no
-	 * longer in STATE_QUEUED or STATE_ACTIVE
+	 * longer in state VIDEOBUF_QUEUED or VIDEOBUF_ACTIVE
 	 */
 	videobuf_waiton(vq, vb, 0, 0);
 
