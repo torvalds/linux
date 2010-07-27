@@ -88,6 +88,18 @@ static unsigned long balloon3_pin_config[] __initdata = {
 	/* USB Host */
 	GPIO88_USBH1_PWR,
 	GPIO89_USBH1_PEN,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO79_PSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
 };
 
 /******************************************************************************
@@ -405,7 +417,6 @@ static void balloon3_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned long pending = __raw_readl(BALLOON3_INT_CONTROL_REG) &
 					balloon3_irq_enabled;
-
 	do {
 		/* clear useless edge notification */
 		if (desc->chip->ack)

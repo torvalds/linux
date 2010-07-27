@@ -26,10 +26,12 @@ enum balloon3_features {
 #define BALLOON3_FPGA_VIRT	(0xf1000000)	/* as per balloon2 */
 #define BALLOON3_FPGA_LENGTH	0x01000000
 
-/* FPGA/CPLD registers */
-#define BALLOON3_PCMCIA0_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
-/* fixme - same for now */
-#define BALLOON3_PCMCIA1_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
+/* FPGA / CPLD registers for CF socket */
+#define	BALLOON3_CF_STATUS_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
+#define	BALLOON3_CF_CONTROL_REG		(BALLOON3_FPGA_VIRT + 0x00e00008)
+/* FPGA / CPLD version register */
+#define	BALLOON3_FPGA_VER		(BALLOON3_FPGA_VIRT + 0x00e0001c)
+
 #define BALLOON3_NANDIO_IO_REG		(BALLOON3_FPGA_VIRT + 0x00e00000)
 /* fpga/cpld interrupt control register */
 #define BALLOON3_INT_CONTROL_REG	(BALLOON3_FPGA_VIRT + 0x00e0000C)
@@ -40,6 +42,19 @@ enum balloon3_features {
 #define BALLOON3_SAMOSA_ADDR_REG	(BALLOON3_FPGA_VIRT + 0x00c00000)
 #define BALLOON3_SAMOSA_DATA_REG	(BALLOON3_FPGA_VIRT + 0x00c00004)
 #define BALLOON3_SAMOSA_STATUS_REG	(BALLOON3_FPGA_VIRT + 0x00c0001c)
+
+/* CF Status Register bits (read-only) bits */
+#define BALLOON3_CF_nIRQ		(1 << 0)
+#define BALLOON3_CF_nSTSCHG_BVD1	(1 << 1)
+
+/* CF Control Set Register bits / CF Control Clear Register bits (write-only) */
+#define BALLOON3_CF_RESET		(1 << 0)
+#define BALLOON3_CF_ENABLE		(1 << 1)
+#define BALLOON3_CF_ADD_ENABLE		(1 << 2)
+
+/* CF Interrupt sources */
+#define BALLOON3_BP_CF_NRDY_IRQ		BALLOON3_IRQ(0)
+#define BALLOON3_BP_NSTSCHG_IRQ		BALLOON3_IRQ(1)
 
 /* GPIOs for irqs */
 #define BALLOON3_GPIO_AUX_NIRQ		(94)
@@ -57,16 +72,6 @@ enum balloon3_features {
 /* FPGA Interrupt Mask/Acknowledge Register */
 #define BALLOON3_INT_S0_IRQ		(1 << 0)  /* PCMCIA 0 IRQ */
 #define BALLOON3_INT_S0_STSCHG		(1 << 1)  /* PCMCIA 0 status changed */
-
-/* CF Status Register */
-#define BALLOON3_PCMCIA_nIRQ		(1 << 0)  /* IRQ / ready signal */
-#define BALLOON3_PCMCIA_nSTSCHG_BVD1	(1 << 1)
-					/* VDD sense / card status changed */
-
-/* CF control register (write) */
-#define BALLOON3_PCMCIA_RESET		(1 << 0)   /* Card reset signal */
-#define BALLOON3_PCMCIA_ENABLE		(1 << 1)
-#define BALLOON3_PCMCIA_ADD_ENABLE	(1 << 2)
 
 /* CPLD (and FPGA) interface definitions */
 #define CPLD_LCD0_DATA_SET             0x00
@@ -131,9 +136,6 @@ enum balloon3_features {
 
 /* Balloon3 Interrupts */
 #define BALLOON3_IRQ(x)		(IRQ_BOARD_START + (x))
-
-#define BALLOON3_BP_CF_NRDY_IRQ	BALLOON3_IRQ(0)
-#define BALLOON3_BP_NSTSCHG_IRQ	BALLOON3_IRQ(1)
 
 #define BALLOON3_AUX_NIRQ	IRQ_GPIO(BALLOON3_GPIO_AUX_NIRQ)
 #define BALLOON3_CODEC_IRQ	IRQ_GPIO(BALLOON3_GPIO_CODEC_IRQ)
