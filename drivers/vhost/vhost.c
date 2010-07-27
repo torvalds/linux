@@ -23,6 +23,7 @@
 #include <linux/highmem.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
+#include <linux/cgroup.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -253,9 +254,14 @@ static long vhost_dev_set_owner(struct vhost_dev *dev)
 	}
 
 	dev->worker = worker;
+	err = cgroup_attach_task_current_cg(worker);
+	if (err)
+		goto err_cgroup;
 	wake_up_process(worker);	/* avoid contributing to loadavg */
 
 	return 0;
+err_cgroup:
+	kthread_stop(worker);
 err_worker:
 	if (dev->mm)
 		mmput(dev->mm);
