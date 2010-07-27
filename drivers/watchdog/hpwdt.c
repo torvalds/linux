@@ -126,7 +126,7 @@ struct cmn_registers {
 	u32 reflags;
 }  __attribute__((packed));
 
-static unsigned int hpwdt_nmi_sourcing;
+static unsigned int hpwdt_nmi_decoding;
 static unsigned int allow_kdump;
 static unsigned int priority;		/* hpwdt at end of die_notify list */
 static DEFINE_SPINLOCK(rom_lock);
@@ -467,7 +467,7 @@ static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)
 		goto out;
 
-	if (!hpwdt_nmi_sourcing)
+	if (!hpwdt_nmi_decoding)
 		goto out;
 
 	spin_lock_irqsave(&rom_lock, rom_pl);
@@ -634,23 +634,23 @@ static struct notifier_block die_notifier = {
  */
 
 #ifdef ARCH_HAS_NMI_WATCHDOG
-static void __devinit hpwdt_check_nmi_sourcing(struct pci_dev *dev)
+static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
 	/*
 	 * If nmi_watchdog is turned off then we can turn on
-	 * our nmi sourcing capability.
+	 * our nmi decoding capability.
 	 */
 	if (!nmi_watchdog_active())
-		hpwdt_nmi_sourcing = 1;
+		hpwdt_nmi_decoding = 1;
 	else
-		dev_warn(&dev->dev, "NMI sourcing is disabled. To enable this "
+		dev_warn(&dev->dev, "NMI decoding is disabled. To enable this "
 			"functionality you must reboot with nmi_watchdog=0 "
 			"and load the hpwdt driver with priority=1.\n");
 }
 #else
-static void __devinit hpwdt_check_nmi_sourcing(struct pci_dev *dev)
+static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
-	dev_warn(&dev->dev, "NMI sourcing is disabled. "
+	dev_warn(&dev->dev, "NMI decoding is disabled. "
 		"Your kernel does not support a NMI Watchdog.\n");
 }
 #endif
@@ -661,9 +661,9 @@ static int __devinit hpwdt_init_one(struct pci_dev *dev,
 	int retval;
 
 	/*
-	 * Check if we can do NMI sourcing or not
+	 * Check if we can do NMI decoding or not
 	 */
-	hpwdt_check_nmi_sourcing(dev);
+	hpwdt_check_nmi_decoding(dev);
 
 	/*
 	 * First let's find out if we are on an iLO2+ server. We will
