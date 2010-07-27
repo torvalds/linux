@@ -1723,7 +1723,7 @@ static void pl022_cleanup(struct spi_device *spi)
 }
 
 
-static int __init
+static int __devinit
 pl022_probe(struct amba_device *adev, struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
@@ -1838,7 +1838,7 @@ pl022_probe(struct amba_device *adev, struct amba_id *id)
 	return status;
 }
 
-static int __exit
+static int __devexit
 pl022_remove(struct amba_device *adev)
 {
 	struct pl022 *pl022 = amba_get_drvdata(adev);
@@ -1970,7 +1970,7 @@ static struct amba_driver pl022_driver = {
 	},
 	.id_table	= pl022_ids,
 	.probe		= pl022_probe,
-	.remove		= __exit_p(pl022_remove),
+	.remove		= __devexit_p(pl022_remove),
 	.suspend        = pl022_suspend,
 	.resume         = pl022_resume,
 };
