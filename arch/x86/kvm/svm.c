@@ -1918,6 +1918,7 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 	nested_vmcb->control.exit_info_2       = vmcb->control.exit_info_2;
 	nested_vmcb->control.exit_int_info     = vmcb->control.exit_int_info;
 	nested_vmcb->control.exit_int_info_err = vmcb->control.exit_int_info_err;
+	nested_vmcb->control.next_rip          = vmcb->control.next_rip;
 
 	/*
 	 * If we emulate a VMRUN/#VMEXIT in the same host #vmexit cycle we have
@@ -3360,7 +3361,12 @@ static void svm_set_supported_cpuid(u32 func, struct kvm_cpuid_entry2 *entry)
 		entry->ebx = 8; /* Lets support 8 ASIDs in case we add proper
 				   ASID emulation to nested SVM */
 		entry->ecx = 0; /* Reserved */
-		entry->edx = 0; /* Do not support any additional features */
+		entry->edx = 0; /* Per default do not support any
+				   additional features */
+
+		/* Support next_rip if host supports it */
+		if (svm_has(SVM_FEATURE_NRIP))
+			entry->edx |= SVM_FEATURE_NRIP;
 
 		break;
 	}
