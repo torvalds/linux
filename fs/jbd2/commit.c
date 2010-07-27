@@ -150,8 +150,8 @@ static int journal_submit_commit_record(journal_t *journal,
 	 */
 	if (ret == -EOPNOTSUPP && barrier_done) {
 		printk(KERN_WARNING
-		       "JBD: barrier-based sync failed on %s - "
-		       "disabling barriers\n", journal->j_devname);
+		       "JBD2: Disabling barriers on %s, "
+		       "not supported by device\n", journal->j_devname);
 		spin_lock(&journal->j_state_lock);
 		journal->j_flags &= ~JBD2_BARRIER;
 		spin_unlock(&journal->j_state_lock);
@@ -180,8 +180,8 @@ retry:
 	wait_on_buffer(bh);
 	if (buffer_eopnotsupp(bh) && (journal->j_flags & JBD2_BARRIER)) {
 		printk(KERN_WARNING
-		       "JBD2: wait_on_commit_record: sync failed on %s - "
-		       "disabling barriers\n", journal->j_devname);
+		       "JBD2: %s: disabling barries on %s - not supported "
+		       "by device\n", __func__, journal->j_devname);
 		spin_lock(&journal->j_state_lock);
 		journal->j_flags &= ~JBD2_BARRIER;
 		spin_unlock(&journal->j_state_lock);
