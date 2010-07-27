@@ -324,18 +324,20 @@ enum e1000_state_t {
 extern struct net_device *e1000_get_hw_dev(struct e1000_hw *hw);
 #define e_dbg(format, arg...) \
 	netdev_dbg(e1000_get_hw_dev(hw), format, ## arg)
-#define e_err(format, arg...) \
-	netdev_err(adapter->netdev, format, ## arg)
-#define e_info(format, arg...) \
-	netdev_info(adapter->netdev, format, ## arg)
-#define e_warn(format, arg...) \
-	netdev_warn(adapter->netdev, format, ## arg)
-#define e_notice(format, arg...) \
-	netdev_notice(adapter->netdev, format, ## arg)
+#define e_err(msglvl, format, arg...) \
+	netif_err(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_info(msglvl, format, arg...) \
+	netif_info(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_warn(msglvl, format, arg...) \
+	netif_warn(adapter, msglvl, adapter->netdev, format, ## arg)
+#define e_notice(msglvl, format, arg...) \
+	netif_notice(adapter, msglvl, adapter->netdev, format, ## arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \
 	dev_warn(&adapter->pdev->dev, format, ## arg)
+#define e_dev_err(format, arg...) \
+	dev_err(&adapter->pdev->dev, format, ## arg)
 
 extern char e1000_driver_name[];
 extern const char e1000_driver_version[];
