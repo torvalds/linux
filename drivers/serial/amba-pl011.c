@@ -930,7 +930,7 @@ static int pl011_resume(struct amba_device *dev)
 }
 #endif
 
-static struct amba_id pl011_ids[] __initdata = {
+static struct amba_id pl011_ids[] = {
 	{
 		.id	= 0x00041011,
 		.mask	= 0x000fffff,

@@ -456,7 +456,7 @@ static struct rtc_class_ops stv2_pl031_ops = {
 	.irq_set_freq = pl031_irq_set_freq,
 };
 
-static struct amba_id pl031_ids[] __initdata = {
+static struct amba_id pl031_ids[] = {
 	{
 		.id = 0x00041031,
 		.mask = 0x000fffff,
