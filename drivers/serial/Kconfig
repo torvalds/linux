@@ -724,6 +724,16 @@ config MRST_MAX3110_IRQ
 	help
 	  This has to be enabled after Moorestown GPIO driver is loaded
 
+config SERIAL_MFD_HSU
+	tristate "Medfield High Speed UART support"
+	depends on PCI
+	select SERIAL_CORE
+
+config SERIAL_MFD_HSU_CONSOLE
+	boolean "Medfile HSU serial console support"
+	depends on SERIAL_MFD_HSU=y
+	select SERIAL_CORE_CONSOLE
+
 config SERIAL_BFIN
 	tristate "Blackfin serial port support"
 	depends on BLACKFIN

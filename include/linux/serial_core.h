@@ -189,6 +189,8 @@
 /* MAX3107 */
 #define PORT_MAX3107	94
 
+/* High Speed UART for Medfield */
+#define PORT_MFD	95
 
 #ifdef __KERNEL__
 
