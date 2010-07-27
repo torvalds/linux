@@ -17,16 +17,6 @@ static inline int is_anon_memory(const char *filename)
 	return strcmp(filename, "//anon") == 0;
 }
 
-static int strcommon(const char *pathname, char *cwd, int cwdlen)
-{
-	int n = 0;
-
-	while (n < cwdlen && pathname[n] == cwd[n])
-		++n;
-
-	return n;
-}
-
 void map__init(struct map *self, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso)
 {
@@ -43,7 +33,7 @@ void map__init(struct map *self, enum map_type type,
 
 struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		     u64 pgoff, u32 pid, char *filename,
-		     enum map_type type, char *cwd, int cwdlen)
+		     enum map_type type)
 {
 	struct map *self = malloc(sizeof(*self));
 
@@ -51,16 +41,6 @@ struct map *map__new(struct list_head *dsos__list, u64 start, u64 len,
 		char newfilename[PATH_MAX];
 		struct dso *dso;
 		int anon;
-
-		if (cwd) {
-			int n = strcommon(filename, cwd, cwdlen);
-
-			if (n == cwdlen) {
-				snprintf(newfilename, sizeof(newfilename),
-					 ".%s", filename + n);
-				filename = newfilename;
-			}
-		}
 
 		anon = is_anon_memory(filename);
 

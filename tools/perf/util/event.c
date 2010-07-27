@@ -517,7 +517,7 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 	map = map__new(&machine->user_dsos, self->mmap.start,
 			self->mmap.len, self->mmap.pgoff,
 			self->mmap.pid, self->mmap.filename,
-			MAP__FUNCTION, session->cwd, session->cwdlen);
+			MAP__FUNCTION);
 
 	if (thread == NULL || map == NULL)
 		goto out_problem;
