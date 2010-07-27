@@ -286,11 +286,19 @@ static struct resource dm9k_resource[] = {
 		.end   = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x4) + 3,
 		.flags = IORESOURCE_MEM,
 	},
+	#ifdef CONFIG_MACH_RK2818MID
 	[2] = {
 		.start = RK2818_PIN_PE2,	//use pe2 as interrupt
 		.end   = RK2818_PIN_PE2,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
+	#else	
+	[2] = {
+		.start = RK2818_PIN_PA1,	//use pa1 as interrupt
+		.end   = RK2818_PIN_PA1,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	}
+	#endif
 
 };
 

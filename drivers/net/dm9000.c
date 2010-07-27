@@ -961,9 +961,13 @@ dm9000_rx(struct net_device *dev)
 
 		udelay(1);//add by lyx@20100713,or dm9000_rx will be error in high frequence
 
-		/* Get most updated data */
+		#if 1
+		/* Get most updated data */		
+		rxbyte = ior(db, DM9000_MRCMDX);	/* Dummy read */
+		#else
 		rxbyte = readb(db->io_data);
-
+		#endif
+		
 		/* Status check: this byte must be 0 or 1 */
 		if (rxbyte & DM9000_PKT_ERR) {
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
@@ -976,9 +980,11 @@ dm9000_rx(struct net_device *dev)
 			return;
 		}
 
-		if (!(rxbyte & DM9000_PKT_RDY))
+		if (!(rxbyte & DM9000_PKT_RDY)) {
+			//printk("packet not ready to receive\n");
 			return;
-
+		}
+		
 		/* A packet ready now  & Get status/length */
 		GoodPacket = true;
 		writeb(DM9000_MRCMD, db->io_addr);
@@ -1504,10 +1510,18 @@ dm9000_probe(struct platform_device *pdev)
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->io_addr;
 
-	#if 0
-	ndev->irq	= db->irq_res->start;
-	#else//modify by liuyx@20100510
+	#ifdef CONFIG_MACH_RK2818MID
 	rk2818_mux_api_set(GPIOE_SPI1_FLASH_SEL1_NAME, IOMUXA_GPIO1_A12);	
+	ndev->irq = gpio_to_irq(db->irq_res->start);
+	#else
+	rk2818_mux_api_set(GPIOA1_HOSTDATA17_SEL_NAME, IOMUXB_GPIO0_A1);
+	if (gpio_request(db->irq_res->start, "dm9000 interrupt")) {
+		gpio_free(db->irq_res->start);
+		dev_err(db->dev, "failed to request gpio\n");
+		ret = -EINVAL;
+		goto out;
+	}	
+	gpio_pull_updown(db->irq_res->start, GPIOPullDown);
 	ndev->irq = gpio_to_irq(db->irq_res->start);
 	#endif
 	
