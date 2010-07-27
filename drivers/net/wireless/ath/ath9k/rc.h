@@ -162,7 +162,6 @@ struct ath_rate_table {
 		u8 ratecode;
 		u8 dot11rate;
 		u8 ctrl_rate;
-		u8 base_index;
 		u8 cw40index;
 		u8 sgi_index;
 		u8 ht_index;
