@@ -2228,6 +2228,8 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 
 	blks = ext4_map_blocks(handle, mpd->inode, &map, get_blocks_flags);
 	if (blks < 0) {
+		struct super_block *sb = mpd->inode->i_sb;
+
 		err = blks;
 		/*
 		 * If get block returns with error we simply
@@ -2238,7 +2240,7 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 			return 0;
 
 		if (err == -ENOSPC &&
-		    ext4_count_free_blocks(mpd->inode->i_sb)) {
+		    ext4_count_free_blocks(sb)) {
 			mpd->retval = err;
 			return 0;
 		}
@@ -2250,16 +2252,17 @@ static int mpage_da_map_blocks(struct mpage_da_data *mpd)
 		 * writepage and writepages will again try to write
 		 * the same.
 		 */
-		ext4_msg(mpd->inode->i_sb, KERN_CRIT,
-			 "delayed block allocation failed for inode %lu at "
-			 "logical offset %llu with max blocks %zd with "
-			 "error %d", mpd->inode->i_ino,
-			 (unsigned long long) next,
-			 mpd->b_size >> mpd->inode->i_blkbits, err);
-		printk(KERN_CRIT "This should not happen!!  "
-		       "Data will be lost\n");
-		if (err == -ENOSPC) {
-			ext4_print_free_blocks(mpd->inode);
+		if (!(EXT4_SB(sb)->s_mount_flags & EXT4_MF_FS_ABORTED)) {
+			ext4_msg(sb, KERN_CRIT,
+				 "delayed block allocation failed for inode %lu "
+				 "at logical offset %llu with max blocks %zd "
+				 "with error %d", mpd->inode->i_ino,
+				 (unsigned long long) next,
+				 mpd->b_size >> mpd->inode->i_blkbits, err);
+			ext4_msg(sb, KERN_CRIT,
+				"This should not happen!! Data will be lost\n");
+			if (err == -ENOSPC)
+				ext4_print_free_blocks(mpd->inode);
 		}
 		/* invalidate all the pages */
 		ext4_da_block_invalidatepages(mpd, next,
