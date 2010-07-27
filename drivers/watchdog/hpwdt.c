@@ -27,14 +27,16 @@
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/watchdog.h>
+#ifdef CONFIG_HPWDT_NMI_DECODING
 #include <linux/dmi.h>
 #include <linux/spinlock.h>
 #include <linux/nmi.h>
 #include <linux/kdebug.h>
 #include <linux/notifier.h>
 #include <asm/cacheflush.h>
+#endif /* CONFIG_HPWDT_NMI_DECODING */
 
-#define HPWDT_VERSION			"1.1.1"
+#define HPWDT_VERSION			"1.2.0"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
 #define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
 #define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
@@ -57,6 +59,7 @@ static struct pci_device_id hpwdt_devices[] = {
 };
 MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
+#ifdef CONFIG_HPWDT_NMI_DECODING
 #define PCI_BIOS32_SD_VALUE		0x5F32335F	/* "_32_" */
 #define CRU_BIOS_SIGNATURE_VALUE	0x55524324
 #define PCI_BIOS32_PARAGRAPH_LEN	16
@@ -407,6 +410,7 @@ static int __devinit detect_cru_service(void)
 }
 /* ------------------------------------------------------------------------- */
 #endif /* CONFIG_X86_64 */
+#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 /*
  *	Watchdog operations
@@ -455,6 +459,7 @@ static int hpwdt_time_left(void)
 	return TICKS_TO_SECS(ioread16(hpwdt_timer_reg));
 }
 
+#ifdef CONFIG_HPWDT_NMI_DECODING
 /*
  *	NMI Handler
  */
@@ -487,6 +492,7 @@ static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 out:
 	return NOTIFY_OK;
 }
+#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 /*
  *	/dev/watchdog handling
@@ -624,15 +630,18 @@ static struct miscdevice hpwdt_miscdev = {
 	.fops = &hpwdt_fops,
 };
 
+#ifdef CONFIG_HPWDT_NMI_DECODING
 static struct notifier_block die_notifier = {
 	.notifier_call = hpwdt_pretimeout,
 	.priority = 0,
 };
+#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 /*
  *	Init & Exit
  */
 
+#ifdef CONFIG_HPWDT_NMI_DECODING
 #ifdef ARCH_HAS_NMI_WATCHDOG
 static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
 {
@@ -712,6 +721,20 @@ static void __devexit hpwdt_exit_nmi_decoding(void)
 	if (cru_rom_addr)
 		iounmap(cru_rom_addr);
 }
+#else /* !CONFIG_HPWDT_NMI_DECODING */
+static void __devinit hpwdt_check_nmi_decoding(struct pci_dev *dev)
+{
+}
+
+static int __devinit hpwdt_init_nmi_decoding(struct pci_dev *dev)
+{
+	return 0;
+}
+
+static void __devexit hpwdt_exit_nmi_decoding(void)
+{
+}
+#endif /* CONFIG_HPWDT_NMI_DECODING */
 
 static int __devinit hpwdt_init_one(struct pci_dev *dev,
 					const struct pci_device_id *ent)
@@ -823,12 +846,14 @@ module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 		__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
+#ifdef CONFIG_HPWDT_NMI_DECODING
 module_param(allow_kdump, int, 0);
 MODULE_PARM_DESC(allow_kdump, "Start a kernel dump after NMI occurs");
 
 module_param(priority, int, 0);
 MODULE_PARM_DESC(priority, "The hpwdt driver handles NMIs first or last"
 		" (default = 0/Last)\n");
+#endif /* !CONFIG_HPWDT_NMI_DECODING */
 
 module_init(hpwdt_init);
 module_exit(hpwdt_cleanup);
