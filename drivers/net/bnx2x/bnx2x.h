@@ -45,6 +45,7 @@
 #endif
 
 #include <linux/mdio.h>
+#include <linux/pci.h>
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"
 #include "bnx2x_hsi.h"
