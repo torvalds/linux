@@ -168,8 +168,7 @@ int hdpvr_set_audio(struct hdpvr_device *dev, u8 input,
 		if (ret == 2)
 			ret = 0;
 	} else
-		ret = hdpvr_config_call(dev, CTRL_AUDIO_INPUT_VALUE,
-					dev->options.audio_input+1);
+		ret = hdpvr_config_call(dev, CTRL_AUDIO_INPUT_VALUE, input);
 error:
 	return ret;
 }
