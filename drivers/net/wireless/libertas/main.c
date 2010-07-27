@@ -502,12 +502,6 @@ static int lbs_thread(void *data)
 		if (!priv->dnld_sent && !priv->cur_cmd)
 			lbs_execute_next_command(priv);
 
-		/* Wake-up command waiters which can't sleep in
-		 * lbs_prepare_and_send_command
-		 */
-		if (!list_empty(&priv->cmdpendingq))
-			wake_up_all(&priv->cmd_pending);
-
 		spin_lock_irq(&priv->driver_lock);
 		if (!priv->dnld_sent && priv->tx_pending_len > 0) {
 			int ret = priv->hw_host_to_card(priv, MVMS_DAT,
@@ -533,7 +527,6 @@ static int lbs_thread(void *data)
 
 	del_timer(&priv->command_timer);
 	del_timer(&priv->auto_deepsleep_timer);
-	wake_up_all(&priv->cmd_pending);
 
 	lbs_deb_leave(LBS_DEB_THREAD);
 	return 0;
@@ -741,7 +734,6 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	INIT_LIST_HEAD(&priv->cmdpendingq);
 
 	spin_lock_init(&priv->driver_lock);
-	init_waitqueue_head(&priv->cmd_pending);
 
 	/* Allocate the command buffers */
 	if (lbs_allocate_cmd_buffer(priv)) {

@@ -111,7 +111,6 @@ struct lbs_private {
 	struct cmd_ctrl_node *cur_cmd;
 	struct list_head cmdfreeq;    /* free command buffers */
 	struct list_head cmdpendingq; /* pending command buffers */
-	wait_queue_head_t cmd_pending;
 	struct timer_list command_timer;
 	int cmd_timed_out;
 
