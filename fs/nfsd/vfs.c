@@ -904,7 +904,6 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
               loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
 {
 	struct inode *inode;
-	struct raparms	*ra;
 	mm_segment_t	oldfs;
 	__be32		err;
 	int		host_err;
@@ -914,12 +913,6 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 
 	if (svc_msnfs(fhp) && !lock_may_read(inode, offset, *count))
 		goto out;
-
-	/* Get readahead parameters */
-	ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
-
-	if (ra && ra->p_set)
-		file->f_ra = ra->p_ra;
 
 	if (file->f_op->splice_read && rqstp->rq_splice_ok) {
 		struct splice_desc sd = {
@@ -936,16 +929,6 @@ nfsd_vfs_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		set_fs(KERNEL_DS);
 		host_err = vfs_readv(file, (struct iovec __user *)vec, vlen, &offset);
 		set_fs(oldfs);
-	}
-
-	/* Write back readahead params */
-	if (ra) {
-		struct raparm_hbucket *rab = &raparm_hash[ra->p_hindex];
-		spin_lock(&rab->pb_lock);
-		ra->p_ra = file->f_ra;
-		ra->p_set = 1;
-		ra->p_count--;
-		spin_unlock(&rab->pb_lock);
 	}
 
 	if (host_err >= 0) {
@@ -1082,6 +1065,42 @@ out:
 	return err;
 }
 
+static __be32 nfsd_open_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
+	loff_t offset, struct kvec *vec, int vlen, unsigned long *count)
+{
+	struct file *file;
+	struct inode *inode;
+	struct raparms	*ra;
+	__be32 err;
+
+	err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
+	if (err)
+		return err;
+
+	inode = file->f_path.dentry->d_inode;
+
+	/* Get readahead parameters */
+	ra = nfsd_get_raparms(inode->i_sb->s_dev, inode->i_ino);
+
+	if (ra && ra->p_set)
+		file->f_ra = ra->p_ra;
+
+	err = nfsd_vfs_read(rqstp, fhp, file, offset, vec, vlen, count);
+
+	/* Write back readahead params */
+	if (ra) {
+		struct raparm_hbucket *rab = &raparm_hash[ra->p_hindex];
+		spin_lock(&rab->pb_lock);
+		ra->p_ra = file->f_ra;
+		ra->p_set = 1;
+		ra->p_count--;
+		spin_unlock(&rab->pb_lock);
+	}
+
+	nfsd_close(file);
+	return err;
+}
+
 /*
  * Read data from a file. count must contain the requested read count
  * on entry. On return, *count contains the number of bytes actually read.
@@ -1100,13 +1119,8 @@ nfsd_read(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 		if (err)
 			goto out;
 		err = nfsd_vfs_read(rqstp, fhp, file, offset, vec, vlen, count);
-	} else {
-		err = nfsd_open(rqstp, fhp, S_IFREG, NFSD_MAY_READ, &file);
-		if (err)
-			goto out;
-		err = nfsd_vfs_read(rqstp, fhp, file, offset, vec, vlen, count);
-		nfsd_close(file);
-	}
+	} else
+		err = nfsd_open_read(rqstp, fhp, offset, vec, vlen, count);
 out:
 	return err;
 }
