@@ -640,14 +640,26 @@ static void mx2_videobuf_release(struct videobuf_queue *vq,
 	 * Terminate only queued but inactive buffers. Active buffers are
 	 * released when they become inactive after videobuf_waiton().
 	 *
-	 * FIXME: implement forced termination of active buffers, so that the
-	 * user won't get stuck in an uninterruptible state. This requires a
-	 * specific handling for each of the three DMA types that this driver
-	 * supports.
+	 * FIXME: implement forced termination of active buffers for mx27 and
+	 * mx27 eMMA, so that the user won't get stuck in an uninterruptible
+	 * state. This requires a specific handling for each of the these DMA
+	 * types.
 	 */
 	spin_lock_irqsave(&pcdev->lock, flags);
 	if (vb->state == VIDEOBUF_QUEUED) {
 		list_del(&vb->queue);
+		vb->state = VIDEOBUF_ERROR;
+	} else if (cpu_is_mx25() && vb->state == VIDEOBUF_ACTIVE) {
+		if (pcdev->fb1_active == buf) {
+			pcdev->csicr1 &= ~CSICR1_FB1_DMA_INTEN;
+			writel(0, pcdev->base_csi + CSIDMASA_FB1);
+			pcdev->fb1_active = NULL;
+		} else if (pcdev->fb2_active == buf) {
+			pcdev->csicr1 &= ~CSICR1_FB2_DMA_INTEN;
+			writel(0, pcdev->base_csi + CSIDMASA_FB2);
+			pcdev->fb2_active = NULL;
+		}
+		writel(pcdev->csicr1, pcdev->base_csi + CSICR1);
 		vb->state = VIDEOBUF_ERROR;
 	}
 	spin_unlock_irqrestore(&pcdev->lock, flags);
