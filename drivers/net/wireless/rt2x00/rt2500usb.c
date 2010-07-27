@@ -351,6 +351,14 @@ static int rt2500usb_config_key(struct rt2x00_dev *rt2x00dev,
 
 	if (crypto->cmd == SET_KEY) {
 		/*
+		 * Disallow to set WEP key other than with index 0,
+		 * it is known that not work at least on some hardware.
+		 * SW crypto will be used in that case.
+		 */
+		if (key->alg == ALG_WEP && key->keyidx != 0)
+			return -EOPNOTSUPP;
+
+		/*
 		 * Pairwise key will always be entry 0, but this
 		 * could collide with a shared key on the same
 		 * position...
