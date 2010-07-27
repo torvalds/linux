@@ -256,6 +256,7 @@ static int intel_idle_probe(void)
 	case 0x1E:	/* Core i7 and i5 Processor - Lynnfield Jasper Forest */
 	case 0x1F:	/* Core i7 and i5 Processor - Nehalem */
 	case 0x2E:	/* Nehalem-EX Xeon */
+	case 0x2F:	/* Westmere-EX Xeon */
 		lapic_timer_reliable_states = (1 << 1);	 /* C1 */
 
 	case 0x25:	/* Westmere */
