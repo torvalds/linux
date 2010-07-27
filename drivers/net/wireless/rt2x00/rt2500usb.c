@@ -817,6 +817,7 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2500usb_register_write(rt2x00dev, MAC_CSR8, reg);
 
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR0, &reg);
+	rt2x00_set_field16(&reg, TXRX_CSR0_ALGORITHM, CIPHER_NONE);
 	rt2x00_set_field16(&reg, TXRX_CSR0_IV_OFFSET, IEEE80211_HEADER);
 	rt2x00_set_field16(&reg, TXRX_CSR0_KEY_ID, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR0, reg);
