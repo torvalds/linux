@@ -465,24 +465,26 @@ static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 	static int die_nmi_called;
 
 	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)
-		return NOTIFY_OK;
+		goto out;
 
-	if (hpwdt_nmi_sourcing) {
-		spin_lock_irqsave(&rom_lock, rom_pl);
-		if (!die_nmi_called)
-			asminline_call(&cmn_regs, cru_rom_addr);
-		die_nmi_called = 1;
-		spin_unlock_irqrestore(&rom_lock, rom_pl);
-		if (cmn_regs.u1.ral == 0) {
-			printk(KERN_WARNING "hpwdt: An NMI occurred, "
-				"but unable to determine source.\n");
-		} else {
-			if (allow_kdump)
-				hpwdt_stop();
-			panic("An NMI occurred, please see the Integrated "
-				"Management Log for details.\n");
-		}
+	if (!hpwdt_nmi_sourcing)
+		goto out;
+
+	spin_lock_irqsave(&rom_lock, rom_pl);
+	if (!die_nmi_called)
+		asminline_call(&cmn_regs, cru_rom_addr);
+	die_nmi_called = 1;
+	spin_unlock_irqrestore(&rom_lock, rom_pl);
+	if (cmn_regs.u1.ral == 0) {
+		printk(KERN_WARNING "hpwdt: An NMI occurred, "
+			"but unable to determine source.\n");
+	} else {
+		if (allow_kdump)
+			hpwdt_stop();
+		panic("An NMI occurred, please see the Integrated "
+			"Management Log for details.\n");
 	}
+out:
 	return NOTIFY_OK;
 }
 
