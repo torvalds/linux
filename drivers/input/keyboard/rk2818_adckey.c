@@ -47,21 +47,13 @@ volatile unsigned int gFlagLongPlay = 0;
 volatile unsigned int gPlayCount = 0;
 
 //key code tab
-#define ADKEYNUM		10
-static unsigned char gInitKeyCode[ADKEYNUM] = 
-{
-	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,	
-	ENDCALL,KEYSTART,KEY_WAKEUP,
-};
-
-
 struct rk28_adckey 
 {
 	struct semaphore	lock;
 	struct rk28_adc_client	*client;
 	struct input_dev *input_dev;
 	struct timer_list timer;
-	unsigned char keycodes[ADKEYNUM];
+	unsigned char * keycodes;
 	void __iomem *mmio_base;
 };
 
@@ -72,7 +64,7 @@ unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 	while(ptab->adc_value != 0)
 	{
 		if((advalue > ptab->adc_value - rk2818_adc_key.adc_drift) && (advalue < ptab->adc_value + rk2818_adc_key.adc_drift))
-		return ptab->adc_keycode;
+		    return ptab->adc_keycode;
 		ptab++;
 	}
 
@@ -198,10 +190,11 @@ static void rk28_adkeyscan_timer(unsigned long data)
 
 	//rk28_read_adc(pRk28AdcKey);	
 	adcvalue = gAdcValue[rk2818_adc_key.adc_chn];
-	DBG("=========== adcvalue=0x%x ===========\n",adcvalue);
+	//DBG("=========== adcvalue=0x%x ===========\n",adcvalue);
 
 	if((adcvalue > rk2818_adc_key.adc_empty) || (adcvalue < rk2818_adc_key.adc_invalid))
 	{
+	    //DBG("adcvalue invalid !!!\n");
 		if(gLastCode == 0) {
 			return;
 		}
@@ -272,7 +265,8 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	
-	memcpy(adckey->keycodes, gInitKeyCode, sizeof(adckey->keycodes));
+	//memcpy(adckey->keycodes, gInitKeyCode, sizeof(adckey->keycodes));
+	adckey->keycodes = rk2818_adc_key.initKeyCode;
 	
 	/* Create and register the input driver. */
 	input_dev = input_allocate_device();
@@ -294,9 +288,9 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 
 	input_dev->keycode = adckey->keycodes;
 	input_dev->keycodesize = sizeof(unsigned char);
-	input_dev->keycodemax = ARRAY_SIZE(gInitKeyCode);
-	for (i = 0; i < ARRAY_SIZE(gInitKeyCode); i++)
-		set_bit(gInitKeyCode[i], input_dev->keybit);
+	input_dev->keycodemax = rk2818_adc_key.adc_key_cnt;
+	for (i = 0; i < rk2818_adc_key.adc_key_cnt; i++)
+		set_bit(rk2818_adc_key.initKeyCode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
 
 	adckey->input_dev = input_dev;

@@ -393,12 +393,12 @@ static void spi_xpt2046_cs_control(u32 command)
 {
 	if(command == 3)	
 	    {
-	    //printk("spi_xpt2046_cs_control cs \n");
+	    printk("spi_xpt2046_cs_control cs \n");
 	    gpio_direction_output(RK2818_PIN_PF5, GPIO_LOW);
 	    }
 	if(command == 0)
 	    {
-	    //printk("spi_xpt2046_cs_control decs \n");
+	    printk("spi_xpt2046_cs_control decs \n");
 	    gpio_direction_output(RK2818_PIN_PF5, GPIO_HIGH);
 	    }
 }
@@ -616,14 +616,22 @@ static  ADC_keyst gAdcValueTab[] =
 	{0,     0}///table end
 };
 
+static unsigned char gInitKeyCode[] = 
+{
+	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,AD2KEY7,
+	ENDCALL,KEYSTART,KEY_WAKEUP,
+};
+
 struct adc_key_data rk2818_adc_key = {
     .pin_playon     = RK2818_PIN_PA3,
     .playon_level   = 1,
-    .adc_empty      = 927,
+    .adc_empty      = 900,
     .adc_invalid    = 20,
     .adc_drift      = 50,
     .adc_chn        = 1,
     .adc_key_table  = gAdcValueTab,
+    .initKeyCode    = gInitKeyCode,
+    .adc_key_cnt    = 10,
 };
 
 static void __init machine_rk2818_init_irq(void)

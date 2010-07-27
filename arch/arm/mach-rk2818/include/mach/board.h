@@ -144,6 +144,8 @@ struct adc_key_data{
     u32 adc_drift;
     u32 adc_chn;
     ADC_keyst * adc_key_table;
+    unsigned char *initKeyCode;
+    u32 adc_key_cnt;
 };
 
 /* common init routines for use by arch/arm/mach-msm/board-*.c */

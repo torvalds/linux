@@ -585,6 +585,12 @@ static  ADC_keyst gAdcValueTab[] =
 	{0,0}
 };
 
+static unsigned char gInitKeyCode[] = 
+{
+	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,
+	ENDCALL,KEYSTART,KEY_WAKEUP,
+};
+
 struct adc_key_data rk2818_adc_key = {
     .pin_playon     = RK2818_PIN_PA3,
     .playon_level   = 1,
@@ -593,6 +599,8 @@ struct adc_key_data rk2818_adc_key = {
     .adc_drift      = 50,
     .adc_chn        = 1,
     .adc_key_table  = gAdcValueTab,
+    .initKeyCode    = gInitKeyCode,
+    .adc_key_cnt    = 9,
 };
 
 static void __init machine_rk2818_init_irq(void)
