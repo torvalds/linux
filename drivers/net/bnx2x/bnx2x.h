@@ -1373,6 +1373,14 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define BNX2X_VPD_LEN			128
 #define VENDOR_ID_LEN			4
 
+#ifdef BNX2X_MAIN
+#define BNX2X_EXTERN
+#else
+#define BNX2X_EXTERN extern
+#endif
+
+BNX2X_EXTERN int load_count[3]; /* 0-common, 1-port0, 2-port1 */
+
 /* MISC_REG_RESET_REG - this is here for the hsi to work don't touch */
 
 #endif /* bnx2x.h */

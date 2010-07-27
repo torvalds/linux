@@ -51,7 +51,7 @@
 #include <linux/io.h>
 #include <linux/stringify.h>
 
-
+#define BNX2X_MAIN
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 #include "bnx2x_init_ops.h"
@@ -120,8 +120,6 @@ MODULE_PARM_DESC(mrrs, " Force Max Read Req Size (0..3) (for debug)");
 static int debug;
 module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, " Default debug msglevel");
-
-static int load_count[3]; /* 0-common, 1-port0, 2-port1 */
 
 static struct workqueue_struct *bnx2x_wq;
 
