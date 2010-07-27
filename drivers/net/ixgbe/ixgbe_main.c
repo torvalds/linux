@@ -6552,8 +6552,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			err = dma_set_coherent_mask(&pdev->dev,
 						    DMA_BIT_MASK(32));
 			if (err) {
-				e_dev_err("No usable DMA configuration, "
-					  "aborting\n");
+				dev_err(&pdev->dev,
+					"No usable DMA configuration, aborting\n");
 				goto err_dma;
 			}
 		}
@@ -6563,7 +6563,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	err = pci_request_selected_regions(pdev, pci_select_bars(pdev,
 	                                   IORESOURCE_MEM), ixgbe_driver_name);
 	if (err) {
-		e_dev_err("pci_request_selected_regions failed 0x%x\n", err);
+		dev_err(&pdev->dev,
+			"pci_request_selected_regions failed 0x%x\n", err);
 		goto err_pci_reg;
 	}
 
