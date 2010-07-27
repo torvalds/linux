@@ -2219,7 +2219,7 @@ static int ext4_mb_seq_groups_open(struct inode *inode, struct file *file)
 
 	rc = seq_open(file, &ext4_mb_seq_groups_ops);
 	if (rc == 0) {
-		struct seq_file *m = (struct seq_file *)file->private_data;
+		struct seq_file *m = file->private_data;
 		m->private = sb;
 	}
 	return rc;
