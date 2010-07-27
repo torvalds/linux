@@ -347,9 +347,9 @@ static struct notifier_block dropmon_net_notifier = {
 
 static int __init init_net_drop_monitor(void)
 {
-	int cpu;
-	int rc, i, ret;
 	struct per_cpu_dm_data *data;
+	int cpu, rc;
+
 	printk(KERN_INFO "Initalizing network drop monitor service\n");
 
 	if (sizeof(void *) > 8) {
@@ -357,21 +357,12 @@ static int __init init_net_drop_monitor(void)
 		return -ENOSPC;
 	}
 
-	if (genl_register_family(&net_drop_monitor_family) < 0) {
+	rc = genl_register_family_with_ops(&net_drop_monitor_family,
+					   dropmon_ops,
+					   ARRAY_SIZE(dropmon_ops));
+	if (rc) {
 		printk(KERN_ERR "Could not create drop monitor netlink family\n");
-		return -EFAULT;
-	}
-
-	rc = -EFAULT;
-
-	for (i = 0; i < ARRAY_SIZE(dropmon_ops); i++) {
-		ret = genl_register_ops(&net_drop_monitor_family,
-					&dropmon_ops[i]);
-		if (ret) {
-			printk(KERN_CRIT "Failed to register operation %d\n",
-				dropmon_ops[i].cmd);
-			goto out_unreg;
-		}
+		return rc;
 	}
 
 	rc = register_netdevice_notifier(&dropmon_net_notifier);
