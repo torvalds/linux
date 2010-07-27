@@ -804,9 +804,4 @@ struct denali_nand_info {
 	int idx;
 };
 
-static uint16_t NAND_Flash_Reset(struct denali_nand_info *denali);
-static uint16_t NAND_Read_Device_ID(struct denali_nand_info *denali);
-static void NAND_LLD_Enable_Disable_Interrupts(struct denali_nand_info *denali,
-						uint16_t INT_ENABLE);
-
 #endif /*_LLD_NAND_*/

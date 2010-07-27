@@ -221,7 +221,7 @@ static void reset_bank(struct denali_nand_info *denali)
 }
 
 /* Reset the flash controller */
-static uint16_t NAND_Flash_Reset(struct denali_nand_info *denali)
+static uint16_t denali_nand_reset(struct denali_nand_info *denali)
 {
 	uint32_t i;
 
@@ -256,7 +256,7 @@ static uint16_t NAND_Flash_Reset(struct denali_nand_info *denali)
  * programs the clocking register accordingly. The mode is determined by
  * the get_onfi_nand_para routine.
  */
-static void NAND_ONFi_Timing_Mode(struct denali_nand_info *denali,
+static void nand_onfi_timing_set(struct denali_nand_info *denali,
 								uint16_t mode)
 {
 	uint16_t Trea[6] = {40, 30, 25, 20, 20, 16};
@@ -487,7 +487,7 @@ static uint16_t get_onfi_nand_para(struct denali_nand_info *denali)
 			break;
 	}
 
-	NAND_ONFi_Timing_Mode(denali, i);
+	nand_onfi_timing_set(denali, i);
 
 	index_addr(denali, MODE_11 | 0, 0x90);
 	index_addr(denali, MODE_11 | 1, 0);
@@ -803,7 +803,7 @@ static void dump_device_info(struct denali_nand_info *denali)
 		denali->dev_info.nBitsInBlockDataSize);
 }
 
-static uint16_t NAND_Read_Device_ID(struct denali_nand_info *denali)
+static uint16_t denali_nand_timing_set(struct denali_nand_info *denali)
 {
 	uint16_t status = PASS;
 	uint8_t no_of_planes;
@@ -928,12 +928,12 @@ static uint16_t NAND_Read_Device_ID(struct denali_nand_info *denali)
 	 * with a specific ONFI mode, we apply those changes here.
 	 */
 	if (onfi_timing_mode != NAND_DEFAULT_TIMINGS)
-		NAND_ONFi_Timing_Mode(denali, onfi_timing_mode);
+		nand_onfi_timing_set(denali, onfi_timing_mode);
 
 	return status;
 }
 
-static void NAND_LLD_Enable_Disable_Interrupts(struct denali_nand_info *denali,
+static void denali_set_intr_modes(struct denali_nand_info *denali,
 					uint16_t INT_ENABLE)
 {
 	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
@@ -958,7 +958,7 @@ static void denali_irq_init(struct denali_nand_info *denali)
 	uint32_t int_mask = 0;
 
 	/* Disable global interrupts */
-	NAND_LLD_Enable_Disable_Interrupts(denali, false);
+	denali_set_intr_modes(denali, false);
 
 	int_mask = DENALI_IRQ_ALL;
 
@@ -973,7 +973,7 @@ static void denali_irq_init(struct denali_nand_info *denali)
 
 static void denali_irq_cleanup(int irqnum, struct denali_nand_info *denali)
 {
-	NAND_LLD_Enable_Disable_Interrupts(denali, false);
+	denali_set_intr_modes(denali, false);
 	free_irq(irqnum, denali);
 }
 
@@ -1797,7 +1797,7 @@ static void denali_ecc_hwctl(struct mtd_info *mtd, int mode)
 static void denali_hw_init(struct denali_nand_info *denali)
 {
 	denali_irq_init(denali);
-	NAND_Flash_Reset(denali);
+	denali_nand_reset(denali);
 	denali_write32(0x0F, denali->flash_reg + RB_PIN_ENABLED);
 	denali_write32(CHIP_EN_DONT_CARE__FLAG,
 			denali->flash_reg + CHIP_ENABLE_DONT_CARE);
@@ -1993,11 +1993,11 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/* now that our ISR is registered, we can enable interrupts */
-	NAND_LLD_Enable_Disable_Interrupts(denali, true);
+	denali_set_intr_modes(denali, true);
 
 	pci_set_drvdata(dev, denali);
 
-	NAND_Read_Device_ID(denali);
+	denali_nand_timing_set(denali);
 
 	/* MTD supported page sizes vary by kernel. We validate our
 	 * kernel supports the device here.
