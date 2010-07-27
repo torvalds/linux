@@ -112,9 +112,6 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
 
-	/* Store the response code to cur_cmd_retcode. */
-	priv->cur_cmd_retcode = result;
-
 	if (respcmd == CMD_RET(CMD_802_11_PS_MODE)) {
 		struct cmd_ds_802_11_ps_mode *psmode = (void *) &resp[1];
 		u16 action = le16_to_cpu(psmode->action);

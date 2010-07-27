@@ -116,7 +116,6 @@ struct lbs_private {
 	int cmd_timed_out;
 
 	/* Command responses sent from the hardware to the driver */
-	int cur_cmd_retcode;
 	u8 resp_idx;
 	u8 resp_buf[2][LBS_UPLD_SIZE];
 	u32 resp_len[2];

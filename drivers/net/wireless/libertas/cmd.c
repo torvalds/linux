@@ -77,30 +77,6 @@ static u8 is_command_allowed_in_ps(u16 cmd)
 }
 
 /**
- *  @brief This function checks if the command is allowed.
- *
- *  @param priv         A pointer to lbs_private structure
- *  @return             allowed or not allowed.
- */
-
-static int lbs_is_cmd_allowed(struct lbs_private *priv)
-{
-	int ret = 1;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	if (!priv->is_auto_deep_sleep_enabled) {
-		if (priv->is_deep_sleep) {
-			lbs_deb_cmd("command not allowed in deep sleep\n");
-			ret = 0;
-		}
-	}
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return ret;
-}
-
-/**
  *  @brief Updates the hardware details like MAC address and regulatory region
  *
  *  @param priv    	A pointer to struct lbs_private structure
@@ -1000,7 +976,6 @@ static void lbs_submit_command(struct lbs_private *priv,
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 	priv->cur_cmd = cmdnode;
-	priv->cur_cmd_retcode = 0;
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
 
 	cmdsize = le16_to_cpu(cmd->size);
@@ -1073,9 +1048,6 @@ static void lbs_cleanup_and_insert_cmd(struct lbs_private *priv,
 void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 			  int result)
 {
-	if (cmd == priv->cur_cmd)
-		priv->cur_cmd_retcode = result;
-
 	cmd->result = result;
 	cmd->cmdwaitqwoken = 1;
 	wake_up_interruptible(&cmd->cmdwait_q);
@@ -1140,112 +1112,6 @@ void lbs_set_mac_control(struct lbs_private *priv)
 	lbs_cmd_async(priv, CMD_MAC_CONTROL, &cmd.hdr, sizeof(cmd));
 
 	lbs_deb_leave(LBS_DEB_CMD);
-}
-
-/**
- *  @brief This function prepare the command before send to firmware.
- *
- *  @param priv		A pointer to struct lbs_private structure
- *  @param cmd_no	command number
- *  @param cmd_action	command action: GET or SET
- *  @param wait_option	wait option: wait response or not
- *  @param cmd_oid	cmd oid: treated as sub command
- *  @param pdata_buf	A pointer to informaion buffer
- *  @return 		0 or -1
- */
-int lbs_prepare_and_send_command(struct lbs_private *priv,
-			  u16 cmd_no,
-			  u16 cmd_action,
-			  u16 wait_option, u32 cmd_oid, void *pdata_buf)
-{
-	int ret = 0;
-	struct cmd_ctrl_node *cmdnode;
-	struct cmd_header *cmdptr;
-	unsigned long flags;
-
-	lbs_deb_enter(LBS_DEB_HOST);
-
-	if (!priv) {
-		lbs_deb_host("PREP_CMD: priv is NULL\n");
-		ret = -1;
-		goto done;
-	}
-
-	if (priv->surpriseremoved) {
-		lbs_deb_host("PREP_CMD: card removed\n");
-		ret = -1;
-		goto done;
-	}
-
-	if (!lbs_is_cmd_allowed(priv)) {
-		ret = -EBUSY;
-		goto done;
-	}
-
-	cmdnode = lbs_get_cmd_ctrl_node(priv);
-
-	if (cmdnode == NULL) {
-		lbs_deb_host("PREP_CMD: cmdnode is NULL\n");
-
-		/* Wake up main thread to execute next command */
-		wake_up_interruptible(&priv->waitq);
-		ret = -1;
-		goto done;
-	}
-
-	cmdnode->callback = NULL;
-	cmdnode->callback_arg = (unsigned long)pdata_buf;
-
-	cmdptr = (struct cmd_header *)cmdnode->cmdbuf;
-
-	lbs_deb_host("PREP_CMD: command 0x%04x\n", cmd_no);
-
-	/* Set sequence number, command and INT option */
-	priv->seqnum++;
-	cmdptr->seqnum = cpu_to_le16(priv->seqnum);
-
-	cmdptr->command = cpu_to_le16(cmd_no);
-	cmdptr->result = 0;
-
-	switch (cmd_no) {
-	default:
-		lbs_pr_err("PREP_CMD: unknown command 0x%04x\n", cmd_no);
-		ret = -1;
-		break;
-	}
-
-	/* return error, since the command preparation failed */
-	if (ret != 0) {
-		lbs_deb_host("PREP_CMD: command preparation failed\n");
-		lbs_cleanup_and_insert_cmd(priv, cmdnode);
-		ret = -1;
-		goto done;
-	}
-
-	cmdnode->cmdwaitqwoken = 0;
-
-	lbs_queue_cmd(priv, cmdnode);
-	wake_up_interruptible(&priv->waitq);
-
-	if (wait_option & CMD_OPTION_WAITFORRSP) {
-		lbs_deb_host("PREP_CMD: wait for response\n");
-		might_sleep();
-		wait_event_interruptible(cmdnode->cmdwait_q,
-					 cmdnode->cmdwaitqwoken);
-	}
-
-	spin_lock_irqsave(&priv->driver_lock, flags);
-	if (priv->cur_cmd_retcode) {
-		lbs_deb_host("PREP_CMD: command failed with return code %d\n",
-		       priv->cur_cmd_retcode);
-		priv->cur_cmd_retcode = 0;
-		ret = -1;
-	}
-	spin_unlock_irqrestore(&priv->driver_lock, flags);
-
-done:
-	lbs_deb_leave_args(LBS_DEB_HOST, "ret %d", ret);
-	return ret;
 }
 
 /**
@@ -1701,9 +1567,15 @@ struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 		goto done;
 	}
 
-	if (!lbs_is_cmd_allowed(priv)) {
-		cmdnode = ERR_PTR(-EBUSY);
-		goto done;
+	/* No commands are allowed in Deep Sleep until we toggle the GPIO
+	 * to wake up the card and it has signaled that it's ready.
+	 */
+	if (!priv->is_auto_deep_sleep_enabled) {
+		if (priv->is_deep_sleep) {
+			lbs_deb_cmd("command not allowed in deep sleep\n");
+			cmdnode = ERR_PTR(-EBUSY);
+			goto done;
+		}
 	}
 
 	cmdnode = lbs_get_cmd_ctrl_node(priv);
