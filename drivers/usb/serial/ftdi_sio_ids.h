@@ -40,6 +40,11 @@
 
 #define FTDI_NXTCAM_PID		0xABB8 /* NXTCam for Mindstorms NXT */
 
+/* US Interface Navigator (http://www.usinterface.com/) */
+#define FTDI_USINT_CAT_PID	0xb810	/* Navigator CAT and 2nd PTT lines */
+#define FTDI_USINT_WKEY_PID	0xb811	/* Navigator WKEY and FSK lines */
+#define FTDI_USINT_RS232_PID	0xb812	/* Navigator RS232 and CONFIG lines */
+
 /* OOCDlink by Joern Kaipf <joernk@web.de>
  * (http://www.joernonline.de/dw/doku.php?id=start&idx=projects:oocdlink) */
 #define FTDI_OOCDLINK_PID	0xbaf8	/* Amontec JTAGkey */
