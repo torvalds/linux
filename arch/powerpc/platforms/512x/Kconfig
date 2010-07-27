@@ -25,3 +25,10 @@ config MPC5121_GENERIC
 
 	  Compatible boards include:  Protonic LVT base boards (ZANMCU
 	  and VICVT2).
+
+config PDM360NG
+	bool "ifm PDM360NG board"
+	depends on PPC_MPC512x
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the PDM360NG board.
