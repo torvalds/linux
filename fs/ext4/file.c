@@ -70,7 +70,8 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 		size_t length = iov_length(iov, nr_segs);
 
-		if (pos > sbi->s_bitmap_maxbytes)
+		if ((pos > sbi->s_bitmap_maxbytes ||
+		    (pos == sbi->s_bitmap_maxbytes && length > 0)))
 			return -EFBIG;
 
 		if (pos + length > sbi->s_bitmap_maxbytes) {
