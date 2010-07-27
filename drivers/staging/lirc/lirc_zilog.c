@@ -1132,7 +1132,7 @@ static struct i2c_driver driver = {
 	.id_table	= ir_transceiver_id,
 };
 
-static struct file_operations lirc_fops = {
+static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= lseek,
 	.read		= read,

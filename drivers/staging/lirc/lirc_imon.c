@@ -111,7 +111,7 @@ struct imon_context {
 	} tx;
 };
 
-static struct file_operations display_fops = {
+static const struct file_operations display_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &display_open,
 	.write		= &vfd_write,

@@ -431,7 +431,7 @@ static void usb_streamzap_irq(struct urb *urb)
 	return;
 }
 
-static struct file_operations streamzap_fops = {
+static const struct file_operations streamzap_fops = {
 	.owner		= THIS_MODULE,
 	.unlocked_ioctl	= streamzap_ioctl,
 	.read		= lirc_dev_fop_read,

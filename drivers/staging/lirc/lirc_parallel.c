@@ -539,7 +539,7 @@ static int lirc_close(struct inode *node, struct file *filep)
 	return 0;
 }
 
-static struct file_operations lirc_fops = {
+static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= lirc_lseek,
 	.read		= lirc_read,

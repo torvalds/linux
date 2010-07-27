@@ -119,7 +119,7 @@ struct sasem_context {
 };
 
 /* VFD file operations */
-static struct file_operations vfd_fops = {
+static const struct file_operations vfd_fops = {
 	.owner		= THIS_MODULE,
 	.open		= &vfd_open,
 	.write		= &vfd_write,

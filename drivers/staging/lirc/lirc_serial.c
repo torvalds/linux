@@ -1050,7 +1050,7 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static struct file_operations lirc_fops = {
+static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.write		= lirc_write,
 	.unlocked_ioctl	= lirc_ioctl,

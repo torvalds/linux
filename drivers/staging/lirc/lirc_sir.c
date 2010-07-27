@@ -451,7 +451,7 @@ static void add_read_queue(int flag, unsigned long val)
 	wake_up_interruptible(&lirc_read_queue);
 }
 
-static struct file_operations lirc_fops = {
+static const struct file_operations lirc_fops = {
 	.owner		= THIS_MODULE,
 	.read		= lirc_read,
 	.write		= lirc_write,

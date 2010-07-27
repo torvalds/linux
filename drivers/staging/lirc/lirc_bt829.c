@@ -77,7 +77,7 @@ static struct pci_dev *do_pci_probe(void)
 		pci_addr_phys = 0;
 		if (my_dev->resource[0].flags & IORESOURCE_MEM) {
 			pci_addr_phys = my_dev->resource[0].start;
-			printk(KERN_INFO DRIVER_NAME ": memory at 0x%08X \n",
+			printk(KERN_INFO DRIVER_NAME ": memory at 0x%08X\n",
 			       (unsigned int)pci_addr_phys);
 		}
 		if (pci_addr_phys == 0) {
