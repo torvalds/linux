@@ -1,0 +1,695 @@
+/* -*- c-file-style: "linux" -*-
+ *
+ * nosy.c - Snoop mode driver for TI pcilynx 1394 controllers
+ * Copyright (C) 2002 Kristian Høgsberg
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
+
+#include <linux/kernel.h>
+#include <linux/slab.h>
+#include <linux/interrupt.h>
+#include <linux/sched.h> /* required for linux/wait.h */
+#include <linux/wait.h>
+#include <linux/errno.h>
+#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/pci.h>
+#include <linux/fs.h>
+#include <linux/poll.h>
+#include <linux/miscdevice.h>
+#include <asm/byteorder.h>
+#include <asm/atomic.h>
+#include <asm/io.h>
+#include <asm/uaccess.h>
+#include <asm/timex.h>
+
+#include "nosy.h"
+#include "nosy-user.h"
+
+#define TCODE_PHY_PACKET		0x10
+#define PCI_DEVICE_ID_TI_PCILYNX	0x8000
+
+#define notify(s, args...) printk(KERN_NOTICE s, ## args)
+#define error(s, args...) printk(KERN_ERR s, ## args)
+#define debug(s, args...) printk(KERN_DEBUG s, ## args)
+
+static const char driver_name[] = "nosy";
+
+struct pcl_status {
+	unsigned int transfer_count : 13;
+	unsigned int reserved0 : 1;
+	unsigned int ack_type : 1;
+	unsigned int ack : 4;
+	unsigned int rcv_speed : 2;
+	unsigned int rcv_dma_channel : 6;
+	unsigned int packet_complete : 1;
+	unsigned int packet_error : 1;
+	unsigned int master_error : 1;
+	unsigned int iso_mode : 1;
+	unsigned int self_id : 1;
+};
+
+/* this is the physical layout of a PCL, its size is 128 bytes */
+struct pcl {
+        u32 next;
+        u32 async_error_next;
+        u32 user_data;
+        struct pcl_status pcl_status;
+        u32 remaining_transfer_count;
+        u32 next_data_buffer;
+        struct {
+                u32 control;
+                u32 pointer;
+        } buffer[13] __attribute__ ((packed));
+} __attribute__ ((packed));
+
+struct packet {
+	unsigned int length : 16;
+	unsigned int code : 16;
+	char data[0];
+};
+
+struct packet_buffer {
+	char *data;
+	size_t capacity;
+	long total_packet_count, lost_packet_count;
+	atomic_t size;
+	struct packet *head, *tail;	
+        wait_queue_head_t wait;	
+};
+
+struct pcilynx {
+	struct pci_dev *pci_device;
+	unsigned char *registers;
+
+	struct pcl *rcv_start_pcl, *rcv_pcl;
+	u32 *rcv_buffer;
+
+	dma_addr_t rcv_start_pcl_bus, rcv_pcl_bus, rcv_buffer_bus;
+
+	spinlock_t client_list_lock;
+	struct list_head client_list;
+
+	struct miscdevice misc;
+};
+
+
+struct client {
+	struct pcilynx *lynx;
+	unsigned long tcode_mask;
+	struct packet_buffer buffer;
+	struct list_head link;
+};
+
+#define MAX_MINORS 64
+struct pcilynx *minors[MAX_MINORS];
+
+static int
+packet_buffer_init(struct packet_buffer *buffer, size_t capacity)
+{
+	buffer->data = kmalloc(capacity, GFP_KERNEL);
+	if (buffer->data == NULL)
+		return -ENOMEM;
+	buffer->head = (struct packet *) buffer->data;
+	buffer->tail = (struct packet *) buffer->data;
+	buffer->capacity = capacity;
+	buffer->lost_packet_count = 0;
+	atomic_set(&buffer->size, 0);
+        init_waitqueue_head(&buffer->wait);
+
+	return 0;
+}
+
+static void
+packet_buffer_destroy(struct packet_buffer *buffer)
+{
+	kfree(buffer->data);
+}
+
+static int
+packet_buffer_get(struct packet_buffer *buffer, void *data, size_t user_length)
+{
+	size_t length;
+	char *end;
+
+	if (wait_event_interruptible(buffer->wait,
+				     atomic_read(&buffer->size) > 0))
+		return -ERESTARTSYS;
+
+	/* FIXME: Check length <= user_length. */
+
+	end = buffer->data + buffer->capacity;
+	length = buffer->head->length;
+
+	if (&buffer->head->data[length] < end) {
+		if (copy_to_user(data, buffer->head->data, length))
+			return -EFAULT;
+		buffer->head = (struct packet *) &buffer->head->data[length];
+	}
+	else {
+		size_t split = end - buffer->head->data;
+
+		if (copy_to_user(data, buffer->head->data, split))
+			return -EFAULT;
+		if (copy_to_user(data + split, buffer->data, length - split))
+			return -EFAULT;
+		buffer->head = (struct packet *) &buffer->data[length - split];
+	}
+
+	/* Decrease buffer->size as the last thing, since this is what
+	 * keeps the interrupt from overwriting the packet we are
+	 * retrieving from the buffer.  */
+
+	atomic_sub(sizeof (struct packet) + length, &buffer->size);
+
+	return length;
+}
+
+static void
+packet_buffer_put(struct packet_buffer *buffer, void *data, size_t length)
+{
+	char *end;
+
+	buffer->total_packet_count++;
+
+	if (buffer->capacity < 
+	    atomic_read(&buffer->size) + sizeof (struct packet) + length) {
+		buffer->lost_packet_count++;
+		return;
+	}
+
+	end = buffer->data + buffer->capacity;
+	buffer->tail->length = length;
+
+	if (&buffer->tail->data[length] < end) {
+		memcpy(buffer->tail->data, data, length);
+		buffer->tail = (struct packet *) &buffer->tail->data[length];
+	}
+	else {
+		size_t split = end - buffer->tail->data;
+
+		memcpy(buffer->tail->data, data, split);
+		memcpy(buffer->data, data + split, length - split);
+		buffer->tail = (struct packet *) &buffer->data[length - split];
+	}
+	
+	/* Finally, adjust buffer size and wake up userspace reader. */
+
+	atomic_add(sizeof (struct packet) + length, &buffer->size);
+	wake_up_interruptible(&buffer->wait);
+}
+
+static inline void
+reg_write(struct pcilynx *lynx, int offset, u32 data)
+{
+        writel(data, lynx->registers + offset);
+}
+
+static inline u32
+reg_read(struct pcilynx *lynx, int offset)
+{
+        return readl(lynx->registers + offset);
+}
+
+static inline void
+reg_set_bits(struct pcilynx *lynx, int offset, u32 mask)
+{
+        reg_write(lynx, offset, (reg_read(lynx, offset) | mask));
+}
+
+/* Maybe the pcl programs could be setup to just append data instead
+ * of using a whole packet. */
+
+static inline void 
+run_pcl(struct pcilynx *lynx, dma_addr_t pcl_bus, int dmachan)
+{
+        reg_write(lynx, DMA0_CURRENT_PCL + dmachan * 0x20, pcl_bus);
+        reg_write(lynx, DMA0_CHAN_CTRL + dmachan * 0x20,
+                  DMA_CHAN_CTRL_ENABLE | DMA_CHAN_CTRL_LINK);
+}
+
+static int
+set_phy_reg(struct pcilynx *lynx, int addr, int val)
+{
+        if (addr > 15) {
+                debug("%s: PHY register address %d out of range",
+		      __FUNCTION__, addr);
+                return -1;
+        }
+
+        if (val > 0xff) {
+                debug("%s: PHY register value %d out of range",
+		      __FUNCTION__, val);
+                return -1;
+        }
+
+        reg_write(lynx, LINK_PHY, LINK_PHY_WRITE |
+		  LINK_PHY_ADDR(addr) | LINK_PHY_WDATA(val));
+
+        return 0;
+}
+
+static void
+nosy_start_snoop(struct client *client)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&client->lynx->client_list_lock, flags);
+	list_add_tail(&client->link, &client->lynx->client_list);
+	spin_unlock_irqrestore(&client->lynx->client_list_lock, flags);
+}
+
+static void
+nosy_stop_snoop(struct client *client)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&client->lynx->client_list_lock, flags);
+	list_del(&client->link);
+	spin_unlock_irqrestore(&client->lynx->client_list_lock, flags);
+}
+
+static struct client *
+nosy_add_client(struct pcilynx *lynx)
+{
+	struct client *client;
+
+	client = kmalloc(sizeof *client, GFP_KERNEL);
+	client->tcode_mask = ~0;
+	client->lynx = lynx;
+	INIT_LIST_HEAD(&client->link);
+
+	if (packet_buffer_init(&client->buffer, 128 * 1024) < 0) {
+		kfree(client);
+		debug("Failed to allocate packet buffer\n");
+		return NULL;
+	}
+
+	return client;
+}
+
+static void
+nosy_remove_client(struct client *client)
+{
+	nosy_stop_snoop(client);
+	packet_buffer_destroy(&client->buffer);
+	kfree(client);
+}
+
+static int
+nosy_open(struct inode *inode, struct file *file)
+{
+	int minor = iminor(inode);
+
+	if (minor > MAX_MINORS || minors[minor] == NULL)
+		return -ENODEV;
+
+        file->private_data = nosy_add_client(minors[minor]);
+	if (file->private_data == NULL)
+		return -ENOMEM;
+	else
+		return 0;
+}
+
+static int
+nosy_release(struct inode *inode, struct file *file)
+{
+	nosy_remove_client(file->private_data);
+
+        return 0;
+}
+
+static unsigned int
+nosy_poll(struct file *file, poll_table *pt)
+{
+	struct client *client = file->private_data;
+
+	poll_wait(file, &client->buffer.wait, pt);
+
+	if (atomic_read(&client->buffer.size) > 0)
+		return POLLIN | POLLRDNORM;
+	else
+		return 0;
+}
+
+static ssize_t
+nosy_read(struct file *file, char *buffer, size_t count, loff_t *offset)
+{
+	struct client *client = file->private_data;
+
+	return packet_buffer_get(&client->buffer, buffer, count);
+}
+
+static int
+nosy_ioctl(struct inode *inode, struct file *file,
+	   unsigned int cmd, unsigned long arg)
+{
+	struct client *client = file->private_data;
+
+	switch (cmd) {
+	case NOSY_IOC_GET_STATS: {
+		struct nosy_stats stats;
+
+		stats.total_packet_count = client->buffer.total_packet_count;
+		stats.lost_packet_count = client->buffer.lost_packet_count;
+		if (copy_to_user((void *) arg, &stats, sizeof stats))
+			return -EFAULT;
+		else
+			return 0;
+	}
+	
+	case NOSY_IOC_START:
+		nosy_start_snoop(client);
+		return 0;
+
+	case NOSY_IOC_STOP:
+		nosy_stop_snoop(client);
+		return 0;
+
+	case NOSY_IOC_FILTER:
+		client->tcode_mask = arg;
+		return 0;
+
+	default:
+		return -EINVAL;
+		/* Flush buffer, configure filter. */
+	}
+}
+
+static struct file_operations nosy_ops = {
+	.owner =	THIS_MODULE,
+        .read =         nosy_read,
+	.ioctl =	nosy_ioctl,
+        .poll =         nosy_poll,
+        .open =         nosy_open,
+        .release =      nosy_release,
+};
+
+#define PHY_PACKET_SIZE 12 /* 1 payload, 1 inverse, 1 ack = 3 quadlets */
+
+struct link_packet {
+	unsigned int priority : 4;
+	unsigned int tcode : 4;
+	unsigned int rt : 2;
+	unsigned int tlabel : 6;
+	unsigned int destination : 16;
+};
+
+static void
+packet_handler(struct pcilynx *lynx)
+{
+	unsigned long flags;
+	struct list_head *pos;
+	struct client *client;
+	unsigned long tcode_mask;
+	size_t length;
+	struct link_packet *packet;
+	struct timeval tv;
+
+	/* FIXME: Also report rcv_speed. */
+
+	length = lynx->rcv_pcl->pcl_status.transfer_count;
+	packet = (struct link_packet *) &lynx->rcv_buffer[1];
+
+	do_gettimeofday(&tv);
+	lynx->rcv_buffer[0] = tv.tv_usec;
+
+	if (length == PHY_PACKET_SIZE)
+		tcode_mask = 1 << TCODE_PHY_PACKET;
+	else
+		tcode_mask = 1 << packet->tcode;
+
+	spin_lock_irqsave(&lynx->client_list_lock, flags);
+
+	list_for_each(pos, &lynx->client_list) {
+		client = list_entry(pos, struct client, link);
+		if (client->tcode_mask & tcode_mask)
+			packet_buffer_put(&client->buffer, 
+					  lynx->rcv_buffer, length + 4);
+	}
+
+	spin_unlock_irqrestore(&lynx->client_list_lock, flags);
+}
+
+static void
+bus_reset_handler(struct pcilynx *lynx)
+{
+	unsigned long flags;
+	struct list_head *pos;
+	struct client *client;
+	struct timeval tv;
+
+	do_gettimeofday(&tv);
+
+	spin_lock_irqsave(&lynx->client_list_lock, flags);
+
+	list_for_each(pos, &lynx->client_list) {
+		client = list_entry(pos, struct client, link);
+		packet_buffer_put(&client->buffer, &tv.tv_usec, 4);
+	}
+
+	spin_unlock_irqrestore(&lynx->client_list_lock, flags);
+}
+
+
+
+static irqreturn_t
+irq_handler(int irq, void *device)
+{
+	struct pcilynx *lynx = (struct pcilynx *) device;
+	u32 pci_int_status;
+	
+        pci_int_status = reg_read(lynx, PCI_INT_STATUS);
+
+	if ((pci_int_status & PCI_INT_INT_PEND) == 0)
+		/* Not our interrupt, bail out quickly. */
+		return IRQ_NONE;
+
+	if ((pci_int_status & PCI_INT_P1394_INT) != 0) {
+		u32 link_int_status;
+
+		link_int_status = reg_read(lynx, LINK_INT_STATUS);
+		reg_write(lynx, LINK_INT_STATUS, link_int_status);
+
+		if ((link_int_status & LINK_INT_PHY_BUSRESET) > 0)
+			bus_reset_handler(lynx);
+	}
+
+	/* Clear the PCI_INT_STATUS register only after clearing the
+	 * LINK_INT_STATUS register; otherwise the PCI_INT_P1394 will
+	 * be set again immediately. */
+
+	reg_write(lynx, PCI_INT_STATUS, pci_int_status);
+
+	if ((pci_int_status & PCI_INT_DMA0_HLT) > 0) {
+		packet_handler(lynx);
+		run_pcl(lynx, lynx->rcv_start_pcl_bus, 0);
+	}
+
+	return IRQ_HANDLED;
+}
+
+static void
+remove_card(struct pci_dev *dev)
+{
+        struct pcilynx *lynx;
+
+        lynx = pci_get_drvdata(dev);
+        if (!lynx)
+		return;
+        pci_set_drvdata(dev, NULL);
+
+	reg_write(lynx, PCI_INT_ENABLE, 0);
+	free_irq(lynx->pci_device->irq, lynx);
+
+	pci_free_consistent(lynx->pci_device, sizeof (struct pcl), 
+			    lynx->rcv_start_pcl, lynx->rcv_start_pcl_bus);
+	pci_free_consistent(lynx->pci_device, sizeof (struct pcl), 
+			    lynx->rcv_pcl, lynx->rcv_pcl_bus);
+	pci_free_consistent(lynx->pci_device, PAGE_SIZE,
+			    lynx->rcv_buffer, lynx->rcv_buffer_bus);
+
+	iounmap(lynx->registers);
+
+	minors[lynx->misc.minor] = NULL;
+	misc_deregister(&lynx->misc);
+
+	kfree(lynx);
+}
+
+#define RCV_BUFFER_SIZE (16 * 1024)
+
+#define FAIL(s, args...)			\
+	do {					\
+		error(s, ## args);		\
+		return err;			\
+	} while (0)
+
+static int __devinit
+add_card(struct pci_dev *dev, const struct pci_device_id *unused)
+{
+        struct pcilynx *lynx;
+	u32 p, end;
+	int err, i;
+
+        err = -ENXIO;
+
+        if (pci_set_dma_mask(dev, 0xffffffff))
+                FAIL("DMA address limits not supported "
+		     "for PCILynx hardware.\n");
+        if (pci_enable_device(dev))
+                FAIL("Failed to enable PCILynx hardware.\n");
+        pci_set_master(dev);
+
+        err = -ENOMEM;
+
+	lynx = kzalloc(sizeof *lynx, GFP_KERNEL);
+        if (lynx == NULL)
+		FAIL("Failed to allocate control structure memory.\n");
+
+        lynx->pci_device = dev;
+        pci_set_drvdata(dev, lynx);
+
+	spin_lock_init(&lynx->client_list_lock);
+	INIT_LIST_HEAD(&lynx->client_list);
+
+        lynx->registers = ioremap_nocache(pci_resource_start(dev, 0),
+                                          PCILYNX_MAX_REGISTER);
+
+        lynx->rcv_start_pcl = pci_alloc_consistent(lynx->pci_device,
+						   sizeof(struct pcl),
+						   &lynx->rcv_start_pcl_bus);
+        lynx->rcv_pcl = pci_alloc_consistent(lynx->pci_device,
+					     sizeof(struct pcl),
+					     &lynx->rcv_pcl_bus);
+        lynx->rcv_buffer = pci_alloc_consistent(lynx->pci_device, RCV_BUFFER_SIZE,
+						&lynx->rcv_buffer_bus);
+        if (lynx->rcv_start_pcl == NULL ||
+	    lynx->rcv_pcl == NULL ||
+	    lynx->rcv_buffer == NULL)
+		/* FIXME: do proper error handling. */
+                FAIL("Failed to allocate receive buffer.\n");
+
+	lynx->rcv_start_pcl->next = lynx->rcv_pcl_bus;
+        lynx->rcv_pcl->next = PCL_NEXT_INVALID;
+        lynx->rcv_pcl->async_error_next = PCL_NEXT_INVALID;
+
+        lynx->rcv_pcl->buffer[0].control =
+		PCL_CMD_RCV | PCL_BIGENDIAN | 2044;
+        lynx->rcv_pcl->buffer[0].pointer = lynx->rcv_buffer_bus + 4;
+	p = lynx->rcv_buffer_bus + 2048;
+	end = lynx->rcv_buffer_bus + RCV_BUFFER_SIZE;
+	for (i = 1; p < end; i++, p += 2048) {
+		lynx->rcv_pcl->buffer[i].control =
+			PCL_CMD_RCV | PCL_BIGENDIAN | 2048;
+		lynx->rcv_pcl->buffer[i].pointer = p;
+	}
+	lynx->rcv_pcl->buffer[i - 1].control |= PCL_LAST_BUFF;
+
+        reg_set_bits(lynx, MISC_CONTROL, MISC_CONTROL_SWRESET);
+        /* Fix buggy cards with autoboot pin not tied low: */
+        reg_write(lynx, DMA0_CHAN_CTRL, 0);
+        reg_write(lynx, DMA_GLOBAL_REGISTER, 0x00 << 24);
+
+#if 0
+        /* now, looking for PHY register set */
+        if ((get_phy_reg(lynx, 2) & 0xe0) == 0xe0) {
+                lynx->phyic.reg_1394a = 1;
+                PRINT(KERN_INFO, lynx->id,
+                      "found 1394a conform PHY (using extended register set)");
+                lynx->phyic.vendor = get_phy_vendorid(lynx);
+                lynx->phyic.product = get_phy_productid(lynx);
+        } else {
+                lynx->phyic.reg_1394a = 0;
+                PRINT(KERN_INFO, lynx->id, "found old 1394 PHY");
+        }
+#endif
+
+	/* Setup the general receive FIFO max size. */
+	reg_write(lynx, FIFO_SIZES, 255);
+
+        reg_set_bits(lynx, PCI_INT_ENABLE, PCI_INT_DMA_ALL);
+
+        reg_write(lynx, LINK_INT_ENABLE,
+		  LINK_INT_PHY_TIME_OUT | LINK_INT_PHY_REG_RCVD |
+		  LINK_INT_PHY_BUSRESET | LINK_INT_IT_STUCK |
+		  LINK_INT_AT_STUCK | LINK_INT_SNTRJ |
+		  LINK_INT_TC_ERR | LINK_INT_GRF_OVER_FLOW |
+		  LINK_INT_ITF_UNDER_FLOW | LINK_INT_ATF_UNDER_FLOW);
+
+	/* Disable the L flag in self ID packets. */
+	set_phy_reg(lynx, 4, 0);
+
+	/* Put this baby into snoop mode */
+	reg_set_bits(lynx, LINK_CONTROL, LINK_CONTROL_SNOOP_ENABLE);
+
+	run_pcl(lynx, lynx->rcv_start_pcl_bus, 0);
+
+        if (request_irq(dev->irq, irq_handler, IRQF_SHARED, driver_name, lynx))
+		FAIL("Failed to allocate shared interrupt %d.", dev->irq);
+
+	lynx->misc.parent = &dev->dev;
+	lynx->misc.minor = MISC_DYNAMIC_MINOR;
+	lynx->misc.name = "nosy";
+	lynx->misc.fops = &nosy_ops;
+	if (misc_register(&lynx->misc))
+                FAIL("Failed to register misc char device.");
+	minors[lynx->misc.minor] = lynx;
+
+	notify("Initialized PCILynx IEEE1394 card, irq=%d\n", dev->irq);
+
+        return 0;
+}
+
+static struct pci_device_id pci_table[] __devinitdata = {
+	{
+                .vendor =    PCI_VENDOR_ID_TI,
+                .device =    PCI_DEVICE_ID_TI_PCILYNX,
+                .subvendor = PCI_ANY_ID,
+                .subdevice = PCI_ANY_ID,
+	},
+	{ }	/* Terminating entry */
+};
+
+static struct pci_driver lynx_pci_driver = {
+	.name =		(char *) driver_name,
+	.id_table =	pci_table,
+	.probe =	add_card,
+	.remove =	__devexit_p(remove_card),
+};
+
+MODULE_AUTHOR("Kristian Høgsberg");
+MODULE_DESCRIPTION("Snoop mode driver for TI pcilynx 1394 controllers");
+MODULE_LICENSE("GPL");
+MODULE_DEVICE_TABLE(pci, pci_table);
+
+static int __init nosy_init(void)
+{
+ 	/* notify("Loaded %s version %s.\n", driver_name, VERSION); */
+
+        return pci_register_driver(&lynx_pci_driver);
+}
+
+static void __exit nosy_cleanup(void)
+{
+        pci_unregister_driver(&lynx_pci_driver);
+
+	notify("Unloaded %s.\n", driver_name);
+}
+
+
+module_init(nosy_init);
+module_exit(nosy_cleanup);
