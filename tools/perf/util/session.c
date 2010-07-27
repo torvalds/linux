@@ -96,8 +96,6 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->hists_tree = RB_ROOT;
 	self->last_match = NULL;
 	self->mmap_window = 32;
-	self->cwd = NULL;
-	self->cwdlen = 0;
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
@@ -130,7 +128,6 @@ void perf_session__delete(struct perf_session *self)
 {
 	perf_header__exit(&self->header);
 	close(self->fd);
-	free(self->cwd);
 	free(self);
 }
 
@@ -832,23 +829,6 @@ int perf_session__process_events(struct perf_session *self,
 	if (perf_session__register_idle_thread(self) == NULL)
 		return -ENOMEM;
 
-	if (!symbol_conf.full_paths) {
-		char bf[PATH_MAX];
-
-		if (getcwd(bf, sizeof(bf)) == NULL) {
-			err = -errno;
-out_getcwd_err:
-			pr_err("failed to get the current directory\n");
-			goto out_err;
-		}
-		self->cwd = strdup(bf);
-		if (self->cwd == NULL) {
-			err = -ENOMEM;
-			goto out_getcwd_err;
-		}
-		self->cwdlen = strlen(self->cwd);
-	}
-
 	if (!self->fd_pipe)
 		err = __perf_session__process_events(self,
 						     self->header.data_offset,
@@ -856,7 +836,7 @@ out_getcwd_err:
 						     self->size, ops);
 	else
 		err = __perf_session__process_pipe_events(self, ops);
-out_err:
+
 	return err;
 }
 
