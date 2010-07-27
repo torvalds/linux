@@ -158,7 +158,8 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	const struct macvlan_dev *vlan;
 	const struct macvlan_dev *src;
 	struct net_device *dev;
-	unsigned int len;
+	unsigned int len = 0;
+	int ret = NET_RX_DROP;
 
 	port = macvlan_port_get_rcu(skb->dev);
 	if (is_multicast_ether_addr(eth->h_dest)) {
@@ -195,14 +196,16 @@ static struct sk_buff *macvlan_handle_frame(struct sk_buff *skb)
 	}
 	len = skb->len + ETH_HLEN;
 	skb = skb_share_check(skb, GFP_ATOMIC);
-	macvlan_count_rx(vlan, len, skb != NULL, 0);
 	if (!skb)
-		return NULL;
+		goto out;
 
 	skb->dev = dev;
 	skb->pkt_type = PACKET_HOST;
 
-	vlan->receive(skb);
+	ret = vlan->receive(skb);
+
+out:
+	macvlan_count_rx(vlan, len, ret == NET_RX_SUCCESS, 0);
 	return NULL;
 }
 
